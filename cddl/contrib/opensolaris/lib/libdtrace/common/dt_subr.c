@@ -25,7 +25,7 @@
  * Use is subject to license terms.
  */
 
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 #include <sys/isa_defs.h>
@@ -38,7 +38,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #else
 #include <sys/sysctl.h>
@@ -477,7 +477,7 @@ dt_dprintf(const char *format, ...)
 }
 
 int
-#if defined(sun)
+#ifdef illumos
 dt_ioctl(dtrace_hdl_t *dtp, int val, void *arg)
 #else
 dt_ioctl(dtrace_hdl_t *dtp, u_long val, void *arg)
@@ -485,7 +485,7 @@ dt_ioctl(dtrace_hdl_t *dtp, u_long val, void *arg)
 {
 	const dtrace_vector_t *v = dtp->dt_vector;
 
-#if !defined(sun)
+#ifndef illumos
 	/* Avoid sign extension. */
 	val &= 0xffffffff;
 #endif
@@ -506,7 +506,7 @@ dt_status(dtrace_hdl_t *dtp, processorid_t cpu)
 	const dtrace_vector_t *v = dtp->dt_vector;
 
 	if (v == NULL) {
-#if defined(sun)
+#ifdef illumos
 		return (p_online(cpu, P_STATUS));
 #else
 		int maxid = 0;
@@ -583,7 +583,7 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 	va_list ap;
 	int n;
 
-#if !defined(sun)
+#ifndef illumos
 	/*
 	 * On FreeBSD, check if output is currently being re-directed
 	 * to another file. If so, output to that file instead of the
@@ -845,7 +845,7 @@ dt_popcb(const ulong_t *bp, ulong_t n)
 	return (popc + dt_popc(bp[maxw] & ((1UL << maxb) - 1)));
 }
 
-#if defined(sun)
+#ifdef illumos
 struct _rwlock;
 struct _lwp_mutex;
 
@@ -867,7 +867,7 @@ dt_rw_write_held(pthread_rwlock_t *lock)
 int
 dt_mutex_held(pthread_mutex_t *lock)
 {
-#if defined(sun)
+#ifdef illumos
 	extern int _mutex_held(struct _lwp_mutex *);
 	return (_mutex_held((struct _lwp_mutex *)lock));
 #else

@@ -30,7 +30,9 @@ Revision History
 
 typedef UINT16          CHAR16;
 typedef UINT8           CHAR8;
+#ifndef ACPI_THREAD_ID		/* ACPI's definitions are fine */
 typedef UINT8           BOOLEAN;
+#endif
 
 #ifndef TRUE
     #define TRUE    ((BOOLEAN) 1)

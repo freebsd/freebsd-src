@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pc/bios.h>
 #include <machine/smp.h>
 #include <machine/intr_machdep.h>
+#include <machine/metadata.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
@@ -382,15 +383,44 @@ xen_pv_parse_symtab(void)
 static caddr_t
 xen_pv_parse_preload_data(u_int64_t modulep)
 {
-	/* Parse the extra boot information given by Xen */
-	xen_pv_set_env();
-	xen_pv_set_boothowto();
+	caddr_t		 kmdp;
+	vm_ooffset_t	 off;
+	vm_paddr_t	 metadata;
+
+	if (HYPERVISOR_start_info->mod_start != 0) {
+		preload_metadata = (caddr_t)(HYPERVISOR_start_info->mod_start);
+
+		kmdp = preload_search_by_type("elf kernel");
+		if (kmdp == NULL)
+			kmdp = preload_search_by_type("elf64 kernel");
+		KASSERT(kmdp != NULL, ("unable to find kernel"));
+
+		/*
+		 * Xen has relocated the metadata and the modules,
+		 * so we need to recalculate it's position. This is
+		 * done by saving the original modulep address and
+		 * then calculating the offset with mod_start,
+		 * which contains the relocated modulep address.
+		 */
+		metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
+		off = HYPERVISOR_start_info->mod_start - metadata;
+
+		preload_bootstrap_relocate(off);
+
+		boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+		kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+		kern_envp += off;
+	} else {
+		/* Parse the extra boot information given by Xen */
+		xen_pv_set_env();
+		xen_pv_set_boothowto();
+		kmdp = NULL;
+	}
 
 #ifdef DDB
 	xen_pv_parse_symtab();
 #endif
-
-	return (NULL);
+	return (kmdp);
 }
 
 static void

@@ -24,15 +24,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_sym.c 2272 2011-12-03 17:07:31Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_sym.c 3177 2015-03-30 18:19:41Z emaste $");
 
 GElf_Sym *
 gelf_getsym(Elf_Data *ed, int ndx, GElf_Sym *dst)
@@ -71,25 +70,23 @@ gelf_getsym(Elf_Data *ed, int ndx, GElf_Sym *dst)
 	msz = _libelf_msize(ELF_T_SYM, ec, e->e_version);
 
 	assert(msz > 0);
+	assert(ndx >= 0);
 
-	if (msz * ndx >= d->d_data.d_size) {
+	if (msz * (size_t) ndx >= d->d_data.d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (NULL);
 	}
 
 	if (ec == ELFCLASS32) {
-
 		sym32 = (Elf32_Sym *) d->d_data.d_buf + ndx;
 
 		dst->st_name  = sym32->st_name;
 		dst->st_value = (Elf64_Addr) sym32->st_value;
 		dst->st_size  = (Elf64_Xword) sym32->st_size;
-		dst->st_info  = ELF64_ST_INFO(ELF32_ST_BIND(sym32->st_info),
-		    ELF32_ST_TYPE(sym32->st_info));
+		dst->st_info  = sym32->st_info;
 		dst->st_other = sym32->st_other;
 		dst->st_shndx = sym32->st_shndx;
 	} else {
-
 		sym64 = (Elf64_Sym *) d->d_data.d_buf + ndx;
 
 		*dst = *sym64;
@@ -133,9 +130,11 @@ gelf_update_sym(Elf_Data *ed, int ndx, GElf_Sym *gs)
 	}
 
 	msz = _libelf_msize(ELF_T_SYM, ec, e->e_version);
-	assert(msz > 0);
 
-	if (msz * ndx >= d->d_data.d_size) {
+	assert(msz > 0);
+	assert(ndx >= 0);
+
+	if (msz * (size_t) ndx >= d->d_data.d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (0);
 	}

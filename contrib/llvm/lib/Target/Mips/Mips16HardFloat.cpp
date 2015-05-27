@@ -11,13 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mips16-hard-float"
 #include "Mips16HardFloat.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <string>
+
+#define DEBUG_TYPE "mips16-hard-float"
 
 static void inlineAsmOut
   (LLVMContext &C, StringRef AsmString, BasicBlock *BB ) {
@@ -167,6 +169,11 @@ static bool needsFPReturnHelper(Function &F) {
   return whichFPReturnVariant(RetType) != NoFPRet;
 }
 
+static bool needsFPReturnHelper(const FunctionType &FT) {
+  Type* RetType = FT.getReturnType();
+  return whichFPReturnVariant(RetType) != NoFPRet;
+}
+
 static bool needsFPHelperFromSig(Function &F) {
   return needsFPStubFromParams(F) || needsFPReturnHelper(F);
 }
@@ -239,13 +246,13 @@ static void swapFPIntParams
 // Make sure that we know we already need a stub for this function.
 // Having called needsFPHelperFromSig
 //
-static void assureFPCallStub(Function &F, Module *M,  
-                             const MipsSubtarget &Subtarget){
+static void assureFPCallStub(Function &F, Module *M,
+                             const MipsTargetMachine &TM) {
   // for now we only need them for static relocation
-  if (Subtarget.getRelocationModel() == Reloc::PIC_)
+  if (TM.getRelocationModel() == Reloc::PIC_)
     return;
   LLVMContext &Context = M->getContext();
-  bool LE = Subtarget.isLittle();
+  bool LE = TM.isLittleEndian();
   std::string Name = F.getName();
   std::string SectionName = ".mips16.call.fp." + Name;
   std::string StubName = "__call_stub_fp_" + Name;
@@ -348,16 +355,15 @@ static const char *IntrinsicInline[] =
   };
 
 static bool isIntrinsicInline(Function *F) {
-  return std::binary_search(
-    IntrinsicInline, array_endof(IntrinsicInline),
-    F->getName());
+  return std::binary_search(std::begin(IntrinsicInline),
+                            std::end(IntrinsicInline), F->getName());
 }
 //
 // Returns of float, double and complex need to be handled with a helper
 // function.
 //
-static bool fixupFPReturnAndCall
-  (Function &F, Module *M,  const MipsSubtarget &Subtarget) {
+static bool fixupFPReturnAndCall(Function &F, Module *M,
+                                 const MipsTargetMachine &TM) {
   bool Modified = false;
   LLVMContext &C = M->getContext();
   Type *MyVoid = Type::getVoidTy(C);
@@ -397,16 +403,34 @@ static bool fixupFPReturnAndCall
                            Attribute::ReadNone);
         A = A.addAttribute(C, AttributeSet::FunctionIndex,
                            Attribute::NoInline);
-        Value *F = (M->getOrInsertFunction(Name, A, MyVoid, T, NULL));
+        Value *F = (M->getOrInsertFunction(Name, A, MyVoid, T, nullptr));
         CallInst::Create(F, Params, "", &Inst );
       } else if (const CallInst *CI = dyn_cast<CallInst>(I)) {
+          const Value* V = CI->getCalledValue();
+          const Type* T = nullptr;
+          if (V) T = V->getType();
+          const PointerType *PFT=nullptr;
+          if (T) PFT = dyn_cast<PointerType>(T);
+          const FunctionType *FT=nullptr;
+          if (PFT) FT = dyn_cast<FunctionType>(PFT->getElementType());
+          Function *F_ =  CI->getCalledFunction();
+          if (FT && needsFPReturnHelper(*FT) &&
+              !(F_ && isIntrinsicInline(F_))) {
+            Modified=true;
+            F.addFnAttr("saveS2");
+          }
+          if (F_ && !isIntrinsicInline(F_)) {
           // pic mode calls are handled by already defined
           // helper functions
-          if (Subtarget.getRelocationModel() != Reloc::PIC_ ) {
-            Function *F_ =  CI->getCalledFunction();
-            if (F_ && !isIntrinsicInline(F_) && needsFPHelperFromSig(*F_)) {
-              assureFPCallStub(*F_, M, Subtarget);
+            if (needsFPReturnHelper(*F_)) {
               Modified=true;
+              F.addFnAttr("saveS2");
+            }
+            if (TM.getRelocationModel() != Reloc::PIC_ ) {
+              if (needsFPHelperFromSig(*F_)) {
+                assureFPCallStub(*F_, M, TM);
+                Modified=true;
+              }
             }
           }
       }
@@ -415,9 +439,9 @@ static bool fixupFPReturnAndCall
 }
 
 static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
-                  const MipsSubtarget &Subtarget ) {
-  bool PicMode = Subtarget.getRelocationModel() == Reloc::PIC_;
-  bool LE = Subtarget.isLittle();
+                           const MipsTargetMachine &TM) {
+  bool PicMode = TM.getRelocationModel() == Reloc::PIC_;
+  bool LE = TM.isLittleEndian();
   LLVMContext &Context = M->getContext();
   std::string Name = F->getName();
   std::string SectionName = ".mips16.fn." + Name;
@@ -434,7 +458,6 @@ static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
   FStub->setSection(SectionName);
   BasicBlock *BB = BasicBlock::Create(Context, "entry", FStub);
   InlineAsmHelper IAH(Context, BB);
-  IAH.Out(" .set  macro");
   if (PicMode) {
     IAH.Out(".set noreorder");
     IAH.Out(".cpload  $$25");
@@ -443,7 +466,6 @@ static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
     IAH.Out("la $$25," + LocalName);
   }
   else {
-    IAH.Out(".set reorder");
     IAH.Out("la $$25," + Name);
   }
   swapFPIntParams(PV, M, IAH, LE, false);
@@ -476,8 +498,9 @@ namespace llvm {
 // declared via attributes as nomips16, we must:
 //    1) fixup all returns of float, double, single and double complex
 //       by calling a helper function before the actual return.
-//    2) generate helper functions (stubs) that can be called by mips32 functions
-//       that will move parameters passed normally passed in floating point
+//    2) generate helper functions (stubs) that can be called by mips32
+//       functions that will move parameters passed normally passed in
+//       floating point
 //       registers the soft float equivalents.
 //    3) in the case of static relocation, generate helper functions so that
 //       mips16 functions can call extern functions of unknown type (mips16 or
@@ -497,11 +520,11 @@ bool Mips16HardFloat::runOnModule(Module &M) {
     }
     if (F->isDeclaration() || F->hasFnAttribute("mips16_fp_stub") ||
         F->hasFnAttribute("nomips16")) continue;
-    Modified |= fixupFPReturnAndCall(*F, &M, Subtarget);
+    Modified |= fixupFPReturnAndCall(*F, &M, TM);
     FPParamVariant V = whichFPParamVariantNeeded(*F);
     if (V != NoSig) {
       Modified = true;
-      createFPFnStub(F, &M, V, Subtarget);
+      createFPFnStub(F, &M, V, TM);
     }
   }
   return Modified;

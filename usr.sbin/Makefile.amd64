@@ -10,9 +10,11 @@ SUBDIR+=	acpi
 SUBDIR+=	apm
 .endif
 SUBDIR+=	asf
+.if ${MK_BHYVE} != "no"
 SUBDIR+=	bhyve
 SUBDIR+=	bhyvectl
 SUBDIR+=	bhyveload
+.endif
 SUBDIR+=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	btxld

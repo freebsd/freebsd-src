@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 
 static void bcm_bsc_intr(void *);
+static int bcm_bsc_detach(device_t);
 
 static void
 bcm_bsc_modifyreg(struct bcm_bsc_softc *sc, uint32_t off, uint32_t mask,
@@ -72,10 +73,8 @@ bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_bsc_softc *sc;
 	uint32_t clk;
-	int error;
 
 	sc = (struct bcm_bsc_softc *)arg1;
-
 	BCM_BSC_LOCK(sc);
 	clk = BCM_BSC_READ(sc, BCM_BSC_CLOCK);
 	BCM_BSC_UNLOCK(sc);
@@ -83,20 +82,8 @@ bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
 	if (clk == 0)
 		clk = 32768;
 	clk = BCM_BSC_CORE_CLK / clk;
-	error = sysctl_handle_int(oidp, &clk, sizeof(clk), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
 
-	clk = BCM_BSC_CORE_CLK / clk;
-	if (clk % 2)
-		clk--;
-	if (clk > 0xffff)
-		clk = 0xffff;
-	BCM_BSC_LOCK(sc);
-	BCM_BSC_WRITE(sc, BCM_BSC_CLOCK, clk);
-	BCM_BSC_UNLOCK(sc);
-
-	return (0);
+	return (sysctl_handle_int(oidp, &clk, 0, req));
 }
 
 static int
@@ -192,7 +179,7 @@ bcm_bsc_sysctl_init(struct bcm_bsc_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
-	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock",
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "frequency",
 	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
 	    bcm_bsc_clock_proc, "IU", "I2C BUS clock frequency");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock_stretch",
@@ -260,11 +247,12 @@ bcm_bsc_attach(device_t dev)
 	/* Check the unit we are attaching by its base address. */
 	start = rman_get_start(sc->sc_mem_res);
 	for (i = 0; i < nitems(bcm_bsc_pins); i++) {
-		if (bcm_bsc_pins[i].start == start)
+		if (bcm_bsc_pins[i].start == (start & BCM_BSC_BASE_MASK))
 			break;
 	}
 	if (i == nitems(bcm_bsc_pins)) {
 		device_printf(dev, "only bsc0 and bsc1 are supported\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		return (ENXIO);
 	}
 
@@ -275,6 +263,7 @@ bcm_bsc_attach(device_t dev)
 	gpio = devclass_get_device(devclass_find("gpio"), 0);
 	if (!gpio) {
 		device_printf(dev, "cannot find gpio0\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		return (ENXIO);
 	}
 	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[i].sda, BCM_GPIO_ALT0);
@@ -307,7 +296,11 @@ bcm_bsc_attach(device_t dev)
 	bcm_bsc_reset(sc);
 	BCM_BSC_UNLOCK(sc);
 
-	device_add_child(dev, "iicbus", -1);
+	sc->sc_iicbus = device_add_child(dev, "iicbus", -1);
+	if (sc->sc_iicbus == NULL) {
+		bcm_bsc_detach(dev);
+		return (ENXIO);
+	}
 
 	return (bus_generic_attach(dev));
 }
@@ -462,29 +455,16 @@ static int
 bcm_bsc_iicbus_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct bcm_bsc_softc *sc;
-	uint32_t freq;
-        
+	uint32_t busfreq;
+
 	sc = device_get_softc(dev);
 	BCM_BSC_LOCK(sc);
 	bcm_bsc_reset(sc);
-	freq = 0;
-	switch (speed) {
-	case IIC_SLOW:
-		freq = BCM_BSC_SLOW;
-		break;
-	case IIC_FAST:
-		freq = BCM_BSC_FAST;
-		break;
-	case IIC_FASTEST:
-		freq = BCM_BSC_FASTEST;
-		break;
-	case IIC_UNKNOWN:
-	default:
-		/* Reuse last frequency. */
-		break;
-	}
-	if (freq != 0)
-		BCM_BSC_WRITE(sc, BCM_BSC_CLOCK, BCM_BSC_CORE_CLK / freq);
+	if (sc->sc_iicbus == NULL)
+		busfreq = 100000;
+	else
+		busfreq = IICBUS_GET_FREQUENCY(sc->sc_iicbus, speed);
+	BCM_BSC_WRITE(sc, BCM_BSC_CLOCK, BCM_BSC_CORE_CLK / busfreq);
 	BCM_BSC_UNLOCK(sc);
 
 	return (IIC_ENOADDR);

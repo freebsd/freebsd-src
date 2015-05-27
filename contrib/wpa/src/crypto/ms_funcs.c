@@ -58,6 +58,7 @@ static int utf8_to_ucs2(const u8 *utf8_string, size_t utf8_string_len,
 				WPA_PUT_LE16(ucs2_buffer + j,
 					     ((c & 0xF) << 12) |
 					     ((c2 & 0x3F) << 6) | (c3 & 0x3F));
+				j += 2;
 			}
 		}
 	}

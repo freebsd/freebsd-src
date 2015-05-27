@@ -39,62 +39,38 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#include <machine/dump.h>
+#include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/kerneldump.h>
 #include <machine/ofw_mem.h>
 #include <machine/tsb.h>
 #include <machine/tlb.h>
 
-CTASSERT(sizeof(struct kerneldumpheader) == DEV_BSIZE);
+static off_t fileofs;
 
-static struct kerneldumpheader kdh;
-static off_t dumplo, dumppos;
+extern off_t dumplo;
+extern struct dump_pa dump_map[DUMPSYS_MD_PA_NPAIRS];
 
-/* Handle buffered writes. */
-static char buffer[DEV_BSIZE];
-static vm_size_t fragsz;
+int do_minidump = 0;
 
-#define	MAXDUMPSZ	(MAXDUMPPGS << PAGE_SHIFT)
-
-static int
-buf_write(struct dumperinfo *di, char *ptr, size_t sz)
+void
+dumpsys_pa_init(void)
 {
-	size_t len;
-	int error;
+	int i;
 
-	while (sz) {
-		len = DEV_BSIZE - fragsz;
-		if (len > sz)
-			len = sz;
-		bcopy(ptr, buffer + fragsz, len);
-		fragsz += len;
-		ptr += len;
-		sz -= len;
-		if (fragsz == DEV_BSIZE) {
-			error = dump_write(di, buffer, 0, dumplo,
-			    DEV_BSIZE);
-			if (error)
-				return error;
-			dumplo += DEV_BSIZE;
-			fragsz = 0;
-		}
+	memset(dump_map, 0, sizeof(dump_map));
+	for (i = 0; i < sparc64_nmemreg; i++) {
+		dump_map[i].pa_start = sparc64_memreg[i].mr_start;
+		dump_map[i].pa_size = sparc64_memreg[i].mr_size;
 	}
-
-	return (0);
 }
 
-static int
-buf_flush(struct dumperinfo *di)
+void
+dumpsys_map_chunk(vm_paddr_t pa, size_t chunk __unused, void **va)
 {
-	int error;
 
-	if (fragsz == 0)
-		return (0);
-
-	error = dump_write(di, buffer, 0, dumplo, DEV_BSIZE);
-	dumplo += DEV_BSIZE;
-	fragsz = 0;
-	return (error);
+	*va = (void *)TLB_PHYS_TO_DIRECT(pa);
 }
 
 static int
@@ -104,47 +80,16 @@ reg_write(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
 
 	r.dr_pa = pa;
 	r.dr_size = size;
-	r.dr_offs = dumppos;
-	dumppos += size;
-	return (buf_write(di, (char *)&r, sizeof(r)));
-}
-
-static int
-blk_dump(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
-{
-	vm_size_t pos, rsz;
-	vm_offset_t va;
-	int c, counter, error, twiddle;
-
-	printf("  chunk at %#lx: %ld bytes ", (u_long)pa, (long)size);
-
-	va = 0L;
-	error = counter = twiddle = 0;
-	for (pos = 0; pos < size; pos += MAXDUMPSZ, counter++) {
-		if (counter % 128 == 0)
-			printf("%c\b", "|/-\\"[twiddle++ & 3]);
-		rsz = size - pos;
-		rsz = (rsz > MAXDUMPSZ) ? MAXDUMPSZ : rsz;
-		va = TLB_PHYS_TO_DIRECT(pa + pos);
-		error = dump_write(di, (void *)va, 0, dumplo, rsz);
-		if (error)
-			break;
-		dumplo += rsz;
-
-		/* Check for user abort. */
-		c = cncheckc();
-		if (c == 0x03)
-			return (ECANCELED);
-		if (c != -1)
-			printf("(CTRL-C to abort)  ");
-	}
-	printf("... %s\n", (error) ? "fail" : "ok");
-	return (error);
+	r.dr_offs = fileofs;
+	fileofs += size;
+	return (dumpsys_buf_write(di, (char *)&r, sizeof(r)));
 }
 
 int
 dumpsys(struct dumperinfo *di)
 {
+	static struct kerneldumpheader kdh;
+
 	struct sparc64_dump_hdr hdr;
 	vm_size_t size, totsize, hdrsize;
 	int error, i, nreg;
@@ -189,10 +134,10 @@ dumpsys(struct dumperinfo *di)
 	hdr.dh_tsb_mask = tsb_kernel_mask;
 	hdr.dh_nregions = nreg;
 
-	if (buf_write(di, (char *)&hdr, sizeof(hdr)) != 0)
+	if (dumpsys_buf_write(di, (char *)&hdr, sizeof(hdr)) != 0)
 		goto fail;
 
-	dumppos = hdrsize;
+	fileofs = hdrsize;
 	/* Now, write out the region descriptors. */
 	for (i = 0; i < sparc64_nmemreg; i++) {
 		error = reg_write(di, sparc64_memreg[i].mr_start,
@@ -200,15 +145,12 @@ dumpsys(struct dumperinfo *di)
 		if (error != 0)
 			goto fail;
 	}
-	buf_flush(di);
+	dumpsys_buf_flush(di);
 
 	/* Dump memory chunks. */
-	for (i = 0; i < sparc64_nmemreg; i++) {
-		error = blk_dump(di, sparc64_memreg[i].mr_start,
-		    sparc64_memreg[i].mr_size);
-		if (error != 0)
-			goto fail;
-	}
+	error = dumpsys_foreach_chunk(dumpsys_cb_dumpdata, di);
+	if (error < 0)
+		goto fail;
 
 	/* Dump trailer */
 	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
@@ -221,6 +163,9 @@ dumpsys(struct dumperinfo *di)
 	return (0);
 
  fail:
+	if (error < 0)
+		error = -error;
+
 	/* XXX It should look more like VMS :-) */
 	printf("** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);

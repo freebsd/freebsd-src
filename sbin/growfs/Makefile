@@ -4,8 +4,6 @@
 # $FreeBSD$
 #
 
-#GFSDBG=
-
 .include <src.opts.mk>
 
 .PATH:	${.CURDIR}/../mount
@@ -16,14 +14,15 @@ MAN=	growfs.8
 CFLAGS+=-I${.CURDIR}/../mount
 
 .if defined(GFSDBG)
-SRCS+=  debug.c
+SRCS+=	debug.c
+CFLAGS+= -DFS_DEBUG
+NO_WCAST_ALIGN= yes
 .endif  
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=    tests
 .endif
 
-.include <bsd.prog.mk>      
+.include <bsd.prog.mk>

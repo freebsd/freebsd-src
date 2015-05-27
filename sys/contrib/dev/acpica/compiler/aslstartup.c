@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,6 +88,7 @@ AslInitializeGlobals (
 
     /* Init compiler globals */
 
+    Gbl_SyntaxError = 0;
     Gbl_CurrentColumn = 0;
     Gbl_CurrentLineNumber = 1;
     Gbl_LogicalLineNumber = 1;
@@ -158,10 +159,10 @@ AslDetectSourceFileType (
 
     /* Check for 100% ASCII source file (comments are ignored) */
 
-    Status = FlCheckForAscii (Info->Handle, Info->Filename, TRUE);
+    Status = FlCheckForAscii (Info->Filename, TRUE);
     if (ACPI_FAILURE (Status))
     {
-        printf ("Non-ascii input file - %s\n", Info->Filename);
+        printf ("Invalid characters in input file - %s\n", Info->Filename);
 
         if (!Gbl_IgnoreErrors)
         {
@@ -247,7 +248,7 @@ AslDoDisassembly (
 
     /* This is where the disassembly happens */
 
-    AcpiGbl_DbOpt_disasm = TRUE;
+    AcpiGbl_DbOpt_Disasm = TRUE;
     Status = AdAmlDisassemble (AslToFile,
         Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_OutputFilenamePrefix,
         &Gbl_Files[ASL_FILE_INPUT].Filename);

@@ -129,9 +129,14 @@ amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
+aesni_ghash.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ghash.o"
 aesni_wrap.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
@@ -140,6 +145,7 @@ crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
+dev/acpica/acpi_hpet.c		optional acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
@@ -336,6 +342,8 @@ dev/viawd/viawd.c		optional	viawd
 dev/vmware/vmxnet3/if_vmx.c	optional	vmx
 dev/wbwd/wbwd.c			optional	wbwd
 dev/wpi/if_wpi.c		optional	wpi
+dev/xen/pci/xen_acpi_pci.c	optional	xenhvm
+dev/xen/pci/xen_pci.c		optional	xenhvm
 dev/isci/isci.c							optional isci
 dev/isci/isci_controller.c					optional isci
 dev/isci/isci_domain.c						optional isci
@@ -445,17 +453,6 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
-dev/virtio/virtio.c			optional	virtio
-dev/virtio/virtqueue.c			optional	virtio
-dev/virtio/virtio_bus_if.m		optional	virtio
-dev/virtio/virtio_if.m			optional	virtio
-dev/virtio/pci/virtio_pci.c		optional	virtio_pci
-dev/virtio/network/if_vtnet.c		optional	vtnet
-dev/virtio/block/virtio_blk.c		optional	virtio_blk
-dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
-dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
-dev/virtio/random/virtio_random.c	optional	virtio_random
-dev/virtio/console/virtio_console.c	optional	virtio_console
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
@@ -517,10 +514,10 @@ compat/ndis/winx64_wrap.S	optional	ndisapi pci
 libkern/memmove.c		standard
 libkern/memset.c		standard
 #
-# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+# x86 real mode BIOS emulator, required by dpms/pci/vesa
 #
-compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
+contrib/x86emu/x86emu.c		optional x86bios | dpms | pci | vesa
 #
 # bvm console
 #
@@ -546,6 +543,7 @@ x86/iommu/intel_drv.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_fault.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_gas.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_idpgtbl.c	optional	acpi acpi_dmar pci
+x86/iommu/intel_intrmap.c	optional	acpi acpi_dmar pci
 x86/iommu/intel_qi.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_quirks.c	optional	acpi acpi_dmar pci
 x86/iommu/intel_utils.c		optional	acpi acpi_dmar pci
@@ -561,6 +559,7 @@ x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
+x86/x86/cpu_machdep.c		standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional	fdt
 x86/x86/identcpu.c		standard
@@ -571,16 +570,18 @@ x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional	mptable
 x86/x86/mptable_pci.c		optional	mptable pci
+x86/x86/mp_x86.c		optional	smp
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
+x86/x86/pvclock.c		standard
 x86/x86/tsc.c			standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
-x86/xen/xen_intr.c		optional	xen | xenhvm
+x86/xen/xen_intr.c		optional	xenhvm
 x86/xen/pv.c			optional	xenhvm
 x86/xen/pvcpu_enum.c		optional	xenhvm
 x86/xen/xen_apic.c		optional	xenhvm
 x86/xen/xenpv.c			optional	xenhvm
 x86/xen/xen_nexus.c		optional	xenhvm
 x86/xen/xen_msi.c		optional	xenhvm
-x86/xen/xen_pci.c		optional	xenhvm
+x86/xen/xen_pci_bus.c		optional	xenhvm

@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"IMX53"
+include 	"IMX53"
 ident		IMX53-QSB
 
 options 	HZ=250			# 4ms scheduling quantum
@@ -34,5 +34,5 @@ options 	HZ=250			# 4ms scheduling quantum
 #options 	ROOTDEVNAME=\"ufs:ada0s2a\"
 
 # Flattened Device Tree
-options         FDT_DTB_STATIC
-makeoptions     FDT_DTS_FILE=imx53-qsb.dts
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=imx53-qsb.dts

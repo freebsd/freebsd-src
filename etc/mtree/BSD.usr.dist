@@ -7,12 +7,26 @@
 .
     bin
     ..
-    games
-    ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
+        ..
+        clang
+            3.6.0
+                include
+                ..
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -24,15 +38,11 @@
         ..
         i18n
         ..
-        private
-        ..
     ..
     lib32
         dtrace
         ..
         i18n
-        ..
-        private
         ..
     ..
     libdata
@@ -126,6 +136,8 @@
     sbin
     ..
     share
+        atf
+        ..
         bsdconfig
             media
             ..
@@ -169,6 +181,8 @@
         doc
             IPv6
             ..
+            atf
+            ..
             atm
             ..
             legal
@@ -186,8 +200,24 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
+            ..
+            pjdfstest
             ..
             psd
                 01.cacm
@@ -263,14 +293,6 @@
                 06.bc
                 ..
                 07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
                 ..
                 18.msdiffs
                 ..
@@ -400,6 +422,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games

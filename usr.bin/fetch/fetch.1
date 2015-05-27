@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2014
+.Dd March 25, 2015
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -39,7 +39,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 146AadFlMmnPpqRrsUv
-.Op Fl -allow-sslv2
 .Op Fl B Ar bytes
 .Op Fl -bind-address= Ns Ar host
 .Op Fl -ca-cert= Ns Ar file
@@ -113,9 +112,6 @@ Some broken Web sites will return a redirect instead of a not-found
 error when the requested object does not exist.
 .It Fl a , -retry
 Automatically retry the transfer upon soft failures.
-.It Fl -allow-sslv2
-[SSL]
-Allow SSL version 2 when negotiating the connection.
 .It Fl B Ar bytes , Fl -buffer-size= Ns Ar bytes
 Specify the read buffer size in bytes.
 The default is 16,384 bytes.
@@ -350,7 +346,6 @@ for a description of additional environment variables, including
 .Ev NETRC ,
 .Ev NO_PROXY ,
 .Ev no_proxy ,
-.Ev SSL_ALLOW_SSL2 ,
 .Ev SSL_CA_CERT_FILE ,
 .Ev SSL_CA_CERT_PATH ,
 .Ev SSL_CLIENT_CERT_FILE ,

@@ -169,7 +169,7 @@ struct DWARFMappedHash
                 {
                     if (return_implementation_only_if_available)
                     {
-                        // We found the one true definiton for this class, so
+                        // We found the one true definition for this class, so
                         // only return that
                         die_offsets.clear();                        
                         die_offsets.push_back (die_info_array[i].offset);
@@ -388,7 +388,7 @@ struct DWARFMappedHash
         }
         
         size_t
-        GetMinumumHashDataByteSize () const
+        GetMinimumHashDataByteSize () const
         {
             return min_hash_data_byte_size;
         }
@@ -442,9 +442,9 @@ struct DWARFMappedHash
             
             for (size_t i=0; i<num_atoms; ++i)
             {
-                DWARFFormValue form_value (header_data.atoms[i].form);
+                DWARFFormValue form_value (NULL, header_data.atoms[i].form);
                 
-                if (!form_value.ExtractValue(data, offset_ptr, NULL))
+                if (!form_value.ExtractValue(data, offset_ptr))
                     return false;
                 
                 switch (header_data.atoms[i].type)
@@ -465,7 +465,7 @@ struct DWARFMappedHash
                         break;
 
                     default:
-                        // We can always skip atomes we don't know about
+                        // We can always skip atoms we don't know about
                         break;
                 }
             }
@@ -481,7 +481,7 @@ struct DWARFMappedHash
                 if (i > 0)
                     strm.PutCString (", ");
                 
-                DWARFFormValue form_value (header_data.atoms[i].form);
+                DWARFFormValue form_value (NULL, header_data.atoms[i].form);
                 switch (header_data.atoms[i].type)
                 {
                     case eAtomTypeDIEOffset:    // DIE offset, check form for encoding
@@ -651,11 +651,11 @@ struct DWARFMappedHash
             }
 
             const uint32_t count = m_data.GetU32 (hash_data_offset_ptr);
-            const size_t min_total_hash_data_size = count * m_header.header_data.GetMinumumHashDataByteSize();
+            const size_t min_total_hash_data_size = count * m_header.header_data.GetMinimumHashDataByteSize();
             if (count > 0 && m_data.ValidOffsetForDataOfSize (*hash_data_offset_ptr, min_total_hash_data_size))
             {
                 // We have at least one HashData entry, and we have enough
-                // data to parse at leats "count" HashData enties.
+                // data to parse at least "count" HashData entries.
                 
                 // First make sure the entire C string matches...
                 const bool match = strcmp (name, strp_cstr) == 0;
@@ -678,7 +678,7 @@ struct DWARFMappedHash
                         DIEInfo die_info;
                         if (m_header.Read(m_data, hash_data_offset_ptr, die_info))
                         {
-                            // Only happend the HashData if the string matched...
+                            // Only happened if the HashData of the string matched...
                             if (match)
                                 pair.value.push_back (die_info);
                         }
@@ -724,7 +724,7 @@ struct DWARFMappedHash
                 return eResultError;
             
             const uint32_t count = m_data.GetU32 (hash_data_offset_ptr);
-            const size_t min_total_hash_data_size = count * m_header.header_data.GetMinumumHashDataByteSize();
+            const size_t min_total_hash_data_size = count * m_header.header_data.GetMinimumHashDataByteSize();
             if (count > 0 && m_data.ValidOffsetForDataOfSize (*hash_data_offset_ptr, min_total_hash_data_size))
             {
                 const bool match = regex.Execute(strp_cstr);
@@ -747,7 +747,7 @@ struct DWARFMappedHash
                         DIEInfo die_info;
                         if (m_header.Read(m_data, hash_data_offset_ptr, die_info))
                         {
-                            // Only happend the HashData if the string matched...
+                            // Only happened if the HashData of the string matched...
                             if (match)
                                 pair.value.push_back (die_info);
                         }

@@ -33,15 +33,37 @@ class GlobalAlias : public GlobalValue, public ilist_node<GlobalAlias> {
 
   void setParent(Module *parent);
 
+  GlobalAlias(Type *Ty, unsigned AddressSpace, LinkageTypes Linkage,
+              const Twine &Name, Constant *Aliasee, Module *Parent);
+
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
     return User::operator new(s, 1);
   }
-  /// GlobalAlias ctor - If a parent module is specified, the alias is
-  /// automatically inserted into the end of the specified module's alias list.
-  GlobalAlias(Type *Ty, LinkageTypes Linkage, const Twine &Name = "",
-              Constant* Aliasee = 0, Module *Parent = 0);
+
+  /// If a parent module is specified, the alias is automatically inserted into
+  /// the end of the specified module's alias list.
+  static GlobalAlias *create(Type *Ty, unsigned AddressSpace,
+                             LinkageTypes Linkage, const Twine &Name,
+                             Constant *Aliasee, Module *Parent);
+
+  // Without the Aliasee.
+  static GlobalAlias *create(Type *Ty, unsigned AddressSpace,
+                             LinkageTypes Linkage, const Twine &Name,
+                             Module *Parent);
+
+  // The module is taken from the Aliasee.
+  static GlobalAlias *create(Type *Ty, unsigned AddressSpace,
+                             LinkageTypes Linkage, const Twine &Name,
+                             GlobalValue *Aliasee);
+
+  // Type, Parent and AddressSpace taken from the Aliasee.
+  static GlobalAlias *create(LinkageTypes Linkage, const Twine &Name,
+                             GlobalValue *Aliasee);
+
+  // Linkage, Type, Parent and AddressSpace taken from the Aliasee.
+  static GlobalAlias *create(const Twine &Name, GlobalValue *Aliasee);
 
   /// Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
@@ -49,36 +71,35 @@ public:
   /// removeFromParent - This method unlinks 'this' from the containing module,
   /// but does not delete it.
   ///
-  virtual void removeFromParent();
+  void removeFromParent() override;
 
   /// eraseFromParent - This method unlinks 'this' from the containing module
   /// and deletes it.
   ///
-  virtual void eraseFromParent();
+  void eraseFromParent() override;
 
-  /// set/getAliasee - These methods retrive and set alias target.
-  void setAliasee(Constant *GV);
+  /// These methods retrive and set alias target.
+  void setAliasee(Constant *Aliasee);
   const Constant *getAliasee() const {
-    return getOperand(0);
+    return const_cast<GlobalAlias *>(this)->getAliasee();
   }
   Constant *getAliasee() {
     return getOperand(0);
   }
-  /// getAliasedGlobal() - Aliasee can be either global or bitcast of
-  /// global. This method retrives the global for both aliasee flavours.
-  GlobalValue *getAliasedGlobal();
-  const GlobalValue *getAliasedGlobal() const {
-    return const_cast<GlobalAlias *>(this)->getAliasedGlobal();
+
+  const GlobalObject *getBaseObject() const {
+    return const_cast<GlobalAlias *>(this)->getBaseObject();
+  }
+  GlobalObject *getBaseObject() {
+    return dyn_cast<GlobalObject>(getAliasee()->stripInBoundsOffsets());
   }
 
-  /// resolveAliasedGlobal() - This method tries to ultimately resolve the alias
-  /// by going through the aliasing chain and trying to find the very last
-  /// global. Returns NULL if a cycle was found. If stopOnWeak is false, then
-  /// the whole chain aliasing chain is traversed, otherwise - only strong
-  /// aliases.
-  GlobalValue *resolveAliasedGlobal(bool stopOnWeak = true);
-  const GlobalValue *resolveAliasedGlobal(bool stopOnWeak = true) const {
-    return const_cast<GlobalAlias *>(this)->resolveAliasedGlobal(stopOnWeak);
+  const GlobalObject *getBaseObject(const DataLayout &DL, APInt &Offset) const {
+    return const_cast<GlobalAlias *>(this)->getBaseObject(DL, Offset);
+  }
+  GlobalObject *getBaseObject(const DataLayout &DL, APInt &Offset) {
+    return dyn_cast<GlobalObject>(
+        getAliasee()->stripAndAccumulateInBoundsConstantOffsets(DL, Offset));
   }
 
   static bool isValidLinkage(LinkageTypes L) {

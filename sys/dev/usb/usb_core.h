@@ -101,6 +101,7 @@ struct usb_xfer_flags_int {
 					 * sent */
 	uint8_t	control_act:1;		/* set if control transfer is active */
 	uint8_t	control_stall:1;	/* set if control transfer should be stalled */
+	uint8_t control_did_data:1;	/* set if control DATA has been transferred */
 
 	uint8_t	short_frames_ok:1;	/* filtered version */
 	uint8_t	short_xfer_ok:1;	/* filtered version */

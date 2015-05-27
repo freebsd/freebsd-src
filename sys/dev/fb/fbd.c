@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include "fb_if.h"
 
 LIST_HEAD(fb_list_head_t, fb_list_entry) fb_list_head =
@@ -134,7 +137,8 @@ fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case FBIO_BLANK:	/* blank display */
-		error = 0;	/* TODO */
+		if (info->setblankmode != NULL)
+			error = info->setblankmode(info->fb_priv, *(int *)data);
 		break;
 
 	default:
@@ -166,11 +170,14 @@ fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
 
 	info = dev->si_drv1;
 
-	if ((info->fb_flags & FB_FLAG_NOMMAP) || info->fb_pbase == 0)
+	if (info->fb_flags & FB_FLAG_NOMMAP)
 		return (ENODEV);
 
-	if (offset < info->fb_size) {
-		*paddr = info->fb_pbase + offset;
+	if (offset >= 0 && offset < info->fb_size) {
+		if (info->fb_pbase == 0)
+			*paddr = vtophys((uint8_t *)info->fb_vbase + offset);
+		else
+			*paddr = info->fb_pbase + offset;
 		return (0);
 	}
 	return (EINVAL);
@@ -262,6 +269,8 @@ fbd_unregister(struct fb_info* info)
 	LIST_FOREACH_SAFE(entry, &fb_list_head, fb_list, tmp) {
 		if (entry->fb_info == info) {
 			LIST_REMOVE(entry, fb_list);
+			if (LIST_EMPTY(&fb_list_head))
+				vt_fb_detach(info);
 			free(entry, M_DEVBUF);
 			return (0);
 		}
@@ -332,22 +341,6 @@ fbd_detach(device_t dev)
 	return (err);
 }
 
-static int
-fbd_suspend(device_t dev)
-{
-
-	vt_fb_suspend();
-	return (bus_generic_suspend(dev));
-}
-
-static int
-fbd_resume(device_t dev)
-{
-
-	vt_fb_resume();
-	return (bus_generic_resume(dev));
-}
-
 static device_method_t fbd_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fbd_probe),
@@ -355,8 +348,6 @@ static device_method_t fbd_methods[] = {
 	DEVMETHOD(device_detach,	fbd_detach),
 
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	fbd_suspend),
-	DEVMETHOD(device_resume,	fbd_resume),
 
 	{ 0, 0 }
 };
@@ -371,5 +362,6 @@ devclass_t	fbd_devclass;
 
 DRIVER_MODULE(fbd, fb, fbd_driver, fbd_devclass, 0, 0);
 DRIVER_MODULE(fbd, drmn, fbd_driver, fbd_devclass, 0, 0);
+DRIVER_MODULE(fbd, udl, fbd_driver, fbd_devclass, 0, 0);
 MODULE_VERSION(fbd, 1);
 

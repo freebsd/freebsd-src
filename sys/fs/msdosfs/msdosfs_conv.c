@@ -234,11 +234,7 @@ l2u[256] = {
  * null.
  */
 int
-dos2unixfn(dn, un, lower, pmp)
-	u_char dn[11];
-	u_char *un;
-	int lower;
-	struct msdosfsmount *pmp;
+dos2unixfn(u_char dn[11], u_char *un, int lower, struct msdosfsmount *pmp)
 {
 	size_t i;
 	int thislong = 0;
@@ -257,7 +253,7 @@ dos2unixfn(dn, un, lower, pmp)
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 8; i > 0 && *dn != ' ';) {
-		c = dos2unixchr(tmpbuf, (const u_char **)&dn, &i,
+		c = dos2unixchr(tmpbuf, __DECONST(const u_char **, &dn), &i,
 		    lower & LCASE_BASE, pmp);
 		while (*c != '\0') {
 			*un++ = *c++;
@@ -274,8 +270,8 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = '.';
 		thislong++;
 		for (i = 3; i > 0 && *dn != ' ';) {
-			c = dos2unixchr(tmpbuf, (const u_char **)&dn, &i,
-			    lower & LCASE_EXT, pmp);
+			c = dos2unixchr(tmpbuf, __DECONST(const u_char **, &dn),
+			    &i, lower & LCASE_EXT, pmp);
 			while (*c != '\0') {
 				*un++ = *c++;
 				thislong++;
@@ -299,12 +295,8 @@ dos2unixfn(dn, un, lower, pmp)
  *	3 if conversion was successful and generation number was inserted
  */
 int
-unix2dosfn(un, dn, unlen, gen, pmp)
-	const u_char *un;
-	u_char dn[12];
-	size_t unlen;
-	u_int gen;
-	struct msdosfsmount *pmp;
+unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
+    struct msdosfsmount *pmp)
 {
 	ssize_t i, j;
 	int l;
@@ -523,13 +515,8 @@ done:
  *	 i.e. doesn't consist solely of blanks and dots
  */
 int
-unix2winfn(un, unlen, wep, cnt, chksum, pmp)
-	const u_char *un;
-	size_t unlen;
-	struct winentry *wep;
-	int cnt;
-	int chksum;
-	struct msdosfsmount *pmp;
+unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
+    int chksum, struct msdosfsmount *pmp)
 {
 	u_int8_t *wcp;
 	int i, end;
@@ -592,12 +579,8 @@ unix2winfn(un, unlen, wep, cnt, chksum, pmp)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(nbp, un, unlen, chksum, pmp)
-	struct mbnambuf *nbp;
-	const u_char *un;
-	size_t unlen;
-	int chksum;
-	struct msdosfsmount *pmp;
+winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
+    struct msdosfsmount *pmp)
 {
 	size_t len;
 	u_int16_t c1, c2;
@@ -629,7 +612,8 @@ winChkName(nbp, un, unlen, chksum, pmp)
 		 * to look up or create files in case sensitive even when
 		 * it's a long file name.
 		 */
-		c1 = unix2winchr((const u_char **)&np, &len, LCASE_BASE, pmp);
+		c1 = unix2winchr(__DECONST(const u_char **, &np), &len,
+		    LCASE_BASE, pmp);
 		c2 = unix2winchr(&un, &unlen, LCASE_BASE, pmp);
 		if (c1 != c2)
 			return -2;
@@ -642,11 +626,8 @@ winChkName(nbp, un, unlen, chksum, pmp)
  * Returns the checksum or -1 if impossible
  */
 int
-win2unixfn(nbp, wep, chksum, pmp)
-	struct mbnambuf *nbp;
-	struct winentry *wep;
-	int chksum;
-	struct msdosfsmount *pmp;
+win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
+    struct msdosfsmount *pmp)
 {
 	u_char *c, tmpbuf[5];
 	u_int8_t *cp;
@@ -749,10 +730,7 @@ winChksum(u_int8_t *name)
  * Determine the number of slots necessary for Win95 names
  */
 int
-winSlotCnt(un, unlen, pmp)
-	const u_char *un;
-	size_t unlen;
-	struct msdosfsmount *pmp;
+winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp)
 {
 	size_t wlen;
 	char wn[WIN_MAXLEN * 2 + 1], *wnp;
@@ -777,9 +755,7 @@ winSlotCnt(un, unlen, pmp)
  * Determine the number of bytes neccessary for Win95 names
  */
 size_t
-winLenFixup(un, unlen)
-	const u_char* un;
-	size_t unlen;
+winLenFixup(const u_char *un, size_t unlen)
 {
 	for (un += unlen; unlen > 0; unlen--)
 		if (*--un != ' ' && *un != '.')
@@ -947,8 +923,8 @@ win2unixchr(u_char *outbuf, u_int16_t wc, struct msdosfsmount *pmp)
 		ilen = 2;
 		olen = len = 4;
 		inp = inbuf;
-		msdosfs_iconv->convchr(pmp->pm_w2u, (const char **)&inp, &ilen,
-				     (char **)&outp, &olen);
+		msdosfs_iconv->convchr(pmp->pm_w2u, __DECONST(const char **,
+		    &inp), &ilen, (char **)&outp, &olen);
 		len -= olen;
 
 		/*

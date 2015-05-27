@@ -129,7 +129,7 @@ sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 	/* rdma_bind_addr handles bind races.  */
 	SDP_WUNLOCK(ssk);
 	if (ssk->id == NULL)
-		ssk->id = rdma_create_id(sdp_cma_handler, ssk, RDMA_PS_SDP);
+		ssk->id = rdma_create_id(sdp_cma_handler, ssk, RDMA_PS_SDP, IB_QPT_RC);
 	if (ssk->id == NULL) {
 		SDP_WLOCK(ssk);
 		return (ENOMEM);
@@ -889,7 +889,7 @@ sdp_append(struct sdp_sock *ssk, struct sockbuf *sb, struct mbuf *mb, int cnt)
 		m_adj(mb, SDP_HEAD_SIZE);
 		n->m_pkthdr.len += mb->m_pkthdr.len;
 		n->m_flags |= mb->m_flags & (M_PUSH | M_URG);
-		m_demote(mb, 1);
+		m_demote(mb, 1, 0);
 		sbcompress(sb, mb, sb->sb_mbtail);
 		return;
 	}
@@ -1702,11 +1702,15 @@ int sdp_mod_usec = 0;
 void
 sdp_set_default_moderation(struct sdp_sock *ssk)
 {
+	struct ib_cq_attr attr;
 	if (sdp_mod_count <= 0 || sdp_mod_usec <= 0)
 		return;
-	ib_modify_cq(ssk->rx_ring.cq, sdp_mod_count, sdp_mod_usec);
-}
+	memset(&attr, 0, sizeof(attr));
+	attr.moderation.cq_count = sdp_mod_count;
+	attr.moderation.cq_period = sdp_mod_usec;
 
+	ib_modify_cq(ssk->rx_ring.cq, &attr, IB_CQ_MODERATION);
+}
 
 static void
 sdp_dev_add(struct ib_device *device)

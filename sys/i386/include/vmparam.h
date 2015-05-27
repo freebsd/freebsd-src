@@ -120,11 +120,11 @@
 #endif
 
 /*
- * Level 0 reservations consist of 512 pages under PAE and 1024 pages
- * otherwise.
+ * Level 0 reservations consist of 512 pages when PAE pagetables are
+ * used, and 1024 pages otherwise.
  */
 #ifndef	VM_LEVEL_0_ORDER
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define	VM_LEVEL_0_ORDER	9
 #else
 #define	VM_LEVEL_0_ORDER	10
@@ -135,11 +135,7 @@
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
-#if defined(XEN) && !defined(XEN_PRIVILEGED_GUEST)
-#define	KERNLOAD		0
-#else
 #define	KERNLOAD		(1 << PDRSHIFT)
-#endif
 #endif /* !defined(KERNLOAD) */
 
 /*
@@ -149,11 +145,7 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#ifdef XEN
-#define VM_MAX_KERNEL_ADDRESS	HYPERVISOR_VIRT_START
-#else
 #define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
-#endif
 
 #define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
 

@@ -48,7 +48,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netipsec/ipsec.h>
@@ -225,10 +224,10 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ipcomp_input_cb(struct cryptop *crp)
 {
+	char buf[INET6_ADDRSTRLEN];
 	struct cryptodesc *crd;
 	struct tdb_crypto *tc;
 	int skip, protoff;
-	struct mtag *mtag;
 	struct mbuf *m;
 	struct secasvar *sav;
 	struct secasindex *saidx;
@@ -242,7 +241,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	IPSEC_ASSERT(tc != NULL, ("null opaque crypto data area!"));
 	skip = tc->tc_skip;
 	protoff = tc->tc_protoff;
-	mtag = (struct mtag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
 	sav = tc->tc_sav;
@@ -301,8 +299,8 @@ ipcomp_input_cb(struct cryptop *crp)
 	if (error) {
 		IPCOMPSTAT_INC(ipcomps_hdrops);
 		DPRINTF(("%s: bad mbuf chain, IPCA %s/%08lx\n", __func__,
-			 ipsec_address(&sav->sah->saidx.dst),
-			 (u_long) ntohl(sav->spi)));
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
 		goto bad;
 	}
 
@@ -312,12 +310,12 @@ ipcomp_input_cb(struct cryptop *crp)
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET6
 	case AF_INET6:
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, NULL);
+		error = ipsec6_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, NULL);
+		error = ipsec4_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 	default:
@@ -343,14 +341,10 @@ bad:
  * IPComp output routine, called by ipsec[46]_process_packet()
  */
 static int
-ipcomp_output(
-	struct mbuf *m,
-	struct ipsecrequest *isr,
-	struct mbuf **mp,
-	int skip,
-	int protoff
-)
+ipcomp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
+    int skip, int protoff)
 {
+	char buf[INET6_ADDRSTRLEN];
 	struct secasvar *sav;
 	struct comp_algo *ipcompx;
 	int error, ralen, maxpacketsize;
@@ -394,7 +388,7 @@ ipcomp_output(
 		DPRINTF(("%s: unknown/unsupported protocol family %d, "
 		    "IPCA %s/%08lx\n", __func__,
 		    sav->sah->saidx.dst.sa.sa_family,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi)));
 		error = EPFNOSUPPORT;
 		goto bad;
@@ -403,7 +397,7 @@ ipcomp_output(
 		IPCOMPSTAT_INC(ipcomps_toobig);
 		DPRINTF(("%s: packet in IPCA %s/%08lx got too big "
 		    "(len %u, max len %u)\n", __func__,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi),
 		    ralen + skip + IPCOMP_HLENGTH, maxpacketsize));
 		error = EMSGSIZE;
@@ -417,8 +411,8 @@ ipcomp_output(
 	if (m == NULL) {
 		IPCOMPSTAT_INC(ipcomps_hdrops);
 		DPRINTF(("%s: cannot clone mbuf chain, IPCA %s/%08lx\n",
-		    __func__, ipsec_address(&sav->sah->saidx.dst),
-		    (u_long) ntohl(sav->spi)));
+		    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
+		    sizeof(buf)), (u_long) ntohl(sav->spi)));
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -485,6 +479,7 @@ bad:
 static int
 ipcomp_output_cb(struct cryptop *crp)
 {
+	char buf[INET6_ADDRSTRLEN];
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
@@ -497,6 +492,7 @@ ipcomp_output_cb(struct cryptop *crp)
 	skip = tc->tc_skip;
 
 	isr = tc->tc_isr;
+	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
 	IPSECREQUEST_LOCK(isr);
 	sav = tc->tc_sav;
 	/* With the isr lock released SA pointer can be updated. */
@@ -542,8 +538,8 @@ ipcomp_output_cb(struct cryptop *crp)
 		if (mo == NULL) {
 			IPCOMPSTAT_INC(ipcomps_wrap);
 			DPRINTF(("%s: IPCOMP header inject failed for IPCA %s/%08lx\n",
-			    __func__, ipsec_address(&sav->sah->saidx.dst),
-			    (u_long) ntohl(sav->spi)));
+			    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
+			    sizeof(buf)), (u_long) ntohl(sav->spi)));
 			error = ENOBUFS;
 			goto bad;
 		}
@@ -589,8 +585,8 @@ ipcomp_output_cb(struct cryptop *crp)
 			DPRINTF(("%s: unknown/unsupported protocol "
 			    "family %d, IPCA %s/%08lx\n", __func__,
 			    sav->sah->saidx.dst.sa.sa_family,
-			    ipsec_address(&sav->sah->saidx.dst),
-			    (u_long) ntohl(sav->spi)));
+			    ipsec_address(&sav->sah->saidx.dst, buf,
+				sizeof(buf)), (u_long) ntohl(sav->spi)));
 			error = EPFNOSUPPORT;
 			goto bad;
 		}
@@ -611,16 +607,18 @@ ipcomp_output_cb(struct cryptop *crp)
 	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return error;
+	KEY_FREESP(&isr->sp);
+	return (error);
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
+	KEY_FREESP(&isr->sp);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
-	return error;
+	return (error);
 }
 
 static struct xformsw ipcomp_xformsw = {

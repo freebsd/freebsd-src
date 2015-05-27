@@ -26,12 +26,14 @@ namespace lldb_private {
     class OptionValue
     {
     public:
-        typedef enum {
+        typedef enum
+        {
             eTypeInvalid = 0,
             eTypeArch,
             eTypeArgs,
             eTypeArray,
             eTypeBoolean,
+            eTypeChar,
             eTypeDictionary,
             eTypeEnum,
             eTypeFileSpec,
@@ -41,11 +43,11 @@ namespace lldb_private {
             eTypeProperties,
             eTypeRegex,
             eTypeSInt64,
-            eTypeString, 
+            eTypeString,
             eTypeUInt64,
             eTypeUUID
         } Type;
-        
+
         enum {
             eDumpOptionName         = (1u << 0),
             eDumpOptionType         = (1u << 1),
@@ -58,11 +60,15 @@ namespace lldb_private {
 
         
         OptionValue () :
+            m_callback (nullptr),
+            m_baton(nullptr),
             m_value_was_set (false)
         {
         }
         
         OptionValue (const OptionValue &rhs) :
+            m_callback (rhs.m_callback),
+            m_baton (rhs.m_baton),
             m_value_was_set (rhs.m_value_was_set)
         {
         }
@@ -173,6 +179,7 @@ namespace lldb_private {
                 case 1u << eTypeArgs:           return eTypeArgs;
                 case 1u << eTypeArray:          return eTypeArray;
                 case 1u << eTypeBoolean:        return eTypeBoolean;
+                case 1u << eTypeChar:           return eTypeChar;
                 case 1u << eTypeDictionary:     return eTypeDictionary;
                 case 1u << eTypeEnum:           return eTypeEnum;
                 case 1u << eTypeFileSpec:       return eTypeFileSpec;
@@ -221,10 +228,16 @@ namespace lldb_private {
         
         OptionValueBoolean *
         GetAsBoolean ();
-        
+
+        OptionValueChar *
+        GetAsChar ();
+
         const OptionValueBoolean *
         GetAsBoolean () const;
-        
+
+        const OptionValueChar *
+        GetAsChar () const;
+
         OptionValueDictionary *
         GetAsDictionary ();
         
@@ -302,7 +315,11 @@ namespace lldb_private {
         
         bool
         SetBooleanValue (bool new_value);
-        
+
+        char GetCharValue(char fail_value) const;
+
+        char SetCharValue(char new_value);
+
         int64_t
         GetEnumerationValue (int64_t fail_value = -1) const;
 
@@ -368,8 +385,26 @@ namespace lldb_private {
         {
             m_parent_wp = parent_sp;
         }
+
+        void
+        SetValueChangedCallback (OptionValueChangedCallback callback,
+                                 void *baton)
+        {
+            assert (m_callback == NULL);
+            m_callback = callback;
+            m_baton = baton;
+        }
+
+        void
+        NotifyValueChanged ()
+        {
+            if (m_callback)
+                m_callback (m_baton, this);
+        }
     protected:
         lldb::OptionValueWP m_parent_wp;
+        OptionValueChangedCallback m_callback;
+        void *m_baton;
         bool m_value_was_set; // This can be used to see if a value has been set
                               // by a call to SetValueFromCString(). It is often
                               // handy to know if an option value was set from

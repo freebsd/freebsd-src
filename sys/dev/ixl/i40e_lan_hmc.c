@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -864,7 +864,7 @@ static void i40e_write_dword(u8 *hmc_bits,
 	if (ce_info->width < 32)
 		mask = ((u32)1 << ce_info->width) - 1;
 	else
-		mask = 0xFFFFFFFF;
+		mask = ~(u32)0;
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
@@ -916,7 +916,7 @@ static void i40e_write_qword(u8 *hmc_bits,
 	if (ce_info->width < 64)
 		mask = ((u64)1 << ce_info->width) - 1;
 	else
-		mask = 0xFFFFFFFFFFFFFFFFUL;
+		mask = ~(u64)0;
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
@@ -1046,7 +1046,7 @@ static void i40e_read_dword(u8 *hmc_bits,
 	if (ce_info->width < 32)
 		mask = ((u32)1 << ce_info->width) - 1;
 	else
-		mask = 0xFFFFFFFF;
+		mask = ~(u32)0;
 
 	/* shift to correct alignment */
 	mask <<= shift_width;
@@ -1099,7 +1099,7 @@ static void i40e_read_qword(u8 *hmc_bits,
 	if (ce_info->width < 64)
 		mask = ((u64)1 << ce_info->width) - 1;
 	else
-		mask = 0xFFFFFFFFFFFFFFFFUL;
+		mask = ~(u64)0;
 
 	/* shift to correct alignment */
 	mask <<= shift_width;
@@ -1218,7 +1218,7 @@ static enum i40e_status_code i40e_set_hmc_context(u8 *context_bytes,
 
 /**
  * i40e_hmc_get_object_va - retrieves an object's virtual address
- * @hmc_info: pointer to i40e_hmc_info struct
+ * @hw: pointer to the hw structure
  * @object_base: pointer to u64 to get the va
  * @rsrc_type: the hmc resource type
  * @obj_idx: hmc object index
@@ -1227,12 +1227,13 @@ static enum i40e_status_code i40e_set_hmc_context(u8 *context_bytes,
  * base pointer.  This function is used for LAN Queue contexts.
  **/
 static
-enum i40e_status_code i40e_hmc_get_object_va(struct i40e_hmc_info *hmc_info,
+enum i40e_status_code i40e_hmc_get_object_va(struct i40e_hw *hw,
 					u8 **object_base,
 					enum i40e_hmc_lan_rsrc_type rsrc_type,
 					u32 obj_idx)
 {
 	u32 obj_offset_in_sd, obj_offset_in_pd;
+	struct i40e_hmc_info     *hmc_info = &hw->hmc;
 	struct i40e_hmc_sd_entry *sd_entry;
 	struct i40e_hmc_pd_entry *pd_entry;
 	u32 pd_idx, pd_lmt, rel_pd_idx;
@@ -1304,8 +1305,7 @@ enum i40e_status_code i40e_get_lan_tx_queue_context(struct i40e_hw *hw,
 	enum i40e_status_code err;
 	u8 *context_bytes;
 
-	err = i40e_hmc_get_object_va(&hw->hmc, &context_bytes,
-				     I40E_HMC_LAN_TX, queue);
+	err = i40e_hmc_get_object_va(hw, &context_bytes, I40E_HMC_LAN_TX, queue);
 	if (err < 0)
 		return err;
 
@@ -1324,8 +1324,7 @@ enum i40e_status_code i40e_clear_lan_tx_queue_context(struct i40e_hw *hw,
 	enum i40e_status_code err;
 	u8 *context_bytes;
 
-	err = i40e_hmc_get_object_va(&hw->hmc, &context_bytes,
-				     I40E_HMC_LAN_TX, queue);
+	err = i40e_hmc_get_object_va(hw, &context_bytes, I40E_HMC_LAN_TX, queue);
 	if (err < 0)
 		return err;
 
@@ -1345,8 +1344,7 @@ enum i40e_status_code i40e_set_lan_tx_queue_context(struct i40e_hw *hw,
 	enum i40e_status_code err;
 	u8 *context_bytes;
 
-	err = i40e_hmc_get_object_va(&hw->hmc, &context_bytes,
-				     I40E_HMC_LAN_TX, queue);
+	err = i40e_hmc_get_object_va(hw, &context_bytes, I40E_HMC_LAN_TX, queue);
 	if (err < 0)
 		return err;
 
@@ -1367,8 +1365,7 @@ enum i40e_status_code i40e_get_lan_rx_queue_context(struct i40e_hw *hw,
 	enum i40e_status_code err;
 	u8 *context_bytes;
 
-	err = i40e_hmc_get_object_va(&hw->hmc, &context_bytes,
-				     I40E_HMC_LAN_RX, queue);
+	err = i40e_hmc_get_object_va(hw, &context_bytes, I40E_HMC_LAN_RX, queue);
 	if (err < 0)
 		return err;
 
@@ -1387,8 +1384,7 @@ enum i40e_status_code i40e_clear_lan_rx_queue_context(struct i40e_hw *hw,
 	enum i40e_status_code err;
 	u8 *context_bytes;
 
-	err = i40e_hmc_get_object_va(&hw->hmc, &context_bytes,
-				     I40E_HMC_LAN_RX, queue);
+	err = i40e_hmc_get_object_va(hw, &context_bytes, I40E_HMC_LAN_RX, queue);
 	if (err < 0)
 		return err;
 
@@ -1408,8 +1404,7 @@ enum i40e_status_code i40e_set_lan_rx_queue_context(struct i40e_hw *hw,
 	enum i40e_status_code err;
 	u8 *context_bytes;
 
-	err = i40e_hmc_get_object_va(&hw->hmc, &context_bytes,
-				     I40E_HMC_LAN_RX, queue);
+	err = i40e_hmc_get_object_va(hw, &context_bytes, I40E_HMC_LAN_RX, queue);
 	if (err < 0)
 		return err;
 

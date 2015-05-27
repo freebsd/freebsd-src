@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPS16INSTRUCTIONINFO_H
-#define MIPS16INSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPS16INSTRINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPS16INSTRINFO_H
 
 #include "Mips16RegisterInfo.h"
 #include "MipsInstrInfo.h"
@@ -23,48 +23,48 @@ class Mips16InstrInfo : public MipsInstrInfo {
   const Mips16RegisterInfo RI;
 
 public:
-  explicit Mips16InstrInfo(MipsTargetMachine &TM);
+  explicit Mips16InstrInfo(const MipsSubtarget &STI);
 
-  virtual const MipsRegisterInfo &getRegisterInfo() const;
+  const MipsRegisterInfo &getRegisterInfo() const override;
 
   /// isLoadFromStackSlot - If the specified machine instruction is a direct
   /// load from a stack slot, return the virtual or physical register number of
   /// the destination along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than loading from the stack slot.
-  virtual unsigned isLoadFromStackSlot(const MachineInstr *MI,
-                                       int &FrameIndex) const;
+  unsigned isLoadFromStackSlot(const MachineInstr *MI,
+                               int &FrameIndex) const override;
 
   /// isStoreToStackSlot - If the specified machine instruction is a direct
   /// store to a stack slot, return the virtual or physical register number of
   /// the source reg along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than storing to the stack slot.
-  virtual unsigned isStoreToStackSlot(const MachineInstr *MI,
-                                      int &FrameIndex) const;
+  unsigned isStoreToStackSlot(const MachineInstr *MI,
+                              int &FrameIndex) const override;
 
-  virtual void copyPhysReg(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MI, DebugLoc DL,
-                           unsigned DestReg, unsigned SrcReg,
-                           bool KillSrc) const;
+  void copyPhysReg(MachineBasicBlock &MBB,
+                   MachineBasicBlock::iterator MI, DebugLoc DL,
+                   unsigned DestReg, unsigned SrcReg,
+                   bool KillSrc) const override;
 
-  virtual void storeRegToStack(MachineBasicBlock &MBB,
-                               MachineBasicBlock::iterator MBBI,
-                               unsigned SrcReg, bool isKill, int FrameIndex,
-                               const TargetRegisterClass *RC,
-                               const TargetRegisterInfo *TRI,
-                               int64_t Offset) const;
+  void storeRegToStack(MachineBasicBlock &MBB,
+                       MachineBasicBlock::iterator MBBI,
+                       unsigned SrcReg, bool isKill, int FrameIndex,
+                       const TargetRegisterClass *RC,
+                       const TargetRegisterInfo *TRI,
+                       int64_t Offset) const override;
 
-  virtual void loadRegFromStack(MachineBasicBlock &MBB,
-                                MachineBasicBlock::iterator MBBI,
-                                unsigned DestReg, int FrameIndex,
-                                const TargetRegisterClass *RC,
-                                const TargetRegisterInfo *TRI,
-                                int64_t Offset) const;
+  void loadRegFromStack(MachineBasicBlock &MBB,
+                        MachineBasicBlock::iterator MBBI,
+                        unsigned DestReg, int FrameIndex,
+                        const TargetRegisterClass *RC,
+                        const TargetRegisterInfo *TRI,
+                        int64_t Offset) const override;
 
-  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
+  bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const override;
 
-  virtual unsigned getOppositeBranchOpc(unsigned Opc) const;
+  unsigned getOppositeBranchOpc(unsigned Opc) const override;
 
   // Adjust SP by FrameSize bytes. Save RA, S0, S1
   void makeFrame(unsigned SP, int64_t FrameSize, MachineBasicBlock &MBB,
@@ -88,11 +88,6 @@ public:
                          MachineBasicBlock::iterator II, DebugLoc DL,
                          unsigned &NewImm) const;
 
-  unsigned basicLoadImmediate(unsigned FrameReg,
-                              int64_t Imm, MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator II, DebugLoc DL,
-                              unsigned &NewImm) const;
-
   static bool validImmediate(unsigned Opcode, unsigned Reg, int64_t Amount);
 
   static bool validSpImm8(int offset) {
@@ -109,9 +104,9 @@ public:
     (MachineBasicBlock &MBB, MachineBasicBlock::iterator I, int64_t Imm) const;
 
   unsigned getInlineAsmLength(const char *Str,
-                              const MCAsmInfo &MAI) const;
+                              const MCAsmInfo &MAI) const override;
 private:
-  virtual unsigned getAnalyzableBrOpc(unsigned Opc) const;
+  unsigned getAnalyzableBrOpc(unsigned Opc) const override;
 
   void ExpandRetRA16(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                    unsigned Opc) const;

@@ -421,7 +421,8 @@ typedef struct {
 			target_mode	: 1,
 			portid		: 24;
 	uint32_t
-					: 6,
+					: 5,
+			reported_gone	: 1,
 			announced	: 1,
 			dirty		: 1,	/* commands have been run */
 			new_portid	: 24;

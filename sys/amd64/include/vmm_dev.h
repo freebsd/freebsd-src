@@ -54,7 +54,6 @@ struct vm_seg_desc {			/* data or code segment */
 
 struct vm_run {
 	int		cpuid;
-	uint64_t	rip;		/* start running here */
 	struct vm_exit	vm_exit;
 };
 
@@ -63,6 +62,7 @@ struct vm_exception {
 	int		vector;
 	uint32_t	error_code;
 	int		error_code_valid;
+	int		restart_instruction;
 };
 
 struct vm_lapic_msi {
@@ -195,6 +195,15 @@ struct vm_intinfo {
 	uint64_t	info2;
 };
 
+struct vm_rtc_time {
+	time_t		secs;
+};
+
+struct vm_rtc_data {
+	int		offset;
+	uint8_t		value;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -228,6 +237,7 @@ enum {
 	IOCNUM_LAPIC_MSI = 36,
 	IOCNUM_LAPIC_LOCAL_IRQ = 37,
 	IOCNUM_IOAPIC_PINCOUNT = 38,
+	IOCNUM_RESTART_INSTRUCTION = 39,
 
 	/* PCI pass-thru */
 	IOCNUM_BIND_PPTDEV = 40,
@@ -254,6 +264,12 @@ enum {
 	/* vm_cpuset */
 	IOCNUM_ACTIVATE_CPU = 90,
 	IOCNUM_GET_CPUSET = 91,
+
+	/* RTC */
+	IOCNUM_RTC_READ = 100,
+	IOCNUM_RTC_WRITE = 101,
+	IOCNUM_RTC_SETTIME = 102,
+	IOCNUM_RTC_GETTIME = 103,
 };
 
 #define	VM_RUN		\
@@ -336,4 +352,14 @@ enum {
 	_IOW('v', IOCNUM_SET_INTINFO, struct vm_intinfo)
 #define	VM_GET_INTINFO	\
 	_IOWR('v', IOCNUM_GET_INTINFO, struct vm_intinfo)
+#define VM_RTC_WRITE \
+	_IOW('v', IOCNUM_RTC_WRITE, struct vm_rtc_data)
+#define VM_RTC_READ \
+	_IOWR('v', IOCNUM_RTC_READ, struct vm_rtc_data)
+#define VM_RTC_SETTIME	\
+	_IOW('v', IOCNUM_RTC_SETTIME, struct vm_rtc_time)
+#define VM_RTC_GETTIME	\
+	_IOR('v', IOCNUM_RTC_GETTIME, struct vm_rtc_time)
+#define	VM_RESTART_INSTRUCTION \
+	_IOW('v', IOCNUM_RESTART_INSTRUCTION, int)
 #endif

@@ -13,6 +13,7 @@ SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
 INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 		   rlstdc.h rlconf.h rltypedefs.h
 
+CFLAGS+=	-DREADLINE_LIBRARY
 CFLAGS+=	-I${.OBJDIR}/..
 SRCDIR=	${.CURDIR}/../../../../contrib/libreadline
 
@@ -23,7 +24,6 @@ $h: ${SRCDIR}/$h
 	ln -sf ${SRCDIR}/$h $h
 .endfor
 
-DPADD=	${LIBTERMCAPW}
-LDADD=	-ltermcapw
+LIBADD=	ncursesw
 
 .include <bsd.lib.mk>

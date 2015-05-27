@@ -69,10 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ucontext.h>
 
 #include <machine/intr_machdep.h>
-#ifdef XEN
-#include <xen/xen-os.h>
-#include <xen/hypervisor.h>
-#endif
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -157,13 +153,8 @@ void	xsaveopt(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
 
-#ifdef XEN
-#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
-#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
-#else
 #define	start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	stop_emulating()	clts()
-#endif
 
 #ifdef CPU_ENABLE_SSE
 #define GET_FPU_CW(thread) \
@@ -200,6 +191,13 @@ CTASSERT(sizeof(struct savefpu_ymm) == 832);
  * must be 64-byte aligned.
  */
 CTASSERT(sizeof(struct pcb) % XSAVE_AREA_ALIGN == 0);
+
+/*
+ * Ensure the copy of XCR0 saved in a core is contained in the padding
+ * area.
+ */
+CTASSERT(X86_XSTATE_XCR0_OFFSET >= offsetof(struct savexmm, sv_pad) &&
+    X86_XSTATE_XCR0_OFFSET + sizeof(uint64_t) <= sizeof(struct savexmm));
 
 static	void	fpu_clean_state(void);
 #endif
@@ -1358,9 +1356,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 int
 fpu_kern_thread(u_int flags)
 {
-	struct pcb *pcb;
 
-	pcb = curpcb;
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
 	KASSERT(curpcb->pcb_save == get_pcb_user_save_pcb(curpcb),

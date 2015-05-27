@@ -93,6 +93,7 @@ static const enum intparam startcommands[] = {
     IP__MOUNT_FROM_FSTAB,
     IP_MOUNT_DEVFS,
     IP_MOUNT_FDESCFS,
+    IP_MOUNT_PROCFS,
     IP_EXEC_PRESTART, 
     IP__OP,
     IP_VNET_INTERFACE,
@@ -109,6 +110,7 @@ static const enum intparam stopcommands[] = {
     IP_STOP_TIMEOUT,
     IP__OP,
     IP_EXEC_POSTSTOP,
+    IP_MOUNT_PROCFS,
     IP_MOUNT_FDESCFS,
     IP_MOUNT_DEVFS,
     IP__MOUNT_FROM_FSTAB,
@@ -656,11 +658,11 @@ create_jail(struct cfjail *j)
 		 * The jail already exists, but may be dying.
 		 * Make sure it is, in which case an update is appropriate.
 		 */
-		*(const void **)&jiov[0].iov_base = "jid";
+		jiov[0].iov_base = __DECONST(char *, "jid");
 		jiov[0].iov_len = sizeof("jid");
 		jiov[1].iov_base = &jid;
 		jiov[1].iov_len = sizeof(jid);
-		*(const void **)&jiov[2].iov_base = "dying";
+		jiov[2].iov_base = __DECONST(char *, "dying");
 		jiov[2].iov_len = sizeof("dying");
 		jiov[3].iov_base = &dying;
 		jiov[3].iov_len = sizeof(dying);
@@ -721,11 +723,11 @@ clear_persist(struct cfjail *j)
 	if (!(j->flags & JF_PERSIST))
 		return;
 	j->flags &= ~JF_PERSIST;
-	*(const void **)&jiov[0].iov_base = "jid";
+	jiov[0].iov_base = __DECONST(char *, "jid");
 	jiov[0].iov_len = sizeof("jid");
 	jiov[1].iov_base = &j->jid;
 	jiov[1].iov_len = sizeof(j->jid);
-	*(const void **)&jiov[2].iov_base = "nopersist";
+	jiov[2].iov_base = __DECONST(char *, "nopersist");
 	jiov[2].iov_len = sizeof("nopersist");
 	jiov[3].iov_base = NULL;
 	jiov[3].iov_len = 0;
@@ -849,12 +851,12 @@ running_jid(struct cfjail *j, int dflag)
 			j->jid = -1;
 			return;
 		}
-		*(const void **)&jiov[0].iov_base = "jid";
+		jiov[0].iov_base = __DECONST(char *, "jid");
 		jiov[0].iov_len = sizeof("jid");
 		jiov[1].iov_base = &jid;
 		jiov[1].iov_len = sizeof(jid);
 	} else if ((pval = string_param(j->intparams[KP_NAME]))) {
-		*(const void **)&jiov[0].iov_base = "name";
+		jiov[0].iov_base = __DECONST(char *, "name");
 		jiov[0].iov_len = sizeof("name");
 		jiov[1].iov_len = strlen(pval) + 1;
 		jiov[1].iov_base = alloca(jiov[1].iov_len);
@@ -880,7 +882,7 @@ jail_quoted_warnx(const struct cfjail *j, const char *name_msg,
 }
 
 /*
- * Set jail parameters and possible print them out.
+ * Set jail parameters and possibly print them out.
  */
 static int
 jailparam_set_note(const struct cfjail *j, struct jailparam *jp, unsigned njp,

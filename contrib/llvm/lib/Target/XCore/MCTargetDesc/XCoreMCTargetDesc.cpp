@@ -14,12 +14,16 @@
 #include "XCoreMCTargetDesc.h"
 #include "InstPrinter/XCoreInstPrinter.h"
 #include "XCoreMCAsmInfo.h"
+#include "XCoreTargetStreamer.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
+
+using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
 #include "XCoreGenInstrInfo.inc"
@@ -29,8 +33,6 @@
 
 #define GET_REGINFO_MC_DESC
 #include "XCoreGenRegisterInfo.inc"
-
-using namespace llvm;
 
 static MCInstrInfo *createXCoreMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
@@ -56,7 +58,7 @@ static MCAsmInfo *createXCoreMCAsmInfo(const MCRegisterInfo &MRI,
   MCAsmInfo *MAI = new XCoreMCAsmInfo(TT);
 
   // Initial state of the frame pointer is SP.
-  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, XCore::SP, 0);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, XCore::SP, 0);
   MAI->addInitialFrameState(Inst);
 
   return MAI;
@@ -69,6 +71,12 @@ static MCCodeGenInfo *createXCoreMCCodeGenInfo(StringRef TT, Reloc::Model RM,
   if (RM == Reloc::Default) {
     RM = Reloc::Static;
   }
+  if (CM == CodeModel::Default) {
+    CM = CodeModel::Small;
+  }
+  if (CM != CodeModel::Small && CM != CodeModel::Large)
+    report_fatal_error("Target only supports CodeModel Small or Large");
+
   X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
@@ -80,6 +88,53 @@ static MCInstPrinter *createXCoreMCInstPrinter(const Target &T,
                                                const MCRegisterInfo &MRI,
                                                const MCSubtargetInfo &STI) {
   return new XCoreInstPrinter(MAI, MII, MRI);
+}
+
+XCoreTargetStreamer::XCoreTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
+XCoreTargetStreamer::~XCoreTargetStreamer() {}
+
+namespace {
+
+class XCoreTargetAsmStreamer : public XCoreTargetStreamer {
+  formatted_raw_ostream &OS;
+public:
+  XCoreTargetAsmStreamer(MCStreamer &S, formatted_raw_ostream &OS);
+  void emitCCTopData(StringRef Name) override;
+  void emitCCTopFunction(StringRef Name) override;
+  void emitCCBottomData(StringRef Name) override;
+  void emitCCBottomFunction(StringRef Name) override;
+};
+
+XCoreTargetAsmStreamer::XCoreTargetAsmStreamer(MCStreamer &S,
+                                               formatted_raw_ostream &OS)
+    : XCoreTargetStreamer(S), OS(OS) {}
+
+void XCoreTargetAsmStreamer::emitCCTopData(StringRef Name) {
+  OS << "\t.cc_top " << Name << ".data," << Name << '\n';
+}
+
+void XCoreTargetAsmStreamer::emitCCTopFunction(StringRef Name) {
+  OS << "\t.cc_top " << Name << ".function," << Name << '\n';
+}
+
+void XCoreTargetAsmStreamer::emitCCBottomData(StringRef Name) {
+  OS << "\t.cc_bottom " << Name << ".data\n";
+}
+
+void XCoreTargetAsmStreamer::emitCCBottomFunction(StringRef Name) {
+  OS << "\t.cc_bottom " << Name << ".function\n";
+}
+}
+
+static MCStreamer *
+createXCoreMCAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
+                         bool isVerboseAsm, bool useDwarfDirectory,
+                         MCInstPrinter *InstPrint, MCCodeEmitter *CE,
+                         MCAsmBackend *TAB, bool ShowInst) {
+  MCStreamer *S = llvm::createAsmStreamer(
+      Ctx, OS, isVerboseAsm, useDwarfDirectory, InstPrint, CE, TAB, ShowInst);
+  new XCoreTargetAsmStreamer(*S, OS);
+  return S;
 }
 
 // Force static initialization.
@@ -104,4 +159,6 @@ extern "C" void LLVMInitializeXCoreTargetMC() {
   // Register the MCInstPrinter
   TargetRegistry::RegisterMCInstPrinter(TheXCoreTarget,
                                         createXCoreMCInstPrinter);
+
+  TargetRegistry::RegisterAsmStreamer(TheXCoreTarget, createXCoreMCAsmStreamer);
 }

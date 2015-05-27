@@ -65,7 +65,7 @@ ahci_em_probe(device_t dev)
 {
 
 	device_set_desc_copy(dev, "AHCI enclosure management bridge");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -273,14 +273,14 @@ static device_method_t ahciem_methods[] = {
 	DEVMETHOD(device_detach,    ahci_em_detach),
 	DEVMETHOD(device_suspend,   ahci_em_suspend),
 	DEVMETHOD(device_resume,    ahci_em_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahciem_driver = {
         "ahciem",
         ahciem_methods,
         sizeof(struct ahci_enclosure)
 };
-DRIVER_MODULE(ahciem, ahci, ahciem_driver, ahciem_devclass, 0, 0);
+DRIVER_MODULE(ahciem, ahci, ahciem_driver, ahciem_devclass, NULL, NULL);
 
 static void
 ahci_em_setleds(device_t dev, int c)

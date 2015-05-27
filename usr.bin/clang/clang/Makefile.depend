@@ -18,6 +18,16 @@ DIRDEPS = \
 	lib/clang/libclangfrontendtool \
 	lib/clang/libclanglex \
 	lib/clang/libclangparse \
+	lib/clang/libclangrewrite \
+	lib/clang/libllvmaarch64disassembler \
+	lib/clang/libllvmaarch64codegen \
+	lib/clang/libllvmaarch64asmparser \
+	lib/clang/libllvmaarch64desc \
+	lib/clang/libllvmaarch64info \
+	lib/clang/libllvmaarch64instprinter \
+	lib/clang/libllvmaarch64utils \
+	lib/clang/libllvmpowerpcdisassembler \
+	lib/clang/libllvmprofiledata \
 	lib/clang/libclangrewritecore \
 	lib/clang/libclangrewritefrontend \
 	lib/clang/libclangsema \

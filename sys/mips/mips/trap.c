@@ -617,7 +617,8 @@ trap(struct trapframe *trapframe)
 	 * XXXDTRACE: add pid probe handler here (if ever)
 	 */
 	if (!usermode) {
-		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(trapframe))
+		if (dtrace_trap_func != NULL &&
+		    (*dtrace_trap_func)(trapframe, type) != 0)
 			return (trapframe->pc);
 	}
 #endif

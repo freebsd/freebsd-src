@@ -13,8 +13,12 @@ DIRDEPS = \
 	lib/libbz2 \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libdpv \
 	lib/libexpat \
+	lib/libfigpar \
 	lib/liblzma \
+	lib/libthr \
+	lib/libutil \
 	lib/libz \
 	lib/msun \
 	lib/ncurses/ncursesw \

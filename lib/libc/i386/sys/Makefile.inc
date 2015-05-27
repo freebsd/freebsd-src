@@ -15,9 +15,6 @@ MDASM=	Ovfork.S brk.S cerror.S exect.S getcontext.S pipe.S ptrace.S \
 NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
 
 PSEUDO=	_getlogin.o _exit.o
-.if ${MK_SYSCALL_COMPAT} != "no"
-PSEUDO+= _pread.o _pwrite.o _lseek.o _mmap.o _ftruncate.o _truncate.o
-.endif
 
 MAN+=	i386_get_ioperm.2 i386_get_ldt.2 i386_vm86.2
 MAN+=	i386_set_watch.3

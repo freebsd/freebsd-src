@@ -30,11 +30,11 @@ static const char sccsid[] = "$Id: key.c,v 10.54 2013/11/13 12:15:27 zy Exp $";
 #include "common.h"
 #include "../vi/vi.h"
 
-static int	v_event_append __P((SCR *, EVENT *));
-static int	v_event_grow __P((SCR *, int));
-static int	v_key_cmp __P((const void *, const void *));
-static void	v_keyval __P((SCR *, int, scr_keyval_t));
-static void	v_sync __P((SCR *, int));
+static int	v_event_append(SCR *, EVENT *);
+static int	v_event_grow(SCR *, int);
+static int	v_key_cmp(const void *, const void *);
+static void	v_keyval(SCR *, int, scr_keyval_t);
+static void	v_sync(SCR *, int);
 
 /*
  * !!!
@@ -97,7 +97,7 @@ static int nkeylist =
  * v_key_init --
  *	Initialize the special key lookup table.
  *
- * PUBLIC: int v_key_init __P((SCR *));
+ * PUBLIC: int v_key_init(SCR *);
  */
 int
 v_key_init(SCR *sp)
@@ -179,7 +179,7 @@ v_keyval(
  * v_key_ilookup --
  *	Build the fast-lookup key display array.
  *
- * PUBLIC: void v_key_ilookup __P((SCR *));
+ * PUBLIC: void v_key_ilookup(SCR *);
  */
 void
 v_key_ilookup(SCR *sp)
@@ -203,7 +203,7 @@ v_key_ilookup(SCR *sp)
  *	Return the length of the string that will display the key.
  *	This routine is the backup for the KEY_LEN() macro.
  *
- * PUBLIC: size_t v_key_len __P((SCR *, ARG_CHAR_T));
+ * PUBLIC: size_t v_key_len(SCR *, ARG_CHAR_T);
  */
 size_t
 v_key_len(
@@ -219,7 +219,7 @@ v_key_len(
  *	Return the string that will display the key.  This routine
  *	is the backup for the KEY_NAME() macro.
  *
- * PUBLIC: char *v_key_name __P((SCR *, ARG_CHAR_T));
+ * PUBLIC: char *v_key_name(SCR *, ARG_CHAR_T);
  */
 char *
 v_key_name(
@@ -327,7 +327,7 @@ done:	sp->cname[sp->clen = len] = '\0';
  *	Fill in the value for a key.  This routine is the backup
  *	for the KEY_VAL() macro.
  *
- * PUBLIC: e_key_t v_key_val __P((SCR *, ARG_CHAR_T));
+ * PUBLIC: e_key_t v_key_val(SCR *, ARG_CHAR_T);
  */
 e_key_t
 v_key_val(
@@ -351,7 +351,7 @@ v_key_val(
  * an associated flag value, which indicates if it has already been quoted,
  * and if it is the result of a mapping or an abbreviation.
  *
- * PUBLIC: int v_event_push __P((SCR *, EVENT *, CHAR_T *, size_t, u_int));
+ * PUBLIC: int v_event_push(SCR *, EVENT *, CHAR_T *, size_t, u_int);
  */
 int
 v_event_push(
@@ -532,7 +532,7 @@ v_event_append(
  * point.  Given that this might make the log grow unacceptably (consider that
  * cursor keys are done with maps), for now we leave any changes made in place.
  *
- * PUBLIC: int v_event_get __P((SCR *, EVENT *, int, u_int32_t));
+ * PUBLIC: int v_event_get(SCR *, EVENT *, int, u_int32_t);
  */
 int
 v_event_get(
@@ -771,7 +771,7 @@ v_sync(
  * v_event_err --
  *	Unexpected event.
  *
- * PUBLIC: void v_event_err __P((SCR *, EVENT *));
+ * PUBLIC: void v_event_err(SCR *, EVENT *);
  */
 void
 v_event_err(
@@ -821,7 +821,7 @@ v_event_err(
  * v_event_flush --
  *	Flush any flagged keys, returning if any keys were flushed.
  *
- * PUBLIC: int v_event_flush __P((SCR *, u_int));
+ * PUBLIC: int v_event_flush(SCR *, u_int);
  */
 int
 v_event_flush(

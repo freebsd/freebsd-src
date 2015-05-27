@@ -5,10 +5,10 @@
 #
 
 ident		DB-88F78XX
-include		"../mv/discovery/std.db78xxx"
+include 	"std.arm"
+include 	"../mv/discovery/std.db78xxx"
 
 options 	SOC_MV_DISCOVERY
-makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
@@ -21,7 +21,7 @@ options 	GEOM_PART_MBR		# MBR partition scheme
 options 	TMPFS			# Efficient memory filesystem
 options 	FFS			# Berkeley Fast Filesystem
 options 	NANDFS			# NAND Filesystem
-options 	NFSCL			# New Network Filesystem Client
+options 	NFSCL			# Network Filesystem Client
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	BOOTP

@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SPARCMCEXPR_H
-#define LLVM_SPARCMCEXPR_H
+#ifndef LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCEXPR_H
+#define LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCEXPR_H
 
 #include "SparcFixupKinds.h"
 #include "llvm/MC/MCExpr.h"
@@ -85,15 +85,16 @@ public:
   Sparc::Fixups getFixupKind() const { return getFixupKind(Kind); }
 
   /// @}
-  void PrintImpl(raw_ostream &OS) const;
+  void PrintImpl(raw_ostream &OS) const override;
   bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                 const MCAsmLayout *Layout) const;
-  void AddValueSymbols(MCAssembler *) const;
-  const MCSection *FindAssociatedSection() const {
+                                 const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup) const override;
+  void visitUsedExpr(MCStreamer &Streamer) const override;
+  const MCSection *FindAssociatedSection() const override {
     return getSubExpr()->FindAssociatedSection();
   }
 
-  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const;
+  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override;
 
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;

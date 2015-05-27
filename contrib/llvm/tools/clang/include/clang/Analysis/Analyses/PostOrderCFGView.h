@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_POSTORDER_CFGVIEW
-#define LLVM_CLANG_POSTORDER_CFGVIEW
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_POSTORDERCFGVIEW_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_POSTORDERCFGVIEW_H
 
 #include <vector>
 //#include <algorithm>
@@ -47,17 +47,17 @@ public:
 
     /// \brief Set the bit associated with a particular CFGBlock.
     /// This is the important method for the SetType template parameter.
-    bool insert(const CFGBlock *Block) {
+    std::pair<llvm::NoneType, bool> insert(const CFGBlock *Block) {
       // Note that insert() is called by po_iterator, which doesn't check to
       // make sure that Block is non-null.  Moreover, the CFGBlock iterator will
       // occasionally hand out null pointers for pruned edges, so we catch those
       // here.
-      if (Block == 0)
-        return false;  // if an edge is trivially false.
+      if (!Block)
+        return std::make_pair(None, false); // if an edge is trivially false.
       if (VisitedBlockIDs.test(Block->getBlockID()))
-        return false;
+        return std::make_pair(None, false);
       VisitedBlockIDs.set(Block->getBlockID());
-      return true;
+      return std::make_pair(None, true);
     }
 
     /// \brief Check if the bit for a CFGBlock has been already set.
@@ -76,14 +76,18 @@ private:
   BlockOrderTy BlockOrder;
 
 public:
-  typedef std::vector<const CFGBlock*>::reverse_iterator iterator;
+  typedef std::vector<const CFGBlock *>::reverse_iterator iterator;
+  typedef std::vector<const CFGBlock *>::const_reverse_iterator const_iterator;
 
   PostOrderCFGView(const CFG *cfg);
 
   iterator begin() { return Blocks.rbegin(); }
   iterator end()   { return Blocks.rend(); }
 
-  bool empty() { return begin() == end(); }
+  const_iterator begin() const { return Blocks.rbegin(); }
+  const_iterator end() const { return Blocks.rend(); }
+
+  bool empty() const { return begin() == end(); }
 
   struct BlockOrderCompare;
   friend struct BlockOrderCompare;

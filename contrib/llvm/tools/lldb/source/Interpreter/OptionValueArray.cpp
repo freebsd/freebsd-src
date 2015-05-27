@@ -53,6 +53,7 @@ OptionValueArray::DumpValue (const ExecutionContext *exe_ctx, Stream &strm, uint
                     break;
                     
                 case eTypeBoolean:
+                case eTypeChar:
                 case eTypeEnum:
                 case eTypeFileSpec:
                 case eTypeFormat:
@@ -75,6 +76,7 @@ Error
 OptionValueArray::SetValueFromCString (const char *value, VarSetOperationType op)
 {
     Args args(value);
+    NotifyValueChanged();
     return SetArgs (args, op);
 }
 
@@ -90,12 +92,12 @@ OptionValueArray::GetSubValue (const ExecutionContext *exe_ctx,
         const char *end_bracket = strchr (name+1, ']');
         if (end_bracket)
         {
-            const char *sub_value = NULL;
+            const char *sub_value = nullptr;
             if (end_bracket[1])
                 sub_value = end_bracket + 1;
             std::string index_str (name+1, end_bracket);
             const size_t array_count = m_values.size();
-            int32_t idx = Args::StringToSInt32(index_str.c_str(), INT32_MAX, 0, NULL);
+            int32_t idx = Args::StringToSInt32(index_str.c_str(), INT32_MAX, 0, nullptr);
             if (idx != INT32_MAX)
             {
                 ;
@@ -222,7 +224,8 @@ OptionValueArray::SetArgs (const Args &args, VarSetOperationType op)
             size_t i;
             for (i=0; i<argc; ++i)
             {
-                const int idx = Args::StringToSInt32(args.GetArgumentAtIndex(i), INT32_MAX);
+                const size_t idx =
+                  Args::StringToSInt32(args.GetArgumentAtIndex(i), INT32_MAX);
                 if (idx >= size)
                 {
                     all_indexes_valid = false;

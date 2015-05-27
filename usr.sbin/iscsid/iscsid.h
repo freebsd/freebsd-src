@@ -44,12 +44,14 @@
 #define	CONN_DIGEST_CRC32C		1
 
 #define CONN_MUTUAL_CHALLENGE_LEN	1024
+#define	SOCKBUF_SIZE			1048576
 
 struct connection {
 	int			conn_iscsi_fd;
 	int			conn_socket;
 	unsigned int		conn_session_id;
 	struct iscsi_session_conf	conn_conf;
+	struct iscsi_session_limits	conn_limits;
 	char			conn_target_alias[ISCSI_ADDR_LEN];
 	uint8_t			conn_isid[6];
 	uint16_t		conn_tsih;
@@ -114,7 +116,6 @@ void			keys_delete(struct keys *key);
 void			keys_load(struct keys *keys, const struct pdu *pdu);
 void			keys_save(struct keys *keys, struct pdu *pdu);
 const char		*keys_find(struct keys *keys, const char *name);
-int			keys_find_int(struct keys *keys, const char *name);
 void			keys_add(struct keys *keys,
 			    const char *name, const char *value);
 void			keys_add_int(struct keys *keys,

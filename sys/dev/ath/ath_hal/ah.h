@@ -540,6 +540,7 @@ typedef enum {
 typedef struct {
 	u_int32_t	cyclecnt_diff;		/* delta cycle count */
 	u_int32_t	rxclr_cnt;		/* rx clear count */
+	u_int32_t	extrxclr_cnt;		/* ext chan rx clear count */
 	u_int32_t	txframecnt_diff;	/* delta tx frame count */
 	u_int32_t	rxframecnt_diff;	/* delta rx frame count */
 	u_int32_t	listen_time;		/* listen time in msec - time for which ch is free */
@@ -849,6 +850,48 @@ typedef struct {
 
 #define	HAL_RSSI_EP_MULTIPLIER	(1<<7)	/* pow2 to optimize out * and / */
 
+/*
+ * This is the ANI state and MIB stats.
+ *
+ * It's used by the HAL modules to keep state /and/ by the debug ioctl
+ * to fetch ANI information.
+ */
+typedef struct {
+	uint32_t	ast_ani_niup;   /* ANI increased noise immunity */
+	uint32_t	ast_ani_nidown; /* ANI decreased noise immunity */
+	uint32_t	ast_ani_spurup; /* ANI increased spur immunity */
+	uint32_t	ast_ani_spurdown;/* ANI descreased spur immunity */
+	uint32_t	ast_ani_ofdmon; /* ANI OFDM weak signal detect on */
+	uint32_t	ast_ani_ofdmoff;/* ANI OFDM weak signal detect off */
+	uint32_t	ast_ani_cckhigh;/* ANI CCK weak signal threshold high */
+	uint32_t	ast_ani_ccklow; /* ANI CCK weak signal threshold low */
+	uint32_t	ast_ani_stepup; /* ANI increased first step level */
+	uint32_t	ast_ani_stepdown;/* ANI decreased first step level */
+	uint32_t	ast_ani_ofdmerrs;/* ANI cumulative ofdm phy err count */
+	uint32_t	ast_ani_cckerrs;/* ANI cumulative cck phy err count */
+	uint32_t	ast_ani_reset;  /* ANI parameters zero'd for non-STA */
+	uint32_t	ast_ani_lzero;  /* ANI listen time forced to zero */
+	uint32_t	ast_ani_lneg;   /* ANI listen time calculated < 0 */
+	HAL_MIB_STATS	ast_mibstats;   /* MIB counter stats */
+	HAL_NODE_STATS	ast_nodestats;  /* Latest rssi stats from driver */
+} HAL_ANI_STATS;
+
+typedef struct {
+	uint8_t		noiseImmunityLevel;
+	uint8_t		spurImmunityLevel;
+	uint8_t		firstepLevel;
+	uint8_t		ofdmWeakSigDetectOff;
+	uint8_t		cckWeakSigThreshold;
+	uint32_t	listenTime;
+
+	/* NB: intentionally ordered so data exported to user space is first */
+	uint32_t	txFrameCount;   /* Last txFrameCount */
+	uint32_t	rxFrameCount;   /* Last rx Frame count */
+	uint32_t	cycleCount;     /* Last cycleCount
+					   (to detect wrap-around) */
+	uint32_t	ofdmPhyErrCount;/* OFDM err count since last reset */
+	uint32_t	cckPhyErrCount; /* CCK err count since last reset */
+} HAL_ANI_STATE;
 
 struct ath_desc;
 struct ath_tx_status;
@@ -1588,6 +1631,18 @@ struct ath_hal {
 				uint32_t, uint32_t);
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
+
+	/* Bluetooth MCI methods */
+	void	    __ahdecl(*ah_btMciSetup)(struct ath_hal *,
+				uint32_t, void *, uint16_t, uint32_t);
+	HAL_BOOL    __ahdecl(*ah_btMciSendMessage)(struct ath_hal *,
+				uint8_t, uint32_t, uint32_t *, uint8_t,
+				HAL_BOOL, HAL_BOOL);
+	uint32_t    __ahdecl(*ah_btMciGetInterrupt)(struct ath_hal *,
+				uint32_t *, uint32_t *);
+	uint32_t    __ahdecl(*ah_btMciGetState)(struct ath_hal *,
+				uint32_t, uint32_t *);
+	void	    __ahdecl(*ah_btMciDetach)(struct ath_hal *);
 
 	/* LNA diversity configuration */
 	void	    __ahdecl(*ah_divLnaConfGet)(struct ath_hal *,

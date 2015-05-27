@@ -194,6 +194,20 @@ struct sioc_mif_req6 {
 	u_quad_t obytes;	/* Output byte count on mif		*/
 };
 
+/*
+ * Structure to export 'struct mif6' to userland via sysctl.
+ */
+struct mif6_sctl {
+	u_char		m6_flags;	/* MIFF_ flags defined above         */
+	u_int		m6_rate_limit;	/* max rate			     */
+	struct in6_addr	m6_lcl_addr;	/* local interface address           */
+	uint32_t	m6_ifp;		/* interface index	             */
+	u_quad_t	m6_pkt_in;	/* # pkts in on interface            */
+	u_quad_t	m6_pkt_out;	/* # pkts out on interface           */
+	u_quad_t	m6_bytes_in;	/* # bytes in on interface	     */
+	u_quad_t	m6_bytes_out;	/* # bytes out on interface	     */
+};
+
 #if defined(_KERNEL) || defined(KERNEL)
 /*
  * The kernel's multicast-interface structure.

@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/pci/pcivar.h>
+
+#define PCI_VENDOR_ID_NVIDIA	0x10de
 
 #define NVIDIA_BRIGHT_MIN     (0x0ec)
 #define NVIDIA_BRIGHT_MAX     (0x538)
@@ -102,7 +105,8 @@ nvbl_probe(device_t dev)
 	if (OF_getprop(handle, "backlight-control", &control, sizeof(control)) < 0)
 		return (ENXIO);
 
-	if (strcmp(control, "mnca") != 0)
+	if ((strcmp(control, "mnca") != 0) ||
+	    pci_get_vendor(device_get_parent(dev)) != PCI_VENDOR_ID_NVIDIA)
 		return (ENXIO);
 
 	device_set_desc(dev, "PowerBook backlight for nVidia graphics");

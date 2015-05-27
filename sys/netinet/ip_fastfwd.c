@@ -495,17 +495,6 @@ passout:
 		goto consumed;
 	}
 
-#ifndef ALTQ
-	/*
-	 * Check if there is enough space in the interface queue
-	 */
-	if ((ifp->if_snd.ifq_len + ip_len / ifp->if_mtu + 1) >=
-	    ifp->if_snd.ifq_maxlen) {
-		IPSTAT_INC(ips_odropped);
-		goto drop;
-	}
-#endif
-
 	/*
 	 * Check if media link state of interface is not down
 	 */

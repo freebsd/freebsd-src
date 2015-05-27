@@ -12,101 +12,178 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CodeGen/ModuleBuilder.h"
-#include "CodeGenModule.h"
 #include "CGDebugInfo.h"
+#include "CodeGenModule.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include <memory>
 using namespace clang;
 
 namespace {
   class CodeGeneratorImpl : public CodeGenerator {
     DiagnosticsEngine &Diags;
-    OwningPtr<const llvm::DataLayout> TD;
+    std::unique_ptr<const llvm::DataLayout> TD;
     ASTContext *Ctx;
     const CodeGenOptions CodeGenOpts;  // Intentionally copied in.
+
+    unsigned HandlingTopLevelDecls;
+    struct HandlingTopLevelDeclRAII {
+      CodeGeneratorImpl &Self;
+      HandlingTopLevelDeclRAII(CodeGeneratorImpl &Self) : Self(Self) {
+        ++Self.HandlingTopLevelDecls;
+      }
+      ~HandlingTopLevelDeclRAII() {
+        if (--Self.HandlingTopLevelDecls == 0)
+          Self.EmitDeferredDecls();
+      }
+    };
+
+    CoverageSourceInfo *CoverageInfo;
+
   protected:
-    OwningPtr<llvm::Module> M;
-    OwningPtr<CodeGen::CodeGenModule> Builder;
+    std::unique_ptr<llvm::Module> M;
+    std::unique_ptr<CodeGen::CodeGenModule> Builder;
+
+  private:
+    SmallVector<CXXMethodDecl *, 8> DeferredInlineMethodDefinitions;
+
   public:
     CodeGeneratorImpl(DiagnosticsEngine &diags, const std::string& ModuleName,
-                      const CodeGenOptions &CGO, llvm::LLVMContext& C)
-      : Diags(diags), CodeGenOpts(CGO),
+                      const CodeGenOptions &CGO, llvm::LLVMContext& C,
+                      CoverageSourceInfo *CoverageInfo = nullptr)
+      : Diags(diags), Ctx(nullptr), CodeGenOpts(CGO), HandlingTopLevelDecls(0),
+        CoverageInfo(CoverageInfo),
         M(new llvm::Module(ModuleName, C)) {}
 
-    virtual ~CodeGeneratorImpl() {}
+    virtual ~CodeGeneratorImpl() {
+      // There should normally not be any leftover inline method definitions.
+      assert(DeferredInlineMethodDefinitions.empty() ||
+             Diags.hasErrorOccurred());
+    }
 
-    virtual llvm::Module* GetModule() {
+    llvm::Module* GetModule() override {
       return M.get();
     }
 
-    virtual llvm::Module* ReleaseModule() {
-      return M.take();
+    const Decl *GetDeclForMangledName(StringRef MangledName) override {
+      GlobalDecl Result;
+      if (!Builder->lookupRepresentativeDecl(MangledName, Result))
+        return nullptr;
+      const Decl *D = Result.getCanonicalDecl().getDecl();
+      if (auto FD = dyn_cast<FunctionDecl>(D)) {
+        if (FD->hasBody(FD))
+          return FD;
+      } else if (auto TD = dyn_cast<TagDecl>(D)) {
+        if (auto Def = TD->getDefinition())
+          return Def;
+      }
+      return D;
     }
 
-    virtual void Initialize(ASTContext &Context) {
+    llvm::Module *ReleaseModule() override { return M.release(); }
+
+    void Initialize(ASTContext &Context) override {
       Ctx = &Context;
 
       M->setTargetTriple(Ctx->getTargetInfo().getTriple().getTriple());
       M->setDataLayout(Ctx->getTargetInfo().getTargetDescription());
       TD.reset(new llvm::DataLayout(Ctx->getTargetInfo().getTargetDescription()));
       Builder.reset(new CodeGen::CodeGenModule(Context, CodeGenOpts, *M, *TD,
-                                               Diags));
+                                               Diags, CoverageInfo));
 
       for (size_t i = 0, e = CodeGenOpts.DependentLibraries.size(); i < e; ++i)
         HandleDependentLibrary(CodeGenOpts.DependentLibraries[i]);
     }
 
-    virtual void HandleCXXStaticMemberVarInstantiation(VarDecl *VD) {
+    void HandleCXXStaticMemberVarInstantiation(VarDecl *VD) override {
       if (Diags.hasErrorOccurred())
         return;
 
       Builder->HandleCXXStaticMemberVarInstantiation(VD);
     }
 
-    virtual bool HandleTopLevelDecl(DeclGroupRef DG) {
+    bool HandleTopLevelDecl(DeclGroupRef DG) override {
       if (Diags.hasErrorOccurred())
         return true;
+
+      HandlingTopLevelDeclRAII HandlingDecl(*this);
 
       // Make sure to emit all elements of a Decl.
       for (DeclGroupRef::iterator I = DG.begin(), E = DG.end(); I != E; ++I)
         Builder->EmitTopLevelDecl(*I);
+
       return true;
+    }
+
+    void EmitDeferredDecls() {
+      if (DeferredInlineMethodDefinitions.empty())
+        return;
+
+      // Emit any deferred inline method definitions. Note that more deferred
+      // methods may be added during this loop, since ASTConsumer callbacks
+      // can be invoked if AST inspection results in declarations being added.
+      HandlingTopLevelDeclRAII HandlingDecl(*this);
+      for (unsigned I = 0; I != DeferredInlineMethodDefinitions.size(); ++I)
+        Builder->EmitTopLevelDecl(DeferredInlineMethodDefinitions[I]);
+      DeferredInlineMethodDefinitions.clear();
+    }
+
+    void HandleInlineMethodDefinition(CXXMethodDecl *D) override {
+      if (Diags.hasErrorOccurred())
+        return;
+
+      assert(D->doesThisDeclarationHaveABody());
+
+      // We may want to emit this definition. However, that decision might be
+      // based on computing the linkage, and we have to defer that in case we
+      // are inside of something that will change the method's final linkage,
+      // e.g.
+      //   typedef struct {
+      //     void bar();
+      //     void foo() { bar(); }
+      //   } A;
+      DeferredInlineMethodDefinitions.push_back(D);
+
+      // Provide some coverage mapping even for methods that aren't emitted.
+      // Don't do this for templated classes though, as they may not be
+      // instantiable.
+      if (!D->getParent()->getDescribedClassTemplate())
+        Builder->AddDeferredUnusedCoverageMapping(D);
     }
 
     /// HandleTagDeclDefinition - This callback is invoked each time a TagDecl
     /// to (e.g. struct, union, enum, class) is completed. This allows the
     /// client hack on the type, which can occur at any point in the file
     /// (because these can be defined in declspecs).
-    virtual void HandleTagDeclDefinition(TagDecl *D) {
+    void HandleTagDeclDefinition(TagDecl *D) override {
       if (Diags.hasErrorOccurred())
         return;
 
       Builder->UpdateCompletedType(D);
-      
-      // In C++, we may have member functions that need to be emitted at this 
-      // point.
-      if (Ctx->getLangOpts().CPlusPlus && !D->isDependentContext()) {
-        for (DeclContext::decl_iterator M = D->decls_begin(), 
-                                     MEnd = D->decls_end();
-             M != MEnd; ++M)
-          if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(*M))
-            if (Method->doesThisDeclarationHaveABody() &&
-                (Method->hasAttr<UsedAttr>() || 
-                 Method->hasAttr<ConstructorAttr>()))
-              Builder->EmitTopLevelDecl(Method);
+
+      // For MSVC compatibility, treat declarations of static data members with
+      // inline initializers as definitions.
+      if (Ctx->getLangOpts().MSVCCompat) {
+        for (Decl *Member : D->decls()) {
+          if (VarDecl *VD = dyn_cast<VarDecl>(Member)) {
+            if (Ctx->isMSStaticDataMemberInlineDefinition(VD) &&
+                Ctx->DeclMustBeEmitted(VD)) {
+              Builder->EmitGlobal(VD);
+            }
+          }
+        }
       }
     }
 
-    virtual void HandleTagDeclRequiredDefinition(const TagDecl *D) LLVM_OVERRIDE {
+    void HandleTagDeclRequiredDefinition(const TagDecl *D) override {
       if (Diags.hasErrorOccurred())
         return;
 
@@ -115,8 +192,10 @@ namespace {
           DI->completeRequiredType(RD);
     }
 
-    virtual void HandleTranslationUnit(ASTContext &Ctx) {
+    void HandleTranslationUnit(ASTContext &Ctx) override {
       if (Diags.hasErrorOccurred()) {
+        if (Builder)
+          Builder->clear();
         M.reset();
         return;
       }
@@ -125,30 +204,30 @@ namespace {
         Builder->Release();
     }
 
-    virtual void CompleteTentativeDefinition(VarDecl *D) {
+    void CompleteTentativeDefinition(VarDecl *D) override {
       if (Diags.hasErrorOccurred())
         return;
 
       Builder->EmitTentativeDefinition(D);
     }
 
-    virtual void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) {
+    void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) override {
       if (Diags.hasErrorOccurred())
         return;
 
       Builder->EmitVTable(RD, DefinitionRequired);
     }
 
-    virtual void HandleLinkerOptionPragma(llvm::StringRef Opts) {
+    void HandleLinkerOptionPragma(llvm::StringRef Opts) override {
       Builder->AppendLinkerOptions(Opts);
     }
 
-    virtual void HandleDetectMismatch(llvm::StringRef Name,
-                                      llvm::StringRef Value) {
+    void HandleDetectMismatch(llvm::StringRef Name,
+                              llvm::StringRef Value) override {
       Builder->AddDetectMismatch(Name, Value);
     }
 
-    virtual void HandleDependentLibrary(llvm::StringRef Lib) {
+    void HandleDependentLibrary(llvm::StringRef Lib) override {
       Builder->AddDependentLib(Lib);
     }
   };
@@ -160,6 +239,7 @@ CodeGenerator *clang::CreateLLVMCodeGen(DiagnosticsEngine &Diags,
                                         const std::string& ModuleName,
                                         const CodeGenOptions &CGO,
                                         const TargetOptions &/*TO*/,
-                                        llvm::LLVMContext& C) {
-  return new CodeGeneratorImpl(Diags, ModuleName, CGO, C);
+                                        llvm::LLVMContext& C,
+                                        CoverageSourceInfo *CoverageInfo) {
+  return new CodeGeneratorImpl(Diags, ModuleName, CGO, C, CoverageInfo);
 }

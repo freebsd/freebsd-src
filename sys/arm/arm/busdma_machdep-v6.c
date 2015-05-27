@@ -858,8 +858,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else
 		ba = standard_allocator;
 
-	/* Be careful not to access map from here on. */
-
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
 
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
@@ -1456,7 +1454,24 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			break;
 
 		case BUS_DMASYNC_PREREAD:
+			/*
+			 * An mbuf may start in the middle of a cacheline. There
+			 * will be no cpu writes to the beginning of that line
+			 * (which contains the mbuf header) while dma is in
+			 * progress.  Handle that case by doing a writeback of
+			 * just the first cacheline before invalidating the
+			 * overall buffer.  Any mbuf in a chain may have this
+			 * misalignment.  Buffers which are not mbufs bounce if
+			 * they are not aligned to a cacheline.
+			 */
 			while (sl != end) {
+				if (sl->vaddr & arm_dcache_align_mask) {
+					KASSERT(map->flags & DMAMAP_MBUF,
+					    ("unaligned buffer is not an mbuf"));
+					cpu_dcache_wb_range(sl->vaddr, 1);
+					l2cache_wb_range(sl->vaddr,
+					    sl->busaddr, 1);
+				}
 				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
 				l2cache_inv_range(sl->vaddr, sl->busaddr, 
 				    sl->datacount);
@@ -1670,8 +1685,8 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 
 	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
 		/* Page offset needs to be preserved. */
-		bpage->vaddr |= vaddr & PAGE_MASK;
-		bpage->busaddr |= vaddr & PAGE_MASK;
+		bpage->vaddr |= addr & PAGE_MASK;
+		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
 	bpage->dataaddr = addr;

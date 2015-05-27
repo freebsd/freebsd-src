@@ -228,6 +228,7 @@ sta_flush_table(struct sta_table *st)
  */
 static int
 sta_add(struct ieee80211_scan_state *ss, 
+	struct ieee80211_channel *curchan,
 	const struct ieee80211_scanparams *sp,
 	const struct ieee80211_frame *wh,
 	int subtype, int rssi, int noise)
@@ -310,15 +311,15 @@ found:
 		 * IEEE80211_BPARSE_OFFCHAN.
 		 */
 		c = ieee80211_find_channel_byieee(ic, sp->chan,
-		    ic->ic_curchan->ic_flags);
+		    curchan->ic_flags);
 		if (c != NULL) {
 			ise->se_chan = c;
 		} else if (ise->se_chan == NULL) {
 			/* should not happen, pick something */
-			ise->se_chan = ic->ic_curchan;
+			ise->se_chan = curchan;
 		}
 	} else
-		ise->se_chan = ic->ic_curchan;
+		ise->se_chan = curchan;
 	if (IEEE80211_IS_CHAN_HT(ise->se_chan) && sp->htcap == NULL) {
 		/* Demote legacy networks to a non-HT channel. */
 		c = ieee80211_find_channel(ic, ise->se_chan->ic_freq,
@@ -600,10 +601,12 @@ makescanlist(struct ieee80211_scan_state *ss, struct ieee80211vap *vap,
 				 * so if the desired mode is 11g, then use
 				 * the 11b channel list but upgrade the mode.
 				 */
-				if (vap->iv_des_mode != IEEE80211_MODE_11G ||
-				    mode != IEEE80211_MODE_11B)
-					continue;
-				mode = IEEE80211_MODE_11G;	/* upgrade */
+				if (vap->iv_des_mode == IEEE80211_MODE_11G) {
+					if (mode == IEEE80211_MODE_11G) /* Skip the G check */
+						continue;
+					else if (mode == IEEE80211_MODE_11B)
+						mode = IEEE80211_MODE_11G;	/* upgrade */
+				}
 			}
 		} else {
 			/*

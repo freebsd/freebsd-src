@@ -14,16 +14,44 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ExternalASTSource.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclarationName.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
 
 ExternalASTSource::~ExternalASTSource() { }
 
+void ExternalASTSource::FindFileRegionDecls(FileID File, unsigned Offset,
+                                            unsigned Length,
+                                            SmallVectorImpl<Decl *> &Decls) {}
+
+void ExternalASTSource::CompleteRedeclChain(const Decl *D) {}
+
+void ExternalASTSource::CompleteType(TagDecl *Tag) {}
+
+void ExternalASTSource::CompleteType(ObjCInterfaceDecl *Class) {}
+
+void ExternalASTSource::ReadComments() {}
+
+void ExternalASTSource::StartedDeserializing() {}
+
+void ExternalASTSource::FinishedDeserializing() {}
+
+void ExternalASTSource::StartTranslationUnit(ASTConsumer *Consumer) {}
+
 void ExternalASTSource::PrintStats() { }
 
+bool ExternalASTSource::layoutRecordType(
+    const RecordDecl *Record, uint64_t &Size, uint64_t &Alignment,
+    llvm::DenseMap<const FieldDecl *, uint64_t> &FieldOffsets,
+    llvm::DenseMap<const CXXRecordDecl *, CharUnits> &BaseOffsets,
+    llvm::DenseMap<const CXXRecordDecl *, CharUnits> &VirtualBaseOffsets) {
+  return false;
+}
+
 Decl *ExternalASTSource::GetExternalDecl(uint32_t ID) {
-  return 0;
+  return nullptr;
 }
 
 Selector ExternalASTSource::GetExternalSelector(uint32_t ID) {
@@ -35,12 +63,12 @@ uint32_t ExternalASTSource::GetNumExternalSelectors() {
 }
 
 Stmt *ExternalASTSource::GetExternalDeclStmt(uint64_t Offset) {
-  return 0;
+  return nullptr;
 }
 
 CXXBaseSpecifier *
 ExternalASTSource::GetExternalCXXBaseSpecifiers(uint64_t Offset) {
-  return 0;
+  return nullptr;
 }
 
 bool
@@ -60,3 +88,21 @@ ExternalASTSource::FindExternalLexicalDecls(const DeclContext *DC,
 }
 
 void ExternalASTSource::getMemoryBufferSizes(MemoryBufferSizes &sizes) const { }
+
+uint32_t ExternalASTSource::incrementGeneration(ASTContext &C) {
+  uint32_t OldGeneration = CurrentGeneration;
+
+  // Make sure the generation of the topmost external source for the context is
+  // incremented. That might not be us.
+  auto *P = C.getExternalSource();
+  if (P && P != this)
+    CurrentGeneration = P->incrementGeneration(C);
+  else {
+    // FIXME: Only bump the generation counter if the current generation number
+    // has been observed?
+    if (!++CurrentGeneration)
+      llvm::report_fatal_error("generation counter overflowed", false);
+  }
+
+  return OldGeneration;
+}

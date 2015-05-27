@@ -196,7 +196,7 @@ the @samp{mad} and @samp{madu} instruction, and to not schedule @samp{nop}
 instructions around accesses to the @samp{HI} and @samp{LO} registers.
 @samp{-no-m4650} turns off this option.
 
-@itemx -m3900
+@item -m3900
 @itemx -no-m3900
 @itemx -m4100
 @itemx -no-m4100

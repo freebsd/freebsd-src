@@ -67,7 +67,7 @@ public:
     /// Each symbol file gets to respond with a mask of abilities that
     /// it supports for each object file. This happens when we are
     /// trying to figure out which symbol file plug-in will get used
-    /// for a given object file. The plug-in that resoonds with the 
+    /// for a given object file. The plug-in that responds with the 
     /// best mix of "SymbolFile::Abilities" bits set, will get chosen to
     /// be the symbol file parser. This allows each plug-in to check for
     /// sections that contain data a symbol file plug-in would need. For
@@ -152,6 +152,16 @@ public:
 
     ObjectFile*             GetObjectFile() { return m_obj_file; }
     const ObjectFile*       GetObjectFile() const { return m_obj_file; }
+
+    //------------------------------------------------------------------
+    /// Notify the SymbolFile that the file addresses in the Sections
+    /// for this module have been changed.
+    //------------------------------------------------------------------
+    virtual void
+    SectionFileAddressesChanged () 
+    { 
+    }
+
     
 protected:
     ObjectFile*             m_obj_file; // The object file that symbols can be extracted from.

@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2014
+.Dd May 15, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -316,6 +316,14 @@ using the
 kernel configuration option, or the
 .Va net.fibs
 tunable.
+.It Cm tunnelfib Ar fib_number
+Specify tunnel FIB.
+A FIB
+.Ar fib_number
+is assigned to all packets encapsulated by tunnel interface, e.g.,
+.Xr gif 4
+and
+.Xr gre 4 .
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
@@ -687,6 +695,11 @@ policy table, configurable with
 .It Cm -no_prefer_iface
 Clear a flag
 .Cm no_prefer_iface .
+.It Cm no_dad
+Set a flag to disable Duplicate Address Detection.
+.It Cm -no_dad
+Clear a flag
+.Cm no_dad .
 .El
 .Pp
 The following parameters are specific for IPv6 addresses.
@@ -2415,6 +2428,14 @@ This is for backward compatibility with
 .It Cm -accept_rev_ethip_ver
 Clear a flag
 .Cm accept_rev_ethip_ver .
+.It Cm ignore_source
+Set a flag to accept encapsulated packets destined to this host
+independently from source address.
+This may be useful for hosts, that receive encapsulated packets
+from the load balancers.
+.It Cm -ignore_source
+Clear a flag
+.Cm ignore_source .
 .It Cm send_rev_ethip_ver
 Set a flag to send EtherIP packets with reversed version
 field intentionally.
@@ -2544,33 +2565,33 @@ The following parameters are used to configure
 .Xr vxlan 4
 interfaces.
 .Bl -tag -width indent
-.It Cm vni Ar identifier
+.It Cm vxlanid Ar identifier
 This value is a 24-bit VXLAN Network Identifier (VNI) that identifies the
 virtual network segment membership of the interface.
-.It Cm local Ar address
+.It Cm vxlanlocal Ar address
 The source address used in the encapsulating IPv4/IPv6 header.
 The address should already be assigned to an existing interface.
 When the interface is configured in unicast mode, the listening socket
 is bound to this address.
-.It Cm remote Ar address
+.It Cm vxlanremote Ar address
 The interface can be configured in a unicast, or point-to-point, mode
 to create a tunnel between two hosts.
 This is the IP address of the remote end of the tunnel.
-.It Cm group Ar address
+.It Cm vxlangroup Ar address
 The interface can be configured in a multicast mode
 to create a virtual network of hosts.
 This is the IP multicast group address the interface will join.
-.It Cm localport Ar port
+.It Cm vxlanlocalport Ar port
 The port number the interface will listen on.
 The default port number is 4789.
-.It Cm remoteport Ar port
+.It Cm vxlanremoteport Ar port
 The destination port number used in the encapsulating IPv4/IPv6 header.
 The remote host should be listening on this port.
 The default port number is 4789.
 Note some other implementations, such as Linux,
 do not default to the IANA assigned port,
 but instead listen on port 8472.
-.It Cm portrange Ar low high
+.It Cm vxlanportrange Ar low high
 The range of source ports used in the encapsulating IPv4/IPv6 header.
 The port selected within the range is based on a hash of the inner frame.
 A range is useful to provide entropy within the outer IP header
@@ -2581,32 +2602,32 @@ variables
 .Va net.inet.ip.portrange.first
 and
 .Va net.inet.ip.portrange.last
-.It Cm timeout Ar timeout
+.It Cm vxlantimeout Ar timeout
 The maximum time, in seconds, before an entry in the forwarding table
 is pruned.
 The default is 1200 seconds (20 minutes).
-.It Cm maxaddr Ar max
+.It Cm vxlanmaxaddr Ar max
 The maximum number of entries in the forwarding table.
 The default is 2000.
 .It Cm vxlandev Ar dev
 When the interface is configured in multicast mode, the
 .Cm dev
 interface is used to transmit IP multicast packets.
-.It Cm ttl Ar ttl
+.It Cm vxlanttl Ar ttl
 The TTL used in the encapsulating IPv4/IPv6 header.
 The default is 64.
-.It Cm learn
+.It Cm vxlanlearn
 The source IP address and inner source Ethernet MAC address of
 received packets are used to dynamically populate the forwarding table.
 When in multicast mode, an entry in the forwarding table allows the
 interface to send the frame directly to the remote host instead of
 broadcasting the frame to the multicast group.
 This is the default.
-.It Fl learn
+.It Fl vxlanlearn
 The forwarding table is not populated by recevied packets.
-.It Cm flush
+.It Cm vxlanflush
 Delete all dynamically-learned addresses from the forwarding table.
-.It Cm flushall
+.It Cm vxlanflushall
 Delete all addresses, including static addresses, from the forwarding table.
 .El
 .Pp
@@ -2819,9 +2840,9 @@ tried to alter an interface's configuration.
 .Xr devd.conf 5 ,
 .\" .Xr eon 5 ,
 .Xr devd 8 ,
+.Xr jail 8 ,
 .Xr rc 8 ,
 .Xr routed 8 ,
-.Xr jail 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The

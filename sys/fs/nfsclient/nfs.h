@@ -55,6 +55,24 @@
 #define	NFS_ISV34(v) \
 	(VFSTONFS((v)->v_mount)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
 
+#ifdef NFS_DEBUG
+
+extern int nfs_debug;
+#define	NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
+#define	NFS_DEBUG_WG		2 /* server write gathering */
+#define	NFS_DEBUG_RC		4 /* server request caching */
+
+#define	NFS_DPF(cat, args)					\
+	do {							\
+		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+	} while (0)
+
+#else
+
+#define	NFS_DPF(cat, args)
+
+#endif
+
 /*
  * NFS iod threads can be in one of these three states once spawned.
  * NFSIOD_NOT_AVAILABLE - Cannot be assigned an I/O operation at this time.

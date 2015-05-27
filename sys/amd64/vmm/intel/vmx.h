@@ -78,6 +78,7 @@ struct vmxcap {
 };
 
 struct vmxstate {
+	uint64_t nextrip;	/* next instruction to be executed by guest */
 	int	lastcpu;	/* host cpu that this 'vcpu' last ran on */
 	uint16_t vpid;
 };
@@ -102,6 +103,7 @@ enum {
 	IDX_MSR_STAR,
 	IDX_MSR_SF_MASK,
 	IDX_MSR_KGSBASE,
+	IDX_MSR_PAT,
 	GUEST_MSR_NUM		/* must be the last enumeration */
 };
 

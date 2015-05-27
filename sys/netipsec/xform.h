@@ -83,7 +83,7 @@ struct ipescrequest;
 
 struct xformsw {
 	u_short	xf_type;		/* xform ID */
-#define	XF_IP4		1	/* IP inside IP */
+#define	XF_IP4		1	/* unused */
 #define	XF_AH		2	/* AH */
 #define	XF_ESP		3	/* ESP */
 #define	XF_TCPSIGNATURE	5	/* TCP MD5 Signature option, RFC 2358 */
@@ -107,12 +107,6 @@ extern void xform_register(struct xformsw*);
 extern int xform_init(struct secasvar *sav, int xftype);
 
 struct cryptoini;
-
-/* XF_IP4 */
-extern	int ip4_input6(struct mbuf **m, int *offp, int proto);
-extern	int ip4_input(struct mbuf **, int *, int);
-extern	int ipip_output(struct mbuf *, struct ipsecrequest *,
-			struct mbuf **, int, int);
 
 /* XF_AH */
 extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);

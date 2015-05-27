@@ -2382,7 +2382,8 @@ find_line (bfd *abfd,
   else
     addr += section->vma;
   *filename_ptr = NULL;
-  *functionname_ptr = NULL;
+  if (!do_line)
+    *functionname_ptr = NULL;
   *linenumber_ptr = 0;
 
   if (! *pinfo)

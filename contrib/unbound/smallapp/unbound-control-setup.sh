@@ -36,8 +36,7 @@
 # settings:
 
 # directory for files
-prefix=
-DESTDIR=${prefix}/etc/unbound
+DESTDIR=/var/unbound
 
 # issuer and subject name for certificates
 SERVERNAME=unbound

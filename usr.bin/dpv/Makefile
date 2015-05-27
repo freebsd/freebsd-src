@@ -4,8 +4,7 @@ PROG=		dpv
 
 CFLAGS+=	-I${.CURDIR}
 
-DPADD=		${LIBDPV} ${LIBDIALOG} ${LIBFIGPAR} ${LIBNCURSESW} ${LIBUTIL}
-LDADD=		-ldpv -ldialog -lfigpar -lncursesw -lutil
+LIBADD=		dpv dialog
 
 WARNS?=		6
 

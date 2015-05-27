@@ -28,6 +28,7 @@
 
 #include <strings.h>
 #include <rpc/rpc.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
 #include <rpcsvc/mount.h>

@@ -95,6 +95,9 @@ do {							\
 		_SPINUNLOCK(&__stdio_thread_lock);	\
 } while (0)
 
+void		__libc_spinlock_stub(struct _spinlock *);
+void		__libc_spinunlock_stub(struct _spinlock *);
+
 /*
  * Indexes into the pthread jump table.
  *
@@ -173,6 +176,57 @@ typedef pthread_func_t pthread_func_entry_t[2];
 
 extern pthread_func_entry_t __thr_jtable[];
 
+void	__set_error_selector(int *(*arg)(void));
+int	_pthread_mutex_init_calloc_cb_stub(pthread_mutex_t *mutex,
+	    void *(calloc_cb)(__size_t, __size_t));
+
+typedef int (*interpos_func_t)(void);
+interpos_func_t *__libc_interposing_slot(int interposno);
+extern interpos_func_t __libc_interposing[] __hidden;
+
+enum {
+	INTERPOS_accept,
+	INTERPOS_accept4,
+	INTERPOS_aio_suspend,
+	INTERPOS_close,
+	INTERPOS_connect,
+	INTERPOS_fcntl,
+	INTERPOS_fsync,
+	INTERPOS_fork,
+	INTERPOS_msync,
+	INTERPOS_nanosleep,
+	INTERPOS_openat,
+	INTERPOS_poll,
+	INTERPOS_pselect,
+	INTERPOS_recvfrom,
+	INTERPOS_recvmsg,
+	INTERPOS_select,
+	INTERPOS_sendmsg,
+	INTERPOS_sendto,
+	INTERPOS_setcontext,
+	INTERPOS_sigaction,
+	INTERPOS_sigprocmask,
+	INTERPOS_sigsuspend,
+	INTERPOS_sigwait,
+	INTERPOS_sigtimedwait,
+	INTERPOS_sigwaitinfo,
+	INTERPOS_swapcontext,
+	INTERPOS_system,
+	INTERPOS_tcdrain,
+	INTERPOS_read,
+	INTERPOS_readv,
+	INTERPOS_wait4,
+	INTERPOS_write,
+	INTERPOS_writev,
+	INTERPOS__pthread_mutex_init_calloc_cb,
+	INTERPOS_spinlock,
+	INTERPOS_spinunlock,
+	INTERPOS_kevent,
+	INTERPOS_wait6,
+	INTERPOS_ppoll,
+	INTERPOS_MAX
+};
+
 /*
  * yplib internal interfaces
  */
@@ -215,6 +269,8 @@ void _malloc_thread_cleanup(void);
 void _malloc_prefork(void);
 void _malloc_postfork(void);
 
+void _malloc_first_thread(void);
+
 /*
  * Function to clean up streams, called from abort() and exit().
  */
@@ -222,35 +278,96 @@ extern void (*__cleanup)(void) __hidden;
 
 /*
  * Get kern.osreldate to detect ABI revisions.  Explicitly
- * ignores value of $OSVERSION and caches result.  Prototypes
- * for the wrapped "new" pad-less syscalls are here for now.
+ * ignores value of $OSVERSION and caches result.
  */
-extern int __getosreldate(void);
+int __getosreldate(void);
 #include <sys/_types.h>
-/* Without pad */
-extern __off_t	__sys_lseek(int, __off_t, int);
-extern int	__sys_ftruncate(int, __off_t);
-extern int	__sys_truncate(const char *, __off_t);
-extern __ssize_t __sys_pread(int, void *, __size_t, __off_t);
-extern __ssize_t __sys_pwrite(int, const void *, __size_t, __off_t);
-extern void *	__sys_mmap(void *, __size_t, int, int, int, __off_t);
+#include <sys/_sigset.h>
 
-/* With pad */
-extern __off_t	__sys_freebsd6_lseek(int, int, __off_t, int);
-extern int	__sys_freebsd6_ftruncate(int, int, __off_t);
-extern int	__sys_freebsd6_truncate(const char *, int, __off_t);
-extern __ssize_t __sys_freebsd6_pread(int, void *, __size_t, int, __off_t);
-extern __ssize_t __sys_freebsd6_pwrite(int, const void *, __size_t, int, __off_t);
-extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t);
-
-/* Without back-compat translation */
-extern int	__sys_fcntl(int, int, ...);
-
+struct aiocb;
+struct fd_set;
+struct iovec;
+struct kevent;
+struct msghdr;
+struct pollfd;
+struct rusage;
+struct sigaction;
+struct sockaddr;
 struct timespec;
 struct timeval;
 struct timezone;
-int	__sys_gettimeofday(struct timeval *, struct timezone *);
-int	__sys_clock_gettime(__clockid_t, struct timespec *ts);
+struct __siginfo;
+struct __ucontext;
+struct __wrusage;
+enum idtype;
+int		__sys_aio_suspend(const struct aiocb * const[], int,
+		    const struct timespec *);
+int		__sys_accept(int, struct sockaddr *, __socklen_t *);
+int		__sys_accept4(int, struct sockaddr *, __socklen_t *, int);
+int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
+int		__sys_close(int);
+int		__sys_connect(int, const struct sockaddr *, __socklen_t);
+int		__sys_fcntl(int, int, ...);
+int		__sys_fsync(int);
+__pid_t		__sys_fork(void);
+int		__sys_ftruncate(int, __off_t);
+int		__sys_gettimeofday(struct timeval *, struct timezone *);
+int		__sys_kevent(int, const struct kevent *, int, struct kevent *,
+		    int, const struct timespec *);
+__off_t		__sys_lseek(int, __off_t, int);
+void	       *__sys_mmap(void *, __size_t, int, int, int, __off_t);
+int		__sys_msync(void *, __size_t, int);
+int		__sys_nanosleep(const struct timespec *, struct timespec *);
+int		__sys_open(const char *, int, ...);
+int		__sys_openat(int, const char *, int, ...);
+int		__sys_pselect(int, struct fd_set *, struct fd_set *,
+		    struct fd_set *, const struct timespec *,
+		    const __sigset_t *);
+int		__sys_poll(struct pollfd *, unsigned, int);
+int		__sys_ppoll(struct pollfd *, unsigned, const struct timespec *,
+		    const __sigset_t *);
+__ssize_t	__sys_pread(int, void *, __size_t, __off_t);
+__ssize_t	__sys_pwrite(int, const void *, __size_t, __off_t);
+__ssize_t	__sys_read(int, void *, __size_t);
+__ssize_t	__sys_readv(int, const struct iovec *, int);
+__ssize_t	__sys_recv(int, void *, __size_t, int);
+__ssize_t	__sys_recvfrom(int, void *, __size_t, int, struct sockaddr *,
+		    __socklen_t *);
+__ssize_t	__sys_recvmsg(int, struct msghdr *, int);
+int		__sys_select(int, struct fd_set *, struct fd_set *,
+		    struct fd_set *, struct timeval *);
+__ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
+__ssize_t	__sys_sendto(int, const void *, __size_t, int,
+		    const struct sockaddr *, __socklen_t);
+int		__sys_setcontext(const struct __ucontext *);
+int		__sys_sigaction(int, const struct sigaction *,
+		    struct sigaction *);
+int		__sys_sigprocmask(int, const __sigset_t *, __sigset_t *);
+int		__sys_sigsuspend(const __sigset_t *);
+int		__sys_sigtimedwait(const __sigset_t *, struct __siginfo *,
+		    const struct timespec *);
+int		__sys_sigwait(const __sigset_t *, int *);
+int		__sys_sigwaitinfo(const __sigset_t *, struct __siginfo *);
+int		__sys_swapcontext(struct __ucontext *,
+		    const struct __ucontext *);
+int		__sys_thr_kill(long, int);
+int		__sys_thr_self(long *);
+int		__sys_truncate(const char *, __off_t);
+__pid_t		__sys_wait4(__pid_t, int *, int, struct rusage *);
+__pid_t		__sys_wait6(enum idtype, __id_t, int *, int,
+		    struct __wrusage *, struct __siginfo *);
+__ssize_t	__sys_write(int, const void *, __size_t);
+__ssize_t	__sys_writev(int, const struct iovec *, int);
+
+int		__libc_sigwait(const __sigset_t * __restrict,
+		    int * restrict sig);
+int		__libc_system(const char *);
+int		__libc_tcdrain(int);
+int		__fcntl_compat(int fd, int cmd, ...);
+
+int		__sys_futimens(int fd, const struct timespec *times) __hidden;
+int		__sys_utimensat(int fd, const char *path,
+		    const struct timespec *times, int flag) __hidden;
 
 /* execve() with PATH processing to implement posix_spawnp() */
 int _execvpe(const char *, char * const *, char * const *);

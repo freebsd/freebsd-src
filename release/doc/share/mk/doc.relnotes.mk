@@ -17,6 +17,7 @@ PROFILING+= --param profile.attribute "'releasetype'" --param profile.value "'re
 XSLTPROCFLAGS+= --param release.url "'${RELEASEURL}'"
 XSLTPROCFLAGS+= --param release.branch "'${RELEASEBRANCH}'"
 XSLTPROCFLAGS+= --param release.maillist "'${RELEASEMAILLIST}'"
+XSLTPROCFLAGS+=	--param toc.section.depth "'3'"
 
 # Find the RELNOTESng document catalogs
 EXTRA_CATALOGS+= file://${RELN_ROOT}/${LANGCODE}/share/xml/catalog.xml \

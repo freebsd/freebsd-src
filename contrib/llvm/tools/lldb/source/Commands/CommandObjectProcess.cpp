@@ -20,6 +20,7 @@
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Core/PluginManager.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/Options.h"
@@ -204,8 +205,28 @@ protected:
         
         const char *target_settings_argv0 = target->GetArg0();
         
-        if (target->GetDisableASLR())
+        // Determine whether we will disable ASLR or leave it in the default state (i.e. enabled if the platform supports it).
+        // First check if the process launch options explicitly turn on/off disabling ASLR.  If so, use that setting;
+        // otherwise, use the 'settings target.disable-aslr' setting.
+        bool disable_aslr = false;
+        if (m_options.disable_aslr != eLazyBoolCalculate)
+        {
+            // The user specified an explicit setting on the process launch line.  Use it.
+            disable_aslr = (m_options.disable_aslr == eLazyBoolYes);
+        }
+        else
+        {
+            // The user did not explicitly specify whether to disable ASLR.  Fall back to the target.disable-aslr setting.
+            disable_aslr = target->GetDisableASLR ();
+        }
+        
+        if (disable_aslr)
             m_options.launch_info.GetFlags().Set (eLaunchFlagDisableASLR);
+        else
+            m_options.launch_info.GetFlags().Clear (eLaunchFlagDisableASLR);
+        
+        if (target->GetDetachOnError())
+            m_options.launch_info.GetFlags().Set (eLaunchFlagDetachOnError);
         
         if (target->GetDisableSTDIO())
             m_options.launch_info.GetFlags().Set (eLaunchFlagDisableSTDIO);
@@ -237,8 +258,9 @@ protected:
             // Save the arguments for subsequent runs in the current target.
             target->SetRunArguments (launch_args);
         }
-        
-        Error error = target->Launch(debugger.GetListener(), m_options.launch_info);
+
+        StreamString stream;
+        Error error = target->Launch(m_options.launch_info, &stream);
         
         if (error.Success())
         {
@@ -246,6 +268,9 @@ protected:
             ProcessSP process_sp (target->GetProcessSP());
             if (process_sp)
             {
+                const char *data = stream.GetData();
+                if (data && strlen(data) > 0)
+                    result.AppendMessage(stream.GetData());
                 result.AppendMessageWithFormat ("Process %" PRIu64 " launched: '%s' (%s)\n", process_sp->GetID(), exe_module_sp->GetFileSpec().GetPath().c_str(), archname);
                 result.SetStatus (eReturnStatusSuccessFinishResult);
                 result.SetDidChangeProcessState (true);
@@ -532,6 +557,9 @@ protected:
 
                 if (error.Success())
                 {
+                    // Update the execution context so the current target and process are now selected
+                    // in case we interrupt
+                    m_interpreter.UpdateExecutionContext(NULL);
                     ListenerSP listener_sp (new Listener("lldb.CommandObjectProcessAttach.DoExecute.attach.hijack"));
                     m_options.attach_info.SetHijackListener(listener_sp);
                     process->HijackProcessEvents(listener_sp.get());
@@ -540,20 +568,27 @@ protected:
                     if (error.Success())
                     {
                         result.SetStatus (eReturnStatusSuccessContinuingNoResult);
-                        StateType state = process->WaitForProcessToStop (NULL, NULL, false, listener_sp.get());
+                        StreamString stream;
+                        StateType state = process->WaitForProcessToStop (NULL, NULL, false, listener_sp.get(), &stream);
 
                         process->RestoreProcessEvents();
 
                         result.SetDidChangeProcessState (true);
                         
+                        if (stream.GetData())
+                            result.AppendMessage(stream.GetData());
+
                         if (state == eStateStopped)
                         {
-                            result.AppendMessageWithFormat ("Process %" PRIu64 " %s\n", process->GetID(), StateAsCString (state));
                             result.SetStatus (eReturnStatusSuccessFinishNoResult);
                         }
                         else
                         {
-                            result.AppendError ("attach failed: process did not stop (no such process or permission problem?)");
+                            const char *exit_desc = process->GetExitDescription();
+                            if (exit_desc)
+                                result.AppendErrorWithFormat ("attach failed: %s", exit_desc);
+                            else
+                                result.AppendError ("attach failed: process did not stop (no such process or permission problem?)");
                             process->Destroy();
                             result.SetStatus (eReturnStatusFailed);
                         }
@@ -617,13 +652,13 @@ protected:
 OptionDefinition
 CommandObjectProcessAttach::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "continue",'c', OptionParser::eNoArgument,         NULL, 0, eArgTypeNone,         "Immediately continue the process once attached."},
-{ LLDB_OPT_SET_ALL, false, "plugin",  'P', OptionParser::eRequiredArgument,   NULL, 0, eArgTypePlugin,       "Name of the process plugin you want to use."},
-{ LLDB_OPT_SET_1,   false, "pid",     'p', OptionParser::eRequiredArgument,   NULL, 0, eArgTypePid,          "The process ID of an existing process to attach to."},
-{ LLDB_OPT_SET_2,   false, "name",    'n', OptionParser::eRequiredArgument,   NULL, 0, eArgTypeProcessName,  "The name of the process to attach to."},
-{ LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,         "Include existing processes when doing attach -w."},
-{ LLDB_OPT_SET_2,   false, "waitfor", 'w', OptionParser::eNoArgument,         NULL, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch."},
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+{ LLDB_OPT_SET_ALL, false, "continue",'c', OptionParser::eNoArgument,         NULL, NULL, 0, eArgTypeNone,         "Immediately continue the process once attached."},
+{ LLDB_OPT_SET_ALL, false, "plugin",  'P', OptionParser::eRequiredArgument,   NULL, NULL, 0, eArgTypePlugin,       "Name of the process plugin you want to use."},
+{ LLDB_OPT_SET_1,   false, "pid",     'p', OptionParser::eRequiredArgument,   NULL, NULL, 0, eArgTypePid,          "The process ID of an existing process to attach to."},
+{ LLDB_OPT_SET_2,   false, "name",    'n', OptionParser::eRequiredArgument,   NULL, NULL, 0, eArgTypeProcessName,  "The name of the process to attach to."},
+{ LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone,         "Include existing processes when doing attach -w."},
+{ LLDB_OPT_SET_2,   false, "waitfor", 'w', OptionParser::eNoArgument,         NULL, NULL, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch."},
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -758,20 +793,33 @@ protected:
                 // Set the actions that the threads should each take when resuming
                 for (uint32_t idx=0; idx<num_threads; ++idx)
                 {
-                    process->GetThreadList().GetThreadAtIndex(idx)->SetResumeState (eStateRunning);
+                    const bool override_suspend = false;
+                    process->GetThreadList().GetThreadAtIndex(idx)->SetResumeState (eStateRunning, override_suspend);
                 }
             }
-            
-            Error error(process->Resume());
+
+            StreamString stream;
+            Error error;
+            if (synchronous_execution)
+                error = process->ResumeSynchronous (&stream);
+            else
+                error = process->Resume ();
+
             if (error.Success())
             {
+                // There is a race condition where this thread will return up the call stack to the main command
+                // handler and show an (lldb) prompt before HandlePrivateEvent (from PrivateStateThread) has
+                // a chance to call PushProcessIOHandler().
+                process->SyncIOHandler(2000);
+
                 result.AppendMessageWithFormat ("Process %" PRIu64 " resuming\n", process->GetID());
                 if (synchronous_execution)
                 {
-                    state = process->WaitForProcessToStop (NULL);
+                    // If any state changed events had anything to say, add that to the result
+                    if (stream.GetData())
+                        result.AppendMessage(stream.GetData());
 
                     result.SetDidChangeProcessState (true);
-                    result.AppendMessageWithFormat ("Process %" PRIu64 " %s\n", process->GetID(), StateAsCString (state));
                     result.SetStatus (eReturnStatusSuccessFinishNoResult);
                 }
                 else
@@ -807,9 +855,9 @@ protected:
 OptionDefinition
 CommandObjectProcessContinue::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument,         NULL, 0, eArgTypeUnsignedInteger,
+{ LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument,         NULL, NULL, 0, eArgTypeUnsignedInteger,
                            "Ignore <N> crossings of the breakpoint (if it exists) for the currently selected thread."},
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -911,7 +959,6 @@ protected:
     DoExecute (Args& command, CommandReturnObject &result)
     {
         Process *process = m_exe_ctx.GetProcessPtr();
-        result.AppendMessageWithFormat ("Detaching from process %" PRIu64 "\n", process->GetID());
         // FIXME: This will be a Command Option:
         bool keep_stopped;
         if (m_options.m_keep_stopped == eLazyBoolCalculate)
@@ -947,8 +994,8 @@ protected:
 OptionDefinition
 CommandObjectProcessDetach::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_1, false, "keep-stopped",   's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+{ LLDB_OPT_SET_1, false, "keep-stopped",   's', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -1119,8 +1166,8 @@ protected:
 OptionDefinition
 CommandObjectProcessConnect::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, NULL, 0, eArgTypePlugin, "Name of the process plugin you want to use."},
-    { 0,                false, NULL,      0 , 0,                 NULL, 0, eArgTypeNone,   NULL }
+    { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePlugin, "Name of the process plugin you want to use."},
+    { 0,                false, NULL,      0 , 0,                 NULL, NULL, 0, eArgTypeNone,   NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -1483,6 +1530,71 @@ protected:
 };
 
 //-------------------------------------------------------------------------
+// CommandObjectProcessSaveCore
+//-------------------------------------------------------------------------
+#pragma mark CommandObjectProcessSaveCore
+
+class CommandObjectProcessSaveCore : public CommandObjectParsed
+{
+public:
+    
+    CommandObjectProcessSaveCore (CommandInterpreter &interpreter) :
+    CommandObjectParsed (interpreter,
+                         "process save-core",
+                         "Save the current process as a core file using an appropriate file type.",
+                         "process save-core FILE",
+                         eFlagRequiresProcess      |
+                         eFlagTryTargetAPILock     |
+                         eFlagProcessMustBeLaunched)
+    {
+    }
+    
+    ~CommandObjectProcessSaveCore ()
+    {
+    }
+    
+protected:
+    bool
+    DoExecute (Args& command,
+               CommandReturnObject &result)
+    {
+        ProcessSP process_sp = m_exe_ctx.GetProcessSP();
+        if (process_sp)
+        {
+            if (command.GetArgumentCount() == 1)
+            {
+                FileSpec output_file(command.GetArgumentAtIndex(0), false);
+                Error error = PluginManager::SaveCore(process_sp, output_file);
+                if (error.Success())
+                {
+                    result.SetStatus (eReturnStatusSuccessFinishResult);
+                }
+                else
+                {
+                    result.AppendErrorWithFormat ("Failed to save core file for process: %s\n", error.AsCString());
+                    result.SetStatus (eReturnStatusFailed);
+                }
+            }
+            else
+            {
+                result.AppendErrorWithFormat ("'%s' takes one arguments:\nUsage: %s\n",
+                                              m_cmd_name.c_str(),
+                                              m_cmd_syntax.c_str());
+                result.SetStatus (eReturnStatusFailed);
+            }
+        }
+        else
+        {
+            result.AppendError ("invalid process");
+            result.SetStatus (eReturnStatusFailed);
+            return false;
+        }
+        
+        return result.Succeeded();
+    }
+};
+
+//-------------------------------------------------------------------------
 // CommandObjectProcessStatus
 //-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessStatus
@@ -1824,10 +1936,10 @@ protected:
 OptionDefinition
 CommandObjectProcessHandle::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
-{ LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
-{ LLDB_OPT_SET_1, false, "pass",  'p', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." },
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+{ LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
+{ LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
+{ LLDB_OPT_SET_1, false, "pass",  'p', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." },
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -1853,6 +1965,7 @@ CommandObjectMultiwordProcess::CommandObjectMultiwordProcess (CommandInterpreter
     LoadSubCommand ("interrupt",   CommandObjectSP (new CommandObjectProcessInterrupt (interpreter)));
     LoadSubCommand ("kill",        CommandObjectSP (new CommandObjectProcessKill      (interpreter)));
     LoadSubCommand ("plugin",      CommandObjectSP (new CommandObjectProcessPlugin    (interpreter)));
+    LoadSubCommand ("save-core",   CommandObjectSP (new CommandObjectProcessSaveCore  (interpreter)));
 }
 
 CommandObjectMultiwordProcess::~CommandObjectMultiwordProcess ()

@@ -20,7 +20,7 @@ options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
 options 	BOOTP
 options 	BOOTP_NFSROOT
-options 	BOOTP_NFSV3
+#options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=tsec0
 options 	CD9660
 options 	COMPAT_43

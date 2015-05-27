@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2014
+.Dd May 22, 2015
 .Dt PS 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd process status
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl aCcdefHhjlmrSTuvwXxZ
 .Op Fl O Ar fmt | Fl o Ar fmt
 .Op Fl G Ar gid Ns Op , Ns Ar gid Ns Ar ...
@@ -47,6 +48,7 @@
 .Op Fl t Ar tty Ns Op , Ns Ar tty Ns Ar ...
 .Op Fl U Ar user Ns Op , Ns Ar user Ns Ar ...
 .Nm
+.Op Fl -libxo
 .Op Fl L
 .Sh DESCRIPTION
 The
@@ -332,6 +334,7 @@ the include file
 .It Dv "P_SINGLE_BOUNDARY" Ta No "0x400000" Ta "Threads should suspend at user boundary"
 .It Dv "P_HWPMC" Ta No "0x800000" Ta "Process is using HWPMCs"
 .It Dv "P_JAILED" Ta No "0x1000000" Ta "Process is in jail"
+.It Dv "P_TOTAL_STOP" Ta No "0x2000000" Ta "Stopped for system suspend"
 .It Dv "P_INEXEC" Ta No "0x4000000" Ta "Process is in execve()"
 .It Dv "P_STATCHILD" Ta No "0x8000000" Ta "Child process stopped or exited"
 .It Dv "P_INMEM" Ta No "0x10000000" Ta "Loaded into memory"
@@ -380,12 +383,12 @@ the real memory (resident set) size of the process (in 1024 byte units).
 The time the command started.
 If the command started less than 24 hours ago, the start time is
 displayed using the
-.Dq Li %l:ps.1p
+.Dq Li %H:%M
 format described in
 .Xr strftime 3 .
 If the command started less than 7 days ago, the start time is
 displayed using the
-.Dq Li %a6.15p
+.Dq Li %a%H
 format.
 Otherwise, the start time is displayed using the
 .Dq Li %e%b%y
@@ -732,7 +735,9 @@ Display information on all system processes:
 .Xr procstat 1 ,
 .Xr w 1 ,
 .Xr kvm 3 ,
+.Xr libxo 3
 .Xr strftime 3 ,
+.Xr xo_parse_args 3
 .Xr mac 4 ,
 .Xr procfs 5 ,
 .Xr pstat 8 ,

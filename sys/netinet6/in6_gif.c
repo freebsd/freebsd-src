@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
 #endif
 #include <netinet/ip_ecn.h>
@@ -74,7 +73,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
+#define GIF_HLIM	30
+static VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
@@ -83,9 +83,10 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
 
 static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 			 struct ifnet *);
+static int in6_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inet6domain;
-struct protosw in6_gif_protosw = {
+static struct protosw in6_gif_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inet6domain,
 	.pr_protocol =	0,			/* IPPROTO_IPV[46] */
@@ -144,7 +145,7 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	return (ip6_output(m, 0, NULL, IPV6_MINMTU, 0, NULL, NULL));
 }
 
-int
+static int
 in6_gif_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
@@ -179,6 +180,7 @@ static int
 gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
     struct ifnet *ifp)
 {
+	int ret;
 
 	GIF_RLOCK_ASSERT(sc);
 	/*
@@ -186,9 +188,14 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 	 * packet.  We should compare the *source* address in our configuration
 	 * and the *destination* address of the packet, and vice versa.
 	 */
-	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst) ||
-	    !IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src))
+	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst))
 		return (0);
+	ret = 128;
+	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src)) {
+		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
+			return (0);
+	} else
+		ret += 128;
 
 	/* martian filters on outer source - done in ip6_input */
 
@@ -213,7 +220,7 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 		RTFREE_LOCKED(rt);
 	}
 
-	return (128 * 2);
+	return (ret);
 }
 
 /*

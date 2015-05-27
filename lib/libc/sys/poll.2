@@ -148,8 +148,8 @@ is zero, then
 will return without blocking.
 .Pp
 The
-.Fn ppoll 
-system call, unlike 
+.Fn ppoll
+system call, unlike
 .Fn poll ,
 is used to safely wait until either a set of file descriptors becomes
 ready or until a signal is caught.
@@ -174,13 +174,12 @@ used by
 A null pointer may be passed to indicate that
 .Fn ppoll
 should wait indefinitely.
-Finally, 
+Finally,
 .Fa newsigmask
 specifies a signal mask which is set while waiting for input.
-When 
+When
 .Fn ppoll
 returns, the original signal mask is restored.
-.Pp
 .Bd -literal
 struct timespec {
 	time_t  tv_sec;         /* seconds */
@@ -247,11 +246,11 @@ The specified time limit is invalid. One of its components is negative or too la
 .Xr write 2
 .Sh STANDARDS
 The
-.Fn poll 
+.Fn poll
 function conforms to
 .St -p1003.1-2001 .
 The
-.Fn ppoll 
+.Fn ppoll
 is not specified by POSIX.
 .Sh HISTORY
 The
@@ -262,8 +261,8 @@ This manual page and the core of the implementation was taken from
 .Nx .
 The
 .Fn ppoll
-function first appeared in 
-.Fx 11.0 
+function first appeared in
+.Fx 11.0
 .Sh BUGS
 The distinction between some of the fields in the
 .Fa events

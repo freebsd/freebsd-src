@@ -1532,8 +1532,9 @@ do {								\
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache.xid;
 #endif /* !__FreeBSD__ */
-					} else
+					}
 #endif /* !USERSPACE */
+					else
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -2387,13 +2388,48 @@ do {								\
 				if (q == NULL || q->rule != f ||
 				    dyn_dir == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
+
 				    sa = &(((ipfw_insn_sa *)cmd)->sa);
 				    if (sa->sin_addr.s_addr == INADDR_ANY) {
-					bcopy(sa, &args->hopstore,
-							sizeof(*sa));
-					args->hopstore.sin_addr.s_addr =
-						    htonl(tablearg);
-					args->next_hop = &args->hopstore;
+#ifdef INET6
+					/*
+					 * We use O_FORWARD_IP opcode for
+					 * fwd rule with tablearg, but tables
+					 * now support IPv6 addresses. And
+					 * when we are inspecting IPv6 packet,
+					 * we can use nh6 field from
+					 * table_value as next_hop6 address.
+					 */
+					if (is_ipv6) {
+						struct sockaddr_in6 *sa6;
+
+						sa6 = args->next_hop6 =
+						    &args->hopstore6;
+						sa6->sin6_family = AF_INET6;
+						sa6->sin6_len = sizeof(*sa6);
+						sa6->sin6_addr = TARG_VAL(
+						    chain, tablearg, nh6);
+						/*
+						 * Set sin6_scope_id only for
+						 * link-local unicast addresses.
+						 */
+						if (IN6_IS_ADDR_LINKLOCAL(
+						    &sa6->sin6_addr))
+							sa6->sin6_scope_id =
+							    TARG_VAL(chain,
+								tablearg,
+								zoneid);
+					} else
+#endif
+					{
+						sa = args->next_hop =
+						    &args->hopstore;
+						sa->sin_family = AF_INET;
+						sa->sin_len = sizeof(*sa);
+						sa->sin_addr.s_addr = htonl(
+						    TARG_VAL(chain, tablearg,
+						    nh4));
+					}
 				    } else {
 					args->next_hop = sa;
 				    }
@@ -2727,6 +2763,10 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
+	/* Init shared services hash table */
+	ipfw_init_srv(chain);
+
+	ipfw_init_obj_rewriter();
 	ipfw_init_counters();
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
@@ -2825,9 +2865,11 @@ vnet_ipfw_uninit(const void *unused)
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);
+	ipfw_destroy_srv(chain);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
+	ipfw_destroy_obj_rewriter();
 	return (0);
 }
 

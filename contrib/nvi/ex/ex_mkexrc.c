@@ -34,7 +34,7 @@ static const char sccsid[] = "$Id: ex_mkexrc.c,v 10.13 2001/06/25 15:19:17 skimo
  *
  * Create (or overwrite) a .exrc file with the current info.
  *
- * PUBLIC: int ex_mkexrc __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_mkexrc(SCR *, EXCMD *);
  */
 int
 ex_mkexrc(SCR *sp, EXCMD *cmdp)

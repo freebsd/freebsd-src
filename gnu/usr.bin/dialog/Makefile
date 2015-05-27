@@ -3,8 +3,7 @@
 DIALOG=	${.CURDIR}/../../../contrib/dialog
 PROG=   dialog
 
-DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM}
-LDADD=	-ldialog -lncursesw -lm
+LIBADD=	dialog ncursesw m
 CFLAGS+= -I${.CURDIR} -I${DIALOG}
 .PATH:	${DIALOG}
 

@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/vmparam.h>
 
 struct fdt_fixup_entry fdt_fixup_table[] = {

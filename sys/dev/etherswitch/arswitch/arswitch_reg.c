@@ -68,12 +68,13 @@ arswitch_split_setpage(device_t dev, uint32_t addr, uint16_t *phy,
 	struct arswitch_softc *sc = device_get_softc(dev);
 	uint16_t page;
 
-	page = ((addr) >> 9) & 0xffff;
-	*phy = (((addr) >> 6) & 0x07) | 0x10;
-	*reg = ((addr) >> 1) & 0x1f;
+	page = (addr >> 9) & 0x1ff;
+	*phy = (addr >> 6) & 0x7;
+	*reg = (addr >> 1) & 0x1f;
 
 	if (sc->page != page) {
 		MDIO_WRITEREG(device_get_parent(dev), 0x18, 0, page);
+		DELAY(2000);
 		sc->page = page;
 	}
 }
@@ -87,9 +88,21 @@ static inline int
 arswitch_readreg16(device_t dev, int addr)
 {
 	uint16_t phy, reg;
-	
+
 	arswitch_split_setpage(dev, addr, &phy, &reg);
-	return (MDIO_READREG(device_get_parent(dev), phy, reg));
+	return (MDIO_READREG(device_get_parent(dev), 0x10 | phy, reg));
+}
+
+/*
+ * Write half a register.  See above!
+ */
+static inline int
+arswitch_writereg16(device_t dev, int addr, int data)
+{
+	uint16_t phy, reg;
+
+	arswitch_split_setpage(dev, addr, &phy, &reg);
+	return (MDIO_WRITEREG(device_get_parent(dev), 0x10 | phy, reg, data));
 }
 
 /*
@@ -121,18 +134,70 @@ arswitch_writemmd(device_t dev, int phy, uint16_t dbg_addr,
 	    MII_ATH_MMD_DATA, dbg_data);
 }
 
-/*
- * Write half a register
- */
-static inline int
-arswitch_writereg16(device_t dev, int addr, int data)
+static uint32_t
+arswitch_reg_read32(device_t dev, int phy, int reg)
 {
-	uint16_t phy, reg;
-	
-	arswitch_split_setpage(dev, addr, &phy, &reg);
-	return (MDIO_WRITEREG(device_get_parent(dev), phy, reg, data));
+	uint16_t lo, hi;
+	lo = MDIO_READREG(device_get_parent(dev), phy, reg);
+	hi = MDIO_READREG(device_get_parent(dev), phy, reg + 1);
+
+	return (hi << 16) | lo;
 }
 
+static int
+arswitch_reg_write32(device_t dev, int phy, int reg, uint32_t value)
+{
+	struct arswitch_softc *sc;
+	int r;
+	uint16_t lo, hi;
+
+	sc = device_get_softc(dev);
+	lo = value & 0xffff;
+	hi = (uint16_t) (value >> 16);
+
+	if (sc->mii_lo_first) {
+		r = MDIO_WRITEREG(device_get_parent(dev),
+		    phy, reg, lo);
+		r |= MDIO_WRITEREG(device_get_parent(dev),
+		    phy, reg + 1, hi);
+	} else {
+		r = MDIO_WRITEREG(device_get_parent(dev),
+		    phy, reg + 1, hi);
+		r |= MDIO_WRITEREG(device_get_parent(dev),
+		    phy, reg, lo);
+	}
+
+	return r;
+}
+
+int
+arswitch_readreg(device_t dev, int addr)
+{
+	uint16_t phy, reg;
+
+	arswitch_split_setpage(dev, addr, &phy, &reg);
+	return arswitch_reg_read32(dev, 0x10 | phy, reg);
+}
+
+int
+arswitch_writereg(device_t dev, int addr, int value)
+{
+	struct arswitch_softc *sc;
+	uint16_t phy, reg;
+
+	sc = device_get_softc(dev);
+
+	arswitch_split_setpage(dev, addr, &phy, &reg);
+	return (arswitch_reg_write32(dev, 0x10 | phy, reg, value));
+}
+
+/*
+ * Read/write 16 bit values in the switch register space.
+ *
+ * Some of the registers are control registers (eg the MDIO
+ * data versus control space) and so need to be treated
+ * differently.
+ */
 int
 arswitch_readreg_lsb(device_t dev, int addr)
 {
@@ -162,52 +227,30 @@ arswitch_writereg_msb(device_t dev, int addr, int data)
 }
 
 int
-arswitch_readreg(device_t dev, int addr)
-{
-
-	return (arswitch_readreg_lsb(dev, addr) |
-	    arswitch_readreg_msb(dev, addr));
-}
-
-int
-arswitch_writereg(device_t dev, int addr, int value)
-{
-	struct arswitch_softc *sc;
-	int r;
-
-	sc = device_get_softc(dev);
-
-	/* XXX Check the first write too? */
-	if (sc->mii_lo_first) {
-		r = arswitch_writereg_lsb(dev, addr, value);
-		r |= arswitch_writereg_msb(dev, addr, value);
-	} else {
-		r = arswitch_writereg_msb(dev, addr, value);
-		r |= arswitch_writereg_lsb(dev, addr, value);
-	}
-
-	return r;
-}
-
-int
 arswitch_modifyreg(device_t dev, int addr, int mask, int set)
 {
 	int value;
-	
-	value = arswitch_readreg(dev, addr);
+	uint16_t phy, reg;
+
+	arswitch_split_setpage(dev, addr, &phy, &reg);
+
+	value = arswitch_reg_read32(dev, 0x10 | phy, reg);
 	value &= ~mask;
 	value |= set;
-	return (arswitch_writereg(dev, addr, value));
+	return (arswitch_reg_write32(dev, 0x10 | phy, reg, value));
 }
 
 int
 arswitch_waitreg(device_t dev, int addr, int mask, int val, int timeout)
 {
 	int err, v;
+	uint16_t phy, reg;
+
+	arswitch_split_setpage(dev, addr, &phy, &reg);
 
 	err = -1;
 	while (1) {
-		v = arswitch_readreg(dev, addr);
+		v = arswitch_reg_read32(dev, 0x10 | phy, reg);
 		v &= mask;
 		if (v == val) {
 			err = 0;

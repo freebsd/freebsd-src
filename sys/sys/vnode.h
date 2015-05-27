@@ -336,6 +336,8 @@ struct vattr {
 #define	VWRITE_ACL	 	000040000000 /* change ACL and/or file mode */
 #define	VWRITE_OWNER	 	000100000000 /* change file owner */
 #define	VSYNCHRONIZE	 	000200000000 /* not used */
+#define	VCREAT			000400000000 /* creating new file */
+#define	VVERIFY			001000000000 /* verification required */
 
 /*
  * Permissions that were traditionally granted only to the file owner.
@@ -574,11 +576,13 @@ vn_canvmio(struct vnode *vp)
 /*
  * Finally, include the default set of vnode operations.
  */
+typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #include "vnode_if.h"
 
 /* vn_open_flags */
 #define	VN_OPEN_NOAUDIT		0x00000001
 #define	VN_OPEN_NOCAPCHECK	0x00000002
+#define	VN_OPEN_NAMECACHE	0x00000004
 
 /*
  * Public vnode manipulation functions.
@@ -820,6 +824,7 @@ void vnode_destroy_vobject(struct vnode *vp);
 extern struct vop_vector fifo_specops;
 extern struct vop_vector dead_vnodeops;
 extern struct vop_vector default_vnodeops;
+extern struct vop_vector devfs_specops;
 
 #define VOP_PANIC	((void*)(uintptr_t)vop_panic)
 #define VOP_NULL	((void*)(uintptr_t)vop_null)

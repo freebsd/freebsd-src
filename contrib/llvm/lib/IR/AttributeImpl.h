@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ATTRIBUTESIMPL_H
-#define LLVM_ATTRIBUTESIMPL_H
+#ifndef LLVM_LIB_IR_ATTRIBUTEIMPL_H
+#define LLVM_LIB_IR_ATTRIBUTEIMPL_H
 
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/IR/Attributes.h"
@@ -39,7 +39,7 @@ class AttributeImpl : public FoldingSetNode {
 protected:
   enum AttrEntryKind {
     EnumAttrEntry,
-    AlignAttrEntry,
+    IntAttrEntry,
     StringAttrEntry
   };
 
@@ -49,7 +49,7 @@ public:
   virtual ~AttributeImpl();
 
   bool isEnumAttribute() const { return KindID == EnumAttrEntry; }
-  bool isAlignAttribute() const { return KindID == AlignAttrEntry; }
+  bool isIntAttribute() const { return KindID == IntAttrEntry; }
   bool isStringAttribute() const { return KindID == StringAttrEntry; }
 
   bool hasAttribute(Attribute::AttrKind A) const;
@@ -67,7 +67,7 @@ public:
   void Profile(FoldingSetNodeID &ID) const {
     if (isEnumAttribute())
       Profile(ID, getKindAsEnum(), 0);
-    else if (isAlignAttribute())
+    else if (isIntAttribute())
       Profile(ID, getKindAsEnum(), getValueAsInt());
     else
       Profile(ID, getKindAsString(), getValueAsString());
@@ -108,19 +108,20 @@ public:
   Attribute::AttrKind getEnumKind() const { return Kind; }
 };
 
-class AlignAttributeImpl : public EnumAttributeImpl {
-  virtual void anchor();
-  unsigned Align;
+class IntAttributeImpl : public EnumAttributeImpl {
+  void anchor() override;
+  uint64_t Val;
 
 public:
-  AlignAttributeImpl(Attribute::AttrKind Kind, unsigned Align)
-      : EnumAttributeImpl(AlignAttrEntry, Kind), Align(Align) {
+  IntAttributeImpl(Attribute::AttrKind Kind, uint64_t Val)
+      : EnumAttributeImpl(IntAttrEntry, Kind), Val(Val) {
     assert(
-        (Kind == Attribute::Alignment || Kind == Attribute::StackAlignment) &&
-        "Wrong kind for alignment attribute!");
+        (Kind == Attribute::Alignment || Kind == Attribute::StackAlignment ||
+         Kind == Attribute::Dereferenceable) &&
+        "Wrong kind for int attribute!");
   }
 
-  unsigned getAlignment() const { return Align; }
+  uint64_t getValue() const { return Val; }
 };
 
 class StringAttributeImpl : public AttributeImpl {
@@ -164,6 +165,7 @@ public:
 
   unsigned getAlignment() const;
   unsigned getStackAlignment() const;
+  uint64_t getDereferenceableBytes() const;
   std::string getAsString(bool InAttrGrp) const;
 
   typedef const Attribute *iterator;

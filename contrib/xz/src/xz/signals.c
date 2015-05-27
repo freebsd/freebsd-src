@@ -41,6 +41,11 @@ signal_handler(int sig)
 {
 	exit_signal = sig;
 	user_abort = true;
+
+#ifndef TUKLIB_DOSLIKE
+	io_write_to_user_abort_pipe();
+#endif
+
 	return;
 }
 

@@ -86,6 +86,9 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
+/* Define to 1 if you have the <stdio_ext.h> header file. */
+#undef HAVE_STDIO_EXT_H
+
 /* Define to 1 if you have the <stdio.h> header file. */
 #undef HAVE_STDIO_H
 
@@ -140,11 +143,16 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define to 1 if you have the `__flbf' function. */
+#undef HAVE___FLBF
+
 /* Enable debugging */
 #undef LIBXO_DEBUG
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Enable text-only rendering */
+#undef LIBXO_TEXT_ONLY
+
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Name of package */

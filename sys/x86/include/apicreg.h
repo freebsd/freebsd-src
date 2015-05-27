@@ -193,6 +193,66 @@ struct LAPIC {
 
 typedef struct LAPIC lapic_t;
 
+enum LAPIC_REGISTERS {
+	LAPIC_ID	= 0x2,
+	LAPIC_VERSION	= 0x3,
+	LAPIC_TPR	= 0x8,
+	LAPIC_APR	= 0x9,
+	LAPIC_PPR	= 0xa,
+	LAPIC_EOI	= 0xb,
+	LAPIC_LDR	= 0xd,
+	LAPIC_DFR	= 0xe, /* Not in x2APIC */
+	LAPIC_SVR	= 0xf,
+	LAPIC_ISR0	= 0x10,
+	LAPIC_ISR1	= 0x11,
+	LAPIC_ISR2	= 0x12,
+	LAPIC_ISR3	= 0x13,
+	LAPIC_ISR4	= 0x14,
+	LAPIC_ISR5	= 0x15,
+	LAPIC_ISR6	= 0x16,
+	LAPIC_ISR7	= 0x17,
+	LAPIC_TMR0	= 0x18,
+	LAPIC_TMR1	= 0x19,
+	LAPIC_TMR2	= 0x1a,
+	LAPIC_TMR3	= 0x1b,
+	LAPIC_TMR4	= 0x1c,
+	LAPIC_TMR5	= 0x1d,
+	LAPIC_TMR6	= 0x1e,
+	LAPIC_TMR7	= 0x1f,
+	LAPIC_IRR0	= 0x20,
+	LAPIC_IRR1	= 0x21,
+	LAPIC_IRR2	= 0x22,
+	LAPIC_IRR3	= 0x23,
+	LAPIC_IRR4	= 0x24,
+	LAPIC_IRR5	= 0x25,
+	LAPIC_IRR6	= 0x26,
+	LAPIC_IRR7	= 0x27,
+	LAPIC_ESR	= 0x28,
+	LAPIC_LVT_CMCI	= 0x2f,
+	LAPIC_ICR_LO	= 0x30,
+	LAPIC_ICR_HI	= 0x31, /* Not in x2APIC */
+	LAPIC_LVT_TIMER	= 0x32,
+	LAPIC_LVT_THERMAL = 0x33,
+	LAPIC_LVT_PCINT	= 0x34,
+	LAPIC_LVT_LINT0	= 0x35,
+	LAPIC_LVT_LINT1	= 0x36,
+	LAPIC_LVT_ERROR	= 0x37,
+	LAPIC_ICR_TIMER	= 0x38,
+	LAPIC_CCR_TIMER	= 0x39,
+	LAPIC_DCR_TIMER	= 0x3e,
+	LAPIC_SELF_IPI	= 0x3f, /* Only in x2APIC */
+};
+
+/*
+ * The LAPIC_SELF_IPI register only exists in x2APIC mode.  The
+ * formula below is applicable only to reserve the memory region,
+ * i.e. for xAPIC mode, where LAPIC_SELF_IPI finely serves as the
+ * address past end of the region.
+ */
+#define	LAPIC_MEM_REGION (LAPIC_SELF_IPI * 0x10)
+
+#define	LAPIC_MEM_MUL	0x10
+
 /******************************************************************************
  * I/O APIC structure
  */

@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_ABIINFO_H
-#define CLANG_CODEGEN_ABIINFO_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_ABIINFO_H
+#define LLVM_CLANG_LIB_CODEGEN_ABIINFO_H
 
 #include "clang/AST/Type.h"
-#include "llvm/IR/Type.h"
 #include "llvm/IR/CallingConv.h"
+#include "llvm/IR/Type.h"
 
 namespace llvm {
   class Value;
@@ -44,9 +44,12 @@ namespace clang {
     CodeGen::CodeGenTypes &CGT;
   protected:
     llvm::CallingConv::ID RuntimeCC;
+    llvm::CallingConv::ID BuiltinCC;
   public:
     ABIInfo(CodeGen::CodeGenTypes &cgt)
-      : CGT(cgt), RuntimeCC(llvm::CallingConv::C) {}
+      : CGT(cgt),
+        RuntimeCC(llvm::CallingConv::C),
+        BuiltinCC(llvm::CallingConv::C) {}
 
     virtual ~ABIInfo();
 
@@ -62,6 +65,11 @@ namespace clang {
       return RuntimeCC;
     }
 
+    /// Return the calling convention to use for compiler builtins
+    llvm::CallingConv::ID getBuiltinCC() const {
+      return BuiltinCC;
+    }
+
     virtual void computeInfo(CodeGen::CGFunctionInfo &FI) const = 0;
 
     /// EmitVAArg - Emit the target dependent code to load a value of
@@ -73,6 +81,15 @@ namespace clang {
     // abstract this out.
     virtual llvm::Value *EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
                                    CodeGen::CodeGenFunction &CGF) const = 0;
+
+    virtual bool isHomogeneousAggregateBaseType(QualType Ty) const;
+
+    virtual bool isHomogeneousAggregateSmallEnough(const Type *Base,
+                                                   uint64_t Members) const;
+
+    bool isHomogeneousAggregate(QualType Ty, const Type *&Base,
+                                uint64_t &Members) const;
+
   };
 }  // end namespace clang
 

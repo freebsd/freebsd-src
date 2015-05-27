@@ -19,12 +19,13 @@
 
 ident		CRB
 
+include 	"std.arm"
 options 	PHYSADDR=0x00000000
 options 	KERNPHYSADDR=0x00200000
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 
 options 	COUNTS_PER_SEC=400000000
-include		"../xscale/i8134x/std.crb"
+include 	"../xscale/i8134x/std.crb"
 makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -40,8 +41,8 @@ options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-options 	NFSCL			# New Network Filesystem Client
-options 	NFSD			# New Network Filesystem Server
+options 	NFSCL			# Network Filesystem Client
+options 	NFSD			# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 #options 	MSDOSFS			# MSDOS Filesystem
@@ -101,9 +102,6 @@ options 	DDB			# Enable the kernel debugger
 #options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	DIAGNOSTIC
 
-# To make an SMP kernel, the next two are needed
-#options 	SMP			# Symmetric MultiProcessor Kernel
-#options 	APIC_IO			# Symmetric (APIC) I/O
 options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 device		md
 device		random			# Entropy device

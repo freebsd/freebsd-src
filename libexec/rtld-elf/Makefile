@@ -42,17 +42,18 @@ CFLAGS+=	-fPIC
 CFLAGS+=	-fpic
 .endif
 CFLAGS+=	-DPIC $(DEBUG)
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+CFLAGS+=	-fvisibility=hidden
+.endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic
-DPADD=		${LIBC_PIC}
-LDADD=		-lc_pic
+LIBADD=		c_pic
 
 .if ${MACHINE_CPUARCH} == "arm"
 # Some of the required math functions (div & mod) are implemented in
 # libcompiler_rt on ARM. The library also needs to be placed first to be
 # correctly linked. As some of the functions are used before we have
 # shared libraries.
-DPADD+=		${LIBCOMPILER_RT}
-LDADD+=		-lcompiler_rt
+LIBADD+=	compiler_rt
 .endif
 
 

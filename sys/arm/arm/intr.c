@@ -36,8 +36,12 @@
  * Soft interrupt and other generic interrupt functions.
  */
 
+#include "opt_platform.h"
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
@@ -47,9 +51,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/conf.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
+
 #include <machine/atomic.h>
+#include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <machine/fdt.h>
+#endif
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
 
@@ -65,7 +78,7 @@ int (*arm_config_irq)(int irq, enum intr_trigger trig,
 
 /* Data for statistics reporting. */
 u_long intrcnt[NIRQ];
-char intrnames[NIRQ * INTRNAME_LEN];
+char intrnames[(NIRQ * INTRNAME_LEN) + 1];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
@@ -88,6 +101,36 @@ intr_init(void *unused)
 }
 
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+#ifdef FDT
+int
+arm_fdt_map_irq(phandle_t iparent, pcell_t *intr, int icells)
+{
+	fdt_pic_decode_t intr_decode;
+	phandle_t intr_parent;
+	int i, rv, interrupt, trig, pol;
+
+	intr_parent = OF_node_from_xref(iparent);
+	for (i = 0; i < icells; i++)
+		intr[i] = cpu_to_fdt32(intr[i]);
+
+	for (i = 0; fdt_pic_table[i] != NULL; i++) {
+		intr_decode = fdt_pic_table[i];
+		rv = intr_decode(intr_parent, intr, &interrupt, &trig, &pol);
+
+		if (rv == 0) {
+			/* This was recognized as our PIC and decoded. */
+			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
+			return (interrupt);
+		}
+	}
+
+	/* Not in table, so guess */
+	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
+
+	return (interrupt);
+}
+#endif
 
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt,
@@ -151,6 +194,10 @@ arm_irq_handler(struct trapframe *frame)
 			arm_mask_irq(i);
 		}
 	}
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, frame);
+#endif
 }
 
 /*

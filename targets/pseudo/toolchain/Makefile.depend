@@ -8,7 +8,22 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 .include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
 
-DIRDEPS= usr.bin/xinstall 
+DIRDEPS= \
+	usr.bin/xinstall \
+	gnu/usr.bin/binutils/addr2line \
+	gnu/usr.bin/binutils/ar \
+	gnu/usr.bin/binutils/as \
+	gnu/usr.bin/binutils/ld \
+	gnu/usr.bin/binutils/nm \
+	gnu/usr.bin/binutils/objcopy \
+	gnu/usr.bin/binutils/objdump \
+	gnu/usr.bin/binutils/ranlib \
+	gnu/usr.bin/binutils/readelf \
+	gnu/usr.bin/binutils/size \
+	gnu/usr.bin/binutils/strings \
+	gnu/usr.bin/binutils/strip \
+
+
 .if ${MK_CLANG} == "yes"
 DIRDEPS+= targets/pseudo/clang
 .endif

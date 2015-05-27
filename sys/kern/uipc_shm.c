@@ -163,6 +163,17 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	VM_OBJECT_WLOCK(obj);
 
 	/*
+	 * Read I/O without either a corresponding resident page or swap
+	 * page: use zero_region.  This is intended to avoid instantiating
+	 * pages on read from a sparse region.
+	 */
+	if (uio->uio_rw == UIO_READ && vm_page_lookup(obj, idx) == NULL &&
+	    !vm_pager_has_page(obj, idx, NULL, NULL)) {
+		VM_OBJECT_WUNLOCK(obj);
+		return (uiomove(__DECONST(void *, zero_region), tlen, uio));
+	}
+
+	/*
 	 * Parallel reads of the page content from disk are prevented
 	 * by exclusive busy.
 	 *
@@ -531,9 +542,10 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_object = vm_pager_allocate(OBJT_DEFAULT, NULL,
 	    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
 	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
+	shmfd->shm_object->pg_color = 0;
 	VM_OBJECT_WLOCK(shmfd->shm_object);
 	vm_object_clear_flag(shmfd->shm_object, OBJ_ONEMAPPING);
-	vm_object_set_flag(shmfd->shm_object, OBJ_NOSPLIT);
+	vm_object_set_flag(shmfd->shm_object, OBJ_COLORED | OBJ_NOSPLIT);
 	VM_OBJECT_WUNLOCK(shmfd->shm_object);
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
@@ -717,7 +729,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	if (uap->path == SHM_ANON) {
 		/* A read-only anonymous object is pointless. */
 		if ((uap->flags & O_ACCMODE) == O_RDONLY) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			return (EINVAL);
 		}
@@ -733,7 +745,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 		if (error == 0 && path[0] != '/')
 			error = EINVAL;
 		if (error) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			free(path, M_SHMFD);
 			return (error);
@@ -799,7 +811,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 		sx_xunlock(&shm_dict_lock);
 
 		if (error) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			return (error);
 		}

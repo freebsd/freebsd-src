@@ -19,7 +19,7 @@ hints		"DIR-825B1.hints"
 
 # Since the kernel image must fit inside 1024KiB, we have to build almost
 # everything as modules.
-nodevice random
+# nodevice random
 nodevice gpio
 nodevice gpioled
 nodevice gif
@@ -61,7 +61,7 @@ options 	AR71XX_REALMEM=64*1024*1024
 
 options 	AR71XX_ENV_UBOOT
 
-options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
+# options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
 
 # options 	MD_ROOT
 # options 	MD_ROOT_SIZE="6144"

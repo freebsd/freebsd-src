@@ -33,10 +33,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/pcpu.h>
+#include <sys/rman.h>
 #include <sys/smp.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <xen/xen-os.h>
 #include <xen/gnttab.h>
+
+#include "xenmem_if.h"
+
+/*
+ * Allocate unused physical memory above 4GB in order to map memory
+ * from foreign domains. We use memory starting at 4GB in order to
+ * prevent clashes with MMIO/ACPI regions.
+ *
+ * Since this is not possible on i386 just use any available memory
+ * chunk and hope we don't clash with anything else.
+ */
+#ifdef __amd64__
+#define LOW_MEM_LIMIT	0x100000000ul
+#else
+#define LOW_MEM_LIMIT	0
+#endif
 
 static devclass_t xenpv_devclass;
 
@@ -66,15 +88,6 @@ static int
 xenpv_attach(device_t dev)
 {
 	device_t child;
-	int error;
-
-	/* Initialize grant table before any Xen specific device is attached */
-	error = gnttab_init(dev);
-	if (error != 0) {
-		device_printf(dev, "error initializing grant table: %d\n",
-		    error);
-		return (error);
-	}
 
 	/*
 	 * Let our child drivers identify any child devices that they
@@ -94,6 +107,42 @@ xenpv_attach(device_t dev)
 	return (0);
 }
 
+static struct resource *
+xenpv_alloc_physmem(device_t dev, device_t child, int *res_id, size_t size)
+{
+	struct resource *res;
+	vm_paddr_t phys_addr;
+	int error;
+
+	res = bus_alloc_resource(child, SYS_RES_MEMORY, res_id, LOW_MEM_LIMIT,
+	    ~0ul, size, RF_ACTIVE);
+	if (res == NULL)
+		return (NULL);
+
+	phys_addr = rman_get_start(res);
+	error = vm_phys_fictitious_reg_range(phys_addr, phys_addr + size,
+	    VM_MEMATTR_DEFAULT);
+	if (error) {
+		bus_release_resource(child, SYS_RES_MEMORY, *res_id, res);
+		return (NULL);
+	}
+
+	return (res);
+}
+
+static int
+xenpv_free_physmem(device_t dev, device_t child, int res_id, struct resource *res)
+{
+	vm_paddr_t phys_addr;
+	size_t size;
+
+	phys_addr = rman_get_start(res);
+	size = rman_get_size(res);
+
+	vm_phys_fictitious_unreg_range(phys_addr, phys_addr + size);
+	return (bus_release_resource(child, SYS_RES_MEMORY, res_id, res));
+}
+
 static device_method_t xenpv_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,		xenpv_identify),
@@ -109,6 +158,10 @@ static device_method_t xenpv_methods[] = {
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 
+	/* Interface to allocate memory for foreign mappings */
+	DEVMETHOD(xenmem_alloc,			xenpv_alloc_physmem),
+	DEVMETHOD(xenmem_free,			xenpv_free_physmem),
+
 	DEVMETHOD_END
 };
 
@@ -119,3 +172,25 @@ static driver_t xenpv_driver = {
 };
 
 DRIVER_MODULE(xenpv, nexus, xenpv_driver, xenpv_devclass, 0, 0);
+
+struct resource *
+xenmem_alloc(device_t dev, int *res_id, size_t size)
+{
+	device_t parent;
+
+	parent = device_get_parent(dev);
+	if (parent == NULL)
+		return (NULL);
+	return (XENMEM_ALLOC(parent, dev, res_id, size));
+}
+
+int
+xenmem_free(device_t dev, int res_id, struct resource *res)
+{
+	device_t parent;
+
+	parent = device_get_parent(dev);
+	if (parent == NULL)
+		return (ENXIO);
+	return (XENMEM_FREE(parent, dev, res_id, res));
+}

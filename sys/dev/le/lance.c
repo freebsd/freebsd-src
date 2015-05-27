@@ -398,8 +398,7 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 
 	while (totlen > 0) {
 		if (totlen >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
-			if ((m->m_flags & M_EXT) == 0)
+			if (!(MCLGET(m, M_NOWAIT)))
 				goto bad;
 			len = MCLBYTES;
 		}

@@ -41,13 +41,13 @@ static CHAR_T * const fmt[] = {
 	L("%#0*lo"),
 };
 
-static void inc_err __P((SCR *, enum nresult));
+static void inc_err(SCR *, enum nresult);
 
 /*
  * v_increment -- [count]#[#+-]
  *	Increment/decrement a keyword number.
  *
- * PUBLIC: int v_increment __P((SCR *, VICMD *));
+ * PUBLIC: int v_increment(SCR *, VICMD *);
  */
 int
 v_increment(SCR *sp, VICMD *vp)

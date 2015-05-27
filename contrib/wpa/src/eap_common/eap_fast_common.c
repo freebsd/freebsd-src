@@ -174,7 +174,7 @@ void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk)
 
 
 int eap_fast_parse_tlv(struct eap_fast_tlv_parse *tlv,
-		       int tlv_type, u8 *pos, int len)
+		       int tlv_type, u8 *pos, size_t len)
 {
 	switch (tlv_type) {
 	case EAP_TLV_EAP_PAYLOAD_TLV:

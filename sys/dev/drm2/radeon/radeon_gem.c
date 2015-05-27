@@ -46,10 +46,10 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
 
 	if (robj) {
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 		if (robj->gem_base.import_attach)
 			drm_prime_gem_destroy(&robj->gem_base, robj->tbo.sg);
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 		radeon_bo_unref(&robj);
 	}
 }
@@ -80,7 +80,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 retry:
 	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain, NULL, &robj);
 	if (r) {
-		if (r != -ERESTART) {
+		if (r != -ERESTARTSYS) {
 			if (initial_domain == RADEON_GEM_DOMAIN_VRAM) {
 				initial_domain |= RADEON_GEM_DOMAIN_GTT;
 				goto retry;
@@ -268,11 +268,12 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 					args->initial_domain, false,
 					false, &gobj);
 	if (r) {
+		if (r == -ERESTARTSYS)
+			r = -EINTR;
 		sx_sunlock(&rdev->exclusive_lock);
 		r = radeon_gem_handle_lockup(rdev, r);
 		return r;
 	}
-	handle = 0;
 	r = drm_gem_handle_create(filp, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(gobj);
@@ -394,6 +395,8 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	if (rdev->asic->ioctl_wait_idle)
 		robj->rdev->asic->ioctl_wait_idle(rdev, robj);
 	drm_gem_object_unreference_unlocked(gobj);
+	if (r == -ERESTARTSYS)
+		r = -EINTR;
 	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
 }
@@ -467,7 +470,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->offset < RADEON_VA_RESERVED_SIZE) {
-		dev_err(dev->device,
+		dev_err(dev->dev,
 			"offset 0x%lX is in reserved area 0x%X\n",
 			(unsigned long)args->offset,
 			RADEON_VA_RESERVED_SIZE);
@@ -481,13 +484,13 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	 */
 	invalid_flags = RADEON_VM_PAGE_VALID | RADEON_VM_PAGE_SYSTEM;
 	if ((args->flags & invalid_flags)) {
-		dev_err(dev->device, "invalid flags 0x%08X vs 0x%08X\n",
+		dev_err(dev->dev, "invalid flags 0x%08X vs 0x%08X\n",
 			args->flags, invalid_flags);
 		args->operation = RADEON_VA_RESULT_ERROR;
 		return -EINVAL;
 	}
 	if (!(args->flags & RADEON_VM_PAGE_SNOOPED)) {
-		dev_err(dev->device, "only supported snooped mapping for now\n");
+		dev_err(dev->dev, "only supported snooped mapping for now\n");
 		args->operation = RADEON_VA_RESULT_ERROR;
 		return -EINVAL;
 	}
@@ -497,7 +500,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	case RADEON_VA_UNMAP:
 		break;
 	default:
-		dev_err(dev->device, "unsupported operation %d\n",
+		dev_err(dev->dev, "unsupported operation %d\n",
 			args->operation);
 		args->operation = RADEON_VA_RESULT_ERROR;
 		return -EINVAL;
@@ -567,7 +570,6 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	if (r)
 		return -ENOMEM;
 
-	handle = 0;
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(gobj);

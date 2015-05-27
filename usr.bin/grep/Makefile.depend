@@ -14,6 +14,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/liblzma \
+	lib/libthr \
 	lib/libz \
 
 

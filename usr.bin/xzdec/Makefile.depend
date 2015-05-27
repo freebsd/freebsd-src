@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/liblzma \
+	lib/libthr \
 
 
 .include <dirdeps.mk>

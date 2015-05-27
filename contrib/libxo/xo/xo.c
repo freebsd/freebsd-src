@@ -362,8 +362,7 @@ main (int argc UNUSED, char **argv)
     }
 
     xo_set_formatter(NULL, formatter, checkpoint);
-    xo_set_flags(NULL, XOF_NO_VA_ARG);
-    xo_set_flags(NULL, XOF_NO_TOP);
+    xo_set_flags(NULL, XOF_NO_VA_ARG | XOF_NO_TOP | XOF_NO_CLOSE);
 
     fmt = *argv++;
     if (opt_opener == NULL && opt_closer == NULL && fmt == NULL) {

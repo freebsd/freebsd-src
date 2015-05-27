@@ -7,7 +7,6 @@ PROG=	minigzip
 
 WARNS?=	5
 CFLAGS+=-DUSE_MMAP
-DPADD=	${LIBZ}
-LDADD=	-lz
+LIBADD=	z
 
 .include <bsd.prog.mk>

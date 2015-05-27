@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __EXOPARG3_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -127,7 +125,18 @@ AcpiExOpcode_3A_0T_0R (
         /* Might return while OS is shutting down, just continue */
 
         ACPI_FREE (Fatal);
-        break;
+        goto Cleanup;
+
+    case AML_EXTERNAL_OP:
+        /*
+         * If the interpreter sees this opcode, just ignore it. The External
+         * op is intended for use by disassemblers in order to properly
+         * disassemble control method invocations. The opcode or group of
+         * opcodes should be surrounded by an "if (0)" clause to ensure that
+         * AML interpreters never see the opcode.
+         */
+        Status = AE_OK;
+        goto Cleanup;
 
     default:
 

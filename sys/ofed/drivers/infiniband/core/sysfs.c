@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/printk.h>
 
 #include <rdma/ib_mad.h>
 #include <rdma/ib_pma.h>
@@ -105,7 +106,7 @@ static ssize_t state_show(struct ib_port *p, struct port_attribute *unused,
 		return ret;
 
 	return sprintf(buf, "%d: %s\n", attr.state,
-		       attr.state < ARRAY_SIZE(state_name) ?
+		       attr.state >= 0 && attr.state < ARRAY_SIZE(state_name) ?
 		       state_name[attr.state] : "UNKNOWN");
 }
 
@@ -180,19 +181,18 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 {
 	struct ib_port_attr attr;
 	char *speed = "";
-	int rate;
+	int rate;		/* in deci-Gb/sec */
 	ssize_t ret;
 
 	ret = ib_query_port(p->ibdev, p->port_num, &attr);
 	if (ret)
 		return ret;
 
-	switch (attr.active_speed) {
-	case 2: speed = " DDR"; break;
-	case 4: speed = " QDR"; break;
-	}
+	ib_active_speed_enum_to_rate(attr.active_speed,
+				     &rate,
+				     &speed);
 
-	rate = 25 * ib_width_enum_to_int(attr.active_width) * attr.active_speed;
+	rate *= ib_width_enum_to_int(attr.active_width);
 	if (rate < 0)
 		return -EINVAL;
 
@@ -229,9 +229,11 @@ static ssize_t link_layer_show(struct ib_port *p, struct port_attribute *unused,
 {
 	switch (rdma_port_get_link_layer(p->ibdev, p->port_num)) {
 	case IB_LINK_LAYER_INFINIBAND:
-		return sprintf(buf, "%s\n", "IB");
+		return sprintf(buf, "%s\n", "InfiniBand");
 	case IB_LINK_LAYER_ETHERNET:
 		return sprintf(buf, "%s\n", "Ethernet");
+	case IB_LINK_LAYER_SCIF:
+		return sprintf(buf, "%s\n", "SCIF");
 	default:
 		return sprintf(buf, "%s\n", "Unknown");
 	}
@@ -267,16 +269,12 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		container_of(attr, struct port_table_attribute, attr);
 	union ib_gid gid;
 	ssize_t ret;
-	u16 *raw;
 
 	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid);
 	if (ret)
 		return ret;
 
-	raw = (u16 *)gid.raw;
-	return sprintf(buf, "%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x\n",
-	    htons(raw[0]), htons(raw[1]), htons(raw[2]), htons(raw[3]),
-	    htons(raw[4]), htons(raw[5]), htons(raw[6]), htons(raw[7]));
+	return sprintf(buf, GID_PRINT_FMT"\n",GID_PRINT_ARGS(gid.raw));
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
@@ -351,8 +349,8 @@ static ssize_t get_pma_counters(struct ib_port *p, struct port_attribute *attr,
                               be32_to_cpup((__be32 *)(out_mad->data + 40 + offset / 8)));
                 break;
         case 64:
-                ret = sprintf(buf, "%llu\n", (unsigned long long)
-                              be64_to_cpup((__be64 *)(out_mad->data + 40 + offset / 8)));
+		ret = sprintf(buf, "%llu\n",
+                              (unsigned long long)be64_to_cpup((__be64 *)(out_mad->data + 40 + offset / 8)));
                 break;
         default:
                 ret = 0;
@@ -536,6 +534,7 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 		element->attr.attr.mode  = S_IRUGO;
 		element->attr.show       = show;
 		element->index		 = i;
+		sysfs_attr_init(&element->attr.attr);
 
 		tab_attr[i] = &element->attr.attr;
 	}
@@ -570,7 +569,7 @@ static int add_port(struct ib_device *device, int port_num,
 	p->port_num   = port_num;
 
 	ret = kobject_init_and_add(&p->kobj, &port_type,
-				   kobject_get(device->ports_parent),
+				   device->ports_parent,
 				   "%d", port_num);
 	if (ret)
 		goto err_put;
@@ -609,7 +608,6 @@ static int add_port(struct ib_device *device, int port_num,
         }
 
 	list_add_tail(&p->kobj.entry, &device->port_list);
-
 #ifdef __linux__
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 #endif
@@ -655,6 +653,7 @@ static ssize_t show_node_type(struct device *device,
 	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
 	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
 	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
+	case RDMA_NODE_MIC:	  return sprintf(buf, "%d: MIC\n", dev->node_type);
 	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
 	}
 }
@@ -716,16 +715,75 @@ static ssize_t set_node_desc(struct device *device,
 	return count;
 }
 
+static ssize_t show_cmd_perf(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	return sprintf(buf, "%d\n", dev->cmd_perf);
+}
+
+static ssize_t set_cmd_perf(struct device *device,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+	u32 val;
+
+	if (sscanf(buf, "0x%x", &val) != 1)
+		return -EINVAL;
+
+	dev->cmd_perf = val;
+
+	return count;
+}
+
+static ssize_t show_cmd_avg(struct device *device,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	return sprintf(buf, "%llu\n", (unsigned long long)dev->cmd_avg);
+}
+
+static ssize_t set_cmd_avg(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	spin_lock(&dev->cmd_perf_lock);
+	dev->cmd_avg = 0;
+	dev->cmd_n = 0;
+	spin_unlock(&dev->cmd_perf_lock);
+
+	return count;
+}
+
+static ssize_t show_cmd_n(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	return sprintf(buf, "%d\n", dev->cmd_n);
+}
+
 static DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);
 static DEVICE_ATTR(sys_image_guid, S_IRUGO, show_sys_image_guid, NULL);
 static DEVICE_ATTR(node_guid, S_IRUGO, show_node_guid, NULL);
 static DEVICE_ATTR(node_desc, S_IRUGO | S_IWUSR, show_node_desc, set_node_desc);
+static DEVICE_ATTR(cmd_perf, S_IRUGO | S_IWUSR, show_cmd_perf, set_cmd_perf);
+static DEVICE_ATTR(cmd_avg, S_IRUGO | S_IWUSR, show_cmd_avg, set_cmd_avg);
+static DEVICE_ATTR(cmd_n, S_IRUGO, show_cmd_n, NULL);
 
 static struct device_attribute *ib_class_attributes[] = {
 	&dev_attr_node_type,
 	&dev_attr_sys_image_guid,
 	&dev_attr_node_guid,
-	&dev_attr_node_desc
+	&dev_attr_node_desc,
+	&dev_attr_cmd_perf,
+	&dev_attr_cmd_avg,
+	&dev_attr_cmd_n,
 };
 
 static struct class ib_class = {
@@ -851,7 +909,8 @@ static struct attribute_group iw_stats_group = {
 };
 
 int ib_device_register_sysfs(struct ib_device *device,
-                                int (*port_callback)(struct ib_device *, u8, struct kobject *))
+			     int (*port_callback)(struct ib_device *,
+						  u8, struct kobject *))
 {
 	struct device *class_dev = &device->dev;
 	int ret;
@@ -874,8 +933,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 			goto err_unregister;
 	}
 
-	device->ports_parent = kobject_create_and_add("ports",
-                        	        kobject_get(&class_dev->kobj));
+	device->ports_parent = kobject_create_and_add("ports",&class_dev->kobj);
         if (!device->ports_parent) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -919,6 +977,11 @@ err_put:
 	kobject_put(&class_dev->kobj);
 
 err_unregister:
+
+	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i) {
+		device_remove_file(class_dev, ib_class_attributes[i]);
+        }
+
 	device_unregister(class_dev);
 
 err:
@@ -927,15 +990,16 @@ err:
 
 void ib_device_unregister_sysfs(struct ib_device *device)
 {
+	int i;
 	struct kobject *p, *t;
 	struct ib_port *port;
-	int i;
+	struct device *class_dev = &device->dev;
 
 	/* Hold kobject until ib_dealloc_device() */
 	kobject_get(&device->dev.kobj);
 
 	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i) {
-			device_remove_file(&device->dev, ib_class_attributes[i]);
+		device_remove_file(class_dev, ib_class_attributes[i]);
 	}
 
 	list_for_each_entry_safe(p, t, &device->port_list, entry) {
@@ -960,22 +1024,3 @@ void ib_sysfs_cleanup(void)
 {
 	class_unregister(&ib_class);
 }
-
-/*int ib_sysfs_create_port_files(struct ib_device *device,
-			       int (*create)(struct ib_device *dev, u8 port_num,
-					     struct kobject *kobj))
-{
-	struct kobject *p;
-	struct ib_port *port;
-	int ret = 0;
-
-	list_for_each_entry(p, &device->port_list, entry) {
-		port = container_of(p, struct ib_port, kobj);
-		ret = create(device, port->port_num, &port->kobj);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_sysfs_create_port_files);*/

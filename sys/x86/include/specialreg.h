@@ -53,6 +53,7 @@
 #define	CR0_CD  0x40000000	/* Cache Disable */
 
 #define	CR3_PCID_SAVE 0x8000000000000000
+#define	CR3_PCID_MASK 0xfff
 
 /*
  * Bits in PPro special registers
@@ -82,6 +83,9 @@
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
 #define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
+#define	EFER_LMSLE 0x000002000	/* Long Mode Segment Limit Enable */
+#define	EFER_FFXSR 0x000004000	/* Fast FXSAVE/FSRSTOR */
+#define	EFER_TCE   0x000008000	/* Translation Cache Extension */
 
 /*
  * Intel Extended Features registers
@@ -154,6 +158,7 @@
 #define	CPUID2_TM2	0x00000100
 #define	CPUID2_SSSE3	0x00000200
 #define	CPUID2_CNXTID	0x00000400
+#define	CPUID2_SDBG	0x00000800
 #define	CPUID2_FMA	0x00001000
 #define	CPUID2_CX16	0x00002000
 #define	CPUID2_XTPR	0x00004000
@@ -190,7 +195,7 @@
 #define	AMDID_MP	0x00080000
 #define	AMDID_NX	0x00100000
 #define	AMDID_EXT_MMX	0x00400000
-#define	AMDID_FFXSR	0x01000000
+#define	AMDID_FFXSR	0x02000000
 #define	AMDID_PAGE1GB	0x04000000
 #define	AMDID_RDTSCP	0x08000000
 #define	AMDID_LM	0x20000000
@@ -469,6 +474,7 @@
 /*
  * X2APIC MSRs
  */
+#define	MSR_APIC_000		0x800
 #define	MSR_APIC_ID		0x802
 #define	MSR_APIC_VERSION	0x803
 #define	MSR_APIC_TPR		0x808

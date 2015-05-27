@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_SDNODEDBGVALUE_H
-#define LLVM_CODEGEN_SDNODEDBGVALUE_H
+#ifndef LLVM_LIB_CODEGEN_SELECTIONDAG_SDNODEDBGVALUE_H
+#define LLVM_LIB_CODEGEN_SELECTIONDAG_SDNODEDBGVALUE_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/DebugLoc.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/DebugLoc.h"
 
 namespace llvm {
 
@@ -44,69 +44,81 @@ private:
     const Value *Const;     // valid for constants
     unsigned FrameIx;       // valid for stack objects
   } u;
-  MDNode *mdPtr;
+  MDNode *Var;
+  MDNode *Expr;
+  bool IsIndirect;
   uint64_t Offset;
   DebugLoc DL;
   unsigned Order;
   bool Invalid;
 public:
   // Constructor for non-constants.
-  SDDbgValue(MDNode *mdP, SDNode *N, unsigned R, uint64_t off, DebugLoc dl,
-             unsigned O) : mdPtr(mdP), Offset(off), DL(dl), Order(O),
-                           Invalid(false) {
+  SDDbgValue(MDNode *Var, MDNode *Expr, SDNode *N, unsigned R, bool indir,
+             uint64_t off, DebugLoc dl, unsigned O)
+      : Var(Var), Expr(Expr), IsIndirect(indir), Offset(off), DL(dl), Order(O),
+        Invalid(false) {
     kind = SDNODE;
     u.s.Node = N;
     u.s.ResNo = R;
   }
 
   // Constructor for constants.
-  SDDbgValue(MDNode *mdP, const Value *C, uint64_t off, DebugLoc dl,
-             unsigned O) : 
-    mdPtr(mdP), Offset(off), DL(dl), Order(O), Invalid(false) {
+  SDDbgValue(MDNode *Var, MDNode *Expr, const Value *C, uint64_t off,
+             DebugLoc dl, unsigned O)
+      : Var(Var), Expr(Expr), IsIndirect(false), Offset(off), DL(dl), Order(O),
+        Invalid(false) {
     kind = CONST;
     u.Const = C;
   }
 
   // Constructor for frame indices.
-  SDDbgValue(MDNode *mdP, unsigned FI, uint64_t off, DebugLoc dl, unsigned O) : 
-    mdPtr(mdP), Offset(off), DL(dl), Order(O), Invalid(false) {
+  SDDbgValue(MDNode *Var, MDNode *Expr, unsigned FI, uint64_t off, DebugLoc dl,
+             unsigned O)
+      : Var(Var), Expr(Expr), IsIndirect(false), Offset(off), DL(dl), Order(O),
+        Invalid(false) {
     kind = FRAMEIX;
     u.FrameIx = FI;
   }
 
   // Returns the kind.
-  DbgValueKind getKind() { return kind; }
+  DbgValueKind getKind() const { return kind; }
 
-  // Returns the MDNode pointer.
-  MDNode *getMDPtr() { return mdPtr; }
+  // Returns the MDNode pointer for the variable.
+  MDNode *getVariable() const { return Var; }
+
+  // Returns the MDNode pointer for the expression.
+  MDNode *getExpression() const { return Expr; }
 
   // Returns the SDNode* for a register ref
-  SDNode *getSDNode() { assert (kind==SDNODE); return u.s.Node; }
+  SDNode *getSDNode() const { assert (kind==SDNODE); return u.s.Node; }
 
   // Returns the ResNo for a register ref
-  unsigned getResNo() { assert (kind==SDNODE); return u.s.ResNo; }
+  unsigned getResNo() const { assert (kind==SDNODE); return u.s.ResNo; }
 
   // Returns the Value* for a constant
-  const Value *getConst() { assert (kind==CONST); return u.Const; }
+  const Value *getConst() const { assert (kind==CONST); return u.Const; }
 
   // Returns the FrameIx for a stack object
-  unsigned getFrameIx() { assert (kind==FRAMEIX); return u.FrameIx; }
+  unsigned getFrameIx() const { assert (kind==FRAMEIX); return u.FrameIx; }
+
+  // Returns whether this is an indirect value.
+  bool isIndirect() const { return IsIndirect; }
 
   // Returns the offset.
-  uint64_t getOffset() { return Offset; }
+  uint64_t getOffset() const { return Offset; }
 
   // Returns the DebugLoc.
-  DebugLoc getDebugLoc() { return DL; }
+  DebugLoc getDebugLoc() const { return DL; }
 
   // Returns the SDNodeOrder.  This is the order of the preceding node in the
   // input.
-  unsigned getOrder() { return Order; }
+  unsigned getOrder() const { return Order; }
 
   // setIsInvalidated / isInvalidated - Setter / getter of the "Invalidated"
   // property. A SDDbgValue is invalid if the SDNode that produces the value is
   // deleted.
   void setIsInvalidated() { Invalid = true; }
-  bool isInvalidated() { return Invalid; }
+  bool isInvalidated() const { return Invalid; }
 };
 
 } // end llvm namespace

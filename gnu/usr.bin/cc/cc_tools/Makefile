@@ -207,7 +207,7 @@ GENSRCS+=	bconfig.h
 CLEANFILES+=	cs-bconfig.h
 
 # tconfig.h
-tconfig.h:
+tconfig.h: .PHONY
 	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
 	HEADERS="auto-host.h ansidecl.h" \
 	DEFINES="USED_FOR_TARGET" \
@@ -542,6 +542,8 @@ SRCS+=		${GENSRCS}
 OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 GENOBJS+=	${GENSRCS:N*.h:R:S/$/.o/g}
 CLEANFILES+=	${GENSRCS} ${GENONLY} ${GENOBJS} ${GNTOOLS}
+
+.NOPATH: ${GENSRCS} ${CLEANFILES}
 
 #-----------------------------------------------------------------------
 # Manual dependencies.

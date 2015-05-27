@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1286,7 +1286,9 @@ AcpiDmUnresolvedWarning (
                 "     * compile because the disassembler did not know how many arguments\n"
                 "     * to assign to these methods. To specify the tables needed to resolve\n"
                 "     * external control method references, the -e option can be used to\n"
-                "     * specify the filenames. Example iASL invocations:\n"
+                "     * specify the filenames. Note: SSDTs can be dynamically loaded at\n"
+                "     * runtime and may or may not be available via the host OS.\n"
+                "     * Example iASL invocations:\n"
                 "     *     iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
                 "     *     iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
                 "     *     iasl -e ssdt*.aml -d dsdt.aml\n"
@@ -1314,7 +1316,8 @@ AcpiDmUnresolvedWarning (
                 "     * ACPI tables may be required to properly disassemble the code. This\n"
                 "     * resulting disassembler output file may not compile because the\n"
                 "     * disassembler did not know how many arguments to assign to the\n"
-                "     * unresolved methods.\n"
+                "     * unresolved methods. Note: SSDTs can be dynamically loaded at\n"
+                "     * runtime and may or may not be available via the host OS.\n"
                 "     *\n"
                 "     * If necessary, the -fe option can be used to specify a file containing\n"
                 "     * control method external declarations with the associated method\n"
@@ -1345,7 +1348,9 @@ AcpiDmUnresolvedWarning (
                 "compile because the disassembler did not know how many arguments\n"
                 "to assign to these methods. To specify the tables needed to resolve\n"
                 "external control method references, the -e option can be used to\n"
-                "specify the filenames. Example iASL invocations:\n"
+                "specify the filenames. Note: SSDTs can be dynamically loaded at\n"
+                "runtime and may or may not be available via the host OS.\n"
+                "Example iASL invocations:\n"
                 "    iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
                 "    iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
                 "    iasl -e ssdt*.aml -d dsdt.aml\n"
@@ -1368,7 +1373,8 @@ AcpiDmUnresolvedWarning (
                 "ACPI tables may be required to properly disassemble the code. The\n"
                 "resulting disassembler output file may not compile because the\n"
                 "disassembler did not know how many arguments to assign to the\n"
-                "unresolved methods.\n"
+                "unresolved methods. Note: SSDTs can be dynamically loaded at\n"
+                "runtime and may or may not be available via the host OS.\n"
                 "\n"
                 "If necessary, the -fe option can be used to specify a file containing\n"
                 "control method external declarations with the associated method\n"

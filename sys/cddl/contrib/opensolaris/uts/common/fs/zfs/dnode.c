@@ -57,7 +57,7 @@ static dnode_phys_t dnode_phys_zero;
 int zfs_default_bs = SPA_MINBLOCKSHIFT;
 int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 
-#ifdef sun
+#ifdef illumos
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
 #endif
 
@@ -81,15 +81,13 @@ dbuf_compare(const void *x1, const void *x2)
 		return (1);
 	}
 
-	if (d1->db_state < d2->db_state) {
+	if (d1->db_state == DB_SEARCH) {
+		ASSERT3S(d2->db_state, !=, DB_SEARCH);
 		return (-1);
-	}
-	if (d1->db_state > d2->db_state) {
+	} else if (d2->db_state == DB_SEARCH) {
+		ASSERT3S(d1->db_state, !=, DB_SEARCH);
 		return (1);
 	}
-
-	ASSERT3S(d1->db_state, !=, DB_SEARCH);
-	ASSERT3S(d2->db_state, !=, DB_SEARCH);
 
 	if ((uintptr_t)d1 < (uintptr_t)d2) {
 		return (-1);
@@ -815,7 +813,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	odn->dn_moved = (uint8_t)-1;
 }
 
-#ifdef sun
+#ifdef illumos
 #ifdef	_KERNEL
 /*ARGSUSED*/
 static kmem_cbrc_t
@@ -958,7 +956,7 @@ dnode_move(void *buf, void *newbuf, size_t size, void *arg)
 	return (KMEM_CBRC_YES);
 }
 #endif	/* _KERNEL */
-#endif	/* sun */
+#endif	/* illumos */
 
 void
 dnode_special_close(dnode_handle_t *dnh)
@@ -1121,7 +1119,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 			zrl_init(&dnh[i].dnh_zrlock);
 			dnh[i].dnh_dnode = NULL;
 		}
-		if (winner = dmu_buf_set_user(&db->db, children_dnodes, NULL,
+		if (winner = dmu_buf_set_user(&db->db, children_dnodes,
 		    dnode_buf_pageout)) {
 
 			for (i = 0; i < epb; i++) {

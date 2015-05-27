@@ -57,8 +57,8 @@ struct stat;
 struct thr_param;
 struct __wrusage;
 
-int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
-	    u_int buflen);
+int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
+	    u_int buflen, u_int path_max);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
 int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
@@ -99,10 +99,12 @@ int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
 int	kern_ftruncate(struct thread *td, int fd, off_t length);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
+int	kern_futimens(struct thread *td, int fd, struct timespec *tptr,
+	    enum uio_seg tptrseg);
 int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
-	    enum uio_seg bufseg, int flags);
+	    size_t *countp, enum uio_seg bufseg, int flags);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
@@ -220,6 +222,9 @@ int	kern_unlinkat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, ino_t oldinum);
 int	kern_utimesat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_utimensat(struct thread *td, int fd, char *path,
+	    enum uio_seg pathseg, struct timespec *tptr, enum uio_seg tptrseg,
+	    int follow);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,

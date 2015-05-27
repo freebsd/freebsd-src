@@ -30,6 +30,7 @@
  */
 
 #include <netinet/in.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <ctype.h>
 #include <sdp.h>

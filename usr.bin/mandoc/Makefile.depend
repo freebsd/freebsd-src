@@ -10,7 +10,9 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libmandoc \
+	lib/libohash \
+	lib/libsqlite3 \
+	lib/libthr \
 
 
 .include <dirdeps.mk>

@@ -86,7 +86,7 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
 
 #ifdef USB_DEBUG
 static int uftdi_debug = 0;
-SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uftdi_debug, 0, "Debug level");
 #endif
 
@@ -497,6 +497,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, SCS_DEVICE_5, 0),
 	UFTDI_DEV(FTDI, SCS_DEVICE_6, 0),
 	UFTDI_DEV(FTDI, SCS_DEVICE_7, 0),
+	UFTDI_DEV(FTDI, SCX8_USB_PHOENIX, 0),
 	UFTDI_DEV(FTDI, SDMUSBQSS, 0),
 	UFTDI_DEV(FTDI, SEMC_DSS20, 0),
 	UFTDI_DEV(FTDI, SERIAL_2232C, UFTDI_JTAG_CHECK_STRING),
@@ -1701,7 +1702,7 @@ uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
 	struct uftdi_softc *sc = ucom->sc_parent;
 	usb_device_request_t req;
 
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_GET_BITMODE;
 
 	USETW(req.wIndex, sc->sc_ucom.sc_portno);
@@ -1738,7 +1739,7 @@ uftdi_get_latency(struct ucom_softc *ucom, int *latency)
 	usb_error_t err;
 	uint8_t buf;
 
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_GET_LATENCY;
 
 	USETW(req.wIndex, sc->sc_ucom.sc_portno);

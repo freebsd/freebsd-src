@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
+#include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
@@ -77,15 +78,14 @@ int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
-	u_long c, v;
-	int error, o, sflags;
-	vm_offset_t addr, eaddr;
-
-	GIANT_REQUIRED;
+	void *p;
+	ssize_t orig_resid;
+	u_long v, vd;
+	u_int c;
+	int error;
 
 	error = 0;
-	c = 0;
-	sflags = curthread_pflags_set(TDP_DEVMEMIO);
+	orig_resid = uio->uio_resid;
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {
@@ -95,64 +95,67 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				panic("memrw");
 			continue;
 		}
-		if (dev2unit(dev) == CDEV_MINOR_MEM) {
-			v = uio->uio_offset;
-kmemphys:
-			o = v & PAGE_MASK;
-			c = min(uio->uio_resid, (u_int)(PAGE_SIZE - o));
-			v = PHYS_TO_DMAP(v);
-			if (v < DMAP_MIN_ADDRESS ||
-			    (v > DMAP_MIN_ADDRESS + dmaplimit &&
-			    v <= DMAP_MAX_ADDRESS) ||
-			    pmap_kextract(v) == 0) {
-				error = EFAULT;
-				goto ret;
-			}
-			error = uiomove((void *)v, (int)c, uio);
-			continue;
-		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
-			v = uio->uio_offset;
+		v = uio->uio_offset;
+		c = ulmin(iov->iov_len, PAGE_SIZE - (u_int)(v & PAGE_MASK));
 
-			if (v >= DMAP_MIN_ADDRESS && v < DMAP_MAX_ADDRESS) {
-				v = DMAP_TO_PHYS(v);
-				goto kmemphys;
-			}
-
-			c = iov->iov_len;
-
+		switch (dev2unit(dev)) {
+		case CDEV_MINOR_KMEM:
 			/*
-			 * Make sure that all of the pages are currently
-			 * resident so that we don't create any zero-fill
-			 * pages.
+			 * Since c is clamped to be less or equal than
+			 * PAGE_SIZE, the uiomove() call does not
+			 * access past the end of the direct map.
 			 */
-			addr = trunc_page(v);
-			eaddr = round_page(v + c);
+			if (v >= DMAP_MIN_ADDRESS &&
+			    v < DMAP_MIN_ADDRESS + dmaplimit) {
+				error = uiomove((void *)v, c, uio);
+				break;
+			}
 
-			if (addr < VM_MIN_KERNEL_ADDRESS) {
-				error = EFAULT;
-				goto ret;
-			}
-			for (; addr < eaddr; addr += PAGE_SIZE) {
-				if (pmap_extract(kernel_pmap, addr) == 0) {
-					error = EFAULT;
-					goto ret;
-				}
-			}
-			if (!kernacc((caddr_t)(long)v, c,
-			    uio->uio_rw == UIO_READ ? 
+			if (!kernacc((void *)v, c, uio->uio_rw == UIO_READ ?
 			    VM_PROT_READ : VM_PROT_WRITE)) {
 				error = EFAULT;
-				goto ret;
+				break;
 			}
 
-			error = uiomove((caddr_t)(long)v, (int)c, uio);
-			continue;
+			/*
+			 * If the extracted address is not accessible
+			 * through the direct map, then we make a
+			 * private (uncached) mapping because we can't
+			 * depend on the existing kernel mapping
+			 * remaining valid until the completion of
+			 * uiomove().
+			 *
+			 * XXX We cannot provide access to the
+			 * physical page 0 mapped into KVA.
+			 */
+			v = pmap_extract(kernel_pmap, v);
+			if (v == 0) {
+				error = EFAULT;
+				break;
+			}
+			/* FALLTHROUGH */
+		case CDEV_MINOR_MEM:
+			if (v < dmaplimit) {
+				vd = PHYS_TO_DMAP(v);
+				error = uiomove((void *)vd, c, uio);
+				break;
+			}
+			if (v >= (1ULL << cpu_maxphyaddr)) {
+				error = EFAULT;
+				break;
+			}
+			p = pmap_mapdev(v, PAGE_SIZE);
+			error = uiomove(p, c, uio);
+			pmap_unmapdev((vm_offset_t)p, PAGE_SIZE);
+			break;
 		}
-		/* else panic! */
 	}
-ret:
-	curthread_pflags_restore(sflags);
+	/*
+	 * Don't return error if any byte was written.  Read and write
+	 * can return error only if no i/o was performed.
+	 */
+	if (uio->uio_resid != orig_resid)
+		error = 0;
 	return (error);
 }
 

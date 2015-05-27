@@ -420,6 +420,7 @@ pl310_config_intr(void *arg)
 
 	config_intrhook_disestablish(sc->sc_ich);
 	free(sc->sc_ich, M_DEVBUF);
+	sc->sc_ich = NULL;
 }
 
 static int
@@ -453,7 +454,7 @@ pl310_attach(device_t dev)
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	                                        RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
-		panic("Cannot allocate IRQ\n");
+		device_printf(dev, "cannot allocate IRQ, not using interrupt\n");
 	}
 
 	pl310_softc = sc;
@@ -505,14 +506,18 @@ pl310_attach(device_t dev)
 		if (bootverbose)
 			pl310_print_config(sc);
 	} else {
-		malloc(sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
-		sc->sc_ich->ich_func = pl310_config_intr;
-		sc->sc_ich->ich_arg = sc;
-		if (config_intrhook_establish(sc->sc_ich) != 0) {
-			device_printf(dev,
-			    "config_intrhook_establish failed\n");
-			return(ENXIO);
+		if (sc->sc_irq_res != NULL) {
+			sc->sc_ich = malloc(sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
+			sc->sc_ich->ich_func = pl310_config_intr;
+			sc->sc_ich->ich_arg = sc;
+			if (config_intrhook_establish(sc->sc_ich) != 0) {
+				device_printf(dev,
+				    "config_intrhook_establish failed\n");
+				free(sc->sc_ich, M_DEVBUF);
+				return(ENXIO);
+			}
 		}
+
 		device_printf(dev, "L2 Cache disabled\n");
 	}
 

@@ -1007,7 +1007,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_PHYS_PATH;
-	cdai.flags = 0;
+	cdai.flags = CDAI_FLAG_NONE;
 	cdai.bufsiz = MAXPATHLEN;
 	cdai.buf = old_physpath;
 	xpt_action((union ccb *)&cdai);
@@ -1019,7 +1019,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.buftype = CDAI_TYPE_PHYS_PATH;
-		cdai.flags |= CDAI_FLAG_STORE;
+		cdai.flags = CDAI_FLAG_STORE;
 		cdai.bufsiz = sbuf_len(args->physpath);
 		cdai.buf = sbuf_data(args->physpath);
 		xpt_action((union ccb *)&cdai);

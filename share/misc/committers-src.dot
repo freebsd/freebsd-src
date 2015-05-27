@@ -113,6 +113,7 @@ andrew [label="Andrew Turner\nandrew@FreeBSD.org\n2010/07/19"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
+arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
 asomers [label="Alan Somers\nasomers@FreeBSD.org\n2013/04/24"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
@@ -152,6 +153,7 @@ eivind [label="Eivind Eklund\neivind@FreeBSD.org\n1997/02/02"]
 emaste [label="Ed Maste\nemaste@FreeBSD.org\n2005/10/04"]
 emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 eri [label="Ermal Luci\neri@FreeBSD.org\n2008/06/11"]
+erj [label="Eric Joyner\nerj@FreeBSD.org\n2014/12/14"]
 fabient [label="Fabien Thomas\nfabient@FreeBSD.org\n2009/03/16"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
@@ -176,6 +178,7 @@ ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
+jah [label="Jason A. Harmening\njah@FreeBSD.org\n2015/03/08"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
@@ -208,6 +211,7 @@ kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
+kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
@@ -236,6 +240,7 @@ np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
+oshogbo [label="Mariusz Zaborski\noshogbo@FreeBSD.org\n2015/04/15"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n1995/07/04"]
 peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
@@ -294,10 +299,12 @@ tuexen [label="Michael Tuexen\ntuexen@FreeBSD.org\n2009/06/06"]
 tychon [label="Tycho Nightingale\ntychon@FreeBSD.org\n2014/01/21"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2010/01/28"]
+vangyzen [label="Eric van Gyzen\nvangyzen@FreeBSD.org\n2015/03/08"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
 versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
+whu [label="Wei Hu\nwhu@FreeBSD.org\n2015/02/11"]
 wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
@@ -428,6 +435,7 @@ gavin -> versus
 gibbs -> mjacob
 gibbs -> njl
 gibbs -> royger
+gibbs -> whu
 
 glebius -> mav
 
@@ -438,6 +446,9 @@ gnn -> vanhu
 gnn -> lstewart
 gnn -> np
 gnn -> davide
+gnn -> arybchik
+gnn -> erj
+gnn -> kp
 
 grehan -> bryanv
 
@@ -482,6 +493,8 @@ jake -> yongari
 jb -> sson
 
 jdp -> fjoe
+
+jfv -> erj
 
 jhb -> arr
 jhb -> avg
@@ -540,6 +553,7 @@ ken -> slm
 kib -> ae
 kib -> dchagin
 kib -> gjb
+kib -> jah
 kib -> jlh
 kib -> jpaetzel
 kib -> lulf
@@ -552,6 +566,7 @@ kib -> rmh
 kib -> stas
 kib -> tijl
 kib -> trociny
+kib -> vangyzen
 kib -> zont
 
 kmacy -> lstewart
@@ -612,18 +627,22 @@ philip -> ed
 philip -> jls
 philip -> matteo
 philip -> uqs
+philip -> kp
 
 phk -> jkoshy
 phk -> mux
 
 pjd -> kib
 pjd -> lulf
+pjd -> oshogbo
 pjd -> smh
 pjd -> trociny
 
 rgrimes -> markm
 
 rmacklem -> jwd
+
+royger -> whu
 
 rpaulo -> avg
 rpaulo -> bschmidt

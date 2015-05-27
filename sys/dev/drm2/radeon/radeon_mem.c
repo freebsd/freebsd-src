@@ -46,7 +46,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 	/* Maybe cut off the start of an existing block */
 	if (start > p->start) {
 		struct mem_block *newblock = malloc(sizeof(*newblock),
-						     DRM_MEM_DRIVER, M_WAITOK);
+						     DRM_MEM_DRIVER, M_NOWAIT);
 		if (!newblock)
 			goto out;
 		newblock->start = start;
@@ -63,7 +63,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 	/* Maybe cut off the end of an existing block */
 	if (size < p->size) {
 		struct mem_block *newblock = malloc(sizeof(*newblock),
-						     DRM_MEM_DRIVER, M_WAITOK);
+						     DRM_MEM_DRIVER, M_NOWAIT);
 		if (!newblock)
 			goto out;
 		newblock->start = start + size;
@@ -137,12 +137,12 @@ static void free_block(struct mem_block *p)
 static int init_heap(struct mem_block **heap, int start, int size)
 {
 	struct mem_block *blocks = malloc(sizeof(*blocks),
-	    DRM_MEM_DRIVER, M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT);
 
 	if (!blocks)
 		return -ENOMEM;
 
-	*heap = malloc(sizeof(**heap), DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	*heap = malloc(sizeof(**heap), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!*heap) {
 		free(blocks, DRM_MEM_DRIVER);
 		return -ENOMEM;

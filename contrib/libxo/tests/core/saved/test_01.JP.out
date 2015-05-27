@@ -88,6 +88,17 @@
           "on-order": 1
         }
       ]
-    }
+    },
+    "data": {
+      "item": [
+        "gum",
+        "rope",
+        "ladder",
+        "bolt",
+        "water"
+      ]
+    },
+    "cost": 425,
+    "cost": 455
   }
 }

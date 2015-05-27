@@ -9,8 +9,7 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}
 CFLAGS+=-fexceptions
 .endif
 CFLAGS+=-Winline -Wall
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 
 WARNS?=	2
 
@@ -20,6 +19,8 @@ PRECIOUSLIB=
 
 VERSION_MAP=	${.CURDIR}/Version.map
 
-.include <bsd.arch.inc.mk>
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>

@@ -527,7 +527,7 @@ efx_rx_filter_insert(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
 	spec->efs_dmaq_id = (uint16_t)erp->er_index;
-	return efx_filter_insert_filter(erp->er_enp, spec, B_FALSE);
+	return (efx_filter_insert_filter(erp->er_enp, spec, B_FALSE));
 }
 #endif
 
@@ -541,7 +541,7 @@ efx_rx_filter_remove(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
 	spec->efs_dmaq_id = (uint16_t)erp->er_index;
-	return efx_filter_remove_filter(erp->er_enp, spec);
+	return (efx_filter_remove_filter(erp->er_enp, spec));
 }
 #endif
 
@@ -673,7 +673,8 @@ efx_rx_qcreate(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS == (1 << FRF_AZ_RX_DESCQ_LABEL_WIDTH));
+	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS ==
+	    (1 << FRF_AZ_RX_DESCQ_LABEL_WIDTH));
 	EFSYS_ASSERT3U(label, <, EFX_EV_RX_NLABELS);
 	EFSYS_ASSERT3U(enp->en_rx_qcount + 1, <, encp->enc_rxq_limit);
 

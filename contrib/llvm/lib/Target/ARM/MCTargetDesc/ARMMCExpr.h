@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMMCEXPR_H
-#define ARMMCEXPR_H
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMMCEXPR_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMMCEXPR_H
 
 #include "llvm/MC/MCExpr.h"
 
@@ -56,16 +56,19 @@ public:
 
   /// @}
 
-  void PrintImpl(raw_ostream &OS) const;
+  void PrintImpl(raw_ostream &OS) const override;
   bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                 const MCAsmLayout *Layout) const;
-  void AddValueSymbols(MCAssembler *) const;
-  const MCSection *FindAssociatedSection() const {
+                                 const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup) const override {
+    return false;
+  }
+  void visitUsedExpr(MCStreamer &Streamer) const override; 
+  const MCSection *FindAssociatedSection() const override {
     return getSubExpr()->FindAssociatedSection();
   }
 
   // There are no TLS ARMMCExprs at the moment.
-  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const {}
+  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
 
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;

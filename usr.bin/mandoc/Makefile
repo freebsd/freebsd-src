@@ -1,22 +1,80 @@
 # $FreeBSD$
 
 MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
-LIBMANDOC=	${.OBJDIR}/../../lib/libmandoc/libmandoc.a
 .PATH: ${MDOCMLDIR}
 
 PROG=	mandoc
-FILES=	example.style.css external.png style.css
+FILES=	example.style.css style.css
 FILESDIR=	${SHAREDIR}/mdocml
-LINKS=	mdocml
-MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 # man.7 mdoc.7 roff.7
+MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 # roff.7
 MLINKS= mandoc.1 mdocml.1
-SRCS=	eqn_html.c eqn_term.c html.c main.c man_html.c man_term.c mdoc_html.c \
-	mdoc_man.c mdoc_term.c out.c tbl_html.c tbl_term.c term.c \
-	term_ascii.c term_ps.c tree.c
 
-WARNS?=	3
-CFLAGS+= -DHAVE_CONFIG_H
-DPADD=	${LIBMANDOC}
-LDADD=	${LIBMANDOC}
+LIBMAN_SRCS=	man.c \
+		man_hash.c \
+		man_macro.c \
+		man_validate.c
+
+LIBMDOC_SRCS=	att.c \
+		lib.c \
+		mdoc.c \
+		mdoc_argv.c \
+		mdoc_hash.c \
+		mdoc_macro.c \
+		mdoc_validate.c \
+		st.c \
+
+LIBROFF_SRCS=	eqn.c \
+		roff.c \
+		tbl.c \
+		tbl_data.c \
+		tbl_layout.c \
+		tbl_opts.c \
+
+LIB_SRCS=	${LIBMAN_SRCS} \
+		${LIBMDOC_SRCS} \
+		${LIBROFF_SRCS} \
+		chars.c \
+		mandoc.c \
+		mandoc_aux.c \
+		msec.c \
+		preconv.c \
+		read.c
+
+HTML_SRCS=	eqn_html.c \
+		html.c \
+		man_html.c \
+		mdoc_html.c \
+		tbl_html.c
+
+MAN_SRCS=	mdoc_man.c
+
+TERM_SRCS=	eqn_term.c \
+		man_term.c \
+		mdoc_term.c \
+		term.c \
+		term_ascii.c \
+		term_ps.c \
+		tbl_term.c
+
+DB_SRCS=	mandocdb.c \
+		mansearch.c \
+		mansearch_const.c \
+		manpath.c
+
+SRCS=		${LIB_SRCS} \
+		${HTML_SRCS} \
+		${MAN_SRCS} \
+		${TERM_SRCS} \
+		main.c \
+		out.c \
+		tree.c
+
+SRCS+=	${DB_SRCS}
+
+WARNS?=	2
+CFLAGS+= -DHAVE_CONFIG_H \
+	 -I${.CURDIR}/../../lib/libohash/ \
+	 -I${.CURDIR}/../../contrib/sqlite3
+LIBADD=	ohash sqlite3
 
 .include <bsd.prog.mk>

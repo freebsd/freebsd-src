@@ -244,7 +244,7 @@ static struct wpabuf * eap_leap_process_response(struct eap_sm *sm, void *priv,
 	ret->methodState = METHOD_DONE;
 	ret->allowNotifications = FALSE;
 
-	if (os_memcmp(pos, expected, LEAP_RESPONSE_LEN) != 0) {
+	if (os_memcmp_const(pos, expected, LEAP_RESPONSE_LEN) != 0) {
 		wpa_printf(MSG_WARNING, "EAP-LEAP: AP sent an invalid "
 			   "response - authentication failed");
 		wpa_hexdump(MSG_DEBUG, "EAP-LEAP: Expected response from AP",
@@ -382,6 +382,9 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	md5_vector(5, addr, elen, key);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-LEAP: master key", key, LEAP_KEY_LEN);
 	*len = LEAP_KEY_LEN;
+
+	os_memset(pw_hash, 0, sizeof(pw_hash));
+	os_memset(pw_hash_hash, 0, sizeof(pw_hash_hash));
 
 	return key;
 }

@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
 #include <sys/endian.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -72,8 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/cpu.h>
-#include <machine/intr.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -84,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #define	WRITE4(_sc, _reg, _val) \
 	bus_write_4((_sc)->res[0], _reg, _val)
 
+#define	MAC_RESET_TIMEOUT	100
 #define	WATCHDOG_TIMEOUT_SECS	5
 #define	STATS_HARVEST_INTERVAL	2
 #define	MII_CLK_VAL		2
@@ -549,7 +546,8 @@ dwc_alloc_mbufcl(struct dwc_softc *sc)
 	struct mbuf *m;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
+	if (m != NULL)
+		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 	return (m);
 }
@@ -743,11 +741,8 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 {
 	struct dwc_bufmap *bmap;
 	struct dwc_hwdesc *desc;
-	struct ifnet *ifp;
 
 	DWC_ASSERT_LOCKED(sc);
-
-	ifp = sc->ifp;
 
 	while (sc->tx_idx_tail != sc->tx_idx_head) {
 		desc = &sc->txdesc_ring[sc->tx_idx_tail];
@@ -1103,19 +1098,6 @@ dwc_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
-	mtx_init(&sc->mtx, device_get_nameunit(sc->dev),
-	    MTX_NETWORK_LOCK, MTX_DEF);
-
-	callout_init_mtx(&sc->dwc_callout, &sc->mtx, 0);
-
-	/* Setup interrupt handler. */
-	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, dwc_intr, sc, &sc->intr_cookie);
-	if (error != 0) {
-		device_printf(dev, "could not setup interrupt handler.\n");
-		return (ENXIO);
-	}
-
 	/* Read MAC before reset */
 	if (dwc_get_hwaddr(sc, macaddr)) {
 		device_printf(sc->dev, "can't get mac\n");
@@ -1127,12 +1109,12 @@ dwc_attach(device_t dev)
 	reg |= (BUS_MODE_SWR);
 	WRITE4(sc, BUS_MODE, reg);
 
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < MAC_RESET_TIMEOUT; i++) {
 		if ((READ4(sc, BUS_MODE) & BUS_MODE_SWR) == 0)
 			break;
 		DELAY(10);
 	}
-	if (i == 0) {
+	if (i >= MAC_RESET_TIMEOUT) {
 		device_printf(sc->dev, "Can't reset DWC.\n");
 		return (ENXIO);
 	}
@@ -1155,6 +1137,19 @@ dwc_attach(device_t dev)
 	/* Setup addresses */
 	WRITE4(sc, RX_DESCR_LIST_ADDR, sc->rxdesc_ring_paddr);
 	WRITE4(sc, TX_DESCR_LIST_ADDR, sc->txdesc_ring_paddr);
+
+	mtx_init(&sc->mtx, device_get_nameunit(sc->dev),
+	    MTX_NETWORK_LOCK, MTX_DEF);
+
+	callout_init_mtx(&sc->dwc_callout, &sc->mtx, 0);
+
+	/* Setup interrupt handler. */
+	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, dwc_intr, sc, &sc->intr_cookie);
+	if (error != 0) {
+		device_printf(dev, "could not setup interrupt handler.\n");
+		return (ENXIO);
+	}
 
 	/* Set up the ethernet interface. */
 	sc->ifp = ifp = if_alloc(IFT_ETHER);

@@ -50,6 +50,7 @@ DSRCS=		errno.d			\
 		io.d			\
 		ip.d			\
 		psinfo.d		\
+		siftr.d			\
 		signal.d		\
 		tcp.d			\
 		udp.d			\
@@ -81,6 +82,10 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
+.elif ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/arm
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/arm
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/arm
 .elif ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
@@ -98,6 +103,8 @@ DSRCS+=		regs_x86.d
 LFLAGS+=-l
 
 YFLAGS+=-d
+
+LIBADD=	ctf elf proc pthread rtld_db
 
 CLEANFILES=	dt_errtags.c dt_names.c
 

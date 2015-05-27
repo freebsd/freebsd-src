@@ -2952,7 +2952,7 @@ uma_zone_t			ng_qzone;
 uma_zone_t			ng_qdzone;
 static int			numthreads = 0; /* number of queue threads */
 static int			maxalloc = 4096;/* limit the damage of a leak */
-static int			maxdata = 512;	/* limit the damage of a DoS */
+static int			maxdata = 4096;	/* limit the damage of a DoS */
 
 SYSCTL_INT(_net_graph, OID_AUTO, threads, CTLFLAG_RDTUN, &numthreads,
     0, "Number of queue processing threads");

@@ -1,3 +1,49 @@
+2009-02-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* elf64-ppc.c (struct _ppc64_elf_section_data): Delete t_symndx,
+	add toc.symndx and toc.add.
+	(ppc64_elf_check_relocs): Don't set htab->tls_get_addr here.
+	Set up toc.add.
+	(get_tls_mask): Add toc_addend param, set from toc.add.  Adjust all
+	callers.
+	(ppc64_elf_tls_setup): Set htab->tls_get_addr and tls_get_addr_fd.
+	(branch_reloc_hash_match): New function, extracted from..
+	(ppc64_elf_tls_optimize): ..here.
+	(ppc64_elf_relocate_section): Properly set addends when optimizing
+	tls sequences.  Avoid unnecessary reading and writing of insns.
+	Only redo reloc when symbol changed.  Bypass symbol checks when
+	using tlsld_got.
+	* elf32-ppc.c (ppc_elf_tls_setup): Correct comment.
+	(branch_reloc_hash_match): New function, extracted from..
+	(ppc_elf_tls_optimize): ..here.
+	(ppc_elf_relocate_section): Avoid unnecessary reading of insns.
+	Don't clear addend on zapped __tls_get_addr reloc.
+
+2008-08-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* elf64-ppc.c (toc_adjusting_stub_needed): Any call via the plt
+	needs r2 valid, not just those to external syms.
+
+2007-11-06  Alan Modra  <amodra@bigpond.net.au>
+
+	* elf32-ppc.c (ppc_elf_check_relocs): Don't refcount tlsld_got here..
+	(ppc_elf_gc_sweep_hook): ..or here..
+	(ppc_elf_tls_optimize): ..or here.  Make two passes through the
+	relocs, ensuring that tls_get_addr calls follow gd and ld relocs.
+	(allocate_dynrelocs): Refcount tlsld_got here.
+	(ppc_elf_size_dynamic_sections): Call allocate_dynrelocs before
+	allocating tlsld_got.
+	(ppc_elf_relocate_section): Remove check that a tls_get_addr
+	call follows gd and ld relocs.
+
+2007-08-13  Alan Modra  <amodra@bigpond.net.au>
+
+	* elf64-ppc.c (ADDI_R12_R12, LD_R11_0R2, LD_R2_0R2): Define.
+	Update stub comments.
+	(build_plt_stub): Build two variants, one without "addis".
+	(ppc_build_one_stub): Build stubs without "addis" if possible.
+	(ppc_size_one_stub): Size new stubs.
+
 2007-07-02  Joseph Myers  <joseph@codesourcery.com>
 
 	* elfxx-mips.c (mips_elf_calculate_relocation): Handle

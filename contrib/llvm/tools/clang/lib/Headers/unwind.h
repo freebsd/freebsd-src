@@ -26,8 +26,8 @@
 #ifndef __CLANG_UNWIND_H
 #define __CLANG_UNWIND_H
 
-#if __has_include_next(<unwind.h>)
-/* Darwin (from 11.x on) and libunwind provide an unwind.h. If that's available,
+#if defined(__APPLE__) && __has_include_next(<unwind.h>)
+/* Darwin (from 11.x on) provide an unwind.h. If that's available,
  * use it. libunwind wraps some of its definitions in #ifdef _GNU_SOURCE,
  * so define that around the include.*/
 # ifndef _GNU_SOURCE
@@ -198,6 +198,8 @@ void _Unwind_SetIP(struct _Unwind_Context *, _Unwind_Word);
 _Unwind_Word _Unwind_GetIPInfo(struct _Unwind_Context *, int *);
 
 _Unwind_Word _Unwind_GetCFA(struct _Unwind_Context *);
+
+_Unwind_Word _Unwind_GetBSP(struct _Unwind_Context *);
 
 void *_Unwind_GetLanguageSpecificData(struct _Unwind_Context *);
 

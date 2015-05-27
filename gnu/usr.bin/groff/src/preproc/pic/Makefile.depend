@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcxxrt \
 	lib/msun \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

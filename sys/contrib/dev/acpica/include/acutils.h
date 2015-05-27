@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -339,7 +339,7 @@ extern const UINT8 _acpi_ctype[];
 #define _ACPI_DI     0x04    /* '0'-'9' */
 #define _ACPI_LO     0x02    /* 'a'-'z' */
 #define _ACPI_PU     0x10    /* punctuation */
-#define _ACPI_SP     0x08    /* space */
+#define _ACPI_SP     0x08    /* space, tab, CR, LF, VT, FF */
 #define _ACPI_UP     0x01    /* 'A'-'Z' */
 #define _ACPI_XD     0x80    /* '0'-'9', 'A'-'F', 'a'-'f' */
 
@@ -723,6 +723,12 @@ const ACPI_PREDEFINED_INFO *
 AcpiUtMatchPredefinedMethod (
     char                        *Name);
 
+void
+AcpiUtGetExpectedReturnTypes (
+    char                    *Buffer,
+    UINT32                  ExpectedBtypes);
+
+#if (defined ACPI_ASL_COMPILER || defined ACPI_HELP_APP)
 const ACPI_PREDEFINED_INFO *
 AcpiUtMatchResourceName (
     char                        *Name);
@@ -733,15 +739,11 @@ AcpiUtDisplayPredefinedMethod (
     const ACPI_PREDEFINED_INFO  *ThisName,
     BOOLEAN                     MultiLine);
 
-void
-AcpiUtGetExpectedReturnTypes (
-    char                    *Buffer,
-    UINT32                  ExpectedBtypes);
-
 UINT32
 AcpiUtGetResourceBitWidth (
     char                    *Buffer,
     UINT16                  Types);
+#endif
 
 
 /*
@@ -782,13 +784,6 @@ AcpiUtCreateUpdateStateAndPush (
     UINT16                  Action,
     ACPI_GENERIC_STATE      **StateList);
 
-ACPI_STATUS
-AcpiUtCreatePkgStateAndPush (
-    void                    *InternalObject,
-    void                    *ExternalObject,
-    UINT16                  Index,
-    ACPI_GENERIC_STATE      **StateList);
-
 ACPI_GENERIC_STATE *
 AcpiUtCreateControlState (
     void);
@@ -827,9 +822,11 @@ BOOLEAN
 AcpiUtIsPciRootBridge (
     char                    *Id);
 
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP)
 BOOLEAN
 AcpiUtIsAmlTable (
     ACPI_TABLE_HEADER       *Table);
+#endif
 
 ACPI_STATUS
 AcpiUtWalkPackageTree (
@@ -918,6 +915,7 @@ void
 AcpiUtStrupr (
     char                    *SrcString);
 
+#ifdef ACPI_ASL_COMPILER
 void
 AcpiUtStrlwr (
     char                    *SrcString);
@@ -926,6 +924,7 @@ int
 AcpiUtStricmp (
     char                    *String1,
     char                    *String2);
+#endif
 
 ACPI_STATUS
 AcpiUtStrtoul64 (
@@ -938,9 +937,11 @@ AcpiUtPrintString (
     char                    *String,
     UINT16                  MaxLength);
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 void
 UtConvertBackslashes (
     char                    *Pathname);
+#endif
 
 BOOLEAN
 AcpiUtValidAcpiName (
@@ -1189,9 +1190,11 @@ AcpiUtFilePrintf (
 /*
  * utuuid -- UUID support functions
  */
+#if (defined ACPI_ASL_COMPILER || defined ACPI_DISASSEMBLER || defined ACPI_EXEC_APP || defined ACPI_HELP_APP)
 void
 AcpiUtConvertStringToUuid (
     char                    *InString,
     UINT8                   *UuidBuffer);
+#endif
 
 #endif /* _ACUTILS_H */

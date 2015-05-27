@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/time.h>
 #include <geom/geom_disk.h>
 
 #include <dev/mmc/mmcbrvar.h>
@@ -86,6 +87,8 @@ struct mmcsd_softc {
 	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
 	int suspend;
+	int log_count;
+	struct timeval log_time;
 };
 
 static const char *errmsg[] =
@@ -98,6 +101,8 @@ static const char *errmsg[] =
 	"Invalid",
 	"NO MEMORY"
 };
+
+#define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /* bus entry points */
 static int mmcsd_attach(device_t dev);
@@ -389,8 +394,10 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		}
 		MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 		if (req.cmd->error != MMC_ERR_NONE) {
-			device_printf(dev, "Error indicated: %d %s\n",
-			    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+				device_printf(dev, "Error indicated: %d %s\n",
+				    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			}
 			break;
 		}
 		block += numblocks;

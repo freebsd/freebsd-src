@@ -3,29 +3,25 @@
 
 .include <src.opts.mk>
 
+SUBDIR=	\
+	newsyslog.conf.d
+
 .if ${MK_SENDMAIL} != "no"
-SUBDIR=	sendmail
+SUBDIR+=sendmail
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=tests
-.endif
-
-BIN1=	auto_master \
-	crontab \
+BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
 	ddb.conf \
 	dhclient.conf \
 	disktab \
 	fbtab \
-	ftpusers \
 	gettytab \
 	group \
 	hosts \
 	hosts.allow \
 	hosts.equiv \
-	inetd.conf \
 	libalias.conf \
 	libmap.conf \
 	login.access \
@@ -44,7 +40,6 @@ BIN1=	auto_master \
 	rc.bsdextended \
 	rc.firewall \
 	rc.initdiskless \
-	rc.sendmail \
 	rc.shutdown \
 	rc.subr \
 	remote \
@@ -54,10 +49,6 @@ BIN1=	auto_master \
 	sysctl.conf \
 	syslog.conf \
 	termcap.small
-
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
-BIN1+=	libmap32.conf
-.endif
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
@@ -87,12 +78,24 @@ BIN1+= amd.map
 BIN1+= apmd.conf
 .endif
 
+.if ${MK_AUTOFS} != "no"
+BIN1+= auto_master
+.endif
+
 .if ${MK_BSNMP} != "no"
 BIN1+= snmpd.config
 .endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
+.endif
+
+.if ${MK_FTP} != "no"
+BIN1+= ftpusers
+.endif
+
+.if ${MK_INETD} != "no"
+BIN1+= inetd.conf
 .endif
 
 .if ${MK_LOCATE} != "no"
@@ -132,6 +135,10 @@ BIN1+= portsnap.conf
 BIN1+= pf.os
 .endif
 
+.if ${MK_SENDMAIL} != "no"
+BIN1+=	rc.sendmail
+.endif
+
 .if ${MK_TCSH} != "no"
 BIN1+= csh.cshrc csh.login csh.logout
 .endif
@@ -143,15 +150,12 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+MTREE=	BSD.debug.dist BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 .if ${MK_TESTS} != "no"
 MTREE+=	BSD.tests.dist
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
-.endif
-.if ${MK_DEBUG_FILES} != "no"
-MTREE+=	BSD.debug.dist
 .endif
 
 PPPCNF=	ppp.conf
@@ -226,7 +230,9 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
+.if ${MK_AUTOFS} != "no"
 	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
+.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
@@ -240,7 +246,9 @@ distribution:
 .endif
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+.if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
@@ -302,8 +310,10 @@ distribution:
 .endif
 	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
+.if ${MK_LOCATE} != "no"
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
+.endif
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -335,15 +345,13 @@ MTREE_FILTER= cat
 MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
-		mtree/BSD.include.dist		/usr/include
-.if ${MK_DEBUG_FILES} != "no"
-MTREES+=	mtree/BSD.debug.dist		/usr/lib
-.endif
+		mtree/BSD.include.dist		/usr/include	\
+		mtree/BSD.debug.dist		/usr/lib
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_TESTS} != "no"
-MTREES+=	mtree/BSD.tests.dist		/usr
+MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/
@@ -359,6 +367,7 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=${DESTDIR}$$1; \
 		shift; \
+		test -d $$d || mkdir -p $$d; \
 		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
 		    -f $$m -p $$d; \
 		${MTREE_FILTER} $$m | \
@@ -373,6 +382,7 @@ distrib-dirs: ${MTREES:N/*}
 		test "$$d" == "/" && d=""; \
 		d=${DISTBASE}$$d; \
 		shift; \
+		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 		${MTREE_FILTER} $$m | \
@@ -381,6 +391,7 @@ distrib-dirs: ${MTREES:N/*}
 	done; true
 .endif
 	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
+.if ${MK_MAN} != "no"
 	cd ${DESTDIR}/usr/share/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
@@ -388,23 +399,30 @@ distrib-dirs: ${MTREES:N/*}
 		${INSTALL_SYMLINK} ../$$mandir \
 		    ${DESTDIR}/usr/share/man/en.UTF-8/; \
 	done
+.if ${MK_OPENSSL} != "no"
 	cd ${DESTDIR}/usr/share/openssl/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
 		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1/; \
 	done
+.endif
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
 	while [ $$# -gt 0 ] ; do \
 		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/man/$$1"; \
-		${INSTALL_SYMLINK} "$$2" \
-		    "${DESTDIR}/usr/share/openssl/man/$$1"; \
+		if [ "${MK_OPENSSL}" != "no" ]; then \
+			${INSTALL_SYMLINK} "$$2" \
+			    "${DESTDIR}/usr/share/openssl/man/$$1"; \
+		fi; \
 		shift; shift; \
 	done
+.endif
+.if ${MK_NLS} != "no"
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; do \
 		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/nls/$$1"; \
 		shift; shift; \
 	done
+.endif
 
 etc-examples:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \

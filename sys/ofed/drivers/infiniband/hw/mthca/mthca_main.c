@@ -47,7 +47,9 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
+MODULE_VERSION(mthca, 1);
+MODULE_DEPEND(mthca, linuxapi, 1, 1, 1);
+MODULE_DEPEND(mthca, ibcore, 1, 1, 1);
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 

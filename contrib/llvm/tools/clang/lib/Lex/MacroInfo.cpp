@@ -17,7 +17,7 @@ using namespace clang;
 
 MacroInfo::MacroInfo(SourceLocation DefLoc)
   : Location(DefLoc),
-    ArgumentList(0),
+    ArgumentList(nullptr),
     NumArguments(0),
     IsDefinitionLengthCached(false),
     IsFunctionLike(false),
@@ -29,7 +29,8 @@ MacroInfo::MacroInfo(SourceLocation DefLoc)
     IsUsed(false),
     IsAllowRedefinitionsWithoutWarning(false),
     IsWarnIfUnused(false),
-    FromASTFile(false) {
+    FromASTFile(false),
+    UsedForHeaderGuard(false) {
 }
 
 unsigned MacroInfo::getDefinitionLengthSlow(SourceManager &SM) const {
@@ -125,14 +126,54 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP,
   return true;
 }
 
-MacroDirective::DefInfo MacroDirective::getDefinition(bool AllowHidden) {
+void MacroInfo::dump() const {
+  llvm::raw_ostream &Out = llvm::errs();
+
+  // FIXME: Dump locations.
+  Out << "MacroInfo " << this;
+  if (IsBuiltinMacro) Out << " builtin";
+  if (IsDisabled) Out << " disabled";
+  if (IsUsed) Out << " used";
+  if (IsAllowRedefinitionsWithoutWarning)
+    Out << " allow_redefinitions_without_warning";
+  if (IsWarnIfUnused) Out << " warn_if_unused";
+  if (FromASTFile) Out << " imported";
+  if (UsedForHeaderGuard) Out << " header_guard";
+
+  Out << "\n    #define <macro>";
+  if (IsFunctionLike) {
+    Out << "(";
+    for (unsigned I = 0; I != NumArguments; ++I) {
+      if (I) Out << ", ";
+      Out << ArgumentList[I]->getName();
+    }
+    if (IsC99Varargs || IsGNUVarargs) {
+      if (NumArguments && IsC99Varargs) Out << ", ";
+      Out << "...";
+    }
+    Out << ")";
+  }
+
+  for (const Token &Tok : ReplacementTokens) {
+    Out << " ";
+    if (const char *Punc = tok::getPunctuatorSpelling(Tok.getKind()))
+      Out << Punc;
+    else if (const char *Kwd = tok::getKeywordSpelling(Tok.getKind()))
+      Out << Kwd;
+    else if (Tok.is(tok::identifier))
+      Out << Tok.getIdentifierInfo()->getName();
+    else if (Tok.isLiteral() && Tok.getLiteralData())
+      Out << StringRef(Tok.getLiteralData(), Tok.getLength());
+    else
+      Out << Tok.getName();
+  }
+}
+
+MacroDirective::DefInfo MacroDirective::getDefinition() {
   MacroDirective *MD = this;
   SourceLocation UndefLoc;
   Optional<bool> isPublic;
   for (; MD; MD = MD->getPrevious()) {
-    if (!AllowHidden && MD->isHidden())
-      continue;
-
     if (DefMacroDirective *DefMD = dyn_cast<DefMacroDirective>(MD))
       return DefInfo(DefMD, UndefLoc,
                      !isPublic.hasValue() || isPublic.getValue());
@@ -147,7 +188,8 @@ MacroDirective::DefInfo MacroDirective::getDefinition(bool AllowHidden) {
       isPublic = VisMD->isPublic();
   }
 
-  return DefInfo();
+  return DefInfo(nullptr, UndefLoc,
+                 !isPublic.hasValue() || isPublic.getValue());
 }
 
 const MacroDirective::DefInfo
@@ -161,4 +203,34 @@ MacroDirective::findDirectiveAtLoc(SourceLocation L, SourceManager &SM) const {
                   ? Def : DefInfo();
   }
   return DefInfo();
+}
+
+void MacroDirective::dump() const {
+  llvm::raw_ostream &Out = llvm::errs();
+
+  switch (getKind()) {
+  case MD_Define: Out << "DefMacroDirective"; break;
+  case MD_Undefine: Out << "UndefMacroDirective"; break;
+  case MD_Visibility: Out << "VisibilityMacroDirective"; break;
+  }
+  Out << " " << this;
+  // FIXME: Dump SourceLocation.
+  if (auto *Prev = getPrevious())
+    Out << " prev " << Prev;
+  if (IsFromPCH) Out << " from_pch";
+  if (IsImported) Out << " imported";
+  if (IsAmbiguous) Out << " ambiguous";
+
+  if (IsPublic)
+    Out << " public";
+  else if (isa<VisibilityMacroDirective>(this))
+    Out << " private";
+
+  if (auto *DMD = dyn_cast<DefMacroDirective>(this)) {
+    if (auto *Info = DMD->getInfo()) {
+      Out << "\n  ";
+      Info->dump();
+    }
+  }
+  Out << "\n";
 }

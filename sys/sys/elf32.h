@@ -70,6 +70,18 @@ typedef struct {
 } Elf32_Ehdr;
 
 /*
+ * Shared object information, found in SHT_MIPS_LIBLIST.
+ */
+
+typedef struct {
+	Elf32_Word l_name;		/* The name of a shared object. */
+	Elf32_Word l_time_stamp;	/* 32-bit timestamp. */
+	Elf32_Word l_checksum;		/* Checksum of visible symbols, sizes. */
+	Elf32_Word l_version;		/* Interface version string index. */
+	Elf32_Word l_flags;		/* Flags (LL_*). */
+} Elf32_Lib;
+
+/*
  * Section header.
  */
 

@@ -28,6 +28,6 @@ bsdxml.h: expat.h
 		> ${.TARGET}
 
 bsdxml_external.h: expat_external.h
-	cp -f ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.lib.mk>

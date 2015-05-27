@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 
 #include "gpio_if.h"
+#include "gpiobus_if.h"
 
 #undef GPIOC_DEBUG
 #ifdef GPIOC_DEBUG
@@ -112,12 +113,16 @@ static int
 gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag, 
     struct thread *td)
 {
+	device_t bus;
 	int max_pin, res;
 	struct gpioc_softc *sc = cdev->si_drv1;
 	struct gpio_pin pin;
 	struct gpio_req req;
 	uint32_t caps;
 
+	bus = GPIO_GET_BUS(sc->sc_pdev);
+	if (bus == NULL)
+		return (EINVAL);
 	switch (cmd) {
 		case GPIOMAXPIN:
 			max_pin = -1;
@@ -133,7 +138,7 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			if (res)
 				break;
 			GPIO_PIN_GETCAPS(sc->sc_pdev, pin.gp_pin, &pin.gp_caps);
-			GPIO_PIN_GETNAME(sc->sc_pdev, pin.gp_pin, pin.gp_name);
+			GPIOBUS_PIN_GETNAME(bus, pin.gp_pin, pin.gp_name);
 			bcopy(&pin, arg, sizeof(pin));
 			break;
 		case GPIOSETCONFIG:
@@ -166,6 +171,12 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			dprintf("toggle pin %d\n", 
 			    req.gp_pin);
 			res = GPIO_PIN_TOGGLE(sc->sc_pdev, req.gp_pin);
+			break;
+		case GPIOSETNAME:
+			bcopy(arg, &pin, sizeof(pin));
+			dprintf("set name on pin %d\n", pin.gp_pin);
+			res = GPIOBUS_PIN_SETNAME(bus, pin.gp_pin,
+			    pin.gp_name);
 			break;
 		default:
 			return (ENOTTY);

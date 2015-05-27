@@ -195,11 +195,6 @@
 
 CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
 
-static int snapshot_list_prefetch;
-SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, snapshot_list_prefetch, CTLFLAG_RWTUN,
-    &snapshot_list_prefetch, 0, "Prefetch data when listing snapshots");
-
 static struct cdev *zfsdev;
 
 extern void zfs_init(void);
@@ -953,7 +948,7 @@ zfs_secpolicy_promote(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 		dd = clone->ds_dir;
 
 		error = dsl_dataset_hold_obj(dd->dd_pool,
-		    dd->dd_phys->dd_origin_obj, FTAG, &origin);
+		    dsl_dir_phys(dd)->dd_origin_obj, FTAG, &origin);
 		if (error != 0) {
 			dsl_dataset_rele(clone, FTAG);
 			dsl_pool_rele(dp, FTAG);
@@ -2482,8 +2477,7 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 		err = dsl_dataset_set_refreservation(dsname, source, intval);
 		break;
 	case ZFS_PROP_VOLSIZE:
-		err = zvol_set_volsize(dsname, ddi_driver_major(zfs_dip),
-		    intval);
+		err = zvol_set_volsize(dsname, intval);
 		break;
 	case ZFS_PROP_VERSION:
 	{
@@ -3752,10 +3746,12 @@ static int
 zfs_ioc_rename(zfs_cmd_t *zc)
 {
 	boolean_t recursive = zc->zc_cookie & 1;
-#ifdef __FreeBSD__
-	boolean_t allow_mounted = zc->zc_cookie & 2;
-#endif
 	char *at;
+	boolean_t allow_mounted = B_TRUE;
+
+#ifdef __FreeBSD__
+	allow_mounted = (zc->zc_cookie & 2) != 0;
+#endif
 
 	zc->zc_value[sizeof (zc->zc_value) - 1] = '\0';
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -3770,11 +3766,7 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 		if (strncmp(zc->zc_name, zc->zc_value, at - zc->zc_name + 1))
 			return (SET_ERROR(EXDEV));
 		*at = '\0';
-#ifdef illumos
-		if (zc->zc_objset_type == DMU_OST_ZFS) {
-#else
 		if (zc->zc_objset_type == DMU_OST_ZFS && allow_mounted) {
-#endif
 			error = dmu_objset_find(zc->zc_name,
 			    recursive_unmount, at + 1,
 			    recursive ? DS_FIND_CHILDREN : 0);
@@ -4204,7 +4196,11 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		return (error);
 
 	fd = zc->zc_cookie;
-	fp = getf(fd, cap_rights_init(&rights, CAP_PREAD));
+#ifdef illumos
+	fp = getf(fd);
+#else
+	fget_read(curthread, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
+#endif
 	if (fp == NULL) {
 		nvlist_free(props);
 		return (SET_ERROR(EBADF));
@@ -4408,7 +4404,8 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		}
 
 		if (dsl_dir_is_clone(tosnap->ds_dir))
-			zc->zc_fromobj = tosnap->ds_dir->dd_phys->dd_origin_obj;
+			zc->zc_fromobj =
+			    dsl_dir_phys(tosnap->ds_dir)->dd_origin_obj;
 		dsl_dataset_rele(tosnap, FTAG);
 		dsl_pool_rele(dp, FTAG);
 	}
@@ -4449,8 +4446,12 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		file_t *fp;
 		cap_rights_t rights;
 
-		fp = getf(zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE));
+#ifdef illumos
+		fp = getf(zc->zc_cookie);
+#else
+		fget_write(curthread, zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
 
@@ -4823,7 +4824,7 @@ zfs_ioc_userspace_upgrade(zfs_cmd_t *zc)
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * We don't want to have a hard dependency
  * against some special symbols in sharefs
@@ -4841,10 +4842,10 @@ int zfs_smbshare_inited;
 ddi_modhandle_t nfs_mod;
 ddi_modhandle_t sharefs_mod;
 ddi_modhandle_t smbsrv_mod;
-#endif	/* sun */
+#endif	/* illumos */
 kmutex_t zfs_share_lock;
 
-#ifdef sun
+#ifdef illumos
 static int
 zfs_init_sharefs()
 {
@@ -4864,12 +4865,12 @@ zfs_init_sharefs()
 	}
 	return (0);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int
 zfs_ioc_share(zfs_cmd_t *zc)
 {
-#ifdef sun
+#ifdef illumos
 	int error;
 	int opcode;
 
@@ -4960,9 +4961,9 @@ zfs_ioc_share(zfs_cmd_t *zc)
 
 	return (error);
 
-#else	/* !sun */
+#else	/* !illumos */
 	return (ENOSYS);
-#endif	/* !sun */
+#endif	/* illumos */
 }
 
 ace_t full_access[] = {
@@ -4988,7 +4989,7 @@ zfs_ioc_next_obj(zfs_cmd_t *zc)
 		return (error);
 
 	error = dmu_object_next(os, &zc->zc_obj, B_FALSE,
-	    os->os_dsl_dataset->ds_phys->ds_prev_snap_txg);
+	    dsl_dataset_phys(os->os_dsl_dataset)->ds_prev_snap_txg);
 
 	dmu_objset_rele(os, FTAG);
 	return (error);
@@ -5046,7 +5047,12 @@ zfs_ioc_diff(zfs_cmd_t *zc)
 	offset_t off;
 	int error;
 
-	fp = getf(zc->zc_cookie, cap_rights_init(&rights, CAP_WRITE));
+#ifdef illumos
+	fp = getf(zc->zc_cookie);
+#else
+	fget_write(curthread, zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5065,7 +5071,7 @@ zfs_ioc_diff(zfs_cmd_t *zc)
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Remove all ACL files in shares dir
  */
@@ -5087,12 +5093,12 @@ zfs_smb_acl_purge(znode_t *dzp)
 	zap_cursor_fini(&zc);
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int
 zfs_ioc_smb_acl(zfs_cmd_t *zc)
 {
-#ifdef sun
+#ifdef illumos
 	vnode_t *vp;
 	znode_t *dzp;
 	vnode_t *resourcevp = NULL;
@@ -5215,9 +5221,9 @@ zfs_ioc_smb_acl(zfs_cmd_t *zc)
 	ZFS_EXIT(zfsvfs);
 
 	return (error);
-#else	/* !sun */
+#else	/* !illumos */
 	return (EOPNOTSUPP);
-#endif	/* !sun */
+#endif	/* illumos */
 }
 
 /*
@@ -5411,6 +5417,7 @@ static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	cap_rights_t rights;
+	file_t *fp;
 	int error;
 	offset_t off;
 	char *fromname = NULL;
@@ -5427,7 +5434,11 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 	largeblockok = nvlist_exists(innvl, "largeblockok");
 	embedok = nvlist_exists(innvl, "embedok");
 
-	file_t *fp = getf(fd, cap_rights_init(&rights, CAP_READ));
+#ifdef illumos
+	file_t *fp = getf(fd);
+#else
+	fget_write(curthread, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5908,7 +5919,7 @@ zfsdev_open(struct cdev *devp, int flag, int mode, struct thread *td)
 {
 	int error = 0;
 
-#ifdef sun
+#ifdef illumos
 	if (getminor(*devp) != 0)
 		return (zvol_open(devp, flag, otyp, cr));
 #endif
@@ -6245,7 +6256,7 @@ out:
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 static int
 zfs_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
@@ -6296,7 +6307,7 @@ zfs_info(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
 
 	return (DDI_FAILURE);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * OK, so this is a little weird.
@@ -6307,7 +6318,7 @@ zfs_info(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
  * /dev/zfs has basically nothing to do except serve up ioctls,
  * so most of the standard driver entry points are in zvol.c.
  */
-#ifdef sun
+#ifdef illumos
 static struct cb_ops zfs_cb_ops = {
 	zfsdev_open,	/* open */
 	zfsdev_close,	/* close */
@@ -6356,7 +6367,7 @@ static struct modlinkage modlinkage = {
 	(void *)&zfs_modldrv,
 	NULL
 };
-#endif	/* sun */
+#endif	/* illumos */
 
 static struct cdevsw zfs_cdevsw = {
 	.d_version =	D_VERSION,
@@ -6389,7 +6400,7 @@ zfsdev_fini(void)
 static struct root_hold_token *zfs_root_token;
 struct proc *zfsproc;
 
-#ifdef sun
+#ifdef illumos
 int
 _init(void)
 {
@@ -6452,7 +6463,7 @@ _info(struct modinfo *modinfop)
 {
 	return (mod_info(&modlinkage, modinfop));
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int zfs__init(void);
 static int zfs__fini(void);

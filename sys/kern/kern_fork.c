@@ -261,11 +261,21 @@ retry:
 		 * Scan the active and zombie procs to check whether this pid
 		 * is in use.  Remember the lowest pid that's greater
 		 * than trypid, so we can avoid checking for a while.
+		 *
+		 * Avoid reuse of the process group id, session id or
+		 * the reaper subtree id.  Note that for process group
+		 * and sessions, the amount of reserved pids is
+		 * limited by process limit.  For the subtree ids, the
+		 * id is kept reserved only while there is a
+		 * non-reaped process in the subtree, so amount of
+		 * reserved pids is limited by process limit times
+		 * two.
 		 */
 		p = LIST_FIRST(&allproc);
 again:
 		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
 			while (p->p_pid == trypid ||
+			    p->p_reapsubtree == trypid ||
 			    (p->p_pgrp != NULL &&
 			    (p->p_pgrp->pg_id == trypid ||
 			    (p->p_session != NULL &&
@@ -317,7 +327,7 @@ fork_norfproc(struct thread *td, int flags)
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
-		if (thread_single(SINGLE_BOUNDARY)) {
+		if (thread_single(p1, SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p1);
 			return (ERESTART);
 		}
@@ -348,7 +358,7 @@ fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
-		thread_single_end();
+		thread_single_end(p1, SINGLE_BOUNDARY);
 		PROC_UNLOCK(p1);
 	}
 	return (error);
@@ -384,6 +394,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_pid = trypid;
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
+	allproc_gen++;
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 	tidhash_add(td2);
 	PROC_LOCK(p2);
@@ -398,8 +409,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
-
-	p2->p_ucred = crhold(td->td_ucred);
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
@@ -483,7 +492,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Increase reference counts on shared objects.
 	 */
 	p2->p_flag = P_INMEM;
-	p2->p_flag2 = 0;
+	p2->p_flag2 = p1->p_flag2 & (P2_NOTRACE | P2_NOTRACE_EXEC);
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
@@ -610,12 +619,20 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * of init.  This effectively disassociates the child from the
 	 * parent.
 	 */
-	if (flags & RFNOWAIT)
-		pptr = initproc;
-	else
+	if ((flags & RFNOWAIT) != 0) {
+		pptr = p1->p_reaper;
+		p2->p_reaper = pptr;
+	} else {
+		p2->p_reaper = (p1->p_treeflag & P_TREE_REAPER) != 0 ?
+		    p1 : p1->p_reaper;
 		pptr = p1;
+	}
 	p2->p_pptr = pptr;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
+	LIST_INIT(&p2->p_reaplist);
+	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
+	if (p2->p_reaper == p1)
+		p2->p_reapsubtree = p2->p_pid;
 	sx_xunlock(&proctree_lock);
 
 	/* Inform accounting that we have forked. */
@@ -812,7 +829,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		proc_linkup(newproc, td2);
 	} else {
@@ -821,7 +838,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 				vm_thread_dispose(td2);
 			if (!thread_alloc_stack(td2, pages)) {
 				error = ENOMEM;
-				goto fail1;
+				goto fail2;
 			}
 		}
 	}
@@ -830,7 +847,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		if (!swap_reserve(mem_charged)) {
 			/*
@@ -841,7 +858,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 			 */
 			swap_reserve_force(mem_charged);
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 	} else
 		vm2 = NULL;
@@ -850,7 +867,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	newproc->p_ucred = p1->p_ucred;
+	proc_set_cred_init(newproc, crhold(td->td_ucred));
 
 	/*
 	 * Initialize resource accounting for the child process.
@@ -926,11 +943,14 @@ fail:
 #endif
 	racct_proc_exit(newproc);
 fail1:
+	crfree(newproc->p_ucred);
+	newproc->p_ucred = NULL;
+fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
-		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
+		fdclose(td, fp_procdesc, *procdescp);
 		fdrop(fp_procdesc, td);
 	}
 	pause("fork", hz / 2);

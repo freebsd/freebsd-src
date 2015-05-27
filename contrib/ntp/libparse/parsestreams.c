@@ -1,13 +1,13 @@
 /*
  * /src/NTP/ntp4-dev/libparse/parsestreams.c,v 4.11 2005/04/16 17:32:10 kardel RELEASE_20050508_A
- *  
+ *
  * parsestreams.c,v 4.11 2005/04/16 17:32:10 kardel RELEASE_20050508_A
  *
  * STREAMS module for reference clocks
  * (SunOS4.x)
  *
  * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,15 +77,15 @@ static char rcsid[] = "parsestreams.c,v 4.11 2005/04/16 17:32:10 kardel RELEASE_
 /*
  * just make checking compilers more silent
  */
-extern int printf      P((const char *, ...));
-extern int putctl1     P((queue_t *, int, int));
-extern int canput      P((queue_t *));
-extern void putbq      P((queue_t *, mblk_t *));
-extern void freeb      P((mblk_t *));
-extern void qreply     P((queue_t *, mblk_t *));
-extern void freemsg    P((mblk_t *));
-extern void panic      P((const char *, ...));
-extern void usec_delay P((int));
+extern int printf      (const char *, ...);
+extern int putctl1     (queue_t *, int, int);
+extern int canput      (queue_t *);
+extern void putbq      (queue_t *, mblk_t *);
+extern void freeb      (mblk_t *);
+extern void qreply     (queue_t *, mblk_t *);
+extern void freemsg    (mblk_t *);
+extern void panic      (const char *, ...);
+extern void usec_delay (int);
 
 #include "parse.h"
 #include "sys/parsestreams.h"
@@ -110,7 +110,7 @@ static char mnam[] = "PARSEPPS     ";	/* name this baby - keep room for revision
 #else
 static char mnam[] = "PARSE        ";	/* name this baby - keep room for revision number */
 #endif
-struct vdldrv parsesync_vd = 
+struct vdldrv parsesync_vd =
 {
 	VDMAGIC_PSEUDO,		/* nothing like a real driver - a STREAMS module */
 	mnam,
@@ -166,7 +166,7 @@ Strcmp(
 
 	while (!(c = *s++ - *t++) && *s && *t)
 	    /* empty loop */;
-  
+
 	return c;
 }
 
@@ -186,10 +186,10 @@ Strncmp(
 
 	while (n-- && !(c = *s++ - *t++) && *s && *t)
 	    /* empty loop */;
-  
+
 	return c;
 }
- 
+
 void
 ntp_memset(
 	char *a,
@@ -217,12 +217,12 @@ xxxinit(
 {
 	extern struct fmodsw fmodsw[];
 	extern int fmodcnt;
-  
+
 	struct fmodsw *fm    = fmodsw;
 	struct fmodsw *fmend = &fmodsw[fmodcnt];
 	struct fmodsw *ifm   = (struct fmodsw *)0;
 	char *mname          = parseinfo.st_rdinit->qi_minfo->mi_idname;
-  
+
 	switch (fc)
 	{
 	    case VDLOAD:
@@ -233,13 +233,13 @@ xxxinit(
 		 */
 		while (fm <= fmend)
 		{
-	  if (!Strncmp(fm->f_name, mname, FMNAMESZ))
+			if (!Strncmp(fm->f_name, mname, FMNAMESZ))
 			{
 				printf("vddrinit[%s]: STREAMS module already loaded.\n", mname);
 				return(EBUSY);
 			}
 			else
-			    if ((ifm == (struct fmodsw *)0) && 
+			    if ((ifm == (struct fmodsw *)0) &&
 				(fm->f_name[0] == '\0') &&
 				(fm->f_str == (struct streamtab *)0))
 			    {
@@ -261,7 +261,7 @@ xxxinit(
 		{
 			static char revision[] = "4.7";
 			char *s, *S, *t;
-	  
+
 			s = rcsid;		/* NOOP - keep compilers happy */
 
 			Strncpy(ifm->f_name, mname, FMNAMESZ);
@@ -285,20 +285,20 @@ xxxinit(
 				}
 				if (*s == ' ') s++;
 			}
-	  
-			t = parsesync_vd.Drv_name; 
+
+			t = parsesync_vd.Drv_name;
 			while (*t && (*t != ' '))
 			{
 				t++;
 			}
 			if (*t == ' ') t++;
-	  
+
 			S = s;
 			while (*S && (((*S >= '0') && (*S <= '9')) || (*S == '.')))
 			{
 				S++;
 			}
-	  
+
 			if (*s && *t && (S > s))
 			{
 				if (Strlen(t) >= (S - s))
@@ -307,9 +307,9 @@ xxxinit(
 				}
 			}
 			return (0);
-		} 
+		}
 		break;
-      
+
 	    case VDUNLOAD:
 		if (parsebusy > 0)
 		{
@@ -328,7 +328,7 @@ xxxinit(
 					fm->f_name[0] = '\0';
 					fm->f_str = (struct streamtab *)0;
 					fm++;
-		  
+
 					break;
 				}
 				fm++;
@@ -341,14 +341,14 @@ xxxinit(
 			else
 			    return (0);
 		}
-      
+
 
 	    case VDSTAT:
 		return (0);
 
 	    default:
 		return (EIO);
-      
+
 	}
 	return EIO;
 }
@@ -357,11 +357,11 @@ xxxinit(
 
 /*--------------- stream module definition ----------------------------*/
 
-static int parseopen  P((queue_t *, dev_t, int, int));
-static int parseclose P((queue_t *, int));
-static int parsewput  P((queue_t *, mblk_t *));
-static int parserput  P((queue_t *, mblk_t *));
-static int parsersvc  P((queue_t *));
+static int parseopen  (queue_t *, dev_t, int, int);
+static int parseclose (queue_t *, int);
+static int parsewput  (queue_t *, mblk_t *);
+static int parserput  (queue_t *, mblk_t *);
+static int parsersvc  (queue_t *);
 
 static char mn[] = "parse";
 
@@ -416,7 +416,7 @@ int cd_invert = 1;		/* invert status of CD line - PPS support via CD input */
 
 int parsedebug = ~0;
 
-extern void uniqtime P((struct timeval *));
+extern void uniqtime (struct timeval *);
 
 /*--------------- module implementation -----------------------------*/
 
@@ -429,8 +429,8 @@ extern void uniqtime P((struct timeval *));
                                      }\
 				 } while (0)
 
-static int init_linemon P((queue_t *));
-static void close_linemon P((queue_t *, queue_t *));
+static int init_linemon (queue_t *);
+static void close_linemon (queue_t *, queue_t *);
 
 #define M_PARSE		0x0001
 #define M_NOPARSE	0x0002
@@ -460,7 +460,7 @@ setup_stream(
 	}
 	else
 	{
-		parseprintf(DD_OPEN,("parse: setup_stream - FAILED - no MEMORY for allocb\n")); 
+		parseprintf(DD_OPEN,("parse: setup_stream - FAILED - no MEMORY for allocb\n"));
 		return 0;
 	}
 }
@@ -476,37 +476,37 @@ parseopen(
 {
 	register parsestream_t *parse;
 	static int notice = 0;
-  
-	parseprintf(DD_OPEN,("parse: OPEN\n")); 
-  
+
+	parseprintf(DD_OPEN,("parse: OPEN\n"));
+
 	if (sflag != MODOPEN)
 	{			/* open only for modules */
-		parseprintf(DD_OPEN,("parse: OPEN - FAILED - not MODOPEN\n")); 
+		parseprintf(DD_OPEN,("parse: OPEN - FAILED - not MODOPEN\n"));
 		return OPENFAIL;
 	}
 
 	if (q->q_ptr != (caddr_t)NULL)
 	{
 		u.u_error = EBUSY;
-		parseprintf(DD_OPEN,("parse: OPEN - FAILED - EXCLUSIVE ONLY\n")); 
+		parseprintf(DD_OPEN,("parse: OPEN - FAILED - EXCLUSIVE ONLY\n"));
 		return OPENFAIL;
 	}
 
 #ifdef VDDRV
 	parsebusy++;
 #endif
-  
+
 	q->q_ptr = (caddr_t)kmem_alloc(sizeof(parsestream_t));
 	if (q->q_ptr == (caddr_t)0)
 	{
-		parseprintf(DD_OPEN,("parse: OPEN - FAILED - no memory\n")); 
+		parseprintf(DD_OPEN,("parse: OPEN - FAILED - no memory\n"));
 #ifdef VDDRV
 		parsebusy--;
 #endif
 		return OPENFAIL;
 	}
 	WR(q)->q_ptr = q->q_ptr;
-  
+
 	parse = (parsestream_t *)(void *)q->q_ptr;
 	bzero((caddr_t)parse, sizeof(*parse));
 	parse->parse_queue     = q;
@@ -531,7 +531,7 @@ parseopen(
 	{
 		(void) init_linemon(q);	/* hook up PPS ISR routines if possible */
 
-		parseprintf(DD_OPEN,("parse: OPEN - SUCCEEDED\n")); 
+		parseprintf(DD_OPEN,("parse: OPEN - SUCCEEDED\n"));
 
 		/*
 		 * I know that you know the delete key, but you didn't write this
@@ -569,17 +569,17 @@ parseclose(
 {
 	register parsestream_t *parse = (parsestream_t *)(void *)q->q_ptr;
 	register unsigned long s;
-  
+
 	parseprintf(DD_CLOSE,("parse: CLOSE\n"));
-  
+
 	s = splhigh();
-  
+
 	if (parse->parse_dqueue)
 	    close_linemon(parse->parse_dqueue, q);
 	parse->parse_dqueue = (queue_t *)0;
 
 	(void) splx(s);
-      
+
 	parse_ioend(&parse->parse_io);
 
 	kmem_free((caddr_t)parse, sizeof(parsestream_t));
@@ -602,7 +602,7 @@ parsersvc(
 	)
 {
 	mblk_t *mp;
-  
+
 	while ((mp = getq(q)))
 	{
 		if (canput(q->q_next) || (mp->b_datap->db_type > QPCTL))
@@ -635,15 +635,15 @@ parsewput(
 	register mblk_t *datap;
 	register struct iocblk *iocp;
 	parsestream_t         *parse = (parsestream_t *)(void *)q->q_ptr;
-  
+
 	parseprintf(DD_WPUT,("parse: parsewput\n"));
-  
+
 	switch (mp->b_datap->db_type)
 	{
 	    default:
 		putnext(q, mp);
 		break;
-      
+
 	    case M_IOCTL:
 		    iocp = (struct iocblk *)(void *)mp->b_rptr;
 		switch (iocp->ioc_cmd)
@@ -676,7 +676,7 @@ parsewput(
 			iocp->ioc_count = sizeof(struct ppsclockev);
 			qreply(q, mp);
 			break;
-	  
+
 		    case PARSEIOC_ENABLE:
 		    case PARSEIOC_DISABLE:
 			    {
@@ -694,7 +694,7 @@ parsewput(
 				    }
 				    qreply(q, mp);
 				    break;
-			    }	    
+			    }
 
 		    case PARSEIOC_TIMECODE:
 		    case PARSEIOC_SETFMT:
@@ -710,7 +710,7 @@ parsewput(
 					parseprintf(DD_WPUT,("parse: parsewput - PARSEIOC_TIMECODE\n"));
 					ok = parse_timecode(dct, &parse->parse_io);
 					break;
-		  
+
 				    case PARSEIOC_SETFMT:
 					parseprintf(DD_WPUT,("parse: parsewput - PARSEIOC_SETFMT\n"));
 					ok = parse_setfmt(dct, &parse->parse_io);
@@ -757,7 +757,7 @@ rdchar(
 		else
 		{
 			register mblk_t *mmp = *mp;
-	  
+
 			*mp = (*mp)->b_cont;
 			freeb(mmp);
 		}
@@ -775,7 +775,7 @@ parserput(
 	)
 {
 	unsigned char type;
-  
+
 	switch (type = mp->b_datap->db_type)
 	{
 	    default:
@@ -791,7 +791,7 @@ parserput(
 		else
 		    putq(q, mp);
 		break;
-      
+
 	    case M_BREAK:
 	    case M_DATA:
 		    {
@@ -844,7 +844,7 @@ parserput(
 								if (nmp) freemsg(nmp);
 							    parse_iodone(&parse->parse_io);
 						    }
-					    }	
+					    }
 				    }
 				    else
 				    {
@@ -883,7 +883,7 @@ parserput(
 			    register int status = cd_invert ^ (type == M_UNHANGUP);
 
 			    uniqtime(&ctime.tv);
-	
+
 			    parseprintf(DD_RPUT,("parse: parserput - M_%sHANGUP\n", (type == M_HANGUP) ? "" : "UN"));
 
 			    if ((parse->parse_status & PARSE_ENABLE) &&
@@ -908,7 +908,7 @@ parserput(
 				}
 				else
 				    putq(q, mp);
-	
+
 			    if (status)
 			    {
 				    parse->parse_ppsclockev.tv = ctime.tv;
@@ -919,8 +919,8 @@ parserput(
 	return 0;
 }
 
-static int  init_zs_linemon  P((queue_t *, queue_t *));	/* handle line monitor for "zs" driver */
-static void close_zs_linemon P((queue_t *, queue_t *));
+static int  init_zs_linemon  (queue_t *, queue_t *);	/* handle line monitor for "zs" driver */
+static void close_zs_linemon (queue_t *, queue_t *);
 
 /*-------------------- CD isr status monitor ---------------*/
 
@@ -930,7 +930,7 @@ init_linemon(
 	)
 {
 	register queue_t *dq;
-  
+
 	dq = WR(q);
 	/*
 	 * we ARE doing very bad things down here (basically stealing ISR
@@ -1010,8 +1010,8 @@ struct savedzsops
 };
 
 struct zsops   *emergencyzs;
-extern void zsopinit   P((struct zscom *, struct zsops *));
-static int  zs_xsisr   P((struct zscom *));	/* zs external status interupt handler */
+extern void zsopinit   (struct zscom *, struct zsops *);
+static int  zs_xsisr   (struct zscom *);	/* zs external status interupt handler */
 
 static int
 init_zs_linemon(
@@ -1038,7 +1038,7 @@ init_zs_linemon(
 	else
 	{
 		unsigned long s;
-      
+
 		/*
 		 * we do a direct replacement, in case others fiddle also
 		 * if somebody else grabs our hook and we disconnect
@@ -1064,9 +1064,9 @@ init_zs_linemon(
 			szs->zsops.zsop_xsint = zs_xsisr; /* place our bastard */
 			szs->oldzsops         = zs->zs_ops;
 			emergencyzs           = zs->zs_ops;
-	  
+
 			zsopinit(zs, &szs->zsops); /* hook it up */
-	  
+
 			(void) splx(s);
 
 			parseprintf(DD_INSTALL, ("init_zs_linemon: CD monitor installed\n"));
@@ -1099,11 +1099,11 @@ close_zs_linemon(
 	else
 	{
 		register struct savedzsops *szs = (struct savedzsops *)parsestream->parse_data;
-      
+
 		zsopinit(zs, szs->oldzsops); /* reset to previous handler functions */
 
 		kmem_free((caddr_t)szs, sizeof (struct savedzsops));
-      
+
 		parseprintf(DD_INSTALL, ("close_zs_linemon: CD monitor deleted\n"));
 		return;
 	}
@@ -1112,7 +1112,7 @@ close_zs_linemon(
 #define MAXDEPTH 50		/* maximum allowed stream crawl */
 
 #ifdef PPS_SYNC
-extern void hardpps P((struct timeval *, long));
+extern void hardpps (struct timeval *, long);
 #ifdef PPS_NEW
 extern struct timeval timestamp;
 #else
@@ -1148,7 +1148,7 @@ zs_xsisr(
 	{
 		timestamp_t cdevent;
 		register int status;
-      
+
 		za->za_rr0 = (za->za_rr0 & ~(cdmask)) | (zsstatus & (cdmask));
 
 #ifdef PPS_SYNC
@@ -1163,7 +1163,7 @@ zs_xsisr(
 		 * time stamp
 		 */
 		uniqtime(&cdevent.tv);
-      
+
 #ifdef PPS_SYNC
 		(void)splx(s);
 #endif
@@ -1190,7 +1190,7 @@ zs_xsisr(
 		 * ok - now the hard part - find ourself
 		 */
 		loopcheck = MAXDEPTH;
-      
+
 		while (q)
 		{
 			if (q->q_qinfo && q->q_qinfo->qi_minfo)
@@ -1218,7 +1218,7 @@ zs_xsisr(
 						 */
 						parse_iodone(&((parsestream_t *)(void *)q->q_ptr)->parse_io);
 					}
-		  
+
 					if (status)
 					{
 						((parsestream_t *)(void *)q->q_ptr)->parse_ppsclockev.tv = cdevent.tv;
@@ -1251,13 +1251,13 @@ zs_xsisr(
 			zsaddr->zscc_control = ZSWR0_RESET_STATUS; /* might kill other conditions here */
 			return 0;
 		}
-	}      
+	}
 
 	if (zsstatus & cdmask)	/* fake CARRIER status */
 		za->za_flags |= ZAS_CARR_ON;
 	else
 		za->za_flags &= ~ZAS_CARR_ON;
-	
+
 	/*
 	 * we are now gathered here to process some unusual external status
 	 * interrupts.
@@ -1271,7 +1271,7 @@ zs_xsisr(
 	q = za->za_ttycommon.t_readq;
 
 	loopcheck = MAXDEPTH;
-      
+
 	/*
 	 * the real thing for everything else ...
 	 */
@@ -1282,8 +1282,8 @@ zs_xsisr(
 			dname = q->q_qinfo->qi_minfo->mi_idname;
 			if (!Strcmp(dname, parseinfo.st_rdinit->qi_minfo->mi_idname))
 			{
-				register int (*zsisr) P((struct zscom *));
-		  
+				register int (*zsisr) (struct zscom *);
+
 				/*
 				 * back home - phew (hopping along stream queues might
 				 * prove dangerous to your health)
@@ -1292,7 +1292,7 @@ zs_xsisr(
 					return zsisr(zs);
 				else
 				    panic("zs_xsisr: unable to locate original ISR");
-		  
+
 				parseprintf(DD_ISR, ("zs_xsisr: non CD event was processed for \"%s\"\n", dname));
 				/*
 				 * now back to our program ...
@@ -1314,7 +1314,7 @@ zs_xsisr(
 	 * corrupted TTY structures
 	 */
 	printf("zs_zsisr: looking for \"%s\" - found \"%s\" - taking EMERGENCY path\n", parseinfo.st_rdinit->qi_minfo->mi_idname, dname ? dname : "-NIL-");
-      
+
 	if (emergencyzs && emergencyzs->zsop_xsint)
 	    emergencyzs->zsop_xsint(zs);
 	else

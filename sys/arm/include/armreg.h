@@ -41,6 +41,8 @@
 #ifndef MACHINE_ARMREG_H
 #define MACHINE_ARMREG_H
 
+#include <machine/acle-compat.h>
+
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
@@ -131,6 +133,7 @@
 #define CPU_ID_CORTEXA9R1	0x411fc090
 #define CPU_ID_CORTEXA9R2	0x412fc090
 #define CPU_ID_CORTEXA9R3	0x413fc090
+#define CPU_ID_CORTEXA12R0	0x410fc0d0
 #define CPU_ID_CORTEXA15R0	0x410fc0f0
 #define CPU_ID_CORTEXA15R1	0x411fc0f0
 #define CPU_ID_CORTEXA15R2	0x412fc0f0
@@ -317,6 +320,9 @@
 #define	CPU_CT_S		(1U << 24)		/* split cache */
 #define	CPU_CT_CTYPE(x)		(((x) >> 25) & 0xf)	/* cache type */
 #define	CPU_CT_FORMAT(x)	((x) >> 29)
+/* Cache type register definitions for ARM v7 */
+#define	CPU_CT_IMINLINE(x)	((x) & 0xf)		/* I$ min line size */
+#define	CPU_CT_DMINLINE(x)	(((x) >> 16) & 0xf)	/* D$ min line size */
 
 #define	CPU_CT_CTYPE_WT		0	/* write-through */
 #define	CPU_CT_CTYPE_WB1	1	/* write-back, clean w/ read */
@@ -340,6 +346,9 @@
 #define	CPUV7_CT_xSIZE_ASSOC(x)	(((x) >> 3) & 0x3ff)	/* associativity */
 #define	CPUV7_CT_xSIZE_SET(x)	(((x) >> 13) & 0x7fff)	/* num sets */
 
+#define	CPUV7_L2CTLR_NPROC_SHIFT	24
+#define	CPUV7_L2CTLR_NPROC(r)	((((r) >> CPUV7_L2CTLR_NPROC_SHIFT) & 3) + 1)
+
 #define	CPU_CLIDR_CTYPE(reg,x)	(((reg) >> ((x) * 3)) & 0x7)
 #define	CPU_CLIDR_LOUIS(reg)	(((reg) >> 21) & 0x7)
 #define	CPU_CLIDR_LOC(reg)	(((reg) >> 24) & 0x7)
@@ -351,10 +360,10 @@
 #define	CACHE_UNI_CACHE		4
 
 /* Fault status register definitions */
-
-#define FAULT_TYPE_MASK 0x0f
 #define FAULT_USER      0x10
 
+#if __ARM_ARCH < 6
+#define FAULT_TYPE_MASK 0x0f
 #define FAULT_WRTBUF_0  0x00 /* Vector Exception */
 #define FAULT_WRTBUF_1  0x02 /* Terminal Exception */
 #define FAULT_BUSERR_0  0x04 /* External Abort on Linefetch -- Section */
@@ -377,14 +386,36 @@
 #define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
 #define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
 
-/* Fault status register definitions - v6+ */
-#define	FSR_STATUS_TO_IDX(fsr)	(((fsr) & 0xF) | 			\
-				 (((fsr) & (1 << 10)>> (10 - 4))))
-#define	FSR_LPAE		(1 <<  9) /* LPAE indicator */
-#define	FSR_WNR			(1 << 11) /* Write-not-Read access */
-#define	FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
-#define	FSR_CM			(1 << 13) /* Cache maintenance fault */
+#else /* __ARM_ARCH < 6 */
 
+#define FAULT_ALIGN		0x001	/* Alignment Fault */
+#define FAULT_DEBUG		0x002	/* Debug Event */
+#define FAULT_ACCESS_L1		0x003	/* Access Bit (L1) */
+#define FAULT_ICACHE		0x004	/* Instruction cache maintenance */
+#define FAULT_TRAN_L1		0x005	/* Translation Fault (L1) */
+#define FAULT_ACCESS_L2		0x006	/* Access Bit (L2) */
+#define FAULT_TRAN_L2		0x007	/* Translation Fault (L2) */
+#define FAULT_EA_PREC		0x008	/* External Abort */
+#define FAULT_DOMAIN_L1		0x009	/* Domain Fault (L1) */
+#define FAULT_DOMAIN_L2		0x00B	/* Domain Fault (L2) */
+#define FAULT_EA_TRAN_L1	0x00C	/* External Translation Abort (L1) */
+#define FAULT_PERM_L1		0x00D	/* Permission Fault (L1) */
+#define FAULT_EA_TRAN_L2	0x00E	/* External Translation Abort (L2) */
+#define FAULT_PERM_L2		0x00F	/* Permission Fault (L2) */
+#define FAULT_TLB_CONFLICT	0x010	/* Permission Fault (L2) */
+#define FAULT_EA_IMPREC		0x016	/* Asynchronous External Abort */
+#define FAULT_PE_IMPREC		0x018	/* Asynchronous Parity Error */
+#define FAULT_PARITY		0x019	/* Parity Error */
+#define FAULT_PE_TRAN_L1	0x01C	/* Parity Error on Translation (L1) */
+#define FAULT_PE_TRAN_L2	0x01E	/* Parity Error on Translation (L2) */
+
+#define FSR_TO_FAULT(fsr)	(((fsr) & 0xF) | 			\
+				 ((((fsr) & (1 << 10)) >> (10 - 4))))
+#define FSR_LPAE		(1 <<  9) /* LPAE indicator */
+#define FSR_WNR			(1 << 11) /* Write-not-Read access */
+#define FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
+#define FSR_CM			(1 << 13) /* Cache maintenance fault */
+#endif /* !__ARM_ARCH < 6 */
 
 /*
  * Address of the vector page, low and high versions.

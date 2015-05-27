@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013-2015 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -79,6 +79,47 @@ typedef struct dmar_pte {
 #define	DMAR_PTE_ADDR_MASK	0xffffffffff000	/* Address Mask */
 #define	DMAR_PTE_TM		(1ULL << 62)	/* Transient Mapping */
 
+typedef struct dmar_irte {
+	uint64_t irte1;
+	uint64_t irte2;
+} dmar_irte_t;
+/* Source Validation Type */
+#define	DMAR_IRTE2_SVT_NONE	(0ULL << (82 - 64))
+#define	DMAR_IRTE2_SVT_RID	(1ULL << (82 - 64))
+#define	DMAR_IRTE2_SVT_BUS	(2ULL << (82 - 64))
+/* Source-id Qualifier */
+#define	DMAR_IRTE2_SQ_RID	(0ULL << (80 - 64))
+#define	DMAR_IRTE2_SQ_RID_N2	(1ULL << (80 - 64))
+#define	DMAR_IRTE2_SQ_RID_N21	(2ULL << (80 - 64))
+#define	DMAR_IRTE2_SQ_RID_N210	(3ULL << (80 - 64))
+/* Source Identifier */
+#define	DMAR_IRTE2_SID_RID(x)	((uint64_t)(x))
+#define	DMAR_IRTE2_SID_BUS(start, end)	((((uint64_t)(start)) << 8) | (end))
+/* Destination Id */
+#define	DMAR_IRTE1_DST_xAPIC(x)	(((uint64_t)(x)) << 40)
+#define	DMAR_IRTE1_DST_x2APIC(x) (((uint64_t)(x)) << 32)
+/* Vector */
+#define	DMAR_IRTE1_V(x)		(((uint64_t)x) << 16)
+#define	DMAR_IRTE1_IM_POSTED	(1ULL << 15)	/* Posted */
+/* Delivery Mode */
+#define	DMAR_IRTE1_DLM_FM	(0ULL << 5)
+#define	DMAR_IRTE1_DLM_LP	(1ULL << 5)
+#define	DMAR_IRTE1_DLM_SMI	(2ULL << 5)
+#define	DMAR_IRTE1_DLM_NMI	(4ULL << 5)
+#define	DMAR_IRTE1_DLM_INIT	(5ULL << 5)
+#define	DMAR_IRTE1_DLM_ExtINT	(7ULL << 5)
+/* Trigger Mode */
+#define	DMAR_IRTE1_TM_EDGE	(0ULL << 4)
+#define	DMAR_IRTE1_TM_LEVEL	(1ULL << 4)
+/* Redirection Hint */
+#define	DMAR_IRTE1_RH_DIRECT	(0ULL << 3)
+#define	DMAR_IRTE1_RH_SELECT	(1ULL << 3)
+/* Destination Mode */
+#define	DMAR_IRTE1_DM_PHYSICAL	(0ULL << 2)
+#define	DMAR_IRTE1_DM_LOGICAL	(1ULL << 2)
+#define	DMAR_IRTE1_FPD		(1ULL << 1)	/* Fault Processing Disable */
+#define	DMAR_IRTE1_P		(1ULL)		/* Present */
+
 /* Version register */
 #define	DMAR_VER_REG	0
 #define	DMAR_MAJOR_VER(x)	(((x) >> 4) & 0xf)
@@ -86,6 +127,8 @@ typedef struct dmar_pte {
 
 /* Capabilities register */
 #define	DMAR_CAP_REG	0x8
+#define	DMAR_CAP_PI	(1ULL << 59)	/* Posted Interrupts */
+#define	DMAR_CAP_FL1GP	(1ULL << 56)	/* First Level 1GByte Page */
 #define	DMAR_CAP_DRD	(1ULL << 55)	/* DMA Read Draining */
 #define	DMAR_CAP_DWD	(1ULL << 54)	/* DMA Write Draining */
 #define	DMAR_CAP_MAMV(x) ((u_int)(((x) >> 48) & 0x3f))
@@ -120,13 +163,24 @@ typedef struct dmar_pte {
 
 /* Extended Capabilities register */
 #define	DMAR_ECAP_REG	0x10
+#define	DMAR_ECAP_PSS(x) (((x) >> 35) & 0xf) /* PASID Size Supported */
+#define	DMAR_ECAP_EAFS	(1ULL << 34)	/* Extended Accessed Flag */
+#define	DMAR_ECAP_NWFS	(1ULL << 33)	/* No Write Flag */
+#define	DMAR_ECAP_SRS	(1ULL << 31)	/* Supervisor Request */
+#define	DMAR_ECAP_ERS	(1ULL << 30)	/* Execute Request */
+#define	DMAR_ECAP_PRS	(1ULL << 29)	/* Page Request */
+#define	DMAR_ECAP_PASID	(1ULL << 28)	/* Process Address Space Id */
+#define	DMAR_ECAP_DIS	(1ULL << 27)	/* Deferred Invalidate */
+#define	DMAR_ECAP_NEST	(1ULL << 26)	/* Nested Translation */
+#define	DMAR_ECAP_MTS	(1ULL << 25)	/* Memory Type */
+#define	DMAR_ECAP_ECS	(1ULL << 24)	/* Extended Context */
 #define	DMAR_ECAP_MHMV(x) ((u_int)(((x) >> 20) & 0xf))
 					/* Maximum Handle Mask Value */
 #define	DMAR_ECAP_IRO(x)  ((u_int)(((x) >> 8) & 0x3ff))
 					/* IOTLB Register Offset */
 #define	DMAR_ECAP_SC	(1 << 7)	/* Snoop Control */
 #define	DMAR_ECAP_PT	(1 << 6)	/* Pass Through */
-#define	DMAR_ECAP_EIM	(1 << 4)	/* Extended Interrupt Mode */
+#define	DMAR_ECAP_EIM	(1 << 4)	/* Extended Interrupt Mode (x2APIC) */
 #define	DMAR_ECAP_IR	(1 << 3)	/* Interrupt Remapping */
 #define	DMAR_ECAP_DI	(1 << 2)	/* Device IOTLB */
 #define	DMAR_ECAP_QI	(1 << 1)	/* Queued Invalidation */
@@ -266,8 +320,8 @@ typedef struct dmar_pte {
 #define	DMAR_IQ_DESCR_SZ	(1 << DMAR_IQ_DESCR_SZ_SHIFT)
 					/* Descriptor size */
 
-#define	DMAR_IQ_DESCR_CTX_INV	0x1	/* Context-cache Invalidate
-					   Descriptor */
+/* Context-cache Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_CTX_INV	0x1
 #define	DMAR_IQ_DESCR_CTX_GLOB	(0x1 << 4)	/* Granularity: Global */
 #define	DMAR_IQ_DESCR_CTX_DOM	(0x2 << 4)	/* Granularity: Domain */
 #define	DMAR_IQ_DESCR_CTX_DEV	(0x3 << 4)	/* Granularity: Device */
@@ -275,7 +329,8 @@ typedef struct dmar_pte {
 #define	DMAR_IQ_DESCR_CTX_SRC(x) (((uint64_t)(x)) << 32) /* Source Id */
 #define	DMAR_IQ_DESCR_CTX_FM(x)  (((uint64_t)(x)) << 48) /* Function Mask */
 
-#define	DMAR_IQ_DESCR_IOTLB_INV	0x2	/* IOTLB Invalidate Descriptor */
+/* IOTLB Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_IOTLB_INV	0x2
 #define	DMAR_IQ_DESCR_IOTLB_GLOB (0x1 << 4)	/* Granularity: Global */
 #define	DMAR_IQ_DESCR_IOTLB_DOM	 (0x2 << 4)	/* Granularity: Domain */
 #define	DMAR_IQ_DESCR_IOTLB_PAGE (0x3 << 4)	/* Granularity: Page */
@@ -283,11 +338,30 @@ typedef struct dmar_pte {
 #define	DMAR_IQ_DESCR_IOTLB_DR	(1 << 7)	/* Drain Reads */
 #define	DMAR_IQ_DESCR_IOTLB_DID(x) (((uint32_t)(x)) << 16) /* Domain Id */
 
-#define	DMAR_IQ_DESCR_WAIT_ID	0x5	/* Invalidation Wait Descriptor */
+/* Device-TLB Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_DTLB_INV	0x3
+
+/* Invalidate Interrupt Entry Cache */
+#define	DMAR_IQ_DESCR_IEC_INV	0x4
+#define	DMAR_IQ_DESCR_IEC_IDX	(1 << 4) /* Index-Selective Invalidation */
+#define	DMAR_IQ_DESCR_IEC_IIDX(x) (((uint64_t)x) << 32) /* Interrupt Index */
+#define	DMAR_IQ_DESCR_IEC_IM(x)	((x) << 27)	/* Index Mask */
+
+/* Invalidation Wait Descriptor */
+#define	DMAR_IQ_DESCR_WAIT_ID	0x5
 #define	DMAR_IQ_DESCR_WAIT_IF	(1 << 4)	/* Interrupt Flag */
 #define	DMAR_IQ_DESCR_WAIT_SW	(1 << 5)	/* Status Write */
 #define	DMAR_IQ_DESCR_WAIT_FN	(1 << 6)	/* Fence */
 #define	DMAR_IQ_DESCR_WAIT_SD(x) (((uint64_t)(x)) << 32) /* Status Data */
+
+/* Extended IOTLB Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_EIOTLB_INV 0x6
+
+/* PASID-Cache Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_PASIDC_INV 0x7
+
+/* Extended Device-TLB Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_EDTLB_INV	0x8
 
 /* Invalidation Queue Head register */
 #define	DMAR_IQH_REG		0x80
@@ -326,5 +400,8 @@ typedef struct dmar_pte {
 
 /* Interrupt Remapping Table Address register */
 #define	DMAR_IRTA_REG		0xb8
+#define	DMAR_IRTA_EIME		(1 << 11)	/* Extended Interrupt Mode
+						   Enable */
+#define	DMAR_IRTA_S_MASK	0xf		/* Size Mask */
 
 #endif

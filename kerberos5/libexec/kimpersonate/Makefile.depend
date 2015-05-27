@@ -11,7 +11,6 @@ DIRDEPS = \
 	kerberos5/lib/libasn1 \
 	kerberos5/lib/libheimbase \
 	kerberos5/lib/libheimipcc \
-	kerberos5/lib/libheimntlm \
 	kerberos5/lib/libhx509 \
 	kerberos5/lib/libkafs5 \
 	kerberos5/lib/libkrb5 \

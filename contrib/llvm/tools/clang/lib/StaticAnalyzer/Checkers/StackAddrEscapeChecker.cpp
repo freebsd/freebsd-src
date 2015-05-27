@@ -28,8 +28,8 @@ using namespace ento;
 namespace {
 class StackAddrEscapeChecker : public Checker< check::PreStmt<ReturnStmt>,
                                                check::EndFunction > {
-  mutable OwningPtr<BuiltinBug> BT_stackleak;
-  mutable OwningPtr<BuiltinBug> BT_returnstack;
+  mutable std::unique_ptr<BuiltinBug> BT_stackleak;
+  mutable std::unique_ptr<BuiltinBug> BT_returnstack;
 
 public:
   void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
@@ -100,8 +100,8 @@ void StackAddrEscapeChecker::EmitStackError(CheckerContext &C, const MemRegion *
     return;
 
   if (!BT_returnstack)
-   BT_returnstack.reset(
-                 new BuiltinBug("Return of address to stack-allocated memory"));
+    BT_returnstack.reset(
+        new BuiltinBug(this, "Return of address to stack-allocated memory"));
 
   // Generate a report for this bug.
   SmallString<512> buf;
@@ -177,8 +177,8 @@ void StackAddrEscapeChecker::checkEndFunction(CheckerContext &Ctx) const {
     {}
     
     bool HandleBinding(StoreManager &SMgr, Store store,
-                       const MemRegion *region, SVal val) {
-      
+                       const MemRegion *region, SVal val) override {
+
       if (!isa<GlobalsSpaceRegion>(region->getMemorySpace()))
         return true;
       
@@ -217,11 +217,11 @@ void StackAddrEscapeChecker::checkEndFunction(CheckerContext &Ctx) const {
 
   if (!BT_stackleak)
     BT_stackleak.reset(
-      new BuiltinBug("Stack address stored into global variable",
-                     "Stack address was saved into a global variable. "
-                     "This is dangerous because the address will become "
-                     "invalid after returning from the function"));
-  
+        new BuiltinBug(this, "Stack address stored into global variable",
+                       "Stack address was saved into a global variable. "
+                       "This is dangerous because the address will become "
+                       "invalid after returning from the function"));
+
   for (unsigned i = 0, e = cb.V.size(); i != e; ++i) {
     // Generate a report for this bug.
     SmallString<512> buf;

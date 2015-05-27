@@ -104,6 +104,7 @@ acl_calc_mask(acl_t *acl_p)
 		/* if no mask exists, check acl_cnt... */
 		if (acl_int_new->acl_cnt == ACL_MAX_ENTRIES) {
 			errno = ENOMEM;
+			acl_free(acl_new);
 			return (-1);
 		}
 		/* ...and add the mask entry */

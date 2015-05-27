@@ -67,11 +67,46 @@ static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
 #endif
 
 /*
- * access PHYs integrated into the switch chip through the switch's MDIO
+ * Access PHYs integrated into the switch by going direct
+ * to the PHY space itself, rather than through the switch
+ * MDIO register.
+ */
+int
+arswitch_readphy_external(device_t dev, int phy, int reg)
+{
+	int ret;
+	struct arswitch_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK(sc);
+	ret = (MDIO_READREG(device_get_parent(dev), phy, reg));
+	ARSWITCH_UNLOCK(sc);
+
+	return (ret);
+}
+
+int
+arswitch_writephy_external(device_t dev, int phy, int reg, int data)
+{
+	struct arswitch_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK(sc);
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    reg, data);
+	ARSWITCH_UNLOCK(sc);
+
+	return (0);
+}
+
+/*
+ * Access PHYs integrated into the switch chip through the switch's MDIO
  * control register.
  */
 int
-arswitch_readphy(device_t dev, int phy, int reg)
+arswitch_readphy_internal(device_t dev, int phy, int reg)
 {
 	struct arswitch_softc *sc;
 	uint32_t data = 0, ctrl;
@@ -105,8 +140,10 @@ arswitch_readphy(device_t dev, int phy, int reg)
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
 			break;
 	}
-	if (timeout < 0)
+	if (timeout < 0) {
+		DPRINTF(dev, "arswitch_readphy(): phy=%d.%02x; timeout=%d\n", phy, reg, timeout);
 		goto fail;
+	}
 	data = arswitch_readreg_lsb(dev, a) &
 	    AR8X16_MDIO_CTRL_DATA_MASK;
 	ARSWITCH_UNLOCK(sc);
@@ -118,7 +155,7 @@ fail:
 }
 
 int
-arswitch_writephy(device_t dev, int phy, int reg, int data)
+arswitch_writephy_internal(device_t dev, int phy, int reg, int data)
 {
 	struct arswitch_softc *sc;
 	uint32_t ctrl;

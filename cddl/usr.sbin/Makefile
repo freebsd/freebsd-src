@@ -30,6 +30,12 @@ _plockstat=	plockstat
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+_dtrace=	dtrace
+_dtruss=	dtruss
+_lockstat=	lockstat
+.endif
+
 .if ${MACHINE_CPUARCH} == "mips"
 _dtrace=	dtrace
 .endif
@@ -39,5 +45,7 @@ _dtrace=	dtrace
 _dtruss=	dtruss
 _lockstat=	lockstat
 .endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

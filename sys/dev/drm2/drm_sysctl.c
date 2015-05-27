@@ -8,11 +8,11 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -70,8 +70,11 @@ int drm_sysctl_init(struct drm_device *dev)
 	/* Add the sysctl node for DRI if it doesn't already exist */
 	drioid = SYSCTL_ADD_NODE(&info->ctx, SYSCTL_CHILDREN(&sysctl___hw), OID_AUTO,
 	    "dri", CTLFLAG_RW, NULL, "DRI Graphics");
-	if (!drioid)
-		return 1;
+	if (!drioid) {
+		free(dev->sysctl, DRM_MEM_DRIVER);
+		dev->sysctl = NULL;
+		return (-ENOMEM);
+	}
 
 	/* Find the next free slot under hw.dri */
 	i = 0;
@@ -79,18 +82,22 @@ int drm_sysctl_init(struct drm_device *dev)
 		if (i <= oid->oid_arg2)
 			i = oid->oid_arg2 + 1;
 	}
-	if (i > 9)
-		return (1);
-	
+	if (i > 9) {
+		drm_sysctl_cleanup(dev);
+		return (-ENOSPC);
+	}
+
 	dev->sysctl_node_idx = i;
 	/* Add the hw.dri.x for our device */
 	info->name[0] = '0' + i;
 	info->name[1] = 0;
 	top = SYSCTL_ADD_NODE(&info->ctx, SYSCTL_CHILDREN(drioid),
 	    OID_AUTO, info->name, CTLFLAG_RW, NULL, NULL);
-	if (!top)
-		return 1;
-	
+	if (!top) {
+		drm_sysctl_cleanup(dev);
+		return (-ENOMEM);
+	}
+
 	for (i = 0; i < DRM_SYSCTL_ENTRIES; i++) {
 		oid = SYSCTL_ADD_OID(&info->ctx,
 			SYSCTL_CHILDREN(top),
@@ -102,14 +109,16 @@ int drm_sysctl_init(struct drm_device *dev)
 			drm_sysctl_list[i].f,
 			"A",
 			NULL);
-		if (!oid)
-			return 1;
+		if (!oid) {
+			drm_sysctl_cleanup(dev);
+			return (-ENOMEM);
+		}
 	}
 	SYSCTL_ADD_INT(&info->ctx, SYSCTL_CHILDREN(drioid), OID_AUTO, "debug",
-	    CTLFLAG_RW, &drm_debug_flag, sizeof(drm_debug_flag),
+	    CTLFLAG_RW, &drm_debug, sizeof(drm_debug),
 	    "Enable debugging output");
 	SYSCTL_ADD_INT(&info->ctx, SYSCTL_CHILDREN(drioid), OID_AUTO, "notyet",
-	    CTLFLAG_RW, &drm_notyet_flag, sizeof(drm_debug_flag),
+	    CTLFLAG_RW, &drm_notyet, sizeof(drm_debug),
 	    "Enable notyet reminders");
 
 	if (dev->driver->sysctl_init != NULL)
@@ -131,13 +140,16 @@ int drm_sysctl_cleanup(struct drm_device *dev)
 {
 	int error;
 
+	if (dev->sysctl == NULL)
+		return (0);
+
 	error = sysctl_ctx_free(&dev->sysctl->ctx);
 	free(dev->sysctl, DRM_MEM_DRIVER);
 	dev->sysctl = NULL;
 	if (dev->driver->sysctl_cleanup != NULL)
 		dev->driver->sysctl_cleanup(dev);
 
-	return (error);
+	return (-error);
 }
 
 #define DRM_SYSCTL_PRINT(fmt, arg...)				\
@@ -151,19 +163,25 @@ do {								\
 static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 {
 	struct drm_device *dev = arg1;
+	struct drm_minor *minor;
+	struct drm_master *master;
 	char buf[128];
 	int retcode;
 	int hasunique = 0;
 
-	DRM_SYSCTL_PRINT("%s 0x%x", dev->driver->name, dev2udev(dev->devnode));
-	
+	/* FIXME: This still uses primary minor. */
+	minor = dev->primary;
+	DRM_SYSCTL_PRINT("%s 0x%jx", dev->driver->name,
+	    (uintmax_t)dev2udev(minor->device));
+
 	DRM_LOCK(dev);
-	if (dev->unique) {
-		snprintf(buf, sizeof(buf), " %s", dev->unique);
+	master = minor->master;
+	if (master != NULL && master->unique) {
+		snprintf(buf, sizeof(buf), " %s", master->unique);
 		hasunique = 1;
 	}
 	DRM_UNLOCK(dev);
-	
+
 	if (hasunique)
 		SYSCTL_OUT(req, buf, strlen(buf));
 
@@ -176,7 +194,8 @@ done:
 static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 {
 	struct drm_device *dev = arg1;
-	drm_local_map_t *map, *tempmaps;
+	struct drm_map_list *entry;
+	struct drm_local_map *map, *tempmaps;
 	const char *types[] = {
 		[_DRM_FRAME_BUFFER] = "FB",
 		[_DRM_REGISTERS] = "REG",
@@ -197,10 +216,12 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	DRM_LOCK(dev);
 
 	mapcount = 0;
-	TAILQ_FOREACH(map, &dev->maplist, link)
-		mapcount++;
+	list_for_each_entry(entry, &dev->maplist, head) {
+		if (entry->map != NULL)
+			mapcount++;
+	}
 
-	tempmaps = malloc(sizeof(drm_local_map_t) * mapcount, DRM_MEM_DRIVER,
+	tempmaps = malloc(sizeof(*tempmaps) * mapcount, DRM_MEM_DRIVER,
 	    M_NOWAIT);
 	if (tempmaps == NULL) {
 		DRM_UNLOCK(dev);
@@ -208,13 +229,15 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	}
 
 	i = 0;
-	TAILQ_FOREACH(map, &dev->maplist, link)
-		tempmaps[i++] = *map;
+	list_for_each_entry(entry, &dev->maplist, head) {
+		if (entry->map != NULL)
+			tempmaps[i++] = *entry->map;
+	}
 
 	DRM_UNLOCK(dev);
 
 	DRM_SYSCTL_PRINT("\nslot offset	        size       "
-	    "type flags address            handle mtrr\n");
+	    "type flags address            mtrr\n");
 
 	for (i = 0; i < mapcount; i++) {
 		map = &tempmaps[i];
@@ -234,17 +257,15 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 			break;
 		}
 
-		if (!map->mtrr)
+		if (map->mtrr < 0)
 			yesno = "no";
 		else
 			yesno = "yes";
 
 		DRM_SYSCTL_PRINT(
-		    "%4d 0x%016lx 0x%08lx %4.4s  0x%02x 0x%016lx %6d %s\n",
-		    i, map->offset, map->size, type, map->flags,
-		    (unsigned long)map->virtual,
-		    (unsigned int)((unsigned long)map->handle >>
-		    DRM_MAP_HANDLE_SHIFT), yesno);
+		    "%4d 0x%016llx 0x%08lx %4.4s  0x%02x 0x%016lx %s\n",
+		    i, (unsigned long long)map->offset, map->size, type,
+		    map->flags, (unsigned long)map->handle, yesno);
 	}
 	SYSCTL_OUT(req, "", 1);
 
@@ -256,8 +277,8 @@ done:
 static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 {
 	struct drm_device	 *dev = arg1;
-	drm_device_dma_t *dma = dev->dma;
-	drm_device_dma_t tempdma;
+	struct drm_device_dma *dma = dev->dma;
+	struct drm_device_dma tempdma;
 	int *templists;
 	int i;
 	char buf[128];
@@ -321,7 +342,7 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 	DRM_LOCK(dev);
 
 	privcount = 0;
-	TAILQ_FOREACH(priv, &dev->files, link)
+	list_for_each_entry(priv, &dev->filelist, lhead)
 		privcount++;
 
 	tempprivs = malloc(sizeof(struct drm_file) * privcount, DRM_MEM_DRIVER,
@@ -331,7 +352,7 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 		return ENOMEM;
 	}
 	i = 0;
-	TAILQ_FOREACH(priv, &dev->files, link)
+	list_for_each_entry(priv, &dev->filelist, lhead)
 		tempprivs[i++] = *priv;
 
 	DRM_UNLOCK(dev);
@@ -342,7 +363,7 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 		priv = &tempprivs[i];
 		DRM_SYSCTL_PRINT("%c %-12s %5d %5d %10u %10lu\n",
 			       priv->authenticated ? 'y' : 'n',
-			       devtoname(priv->dev->devnode),
+			       devtoname(priv->minor->device),
 			       priv->pid,
 			       priv->uid,
 			       priv->magic,

@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_hwmods.h>
 #include <arm/ti/ti_i2c.h>
 
 #include <dev/iicbus/iiconf.h>
@@ -81,7 +82,7 @@ __FBSDID("$FreeBSD$");
 struct ti_i2c_softc
 {
 	device_t		sc_dev;
-	uint32_t		device_id;
+	clk_ident_t		clk_id;
 	struct resource*	sc_irq_res;
 	struct resource*	sc_mem_res;
 	device_t		sc_iicbus;
@@ -95,6 +96,7 @@ struct ti_i2c_softc
 	int			sc_buffer_pos;
 	int			sc_error;
 	int			sc_fifo_trsh;
+	int			sc_timeout;
 
 	uint16_t		sc_con_reg;
 	uint16_t		sc_rev;
@@ -119,7 +121,7 @@ struct ti_i2c_clock_config
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 	{  100000, 23,  13,  15,  0,  0},
 	{  400000,  9,   5,   7,  0,  0},
-	{ 1000000,  5,   1,   3,  0,  0},
+	{ 1000000,  3,   5,   7,  0,  0},
 /*	{ 3200000,  1, 113, 115,  7, 10}, - HS mode */
 	{       0 /* Table terminator */ }
 };
@@ -442,7 +444,7 @@ ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		ti_i2c_write_2(sc, I2C_REG_CON, reg);
 
 		/* Wait for an event. */
-		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", hz);
+		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", sc->sc_timeout);
 		if (err == 0)
 			err = sc->sc_error;
 
@@ -471,38 +473,6 @@ out:
 	TI_I2C_UNLOCK(sc);
 
 	return (err);
-}
-
-/**
- *	ti_i2c_callback - as we only provide iicbus_transfer() interface
- * 		we don't need to implement the serialization here.
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *	Called from timer context
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
-static int
-ti_i2c_callback(device_t dev, int index, caddr_t data)
-{
-	int error = 0;
-
-	switch (index) {
-		case IIC_REQUEST_BUS:
-			break;
-
-		case IIC_RELEASE_BUS:
-			break;
-
-		default:
-			error = EINVAL;
-	}
-
-	return (error);
 }
 
 static int
@@ -724,7 +694,6 @@ ti_i2c_iicbus_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 static int
 ti_i2c_activate(device_t dev)
 {
-	clk_ident_t clk;
 	int err;
 	struct ti_i2c_softc *sc;
 
@@ -734,8 +703,7 @@ ti_i2c_activate(device_t dev)
 	 * 1. Enable the functional and interface clocks (see Section
 	 * 23.1.5.1.1.1.1).
 	 */
-	clk = I2C0_CLK + sc->device_id;
-	err = ti_prcm_clk_enable(clk);
+	err = ti_prcm_clk_enable(sc->clk_id);
 	if (err)
 		return (err);
 
@@ -758,7 +726,6 @@ static void
 ti_i2c_deactivate(device_t dev)
 {
 	struct ti_i2c_softc *sc = device_get_softc(dev);
-	clk_ident_t clk;
 
 	/* Disable the controller - cancel all transactions. */
 	ti_i2c_write_2(sc, I2C_REG_IRQENABLE_CLR, 0xffff);
@@ -786,19 +753,16 @@ ti_i2c_deactivate(device_t dev)
 	}
 
 	/* Finally disable the functional and interface clocks. */
-	clk = I2C0_CLK + sc->device_id;
-	ti_prcm_clk_disable(clk);
+	ti_prcm_clk_disable(sc->clk_id);
 }
 
 static int
 ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev;
 	int clk, psc, sclh, scll;
 	struct ti_i2c_softc *sc;
 
-	dev = (device_t)arg1;
-	sc = device_get_softc(dev);
+	sc = arg1;
 
 	TI_I2C_LOCK(sc);
 	/* Get the system prescaler value. */
@@ -815,12 +779,40 @@ ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+ti_i2c_sysctl_timeout(SYSCTL_HANDLER_ARGS)
+{
+	struct ti_i2c_softc *sc;
+	unsigned int val;
+	int err;
+
+	sc = arg1;
+
+	/* 
+	 * MTX_DEF lock can't be held while doing uimove in
+	 * sysctl_handle_int
+	 */
+	TI_I2C_LOCK(sc);
+	val = sc->sc_timeout;
+	TI_I2C_UNLOCK(sc);
+
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	/* Write request? */
+	if ((err == 0) && (req->newptr != NULL)) {
+		TI_I2C_LOCK(sc);
+		sc->sc_timeout = val;
+		TI_I2C_UNLOCK(sc);
+	}
+
+	return (err);
+}
+
+static int
 ti_i2c_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "ti,i2c"))
+	if (!ofw_bus_is_compatible(dev, "ti,omap4-i2c"))
 		return (ENXIO);
 	device_set_desc(dev, "TI I2C Controller");
 
@@ -842,9 +834,10 @@ ti_i2c_attach(device_t dev)
 
 	/* Get the i2c device id from FDT. */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getencprop(node, "i2c-device-id", &sc->device_id,
-	    sizeof(sc->device_id))) <= 0) {
-		device_printf(dev, "missing i2c-device-id attribute in FDT\n");
+	/* i2c ti,hwmods bindings is special: it start with index 1 */
+	sc->clk_id = ti_hwmods_get_clock(dev);
+	if (sc->clk_id == INVALID_CLK_IDENT) {
+		device_printf(dev, "failed to get device id using ti,hwmod\n");
 		return (ENXIO);
 	}
 
@@ -890,11 +883,18 @@ ti_i2c_attach(device_t dev)
 	/* Set the FIFO threshold to 5 for now. */
 	sc->sc_fifo_trsh = 5;
 
+	/* Set I2C bus timeout */
+	sc->sc_timeout = 5*hz;
+
 	ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_clock",
-	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ti_i2c_sysctl_clk, "IU", "I2C bus clock");
+
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_timeout",
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
+	    ti_i2c_sysctl_timeout, "IU", "I2C bus timeout (in ticks)");
 
 	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
@@ -951,11 +951,22 @@ static device_method_t ti_i2c_methods[] = {
 	DEVMETHOD(device_attach,	ti_i2c_attach),
 	DEVMETHOD(device_detach,	ti_i2c_detach),
 
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	ti_i2c_get_node),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	ti_i2c_callback),
+	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_reset,		ti_i2c_iicbus_reset),
 	DEVMETHOD(iicbus_transfer,	ti_i2c_transfer),
 

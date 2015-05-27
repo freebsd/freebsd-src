@@ -1,8 +1,9 @@
+#
 # CUBIEBOARD2 -- Custom configuration for the CUBIEBOARD2 ARM development
 # platform, check out http://www.cubieboard.org
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -20,74 +21,49 @@
 
 ident		CUBIEBOARD2
 
+include 	"std.armv6"
 include 	"../allwinner/a20/std.a20"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 options 	HZ=100
-options 	SCHED_4BSD		# 4BSD scheduler
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	GEOM_PART_BSD		# BSD partition scheme
-options 	GEOM_PART_MBR		# MBR partition scheme
-options 	TMPFS			# Efficient memory filesystem
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL 		# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	MSDOSFS 		# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options 	KTRACE			# ktrace(1) support
-options 	SYSVSHM 		# SYSV-style shared memory
-options 	SYSVMSG 		# SYSV-style message queues
-options 	SYSVSEM 		# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	PREEMPTION
-options 	FREEBSD_BOOT_LOADER
-options 	VFP			# vfp/neon
+options 	SCHED_ULE		# ULE scheduler
+options 	SMP			# Enable multiple cores
 
-# Debugging
+# Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options 	KDB
+options 	KDB			# Enable kernel debugger support
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic
+# For full debugger support use this instead:
 options 	DDB			# Enable the kernel debugger
 options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS 		# Enable checks to detect deadlocks and cycles
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	DIAGNOSTIC
 
-# NFS support
-#options 	NFSCL
-#options 	NFSSERVER		# Network Filesystem Server
-#options 	NFSCLIENT		# Network Filesystem Client
-
-# Uncomment this for NFS root
-#options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
+# NFS root from boopt/dhcp
+#options 	BOOTP
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
-#options 	BOOTP
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=cpsw0
-
-# MMC/SD/SDIO card slot support
-#device 	mmc			# mmc/sd bus
-#device 	mmcsd			# mmc/sd flash cards
 
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
+# Interrupt controller
+device		gic
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+
 # ATA controllers
-#device 	ahci			# AHCI-compatible SATA controllers
-#device 	ata			# Legacy ATA/SATA controllers
-#options	ATA_STATIC_ID		# Static device numbering
+#device		ahci			# AHCI-compatible SATA controllers
+#device		ata			# Legacy ATA/SATA controllers
+#options 	ATA_STATIC_ID		# Static device numbering
 
 # Console and misc
 device		uart
@@ -98,8 +74,8 @@ device		md
 device		random			# Entropy device
 
 # I2C support
-#device 	iicbus
-#device 	iic
+#device		iicbus
+#device		iic
 
 # GPIO
 device		gpio
@@ -114,8 +90,8 @@ device		usb
 options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
-#device 	uhci
-#device 	ohci
+#device		uhci
+#device		ohci
 device		ehci
 
 device		umass
@@ -124,8 +100,6 @@ device		umass
 device		loop
 device		ether
 device		mii
-device		smscphy
-#device 	cpsw
 device		bpf
 
 device		emac
@@ -134,8 +108,7 @@ device		emac
 device		miibus
 
 # Flattened Device Tree
-options 	FDT
+options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=cubieboard2.dts
-
-options		SMP			# Enable multiple cores
+makeoptions	MODULES_EXTRA=dtb/allwinner

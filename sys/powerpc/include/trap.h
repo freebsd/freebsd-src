@@ -74,6 +74,9 @@
 #define	EXC_DLMISS	0x1100		/* Data load translation miss */
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
+/* Power ISA 2.06+: */
+#define	EXC_VSX		0x0f40		/* VSX Unavailable */
+
 /* The following are available on 4xx and 85xx */
 #define	EXC_CRIT	0x0100		/* Critical Input Interrupt */
 #define	EXC_PIT		0x1000		/* Programmable Interval Timer */
@@ -82,7 +85,7 @@
 #define	EXC_DTMISS	0x1100		/* Data TLB Miss */
 #define	EXC_ITMISS	0x1200		/* Instruction TLB Miss */
 #define	EXC_APU		0x1300		/* Auxiliary Processing Unit */
-#define	EXC_DEBUG	0x2000		/* Debug trap */
+#define	EXC_DEBUG	0x2f10		/* Debug trap */
 
 #define	EXC_LAST	0x2f00		/* Last possible exception vector */
 
@@ -119,6 +122,13 @@
 #define	EXC_PGM_ILLEGAL		(1UL << 19)
 #define	EXC_PGM_PRIV		(1UL << 18)
 #define	EXC_PGM_TRAP		(1UL << 17)
+
+/* DTrace trap opcode. */
+#define EXC_DTRACE	0x7c810808
+
+/* Magic pointer to store TOC base and other info for trap handlers on ppc64 */
+#define TRAP_GENTRAP	0x1f0
+#define TRAP_TOCBASE	0x1f8
 
 #ifndef LOCORE
 struct	trapframe;

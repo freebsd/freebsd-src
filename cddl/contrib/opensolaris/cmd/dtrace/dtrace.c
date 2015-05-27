@@ -43,11 +43,11 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <libgen.h>
-#if defined(sun)
+#ifdef illumos
 #include <libproc.h>
 #endif
 
@@ -101,7 +101,7 @@ static int g_grabanon = 0;
 static const char *g_ofile = NULL;
 static FILE *g_ofp;
 static dtrace_hdl_t *g_dtp;
-#if defined(sun)
+#ifdef illumos
 static char *g_etcfile = "/etc/system";
 static const char *g_etcbegin = "* vvvv Added by DTrace";
 static const char *g_etcend = "* ^^^^ Added by DTrace";
@@ -211,7 +211,7 @@ fatal(const char *fmt, ...)
 static void
 dfatal(const char *fmt, ...)
 {
-#if !defined(sun) && defined(NEED_ERRLOC)
+#if !defined(illumos) && defined(NEED_ERRLOC)
 	char *p_errfile = NULL;
 	int errline = 0;
 #endif
@@ -232,7 +232,7 @@ dfatal(const char *fmt, ...)
 		(void) fprintf(stderr, "%s\n",
 		    dtrace_errmsg(g_dtp, dtrace_errno(g_dtp)));
 	}
-#if !defined(sun) && defined(NEED_ERRLOC)
+#if !defined(illumos) && defined(NEED_ERRLOC)
 	dt_get_errloc(g_dtp, &p_errfile, &errline);
 	if (p_errfile != NULL)
 		printf("File '%s', line %d\n", p_errfile, errline);
@@ -397,7 +397,7 @@ dof_prune(const char *fname)
 	free(buf);
 }
 
-#if defined(sun)
+#ifdef illumos
 static void
 etcsystem_prune(void)
 {
@@ -508,7 +508,7 @@ etcsystem_add(void)
 
 	error("added forceload directives to %s\n", g_ofile);
 }
-#endif
+#endif /* illumos */
 
 static void
 print_probe_info(const dtrace_probeinfo_t *p)
@@ -643,7 +643,7 @@ anon_prog(const dtrace_cmd_t *dcp, dof_hdr_t *dof, int n)
 	p = (uchar_t *)dof;
 	q = p + dof->dofh_loadsz;
 
-#if defined(sun)
+#ifdef illumos
 	oprintf("dof-data-%d=0x%x", n, *p++);
 
 	while (p < q)
@@ -793,7 +793,7 @@ compile_str(dtrace_cmd_t *dcp)
 static void
 prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 {
-#if defined(sun)
+#ifdef illumos
 	const psinfo_t *prp = Ppsinfo(P);
 	int pid = Pstatus(P)->pr_pid;
 	char name[SIG2STR_MAX];
@@ -807,13 +807,13 @@ prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 		return;
 	}
 
-#if defined(sun)
+#ifdef illumos
 	switch (Pstate(P)) {
 #else
 	switch (proc_state(P)) {
 #endif
 	case PS_UNDEAD:
-#if defined(sun)
+#ifdef illumos
 		/*
 		 * Ideally we would like to always report pr_wstat here, but it
 		 * isn't possible given current /proc semantics.  If we grabbed
@@ -831,7 +831,7 @@ prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 			notice("pid %d terminated by %d\n", pid,
 			    WTERMSIG(wstatus));
 #endif
-#if defined(sun)
+#ifdef illumos
 		} else if (prp != NULL && WEXITSTATUS(prp->pr_wstat) != 0) {
 			notice("pid %d exited with status %d\n",
 			    pid, WEXITSTATUS(prp->pr_wstat));
@@ -1238,7 +1238,7 @@ installsighands(void)
 	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
 		(void) sigaction(SIGTERM, &act, NULL);
 
-#if !defined(sun)
+#ifndef illumos
 	if (sigaction(SIGPIPE, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
 		(void) sigaction(SIGPIPE, &act, NULL);
 
@@ -1720,7 +1720,7 @@ main(int argc, char *argv[])
 
 	case DMODE_ANON:
 		if (g_ofile == NULL)
-#if defined(sun)
+#ifdef illumos
 			g_ofile = "/kernel/drv/dtrace.conf";
 #else
 			/*
@@ -1732,7 +1732,7 @@ main(int argc, char *argv[])
 #endif
 
 		dof_prune(g_ofile); /* strip out any old DOF directives */
-#if defined(sun)
+#ifdef illumos
 		etcsystem_prune(); /* string out any forceload directives */
 #endif
 
@@ -1765,7 +1765,7 @@ main(int argc, char *argv[])
 		 * that itself contains a #pragma D option quiet.
 		 */
 		error("saved anonymous enabling in %s\n", g_ofile);
-#if defined(sun)
+#ifdef illumos
 		etcsystem_add();
 		error("run update_drv(1M) or reboot to enable changes\n");
 #endif

@@ -21,42 +21,48 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Config/config.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/FEnv.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include <cerrno>
 #include <cmath>
+
+#ifdef HAVE_FENV_H
+#include <fenv.h>
+#endif
+
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
 // Constant Folding internal helper functions
 //===----------------------------------------------------------------------===//
 
-/// FoldBitCast - Constant fold bitcast, symbolically evaluating it with
-/// DataLayout.  This always returns a non-null constant, but it may be a
+/// Constant fold bitcast, symbolically evaluating it with DataLayout.
+/// This always returns a non-null constant, but it may be a
 /// ConstantExpr if unfoldable.
 static Constant *FoldBitCast(Constant *C, Type *DestTy,
                              const DataLayout &TD) {
   // Catch the obvious splat cases.
   if (C->isNullValue() && !DestTy->isX86_MMXTy())
     return Constant::getNullValue(DestTy);
-  if (C->isAllOnesValue() && !DestTy->isX86_MMXTy())
+  if (C->isAllOnesValue() && !DestTy->isX86_MMXTy() &&
+      !DestTy->isPtrOrPtrVectorTy()) // Don't get ones for ptr types!
     return Constant::getAllOnesValue(DestTy);
 
   // Handle a vector->integer cast.
   if (IntegerType *IT = dyn_cast<IntegerType>(DestTy)) {
     VectorType *VTy = dyn_cast<VectorType>(C->getType());
-    if (VTy == 0)
+    if (!VTy)
       return ConstantExpr::getBitCast(C, DestTy);
 
     unsigned NumSrcElts = VTy->getNumElements();
@@ -73,7 +79,7 @@ static Constant *FoldBitCast(Constant *C, Type *DestTy,
     }
 
     ConstantDataVector *CDV = dyn_cast<ConstantDataVector>(C);
-    if (CDV == 0)
+    if (!CDV)
       return ConstantExpr::getBitCast(C, DestTy);
 
     // Now that we know that the input value is a vector of integers, just shift
@@ -93,7 +99,7 @@ static Constant *FoldBitCast(Constant *C, Type *DestTy,
 
   // The code below only handles casts to vectors currently.
   VectorType *DestVTy = dyn_cast<VectorType>(DestTy);
-  if (DestVTy == 0)
+  if (!DestVTy)
     return ConstantExpr::getBitCast(C, DestTy);
 
   // If this is a scalar -> vector cast, convert the input into a <1 x scalar>
@@ -192,7 +198,7 @@ static Constant *FoldBitCast(Constant *C, Type *DestTy,
 
   // Handle: bitcast (<2 x i64> <i64 0, i64 1> to <4 x i32>)
   unsigned Ratio = NumDstElt/NumSrcElt;
-  unsigned DstBitSize = DstEltTy->getPrimitiveSizeInBits();
+  unsigned DstBitSize = TD.getTypeSizeInBits(DstEltTy);
 
   // Loop over each source value, expanding into multiple results.
   for (unsigned i = 0; i != NumSrcElt; ++i) {
@@ -208,6 +214,15 @@ static Constant *FoldBitCast(Constant *C, Type *DestTy,
                                   ConstantInt::get(Src->getType(), ShiftAmt));
       ShiftAmt += isLittleEndian ? DstBitSize : -DstBitSize;
 
+      // Truncate the element to an integer with the same pointer size and
+      // convert the element back to a pointer using a inttoptr.
+      if (DstEltTy->isPointerTy()) {
+        IntegerType *DstIntTy = Type::getIntNTy(C->getContext(), DstBitSize);
+        Constant *CE = ConstantExpr::getTrunc(Elt, DstIntTy);
+        Result.push_back(ConstantExpr::getIntToPtr(CE, DstEltTy));
+        continue;
+      }
+
       // Truncate and remember this piece.
       Result.push_back(ConstantExpr::getTrunc(Elt, DstEltTy));
     }
@@ -217,9 +232,8 @@ static Constant *FoldBitCast(Constant *C, Type *DestTy,
 }
 
 
-/// IsConstantOffsetFromGlobal - If this constant is actually a constant offset
-/// from a global, return the global and the constant.  Because of
-/// constantexprs, this function is recursive.
+/// If this constant is a constant offset from a global, return the global and
+/// the constant. Because of constantexprs, this function is recursive.
 static bool IsConstantOffsetFromGlobal(Constant *C, GlobalValue *&GV,
                                        APInt &Offset, const DataLayout &TD) {
   // Trivial case, constant is the global.
@@ -235,7 +249,8 @@ static bool IsConstantOffsetFromGlobal(Constant *C, GlobalValue *&GV,
 
   // Look through ptr->int and ptr->ptr casts.
   if (CE->getOpcode() == Instruction::PtrToInt ||
-      CE->getOpcode() == Instruction::BitCast)
+      CE->getOpcode() == Instruction::BitCast ||
+      CE->getOpcode() == Instruction::AddrSpaceCast)
     return IsConstantOffsetFromGlobal(CE->getOperand(0), GV, Offset, TD);
 
   // i32* getelementptr ([5 x i32]* @a, i32 0, i32 5)
@@ -258,10 +273,10 @@ static bool IsConstantOffsetFromGlobal(Constant *C, GlobalValue *&GV,
   return true;
 }
 
-/// ReadDataFromGlobal - Recursive helper to read bits out of global.  C is the
-/// constant being copied out of. ByteOffset is an offset into C.  CurPtr is the
-/// pointer to copy results into and BytesLeft is the number of bytes left in
-/// the CurPtr buffer.  TD is the target data.
+/// Recursive helper to read bits out of global. C is the constant being copied
+/// out of. ByteOffset is an offset into C. CurPtr is the pointer to copy
+/// results into and BytesLeft is the number of bytes left in
+/// the CurPtr buffer. TD is the target data.
 static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
                                unsigned char *CurPtr, unsigned BytesLeft,
                                const DataLayout &TD) {
@@ -411,32 +426,32 @@ static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
                                         TD.getTypeAllocSizeInBits(LoadTy),
                                         AS);
     } else
-      return 0;
+      return nullptr;
 
     C = FoldBitCast(C, MapTy, TD);
     if (Constant *Res = FoldReinterpretLoadFromConstPtr(C, TD))
       return FoldBitCast(Res, LoadTy, TD);
-    return 0;
+    return nullptr;
   }
 
   unsigned BytesLoaded = (IntType->getBitWidth() + 7) / 8;
   if (BytesLoaded > 32 || BytesLoaded == 0)
-    return 0;
+    return nullptr;
 
   GlobalValue *GVal;
   APInt Offset;
   if (!IsConstantOffsetFromGlobal(C, GVal, Offset, TD))
-    return 0;
+    return nullptr;
 
   GlobalVariable *GV = dyn_cast<GlobalVariable>(GVal);
   if (!GV || !GV->isConstant() || !GV->hasDefinitiveInitializer() ||
       !GV->getInitializer()->getType()->isSized())
-    return 0;
+    return nullptr;
 
   // If we're loading off the beginning of the global, some bytes may be valid,
   // but we don't try to handle this.
   if (Offset.isNegative())
-    return 0;
+    return nullptr;
 
   // If we're not accessing anything in this constant, the result is undefined.
   if (Offset.getZExtValue() >=
@@ -446,7 +461,7 @@ static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
   unsigned char RawBytes[32] = {0};
   if (!ReadDataFromGlobal(GV->getInitializer(), Offset.getZExtValue(), RawBytes,
                           BytesLoaded, TD))
-    return 0;
+    return nullptr;
 
   APInt ResultVal = APInt(IntType->getBitWidth(), 0);
   if (TD.isLittleEndian()) {
@@ -466,9 +481,54 @@ static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
   return ConstantInt::get(IntType->getContext(), ResultVal);
 }
 
-/// ConstantFoldLoadFromConstPtr - Return the value that a load from C would
-/// produce if it is constant and determinable.  If this is not determinable,
-/// return null.
+static Constant *ConstantFoldLoadThroughBitcast(ConstantExpr *CE,
+                                                const DataLayout *DL) {
+  if (!DL)
+    return nullptr;
+  auto *DestPtrTy = dyn_cast<PointerType>(CE->getType());
+  if (!DestPtrTy)
+    return nullptr;
+  Type *DestTy = DestPtrTy->getElementType();
+
+  Constant *C = ConstantFoldLoadFromConstPtr(CE->getOperand(0), DL);
+  if (!C)
+    return nullptr;
+
+  do {
+    Type *SrcTy = C->getType();
+
+    // If the type sizes are the same and a cast is legal, just directly
+    // cast the constant.
+    if (DL->getTypeSizeInBits(DestTy) == DL->getTypeSizeInBits(SrcTy)) {
+      Instruction::CastOps Cast = Instruction::BitCast;
+      // If we are going from a pointer to int or vice versa, we spell the cast
+      // differently.
+      if (SrcTy->isIntegerTy() && DestTy->isPointerTy())
+        Cast = Instruction::IntToPtr;
+      else if (SrcTy->isPointerTy() && DestTy->isIntegerTy())
+        Cast = Instruction::PtrToInt;
+
+      if (CastInst::castIsValid(Cast, C, DestTy))
+        return ConstantExpr::getCast(Cast, C, DestTy);
+    }
+
+    // If this isn't an aggregate type, there is nothing we can do to drill down
+    // and find a bitcastable constant.
+    if (!SrcTy->isAggregateType())
+      return nullptr;
+
+    // We're simulating a load through a pointer that was bitcast to point to
+    // a different type, so we can try to walk down through the initial
+    // elements of an aggregate to see if some part of th e aggregate is
+    // castable to implement the "load" semantic model.
+    C = C->getAggregateElement(0u);
+  } while (C);
+
+  return nullptr;
+}
+
+/// Return the value that a load from C would produce if it is constant and
+/// determinable. If this is not determinable, return null.
 Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
                                              const DataLayout *TD) {
   // First, try the easy cases:
@@ -479,7 +539,7 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
   // If the loaded value isn't a constant expr, we can't handle it.
   ConstantExpr *CE = dyn_cast<ConstantExpr>(C);
   if (!CE)
-    return 0;
+    return nullptr;
 
   if (CE->getOpcode() == Instruction::GetElementPtr) {
     if (GlobalVariable *GV = dyn_cast<GlobalVariable>(CE->getOperand(0))) {
@@ -490,6 +550,10 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
       }
     }
   }
+
+  if (CE->getOpcode() == Instruction::BitCast)
+    if (Constant *LoadedC = ConstantFoldLoadThroughBitcast(CE, TD))
+      return LoadedC;
 
   // Instead of loading constant c string, use corresponding integer value
   // directly if string length is small enough.
@@ -542,19 +606,19 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
   // Try hard to fold loads from bitcasted strange and non-type-safe things.
   if (TD)
     return FoldReinterpretLoadFromConstPtr(CE, *TD);
-  return 0;
+  return nullptr;
 }
 
 static Constant *ConstantFoldLoadInst(const LoadInst *LI, const DataLayout *TD){
-  if (LI->isVolatile()) return 0;
+  if (LI->isVolatile()) return nullptr;
 
   if (Constant *C = dyn_cast<Constant>(LI->getOperand(0)))
     return ConstantFoldLoadFromConstPtr(C, TD);
 
-  return 0;
+  return nullptr;
 }
 
-/// SymbolicallyEvaluateBinop - One of Op0/Op1 is a constant expression.
+/// One of Op0/Op1 is a constant expression.
 /// Attempt to symbolically evaluate the result of a binary operator merging
 /// these together.  If target data info is available, it is provided as DL,
 /// otherwise DL is null.
@@ -571,8 +635,8 @@ static Constant *SymbolicallyEvaluateBinop(unsigned Opc, Constant *Op0,
     unsigned BitWidth = DL->getTypeSizeInBits(Op0->getType()->getScalarType());
     APInt KnownZero0(BitWidth, 0), KnownOne0(BitWidth, 0);
     APInt KnownZero1(BitWidth, 0), KnownOne1(BitWidth, 0);
-    ComputeMaskedBits(Op0, KnownZero0, KnownOne0, DL);
-    ComputeMaskedBits(Op1, KnownZero1, KnownOne1, DL);
+    computeKnownBits(Op0, KnownZero0, KnownOne0, DL);
+    computeKnownBits(Op1, KnownZero1, KnownOne1, DL);
     if ((KnownOne1 | KnownZero0).isAllOnesValue()) {
       // All the bits of Op0 that the 'and' could be masking are already zero.
       return Op0;
@@ -608,17 +672,16 @@ static Constant *SymbolicallyEvaluateBinop(unsigned Opc, Constant *Op0,
       }
   }
 
-  return 0;
+  return nullptr;
 }
 
-/// CastGEPIndices - If array indices are not pointer-sized integers,
-/// explicitly cast them so that they aren't implicitly casted by the
-/// getelementptr.
+/// If array indices are not pointer-sized integers, explicitly cast them so
+/// that they aren't implicitly casted by the getelementptr.
 static Constant *CastGEPIndices(ArrayRef<Constant *> Ops,
                                 Type *ResultTy, const DataLayout *TD,
                                 const TargetLibraryInfo *TLI) {
   if (!TD)
-    return 0;
+    return nullptr;
 
   Type *IntPtrTy = TD->getIntPtrType(ResultTy);
 
@@ -641,7 +704,7 @@ static Constant *CastGEPIndices(ArrayRef<Constant *> Ops,
   }
 
   if (!Any)
-    return 0;
+    return nullptr;
 
   Constant *C = ConstantExpr::getGetElementPtr(Ops[0], NewIdxs);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
@@ -656,7 +719,7 @@ static Constant *CastGEPIndices(ArrayRef<Constant *> Ops,
 static Constant* StripPtrCastKeepAS(Constant* Ptr) {
   assert(Ptr->getType()->isPointerTy() && "Not a pointer type");
   PointerType *OldPtrTy = cast<PointerType>(Ptr->getType());
-  Ptr = cast<Constant>(Ptr->stripPointerCasts());
+  Ptr = Ptr->stripPointerCasts();
   PointerType *NewPtrTy = cast<PointerType>(Ptr->getType());
 
   // Preserve the address space number of the pointer.
@@ -668,15 +731,14 @@ static Constant* StripPtrCastKeepAS(Constant* Ptr) {
   return Ptr;
 }
 
-/// SymbolicallyEvaluateGEP - If we can symbolically evaluate the specified GEP
-/// constant expression, do so.
+/// If we can symbolically evaluate the GEP constant expression, do so.
 static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
                                          Type *ResultTy, const DataLayout *TD,
                                          const TargetLibraryInfo *TLI) {
   Constant *Ptr = Ops[0];
   if (!TD || !Ptr->getType()->getPointerElementType()->isSized() ||
       !Ptr->getType()->isPointerTy())
-    return 0;
+    return nullptr;
 
   Type *IntPtrTy = TD->getIntPtrType(Ptr->getType());
   Type *ResultElementTy = ResultTy->getPointerElementType();
@@ -690,7 +752,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
       // "inttoptr (sub (ptrtoint Ptr), V)"
       if (Ops.size() == 2 && ResultElementTy->isIntegerTy(8)) {
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Ops[1]);
-        assert((CE == 0 || CE->getType() == IntPtrTy) &&
+        assert((!CE || CE->getType() == IntPtrTy) &&
                "CastGEPIndices didn't canonicalize index types!");
         if (CE && CE->getOpcode() == Instruction::Sub &&
             CE->getOperand(0)->isNullValue()) {
@@ -702,7 +764,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
           return Res;
         }
       }
-      return 0;
+      return nullptr;
     }
 
   unsigned BitWidth = TD->getTypeSizeInBits(IntPtrTy);
@@ -765,7 +827,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
 
         // Only handle pointers to sized types, not pointers to functions.
         if (!ATy->getElementType()->isSized())
-          return 0;
+          return nullptr;
       }
 
       // Determine which element of the array the offset points into.
@@ -810,7 +872,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
   // type, then the offset is pointing into the middle of an indivisible
   // member, so we can't simplify it.
   if (Offset != 0)
-    return 0;
+    return nullptr;
 
   // Create a GEP.
   Constant *C = ConstantExpr::getGetElementPtr(Ptr, NewIdxs);
@@ -831,7 +893,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
 // Constant Folding public APIs
 //===----------------------------------------------------------------------===//
 
-/// ConstantFoldInstruction - Try to constant fold the specified instruction.
+/// Try to constant fold the specified instruction.
 /// If successful, the constant result is returned, if not, null is returned.
 /// Note that this fails if not all of the operands are constant.  Otherwise,
 /// this function can only fail when attempting to fold instructions like loads
@@ -841,7 +903,7 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
                                         const TargetLibraryInfo *TLI) {
   // Handle PHI nodes quickly here...
   if (PHINode *PN = dyn_cast<PHINode>(I)) {
-    Constant *CommonValue = 0;
+    Constant *CommonValue = nullptr;
 
     for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
       Value *Incoming = PN->getIncomingValue(i);
@@ -854,14 +916,14 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
       // If the incoming value is not a constant, then give up.
       Constant *C = dyn_cast<Constant>(Incoming);
       if (!C)
-        return 0;
+        return nullptr;
       // Fold the PHI's operands.
       if (ConstantExpr *NewC = dyn_cast<ConstantExpr>(C))
         C = ConstantFoldConstantExpression(NewC, TD, TLI);
       // If the incoming value is a different constant to
       // the one we saw previously, then give up.
       if (CommonValue && C != CommonValue)
-        return 0;
+        return nullptr;
       CommonValue = C;
     }
 
@@ -876,7 +938,7 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
   for (User::op_iterator i = I->op_begin(), e = I->op_end(); i != e; ++i) {
     Constant *Op = dyn_cast<Constant>(*i);
     if (!Op)
-      return 0;  // All operands not constant!
+      return nullptr;  // All operands not constant!
 
     // Fold the Instruction's operands.
     if (ConstantExpr *NewCE = dyn_cast<ConstantExpr>(Op))
@@ -911,7 +973,7 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
 static Constant *
 ConstantFoldConstantExpressionImpl(const ConstantExpr *CE, const DataLayout *TD,
                                    const TargetLibraryInfo *TLI,
-                                   SmallPtrSet<ConstantExpr *, 4> &FoldedOps) {
+                                   SmallPtrSetImpl<ConstantExpr *> &FoldedOps) {
   SmallVector<Constant *, 8> Ops;
   for (User::const_op_iterator i = CE->op_begin(), e = CE->op_end(); i != e;
        ++i) {
@@ -919,7 +981,7 @@ ConstantFoldConstantExpressionImpl(const ConstantExpr *CE, const DataLayout *TD,
     // Recursively fold the ConstantExpr's operands. If we have already folded
     // a ConstantExpr, we don't have to process it again.
     if (ConstantExpr *NewCE = dyn_cast<ConstantExpr>(NewC)) {
-      if (FoldedOps.insert(NewCE))
+      if (FoldedOps.insert(NewCE).second)
         NewC = ConstantFoldConstantExpressionImpl(NewCE, TD, TLI, FoldedOps);
     }
     Ops.push_back(NewC);
@@ -931,7 +993,7 @@ ConstantFoldConstantExpressionImpl(const ConstantExpr *CE, const DataLayout *TD,
   return ConstantFoldInstOperands(CE->getOpcode(), CE->getType(), Ops, TD, TLI);
 }
 
-/// ConstantFoldConstantExpression - Attempt to fold the constant expression
+/// Attempt to fold the constant expression
 /// using the specified DataLayout.  If successful, the constant result is
 /// result is returned, if not, null is returned.
 Constant *llvm::ConstantFoldConstantExpression(const ConstantExpr *CE,
@@ -941,7 +1003,7 @@ Constant *llvm::ConstantFoldConstantExpression(const ConstantExpr *CE,
   return ConstantFoldConstantExpressionImpl(CE, TD, TLI, FoldedOps);
 }
 
-/// ConstantFoldInstOperands - Attempt to constant fold an instruction with the
+/// Attempt to constant fold an instruction with the
 /// specified opcode and operands.  If successful, the constant result is
 /// returned, if not, null is returned.  Note that this function can fail when
 /// attempting to fold instructions like loads and stores, which have no
@@ -966,14 +1028,14 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
   }
 
   switch (Opcode) {
-  default: return 0;
+  default: return nullptr;
   case Instruction::ICmp:
   case Instruction::FCmp: llvm_unreachable("Invalid for compares");
   case Instruction::Call:
     if (Function *F = dyn_cast<Function>(Ops.back()))
       if (canConstantFoldCallTo(F))
         return ConstantFoldCall(F, Ops.slice(0, Ops.size() - 1), TLI);
-    return 0;
+    return nullptr;
   case Instruction::PtrToInt:
     // If the input is a inttoptr, eliminate the pair.  This requires knowing
     // the width of a pointer, so it can't be done in ConstantExpr::getCast.
@@ -1046,10 +1108,9 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
   }
 }
 
-/// ConstantFoldCompareInstOperands - Attempt to constant fold a compare
+/// Attempt to constant fold a compare
 /// instruction (icmp/fcmp) with the specified operands.  If it fails, it
 /// returns a constant expression of the specified operands.
-///
 Constant *llvm::ConstantFoldCompareInstOperands(unsigned Predicate,
                                                 Constant *Ops0, Constant *Ops1,
                                                 const DataLayout *TD,
@@ -1136,36 +1197,35 @@ Constant *llvm::ConstantFoldCompareInstOperands(unsigned Predicate,
 }
 
 
-/// ConstantFoldLoadThroughGEPConstantExpr - Given a constant and a
-/// getelementptr constantexpr, return the constant value being addressed by the
-/// constant expression, or null if something is funny and we can't decide.
+/// Given a constant and a getelementptr constantexpr, return the constant value
+/// being addressed by the constant expression, or null if something is funny
+/// and we can't decide.
 Constant *llvm::ConstantFoldLoadThroughGEPConstantExpr(Constant *C,
                                                        ConstantExpr *CE) {
   if (!CE->getOperand(1)->isNullValue())
-    return 0;  // Do not allow stepping over the value!
+    return nullptr;  // Do not allow stepping over the value!
 
   // Loop over all of the operands, tracking down which value we are
   // addressing.
   for (unsigned i = 2, e = CE->getNumOperands(); i != e; ++i) {
     C = C->getAggregateElement(CE->getOperand(i));
-    if (C == 0)
-      return 0;
+    if (!C)
+      return nullptr;
   }
   return C;
 }
 
-/// ConstantFoldLoadThroughGEPIndices - Given a constant and getelementptr
-/// indices (with an *implied* zero pointer index that is not in the list),
-/// return the constant value being addressed by a virtual load, or null if
-/// something is funny and we can't decide.
+/// Given a constant and getelementptr indices (with an *implied* zero pointer
+/// index that is not in the list), return the constant value being addressed by
+/// a virtual load, or null if something is funny and we can't decide.
 Constant *llvm::ConstantFoldLoadThroughGEPIndices(Constant *C,
                                                   ArrayRef<Constant*> Indices) {
   // Loop over all of the operands, tracking down which value we are
   // addressing.
   for (unsigned i = 0, e = Indices.size(); i != e; ++i) {
     C = C->getAggregateElement(Indices[i]);
-    if (C == 0)
-      return 0;
+    if (!C)
+      return nullptr;
   }
   return C;
 }
@@ -1175,17 +1235,19 @@ Constant *llvm::ConstantFoldLoadThroughGEPIndices(Constant *C,
 //  Constant Folding for Calls
 //
 
-/// canConstantFoldCallTo - Return true if its even possible to fold a call to
-/// the specified function.
+/// Return true if it's even possible to fold a call to the specified function.
 bool llvm::canConstantFoldCallTo(const Function *F) {
   switch (F->getIntrinsicID()) {
   case Intrinsic::fabs:
+  case Intrinsic::minnum:
+  case Intrinsic::maxnum:
   case Intrinsic::log:
   case Intrinsic::log2:
   case Intrinsic::log10:
   case Intrinsic::exp:
   case Intrinsic::exp2:
   case Intrinsic::floor:
+  case Intrinsic::ceil:
   case Intrinsic::sqrt:
   case Intrinsic::pow:
   case Intrinsic::powi:
@@ -1193,6 +1255,10 @@ bool llvm::canConstantFoldCallTo(const Function *F) {
   case Intrinsic::ctpop:
   case Intrinsic::ctlz:
   case Intrinsic::cttz:
+  case Intrinsic::fma:
+  case Intrinsic::fmuladd:
+  case Intrinsic::copysign:
+  case Intrinsic::round:
   case Intrinsic::sadd_with_overflow:
   case Intrinsic::uadd_with_overflow:
   case Intrinsic::ssub_with_overflow:
@@ -1244,15 +1310,7 @@ bool llvm::canConstantFoldCallTo(const Function *F) {
   }
 }
 
-static Constant *ConstantFoldFP(double (*NativeFP)(double), double V,
-                                Type *Ty) {
-  sys::llvm_fenv_clearexcept();
-  V = NativeFP(V);
-  if (sys::llvm_fenv_testexcept()) {
-    sys::llvm_fenv_clearexcept();
-    return 0;
-  }
-
+static Constant *GetConstantFoldFPValue(double V, Type *Ty) {
   if (Ty->isHalfTy()) {
     APFloat APF(V);
     bool unused;
@@ -1264,38 +1322,62 @@ static Constant *ConstantFoldFP(double (*NativeFP)(double), double V,
   if (Ty->isDoubleTy())
     return ConstantFP::get(Ty->getContext(), APFloat(V));
   llvm_unreachable("Can only constant fold half/float/double");
+
+}
+
+namespace {
+/// Clear the floating-point exception state.
+static inline void llvm_fenv_clearexcept() {
+#if defined(HAVE_FENV_H) && HAVE_DECL_FE_ALL_EXCEPT
+  feclearexcept(FE_ALL_EXCEPT);
+#endif
+  errno = 0;
+}
+
+/// Test if a floating-point exception was raised.
+static inline bool llvm_fenv_testexcept() {
+  int errno_val = errno;
+  if (errno_val == ERANGE || errno_val == EDOM)
+    return true;
+#if defined(HAVE_FENV_H) && HAVE_DECL_FE_ALL_EXCEPT && HAVE_DECL_FE_INEXACT
+  if (fetestexcept(FE_ALL_EXCEPT & ~FE_INEXACT))
+    return true;
+#endif
+  return false;
+}
+} // End namespace
+
+static Constant *ConstantFoldFP(double (*NativeFP)(double), double V,
+                                Type *Ty) {
+  llvm_fenv_clearexcept();
+  V = NativeFP(V);
+  if (llvm_fenv_testexcept()) {
+    llvm_fenv_clearexcept();
+    return nullptr;
+  }
+
+  return GetConstantFoldFPValue(V, Ty);
 }
 
 static Constant *ConstantFoldBinaryFP(double (*NativeFP)(double, double),
                                       double V, double W, Type *Ty) {
-  sys::llvm_fenv_clearexcept();
+  llvm_fenv_clearexcept();
   V = NativeFP(V, W);
-  if (sys::llvm_fenv_testexcept()) {
-    sys::llvm_fenv_clearexcept();
-    return 0;
+  if (llvm_fenv_testexcept()) {
+    llvm_fenv_clearexcept();
+    return nullptr;
   }
 
-  if (Ty->isHalfTy()) {
-    APFloat APF(V);
-    bool unused;
-    APF.convert(APFloat::IEEEhalf, APFloat::rmNearestTiesToEven, &unused);
-    return ConstantFP::get(Ty->getContext(), APF);
-  }
-  if (Ty->isFloatTy())
-    return ConstantFP::get(Ty->getContext(), APFloat((float)V));
-  if (Ty->isDoubleTy())
-    return ConstantFP::get(Ty->getContext(), APFloat(V));
-  llvm_unreachable("Can only constant fold half/float/double");
+  return GetConstantFoldFPValue(V, Ty);
 }
 
-/// ConstantFoldConvertToInt - Attempt to an SSE floating point to integer
-/// conversion of a constant floating point. If roundTowardZero is false, the
-/// default IEEE rounding is used (toward nearest, ties to even). This matches
-/// the behavior of the non-truncating SSE instructions in the default rounding
-/// mode. The desired integer type Ty is used to select how many bits are
-/// available for the result. Returns null if the conversion cannot be
-/// performed, otherwise returns the Constant value resulting from the
-/// conversion.
+/// Attempt to fold an SSE floating point to integer conversion of a constant
+/// floating point. If roundTowardZero is false, the default IEEE rounding is
+/// used (toward nearest, ties to even). This matches the behavior of the
+/// non-truncating SSE instructions in the default rounding mode. The desired
+/// integer type Ty is used to select how many bits are available for the
+/// result. Returns null if the conversion cannot be performed, otherwise
+/// returns the Constant value resulting from the conversion.
 static Constant *ConstantFoldConvertToInt(const APFloat &Val,
                                           bool roundTowardZero, Type *Ty) {
   // All of these conversion intrinsics form an integer of at most 64bits.
@@ -1311,59 +1393,61 @@ static Constant *ConstantFoldConvertToInt(const APFloat &Val,
                                                   /*isSigned=*/true, mode,
                                                   &isExact);
   if (status != APFloat::opOK && status != APFloat::opInexact)
-    return 0;
+    return nullptr;
   return ConstantInt::get(Ty, UIntVal, /*isSigned=*/true);
 }
 
-/// ConstantFoldCall - Attempt to constant fold a call to the specified function
-/// with the specified arguments, returning null if unsuccessful.
-Constant *
-llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
-                       const TargetLibraryInfo *TLI) {
-  if (!F->hasName())
-    return 0;
-  StringRef Name = F->getName();
+static double getValueAsDouble(ConstantFP *Op) {
+  Type *Ty = Op->getType();
 
-  Type *Ty = F->getReturnType();
+  if (Ty->isFloatTy())
+    return Op->getValueAPF().convertToFloat();
+
+  if (Ty->isDoubleTy())
+    return Op->getValueAPF().convertToDouble();
+
+  bool unused;
+  APFloat APF = Op->getValueAPF();
+  APF.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &unused);
+  return APF.convertToDouble();
+}
+
+static Constant *ConstantFoldScalarCall(StringRef Name, unsigned IntrinsicID,
+                                        Type *Ty, ArrayRef<Constant *> Operands,
+                                        const TargetLibraryInfo *TLI) {
   if (Operands.size() == 1) {
     if (ConstantFP *Op = dyn_cast<ConstantFP>(Operands[0])) {
-      if (F->getIntrinsicID() == Intrinsic::convert_to_fp16) {
+      if (IntrinsicID == Intrinsic::convert_to_fp16) {
         APFloat Val(Op->getValueAPF());
 
         bool lost = false;
         Val.convert(APFloat::IEEEhalf, APFloat::rmNearestTiesToEven, &lost);
 
-        return ConstantInt::get(F->getContext(), Val.bitcastToAPInt());
+        return ConstantInt::get(Ty->getContext(), Val.bitcastToAPInt());
       }
-      if (!TLI)
-        return 0;
 
       if (!Ty->isHalfTy() && !Ty->isFloatTy() && !Ty->isDoubleTy())
-        return 0;
+        return nullptr;
+
+      if (IntrinsicID == Intrinsic::round) {
+        APFloat V = Op->getValueAPF();
+        V.roundToIntegral(APFloat::rmNearestTiesToAway);
+        return ConstantFP::get(Ty->getContext(), V);
+      }
 
       /// We only fold functions with finite arguments. Folding NaN and inf is
       /// likely to be aborted with an exception anyway, and some host libms
       /// have known errors raising exceptions.
       if (Op->getValueAPF().isNaN() || Op->getValueAPF().isInfinity())
-        return 0;
+        return nullptr;
 
       /// Currently APFloat versions of these functions do not exist, so we use
       /// the host native double versions.  Float versions are not called
       /// directly but for all these it is true (float)(f((double)arg)) ==
       /// f(arg).  Long double not supported yet.
-      double V;
-      if (Ty->isFloatTy())
-        V = Op->getValueAPF().convertToFloat();
-      else if (Ty->isDoubleTy())
-        V = Op->getValueAPF().convertToDouble();
-      else {
-        bool unused;
-        APFloat APF = Op->getValueAPF();
-        APF.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &unused);
-        V = APF.convertToDouble();
-      }
+      double V = getValueAsDouble(Op);
 
-      switch (F->getIntrinsicID()) {
+      switch (IntrinsicID) {
         default: break;
         case Intrinsic::fabs:
           return ConstantFoldFP(fabs, V, Ty);
@@ -1389,7 +1473,12 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
 #endif
         case Intrinsic::floor:
           return ConstantFoldFP(floor, V, Ty);
+        case Intrinsic::ceil:
+          return ConstantFoldFP(ceil, V, Ty);
       }
+
+      if (!TLI)
+        return nullptr;
 
       switch (Name[0]) {
       case 'a':
@@ -1431,12 +1520,18 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
           return ConstantFoldFP(log, V, Ty);
         else if (Name == "log10" && V > 0 && TLI->has(LibFunc::log10))
           return ConstantFoldFP(log10, V, Ty);
-        else if (F->getIntrinsicID() == Intrinsic::sqrt &&
+        else if (IntrinsicID == Intrinsic::sqrt &&
                  (Ty->isHalfTy() || Ty->isFloatTy() || Ty->isDoubleTy())) {
           if (V >= -0.0)
             return ConstantFoldFP(sqrt, V, Ty);
-          else // Undefined
-            return Constant::getNullValue(Ty);
+          else {
+            // Unlike the sqrt definitions in C/C++, POSIX, and IEEE-754 - which
+            // all guarantee or favor returning NaN - the square root of a
+            // negative number is not defined for the LLVM sqrt intrinsic.
+            // This is because the intrinsic should only be emitted in place of
+            // libm's sqrt function when using "no-nans-fp-math".
+            return UndefValue::get(Ty);
+          }
         }
         break;
       case 's':
@@ -1460,13 +1555,13 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
       default:
         break;
       }
-      return 0;
+      return nullptr;
     }
 
     if (ConstantInt *Op = dyn_cast<ConstantInt>(Operands[0])) {
-      switch (F->getIntrinsicID()) {
+      switch (IntrinsicID) {
       case Intrinsic::bswap:
-        return ConstantInt::get(F->getContext(), Op->getValue().byteSwap());
+        return ConstantInt::get(Ty->getContext(), Op->getValue().byteSwap());
       case Intrinsic::ctpop:
         return ConstantInt::get(Ty, Op->getValue().countPopulation());
       case Intrinsic::convert_from_fp16: {
@@ -1481,10 +1576,10 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
         assert(status == APFloat::opOK && !lost &&
                "Precision lost during fp16 constfolding");
 
-        return ConstantFP::get(F->getContext(), Val);
+        return ConstantFP::get(Ty->getContext(), Val);
       }
       default:
-        return 0;
+        return nullptr;
       }
     }
 
@@ -1492,7 +1587,7 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
     if (isa<ConstantVector>(Operands[0]) ||
         isa<ConstantDataVector>(Operands[0])) {
       Constant *Op = cast<Constant>(Operands[0]);
-      switch (F->getIntrinsicID()) {
+      switch (IntrinsicID) {
       default: break;
       case Intrinsic::x86_sse_cvtss2si:
       case Intrinsic::x86_sse_cvtss2si64:
@@ -1514,51 +1609,49 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
     }
 
     if (isa<UndefValue>(Operands[0])) {
-      if (F->getIntrinsicID() == Intrinsic::bswap)
+      if (IntrinsicID == Intrinsic::bswap)
         return Operands[0];
-      return 0;
+      return nullptr;
     }
 
-    return 0;
+    return nullptr;
   }
 
   if (Operands.size() == 2) {
     if (ConstantFP *Op1 = dyn_cast<ConstantFP>(Operands[0])) {
       if (!Ty->isHalfTy() && !Ty->isFloatTy() && !Ty->isDoubleTy())
-        return 0;
-      double Op1V;
-      if (Ty->isFloatTy())
-        Op1V = Op1->getValueAPF().convertToFloat();
-      else if (Ty->isDoubleTy())
-        Op1V = Op1->getValueAPF().convertToDouble();
-      else {
-        bool unused;
-        APFloat APF = Op1->getValueAPF();
-        APF.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &unused);
-        Op1V = APF.convertToDouble();
-      }
+        return nullptr;
+      double Op1V = getValueAsDouble(Op1);
 
       if (ConstantFP *Op2 = dyn_cast<ConstantFP>(Operands[1])) {
         if (Op2->getType() != Op1->getType())
-          return 0;
+          return nullptr;
 
-        double Op2V;
-        if (Ty->isFloatTy())
-          Op2V = Op2->getValueAPF().convertToFloat();
-        else if (Ty->isDoubleTy())
-          Op2V = Op2->getValueAPF().convertToDouble();
-        else {
-          bool unused;
-          APFloat APF = Op2->getValueAPF();
-          APF.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &unused);
-          Op2V = APF.convertToDouble();
-        }
-
-        if (F->getIntrinsicID() == Intrinsic::pow) {
+        double Op2V = getValueAsDouble(Op2);
+        if (IntrinsicID == Intrinsic::pow) {
           return ConstantFoldBinaryFP(pow, Op1V, Op2V, Ty);
         }
+        if (IntrinsicID == Intrinsic::copysign) {
+          APFloat V1 = Op1->getValueAPF();
+          APFloat V2 = Op2->getValueAPF();
+          V1.copySign(V2);
+          return ConstantFP::get(Ty->getContext(), V1);
+        }
+
+        if (IntrinsicID == Intrinsic::minnum) {
+          const APFloat &C1 = Op1->getValueAPF();
+          const APFloat &C2 = Op2->getValueAPF();
+          return ConstantFP::get(Ty->getContext(), minnum(C1, C2));
+        }
+
+        if (IntrinsicID == Intrinsic::maxnum) {
+          const APFloat &C1 = Op1->getValueAPF();
+          const APFloat &C2 = Op2->getValueAPF();
+          return ConstantFP::get(Ty->getContext(), maxnum(C1, C2));
+        }
+
         if (!TLI)
-          return 0;
+          return nullptr;
         if (Name == "pow" && TLI->has(LibFunc::pow))
           return ConstantFoldBinaryFP(pow, Op1V, Op2V, Ty);
         if (Name == "fmod" && TLI->has(LibFunc::fmod))
@@ -1566,25 +1659,25 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
         if (Name == "atan2" && TLI->has(LibFunc::atan2))
           return ConstantFoldBinaryFP(atan2, Op1V, Op2V, Ty);
       } else if (ConstantInt *Op2C = dyn_cast<ConstantInt>(Operands[1])) {
-        if (F->getIntrinsicID() == Intrinsic::powi && Ty->isHalfTy())
-          return ConstantFP::get(F->getContext(),
+        if (IntrinsicID == Intrinsic::powi && Ty->isHalfTy())
+          return ConstantFP::get(Ty->getContext(),
                                  APFloat((float)std::pow((float)Op1V,
                                                  (int)Op2C->getZExtValue())));
-        if (F->getIntrinsicID() == Intrinsic::powi && Ty->isFloatTy())
-          return ConstantFP::get(F->getContext(),
+        if (IntrinsicID == Intrinsic::powi && Ty->isFloatTy())
+          return ConstantFP::get(Ty->getContext(),
                                  APFloat((float)std::pow((float)Op1V,
                                                  (int)Op2C->getZExtValue())));
-        if (F->getIntrinsicID() == Intrinsic::powi && Ty->isDoubleTy())
-          return ConstantFP::get(F->getContext(),
+        if (IntrinsicID == Intrinsic::powi && Ty->isDoubleTy())
+          return ConstantFP::get(Ty->getContext(),
                                  APFloat((double)std::pow((double)Op1V,
                                                    (int)Op2C->getZExtValue())));
       }
-      return 0;
+      return nullptr;
     }
 
     if (ConstantInt *Op1 = dyn_cast<ConstantInt>(Operands[0])) {
       if (ConstantInt *Op2 = dyn_cast<ConstantInt>(Operands[1])) {
-        switch (F->getIntrinsicID()) {
+        switch (IntrinsicID) {
         default: break;
         case Intrinsic::sadd_with_overflow:
         case Intrinsic::uadd_with_overflow:
@@ -1594,7 +1687,7 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
         case Intrinsic::umul_with_overflow: {
           APInt Res;
           bool Overflow;
-          switch (F->getIntrinsicID()) {
+          switch (IntrinsicID) {
           default: llvm_unreachable("Invalid case");
           case Intrinsic::sadd_with_overflow:
             Res = Op1->getValue().sadd_ov(Op2->getValue(), Overflow);
@@ -1616,10 +1709,10 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
             break;
           }
           Constant *Ops[] = {
-            ConstantInt::get(F->getContext(), Res),
-            ConstantInt::get(Type::getInt1Ty(F->getContext()), Overflow)
+            ConstantInt::get(Ty->getContext(), Res),
+            ConstantInt::get(Type::getInt1Ty(Ty->getContext()), Overflow)
           };
-          return ConstantStruct::get(cast<StructType>(F->getReturnType()), Ops);
+          return ConstantStruct::get(cast<StructType>(Ty), Ops);
         }
         case Intrinsic::cttz:
           if (Op2->isOne() && Op1->isZero()) // cttz(0, 1) is undef.
@@ -1632,9 +1725,79 @@ llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
         }
       }
 
-      return 0;
+      return nullptr;
     }
-    return 0;
+    return nullptr;
   }
-  return 0;
+
+  if (Operands.size() != 3)
+    return nullptr;
+
+  if (const ConstantFP *Op1 = dyn_cast<ConstantFP>(Operands[0])) {
+    if (const ConstantFP *Op2 = dyn_cast<ConstantFP>(Operands[1])) {
+      if (const ConstantFP *Op3 = dyn_cast<ConstantFP>(Operands[2])) {
+        switch (IntrinsicID) {
+        default: break;
+        case Intrinsic::fma:
+        case Intrinsic::fmuladd: {
+          APFloat V = Op1->getValueAPF();
+          APFloat::opStatus s = V.fusedMultiplyAdd(Op2->getValueAPF(),
+                                                   Op3->getValueAPF(),
+                                                   APFloat::rmNearestTiesToEven);
+          if (s != APFloat::opInvalidOp)
+            return ConstantFP::get(Ty->getContext(), V);
+
+          return nullptr;
+        }
+        }
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+static Constant *ConstantFoldVectorCall(StringRef Name, unsigned IntrinsicID,
+                                        VectorType *VTy,
+                                        ArrayRef<Constant *> Operands,
+                                        const TargetLibraryInfo *TLI) {
+  SmallVector<Constant *, 4> Result(VTy->getNumElements());
+  SmallVector<Constant *, 4> Lane(Operands.size());
+  Type *Ty = VTy->getElementType();
+
+  for (unsigned I = 0, E = VTy->getNumElements(); I != E; ++I) {
+    // Gather a column of constants.
+    for (unsigned J = 0, JE = Operands.size(); J != JE; ++J) {
+      Constant *Agg = Operands[J]->getAggregateElement(I);
+      if (!Agg)
+        return nullptr;
+
+      Lane[J] = Agg;
+    }
+
+    // Use the regular scalar folding to simplify this column.
+    Constant *Folded = ConstantFoldScalarCall(Name, IntrinsicID, Ty, Lane, TLI);
+    if (!Folded)
+      return nullptr;
+    Result[I] = Folded;
+  }
+
+  return ConstantVector::get(Result);
+}
+
+/// Attempt to constant fold a call to the specified function
+/// with the specified arguments, returning null if unsuccessful.
+Constant *
+llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
+                       const TargetLibraryInfo *TLI) {
+  if (!F->hasName())
+    return nullptr;
+  StringRef Name = F->getName();
+
+  Type *Ty = F->getReturnType();
+
+  if (VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return ConstantFoldVectorCall(Name, F->getIntrinsicID(), VTy, Operands, TLI);
+
+  return ConstantFoldScalarCall(Name, F->getIntrinsicID(), Ty, Operands, TLI);
 }

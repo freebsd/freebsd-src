@@ -298,8 +298,13 @@ random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
 	KASSERT((bytecount <= (1 << 20)), ("invalid single read request to fortuna of %d bytes", bytecount));
 
 	/* F&S - r = first-n-bytes(GenerateBlocks(ceil(n/16))) */
-	blockcount = (bytecount + BLOCKSIZE - 1)/BLOCKSIZE;
+	blockcount = bytecount / BLOCKSIZE;
 	random_fortuna_genblocks(buf, blockcount);
+	/* TODO: FIX! remove memcpy()! */
+	if (bytecount % BLOCKSIZE > 0) {
+		random_fortuna_genblocks(temp, 1);
+		memcpy(buf + (blockcount * BLOCKSIZE), temp, bytecount % BLOCKSIZE);
+	}
 
 	/* F&S - K = GenerateBlocks(2) */
 	random_fortuna_genblocks(temp, KEYSIZE/BLOCKSIZE);

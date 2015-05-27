@@ -18,8 +18,7 @@ SRCS=	buffer.c dane.c dname.c dnssec.c dnssec_sign.c dnssec_verify.c \
 
 SRCS+=	b64_ntop.c b64_pton.c
 
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD=	crypto
 
 WARNS ?= 3
 

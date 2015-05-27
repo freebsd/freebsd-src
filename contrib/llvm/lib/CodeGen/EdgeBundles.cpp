@@ -41,9 +41,7 @@ bool EdgeBundles::runOnMachineFunction(MachineFunction &mf) {
   EC.clear();
   EC.grow(2 * MF->getNumBlockIDs());
 
-  for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E;
-       ++I) {
-    const MachineBasicBlock &MBB = *I;
+  for (const auto &MBB : *MF) {
     unsigned OutE = 2 * MBB.getNumber() + 1;
     // Join the outgoing bundle with the ingoing bundles of all successors.
     for (MachineBasicBlock::const_succ_iterator SI = MBB.succ_begin(),
@@ -69,29 +67,31 @@ bool EdgeBundles::runOnMachineFunction(MachineFunction &mf) {
   return false;
 }
 
-/// view - Visualize the annotated bipartite CFG with Graphviz.
-void EdgeBundles::view() const {
-  ViewGraph(*this, "EdgeBundles");
-}
-
 /// Specialize WriteGraph, the standard implementation won't work.
-raw_ostream &llvm::WriteGraph(raw_ostream &O, const EdgeBundles &G,
-                              bool ShortNames,
-                              const Twine &Title) {
+namespace llvm {
+template<>
+raw_ostream &WriteGraph<>(raw_ostream &O, const EdgeBundles &G,
+                          bool ShortNames,
+                          const Twine &Title) {
   const MachineFunction *MF = G.getMachineFunction();
 
   O << "digraph {\n";
-  for (MachineFunction::const_iterator I = MF->begin(), E = MF->end();
-       I != E; ++I) {
-    unsigned BB = I->getNumber();
+  for (const auto &MBB : *MF) {
+    unsigned BB = MBB.getNumber();
     O << "\t\"BB#" << BB << "\" [ shape=box ]\n"
       << '\t' << G.getBundle(BB, false) << " -> \"BB#" << BB << "\"\n"
       << "\t\"BB#" << BB << "\" -> " << G.getBundle(BB, true) << '\n';
-    for (MachineBasicBlock::const_succ_iterator SI = I->succ_begin(),
-           SE = I->succ_end(); SI != SE; ++SI)
+    for (MachineBasicBlock::const_succ_iterator SI = MBB.succ_begin(),
+           SE = MBB.succ_end(); SI != SE; ++SI)
       O << "\t\"BB#" << BB << "\" -> \"BB#" << (*SI)->getNumber()
         << "\" [ color=lightgray ]\n";
   }
   O << "}\n";
   return O;
+}
+}
+
+/// view - Visualize the annotated bipartite CFG with Graphviz.
+void EdgeBundles::view() const {
+  ViewGraph(*this, "EdgeBundles");
 }

@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -73,9 +72,10 @@ struct atpic {
 	uint8_t		request;	/* Interrupt Request Register (IIR) */
 	uint8_t		service;	/* Interrupt Service (ISR) */
 	uint8_t		mask;		/* Interrupt Mask Register (IMR) */
+	uint8_t		smm;		/* special mask mode */
 
 	int		acnt[8];	/* sum of pin asserts and deasserts */
-	int		priority;	/* current pin priority */
+	int		lowprio;	/* lowest priority irq */
 
 	bool		intr_raised;
 };
@@ -102,7 +102,25 @@ struct vatpic {
 #define	VATPIC_CTR4(vatpic, fmt, a1, a2, a3, a4)			\
 	VM_CTR4((vatpic)->vm, fmt, a1, a2, a3, a4)
 
+/*
+ * Loop over all the pins in priority order from highest to lowest.
+ */
+#define	ATPIC_PIN_FOREACH(pinvar, atpic, tmpvar)			\
+	for (tmpvar = 0, pinvar = (atpic->lowprio + 1) & 0x7;		\
+	    tmpvar < 8;							\
+	    tmpvar++, pinvar = (pinvar + 1) & 0x7)
+
 static void vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate);
+
+static __inline bool
+master_atpic(struct vatpic *vatpic, struct atpic *atpic)
+{
+
+	if (atpic == &vatpic->atpic[0])
+		return (true);
+	else
+		return (false);
+}
 
 static __inline int
 vatpic_get_highest_isrpin(struct atpic *atpic)
@@ -110,12 +128,19 @@ vatpic_get_highest_isrpin(struct atpic *atpic)
 	int bit, pin;
 	int i;
 
-	for (i = 0; i <= 7; i++) {
-		pin = ((i + 7 - atpic->priority) & 0x7);
+	ATPIC_PIN_FOREACH(pin, atpic, i) {
                 bit = (1 << pin);
 
-		if (atpic->service & bit)
-			return (pin);
+		if (atpic->service & bit) {
+			/*
+			 * An IS bit that is masked by an IMR bit will not be
+			 * cleared by a non-specific EOI in Special Mask Mode.
+			 */
+			if (atpic->smm && (atpic->mask & bit) != 0)
+				continue;
+			else
+				return (pin);
+		}
 	}
 
 	return (-1);
@@ -125,8 +150,7 @@ static __inline int
 vatpic_get_highest_irrpin(struct atpic *atpic)
 {
 	int serviced;
-	int bit, pin;
-	int i, j;
+	int bit, pin, tmp;
 
 	/*
 	 * In 'Special Fully-Nested Mode' when an interrupt request from
@@ -137,17 +161,30 @@ vatpic_get_highest_irrpin(struct atpic *atpic)
 	if (atpic->sfn)
 		serviced &= ~(1 << 2);
 
-	for (i = 0; i <= 7; i++) {
-		pin = ((i + 7 - atpic->priority) & 0x7);
-		bit = (1 << pin);
-		if (serviced & bit)
-			break;
-	}
+	/*
+	 * In 'Special Mask Mode', when a mask bit is set in OCW1 it inhibits
+	 * further interrupts at that level and enables interrupts from all
+	 * other levels that are not masked. In other words the ISR has no
+	 * bearing on the levels that can generate interrupts.
+	 */
+	if (atpic->smm)
+		serviced = 0;
 
-	for (j = 0; j < i; j++) {
-		pin = ((j + 7 - atpic->priority) & 0x7);
-		bit = (1 << pin);
-		if (atpic->request & bit && (~atpic->mask & bit))
+	ATPIC_PIN_FOREACH(pin, atpic, tmp) {
+		bit = 1 << pin;
+
+		/*
+		 * If there is already an interrupt in service at the same
+		 * or higher priority then bail.
+		 */
+		if ((serviced & bit) != 0)
+			break;
+
+		/*
+		 * If an interrupt is asserted and not masked then return
+		 * the corresponding 'pin' to the caller.
+		 */
+		if ((atpic->request & bit) != 0 && (atpic->mask & bit) == 0)
 			return (pin);
 	}
 
@@ -237,9 +274,12 @@ vatpic_icw1(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 	atpic->ready = false;
 
 	atpic->icw_num = 1;
+	atpic->request = 0;
 	atpic->mask = 0;
-	atpic->priority = 0;
+	atpic->lowprio = 7;
 	atpic->rd_cmd_reg = 0;
+	atpic->poll = 0;
+	atpic->smm = 0;
 
 	if ((val & ICW1_SNGL) != 0) {
 		VATPIC_CTR0(vatpic, "vatpic cascade mode required");
@@ -291,6 +331,15 @@ vatpic_icw4(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 	if ((val & ICW4_AEOI) != 0)
 		atpic->aeoi = true;
 
+	if ((val & ICW4_SFNM) != 0) {
+		if (master_atpic(vatpic, atpic)) {
+			atpic->sfn = true;
+		} else {
+			VATPIC_CTR1(vatpic, "Ignoring special fully nested "
+			    "mode on slave atpic: %#x", val);
+		}
+	}
+
 	atpic->icw_num = 0;
 	atpic->ready = true;
 
@@ -329,11 +378,11 @@ vatpic_ocw2(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 			atpic->service &= ~(1 << isr_bit);
 
 			if (atpic->rotate)
-				atpic->priority = isr_bit;
+				atpic->lowprio = isr_bit;
 		}
 	} else if ((val & OCW2_SL) != 0 && atpic->rotate == true) {
 		/* specific priority */
-		atpic->priority = val & 0x7;
+		atpic->lowprio = val & 0x7;
 	}
 
 	return (0);
@@ -344,11 +393,19 @@ vatpic_ocw3(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 {
 	VATPIC_CTR1(vatpic, "atpic ocw3 0x%x", val);
 
-	atpic->poll = ((val & OCW3_P) != 0);
+	if (val & OCW3_ESMM) {
+		atpic->smm = val & OCW3_SMM ? 1 : 0;
+		VATPIC_CTR2(vatpic, "%s atpic special mask mode %s",
+		    master_atpic(vatpic, atpic) ? "master" : "slave",
+		    atpic->smm ?  "enabled" : "disabled");
+	}
 
 	if (val & OCW3_RR) {
 		/* read register command */
 		atpic->rd_cmd_reg = val & OCW3_RIS;
+
+		/* Polling mode */
+		atpic->poll = ((val & OCW3_P) != 0);
 	}
 
 	return (0);
@@ -388,6 +445,8 @@ vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate)
 	} else if (oldcnt == 1 && newcnt == 0) {
 		/* falling edge */
 		VATPIC_CTR1(vatpic, "atpic pin%d: deasserted", pin);
+		if (level)
+			atpic->request &= ~(1 << (pin & 0x7));
 	} else {
 		VATPIC_CTR3(vatpic, "atpic pin%d: %s, ignored, acnt %d",
 		    pin, newstate ? "asserted" : "deasserted", newcnt);
@@ -528,7 +587,7 @@ vatpic_pin_accepted(struct atpic *atpic, int pin)
 
 	if (atpic->aeoi == true) {
 		if (atpic->rotate == true)
-			atpic->priority = pin;
+			atpic->lowprio = pin;
 	} else {
 		atpic->service |= (1 << pin);
 	}
@@ -566,12 +625,19 @@ static int
 vatpic_read(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	    int bytes, uint32_t *eax)
 {
+	int pin;
+
 	VATPIC_LOCK(vatpic);
 
 	if (atpic->poll) {
-		VATPIC_CTR0(vatpic, "vatpic polled mode not supported");
-		VATPIC_UNLOCK(vatpic);
-		return (-1);
+		atpic->poll = 0;
+		pin = vatpic_get_highest_irrpin(atpic);
+		if (pin >= 0) {
+			vatpic_pin_accepted(atpic, pin);
+			*eax = 0x80 | pin;
+		} else {
+			*eax = 0;
+		}
 	} else {
 		if (port & ICU_IMR_OFFSET) {
 			/* read interrrupt mask register */

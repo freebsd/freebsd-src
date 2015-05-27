@@ -10,12 +10,10 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libdevstat \
 	lib/libedit \
 	lib/libedit/edit/readline \
 	lib/libexpat \
 	lib/libgeom \
-	lib/libkvm \
 	lib/libsbuf \
 	lib/ncurses/ncursesw \
 

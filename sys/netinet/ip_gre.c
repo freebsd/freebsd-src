@@ -68,11 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_gre.h>
 
 extern struct domain inetdomain;
-extern int gre_input(struct mbuf **, int *, int);
-
-int in_gre_attach(struct gre_softc *);
-int in_gre_output(struct mbuf *, int, int);
-
 static const struct protosw in_gre_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
@@ -150,7 +145,7 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 #ifdef INET6
 	case AF_INET6:
 		gi->gi_ip.ip_tos = 0; /* XXX */
-		gi->gi_ip.ip_id = ip_newid();
+		ip_fillid(&gi->gi_ip);
 		break;
 #endif
 	}

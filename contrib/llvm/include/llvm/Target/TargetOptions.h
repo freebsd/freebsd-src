@@ -15,6 +15,7 @@
 #ifndef LLVM_TARGET_TARGETOPTIONS_H
 #define LLVM_TARGET_TARGETOPTIONS_H
 
+#include "llvm/MC/MCTargetOptions.h"
 #include <string>
 
 namespace llvm {
@@ -38,21 +39,50 @@ namespace llvm {
     };
   }
 
+  namespace JumpTable {
+    enum JumpTableType {
+      Single,          // Use a single table for all indirect jumptable calls.
+      Arity,           // Use one table per number of function parameters.
+      Simplified,      // Use one table per function type, with types projected
+                       // into 4 types: pointer to non-function, struct,
+                       // primitive, and function pointer.
+      Full             // Use one table per unique function type
+    };
+  }
+
+  namespace ThreadModel {
+    enum Model {
+      POSIX,  // POSIX Threads
+      Single  // Single Threaded Environment
+    };
+  }
+
+  enum class CFIntegrity {
+    Sub,             // Use subtraction-based checks.
+    Ror,             // Use rotation-based checks.
+    Add              // Use addition-based checks. This depends on having
+                     // sufficient alignment in the code and is usually not
+                     // feasible.
+  };
+
   class TargetOptions {
   public:
     TargetOptions()
         : PrintMachineCode(false), NoFramePointerElim(false),
-          LessPreciseFPMADOption(false),
-          UnsafeFPMath(false), NoInfsFPMath(false),
-          NoNaNsFPMath(false), HonorSignDependentRoundingFPMathOption(false),
-          UseSoftFloat(false), NoZerosInBSS(false),
-          JITEmitDebugInfo(false), JITEmitDebugInfoToDisk(false),
-          GuaranteedTailCallOpt(false), DisableTailCalls(false),
-          StackAlignmentOverride(0),
+          LessPreciseFPMADOption(false), UnsafeFPMath(false),
+          NoInfsFPMath(false), NoNaNsFPMath(false),
+          HonorSignDependentRoundingFPMathOption(false), UseSoftFloat(false),
+          NoZerosInBSS(false), JITEmitDebugInfo(false),
+          JITEmitDebugInfoToDisk(false), GuaranteedTailCallOpt(false),
+          DisableTailCalls(false), StackAlignmentOverride(0),
           EnableFastISel(false), PositionIndependentExecutable(false),
-          EnableSegmentedStacks(false), UseInitArray(false), TrapFuncName(""),
-          FloatABIType(FloatABI::Default), AllowFPOpFusion(FPOpFusion::Standard)
-    {}
+          UseInitArray(false), DisableIntegratedAS(false),
+          CompressDebugSections(false), FunctionSections(false),
+          DataSections(false), TrapUnreachable(false), TrapFuncName(),
+          FloatABIType(FloatABI::Default),
+          AllowFPOpFusion(FPOpFusion::Standard), JTType(JumpTable::Single),
+          FCFI(false), ThreadModel(ThreadModel::POSIX),
+          CFIType(CFIntegrity::Sub), CFIEnforcing(false), CFIFuncName() {}
 
     /// PrintMachineCode - This flag is enabled when the -print-machineinstrs
     /// option is specified on the command line, and should enable debugging
@@ -152,11 +182,24 @@ namespace llvm {
     /// if the relocation model is anything other than PIC.
     unsigned PositionIndependentExecutable : 1;
 
-    unsigned EnableSegmentedStacks : 1;
-
     /// UseInitArray - Use .init_array instead of .ctors for static
     /// constructors.
     unsigned UseInitArray : 1;
+
+    /// Disable the integrated assembler.
+    unsigned DisableIntegratedAS : 1;
+
+    /// Compress DWARF debug sections.
+    unsigned CompressDebugSections : 1;
+
+    /// Emit functions into separate sections.
+    unsigned FunctionSections : 1;
+
+    /// Emit data into separate sections.
+    unsigned DataSections : 1;
+
+    /// Emit target-specific trap instruction for 'unreachable' IR instructions.
+    unsigned TrapUnreachable : 1;
 
     /// getTrapFunctionName - If this returns a non-empty string, this means
     /// isel should lower Intrinsic::trap to a call to the specified function
@@ -189,6 +232,35 @@ namespace llvm {
     /// via the llvm.fma.* intrinsic) will always be honored, regardless of
     /// the value of this option.
     FPOpFusion::FPOpFusionMode AllowFPOpFusion;
+
+    /// JTType - This flag specifies the type of jump-instruction table to
+    /// create for functions that have the jumptable attribute.
+    JumpTable::JumpTableType JTType;
+
+    /// FCFI - This flags controls whether or not forward-edge control-flow
+    /// integrity is applied.
+    bool FCFI;
+
+    /// ThreadModel - This flag specifies the type of threading model to assume
+    /// for things like atomics
+    ThreadModel::Model ThreadModel;
+
+    /// CFIType - This flag specifies the type of control-flow integrity check
+    /// to add as a preamble to indirect calls.
+    CFIntegrity CFIType;
+
+    /// CFIEnforcing - This flags controls whether or not CFI violations cause
+    /// the program to halt.
+    bool CFIEnforcing;
+
+    /// getCFIFuncName - If this returns a non-empty string, then this is the
+    /// name of the function that will be called for each CFI violation in
+    /// non-enforcing mode.
+    std::string CFIFuncName;
+    StringRef getCFIFuncName() const;
+
+    /// Machine level options.
+    MCTargetOptions MCOptions;
   };
 
 // Comparison operators:
@@ -211,11 +283,18 @@ inline bool operator==(const TargetOptions &LHS,
     ARE_EQUAL(StackAlignmentOverride) &&
     ARE_EQUAL(EnableFastISel) &&
     ARE_EQUAL(PositionIndependentExecutable) &&
-    ARE_EQUAL(EnableSegmentedStacks) &&
     ARE_EQUAL(UseInitArray) &&
+    ARE_EQUAL(TrapUnreachable) &&
     ARE_EQUAL(TrapFuncName) &&
     ARE_EQUAL(FloatABIType) &&
-    ARE_EQUAL(AllowFPOpFusion);
+    ARE_EQUAL(AllowFPOpFusion) &&
+    ARE_EQUAL(JTType) &&
+    ARE_EQUAL(FCFI) &&
+    ARE_EQUAL(ThreadModel) &&
+    ARE_EQUAL(CFIType) &&
+    ARE_EQUAL(CFIEnforcing) &&
+    ARE_EQUAL(CFIFuncName) &&
+    ARE_EQUAL(MCOptions);
 #undef ARE_EQUAL
 }
 

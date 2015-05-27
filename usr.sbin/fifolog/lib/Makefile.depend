@@ -6,6 +6,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/libz \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

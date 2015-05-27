@@ -7,9 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains constants used for implementing Dwarf debug support.  For
-// Details on the Dwarf 3 specfication see DWARF Debugging Information Format
-// V.3 reference manual http://dwarf.freestandards.org ,
+// \file
+// \brief This file contains constants used for implementing Dwarf
+// debug support.
+//
+// For details on the Dwarf specfication see the latest DWARF Debugging
+// Information Format standard document on http://www.dwarfstd.org. This
+// file often includes support for non-released standard features.
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,43 +25,27 @@
 
 namespace llvm {
 
-//===----------------------------------------------------------------------===//
-// Debug info constants.
-
-enum LLVM_ENUM_INT_TYPE(uint32_t) {
-  LLVMDebugVersion = (12 << 16),    // Current version of debug information.
-  LLVMDebugVersion11 = (11 << 16),  // Constant for version 11.
-  LLVMDebugVersion10 = (10 << 16),  // Constant for version 10.
-  LLVMDebugVersion9 = (9 << 16),    // Constant for version 9.
-  LLVMDebugVersion8 = (8 << 16),    // Constant for version 8.
-  LLVMDebugVersion7 = (7 << 16),    // Constant for version 7.
-  LLVMDebugVersion6 = (6 << 16),    // Constant for version 6.
-  LLVMDebugVersion5 = (5 << 16),    // Constant for version 5.
-  LLVMDebugVersion4 = (4 << 16),    // Constant for version 4.
-  LLVMDebugVersionMask = 0xffff0000 // Mask for version number.
-};
-
 namespace dwarf {
 
 //===----------------------------------------------------------------------===//
 // Dwarf constants as gleaned from the DWARF Debugging Information Format V.4
-// reference manual http://dwarf.freestandards.org.
+// reference manual http://www.dwarfstd.org/.
 //
 
 // Do not mix the following two enumerations sets.  DW_TAG_invalid changes the
 // enumeration base type.
 
-enum LLVMConstants LLVM_ENUM_INT_TYPE(uint32_t) {
+enum LLVMConstants : uint32_t {
   // llvm mock tags
   DW_TAG_invalid = ~0U, // Tag for invalid results.
 
   DW_TAG_auto_variable = 0x100, // Tag for local (auto) variables.
   DW_TAG_arg_variable = 0x101,  // Tag for argument variables.
+  DW_TAG_expression = 0x102,    // Tag for complex address expressions.
 
   DW_TAG_user_base = 0x1000, // Recommended base for user tags.
 
   DWARF_VERSION = 4,       // Default dwarf version we output.
-  DW_CIE_VERSION = 1,      // Common frame information version.
   DW_PUBTYPES_VERSION = 2, // Section version number for .debug_pubtypes.
   DW_PUBNAMES_VERSION = 2, // Section version number for .debug_pubnames.
   DW_ARANGES_VERSION = 2   // Section version number for .debug_aranges.
@@ -68,7 +56,7 @@ enum LLVMConstants LLVM_ENUM_INT_TYPE(uint32_t) {
 const uint32_t DW_CIE_ID = UINT32_MAX;
 const uint64_t DW64_CIE_ID = UINT64_MAX;
 
-enum Tag LLVM_ENUM_INT_TYPE(uint16_t) {
+enum Tag : uint16_t {
   DW_TAG_array_type = 0x01,
   DW_TAG_class_type = 0x02,
   DW_TAG_entry_point = 0x03,
@@ -129,6 +117,12 @@ enum Tag LLVM_ENUM_INT_TYPE(uint16_t) {
   DW_TAG_type_unit = 0x41,
   DW_TAG_rvalue_reference_type = 0x42,
   DW_TAG_template_alias = 0x43,
+
+  // New in DWARF 5:
+  DW_TAG_coarray_type = 0x44,
+  DW_TAG_generic_subrange = 0x45,
+  DW_TAG_dynamic_type = 0x46,
+
   DW_TAG_MIPS_loop = 0x4081,
   DW_TAG_format_label = 0x4101,
   DW_TAG_function_template = 0x4102,
@@ -169,7 +163,7 @@ inline bool isType(Tag T) {
   }
 }
 
-enum Attribute LLVM_ENUM_INT_TYPE(uint16_t) {
+enum Attribute : uint16_t {
   // Attributes
   DW_AT_sibling = 0x01,
   DW_AT_location = 0x02,
@@ -264,6 +258,18 @@ enum Attribute LLVM_ENUM_INT_TYPE(uint16_t) {
   DW_AT_enum_class = 0x6d,
   DW_AT_linkage_name = 0x6e,
 
+  // New in DWARF 5:
+  DW_AT_string_length_bit_size = 0x6f,
+  DW_AT_string_length_byte_size = 0x70,
+  DW_AT_rank = 0x71,
+  DW_AT_str_offsets_base = 0x72,
+  DW_AT_addr_base = 0x73,
+  DW_AT_ranges_base = 0x74,
+  DW_AT_dwo_id = 0x75,
+  DW_AT_dwo_name = 0x76,
+  DW_AT_reference = 0x77,
+  DW_AT_rvalue_reference = 0x78,
+
   DW_AT_lo_user = 0x2000,
   DW_AT_hi_user = 0x3fff,
 
@@ -323,7 +329,7 @@ enum Attribute LLVM_ENUM_INT_TYPE(uint16_t) {
   DW_AT_APPLE_property = 0x3fed
 };
 
-enum Form LLVM_ENUM_INT_TYPE(uint16_t) {
+enum Form : uint16_t {
   // Attribute form encodings
   DW_FORM_addr = 0x01,
   DW_FORM_block2 = 0x03,
@@ -605,7 +611,16 @@ enum SourceLanguage {
   DW_LANG_ObjC_plus_plus = 0x0011,
   DW_LANG_UPC = 0x0012,
   DW_LANG_D = 0x0013,
+  // New in DWARF 5:
   DW_LANG_Python = 0x0014,
+  DW_LANG_OpenCL = 0x0015,
+  DW_LANG_Go = 0x0016,
+  DW_LANG_Modula3 = 0x0017,
+  DW_LANG_Haskell = 0x0018,
+  DW_LANG_C_plus_plus_03 = 0x0019,
+  DW_LANG_C_plus_plus_11 = 0x001a,
+  DW_LANG_OCaml = 0x001b,
+
   DW_LANG_lo_user = 0x8000,
   DW_LANG_Mips_Assembler = 0x8001,
   DW_LANG_hi_user = 0xffff
@@ -744,99 +759,32 @@ enum Constants {
   DW_EH_PE_indirect = 0x80
 };
 
+// Constants for debug_loc.dwo in the DWARF5 Split Debug Info Proposal
+enum LocationListEntry : unsigned char {
+  DW_LLE_end_of_list_entry,
+  DW_LLE_base_address_selection_entry,
+  DW_LLE_start_end_entry,
+  DW_LLE_start_length_entry,
+  DW_LLE_offset_pair_entry
+};
+
+/// Contstants for the DW_APPLE_PROPERTY_attributes attribute.
+/// Keep this list in sync with clang's DeclSpec.h ObjCPropertyAttributeKind.
 enum ApplePropertyAttributes {
   // Apple Objective-C Property Attributes
   DW_APPLE_PROPERTY_readonly = 0x01,
-  DW_APPLE_PROPERTY_readwrite = 0x02,
+  DW_APPLE_PROPERTY_getter = 0x02,
   DW_APPLE_PROPERTY_assign = 0x04,
-  DW_APPLE_PROPERTY_retain = 0x08,
-  DW_APPLE_PROPERTY_copy = 0x10,
-  DW_APPLE_PROPERTY_nonatomic = 0x20
+  DW_APPLE_PROPERTY_readwrite = 0x08,
+  DW_APPLE_PROPERTY_retain = 0x10,
+  DW_APPLE_PROPERTY_copy = 0x20,
+  DW_APPLE_PROPERTY_nonatomic = 0x40,
+  DW_APPLE_PROPERTY_setter = 0x80,
+  DW_APPLE_PROPERTY_atomic = 0x100,
+  DW_APPLE_PROPERTY_weak =   0x200,
+  DW_APPLE_PROPERTY_strong = 0x400,
+  DW_APPLE_PROPERTY_unsafe_unretained = 0x800
 };
-
-/// TagString - Return the string for the specified tag.
-///
-const char *TagString(unsigned Tag);
-
-/// ChildrenString - Return the string for the specified children flag.
-///
-const char *ChildrenString(unsigned Children);
-
-/// AttributeString - Return the string for the specified attribute.
-///
-const char *AttributeString(unsigned Attribute);
-
-/// FormEncodingString - Return the string for the specified form encoding.
-///
-const char *FormEncodingString(unsigned Encoding);
-
-/// OperationEncodingString - Return the string for the specified operation
-/// encoding.
-const char *OperationEncodingString(unsigned Encoding);
-
-/// AttributeEncodingString - Return the string for the specified attribute
-/// encoding.
-const char *AttributeEncodingString(unsigned Encoding);
-
-/// DecimalSignString - Return the string for the specified decimal sign
-/// attribute.
-const char *DecimalSignString(unsigned Sign);
-
-/// EndianityString - Return the string for the specified endianity.
-///
-const char *EndianityString(unsigned Endian);
-
-/// AccessibilityString - Return the string for the specified accessibility.
-///
-const char *AccessibilityString(unsigned Access);
-
-/// VisibilityString - Return the string for the specified visibility.
-///
-const char *VisibilityString(unsigned Visibility);
-
-/// VirtualityString - Return the string for the specified virtuality.
-///
-const char *VirtualityString(unsigned Virtuality);
-
-/// LanguageString - Return the string for the specified language.
-///
-const char *LanguageString(unsigned Language);
-
-/// CaseString - Return the string for the specified identifier case.
-///
-const char *CaseString(unsigned Case);
-
-/// ConventionString - Return the string for the specified calling convention.
-///
-const char *ConventionString(unsigned Convention);
-
-/// InlineCodeString - Return the string for the specified inline code.
-///
-const char *InlineCodeString(unsigned Code);
-
-/// ArrayOrderString - Return the string for the specified array order.
-///
-const char *ArrayOrderString(unsigned Order);
-
-/// DiscriminantString - Return the string for the specified discriminant
-/// descriptor.
-const char *DiscriminantString(unsigned Discriminant);
-
-/// LNStandardString - Return the string for the specified line number standard.
-///
-const char *LNStandardString(unsigned Standard);
-
-/// LNExtendedString - Return the string for the specified line number extended
-/// opcode encodings.
-const char *LNExtendedString(unsigned Encoding);
-
-/// MacinfoString - Return the string for the specified macinfo type encodings.
-///
-const char *MacinfoString(unsigned Encoding);
-
-/// CallFrameString - Return the string for the specified call frame instruction
-/// encodings.
-const char *CallFrameString(unsigned Encoding);
 
 // Constants for the DWARF5 Accelerator Table Proposal
 enum AcceleratorTable {
@@ -860,9 +808,6 @@ enum AcceleratorTable {
   DW_hash_function_djb = 0u
 };
 
-/// AtomTypeString - Return the string for the specified Atom type.
-const char *AtomTypeString(unsigned Atom);
-
 // Constants for the GNU pubnames/pubtypes extensions supporting gdb index.
 enum GDBIndexEntryKind {
   GIEK_NONE,
@@ -875,15 +820,51 @@ enum GDBIndexEntryKind {
   GIEK_UNUSED7
 };
 
-const char *GDBIndexEntryKindString(GDBIndexEntryKind Kind);
-
 enum GDBIndexEntryLinkage {
   GIEL_EXTERNAL,
   GIEL_STATIC
 };
 
+/// \defgroup DwarfConstantsDumping Dwarf constants dumping functions
+///
+/// All these functions map their argument's value back to the
+/// corresponding enumerator name or return nullptr if the value isn't
+/// known.
+///
+/// @{
+const char *TagString(unsigned Tag);
+const char *ChildrenString(unsigned Children);
+const char *AttributeString(unsigned Attribute);
+const char *FormEncodingString(unsigned Encoding);
+const char *OperationEncodingString(unsigned Encoding);
+const char *AttributeEncodingString(unsigned Encoding);
+const char *DecimalSignString(unsigned Sign);
+const char *EndianityString(unsigned Endian);
+const char *AccessibilityString(unsigned Access);
+const char *VisibilityString(unsigned Visibility);
+const char *VirtualityString(unsigned Virtuality);
+const char *LanguageString(unsigned Language);
+const char *CaseString(unsigned Case);
+const char *ConventionString(unsigned Convention);
+const char *InlineCodeString(unsigned Code);
+const char *ArrayOrderString(unsigned Order);
+const char *DiscriminantString(unsigned Discriminant);
+const char *LNStandardString(unsigned Standard);
+const char *LNExtendedString(unsigned Encoding);
+const char *MacinfoString(unsigned Encoding);
+const char *CallFrameString(unsigned Encoding);
+const char *ApplePropertyString(unsigned);
+const char *AtomTypeString(unsigned Atom);
+const char *GDBIndexEntryKindString(GDBIndexEntryKind Kind);
 const char *GDBIndexEntryLinkageString(GDBIndexEntryLinkage Linkage);
+/// @}
 
+/// \brief Returns the symbolic string representing Val when used as a value
+/// for attribute Attr.
+const char *AttributeValueString(uint16_t Attr, unsigned Val);
+
+/// \brief Decsribes an entry of the various gnu_pub* debug sections.
+/// 
 /// The gnu_pub* kind looks like:
 ///
 /// 0-3  reserved
@@ -914,6 +895,7 @@ private:
     LINKAGE_MASK = 1 << LINKAGE_OFFSET
   };
 };
+
 
 } // End of namespace dwarf
 

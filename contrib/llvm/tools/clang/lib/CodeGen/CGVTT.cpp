@@ -66,7 +66,8 @@ CodeGenVTables::EmitVTTDefinition(llvm::GlobalVariable *VTT,
     if (VTTVT.getBase() == RD) {
       // Just get the address point for the regular vtable.
       AddressPoint =
-          ItaniumVTContext.getVTableLayout(RD).getAddressPoint(i->VTableBase);
+          getItaniumVTableContext().getVTableLayout(RD).getAddressPoint(
+              i->VTableBase);
       assert(AddressPoint != 0 && "Did not find vtable address point!");
     } else {
       AddressPoint = VTableAddressPoints[i->VTableIndex].lookup(i->VTableBase);
@@ -94,7 +95,7 @@ CodeGenVTables::EmitVTTDefinition(llvm::GlobalVariable *VTT,
   VTT->setLinkage(Linkage);
 
   // Set the right visibility.
-  CGM.setTypeVisibility(VTT, RD, CodeGenModule::TVK_ForVTT);
+  CGM.setGlobalVisibility(VTT, RD);
 }
 
 llvm::GlobalVariable *CodeGenVTables::GetAddrOfVTT(const CXXRecordDecl *RD) {

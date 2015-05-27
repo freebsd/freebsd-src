@@ -44,10 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/fdt.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  * PC0 - PC7 | PD0 - PD7
  */
 
-#define	RK30_GPIO_PINS		128
+#define	RK30_GPIO_PINS		32
 #define	RK30_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
 
@@ -71,21 +71,23 @@ __FBSDID("$FreeBSD$");
 #define	RK30_GPIO_PULLUP		1
 #define	RK30_GPIO_PULLDOWN		2
 
-#define	RK30_GPIO_INPUT			0
-#define	RK30_GPIO_OUTPUT		1
-
 struct rk30_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
+	int			sc_bank;
 	int			sc_gpio_npins;
 	struct gpio_pin		sc_gpio_pins[RK30_GPIO_PINS];
 };
 
+/* We use our base address to find out our bank number. */
+static unsigned long rk30_gpio_base_addr[4] =
+	{ 0x2000a000, 0x2003c000, 0x2003e000, 0x20080000 };
 static struct rk30_gpio_softc *rk30_gpio_sc = NULL;
 
 typedef int (*gpios_phandler_t)(phandle_t, pcell_t *, int);
@@ -119,7 +121,7 @@ struct gpio_ctrl_entry gpio_controllers[] = {
 #define	RK30_GPIO_INT_STATUS		0x40
 #define	RK30_GPIO_INT_RAWSTATUS		0x44
 #define	RK30_GPIO_DEBOUNCE		0x48
-#define	RK30_GPIO_PORTS_EOI		0x4c
+#define	RK30_GPIO_PORT_EOI		0x4c
 #define	RK30_GPIO_EXT_PORT		0x50
 #define	RK30_GPIO_LS_SYNC		0x60
 
@@ -131,65 +133,53 @@ struct gpio_ctrl_entry gpio_controllers[] = {
 static uint32_t
 rk30_gpio_get_function(struct rk30_gpio_softc *sc, uint32_t pin)
 {
-	uint32_t bank, func, offset;
 
-	bank = pin / 32;
-	pin = pin % 32;
-	offset = 1 << pin;
-
-	func = RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DDR);
-	func &= offset;
-
-	return (func);
-}
-
-static uint32_t
-rk30_gpio_func_flag(uint32_t nfunc)
-{
-
-	switch (nfunc) {
-	case RK30_GPIO_INPUT:
-		return (GPIO_PIN_INPUT);
-	case RK30_GPIO_OUTPUT:
+	if (RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DDR) & (1U << pin))
 		return (GPIO_PIN_OUTPUT);
-	}
-	return (0);
+	else
+		return (GPIO_PIN_INPUT);
 }
 
 static void
-rk30_gpio_set_function(struct rk30_gpio_softc *sc, uint32_t pin, uint32_t f)
+rk30_gpio_set_function(struct rk30_gpio_softc *sc, uint32_t pin, uint32_t func)
 {
-	uint32_t bank, data, offset;
+	uint32_t data;
 
 	/* Must be called with lock held. */
 	RK30_GPIO_LOCK_ASSERT(sc);
-
-	bank = pin / 32;
-	pin = pin % 32;
-	offset = 1 << pin;
-
 	data = RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DDR);
-	if (f)
-		data |= offset;
+	if (func == GPIO_PIN_OUTPUT)
+		data |= (1U << pin);
 	else
-		data &= ~offset;
+		data &= ~(1U << pin);
 	RK30_GPIO_WRITE(sc, RK30_GPIO_SWPORT_DDR, data);
 }
 
 static void
 rk30_gpio_set_pud(struct rk30_gpio_softc *sc, uint32_t pin, uint32_t state)
 {
-	uint32_t bank;
-
-	bank = pin / 32;
+	uint32_t pud;
 
 	/* Must be called with lock held. */
 	RK30_GPIO_LOCK_ASSERT(sc);
-
-	if (bank == 0 && pin < 12)
-		rk30_pmu_gpio_pud(pin, state);
+	switch (state) {
+	case GPIO_PIN_PULLUP:
+		pud = RK30_GPIO_PULLUP;
+		break;
+	case GPIO_PIN_PULLDOWN:
+		pud = RK30_GPIO_PULLDOWN;
+		break;
+	default:
+		pud = RK30_GPIO_NONE;
+	}
+	/*
+	 * The pull up/down registers for GPIO0A and half of GPIO0B
+	 * (the first 12 pins on bank 0) are at a different location.
+	 */
+	if (sc->sc_bank == 0 && pin < 12)
+		rk30_pmu_gpio_pud(pin, pud);
 	else
-		rk30_grf_gpio_pud(bank, pin, state);
+		rk30_grf_gpio_pud(sc->sc_bank, pin, pud);
 }
 
 static void
@@ -198,39 +188,37 @@ rk30_gpio_pin_configure(struct rk30_gpio_softc *sc, struct gpio_pin *pin,
 {
 
 	RK30_GPIO_LOCK(sc);
-
 	/*
 	 * Manage input/output.
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
-		if (flags & GPIO_PIN_OUTPUT) {
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+		pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
+		if (flags & GPIO_PIN_OUTPUT)
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
-			rk30_gpio_set_function(sc, pin->gp_pin,
-			    RK30_GPIO_OUTPUT);
-		} else {
+		else
 			pin->gp_flags |= GPIO_PIN_INPUT;
-			rk30_gpio_set_function(sc, pin->gp_pin,
-			    RK30_GPIO_INPUT);
-		}
+		rk30_gpio_set_function(sc, pin->gp_pin, pin->gp_flags);
 	}
-
 	/* Manage Pull-up/pull-down. */
-	pin->gp_flags &= ~(GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN);
-	if (flags & (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN)) {
-		if (flags & GPIO_PIN_PULLUP) {
+	pin->gp_flags &= ~(GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
+	if (flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
+		if (flags & GPIO_PIN_PULLUP)
 			pin->gp_flags |= GPIO_PIN_PULLUP;
-			rk30_gpio_set_pud(sc, pin->gp_pin, 
-			    RK30_GPIO_PULLUP);
-		} else {
+		else
 			pin->gp_flags |= GPIO_PIN_PULLDOWN;
-			rk30_gpio_set_pud(sc, pin->gp_pin, 
-			    RK30_GPIO_PULLDOWN);
-		}
-	} else
-		rk30_gpio_set_pud(sc, pin->gp_pin, RK30_GPIO_NONE);
-
+	}
+	rk30_gpio_set_pud(sc, pin->gp_pin, pin->gp_flags);
 	RK30_GPIO_UNLOCK(sc);
+}
+
+static device_t
+rk30_gpio_get_bus(device_t dev)
+{
+	struct rk30_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -326,32 +314,23 @@ rk30_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 static int
 rk30_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
-	struct rk30_gpio_softc *sc = device_get_softc(dev);
-	uint32_t bank, offset, data;
 	int i;
+	struct rk30_gpio_softc *sc;
+	uint32_t data;
 
+ 	sc = device_get_softc(dev);
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 		if (sc->sc_gpio_pins[i].gp_pin == pin)
 			break;
 	}
-
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
-
-	bank = pin / 32;
-	pin = pin % 32;
-	offset = 1 << pin;
-
 	RK30_GPIO_LOCK(sc);
-	data = RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DDR);
-	data |= offset;
-	RK30_GPIO_WRITE(sc, RK30_GPIO_SWPORT_DDR, data);
-
 	data = RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DR);
 	if (value)
-		data |= offset;
+		data |= (1U << pin);
 	else
-		data &= ~offset;
+		data &= ~(1U << pin);
 	RK30_GPIO_WRITE(sc, RK30_GPIO_SWPORT_DR, data);
 	RK30_GPIO_UNLOCK(sc);
 
@@ -361,26 +340,21 @@ rk30_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 static int
 rk30_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
-	struct rk30_gpio_softc *sc = device_get_softc(dev);
-	uint32_t bank, offset, reg_data;
 	int i;
+	struct rk30_gpio_softc *sc;
+	uint32_t data;
 
+	sc = device_get_softc(dev);
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 		if (sc->sc_gpio_pins[i].gp_pin == pin)
 			break;
 	}
-
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
-
-	bank = pin / 32;
-	pin = pin % 32;
-	offset = 1 << pin;
-
 	RK30_GPIO_LOCK(sc);
-	reg_data = RK30_GPIO_READ(sc, RK30_GPIO_EXT_PORT);
+	data = RK30_GPIO_READ(sc, RK30_GPIO_EXT_PORT);
 	RK30_GPIO_UNLOCK(sc);
-	*val = (reg_data & offset) ? 1 : 0;
+	*val = (data & (1U << pin)) ? 1 : 0;
 
 	return (0);
 }
@@ -388,35 +362,23 @@ rk30_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 static int
 rk30_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
-	struct rk30_gpio_softc *sc = device_get_softc(dev);
-	uint32_t bank, data, offset;
 	int i;
+	struct rk30_gpio_softc *sc;
+	uint32_t data;
 
+	sc = device_get_softc(dev);
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 		if (sc->sc_gpio_pins[i].gp_pin == pin)
 			break;
 	}
-
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
-
-	bank = pin / 32;
-	pin = pin % 32;
-	offset = 1 << pin;
-
 	RK30_GPIO_LOCK(sc);
-	data = RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DDR);
-	if (data & offset)
-		data &= ~offset;
-	else
-		data |= offset;
-	RK30_GPIO_WRITE(sc, RK30_GPIO_SWPORT_DDR, data);
-
 	data = RK30_GPIO_READ(sc, RK30_GPIO_SWPORT_DR);
-	if (data & offset)
-		data &= ~offset;
+	if (data & (1U << pin))
+		data &= ~(1U << pin);
 	else
-		data |= offset;
+		data |= (1U << pin);
 	RK30_GPIO_WRITE(sc, RK30_GPIO_SWPORT_DR, data);
 	RK30_GPIO_UNLOCK(sc);
 
@@ -441,15 +403,13 @@ static int
 rk30_gpio_attach(device_t dev)
 {
 	struct rk30_gpio_softc *sc = device_get_softc(dev);
-	uint32_t func;
 	int i, rid;
 	phandle_t gpio;
+	unsigned long start;
 
 	if (rk30_gpio_sc)
 		return (ENXIO);
-
 	sc->sc_dev = dev;
-
 	mtx_init(&sc->sc_mtx, "rk30 gpio", "gpio", MTX_DEF);
 
 	rid = 0;
@@ -457,19 +417,31 @@ rk30_gpio_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
-		return (ENXIO);
+		goto fail;
 	}
-
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
+	/* Check the unit we are attaching by our base address. */
+	sc->sc_bank = -1;
+	start = rman_get_start(sc->sc_mem_res);
+	for (i = 0; i < nitems(rk30_gpio_base_addr); i++) {
+		if (rk30_gpio_base_addr[i] == start) {
+			sc->sc_bank = i;
+			break;
+		}
+	}
+	if (sc->sc_bank == -1) {
+		device_printf(dev,
+		    "unsupported device unit (only GPIO0..3 are supported)\n");
+		goto fail;
+	}
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Find our node. */
@@ -483,27 +455,26 @@ rk30_gpio_attach(device_t dev)
 	for (i = 0; i < RK30_GPIO_PINS; i++) {
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "pin %d", i);
-		func = rk30_gpio_get_function(sc, i);
 		sc->sc_gpio_pins[i].gp_pin = i;
 		sc->sc_gpio_pins[i].gp_caps = RK30_GPIO_DEFAULT_CAPS;
-		sc->sc_gpio_pins[i].gp_flags = rk30_gpio_func_flag(func);
+		sc->sc_gpio_pins[i].gp_flags = rk30_gpio_get_function(sc, i);
 	}
 	sc->sc_gpio_npins = i;
-
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
 	rk30_gpio_sc = sc;
-
 	rk30_gpio_init();
-	
-	return (bus_generic_attach(dev));
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
+
+	return (0);
 
 fail:
 	if (sc->sc_irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	mtx_destroy(&sc->sc_mtx);
+
 	return (ENXIO);
 }
 
@@ -521,6 +492,7 @@ static device_method_t rk30_gpio_methods[] = {
 	DEVMETHOD(device_detach,	rk30_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		rk30_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		rk30_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	rk30_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	rk30_gpio_pin_getflags),
@@ -591,10 +563,10 @@ rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len)
 
 		if (dir == 1) {
 			/* Input. */
-			rk30_gpio_pin_set(sc->sc_dev, pin, RK30_GPIO_INPUT);
+			rk30_gpio_pin_set(sc->sc_dev, pin, GPIO_PIN_INPUT);
 		} else {
 			/* Output. */
-			rk30_gpio_pin_set(sc->sc_dev, pin, RK30_GPIO_OUTPUT);
+			rk30_gpio_pin_set(sc->sc_dev, pin, GPIO_PIN_OUTPUT);
 		}
 		gpios += gpio_cells + inc;
 	}

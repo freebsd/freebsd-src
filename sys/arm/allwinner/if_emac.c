@@ -101,6 +101,7 @@ struct emac_softc {
 	int			emac_watchdog_timer;
 	int			emac_rx_process_limit;
 	int			emac_link;
+	uint32_t		emac_fifo_mask;
 };
 
 static int	emac_probe(device_t);
@@ -121,7 +122,7 @@ static void	emac_intr(void *);
 static int	emac_ioctl(struct ifnet *, u_long, caddr_t);
 
 static void	emac_rxeof(struct emac_softc *, int);
-static void	emac_txeof(struct emac_softc *);
+static void	emac_txeof(struct emac_softc *, uint32_t);
 
 static int	emac_miibus_readreg(device_t, int, int);
 static int	emac_miibus_writereg(device_t, int, int, int);
@@ -253,14 +254,28 @@ emac_reset(struct emac_softc *sc)
 }
 
 static void
-emac_txeof(struct emac_softc *sc)
+emac_drain_rxfifo(struct emac_softc *sc)
+{
+	uint32_t data;
+
+	while (EMAC_READ_REG(sc, EMAC_RX_FBC) > 0)
+		data = EMAC_READ_REG(sc, EMAC_RX_IO_DATA);
+}
+
+static void
+emac_txeof(struct emac_softc *sc, uint32_t status)
 {
 	struct ifnet *ifp;
 
 	EMAC_ASSERT_LOCKED(sc);
 
 	ifp = sc->emac_ifp;
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	status &= (EMAC_TX_FIFO0 | EMAC_TX_FIFO1);
+	sc->emac_fifo_mask &= ~status;
+	if (status == (EMAC_TX_FIFO0 | EMAC_TX_FIFO1))
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 2);
+	else
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Unarm watchdog timer if no TX */
@@ -275,7 +290,7 @@ emac_rxeof(struct emac_softc *sc, int count)
 	uint32_t reg_val, rxcount;
 	int16_t len;
 	uint16_t status;
-	int good_packet, i;
+	int i;
 
 	ifp = sc->emac_ifp;
 	for (; count > 0 &&
@@ -327,20 +342,19 @@ emac_rxeof(struct emac_softc *sc, int count)
 			return;
 		}
 
-		good_packet = 1;
-
 		/* Get packet size and status */
 		reg_val = EMAC_READ_REG(sc, EMAC_RX_IO_DATA);
 		len = reg_val & 0xffff;
 		status = (reg_val >> 16) & 0xffff;
 
-		if (len < 64) {
-			good_packet = 0;
+		if (len < 64 || (status & EMAC_PKT_OK) == 0) {
 			if (bootverbose)
 				if_printf(ifp,
 				    "bad packet: len = %i status = %i\n",
 				    len, status);
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			emac_drain_rxfifo(sc);
+			continue;
 		}
 #if 0
 		if (status & (EMAC_CRCERR | EMAC_LENERR)) {
@@ -352,63 +366,58 @@ emac_rxeof(struct emac_softc *sc, int count)
 				if_printf(ifp, "length error\n");
 		}
 #endif
-		if (good_packet) {
-			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-			if (m == NULL)
-				return;
-			m->m_len = m->m_pkthdr.len = MCLBYTES;
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL) {
+			emac_drain_rxfifo(sc);
+			return;
+		}
+		m->m_len = m->m_pkthdr.len = MCLBYTES;
 
-			len -= ETHER_CRC_LEN;
+		/* Copy entire frame to mbuf first. */
+		bus_space_read_multi_4(sc->emac_tag, sc->emac_handle,
+		    EMAC_RX_IO_DATA, mtod(m, uint32_t *), roundup2(len, 4) / 4);
 
-			/* Copy entire frame to mbuf first. */
-			bus_space_read_multi_4(sc->emac_tag, sc->emac_handle,
-			    EMAC_RX_IO_DATA, mtod(m, uint32_t *),
-			    roundup2(len, 4) / 4);
+		m->m_pkthdr.rcvif = ifp;
+		m->m_len = m->m_pkthdr.len = len - ETHER_CRC_LEN;
 
-			m->m_pkthdr.rcvif = ifp;
-			m->m_len = m->m_pkthdr.len = len;
-
-			/*
-			 * Emac controller needs strict aligment, so to avoid
-			 * copying over an entire frame to align, we allocate
-			 * a new mbuf and copy ethernet header + IP header to
-			 * the new mbuf. The new mbuf is prepended into the
-			 * existing mbuf chain.
-			 */
-			if (m->m_len <= (MHLEN - ETHER_HDR_LEN)) {
-				bcopy(m->m_data, m->m_data + ETHER_HDR_LEN,
-				    m->m_len);
-				m->m_data += ETHER_HDR_LEN;
-			} else if (m->m_len <= (MCLBYTES - ETHER_HDR_LEN) &&
-			    m->m_len > (MHLEN - ETHER_HDR_LEN)) {
-				MGETHDR(m0, M_NOWAIT, MT_DATA);
-				if (m0 != NULL) {
-					len = ETHER_HDR_LEN +
-					    m->m_pkthdr.l2hlen;
-					bcopy(m->m_data, m0->m_data, len);
-					m->m_data += len;
-					m->m_len -= len;
-					m0->m_len = len;
-					M_MOVE_PKTHDR(m0, m);
-					m0->m_next = m;
-					m = m0;
-				} else {
-					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-					m_freem(m);
-					m = NULL;
-					continue;
-				}
-			} else if (m->m_len > EMAC_MAC_MAXF) {
+		/*
+		 * Emac controller needs strict aligment, so to avoid
+		 * copying over an entire frame to align, we allocate
+		 * a new mbuf and copy ethernet header + IP header to
+		 * the new mbuf. The new mbuf is prepended into the
+		 * existing mbuf chain.
+		 */
+		if (m->m_len <= (MHLEN - ETHER_HDR_LEN)) {
+			bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
+			m->m_data += ETHER_HDR_LEN;
+		} else if (m->m_len <= (MCLBYTES - ETHER_HDR_LEN) &&
+		    m->m_len > (MHLEN - ETHER_HDR_LEN)) {
+			MGETHDR(m0, M_NOWAIT, MT_DATA);
+			if (m0 != NULL) {
+				len = ETHER_HDR_LEN + m->m_pkthdr.l2hlen;
+				bcopy(m->m_data, m0->m_data, len);
+				m->m_data += len;
+				m->m_len -= len;
+				m0->m_len = len;
+				M_MOVE_PKTHDR(m0, m);
+				m0->m_next = m;
+				m = m0;
+			} else {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				m_freem(m);
 				m = NULL;
 				continue;
 			}
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-			EMAC_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
-			EMAC_LOCK(sc);
+		} else if (m->m_len > EMAC_MAC_MAXF) {
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			m_freem(m);
+			m = NULL;
+			continue;
 		}
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		EMAC_UNLOCK(sc);
+		(*ifp->if_input)(ifp, m);
+		EMAC_LOCK(sc);
 	}
 }
 
@@ -582,10 +591,12 @@ emac_start_locked(struct ifnet *ifp)
 {
 	struct emac_softc *sc;
 	struct mbuf *m, *m0;
-	uint32_t reg_val;
+	uint32_t fifo, reg;
 
 	sc = ifp->if_softc;
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+		return;
+	if (sc->emac_fifo_mask == (EMAC_TX_FIFO0 | EMAC_TX_FIFO1))
 		return;
 	if (sc->emac_link == 0)
 		return;
@@ -594,7 +605,14 @@ emac_start_locked(struct ifnet *ifp)
 		return;
 
 	/* Select channel */
-	EMAC_WRITE_REG(sc, EMAC_TX_INS, 0);
+	if (sc->emac_fifo_mask & EMAC_TX_FIFO0)
+		fifo = 1;
+	else
+		fifo = 0;
+	sc->emac_fifo_mask |= (1 << fifo);
+	if (sc->emac_fifo_mask == (EMAC_TX_FIFO0 | EMAC_TX_FIFO1))
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	EMAC_WRITE_REG(sc, EMAC_TX_INS, fifo);
 
 	/*
 	 * Emac controller wants 4 byte aligned TX buffers.
@@ -615,17 +633,17 @@ emac_start_locked(struct ifnet *ifp)
 	    roundup2(m->m_len, 4) / 4);
 
 	/* Send the data lengh. */
-	EMAC_WRITE_REG(sc, EMAC_TX_PL0, m->m_len);
+	reg = (fifo == 0) ? EMAC_TX_PL0 : EMAC_TX_PL1;
+	EMAC_WRITE_REG(sc, reg, m->m_len);
 
 	/* Start translate from fifo to phy. */
-	reg_val = EMAC_READ_REG(sc, EMAC_TX_CTL0);
-	reg_val |= 1;
-	EMAC_WRITE_REG(sc, EMAC_TX_CTL0, reg_val);
+	reg = (fifo == 0) ? EMAC_TX_CTL0 : EMAC_TX_CTL1;
+	EMAC_WRITE_REG(sc, reg, EMAC_READ_REG(sc, reg) | 1);
 
 	/* Set timeout */
 	sc->emac_watchdog_timer = 5;
 
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	/* Data have been sent to hardware, it is okay to free the mbuf now. */
 	BPF_MTAP(ifp, m);
 	m_freem(m);
 }
@@ -664,9 +682,6 @@ emac_intr(void *arg)
 
 	sc = (struct emac_softc *)arg;
 	EMAC_LOCK(sc);
-	ifp = sc->emac_ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
 
 	/* Disable all interrupts */
 	EMAC_WRITE_REG(sc, EMAC_INT_CTL, 0);
@@ -680,18 +695,17 @@ emac_intr(void *arg)
 		emac_rxeof(sc, sc->emac_rx_process_limit);
 
 	/* Transmit Interrupt check */
-	if (reg_val & EMAC_INT_STA_TX){
-		emac_txeof(sc);
+	if (reg_val & EMAC_INT_STA_TX) {
+		emac_txeof(sc, reg_val);
+		ifp = sc->emac_ifp;
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			emac_start_locked(ifp);
 	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-		/* Re-enable interrupt mask */
-		reg_val = EMAC_READ_REG(sc, EMAC_INT_CTL);
-		reg_val |= EMAC_INT_EN;
-		EMAC_WRITE_REG(sc, EMAC_INT_CTL, reg_val);
-	}
+	/* Re-enable interrupt mask */
+	reg_val = EMAC_READ_REG(sc, EMAC_INT_CTL);
+	reg_val |= EMAC_INT_EN;
+	EMAC_WRITE_REG(sc, EMAC_INT_CTL, reg_val);
 	EMAC_UNLOCK(sc);
 }
 

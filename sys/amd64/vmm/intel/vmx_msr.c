@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
@@ -230,6 +229,25 @@ westmere_cpu(void)
 	return (false);
 }
 
+static bool
+pat_valid(uint64_t val)
+{
+	int i, pa;
+
+	/*
+	 * From Intel SDM: Table "Memory Types That Can Be Encoded With PAT"
+	 *
+	 * Extract PA0 through PA7 and validate that each one encodes a
+	 * valid memory type.
+	 */
+	for (i = 0; i < 8; i++) {
+		pa = (val >> (i * 8)) & 0xff;
+		if (pa == 2 || pa == 3 || pa >= 8)
+			return (false);
+	}
+	return (true);
+}
+
 void
 vmx_msr_init(void)
 {
@@ -302,6 +320,10 @@ vmx_msr_init(void)
 void
 vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 {
+	uint64_t *guest_msrs;
+
+	guest_msrs = vmx->guest_msrs[vcpuid];
+
 	/*
 	 * The permissions bitmap is shared between all vcpus so initialize it
 	 * once when initializing the vBSP.
@@ -313,6 +335,19 @@ vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 		guest_msr_rw(vmx, MSR_SF_MASK);
 		guest_msr_rw(vmx, MSR_KGSBASE);
 	}
+
+	/*
+	 * Initialize guest IA32_PAT MSR with default value after reset.
+	 */
+	guest_msrs[IDX_MSR_PAT] = PAT_VALUE(0, PAT_WRITE_BACK) |
+	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(2, PAT_UNCACHED)		|
+	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
+	    PAT_VALUE(4, PAT_WRITE_BACK)	|
+	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(6, PAT_UNCACHED)		|
+	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
 	return;
 }
 
@@ -353,9 +388,24 @@ vmx_msr_guest_exit(struct vmx *vmx, int vcpuid)
 int
 vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 {
-	int error = 0;
+	const uint64_t *guest_msrs;
+	int error;
+
+	guest_msrs = vmx->guest_msrs[vcpuid];
+	error = 0;
 
 	switch (num) {
+	case MSR_MCG_CAP:
+	case MSR_MCG_STATUS:
+		*val = 0;
+		break;
+	case MSR_MTRRcap:
+	case MSR_MTRRdefType:
+	case MSR_MTRR4kBase ... MSR_MTRR4kBase + 8:
+	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
+	case MSR_MTRR64kBase:
+		*val = 0;
+		break;
 	case MSR_IA32_MISC_ENABLE:
 		*val = misc_enable;
 		break;
@@ -365,6 +415,9 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 	case MSR_TURBO_RATIO_LIMIT:
 	case MSR_TURBO_RATIO_LIMIT1:
 		*val = turbo_ratio_limit;
+		break;
+	case MSR_PAT:
+		*val = guest_msrs[IDX_MSR_PAT];
 		break;
 	default:
 		error = EINVAL;
@@ -376,9 +429,51 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 int
 vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 {
-	int error = 0;
+	uint64_t *guest_msrs;
+	uint64_t changed;
+	int error;
+	
+	guest_msrs = vmx->guest_msrs[vcpuid];
+	error = 0;
 
 	switch (num) {
+	case MSR_MCG_CAP:
+	case MSR_MCG_STATUS:
+		break;		/* ignore writes */
+	case MSR_MTRRcap:
+		vm_inject_gp(vmx->vm, vcpuid);
+		break;
+	case MSR_MTRRdefType:
+	case MSR_MTRR4kBase ... MSR_MTRR4kBase + 8:
+	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
+	case MSR_MTRR64kBase:
+		break;		/* Ignore writes */
+	case MSR_IA32_MISC_ENABLE:
+		changed = val ^ misc_enable;
+		/*
+		 * If the host has disabled the NX feature then the guest
+		 * also cannot use it. However, a Linux guest will try to
+		 * enable the NX feature by writing to the MISC_ENABLE MSR.
+		 *
+		 * This can be safely ignored because the memory management
+		 * code looks at CPUID.80000001H:EDX.NX to check if the
+		 * functionality is actually enabled.
+		 */
+		changed &= ~(1UL << 34);
+
+		/*
+		 * Punt to userspace if any other bits are being modified.
+		 */
+		if (changed)
+			error = EINVAL;
+
+		break;
+	case MSR_PAT:
+		if (pat_valid(val))
+			guest_msrs[IDX_MSR_PAT] = val;
+		else
+			vm_inject_gp(vmx->vm, vcpuid);
+		break;
 	default:
 		error = EINVAL;
 		break;

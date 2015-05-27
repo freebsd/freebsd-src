@@ -7,12 +7,12 @@
 .\" # LICENSE.
 .\" # Phil Shafer, July 2014
 .\" 
-.Dd July, 2014
+.Dd December 4, 2014
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
-.Nd emit formatted output based on format string and arguments
+.Nm xo_open_container
+.Nd open (and close) container constructs
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -47,13 +47,14 @@
 .Ft int
 .Fn xo_close_container_d "void"
 .Sh DESCRIPTION
-.Fa libxo
-represents to types of hierarchy:
+.Nm libxo
+represents two types of hierarchy:
 .Dq containers
 and
 .Dq lists .
 A container appears once under a given parent where a list contains
-instances that can appear multiple times.  A container is used to hold
+instances that can appear multiple times.
+A container is used to hold
 related fields and to give the data organization and scope.
 The container has no value, but serves to
 contain other nodes.
@@ -71,8 +72,9 @@ or
 .Fn xo_close_container_h
 functions.
 .Pp
-Each open call must have a matching close call.  If the
-.Fa XOF_WARN
+Each open call should have a matching close call.
+If the
+.Dv XOF_WARN
 flag is set and the name given does not match the name of 
 the currently open
 container, a warning will be generated.
@@ -105,7 +107,7 @@ container, a warning will be generated.
         <div class="data"
              data-tag="host-name">my-host.example.org</div>
 .Ed
-.SH EMITTING HIERARCHY
+.Sh EMITTING HIERARCHY
 To create a container, use the
 .Fn xo_open_container
 and
@@ -115,8 +117,8 @@ The
 .Fa handle
 parameter contains a handle such as returned by
 .Xr xo_create 3
-or a
-.Em NULL
+or
+.Dv NULL
 to use the default handle.
 The
 .Fa name
@@ -131,21 +133,21 @@ traditional C strings can be used directly.
 The close functions with the
 .Dq _d
 suffix are used in
-.Dq Do The Right Thing
+.Dq \&Do The Right Thing
 mode, where the name of the open containers, lists, and
 instances are maintained internally by
-.Em libxo
+.Nm libxo
 to allow the caller to
 avoid keeping track of the open container name.
 .Pp
 Use the
-.Em XOF_WARN
+.Dv XOF_WARN
 flag to generate a warning if the name given on the
 close does not match the current open container.
 .Pp
 For TEXT and HTML output, containers are not rendered into output
 text, though for HTML they are used when the
-.Em XOF_XPATH
+.Dv XOF_XPATH
 flag is set.
 .Pp
 .Bd -literal -offset indent -compact
@@ -157,21 +159,22 @@ flag is set.
        <system><host-name>foo</host-name></system>
 .Ed
 .Sh DTRT MODE
-Some user may find tracking the names of open containers, lists, and
+Some users may find tracking the names of open containers, lists, and
 instances inconvenient.
-.Em libxo
-offers
-.Dq Do The Right Thing
+.Nm libxo
+offers a
+.Dq \&Do The Right Thing
 mode, where
-.Em libxo
+.Nm libxo
 will track the names of open containers, lists, and instances so
-the close function can be called without a name.  To enable
+the close function can be called without a name.
+To enable
 .Em DTRT
 mode,
 turn on the
-.Em XOF_DTRT
+.Dv XOF_DTRT
 flag prior to making any other
-.Em libxo
+.Nm libxo
 output.
 .Bd -literal -offset indent -compact
     xo_set_flags(NULL, XOF_DTRT);
@@ -185,24 +188,28 @@ which will close the open container, list, or instance:
     xo_close_container_d();
 .Ed
 Note that the
-.Em XOF_WARN
-flag will also cause libxo to track open
+.Dv XOF_WARN
+flag will also cause
+.Nm libxo
+to track open
 containers, lists, and instances.
-A warning is generated with the name given to the close function
+A warning is generated when the name given to the close function
 and the name recorded do not match.
 .Sh ADDITIONAL DOCUMENTATION
-.Pp
 Complete documentation can be found on github:
 .Bd -literal -offset indent
 http://juniper.github.io/libxo/libxo-manual.html
 .Ed
 .Pp
-libxo lives on github as:
+.Nm libxo
+lives on github as:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo
 .Ed
 .Pp
-The latest release of libxo is available at:
+The latest release of
+.Nm libxo
+is available at:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo/releases
 .Ed
@@ -210,7 +217,8 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_emit 3
 .Sh HISTORY
 The
-.Fa libxo
-library was added in FreeBSD 11.0.
+.Nm libxo
+library was added in
+.Fx 11.0 .
 .Sh AUTHOR
 Phil Shafer

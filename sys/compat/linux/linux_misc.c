@@ -690,9 +690,9 @@ linux_times(struct thread *td, struct linux_times_args *args)
 	if (args->buf != NULL) {
 		p = td->td_proc;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 		calcru(p, &utime, &stime);
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 		calccru(p, &cutime, &cstime);
 		PROC_UNLOCK(p);
 
@@ -1138,7 +1138,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 		newcred->cr_ngroups = 1;
 
 	setsugid(p);
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	error = 0;

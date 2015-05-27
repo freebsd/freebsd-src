@@ -130,6 +130,19 @@ ucl_emitter_print_key (bool print_key, struct ucl_emitter_context *ctx,
 			func->ucl_emitter_append_character (' ', 1, func->ud);
 		}
 	}
+	else if (ctx->id == UCL_EMIT_YAML) {
+		if (obj->keylen > 0 && (obj->flags & UCL_OBJECT_NEED_KEY_ESCAPE)) {
+			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
+		}
+		else if (obj->keylen > 0) {
+			func->ucl_emitter_append_len (obj->key, obj->keylen, func->ud);
+		}
+		else {
+			func->ucl_emitter_append_len ("null", 4, func->ud);
+		}
+
+		func->ucl_emitter_append_len (": ", 2, func->ud);
+	}
 	else {
 		if (obj->keylen > 0) {
 			ucl_elt_string_write_json (obj->key, obj->keylen, ctx);
@@ -182,7 +195,7 @@ ucl_emitter_common_end_object (struct ucl_emitter_context *ctx,
 	const struct ucl_emitter_functions *func = ctx->func;
 
 	if (UCL_EMIT_IDENT_TOP_OBJ(ctx, obj)) {
-		ctx->ident --;
+		ctx->indent --;
 		if (compact) {
 			func->ucl_emitter_append_character ('}', 1, func->ud);
 		}
@@ -191,7 +204,7 @@ ucl_emitter_common_end_object (struct ucl_emitter_context *ctx,
 				/* newline is already added for this format */
 				func->ucl_emitter_append_character ('\n', 1, func->ud);
 			}
-			ucl_add_tabs (func, ctx->ident, compact);
+			ucl_add_tabs (func, ctx->indent, compact);
 			func->ucl_emitter_append_character ('}', 1, func->ud);
 		}
 	}
@@ -210,7 +223,7 @@ ucl_emitter_common_end_array (struct ucl_emitter_context *ctx,
 {
 	const struct ucl_emitter_functions *func = ctx->func;
 
-	ctx->ident --;
+	ctx->indent --;
 	if (compact) {
 		func->ucl_emitter_append_character (']', 1, func->ud);
 	}
@@ -219,7 +232,7 @@ ucl_emitter_common_end_array (struct ucl_emitter_context *ctx,
 			/* newline is already added for this format */
 			func->ucl_emitter_append_character ('\n', 1, func->ud);
 		}
-		ucl_add_tabs (func, ctx->ident, compact);
+		ucl_add_tabs (func, ctx->indent, compact);
 		func->ucl_emitter_append_character (']', 1, func->ud);
 	}
 
@@ -237,6 +250,7 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj, bool print_key, bool compact)
 {
 	const ucl_object_t *cur;
+	ucl_object_iter_t iter = NULL;
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool first = true;
 
@@ -249,22 +263,26 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 		func->ucl_emitter_append_len ("[\n", 2, func->ud);
 	}
 
-	ctx->ident ++;
+	ctx->indent ++;
 
 	if (obj->type == UCL_ARRAY) {
 		/* explicit array */
-		cur = obj->value.av;
+		while ((cur = ucl_iterate_object (obj, &iter, true)) != NULL) {
+			ucl_emitter_common_elt (ctx, cur, first, false, compact);
+			first = false;
+		}
 	}
 	else {
 		/* implicit array */
 		cur = obj;
+		while (cur) {
+			ucl_emitter_common_elt (ctx, cur, first, false, compact);
+			first = false;
+			cur = cur->next;
+		}
 	}
 
-	while (cur) {
-		ucl_emitter_common_elt (ctx, cur, first, false, compact);
-		first = false;
-		cur = cur->next;
-	}
+
 }
 
 /**
@@ -294,7 +312,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 		else {
 			func->ucl_emitter_append_len ("{\n", 2, func->ud);
 		}
-		ctx->ident ++;
+		ctx->indent ++;
 	}
 
 	while ((cur = ucl_hash_iterate (obj->value.ov, &it))) {
@@ -315,7 +333,7 @@ ucl_emitter_common_start_object (struct ucl_emitter_context *ctx,
 						func->ucl_emitter_append_len (",\n", 2, func->ud);
 					}
 				}
-				ucl_add_tabs (func, ctx->ident, compact);
+				ucl_add_tabs (func, ctx->indent, compact);
 				ucl_emitter_common_start_array (ctx, cur, true, compact);
 				ucl_emitter_common_end_array (ctx, cur, compact);
 			}
@@ -342,17 +360,23 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 {
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool flag;
+	struct ucl_object_userdata *ud;
+	const char *ud_out = "";
 
 	if (ctx->id != UCL_EMIT_CONFIG && !first) {
 		if (compact) {
 			func->ucl_emitter_append_character (',', 1, func->ud);
 		}
 		else {
-			func->ucl_emitter_append_len (",\n", 2, func->ud);
+			if (ctx->id == UCL_EMIT_YAML && ctx->indent == 0) {
+				func->ucl_emitter_append_len ("\n", 1, func->ud);
+			} else {
+				func->ucl_emitter_append_len (",\n", 2, func->ud);
+			}
 		}
 	}
 
-	ucl_add_tabs (func, ctx->ident, compact);
+	ucl_add_tabs (func, ctx->indent, compact);
 
 	switch (obj->type) {
 	case UCL_INT:
@@ -379,7 +403,12 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		break;
 	case UCL_STRING:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
-		ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+		if (ctx->id == UCL_EMIT_CONFIG && ucl_maybe_long_string (obj)) {
+			ucl_elt_string_write_multiline (obj->value.sv, obj->len, ctx);
+		}
+		else {
+			ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+		}
 		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	case UCL_NULL:
@@ -396,6 +425,16 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_common_end_array (ctx, obj, compact);
 		break;
 	case UCL_USERDATA:
+		ud = (struct ucl_object_userdata *)obj;
+		ucl_emitter_print_key (print_key, ctx, obj, compact);
+		if (ud->emitter) {
+			ud_out = ud->emitter (obj->value.ud);
+			if (ud_out == NULL) {
+				ud_out = "null";
+			}
+		}
+		ucl_elt_string_write_json (ud_out, strlen (ud_out), ctx);
+		ucl_emitter_finish_object (ctx, obj, compact, !print_key);
 		break;
 	}
 }
@@ -425,10 +464,10 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		ucl_emitter_common_end_array (ctx, obj, (compact));	\
 	}
 
-UCL_EMIT_TYPE_IMPL(json, false);
-UCL_EMIT_TYPE_IMPL(json_compact, true);
-UCL_EMIT_TYPE_IMPL(config, false);
-UCL_EMIT_TYPE_IMPL(yaml, false);
+UCL_EMIT_TYPE_IMPL(json, false)
+UCL_EMIT_TYPE_IMPL(json_compact, true)
+UCL_EMIT_TYPE_IMPL(config, false)
+UCL_EMIT_TYPE_IMPL(yaml, false)
 
 unsigned char *
 ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type)
@@ -461,7 +500,7 @@ ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
 	if (ctx != NULL) {
 		memcpy (&my_ctx, ctx, sizeof (my_ctx));
 		my_ctx.func = emitter;
-		my_ctx.ident = 0;
+		my_ctx.indent = 0;
 		my_ctx.top = obj;
 
 		my_ctx.ops->ucl_emitter_write_elt (&my_ctx, obj, true, false);

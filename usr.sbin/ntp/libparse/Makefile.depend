@@ -4,6 +4,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
 	include \
+	include/arpa \
 	include/xlocale \
 	lib/msun \
 	secure/lib/libcrypto \

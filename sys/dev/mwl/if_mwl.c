@@ -363,7 +363,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	if (error != 0)			/* NB: mwl_setupdma prints msg */
 		goto bad1;
 
-	callout_init(&sc->sc_timer, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_timer, 1);
 	callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_tq = taskqueue_create("mwl_taskq", M_NOWAIT,
@@ -2056,9 +2056,10 @@ mwl_desc_setup(struct mwl_softc *sc, const char *name,
 
 	ds = dd->dd_desc;
 	memset(ds, 0, dd->dd_desc_len);
-	DPRINTF(sc, MWL_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
+	DPRINTF(sc, MWL_DEBUG_RESET,
+	    "%s: %s DMA map: %p (%lu) -> 0x%jx (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    (uintmax_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
 
 	return 0;
 fail2:
@@ -4688,11 +4689,10 @@ mwl_printrxbuf(const struct mwl_rxbuf *bf, u_int ix)
 	const struct mwl_rxdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->Status);
 
-	printf("R[%2u] (DS.V:%p DS.P:%p) NEXT:%08x DATA:%08x RC:%02x%s\n"
+	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	       "      STAT:%02x LEN:%04x RSSI:%02x CHAN:%02x RATE:%02x QOS:%04x HT:%04x\n",
-	    ix, ds, (const struct mwl_desc *)bf->bf_daddr,
-	    le32toh(ds->pPhysNext), le32toh(ds->pPhysBuffData),
-	    ds->RxControl, 
+	    ix, ds, (uintmax_t)bf->bf_daddr, le32toh(ds->pPhysNext),
+	    le32toh(ds->pPhysBuffData), ds->RxControl, 
 	    ds->RxControl != EAGLE_RXD_CTRL_DRIVER_OWN ?
 	        "" : (status & EAGLE_RXD_STATUS_OK) ? " *" : " !",
 	    ds->Status, le16toh(ds->PktLen), ds->RSSI, ds->Channel,
@@ -4706,8 +4706,7 @@ mwl_printtxbuf(const struct mwl_txbuf *bf, u_int qnum, u_int ix)
 	uint32_t status = le32toh(ds->Status);
 
 	printf("Q%u[%3u]", qnum, ix);
-	printf(" (DS.V:%p DS.P:%p)\n",
-	    ds, (const struct mwl_txdesc *)bf->bf_daddr);
+	printf(" (DS.V:%p DS.P:0x%jx)\n", ds, (uintmax_t)bf->bf_daddr);
 	printf("    NEXT:%08x DATA:%08x LEN:%04x STAT:%08x%s\n",
 	    le32toh(ds->pPhysNext),
 	    le32toh(ds->PktPtr), le16toh(ds->PktLen), status,

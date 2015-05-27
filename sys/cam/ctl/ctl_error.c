@@ -367,16 +367,35 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 }
 
 ctl_ua_type
-ctl_build_ua(ctl_ua_type *ua_type, struct scsi_sense_data *sense,
-	     scsi_sense_data_type sense_format)
+ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
+    struct scsi_sense_data *sense, scsi_sense_data_type sense_format)
 {
+	ctl_ua_type *ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
 	int asc, ascq;
+	uint32_t p, i;
 
-	if (*ua_type == CTL_UA_NONE)
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+	p = initidx / CTL_MAX_INIT_PER_PORT;
+	if ((ua = lun->pending_ua[p]) == NULL) {
+		mtx_unlock(&lun->lun_lock);
+		ua = malloc(sizeof(ctl_ua_type) * CTL_MAX_INIT_PER_PORT,
+		    M_CTL, M_WAITOK);
+		mtx_lock(&lun->lun_lock);
+		if (lun->pending_ua[p] == NULL) {
+			lun->pending_ua[p] = ua;
+			for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++)
+				ua[i] = CTL_UA_POWERON;
+		} else {
+			free(ua, M_CTL);
+			ua = lun->pending_ua[p];
+		}
+	}
+	i = initidx % CTL_MAX_INIT_PER_PORT;
+	if (ua[i] == CTL_UA_NONE)
 		return (CTL_UA_NONE);
 
-	ua_to_build = (1 << (ffs(*ua_type) - 1));
+	ua_to_build = (1 << (ffs(ua[i]) - 1));
 	ua_to_clear = ua_to_build;
 
 	switch (ua_to_build) {
@@ -482,7 +501,7 @@ ctl_build_ua(ctl_ua_type *ua_type, struct scsi_sense_data *sense,
 			   SSD_ELEM_NONE);
 
 	/* We're reporting this UA, so clear it */
-	*ua_type &= ~ua_to_clear;
+	ua[i] &= ~ua_to_clear;
 
 	return (ua_to_build);
 }

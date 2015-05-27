@@ -1,11 +1,17 @@
-/*-
- *Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
- * Copyright (c) 2011 The FreeBSD Foundation
- * All rights reserved.
+/**
+ * \file drm_memory.c
+ * Memory management wrappers for DRM
  *
- * Portions of this software were developed by Konstantin Belousov
- * under sponsorship from the FreeBSD Foundation.
+ * \author Rickard E. (Rik) Faith <faith@valinux.com>
+ * \author Gareth Hughes <gareth@valinux.com>
+ */
+
+/*
+ * Created: Thu Feb  4 14:00:34 1999 by faith@valinux.com
+ *
+ * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
+ * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,103 +31,104 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors:
- *    Rickard E. (Rik) Faith <faith@valinux.com>
- *    Gareth Hughes <gareth@valinux.com>
- *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/** @file drm_memory.c
- * Wrappers for kernel memory allocation routines, and MTRR management support.
- *
- * This file previously implemented a memory consumption tracking system using
- * the "area" argument for various different types of allocations, but that
- * has been stripped out for now.
- */
-
 #include <dev/drm2/drmP.h>
 
-MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
-MALLOC_DEFINE(DRM_MEM_SAREA, "drm_sarea", "DRM SAREA Data Structures");
-MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
-MALLOC_DEFINE(DRM_MEM_MAGIC, "drm_magic", "DRM MAGIC Data Structures");
-MALLOC_DEFINE(DRM_MEM_IOCTLS, "drm_ioctls", "DRM IOCTL Data Structures");
-MALLOC_DEFINE(DRM_MEM_MAPS, "drm_maps", "DRM MAP Data Structures");
-MALLOC_DEFINE(DRM_MEM_BUFS, "drm_bufs", "DRM BUFFER Data Structures");
-MALLOC_DEFINE(DRM_MEM_SEGS, "drm_segs", "DRM SEGMENTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_PAGES, "drm_pages", "DRM PAGES Data Structures");
-MALLOC_DEFINE(DRM_MEM_FILES, "drm_files", "DRM FILE Data Structures");
-MALLOC_DEFINE(DRM_MEM_QUEUES, "drm_queues", "DRM QUEUE Data Structures");
-MALLOC_DEFINE(DRM_MEM_CMDS, "drm_cmds", "DRM COMMAND Data Structures");
-MALLOC_DEFINE(DRM_MEM_MAPPINGS, "drm_mapping", "DRM MAPPING Data Structures");
-MALLOC_DEFINE(DRM_MEM_BUFLISTS, "drm_buflists", "DRM BUFLISTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_AGPLISTS, "drm_agplists", "DRM AGPLISTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_CTXBITMAP, "drm_ctxbitmap",
-    "DRM CTXBITMAP Data Structures");
-MALLOC_DEFINE(DRM_MEM_SGLISTS, "drm_sglists", "DRM SGLISTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_DRAWABLE, "drm_drawable", "DRM DRAWABLE Data Structures");
-MALLOC_DEFINE(DRM_MEM_MM, "drm_sman", "DRM MEMORY MANAGER Data Structures");
-MALLOC_DEFINE(DRM_MEM_HASHTAB, "drm_hashtab", "DRM HASHTABLE Data Structures");
-MALLOC_DEFINE(DRM_MEM_KMS, "drm_kms", "DRM KMS Data Structures");
-
-void drm_mem_init(void)
+#if __OS_HAS_AGP
+static void *agp_remap(unsigned long offset, unsigned long size,
+		       struct drm_device * dev)
 {
+	/*
+	 * FIXME Linux<->FreeBSD: Not implemented. This is never called
+	 * on FreeBSD anyway, because drm_agp_mem->cant_use_aperture is
+	 * set to 0.
+	 */
+	return NULL;
 }
 
-void drm_mem_uninit(void)
+#define	vunmap(handle)
+
+/** Wrapper around agp_free_memory() */
+void drm_free_agp(DRM_AGP_MEM * handle, int pages)
 {
+	device_t agpdev;
+
+	agpdev = agp_find_device();
+	if (!agpdev || !handle)
+		return;
+
+	agp_free_memory(agpdev, handle);
+}
+EXPORT_SYMBOL(drm_free_agp);
+
+/** Wrapper around agp_bind_memory() */
+int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start)
+{
+	device_t agpdev;
+
+	agpdev = agp_find_device();
+	if (!agpdev || !handle)
+		return -EINVAL;
+
+	return -agp_bind_memory(agpdev, handle, start * PAGE_SIZE);
 }
 
-void *drm_ioremap_wc(struct drm_device *dev, drm_local_map_t *map)
+/** Wrapper around agp_unbind_memory() */
+int drm_unbind_agp(DRM_AGP_MEM * handle)
 {
-	return pmap_mapdev_attr(map->offset, map->size, VM_MEMATTR_WRITE_COMBINING);
+	device_t agpdev;
+
+	agpdev = agp_find_device();
+	if (!agpdev || !handle)
+		return -EINVAL;
+
+	return -agp_unbind_memory(agpdev, handle);
+}
+EXPORT_SYMBOL(drm_unbind_agp);
+
+#else  /*  __OS_HAS_AGP  */
+static inline void *agp_remap(unsigned long offset, unsigned long size,
+			      struct drm_device * dev)
+{
+	return NULL;
 }
 
-void *drm_ioremap(struct drm_device *dev, drm_local_map_t *map)
+#endif				/* agp */
+
+void drm_core_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {
-	return pmap_mapdev(map->offset, map->size);
+	if (drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+		map->handle = agp_remap(map->offset, map->size, dev);
+	else
+		map->handle = pmap_mapdev(map->offset, map->size);
 }
+EXPORT_SYMBOL(drm_core_ioremap);
 
-void drm_ioremapfree(drm_local_map_t *map)
+void drm_core_ioremap_wc(struct drm_local_map *map, struct drm_device *dev)
 {
-	pmap_unmapdev((vm_offset_t) map->virtual, map->size);
+	if (drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+		map->handle = agp_remap(map->offset, map->size, dev);
+	else
+		map->handle = pmap_mapdev_attr(map->offset, map->size,
+		    VM_MEMATTR_WRITE_COMBINING);
 }
+EXPORT_SYMBOL(drm_core_ioremap_wc);
 
-int
-drm_mtrr_add(unsigned long offset, size_t size, int flags)
+void drm_core_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 {
-	int act;
-	struct mem_range_desc mrdesc;
+	if (!map->handle || !map->size)
+		return;
 
-	mrdesc.mr_base = offset;
-	mrdesc.mr_len = size;
-	mrdesc.mr_flags = flags;
-	act = MEMRANGE_SET_UPDATE;
-	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
-	return mem_range_attr_set(&mrdesc, &act);
+	if (drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+		vunmap(map->handle);
+	else
+		pmap_unmapdev((vm_offset_t)map->handle, map->size);
 }
-
-int
-drm_mtrr_del(int __unused handle, unsigned long offset, size_t size, int flags)
-{
-	int act;
-	struct mem_range_desc mrdesc;
-
-	mrdesc.mr_base = offset;
-	mrdesc.mr_len = size;
-	mrdesc.mr_flags = flags;
-	act = MEMRANGE_SET_REMOVE;
-	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
-	return mem_range_attr_set(&mrdesc, &act);
-}
-
-void
-drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
-{
-
-	pmap_invalidate_cache_pages(pages, num_pages);
-}
+EXPORT_SYMBOL(drm_core_ioremapfree);

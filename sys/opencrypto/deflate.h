@@ -36,7 +36,7 @@
 #ifndef _CRYPTO_DEFLATE_H_
 #define _CRYPTO_DEFLATE_H_
 
-#include <net/zlib.h>
+#include <sys/zlib.h>
 
 #define Z_METHOD	8
 #define Z_MEMLEVEL	8

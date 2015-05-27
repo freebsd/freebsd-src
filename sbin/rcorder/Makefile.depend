@@ -17,6 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-rcorder.o: util.h
-rcorder.po: util.h
 .endif

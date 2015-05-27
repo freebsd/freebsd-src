@@ -180,6 +180,18 @@ stunalloc(pointer p)
 }
 
 
+char *
+stsavestr(const char *s)
+{
+	char *p;
+	size_t len;
+
+	len = strlen(s);
+	p = stalloc(len + 1);
+	memcpy(p, s, len + 1);
+	return p;
+}
+
 
 void
 setstackmark(struct stackmark *mark)

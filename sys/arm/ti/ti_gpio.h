@@ -39,6 +39,11 @@
  */
 #define	MAX_GPIO_INTRS			8
 
+struct ti_gpio_mask_arg {
+	void	*softc;
+	int	pin;
+};
+
 /**
  *	Structure that stores the driver context.
  *
@@ -46,24 +51,27 @@
  */
 struct ti_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 
-	/*
-	 * The memory resource(s) for the PRCM register set, when the device is
-	 * created the caller can assign up to 6 memory regions depending on
-	 * the SoC type.
-	 */
-	struct resource		*sc_mem_res[MAX_GPIO_BANKS];
-	struct resource		*sc_irq_res[MAX_GPIO_INTRS];
+	/* Interrupt trigger type and level. */
+	enum intr_trigger	*sc_irq_trigger;
+	enum intr_polarity	*sc_irq_polarity;
+
+	int			sc_bank;
+	int			sc_maxpin;
+	struct mtx		sc_mtx;
+
+	int			sc_mem_rid;
+	struct resource		*sc_mem_res;
+	int			sc_irq_rid;
+	struct resource		*sc_irq_res;
+
+	/* Interrupt events. */
+	struct intr_event	**sc_events;
+	struct ti_gpio_mask_arg	*sc_mask_args;
 
 	/* The handle for the register IRQ handlers. */
-	void			*sc_irq_hdl[MAX_GPIO_INTRS];
-
-	/*
-	 * The following describes the H/W revision of each of the GPIO banks.
-	 */
-	uint32_t		sc_revision[MAX_GPIO_BANKS];
-
-	struct mtx		sc_mtx;
+	void			*sc_irq_hdl;
 };
 
 #endif /* TI_GPIO_H */

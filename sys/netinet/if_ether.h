@@ -112,11 +112,10 @@ struct sockaddr_inarp {
 extern u_char	ether_ipmulticast_min[ETHER_ADDR_LEN];
 extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 
-struct llentry;
 struct ifaddr;
 
-int	arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
-	    const struct sockaddr *dst, u_char *desten, struct llentry **lle);
+int	arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	    const struct sockaddr *dst, u_char *desten, uint32_t *pflags);
 void	arprequest(struct ifnet *, const struct in_addr *,
 	    const struct in_addr *, u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);

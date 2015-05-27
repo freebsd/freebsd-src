@@ -33,7 +33,7 @@
 .\"	@(#)pax.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2013
+.Dd March 17, 2015
 .Dt PAX 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Nd read and write file archives and copy directory hierarchies
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdnvz
+.Op Fl cdnvzO
 .Bk -words
 .Op Fl f Ar archive
 .Ek
@@ -68,7 +68,7 @@
 .Op Ar pattern ...\&
 .Nm
 .Fl r
-.Op Fl cdiknuvzDYZ
+.Op Fl cdiknuvzDOYZ
 .Bk -words
 .Op Fl f Ar archive
 .Ek
@@ -104,7 +104,7 @@
 .Op Ar pattern ...\&
 .Nm
 .Fl w
-.Op Fl dituvzHLPX
+.Op Fl dituvzHLOPX
 .Bk -words
 .Op Fl b Ar blocksize
 .Ek
@@ -147,7 +147,7 @@
 .Nm
 .Fl r
 .Fl w
-.Op Fl diklntuvDHLPXYZ
+.Op Fl diklntuvDHLOPXYZ
 .Bk -words
 .Op Fl p Ar string
 .Ar ...\&
@@ -853,6 +853,13 @@ Follow only command line symbolic links while performing a physical file
 system traversal.
 .It Fl L
 Follow all symbolic links to perform a logical file system traversal.
+.It Fl O
+Force the archive to be one volume.
+If a volume ends prematurely,
+.Nm
+will not prompt for a new volume.
+This option can be useful for
+automated tasks where error recovery cannot be performed by a human.
 .It Fl P
 Do not follow symbolic links, perform a physical file system traversal.
 This is the default mode.
@@ -1176,6 +1183,7 @@ The options
 .Fl G ,
 .Fl H ,
 .Fl L ,
+.Fl O ,
 .Fl P ,
 .Fl T ,
 .Fl U ,

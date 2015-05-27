@@ -35,3 +35,10 @@ The tickadj.c program can be used to read and set various kernel
 parameters affecting NTP operations. See the tickadj page in the HTML
 documentation for further details.  tickadj will be built if configure
 believes your system can use it.
+
+tg.c and tg2.c are tone generators.  They make audio signals
+that emulate WWV or IRIG (-B and -E).  tg runs on Solaris.
+tg2 is a clone that runs on Linux, FreeBSD, and NetBSD.
+Read the source for the fine print.  tg2 has a help option
+available via -h.
+

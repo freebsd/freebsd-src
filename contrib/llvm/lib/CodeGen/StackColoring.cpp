@@ -21,7 +21,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "stackcoloring"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DepthFirstIterator.h"
@@ -30,7 +29,6 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SparseSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -44,7 +42,9 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/DebugInfo.h"
+#include "llvm/CodeGen/StackProtector.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -56,6 +56,8 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "stackcoloring"
 
 static cl::opt<bool>
 DisableColoring("no-stack-coloring",
@@ -112,37 +114,25 @@ class StackColoring : public MachineFunctionPass {
   SmallVector<const MachineBasicBlock*, 8> BasicBlockNumbering;
 
   /// Maps liveness intervals for each slot.
-  SmallVector<LiveInterval*, 16> Intervals;
+  SmallVector<std::unique_ptr<LiveInterval>, 16> Intervals;
   /// VNInfo is used for the construction of LiveIntervals.
   VNInfo::Allocator VNInfoAllocator;
   /// SlotIndex analysis object.
   SlotIndexes *Indexes;
+  /// The stack protector object.
+  StackProtector *SP;
 
   /// The list of lifetime markers found. These markers are to be removed
   /// once the coloring is done.
   SmallVector<MachineInstr*, 8> Markers;
-
-  /// SlotSizeSorter - A Sort utility for arranging stack slots according
-  /// to their size.
-  struct SlotSizeSorter {
-    MachineFrameInfo *MFI;
-    SlotSizeSorter(MachineFrameInfo *mfi) : MFI(mfi) { }
-    bool operator()(int LHS, int RHS) {
-      // We use -1 to denote a uninteresting slot. Place these slots at the end.
-      if (LHS == -1) return false;
-      if (RHS == -1) return true;
-      // Sort according to size.
-      return MFI->getObjectSize(LHS) > MFI->getObjectSize(RHS);
-  }
-};
 
 public:
   static char ID;
   StackColoring() : MachineFunctionPass(ID) {
     initializeStackColoringPass(*PassRegistry::getPassRegistry());
   }
-  void getAnalysisUsage(AnalysisUsage &AU) const;
-  bool runOnMachineFunction(MachineFunction &MF);
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
 private:
   /// Debug.
@@ -191,6 +181,7 @@ INITIALIZE_PASS_BEGIN(StackColoring,
                    "stack-coloring", "Merge disjoint stack slots", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
+INITIALIZE_PASS_DEPENDENCY(StackProtector)
 INITIALIZE_PASS_END(StackColoring,
                    "stack-coloring", "Merge disjoint stack slots", false, false)
 
@@ -198,16 +189,16 @@ void StackColoring::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<MachineDominatorTree>();
   AU.addPreserved<MachineDominatorTree>();
   AU.addRequired<SlotIndexes>();
+  AU.addRequired<StackProtector>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
 void StackColoring::dump() const {
-  for (df_iterator<MachineFunction*> FI = df_begin(MF), FE = df_end(MF);
-       FI != FE; ++FI) {
-    DEBUG(dbgs()<<"Inspecting block #"<<BasicBlocks.lookup(*FI)<<
-          " ["<<FI->getName()<<"]\n");
+  for (MachineBasicBlock *MBB : depth_first(MF)) {
+    DEBUG(dbgs() << "Inspecting block #" << BasicBlocks.lookup(MBB) << " ["
+                 << MBB->getName() << "]\n");
 
-    LivenessMap::const_iterator BI = BlockLiveness.find(*FI);
+    LivenessMap::const_iterator BI = BlockLiveness.find(MBB);
     assert(BI != BlockLiveness.end() && "Block not found");
     const BlockLifetimeInfo &BlockInfo = BI->second;
 
@@ -237,34 +228,31 @@ void StackColoring::dump() const {
 unsigned StackColoring::collectMarkers(unsigned NumSlot) {
   unsigned MarkersFound = 0;
   // Scan the function to find all lifetime markers.
-  // NOTE: We use the a reverse-post-order iteration to ensure that we obtain a
+  // NOTE: We use a reverse-post-order iteration to ensure that we obtain a
   // deterministic numbering, and because we'll need a post-order iteration
   // later for solving the liveness dataflow problem.
-  for (df_iterator<MachineFunction*> FI = df_begin(MF), FE = df_end(MF);
-       FI != FE; ++FI) {
+  for (MachineBasicBlock *MBB : depth_first(MF)) {
 
     // Assign a serial number to this basic block.
-    BasicBlocks[*FI] = BasicBlockNumbering.size();
-    BasicBlockNumbering.push_back(*FI);
+    BasicBlocks[MBB] = BasicBlockNumbering.size();
+    BasicBlockNumbering.push_back(MBB);
 
     // Keep a reference to avoid repeated lookups.
-    BlockLifetimeInfo &BlockInfo = BlockLiveness[*FI];
+    BlockLifetimeInfo &BlockInfo = BlockLiveness[MBB];
 
     BlockInfo.Begin.resize(NumSlot);
     BlockInfo.End.resize(NumSlot);
 
-    for (MachineBasicBlock::iterator BI = (*FI)->begin(), BE = (*FI)->end();
-         BI != BE; ++BI) {
-
-      if (BI->getOpcode() != TargetOpcode::LIFETIME_START &&
-          BI->getOpcode() != TargetOpcode::LIFETIME_END)
+    for (MachineInstr &MI : *MBB) {
+      if (MI.getOpcode() != TargetOpcode::LIFETIME_START &&
+          MI.getOpcode() != TargetOpcode::LIFETIME_END)
         continue;
 
-      Markers.push_back(BI);
+      Markers.push_back(&MI);
 
-      bool IsStart = BI->getOpcode() == TargetOpcode::LIFETIME_START;
-      const MachineOperand &MI = BI->getOperand(0);
-      unsigned Slot = MI.getIndex();
+      bool IsStart = MI.getOpcode() == TargetOpcode::LIFETIME_START;
+      const MachineOperand &MO = MI.getOperand(0);
+      unsigned Slot = MO.getIndex();
 
       MarkersFound++;
 
@@ -310,11 +298,7 @@ void StackColoring::calculateLocalLiveness() {
 
     SmallPtrSet<const MachineBasicBlock*, 8> NextBBSet;
 
-    for (SmallVectorImpl<const MachineBasicBlock *>::iterator
-           PI = BasicBlockNumbering.begin(), PE = BasicBlockNumbering.end();
-           PI != PE; ++PI) {
-
-      const MachineBasicBlock *BB = *PI;
+    for (const MachineBasicBlock *BB : BasicBlockNumbering) {
       if (!BBSet.count(BB)) continue;
 
       // Use an iterator to avoid repeated lookups.
@@ -369,18 +353,14 @@ void StackColoring::calculateLocalLiveness() {
         changed = true;
         BlockInfo.LiveIn |= LocalLiveIn;
 
-        for (MachineBasicBlock::const_pred_iterator PI = BB->pred_begin(),
-             PE = BB->pred_end(); PI != PE; ++PI)
-          NextBBSet.insert(*PI);
+        NextBBSet.insert(BB->pred_begin(), BB->pred_end());
       }
 
       if (LocalLiveOut.test(BlockInfo.LiveOut)) {
         changed = true;
         BlockInfo.LiveOut |= LocalLiveOut;
 
-        for (MachineBasicBlock::const_succ_iterator SI = BB->succ_begin(),
-             SE = BB->succ_end(); SI != SE; ++SI)
-          NextBBSet.insert(*SI);
+        NextBBSet.insert(BB->succ_begin(), BB->succ_end());
       }
     }
 
@@ -394,18 +374,15 @@ void StackColoring::calculateLiveIntervals(unsigned NumSlots) {
 
   // For each block, find which slots are active within this block
   // and update the live intervals.
-  for (MachineFunction::iterator MBB = MF->begin(), MBBe = MF->end();
-       MBB != MBBe; ++MBB) {
+  for (const MachineBasicBlock &MBB : *MF) {
     Starts.clear();
     Starts.resize(NumSlots);
     Finishes.clear();
     Finishes.resize(NumSlots);
 
     // Create the interval for the basic blocks with lifetime markers in them.
-    for (SmallVectorImpl<MachineInstr*>::const_iterator it = Markers.begin(),
-         e = Markers.end(); it != e; ++it) {
-      const MachineInstr *MI = *it;
-      if (MI->getParent() != MBB)
+    for (const MachineInstr *MI : Markers) {
+      if (MI->getParent() != &MBB)
         continue;
 
       assert((MI->getOpcode() == TargetOpcode::LIFETIME_START ||
@@ -429,14 +406,14 @@ void StackColoring::calculateLiveIntervals(unsigned NumSlots) {
     }
 
     // Create the interval of the blocks that we previously found to be 'alive'.
-    BlockLifetimeInfo &MBBLiveness = BlockLiveness[MBB];
+    BlockLifetimeInfo &MBBLiveness = BlockLiveness[&MBB];
     for (int pos = MBBLiveness.LiveIn.find_first(); pos != -1;
          pos = MBBLiveness.LiveIn.find_next(pos)) {
-      Starts[pos] = Indexes->getMBBStartIdx(MBB);
+      Starts[pos] = Indexes->getMBBStartIdx(&MBB);
     }
     for (int pos = MBBLiveness.LiveOut.find_first(); pos != -1;
          pos = MBBLiveness.LiveOut.find_next(pos)) {
-      Finishes[pos] = Indexes->getMBBEndIdx(MBB);
+      Finishes[pos] = Indexes->getMBBEndIdx(&MBB);
     }
 
     for (unsigned i = 0; i < NumSlots; ++i) {
@@ -452,10 +429,10 @@ void StackColoring::calculateLiveIntervals(unsigned NumSlots) {
         // We have a single consecutive region.
         Intervals[i]->addSegment(LiveInterval::Segment(S, F, ValNum));
       } else {
-        // We have two non consecutive regions. This happens when
+        // We have two non-consecutive regions. This happens when
         // LIFETIME_START appears after the LIFETIME_END marker.
-        SlotIndex NewStart = Indexes->getMBBStartIdx(MBB);
-        SlotIndex NewFin = Indexes->getMBBEndIdx(MBB);
+        SlotIndex NewStart = Indexes->getMBBStartIdx(&MBB);
+        SlotIndex NewFin = Indexes->getMBBEndIdx(&MBB);
         Intervals[i]->addSegment(LiveInterval::Segment(NewStart, F, ValNum));
         Intervals[i]->addSegment(LiveInterval::Segment(S, NewFin, ValNum));
       }
@@ -465,8 +442,8 @@ void StackColoring::calculateLiveIntervals(unsigned NumSlots) {
 
 bool StackColoring::removeAllMarkers() {
   unsigned Count = 0;
-  for (unsigned i = 0; i < Markers.size(); ++i) {
-    Markers[i]->eraseFromParent();
+  for (MachineInstr *MI : Markers) {
+    MI->eraseFromParent();
     Count++;
   }
   Markers.clear();
@@ -482,65 +459,71 @@ void StackColoring::remapInstructions(DenseMap<int, int> &SlotRemap) {
   MachineModuleInfo *MMI = &MF->getMMI();
 
   // Remap debug information that refers to stack slots.
-  MachineModuleInfo::VariableDbgInfoMapTy &VMap = MMI->getVariableDbgInfo();
-  for (MachineModuleInfo::VariableDbgInfoMapTy::iterator VI = VMap.begin(),
-       VE = VMap.end(); VI != VE; ++VI) {
-    const MDNode *Var = VI->first;
-    if (!Var) continue;
-    std::pair<unsigned, DebugLoc> &VP = VI->second;
-    if (SlotRemap.count(VP.first)) {
-      DEBUG(dbgs()<<"Remapping debug info for ["<<Var->getName()<<"].\n");
-      VP.first = SlotRemap[VP.first];
+  for (auto &VI : MMI->getVariableDbgInfo()) {
+    if (!VI.Var)
+      continue;
+    if (SlotRemap.count(VI.Slot)) {
+      DEBUG(dbgs() << "Remapping debug info for ["
+                   << DIVariable(VI.Var).getName() << "].\n");
+      VI.Slot = SlotRemap[VI.Slot];
       FixedDbg++;
     }
   }
 
   // Keep a list of *allocas* which need to be remapped.
   DenseMap<const AllocaInst*, const AllocaInst*> Allocas;
-  for (DenseMap<int, int>::const_iterator it = SlotRemap.begin(),
-       e = SlotRemap.end(); it != e; ++it) {
-    const AllocaInst *From = MFI->getObjectAllocation(it->first);
-    const AllocaInst *To = MFI->getObjectAllocation(it->second);
+  for (const std::pair<int, int> &SI : SlotRemap) {
+    const AllocaInst *From = MFI->getObjectAllocation(SI.first);
+    const AllocaInst *To = MFI->getObjectAllocation(SI.second);
     assert(To && From && "Invalid allocation object");
     Allocas[From] = To;
+
+    // AA might be used later for instruction scheduling, and we need it to be
+    // able to deduce the correct aliasing releationships between pointers
+    // derived from the alloca being remapped and the target of that remapping.
+    // The only safe way, without directly informing AA about the remapping
+    // somehow, is to directly update the IR to reflect the change being made
+    // here.
+    Instruction *Inst = const_cast<AllocaInst *>(To);
+    if (From->getType() != To->getType()) {
+      BitCastInst *Cast = new BitCastInst(Inst, From->getType());
+      Cast->insertAfter(Inst);
+      Inst = Cast;
+    }
+
+    // Allow the stack protector to adjust its value map to account for the
+    // upcoming replacement.
+    SP->adjustForColoring(From, To);
+
+    // Note that this will not replace uses in MMOs (which we'll update below),
+    // or anywhere else (which is why we won't delete the original
+    // instruction).
+    const_cast<AllocaInst *>(From)->replaceAllUsesWith(Inst);
   }
 
   // Remap all instructions to the new stack slots.
-  MachineFunction::iterator BB, BBE;
-  MachineBasicBlock::iterator I, IE;
-  for (BB = MF->begin(), BBE = MF->end(); BB != BBE; ++BB)
-    for (I = BB->begin(), IE = BB->end(); I != IE; ++I) {
-
+  for (MachineBasicBlock &BB : *MF)
+    for (MachineInstr &I : BB) {
       // Skip lifetime markers. We'll remove them soon.
-      if (I->getOpcode() == TargetOpcode::LIFETIME_START ||
-          I->getOpcode() == TargetOpcode::LIFETIME_END)
+      if (I.getOpcode() == TargetOpcode::LIFETIME_START ||
+          I.getOpcode() == TargetOpcode::LIFETIME_END)
         continue;
 
       // Update the MachineMemOperand to use the new alloca.
-      for (MachineInstr::mmo_iterator MM = I->memoperands_begin(),
-           E = I->memoperands_end(); MM != E; ++MM) {
-        MachineMemOperand *MMO = *MM;
+      for (MachineMemOperand *MMO : I.memoperands()) {
+        // FIXME: In order to enable the use of TBAA when using AA in CodeGen,
+        // we'll also need to update the TBAA nodes in MMOs with values
+        // derived from the merged allocas. When doing this, we'll need to use
+        // the same variant of GetUnderlyingObjects that is used by the
+        // instruction scheduler (that can look through ptrtoint/inttoptr
+        // pairs).
 
-        const Value *V = MMO->getValue();
-
-        if (!V)
+        // We've replaced IR-level uses of the remapped allocas, so we only
+        // need to replace direct uses here.
+        const AllocaInst *AI = dyn_cast_or_null<AllocaInst>(MMO->getValue());
+        if (!AI)
           continue;
 
-        const PseudoSourceValue *PSV = dyn_cast<const PseudoSourceValue>(V);
-        if (PSV && PSV->isConstant(MFI))
-          continue;
-
-        // Climb up and find the original alloca.
-        V = GetUnderlyingObject(V);
-        // If we did not find one, or if the one that we found is not in our
-        // map, then move on.
-        if (!V || !isa<AllocaInst>(V)) {
-          // Clear mem operand since we don't know for sure that it doesn't
-          // alias a merged alloca.
-          MMO->setValue(0);
-          continue;
-        }
-        const AllocaInst *AI= cast<AllocaInst>(V);
         if (!Allocas.count(AI))
           continue;
 
@@ -549,9 +532,7 @@ void StackColoring::remapInstructions(DenseMap<int, int> &SlotRemap) {
       }
 
       // Update all of the machine instruction operands.
-      for (unsigned i = 0 ; i <  I->getNumOperands(); ++i) {
-        MachineOperand &MO = I->getOperand(i);
-
+      for (MachineOperand &MO : I.operands()) {
         if (!MO.isFI())
           continue;
         int FromSlot = MO.getIndex();
@@ -572,12 +553,12 @@ void StackColoring::remapInstructions(DenseMap<int, int> &SlotRemap) {
         // zone are are okay, despite the fact that we don't have a good way
         // for validating all of the usages of the calculation.
 #ifndef NDEBUG
-        bool TouchesMemory = I->mayLoad() || I->mayStore();
+        bool TouchesMemory = I.mayLoad() || I.mayStore();
         // If we *don't* protect the user from escaped allocas, don't bother
         // validating the instructions.
-        if (!I->isDebugValue() && TouchesMemory && ProtectFromEscapedAllocas) {
-          SlotIndex Index = Indexes->getInstructionIndex(I);
-          LiveInterval *Interval = Intervals[FromSlot];
+        if (!I.isDebugValue() && TouchesMemory && ProtectFromEscapedAllocas) {
+          SlotIndex Index = Indexes->getInstructionIndex(&I);
+          const LiveInterval *Interval = &*Intervals[FromSlot];
           assert(Interval->find(Index) != Interval->end() &&
                  "Found instruction usage outside of live range.");
         }
@@ -596,13 +577,10 @@ void StackColoring::remapInstructions(DenseMap<int, int> &SlotRemap) {
 }
 
 void StackColoring::removeInvalidSlotRanges() {
-  MachineFunction::const_iterator BB, BBE;
-  MachineBasicBlock::const_iterator I, IE;
-  for (BB = MF->begin(), BBE = MF->end(); BB != BBE; ++BB)
-    for (I = BB->begin(), IE = BB->end(); I != IE; ++I) {
-
-      if (I->getOpcode() == TargetOpcode::LIFETIME_START ||
-          I->getOpcode() == TargetOpcode::LIFETIME_END || I->isDebugValue())
+  for (MachineBasicBlock &BB : *MF)
+    for (MachineInstr &I : BB) {
+      if (I.getOpcode() == TargetOpcode::LIFETIME_START ||
+          I.getOpcode() == TargetOpcode::LIFETIME_END || I.isDebugValue())
         continue;
 
       // Some intervals are suspicious! In some cases we find address
@@ -611,13 +589,11 @@ void StackColoring::removeInvalidSlotRanges() {
       // violation, but address calculations are okay. This can happen when
       // GEPs are hoisted outside of the lifetime zone.
       // So, in here we only check instructions which can read or write memory.
-      if (!I->mayLoad() && !I->mayStore())
+      if (!I.mayLoad() && !I.mayStore())
         continue;
 
       // Check all of the machine operands.
-      for (unsigned i = 0 ; i <  I->getNumOperands(); ++i) {
-        const MachineOperand &MO = I->getOperand(i);
-
+      for (const MachineOperand &MO : I.operands()) {
         if (!MO.isFI())
           continue;
 
@@ -631,10 +607,10 @@ void StackColoring::removeInvalidSlotRanges() {
 
         // Check that the used slot is inside the calculated lifetime range.
         // If it is not, warn about it and invalidate the range.
-        LiveInterval *Interval = Intervals[Slot];
-        SlotIndex Index = Indexes->getInstructionIndex(I);
+        LiveInterval *Interval = &*Intervals[Slot];
+        SlotIndex Index = Indexes->getInstructionIndex(&I);
         if (Interval->find(Index) == Interval->end()) {
-          Intervals[Slot]->clear();
+          Interval->clear();
           DEBUG(dbgs()<<"Invalidating range #"<<Slot<<"\n");
           EscapedAllocas++;
         }
@@ -659,12 +635,16 @@ void StackColoring::expungeSlotMap(DenseMap<int, int> &SlotRemap,
 }
 
 bool StackColoring::runOnMachineFunction(MachineFunction &Func) {
+  if (skipOptnoneFunction(*Func.getFunction()))
+    return false;
+
   DEBUG(dbgs() << "********** Stack Coloring **********\n"
                << "********** Function: "
                << ((const Value*)Func.getFunction())->getName() << '\n');
   MF = &Func;
   MFI = MF->getFrameInfo();
   Indexes = &getAnalysis<SlotIndexes>();
+  SP = &getAnalysis<StackProtector>();
   BlockLiveness.clear();
   BasicBlocks.clear();
   BasicBlockNumbering.clear();
@@ -704,9 +684,9 @@ bool StackColoring::runOnMachineFunction(MachineFunction &Func) {
   }
 
   for (unsigned i=0; i < NumSlots; ++i) {
-    LiveInterval *LI = new LiveInterval(i, 0);
-    Intervals.push_back(LI);
+    std::unique_ptr<LiveInterval> LI(new LiveInterval(i, 0));
     LI->getNextValue(Indexes->getZeroIndex(), VNInfoAllocator);
+    Intervals.push_back(std::move(LI));
     SortedSlots.push_back(i);
   }
 
@@ -741,7 +721,13 @@ bool StackColoring::runOnMachineFunction(MachineFunction &Func) {
   // Sort the slots according to their size. Place unused slots at the end.
   // Use stable sort to guarantee deterministic code generation.
   std::stable_sort(SortedSlots.begin(), SortedSlots.end(),
-                   SlotSizeSorter(MFI));
+                   [this](int LHS, int RHS) {
+    // We use -1 to denote a uninteresting slot. Place these slots at the end.
+    if (LHS == -1) return false;
+    if (RHS == -1) return true;
+    // Sort according to size.
+    return MFI->getObjectSize(LHS) > MFI->getObjectSize(RHS);
+  });
 
   bool Changed = true;
   while (Changed) {
@@ -756,8 +742,8 @@ bool StackColoring::runOnMachineFunction(MachineFunction &Func) {
 
         int FirstSlot = SortedSlots[I];
         int SecondSlot = SortedSlots[J];
-        LiveInterval *First = Intervals[FirstSlot];
-        LiveInterval *Second = Intervals[SecondSlot];
+        LiveInterval *First = &*Intervals[FirstSlot];
+        LiveInterval *Second = &*Intervals[SecondSlot];
         assert (!First->empty() && !Second->empty() && "Found an empty range");
 
         // Merge disjoint slots.
@@ -794,11 +780,6 @@ bool StackColoring::runOnMachineFunction(MachineFunction &Func) {
   // indices to use the remapped frame index.
   expungeSlotMap(SlotRemap, NumSlots);
   remapInstructions(SlotRemap);
-
-  // Release the intervals.
-  for (unsigned I = 0; I < NumSlots; ++I) {
-    delete Intervals[I];
-  }
 
   return removeAllMarkers();
 }

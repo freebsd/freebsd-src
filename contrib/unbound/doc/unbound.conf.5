@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
+.TH "unbound.conf" "5" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -8,14 +8,11 @@
 .\"
 .\"
 .SH "NAME"
-.LP
 .B unbound.conf
 \- Unbound configuration file.
 .SH "SYNOPSIS"
-.LP
 .B unbound.conf
 .SH "DESCRIPTION"
-.LP
 .B unbound.conf
 is used to configure
 \fIunbound\fR(8).
@@ -65,7 +62,6 @@ server:
 	access\-control: 2001:DB8::/64 allow
 .fi
 .SH "FILE FORMAT"
-.LP
 There must be whitespace between keywords. Attribute keywords end with a colon ':'. An attribute
 is followed by its containing attributes, or a value.
 .P
@@ -169,11 +165,11 @@ Give a port number or a range of the form "low\-high", without spaces.
 .TP
 .B outgoing\-num\-tcp: \fI<number>
 Number of outgoing TCP buffers to allocate per thread. Default is 10. If set
-to 0, or if do_tcp is "no", no TCP queries to authoritative servers are done.
+to 0, or if do\-tcp is "no", no TCP queries to authoritative servers are done.
 .TP
 .B incoming\-num\-tcp: \fI<number>
 Number of incoming TCP buffers to allocate per thread. Default is 10. If set
-to 0, or if do_tcp is "no", no TCP queries from clients are accepted.
+to 0, or if do\-tcp is "no", no TCP queries from clients are accepted.
 .TP
 .B edns\-buffer\-size: \fI<number>
 Number of bytes size to advertise as the EDNS reassembly buffer size.
@@ -262,8 +258,9 @@ to so\-rcvbuf.
 .B so\-reuseport: \fI<yes or no>
 If yes, then open dedicated listening sockets for incoming queries for each
 thread and try to set the SO_REUSEPORT socket option on each socket.  May
-distribute incoming queries to threads more evenly.  Default is no.  Only
-supported on Linux >= 3.9.  You can enable it (on any platform and kernel),
+distribute incoming queries to threads more evenly.  Default is no.  On Linux
+it is supported in kernels >= 3.9.  On other systems, FreeBSD, OSX it may
+also work.  You can enable it (on any platform and kernel),
 it then attempts to open the port and passes the option if it was available
 at compile time, if that works it is used, if it fails, it continues
 silently (unless verbosity 3) without the option.
@@ -304,13 +301,20 @@ by threads. Must be set to a power of 2.
 .B infra\-cache\-numhosts: \fI<number>
 Number of hosts for which information is cached. Default is 10000.
 .TP
+.B infra\-cache\-min\-rtt: \fI<msec>
+Lower limit for dynamic retransmit timeout calculation in infrastructure
+cache. Default is 50 milliseconds. Increase this value if using forwarders
+needing more time to do recursive name resolution.
+.TP
 .B do\-ip4: \fI<yes or no>
 Enable or disable whether ip4 queries are answered or issued. Default is yes.
 .TP
 .B do\-ip6: \fI<yes or no>
 Enable or disable whether ip6 queries are answered or issued. Default is yes.
 If disabled, queries are not answered on IPv6, and queries are not sent on
-IPv6 to the internet nameservers.
+IPv6 to the internet nameservers.  With this option you can disable the
+ipv6 transport for sending DNS traffic, it does not impact the contents of
+the DNS traffic, which may have ip4 and ip6 addresses in it.
 .TP
 .B do\-udp: \fI<yes or no>
 Enable or disable whether UDP queries are answered or issued. Default is yes.
@@ -792,7 +796,7 @@ data leakage about the local network to the upstream DNS servers.
 .B local\-zone: \fI<zone> <type>
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
-transparent, redirect, nodefault, typetransparent, and are explained
+transparent, redirect, nodefault, typetransparent, inform, and are explained
 below. After that the default settings are listed. Use local\-data: to
 enter data into the local zone. Answers for local zones are authoritative
 DNS answers. By default the zones are class IN.
@@ -841,6 +845,13 @@ local\-zone: "example.com." redirect and
 local\-data: "example.com. A 127.0.0.1"
 queries for www.example.com and www.foo.example.com are redirected, so
 that users with web browsers cannot access sites with suffix example.com.
+.TP 10
+\h'5'\fIinform\fR 
+The query is answered normally.  The client IP address (@portnumber)
+is printed to the logfile.  The log message is: timestamp, unbound-pid,
+info: zonename inform IP@port queryname type class.  This option can be
+used for normal resolution, but machines looking up infected names are
+logged, eg. to run antivirus on them.
 .TP 10
 \h'5'\fInodefault\fR 
 Used to turn off default contents for AS112 zones. The other types
@@ -905,6 +916,7 @@ records are provided.
 Reverse data for zones 0.in\-addr.arpa, 254.169.in\-addr.arpa, 
 2.0.192.in\-addr.arpa (TEST NET 1), 100.51.198.in\-addr.arpa (TEST NET 2),
 113.0.203.in\-addr.arpa (TEST NET 3), 255.255.255.255.in\-addr.arpa.
+And from 64.100.in\-addr.arpa to 127.100.in\-addr.arpa (Shared Address Space).
 .TP 10
 \h'5'\fIreverse RFC4291 IP6 unspecified\fR
 Reverse data for zone 
@@ -958,36 +970,47 @@ to setup SSLv3 / TLSv1 security for the connection.  The
 section for options.  To setup the correct self\-signed certificates use the
 \fIunbound\-control\-setup\fR(8) utility.
 .TP 5
-.B control\-enable:     \fI<yes or no>
+.B control\-enable: \fI<yes or no>
 The option is used to enable remote control, default is "no".
 If turned off, the server does not listen for control commands.
 .TP 5
-.B control\-interface: <ip address>
-Give IPv4 or IPv6 addresses to listen on for control commands.
+.B control\-interface: \fI<ip address or path>
+Give IPv4 or IPv6 addresses or local socket path to listen on for
+control commands.
 By default localhost (127.0.0.1 and ::1) is listened to.
 Use 0.0.0.0 and ::0 to listen to all interfaces.
+If you change this and permissions have been dropped, you must restart
+the server for the change to take effect.
 .TP 5
-.B control\-port: <port number>
-The port number to listen on for control commands, default is 8953.
-If you change this port number, and permissions have been dropped,
-a reload is not sufficient to open the port again, you must then restart.
+.B control\-port: \fI<port number>
+The port number to listen on for IPv4 or IPv6 control interfaces,
+default is 8953.
+If you change this and permissions have been dropped, you must restart
+the server for the change to take effect.
 .TP 5
-.B server\-key\-file: "<private key file>"
+.B control\-use\-cert: \fI<yes or no>
+Whether to require certificate authentication of control connections.
+The default is "yes".
+This should not be changed unless there are other mechanisms in place
+to prevent untrusted users from accessing the remote control
+interface.
+.TP 5
+.B server\-key\-file: \fI<private key file>
 Path to the server private key, by default unbound_server.key.
 This file is generated by the \fIunbound\-control\-setup\fR utility.
 This file is used by the unbound server, but not by \fIunbound\-control\fR.
 .TP 5
-.B server\-cert\-file: "<certificate file.pem>"
+.B server\-cert\-file: \fI<certificate file.pem>
 Path to the server self signed certificate, by default unbound_server.pem.
 This file is generated by the \fIunbound\-control\-setup\fR utility.
 This file is used by the unbound server, and also by \fIunbound\-control\fR.
 .TP 5
-.B control\-key\-file: "<private key file>"
+.B control\-key\-file: \fI<private key file>
 Path to the control client private key, by default unbound_control.key.
 This file is generated by the \fIunbound\-control\-setup\fR utility.
 This file is used by \fIunbound\-control\fR.
 .TP 5
-.B control\-cert\-file: "<certificate file.pem>"
+.B control\-cert\-file: \fI<certificate file.pem>
 Path to the control client certificate, by default unbound_control.pem.
 This certificate has to be signed with the server certificate.
 This file is generated by the \fIunbound\-control\-setup\fR utility.
@@ -1082,6 +1105,19 @@ and the word "python" has to be put in the \fBmodule\-config:\fR option
 .TP
 .B python\-script: \fI<python file>\fR
 The script file to load. 
+.SS "DNS64 Module Options"
+.LP
+The dns64 module must be configured in the \fBmodule\-config:\fR "dns64
+validator iterator" directive and be compiled into the daemon to be
+enabled.  These settings go in the \fBserver:\fR section.
+.TP
+.B dns64\-prefix: \fI<IPv6 prefix>\fR
+This sets the DNS64 prefix to use to synthesize AAAA records with.
+It must be /96 or shorter.  The default prefix is 64:ff9b::/96.
+.TP
+.B dns64\-synthall: \fI<yes or no>\fR
+Debug option, default no.  If enabled, synthesize all AAAA records
+despite the presence of actual AAAA records.
 .SH "MEMORY CONTROL EXAMPLE"
 In the example config settings below memory usage is reduced. Some service
 levels are lower, notable very large data and a high TCP load are no longer

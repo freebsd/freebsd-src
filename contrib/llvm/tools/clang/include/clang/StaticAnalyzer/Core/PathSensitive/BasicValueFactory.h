@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_BASICVALUEFACTORY_H
-#define LLVM_CLANG_GR_BASICVALUEFACTORY_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_BASICVALUEFACTORY_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_BASICVALUEFACTORY_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
@@ -79,9 +79,9 @@ class BasicValueFactory {
   const llvm::APSInt& getValue(uint64_t X, unsigned BitWidth, bool isUnsigned);
 
 public:
-  BasicValueFactory(ASTContext &ctx, llvm::BumpPtrAllocator& Alloc)
-  : Ctx(ctx), BPAlloc(Alloc), PersistentSVals(0), PersistentSValPairs(0),
-    SValListFactory(Alloc) {}
+  BasicValueFactory(ASTContext &ctx, llvm::BumpPtrAllocator &Alloc)
+    : Ctx(ctx), BPAlloc(Alloc), PersistentSVals(nullptr),
+      PersistentSValPairs(nullptr), SValListFactory(Alloc) {}
 
   ~BasicValueFactory();
 

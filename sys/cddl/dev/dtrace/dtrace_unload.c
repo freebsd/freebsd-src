@@ -69,11 +69,6 @@ dtrace_unload()
 
 	mutex_exit(&cpu_lock);
 
-	if (dtrace_helptrace_enabled) {
-		kmem_free(dtrace_helptrace_buffer, 0);
-		dtrace_helptrace_buffer = NULL;
-	}
-
 	if (dtrace_probes != NULL) {
 		kmem_free(dtrace_probes, 0);
 		dtrace_probes = NULL;

@@ -43,12 +43,15 @@ Options:
                   (default: /var/db/freebsd-update/)
   -f conffile  -- Read configuration options from conffile
                   (default: /etc/freebsd-update.conf)
+  -F           -- Force a fetch operation to proceed
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
   -r release   -- Target for upgrade (e.g., 6.2-RELEASE)
   -s server    -- Server from which to fetch updates
                   (default: update.FreeBSD.org)
   -t address   -- Mail output of cron command, if any, to address
                   (default: root)
+  --not-running-from-cron
+               -- Run without a tty, for use by automated tools
 Commands:
   fetch        -- Fetch updates from server
   cron         -- Sleep rand(3600) seconds, fetch updates, and send an
@@ -399,6 +402,12 @@ init_params () {
 
 	# No commands specified yet
 	COMMANDS=""
+
+	# Force fetch to proceed
+	FORCEFETCH=0
+
+	# Run without a TTY
+	NOTTYOK=0
 }
 
 # Parse the command line
@@ -410,6 +419,12 @@ parse_cmdline () {
 			if [ $# -eq 1 ]; then usage; fi
 			if [ ! -z "${CONFFILE}" ]; then usage; fi
 			shift; CONFFILE="$1"
+			;;
+		-F)
+			FORCEFETCH=1
+			;;
+		--not-running-from-cron)
+			NOTTYOK=1
 			;;
 
 		# Configuration file equivalents
@@ -671,6 +686,14 @@ fetch_check_params () {
 		echo -n "`basename $0`: "
 		echo -n "-r option is meaningless with 'fetch' command.  "
 		echo "(Did you mean 'upgrade' instead?)"
+		exit 1
+	fi
+
+	# Check that we have updates ready to install
+	if [ -f ${BDHASH}-install/kerneldone -a $FORCEFETCH -eq 0 ]; then
+		echo "You have a partially completed upgrade pending"
+		echo "Run '$0 install' first."
+		echo "Run '$0 fetch -F' to proceed anyway."
 		exit 1
 	fi
 }
@@ -1208,7 +1231,7 @@ fetch_metadata_sanity () {
 	# Some aliases to save space later: ${P} is a character which can
 	# appear in a path; ${M} is the four numeric metadata fields; and
 	# ${H} is a sha256 hash.
-	P="[-+./:=%@_[~[:alnum:]]"
+	P="[-+./:=,%@_[~[:alnum:]]"
 	M="[0-9]+\|[0-9]+\|[0-9]+\|[0-9]+"
 	H="[0-9a-f]{64}"
 
@@ -1395,6 +1418,7 @@ fetch_filter_metadata () {
 	# matter, since we add a leading "/" when we use paths later.
 	cut -f 3- -d '|' $1 |
 	    sed -e 's,/|d|,|d|,' |
+	    sed -e 's,/|-|,|-|,' |
 	    sort -u > $1.tmp
 
 	# Figure out which lines to ignore and remove them.
@@ -2263,7 +2287,7 @@ upgrade_oldall_to_oldnew () {
 }
 
 # Helper for upgrade_merge: Return zero true iff the two files differ only
-# in the contents of their $FreeBSD$ tags.
+# in the contents of their RCS tags.
 samef () {
 	X=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $1 | ${SHA256}`
 	Y=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $2 | ${SHA256}`
@@ -2359,7 +2383,7 @@ upgrade_merge () {
 		# Ask the user to handle any files which didn't merge.
 		while read F; do
 			# If the installed file differs from the version in
-			# the old release only due to $FreeBSD$ tag expansion
+			# the old release only due to RCS tag expansion
 			# then just use the version in the new release.
 			if samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
 				cp merge/${RELNUM}/${F} merge/new/${F}
@@ -2381,14 +2405,14 @@ manually...
 		# of merging files.
 		while read F; do
 			# Skip files which haven't changed except possibly
-			# in their $FreeBSD$ tags.
+			# in their RCS tags.
 			if [ -f merge/old/${F} ] && [ -f merge/new/${F} ] &&
 			    samef merge/old/${F} merge/new/${F}; then
 				continue
 			fi
 
 			# Skip files where the installed file differs from
-			# the old file only due to $FreeBSD$ tags.
+			# the old file only due to RCS tags.
 			if [ -f merge/old/${F} ] &&
 			    [ -f merge/${OLDRELNUM}/${F} ] &&
 			    samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
@@ -2633,14 +2657,14 @@ backup_kernel_finddir () {
 	while true ; do
 		# Pathname does not exist, so it is OK use that name
 		# for backup directory.
-		if [ ! -e $BACKUPKERNELDIR ]; then
+		if [ ! -e $BASEDIR/$BACKUPKERNELDIR ]; then
 			return 0
 		fi
 
 		# If directory do exist, we only use if it has our
 		# marker file.
-		if [ -d $BACKUPKERNELDIR -a \
-			-e $BACKUPKERNELDIR/.freebsd-update ]; then
+		if [ -d $BASEDIR/$BACKUPKERNELDIR -a \
+			-e $BASEDIR/$BACKUPKERNELDIR/.freebsd-update ]; then
 			return 0
 		fi
 
@@ -2648,7 +2672,7 @@ backup_kernel_finddir () {
 		# the end and try again.
 		CNT=$((CNT + 1))
 		if [ $CNT -gt 9 ]; then
-			echo "Could not find valid backup dir ($BACKUPKERNELDIR)"
+			echo "Could not find valid backup dir ($BASEDIR/$BACKUPKERNELDIR)"
 			exit 1
 		fi
 		BACKUPKERNELDIR="`echo $BACKUPKERNELDIR | sed -Ee 's/[0-9]\$//'`"
@@ -2675,17 +2699,17 @@ backup_kernel () {
 	# Remove old kernel backup files.  If $BACKUPKERNELDIR was
 	# "not ours", backup_kernel_finddir would have exited, so
 	# deleting the directory content is as safe as we can make it.
-	if [ -d $BACKUPKERNELDIR ]; then
-		rm -fr $BACKUPKERNELDIR
+	if [ -d $BASEDIR/$BACKUPKERNELDIR ]; then
+		rm -fr $BASEDIR/$BACKUPKERNELDIR
 	fi
 
 	# Create directories for backup.
-	mkdir -p $BACKUPKERNELDIR
-	mtree -cdn -p "${KERNELDIR}" | \
-	    mtree -Ue -p "${BACKUPKERNELDIR}" > /dev/null
+	mkdir -p $BASEDIR/$BACKUPKERNELDIR
+	mtree -cdn -p "${BASEDIR}/${KERNELDIR}" | \
+	    mtree -Ue -p "${BASEDIR}/${BACKUPKERNELDIR}" > /dev/null
 
 	# Mark the directory as having been created by freebsd-update.
-	touch $BACKUPKERNELDIR/.freebsd-update
+	touch $BASEDIR/$BACKUPKERNELDIR/.freebsd-update
 	if [ $? -ne 0 ]; then
 		echo "Could not create kernel backup directory"
 		exit 1
@@ -2703,8 +2727,8 @@ backup_kernel () {
 	fi
 
 	# Backup all the kernel files using hardlinks.
-	(cd $KERNELDIR && find . -type f $FINDFILTER -exec \
-	    cp -pl '{}' ${BACKUPKERNELDIR}/'{}' \;)
+	(cd ${BASEDIR}/${KERNELDIR} && find . -type f $FINDFILTER -exec \
+	    cp -pl '{}' ${BASEDIR}/${BACKUPKERNELDIR}/'{}' \;)
 
 	# Re-enable patchname expansion.
 	set +f
@@ -2802,7 +2826,7 @@ install_files () {
 
 		# Update linker.hints if necessary
 		if [ -s INDEX-OLD -o -s INDEX-NEW ]; then
-			kldxref -R /boot/ 2>/dev/null
+			kldxref -R ${BASEDIR}/boot/ 2>/dev/null
 		fi
 
 		# We've finished updating the kernel.
@@ -2827,31 +2851,40 @@ Kernel updates have been installed.  Please reboot and run
 		    grep -E '^[^|]+\|d\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
+		# Install new runtime linker
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -E '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
 		# Install new shared libraries next
 		grep -vE '^/boot/' $1/INDEX-NEW |
 		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
 		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
 		# Deal with everything else
 		grep -vE '^/boot/' $1/INDEX-OLD |
 		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
 		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
 		grep -vE '^/boot/' $1/INDEX-NEW |
 		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
 		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
 
 		# Rebuild /etc/spwd.db and /etc/pwd.db if necessary.
-		if [ /etc/master.passwd -nt /etc/spwd.db ] ||
-		    [ /etc/master.passwd -nt /etc/pwd.db ]; then
-			pwd_mkdb /etc/master.passwd
+		if [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/spwd.db ] ||
+		    [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/pwd.db ]; then
+			pwd_mkdb -d ${BASEDIR}/etc ${BASEDIR}/etc/master.passwd
 		fi
 
 		# Rebuild /etc/login.conf.db if necessary.
-		if [ /etc/login.conf -nt /etc/login.conf.db ]; then
-			cap_mkdb /etc/login.conf
+		if [ ${BASEDIR}/etc/login.conf -nt ${BASEDIR}/etc/login.conf.db ]; then
+			cap_mkdb ${BASEDIR}/etc/login.conf
 		fi
 
 		# We've finished installing the world and deleting old files
@@ -3187,7 +3220,7 @@ get_params () {
 # Fetch command.  Make sure that we're being called
 # interactively, then run fetch_check_params and fetch_run
 cmd_fetch () {
-	if [ ! -t 0 ]; then
+	if [ ! -t 0 -a $NOTTYOK -eq 0 ]; then
 		echo -n "`basename $0` fetch should not "
 		echo "be run non-interactively."
 		echo "Run `basename $0` cron instead."

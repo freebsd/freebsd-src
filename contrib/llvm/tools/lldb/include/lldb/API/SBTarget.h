@@ -22,6 +22,8 @@
 
 namespace lldb {
 
+class SBPlatform;
+
 class SBLaunchInfo
 {
 public:
@@ -47,6 +49,57 @@ public:
     void
     SetGroupID (uint32_t gid);
     
+    SBFileSpec
+    GetExecutableFile ();
+
+    //----------------------------------------------------------------------
+    /// Set the executable file that will be used to launch the process and
+    /// optionally set it as the first argument in the argument vector.
+    ///
+    /// This only needs to be specified if clients wish to carefully control
+    /// the exact path will be used to launch a binary. If you create a
+    /// target with a symlink, that symlink will get resolved in the target
+    /// and the resolved path will get used to launch the process. Calling
+    /// this function can help you still launch your process using the
+    /// path of your choice.
+    ///
+    /// If this function is not called prior to launching with
+    /// SBTarget::Launch(...), the target will use the resolved executable
+    /// path that was used to create the target.
+    ///
+    /// @param[in] exe_file
+    ///     The override path to use when launching the executable.
+    ///
+    /// @param[in] add_as_first_arg
+    ///     If true, then the path will be inserted into the argument vector
+    ///     prior to launching. Otherwise the argument vector will be left
+    ///     alone.
+    //----------------------------------------------------------------------
+    void
+    SetExecutableFile (SBFileSpec exe_file, bool add_as_first_arg);
+
+
+    //----------------------------------------------------------------------
+    /// Get the listener that will be used to receive process events.
+    ///
+    /// If no listener has been set via a call to
+    /// SBLaunchInfo::SetListener(), then an invalid SBListener will be
+    /// returned (SBListener::IsValid() will return false). If a listener
+    /// has been set, then the valid listener object will be returned.
+    //----------------------------------------------------------------------
+    SBListener
+    GetListener ();
+
+    //----------------------------------------------------------------------
+    /// Set the listener that will be used to receive process events.
+    ///
+    /// By default the SBDebugger, which has a listener, that the SBTarget
+    /// belongs to will listen for the process events. Calling this function
+    /// allows a different listener to be used to listen for process events.
+    //----------------------------------------------------------------------
+    void
+    SetListener (SBListener &listener);
+
     uint32_t
     GetNumArguments ();
     
@@ -109,6 +162,18 @@ public:
     
     bool
     AddSuppressFileAction (int fd, bool read, bool write);
+    
+    void
+    SetLaunchEventData (const char *data);
+    
+    const char *
+    GetLaunchEventData () const;
+    
+    bool
+    GetDetachOnError() const;
+    
+    void
+    SetDetachOnError(bool enable);
     
 protected:
     friend class SBTarget;
@@ -215,7 +280,28 @@ public:
     
     bool
     ParentProcessIDIsValid();
-    
+
+    //----------------------------------------------------------------------
+    /// Get the listener that will be used to receive process events.
+    ///
+    /// If no listener has been set via a call to
+    /// SBLaunchInfo::SetListener(), then an invalid SBListener will be
+    /// returned (SBListener::IsValid() will return false). If a listener
+    /// has been set, then the valid listener object will be returned.
+    //----------------------------------------------------------------------
+    SBListener
+    GetListener ();
+
+    //----------------------------------------------------------------------
+    /// Set the listener that will be used to receive process events.
+    ///
+    /// By default the SBDebugger, which has a listener, that the SBTarget
+    /// belongs to will listen for the process events. Calling this function
+    /// allows a different listener to be used to listen for process events.
+    //----------------------------------------------------------------------
+    void
+    SetListener (SBListener &listener);
+
     
 protected:
     friend class SBTarget;
@@ -266,6 +352,18 @@ public:
 
     lldb::SBProcess
     GetProcess ();
+
+    //------------------------------------------------------------------
+    /// Return the platform object associated with the target.
+    ///
+    /// After return, the platform object should be checked for
+    /// validity.
+    ///
+    /// @return
+    ///     A platform object.
+    //------------------------------------------------------------------
+    lldb::SBPlatform
+    GetPlatform ();
 
     //------------------------------------------------------------------
     /// Install any binaries that need to be installed.
@@ -331,7 +429,7 @@ public:
     ///     Some launch options specified by logical OR'ing 
     ///     lldb::LaunchFlags enumeration values together.
     ///
-    /// @param[in] stop_at_endtry
+    /// @param[in] stop_at_entry
     ///     If false do not stop the inferior at the entry point.
     ///
     /// @param[out]
@@ -523,6 +621,26 @@ public:
     GetTriple ();
 
     //------------------------------------------------------------------
+    /// Architecture data byte width accessor
+    ///
+    /// @return
+    /// The size in 8-bit (host) bytes of a minimum addressable
+    /// unit from the Architecture's data bus
+    //------------------------------------------------------------------
+    uint32_t
+    GetDataByteSize ();
+
+    //------------------------------------------------------------------
+    /// Architecture code byte width accessor
+    ///
+    /// @return
+    /// The size in 8-bit (host) bytes of a minimum addressable
+    /// unit from the Architecture's code bus
+    //------------------------------------------------------------------
+    uint32_t
+    GetCodeByteSize ();
+
+    //------------------------------------------------------------------
     /// Set the base load address for a module section.
     ///
     /// @param[in] section
@@ -580,7 +698,7 @@ public:
     
 
     //------------------------------------------------------------------
-    /// The the section base load addresses for all sections in a module.
+    /// Clear the section base load addresses for all sections in a module.
     /// 
     /// @param[in] module
     ///     The module to unload.
@@ -642,9 +760,60 @@ public:
     //------------------------------------------------------------------
     lldb::SBValue
     FindFirstGlobalVariable (const char* name);
+
+    //------------------------------------------------------------------
+    /// Find global and static variables by pattern.
+    ///
+    /// @param[in] name
+    ///     The pattern to search for global or static variables
+    ///
+    /// @param[in] max_matches
+    ///     Allow the number of matches to be limited to \a max_matches.
+    /// 
+    /// @param[in] matchtype
+    ///     The match type to use.    
+    ///
+    /// @return
+    ///     A list of matched variables in an SBValueList.
+    //------------------------------------------------------------------
+    lldb::SBValueList
+        FindGlobalVariables(const char *name,
+                            uint32_t max_matches,
+                            MatchType matchtype);
     
+    //------------------------------------------------------------------
+    /// Find global functions by their name with pattern matching.
+    ///
+    /// @param[in] name
+    ///     The pattern to search for global or static variables
+    ///
+    /// @param[in] max_matches
+    ///     Allow the number of matches to be limited to \a max_matches.
+    /// 
+    /// @param[in] matchtype
+    ///     The match type to use.    
+    ///
+    /// @return
+    ///     A list of matched variables in an SBValueList.
+    //------------------------------------------------------------------
+    lldb::SBSymbolContextList
+        FindGlobalFunctions(const char *name,
+                           uint32_t max_matches,
+                           MatchType matchtype);
+
     void
     Clear ();
+
+    //------------------------------------------------------------------
+    /// Resolve a current file address into a section offset address.
+    ///
+    /// @param[in] file_addr
+    ///
+    /// @return
+    ///     An SBAddress which will be valid if...
+    //------------------------------------------------------------------
+    lldb::SBAddress
+    ResolveFileAddress (lldb::addr_t file_addr);
 
     //------------------------------------------------------------------
     /// Resolve a current load address into a section offset address.
@@ -690,6 +859,31 @@ public:
     SBSymbolContext
     ResolveSymbolContextForAddress (const SBAddress& addr, 
                                     uint32_t resolve_scope);
+
+    //------------------------------------------------------------------
+    /// Read target memory. If a target process is running then memory  
+    /// is read from here. Otherwise the memory is read from the object
+    /// files. For a target whose bytes are sized as a multiple of host
+    /// bytes, the data read back will preserve the target's byte order.
+    ///
+    /// @param[in] addr
+    ///     A target address to read from. 
+    ///
+    /// @param[out] buf
+    ///     The buffer to read memory into. 
+    ///
+    /// @param[in] size
+    ///     The maximum number of host bytes to read in the buffer passed
+    ///     into this call
+    ///
+    /// @param[out] error
+    ///     Error information is written here if the memory read fails.
+    ///
+    /// @return
+    ///     The amount of data read in host bytes.
+    //------------------------------------------------------------------
+    size_t
+    ReadMemory (const SBAddress addr, void *buf, size_t size, lldb::SBError &error);
 
     lldb::SBBreakpoint
     BreakpointCreateByLocation (const char *file, uint32_t line);
@@ -804,6 +998,12 @@ public:
     
     lldb::SBValue
     CreateValueFromAddress (const char *name, lldb::SBAddress addr, lldb::SBType type);
+
+    lldb::SBValue
+    CreateValueFromData (const char *name, lldb::SBData data, lldb::SBType type);
+
+    lldb::SBValue
+    CreateValueFromExpression (const char *name, const char* expr);
     
     SBSourceManager
     GetSourceManager();
@@ -852,6 +1052,7 @@ protected:
     friend class SBAddress;
     friend class SBBlock;
     friend class SBDebugger;
+    friend class SBExecutionContext;
     friend class SBFunction;
     friend class SBInstruction;
     friend class SBModule;

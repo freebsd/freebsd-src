@@ -46,40 +46,25 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-#ifdef __DragonFly__
-#include <bus/firewire/firewire.h>
-#include <bus/firewire/firewirereg.h>
-#include <bus/firewire/iec13213.h>
-#include "dcons.h"
-#include "dcons_os.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/dcons/dcons.h>
 #include <dev/dcons/dcons_os.h>
-#endif
 
 #include <sys/cons.h>
 
-#define EXPOSE_IDT_ADDR 1
-
-#if (defined(__i386__) || defined(__amd64__)) && defined(EXPOSE_IDT_ADDR)
+#if (defined(__i386__) || defined(__amd64__))
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/segments.h> /* for idt */
 #endif
+
 static bus_addr_t dcons_paddr;
 
-#if __FreeBSD_version >= 500000
 static int force_console = 0;
 TUNABLE_INT("hw.firewire.dcons_crom.force_console", &force_console);
-#endif
-
-#ifndef CSRVAL_VENDOR_PRIVATE
-#define NEED_NEW_DRIVER
-#endif
 
 #define ADDR_HI(x)	(((x) >> 24) & 0xffffff)
 #define ADDR_LO(x)	((x) & 0xffffff)
@@ -115,8 +100,7 @@ dcons_crom_probe(device_t dev)
 	return (0);
 }
 
-#ifndef NEED_NEW_DRIVER
-#if (defined(__i386__) || defined(__amd64__)) && defined(EXPOSE_IDT_ADDR)
+#if (defined(__i386__) || defined(__amd64__))
 static void
 dcons_crom_expose_idt(struct dcons_crom_softc *sc)
 {
@@ -129,6 +113,7 @@ dcons_crom_expose_idt(struct dcons_crom_softc *sc)
 	crom_add_entry(&sc->unit, DCONS_CSR_KEY_RESET_LO, ADDR_LO(idt_paddr));
 }
 #endif
+
 static void
 dcons_crom_post_busreset(void *arg)
 {
@@ -149,11 +134,10 @@ dcons_crom_post_busreset(void *arg)
 	crom_add_simple_text(src, &sc->unit, &sc->ver, "dcons");
 	crom_add_entry(&sc->unit, DCONS_CSR_KEY_HI, ADDR_HI(dcons_paddr));
 	crom_add_entry(&sc->unit, DCONS_CSR_KEY_LO, ADDR_LO(dcons_paddr));
-#if (defined(__i386__) || defined(__amd64__)) && defined(EXPOSE_IDT_ADDR)
+#if (defined(__i386__) || defined(__amd64__))
 	dcons_crom_expose_idt(sc);
 #endif
 }
-#endif
 
 static void
 dmamap_cb(void *arg, bus_dma_segment_t *segments, int seg, int error)
@@ -168,11 +152,7 @@ dmamap_cb(void *arg, bus_dma_segment_t *segments, int seg, int error)
 
 	bus_dmamap_sync(sc->dma_tag, sc->dma_map, BUS_DMASYNC_PREWRITE);
 	device_printf(sc->fd.dev,
-#if __FreeBSD_version < 500000
-	    "bus_addr 0x%x\n", sc->bus_addr);
-#else
 	    "bus_addr 0x%jx\n", (uintmax_t)sc->bus_addr);
-#endif
 	if (dcons_paddr != 0) {
 		/* XXX */
 		device_printf(sc->fd.dev, "dcons_paddr is already set\n");
@@ -182,11 +162,9 @@ dmamap_cb(void *arg, bus_dma_segment_t *segments, int seg, int error)
 	dcons_conf->dma_map = sc->dma_map;
 	dcons_paddr = sc->bus_addr;
 
-#if __FreeBSD_version >= 500000
 	/* Force to be the high-level console */
 	if (force_console)
 		cnselect(dcons_conf->cdev);
-#endif
 }
 
 static void
@@ -200,10 +178,6 @@ dcons_crom_poll(void *p, int arg)
 static int
 dcons_crom_attach(device_t dev)
 {
-#ifdef NEED_NEW_DRIVER
-	printf("dcons_crom: you need newer firewire driver\n");
-	return (-1);
-#else
 	struct dcons_crom_softc *sc;
 	int error;
 
@@ -227,10 +201,8 @@ dcons_crom_attach(device_t dev)
 		/*nsegments*/ 1,
 		/*maxsegsz*/ BUS_SPACE_MAXSIZE_32BIT,
 		/*flags*/ BUS_DMA_ALLOCNOW,
-#if __FreeBSD_version >= 501102
 		/*lockfunc*/busdma_lock_mutex,
 		/*lockarg*/&Giant,
-#endif
 		&sc->dma_tag);
 	if (error != 0)
 		return (error);
@@ -245,7 +217,6 @@ dcons_crom_attach(device_t dev)
 	sc->ehand = EVENTHANDLER_REGISTER(dcons_poll, dcons_crom_poll,
 			 (void *)sc, 0);
 	return (0);
-#endif
 }
 
 static int

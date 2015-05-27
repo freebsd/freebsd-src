@@ -67,15 +67,10 @@ static uint64_t mps3_vas_id;
 static void	mps3_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
 		    vm_offset_t kernelend);
 static void	mps3_cpu_bootstrap(mmu_t mmup, int ap);
-static void	mps3_pte_synch(mmu_t, uintptr_t pt, struct lpte *pvo_pt);
-static void	mps3_pte_clear(mmu_t, uintptr_t pt, struct lpte *pvo_pt,
-		    uint64_t vpn, uint64_t ptebit);
-static void	mps3_pte_unset(mmu_t, uintptr_t pt, struct lpte *pvo_pt,
-		    uint64_t vpn);
-static void	mps3_pte_change(mmu_t, uintptr_t pt, struct lpte *pvo_pt,
-		    uint64_t vpn);
-static int	mps3_pte_insert(mmu_t, u_int ptegidx, struct lpte *pvo_pt);
-static uintptr_t mps3_pvo_to_pte(mmu_t, const struct pvo_entry *pvo);
+static int64_t	mps3_pte_synch(mmu_t, struct pvo_entry *);
+static int64_t	mps3_pte_clear(mmu_t, struct pvo_entry *, uint64_t ptebit);
+static int64_t	mps3_pte_unset(mmu_t, struct pvo_entry *);
+static int	mps3_pte_insert(mmu_t, struct pvo_entry *);
 
 
 static mmu_method_t mps3_methods[] = {
@@ -85,19 +80,21 @@ static mmu_method_t mps3_methods[] = {
 	MMUMETHOD(moea64_pte_synch,	mps3_pte_synch),
 	MMUMETHOD(moea64_pte_clear,	mps3_pte_clear),
 	MMUMETHOD(moea64_pte_unset,	mps3_pte_unset),
-	MMUMETHOD(moea64_pte_change,	mps3_pte_change),
 	MMUMETHOD(moea64_pte_insert,	mps3_pte_insert),
-	MMUMETHOD(moea64_pvo_to_pte,	mps3_pvo_to_pte),
 
         { 0, 0 }
 };
 
 MMU_DEF_INHERIT(ps3_mmu, "mmu_ps3", mps3_methods, 0, oea64_mmu);
 
+static struct mtx mps3_table_lock;
+
 static void
 mps3_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 {
 	uint64_t final_pteg_count;
+
+	mtx_init(&mps3_table_lock, "page table", NULL, MTX_DEF);
 
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
@@ -151,72 +148,113 @@ mps3_cpu_bootstrap(mmu_t mmup, int ap)
 	}
 }
 
-static void
-mps3_pte_synch(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt)
+static int64_t
+mps3_pte_synch_locked(struct pvo_entry *pvo)
 {
 	uint64_t halfbucket[4], rcbits;
 	
 	PTESYNC();
-	lv1_read_htab_entries(mps3_vas_id, slot & ~0x3UL, &halfbucket[0],
-	    &halfbucket[1], &halfbucket[2], &halfbucket[3], &rcbits);
+	lv1_read_htab_entries(mps3_vas_id, pvo->pvo_pte.slot & ~0x3UL,
+	    &halfbucket[0], &halfbucket[1], &halfbucket[2], &halfbucket[3],
+	    &rcbits);
+
+	/* Check if present in page table */
+	if ((halfbucket[pvo->pvo_pte.slot & 0x3] & LPTE_AVPN_MASK) !=
+	    ((pvo->pvo_vpn >> (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) &
+	    LPTE_AVPN_MASK))
+		return (-1);
+	if (!(halfbucket[pvo->pvo_pte.slot & 0x3] & LPTE_VALID))
+		return (-1);
 
 	/*
-	 * rcbits contains the low 12 bits of each PTEs 2nd part,
+	 * rcbits contains the low 12 bits of each PTE's 2nd part,
 	 * spaced at 16-bit intervals
 	 */
 
-	KASSERT((halfbucket[slot & 0x3] & LPTE_AVPN_MASK) ==
-	    (pvo_pt->pte_hi & LPTE_AVPN_MASK),
-	    ("PTE upper word %#lx != %#lx\n",
-	    halfbucket[slot & 0x3], pvo_pt->pte_hi));
-
- 	pvo_pt->pte_lo |= (rcbits >> ((3 - (slot & 0x3))*16)) &
-	    (LPTE_CHG | LPTE_REF);
+	return ((rcbits >> ((3 - (pvo->pvo_pte.slot & 0x3))*16)) &
+	    (LPTE_CHG | LPTE_REF));
 }
 
-static void
-mps3_pte_clear(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn,
-    u_int64_t ptebit)
+static int64_t
+mps3_pte_synch(mmu_t mmu, struct pvo_entry *pvo)
 {
+	int64_t retval;
 
-	lv1_write_htab_entry(mps3_vas_id, slot, pvo_pt->pte_hi,
-	    pvo_pt->pte_lo & ~ptebit);
+	mtx_lock(&mps3_table_lock);
+	retval = mps3_pte_synch_locked(pvo);
+	mtx_unlock(&mps3_table_lock);
+
+	return (retval);
 }
 
-static void
-mps3_pte_unset(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
+static int64_t
+mps3_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 {
+	int64_t refchg;
+	struct lpte pte;
 
-	mps3_pte_synch(mmu, slot, pvo_pt);
-	pvo_pt->pte_hi &= ~LPTE_VALID;
-	lv1_write_htab_entry(mps3_vas_id, slot, 0, 0);
+	mtx_lock(&mps3_table_lock);
+
+	refchg = mps3_pte_synch_locked(pvo);
+	if (refchg < 0) {
+		mtx_unlock(&mps3_table_lock);
+		return (refchg);
+	}
+
+	moea64_pte_from_pvo(pvo, &pte);
+
+	pte.pte_lo |= refchg;
+	pte.pte_lo &= ~ptebit;
+	/* XXX: race on RC bits between write and sync. Anything to do? */
+	lv1_write_htab_entry(mps3_vas_id, pvo->pvo_pte.slot, pte.pte_hi,
+	    pte.pte_lo);
+	mtx_unlock(&mps3_table_lock);
+
+	return (refchg);
+}
+
+static int64_t
+mps3_pte_unset(mmu_t mmu, struct pvo_entry *pvo)
+{
+	int64_t refchg;
+
+	mtx_lock(&mps3_table_lock);
+	refchg = mps3_pte_synch_locked(pvo);
+	if (refchg < 0) {
+		moea64_pte_overflow--;
+		mtx_unlock(&mps3_table_lock);
+		return (-1);
+	}
+	/* XXX: race on RC bits between unset and sync. Anything to do? */
+	lv1_write_htab_entry(mps3_vas_id, pvo->pvo_pte.slot, 0, 0);
+	mtx_unlock(&mps3_table_lock);
 	moea64_pte_valid--;
-}
 
-static void
-mps3_pte_change(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
-{
- 
-	mps3_pte_synch(mmu, slot, pvo_pt);
-	lv1_write_htab_entry(mps3_vas_id, slot, pvo_pt->pte_hi,
-	    pvo_pt->pte_lo);
+	return (refchg & (LPTE_REF | LPTE_CHG));
 }
 
 static int
-mps3_pte_insert(mmu_t mmu, u_int ptegidx, struct lpte *pvo_pt)
+mps3_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 {
 	int result;
-	struct lpte evicted;
-	struct pvo_entry *pvo;
+	struct lpte pte, evicted;
 	uint64_t index;
 
-	pvo_pt->pte_hi |= LPTE_VALID;
-	pvo_pt->pte_hi &= ~LPTE_HID;
+	if (pvo->pvo_vaddr & PVO_HID) {
+		/* Hypercall needs primary PTEG */
+		pvo->pvo_vaddr &= ~PVO_HID;
+		pvo->pvo_pte.slot ^= (moea64_pteg_mask << 3);
+	}
+
+	pvo->pvo_pte.slot &= ~7UL;
+	moea64_pte_from_pvo(pvo, &pte);
 	evicted.pte_hi = 0;
 	PTESYNC();
-	result = lv1_insert_htab_entry(mps3_vas_id, ptegidx << 3,
-	    pvo_pt->pte_hi, pvo_pt->pte_lo, LPTE_LOCKED | LPTE_WIRED, 0,
+	mtx_lock(&mps3_table_lock);
+	result = lv1_insert_htab_entry(mps3_vas_id, pvo->pvo_pte.slot,
+	    pte.pte_hi, pte.pte_lo, LPTE_LOCKED | LPTE_WIRED, 0,
 	    &index, &evicted.pte_hi, &evicted.pte_lo);
+	mtx_unlock(&mps3_table_lock);
 
 	if (result != 0) {
 		/* No freeable slots in either PTEG? We're hosed. */
@@ -227,84 +265,19 @@ mps3_pte_insert(mmu_t mmu, u_int ptegidx, struct lpte *pvo_pt)
 	/*
 	 * See where we ended up.
 	 */
-	if (index >> 3 != ptegidx)
-		pvo_pt->pte_hi |= LPTE_HID;
+	if ((index & ~7UL) != pvo->pvo_pte.slot)
+		pvo->pvo_vaddr |= PVO_HID;
+	pvo->pvo_pte.slot = index;
 
 	moea64_pte_valid++;
 
-	if (!evicted.pte_hi)
-		return (index & 0x7);
-
-	/*
-	 * Synchronize the sacrifice PTE with its PVO, then mark both
-	 * invalid. The PVO will be reused when/if the VM system comes
-	 * here after a fault.
-	 */
-
-	ptegidx = index >> 3; /* Where the sacrifice PTE was found */
-	if (evicted.pte_hi & LPTE_HID)
-		ptegidx ^= moea64_pteg_mask; /* PTEs indexed by primary */
-
-	KASSERT((evicted.pte_hi & (LPTE_WIRED | LPTE_LOCKED)) == 0,
-	    ("Evicted a wired PTE"));
-
-	result = 0;
-	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
-		if (!PVO_PTEGIDX_ISSET(pvo))
-			continue;
-
-		if (pvo->pvo_pte.lpte.pte_hi == (evicted.pte_hi | LPTE_VALID)) {
-			KASSERT(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID,
-			    ("Invalid PVO for valid PTE!"));
-			pvo->pvo_pte.lpte.pte_hi &= ~LPTE_VALID;
-			pvo->pvo_pte.lpte.pte_lo |=
-			    evicted.pte_lo & (LPTE_REF | LPTE_CHG);
-			PVO_PTEGIDX_CLR(pvo);
-			moea64_pte_valid--;
-			moea64_pte_overflow++;
-			result = 1;
-			break;
-		}
+	if (evicted.pte_hi) {
+		KASSERT((evicted.pte_hi & (LPTE_WIRED | LPTE_LOCKED)) == 0,
+		    ("Evicted a wired PTE"));
+		moea64_pte_valid--;
+		moea64_pte_overflow++;
 	}
 
-	KASSERT(result == 1, ("PVO for sacrifice PTE not found"));
-
-	return (index & 0x7);
-}
-
-static __inline u_int
-va_to_pteg(uint64_t vsid, vm_offset_t addr, int large)
-{
-	uint64_t hash;
-	int shift;
-
-	shift = large ? moea64_large_page_shift : ADDR_PIDX_SHFT;
-	hash = (vsid & VSID_HASH_MASK) ^ (((uint64_t)addr & ADDR_PIDX) >>
-	    shift);
-	return (hash & moea64_pteg_mask);
-}
-
-uintptr_t
-mps3_pvo_to_pte(mmu_t mmu, const struct pvo_entry *pvo)
-{
-	uint64_t vsid;
-	u_int ptegidx;
-
-	/* If the PTEG index is not set, then there is no page table entry */
-	if (!PVO_PTEGIDX_ISSET(pvo))
-		return (-1);
-
-	vsid = PVO_VSID(pvo);
-	ptegidx = va_to_pteg(vsid, PVO_VADDR(pvo), pvo->pvo_vaddr & PVO_LARGE);
-
-	/*
-	 * We can find the actual pte entry without searching by grabbing
-	 * the PTEG index from 3 unused bits in pvo_vaddr and by
-	 * noticing the HID bit.
-	 */
-	if (pvo->pvo_pte.lpte.pte_hi & LPTE_HID)
-		ptegidx ^= moea64_pteg_mask;
-
-	return ((ptegidx << 3) | PVO_PTEGIDX_GET(pvo));
+	return (0);
 }
 

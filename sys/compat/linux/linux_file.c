@@ -55,10 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -136,39 +132,39 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
     /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
     error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
+    if (error != 0)
+	    goto done;
 
-    if (!error) {
-	    fd = td->td_retval[0];
-	    /*
-	     * XXX In between kern_open() and fget(), another process
-	     * having the same filedesc could use that fd without
-	     * checking below.
-	     */
-	    error = fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
-	    if (!error) {
-		    sx_slock(&proctree_lock);
-		    PROC_LOCK(p);
-		    if (!(bsd_flags & O_NOCTTY) &&
-			SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
-			    PROC_UNLOCK(p);
-			    sx_unlock(&proctree_lock);
-			    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
-			    if (fp->f_type == DTYPE_VNODE)
-				    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
-					     td->td_ucred, td);
-		    } else {
-			    PROC_UNLOCK(p);
-			    sx_sunlock(&proctree_lock);
-		    }
+    if (bsd_flags & O_NOCTTY)
+	    goto done;
+
+    /*
+     * XXX In between kern_open() and fget(), another process
+     * having the same filedesc could use that fd without
+     * checking below.
+     */
+    fd = td->td_retval[0];
+    if (fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp) == 0) {
+	    if (fp->f_type != DTYPE_VNODE) {
 		    fdrop(fp, td);
-		    /*
-		     * XXX as above, fdrop()/kern_close() pair is racy.
-		     */
-		    if (error)
-			    kern_close(td, fd);
+		    goto done;
 	    }
+	    sx_slock(&proctree_lock);
+	    PROC_LOCK(p);
+	    if (SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
+		    PROC_UNLOCK(p);
+		    sx_sunlock(&proctree_lock);
+		    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
+		    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
+			td->td_ucred, td);
+	    } else {
+		    PROC_UNLOCK(p);
+		    sx_sunlock(&proctree_lock);
+	    }
+	    fdrop(fp, td);
     }
 
+done:
 #ifdef DEBUG
     if (ldebug(open))
 	    printf(LMSG("open returns error %d"), error);
@@ -1078,12 +1074,10 @@ linux_pwrite(td, uap)
 int
 linux_mount(struct thread *td, struct linux_mount_args *args)
 {
-	struct ufs_args ufs;
 	char fstypename[MFSNAMELEN];
 	char mntonname[MNAMELEN], mntfromname[MNAMELEN];
 	int error;
 	int fsflags;
-	void *fsdata;
 
 	error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
 	    NULL);
@@ -1104,20 +1098,10 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 
 	if (strcmp(fstypename, "ext2") == 0) {
 		strcpy(fstypename, "ext2fs");
-		fsdata = &ufs;
-		ufs.fspec = mntfromname;
-#define DEFAULT_ROOTID		-2
-		ufs.export.ex_root = DEFAULT_ROOTID;
-		ufs.export.ex_flags =
-		    args->rwflag & LINUX_MS_RDONLY ? MNT_EXRDONLY : 0;
 	} else if (strcmp(fstypename, "proc") == 0) {
 		strcpy(fstypename, "linprocfs");
-		fsdata = NULL;
 	} else if (strcmp(fstypename, "vfat") == 0) {
 		strcpy(fstypename, "msdosfs");
-		fsdata = NULL;
-	} else {
-		return (ENODEV);
 	}
 
 	fsflags = 0;
@@ -1137,19 +1121,11 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 			fsflags |= MNT_UPDATE;
 	}
 
-	if (strcmp(fstypename, "linprocfs") == 0) {
-		error = kernel_vmount(fsflags,
-			"fstype", fstypename,
-			"fspath", mntonname,
-			NULL);
-	} else if (strcmp(fstypename, "msdosfs") == 0) {
-		error = kernel_vmount(fsflags,
-			"fstype", fstypename,
-			"fspath", mntonname,
-			"from", mntfromname,
-			NULL);
-	} else
-		error = EOPNOTSUPP;
+	error = kernel_vmount(fsflags,
+	    "fstype", fstypename,
+	    "fspath", mntonname,
+	    "from", mntfromname,
+	    NULL);
 	return (error);
 }
 

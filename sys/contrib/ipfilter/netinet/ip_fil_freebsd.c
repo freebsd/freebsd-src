@@ -33,6 +33,9 @@ static const char rcsid[] = "@(#)$Id$";
 #include <sys/time.h>
 #include <sys/systm.h>
 # include <sys/dirent.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
+#include <sys/jail.h>
+#endif
 # include <sys/mbuf.h>
 # include <sys/sockopt.h>
 #if !defined(__hpux)
@@ -52,6 +55,12 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
+#include <net/vnet.h>
+#else
+#define CURVNET_SET(arg)
+#define CURVNET_RESTORE()
+#endif
 #if defined(__osf__)
 # include <netinet/tcp_timer.h>
 #endif
@@ -88,7 +97,6 @@ MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures")
 # endif
 
 
-static	u_short	ipid = 0;
 static	int	(*ipf_savep) __P((void *, ip_t *, int, void *, int, struct mbuf **));
 static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
 static void	ipf_timer_func __P((void *arg));
@@ -181,7 +189,7 @@ ipf_timer_func(arg)
 #if 0
 		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
 #endif
-		callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+		callout_init(&softc->ipf_slow_ch, 1);
 		callout_reset(&softc->ipf_slow_ch,
 			(hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 			ipf_timer_func, softc);
@@ -222,14 +230,12 @@ ipfattach(softc)
 	if (softc->ipf_control_forwarding & 1)
 		V_ipforwarding = 1;
 
-	ipid = 0;
-
 	SPL_X(s);
 #if 0
 	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
 				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
 #endif
-	callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+	callout_init(&softc->ipf_slow_ch, 1);
 	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 		ipf_timer_func, softc);
 	return 0;
@@ -323,7 +329,9 @@ ipfioctl(dev, cmd, data, mode
 
 	SPL_NET(s);
 
+	CURVNET_SET(TD_TO_VNET(p));
 	error = ipf_ioctlswitch(&ipfmain, unit, data, cmd, mode, p->p_uid, p);
+	CURVNET_RESTORE();
 	if (error != -1) {
 		SPL_X(s);
 		return error;
@@ -375,8 +383,7 @@ ipf_send_reset(fin)
 	if (m == NULL)
 		return -1;
 	if (sizeof(*tcp2) + hlen > MLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			FREE_MB_T(m);
 			return -1;
 		}
@@ -599,8 +606,7 @@ ipf_send_icmp_err(type, fin, dst)
 			code = icmptoicmp6unreach[code];
 
 		if (iclen + max_linkhdr + fin->fin_plen > avail) {
-			MCLGET(m, M_NOWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				FREE_MB_T(m);
 				return -1;
 			}
@@ -1062,31 +1068,6 @@ ipf_newisn(fin)
 	u_32_t newiss;
 	newiss = arc4random();
 	return newiss;
-}
-
-
-/* ------------------------------------------------------------------------ */
-/* Function:    ipf_nextipid                                                */
-/* Returns:     int - 0 == success, -1 == error (packet should be droppped) */
-/* Parameters:  fin(I) - pointer to packet information                      */
-/*                                                                          */
-/* Returns the next IPv4 ID to use for this packet.                         */
-/* ------------------------------------------------------------------------ */
-u_short
-ipf_nextipid(fin)
-	fr_info_t *fin;
-{
-	u_short id;
-
-#ifndef	RANDOM_IP_ID
-	MUTEX_ENTER(&ipfmain.ipf_rw);
-	id = ipid++;
-	MUTEX_EXIT(&ipfmain.ipf_rw);
-#else
-	id = ip_randomid();
-#endif
-
-	return id;
 }
 
 

@@ -158,7 +158,6 @@ void subscription_destroy(struct subscription *s);
 struct subscription * subscription_find(struct upnp_wps_device_sm *sm,
 					const u8 uuid[UUID_LEN]);
 void subscr_addr_delete(struct subscr_addr *a);
-int send_wpabuf(int fd, struct wpabuf *buf);
 int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
 		   u8 mac[ETH_ALEN]);
 
@@ -171,7 +170,7 @@ void ssdp_listener_stop(struct upnp_wps_device_sm *sm);
 int ssdp_listener_start(struct upnp_wps_device_sm *sm);
 int ssdp_listener_open(void);
 int add_ssdp_network(const char *net_if);
-int ssdp_open_multicast_sock(u32 ip_addr);
+int ssdp_open_multicast_sock(u32 ip_addr, const char *forced_ifname);
 int ssdp_open_multicast(struct upnp_wps_device_sm *sm);
 
 /* wps_upnp_web.c */

@@ -69,14 +69,27 @@ static struct resource_spec ti_aintc_spec[] = {
 	{ -1, 0 }
 };
 
-
 static struct ti_aintc_softc *ti_aintc_sc = NULL;
 
-#define	aintc_read_4(reg)		\
-    bus_space_read_4(ti_aintc_sc->aintc_bst, ti_aintc_sc->aintc_bsh, reg)
-#define	aintc_write_4(reg, val)		\
-    bus_space_write_4(ti_aintc_sc->aintc_bst, ti_aintc_sc->aintc_bsh, reg, val)
+#define	aintc_read_4(_sc, reg)		\
+    bus_space_read_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg))
+#define	aintc_write_4(_sc, reg, val)		\
+    bus_space_write_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg), (val))
 
+/* List of compatible strings for FDT tree */
+static struct ofw_compat_data compat_data[] = {
+	{"ti,am33xx-intc",	1},
+	{"ti,omap2-intc",	1},
+	{NULL,		 	0},
+};
+
+static void
+aintc_post_filter(void *arg)
+{
+
+	arm_irq_memory_barrier(0);
+	aintc_write_4(ti_aintc_sc, INTC_CONTROL, 1); /* EOI */
+}
 
 static int
 ti_aintc_probe(device_t dev)
@@ -84,9 +97,9 @@ ti_aintc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-
-	if (!ofw_bus_is_compatible(dev, "ti,aintc"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
+
 	device_set_desc(dev, "TI AINTC Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
 }
@@ -112,17 +125,19 @@ ti_aintc_attach(device_t dev)
 
 	ti_aintc_sc = sc;
 
-	x = aintc_read_4(INTC_REVISION);
+	x = aintc_read_4(sc, INTC_REVISION);
 	device_printf(dev, "Revision %u.%u\n",(x >> 4) & 0xF, x & 0xF);
 
 	/* SoftReset */
-	aintc_write_4(INTC_SYSCONFIG, 2);
+	aintc_write_4(sc, INTC_SYSCONFIG, 2);
 
 	/* Wait for reset to complete */
-	while(!(aintc_read_4(INTC_SYSSTATUS) & 1));
+	while(!(aintc_read_4(sc, INTC_SYSSTATUS) & 1));
 
 	/*Set Priority Threshold */
-	aintc_write_4(INTC_THRESHOLD, 0xFF);
+	aintc_write_4(sc, INTC_THRESHOLD, 0xFF);
+
+	arm_post_filter = aintc_post_filter;
 
 	return (0);
 }
@@ -146,22 +161,17 @@ DRIVER_MODULE(aintc, simplebus, ti_aintc_driver, ti_aintc_devclass, 0, 0);
 int
 arm_get_next_irq(int last_irq)
 {
+	struct ti_aintc_softc *sc = ti_aintc_sc;
 	uint32_t active_irq;
 
-	if (last_irq != -1) {
-		aintc_write_4(INTC_ISR_CLEAR(last_irq >> 5),
-			1UL << (last_irq & 0x1F));
-		aintc_write_4(INTC_CONTROL,1);
-	}
-
 	/* Get the next active interrupt */
-	active_irq = aintc_read_4(INTC_SIR_IRQ);
+	active_irq = aintc_read_4(sc, INTC_SIR_IRQ);
 
 	/* Check for spurious interrupt */
 	if ((active_irq & 0xffffff80)) {
-		device_printf(ti_aintc_sc->sc_dev,
-			"Spurious interrupt detected (0x%08x)\n", active_irq);
-		aintc_write_4(INTC_SIR_IRQ, 0);
+		device_printf(sc->sc_dev,
+		    "Spurious interrupt detected (0x%08x)\n", active_irq);
+		aintc_write_4(sc, INTC_SIR_IRQ, 0);
 		return -1;
 	}
 
@@ -174,13 +184,17 @@ arm_get_next_irq(int last_irq)
 void
 arm_mask_irq(uintptr_t nb)
 {
-	aintc_write_4(INTC_MIR_SET(nb >> 5), (1UL << (nb & 0x1F)));
+	struct ti_aintc_softc *sc = ti_aintc_sc;
+
+	aintc_write_4(sc, INTC_MIR_SET(nb >> 5), (1UL << (nb & 0x1F)));
+	aintc_write_4(sc, INTC_CONTROL, 1); /* EOI */
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
+	struct ti_aintc_softc *sc = ti_aintc_sc;
 
 	arm_irq_memory_barrier(nb);
-	aintc_write_4(INTC_MIR_CLEAR(nb >> 5), (1UL << (nb & 0x1F)));
+	aintc_write_4(sc, INTC_MIR_CLEAR(nb >> 5), (1UL << (nb & 0x1F)));
 }

@@ -15,7 +15,6 @@ CFLAGS+= -I${.CURDIR}/../common_source
 
 WARNS?=	2
 
-DPADD=	${LIBLPR}
-LDADD=	${LIBLPR}
+LIBADD=	lpr
 
 .include <bsd.prog.mk>

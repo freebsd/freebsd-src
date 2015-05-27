@@ -363,20 +363,30 @@ StopInfoMachException::CreateStopReasonWithMachException
                     if (exc_code == 1) // EXC_I386_SGL
                     {
                         if (!exc_sub_code)
-                            return StopInfo::CreateStopReasonToTrace(thread);
-
-                        // It's a watchpoint, then.
-                        // The exc_sub_code indicates the data break address.
-                        lldb::WatchpointSP wp_sp;
-                        if (target)
-                            wp_sp = target->GetWatchpointList().FindByAddress((lldb::addr_t)exc_sub_code);
-                        if (wp_sp && wp_sp->IsEnabled())
                         {
-                            // Debugserver may piggyback the hardware index of the fired watchpoint in the exception data.
-                            // Set the hardware index if that's the case.
-                            if (exc_data_count >=3)
-                                wp_sp->SetHardwareIndex((uint32_t)exc_sub_sub_code);
-                            return StopInfo::CreateStopReasonWithWatchpointID(thread, wp_sp->GetID());
+                            // This looks like a plain trap.
+                            // Have to check if there is a breakpoint here as well.  When you single-step onto a trap,
+                            // the single step stops you not to trap.  Since we also do that check below, let's just use
+                            // that logic.
+                            is_actual_breakpoint = true;
+                            is_trace_if_actual_breakpoint_missing = true;
+                        }
+                        else
+                        {
+
+                            // It's a watchpoint, then.
+                            // The exc_sub_code indicates the data break address.
+                            lldb::WatchpointSP wp_sp;
+                            if (target)
+                                wp_sp = target->GetWatchpointList().FindByAddress((lldb::addr_t)exc_sub_code);
+                            if (wp_sp && wp_sp->IsEnabled())
+                            {
+                                // Debugserver may piggyback the hardware index of the fired watchpoint in the exception data.
+                                // Set the hardware index if that's the case.
+                                if (exc_data_count >=3)
+                                    wp_sp->SetHardwareIndex((uint32_t)exc_sub_sub_code);
+                                return StopInfo::CreateStopReasonWithWatchpointID(thread, wp_sp->GetID());
+                            }
                         }
                     }
                     else if (exc_code == 2 ||   // EXC_I386_BPT
@@ -413,9 +423,11 @@ StopInfoMachException::CreateStopReasonWithMachException
                                 wp_sp->SetHardwareIndex((uint32_t)exc_sub_sub_code);
                             return StopInfo::CreateStopReasonWithWatchpointID(thread, wp_sp->GetID());
                         }
-                        // EXC_ARM_DA_DEBUG seems to be reused for EXC_BREAKPOINT as well as EXC_BAD_ACCESS
-                        if (thread.GetTemporaryResumeState() == eStateStepping)
-                            return StopInfo::CreateStopReasonToTrace(thread);
+                        else
+                        {
+                            is_actual_breakpoint = true;
+                            is_trace_if_actual_breakpoint_missing = true;
+                        }
                     }
                     else if (exc_code == 1) // EXC_ARM_BREAKPOINT
                     {
@@ -428,6 +440,38 @@ StopInfoMachException::CreateStopReasonWithMachException
                         is_trace_if_actual_breakpoint_missing = true;
                     }
                     break;
+
+                case llvm::Triple::aarch64:
+                {
+                    if (exc_code == 1 && exc_sub_code == 0) // EXC_ARM_BREAKPOINT
+                    {
+                        // This is hit when we single instruction step aka MDSCR_EL1 SS bit 0 is set
+                        return StopInfo::CreateStopReasonToTrace(thread);
+                    }
+                    if (exc_code == 0x102) // EXC_ARM_DA_DEBUG
+                    {
+                        // It's a watchpoint, then, if the exc_sub_code indicates a known/enabled
+                        // data break address from our watchpoint list.
+                        lldb::WatchpointSP wp_sp;
+                        if (target)
+                            wp_sp = target->GetWatchpointList().FindByAddress((lldb::addr_t)exc_sub_code);
+                        if (wp_sp && wp_sp->IsEnabled())
+                        {
+                            // Debugserver may piggyback the hardware index of the fired watchpoint in the exception data.
+                            // Set the hardware index if that's the case.
+                            if (exc_data_count >= 3)
+                                wp_sp->SetHardwareIndex((uint32_t)exc_sub_sub_code);
+                            return StopInfo::CreateStopReasonWithWatchpointID(thread, wp_sp->GetID());
+                        }
+                        // EXC_ARM_DA_DEBUG seems to be reused for EXC_BREAKPOINT as well as EXC_BAD_ACCESS
+                        if (thread.GetTemporaryResumeState() == eStateStepping)
+                            return StopInfo::CreateStopReasonToTrace(thread);
+                    }
+                    // It looks like exc_sub_code has the 4 bytes of the instruction that triggered the 
+                    // exception, i.e. our breakpoint opcode
+                    is_actual_breakpoint = exc_code == 1;
+                    break;
+                }
 
                 default:
                     break;

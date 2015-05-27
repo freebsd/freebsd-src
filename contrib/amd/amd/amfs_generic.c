@@ -1113,7 +1113,7 @@ amfs_generic_mount_child(am_node *new_mp, int *error_return)
     new_mp->am_transp = (SVCXPRT *) xmalloc(sizeof(SVCXPRT));
     *(new_mp->am_transp) = *current_transp;
   }
-  if (error && (new_mp->am_mnt->mf_ops == &amfs_error_ops))
+  if (error && new_mp->am_mnt && (new_mp->am_mnt->mf_ops == &amfs_error_ops))
     new_mp->am_error = error;
 
   if (new_mp->am_error > 0)

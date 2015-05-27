@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_vxlan.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -595,36 +594,36 @@ setvxlan_flush(const char *val, int d, int s, const struct afswtch *afp)
 
 static struct cmd vxlan_cmds[] = {
 
-	DEF_CLONE_CMD_ARG("vni",		setvxlan_vni),
-	DEF_CLONE_CMD_ARG("local",		setvxlan_local),
-	DEF_CLONE_CMD_ARG("remote",		setvxlan_remote),
-	DEF_CLONE_CMD_ARG("group",		setvxlan_group),
-	DEF_CLONE_CMD_ARG("localport",		setvxlan_local_port),
-	DEF_CLONE_CMD_ARG("remoteport",		setvxlan_remote_port),
-	DEF_CLONE_CMD_ARG2("portrange",		setvxlan_port_range),
-	DEF_CLONE_CMD_ARG("timeout",		setvxlan_timeout),
-	DEF_CLONE_CMD_ARG("maxaddr",		setvxlan_maxaddr),
+	DEF_CLONE_CMD_ARG("vxlanid",		setvxlan_vni),
+	DEF_CLONE_CMD_ARG("vxlanlocal",		setvxlan_local),
+	DEF_CLONE_CMD_ARG("vxlanremote",	setvxlan_remote),
+	DEF_CLONE_CMD_ARG("vxlangroup",		setvxlan_group),
+	DEF_CLONE_CMD_ARG("vxlanlocalport",	setvxlan_local_port),
+	DEF_CLONE_CMD_ARG("vxlanremoteport",	setvxlan_remote_port),
+	DEF_CLONE_CMD_ARG2("vxlanportrange",	setvxlan_port_range),
+	DEF_CLONE_CMD_ARG("vxlantimeout",	setvxlan_timeout),
+	DEF_CLONE_CMD_ARG("vxlanmaxaddr",	setvxlan_maxaddr),
 	DEF_CLONE_CMD_ARG("vxlandev",		setvxlan_dev),
-	DEF_CLONE_CMD_ARG("ttl",		setvxlan_ttl),
-	DEF_CLONE_CMD("learn", 1,		setvxlan_learn),
-	DEF_CLONE_CMD("-learn", 0,		setvxlan_learn),
+	DEF_CLONE_CMD_ARG("vxlanttl",		setvxlan_ttl),
+	DEF_CLONE_CMD("vxlanlearn", 1,		setvxlan_learn),
+	DEF_CLONE_CMD("-vxlanlearn", 0,		setvxlan_learn),
 
-	DEF_CMD_ARG("vni",			setvxlan_vni),
-	DEF_CMD_ARG("local",			setvxlan_local),
-	DEF_CMD_ARG("remote",			setvxlan_remote),
-	DEF_CMD_ARG("group",			setvxlan_group),
-	DEF_CMD_ARG("localport",		setvxlan_local_port),
-	DEF_CMD_ARG("remoteport",		setvxlan_remote_port),
-	DEF_CMD_ARG2("portrange",		setvxlan_port_range),
-	DEF_CMD_ARG("timeout",			setvxlan_timeout),
-	DEF_CMD_ARG("maxaddr",			setvxlan_maxaddr),
+	DEF_CMD_ARG("vxlanvni",			setvxlan_vni),
+	DEF_CMD_ARG("vxlanlocal",		setvxlan_local),
+	DEF_CMD_ARG("vxlanremote",		setvxlan_remote),
+	DEF_CMD_ARG("vxlangroup",		setvxlan_group),
+	DEF_CMD_ARG("vxlanlocalport",		setvxlan_local_port),
+	DEF_CMD_ARG("vxlanremoteport",		setvxlan_remote_port),
+	DEF_CMD_ARG2("vxlanportrange",		setvxlan_port_range),
+	DEF_CMD_ARG("vxlantimeout",		setvxlan_timeout),
+	DEF_CMD_ARG("vxlanmaxaddr",		setvxlan_maxaddr),
 	DEF_CMD_ARG("vxlandev",			setvxlan_dev),
-	DEF_CMD_ARG("ttl",			setvxlan_ttl),
-	DEF_CMD("learn", 1,			setvxlan_learn),
-	DEF_CMD("-learn", 0,			setvxlan_learn),
+	DEF_CMD_ARG("vxlanttl",			setvxlan_ttl),
+	DEF_CMD("vxlanlearn", 1,		setvxlan_learn),
+	DEF_CMD("-vxlanlearn", 0,		setvxlan_learn),
 
-	DEF_CMD("flush", 0,			setvxlan_flush),
-	DEF_CMD("flushall", 1,			setvxlan_flush),
+	DEF_CMD("vxlanflush", 0,		setvxlan_flush),
+	DEF_CMD("vxlanflushall", 1,		setvxlan_flush),
 };
 
 static struct afswtch af_vxlan = {

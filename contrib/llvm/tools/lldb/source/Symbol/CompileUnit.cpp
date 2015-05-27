@@ -99,11 +99,11 @@ CompileUnit::GetDescription(Stream *s, lldb::DescriptionLevel level) const
 void
 CompileUnit::Dump(Stream *s, bool show_context) const
 {
-    s->Printf("%p: ", this);
+    s->Printf("%p: ", static_cast<const void*>(this));
     s->Indent();
-    *s << "CompileUnit" << (const UserID&)*this
-        << ", language = \"" << (const Language&)*this
-        << "\", file = '" << (const FileSpec&)*this << "'\n";
+    *s << "CompileUnit" << static_cast<const UserID&>(*this)
+       << ", language = \"" << reinterpret_cast<const Language&>(*this)
+       << "\", file = '" << static_cast<const FileSpec&>(*this) << "'\n";
 
 //  m_types.Dump(s);
 
@@ -237,7 +237,7 @@ CompileUnit::GetLanguage()
 LineTable*
 CompileUnit::GetLineTable()
 {
-    if (m_line_table_ap.get() == NULL)
+    if (m_line_table_ap.get() == nullptr)
     {
         if (m_flags.IsClear(flagsParsedLineTable))
         {
@@ -257,7 +257,7 @@ CompileUnit::GetLineTable()
 void
 CompileUnit::SetLineTable(LineTable* line_table)
 {
-    if (line_table == NULL)
+    if (line_table == nullptr)
         m_flags.Clear(flagsParsedLineTable);
     else
         m_flags.Set(flagsParsedLineTable);
@@ -267,7 +267,7 @@ CompileUnit::SetLineTable(LineTable* line_table)
 VariableListSP
 CompileUnit::GetVariableList(bool can_create)
 {
-    if (m_variables.get() == NULL && can_create)
+    if (m_variables.get() == nullptr && can_create)
     {
         SymbolContext sc;
         CalculateSymbolContext(&sc);
@@ -325,18 +325,19 @@ CompileUnit::ResolveSymbolContext
     // when finding file indexes
     std::vector<uint32_t> file_indexes;
     const bool full_match = (bool)file_spec.GetDirectory();
-    bool file_spec_matches_cu_file_spec = FileSpec::Equal(file_spec, *this, full_match);
+    const bool remove_backup_dots = true;
+    bool file_spec_matches_cu_file_spec = FileSpec::Equal(file_spec, *this, full_match, remove_backup_dots);
 
     // If we are not looking for inlined functions and our file spec doesn't
     // match then we are done...
     if (file_spec_matches_cu_file_spec == false && check_inlines == false)
         return 0;
 
-    uint32_t file_idx = GetSupportFiles().FindFileIndex (1, file_spec, true);
+    uint32_t file_idx = GetSupportFiles().FindFileIndex (1, file_spec, true, remove_backup_dots);
     while (file_idx != UINT32_MAX)
     {
         file_indexes.push_back (file_idx);
-        file_idx = GetSupportFiles().FindFileIndex (file_idx + 1, file_spec, true);
+        file_idx = GetSupportFiles().FindFileIndex (file_idx + 1, file_spec, true, remove_backup_dots);
     }
     
     const size_t num_file_indexes = file_indexes.size();
@@ -353,7 +354,7 @@ CompileUnit::ResolveSymbolContext
     {
         LineTable *line_table = sc.comp_unit->GetLineTable();
 
-        if (line_table != NULL)
+        if (line_table != nullptr)
         {
             uint32_t found_line;
             uint32_t line_idx;

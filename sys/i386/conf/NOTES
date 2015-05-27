@@ -433,7 +433,7 @@ hint.atkbd.0.irq="1"
 
 # Options for atkbd:
 options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	ATKBD_DFLT_KEYMAP=jp.106
+makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
 
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
@@ -737,12 +737,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #
 # Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
 device		aacraid		# Container interface, CAM required
-
-# The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
-# controllers (SmartRAID V and VI and later).
-# These controllers require the CAM infrastructure.
-#
-device		asr
 
 #
 # Highpoint RocketRAID 27xx.
@@ -1070,6 +1064,3 @@ options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
 
-# asr old ioctls support, needed by raidutils
-
-options 	ASR_COMPAT

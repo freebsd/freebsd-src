@@ -6,7 +6,7 @@
 #include <config.h>
 #endif
 
-#if defined(REFCLOCK) && (defined(CLOCK_ACTS) || defined(CLOCK_PTBACTS))
+#if defined(REFCLOCK) && defined(CLOCK_ACTS)
 
 #include "ntpd.h"
 #include "ntp_io.h"
@@ -21,6 +21,12 @@
 # include <sys/ioctl.h>
 #endif /* HAVE_SYS_IOCTL_H */
 
+#ifdef SYS_WINNT
+#undef write	/* ports/winnt/include/config.h: #define write _write */
+extern int async_write(int, const void *, unsigned int);
+#define write(fd, data, octets)	async_write(fd, data, octets)
+#endif
+
 /*
  * This driver supports the US (NIST, USNO) and European (PTB, NPL,
  * etc.) modem time services, as well as Spectracom GPS and WWVB
@@ -33,20 +39,19 @@
  * This driver requires a modem with a Hayes-compatible command set and
  * control over the modem data terminal ready (DTR) control line. The
  * modem setup string is hard-coded in the driver and may require
- * changes for nonstandard modems or special circumstances. For reasons
- * unrelated to this driver, the data set ready (DSR) control line
- * should not be set when this driver is first started.
+ * changes for nonstandard modems or special circumstances.
  *
- * The calling program is initiated by setting fudge flag1, either
- * manually or automatically. When flag1 is set, the calling program
- * dials the first number in the phone command of the configuration
- * file. If that call fails, the calling program dials the second number
- * and so on. The number is specified by the Hayes ATDT prefix followed
- * by the number itself, including the prefix and long-distance digits
- * and delay code, if necessary. The flag1 is reset and the calling
- * program terminated if (a) a valid clock update has been determined,
- * (b) no more numbers remain in the list, (c) a device fault or timeout
- * occurs or (d) fudge flag1 is reset manually.
+ * When enabled, the calling program dials the first number in the
+ * phones file. If that call fails, it dials the second number and
+ * so on. The phone number is specified by the Hayes ATDT prefix
+ * followed by the number itself, including the long-distance prefix
+ * and delay code, if necessary. The calling program is enabled
+ * when (a) fudge flag1 is set by ntpdc, (b) at each poll interval
+ * when no other synchronization sources are present, and (c) at each
+ * poll interval whether or not other synchronization sources are 
+ * present. The calling program disconnects if (a) the called party
+ * is busy or does not answer, (b) the called party disconnects
+ * before a sufficient nuimber of timecodes have been received. 
  *
  * The driver is transparent to each of the modem time services and
  * Spectracom radios. It selects the parsing algorithm depending on the
@@ -59,18 +64,17 @@
  *
  * flag1	force a call in manual mode
  * flag2	enable port locking (not verified)
- * flag3	no modem; port is directly connected to device
+ * flag3	not used
  * flag4	not used
  *
  * time1	offset adjustment (s)
  *
- * Ordinarily, the serial port is connected to a modem; however, it can
- * be connected directly to a device or another computer for testing and
- * calibration. In this case set fudge flag3 and the driver will send a
- * single character 'T' at each poll event. In principle, fudge flag2
- * enables port locking, allowing the modem to be shared when not in use
- * by this driver. At least on Solaris with the current NTP I/O
- * routines, this results only in lots of ugly error messages.
+ * Ordinarily, the serial port is connected to a modem and the phones
+ * list is defined. If no phones list is defined, the port can be 
+ * connected directly to a device or another computer. In this case the
+ * driver will send a single character 'T' at each poll event. If
+ * fudge flag2 is enabled, port locking allows the modem to be shared
+ * when not in use by this driver.
  */
 /*
  * National Institute of Science and Technology (NIST)
@@ -89,7 +93,9 @@
  *
  * MJD, DST, DUT1 and UTC are not used by this driver. The "*" or "#" is
  * the on-time markers echoed by the driver and used by NIST to measure
- * and correct for the propagation delay.
+ * and correct for the propagation delay. Note: the ACTS timecode has
+ * recently been changed to eliminate the * on-time indicator. The
+ * reason for this and the long term implications are not clear.
  *
  * US Naval Observatory (USNO)
  *
@@ -129,26 +135,26 @@
  * Interface definitions
  */
 #define	DEVICE		"/dev/acts%d" /* device name and unit */
-#define	SPEED232	B9600	/* uart speed (9600 baud) */
+#define	SPEED232	B19200	/* uart speed (19200 bps) */
 #define	PRECISION	(-10)	/* precision assumed (about 1 ms) */
-#define LOCKFILE	"/var/spool/locks/LCK..cua%d"
+#define LOCKFILE	"/var/spool/lock/LCK..cua%d"
 #define DESCRIPTION	"Automated Computer Time Service" /* WRU */
 #define REFID		"NONE"	/* default reference ID */
 #define MSGCNT		20	/* max message count */
-#define SMAX		256	/* max clockstats line length */
+#define	MAXPHONE	10	/* max number of phone numbers */
 
 /*
- * Calling program modes
+ * Calling program modes (mode)
  */
-#define MODE_AUTO	0	/* automatic mode */
-#define MODE_BACKUP	1	/* backup mode */
+#define MODE_BACKUP	0	/* backup mode */
+#define MODE_AUTO	1	/* automatic mode */
 #define MODE_MANUAL	2	/* manual mode */
 
 /*
- * Service identifiers.
+ * Service identifiers (message length)
  */
 #define REFACTS		"NIST"	/* NIST reference ID */
-#define LENACTS		50	/* NIST format */
+#define LENACTS		50	/* NIST format A */
 #define REFUSNO		"USNO"	/* USNO reference ID */
 #define LENUSNO		20	/* USNO */
 #define REFPTB		"PTB\0"	/* PTB/NPL reference ID */
@@ -159,40 +165,41 @@
 #define LF		0x0a	/* ASCII LF */
 
 /*
- * Modem setup strings. These may have to be changed for some modems.
+ * Modem setup strings. These may have to be changed for
+ * some modems.
  *
  * AT	command prefix
  * B1	US answer tone
  * &C0	disable carrier detect
  * &D2	hang up and return to command mode on DTR transition
  * E0	modem command echo disabled
- * l1	set modem speaker volume to low level
+ * L1	set modem speaker volume to low level
  * M1	speaker enabled until carrier detect
  * Q0	return result codes
  * V1	return result codes as English words
+ * Y1	enable long-space disconnect
  */
-#define MODEM_SETUP	"ATB1&C0&D2E0L1M1Q0V1\r" /* modem setup */
-#define MODEM_HANGUP	"ATH\r"	/* modem disconnect */
+const char def_modem_setup[] = "ATB1&C0&D2E0L1M1Q0V1Y1";
+const char *modem_setup = def_modem_setup; 
 
 /*
  * Timeouts (all in seconds)
  */
 #define SETUP		3	/* setup timeout */
-#define	DTR		1	/* DTR timeout */
+#define	REDIAL		30	/* redial timeout */
 #define ANSWER		60	/* answer timeout */
-#define CONNECT		20	/* first valid message timeout */
-#define TIMECODE	30	/* all valid messages timeout */
+#define TIMECODE	60	/* message timeout */
+#define	MAXCODE		20	/* max timecodes */
 
 /*
  * State machine codes
  */
-#define S_IDLE		0	/* wait for poll */
-#define S_OK		1	/* wait for modem setup */
-#define S_DTR		2	/* wait for modem DTR */
-#define S_CONNECT	3	/* wait for answer*/
-#define S_FIRST		4	/* wait for first valid message */
-#define S_MSG		5	/* wait for all messages */
-#define S_CLOSE		6	/* wait after sending disconnect */
+typedef enum {
+	S_IDLE,			/* wait for poll */
+	S_SETUP,		/* send modem setup */
+	S_CONNECT,		/* wait for answer */
+	S_MSG			/* wait for timecode */
+} teModemState;
 
 /*
  * Unit control structure
@@ -204,26 +211,27 @@ struct actsunit {
 	int	retry;		/* retry index */
 	int	msgcnt;		/* count of messages received */
 	l_fp	tstamp;		/* on-time timestamp */
-	char	*bufptr;	/* buffer pointer */
+	char	*bufptr;	/* next incoming char stored here */
+	char	buf[BMAX];	/* bufptr roams within buf[] */
 };
 
 /*
  * Function prototypes
  */
-static	int	acts_start	P((int, struct peer *));
-static	void	acts_shutdown	P((int, struct peer *));
-static	void	acts_receive	P((struct recvbuf *));
-static	void	acts_message	P((struct peer *));
-static	void	acts_timecode	P((struct peer *, char *));
-static	void	acts_poll	P((int, struct peer *));
-static	void	acts_timeout	P((struct peer *));
-static	void	acts_disc	P((struct peer *));
-static	void	acts_timer	P((int, struct peer *));
+static	int	acts_start	(int, struct peer *);
+static	void	acts_shutdown	(int, struct peer *);
+static	void	acts_receive	(struct recvbuf *);
+static	void	acts_message	(struct peer *, const char *);
+static	void	acts_timecode	(struct peer *, const char *);
+static	void	acts_poll	(int, struct peer *);
+static	void	acts_timeout	(struct peer *, teModemState);
+static	void	acts_timer	(int, struct peer *);
+static	void	acts_close	(struct peer *);
 
 /*
  * Transfer vector (conditional structure name)
  */
-struct	refclock refclock_acts = {
+struct refclock refclock_acts = {
 	acts_start,		/* start up driver */
 	acts_shutdown,		/* shut down driver */
 	acts_poll,		/* transmit poll message */
@@ -233,44 +241,45 @@ struct	refclock refclock_acts = {
 	acts_timer		/* housekeeping timer */
 };
 
-struct	refclock refclock_ptb;
-
 /*
  * Initialize data for processing
  */
 static int
-acts_start (
+acts_start(
 	int	unit,
 	struct peer *peer
 	)
 {
 	struct actsunit *up;
 	struct refclockproc *pp;
+	const char *setup;
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	up = emalloc(sizeof(struct actsunit));
-	if (up == NULL)
-		return (0);
-
-	memset(up, 0, sizeof(struct actsunit));
+	up = emalloc_zero(sizeof(struct actsunit));
 	up->unit = unit;
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 	pp->io.clock_recv = acts_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
+	pp->io.fd = -1;
 
 	/*
 	 * Initialize miscellaneous variables
 	 */
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
-	memcpy((char *)&pp->refid, REFID, 4);
+	memcpy(&pp->refid, REFID, 4);
 	peer->sstclktype = CTL_SST_TS_TELEPHONE;
-	peer->flags &= ~FLAG_FIXPOLL;
-	up->bufptr = pp->a_lastcode;
+	up->bufptr = up->buf;
+	if (def_modem_setup == modem_setup) {
+		setup = get_ext_sys_var("modemsetup");
+		if (setup != NULL)
+			modem_setup = estrdup(setup);
+	}
+
 	return (1);
 }
 
@@ -279,7 +288,7 @@ acts_start (
  * acts_shutdown - shut down the clock
  */
 static void
-acts_shutdown (
+acts_shutdown(
 	int	unit,
 	struct peer *peer
 	)
@@ -291,7 +300,8 @@ acts_shutdown (
 	 * Warning: do this only when a call is not in progress.
 	 */
 	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
+	up = pp->unitptr;
+	acts_close(peer);
 	free(up);
 }
 
@@ -300,15 +310,16 @@ acts_shutdown (
  * acts_receive - receive data from the serial interface
  */
 static void
-acts_receive (
+acts_receive(
 	struct recvbuf *rbufp
 	)
 {
 	struct actsunit *up;
 	struct refclockproc *pp;
 	struct peer *peer;
-	char	tbuf[BMAX];
-	char	*tptr;
+	char	tbuf[sizeof(up->buf)];
+	char *	tptr;
+	int	octets;
 
 	/*
 	 * Initialize pointers and read the timecode and timestamp. Note
@@ -317,27 +328,27 @@ acts_receive (
 	 * arbitrary fragments. Capture the timecode at the beginning of
 	 * the message and at the '*' and '#' on-time characters.
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
-	pp->lencode = refclock_gtraw(rbufp, tbuf, BMAX - (up->bufptr -
-	    pp->a_lastcode), &pp->lastrec);
+	up = pp->unitptr;
+	octets = sizeof(up->buf) - (up->bufptr - up->buf);
+	refclock_gtraw(rbufp, tbuf, octets, &pp->lastrec);
 	for (tptr = tbuf; *tptr != '\0'; tptr++) {
 		if (*tptr == LF) {
-			if (up->bufptr == pp->a_lastcode) {
+			if (up->bufptr == up->buf) {
 				up->tstamp = pp->lastrec;
 				continue;
-
 			} else {
 				*up->bufptr = '\0';
-				acts_message(peer);
-				up->bufptr = pp->a_lastcode;
+				up->bufptr = up->buf;
+				acts_message(peer, up->buf);
 			}
-		} else if (!iscntrl(*tptr)) {
+		} else if (!iscntrl((unsigned char)*tptr)) {
 			*up->bufptr++ = *tptr;
 			if (*tptr == '*' || *tptr == '#') {
 				up->tstamp = pp->lastrec;
-				write(pp->io.fd, tptr, 1);
+				if (write(pp->io.fd, tptr, 1) < 0)
+					msyslog(LOG_ERR, "acts: write echo fails %m");
 			}
 		}
 	}
@@ -349,74 +360,361 @@ acts_receive (
  */
 void
 acts_message(
+	struct peer *peer,
+	const char *msg
+	)
+{
+	struct actsunit *up;
+	struct refclockproc *pp;
+	char	tbuf[BMAX];
+	int		dtr = TIOCM_DTR;
+
+	DPRINTF(1, ("acts: %d %s\n", (int)strlen(msg), msg));
+
+	/*
+	 * What to do depends on the state and the first token in the
+	 * message.
+	 */
+	pp = peer->procptr;
+	up = pp->unitptr;
+
+	/*
+	 * Extract the first token in the line.
+	 */
+	strlcpy(tbuf, msg, sizeof(tbuf));
+	strtok(tbuf, " ");
+	switch (up->state) {
+
+	/*
+	 * We are waiting for the OK response to the modem setup
+	 * command. When this happens, dial the number followed.
+	 * If anything other than OK is received, just ignore it
+	 * and wait for timeoue.
+	 */
+	case S_SETUP:
+		if (strcmp(tbuf, "OK") != 0) {
+			/*
+			 * We disable echo with MODEM_SETUP's E0 but
+			 * if the modem was previously E1, we will
+			 * see MODEM_SETUP echoed before the OK/ERROR.
+			 * Ignore it.
+			 */
+			if (!strcmp(tbuf, modem_setup))
+				return;
+			break;
+		}
+
+		mprintf_event(PEVNT_CLOCK, peer, "DIAL #%d %s",
+			      up->retry, sys_phone[up->retry]);
+		if (ioctl(pp->io.fd, TIOCMBIS, &dtr) < 0)
+			msyslog(LOG_ERR, "acts: ioctl(TIOCMBIS) failed: %m");
+		if (write(pp->io.fd, sys_phone[up->retry],
+		    strlen(sys_phone[up->retry])) < 0)
+			msyslog(LOG_ERR, "acts: write DIAL fails %m");
+		write(pp->io.fd, "\r", 1);
+		up->retry++;
+		up->state = S_CONNECT;
+		up->timer = ANSWER;
+		return;
+
+	/*
+	 * We are waiting for the CONNECT response to the dial
+	 * command. When this happens, listen for timecodes. If
+	 * somthing other than CONNECT is received, like BUSY
+	 * or NO CARRIER, abort the call.
+	 */
+	case S_CONNECT:
+		if (strcmp(tbuf, "CONNECT") != 0)
+			break;
+
+		report_event(PEVNT_CLOCK, peer, msg);
+		up->state = S_MSG;
+		up->timer = TIMECODE;
+		return;
+
+	/*
+	 * We are waiting for a timecode response. Pass it to
+	 * the parser. If NO CARRIER is received, save the
+	 * messages and abort the call.
+	 */
+	case S_MSG:
+		if (strcmp(tbuf, "NO") == 0)
+			report_event(PEVNT_CLOCK, peer, msg);
+		if (up->msgcnt < MAXCODE)
+			acts_timecode(peer, msg);
+		else
+			acts_timeout(peer, S_MSG);
+		return;
+	}
+
+	/*
+	 * Other response. Tell us about it.
+	 */
+	report_event(PEVNT_CLOCK, peer, msg);
+	acts_close(peer);
+}
+
+
+/*
+ * acts_timeout - called on timeout
+ */
+static void
+acts_timeout(
+	struct peer *peer,
+	teModemState	dstate
+	)
+{
+	struct actsunit *up;
+	struct refclockproc *pp;
+	int	fd;
+	int	rc;
+	char	device[20];
+	char	lockfile[128], pidbuf[8];
+
+	/*
+	 * The state machine is driven by messages from the modem,
+	 * when first started and at timeout.
+	 */
+	pp = peer->procptr;
+	up = pp->unitptr;
+	switch (dstate) {
+
+	/*
+	 * System poll event. Lock the modem port, open the device
+	 * and send the setup command.
+	 */
+	case S_IDLE:
+		if (-1 != pp->io.fd)
+			return;		/* port is already open */
+
+		/*
+		 * Lock the modem port. If busy, retry later. Note: if
+		 * something fails between here and the close, the lock
+		 * file may not be removed.
+		 */
+		if (pp->sloppyclockflag & CLK_FLAG2) {
+			snprintf(lockfile, sizeof(lockfile), LOCKFILE,
+			    up->unit);
+			fd = open(lockfile, O_WRONLY | O_CREAT | O_EXCL,
+			    0644);
+			if (fd < 0) {
+				report_event(PEVNT_CLOCK, peer, "acts: port busy");
+				return;
+			}
+			snprintf(pidbuf, sizeof(pidbuf), "%d\n",
+			    (u_int)getpid());
+			if (write(fd, pidbuf, strlen(pidbuf)) < 0)
+				msyslog(LOG_ERR, "acts: write lock fails %m");
+			close(fd);
+		}
+
+		/*
+		 * Open the device in raw mode and link the I/O.
+		 */
+		snprintf(device, sizeof(device), DEVICE,
+		    up->unit);
+		fd = refclock_open(device, SPEED232, LDISC_ACTS |
+		    LDISC_RAW | LDISC_REMOTE);
+		if (fd < 0) {
+			msyslog(LOG_ERR, "acts: open fails %m");
+			return;
+		}
+		pp->io.fd = fd;
+		if (!io_addclock(&pp->io)) {
+			msyslog(LOG_ERR, "acts: addclock fails");
+			close(fd);
+			pp->io.fd = -1;
+			return;
+		}
+		up->msgcnt = 0;
+		up->bufptr = up->buf;
+
+		/*
+		 * If the port is directly connected to the device, skip
+		 * the modem business and send 'T' for Spectrabum.
+		 */
+		if (sys_phone[up->retry] == NULL) {
+			if (write(pp->io.fd, "T", 1) < 0)
+				msyslog(LOG_ERR, "acts: write T fails %m");
+			up->state = S_MSG;
+			up->timer = TIMECODE;
+			return;
+		}
+
+		/*
+		 * Initialize the modem. This works with Hayes-
+		 * compatible modems.
+		 */
+		mprintf_event(PEVNT_CLOCK, peer, "SETUP %s",
+			      modem_setup);
+		rc = write(pp->io.fd, modem_setup, strlen(modem_setup));
+		if (rc < 0)
+			msyslog(LOG_ERR, "acts: write SETUP fails %m");
+		write(pp->io.fd, "\r", 1);
+		up->state = S_SETUP;
+		up->timer = SETUP;
+		return;
+
+	/*
+	 * In SETUP state the modem did not respond OK to setup string.
+	 */
+	case S_SETUP:
+		report_event(PEVNT_CLOCK, peer, "no modem");
+		break;
+
+	/*
+	 * In CONNECT state the call did not complete. Abort the call.
+	 */
+	case S_CONNECT:
+		report_event(PEVNT_CLOCK, peer, "no answer");
+		break;
+
+	/*
+	 * In MSG states no further timecodes are expected. If any
+	 * timecodes have arrived, update the clock. In any case,
+	 * terminate the call.
+	 */
+	case S_MSG:
+		if (up->msgcnt == 0) {
+			report_event(PEVNT_CLOCK, peer, "no timecodes");
+		} else {
+			pp->lastref = pp->lastrec;
+			record_clock_stats(&peer->srcadr, pp->a_lastcode);
+			refclock_receive(peer);
+		}
+		break;
+	}
+	acts_close(peer);
+}
+
+
+/*
+ * acts_close - close and prepare for next call.
+ *
+ * In ClOSE state no further protocol actions are required
+ * other than to close and release the device and prepare to
+ * dial the next number if necessary.
+ */
+void
+acts_close(
 	struct peer *peer
 	)
 {
 	struct actsunit *up;
 	struct refclockproc *pp;
-	int	dtr = TIOCM_DTR;
-	char	tbuf[SMAX];
-#ifdef DEBUG
-	u_int	modem;
-#endif
+	char	lockfile[128];
+	int	dtr;
+
+	pp = peer->procptr;
+	up = pp->unitptr;
+	if (pp->io.fd != -1) {
+		report_event(PEVNT_CLOCK, peer, "close");
+		dtr = TIOCM_DTR;
+		if (ioctl(pp->io.fd, TIOCMBIC, &dtr) < 0)
+			msyslog(LOG_ERR, "acts: ioctl(TIOCMBIC) failed: %m");
+		io_closeclock(&pp->io);
+		pp->io.fd = -1;
+	}
+	if (pp->sloppyclockflag & CLK_FLAG2) {
+		snprintf(lockfile, sizeof(lockfile),
+		    LOCKFILE, up->unit);
+		unlink(lockfile);
+	}
+	if (up->msgcnt == 0 && up->retry > 0) {
+		if (sys_phone[up->retry] != NULL) {
+			up->state = S_IDLE;
+			up->timer = REDIAL;
+			return;
+		}
+	}
+	up->state = S_IDLE;
+	up->timer = 0;
+}
+
+
+/*
+ * acts_poll - called by the transmit routine
+ */
+static void
+acts_poll(
+	int	unit,
+	struct peer *peer
+	)
+{
+	struct actsunit *up;
+	struct refclockproc *pp;
 
 	/*
-	 * What to do depends on the state and the first token in the
-	 * message. A NO token sends the message to the clockstats.
+	 * This routine is called at every system poll. All it does is
+	 * set flag1 under certain conditions. The real work is done by
+	 * the timeout routine and state machine.
 	 */
 	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
-#ifdef DEBUG
-	ioctl(pp->io.fd, TIOCMGET, (char *)&modem);
-	sprintf(tbuf, "acts: %04x (%d %d) %lu %s", modem, up->state,
-	    up->timer, strlen(pp->a_lastcode), pp->a_lastcode);
-	if (debug)
-		printf("%s\n", tbuf);
-#endif
-	strncpy(tbuf, pp->a_lastcode, SMAX);
-	strtok(tbuf, " ");
-	if (strcmp(tbuf, "NO") == 0)
-		record_clock_stats(&peer->srcadr, pp->a_lastcode);
-	switch(up->state) {
+	up = pp->unitptr;
+	switch (peer->ttl) {
 
 	/*
-	 * We are waiting for the OK response to the modem setup
-	 * command. When this happens, raise DTR and dial the number
-	 * followed by \r.
+	 * In manual mode the calling program is activated by the ntpdc
+	 * program using the enable flag (fudge flag1), either manually
+	 * or by a cron job.
 	 */
-	case S_OK:
-		if (strcmp(tbuf, "OK") != 0) {
-			msyslog(LOG_ERR, "acts: setup error %s",
-			    pp->a_lastcode);
-			acts_disc(peer);
-			return;
-		}
-		ioctl(pp->io.fd, TIOCMBIS, (char *)&dtr);
-		up->state = S_DTR;
-		up->timer = DTR;
+	case MODE_MANUAL:
 		return;
 
 	/*
-	 * We are waiting for the call to be answered. All we care about
-	 * here is token CONNECT. Send the message to the clockstats.
+	 * In automatic mode the calling program runs continuously at
+	 * intervals determined by the poll event or specified timeout.
 	 */
-	case S_CONNECT:
-		record_clock_stats(&peer->srcadr, pp->a_lastcode);
-		if (strcmp(tbuf, "CONNECT") != 0) {
-			acts_disc(peer);
-			return;
-		}
-		up->state = S_FIRST;
-		up->timer = CONNECT;
-		return;
-
-	/*
-	 * We are waiting for a timecode. Pass it to the parser.
-	 */
-	case S_FIRST:
-	case S_MSG:
-		acts_timecode(peer, pp->a_lastcode);
+	case MODE_AUTO:
 		break;
+
+	/*
+	 * In backup mode the calling program runs continuously as long
+	 * as either no peers are available or this peer is selected.
+	 */
+	case MODE_BACKUP:
+		if (!(sys_peer == NULL || sys_peer == peer))
+			return;
+
+		break;
+	}
+	pp->polls++;
+	if (S_IDLE == up->state) {
+		up->retry = 0;
+		acts_timeout(peer, S_IDLE);
+	}
+}
+
+
+/*
+ * acts_timer - called at one-second intervals
+ */
+static void
+acts_timer(
+	int	unit,
+	struct peer *peer
+	)
+{
+	struct actsunit *up;
+	struct refclockproc *pp;
+
+	/*
+	 * This routine implments a timeout which runs for a programmed
+	 * interval. The counter is initialized by the state machine and
+	 * counts down to zero. Upon reaching zero, the state machine is
+	 * called. If flag1 is set while timer is zero, force a call.
+	 */
+	pp = peer->procptr;
+	up = pp->unitptr;
+	if (up->timer == 0) {
+		if (pp->sloppyclockflag & CLK_FLAG1) {
+			pp->sloppyclockflag &= ~CLK_FLAG1;
+			acts_timeout(peer, S_IDLE);
+		}
+	} else {
+		up->timer--;
+		if (up->timer == 0)
+			acts_timeout(peer, up->state);
 	}
 }
 
@@ -425,8 +723,8 @@ acts_message(
  */
 void
 acts_timecode(
-	struct peer *peer,	/* peer structure pointer */
-	char	*str		/* timecode string */
+	struct peer *	peer,	/* peer structure pointer */
+	const char *	str	/* timecode string */
 	)
 {
 	struct actsunit *up;
@@ -448,7 +746,7 @@ acts_timecode(
 	char	dstchar;	/* WWVB daylight/savings indicator */
 	int	tz;		/* WWVB timezone */
 
-	u_int	leapmonth;	/* PTB/NPL month of leap */
+	int	leapmonth;	/* PTB/NPL month of leap */
 	char	leapdir;	/* PTB/NPL leap direction */
 
 	/*
@@ -457,9 +755,9 @@ acts_timecode(
 	 * errors due noise are forgivable.
 	 */
 	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
+	up = pp->unitptr;
 	pp->nsec = 0;
-	switch(strlen(str)) {
+	switch (strlen(str)) {
 
 	/*
 	 * For USNO format on-time character '*', which is on a line by
@@ -472,8 +770,8 @@ acts_timecode(
 		return;
 	
 	/*
-	 * ACTS format: "jjjjj yy-mm-dd hh:mm:ss ds l uuu aaaaa
-	 * UTC(NIST) *"
+	 * ACTS format A: "jjjjj yy-mm-dd hh:mm:ss ds l uuu aaaaa
+	 * UTC(NIST) *".
 	 */
 	case LENACTS:
 		if (sscanf(str,
@@ -484,25 +782,17 @@ acts_timecode(
 			refclock_report(peer, CEVNT_BADREPLY);
 			return;
 		}
-
-		/*
-		 * Wait until ACTS has calculated the roundtrip delay.
-		 * We don't need to do anything, as ACTS adjusts the
-		 * on-time epoch.
-		 */
-		if (flag != '#')
-			return;
-
 		pp->day = ymd2yd(pp->year, month, day);
 		pp->leap = LEAP_NOWARNING;
 		if (leap == 1)
-	    		pp->leap = LEAP_ADDSECOND;
-		else if (pp->leap == 2)
-	    		pp->leap = LEAP_DELSECOND;
+			pp->leap = LEAP_ADDSECOND;
+		else if (leap == 2)
+			pp->leap = LEAP_DELSECOND;
 		memcpy(&pp->refid, REFACTS, 4);
-		if (up->msgcnt == 0)
-			record_clock_stats(&peer->srcadr, str);
 		up->msgcnt++;
+		if (flag != '#' && up->msgcnt < 10)
+			return;
+
 		break;
 
 	/*
@@ -523,10 +813,8 @@ acts_timecode(
 		 */
 		pp->leap = LEAP_NOWARNING;
 		memcpy(&pp->refid, REFUSNO, 4);
-		if (up->msgcnt == 0)
-			record_clock_stats(&peer->srcadr, str);
 		up->msgcnt++;
-		return;
+		break;
 
 	/*
 	 * PTB/NPL format: "yyyy-mm-dd hh:mm:ss MEZ" 
@@ -543,14 +831,12 @@ acts_timecode(
 		pp->leap = LEAP_NOWARNING;
 		if (leapmonth == month) {
 			if (leapdir == '+')
-		    		pp->leap = LEAP_ADDSECOND;
+				pp->leap = LEAP_ADDSECOND;
 			else if (leapdir == '-')
-		    		pp->leap = LEAP_DELSECOND;
+				pp->leap = LEAP_DELSECOND;
 		}
 		pp->day = ymd2yd(pp->year, month, day);
 		memcpy(&pp->refid, REFPTB, 4);
-		if (up->msgcnt == 0)
-			record_clock_stats(&peer->srcadr, str);
 		up->msgcnt++;
 		break;
 
@@ -569,8 +855,6 @@ acts_timecode(
 		if (synchar != ' ')
 			pp->leap = LEAP_NOTINSYNC;
 		memcpy(&pp->refid, REFWWVB, 4);
-		if (up->msgcnt == 0)
-			record_clock_stats(&peer->srcadr, str);
 		up->msgcnt++;
 		break;
 
@@ -592,8 +876,6 @@ acts_timecode(
 		else if (leapchar == 'L')
 			pp->leap = LEAP_ADDSECOND;
 		memcpy(&pp->refid, REFWWVB, 4);
-		if (up->msgcnt == 0)
-			record_clock_stats(&peer->srcadr, str);
 		up->msgcnt++;
 		break;
 
@@ -613,319 +895,17 @@ acts_timecode(
 	 */
 	peer->refid = pp->refid;
 	pp->lastrec = up->tstamp;
+	if (up->msgcnt == 0)
+		return;
+
+	strlcpy(pp->a_lastcode, str, sizeof(pp->a_lastcode));
+	pp->lencode = strlen(pp->a_lastcode);
 	if (!refclock_process(pp)) {
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
-			}
+	}
 	pp->lastref = pp->lastrec;
-	if (peer->disp > MAXDISTANCE)
-		refclock_receive(peer);
-	if (up->state != S_MSG) {
-		up->state = S_MSG;
-		up->timer = TIMECODE;
-	}
 }
-
-
-/*
- * acts_poll - called by the transmit routine
- */
-static void
-acts_poll (
-	int	unit,
-	struct peer *peer
-	)
-{
-	struct actsunit *up;
-	struct refclockproc *pp;
-
-	/*
-	 * This routine is called at every system poll. All it does is
-	 * set flag1 under certain conditions. The real work is done by
-	 * the timeout routine and state machine.
-	 */
-	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
-	switch (peer->ttl) {
-
-	/*
-	 * In manual mode the calling program is activated by the ntpdc
-	 * program using the enable flag (fudge flag1), either manually
-	 * or by a cron job.
-	 */
-	case MODE_MANUAL:
-		/* fall through */
-		break;
-
-	/*
-	 * In automatic mode the calling program runs continuously at
-	 * intervals determined by the poll event or specified timeout.
-	 */
-	case MODE_AUTO:
-		pp->sloppyclockflag |= CLK_FLAG1;
-		break;
-
-	/*
-	 * In backup mode the calling program runs continuously as long
-	 * as either no peers are available or this peer is selected.
-	 */
-	case MODE_BACKUP:
-		if (sys_peer == NULL || sys_peer == peer)
-			pp->sloppyclockflag |= CLK_FLAG1;
-		break;
-	}
-}
-
-
-/*
- * acts_timer - called at one-second intervals
- */
-static void
-acts_timer(
-	int	unit,
-	struct peer *peer
-	)
-{
-	struct actsunit *up;
-	struct refclockproc *pp;
-
-	/*
-	 * This routine implments a timeout which runs for a programmed
-	 * interval. The counter is initialized by the state machine and
-	 * counts down to zero. Upon reaching zero, the state machine is
-	 * called. If flag1 is set while in S_IDLE state, force a
-	 * timeout.
-	 */
-	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
-	if (pp->sloppyclockflag & CLK_FLAG1 && up->state == S_IDLE) {
-		acts_timeout(peer);
-		return;
-	}
-	if (up->timer == 0)
-		return;
-
-	up->timer--;
-	if (up->timer == 0)
-		acts_timeout(peer);
-}
-
-
-/*
- * acts_timeout - called on timeout
- */
-static void
-acts_timeout(
-	struct peer *peer
-	)
-{
-	struct actsunit *up;
-	struct refclockproc *pp;
-	int	fd;
-	char	device[20];
-	char	lockfile[128], pidbuf[8];
-	char	tbuf[BMAX];
-
-	/*
-	 * The state machine is driven by messages from the modem, when
-	 * first stated and at timeout.
-	 */
-	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
-	pp->sloppyclockflag &= ~CLK_FLAG1;
-	if (sys_phone[up->retry] == NULL && !(pp->sloppyclockflag &
-	    CLK_FLAG3)) {
-		msyslog(LOG_ERR, "acts: no phones");
-		return;
-	}
-	switch(up->state) {
-
-	/*
-	 * System poll event. Lock the modem port and open the device.
-	 */
-	case S_IDLE:
-
-		/*
-		 * Lock the modem port. If busy, retry later. Note: if
-		 * something fails between here and the close, the lock
-		 * file may not be removed.
-		 */
-		if (pp->sloppyclockflag & CLK_FLAG2) {
-			sprintf(lockfile, LOCKFILE, up->unit);
-			fd = open(lockfile, O_WRONLY | O_CREAT | O_EXCL,
-			    0644);
-			if (fd < 0) {
-				msyslog(LOG_ERR, "acts: port busy");
-				return;
-			}
-			sprintf(pidbuf, "%d\n", (u_int)getpid());
-			write(fd, pidbuf, strlen(pidbuf));
-			close(fd);
-		}
-
-		/*
-		 * Open the device in raw mode and link the I/O.
-		 */
-		if (!pp->io.fd) {
-			sprintf(device, DEVICE, up->unit);
-			fd = refclock_open(device, SPEED232,
-			    LDISC_ACTS | LDISC_RAW | LDISC_REMOTE);
-			if (fd == 0) {
-				return;
-			}
-			pp->io.fd = fd;
-			if (!io_addclock(&pp->io)) {
-				msyslog(LOG_ERR,
-				    "acts: addclock fails");
-				close(fd);
-				pp->io.fd = 0;
-				return;
-			}
-		}
-
-		/*
-		 * If the port is directly connected to the device, skip
-		 * the modem business and send 'T' for Spectrabum.
-		 */
-		if (pp->sloppyclockflag & CLK_FLAG3) {
-			if (write(pp->io.fd, "T", 1) < 0) {
-				msyslog(LOG_ERR, "acts: write %m");
-				return;
-			}
-			up->state = S_FIRST;
-			up->timer = CONNECT;
-			return;
-		}
-
-		/*
-		 * Initialize the modem. This works with Hayes commands.
-		 */
-#ifdef DEBUG
-		if (debug)
-			printf("acts: setup %s\n", MODEM_SETUP);
-#endif
-		if (write(pp->io.fd, MODEM_SETUP, strlen(MODEM_SETUP)) <
-		    0) {
-			msyslog(LOG_ERR, "acts: write %m");
-			return;
-		}
-		up->state = S_OK;
-		up->timer = SETUP;
-		return;
-
-	/*
-	 * In OK state the modem did not respond to setup.
-	 */
-	case S_OK:
-		msyslog(LOG_ERR, "acts: no modem");
-		break;
-
-	/*
-	 * In DTR state we are waiting for the modem to settle down
-	 * before hammering it with a dial command.
-	 */
-	case S_DTR:
-		sprintf(tbuf, "DIAL #%d %s", up->retry,
-		    sys_phone[up->retry]);
-		record_clock_stats(&peer->srcadr, tbuf);
-#ifdef DEBUG
-		if (debug)
-			printf("%s\n", tbuf);
-#endif
-		write(pp->io.fd, sys_phone[up->retry],
-		    strlen(sys_phone[up->retry]));
-		write(pp->io.fd, "\r", 1);
-		up->state = S_CONNECT;
-		up->timer = ANSWER;
-		return;
-
-	/*
-	 * In CONNECT state the call did not complete.
-	 */
-	case S_CONNECT:
-		msyslog(LOG_ERR, "acts: no answer");
-		break;
-
-	/*
-	 * In FIRST state no messages were received.
-	 */
-	case S_FIRST:
-		msyslog(LOG_ERR, "acts: no messages");
-		break;
-
-	/*
-	 * In CLOSE state hangup is complete. Close the doors and
-	 * windows and get some air.
-	 */
-	case S_CLOSE:
-
-		/*
-		 * Close the device and unlock a shared modem.
-		 */
-		if (pp->io.fd) {
-			io_closeclock(&pp->io);
-			close(pp->io.fd);
-			if (pp->sloppyclockflag & CLK_FLAG2) {
-				sprintf(lockfile, LOCKFILE, up->unit);
-				unlink(lockfile);
-			}
-			pp->io.fd = 0;
-		}
-
-		/*
-		 * If messages were received, fold the tent and wait for
-		 * the next poll. If no messages and there are more
-		 * numbers to dial, retry after a short wait.
-		 */
-		up->bufptr = pp->a_lastcode;
-		up->timer = 0;
-		up->state = S_IDLE;
-		if ( up->msgcnt == 0) {
-			up->retry++;
-			if (sys_phone[up->retry] == NULL)
-				up->retry = 0;
-			else
-				up->timer = SETUP;
-		} else {
-			up->retry = 0;
-		}
-		up->msgcnt = 0;
-		return;
-	}
-	acts_disc(peer);
-}
-
-
-/*
- * acts_disc - disconnect the call and clean the place up.
- */
-static void
-acts_disc (
-	struct peer *peer
-	)
-{
-	struct actsunit *up;
-	struct refclockproc *pp;
-	int	dtr = TIOCM_DTR;
-
-	/*
-	 * We get here if the call terminated successfully or if an
-	 * error occured. If the median filter has something in it,feed
-	 * the data to the clock filter. If a modem port, drop DTR to
-	 * force command mode and send modem hangup.
-	 */
-	pp = peer->procptr;
-	up = (struct actsunit *)pp->unitptr;
-	if (up->msgcnt > 0)
-		refclock_receive(peer);
-	if (!(pp->sloppyclockflag & CLK_FLAG3)) {
-		ioctl(pp->io.fd, TIOCMBIC, (char *)&dtr);
-		write(pp->io.fd, MODEM_HANGUP, strlen(MODEM_HANGUP));
-	}
-	up->timer = SETUP;
-	up->state = S_CLOSE;
-}
-
 #else
 int refclock_acts_bs;
 #endif /* REFCLOCK */

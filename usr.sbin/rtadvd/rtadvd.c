@@ -51,7 +51,6 @@
 
 #include <arpa/inet.h>
 
-#include <net/if_var.h>
 #include <netinet/in_var.h>
 #include <netinet6/nd6.h>
 
@@ -1230,6 +1229,12 @@ ra_input(int len, struct nd_router_advert *nra,
 	return;
 }
 
+static uint32_t
+udiff(uint32_t u, uint32_t v)
+{
+	return (u >= v ? u - v : v - u);
+}
+
 /* return a non-zero value if the received prefix is inconsitent with ours */
 static int
 prefix_check(struct nd_opt_prefix_info *pinfo,
@@ -1288,7 +1293,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		preferred_time += now.tv_sec;
 
 		if (!pfx->pfx_timer && rai->rai_clockskew &&
-		    abs(preferred_time - pfx->pfx_pltimeexpire) > rai->rai_clockskew) {
+		    udiff(preferred_time, pfx->pfx_pltimeexpire) > rai->rai_clockskew) {
 			syslog(LOG_INFO,
 			    "<%s> preferred lifetime for %s/%d"
 			    " (decr. in real time) inconsistent on %s:"
@@ -1321,7 +1326,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		valid_time += now.tv_sec;
 
 		if (!pfx->pfx_timer && rai->rai_clockskew &&
-		    abs(valid_time - pfx->pfx_vltimeexpire) > rai->rai_clockskew) {
+		    udiff(valid_time, pfx->pfx_vltimeexpire) > rai->rai_clockskew) {
 			syslog(LOG_INFO,
 			    "<%s> valid lifetime for %s/%d"
 			    " (decr. in real time) inconsistent on %s:"

@@ -1122,7 +1122,7 @@ ng_bytearray_parse(const struct ng_parse_type *type,
 		struct ng_parse_type subtype;
 
 		subtype = ng_parse_bytearray_subtype;
-		*(const void **)&subtype.private = type->info;
+		subtype.private = __DECONST(void *, type->info);
 		return ng_array_parse(&subtype, s, off, start, buf, buflen);
 	}
 }
@@ -1134,7 +1134,7 @@ ng_bytearray_unparse(const struct ng_parse_type *type,
 	struct ng_parse_type subtype;
 
 	subtype = ng_parse_bytearray_subtype;
-	*(const void **)&subtype.private = type->info;
+	subtype.private = __DECONST(void *, type->info);
 	return ng_array_unparse(&subtype, data, off, cbuf, cbuflen);
 }
 
@@ -1145,7 +1145,7 @@ ng_bytearray_getDefault(const struct ng_parse_type *type,
 	struct ng_parse_type subtype;
 
 	subtype = ng_parse_bytearray_subtype;
-	*(const void **)&subtype.private = type->info;
+	subtype.private = __DECONST(void *, type->info);
 	return ng_array_getDefault(&subtype, start, buf, buflen);
 }
 

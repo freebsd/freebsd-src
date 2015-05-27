@@ -40,7 +40,6 @@
 #ifndef	_CTL_H_
 #define	_CTL_H_
 
-#define	ctl_min(x,y)	(((x) < (y)) ? (x) : (y))
 #define	CTL_RETVAL_COMPLETE	0
 #define	CTL_RETVAL_QUEUED	1
 #define	CTL_RETVAL_ALLOCATED	2
@@ -182,10 +181,14 @@ int ctl_debugconf_sp_select_handler(struct ctl_scsiio *ctsio,
 int ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
+int ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
+				   struct ctl_page_index *page_index,
+				   int pc);
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);
 void ctl_data_submit_done(union ctl_io *io);
+void ctl_config_read_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
 void ctl_init_isc_msg(void);
@@ -205,6 +208,7 @@ struct ctl_be_arg;
 void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
+int ctl_expand_number(const char *buf, uint64_t *num);
 
 #endif	/* _KERNEL */
 

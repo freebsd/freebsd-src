@@ -40,5 +40,5 @@
 
 BEGIN
 {
-	trace(offsetof(vnode_t, v_no_such_member));
+	trace(offsetof(struct vnode, v_no_such_member));
 }

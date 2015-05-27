@@ -197,8 +197,10 @@ at45d_attach(device_t dev)
 	/* We'll see what kind of flash we have later... */
 	sc->config_intrhook.ich_func = at45d_delayed_attach;
 	sc->config_intrhook.ich_arg = sc;
-	if (config_intrhook_establish(&sc->config_intrhook) != 0)
+	if (config_intrhook_establish(&sc->config_intrhook) != 0) {
 		device_printf(dev, "config_intrhook_establish failed\n");
+		return (ENOMEM);
+	}
 	return (0);
 }
 

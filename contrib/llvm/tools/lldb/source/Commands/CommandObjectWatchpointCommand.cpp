@@ -279,17 +279,16 @@ but do NOT enter more than one command per line. \n" );
                 result.SetImmediateOutputStream (output_stream);
                 result.SetImmediateErrorStream (error_stream);
         
-                bool stop_on_continue = true;
-                bool echo_commands    = false;
-                bool print_results    = true;
+                CommandInterpreterRunOptions options;
+                options.SetStopOnContinue (true);
+                options.SetStopOnError (data->stop_on_error);
+                options.SetEchoCommands (false);
+                options.SetPrintResults (true);
+                options.SetAddToHistory (false);
 
                 debugger.GetCommandInterpreter().HandleCommands (commands, 
                                                                  &exe_ctx,
-                                                                 stop_on_continue, 
-                                                                 data->stop_on_error, 
-                                                                 echo_commands, 
-                                                                 print_results,
-                                                                 eLazyBoolNo,
+                                                                 options,
                                                                  result);
                 result.GetImmediateOutputStream()->Flush();
                 result.GetImmediateErrorStream()->Flush();
@@ -519,19 +518,19 @@ g_script_option_enumeration[4] =
 OptionDefinition
 CommandObjectWatchpointCommandAdd::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1,   false, "one-liner",       'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOneLiner,
+    { LLDB_OPT_SET_1,   false, "one-liner",       'o', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeOneLiner,
         "Specify a one-line watchpoint command inline. Be sure to surround it with quotes." },
 
-    { LLDB_OPT_SET_ALL, false, "stop-on-error",   'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean,
+    { LLDB_OPT_SET_ALL, false, "stop-on-error",   'e', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean,
         "Specify whether watchpoint command execution should terminate on error." },
 
-    { LLDB_OPT_SET_ALL, false, "script-type",     's', OptionParser::eRequiredArgument, g_script_option_enumeration, 0, eArgTypeNone,
+    { LLDB_OPT_SET_ALL, false, "script-type",     's', OptionParser::eRequiredArgument, NULL, g_script_option_enumeration, 0, eArgTypeNone,
         "Specify the language for the commands - if none is specified, the lldb command interpreter will be used."},
 
-    { LLDB_OPT_SET_2,   false, "python-function", 'F', OptionParser::eRequiredArgument, NULL, 0, eArgTypePythonFunction,
+    { LLDB_OPT_SET_2,   false, "python-function", 'F', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePythonFunction,
         "Give the name of a Python function to run as command for this watchpoint. Be sure to give a module name if appropriate."},
     
-    { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+    { 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------

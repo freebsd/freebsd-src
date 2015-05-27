@@ -295,7 +295,7 @@ log(int level, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	(void)_vprintf(level, log_open ? TOLOG : TOCONS, fmt, ap);
+	(void)_vprintf(level, log_open ? TOLOG : TOCONS | TOLOG, fmt, ap);
 	va_end(ap);
 
 	msgbuftrigger = 1;
@@ -598,7 +598,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  * the next characters (up to a control character, i.e. a character <= 32),
  * give the name of the register.  Thus:
  *
- *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE\n");
+ *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE");
  *
  * would produce output:
  *
@@ -911,7 +911,7 @@ number:
 			while (percent < fmt)
 				PCHAR(*percent++);
 			/*
-			 * Since we ignore a formatting argument it is no 
+			 * Since we ignore a formatting argument it is no
 			 * longer safe to obey the remaining formatting
 			 * arguments as the arguments will no longer match
 			 * the format specs.
@@ -1009,7 +1009,7 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 		len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq);
 		mtx_unlock(&msgbuf_lock);
 		if (len == 0)
-			return (0);
+			return (SYSCTL_OUT(req, "", 1)); /* add nulterm */
 
 		error = sysctl_handle_opaque(oidp, buf, len, req);
 		if (error)

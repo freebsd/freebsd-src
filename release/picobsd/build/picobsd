@@ -734,8 +734,8 @@ populate_mfs_tree() {
     [ -n "${copy_files}" ] && do_copyfiles ${dst} copy_files
     do_copyfiles_user ${dst} || true
     [ -n "${links}" ] && do_links ${dst} links
-    strip ${dst}/libexec/* ${dst}/lib/* ${dst}/stand/* 2> /dev/null || true
-
+    strip ${dst}/libexec/* ${dst}/lib/* 2> /dev/null || true
+    # strip ${dst}/stand/* 2> /dev/null || true
     # The 'import_files' mechanism is deprecated, as it requires
     # root permissions to follow the symlinks, and also does
     # not let you rename the entries.
@@ -756,7 +756,7 @@ populate_mfs_tree() {
 	# override the owner
 	echo "/set uid=0 gid=0" > mtree.out
 	mtree -ic -p ${dst} -k "" >> mtree.out
-	log "mtre.out at ${BUILDDIR}/mtree.out"
+	log "mtree.out at ${BUILDDIR}/mtree.out size  ${MFS_SIZE}k"
 	makefs -t ffs -o bsize=4096 -o fsize=512 \
 		-s ${MFS_SIZE}k -f 1000 -F mtree.out ${c_fs} ${dst}
 	ls -l ${c_fs} )

@@ -27,10 +27,10 @@
 using namespace llvm;
 
 TGLexer::TGLexer(SourceMgr &SM) : SrcMgr(SM) {
-  CurBuffer = 0;
-  CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
-  CurPtr = CurBuf->getBufferStart();
-  TokStart = 0;
+  CurBuffer = SrcMgr.getMainFileID();
+  CurBuf = SrcMgr.getMemoryBuffer(CurBuffer)->getBuffer();
+  CurPtr = CurBuf.begin();
+  TokStart = nullptr;
 }
 
 SMLoc TGLexer::getLoc() const {
@@ -52,7 +52,7 @@ int TGLexer::getNextChar() {
   case 0: {
     // A nul character in the stream is either the end of the current buffer or
     // a random nul in the file.  Disambiguate that here.
-    if (CurPtr-1 != CurBuf->getBufferEnd())
+    if (CurPtr-1 != CurBuf.end())
       return 0;  // Just whitespace.
     
     // If this is the end of an included file, pop the parent file off the
@@ -60,7 +60,7 @@ int TGLexer::getNextChar() {
     SMLoc ParentIncludeLoc = SrcMgr.getParentIncludeLoc(CurBuffer);
     if (ParentIncludeLoc != SMLoc()) {
       CurBuffer = SrcMgr.FindBufferContainingLoc(ParentIncludeLoc);
-      CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
+      CurBuf = SrcMgr.getMemoryBuffer(CurBuffer)->getBuffer();
       CurPtr = ParentIncludeLoc.getPointer();
       return getNextChar();
     }
@@ -187,7 +187,7 @@ tgtok::TokKind TGLexer::LexString() {
   
   while (*CurPtr != '"') {
     // If we hit the end of the buffer, report an error.
-    if (*CurPtr == 0 && CurPtr == CurBuf->getBufferEnd())
+    if (*CurPtr == 0 && CurPtr == CurBuf.end())
       return ReturnError(StrStart, "End of file in string literal");
     
     if (*CurPtr == '\n' || *CurPtr == '\r')
@@ -220,7 +220,7 @@ tgtok::TokKind TGLexer::LexString() {
 
     // If we hit the end of the buffer, report an error.
     case '\0':
-      if (CurPtr == CurBuf->getBufferEnd())
+      if (CurPtr == CurBuf.end())
         return ReturnError(StrStart, "End of file in string literal");
       // FALL THROUGH
     default:
@@ -304,7 +304,7 @@ bool TGLexer::LexInclude() {
   
   CurBuffer = SrcMgr.AddIncludeFile(Filename, SMLoc::getFromPointer(CurPtr),
                                     IncludedFile);
-  if (CurBuffer == -1) {
+  if (!CurBuffer) {
     PrintError(getLoc(), "Could not find include file '" + Filename + "'");
     return true;
   }
@@ -319,8 +319,8 @@ bool TGLexer::LexInclude() {
   }
   Dependencies.insert(std::make_pair(IncludedFile, getLoc()));
   // Save the line number and lex buffer of the includer.
-  CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
-  CurPtr = CurBuf->getBufferStart();
+  CurBuf = SrcMgr.getMemoryBuffer(CurBuffer)->getBuffer();
+  CurPtr = CurBuf.begin();
   return false;
 }
 
@@ -333,7 +333,7 @@ void TGLexer::SkipBCPLComment() {
       return;  // Newline is end of comment.
     case 0:
       // If this is the end of the buffer, end the comment.
-      if (CurPtr == CurBuf->getBufferEnd())
+      if (CurPtr == CurBuf.end())
         return;
       break;
     }
@@ -389,12 +389,12 @@ tgtok::TokKind TGLexer::LexNumber() {
         return ReturnError(TokStart, "Invalid hexadecimal number");
 
       errno = 0;
-      CurIntVal = strtoll(NumStart, 0, 16);
+      CurIntVal = strtoll(NumStart, nullptr, 16);
       if (errno == EINVAL)
         return ReturnError(TokStart, "Invalid hexadecimal number");
       if (errno == ERANGE) {
         errno = 0;
-        CurIntVal = (int64_t)strtoull(NumStart, 0, 16);
+        CurIntVal = (int64_t)strtoull(NumStart, nullptr, 16);
         if (errno == EINVAL)
           return ReturnError(TokStart, "Invalid hexadecimal number");
         if (errno == ERANGE)
@@ -410,8 +410,8 @@ tgtok::TokKind TGLexer::LexNumber() {
       // Requires at least one binary digit.
       if (CurPtr == NumStart)
         return ReturnError(CurPtr-2, "Invalid binary number");
-      CurIntVal = strtoll(NumStart, 0, 2);
-      return tgtok::IntVal;
+      CurIntVal = strtoll(NumStart, nullptr, 2);
+      return tgtok::BinaryIntVal;
     }
   }
 
@@ -425,7 +425,7 @@ tgtok::TokKind TGLexer::LexNumber() {
   
   while (isdigit(CurPtr[0]))
     ++CurPtr;
-  CurIntVal = strtoll(TokStart, 0, 10);
+  CurIntVal = strtoll(TokStart, nullptr, 10);
   return tgtok::IntVal;
 }
 
@@ -471,6 +471,7 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("tail", tgtok::XTail)
     .Case("con", tgtok::XConcat)
     .Case("add", tgtok::XADD)
+    .Case("and", tgtok::XAND)
     .Case("shl", tgtok::XSHL)
     .Case("sra", tgtok::XSRA)
     .Case("srl", tgtok::XSRL)
@@ -478,6 +479,7 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("empty", tgtok::XEmpty)
     .Case("subst", tgtok::XSubst)
     .Case("foreach", tgtok::XForEach)
+    .Case("listconcat", tgtok::XListConcat)
     .Case("strconcat", tgtok::XStrConcat)
     .Default(tgtok::Error);
 

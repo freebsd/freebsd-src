@@ -687,7 +687,7 @@ libzfs_fini(libzfs_handle_t *hdl)
 		(void) fclose(hdl->libzfs_sharetab);
 	zfs_uninit_libshare(hdl);
 	zpool_free_handles(hdl);
-#ifdef sun
+#ifdef illumos
 	libzfs_fru_clear(hdl, B_TRUE);
 #endif
 	namespace_clear(hdl);
@@ -739,7 +739,7 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 		return (NULL);
 	}
 
-#ifdef sun
+#ifdef illumos
 	rewind(hdl->libzfs_mnttab);
 	while ((ret = getextmntent(hdl->libzfs_mnttab, &entry, 0)) == 0) {
 		if (makedevice(entry.mnt_major, entry.mnt_minor) ==
@@ -759,7 +759,7 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 			    strerror(errno));
 		}
 	}
-#endif	/* sun */
+#endif	/* illumos */
 	if (ret != 0) {
 		return (NULL);
 	}

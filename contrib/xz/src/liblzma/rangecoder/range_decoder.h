@@ -25,20 +25,26 @@ typedef struct {
 
 
 /// Reads the first five bytes to initialize the range decoder.
-static inline bool
+static inline lzma_ret
 rc_read_init(lzma_range_decoder *rc, const uint8_t *restrict in,
 		size_t *restrict in_pos, size_t in_size)
 {
 	while (rc->init_bytes_left > 0) {
 		if (*in_pos == in_size)
-			return false;
+			return LZMA_OK;
+
+		// The first byte is always 0x00. It could have been omitted
+		// in LZMA2 but it wasn't, so one byte is wasted in every
+		// LZMA2 chunk.
+		if (rc->init_bytes_left == 5 && in[*in_pos] != 0x00)
+			return LZMA_DATA_ERROR;
 
 		rc->code = (rc->code << 8) | in[*in_pos];
 		++*in_pos;
 		--rc->init_bytes_left;
 	}
 
-	return true;
+	return LZMA_STREAM_END;
 }
 
 

@@ -146,12 +146,21 @@ struct tcp_timer {
 	struct	callout tt_keep;	/* keepalive */
 	struct	callout tt_2msl;	/* 2*msl TIME_WAIT timer */
 	struct	callout tt_delack;	/* delayed ACK timer */
+	uint32_t	tt_flags;	/* Timers flags */
+	uint32_t	tt_spare;	/* TDB */
 };
-#define TT_DELACK	0x01
-#define TT_REXMT	0x02
-#define TT_PERSIST	0x04
-#define TT_KEEP		0x08
-#define TT_2MSL		0x10
+
+/*
+ * Flags for the tt_flags field.
+ */
+#define TT_DELACK	0x0001
+#define TT_REXMT	0x0002
+#define TT_PERSIST	0x0004
+#define TT_KEEP		0x0008
+#define TT_2MSL		0x0010
+#define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
+
+#define TT_STOPPED	0x00010000
 
 #define	TP_KEEPINIT(tp)	((tp)->t_keepinit ? (tp)->t_keepinit : tcp_keepinit)
 #define	TP_KEEPIDLE(tp)	((tp)->t_keepidle ? (tp)->t_keepidle : tcp_keepidle)
@@ -183,6 +192,11 @@ void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);
 void	tcp_timer_delack(void *xtp);
+void	tcp_timer_2msl_discard(void *xtp);
+void	tcp_timer_keep_discard(void *xtp);
+void	tcp_timer_persist_discard(void *xtp);
+void	tcp_timer_rexmt_discard(void *xtp);
+void	tcp_timer_delack_discard(void *xtp);
 void	tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
 	struct xtcp_timer *xtimer);
 

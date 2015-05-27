@@ -57,14 +57,17 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 #include "sfxge_rx.h"
+#include "sfxge_version.h"
 
-#define	SFXGE_CAP (IFCAP_VLAN_MTU | \
-		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
-		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
-		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
+#define	SFXGE_CAP (IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |			\
+		   IFCAP_RXCSUM | IFCAP_TXCSUM |			\
+		   IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6 |		\
+		   IFCAP_TSO4 | IFCAP_TSO6 |				\
+		   IFCAP_JUMBO_MTU |					\
+		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
-#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
-			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE)
+#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU |				\
+			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
 
@@ -86,7 +89,6 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
 	   &sfxge_tx_ring_entries, 0,
 	   "Maximum number of descriptors in a transmit ring");
 
-
 static void
 sfxge_reset(void *arg, int npending);
 
@@ -95,7 +97,7 @@ sfxge_start(struct sfxge_softc *sc)
 {
 	int rc;
 
-	sx_assert(&sc->softc_lock, LA_XLOCKED);
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	if (sc->init_state == SFXGE_STARTED)
 		return (0);
@@ -164,15 +166,15 @@ sfxge_if_init(void *arg)
 
 	sc = (struct sfxge_softc *)arg;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 	(void)sfxge_start(sc);
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 static void
 sfxge_stop(struct sfxge_softc *sc)
 {
-	sx_assert(&sc->softc_lock, LA_XLOCKED);
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	if (sc->init_state != SFXGE_STARTED)
 		return;
@@ -212,7 +214,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFFLAGS:
-		sx_xlock(&sc->softc_lock);
+		SFXGE_ADAPTER_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc->if_flags) &
@@ -225,7 +227,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sfxge_stop(sc);
 		sc->if_flags = ifp->if_flags;
-		sx_xunlock(&sc->softc_lock);
+		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu == ifp->if_mtu) {
@@ -238,11 +240,11 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			error = 0;
 		} else {
 			/* Restart required */
-			sx_xlock(&sc->softc_lock);
+			SFXGE_ADAPTER_LOCK(sc);
 			sfxge_stop(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			error = sfxge_start(sc);
-			sx_xunlock(&sc->softc_lock);
+			SFXGE_ADAPTER_UNLOCK(sc);
 			if (error != 0) {
 				ifp->if_flags &= ~IFF_UP;
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -256,7 +258,14 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			sfxge_mac_filter_set(sc);
 		break;
 	case SIOCSIFCAP:
-		sx_xlock(&sc->softc_lock);
+	{
+		int reqcap = ifr->ifr_reqcap;
+		int capchg_mask;
+
+		SFXGE_ADAPTER_LOCK(sc);
+
+		/* Capabilities to be changed in accordance with request */
+		capchg_mask = ifp->if_capenable ^ reqcap;
 
 		/*
 		 * The networking core already rejects attempts to
@@ -264,24 +273,66 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 * to reject attempts to disable capabilities that we
 		 * can't (yet) disable.
 		 */
-		if (~ifr->ifr_reqcap & SFXGE_CAP_FIXED) {
+		KASSERT((reqcap & ~ifp->if_capabilities) == 0,
+		    ("Unsupported capabilities %x requested %x vs %x",
+		     reqcap & ~ifp->if_capabilities,
+		     reqcap , ifp->if_capabilities));
+		if (capchg_mask & SFXGE_CAP_FIXED) {
 			error = EINVAL;
-			sx_xunlock(&sc->softc_lock);
+			SFXGE_ADAPTER_UNLOCK(sc);
 			break;
 		}
 
-		ifp->if_capenable = ifr->ifr_reqcap;
-		if (ifp->if_capenable & IFCAP_TXCSUM)
-			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
-		else
-			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
-		if (ifp->if_capenable & IFCAP_TSO)
-			ifp->if_hwassist |= CSUM_TSO;
-		else
-			ifp->if_hwassist &= ~CSUM_TSO;
+		/* Check request before any changes */
+		if ((capchg_mask & IFCAP_TSO4) &&
+		    (reqcap & (IFCAP_TSO4 | IFCAP_TXCSUM)) == IFCAP_TSO4) {
+			error = EAGAIN;
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if_printf(ifp, "enable txcsum before tso4\n");
+			break;
+		}
+		if ((capchg_mask & IFCAP_TSO6) &&
+		    (reqcap & (IFCAP_TSO6 | IFCAP_TXCSUM_IPV6)) == IFCAP_TSO6) {
+			error = EAGAIN;
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if_printf(ifp, "enable txcsum6 before tso6\n");
+			break;
+		}
 
-		sx_xunlock(&sc->softc_lock);
+		if (reqcap & IFCAP_TXCSUM) {
+			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
+		} else {
+			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
+			if (reqcap & IFCAP_TSO4) {
+				reqcap &= ~IFCAP_TSO4;
+				if_printf(ifp,
+				    "tso4 disabled due to -txcsum\n");
+			}
+		}
+		if (reqcap & IFCAP_TXCSUM_IPV6) {
+			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+		} else {
+			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+			if (reqcap & IFCAP_TSO6) {
+				reqcap &= ~IFCAP_TSO6;
+				if_printf(ifp,
+				    "tso6 disabled due to -txcsum6\n");
+			}
+		}
+
+		/*
+		 * The kernel takes both IFCAP_TSOx and CSUM_TSO into
+		 * account before using TSO. So, we do not touch
+		 * checksum flags when IFCAP_TSOx is modified.
+		 * Note that CSUM_TSO is (CSUM_IP_TSO|CSUM_IP6_TSO),
+		 * but both bits are set in IPv4 and IPv6 mbufs.
+		 */
+
+		ifp->if_capenable = reqcap;
+
+		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
+	}
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
@@ -298,9 +349,9 @@ sfxge_ifnet_fini(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc = ifp->if_softc;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 	sfxge_stop(sc);
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 
 	ifmedia_removeall(&sc->media);
 	ether_ifdetach(ifp);
@@ -325,21 +376,21 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_capabilities = SFXGE_CAP;
 	ifp->if_capenable = SFXGE_CAP_ENABLE;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO;
+
+#ifdef SFXGE_LRO
+	ifp->if_capabilities |= IFCAP_LRO;
+	ifp->if_capenable |= IFCAP_LRO;
+#endif
+
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 
-#ifdef SFXGE_HAVE_MQ
 	ifp->if_transmit = sfxge_if_transmit;
 	ifp->if_qflush = sfxge_if_qflush;
-#else
-	ifp->if_start = sfxge_if_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, sc->txq_entries - 1);
-	ifp->if_snd.ifq_drv_maxlen = sc->txq_entries - 1;
-	IFQ_SET_READY(&ifp->if_snd);
 
-	mtx_init(&sc->tx_lock, "txq", NULL, MTX_DEF);
-#endif
+	ifp->if_get_counter = sfxge_get_counter;
 
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
@@ -376,7 +427,8 @@ sfxge_bar_init(struct sfxge_softc *sc)
 	}
 	esbp->esb_tag = rman_get_bustag(esbp->esb_res);
 	esbp->esb_handle = rman_get_bushandle(esbp->esb_res);
-	mtx_init(&esbp->esb_lock, "sfxge_efsys_bar", NULL, MTX_DEF);
+
+	SFXGE_BAR_LOCK_INIT(esbp, device_get_nameunit(sc->dev));
 
 	return (0);
 }
@@ -388,7 +440,7 @@ sfxge_bar_fini(struct sfxge_softc *sc)
 
 	bus_release_resource(sc->dev, SYS_RES_MEMORY, esbp->esb_rid,
 	    esbp->esb_res);
-	mtx_destroy(&esbp->esb_lock);
+	SFXGE_BAR_LOCK_DESTROY(esbp);
 }
 
 static int
@@ -397,10 +449,17 @@ sfxge_create(struct sfxge_softc *sc)
 	device_t dev;
 	efx_nic_t *enp;
 	int error;
+	char rss_param_name[sizeof(SFXGE_PARAM(%d.max_rss_channels))];
 
 	dev = sc->dev;
 
-	sx_init(&sc->softc_lock, "sfxge_softc");
+	SFXGE_ADAPTER_LOCK_INIT(sc, device_get_nameunit(sc->dev));
+
+	sc->max_rss_channels = 0;
+	snprintf(rss_param_name, sizeof(rss_param_name),
+		 SFXGE_PARAM(%d.max_rss_channels),
+		 (int)device_get_unit(dev));
+	TUNABLE_INT_FETCH(rss_param_name, &sc->max_rss_channels);
 
 	sc->stats_node = SYSCTL_ADD_NODE(
 		device_get_sysctl_ctx(dev),
@@ -428,7 +487,8 @@ sfxge_create(struct sfxge_softc *sc)
 	KASSERT(error == 0, ("Family should be filtered by sfxge_probe()"));
 
 	/* Create the common code nic object. */
-	mtx_init(&sc->enp_lock, "sfxge_nic", NULL, MTX_DEF);
+	SFXGE_EFSYS_LOCK_INIT(&sc->enp_lock,
+			      device_get_nameunit(sc->dev), "nic");
 	if ((error = efx_nic_create(sc->family, (efsys_identifier_t *)sc,
 	    &sc->bar, &sc->enp_lock, &enp)) != 0)
 		goto fail3;
@@ -461,6 +521,12 @@ sfxge_create(struct sfxge_softc *sc)
 	/* Probe the NIC and build the configuration data area. */
 	if ((error = efx_nic_probe(enp)) != 0)
 		goto fail5;
+
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
+			  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			  OID_AUTO, "version", CTLFLAG_RD,
+			  SFXGE_VERSION_STRING, 0,
+			  "Driver version");
 
 	/* Initialize the NVRAM. */
 	if ((error = efx_nvram_init(enp)) != 0)
@@ -530,7 +596,7 @@ fail_tx_ring_entries:
 fail_rx_ring_entries:
 	sc->enp = NULL;
 	efx_nic_destroy(enp);
-	mtx_destroy(&sc->enp_lock);
+	SFXGE_EFSYS_LOCK_DESTROY(&sc->enp_lock);
 
 fail3:
 	sfxge_bar_fini(sc);
@@ -538,7 +604,7 @@ fail3:
 
 fail:
 	sc->dev = NULL;
-	sx_destroy(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 	return (error);
 }
 
@@ -587,7 +653,7 @@ sfxge_destroy(struct sfxge_softc *sc)
 	taskqueue_drain(taskqueue_thread, &sc->task_reset);
 
 	/* Destroy the softc lock. */
-	sx_destroy(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 }
 
 static int
@@ -689,7 +755,7 @@ sfxge_reset(void *arg, int npending)
 
 	sc = (struct sfxge_softc *)arg;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	if (sc->init_state != SFXGE_STARTED)
 		goto done;
@@ -702,7 +768,7 @@ sfxge_reset(void *arg, int npending)
 			      rc);
 
 done:
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 void

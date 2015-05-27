@@ -669,11 +669,11 @@ chosen:
 	EFSYS_ASSERT(emop != NULL);
 
 	epp->ep_mac_type = type;
-	
+
 	if (emop->emo_reset != NULL) {
 		if ((rc = emop->emo_reset(enp)) != 0)
 			goto fail1;
-		
+
 		EFSYS_ASSERT(enp->en_reset_flags & EFX_RESET_MAC);
 		enp->en_reset_flags &= ~EFX_RESET_MAC;
 	}

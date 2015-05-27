@@ -11,16 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "arm-selectiondag-info"
 #include "ARMTargetMachine.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/IR/DerivedTypes.h"
 using namespace llvm;
 
-ARMSelectionDAGInfo::ARMSelectionDAGInfo(const TargetMachine &TM)
-  : TargetSelectionDAGInfo(TM),
-    Subtarget(&TM.getSubtarget<ARMSubtarget>()) {
-}
+#define DEBUG_TYPE "arm-selectiondag-info"
+
+ARMSelectionDAGInfo::ARMSelectionDAGInfo(const DataLayout &DL)
+    : TargetSelectionDAGInfo(&DL) {}
 
 ARMSelectionDAGInfo::~ARMSelectionDAGInfo() {
 }
@@ -33,6 +32,7 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                              bool isVolatile, bool AlwaysInline,
                                              MachinePointerInfo DstPtrInfo,
                                           MachinePointerInfo SrcPtrInfo) const {
+  const ARMSubtarget &Subtarget = DAG.getTarget().getSubtarget<ARMSubtarget>();
   // Do repeated 4-byte loads and stores. To be improved.
   // This requires 4-byte alignment.
   if ((Align & 3) != 0)
@@ -43,7 +43,7 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
   if (!ConstantSize)
     return SDValue();
   uint64_t SizeVal = ConstantSize->getZExtValue();
-  if (!AlwaysInline && SizeVal > Subtarget->getMaxInlineSizeThreshold())
+  if (!AlwaysInline && SizeVal > Subtarget.getMaxInlineSizeThreshold())
     return SDValue();
 
   unsigned BytesLeft = SizeVal & 3;
@@ -52,9 +52,10 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
   EVT VT = MVT::i32;
   unsigned VTSize = 4;
   unsigned i = 0;
-  const unsigned MAX_LOADS_IN_LDM = 6;
-  SDValue TFOps[MAX_LOADS_IN_LDM];
-  SDValue Loads[MAX_LOADS_IN_LDM];
+  // Emit a maximum of 4 loads in Thumb1 since we have fewer registers
+  const unsigned MAX_LOADS_IN_LDM = Subtarget.isThumb1Only() ? 4 : 6;
+  SDValue TFOps[6];
+  SDValue Loads[6];
   uint64_t SrcOff = 0, DstOff = 0;
 
   // Emit up to MAX_LOADS_IN_LDM loads, then a TokenFactor barrier, then the
@@ -71,7 +72,8 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
       TFOps[i] = Loads[i].getValue(1);
       SrcOff += VTSize;
     }
-    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, &TFOps[0], i);
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
+                        makeArrayRef(TFOps, i));
 
     for (i = 0;
          i < MAX_LOADS_IN_LDM && EmittedNumMemOps + i < NumMemOps; ++i) {
@@ -82,7 +84,8 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                               isVolatile, false, 0);
       DstOff += VTSize;
     }
-    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, &TFOps[0], i);
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
+                        makeArrayRef(TFOps, i));
 
     EmittedNumMemOps += i;
   }
@@ -112,7 +115,8 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
     SrcOff += VTSize;
     BytesLeft -= VTSize;
   }
-  Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, &TFOps[0], i);
+  Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
+                      makeArrayRef(TFOps, i));
 
   i = 0;
   BytesLeft = BytesLeftSave;
@@ -133,7 +137,8 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
     DstOff += VTSize;
     BytesLeft -= VTSize;
   }
-  return DAG.getNode(ISD::TokenFactor, dl, MVT::Other, &TFOps[0], i);
+  return DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
+                     makeArrayRef(TFOps, i));
 }
 
 // Adjust parameters for memset, EABI uses format (ptr, size, value),
@@ -145,12 +150,14 @@ EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
                         SDValue Src, SDValue Size,
                         unsigned Align, bool isVolatile,
                         MachinePointerInfo DstPtrInfo) const {
-  // Use default for non AAPCS (or Darwin) subtargets
-  if (!Subtarget->isAAPCS_ABI() || Subtarget->isTargetDarwin())
+  const ARMSubtarget &Subtarget = DAG.getTarget().getSubtarget<ARMSubtarget>();
+  // Use default for non-AAPCS (or MachO) subtargets
+  if (!Subtarget.isAAPCS_ABI() || Subtarget.isTargetMachO() ||
+      Subtarget.isTargetWindows())
     return SDValue();
 
   const ARMTargetLowering &TLI =
-    *static_cast<const ARMTargetLowering*>(DAG.getTarget().getTargetLowering());
+      *DAG.getTarget().getSubtarget<ARMSubtarget>().getTargetLowering();
   TargetLowering::ArgListTy Args;
   TargetLowering::ArgListEntry Entry;
 
@@ -179,22 +186,14 @@ EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
   Args.push_back(Entry);
 
   // Emit __eabi_memset call
-  TargetLowering::CallLoweringInfo CLI(Chain,
-                    Type::getVoidTy(*DAG.getContext()), // return type
-                    false, // return sign ext
-                    false, // return zero ext
-                    false, // is var arg
-                    false, // is in regs
-                    0,     // number of fixed arguments
-                    TLI.getLibcallCallingConv(RTLIB::MEMSET), // call conv
-                    false, // is tail call
-                    false, // does not return
-                    false, // is return val used
-                    DAG.getExternalSymbol(TLI.getLibcallName(RTLIB::MEMSET),
-                                          TLI.getPointerTy()), // callee
-                    Args, DAG, dl);
-  std::pair<SDValue,SDValue> CallResult =
-    TLI.LowerCallTo(CLI);
+  TargetLowering::CallLoweringInfo CLI(DAG);
+  CLI.setDebugLoc(dl).setChain(Chain)
+    .setCallee(TLI.getLibcallCallingConv(RTLIB::MEMSET),
+               Type::getVoidTy(*DAG.getContext()),
+               DAG.getExternalSymbol(TLI.getLibcallName(RTLIB::MEMSET),
+                                     TLI.getPointerTy()), std::move(Args), 0)
+    .setDiscardResult();
 
+  std::pair<SDValue,SDValue> CallResult = TLI.LowerCallTo(CLI);
   return CallResult.second;
 }

@@ -107,8 +107,12 @@ extern struct file_format	i386_elf;
 extern struct file_format	i386_elf_obj;
 extern struct file_format	amd64_elf;
 extern struct file_format	amd64_elf_obj;
+extern struct file_format	multiboot;
+extern struct file_format	multiboot_obj;
 
 struct file_format *file_formats[] = {
+	&multiboot,
+	&multiboot_obj,
 #ifdef LOADER_PREFER_AMD64
     &amd64_elf,
     &amd64_elf_obj,

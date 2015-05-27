@@ -34,10 +34,6 @@
  */
 
 #include <linux/kmod.h> 
-/* 
- * kmod.h must be included before module.h since it includes (indirectly) sys/module.h
- * To use the FBSD macro sys/module.h should define MODULE_VERSION before linux/module does.
-*/
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -503,10 +499,6 @@ int mlx4_get_val(struct mlx4_dbdf2val *tbl, struct pci_dev *pdev, int idx,
 	*val = tbl[0].val[idx];
 	if (!pdev)
 		return -EINVAL;
-
-	if (!pdev->bus) {
-		return -EINVAL;
-	}
 
         dbdf = dbdf_to_u64(pci_get_domain(pdev->dev.bsddev), pci_get_bus(pdev->dev.bsddev),
 			   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
@@ -1311,8 +1303,9 @@ static ssize_t show_port_ib_mtu(struct device *dev,
 						   port_mtu_attr);
 	struct mlx4_dev *mdev = info->dev;
 
+	/* When port type is eth, port mtu value isn't used. */
 	if (mdev->caps.port_type[info->port] == MLX4_PORT_TYPE_ETH)
-		mlx4_warn(mdev, "port level mtu is only used for IB ports\n");
+		return -EINVAL;
 
 	sprintf(buf, "%d\n",
 			ibta_mtu_to_int(mdev->caps.port_ib_mtu[info->port]));
@@ -2907,6 +2900,12 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 				goto retry;
 			}
 			kfree(entries);
+			/* if error, or can't alloc even 1 IRQ */
+			if (err < 0) {
+				mlx4_err(dev, "No IRQs left, device can't "
+				    "be started.\n");
+				goto no_irq;
+			}
 			goto no_msi;
 		}
 
@@ -2934,6 +2933,10 @@ no_msi:
 
 	for (i = 0; i < 2; ++i)
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
+	return;
+no_irq:
+	dev->caps.num_comp_vectors = 0;
+	dev->caps.comp_pool        = 0;
 }
 
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
@@ -3309,6 +3312,13 @@ slave_start:
 	mutex_init(&priv->msix_ctl.pool_lock);
 
 	mlx4_enable_msi_x(dev);
+
+	/* no MSIX and no shared IRQ */
+	if (!dev->caps.num_comp_vectors && !dev->caps.comp_pool) {
+		err = -ENOSPC;
+		goto err_free_eq;
+	}
+
 	if ((mlx4_is_mfunc(dev)) &&
 	    !(dev->flags & MLX4_FLAG_MSI_X)) {
 		err = -ENOSYS;
@@ -3787,7 +3797,6 @@ static void __exit mlx4_cleanup(void)
 module_init_order(mlx4_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_cleanup);
 
-#include <sys/module.h>
 static int
 mlx4_evhand(module_t mod, int event, void *arg)
 {
@@ -3800,3 +3809,5 @@ static moduledata_t mlx4_mod = {
 };
 MODULE_VERSION(mlx4, 1);
 DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
+MODULE_DEPEND(mlx4, linuxapi, 1, 1, 1);
+

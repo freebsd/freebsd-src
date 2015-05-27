@@ -105,6 +105,9 @@ arithmetic_ops_head() {
 	atf_set "descr" "Dangling arithemtic operator"
 }
 arithmetic_ops_body() {
+	# Begin FreeBSD
+	atf_expect_fail "the following testcases fail with syntax errors on FreeBSD"
+	# End FreeBSD
 	test_expr '.java_wrapper : /' '0'
 	test_expr '4 : \*' '0'
 	test_expr '4 : +' '0'

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/select.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
+#include <machine/atomic.h>
 #include <net/ethernet.h>
 
 #include <errno.h>
@@ -288,6 +289,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	struct vqueue_info *vq;
 	void *vrx;
 	int len, n;
+	uint16_t idx;
 
 	/*
 	 * Should never be called without a valid tap fd
@@ -310,7 +312,6 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	 * Check for available rx buffers
 	 */
 	vq = &sc->vsc_queues[VTNET_RXQ];
-	vq_startchains(vq);
 	if (!vq_has_descs(vq)) {
 		/*
 		 * Drop the packet and try later.  Interrupt on
@@ -325,7 +326,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		/*
 		 * Get descriptor chain.
 		 */
-		n = vq_getchain(vq, iov, VTNET_MAXSEGS, NULL);
+		n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
 		assert(n >= 1 && n <= VTNET_MAXSEGS);
 
 		/*
@@ -342,6 +343,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 			 * No more packets, but still some avail ring
 			 * entries.  Interrupt if needed/appropriate.
 			 */
+			vq_retchain(vq);
 			vq_endchains(vq, 0);
 			return;
 		}
@@ -362,7 +364,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		/*
 		 * Release this chain and handle more chains.
 		 */
-		vq_relchain(vq, len + sc->rx_vhdrlen);
+		vq_relchain(vq, idx, len + sc->rx_vhdrlen);
 	} while (vq_has_descs(vq));
 
 	/* Interrupt if needed, including for NOTIFY_ON_EMPTY. */
@@ -392,6 +394,7 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 	 */
 	if (sc->vsc_rx_ready == 0) {
 		sc->vsc_rx_ready = 1;
+		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 	}
 }
 
@@ -401,13 +404,14 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	int i, n;
 	int plen, tlen;
+	uint16_t idx;
 
 	/*
 	 * Obtain chain of descriptors.  The first one is
 	 * really the header descriptor, so we need to sum
 	 * up two lengths: packet length and transfer length.
 	 */
-	n = vq_getchain(vq, iov, VTNET_MAXSEGS, NULL);
+	n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
 	assert(n >= 1 && n <= VTNET_MAXSEGS);
 	plen = 0;
 	tlen = iov[0].iov_len;
@@ -420,7 +424,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	pci_vtnet_tap_tx(sc, &iov[1], n - 1, plen);
 
 	/* chain is processed, release it and set tlen */
-	vq_relchain(vq, tlen);
+	vq_relchain(vq, idx, tlen);
 }
 
 static void
@@ -436,6 +440,7 @@ pci_vtnet_ping_txq(void *vsc, struct vqueue_info *vq)
 
 	/* Signal the tx thread for processing */
 	pthread_mutex_lock(&sc->tx_mtx);
+	vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 	if (sc->tx_in_progress == 0)
 		pthread_cond_signal(&sc->tx_cond);
 	pthread_mutex_unlock(&sc->tx_mtx);
@@ -449,7 +454,7 @@ pci_vtnet_tx_thread(void *param)
 {
 	struct pci_vtnet_softc *sc = param;
 	struct vqueue_info *vq;
-	int have_work, error;
+	int error;
 
 	vq = &sc->vsc_queues[VTNET_TXQ];
 
@@ -463,23 +468,20 @@ pci_vtnet_tx_thread(void *param)
 
 	for (;;) {
 		/* note - tx mutex is locked here */
-		do {
-			if (sc->resetting)
-				have_work = 0;
-			else
-				have_work = vq_has_descs(vq);
+		while (sc->resetting || !vq_has_descs(vq)) {
+			vq->vq_used->vu_flags &= ~VRING_USED_F_NO_NOTIFY;
+			mb();
+			if (!sc->resetting && vq_has_descs(vq))
+				break;
 
-			if (!have_work) {
-				sc->tx_in_progress = 0;
-				error = pthread_cond_wait(&sc->tx_cond,
-							  &sc->tx_mtx);
-				assert(error == 0);
-			}
-		} while (!have_work);
+			sc->tx_in_progress = 0;
+			error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
+			assert(error == 0);
+		}
+		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 		sc->tx_in_progress = 1;
 		pthread_mutex_unlock(&sc->tx_mtx);
 
-		vq_startchains(vq);
 		do {
 			/*
 			 * Run through entries, placing them into
@@ -638,11 +640,10 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
+	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
-	pci_lintr_request(pi);
-
-	/* link always up */
-	sc->vsc_config.status = 1;
+	/* Link is up if we managed to open tap device. */
+	sc->vsc_config.status = (opts == NULL || sc->vsc_tapfd >= 0);
 	
 	/* use BAR 1 to map MSI-X table and PBA, if we're using MSI-X */
 	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))

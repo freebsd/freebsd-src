@@ -169,11 +169,11 @@ write_objects(iidesc_t *idp, ctf_buf_t *b)
 {
 	ushort_t id = (idp ? idp->ii_dtype->t_id : 0);
 
-	ctf_buf_write(b, &id, sizeof (id));
-
 	if (target_requires_swap) {
 		SWAP_16(id);
 	}
+
+	ctf_buf_write(b, &id, sizeof (id));
 
 	debug(3, "Wrote object %s (%d)\n", (idp ? idp->ii_name : "(null)"), id);
 }
@@ -492,7 +492,7 @@ write_type(void *arg1, void *arg2)
 
 		if (i > CTF_MAX_VLEN) {
 			terminate("function %s has too many args: %d > %d\n",
-			    i, CTF_MAX_VLEN);
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
 		}
 
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot, i);

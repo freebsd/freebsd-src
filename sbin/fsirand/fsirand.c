@@ -36,7 +36,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/disklabel.h>
 #include <sys/resource.h>
 
 #include <ufs/ufs/dinode.h>
@@ -120,20 +119,10 @@ fsirand(char *device)
 	char sbuf[SBLOCKSIZE], sbuftmp[SBLOCKSIZE];
 	int i, devfd, n, cg;
 	u_int32_t bsize = DEV_BSIZE;
-	struct disklabel label;
 
 	if ((devfd = open(device, printonly ? O_RDONLY : O_RDWR)) < 0) {
 		warn("can't open %s", device);
 		return (1);
-	}
-
-	/* Get block size (usually 512) from disklabel if possible */
-	if (!ignorelabel) {
-		if (ioctl(devfd, DIOCGDINFO, &label) < 0)
-			warn("can't read disklabel, using sector size of %d",
-			    bsize);
-		else
-			bsize = label.d_secsize;
 	}
 
 	dp1 = NULL;

@@ -25,9 +25,6 @@
 #ifndef __DRM_EDID_H__
 #define __DRM_EDID_H__
 
-#include <sys/types.h>
-#include <dev/drm2/drmP.h>
-
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
 
@@ -93,12 +90,26 @@ struct detailed_data_monitor_range {
 	u8 min_hfreq_khz;
 	u8 max_hfreq_khz;
 	u8 pixel_clock_mhz; /* need to multiply by 10 */
-	u16 sec_gtf_toggle; /* A000=use above, 20=use below */
-	u8 hfreq_start_khz; /* need to multiply by 2 */
-	u8 c; /* need to divide by 2 */
-	u16 m;
-	u8 k;
-	u8 j; /* need to divide by 2 */
+	u8 flags;
+	union {
+		struct {
+			u8 reserved;
+			u8 hfreq_start_khz; /* need to multiply by 2 */
+			u8 c; /* need to divide by 2 */
+			__le16 m;
+			u8 k;
+			u8 j; /* need to divide by 2 */
+		} __attribute__((packed)) gtf2;
+		struct {
+			u8 version;
+			u8 data1; /* high 6 bits: extra clock resolution */
+			u8 data2; /* plus low 2 of above: max hactive */
+			u8 supported_aspects;
+			u8 flags; /* preferred aspect and blanking support */
+			u8 supported_scalings;
+			u8 preferred_refresh;
+		} __attribute__((packed)) cvt;
+	} formula;
 } __attribute__((packed));
 
 struct detailed_data_wpindex {
@@ -145,7 +156,7 @@ struct detailed_non_pixel {
 #define EDID_DETAIL_MONITOR_SERIAL 0xff
 
 struct detailed_timing {
-	u16 pixel_clock; /* need to multiply by 10 KHz */
+	__le16 pixel_clock; /* need to multiply by 10 KHz */
 	union {
 		struct detailed_pixel_timing pixel_data;
 		struct detailed_non_pixel other_data;
@@ -178,6 +189,7 @@ struct detailed_timing {
 #define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
 #define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 2)
+/* If analog */
 #define DRM_EDID_FEATURE_DISPLAY_TYPE     (3 << 3) /* 00=mono, 01=rgb, 10=non-rgb, 11=unknown */
 /* If digital */
 #define DRM_EDID_FEATURE_COLOR_MASK	  (3 << 3)
@@ -240,5 +252,6 @@ int drm_av_sync_delay(struct drm_connector *connector,
 		      struct drm_display_mode *mode);
 struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
 				     struct drm_display_mode *mode);
+int drm_load_edid_firmware(struct drm_connector *connector);
 
 #endif /* __DRM_EDID_H__ */

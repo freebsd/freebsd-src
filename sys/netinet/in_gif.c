@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/in_gif.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_ecn.h>
@@ -70,9 +69,10 @@ __FBSDID("$FreeBSD$");
 
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
+static int in_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inetdomain;
-struct protosw in_gif_protosw = {
+static struct protosw in_gif_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		0/* IPPROTO_IPV[46] */,
@@ -83,7 +83,8 @@ struct protosw in_gif_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 
-VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+#define GIF_TTL		30
+static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip_gif_ttl), 0, "");
@@ -133,7 +134,7 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	return (ip_output(m, NULL, NULL, 0, NULL, NULL));
 }
 
-int
+static int
 in_gif_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
@@ -167,13 +168,19 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 static int
 gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 {
+	int ret;
 
 	GIF_RLOCK_ASSERT(sc);
 
 	/* check for address match */
-	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr ||
-	    sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr)
+	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr)
 		return (0);
+	ret = 32;
+	if (sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr) {
+		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
+			return (0);
+	} else
+		ret += 32;
 
 	/* martian filters on outer source - NOT done in ip_input! */
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)))
@@ -204,7 +211,7 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 		}
 		RTFREE_LOCKED(rt);
 	}
-	return (32 * 2);
+	return (ret);
 }
 
 /*

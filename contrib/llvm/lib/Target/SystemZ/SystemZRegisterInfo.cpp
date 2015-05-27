@@ -7,37 +7,35 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "SystemZInstrInfo.h"
 #include "SystemZRegisterInfo.h"
-#include "SystemZTargetMachine.h"
+#include "SystemZSubtarget.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
+
+using namespace llvm;
 
 #define GET_REGINFO_TARGET_DESC
 #include "SystemZGenRegisterInfo.inc"
 
-using namespace llvm;
+SystemZRegisterInfo::SystemZRegisterInfo()
+    : SystemZGenRegisterInfo(SystemZ::R14D) {}
 
-SystemZRegisterInfo::SystemZRegisterInfo(SystemZTargetMachine &tm)
-  : SystemZGenRegisterInfo(SystemZ::R14D), TM(tm) {}
-
-const uint16_t*
+const MCPhysReg *
 SystemZRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  static const uint16_t CalleeSavedRegs[] = {
-    SystemZ::R6D,  SystemZ::R7D,  SystemZ::R8D,  SystemZ::R9D,
-    SystemZ::R10D, SystemZ::R11D, SystemZ::R12D, SystemZ::R13D,
-    SystemZ::R14D, SystemZ::R15D,
-    SystemZ::F8D,  SystemZ::F9D,  SystemZ::F10D, SystemZ::F11D,
-    SystemZ::F12D, SystemZ::F13D, SystemZ::F14D, SystemZ::F15D,
-    0
-  };
+  return CSR_SystemZ_SaveList;
+}
 
-  return CalleeSavedRegs;
+const uint32_t *
+SystemZRegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+  return CSR_SystemZ_RegMask;
 }
 
 BitVector
 SystemZRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   if (TFI->hasFP(MF)) {
     // R11D is the frame pointer.  Reserve all aliases.
@@ -63,9 +61,9 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
   MachineBasicBlock &MBB = *MI->getParent();
   MachineFunction &MF = *MBB.getParent();
-  const SystemZInstrInfo &TII =
-    *static_cast<const SystemZInstrInfo*>(TM.getInstrInfo());
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  auto *TII =
+      static_cast<const SystemZInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   DebugLoc DL = MI->getDebugLoc();
 
   // Decompose the frame index into a base and offset.
@@ -84,7 +82,7 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
   // See if the offset is in range, or if an equivalent instruction that
   // accepts the offset exists.
   unsigned Opcode = MI->getOpcode();
-  unsigned OpcodeForOffset = TII.getOpcodeForOffset(Opcode, Offset);
+  unsigned OpcodeForOffset = TII->getOpcodeForOffset(Opcode, Offset);
   if (OpcodeForOffset)
     MI->getOperand(FIOperandNum).ChangeToRegister(BasePtr, false);
   else {
@@ -94,7 +92,7 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     int64_t Mask = 0xffff;
     do {
       Offset = OldOffset & Mask;
-      OpcodeForOffset = TII.getOpcodeForOffset(Opcode, Offset);
+      OpcodeForOffset = TII->getOpcodeForOffset(Opcode, Offset);
       Mask >>= 1;
       assert(Mask && "One offset must be OK");
     } while (!OpcodeForOffset);
@@ -107,21 +105,21 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
         && MI->getOperand(FIOperandNum + 2).getReg() == 0) {
       // Load the offset into the scratch register and use it as an index.
       // The scratch register then dies here.
-      TII.loadImmediate(MBB, MI, ScratchReg, HighOffset);
+      TII->loadImmediate(MBB, MI, ScratchReg, HighOffset);
       MI->getOperand(FIOperandNum).ChangeToRegister(BasePtr, false);
       MI->getOperand(FIOperandNum + 2).ChangeToRegister(ScratchReg,
                                                         false, false, true);
     } else {
       // Load the anchor address into a scratch register.
-      unsigned LAOpcode = TII.getOpcodeForOffset(SystemZ::LA, HighOffset);
+      unsigned LAOpcode = TII->getOpcodeForOffset(SystemZ::LA, HighOffset);
       if (LAOpcode)
-        BuildMI(MBB, MI, DL, TII.get(LAOpcode),ScratchReg)
+        BuildMI(MBB, MI, DL, TII->get(LAOpcode),ScratchReg)
           .addReg(BasePtr).addImm(HighOffset).addReg(0);
       else {
         // Load the high offset into the scratch register and use it as
         // an index.
-        TII.loadImmediate(MBB, MI, ScratchReg, HighOffset);
-        BuildMI(MBB, MI, DL, TII.get(SystemZ::AGR),ScratchReg)
+        TII->loadImmediate(MBB, MI, ScratchReg, HighOffset);
+        BuildMI(MBB, MI, DL, TII->get(SystemZ::AGR),ScratchReg)
           .addReg(ScratchReg, RegState::Kill).addReg(BasePtr);
       }
 
@@ -130,12 +128,12 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
                                                     false, false, true);
     }
   }
-  MI->setDesc(TII.get(OpcodeForOffset));
+  MI->setDesc(TII->get(OpcodeForOffset));
   MI->getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
 }
 
 unsigned
 SystemZRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   return TFI->hasFP(MF) ? SystemZ::R11D : SystemZ::R15D;
 }

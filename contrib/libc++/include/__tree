@@ -1980,9 +1980,9 @@ __tree<_Tp, _Compare, _Allocator>::erase(const_iterator __p)
         __begin_node() = __r.__ptr_;
     --size();
     __node_allocator& __na = __node_alloc();
-    __node_traits::destroy(__na, const_cast<value_type*>(_VSTD::addressof(*__p)));
     __tree_remove(__end_node()->__left_,
                   static_cast<__node_base_pointer>(__np));
+    __node_traits::destroy(__na, const_cast<value_type*>(_VSTD::addressof(*__p)));
     __node_traits::deallocate(__na, __np, 1);
     return __r;
 }
@@ -2069,7 +2069,6 @@ template <class _Key>
 typename __tree<_Tp, _Compare, _Allocator>::size_type
 __tree<_Tp, _Compare, _Allocator>::__count_multi(const _Key& __k) const
 {
-    typedef pair<const_iterator, const_iterator> _Pp;
     __node_const_pointer __result = __end_node();
     __node_const_pointer __rt = __root();
     while (__rt != nullptr)

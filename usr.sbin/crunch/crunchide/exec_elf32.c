@@ -35,7 +35,7 @@ __RCSID("$NetBSD: exec_elf32.c,v 1.6 1999/09/20 04:12:16 christos Exp $");
 #endif
 #endif
 __FBSDID("$FreeBSD$");
- 
+
 #ifndef ELFSIZE
 #define ELFSIZE         32
 #endif
@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #define ELFNAME2(x,y)   CONCAT(x,CONCAT(_elf,CONCAT(ELFSIZE,CONCAT(_,y))))
 #define ELFNAMEEND(x)   CONCAT(x,CONCAT(_elf,ELFSIZE))
 #define ELFDEFNNAME(x)  CONCAT(ELF,CONCAT(ELFSIZE,CONCAT(_,x)))
+#ifndef ELFCLASS
+#define ELFCLASS	CONCAT(ELFCLASS,ELFSIZE)
+#endif
 
 #define	xe16toh(x)	((data == ELFDATA2MSB) ? be16toh(x) : le16toh(x))
 #define	xe32toh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
@@ -138,7 +142,7 @@ static void *
 xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 {
 	void *rv;
-		
+
 	rv = realloc(ptr, size);
 	if (rv == NULL) {
 		free(ptr);
@@ -146,7 +150,7 @@ xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 		    fn, use);
 	}
 	return (rv);
-} 
+}
 
 int
 ELFNAMEEND(check)(int fd, const char *fn)
@@ -166,7 +170,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	if (read(fd, &eh, sizeof eh) != sizeof eh)
 		return 0;
 
-	if (IS_ELF(eh) == 0)
+	if (IS_ELF(eh) == 0 || eh.e_ident[EI_CLASS] != ELFCLASS)
                 return 0;
 
 	data = eh.e_ident[EI_DATA];
@@ -174,33 +178,16 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
-#ifndef EM_ARM
-#define EM_ARM		40
+#ifndef EM_AARCH64
+#define	EM_AARCH64	183
 #endif
+	case EM_AARCH64: break;
 	case EM_ARM: break;
-#ifndef EM_MIPS
-#define EM_MIPS		8
-#endif
-#ifndef EM_MIPS_RS4_BE		/* same as EM_MIPS_RS3_LE */
-#define EM_MIPS_RS4_BE	10
-#endif
 	case EM_MIPS: break;
 	case /* EM_MIPS_RS3_LE */ EM_MIPS_RS4_BE: break;
-#ifndef EM_PPC
-#define	EM_PPC		20
-#endif
 	case EM_PPC: break;
-#ifndef EM_PPC64
-#define	EM_PPC64	21
-#endif
 	case EM_PPC64: break;
-#ifndef EM_SPARCV9
-#define	EM_SPARCV9	43
-#endif
 	case EM_SPARCV9: break;
-#ifndef EM_X86_64
-#define	EM_X86_64	62
-#endif
 	case EM_X86_64: break;
 /*        ELFDEFNNAME(MACHDEP_ID_CASES) */
 
@@ -337,11 +324,14 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	 */
 
 	/* load section string table for debug use */
-	if ((shstrtabp = xmalloc(xewtoh(shstrtabshdr->sh_size), fn,
-	    "section string table")) == NULL)
+	if ((size = xewtoh(shstrtabshdr->sh_size)) == 0)
+		goto bad;
+	if ((shstrtabp = xmalloc(size, fn, "section string table")) == NULL)
 		goto bad;
 	if ((size_t)xreadatoff(fd, shstrtabp, xewtoh(shstrtabshdr->sh_offset),
-	    xewtoh(shstrtabshdr->sh_size), fn) != xewtoh(shstrtabshdr->sh_size))
+	    size, fn) != size)
+		goto bad;
+	if (shstrtabp[size - 1] != '\0')
 		goto bad;
 
 	/* we need symtab, strtab, and everything behind strtab */
@@ -362,7 +352,8 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 			strtabidx = i;
 		if (layoutp[i].shdr == symtabshdr || i >= strtabidx) {
 			off = xewtoh(layoutp[i].shdr->sh_offset);
-			size = xewtoh(layoutp[i].shdr->sh_size);
+			if ((size = xewtoh(layoutp[i].shdr->sh_size)) == 0)
+				goto bad;
 			layoutp[i].bufp = xmalloc(size, fn,
 			    shstrtabp + xewtoh(layoutp[i].shdr->sh_name));
 			if (layoutp[i].bufp == NULL)
@@ -372,10 +363,13 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 				goto bad;
 
 			/* set symbol table and string table */
-			if (layoutp[i].shdr == symtabshdr)
+			if (layoutp[i].shdr == symtabshdr) {
 				symtabp = layoutp[i].bufp;
-			else if (layoutp[i].shdr == strtabshdr)
+			} else if (layoutp[i].shdr == strtabshdr) {
 				strtabp = layoutp[i].bufp;
+				if (strtabp[size - 1] != '\0')
+					goto bad;
+			}
 		}
 	}
 
@@ -460,7 +454,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 			if (layoutp[i].shdr == &shdrshdr &&
 			    ehdr.e_shoff != shdrshdr.sh_offset) {
 				ehdr.e_shoff = shdrshdr.sh_offset;
-				off = (ELFSIZE == 32) ? 32 : 44;
+				off = offsetof(Elf_Ehdr, e_shoff);
 				size = sizeof(Elf_Off);
 				if ((size_t)xwriteatoff(fd, &ehdr.e_shoff, off, size,
 				    fn) != size)

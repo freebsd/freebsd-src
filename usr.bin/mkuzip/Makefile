@@ -3,8 +3,6 @@
 PROG=	mkuzip
 MAN=	mkuzip.8
 
-DPADD=	${LIBZ}
-LDADD=	-lz
-
+LIBADD=	z
 
 .include <bsd.prog.mk>

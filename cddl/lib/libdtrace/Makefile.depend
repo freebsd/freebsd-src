@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	cddl/lib/libctf \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
@@ -14,7 +15,9 @@ DIRDEPS = \
 	lib/libelf \
 	lib/libproc \
 	lib/librtld_db \
+	lib/libthr \
 	usr.bin/xinstall.host \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

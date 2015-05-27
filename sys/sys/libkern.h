@@ -80,6 +80,7 @@ struct malloc_type;
 uint32_t arc4random(void);
 void	 arc4rand(void *ptr, u_int len, int reseed);
 int	 bcmp(const void *, const void *, size_t);
+int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
 #ifndef	HAVE_INLINE_FFS
@@ -97,6 +98,11 @@ int	 flsl(long);
 #ifndef	HAVE_INLINE_FLSLL
 int	 flsll(long long);
 #endif
+#define	bitcount64(x)	__bitcount64((uint64_t)(x))
+#define	bitcount32(x)	__bitcount32((uint32_t)(x))
+#define	bitcount16(x)	__bitcount16((uint16_t)(x))
+#define	bitcountl(x)	__bitcountl((u_long)(x))
+#define	bitcount(x)	__bitcount((u_int)(x))
 
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);

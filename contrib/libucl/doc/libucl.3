@@ -1,4 +1,4 @@
-.TH "LIBUCL" "3" "July 26, 2014" "Libucl manual" ""
+.TH "LIBUCL" "3" "27 December, 2014" "Libucl manual" ""
 .SH NAME
 .PP
 \f[B]ucl_parser_new\f[], \f[B]ucl_parser_register_macro\f[],
@@ -528,8 +528,9 @@ Iteration are used to iterate over UCL compound types: arrays and
 objects.
 Moreover, iterations could be performed over the keys with multiple
 values (implicit arrays).
-To iterate over an object, an array or a key with multiple values there
-is a function \f[C]ucl_iterate_object\f[].
+There are two types of iterators API: old and unsafe one via
+\f[C]ucl_iterate_object\f[] and the proposed interface of safe
+iterators.
 .SS ucl_iterate_object
 .IP
 .nf
@@ -576,6 +577,75 @@ while\ ((obj\ =\ ucl_iterate_object\ (top,\ &it,\ true)))\ {
 \ \ \ \ \ \ \ \ \ \ \ \ ucl_object_tostring_forced\ (cur));
 \ \ \ \ }
 }
+\f[]
+.fi
+.SS Safe iterators API
+.PP
+Safe iterators are defined to clarify iterating over UCL objects and
+simplify flattening of UCL objects in non\-trivial cases.
+For example, if there is an implicit array that contains another array
+and a boolean value it is extremely unclear how to iterate over such an
+object.
+Safe iterators are desinged to define two sorts of iteration:
+.IP "1." 3
+Iteration over complex objects with expanding all values
+.IP "2." 3
+Iteration over complex objects without expanding of values
+.PP
+The following example demonstrates the difference between these two
+types of iteration:
+.IP
+.nf
+\f[C]
+key\ =\ 1;
+key\ =\ [2,\ 3,\ 4];
+
+Iteration\ with\ expansion:
+
+1,\ 2,\ 3,\ 4
+
+Iteration\ without\ expansion:
+
+1,\ [2,\ 3,\ 4]
+\f[]
+.fi
+.PP
+UCL defines the following functions to manage safe iterators:
+.IP \[bu] 2
+\f[C]ucl_object_iterate_new\f[] \- creates new safe iterator
+.IP \[bu] 2
+\f[C]ucl_object_iterate_reset\f[] \- resets iterator to a new object
+.IP \[bu] 2
+\f[C]ucl_object_iterate_safe\f[] \- safely iterate the object inside
+iterator
+.IP \[bu] 2
+\f[C]ucl_object_iterate_free\f[] \- free memory associated with the safe
+iterator
+.PP
+Please note that unlike unsafe iterators, safe iterators \f[I]must\f[]
+be explicitly initialized and freed.
+An assert is likely generated if you use uninitialized or \f[C]NULL\f[]
+iterator in all safe iterators functions.
+.IP
+.nf
+\f[C]
+ucl_object_iter_t\ it;
+const\ ucl_object_t\ *cur;
+
+it\ =\ ucl_object_iterate_new\ (obj);
+
+while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
+\ \ \ \ /*\ Do\ something\ */
+}
+
+/*\ Switch\ to\ another\ object\ */
+it\ =\ ucl_object_iterate_reset\ (it,\ another_obj);
+
+while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
+\ \ \ \ /*\ Do\ something\ else\ */
+}
+
+ucl_object_iterate_free\ (it);
 \f[]
 .fi
 .SH VALIDATION FUNCTIONS

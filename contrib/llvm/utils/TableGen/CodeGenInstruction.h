@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_INSTRUCTION_H
-#define CODEGEN_INSTRUCTION_H
+#ifndef LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
+#define LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/Support/SourceMgr.h"
 #include <string>
 #include <utility>
@@ -149,6 +149,12 @@ namespace llvm {
     OperandInfo &back() { return OperandList.back(); }
     const OperandInfo &back() const { return OperandList.back(); }
 
+    typedef std::vector<OperandInfo>::iterator iterator;
+    typedef std::vector<OperandInfo>::const_iterator const_iterator;
+    iterator begin() { return OperandList.begin(); }
+    const_iterator begin() const { return OperandList.begin(); }
+    iterator end() { return OperandList.end(); }
+    const_iterator end() const { return OperandList.end(); }
 
     /// getOperandNamed - Return the index of the operand with the specified
     /// non-empty name.  If the instruction does not have an operand with the
@@ -215,38 +221,40 @@ namespace llvm {
     std::vector<Record*> ImplicitDefs, ImplicitUses;
 
     // Various boolean values we track for the instruction.
-    bool isReturn;
-    bool isBranch;
-    bool isIndirectBranch;
-    bool isCompare;
-    bool isMoveImm;
-    bool isBitcast;
-    bool isSelect;
-    bool isBarrier;
-    bool isCall;
-    bool canFoldAsLoad;
-    bool mayLoad;
-    bool mayLoad_Unset;
-    bool mayStore;
-    bool mayStore_Unset;
-    bool isPredicable;
-    bool isConvertibleToThreeAddress;
-    bool isCommutable;
-    bool isTerminator;
-    bool isReMaterializable;
-    bool hasDelaySlot;
-    bool usesCustomInserter;
-    bool hasPostISelHook;
-    bool hasCtrlDep;
-    bool isNotDuplicable;
-    bool hasSideEffects;
-    bool hasSideEffects_Unset;
-    bool neverHasSideEffects;
-    bool isAsCheapAsAMove;
-    bool hasExtraSrcRegAllocReq;
-    bool hasExtraDefRegAllocReq;
-    bool isCodeGenOnly;
-    bool isPseudo;
+    bool isReturn : 1;
+    bool isBranch : 1;
+    bool isIndirectBranch : 1;
+    bool isCompare : 1;
+    bool isMoveImm : 1;
+    bool isBitcast : 1;
+    bool isSelect : 1;
+    bool isBarrier : 1;
+    bool isCall : 1;
+    bool canFoldAsLoad : 1;
+    bool mayLoad : 1;
+    bool mayLoad_Unset : 1;
+    bool mayStore : 1;
+    bool mayStore_Unset : 1;
+    bool isPredicable : 1;
+    bool isConvertibleToThreeAddress : 1;
+    bool isCommutable : 1;
+    bool isTerminator : 1;
+    bool isReMaterializable : 1;
+    bool hasDelaySlot : 1;
+    bool usesCustomInserter : 1;
+    bool hasPostISelHook : 1;
+    bool hasCtrlDep : 1;
+    bool isNotDuplicable : 1;
+    bool hasSideEffects : 1;
+    bool hasSideEffects_Unset : 1;
+    bool isAsCheapAsAMove : 1;
+    bool hasExtraSrcRegAllocReq : 1;
+    bool hasExtraDefRegAllocReq : 1;
+    bool isCodeGenOnly : 1;
+    bool isPseudo : 1;
+    bool isRegSequence : 1;
+    bool isExtractSubreg : 1;
+    bool isInsertSubreg : 1;
 
     std::string DeprecatedReason;
     bool HasComplexDeprecationPredicate;
@@ -318,6 +326,8 @@ namespace llvm {
       Record *getRecord() const { assert(isRecord()); return R; }
       int64_t getImm() const { assert(isImm()); return Imm; }
       Record *getRegister() const { assert(isReg()); return R; }
+
+      unsigned getMINumOperands() const;
     };
 
     /// ResultOperands - The decoded operands for the result instruction.
@@ -330,7 +340,7 @@ namespace llvm {
     /// of them are matched by the operand, the second value should be -1.
     std::vector<std::pair<unsigned, int> > ResultInstOperandIndex;
 
-    CodeGenInstAlias(Record *R, CodeGenTarget &T);
+    CodeGenInstAlias(Record *R, unsigned Variant, CodeGenTarget &T);
 
     bool tryAliasOpMatch(DagInit *Result, unsigned AliasOpNo,
                          Record *InstOpRec, bool hasSubOps, ArrayRef<SMLoc> Loc,

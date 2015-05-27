@@ -138,7 +138,7 @@ The default is sorting enabled for HDDs and disabled SSDs.
 These variables determine whether device read-ahead and write caches
 should be enabled globally or per-device or disabled.
 Set to 1 to enable write cache, 0 to disable, -1 to leave it as-is.
-Values modified at runtime take effect only after device reset 
+Values modified at runtime take effect only after device reset
 .Pq using the reset subcommand of Xr camcontrol 8 .
 Because of that, this setting should be changed in
 .Pa /boot/loader.conf
@@ -156,6 +156,7 @@ ATA device nodes
 .Xr ahci 4 ,
 .Xr cam 4 ,
 .Xr da 4 ,
+.Xr mvs 4 ,
 .Xr siis 4
 .Sh HISTORY
 The

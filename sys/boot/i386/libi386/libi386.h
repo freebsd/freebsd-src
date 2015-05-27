@@ -113,8 +113,6 @@ uint32_t biospci_locator(int8_t bus, uint8_t device, uint8_t function);
 
 void	biosacpi_detect(void);
 
-void	smbios_detect(void);
-
 int	i386_autoload(void);
 
 int	bi_getboothowto(char *kargs);
@@ -122,7 +120,8 @@ void	bi_setboothowto(int howto);
 vm_offset_t	bi_copyenv(vm_offset_t addr);
 int	bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip,
 	    vm_offset_t *modulep, vm_offset_t *kernend);
-int	bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernend);
+int	bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
+	    vm_offset_t *kernend, int add_smap);
 
 char	*pxe_default_rc(void);
 void	pxe_enable(void *pxeinfo);

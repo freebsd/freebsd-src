@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.67 2014/06/12 13:52:48 christos Exp $
+# $File: elf,v 1.68 2014/09/19 19:05:57 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -257,6 +257,7 @@
 >18	leshort		216		Cognitive Smart Memory,
 >18	leshort		217		iCelero CoolEngine,
 >18	leshort		218		Nanoradio Optimized RISC,
+>18	leshort		243		UCB RISC-V,
 >18	leshort		0x1057		AVR (unofficial),
 >18	leshort		0x1059		MSP430 (unofficial),
 >18	leshort		0x1223		Adapteva Epiphany (unofficial),

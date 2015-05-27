@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGBLOCKS_H
-#define CLANG_CODEGEN_CGBLOCKS_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGBLOCKS_H
+#define LLVM_CLANG_LIB_CODEGEN_CGBLOCKS_H
 
 #include "CGBuilder.h"
 #include "CGCall.h"
@@ -28,15 +28,15 @@
 #include "llvm/IR/Module.h"
 
 namespace llvm {
-  class Module;
-  class Constant;
-  class Function;
-  class GlobalValue;
-  class DataLayout;
-  class FunctionType;
-  class PointerType;
-  class Value;
-  class LLVMContext;
+class Module;
+class Constant;
+class Function;
+class GlobalValue;
+class DataLayout;
+class FunctionType;
+class PointerType;
+class Value;
+class LLVMContext;
 }
 
 namespace clang {

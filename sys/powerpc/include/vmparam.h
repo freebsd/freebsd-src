@@ -38,7 +38,7 @@
 #define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
-#define	MAXTSIZ		(64*1024*1024)		/* max text size */
+#define	MAXTSIZ		(1*1024*1024*1024)		/* max text size */
 #endif
 
 #ifndef	DFLDSIZ

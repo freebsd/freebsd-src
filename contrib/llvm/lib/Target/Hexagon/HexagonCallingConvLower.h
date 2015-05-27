@@ -13,13 +13,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_Hexagon_CODEGEN_CALLINGCONVLOWER_H
-#define LLVM_Hexagon_CODEGEN_CALLINGCONVLOWER_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_HEXAGONCALLINGCONVLOWER_H
+#define LLVM_LIB_TARGET_HEXAGON_HEXAGONCALLINGCONVLOWER_H
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/CodeGen/ValueTypes.h"
 
 //
 // Need to handle varargs.
@@ -29,7 +28,7 @@ namespace llvm {
   class TargetMachine;
   class Hexagon_CCState;
   class SDNode;
-
+  struct EVT;
 
 /// Hexagon_CCAssignFn - This function assigns a location for Val, updating
 /// State to reflect the change.

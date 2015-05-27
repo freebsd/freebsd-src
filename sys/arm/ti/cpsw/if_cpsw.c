@@ -113,6 +113,7 @@ static int cpsw_ioctl(struct ifnet *, u_long command, caddr_t data);
 
 static int cpsw_miibus_readreg(device_t, int phy, int reg);
 static int cpsw_miibus_writereg(device_t, int phy, int reg, int value);
+static void cpsw_miibus_statchg(device_t);
 
 /* Send/Receive packets. */
 static void cpsw_intr_rx(void *arg);
@@ -179,6 +180,7 @@ static device_method_t cpsw_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	cpsw_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	cpsw_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	cpsw_miibus_statchg),
 	{ 0, 0 }
 };
 
@@ -195,8 +197,7 @@ DRIVER_MODULE(miibus, cpsw, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(cpsw, ether, 1, 1, 1);
 MODULE_DEPEND(cpsw, miibus, 1, 1, 1);
 
-static struct resource_spec res_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
+static struct resource_spec irq_res_spec[] = {
 	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE },
 	{ SYS_RES_IRQ, 1, RF_ACTIVE | RF_SHAREABLE },
 	{ SYS_RES_IRQ, 2, RF_ACTIVE | RF_SHAREABLE },
@@ -322,21 +323,21 @@ cpsw_debugf(const char *fmt, ...)
 /*
  * Read/Write macros
  */
-#define	cpsw_read_4(sc, reg)		bus_read_4(sc->res[0], reg)
-#define	cpsw_write_4(sc, reg, val)	bus_write_4(sc->res[0], reg, val)
+#define	cpsw_read_4(sc, reg)		bus_read_4(sc->mem_res, reg)
+#define	cpsw_write_4(sc, reg, val)	bus_write_4(sc->mem_res, reg, val)
 
 #define	cpsw_cpdma_bd_offset(i)	(CPSW_CPPI_RAM_OFFSET + ((i)*16))
 
 #define	cpsw_cpdma_bd_paddr(sc, slot)				\
-	BUS_SPACE_PHYSADDR(sc->res[0], slot->bd_offset)
+	BUS_SPACE_PHYSADDR(sc->mem_res, slot->bd_offset)
 #define	cpsw_cpdma_read_bd(sc, slot, val)				\
-	bus_read_region_4(sc->res[0], slot->bd_offset, (uint32_t *) val, 4)
+	bus_read_region_4(sc->mem_res, slot->bd_offset, (uint32_t *) val, 4)
 #define	cpsw_cpdma_write_bd(sc, slot, val)				\
-	bus_write_region_4(sc->res[0], slot->bd_offset, (uint32_t *) val, 4)
+	bus_write_region_4(sc->mem_res, slot->bd_offset, (uint32_t *) val, 4)
 #define	cpsw_cpdma_write_bd_next(sc, slot, next_slot)			\
 	cpsw_write_4(sc, slot->bd_offset, cpsw_cpdma_bd_paddr(sc, next_slot))
 #define	cpsw_cpdma_read_bd_flags(sc, slot)		\
-	bus_read_2(sc->res[0], slot->bd_offset + 14)
+	bus_read_2(sc->mem_res, slot->bd_offset + 14)
 #define	cpsw_write_hdp_slot(sc, queue, slot)				\
 	cpsw_write_4(sc, (queue)->hdp_offset, cpsw_cpdma_bd_paddr(sc, slot))
 #define	CP_OFFSET (CPSW_CPDMA_TX_CP(0) - CPSW_CPDMA_TX_HDP(0))
@@ -396,9 +397,9 @@ cpsw_dump_slot(struct cpsw_softc *sc, struct cpsw_slot *slot)
 	printf("\n");
 	if (slot->mbuf) {
 		printf("  Ether:  %14D\n",
-		    (char *)(slot->mbuf->m_hdr.mh_data), " ");
+		    (char *)(slot->mbuf->m_data), " ");
 		printf("  Packet: %16D\n",
-		    (char *)(slot->mbuf->m_hdr.mh_data) + 14, " ");
+		    (char *)(slot->mbuf->m_data) + 14, " ");
 	}
 }
 
@@ -549,9 +550,12 @@ cpsw_attach(device_t dev)
 	struct cpsw_softc *sc = device_get_softc(dev);
 	struct mii_softc *miisc;
 	struct ifnet *ifp;
-	void *phy_sc;
-	int error, phy, nsegs;
+	int phy, nsegs, error;
 	uint32_t reg;
+	pcell_t phy_id[3];
+	u_long mem_base, mem_size;
+	phandle_t child;
+	int len;
 
 	CPSW_DEBUGF((""));
 
@@ -559,21 +563,58 @@ cpsw_attach(device_t dev)
 	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
 
-	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, sc->dev, &phy, &phy_sc) != 0) {
+	/* TODO: handle multiple slaves */
+	phy = -1;
+
+	/* Find any slave with phy_id */
+	for (child = OF_child(sc->node); child != 0; child = OF_peer(child)) {
+		len = OF_getproplen(child, "phy_id");
+		if (len <= 0)
+			continue;
+
+		/* Get phy address from fdt */
+		if (OF_getencprop(child, "phy_id", phy_id, len) <= 0)
+			continue;
+
+		phy = phy_id[1];
+		/* TODO: get memory window for MDIO */
+
+		break;
+	}
+
+	if (phy == -1) {
 		device_printf(dev, "failed to get PHY address from FDT\n");
 		return (ENXIO);
 	}
+
+	mem_base = 0;
+	mem_size = 0;
+
+	if (fdt_regsize(sc->node, &mem_base, &mem_size) != 0) {
+		device_printf(sc->dev, "no regs property in cpsw node\n");
+		return (ENXIO);
+	}
+
 	/* Initialize mutexes */
 	mtx_init(&sc->tx.lock, device_get_nameunit(dev),
 	    "cpsw TX lock", MTX_DEF);
 	mtx_init(&sc->rx.lock, device_get_nameunit(dev),
 	    "cpsw RX lock", MTX_DEF);
 
-	/* Allocate IO and IRQ resources */
-	error = bus_alloc_resources(dev, res_spec, sc->res);
+	/* Allocate IRQ resources */
+	error = bus_alloc_resources(dev, irq_res_spec, sc->irq_res);
 	if (error) {
-		device_printf(dev, "could not allocate resources\n");
+		device_printf(dev, "could not allocate IRQ resources\n");
+		cpsw_detach(dev);
+		return (ENXIO);
+	}
+
+	sc->mem_rid = 0;
+	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, 
+	    &sc->mem_rid, mem_base, mem_base + CPSW_MEMWINDOW_SIZE -1,
+	    CPSW_MEMWINDOW_SIZE, RF_ACTIVE);
+	if (sc->mem_res == NULL) {
+		device_printf(sc->dev, "failed to allocate memory resource\n");
 		cpsw_detach(dev);
 		return (ENXIO);
 	}
@@ -611,7 +652,7 @@ cpsw_attach(device_t dev)
 
 	/* Allocate the null mbuf and pre-sync it. */
 	sc->null_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	memset(sc->null_mbuf->m_hdr.mh_data, 0, sc->null_mbuf->m_ext.ext_size);
+	memset(sc->null_mbuf->m_data, 0, sc->null_mbuf->m_ext.ext_size);
 	bus_dmamap_create(sc->mbuf_dtag, 0, &sc->null_mbuf_dmamap);
 	bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, sc->null_mbuf_dmamap,
 	    sc->null_mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -690,11 +731,11 @@ cpsw_attach(device_t dev)
 	cpsw_write_4(sc, MDIOUSERPHYSEL0, 1 << 6 | (miisc->mii_phy & 0x1F));
 	
 	/* Note: We don't use sc->res[3] (TX interrupt) */
-	if (cpsw_attach_interrupt(sc, sc->res[1],
+	if (cpsw_attach_interrupt(sc, sc->irq_res[0],
 		cpsw_intr_rx_thresh, "CPSW RX threshold interrupt") ||
-	    cpsw_attach_interrupt(sc, sc->res[2],
+	    cpsw_attach_interrupt(sc, sc->irq_res[1],
 		cpsw_intr_rx, "CPSW RX interrupt") ||
-	    cpsw_attach_interrupt(sc, sc->res[4],
+	    cpsw_attach_interrupt(sc, sc->irq_res[3],
 		cpsw_intr_misc, "CPSW misc interrupt")) {
 		cpsw_detach(dev);
 		return (ENXIO);
@@ -761,7 +802,8 @@ cpsw_detach(device_t dev)
 	KASSERT(error == 0, ("Unable to destroy DMA tag"));
 
 	/* Free IO memory handler */
-	bus_release_resources(dev, res_spec, sc->res);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
+	bus_release_resources(dev, irq_res_spec, sc->irq_res);
 
 	if (sc->ifp != NULL)
 		if_free(sc->ifp);
@@ -1225,6 +1267,36 @@ cpsw_miibus_writereg(device_t dev, int phy, int reg, int value)
 	return 0;
 }
 
+static void
+cpsw_miibus_statchg(device_t dev)
+{
+	struct cpsw_softc *sc = device_get_softc(dev);
+	uint32_t mac_control;
+	int i;
+
+	CPSW_DEBUGF((""));
+
+	for (i = 0; i < 2; i++) {
+		mac_control = cpsw_read_4(sc, CPSW_SL_MACCONTROL(i));
+		mac_control &= ~(1 << 15 | 1 << 7);
+
+		switch(IFM_SUBTYPE(sc->mii->mii_media_active)) {
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+		case IFM_1000_T:
+			mac_control |= 1 << 7;
+			break;
+
+		default:
+			mac_control |= 1 << 15;
+			break;
+		}
+
+		cpsw_write_4(sc, CPSW_SL_MACCONTROL(i), mac_control);
+	}
+}
+
 /*
  *
  * Transmit/Receive Packets.
@@ -1292,8 +1364,8 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		/* Set up mbuf */
 		/* TODO: track SOP/EOP bits to assemble a full mbuf
 		   out of received fragments. */
-		slot->mbuf->m_hdr.mh_data += bd.bufoff;
-		slot->mbuf->m_hdr.mh_len = bd.pktlen - 4;
+		slot->mbuf->m_data += bd.bufoff;
+		slot->mbuf->m_len = bd.pktlen - 4;
 		slot->mbuf->m_pkthdr.len = bd.pktlen - 4;
 		slot->mbuf->m_flags |= M_PKTHDR;
 		slot->mbuf->m_pkthdr.rcvif = ifp;
@@ -1461,7 +1533,7 @@ cpsw_tx_enqueue(struct cpsw_softc *sc)
 			bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
 			if (padlen > 0) /* May as well add padding. */
 				m_append(slot->mbuf, padlen,
-				    sc->null_mbuf->m_hdr.mh_data);
+				    sc->null_mbuf->m_data);
 			m0 = m_defrag(slot->mbuf, M_NOWAIT);
 			if (m0 == NULL) {
 				if_printf(sc->ifp,

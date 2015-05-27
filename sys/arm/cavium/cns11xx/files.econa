@@ -1,11 +1,11 @@
 # $FreeBSD$
-arm/arm/cpufunc_asm_fa526.S	standard
 arm/cavium/cns11xx/econa_machdep.c		standard
 arm/cavium/cns11xx/econa.c			standard
 arm/cavium/cns11xx/timer.c			standard
 arm/cavium/cns11xx/uart_bus_ec.c		optional	uart
 arm/cavium/cns11xx/uart_cpu_ec.c		optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
+arm/arm/bus_space_base.c		standard
 arm/arm/bus_space_generic.c		standard
 arm/cavium/cns11xx/ehci_ebus.c	optional	ehci
 arm/cavium/cns11xx/ohci_ec.c	optional	ohci

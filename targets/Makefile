@@ -44,9 +44,11 @@ target_dirs = targets targets/pseudo
 target_prefix = pkg- build-
 DIRDEPS := ${.TARGETS:Nall:${target_prefix:@p@S,^$p,,@:ts:}:@t@${target_dirs:@d@$d/$t@}@:@d@${exists(${SRCTOP}/$d):?$d:}@}
 
+all_machine_list = ${ALL_MACHINE_LIST} host common
+
 .if ${DIRDEPS:Mtargets/pseudo/*} != ""
 # all bets are off
-PKG_MACHINE_LIST = ${ALL_MACHINE_LIST}
+PKG_MACHINE_LIST = ${all_machine_list}
 .endif
 
 .if make(check-commit)
@@ -60,12 +62,11 @@ SHIPDIR = no
 
 .else
 
-all_machine_list = ${ALL_MACHINE_LIST} host common
 .if defined(ALL_MACHINES)
 DIRDEPS := ${DIRDEPS:O:u:@d@${all_machine_list:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}.$m):?$d.$m:}@}@}
 .undef ALL_MACHINES
 PKG_MACHINE_LIST ?= ${DIRDEPS:E:O:u}
-.elif defined(HOST_MACHINE) && ${MACHINE} == ${HOST_MACHINE}
+.elif empty(REQUESTED_MACHINE)
 # the above may be insufficient.
 # some packages only support one machine which may not be ${MACHINE}
 # some support multiple, in which case unless ALL_MACHINES is defined
@@ -94,7 +95,7 @@ PKG_MACHINE_LIST := ${PKG_MACHINE_LIST}
 # this is a variant of the logic above, we want plain
 # but need to filter the qualified DIRDEPS to REQUESTED_MACHINE
 plain := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}):?$d:}@}
-.if ${plain} != ${DIRDEPS}
+.if !empty(plain) && ${plain} != ${DIRDEPS}
 qual := ${DIRDEPS:${plain:${M_ListToSkip}}:M*.${REQUESTED_MACHINE}}
 .if empty(qual)
 qual := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T}):?$d.${.MAKE.DEPENDFILE:E}:}@}
@@ -102,7 +103,7 @@ qual := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T}):?$d.${.MAKE.DE
 DIRDEPS := ${plain} ${qual}
 .endif
 .if empty(DIRDEPS)
-.error ${REQUESTED_MACHINE} is not appropriate for ${DEP_RELDIR:T}
+.error ${REQUESTED_MACHINE} is not appropriate for ${.TARGETS}
 .endif
 .endif
 
@@ -120,13 +121,15 @@ $v = yes
 # This allows us to work out how long reading 
 # Makefile.depend* takes.
 .if ${.MAKEFLAGS:M-V} == ""
+.if ${BUILD_DIRDEPS_CACHE:Uno} == "no"
 .info ${.newline}${TIME_STAMP} Start ${.TARGETS}
+.endif
 now_utc = ${%s:L:gmtime}
 start_utc := ${now_utc}
 .endif
 
-_begin = count-makefiles
-
+_begin = 
+.if ${BUILD_DIRDEPS_CACHE:Uno} == "no"
 __DEFAULT_YES_OPTIONS+= \
 	CLEAN_ERROR_LOGS
 
@@ -139,6 +142,7 @@ _begin += clean-error-logs
 .if !empty(_begin) && !make(clean*)
 dirdeps: ${_begin} .WAIT
 .endif
+.endif
 
 .include "Makefile.inc"
 
@@ -150,12 +154,11 @@ $t: dirdeps
 
 elapsed_time= seconds=`expr ${now_utc} - ${start_utc}`
 
-count-makefiles: .NOMETA
-	@echo "${TIME_STAMP} Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]} ${elapsed_time}"
-
+.if ${BUILD_DIRDEPS_CACHE:Uno} == "no"
 .END: _build_finish
 _build_finish:	.NOMETA
 	@echo "${TIME_STAMP} Finished ${.TARGETS} ${elapsed_time}"
+.endif
 
 .ERROR: _build_failed
 _build_failed: .NOMETA

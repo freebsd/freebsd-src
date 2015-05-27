@@ -17,6 +17,7 @@ DIRDEPS = \
 	lib/libfetch \
 	lib/liblzma \
 	lib/libsbuf \
+	lib/libthr \
 	lib/libucl \
 	lib/libz \
 	lib/msun \

@@ -126,7 +126,7 @@ static int ieee80211_mesh_backofftimeout = -1;
 SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, backofftimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_backofftimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "Backoff timeout (msec). This is to throutles peering forever when "
-    "not receving answer or is rejected by a neighbor");
+    "not receiving answer or is rejected by a neighbor");
 static int ieee80211_mesh_maxretries = 2;
 SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxretries, CTLFLAG_RW,
     &ieee80211_mesh_maxretries, 0,
@@ -217,7 +217,7 @@ mesh_rt_add_locked(struct ieee80211vap *vap,
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
 		mtx_init(&rt->rt_lock, "MBSS_RT", "802.11s route entry", MTX_DEF);
-		callout_init(&rt->rt_discovery, CALLOUT_MPSAFE);
+		callout_init(&rt->rt_discovery, 1);
 		rt->rt_updtime = ticks;	/* create time */
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
 	}
@@ -679,8 +679,8 @@ mesh_vattach(struct ieee80211vap *vap)
 	TAILQ_INIT(&ms->ms_known_gates);
 	TAILQ_INIT(&ms->ms_routes);
 	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
-	callout_init(&ms->ms_cleantimer, CALLOUT_MPSAFE);
-	callout_init(&ms->ms_gatetimer, CALLOUT_MPSAFE);
+	callout_init(&ms->ms_cleantimer, 1);
+	callout_init(&ms->ms_gatetimer, 1);
 	ms->ms_gateseq = 0;
 	mesh_select_proto_metric(vap, "AIRTIME");
 	KASSERT(ms->ms_pmetric, ("ms_pmetric == NULL"));
@@ -1906,7 +1906,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, &scan, wh,
+			ieee80211_add_scan(vap, ic->ic_curchan, &scan, wh,
 			    subtype, rssi, nf);
 			return;
 		}
@@ -3384,8 +3384,8 @@ void
 ieee80211_mesh_node_init(struct ieee80211vap *vap, struct ieee80211_node *ni)
 {
 	ni->ni_flags |= IEEE80211_NODE_QOS;
-	callout_init(&ni->ni_mltimer, CALLOUT_MPSAFE);
-	callout_init(&ni->ni_mlhtimer, CALLOUT_MPSAFE);
+	callout_init(&ni->ni_mltimer, 1);
+	callout_init(&ni->ni_mlhtimer, 1);
 }
 
 /*

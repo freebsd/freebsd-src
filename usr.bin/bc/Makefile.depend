@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libedit \
 	lib/ncurses/ncursesw \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

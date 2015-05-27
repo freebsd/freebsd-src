@@ -31,6 +31,7 @@
 
 #include <arpa/inet.h>
 #include <sys/queue.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <sdp.h>
 #include <stdio.h>

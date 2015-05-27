@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	wc
-DPADD=	${LIBXO}
-LDADD=	-lxo
+LIBADD=	xo
 
 .include <bsd.prog.mk>

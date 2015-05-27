@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <net/pfvar.h>
 #include <arpa/inet.h>
-#include <altq/altq.h>
+#include <net/altq/altq.h>
 #include <sys/sysctl.h>
 
 #include <err.h>

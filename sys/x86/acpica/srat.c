@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Advanced Computing Technologies LLC
+ * Copyright (c) 2010 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -64,7 +64,95 @@ static vm_paddr_t srat_physaddr;
 
 static int vm_domains[VM_PHYSSEG_MAX];
 
+static ACPI_TABLE_SLIT *slit;
+static vm_paddr_t slit_physaddr;
+static int vm_locality_table[MAXMEMDOM * MAXMEMDOM];
+
 static void	srat_walk_table(acpi_subtable_handler *handler, void *arg);
+
+/*
+ * SLIT parsing.
+ */
+
+static void
+slit_parse_table(ACPI_TABLE_SLIT *s)
+{
+	int i, j;
+	int i_domain, j_domain;
+	int offset = 0;
+	uint8_t e;
+
+	/*
+	 * This maps the SLIT data into the VM-domain centric view.
+	 * There may be sparse entries in the PXM namespace, so
+	 * remap them to a VM-domain ID and if it doesn't exist,
+	 * skip it.
+	 *
+	 * It should result in a packed 2d array of VM-domain
+	 * locality information entries.
+	 */
+
+	if (bootverbose)
+		printf("SLIT.Localities: %d\n", (int) s->LocalityCount);
+	for (i = 0; i < s->LocalityCount; i++) {
+		i_domain = acpi_map_pxm_to_vm_domainid(i);
+		if (i_domain < 0)
+			continue;
+
+		if (bootverbose)
+			printf("%d: ", i);
+		for (j = 0; j < s->LocalityCount; j++) {
+			j_domain = acpi_map_pxm_to_vm_domainid(j);
+			if (j_domain < 0)
+				continue;
+			e = s->Entry[i * s->LocalityCount + j];
+			if (bootverbose)
+				printf("%d ", (int) e);
+			/* 255 == "no locality information" */
+			if (e == 255)
+				vm_locality_table[offset] = -1;
+			else
+				vm_locality_table[offset] = e;
+			offset++;
+		}
+		if (bootverbose)
+			printf("\n");
+	}
+}
+
+/*
+ * Look for an ACPI System Locality Distance Information Table ("SLIT")
+ */
+static int
+parse_slit(void)
+{
+
+	if (resource_disabled("slit", 0)) {
+		return (-1);
+	}
+
+	slit_physaddr = acpi_find_table(ACPI_SIG_SLIT);
+	if (slit_physaddr == 0) {
+		return (-1);
+	}
+
+	/*
+	 * Make a pass over the table to populate the cpus[] and
+	 * mem_info[] tables.
+	 */
+	slit = acpi_map_table(slit_physaddr, ACPI_SIG_SLIT);
+	slit_parse_table(slit);
+	acpi_unmap_table(slit);
+	slit = NULL;
+
+	/* Tell the VM about it! */
+	mem_locality = vm_locality_table;
+	return (0);
+}
+
+/*
+ * SRAT parsing.
+ */
 
 /*
  * Returns true if a memory range overlaps with at least one range in
@@ -301,17 +389,17 @@ renumber_domains(void)
 /*
  * Look for an ACPI System Resource Affinity Table ("SRAT")
  */
-static void
-parse_srat(void *dummy)
+static int
+parse_srat(void)
 {
 	int error;
 
 	if (resource_disabled("srat", 0))
-		return;
+		return (-1);
 
 	srat_physaddr = acpi_find_table(ACPI_SIG_SRAT);
 	if (srat_physaddr == 0)
-		return;
+		return (-1);
 
 	/*
 	 * Make a pass over the table to populate the cpus[] and
@@ -325,13 +413,39 @@ parse_srat(void *dummy)
 	if (error || check_domains() != 0 || check_phys_avail() != 0 ||
 	    renumber_domains() != 0) {
 		srat_physaddr = 0;
-		return;
+		return (-1);
 	}
 
 	/* Point vm_phys at our memory affinity table. */
 	mem_affinity = mem_info;
+
+	return (0);
 }
-SYSINIT(parse_srat, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_srat, NULL);
+
+static void
+init_mem_locality(void)
+{
+	int i;
+
+	/*
+	 * For now, assume -1 == "no locality information for
+	 * this pairing.
+	 */
+	for (i = 0; i < MAXMEMDOM * MAXMEMDOM; i++)
+		vm_locality_table[i] = -1;
+}
+
+static void
+parse_acpi_tables(void *dummy)
+{
+
+	if (parse_srat() < 0)
+		return;
+	init_mem_locality();
+	(void) parse_slit();
+}
+SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
+    NULL);
 
 static void
 srat_walk_table(acpi_subtable_handler *handler, void *arg)
@@ -342,7 +456,7 @@ srat_walk_table(acpi_subtable_handler *handler, void *arg)
 }
 
 /*
- * Setup per-CPU ACPI IDs.
+ * Setup per-CPU domain IDs.
  */
 static void
 srat_set_cpus(void *dummy)
@@ -363,6 +477,7 @@ srat_set_cpus(void *dummy)
 			panic("SRAT: CPU with APIC ID %u is not known",
 			    pc->pc_apic_id);
 		pc->pc_domain = cpu->domain;
+		CPU_SET(i, &cpuset_domain[cpu->domain]);
 		if (bootverbose)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
 			    cpu->domain);

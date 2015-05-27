@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libbluetooth \
 	lib/libc \
 	lib/libcompiler_rt \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

@@ -22,7 +22,7 @@
 
 #include "llvm/ADT/Twine.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalObject.h"
 #include "llvm/IR/OperandTraits.h"
 
 namespace llvm {
@@ -32,7 +32,7 @@ class Constant;
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
 
-class GlobalVariable : public GlobalValue, public ilist_node<GlobalVariable> {
+class GlobalVariable : public GlobalObject, public ilist_node<GlobalVariable> {
   friend class SymbolTableListTraits<GlobalVariable, Module>;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
   void operator=(const GlobalVariable &) LLVM_DELETED_FUNCTION;
@@ -41,9 +41,6 @@ class GlobalVariable : public GlobalValue, public ilist_node<GlobalVariable> {
   void setParent(Module *parent);
 
   bool isConstantGlobal : 1;                   // Is this a global constant?
-  unsigned threadLocalMode : 3;                // Is this symbol "Thread Local",
-                                               // if so, what is the desired
-                                               // model?
   bool isExternallyInitializedConstant : 1;    // Is this a global whose value
                                                // can change from its initial
                                                // value before global
@@ -55,25 +52,17 @@ public:
     return User::operator new(s, 1);
   }
 
-  enum ThreadLocalMode {
-    NotThreadLocal = 0,
-    GeneralDynamicTLSModel,
-    LocalDynamicTLSModel,
-    InitialExecTLSModel,
-    LocalExecTLSModel
-  };
-
   /// GlobalVariable ctor - If a parent module is specified, the global is
   /// automatically inserted into the end of the specified modules global list.
   GlobalVariable(Type *Ty, bool isConstant, LinkageTypes Linkage,
-                 Constant *Initializer = 0, const Twine &Name = "",
+                 Constant *Initializer = nullptr, const Twine &Name = "",
                  ThreadLocalMode = NotThreadLocal, unsigned AddressSpace = 0,
                  bool isExternallyInitialized = false);
   /// GlobalVariable ctor - This creates a global and inserts it before the
   /// specified other global.
   GlobalVariable(Module &M, Type *Ty, bool isConstant,
                  LinkageTypes Linkage, Constant *Initializer,
-                 const Twine &Name = "", GlobalVariable *InsertBefore = 0,
+                 const Twine &Name = "", GlobalVariable *InsertBefore = nullptr,
                  ThreadLocalMode = NotThreadLocal, unsigned AddressSpace = 0,
                  bool isExternallyInitialized = false);
 
@@ -155,16 +144,6 @@ public:
   bool isConstant() const { return isConstantGlobal; }
   void setConstant(bool Val) { isConstantGlobal = Val; }
 
-  /// If the value is "Thread Local", its value isn't shared by the threads.
-  bool isThreadLocal() const { return threadLocalMode != NotThreadLocal; }
-  void setThreadLocal(bool Val) {
-    threadLocalMode = Val ? GeneralDynamicTLSModel : NotThreadLocal;
-  }
-  void setThreadLocalMode(ThreadLocalMode Val) { threadLocalMode = Val; }
-  ThreadLocalMode getThreadLocalMode() const {
-    return static_cast<ThreadLocalMode>(threadLocalMode);
-  }
-
   bool isExternallyInitialized() const {
     return isExternallyInitializedConstant;
   }
@@ -174,21 +153,21 @@ public:
 
   /// copyAttributesFrom - copy all additional attributes (those not needed to
   /// create a GlobalVariable) from the GlobalVariable Src to this one.
-  void copyAttributesFrom(const GlobalValue *Src);
+  void copyAttributesFrom(const GlobalValue *Src) override;
 
   /// removeFromParent - This method unlinks 'this' from the containing module,
   /// but does not delete it.
   ///
-  virtual void removeFromParent();
+  void removeFromParent() override;
 
   /// eraseFromParent - This method unlinks 'this' from the containing module
   /// and deletes it.
   ///
-  virtual void eraseFromParent();
+  void eraseFromParent() override;
 
   /// Override Constant's implementation of this method so we can
   /// replace constant initializers.
-  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *V) {

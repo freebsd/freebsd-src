@@ -124,6 +124,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  * @param pside: true if dp is parentside, thus message is 'fresh' and NS
  * 	can be prefetch-updates.
  * @param region: to copy modified (cache is better) rrs back to.
+ * @param flags: with BIT_CD for dns64 AAAA translated queries.
  * @return void, because we are not interested in alloc errors,
  * 	the iterator and validator can operate on the results in their
  * 	scratch space (the qstate.region) and are not dependent on the cache.
@@ -132,7 +133,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  */
 void iter_dns_store(struct module_env* env, struct query_info* qinf,
 	struct reply_info* rep, int is_referral, time_t leeway, int pside,
-	struct regional* region);
+	struct regional* region, uint16_t flags);
 
 /**
  * Select randomly with n/m probability.
@@ -220,6 +221,15 @@ int iter_msg_from_zone(struct dns_msg* msg, struct delegpt* dp,
  * @return if one and two are equal.
  */
 int reply_equal(struct reply_info* p, struct reply_info* q, struct regional* region);
+
+/**
+ * Remove unused bits from the reply if possible.
+ * So that caps-for-id (0x20) fallback is more likely to be successful.
+ * This removes like, the additional section, and NS record in the authority
+ * section if those records are gratuitous (not for a referral).
+ * @param rep: the reply to strip stuff out of.
+ */
+void caps_strip_reply(struct reply_info* rep);
 
 /**
  * Store parent-side rrset in seperate rrset cache entries for later 

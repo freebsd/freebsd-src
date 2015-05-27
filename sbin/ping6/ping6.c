@@ -648,11 +648,20 @@ main(int argc, char *argv[])
 		err(1, "socket");
 
 	/* set the source address if specified. */
-	if ((options & F_SRCADDR) &&
-	    bind(s, (struct sockaddr *)&src, srclen) != 0) {
-		err(1, "bind");
+	if ((options & F_SRCADDR) != 0) {
+		/* properly fill sin6_scope_id */
+		if (IN6_IS_ADDR_LINKLOCAL(&src.sin6_addr) && (
+		    IN6_IS_ADDR_LINKLOCAL(&dst.sin6_addr) ||
+		    IN6_IS_ADDR_MC_LINKLOCAL(&dst.sin6_addr) ||
+		    IN6_IS_ADDR_MC_NODELOCAL(&dst.sin6_addr))) {
+			if (src.sin6_scope_id == 0)
+				src.sin6_scope_id = dst.sin6_scope_id;
+			if (dst.sin6_scope_id == 0)
+				dst.sin6_scope_id = src.sin6_scope_id;
+		}
+		if (bind(s, (struct sockaddr *)&src, srclen) != 0)
+			err(1, "bind");
 	}
-
 	/* set the gateway (next hop) if specified */
 	if (gateway) {
 		memset(&hints, 0, sizeof(hints));

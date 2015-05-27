@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "CXXABI.h"
-#include "clang/AST/Attr.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/MangleNumberingContext.h"
 #include "clang/AST/RecordLayout.h"
@@ -28,15 +28,36 @@ namespace {
 /// \brief Numbers things which need to correspond across multiple TUs.
 /// Typically these are things like static locals, lambdas, or blocks.
 class MicrosoftNumberingContext : public MangleNumberingContext {
-  unsigned NumStaticLocals;
+  llvm::DenseMap<const Type *, unsigned> ManglingNumbers;
+  unsigned LambdaManglingNumber;
+  unsigned StaticLocalNumber;
 
 public:
-  MicrosoftNumberingContext() : NumStaticLocals(0) { }
+  MicrosoftNumberingContext()
+      : MangleNumberingContext(), LambdaManglingNumber(0),
+        StaticLocalNumber(0) {}
 
-  /// Static locals are numbered by source order.
-  virtual unsigned getManglingNumber(const VarDecl *VD) {
-    assert(VD->isStaticLocal());
-    return ++NumStaticLocals;
+  unsigned getManglingNumber(const CXXMethodDecl *CallOperator) override {
+    return ++LambdaManglingNumber;
+  }
+
+  unsigned getManglingNumber(const BlockDecl *BD) override {
+    const Type *Ty = nullptr;
+    return ++ManglingNumbers[Ty];
+  }
+
+  unsigned getStaticLocalNumber(const VarDecl *VD) override {
+    return ++StaticLocalNumber;
+  }
+
+  unsigned getManglingNumber(const VarDecl *VD,
+                             unsigned MSLocalManglingNumber) override {
+    return MSLocalManglingNumber;
+  }
+
+  unsigned getManglingNumber(const TagDecl *TD,
+                             unsigned MSLocalManglingNumber) override {
+    return MSLocalManglingNumber;
   }
 };
 
@@ -46,16 +67,16 @@ public:
   MicrosoftCXXABI(ASTContext &Ctx) : Context(Ctx) { }
 
   std::pair<uint64_t, unsigned>
-  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const;
+  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const override;
 
-  CallingConv getDefaultMethodCallConv(bool isVariadic) const {
+  CallingConv getDefaultMethodCallConv(bool isVariadic) const override {
     if (!isVariadic &&
         Context.getTargetInfo().getTriple().getArch() == llvm::Triple::x86)
       return CC_X86ThisCall;
     return CC_C;
   }
 
-  bool isNearlyEmpty(const CXXRecordDecl *RD) const {
+  bool isNearlyEmpty(const CXXRecordDecl *RD) const override {
     // FIXME: Audit the corners
     if (!RD->isDynamicClass())
       return false;
@@ -69,7 +90,7 @@ public:
       Layout.getNonVirtualSize() == PointerSize * 2;
   }    
 
-  MangleNumberingContext *createMangleNumberingContext() const {
+  MangleNumberingContext *createMangleNumberingContext() const override {
     return new MicrosoftNumberingContext();
   }
 };
@@ -92,26 +113,27 @@ static bool usesMultipleInheritanceModel(const CXXRecordDecl *RD) {
   return false;
 }
 
-static MSInheritanceModel MSInheritanceAttrToModel(attr::Kind Kind) {
-  switch (Kind) {
-  default: llvm_unreachable("expected MS inheritance attribute");
-  case attr::SingleInheritance:      return MSIM_Single;
-  case attr::MultipleInheritance:    return MSIM_Multiple;
-  case attr::VirtualInheritance:     return MSIM_Virtual;
-  case attr::UnspecifiedInheritance: return MSIM_Unspecified;
-  }
+MSInheritanceAttr::Spelling CXXRecordDecl::calculateInheritanceModel() const {
+  if (!hasDefinition() || isParsingBaseSpecifiers())
+    return MSInheritanceAttr::Keyword_unspecified_inheritance;
+  if (getNumVBases() > 0)
+    return MSInheritanceAttr::Keyword_virtual_inheritance;
+  if (usesMultipleInheritanceModel(this))
+    return MSInheritanceAttr::Keyword_multiple_inheritance;
+  return MSInheritanceAttr::Keyword_single_inheritance;
 }
 
-MSInheritanceModel CXXRecordDecl::getMSInheritanceModel() const {
-  if (Attr *IA = this->getAttr<MSInheritanceAttr>())
-    return MSInheritanceAttrToModel(IA->getKind());
-  // If there was no explicit attribute, the record must be defined already, and
-  // we can figure out the inheritance model from its other properties.
-  if (this->getNumVBases() > 0)
-    return MSIM_Virtual;
-  if (usesMultipleInheritanceModel(this))
-    return this->isPolymorphic() ? MSIM_MultiplePolymorphic : MSIM_Multiple;
-  return this->isPolymorphic() ? MSIM_SinglePolymorphic : MSIM_Single;
+MSInheritanceAttr::Spelling
+CXXRecordDecl::getMSInheritanceModel() const {
+  MSInheritanceAttr *IA = getAttr<MSInheritanceAttr>();
+  assert(IA && "Expected MSInheritanceAttr on the CXXRecordDecl!");
+  return IA->getSemanticSpelling();
+}
+
+MSVtorDispAttr::Mode CXXRecordDecl::getMSVtorDispMode() const {
+  if (MSVtorDispAttr *VDA = getAttr<MSVtorDispAttr>())
+    return VDA->getVtorDispMode();
+  return MSVtorDispAttr::Mode(getASTContext().getLangOpts().VtorDispMode);
 }
 
 // Returns the number of pointer and integer slots used to represent a member
@@ -133,49 +155,32 @@ MSInheritanceModel CXXRecordDecl::getMSInheritanceModel() const {
 //     // offset.
 //     int NonVirtualBaseAdjustment;
 //
+//     // The offset of the vb-table pointer within the object.  Only needed for
+//     // incomplete types.
+//     int VBPtrOffset;
+//
 //     // An offset within the vb-table that selects the virtual base containing
 //     // the member.  Loading from this offset produces a new offset that is
 //     // added to the address of the vb-table pointer to produce the base.
 //     int VirtualBaseAdjustmentOffset;
-//
-//     // The offset of the vb-table pointer within the object.  Only needed for
-//     // incomplete types.
-//     int VBPtrOffset;
 //   };
 static std::pair<unsigned, unsigned>
 getMSMemberPointerSlots(const MemberPointerType *MPT) {
-  const CXXRecordDecl *RD = MPT->getClass()->getAsCXXRecordDecl();
-  MSInheritanceModel Inheritance = RD->getMSInheritanceModel();
-  unsigned Ptrs;
+  const CXXRecordDecl *RD = MPT->getMostRecentCXXRecordDecl();
+  MSInheritanceAttr::Spelling Inheritance = RD->getMSInheritanceModel();
+  unsigned Ptrs = 0;
   unsigned Ints = 0;
-  if (MPT->isMemberFunctionPointer()) {
-    // Member function pointers are a struct of a function pointer followed by a
-    // variable number of ints depending on the inheritance model used.  The
-    // function pointer is a real function if it is non-virtual and a vftable
-    // slot thunk if it is virtual.  The ints select the object base passed for
-    // the 'this' pointer.
-    Ptrs = 1;  // First slot is always a function pointer.
-    switch (Inheritance) {
-    case MSIM_Unspecified: ++Ints;  // VBTableOffset
-    case MSIM_Virtual:     ++Ints;  // VirtualBaseAdjustmentOffset
-    case MSIM_MultiplePolymorphic:
-    case MSIM_Multiple:    ++Ints;  // NonVirtualBaseAdjustment
-    case MSIM_SinglePolymorphic:
-    case MSIM_Single:      break;   // Nothing
-    }
-  } else {
-    // Data pointers are an aggregate of ints.  The first int is an offset
-    // followed by vbtable-related offsets.
-    Ptrs = 0;
-    switch (Inheritance) {
-    case MSIM_Unspecified: ++Ints;  // VBTableOffset
-    case MSIM_Virtual:     ++Ints;  // VirtualBaseAdjustmentOffset
-    case MSIM_MultiplePolymorphic:
-    case MSIM_Multiple:             // Nothing
-    case MSIM_SinglePolymorphic:
-    case MSIM_Single:      ++Ints;  // Field offset
-    }
-  }
+  if (MPT->isMemberFunctionPointer())
+    Ptrs = 1;
+  else
+    Ints = 1;
+  if (MSInheritanceAttr::hasNVOffsetField(MPT->isMemberFunctionPointer(),
+                                          Inheritance))
+    Ints++;
+  if (MSInheritanceAttr::hasVBPtrOffsetField(Inheritance))
+    Ints++;
+  if (MSInheritanceAttr::hasVBTableOffsetField(Inheritance))
+    Ints++;
   return std::make_pair(Ptrs, Ints);
 }
 
@@ -185,14 +190,26 @@ std::pair<uint64_t, unsigned> MicrosoftCXXABI::getMemberPointerWidthAndAlign(
   assert(Target.getTriple().getArch() == llvm::Triple::x86 ||
          Target.getTriple().getArch() == llvm::Triple::x86_64);
   unsigned Ptrs, Ints;
-  llvm::tie(Ptrs, Ints) = getMSMemberPointerSlots(MPT);
+  std::tie(Ptrs, Ints) = getMSMemberPointerSlots(MPT);
   // The nominal struct is laid out with pointers followed by ints and aligned
   // to a pointer width if any are present and an int width otherwise.
   unsigned PtrSize = Target.getPointerWidth(0);
   unsigned IntSize = Target.getIntWidth();
   uint64_t Width = Ptrs * PtrSize + Ints * IntSize;
-  unsigned Align = Ptrs > 0 ? Target.getPointerAlign(0) : Target.getIntAlign();
-  Width = llvm::RoundUpToAlignment(Width, Align);
+  unsigned Align;
+
+  // When MSVC does x86_32 record layout, it aligns aggregate member pointers to
+  // 8 bytes.  However, __alignof usually returns 4 for data memptrs and 8 for
+  // function memptrs.
+  if (Ptrs + Ints > 1 && Target.getTriple().getArch() == llvm::Triple::x86)
+    Align = 8 * 8;
+  else if (Ptrs)
+    Align = Target.getPointerAlign(0);
+  else
+    Align = Target.getIntAlign();
+
+  if (Target.getTriple().getArch() == llvm::Triple::x86_64)
+    Width = llvm::RoundUpToAlignment(Width, Align);
   return std::make_pair(Width, Align);
 }
 

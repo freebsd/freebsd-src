@@ -28,7 +28,7 @@
 .\"     @(#)setmode.3	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd February 22, 2015
 .Dt SETMODE 3
 .Os
 .Sh NAME
@@ -99,7 +99,20 @@ The
 function
 may fail and set errno for any of the errors specified for the library
 routine
-.Xr malloc 3 .
+.Xr malloc 3
+or
+.Xr strtol 3 .
+In addition,
+.Fn setmode
+will fail and set
+.Va errno
+to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa mode
+argument does not represent a valid mode.
+.El
 .Sh SEE ALSO
 .Xr chmod 1 ,
 .Xr stat 2 ,

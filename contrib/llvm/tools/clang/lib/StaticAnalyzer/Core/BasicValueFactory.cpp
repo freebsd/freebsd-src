@@ -173,12 +173,12 @@ BasicValueFactory::evalAPSInt(BinaryOperator::Opcode Op,
       // FIXME: Expand these checks to include all undefined behavior.
 
       if (V2.isSigned() && V2.isNegative())
-        return NULL;
+        return nullptr;
 
       uint64_t Amt = V2.getZExtValue();
 
-      if (Amt > V1.getBitWidth())
-        return NULL;
+      if (Amt >= V1.getBitWidth())
+        return nullptr;
 
       return &getValue( V1.operator<<( (unsigned) Amt ));
     }
@@ -191,12 +191,12 @@ BasicValueFactory::evalAPSInt(BinaryOperator::Opcode Op,
       // FIXME: Expand these checks to include all undefined behavior.
 
       if (V2.isSigned() && V2.isNegative())
-        return NULL;
+        return nullptr;
 
       uint64_t Amt = V2.getZExtValue();
 
-      if (Amt > V1.getBitWidth())
-        return NULL;
+      if (Amt >= V1.getBitWidth())
+        return nullptr;
 
       return &getValue( V1.operator>>( (unsigned) Amt ));
     }

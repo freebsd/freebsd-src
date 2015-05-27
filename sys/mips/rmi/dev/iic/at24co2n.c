@@ -84,7 +84,7 @@ at24co2n_mac_sysctl(SYSCTL_HANDLER_ARGS)
 	p = sc->sc_mac_addr;
 	len = snprintf(buf, sizeof(buf), "%02x:%02x:%02x:%02x:%02x:%02x",
 	    p[0], p[1], p[2], p[3], p[4], p[5]);
-	return SYSCTL_OUT(req, buf, len);
+	return SYSCTL_OUT_STR(req, buf);
 }
 
 

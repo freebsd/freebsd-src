@@ -117,19 +117,23 @@ void EmitDisassembler(RecordKeeper &Records, raw_ostream &OS) {
     for (unsigned i = 0, e = numberedInstructions.size(); i != e; ++i)
       RecognizableInstr::processInstr(Tables, *numberedInstructions[i], i);
 
-    if (Tables.hasConflicts())
-      PrintFatalError(Target.getTargetRecord()->getLoc(),
-                      "Primary decode conflict");
+    if (Tables.hasConflicts()) {
+      PrintError(Target.getTargetRecord()->getLoc(), "Primary decode conflict");
+      return;
+    }
 
     Tables.emit(OS);
     return;
   }
 
   // ARM and Thumb have a CHECK() macro to deal with DecodeStatuses.
-  if (Target.getName() == "ARM" ||
-      Target.getName() == "Thumb" || 
-      Target.getName() == "AArch64") {
-    EmitFixedLenDecoder(Records, OS, Target.getName() == "AArch64" ? "AArch64" : "ARM",
+  if (Target.getName() == "ARM" || Target.getName() == "Thumb" ||
+      Target.getName() == "AArch64" || Target.getName() == "ARM64") {
+    std::string PredicateNamespace = Target.getName();
+    if (PredicateNamespace == "Thumb")
+      PredicateNamespace = "ARM";
+
+    EmitFixedLenDecoder(Records, OS, PredicateNamespace,
                         "if (!Check(S, ", ")) return MCDisassembler::Fail;",
                         "S", "MCDisassembler::Fail",
                         "  MCDisassembler::DecodeStatus S = "

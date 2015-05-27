@@ -1,3 +1,4 @@
+#
 # Kernel configuration for i.MX53 boards
 #
 # For more information on this file, please read the config(5) manual page,
@@ -19,46 +20,32 @@
 
 ident		IMX53
 
+include 	"std.armv6"
 include 	"../freescale/imx/std.imx53"
 
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-#options 	DEBUG
+options 	SOC_IMX53
 
 options 	SCHED_4BSD		# 4BSD scheduler
-#options 	PREEMPTION		# Enable kernel thread preemption
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-#options 	SCTP			# Stream Control Transmission Protocol
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-#options 	MD_ROOT			# MD is a potential root device
-options 	NFSCL			# New Network Filesystem Client
-#options 	NFSD			# New Network Filesystem Server
-options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCL
-options 	TMPFS			# Efficient memory filesystem
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-#options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_PART_BSD		# BSD partition scheme
-options 	GEOM_PART_MBR		# MBR partition scheme
-options 	GEOM_PART_GPT		# GUID Partition Tables.
-options 	GEOM_LABEL		# Provides labelization
+#options 	NFSD			# Network Filesystem Server
 #options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 #options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 #options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options 	KTRACE			# ktrace(1) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PLATFORM
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
-options 	VFP			# vfp/neon
+
+# Debugging for use in -current
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+options 	KDB			# Enable kernel debugger support
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic
+# For full debugger support use this instead:
+options 	DDB			# Enable the kernel debugger
+#options 	GDB			# Support remote GDB
+options 	DEADLKRES		# Enable the deadlock resolver
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # kernel/memory size reduction
 #options 	MUTEX_NOINLINE
@@ -66,18 +53,6 @@ options 	VFP			# vfp/neon
 #options 	NO_SWAPPING
 #options 	NO_SYSCTL_DESCR
 #options 	RWLOCK_NOINLINE
-
-# Debugging support.  Always need this:
-options 	KDB			# Enable kernel debugger support.
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic.
-# For full debugger support use this instead:
-options 	DDB			# Support DDB.
-#options 	GDB			# Support remote GDB.
-options 	DEADLKRES		# Enable the deadlock resolver
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -161,12 +136,12 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 
 
 # Flattened Device Tree
-options         FDT
+options 	FDT			# Configure using FDT/DTB data
 
 # NOTE: serial console will be disabled if syscons enabled
 # Uncomment following lines for framebuffer/syscons support
 #device		sc
 #device		vt
 #device		kbdmux
-#options         SC_DFLT_FONT		# compile font in
-#makeoptions     SC_DFLT_FONT=cp437
+#options 	SC_DFLT_FONT		# compile font in
+#makeoptions	SC_DFLT_FONT=cp437

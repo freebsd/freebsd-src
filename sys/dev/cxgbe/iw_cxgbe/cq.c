@@ -775,7 +775,7 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 }
 
 struct ib_cq *
-c4iw_create_cq(struct ib_device *ibdev, int entries, int vector,
+c4iw_create_cq(struct ib_device *ibdev, struct ib_cq_init_attr *attr,
     struct ib_ucontext *ib_context, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
@@ -785,6 +785,7 @@ c4iw_create_cq(struct ib_device *ibdev, int entries, int vector,
 	int ret;
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
+	int entries = attr->cqe;
 
 	CTR3(KTR_IW_CXGBE, "%s ib_dev %p entries %d", __func__, ibdev, entries);
 

@@ -11,8 +11,7 @@ SRCS+=	altq.c
 CFLAGS+=-DPF
 .endif
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 MAN=	ipfw.8
 
 .include <bsd.prog.mk>

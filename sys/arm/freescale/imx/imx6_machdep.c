@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/devmap.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platformvar.h>
 
 #include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+
+#include "platform_if.h"
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
@@ -90,29 +92,25 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	NULL
 };
 
-vm_offset_t
-platform_lastaddr(void)
+static vm_offset_t
+imx6_lastaddr(platform_t plat)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
-void
-platform_probe_and_attach(void)
+static int
+imx6_attach(platform_t plat)
 {
 
 	/* Inform the MPCore timer driver that its clock is variable. */
 	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
+
+	return (0);
 }
 
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
+static void
+imx6_late_init(platform_t plat)
 {
 
 	/* Cache the gpio1 node handle for imx6_decode_fdt() workaround code. */
@@ -136,8 +134,8 @@ platform_late_init(void)
  * static map some of that area.  Be careful with other things in that area such
  * as OCRAM that probably shouldn't be mapped as PTE_DEVICE memory.
  */
-int
-platform_devmap_init(void)
+static int
+imx6_devmap_init(platform_t plat)
 {
 	const uint32_t IMX6_ARMMP_PHYS = 0x00a00000;
 	const uint32_t IMX6_ARMMP_SIZE = 0x00100000;
@@ -271,3 +269,15 @@ imx6_early_putc(int c)
 early_putc_t *early_putc = imx6_early_putc;
 #endif
 
+static platform_method_t imx6_methods[] = {
+	PLATFORMMETHOD(platform_attach,		imx6_attach),
+	PLATFORMMETHOD(platform_lastaddr,	imx6_lastaddr),
+	PLATFORMMETHOD(platform_devmap_init,	imx6_devmap_init),
+	PLATFORMMETHOD(platform_late_init,	imx6_late_init),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s");
+FDT_PLATFORM_DEF2(imx6, imx6d, "i.MX6 Dual", 0, "fsl,imx6d");
+FDT_PLATFORM_DEF2(imx6, imx6q, "i.MX6 Quad", 0, "fsl,imx6q");

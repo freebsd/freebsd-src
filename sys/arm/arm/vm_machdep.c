@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/acle-compat.h>
 #include <machine/md_var.h>
 #include <machine/vfp.h>
 
@@ -79,7 +80,7 @@ __FBSDID("$FreeBSD$");
  * struct switchframe and trapframe must both be a multiple of 8
  * for correct stack alignment.
  */
-CTASSERT(sizeof(struct switchframe) == 24);
+CTASSERT(sizeof(struct switchframe) == 48);
 CTASSERT(sizeof(struct trapframe) == 80);
 
 /*
@@ -93,47 +94,59 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
-	struct switchframe *sf;
 	struct mdproc *mdp2;
 
 	if ((flags & RFPROC) == 0)
 		return;
-	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
+
+	/* Point the pcb to the top of the stack */
+	pcb2 = (struct pcb *)
+	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
 #endif
 #endif
 	td2->td_pcb = pcb2;
+	
+	/* Clone td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+	
+	/* Point to mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
-	pcb2->un_32.pcb32_sp = td2->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
+
+	/* Point the frame to the stack in front of pcb and copy td1's frame */
+	td2->td_frame = (struct trapframe *)pcb2 - 1;
+	*td2->td_frame = *td1->td_frame;
+
+	/*
+	 * Create a new fresh stack for the new process.
+	 * Copy the trap frame for the return to user mode as if from a
+	 * syscall.  This copies most of the user mode register values.
+	 */
+	pmap_set_pcb_pagedir(vmspace_pmap(p2->p_vmspace), pcb2);
+	pcb2->pcb_regs.sf_r4 = (register_t)fork_return;
+	pcb2->pcb_regs.sf_r5 = (register_t)td2;
+	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
+
 	pcb2->pcb_vfpcpu = -1;
 	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
-	pmap_activate(td2);
-	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
-	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));
-	*tf = *td1->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)fork_return;
-	sf->sf_r5 = (u_int)td2;
-	sf->sf_pc = (u_int)fork_trampoline;
+	
+	tf = td2->td_frame;
 	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
 	tf->tf_r1 = 0;
-	pcb2->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((pcb2->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_fork: Incorrect stack alignment"));
+
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_cspr = 0;
+	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
 #ifdef ARM_TP_ADDRESS
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #else
-	td2->td_md.md_tp = (register_t) get_tls();
+	td2->td_md.md_tp = td1->td_md.md_tp;
 #endif
 }
 				
@@ -166,11 +179,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	 * place the returned data into r1. As the lseek and frerebsd6_lseek
 	 * syscalls also return an off_t they do not need this fixup.
 	 */
-#ifdef __ARM_EABI__
 	call = frame->tf_r7;
-#else
-	call = *(u_int32_t *)(frame->tf_pc - INSN_SIZE) & 0x000fffff;
-#endif
 	if (call == SYS___syscall) {
 		register_t *ap = &frame->tf_r0;
 		register_t code = ap[_QUAD_LOWWORD];
@@ -196,7 +205,12 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/*
 		 * Reconstruct the pc to point at the swi.
 		 */
-		frame->tf_pc -= INSN_SIZE;
+#if __ARM_ARCH >= 7
+		if ((frame->tf_spsr & PSR_T) != 0)
+			frame->tf_pc -= THUMB_INSN_SIZE;
+		else
+#endif
+			frame->tf_pc -= INSN_SIZE;
 		break;
 	case EJUSTRETURN:
 		/* nothing to do */
@@ -218,25 +232,21 @@ cpu_set_syscall_retval(struct thread *td, int error)
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
-	struct trapframe *tf;
-	struct switchframe *sf;
 
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 	bcopy(td0->td_pcb, td->td_pcb, sizeof(struct pcb));
-	tf = td->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)fork_return;
-	sf->sf_r5 = (u_int)td;
-	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C;
-	tf->tf_r0 = 0;
-	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_set_upcall: Incorrect stack alignment"));
+
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)fork_return;
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)td;
+	td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	td->td_pcb->pcb_regs.sf_sp = STACKALIGN(td->td_frame);
+
+	td->td_frame->tf_spsr &= ~PSR_C;
+	td->td_frame->tf_r0 = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_cspr = 0;
+	td->td_md.md_saved_cspr = PSR_SVC32_MODE;
 }
 
 /*
@@ -250,8 +260,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 {
 	struct trapframe *tf = td->td_frame;
 
-	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size
-	    - sizeof(struct trapframe));
+	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size);
 	tf->tf_pc = (int)entry;
 	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
@@ -267,7 +276,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 #ifdef ARM_TP_ADDRESS
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
 #else
-		set_tls((void *)tls_base);
+		set_tls(tls_base);
 #endif
 		critical_exit();
 	}
@@ -289,9 +298,8 @@ cpu_thread_alloc(struct thread *td)
 	 * placed into the stack pointer which must be 8 byte aligned in
 	 * the ARM EABI.
 	 */
-	td->td_frame = (struct trapframe *)STACKALIGN((u_int)td->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(struct pcb) -
-	    sizeof(struct trapframe));
+	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
+
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
@@ -318,16 +326,8 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
-	struct switchframe *sf;
-	struct trapframe *tf;
-	
-	tf = td->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)func;
-	sf->sf_r5 = (u_int)arg;
-	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_set_fork_handler: Incorrect stack alignment"));
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */
 }
 
 /*

@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: ex_delete.c,v 10.11 2001/06/25 15:19:15 skimo
  *
  *	Delete lines from the file.
  *
- * PUBLIC: int ex_delete __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_delete(SCR *, EXCMD *);
  */
 int
 ex_delete(SCR *sp, EXCMD *cmdp)

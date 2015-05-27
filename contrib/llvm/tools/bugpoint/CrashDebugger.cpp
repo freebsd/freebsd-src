@@ -15,15 +15,15 @@
 #include "ListReducer.h"
 #include "ToolRunner.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/Verifier.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Pass.h"
 #include "llvm/PassManager.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Transforms/Scalar.h"
@@ -52,9 +52,9 @@ namespace llvm {
     // running the "Kept" passes fail when run on the output of the "removed"
     // passes.  If we return true, we update the current module of bugpoint.
     //
-    virtual TestResult doTest(std::vector<std::string> &Removed,
-                              std::vector<std::string> &Kept,
-                              std::string &Error);
+    TestResult doTest(std::vector<std::string> &Removed,
+                      std::vector<std::string> &Kept,
+                      std::string &Error) override;
   };
 }
 
@@ -63,7 +63,7 @@ ReducePassList::doTest(std::vector<std::string> &Prefix,
                        std::vector<std::string> &Suffix,
                        std::string &Error) {
   std::string PrefixOutput;
-  Module *OrigProgram = 0;
+  Module *OrigProgram = nullptr;
   if (!Prefix.empty()) {
     outs() << "Checking to see if these passes crash: "
            << getPassesString(Prefix) << ": ";
@@ -72,8 +72,8 @@ ReducePassList::doTest(std::vector<std::string> &Prefix,
 
     OrigProgram = BD.Program;
 
-    BD.Program = ParseInputFile(PrefixOutput, BD.getContext());
-    if (BD.Program == 0) {
+    BD.Program = parseInputFile(PrefixOutput, BD.getContext()).release();
+    if (BD.Program == nullptr) {
       errs() << BD.getToolName() << ": Error reading bitcode file '"
              << PrefixOutput << "'!\n";
       exit(1);
@@ -110,9 +110,9 @@ namespace {
                                   bool (*testFn)(const BugDriver &, Module *))
       : BD(bd), TestFn(testFn) {}
 
-    virtual TestResult doTest(std::vector<GlobalVariable*> &Prefix,
-                              std::vector<GlobalVariable*> &Kept,
-                              std::string &Error) {
+    TestResult doTest(std::vector<GlobalVariable*> &Prefix,
+                      std::vector<GlobalVariable*> &Kept,
+                      std::string &Error) override {
       if (!Kept.empty() && TestGlobalVariables(Kept))
         return KeepSuffix;
       if (!Prefix.empty() && TestGlobalVariables(Prefix))
@@ -149,7 +149,7 @@ ReduceCrashingGlobalVariables::TestGlobalVariables(
   for (Module::global_iterator I = M->global_begin(), E = M->global_end();
        I != E; ++I)
     if (I->hasInitializer() && !GVSet.count(I)) {
-      I->setInitializer(0);
+      I->setInitializer(nullptr);
       I->setLinkage(GlobalValue::ExternalLinkage);
     }
 
@@ -180,9 +180,9 @@ namespace {
                             bool (*testFn)(const BugDriver &, Module *))
       : BD(bd), TestFn(testFn) {}
 
-    virtual TestResult doTest(std::vector<Function*> &Prefix,
-                              std::vector<Function*> &Kept,
-                              std::string &Error) {
+    TestResult doTest(std::vector<Function*> &Prefix,
+                      std::vector<Function*> &Kept,
+                      std::string &Error) override {
       if (!Kept.empty() && TestFuncs(Kept))
         return KeepSuffix;
       if (!Prefix.empty() && TestFuncs(Prefix))
@@ -253,9 +253,9 @@ namespace {
                          bool (*testFn)(const BugDriver &, Module *))
       : BD(bd), TestFn(testFn) {}
 
-    virtual TestResult doTest(std::vector<const BasicBlock*> &Prefix,
-                              std::vector<const BasicBlock*> &Kept,
-                              std::string &Error) {
+    TestResult doTest(std::vector<const BasicBlock*> &Prefix,
+                      std::vector<const BasicBlock*> &Kept,
+                      std::string &Error) override {
       if (!Kept.empty() && TestBlocks(Kept))
         return KeepSuffix;
       if (!Prefix.empty() && TestBlocks(Prefix))
@@ -312,22 +312,21 @@ bool ReduceCrashingBlocks::TestBlocks(std::vector<const BasicBlock*> &BBs) {
   // have to take.
   std::vector<std::pair<std::string, std::string> > BlockInfo;
 
-  for (SmallPtrSet<BasicBlock*, 8>::iterator I = Blocks.begin(),
-         E = Blocks.end(); I != E; ++I)
-    BlockInfo.push_back(std::make_pair((*I)->getParent()->getName(),
-                                       (*I)->getName()));
+  for (BasicBlock *BB : Blocks)
+    BlockInfo.push_back(std::make_pair(BB->getParent()->getName(),
+                                       BB->getName()));
 
   // Now run the CFG simplify pass on the function...
   std::vector<std::string> Passes;
   Passes.push_back("simplifycfg");
   Passes.push_back("verify");
-  Module *New = BD.runPassesOn(M, Passes);
+  std::unique_ptr<Module> New = BD.runPassesOn(M, Passes);
   delete M;
   if (!New) {
     errs() << "simplifycfg failed!\n";
     exit(1);
   }
-  M = New;
+  M = New.release();
 
   // Try running on the hacked up program...
   if (TestFn(BD, M)) {
@@ -362,9 +361,9 @@ namespace {
                                bool (*testFn)(const BugDriver &, Module *))
       : BD(bd), TestFn(testFn) {}
 
-    virtual TestResult doTest(std::vector<const Instruction*> &Prefix,
-                              std::vector<const Instruction*> &Kept,
-                              std::string &Error) {
+    TestResult doTest(std::vector<const Instruction*> &Prefix,
+                      std::vector<const Instruction*> &Kept,
+                      std::string &Error) override {
       if (!Kept.empty() && TestInsts(Kept))
         return KeepSuffix;
       if (!Prefix.empty() && TestInsts(Prefix))
@@ -410,6 +409,7 @@ bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
   // Verify that this is still valid.
   PassManager Passes;
   Passes.add(createVerifierPass());
+  Passes.add(createDebugInfoVerifierPass());
   Passes.run(*M);
 
   // Try running on the hacked up program...
@@ -419,9 +419,8 @@ bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
     // Make sure to use instruction pointers that point into the now-current
     // module, and that they don't include any deleted blocks.
     Insts.clear();
-    for (SmallPtrSet<Instruction*, 64>::const_iterator I = Instructions.begin(),
-             E = Instructions.end(); I != E; ++I)
-      Insts.push_back(*I);
+    for (Instruction *Inst : Instructions)
+      Insts.push_back(Inst);
     return true;
   }
   delete M;  // It didn't crash, try something else.
@@ -446,7 +445,7 @@ static bool DebugACrash(BugDriver &BD,
     for (Module::global_iterator I = M->global_begin(), E = M->global_end();
          I != E; ++I)
       if (I->hasInitializer()) {
-        I->setInitializer(0);
+        I->setInitializer(nullptr);
         I->setLinkage(GlobalValue::ExternalLinkage);
         DeletedInit = true;
       }
@@ -577,20 +576,17 @@ static bool DebugACrash(BugDriver &BD,
                 continue;
 
               outs() << "Checking instruction: " << *I;
-              Module *M = BD.deleteInstructionFromProgram(I, Simplification);
+              std::unique_ptr<Module> M =
+                  BD.deleteInstructionFromProgram(I, Simplification);
 
               // Find out if the pass still crashes on this pass...
-              if (TestFn(BD, M)) {
+              if (TestFn(BD, M.get())) {
                 // Yup, it does, we delete the old module, and continue trying
                 // to reduce the testcase...
-                BD.setNewProgram(M);
+                BD.setNewProgram(M.release());
                 InstructionsToSkipBeforeDeleting = CurInstructionNum;
                 goto TryAgain;  // I wish I had a multi-level break here!
               }
-
-              // This pass didn't crash without this instruction, try the next
-              // one.
-              delete M;
             }
           }
 
@@ -606,7 +602,7 @@ ExitLoops:
   if (!BugpointIsInterrupted) {
     outs() << "\n*** Attempting to perform final cleanups: ";
     Module *M = CloneModule(BD.getProgram());
-    M = BD.performFinalCleanups(M, true);
+    M = BD.performFinalCleanups(M, true).release();
 
     // Find out if the pass still crashes on the cleaned up program...
     if (TestFn(BD, M)) {

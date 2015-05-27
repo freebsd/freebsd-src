@@ -24,11 +24,11 @@ DIRDEPS = \
 ioctl.o: ioctl.c
 ioctl.po: ioctl.c
 kdump.o: kdump_subr.h
+kdump.o: linux_syscalls.c
 kdump.po: kdump_subr.h
+kdump.po: linux_syscalls.c
 kdump_subr.o: kdump_subr.c
 kdump_subr.o: kdump_subr.h
 kdump_subr.po: kdump_subr.c
 kdump_subr.po: kdump_subr.h
-linux_syscalls.o: linux_syscalls.c
-linux_syscalls.po: linux_syscalls.c
 .endif

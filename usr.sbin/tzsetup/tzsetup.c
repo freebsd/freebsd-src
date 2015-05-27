@@ -475,7 +475,7 @@ read_zones(void)
 	FILE		*fp;
 	struct continent *cont;
 	size_t		len;
-	char		*line, *tlc, *coord, *file, *descr, *p;
+	char		*line, *tlc, *file, *descr, *p;
 	int		lineno;
 
 	fp = fopen(path_zonetab, "r");
@@ -495,7 +495,7 @@ read_zones(void)
 		if (strlen(tlc) != 2)
 			errx(1, "%s:%d: invalid country code `%s'",
 			    path_zonetab, lineno, tlc);
-		coord = strsep(&line, "\t");	 /* Unused */
+		/* coord = */ strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
 		if (p == 0)

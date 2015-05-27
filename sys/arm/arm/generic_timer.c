@@ -31,7 +31,7 @@
  */
 
 /**
- *      Cortex-A15 (and probably A7) Generic Timer
+ *      Cortex-A7, Cortex-A15, ARMv8 and later Generic Timer
  */
 
 #include <sys/cdefs.h>
@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
@@ -87,7 +86,7 @@ static struct resource_spec timer_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Secure */
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Non-secure */
 	{ SYS_RES_IRQ,		2,	RF_ACTIVE },	/* Virt */
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },	/* Hyp */
+	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL	}, /* Hyp */
 	{ -1, 0 }
 };
 
@@ -102,15 +101,22 @@ static struct timecounter arm_tmr_timecount = {
 	.tc_quality        = 1000,
 };
 
+#ifdef __arm__
+#define	get_el0(x)	cp15_## x ##_get()
+#define	get_el1(x)	cp15_## x ##_get()
+#define	set_el0(x, val)	cp15_## x ##_set(val)
+#define	set_el1(x, val)	cp15_## x ##_set(val)
+#else /* __aarch64__ */
+#define	get_el0(x)	READ_SPECIALREG(x ##_el0)
+#define	get_el1(x)	READ_SPECIALREG(x ##_el1)
+#define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
+#define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
+#endif
+
 static int
 get_freq(void)
 {
-	uint32_t val;
-
-	/* cntfrq */
-	__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
-
-	return (val);
+	return (get_el0(cntfrq));
 }
 
 static long
@@ -120,11 +126,9 @@ get_cntxct(bool physical)
 
 	isb();
 	if (physical)
-		/* cntpct */
-		__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+		val = get_el0(cntpct);
 	else
-		/* cntvct */
-		__asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (val));
+		val = get_el0(cntvct);
 
 	return (val);
 }
@@ -134,13 +138,9 @@ set_ctrl(uint32_t val, bool physical)
 {
 
 	if (physical)
-		/* cntp_ctl */
-		__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
-		    [val] "r" (val));
+		set_el0(cntp_ctl, val);
 	else
-		/* cntv_ctl */
-		__asm volatile("mcr p15, 0, %[val], c14, c3, 1" : :
-		    [val] "r" (val));
+		set_el0(cntv_ctl, val);
 	isb();
 
 	return (0);
@@ -151,13 +151,9 @@ set_tval(uint32_t val, bool physical)
 {
 
 	if (physical)
-		/* cntp_tval */
-		__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
-		    [val] "r" (val));
+		set_el0(cntp_tval, val);
 	else
-		/* cntv_tval */
-		__asm volatile("mcr p15, 0, %[val], c14, c3, 0" : :
-		    [val] "r" (val));
+		set_el0(cntv_tval, val);
 	isb();
 
 	return (0);
@@ -169,11 +165,9 @@ get_ctrl(bool physical)
 	uint32_t val;
 
 	if (physical)
-		/* cntp_ctl */
-		__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+		val = get_el0(cntp_ctl);
 	else
-		/* cntv_ctl */
-		__asm volatile("mrc p15, 0, %0, c14, c3, 1" : "=r" (val));
+		val = get_el0(cntv_ctl);
 
 	return (val);
 }
@@ -183,10 +177,10 @@ disable_user_access(void)
 {
 	uint32_t cntkctl;
 
-	__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+	cntkctl = get_el1(cntkctl);
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
 	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
-	__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+	set_el1(cntkctl, cntkctl);
 	isb();
 }
 
@@ -260,11 +254,15 @@ arm_tmr_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
-		return (ENXIO);
+	if (ofw_bus_is_compatible(dev, "arm,armv7-timer")) {
+		device_set_desc(dev, "ARMv7 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	} else if (ofw_bus_is_compatible(dev, "arm,armv8-timer")) {
+		device_set_desc(dev, "ARMv8 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	}
 
-	device_set_desc(dev, "ARMv7 Generic Timer");
-	return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
 }
 
 
@@ -303,7 +301,11 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#ifdef __arm__
 	sc->physical = true;
+#else /* __aarch64__ */
+	sc->physical = false;
+#endif
 
 	arm_tmr_sc = sc;
 
@@ -353,6 +355,8 @@ static devclass_t arm_tmr_devclass;
 
 EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void
 DELAY(int usec)
@@ -368,7 +372,7 @@ DELAY(int usec)
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				/*
-				 * Prevent gcc from optimizing
+				 * Prevent the compiler from optimizing
 				 * out the loop
 				 */
 				cpufunc_nullop();

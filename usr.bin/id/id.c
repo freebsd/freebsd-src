@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -346,14 +347,14 @@ auditid(void)
 		    "mask.success=0x%08x\n"
 		    "mask.failure=0x%08x\n"
 		    "asid=%d\n"
-		    "termid_addr.port=0x%08x\n"
+		    "termid_addr.port=0x%08jx\n"
 		    "termid_addr.addr[0]=0x%08x\n"
 		    "termid_addr.addr[1]=0x%08x\n"
 		    "termid_addr.addr[2]=0x%08x\n"
 		    "termid_addr.addr[3]=0x%08x\n",
 			ainfo_addr.ai_auid, ainfo_addr.ai_mask.am_success,
 			ainfo_addr.ai_mask.am_failure, ainfo_addr.ai_asid,
-			ainfo_addr.ai_termid.at_port,
+			(uintmax_t)ainfo_addr.ai_termid.at_port,
 			ainfo_addr.ai_termid.at_addr[0],
 			ainfo_addr.ai_termid.at_addr[1],
 			ainfo_addr.ai_termid.at_addr[2],
@@ -363,11 +364,11 @@ auditid(void)
 		    "mask.success=0x%08x\n"
 		    "mask.failure=0x%08x\n"
 		    "asid=%d\n"
-		    "termid.port=0x%08x\n"
+		    "termid.port=0x%08jx\n"
 		    "termid.machine=0x%08x\n",
 			auditinfo.ai_auid, auditinfo.ai_mask.am_success,
 			auditinfo.ai_mask.am_failure,
-			auditinfo.ai_asid, auditinfo.ai_termid.port,
+			auditinfo.ai_asid, (uintmax_t)auditinfo.ai_termid.port,
 			auditinfo.ai_termid.machine);
 	}
 }

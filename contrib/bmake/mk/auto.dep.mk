@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: auto.dep.mk,v 1.2 2010/04/19 17:37:19 sjg Exp $
+#	$Id: auto.dep.mk,v 1.3 2014/08/04 05:19:10 sjg Exp $
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
 #
@@ -18,7 +18,7 @@
 # This module provides automagic dependency generation along the
 # lines suggested in the GNU make.info
 
-# set MKDEP=auto.dep and dep.mk will include us
+# set MKDEP_MK=auto.dep.mk and dep.mk will include us
 
 # This version differs from autodep.mk, in that 
 # we use ${.TARGET:T}.d rather than ${.TARGET:T:R}.d

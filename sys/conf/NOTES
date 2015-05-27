@@ -495,7 +495,7 @@ options 	KTRACE_REQUEST_POOL=101
 options 	KTR
 options 	KTR_BOOT_ENTRIES=1024
 options 	KTR_ENTRIES=(128*1024)
-options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
+options 	KTR_COMPILE=(KTR_ALL)
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
@@ -576,6 +576,7 @@ options 	STACK
 # please see hwpmc(4).
 
 device		hwpmc			# Driver (also a loadable module)
+options 	HWPMC_DEBUG
 options 	HWPMC_HOOKS		# Other necessary kernel hooks
 
 
@@ -1019,7 +1020,7 @@ options 	DUMMYNET
 
 # One of these is mandatory:
 options 	FFS			#Fast filesystem
-options 	NFSCLIENT		#Network File System client
+options 	NFSCL			#Network File System client
 
 # The rest are optional:
 options 	AUTOFS			#Automounter filesystem
@@ -1027,10 +1028,8 @@ options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	FUSE			#FUSE support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
-options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
-options 	NFSCL			#New Network Filesystem Client
-options 	NFSD			#New Network Filesystem Server
+options 	NFSD			#Network Filesystem Server
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
 options 	NULLFS			#NULL filesystem
@@ -1099,8 +1098,6 @@ options 	NFS_MINATTRTIMO=3	# VREG attrib cache timeout in sec
 options 	NFS_MAXATTRTIMO=60
 options 	NFS_MINDIRATTRTIMO=30	# VDIR attrib cache timeout in sec
 options 	NFS_MAXDIRATTRTIMO=60
-options 	NFS_GATHERDELAY=10	# Default write gather delay (msec)
-options 	NFS_WDELAYHASHSIZ=16	# and with this
 options 	NFS_DEBUG		# Enable NFS Debugging
 
 #
@@ -1726,10 +1723,8 @@ device		ata
 #device		atapci		# PCI bus support; only generic chipset support
 
 # PCI ATA chipsets
-#device		ataahci		# AHCI SATA
 #device		ataacard	# ACARD
 #device		ataacerlabs	# Acer Labs Inc. (ALI)
-#device		ataadaptec	# Adaptec
 #device		ataamd		# American Micro Devices (AMD)
 #device		ataati		# ATI
 #device		atacenatek	# Cenatek
@@ -1921,8 +1916,8 @@ device		xmphy		# XaQti XMAC II
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
-# cxgbe: Support for PCI express 10Gb/1Gb adapters based on the Chelsio T4
-#       (Terminator 4) ASIC.
+# cxgb: Chelsio T3 based 1GbE/10GbE PCIe Ethernet adapters.
+# cxgbe:Chelsio T4 and T5 based 1GbE/10GbE/40GbE PCIe Ethernet adapters.
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -2071,6 +2066,7 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
+device		cxgbe		# Chelsio T4 and T5 1GbE/10GbE/40GbE
 device		dc		# DEC/Intel 21143 and various workalikes
 device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
@@ -2099,12 +2095,12 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
 device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
-device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
+device		ix		# Intel Pro/10Gbe PCIE Ethernet
+device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
@@ -2357,19 +2353,6 @@ options		SND_PCM_64
 options		SND_OLDSTEREO
 
 #
-# IEEE-488 hardware:
-# pcii:		PCIIA cards (uPD7210 based isa cards)
-# tnt4882:	National Instruments PCI-GPIB card.
-
-device	pcii
-hint.pcii.0.at="isa"
-hint.pcii.0.port="0x2e1"
-hint.pcii.0.irq="5"
-hint.pcii.0.drq="1"
-
-device	tnt4882
-
-#
 # Miscellaneous hardware:
 #
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
@@ -2596,7 +2579,7 @@ device		pcfclock
 # Kernel BOOTP support
 
 options 	BOOTP		# Use BOOTP to obtain IP address/hostname
-				# Requires NFSCLIENT and NFS_ROOT
+				# Requires NFSCL and NFS_ROOT
 options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options 	BOOTP_NFSV3	# Use NFS v3 to NFS mount root
 options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
@@ -2788,7 +2771,7 @@ options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	UKBD_DFLT_KEYMAP=it.iso
+makeoptions	UKBD_DFLT_KEYMAP=jp.pc98
 
 # options for uplcom:
 options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
@@ -2854,6 +2837,7 @@ options 	INIT_PATH=/sbin/init:/rescue/init
 options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable VFS lock debugging
 options 	SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
+options 	IFMEDIA_DEBUG	# enable debugging in net/if_media.c
 
 #
 # Verbose SYSINIT
@@ -2905,11 +2889,6 @@ options 	SHMMNI=33
 # Maximum number of System V shared memory regions that can be attached to
 # a single process at one time.
 options 	SHMSEG=9
-
-# Compress user core dumps.
-options		COMPRESS_USER_CORES
-# required to compress file output from kernel for COMPRESS_USER_CORES.
-device		gzio	    
 
 # Set the amount of time (in seconds) the system will wait before
 # rebooting automatically when a kernel panic occurs.  If set to (-1),
@@ -3000,3 +2979,7 @@ options 	RANDOM_DEBUG	# Debugging messages
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
+
+# zlib I/O stream support
+# This enables support for compressed core dumps.
+options 	GZIO

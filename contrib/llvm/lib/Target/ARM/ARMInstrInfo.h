@@ -11,13 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMINSTRUCTIONINFO_H
-#define ARMINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMINSTRINFO_H
+#define LLVM_LIB_TARGET_ARM_ARMINSTRINFO_H
 
-#include "ARM.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMRegisterInfo.h"
-#include "ARMSubtarget.h"
 
 namespace llvm {
   class ARMSubtarget;
@@ -28,17 +26,21 @@ public:
   explicit ARMInstrInfo(const ARMSubtarget &STI);
 
   /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
-  void getNoopForMachoTarget(MCInst &NopInst) const;
+  void getNoopForMachoTarget(MCInst &NopInst) const override;
 
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.
-  unsigned getUnindexedOpcode(unsigned Opc) const;
+  unsigned getUnindexedOpcode(unsigned Opc) const override;
 
   /// getRegisterInfo - TargetInstrInfo is a superset of MRegister info.  As
   /// such, whenever a client has an instance of instruction info, it should
   /// always be able to get register info as well (through this method).
   ///
-  const ARMRegisterInfo &getRegisterInfo() const { return RI; }
+  const ARMRegisterInfo &getRegisterInfo() const override { return RI; }
+
+private:
+  void expandLoadStackGuard(MachineBasicBlock::iterator MI,
+                            Reloc::Model RM) const override;
 };
 
 }

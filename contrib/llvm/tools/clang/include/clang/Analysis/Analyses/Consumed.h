@@ -12,14 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CONSUMED_H
-#define LLVM_CLANG_CONSUMED_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_CONSUMED_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_CONSUMED_H
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/Analyses/PostOrderCFGView.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/SourceLocation.h"
 
 namespace clang {
@@ -142,7 +142,7 @@ namespace consumed {
     TmpMapType TmpMap;
     
   public:
-    ConsumedStateMap() : Reachable(true), From(NULL) {}
+    ConsumedStateMap() : Reachable(true), From(nullptr) {}
     ConsumedStateMap(const ConsumedStateMap &Other)
       : Reachable(Other.Reachable), From(Other.From), VarMap(Other.VarMap),
         TmpMap() {}
@@ -185,8 +185,8 @@ namespace consumed {
     /// \brief Set the consumed state of a given temporary value.
     void setState(const CXXBindTemporaryExpr *Tmp, ConsumedState State);
     
-    /// \brief Remove the variable from our state map.
-    void remove(const VarDecl *Var);
+    /// \brief Remove the temporary value from our state map.
+    void remove(const CXXBindTemporaryExpr *Tmp);
     
     /// \brief Tests to see if there is a mismatch in the states stored in two
     /// maps.
@@ -201,9 +201,10 @@ namespace consumed {
     
   public:
     ConsumedBlockInfo() { }
-    
+    ~ConsumedBlockInfo() { llvm::DeleteContainerPointers(StateMapsArray); }
+
     ConsumedBlockInfo(unsigned int NumBlocks, PostOrderCFGView *SortedGraph)
-        : StateMapsArray(NumBlocks, 0), VisitOrder(NumBlocks, 0) {
+        : StateMapsArray(NumBlocks, nullptr), VisitOrder(NumBlocks, 0) {
       unsigned int VisitOrderCounter = 0;
       for (PostOrderCFGView::iterator BI = SortedGraph->begin(),
            BE = SortedGraph->end(); BI != BE; ++BI) {

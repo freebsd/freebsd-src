@@ -48,7 +48,7 @@ ENTRY(sheeva_setttb)
 
 	mov	r1, #0
 	mcr	p15, 0, r1, c7, c5, 0	/* Invalidate ICache */
-1:	mrc	p15, 0, r15, c7, c14, 3	/* Test, clean and invalidate DCache */
+1:	mrc	p15, 0, APSR_nzcv, c7, c14, 3	/* Test, clean and invalidate DCache */
 	bne	1b			/* More to do? */
 
 	mcr	p15, 1, r1, c15, c9, 0	/* Clean L2 */

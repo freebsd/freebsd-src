@@ -45,6 +45,7 @@ struct eap_pwd_data {
 
 	u8 msk[EAP_MSK_LEN];
 	u8 emsk[EAP_EMSK_LEN];
+	u8 session_id[1 + SHA256_MAC_LEN];
 
 	BN_CTX *bnctx;
 };
@@ -105,7 +106,7 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	if (data->password == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PWD: Memory allocation password "
 			   "fail");
-		os_free(data->id_server);
+		bin_clear_free(data->id_server, data->id_server_len);
 		os_free(data);
 		return NULL;
 	}
@@ -115,15 +116,16 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	data->bnctx = BN_CTX_new();
 	if (data->bnctx == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PWD: bn context allocation fail");
-		os_free(data->password);
-		os_free(data->id_server);
+		bin_clear_free(data->password, data->password_len);
+		bin_clear_free(data->id_server, data->id_server_len);
 		os_free(data);
 		return NULL;
 	}
 
 	data->in_frag_pos = data->out_frag_pos = 0;
 	data->inbuf = data->outbuf = NULL;
-	data->mtu = 1020; /* default from RFC 5931, make it configurable! */
+	/* use default MTU from RFC 5931 if not configured otherwise */
+	data->mtu = sm->fragment_size > 0 ? sm->fragment_size : 1020;
 
 	return data;
 }
@@ -133,24 +135,26 @@ static void eap_pwd_reset(struct eap_sm *sm, void *priv)
 {
 	struct eap_pwd_data *data = priv;
 
-	BN_free(data->private_value);
-	BN_free(data->peer_scalar);
-	BN_free(data->my_scalar);
-	BN_free(data->k);
+	BN_clear_free(data->private_value);
+	BN_clear_free(data->peer_scalar);
+	BN_clear_free(data->my_scalar);
+	BN_clear_free(data->k);
 	BN_CTX_free(data->bnctx);
-	EC_POINT_free(data->my_element);
-	EC_POINT_free(data->peer_element);
-	os_free(data->id_peer);
-	os_free(data->id_server);
-	os_free(data->password);
+	EC_POINT_clear_free(data->my_element);
+	EC_POINT_clear_free(data->peer_element);
+	bin_clear_free(data->id_peer, data->id_peer_len);
+	bin_clear_free(data->id_server, data->id_server_len);
+	bin_clear_free(data->password, data->password_len);
 	if (data->grp) {
 		EC_GROUP_free(data->grp->group);
-		EC_POINT_free(data->grp->pwe);
-		BN_free(data->grp->order);
-		BN_free(data->grp->prime);
+		EC_POINT_clear_free(data->grp->pwe);
+		BN_clear_free(data->grp->order);
+		BN_clear_free(data->grp->prime);
 		os_free(data->grp);
 	}
-	os_free(data);
+	wpabuf_free(data->inbuf);
+	wpabuf_free(data->outbuf);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -206,11 +210,15 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 		goto fin;
 	}
 
-	BN_rand_range(data->private_value, data->grp->order);
-	BN_rand_range(mask, data->grp->order);
-	BN_add(data->my_scalar, data->private_value, mask);
-	BN_mod(data->my_scalar, data->my_scalar, data->grp->order,
-	       data->bnctx);
+	if (BN_rand_range(data->private_value, data->grp->order) != 1 ||
+	    BN_rand_range(mask, data->grp->order) != 1 ||
+	    BN_add(data->my_scalar, data->private_value, mask) != 1 ||
+	    BN_mod(data->my_scalar, data->my_scalar, data->grp->order,
+		   data->bnctx) != 1) {
+		wpa_printf(MSG_INFO,
+			   "EAP-pwd (server): unable to get randomness");
+		goto fin;
+	}
 
 	if (!EC_POINT_mul(data->grp->group, data->my_element, NULL,
 			  data->grp->pwe, mask, data->bnctx)) {
@@ -226,7 +234,7 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 			   "fail");
 		goto fin;
 	}
-	BN_free(mask);
+	BN_clear_free(mask);
 
 	if (((x = BN_new()) == NULL) ||
 	    ((y = BN_new()) == NULL)) {
@@ -278,8 +286,8 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 fin:
 	os_free(scalar);
 	os_free(element);
-	BN_free(x);
-	BN_free(y);
+	BN_clear_free(x);
+	BN_clear_free(y);
 	if (data->outbuf == NULL)
 		eap_pwd_state(data, FAILURE);
 }
@@ -402,9 +410,9 @@ static void eap_pwd_build_confirm_req(struct eap_sm *sm,
 	wpabuf_put_data(data->outbuf, conf, SHA256_MAC_LEN);
 
 fin:
-	os_free(cruft);
-	BN_free(x);
-	BN_free(y);
+	bin_clear_free(cruft, BN_num_bytes(data->grp->prime));
+	BN_clear_free(x);
+	BN_clear_free(y);
 	if (data->outbuf == NULL)
 		eap_pwd_state(data, FAILURE);
 }
@@ -523,6 +531,7 @@ eap_pwd_build_req(struct eap_sm *sm, void *priv, u8 id)
 	 */
 	if (data->out_frag_pos >= wpabuf_len(data->outbuf)) {
 		wpabuf_free(data->outbuf);
+		data->outbuf = NULL;
 		data->out_frag_pos = 0;
 	}
 
@@ -595,7 +604,8 @@ static void eap_pwd_process_id_resp(struct eap_sm *sm,
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-PWD (server): peer sent id of",
 			  data->id_peer, data->id_peer_len);
 
-	if ((data->grp = os_malloc(sizeof(EAP_PWD_group))) == NULL) {
+	data->grp = os_zalloc(sizeof(EAP_PWD_group));
+	if (data->grp == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PWD: failed to allocate memory for "
 			   "group");
 		return;
@@ -718,11 +728,11 @@ eap_pwd_process_commit_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 	res = 1;
 
 fin:
-	EC_POINT_free(K);
-	EC_POINT_free(point);
-	BN_free(cofactor);
-	BN_free(x);
-	BN_free(y);
+	EC_POINT_clear_free(K);
+	EC_POINT_clear_free(point);
+	BN_clear_free(cofactor);
+	BN_clear_free(x);
+	BN_clear_free(y);
 
 	if (res)
 		eap_pwd_state(data, PWD_Confirm_Req);
@@ -829,7 +839,7 @@ eap_pwd_process_confirm_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 	eap_pwd_h_final(hash, conf);
 
 	ptr = (u8 *) payload;
-	if (os_memcmp(conf, ptr, SHA256_MAC_LEN)) {
+	if (os_memcmp_const(conf, ptr, SHA256_MAC_LEN)) {
 		wpa_printf(MSG_INFO, "EAP-PWD (server): confirm did not "
 			   "verify");
 		goto fin;
@@ -838,15 +848,16 @@ eap_pwd_process_confirm_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 	wpa_printf(MSG_DEBUG, "EAP-pwd (server): confirm verified");
 	if (compute_keys(data->grp, data->bnctx, data->k,
 			 data->peer_scalar, data->my_scalar, conf,
-			 data->my_confirm, &cs, data->msk, data->emsk) < 0)
+			 data->my_confirm, &cs, data->msk, data->emsk,
+			 data->session_id) < 0)
 		eap_pwd_state(data, FAILURE);
 	else
 		eap_pwd_state(data, SUCCESS);
 
 fin:
-	os_free(cruft);
-	BN_free(x);
-	BN_free(y);
+	bin_clear_free(cruft, BN_num_bytes(data->grp->prime));
+	BN_clear_free(x);
+	BN_clear_free(y);
 }
 
 
@@ -893,6 +904,8 @@ static void eap_pwd_process(struct eap_sm *sm, void *priv,
 		tot_len = WPA_GET_BE16(pos);
 		wpa_printf(MSG_DEBUG, "EAP-pwd: Incoming fragments, total "
 			   "length = %d", tot_len);
+		if (tot_len > 15000)
+			return;
 		data->inbuf = wpabuf_alloc(tot_len);
 		if (data->inbuf == NULL) {
 			wpa_printf(MSG_INFO, "EAP-pwd: Out of memory to "
@@ -949,6 +962,7 @@ static void eap_pwd_process(struct eap_sm *sm, void *priv,
 	 */
 	if (data->in_frag_pos) {
 		wpabuf_free(data->inbuf);
+		data->inbuf = NULL;
 		data->in_frag_pos = 0;
 	}
 }
@@ -1006,6 +1020,25 @@ static Boolean eap_pwd_is_done(struct eap_sm *sm, void *priv)
 }
 
 
+static u8 * eap_pwd_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_pwd_data *data = priv;
+	u8 *id;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	id = os_malloc(1 + SHA256_MAC_LEN);
+	if (id == NULL)
+		return NULL;
+
+	os_memcpy(id, data->session_id, 1 + SHA256_MAC_LEN);
+	*len = 1 + SHA256_MAC_LEN;
+
+	return id;
+}
+
+
 int eap_server_pwd_register(void)
 {
 	struct eap_method *eap;
@@ -1013,8 +1046,6 @@ int eap_server_pwd_register(void)
 	struct timeval tp;
 	struct timezone tz;
 	u32 sr;
-
-	EVP_add_digest(EVP_sha256());
 
 	sr = 0xdeaddada;
 	(void) gettimeofday(&tp, &tz);
@@ -1036,6 +1067,7 @@ int eap_server_pwd_register(void)
 	eap->getKey = eap_pwd_getkey;
 	eap->get_emsk = eap_pwd_get_emsk;
 	eap->isSuccess = eap_pwd_is_success;
+	eap->getSessionId = eap_pwd_get_session_id;
 
 	ret = eap_server_method_register(eap);
 	if (ret)

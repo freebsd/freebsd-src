@@ -36,6 +36,7 @@
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/iterator_range.h"
 #include <set>
 #include <vector>
 
@@ -207,6 +208,12 @@ df_iterator<T> df_end(const T& G) {
   return df_iterator<T>::end(G);
 }
 
+// Provide an accessor method to use them in range-based patterns.
+template <class T>
+iterator_range<df_iterator<T>> depth_first(const T& G) {
+  return iterator_range<df_iterator<T>>(df_begin(G), df_end(G));
+}
+
 // Provide global definitions of external depth first iterators...
 template <class T, class SetTy = std::set<typename GraphTraits<T>::NodeType*> >
 struct df_ext_iterator : public df_iterator<T, SetTy, true> {
@@ -222,6 +229,13 @@ df_ext_iterator<T, SetTy> df_ext_begin(const T& G, SetTy &S) {
 template <class T, class SetTy>
 df_ext_iterator<T, SetTy> df_ext_end(const T& G, SetTy &S) {
   return df_ext_iterator<T, SetTy>::end(G, S);
+}
+
+template <class T, class SetTy>
+iterator_range<df_ext_iterator<T, SetTy>> depth_first_ext(const T& G,
+                                                          SetTy &S) {
+  return iterator_range<df_ext_iterator<T, SetTy>>(df_ext_begin(G, S),
+                                                   df_ext_end(G, S));
 }
 
 
@@ -244,6 +258,12 @@ idf_iterator<T> idf_end(const T& G){
   return idf_iterator<T>::end(Inverse<T>(G));
 }
 
+// Provide an accessor method to use them in range-based patterns.
+template <class T>
+iterator_range<idf_iterator<T>> inverse_depth_first(const T& G) {
+  return iterator_range<idf_iterator<T>>(idf_begin(G), idf_end(G));
+}
+
 // Provide global definitions of external inverse depth first iterators...
 template <class T, class SetTy = std::set<typename GraphTraits<T>::NodeType*> >
 struct idf_ext_iterator : public idf_iterator<T, SetTy, true> {
@@ -261,6 +281,13 @@ idf_ext_iterator<T, SetTy> idf_ext_begin(const T& G, SetTy &S) {
 template <class T, class SetTy>
 idf_ext_iterator<T, SetTy> idf_ext_end(const T& G, SetTy &S) {
   return idf_ext_iterator<T, SetTy>::end(Inverse<T>(G), S);
+}
+
+template <class T, class SetTy>
+iterator_range<idf_ext_iterator<T, SetTy>> inverse_depth_first_ext(const T& G,
+                                                                   SetTy &S) {
+  return iterator_range<idf_ext_iterator<T, SetTy>>(idf_ext_begin(G, S),
+                                                    idf_ext_end(G, S));
 }
 
 } // End llvm namespace

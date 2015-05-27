@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.92 2013/09/04 15:38:26 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.95 2014/09/07 20:55:34 joerg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -289,7 +289,7 @@ typedef struct GNode {
 #define OP_NOMETA	0x00080000  /* .NOMETA do not create a .meta file */
 #define OP_META		0x00100000  /* .META we _do_ want a .meta file */
 #define OP_NOMETA_CMP	0x00200000  /* Do not compare commands in .meta file */
-#define OP_LSTAT	0x00400000  /* Use lstat rather that stat */
+#define OP_SUBMAKE	0x00400000  /* Possibly a submake node */
 /* Attributes applied by PMake */
 #define OP_TRANSFORM	0x80000000  /* The node is a transformation rule */
 #define OP_MEMBER 	0x40000000  /* Target is a member of an archive */

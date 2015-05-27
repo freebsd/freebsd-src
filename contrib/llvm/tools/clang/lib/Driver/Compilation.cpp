@@ -17,8 +17,6 @@
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
-#include <errno.h>
-#include <sys/stat.h>
 
 using namespace clang::driver;
 using namespace clang;
@@ -26,9 +24,9 @@ using namespace llvm::opt;
 
 Compilation::Compilation(const Driver &D, const ToolChain &_DefaultToolChain,
                          InputArgList *_Args, DerivedArgList *_TranslatedArgs)
-  : TheDriver(D), DefaultToolChain(_DefaultToolChain), Args(_Args),
-    TranslatedArgs(_TranslatedArgs), Redirects(0) {
-}
+    : TheDriver(D), DefaultToolChain(_DefaultToolChain), Args(_Args),
+      TranslatedArgs(_TranslatedArgs), Redirects(nullptr),
+      ForDiagnostics(false) {}
 
 Compilation::~Compilation() {
   delete TranslatedArgs;
@@ -70,8 +68,6 @@ const DerivedArgList &Compilation::getArgsForToolChain(const ToolChain *TC,
 }
 
 bool Compilation::CleanupFile(const char *File, bool IssueErrors) const {
-  std::string P(File);
-
   // FIXME: Why are we trying to remove files that we have not created? For
   // example we should only try to remove a temporary assembly file if
   // "clang -cc1" succeed in writing it. Was this a workaround for when
@@ -88,11 +84,11 @@ bool Compilation::CleanupFile(const char *File, bool IssueErrors) const {
   if (!llvm::sys::fs::can_write(File) || !llvm::sys::fs::is_regular_file(File))
     return true;
 
-  if (llvm::error_code EC = llvm::sys::fs::remove(File)) {
+  if (std::error_code EC = llvm::sys::fs::remove(File)) {
     // Failure is only failure if the file exists and is "regular". We checked
     // for it being regular before, and llvm::sys::fs::remove ignores ENOENT,
     // so we don't need to check again.
-    
+
     if (IssueErrors)
       getDriver().Diag(clang::diag::err_drv_unable_to_remove_file)
         << EC.message();
@@ -135,12 +131,13 @@ int Compilation::ExecuteCommand(const Command &C,
     // Follow gcc implementation of CC_PRINT_OPTIONS; we could also cache the
     // output stream.
     if (getDriver().CCPrintOptions && getDriver().CCPrintOptionsFilename) {
-      std::string Error;
-      OS = new llvm::raw_fd_ostream(getDriver().CCPrintOptionsFilename, Error,
-                                    llvm::sys::fs::F_Append);
-      if (!Error.empty()) {
+      std::error_code EC;
+      OS = new llvm::raw_fd_ostream(getDriver().CCPrintOptionsFilename, EC,
+                                    llvm::sys::fs::F_Append |
+                                        llvm::sys::fs::F_Text);
+      if (EC) {
         getDriver().Diag(clang::diag::err_drv_cc_print_options_failure)
-          << Error;
+            << EC.message();
         FailingCommand = &C;
         delete OS;
         return 1;
@@ -200,18 +197,19 @@ void Compilation::ExecuteJob(const Job &J,
   if (const Command *C = dyn_cast<Command>(&J)) {
     if (!InputsOk(*C, FailingCommands))
       return;
-    const Command *FailingCommand = 0;
+    const Command *FailingCommand = nullptr;
     if (int Res = ExecuteCommand(*C, FailingCommand))
       FailingCommands.push_back(std::make_pair(Res, FailingCommand));
   } else {
     const JobList *Jobs = cast<JobList>(&J);
-    for (JobList::const_iterator it = Jobs->begin(), ie = Jobs->end();
-         it != ie; ++it)
-      ExecuteJob(**it, FailingCommands);
+    for (const auto &Job : *Jobs)
+      ExecuteJob(Job, FailingCommands);
   }
 }
 
 void Compilation::initCompilationForDiagnostics() {
+  ForDiagnostics = true;
+
   // Free actions and jobs.
   DeleteContainerPointers(Actions);
   Jobs.clear();
@@ -233,9 +231,9 @@ void Compilation::initCompilationForDiagnostics() {
 
   // Redirect stdout/stderr to /dev/null.
   Redirects = new const StringRef*[3]();
-  Redirects[0] = 0;
-  Redirects[1] = new const StringRef();
-  Redirects[2] = new const StringRef();
+  Redirects[0] = nullptr;
+  Redirects[1] = new StringRef();
+  Redirects[2] = new StringRef();
 }
 
 StringRef Compilation::getSysRoot() const {

@@ -32,7 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,16 +64,18 @@ text_receive(struct connection *conn)
 	 */
 	if ((bhstr->bhstr_flags & BHSTR_FLAGS_CONTINUE) != 0)
 		log_errx(1, "received Text PDU with unsupported \"C\" flag");
-	if (ntohl(bhstr->bhstr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhstr->bhstr_cmdsn), conn->conn_cmdsn)) {
 		log_errx(1, "received Text PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
+		    "was %u, is %u", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
 	}
 	if (ntohl(bhstr->bhstr_expstatsn) != conn->conn_statsn) {
 		log_errx(1, "received Text PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhstr->bhstr_expstatsn),
+		    "is %u, should be %u", ntohl(bhstr->bhstr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhstr->bhstr_cmdsn);
+	if ((bhstr->bhstr_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0)
+		conn->conn_cmdsn++;
 
 	return (request);
 }
@@ -120,17 +121,19 @@ logout_receive(struct connection *conn)
 	if ((bhslr->bhslr_reason & 0x7f) != BHSLR_REASON_CLOSE_SESSION)
 		log_debugx("received Logout PDU with invalid reason 0x%x; "
 		    "continuing anyway", bhslr->bhslr_reason & 0x7f);
-	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhslr->bhslr_cmdsn), conn->conn_cmdsn)) {
 		log_errx(1, "received Logout PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn,
+		    "was %u, is %u", conn->conn_cmdsn,
 		    ntohl(bhslr->bhslr_cmdsn));
 	}
 	if (ntohl(bhslr->bhslr_expstatsn) != conn->conn_statsn) {
 		log_errx(1, "received Logout PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_expstatsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhslr->bhslr_cmdsn);
+	if ((bhslr->bhslr_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0)
+		conn->conn_cmdsn++;
 
 	return (request);
 }
@@ -162,6 +165,7 @@ logout_new_response(struct pdu *request)
 static void
 discovery_add_target(struct keys *response_keys, const struct target *targ)
 {
+	struct port *port;
 	struct portal *portal;
 	char *buf;
 	char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
@@ -169,7 +173,10 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 	int ret;
 
 	keys_add(response_keys, "TargetName", targ->t_name);
-	TAILQ_FOREACH(portal, &targ->t_portal_group->pg_portals, p_next) {
+	TAILQ_FOREACH(port, &targ->t_ports, p_ts) {
+	    if (port->p_portal_group == NULL)
+		continue;
+	    TAILQ_FOREACH(portal, &port->p_portal_group->pg_portals, p_next) {
 		ai = portal->p_ai;
 		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
 		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
@@ -183,13 +190,13 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 			if (strcmp(hbuf, "0.0.0.0") == 0)
 				continue;
 			ret = asprintf(&buf, "%s:%s,%d", hbuf, sbuf,
-			    targ->t_portal_group->pg_tag);
+			    port->p_portal_group->pg_tag);
 			break;
 		case AF_INET6:
 			if (strcmp(hbuf, "::") == 0)
 				continue;
 			ret = asprintf(&buf, "[%s]:%s,%d", hbuf, sbuf,
-			    targ->t_portal_group->pg_tag);
+			    port->p_portal_group->pg_tag);
 			break;
 		default:
 			continue;
@@ -198,19 +205,24 @@ discovery_add_target(struct keys *response_keys, const struct target *targ)
 		    log_err(1, "asprintf");
 		keys_add(response_keys, "TargetAddress", buf);
 		free(buf);
+	    }
 	}
 }
 
 static bool
 discovery_target_filtered_out(const struct connection *conn,
-    const struct target *targ)
+    const struct port *port)
 {
 	const struct auth_group *ag;
 	const struct portal_group *pg;
+	const struct target *targ;
 	const struct auth *auth;
 	int error;
 
-	ag = targ->t_auth_group;
+	targ = port->p_target;
+	ag = port->p_auth_group;
+	if (ag == NULL)
+		ag = targ->t_auth_group;
 	pg = conn->conn_portal->p_portal_group;
 
 	assert(pg->pg_discovery_auth_group != PG_FILTER_UNKNOWN);
@@ -265,8 +277,8 @@ discovery(struct connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
+	const struct port *port;
 	const struct portal_group *pg;
-	const struct target *targ;
 	const char *send_targets;
 
 	pg = conn->conn_portal->p_portal_group;
@@ -284,29 +296,23 @@ discovery(struct connection *conn)
 	response_keys = keys_new();
 
 	if (strcmp(send_targets, "All") == 0) {
-		TAILQ_FOREACH(targ, &pg->pg_conf->conf_targets, t_next) {
-			if (targ->t_portal_group != pg) {
-				log_debugx("not returning target \"%s\"; "
-				    "belongs to a different portal group",
-				    targ->t_name);
-				continue;
-			}
-			if (discovery_target_filtered_out(conn, targ)) {
+		TAILQ_FOREACH(port, &pg->pg_ports, p_pgs) {
+			if (discovery_target_filtered_out(conn, port)) {
 				/* Ignore this target. */
 				continue;
 			}
-			discovery_add_target(response_keys, targ);
+			discovery_add_target(response_keys, port->p_target);
 		}
 	} else {
-		targ = target_find(pg->pg_conf, send_targets);
-		if (targ == NULL) {
+		port = port_find_in_pg(pg, send_targets);
+		if (port == NULL) {
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
 		} else {
-			if (discovery_target_filtered_out(conn, targ)) {
+			if (discovery_target_filtered_out(conn, port)) {
 				/* Ignore this target. */
 			} else {
-				discovery_add_target(response_keys, targ);
+				discovery_add_target(response_keys, port->p_target);
 			}
 		}
 	}

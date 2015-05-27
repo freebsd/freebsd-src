@@ -17,6 +17,7 @@
 // C++ Includes
 // Other libraries and framework includes
 #include "lldb/lldb-types.h"
+#include "lldb/Host/HostThread.h"
 #include "lldb/Host/Mutex.h"
 
 namespace lldb_private
@@ -55,6 +56,7 @@ public:
                    const char *stdout_path,
                    const char *stderr_path,
                    const char *working_dir,
+                   const lldb_private::ProcessLaunchInfo &launch_info,
                    lldb_private::Error &error);
 
     ProcessMonitor(ProcessPOSIX *process,
@@ -194,11 +196,9 @@ public:
     bool
     SingleStep(lldb::tid_t unused, uint32_t signo);
 
-    /// Sends the inferior process a PTRACE_KILL signal.  The inferior will
-    /// still exists and can be interrogated.  Once resumed it will exit as
-    /// though it received a SIGKILL.
+    /// Terminate the traced process.
     bool
-    BringProcessIntoLimbo();
+    Kill();
 
     lldb_private::Error
     Detach(lldb::tid_t tid);
@@ -213,8 +213,8 @@ public:
 private:
     ProcessFreeBSD *m_process;
 
-    lldb::thread_t m_operation_thread;
-    lldb::thread_t m_monitor_thread;
+    lldb_private::HostThread m_operation_thread;
+    lldb_private::HostThread m_monitor_thread;
     lldb::pid_t m_pid;
 
     int m_terminal_fd;
@@ -290,7 +290,7 @@ private:
     static void *
     AttachOpThread(void *args);
 
-    static bool
+    static void
     Attach(AttachArgs *args);
 
     static void

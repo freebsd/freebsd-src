@@ -400,15 +400,17 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 				    sizeof(oldfname));
 				len = strlcat(oldfname, inplace,
 				    sizeof(oldfname));
-				if (len > sizeof(oldfname))
+				if (len > (ssize_t)sizeof(oldfname))
 					errx(1, "%s: name too long", fname);
 			}
 			len = snprintf(tmpfname, sizeof(tmpfname),
 			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
 			    basename(fname));
-			if (len >= sizeof(tmpfname))
+			if (len >= (ssize_t)sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);
+			if (outfile != NULL && outfile != stdout)
+				fclose(outfile);
 			if ((outfile = fopen(tmpfname, "w")) == NULL)
 				err(1, "%s", fname);
 			fchown(fileno(outfile), sb.st_uid, sb.st_gid);
@@ -488,7 +490,7 @@ add_file(char *s)
 }
 
 static int
-next_files_have_lines()
+next_files_have_lines(void)
 {
 	struct s_flist *file;
 	FILE *file_fd;

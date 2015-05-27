@@ -37,10 +37,12 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include <asm/uaccess.h>
@@ -396,7 +398,6 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 	struct ib_ucm_event_get cmd;
 	struct ib_ucm_event *uevent;
 	int result = 0;
-	DEFINE_WAIT(wait);
 
 	if (out_len < sizeof(struct ib_ucm_event_resp))
 		return -ENOSPC;
@@ -1123,7 +1124,7 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
 
-	if (hdr.cmd < 0 || hdr.cmd >= ARRAY_SIZE(ucm_cmd_table))
+	if (hdr.cmd >= ARRAY_SIZE(ucm_cmd_table))
 		return -EINVAL;
 
 	if (hdr.in + sizeof(hdr) > len)
@@ -1163,7 +1164,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 {
 	struct ib_ucm_file *file;
 
-	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	file = kmalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;
 
@@ -1177,7 +1178,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 	file->filp = filp;
 	file->device = container_of(inode->i_cdev->si_drv1, struct ib_ucm_device, cdev);
 
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int ib_ucm_close(struct inode *inode, struct file *filp)
@@ -1212,7 +1213,10 @@ static void ib_ucm_release_dev(struct device *dev)
 
 	ucm_dev = container_of(dev, struct ib_ucm_device, dev);
 	cdev_del(&ucm_dev->cdev);
+	if (ucm_dev->devnum < IB_UCM_MAX_DEVICES)
 	clear_bit(ucm_dev->devnum, dev_map);
+	else
+		clear_bit(ucm_dev->devnum - IB_UCM_MAX_DEVICES, dev_map);
 	kfree(ucm_dev);
 }
 
@@ -1222,6 +1226,7 @@ static const struct file_operations ucm_fops = {
 	.release = ib_ucm_close,
 	.write 	 = ib_ucm_write,
 	.poll    = ib_ucm_poll,
+	.llseek	 = no_llseek,
 };
 
 static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
@@ -1234,8 +1239,32 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
+static dev_t overflow_maj;
+static DECLARE_BITMAP(overflow_map, IB_UCM_MAX_DEVICES);
+static int find_overflow_devnum(void)
+{
+	int ret;
+
+	if (!overflow_maj) {
+		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UCM_MAX_DEVICES,
+					  "infiniband_cm");
+		if (ret) {
+			printk(KERN_ERR "ucm: couldn't register dynamic device number\n");
+			return ret;
+		}
+	}
+
+	ret = find_first_zero_bit(overflow_map, IB_UCM_MAX_DEVICES);
+	if (ret >= IB_UCM_MAX_DEVICES)
+		return -1;
+
+	return ret;
+}
+
 static void ib_ucm_add_one(struct ib_device *device)
 {
+	int devnum;
+	dev_t base;
 	struct ib_ucm_device *ucm_dev;
 
 	if (!device->alloc_ucontext ||
@@ -1248,16 +1277,25 @@ static void ib_ucm_add_one(struct ib_device *device)
 
 	ucm_dev->ib_dev = device;
 
-	ucm_dev->devnum = find_first_zero_bit(dev_map, IB_UCM_MAX_DEVICES);
-	if (ucm_dev->devnum >= IB_UCM_MAX_DEVICES)
+	devnum = find_first_zero_bit(dev_map, IB_UCM_MAX_DEVICES);
+	if (devnum >= IB_UCM_MAX_DEVICES) {
+		devnum = find_overflow_devnum();
+		if (devnum < 0)
 		goto err;
 
-	set_bit(ucm_dev->devnum, dev_map);
+		ucm_dev->devnum = devnum + IB_UCM_MAX_DEVICES;
+		base = devnum + overflow_maj;
+		set_bit(devnum, overflow_map);
+	} else {
+		ucm_dev->devnum = devnum;
+		base = devnum + IB_UCM_BASE_DEV;
+		set_bit(devnum, dev_map);
+	}
 
 	cdev_init(&ucm_dev->cdev, &ucm_fops);
 	ucm_dev->cdev.owner = THIS_MODULE;
 	kobject_set_name(&ucm_dev->cdev.kobj, "ucm%d", ucm_dev->devnum);
-	if (cdev_add(&ucm_dev->cdev, IB_UCM_BASE_DEV + ucm_dev->devnum, 1))
+	if (cdev_add(&ucm_dev->cdev, base, 1))
 		goto err;
 
 	ucm_dev->dev.class = &cm_class;
@@ -1278,7 +1316,10 @@ err_dev:
 	device_unregister(&ucm_dev->dev);
 err_cdev:
 	cdev_del(&ucm_dev->cdev);
-	clear_bit(ucm_dev->devnum, dev_map);
+	if (ucm_dev->devnum < IB_UCM_MAX_DEVICES)
+		clear_bit(devnum, dev_map);
+	else
+		clear_bit(devnum, overflow_map);
 err:
 	kfree(ucm_dev);
 	return;
@@ -1298,6 +1339,7 @@ static ssize_t show_abi_version(struct class *class, struct class_attribute *att
 {
 	return sprintf(buf, "%d\n", IB_USER_CM_ABI_VERSION);
 }
+
 static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
 static int __init ib_ucm_init(void)
@@ -1337,6 +1379,8 @@ static void __exit ib_ucm_cleanup(void)
 	ib_unregister_client(&ucm_client);
 	class_remove_file(&cm_class, &class_attr_abi_version);
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
+	if (overflow_maj)
+		unregister_chrdev_region(overflow_maj, IB_UCM_MAX_DEVICES);
 	idr_destroy(&ctx_id_table);
 }
 

@@ -15,7 +15,6 @@ SRCS=	Address.cpp \
 	Broadcaster.cpp \
 	Communication.cpp \
 	Connection.cpp \
-	ConnectionFileDescriptor.cpp \
 	ConnectionMachPort.cpp \
 	ConnectionSharedMemory.cpp \
 	ConstString.cpp \
@@ -29,6 +28,7 @@ SRCS=	Address.cpp \
 	EmulateInstruction.cpp \
 	Error.cpp \
 	Event.cpp \
+	FastDemangle.cpp \
 	FileLineResolver.cpp \
 	FileSpecList.cpp \
 	History.cpp \
@@ -56,6 +56,7 @@ SRCS=	Address.cpp \
 	StreamGDBRemote.cpp \
 	StreamString.cpp \
 	StringList.cpp \
+	StructuredData.cpp \
 	Timer.cpp \
 	UserID.cpp \
 	UserSettingsController.cpp \
@@ -75,7 +76,9 @@ SRCS=	Address.cpp \
 	ValueObjectVariable.cpp \
 	VMRange.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

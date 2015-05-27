@@ -78,7 +78,7 @@
 #define	AR724X_PCI_CTRL_BASE		(AR71XX_APB_BASE + 0x000F0000)
 #define	AR724X_PCI_CTRL_SIZE		0x100
 
-/* PCI config registers */
+/* PCI config registers - AR724X_PCI_CTRL_BASE */
 #define	AR724X_PCI_APP			0x180f0000
 #define	AR724X_PCI_APP_LTSSM_ENABLE	(1 << 0)
 #define	AR724X_PCI_RESET		0x180f0018

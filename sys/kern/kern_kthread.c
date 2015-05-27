@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
@@ -339,6 +340,7 @@ kthread_exit(void)
 	}
 	LIST_REMOVE(curthread, td_hash);
 	rw_wunlock(&tidhash_lock);
+	umtx_thread_exit(curthread);
 	PROC_SLOCK(p);
 	thread_exit();
 }

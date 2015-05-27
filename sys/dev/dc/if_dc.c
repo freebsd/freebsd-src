@@ -671,20 +671,16 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			 * code think there's a PHY here.
 			 */
 				return (BMSR_MEDIAMASK);
-				break;
 			case MII_PHYIDR1:
 				if (DC_IS_PNIC(sc))
 					return (DC_VENDORID_LO);
 				return (DC_VENDORID_DEC);
-				break;
 			case MII_PHYIDR2:
 				if (DC_IS_PNIC(sc))
 					return (DC_DEVICEID_82C168);
 				return (DC_DEVICEID_21143);
-				break;
 			default:
 				return (0);
-				break;
 			}
 		} else
 			return (0);
@@ -748,7 +744,6 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			device_printf(dev, "phy_read: bad phy register %x\n",
 			    reg);
 			return (0);
-			break;
 		}
 
 		rval = CSR_READ_4(sc, phy_reg) & 0x0000FFFF;

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DSMETHOD_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -125,6 +123,7 @@ AcpiDsAutoSerializeMethod (
     WalkState = AcpiDsCreateWalkState (Node->OwnerId, NULL, NULL, NULL);
     if (!WalkState)
     {
+        AcpiPsFreeOp (Op);
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
@@ -133,6 +132,7 @@ AcpiDsAutoSerializeMethod (
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
+        AcpiPsFreeOp (Op);
         return_ACPI_STATUS (Status);
     }
 
@@ -141,10 +141,6 @@ AcpiDsAutoSerializeMethod (
     /* Parse the method, scan for creation of named objects */
 
     Status = AcpiPsParseAml (WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     AcpiPsDeleteParseTree (Op);
     return_ACPI_STATUS (Status);

@@ -28,7 +28,7 @@
  */
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 
@@ -36,7 +36,7 @@
 #include <limits.h>
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <unistd.h>
@@ -545,8 +545,9 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 
 	for (pip = prp->pr_inst; pip != NULL; pip = pip->pi_next) {
 		if (strcmp(pip->pi_fname, fname) == 0 &&
-		    ((rname == NULL && pip->pi_rname[0] == '\0') ||
-		    (rname != NULL && strcmp(pip->pi_rname, rname)) == 0))
+		    ((rname == NULL && pip->pi_rname == NULL) ||
+		    (rname != NULL && pip->pi_rname != NULL &&
+		    strcmp(pip->pi_rname, rname) == 0)))
 			break;
 	}
 

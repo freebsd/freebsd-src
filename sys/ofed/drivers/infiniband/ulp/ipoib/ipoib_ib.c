@@ -117,8 +117,7 @@ ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req,
 	if (mb == NULL)
 		return (NULL);
 	for (i = 0, m = mb; m != NULL; m = m->m_next, i++) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-		    ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 		rx_req->mapping[i] = ib_dma_map_single(priv->ca,
 		    mtod(m, void *), m->m_len, DMA_FROM_DEVICE);
@@ -384,6 +383,7 @@ ipoib_poll(struct ipoib_dev_priv *priv)
 	int n, i;
 
 poll_more:
+	spin_lock(&priv->drain_lock);
 	for (;;) {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 
@@ -402,6 +402,7 @@ poll_more:
 		if (n != IPOIB_NUM_WC)
 			break;
 	}
+	spin_unlock(&priv->drain_lock);
 
 	if (ib_req_notify_cq(priv->recv_cq,
 	    IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS))
@@ -708,6 +709,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 {
 	int i, n;
 
+	spin_lock(&priv->drain_lock);
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
@@ -728,6 +730,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 				ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
+	spin_unlock(&priv->drain_lock);
 
 	spin_lock(&priv->lock);
 	while (ipoib_poll_tx(priv))

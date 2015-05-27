@@ -52,7 +52,7 @@ main.o: main.c
 	cc -c main.c
 
 altlib.so: altlib.o
-	cc -z defs -G -o altlib.so altlib.o -lc
+	cc -shared -o altlib.so altlib.o -lc
 
 altlib.o: altlib.c
 	cc -c altlib.c

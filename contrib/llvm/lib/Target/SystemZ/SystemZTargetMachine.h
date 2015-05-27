@@ -12,61 +12,36 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef SYSTEMZTARGETMACHINE_H
-#define SYSTEMZTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZTARGETMACHINE_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZTARGETMACHINE_H
 
-#include "SystemZFrameLowering.h"
-#include "SystemZISelLowering.h"
-#include "SystemZInstrInfo.h"
-#include "SystemZRegisterInfo.h"
 #include "SystemZSubtarget.h"
-#include "SystemZSelectionDAGInfo.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
+class TargetFrameLowering;
+
 class SystemZTargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   SystemZSubtarget        Subtarget;
-  const DataLayout        DL;
-  SystemZInstrInfo        InstrInfo;
-  SystemZTargetLowering   TLInfo;
-  SystemZSelectionDAGInfo TSInfo;
-  SystemZFrameLowering    FrameLowering;
 
 public:
   SystemZTargetMachine(const Target &T, StringRef TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
+  ~SystemZTargetMachine() override;
 
   // Override TargetMachine.
-  virtual const TargetFrameLowering *getFrameLowering() const LLVM_OVERRIDE {
-    return &FrameLowering;
-  }
-  virtual const SystemZInstrInfo *getInstrInfo() const LLVM_OVERRIDE {
-    return &InstrInfo;
-  }
-  virtual const SystemZSubtarget *getSubtargetImpl() const LLVM_OVERRIDE {
+  const SystemZSubtarget *getSubtargetImpl() const override {
     return &Subtarget;
   }
-  virtual const DataLayout *getDataLayout() const LLVM_OVERRIDE {
-    return &DL;
-  }
-  virtual const SystemZRegisterInfo *getRegisterInfo() const LLVM_OVERRIDE {
-    return &InstrInfo.getRegisterInfo();
-  }
-  virtual const SystemZTargetLowering *getTargetLowering() const LLVM_OVERRIDE {
-    return &TLInfo;
-  }
-  virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const
-    LLVM_OVERRIDE {
-    return &TSInfo;
-  }
-
   // Override LLVMTargetMachine
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM) LLVM_OVERRIDE;
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 };
 
 } // end namespace llvm

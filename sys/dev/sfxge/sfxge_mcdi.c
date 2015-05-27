@@ -52,8 +52,7 @@ __FBSDID("$FreeBSD$");
 static void
 sfxge_mcdi_acquire(struct sfxge_mcdi *mcdi)
 {
-
-	mtx_lock(&mcdi->lock);
+	SFXGE_MCDI_LOCK(mcdi);
 	KASSERT(mcdi->state != SFXGE_MCDI_UNINITIALIZED,
 	    ("MCDI not initialized"));
 
@@ -61,15 +60,14 @@ sfxge_mcdi_acquire(struct sfxge_mcdi *mcdi)
 		(void)cv_wait_sig(&mcdi->cv, &mcdi->lock);
 	mcdi->state = SFXGE_MCDI_BUSY;
 
-	mtx_unlock(&mcdi->lock);
+	SFXGE_MCDI_UNLOCK(mcdi);
 }
 
 /* Release ownership of MCDI on request completion. */
 static void
 sfxge_mcdi_release(struct sfxge_mcdi *mcdi)
 {
-
-	mtx_lock(&mcdi->lock);
+	SFXGE_MCDI_LOCK(mcdi);
 	KASSERT((mcdi->state == SFXGE_MCDI_BUSY ||
 	    mcdi->state == SFXGE_MCDI_COMPLETED),
 	    ("MCDI not busy or task not completed"));
@@ -77,7 +75,7 @@ sfxge_mcdi_release(struct sfxge_mcdi *mcdi)
 	mcdi->state = SFXGE_MCDI_INITIALIZED;
 	cv_broadcast(&mcdi->cv);
 
-	mtx_unlock(&mcdi->lock);
+	SFXGE_MCDI_UNLOCK(mcdi);
 }
 
 static void
@@ -160,11 +158,11 @@ sfxge_mcdi_ev_cpl(void *arg)
 	sc = (struct sfxge_softc *)arg;
 	mcdi = &sc->mcdi;
 
-	mtx_lock(&mcdi->lock);
+	SFXGE_MCDI_LOCK(mcdi);
 	KASSERT(mcdi->state == SFXGE_MCDI_BUSY, ("MCDI not busy"));
 	mcdi->state = SFXGE_MCDI_COMPLETED;
 	cv_broadcast(&mcdi->cv);
-	mtx_unlock(&mcdi->lock);
+	SFXGE_MCDI_UNLOCK(mcdi);
 }
 
 static void
@@ -203,7 +201,7 @@ sfxge_mcdi_init(struct sfxge_softc *sc)
 	KASSERT(mcdi->state == SFXGE_MCDI_UNINITIALIZED,
 	    ("MCDI already initialized"));
 
-	mtx_init(&mcdi->lock, "sfxge_mcdi", NULL, MTX_DEF);
+	SFXGE_MCDI_LOCK_INIT(mcdi, device_get_nameunit(sc->dev));
 
 	mcdi->state = SFXGE_MCDI_INITIALIZED;
 
@@ -220,7 +218,7 @@ sfxge_mcdi_init(struct sfxge_softc *sc)
 	return (0);
 
 fail:
-	mtx_destroy(&mcdi->lock);
+	SFXGE_MCDI_LOCK_DESTROY(mcdi);
 	mcdi->state = SFXGE_MCDI_UNINITIALIZED;
 	return (rc);
 }
@@ -236,7 +234,7 @@ sfxge_mcdi_fini(struct sfxge_softc *sc)
 	mcdi = &sc->mcdi;
 	emtp = &mcdi->transport;
 
-	mtx_lock(&mcdi->lock);
+	SFXGE_MCDI_LOCK(mcdi);
 	KASSERT(mcdi->state == SFXGE_MCDI_INITIALIZED,
 	    ("MCDI not initialized"));
 
@@ -244,7 +242,7 @@ sfxge_mcdi_fini(struct sfxge_softc *sc)
 	bzero(emtp, sizeof(*emtp));
 
 	cv_destroy(&mcdi->cv);
-	mtx_unlock(&mcdi->lock);
+	SFXGE_MCDI_UNLOCK(mcdi);
 
-	mtx_destroy(&mcdi->lock);
+	SFXGE_MCDI_LOCK_DESTROY(mcdi);
 }

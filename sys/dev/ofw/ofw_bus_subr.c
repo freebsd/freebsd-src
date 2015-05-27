@@ -176,12 +176,37 @@ ofw_bus_status_okay(device_t dev)
 	return (0);
 }
 
+static int
+ofw_bus_node_is_compatible(const char *compat, int len, const char *onecompat)
+{
+	int onelen, l, ret;
+
+	onelen = strlen(onecompat);
+
+	ret = 0;
+	while (len > 0) {
+		if (strlen(compat) == onelen &&
+		    strncasecmp(compat, onecompat, onelen) == 0) {
+			/* Found it. */
+			ret = 1;
+			break;
+		}
+
+		/* Slide to the next sub-string. */
+		l = strlen(compat) + 1;
+		compat += l;
+		len -= l;
+	}
+
+	return (ret);
+}
+
 int
 ofw_bus_is_compatible(device_t dev, const char *onecompat)
 {
 	phandle_t node;
 	const char *compat;
-	int len, onelen, l;
+	int len;
 
 	if ((compat = ofw_bus_get_compat(dev)) == NULL)
 		return (0);
@@ -193,20 +218,7 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 	if ((len = OF_getproplen(node, "compatible")) <= 0)
 		return (0);
 
-	onelen = strlen(onecompat);
-
-	while (len > 0) {
-		if (strlen(compat) == onelen &&
-		    strncasecmp(compat, onecompat, onelen) == 0)
-			/* Found it. */
-			return (1);
-
-		/* Slide to the next sub-string. */
-		l = strlen(compat) + 1;
-		compat += l;
-		len -= l;
-	}
-	return (0);
+	return (ofw_bus_node_is_compatible(compat, len, onecompat));
 }
 
 int
@@ -370,7 +382,56 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 }
 
 int
-ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
+ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
+    struct resource_list *rl)
+{
+	uint64_t phys, size;
+	ssize_t i, j, rid, nreg, ret;
+	uint32_t *reg;
+	char *name;
+
+	/*
+	 * This may be just redundant when having ofw_bus_devinfo
+	 * but makes this routine independent of it.
+	 */
+	ret = OF_getencprop_alloc(node, "name", sizeof(*name), (void **)&name);
+	if (ret == -1)
+		name = NULL;
+
+	ret = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = (ret == -1) ? 0 : ret;
+
+	if (nreg % (acells + scells) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Malformed reg property on <%s>\n",
+			    (name == NULL) ? "unknown" : name);
+		nreg = 0;
+	}
+
+	for (i = 0, rid = 0; i < nreg; i += acells + scells, rid++) {
+		phys = size = 0;
+		for (j = 0; j < acells; j++) {
+			phys <<= 32;
+			phys |= reg[i + j];
+		}
+		for (j = 0; j < scells; j++) {
+			size <<= 32;
+			size |= reg[i + acells + j];
+		}
+		/* Skip the dummy reg property of glue devices like ssm(4). */
+		if (size != 0)
+			resource_list_add(rl, SYS_RES_MEMORY, rid,
+			    phys, phys + size - 1, size);
+	}
+	free(name, M_OFWPROP);
+	free(reg, M_OFWPROP);
+
+	return (0);
+}
+
+int
+ofw_bus_intr_to_rl(device_t dev, phandle_t node,
+    struct resource_list *rl, int *rlen)
 {
 	phandle_t iparent;
 	uint32_t icells, *intr;
@@ -382,9 +443,17 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 	if (nintr > 0) {
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent)) == -1) {
-			device_printf(dev, "No interrupt-parent found, "
-			    "assuming direct parent\n");
-			iparent = OF_parent(node);
+			for (iparent = node; iparent != 0;
+			    iparent = OF_parent(node)) {
+				if (OF_hasprop(iparent, "interrupt-controller"))
+					break;
+			}
+			if (iparent == 0) {
+				device_printf(dev, "No interrupt-parent found, "
+				    "assuming direct parent\n");
+				iparent = OF_parent(node);
+			}
+			iparent = OF_xref_from_node(iparent);
 		}
 		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
@@ -427,6 +496,36 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 		irqnum = ofw_bus_map_intr(dev, iparent, icells, &intr[i]);
 		resource_list_add(rl, SYS_RES_IRQ, rid++, irqnum, irqnum, 1);
 	}
+	if (rlen != NULL)
+		*rlen = rid;
 	free(intr, M_OFWPROP);
 	return (err);
+}
+
+phandle_t
+ofw_bus_find_compatible(phandle_t node, const char *onecompat)
+{
+	phandle_t child, ret;
+	void *compat;
+	int len;
+
+	/*
+	 * Traverse all children of 'start' node, and find first with
+	 * matching 'compatible' property.
+	 */
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		len = OF_getprop_alloc(child, "compatible", 1, &compat);
+		if (len >= 0) {
+			ret = ofw_bus_node_is_compatible(compat, len,
+			    onecompat);
+			free(compat, M_OFWPROP);
+			if (ret != 0)
+				return (child);
+		}
+
+		ret = ofw_bus_find_compatible(child, onecompat);
+		if (ret != 0)
+			return (ret);
+	}
+	return (0);
 }

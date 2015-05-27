@@ -829,28 +829,26 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
     if (lp == NULL) {
 	if (bpb->bpbBytesPerSec)
 	    dlp.d_secsize = bpb->bpbBytesPerSec;
-	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
-	    if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE,
-						  &dlp.d_secsize) == -1)
-		err(1, "cannot get sector size");
+	if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE,
+					      &dlp.d_secsize) == -1)
+	    err(1, "cannot get sector size");
 
-	    dlp.d_secperunit = ms / dlp.d_secsize;
+	dlp.d_secperunit = ms / dlp.d_secsize;
 
-	    if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS,
-						  &dlp.d_nsectors) == -1) {
-		warn("cannot get number of sectors per track");
-		dlp.d_nsectors = 63;
-	    }
-	    if (bpb->bpbHeads == 0 &&
-	        ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
-		warn("cannot get number of heads");
-		if (dlp.d_secperunit <= 63*1*1024)
-		    dlp.d_ntracks = 1;
-		else if (dlp.d_secperunit <= 63*16*1024)
-		    dlp.d_ntracks = 16;
-		else
-		    dlp.d_ntracks = 255;
-	    }
+	if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS,
+					      &dlp.d_nsectors) == -1) {
+	    warn("cannot get number of sectors per track");
+	    dlp.d_nsectors = 63;
+	}
+	if (bpb->bpbHeads == 0 &&
+	    ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
+	    warn("cannot get number of heads");
+	    if (dlp.d_secperunit <= 63*1*1024)
+		dlp.d_ntracks = 1;
+	    else if (dlp.d_secperunit <= 63*16*1024)
+		dlp.d_ntracks = 16;
+	    else
+		dlp.d_ntracks = 255;
 	}
 
 	hs = (ms / dlp.d_secsize) - dlp.d_secperunit;

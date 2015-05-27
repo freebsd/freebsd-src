@@ -765,8 +765,7 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 			}
 
 			if (len + 3 > MHLEN) {
-				MCLGET(mbp, M_NOWAIT);
-				if ((mbp->m_flags & M_EXT) == 0) {
+				if (!(MCLGET(mbp, M_NOWAIT))) {
 					m_freem(mbp);
 					if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 					continue;

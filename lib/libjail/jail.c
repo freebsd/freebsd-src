@@ -531,7 +531,7 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 		}
 		i++;
 	}
-	*(const void **)&jiov[i].iov_base = "errmsg";
+	jiov[i].iov_base = __DECONST(char *, "errmsg");
 	jiov[i].iov_len = sizeof("errmsg");
 	i++;
 	jiov[i].iov_base = jail_errmsg;
@@ -601,7 +601,7 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	jiov[ki].iov_len = (jp_key->jp_ctltype & CTLTYPE) == CTLTYPE_STRING
 	    ? strlen(jp_key->jp_value) + 1 : jp_key->jp_valuelen;
 	ki++;
-	*(const void **)&jiov[ki].iov_base = "errmsg";
+	jiov[ki].iov_base = __DECONST(char *, "errmsg");
 	jiov[ki].iov_len = sizeof("errmsg");
 	ki++;
 	jiov[ki].iov_base = jail_errmsg;

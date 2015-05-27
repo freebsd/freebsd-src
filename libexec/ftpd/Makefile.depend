@@ -17,6 +17,7 @@ DIRDEPS = \
 	lib/libpam/libpam \
 	lib/libutil \
 	lib/msun \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

@@ -12,19 +12,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86ISELLOWERING_H
-#define X86ISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_X86_X86ISELLOWERING_H
+#define LLVM_LIB_TARGET_X86_X86ISELLOWERING_H
 
-#include "X86MachineFunctionInfo.h"
-#include "X86RegisterInfo.h"
-#include "X86Subtarget.h"
 #include "llvm/CodeGen/CallingConvLower.h"
-#include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
 
 namespace llvm {
+  class X86Subtarget;
+  class X86TargetMachine;
+
   namespace X86ISD {
     // X86 Specific DAG Nodes
     enum NodeType {
@@ -84,6 +83,12 @@ namespace llvm {
       /// readcyclecounter
       RDTSC_DAG,
 
+      /// X86 Read Time-Stamp Counter and Processor ID.
+      RDTSCP_DAG,
+
+      /// X86 Read Performance Monitoring Counters.
+      RDPMC_DAG,
+
       /// X86 compare and logical compare instructions.
       CMP, COMI, UCOMI,
 
@@ -94,6 +99,9 @@ namespace llvm {
       /// operand, usually produced by a CMP instruction.
       SETCC,
 
+      /// X86 Select
+      SELECT,
+
       // Same as SETCC except it's materialized with a sbb and the value is all
       // one's or all zero's.
       SETCC_CARRY,  // R = carry_bit ? ~0 : 0
@@ -101,7 +109,7 @@ namespace llvm {
       /// X86 FP SETCC, implemented with CMP{cc}SS/CMP{cc}SD.
       /// Operands are two FP values to compare; result is a mask of
       /// 0s or 1s.  Generally DTRT for C/C++ with NaNs.
-      FSETCCss, FSETCCsd,
+      FSETCC,
 
       /// X86 MOVMSK{pd|ps}, extracts sign bits of two or four FP values,
       /// result in an integer GPR.  Needs masking for scalar result.
@@ -179,11 +187,16 @@ namespace llvm {
       /// PSIGN - Copy integer sign.
       PSIGN,
 
-      /// BLENDV - Blend where the selector is a register.
-      BLENDV,
-
       /// BLENDI - Blend where the selector is an immediate.
       BLENDI,
+
+      /// SHRUNKBLEND - Blend where the condition has been shrunk.
+      /// This is used to emphasize that the condition mask is
+      /// no more valid for generic VSELECT optimizations.
+      SHRUNKBLEND,
+
+      /// ADDSUB - Combined add and sub on an FP vector.
+      ADDSUB,
 
       // SUBUS - Integer sub with unsigned saturation.
       SUBUS,
@@ -242,11 +255,8 @@ namespace llvm {
       /// the list of operands.
       TC_RETURN,
 
-      // VZEXT_MOVL - Vector move low and zero extend.
+      // VZEXT_MOVL - Vector move to low scalar and zero higher vector elements.
       VZEXT_MOVL,
-
-      // VSEXT_MOVL - Vector move low and sign extend.
-      VSEXT_MOVL,
 
       // VZEXT - Vector integer zero-extend.
       VZEXT,
@@ -292,13 +302,16 @@ namespace llvm {
       ADD, SUB, ADC, SBB, SMUL,
       INC, DEC, OR, XOR, AND,
 
-      BLSI,   // BLSI - Extract lowest set isolated bit
-      BLSMSK, // BLSMSK - Get mask up to lowest set bit
-      BLSR,   // BLSR - Reset lowest set bit
-      BZHI,   // BZHI - Zero high bits
       BEXTR,  // BEXTR - Bit field extract
 
       UMUL, // LOW, HI, FLAGS = umul LHS, RHS
+
+      // 8-bit SMUL/UMUL - AX, FLAGS = smul8/umul8 AL, RHS
+      SMUL8, UMUL8,
+
+      // 8-bit divrem that zero-extend the high result (AH).
+      UDIVREM8_ZEXT_HREG,
+      SDIVREM8_SEXT_HREG,
 
       // MUL_IMM - X86 specific multiply by immediate.
       MUL_IMM,
@@ -309,15 +322,20 @@ namespace llvm {
       // TESTP - Vector packed fp sign bitwise comparisons.
       TESTP,
 
-      // TESTM - Vector "test" in AVX-512, the result is in a mask vector.
+      // TESTM, TESTNM - Vector "test" in AVX-512, the result is in a mask vector.
       TESTM,
+      TESTNM,
 
       // OR/AND test for masks
       KORTEST,
-      KTEST,
 
       // Several flavors of instructions with vector shuffle behaviors.
+      PACKSS,
+      PACKUS,
+      // Intra-lane alignr
       PALIGNR,
+      // AVX512 inter-lane alignr
+      VALIGN,
       PSHUFD,
       PSHUFHW,
       PSHUFLW,
@@ -334,18 +352,24 @@ namespace llvm {
       MOVSS,
       UNPCKL,
       UNPCKH,
-      VPERMILP,
+      VPERMILPV,
+      VPERMILPI,
       VPERMV,
       VPERMV3,
+      VPERMIV3,
       VPERMI,
       VPERM2X128,
       VBROADCAST,
       // masked broadcast
       VBROADCASTM,
+      // Insert/Extract vector element
       VINSERT,
+      VEXTRACT,
 
-      // PMULUDQ - Vector multiply packed unsigned doubleword integers
+      // Vector multiply packed unsigned doubleword integers
       PMULUDQ,
+      // Vector multiply packed signed doubleword integers
+      PMULDQ,
 
       // FMA nodes
       FMADD,
@@ -355,20 +379,23 @@ namespace llvm {
       FMADDSUB,
       FMSUBADD,
 
-      // VASTART_SAVE_XMM_REGS - Save xmm argument registers to the stack,
-      // according to %al. An operator is needed so that this can be expanded
-      // with control flow.
+      // Compress and expand
+      COMPRESS,
+      EXPAND,
+
+      // Save xmm argument registers to the stack, according to %al. An operator
+      // is needed so that this can be expanded with control flow.
       VASTART_SAVE_XMM_REGS,
 
-      // WIN_ALLOCA - Windows's _chkstk call to do stack probing.
+      // Windows's _chkstk call to do stack probing.
       WIN_ALLOCA,
 
-      // SEG_ALLOCA - For allocating variable amounts of stack space when using
+      // For allocating variable amounts of stack space when using
       // segmented stacks. Check if the current stacklet has enough space, and
       // falls back to heap allocation if not.
       SEG_ALLOCA,
 
-      // WIN_FTOL - Windows's _ftol2 runtime routine to do fptoui.
+      // Windows's _ftol2 runtime routine to do fptoui.
       WIN_FTOL,
 
       // Memory barrier
@@ -377,53 +404,40 @@ namespace llvm {
       SFENCE,
       LFENCE,
 
-      // FNSTSW16r - Store FP status word into i16 register.
+      // Store FP status word into i16 register.
       FNSTSW16r,
 
-      // SAHF - Store contents of %ah into %eflags.
+      // Store contents of %ah into %eflags.
       SAHF,
 
-      // RDRAND - Get a random integer and indicate whether it is valid in CF.
+      // Get a random integer and indicate whether it is valid in CF.
       RDRAND,
 
-      // RDSEED - Get a NIST SP800-90B & C compliant random integer and
+      // Get a NIST SP800-90B & C compliant random integer and
       // indicate whether it is valid in CF.
       RDSEED,
 
-      // PCMP*STRI
       PCMPISTRI,
       PCMPESTRI,
 
-      // XTEST - Test if in transactional execution.
+      // Test if in transactional execution.
       XTEST,
 
-      // ATOMADD64_DAG, ATOMSUB64_DAG, ATOMOR64_DAG, ATOMAND64_DAG,
-      // ATOMXOR64_DAG, ATOMNAND64_DAG, ATOMSWAP64_DAG -
-      // Atomic 64-bit binary operations.
-      ATOMADD64_DAG = ISD::FIRST_TARGET_MEMORY_OPCODE,
-      ATOMSUB64_DAG,
-      ATOMOR64_DAG,
-      ATOMXOR64_DAG,
-      ATOMAND64_DAG,
-      ATOMNAND64_DAG,
-      ATOMMAX64_DAG,
-      ATOMMIN64_DAG,
-      ATOMUMAX64_DAG,
-      ATOMUMIN64_DAG,
-      ATOMSWAP64_DAG,
+      // ERI instructions
+      RSQRT28, RCP28, EXP2,
 
-      // LCMPXCHG_DAG, LCMPXCHG8_DAG, LCMPXCHG16_DAG - Compare and swap.
-      LCMPXCHG_DAG,
+      // Compare and swap.
+      LCMPXCHG_DAG = ISD::FIRST_TARGET_MEMORY_OPCODE,
       LCMPXCHG8_DAG,
       LCMPXCHG16_DAG,
 
-      // VZEXT_LOAD - Load, scalar_to_vector, and zero extend.
+      // Load, scalar_to_vector, and zero extend.
       VZEXT_LOAD,
 
-      // FNSTCW16m - Store FP control world into i16 memory.
+      // Store FP control world into i16 memory.
       FNSTCW16m,
 
-      /// FP_TO_INT*_IN_MEM - This instruction implements FP_TO_SINT with the
+      /// This instruction implements FP_TO_SINT with the
       /// integer destination in memory and a FP reg source.  This corresponds
       /// to the X86::FIST*m instructions and the rounding mode change stuff. It
       /// has two inputs (token chain and address) and two outputs (int value
@@ -432,7 +446,7 @@ namespace llvm {
       FP_TO_INT32_IN_MEM,
       FP_TO_INT64_IN_MEM,
 
-      /// FILD, FILD_FLAG - This instruction implements SINT_TO_FP with the
+      /// This instruction implements SINT_TO_FP with the
       /// integer source in memory and FP reg result.  This corresponds to the
       /// X86::FILD*m instructions. It has three inputs (token chain, address,
       /// and source type) and two outputs (FP value and token chain). FILD_FLAG
@@ -440,19 +454,19 @@ namespace llvm {
       FILD,
       FILD_FLAG,
 
-      /// FLD - This instruction implements an extending load to FP stack slots.
+      /// This instruction implements an extending load to FP stack slots.
       /// This corresponds to the X86::FLD32m / X86::FLD64m. It takes a chain
       /// operand, ptr to load from, and a ValueType node indicating the type
       /// to load to.
       FLD,
 
-      /// FST - This instruction implements a truncating store to FP stack
+      /// This instruction implements a truncating store to FP stack
       /// slots. This corresponds to the X86::FST32m / X86::FST64m. It takes a
       /// chain operand, value to store, address, and a ValueType to store it
       /// as.
       FST,
 
-      /// VAARG_64 - This instruction grabs the address of the next argument
+      /// This instruction grabs the address of the next argument
       /// from a va_list. (reads and modifies the va_list in memory)
       VAARG_64
 
@@ -464,92 +478,100 @@ namespace llvm {
 
   /// Define some predicates that are used for node matching.
   namespace X86 {
-    /// isVEXTRACT128Index - Return true if the specified
+    /// Return true if the specified
     /// EXTRACT_SUBVECTOR operand specifies a vector extract that is
     /// suitable for input to VEXTRACTF128, VEXTRACTI128 instructions.
     bool isVEXTRACT128Index(SDNode *N);
 
-    /// isVINSERT128Index - Return true if the specified
+    /// Return true if the specified
     /// INSERT_SUBVECTOR operand specifies a subvector insert that is
     /// suitable for input to VINSERTF128, VINSERTI128 instructions.
     bool isVINSERT128Index(SDNode *N);
 
-    /// isVEXTRACT256Index - Return true if the specified
+    /// Return true if the specified
     /// EXTRACT_SUBVECTOR operand specifies a vector extract that is
     /// suitable for input to VEXTRACTF64X4, VEXTRACTI64X4 instructions.
     bool isVEXTRACT256Index(SDNode *N);
 
-    /// isVINSERT256Index - Return true if the specified
+    /// Return true if the specified
     /// INSERT_SUBVECTOR operand specifies a subvector insert that is
     /// suitable for input to VINSERTF64X4, VINSERTI64X4 instructions.
     bool isVINSERT256Index(SDNode *N);
 
-    /// getExtractVEXTRACT128Immediate - Return the appropriate
+    /// Return the appropriate
     /// immediate to extract the specified EXTRACT_SUBVECTOR index
     /// with VEXTRACTF128, VEXTRACTI128 instructions.
     unsigned getExtractVEXTRACT128Immediate(SDNode *N);
 
-    /// getInsertVINSERT128Immediate - Return the appropriate
+    /// Return the appropriate
     /// immediate to insert at the specified INSERT_SUBVECTOR index
     /// with VINSERTF128, VINSERT128 instructions.
     unsigned getInsertVINSERT128Immediate(SDNode *N);
 
-    /// getExtractVEXTRACT256Immediate - Return the appropriate
+    /// Return the appropriate
     /// immediate to extract the specified EXTRACT_SUBVECTOR index
     /// with VEXTRACTF64X4, VEXTRACTI64x4 instructions.
     unsigned getExtractVEXTRACT256Immediate(SDNode *N);
 
-    /// getInsertVINSERT256Immediate - Return the appropriate
+    /// Return the appropriate
     /// immediate to insert at the specified INSERT_SUBVECTOR index
     /// with VINSERTF64x4, VINSERTI64x4 instructions.
     unsigned getInsertVINSERT256Immediate(SDNode *N);
 
-    /// isZeroNode - Returns true if Elt is a constant zero or a floating point
-    /// constant +0.0.
+    /// Returns true if Elt is a constant zero or floating point constant +0.0.
     bool isZeroNode(SDValue Elt);
 
-    /// isOffsetSuitableForCodeModel - Returns true of the given offset can be
+    /// Returns true of the given offset can be
     /// fit into displacement field of the instruction.
     bool isOffsetSuitableForCodeModel(int64_t Offset, CodeModel::Model M,
                                       bool hasSymbolicDisplacement = true);
 
 
-    /// isCalleePop - Determines whether the callee is required to pop its
+    /// Determines whether the callee is required to pop its
     /// own arguments. Callee pop is necessary to support tail calls.
     bool isCalleePop(CallingConv::ID CallingConv,
                      bool is64Bit, bool IsVarArg, bool TailCallOpt);
+
+    /// AVX512 static rounding constants.  These need to match the values in
+    /// avx512fintrin.h.
+    enum STATIC_ROUNDING {
+      TO_NEAREST_INT = 0,
+      TO_NEG_INF = 1,
+      TO_POS_INF = 2,
+      TO_ZERO = 3,
+      CUR_DIRECTION = 4
+    };
   }
 
   //===--------------------------------------------------------------------===//
-  //  X86TargetLowering - X86 Implementation of the TargetLowering interface
-  class X86TargetLowering : public TargetLowering {
+  //  X86 Implementation of the TargetLowering interface
+  class X86TargetLowering final : public TargetLowering {
   public:
-    explicit X86TargetLowering(X86TargetMachine &TM);
+    explicit X86TargetLowering(const X86TargetMachine &TM);
 
-    virtual unsigned getJumpTableEncoding() const;
+    unsigned getJumpTableEncoding() const override;
 
-    virtual MVT getScalarShiftAmountTy(EVT LHSTy) const { return MVT::i8; }
+    MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i8; }
 
-    virtual const MCExpr *
+    const MCExpr *
     LowerCustomJumpTableEntry(const MachineJumpTableInfo *MJTI,
                               const MachineBasicBlock *MBB, unsigned uid,
-                              MCContext &Ctx) const;
+                              MCContext &Ctx) const override;
 
-    /// getPICJumpTableRelocaBase - Returns relocation base for the given PIC
-    /// jumptable.
-    virtual SDValue getPICJumpTableRelocBase(SDValue Table,
-                                             SelectionDAG &DAG) const;
-    virtual const MCExpr *
+    /// Returns relocation base for the given PIC jumptable.
+    SDValue getPICJumpTableRelocBase(SDValue Table,
+                                     SelectionDAG &DAG) const override;
+    const MCExpr *
     getPICJumpTableRelocBaseExpr(const MachineFunction *MF,
-                                 unsigned JTI, MCContext &Ctx) const;
+                                 unsigned JTI, MCContext &Ctx) const override;
 
-    /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
+    /// Return the desired alignment for ByVal aggregate
     /// function arguments in the caller parameter area. For X86, aggregates
     /// that contains are placed at 16-byte boundaries while the rest are at
     /// 4-byte boundaries.
-    virtual unsigned getByValTypeAlignment(Type *Ty) const;
+    unsigned getByValTypeAlignment(Type *Ty) const override;
 
-    /// getOptimalMemOpType - Returns the target specific optimal type for load
+    /// Returns the target specific optimal type for load
     /// and store operations as a result of memset, memcpy, and memmove
     /// lowering. If DstAlign is zero that means it's safe to destination
     /// alignment can satisfy any constraint. Similarly if SrcAlign is zero it
@@ -560,133 +582,145 @@ namespace llvm {
     /// source is constant so it does not need to be loaded.
     /// It returns EVT::Other if the type should be determined using generic
     /// target-independent logic.
-    virtual EVT
-    getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
-                        bool IsMemset, bool ZeroMemset, bool MemcpyStrSrc,
-                        MachineFunction &MF) const;
+    EVT getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
+                            bool IsMemset, bool ZeroMemset, bool MemcpyStrSrc,
+                            MachineFunction &MF) const override;
 
-    /// isSafeMemOpType - Returns true if it's safe to use load / store of the
+    /// Returns true if it's safe to use load / store of the
     /// specified type to expand memcpy / memset inline. This is mostly true
     /// for all types except for some special cases. For example, on X86
     /// targets without SSE2 f64 load / store are done with fldl / fstpl which
     /// also does type conversion. Note the specified type doesn't have to be
     /// legal as the hook is used before type legalization.
-    virtual bool isSafeMemOpType(MVT VT) const;
+    bool isSafeMemOpType(MVT VT) const override;
 
-    /// allowsUnalignedMemoryAccesses - Returns true if the target allows
+    /// Returns true if the target allows
     /// unaligned memory accesses. of the specified type. Returns whether it
     /// is "fast" by reference in the second argument.
-    virtual bool allowsUnalignedMemoryAccesses(EVT VT, bool *Fast) const;
+    bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS, unsigned Align,
+                                       bool *Fast) const override;
 
-    /// LowerOperation - Provide custom lowering hooks for some operations.
+    /// Provide custom lowering hooks for some operations.
     ///
-    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
-    /// ReplaceNodeResults - Replace the results of node with an illegal result
+    /// Replace the results of node with an illegal result
     /// type with new values built out of custom code.
     ///
-    virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue>&Results,
-                                    SelectionDAG &DAG) const;
+    void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue>&Results,
+                            SelectionDAG &DAG) const override;
 
 
-    virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+    SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
-    /// isTypeDesirableForOp - Return true if the target has native support for
+    /// Return true if the target has native support for
     /// the specified value type and it is 'desirable' to use the type for the
     /// given node type. e.g. On x86 i16 is legal, but undesirable since i16
     /// instruction encodings are longer and some i16 instructions are slow.
-    virtual bool isTypeDesirableForOp(unsigned Opc, EVT VT) const;
+    bool isTypeDesirableForOp(unsigned Opc, EVT VT) const override;
 
-    /// isTypeDesirable - Return true if the target has native support for the
+    /// Return true if the target has native support for the
     /// specified value type and it is 'desirable' to use the type. e.g. On x86
     /// i16 is legal, but undesirable since i16 instruction encodings are longer
     /// and some i16 instructions are slow.
-    virtual bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const;
+    bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const override;
 
-    virtual MachineBasicBlock *
+    MachineBasicBlock *
       EmitInstrWithCustomInserter(MachineInstr *MI,
-                                  MachineBasicBlock *MBB) const;
+                                  MachineBasicBlock *MBB) const override;
 
 
-    /// getTargetNodeName - This method returns the name of a target specific
-    /// DAG node.
-    virtual const char *getTargetNodeName(unsigned Opcode) const;
+    /// This method returns the name of a target specific DAG node.
+    const char *getTargetNodeName(unsigned Opcode) const override;
 
-    /// getSetCCResultType - Return the value type to use for ISD::SETCC.
-    virtual EVT getSetCCResultType(LLVMContext &Context, EVT VT) const;
+    bool isCheapToSpeculateCttz() const override;
 
-    /// computeMaskedBitsForTargetNode - Determine which of the bits specified
-    /// in Mask are known to be either zero or one and return them in the
-    /// KnownZero/KnownOne bitsets.
-    virtual void computeMaskedBitsForTargetNode(const SDValue Op,
-                                                APInt &KnownZero,
-                                                APInt &KnownOne,
-                                                const SelectionDAG &DAG,
-                                                unsigned Depth = 0) const;
+    bool isCheapToSpeculateCtlz() const override;
 
-    // ComputeNumSignBitsForTargetNode - Determine the number of bits in the
-    // operation that are sign bits.
-    virtual unsigned ComputeNumSignBitsForTargetNode(SDValue Op,
-                                                     unsigned Depth) const;
+    /// Return the value type to use for ISD::SETCC.
+    EVT getSetCCResultType(LLVMContext &Context, EVT VT) const override;
 
-    virtual bool
-    isGAPlusOffset(SDNode *N, const GlobalValue* &GA, int64_t &Offset) const;
+    /// Determine which of the bits specified in Mask are known to be either
+    /// zero or one and return them in the KnownZero/KnownOne bitsets.
+    void computeKnownBitsForTargetNode(const SDValue Op,
+                                       APInt &KnownZero,
+                                       APInt &KnownOne,
+                                       const SelectionDAG &DAG,
+                                       unsigned Depth = 0) const override;
+
+    /// Determine the number of bits in the operation that are sign bits.
+    unsigned ComputeNumSignBitsForTargetNode(SDValue Op,
+                                             const SelectionDAG &DAG,
+                                             unsigned Depth) const override;
+
+    bool isGAPlusOffset(SDNode *N, const GlobalValue* &GA,
+                        int64_t &Offset) const override;
 
     SDValue getReturnAddressFrameIndex(SelectionDAG &DAG) const;
 
-    virtual bool ExpandInlineAsm(CallInst *CI) const;
+    bool ExpandInlineAsm(CallInst *CI) const override;
 
-    ConstraintType getConstraintType(const std::string &Constraint) const;
+    ConstraintType
+      getConstraintType(const std::string &Constraint) const override;
 
     /// Examine constraint string and operand type and determine a weight value.
     /// The operand object must already have been set up with the operand type.
-    virtual ConstraintWeight getSingleConstraintMatchWeight(
-      AsmOperandInfo &info, const char *constraint) const;
+    ConstraintWeight
+      getSingleConstraintMatchWeight(AsmOperandInfo &info,
+                                     const char *constraint) const override;
 
-    virtual const char *LowerXConstraint(EVT ConstraintVT) const;
+    const char *LowerXConstraint(EVT ConstraintVT) const override;
 
-    /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
-    /// vector.  If it is invalid, don't add anything to Ops. If hasMemory is
-    /// true it means one of the asm constraint of the inline asm instruction
-    /// being processed is 'm'.
-    virtual void LowerAsmOperandForConstraint(SDValue Op,
-                                              std::string &Constraint,
-                                              std::vector<SDValue> &Ops,
-                                              SelectionDAG &DAG) const;
+    /// Lower the specified operand into the Ops vector. If it is invalid, don't
+    /// add anything to Ops. If hasMemory is true it means one of the asm
+    /// constraint of the inline asm instruction being processed is 'm'.
+    void LowerAsmOperandForConstraint(SDValue Op,
+                                      std::string &Constraint,
+                                      std::vector<SDValue> &Ops,
+                                      SelectionDAG &DAG) const override;
 
-    /// getRegForInlineAsmConstraint - Given a physical register constraint
+    /// Given a physical register constraint
     /// (e.g. {edx}), return the register number and the register class for the
     /// register.  This should only be used for C_Register constraints.  On
     /// error, this returns a register number of 0.
     std::pair<unsigned, const TargetRegisterClass*>
       getRegForInlineAsmConstraint(const std::string &Constraint,
-                                   MVT VT) const;
+                                   MVT VT) const override;
 
-    /// isLegalAddressingMode - Return true if the addressing mode represented
+    /// Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
-    virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty)const;
+    bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
 
-    /// isLegalICmpImmediate - Return true if the specified immediate is legal
+    /// Return true if the specified immediate is legal
     /// icmp immediate, that is the target has icmp instructions which can
     /// compare a register against the immediate without having to materialize
     /// the immediate into a register.
-    virtual bool isLegalICmpImmediate(int64_t Imm) const;
+    bool isLegalICmpImmediate(int64_t Imm) const override;
 
-    /// isLegalAddImmediate - Return true if the specified immediate is legal
+    /// Return true if the specified immediate is legal
     /// add immediate, that is the target has add instructions which can
     /// add a register and the immediate without having to materialize
     /// the immediate into a register.
-    virtual bool isLegalAddImmediate(int64_t Imm) const;
+    bool isLegalAddImmediate(int64_t Imm) const override;
 
-    /// isTruncateFree - Return true if it's free to truncate a value of
+    /// \brief Return the cost of the scaling factor used in the addressing
+    /// mode represented by AM for this target, for a load/store
+    /// of the specified type.
+    /// If the AM is supported, the return value must be >= 0.
+    /// If the AM is not supported, it returns a negative value.
+    int getScalingFactorCost(const AddrMode &AM, Type *Ty) const override;
+
+    bool isVectorShiftByScalarCheap(Type *Ty) const override;
+
+    /// Return true if it's free to truncate a value of
     /// type Ty1 to type Ty2. e.g. On x86 it's free to truncate a i32 value in
     /// register EAX to i16 by referencing its sub-register AX.
-    virtual bool isTruncateFree(Type *Ty1, Type *Ty2) const;
-    virtual bool isTruncateFree(EVT VT1, EVT VT2) const;
+    bool isTruncateFree(Type *Ty1, Type *Ty2) const override;
+    bool isTruncateFree(EVT VT1, EVT VT2) const override;
 
-    virtual bool allowTruncateForTailCall(Type *Ty1, Type *Ty2) const;
+    bool allowTruncateForTailCall(Type *Ty1, Type *Ty2) const override;
 
-    /// isZExtFree - Return true if any actual instruction that defines a
+    /// Return true if any actual instruction that defines a
     /// value of type Ty1 implicit zero-extends the value to Ty2 in the result
     /// register. This does not necessarily include registers defined in
     /// unknown ways, such as incoming arguments, or copies from unknown
@@ -694,98 +728,118 @@ namespace llvm {
     /// does not necessarily apply to truncate instructions. e.g. on x86-64,
     /// all instructions that define 32-bit values implicit zero-extend the
     /// result out to 64 bits.
-    virtual bool isZExtFree(Type *Ty1, Type *Ty2) const;
-    virtual bool isZExtFree(EVT VT1, EVT VT2) const;
-    virtual bool isZExtFree(SDValue Val, EVT VT2) const;
+    bool isZExtFree(Type *Ty1, Type *Ty2) const override;
+    bool isZExtFree(EVT VT1, EVT VT2) const override;
+    bool isZExtFree(SDValue Val, EVT VT2) const override;
 
-    /// isFMAFasterThanFMulAndFAdd - Return true if an FMA operation is faster
-    /// than a pair of fmul and fadd instructions. fmuladd intrinsics will be
-    /// expanded to FMAs when this method returns true, otherwise fmuladd is
-    /// expanded to fmul + fadd.
-    virtual bool isFMAFasterThanFMulAndFAdd(EVT VT) const;
+    /// Return true if an FMA operation is faster than a pair of fmul and fadd
+    /// instructions. fmuladd intrinsics will be expanded to FMAs when this
+    /// method returns true, otherwise fmuladd is expanded to fmul + fadd.
+    bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
 
-    /// isNarrowingProfitable - Return true if it's profitable to narrow
+    /// Return true if it's profitable to narrow
     /// operations of type VT1 to VT2. e.g. on x86, it's profitable to narrow
     /// from i32 to i8 but not from i32 to i16.
-    virtual bool isNarrowingProfitable(EVT VT1, EVT VT2) const;
+    bool isNarrowingProfitable(EVT VT1, EVT VT2) const override;
 
-    /// isFPImmLegal - Returns true if the target can instruction select the
+    /// Returns true if the target can instruction select the
     /// specified FP immediate natively. If false, the legalizer will
     /// materialize the FP immediate as a load from a constant pool.
-    virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const;
+    bool isFPImmLegal(const APFloat &Imm, EVT VT) const override;
 
-    /// isShuffleMaskLegal - Targets can use this to indicate that they only
-    /// support *some* VECTOR_SHUFFLE operations, those with specific masks.
-    /// By default, if a target supports the VECTOR_SHUFFLE node, all mask
-    /// values are assumed to be legal.
-    virtual bool isShuffleMaskLegal(const SmallVectorImpl<int> &Mask,
-                                    EVT VT) const;
+    /// Targets can use this to indicate that they only support *some*
+    /// VECTOR_SHUFFLE operations, those with specific masks. By default, if a
+    /// target supports the VECTOR_SHUFFLE node, all mask values are assumed to
+    /// be legal.
+    bool isShuffleMaskLegal(const SmallVectorImpl<int> &Mask,
+                            EVT VT) const override;
 
-    /// isVectorClearMaskLegal - Similar to isShuffleMaskLegal. This is
-    /// used by Targets can use this to indicate if there is a suitable
-    /// VECTOR_SHUFFLE that can be used to replace a VAND with a constant
-    /// pool entry.
-    virtual bool isVectorClearMaskLegal(const SmallVectorImpl<int> &Mask,
-                                        EVT VT) const;
+    /// Similar to isShuffleMaskLegal. This is used by Targets can use this to
+    /// indicate if there is a suitable VECTOR_SHUFFLE that can be used to
+    /// replace a VAND with a constant pool entry.
+    bool isVectorClearMaskLegal(const SmallVectorImpl<int> &Mask,
+                                EVT VT) const override;
 
-    /// ShouldShrinkFPConstant - If true, then instruction selection should
+    /// If true, then instruction selection should
     /// seek to shrink the FP constant of the specified type to a smaller type
     /// in order to save space and / or reduce runtime.
-    virtual bool ShouldShrinkFPConstant(EVT VT) const {
+    bool ShouldShrinkFPConstant(EVT VT) const override {
       // Don't shrink FP constpool if SSE2 is available since cvtss2sd is more
       // expensive than a straight movsd. On the other hand, it's important to
       // shrink long double fp constant since fldt is very slow.
       return !X86ScalarSSEf64 || VT == MVT::f80;
     }
 
+    /// Return true if we believe it is correct and profitable to reduce the
+    /// load node to a smaller type.
+    bool shouldReduceLoadWidth(SDNode *Load, ISD::LoadExtType ExtTy,
+                               EVT NewVT) const override;
+
     const X86Subtarget* getSubtarget() const {
       return Subtarget;
     }
 
-    /// isScalarFPTypeInSSEReg - Return true if the specified scalar FP type is
-    /// computed in an SSE register, not on the X87 floating point stack.
+    /// Return true if the specified scalar FP type is computed in an SSE
+    /// register, not on the X87 floating point stack.
     bool isScalarFPTypeInSSEReg(EVT VT) const {
       return (VT == MVT::f64 && X86ScalarSSEf64) || // f64 is when SSE2
       (VT == MVT::f32 && X86ScalarSSEf32);   // f32 is when SSE1
     }
 
-    /// isTargetFTOL - Return true if the target uses the MSVC _ftol2 routine
-    /// for fptoui.
-    bool isTargetFTOL() const {
-      return Subtarget->isTargetWindows() && !Subtarget->is64Bit();
-    }
+    /// Return true if the target uses the MSVC _ftol2 routine for fptoui.
+    bool isTargetFTOL() const;
 
-    /// isIntegerTypeFTOL - Return true if the MSVC _ftol2 routine should be
-    /// used for fptoui to the given type.
+    /// Return true if the MSVC _ftol2 routine should be used for fptoui to the
+    /// given type.
     bool isIntegerTypeFTOL(EVT VT) const {
       return isTargetFTOL() && VT == MVT::i64;
     }
 
-    /// createFastISel - This method returns a target specific FastISel object,
-    /// or null if the target does not support "fast" ISel.
-    virtual FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
-                                     const TargetLibraryInfo *libInfo) const;
+    /// \brief Returns true if it is beneficial to convert a load of a constant
+    /// to just the constant itself.
+    bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
+                                           Type *Ty) const override;
 
-    /// getStackCookieLocation - Return true if the target stores stack
-    /// protector cookies at a fixed offset in some non-standard address
-    /// space, and populates the address space and offset as
-    /// appropriate.
-    virtual bool getStackCookieLocation(unsigned &AddressSpace, unsigned &Offset) const;
+    /// Return true if EXTRACT_SUBVECTOR is cheap for this result type
+    /// with this index.
+    bool isExtractSubvectorCheap(EVT ResVT, unsigned Index) const override;
+
+    /// Intel processors have a unified instruction and data cache
+    const char * getClearCacheBuiltinName() const override {
+      return nullptr; // nothing to do, move along.
+    }
+
+    unsigned getRegisterByName(const char* RegName, EVT VT) const override;
+
+    /// This method returns a target specific FastISel object,
+    /// or null if the target does not support "fast" ISel.
+    FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
+                             const TargetLibraryInfo *libInfo) const override;
+
+    /// Return true if the target stores stack protector cookies at a fixed
+    /// offset in some non-standard address space, and populates the address
+    /// space and offset as appropriate.
+    bool getStackCookieLocation(unsigned &AddressSpace,
+                                unsigned &Offset) const override;
 
     SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
                       SelectionDAG &DAG) const;
 
-    virtual bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const LLVM_OVERRIDE;
+    bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
 
     /// \brief Reset the operation actions based on target options.
-    virtual void resetOperationActions();
+    void resetOperationActions() override;
+
+    bool useLoadStackGuardNode() const override;
+    /// \brief Customize the preferred legalization strategy for certain types.
+    LegalizeTypeAction getPreferredVectorAction(EVT VT) const override;
 
   protected:
     std::pair<const TargetRegisterClass*, uint8_t>
-    findRepresentativeClass(MVT VT) const;
+    findRepresentativeClass(MVT VT) const override;
 
   private:
-    /// Subtarget - Keep a pointer to the X86Subtarget around so that we can
+    /// Keep a pointer to the X86Subtarget around so that we can
     /// make the right decision when generating code for different targets.
     const X86Subtarget *Subtarget;
     const DataLayout *TD;
@@ -794,17 +848,16 @@ namespace llvm {
     /// the operation actions unless we have to.
     TargetOptions TO;
 
-    /// X86ScalarSSEf32, X86ScalarSSEf64 - Select between SSE or x87
-    /// floating point ops.
+    /// Select between SSE or x87 floating point ops.
     /// When SSE is available, use it for f32 operations.
     /// When SSE2 is available, use it for f64 operations.
     bool X86ScalarSSEf32;
     bool X86ScalarSSEf64;
 
-    /// LegalFPImmediates - A list of legal fp immediates.
+    /// A list of legal FP immediates.
     std::vector<APFloat> LegalFPImmediates;
 
-    /// addLegalFPImmediate - Indicate that this x86 target can instruction
+    /// Indicate that this x86 target can instruction
     /// select the specified FP immediate natively.
     void addLegalFPImmediate(const APFloat& Imm) {
       LegalFPImmediates.push_back(Imm);
@@ -828,9 +881,8 @@ namespace llvm {
 
     // Call lowering helpers.
 
-    /// IsEligibleForTailCallOptimization - Check whether the call is eligible
-    /// for tail call optimization. Targets which want to do tail call
-    /// optimization should implement this function.
+    /// Check whether the call is eligible for tail call optimization. Targets
+    /// that want to do tail call optimization should implement this function.
     bool IsEligibleForTailCallOptimization(SDValue Callee,
                                            CallingConv::ID CalleeCC,
                                            bool isVarArg,
@@ -856,7 +908,11 @@ namespace llvm {
     SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBUILD_VECTORvXi1(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVSELECT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue ExtractBitFromMaskVector(SDValue Op, SelectionDAG &DAG) const;
+    SDValue InsertBitToMaskVector(SDValue Op, SelectionDAG &DAG) const;
+
     SDValue LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -865,7 +921,6 @@ namespace llvm {
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerShiftParts(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerUINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerUINT_TO_FP_i64(SDValue Op, SelectionDAG &DAG) const;
@@ -874,9 +929,6 @@ namespace llvm {
     SDValue LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFP_TO_UINT(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerFABS(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerFNEG(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerToBT(SDValue And, ISD::CondCode CC,
                       SDLoc dl, SelectionDAG &DAG) const;
     SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
@@ -896,38 +948,45 @@ namespace llvm {
     SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSIGN_EXTEND_INREG(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerWin64_i128OP(SDValue Op, SelectionDAG &DAG) const;
 
-    virtual SDValue
+    SDValue
       LowerFormalArguments(SDValue Chain,
                            CallingConv::ID CallConv, bool isVarArg,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            SDLoc dl, SelectionDAG &DAG,
-                           SmallVectorImpl<SDValue> &InVals) const;
-    virtual SDValue
-      LowerCall(CallLoweringInfo &CLI,
-                SmallVectorImpl<SDValue> &InVals) const;
+                           SmallVectorImpl<SDValue> &InVals) const override;
+    SDValue LowerCall(CallLoweringInfo &CLI,
+                      SmallVectorImpl<SDValue> &InVals) const override;
 
-    virtual SDValue
-      LowerReturn(SDValue Chain,
-                  CallingConv::ID CallConv, bool isVarArg,
-                  const SmallVectorImpl<ISD::OutputArg> &Outs,
-                  const SmallVectorImpl<SDValue> &OutVals,
-                  SDLoc dl, SelectionDAG &DAG) const;
+    SDValue LowerReturn(SDValue Chain,
+                        CallingConv::ID CallConv, bool isVarArg,
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        const SmallVectorImpl<SDValue> &OutVals,
+                        SDLoc dl, SelectionDAG &DAG) const override;
 
-    virtual bool isUsedByReturnOnly(SDNode *N, SDValue &Chain) const;
+    bool isUsedByReturnOnly(SDNode *N, SDValue &Chain) const override;
 
-    virtual bool mayBeEmittedAsTailCall(CallInst *CI) const;
+    bool mayBeEmittedAsTailCall(CallInst *CI) const override;
 
-    virtual MVT
-    getTypeForExtArgOrReturn(MVT VT, ISD::NodeType ExtendKind) const;
+    EVT getTypeForExtArgOrReturn(LLVMContext &Context, EVT VT,
+                                 ISD::NodeType ExtendKind) const override;
 
-    virtual bool
-    CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
-                   bool isVarArg,
-                   const SmallVectorImpl<ISD::OutputArg> &Outs,
-                   LLVMContext &Context) const;
+    bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                        bool isVarArg,
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        LLVMContext &Context) const override;
 
-    virtual const uint16_t *getScratchRegisters(CallingConv::ID CC) const;
+    const MCPhysReg *getScratchRegisters(CallingConv::ID CC) const override;
+
+    bool shouldExpandAtomicLoadInIR(LoadInst *SI) const override;
+    bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
+    bool shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
+
+    LoadInst *
+    lowerIdempotentRMWIntoFencedLoad(AtomicRMWInst *AI) const override;
+
+    bool needsCmpXchgNb(const Type *MemType) const;
 
     /// Utility function to emit atomic-load-arith operations (and, or, xor,
     /// nand, max, min, umax, umin). It takes the corresponding instruction to
@@ -958,8 +1017,7 @@ namespace llvm {
                                               MachineBasicBlock *BB) const;
 
     MachineBasicBlock *EmitLoweredSegAlloca(MachineInstr *MI,
-                                            MachineBasicBlock *BB,
-                                            bool Is64Bit) const;
+                                            MachineBasicBlock *BB) const;
 
     MachineBasicBlock *EmitLoweredTLSCall(MachineInstr *MI,
                                           MachineBasicBlock *BB) const;
@@ -973,17 +1031,30 @@ namespace llvm {
     MachineBasicBlock *emitEHSjLjLongJmp(MachineInstr *MI,
                                          MachineBasicBlock *MBB) const;
 
+    MachineBasicBlock *emitFMA3Instr(MachineInstr *MI,
+                                     MachineBasicBlock *MBB) const;
+
     /// Emit nodes that will be selected as "test Op0,Op0", or something
     /// equivalent, for use with the given x86 condition code.
-    SDValue EmitTest(SDValue Op0, unsigned X86CC, SelectionDAG &DAG) const;
+    SDValue EmitTest(SDValue Op0, unsigned X86CC, SDLoc dl,
+                     SelectionDAG &DAG) const;
 
     /// Emit nodes that will be selected as "cmp Op0,Op1", or something
     /// equivalent, for use with the given x86 condition code.
-    SDValue EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC,
+    SDValue EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC, SDLoc dl,
                     SelectionDAG &DAG) const;
 
     /// Convert a comparison if required by the subtarget.
     SDValue ConvertCmpIfNecessary(SDValue Cmp, SelectionDAG &DAG) const;
+
+    /// Use rsqrt* to speed up sqrt calculations.
+    SDValue getRsqrtEstimate(SDValue Operand, DAGCombinerInfo &DCI,
+                             unsigned &RefinementSteps,
+                             bool &UseOneConstNR) const override;
+
+    /// Use rcp* to speed up fdiv calculations.
+    SDValue getRecipEstimate(SDValue Operand, DAGCombinerInfo &DCI,
+                             unsigned &RefinementSteps) const override;
   };
 
   namespace X86 {

@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -81,16 +82,19 @@ static int mrsas_init_fw(struct mrsas_softc *sc);
 static int mrsas_setup_raidmap(struct mrsas_softc *sc);
 static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
-static int 
-mrsas_get_ctrl_info(struct mrsas_softc *sc,
-    struct mrsas_ctrl_info *ctrl_info);
-static int 
+static int mrsas_get_ctrl_info(struct mrsas_softc *sc);
+static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
+static int
 mrsas_issue_blocked_abort_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd_to_abort);
+static struct mrsas_softc *
+mrsas_get_softc_instance(struct cdev *dev,
+    u_long cmd, caddr_t arg);
 u_int32_t mrsas_read_reg(struct mrsas_softc *sc, int offset);
-u_int8_t 
+u_int8_t
 mrsas_build_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *mfi_cmd);
+void	mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc);
 int	mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr);
 int	mrsas_init_adapter(struct mrsas_softc *sc);
 int	mrsas_alloc_mpt_cmds(struct mrsas_softc *sc);
@@ -102,10 +106,10 @@ int	mrsas_issue_dcmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_reset_ctrl(struct mrsas_softc *sc);
 int	mrsas_wait_for_outstanding(struct mrsas_softc *sc);
-int 
+int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
-int 
+int
 mrsas_alloc_tmp_dcmd(struct mrsas_softc *sc, struct mrsas_tmp_dcmd *tcmd,
     int size);
 void	mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd);
@@ -122,17 +126,17 @@ void	mrsas_teardown_intr(struct mrsas_softc *sc);
 void	mrsas_addr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 void	mrsas_kill_hba(struct mrsas_softc *sc);
 void	mrsas_aen_handler(struct mrsas_softc *sc);
-void 
+void
 mrsas_write_reg(struct mrsas_softc *sc, int offset,
     u_int32_t value);
-void 
+void
 mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi);
 void	mrsas_free_ctlr_info_cmd(struct mrsas_softc *sc);
-void 
+void
 mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd, u_int8_t status);
-void 
+void
 mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status,
     u_int8_t extStatus);
 struct mrsas_mfi_cmd *mrsas_get_mfi_cmd(struct mrsas_softc *sc);
@@ -175,9 +179,9 @@ typedef struct mrsas_ident {
 }	MRSAS_CTLR_ID;
 
 MRSAS_CTLR_ID device_table[] = {
-	{0x1000, MRSAS_TBOLT, 0xffff, 0xffff, "LSI Thunderbolt SAS Controller"},
-	{0x1000, MRSAS_INVADER, 0xffff, 0xffff, "LSI Invader SAS Controller"},
-	{0x1000, MRSAS_FURY, 0xffff, 0xffff, "LSI Fury SAS Controller"},
+	{0x1000, MRSAS_TBOLT, 0xffff, 0xffff, "AVAGO Thunderbolt SAS Controller"},
+	{0x1000, MRSAS_INVADER, 0xffff, 0xffff, "AVAGO Invader SAS Controller"},
+	{0x1000, MRSAS_FURY, 0xffff, 0xffff, "AVAGO Fury SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -204,7 +208,7 @@ MALLOC_DEFINE(M_MRSAS, "mrsasbuf", "Buffers for the MRSAS driver");
  * routine when we create the /dev entry.
  */
 int
-mrsas_open(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
+mrsas_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct mrsas_softc *sc;
 
@@ -213,7 +217,7 @@ mrsas_open(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
 }
 
 int
-mrsas_close(struct cdev *dev, int fflag, int devtype, d_thread_t *td)
+mrsas_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct mrsas_softc *sc;
 
@@ -272,6 +276,7 @@ mrsas_disable_intr(struct mrsas_softc *sc)
 	u_int32_t mask = 0xFFFFFFFF;
 	u_int32_t status;
 
+	sc->mask_interrupts = 1;
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_mask), mask);
 	/* Dummy read to force pci flush */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_mask));
@@ -283,6 +288,7 @@ mrsas_enable_intr(struct mrsas_softc *sc)
 	u_int32_t mask = MFI_FUSION_ENABLE_INTERRUPT_MASK;
 	u_int32_t status;
 
+	sc->mask_interrupts = 0;
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status), ~0);
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
 
@@ -352,7 +358,7 @@ mrsas_probe(device_t dev)
 
 	if ((id = mrsas_find_ident(dev)) != NULL) {
 		if (first_ctrl) {
-			printf("LSI MegaRAID SAS FreeBSD mrsas driver version: %s\n",
+			printf("AVAGO MegaRAID SAS FreeBSD mrsas driver version: %s\n",
 			    MRSAS_VERSION);
 			first_ctrl = 0;
 		}
@@ -459,6 +465,11 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	 * Grab the global variables.
 	 */
 	TUNABLE_INT_FETCH("hw.mrsas.debug_level", &sc->mrsas_debug);
+
+	/*
+	 * Grab the global variables.
+	 */
+	TUNABLE_INT_FETCH("hw.mrsas.lb_pending_cmds", &sc->lb_pending_cmds);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mrsas.%d.debug_level",
@@ -1163,6 +1174,12 @@ mrsas_free_mem(struct mrsas_softc *sc)
 	 */
 	if (sc->mrsas_parent_tag != NULL)
 		bus_dma_tag_destroy(sc->mrsas_parent_tag);
+
+	/*
+	 * Free ctrl_info memory
+	 */
+	if (sc->ctrl_info != NULL)
+		free(sc->ctrl_info, M_MRSAS);
 }
 
 /*
@@ -1231,6 +1248,43 @@ mrsas_resume(device_t dev)
 	return (0);
 }
 
+/**
+ * mrsas_get_softc_instance:    Find softc instance based on cmd type
+ *
+ * This function will return softc instance based on cmd type.
+ * In some case, application fire ioctl on required management instance and
+ * do not provide host_no. Use cdev->si_drv1 to get softc instance for those
+ * case, else get the softc instance from host_no provided by application in
+ * user data.
+ */
+
+static struct mrsas_softc *
+mrsas_get_softc_instance(struct cdev *dev, u_long cmd, caddr_t arg)
+{
+	struct mrsas_softc *sc = NULL;
+	struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
+
+	if (cmd == MRSAS_IOC_GET_PCI_INFO) {
+		sc = dev->si_drv1;
+	} else {
+		/*
+		 * get the Host number & the softc from data sent by the
+		 * Application
+		 */
+		sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
+		if ((user_ioc->host_no >= mrsas_mgmt_info.max_index) || (sc == NULL)) {
+			if (sc == NULL)
+				mrsas_dprint(sc, MRSAS_FAULT,
+				    "There is no Controller number %d .\n", user_ioc->host_no);
+			else
+				mrsas_dprint(sc, MRSAS_FAULT,
+				    "Invalid Controller number %d .\n", user_ioc->host_no);
+		}
+	}
+
+	return sc;
+}
+
 /*
  * mrsas_ioctl:	IOCtl commands entry point.
  *
@@ -1238,23 +1292,17 @@ mrsas_resume(device_t dev)
  * appropriate function for processing depending on the command received.
  */
 static int
-mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
+    struct thread *td)
 {
 	struct mrsas_softc *sc;
 	int ret = 0, i = 0;
+	MRSAS_DRV_PCI_INFORMATION *pciDrvInfo;
 
-	struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
-
-	/* get the Host number & the softc from data sent by the Application */
-	sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
-
-	if ((mrsas_mgmt_info.max_index == user_ioc->host_no) || (sc == NULL)) {
-		printf("Please check the controller number\n");
-		if (sc == NULL)
-			printf("There is NO such Host no. %d\n", user_ioc->host_no);
-
+	sc = mrsas_get_softc_instance(dev, cmd, arg);
+	if (!sc)
 		return ENOENT;
-	}
+
 	if (sc->remove_in_progress) {
 		mrsas_dprint(sc, MRSAS_INFO,
 		    "Driver remove or shutdown called.\n");
@@ -1298,6 +1346,22 @@ do_ioctl:
 	case MRSAS_IOC_SCAN_BUS:
 		ret = mrsas_bus_scan(sc);
 		break;
+
+	case MRSAS_IOC_GET_PCI_INFO:
+		pciDrvInfo = (MRSAS_DRV_PCI_INFORMATION *) arg;
+		memset(pciDrvInfo, 0, sizeof(MRSAS_DRV_PCI_INFORMATION));
+		pciDrvInfo->busNumber = pci_get_bus(sc->mrsas_dev);
+		pciDrvInfo->deviceNumber = pci_get_slot(sc->mrsas_dev);
+		pciDrvInfo->functionNumber = pci_get_function(sc->mrsas_dev);
+		pciDrvInfo->domainID = pci_get_domain(sc->mrsas_dev);
+		mrsas_dprint(sc, MRSAS_INFO, "pci bus no: %d,"
+		    "pci device no: %d, pci function no: %d,"
+		    "pci domain ID: %d\n",
+		    pciDrvInfo->busNumber, pciDrvInfo->deviceNumber,
+		    pciDrvInfo->functionNumber, pciDrvInfo->domainID);
+		ret = 0;
+		break;
+
 	default:
 		mrsas_dprint(sc, MRSAS_TRACE, "IOCTL command 0x%lx is not handled\n", cmd);
 		ret = ENOENT;
@@ -1327,8 +1391,10 @@ mrsas_poll(struct cdev *dev, int poll_events, struct thread *td)
 	}
 	if (revents == 0) {
 		if (poll_events & (POLLIN | POLLRDNORM)) {
+			mtx_lock(&sc->aen_lock);
 			sc->mrsas_poll_waiting = 1;
 			selrecord(td, &sc->mrsas_select);
+			mtx_unlock(&sc->aen_lock);
 		}
 	}
 	return revents;
@@ -1386,6 +1452,9 @@ mrsas_isr(void *arg)
 	struct mrsas_softc *sc = irq_context->sc;
 	int status = 0;
 
+	if (sc->mask_interrupts)
+		return;
+
 	if (!sc->msix_vectors) {
 		status = mrsas_clear_intr(sc);
 		if (!status)
@@ -1423,7 +1492,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	MRSAS_RAID_SCSI_IO_REQUEST *scsi_io_req;
 	struct mrsas_mpt_cmd *cmd_mpt;
 	struct mrsas_mfi_cmd *cmd_mfi;
-	u_int8_t arm, reply_descript_type;
+	u_int8_t reply_descript_type;
 	u_int16_t smid, num_completed;
 	u_int8_t status, extStatus;
 	union desc_value desc_val;
@@ -1461,8 +1530,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 			device_id = cmd_mpt->ccb_ptr->ccb_h.target_id;
 			lbinfo = &sc->load_balance_info[device_id];
 			if (cmd_mpt->load_balance == MRSAS_LOAD_BALANCE_FLAG) {
-				arm = lbinfo->raid1DevHandle[0] == scsi_io_req->DevHandle ? 0 : 1;
-				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[arm]);
+				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[cmd_mpt->pd_r1_lb]);
 				cmd_mpt->load_balance &= ~MRSAS_LOAD_BALANCE_FLAG;
 			}
 			/* Fall thru and complete IO */
@@ -1607,8 +1675,8 @@ mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8_t ex
 static int
 mrsas_alloc_mem(struct mrsas_softc *sc)
 {
-	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size, chain_frame_size,
-	          evt_detail_size, count;
+	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size,
+	          chain_frame_size, evt_detail_size, count;
 
 	/*
 	 * Allocate parent DMA tag
@@ -1860,34 +1928,6 @@ mrsas_setup_raidmap(struct mrsas_softc *sc)
 {
 	int i;
 
-	sc->drv_supported_vd_count =
-	    MRSAS_MAX_LD_CHANNELS * MRSAS_MAX_DEV_PER_CHANNEL;
-	sc->drv_supported_pd_count =
-	    MRSAS_MAX_PD_CHANNELS * MRSAS_MAX_DEV_PER_CHANNEL;
-
-	if (sc->max256vdSupport) {
-		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
-		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
-	} else {
-		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
-		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
-	}
-
-#if VD_EXT_DEBUG
-	device_printf(sc->mrsas_dev, "FW supports: max256vdSupport = %s\n",
-	    sc->max256vdSupport ? "YES" : "NO");
-	device_printf(sc->mrsas_dev, "FW supports %dVDs %dPDs\n"
-	    "DRIVER supports %dVDs  %dPDs \n",
-	    sc->fw_supported_vd_count, sc->fw_supported_pd_count,
-	    sc->drv_supported_vd_count, sc->drv_supported_pd_count);
-#endif
-
-	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) * (sc->fw_supported_vd_count - 1));
-	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
-	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) * (sc->drv_supported_vd_count - 1));
-
 	for (i = 0; i < 2; i++) {
 		sc->ld_drv_map[i] =
 		    (void *)malloc(sc->drv_map_sz, M_MRSAS, M_NOWAIT);
@@ -1901,14 +1941,6 @@ mrsas_setup_raidmap(struct mrsas_softc *sc)
 			goto ABORT;
 		}
 	}
-
-	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
-
-	if (sc->max256vdSupport)
-		sc->current_map_sz = sc->new_map_sz;
-	else
-		sc->current_map_sz = sc->old_map_sz;
-
 
 	for (int i = 0; i < 2; i++) {
 		if (bus_dma_tag_create(sc->mrsas_parent_tag,
@@ -1969,7 +2001,7 @@ ABORT:
  * get_pdlist, get_ld_list and max_sectors are currently not being used, it
  * is left here as placeholder.
  */
-static int 
+static int
 mrsas_init_fw(struct mrsas_softc *sc)
 {
 
@@ -1977,7 +2009,6 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	u_int32_t max_sectors_1;
 	u_int32_t max_sectors_2;
 	u_int32_t tmp_sectors;
-	struct mrsas_ctrl_info *ctrl_info;
 	u_int32_t scratch_pad_2;
 	int msix_enable = 0;
 	int fw_msix_count = 0;
@@ -2039,23 +2070,25 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Allocate MFI cmd failed.\n");
 		return (1);
 	}
+	sc->ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
+	if (!sc->ctrl_info) {
+		device_printf(sc->mrsas_dev, "Malloc for ctrl_info failed.\n");
+		return (1);
+	}
 	/*
 	 * Get the controller info from FW, so that the MAX VD support
 	 * availability can be decided.
 	 */
-	ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
-	if (!ctrl_info)
-		device_printf(sc->mrsas_dev, "Malloc for ctrl_info failed.\n");
-
-	if (mrsas_get_ctrl_info(sc, ctrl_info)) {
+	if (mrsas_get_ctrl_info(sc)) {
 		device_printf(sc->mrsas_dev, "Unable to get FW ctrl_info.\n");
+		return (1);
 	}
-	sc->max256vdSupport =
-	    (u_int8_t)ctrl_info->adapterOperations3.supportMaxExtLDs;
+	sc->secure_jbod_support =
+	    (u_int8_t)sc->ctrl_info->adapterOperations3.supportSecurityonJBOD;
 
-	if (ctrl_info->max_lds > 64) {
-		sc->max256vdSupport = 1;
-	}
+	if (sc->secure_jbod_support)
+		device_printf(sc->mrsas_dev, "FW supports SED \n");
+
 	if (mrsas_setup_raidmap(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Set up RAID map failed.\n");
 		return (1);
@@ -2079,9 +2112,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	 * calculate max_sectors_1. So the number ended up as zero always.
 	 */
 	tmp_sectors = 0;
-	max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
-	    ctrl_info->max_strips_per_io;
-	max_sectors_2 = ctrl_info->max_request_size;
+	max_sectors_1 = (1 << sc->ctrl_info->stripe_sz_ops.min) *
+	    sc->ctrl_info->max_strips_per_io;
+	max_sectors_2 = sc->ctrl_info->max_request_size;
 	tmp_sectors = min(max_sectors_1, max_sectors_2);
 	sc->max_sectors_per_req = sc->max_num_sge * MRSAS_PAGE_SIZE / 512;
 
@@ -2089,9 +2122,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		sc->max_sectors_per_req = tmp_sectors;
 
 	sc->disableOnlineCtrlReset =
-	    ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+	    sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 	sc->UnevenSpanSupport =
-	    ctrl_info->adapterOperations2.supportUnevenSpans;
+	    sc->ctrl_info->adapterOperations2.supportUnevenSpans;
 	if (sc->UnevenSpanSupport) {
 		device_printf(sc->mrsas_dev, "FW supports: UnevenSpanSupport=%x\n\n",
 		    sc->UnevenSpanSupport);
@@ -2101,9 +2134,6 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		else
 			sc->fast_path_io = 0;
 	}
-	if (ctrl_info)
-		free(ctrl_info, M_MRSAS);
-
 	return (0);
 }
 
@@ -2135,7 +2165,7 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 	max_cmd = sc->max_fw_cmds;
 
 	/* Determine allocation size of command frames */
-	sc->reply_q_depth = ((max_cmd + 1 + 15) / 16 * 16);
+	sc->reply_q_depth = ((max_cmd + 1 + 15) / 16 * 16) * 2;
 	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
 	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
@@ -2280,7 +2310,9 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 		init_frame->driver_ver_lo = (bus_addr_t)sc->verbuf_phys_addr;
 		init_frame->driver_ver_hi = 0;
 	}
+	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb = 1;
 	init_frame->driver_operations.mfi_capabilities.support_max_255lds = 1;
+	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw = 1;
 	phys_addr = (bus_addr_t)sc->ioc_init_phys_mem + 1024;
 	init_frame->queue_info_new_phys_addr_lo = phys_addr;
 	init_frame->data_xfer_len = sizeof(Mpi2IOCInitRequest_t);
@@ -2422,7 +2454,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
  * This functions fires the command to Firmware by writing to the
  * inbound_low_queue_port and inbound_high_queue_port.
  */
-void 
+void
 mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi)
 {
@@ -2702,7 +2734,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 			/* Reset not supported, kill adapter */
 			mrsas_dprint(sc, MRSAS_OCR, "Reset not supported, killing adapter.\n");
 			mrsas_kill_hba(sc);
-			sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
 			retval = FAIL;
 			goto out;
 		}
@@ -2787,10 +2818,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				mrsas_dprint(sc, MRSAS_OCR, "mrsas_ioc_init() failed!\n");
 				continue;
 			}
-			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
-			mrsas_enable_intr(sc);
-			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
-
 			/* Re-fire management commands */
 			for (j = 0; j < sc->max_fw_cmds; j++) {
 				mpt_cmd = sc->mpt_cmd_list[j];
@@ -2820,8 +2847,17 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 			memset(sc->load_balance_info, 0,
 			    sizeof(LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 
+			if (mrsas_get_ctrl_info(sc)) {
+				mrsas_kill_hba(sc);
+				retval = FAIL;
+				goto out;
+			}
 			if (!mrsas_get_map_info(sc))
 				mrsas_sync_map_info(sc);
+
+			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
+			mrsas_enable_intr(sc);
+			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 
 			/* Adapter reset completed successfully */
 			device_printf(sc->mrsas_dev, "Reset successful\n");
@@ -2853,11 +2889,43 @@ out:
 void
 mrsas_kill_hba(struct mrsas_softc *sc)
 {
+	sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
+	pause("mrsas_kill_hba", 1000);
 	mrsas_dprint(sc, MRSAS_OCR, "%s\n", __func__);
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, doorbell),
 	    MFI_STOP_ADP);
 	/* Flush */
 	mrsas_read_reg(sc, offsetof(mrsas_reg_set, doorbell));
+	mrsas_complete_outstanding_ioctls(sc);
+}
+
+/**
+ * mrsas_complete_outstanding_ioctls	Complete pending IOCTLS after kill_hba
+ * input:			Controller softc
+ *
+ * Returns void
+ */
+void 
+mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc)
+{
+	int i;
+	struct mrsas_mpt_cmd *cmd_mpt;
+	struct mrsas_mfi_cmd *cmd_mfi;
+	u_int32_t count, MSIxIndex;
+
+	count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+	for (i = 0; i < sc->max_fw_cmds; i++) {
+		cmd_mpt = sc->mpt_cmd_list[i];
+
+		if (cmd_mpt->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX) {
+			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
+			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT) {
+				for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
+					mrsas_complete_mptmfi_passthru(sc, cmd_mfi,
+					    cmd_mpt->io_request->RaidContext.status);
+			}
+		}
+	}
 }
 
 /*
@@ -2944,8 +3012,7 @@ mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd)
  * supported by the FW.
  */
 static int
-mrsas_get_ctrl_info(struct mrsas_softc *sc,
-    struct mrsas_ctrl_info *ctrl_info)
+mrsas_get_ctrl_info(struct mrsas_softc *sc)
 {
 	int retcode = 0;
 	struct mrsas_mfi_cmd *cmd;
@@ -2978,13 +3045,57 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc,
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_ctrl_info);
 
 	if (!mrsas_issue_polled(sc, cmd))
-		memcpy(ctrl_info, sc->ctlr_info_mem, sizeof(struct mrsas_ctrl_info));
+		memcpy(sc->ctrl_info, sc->ctlr_info_mem, sizeof(struct mrsas_ctrl_info));
 	else
 		retcode = 1;
+
+	mrsas_update_ext_vd_details(sc);
 
 	mrsas_free_ctlr_info_cmd(sc);
 	mrsas_release_mfi_cmd(cmd);
 	return (retcode);
+}
+
+/*
+ * mrsas_update_ext_vd_details : Update details w.r.t Extended VD
+ * input:
+ *	sc - Controller's softc
+*/
+static void 
+mrsas_update_ext_vd_details(struct mrsas_softc *sc)
+{
+	sc->max256vdSupport =
+	sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+	/* Below is additional check to address future FW enhancement */
+	if (sc->ctrl_info->max_lds > 64)
+		sc->max256vdSupport = 1;
+
+	sc->drv_supported_vd_count = MRSAS_MAX_LD_CHANNELS
+	    * MRSAS_MAX_DEV_PER_CHANNEL;
+	sc->drv_supported_pd_count = MRSAS_MAX_PD_CHANNELS
+	    * MRSAS_MAX_DEV_PER_CHANNEL;
+	if (sc->max256vdSupport) {
+		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
+		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	} else {
+		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
+		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	}
+
+	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
+	    (sizeof(MR_LD_SPAN_MAP) *
+	    (sc->fw_supported_vd_count - 1));
+	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
+	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
+	    (sizeof(MR_LD_SPAN_MAP) *
+	    (sc->drv_supported_vd_count - 1));
+
+	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
+
+	if (sc->max256vdSupport)
+		sc->current_map_sz = sc->new_map_sz;
+	else
+		sc->current_map_sz = sc->old_map_sz;
 }
 
 /*
@@ -3762,7 +3873,7 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
  * memory is initialized to all zeros upon successful loading of the dma
  * mapped memory.
  */
-int 
+int
 mrsas_alloc_tmp_dcmd(struct mrsas_softc *sc,
     struct mrsas_tmp_dcmd *tcmd, int size)
 {
@@ -3995,10 +4106,12 @@ mrsas_complete_aen(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 	 */
 	if ((!cmd->abort_aen) && (sc->remove_in_progress == 0)) {
 		sc->mrsas_aen_triggered = 1;
+		mtx_lock(&sc->aen_lock);
 		if (sc->mrsas_poll_waiting) {
 			sc->mrsas_poll_waiting = 0;
 			selwakeup(&sc->mrsas_select);
 		}
+		mtx_unlock(&sc->aen_lock);
 	} else
 		cmd->abort_aen = 0;
 

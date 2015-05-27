@@ -14,18 +14,29 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Atomic.h"
+#include "llvm/Support/Mutex.h"
+#include "llvm/Support/MutexGuard.h"
 #include <cassert>
 using namespace llvm;
 
-static const ManagedStaticBase *StaticList = 0;
+static const ManagedStaticBase *StaticList = nullptr;
+
+static sys::Mutex& getManagedStaticMutex() {
+  // We need to use a function local static here, since this can get called
+  // during a static constructor and we need to guarantee that it's initialized
+  // correctly.
+  static sys::Mutex ManagedStaticMutex;
+  return ManagedStaticMutex;
+}
 
 void ManagedStaticBase::RegisterManagedStatic(void *(*Creator)(),
                                               void (*Deleter)(void*)) const {
+  assert(Creator);
   if (llvm_is_multithreaded()) {
-    llvm_acquire_global_lock();
+    MutexGuard Lock(getManagedStaticMutex());
 
-    if (Ptr == 0) {
-      void* tmp = Creator ? Creator() : 0;
+    if (!Ptr) {
+      void* tmp = Creator();
 
       TsanHappensBefore(this);
       sys::MemoryFence();
@@ -42,12 +53,10 @@ void ManagedStaticBase::RegisterManagedStatic(void *(*Creator)(),
       Next = StaticList;
       StaticList = this;
     }
-
-    llvm_release_global_lock();
   } else {
-    assert(Ptr == 0 && DeleterFn == 0 && Next == 0 &&
+    assert(!Ptr && !DeleterFn && !Next &&
            "Partially initialized ManagedStatic!?");
-    Ptr = Creator ? Creator() : 0;
+    Ptr = Creator();
     DeleterFn = Deleter;
   
     // Add to list of managed statics.
@@ -62,20 +71,20 @@ void ManagedStaticBase::destroy() const {
          "Not destroyed in reverse order of construction?");
   // Unlink from list.
   StaticList = Next;
-  Next = 0;
+  Next = nullptr;
 
   // Destroy memory.
   DeleterFn(Ptr);
   
   // Cleanup.
-  Ptr = 0;
-  DeleterFn = 0;
+  Ptr = nullptr;
+  DeleterFn = nullptr;
 }
 
 /// llvm_shutdown - Deallocate and destroy all ManagedStatic variables.
 void llvm::llvm_shutdown() {
+  MutexGuard Lock(getManagedStaticMutex());
+
   while (StaticList)
     StaticList->destroy();
-
-  if (llvm_is_multithreaded()) llvm_stop_multithreaded();
 }

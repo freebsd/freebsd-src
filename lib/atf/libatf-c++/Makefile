@@ -28,13 +28,12 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
-LIB=		atf-c++
+LIB_CXX=	atf-c++
 PRIVATELIB=	true
 SHLIB_MAJOR=	2
 
 # libatf-c++ depends on the C version of the ATF library to build.
-DPADD=		${LIBATF_C}
-LDADD=		-latf-c
+LIBADD+=	atf_c
 
 LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 

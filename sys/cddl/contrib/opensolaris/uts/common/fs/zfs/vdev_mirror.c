@@ -435,7 +435,8 @@ vdev_mirror_io_start(zio_t *zio)
 	mm = vdev_mirror_map_init(zio);
 
 	if (zio->io_type == ZIO_TYPE_READ) {
-		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_replacing) {
+		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_replacing &&
+		    mm->mm_children > 1) {
 			/*
 			 * For scrubbing reads we need to allocate a read
 			 * buffer for each child and issue reads to all

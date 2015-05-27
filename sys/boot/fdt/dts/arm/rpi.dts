@@ -35,6 +35,17 @@
 
 	memreserve = <0x08000000 0x08000000>;	/* Set by VideoCore */
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			compatible = "arm,1176jzf-s";
+			device_type = "cpu";
+			reg = <0>;			/* CPU ID=0 */
+			clock-frequency = <700000000>;	/* 700MHz */
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0 0x8000000>; /* 128MB, Set by VideoCore */

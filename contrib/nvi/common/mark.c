@@ -26,7 +26,7 @@ static const char sccsid[] = "$Id: mark.c,v 10.14 2011/07/04 14:42:58 zy Exp $";
 
 #include "common.h"
 
-static LMARK *mark_find __P((SCR *, ARG_CHAR_T));
+static LMARK *mark_find(SCR *, ARG_CHAR_T);
 
 /*
  * Marks are maintained in a key sorted singly linked list.  We can't
@@ -63,7 +63,7 @@ static LMARK *mark_find __P((SCR *, ARG_CHAR_T));
  * mark_init --
  *	Set up the marks.
  *
- * PUBLIC: int mark_init __P((SCR *, EXF *));
+ * PUBLIC: int mark_init(SCR *, EXF *);
  */
 int
 mark_init(
@@ -84,7 +84,7 @@ mark_init(
  * mark_end --
  *	Free up the marks.
  *
- * PUBLIC: int mark_end __P((SCR *, EXF *));
+ * PUBLIC: int mark_end(SCR *, EXF *);
  */
 int
 mark_end(
@@ -108,7 +108,7 @@ mark_end(
  * mark_get --
  *	Get the location referenced by a mark.
  *
- * PUBLIC: int mark_get __P((SCR *, ARG_CHAR_T, MARK *, mtype_t));
+ * PUBLIC: int mark_get(SCR *, ARG_CHAR_T, MARK *, mtype_t);
  */
 int
 mark_get(
@@ -125,12 +125,12 @@ mark_get(
 	lmp = mark_find(sp, key);
 	if (lmp == NULL || lmp->name != key) {
 		msgq(sp, mtype, "017|Mark %s: not set", KEY_NAME(sp, key));
-                return (1);
+		return (1);
 	}
 	if (F_ISSET(lmp, MARK_DELETED)) {
 		msgq(sp, mtype,
 		    "018|Mark %s: the line was deleted", KEY_NAME(sp, key));
-                return (1);
+		return (1);
 	}
 
 	/*
@@ -153,7 +153,7 @@ mark_get(
  * mark_set --
  *	Set the location referenced by a mark.
  *
- * PUBLIC: int mark_set __P((SCR *, ARG_CHAR_T, MARK *, int));
+ * PUBLIC: int mark_set(SCR *, ARG_CHAR_T, MARK *, int);
  */
 int
 mark_set(
@@ -220,7 +220,7 @@ mark_find(
  * mark_insdel --
  *	Update the marks based on an insertion or deletion.
  *
- * PUBLIC: int mark_insdel __P((SCR *, lnop_t, recno_t));
+ * PUBLIC: int mark_insdel(SCR *, lnop_t, recno_t);
  */
 int
 mark_insdel(

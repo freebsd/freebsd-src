@@ -12,11 +12,11 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY Netlogic Microsystems ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE 
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -46,199 +46,202 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cache.h>
 
-static int 
+static int
 rmi_pci_bus_space_map(void *t, bus_addr_t addr,
     bus_size_t size, int flags,
     bus_space_handle_t * bshp);
 
-static void 
+static void
 rmi_pci_bus_space_unmap(void *t, bus_space_handle_t bsh,
     bus_size_t size);
 
-static int 
+static int
 rmi_pci_bus_space_subregion(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset, bus_size_t size,
     bus_space_handle_t * nbshp);
 
-static u_int8_t 
+static u_int8_t
 rmi_pci_bus_space_read_1(void *t,
     bus_space_handle_t handle,
     bus_size_t offset);
 
-static u_int16_t 
+static u_int16_t
 rmi_pci_bus_space_read_2(void *t,
     bus_space_handle_t handle,
     bus_size_t offset);
 
-static u_int32_t 
+static u_int32_t
 rmi_pci_bus_space_read_4(void *t,
     bus_space_handle_t handle,
     bus_size_t offset);
 
-static void 
+static void
 rmi_pci_bus_space_read_multi_1(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int8_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_multi_2(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int16_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_multi_4(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int32_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_region_1(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset, u_int8_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_region_2(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset, u_int16_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_region_4(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset, u_int32_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_write_1(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int8_t value);
 
-static void 
+static void
 rmi_pci_bus_space_write_2(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int16_t value);
 
-static void 
+static void
 rmi_pci_bus_space_write_4(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int32_t value);
 
-static void 
+static void
 rmi_pci_bus_space_write_multi_1(void *t,
     bus_space_handle_t handle,
     bus_size_t offset,
     const u_int8_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_write_multi_2(void *t,
     bus_space_handle_t handle,
     bus_size_t offset,
     const u_int16_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_write_multi_4(void *t,
     bus_space_handle_t handle,
     bus_size_t offset,
     const u_int32_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_write_region_2(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset,
     const u_int16_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_write_region_4(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset,
     const u_int32_t * addr,
     size_t count);
 
-
-static void 
+static void
 rmi_pci_bus_space_set_region_2(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset, u_int16_t value,
     size_t count);
-static void 
+
+static void
 rmi_pci_bus_space_set_region_4(void *t,
     bus_space_handle_t bsh,
     bus_size_t offset, u_int32_t value,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_barrier(void *tag __unused, bus_space_handle_t bsh __unused,
     bus_size_t offset __unused, bus_size_t len __unused, int flags);
 
-static void 
+static void
 rmi_pci_bus_space_copy_region_2(void *t,
     bus_space_handle_t bsh1,
     bus_size_t off1,
     bus_space_handle_t bsh2,
     bus_size_t off2, size_t count);
 
-u_int8_t 
+u_int8_t
 rmi_pci_bus_space_read_stream_1(void *t, bus_space_handle_t handle,
     bus_size_t offset);
 
-static u_int16_t 
+static u_int16_t
 rmi_pci_bus_space_read_stream_2(void *t, bus_space_handle_t handle,
     bus_size_t offset);
 
-static u_int32_t 
+static u_int32_t
 rmi_pci_bus_space_read_stream_4(void *t, bus_space_handle_t handle,
     bus_size_t offset);
-static void 
+
+static void
 rmi_pci_bus_space_read_multi_stream_1(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int8_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_multi_stream_2(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int16_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_read_multi_stream_4(void *t,
     bus_space_handle_t handle,
     bus_size_t offset, u_int32_t * addr,
     size_t count);
 
-void 
+void
 rmi_pci_bus_space_write_stream_1(void *t, bus_space_handle_t bsh,
     bus_size_t offset, u_int8_t value);
-static void 
+
+static void
 rmi_pci_bus_space_write_stream_2(void *t, bus_space_handle_t handle,
     bus_size_t offset, u_int16_t value);
 
-static void 
+static void
 rmi_pci_bus_space_write_stream_4(void *t, bus_space_handle_t handle,
     bus_size_t offset, u_int32_t value);
 
-static void 
+static void
 rmi_pci_bus_space_write_multi_stream_1(void *t,
     bus_space_handle_t handle,
     bus_size_t offset,
     const u_int8_t * addr,
     size_t count);
-static void 
+
+static void
 rmi_pci_bus_space_write_multi_stream_2(void *t,
     bus_space_handle_t handle,
     bus_size_t offset,
     const u_int16_t * addr,
     size_t count);
 
-static void 
+static void
 rmi_pci_bus_space_write_multi_stream_4(void *t,
     bus_space_handle_t handle,
     bus_size_t offset,

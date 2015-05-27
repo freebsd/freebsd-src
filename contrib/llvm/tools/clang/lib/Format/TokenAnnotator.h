@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_TOKEN_ANNOTATOR_H
-#define LLVM_CLANG_FORMAT_TOKEN_ANNOTATOR_H
+#ifndef LLVM_CLANG_LIB_FORMAT_TOKENANNOTATOR_H
+#define LLVM_CLANG_LIB_FORMAT_TOKENANNOTATOR_H
 
 #include "UnwrappedLineParser.h"
 #include "clang/Format/Format.h"
@@ -27,12 +27,13 @@ namespace format {
 
 enum LineType {
   LT_Invalid,
-  LT_Other,
-  LT_PreprocessorDirective,
-  LT_VirtualFunctionDecl,
+  LT_ImportStatement,
   LT_ObjCDecl, // An @interface, @implementation, or @protocol line.
   LT_ObjCMethodDecl,
-  LT_ObjCProperty // An @property line.
+  LT_ObjCProperty, // An @property line.
+  LT_Other,
+  LT_PreprocessorDirective,
+  LT_VirtualFunctionDecl
 };
 
 class AnnotatedLine {
@@ -41,13 +42,14 @@ public:
       : First(Line.Tokens.front().Tok), Level(Line.Level),
         InPPDirective(Line.InPPDirective),
         MustBeDeclaration(Line.MustBeDeclaration), MightBeFunctionDecl(false),
-        StartsDefinition(false) {
+        Affected(false), LeadingEmptyLinesAffected(false),
+        ChildrenAffected(false) {
     assert(!Line.Tokens.empty());
 
     // Calculate Next and Previous for all tokens. Note that we must overwrite
     // Next and Previous for every token, as previous formatting runs might have
     // left them in a different state.
-    First->Previous = NULL;
+    First->Previous = nullptr;
     FormatToken *Current = First;
     for (std::list<UnwrappedLineNode>::const_iterator I = ++Line.Tokens.begin(),
                                                       E = Line.Tokens.end();
@@ -66,7 +68,7 @@ public:
       }
     }
     Last = Current;
-    Last->Next = NULL;
+    Last->Next = nullptr;
   }
 
   ~AnnotatedLine() {
@@ -85,7 +87,17 @@ public:
   bool InPPDirective;
   bool MustBeDeclaration;
   bool MightBeFunctionDecl;
-  bool StartsDefinition;
+
+  /// \c True if this line should be formatted, i.e. intersects directly or
+  /// indirectly with one of the input ranges.
+  bool Affected;
+
+  /// \c True if the leading empty lines of this line intersect with one of the
+  /// input ranges.
+  bool LeadingEmptyLinesAffected;
+
+  /// \c True if a one of this line's children intersects with an input range.
+  bool ChildrenAffected;
 
 private:
   // Disallow copying.
@@ -97,8 +109,8 @@ private:
 /// \c UnwrappedLine.
 class TokenAnnotator {
 public:
-  TokenAnnotator(const FormatStyle &Style, IdentifierInfo &Ident_in)
-      : Style(Style), Ident_in(Ident_in) {}
+  TokenAnnotator(const FormatStyle &Style, const AdditionalKeywords &Keywords)
+      : Style(Style), Keywords(Keywords) {}
 
   /// \brief Adapts the indent levels of comment lines to the indent of the
   /// subsequent line.
@@ -128,11 +140,10 @@ private:
 
   const FormatStyle &Style;
 
-  // Contextual keywords:
-  IdentifierInfo &Ident_in;
+  const AdditionalKeywords &Keywords;
 };
 
 } // end namespace format
 } // end namespace clang
 
-#endif // LLVM_CLANG_FORMAT_TOKEN_ANNOTATOR_H
+#endif

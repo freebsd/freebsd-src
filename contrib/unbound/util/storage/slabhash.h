@@ -184,6 +184,13 @@ void slabhash_setmarkdel(struct slabhash* table, lruhash_markdelfunc_t md);
 void slabhash_traverse(struct slabhash* table, int wr,
         void (*func)(struct lruhash_entry*, void*), void* arg);
 
+/*
+ * Count entries in slabhash.
+ * @param table: slabbed hash table;
+ * @return the number of items
+ */
+size_t count_slabhash_entries(struct slabhash* table);
+
 /* --- test representation --- */
 /** test structure contains test key */
 struct slabhash_testkey {

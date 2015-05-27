@@ -32,10 +32,6 @@
 #ifndef DEBUG_H
 #define DEBUG_H 1
 
-#ifndef __GNUC__
-#error "This file must be compiled with GCC"
-#endif
-
 #include <sys/cdefs.h>
 
 #include <string.h>

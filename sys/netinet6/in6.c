@@ -1333,6 +1333,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -1356,7 +1357,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	if (ia->ia6_ndpr == NULL) {
 		nd6log((LOG_NOTICE,
 		    "in6_unlink_ifa: autoconf'ed address "
-		    "%p has no prefix\n", ia));
+		    "%s has no prefix\n", ip6_sprintf(ip6buf, IA6_IN6(ia))));
 	} else {
 		ia->ia6_ndpr->ndpr_refcnt--;
 		ia->ia6_ndpr = NULL;
@@ -1683,6 +1684,36 @@ in6_localip(struct in6_addr *in6)
 	IN6_IFADDR_RUNLOCK();
 	return (0);
 }
+ 
+/*
+ * Return 1 if an internet address is configured on an interface.
+ */
+int
+in6_ifhasaddr(struct ifnet *ifp, struct in6_addr *addr)
+{
+	struct in6_addr in6;
+	struct ifaddr *ifa;
+	struct in6_ifaddr *ia6;
+
+	in6 = *addr;
+	if (in6_clearscope(&in6))
+		return (0);
+	in6_setscope(&in6, ifp, NULL);
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		ia6 = (struct in6_ifaddr *)ifa;
+		if (IN6_ARE_ADDR_EQUAL(&ia6->ia_addr.sin6_addr, &in6)) {
+			IF_ADDR_RUNLOCK(ifp);
+			return (1);
+		}
+	}
+	IF_ADDR_RUNLOCK(ifp);
+
+	return (0);
+}
 
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
@@ -1909,7 +1940,8 @@ in6if_do_dad(struct ifnet *ifp)
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
 		return (0);
 
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) ||
+	    (ND_IFINFO(ifp)->flags & ND6_IFF_NO_DAD))
 		return (0);
 
 	/*
@@ -1965,18 +1997,9 @@ in6_if2idlen(struct ifnet *ifp)
 {
 	switch (ifp->if_type) {
 	case IFT_ETHER:		/* RFC2464 */
-#ifdef IFT_PROPVIRTUAL
 	case IFT_PROPVIRTUAL:	/* XXX: no RFC. treat it as ether */
-#endif
-#ifdef IFT_L2VLAN
 	case IFT_L2VLAN:	/* ditto */
-#endif
-#ifdef IFT_IEEE80211
 	case IFT_IEEE80211:	/* ditto */
-#endif
-#ifdef IFT_MIP
-	case IFT_MIP:	/* ditto */
-#endif
 	case IFT_INFINIBAND:
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
@@ -2046,8 +2069,7 @@ in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init_rw(&lle->base.ln_timer_ch, &lle->base.lle_lock,
-	    CALLOUT_RETURNUNLOCKED);
+	callout_init(&lle->base.ln_timer_ch, 1);
 
 	return (&lle->base);
 }

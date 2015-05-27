@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd March 26, 2015
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -335,6 +335,8 @@ utility when
 .Va daily_status_disks_enable
 is set to
 .Dq Li YES .
+The default is
+.Fl l Fl h .
 .It Va daily_status_zfs_enable
 .Pq Vt bool
 Set to
@@ -399,6 +401,16 @@ Set to
 .Dq Li YES
 if you want to run
 .Nm netstat Fl i .
+.It Va daily_status_network_netstat_flags
+.Pq Vt str
+Set to additional arguments for the
+.Xr netstat 1
+utility when
+.Va daily_status_network_enable
+is set to
+.Dq Li YES .
+The default is
+.Fl d .
 .It Va daily_status_network_usedns
 .Pq Vt bool
 Set to
@@ -498,6 +510,11 @@ for yesterday's mail rejects.
 Set to
 .Dq Li YES
 if you want to enable NTP status check.
+.It Va daily_status_world_kernel
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check the running userland and kernel are in sync.
 .It Va daily_queuerun_enable
 .Pq Vt bool
 Set to
@@ -586,15 +603,15 @@ This would usually be set to
 .It Va weekly_status_security_enable
 .Pq Vt bool
 Weekly counterpart of
-.Va daily_status_securiy_enable .
+.Va daily_status_security_enable .
 .It Va weekly_status_security_inline
 .Pq Vt bool
 Weekly counterpart of
-.Va daily_status_securiy_inline .
+.Va daily_status_security_inline .
 .It Va weekly_status_security_output
 .Pq Vt str
 Weekly counterpart of
-.Va daily_status_securiy_output .
+.Va daily_status_security_output .
 .It Va weekly_status_pkg_enable
 .Pq Vt bool
 Set to
@@ -665,15 +682,15 @@ command.
 .It Va monthly_status_security_enable
 .Pq Vt bool
 Monthly counterpart of
-.Va daily_status_securiy_enable .
+.Va daily_status_security_enable .
 .It Va monthly_status_security_inline
 .Pq Vt bool
 Monthly counterpart of
-.Va daily_status_securiy_inline .
+.Va daily_status_security_inline .
 .It Va monthly_status_security_output
 .Pq Vt str
 Monthly counterpart of
-.Va daily_status_securiy_output .
+.Va daily_status_security_output .
 .It Va monthly_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other
@@ -705,7 +722,7 @@ they will be always run unless their
 or
 .Va ..._period
 variable is set to
-.Dq No .
+.Dq NO .
 .Bl -tag -offset 4n -width 2n
 .It Va security_status_diff_flags
 .Pq Vt str

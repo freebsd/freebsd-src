@@ -91,7 +91,6 @@ public:
 // API call is made to prune the dependence.
 class VLIWPacketizerList {
 protected:
-  const TargetMachine &TM;
   const MachineFunction &MF;
   const TargetInstrInfo *TII;
 
@@ -107,9 +106,7 @@ protected:
   std::map<MachineInstr*, SUnit*> MIToSUnit;
 
 public:
-  VLIWPacketizerList(
-    MachineFunction &MF, MachineLoopInfo &MLI, MachineDominatorTree &MDT,
-    bool IsPostRA);
+  VLIWPacketizerList(MachineFunction &MF, MachineLoopInfo &MLI, bool IsPostRA);
 
   virtual ~VLIWPacketizerList();
 

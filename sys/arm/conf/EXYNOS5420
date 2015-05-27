@@ -18,8 +18,8 @@
 # $FreeBSD$
 
 ident		EXYNOS5420
-include		"EXYNOS5.common"
-include		"../samsung/exynos/std.exynos5420"
+include 	"EXYNOS5.common"
+include 	"../samsung/exynos/std.exynos5420"
 
 #FDT
 options 	FDT

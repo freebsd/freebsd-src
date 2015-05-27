@@ -32,6 +32,8 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/proc.h>
+#include <sys/sleepqueue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
@@ -56,6 +58,8 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#include <linux/netdevice.h>
+#include <linux/timer.h>
 
 #include <vm/vm_pager.h>
 
@@ -67,19 +71,16 @@ MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 #undef file
 #undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
-#undef LIST_HEAD
-/* From sys/queue.h */
-#define LIST_HEAD(name, type)						\
-struct name {								\
-	struct type *lh_first;	/* first element */			\
-}
 
 struct kobject class_root;
 struct device linux_rootdev;
 struct class miscclass;
 struct list_head pci_drivers;
 struct list_head pci_devices;
+struct net init_net;
 spinlock_t pci_lock;
+
+unsigned long linux_timer_hz_mask;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -174,6 +175,13 @@ kobject_kfree_name(struct kobject *kobj)
 
 struct kobj_type kfree_type = { .release = kobject_kfree };
 
+static void
+dev_release(struct device *dev)
+{
+	pr_debug("dev_release: %s\n", dev_name(dev));
+	kfree(dev);
+}
+
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
     void *drvdata, const char *fmt, ...)
@@ -186,6 +194,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 	dev->class = class;
 	dev->devt = devt;
 	dev->driver_data = drvdata;
+	dev->release = dev_release;
 	va_start(args, fmt);
 	kobject_set_name_vargs(&dev->kobj, fmt, args);
 	va_end(args);
@@ -335,7 +344,8 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -369,7 +379,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -490,7 +501,8 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -610,7 +622,9 @@ struct vmmap {
 	unsigned long		vm_size;
 };
 
-LIST_HEAD(vmmaphd, vmmap);
+struct vmmaphd {
+	struct vmmap *lh_first;
+};
 #define	VMMAP_HASH_SIZE	64
 #define	VMMAP_HASH_MASK	(VMMAP_HASH_SIZE - 1)
 #define	VM_HASH(addr)	((uintptr_t)(addr) >> PAGE_SHIFT) & VMMAP_HASH_MASK
@@ -701,8 +715,187 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
+
+char *
+kasprintf(gfp_t gfp, const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+
+	va_start(ap, fmt);
+	p = kvasprintf(gfp, fmt, ap);
+	va_end(ap);
+
+	return p;
+}
+
+static int
+linux_timer_jiffies_until(unsigned long expires)
+{
+	int delta = expires - jiffies;
+	/* guard against already expired values */
+	if (delta < 1)
+		delta = 1;
+	return (delta);
+}
+
 static void
-linux_compat_init(void)
+linux_timer_callback_wrapper(void *context)
+{
+	struct timer_list *timer;
+
+	timer = context;
+	timer->function(timer->data);
+}
+
+void
+mod_timer(struct timer_list *timer, unsigned long expires)
+{
+
+	timer->expires = expires;
+	callout_reset(&timer->timer_callout,		      
+	    linux_timer_jiffies_until(expires),
+	    &linux_timer_callback_wrapper, timer);
+}
+
+void
+add_timer(struct timer_list *timer)
+{
+
+	callout_reset(&timer->timer_callout,
+	    linux_timer_jiffies_until(timer->expires),
+	    &linux_timer_callback_wrapper, timer);
+}
+
+static void
+linux_timer_init(void *arg)
+{
+
+	/*
+	 * Compute an internal HZ value which can divide 2**32 to
+	 * avoid timer rounding problems when the tick value wraps
+	 * around 2**32:
+	 */
+	linux_timer_hz_mask = 1;
+	while (linux_timer_hz_mask < (unsigned long)hz)
+		linux_timer_hz_mask *= 2;
+	linux_timer_hz_mask--;
+}
+SYSINIT(linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_timer_init, NULL);
+
+void
+linux_complete_common(struct completion *c, int all)
+{
+	int wakeup_swapper;
+
+	sleepq_lock(c);
+	c->done++;
+	if (all)
+		wakeup_swapper = sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
+	else
+		wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(c);
+	if (wakeup_swapper)
+		kick_proc0();
+}
+
+/*
+ * Indefinite wait for done != 0 with or without signals.
+ */
+long
+linux_wait_for_common(struct completion *c, int flags)
+{
+
+	if (flags != 0)
+		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
+	else
+		flags = SLEEPQ_SLEEP;
+	for (;;) {
+		sleepq_lock(c);
+		if (c->done)
+			break;
+		sleepq_add(c, NULL, "completion", flags, 0);
+		if (flags & SLEEPQ_INTERRUPTIBLE) {
+			if (sleepq_wait_sig(c, 0) != 0)
+				return (-ERESTARTSYS);
+		} else
+			sleepq_wait(c, 0);
+	}
+	c->done--;
+	sleepq_release(c);
+
+	return (0);
+}
+
+/*
+ * Time limited wait for done != 0 with or without signals.
+ */
+long
+linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
+{
+	long end = jiffies + timeout;
+
+	if (flags != 0)
+		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
+	else
+		flags = SLEEPQ_SLEEP;
+	for (;;) {
+		int ret;
+
+		sleepq_lock(c);
+		if (c->done)
+			break;
+		sleepq_add(c, NULL, "completion", flags, 0);
+		sleepq_set_timeout(c, linux_timer_jiffies_until(end));
+		if (flags & SLEEPQ_INTERRUPTIBLE)
+			ret = sleepq_timedwait_sig(c, 0);
+		else
+			ret = sleepq_timedwait(c, 0);
+		if (ret != 0) {
+			/* check for timeout or signal */
+			if (ret == EWOULDBLOCK)
+				return (0);
+			else
+				return (-ERESTARTSYS);
+		}
+	}
+	c->done--;
+	sleepq_release(c);
+
+	/* return how many jiffies are left */
+	return (linux_timer_jiffies_until(end));
+}
+
+int
+linux_try_wait_for_completion(struct completion *c)
+{
+	int isdone;
+
+	isdone = 1;
+	sleepq_lock(c);
+	if (c->done)
+		c->done--;
+	else
+		isdone = 0;
+	sleepq_release(c);
+	return (isdone);
+}
+
+int
+linux_completion_done(struct completion *c)
+{
+	int isdone;
+
+	isdone = 1;
+	sleepq_lock(c);
+	if (c->done == 0)
+		isdone = 0;
+	sleepq_release(c);
+	return (isdone);
+}
+
+static void
+linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 	int i;
@@ -728,11 +921,10 @@ linux_compat_init(void)
 	for (i = 0; i < VMMAP_HASH_SIZE; i++)
 		LIST_INIT(&vmmaphead[i]);
 }
-
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 
 static void
-linux_compat_uninit(void)
+linux_compat_uninit(void *arg)
 {
 	kobject_kfree_name(&class_root);
 	kobject_kfree_name(&linux_rootdev.kobj);

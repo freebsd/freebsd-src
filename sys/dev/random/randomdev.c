@@ -214,11 +214,11 @@ random_harvest(const void *entropy, u_int count, u_int bits, enum random_entropy
  */
 
 /* Hold the address of the routine which is actually called */
-static u_int (*read_func)(uint8_t *, u_int) = dummy_random_read_phony;
+static void (*read_func)(uint8_t *, u_int) = dummy_random_read_phony;
 
 /* Initialise the reader when/if it is loaded */
 void
-randomdev_init_reader(u_int (*reader)(uint8_t *, u_int))
+randomdev_init_reader(void (*reader)(uint8_t *, u_int))
 {
 
 	read_func = reader;
@@ -240,5 +240,10 @@ int
 read_random(void *buf, int count)
 {
 
-	return ((int)(*read_func)(buf, (u_int)count));
+	if (count < 0)
+		return 0;
+
+	read_func(buf, count);
+
+	return count;
 }

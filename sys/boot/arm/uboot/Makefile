@@ -2,7 +2,8 @@
 
 .include <src.opts.mk>
 
-PROG=		ubldr
+FILES=		ubldr ubldr.bin
+
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
@@ -12,7 +13,7 @@ WARNS?=		1
 UBLDR_LOADADDR?=	0x1000000
 
 # Architecture-specific loader code
-SRCS=		start.S conf.c vers.c
+SRCS=		start.S conf.c self_reloc.c vers.c
 
 .if !defined(LOADER_NO_DISK_SUPPORT)
 LOADER_DISK_SUPPORT?=	yes
@@ -76,7 +77,9 @@ LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
-.if !defined(NO_FORTH)
+CFLAGS+=	-DNETIF_OPEN_CLOSE_ONCE
+
+.if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/arm
@@ -93,9 +96,7 @@ CLEANFILES+=	vers.c loader.help
 
 CFLAGS+=	-ffreestanding -msoft-float
 
-LDFLAGS=	-nostdlib -static
-LDFLAGS+=	-T ldscript.generated
-LDFLAGS+=	-T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../uboot/common
@@ -116,6 +117,8 @@ NO_WERROR.clang=
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} -lstand
 
+OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
+
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
@@ -123,25 +126,28 @@ loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
-${PROG}: ldscript.generated ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+ldscript.abs:
+	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >${.TARGET}
 
-ldscript.generated::
-	rm -f ldscript.generated.tmp
-	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >ldscript.generated.tmp
-	if diff ldscript.generated ldscript.generated.tmp > /dev/null; then \
-		true; \
-	else \
-		rm -f ldscript.generated; \
-		mv ldscript.generated.tmp ldscript.generated; \
-	fi
+ldscript.pie:
+	echo "UBLDR_LOADADDR = 0;" >${.TARGET}
+
+ubldr: ${OBJS} ldscript.abs ${.CURDIR}/ldscript.${MACHINE_CPUARCH} ${DPADD}
+	${CC} ${CFLAGS} -T ldscript.abs ${LDFLAGS} \
+	    -o ${.TARGET} ${OBJS} ${LDADD}
+
+ubldr.pie: ${OBJS} ldscript.pie ${.CURDIR}/ldscript.${MACHINE_CPUARCH} ${DPADD}
+	${CC} ${CFLAGS} -T ldscript.pie ${LDFLAGS} -pie -Wl,-Bsymbolic \
+	    -o ${.TARGET} ${OBJS} ${LDADD}
+
+ubldr.bin: ubldr.pie
+	${OBJCOPY} -S -O binary ubldr.pie ${.TARGET}
+
+CLEANFILES+=	ldscript.abs ldscript.pie ubldr ubldr.pie ubldr.bin
 
 .if !defined(LOADER_ONLY)
 .PATH: ${.CURDIR}/../../forth
-FILES+=	loader.help loader.4th support.4th loader.conf
-FILES+=	screen.4th frames.4th beastie.4th
-FILES+=	brand.4th check-password.4th color.4th delay.4th
-FILES+=	menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
-FILESDIR_loader.conf=	/boot/defaults
+.include	"${.CURDIR}/../../forth/Makefile.inc"
 
 # Put sample loader.rc and menu.rc on disk but don't enable them
 # by default.

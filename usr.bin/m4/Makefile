@@ -8,8 +8,7 @@
 
 PROG=	m4
 CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/../../lib/libohash
-DPADD=	${LIBY} ${LIBL} ${LIBM} ${LIBOHASH}
-LDADD=	-ly -ll -lm ${LDOHASH}
+LIBADD=	y l m ohash
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 

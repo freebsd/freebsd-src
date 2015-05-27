@@ -148,7 +148,7 @@ static void	cpustats(void);
 static void	pcpustats(int, u_long, int);
 static void	devstats(void);
 static void	doforkst(void);
-static void	dointr(void);
+static void	dointr(unsigned int, int);
 static void	dosum(void);
 static void	dovmstat(unsigned int, int);
 static void	domemstat_malloc(void);
@@ -163,7 +163,7 @@ static void	printhdr(int, u_long);
 static void	usage(void);
 
 static long	pct(long, long);
-static long	getuptime(void);
+static long long	getuptime(void);
 
 static char   **getdrivedata(char **);
 
@@ -325,7 +325,7 @@ retry_nlist:
 		dotimes();
 #endif
 	if (todo & INTRSTAT)
-		dointr();
+		dointr(interval, reps);
 	if (todo & VMSTAT)
 		dovmstat(interval, reps);
 	exit(0);
@@ -406,14 +406,15 @@ getdrivedata(char **argv)
 	return(argv);
 }
 
-static long
+/* Return system uptime in nanoseconds */
+static long long
 getuptime(void)
 {
 	struct timespec sp;
 
-	(void)clock_gettime(CLOCK_MONOTONIC, &sp);
+	(void)clock_gettime(CLOCK_UPTIME, &sp);
 
-	return(sp.tv_sec);
+	return((long long)sp.tv_sec * 1000000000LL + sp.tv_nsec);
 }
 
 static void
@@ -654,7 +655,7 @@ dovmstat(unsigned int interval, int reps)
 	u_long cpumask;
 	int rate_adj;
 
-	uptime = getuptime();
+	uptime = getuptime() / 1000000000LL;
 	halfuptime = uptime / 2;
 	rate_adj = 1;
 	ncpus = 1;
@@ -1165,61 +1166,133 @@ pcpustats(int ncpus, u_long cpumask, int maxid)
 	}
 }
 
-static void
-dointr(void)
+static unsigned int
+read_intrcnts(unsigned long **intrcnts)
 {
-	unsigned long *intrcnt, uptime;
-	uint64_t inttotal;
-	size_t clen, inamlen, intrcntlen, istrnamlen;
-	unsigned int i, nintr;
-	char *intrname, *tintrname;
+	size_t intrcntlen;
 
-	uptime = getuptime();
 	if (kd != NULL) {
 		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
-		kread(X_SINTRNAMES, &inamlen, sizeof(inamlen));
-		if ((intrcnt = malloc(intrcntlen)) == NULL ||
-		    (intrname = malloc(inamlen)) == NULL)
+		if ((*intrcnts = malloc(intrcntlen)) == NULL)
 			err(1, "malloc()");
-		kread(X_INTRCNT, intrcnt, intrcntlen);
-		kread(X_INTRNAMES, intrname, inamlen);
+		kread(X_INTRCNT, *intrcnts, intrcntlen);
 	} else {
-		for (intrcnt = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
-			if ((intrcnt = reallocf(intrcnt, intrcntlen)) == NULL)
+		for (*intrcnts = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
+			*intrcnts = reallocf(*intrcnts, intrcntlen);
+			if (*intrcnts == NULL)
 				err(1, "reallocf()");
 			if (mysysctl("hw.intrcnt",
-			    intrcnt, &intrcntlen, NULL, 0) == 0)
-				break;
-		}
-		for (intrname = NULL, inamlen = 1024; ; inamlen *= 2) {
-			if ((intrname = reallocf(intrname, inamlen)) == NULL)
-				err(1, "reallocf()");
-			if (mysysctl("hw.intrnames",
-			    intrname, &inamlen, NULL, 0) == 0)
+			    *intrcnts, &intrcntlen, NULL, 0) == 0)
 				break;
 		}
 	}
-	nintr = intrcntlen / sizeof(unsigned long);
-	tintrname = intrname;
+
+	return (intrcntlen / sizeof(unsigned long));
+}
+
+static void
+print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
+		char *intrnames, unsigned int nintr,
+		size_t istrnamlen, long long period_ms)
+{
+	unsigned long *intrcnt, *old_intrcnt;
+	uint64_t inttotal, old_inttotal, total_count, total_rate;
+	char* intrname;
+	unsigned int i;
+
+	inttotal = 0;
+	old_inttotal = 0;
+	intrname = intrnames;
+	for (i = 0, intrcnt=intrcnts, old_intrcnt=old_intrcnts; i < nintr; i++) {
+		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag)) {
+			unsigned long count, rate;
+
+			count = *intrcnt - *old_intrcnt;
+			rate = (count * 1000 + period_ms / 2) / period_ms;
+			(void)printf("%-*s %20lu %10lu\n", (int)istrnamlen,
+			    intrname, count, rate);
+		}
+		intrname += strlen(intrname) + 1;
+		inttotal += *intrcnt++;
+		old_inttotal += *old_intrcnt++;
+	}
+	total_count = inttotal - old_inttotal;
+	total_rate = (total_count * 1000 + period_ms / 2) / period_ms;
+	(void)printf("%-*s %20" PRIu64 " %10" PRIu64 "\n", (int)istrnamlen,
+	    "Total", total_count, total_rate);
+}
+
+static void
+dointr(unsigned int interval, int reps)
+{
+	unsigned long *intrcnts;
+	long long uptime, period_ms;
+	unsigned long *old_intrcnts = NULL;
+	size_t clen, inamlen, istrnamlen;
+	char *intrnames, *intrname;
+
+	uptime = getuptime();
+
+	/* Get the names of each interrupt source */
+	if (kd != NULL) {
+		kread(X_SINTRNAMES, &inamlen, sizeof(inamlen));
+		if ((intrnames = malloc(inamlen)) == NULL)
+			err(1, "malloc()");
+		kread(X_INTRNAMES, intrnames, inamlen);
+	} else {
+		for (intrnames = NULL, inamlen = 1024; ; inamlen *= 2) {
+			if ((intrnames = reallocf(intrnames, inamlen)) == NULL)
+				err(1, "reallocf()");
+			if (mysysctl("hw.intrnames",
+			    intrnames, &inamlen, NULL, 0) == 0)
+				break;
+		}
+	}
+
+	/* Determine the length of the longest interrupt name */
+	intrname = intrnames;
 	istrnamlen = strlen("interrupt");
-	for (i = 0; i < nintr; i++) {
-		clen = strlen(tintrname);
+	while(*intrname != '\0') {
+		clen = strlen(intrname);
 		if (clen > istrnamlen)
 			istrnamlen = clen;
-		tintrname += clen + 1;
+		intrname += strlen(intrname) + 1;
 	}
 	(void)printf("%-*s %20s %10s\n", (int)istrnamlen, "interrupt", "total",
 	    "rate");
-	inttotal = 0;
-	for (i = 0; i < nintr; i++) {
-		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag))
-			(void)printf("%-*s %20lu %10lu\n", (int)istrnamlen,
-			    intrname, *intrcnt, *intrcnt / uptime);
-		intrname += strlen(intrname) + 1;
-		inttotal += *intrcnt++;
+
+	/* 
+	 * Loop reps times printing differential interrupt counts.  If reps is
+	 * zero, then run just once, printing total counts
+	 */
+	period_ms = uptime / 1000000;
+	while(1) {
+		unsigned int nintr;
+		long long old_uptime;
+
+		nintr = read_intrcnts(&intrcnts);
+		/* 
+		 * Initialize old_intrcnts to 0 for the first pass, so
+		 * print_intrcnts will print total interrupts since boot
+		 */
+		if (old_intrcnts == NULL) {
+			old_intrcnts = calloc(nintr, sizeof(unsigned long));
+			if (old_intrcnts == NULL)
+				err(1, "calloc()");
+		}
+
+		print_intrcnts(intrcnts, old_intrcnts, intrnames, nintr,
+		    istrnamlen, period_ms);
+
+		free(old_intrcnts);
+		old_intrcnts = intrcnts;
+		if (reps >= 0 && --reps <= 0)
+			break;
+		usleep(interval * 1000);
+		old_uptime = uptime;
+		uptime = getuptime();
+		period_ms = (uptime - old_uptime) / 1000000;
 	}
-	(void)printf("%-*s %20" PRIu64 " %10" PRIu64 "\n", (int)istrnamlen,
-	    "Total", inttotal, inttotal / uptime);
 }
 
 static void

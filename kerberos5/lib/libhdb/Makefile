@@ -3,8 +3,8 @@
 LIB=	hdb
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
-LDADD=	-lasn1 -lcom_err -lkrb5 -lroken -lheimsqlite
-DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN} ${LIBHEIMSQLITE} ${LDAPDPADD}
+LIBADD=	asn1 com_err krb5 roken sqlite3
+DPADD=	${LDAPDPADD}
 
 MAN=	HDB.3 hdb_entry_ex.3
 
@@ -56,7 +56,7 @@ SRCS=	common.c \
 	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
 CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sqlite \
+	-I${KRB5DIR}/lib/roken -I${.CURDIR}/../../../contrib/sqlite3/ \
 	-I${KRB5DIR}/lib/krb5 \
 	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""
@@ -91,10 +91,10 @@ ${GEN}: hdb.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 NO_BEFOREBUILD_INCLUDES=
 

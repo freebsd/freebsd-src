@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,9 @@
 
 #if defined(_LINUX) || defined(__linux__)
 #include "aclinuxex.h"
+
+#elif defined(__DragonFly__)
+#include "acdragonflyex.h"
 
 #endif
 

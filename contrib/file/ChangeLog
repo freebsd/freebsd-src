@@ -1,3 +1,97 @@
+2015-01-02  15:15  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.22
+
+2015-01-01  12:01  Christos Zoulas <christos@zoulas.com>
+
+	* add indirect relative for TIFF/Exif
+
+2014-12-16  18:10  Christos Zoulas <christos@zoulas.com>
+	
+	* restructure elf note printing to avoid repeated messages
+	* add note limit, suggested by Alexander Cherepanov
+
+2014-12-16  16:53  Christos Zoulas <christos@zoulas.com>
+	
+	* Bail out on partial pread()'s (Alexander Cherepanov)
+	* Fix incorrect bounds check in file_printable (Alexander Cherepanov)
+
+2014-12-11  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* PR/405: ignore SIGPIPE from uncompress programs
+	* change printable -> file_printable and use it in
+	  more places for safety
+	* in ELF, instead of "(uses dynamic libraries)" when PT_INTERP
+	  is present print the interpreter name.
+	
+2014-12-10  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.21
+
+2014-11-27  18:40  Christos Zoulas <christos@zoulas.com>
+
+	* Allow setting more parameters from the command line.
+	* Split name/use and indirect magic recursion limits.
+
+2014-11-27  11:12  Christos Zoulas <christos@zoulas.com>
+
+	* Adjust ELF parameters and the default recursion
+	  level.
+	* Allow setting the recursion level dynamically.
+
+2014-11-24   8:55  Christos Zoulas <christos@zoulas.com>
+
+	* The following fixes resulted from Thomas Jarosch's fuzzing
+	  tests that revealed severe performance issues on pathological
+	  input:
+	    - limit number of elf program and sections processing
+	    - abort elf note processing quickly
+	    - reduce the number of recursion levels from 20 to 10
+	    - preserve error messages in indirect magic handling
+
+	This is tracked as CVE-2014-8116 and CVE-2014-8117
+
+2014-11-12  10:30  Christos Zoulas <christos@zoulas.com>
+
+	* fix bogus free in the user buffer case.
+
+2014-11-11  12:35  Christos Zoulas <christos@zoulas.com>
+
+	* fix out of bounds read for pascal strings
+	* fix memory leak (not freeing the head of each mlist)
+
+2014-11-07  10:25  Christos Zoulas <christos@zoulas.com>
+
+	* When printing strings from a file, convert them to printable
+	  on a byte by byte basis, so that we don't get issues with
+	  locale's trying to interpret random byte streams as UTF-8 and
+	  having printf error out with EILSEQ.
+	  
+2014-10-17  11:48  Christos Zoulas <christos@zoulas.com>
+
+	* fix bounds in note reading (Francisco Alonso / Red Hat)
+
+2014-10-11  15:02  Christos Zoulas <christos@zoulas.com>
+
+	* fix autoconf glue for setlocale and locale_t; some OS's
+	  have locale_t in xlocale.h
+
+2014-10-10  15:01  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.20
+
+2014-08-17  10:01  Christos Zoulas <christos@zoulas.com>
+
+	* recognize encrypted CDF documents
+
+2014-08-04   9:18  Christos Zoulas <christos@zoulas.com>
+
+	* add magic_load_buffers from Brooks Davis
+
+2014-07-24  16:40  Christos Zoulas <christos@zoulas.com>
+
+	* add thumbs.db support
+
 2014-06-12  12:28  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.19

@@ -171,7 +171,7 @@ aborterr(const char *format, ...)
 	whine("ERROR", format, ap);
 	va_end(ap);
 
-#if defined(sun)
+#ifdef illumos
 	abort();
 #else
 	exit(0);

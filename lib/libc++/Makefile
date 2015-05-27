@@ -62,8 +62,7 @@ CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
 CXXFLAGS+=	-std=c++11
 .endif
 
-DPADD=		${LIBCXXRT}
-LDADD=		-lcxxrt
+LIBADD+=	cxxrt
 LDFLAGS+=	--verbose
 INCSGROUPS=	STD EXP EXT
 
@@ -76,6 +75,7 @@ STD_HEADERS=	__bit_reference\
 		__hash_table\
 		__locale\
 		__mutex_base\
+		__refstring\
 		__split_buffer\
 		__sso_allocator\
 		__std_stream\
@@ -177,8 +177,12 @@ STD+=		${LIBCXXRTDIR}/${hdr}
 .endfor
 STDDIR=		${CXXINCLUDEDIR}
 
-EXP_HEADERS=	dynarray\
-		optional
+EXP_HEADERS=	__config\
+		dynarray\
+		optional\
+		string_view\
+		type_traits\
+		utility
 
 .for hdr in ${EXP_HEADERS}
 EXP+=		${HDRDIR}/experimental/${hdr}
@@ -203,5 +207,9 @@ afterinstall:
 	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.a \
 		${.OBJDIR}/libstdc++.a
 .endif
+
+# avoid cyclic dependency
+CFLAGS+= -I${LIBCXXRTDIR}
+GENDIRDEPS_FILTER= N*/libcxxrt
 
 .include <bsd.lib.mk>

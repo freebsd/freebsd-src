@@ -128,7 +128,7 @@ svc_vc_create(fd, sendsize, recvsize)
 	u_int sendsize;
 	u_int recvsize;
 {
-	SVCXPRT *xprt;
+	SVCXPRT *xprt = NULL;
 	struct cf_rendezvous *r = NULL;
 	struct __rpc_sockinfo si;
 	struct sockaddr_storage sslocal;

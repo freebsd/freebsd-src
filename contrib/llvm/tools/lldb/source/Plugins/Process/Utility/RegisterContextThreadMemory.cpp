@@ -59,7 +59,7 @@ RegisterContextThreadMemory::UpdateRegisterContext ()
                 {
                     OperatingSystem *os = process_sp->GetOperatingSystem ();
                     if (os->IsOperatingSystemPluginThread (thread_sp))
-                        m_reg_ctx_sp = os->CreateRegisterContextForThread (thread_sp.get(), LLDB_INVALID_ADDRESS);
+                        m_reg_ctx_sp = os->CreateRegisterContextForThread (thread_sp.get(), m_register_data_addr);
                 }                
             }
         }
@@ -167,7 +167,7 @@ RegisterContextThreadMemory::CopyFromRegisterContext (lldb::RegisterContextSP re
 }
 
 uint32_t
-RegisterContextThreadMemory::ConvertRegisterKindToRegisterNumber (uint32_t kind, uint32_t num)
+RegisterContextThreadMemory::ConvertRegisterKindToRegisterNumber (lldb::RegisterKind kind, uint32_t num)
 {
     UpdateRegisterContext ();
     if (m_reg_ctx_sp)

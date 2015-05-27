@@ -299,16 +299,12 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_BUF_RESV_UF(m, size) m->m_data += size
 #define SCTP_BUF_AT(m, size) m->m_data + size
 #define SCTP_BUF_IS_EXTENDED(m) (m->m_flags & M_EXT)
-#define SCTP_BUF_EXTEND_SIZE(m) (m->m_ext.ext_size)
+#define SCTP_BUF_SIZE M_SIZE
 #define SCTP_BUF_TYPE(m) (m->m_type)
 #define SCTP_BUF_RECVIF(m) (m->m_pkthdr.rcvif)
 #define SCTP_BUF_PREPEND	M_PREPEND
 
-#define SCTP_ALIGN_TO_END(m, len) if(m->m_flags & M_PKTHDR) { \
-                                     MH_ALIGN(m, len); \
-                                  } else if ((m->m_flags & M_EXT) == 0) { \
-                                     M_ALIGN(m, len); \
-                                  }
+#define SCTP_ALIGN_TO_END(m, len) M_ALIGN(m, len)
 
 /* We make it so if you have up to 4 threads
  * writing based on the default size of
@@ -393,6 +389,11 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_CLEAR_SO_NBIO(so)	((so)->so_state &= ~SS_NBIO)
 /* get the socket type */
 #define SCTP_SO_TYPE(so)	((so)->so_type)
+/* Use a macro for renaming sb_cc to sb_acc.
+ * Initially sb_ccc was used, but this broke select() when used
+ * with SCTP sockets.
+ */
+#define sb_cc sb_acc
 /* reserve sb space for a socket */
 #define SCTP_SORESERVE(so, send, recv)	soreserve(so, send, recv)
 /* wakeup a socket */

@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: v_status.c,v 10.10 2001/06/25 15:19:35 skimo 
  * v_status -- ^G
  *	Show the file status.
  *
- * PUBLIC: int v_status __P((SCR *, VICMD *));
+ * PUBLIC: int v_status(SCR *, VICMD *);
  */
 int
 v_status(SCR *sp, VICMD *vp)

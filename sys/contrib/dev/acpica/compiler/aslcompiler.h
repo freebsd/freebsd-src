@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -172,7 +172,6 @@ FlCheckForAcpiTable (
 
 ACPI_STATUS
 FlCheckForAscii (
-    FILE                    *Handle,
     char                    *Filename,
     BOOLEAN                 DisplayErrors);
 
@@ -543,6 +542,27 @@ OptOptimizeNamePath (
 
 
 /*
+ * aslprintf - Printf/Fprintf macros
+ */
+void
+OpcDoPrintf (
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+OpcDoFprintf (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+/*
+ * aslprune - parse tree pruner
+ */
+void
+AslPruneParseTree (
+    UINT32                  PruneDepth,
+    UINT32                  Type);
+
+
+/*
  * aslcodegen - code generation
  */
 void
@@ -665,6 +685,10 @@ TrAllocateNode (
     UINT32                  ParseOpcode);
 
 void
+TrPrintNodeCompileFlags (
+    UINT32                  Flags);
+
+void
 TrReleaseNode (
     ACPI_PARSE_OBJECT       *Op);
 
@@ -682,6 +706,20 @@ TrCreateNode (
 ACPI_PARSE_OBJECT *
 TrCreateLeafNode (
     UINT32                  ParseOpcode);
+
+ACPI_PARSE_OBJECT *
+TrCreateNullTarget (
+    void);
+
+ACPI_PARSE_OBJECT *
+TrCreateAssignmentNode (
+    ACPI_PARSE_OBJECT       *Target,
+    ACPI_PARSE_OBJECT       *Source);
+
+ACPI_PARSE_OBJECT *
+TrCreateTargetOperand (
+    ACPI_PARSE_OBJECT       *OriginalOp,
+    ACPI_PARSE_OBJECT       *ParentOp);
 
 ACPI_PARSE_OBJECT *
 TrCreateValuedLeafNode (

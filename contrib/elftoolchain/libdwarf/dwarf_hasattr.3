@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_hasattr.3 2073 2011-10-27 03:30:47Z jkoshy $
+.\" $Id: dwarf_hasattr.3 3181 2015-04-10 13:22:51Z emaste $
 .\"
 .Dd April 17, 2010
 .Os
@@ -64,7 +64,7 @@ If the named attribute is not present, a zero is written instead.
 If argument
 .Ar err
 is not NULL, it will be used to return an error descriptor in case
-of an error. 
+of an error.
 .Sh RETURN VALUES
 On success, function
 .Fn dwarf_hasattr
@@ -85,6 +85,7 @@ Either of argument
 or
 .Va ret_bool
 was NULL.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_attr 3 ,

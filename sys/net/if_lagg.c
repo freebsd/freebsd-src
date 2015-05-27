@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/hash.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/taskqueue.h>
@@ -131,7 +130,6 @@ static int	lagg_media_change(struct ifnet *);
 static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
 	    struct lagg_port *);
-static const void *lagg_gethdr(struct mbuf *, u_int, u_int, void *);
 
 /* Simple round robin */
 static void	lagg_rr_attach(struct lagg_softc *);
@@ -247,14 +245,14 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(lagg_failover_rx_all), 0,
     "Accept input from any interface in a failover lagg");
 
-/* Default value for using M_FLOWID */
+/* Default value for using flowid */
 static VNET_DEFINE(int, def_use_flowid) = 1;
 #define	V_def_use_flowid	VNET(def_use_flowid)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
     &VNET_NAME(def_use_flowid), 0,
     "Default setting for using flow id for load sharing");
 
-/* Default value for using M_FLOWID */
+/* Default value for flowid shift */
 static VNET_DEFINE(int, def_flowid_shift) = 16;
 #define	V_def_flowid_shift	VNET(def_flowid_shift)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
@@ -490,7 +488,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->flowid_shift = V_def_flowid_shift;
 
 	/* Hash all layers by default */
-	sc->sc_flags = LAGG_F_HASHL2|LAGG_F_HASHL3|LAGG_F_HASHL4;
+	sc->sc_flags = MBUF_HASHFLAG_L2|MBUF_HASHFLAG_L3|MBUF_HASHFLAG_L4;
 
 	lagg_proto_attach(sc, LAGG_PROTO_DEFAULT);
 
@@ -799,11 +797,16 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		lagg_port_lladdr(lp, IF_LLADDR(sc->sc_ifp));
 	}
 
-	/* Insert into the list of ports. Keep ports sorted by if_index. */
+	/*
+	 * Insert into the list of ports.
+	 * Keep ports sorted by if_index. It is handy, when configuration
+	 * is predictable and `ifconfig laggN create ...` command
+	 * will lead to the same result each time.
+	 */
 	SLIST_FOREACH(tlp, &sc->sc_ports, lp_entries) {
 		if (tlp->lp_ifp->if_index < ifp->if_index && (
 		    SLIST_NEXT(tlp, lp_entries) == NULL ||
-		    SLIST_NEXT(tlp, lp_entries)->lp_ifp->if_index <
+		    SLIST_NEXT(tlp, lp_entries)->lp_ifp->if_index >
 		    ifp->if_index))
 			break;
 	}
@@ -1344,7 +1347,15 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCGLAGGFLAGS:
-		rf->rf_flags = sc->sc_flags;
+		rf->rf_flags = 0;
+		LAGG_RLOCK(sc, &tracker);
+		if (sc->sc_flags & MBUF_HASHFLAG_L2)
+			rf->rf_flags |= LAGG_F_HASHL2;
+		if (sc->sc_flags & MBUF_HASHFLAG_L3)
+			rf->rf_flags |= LAGG_F_HASHL3;
+		if (sc->sc_flags & MBUF_HASHFLAG_L4)
+			rf->rf_flags |= LAGG_F_HASHL4;
+		LAGG_RUNLOCK(sc, &tracker);
 		break;
 	case SIOCSLAGGHASH:
 		error = priv_check(td, PRIV_NET_LAGG);
@@ -1355,8 +1366,13 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		LAGG_WLOCK(sc);
-		sc->sc_flags &= ~LAGG_F_HASHMASK;
-		sc->sc_flags |= rf->rf_flags & LAGG_F_HASHMASK;
+		sc->sc_flags = 0;
+		if (rf->rf_flags & LAGG_F_HASHL2)
+			sc->sc_flags |= MBUF_HASHFLAG_L2;
+		if (rf->rf_flags & LAGG_F_HASHL3)
+			sc->sc_flags |= MBUF_HASHFLAG_L3;
+		if (rf->rf_flags & LAGG_F_HASHL4)
+			sc->sc_flags |= MBUF_HASHFLAG_L4;
 		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCGLAGGPORT:
@@ -1653,7 +1669,11 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 
 	ETHER_BPF_MTAP(scifp, m);
 
-	m = (lp->lp_detaching == 0) ? lagg_proto_input(sc, lp, m) : NULL;
+	if (lp->lp_detaching != 0) {
+		m_freem(m);
+		m = NULL;
+	} else
+		m = lagg_proto_input(sc, lp, m);
 
 	if (m != NULL) {
 		if (scifp->if_flags & IFF_MONITOR) {
@@ -1799,120 +1819,6 @@ found:
 	}
 
 	return (rval);
-}
-
-static const void *
-lagg_gethdr(struct mbuf *m, u_int off, u_int len, void *buf)
-{
-	if (m->m_pkthdr.len < (off + len)) {
-		return (NULL);
-	} else if (m->m_len < (off + len)) {
-		m_copydata(m, off, len, buf);
-		return (buf);
-	}
-	return (mtod(m, char *) + off);
-}
-
-uint32_t
-lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
-{
-	uint16_t etype;
-	uint32_t p = key;
-	int off;
-	struct ether_header *eh;
-	const struct ether_vlan_header *vlan;
-#ifdef INET
-	const struct ip *ip;
-	const uint32_t *ports;
-	int iphlen;
-#endif
-#ifdef INET6
-	const struct ip6_hdr *ip6;
-	uint32_t flow;
-#endif
-	union {
-#ifdef INET
-		struct ip ip;
-#endif
-#ifdef INET6
-		struct ip6_hdr ip6;
-#endif
-		struct ether_vlan_header vlan;
-		uint32_t port;
-	} buf;
-
-
-	off = sizeof(*eh);
-	if (m->m_len < off)
-		goto out;
-	eh = mtod(m, struct ether_header *);
-	etype = ntohs(eh->ether_type);
-	if (sc->sc_flags & LAGG_F_HASHL2) {
-		p = hash32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
-		p = hash32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
-	}
-
-	/* Special handling for encapsulating VLAN frames */
-	if ((m->m_flags & M_VLANTAG) && (sc->sc_flags & LAGG_F_HASHL2)) {
-		p = hash32_buf(&m->m_pkthdr.ether_vtag,
-		    sizeof(m->m_pkthdr.ether_vtag), p);
-	} else if (etype == ETHERTYPE_VLAN) {
-		vlan = lagg_gethdr(m, off,  sizeof(*vlan), &buf);
-		if (vlan == NULL)
-			goto out;
-
-		if (sc->sc_flags & LAGG_F_HASHL2)
-			p = hash32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
-		etype = ntohs(vlan->evl_proto);
-		off += sizeof(*vlan) - sizeof(*eh);
-	}
-
-	switch (etype) {
-#ifdef INET
-	case ETHERTYPE_IP:
-		ip = lagg_gethdr(m, off, sizeof(*ip), &buf);
-		if (ip == NULL)
-			goto out;
-
-		if (sc->sc_flags & LAGG_F_HASHL3) {
-			p = hash32_buf(&ip->ip_src, sizeof(struct in_addr), p);
-			p = hash32_buf(&ip->ip_dst, sizeof(struct in_addr), p);
-		}
-		if (!(sc->sc_flags & LAGG_F_HASHL4))
-			break;
-		switch (ip->ip_p) {
-			case IPPROTO_TCP:
-			case IPPROTO_UDP:
-			case IPPROTO_SCTP:
-				iphlen = ip->ip_hl << 2;
-				if (iphlen < sizeof(*ip))
-					break;
-				off += iphlen;
-				ports = lagg_gethdr(m, off, sizeof(*ports), &buf);
-				if (ports == NULL)
-					break;
-				p = hash32_buf(ports, sizeof(*ports), p);
-				break;
-		}
-		break;
-#endif
-#ifdef INET6
-	case ETHERTYPE_IPV6:
-		if (!(sc->sc_flags & LAGG_F_HASHL3))
-			break;
-		ip6 = lagg_gethdr(m, off, sizeof(*ip6), &buf);
-		if (ip6 == NULL)
-			goto out;
-
-		p = hash32_buf(&ip6->ip6_src, sizeof(struct in6_addr), p);
-		p = hash32_buf(&ip6->ip6_dst, sizeof(struct in6_addr), p);
-		flow = ip6->ip6_flow & IPV6_FLOWLABEL_MASK;
-		p = hash32_buf(&flow, sizeof(flow), p);	/* IPv6 flow label */
-		break;
-#endif
-	}
-out:
-	return (p);
 }
 
 int
@@ -2087,7 +1993,7 @@ lagg_lb_attach(struct lagg_softc *sc)
 
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 
-	lb->lb_key = arc4random();
+	lb->lb_key = m_ether_tcpip_hash_init();
 	sc->sc_psc = lb;
 
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
@@ -2148,10 +2054,11 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
 
-	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) && (m->m_flags & M_FLOWID))
+	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		p = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
-		p = lagg_hashmbuf(sc, m, lb->lb_key);
+		p = m_ether_tcpip_hash(sc->sc_flags, m, lb->lb_key);
 	p %= sc->sc_count;
 	lp = lb->lb_ports[p];
 

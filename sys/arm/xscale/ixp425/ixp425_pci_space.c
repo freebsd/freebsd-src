@@ -72,30 +72,30 @@ bs_protos(ixp425_pci_io);
 bs_protos(ixp425_pci_mem);
 
 /* special I/O functions */
-static u_int8_t  _pci_io_bs_r_1(void *, bus_space_handle_t, bus_size_t);
-static u_int16_t _pci_io_bs_r_2(void *, bus_space_handle_t, bus_size_t);
-static u_int32_t _pci_io_bs_r_4(void *, bus_space_handle_t, bus_size_t);
+static u_int8_t  _pci_io_bs_r_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static u_int16_t _pci_io_bs_r_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static u_int32_t _pci_io_bs_r_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
 
-static void _pci_io_bs_w_1(void *, bus_space_handle_t, bus_size_t, u_int8_t);
-static void _pci_io_bs_w_2(void *, bus_space_handle_t, bus_size_t, u_int16_t);
-static void _pci_io_bs_w_4(void *, bus_space_handle_t, bus_size_t, u_int32_t);
+static void _pci_io_bs_w_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int8_t);
+static void _pci_io_bs_w_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int16_t);
+static void _pci_io_bs_w_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int32_t);
 
 #ifdef __ARMEB__
-static u_int8_t  _pci_io_bs_r_1_s(void *, bus_space_handle_t, bus_size_t);
-static u_int16_t _pci_io_bs_r_2_s(void *, bus_space_handle_t, bus_size_t);
-static u_int32_t _pci_io_bs_r_4_s(void *, bus_space_handle_t, bus_size_t);
+static u_int8_t  _pci_io_bs_r_1_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static u_int16_t _pci_io_bs_r_2_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static u_int32_t _pci_io_bs_r_4_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
 
-static void _pci_io_bs_w_1_s(void *, bus_space_handle_t, bus_size_t, u_int8_t);
-static void _pci_io_bs_w_2_s(void *, bus_space_handle_t, bus_size_t, u_int16_t);
-static void _pci_io_bs_w_4_s(void *, bus_space_handle_t, bus_size_t, u_int32_t);
+static void _pci_io_bs_w_1_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int8_t);
+static void _pci_io_bs_w_2_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int16_t);
+static void _pci_io_bs_w_4_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int32_t);
 
-static u_int8_t  _pci_mem_bs_r_1(void *, bus_space_handle_t, bus_size_t);
-static u_int16_t _pci_mem_bs_r_2(void *, bus_space_handle_t, bus_size_t);
-static u_int32_t _pci_mem_bs_r_4(void *, bus_space_handle_t, bus_size_t);
+static u_int8_t  _pci_mem_bs_r_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static u_int16_t _pci_mem_bs_r_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static u_int32_t _pci_mem_bs_r_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
 
-static void _pci_mem_bs_w_1(void *, bus_space_handle_t, bus_size_t, u_int8_t);
-static void _pci_mem_bs_w_2(void *, bus_space_handle_t, bus_size_t, u_int16_t);
-static void _pci_mem_bs_w_4(void *, bus_space_handle_t, bus_size_t, u_int32_t);
+static void _pci_mem_bs_w_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int8_t);
+static void _pci_mem_bs_w_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int16_t);
+static void _pci_mem_bs_w_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int32_t);
 #endif
 
 struct bus_space ixp425_pci_io_bs_tag_template = {
@@ -146,7 +146,7 @@ void
 ixp425_io_bs_init(bus_space_tag_t bs, void *cookie)
 {
 	*bs = ixp425_pci_io_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 }
 
 struct bus_space ixp425_pci_mem_bs_tag_template = {
@@ -202,12 +202,12 @@ void
 ixp425_mem_bs_init(bus_space_tag_t bs, void *cookie)
 {
 	*bs = ixp425_pci_mem_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 }
 
 /* common routine */
 int
-ixp425_pci_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
+ixp425_pci_bs_subregion(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
 	bus_size_t size, bus_space_handle_t *nbshp)
 {
 	*nbshp = bsh + offset;
@@ -215,7 +215,7 @@ ixp425_pci_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 void
-ixp425_pci_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
+ixp425_pci_bs_barrier(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 	/* NULL */
@@ -223,7 +223,7 @@ ixp425_pci_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
 
 /* io bs */
 int
-ixp425_pci_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
+ixp425_pci_io_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size,
 	int cacheable, bus_space_handle_t *bshp)
 {
 	*bshp = bpa;
@@ -231,13 +231,13 @@ ixp425_pci_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
 }
 
 void
-ixp425_pci_io_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+ixp425_pci_io_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
 	/* Nothing to do. */
 }
 
 int
-ixp425_pci_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
+ixp425_pci_io_bs_alloc(bus_space_tag_t tag, bus_addr_t rstart, bus_addr_t rend,
 	bus_size_t size, bus_size_t alignment, bus_size_t boundary, int cacheable,
 	bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
@@ -245,14 +245,14 @@ ixp425_pci_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 }
 
 void
-ixp425_pci_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+ixp425_pci_io_bs_free(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size)
 {
 	panic("ixp425_pci_io_bs_free(): not implemented\n");
 }
 
 /* special I/O functions */
 static __inline u_int32_t
-_bs_r(void *v, bus_space_handle_t ioh, bus_size_t off, u_int32_t be)
+_bs_r(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off, u_int32_t be)
 {
 	u_int32_t data;
 
@@ -266,75 +266,75 @@ _bs_r(void *v, bus_space_handle_t ioh, bus_size_t off, u_int32_t be)
 }
 
 static u_int8_t
-_pci_io_bs_r_1(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_io_bs_r_1(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data, n, be;
 
 	n = (ioh + off) % 4;
 	be = (0xf & ~(1U << n)) << NP_CBE_SHIFT;
-	data = _bs_r(v, ioh, off, be);
+	data = _bs_r(tag, ioh, off, be);
 
 	return data >> (8 * n);
 }
 
 static u_int16_t
-_pci_io_bs_r_2(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_io_bs_r_2(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data, n, be;
 
 	n = (ioh + off) % 4;
 	be = (0xf & ~((1U << n) | (1U << (n + 1)))) << NP_CBE_SHIFT;
-	data = _bs_r(v, ioh, off, be);
+	data = _bs_r(tag, ioh, off, be);
 
 	return data >> (8 * n);
 }
 
 static u_int32_t
-_pci_io_bs_r_4(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_io_bs_r_4(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data;
 
-	data = _bs_r(v, ioh, off, 0);
+	data = _bs_r(tag, ioh, off, 0);
 	return data;
 }
 
 #ifdef __ARMEB__
 static u_int8_t
-_pci_io_bs_r_1_s(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_io_bs_r_1_s(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data, n, be;
 
 	n = (ioh + off) % 4;
 	be = (0xf & ~(1U << n)) << NP_CBE_SHIFT;
-	data = _bs_r(v, ioh, off, be);
+	data = _bs_r(tag, ioh, off, be);
 
 	return data >> (8 * n);
 }
 
 static u_int16_t
-_pci_io_bs_r_2_s(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_io_bs_r_2_s(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data, n, be;
 
 	n = (ioh + off) % 4;
 	be = (0xf & ~((1U << n) | (1U << (n + 1)))) << NP_CBE_SHIFT;
-	data = _bs_r(v, ioh, off, be);
+	data = _bs_r(tag, ioh, off, be);
 
 	return data >> (8 * n);
 }
 
 static u_int32_t
-_pci_io_bs_r_4_s(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_io_bs_r_4_s(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data;
 
-	data = _bs_r(v, ioh, off, 0);
+	data = _bs_r(tag, ioh, off, 0);
 	return le32toh(data);
 }
 #endif /* __ARMEB__ */
 
 static __inline void
-_bs_w(void *v, bus_space_handle_t ioh, bus_size_t off,
+_bs_w(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int32_t be, u_int32_t data)
 {
 	CSR_WRITE_4(PCI_NP_AD, (ioh + off) & ~3);
@@ -345,7 +345,7 @@ _bs_w(void *v, bus_space_handle_t ioh, bus_size_t off,
 }
 
 static void
-_pci_io_bs_w_1(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_io_bs_w_1(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int8_t val)
 {
 	u_int32_t data, n, be;
@@ -353,11 +353,11 @@ _pci_io_bs_w_1(void *v, bus_space_handle_t ioh, bus_size_t off,
 	n = (ioh + off) % 4;
 	be = (0xf & ~(1U << n)) << NP_CBE_SHIFT;
 	data = val << (8 * n);
-	_bs_w(v, ioh, off, be, data);
+	_bs_w(tag, ioh, off, be, data);
 }
 
 static void
-_pci_io_bs_w_2(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_io_bs_w_2(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int16_t val)
 {
 	u_int32_t data, n, be;
@@ -365,19 +365,19 @@ _pci_io_bs_w_2(void *v, bus_space_handle_t ioh, bus_size_t off,
 	n = (ioh + off) % 4;
 	be = (0xf & ~((1U << n) | (1U << (n + 1)))) << NP_CBE_SHIFT;
 	data = val << (8 * n);
-	_bs_w(v, ioh, off, be, data);
+	_bs_w(tag, ioh, off, be, data);
 }
 
 static void
-_pci_io_bs_w_4(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_io_bs_w_4(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int32_t val)
 {
-	_bs_w(v, ioh, off, 0, val);
+	_bs_w(tag, ioh, off, 0, val);
 }
 
 #ifdef __ARMEB__
 static void
-_pci_io_bs_w_1_s(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_io_bs_w_1_s(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int8_t val)
 {
 	u_int32_t data, n, be;
@@ -385,11 +385,11 @@ _pci_io_bs_w_1_s(void *v, bus_space_handle_t ioh, bus_size_t off,
 	n = (ioh + off) % 4;
 	be = (0xf & ~(1U << n)) << NP_CBE_SHIFT;
 	data = val << (8 * n);
-	_bs_w(v, ioh, off, be, data);
+	_bs_w(tag, ioh, off, be, data);
 }
 
 static void
-_pci_io_bs_w_2_s(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_io_bs_w_2_s(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int16_t val)
 {
 	u_int32_t data, n, be;
@@ -397,46 +397,35 @@ _pci_io_bs_w_2_s(void *v, bus_space_handle_t ioh, bus_size_t off,
 	n = (ioh + off) % 4;
 	be = (0xf & ~((1U << n) | (1U << (n + 1)))) << NP_CBE_SHIFT;
 	data = val << (8 * n);
-	_bs_w(v, ioh, off, be, data);
+	_bs_w(tag, ioh, off, be, data);
 }
 
 static void
-_pci_io_bs_w_4_s(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_io_bs_w_4_s(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int32_t val)
 {
-	_bs_w(v, ioh, off, 0, htole32(val));
+	_bs_w(tag, ioh, off, 0, htole32(val));
 }
 #endif /* __ARMEB__ */
 
 /* mem bs */
 int
-ixp425_pci_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
+ixp425_pci_mem_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size,
 	      int cacheable, bus_space_handle_t *bshp)
 {
-	vm_paddr_t pa, endpa;
-
-	pa = trunc_page(bpa);
-	endpa = round_page(bpa + size);
-
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
-
+	*bshp = (vm_offset_t)pmap_mapdev(bpa, size);
 	return (0);
 }
 
 void
-ixp425_pci_mem_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+ixp425_pci_mem_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
-	vm_offset_t va, endva;
 
-	va = trunc_page((vm_offset_t)t);
-	endva = va + round_page(size);
-
-	/* Free the kernel virtual mapping. */
-	kva_free(va, endva - va);
+	pmap_unmapdev((vm_offset_t)h, size);
 }
 
 int
-ixp425_pci_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
+ixp425_pci_mem_bs_alloc(bus_space_tag_t tag, bus_addr_t rstart, bus_addr_t rend,
 	bus_size_t size, bus_size_t alignment, bus_size_t boundary, int cacheable,
 	bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
@@ -444,52 +433,52 @@ ixp425_pci_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 }
 
 void
-ixp425_pci_mem_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+ixp425_pci_mem_bs_free(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size)
 {
 	panic("ixp425_mem_bs_free(): not implemented\n");
 }
 
 #ifdef __ARMEB__
 static u_int8_t
-_pci_mem_bs_r_1(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_mem_bs_r_1(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
-	return ixp425_pci_mem_bs_r_1(v, ioh, off);
+	return ixp425_pci_mem_bs_r_1(tag, ioh, off);
 }
 
 static u_int16_t
-_pci_mem_bs_r_2(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_mem_bs_r_2(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
-	return (ixp425_pci_mem_bs_r_2(v, ioh, off));
+	return (ixp425_pci_mem_bs_r_2(tag, ioh, off));
 }
 
 static u_int32_t
-_pci_mem_bs_r_4(void *v, bus_space_handle_t ioh, bus_size_t off)
+_pci_mem_bs_r_4(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off)
 {
 	u_int32_t data;
 
-	data = ixp425_pci_mem_bs_r_4(v, ioh, off);
+	data = ixp425_pci_mem_bs_r_4(tag, ioh, off);
 	return (le32toh(data));
 }
 
 static void
-_pci_mem_bs_w_1(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_mem_bs_w_1(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int8_t val)
 {
-	ixp425_pci_mem_bs_w_1(v, ioh, off, val);
+	ixp425_pci_mem_bs_w_1(tag, ioh, off, val);
 }
 
 static void
-_pci_mem_bs_w_2(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_mem_bs_w_2(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int16_t val)
 {
-	ixp425_pci_mem_bs_w_2(v, ioh, off, val);
+	ixp425_pci_mem_bs_w_2(tag, ioh, off, val);
 }
 
 static void
-_pci_mem_bs_w_4(void *v, bus_space_handle_t ioh, bus_size_t off,
+_pci_mem_bs_w_4(bus_space_tag_t tag, bus_space_handle_t ioh, bus_size_t off,
 	u_int32_t val)
 {
-	ixp425_pci_mem_bs_w_4(v, ioh, off, htole32(val));
+	ixp425_pci_mem_bs_w_4(tag, ioh, off, htole32(val));
 }
 #endif /* __ARMEB__ */
 

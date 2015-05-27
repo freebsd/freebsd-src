@@ -1035,6 +1035,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_sunix
 	},
 
+	{   0x5372, 0x6872, 0xffff, 0,
+	    "Feasso PCI FPP-02 2S1P",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S1P, 0x10, 4, 0,
+	},
+
 	{   0x5372, 0x6873, 0xffff, 0,
 	    "Sun 1040 PCI Quad Serial",
 	    DEFAULT_RCLK,

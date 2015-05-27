@@ -35,8 +35,7 @@ using namespace llvm;
 
 /* Assumed in hexadecimal significand parsing, and conversion to
    hexadecimal strings.  */
-#define COMPILE_TIME_ASSERT(cond) extern int CTAssert[(cond) ? 1 : -1]
-COMPILE_TIME_ASSERT(integerPartWidth % 4 == 0);
+static_assert(integerPartWidth % 4 == 0, "Part width must be divisible by 4!");
 
 namespace llvm {
 
@@ -212,15 +211,15 @@ skipLeadingZeroesAndAnyDot(StringRef::iterator begin, StringRef::iterator end,
 {
   StringRef::iterator p = begin;
   *dot = end;
-  while (*p == '0' && p != end)
+  while (p != end && *p == '0')
     p++;
 
-  if (*p == '.') {
+  if (p != end && *p == '.') {
     *dot = p++;
 
     assert(end - begin != 1 && "Significand has no digits");
 
-    while (*p == '0' && p != end)
+    while (p != end && *p == '0')
       p++;
   }
 
@@ -683,6 +682,20 @@ APFloat::operator=(const APFloat &rhs)
   return *this;
 }
 
+APFloat &
+APFloat::operator=(APFloat &&rhs) {
+  freeSignificand();
+
+  semantics = rhs.semantics;
+  significand = rhs.significand;
+  exponent = rhs.exponent;
+  category = rhs.category;
+  sign = rhs.sign;
+
+  rhs.semantics = &Bogus;
+  return *this;
+}
+
 bool
 APFloat::isDenormal() const {
   return isFiniteNonZero() && (exponent == semantics->minExponent) &&
@@ -806,6 +819,10 @@ APFloat::APFloat(const APFloat &rhs) {
   assign(rhs);
 }
 
+APFloat::APFloat(APFloat &&rhs) : semantics(&Bogus) {
+  *this = std::move(rhs);
+}
+
 APFloat::~APFloat()
 {
   freeSignificand();
@@ -909,7 +926,10 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
   assert(semantics == rhs.semantics);
 
   precision = semantics->precision;
-  newPartsCount = partCountForBits(precision * 2);
+
+  // Allocate space for twice as many bits as the original significand, plus one
+  // extra bit for the addition to overflow into.
+  newPartsCount = partCountForBits(precision * 2 + 1);
 
   if (newPartsCount > 4)
     fullSignificand = new integerPart[newPartsCount];
@@ -931,13 +951,14 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
   //   *this = a23 . a22 ... a0 * 2^e1
   //     rhs = b23 . b22 ... b0 * 2^e2
   // the result of multiplication is:
-  //   *this = c47 c46 . c45 ... c0 * 2^(e1+e2)
-  // Note that there are two significant bits at the left-hand side of the 
-  // radix point. Move the radix point toward left by one bit, and adjust
-  // exponent accordingly.
-  exponent += 1;
+  //   *this = c48 c47 c46 . c45 ... c0 * 2^(e1+e2)
+  // Note that there are three significant bits at the left-hand side of the 
+  // radix point: two for the multiplication, and an overflow bit for the
+  // addition (that will always be zero at this point). Move the radix point
+  // toward left by two bits, and adjust exponent accordingly.
+  exponent += 2;
 
-  if (addend) {
+  if (addend && addend->isNonZero()) {
     // The intermediate result of the multiplication has "2 * precision" 
     // signicant bit; adjust the addend to be consistent with mul result.
     //
@@ -947,13 +968,13 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     opStatus status;
     unsigned int extendedPrecision;
 
-    /* Normalize our MSB.  */
-    extendedPrecision = 2 * precision;
-    if (omsb != extendedPrecision) {
+    // Normalize our MSB to one below the top bit to allow for overflow.
+    extendedPrecision = 2 * precision + 1;
+    if (omsb != extendedPrecision - 1) {
       assert(extendedPrecision > omsb);
       APInt::tcShiftLeft(fullSignificand, newPartsCount,
-                         extendedPrecision - omsb);
-      exponent -= extendedPrecision - omsb;
+                         (extendedPrecision - 1) - omsb);
+      exponent -= (extendedPrecision - 1) - omsb;
     }
 
     /* Create new semantics.  */
@@ -970,6 +991,14 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     status = extendedAddend.convert(extendedSemantics, rmTowardZero, &ignored);
     assert(status == opOK);
     (void)status;
+
+    // Shift the significand of the addend right by one bit. This guarantees
+    // that the high bit of the significand is zero (same as fullSignificand),
+    // so the addition will overflow (if it does overflow at all) into the top bit.
+    lost_fraction = extendedAddend.shiftSignificandRight(1);
+    assert(lost_fraction == lfExactlyZero &&
+           "Lost precision while shifting addend for fused-multiply-add.");
+
     lost_fraction = addOrSubtractSignificand(extendedAddend, false);
 
     /* Restore our state.  */
@@ -985,7 +1014,7 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
   // having "precision" significant-bits. First, move the radix point from 
   // poision "2*precision - 1" to "precision - 1". The exponent need to be
   // adjusted by "2*precision - 1" - "precision - 1" = "precision".
-  exponent -= precision;
+  exponent -= precision + 1;
 
   // In case MSB resides at the left-hand side of radix point, shift the
   // mantissa right by some amount to make sure the MSB reside right before
@@ -1340,7 +1369,7 @@ APFloat::addOrSubtractSpecials(const APFloat &rhs, bool subtract)
 {
   switch (PackCategoriesIntoKey(category, rhs.category)) {
   default:
-    llvm_unreachable(0);
+    llvm_unreachable(nullptr);
 
   case PackCategoriesIntoKey(fcNaN, fcZero):
   case PackCategoriesIntoKey(fcNaN, fcNormal):
@@ -1354,7 +1383,9 @@ APFloat::addOrSubtractSpecials(const APFloat &rhs, bool subtract)
   case PackCategoriesIntoKey(fcZero, fcNaN):
   case PackCategoriesIntoKey(fcNormal, fcNaN):
   case PackCategoriesIntoKey(fcInfinity, fcNaN):
-    sign = false;
+    // We need to be sure to flip the sign here for subtraction because we
+    // don't have a separate negate operation so -NaN becomes 0 - NaN here.
+    sign = rhs.sign ^ subtract;
     category = fcNaN;
     copySignificand(rhs);
     return opOK;
@@ -1467,7 +1498,7 @@ APFloat::multiplySpecials(const APFloat &rhs)
 {
   switch (PackCategoriesIntoKey(category, rhs.category)) {
   default:
-    llvm_unreachable(0);
+    llvm_unreachable(nullptr);
 
   case PackCategoriesIntoKey(fcNaN, fcZero):
   case PackCategoriesIntoKey(fcNaN, fcNormal):
@@ -1511,7 +1542,7 @@ APFloat::divideSpecials(const APFloat &rhs)
 {
   switch (PackCategoriesIntoKey(category, rhs.category)) {
   default:
-    llvm_unreachable(0);
+    llvm_unreachable(nullptr);
 
   case PackCategoriesIntoKey(fcZero, fcNaN):
   case PackCategoriesIntoKey(fcNormal, fcNaN):
@@ -1552,7 +1583,7 @@ APFloat::modSpecials(const APFloat &rhs)
 {
   switch (PackCategoriesIntoKey(category, rhs.category)) {
   default:
-    llvm_unreachable(0);
+    llvm_unreachable(nullptr);
 
   case PackCategoriesIntoKey(fcNaN, fcZero):
   case PackCategoriesIntoKey(fcNaN, fcNormal):
@@ -1661,7 +1692,7 @@ APFloat::multiply(const APFloat &rhs, roundingMode rounding_mode)
   fs = multiplySpecials(rhs);
 
   if (isFiniteNonZero()) {
-    lostFraction lost_fraction = multiplySignificand(rhs, 0);
+    lostFraction lost_fraction = multiplySignificand(rhs, nullptr);
     fs = normalize(rounding_mode, lost_fraction);
     if (lost_fraction != lfExactlyZero)
       fs = (opStatus) (fs | opInexact);
@@ -1781,7 +1812,7 @@ APFloat::fusedMultiplyAdd(const APFloat &multiplicand,
      extended-precision calculation.  */
   if (isFiniteNonZero() &&
       multiplicand.isFiniteNonZero() &&
-      addend.isFiniteNonZero()) {
+      addend.isFinite()) {
     lostFraction lost_fraction;
 
     lost_fraction = multiplySignificand(multiplicand, &addend);
@@ -1792,7 +1823,7 @@ APFloat::fusedMultiplyAdd(const APFloat &multiplicand,
     /* If two numbers add (exactly) to zero, IEEE 754 decrees it is a
        positive zero unless rounding to minus infinity, except that
        adding two like-signed zeroes gives that zero.  */
-    if (category == fcZero && sign != addend.sign)
+    if (category == fcZero && !(fs & opUnderflow) && sign != addend.sign)
       sign = (rounding_mode == rmTowardNegative);
   } else {
     fs = multiplySpecials(multiplicand);
@@ -1864,7 +1895,7 @@ APFloat::compare(const APFloat &rhs) const
 
   switch (PackCategoriesIntoKey(category, rhs.category)) {
   default:
-    llvm_unreachable(0);
+    llvm_unreachable(nullptr);
 
   case PackCategoriesIntoKey(fcNaN, fcZero):
   case PackCategoriesIntoKey(fcNaN, fcNormal):
@@ -2421,7 +2452,7 @@ APFloat::roundSignificandWithExponent(const integerPart *decSigParts,
 
     if (exp >= 0) {
       /* multiplySignificand leaves the precision-th bit set to 1.  */
-      calcLostFraction = decSig.multiplySignificand(pow5, NULL);
+      calcLostFraction = decSig.multiplySignificand(pow5, nullptr);
       powHUerr = powStatus != opOK;
     } else {
       calcLostFraction = decSig.divideSignificand(pow5);
@@ -3313,7 +3344,7 @@ APFloat::initFromAPInt(const fltSemantics* Sem, const APInt& api)
   if (Sem == &PPCDoubleDouble)
     return initFromPPCDoubleDoubleAPInt(api);
 
-  llvm_unreachable(0);
+  llvm_unreachable(nullptr);
 }
 
 APFloat
@@ -3357,7 +3388,9 @@ void APFloat::makeLargest(bool Negative) {
   // internal consistency.
   const unsigned NumUnusedHighBits =
     PartCount*integerPartWidth - semantics->precision;
-  significand[PartCount - 1] = ~integerPart(0) >> NumUnusedHighBits;
+  significand[PartCount - 1] = (NumUnusedHighBits < integerPartWidth)
+                                   ? (~integerPart(0) >> NumUnusedHighBits)
+                                   : 0;
 }
 
 /// Make this number the smallest magnitude denormal number in the given
@@ -3776,8 +3809,8 @@ APFloat::opStatus APFloat::next(bool nextDown) {
     //                     change the payload.
     if (isSignaling()) {
       result = opInvalidOp;
-      // For consistency, propogate the sign of the sNaN to the qNaN.
-      makeNaN(false, isNegative(), 0);
+      // For consistency, propagate the sign of the sNaN to the qNaN.
+      makeNaN(false, isNegative(), nullptr);
     }
     break;
   case fcZero:
@@ -3816,7 +3849,7 @@ APFloat::opStatus APFloat::next(bool nextDown) {
       // Decrement the significand.
       //
       // We always do this since:
-      //   1. If we are dealing with a non binade decrement, by definition we
+      //   1. If we are dealing with a non-binade decrement, by definition we
       //   just decrement the significand.
       //   2. If we are dealing with a normal -> normal binade decrement, since
       //   we have an explicit integral bit the fact that all bits but the
@@ -3883,4 +3916,21 @@ APFloat::makeZero(bool Negative) {
   sign = Negative;
   exponent = semantics->minExponent-1;
   APInt::tcSet(significandParts(), 0, partCount());  
+}
+
+APFloat llvm::scalbn(APFloat X, int Exp) {
+  if (X.isInfinity() || X.isZero() || X.isNaN())
+    return std::move(X);
+
+  auto MaxExp = X.getSemantics().maxExponent;
+  auto MinExp = X.getSemantics().minExponent;
+  if (Exp > (MaxExp - X.exponent))
+    // Overflow saturates to infinity.
+    return APFloat::getInf(X.getSemantics(), X.isNegative());
+  if (Exp < (MinExp - X.exponent))
+    // Underflow saturates to zero.
+    return APFloat::getZero(X.getSemantics(), X.isNegative());
+
+  X.exponent += Exp;
+  return std::move(X);
 }

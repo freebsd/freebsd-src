@@ -33,14 +33,16 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
 #include "opt_compat.h"
-#include "opt_core.h"
+#include "opt_gzio.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/gzio.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -67,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/eventhandler.h>
 #include <sys/user.h>
-
-#include <net/zlib.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -104,11 +104,7 @@ static Elf_Word __elfN(untrans_prot)(vm_prot_t);
 SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
     "");
 
-#ifdef COMPRESS_USER_CORES
-static int compress_core(gzFile, char *, char *, unsigned int,
-    struct thread * td);
-#endif
-#define CORE_BUF_SIZE	(16 * 1024)
+#define	CORE_BUF_SIZE	(16 * 1024)
 
 int __elfN(fallback_brand) = -1;
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
@@ -786,6 +782,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (__elfN(nxstack))
 				imgp->stack_prot =
 				    __elfN(trans_prot)(phdr[i].p_flags);
+			imgp->stack_sz = phdr[i].p_memsz;
 			break;
 		}
 	}
@@ -975,6 +972,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->base = addr;
 	elf_auxargs->flags = 0;
 	elf_auxargs->entry = entry;
+	elf_auxargs->hdr_eflags = hdr->e_flags;
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
@@ -1005,9 +1003,13 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+#ifdef AT_EHDRFLAGS
+	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
+#endif
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
-	AUXARGS_ENTRY(pos, AT_OSRELDATE, osreldate);
+	AUXARGS_ENTRY(pos, AT_OSRELDATE,
+	    imgp->proc->p_ucred->cr_prison->pr_osreldate);
 	if (imgp->canary != 0) {
 		AUXARGS_ENTRY(pos, AT_CANARY, imgp->canary);
 		AUXARGS_ENTRY(pos, AT_CANARYLEN, imgp->canarylen);
@@ -1065,11 +1067,23 @@ struct note_info {
 
 TAILQ_HEAD(note_info_list, note_info);
 
+/* Coredump output parameters. */
+struct coredump_params {
+	off_t		offset;
+	struct ucred	*active_cred;
+	struct ucred	*file_cred;
+	struct thread	*td;
+	struct vnode	*vp;
+	struct gzio_stream *gzs;
+};
+
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
+static int core_write(struct coredump_params *, void *, size_t, off_t,
+    enum uio_seg);
 static void each_writable_segment(struct thread *, segment_callback, void *);
-static int __elfN(corehdr)(struct thread *, struct vnode *, struct ucred *,
-    int, void *, size_t, struct note_info_list *, size_t, gzFile);
+static int __elfN(corehdr)(struct coredump_params *, int, void *, size_t,
+    struct note_info_list *, size_t);
 static void __elfN(prepare_notes)(struct thread *, struct note_info_list *,
     size_t *);
 static void __elfN(puthdr)(struct thread *, void *, size_t, int, size_t);
@@ -1093,42 +1107,60 @@ static void note_procstat_rlimit(void *, struct sbuf *, size_t *);
 static void note_procstat_umask(void *, struct sbuf *, size_t *);
 static void note_procstat_vmmap(void *, struct sbuf *, size_t *);
 
-#ifdef COMPRESS_USER_CORES
-extern int compress_user_cores;
+#ifdef GZIO
 extern int compress_user_cores_gzlevel;
-#endif
 
+/*
+ * Write out a core segment to the compression stream.
+ */
 static int
-core_output(struct vnode *vp, void *base, size_t len, off_t offset,
-    struct ucred *active_cred, struct ucred *file_cred,
-    struct thread *td, char *core_buf, gzFile gzfile) {
-
+compress_chunk(struct coredump_params *p, char *base, char *buf, u_int len)
+{
+	u_int chunk_len;
 	int error;
-	if (gzfile) {
-#ifdef COMPRESS_USER_CORES
-		error = compress_core(gzfile, base, core_buf, len, td);
-#else
-		panic("shouldn't be here");
-#endif
-	} else {
-		error = vn_rdwr_inchunks(UIO_WRITE, vp, base, len, offset,
-		    UIO_USERSPACE, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
-		    active_cred, file_cred, NULL, td);
+
+	while (len > 0) {
+		chunk_len = MIN(len, CORE_BUF_SIZE);
+		copyin(base, buf, chunk_len);
+		error = gzio_write(p->gzs, buf, chunk_len);
+		if (error != 0)
+			break;
+		base += chunk_len;
+		len -= chunk_len;
 	}
 	return (error);
 }
 
-/* Coredump output parameters for sbuf drain routine. */
-struct sbuf_drain_core_params {
-	off_t		offset;
-	struct ucred	*active_cred;
-	struct ucred	*file_cred;
-	struct thread	*td;
-	struct vnode	*vp;
-#ifdef COMPRESS_USER_CORES
-	gzFile		gzfile;
+static int
+core_gz_write(void *base, size_t len, off_t offset, void *arg)
+{
+
+	return (core_write((struct coredump_params *)arg, base, len, offset,
+	    UIO_SYSSPACE));
+}
+#endif /* GZIO */
+
+static int
+core_write(struct coredump_params *p, void *base, size_t len, off_t offset,
+    enum uio_seg seg)
+{
+
+	return (vn_rdwr_inchunks(UIO_WRITE, p->vp, base, len, offset,
+	    seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
+	    p->active_cred, p->file_cred, NULL, p->td));
+}
+
+static int
+core_output(void *base, size_t len, off_t offset, struct coredump_params *p,
+    void *tmpbuf)
+{
+
+#ifdef GZIO
+	if (p->gzs != NULL)
+		return (compress_chunk(p, base, tmpbuf, len));
 #endif
-};
+	return (core_write(p, base, len, offset, UIO_USERSPACE));
+}
 
 /*
  * Drain into a core file.
@@ -1136,10 +1168,10 @@ struct sbuf_drain_core_params {
 static int
 sbuf_drain_core_output(void *arg, const char *data, int len)
 {
-	struct sbuf_drain_core_params *p;
+	struct coredump_params *p;
 	int error, locked;
 
-	p = (struct sbuf_drain_core_params *)arg;
+	p = (struct coredump_params *)arg;
 
 	/*
 	 * Some kern_proc out routines that print to this sbuf may
@@ -1152,16 +1184,13 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 	locked = PROC_LOCKED(p->td->td_proc);
 	if (locked)
 		PROC_UNLOCK(p->td->td_proc);
-#ifdef COMPRESS_USER_CORES
-	if (p->gzfile != Z_NULL)
-		error = compress_core(p->gzfile, NULL, __DECONST(char *, data),
-		    len, p->td);
+#ifdef GZIO
+	if (p->gzs != NULL)
+		error = gzio_write(p->gzs, __DECONST(char *, data), len);
 	else
 #endif
-		error = vn_rdwr_inchunks(UIO_WRITE, p->vp,
-		    __DECONST(void *, data), len, p->offset, UIO_SYSSPACE,
-		    IO_UNIT | IO_DIRECT | IO_RANGELOCKED, p->active_cred,
-		    p->file_cred, NULL, p->td);
+		error = core_write(p, __DECONST(void *, data), len, p->offset,
+		    UIO_SYSSPACE);
 	if (locked)
 		PROC_LOCK(p->td->td_proc);
 	if (error != 0)
@@ -1190,41 +1219,15 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	int error = 0;
 	struct sseg_closure seginfo;
 	struct note_info_list notelst;
+	struct coredump_params params;
 	struct note_info *ninfo;
-	void *hdr;
+	void *hdr, *tmpbuf;
 	size_t hdrsize, notesz, coresize;
+	boolean_t compress;
 
-	gzFile gzfile = Z_NULL;
-	char *core_buf = NULL;
-#ifdef COMPRESS_USER_CORES
-	char gzopen_flags[8];
-	char *p;
-	int doing_compress = flags & IMGACT_CORE_COMPRESS;
-#endif
-
+	compress = (flags & IMGACT_CORE_COMPRESS) != 0;
 	hdr = NULL;
 	TAILQ_INIT(&notelst);
-
-#ifdef COMPRESS_USER_CORES
-        if (doing_compress) {
-                p = gzopen_flags;
-                *p++ = 'w';
-                if (compress_user_cores_gzlevel >= 0 &&
-                    compress_user_cores_gzlevel <= 9)
-                        *p++ = '0' + compress_user_cores_gzlevel;
-                *p = 0;
-                gzfile = gz_open("", gzopen_flags, vp);
-                if (gzfile == Z_NULL) {
-                        error = EFAULT;
-                        goto done;
-                }
-                core_buf = malloc(CORE_BUF_SIZE, M_TEMP, M_WAITOK | M_ZERO);
-                if (!core_buf) {
-                        error = ENOMEM;
-                        goto done;
-                }
-        }
-#endif
 
 	/* Size the program segments. */
 	seginfo.count = 0;
@@ -1239,18 +1242,42 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	coresize = round_page(hdrsize + notesz) + seginfo.size;
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(td->td_proc, RACCT_CORE, coresize);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0) {
-		error = EFAULT;
-		goto done;
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_CORE, coresize);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = EFAULT;
+			goto done;
+		}
 	}
 #endif
 	if (coresize >= limit) {
 		error = EFAULT;
 		goto done;
 	}
+
+	/* Set up core dump parameters. */
+	params.offset = 0;
+	params.active_cred = cred;
+	params.file_cred = NOCRED;
+	params.td = td;
+	params.vp = vp;
+	params.gzs = NULL;
+
+	tmpbuf = NULL;
+#ifdef GZIO
+	/* Create a compression stream if necessary. */
+	if (compress) {
+		params.gzs = gzio_init(core_gz_write, GZIO_DEFLATE,
+		    CORE_BUF_SIZE, compress_user_cores_gzlevel, &params);
+		if (params.gzs == NULL) {
+			error = EFAULT;
+			goto done;
+		}
+		tmpbuf = malloc(CORE_BUF_SIZE, M_TEMP, M_WAITOK | M_ZERO);
+        }
+#endif
 
 	/*
 	 * Allocate memory for building the header, fill it up,
@@ -1261,8 +1288,8 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		error = EINVAL;
 		goto done;
 	}
-	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize,
-	    &notelst, notesz, gzfile);
+	error = __elfN(corehdr)(&params, seginfo.count, hdr, hdrsize, &notelst,
+	    notesz);
 
 	/* Write the contents of all of the writable segments. */
 	if (error == 0) {
@@ -1273,13 +1300,17 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = round_page(hdrsize + notesz);
 		for (i = 0; i < seginfo.count; i++) {
-			error = core_output(vp, (caddr_t)(uintptr_t)php->p_vaddr,
-			    php->p_filesz, offset, cred, NOCRED, curthread, core_buf, gzfile);
+			error = core_output((caddr_t)(uintptr_t)php->p_vaddr,
+			    php->p_filesz, offset, &params, tmpbuf);
 			if (error != 0)
 				break;
 			offset += php->p_filesz;
 			php++;
 		}
+#ifdef GZIO
+		if (error == 0 && compress)
+			error = gzio_flush(params.gzs);
+#endif
 	}
 	if (error) {
 		log(LOG_WARNING,
@@ -1288,11 +1319,11 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	}
 
 done:
-#ifdef COMPRESS_USER_CORES
-	if (core_buf)
-		free(core_buf, M_TEMP);
-	if (gzfile)
-		gzclose(gzfile);
+#ifdef GZIO
+	if (compress) {
+		free(tmpbuf, M_TEMP);
+		gzio_fini(params.gzs);
+	}
 #endif
 	while ((ninfo = TAILQ_FIRST(&notelst)) != NULL) {
 		TAILQ_REMOVE(&notelst, ninfo, link);
@@ -1401,7 +1432,8 @@ each_writable_segment(td, func, closure)
 			object = backing_object;
 		}
 		ignore_entry = object->type != OBJT_DEFAULT &&
-		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
+		    object->type != OBJT_SWAP && object->type != OBJT_VNODE &&
+		    object->type != OBJT_PHYS;
 		VM_OBJECT_RUNLOCK(object);
 		if (ignore_entry)
 			continue;
@@ -1416,29 +1448,19 @@ each_writable_segment(td, func, closure)
  * the page boundary.
  */
 static int
-__elfN(corehdr)(struct thread *td, struct vnode *vp, struct ucred *cred,
-    int numsegs, void *hdr, size_t hdrsize, struct note_info_list *notelst,
-    size_t notesz, gzFile gzfile)
+__elfN(corehdr)(struct coredump_params *p, int numsegs, void *hdr,
+    size_t hdrsize, struct note_info_list *notelst, size_t notesz)
 {
-	struct sbuf_drain_core_params params;
 	struct note_info *ninfo;
 	struct sbuf *sb;
 	int error;
 
 	/* Fill in the header. */
 	bzero(hdr, hdrsize);
-	__elfN(puthdr)(td, hdr, hdrsize, numsegs, notesz);
+	__elfN(puthdr)(p->td, hdr, hdrsize, numsegs, notesz);
 
-	params.offset = 0;
-	params.active_cred = cred;
-	params.file_cred = NOCRED;
-	params.td = td;
-	params.vp = vp;
-#ifdef COMPRESS_USER_CORES
-	params.gzfile = gzfile;
-#endif
 	sb = sbuf_new(NULL, NULL, CORE_BUF_SIZE, SBUF_FIXEDLEN);
-	sbuf_set_drain(sb, sbuf_drain_core_output, &params);
+	sbuf_set_drain(sb, sbuf_drain_core_output, p);
 	sbuf_start_section(sb, NULL);
 	sbuf_bcat(sb, hdr, hdrsize);
 	TAILQ_FOREACH(ninfo, notelst, link)
@@ -1587,7 +1609,50 @@ register_note(struct note_info_list *list, int type, outfunc_t out, void *arg)
 		return (size);
 
 	notesize = sizeof(Elf_Note) +		/* note header */
-	    roundup2(8, ELF_NOTE_ROUNDSIZE) +	/* note name ("FreeBSD") */
+	    roundup2(sizeof(FREEBSD_ABI_VENDOR), ELF_NOTE_ROUNDSIZE) +
+						/* note name */
+	    roundup2(size, ELF_NOTE_ROUNDSIZE);	/* note description */
+
+	return (notesize);
+}
+
+static size_t
+append_note_data(const void *src, void *dst, size_t len)
+{
+	size_t padded_len;
+
+	padded_len = roundup2(len, ELF_NOTE_ROUNDSIZE);
+	if (dst != NULL) {
+		bcopy(src, dst, len);
+		bzero((char *)dst + len, padded_len - len);
+	}
+	return (padded_len);
+}
+
+size_t
+__elfN(populate_note)(int type, void *src, void *dst, size_t size, void **descp)
+{
+	Elf_Note *note;
+	char *buf;
+	size_t notesize;
+
+	buf = dst;
+	if (buf != NULL) {
+		note = (Elf_Note *)buf;
+		note->n_namesz = sizeof(FREEBSD_ABI_VENDOR);
+		note->n_descsz = size;
+		note->n_type = type;
+		buf += sizeof(*note);
+		buf += append_note_data(FREEBSD_ABI_VENDOR, buf,
+		    sizeof(FREEBSD_ABI_VENDOR));
+		append_note_data(src, buf, size);
+		if (descp != NULL)
+			*descp = buf;
+	}
+
+	notesize = sizeof(Elf_Note) +		/* note header */
+	    roundup2(sizeof(FREEBSD_ABI_VENDOR), ELF_NOTE_ROUNDSIZE) +
+						/* note name */
 	    roundup2(size, ELF_NOTE_ROUNDSIZE);	/* note description */
 
 	return (notesize);
@@ -1604,13 +1669,13 @@ __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 		return;
 	}
 
-	note.n_namesz = 8; /* strlen("FreeBSD") + 1 */
+	note.n_namesz = sizeof(FREEBSD_ABI_VENDOR);
 	note.n_descsz = ninfo->outsize;
 	note.n_type = ninfo->type;
 
 	sbuf_bcat(sb, &note, sizeof(note));
 	sbuf_start_section(sb, &old_len);
-	sbuf_bcat(sb, "FreeBSD", note.n_namesz);
+	sbuf_bcat(sb, FREEBSD_ABI_VENDOR, sizeof(FREEBSD_ABI_VENDOR));
 	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
 	if (note.n_descsz == 0)
 		return;
@@ -1757,7 +1822,7 @@ __elfN(note_threadmd)(void *arg, struct sbuf *sb, size_t *sizep)
 		buf = NULL;
 	size = 0;
 	__elfN(dump_thread)(td, buf, &size);
-	KASSERT(*sizep == size, ("invalid size"));
+	KASSERT(sb == NULL || *sizep == size, ("invalid size"));
 	if (size != 0 && sb != NULL)
 		sbuf_bcat(sb, buf, size);
 	free(buf, M_TEMP);
@@ -2061,58 +2126,6 @@ static struct execsw __elfN(execsw) = {
 	__XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
 };
 EXEC_SET(__CONCAT(elf, __ELF_WORD_SIZE), __elfN(execsw));
-
-#ifdef COMPRESS_USER_CORES
-/*
- * Compress and write out a core segment for a user process.
- *
- * 'inbuf' is the starting address of a VM segment in the process' address
- * space that is to be compressed and written out to the core file.  'dest_buf'
- * is a buffer in the kernel's address space.  The segment is copied from 
- * 'inbuf' to 'dest_buf' first before being processed by the compression
- * routine gzwrite().  This copying is necessary because the content of the VM
- * segment may change between the compression pass and the crc-computation pass
- * in gzwrite().  This is because realtime threads may preempt the UNIX kernel.
- *
- * If inbuf is NULL it is assumed that data is already copied to 'dest_buf'.
- */
-static int
-compress_core (gzFile file, char *inbuf, char *dest_buf, unsigned int len,
-    struct thread *td)
-{
-	int len_compressed;
-	int error = 0;
-	unsigned int chunk_len;
-
-	while (len) {
-		if (inbuf != NULL) {
-			chunk_len = (len > CORE_BUF_SIZE) ? CORE_BUF_SIZE : len;
-			copyin(inbuf, dest_buf, chunk_len);
-			inbuf += chunk_len;
-		} else {
-			chunk_len = len;
-		}
-		len_compressed = gzwrite(file, dest_buf, chunk_len);
-
-		EVENTHANDLER_INVOKE(app_coredump_progress, td, len_compressed);
-
-		if ((unsigned int)len_compressed != chunk_len) {
-			log(LOG_WARNING,
-			    "compress_core: length mismatch (0x%x returned, "
-			    "0x%x expected)\n", len_compressed, chunk_len);
-			EVENTHANDLER_INVOKE(app_coredump_error, td,
-			    "compress_core: length mismatch %x -> %x",
-			    chunk_len, len_compressed);
-			error = EFAULT;
-			break;
-		}
-		len -= chunk_len;
-		maybe_yield();
-	}
-
-	return (error);
-}
-#endif /* COMPRESS_USER_CORES */
 
 static vm_prot_t
 __elfN(trans_prot)(Elf_Word flags)

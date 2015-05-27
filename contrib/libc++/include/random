@@ -3475,9 +3475,9 @@ typedef shuffle_order_engine<minstd_rand0, 256>                         knuth_b;
 
 class _LIBCPP_TYPE_VIS random_device
 {
-#if !defined(_WIN32)
+#if !(defined(_WIN32) || defined(_LIBCPP_USING_NACL_RANDOM))
     int __f_;
-#endif // defined(_WIN32)
+#endif // !(defined(_WIN32) || defined(_LIBCPP_USING_NACL_RANDOM))
 public:
     // types
     typedef unsigned result_type;
@@ -4009,6 +4009,8 @@ binomial_distribution<_IntType>::param_type::param_type(result_type __t, double 
     }
 }
 
+// Reference: Kemp, C.D. (1986). `A modal method for generating binomial
+//           variables', Commun. Statist. - Theor. Meth. 15(3), 805-813.
 template<class _IntType>
 template<class _URNG>
 _IntType
@@ -4035,7 +4037,8 @@ binomial_distribution<_IntType>::operator()(_URNG& __g, const param_type& __pr)
             if (__u < 0)
                 return __rd - 1;
         }
-        --__rd;
+        if ( __rd != 0 )
+            --__rd;
         ++__ru;
         if (__ru <= __pr.__t_)
         {

@@ -75,7 +75,7 @@ public:
     /// Get the appropriate function name for this frame. Inlined functions in
     /// LLDB are represented by Blocks that have inlined function information, so
     /// just looking at the SBFunction or SBSymbol for a frame isn't enough.
-    /// This function will return the appriopriate function, symbol or inlined
+    /// This function will return the appropriate function, symbol or inlined
     /// function name for the frame.
     ///
     /// This function returns:
@@ -198,21 +198,6 @@ public:
     lldb::SBValue
     FindValue (const char *name, ValueType value_type, lldb::DynamicValueType use_dynamic);
 
-    /// Find and watch a variable using the frame as the scope.
-    /// It returns an SBValue, similar to FindValue() method, if find-and-watch
-    /// operation succeeds.  Otherwise, an invalid SBValue is returned.
-    /// You can use LLDB_WATCH_TYPE_READ | LLDB_WATCH_TYPE_WRITE for 'rw' watch.
-    lldb::SBValue
-    WatchValue (const char *name, ValueType value_type, uint32_t watch_type);
-
-    /// Find and watch the location pointed to by a variable using the frame as
-    /// the scope.
-    /// It returns an SBValue, similar to FindValue() method, if find-and-watch
-    /// operation succeeds.  Otherwise, an invalid SBValue is returned.
-    /// You can use LLDB_WATCH_TYPE_READ | LLDB_WATCH_TYPE_WRITE for 'rw' watch.
-    lldb::SBValue
-    WatchLocation (const char *name, ValueType value_type, uint32_t watch_type, size_t size);
-
     bool
     GetDescription (lldb::SBStream &description);
 
@@ -221,6 +206,7 @@ public:
 protected:
 
     friend class SBBlock;
+    friend class SBExecutionContext;
     friend class SBInstruction;
     friend class SBThread;
     friend class SBValue;

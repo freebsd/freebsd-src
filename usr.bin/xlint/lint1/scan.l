@@ -1,5 +1,5 @@
 %{
-/* $NetBSD: scan.l,v 1.26 2002/01/31 22:30:21 tv Exp $ */
+/* $NetBSD: scan.l,v 1.37 2007/02/06 00:08:31 he Exp $ */
 
 /*
  * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
@@ -35,7 +35,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: scan.l,v 1.26 2002/01/31 22:30:21 tv Exp $");
+__RCSID("$NetBSD: scan.l,v 1.37 2007/02/06 00:08:31 he Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -96,12 +96,13 @@ EX	([eE][+-]?[0-9]+)
 
 %%
 
-{L}({L}|{D})*		 	return (name());
+{L}({L}|{D})*			return (name());
 0{OD}*[lLuU]*			return (icon(8));
 {NZD}{D}*[lLuU]*		return (icon(10));
 0[xX]{HD}+[lLuU]*		return (icon(16));
 {D}+\.{D}*{EX}?[fFlL]?		|
 {D}+{EX}[fFlL]?			|
+0[xX]{HD}+p{HD}+[fFlL]?		|
 \.{D}+{EX}?[fFlL]?		return (fcon());
 "="				return (operator(T_ASSIGN, ASSIGN));
 "*="				return (operator(T_OPASS, MULASS));
@@ -191,55 +192,56 @@ static	struct	kwtab {
 	scl_t	kw_scl;		/* storage class if kw_token T_SCLASS */
 	tspec_t	kw_tspec;	/* type spec. if kw_token T_TYPE or T_SOU */
 	tqual_t	kw_tqual;	/* type qual. fi kw_token T_QUAL */
-	u_int	kw_stdc : 1;	/* STDC keyword */
-	u_int	kw_gcc : 1;	/* GCC keyword */
+	u_int	kw_c89;		/* c89 keyword */
+	u_int	kw_c99;		/* c99 keyword */
+	u_int	kw_gcc;		/* GCC keyword */
 } kwtab[] = {
-	{ "asm",	T_ASM,		0,	0,	0,	  0, 1 },
-	{ "__asm",	T_ASM,		0,	0,	0,	  0, 0 },
-	{ "__asm__",	T_ASM,		0,	0,	0,	  0, 0 },
-	{ "auto",	T_SCLASS,	AUTO,	0,	0,	  0, 0 },
-	{ "break",	T_BREAK,	0,	0,	0,	  0, 0 },
-	{ "case",	T_CASE,		0,	0,	0,	  0, 0 },
-	{ "char",	T_TYPE,		0,	CHAR,	0,	  0, 0 },
-	{ "const",	T_QUAL,		0,	0,	CONST,	  1, 0 },
-	{ "__const__",	T_QUAL,		0,	0,	CONST,	  0, 0 },
-	{ "__const",	T_QUAL,		0,	0,	CONST,	  0, 0 },
-	{ "continue",	T_CONTINUE,	0,	0,	0,	  0, 0 },
-	{ "default",	T_DEFAULT,	0,	0,	0,	  0, 0 },
-	{ "do",		T_DO,		0,	0,	0,	  0, 0 },
-	{ "double",	T_TYPE,		0,	DOUBLE,	0,	  0, 0 },
-	{ "else",	T_ELSE,		0,	0,	0,	  0, 0 },
-	{ "enum",	T_ENUM,		0,	0,	0,	  0, 0 },
-	{ "extern",	T_SCLASS,	EXTERN,	0,	0,	  0, 0 },
-	{ "float",	T_TYPE,		0,	FLOAT,	0,	  0, 0 },
-	{ "for",	T_FOR,		0,	0,	0,	  0, 0 },
-	{ "goto",	T_GOTO,		0,	0,	0,	  0, 0 },
-	{ "if",		T_IF,		0,	0,	0,	  0, 0 },
-	{ "inline",	T_SCLASS,	INLINE,	0,	0,	  0, 1 },
-	{ "__inline__",	T_SCLASS,	INLINE,	0,	0,	  0, 0 },
-	{ "__inline",	T_SCLASS,	INLINE,	0,	0,	  0, 0 },
-	{ "int",	T_TYPE,		0,	INT,	0,	  0, 0 },
-	{ "__symbolrename", T_SYMBOLRENAME, 0,	0,	0,	  0, 0 },
-	{ "long",	T_TYPE,		0,	LONG,	0,	  0, 0 },
-	{ "register",	T_SCLASS,	REG,	0,	0,	  0, 0 },
-	{ "return",	T_RETURN,	0,	0,	0,	  0, 0 },
-	{ "short",	T_TYPE,		0,	SHORT,	0,	  0, 0 },
-	{ "signed",	T_TYPE,		0,	SIGNED,	0,	  1, 0 },
-	{ "__signed__",	T_TYPE,		0,	SIGNED,	0,	  0, 0 },
-	{ "__signed",	T_TYPE,		0,	SIGNED,	0,	  0, 0 },
-	{ "sizeof",	T_SIZEOF,	0,	0,	0,	  0, 0 },
-	{ "static",	T_SCLASS,	STATIC,	0,	0,	  0, 0 },
-	{ "struct",	T_SOU,		0,	STRUCT,	0,	  0, 0 },
-	{ "switch",	T_SWITCH,	0,	0,	0,	  0, 0 },
-	{ "typedef",	T_SCLASS,	TYPEDEF, 0,	0,	  0, 0 },
-	{ "union",	T_SOU,		0,	UNION,	0,	  0, 0 },
-	{ "unsigned",	T_TYPE,		0,	UNSIGN,	0,	  0, 0 },
-	{ "void",	T_TYPE,		0,	VOID,	0,	  0, 0 },
-	{ "volatile",	T_QUAL,		0,	0,	VOLATILE, 1, 0 },
-	{ "__volatile__", T_QUAL,	0,	0,	VOLATILE, 0, 0 },
-	{ "__volatile",	T_QUAL,		0,	0,	VOLATILE, 0, 0 },
-	{ "while",	T_WHILE,	0,	0,	0,	  0, 0 },
-	{ NULL,		0,		0,	0,	0,	  0, 0 }
+	{ "asm",	T_ASM,		0,	0,	0,	  0, 0, 1 },
+	{ "__asm",	T_ASM,		0,	0,	0,	  0, 0, 0 },
+	{ "__asm__",	T_ASM,		0,	0,	0,	  0, 0, 0 },
+	{ "auto",	T_SCLASS,	AUTO,	0,	0,	  0, 0, 0 },
+	{ "break",	T_BREAK,	0,	0,	0,	  0, 0, 0 },
+	{ "case",	T_CASE,		0,	0,	0,	  0, 0, 0 },
+	{ "char",	T_TYPE,		0,	CHAR,	0,	  0, 0, 0 },
+	{ "const",	T_QUAL,		0,	0,	CONST,	  1, 0, 0 },
+	{ "__const__",	T_QUAL,		0,	0,	CONST,	  0, 0, 0 },
+	{ "__const",	T_QUAL,		0,	0,	CONST,	  0, 0, 0 },
+	{ "continue",	T_CONTINUE,	0,	0,	0,	  0, 0, 0 },
+	{ "default",	T_DEFAULT,	0,	0,	0,	  0, 0, 0 },
+	{ "do",		T_DO,		0,	0,	0,	  0, 0, 0 },
+	{ "double",	T_TYPE,		0,	DOUBLE,	0,	  0, 0, 0 },
+	{ "else",	T_ELSE,		0,	0,	0,	  0, 0, 0 },
+	{ "enum",	T_ENUM,		0,	0,	0,	  0, 0, 0 },
+	{ "extern",	T_SCLASS,	EXTERN,	0,	0,	  0, 0, 0 },
+	{ "float",	T_TYPE,		0,	FLOAT,	0,	  0, 0, 0 },
+	{ "for",	T_FOR,		0,	0,	0,	  0, 0, 0 },
+	{ "goto",	T_GOTO,		0,	0,	0,	  0, 0, 0 },
+	{ "if",		T_IF,		0,	0,	0,	  0, 0, 0 },
+	{ "inline",	T_SCLASS,	INLINE,	0,	0,	  0, 1, 0 },
+	{ "__inline__",	T_SCLASS,	INLINE,	0,	0,	  0, 0, 0 },
+	{ "__inline",	T_SCLASS,	INLINE,	0,	0,	  0, 0, 0 },
+	{ "int",	T_TYPE,		0,	INT,	0,	  0, 0, 0 },
+	{ "__symbolrename", T_SYMBOLRENAME, 0,	0,	0,	  0, 0, 0 },
+	{ "long",	T_TYPE,		0,	LONG,	0,	  0, 0, 0 },
+	{ "register",	T_SCLASS,	REG,	0,	0,	  0, 0, 0 },
+	{ "return",	T_RETURN,	0,	0,	0,	  0, 0, 0 },
+	{ "short",	T_TYPE,		0,	SHORT,	0,	  0, 0, 0 },
+	{ "signed",	T_TYPE,		0,	SIGNED,	0,	  1, 0, 0 },
+	{ "__signed__",	T_TYPE,		0,	SIGNED,	0,	  0, 0, 0 },
+	{ "__signed",	T_TYPE,		0,	SIGNED,	0,	  0, 0, 0 },
+	{ "sizeof",	T_SIZEOF,	0,	0,	0,	  0, 0, 0 },
+	{ "static",	T_SCLASS,	STATIC,	0,	0,	  0, 0, 0 },
+	{ "struct",	T_SOU,		0,	STRUCT,	0,	  0, 0, 0 },
+	{ "switch",	T_SWITCH,	0,	0,	0,	  0, 0, 0 },
+	{ "typedef",	T_SCLASS,	TYPEDEF, 0,	0,	  0, 0, 0 },
+	{ "union",	T_SOU,		0,	UNION,	0,	  0, 0, 0 },
+	{ "unsigned",	T_TYPE,		0,	UNSIGN,	0,	  0, 0, 0 },
+	{ "void",	T_TYPE,		0,	VOID,	0,	  0, 0, 0 },
+	{ "volatile",	T_QUAL,		0,	0,	VOLATILE, 1, 0, 0 },
+	{ "__volatile__", T_QUAL,	0,	0,	VOLATILE, 0, 0, 0 },
+	{ "__volatile",	T_QUAL,		0,	0,	VOLATILE, 0, 0, 0 },
+	{ "while",	T_WHILE,	0,	0,	0,	  0, 0, 0 },
+	{ NULL,		0,		0,	0,	0,	  0, 0, 0 }
 };
 
 /* Symbol table */
@@ -274,7 +276,9 @@ initscan(void)
 	uint64_t uq;
 
 	for (kw = kwtab; kw->kw_name != NULL; kw++) {
-		if (kw->kw_stdc && tflag)
+		if ((kw->kw_c89 || kw->kw_c99) && tflag)
+			continue;
+		if (kw->kw_c99 && !(Sflag || gflag))
 			continue;
 		if (kw->kw_gcc && !gflag)
 			continue;
@@ -400,7 +404,7 @@ name(void)
 
 	if (sym != NULL) {
 		if (blklev < sym->s_blklev)
-			lerror("name() 1");
+			LERROR("name()");
 		sb->sb_name = sym->s_name;
 		sb->sb_len = strlen(sym->s_name);
 		tok = sym->s_scl == TYPEDEF ? T_TYPENAME : T_NAME;
@@ -508,7 +512,7 @@ icon(int base)
 		uq = strtouq(cp, &eptr, base);
 	}
 	if (eptr != cp + len)
-		lerror("icon() 1");
+		LERROR("icon()");
 	if (errno != 0)
 		/* integer constant out of range */
 		warning(252);
@@ -524,8 +528,10 @@ icon(int base)
 			/* ok */
 		} else if (ul <= (unsigned)UINT_MAX && base != 10) {
 			typ = UINT;
+#if INT_MAX != LONG_MAX
 		} else if (ul <= LONG_MAX) {
 			typ = LONG;
+#endif
 		} else {
 			typ = ULONG;
 		}
@@ -681,8 +687,24 @@ fcon(void)
 
 	errno = 0;
 	d = strtod(cp, &eptr);
-	if (eptr != cp + len)
-		lerror("fcon() 1");
+	if (eptr != cp + len) {
+		switch (*eptr) {
+		/*
+		 * XXX: non-native non-current strtod() may not handle hex
+		 * floats, ignore the rest if we find traces of hex float
+		 * syntax...
+		 */
+		case 'p':
+		case 'P':
+		case 'x':
+		case 'X':
+			d = 0;
+			errno = 0;
+			break;
+		default:
+			LERROR("fcon()");
+		}
+	}
 	if (errno != 0)
 		/* floating-point constant out of range */
 		warning(248);
@@ -1140,7 +1162,7 @@ slashslashcomment(void)
 {
 	int c;
 
-	if (sflag < 2 && !gflag)
+	if (!Sflag && !gflag)
 		/* // comments only supported in C99 */
 		(void)gnuism(312, tflag ? "traditional" : "ANSI");
 
@@ -1299,7 +1321,7 @@ getsym(sbuf_t *sb)
 
 	if (sym != NULL) {
 		if (sym->s_kind != symtyp)
-			lerror("storesym() 1");
+			LERROR("storesym()");
 		symtyp = FVFT;
 		freesb(sb);
 		return (sym);
@@ -1318,7 +1340,7 @@ getsym(sbuf_t *sb)
 		while (di->d_nxt != NULL && di->d_nxt->d_nxt != NULL)
 			di = di->d_nxt;
 		if (di->d_ctx != AUTO)
-			lerror("storesym() 2");
+			LERROR("storesym()");
 	} else {
 		sym = getblk(sizeof (sym_t));
 		sym->s_name = sb->sb_name;
@@ -1341,6 +1363,39 @@ getsym(sbuf_t *sb)
 
 	freesb(sb);
 	return (sym);
+}
+
+/*
+ * Construct a temporary symbol. The symbol starts with a digit, so that
+ * it is illegal.
+ */
+sym_t *
+mktempsym(type_t *t)
+{
+	static int n = 0;
+	int h;
+	char *s = getlblk(blklev, 64);
+	sym_t *sym = getblk(sizeof (sym_t));
+
+	(void)snprintf(s, 64, "%.8d_tmp", n++);
+	h = hash(s);
+
+	sym->s_name = s;
+	sym->s_type = t;
+	sym->s_blklev = blklev;
+	sym->s_scl = AUTO;
+	sym->s_kind = FVFT;
+	sym->s_used = 1;
+	sym->s_set = 1;
+
+	if ((sym->s_link = symtab[h]) != NULL)
+		symtab[h]->s_rlink = &sym->s_link;
+	(symtab[h] = sym)->s_rlink = &symtab[h];
+
+	*dcs->d_ldlsym = sym;
+	dcs->d_ldlsym = &sym->s_dlnxt;
+
+	return sym;
 }
 
 /*
@@ -1391,7 +1446,7 @@ inssym(int bl, sym_t *sym)
 	(symtab[h] = sym)->s_rlink = &symtab[h];
 	sym->s_blklev = bl;
 	if (sym->s_link != NULL && sym->s_blklev < sym->s_link->s_blklev)
-		lerror("inssym()");
+		LERROR("inssym()");
 }
 
 /*
@@ -1432,7 +1487,7 @@ pushdown(sym_t *sym)
 	h = hash(sym->s_name);
 	nsym = getblk(sizeof (sym_t));
 	if (sym->s_blklev > blklev)
-		lerror("pushdown()");
+		LERROR("pushdown()");
 	nsym->s_name = sym->s_name;
 	UNIQUE_CURR_POS(nsym->s_dpos);
 	nsym->s_kind = sym->s_kind;
@@ -1469,7 +1524,7 @@ freeyyv(void *sp, int tok)
 		} else if (strg->st_tspec == WCHAR) {
 			free(strg->st_wcp);
 		} else {
-			lerror("fryylv() 1");
+			LERROR("fryylv()");
 		}
 		free(strg);
 	}

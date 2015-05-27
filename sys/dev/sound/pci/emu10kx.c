@@ -2316,7 +2316,7 @@ emu10kx_prepare(struct emu_sc_info *sc, struct sbuf *s)
 		}
 	if (sc->midi[0] != NULL)
 		if (device_is_attached(sc->midi[0])) {
-			sbuf_printf(s, "\tIR reciever MIDI events %s\n", sc->enable_ir ? "enabled" : "disabled");
+			sbuf_printf(s, "\tIR receiver MIDI events %s\n", sc->enable_ir ? "enabled" : "disabled");
 		}
 	sbuf_printf(s, "Card is in %s mode\n", (sc->mode == MODE_ANALOG) ? "analog" : "digital");
 

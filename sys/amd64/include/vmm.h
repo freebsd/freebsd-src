@@ -204,13 +204,12 @@ int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 
+#ifdef _SYS__CPUSET_H_
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
  * The rendezvous 'func(arg)' is not allowed to do anything that will
@@ -228,6 +227,9 @@ void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
 void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
+cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
+#endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
 vcpu_rendezvous_pending(void *rendezvous_cookie)
@@ -274,7 +276,13 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 static int __inline
 vcpu_should_yield(struct vm *vm, int vcpu)
 {
-	return (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED));
+
+	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
+		return (1);
+	else if (curthread->td_owepreempt)
+		return (1);
+	else
+		return (0);
 }
 #endif
 
@@ -286,9 +294,10 @@ int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
 struct vpmtmr *vm_pmtmr(struct vm *vm);
+struct vrtc *vm_rtc(struct vm *vm);
 
 /*
- * Inject exception 'vme' into the guest vcpu. This function returns 0 on
+ * Inject exception 'vector' into the guest vcpu. This function returns 0 on
  * success and non-zero on failure.
  *
  * Wrapper functions like 'vm_inject_gp()' should be preferred to calling
@@ -298,7 +307,8 @@ struct vpmtmr *vm_pmtmr(struct vm *vm);
  * This function should only be called in the context of the thread that is
  * executing this vcpu.
  */
-int vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *vme);
+int vm_inject_exception(struct vm *vm, int vcpuid, int vector, int err_valid,
+    uint32_t errcode, int restart_instruction);
 
 /*
  * This function is called after a VM-exit that occurred during exception or
@@ -341,9 +351,10 @@ struct vm_copyinfo {
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
  * a copyin or PROT_WRITE for a copyout. 
  *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
+ * retval	is_fault	Intepretation
+ *   0		   0		Success
+ *   0		   1		An exception was injected into the guest
+ * EFAULT	  N/A		Unrecoverable error
  *
  * The 'copyinfo[]' can be passed to 'vm_copyin()' or 'vm_copyout()' only if
  * the return value is 0. The 'copyinfo[]' resources should be freed by calling
@@ -351,13 +362,15 @@ struct vm_copyinfo {
  */
 int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
-    int num_copyinfo);
+    int num_copyinfo, int *is_fault);
 void vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     int num_copyinfo);
 void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     void *kaddr, size_t len);
 void vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
     struct vm_copyinfo *copyinfo, size_t len);
+
+int vcpu_trace_exceptions(struct vm *vm, int vcpuid);
 #endif	/* KERNEL */
 
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
@@ -442,8 +455,11 @@ struct vie {
 			rex_x:1,
 			rex_b:1,
 			rex_present:1,
+			repz_present:1,		/* REP/REPE/REPZ prefix */
+			repnz_present:1,	/* REPNE/REPNZ prefix */
 			opsize_override:1,	/* Operand size override */
-			addrsize_override:1;	/* Address size override */
+			addrsize_override:1,	/* Address size override */
+			segment_override:1;	/* Segment override */
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,
@@ -459,6 +475,7 @@ struct vie {
 	uint8_t		scale;
 	int		base_register;		/* VM_REG_GUEST_xyz */
 	int		index_register;		/* VM_REG_GUEST_xyz */
+	int		segment_register;	/* VM_REG_GUEST_xyz */
 
 	int64_t		displacement;		/* optional addr displacement */
 	int64_t		immediate;		/* optional immediate operand */
@@ -543,6 +560,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
+			uint64_t	cs_base;
 			int		cs_d;		/* CS.D */
 			struct vm_guest_paging paging;
 			struct vie	vie;
@@ -624,5 +642,7 @@ vm_inject_ss(void *vm, int vcpuid, int errcode)
 }
 
 void vm_inject_pf(void *vm, int vcpuid, int error_code, uint64_t cr2);
+
+int vm_restart_instruction(void *vm, int vcpuid);
 
 #endif	/* _VMM_H_ */

@@ -75,6 +75,20 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+/*
+ * The following macro defines how many bytes will be allocated from
+ * the stack instead of memory allocated when passing the IOCTL data
+ * structures from userspace and to the kernel. Some IOCTLs having
+ * small data structures are used very frequently and this small
+ * buffer on the stack gives a significant speedup improvement for
+ * those requests. The value of this define should be greater or equal
+ * to 64 bytes and should also be power of two. The data structure is
+ * currently hard-aligned to a 8-byte boundary on the stack. This
+ * should currently be sufficient for all supported platforms.
+ */
+#define	SYS_IOCTL_SMALL_SIZE	128	/* bytes */
+#define	SYS_IOCTL_SMALL_ALIGN	8	/* bytes */
+
 int iosize_max_clamp = 0;
 SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
     &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
@@ -205,6 +219,7 @@ sys_pread(td, uap)
 	return(error);
 }
 
+#if defined(COMPAT_FREEBSD6)
 int
 freebsd6_pread(td, uap)
 	struct thread *td;
@@ -218,6 +233,7 @@ freebsd6_pread(td, uap)
 	oargs.offset = uap->offset;
 	return (sys_pread(td, &oargs));
 }
+#endif
 
 /*
  * Scatter read system call.
@@ -416,6 +432,7 @@ sys_pwrite(td, uap)
 	return(error);
 }
 
+#if defined(COMPAT_FREEBSD6)
 int
 freebsd6_pwrite(td, uap)
 	struct thread *td;
@@ -429,6 +446,7 @@ freebsd6_pwrite(td, uap)
 	oargs.offset = uap->offset;
 	return (sys_pwrite(td, &oargs));
 }
+#endif
 
 /*
  * Gather write system call.
@@ -646,10 +664,7 @@ struct ioctl_args {
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
-#ifndef SYS_IOCTL_SMALL_SIZE
-#define	SYS_IOCTL_SMALL_SIZE 128
-#endif
-	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(8);
+	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
 	u_long com;
 	int arg, error;
 	u_int size;
@@ -1203,7 +1218,7 @@ getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 
 	cap_rights_init(&rights, CAP_EVENT);
 
-	return (fget_unlocked(fdp, fd, &rights, 0, fpp, NULL));
+	return (fget_unlocked(fdp, fd, &rights, fpp, NULL));
 }
 
 /*

@@ -112,7 +112,7 @@ vdev_error(const char *fmt, ...)
 	va_end(ap);
 }
 
-#ifdef sun
+#ifdef illumos
 static void
 libdiskmgt_error(int error)
 {
@@ -274,7 +274,7 @@ check_device(const char *path, boolean_t force, boolean_t isspare)
 
 	return (check_slice(path, force, B_FALSE, isspare));
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * Check that a file is valid.  All we can do in this case is check that it's
@@ -290,7 +290,7 @@ check_file(const char *file, boolean_t force, boolean_t isspare)
 	pool_state_t state;
 	boolean_t inuse;
 
-#ifdef sun
+#ifdef illumos
 	if (dm_inuse_swap(file, &err)) {
 		if (err)
 			libdiskmgt_error(err);
@@ -377,7 +377,7 @@ check_device(const char *name, boolean_t force, boolean_t isspare)
 static boolean_t
 is_whole_disk(const char *arg)
 {
-#ifdef sun
+#ifdef illumos
 	struct dk_gpt *label;
 	int	fd;
 	char	path[MAXPATHLEN];
@@ -915,7 +915,7 @@ check_replication(nvlist_t *config, nvlist_t *newroot)
 	return (ret);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Go through and find any whole disks in the vdev specification, labelling them
  * as appropriate.  When constructing the vdev spec, we were unable to open this
@@ -1019,7 +1019,7 @@ make_disks(zpool_handle_t *zhp, nvlist_t *nv)
 
 	return (0);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * Determine if the given path is a hot spare within the given configuration.
@@ -1098,7 +1098,7 @@ is_device_in_use(nvlist_t *config, nvlist_t *nv, boolean_t force,
 		 * regardless of what libdiskmgt or zpool_in_use() says.
 		 */
 		if (replacing) {
-#ifdef sun
+#ifdef illumos
 			if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_WHOLE_DISK,
 			    &wholedisk) == 0 && wholedisk)
 				(void) snprintf(buf, sizeof (buf), "%ss0",
@@ -1422,7 +1422,7 @@ split_mirror_vdev(zpool_handle_t *zhp, char *newname, nvlist_t *props,
 			return (NULL);
 		}
 
-#ifdef sun
+#ifdef illumos
 		if (!flags.dryrun && make_disks(zhp, newroot) != 0) {
 			nvlist_free(newroot);
 			return (NULL);
@@ -1507,7 +1507,7 @@ make_root_vdev(zpool_handle_t *zhp, int force, int check_rep,
 		return (NULL);
 	}
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Run through the vdev specification and label any whole disks found.
 	 */

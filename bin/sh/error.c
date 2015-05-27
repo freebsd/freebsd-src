@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "shell.h"
+#include "eval.h"
 #include "main.h"
 #include "options.h"
 #include "output.h"
@@ -64,7 +65,6 @@ struct jmploc *handler;
 volatile sig_atomic_t exception;
 volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
-char *commandname;
 
 
 static void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;
@@ -90,13 +90,14 @@ exraise(int e)
 
 
 /*
- * Called from trap.c when a SIGINT is received.  (If the user specifies
- * that SIGINT is to be trapped or ignored using the trap builtin, then
- * this routine is not called.)  Suppressint is nonzero when interrupts
- * are held using the INTOFF macro.  If SIGINTs are not suppressed and
- * the shell is not a root shell, then we want to be terminated if we
- * get here, as if we were terminated directly by a SIGINT.  Arrange for
- * this here.
+ * Called from trap.c when a SIGINT is received and not suppressed, or when
+ * an interrupt is pending and interrupts are re-enabled using INTON.
+ * (If the user specifies that SIGINT is to be trapped or ignored using the
+ * trap builtin, then this routine is not called.)  Suppressint is nonzero
+ * when interrupts are held using the INTOFF macro.  If SIGINTs are not
+ * suppressed and the shell is not a root shell, then we want to be
+ * terminated if we get here, as if we were terminated directly by a SIGINT.
+ * Arrange for this here.
  */
 
 void
@@ -104,16 +105,6 @@ onint(void)
 {
 	sigset_t sigs;
 
-	/*
-	 * The !in_dotrap here is safe.  The only way we can arrive here
-	 * with in_dotrap set is that a trap handler set SIGINT to SIG_DFL
-	 * and killed itself.
-	 */
-
-	if (suppressint && !in_dotrap) {
-		intpending++;
-		return;
-	}
 	intpending = 0;
 	sigemptyset(&sigs);
 	sigprocmask(SIG_SETMASK, &sigs, NULL);
@@ -130,6 +121,7 @@ onint(void)
 	else {
 		signal(SIGINT, SIG_DFL);
 		kill(getpid(), SIGINT);
+		_exit(128 + SIGINT);
 	}
 }
 
@@ -139,6 +131,8 @@ vwarning(const char *msg, va_list ap)
 {
 	if (commandname)
 		outfmt(out2, "%s: ", commandname);
+	else if (arg0)
+		outfmt(out2, "%s: ", arg0);
 	doformat(out2, msg, ap);
 	out2fmt_flush("\n");
 }

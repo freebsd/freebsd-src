@@ -15,7 +15,7 @@ SHLIB_MAJOR=	1
 MK_PROFILE=	no
 
 SRCS= cm.c
-CFLAGS+=	-I ${IBCMDIR}/include
+CFLAGS+=	-I${IBCMDIR}/include
 
 MAN=
 VERSION_MAP= ${IBSRCDIR}/libibcm.map

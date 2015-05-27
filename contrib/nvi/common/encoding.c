@@ -11,10 +11,10 @@ static const char sccsid[] = "$Id: encoding.c,v 1.4 2011/12/13 19:40:52 zy Exp $
 
 #include <sys/types.h>
 
-int looks_utf8 __P((const char *, size_t));
-int looks_utf16 __P((const char *, size_t));
-int decode_utf8 __P((const char *));
-int decode_utf16 __P((const char *, int));
+int looks_utf8(const char *, size_t);
+int looks_utf16(const char *, size_t);
+int decode_utf8(const char *);
+int decode_utf16(const char *, int);
 
 #define F 0   /* character never appears in text */
 #define T 1   /* character appears in plain ASCII text */
@@ -54,7 +54,7 @@ static char text_chars[256] = {
  *
  *  Based on RFC 3629. UTF-8 with BOM is not accepted.
  *
- * PUBLIC: int looks_utf8 __P((const char *, size_t));
+ * PUBLIC: int looks_utf8(const char *, size_t);
  */
 int
 looks_utf8(const char *ibuf, size_t nbytes)
@@ -115,7 +115,7 @@ done:
  *      1: Little-endian UTF-16
  *      2: Big-endian UTF-16
  *
- * PUBLIC: int looks_utf16 __P((const char *, size_t));
+ * PUBLIC: int looks_utf16(const char *, size_t);
  */
 int
 looks_utf16(const char *ibuf, size_t nbytes)
@@ -175,9 +175,11 @@ looks_utf16(const char *ibuf, size_t nbytes)
  *
  *  Based on RFC 3629, but without error detection.
  *
- * PUBLIC: int decode_utf8 __P((const char *));
+ * PUBLIC: int decode_utf8(const char *);
  */
-int decode_utf8(const char *ibuf) {
+int
+decode_utf8(const char *ibuf)
+{
 	const u_char *buf = (u_char *)ibuf;
 	int u = -1;
 
@@ -194,6 +196,7 @@ int decode_utf8(const char *ibuf) {
 			u = (buf[0] ^ 0xF0) << 18 ^ (buf[1] ^ 0x80) << 12
 			  ^ (buf[2] ^ 0x80) <<  6 ^ (buf[3] ^ 0x80);
 	}
+
 	return u;
 }
 
@@ -204,9 +207,11 @@ int decode_utf8(const char *ibuf) {
  *
  *  No error detection on supplementary bytes.
  *
- * PUBLIC: int decode_utf16 __P((const char *, int));
+ * PUBLIC: int decode_utf16(const char *, int);
  */
-int decode_utf16(const char* ibuf, int bigend) {
+int
+decode_utf16(const char* ibuf, int bigend)
+{
 	const u_char *buf = (u_char *)ibuf;
 	int u = -1;
 	unsigned int w1, w2;
@@ -226,5 +231,6 @@ int decode_utf16(const char* ibuf, int bigend) {
 			w2 = buf[2] ^ buf[3] << 8;
 		u = ((w1 ^ 0xD800) << 10 ^ (w2 ^ 0xDC00)) + 0x10000;
 	}
+
 	return u;
 }

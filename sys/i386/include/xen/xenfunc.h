@@ -34,7 +34,6 @@
 
 #include <vm/pmap.h>
 
-#include <machine/xen/xenpmap.h>
 #include <machine/segments.h>
 
 #include <sys/pcpu.h>

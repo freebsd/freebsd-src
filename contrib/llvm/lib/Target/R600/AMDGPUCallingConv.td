@@ -20,7 +20,7 @@ def CC_SI : CallingConv<[
   CCIfInReg<CCIfType<[f32, i32] , CCAssignToReg<[
     SGPR0, SGPR1, SGPR2, SGPR3, SGPR4, SGPR5, SGPR6, SGPR7,
     SGPR8, SGPR9, SGPR10, SGPR11, SGPR12, SGPR13, SGPR14, SGPR15,
-    SGPR16
+    SGPR16, SGPR17, SGPR18, SGPR19, SGPR20, SGPR21
   ]>>>,
 
   CCIfInReg<CCIfType<[i64] , CCAssignToRegWithShadow<
@@ -59,16 +59,24 @@ def CC_AMDGPU_Kernel : CallingConv<[
 ]>;
 
 def CC_AMDGPU : CallingConv<[
-  CCIf<"State.getTarget().getSubtarget<AMDGPUSubtarget>().getGeneration() >= "
-       "AMDGPUSubtarget::SOUTHERN_ISLANDS && "
-       "State.getMachineFunction().getInfo<SIMachineFunctionInfo>()->"#
-       "ShaderType == ShaderType::COMPUTE", CCDelegateTo<CC_AMDGPU_Kernel>>,
-  CCIf<"State.getTarget().getSubtarget<AMDGPUSubtarget>().getGeneration() < "
-       "AMDGPUSubtarget::SOUTHERN_ISLANDS && "
-       "State.getMachineFunction().getInfo<R600MachineFunctionInfo>()->"
-       "ShaderType == ShaderType::COMPUTE", CCDelegateTo<CC_AMDGPU_Kernel>>,
-  CCIf<"State.getTarget().getSubtarget<AMDGPUSubtarget>()"#
-       ".getGeneration() >= AMDGPUSubtarget::SOUTHERN_ISLANDS", CCDelegateTo<CC_SI>>,
-  CCIf<"State.getTarget().getSubtarget<AMDGPUSubtarget>()"#
-       ".getGeneration() < AMDGPUSubtarget::SOUTHERN_ISLANDS", CCDelegateTo<CC_R600>>
+  CCIf<"static_cast<const AMDGPUSubtarget&>"
+        "(State.getMachineFunction().getSubtarget()).getGeneration() >="
+          "AMDGPUSubtarget::SOUTHERN_ISLANDS && "
+        "State.getMachineFunction().getInfo<SIMachineFunctionInfo>()"
+         "->getShaderType() == ShaderType::COMPUTE",
+       CCDelegateTo<CC_AMDGPU_Kernel>>,
+  CCIf<"static_cast<const AMDGPUSubtarget&>"
+        "(State.getMachineFunction().getSubtarget()).getGeneration() < "
+          "AMDGPUSubtarget::SOUTHERN_ISLANDS && "
+         "State.getMachineFunction().getInfo<R600MachineFunctionInfo>()"
+          "->getShaderType() == ShaderType::COMPUTE",
+        CCDelegateTo<CC_AMDGPU_Kernel>>,
+   CCIf<"static_cast<const AMDGPUSubtarget&>"
+         "(State.getMachineFunction().getSubtarget()).getGeneration() >= "
+           "AMDGPUSubtarget::SOUTHERN_ISLANDS",
+        CCDelegateTo<CC_SI>>,
+   CCIf<"static_cast<const AMDGPUSubtarget&>"
+          "(State.getMachineFunction().getSubtarget()).getGeneration() < "
+            "AMDGPUSubtarget::SOUTHERN_ISLANDS",
+        CCDelegateTo<CC_R600>>
 ]>;

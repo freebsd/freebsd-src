@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2014
+.Dd January 14, 2015
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ default bootstrapping configuration files; see
 .Xr loader.conf 5
 .It Pa dtb/
 Compiled flattened device tree (FDT) files; see
-.Xr fdt 4 
+.Xr fdt 4
 and
 .Xr dtc 1
 .It Pa firmware/
@@ -64,8 +64,8 @@ third-party loadable kernel modules;
 see
 .Xr kldstat 8
 .It Pa zfs/
-Contains 
-.Xr zfs 8 
+Contains
+.Xr zfs 8
 zpool cache files.
 .El
 .It Pa /cdrom/
@@ -159,6 +159,10 @@ floppy disks
 .It Pa /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
+.It Pa /net/
+automounted NFS shares;
+see
+.Xr auto_master 5
 .It Pa /proc/
 process file system;
 see
@@ -183,8 +187,6 @@ common utilities, programming tools, and applications
 .It Pa compat/
 files needed to support binary compatibility with other operating systems,
 such as Linux
-.It Pa games/
-useful and semi-frivolous programs
 .It Pa include/
 standard C include files
 .Pp

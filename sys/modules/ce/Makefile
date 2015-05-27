@@ -28,4 +28,3 @@ opt_ng_cronyx.h:
 .include <bsd.kmod.mk>
 
 CWARNFLAGS.tau32-ddk.c=	${NO_WCONSTANT_CONVERSION}
-CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

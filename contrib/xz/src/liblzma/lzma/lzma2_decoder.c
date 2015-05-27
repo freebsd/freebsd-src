@@ -209,7 +209,7 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
 
 
 static void
-lzma2_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+lzma2_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	assert(coder->lzma.end == NULL);
 	lzma_free(coder->lzma.coder, allocator);
@@ -221,7 +221,7 @@ lzma2_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 
 static lzma_ret
-lzma2_decoder_init(lzma_lz_decoder *lz, lzma_allocator *allocator,
+lzma2_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
 		const void *opt, lzma_lz_options *lz_options)
 {
 	if (lz->coder == NULL) {
@@ -248,7 +248,7 @@ lzma2_decoder_init(lzma_lz_decoder *lz, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_lzma2_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_lzma2_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	// LZMA2 can only be the last filter in the chain. This is enforced
@@ -269,7 +269,7 @@ lzma_lzma2_decoder_memusage(const void *options)
 
 
 extern lzma_ret
-lzma_lzma2_props_decode(void **options, lzma_allocator *allocator,
+lzma_lzma2_props_decode(void **options, const lzma_allocator *allocator,
 		const uint8_t *props, size_t props_size)
 {
 	if (props_size != 1)

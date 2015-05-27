@@ -10,7 +10,14 @@ licenses [
     "BSD",
 ]
 flatsize = 60523;
-desc = "pkgconf is a program which helps to configure compiler and linker flags for\ndevelopment frameworks. It is similar to pkg-config, but was written from\nscratch in Summer of 2011 to replace pkg-config, which now needs itself to build\nitself.\n\nWWW: https://github.com/pkgconf/pkgconf";
+desc = <<EOD
+pkgconf is a program which helps to configure compiler and linker flags for
+development frameworks. It is similar to pkg-config, but was written from
+scratch in Summer of 2011 to replace pkg-config, which now needs itself to build
+itself.
+
+WWW: https://github.com/pkgconf/pkgconf
+EOD;
 categories [
     "devel",
 ]
@@ -31,6 +38,17 @@ scripts {
     pre-deinstall = "cd /usr/local\nn";
     post-deinstall = "cd /usr/local\nn";
 }
-multiline-key = "test\ntest\ntest\\n\n/* comment like */\n# Some invalid endings\n EOD\nEOD   \nEOF\n# Valid ending + empty string\n";
+multiline-key = <<EOD
+test
+test
+test\n
+/* comment like */
+# Some invalid endings
+ EOD
+EOD   
+EOF
+# Valid ending + empty string
+
+EOD;
 normal-key = "<<EODnot";
 

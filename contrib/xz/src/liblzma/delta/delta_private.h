@@ -31,7 +31,7 @@ struct lzma_coder_s {
 
 
 extern lzma_ret lzma_delta_coder_init(
-		lzma_next_coder *next, lzma_allocator *allocator,
+		lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters);
 
 #endif

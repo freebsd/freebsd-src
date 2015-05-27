@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CFG_H
-#define LLVM_CLANG_CFG_H
+#ifndef LLVM_CLANG_ANALYSIS_CFG_H
+#define LLVM_CLANG_ANALYSIS_CFG_H
 
 #include "clang/AST/Stmt.h"
 #include "clang/Analysis/Support/BumpVector.h"
@@ -21,13 +21,14 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include <bitset>
 #include <cassert>
 #include <iterator>
+#include <memory>
 
 namespace clang {
   class CXXDestructorDecl;
@@ -45,6 +46,8 @@ namespace clang {
   class ASTContext;
   class CXXRecordDecl;
   class CXXDeleteExpr;
+  class CXXNewExpr;
+  class BinaryOperator;
 
 /// CFGElement - Represents a top-level expression in a basic block.
 class CFGElement {
@@ -53,6 +56,7 @@ public:
     // main kind
     Statement,
     Initializer,
+    NewAllocator,
     // dtor kind
     AutomaticObjectDtor,
     DeleteDtor,
@@ -68,9 +72,11 @@ protected:
   llvm::PointerIntPair<void *, 2> Data1;
   llvm::PointerIntPair<void *, 2> Data2;
 
-  CFGElement(Kind kind, const void *Ptr1, const void *Ptr2 = 0)
+  CFGElement(Kind kind, const void *Ptr1, const void *Ptr2 = nullptr)
     : Data1(const_cast<void*>(Ptr1), ((unsigned) kind) & 0x3),
-      Data2(const_cast<void*>(Ptr2), (((unsigned) kind) >> 2) & 0x3) {}
+      Data2(const_cast<void*>(Ptr2), (((unsigned) kind) >> 2) & 0x3) {
+    assert(getKind() == kind);
+  }
 
   CFGElement() {}
 public:
@@ -141,12 +147,31 @@ private:
   }
 };
 
+/// CFGNewAllocator - Represents C++ allocator call.
+class CFGNewAllocator : public CFGElement {
+public:
+  explicit CFGNewAllocator(const CXXNewExpr *S)
+    : CFGElement(NewAllocator, S) {}
+
+  // Get the new expression.
+  const CXXNewExpr *getAllocatorExpr() const {
+    return static_cast<CXXNewExpr *>(Data1.getPointer());
+  }
+
+private:
+  friend class CFGElement;
+  CFGNewAllocator() {}
+  static bool isKind(const CFGElement &elem) {
+    return elem.getKind() == NewAllocator;
+  }
+};
+
 /// CFGImplicitDtor - Represents C++ object destructor implicitly generated
 /// by compiler on various occasions.
 class CFGImplicitDtor : public CFGElement {
 protected:
   CFGImplicitDtor() {}
-  CFGImplicitDtor(Kind kind, const void *data1, const void *data2 = 0)
+  CFGImplicitDtor(Kind kind, const void *data1, const void *data2 = nullptr)
     : CFGElement(kind, data1, data2) {
     assert(kind >= DTOR_BEGIN && kind <= DTOR_END);
   }
@@ -237,7 +262,7 @@ private:
 class CFGMemberDtor : public CFGImplicitDtor {
 public:
   CFGMemberDtor(const FieldDecl *field)
-      : CFGImplicitDtor(MemberDtor, field, 0) {}
+      : CFGImplicitDtor(MemberDtor, field, nullptr) {}
 
   const FieldDecl *getFieldDecl() const {
     return static_cast<const FieldDecl*>(Data1.getPointer());
@@ -256,7 +281,7 @@ private:
 class CFGTemporaryDtor : public CFGImplicitDtor {
 public:
   CFGTemporaryDtor(CXXBindTemporaryExpr *expr)
-      : CFGImplicitDtor(TemporaryDtor, expr, 0) {}
+      : CFGImplicitDtor(TemporaryDtor, expr, nullptr) {}
 
   const CXXBindTemporaryExpr *getBindTemporaryExpr() const {
     return static_cast<const CXXBindTemporaryExpr *>(Data1.getPointer());
@@ -388,9 +413,64 @@ class CFGBlock {
   ///   of the CFG.
   unsigned BlockID;
 
+public:
+  /// This class represents a potential adjacent block in the CFG.  It encodes
+  /// whether or not the block is actually reachable, or can be proved to be
+  /// trivially unreachable.  For some cases it allows one to encode scenarios
+  /// where a block was substituted because the original (now alternate) block
+  /// is unreachable.
+  class AdjacentBlock {
+    enum Kind {
+      AB_Normal,
+      AB_Unreachable,
+      AB_Alternate
+    };
+
+    CFGBlock *ReachableBlock;
+    llvm::PointerIntPair<CFGBlock*, 2> UnreachableBlock;
+
+  public:
+    /// Construct an AdjacentBlock with a possibly unreachable block.
+    AdjacentBlock(CFGBlock *B, bool IsReachable);
+    
+    /// Construct an AdjacentBlock with a reachable block and an alternate
+    /// unreachable block.
+    AdjacentBlock(CFGBlock *B, CFGBlock *AlternateBlock);
+
+    /// Get the reachable block, if one exists.
+    CFGBlock *getReachableBlock() const {
+      return ReachableBlock;
+    }
+
+    /// Get the potentially unreachable block.
+    CFGBlock *getPossiblyUnreachableBlock() const {
+      return UnreachableBlock.getPointer();
+    }
+
+    /// Provide an implicit conversion to CFGBlock* so that
+    /// AdjacentBlock can be substituted for CFGBlock*.
+    operator CFGBlock*() const {
+      return getReachableBlock();
+    }
+
+    CFGBlock& operator *() const {
+      return *getReachableBlock();
+    }
+
+    CFGBlock* operator ->() const {
+      return getReachableBlock();
+    }
+
+    bool isReachable() const {
+      Kind K = (Kind) UnreachableBlock.getInt();
+      return K == AB_Normal || K == AB_Alternate;
+    }
+  };
+
+private:
   /// Predecessors/Successors - Keep track of the predecessor / successor
   /// CFG blocks.
-  typedef BumpVector<CFGBlock*> AdjacentBlocks;
+  typedef BumpVector<AdjacentBlock> AdjacentBlocks;
   AdjacentBlocks Preds;
   AdjacentBlocks Succs;
 
@@ -410,7 +490,7 @@ class CFGBlock {
 
 public:
   explicit CFGBlock(unsigned blockid, BumpVectorContext &C, CFG *parent)
-    : Elements(C), Label(NULL), Terminator(NULL), LoopTarget(NULL), 
+    : Elements(C), Label(nullptr), Terminator(nullptr), LoopTarget(nullptr), 
       BlockID(blockid), Preds(C, 1), Succs(C, 1), HasNoReturnElement(false),
       Parent(parent) {}
   ~CFGBlock() {}
@@ -480,9 +560,11 @@ public:
   class FilterOptions {
   public:
     FilterOptions() {
+      IgnoreNullPredecessors = 1;
       IgnoreDefaultsWithCoveredEnums = 0;
     }
 
+    unsigned IgnoreNullPredecessors : 1;
     unsigned IgnoreDefaultsWithCoveredEnums : 1;
   };
 
@@ -495,11 +577,14 @@ public:
     IMPL I, E;
     const FilterOptions F;
     const CFGBlock *From;
-   public:
+  public:
     explicit FilteredCFGBlockIterator(const IMPL &i, const IMPL &e,
-              const CFGBlock *from,
-              const FilterOptions &f)
-      : I(i), E(e), F(f), From(from) {}
+                                      const CFGBlock *from,
+                                      const FilterOptions &f)
+        : I(i), E(e), F(f), From(from) {
+      while (hasMore() && Filter(*I))
+        ++I;
+    }
 
     bool hasMore() const { return I != E; }
 
@@ -531,7 +616,7 @@ public:
 
   // Manipulation of block contents
 
-  void setTerminator(Stmt *Statement) { Terminator = Statement; }
+  void setTerminator(CFGTerminator Term) { Terminator = Term; }
   void setLabel(Stmt *Statement) { Label = Statement; }
   void setLoopTarget(const Stmt *loopTarget) { LoopTarget = loopTarget; }
   void setHasNoReturnElement() { HasNoReturnElement = true; }
@@ -539,10 +624,10 @@ public:
   CFGTerminator getTerminator() { return Terminator; }
   const CFGTerminator getTerminator() const { return Terminator; }
 
-  Stmt *getTerminatorCondition();
+  Stmt *getTerminatorCondition(bool StripParens = true);
 
-  const Stmt *getTerminatorCondition() const {
-    return const_cast<CFGBlock*>(this)->getTerminatorCondition();
+  const Stmt *getTerminatorCondition(bool StripParens = true) const {
+    return const_cast<CFGBlock*>(this)->getTerminatorCondition(StripParens);
   }
 
   const Stmt *getLoopTarget() const { return LoopTarget; }
@@ -556,16 +641,18 @@ public:
 
   CFG *getParent() const { return Parent; }
 
+  void dump() const;
+
   void dump(const CFG *cfg, const LangOptions &LO, bool ShowColors = false) const;
   void print(raw_ostream &OS, const CFG* cfg, const LangOptions &LO,
              bool ShowColors) const;
   void printTerminator(raw_ostream &OS, const LangOptions &LO) const;
-
-  void addSuccessor(CFGBlock *Block, BumpVectorContext &C) {
-    if (Block)
-      Block->Preds.push_back(this, C);
-    Succs.push_back(Block, C);
+  void printAsOperand(raw_ostream &OS, bool /*PrintType*/) {
+    OS << "BB#" << getBlockID();
   }
+
+  /// Adds a (potentially unreachable) successor block to the current block.
+  void addSuccessor(AdjacentBlock Succ, BumpVectorContext &C);
 
   void appendStmt(Stmt *statement, BumpVectorContext &C) {
     Elements.push_back(CFGStmt(statement), C);
@@ -574,6 +661,11 @@ public:
   void appendInitializer(CXXCtorInitializer *initializer,
                         BumpVectorContext &C) {
     Elements.push_back(CFGInitializer(initializer), C);
+  }
+
+  void appendNewAllocator(CXXNewExpr *NE,
+                          BumpVectorContext &C) {
+    Elements.push_back(CFGNewAllocator(NE), C);
   }
 
   void appendBaseDtor(const CXXBaseSpecifier *BS, BumpVectorContext &C) {
@@ -601,12 +693,24 @@ public:
   // the elements beginning at the last position in prepared space.
   iterator beginAutomaticObjDtorsInsert(iterator I, size_t Cnt,
       BumpVectorContext &C) {
-    return iterator(Elements.insert(I.base(), Cnt, CFGAutomaticObjDtor(0, 0), C));
+    return iterator(Elements.insert(I.base(), Cnt,
+                                    CFGAutomaticObjDtor(nullptr, 0), C));
   }
   iterator insertAutomaticObjDtor(iterator I, VarDecl *VD, Stmt *S) {
     *I = CFGAutomaticObjDtor(VD, S);
     return ++I;
   }
+};
+
+/// \brief CFGCallback defines methods that should be called when a logical
+/// operator error is found when building the CFG.
+class CFGCallback {
+public:
+  CFGCallback() {}
+  virtual void compareAlwaysTrue(const BinaryOperator *B, bool isAlwaysTrue) {}
+  virtual void compareBitwiseEquality(const BinaryOperator *B,
+                                      bool isAlwaysTrue) {}
+  virtual ~CFGCallback() {}
 };
 
 /// CFG - Represents a source-level, intra-procedural CFG that represents the
@@ -627,13 +731,14 @@ public:
   public:
     typedef llvm::DenseMap<const Stmt *, const CFGBlock*> ForcedBlkExprs;
     ForcedBlkExprs **forcedBlkExprs;
-
+    CFGCallback *Observer;
     bool PruneTriviallyFalseEdges;
     bool AddEHEdges;
     bool AddInitializers;
     bool AddImplicitDtors;
     bool AddTemporaryDtors;
     bool AddStaticInitBranches;
+    bool AddCXXNewAllocator;
 
     bool alwaysAdd(const Stmt *stmt) const {
       return alwaysAddMask[stmt->getStmtClass()];
@@ -650,12 +755,11 @@ public:
     }
 
     BuildOptions()
-    : forcedBlkExprs(0), PruneTriviallyFalseEdges(true)
-      ,AddEHEdges(false)
-      ,AddInitializers(false)
-      ,AddImplicitDtors(false)
-      ,AddTemporaryDtors(false)
-      ,AddStaticInitBranches(false) {}
+      : forcedBlkExprs(nullptr), Observer(nullptr),
+        PruneTriviallyFalseEdges(true), AddEHEdges(false),
+        AddInitializers(false), AddImplicitDtors(false),
+        AddTemporaryDtors(false), AddStaticInitBranches(false),
+        AddCXXNewAllocator(false) {}
   };
 
   /// \brief Provides a custom implementation of the iterator class to have the
@@ -707,10 +811,9 @@ public:
     ImplTy I;
   };
 
-  /// buildCFG - Builds a CFG from an AST.  The responsibility to free the
-  ///   constructed CFG belongs to the caller.
-  static CFG* buildCFG(const Decl *D, Stmt *AST, ASTContext *C,
-                       const BuildOptions &BO);
+  /// buildCFG - Builds a CFG from an AST.
+  static std::unique_ptr<CFG> buildCFG(const Decl *D, Stmt *AST, ASTContext *C,
+                                       const BuildOptions &BO);
 
   /// createBlock - Create a new block in the CFG.  The CFG owns the block;
   ///  the caller should not directly free it.
@@ -845,8 +948,9 @@ public:
   // Internal: constructors and data.
   //===--------------------------------------------------------------------===//
 
-  CFG() : Entry(NULL), Exit(NULL), IndirectGotoBlock(NULL), NumBlockIDs(0),
-          Blocks(BlkBVC, 10) {}
+  CFG()
+    : Entry(nullptr), Exit(nullptr), IndirectGotoBlock(nullptr), NumBlockIDs(0),
+      Blocks(BlkBVC, 10) {}
 
   llvm::BumpPtrAllocator& getAllocator() {
     return BlkBVC.getAllocator();

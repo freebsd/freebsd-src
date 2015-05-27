@@ -34,6 +34,13 @@ extern "C" {
 #endif
 
 
+/**************************************************************************
+ *
+ * Falcon/Siena registers and descriptors
+ *
+ **************************************************************************
+ */
+
 /*
  * FR_AB_EE_VPD_CFG0_REG_SF(128bit):
  * SPI/VPD configuration register 0
@@ -3836,6 +3843,18 @@ extern "C" {
 #define	FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL_WIDTH 1
 #define	FSF_AZ_DRIVER_EV_RX_DESCQ_ID_LBN 0
 #define	FSF_AZ_DRIVER_EV_RX_DESCQ_ID_WIDTH 12
+
+
+
+/**************************************************************************
+ *
+ * Falcon non-volatile configuration
+ *
+ **************************************************************************
+ */
+
+
+#define FR_AZ_TX_PACE_TBL_OFST FR_BZ_TX_PACE_TBL_OFST
 
 
 #ifdef	__cplusplus

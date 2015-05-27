@@ -36,13 +36,43 @@ extern int			mp_naps;
 extern int			boot_cpu_id;
 extern struct pcb		stoppcbs[];
 extern int			cpu_apic_ids[];
+extern int bootAP;
+extern void *dpcpu;
+extern char *bootSTK;
+extern int bootAP;
+extern void *bootstacks[];
+extern volatile u_int cpu_ipi_pending[];
+extern volatile int aps_ready;
+extern struct mtx ap_boot_mtx;
+extern int cpu_logical;
+extern int cpu_cores;
+extern volatile int smp_tlb_wait;
+extern u_int xhits_gbl[];
+extern u_int xhits_pg[];
+extern u_int xhits_rng[];
+extern u_int ipi_global;
+extern u_int ipi_page;
+extern u_int ipi_range;
+extern u_int ipi_range_size;
+extern u_int ipi_masked_global;
+extern u_int ipi_masked_page;
+extern u_int ipi_masked_range;
+extern u_int ipi_masked_range_size;
+
+struct cpu_info {
+	int	cpu_present:1;
+	int	cpu_bsp:1;
+	int	cpu_disabled:1;
+	int	cpu_hyperthread:1;
+};
+extern struct cpu_info cpu_info[];
+
 #ifdef COUNT_IPIS
 extern u_long *ipi_invltlb_counts[MAXCPU];
 extern u_long *ipi_invlrng_counts[MAXCPU];
 extern u_long *ipi_invlpg_counts[MAXCPU];
 extern u_long *ipi_invlcache_counts[MAXCPU];
 extern u_long *ipi_rendezvous_counts[MAXCPU];
-extern u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
 
 /* IPI handlers */
@@ -54,15 +84,14 @@ inthand_t
 	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
-	IDTVEC(rendezvous),	/* handle CPU rendezvous */
-	IDTVEC(lazypmap);	/* handle lazy pmap release */
+	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
 /* functions in mp_machdep.c */
+void	assign_cpu_ids(void);
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
-#ifndef XEN
 void	cpususpend_handler(void);
-#endif
+void	init_secondary_tail(void);
 void	invltlb_handler(void);
 void	invlpg_handler(void);
 void	invlrng_handler(void);
@@ -70,13 +99,12 @@ void	invlcache_handler(void);
 void	init_secondary(void);
 void	ipi_startup(int apic_id, int vector);
 void	ipi_all_but_self(u_int ipi);
-#ifndef XEN
 void 	ipi_bitmap_handler(struct trapframe frame);
-#endif
 void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
+void	set_interrupt_apic_ids(void);
 void	smp_cache_flush(void);
 void	smp_invlpg(vm_offset_t addr);
 void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr);
@@ -85,10 +113,10 @@ void	smp_masked_invlpg_range(cpuset_t mask, vm_offset_t startva,
 	    vm_offset_t endva);
 void	smp_invltlb(void);
 void	smp_masked_invltlb(cpuset_t mask);
+void	mem_range_AP_init(void);
+void	topo_probe(void);
+void	ipi_send_cpu(int cpu, u_int ipi);
 
-#ifdef XEN
-void ipi_to_irq_init(void);
-#endif
 #endif /* !LOCORE */
 #endif /* SMP */
 

@@ -42,13 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/pmap.h>
 
+#include <dev/ofw/openfirm.h>
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
 #include "ps3-hvcall.h"
-
-#define PS3FB_SIZE (4*1024*1024)
 
 #define L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_MODE_SET	0x0100
 #define L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_SYNC		0x0101
@@ -95,9 +94,7 @@ ps3fb_probe(struct vt_device *vd)
 	struct ps3fb_softc *sc;
 	int disable;
 	char compatible[64];
-#if 0
 	phandle_t root;
-#endif
 
 	disable = 0;
 	TUNABLE_INT_FETCH("hw.syscons.disable", &disable);
@@ -106,18 +103,16 @@ ps3fb_probe(struct vt_device *vd)
 
 	sc = &ps3fb_softc;
 
-#if 0
+	TUNABLE_STR_FETCH("hw.platform", compatible, sizeof(compatible));
+	if (strcmp(compatible, "ps3") == 0)
+		return (CN_INTERNAL);
+
 	root = OF_finddevice("/");
 	if (OF_getprop(root, "compatible", compatible, sizeof(compatible)) <= 0)
-                return (0);
+                return (CN_DEAD);
 	
 	if (strncmp(compatible, "sony,ps3", sizeof(compatible)) != 0)
-		return (0);
-#else
-	TUNABLE_STR_FETCH("hw.platform", compatible, sizeof(compatible));
-	if (strcmp(compatible, "ps3") != 0)
 		return (CN_DEAD);
-#endif
 
 	return (CN_INTERNAL);
 }
@@ -141,8 +136,8 @@ ps3fb_remap(void)
 	    0,L1GPU_DISPLAY_SYNC_VSYNC,0,0);
 	lv1_gpu_context_attribute(0, L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_SYNC,
 	    1,L1GPU_DISPLAY_SYNC_VSYNC,0,0);
-	lv1_gpu_memory_allocate(PS3FB_SIZE, 0, 0, 0, 0, &sc->sc_fbhandle,
-	    &fb_paddr);
+	lv1_gpu_memory_allocate(roundup2(sc->fb_info.fb_size, 1024*1024),
+	    0, 0, 0, 0, &sc->sc_fbhandle, &fb_paddr);
 	lv1_gpu_context_allocate(sc->sc_fbhandle, 0, &sc->sc_fbcontext,
 	    &sc->sc_dma_control, &sc->sc_driver_info, &sc->sc_reports,
 	    &sc->sc_reports_size);
@@ -153,9 +148,10 @@ ps3fb_remap(void)
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	sc->fb_info.fb_pbase = fb_paddr;
-	for (va = 0; va < PS3FB_SIZE; va += PAGE_SIZE)
+	for (va = 0; va < sc->fb_info.fb_size; va += PAGE_SIZE)
 		pmap_kenter_attr(0x10000000 + va, fb_paddr + va,
-		    VM_MEMATTR_WRITE_COMBINING); 
+		    VM_MEMATTR_WRITE_COMBINING);
+	sc->fb_info.fb_flags &= ~FB_FLAG_NOWRITE;
 }
 
 static int
@@ -170,15 +166,19 @@ ps3fb_init(struct vt_device *vd)
 	sc->fb_info.fb_depth = 32;
 	sc->fb_info.fb_height = 480;
 	sc->fb_info.fb_width = 720;
+	TUNABLE_INT_FETCH("hw.ps3fb.height", &sc->fb_info.fb_height);
+	TUNABLE_INT_FETCH("hw.ps3fb.width", &sc->fb_info.fb_width);
 	sc->fb_info.fb_stride = sc->fb_info.fb_width*4;
 	sc->fb_info.fb_size = sc->fb_info.fb_height * sc->fb_info.fb_stride;
 	sc->fb_info.fb_bpp = sc->fb_info.fb_stride / sc->fb_info.fb_width * 8;
 
 	/*
-	 * The loader puts the FB at 0x10000000, so use that for now.
+	 * Arbitrarily choose address for the framebuffer
 	 */
 
 	sc->fb_info.fb_vbase = 0x10000000;
+	sc->fb_info.fb_flags |= FB_FLAG_NOWRITE; /* Not available yet */
+	sc->fb_info.fb_cmsize = 16;
 
 	/* 32-bit VGA palette */
 	vt_generate_cons_palette(sc->fb_info.fb_cmap, COLOR_FORMAT_RGB,
@@ -191,7 +191,6 @@ ps3fb_init(struct vt_device *vd)
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	vt_fb_init(vd);
-	sc->fb_info.fb_flags &= ~FB_FLAG_NOMMAP; /* Set wrongly by vt_fb_init */
 
 	return (CN_INTERNAL);
 }

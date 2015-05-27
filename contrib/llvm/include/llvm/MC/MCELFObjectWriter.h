@@ -20,29 +20,10 @@ class MCAssembler;
 class MCFixup;
 class MCFragment;
 class MCObjectWriter;
+class MCSectionData;
 class MCSymbol;
+class MCSymbolData;
 class MCValue;
-
-/// @name Relocation Data
-/// @{
-
-struct ELFRelocationEntry {
-  // Make these big enough for both 32-bit and 64-bit
-  uint64_t r_offset;
-  int Index;
-  unsigned Type;
-  const MCSymbol *Symbol;
-  uint64_t r_addend;
-  const MCFixup *Fixup;
-
-  ELFRelocationEntry()
-    : r_offset(0), Index(0), Type(0), Symbol(0), r_addend(0), Fixup(0) {}
-
-  ELFRelocationEntry(uint64_t RelocOffset, int Idx, unsigned RelType,
-                     const MCSymbol *Sym, uint64_t Addend, const MCFixup &Fixup)
-    : r_offset(RelocOffset), Index(Idx), Type(RelType), Symbol(Sym),
-      r_addend(Addend), Fixup(&Fixup) {}
-};
 
 class MCELFObjectTargetWriter {
   const uint8_t OSABI;
@@ -72,19 +53,10 @@ public:
   virtual ~MCELFObjectTargetWriter() {}
 
   virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
-                                bool IsPCRel, bool IsRelocWithSymbol,
-                                int64_t Addend) const = 0;
-  virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
-                                         const MCValue &Target,
-                                         const MCFragment &F,
-                                         const MCFixup &Fixup,
-                                         bool IsPCRel) const;
-  virtual const MCSymbol *undefinedExplicitRelSym(const MCValue &Target,
-                                                  const MCFixup &Fixup,
-                                                  bool IsPCRel) const;
+                                bool IsPCRel) const = 0;
 
-  virtual void sortRelocs(const MCAssembler &Asm,
-                          std::vector<ELFRelocationEntry> &Relocs);
+  virtual bool needsRelocateWithSymbol(const MCSymbolData &SD,
+                                       unsigned Type) const;
 
   /// @name Accessors
   /// @{
@@ -107,16 +79,16 @@ public:
 #define R_SSYM_MASK 0x00ffffff
 
   // N64 relocation type accessors
-  unsigned getRType(uint32_t Type) const {
+  uint8_t getRType(uint32_t Type) const {
     return (unsigned)((Type >> R_TYPE_SHIFT) & 0xff);
   }
-  unsigned getRType2(uint32_t Type) const {
+  uint8_t getRType2(uint32_t Type) const {
     return (unsigned)((Type >> R_TYPE2_SHIFT) & 0xff);
   }
-  unsigned getRType3(uint32_t Type) const {
+  uint8_t getRType3(uint32_t Type) const {
     return (unsigned)((Type >> R_TYPE3_SHIFT) & 0xff);
   }
-  unsigned getRSsym(uint32_t Type) const {
+  uint8_t getRSsym(uint32_t Type) const {
     return (unsigned)((Type >> R_SSYM_SHIFT) & 0xff);
   }
 

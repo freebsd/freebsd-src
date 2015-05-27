@@ -110,9 +110,8 @@ static void
 sfxge_intr_line(void *arg)
 {
 	struct sfxge_evq *evq = arg;
-	struct sfxge_softc *sc = evq->sc;
 
-	(void)sfxge_ev_qpoll(sc, 0);
+	(void)sfxge_ev_qpoll(evq);
 }
 
 static void
@@ -135,7 +134,7 @@ sfxge_intr_message(void *arg)
 	KASSERT(intr->type == EFX_INTR_MESSAGE,
 	    ("intr->type != EFX_INTR_MESSAGE"));
 
-	if (intr->state != SFXGE_INTR_STARTED)
+	if (__predict_false(intr->state != SFXGE_INTR_STARTED))
 		return;
 
 	(void)efx_intr_status_message(enp, index, &fatal);
@@ -146,7 +145,7 @@ sfxge_intr_message(void *arg)
 		return;
 	}
 
-	(void)sfxge_ev_qpoll(sc, index);
+	(void)sfxge_ev_qpoll(evq);
 }
 
 static int
@@ -302,6 +301,9 @@ sfxge_intr_setup_msix(struct sfxge_softc *sc)
 	/* Not very likely these days... */
 	if (count > EFX_MAXRSS)
 		count = EFX_MAXRSS;
+
+	if (sc->max_rss_channels > 0 && count > sc->max_rss_channels)
+		count = sc->max_rss_channels;
 
 	rid = PCIR_BAR(4);
 	resp = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);

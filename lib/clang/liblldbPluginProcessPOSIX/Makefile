@@ -15,17 +15,14 @@ SRCS=	POSIXStopInfo.cpp \
 	ProcessMessage.cpp \
 	ProcessPOSIX.cpp \
 	ProcessPOSIXLog.cpp \
-	RegisterContextFreeBSD_i386.cpp \
-	RegisterContextFreeBSD_mips64.cpp \
-	RegisterContextFreeBSD_x86_64.cpp \
-	RegisterContextLinux_i386.cpp \
-	RegisterContextLinux_x86_64.cpp \
+	RegisterContextPOSIXProcessMonitor_arm64.cpp \
 	RegisterContextPOSIXProcessMonitor_mips64.cpp \
-	RegisterContextPOSIXProcessMonitor_x86.cpp \
-	RegisterContextPOSIX_mips64.cpp \
-	RegisterContextPOSIX_x86.cpp
+	RegisterContextPOSIXProcessMonitor_powerpc.cpp \
+	RegisterContextPOSIXProcessMonitor_x86.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

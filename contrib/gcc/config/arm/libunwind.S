@@ -26,6 +26,13 @@
    the Free Software Foundation, 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
+#include <machine/acle-compat.h>
+
+/* Allow the use of VFP instructions */
+#if __ARM_ARCH >= 7
+.fpu	vfp
+#endif
+
 #ifndef __symbian__
 
 #include "lib1funcs.asm"
@@ -66,14 +73,22 @@ ARM_FUNC_START restore_core_regs
 ARM_FUNC_START gnu_Unwind_Restore_VFP
 	/* Use the generic coprocessor form so that gas doesn't complain
 	   on soft-float targets.  */
+#if __ARM_ARCH >= 7
+	fldmiax r0, {d0-d15}
+#else
 	ldc   p11,cr0,[r0],{0x21} /* fldmiax r0, {d0-d15} */
+#endif
 	RET
 
 /* Store VFR regsters d0-d15 to the address in r0.  */
 ARM_FUNC_START gnu_Unwind_Save_VFP
 	/* Use the generic coprocessor form so that gas doesn't complain
 	   on soft-float targets.  */
+#if __ARM_ARCH >= 7
+	fstmiax r0, {d0-d15}
+#else
 	stc   p11,cr0,[r0],{0x21} /* fstmiax r0, {d0-d15} */
+#endif
 	RET
 
 /* Wrappers to save core registers, then call the real routine.   */

@@ -3,7 +3,6 @@
 PROG=	newfs_nandfs
 MAN=	newfs_nandfs.8
 
-LDADD+= -lgeom
-DPADD+= ${LIBGEOM}
+LIBADD=	geom
 
 .include <bsd.prog.mk>

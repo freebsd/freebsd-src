@@ -28,8 +28,8 @@ using namespace ento;
 namespace {
 class ArrayBoundCheckerV2 : 
     public Checker<check::Location> {
-  mutable OwningPtr<BuiltinBug> BT;
-      
+  mutable std::unique_ptr<BuiltinBug> BT;
+
   enum OOB_Kind { OOB_Precedes, OOB_Excedes, OOB_Tainted };
   
   void reportOOB(CheckerContext &C, ProgramStateRef errorState,
@@ -45,9 +45,9 @@ class RegionRawOffsetV2 {
 private:
   const SubRegion *baseRegion;
   SVal byteOffset;
-  
+
   RegionRawOffsetV2()
-    : baseRegion(0), byteOffset(UnknownVal()) {}
+    : baseRegion(nullptr), byteOffset(UnknownVal()) {}
 
 public:
   RegionRawOffsetV2(const SubRegion* base, SVal offset)
@@ -120,7 +120,7 @@ void ArrayBoundCheckerV2::checkLocation(SVal location, bool isLoad,
       return;
     
     ProgramStateRef state_precedesLowerBound, state_withinLowerBound;
-    llvm::tie(state_precedesLowerBound, state_withinLowerBound) =
+    std::tie(state_precedesLowerBound, state_withinLowerBound) =
       state->assume(*lowerBoundToCheck);
 
     // Are we constrained enough to definitely precede the lower bound?
@@ -152,7 +152,7 @@ void ArrayBoundCheckerV2::checkLocation(SVal location, bool isLoad,
       break;
   
     ProgramStateRef state_exceedsUpperBound, state_withinUpperBound;
-    llvm::tie(state_exceedsUpperBound, state_withinUpperBound) =
+    std::tie(state_exceedsUpperBound, state_withinUpperBound) =
       state->assume(*upperboundToCheck);
 
     // If we are under constrained and the index variables are tainted, report.
@@ -187,7 +187,7 @@ void ArrayBoundCheckerV2::reportOOB(CheckerContext &checkerContext,
     return;
 
   if (!BT)
-    BT.reset(new BuiltinBug("Out-of-bound access"));
+    BT.reset(new BuiltinBug(this, "Out-of-bound access"));
 
   // FIXME: This diagnostics are preliminary.  We should get far better
   // diagnostics for explaining buffer overruns.
@@ -216,17 +216,6 @@ void RegionRawOffsetV2::dump() const {
 
 void RegionRawOffsetV2::dumpToStream(raw_ostream &os) const {
   os << "raw_offset_v2{" << getRegion() << ',' << getByteOffset() << '}';
-}
-
-// FIXME: Merge with the implementation of the same method in Store.cpp
-static bool IsCompleteType(ASTContext &Ctx, QualType Ty) {
-  if (const RecordType *RT = Ty->getAs<RecordType>()) {
-    const RecordDecl *D = RT->getDecl();
-    if (!D->getDefinition())
-      return false;
-  }
-
-  return true;
 }
 
 
@@ -288,7 +277,7 @@ RegionRawOffsetV2 RegionRawOffsetV2::computeOffset(ProgramStateRef state,
         QualType elemType = elemReg->getElementType();
         // If the element is an incomplete type, go no further.
         ASTContext &astContext = svalBuilder.getContext();
-        if (!IsCompleteType(astContext, elemType))
+        if (elemType->isIncompleteType())
           return RegionRawOffsetV2();
         
         // Update the offset.
@@ -310,7 +299,6 @@ RegionRawOffsetV2 RegionRawOffsetV2::computeOffset(ProgramStateRef state,
   }
   return RegionRawOffsetV2();
 }
-
 
 void ento::registerArrayBoundCheckerV2(CheckerManager &mgr) {
   mgr.registerChecker<ArrayBoundCheckerV2>();

@@ -43,6 +43,9 @@ editline.po: fcns.h
 editline.po: help.c
 editline.po: help.h
 editline.po: vi.h
+historyn.So: historyn.c
+historyn.o: historyn.c
+historyn.po: historyn.c
 readline.So: common.h
 readline.So: emacs.h
 readline.So: fcns.h
@@ -58,4 +61,7 @@ readline.po: emacs.h
 readline.po: fcns.h
 readline.po: help.h
 readline.po: vi.h
+tokenizern.So: tokenizern.c
+tokenizern.o: tokenizern.c
+tokenizern.po: tokenizern.c
 .endif

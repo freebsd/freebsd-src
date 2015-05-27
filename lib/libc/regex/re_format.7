@@ -314,10 +314,10 @@ compatible with but not specified by
 .St -p1003.2 ,
 and should be used with
 caution in software intended to be portable to other systems.
-The additional word delimiters  
+The additional word delimiters
 .Ql \e<
 and
-.Ql \e> 
+.Ql \e>
 are provided to ease compatibility with traditional
 .Xr svr4 4
 systems but are not portable and should be avoided.
@@ -392,10 +392,12 @@ and
 .Ql ?\&
 are ordinary characters, and their functionality
 can be expressed using bounds
-.No ( Ql {1,}
+.Po
+.Ql {1,}
 or
 .Ql {0,1}
-respectively).
+respectively
+.Pc .
 Also note that
 .Ql x+
 in modern REs is equivalent to

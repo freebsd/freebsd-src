@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LLVM_DIFFCONSUMER_H_
-#define _LLVM_DIFFCONSUMER_H_
+#ifndef LLVM_TOOLS_LLVM_DIFF_DIFFCONSUMER_H
+#define LLVM_TOOLS_LLVM_DIFF_DIFFCONSUMER_H
 
 #include "DiffLog.h"
 #include "llvm/ADT/DenseMap.h"
@@ -79,11 +79,11 @@ namespace llvm {
       : out(errs()), Differences(false), Indent(0) {}
 
     bool hadDifferences() const;
-    void enterContext(Value *L, Value *R);
-    void exitContext();
-    void log(StringRef text);
-    void logf(const LogBuilder &Log);
-    void logd(const DiffLogBuilder &Log);
+    void enterContext(Value *L, Value *R) override;
+    void exitContext() override;
+    void log(StringRef text) override;
+    void logf(const LogBuilder &Log) override;
+    void logd(const DiffLogBuilder &Log) override;
   };
 }
 

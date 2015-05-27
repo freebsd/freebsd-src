@@ -26,10 +26,10 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf.c 2070 2011-10-27 03:05:32Z jkoshy $");
+ELFTC_VCSID("$Id: libdwarf.c 3161 2015-02-15 21:43:36Z emaste $");
 
 struct _libdwarf_globals _libdwarf = {
 	.errhand	= NULL,
 	.errarg		= NULL,
-	.applyrela	= 1
+	.applyreloc	= 1
 };

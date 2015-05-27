@@ -1,6 +1,6 @@
 /*
  * EAP peer configuration data
- * Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2013, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -157,7 +157,7 @@ struct eap_peer_config {
 	 *
 	 * If left out, this will be asked through control interface.
 	 */
-	u8 *private_key_passwd;
+	char *private_key_passwd;
 
 	/**
 	 * dh_file - File path to DH/DSA parameters file (in PEM format)
@@ -186,6 +186,10 @@ struct eap_peer_config {
 	 * string is in following format:
 	 *
 	 * /C=US/ST=CA/L=San Francisco/CN=Test AS/emailAddress=as@n.example.com
+	 *
+	 * Note: Since this is a substring match, this cannot be used securily
+	 * to do a suffix match against a possible domain name in the CN entry.
+	 * For such a use case, domain_suffix_match should be used instead.
 	 */
 	u8 *subject_match;
 
@@ -206,6 +210,39 @@ struct eap_peer_config {
 	 * Following types are supported: EMAIL, DNS, URI
 	 */
 	u8 *altsubject_match;
+
+	/**
+	 * domain_suffix_match - Constraint for server domain name
+	 *
+	 * If set, this FQDN is used as a suffix match requirement for the
+	 * server certificate in SubjectAltName dNSName element(s). If a
+	 * matching dNSName is found, this constraint is met. If no dNSName
+	 * values are present, this constraint is matched against SubjectName CN
+	 * using same suffix match comparison. Suffix match here means that the
+	 * host/domain name is compared one label at a time starting from the
+	 * top-level domain and all the labels in domain_suffix_match shall be
+	 * included in the certificate. The certificate may include additional
+	 * sub-level labels in addition to the required labels.
+	 *
+	 * For example, domain_suffix_match=example.com would match
+	 * test.example.com but would not match test-example.com.
+	 */
+	char *domain_suffix_match;
+
+	/**
+	 * domain_match - Constraint for server domain name
+	 *
+	 * If set, this FQDN is used as a full match requirement for the
+	 * server certificate in SubjectAltName dNSName element(s). If a
+	 * matching dNSName is found, this constraint is met. If no dNSName
+	 * values are present, this constraint is matched against SubjectName CN
+	 * using same full match comparison. This behavior is similar to
+	 * domain_suffix_match, but has the requirement of a full match, i.e.,
+	 * no subdomains or wildcard matches are allowed. Case-insensitive
+	 * comparison is used, so "Example.com" matches "example.com", but would
+	 * not match "test.Example.com".
+	 */
+	char *domain_match;
 
 	/**
 	 * ca_cert2 - File path to CA certificate file (PEM/DER) (Phase 2)
@@ -271,7 +308,7 @@ struct eap_peer_config {
 	 * This field is like private_key_passwd, but used for phase 2 (inside
 	 * EAP-TTLS/PEAP/FAST tunnel) authentication.
 	 */
-	u8 *private_key2_passwd;
+	char *private_key2_passwd;
 
 	/**
 	 * dh_file2 - File path to DH/DSA parameters file (in PEM format)
@@ -301,6 +338,22 @@ struct eap_peer_config {
 	 * EAP-TTLS/PEAP/FAST tunnel) authentication.
 	 */
 	u8 *altsubject_match2;
+
+	/**
+	 * domain_suffix_match2 - Constraint for server domain name
+	 *
+	 * This field is like domain_suffix_match, but used for phase 2 (inside
+	 * EAP-TTLS/PEAP/FAST tunnel) authentication.
+	 */
+	char *domain_suffix_match2;
+
+	/**
+	 * domain_match2 - Constraint for server domain name
+	 *
+	 * This field is like domain_match, but used for phase 2 (inside
+	 * EAP-TTLS/PEAP/FAST tunnel) authentication.
+	 */
+	char *domain_match2;
 
 	/**
 	 * eap_methods - Allowed EAP methods
@@ -365,6 +418,16 @@ struct eap_peer_config {
 	 *
 	 * EAP-WSC (WPS) uses following options: pin=Device_Password and
 	 * uuid=Device_UUID
+	 *
+	 * For wired IEEE 802.1X authentication, "allow_canned_success=1" can be
+	 * used to configure a mode that allows EAP-Success (and EAP-Failure)
+	 * without going through authentication step. Some switches use such
+	 * sequence when forcing the port to be authorized/unauthorized or as a
+	 * fallback option if the authentication server is unreachable. By
+	 * default, wpa_supplicant discards such frames to protect against
+	 * potential attacks by rogue devices, but this option can be used to
+	 * disable that protection for cases where the server/authenticator does
+	 * not need to be authenticated.
 	 */
 	char *phase1;
 
@@ -372,7 +435,9 @@ struct eap_peer_config {
 	 * phase2 - Phase2 (inner authentication with TLS tunnel) parameters
 	 *
 	 * String with field-value pairs, e.g., "auth=MSCHAPV2" for EAP-PEAP or
-	 * "autheap=MSCHAPV2 autheap=MD5" for EAP-TTLS.
+	 * "autheap=MSCHAPV2 autheap=MD5" for EAP-TTLS. "mschapv2_retry=0" can
+	 * be used to disable MSCHAPv2 password retry in authentication failure
+	 * cases.
 	 */
 	char *phase2;
 
@@ -634,6 +699,46 @@ struct eap_peer_config {
 	 *         password field is the name of that external entry
 	 */
 	u32 flags;
+
+	/**
+	 * ocsp - Whether to use/require OCSP to check server certificate
+	 *
+	 * 0 = do not use OCSP stapling (TLS certificate status extension)
+	 * 1 = try to use OCSP stapling, but not require response
+	 * 2 = require valid OCSP stapling response
+	 */
+	int ocsp;
+
+	/**
+	 * external_sim_resp - Response from external SIM processing
+	 *
+	 * This field should not be set in configuration step. It is only used
+	 * internally when control interface is used to request external
+	 * SIM/USIM processing.
+	 */
+	char *external_sim_resp;
+
+	/**
+	 * sim_num - User selected SIM identifier
+	 *
+	 * This variable is used for identifying which SIM is used if the system
+	 * has more than one.
+	 */
+	int sim_num;
+
+	/**
+	 * openssl_ciphers - OpenSSL cipher string
+	 *
+	 * This is an OpenSSL specific configuration option for configuring the
+	 * ciphers for this connection. If not set, the default cipher suite
+	 * list is used.
+	 */
+	char *openssl_ciphers;
+
+	/**
+	 * erp - Whether EAP Re-authentication Protocol (ERP) is enabled
+	 */
+	int erp;
 };
 
 

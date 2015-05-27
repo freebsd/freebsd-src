@@ -74,11 +74,19 @@
 
 typedef enum { OTHER = -1, NFLOG, NFQUEUE } nftype_t;
 
+/*
+ * Private data for capturing on Linux netfilter sockets.
+ */
+struct pcap_netfilter {
+	u_int	packets_read;	/* count of packets read with recvfrom() */
+};
+
 static int nfqueue_send_verdict(const pcap_t *handle, u_int16_t group_id, u_int32_t id, u_int32_t verdict);
 
 static int
 netfilter_read_linux(pcap_t *handle, int max_packets, pcap_handler callback, u_char *user)
 {
+	struct pcap_netfilter *handlep = handle->priv;
 	const unsigned char *buf;
 	int count = 0;
 	int len;
@@ -109,12 +117,11 @@ netfilter_read_linux(pcap_t *handle, int max_packets, pcap_handler callback, u_c
 		}
 
 		if (NFNL_SUBSYS_ID(nlh->nlmsg_type) == NFNL_SUBSYS_ULOG && 
-			NFNL_MSG_TYPE(nlh->nlmsg_type) == NFULNL_MSG_PACKET) 
-				type = NFLOG;
-
-		if (NFNL_SUBSYS_ID(nlh->nlmsg_type) == NFNL_SUBSYS_QUEUE && 
-			NFNL_MSG_TYPE(nlh->nlmsg_type) == NFQNL_MSG_PACKET)
-				type = NFQUEUE;
+		    NFNL_MSG_TYPE(nlh->nlmsg_type) == NFULNL_MSG_PACKET) 
+			type = NFLOG;
+		else if (NFNL_SUBSYS_ID(nlh->nlmsg_type) == NFNL_SUBSYS_QUEUE && 
+		         NFNL_MSG_TYPE(nlh->nlmsg_type) == NFQNL_MSG_PACKET)
+			type = NFQUEUE;
 
 		if (type != OTHER) {
 			const unsigned char *payload = NULL;
@@ -179,7 +186,7 @@ netfilter_read_linux(pcap_t *handle, int max_packets, pcap_handler callback, u_c
 				if (handle->fcode.bf_insns == NULL ||
 						bpf_filter(handle->fcode.bf_insns, payload, pkth.len, pkth.caplen)) 
 				{
-					handle->md.packets_read++;
+					handlep->packets_read++;
 					callback(user, &pkth, payload);
 					count++;
 				}
@@ -211,7 +218,9 @@ netfilter_set_datalink(pcap_t *handle, int dlt)
 static int
 netfilter_stats_linux(pcap_t *handle, struct pcap_stat *stats)
 {
-	stats->ps_recv = handle->md.packets_read;
+	struct pcap_netfilter *handlep = handle->priv;
+
+	stats->ps_recv = handlep->packets_read;
 	stats->ps_drop = 0;
 	stats->ps_ifdrop = 0;
 	return 0;
@@ -471,7 +480,6 @@ netfilter_activate(pcap_t* handle)
 	handle->inject_op = netfilter_inject_linux;
 	handle->setfilter_op = install_bpf_program; /* no kernel filtering */
 	handle->setdirection_op = NULL;
-	handle->set_datalink_op = NULL;
 	handle->set_datalink_op = netfilter_set_datalink;
 	handle->getnonblock_op = pcap_getnonblock_fd;
 	handle->setnonblock_op = pcap_setnonblock_fd;
@@ -612,7 +620,7 @@ netfilter_create(const char *device, char *ebuf, int *is_ours)
 	/* OK, it's probably ours. */
 	*is_ours = 1;
 
-	p = pcap_create_common(device, ebuf);
+	p = pcap_create_common(device, ebuf, sizeof (struct pcap_netfilter));
 	if (p == NULL)
 		return (NULL);
 
@@ -623,7 +631,6 @@ netfilter_create(const char *device, char *ebuf, int *is_ours)
 int 
 netfilter_findalldevs(pcap_if_t **alldevsp, char *err_str)
 {
-	pcap_if_t *found_dev = *alldevsp;
 	int sock;
 	
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_NETFILTER);
@@ -637,9 +644,9 @@ netfilter_findalldevs(pcap_if_t **alldevsp, char *err_str)
 	}
 	close(sock);
 
-	if (pcap_add_if(&found_dev, NFLOG_IFACE, 0, "Linux netfilter log (NFLOG) interface", err_str) < 0)
+	if (pcap_add_if(alldevsp, NFLOG_IFACE, 0, "Linux netfilter log (NFLOG) interface", err_str) < 0)
 		return -1;
-	if (pcap_add_if(&found_dev, NFQUEUE_IFACE, 0, "Linux netfilter queue (NFQUEUE) interface", err_str) < 0)
+	if (pcap_add_if(alldevsp, NFQUEUE_IFACE, 0, "Linux netfilter queue (NFQUEUE) interface", err_str) < 0)
 		return -1;
 	return 0;
 }

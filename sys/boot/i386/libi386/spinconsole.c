@@ -86,9 +86,11 @@ spinc_putchar(int c)
 	if (now < (lasttime + 1))
 		return;
 	lasttime = now;
+#ifdef TERM_EMU
 	get_pos(&curx, &cury);
 	if (curx > 0)
 		curs_move(&curx, &cury, curx - 1, cury);
+#endif
 	vidc_biosputchar((char)tw_chars);
 	tw_chars = (tw_chars >> 8) | ((tw_chars & (unsigned long)0xFF) << 24);
 }

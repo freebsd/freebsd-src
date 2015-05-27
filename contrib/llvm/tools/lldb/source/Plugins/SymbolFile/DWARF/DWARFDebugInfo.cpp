@@ -79,7 +79,6 @@ DWARFDebugInfo::GetCompileUnitAranges ()
         // Manually build arange data for everything that wasn't in the .debug_aranges table.
         bool printed = false;
         const size_t num_compile_units = GetNumCompileUnits();
-        const bool clear_dies_if_already_not_parsed = true;
         for (size_t idx = 0; idx < num_compile_units; ++idx)
         {
             DWARFCompileUnit* cu = GetCompileUnitAtIndex(idx);
@@ -94,7 +93,7 @@ DWARFDebugInfo::GetCompileUnitAranges ()
                                      m_dwarf2Data->GetObjectFile()->GetFileSpec().GetPath().c_str());
                     printed = true;
                 }
-                cu->BuildAddressRangeTable (m_dwarf2Data, m_cu_aranges_ap.get(), clear_dies_if_already_not_parsed);
+                cu->BuildAddressRangeTable (m_dwarf2Data, m_cu_aranges_ap.get());
             }
         }
 
@@ -214,13 +213,6 @@ DWARFDebugInfo::ContainsCompileUnit (const DWARFCompileUnit *cu) const
     return false;
 }
 
-
-static bool CompileUnitOffsetLessThan (const DWARFCompileUnitSP& a, const DWARFCompileUnitSP& b)
-{
-    return a->GetOffset() < b->GetOffset();
-}
-
-
 static int
 CompareDWARFCompileUnitSPOffset (const void *key, const void *arrmem)
 {
@@ -280,15 +272,6 @@ DWARFDebugInfo::GetCompileUnitContainingDIE(dw_offset_t die_offset)
 }
 
 //----------------------------------------------------------------------
-// Compare function DWARFDebugAranges::Range structures
-//----------------------------------------------------------------------
-static bool CompareDIEOffset (const DWARFDebugInfoEntry& die1, const DWARFDebugInfoEntry& die2)
-{
-    return die1.GetOffset() < die2.GetOffset();
-}
-
-
-//----------------------------------------------------------------------
 // GetDIE()
 //
 // Get the DIE (Debug Information Entry) with the specified offset.
@@ -338,40 +321,6 @@ DWARFDebugInfo::GetDIEPtrContainingOffset(dw_offset_t die_offset, DWARFCompileUn
 
     return NULL;    // Not found in any compile units
 
-}
-
-//----------------------------------------------------------------------
-// DWARFDebugInfo_ParseCallback
-//
-// A callback function for the static DWARFDebugInfo::Parse() function
-// that gets parses all compile units and DIE's into an internate
-// representation for further modification.
-//----------------------------------------------------------------------
-
-static dw_offset_t
-DWARFDebugInfo_ParseCallback
-(
-    SymbolFileDWARF* dwarf2Data,
-    DWARFCompileUnitSP& cu_sp,
-    DWARFDebugInfoEntry* die,
-    const dw_offset_t next_offset,
-    const uint32_t curr_depth,
-    void* userData
-)
-{
-    DWARFDebugInfo* debug_info = (DWARFDebugInfo*)userData;
-    DWARFCompileUnit* cu = cu_sp.get();
-    if (die)
-    {
-        cu->AddDIE(*die);
-    }
-    else if (cu)
-    {
-        debug_info->AddCompileUnit(cu_sp);
-    }
-
-    // Just return the current offset to parse the next CU or DIE entry
-    return next_offset;
 }
 
 //----------------------------------------------------------------------
@@ -563,7 +512,7 @@ static dw_offset_t DumpCallback
 
                 // We have already found our DIE and are printing it's children. Obey
                 // our recurse depth and return an invalid offset if we get done
-                // dumping all the the children
+                // dumping all of the children
                 if (dumpInfo->recurse_depth == UINT32_MAX || curr_depth <= dumpInfo->found_depth + dumpInfo->recurse_depth)
                     die->Dump(dwarf2Data, cu, *s, 0);
             }
@@ -606,8 +555,15 @@ static dw_offset_t DumpCallback
         if (dumpInfo->die_offset == DW_INVALID_OFFSET)
         {
             // We are dumping everything
-            cu->Dump(s);
-            return cu->GetFirstDIEOffset(); // Return true to parse all DIEs in this Compile Unit
+            if (cu)
+            {
+                cu->Dump(s);
+                return cu->GetFirstDIEOffset(); // Return true to parse all DIEs in this Compile Unit
+            }
+            else
+            {
+                return DW_INVALID_OFFSET;
+            }
         }
         else
         {
@@ -619,7 +575,7 @@ static dw_offset_t DumpCallback
 
             // We are dumping only a single DIE possibly with it's children and
             // we must find it's compile unit before we can dump it properly
-            if (dumpInfo->die_offset < cu->GetFirstDIEOffset())
+            if (cu && dumpInfo->die_offset < cu->GetFirstDIEOffset())
             {
                 // Not found, maybe the DIE offset provided wasn't correct?
             //  *ostrm_ptr << "DIE at offset " << HEX32 << dumpInfo->die_offset << " was not found." << endl;
@@ -628,7 +584,7 @@ static dw_offset_t DumpCallback
             else
             {
                 // See if the DIE is in this compile unit?
-                if (dumpInfo->die_offset < cu->GetNextCompileUnitOffset())
+                if (cu && dumpInfo->die_offset < cu->GetNextCompileUnitOffset())
                 {
                     // This DIE is in this compile unit!
                     if (s->GetVerbose())
@@ -641,7 +597,14 @@ static dw_offset_t DumpCallback
                 else
                 {
                     // Skip to the next compile unit as the DIE isn't in the current one!
-                    return cu->GetNextCompileUnitOffset();
+                    if (cu)
+                    {
+                        return cu->GetNextCompileUnitOffset();
+                    }
+                    else
+                    {
+                        return DW_INVALID_OFFSET;
+                    }
                 }
             }
         }

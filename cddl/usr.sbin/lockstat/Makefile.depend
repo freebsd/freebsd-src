@@ -19,9 +19,7 @@ DIRDEPS = \
 	lib/librtld_db \
 	lib/libthr \
 	lib/libutil \
-	lib/liby \
 	lib/libz \
-	usr.bin/lex/lib \
 
 
 .include <dirdeps.mk>

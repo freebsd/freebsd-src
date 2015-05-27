@@ -83,6 +83,10 @@ struct ucred;
 #define	RACCT_DECAYING		0x20
 
 extern int racct_types[];
+extern int racct_enable;
+
+#define ASSERT_RACCT_ENABLED()	KASSERT(racct_enable, \
+				    ("%s called with !racct_enable", __func__))
 
 /*
  * Amount stored in c_resources[] is 10**6 times bigger than what's
@@ -220,15 +224,8 @@ racct_get_available(struct proc *p, int resource)
 	return (UINT64_MAX);
 }
 
-static inline void
-racct_create(struct racct **racctp)
-{
-}
-
-static inline void
-racct_destroy(struct racct **racctp)
-{
-}
+#define	racct_create(x)
+#define	racct_destroy(x)
 
 static inline int
 racct_proc_fork(struct proc *parent, struct proc *child)

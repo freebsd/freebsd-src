@@ -42,7 +42,7 @@ fi
 
 dtrace=$1
 
-bname=`/usr/bin/basename $0`
+bname=`basename $0`
 
 dfilename=/var/tmp/$bname.$$
 

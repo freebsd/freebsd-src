@@ -781,7 +781,7 @@ printcpuinfo(void)
 				"\011TM2"	/* Thermal Monitor 2 */
 				"\012SSSE3"	/* SSSE3 */
 				"\013CNXT-ID"	/* L1 context ID available */
-				"\014<b11>"
+				"\014SDBG"	/* IA32 silicon debug */
 				"\015FMA"	/* Fused Multiply Add */
 				"\016CX16"	/* CMPXCHG16B Instruction */
 				"\017xTPR"	/* Send Task Priority Messages*/
@@ -1190,7 +1190,6 @@ hook_tsc_freq(void *arg __unused)
 
 SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
-#ifndef XEN
 static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
@@ -1281,7 +1280,6 @@ identify_hypervisor(void)
 		freeenv(p);
 	}
 }
-#endif
 
 /*
  * Final stage of CPU identification.
@@ -1314,9 +1312,7 @@ identify_cpu(void)
 	cpu_feature2 = regs[2];
 #endif
 
-#ifndef XEN
 	identify_hypervisor();
-#endif
 	cpu_vendor_id = find_cpu_vendor_id();
 
 	/*
@@ -1393,7 +1389,10 @@ identify_cpu(void)
 	}
 	if (cpu_exthigh >= 0x80000008) {
 		do_cpuid(0x80000008, regs);
+		cpu_maxphyaddr = regs[0] & 0xff;
 		cpu_procinfo2 = regs[2];
+	} else {
+		cpu_maxphyaddr = (cpu_feature & CPUID_PAE) != 0 ? 36 : 32;
 	}
 
 #ifdef __i386__

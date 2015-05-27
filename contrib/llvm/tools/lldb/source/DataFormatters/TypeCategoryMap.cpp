@@ -120,6 +120,46 @@ TypeCategoryMap::Disable (ValueSP category)
 }
 
 void
+TypeCategoryMap::EnableAllCategories ()
+{
+    Mutex::Locker locker(m_map_mutex);
+    std::vector<ValueSP> sorted_categories(m_map.size(), ValueSP());
+    MapType::iterator iter = m_map.begin(), end = m_map.end();
+    for (; iter != end; ++iter)
+    {
+        if (iter->second->IsEnabled())
+            continue;
+        auto pos = iter->second->GetLastEnabledPosition();
+        if (pos >= sorted_categories.size())
+        {
+            auto iter = std::find_if(sorted_categories.begin(),
+                                     sorted_categories.end(),
+                                     [] (const ValueSP& sp) -> bool {
+                                         return sp.get() == nullptr;
+                                     });
+            pos = std::distance(sorted_categories.begin(), iter);
+        }
+        sorted_categories.at(pos) = iter->second;
+    }
+    decltype(sorted_categories)::iterator viter = sorted_categories.begin(), vend = sorted_categories.end();
+    for (; viter != vend; viter++)
+        if (viter->get())
+            Enable(*viter, Last);
+}
+
+void
+TypeCategoryMap::DisableAllCategories ()
+{
+    Mutex::Locker locker(m_map_mutex);
+    Position p = First;
+    for (; false == m_active_categories.empty(); p++)
+    {
+        m_active_categories.front()->SetEnabledPosition(p);
+        Disable(m_active_categories.front());
+    }
+}
+
+void
 TypeCategoryMap::Clear ()
 {
     Mutex::Locker locker(m_map_mutex);
@@ -265,6 +305,34 @@ TypeCategoryMap::GetSyntheticChildren (ValueObject& valobj,
     return lldb::SyntheticChildrenSP();
 }
 #endif
+
+lldb::TypeValidatorImplSP
+TypeCategoryMap::GetValidator (ValueObject& valobj,
+                               lldb::DynamicValueType use_dynamic)
+{
+    Mutex::Locker locker(m_map_mutex);
+    
+    uint32_t reason_why;
+    ActiveCategoriesIterator begin, end = m_active_categories.end();
+    
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
+    
+    FormattersMatchVector matches = FormatManager::GetPossibleMatches(valobj, use_dynamic);
+    
+    for (begin = m_active_categories.begin(); begin != end; begin++)
+    {
+        lldb::TypeCategoryImplSP category_sp = *begin;
+        lldb::TypeValidatorImplSP current_format;
+        if (log)
+            log->Printf("\n[CategoryMap::GetValidator] Trying to use category %s", category_sp->GetName());
+        if (!category_sp->Get(valobj, matches, current_format, &reason_why))
+            continue;
+        return current_format;
+    }
+    if (log)
+        log->Printf("[CategoryMap::GetValidator] nothing found - returning empty SP");
+    return lldb::TypeValidatorImplSP();
+}
 
 void
 TypeCategoryMap::LoopThrough(CallbackType callback, void* param)

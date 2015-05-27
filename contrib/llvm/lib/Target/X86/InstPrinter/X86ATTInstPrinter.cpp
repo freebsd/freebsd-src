@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "X86ATTInstPrinter.h"
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "MCTargetDesc/X86MCTargetDesc.h"
@@ -27,6 +26,8 @@
 #include "llvm/Support/FormattedStream.h"
 #include <map>
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 // Include the auto-generated portion of the assembly writer.
 #define PRINT_ALIAS_INSTR
@@ -44,50 +45,36 @@ void X86ATTInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
   const MCInstrDesc &Desc = MII.get(MI->getOpcode());
   uint64_t TSFlags = Desc.TSFlags;
 
+  // If verbose assembly is enabled, we can print some informative comments.
+  if (CommentStream)
+    HasCustomInstComment =
+        EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
+
   if (TSFlags & X86II::LOCK)
     OS << "\tlock\n";
 
+  // Output CALLpcrel32 as "callq" in 64-bit mode.
+  // In Intel annotation it's always emitted as "call".
+  //
+  // TODO: Probably this hack should be redesigned via InstAlias in
+  // InstrInfo.td as soon as Requires clause is supported properly
+  // for InstAlias.
+  if (MI->getOpcode() == X86::CALLpcrel32 &&
+      (getAvailableFeatures() & X86::Mode64Bit) != 0) {
+    OS << "\tcallq\t";
+    printPCRelImm(MI, 0, OS);
+  }
   // Try to print any aliases first.
-  if (!printAliasInstr(MI, OS))
+  else if (!printAliasInstr(MI, OS))
     printInstruction(MI, OS);
 
   // Next always print the annotation.
   printAnnotation(OS, Annot);
-
-  // If verbose assembly is enabled, we can print some informative comments.
-  if (CommentStream)
-    EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
 }
 
-void X86ATTInstPrinter::printSSECC(const MCInst *MI, unsigned Op,
-                                   raw_ostream &O) {
-  int64_t Imm = MI->getOperand(Op).getImm() & 0xf;
+static void printSSEAVXCC(int64_t Imm, raw_ostream &O) {
   switch (Imm) {
-  default: llvm_unreachable("Invalid ssecc argument!");
-  case    0: O << "eq"; break;
-  case    1: O << "lt"; break;
-  case    2: O << "le"; break;
-  case    3: O << "unord"; break;
-  case    4: O << "neq"; break;
-  case    5: O << "nlt"; break;
-  case    6: O << "nle"; break;
-  case    7: O << "ord"; break;
-  case    8: O << "eq_uq"; break;
-  case    9: O << "nge"; break;
-  case  0xa: O << "ngt"; break;
-  case  0xb: O << "false"; break;
-  case  0xc: O << "neq_oq"; break;
-  case  0xd: O << "ge"; break;
-  case  0xe: O << "gt"; break;
-  case  0xf: O << "true"; break;
-  }
-}
-
-void X86ATTInstPrinter::printAVXCC(const MCInst *MI, unsigned Op,
-                                   raw_ostream &O) {
-  int64_t Imm = MI->getOperand(Op).getImm() & 0x1f;
-  switch (Imm) {
-  default: llvm_unreachable("Invalid avxcc argument!");
+  default: llvm_unreachable("Invalid ssecc/avxcc argument!");
   case    0: O << "eq"; break;
   case    1: O << "lt"; break;
   case    2: O << "le"; break;
@@ -123,6 +110,30 @@ void X86ATTInstPrinter::printAVXCC(const MCInst *MI, unsigned Op,
   }
 }
 
+void X86ATTInstPrinter::printSSECC(const MCInst *MI, unsigned Op,
+                                   raw_ostream &O) {
+  int64_t Imm = MI->getOperand(Op).getImm();
+  assert((Imm & 0x7) == Imm); // Ensure valid immediate.
+  printSSEAVXCC(Imm, O);
+}
+
+void X86ATTInstPrinter::printAVXCC(const MCInst *MI, unsigned Op,
+                                   raw_ostream &O) {
+  int64_t Imm = MI->getOperand(Op).getImm();
+  assert((Imm & 0x1f) == Imm); // Ensure valid immediate.
+  printSSEAVXCC(Imm, O);
+}
+
+void X86ATTInstPrinter::printRoundingControl(const MCInst *MI, unsigned Op,
+                                   raw_ostream &O) {
+  int64_t Imm = MI->getOperand(Op).getImm() & 0x3;
+  switch (Imm) {
+  case 0: O << "{rn-sae}"; break;
+  case 1: O << "{rd-sae}"; break;
+  case 2: O << "{ru-sae}"; break;
+  case 3: O << "{rz-sae}"; break;
+  }
+}
 /// printPCRelImm - This is used to print an immediate value that ends up
 /// being encoded as a pc-relative value (e.g. for jumps and calls).  These
 /// print slightly differently than normal immediates.  For example, a $ is not
@@ -140,8 +151,7 @@ void X86ATTInstPrinter::printPCRelImm(const MCInst *MI, unsigned OpNo,
     int64_t Address;
     if (BranchTarget && BranchTarget->EvaluateAsAbsolute(Address)) {
       O << formatHex((uint64_t)Address);
-    }
-    else {
+    } else {
       // Otherwise, just print the expression.
       O << *Op.getExpr();
     }
@@ -159,7 +169,11 @@ void X86ATTInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
       << '$' << formatImm((int64_t)Op.getImm())
       << markup(">");
 
-    if (CommentStream && (Op.getImm() > 255 || Op.getImm() < -256))
+    // If there are no instruction-specific comments, add a comment clarifying
+    // the hex value of the immediate operand when it isn't in the range
+    // [-256,255].
+    if (CommentStream && !HasCustomInstComment &&
+        (Op.getImm() > 255 || Op.getImm() < -256))
       *CommentStream << format("imm = 0x%" PRIX64 "\n", (uint64_t)Op.getImm());
 
   } else {
@@ -172,16 +186,16 @@ void X86ATTInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
 
 void X86ATTInstPrinter::printMemReference(const MCInst *MI, unsigned Op,
                                           raw_ostream &O) {
-  const MCOperand &BaseReg  = MI->getOperand(Op);
-  const MCOperand &IndexReg = MI->getOperand(Op+2);
-  const MCOperand &DispSpec = MI->getOperand(Op+3);
-  const MCOperand &SegReg = MI->getOperand(Op+4);
+  const MCOperand &BaseReg  = MI->getOperand(Op+X86::AddrBaseReg);
+  const MCOperand &IndexReg = MI->getOperand(Op+X86::AddrIndexReg);
+  const MCOperand &DispSpec = MI->getOperand(Op+X86::AddrDisp);
+  const MCOperand &SegReg = MI->getOperand(Op+X86::AddrSegmentReg);
 
   O << markup("<mem:");
 
   // If this has a segment register, print it.
   if (SegReg.getReg()) {
-    printOperand(MI, Op+4, O);
+    printOperand(MI, Op+X86::AddrSegmentReg, O);
     O << ':';
   }
 
@@ -197,12 +211,12 @@ void X86ATTInstPrinter::printMemReference(const MCInst *MI, unsigned Op,
   if (IndexReg.getReg() || BaseReg.getReg()) {
     O << '(';
     if (BaseReg.getReg())
-      printOperand(MI, Op, O);
+      printOperand(MI, Op+X86::AddrBaseReg, O);
 
     if (IndexReg.getReg()) {
       O << ',';
-      printOperand(MI, Op+2, O);
-      unsigned ScaleVal = MI->getOperand(Op+1).getImm();
+      printOperand(MI, Op+X86::AddrIndexReg, O);
+      unsigned ScaleVal = MI->getOperand(Op+X86::AddrScaleAmt).getImm();
       if (ScaleVal != 1) {
         O << ','
           << markup("<imm:")
@@ -216,11 +230,48 @@ void X86ATTInstPrinter::printMemReference(const MCInst *MI, unsigned Op,
   O << markup(">");
 }
 
+void X86ATTInstPrinter::printSrcIdx(const MCInst *MI, unsigned Op,
+                                    raw_ostream &O) {
+  const MCOperand &SegReg = MI->getOperand(Op+1);
+
+  O << markup("<mem:");
+
+  // If this has a segment register, print it.
+  if (SegReg.getReg()) {
+    printOperand(MI, Op+1, O);
+    O << ':';
+  }
+
+  O << "(";
+  printOperand(MI, Op, O);
+  O << ")";
+
+  O << markup(">");
+}
+
+void X86ATTInstPrinter::printDstIdx(const MCInst *MI, unsigned Op,
+                                    raw_ostream &O) {
+  O << markup("<mem:");
+
+  O << "%es:(";
+  printOperand(MI, Op, O);
+  O << ")";
+
+  O << markup(">");
+}
+
 void X86ATTInstPrinter::printMemOffset(const MCInst *MI, unsigned Op,
                                        raw_ostream &O) {
   const MCOperand &DispSpec = MI->getOperand(Op);
+  const MCOperand &SegReg = MI->getOperand(Op+1);
 
   O << markup("<mem:");
+
+  // If this has a segment register, print it.
+  if (SegReg.getReg()) {
+    printOperand(MI, Op+1, O);
+    O << ':';
+  }
 
   if (DispSpec.isImm()) {
     O << formatImm(DispSpec.getImm());

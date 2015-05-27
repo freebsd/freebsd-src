@@ -58,10 +58,10 @@ static asection bfd_debug_section =
      0,           0,                1,       0,
   /* segment_mark, sec_info_type, use_rela_p, has_tls_reloc,       */
      0,            0,             0,          0,
-  /* has_gp_reloc, need_finalize_relax, reloc_done,                */
-     0,            0,                   0,
-  /* vma, lma, size, rawsize,                                      */
-     0,   0,   0,    0,
+  /* has_tls_get_addr_call, has_gp_reloc, need_finalize_relax,     */
+     0,	                    0,            0,
+  /* reloc_done, vma, lma, size, rawsize,                          */
+     0,          0,   0,   0,    0,
   /* output_offset, output_section, alignment_power,               */
      0,             NULL,           0,
   /* relocation, orelocation, reloc_count, filepos, rel_filepos,   */

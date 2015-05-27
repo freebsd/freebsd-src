@@ -38,14 +38,16 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_gzio.h"
 #include "opt_ktrace.h"
-#include "opt_core.h"
 
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
@@ -177,6 +179,10 @@ SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
 static int	set_core_nodump_flag = 0;
 SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 	0, "Enable setting the NODUMP flag on coredump files");
+
+static int	coredump_devctl = 0;
+SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
+	0, "Generate a devctl notification when processes coredump");
 
 /*
  * Signal properties and actions.
@@ -653,9 +659,10 @@ kern_sigaction(td, sig, act, oact, flags)
 
 	if (!_SIG_VALID(sig))
 		return (EINVAL);
-	if (act != NULL && (act->sa_flags & ~(SA_ONSTACK | SA_RESTART |
-	    SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER | SA_NOCLDWAIT |
-	    SA_SIGINFO)) != 0)
+	if (act != NULL && act->sa_handler != SIG_DFL &&
+	    act->sa_handler != SIG_IGN && (act->sa_flags & ~(SA_ONSTACK |
+	    SA_RESTART | SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER |
+	    SA_NOCLDWAIT | SA_SIGINFO)) != 0)
 		return (EINVAL);
 
 	PROC_LOCK(p);
@@ -998,8 +1005,12 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 	int error;
 
 	p = td->td_proc;
-	if (!(flags & SIGPROCMASK_PROC_LOCKED))
+	if ((flags & SIGPROCMASK_PROC_LOCKED) != 0)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	else
 		PROC_LOCK(p);
+	mtx_assert(&p->p_sigacts->ps_mtx, (flags & SIGPROCMASK_PS_LOCKED) != 0
+	    ? MA_OWNED : MA_NOTOWNED);
 	if (oset != NULL)
 		*oset = td->td_sigmask;
 
@@ -1882,6 +1893,30 @@ pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi)
 	}
 }
 
+
+/*
+ * Recalculate the signal mask and reset the signal disposition after
+ * usermode frame for delivery is formed.  Should be called after
+ * mach-specific routine, because sysent->sv_sendsig() needs correct
+ * ps_siginfo and signal mask.
+ */
+static void
+postsig_done(int sig, struct thread *td, struct sigacts *ps)
+{
+	sigset_t mask;
+
+	mtx_assert(&ps->ps_mtx, MA_OWNED);
+	td->td_ru.ru_nsignals++;
+	mask = ps->ps_catchmask[_SIG_IDX(sig)];
+	if (!SIGISMEMBER(ps->ps_signodefer, sig))
+		SIGADDSET(mask, sig);
+	kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
+	    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
+	if (SIGISMEMBER(ps->ps_sigreset, sig))
+		sigdflt(ps, sig);
+}
+
+
 /*
  * Send a signal caused by a trap to the current thread.  If it will be
  * caught immediately, deliver it with correct code.  Otherwise, post it
@@ -1891,7 +1926,6 @@ void
 trapsignal(struct thread *td, ksiginfo_t *ksi)
 {
 	struct sigacts *ps;
-	sigset_t mask;
 	struct proc *p;
 	int sig;
 	int code;
@@ -1906,7 +1940,6 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	mtx_lock(&ps->ps_mtx);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
 	    !SIGISMEMBER(td->td_sigmask, sig)) {
-		td->td_ru.ru_nsignals++;
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_PSIG))
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
@@ -1914,13 +1947,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)],
 				ksi, &td->td_sigmask);
-		mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(mask, sig);
-		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
-		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-		if (SIGISMEMBER(ps->ps_sigreset, sig))
-			sigdflt(ps, sig);
+		postsig_done(sig, td, ps);
 		mtx_unlock(&ps->ps_mtx);
 	} else {
 		/*
@@ -2471,7 +2498,7 @@ ptracestop(struct thread *td, int sig)
 			cv_broadcast(&p->p_dbgwait);
 		}
 stopme:
-		thread_suspend_switch(td);
+		thread_suspend_switch(td, p);
 		if (p->p_xthread == td)
 			p->p_xthread = NULL;
 		if (!(p->p_flag & P_TRACED))
@@ -2494,9 +2521,11 @@ reschedule_signals(struct proc *p, sigset_t block, int flags)
 	int sig;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	ps = p->p_sigacts;
+	mtx_assert(&ps->ps_mtx, (flags & SIGPROCMASK_PS_LOCKED) != 0 ?
+	    MA_OWNED : MA_NOTOWNED);
 	if (SIGISEMPTY(p->p_siglist))
 		return;
-	ps = p->p_sigacts;
 	SIGSETAND(block, p->p_siglist);
 	while ((sig = sig_ffs(&block)) != 0) {
 		SIGDELSET(block, sig);
@@ -2564,15 +2593,18 @@ sigdeferstop(void)
  * not immediately suspend if a stop was posted.  Instead, the thread
  * will suspend either via ast() or a subsequent interruptible sleep.
  */
-void
-sigallowstop()
+int
+sigallowstop(void)
 {
 	struct thread *td;
+	int prev;
 
 	td = curthread;
 	thread_lock(td);
+	prev = (td->td_flags & TDF_SBDRY) != 0;
 	td->td_flags &= ~TDF_SBDRY;
 	thread_unlock(td);
+	return (prev);
 }
 
 /*
@@ -2730,7 +2762,7 @@ issignal(struct thread *td)
 				p->p_xstat = sig;
 				PROC_SLOCK(p);
 				sig_suspend_threads(td, p, 0);
-				thread_suspend_switch(td);
+				thread_suspend_switch(td, p);
 				PROC_SUNLOCK(p);
 				mtx_lock(&ps->ps_mtx);
 				break;
@@ -2802,7 +2834,7 @@ postsig(sig)
 	struct sigacts *ps;
 	sig_t action;
 	ksiginfo_t ksi;
-	sigset_t returnmask, mask;
+	sigset_t returnmask;
 
 	KASSERT(sig != 0, ("postsig"));
 
@@ -2857,20 +2889,12 @@ postsig(sig)
 		} else
 			returnmask = td->td_sigmask;
 
-		mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(mask, sig);
-		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
-		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-
-		if (SIGISMEMBER(ps->ps_sigreset, sig))
-			sigdflt(ps, sig);
-		td->td_ru.ru_nsignals++;
 		if (p->p_sig == sig) {
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
 		(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
+		postsig_done(sig, td, ps);
 	}
 	return (1);
 }
@@ -2919,7 +2943,7 @@ sigexit(td, sig)
 	 * XXX If another thread attempts to single-thread before us
 	 *     (e.g. via fork()), we won't get a dump at all.
 	 */
-	if ((sigprop(sig) & SA_CORE) && (thread_single(SINGLE_NO_EXIT) == 0)) {
+	if ((sigprop(sig) & SA_CORE) && thread_single(p, SINGLE_NO_EXIT) == 0) {
 		p->p_sig = sig;
 		/*
 		 * Log signals which would cause core dumps
@@ -3051,22 +3075,42 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
 
-#if defined(COMPRESS_USER_CORES)
-int compress_user_cores = 1;
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
+#define	GZ_SUFFIX	".gz"
+
+#ifdef GZIO
+static int compress_user_cores = 1;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RWTUN,
     &compress_user_cores, 0, "Compression of user corefiles");
 
-int compress_user_cores_gzlevel = -1; /* default level */
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
-    &compress_user_cores_gzlevel, -1, "Corefile gzip compression level");
-
-#define GZ_SUFFIX	".gz"
-#define GZ_SUFFIX_LEN	3
+int compress_user_cores_gzlevel = 6;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RWTUN,
+    &compress_user_cores_gzlevel, 0, "Corefile gzip compression level");
+#else
+static int compress_user_cores = 0;
 #endif
 
+/*
+ * Protect the access to corefilename[] by allproc_lock.
+ */
+#define	corefilename_lock	allproc_lock
+
 static char corefilename[MAXPATHLEN] = {"%N.core"};
-SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RWTUN, corefilename,
-    sizeof(corefilename), "Process corefile name format string");
+
+static int
+sysctl_kern_corefile(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	sx_xlock(&corefilename_lock);
+	error = sysctl_handle_string(oidp, corefilename, sizeof(corefilename),
+	    req);
+	sx_xunlock(&corefilename_lock);
+
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, corefile, CTLTYPE_STRING | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_kern_corefile, "A",
+    "Process corefile name format string");
 
 /*
  * corefile_open(comm, uid, pid, td, compress, vpp, namep)
@@ -3095,6 +3139,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	name = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
 	indexpos = -1;
 	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
+	sx_slock(&corefilename_lock);
 	for (i = 0; format[i] != '\0'; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
@@ -3137,11 +3182,10 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 			break;
 		}
 	}
+	sx_sunlock(&corefilename_lock);
 	free(hostname, M_TEMP);
-#ifdef COMPRESS_USER_CORES
 	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
-#endif
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
@@ -3153,7 +3197,8 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	sbuf_delete(&sb);
 
 	cmode = S_IRUSR | S_IWUSR;
-	oflags = VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
+	oflags = VN_OPEN_NOAUDIT | VN_OPEN_NAMECACHE |
+	    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 	/*
 	 * If the core format has a %I in it, then we need to check
@@ -3197,6 +3242,24 @@ out:
 	return (0);
 }
 
+static int
+coredump_sanitise_path(const char *path)
+{
+	size_t i;
+
+	/*
+	 * Only send a subset of ASCII to devd(8) because it
+	 * might pass these strings to sh -c.
+	 */
+	for (i = 0; path[i]; i++)
+		if (!(isalpha(path[i]) || isdigit(path[i])) &&
+		    path[i] != '/' && path[i] != '.' &&
+		    path[i] != '-')
+			return (0);
+
+	return (1);
+}
+
 /*
  * Dump a process' core.  The main routine does some
  * policy checking, and creates the name of the coredump;
@@ -3217,18 +3280,18 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	void *rl_cookie;
 	off_t limit;
-	int compress;
+	char *data = NULL;
+	char *fullpath, *freepath = NULL;
+	size_t len;
+	static const char comm_name[] = "comm=";
+	static const char core_name[] = "core=";
 
-#ifdef COMPRESS_USER_CORES
-	compress = compress_user_cores;
-#else
-	compress = 0;
-#endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
+	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0) ||
+	    (p->p_flag2 & P2_NOTRACE) != 0) {
 		PROC_UNLOCK(p);
 		return (EFAULT);
 	}
@@ -3248,8 +3311,8 @@ coredump(struct thread *td)
 	}
 	PROC_UNLOCK(p);
 
-	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td, compress,
-	    &vp, &name);
+	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td,
+	    compress_user_cores, &vp, &name);
 	if (error != 0)
 		return (error);
 
@@ -3261,7 +3324,7 @@ coredump(struct thread *td)
 	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
-		goto close;
+		goto out;
 	}
 
 	VOP_UNLOCK(vp, 0);
@@ -3288,7 +3351,7 @@ coredump(struct thread *td)
 
 	if (p->p_sysent->sv_coredump != NULL) {
 		error = p->p_sysent->sv_coredump(td, vp, limit,
-		    compress ? IMGACT_CORE_COMPRESS : 0);
+		    compress_user_cores ? IMGACT_CORE_COMPRESS : 0);
 	} else {
 		error = ENOSYS;
 	}
@@ -3298,13 +3361,39 @@ coredump(struct thread *td)
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
 	vn_rangelock_unlock(vp, rl_cookie);
-close:
+
+	/*
+	 * Notify the userland helper that a process triggered a core dump.
+	 * This allows the helper to run an automated debugging session.
+	 */
+	if (error != 0 || coredump_devctl == 0)
+		goto out;
+	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
+	    sizeof(' ') + sizeof(core_name) - 1;
+	data = malloc(len, M_TEMP, M_WAITOK);
+	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
+		goto out;
+	if (!coredump_sanitise_path(fullpath))
+		goto out;
+	snprintf(data, len, "%s%s ", comm_name, fullpath);
+	free(freepath, M_TEMP);
+	freepath = NULL;
+	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
+		goto out;
+	if (!coredump_sanitise_path(fullpath))
+		goto out;
+	strlcat(data, core_name, len);
+	strlcat(data, fullpath, len);
+	devctl_notify("kernel", "signal", "coredump", data);
+out:
 	error1 = vn_close(vp, FWRITE, cred, td);
 	if (error == 0)
 		error = error1;
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
+	free(freepath, M_TEMP);
+	free(data, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }

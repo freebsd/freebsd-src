@@ -19,13 +19,11 @@ SRCS+=	vmm.c		\
 	vmm_host.c	\
 	vmm_instruction_emul.c	\
 	vmm_ioport.c	\
-	vmm_ipi.c	\
 	vmm_lapic.c	\
 	vmm_mem.c	\
 	vmm_stat.c	\
 	vmm_util.c	\
-	x86.c		\
-	vmm_support.S
+	x86.c
 
 .PATH: ${.CURDIR}/../../amd64/vmm/io
 SRCS+=	iommu.c		\
@@ -35,7 +33,8 @@ SRCS+=	iommu.c		\
 	vhpet.c		\
 	vioapic.c	\
 	vlapic.c	\
-	vpmtmr.c
+	vpmtmr.c	\
+	vrtc.c
 
 # intel-specific files
 .PATH: ${.CURDIR}/../../amd64/vmm/intel

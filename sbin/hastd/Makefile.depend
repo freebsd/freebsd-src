@@ -17,6 +17,7 @@ DIRDEPS = \
 	lib/libthr \
 	lib/libutil \
 	secure/lib/libcrypto \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

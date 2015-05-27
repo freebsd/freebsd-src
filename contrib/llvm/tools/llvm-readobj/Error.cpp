@@ -17,20 +17,19 @@
 using namespace llvm;
 
 namespace {
-class _readobj_error_category : public _do_message {
+class _readobj_error_category : public std::error_category {
 public:
-  virtual const char* name() const;
-  virtual std::string message(int ev) const;
-  virtual error_condition default_error_condition(int ev) const;
+  const char* name() const LLVM_NOEXCEPT override;
+  std::string message(int ev) const override;
 };
 } // namespace
 
-const char *_readobj_error_category::name() const {
+const char *_readobj_error_category::name() const LLVM_NOEXCEPT {
   return "llvm.readobj";
 }
 
-std::string _readobj_error_category::message(int ev) const {
-  switch (ev) {
+std::string _readobj_error_category::message(int EV) const {
+  switch (static_cast<readobj_error>(EV)) {
   case readobj_error::success: return "Success";
   case readobj_error::file_not_found:
     return "No such file.";
@@ -42,20 +41,13 @@ std::string _readobj_error_category::message(int ev) const {
     return "Unsupported object file format.";
   case readobj_error::unknown_symbol:
     return "Unknown symbol.";
-  default:
-    llvm_unreachable("An enumerator of readobj_error does not have a message "
-                     "defined.");
   }
-}
-
-error_condition _readobj_error_category::default_error_condition(int ev) const {
-  if (ev == readobj_error::success)
-    return errc::success;
-  return errc::invalid_argument;
+  llvm_unreachable("An enumerator of readobj_error does not have a message "
+                   "defined.");
 }
 
 namespace llvm {
-const error_category &readobj_category() {
+const std::error_category &readobj_category() {
   static _readobj_error_category o;
   return o;
 }

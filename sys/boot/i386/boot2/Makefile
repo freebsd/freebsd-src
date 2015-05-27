@@ -22,8 +22,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS2_ONLY
 #BOOT2_UFS?=	UFS1_ONLY
 
-CFLAGS=	-Os \
-	-fomit-frame-pointer \
+CFLAGS=	-fomit-frame-pointer \
 	-mrtd \
 	-mregparm=3 \
 	-DUSE_XREAD \
@@ -39,12 +38,15 @@ CFLAGS=	-Os \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline
 
-CFLAGS.gcc+=	-fno-guess-branch-probability \
+CFLAGS.gcc+=	-Os \
+		-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
-		-mno-align-long-strings \
 		--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=   -mno-align-long-strings
+.endif
 
-CFLAGS.clang+=${CLANG_OPT_SMALL}
+CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
 LD_FLAGS=-static -N --gc-sections
 
@@ -59,7 +61,7 @@ boot: boot1 boot2
 CLEANFILES+=	boot1 boot1.out boot1.o
 
 boot1: boot1.out
-	objcopy -S -O binary boot1.out ${.TARGET}
+	${OBJCOPY} -S -O binary boot1.out ${.TARGET}
 
 boot1.out: boot1.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
@@ -80,7 +82,7 @@ boot2.ldr:
 	dd if=/dev/zero of=${.TARGET} bs=512 count=1
 
 boot2.bin: boot2.out
-	objcopy -S -O binary boot2.out ${.TARGET}
+	${OBJCOPY} -S -O binary boot2.out ${.TARGET}
 
 boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}

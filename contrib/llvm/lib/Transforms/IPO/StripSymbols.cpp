@@ -23,8 +23,8 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/DebugInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -44,9 +44,9 @@ namespace {
         initializeStripSymbolsPass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -59,9 +59,9 @@ namespace {
         initializeStripNonDebugSymbolsPass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -74,9 +74,9 @@ namespace {
         initializeStripDebugDeclarePass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -89,9 +89,9 @@ namespace {
         initializeStripDeadDebugInfoPass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -132,11 +132,10 @@ ModulePass *llvm::createStripDeadDebugInfoPass() {
 
 /// OnlyUsedBy - Return true if V is only used by Usr.
 static bool OnlyUsedBy(Value *V, Value *Usr) {
-  for(Value::use_iterator I = V->use_begin(), E = V->use_end(); I != E; ++I) {
-    User *U = *I;
+  for (User *U : V->users())
     if (U != Usr)
       return false;
-  }
+
   return true;
 }
 
@@ -147,7 +146,7 @@ static void RemoveDeadConstant(Constant *C) {
     if (OnlyUsedBy(C->getOperand(i), C))
       Operands.insert(cast<Constant>(C->getOperand(i)));
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
-    if (!GV->hasLocalLinkage()) return;   // Don't delete non static globals.
+    if (!GV->hasLocalLinkage()) return;   // Don't delete non-static globals.
     GV->eraseFromParent();
   }
   else if (!isa<Function>(C))
@@ -155,9 +154,8 @@ static void RemoveDeadConstant(Constant *C) {
       C->destroyConstant();
 
   // If the constant referenced anything, see if we can delete it as well.
-  for (SmallPtrSet<Constant*, 4>::iterator OI = Operands.begin(),
-         OE = Operands.end(); OI != OE; ++OI)
-    RemoveDeadConstant(*OI);
+  for (Constant *O : Operands)
+    RemoveDeadConstant(O);
 }
 
 // Strip the symbol table of its names.
@@ -192,8 +190,8 @@ static void StripTypeNames(Module &M, bool PreserveDbgInfo) {
 
 /// Find values that are marked as llvm.used.
 static void findUsedValues(GlobalVariable *LLVMUsed,
-                           SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
-  if (LLVMUsed == 0) return;
+                           SmallPtrSetImpl<const GlobalValue*> &UsedValues) {
+  if (!LLVMUsed) return;
   UsedValues.insert(LLVMUsed);
 
   ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
@@ -250,7 +248,7 @@ bool StripDebugDeclare::runOnModule(Module &M) {
 
   if (Declare) {
     while (!Declare->use_empty()) {
-      CallInst *CI = cast<CallInst>(Declare->use_back());
+      CallInst *CI = cast<CallInst>(Declare->user_back());
       Value *Arg1 = CI->getArgOperand(0);
       Value *Arg2 = CI->getArgOperand(1);
       assert(CI->use_empty() && "llvm.dbg intrinsic should have void result");
@@ -303,14 +301,11 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
   // For each compile unit, find the live set of global variables/functions and
   // replace the current list of potentially dead global variables/functions
   // with the live list.
-  SmallVector<Value *, 64> LiveGlobalVariables;
-  SmallVector<Value *, 64> LiveSubprograms;
+  SmallVector<Metadata *, 64> LiveGlobalVariables;
+  SmallVector<Metadata *, 64> LiveSubprograms;
   DenseSet<const MDNode *> VisitedSet;
 
-  for (DebugInfoFinder::iterator CI = F.compile_unit_begin(),
-         CE = F.compile_unit_end(); CI != CE; ++CI) {
-    // Create our compile unit.
-    DICompileUnit DIC(*CI);
+  for (DICompileUnit DIC : F.compile_units()) {
     assert(DIC.Verify() && "DIC must verify as a DICompileUnit.");
 
     // Create our live subprogram list.
@@ -354,28 +349,12 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
     // subprogram list/global variable list with our new live subprogram/global
     // variable list.
     if (SubprogramChange) {
-      // Make sure that 9 is still the index of the subprograms. This is to make
-      // sure that an assert is hit if the location of the subprogram array
-      // changes. This is just to make sure that this is updated if such an
-      // event occurs.
-      assert(DIC->getNumOperands() >= 10 &&
-             SPs == DIC->getOperand(9) &&
-             "DICompileUnits is expected to store Subprograms in operand "
-             "9.");
-      DIC->replaceOperandWith(9, MDNode::get(C, LiveSubprograms));
+      DIC.replaceSubprograms(DIArray(MDNode::get(C, LiveSubprograms)));
       Changed = true;
     }
 
     if (GlobalVariableChange) {
-      // Make sure that 10 is still the index of global variables. This is to
-      // make sure that an assert is hit if the location of the subprogram array
-      // changes. This is just to make sure that this index is updated if such
-      // an event occurs.
-      assert(DIC->getNumOperands() >= 11 &&
-             GVs == DIC->getOperand(10) &&
-             "DICompileUnits is expected to store Global Variables in operand "
-             "10.");
-      DIC->replaceOperandWith(10, MDNode::get(C, LiveGlobalVariables));
+      DIC.replaceGlobalVariables(DIArray(MDNode::get(C, LiveGlobalVariables)));
       Changed = true;
     }
 

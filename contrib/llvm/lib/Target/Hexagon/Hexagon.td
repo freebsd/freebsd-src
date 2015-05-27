@@ -50,6 +50,8 @@ def IEEERndNearV5T              : Predicate<"Subtarget.modeIEEERndNear()">;
 //===----------------------------------------------------------------------===//
 // Classes used for relation maps.
 //===----------------------------------------------------------------------===//
+
+class ImmRegShl;
 // PredRel - Filter class used to relate non-predicated instructions with their
 // predicated forms.
 class PredRel;
@@ -137,7 +139,7 @@ def getPredOldOpcode : InstrMapping {
 //
 def getNewValueOpcode : InstrMapping {
   let FilterClass = "NewValueRel";
-  let RowFields = ["BaseOpcode", "PredSense", "PNewValue"];
+  let RowFields = ["BaseOpcode", "PredSense", "PNewValue", "addrMode"];
   let ColFields = ["NValueST"];
   let KeyCol = ["false"];
   let ValueCols = [["true"]];
@@ -149,7 +151,7 @@ def getNewValueOpcode : InstrMapping {
 //
 def getNonNVStore : InstrMapping {
   let FilterClass = "NewValueRel";
-  let RowFields = ["BaseOpcode", "PredSense", "PNewValue"];
+  let RowFields = ["BaseOpcode", "PredSense", "PNewValue", "addrMode"];
   let ColFields = ["NValueST"];
   let KeyCol = ["true"];
   let ValueCols = [["false"]];
@@ -180,6 +182,14 @@ def getRegForm : InstrMapping {
   let ValueCols = [["reg"]];
 }
 
+def getRegShlForm : InstrMapping {
+  let FilterClass = "ImmRegShl";
+  let RowFields = ["CextOpcode", "PredSense", "PNewValue", "isNVStore"];
+  let ColFields = ["InputType"];
+  let KeyCol = ["imm"];
+  let ValueCols = [["reg"]];
+}
+
 //===----------------------------------------------------------------------===//
 // Register File, Calling Conv, Instruction Descriptions
 //===----------------------------------------------------------------------===//
@@ -200,18 +210,8 @@ class Proc<string Name, SchedMachineModel Model,
            list<SubtargetFeature> Features>
  : ProcessorModel<Name, Model, Features>;
 
-def : Proc<"hexagonv2", HexagonModel,   [ArchV2]>;
-def : Proc<"hexagonv3", HexagonModel,   [ArchV2, ArchV3]>;
 def : Proc<"hexagonv4", HexagonModelV4, [ArchV2, ArchV3, ArchV4]>;
 def : Proc<"hexagonv5", HexagonModelV4, [ArchV2, ArchV3, ArchV4, ArchV5]>;
-
-
-// Hexagon Uses the MC printer for assembler output, so make sure the TableGen
-// AsmWriter bits get associated with the correct class.
-def HexagonAsmWriter : AsmWriter {
-  string AsmWriterClassName  = "InstPrinter";
-  bit isMCAsmWriter = 1;
-}
 
 //===----------------------------------------------------------------------===//
 // Declare the target which we are implementing
@@ -220,6 +220,4 @@ def HexagonAsmWriter : AsmWriter {
 def Hexagon : Target {
   // Pull in Instruction Info:
   let InstructionSet = HexagonInstrInfo;
-
-  let AssemblyWriters = [HexagonAsmWriter];
 }

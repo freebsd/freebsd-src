@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_COREENGINE
-#define LLVM_CLANG_GR_COREENGINE
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_COREENGINE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_COREENGINE_H
 
 #include "clang/AST/Expr.h"
 #include "clang/Analysis/AnalysisContext.h"
@@ -21,7 +21,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/FunctionSummary.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/WorkList.h"
-#include "llvm/ADT/OwningPtr.h"
+#include <memory>
 
 namespace clang {
 
@@ -60,12 +60,12 @@ private:
   SubEngine& SubEng;
 
   /// G - The simulation graph.  Each node is a (location,state) pair.
-  OwningPtr<ExplodedGraph> G;
+  mutable ExplodedGraph G;
 
   /// WList - A set of queued nodes that need to be processed by the
   ///  worklist algorithm.  It is up to the implementation of WList to decide
   ///  the order that nodes are processed.
-  OwningPtr<WorkList> WList;
+  std::unique_ptr<WorkList> WList;
 
   /// BCounterFactory - A factory object for created BlockCounter objects.
   ///   These are used to record for key nodes in the ExplodedGraph the
@@ -95,6 +95,8 @@ private:
 
   void HandleBranch(const Stmt *Cond, const Stmt *Term, const CFGBlock *B,
                     ExplodedNode *Pred);
+  void HandleCleanupTemporaryBranch(const CXXBindTemporaryExpr *BTE,
+                                    const CFGBlock *B, ExplodedNode *Pred);
 
   /// Handle conditional logic for running static initializers.
   void HandleStaticInit(const DeclStmt *DS, const CFGBlock *B,
@@ -108,19 +110,12 @@ private:
 
 public:
   /// Construct a CoreEngine object to analyze the provided CFG.
-  CoreEngine(SubEngine& subengine,
-             FunctionSummariesTy *FS)
-    : SubEng(subengine), G(new ExplodedGraph()),
-      WList(WorkList::makeDFS()),
-      BCounterFactory(G->getAllocator()),
-      FunctionSummaries(FS){}
+  CoreEngine(SubEngine &subengine, FunctionSummariesTy *FS)
+      : SubEng(subengine), WList(WorkList::makeDFS()),
+        BCounterFactory(G.getAllocator()), FunctionSummaries(FS) {}
 
   /// getGraph - Returns the exploded graph.
-  ExplodedGraph& getGraph() { return *G.get(); }
-
-  /// takeGraph - Returns the exploded graph.  Ownership of the graph is
-  ///  transferred to the caller.
-  ExplodedGraph* takeGraph() { return G.take(); }
+  ExplodedGraph &getGraph() { return G; }
 
   /// ExecuteWorkList - Run the worklist algorithm for a maximum number of
   ///  steps.  Returns true if there is still simulation state on the worklist.
@@ -312,7 +307,7 @@ public:
 /// \class NodeBuilderWithSinks
 /// \brief This node builder keeps track of the generated sink nodes.
 class NodeBuilderWithSinks: public NodeBuilder {
-  virtual void anchor();
+  void anchor() override;
 protected:
   SmallVector<ExplodedNode*, 2> sinksGenerated;
   ProgramPoint &Location;
@@ -324,13 +319,13 @@ public:
 
   ExplodedNode *generateNode(ProgramStateRef State,
                              ExplodedNode *Pred,
-                             const ProgramPointTag *Tag = 0) {
+                             const ProgramPointTag *Tag = nullptr) {
     const ProgramPoint &LocalLoc = (Tag ? Location.withTag(Tag) : Location);
     return NodeBuilder::generateNode(LocalLoc, State, Pred);
   }
 
   ExplodedNode *generateSink(ProgramStateRef State, ExplodedNode *Pred,
-                             const ProgramPointTag *Tag = 0) {
+                             const ProgramPointTag *Tag = nullptr) {
     const ProgramPoint &LocalLoc = (Tag ? Location.withTag(Tag) : Location);
     ExplodedNode *N = NodeBuilder::generateSink(LocalLoc, State, Pred);
     if (N && N->isSink())
@@ -355,14 +350,16 @@ public:
   /// nodes currently owned by another builder(with larger scope), use
   /// Enclosing builder to transfer ownership.
   StmtNodeBuilder(ExplodedNode *SrcNode, ExplodedNodeSet &DstSet,
-                      const NodeBuilderContext &Ctx, NodeBuilder *Enclosing = 0)
+                  const NodeBuilderContext &Ctx,
+                  NodeBuilder *Enclosing = nullptr)
     : NodeBuilder(SrcNode, DstSet, Ctx), EnclosingBldr(Enclosing) {
     if (EnclosingBldr)
       EnclosingBldr->takeNodes(SrcNode);
   }
 
   StmtNodeBuilder(ExplodedNodeSet &SrcSet, ExplodedNodeSet &DstSet,
-                      const NodeBuilderContext &Ctx, NodeBuilder *Enclosing = 0)
+                  const NodeBuilderContext &Ctx,
+                  NodeBuilder *Enclosing = nullptr)
     : NodeBuilder(SrcSet, DstSet, Ctx), EnclosingBldr(Enclosing) {
     if (EnclosingBldr)
       for (ExplodedNodeSet::iterator I = SrcSet.begin(),
@@ -378,7 +375,7 @@ public:
   ExplodedNode *generateNode(const Stmt *S,
                              ExplodedNode *Pred,
                              ProgramStateRef St,
-                             const ProgramPointTag *tag = 0,
+                             const ProgramPointTag *tag = nullptr,
                              ProgramPoint::Kind K = ProgramPoint::PostStmtKind){
     const ProgramPoint &L = ProgramPoint::getProgramPoint(S, K,
                                   Pred->getLocationContext(), tag);
@@ -388,7 +385,7 @@ public:
   ExplodedNode *generateSink(const Stmt *S,
                              ExplodedNode *Pred,
                              ProgramStateRef St,
-                             const ProgramPointTag *tag = 0,
+                             const ProgramPointTag *tag = nullptr,
                              ProgramPoint::Kind K = ProgramPoint::PostStmtKind){
     const ProgramPoint &L = ProgramPoint::getProgramPoint(S, K,
                                   Pred->getLocationContext(), tag);
@@ -399,7 +396,7 @@ public:
 /// \brief BranchNodeBuilder is responsible for constructing the nodes
 /// corresponding to the two branches of the if statement - true and false.
 class BranchNodeBuilder: public NodeBuilder {
-  virtual void anchor();
+  void anchor() override;
   const CFGBlock *DstT;
   const CFGBlock *DstF;
 

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <machine/bus.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -194,13 +195,14 @@ dmar_qi_emit_wait_seq(struct dmar_unit *unit, struct dmar_qi_genseq *pseq)
 }
 
 static void
-dmar_qi_wait_for_seq(struct dmar_unit *unit, const struct dmar_qi_genseq *gseq)
+dmar_qi_wait_for_seq(struct dmar_unit *unit, const struct dmar_qi_genseq *gseq,
+    bool nowait)
 {
 
 	DMAR_ASSERT_LOCKED(unit);
 	unit->inv_seq_waiters++;
 	while (!dmar_qi_seq_processed(unit, gseq)) {
-		if (cold) {
+		if (cold || nowait) {
 			cpu_spinwait();
 		} else {
 			msleep(&unit->inv_seq_waiters, &unit->lock, 0,
@@ -246,7 +248,7 @@ dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit)
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_CTX_INV | DMAR_IQ_DESCR_CTX_GLOB, 0);
 	dmar_qi_emit_wait_seq(unit, &gseq);
 	dmar_qi_advance_tail(unit);
-	dmar_qi_wait_for_seq(unit, &gseq);
+	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
 
 void
@@ -260,7 +262,60 @@ dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit)
 	    DMAR_IQ_DESCR_IOTLB_DW | DMAR_IQ_DESCR_IOTLB_DR, 0);
 	dmar_qi_emit_wait_seq(unit, &gseq);
 	dmar_qi_advance_tail(unit);
-	dmar_qi_wait_for_seq(unit, &gseq);
+	dmar_qi_wait_for_seq(unit, &gseq, false);
+}
+
+void
+dmar_qi_invalidate_iec_glob(struct dmar_unit *unit)
+{
+	struct dmar_qi_genseq gseq;
+
+	DMAR_ASSERT_LOCKED(unit);
+	dmar_qi_ensure(unit, 2);
+	dmar_qi_emit(unit, DMAR_IQ_DESCR_IEC_INV, 0);
+	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_advance_tail(unit);
+	dmar_qi_wait_for_seq(unit, &gseq, false);
+}
+
+void
+dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt)
+{
+	struct dmar_qi_genseq gseq;
+	u_int c, l;
+
+	DMAR_ASSERT_LOCKED(unit);
+	KASSERT(start < unit->irte_cnt && start < start + cnt &&
+	    start + cnt <= unit->irte_cnt,
+	    ("inv iec overflow %d %d %d", unit->irte_cnt, start, cnt));
+	for (; cnt > 0; cnt -= c, start += c) {
+		l = ffs(start | cnt) - 1;
+		c = 1 << l;
+		dmar_qi_ensure(unit, 1);
+		dmar_qi_emit(unit, DMAR_IQ_DESCR_IEC_INV |
+		    DMAR_IQ_DESCR_IEC_IDX | DMAR_IQ_DESCR_IEC_IIDX(start) |
+		    DMAR_IQ_DESCR_IEC_IM(l), 0);
+	}
+	dmar_qi_ensure(unit, 1);
+	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_advance_tail(unit);
+
+	/*
+	 * The caller of the function, in particular,
+	 * dmar_ir_program_irte(), may be called from the context
+	 * where the sleeping is forbidden (in fact, the
+	 * intr_table_lock mutex may be held, locked from
+	 * intr_shuffle_irqs()).  Wait for the invalidation completion
+	 * using the busy wait.
+	 *
+	 * The impact on the interrupt input setup code is small, the
+	 * expected overhead is comparable with the chipset register
+	 * read.  It is more harmful for the parallel DMA operations,
+	 * since we own the dmar unit lock until whole invalidation
+	 * queue is processed, which includes requests possibly issued
+	 * before our request.
+	 */
+	dmar_qi_wait_for_seq(unit, &gseq, true);
 }
 
 int
@@ -377,7 +432,7 @@ dmar_fini_qi(struct dmar_unit *unit)
 	dmar_qi_ensure(unit, 1);
 	dmar_qi_emit_wait_seq(unit, &gseq);
 	dmar_qi_advance_tail(unit);
-	dmar_qi_wait_for_seq(unit, &gseq);
+	dmar_qi_wait_for_seq(unit, &gseq, false);
 	/* only after the quisce, disable queue */
 	dmar_disable_qi(unit);
 	KASSERT(unit->inv_seq_waiters == 0,

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf.h 2365 2011-12-29 04:36:44Z jkoshy $
+ * $Id: _libelf.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #ifndef	__LIBELF_H_
@@ -48,7 +48,7 @@ struct _libelf_globals {
 	int		libelf_error;
 	int		libelf_fillchar;
 	unsigned int	libelf_version;
-	char		libelf_msg[LIBELF_MSG_SIZE];
+	unsigned char	libelf_msg[LIBELF_MSG_SIZE];
 };
 
 extern struct _libelf_globals _libelf;
@@ -71,14 +71,14 @@ extern struct _libelf_globals _libelf;
  * Flags for library internal use.  These use the upper 16 bits of the
  * `e_flags' field.
  */
-#define	LIBELF_F_API_MASK	0x00FFFF  /* Flags defined by the API. */
-#define	LIBELF_F_AR_HEADER	0x010000  /* translated header available */
-#define	LIBELF_F_AR_VARIANT_SVR4 0x020000 /* BSD style ar(1) archive */
-#define	LIBELF_F_DATA_MALLOCED	0x040000 /* whether data was malloc'ed */
-#define	LIBELF_F_RAWFILE_MALLOC	0x080000 /* whether e_rawfile was malloc'ed */
-#define	LIBELF_F_RAWFILE_MMAP	0x100000 /* whether e_rawfile was mmap'ed */
-#define	LIBELF_F_SHDRS_LOADED	0x200000 /* whether all shdrs were read in */
-#define	LIBELF_F_SPECIAL_FILE	0x400000 /* non-regular file */
+#define	LIBELF_F_API_MASK	0x00FFFFU  /* Flags defined by the API. */
+#define	LIBELF_F_AR_HEADER	0x010000U  /* translated header available */
+#define	LIBELF_F_AR_VARIANT_SVR4 0x020000U /* BSD style ar(1) archive */
+#define	LIBELF_F_DATA_MALLOCED	0x040000U /* whether data was malloc'ed */
+#define	LIBELF_F_RAWFILE_MALLOC	0x080000U /* whether e_rawfile was malloc'ed */
+#define	LIBELF_F_RAWFILE_MMAP	0x100000U /* whether e_rawfile was mmap'ed */
+#define	LIBELF_F_SHDRS_LOADED	0x200000U /* whether all shdrs were read in */
+#define	LIBELF_F_SPECIAL_FILE	0x400000U /* non-regular file */
 
 struct _Elf {
 	int		e_activations;	/* activation count */
@@ -89,7 +89,7 @@ struct _Elf {
 	unsigned int	e_flags;	/* ELF_F_* & LIBELF_F_* flags */
 	Elf_Kind	e_kind;		/* ELF_K_* */
 	Elf		*e_parent; 	/* non-NULL for archive members */
-	char		*e_rawfile;	/* uninterpreted bytes */
+	unsigned char	*e_rawfile;	/* uninterpreted bytes */
 	size_t		e_rawsize;	/* size of uninterpreted bytes */
 	unsigned int	e_version;	/* file version */
 
@@ -99,16 +99,16 @@ struct _Elf {
 	 */
 	union {
 		Elf_Arhdr	*e_arhdr;	/* translated header */
-		char		*e_rawhdr;	/* untranslated header */
+		unsigned char	*e_rawhdr;	/* untranslated header */
 	} e_hdr;
 
 	union {
 		struct {		/* ar(1) archives */
 			off_t	e_next;	/* set by elf_rand()/elf_next() */
 			int	e_nchildren;
-			char	*e_rawstrtab;	/* file name strings */
+			unsigned char *e_rawstrtab; /* file name strings */
 			size_t	e_rawstrtabsz;
-			char	*e_rawsymtab;	/* symbol table */
+			unsigned char *e_rawsymtab;	/* symbol table */
 			size_t	e_rawsymtabsz;
 			Elf_Arsym *e_symtab;
 			size_t	e_symtabsz;
@@ -162,21 +162,31 @@ enum {
 	ELF_TOMEMORY
 };
 
-#define	LIBELF_COPY_U32(DST,SRC,NAME)	do {		\
-		if ((SRC)->NAME > UINT_MAX) {		\
-			LIBELF_SET_ERROR(RANGE, 0);	\
-			return (0);			\
-		}					\
-		(DST)->NAME = (SRC)->NAME;		\
+
+/*
+ * The LIBELF_COPY macros are used to copy fields from a GElf_*
+ * structure to their 32-bit counterparts, while checking for out of
+ * range values.
+ *
+ * - LIBELF_COPY_U32 :: copy an unsigned 32 bit field.
+ * - LIBELF_COPY_S32 :: copy a signed 32 bit field.
+ */
+
+#define	LIBELF_COPY_U32(DST, SRC, NAME)	do {			\
+		if ((SRC)->NAME > UINT32_MAX) {			\
+			LIBELF_SET_ERROR(RANGE, 0);		\
+			return (0);				\
+		}						\
+		(DST)->NAME = (SRC)->NAME & 0xFFFFFFFFU;	\
 	} while (0)
 
-#define	LIBELF_COPY_S32(DST,SRC,NAME)	do {		\
-		if ((SRC)->NAME > INT_MAX ||		\
-		    (SRC)->NAME < INT_MIN) {		\
-			LIBELF_SET_ERROR(RANGE, 0);	\
-			return (0);			\
-		}					\
-		(DST)->NAME = (SRC)->NAME;		\
+#define	LIBELF_COPY_S32(DST, SRC, NAME)	do {			\
+		if ((SRC)->NAME > INT32_MAX ||			\
+		    (SRC)->NAME < INT32_MIN) {			\
+			LIBELF_SET_ERROR(RANGE, 0);		\
+			return (0);				\
+		}						\
+		(DST)->NAME = (int32_t) (SRC)->NAME;		\
 	} while (0)
 
 
@@ -184,29 +194,31 @@ enum {
  * Function Prototypes.
  */
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct _Libelf_Data *_libelf_allocate_data(Elf_Scn *_s);
 Elf	*_libelf_allocate_elf(void);
 Elf_Scn	*_libelf_allocate_scn(Elf *_e, size_t _ndx);
 Elf_Arhdr *_libelf_ar_gethdr(Elf *_e);
 Elf	*_libelf_ar_open(Elf *_e, int _reporterror);
 Elf	*_libelf_ar_open_member(int _fd, Elf_Cmd _c, Elf *_ar);
-int	_libelf_ar_get_member(char *_s, size_t _sz, int _base, size_t *_ret);
 Elf_Arsym *_libelf_ar_process_bsd_symtab(Elf *_ar, size_t *_dst);
 Elf_Arsym *_libelf_ar_process_svr4_symtab(Elf *_ar, size_t *_dst);
-unsigned long _libelf_checksum(Elf *_e, int _elfclass);
+long	 _libelf_checksum(Elf *_e, int _elfclass);
 void	*_libelf_ehdr(Elf *_e, int _elfclass, int _allocate);
-int	_libelf_falign(Elf_Type _t, int _elfclass);
+unsigned int _libelf_falign(Elf_Type _t, int _elfclass);
 size_t	_libelf_fsize(Elf_Type _t, int _elfclass, unsigned int _version,
     size_t count);
 int	(*_libelf_get_translator(Elf_Type _t, int _direction, int _elfclass))
-	    (char *_dst, size_t dsz, char *_src, size_t _cnt, int _byteswap);
+	    (unsigned char *_dst, size_t dsz, unsigned char *_src,
+	     size_t _cnt, int _byteswap);
 void	*_libelf_getphdr(Elf *_e, int _elfclass);
 void	*_libelf_getshdr(Elf_Scn *_scn, int _elfclass);
 void	_libelf_init_elf(Elf *_e, Elf_Kind _kind);
 int	_libelf_load_section_headers(Elf *e, void *ehdr);
-int	_libelf_malign(Elf_Type _t, int _elfclass);
-Elf	*_libelf_memory(char *_image, size_t _sz, int _reporterror);
+unsigned int _libelf_malign(Elf_Type _t, int _elfclass);
+Elf	*_libelf_memory(unsigned char *_image, size_t _sz, int _reporterror);
 size_t	_libelf_msize(Elf_Type _t, int _elfclass, unsigned int _version);
 void	*_libelf_newphdr(Elf *_e, int _elfclass, size_t _count);
 Elf	*_libelf_open_object(int _fd, Elf_Cmd _c, int _reporterror);
@@ -220,6 +232,8 @@ int	_libelf_setshstrndx(Elf *_e, void *_eh, int _elfclass,
 Elf_Data *_libelf_xlate(Elf_Data *_d, const Elf_Data *_s,
     unsigned int _encoding, int _elfclass, int _direction);
 int	_libelf_xlate_shtype(uint32_t _sht);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* __LIBELF_H_ */

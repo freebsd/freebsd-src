@@ -153,12 +153,24 @@ ath_ahb_attach(device_t dev)
 		eepromsize = ATH_EEPROM_DATA_SIZE * 2;
 	}
 
-
 	rid = 0;
 	device_printf(sc->sc_dev, "eeprom @ %p (%d bytes)\n",
 	    (void *) eepromaddr, eepromsize);
-	psc->sc_eeprom = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, (uintptr_t) eepromaddr,
-	  (uintptr_t) eepromaddr + (uintptr_t) (eepromsize - 1), 0, RF_ACTIVE);
+	/*
+	 * XXX this assumes that the parent device is the nexus
+	 * and will just pass through requests for all of memory.
+	 *
+	 * Later on, when this has to attach off of the actual
+	 * AHB, this won't work.
+	 *
+	 * Ideally this would be done in machdep code in mips/atheros/
+	 * and it'd expose the EEPROM via the firmware interface,
+	 * so the ath/ath_ahb drivers can be loaded as modules
+	 * after boot-time.
+	 */
+	psc->sc_eeprom = bus_alloc_resource(dev, SYS_RES_MEMORY,
+	    &rid, (uintptr_t) eepromaddr,
+	    (uintptr_t) eepromaddr + (uintptr_t) (eepromsize - 1), 0, RF_ACTIVE);
 	if (psc->sc_eeprom == NULL) {
 		device_printf(dev, "cannot map eeprom space\n");
 		goto bad0;
@@ -349,6 +361,7 @@ static driver_t ath_ahb_driver = {
 };
 static	devclass_t ath_devclass;
 DRIVER_MODULE(ath, nexus, ath_ahb_driver, ath_devclass, 0, 0);
+DRIVER_MODULE(ath, apb, ath_ahb_driver, ath_devclass, 0, 0);
 MODULE_VERSION(ath, 1);
 MODULE_DEPEND(ath, wlan, 1, 1, 1);		/* 802.11 media layer */
 MODULE_DEPEND(ath, if_ath, 1, 1, 1);		/* if_ath driver */

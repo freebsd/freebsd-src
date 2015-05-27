@@ -24,6 +24,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 
 #include "Utility/ARM_DWARF_Registers.h"
@@ -144,7 +145,7 @@ static RegisterInfo g_register_infos[] =
     {   "r13_svc", "sp_svc",  4, 0, eEncodingUint    , eFormatHex,   { LLDB_INVALID_REGNUM,  dwarf_r13_svc,      LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },      NULL,              NULL},
     {   "r14_svc", "lr_svc",  4, 0, eEncodingUint    , eFormatHex,   { LLDB_INVALID_REGNUM,  dwarf_r14_svc,      LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },      NULL,              NULL}
 };
-static const uint32_t k_num_register_infos = sizeof(g_register_infos)/sizeof(RegisterInfo);
+static const uint32_t k_num_register_infos = llvm::array_lengthof(g_register_infos);
 static bool g_register_info_names_constified = false;
 
 const lldb_private::RegisterInfo *
@@ -214,7 +215,7 @@ ABIMacOSX_arm::PrepareTrivialCall (Thread &thread,
     
     llvm::ArrayRef<addr_t>::iterator ai = args.begin(), ae = args.end();
     
-    for (size_t i = 0; i < (sizeof(reg_names) / sizeof(reg_names[0])); ++i)
+    for (size_t i = 0; i < llvm::array_lengthof(reg_names); ++i)
     {
         if (ai == ae)
             break;
@@ -522,7 +523,13 @@ ABIMacOSX_arm::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueObj
     if (clang_type.IsIntegerType (is_signed) || clang_type.IsPointerType())
     {
         DataExtractor data;
-        size_t num_bytes = new_value_sp->GetData(data);
+        Error data_error;
+        size_t num_bytes = new_value_sp->GetData(data, data_error);
+        if (data_error.Fail())
+        {
+            error.SetErrorStringWithFormat("Couldn't convert return value to raw data: %s", data_error.AsCString());
+            return error;
+        }
         lldb::offset_t offset = 0;
         if (num_bytes <= 8)
         {
@@ -790,6 +797,36 @@ ABIMacOSX_arm::RegisterIsVolatile (const RegisterInfo *reg_info)
                 case '9':
                     return name[2] == '\0'; // s4 - s9 are volatile
 
+                default:
+                    break;
+            }
+        }
+        else if (name[0] == 'q')
+        {
+            switch (name[1])
+            {
+                case '1':
+                    switch (name[2])
+                    {
+                        case '\0':
+                            return true;  // q1 is volatile
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                            return true; // q10-q15 are volatile
+                        default:
+                            break;
+                    };
+                case '0': 
+                case '2': 
+                case '3': 
+                    return name[2] == '\0'; // q0-q3 are volatile
+                case '8':
+                case '9':
+                    return name[2] == '\0'; // q8-q9 are volatile
                 default:
                     break;
             }

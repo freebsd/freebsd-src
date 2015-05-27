@@ -143,9 +143,9 @@ struct lagg_reqopts {
 
 	int			ro_opts;		/* Option bitmap */
 #define	LAGG_OPT_NONE			0x00
-#define	LAGG_OPT_USE_FLOWID		0x01		/* use M_FLOWID */
+#define	LAGG_OPT_USE_FLOWID		0x01		/* enable use of flowid */
 /* Pseudo flags which are used in ro_opts but not stored into sc_opts. */
-#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* Set flowid */
+#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* set flowid shift */
 #define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
 #define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
 #define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
@@ -279,7 +279,6 @@ extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
-uint32_t	lagg_hashmbuf(struct lagg_softc *, struct mbuf *, uint32_t);
 
 SYSCTL_DECL(_net_link_lagg);
 
