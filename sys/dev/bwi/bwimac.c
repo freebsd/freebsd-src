@@ -883,7 +883,6 @@ static int
 bwi_mac_fw_alloc(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
 	char fwname[64];
 	int idx;
 
@@ -895,10 +894,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 		snprintf(fwname, sizeof(fwname), BWI_FW_STUB_PATH,
 			 sc->sc_fw_version);
 		mac->mac_stub = firmware_get(fwname);
-		if (mac->mac_stub == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
+		if (mac->mac_stub == NULL)
+			goto no_firmware;
 	}
 
 	if (mac->mac_ucode == NULL) {
@@ -907,11 +904,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  mac->mac_rev >= 5 ? 5 : mac->mac_rev);
 
 		mac->mac_ucode = firmware_get(fwname);
-		if (mac->mac_ucode == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
-
+		if (mac->mac_ucode == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_ucode, BWI_FW_T_UCODE))
 			return EINVAL;
 	}
@@ -922,11 +916,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  mac->mac_rev < 5 ? 4 : 5);
 
 		mac->mac_pcm = firmware_get(fwname);
-		if (mac->mac_pcm == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
-
+		if (mac->mac_pcm == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_pcm, BWI_FW_T_PCM))
 			return EINVAL;
 	}
@@ -938,8 +929,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 		} else if (mac->mac_rev >= 5 && mac->mac_rev <= 10) {
 			idx = 5;
 		} else {
-			if_printf(ifp, "no suitible IV for MAC rev %d\n",
-				  mac->mac_rev);
+			device_printf(sc->sc_dev,
+			    "no suitible IV for MAC rev %d\n", mac->mac_rev);
 			return ENODEV;
 		}
 
@@ -947,10 +938,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  sc->sc_fw_version, idx);
 
 		mac->mac_iv = firmware_get(fwname);
-		if (mac->mac_iv == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
+		if (mac->mac_iv == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_iv, BWI_FW_T_IV))
 			return EINVAL;
 	}
@@ -960,12 +949,12 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 		if (mac->mac_rev == 2 || mac->mac_rev == 4 ||
 		    mac->mac_rev >= 11) {
 			/* No extended IV */
-			goto back;
+			return (0);
 		} else if (mac->mac_rev >= 5 && mac->mac_rev <= 10) {
 			idx = 5;
 		} else {
-			if_printf(ifp, "no suitible ExtIV for MAC rev %d\n",
-				  mac->mac_rev);
+			device_printf(sc->sc_dev,
+			    "no suitible ExtIV for MAC rev %d\n", mac->mac_rev);
 			return ENODEV;
 		}
 
@@ -973,15 +962,16 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  sc->sc_fw_version, idx);
 
 		mac->mac_iv_ext = firmware_get(fwname);
-		if (mac->mac_iv_ext == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
+		if (mac->mac_iv_ext == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_iv_ext, BWI_FW_T_IV))
 			return EINVAL;
 	}
-back:
-	return 0;
+	return (0);
+
+no_firmware:
+	device_printf(sc->sc_dev, "request firmware %s failed\n", fwname);
+	return (ENOENT);
 }
 
 static void
