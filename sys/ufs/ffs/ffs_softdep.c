@@ -2063,7 +2063,6 @@ retry_flush:
  * allocates a new structure if an existing one is not found.
  */
 #define DEPALLOC	0x0001	/* allocate structure if lookup fails */
-#define NODELAY		0x0002	/* cannot do background work */
 
 /*
  * Structures and routines associated with pagedep caching.
@@ -4635,14 +4634,10 @@ inodedep_lookup_ip(ip)
 	struct inode *ip;
 {
 	struct inodedep *inodedep;
-	int dflags;
 
 	KASSERT(ip->i_nlink >= ip->i_effnlink,
 	    ("inodedep_lookup_ip: bad delta"));
-	dflags = DEPALLOC;
-	if (IS_SNAPSHOT(ip))
-		dflags |= NODELAY;
-	(void) inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags,
+	(void) inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, DEPALLOC,
 	    &inodedep);
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	KASSERT((inodedep->id_state & UNLINKED) == 0, ("inode unlinked"));
@@ -5042,7 +5037,7 @@ softdep_setup_inomapdep(bp, ip, newinum, mode)
 	    M_BMSAFEMAP, M_SOFTDEP_FLAGS);
 	workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
 	ACQUIRE_LOCK(ip->i_ump);
-	if ((inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep)))
+	if ((inodedep_lookup(mp, newinum, DEPALLOC, &inodedep)))
 		panic("softdep_setup_inomapdep: dependency %p for new"
 		    "inode already exists", inodedep);
 	bmsafemap = bmsafemap_lookup(mp, bp, ino_to_cg(fs, newinum), bmsafemap);
@@ -5339,7 +5334,7 @@ softdep_setup_allocdirect(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 	if (freefrag && freefrag->ff_jdep != NULL &&
 	    freefrag->ff_jdep->wk_type == D_JFREEFRAG)
 		add_to_journal(freefrag->ff_jdep);
-	inodedep_lookup(mp, ip->i_number, DEPALLOC | NODELAY, &inodedep);
+	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	adp->ad_inodedep = inodedep;
 
 	WORKLIST_INSERT(&bp->b_dep, &newblk->nb_list);
@@ -5697,7 +5692,7 @@ softdep_setup_allocext(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 	if (freefrag && freefrag->ff_jdep != NULL &&
 	    freefrag->ff_jdep->wk_type == D_JFREEFRAG)
 		add_to_journal(freefrag->ff_jdep);
-	inodedep_lookup(mp, ip->i_number, DEPALLOC | NODELAY, &inodedep);
+	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	adp->ad_inodedep = inodedep;
 
 	WORKLIST_INSERT(&bp->b_dep, &newblk->nb_list);
@@ -5822,7 +5817,6 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	struct allocindir *aip;
 	struct pagedep *pagedep;
 	struct mount *mp;
-	int dflags;
 
 	mp = UFSTOVFS(ip->i_ump);
 	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
@@ -5835,10 +5829,7 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	    "lbn %jd", ip->i_number, newblkno, oldblkno, lbn);
 	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_page");
 	aip = newallocindir(ip, ptrno, newblkno, oldblkno, lbn);
-	dflags = DEPALLOC;
-	if (IS_SNAPSHOT(ip))
-		dflags |= NODELAY;
-	(void) inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
+	(void) inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	/*
 	 * If we are allocating a directory page, then we must
 	 * allocate an associated pagedep to track additions and
@@ -5868,7 +5859,6 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 	struct inodedep *inodedep;
 	struct allocindir *aip;
 	ufs_lbn_t lbn;
-	int dflags;
 
 	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
 	    ("softdep_setup_allocindir_meta called on non-softdep filesystem"));
@@ -5878,10 +5868,8 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 	lbn = nbp->b_lblkno;
 	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_meta");
 	aip = newallocindir(ip, ptrno, newblkno, 0, lbn);
-	dflags = DEPALLOC;
-	if (IS_SNAPSHOT(ip))
-		dflags |= NODELAY;
-	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags, &inodedep);
+	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, DEPALLOC,
+	    &inodedep);
 	WORKLIST_INSERT(&nbp->b_dep, &aip->ai_block.nb_list);
 	if (setup_allocindir_phase2(bp, ip, inodedep, aip, lbn))
 		panic("softdep_setup_allocindir_meta: Block already existed");
@@ -6494,7 +6482,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	struct mount *mp;
 	ufs2_daddr_t extblocks, datablocks;
 	ufs_lbn_t tmpval, lbn, lastlbn;
-	int frags, lastoff, iboff, allocblock, needj, dflags, error, i;
+	int frags, lastoff, iboff, allocblock, needj, error, i;
 
 	fs = ip->i_fs;
 	ump = ip->i_ump;
@@ -6515,10 +6503,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	 * we don't need to journal the block frees.  The canceled journals
 	 * for the allocations will suffice.
 	 */
-	dflags = DEPALLOC;
-	if (IS_SNAPSHOT(ip))
-		dflags |= NODELAY;
-	inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
+	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	if ((inodedep->id_state & (UNLINKED | DEPCOMPLETE)) == UNLINKED &&
 	    length == 0)
 		needj = 0;
@@ -6648,7 +6633,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
 	ACQUIRE_LOCK(ump);
-	(void) inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
+	(void) inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	if ((inodedep->id_state & IOSTARTED) != 0)
 		panic("softdep_setup_freeblocks: inode busy");
 	/*
@@ -6741,7 +6726,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 
 	}
 	ACQUIRE_LOCK(ump);
-	inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
+	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	TAILQ_INSERT_TAIL(&inodedep->id_freeblklst, freeblks, fb_next);
 	freeblks->fb_state |= DEPCOMPLETE | ONDEPLIST;
 	/*
@@ -6832,7 +6817,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	struct fs *fs;
 	ufs2_daddr_t extblocks, datablocks;
 	struct mount *mp;
-	int i, delay, error, dflags;
+	int i, delay, error;
 	ufs_lbn_t tmpval;
 	ufs_lbn_t lbn;
 
@@ -6901,10 +6886,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	 * Find and eliminate any inode dependencies.
 	 */
 	ACQUIRE_LOCK(ump);
-	dflags = DEPALLOC;
-	if (IS_SNAPSHOT(ip))
-		dflags |= NODELAY;
-	(void) inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
+	(void) inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
 	if ((inodedep->id_state & IOSTARTED) != 0)
 		panic("softdep_setup_freeblocks: inode busy");
 	/*
@@ -8510,7 +8492,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	dap->da_pagedep = pagedep;
 	LIST_INSERT_HEAD(&pagedep->pd_diraddhd[DIRADDHASH(offset)], dap,
 	    da_pdlist);
-	inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep);
+	inodedep_lookup(mp, newinum, DEPALLOC, &inodedep);
 	/*
 	 * If we're journaling, link the diradd into the jaddref so it
 	 * may be completed after the journal entry is written.  Otherwise,
@@ -9371,7 +9353,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 * inode is not yet written. If it is written, do the post-inode
 	 * write processing to put it on the id_pendinghd list.
 	 */
-	inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep);
+	inodedep_lookup(mp, newinum, DEPALLOC, &inodedep);
 	if (MOUNTEDSUJ(mp)) {
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
 		    inoreflst);
@@ -9413,15 +9395,12 @@ softdep_change_linkcnt(ip)
 	struct inode *ip;	/* the inode with the increased link count */
 {
 	struct inodedep *inodedep;
-	int dflags;
 
 	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
 	    ("softdep_change_linkcnt called on non-softdep filesystem"));
 	ACQUIRE_LOCK(ip->i_ump);
-	dflags = DEPALLOC;
-	if (IS_SNAPSHOT(ip))
-		dflags |= NODELAY;
-	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags, &inodedep);
+	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, DEPALLOC,
+	    &inodedep);
 	if (ip->i_nlink < ip->i_effnlink)
 		panic("softdep_change_linkcnt: bad delta");
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
