@@ -79,7 +79,7 @@ RuntimeLibrary.darwin.Configs := \
 	eprintf.a 10.4.a osx.a cc_kext.a \
 	asan_osx_dynamic.dylib \
 	profile_osx.a \
-	ubsan_osx.a
+	ubsan_osx_dynamic.dylib
 
 IOS_SDK := $(shell xcrun --show-sdk-path -sdk iphoneos 2> /dev/null)
 IOSSIM_SDK := $(shell xcrun --show-sdk-path -sdk iphonesimulator 2> /dev/null)
@@ -93,7 +93,8 @@ RuntimeLibrary.darwin.Configs += cc_kext_ios5.a
 endif
 
 ifneq ($(IOSSIM_SDK),)
-RuntimeLibrary.darwin.Configs += asan_iossim_dynamic.dylib
+RuntimeLibrary.darwin.Configs += asan_iossim_dynamic.dylib \
+                                 ubsan_iossim_dynamic.dylib
 endif
 
 RuntimeLibrary.macho_embedded.Configs := \
@@ -122,8 +123,7 @@ TryCompile = \
 
 # We try to build 32-bit runtimes both on 32-bit hosts and 64-bit hosts.
 Runtime32BitConfigs = \
-	builtins-i386.a profile-i386.a san-i386.a asan-i386.a asan_cxx-i386.a \
-	ubsan-i386.a ubsan_cxx-i386.a
+	builtins-i386.a profile-i386.a
 
 # We currently only try to generate runtime libraries on x86.
 ifeq ($(ARCH),x86)
@@ -132,20 +132,14 @@ endif
 
 ifeq ($(ARCH),x86_64)
 RuntimeLibrary.linux.Configs += \
-	builtins-x86_64.a profile-x86_64.a san-x86_64.a asan-x86_64.a \
-	asan_cxx-x86_64.a tsan-x86_64.a msan-x86_64.a ubsan-x86_64.a \
-	ubsan_cxx-x86_64.a dfsan-x86_64.a lsan-x86_64.a
-# We need to build 32-bit ASan/UBsan libraries on 64-bit platform, and add them
-# to the list of runtime libraries to make
-# "clang -fsanitize=(address|undefined) -m32" work.
+	builtins-x86_64.a profile-x86_64.a
+# We need to build 32-bit libraries on 64-bit platform, and add them
+# to the list of runtime libraries to make "clang -m32" work.
 # We check that Clang can produce working 32-bit binaries by compiling a simple
 # executable.
 test_source = $(LLVM_SRC_ROOT)/tools/clang/runtime/compiler-rt/clang_linux_test_input.c
 ifeq ($(call TryCompile,$(ToolDir)/clang,$(test_source),-m32),0)
 RuntimeLibrary.linux.Configs += $(Runtime32BitConfigs)
-endif
-ifneq ($(LLVM_ANDROID_TOOLCHAIN_DIR),)
-RuntimeLibrary.linux.Configs += asan-arm-android.so
 endif
 endif
 
@@ -166,7 +160,6 @@ BuildRuntimeLibraries:
 	  ProjObjRoot=$(PROJ_OBJ_DIR) \
 	  CC="$(ToolDir)/clang" \
 	  VERBOSE=$(VERBOSE) \
-	  LLVM_ANDROID_TOOLCHAIN_DIR="$(LLVM_ANDROID_TOOLCHAIN_DIR)" \
 	  $(RuntimeDirs:%=clang_%)
 .PHONY: BuildRuntimeLibraries
 CleanRuntimeLibraries:

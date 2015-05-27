@@ -5,12 +5,10 @@
 // CHECK: @base_req_uchar = global [4 x i8] c"bar\00", align 1
 
 // CHECK: @_ZZN5test31BC1EvE1u = internal global { i8, [3 x i8] } { i8 97, [3 x i8] undef }, align 4
-// CHECK: @_ZZN5test1L6getvarEiE3var = internal constant [4 x i32] [i32 1, i32 0, i32 2, i32 4], align 16
 
-// CHECK: @_ZZ2h2vE1i = linkonce_odr global i32 0
-// CHECK-NOT: comdat
-// CHECK: @_ZGVZ2h2vE1i = linkonce_odr global i64 0
-// CHECK-NOT: comdat
+// CHECK: @_ZZ2h2vE1i = linkonce_odr global i32 0, comdat, align
+// CHECK: @_ZGVZ2h2vE1i = linkonce_odr global i64 0, comdat{{$}}
+// CHECK: @_ZZN5test1L6getvarEiE3var = internal constant [4 x i32] [i32 1, i32 0, i32 2, i32 4], align 16
 
 struct A {
   A();
@@ -18,10 +16,10 @@ struct A {
 };
 
 void f() {
-  // CHECK: load atomic i8* bitcast (i64* @_ZGVZ1fvE1a to i8*) acquire, align 1
+  // CHECK: load atomic i8, i8* bitcast (i64* @_ZGVZ1fvE1a to i8*) acquire, align 1
   // CHECK: call i32 @__cxa_guard_acquire
   // CHECK: call void @_ZN1AC1Ev
-  // CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1AD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A* @_ZZ1fvE1a, i32 0, i32 0), i8* @__dso_handle)
+  // CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1AD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A, %struct.A* @_ZZ1fvE1a, i32 0, i32 0), i8* @__dso_handle)
   // CHECK: call void @__cxa_guard_release
   static A a;
 }
@@ -37,8 +35,7 @@ void h() {
   static const int i = a();
 }
 
-// CHECK: define linkonce_odr void @_Z2h2v()
-// CHECK-NOT: comdat
+// CHECK: define linkonce_odr void @_Z2h2v() {{.*}} comdat {
 inline void h2() {
   static int i = a();
 }
@@ -109,14 +106,14 @@ namespace test2 {
     static int x = foo();
   }
   // CHECK-LABEL: define void @_ZN5test21BC2Ev
-  // CHECK:   load atomic i8* bitcast (i64* @_ZGVZN5test21BC1EvE1x to i8*) acquire,
+  // CHECK:   load atomic i8, i8* bitcast (i64* @_ZGVZN5test21BC1EvE1x to i8*) acquire,
   // CHECK:   call i32 @__cxa_guard_acquire(i64* @_ZGVZN5test21BC1EvE1x)
   // CHECK:   [[T0:%.*]] = call i32 @_ZN5test23fooEv()
   // CHECK:   store i32 [[T0]], i32* @_ZZN5test21BC1EvE1x,
   // CHECK:   call void @__cxa_guard_release(i64* @_ZGVZN5test21BC1EvE1x)
 
   // CHECK-LABEL: define void @_ZN5test21BC1Ev
-  // CHECK:   load atomic i8* bitcast (i64* @_ZGVZN5test21BC1EvE1x to i8*) acquire,
+  // CHECK:   load atomic i8, i8* bitcast (i64* @_ZGVZN5test21BC1EvE1x to i8*) acquire,
   // CHECK:   call i32 @__cxa_guard_acquire(i64* @_ZGVZN5test21BC1EvE1x)
   // CHECK:   [[T0:%.*]] = call i32 @_ZN5test23fooEv()
   // CHECK:   store i32 [[T0]], i32* @_ZZN5test21BC1EvE1x,
@@ -128,7 +125,7 @@ namespace test2 {
     static int y = foo();
   }
   // CHECK-LABEL: define void @_ZN5test21BD2Ev(
-  // CHECK:   load atomic i8* bitcast (i64* @_ZGVZN5test21BD1EvE1y to i8*) acquire,
+  // CHECK:   load atomic i8, i8* bitcast (i64* @_ZGVZN5test21BD1EvE1y to i8*) acquire,
   // CHECK:   call i32 @__cxa_guard_acquire(i64* @_ZGVZN5test21BD1EvE1y)
   // CHECK:   [[T0:%.*]] = call i32 @_ZN5test23fooEv()
   // CHECK:   store i32 [[T0]], i32* @_ZZN5test21BD1EvE1y,

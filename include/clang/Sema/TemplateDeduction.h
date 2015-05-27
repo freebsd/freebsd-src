@@ -44,8 +44,8 @@ class TemplateDeductionInfo {
   /// SFINAE while performing template argument deduction.
   SmallVector<PartialDiagnosticAt, 4> SuppressedDiagnostics;
 
-  TemplateDeductionInfo(const TemplateDeductionInfo &) LLVM_DELETED_FUNCTION;
-  void operator=(const TemplateDeductionInfo &) LLVM_DELETED_FUNCTION;
+  TemplateDeductionInfo(const TemplateDeductionInfo &) = delete;
+  void operator=(const TemplateDeductionInfo &) = delete;
 
 public:
   TemplateDeductionInfo(SourceLocation Loc)
@@ -91,9 +91,7 @@ public:
     if (HasSFINAEDiagnostic)
       return;
     SuppressedDiagnostics.clear();
-    SuppressedDiagnostics.push_back(
-        std::make_pair(Loc, PartialDiagnostic::NullDiagnostic()));
-    SuppressedDiagnostics.back().second.swap(PD);
+    SuppressedDiagnostics.emplace_back(Loc, std::move(PD));
     HasSFINAEDiagnostic = true;
   }
 
@@ -102,9 +100,7 @@ public:
                                PartialDiagnostic PD) {
     if (HasSFINAEDiagnostic)
       return;
-    SuppressedDiagnostics.push_back(
-        std::make_pair(Loc, PartialDiagnostic::NullDiagnostic()));
-    SuppressedDiagnostics.back().second.swap(PD);
+    SuppressedDiagnostics.emplace_back(Loc, std::move(PD));
   }
 
   /// \brief Iterator over the set of suppressed diagnostics.
@@ -252,8 +248,8 @@ class TemplateSpecCandidateSet {
   SourceLocation Loc;
 
   TemplateSpecCandidateSet(
-      const TemplateSpecCandidateSet &) LLVM_DELETED_FUNCTION;
-  void operator=(const TemplateSpecCandidateSet &) LLVM_DELETED_FUNCTION;
+      const TemplateSpecCandidateSet &) = delete;
+  void operator=(const TemplateSpecCandidateSet &) = delete;
 
   void destroyCandidates();
 
@@ -277,7 +273,7 @@ public:
   /// \brief Add a new candidate with NumConversions conversion sequence slots
   /// to the overload set.
   TemplateSpecCandidate &addCandidate() {
-    Candidates.push_back(TemplateSpecCandidate());
+    Candidates.emplace_back();
     return Candidates.back();
   }
 

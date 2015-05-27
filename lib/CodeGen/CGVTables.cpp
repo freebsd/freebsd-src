@@ -377,7 +377,10 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn,
 
   // Set the right linkage.
   CGM.setFunctionLinkage(GD, Fn);
-  
+
+  if (CGM.supportsCOMDAT() && Fn->isWeakForLinker())
+    Fn->setComdat(CGM.getModule().getOrInsertComdat(Fn->getName()));
+
   // Set the right visibility.
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
   setThunkVisibility(CGM, MD, Thunk, Fn);
@@ -666,6 +669,8 @@ CodeGenVTables::GenerateConstructionVTable(const CXXRecordDecl *RD,
       VTLayout->getNumVTableThunks(), RTTI);
   VTable->setInitializer(Init);
   
+  CGM.EmitVTableBitSetEntries(VTable, *VTLayout.get());
+
   return VTable;
 }
 
@@ -738,7 +743,7 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
     return DiscardableODRLinkage;
 
   case TSK_ExplicitInstantiationDeclaration:
-    llvm_unreachable("Should not have been asked to emit this");
+    return llvm::GlobalVariable::ExternalLinkage;
 
   case TSK_ExplicitInstantiationDefinition:
     return NonDiscardableODRLinkage;
@@ -747,19 +752,13 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   llvm_unreachable("Invalid TemplateSpecializationKind!");
 }
 
-/// This is a callback from Sema to tell us that it believes that a
-/// particular v-table is required to be emitted in this translation
-/// unit.
+/// This is a callback from Sema to tell us that that a particular v-table is
+/// required to be emitted in this translation unit.
 ///
-/// The reason we don't simply trust this callback is because Sema
-/// will happily report that something is used even when it's used
-/// only in code that we don't actually have to emit.
-///
-/// \param isRequired - if true, the v-table is mandatory, e.g.
-///   because the translation unit defines the key function
-void CodeGenModule::EmitVTable(CXXRecordDecl *theClass, bool isRequired) {
-  if (!isRequired) return;
-
+/// This is only called for vtables that _must_ be emitted (mainly due to key
+/// functions).  For weak vtables, CodeGen tracks when they are needed and
+/// emits them as-needed.
+void CodeGenModule::EmitVTable(CXXRecordDecl *theClass) {
   VTables.GenerateClassData(theClass);
 }
 
@@ -839,4 +838,69 @@ void CodeGenModule::EmitDeferredVTables() {
   assert(savedSize == DeferredVTables.size() &&
          "deferred extra v-tables during v-table emission?");
   DeferredVTables.clear();
+}
+
+void CodeGenModule::EmitVTableBitSetEntries(llvm::GlobalVariable *VTable,
+                                            const VTableLayout &VTLayout) {
+  if (!LangOpts.Sanitize.has(SanitizerKind::CFIVCall) &&
+      !LangOpts.Sanitize.has(SanitizerKind::CFINVCall) &&
+      !LangOpts.Sanitize.has(SanitizerKind::CFIDerivedCast) &&
+      !LangOpts.Sanitize.has(SanitizerKind::CFIUnrelatedCast))
+    return;
+
+  llvm::Metadata *VTableMD = llvm::ConstantAsMetadata::get(VTable);
+
+  std::vector<llvm::MDTuple *> BitsetEntries;
+  // Create a bit set entry for each address point.
+  for (auto &&AP : VTLayout.getAddressPoints()) {
+    // FIXME: Add blacklisting scheme.
+    if (AP.first.getBase()->isInStdNamespace())
+      continue;
+
+    std::string OutName;
+    llvm::raw_string_ostream Out(OutName);
+    getCXXABI().getMangleContext().mangleCXXVTableBitSet(AP.first.getBase(),
+                                                         Out);
+
+    CharUnits PointerWidth =
+        Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(0));
+    uint64_t AddrPointOffset = AP.second * PointerWidth.getQuantity();
+
+    llvm::Metadata *BitsetOps[] = {
+        llvm::MDString::get(getLLVMContext(), Out.str()),
+        VTableMD,
+        llvm::ConstantAsMetadata::get(
+            llvm::ConstantInt::get(Int64Ty, AddrPointOffset))};
+    llvm::MDTuple *BitsetEntry =
+        llvm::MDTuple::get(getLLVMContext(), BitsetOps);
+    BitsetEntries.push_back(BitsetEntry);
+  }
+
+  // Sort the bit set entries for determinism.
+  std::sort(BitsetEntries.begin(), BitsetEntries.end(), [](llvm::MDTuple *T1,
+                                                           llvm::MDTuple *T2) {
+    if (T1 == T2)
+      return false;
+
+    StringRef S1 = cast<llvm::MDString>(T1->getOperand(0))->getString();
+    StringRef S2 = cast<llvm::MDString>(T2->getOperand(0))->getString();
+    if (S1 < S2)
+      return true;
+    if (S1 != S2)
+      return false;
+
+    uint64_t Offset1 = cast<llvm::ConstantInt>(
+                           cast<llvm::ConstantAsMetadata>(T1->getOperand(2))
+                               ->getValue())->getZExtValue();
+    uint64_t Offset2 = cast<llvm::ConstantInt>(
+                           cast<llvm::ConstantAsMetadata>(T2->getOperand(2))
+                               ->getValue())->getZExtValue();
+    assert(Offset1 != Offset2);
+    return Offset1 < Offset2;
+  });
+
+  llvm::NamedMDNode *BitsetsMD =
+      getModule().getOrInsertNamedMetadata("llvm.bitsets");
+  for (auto BitsetEntry : BitsetEntries)
+    BitsetsMD->addOperand(BitsetEntry);
 }

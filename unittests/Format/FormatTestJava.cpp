@@ -153,6 +153,19 @@ TEST_F(FormatTestJava, ClassDeclarations) {
                "}");
 }
 
+TEST_F(FormatTestJava, AnonymousClasses) {
+  verifyFormat("return new A() {\n"
+               "  public String toString() {\n"
+               "    return \"NotReallyA\";\n"
+               "  }\n"
+               "};");
+  verifyFormat("A a = new A() {\n"
+               "  public String toString() {\n"
+               "    return \"NotReallyA\";\n"
+               "  }\n"
+               "};");
+}
+
 TEST_F(FormatTestJava, EnumDeclarations) {
   verifyFormat("enum SomeThing { ABC, CDE }");
   verifyFormat("enum SomeThing {\n"
@@ -420,7 +433,7 @@ TEST_F(FormatTestJava, NeverAlignAfterReturn) {
                getStyleWithColumns(40));
   verifyFormat("return aaaaaaaaaaaaaaaaaaa()\n"
                "    .bbbbbbbbbbbbbbbbbbb(\n"
-               "         ccccccccccccccc)\n"
+               "        ccccccccccccccc)\n"
                "    .ccccccccccccccccccc();",
                getStyleWithColumns(40));
 }

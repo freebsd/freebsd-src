@@ -25,4 +25,13 @@ const char *getModuleVersion(void);
 
 __asm("foo");
 
+typedef	struct __sFILE {
+  int _offset;
+} FILE;
+
+extern FILE *myFile;
+
+#define SOME_MACRO_ATTR_GETTING_UNDEFINED __attribute__((objc_method_family(none)))
+#undef SOME_MACRO_ATTR_GETTING_UNDEFINED
+
 #endif // MODULE_H

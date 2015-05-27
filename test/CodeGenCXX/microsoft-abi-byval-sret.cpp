@@ -20,8 +20,8 @@ A B::foo(A x) {
 
 // CHECK-LABEL: define x86_thiscallcc %struct.A* @"\01?foo@B@@QAE?AUA@@U2@@Z"
 // CHECK:       (%struct.B* %this, <{ %struct.A*, %struct.A }>* inalloca)
-// CHECK:   getelementptr inbounds <{ %struct.A*, %struct.A }>* %{{.*}}, i32 0, i32 0
-// CHECK:   load %struct.A**
+// CHECK:   getelementptr inbounds <{ %struct.A*, %struct.A }>, <{ %struct.A*, %struct.A }>* %{{.*}}, i32 0, i32 0
+// CHECK:   load %struct.A*, %struct.A**
 // CHECK:   ret %struct.A*
 
 A B::bar(A x) {
@@ -30,8 +30,8 @@ A B::bar(A x) {
 
 // CHECK-LABEL: define %struct.A* @"\01?bar@B@@QAA?AUA@@U2@@Z"
 // CHECK:       (<{ %struct.B*, %struct.A*, %struct.A }>* inalloca)
-// CHECK:   getelementptr inbounds <{ %struct.B*, %struct.A*, %struct.A }>* %{{.*}}, i32 0, i32 1
-// CHECK:   load %struct.A**
+// CHECK:   getelementptr inbounds <{ %struct.B*, %struct.A*, %struct.A }>, <{ %struct.B*, %struct.A*, %struct.A }>* %{{.*}}, i32 0, i32 1
+// CHECK:   load %struct.A*, %struct.A**
 // CHECK:   ret %struct.A*
 
 A B::baz(A x) {
@@ -40,8 +40,8 @@ A B::baz(A x) {
 
 // CHECK-LABEL: define x86_stdcallcc %struct.A* @"\01?baz@B@@QAG?AUA@@U2@@Z"
 // CHECK:       (<{ %struct.B*, %struct.A*, %struct.A }>* inalloca)
-// CHECK:   getelementptr inbounds <{ %struct.B*, %struct.A*, %struct.A }>* %{{.*}}, i32 0, i32 1
-// CHECK:   load %struct.A**
+// CHECK:   getelementptr inbounds <{ %struct.B*, %struct.A*, %struct.A }>, <{ %struct.B*, %struct.A*, %struct.A }>* %{{.*}}, i32 0, i32 1
+// CHECK:   load %struct.A*, %struct.A**
 // CHECK:   ret %struct.A*
 
 A B::qux(A x) {

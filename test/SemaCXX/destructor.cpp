@@ -173,6 +173,12 @@ protected:
   ~S7();
 };
 
+struct S8 {} s8;
+
+UnknownType S8::~S8() { // expected-error {{unknown type name 'UnknownType'}}
+  s8.~S8();
+}
+
 template<class T> class TS : public B {
   virtual void m();
 };
@@ -385,4 +391,15 @@ namespace PR20238 {
 struct S {
   volatile ~S() { } // expected-error{{destructor cannot have a return type}}
 };
+}
+
+namespace PR22668 {
+struct S {
+};
+void f(S s) {
+  (s.~S)();
+}
+void g(S s) {
+  (s.~S); // expected-error{{reference to destructor must be called}}
+}
 }

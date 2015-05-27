@@ -54,7 +54,7 @@ typedef enum {
 // CHECK:        %[[MEM1:.*]] = alloca i8*, align 8
 // CHECK-NEXT:   %[[MEM2:.*]] = alloca i8*, align 8
 // CHECK:        store i8* [[BLOCK_DESC:%.*]], i8** %[[MEM1]], align 8
-// CHECK:        %[[TMP0:.*]] = load i8** %[[MEM1]]
+// CHECK:        %[[TMP0:.*]] = load i8*, i8** %[[MEM1]]
 // CHECK:        call void @llvm.dbg.value(metadata i8* %[[TMP0]], i64 0, metadata ![[BDMD:[0-9]+]], metadata !{{.*}})
 // CHECK:        call void @llvm.dbg.declare(metadata i8* [[BLOCK_DESC]], metadata ![[BDMD:[0-9]+]], metadata !{{.*}})
 // CHECK:        %[[TMP1:.*]] = bitcast
@@ -63,7 +63,9 @@ typedef enum {
 // make sure we are still in the same function
 // CHECK: define {{.*}}__copy_helper_block_
 // Metadata
-// CHECK:        ![[MAIN:.*]] = !{!"0x13\00Main\0023\00{{.*}}", {{.*}} ; [ DW_TAG_structure_type ] [Main] [line 23,
-// CHECK:        ![[PMAIN:.*]] = {{.*}}![[MAIN]]} ; [ DW_TAG_pointer_type ]{{.*}}from Main
-// CHECK:        ![[BDMD]] = {{.*}}.block_descriptor
-// CHECK:        ![[SELF]] = {{.*}}![[PMAIN]]{{.*}}[ DW_TAG_auto_variable ] [self] [line 40]
+// CHECK: ![[MAIN:.*]] = !DICompositeType(tag: DW_TAG_structure_type, name: "Main"
+// CHECK-SAME:                            line: 23,
+// CHECK: ![[PMAIN:.*]] = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: ![[MAIN]],
+// CHECK: ![[BDMD]] = !DILocalVariable(tag: DW_TAG_arg_variable, name: ".block_descriptor"
+// CHECK: ![[SELF]] = !DILocalVariable(tag: DW_TAG_auto_variable, name: "self"
+// CHECK-SAME:                         line: 40,

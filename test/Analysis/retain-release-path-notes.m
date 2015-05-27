@@ -263,6 +263,71 @@ void CFAutoreleaseUnownedMixed() {
   return; // expected-warning{{Object autoreleased too many times}} expected-note{{Object was autoreleased 2 times but the object has a +0 retain count}}
 }
 
+@interface PropertiesAndIvars : NSObject
+@property (strong) id ownedProp;
+@property (unsafe_unretained) id unownedProp;
+@property (nonatomic, strong) id manualProp;
+@end
+
+@interface NSObject (PropertiesAndIvarsHelper)
+- (void)myMethod;
+@end
+
+@implementation PropertiesAndIvars {
+  id _ivarOnly;
+}
+
+- (id)manualProp {
+  return _manualProp;
+}
+
+- (void)testOverreleaseUnownedIvar {
+  [_unownedProp retain]; // FIXME-note {{Object loaded from instance variable}}
+  // FIXME-note@-1 {{Reference count incremented. The object now has a +1 retain count}}
+  [_unownedProp release]; // FIXME-note {{Reference count decremented}}
+  [_unownedProp release]; // FIXME-note {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+  // FIXME-warning@-1 {{not owned at this point by the caller}}
+}
+
+- (void)testOverreleaseOwnedIvarUse {
+  [_ownedProp retain]; // FIXME-note {{Object loaded from instance variable}}
+  // FIXME-note@-1 {{Reference count incremented. The object now has a +1 retain count}}
+  [_ownedProp release]; // FIXME-note {{Reference count decremented}}
+  [_ownedProp release]; // FIXME-note {{Strong instance variable relinquished. Object released}}
+  [_ownedProp myMethod]; // FIXME-note {{Reference-counted object is used after it is released}}
+  // FIXME-warning@-1 {{used after it is released}}
+}
+
+- (void)testOverreleaseIvarOnlyUse {
+  [_ivarOnly retain]; // FIXME-note {{Object loaded from instance variable}}
+  // FIXME-note@-1 {{Reference count incremented. The object now has a +1 retain count}}
+  [_ivarOnly release]; // FIXME-note {{Reference count decremented}}
+  [_ivarOnly release]; // FIXME-note {{Strong instance variable relinquished. Object released}}
+  [_ivarOnly myMethod]; // FIXME-note {{Reference-counted object is used after it is released}}
+  // FIXME-warning@-1 {{used after it is released}}
+}
+
+- (void)testOverreleaseOwnedIvarAutorelease {
+  [_ownedProp retain]; // FIXME-note {{Object loaded from instance variable}}
+  // FIXME-note@-1 {{Reference count incremented. The object now has a +1 retain count}}
+  [_ownedProp release]; // FIXME-note {{Reference count decremented}}
+  [_ownedProp autorelease]; // FIXME-note {{Object autoreleased}}
+  [_ownedProp autorelease]; // FIXME-note {{Object autoreleased}}
+  // FIXME-note@+1 {{Object was autoreleased 2 times but the object has a +0 retain count}}
+} // FIXME-warning{{Object autoreleased too many times}}
+
+- (void)testOverreleaseIvarOnlyAutorelease {
+  [_ivarOnly retain]; // FIXME-note {{Object loaded from instance variable}}
+  // FIXME-note@-1 {{Reference count incremented. The object now has a +1 retain count}}
+  [_ivarOnly release]; // FIXME-note {{Reference count decremented}}
+  [_ivarOnly autorelease]; // FIXME-note {{Object autoreleased}}
+  [_ivarOnly autorelease]; // FIXME-note {{Object autoreleased}}
+  // FIXME-note@+1 {{Object was autoreleased 2 times but the object has a +0 retain count}}
+} // FIXME-warning{{Object autoreleased too many times}}
+
+@end
+
+
 
 // CHECK:  <key>diagnostics</key>
 // CHECK-NEXT:  <array>
@@ -399,6 +464,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>creationViaAlloc</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -542,6 +608,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>creationViaCFCreate</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -910,6 +977,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>acquisitionViaMethod</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -1128,6 +1196,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>acquisitionViaProperty</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -1346,6 +1415,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>acquisitionViaCFFunction</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -1564,6 +1634,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Reference-counted object is used after it is released</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Use-after-release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>explicitDealloc</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>3</string>
@@ -1782,6 +1853,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Reference-counted object is used after it is released</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Use-after-release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>implicitDealloc</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>3</string>
@@ -2075,6 +2147,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object autoreleased too many times</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Object autoreleased too many times</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>overAutorelease</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>4</string>
@@ -2293,6 +2366,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object autoreleased too many times</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Object autoreleased too many times</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>autoreleaseUnowned</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>3</string>
@@ -2586,6 +2660,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>makeCollectableIgnored</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -2770,6 +2845,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Method should return an owned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>CFCopyRuleViolation</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -2954,6 +3030,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;object&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak of returned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>CFGetRuleViolation</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -3138,6 +3215,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Method should return an owned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>copyViolation</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -3322,6 +3400,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Method should return an owned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>copyViolationIndexedSubscript</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -3506,6 +3585,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Method should return an owned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>copyViolationKeyedSubscript</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -3690,6 +3770,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object stored into &apos;result&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak of returned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>getViolation</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>1</string>
@@ -3908,6 +3989,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Method should return an owned object</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>copyAutorelease</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>3</string>
@@ -4051,6 +4133,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Incorrect decrement of the reference count of an object that is not owned at this point by the caller</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Bad release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testNumericLiteral</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -4194,6 +4277,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Incorrect decrement of the reference count of an object that is not owned at this point by the caller</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Bad release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testBoxedInt</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -4337,6 +4421,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Incorrect decrement of the reference count of an object that is not owned at this point by the caller</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Bad release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testBoxedString</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -4480,6 +4565,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Incorrect decrement of the reference count of an object that is not owned at this point by the caller</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Bad release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testArray</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -4623,6 +4709,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Incorrect decrement of the reference count of an object that is not owned at this point by the caller</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Bad release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testDictionary</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -5003,6 +5090,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>2</string>
@@ -5354,6 +5442,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Potential leak of an object</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>8</string>
@@ -5647,6 +5736,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object autoreleased too many times</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Object autoreleased too many times</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>CFOverAutorelease</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>4</string>
@@ -5865,6 +5955,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object autoreleased too many times</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Object autoreleased too many times</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>CFAutoreleaseUnowned</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>3</string>
@@ -6158,6 +6249,7 @@ void CFAutoreleaseUnownedMixed() {
 // CHECK-NEXT:    <key>description</key><string>Object autoreleased too many times</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Object autoreleased too many times</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>CFAutoreleaseUnownedMixed</string>
 // CHECK-NEXT:   <key>issue_hash</key><string>4</string>

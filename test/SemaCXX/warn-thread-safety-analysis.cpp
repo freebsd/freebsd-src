@@ -3,31 +3,31 @@
 // FIXME: should also run  %clang_cc1 -fsyntax-only -verify -Wthread-safety -std=c++11 -Wc++98-compat %s
 // FIXME: should also run  %clang_cc1 -fsyntax-only -verify -Wthread-safety %s
 
-#define LOCKABLE            __attribute__ ((lockable))
-#define SCOPED_LOCKABLE     __attribute__ ((scoped_lockable))
-#define GUARDED_BY(x)       __attribute__ ((guarded_by(x)))
-#define GUARDED_VAR         __attribute__ ((guarded_var))
-#define PT_GUARDED_BY(x)    __attribute__ ((pt_guarded_by(x)))
-#define PT_GUARDED_VAR      __attribute__ ((pt_guarded_var))
-#define ACQUIRED_AFTER(...) __attribute__ ((acquired_after(__VA_ARGS__)))
-#define ACQUIRED_BEFORE(...) __attribute__ ((acquired_before(__VA_ARGS__)))
-#define EXCLUSIVE_LOCK_FUNCTION(...)    __attribute__ ((exclusive_lock_function(__VA_ARGS__)))
-#define SHARED_LOCK_FUNCTION(...)       __attribute__ ((shared_lock_function(__VA_ARGS__)))
-#define ASSERT_EXCLUSIVE_LOCK(...)      __attribute__ ((assert_exclusive_lock(__VA_ARGS__)))
-#define ASSERT_SHARED_LOCK(...)         __attribute__ ((assert_shared_lock(__VA_ARGS__)))
-#define EXCLUSIVE_TRYLOCK_FUNCTION(...) __attribute__ ((exclusive_trylock_function(__VA_ARGS__)))
-#define SHARED_TRYLOCK_FUNCTION(...)    __attribute__ ((shared_trylock_function(__VA_ARGS__)))
-#define UNLOCK_FUNCTION(...)            __attribute__ ((unlock_function(__VA_ARGS__)))
-#define LOCK_RETURNED(x)    __attribute__ ((lock_returned(x)))
-#define LOCKS_EXCLUDED(...) __attribute__ ((locks_excluded(__VA_ARGS__)))
-#define EXCLUSIVE_LOCKS_REQUIRED(...) \
-  __attribute__ ((exclusive_locks_required(__VA_ARGS__)))
-#define SHARED_LOCKS_REQUIRED(...) \
-  __attribute__ ((shared_locks_required(__VA_ARGS__)))
-#define NO_THREAD_SAFETY_ANALYSIS  __attribute__ ((no_thread_safety_analysis))
+#define LOCKABLE             __attribute__((lockable))
+#define SCOPED_LOCKABLE      __attribute__((scoped_lockable))
+#define GUARDED_BY(x)        __attribute__((guarded_by(x)))
+#define GUARDED_VAR          __attribute__((guarded_var))
+#define PT_GUARDED_BY(x)     __attribute__((pt_guarded_by(x)))
+#define PT_GUARDED_VAR       __attribute__((pt_guarded_var))
+#define ACQUIRED_AFTER(...)  __attribute__((acquired_after(__VA_ARGS__)))
+#define ACQUIRED_BEFORE(...) __attribute__((acquired_before(__VA_ARGS__)))
+#define EXCLUSIVE_LOCK_FUNCTION(...)    __attribute__((exclusive_lock_function(__VA_ARGS__)))
+#define SHARED_LOCK_FUNCTION(...)       __attribute__((shared_lock_function(__VA_ARGS__)))
+#define ASSERT_EXCLUSIVE_LOCK(...)      __attribute__((assert_exclusive_lock(__VA_ARGS__)))
+#define ASSERT_SHARED_LOCK(...)         __attribute__((assert_shared_lock(__VA_ARGS__)))
+#define EXCLUSIVE_TRYLOCK_FUNCTION(...) __attribute__((exclusive_trylock_function(__VA_ARGS__)))
+#define SHARED_TRYLOCK_FUNCTION(...)    __attribute__((shared_trylock_function(__VA_ARGS__)))
+#define UNLOCK_FUNCTION(...)            __attribute__((unlock_function(__VA_ARGS__)))
+#define EXCLUSIVE_UNLOCK_FUNCTION(...)  __attribute__((release_capability(__VA_ARGS__)))
+#define SHARED_UNLOCK_FUNCTION(...)     __attribute__((release_shared_capability(__VA_ARGS__)))
+#define LOCK_RETURNED(x)                __attribute__((lock_returned(x)))
+#define LOCKS_EXCLUDED(...)             __attribute__((locks_excluded(__VA_ARGS__)))
+#define EXCLUSIVE_LOCKS_REQUIRED(...)   __attribute__((exclusive_locks_required(__VA_ARGS__)))
+#define SHARED_LOCKS_REQUIRED(...)      __attribute__((shared_locks_required(__VA_ARGS__)))
+#define NO_THREAD_SAFETY_ANALYSIS       __attribute__((no_thread_safety_analysis))
 
 
-class  __attribute__((lockable)) Mutex {
+class LOCKABLE Mutex {
  public:
   void Lock() __attribute__((exclusive_lock_function));
   void ReaderLock() __attribute__((shared_lock_function));
@@ -43,16 +43,18 @@ class  __attribute__((lockable)) Mutex {
   void AssertReaderHeld() ASSERT_SHARED_LOCK();
 };
 
-class __attribute__((scoped_lockable)) MutexLock {
+class SCOPED_LOCKABLE MutexLock {
  public:
-  MutexLock(Mutex *mu) __attribute__((exclusive_lock_function(mu)));
-  ~MutexLock() __attribute__((unlock_function));
+  MutexLock(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu);
+  MutexLock(Mutex *mu, bool adopt) EXCLUSIVE_LOCKS_REQUIRED(mu);
+  ~MutexLock() UNLOCK_FUNCTION();
 };
 
-class __attribute__((scoped_lockable)) ReaderMutexLock {
+class SCOPED_LOCKABLE ReaderMutexLock {
  public:
-  ReaderMutexLock(Mutex *mu) __attribute__((exclusive_lock_function(mu)));
-  ~ReaderMutexLock() __attribute__((unlock_function));
+  ReaderMutexLock(Mutex *mu) SHARED_LOCK_FUNCTION(mu);
+  ReaderMutexLock(Mutex *mu, bool adopt) SHARED_LOCKS_REQUIRED(mu);
+  ~ReaderMutexLock() UNLOCK_FUNCTION();
 };
 
 class SCOPED_LOCKABLE ReleasableMutexLock {
@@ -4835,7 +4837,7 @@ public:
     read2(10, *foosp);        // expected-warning {{reading the value pointed to by 'foosp' requires holding mutex 'mu'}}
     destroy(mymove(*foosp));  // expected-warning {{reading the value pointed to by 'foosp' requires holding mutex 'mu'}}
 
-    // TODO -- these requires better smart pointer handling.
+    // TODO -- these require better smart pointer handling.
     copy(*foosp.get());
     write1(*foosp.get());
     write2(10, *foosp.get());
@@ -4847,4 +4849,245 @@ public:
 
 
 }  // end namespace PassByRefTest
+
+
+namespace AcquiredBeforeAfterText {
+
+class Foo {
+  Mutex mu1 ACQUIRED_BEFORE(mu2, mu3);
+  Mutex mu2;
+  Mutex mu3;
+
+  void test1() {
+    mu1.Lock();
+    mu2.Lock();
+    mu3.Lock();
+
+    mu3.Unlock();
+    mu2.Unlock();
+    mu1.Unlock();
+  }
+
+  void test2() {
+    mu2.Lock();
+    mu1.Lock();    // expected-warning {{mutex 'mu1' must be acquired before 'mu2'}}
+    mu1.Unlock();
+    mu2.Unlock();
+  }
+
+  void test3() {
+    mu3.Lock();
+    mu1.Lock();     // expected-warning {{mutex 'mu1' must be acquired before 'mu3'}}
+    mu1.Unlock();
+    mu3.Unlock();
+  }
+
+  void test4() EXCLUSIVE_LOCKS_REQUIRED(mu1) {
+    mu2.Lock();
+    mu2.Unlock();
+  }
+
+  void test5() EXCLUSIVE_LOCKS_REQUIRED(mu2) {
+    mu1.Lock();    // expected-warning {{mutex 'mu1' must be acquired before 'mu2'}}
+    mu1.Unlock();
+  }
+
+  void test6() EXCLUSIVE_LOCKS_REQUIRED(mu2) {
+    mu1.AssertHeld();
+  }
+
+  void test7() EXCLUSIVE_LOCKS_REQUIRED(mu1, mu2, mu3) { }
+
+  void test8() EXCLUSIVE_LOCKS_REQUIRED(mu3, mu2, mu1) { }
+};
+
+
+class Foo2 {
+  Mutex mu1;
+  Mutex mu2 ACQUIRED_AFTER(mu1);
+  Mutex mu3 ACQUIRED_AFTER(mu1);
+
+  void test1() {
+    mu1.Lock();
+    mu2.Lock();
+    mu3.Lock();
+
+    mu3.Unlock();
+    mu2.Unlock();
+    mu1.Unlock();
+  }
+
+  void test2() {
+    mu2.Lock();
+    mu1.Lock();     // expected-warning {{mutex 'mu1' must be acquired before 'mu2'}}
+    mu1.Unlock();
+    mu2.Unlock();
+  }
+
+  void test3() {
+    mu3.Lock();
+    mu1.Lock();     // expected-warning {{mutex 'mu1' must be acquired before 'mu3'}}
+    mu1.Unlock();
+    mu3.Unlock();
+  }
+};
+
+
+class Foo3 {
+  Mutex mu1 ACQUIRED_BEFORE(mu2);
+  Mutex mu2;
+  Mutex mu3 ACQUIRED_AFTER(mu2) ACQUIRED_BEFORE(mu4);
+  Mutex mu4;
+
+  void test1() {
+    mu1.Lock();
+    mu2.Lock();
+    mu3.Lock();
+    mu4.Lock();
+
+    mu4.Unlock();
+    mu3.Unlock();
+    mu2.Unlock();
+    mu1.Unlock();
+  }
+
+  void test2() {
+    mu4.Lock();
+    mu2.Lock();     // expected-warning {{mutex 'mu2' must be acquired before 'mu4'}}
+
+    mu2.Unlock();
+    mu4.Unlock();
+  }
+
+  void test3() {
+    mu4.Lock();
+    mu1.Lock();     // expected-warning {{mutex 'mu1' must be acquired before 'mu4'}}
+
+    mu1.Unlock();
+    mu4.Unlock();
+  }
+
+  void test4() {
+    mu3.Lock();
+    mu1.Lock();     // expected-warning {{mutex 'mu1' must be acquired before 'mu3'}}
+
+    mu1.Unlock();
+    mu3.Unlock();
+  }
+};
+
+
+// Test transitive DAG traversal with AFTER
+class Foo4 {
+  Mutex mu1;
+  Mutex mu2 ACQUIRED_AFTER(mu1);
+  Mutex mu3 ACQUIRED_AFTER(mu1);
+  Mutex mu4 ACQUIRED_AFTER(mu2, mu3);
+  Mutex mu5 ACQUIRED_AFTER(mu4);
+  Mutex mu6 ACQUIRED_AFTER(mu4);
+  Mutex mu7 ACQUIRED_AFTER(mu5, mu6);
+  Mutex mu8 ACQUIRED_AFTER(mu7);
+
+  void test() {
+    mu8.Lock();
+    mu1.Lock();    // expected-warning {{mutex 'mu1' must be acquired before 'mu8'}}
+    mu1.Unlock();
+    mu8.Unlock();
+  }
+};
+
+
+// Test transitive DAG traversal with BEFORE
+class Foo5 {
+  Mutex mu1 ACQUIRED_BEFORE(mu2, mu3);
+  Mutex mu2 ACQUIRED_BEFORE(mu4);
+  Mutex mu3 ACQUIRED_BEFORE(mu4);
+  Mutex mu4 ACQUIRED_BEFORE(mu5, mu6);
+  Mutex mu5 ACQUIRED_BEFORE(mu7);
+  Mutex mu6 ACQUIRED_BEFORE(mu7);
+  Mutex mu7 ACQUIRED_BEFORE(mu8);
+  Mutex mu8;
+
+  void test() {
+    mu8.Lock();
+    mu1.Lock();  // expected-warning {{mutex 'mu1' must be acquired before 'mu8'}}
+    mu1.Unlock();
+    mu8.Unlock();
+  }
+};
+
+
+class Foo6 {
+  Mutex mu1 ACQUIRED_AFTER(mu3);     // expected-warning {{Cycle in acquired_before/after dependencies, starting with 'mu1'}}
+  Mutex mu2 ACQUIRED_AFTER(mu1);     // expected-warning {{Cycle in acquired_before/after dependencies, starting with 'mu2'}}
+  Mutex mu3 ACQUIRED_AFTER(mu2);     // expected-warning {{Cycle in acquired_before/after dependencies, starting with 'mu3'}}
+
+  Mutex mu_b ACQUIRED_BEFORE(mu_b);  // expected-warning {{Cycle in acquired_before/after dependencies, starting with 'mu_b'}}
+  Mutex mu_a ACQUIRED_AFTER(mu_a);   // expected-warning {{Cycle in acquired_before/after dependencies, starting with 'mu_a'}}
+
+  void test0() {
+    mu_a.Lock();
+    mu_b.Lock();
+    mu_b.Unlock();
+    mu_a.Unlock();
+  }
+
+  void test1a() {
+    mu1.Lock();
+    mu1.Unlock();
+  }
+
+  void test1b() {
+    mu1.Lock();
+    mu_a.Lock();
+    mu_b.Lock();
+    mu_b.Unlock();
+    mu_a.Unlock();
+    mu1.Unlock();
+  }
+
+  void test() {
+    mu2.Lock();
+    mu2.Unlock();
+  }
+
+  void test3() {
+    mu3.Lock();
+    mu3.Unlock();
+  }
+};
+
+}  // end namespace AcquiredBeforeAfterTest
+
+
+namespace ScopedAdoptTest {
+
+class Foo {
+  Mutex mu;
+  int a GUARDED_BY(mu);
+  int b;
+
+  void test1() EXCLUSIVE_UNLOCK_FUNCTION(mu) {
+    MutexLock slock(&mu, true);
+    a = 0;
+  }
+
+  void test2() SHARED_UNLOCK_FUNCTION(mu) {
+    ReaderMutexLock slock(&mu, true);
+    b = a;
+  }
+
+  void test3() EXCLUSIVE_LOCKS_REQUIRED(mu) {  // expected-note {{mutex acquired here}}
+    MutexLock slock(&mu, true);
+    a = 0;
+  }  // expected-warning {{expecting mutex 'mu' to be held at the end of function}}
+
+  void test4() SHARED_LOCKS_REQUIRED(mu) {     // expected-note {{mutex acquired here}}
+    ReaderMutexLock slock(&mu, true);
+    b = a;
+  }  // expected-warning {{expecting mutex 'mu' to be held at the end of function}}
+
+};
+
+}  // end namespace ScopedAdoptTest
 

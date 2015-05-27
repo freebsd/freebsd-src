@@ -257,8 +257,7 @@ _mm_permutevar_ps(__m128 __a, __m128i __c)
 static __inline __m256 __attribute__((__always_inline__, __nodebug__))
 _mm256_permutevar_ps(__m256 __a, __m256i __c)
 {
-  return (__m256)__builtin_ia32_vpermilvarps256((__v8sf)__a,
-						  (__v8si)__c);
+  return (__m256)__builtin_ia32_vpermilvarps256((__v8sf)__a, (__v8si)__c);
 }
 
 #define _mm_permute_pd(A, C) __extension__ ({ \
@@ -430,35 +429,22 @@ _mm256_blendv_ps(__m256 __a, __m256 __b, __m256 __c)
   __m128 __b = (b); \
   (__m128)__builtin_ia32_cmpss((__v4sf)__a, (__v4sf)__b, (c)); })
 
-/* Vector extract */
-#define _mm256_extractf128_pd(A, O) __extension__ ({ \
-  __m256d __A = (A); \
-  (__m128d)__builtin_ia32_vextractf128_pd256((__v4df)__A, (O)); })
-
-#define _mm256_extractf128_ps(A, O) __extension__ ({ \
-  __m256 __A = (A); \
-  (__m128)__builtin_ia32_vextractf128_ps256((__v8sf)__A, (O)); })
-
-#define _mm256_extractf128_si256(A, O) __extension__ ({ \
-  __m256i __A = (A); \
-  (__m128i)__builtin_ia32_vextractf128_si256((__v8si)__A, (O)); })
-
 static __inline int __attribute__((__always_inline__, __nodebug__))
-_mm256_extract_epi32(__m256i __a, int const __imm)
+_mm256_extract_epi32(__m256i __a, const int __imm)
 {
   __v8si __b = (__v8si)__a;
   return __b[__imm & 7];
 }
 
 static __inline int __attribute__((__always_inline__, __nodebug__))
-_mm256_extract_epi16(__m256i __a, int const __imm)
+_mm256_extract_epi16(__m256i __a, const int __imm)
 {
   __v16hi __b = (__v16hi)__a;
   return __b[__imm & 15];
 }
 
 static __inline int __attribute__((__always_inline__, __nodebug__))
-_mm256_extract_epi8(__m256i __a, int const __imm)
+_mm256_extract_epi8(__m256i __a, const int __imm)
 {
   __v32qi __b = (__v32qi)__a;
   return __b[__imm & 31];
@@ -472,22 +458,6 @@ _mm256_extract_epi64(__m256i __a, const int __imm)
   return __b[__imm & 3];
 }
 #endif
-
-/* Vector insert */
-#define _mm256_insertf128_pd(V1, V2, O) __extension__ ({ \
-  __m256d __V1 = (V1); \
-  __m128d __V2 = (V2); \
-  (__m256d)__builtin_ia32_vinsertf128_pd256((__v4df)__V1, (__v2df)__V2, (O)); })
-
-#define _mm256_insertf128_ps(V1, V2, O) __extension__ ({ \
-  __m256 __V1 = (V1); \
-  __m128 __V2 = (V2); \
-  (__m256)__builtin_ia32_vinsertf128_ps256((__v8sf)__V1, (__v4sf)__V2, (O)); })
-
-#define _mm256_insertf128_si256(V1, V2, O) __extension__ ({ \
-  __m256i __V1 = (V1); \
-  __m128i __V2 = (V2); \
-  (__m256i)__builtin_ia32_vinsertf128_si256((__v8si)__V1, (__v4si)__V2, (O)); })
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_insert_epi32(__m256i __a, int __b, int const __imm)
@@ -515,7 +485,7 @@ _mm256_insert_epi8(__m256i __a, int __b, int const __imm)
 
 #ifdef __x86_64__
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
-_mm256_insert_epi64(__m256i __a, int __b, int const __imm)
+_mm256_insert_epi64(__m256i __a, long long __b, int const __imm)
 {
   __v4di __c = (__v4di)__a;
   __c[__imm & 3] = __b;
@@ -785,7 +755,7 @@ _mm256_loadu_pd(double const *__p)
 {
   struct __loadu_pd {
     __m256d __v;
-  } __attribute__((packed, may_alias));
+  } __attribute__((__packed__, __may_alias__));
   return ((struct __loadu_pd*)__p)->__v;
 }
 
@@ -794,7 +764,7 @@ _mm256_loadu_ps(float const *__p)
 {
   struct __loadu_ps {
     __m256 __v;
-  } __attribute__((packed, may_alias));
+  } __attribute__((__packed__, __may_alias__));
   return ((struct __loadu_ps*)__p)->__v;
 }
 
@@ -809,7 +779,7 @@ _mm256_loadu_si256(__m256i const *__p)
 {
   struct __loadu_si256 {
     __m256i __v;
-  } __attribute__((packed, may_alias));
+  } __attribute__((__packed__, __may_alias__));
   return ((struct __loadu_si256*)__p)->__v;
 }
 
@@ -935,23 +905,23 @@ _mm256_set_pd(double __a, double __b, double __c, double __d)
 
 static __inline __m256 __attribute__((__always_inline__, __nodebug__))
 _mm256_set_ps(float __a, float __b, float __c, float __d,
-	            float __e, float __f, float __g, float __h)
+              float __e, float __f, float __g, float __h)
 {
   return (__m256){ __h, __g, __f, __e, __d, __c, __b, __a };
 }
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_set_epi32(int __i0, int __i1, int __i2, int __i3,
-		             int __i4, int __i5, int __i6, int __i7)
+                 int __i4, int __i5, int __i6, int __i7)
 {
   return (__m256i)(__v8si){ __i7, __i6, __i5, __i4, __i3, __i2, __i1, __i0 };
 }
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_set_epi16(short __w15, short __w14, short __w13, short __w12,
-		             short __w11, short __w10, short __w09, short __w08,
-		             short __w07, short __w06, short __w05, short __w04,
-		             short __w03, short __w02, short __w01, short __w00)
+                 short __w11, short __w10, short __w09, short __w08,
+                 short __w07, short __w06, short __w05, short __w04,
+                 short __w03, short __w02, short __w01, short __w00)
 {
   return (__m256i)(__v16hi){ __w00, __w01, __w02, __w03, __w04, __w05, __w06,
     __w07, __w08, __w09, __w10, __w11, __w12, __w13, __w14, __w15 };
@@ -959,13 +929,13 @@ _mm256_set_epi16(short __w15, short __w14, short __w13, short __w12,
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_set_epi8(char __b31, char __b30, char __b29, char __b28,
-		            char __b27, char __b26, char __b25, char __b24,
-		            char __b23, char __b22, char __b21, char __b20,
-		            char __b19, char __b18, char __b17, char __b16,
-		            char __b15, char __b14, char __b13, char __b12,
-		            char __b11, char __b10, char __b09, char __b08,
-		            char __b07, char __b06, char __b05, char __b04,
-		            char __b03, char __b02, char __b01, char __b00)
+                char __b27, char __b26, char __b25, char __b24,
+                char __b23, char __b22, char __b21, char __b20,
+                char __b19, char __b18, char __b17, char __b16,
+                char __b15, char __b14, char __b13, char __b12,
+                char __b11, char __b10, char __b09, char __b08,
+                char __b07, char __b06, char __b05, char __b04,
+                char __b03, char __b02, char __b01, char __b00)
 {
   return (__m256i)(__v32qi){
     __b00, __b01, __b02, __b03, __b04, __b05, __b06, __b07,
@@ -990,23 +960,23 @@ _mm256_setr_pd(double __a, double __b, double __c, double __d)
 
 static __inline __m256 __attribute__((__always_inline__, __nodebug__))
 _mm256_setr_ps(float __a, float __b, float __c, float __d,
-		           float __e, float __f, float __g, float __h)
+               float __e, float __f, float __g, float __h)
 {
   return (__m256){ __a, __b, __c, __d, __e, __f, __g, __h };
 }
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_setr_epi32(int __i0, int __i1, int __i2, int __i3,
-		              int __i4, int __i5, int __i6, int __i7)
+                  int __i4, int __i5, int __i6, int __i7)
 {
   return (__m256i)(__v8si){ __i0, __i1, __i2, __i3, __i4, __i5, __i6, __i7 };
 }
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_setr_epi16(short __w15, short __w14, short __w13, short __w12,
-		   short __w11, short __w10, short __w09, short __w08,
-		   short __w07, short __w06, short __w05, short __w04,
-		   short __w03, short __w02, short __w01, short __w00)
+       short __w11, short __w10, short __w09, short __w08,
+       short __w07, short __w06, short __w05, short __w04,
+       short __w03, short __w02, short __w01, short __w00)
 {
   return (__m256i)(__v16hi){ __w15, __w14, __w13, __w12, __w11, __w10, __w09,
     __w08, __w07, __w06, __w05, __w04, __w03, __w02, __w01, __w00 };
@@ -1014,19 +984,19 @@ _mm256_setr_epi16(short __w15, short __w14, short __w13, short __w12,
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_setr_epi8(char __b31, char __b30, char __b29, char __b28,
-		             char __b27, char __b26, char __b25, char __b24,
-		             char __b23, char __b22, char __b21, char __b20,
-		             char __b19, char __b18, char __b17, char __b16,
-		             char __b15, char __b14, char __b13, char __b12,
-		             char __b11, char __b10, char __b09, char __b08,
-		             char __b07, char __b06, char __b05, char __b04,
-		             char __b03, char __b02, char __b01, char __b00)
+                 char __b27, char __b26, char __b25, char __b24,
+                 char __b23, char __b22, char __b21, char __b20,
+                 char __b19, char __b18, char __b17, char __b16,
+                 char __b15, char __b14, char __b13, char __b12,
+                 char __b11, char __b10, char __b09, char __b08,
+                 char __b07, char __b06, char __b05, char __b04,
+                 char __b03, char __b02, char __b01, char __b00)
 {
   return (__m256i)(__v32qi){
     __b31, __b30, __b29, __b28, __b27, __b26, __b25, __b24,
-		__b23, __b22, __b21, __b20, __b19, __b18, __b17, __b16,
-		__b15, __b14, __b13, __b12, __b11, __b10, __b09, __b08,
-		__b07, __b06, __b05, __b04, __b03, __b02, __b01, __b00 };
+    __b23, __b22, __b21, __b20, __b19, __b18, __b17, __b16,
+    __b15, __b14, __b13, __b12, __b11, __b10, __b09, __b08,
+    __b07, __b06, __b05, __b04, __b03, __b02, __b01, __b00 };
 }
 
 static __inline __m256i __attribute__((__always_inline__, __nodebug__))
@@ -1167,6 +1137,70 @@ _mm256_castsi128_si256(__m128i __a)
   return __builtin_shufflevector(__a, __a, 0, 1, -1, -1);
 }
 
+/* 
+   Vector insert.
+   We use macros rather than inlines because we only want to accept
+   invocations where the immediate M is a constant expression.
+*/
+#define _mm256_insertf128_ps(V1, V2, M) __extension__ ({ \
+  (__m256)__builtin_shufflevector( \
+    (__v8sf)(V1), \
+    (__v8sf)_mm256_castps128_ps256((__m128)(V2)), \
+    (((M) & 1) ?  0 :  8), \
+    (((M) & 1) ?  1 :  9), \
+    (((M) & 1) ?  2 : 10), \
+    (((M) & 1) ?  3 : 11), \
+    (((M) & 1) ?  8 :  4), \
+    (((M) & 1) ?  9 :  5), \
+    (((M) & 1) ? 10 :  6), \
+    (((M) & 1) ? 11 :  7) );})
+
+#define _mm256_insertf128_pd(V1, V2, M) __extension__ ({ \
+  (__m256d)__builtin_shufflevector( \
+    (__v4df)(V1), \
+    (__v4df)_mm256_castpd128_pd256((__m128d)(V2)), \
+    (((M) & 1) ? 0 : 4), \
+    (((M) & 1) ? 1 : 5), \
+    (((M) & 1) ? 4 : 2), \
+    (((M) & 1) ? 5 : 3) );})
+
+#define _mm256_insertf128_si256(V1, V2, M) __extension__ ({ \
+  (__m256i)__builtin_shufflevector( \
+    (__v4di)(V1), \
+    (__v4di)_mm256_castsi128_si256((__m128i)(V2)), \
+    (((M) & 1) ? 0 : 4), \
+    (((M) & 1) ? 1 : 5), \
+    (((M) & 1) ? 4 : 2), \
+    (((M) & 1) ? 5 : 3) );})
+
+/* 
+   Vector extract.
+   We use macros rather than inlines because we only want to accept
+   invocations where the immediate M is a constant expression.
+*/
+#define _mm256_extractf128_ps(V, M) __extension__ ({ \
+  (__m128)__builtin_shufflevector( \
+    (__v8sf)(V), \
+    (__v8sf)(_mm256_setzero_ps()), \
+    (((M) & 1) ? 4 : 0), \
+    (((M) & 1) ? 5 : 1), \
+    (((M) & 1) ? 6 : 2), \
+    (((M) & 1) ? 7 : 3) );})
+
+#define _mm256_extractf128_pd(V, M) __extension__ ({ \
+  (__m128d)__builtin_shufflevector( \
+    (__v4df)(V), \
+    (__v4df)(_mm256_setzero_pd()), \
+    (((M) & 1) ? 2 : 0), \
+    (((M) & 1) ? 3 : 1) );})
+
+#define _mm256_extractf128_si256(V, M) __extension__ ({ \
+  (__m128i)__builtin_shufflevector( \
+    (__v4di)(V), \
+    (__v4di)(_mm256_setzero_si256()), \
+    (((M) & 1) ? 2 : 0), \
+    (((M) & 1) ? 3 : 1) );})
+
 /* SIMD load ops (unaligned) */
 static __inline __m256 __attribute__((__always_inline__, __nodebug__))
 _mm256_loadu2_m128(float const *__addr_hi, float const *__addr_lo)
@@ -1195,7 +1229,7 @@ _mm256_loadu2_m128i(__m128i const *__addr_hi, __m128i const *__addr_lo)
 {
   struct __loadu_si128 {
     __m128i __v;
-  } __attribute__((packed, may_alias));
+  } __attribute__((__packed__, __may_alias__));
   __m256i __v256 = _mm256_castsi128_si256(
     ((struct __loadu_si128*)__addr_lo)->__v);
   return _mm256_insertf128_si256(__v256,
@@ -1234,6 +1268,36 @@ _mm256_storeu2_m128i(__m128i *__addr_hi, __m128i *__addr_lo, __m256i __a)
   __builtin_ia32_storedqu((char *)__addr_lo, (__v16qi)__v128);
   __v128 = _mm256_extractf128_si256(__a, 1);
   __builtin_ia32_storedqu((char *)__addr_hi, (__v16qi)__v128);
+}
+
+static __inline __m256 __attribute__((__always_inline__, __nodebug__))
+_mm256_set_m128 (__m128 __hi, __m128 __lo) {
+  return (__m256) __builtin_shufflevector(__lo, __hi, 0, 1, 2, 3, 4, 5, 6, 7);
+}
+
+static __inline __m256d __attribute__((__always_inline__, __nodebug__))
+_mm256_set_m128d (__m128d __hi, __m128d __lo) {
+  return (__m256d)_mm256_set_m128((__m128)__hi, (__m128)__lo);
+}
+
+static __inline __m256i __attribute__((__always_inline__, __nodebug__))
+_mm256_set_m128i (__m128i __hi, __m128i __lo) {
+  return (__m256i)_mm256_set_m128((__m128)__hi, (__m128)__lo);
+}
+
+static __inline __m256 __attribute__((__always_inline__, __nodebug__))
+_mm256_setr_m128 (__m128 __lo, __m128 __hi) {
+  return _mm256_set_m128(__hi, __lo);
+}
+
+static __inline __m256d __attribute__((__always_inline__, __nodebug__))
+_mm256_setr_m128d (__m128d __lo, __m128d __hi) {
+  return (__m256d)_mm256_set_m128((__m128)__hi, (__m128)__lo);
+}
+
+static __inline __m256i __attribute__((__always_inline__, __nodebug__))
+_mm256_setr_m128i (__m128i __lo, __m128i __hi) {
+  return (__m256i)_mm256_set_m128((__m128)__hi, (__m128)__lo);
 }
 
 #endif /* __AVXINTRIN_H */

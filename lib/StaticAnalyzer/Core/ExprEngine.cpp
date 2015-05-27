@@ -1901,6 +1901,9 @@ void ExprEngine::VisitLvalArraySubscriptExpr(const ArraySubscriptExpr *A,
   getCheckerManager().runCheckersForPreStmt(checkerPreStmt, Pred, A, *this);
 
   StmtNodeBuilder Bldr(checkerPreStmt, Dst, *currBldrCtx);
+  assert(A->isGLValue() ||
+          (!AMgr.getLangOpts().CPlusPlus &&
+           A->getType().isCForbiddenLValueType()));
 
   for (ExplodedNodeSet::iterator it = checkerPreStmt.begin(),
                                  ei = checkerPreStmt.end(); it != ei; ++it) {
@@ -1909,7 +1912,6 @@ void ExprEngine::VisitLvalArraySubscriptExpr(const ArraySubscriptExpr *A,
     SVal V = state->getLValue(A->getType(),
                               state->getSVal(Idx, LCtx),
                               state->getSVal(Base, LCtx));
-    assert(A->isGLValue());
     Bldr.generateNode(A, *it, state->BindExpr(A, LCtx, V), nullptr,
                       ProgramPoint::PostLValueKind);
   }
@@ -2644,17 +2646,6 @@ struct DOTGraphTraits<ExplodedNode*> :
   }
 };
 } // end llvm namespace
-#endif
-
-#ifndef NDEBUG
-template <typename ITERATOR>
-ExplodedNode *GetGraphNode(ITERATOR I) { return *I; }
-
-template <> ExplodedNode*
-GetGraphNode<llvm::DenseMap<ExplodedNode*, Expr*>::iterator>
-  (llvm::DenseMap<ExplodedNode*, Expr*>::iterator I) {
-  return I->first;
-}
 #endif
 
 void ExprEngine::ViewGraph(bool trim) {

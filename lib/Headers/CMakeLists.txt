@@ -9,15 +9,20 @@ set(files
   avx512fintrin.h
   avx512vlbwintrin.h
   avx512vlintrin.h
+  avx512dqintrin.h
+  avx512vldqintrin.h
   avxintrin.h
   bmi2intrin.h
   bmiintrin.h
   cpuid.h
+  cuda_builtin_vars.h
   emmintrin.h
   f16cintrin.h
   float.h
   fma4intrin.h
   fmaintrin.h
+  htmintrin.h
+  htmxlintrin.h
   ia32intrin.h
   immintrin.h
   Intrin.h
@@ -34,6 +39,7 @@ set(files
   prfchwintrin.h
   rdseedintrin.h
   rtmintrin.h
+  s390intrin.h
   shaintrin.h
   smmintrin.h
   stdalign.h

@@ -24,10 +24,24 @@ void gorf (I* pg) {
     int _b = pg->b;
 }
 
-// CHECK: {{.*}} [ DW_TAG_structure_type ] [I]
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "I"
+
 // Check for "a".
-// CHECK: {{.*}} [ DW_TAG_member ] [a] [line 7, size 32, align 32, offset 0] [public] [from int]
+// CHECK: !DIDerivedType(tag: DW_TAG_member, name: "a"
+// CHECK-SAME:           line: 7
+// CHECK-SAME:           baseType: ![[INT:[0-9]+]]
+// CHECK-SAME:           size: 32, align: 32
+// CHECK-NOT:            offset:
+// CHECK-SAME:           flags: DIFlagPublic
+// CHECK: ![[INT]] = !DIBasicType(name: "int"
+
 // Make sure we don't output the same type twice.
-// CHECK-NOT: {{.*}} [ DW_TAG_structure_type ] [I]
+// CHECK-NOT: !DICompositeType(tag: DW_TAG_structure_type, name: "I"
+
 // Check for "b".
-// CHECK: {{.*}} [ DW_TAG_member ] [b] [line 18, size 32, align 32, offset 0] [public] [from int]
+// CHECK: !DIDerivedType(tag: DW_TAG_member, name: "b"
+// CHECK-SAME:           line: 18
+// CHECK-SAME:           baseType: ![[INT]]
+// CHECK-SAME:           size: 32, align: 32
+// CHECK-NOT:            offset:
+// CHECK-SAME:           flags: DIFlagPublic

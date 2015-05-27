@@ -135,7 +135,7 @@ bool EditedSource::commitInsertFromRange(SourceLocation OrigLoc,
     StrVec += text;
   }
 
-  return commitInsert(OrigLoc, Offs, StrVec.str(), beforePreviousInsertions);
+  return commitInsert(OrigLoc, Offs, StrVec, beforePreviousInsertions);
 }
 
 void EditedSource::commitRemove(SourceLocation OrigLoc,
@@ -295,9 +295,11 @@ static void adjustRemoval(const SourceManager &SM, const LangOptions &LangOpts,
   }
 
   if (buffer[end] == ' ') {
+    assert((end + 1 != buffer.size() || buffer.data()[end + 1] == 0) &&
+           "buffer not zero-terminated!");
     if (canRemoveWhitespace(/*left=*/buffer[begin-1],
                             /*beforeWSpace=*/buffer[end-1],
-                            /*right=*/buffer[end+1],
+                            /*right=*/buffer.data()[end + 1], // zero-terminated
                             LangOpts))
       ++len;
     return;
@@ -360,14 +362,14 @@ void EditedSource::applyRewrites(EditsReceiver &receiver) {
       continue;
     }
 
-    applyRewrite(receiver, StrVec.str(), CurOffs, CurLen, SourceMgr, LangOpts);
+    applyRewrite(receiver, StrVec, CurOffs, CurLen, SourceMgr, LangOpts);
     CurOffs = offs;
     StrVec = act.Text;
     CurLen = act.RemoveLen;
     CurEnd = CurOffs.getWithOffset(CurLen);
   }
 
-  applyRewrite(receiver, StrVec.str(), CurOffs, CurLen, SourceMgr, LangOpts);
+  applyRewrite(receiver, StrVec, CurOffs, CurLen, SourceMgr, LangOpts);
 }
 
 void EditedSource::clearRewrites() {

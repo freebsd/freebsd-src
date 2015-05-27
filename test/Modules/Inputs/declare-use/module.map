@@ -3,7 +3,7 @@ module XA {
 }
 
 module XB {
-  header "b.h"
+  module B { header "b.h" }
 }
 
 module XC {
@@ -39,10 +39,11 @@ module XG {
   use XE
   use XJ
   use XK
+  use XN
 }
 
 module XH {
-  header "h.h"
+  module H { header "h.h" }
   header "h1.h"
   header "s.h"
   use XC
@@ -64,6 +65,12 @@ module XL {
 module XM {
   private textual header "m.h"
   textual header "m2.h"
+}
+
+module XN {
+  module sub {
+    header "sub.h"
+  }
 }
 
 module XS {

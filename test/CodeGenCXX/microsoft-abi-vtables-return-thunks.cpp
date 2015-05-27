@@ -128,3 +128,76 @@ C::C() {}
 // GLOBALS: @"\01?f@B@pr20479@@QAEPAUA@2@XZ"
 // GLOBALS: @"\01?f@B@pr20479@@UAEPAU12@XZ"
 }
+
+namespace pr21073 {
+struct A {
+  virtual A *f();
+};
+
+struct B : virtual A {
+  virtual B *f();
+};
+
+struct C : virtual A, virtual B {
+// VFTABLES-LABEL: VFTable for 'pr21073::A' in 'pr21073::B' in 'pr21073::C' (2 entries).
+// VFTABLES-NEXT:   0 | pr21073::B *pr21073::B::f()
+// VFTABLES-NEXT:       [return adjustment (to type 'struct pr21073::A *'): vbase #1, 0 non-virtual]
+// VFTABLES-NEXT:       [this adjustment: 8 non-virtual]
+// VFTABLES-NEXT:   1 | pr21073::B *pr21073::B::f()
+// VFTABLES-NEXT:       [return adjustment (to type 'struct pr21073::B *'): 0 non-virtual]
+// VFTABLES-NEXT:       [this adjustment: 8 non-virtual]
+  C();
+};
+
+C::C() {}
+
+// GLOBALS-LABEL: @"\01??_7C@pr21073@@6B@" = linkonce_odr unnamed_addr constant [2 x i8*]
+// GLOBALS: @"\01?f@B@pr21073@@WPPPPPPPI@AEPAUA@2@XZ"
+// GLOBALS: @"\01?f@B@pr21073@@WPPPPPPPI@AEPAU12@XZ"
+}
+
+namespace pr21073_2 {
+struct A { virtual A *foo(); };
+struct B : virtual A {};
+struct C : virtual A { virtual C *foo(); };
+struct D : B, C { D(); };
+D::D() {}
+
+// VFTABLES-LABEL: VFTable for 'pr21073_2::A' in 'pr21073_2::C' in 'pr21073_2::D' (2 entries)
+// VFTABLES-NEXT:   0 | pr21073_2::C *pr21073_2::C::foo()
+// VFTABLES-NEXT:       [return adjustment (to type 'struct pr21073_2::A *'): vbase #1, 0 non-virtual]
+// VFTABLES-NEXT:   1 | pr21073_2::C *pr21073_2::C::foo()
+
+// GLOBALS-LABEL: @"\01??_7D@pr21073_2@@6B@" = {{.*}} constant [2 x i8*]
+// GLOBALS: @"\01?foo@C@pr21073_2@@QAEPAUA@2@XZ"
+// GLOBALS: @"\01?foo@C@pr21073_2@@UAEPAU12@XZ"
+}
+
+namespace test3 {
+struct A { virtual A *fn(); };
+struct B : virtual A { virtual B *fn(); };
+struct X : virtual B {};
+struct Y : virtual B {};
+struct C : X, Y {};
+struct D : virtual B, virtual A, C {
+  D *fn();
+  D();
+};
+D::D() {}
+
+// VFTABLES-LABEL: VFTable for 'test3::A' in 'test3::B' in 'test3::X' in 'test3::C' in 'test3::D' (3 entries).
+// VFTABLES-NEXT:   0 | test3::D *test3::D::fn()
+// VFTABLES-NEXT:       [return adjustment (to type 'struct test3::A *'): vbase #1, 0 non-virtual]
+// VFTABLES-NEXT:       [this adjustment: vtordisp at -4, 0 non-virtual]
+// VFTABLES-NEXT:   1 | test3::D *test3::D::fn()
+// VFTABLES-NEXT:       [return adjustment (to type 'struct test3::B *'): vbase #2, 0 non-virtual]
+// VFTABLES-NEXT:       [this adjustment: vtordisp at -4, 0 non-virtual]
+// VFTABLES-NEXT:   2 | test3::D *test3::D::fn()
+// VFTABLES-NEXT:       [return adjustment (to type 'struct test3::D *'): 0 non-virtual]
+// VFTABLES-NEXT:       [this adjustment: vtordisp at -4, 0 non-virtual]
+
+// GLOBALS-LABEL: @"\01??_7D@test3@@6B@" = {{.*}} constant [3 x i8*]
+// GLOBALS: @"\01?fn@D@test3@@$4PPPPPPPM@A@AEPAUA@2@XZ"
+// GLOBALS: @"\01?fn@D@test3@@$4PPPPPPPM@A@AEPAUB@2@XZ"
+// GLOBALS: @"\01?fn@D@test3@@$4PPPPPPPM@A@AEPAU12@XZ"
+}

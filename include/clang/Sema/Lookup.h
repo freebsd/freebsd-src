@@ -291,9 +291,6 @@ public:
     if (!D->isHidden())
       return true;
 
-    if (SemaRef.ActiveTemplateInstantiations.empty())
-      return false;
-
     // During template instantiation, we can refer to hidden declarations, if
     // they were visible in any module along the path of instantiation.
     return isVisibleSlow(SemaRef, D);
@@ -735,22 +732,18 @@ public:
   }
 
   class iterator
-      : public std::iterator<std::forward_iterator_tag, NamedDecl *> {
-    typedef llvm::DenseMap<NamedDecl*,NamedDecl*>::iterator inner_iterator;
-    inner_iterator iter;
-
+      : public llvm::iterator_adaptor_base<
+            iterator, llvm::DenseMap<NamedDecl *, NamedDecl *>::iterator,
+            std::forward_iterator_tag, NamedDecl *> {
     friend class ADLResult;
-    iterator(const inner_iterator &iter) : iter(iter) {}
+
+    iterator(llvm::DenseMap<NamedDecl *, NamedDecl *>::iterator Iter)
+        : iterator_adaptor_base(std::move(Iter)) {}
+
   public:
     iterator() {}
 
-    iterator &operator++() { ++iter; return *this; }
-    iterator operator++(int) { return iterator(iter++); }
-
-    value_type operator*() const { return iter->second; }
-
-    bool operator==(const iterator &other) const { return iter == other.iter; }
-    bool operator!=(const iterator &other) const { return iter != other.iter; }
+    value_type operator*() const { return I->second; }
   };
 
   iterator begin() { return iterator(Decls.begin()); }

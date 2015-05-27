@@ -1,4 +1,6 @@
-// RUN: %clang -### %s 2>&1 | FileCheck %s -check-prefix=DEFAULT
+// We force the target to unknown because clang's default behavior for
+// exception handling is target dependent.
+// RUN: %clang -### -target unknown %s 2>&1 | FileCheck %s -check-prefix=DEFAULT
 // DEFAULT: "-cc1" {{.*}} "-fcxx-exceptions" "-fexceptions"
 //
 // RUN: %clang -### -fexceptions %s 2>&1 | FileCheck %s -check-prefix=ON1
@@ -21,3 +23,6 @@
 //
 // RUN: %clang -### -fexceptions -fno-cxx-exceptions %s 2>&1 | FileCheck %s -check-prefix=OFF4
 // OFF4-NOT: "-cc1" {{.*}} "-fcxx-exceptions"
+//
+// RUN: %clang -### -target x86_64-scei-ps4 %s 2>&1 | FileCheck %s -check-prefix=PS4-OFF
+// PS4-OFF-NOT: "-cc1" {{.*}} "-f{{(cxx-)?}}exceptions"

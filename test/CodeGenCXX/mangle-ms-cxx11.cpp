@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -std=c++11 -fms-extensions -emit-llvm %s -o - -triple=i386-pc-win32 | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -fms-extensions -emit-llvm %s -o - -triple=i386-pc-win32 -fms-compatibility-version=19.00 | FileCheck %s --check-prefix=CHECK --check-prefix=MSVC2015
+// RUN: %clang_cc1 -std=c++11 -fms-extensions -emit-llvm %s -o - -triple=i386-pc-win32 -fms-compatibility-version=18.00 | FileCheck %s --check-prefix=CHECK --check-prefix=MSVC2013
 
 namespace FTypeWithQuals {
 template <typename T>
@@ -171,7 +172,8 @@ inline int define_lambda() {
 // CHECK-DAG: @"\01??R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ"
 // Finally, we have the local which is inside of "<lambda_1>" which is inside of
 // "define_lambda". Hooray.
-// CHECK-DAG: @"\01?local@?2???R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ@4HA"
+// MSVC2013-DAG: @"\01?local@?2???R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ@4HA"
+// MSVC2015-DAG: @"\01?local@?1???R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ@4HA"
   return lambda();
 }
 
@@ -218,13 +220,15 @@ template <typename...>
 void templ_fun_with_ty_pack() {}
 
 template void templ_fun_with_ty_pack<>();
-// CHECK-DAG: @"\01??$templ_fun_with_ty_pack@$$V@@YAXXZ"
+// MSVC2013-DAG: @"\01??$templ_fun_with_ty_pack@$$$V@@YAXXZ"
+// MSVC2015-DAG: @"\01??$templ_fun_with_ty_pack@$$V@@YAXXZ"
 
 template <template <class> class...>
 void templ_fun_with_templ_templ_pack() {}
 
 template void templ_fun_with_templ_templ_pack<>();
-// CHECK-DAG: @"\01??$templ_fun_with_templ_templ_pack@$$V@@YAXXZ"
+// MSVC2013-DAG: @"\01??$templ_fun_with_templ_templ_pack@$$$V@@YAXXZ"
+// MSVC2015-DAG: @"\01??$templ_fun_with_templ_templ_pack@$$V@@YAXXZ"
 
 namespace PR20047 {
 template <typename T>

@@ -42,7 +42,7 @@ struct foo2 foo2;
 
 
 // Radar 7325611
-// CHECK: !"0x16\00barfoo\00{{.*}}"
+// CHECK: !DIDerivedType(tag: DW_TAG_typedef, name: "barfoo"
 typedef int barfoo;
 barfoo foo() {
 }

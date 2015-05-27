@@ -533,7 +533,7 @@ namespace {
       : CodeCompleteConsumer(Opts, false), 
         AllocatedResults(Results), CCTUInfo(Results.CodeCompletionAllocator),
         TU(TranslationUnit) { }
-    ~CaptureCompletionResults() { Finish(); }
+    ~CaptureCompletionResults() override { Finish(); }
 
     void ProcessCodeCompleteResults(Sema &S, 
                                     CodeCompletionContext Context,
@@ -619,10 +619,11 @@ namespace {
       for (unsigned I = 0; I != NumCandidates; ++I) {
         CodeCompletionString *StoredCompletion
           = Candidates[I].CreateSignatureString(CurrentArg, S, getAllocator(),
-                                                getCodeCompletionTUInfo());
+                                                getCodeCompletionTUInfo(),
+                                                includeBriefComments());
         
         CXCompletionResult R;
-        R.CursorKind = CXCursor_NotImplemented;
+        R.CursorKind = CXCursor_OverloadCandidate;
         R.CompletionString = StoredCompletion;
         StoredResults.push_back(R);
       }
@@ -655,7 +656,7 @@ struct CodeCompleteAtInfo {
   unsigned options;
   CXCodeCompleteResults *result;
 };
-void clang_codeCompleteAt_Impl(void *UserData) {
+static void clang_codeCompleteAt_Impl(void *UserData) {
   CodeCompleteAtInfo *CCAI = static_cast<CodeCompleteAtInfo*>(UserData);
   CXTranslationUnit TU = CCAI->TU;
   const char *complete_filename = CCAI->complete_filename;

@@ -140,8 +140,8 @@ namespace CtorErrors {
 }
 
 namespace DtorErrors {
-  struct A { ~A(); } a;
-  ~A::A() {} // expected-error {{'~' in destructor name should be after nested name specifier}} expected-note {{previous}}
+  struct A { ~A(); int n; } a;
+  ~A::A() { n = 0; } // expected-error {{'~' in destructor name should be after nested name specifier}} expected-note {{previous}}
   A::~A() {} // expected-error {{redefinition}}
 
   struct B { ~B(); } *b;
@@ -151,6 +151,35 @@ namespace DtorErrors {
     a.~A::A(); // expected-error {{'~' in destructor name should be after nested name specifier}}
     b->~DtorErrors::~B::B(); // expected-error {{'~' in destructor name should be after nested name specifier}}
   }
+
+  struct C; // expected-note {{forward decl}}
+  ~C::C() {} // expected-error {{incomplete}} expected-error {{'~' in destructor name should be after nested name specifier}}
+
+  struct D { struct X {}; ~D() throw(X); };
+  ~D::D() throw(X) {} // expected-error {{'~' in destructor name should be after nested name specifier}}
+
+  ~Undeclared::Undeclared() {} // expected-error {{use of undeclared identifier 'Undeclared'}} expected-error {{'~' in destructor name should be after nested name specifier}}
+  ~Undeclared:: {} // expected-error {{expected identifier}} expected-error {{'~' in destructor name should be after nested name specifier}}
+
+  struct S {
+    // For another struct's destructor, emit the same diagnostic like for
+    // A::~A() in addition to the "~ in the wrong place" one.
+    ~A::A() {} // expected-error {{'~' in destructor name should be after nested name specifier}} expected-error {{non-friend class member '~A' cannot have a qualified name}}
+    A::~A() {} // expected-error {{non-friend class member '~A' cannot have a qualified name}}
+
+    // An inline destructor with a redundant class name should also get the
+    // same diagnostic as S::~S.
+    ~S::S() {} // expected-error {{'~' in destructor name should be after nested name specifier}} expected-error {{extra qualification on member '~S'}}
+
+    // This just shouldn't crash.
+    int I; // expected-note {{declared here}}
+    ~I::I() {} // expected-error {{'I' is not a class, namespace, or enumeration}} expected-error {{'~' in destructor name should be after nested name specifier}}
+  };
+
+  struct T {};
+  T t1 = t1.T::~T<int>; // expected-error {{destructor name 'T' does not refer to a template}} expected-error {{expected '(' for function-style cast or type construction}} expected-error {{expected expression}}
+  // Emit the same diagnostic as for the previous case, plus something about ~.
+  T t2 = t2.~T::T<int>; // expected-error {{'~' in destructor name should be after nested name specifier}} expected-error {{destructor name 'T' does not refer to a template}} expected-error {{expected '(' for function-style cast or type construction}} expected-error {{expected expression}}
 }
 
 namespace BadFriend {
@@ -181,9 +210,9 @@ class X2 { a::a; }; // expected-error {{undeclared identifier 'a'}}
 
 class BadExceptionSpec {
   void f() throw(int; // expected-error {{expected ')'}} expected-note {{to match}}
-  void g() throw( // expected-note {{to match}}
-      int( // expected-note {{to match}}
-          ; // expected-error 2{{expected ')'}} expected-error {{unexpected end of exception specification}}
+  void g() throw(
+      int(
+          ; // expected-error {{unexpected ';' before ')'}}
           ));
 };
 

@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -fborland-extensions -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple x86_64-windows -fborland-extensions -DBORLAND -fsyntax-only -verify -fblocks %s
+// RUN: %clang_cc1 -triple x86_64-windows -fms-extensions -fsyntax-only -verify -fblocks %s
 
 #define JOIN2(x,y) x ## y
 #define JOIN(x,y) JOIN2(x,y)
@@ -10,9 +11,11 @@ typedef int DWORD;
 
 struct EXCEPTION_INFO{};
 
-int __exception_code();
+unsigned long __exception_code();
+#ifdef BORLAND
 struct EXCEPTION_INFO* __exception_info();
-void __abnormal_termination();
+#endif
+int __abnormal_termination();
 
 #define GetExceptionCode __exception_code
 #define GetExceptionInformation __exception_info
@@ -143,7 +146,11 @@ void TEST() {
   __except( function_scope ? 1 : -1 ) {}
 }
 
+#ifdef BORLAND
 void TEST() {
+  (void)__abnormal_termination(); // expected-error{{only allowed in __finally block}}
+  (void)AbnormalTermination();  // expected-error{{only allowed in __finally block}}
+
   __try {
     (void)AbnormalTermination;  // expected-error{{only allowed in __finally block}}
     (void)__abnormal_termination; // expected-error{{only allowed in __finally block}}
@@ -160,15 +167,27 @@ void TEST() {
     __abnormal_termination();
   }
 }
+#endif
 
 void TEST() {
-  (void)__exception_code;       // expected-error{{only allowed in __except block}}
-  (void)__exception_info;       // expected-error{{only allowed in __except filter expression}}
-  (void)__abnormal_termination; // expected-error{{only allowed in __finally block}}
-
-  (void)GetExceptionCode();     // expected-error{{only allowed in __except block}}
+  (void)__exception_info();       // expected-error{{only allowed in __except filter expression}}
   (void)GetExceptionInformation(); // expected-error{{only allowed in __except filter expression}}
-  (void)AbnormalTermination();  // expected-error{{only allowed in __finally block}}
+}
+
+void TEST() {
+#ifndef BORLAND
+  (void)__exception_code;     // expected-error{{builtin functions must be directly called}}
+#endif
+  (void)__exception_code();     // expected-error{{only allowed in __except block or filter expression}}
+  (void)GetExceptionCode();     // expected-error{{only allowed in __except block or filter expression}}
+}
+
+void TEST() {
+  __try {
+  } __except(1) {
+    GetExceptionCode(); // valid
+    GetExceptionInformation(); // expected-error{{only allowed in __except filter expression}}
+  }
 }
 
 void test_seh_leave_stmt() {
@@ -189,3 +208,82 @@ void test_seh_leave_stmt() {
   __leave; // expected-error{{'__leave' statement not in __try block}}
 }
 
+void test_jump_out_of___finally() {
+  while(1) {
+    __try {
+    } __finally {
+      continue; // expected-warning{{jump out of __finally block has undefined behavior}}
+    }
+  }
+  __try {
+  } __finally {
+    while (1) {
+      continue;
+    }
+  }
+
+  // Check that a deep __finally containing a block with a shallow continue
+  // doesn't trigger the warning.
+  while(1) {{{{
+    __try {
+    } __finally {
+      ^{
+        while(1)
+          continue;
+      }();
+    }
+  }}}}
+
+  while(1) {
+    __try {
+    } __finally {
+      break; // expected-warning{{jump out of __finally block has undefined behavior}}
+    }
+  }
+  switch(1) {
+  case 1:
+    __try {
+    } __finally {
+      break; // expected-warning{{jump out of __finally block has undefined behavior}}
+    }
+  }
+  __try {
+  } __finally {
+    while (1) {
+      break;
+    }
+  }
+
+  __try {
+    __try {
+    } __finally {
+      __leave; // expected-warning{{jump out of __finally block has undefined behavior}}
+    }
+  } __finally {
+  }
+  __try {
+  } __finally {
+    __try {
+      __leave;
+    } __finally {
+    }
+  }
+
+  __try {
+  } __finally {
+    return; // expected-warning{{jump out of __finally block has undefined behavior}}
+  }
+
+  __try {
+  } __finally {
+    ^{
+      return;
+    }();
+  }
+}
+
+void test_typo_in_except() {
+  __try {
+  } __except(undeclared_identifier) { // expected-error {{use of undeclared identifier 'undeclared_identifier'}} expected-error {{expected expression}}
+  }
+}

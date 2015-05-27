@@ -71,6 +71,21 @@
 // CHECK-LD-RT: libclang_rt.builtins-x86_64.a" "-lgcc_s"
 //
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=arm-linux-androideabi \
+// RUN:     --gcc-toolchain="" \
+// RUN:     --sysroot=%S/Inputs/basic_android_tree/sysroot \
+// RUN:     --rtlib=compiler-rt \
+// RUN:   | FileCheck --check-prefix=CHECK-LD-RT-ANDROID %s
+// CHECK-LD-RT-ANDROID-NOT: warning:
+// CHECK-LD-RT-ANDROID: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-LD-RT-ANDROID: "--eh-frame-hdr"
+// CHECK-LD-RT-ANDROID: "-m" "armelf_linux_eabi"
+// CHECK-LD-RT-ANDROID: "-dynamic-linker"
+// CHECK-LD-RT-ANDROID: libclang_rt.builtins-arm-android.a" "-lgcc_s"
+// CHECK-LD-RT-ANDROID: "-lc"
+// CHECK-LD-RT-ANDROID: libclang_rt.builtins-arm-android.a" "-lgcc_s"
+//
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     --target=x86_64-unknown-linux \
 // RUN:     --gcc-toolchain="" \
 // RUN:     --sysroot=%S/Inputs/basic_linux_tree \
@@ -402,6 +417,23 @@
 // CHECK-BASIC-LIBCXX-INSTALL: "--sysroot=[[SYSROOT]]"
 // CHECK-BASIC-LIBCXX-INSTALL: "-L[[SYSROOT]]/usr/bin/../lib"
 //
+// Test that we can use -stdlib=libc++ in a build system even when it
+// occasionally links C code instead of C++ code.
+// RUN: %clang -no-canonical-prefixes -x c %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux-gnu \
+// RUN:     -stdlib=libc++ \
+// RUN:     -ccc-install-dir %S/Inputs/basic_linux_libcxx_tree/usr/bin \
+// RUN:     --gcc-toolchain="" \
+// RUN:     --sysroot=%S/Inputs/basic_linux_libcxx_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-BASIC-LIBCXX-C-LINK %s
+// CHECK-BASIC-LIBCXX-C-LINK-NOT: warning:
+// CHECK-BASIC-LIBCXX-C-LINK: "{{[^"]*}}clang{{[^"]*}}" "-cc1"
+// CHECK-BASIC-LIBCXX-C-LINK: "-isysroot" "[[SYSROOT:[^"]+]]"
+// CHECK-BASIC-LIBCXX-C-LINK-NOT: "-internal-isystem" "[[SYSROOT]]/usr/bin/../include/c++/v1"
+// CHECK-BASIC-LIBCXX-C-LINK: "-internal-isystem" "[[SYSROOT]]/usr/local/include"
+// CHECK-BASIC-LIBCXX-C-LINK: "--sysroot=[[SYSROOT]]"
+// CHECK-BASIC-LIBCXX-C-LINK: "-L[[SYSROOT]]/usr/bin/../lib"
+//
 // Test a very broken version of multiarch that shipped in Ubuntu 11.04.
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     --target=i386-unknown-linux \
@@ -602,6 +634,9 @@
 // RUN: %clang %s -### -o %t.o 2>&1 \
 // RUN:     --target=powerpc64-linux-gnu -mabi=elfv1 \
 // RUN:   | FileCheck --check-prefix=CHECK-PPC64-ELFv1 %s
+// RUN: %clang %s -### -o %t.o 2>&1 \
+// RUN:     --target=powerpc64-linux-gnu -mabi=elfv1-qpx \
+// RUN:   | FileCheck --check-prefix=CHECK-PPC64-ELFv1 %s
 // CHECK-PPC64-ELFv1: "{{.*}}ld{{(.exe)?}}"
 // CHECK-PPC64-ELFv1: "-m" "elf64ppc"
 // CHECK-PPC64-ELFv1: "-dynamic-linker" "{{.*}}/lib64/ld64.so.1"
@@ -721,14 +756,21 @@
 // CHECK-MIPS64EL-N32-NAN2008-NOT: "--hash-style={{gnu|both}}"
 //
 // RUN: %clang %s -### -o %t.o 2>&1 \
-// RUN:     --target=sparc-linux-gnu \
+// RUN:     --target=sparc-unknown-linux-gnu \
 // RUN:   | FileCheck --check-prefix=CHECK-SPARCV8 %s
 // CHECK-SPARCV8: "{{.*}}ld{{(.exe)?}}"
 // CHECK-SPARCV8: "-m" "elf32_sparc"
 // CHECK-SPARCV8: "-dynamic-linker" "/lib/ld-linux.so.2"
 //
 // RUN: %clang %s -### -o %t.o 2>&1 \
-// RUN:     --target=sparcv9-linux-gnu \
+// RUN:     --target=sparcel-unknown-linux-gnu \
+// RUN:   | FileCheck --check-prefix=CHECK-SPARCV8EL %s
+// CHECK-SPARCV8EL: "{{.*}}ld{{(.exe)?}}"
+// CHECK-SPARCV8EL: "-m" "elf32_sparc"
+// CHECK-SPARCV8EL: "-dynamic-linker" "/lib/ld-linux.so.2"
+//
+// RUN: %clang %s -### -o %t.o 2>&1 \
+// RUN:     --target=sparcv9-unknown-linux-gnu \
 // RUN:   | FileCheck --check-prefix=CHECK-SPARCV9 %s
 // CHECK-SPARCV9: "{{.*}}ld{{(.exe)?}}"
 // CHECK-SPARCV9: "-m" "elf64_sparc"
@@ -1076,6 +1118,31 @@
 // CHECK-ANDROID-PIE: "-lgcc"
 // CHECK-ANDROID-PIE-NOT: "gcc_s"
 // CHECK-ANDROID-PIE: "{{.*}}{{/|\\\\}}crtend_android.o"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=arm-linux-androideabi \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=arm-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=aarch64-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=arm64-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=mipsel-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=mips64el-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=i686-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     --target=x86_64-linux-android \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-NO-DEFAULT-PIE %s
+// CHECK-ANDROID-NO-DEFAULT-PIE-NOT: -pie
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     --target=arm-linux-androideabi \
 // RUN:     --gcc-toolchain="" \

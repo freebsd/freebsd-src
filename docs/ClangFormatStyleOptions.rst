@@ -155,10 +155,23 @@ the configuration (without a prefix: ``Auto``).
 
   This applies to round brackets (parentheses), angle brackets and square
   brackets. This will result in formattings like
-  \code
-  someLongFunction(argument1,
-  argument2);
-  \endcode
+
+  .. code-block:: c++
+
+    someLongFunction(argument1,
+    argument2);
+
+**AlignConsecutiveAssignments** (``bool``)
+  If ``true``, aligns consecutive assignments.
+
+  This will align the assignment operators of consecutive lines. This
+  will result in formattings like
+
+  .. code-block:: c++
+
+    int aaaa = 12;
+    int b    = 23;
+    int ccc  = 23;
 
 **AlignEscapedNewlinesLeft** (``bool``)
   If ``true``, aligns escaped newlines as far left as possible.
@@ -330,10 +343,11 @@ the configuration (without a prefix: ``Auto``).
   instead of as function calls.
 
   These are expected to be macros of the form:
-  \code
-  FOREACH(<variable-declaration>, ...)
-  <loop-body>
-  \endcode
+
+    .. code-block:: c++
+
+      FOREACH(<variable-declaration>, ...)
+      <loop-body>
 
   For example: BOOST_FOREACH.
 

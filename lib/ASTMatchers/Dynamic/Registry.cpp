@@ -128,6 +128,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(constructorDecl);
   REGISTER_MATCHER(containsDeclaration);
   REGISTER_MATCHER(continueStmt);
+  REGISTER_MATCHER(conversionDecl);
   REGISTER_MATCHER(cStyleCastExpr);
   REGISTER_MATCHER(ctorInitializer);
   REGISTER_MATCHER(CUDAKernelCallExpr);
@@ -198,6 +199,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasIncrement);
   REGISTER_MATCHER(hasIndex);
   REGISTER_MATCHER(hasInitializer);
+  REGISTER_MATCHER(hasKeywordSelector);
   REGISTER_MATCHER(hasLHS);
   REGISTER_MATCHER(hasLocalQualifiers);
   REGISTER_MATCHER(hasLocalStorage);
@@ -205,6 +207,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasLoopVariable);
   REGISTER_MATCHER(hasMethod);
   REGISTER_MATCHER(hasName);
+  REGISTER_MATCHER(hasNullSelector);
   REGISTER_MATCHER(hasObjectExpression);
   REGISTER_MATCHER(hasOperatorName);
   REGISTER_MATCHER(hasOverloadedOperatorName);
@@ -212,7 +215,9 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasParent);
   REGISTER_MATCHER(hasQualifier);
   REGISTER_MATCHER(hasRangeInit);
+  REGISTER_MATCHER(hasReceiverType);
   REGISTER_MATCHER(hasRHS);
+  REGISTER_MATCHER(hasSelector);
   REGISTER_MATCHER(hasSingleDecl);
   REGISTER_MATCHER(hasSize);
   REGISTER_MATCHER(hasSizeExpr);
@@ -223,6 +228,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasTrueExpression);
   REGISTER_MATCHER(hasTypeLoc);
   REGISTER_MATCHER(hasUnaryOperand);
+  REGISTER_MATCHER(hasUnarySelector);
   REGISTER_MATCHER(hasValueType);
   REGISTER_MATCHER(ifStmt);
   REGISTER_MATCHER(ignoringImpCasts);
@@ -262,6 +268,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(lambdaExpr);
   REGISTER_MATCHER(lValueReferenceType);
   REGISTER_MATCHER(matchesName);
+  REGISTER_MATCHER(matchesSelector);
   REGISTER_MATCHER(materializeTemporaryExpr);
   REGISTER_MATCHER(member);
   REGISTER_MATCHER(memberCallExpr);
@@ -276,7 +283,9 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(newExpr);
   REGISTER_MATCHER(nullPtrLiteralExpr);
   REGISTER_MATCHER(nullStmt);
+  REGISTER_MATCHER(numSelectorArgs);
   REGISTER_MATCHER(ofClass);
+  REGISTER_MATCHER(objcMessageExpr);
   REGISTER_MATCHER(on);
   REGISTER_MATCHER(onImplicitObjectArgument);
   REGISTER_MATCHER(operatorCallExpr);
@@ -315,6 +324,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(throughUsingDecl);
   REGISTER_MATCHER(throwExpr);
   REGISTER_MATCHER(to);
+  REGISTER_MATCHER(translationUnitDecl);
   REGISTER_MATCHER(tryStmt);
   REGISTER_MATCHER(type);
   REGISTER_MATCHER(typedefDecl);

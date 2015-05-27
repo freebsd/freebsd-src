@@ -16,8 +16,7 @@ Typical slowdown introduced by MemorySanitizer is **3x**.
 How to build
 ============
 
-Follow the `clang build instructions <../get_started.html>`_. CMake
-build is supported.
+Build LLVM/Clang with `CMake <http://llvm.org/docs/CMake.html>`_.
 
 Usage
 =====
@@ -111,29 +110,9 @@ Origin Tracking
 
 MemorySanitizer can track origins of unitialized values, similar to
 Valgrind's --track-origins option. This feature is enabled by
-``-fsanitize-memory-track-origins`` Clang option. With the code from
+``-fsanitize-memory-track-origins=2`` (or simply
+``-fsanitize-memory-track-origins``) Clang option. With the code from
 the example above,
-
-.. code-block:: console
-
-    % clang -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer -g -O2 umr.cc
-    % ./a.out
-    WARNING: MemorySanitizer: use-of-uninitialized-value
-        #0 0x7f7893912f0b in main umr2.cc:6
-        #1 0x7f789249b76c in __libc_start_main libc-start.c:226
-
-      Uninitialized value was created by a heap allocation
-        #0 0x7f7893901cbd in operator new[](unsigned long) msan_new_delete.cc:44
-        #1 0x7f7893912e06 in main umr2.cc:4
-
-Origin tracking has proved to be very useful for debugging MemorySanitizer
-reports. It slows down program execution by a factor of 1.5x-2x on top
-of the usual MemorySanitizer slowdown.
-
-MemorySanitizer can provide even more information with
-``-fsanitize-memory-track-origins=2`` flag. In this mode reports
-include information about intermediate stores the uninitialized value went
-through.
 
 .. code-block:: console
 
@@ -163,6 +142,15 @@ through.
         #0 0x7f7893901cbd in operator new[](unsigned long) msan_new_delete.cc:44
         #1 0x7f7893912e06 in main umr2.cc:4
 
+By default, MemorySanitizer collects both allocation points and all
+intermediate stores the uninitialized value went through.  Origin
+tracking has proved to be very useful for debugging MemorySanitizer
+reports. It slows down program execution by a factor of 1.5x-2x on top
+of the usual MemorySanitizer slowdown.
+
+Clang option ``-fsanitize-memory-track-origins=1`` enabled a slightly
+faster mode when MemorySanitizer collects only allocation points but
+not intermediate stores.
 
 Handling external code
 ============================
@@ -177,15 +165,7 @@ interceptors for the most common libc functions. They make it possible
 to run MemorySanitizer-instrumented programs linked with
 uninstrumented libc. For example, the authors were able to bootstrap
 MemorySanitizer-instrumented Clang compiler by linking it with
-self-built instrumented libcxx (as a replacement for libstdc++).
-
-In the case when rebuilding all program dependencies with
-MemorySanitizer is problematic, an experimental MSanDR tool can be
-used. It is a DynamoRio-based tool that uses dynamic instrumentation
-to avoid false positives due to uninstrumented code. The tool simply
-marks memory from instrumented libraries as fully initialized. See
-`http://code.google.com/p/memory-sanitizer/wiki/Running#Running_with_the_dynamic_tool`
-for more information.
+self-built instrumented libc++ (as a replacement for libstdc++).
 
 Supported Platforms
 ===================

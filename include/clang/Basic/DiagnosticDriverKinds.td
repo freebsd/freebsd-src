@@ -142,6 +142,8 @@ def warn_drv_empty_joined_argument : Warning<
   InGroup<UnusedCommandLineArgument>;
 def warn_drv_clang_unsupported : Warning<
   "the clang compiler does not support '%0'">;
+def warn_drv_deprecated_arg : Warning<
+  "argument '%0' is deprecated, use '%1' instead">, InGroup<Deprecated>;
 def warn_drv_assuming_mfloat_abi_is : Warning<
   "unknown platform, assuming -mfloat-abi=%0">;
 def warn_ignoring_ftabstop_value : Warning<
@@ -160,6 +162,12 @@ def warn_missing_sysroot : Warning<"no such sysroot directory: '%0'">,
   InGroup<DiagGroup<"missing-sysroot">>;
 def warn_debug_compression_unavailable : Warning<"cannot compress debug sections (zlib not installed)">,
   InGroup<DiagGroup<"debug-compression-unavailable">>;
+def warn_drv_enabling_rtti_with_exceptions : Warning<
+  "implicitly enabling rtti for exception handling">,
+  InGroup<DiagGroup<"rtti-for-exceptions">>;
+def warn_drv_disabling_vptr_no_rtti_default : Warning<
+  "implicitly disabling vptr sanitizer because rtti wasn't enabled">,
+  InGroup<DiagGroup<"auto-disable-vptr-sanitizer">>;
 
 def note_drv_command_failed_diag_msg : Note<
   "diagnostic msg: %0">;
@@ -179,4 +187,11 @@ def err_drv_modules_validate_once_requires_timestamp : Error<
 
 def warn_drv_invoking_fallback : Warning<"falling back to %0">,
   InGroup<Fallback>;
+
+def warn_target_unsupported_nan2008 : Warning<
+  "ignoring '-mnan=2008' option because the '%0' architecture does not support it">,
+  InGroup<UnsupportedNan>;
+def warn_target_unsupported_nanlegacy : Warning<
+  "ignoring '-mnan=legacy' option because the '%0' architecture does not support it">,
+  InGroup<UnsupportedNan>;
 }

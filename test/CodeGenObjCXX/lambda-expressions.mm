@@ -10,8 +10,8 @@ fp f() { auto x = []{ return 3; }; return x; }
 // MRC-LABEL: define internal i32 ()* @"_ZZ1fvENK3$_0cvU13block_pointerFivEEv"
 // MRC: store i8* bitcast (i8** @_NSConcreteStackBlock to i8*)
 // MRC: store i8* bitcast (i32 (i8*)* @"___ZZ1fvENK3$_0cvU13block_pointerFivEEv_block_invoke" to i8*)
-// MRC: call i32 ()* (i8*, i8*)* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i32 ()* (i8*, i8*)*)
-// MRC: call i32 ()* (i8*, i8*)* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i32 ()* (i8*, i8*)*)
+// MRC: call i32 ()* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i32 ()* (i8*, i8*)*)
+// MRC: call i32 ()* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i32 ()* (i8*, i8*)*)
 // MRC: ret i32 ()*
 
 // ARC-LABEL: define i32 ()* @_Z1fv(
@@ -60,10 +60,12 @@ void take_block(void (^block)()) { block(); }
 }
 @end
 
+// ARC-LABEL: define linkonce_odr i32 ()* @_ZZNK13StaticMembersIfE1fMUlvE_clEvENKUlvE_cvU13block_pointerFivEEv
+
 // Check lines for BlockInLambda test below
 // ARC-LABEL: define internal i32 @___ZZN13BlockInLambda1X1fEvENKUlvE_clEv_block_invoke
-// ARC: [[Y:%.*]] = getelementptr inbounds %"struct.BlockInLambda::X"* {{.*}}, i32 0, i32 1
-// ARC-NEXT: [[YVAL:%.*]] = load i32* [[Y]], align 4
+// ARC: [[Y:%.*]] = getelementptr inbounds %"struct.BlockInLambda::X", %"struct.BlockInLambda::X"* {{.*}}, i32 0, i32 1
+// ARC-NEXT: [[YVAL:%.*]] = load i32, i32* [[Y]], align 4
 // ARC-NEXT: ret i32 [[YVAL]]
 
 typedef int (^fptr)();
@@ -73,7 +75,6 @@ template<typename T> struct StaticMembers {
 template<typename T>
 fptr StaticMembers<T>::f = [] { auto f = []{return 5;}; return fptr(f); }();
 template fptr StaticMembers<float>::f;
-// ARC-LABEL: define linkonce_odr i32 ()* @_ZZNK13StaticMembersIfE1fMUlvE_clEvENKUlvE_cvU13block_pointerFivEEv
 
 namespace BlockInLambda {
   struct X {

@@ -54,42 +54,42 @@ typedef signed char BOOL;
 @end
 
 // CHECK: [[WithIntMeth:@.*]] = private global [15 x i8] c"numberWithInt:\00"
-// CHECK: [[WithIntSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([15 x i8]* [[WithIntMeth]]
+// CHECK: [[WithIntSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([15 x i8], [15 x i8]* [[WithIntMeth]]
 // CHECK: [[WithCharMeth:@.*]] = private global [16 x i8] c"numberWithChar:\00"
-// CHECK: [[WithCharSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([16 x i8]* [[WithCharMeth]]
+// CHECK: [[WithCharSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([16 x i8], [16 x i8]* [[WithCharMeth]]
 // CHECK: [[WithBoolMeth:@.*]] = private global [16 x i8] c"numberWithBool:\00"
-// CHECK: [[WithBoolSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([16 x i8]* [[WithBoolMeth]]
+// CHECK: [[WithBoolSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([16 x i8], [16 x i8]* [[WithBoolMeth]]
 // CHECK: [[WithIntegerMeth:@.*]] = private global [19 x i8] c"numberWithInteger:\00"
-// CHECK: [[WithIntegerSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([19 x i8]* [[WithIntegerMeth]]
+// CHECK: [[WithIntegerSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([19 x i8], [19 x i8]* [[WithIntegerMeth]]
 // CHECK: [[WithUnsignedIntegerMeth:@.*]] = private global [27 x i8] c"numberWithUnsignedInteger:\00"
-// CHECK: [[WithUnsignedIntegerSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([27 x i8]* [[WithUnsignedIntegerMeth]]
+// CHECK: [[WithUnsignedIntegerSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([27 x i8], [27 x i8]* [[WithUnsignedIntegerMeth]]
 // CHECK: [[stringWithUTF8StringMeth:@.*]] = private global [22 x i8] c"stringWithUTF8String:\00"
-// CHECK: [[stringWithUTF8StringSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([22 x i8]* [[stringWithUTF8StringMeth]]
+// CHECK: [[stringWithUTF8StringSEL:@.*]] = private externally_initialized global i8* getelementptr inbounds ([22 x i8], [22 x i8]* [[stringWithUTF8StringMeth]]
 
 int main() {
-  // CHECK: load i8** [[WithIntSEL]]
+  // CHECK: load i8*, i8** [[WithIntSEL]]
   int i; @(i);
-  // CHECK: load i8** [[WithCharSEL]]
+  // CHECK: load i8*, i8** [[WithCharSEL]]
   signed char sc; @(sc);
-  // CHECK: load i8** [[WithBoolSEL]]
+  // CHECK: load i8*, i8** [[WithBoolSEL]]
   BOOL b; @(b);
-  // CHECK: load i8** [[WithBoolSEL]]
+  // CHECK: load i8*, i8** [[WithBoolSEL]]
   typeof(b) b2; @(b2);
-  // CHECK: load i8** [[WithBoolSEL]]
+  // CHECK: load i8*, i8** [[WithBoolSEL]]
   typedef const typeof(b) MyBOOL; MyBOOL b3; @(b3);
-  // CHECK: load i8** [[WithBoolSEL]]
+  // CHECK: load i8*, i8** [[WithBoolSEL]]
   @((BOOL)i);
-  // CHECK: load i8** [[WithIntegerSEL]]
+  // CHECK: load i8*, i8** [[WithIntegerSEL]]
   @((NSInteger)i);
-  // CHECK: load i8** [[WithUnsignedIntegerSEL]]
+  // CHECK: load i8*, i8** [[WithUnsignedIntegerSEL]]
   @((NSUInteger)i);
-  // CHECK: load i8** [[stringWithUTF8StringSEL]]
+  // CHECK: load i8*, i8** [[stringWithUTF8StringSEL]]
   const char *s; @(s);
 
   typedef enum : NSInteger { Red, Green, Blue } Color;
-  // CHECK: load i8** [[WithIntegerSEL]]
+  // CHECK: load i8*, i8** [[WithIntegerSEL]]
   @(Red);
   Color col = Red;
-  // CHECK: load i8** [[WithIntegerSEL]]
+  // CHECK: load i8*, i8** [[WithIntegerSEL]]
   @(col);
 }

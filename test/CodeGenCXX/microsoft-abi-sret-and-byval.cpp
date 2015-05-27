@@ -101,12 +101,12 @@ Big big_return() { return Big(); }
 
 
 void small_arg(Small s) {}
-// LINUX-LABEL: define void @_Z9small_arg5Small(%struct.Small* byval align 4 %s)
+// LINUX-LABEL: define void @_Z9small_arg5Small(i32 %s.0)
 // WIN32: define void @"\01?small_arg@@YAXUSmall@@@Z"(%struct.Small* byval align 4 %s)
 // WIN64: define void @"\01?small_arg@@YAXUSmall@@@Z"(i32 %s.coerce)
 
 void medium_arg(Medium s) {}
-// LINUX-LABEL: define void @_Z10medium_arg6Medium(%struct.Medium* byval align 4 %s)
+// LINUX-LABEL: define void @_Z10medium_arg6Medium(i32 %s.0, i32 %s.1)
 // WIN32: define void @"\01?medium_arg@@YAXUMedium@@@Z"(%struct.Medium* byval align 4 %s)
 // WIN64: define void @"\01?medium_arg@@YAXUMedium@@@Z"(i64 %s.coerce)
 
@@ -229,7 +229,7 @@ class Class {
   // WIN64: define linkonce_odr void @"\01?thiscall_method_arg@Class@@QEAAXUEmptyWithCtor@@@Z"(%class.Class* %this, i8 %s.coerce)
 
   void thiscall_method_arg(Small s) {}
-  // LINUX: define {{.*}} void @_ZN5Class19thiscall_method_argE5Small(%class.Class* %this, %struct.Small* byval align 4 %s)
+  // LINUX: define {{.*}} void @_ZN5Class19thiscall_method_argE5Small(%class.Class* %this, i32 %s.0)
   // WIN32: define {{.*}} void @"\01?thiscall_method_arg@Class@@QAEXUSmall@@@Z"(%class.Class* %this, %struct.Small* byval align 4 %s)
   // WIN64: define linkonce_odr void @"\01?thiscall_method_arg@Class@@QEAAXUSmall@@@Z"(%class.Class* %this, i32 %s.coerce)
 
@@ -296,9 +296,9 @@ void bar() {
 }
 // WIN32-LABEL: define void @"\01?bar@test2@@YAXXZ"() {{.*}} {
 // WIN32:   %[[argmem:[^ ]*]] = alloca inalloca [[argmem_ty:<{ %"struct.test2::NonTrivial", %"struct.test2::POD" }>]]
-// WIN32:   getelementptr inbounds [[argmem_ty]]* %[[argmem]], i32 0, i32 1
+// WIN32:   getelementptr inbounds [[argmem_ty]], [[argmem_ty]]* %[[argmem]], i32 0, i32 1
 // WIN32:   call void @llvm.memcpy
-// WIN32:   getelementptr inbounds [[argmem_ty]]* %[[argmem]], i32 0, i32 0
+// WIN32:   getelementptr inbounds [[argmem_ty]], [[argmem_ty]]* %[[argmem]], i32 0, i32 0
 // WIN32:   call x86_thiscallcc %"struct.test2::NonTrivial"* @"\01??0NonTrivial@test2@@QAE@XZ"
 // WIN32:   call i32 @"\01?foo@test2@@YAHUNonTrivial@1@UPOD@1@@Z"([[argmem_ty]]* inalloca %argmem)
 // WIN32:   ret void
@@ -332,14 +332,14 @@ struct ForwardDeclare1 {};
 
 void fn2(FnPtr1 a, SmallWithDtor b) { fn1(a, b); };
 // WIN32-LABEL: define void @"\01?fn2@@YAXP6AXUForwardDeclare1@@@ZUSmallWithDtor@@@Z"
-// WIN32:   %[[a:[^ ]*]] = getelementptr inbounds [[argmem_ty:<{ {}\*, %struct.SmallWithDtor }>]]* %{{.*}}, i32 0, i32 0
+// WIN32:   %[[a:[^ ]*]] = getelementptr inbounds [[argmem_ty:<{ {}\*, %struct.SmallWithDtor }>]], [[argmem_ty:<{ {}\*, %struct.SmallWithDtor }>]]* %{{.*}}, i32 0, i32 0
 // WIN32:   %[[a1:[^ ]*]] = bitcast {}** %[[a]] to void [[dst_ty:\(%struct.ForwardDeclare1\*\)\*]]*
 // WIN32:   %[[argmem:[^ ]*]] = alloca inalloca [[argmem_ty]]
-// WIN32:   %[[gep1:[^ ]*]] = getelementptr inbounds [[argmem_ty]]* %[[argmem]], i32 0, i32 1
+// WIN32:   %[[gep1:[^ ]*]] = getelementptr inbounds [[argmem_ty]], [[argmem_ty]]* %[[argmem]], i32 0, i32 1
 // WIN32:   %[[bc1:[^ ]*]] = bitcast %struct.SmallWithDtor* %[[gep1]] to i8*
 // WIN32:   call void @llvm.memcpy.p0i8.p0i8.i32(i8* %[[bc1]], i8* {{.*}}, i32 4, i32 4, i1 false)
-// WIN32:   %[[a2:[^ ]*]] = load void [[dst_ty]]* %[[a1]], align 4
-// WIN32:   %[[gep2:[^ ]*]] = getelementptr inbounds [[argmem_ty]]* %[[argmem]], i32 0, i32 0
+// WIN32:   %[[a2:[^ ]*]] = load void [[dst_ty]], void [[dst_ty]]* %[[a1]], align 4
+// WIN32:   %[[gep2:[^ ]*]] = getelementptr inbounds [[argmem_ty]], [[argmem_ty]]* %[[argmem]], i32 0, i32 0
 // WIN32:   %[[addr:[^ ]*]] = bitcast {}** %[[gep2]] to void [[dst_ty]]*
 // WIN32:   store void [[dst_ty]] %[[a2]], void [[dst_ty]]* %[[addr]], align 4
 // WIN32:   call void @"\01?fn1@@YAXP6AXUForwardDeclare1@@@ZUSmallWithDtor@@@Z"([[argmem_ty]]* inalloca %[[argmem]])

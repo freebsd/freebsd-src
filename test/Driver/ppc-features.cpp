@@ -77,6 +77,12 @@
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-mfcrf -mmfcrf -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-MFCRF %s
 // CHECK-MFCRF: "-target-feature" "+mfocrf"
 
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-isel -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOISEL %s
+// CHECK-NOISEL: "-target-feature" "-isel"
+
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-isel -misel -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-ISEL %s
+// CHECK-ISEL: "-target-feature" "+isel"
+
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-popcntd -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOPOPCNTD %s
 // CHECK-NOPOPCNTD: "-target-feature" "-popcntd"
 
@@ -112,6 +118,12 @@
 
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-crbits -mcrbits -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-CRBITS %s
 // CHECK-CRBITS: "-target-feature" "+crbits"
+
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-invariant-function-descriptors -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOINVFUNCDESC %s
+// CHECK-NOINVFUNCDESC: "-target-feature" "-invariant-function-descriptors"
+
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-invariant-function-descriptors -minvariant-function-descriptors -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-INVFUNCDESC %s
+// CHECK-INVFUNCDESC: "-target-feature" "+invariant-function-descriptors"
 
 // Assembler features
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -### -o %t.o -no-integrated-as 2>&1 | FileCheck -check-prefix=CHECK_BE_AS_ARGS %s

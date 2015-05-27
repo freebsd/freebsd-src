@@ -176,8 +176,8 @@ void f32(struct s32 s) { }
 // PR13350
 struct s33 { char buf[32*32]; };
 void f33(struct s33 s) { }
-// APCS-GNU-LABEL: define void @f33(%struct.s33* byval align 1 %s)
-// AAPCS-LABEL: define arm_aapcscc void @f33(%struct.s33* byval align 1 %s)
+// APCS-GNU-LABEL: define void @f33(%struct.s33* byval align 4 %s)
+// AAPCS-LABEL: define arm_aapcscc void @f33(%struct.s33* byval align 4 %s)
 
 // PR14048
 struct s34 { char c; };
@@ -185,7 +185,7 @@ void f34(struct s34 s);
 void g34(struct s34 *s) { f34(*s); }
 // AAPCS: @g34(%struct.s34* %s)
 // AAPCS: %[[a:.*]] = alloca [1 x i32]
-// AAPCS: load [1 x i32]* %[[a]]
+// AAPCS: load [1 x i32], [1 x i32]* %[[a]]
 
 // rdar://12596507
 struct s35
@@ -204,17 +204,17 @@ float32x4_t f35(int i, s35_with_align s1, s35_with_align s2) {
                             *(float32x4_t *)&s2);
   return v;
 }
-// APCS-GNU-LABEL: define <4 x float> @f35(i32 %i, %struct.s35* byval align 16, %struct.s35* byval align 16)
+// APCS-GNU-LABEL: define <4 x float> @f35(i32 %i, %struct.s35* byval align 4, %struct.s35* byval align 4)
 // APCS-GNU: %[[a:.*]] = alloca %struct.s35, align 16
 // APCS-GNU: %[[b:.*]] = bitcast %struct.s35* %[[a]] to i8*
 // APCS-GNU: %[[c:.*]] = bitcast %struct.s35* %0 to i8*
 // APCS-GNU: call void @llvm.memcpy.p0i8.p0i8.i32(i8* %[[b]], i8* %[[c]]
 // APCS-GNU: %[[d:.*]] = bitcast %struct.s35* %[[a]] to <4 x float>*
-// APCS-GNU: load <4 x float>* %[[d]], align 16
-// AAPCS-LABEL: define arm_aapcscc <4 x float> @f35(i32 %i, %struct.s35* byval align 16, %struct.s35* byval align 16)
+// APCS-GNU: load <4 x float>, <4 x float>* %[[d]], align 16
+// AAPCS-LABEL: define arm_aapcscc <4 x float> @f35(i32 %i, %struct.s35* byval align 8, %struct.s35* byval align 8)
 // AAPCS: %[[a:.*]] = alloca %struct.s35, align 16
 // AAPCS: %[[b:.*]] = bitcast %struct.s35* %[[a]] to i8*
 // AAPCS: %[[c:.*]] = bitcast %struct.s35* %0 to i8*
 // AAPCS: call void @llvm.memcpy.p0i8.p0i8.i32(i8* %[[b]], i8* %[[c]]
 // AAPCS: %[[d:.*]] = bitcast %struct.s35* %[[a]] to <4 x float>*
-// AAPCS: load <4 x float>* %[[d]], align 16
+// AAPCS: load <4 x float>, <4 x float>* %[[d]], align 16

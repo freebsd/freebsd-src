@@ -353,7 +353,6 @@ my %CompileOptionMap = (
   '-imacros' => 1,
   '-iprefix' => 1,
   '-iquote' => 1,
-  '-isystem' => 1,
   '-iwithprefix' => 1,
   '-iwithprefixbefore' => 1
 );
@@ -493,6 +492,11 @@ foreach (my $i = 0; $i < scalar(@ARGV); ++$i) {
   my $Arg = $ARGV[$i];
   my ($ArgKey) = split /=/,$Arg,2;
 
+  # Be friendly to "" in the argument list.
+  if (!defined($ArgKey)) {
+    next;
+  }
+
   # Modes ccc-analyzer supports
   if ($Arg =~ /^-(E|MM?)$/) { $Action = 'preprocess'; }
   elsif ($Arg eq '-c') { $Action = 'compile'; }
@@ -572,7 +576,7 @@ foreach (my $i = 0; $i < scalar(@ARGV); ++$i) {
   }
 
   # Compile mode flags.
-  if ($Arg =~ /^-[D,I,U](.*)$/) {
+  if ($Arg =~ /^-[D,I,U,isystem](.*)$/) {
     my $Tmp = $Arg;
     if ($1 eq '') {
       # FIXME: Check if we are going off the end.

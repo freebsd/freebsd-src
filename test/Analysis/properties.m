@@ -3,6 +3,10 @@
 
 void clang_analyzer_eval(int);
 
+typedef const void * CFTypeRef;
+extern CFTypeRef CFRetain(CFTypeRef cf);
+void CFRelease(CFTypeRef cf);
+
 typedef signed char BOOL;
 typedef unsigned int NSUInteger;
 typedef struct _NSZone NSZone;
@@ -233,7 +237,7 @@ void testOverrelease(Person *p, int coin) {
   self->_name = 0;
 
   doSomethingWithName(other->_name);
-  [other.name release]; // expected-warning{{not owned}}
+  [other.name release]; // no-warning
 }
 
 - (void)deliberateReleaseFalseNegative {
@@ -254,7 +258,7 @@ void testOverrelease(Person *p, int coin) {
 - (void)testRetainAndReleaseIVar {
   [self.name retain];
   [_name release];
-  [_name release]; // expected-warning{{not owned}}
+  [_name release];
 }
 
 @end
@@ -343,4 +347,338 @@ void testConsistencyStruct(StructWrapper *w) {
 void testOpaqueConsistency(OpaqueIntWrapper *w) {
   clang_analyzer_eval(w.value == w.value); // expected-warning{{UNKNOWN}}
 }
+
+
+#if !__has_feature(objc_arc)
+// Test quite a few cases of retain/release issues.
+
+@interface RetainCountTesting
+@property (strong) id ownedProp;
+@property (unsafe_unretained) id unownedProp;
+@property (nonatomic, strong) id manualProp;
+@property (readonly) id readonlyProp;
+@property (nonatomic, readwrite/*, assign */) id implicitManualProp; // expected-warning {{'assign' is assumed}} expected-warning {{'assign' not appropriate}}
+@property (nonatomic, readwrite/*, assign */) id implicitSynthProp; // expected-warning {{'assign' is assumed}} expected-warning {{'assign' not appropriate}}
+@property CFTypeRef cfProp;
+@end
+
+@implementation RetainCountTesting {
+  id _ivarOnly;
+}
+
+- (id)manualProp {
+  return _manualProp;
+}
+
+- (void)setImplicitManualProp:(id)newValue {}
+
+- (void)testOverreleaseOwnedIvar {
+  [_ownedProp retain];
+  [_ownedProp release];
+  [_ownedProp release];
+  [_ownedProp release]; // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseUnownedIvar {
+  [_unownedProp retain];
+  [_unownedProp release];
+  [_unownedProp release]; // FIXME-warning{{not owned at this point by the caller}}
+}
+
+- (void)testOverreleaseIvarOnly {
+  [_ivarOnly retain];
+  [_ivarOnly release];
+  [_ivarOnly release];
+  [_ivarOnly release]; // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseReadonlyIvar {
+  [_readonlyProp retain];
+  [_readonlyProp release];
+  [_readonlyProp release];
+  [_readonlyProp release]; // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseImplicitManualIvar {
+  [_implicitManualProp retain];
+  [_implicitManualProp release];
+  [_implicitManualProp release];
+  [_implicitManualProp release]; // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseImplicitSynthIvar {
+  [_implicitSynthProp retain];
+  [_implicitSynthProp release];
+  [_implicitSynthProp release]; // FIXME-warning{{not owned at this point by the caller}}
+}
+
+- (void)testOverreleaseCF {
+  CFRetain(_cfProp);
+  CFRelease(_cfProp);
+  CFRelease(_cfProp);
+  CFRelease(_cfProp); // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseOwnedIvarUse {
+  [_ownedProp retain];
+  [_ownedProp release];
+  [_ownedProp release];
+  [_ownedProp myMethod]; // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseIvarOnlyUse {
+  [_ivarOnly retain];
+  [_ivarOnly release];
+  [_ivarOnly release];
+  [_ivarOnly myMethod]; // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseCFUse {
+  CFRetain(_cfProp);
+  CFRelease(_cfProp);
+  CFRelease(_cfProp);
+
+  extern void CFUse(CFTypeRef);
+  CFUse(_cfProp); // FIXME-warning{{used after it is released}}
+}
+
+- (void)testOverreleaseOwnedIvarAutoreleaseOkay {
+  [_ownedProp retain];
+  [_ownedProp release];
+  [_ownedProp autorelease];
+} // no-warning
+
+- (void)testOverreleaseIvarOnlyAutoreleaseOkay {
+  [_ivarOnly retain];
+  [_ivarOnly release];
+  [_ivarOnly autorelease];
+} // no-warning
+
+- (void)testOverreleaseOwnedIvarAutorelease {
+  [_ownedProp retain];
+  [_ownedProp release];
+  [_ownedProp autorelease];
+  [_ownedProp autorelease];
+} // FIXME-warning{{Object autoreleased too many times}}
+
+- (void)testOverreleaseIvarOnlyAutorelease {
+  [_ivarOnly retain];
+  [_ivarOnly release];
+  [_ivarOnly autorelease];
+  [_ivarOnly autorelease];
+} // FIXME-warning{{Object autoreleased too many times}}
+
+- (void)testPropertyAccessThenReleaseOwned {
+  id owned = [self.ownedProp retain];
+  [owned release];
+  [_ownedProp release];
+  clang_analyzer_eval(owned == _ownedProp); // expected-warning{{TRUE}}
+}
+
+- (void)testPropertyAccessThenReleaseOwned2 {
+  id fromIvar = _ownedProp;
+  id owned = [self.ownedProp retain];
+  [owned release];
+  [fromIvar release];
+  clang_analyzer_eval(owned == fromIvar); // expected-warning{{TRUE}}
+}
+
+- (void)testPropertyAccessThenReleaseUnowned {
+  id unowned = [self.unownedProp retain];
+  [unowned release];
+  [_unownedProp release]; // FIXME-warning{{not owned}}
+}
+
+- (void)testPropertyAccessThenReleaseUnowned2 {
+  id fromIvar = _unownedProp;
+  id unowned = [self.unownedProp retain];
+  [unowned release];
+  clang_analyzer_eval(unowned == fromIvar); // expected-warning{{TRUE}}
+  [fromIvar release]; // FIXME-warning{{not owned}}
+}
+
+- (void)testPropertyAccessThenReleaseManual {
+  id prop = [self.manualProp retain];
+  [prop release];
+  [_manualProp release]; // no-warning
+}
+
+- (void)testPropertyAccessThenReleaseManual2 {
+  id fromIvar = _manualProp;
+  id prop = [self.manualProp retain];
+  [prop release];
+  clang_analyzer_eval(prop == fromIvar); // expected-warning{{TRUE}}
+  [fromIvar release]; // no-warning
+}
+
+- (void)testPropertyAccessThenReleaseCF {
+  CFTypeRef owned = CFRetain(self.cfProp);
+  CFRelease(owned);
+  CFRelease(_cfProp); // no-warning
+  clang_analyzer_eval(owned == _cfProp); // expected-warning{{TRUE}}
+}
+
+- (void)testPropertyAccessThenReleaseCF2 {
+  CFTypeRef fromIvar = _cfProp;
+  CFTypeRef owned = CFRetain(self.cfProp);
+  CFRelease(owned);
+  CFRelease(fromIvar);
+  clang_analyzer_eval(owned == fromIvar); // expected-warning{{TRUE}}
+}
+
+- (void)testPropertyAccessThenReleaseReadonly {
+  id prop = [self.readonlyProp retain];
+  [prop release];
+  [_readonlyProp release]; // no-warning
+}
+
+- (void)testPropertyAccessThenReleaseReadonly2 {
+  id fromIvar = _readonlyProp;
+  id prop = [self.readonlyProp retain];
+  [prop release];
+  clang_analyzer_eval(prop == fromIvar); // expected-warning{{TRUE}}
+  [fromIvar release]; // no-warning
+}
+
+- (void)testPropertyAccessThenReleaseImplicitManual {
+  id prop = [self.implicitManualProp retain];
+  [prop release];
+  [_implicitManualProp release]; // no-warning
+}
+
+- (void)testPropertyAccessThenReleaseImplicitManual2 {
+  id fromIvar = _implicitManualProp;
+  id prop = [self.implicitManualProp retain];
+  [prop release];
+  clang_analyzer_eval(prop == fromIvar); // expected-warning{{TRUE}}
+  [fromIvar release]; // no-warning
+}
+
+- (void)testPropertyAccessThenReleaseImplicitSynth {
+  id prop = [self.implicitSynthProp retain];
+  [prop release];
+  [_implicitSynthProp release]; // FIXME-warning{{not owned}}
+}
+
+- (void)testPropertyAccessThenReleaseImplicitSynth2 {
+  id fromIvar = _implicitSynthProp;
+  id prop = [self.implicitSynthProp retain];
+  [prop release];
+  clang_analyzer_eval(prop == fromIvar); // expected-warning{{TRUE}}
+  [fromIvar release]; // FIXME-warning{{not owned}}
+}
+
+- (id)getUnownedFromProperty {
+  [_ownedProp retain];
+  [_ownedProp autorelease];
+  return _ownedProp; // no-warning
+}
+
+- (id)transferUnownedFromProperty {
+  [_ownedProp retain];
+  [_ownedProp autorelease];
+  return [_ownedProp autorelease]; // no-warning
+}
+
+- (id)transferOwnedFromProperty __attribute__((ns_returns_retained)) {
+  [_ownedProp retain];
+  [_ownedProp autorelease];
+  return _ownedProp; // no-warning
+}
+
+- (void)testAssignOwned:(id)newValue {
+  _ownedProp = newValue;
+  [_ownedProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignUnowned:(id)newValue {
+  _unownedProp = newValue;
+  [_unownedProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignIvarOnly:(id)newValue {
+  _ivarOnly = newValue;
+  [_ivarOnly release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignCF:(CFTypeRef)newValue {
+  _cfProp = newValue;
+  CFRelease(_cfProp); // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignReadonly:(id)newValue {
+  _readonlyProp = newValue;
+  [_readonlyProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignImplicitManual:(id)newValue {
+  _implicitManualProp = newValue;
+  [_implicitManualProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignImplicitSynth:(id)newValue {
+  _implicitSynthProp = newValue;
+  [_implicitSynthProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignOwnedOkay:(id)newValue {
+  _ownedProp = [newValue retain];
+  [_ownedProp release]; // no-warning
+}
+
+- (void)testAssignUnownedOkay:(id)newValue {
+  _unownedProp = [newValue retain];
+  [_unownedProp release]; // no-warning
+}
+
+- (void)testAssignIvarOnlyOkay:(id)newValue {
+  _ivarOnly = [newValue retain];
+  [_ivarOnly release]; // no-warning
+}
+
+- (void)testAssignCFOkay:(CFTypeRef)newValue {
+  _cfProp = CFRetain(newValue);
+  CFRelease(_cfProp); // no-warning
+}
+
+- (void)testAssignReadonlyOkay:(id)newValue {
+  _readonlyProp = [newValue retain];
+  [_readonlyProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignImplicitManualOkay:(id)newValue {
+  _implicitManualProp = [newValue retain];
+  [_implicitManualProp release]; // FIXME: no-warning{{not owned}}
+}
+
+- (void)testAssignImplicitSynthOkay:(id)newValue {
+  _implicitSynthProp = [newValue retain];
+  [_implicitSynthProp release]; // FIXME: no-warning{{not owned}}
+}
+
+// rdar://problem/19862648
+- (void)establishIvarIsNilDuringLoops {
+  extern id getRandomObject();
+
+  int i = 4; // Must be at least 4 to trigger the bug.
+  while (--i) {
+    id x = 0;
+    if (getRandomObject())
+      x = _ivarOnly;
+    if (!x)
+      x = getRandomObject();
+    [x myMethod];
+  }
+}
+
+// rdar://problem/20335433
+- (void)retainIvarAndInvalidateSelf {
+  extern void invalidate(id);
+  [_unownedProp retain];
+  invalidate(self);
+  [_unownedProp release]; // no-warning
+}
+
+@end
+#endif // non-ARC
 
