@@ -211,7 +211,8 @@ device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		igb			# Intel PRO/1000 PCIE Server Gigabit Family
-device		ixgbe			# Intel PRO/10GbE PCIE Ethernet Family
+device		ix			# Intel PRO/10GbE PCIE PF Ethernet
+device		ixv			# Intel PRO/10GbE PCIE VF Ethernet
 device		ixl			# Intel XL710 40Gbe PCIE Ethernet
 device		ixlv			# Intel XL710 40Gbe VF PCIE Ethernet
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
