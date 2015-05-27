@@ -3481,6 +3481,7 @@ zfs_unmount_snap(const char *snapname)
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
+	vfs_ref(vfsp);
 	(void) dounmount(vfsp, MS_FORCE, curthread);
 #endif
 	return (0);
