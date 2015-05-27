@@ -381,7 +381,7 @@ caddr_t CADDR1 = 0;
 
 static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
-int pmap_pcid_enabled = 0;
+int pmap_pcid_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
