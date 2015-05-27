@@ -900,6 +900,8 @@ static	int pagedep_find(struct pagedep_hashhead *, ino_t, ufs_lbn_t,
 	    struct pagedep **);
 static	void pause_timer(void *);
 static	int request_cleanup(struct mount *, int);
+static	void schedule_cleanup(struct mount *);
+static void softdep_ast_cleanup_proc(void);
 static	int process_worklist_item(struct mount *, int, int);
 static	void process_removes(struct vnode *);
 static	void process_truncates(struct vnode *);
@@ -921,6 +923,8 @@ static	int journal_unsuspend(struct ufsmount *ump);
 static	void softdep_prelink(struct vnode *, struct vnode *);
 static	void add_to_journal(struct worklist *);
 static	void remove_from_journal(struct worklist *);
+static	bool softdep_excess_inodes(struct ufsmount *);
+static	bool softdep_excess_dirrem(struct ufsmount *);
 static	void softdep_process_journal(struct mount *, struct worklist *, int);
 static	struct jremref *newjremref(struct dirrem *, struct inode *,
 	    struct inode *ip, off_t, nlink_t);
@@ -2209,12 +2213,10 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 	 * responsible for more than our share of that usage and
 	 * we are not in a rush, request some inodedep cleanup.
 	 */
-	while (dep_current[D_INODEDEP] > max_softdeps &&
-	    (flags & NODELAY) == 0 &&
-	    ump->softdep_curdeps[D_INODEDEP] >
-	    max_softdeps / stat_flush_threads)
-		request_cleanup(mp, FLUSH_INODES);
-	FREE_LOCK(ump);
+	if (softdep_excess_inodes(ump))
+		schedule_cleanup(mp);
+	else
+		FREE_LOCK(ump);
 	inodedep = malloc(sizeof(struct inodedep),
 		M_INODEDEP, M_SOFTDEP_FLAGS);
 	workitem_alloc(&inodedep->id_list, D_INODEDEP, mp);
@@ -2412,6 +2414,7 @@ softdep_initialize()
 	bioops.io_complete = softdep_disk_write_complete;
 	bioops.io_deallocate = softdep_deallocate_dependencies;
 	bioops.io_countdeps = softdep_count_dependencies;
+	softdep_ast_cleanup = softdep_ast_cleanup_proc;
 
 	/* Initialize the callout with an mtx. */
 	callout_init_mtx(&softdep_callout, &lk, 0);
@@ -2430,6 +2433,7 @@ softdep_uninitialize()
 	bioops.io_complete = NULL;
 	bioops.io_deallocate = NULL;
 	bioops.io_countdeps = NULL;
+	softdep_ast_cleanup = NULL;
 
 	callout_drain(&softdep_callout);
 }
@@ -9126,13 +9130,12 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * the number of freefile and freeblks structures.
 	 */
 	ACQUIRE_LOCK(ip->i_ump);
-	while (!IS_SNAPSHOT(ip) && dep_current[D_DIRREM] > max_softdeps / 2 &&
-	    ip->i_ump->softdep_curdeps[D_DIRREM] >
-	    (max_softdeps / 2) / stat_flush_threads)
-		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_BLOCKS);
-	FREE_LOCK(ip->i_ump);
-	dirrem = malloc(sizeof(struct dirrem),
-		M_DIRREM, M_SOFTDEP_FLAGS|M_ZERO);
+	if (!IS_SNAPSHOT(ip) && softdep_excess_dirrem(ip->i_ump))
+		schedule_cleanup(ITOV(dp)->v_mount);
+	else
+		FREE_LOCK(ip->i_ump);
+	dirrem = malloc(sizeof(struct dirrem), M_DIRREM, M_SOFTDEP_FLAGS |
+	    M_ZERO);
 	workitem_alloc(&dirrem->dm_list, D_DIRREM, dvp->v_mount);
 	LIST_INIT(&dirrem->dm_jremrefhd);
 	LIST_INIT(&dirrem->dm_jwork);
@@ -13269,6 +13272,92 @@ retry:
 	return (1);
 }
 
+static bool
+softdep_excess_inodes(struct ufsmount *ump)
+{
+
+	return (dep_current[D_INODEDEP] > max_softdeps &&
+	    ump->softdep_curdeps[D_INODEDEP] > max_softdeps /
+	    stat_flush_threads);
+}
+
+static bool
+softdep_excess_dirrem(struct ufsmount *ump)
+{
+
+	return (dep_current[D_DIRREM] > max_softdeps / 2 &&
+	    ump->softdep_curdeps[D_DIRREM] > (max_softdeps / 2) /
+	    stat_flush_threads);
+}
+
+static void
+schedule_cleanup(struct mount *mp)
+{
+	struct ufsmount *ump;
+	struct thread *td;
+
+	ump = VFSTOUFS(mp);
+	LOCK_OWNED(ump);
+	FREE_LOCK(ump);
+	td = curthread;
+	if ((td->td_pflags & TDP_KTHREAD) != 0 &&
+	    (td->td_proc->p_flag2 & P2_AST_SU) == 0) {
+		/*
+		 * No ast is delivered to kernel threads, so nobody
+		 * would deref the mp.  Some kernel threads
+		 * explicitely check for AST, e.g. NFS daemon does
+		 * this in the serving loop.
+		 */
+		return;
+	}
+	if (td->td_su != NULL)
+		vfs_rel(td->td_su);
+	vfs_ref(mp);
+	td->td_su = mp;
+	thread_lock(td);
+	td->td_flags |= TDF_ASTPENDING;
+	thread_unlock(td);
+}
+
+static void
+softdep_ast_cleanup_proc(void)
+{
+	struct thread *td;
+	struct mount *mp;
+	struct ufsmount *ump;
+	int error;
+	bool req;
+
+	td = curthread;
+	mp = td->td_su;
+	if (mp == NULL)
+		return;
+	td->td_su = NULL;
+	error = vfs_busy(mp, MBF_NOWAIT);
+	vfs_rel(mp);
+	if (error != 0)
+		return;
+	if (ffs_own_mount(mp) && MOUNTEDSOFTDEP(mp)) {
+		ump = VFSTOUFS(mp);
+		for (;;) {
+			req = false;
+			ACQUIRE_LOCK(ump);
+			if (softdep_excess_inodes(ump)) {
+				req = true;
+				request_cleanup(mp, FLUSH_INODES);
+			}
+			if (softdep_excess_dirrem(ump)) {
+				req = true;
+				request_cleanup(mp, FLUSH_BLOCKS);
+			}
+			FREE_LOCK(ump);
+			if ((td->td_pflags & TDP_KTHREAD) != 0 || !req)
+				break;
+		}
+	}
+	vfs_unbusy(mp);
+}
+
 /*
  * If memory utilization has gotten too high, deliberately slow things
  * down and speed up the I/O processing.
@@ -13355,7 +13444,8 @@ request_cleanup(mp, resource)
 		callout_reset(&softdep_callout, tickdelay > 2 ? tickdelay : 2,
 		    pause_timer, 0);
 
-	msleep((caddr_t)&proc_waiting, &lk, PPAUSE, "softupdate", 0);
+	if ((td->td_pflags & TDP_KTHREAD) == 0)
+		msleep((caddr_t)&proc_waiting, &lk, PPAUSE, "softupdate", 0);
 	proc_waiting -= 1;
 	FREE_GBLLOCK(&lk);
 	ACQUIRE_LOCK(ump);
