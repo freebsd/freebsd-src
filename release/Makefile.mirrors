@@ -49,7 +49,7 @@ BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/ba
 BUILDDATE!=		date +%Y%m%d
 .  endif
 . endif
-_SNAP_SUFFIX:=		-r${SVNREVISION}-${BUILDDATE}
+_SNAP_SUFFIX:=		${BUILDDATE}-r${SVNREVISION}
 .else
 # release
 SNAPSHOT=
