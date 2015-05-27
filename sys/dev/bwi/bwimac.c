@@ -101,7 +101,6 @@ static void	bwi_mac_opmode_init(struct bwi_mac *);
 static void	bwi_mac_hostflags_init(struct bwi_mac *);
 static void	bwi_mac_bss_param_init(struct bwi_mac *);
 
-static int	bwi_mac_fw_alloc(struct bwi_mac *);
 static void	bwi_mac_fw_free(struct bwi_mac *);
 static int	bwi_mac_fw_load(struct bwi_mac *);
 static int	bwi_mac_fw_init(struct bwi_mac *);
@@ -325,10 +324,6 @@ bwi_mac_init(struct bwi_mac *mac)
 	/*
 	 * Load and initialize firmwares
 	 */
-	error = bwi_mac_fw_alloc(mac);
-	if (error)
-		return error;
-
 	error = bwi_mac_fw_load(mac);
 	if (error)
 		return error;
@@ -879,7 +874,7 @@ bwi_fwimage_is_valid(struct bwi_softc *sc, const struct firmware *fw,
 /*
  * XXX Error cleanup
  */
-static int
+int
 bwi_mac_fw_alloc(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;

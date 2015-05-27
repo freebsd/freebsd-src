@@ -446,6 +446,10 @@ bwi_attach(struct bwi_softc *sc)
 	if (error)
 		goto fail;
 
+	error = bwi_mac_fw_alloc(mac);
+	if (error)
+		goto fail;
+
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
