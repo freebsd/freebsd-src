@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
- * Copyright (c) 2011-2014 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,13 +25,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ *
  * $FreeBSD$
  */
 
 #ifndef _MPRVAR_H
 #define _MPRVAR_H
 
-#define MPR_DRIVER_VERSION	"05.255.05.00-fbsd"
+#define MPR_DRIVER_VERSION	"09.255.01.00-fbsd"
 
 #define MPR_DB_MAX_WAIT		2500
 
@@ -47,15 +50,18 @@
 #define MPR_FUNCTRACE(sc)			\
 	mpr_dprint((sc), MPR_TRACE, "%s\n", __func__)
 
-#define	 CAN_SLEEP			1
-#define  NO_SLEEP			0
+#define	CAN_SLEEP			1
+#define	NO_SLEEP			0
 
 #define MPR_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
+#define MPR_ATA_ID_TIMEOUT	5	/* 5 second timeout for SATA ID cmd */
 
 #define	IFAULT_IOP_OVER_TEMP_THRESHOLD_EXCEEDED	0x2810
 
 #define MPR_SCSI_RI_INVALID_FRAME	(0x00000002)
 #define MPR_STRING_LENGTH               64
+
+#define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
 #include <sys/endian.h>
 
@@ -213,13 +219,14 @@ struct mpr_command {
 #define	MPR_CM_FLAGS_CHAIN_FAILED	(1 << 8)
 #define	MPR_CM_FLAGS_ERROR_MASK		MPR_CM_FLAGS_CHAIN_FAILED
 #define	MPR_CM_FLAGS_USE_CCB		(1 << 9)
+#define	MPR_CM_FLAGS_SATA_ID_TIMEOUT	(1 << 10)
 	u_int				cm_state;
 #define MPR_CM_STATE_FREE		0
 #define MPR_CM_STATE_BUSY		1
 #define MPR_CM_STATE_TIMEDOUT		2
 	bus_dmamap_t			cm_dmamap;
 	struct scsi_sense_data		*cm_sense;
-	TAILQ_HEAD(, mpr_chain)	cm_chain_list;
+	TAILQ_HEAD(, mpr_chain)		cm_chain_list;
 	uint32_t			cm_req_busaddr;
 	uint32_t			cm_sense_busaddr;
 	struct callout			cm_callout;
@@ -256,6 +263,8 @@ struct mpr_softc {
 	int				chain_free;
 	int				max_chains;
 	int				chain_free_lowwater;
+	u_int				enable_ssu;
+	int				spinup_wait_time;
 #if __FreeBSD_version >= 900030
 	uint64_t			chain_alloc_fail;
 #endif
@@ -270,7 +279,7 @@ struct mpr_softc {
 	char            tmp_string[MPR_STRING_LENGTH];
 	TAILQ_HEAD(, mpr_command)	req_list;
 	TAILQ_HEAD(, mpr_command)	high_priority_req_list;
-	TAILQ_HEAD(, mpr_chain)	chain_list;
+	TAILQ_HEAD(, mpr_chain)		chain_list;
 	TAILQ_HEAD(, mpr_command)	tm_list;
 	int				replypostindex;
 	int				replyfreeindex;
@@ -291,7 +300,7 @@ struct mpr_softc {
 
 	uint8_t				event_mask[16];
 	TAILQ_HEAD(, mpr_event_handle)	event_list;
-	struct mpr_event_handle	*mpr_log_eh;
+	struct mpr_event_handle		*mpr_log_eh;
 
 	struct mtx			mpr_mtx;
 	struct intr_config_hook		mpr_ich;
@@ -565,6 +574,11 @@ mpr_unlock(struct mpr_softc *sc)
 #define MPR_MAPPING	(1 << 9)	/* Trace device mappings */
 #define MPR_TRACE	(1 << 10)	/* Function-by-function trace */
 
+#define	MPR_SSU_DISABLE_SSD_DISABLE_HDD	0
+#define	MPR_SSU_ENABLE_SSD_DISABLE_HDD	1
+#define	MPR_SSU_DISABLE_SSD_ENABLE_HDD	2
+#define	MPR_SSU_ENABLE_SSD_ENABLE_HDD	3
+
 #define mpr_printf(sc, args...)				\
 	device_printf((sc)->mpr_dev, ##args)
 
@@ -600,9 +614,6 @@ do {								\
 #define MPR_EVENTFIELD(sc, facts, attr, fmt)	\
 	mpr_dprint_field((sc), MPR_EVENT, #attr ": " #fmt "\n", (facts)->attr)
 
-#define  CAN_SLEEP                      1
-#define  NO_SLEEP                       0
-
 static __inline void
 mpr_from_u64(uint64_t data, U64 *mpr)
 {
@@ -613,7 +624,6 @@ mpr_from_u64(uint64_t data, U64 *mpr)
 static __inline uint64_t
 mpr_to_u64(U64 *data)
 {
-
 	return (((uint64_t)le32toh(data->High) << 32) | le32toh(data->Low));
 }
 
@@ -727,6 +737,12 @@ void mprsas_prepare_volume_remove(struct mprsas_softc *sassc,
 int mprsas_startup(struct mpr_softc *sc);
 struct mprsas_target * mprsas_find_target_by_handle(struct mprsas_softc *,
     int, uint16_t);
+void mprsas_realloc_targets(struct mpr_softc *sc, int maxtargets);
+struct mpr_command * mprsas_alloc_tm(struct mpr_softc *sc);
+void mprsas_free_tm(struct mpr_softc *sc, struct mpr_command *tm);
+void mprsas_release_simq_reinit(struct mprsas_softc *sassc);
+int mprsas_send_reset(struct mpr_softc *sc, struct mpr_command *tm,
+    uint8_t type);
 
 SYSCTL_DECL(_hw_mpr);
 

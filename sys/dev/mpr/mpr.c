@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
- * Copyright (c) 2012-2014 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Communications core for LSI MPT2 */
+/* Communications core for Avago Technologies (LSI) MPT3 */
 
 /* TODO Move headers to mprvar */
 #include <sys/types.h>
@@ -72,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpr_ioctl.h>
 #include <dev/mpr/mprvar.h>
 #include <dev/mpr/mpr_table.h>
-#include <dev/mpr/mpr_sas.h>
 
 static int mpr_diag_reset(struct mpr_softc *sc, int sleep_flag);
 static int mpr_init_queues(struct mpr_softc *sc);
@@ -352,11 +354,9 @@ mpr_transition_operational(struct mpr_softc *sc)
 static int
 mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 {
-	int error, i;
+	int error;
 	Mpi2IOCFactsReply_t saved_facts;
 	uint8_t saved_mode, reallocating;
-	struct mprsas_lun *lun, *lun_tmp;
-	struct mprsas_target *targ;
 
 	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
 
@@ -513,27 +513,7 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	 */
 	if (reallocating) {
 		mpr_iocfacts_free(sc);
-
-		/*
-		 * The number of targets is based on IOC Facts, so free all of
-		 * the allocated LUNs for each target and then the target buffer
-		 * itself.
-		 */
-		for (i=0; i< saved_facts.MaxTargets; i++) {
-			targ = &sc->sassc->targets[i];
-			SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link,
-			    lun_tmp) {
-				free(lun, M_MPR);
-			}
-		}
-		free(sc->sassc->targets, M_MPR);
-
-		sc->sassc->targets = malloc(sizeof(struct mprsas_target) *
-		    sc->facts->MaxTargets, M_MPR, M_WAITOK|M_ZERO);
-		if (!sc->sassc->targets) {
-			panic("%s failed to alloc targets with error %d\n",
-			    __func__, ENOMEM);
-		}
+		mprsas_realloc_targets(sc, saved_facts.MaxTargets);
 	}
 
 	/*
@@ -775,7 +755,7 @@ mpr_reinit(struct mpr_softc *sc)
 	/* the end of discovery will release the simq, so we're done. */
 	mpr_dprint(sc, MPR_INFO, "%s finished sc %p post %u free %u\n", 
 	    __func__, sc, sc->replypostindex, sc->replyfreeindex);
-	mprsas_release_simq_reinit(sassc);	
+	mprsas_release_simq_reinit(sassc);
 
 	return 0;
 }
@@ -816,7 +796,8 @@ mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag)
  		 * 0.5 milisecond
 		 */
 		if (mtx_owned(&sc->mpr_mtx) && sleep_flag == CAN_SLEEP)
-			msleep(&sc->msleep_fake_chan, &sc->mpr_mtx, 0, "mprdba",			    hz/1000);
+			msleep(&sc->msleep_fake_chan, &sc->mpr_mtx, 0, "mprdba",
+			    hz/1000);
 		else if (sleep_flag == CAN_SLEEP)
 			pause("mprdba", hz/1000);
 		else
@@ -982,7 +963,7 @@ mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 	reply_descriptor rd;
 
 	MPR_FUNCTRACE(sc);
-	mpr_dprint(sc, MPR_TRACE, "%s SMID %u cm %p ccb %p\n", __func__,
+	mpr_dprint(sc, MPR_TRACE, "SMID %u cm %p ccb %p\n",
 	    cm->cm_desc.Default.SMID, cm, cm->cm_ccb);
 
 	if (sc->mpr_flags & MPR_FLAGS_ATTACH_DONE && !(sc->mpr_flags &
@@ -1372,6 +1353,8 @@ mpr_get_tunables(struct mpr_softc *sc)
 	sc->disable_msix = 0;
 	sc->disable_msi = 0;
 	sc->max_chains = MPR_CHAIN_FRAMES;
+	sc->enable_ssu = MPR_SSU_ENABLE_SSD_DISABLE_HDD;
+	sc->spinup_wait_time = DEFAULT_SPINUP_WAIT;
 
 	/*
 	 * Grab the global variables.
@@ -1380,6 +1363,8 @@ mpr_get_tunables(struct mpr_softc *sc)
 	TUNABLE_INT_FETCH("hw.mpr.disable_msix", &sc->disable_msix);
 	TUNABLE_INT_FETCH("hw.mpr.disable_msi", &sc->disable_msi);
 	TUNABLE_INT_FETCH("hw.mpr.max_chains", &sc->max_chains);
+	TUNABLE_INT_FETCH("hw.mpr.enable_ssu", &sc->enable_ssu);
+	TUNABLE_INT_FETCH("hw.mpr.spinup_wait_time", &sc->spinup_wait_time);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.debug_level",
@@ -1402,6 +1387,14 @@ mpr_get_tunables(struct mpr_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.exclude_ids",
 	    device_get_unit(sc->mpr_dev));
 	TUNABLE_STR_FETCH(tmpstr, sc->exclude_ids, sizeof(sc->exclude_ids));
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.enable_ssu",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->enable_ssu);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpr.%d.spinup_wait_time",
+	    device_get_unit(sc->mpr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->spinup_wait_time);
 }
 
 static void
@@ -1474,11 +1467,20 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    OID_AUTO, "max_chains", CTLFLAG_RD,
 	    &sc->max_chains, 0,"maximum chain frames that will be allocated");
 
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "enable_ssu", CTLFLAG_RW, &sc->enable_ssu, 0,
+	    "enable SSU to SATA SSD/HDD at shutdown");
+
 #if __FreeBSD_version >= 900030
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "chain_alloc_fail", CTLFLAG_RD,
 	    &sc->chain_alloc_fail, "chain allocation failures");
 #endif //FreeBSD_version >= 900030
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "spinup_wait_time", CTLFLAG_RD,
+	    &sc->spinup_wait_time, DEFAULT_SPINUP_WAIT, "seconds to wait for "
+	    "spinup after SATA ID error");
 }
 
 int
@@ -2096,7 +2098,7 @@ mpr_update_events(struct mpr_softc *sc, struct mpr_event_handle *handle,
 	    (reply->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
 		error = ENXIO;
 	
-	if(reply)
+	if (reply)
 		mpr_print_event(sc, reply);
 
 	mpr_dprint(sc, MPR_TRACE, "%s finished error %d\n", __func__, error);
@@ -2163,8 +2165,8 @@ mpr_deregister_events(struct mpr_softc *sc, struct mpr_event_handle *handle)
  * Add a chain element as the next SGE for the specified command.
  * Reset cm_sge and cm_sgesize to indicate all the available space. Chains are
  * only required for IEEE commands.  Therefore there is no code for commands
- * that have the MPR_CM_FLAGS_SGE_SIMPLE flag set (and those commands shouldn't
- * be requesting chains).
+ * that have the MPR_CM_FLAGS_SGE_SIMPLE flag set (and those commands
+ * shouldn't be requesting chains).
  */
 static int
 mpr_add_chain(struct mpr_command *cm, int segsleft)
@@ -2246,9 +2248,9 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 
 /*
  * Add one scatter-gather element to the scatter-gather list for a command.
- * Maintain cm_sglsize and cm_sge as the remaining size and pointer to the next
- * SGE to fill in, respectively.  In Gen3, the MPI SGL does not have a chain,
- * so don't consider any chain additions.
+ * Maintain cm_sglsize and cm_sge as the remaining size and pointer to the
+ * next SGE to fill in, respectively.  In Gen3, the MPI SGL does not have a
+ * chain, so don't consider any chain additions.
  */
 int
 mpr_push_sge(struct mpr_command *cm, MPI2_SGE_SIMPLE64 *sge, size_t len,
@@ -2660,7 +2662,7 @@ mpr_request_polled(struct mpr_softc *sc, struct mpr_command *cm)
 		}
 	}
 
-	if(error) {
+	if (error) {
 		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s\n", __func__);
 		rc = mpr_reinit(sc);
 		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ?
@@ -2717,9 +2719,12 @@ mpr_read_config_page(struct mpr_softc *sc, struct mpr_config_params *params)
 
 	cm->cm_data = params->buffer;
 	cm->cm_length = params->length;
-	cm->cm_sge = &req->PageBufferSGE;
-	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
-	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
+	if (cm->cm_data != NULL) {
+		cm->cm_sge = &req->PageBufferSGE;
+		cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
+		cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
+	} else
+		cm->cm_sge = NULL;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
 	cm->cm_complete_data = params;
@@ -2776,9 +2781,12 @@ mpr_config_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		goto done;
 	}
 	params->status = reply->IOCStatus;
-	if (params->hdr.Ext.ExtPageType != 0) {
+	if (params->hdr.Struct.PageType == MPI2_CONFIG_PAGETYPE_EXTENDED) {
 		params->hdr.Ext.ExtPageType = reply->ExtPageType;
 		params->hdr.Ext.ExtPageLength = reply->ExtPageLength;
+		params->hdr.Ext.PageType = reply->Header.PageType;
+		params->hdr.Ext.PageNumber = reply->Header.PageNumber;
+		params->hdr.Ext.PageVersion = reply->Header.PageVersion;
 	} else {
 		params->hdr.Struct.PageType = reply->Header.PageType;
 		params->hdr.Struct.PageNumber = reply->Header.PageNumber;
