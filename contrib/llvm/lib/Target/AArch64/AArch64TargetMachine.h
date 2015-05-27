@@ -24,7 +24,6 @@ namespace llvm {
 class AArch64TargetMachine : public LLVMTargetMachine {
 protected:
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  AArch64Subtarget Subtarget;
   mutable StringMap<std::unique_ptr<AArch64Subtarget>> SubtargetMap;
 
 public:
@@ -34,17 +33,13 @@ public:
                        CodeGenOpt::Level OL, bool IsLittleEndian);
 
   ~AArch64TargetMachine() override;
-
-  const AArch64Subtarget *getSubtargetImpl() const override {
-    return &Subtarget;
-  }
   const AArch64Subtarget *getSubtargetImpl(const Function &F) const override;
 
   // Pass Pipeline Configuration
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  /// \brief Register AArch64 analysis passes with a pass manager.
-  void addAnalysisPasses(PassManagerBase &PM) override;
+  /// \brief Get the TargetIRAnalysis for this target.
+  TargetIRAnalysis getTargetIRAnalysis() override;
 
   TargetLoweringObjectFile* getObjFileLowering() const override {
     return TLOF.get();

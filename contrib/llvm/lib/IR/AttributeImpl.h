@@ -33,8 +33,8 @@ class AttributeImpl : public FoldingSetNode {
   unsigned char KindID; ///< Holds the AttrEntryKind of the attribute
 
   // AttributesImpl is uniqued, these should not be publicly available.
-  void operator=(const AttributeImpl &) LLVM_DELETED_FUNCTION;
-  AttributeImpl(const AttributeImpl &) LLVM_DELETED_FUNCTION;
+  void operator=(const AttributeImpl &) = delete;
+  AttributeImpl(const AttributeImpl &) = delete;
 
 protected:
   enum AttrEntryKind {
@@ -115,10 +115,10 @@ class IntAttributeImpl : public EnumAttributeImpl {
 public:
   IntAttributeImpl(Attribute::AttrKind Kind, uint64_t Val)
       : EnumAttributeImpl(IntAttrEntry, Kind), Val(Val) {
-    assert(
-        (Kind == Attribute::Alignment || Kind == Attribute::StackAlignment ||
-         Kind == Attribute::Dereferenceable) &&
-        "Wrong kind for int attribute!");
+    assert((Kind == Attribute::Alignment || Kind == Attribute::StackAlignment ||
+            Kind == Attribute::Dereferenceable ||
+            Kind == Attribute::DereferenceableOrNull) &&
+           "Wrong kind for int attribute!");
   }
 
   uint64_t getValue() const { return Val; }
@@ -151,8 +151,8 @@ class AttributeSetNode : public FoldingSetNode {
   }
 
   // AttributesSetNode is uniqued, these should not be publicly available.
-  void operator=(const AttributeSetNode &) LLVM_DELETED_FUNCTION;
-  AttributeSetNode(const AttributeSetNode &) LLVM_DELETED_FUNCTION;
+  void operator=(const AttributeSetNode &) = delete;
+  AttributeSetNode(const AttributeSetNode &) = delete;
 public:
   static AttributeSetNode *get(LLVMContext &C, ArrayRef<Attribute> Attrs);
 
@@ -166,6 +166,7 @@ public:
   unsigned getAlignment() const;
   unsigned getStackAlignment() const;
   uint64_t getDereferenceableBytes() const;
+  uint64_t getDereferenceableOrNullBytes() const;
   std::string getAsString(bool InAttrGrp) const;
 
   typedef const Attribute *iterator;
@@ -199,8 +200,8 @@ class AttributeSetImpl : public FoldingSetNode {
   }
 
   // AttributesSet is uniqued, these should not be publicly available.
-  void operator=(const AttributeSetImpl &) LLVM_DELETED_FUNCTION;
-  AttributeSetImpl(const AttributeSetImpl &) LLVM_DELETED_FUNCTION;
+  void operator=(const AttributeSetImpl &) = delete;
+  AttributeSetImpl(const AttributeSetImpl &) = delete;
 public:
   AttributeSetImpl(LLVMContext &C,
                    ArrayRef<std::pair<unsigned, AttributeSetNode *> > Attrs)

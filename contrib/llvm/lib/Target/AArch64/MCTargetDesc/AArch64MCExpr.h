@@ -120,7 +120,7 @@ public:
   /// @{
 
   /// Get the kind of this expression.
-  VariantKind getKind() const { return static_cast<VariantKind>(Kind); }
+  VariantKind getKind() const { return Kind; }
 
   /// Get the expression this modifier applies to.
   const MCExpr *getSubExpr() const { return Expr; }
@@ -149,7 +149,7 @@ public:
 
   void visitUsedExpr(MCStreamer &Streamer) const override;
 
-  const MCSection *FindAssociatedSection() const override;
+  MCSection *FindAssociatedSection() const override;
 
   bool EvaluateAsRelocatableImpl(MCValue &Res,
                                  const MCAsmLayout *Layout,

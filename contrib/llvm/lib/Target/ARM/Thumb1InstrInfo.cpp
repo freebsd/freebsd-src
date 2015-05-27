@@ -22,16 +22,15 @@
 using namespace llvm;
 
 Thumb1InstrInfo::Thumb1InstrInfo(const ARMSubtarget &STI)
-  : ARMBaseInstrInfo(STI), RI(STI) {
-}
+    : ARMBaseInstrInfo(STI), RI() {}
 
 /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
 void Thumb1InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
   NopInst.setOpcode(ARM::tMOVr);
-  NopInst.addOperand(MCOperand::CreateReg(ARM::R8));
-  NopInst.addOperand(MCOperand::CreateReg(ARM::R8));
-  NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
-  NopInst.addOperand(MCOperand::CreateReg(0));
+  NopInst.addOperand(MCOperand::createReg(ARM::R8));
+  NopInst.addOperand(MCOperand::createReg(ARM::R8));
+  NopInst.addOperand(MCOperand::createImm(ARMCC::AL));
+  NopInst.addOperand(MCOperand::createReg(0));
 }
 
 unsigned Thumb1InstrInfo::getUnindexedOpcode(unsigned Opc) const {
@@ -44,7 +43,7 @@ void Thumb1InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                   bool KillSrc) const {
   // Need to check the arch.
   MachineFunction &MF = *MBB.getParent();
-  const ARMSubtarget &st = MF.getTarget().getSubtarget<ARMSubtarget>();
+  const ARMSubtarget &st = MF.getSubtarget<ARMSubtarget>();
 
   assert(ARM::GPRRegClass.contains(DestReg, SrcReg) &&
          "Thumb1 can only copy GPR registers");

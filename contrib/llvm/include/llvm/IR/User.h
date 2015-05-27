@@ -33,8 +33,8 @@ template <class>
 struct OperandTraits;
 
 class User : public Value {
-  User(const User &) LLVM_DELETED_FUNCTION;
-  void *operator new(size_t) LLVM_DELETED_FUNCTION;
+  User(const User &) = delete;
+  void *operator new(size_t) = delete;
   template <unsigned>
   friend struct HungoffOperandTraits;
   virtual void anchor();
@@ -60,9 +60,7 @@ protected:
     NumOperands = 0;
   }
 public:
-  ~User() {
-    Use::zap(OperandList, OperandList + NumOperands);
-  }
+  ~User() override { Use::zap(OperandList, OperandList + NumOperands); }
   /// \brief Free memory allocated for User and Use objects.
   void operator delete(void *Usr);
   /// \brief Placement delete - required by std, but never called.

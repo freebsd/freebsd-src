@@ -14,8 +14,7 @@
 using namespace llvm;
 
 // Sentinel value for the absolute pseudo section.
-const MCSection *MCSymbol::AbsolutePseudoSection =
-  reinterpret_cast<const MCSection *>(1);
+MCSection *MCSymbol::AbsolutePseudoSection = reinterpret_cast<MCSection *>(1);
 
 static bool isAcceptableChar(char C) {
   if ((C < 'a' || C > 'z') &&
@@ -39,29 +38,11 @@ static bool NameNeedsQuoting(StringRef Str) {
   return false;
 }
 
-const MCSymbol &MCSymbol::AliasedSymbol() const {
-  const MCSymbol *S = this;
-  while (S->isVariable()) {
-    const MCExpr *Value = S->getVariableValue();
-    if (Value->getKind() != MCExpr::SymbolRef)
-      return *S;
-    const MCSymbolRefExpr *Ref = static_cast<const MCSymbolRefExpr*>(Value);
-    S = &Ref->getSymbol();
-  }
-  return *S;
-}
-
 void MCSymbol::setVariableValue(const MCExpr *Value) {
   assert(!IsUsed && "Cannot set a variable that has already been used.");
   assert(Value && "Invalid variable value!");
   this->Value = Value;
-
-  // Variables should always be marked as in the same "section" as the value.
-  const MCSection *Section = Value->FindAssociatedSection();
-  if (Section)
-    setSection(*Section);
-  else
-    setUndefined();
+  this->Section = nullptr;
 }
 
 void MCSymbol::print(raw_ostream &OS) const {
@@ -69,6 +50,10 @@ void MCSymbol::print(raw_ostream &OS) const {
   // some targets support quoting names with funny characters.  If the name
   // contains a funny character, then print it quoted.
   StringRef Name = getName();
+  if (Name.empty()) {
+    OS << "\"\"";
+    return;
+  }
   if (!NameNeedsQuoting(Name)) {
     OS << Name;
     return;
@@ -88,7 +73,5 @@ void MCSymbol::print(raw_ostream &OS) const {
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-void MCSymbol::dump() const {
-  print(dbgs());
-}
+void MCSymbol::dump() const { dbgs() << *this; }
 #endif

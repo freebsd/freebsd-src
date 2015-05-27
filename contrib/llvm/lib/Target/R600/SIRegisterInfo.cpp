@@ -24,9 +24,7 @@
 
 using namespace llvm;
 
-SIRegisterInfo::SIRegisterInfo(const AMDGPUSubtarget &st)
-: AMDGPURegisterInfo(st)
-  { }
+SIRegisterInfo::SIRegisterInfo() : AMDGPURegisterInfo() {}
 
 BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
@@ -48,7 +46,7 @@ BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
   // Tonga and Iceland can only allocate a fixed number of SGPRs due
   // to a hw bug.
-  if (ST.hasSGPRInitBug()) {
+  if (MF.getSubtarget<AMDGPUSubtarget>().hasSGPRInitBug()) {
     unsigned NumSGPRs = AMDGPU::SGPR_32RegClass.getNumRegs();
     // Reserve some SGPRs for FLAT_SCRATCH and VCC (4 SGPRs).
     // Assume XNACK_MASK is unused.
@@ -66,12 +64,14 @@ BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
 }
 
-unsigned SIRegisterInfo::getRegPressureSetLimit(unsigned Idx) const {
+unsigned SIRegisterInfo::getRegPressureSetLimit(const MachineFunction &MF,
+                                                unsigned Idx) const {
 
+  const AMDGPUSubtarget &STI = MF.getSubtarget<AMDGPUSubtarget>();
   // FIXME: We should adjust the max number of waves based on LDS size.
-  unsigned SGPRLimit = getNumSGPRsAllowed(ST.getGeneration(),
-                                          ST.getMaxWavesPerCU());
-  unsigned VGPRLimit = getNumVGPRsAllowed(ST.getMaxWavesPerCU());
+  unsigned SGPRLimit = getNumSGPRsAllowed(STI.getGeneration(),
+                                          STI.getMaxWavesPerCU());
+  unsigned VGPRLimit = getNumVGPRsAllowed(STI.getMaxWavesPerCU());
 
   for (regclass_iterator I = regclass_begin(), E = regclass_end();
        I != E; ++I) {
@@ -142,9 +142,10 @@ void SIRegisterInfo::buildScratchLoadStore(MachineBasicBlock::iterator MI,
                                            int64_t Offset,
                                            RegScavenger *RS) const {
 
-  const SIInstrInfo *TII = static_cast<const SIInstrInfo*>(ST.getInstrInfo());
   MachineBasicBlock *MBB = MI->getParent();
   const MachineFunction *MF = MI->getParent()->getParent();
+  const SIInstrInfo *TII =
+      static_cast<const SIInstrInfo *>(MF->getSubtarget().getInstrInfo());
   LLVMContext &Ctx = MF->getFunction()->getContext();
   DebugLoc DL = MI->getDebugLoc();
   bool IsLoad = TII->get(LoadStoreOp).mayLoad();
@@ -179,8 +180,8 @@ void SIRegisterInfo::buildScratchLoadStore(MachineBasicBlock::iterator MI,
     BuildMI(*MBB, MI, DL, TII->get(LoadStoreOp))
             .addReg(SubReg, getDefRegState(IsLoad))
             .addReg(ScratchRsrcReg, getKillRegState(IsKill))
-            .addImm(Offset)
             .addReg(SOffset)
+            .addImm(Offset)
             .addImm(0) // glc
             .addImm(0) // slc
             .addImm(0) // tfe
@@ -195,7 +196,8 @@ void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
   MachineBasicBlock *MBB = MI->getParent();
   SIMachineFunctionInfo *MFI = MF->getInfo<SIMachineFunctionInfo>();
   MachineFrameInfo *FrameInfo = MF->getFrameInfo();
-  const SIInstrInfo *TII = static_cast<const SIInstrInfo*>(ST.getInstrInfo());
+  const SIInstrInfo *TII =
+      static_cast<const SIInstrInfo *>(MF->getSubtarget().getInstrInfo());
   DebugLoc DL = MI->getDebugLoc();
 
   MachineOperand &FIOp = MI->getOperand(FIOperandNum);
@@ -243,7 +245,6 @@ void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
       for (unsigned i = 0, e = NumSubRegs; i < e; ++i) {
         unsigned SubReg = getPhysRegSubReg(MI->getOperand(0).getReg(),
                                            &AMDGPU::SGPR_32RegClass, i);
-        bool isM0 = SubReg == AMDGPU::M0;
         struct SIMachineFunctionInfo::SpilledReg Spill =
             MFI->getSpilledReg(MF, Index, i);
 
@@ -252,23 +253,16 @@ void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
            Ctx.emitError("Ran out of VGPRs for spilling SGPR");
         }
 
-        if (isM0)
-          SubReg = RS->scavengeRegister(&AMDGPU::SGPR_32RegClass, MI, 0);
-
         BuildMI(*MBB, MI, DL,
                 TII->getMCOpcodeFromPseudo(AMDGPU::V_READLANE_B32),
                 SubReg)
                 .addReg(Spill.VGPR)
                 .addImm(Spill.Lane)
                 .addReg(MI->getOperand(0).getReg(), RegState::ImplicitDefine);
-        if (isM0) {
-          BuildMI(*MBB, MI, DL, TII->get(AMDGPU::S_MOV_B32), AMDGPU::M0)
-                  .addReg(SubReg);
-        }
       }
 
       // TODO: only do this when it is needed
-      switch (ST.getGeneration()) {
+      switch (MF->getSubtarget<AMDGPUSubtarget>().getGeneration()) {
       case AMDGPUSubtarget::SOUTHERN_ISLANDS:
         // "VALU writes SGPR" -> "SMRD reads that SGPR" needs "S_NOP 3" on SI
         TII->insertNOPs(MI, 3);

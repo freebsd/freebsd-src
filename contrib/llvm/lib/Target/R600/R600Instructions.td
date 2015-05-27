@@ -335,10 +335,11 @@ def load_param : LoadParamFrag<load>;
 def load_param_exti8 : LoadParamFrag<az_extloadi8>;
 def load_param_exti16 : LoadParamFrag<az_extloadi16>;
 
-def isR600 : Predicate<"Subtarget.getGeneration() <= AMDGPUSubtarget::R700">;
+def isR600 : Predicate<"Subtarget->getGeneration() <= AMDGPUSubtarget::R700">;
 
-def isR600toCayman : Predicate<
-                     "Subtarget.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS">;
+def isR600toCayman
+    : Predicate<
+          "Subtarget->getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS">;
 
 //===----------------------------------------------------------------------===//
 // R600 SDNodes
@@ -579,6 +580,7 @@ i32imm:$COUNT, i32imm:$Enabled),
   let ALT_CONST = 0;
   let WHOLE_QUAD_MODE = 0;
   let BARRIER = 1;
+  let isCodeGenOnly = 1;
   let UseNamedOperandTable = 1;
 
   let Inst{31-0} = Word0;
@@ -641,6 +643,7 @@ def FETCH_CLAUSE : AMDGPUInst <(outs),
   field bits<8> Inst;
   bits<8> num;
   let Inst = num;
+  let isCodeGenOnly = 1;
 }
 
 def ALU_CLAUSE : AMDGPUInst <(outs),
@@ -648,10 +651,13 @@ def ALU_CLAUSE : AMDGPUInst <(outs),
   field bits<8> Inst;
   bits<8> num;
   let Inst = num;
+  let isCodeGenOnly = 1;
 }
 
 def LITERALS : AMDGPUInst <(outs),
 (ins LITERAL:$literal1, LITERAL:$literal2), "$literal1, $literal2", [] > {
+  let isCodeGenOnly = 1;
+
   field bits<64> Inst;
   bits<32> literal1;
   bits<32> literal2;
@@ -677,6 +683,11 @@ def MUL_IEEE : R600_2OP_Helper <0x2, "MUL_IEEE", fmul>;
 // TODO: Do these actually match the regular fmin/fmax behavior?
 def MAX : R600_2OP_Helper <0x3, "MAX", AMDGPUfmax_legacy>;
 def MIN : R600_2OP_Helper <0x4, "MIN", AMDGPUfmin_legacy>;
+// According to https://msdn.microsoft.com/en-us/library/windows/desktop/cc308050%28v=vs.85%29.aspx
+// DX10 min/max returns the other operand if one is NaN,
+// this matches http://llvm.org/docs/LangRef.html#llvm-minnum-intrinsic
+def MAX_DX10 : R600_2OP_Helper <0x5, "MAX_DX10", fmaxnum>;
+def MIN_DX10 : R600_2OP_Helper <0x6, "MIN_DX10", fminnum>;
 
 // For the SET* instructions there is a naming conflict in TargetSelectionDAG.td,
 // so some of the instruction names don't match the asm string.
@@ -914,7 +925,7 @@ class MULADD_Common <bits<5> inst> : R600_3OP <
 
 class MULADD_IEEE_Common <bits<5> inst> : R600_3OP <
   inst, "MULADD_IEEE",
-  [(set f32:$dst, (fadd (fmul f32:$src0, f32:$src1), f32:$src2))]
+  [(set f32:$dst, (fmad f32:$src0, f32:$src1, f32:$src2))]
 >;
 
 class FMA_Common <bits<5> inst> : R600_3OP <
@@ -1142,16 +1153,6 @@ class TGSI_LIT_Z_Common <InstR600 mul_lit, InstR600 log_clamped, InstR600 exp_ie
   (exp_ieee (mul_lit (log_clamped (MAX $src_y, (f32 ZERO))), $src_w, $src_x))
 >;
 
-// FROUND pattern
-class FROUNDPat<Instruction CNDGE, Instruction CNDGT> : Pat <
-  (AMDGPUround f32:$x),
-  (CNDGE $x,
-  (CNDGE (ADD (FNEG_R600 (f32 HALF)), (FRACT $x)), (CEIL $x), (FLOOR $x)),
-  (CNDGT (ADD (FNEG_R600 (f32 HALF)), (FRACT $x)), (CEIL $x), (FLOOR $x))
-  )
->;
-
-
 //===----------------------------------------------------------------------===//
 // R600 / R700 Instructions
 //===----------------------------------------------------------------------===//
@@ -1194,8 +1195,6 @@ let Predicates = [isR600] in {
 
   def : Pat<(fsqrt f32:$src), (MUL $src, (RECIPSQRT_CLAMPED_r600 $src))>;
   def : RsqPat<RECIPSQRT_IEEE_r600, f32>;
-
-  def : FROUNDPat <CNDGE_r600, CNDGT_r600>;
 
   def R600_ExportSwz : ExportSwzInst {
     let Word1{20-17} = 0; // BURST_COUNT
@@ -1249,6 +1248,7 @@ let Predicates = [isR600] in {
   def CF_PUSH_ELSE_R600 : CF_CLAUSE_R600<12, (ins i32imm:$ADDR),
   "PUSH_ELSE @$ADDR"> {
     let CNT = 0;
+    let POP_COUNT = 0; // FIXME?
   }
   def CF_ELSE_R600 : CF_CLAUSE_R600<13, (ins i32imm:$ADDR, i32imm:$POP_COUNT),
   "ELSE @$ADDR POP:$POP_COUNT"> {

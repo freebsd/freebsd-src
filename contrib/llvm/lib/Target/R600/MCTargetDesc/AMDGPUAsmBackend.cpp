@@ -24,12 +24,12 @@ namespace {
 
 class AMDGPUMCObjectWriter : public MCObjectWriter {
 public:
-  AMDGPUMCObjectWriter(raw_ostream &OS) : MCObjectWriter(OS, true) { }
+  AMDGPUMCObjectWriter(raw_pwrite_stream &OS) : MCObjectWriter(OS, true) {}
   void ExecutePostLayoutBinding(MCAssembler &Asm,
                                 const MCAsmLayout &Layout) override {
     //XXX: Implement if necessary.
   }
-  void RecordRelocation(const MCAssembler &Asm, const MCAsmLayout &Layout,
+  void RecordRelocation(MCAssembler &Asm, const MCAsmLayout &Layout,
                         const MCFragment *Fragment, const MCFixup &Fixup,
                         MCValue Target, bool &IsPCRel,
                         uint64_t &FixedValue) override {
@@ -67,7 +67,7 @@ public:
 void AMDGPUMCObjectWriter::WriteObject(MCAssembler &Asm,
                                        const MCAsmLayout &Layout) {
   for (MCAssembler::iterator I = Asm.begin(), E = Asm.end(); I != E; ++I) {
-    Asm.writeSectionData(I, Layout);
+    Asm.writeSectionData(&*I, Layout);
   }
 }
 
@@ -115,8 +115,7 @@ const MCFixupKindInfo &AMDGPUAsmBackend::getFixupKindInfo(
 }
 
 bool AMDGPUAsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
-  for (unsigned i = 0; i < Count; ++i)
-    OW->Write8(0);
+  OW->WriteZeros(Count);
 
   return true;
 }
@@ -131,7 +130,7 @@ class ELFAMDGPUAsmBackend : public AMDGPUAsmBackend {
 public:
   ELFAMDGPUAsmBackend(const Target &T) : AMDGPUAsmBackend(T) { }
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createAMDGPUELFObjectWriter(OS);
   }
 };

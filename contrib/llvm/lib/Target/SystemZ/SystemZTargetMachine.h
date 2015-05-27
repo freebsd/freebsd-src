@@ -33,12 +33,13 @@ public:
                        CodeGenOpt::Level OL);
   ~SystemZTargetMachine() override;
 
-  // Override TargetMachine.
-  const SystemZSubtarget *getSubtargetImpl() const override {
+  const SystemZSubtarget *getSubtargetImpl() const { return &Subtarget; }
+  const SystemZSubtarget *getSubtargetImpl(const Function &) const override {
     return &Subtarget;
   }
   // Override LLVMTargetMachine
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  TargetIRAnalysis getTargetIRAnalysis() override;
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();
   }

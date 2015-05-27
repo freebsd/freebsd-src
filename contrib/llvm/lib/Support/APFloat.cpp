@@ -1248,10 +1248,10 @@ APFloat::roundAwayFromZero(roundingMode rounding_mode,
     return false;
 
   case rmTowardPositive:
-    return sign == false;
+    return !sign;
 
   case rmTowardNegative:
-    return sign == true;
+    return sign;
   }
   llvm_unreachable("Invalid rounding mode found");
 }
@@ -1430,7 +1430,7 @@ APFloat::addOrSubtractSignificand(const APFloat &rhs, bool subtract)
 
   /* Determine if the operation on the absolute values is effectively
      an addition or subtraction.  */
-  subtract ^= (sign ^ rhs.sign) ? true : false;
+  subtract ^= static_cast<bool>(sign ^ rhs.sign);
 
   /* Are we bigger exponent-wise than the RHS?  */
   bits = exponent - rhs.exponent;
@@ -3920,7 +3920,7 @@ APFloat::makeZero(bool Negative) {
 
 APFloat llvm::scalbn(APFloat X, int Exp) {
   if (X.isInfinity() || X.isZero() || X.isNaN())
-    return std::move(X);
+    return X;
 
   auto MaxExp = X.getSemantics().maxExponent;
   auto MinExp = X.getSemantics().minExponent;
@@ -3932,5 +3932,5 @@ APFloat llvm::scalbn(APFloat X, int Exp) {
     return APFloat::getZero(X.getSemantics(), X.isNegative());
 
   X.exponent += Exp;
-  return std::move(X);
+  return X;
 }

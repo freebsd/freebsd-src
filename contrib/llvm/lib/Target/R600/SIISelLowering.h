@@ -42,13 +42,7 @@ class SITargetLowering : public AMDGPUTargetLowering {
   SDValue LowerTrig(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
 
-  const TargetRegisterClass *getRegClassForNode(SelectionDAG &DAG,
-                                                const SDValue &Op) const;
-  bool fitsRegClass(SelectionDAG &DAG, const SDValue &Op,
-                    unsigned RegClass) const;
-
   void adjustWritemask(MachineSDNode *&N, SelectionDAG &DAG) const;
-  MachineSDNode *AdjustRegClass(MachineSDNode *N, SelectionDAG &DAG) const;
 
   SDValue performUCharToFloatCombine(SDNode *N,
                                      DAGCombinerInfo &DCI) const;
@@ -63,7 +57,7 @@ class SITargetLowering : public AMDGPUTargetLowering {
   SDValue performSetCCCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
 public:
-  SITargetLowering(TargetMachine &tm);
+  SITargetLowering(TargetMachine &tm, const AMDGPUSubtarget &STI);
 
   bool isShuffleMaskLegal(const SmallVectorImpl<int> &/*Mask*/,
                           EVT /*VT*/) const override;
@@ -95,6 +89,7 @@ public:
 
   MachineBasicBlock * EmitInstrWithCustomInserter(MachineInstr * MI,
                                       MachineBasicBlock * BB) const override;
+  bool enableAggressiveFMAFusion(EVT VT) const override;
   EVT getSetCCResultType(LLVMContext &Context, EVT VT) const override;
   MVT getScalarShiftAmountTy(EVT VT) const override;
   bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
@@ -118,6 +113,11 @@ public:
   MachineSDNode *buildScratchRSRC(SelectionDAG &DAG,
                                   SDLoc DL,
                                   SDValue Ptr) const;
+
+  std::pair<unsigned, const TargetRegisterClass *> getRegForInlineAsmConstraint(
+                                   const TargetRegisterInfo *TRI,
+                                   const std::string &Constraint, MVT VT) const override;
+  SDValue copyToM0(SelectionDAG &DAG, SDValue Chain, SDLoc DL, SDValue V) const;
 };
 
 } // End namespace llvm

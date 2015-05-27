@@ -24,6 +24,9 @@ MCSectionELF::~MCSectionELF() {} // anchor.
 bool MCSectionELF::ShouldOmitSectionDirective(StringRef Name,
                                               const MCAsmInfo &MAI) const {
 
+  if (isUnique())
+    return false;
+
   // FIXME: Does .section .bss/.data/.text work everywhere??
   if (Name == ".text" || Name == ".data" ||
       (Name == ".bss" && !MAI.usesELFSectionDirectiveForBSS()))
@@ -144,6 +147,10 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI,
     printName(OS, Group->getName());
     OS << ",comdat";
   }
+
+  if (isUnique())
+    OS << ",unique," << UniqueID;
+
   OS << '\n';
 
   if (Subsection)
@@ -156,14 +163,4 @@ bool MCSectionELF::UseCodeAlign() const {
 
 bool MCSectionELF::isVirtualSection() const {
   return getType() == ELF::SHT_NOBITS;
-}
-
-unsigned MCSectionELF::DetermineEntrySize(SectionKind Kind) {
-  if (Kind.isMergeable1ByteCString()) return 1;
-  if (Kind.isMergeable2ByteCString()) return 2;
-  if (Kind.isMergeable4ByteCString()) return 4;
-  if (Kind.isMergeableConst4())       return 4;
-  if (Kind.isMergeableConst8())       return 8;
-  if (Kind.isMergeableConst16())      return 16;
-  return 0;
 }

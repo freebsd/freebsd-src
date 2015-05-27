@@ -18,6 +18,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 
 #define DEBUG_TYPE "amdgpu-promote-alloca"
 
@@ -87,7 +88,7 @@ bool AMDGPUPromoteAlloca::runOnFunction(Function &F) {
           continue;
         if (Use->getParent()->getParent() == &F)
           LocalMemAvailable -=
-              Mod->getDataLayout()->getTypeAllocSize(GVTy->getElementType());
+              Mod->getDataLayout().getTypeAllocSize(GVTy->getElementType());
       }
     }
   }
@@ -276,8 +277,8 @@ void AMDGPUPromoteAlloca::visitAlloca(AllocaInst &I) {
   // value from the reqd_work_group_size function attribute if it is
   // available.
   unsigned WorkGroupSize = 256;
-  int AllocaSize = WorkGroupSize *
-      Mod->getDataLayout()->getTypeAllocSize(AllocaTy);
+  int AllocaSize =
+      WorkGroupSize * Mod->getDataLayout().getTypeAllocSize(AllocaTy);
 
   if (AllocaSize > LocalMemAvailable) {
     DEBUG(dbgs() << " Not enough local memory to promote alloca.\n");
@@ -294,9 +295,9 @@ void AMDGPUPromoteAlloca::visitAlloca(AllocaInst &I) {
   DEBUG(dbgs() << "Promoting alloca to local memory\n");
   LocalMemAvailable -= AllocaSize;
 
+  Type *GVTy = ArrayType::get(I.getAllocatedType(), 256);
   GlobalVariable *GV = new GlobalVariable(
-      *Mod, ArrayType::get(I.getAllocatedType(), 256), false,
-      GlobalValue::ExternalLinkage, 0, I.getName(), 0,
+      *Mod, GVTy, false, GlobalValue::ExternalLinkage, 0, I.getName(), 0,
       GlobalVariable::NotThreadLocal, AMDGPUAS::LOCAL_ADDRESS);
 
   FunctionType *FTy = FunctionType::get(
@@ -315,12 +316,11 @@ void AMDGPUPromoteAlloca::visitAlloca(AllocaInst &I) {
   Value *ReadTIDIGZ = Mod->getOrInsertFunction(
       "llvm.r600.read.tidig.z", FTy, AttrSet);
 
-
-  Value *TCntY = Builder.CreateCall(ReadLocalSizeY);
-  Value *TCntZ = Builder.CreateCall(ReadLocalSizeZ);
-  Value *TIdX  = Builder.CreateCall(ReadTIDIGX);
-  Value *TIdY  = Builder.CreateCall(ReadTIDIGY);
-  Value *TIdZ  = Builder.CreateCall(ReadTIDIGZ);
+  Value *TCntY = Builder.CreateCall(ReadLocalSizeY, {});
+  Value *TCntZ = Builder.CreateCall(ReadLocalSizeZ, {});
+  Value *TIdX = Builder.CreateCall(ReadTIDIGX, {});
+  Value *TIdY = Builder.CreateCall(ReadTIDIGY, {});
+  Value *TIdZ = Builder.CreateCall(ReadTIDIGZ, {});
 
   Value *Tmp0 = Builder.CreateMul(TCntY, TCntZ);
   Tmp0 = Builder.CreateMul(Tmp0, TIdX);
@@ -332,7 +332,7 @@ void AMDGPUPromoteAlloca::visitAlloca(AllocaInst &I) {
   Indices.push_back(Constant::getNullValue(Type::getInt32Ty(Mod->getContext())));
   Indices.push_back(TID);
 
-  Value *Offset = Builder.CreateGEP(GV, Indices);
+  Value *Offset = Builder.CreateGEP(GVTy, GV, Indices);
   I.mutateType(Offset->getType());
   I.replaceAllUsesWith(Offset);
   I.eraseFromParent();
@@ -365,8 +365,8 @@ void AMDGPUPromoteAlloca::visitAlloca(AllocaInst &I) {
       Function *F = Call->getCalledFunction();
       FunctionType *NewType = FunctionType::get(Call->getType(), ArgTypes,
                                                 F->isVarArg());
-      Constant *C = Mod->getOrInsertFunction(StringRef(F->getName().str() + ".local"), NewType,
-                                             F->getAttributes());
+      Constant *C = Mod->getOrInsertFunction((F->getName() + ".local").str(),
+                                             NewType, F->getAttributes());
       Function *NewF = cast<Function>(C);
       Call->setCalledFunction(NewF);
       continue;

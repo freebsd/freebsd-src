@@ -94,16 +94,22 @@ public:
       return *this;
     }
 
+    ELFEntityIterator &operator+(difference_type n) {
+      assert(Current && "Attempted to increment an invalid iterator!");
+      Current += (n * EntitySize);
+      return *this;
+    }
+
+    ELFEntityIterator &operator-(difference_type n) {
+      assert(Current && "Attempted to subtract an invalid iterator!");
+      Current -= (n * EntitySize);
+      return *this;
+    }
+
     ELFEntityIterator operator ++(int) {
       ELFEntityIterator Tmp = *this;
       ++*this;
       return Tmp;
-    }
-
-    ELFEntityIterator &operator =(const ELFEntityIterator &Other) {
-      EntitySize = Other.EntitySize;
-      Current = Other.Current;
-      return *this;
     }
 
     difference_type operator -(const ELFEntityIterator &Other) const {
@@ -200,12 +206,6 @@ public:
       assert(Current.getPointer() &&
              "Attempted to increment an invalid iterator!");
       Current.setPointer(Current.getPointer() + EntitySize * Dist);
-      return *this;
-    }
-
-    Elf_Sym_Iter &operator=(const Elf_Sym_Iter &Other) {
-      EntitySize = Other.EntitySize;
-      Current = Other.Current;
       return *this;
     }
 

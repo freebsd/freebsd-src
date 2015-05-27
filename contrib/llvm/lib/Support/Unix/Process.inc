@@ -39,6 +39,9 @@
     !defined(__OpenBSD__) && !defined(__Bitrig__)
 #include <malloc.h>
 #endif
+#if defined(HAVE_MALLCTL)
+#include <malloc_np.h>
+#endif
 #ifdef HAVE_MALLOC_MALLOC_H
 #include <malloc/malloc.h>
 #endif
@@ -98,6 +101,12 @@ size_t Process::GetMallocUsage() {
   malloc_statistics_t Stats;
   malloc_zone_statistics(malloc_default_zone(), &Stats);
   return Stats.size_in_use;   // darwin
+#elif defined(HAVE_MALLCTL)
+  size_t alloc, sz;
+  sz = sizeof(size_t);
+  if (mallctl("stats.allocated", &alloc, &sz, NULL, 0) == 0)
+    return alloc;
+  return 0;
 #elif defined(HAVE_SBRK)
   // Note this is only an approximation and more closely resembles
   // the value returned by mallinfo in the arena field.
@@ -105,8 +114,7 @@ size_t Process::GetMallocUsage() {
   char *EndOfMemory = (char*)sbrk(0);
   if (EndOfMemory != ((char*)-1) && StartOfMemory != ((char*)-1))
     return EndOfMemory - StartOfMemory;
-  else
-    return 0;
+  return 0;
 #else
 #warning Cannot get malloc info on this platform
   return 0;
@@ -191,8 +199,8 @@ public:
   }
 
 private:
-  FDCloser(const FDCloser &) LLVM_DELETED_FUNCTION;
-  void operator=(const FDCloser &) LLVM_DELETED_FUNCTION;
+  FDCloser(const FDCloser &) = delete;
+  void operator=(const FDCloser &) = delete;
 
   int &FD;
   bool KeepOpen;

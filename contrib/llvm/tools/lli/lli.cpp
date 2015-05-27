@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/LLVMContext.h"
+#include "OrcLazyJIT.h"
 #include "RemoteMemoryManager.h"
 #include "RemoteTarget.h"
 #include "RemoteTargetExternal.h"
@@ -25,6 +26,7 @@
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectCache.h"
+#include "llvm/ExecutionEngine/OrcMCJITReplacement.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -41,6 +43,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Memory.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Process.h"
@@ -64,6 +67,9 @@ using namespace llvm;
 #define DEBUG_TYPE "lli"
 
 namespace {
+
+  enum class JITKind { MCJIT, OrcMCJITReplacement, OrcLazy };
+
   cl::opt<std::string>
   InputFile(cl::desc("<input bitcode>"), cl::Positional, cl::init("-"));
 
@@ -73,6 +79,20 @@ namespace {
   cl::opt<bool> ForceInterpreter("force-interpreter",
                                  cl::desc("Force interpretation: disable JIT"),
                                  cl::init(false));
+
+  cl::opt<JITKind> UseJITKind("jit-kind",
+                              cl::desc("Choose underlying JIT kind."),
+                              cl::init(JITKind::MCJIT),
+                              cl::values(
+                                clEnumValN(JITKind::MCJIT, "mcjit",
+                                           "MCJIT"),
+                                clEnumValN(JITKind::OrcMCJITReplacement,
+                                           "orc-mcjit",
+                                           "Orc-based MCJIT replacement"),
+                                clEnumValN(JITKind::OrcLazy,
+                                           "orc-lazy",
+                                           "Orc-based lazy JIT."),
+                                clEnumValEnd));
 
   // The MCJIT supports building for a target address space separate from
   // the JIT compilation process. Use a forked process and a copying
@@ -215,23 +235,6 @@ namespace {
                      clEnumValN(FloatABI::Hard, "hard",
                                 "Hard float ABI (uses FP registers)"),
                      clEnumValEnd));
-  cl::opt<bool>
-// In debug builds, make this default to true.
-#ifdef NDEBUG
-#define EMIT_DEBUG false
-#else
-#define EMIT_DEBUG true
-#endif
-  EmitJitDebugInfo("jit-emit-debug",
-    cl::desc("Emit debug information to debugger"),
-    cl::init(EMIT_DEBUG));
-#undef EMIT_DEBUG
-
-  static cl::opt<bool>
-  EmitJitDebugInfoToDisk("jit-emit-debug-to-disk",
-    cl::Hidden,
-    cl::desc("Emit debug info objfiles to disk"),
-    cl::init(false));
 }
 
 //===----------------------------------------------------------------------===//
@@ -251,7 +254,7 @@ public:
         this->CacheDir[this->CacheDir.size() - 1] != '/')
       this->CacheDir += '/';
   }
-  virtual ~LLIObjectCache() {}
+  ~LLIObjectCache() override {}
 
   void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj) override {
     const std::string ModuleID = M->getModuleIdentifier();
@@ -395,6 +398,9 @@ int main(int argc, char **argv, char * const *envp) {
     return 1;
   }
 
+  if (UseJITKind == JITKind::OrcLazy)
+    return runOrcLazyJIT(std::move(Owner), argc, argv);
+
   if (EnableCacheManager) {
     std::string CacheName("file:");
     CacheName.append(InputFile);
@@ -421,6 +427,7 @@ int main(int argc, char **argv, char * const *envp) {
   builder.setEngineKind(ForceInterpreter
                         ? EngineKind::Interpreter
                         : EngineKind::JIT);
+  builder.setUseOrcMCJITReplacement(UseJITKind == JITKind::OrcMCJITReplacement);
 
   // If we are supposed to override the target triple, do so now.
   if (!TargetTriple.empty())
@@ -458,17 +465,8 @@ int main(int argc, char **argv, char * const *envp) {
   builder.setOptLevel(OLvl);
 
   TargetOptions Options;
-  Options.UseSoftFloat = GenerateSoftFloatCalls;
   if (FloatABIForCalls != FloatABI::Default)
     Options.FloatABIType = FloatABIForCalls;
-  if (GenerateSoftFloatCalls)
-    FloatABIForCalls = FloatABI::Soft;
-
-  // Remote target execution doesn't handle EH or debug registration.
-  if (!RemoteMCJIT) {
-    Options.JITEmitDebugInfo = EmitJitDebugInfo;
-    Options.JITEmitDebugInfoToDisk = EmitJitDebugInfoToDisk;
-  }
 
   builder.setTargetOptions(Options);
 
@@ -556,7 +554,7 @@ int main(int argc, char **argv, char * const *envp) {
   // If the user specifically requested an argv[0] to pass into the program,
   // do it now.
   if (!FakeArgv0.empty()) {
-    InputFile = FakeArgv0;
+    InputFile = static_cast<std::string>(FakeArgv0);
   } else {
     // Otherwise, if there is a .bc suffix on the executable strip it off, it
     // might confuse the program.
@@ -588,7 +586,7 @@ int main(int argc, char **argv, char * const *envp) {
     // function later on to make an explicit call, so get the function now.
     Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
                                                       Type::getInt32Ty(Context),
-                                                      NULL);
+                                                      nullptr);
 
     // Run static constructors.
     if (!ForceInterpreter) {

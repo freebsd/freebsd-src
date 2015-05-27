@@ -412,7 +412,7 @@ bool PPCELFObjectWriter::needsRelocateWithSymbol(const MCSymbolData &SD,
   }
 }
 
-MCObjectWriter *llvm::createPPCELFObjectWriter(raw_ostream &OS,
+MCObjectWriter *llvm::createPPCELFObjectWriter(raw_pwrite_stream &OS,
                                                bool Is64Bit,
                                                bool IsLittleEndian,
                                                uint8_t OSABI) {

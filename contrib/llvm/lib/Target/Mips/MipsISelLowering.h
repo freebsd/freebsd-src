@@ -15,6 +15,7 @@
 #ifndef LLVM_LIB_TARGET_MIPS_MIPSISELLOWERING_H
 #define LLVM_LIB_TARGET_MIPS_MIPSISELLOWERING_H
 
+#include "MCTargetDesc/MipsABIInfo.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "Mips.h"
 #include "llvm/CodeGen/CallingConvLower.h"
@@ -26,7 +27,7 @@
 
 namespace llvm {
   namespace MipsISD {
-    enum NodeType {
+    enum NodeType : unsigned {
       // Start the numbering from where ISD NodeType finishes.
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
 
@@ -361,6 +362,8 @@ namespace llvm {
 
     // Subtarget Info
     const MipsSubtarget &Subtarget;
+    // Cache the ABI from the TargetMachine, we use it everywhere.
+    const MipsABIInfo &ABI;
 
   private:
     // Create a TargetGlobalAddress node.
@@ -488,9 +491,10 @@ namespace llvm {
     std::pair<unsigned, const TargetRegisterClass *>
     parseRegForInlineAsmConstraint(StringRef C, MVT VT) const;
 
-    std::pair<unsigned, const TargetRegisterClass*>
-              getRegForInlineAsmConstraint(const std::string &Constraint,
-                                           MVT VT) const override;
+    std::pair<unsigned, const TargetRegisterClass *>
+    getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                                 const std::string &Constraint,
+                                 MVT VT) const override;
 
     /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
     /// vector.  If it is invalid, don't add anything to Ops. If hasMemory is
@@ -500,6 +504,15 @@ namespace llvm {
                                       std::string &Constraint,
                                       std::vector<SDValue> &Ops,
                                       SelectionDAG &DAG) const override;
+
+    unsigned getInlineAsmMemConstraint(
+        const std::string &ConstraintCode) const override {
+      if (ConstraintCode == "R")
+        return InlineAsm::Constraint_R;
+      else if (ConstraintCode == "ZC")
+        return InlineAsm::Constraint_ZC;
+      return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
+    }
 
     bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
 
@@ -517,6 +530,7 @@ namespace llvm {
     bool isFPImmLegal(const APFloat &Imm, EVT VT) const override;
 
     unsigned getJumpTableEncoding() const override;
+    bool useSoftFloat() const override;
 
     /// Emit a sign-extension using sll/sra, seb, or seh appropriately.
     MachineBasicBlock *emitSignExtendToI32InReg(MachineInstr *MI,

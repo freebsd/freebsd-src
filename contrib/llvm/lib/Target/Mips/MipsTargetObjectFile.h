@@ -13,11 +13,11 @@
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 
 namespace llvm {
-
+class MipsTargetMachine;
   class MipsTargetObjectFile : public TargetLoweringObjectFileELF {
-    const MCSection *SmallDataSection;
-    const MCSection *SmallBSSSection;
-    const TargetMachine *TM;
+    MCSection *SmallDataSection;
+    MCSection *SmallBSSSection;
+    const MipsTargetMachine *TM;
   public:
 
     void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
@@ -31,16 +31,16 @@ namespace llvm {
     bool IsGlobalInSmallSectionImpl(const GlobalValue *GV,
                                     const TargetMachine &TM) const;
 
-    const MCSection *SelectSectionForGlobal(const GlobalValue *GV,
-                                        SectionKind Kind, Mangler &Mang,
-                                        const TargetMachine &TM) const override;
+    MCSection *SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
+                                      Mangler &Mang,
+                                      const TargetMachine &TM) const override;
 
     /// Return true if this constant should be placed into small data section.
     bool IsConstantInSmallSection(const Constant *CN,
                                   const TargetMachine &TM) const;
 
-    const MCSection *getSectionForConstant(SectionKind Kind,
-                                           const Constant *C) const override;
+    MCSection *getSectionForConstant(SectionKind Kind,
+                                     const Constant *C) const override;
   };
 } // end namespace llvm
 

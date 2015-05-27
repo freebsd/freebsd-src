@@ -220,7 +220,7 @@ bool SSAIfConv::canSpeculateInstrs(MachineBasicBlock *MBB) {
 
     // We never speculate stores, so an AA pointer isn't necessary.
     bool DontMoveAcrossStore = true;
-    if (!I->isSafeToMove(TII, nullptr, DontMoveAcrossStore)) {
+    if (!I->isSafeToMove(nullptr, DontMoveAcrossStore)) {
       DEBUG(dbgs() << "Can't speculate: " << *I);
       return false;
     }
@@ -777,15 +777,13 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "********** EARLY IF-CONVERSION **********\n"
                << "********** Function: " << MF.getName() << '\n');
   // Only run if conversion if the target wants it.
-  if (!MF.getTarget()
-           .getSubtarget<TargetSubtargetInfo>()
-           .enableEarlyIfConversion())
+  const TargetSubtargetInfo &STI = MF.getSubtarget();
+  if (!STI.enableEarlyIfConversion())
     return false;
 
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
-  SchedModel =
-    MF.getTarget().getSubtarget<TargetSubtargetInfo>().getSchedModel();
+  TII = STI.getInstrInfo();
+  TRI = STI.getRegisterInfo();
+  SchedModel = STI.getSchedModel();
   MRI = &MF.getRegInfo();
   DomTree = &getAnalysis<MachineDominatorTree>();
   Loops = getAnalysisIfAvailable<MachineLoopInfo>();
@@ -799,9 +797,8 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   // if-conversion in a single pass. The tryConvertIf() function may erase
   // blocks, but only blocks dominated by the head block. This makes it safe to
   // update the dominator tree while the post-order iterator is still active.
-  for (po_iterator<MachineDominatorTree*>
-       I = po_begin(DomTree), E = po_end(DomTree); I != E; ++I)
-    if (tryConvertIf(I->getBlock()))
+  for (auto DomNode : post_order(DomTree))
+    if (tryConvertIf(DomNode->getBlock()))
       Changed = true;
 
   return Changed;

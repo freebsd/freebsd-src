@@ -33,7 +33,7 @@ public:
     return ARM::NumTargetFixupKinds;
   }
 
-  bool hasNOP() const { return (STI->getFeatureBits() & ARM::HasV6T2Ops) != 0; }
+  bool hasNOP() const { return STI->getFeatureBits()[ARM::HasV6T2Ops]; }
 
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
 
@@ -46,6 +46,8 @@ public:
 
   void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
                   uint64_t Value, bool IsPCRel) const override;
+
+  unsigned getRelaxedOpcode(unsigned Op) const;
 
   bool mayNeedRelaxation(const MCInst &Inst) const override;
 

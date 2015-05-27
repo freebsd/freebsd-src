@@ -32,10 +32,6 @@ Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
   }
 }
 
-const DataLayout *Instruction::getDataLayout() const {
-  return getParent()->getDataLayout();
-}
-
 Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
                          BasicBlock *InsertAtEnd)
   : User(ty, Value::InstructionVal + it, Ops, NumOps), Parent(nullptr) {
@@ -58,12 +54,21 @@ void Instruction::setParent(BasicBlock *P) {
   Parent = P;
 }
 
+const Module *Instruction::getModule() const {
+  return getParent()->getModule();
+}
+
+Module *Instruction::getModule() {
+  return getParent()->getModule();
+}
+
+
 void Instruction::removeFromParent() {
   getParent()->getInstList().remove(this);
 }
 
-void Instruction::eraseFromParent() {
-  getParent()->getInstList().erase(this);
+iplist<Instruction>::iterator Instruction::eraseFromParent() {
+  return getParent()->getInstList().erase(this);
 }
 
 /// insertBefore - Insert an unlinked instructions into a basic block

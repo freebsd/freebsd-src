@@ -15,6 +15,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Target/TargetLowering.h"
 
@@ -46,16 +47,29 @@ MCSymbol *X86_64MachoTargetObjectFile::getCFIPersonalitySymbol(
   return TM.getSymbol(GV, Mang);
 }
 
-void
-X86LinuxTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM) {
-  TargetLoweringObjectFileELF::Initialize(Ctx, TM);
-  InitializeELF(TM.Options.UseInitArray);
+const MCExpr *X86_64MachoTargetObjectFile::getIndirectSymViaGOTPCRel(
+    const MCSymbol *Sym, const MCValue &MV, int64_t Offset,
+    MachineModuleInfo *MMI, MCStreamer &Streamer) const {
+  // On Darwin/X86-64, we need to use foo@GOTPCREL+4 to access the got entry
+  // from a data section. In case there's an additional offset, then use
+  // foo@GOTPCREL+4+<offset>.
+  unsigned FinalOff = Offset+MV.getConstant()+4;
+  const MCExpr *Res =
+    MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_GOTPCREL, getContext());
+  const MCExpr *Off = MCConstantExpr::Create(FinalOff, getContext());
+  return MCBinaryExpr::CreateAdd(Res, Off, getContext());
 }
 
-const MCExpr *
-X86LinuxTargetObjectFile::getDebugThreadLocalSymbol(
+const MCExpr *X86ELFTargetObjectFile::getDebugThreadLocalSymbol(
     const MCSymbol *Sym) const {
   return MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_DTPOFF, getContext());
+}
+
+void
+X86LinuxNaClTargetObjectFile::Initialize(MCContext &Ctx,
+                                         const TargetMachine &TM) {
+  TargetLoweringObjectFileELF::Initialize(Ctx, TM);
+  InitializeELF(TM.Options.UseInitArray);
 }
 
 const MCExpr *X86WindowsTargetObjectFile::getExecutableRelativeSymbol(
@@ -81,14 +95,12 @@ const MCExpr *X86WindowsTargetObjectFile::getExecutableRelativeSymbol(
       SubRHS->getPointerAddressSpace() != 0)
     return nullptr;
 
-  // Both ptrtoint instructions must wrap global variables:
+  // Both ptrtoint instructions must wrap global objects:
   // - Only global variables are eligible for image relative relocations.
-  // - The subtrahend refers to the special symbol __ImageBase, a global.
-  const GlobalVariable *GVLHS =
-      dyn_cast<GlobalVariable>(SubLHS->getPointerOperand());
-  const GlobalVariable *GVRHS =
-      dyn_cast<GlobalVariable>(SubRHS->getPointerOperand());
-  if (!GVLHS || !GVRHS)
+  // - The subtrahend refers to the special symbol __ImageBase, a GlobalVariable.
+  const auto *GOLHS = dyn_cast<GlobalObject>(SubLHS->getPointerOperand());
+  const auto *GVRHS = dyn_cast<GlobalVariable>(SubRHS->getPointerOperand());
+  if (!GOLHS || !GVRHS)
     return nullptr;
 
   // We expect __ImageBase to be a global variable without a section, externally
@@ -101,10 +113,10 @@ const MCExpr *X86WindowsTargetObjectFile::getExecutableRelativeSymbol(
     return nullptr;
 
   // An image-relative, thread-local, symbol makes no sense.
-  if (GVLHS->isThreadLocal())
+  if (GOLHS->isThreadLocal())
     return nullptr;
 
-  return MCSymbolRefExpr::Create(TM.getSymbol(GVLHS, Mang),
+  return MCSymbolRefExpr::Create(TM.getSymbol(GOLHS, Mang),
                                  MCSymbolRefExpr::VK_COFF_IMGREL32,
                                  getContext());
 }
@@ -137,7 +149,7 @@ static std::string scalarConstantToHexString(const Constant *C) {
   return APIntToHexString(AI);
 }
 
-const MCSection *
+MCSection *
 X86WindowsTargetObjectFile::getSectionForConstant(SectionKind Kind,
                                                   const Constant *C) const {
   if (Kind.isReadOnly()) {

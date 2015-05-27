@@ -65,7 +65,7 @@ public:
 private:
   /// OpKind - Specify what kind of operand this is.  This discriminates the
   /// union.
-  MachineOperandType OpKind;
+  MachineOperandType OpKind : 8;
 
   /// Subregister number for MO_Register.  A value of 0 indicates the
   /// MO_Register has no subReg.
@@ -217,7 +217,7 @@ public:
   ///
   void clearParent() { ParentMI = nullptr; }
 
-  void print(raw_ostream &os, const TargetMachine *TM = nullptr) const;
+  void print(raw_ostream &os, const TargetRegisterInfo *TRI = nullptr) const;
 
   //===--------------------------------------------------------------------===//
   // Accessors that tell you what kind of MachineOperand you're looking at.
@@ -553,6 +553,12 @@ public:
   /// of the specified value.  If an operand is known to be an FP immediate
   /// already, the setFPImm method should be used.
   void ChangeToFPImmediate(const ConstantFP *FPImm);
+
+  /// ChangeToES - Replace this operand with a new external symbol operand.
+  void ChangeToES(const char *SymName, unsigned char TargetFlags = 0);
+
+  /// ChangeToMCSymbol - Replace this operand with a new MC symbol operand.
+  void ChangeToMCSymbol(MCSymbol *Sym);
 
   /// ChangeToRegister - Replace this operand with a new register operand of
   /// the specified value.  If an operand is known to be an register already,

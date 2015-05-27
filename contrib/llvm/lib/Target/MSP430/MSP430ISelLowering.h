@@ -21,7 +21,7 @@
 
 namespace llvm {
   namespace MSP430ISD {
-    enum {
+    enum NodeType : unsigned {
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
 
       /// Return with a flag operand. Operand 0 is the chain operand.
@@ -66,9 +66,11 @@ namespace llvm {
     };
   }
 
+  class MSP430Subtarget;
   class MSP430TargetLowering : public TargetLowering {
   public:
-    explicit MSP430TargetLowering(const TargetMachine &TM);
+    explicit MSP430TargetLowering(const TargetMachine &TM,
+                                  const MSP430Subtarget &STI);
 
     MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i8; }
 
@@ -95,8 +97,9 @@ namespace llvm {
 
     TargetLowering::ConstraintType
     getConstraintType(const std::string &Constraint) const override;
-    std::pair<unsigned, const TargetRegisterClass*>
-    getRegForInlineAsmConstraint(const std::string &Constraint,
+    std::pair<unsigned, const TargetRegisterClass *>
+    getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                                 const std::string &Constraint,
                                  MVT VT) const override;
 
     /// isTruncateFree - Return true if it's free to truncate a value of type

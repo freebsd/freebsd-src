@@ -18,20 +18,18 @@
 #include "llvm/MC/MCInstrInfo.h"
 
 namespace llvm {
-  class HexagonMCInst;
-
   class HexagonInstPrinter : public MCInstPrinter {
   public:
-    explicit HexagonInstPrinter(const MCAsmInfo &MAI,
-                                const MCInstrInfo &MII,
-                                const MCRegisterInfo &MRI)
+    explicit HexagonInstPrinter(MCAsmInfo const &MAI,
+                                MCInstrInfo const &MII,
+                                MCRegisterInfo const &MRI)
       : MCInstPrinter(MAI, MII, MRI), MII(MII) {}
 
-    void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot) override;
-    void printInst(const HexagonMCInst *MI, raw_ostream &O, StringRef Annot);
+    void printInst(MCInst const *MI, raw_ostream &O, StringRef Annot,
+                   const MCSubtargetInfo &STI) override;
     virtual StringRef getOpcodeName(unsigned Opcode) const;
     void printInstruction(const MCInst *MI, raw_ostream &O);
-    StringRef getRegName(unsigned RegNo) const;
+    void printRegName(raw_ostream &OS, unsigned RegNo) const override;
     static const char *getRegisterName(unsigned RegNo);
 
     void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
@@ -58,6 +56,7 @@ namespace llvm {
     void printGlobalOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
            const;
     void printJumpTable(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
+    void printExtBrtarget(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
 
     void printConstantPool(const MCInst *MI, unsigned OpNo,
                            raw_ostream &O) const;

@@ -18,10 +18,11 @@
 
 #include "Unix.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include <llvm/Config/config.h>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -42,7 +43,18 @@
 #define  _RESTRICT_KYWD
 #endif
 #include <spawn.h>
-#if !defined(__APPLE__)
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+#if defined(__APPLE__) && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#define USE_NSGETENVIRON 1
+#else
+#define USE_NSGETENVIRON 0
+#endif
+
+#if !USE_NSGETENVIRON
   extern char **environ;
 #else
 #include <crt_externs.h> // _NSGetEnviron
@@ -217,7 +229,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     }
 
     if (!envp)
-#if !defined(__APPLE__)
+#if !USE_NSGETENVIRON
       envp = const_cast<const char **>(environ);
 #else
       // environ is missing in dylibs.

@@ -17,7 +17,9 @@
 #include "EHStreamer.h"
 
 namespace llvm {
+class GlobalValue;
 class MachineFunction;
+class MCExpr;
 
 class Win64Exception : public EHStreamer {
   /// Per-function flag to indicate if personality info should be emitted.
@@ -29,12 +31,19 @@ class Win64Exception : public EHStreamer {
   /// Per-function flag to indicate if frame moves info should be emitted.
   bool shouldEmitMoves;
 
+  void emitCSpecificHandlerTable();
+
+  void emitCXXFrameHandler3Table(const MachineFunction *MF);
+
+  const MCExpr *createImageRel32(const MCSymbol *Value);
+  const MCExpr *createImageRel32(const GlobalValue *GV);
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
   //
   Win64Exception(AsmPrinter *A);
-  virtual ~Win64Exception();
+  ~Win64Exception() override;
 
   /// Emit all exception information that should come after the content.
   void endModule() override;

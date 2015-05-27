@@ -61,11 +61,11 @@ MachineRegisterInfo::constrainRegClass(unsigned Reg,
 }
 
 bool
-MachineRegisterInfo::recomputeRegClass(unsigned Reg, const TargetMachine &TM) {
-  const TargetInstrInfo *TII = TM.getSubtargetImpl()->getInstrInfo();
+MachineRegisterInfo::recomputeRegClass(unsigned Reg) {
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
   const TargetRegisterClass *OldRC = getRegClass(Reg);
   const TargetRegisterClass *NewRC =
-    getTargetRegisterInfo()->getLargestLegalSuperClass(OldRC);
+      getTargetRegisterInfo()->getLargestLegalSuperClass(OldRC, *MF);
 
   // Stop early if there is no room to grow.
   if (NewRC == OldRC)

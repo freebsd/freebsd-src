@@ -20,14 +20,9 @@
 #include "X86GenRegisterInfo.inc"
 
 namespace llvm {
-  class Type;
-  class TargetInstrInfo;
-  class X86Subtarget;
+  class Triple;
 
 class X86RegisterInfo final : public X86GenRegisterInfo {
-public:
-  const X86Subtarget &Subtarget;
-
 private:
   /// Is64Bit - Is the target 64-bits.
   ///
@@ -55,7 +50,7 @@ private:
   unsigned BasePtr;
 
 public:
-  X86RegisterInfo(const X86Subtarget &STI);
+  X86RegisterInfo(const Triple &TT);
 
   // FIXME: This should be tablegen'd like getDwarfRegNum is
   int getSEHRegNum(unsigned i) const;
@@ -76,8 +71,9 @@ public:
   getSubClassWithSubReg(const TargetRegisterClass *RC,
                         unsigned Idx) const override;
 
-  const TargetRegisterClass*
-  getLargestLegalSuperClass(const TargetRegisterClass *RC) const override;
+  const TargetRegisterClass *
+  getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                            const MachineFunction &MF) const override;
 
   /// getPointerRegClass - Returns a TargetRegisterClass used for pointer
   /// values.
@@ -98,7 +94,8 @@ public:
   /// callee-save registers on this target.
   const MCPhysReg *
   getCalleeSavedRegs(const MachineFunction* MF) const override;
-  const uint32_t *getCallPreservedMask(CallingConv::ID) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const override;
   const uint32_t *getNoPreservedMask() const;
 
   /// getReservedRegs - Returns a bitset indexed by physical register number

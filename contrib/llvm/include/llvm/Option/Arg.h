@@ -29,8 +29,8 @@ class ArgList;
 /// The Arg class encodes just enough information to be able to
 /// derive the argument values efficiently.
 class Arg {
-  Arg(const Arg &) LLVM_DELETED_FUNCTION;
-  void operator=(const Arg &) LLVM_DELETED_FUNCTION;
+  Arg(const Arg &) = delete;
+  void operator=(const Arg &) = delete;
 
 private:
   /// \brief The option this argument is an instance of.
@@ -78,9 +78,7 @@ public:
   const Arg &getBaseArg() const {
     return BaseArg ? *BaseArg : *this;
   }
-  void setBaseArg(const Arg *_BaseArg) {
-    BaseArg = _BaseArg;
-  }
+  void setBaseArg(const Arg *BaseArg) { this->BaseArg = BaseArg; }
 
   bool getOwnsValues() const { return OwnsValues; }
   void setOwnsValues(bool Value) const { OwnsValues = Value; }
