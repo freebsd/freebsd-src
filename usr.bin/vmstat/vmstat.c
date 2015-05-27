@@ -1445,7 +1445,7 @@ display_object(struct kinfo_vmobject *kvo)
 		str = "UC-";
 		break;
 #endif
-#ifdef VM_MEMATTR_WB_WA:
+#ifdef VM_MEMATTR_WB_WA
 	case VM_MEMATTR_WB_WA:
 		str = "WB";
 		break;
