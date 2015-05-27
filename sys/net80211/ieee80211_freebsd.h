@@ -28,7 +28,9 @@
 #define _NET80211_IEEE80211_FREEBSD_H_
 
 #ifdef _KERNEL
-#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
