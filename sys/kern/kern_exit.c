@@ -205,6 +205,12 @@ exit1(struct thread *td, int rv)
 	}
 
 	/*
+	 * Deref SU mp, since the thread does not return to userspace.
+	 */
+	if (softdep_ast_cleanup != NULL)
+		softdep_ast_cleanup();
+
+	/*
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
