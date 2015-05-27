@@ -1669,3 +1669,82 @@
 //
 // CHECK_PPC_POWER8_VECTOR_M64: #define __POWER8_VECTOR__
 //
+// RUN: %clang -mcrypto -E -dM %s -o - 2>&1 \
+// RUN:     -target powerpc64-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_PPC_CRYPTO_M64
+//
+// CHECK_PPC_CRYPTO_M64: #define __CRYPTO__
+//
+// RUN: %clang -mcpu=pwr8 -E -dM %s -o - 2>&1 \
+// RUN:     -target powerpc64-unknown-unknown \
+// RUN:   | FileCheck %s -check-prefix=CHECK_PPC_GCC_ATOMICS
+// RUN: %clang -E -dM %s -o - 2>&1 \
+// RUN:     -target powerpc64le-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_PPC_GCC_ATOMICS
+//
+// CHECK_PPC_GCC_ATOMICS: #define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1
+// CHECK_PPC_GCC_ATOMICS: #define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
+// CHECK_PPC_GCC_ATOMICS: #define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
+// CHECK_PPC_GCC_ATOMICS: #define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
+//
+// End PPC/GCC/Linux tests ------------------
+
+// Begin Sparc/GCC/Linux tests ----------------
+//
+// RUN: %clang -E -dM %s -o - 2>&1 \
+// RUN:     -target sparc-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_SPARC
+//
+// CHECK_SPARC: #define __BIG_ENDIAN__ 1
+// CHECK_SPARC: #define __sparc 1
+// CHECK_SPARC: #define __sparc__ 1
+// CHECK_SPARC: #define __sparcv8 1
+
+//
+// RUN: %clang -E -dM %s -o - 2>&1 \
+// RUN:     -target sparcel-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_SPARCEL
+//
+// CHECK_SPARCEL: #define __LITTLE_ENDIAN__ 1
+// CHECK_SPARCEL: #define __sparc 1
+// CHECK_SPARCEL: #define __sparc__ 1
+// CHECK_SPARCEL: #define __sparcv8 1
+//
+// RUN: %clang -E -dM %s -o - 2>&1 \
+// RUN:     -target sparcv9-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_SPARCV9
+//
+// CHECK_SPARCV9: #define __BIG_ENDIAN__ 1
+// CHECK_SPARCV9: #define __sparc 1
+// CHECK_SPARCV9: #define __sparc64__ 1
+// CHECK_SPARCV9: #define __sparc__ 1
+// CHECK_SPARCV9: #define __sparc_v9__ 1
+// CHECK_SPARCV9: #define __sparcv9 1
+// CHECK_SPARCV9: #define __sparcv9__ 1
+
+// Begin SystemZ/GCC/Linux tests ----------------
+//
+// RUN: %clang -march=z10 -E -dM %s -o - 2>&1 \
+// RUN:     -target s390x-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_SYSTEMZ_Z10
+//
+// CHECK_SYSTEMZ_Z10: #define __LONG_DOUBLE_128__ 1
+// CHECK_SYSTEMZ_Z10: #define __s390__ 1
+// CHECK_SYSTEMZ_Z10: #define __s390x__ 1
+// CHECK_SYSTEMZ_Z10: #define __zarch__ 1
+//
+// RUN: %clang -march=zEC12 -E -dM %s -o - 2>&1 \
+// RUN:     -target s390x-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_SYSTEMZ_ZEC12
+//
+// CHECK_SYSTEMZ_ZEC12: #define __HTM__ 1
+// CHECK_SYSTEMZ_ZEC12: #define __LONG_DOUBLE_128__ 1
+// CHECK_SYSTEMZ_ZEC12: #define __s390__ 1
+// CHECK_SYSTEMZ_ZEC12: #define __s390x__ 1
+// CHECK_SYSTEMZ_ZEC12: #define __zarch__ 1
+//
+// RUN: %clang -mhtm -E -dM %s -o - 2>&1 \
+// RUN:     -target s390x-unknown-linux \
+// RUN:   | FileCheck %s -check-prefix=CHECK_SYSTEMZ_HTM
+//
+// CHECK_SYSTEMZ_HTM: #define __HTM__ 1

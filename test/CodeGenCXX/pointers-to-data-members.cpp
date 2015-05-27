@@ -75,14 +75,14 @@ void f() {
   // CHECK:      store i64 -1, i64* @_ZN5Casts2paE
   pa = 0;
 
-  // CHECK-NEXT: [[TMP:%.*]] = load i64* @_ZN5Casts2paE, align 8
+  // CHECK-NEXT: [[TMP:%.*]] = load i64, i64* @_ZN5Casts2paE, align 8
   // CHECK-NEXT: [[ADJ:%.*]] = add nsw i64 [[TMP]], 4
   // CHECK-NEXT: [[ISNULL:%.*]] = icmp eq i64 [[TMP]], -1
   // CHECK-NEXT: [[RES:%.*]] = select i1 [[ISNULL]], i64 [[TMP]], i64 [[ADJ]]
   // CHECK-NEXT: store i64 [[RES]], i64* @_ZN5Casts2pcE
   pc = pa;
 
-  // CHECK-NEXT: [[TMP:%.*]] = load i64* @_ZN5Casts2pcE, align 8
+  // CHECK-NEXT: [[TMP:%.*]] = load i64, i64* @_ZN5Casts2pcE, align 8
   // CHECK-NEXT: [[ADJ:%.*]] = sub nsw i64 [[TMP]], 4
   // CHECK-NEXT: [[ISNULL:%.*]] = icmp eq i64 [[TMP]], -1
   // CHECK-NEXT: [[RES:%.*]] = select i1 [[ISNULL]], i64 [[TMP]], i64 [[ADJ]]
@@ -205,7 +205,7 @@ namespace BoolPtrToMember {
   // CHECK-LABEL: define dereferenceable({{[0-9]+}}) i8* @_ZN15BoolPtrToMember1fERNS_1XEMS0_b
   bool &f(X &x, bool X::*member) {
     // CHECK: {{bitcast.* to i8\*}}
-    // CHECK-NEXT: getelementptr inbounds i8*
+    // CHECK-NEXT: getelementptr inbounds i8, i8*
     // CHECK-NEXT: ret i8*
     return x.*member;
   }
@@ -275,6 +275,14 @@ union U {
 };
 U u;
 // CHECK-GLOBAL: @_ZN7PR212821uE = global %"union.PR21282::U" { i64 -1, [8 x i8] zeroinitializer }, align 8
+}
+
+namespace FlexibleArrayMember {
+struct S {
+  int S::*x[];
+};
+S s;
+// CHECK-GLOBAL: @_ZN19FlexibleArrayMember1sE = global %"struct.FlexibleArrayMember::S" zeroinitializer, align 8
 }
 
 // CHECK-O3: attributes [[NUW]] = { nounwind readnone{{.*}} }

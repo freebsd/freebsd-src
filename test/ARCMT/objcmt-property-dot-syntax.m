@@ -3,8 +3,15 @@
 // RUN: c-arcmt-test -mt-migrate-directory %t | arcmt-test -verify-transformed-files %s.result
 // RUN: %clang_cc1 -fblocks -triple x86_64-apple-darwin10 -fsyntax-only -x objective-c -fobjc-runtime-has-weak -fobjc-arc %s.result
 
+@class NSString;
+
+// rdar://19140267
+@protocol NSObject
+@property (readonly, copy) NSString *description;
+@end
+
 // rdar://18498572
-@interface NSObject @end
+@interface NSObject <NSObject> @end
 
 @interface P : NSObject
 {
@@ -36,6 +43,8 @@ P* fun();
 }
 
 - (P*) MethodReturnsPObj { return 0; }
+
+- (NSString *)description { return [super description]; }
 @end
 
 // rdar://19140267
@@ -57,5 +66,57 @@ P* fun();
          [fun() count] -
          [[super PropertyReturnsPObj] count] +
          [self->obj count];
+}
+@end
+
+
+@interface Rdar19038838
+@property id newItem; // should be marked objc_method_family(none), but isn't.
+@end
+
+id testRdar19038838(Rdar19038838 *obj) {
+  return [obj newItem];
+}
+
+// rdar://19381786
+@interface rdar19381786 : NSObject
+{
+  rdar19381786* obj;
+}
+@property int count;
+@end
+
+@protocol PR 
+@property int count;
+@end
+
+@implementation rdar19381786
+-(void)test:(id)some : (id<PR>)qsome : (SEL)selsome
+{
+  [obj setCount : 100];
+  [some setCount : [some count]];
+  [qsome setCount : [qsome count]];
+}
+@end
+
+// rdar://19140114
+int NSOnState;
+int ArrNSOnState[4];
+@interface rdar19140114 : NSObject
+{
+  rdar19140114* menuItem;
+}
+@property int state;
+@end
+
+@implementation rdar19140114
+- (void) Meth {
+  [menuItem setState:NSOnState];
+  [menuItem setState :NSOnState];
+  [menuItem setState     :ArrNSOnState[NSOnState]];
+  [menuItem setState : NSOnState];
+  [menuItem setState:    NSOnState];
+  [menuItem setState: NSOnState];
+  [menuItem setState     :    NSOnState];
 }
 @end

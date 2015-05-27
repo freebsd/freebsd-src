@@ -26,7 +26,7 @@ public:
   D() : B(), C() { }
 };
 
-class E : public D, public B { 
+class E : public D, public B {  // expected-warning{{direct base 'B' is inaccessible due to ambiguity:\n    class E -> class D -> class C -> class B\n    class E -> class B}}
 public:
   E() : B(), D() { } // expected-error{{base class initializer 'B' names both a direct base class and an inherited virtual base class}}
 };
@@ -94,7 +94,7 @@ struct Current : Derived {
                            Derived::Base1(), // expected-error {{type 'Derived::Base1' is not a direct or virtual base of 'Current'}}
                            Derived::V(),
                            ::NonExisting(), // expected-error {{member initializer 'NonExisting' does not name a non-static data member or}}
-                           INT::NonExisting()  {} // expected-error {{'INT' (aka 'int') is not a class, namespace, or scoped enumeration}} \
+                           INT::NonExisting()  {} // expected-error {{'INT' (aka 'int') is not a class, namespace, or enumeration}} \
                                                   // expected-error {{member initializer 'NonExisting' does not name a non-static data member or}}
 };
 
@@ -204,7 +204,8 @@ struct A {
 };
 
 struct B : virtual A { };
-struct C : A, B { };
+
+  struct C : A, B { }; // expected-warning{{direct base 'Test2::A' is inaccessible due to ambiguity:\n    struct Test2::C -> struct Test2::A\n    struct Test2::C -> struct Test2::B -> struct Test2::A}}
 
 C f(C c) {
   return c;

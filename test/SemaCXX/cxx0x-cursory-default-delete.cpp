@@ -25,7 +25,7 @@ void fn1 () {
   non_const_copy ncc2 = ncc;
   ncc = ncc2;
   const non_const_copy cncc{};
-  const non_const_copy cncc1; // expected-error {{default initialization of an object of const type 'const non_const_copy' without a user-provided default constructor}} expected-note {{add an explicit initializer to initialize 'cncc1'}}
+  const non_const_copy cncc1; // expected-error {{default initialization of an object of const type 'const non_const_copy' without a user-provided default constructor}}
   non_const_copy ncc3 = cncc; // expected-error {{no matching}}
   ncc = cncc; // expected-error {{no viable overloaded}}
 };
@@ -40,6 +40,28 @@ struct bad_decls {
   bad_decls&& operator = (bad_decls) = default; // expected-error {{lvalue reference}} expected-error {{must return 'bad_decls &'}}
   bad_decls& operator = (volatile bad_decls&) = default; // expected-error {{may not be volatile}}
   bad_decls& operator = (const bad_decls&) const = default; // expected-error {{may not have 'const', 'constexpr' or 'volatile' qualifiers}}
+};
+
+struct DefaultDelete {
+  DefaultDelete() = default; // expected-note {{previous declaration is here}}
+  DefaultDelete() = delete; // expected-error {{constructor cannot be redeclared}}
+
+  ~DefaultDelete() = default; // expected-note {{previous declaration is here}}
+  ~DefaultDelete() = delete; // expected-error {{destructor cannot be redeclared}}
+
+  DefaultDelete &operator=(const DefaultDelete &) = default; // expected-note {{previous declaration is here}}
+  DefaultDelete &operator=(const DefaultDelete &) = delete; // expected-error {{class member cannot be redeclared}}
+};
+
+struct DeleteDefault {
+  DeleteDefault() = delete; // expected-note {{previous definition is here}}
+  DeleteDefault() = default; // expected-error {{constructor cannot be redeclared}}
+
+  ~DeleteDefault() = delete; // expected-note {{previous definition is here}}
+  ~DeleteDefault() = default; // expected-error {{destructor cannot be redeclared}}
+
+  DeleteDefault &operator=(const DeleteDefault &) = delete; // expected-note {{previous definition is here}}
+  DeleteDefault &operator=(const DeleteDefault &) = default; // expected-error {{class member cannot be redeclared}}
 };
 
 struct A {}; struct B {};

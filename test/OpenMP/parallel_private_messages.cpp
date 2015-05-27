@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -fopenmp=libiomp5 -ferror-limit 100 %s
+// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 %s
 
 void foo() {
 }
@@ -13,7 +13,7 @@ class S2 {
   mutable int a;
 public:
   S2():a(0) { }
-  static float S2s; // expected-note {{static data member is predetermined as shared}}
+  static float S2s;
 };
 const S2 b;
 const S2 ba[5];
@@ -41,6 +41,14 @@ public:
 int threadvar;
 #pragma omp threadprivate(threadvar) // expected-note {{defined as threadprivate or thread local}}
 
+namespace A {
+double x;
+#pragma omp threadprivate(x) // expected-note {{defined as threadprivate or thread local}}
+}
+namespace B {
+using A::x;
+}
+
 int main(int argc, char **argv) {
   const int d = 5; // expected-note {{constant variable is predetermined as shared}}
   const int da[5] = { 0 }; // expected-note {{constant variable is predetermined as shared}}
@@ -61,9 +69,9 @@ int main(int argc, char **argv) {
   #pragma omp parallel private(ba)
   #pragma omp parallel private(ca) // expected-error {{shared variable cannot be private}}
   #pragma omp parallel private(da) // expected-error {{shared variable cannot be private}}
-  #pragma omp parallel private(S2::S2s) // expected-error {{shared variable cannot be private}}
+  #pragma omp parallel private(S2::S2s)
   #pragma omp parallel private(e, g) // expected-error {{calling a private constructor of class 'S4'}} expected-error {{calling a private constructor of class 'S5'}}
-  #pragma omp parallel private(threadvar) // expected-error {{threadprivate or thread local variable cannot be private}}
+  #pragma omp parallel private(threadvar, B::x) // expected-error 2 {{threadprivate or thread local variable cannot be private}}
   #pragma omp parallel shared(i), private(i) // expected-error {{shared variable cannot be private}} expected-note {{defined as shared}}
   foo();
   #pragma omp parallel firstprivate(i) private(i) // expected-error {{firstprivate variable cannot be private}} expected-note {{defined as firstprivate}}

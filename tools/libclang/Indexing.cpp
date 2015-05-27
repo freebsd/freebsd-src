@@ -284,10 +284,10 @@ public:
   /// MacroUndefined - This hook is called whenever a macro #undef is seen.
   /// MI is released immediately following this callback.
   void MacroUndefined(const Token &MacroNameTok,
-                      const MacroDirective *MD) override {}
+                      const MacroDefinition &MD) override {}
 
   /// MacroExpands - This is called by when a macro invocation is found.
-  void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
+  void MacroExpands(const Token &MacroNameTok, const MacroDefinition &MD,
                     SourceRange Range, const MacroArgs *Args) override {}
 
   /// SourceRangeSkipped - This hook is called when a source range is skipped.
@@ -697,13 +697,8 @@ static void indexPreprocessingRecord(ASTUnit &Unit, IndexingContext &IdxCtx) {
 
   // FIXME: Only deserialize inclusion directives.
 
-  PreprocessingRecord::iterator I, E;
-  std::tie(I, E) = Unit.getLocalPreprocessingEntities();
-
   bool isModuleFile = Unit.isModuleFile();
-  for (; I != E; ++I) {
-    PreprocessedEntity *PPE = *I;
-
+  for (PreprocessedEntity *PPE : Unit.getLocalPreprocessingEntities()) {
     if (InclusionDirective *ID = dyn_cast<InclusionDirective>(PPE)) {
       SourceLocation Loc = ID->getSourceRange().getBegin();
       // Modules have synthetic main files as input, give an invalid location

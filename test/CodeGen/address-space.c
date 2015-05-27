@@ -1,7 +1,4 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm < %s | FileCheck %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm < %s | grep 'load.*addrspace(2).. @A'
-// RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm < %s | grep 'load.*addrspace(2).. @B'
-
 
 // CHECK: @foo = common addrspace(1) global
 int foo __attribute__((address_space(1)));
@@ -10,11 +7,11 @@ int foo __attribute__((address_space(1)));
 int ban[10] __attribute__((address_space(1)));
 
 // CHECK-LABEL: define i32 @test1() 
-// CHECK: load i32 addrspace(1)* @foo
+// CHECK: load i32, i32 addrspace(1)* @foo
 int test1() { return foo; }
 
 // CHECK-LABEL: define i32 @test2(i32 %i) 
-// CHECK: load i32 addrspace(1)*
+// CHECK: load i32, i32 addrspace(1)*
 // CHECK-NEXT: ret i32
 int test2(int i) { return ban[i]; }
 
@@ -22,9 +19,9 @@ int test2(int i) { return ban[i]; }
 __attribute__((address_space(2))) int *A, *B;
 
 // CHECK-LABEL: define void @test3()
-// CHECK: load i32 addrspace(2)** @B
-// CHECK: load i32 addrspace(2)* 
-// CHECK: load i32 addrspace(2)** @A
+// CHECK: load i32 addrspace(2)*, i32 addrspace(2)** @B
+// CHECK: load i32, i32 addrspace(2)*
+// CHECK: load i32 addrspace(2)*, i32 addrspace(2)** @A
 // CHECK: store i32 {{.*}}, i32 addrspace(2)*
 void test3() {
   *A = *B;

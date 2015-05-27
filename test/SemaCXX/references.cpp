@@ -54,7 +54,7 @@ void test4() {
 void test5() {
   //  const double& rcd2 = 2; // rcd2 refers to temporary with value 2.0
   const volatile int cvi = 1;
-  const int& r = cvi; // expected-error{{binding of reference to type 'const int' to a value of type 'const volatile int' drops qualifiers}}
+  const int& r = cvi; // expected-error{{binding value of type 'const volatile int' to reference to type 'const int' drops 'volatile' qualifier}}
 }
 
 // C++ [dcl.init.ref]p3
@@ -70,7 +70,7 @@ class Test6 { // expected-warning{{class 'Test6' does not declare any constructo
   int& okay; // expected-note{{reference member 'okay' will never be initialized}}
 };
 
-struct C : B, A { };
+struct C : B, A { }; // expected-warning {{direct base 'A' is inaccessible due to ambiguity:\n    struct C -> struct B -> struct A\nstruct C -> struct A}}
 
 void test7(C& c) {
   A& a1 = c; // expected-error {{ambiguous conversion from derived class 'C' to base class 'A':}}

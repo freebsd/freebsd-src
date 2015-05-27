@@ -633,7 +633,8 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
   // When the diagnostic string is only "%0", the entire string is being given
   // by an outside source.  Remove unprintable characters from this string
   // and skip all the other string processing.
-  if (DiagEnd - DiagStr == 2 && DiagStr[0] == '%' && DiagStr[1] == '0' &&
+  if (DiagEnd - DiagStr == 2 &&
+      StringRef(DiagStr, DiagEnd - DiagStr).equals("%0") &&
       getArgKind(0) == DiagnosticsEngine::ak_std_string) {
     const std::string &S = getArgStdStr(0);
     for (char c : S) {
@@ -948,14 +949,8 @@ StoredDiagnostic::StoredDiagnostic(DiagnosticsEngine::Level Level,
   SmallString<64> Message;
   Info.FormatDiagnostic(Message);
   this->Message.assign(Message.begin(), Message.end());
-
-  Ranges.reserve(Info.getNumRanges());
-  for (unsigned I = 0, N = Info.getNumRanges(); I != N; ++I)
-    Ranges.push_back(Info.getRange(I));
-
-  FixIts.reserve(Info.getNumFixItHints());
-  for (unsigned I = 0, N = Info.getNumFixItHints(); I != N; ++I)
-    FixIts.push_back(Info.getFixItHint(I));
+  this->Ranges.assign(Info.getRanges().begin(), Info.getRanges().end());
+  this->FixIts.assign(Info.getFixItHints().begin(), Info.getFixItHints().end());
 }
 
 StoredDiagnostic::StoredDiagnostic(DiagnosticsEngine::Level Level, unsigned ID,

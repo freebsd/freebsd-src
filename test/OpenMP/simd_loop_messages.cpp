@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -fsyntax-only -fopenmp=libiomp5 -x c++ -std=c++11 -fexceptions -fcxx-exceptions -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fopenmp -x c++ -std=c++11 -fexceptions -fcxx-exceptions -verify %s
 
 static int sii;
-#pragma omp threadprivate(sii) // expected-note {{defined as threadprivate or thread local}}
+#pragma omp threadprivate(sii)
 static int globalii;
 
 int test_iteration_spaces() {
@@ -252,7 +252,6 @@ int test_iteration_spaces() {
 
   #pragma omp parallel
   {
-    // expected-error@+2 {{loop iteration variable in the associated loop of 'omp simd' directive may not be threadprivate or thread local, predetermined as linear}}
     #pragma omp simd
     for (sii = 0; sii < 10; sii+=1)
       c[sii] = a[sii];
@@ -260,7 +259,6 @@ int test_iteration_spaces() {
 
   #pragma omp parallel
   {
-    // expected-error@+2 {{loop iteration variable in the associated loop of 'omp simd' directive may not be a variable with global storage without being explicitly marked as linear}}
     #pragma omp simd
     for (globalii = 0; globalii < 10; globalii+=1)
       c[globalii] = a[globalii];
@@ -268,7 +266,6 @@ int test_iteration_spaces() {
 
   #pragma omp parallel
   {
-// expected-error@+3 {{loop iteration variable in the associated loop of 'omp simd' directive may not be a variable with global storage without being explicitly marked as lastprivate}}
 #pragma omp simd collapse(2)
     for (ii = 0; ii < 10; ii += 1)
     for (globalii = 0; globalii < 10; globalii += 1)

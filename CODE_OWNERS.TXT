@@ -12,6 +12,10 @@ N: Aaron Ballman
 E: aaron@aaronballman.com
 D: Clang attributes
 
+N: Alexey Bataev
+E: a.bataev@hotmail.com
+D: OpenMP support
+
 N: Chandler Carruth
 E: chandlerc@gmail.com
 E: chandlerc@google.com
@@ -23,7 +27,11 @@ D: Debug Information, autotools/configure/make build, inline assembly
 
 N: Doug Gregor
 E: dgregor@apple.com
-D: All parts of Clang not covered by someone else
+D: Emeritus owner
+
+N: Reid Kleckner
+E: rnk@google.com
+D: Microsoft C++ ABI compatibility and general Windows support
 
 N: Anton Korobeynikov
 E: anton@korobeynikov.info
@@ -43,4 +51,4 @@ D: Compiler driver
 
 N: Richard Smith
 E: richard@metafoo.co.uk
-D: Clang Semantic Analysis (tools/clang/lib/Sema/* tools/clang/include/clang/Sema/*)
+D: All parts of Clang not covered by someone else

@@ -363,3 +363,26 @@ enum
         UIU8one = 1
 };
 typedef uint8_t UI8Type;
+
+// rdar://19352510
+typedef enum : NSInteger {zero} MyEnum;
+
+typedef enum : NSUInteger {two} MyEnumNSUInteger;
+
+typedef enum : int {three, four} MyEnumint;
+
+typedef enum : unsigned long {five} MyEnumlonglong;
+
+typedef enum : unsigned long long {
+  ll1,
+  ll2= 0xff,
+  ll3,
+  ll4
+} MyEnumunsignedlonglong;
+
+// rdar://19994496
+typedef enum : int8_t {int8_one} MyOneEnum;
+
+typedef enum : int16_t {
+          int16_t_one,
+          int16_t_two } Myint16_tEnum;

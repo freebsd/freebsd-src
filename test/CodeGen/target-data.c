@@ -8,11 +8,11 @@
 
 // RUN: %clang_cc1 -triple i686-unknown-win32 -emit-llvm -o - %s | \
 // RUN:     FileCheck --check-prefix=I686-WIN32 %s
-// I686-WIN32: target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
+// I686-WIN32: target datalayout = "e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32"
 
 // RUN: %clang_cc1 -triple i686-unknown-cygwin -emit-llvm -o - %s | \
 // RUN:     FileCheck --check-prefix=I686-CYGWIN %s
-// I686-CYGWIN: target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
+// I686-CYGWIN: target datalayout = "e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32"
 
 // RUN: %clang_cc1 -triple x86_64-unknown-unknown -emit-llvm -o - %s | \
 // RUN:     FileCheck --check-prefix=X86_64 %s
@@ -66,7 +66,7 @@
 // RUN: FileCheck %s -check-prefix=X86_64-NACL
 // X86_64-NACL: target datalayout = "e-m:e-p:32:32-i64:64-n8:16:32:64-S128"
 
-// RUN: %clang_cc1 -triple arm-nacl-gnueabi -o - -emit-llvm %s | \
+// RUN: %clang_cc1 -triple arm-nacl -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=ARM-NACL
 // ARM-NACL: target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S128"
 
@@ -122,6 +122,11 @@
 // RUN: | FileCheck %s -check-prefix=R600SI
 // R600SI: target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-p24:64:64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
 
+// Test default -target-cpu
+// RUN: %clang_cc1 -triple amdgcn-unknown -o - -emit-llvm %s \
+// RUN: | FileCheck %s -check-prefix=R600SIDefault
+// R600SIDefault: target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-p24:64:64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
+
 // RUN: %clang_cc1 -triple arm64-unknown -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=AARCH64
 // AARCH64: target datalayout = "e-m:e-i64:64-i128:128-n32:64-S128"
@@ -149,6 +154,10 @@
 // RUN: %clang_cc1 -triple s390x-unknown -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=SYSTEMZ
 // SYSTEMZ: target datalayout = "E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-a:8:16-n32:64"
+
+// RUN: %clang_cc1 -triple s390x-unknown -target-cpu z13 -o - -emit-llvm %s | \
+// RUN: FileCheck %s -check-prefix=SYSTEMZ-VECTOR
+// SYSTEMZ-VECTOR: target datalayout = "E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-v128:64-a:8:16-n32:64"
 
 // RUN: %clang_cc1 -triple msp430-unknown -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=MSP430

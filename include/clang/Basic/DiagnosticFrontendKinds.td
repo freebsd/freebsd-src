@@ -35,6 +35,10 @@ def err_fe_backend_plugin: Error<"%0">, BackendInfo;
 def remark_fe_backend_plugin: Remark<"%0">, BackendInfo, InGroup<RemarkBackendPlugin>;
 def note_fe_backend_plugin: Note<"%0">, BackendInfo;
 
+def warn_fe_override_module : Warning<
+    "overriding the module target triple with %0">, 
+    InGroup<DiagGroup<"override-module">>;
+
 def remark_fe_backend_optimization_remark : Remark<"%0">, BackendInfo,
     InGroup<BackendOptimizationRemark>;
 def remark_fe_backend_optimization_remark_missed : Remark<"%0">, BackendInfo,
@@ -193,7 +197,11 @@ def err_conflicting_module_names : Error<
 def err_conflicting_module_files : Error<
   "module '%0' is defined in both '%1' and '%2'">;
 def err_module_file_not_found : Error<
-  "file '%0' is not a precompiled module file">, DefaultFatal;
+  "module file '%0' not found">, DefaultFatal;
+def err_module_file_invalid : Error<
+  "file '%0' is not a valid precompiled module file">, DefaultFatal;
+def note_module_file_imported_by : Note<
+  "imported by %select{|module '%2' in }1'%0'">;
 def err_module_file_not_module : Error<
   "AST file '%0' was not built as a module">, DefaultFatal;
 

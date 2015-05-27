@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -triple i386-mingw32 -std=c++11 -fsyntax-only -Wno-unused-getter-return-value -Wno-unused-value -Wmicrosoft -verify -fms-extensions -fms-compatibility -fdelayed-template-parsing
+// RUN: %clang_cc1 %s -triple i386-mingw32 -std=c++14 -fsyntax-only -Wno-unused-getter-return-value -Wno-unused-value -Wmicrosoft -verify -fms-extensions -fms-compatibility -fdelayed-template-parsing
 
 /* Microsoft attribute tests */
 [repeatable][source_annotation_attribute( Parameter|ReturnValue )]
@@ -339,7 +339,7 @@ void TestProperty() {
 //expected-warning@+1 {{C++ operator 'and' (aka '&&') used as a macro name}}
 #define and foo
 
-struct __declspec(uuid("00000000-0000-0000-C000-000000000046")) __declspec(novtable) IUnknown {}; // expected-warning{{__declspec attribute 'novtable' is not supported}}
+struct __declspec(uuid("00000000-0000-0000-C000-000000000046")) __declspec(novtable) IUnknown {};
 
 typedef bool (__stdcall __stdcall *blarg)(int);
 
@@ -375,3 +375,28 @@ typedef void(*ignored_quals_dummy3)(), __stdcall ignored_quals3; // expected-war
 typedef void(*ignored_quals_dummy4)(), __thiscall ignored_quals4; // expected-warning {{qualifiers after comma in declarator list are ignored}}
 typedef void(*ignored_quals_dummy5)(), __cdecl ignored_quals5; // expected-warning {{qualifiers after comma in declarator list are ignored}}
 typedef void(*ignored_quals_dummy6)(), __vectorcall ignored_quals6; // expected-warning {{qualifiers after comma in declarator list are ignored}}
+
+namespace {
+bool f(int);
+template <typename T>
+struct A {
+  constexpr A(T t) {
+    __assume(f(t)); // expected-warning{{the argument to '__assume' has side effects that will be discarded}}
+  }
+  constexpr bool g() { return false; }
+};
+constexpr A<int> h() {
+  A<int> b(0); // expected-note {{in instantiation of member function}}
+  return b;
+}
+static_assert(h().g() == false, "");
+}
+
+namespace {
+__declspec(align(16)) struct align_before_key1 {};
+__declspec(align(16)) struct align_before_key2 {} align_before_key2_var;
+__declspec(align(16)) struct align_before_key3 {} *align_before_key3_var;
+static_assert(__alignof(struct align_before_key1) == 16, "");
+static_assert(__alignof(struct align_before_key2) == 16, "");
+static_assert(__alignof(struct align_before_key3) == 16, "");
+}

@@ -383,10 +383,25 @@
 // CHECK-NO-WARNING1-NOT: optimization flag '-finline-limit=1000' is not supported
 // CHECK-NO-WARNING2-NOT: optimization flag '-finline-limit' is not supported
 
+// RUN: %clang -### -S -fsigned-char %s 2>&1 | FileCheck -check-prefix=CHAR-SIGN1 %s
+// CHAR-SIGN1-NOT: -fno-signed-char
 
-// RUN: %clang -### -fshort-wchar -fno-short-wchar %s 2>&1 | FileCheck -check-prefix=CHECK-WCHAR1 %s
-// RUN: %clang -### -fno-short-wchar -fshort-wchar %s 2>&1 | FileCheck -check-prefix=CHECK-WCHAR2 %s
+// RUN: %clang -### -S -funsigned-char %s 2>&1 | FileCheck -check-prefix=CHAR-SIGN2 %s
+// CHAR-SIGN2: -fno-signed-char
+
+// RUN: %clang -### -S -fno-signed-char %s 2>&1 | FileCheck -check-prefix=CHAR-SIGN3 %s
+// CHAR-SIGN3: -fno-signed-char
+
+// RUN: %clang -### -S -fno-unsigned-char %s 2>&1 | FileCheck -check-prefix=CHAR-SIGN4 %s
+// CHAR-SIGN4-NOT: -fno-signed-char
+
+// RUN: %clang -### -fshort-wchar -fno-short-wchar %s 2>&1 | FileCheck -check-prefix=CHECK-WCHAR1 -check-prefix=DELIMITERS %s
+// RUN: %clang -### -fno-short-wchar -fshort-wchar %s 2>&1 | FileCheck -check-prefix=CHECK-WCHAR2 -check-prefix=DELIMITERS %s
+// Make sure we don't match the -NOT lines with the linker invocation.
+// Delimiters match the start of the cc1 and the start of the linker lines
+// DELIMITERS: {{^ *"}}
 // CHECK-WCHAR1: -fno-short-wchar
 // CHECK-WCHAR1-NOT: -fshort-wchar
 // CHECK-WCHAR2: -fshort-wchar
 // CHECK-WCHAR2-NOT: -fno-short-wchar
+// DELIMITERS: {{^ *"}}

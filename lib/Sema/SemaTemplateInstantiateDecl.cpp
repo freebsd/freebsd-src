@@ -202,6 +202,31 @@ static void instantiateDependentEnableIfAttr(
   New->addAttr(EIA);
 }
 
+// Constructs and adds to New a new instance of CUDALaunchBoundsAttr using
+// template A as the base and arguments from TemplateArgs.
+static void instantiateDependentCUDALaunchBoundsAttr(
+    Sema &S, const MultiLevelTemplateArgumentList &TemplateArgs,
+    const CUDALaunchBoundsAttr &Attr, Decl *New) {
+  // The alignment expression is a constant expression.
+  EnterExpressionEvaluationContext Unevaluated(S, Sema::ConstantEvaluated);
+
+  ExprResult Result = S.SubstExpr(Attr.getMaxThreads(), TemplateArgs);
+  if (Result.isInvalid())
+    return;
+  Expr *MaxThreads = Result.getAs<Expr>();
+
+  Expr *MinBlocks = nullptr;
+  if (Attr.getMinBlocks()) {
+    Result = S.SubstExpr(Attr.getMinBlocks(), TemplateArgs);
+    if (Result.isInvalid())
+      return;
+    MinBlocks = Result.getAs<Expr>();
+  }
+
+  S.AddLaunchBoundsAttr(Attr.getLocation(), New, MaxThreads, MinBlocks,
+                        Attr.getSpellingListIndex());
+}
+
 void Sema::InstantiateAttrs(const MultiLevelTemplateArgumentList &TemplateArgs,
                             const Decl *Tmpl, Decl *New,
                             LateInstantiatedAttrVec *LateAttrs,
@@ -230,6 +255,13 @@ void Sema::InstantiateAttrs(const MultiLevelTemplateArgumentList &TemplateArgs,
     if (EnableIf && EnableIf->getCond()->isValueDependent()) {
       instantiateDependentEnableIfAttr(*this, TemplateArgs, EnableIf, Tmpl,
                                        New);
+      continue;
+    }
+
+    if (const CUDALaunchBoundsAttr *CUDALaunchBounds =
+            dyn_cast<CUDALaunchBoundsAttr>(TmplAttr)) {
+      instantiateDependentCUDALaunchBoundsAttr(*this, TemplateArgs,
+                                               *CUDALaunchBounds, New);
       continue;
     }
 
@@ -286,6 +318,11 @@ static DeclT *getPreviousDeclForInstantiation(DeclT *D) {
 Decl *
 TemplateDeclInstantiator::VisitTranslationUnitDecl(TranslationUnitDecl *D) {
   llvm_unreachable("Translation units cannot be instantiated");
+}
+
+Decl *
+TemplateDeclInstantiator::VisitExternCContextDecl(ExternCContextDecl *D) {
+  llvm_unreachable("extern \"C\" context cannot be instantiated");
 }
 
 Decl *
@@ -1265,11 +1302,19 @@ Decl *TemplateDeclInstantiator::VisitCXXRecordDecl(CXXRecordDecl *D) {
   // DR1484 clarifies that the members of a local class are instantiated as part
   // of the instantiation of their enclosing entity.
   if (D->isCompleteDefinition() && D->isLocalClass()) {
+    Sema::SavePendingLocalImplicitInstantiationsRAII
+        SavedPendingLocalImplicitInstantiations(SemaRef);
+
     SemaRef.InstantiateClass(D->getLocation(), Record, D, TemplateArgs,
                              TSK_ImplicitInstantiation,
                              /*Complain=*/true);
+
     SemaRef.InstantiateClassMembers(D->getLocation(), Record, TemplateArgs,
                                     TSK_ImplicitInstantiation);
+
+    // This class may have local implicit instantiations that need to be
+    // performed within this scope.
+    SemaRef.PerformPendingInstantiations(/*LocalOnly=*/true);
   }
 
   SemaRef.DiagnoseUnusedNestedTypedefs(Record);
@@ -3313,12 +3358,8 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
   // it marks vtables used in late parsed templates as used.
   SavePendingLocalImplicitInstantiationsRAII
       SavedPendingLocalImplicitInstantiations(*this);
-  std::unique_ptr<SavePendingInstantiationsAndVTableUsesRAII>
-      SavePendingInstantiationsAndVTableUses;
-  if (Recursive) {
-    SavePendingInstantiationsAndVTableUses.reset(
-        new SavePendingInstantiationsAndVTableUsesRAII(*this));
-  }
+  SavePendingInstantiationsAndVTableUsesRAII
+      SavePendingInstantiationsAndVTableUses(*this, /*Enabled=*/Recursive);
 
   // Call the LateTemplateParser callback if there is a need to late parse
   // a templated function definition.
@@ -3463,8 +3504,8 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     // instantiation of this template.
     PerformPendingInstantiations();
 
-    // Restore PendingInstantiations and VTableUses.
-    SavePendingInstantiationsAndVTableUses.reset();
+    // PendingInstantiations and VTableUses are restored through
+    // SavePendingInstantiationsAndVTableUses's destructor.
   }
 }
 
@@ -3780,12 +3821,8 @@ void Sema::InstantiateVariableDefinition(SourceLocation PointOfInstantiation,
       // If we're performing recursive template instantiation, create our own
       // queue of pending implicit instantiations that we will instantiate
       // later, while we're still within our own instantiation context.
-      std::unique_ptr<SavePendingInstantiationsAndVTableUsesRAII>
-          SavePendingInstantiationsAndVTableUses;
-      if (Recursive) {
-        SavePendingInstantiationsAndVTableUses.reset(
-            new SavePendingInstantiationsAndVTableUsesRAII(*this));
-      }
+      SavePendingInstantiationsAndVTableUsesRAII
+          SavePendingInstantiationsAndVTableUses(*this, /*Enabled=*/Recursive);
 
       LocalInstantiationScope Local(*this);
 
@@ -3812,8 +3849,8 @@ void Sema::InstantiateVariableDefinition(SourceLocation PointOfInstantiation,
         // instantiation of this template.
         PerformPendingInstantiations();
 
-        // Restore PendingInstantiations and VTableUses.
-        SavePendingInstantiationsAndVTableUses.reset();
+        // PendingInstantiations and VTableUses are restored through
+        // SavePendingInstantiationsAndVTableUses's destructor.
       }
     }
 
@@ -3899,12 +3936,8 @@ void Sema::InstantiateVariableDefinition(SourceLocation PointOfInstantiation,
   // while we're still within our own instantiation context.
   SavePendingLocalImplicitInstantiationsRAII
       SavedPendingLocalImplicitInstantiations(*this);
-  std::unique_ptr<SavePendingInstantiationsAndVTableUsesRAII>
-      SavePendingInstantiationsAndVTableUses;
-  if (Recursive) {
-    SavePendingInstantiationsAndVTableUses.reset(
-        new SavePendingInstantiationsAndVTableUsesRAII(*this));
-  }
+  SavePendingInstantiationsAndVTableUsesRAII
+      SavePendingInstantiationsAndVTableUses(*this, /*Enabled=*/Recursive);
 
   // Enter the scope of this instantiation. We don't use
   // PushDeclContext because we don't have a scope.
@@ -3970,8 +4003,8 @@ void Sema::InstantiateVariableDefinition(SourceLocation PointOfInstantiation,
     // instantiation of this template.
     PerformPendingInstantiations();
 
-    // Restore PendingInstantiations and VTableUses.
-    SavePendingInstantiationsAndVTableUses.reset();
+    // PendingInstantiations and VTableUses are restored through
+    // SavePendingInstantiationsAndVTableUses's destructor.
   }
 }
 
@@ -4408,6 +4441,30 @@ NamedDecl *Sema::FindInstantiatedDecl(SourceLocation Loc, NamedDecl *D,
 
     if (D->isInvalidDecl())
       return nullptr;
+
+    // Normally this function only searches for already instantiated declaration
+    // however we have to make an exclusion for local types used before
+    // definition as in the code:
+    //
+    //   template<typename T> void f1() {
+    //     void g1(struct x1);
+    //     struct x1 {};
+    //   }
+    //
+    // In this case instantiation of the type of 'g1' requires definition of
+    // 'x1', which is defined later. Error recovery may produce an enum used
+    // before definition. In these cases we need to instantiate relevant
+    // declarations here.
+    bool NeedInstantiate = false;
+    if (CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D))
+      NeedInstantiate = RD->isLocalClass();
+    else
+      NeedInstantiate = isa<EnumDecl>(D);
+    if (NeedInstantiate) {
+      Decl *Inst = SubstDecl(D, CurContext, TemplateArgs);
+      CurrentInstantiationScope->InstantiatedLocal(D, Inst);
+      return cast<TypeDecl>(Inst);
+    }
 
     // If we didn't find the decl, then we must have a label decl that hasn't
     // been found yet.  Lazily instantiate it and return it now.

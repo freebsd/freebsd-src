@@ -95,14 +95,14 @@ namespace InitVTable {
 
   // CHECK-LABEL: define void @_ZN10InitVTable1BC2Ev(%"struct.InitVTable::B"* %this) unnamed_addr
   // CHECK:      [[T0:%.*]] = bitcast [[B:%.*]]* [[THIS:%.*]] to i32 (...)***
-  // CHECK-NEXT: store i32 (...)** bitcast (i8** getelementptr inbounds ([3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2) to i32 (...)**), i32 (...)*** [[T0]]
-  // CHECK:      [[VTBL:%.*]] = load i32 ([[B]]*)*** {{%.*}}
-  // CHECK-NEXT: [[FNP:%.*]] = getelementptr inbounds i32 ([[B]]*)** [[VTBL]], i64 0
-  // CHECK-NEXT: [[FN:%.*]] = load i32 ([[B]]*)** [[FNP]]
+  // CHECK-NEXT: store i32 (...)** bitcast (i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2) to i32 (...)**), i32 (...)*** [[T0]]
+  // CHECK:      [[VTBL:%.*]] = load i32 ([[B]]*)**, i32 ([[B]]*)*** {{%.*}}
+  // CHECK-NEXT: [[FNP:%.*]] = getelementptr inbounds i32 ([[B]]*)*, i32 ([[B]]*)** [[VTBL]], i64 0
+  // CHECK-NEXT: [[FN:%.*]] = load i32 ([[B]]*)*, i32 ([[B]]*)** [[FNP]]
   // CHECK-NEXT: [[ARG:%.*]] = call i32 [[FN]]([[B]]* [[THIS]])
   // CHECK-NEXT: call void @_ZN10InitVTable1AC2Ei({{.*}}* {{%.*}}, i32 [[ARG]])
   // CHECK-NEXT: [[T0:%.*]] = bitcast [[B]]* [[THIS]] to i32 (...)***
-  // CHECK-NEXT: store i32 (...)** bitcast (i8** getelementptr inbounds ([3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2) to i32 (...)**), i32 (...)*** [[T0]]
+  // CHECK-NEXT: store i32 (...)** bitcast (i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2) to i32 (...)**), i32 (...)*** [[T0]]
   // CHECK-NEXT: ret void
   B::B() : A(foo()) {}
 
@@ -110,7 +110,7 @@ namespace InitVTable {
   // CHECK:      [[ARG:%.*]] = add nsw i32 {{%.*}}, 5
   // CHECK-NEXT: call void @_ZN10InitVTable1AC2Ei({{.*}}* {{%.*}}, i32 [[ARG]])
   // CHECK-NEXT: [[T0:%.*]] = bitcast [[B]]* {{%.*}} to i32 (...)***
-  // CHECK-NEXT: store i32 (...)** bitcast (i8** getelementptr inbounds ([3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2) to i32 (...)**), i32 (...)*** [[T0]]
+  // CHECK-NEXT: store i32 (...)** bitcast (i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2) to i32 (...)**), i32 (...)*** [[T0]]
   // CHECK-NEXT: ret void
   B::B(int x) : A(x + 5) {}
 }
@@ -200,6 +200,20 @@ namespace PR10720 {
     // CHECK-PR10720: ret
     pair2 &operator=(pair2&&) = default;
 
+    // CHECK-PR10720-LABEL: define linkonce_odr void @_ZN7PR107204pairC2ERKS0_
+    // CHECK-PR10720-NOT: ret
+    // CHECK-PR10720: call void @llvm.memcpy
+    // CHECK-PR10720-NEXT: ret void
+
+    // CHECK-PR10720-LABEL: define linkonce_odr void @_ZN7PR107205pair2C2ERKS0_
+    // CHECK-PR10720-NOT: ret
+    // CHECK-PR10720: load
+    // CHECK-PR10720: icmp ult
+    // CHECK-PR10720-NEXT: br i1
+    // CHECK-PR10720: call void @_ZN7PR107201XC1ERKS0_
+    // CHECK-PR10720-NEXT: br label
+    // CHECK-PR10720: ret void
+
     // CHECK-PR10720-LABEL: define linkonce_odr void @_ZN7PR107205pair2C2EOS0_
     // CHECK-PR10720-NOT: ret
     // CHECK-PR10720: load
@@ -210,23 +224,11 @@ namespace PR10720 {
     // CHECK-PR10720: ret void
     pair2(pair2&&) = default;
 
-    // CHECK-PR10720-LABEL: define linkonce_odr void @_ZN7PR107205pair2C2ERKS0_
-    // CHECK-PR10720-NOT: ret
-    // CHECK-PR10720: load
-    // CHECK-PR10720: icmp ult
-    // CHECK-PR10720-NEXT: br i1
-    // CHECK-PR10720: call void @_ZN7PR107201XC1ERKS0_
-    // CHECK-PR10720-NEXT: br label
-    // CHECK-PR10720: ret void
     pair2(const pair2&) = default;
   };
 
   struct pair : X { // Make the copy constructor non-trivial, so we actually generate it.
     int second[4];
-    // CHECK-PR10720-LABEL: define linkonce_odr void @_ZN7PR107204pairC2ERKS0_
-    // CHECK-PR10720-NOT: ret
-    // CHECK-PR10720: call void @llvm.memcpy
-    // CHECK-PR10720-NEXT: ret void
     pair(const pair&) = default;
   };
 

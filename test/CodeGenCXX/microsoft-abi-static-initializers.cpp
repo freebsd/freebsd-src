@@ -1,9 +1,9 @@
-// RUN: %clang_cc1 -fms-extensions -emit-llvm %s -o - -mconstructor-aliases -triple=i386-pc-win32 | FileCheck %s
+// RUN: %clang_cc1 -fms-extensions -fno-threadsafe-statics -emit-llvm %s -o - -mconstructor-aliases -triple=i386-pc-win32 | FileCheck %s
 
 // CHECK: @llvm.global_ctors = appending global [5 x { i32, void ()*, i8* }] [
-// CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Eselectany1@@YAXXZ", i8* getelementptr inbounds (%struct.S* @"\01?selectany1@@3US@@A", i32 0, i32 0) },
-// CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Eselectany2@@YAXXZ", i8* getelementptr inbounds (%struct.S* @"\01?selectany2@@3US@@A", i32 0, i32 0) },
-// CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Es@?$ExportedTemplate@H@@2US@@A@YAXXZ", i8* getelementptr inbounds (%struct.S* @"\01?s@?$ExportedTemplate@H@@2US@@A", i32 0, i32 0) },
+// CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Eselectany1@@YAXXZ", i8* getelementptr inbounds (%struct.S, %struct.S* @"\01?selectany1@@3US@@A", i32 0, i32 0) },
+// CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Eselectany2@@YAXXZ", i8* getelementptr inbounds (%struct.S, %struct.S* @"\01?selectany2@@3US@@A", i32 0, i32 0) },
+// CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Es@?$ExportedTemplate@H@@2US@@A@YAXXZ", i8* getelementptr inbounds (%struct.S, %struct.S* @"\01?s@?$ExportedTemplate@H@@2US@@A", i32 0, i32 0) },
 // CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @"\01??__Efoo@?$B@H@@2VA@@A@YAXXZ", i8* bitcast (%class.A* @"\01?foo@?$B@H@@2VA@@A" to i8*) },
 // CHECK: { i32, void ()*, i8* } { i32 65535, void ()* @_GLOBAL__sub_I_microsoft_abi_static_initializers.cpp, i8* null }
 // CHECK: ]
@@ -28,11 +28,11 @@ S s;
 // See @llvm.global_ctors above.
 __declspec(selectany) S selectany1;
 __declspec(selectany) S selectany2;
-// CHECK: define linkonce_odr void @"\01??__Eselectany1@@YAXXZ"()
+// CHECK: define linkonce_odr void @"\01??__Eselectany1@@YAXXZ"() {{.*}} comdat
 // CHECK-NOT: @"\01??_Bselectany1
 // CHECK: call x86_thiscallcc %struct.S* @"\01??0S@@QAE@XZ"
 // CHECK: ret void
-// CHECK: define linkonce_odr void @"\01??__Eselectany2@@YAXXZ"()
+// CHECK: define linkonce_odr void @"\01??__Eselectany2@@YAXXZ"() {{.*}} comdat
 // CHECK-NOT: @"\01??_Bselectany2
 // CHECK: call x86_thiscallcc %struct.S* @"\01??0S@@QAE@XZ"
 // CHECK: ret void
@@ -52,7 +52,7 @@ void StaticLocal() {
 }
 
 // CHECK-LABEL: define void @"\01?StaticLocal@@YAXXZ"()
-// CHECK: load i32* @"\01?$S1@?1??StaticLocal@@YAXXZ@4IA"
+// CHECK: load i32, i32* @"\01?$S1@?1??StaticLocal@@YAXXZ@4IA"
 // CHECK: store i32 {{.*}}, i32* @"\01?$S1@?1??StaticLocal@@YAXXZ@4IA"
 // CHECK: ret
 
@@ -94,7 +94,7 @@ void MultipleStatics() {
   static S S35;
 }
 // CHECK-LABEL: define void @"\01?MultipleStatics@@YAXXZ"()
-// CHECK: load i32* @"\01?$S1@?1??MultipleStatics@@YAXXZ@4IA"
+// CHECK: load i32, i32* @"\01?$S1@?1??MultipleStatics@@YAXXZ@4IA"
 // CHECK: and i32 {{.*}}, 1
 // CHECK: and i32 {{.*}}, 2
 // CHECK: and i32 {{.*}}, 4
@@ -102,7 +102,7 @@ void MultipleStatics() {
 // CHECK: and i32 {{.*}}, 16
 //   ...
 // CHECK: and i32 {{.*}}, -2147483648
-// CHECK: load i32* @"\01?$S1@?1??MultipleStatics@@YAXXZ@4IA1"
+// CHECK: load i32, i32* @"\01?$S1@?1??MultipleStatics@@YAXXZ@4IA.1"
 // CHECK: and i32 {{.*}}, 1
 // CHECK: and i32 {{.*}}, 2
 // CHECK: and i32 {{.*}}, 4
@@ -133,7 +133,7 @@ inline S &UnreachableStatic() {
   return s;
 }
 
-// CHECK-LABEL: define linkonce_odr dereferenceable({{[0-9]+}}) %struct.S* @"\01?UnreachableStatic@@YAAAUS@@XZ"()
+// CHECK-LABEL: define linkonce_odr dereferenceable({{[0-9]+}}) %struct.S* @"\01?UnreachableStatic@@YAAAUS@@XZ"() {{.*}} comdat
 // CHECK: and i32 {{.*}}, 2
 // CHECK: or i32 {{.*}}, 2
 // CHECK: ret
@@ -143,8 +143,8 @@ inline S &getS() {
   return TheS;
 }
 
-// CHECK-LABEL: define linkonce_odr dereferenceable({{[0-9]+}}) %struct.S* @"\01?getS@@YAAAUS@@XZ"
-// CHECK: load i32* @"\01??_B?1??getS@@YAAAUS@@XZ@51"
+// CHECK-LABEL: define linkonce_odr dereferenceable({{[0-9]+}}) %struct.S* @"\01?getS@@YAAAUS@@XZ"() {{.*}} comdat
+// CHECK: load i32, i32* @"\01??_B?1??getS@@YAAAUS@@XZ@51"
 // CHECK: and i32 {{.*}}, 1
 // CHECK: icmp ne i32 {{.*}}, 0
 // CHECK: br i1
@@ -158,7 +158,7 @@ inline S &getS() {
 // CHECK: ret %struct.S* @"\01?TheS@?1??getS@@YAAAUS@@XZ@4U2@A"
 
 inline int enum_in_function() {
-  // CHECK-LABEL: define linkonce_odr i32 @"\01?enum_in_function@@YAHXZ"()
+  // CHECK-LABEL: define linkonce_odr i32 @"\01?enum_in_function@@YAHXZ"() {{.*}} comdat
   static enum e { foo, bar, baz } x;
   // CHECK: @"\01?x@?1??enum_in_function@@YAHXZ@4W4e@?1??1@YAHXZ@A"
   static int y;
@@ -169,7 +169,7 @@ inline int enum_in_function() {
 struct T {
   enum e { foo, bar, baz };
   int enum_in_struct() {
-    // CHECK-LABEL: define linkonce_odr x86_thiscallcc i32 @"\01?enum_in_struct@T@@QAEHXZ"
+    // CHECK-LABEL: define linkonce_odr x86_thiscallcc i32 @"\01?enum_in_struct@T@@QAEHXZ"({{.*}}) {{.*}} comdat
     static int x;
     // CHECK: @"\01?x@?1??enum_in_struct@T@@QAEHXZ@4HA"
     return x++;
@@ -177,7 +177,7 @@ struct T {
 };
 
 inline int switch_test(int x) {
-  // CHECK-LABEL: define linkonce_odr i32 @"\01?switch_test@@YAHH@Z"(i32 %x)
+  // CHECK-LABEL: define linkonce_odr i32 @"\01?switch_test@@YAHH@Z"(i32 %x) {{.*}} comdat
   switch (x) {
     static int a;
     // CHECK: @"\01?a@?3??switch_test@@YAHH@Z@4HA"
@@ -198,7 +198,7 @@ inline int switch_test(int x) {
 
 int f();
 inline void switch_test2() {
-  // CHECK-LABEL: define linkonce_odr void @"\01?switch_test2@@YAXXZ"()
+  // CHECK-LABEL: define linkonce_odr void @"\01?switch_test2@@YAXXZ"() {{.*}} comdat
   // CHECK: @"\01?x@?2??switch_test2@@YAXXZ@4HA"
   switch (1) default: static int x = f();
 }
@@ -213,7 +213,7 @@ namespace DynamicDLLImportInitVSMangling {
   template struct __declspec(dllimport) A<int>;
 
   inline int switch_test3() {
-    // CHECK-LABEL: define linkonce_odr i32 @"\01?switch_test3@DynamicDLLImportInitVSMangling@@YAHXZ"
+    // CHECK-LABEL: define linkonce_odr i32 @"\01?switch_test3@DynamicDLLImportInitVSMangling@@YAHXZ"() {{.*}} comdat
     static int local;
     // CHECK: @"\01?local@?1??switch_test3@DynamicDLLImportInitVSMangling@@YAHXZ@4HA"
     return local++;
@@ -231,16 +231,16 @@ void force_usage() {
   DynamicDLLImportInitVSMangling::switch_test3();
 }
 
-// CHECK: define linkonce_odr void @"\01??__Efoo@?$B@H@@2VA@@A@YAXXZ"()
+// CHECK: define linkonce_odr void @"\01??__Efoo@?$B@H@@2VA@@A@YAXXZ"() {{.*}} comdat
 // CHECK-NOT: and
 // CHECK-NOT: ?_Bfoo@
 // CHECK: call x86_thiscallcc %class.A* @"\01??0A@@QAE@XZ"
 // CHECK: call i32 @atexit(void ()* @"\01??__Ffoo@?$B@H@@2VA@@A@YAXXZ")
 // CHECK: ret void
 
-// CHECK: define linkonce_odr x86_thiscallcc %class.A* @"\01??0A@@QAE@XZ"
+// CHECK: define linkonce_odr x86_thiscallcc %class.A* @"\01??0A@@QAE@XZ"({{.*}}) {{.*}} comdat
 
-// CHECK: define linkonce_odr x86_thiscallcc void @"\01??1A@@QAE@XZ"
+// CHECK: define linkonce_odr x86_thiscallcc void @"\01??1A@@QAE@XZ"({{.*}}) {{.*}} comdat
 
 // CHECK: define internal void @"\01??__Ffoo@?$B@H@@2VA@@A@YAXXZ"
 // CHECK: call x86_thiscallcc void @"\01??1A@@QAE@XZ"{{.*}}foo

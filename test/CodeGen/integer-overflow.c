@@ -52,18 +52,18 @@ void test1() {
   
   // DEFAULT: add nsw i32 {{.*}}, -1
   // WRAPV: add i32 {{.*}}, -1
-  // TRAPV: llvm.sadd.with.overflow.i32({{.*}}, i32 -1)
-  // CATCH_UB: llvm.sadd.with.overflow.i32({{.*}}, i32 -1)
+  // TRAPV: llvm.ssub.with.overflow.i32({{.*}}, i32 1)
+  // CATCH_UB: llvm.ssub.with.overflow.i32({{.*}}, i32 1)
   // TRAPV_HANDLER: foo(
   --a;
   
   // -fwrapv should turn off inbounds for GEP's, PR9256
   extern int* P;
   ++P;
-  // DEFAULT: getelementptr inbounds i32*
-  // WRAPV: getelementptr i32*
-  // TRAPV: getelementptr inbounds i32*
-  // CATCH_UB: getelementptr inbounds i32*
+  // DEFAULT: getelementptr inbounds i32, i32*
+  // WRAPV: getelementptr i32, i32*
+  // TRAPV: getelementptr inbounds i32, i32*
+  // CATCH_UB: getelementptr inbounds i32, i32*
 
   // PR9350: char increment never overflows.
   extern volatile signed char PR9350;

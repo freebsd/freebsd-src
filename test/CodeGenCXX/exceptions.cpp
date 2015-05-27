@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -emit-llvm -o - -fcxx-exceptions -fexceptions | FileCheck %s
+// RUN: %clang_cc1 %s -triple=x86_64-linux-gnu -emit-llvm -o - -fcxx-exceptions -fexceptions | FileCheck %s
 
 typedef typeof(sizeof(0)) size_t;
 
@@ -57,13 +57,13 @@ namespace test1 {
     // CHECK-NEXT: store i1 true, i1* [[ACTIVE]] 
     // CHECK-NEXT: [[CAST:%.*]] = bitcast i8* [[NEW]] to [[A]]*
     // CHECK-NEXT: invoke void @_ZN5test11BC1Ev([[B:%.*]]* [[T0:%.*]])
-    // CHECK:      [[T1:%.*]] = getelementptr inbounds [[B]]* [[T0]], i32 0, i32 0
-    // CHECK-NEXT: [[T2:%.*]] = load i32* [[T1]], align 4
+    // CHECK:      [[T1:%.*]] = getelementptr inbounds [[B]], [[B]]* [[T0]], i32 0, i32 0
+    // CHECK-NEXT: [[T2:%.*]] = load i32, i32* [[T1]], align 4
     // CHECK-NEXT: invoke void @_ZN5test11AC1Ei([[A]]* [[CAST]], i32 [[T2]])
     // CHECK:      store i1 false, i1* [[ACTIVE]]
     // CHECK-NEXT: invoke void @_ZN5test11BD1Ev([[B]]* [[T0]])
     // CHECK:      ret [[A]]* [[CAST]]
-    // CHECK:      [[ISACTIVE:%.*]] = load i1* [[ACTIVE]]
+    // CHECK:      [[ISACTIVE:%.*]] = load i1, i1* [[ACTIVE]]
     // CHECK-NEXT: br i1 [[ISACTIVE]]
     // CHECK:      call void @_ZdlPv(i8* [[NEW]])
     return new A(B().x);
@@ -71,7 +71,7 @@ namespace test1 {
 
   //   rdar://11904428
   //   Terminate landing pads should call __cxa_begin_catch first.
-  // CHECK:      define linkonce_odr hidden void @__clang_call_terminate(i8*) [[NI_NR_NUW:#[0-9]+]]
+  // CHECK:      define linkonce_odr hidden void @__clang_call_terminate(i8*) [[NI_NR_NUW:#[0-9]+]] comdat
   // CHECK-NEXT:   [[T0:%.*]] = call i8* @__cxa_begin_catch(i8* %0) [[NUW:#[0-9]+]]
   // CHECK-NEXT:   call void @_ZSt9terminatev() [[NR_NUW:#[0-9]+]]
   // CHECK-NEXT:   unreachable
@@ -88,7 +88,7 @@ namespace test1 {
     // CHECK:      store i1 false, i1* [[ACTIVE]]
     // CHECK-NEXT: invoke void @_ZN5test11BD1Ev([[B]]* [[T0]])
     // CHECK:      ret [[A]]* [[CAST]]
-    // CHECK:      [[ISACTIVE:%.*]] = load i1* [[ACTIVE]]
+    // CHECK:      [[ISACTIVE:%.*]] = load i1, i1* [[ACTIVE]]
     // CHECK-NEXT: br i1 [[ISACTIVE]]
     // CHECK:      call void @_ZdlPv(i8* [[NEW]])
     return new A(B());
@@ -109,7 +109,7 @@ namespace test1 {
     // CHECK-NEXT: invoke void @_ZN5test11BD1Ev([[B]]* [[T2]])
     // CHECK:      invoke void @_ZN5test11BD1Ev([[B]]* [[T0]])
     // CHECK:      ret [[A]]* [[CAST]]
-    // CHECK:      [[ISACTIVE:%.*]] = load i1* [[ACTIVE]]
+    // CHECK:      [[ISACTIVE:%.*]] = load i1, i1* [[ACTIVE]]
     // CHECK-NEXT: br i1 [[ISACTIVE]]
     // CHECK:      call void @_ZdlPv(i8* [[NEW]])
     return new A(B(), B());
@@ -137,11 +137,11 @@ namespace test1 {
     // CHECK:      store i1 false, i1* [[ACTIVE]]
     // CHECK-NEXT: store [[A]]* [[CAST]], [[A]]** [[X]], align 8
     // CHECK:      invoke void @_ZN5test15makeBEv([[B:%.*]]* sret [[T2:%.*]])
-    // CHECK:      [[RET:%.*]] = load [[A]]** [[X]], align 8
+    // CHECK:      [[RET:%.*]] = load [[A]]*, [[A]]** [[X]], align 8
     // CHECK:      invoke void @_ZN5test11BD1Ev([[B]]* [[T2]])
     // CHECK:      invoke void @_ZN5test11BD1Ev([[B]]* [[T0]])
     // CHECK:      ret [[A]]* [[RET]]
-    // CHECK:      [[ISACTIVE:%.*]] = load i1* [[ACTIVE]]
+    // CHECK:      [[ISACTIVE:%.*]] = load i1, i1* [[ACTIVE]]
     // CHECK-NEXT: br i1 [[ISACTIVE]]
     // CHECK:      call void @_ZdlPv(i8* [[NEW]])
     A *x;
@@ -228,10 +228,10 @@ namespace test3 {
     // CHECK:      ret [[A]]* [[RESULT]]
 
     // in the EH path:
-    // CHECK:      [[ISACTIVE:%.*]] = load i1* [[CLEANUPACTIVE]]
+    // CHECK:      [[ISACTIVE:%.*]] = load i1, i1* [[CLEANUPACTIVE]]
     // CHECK-NEXT: br i1 [[ISACTIVE]]
-    // CHECK:      [[V0:%.*]] = load i8** [[SAVED0]]
-    // CHECK-NEXT: [[V1:%.*]] = load i8** [[SAVED1]]
+    // CHECK:      [[V0:%.*]] = load i8*, i8** [[SAVED0]]
+    // CHECK-NEXT: [[V1:%.*]] = load i8*, i8** [[SAVED1]]
     // CHECK-NEXT: invoke void @_ZN5test31AdlEPvS1_d(i8* [[V0]], i8* [[V1]], double [[CONST]])
   }
 }
@@ -275,7 +275,7 @@ namespace test5 {
   // CHECK-NEXT: [[A:%.*]] = alloca [[A_T:%.*]], align 1
   // CHECK-NEXT: [[T:%.*]] = alloca [[T_T:%.*]], align 1
   // CHECK-NEXT: invoke void @_ZN5test53fooEv()
-  // CHECK:      [[EXN:%.*]] = load i8** [[EXNSLOT]]
+  // CHECK:      [[EXN:%.*]] = load i8*, i8** [[EXNSLOT]]
   // CHECK-NEXT: [[ADJ:%.*]] = call i8* @__cxa_get_exception_ptr(i8* [[EXN]])
   // CHECK-NEXT: [[SRC:%.*]] = bitcast i8* [[ADJ]] to [[A_T]]*
   // CHECK-NEXT: invoke void @_ZN5test51TC1Ev([[T_T]]* [[T]])
@@ -375,12 +375,12 @@ namespace test7 {
     // CHECK-NEXT: store [[B]]*
 
     // Destroy the inner A object.
-    // CHECK-NEXT: load i1* [[INNER_A]]
+    // CHECK-NEXT: load i1, i1* [[INNER_A]]
     // CHECK-NEXT: br i1
     // CHECK:      invoke void @_ZN5test71AD1Ev(
 
     // Destroy the outer A object.
-    // CHECK:      load i1* [[OUTER_A]]
+    // CHECK:      load i1, i1* [[OUTER_A]]
     // CHECK-NEXT: br i1
     // CHECK:      invoke void @_ZN5test71AD1Ev(
 
@@ -450,7 +450,7 @@ namespace test10 {
   // CHECK-LABEL:    define void @_ZN6test101CD1Ev(
   // CHECK:      invoke void @_ZN6test107cleanupEv()
   // CHECK:      call i8* @__cxa_begin_catch
-  // CHECK-NEXT: load i8* @_ZN6test108suppressE, align 1
+  // CHECK-NEXT: load i8, i8* @_ZN6test108suppressE, align 1
   // CHECK-NEXT: trunc
   // CHECK-NEXT: br i1
   // CHECK:      call void @__cxa_end_catch()
@@ -478,18 +478,18 @@ namespace test11 {
     throw 0;
   }
   // CHECK-LABEL:    define void @_ZN6test111CC2Ev(
-  // CHECK:      [[THIS:%.*]] = load [[C:%.*]]** {{%.*}}
+  // CHECK:      [[THIS:%.*]] = load [[C:%.*]]*, [[C:%.*]]** {{%.*}}
   //   Construct single.
-  // CHECK-NEXT: [[SINGLE:%.*]] = getelementptr inbounds [[C]]* [[THIS]], i32 0, i32 0
+  // CHECK-NEXT: [[SINGLE:%.*]] = getelementptr inbounds [[C]], [[C]]* [[THIS]], i32 0, i32 0
   // CHECK-NEXT: call void @_ZN6test111AC1Ev([[A:%.*]]* [[SINGLE]])
   //   Construct array.
-  // CHECK-NEXT: [[ARRAY:%.*]] = getelementptr inbounds [[C]]* [[THIS]], i32 0, i32 1
-  // CHECK-NEXT: [[ARRAYBEGIN:%.*]] = getelementptr inbounds [2 x [3 x [[A]]]]* [[ARRAY]], i32 0, i32 0, i32 0
-  // CHECK-NEXT: [[ARRAYEND:%.*]] = getelementptr inbounds [[A]]* [[ARRAYBEGIN]], i64 6
+  // CHECK-NEXT: [[ARRAY:%.*]] = getelementptr inbounds [[C]], [[C]]* [[THIS]], i32 0, i32 1
+  // CHECK-NEXT: [[ARRAYBEGIN:%.*]] = getelementptr inbounds [2 x [3 x [[A]]]], [2 x [3 x [[A]]]]* [[ARRAY]], i32 0, i32 0, i32 0
+  // CHECK-NEXT: [[ARRAYEND:%.*]] = getelementptr inbounds [[A]], [[A]]* [[ARRAYBEGIN]], i64 6
   // CHECK-NEXT: br label
   // CHECK:      [[CUR:%.*]] = phi [[A]]* [ [[ARRAYBEGIN]], {{%.*}} ], [ [[NEXT:%.*]], {{%.*}} ]
   // CHECK-NEXT: invoke void @_ZN6test111AC1Ev([[A:%.*]]* [[CUR]])
-  // CHECK:      [[NEXT]] = getelementptr inbounds [[A]]* [[CUR]], i64 1
+  // CHECK:      [[NEXT]] = getelementptr inbounds [[A]], [[A]]* [[CUR]], i64 1
   // CHECK-NEXT: [[DONE:%.*]] = icmp eq [[A]]* [[NEXT]], [[ARRAYEND]]
   // CHECK-NEXT: br i1 [[DONE]],
   //   throw 0;
@@ -500,7 +500,7 @@ namespace test11 {
   // CHECK:      [[EMPTY:%.*]] = icmp eq [[A]]* [[ARRAYBEGIN]], [[CUR]]
   // CHECK-NEXT: br i1 [[EMPTY]]
   // CHECK:      [[AFTER:%.*]] = phi [[A]]* [ [[CUR]], {{%.*}} ], [ [[ELT:%.*]], {{%.*}} ]
-  // CHECK-NEXT: [[ELT]] = getelementptr inbounds [[A]]* [[AFTER]], i64 -1
+  // CHECK-NEXT: [[ELT]] = getelementptr inbounds [[A]], [[A]]* [[AFTER]], i64 -1
   // CHECK-NEXT: invoke void @_ZN6test111AD1Ev([[A]]* [[ELT]])
   // CHECK:      [[DONE:%.*]] = icmp eq [[A]]* [[ELT]], [[ARRAYBEGIN]]
   // CHECK-NEXT: br i1 [[DONE]],
@@ -509,11 +509,11 @@ namespace test11 {
   //   Landing pad 2, from throw site.
   // CHECK:      landingpad
   //     - First, destroy all of array.
-  // CHECK:      [[ARRAYBEGIN:%.*]] = getelementptr inbounds [2 x [3 x [[A]]]]* [[ARRAY]], i32 0, i32 0, i32 0
-  // CHECK-NEXT: [[ARRAYEND:%.*]] = getelementptr inbounds [[A]]* [[ARRAYBEGIN]], i64 6
+  // CHECK:      [[ARRAYBEGIN:%.*]] = getelementptr inbounds [2 x [3 x [[A]]]], [2 x [3 x [[A]]]]* [[ARRAY]], i32 0, i32 0, i32 0
+  // CHECK-NEXT: [[ARRAYEND:%.*]] = getelementptr inbounds [[A]], [[A]]* [[ARRAYBEGIN]], i64 6
   // CHECK-NEXT: br label
   // CHECK:      [[AFTER:%.*]] = phi [[A]]* [ [[ARRAYEND]], {{%.*}} ], [ [[ELT:%.*]], {{%.*}} ]
-  // CHECK-NEXT: [[ELT]] = getelementptr inbounds [[A]]* [[AFTER]], i64 -1
+  // CHECK-NEXT: [[ELT]] = getelementptr inbounds [[A]], [[A]]* [[AFTER]], i64 -1
   // CHECK-NEXT: invoke void @_ZN6test111AD1Ev([[A]]* [[ELT]])
   // CHECK:      [[DONE:%.*]] = icmp eq [[A]]* [[ELT]], [[ARRAYBEGIN]]
   // CHECK-NEXT: br i1 [[DONE]],

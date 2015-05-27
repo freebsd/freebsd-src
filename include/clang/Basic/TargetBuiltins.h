@@ -16,6 +16,7 @@
 #ifndef LLVM_CLANG_BASIC_TARGETBUILTINS_H
 #define LLVM_CLANG_BASIC_TARGETBUILTINS_H
 
+#include <stdint.h>
 #include "clang/Basic/Builtins.h"
 #undef PPC
 
@@ -175,6 +176,15 @@ namespace clang {
   };
   }
 
+  /// \brief SystemZ builtins
+  namespace SystemZ {
+    enum {
+        LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsSystemZ.def"
+        LastTSBuiltin
+    };
+  }
 } // end namespace clang.
 
 #endif

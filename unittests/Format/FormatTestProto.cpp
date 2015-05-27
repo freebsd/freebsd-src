@@ -94,10 +94,23 @@ TEST_F(FormatTestProto, MessageFieldAttributes) {
                "  bbbbbbbbbbbbbbbb: BBBBBBBBBB\n"
                "}];");
   verifyFormat("repeated double value = 1 [(aaaaaaa.aaaaaaaaa) = {\n"
+               "  type: \"AAAAAAAAAA\"\n"
+               "  is: \"AAAAAAAAAA\"\n"
+               "  or: \"BBBBBBBBBB\"\n"
+               "}];");
+  verifyFormat("repeated double value = 1 [(aaaaaaa.aaaaaaaaa) = {\n"
                "  aaaaaaaaaaaaaaaa: AAAAAAAAAA,\n"
                "  bbbbbbb: BBBB,\n"
                "  bbbb: BBB\n"
                "}];");
+}
+
+TEST_F(FormatTestProto, DoesntWrapFileOptions) {
+  EXPECT_EQ(
+      "option java_package = "
+      "\"some.really.long.package.that.exceeds.the.column.limit\";",
+      format("option    java_package   =    "
+             "\"some.really.long.package.that.exceeds.the.column.limit\";"));
 }
 
 TEST_F(FormatTestProto, FormatsOptions) {

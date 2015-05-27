@@ -82,6 +82,9 @@ inline StructorType getFromCtorType(CXXCtorType T) {
     return StructorType::Base;
   case Ctor_Comdat:
     llvm_unreachable("not expecting a COMDAT");
+  case Ctor_CopyingClosure:
+  case Ctor_DefaultClosure:
+    llvm_unreachable("not expecting a closure");
   }
   llvm_unreachable("not a CXXCtorType");
 }
@@ -112,8 +115,8 @@ inline StructorType getFromDtorType(CXXDtorType T) {
   llvm_unreachable("not a CXXDtorType");
 }
 
-/// CodeGenTypes - This class organizes the cross-module state that is used
-/// while lowering AST types to LLVM types.
+/// This class organizes the cross-module state that is used while lowering
+/// AST types to LLVM types.
 class CodeGenTypes {
   CodeGenModule &CGM;
   // Some of this stuff should probably be left on the CGM.
@@ -133,34 +136,32 @@ class CodeGenTypes {
   /// types are never refined.
   llvm::DenseMap<const ObjCInterfaceType*, llvm::Type *> InterfaceTypes;
 
-  /// CGRecordLayouts - This maps llvm struct type with corresponding
-  /// record layout info.
+  /// Maps clang struct type with corresponding record layout info.
   llvm::DenseMap<const Type*, CGRecordLayout *> CGRecordLayouts;
 
-  /// RecordDeclTypes - This contains the LLVM IR type for any converted
-  /// RecordDecl.
+  /// Contains the LLVM IR type for any converted RecordDecl.
   llvm::DenseMap<const Type*, llvm::StructType *> RecordDeclTypes;
   
-  /// FunctionInfos - Hold memoized CGFunctionInfo results.
+  /// Hold memoized CGFunctionInfo results.
   llvm::FoldingSet<CGFunctionInfo> FunctionInfos;
 
-  /// RecordsBeingLaidOut - This set keeps track of records that we're currently
-  /// converting to an IR type.  For example, when converting:
+  /// This set keeps track of records that we're currently converting
+  /// to an IR type.  For example, when converting:
   /// struct A { struct B { int x; } } when processing 'x', the 'A' and 'B'
   /// types will be in this set.
   llvm::SmallPtrSet<const Type*, 4> RecordsBeingLaidOut;
   
   llvm::SmallPtrSet<const CGFunctionInfo*, 4> FunctionsBeingProcessed;
   
-  /// SkippedLayout - True if we didn't layout a function due to a being inside
+  /// True if we didn't layout a function due to a being inside
   /// a recursive struct conversion, set this to true.
   bool SkippedLayout;
 
   SmallVector<const RecordDecl *, 8> DeferredRecords;
   
 private:
-  /// TypeCache - This map keeps cache of llvm::Types
-  /// and maps clang::Type to corresponding llvm::Type.
+  /// This map keeps cache of llvm::Types and maps clang::Type to
+  /// corresponding llvm::Type.
   llvm::DenseMap<const Type *, llvm::Type *> TypeCache;
 
 public:
@@ -261,6 +262,8 @@ public:
                                              const FunctionProtoType *type,
                                              RequiredArgs required);
   const CGFunctionInfo &arrangeMSMemberPointerThunk(const CXXMethodDecl *MD);
+  const CGFunctionInfo &arrangeMSCtorClosure(const CXXConstructorDecl *CD,
+                                                 CXXCtorType CT);
 
   const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionProtoType> Ty);
   const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionNoProtoType> Ty);
@@ -305,7 +308,7 @@ public:  // These are internal details of CGT that shouldn't be used externally.
 
   /// IsZeroInitializable - Return whether a record type can be
   /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.
-  bool isZeroInitializable(const CXXRecordDecl *RD);
+  bool isZeroInitializable(const RecordDecl *RD);
   
   bool isRecordLayoutComplete(const Type *Ty) const;
   bool noRecordsBeingLaidOut() const {

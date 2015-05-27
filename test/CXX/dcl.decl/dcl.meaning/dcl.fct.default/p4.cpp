@@ -6,6 +6,7 @@ void f0(int i, int j = 2, int k);
 void f0(int i, int j, int k);
 void f0(int i = 1, // expected-note{{previous definition}}
         int j, int k);
+void f0(int i, int j, int k);   // want 2 decls before next default arg
 void f0(int i, int j, int k);
 
 namespace N0 {
@@ -53,3 +54,22 @@ namespace N1 {
     f2(6); // okay
   }
 }
+
+
+namespace PR18432 {
+
+struct A {
+  struct B {
+    static void Foo (int = 0);
+  };
+  
+  // should not hide default args
+  friend void B::Foo (int);
+};
+
+void Test ()
+{
+  A::B::Foo ();
+}
+
+} // namespace

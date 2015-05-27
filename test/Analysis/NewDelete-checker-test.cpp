@@ -87,6 +87,30 @@ void testNewInvalidationPlacement(PtrWrapper *w) {
   new (w) PtrWrapper(new int); // no warn
 }
 
+//-----------------------------------------
+// check for usage of zero-allocated memory
+//-----------------------------------------
+
+void testUseZeroAlloc1() {
+  int *p = (int *)operator new(0);
+  *p = 1; // expected-warning {{Use of zero-allocated memory}}
+  delete p;
+}
+
+int testUseZeroAlloc2() {
+  int *p = (int *)operator new[](0);
+  return p[0]; // expected-warning {{Use of zero-allocated memory}}
+  delete[] p;
+}
+
+void f(int);
+
+void testUseZeroAlloc3() {
+  int *p = new int[0];
+  f(*p); // expected-warning {{Use of zero-allocated memory}}
+  delete[] p;
+}
+
 //---------------
 // other checks
 //---------------
@@ -142,11 +166,6 @@ void testUseThisAfterDelete() {
   SomeClass *c = new SomeClass;
   delete c;
   c->f(0); // expected-warning{{Use of memory after it is freed}}
-}
-
-void testDeleteAlloca() {
-  int *p = (int *)__builtin_alloca(sizeof(int));
-  delete p; // expected-warning{{Memory allocated by alloca() should not be deallocated}}
 }
 
 void testDoubleDelete() {

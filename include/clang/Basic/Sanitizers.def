@@ -64,7 +64,9 @@ SANITIZER("null", Null)
 SANITIZER("object-size", ObjectSize)
 SANITIZER("return", Return)
 SANITIZER("returns-nonnull-attribute", ReturnsNonnullAttribute)
-SANITIZER("shift", Shift)
+SANITIZER("shift-base", ShiftBase)
+SANITIZER("shift-exponent", ShiftExponent)
+SANITIZER_GROUP("shift", Shift, ShiftBase | ShiftExponent)
 SANITIZER("signed-integer-overflow", SignedIntegerOverflow)
 SANITIZER("unreachable", Unreachable)
 SANITIZER("vla-bound", VLABound)
@@ -76,24 +78,27 @@ SANITIZER("unsigned-integer-overflow", UnsignedIntegerOverflow)
 // DataFlowSanitizer
 SANITIZER("dataflow", DataFlow)
 
-// -fsanitize=undefined includes all the sanitizers which have low overhead, no
-// ABI or address space layout implications, and only catch undefined behavior.
-SANITIZER_GROUP("undefined", Undefined,
-                Alignment | Bool | ArrayBounds | Enum | FloatCastOverflow |
-                    FloatDivideByZero | Function | IntegerDivideByZero |
-                    NonnullAttribute | Null | ObjectSize | Return |
-                    ReturnsNonnullAttribute | Shift | SignedIntegerOverflow |
-                    Unreachable | VLABound | Vptr)
+// Control Flow Integrity
+SANITIZER("cfi-cast-strict", CFICastStrict)
+SANITIZER("cfi-derived-cast", CFIDerivedCast)
+SANITIZER("cfi-unrelated-cast", CFIUnrelatedCast)
+SANITIZER("cfi-nvcall", CFINVCall)
+SANITIZER("cfi-vcall", CFIVCall)
+SANITIZER_GROUP("cfi", CFI,
+                CFIDerivedCast | CFIUnrelatedCast | CFINVCall | CFIVCall)
 
-// -fsanitize=undefined-trap includes
-// all sanitizers included by -fsanitize=undefined, except those that require
-// runtime support.  This group is generally used in conjunction with the
+// -fsanitize=undefined-trap includes sanitizers from -fsanitize=undefined
+// that can be used without runtime support, generally by providing extra
 // -fsanitize-undefined-trap-on-error flag.
 SANITIZER_GROUP("undefined-trap", UndefinedTrap,
                 Alignment | Bool | ArrayBounds | Enum | FloatCastOverflow |
                     FloatDivideByZero | IntegerDivideByZero | NonnullAttribute |
                     Null | ObjectSize | Return | ReturnsNonnullAttribute |
                     Shift | SignedIntegerOverflow | Unreachable | VLABound)
+
+// -fsanitize=undefined includes all the sanitizers which have low overhead, no
+// ABI or address space layout implications, and only catch undefined behavior.
+SANITIZER_GROUP("undefined", Undefined, UndefinedTrap | Function | Vptr)
 
 SANITIZER_GROUP("integer", Integer,
                 SignedIntegerOverflow | UnsignedIntegerOverflow | Shift |
@@ -104,7 +109,7 @@ SANITIZER_GROUP("bounds", Bounds, ArrayBounds | LocalBounds)
 
 // Magic group, containing all sanitizers. For example, "-fno-sanitize=all"
 // can be used to disable all the sanitizers.
-SANITIZER_GROUP("all", All, ~0)
+SANITIZER_GROUP("all", All, ~0ULL)
 
 #undef SANITIZER
 #undef SANITIZER_GROUP

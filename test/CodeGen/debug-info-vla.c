@@ -2,7 +2,10 @@
 
 void testVLAwithSize(int s)
 {
-// CHECK:  !"0x100\00vla\00[[@LINE+1]]\008192", {{.*}}, {{.*}}, {{.*}}} ; [ DW_TAG_auto_variable ] [vla] [line [[@LINE+1]]]
+// CHECK: dbg.declare
+// CHECK: dbg.declare({{.*}}, metadata ![[VAR:.*]], metadata ![[EXPR:.*]])
+// CHECK: ![[VAR]] = !DILocalVariable(tag: DW_TAG_auto_variable, name: "vla",{{.*}} line: [[@LINE+2]]
+// CHECK: ![[EXPR]] = !DIExpression(DW_OP_deref)
   int vla[s];
   int i;
   for (i = 0; i < s; i++) {

@@ -63,8 +63,8 @@ struct T4 {
 // CHECK-LABEL: define void @_ZN2T44testEv(
 void T4::test() {
 // CHECK: [[T0:%.*]] = alloca [[T4:%.*]]*,
-// CHECK: [[THIS:%.*]] = load [[T4]]** [[T0]]
-// CHECK: [[X:%.*]] = getelementptr inbounds [[T4]]* [[THIS]], i32 0, i32 0
+// CHECK: [[THIS:%.*]] = load [[T4]]*, [[T4]]** [[T0]]
+// CHECK: [[X:%.*]] = getelementptr inbounds [[T4]], [[T4]]* [[THIS]], i32 0, i32 0
   __asm mov eax, x;
   __asm mov y, eax;
 // CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $1\0A\09mov dword ptr $0, eax", "=*m,*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32* @_ZN2T41yE, i32* {{.*}})

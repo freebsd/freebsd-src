@@ -124,7 +124,7 @@ public:
     }
   }
 
-  virtual ~CaptureDiagnosticConsumer() {
+  ~CaptureDiagnosticConsumer() override {
     assert(!HasBegunSourceFile && "FinishCapture not called!");
   }
 
@@ -432,7 +432,7 @@ public:
   ARCMTMacroTrackerPPCallbacks(std::vector<SourceLocation> &ARCMTMacroLocs)
     : ARCMTMacroLocs(ARCMTMacroLocs) { }
 
-  void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
+  void MacroExpands(const Token &MacroNameTok, const MacroDefinition &MD,
                     SourceRange Range, const MacroArgs *Args) override {
     if (MacroNameTok.getIdentifierInfo()->getName() == getARCMTMacroName())
       ARCMTMacroLocs.push_back(MacroNameTok.getLocation());
@@ -465,7 +465,7 @@ public:
     if (Listener)
       Listener->start(ctx);
   }
-  ~RewritesApplicator() {
+  ~RewritesApplicator() override {
     if (Listener)
       Listener->finish();
   }

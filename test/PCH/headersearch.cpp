@@ -1,6 +1,5 @@
 // Test reading of PCH with changed location of original input files,
 // i.e. invoking header search.
-// REQUIRES: shell
 
 // Generate the original files:
 // RUN: rm -rf %t_orig %t_moved
@@ -15,20 +14,23 @@
 // RUN: echo '#include "orig_sub2.h"' >> %t_orig/all.h
 // RUN: echo 'int all();' >> %t_orig/all.h
 
+// This test relies on -Wpadded, which is only implemented for Itanium record
+// layout.
+
 // Generate the PCH:
-// RUN: cd %t_orig && %clang_cc1 -x c++ -emit-pch -o all.h.pch -Isub2 all.h
-// RUN: cp -pR %t_orig %t_moved
+// RUN: cd %t_orig && %clang_cc1 -triple %itanium_abi_triple -x c++ -emit-pch -o all.h.pch -Isub2 all.h
+// RUN: cp -R %t_orig %t_moved
 
 // Check diagnostic with location in original source:
-// RUN: %clang_cc1 -include-pch all.h.pch -I%t_moved -I%t_moved/sub2 -Wpadded -emit-llvm-only %s 2> %t.stderr
+// RUN: %clang_cc1 -triple %itanium_abi_triple -include-pch all.h.pch -I%t_moved -I%t_moved/sub2 -Wpadded -emit-llvm-only %s 2> %t.stderr
 // RUN: grep 'struct orig_sub' %t.stderr
 
 // Check diagnostic with 2nd location in original source:
-// RUN: not %clang_cc1 -DREDECL -include-pch all.h.pch -I%t_moved -I%t_moved/sub2 -emit-llvm-only %s 2> %t.stderr
+// RUN: not %clang_cc1 -triple %itanium_abi_triple -DREDECL -include-pch all.h.pch -I%t_moved -I%t_moved/sub2 -emit-llvm-only %s 2> %t.stderr
 // RUN: grep 'void foo' %t.stderr
 
 // Check diagnostic with instantiation location in original source:
-// RUN: not %clang_cc1 -DINSTANTIATION -include-pch all.h.pch -I%t_moved -I%t_moved/sub2 -emit-llvm-only %s 2> %t.stderr
+// RUN: not %clang_cc1 -triple %itanium_abi_triple -DINSTANTIATION -include-pch all.h.pch -I%t_moved -I%t_moved/sub2 -emit-llvm-only %s 2> %t.stderr
 // RUN: grep 'orig_sub2_1' %t.stderr
 
 void qq(orig_sub*) {all();}

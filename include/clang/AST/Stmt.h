@@ -58,7 +58,9 @@ namespace clang {
   class Stmt;
   class Expr;
 
-  class ExprIterator {
+  class ExprIterator : public std::iterator<std::forward_iterator_tag,
+                                            Expr *&, ptrdiff_t,
+                                            Expr *&, Expr *&> {
     Stmt** I;
   public:
     ExprIterator(Stmt** i) : I(i) {}
@@ -77,7 +79,10 @@ namespace clang {
     bool operator>=(const ExprIterator& R) const { return I >= R.I; }
   };
 
-  class ConstExprIterator {
+  class ConstExprIterator : public std::iterator<std::forward_iterator_tag,
+                                                 const Expr *&, ptrdiff_t,
+                                                 const Expr *&,
+                                                 const Expr *&> {
     const Stmt * const *I;
   public:
     ConstExprIterator(const Stmt * const *i) : I(i) {}
@@ -101,7 +106,7 @@ namespace clang {
 
 /// Stmt - This represents one statement.
 ///
-class Stmt {
+class LLVM_ALIGNAS(LLVM_PTR_SIZE) Stmt {
 public:
   enum StmtClass {
     NoStmtClass = 0,
@@ -287,9 +292,6 @@ protected:
   };
 
   union {
-    // FIXME: this is wasteful on 64-bit platforms.
-    void *Aligner;
-
     StmtBitfields StmtBits;
     CompoundStmtBitfields CompoundStmtBits;
     ExprBitfields ExprBits;
@@ -341,13 +343,12 @@ private:
 
 protected:
   /// \brief Construct an empty statement.
-  explicit Stmt(StmtClass SC, EmptyShell) {
-    StmtBits.sClass = SC;
-    if (StatisticsEnabled) Stmt::addStmtClass(SC);
-  }
+  explicit Stmt(StmtClass SC, EmptyShell) : Stmt(SC) {}
 
 public:
   Stmt(StmtClass SC) {
+    static_assert(sizeof(*this) % llvm::AlignOf<void *>::Alignment == 0,
+                  "Insufficient alignment!");
     StmtBits.sClass = SC;
     if (StatisticsEnabled) Stmt::addStmtClass(SC);
   }
@@ -374,6 +375,7 @@ public:
   void dump() const;
   void dump(SourceManager &SM) const;
   void dump(raw_ostream &OS, SourceManager &SM) const;
+  void dump(raw_ostream &OS) const;
 
   /// dumpColor - same as dump(), but forces color highlighting.
   void dumpColor() const;
@@ -583,6 +585,7 @@ public:
   body_range body() { return body_range(body_begin(), body_end()); }
   body_iterator body_begin() { return Body; }
   body_iterator body_end() { return Body + size(); }
+  Stmt *body_front() { return !body_empty() ? Body[0] : nullptr; }
   Stmt *body_back() { return !body_empty() ? Body[size()-1] : nullptr; }
 
   void setLastStmt(Stmt *S) {
@@ -598,6 +601,9 @@ public:
   }
   const_body_iterator body_begin() const { return Body; }
   const_body_iterator body_end() const { return Body + size(); }
+  const Stmt *body_front() const {
+    return !body_empty() ? Body[0] : nullptr;
+  }
   const Stmt *body_back() const {
     return !body_empty() ? Body[size() - 1] : nullptr;
   }
@@ -684,10 +690,10 @@ public:
 };
 
 class CaseStmt : public SwitchCase {
+  SourceLocation EllipsisLoc;
   enum { LHS, RHS, SUBSTMT, END_EXPR };
   Stmt* SubExprs[END_EXPR];  // The expression for the RHS is Non-null for
                              // GNU "case 1 ... 4" extension
-  SourceLocation EllipsisLoc;
 public:
   CaseStmt(Expr *lhs, Expr *rhs, SourceLocation caseLoc,
            SourceLocation ellipsisLoc, SourceLocation colonLoc)
@@ -784,12 +790,16 @@ inline SourceLocation SwitchCase::getLocEnd() const {
 ///    foo: return;
 ///
 class LabelStmt : public Stmt {
+  SourceLocation IdentLoc;
   LabelDecl *TheDecl;
   Stmt *SubStmt;
-  SourceLocation IdentLoc;
+
 public:
   LabelStmt(SourceLocation IL, LabelDecl *D, Stmt *substmt)
-    : Stmt(LabelStmtClass), TheDecl(D), SubStmt(substmt), IdentLoc(IL) {
+      : Stmt(LabelStmtClass), IdentLoc(IL), TheDecl(D), SubStmt(substmt) {
+    static_assert(sizeof(LabelStmt) ==
+                      2 * sizeof(SourceLocation) + 2 * sizeof(void *),
+                  "LabelStmt too big");
   }
 
   // \brief Build an empty label statement.
@@ -939,16 +949,14 @@ public:
 /// SwitchStmt - This represents a 'switch' stmt.
 ///
 class SwitchStmt : public Stmt {
+  SourceLocation SwitchLoc;
   enum { VAR, COND, BODY, END_EXPR };
   Stmt* SubExprs[END_EXPR];
-  // This points to a linked list of case and default statements.
-  SwitchCase *FirstCase;
-  SourceLocation SwitchLoc;
-
-  /// If the SwitchStmt is a switch on an enum value, this records whether
-  /// all the enum values were covered by CaseStmts.  This value is meant to
-  /// be a hint for possible clients.
-  unsigned AllEnumCasesCovered : 1;
+  // This points to a linked list of case and default statements and, if the
+  // SwitchStmt is a switch on an enum value, records whether all the enum
+  // values were covered by CaseStmts.  The coverage information value is meant
+  // to be a hint for possible clients.
+  llvm::PointerIntPair<SwitchCase *, 1, bool> FirstCase;
 
 public:
   SwitchStmt(const ASTContext &C, VarDecl *Var, Expr *cond);
@@ -976,16 +984,16 @@ public:
 
   const Expr *getCond() const { return reinterpret_cast<Expr*>(SubExprs[COND]);}
   const Stmt *getBody() const { return SubExprs[BODY]; }
-  const SwitchCase *getSwitchCaseList() const { return FirstCase; }
+  const SwitchCase *getSwitchCaseList() const { return FirstCase.getPointer(); }
 
   Expr *getCond() { return reinterpret_cast<Expr*>(SubExprs[COND]);}
   void setCond(Expr *E) { SubExprs[COND] = reinterpret_cast<Stmt *>(E); }
   Stmt *getBody() { return SubExprs[BODY]; }
   void setBody(Stmt *S) { SubExprs[BODY] = S; }
-  SwitchCase *getSwitchCaseList() { return FirstCase; }
+  SwitchCase *getSwitchCaseList() { return FirstCase.getPointer(); }
 
   /// \brief Set the case list for this switch statement.
-  void setSwitchCaseList(SwitchCase *SC) { FirstCase = SC; }
+  void setSwitchCaseList(SwitchCase *SC) { FirstCase.setPointer(SC); }
 
   SourceLocation getSwitchLoc() const { return SwitchLoc; }
   void setSwitchLoc(SourceLocation L) { SwitchLoc = L; }
@@ -997,21 +1005,17 @@ public:
   void addSwitchCase(SwitchCase *SC) {
     assert(!SC->getNextSwitchCase()
            && "case/default already added to a switch");
-    SC->setNextSwitchCase(FirstCase);
-    FirstCase = SC;
+    SC->setNextSwitchCase(FirstCase.getPointer());
+    FirstCase.setPointer(SC);
   }
 
   /// Set a flag in the SwitchStmt indicating that if the 'switch (X)' is a
   /// switch over an enum value then all cases have been explicitly covered.
-  void setAllEnumCasesCovered() {
-    AllEnumCasesCovered = 1;
-  }
+  void setAllEnumCasesCovered() { FirstCase.setInt(true); }
 
   /// Returns true if the SwitchStmt is a switch of an enum value and all cases
   /// have been explicitly covered.
-  bool isAllEnumCasesCovered() const {
-    return (bool) AllEnumCasesCovered;
-  }
+  bool isAllEnumCasesCovered() const { return FirstCase.getInt(); }
 
   SourceLocation getLocStart() const LLVM_READONLY { return SwitchLoc; }
   SourceLocation getLocEnd() const LLVM_READONLY {
@@ -1032,9 +1036,9 @@ public:
 /// WhileStmt - This represents a 'while' stmt.
 ///
 class WhileStmt : public Stmt {
+  SourceLocation WhileLoc;
   enum { VAR, COND, BODY, END_EXPR };
   Stmt* SubExprs[END_EXPR];
-  SourceLocation WhileLoc;
 public:
   WhileStmt(const ASTContext &C, VarDecl *Var, Expr *cond, Stmt *body,
             SourceLocation WL);
@@ -1087,9 +1091,9 @@ public:
 /// DoStmt - This represents a 'do/while' stmt.
 ///
 class DoStmt : public Stmt {
+  SourceLocation DoLoc;
   enum { BODY, COND, END_EXPR };
   Stmt* SubExprs[END_EXPR];
-  SourceLocation DoLoc;
   SourceLocation WhileLoc;
   SourceLocation RParenLoc;  // Location of final ')' in do stmt condition.
 
@@ -1138,9 +1142,9 @@ public:
 /// specified in the source.
 ///
 class ForStmt : public Stmt {
+  SourceLocation ForLoc;
   enum { INIT, CONDVAR, COND, INC, BODY, END_EXPR };
   Stmt* SubExprs[END_EXPR]; // SubExprs[INIT] is an expression or declstmt.
-  SourceLocation ForLoc;
   SourceLocation LParenLoc, RParenLoc;
 
 public:
@@ -1310,8 +1314,12 @@ public:
 ///
 class BreakStmt : public Stmt {
   SourceLocation BreakLoc;
+
 public:
-  BreakStmt(SourceLocation BL) : Stmt(BreakStmtClass), BreakLoc(BL) {}
+  BreakStmt(SourceLocation BL) : Stmt(BreakStmtClass), BreakLoc(BL) {
+    static_assert(sizeof(BreakStmt) == 2 * sizeof(SourceLocation),
+                  "BreakStmt too large");
+  }
 
   /// \brief Build an empty break statement.
   explicit BreakStmt(EmptyShell Empty) : Stmt(BreakStmtClass, Empty) { }
@@ -1341,18 +1349,16 @@ public:
 /// depend on the return type of the function and the presence of an argument.
 ///
 class ReturnStmt : public Stmt {
-  Stmt *RetExpr;
   SourceLocation RetLoc;
+  Stmt *RetExpr;
   const VarDecl *NRVOCandidate;
 
 public:
-  ReturnStmt(SourceLocation RL)
-    : Stmt(ReturnStmtClass), RetExpr(nullptr), RetLoc(RL),
-      NRVOCandidate(nullptr) {}
+  explicit ReturnStmt(SourceLocation RL) : ReturnStmt(RL, nullptr, nullptr) {}
 
   ReturnStmt(SourceLocation RL, Expr *E, const VarDecl *NRVOCandidate)
-    : Stmt(ReturnStmtClass), RetExpr((Stmt*) E), RetLoc(RL),
-      NRVOCandidate(NRVOCandidate) {}
+      : Stmt(ReturnStmtClass), RetLoc(RL), RetExpr((Stmt *)E),
+        NRVOCandidate(NRVOCandidate) {}
 
   /// \brief Build an empty return expression.
   explicit ReturnStmt(EmptyShell Empty) : Stmt(ReturnStmtClass, Empty) { }

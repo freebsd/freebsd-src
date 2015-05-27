@@ -10,7 +10,7 @@ B &getB();
 // CHECK-LABEL: define dereferenceable({{[0-9]+}}) %struct.A* @_Z4getAv()
 // CHECK: call dereferenceable({{[0-9]+}}) %struct.B* @_Z4getBv()
 // CHECK-NEXT: bitcast %struct.B*
-// CHECK-NEXT: getelementptr inbounds i8*
+// CHECK-NEXT: getelementptr inbounds i8, i8*
 // CHECK-NEXT: bitcast i8* {{.*}} to %struct.A*
 // CHECK-NEXT: ret %struct.A*
 A &&getA() { return static_cast<A&&>(getB()); }
@@ -96,7 +96,7 @@ namespace test1 {
 
   // CHECK-LABEL:    define void @_ZN5test11BC2Ei(
   // CHECK:      [[T0:%.*]] = call dereferenceable({{[0-9]+}}) i32* @_ZN5test14moveERi(
-  // CHECK-NEXT: [[T1:%.*]] = load i32* [[T0]]
+  // CHECK-NEXT: [[T1:%.*]] = load i32, i32* [[T0]]
   // CHECK-NEXT: call void @_ZN5test11AC1Ei({{.*}}, i32 [[T1]])
   // CHECK-NEXT: ret void
   B::B(int i) : a(move(i)) {}

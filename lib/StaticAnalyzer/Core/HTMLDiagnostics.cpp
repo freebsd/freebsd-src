@@ -45,7 +45,7 @@ class HTMLDiagnostics : public PathDiagnosticConsumer {
 public:
   HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts, const std::string& prefix, const Preprocessor &pp);
 
-  virtual ~HTMLDiagnostics() { FlushDiagnostics(nullptr); }
+  ~HTMLDiagnostics() override { FlushDiagnostics(nullptr); }
 
   void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
                             FilesMade *filesMade) override;
@@ -282,7 +282,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
       llvm::sys::path::append(Model, Directory, "report-%%%%%%.html");
 
       if (std::error_code EC =
-          llvm::sys::fs::createUniqueFile(Model.str(), FD, ResultPath)) {
+          llvm::sys::fs::createUniqueFile(Model, FD, ResultPath)) {
           llvm::errs() << "warning: could not create file in '" << Directory
                        << "': " << EC.message() << '\n';
           return;
@@ -302,12 +302,12 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
                    << "-" << i << ".html";
           llvm::sys::path::append(Model, Directory,
                                   filename.str());
-          EC = llvm::sys::fs::openFileForWrite(Model.str(),
+          EC = llvm::sys::fs::openFileForWrite(Model,
                                                FD,
                                                llvm::sys::fs::F_RW |
                                                llvm::sys::fs::F_Excl);
           if (EC && EC != std::errc::file_exists) {
-              llvm::errs() << "warning: could not create file '" << Model.str()
+              llvm::errs() << "warning: could not create file '" << Model
                            << "': " << EC.message() << '\n';
               return;
           }

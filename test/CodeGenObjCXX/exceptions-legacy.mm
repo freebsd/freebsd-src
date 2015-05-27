@@ -16,7 +16,7 @@ void test0(id obj) {
 //   Enter the @synchronized block.
 // CHECK:      call i32 @objc_sync_enter(i8* [[OBJ:%.*]])
 // CHECK:      call void @objc_exception_try_enter([[BUF_T:%.*]]* [[BUF:%.*]])
-// CHECK-NEXT: [[T0:%.*]] = getelementptr [[BUF_T]]* [[BUF]], i32 0, i32 0, i32 0
+// CHECK-NEXT: [[T0:%.*]] = getelementptr [[BUF_T]], [[BUF_T]]* [[BUF]], i32 0, i32 0, i32 0
 // CHECK-NEXT: [[T1:%.*]] = call i32 @_setjmp(i32* [[T0]])
 // CHECK-NEXT: [[T2:%.*]] = icmp eq i32 [[T1]], 0
 // CHECK-NEXT: br i1 [[T2]],
@@ -26,7 +26,7 @@ void test0(id obj) {
 
 //   Leave the @synchronized.  The reload of obj here is unnecessary.
 // CHECK:      call void @objc_exception_try_exit([[BUF_T]]* [[BUF]])
-// CHECK-NEXT: [[T0:%.*]] = load i8**
+// CHECK-NEXT: [[T0:%.*]] = load i8*, i8**
 // CHECK-NEXT: call i32 @objc_sync_exit(i8* [[T0]])
 // CHECK-NEXT: ret void
 
@@ -34,12 +34,12 @@ void test0(id obj) {
 // CHECK:      [[T0:%.*]] = landingpad
 // CHECK-NEXT:    cleanup
 // CHECK-NEXT: call void @objc_exception_try_exit([[BUF_T]]* [[BUF]])
-// CHECK-NEXT: [[T0:%.*]] = load i8**
+// CHECK-NEXT: [[T0:%.*]] = load i8*, i8**
 // CHECK-NEXT: call i32 @objc_sync_exit(i8* [[T0]])
 // CHECK-NEXT: resume
 
 //   ObjC EH "cleanup".
-// CHECK:      [[T0:%.*]] = load i8**
+// CHECK:      [[T0:%.*]] = load i8*, i8**
 // CHECK-NEXT: call i32 @objc_sync_exit(i8* [[T0]])
 // CHECK-NEXT: [[T0:%.*]] = call i8* @objc_exception_extract([[BUF_T]]* [[BUF]])
 // CHECK-NEXT: call void @objc_exception_throw(i8* [[T0]])
@@ -55,7 +55,7 @@ void test1(id obj, bool *failed) {
 // CHECK-LABEL:    define void @_Z5test1P11objc_objectPb(
 //   Enter the @try block.
 // CHECK:      call void @objc_exception_try_enter([[BUF_T]]* [[BUF:%.*]])
-// CHECK-NEXT: [[T0:%.*]] = getelementptr [[BUF_T]]* [[BUF]], i32 0, i32 0, i32 0
+// CHECK-NEXT: [[T0:%.*]] = getelementptr [[BUF_T]], [[BUF_T]]* [[BUF]], i32 0, i32 0, i32 0
 // CHECK-NEXT: [[T1:%.*]] = call i32 @_setjmp(i32* [[T0]])
 // CHECK-NEXT: [[T2:%.*]] = icmp eq i32 [[T1]], 0
 // CHECK-NEXT: br i1 [[T2]],
@@ -75,6 +75,6 @@ void test1(id obj, bool *failed) {
 // CHECK-NEXT: resume
 
 //   Catch handler.  Reload of 'failed' address is unnecessary.
-// CHECK:      [[T0:%.*]] = load i8**
+// CHECK:      [[T0:%.*]] = load i8*, i8**
 // CHECK-NEXT: store i8 1, i8* [[T0]],
 // CHECK-NEXT: br label

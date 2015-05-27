@@ -5,8 +5,8 @@
 // RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-mingw32 | FileCheck %s --check-prefix=X64
 // RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-pc-windows-msvc-elf | FileCheck %s --check-prefix=ELF64
 
-// CHECK: target datalayout = "e-m:w-{{.*}}"
-// X64: target datalayout = "e-m:e-{{.*}}"
+// CHECK: target datalayout = "e-m:x-{{.*}}"
+// X64: target datalayout = "e-m:w-{{.*}}"
 // ELF32: target datalayout = "e-m:e-{{.*}}"
 // ELF64: target datalayout = "e-m:e-{{.*}}"
 

@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -verify -std=c++11 -Wunsupported-dll-base-class-template -DMS %s
-// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -verify -std=c++1y -Wunsupported-dll-base-class-template -DMS %s
-// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -verify -std=c++1y -Wunsupported-dll-base-class-template %s
-// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -verify -std=c++11 -Wunsupported-dll-base-class-template %s
+// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -fms-extensions -verify -std=c++11 -Wunsupported-dll-base-class-template -DMS %s
+// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -fms-extensions -verify -std=c++1y -Wunsupported-dll-base-class-template -DMS %s
+// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -fms-extensions -verify -std=c++1y -Wunsupported-dll-base-class-template %s
+// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -fms-extensions -verify -std=c++11 -Wunsupported-dll-base-class-template %s
 
 // Helper structs to make templates more expressive.
 struct ImplicitInst_Exported {};
@@ -353,10 +353,10 @@ ImplicitlyInstantiatedExportedTemplate<IncompleteType> implicitlyInstantiatedExp
 
 // Don't instantiate class members of templates with explicit instantiation declarations, even if they are exported.
 struct IncompleteType2;
-template <typename T> struct __declspec(dllexport) ExportedTemplateWithExplicitInstantiationDecl {
+template <typename T> struct __declspec(dllexport) ExportedTemplateWithExplicitInstantiationDecl { // expected-note{{attribute is here}}
   int f() { return sizeof(T); } // no-error
 };
-extern template struct ExportedTemplateWithExplicitInstantiationDecl<IncompleteType2>;
+extern template struct ExportedTemplateWithExplicitInstantiationDecl<IncompleteType2>; // expected-warning{{explicit instantiation declaration should not be 'dllexport'}}
 
 // Instantiate class members for explicitly instantiated exported templates.
 struct IncompleteType3; // expected-note{{forward declaration of 'IncompleteType3'}}
@@ -386,7 +386,18 @@ template <typename T> struct __declspec(dllexport) ExportedBaseClassTemplateOfEx
 };
 struct __declspec(dllexport) ExportedBaseClass2 : public ExportedBaseClassTemplateOfExportedClass<IncompleteType5> {};
 
+// Warn about explicit instantiation declarations of dllexport classes.
+template <typename T> struct ExplicitInstantiationDeclTemplate {};
+extern template struct __declspec(dllexport) ExplicitInstantiationDeclTemplate<int>; // expected-warning{{explicit instantiation declaration should not be 'dllexport'}} expected-note{{attribute is here}}
 
+template <typename T> struct __declspec(dllexport) ExplicitInstantiationDeclExportedTemplate {}; // expected-note{{attribute is here}}
+extern template struct ExplicitInstantiationDeclExportedTemplate<int>; // expected-warning{{explicit instantiation declaration should not be 'dllexport'}}
+
+namespace { struct InternalLinkageType {}; }
+struct __declspec(dllexport) PR23308 {
+  void f(InternalLinkageType*);
+};
+void PR23308::f(InternalLinkageType*) {} // No error; we don't try to export f because it has internal linkage.
 
 //===----------------------------------------------------------------------===//
 // Classes with template base classes

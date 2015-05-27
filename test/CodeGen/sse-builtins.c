@@ -36,7 +36,7 @@ __m128 test_sqrt_ss(__m128 x) {
 
 __m128 test_loadl_pi(__m128 x, void* y) {
   // CHECK: define {{.*}} @test_loadl_pi
-  // CHECK: load <2 x float>* {{.*}}, align 1{{$}}
+  // CHECK: load <2 x float>, <2 x float>* {{.*}}, align 1{{$}}
   // CHECK: shufflevector {{.*}} <4 x i32> <i32 0, i32 1
   // CHECK: shufflevector {{.*}} <4 x i32> <i32 4, i32 5, i32 2, i32 3>
   return _mm_loadl_pi(x,y);
@@ -44,7 +44,7 @@ __m128 test_loadl_pi(__m128 x, void* y) {
 
 __m128 test_loadh_pi(__m128 x, void* y) {
   // CHECK: define {{.*}} @test_loadh_pi
-  // CHECK: load <2 x float>* {{.*}}, align 1{{$}}
+  // CHECK: load <2 x float>, <2 x float>* {{.*}}, align 1{{$}}
   // CHECK: shufflevector {{.*}} <4 x i32> <i32 0, i32 1
   // CHECK: shufflevector {{.*}} <4 x i32> <i32 0, i32 1, i32 4, i32 5>
   return _mm_loadh_pi(x,y);
@@ -52,13 +52,13 @@ __m128 test_loadh_pi(__m128 x, void* y) {
 
 __m128 test_load_ss(void* y) {
   // CHECK: define {{.*}} @test_load_ss
-  // CHECK: load float* {{.*}}, align 1{{$}}
+  // CHECK: load float, float* {{.*}}, align 1{{$}}
   return _mm_load_ss(y);
 }
 
 __m128 test_load1_ps(void* y) {
   // CHECK: define {{.*}} @test_load1_ps
-  // CHECK: load float* {{.*}}, align 1{{$}}
+  // CHECK: load float, float* {{.*}}, align 1{{$}}
   return _mm_load1_ps(y);
 }
 
@@ -70,31 +70,31 @@ void test_store_ss(__m128 x, void* y) {
 
 __m128d test_load1_pd(__m128 x, void* y) {
   // CHECK: define {{.*}} @test_load1_pd
-  // CHECK: load double* {{.*}}, align 1{{$}}
+  // CHECK: load double, double* {{.*}}, align 1{{$}}
   return _mm_load1_pd(y);
 }
 
 __m128d test_loadr_pd(__m128 x, void* y) {
   // CHECK: define {{.*}} @test_loadr_pd
-  // CHECK: load <2 x double>* {{.*}}, align 16{{$}}
+  // CHECK: load <2 x double>, <2 x double>* {{.*}}, align 16{{$}}
   return _mm_loadr_pd(y);
 }
 
 __m128d test_load_sd(void* y) {
   // CHECK: define {{.*}} @test_load_sd
-  // CHECK: load double* {{.*}}, align 1{{$}}
+  // CHECK: load double, double* {{.*}}, align 1{{$}}
   return _mm_load_sd(y);
 }
 
 __m128d test_loadh_pd(__m128d x, void* y) {
   // CHECK: define {{.*}} @test_loadh_pd
-  // CHECK: load double* {{.*}}, align 1{{$}}
+  // CHECK: load double, double* {{.*}}, align 1{{$}}
   return _mm_loadh_pd(x, y);
 }
 
 __m128d test_loadl_pd(__m128d x, void* y) {
   // CHECK: define {{.*}} @test_loadl_pd
-  // CHECK: load double* {{.*}}, align 1{{$}}
+  // CHECK: load double, double* {{.*}}, align 1{{$}}
   return _mm_loadl_pd(x, y);
 }
 
@@ -131,7 +131,7 @@ void test_storel_pd(__m128d x, void* y) {
 
 __m128i test_loadl_epi64(void* y) {
   // CHECK: define {{.*}} @test_loadl_epi64
-  // CHECK: load i64* {{.*}}, align 1{{$}}
+  // CHECK: load i64, i64* {{.*}}, align 1{{$}}
   return _mm_loadl_epi64(y);
 }
 
@@ -542,4 +542,38 @@ __m128d test_mm_cmpnge_pd(__m128d __a, __m128d __b) {
   // CHECK-LABEL: @test_mm_cmpnge_pd
   // CHECK: @llvm.x86.sse2.cmp.pd(<2 x double> %{{.*}}, <2 x double> %{{.*}}, i8 6)
   return _mm_cmpnge_pd(__a, __b);
+}
+
+__m128 test_mm_slli_si128(__m128 a) {
+  // CHECK-LABEL: @test_mm_slli_si128
+  // CHECK: shufflevector <16 x i8> {{.*}}, <16 x i8> {{.*}}, <16 x i32> <i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20, i32 21, i32 22, i32 23, i32 24, i32 25, i32 26>
+  return _mm_slli_si128(a, 5);
+}
+
+__m128 test_mm_bslli_si128(__m128 a) {
+  // CHECK-LABEL: @test_mm_bslli_si128
+  // CHECK: shufflevector <16 x i8> {{.*}}, <16 x i8> {{.*}}, <16 x i32> <i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20, i32 21, i32 22, i32 23, i32 24, i32 25, i32 26>
+  return _mm_bslli_si128(a, 5);
+}
+
+__m128 test_mm_srli_si128(__m128 a) {
+  // CHECK-LABEL: @test_mm_srli_si128
+  // CHECK: shufflevector <16 x i8> {{.*}}, <16 x i8> {{.*}}, <16 x i32> <i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20>
+  return _mm_srli_si128(a, 5);
+}
+
+__m128 test_mm_bsrli_si128(__m128 a) {
+  // CHECK-LABEL: @test_mm_bsrli_si128
+  // CHECK: shufflevector <16 x i8> {{.*}}, <16 x i8> {{.*}}, <16 x i32> <i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20>
+  return _mm_bsrli_si128(a, 5);
+}
+
+__m128i test_mm_alignr_epi8(__m128i a, __m128i b) {
+  // CHECK: shufflevector <16 x i8> %{{.*}}, <16 x i8> %{{.*}}, <16 x i32> <i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17>
+  return _mm_alignr_epi8(a, b, 2);
+}
+
+__m128i test2_mm_alignr_epi8(__m128i a, __m128i b) {
+  // CHECK: shufflevector <16 x i8> %{{.*}}, <16 x i8> zeroinitializer, <16 x i32> <i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16>
+  return _mm_alignr_epi8(a, b, 17);
 }

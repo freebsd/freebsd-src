@@ -66,6 +66,7 @@ protected:
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
   unsigned char SuitableAlign;
+  unsigned char DefaultAlignForAttributeAligned;
   unsigned char MinGlobalAlign;
   unsigned char MaxAtomicPromoteWidth, MaxAtomicInlineWidth;
   unsigned short MaxVectorAlign;
@@ -313,6 +314,12 @@ public:
   /// \brief Return the alignment that is suitable for storing any
   /// object with a fundamental alignment requirement.
   unsigned getSuitableAlign() const { return SuitableAlign; }
+
+  /// \brief Return the default alignment for __attribute__((aligned)) on
+  /// this target, to be used if no alignment value is specified.
+  unsigned getDefaultAlignForAttributeAligned() const {
+    return DefaultAlignForAttributeAligned;
+  }
 
   /// getMinGlobalAlign - Return the minimum alignment of a global variable,
   /// unless its alignment is explicitly reduced via attributes.
@@ -638,6 +645,12 @@ public:
     return std::string(1, *Constraint);
   }
 
+  /// \brief Returns true if NaN encoding is IEEE 754-2008.
+  /// Only MIPS allows a different encoding.
+  virtual bool isNan2008() const {
+    return true;
+  }
+
   /// \brief Returns a string of target-specific clobbers, in LLVM format.
   virtual const char *getClobbers() const = 0;
 
@@ -836,7 +849,8 @@ public:
 
   enum CallingConvCheckResult {
     CCCR_OK,
-    CCCR_Warning
+    CCCR_Warning,
+    CCCR_Ignore,
   };
 
   /// \brief Determines whether a given calling convention is valid for the
