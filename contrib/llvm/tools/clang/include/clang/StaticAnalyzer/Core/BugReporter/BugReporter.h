@@ -290,7 +290,7 @@ public:
   }
 
   /// \brief Get the SourceRanges associated with the report.
-  virtual std::pair<ranges_iterator, ranges_iterator> getRanges();
+  virtual llvm::iterator_range<ranges_iterator> getRanges();
 
   /// \brief Add custom or predefined bug report visitors to this report.
   ///
@@ -492,7 +492,7 @@ public:
   GRBugReporter(BugReporterData& d, ExprEngine& eng)
     : BugReporter(d, GRBugReporterKind), Eng(eng) {}
 
-  virtual ~GRBugReporter();
+  ~GRBugReporter() override;
 
   /// getEngine - Return the analysis engine used to analyze a given
   ///  function or method.

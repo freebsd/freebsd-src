@@ -137,7 +137,7 @@ private:
 
   public:
     SecKeychainBugVisitor(SymbolRef S) : Sym(S) {}
-    virtual ~SecKeychainBugVisitor() {}
+    ~SecKeychainBugVisitor() override {}
 
     void Profile(llvm::FoldingSetNodeID &ID) const override {
       static int X = 0;
@@ -292,7 +292,11 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
   // If it is a call to an allocator function, it could be a double allocation.
   idx = getTrackedFunctionIndex(funName, true);
   if (idx != InvalidIdx) {
-    const Expr *ArgExpr = CE->getArg(FunctionsToTrack[idx].Param);
+    unsigned paramIdx = FunctionsToTrack[idx].Param;
+    if (CE->getNumArgs() <= paramIdx)
+      return;
+
+    const Expr *ArgExpr = CE->getArg(paramIdx);
     if (SymbolRef V = getAsPointeeSymbol(ArgExpr, C))
       if (const AllocationState *AS = State->get<AllocatedData>(V)) {
         if (!definitelyReturnedError(AS->Region, State, C.getSValBuilder())) {
@@ -325,8 +329,12 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
   if (idx == InvalidIdx)
     return;
 
+  unsigned paramIdx = FunctionsToTrack[idx].Param;
+  if (CE->getNumArgs() <= paramIdx)
+    return;
+
   // Check the argument to the deallocator.
-  const Expr *ArgExpr = CE->getArg(FunctionsToTrack[idx].Param);
+  const Expr *ArgExpr = CE->getArg(paramIdx);
   SVal ArgSVal = State->getSVal(ArgExpr, C.getLocationContext());
 
   // Undef is reported by another checker.
@@ -499,9 +507,11 @@ MacOSKeychainAPIChecker::getAllocationNode(const ExplodedNode *N,
   while (N) {
     if (!N->getState()->get<AllocatedData>(Sym))
       break;
-    // Allocation node, is the last node in the current context in which the
-    // symbol was tracked.
-    if (N->getLocationContext() == LeakContext)
+    // Allocation node, is the last node in the current or parent context in
+    // which the symbol was tracked.
+    const LocationContext *NContext = N->getLocationContext();
+    if (NContext == LeakContext ||
+        NContext->isParentOf(LeakContext))
       AllocNode = N;
     N = N->pred_empty() ? nullptr : *(N->pred_begin());
   }

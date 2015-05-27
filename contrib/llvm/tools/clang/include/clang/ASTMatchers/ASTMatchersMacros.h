@@ -37,7 +37,7 @@
 #ifndef LLVM_CLANG_ASTMATCHERS_ASTMATCHERSMACROS_H
 #define LLVM_CLANG_ASTMATCHERS_ASTMATCHERSMACROS_H
 
-/// \brief AST_MATCHER_FUNCTION(ReturnType, DefineMatcher) {
+/// \brief AST_MATCHER_FUNCTION(ReturnType, DefineMatcher) { ... }
 /// defines a zero parameter function named DefineMatcher() that returns a
 /// ReturnType object.
 #define AST_MATCHER_FUNCTION(ReturnType, DefineMatcher)                        \
@@ -48,7 +48,7 @@
   }                                                                            \
   inline ReturnType DefineMatcher##_getInstance()
 
-/// \brief AST_MATCHER_FUNCTION_P(ReturnType, DefineMatcher, ParamType, Param) {
+/// \brief AST_MATCHER_FUNCTION_P(ReturnType, DefineMatcher, ParamType, Param) { ... }
 /// defines a single-parameter function named DefineMatcher() that returns a
 /// ReturnType object.
 ///
@@ -193,15 +193,8 @@
 /// \c void(TypeList<Foo, Bar>), which works thanks to the parenthesis.
 /// The \c PolymorphicMatcherWithParam* classes will unpack the function type to
 /// extract the TypeList object.
-#define AST_POLYMORPHIC_SUPPORTED_TYPES_1(t1) void(internal::TypeList<t1>)
-#define AST_POLYMORPHIC_SUPPORTED_TYPES_2(t1, t2)                              \
-  void(internal::TypeList<t1, t2>)
-#define AST_POLYMORPHIC_SUPPORTED_TYPES_3(t1, t2, t3)                          \
-  void(internal::TypeList<t1, t2, t3>)
-#define AST_POLYMORPHIC_SUPPORTED_TYPES_4(t1, t2, t3, t4)                      \
-  void(internal::TypeList<t1, t2, t3, t4>)
-#define AST_POLYMORPHIC_SUPPORTED_TYPES_5(t1, t2, t3, t4, t5)                  \
-  void(internal::TypeList<t1, t2, t3, internal::TypeList<t4, t5> >)
+#define AST_POLYMORPHIC_SUPPORTED_TYPES(...)                                   \
+  void(internal::TypeList<__VA_ARGS__>)
 
 /// \brief AST_POLYMORPHIC_MATCHER(DefineMatcher) { ... }
 /// defines a single-parameter function named DefineMatcher() that is

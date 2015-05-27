@@ -48,6 +48,18 @@ inline bool IsVariableAConstantExpression(VarDecl *Var, ASTContext &Context) {
     Var->getAnyInitializer(DefVD) && DefVD->checkInitIsICE(); 
 }
 
+// Helper function to check whether D's attributes match current CUDA mode.
+// Decls with mismatched attributes and related diagnostics may have to be
+// ignored during this CUDA compilation pass.
+inline bool DeclAttrsMatchCUDAMode(const LangOptions &LangOpts, Decl *D) {
+  if (!LangOpts.CUDA || !D)
+    return true;
+  bool isDeviceSideDecl = D->hasAttr<CUDADeviceAttr>() ||
+                          D->hasAttr<CUDASharedAttr>() ||
+                          D->hasAttr<CUDAGlobalAttr>();
+  return isDeviceSideDecl == LangOpts.CUDAIsDevice;
+}
+
 // Directly mark a variable odr-used. Given a choice, prefer to use 
 // MarkVariableReferenced since it does additional checks and then 
 // calls MarkVarDeclODRUsed.
@@ -221,17 +233,12 @@ private:
     std::string CurNameSpecifier;
     SmallVector<const IdentifierInfo*, 4> CurContextIdentifiers;
     SmallVector<const IdentifierInfo*, 4> CurNameSpecifierIdentifiers;
-    bool isSorted;
 
-    SpecifierInfoList Specifiers;
-    llvm::SmallSetVector<unsigned, 4> Distances;
-    llvm::DenseMap<unsigned, SpecifierInfoList> DistanceMap;
+    std::map<unsigned, SpecifierInfoList> DistanceMap;
 
     /// \brief Helper for building the list of DeclContexts between the current
     /// context and the top of the translation unit
     static DeclContextList buildContextChain(DeclContext *Start);
-
-    void sortNamespaces();
 
     unsigned buildNestedNameSpecifier(DeclContextList &DeclChain,
                                       NestedNameSpecifier *&NNS);
@@ -244,12 +251,40 @@ private:
     /// the corresponding NestedNameSpecifier and its distance in the process.
     void addNameSpecifier(DeclContext *Ctx);
 
-    typedef SpecifierInfoList::iterator iterator;
-    iterator begin() {
-      if (!isSorted) sortNamespaces();
-      return Specifiers.begin();
-    }
-    iterator end() { return Specifiers.end(); }
+    /// \brief Provides flat iteration over specifiers, sorted by distance.
+    class iterator
+        : public llvm::iterator_facade_base<iterator, std::forward_iterator_tag,
+                                            SpecifierInfo> {
+      /// Always points to the last element in the distance map.
+      const std::map<unsigned, SpecifierInfoList>::iterator OuterBack;
+      /// Iterator on the distance map.
+      std::map<unsigned, SpecifierInfoList>::iterator Outer;
+      /// Iterator on an element in the distance map.
+      SpecifierInfoList::iterator Inner;
+
+    public:
+      iterator(NamespaceSpecifierSet &Set, bool IsAtEnd)
+          : OuterBack(std::prev(Set.DistanceMap.end())),
+            Outer(Set.DistanceMap.begin()),
+            Inner(!IsAtEnd ? Outer->second.begin() : OuterBack->second.end()) {
+        assert(!Set.DistanceMap.empty());
+      }
+
+      iterator &operator++() {
+        ++Inner;
+        if (Inner == Outer->second.end() && Outer != OuterBack) {
+          ++Outer;
+          Inner = Outer->second.begin();
+        }
+        return *this;
+      }
+
+      SpecifierInfo &operator*() { return *Inner; }
+      bool operator==(const iterator &RHS) const { return Inner == RHS.Inner; }
+    };
+
+    iterator begin() { return iterator(*this, /*IsAtEnd=*/false); }
+    iterator end() { return iterator(*this, /*IsAtEnd=*/true); }
   };
 
   void addName(StringRef Name, NamedDecl *ND,

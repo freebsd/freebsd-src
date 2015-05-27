@@ -49,7 +49,7 @@ class FPOptions;
 class HeaderSearch;
 class HeaderSearchOptions;
 class IdentifierResolver;
-class MacroDefinition;
+class MacroDefinitionRecord;
 class MacroDirective;
 class MacroInfo;
 class OpaqueValueExpr;
@@ -61,6 +61,7 @@ class PreprocessingRecord;
 class Preprocessor;
 class Sema;
 class SourceManager;
+struct StoredDeclsList;
 class SwitchCase;
 class TargetInfo;
 class Token;
@@ -225,7 +226,7 @@ private:
   /// The ID numbers for identifiers are consecutive (in order of
   /// discovery), starting at 1. An ID of zero refers to a NULL
   /// IdentifierInfo.
-  llvm::DenseMap<const IdentifierInfo *, serialization::IdentID> IdentifierIDs;
+  llvm::MapVector<const IdentifierInfo *, serialization::IdentID> IdentifierIDs;
 
   /// \brief The first ID number we can use for our own macros.
   serialization::MacroID FirstMacroID;
@@ -275,7 +276,7 @@ private:
   serialization::SelectorID NextSelectorID;
 
   /// \brief Map that provides the ID numbers of each Selector.
-  llvm::DenseMap<Selector, serialization::SelectorID> SelectorIDs;
+  llvm::MapVector<Selector, serialization::SelectorID> SelectorIDs;
 
   /// \brief Offset of each selector within the method pool/selector
   /// table, indexed by the Selector ID (-1).
@@ -283,8 +284,8 @@ private:
 
   /// \brief Mapping from macro definitions (as they occur in the preprocessing
   /// record) to the macro IDs.
-  llvm::DenseMap<const MacroDefinition *, serialization::PreprocessedEntityID>
-      MacroDefinitions;
+  llvm::DenseMap<const MacroDefinitionRecord *,
+                 serialization::PreprocessedEntityID> MacroDefinitions;
 
   /// \brief Cache of indices of anonymous declarations within their lexical
   /// contexts.
@@ -299,6 +300,7 @@ private:
       void *Type;
       unsigned Loc;
       unsigned Val;
+      Module *Mod;
     };
 
   public:
@@ -310,6 +312,8 @@ private:
         : Kind(Kind), Loc(Loc.getRawEncoding()) {}
     DeclUpdate(unsigned Kind, unsigned Val)
         : Kind(Kind), Val(Val) {}
+    DeclUpdate(unsigned Kind, Module *M)
+          : Kind(Kind), Mod(M) {}
 
     unsigned getKind() const { return Kind; }
     const Decl *getDecl() const { return Dcl; }
@@ -318,10 +322,11 @@ private:
       return SourceLocation::getFromRawEncoding(Loc);
     }
     unsigned getNumber() const { return Val; }
+    Module *getModule() const { return Mod; }
   };
 
   typedef SmallVector<DeclUpdate, 1> UpdateRecord;
-  typedef llvm::DenseMap<const Decl *, UpdateRecord> DeclUpdateMap;
+  typedef llvm::MapVector<const Decl *, UpdateRecord> DeclUpdateMap;
   /// \brief Mapping from declarations that came from a chained PCH to the
   /// record containing modifications to them.
   DeclUpdateMap DeclUpdates;
@@ -351,13 +356,13 @@ private:
   /// if its primary namespace comes from the chain. If it does, we add the
   /// primary to this set, so that we can write out lexical content updates for
   /// it.
-  llvm::SmallPtrSet<const DeclContext *, 16> UpdatedDeclContexts;
+  llvm::SmallSetVector<const DeclContext *, 16> UpdatedDeclContexts;
 
   /// \brief Keeps track of visible decls that were added in DeclContexts
   /// coming from another AST file.
   SmallVector<const Decl *, 16> UpdatingVisibleDecls;
 
-  typedef llvm::SmallPtrSet<const Decl *, 16> DeclsToRewriteTy;
+  typedef llvm::SmallSetVector<const Decl *, 16> DeclsToRewriteTy;
   /// \brief Decls that will be replaced in the current dependent AST file.
   DeclsToRewriteTy DeclsToRewrite;
 
@@ -386,8 +391,7 @@ private:
                  
   /// \brief The set of declarations that may have redeclaration chains that
   /// need to be serialized.
-  llvm::SetVector<Decl *, SmallVector<Decl *, 4>,
-                  llvm::SmallPtrSet<Decl *, 4> > Redeclarations;
+  llvm::SmallSetVector<Decl *, 4> Redeclarations;
                                       
   /// \brief Statements that we've encountered while serializing a
   /// declaration or type.
@@ -415,7 +419,7 @@ private:
   unsigned NumVisibleDeclContexts;
 
   /// \brief The offset of each CXXBaseSpecifier set within the AST.
-  SmallVector<uint32_t, 4> CXXBaseSpecifiersOffsets;
+  SmallVector<uint32_t, 16> CXXBaseSpecifiersOffsets;
 
   /// \brief The first ID number we can use for our own base specifiers.
   serialization::CXXBaseSpecifiersID FirstCXXBaseSpecifiersID;
@@ -442,6 +446,33 @@ private:
   /// \brief Queue of C++ base specifiers to be written to the AST file,
   /// in the order they should be written.
   SmallVector<QueuedCXXBaseSpecifiers, 2> CXXBaseSpecifiersToWrite;
+
+  /// \brief The offset of each CXXCtorInitializer list within the AST.
+  SmallVector<uint32_t, 16> CXXCtorInitializersOffsets;
+
+  /// \brief The first ID number we can use for our own ctor initializers.
+  serialization::CXXCtorInitializersID FirstCXXCtorInitializersID;
+
+  /// \brief The ctor initializers ID that will be assigned to the next new
+  /// list of C++ ctor initializers.
+  serialization::CXXCtorInitializersID NextCXXCtorInitializersID;
+
+  /// \brief A set of C++ ctor initializers that is queued to be written
+  /// into the AST file.
+  struct QueuedCXXCtorInitializers {
+    QueuedCXXCtorInitializers() : ID() {}
+
+    QueuedCXXCtorInitializers(serialization::CXXCtorInitializersID ID,
+                              ArrayRef<CXXCtorInitializer*> Inits)
+        : ID(ID), Inits(Inits) {}
+
+    serialization::CXXCtorInitializersID ID;
+    ArrayRef<CXXCtorInitializer*> Inits;
+  };
+
+  /// \brief Queue of C++ ctor initializers to be written to the AST file,
+  /// in the order they should be written.
+  SmallVector<QueuedCXXCtorInitializers, 2> CXXCtorInitializersToWrite;
 
   /// \brief A mapping from each known submodule to its ID number, which will
   /// be a positive integer.
@@ -471,11 +502,15 @@ private:
   void WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag,
                                      bool isModule);
   void WriteCXXBaseSpecifiersOffsets();
+  void WriteCXXCtorInitializersOffsets();
 
   unsigned TypeExtQualAbbrev;
   unsigned TypeFunctionProtoAbbrev;
   void WriteTypeAbbrevs();
   void WriteType(QualType T);
+
+  bool isLookupResultExternal(StoredDeclsList &Result, DeclContext *DC);
+  bool isLookupResultEntirelyExternal(StoredDeclsList &Result, DeclContext *DC);
 
   uint32_t GenerateNameLookupTable(const DeclContext *DC,
                                    llvm::SmallVectorImpl<char> &LookupTable);
@@ -496,7 +531,6 @@ private:
   void WriteOpenCLExtensions(Sema &SemaRef);
   void WriteObjCCategories();
   void WriteRedeclarations();
-  void WriteMergedDecls();
   void WriteLateParsedTemplates(Sema &SemaRef);
   void WriteOptimizePragmaOptions(Sema &SemaRef);
 
@@ -529,7 +563,9 @@ public:
   /// \brief Create a new precompiled header writer that outputs to
   /// the given bitstream.
   ASTWriter(llvm::BitstreamWriter &Stream);
-  ~ASTWriter();
+  ~ASTWriter() override;
+
+  const LangOptions &getLangOpts() const;
 
   /// \brief Write a precompiled header for the given semantic analysis.
   ///
@@ -602,12 +638,6 @@ public:
   /// \brief Determine the type ID of an already-emitted type.
   serialization::TypeID getTypeID(QualType T) const;
 
-  /// \brief Force a type to be emitted and get its index.
-  serialization::TypeIdx GetOrCreateTypeIdx( QualType T);
-
-  /// \brief Determine the type index of an already-emitted type.
-  serialization::TypeIdx getTypeIdx(QualType T) const;
-
   /// \brief Emits a reference to a declarator info.
   void AddTypeSourceInfo(TypeSourceInfo *TInfo, RecordDataImpl &Record);
 
@@ -677,6 +707,11 @@ public:
   void AddCXXBaseSpecifier(const CXXBaseSpecifier &Base,
                            RecordDataImpl &Record);
 
+  /// \brief Emit the ID for a CXXCtorInitializer array and register the array
+  /// for later serialization.
+  void AddCXXCtorInitializersRef(ArrayRef<CXXCtorInitializer *> Inits,
+                                 RecordDataImpl &Record);
+
   /// \brief Emit a CXXCtorInitializer array.
   void AddCXXCtorInitializers(
                              const CXXCtorInitializer * const *CtorInitializers,
@@ -701,9 +736,6 @@ public:
 
   /// \brief Add a version tuple to the given record
   void AddVersionTuple(const VersionTuple &Version, RecordDataImpl &Record);
-
-  /// \brief Mark a declaration context as needing an update.
-  void AddUpdatedDeclContext(const DeclContext *DC);
 
   void RewriteDecl(const Decl *D) {
     DeclsToRewrite.insert(D);
@@ -749,6 +781,18 @@ public:
   /// via \c AddCXXBaseSpecifiersRef().
   void FlushCXXBaseSpecifiers();
 
+  /// \brief Flush all of the C++ constructor initializer lists that have been
+  /// added via \c AddCXXCtorInitializersRef().
+  void FlushCXXCtorInitializers();
+
+  /// \brief Flush all pending records that are tacked onto the end of
+  /// decl and decl update records.
+  void FlushPendingAfterDecl() {
+    FlushStmts();
+    FlushCXXBaseSpecifiers();
+    FlushCXXCtorInitializers();
+  }
+
   /// \brief Record an ID for the given switch-case statement.
   unsigned RecordSwitchCaseID(SwitchCase *S);
 
@@ -787,7 +831,7 @@ public:
   void TypeRead(serialization::TypeIdx Idx, QualType T) override;
   void SelectorRead(serialization::SelectorID ID, Selector Sel) override;
   void MacroDefinitionRead(serialization::PreprocessedEntityID ID,
-                           MacroDefinition *MD) override;
+                           MacroDefinitionRecord *MD) override;
   void ModuleRead(serialization::SubmoduleID ID, Module *Mod) override;
 
   // ASTMutationListener implementation.
@@ -802,6 +846,8 @@ public:
                                       const FunctionDecl *D) override;
   void ResolvedExceptionSpec(const FunctionDecl *FD) override;
   void DeducedReturnType(const FunctionDecl *FD, QualType ReturnType) override;
+  void ResolvedOperatorDelete(const CXXDestructorDecl *DD,
+                              const FunctionDecl *Delete) override;
   void CompletedImplicitDefinition(const FunctionDecl *D) override;
   void StaticDataMemberInstantiated(const VarDecl *D) override;
   void FunctionDefinitionInstantiated(const FunctionDecl *D) override;
@@ -812,6 +858,7 @@ public:
                                     const ObjCCategoryDecl *ClassExt) override;
   void DeclarationMarkedUsed(const Decl *D) override;
   void DeclarationMarkedOpenMPThreadPrivate(const Decl *D) override;
+  void RedefinedHiddenDefinition(const NamedDecl *D, Module *M) override;
 };
 
 /// \brief AST and semantic-analysis consumer that generates a
@@ -838,7 +885,7 @@ public:
                clang::Module *Module,
                StringRef isysroot, raw_ostream *Out,
                bool AllowASTWithErrors = false);
-  ~PCHGenerator();
+  ~PCHGenerator() override;
   void InitializeSema(Sema &S) override { SemaPtr = &S; }
   void HandleTranslationUnit(ASTContext &Ctx) override;
   ASTMutationListener *GetASTMutationListener() override;

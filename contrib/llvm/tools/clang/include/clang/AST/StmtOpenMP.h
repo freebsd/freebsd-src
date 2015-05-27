@@ -95,6 +95,7 @@ public:
   /// This iterator visits only those declarations that meet some run-time
   /// criteria.
   template <class FilterPredicate> class filtered_clause_iterator {
+  protected:
     ArrayRef<OMPClause *>::const_iterator Current;
     ArrayRef<OMPClause *>::const_iterator End;
     FilterPredicate Pred;
@@ -107,7 +108,7 @@ public:
     typedef const OMPClause *value_type;
     filtered_clause_iterator() : Current(), End() {}
     filtered_clause_iterator(ArrayRef<OMPClause *> Arr, FilterPredicate Pred)
-        : Current(Arr.begin()), End(Arr.end()), Pred(Pred) {
+        : Current(Arr.begin()), End(Arr.end()), Pred(std::move(Pred)) {
       SkipToNextClause();
     }
     value_type operator*() const { return *Current; }
@@ -125,8 +126,24 @@ public:
     }
 
     bool operator!() { return Current == End; }
-    operator bool() { return Current != End; }
+    explicit operator bool() { return Current != End; }
+    bool empty() const { return Current == End; }
   };
+
+  template <typename Fn>
+  filtered_clause_iterator<Fn> getFilteredClauses(Fn &&fn) const {
+    return filtered_clause_iterator<Fn>(clauses(), std::move(fn));
+  }
+  struct ClauseKindFilter {
+    OpenMPClauseKind Kind;
+    bool operator()(const OMPClause *clause) const {
+      return clause->getClauseKind() == Kind;
+    }
+  };
+  filtered_clause_iterator<ClauseKindFilter>
+  getClausesOfKind(OpenMPClauseKind Kind) const {
+    return getFilteredClauses(ClauseKindFilter{Kind});
+  }
 
   /// \brief Gets a single clause of the specified kind \a K associated with the
   /// current directive iff there is only one clause of this kind (and assertion
@@ -410,6 +427,8 @@ public:
     Expr *IterationVarRef;
     /// \brief Loop last iteration number.
     Expr *LastIteration;
+    /// \brief Loop number of iterations.
+    Expr *NumIterations;
     /// \brief Calculation of last iteration.
     Expr *CalcLastIteration;
     /// \brief Loop pre-condition.
@@ -447,8 +466,9 @@ public:
     /// worksharing ones).
     bool builtAll() {
       return IterationVarRef != nullptr && LastIteration != nullptr &&
-             PreCond != nullptr && Cond != nullptr &&
-             SeparatedCond != nullptr && Init != nullptr && Inc != nullptr;
+             NumIterations != nullptr && PreCond != nullptr &&
+             Cond != nullptr && SeparatedCond != nullptr && Init != nullptr &&
+             Inc != nullptr;
     }
 
     /// \brief Initialize all the fields to null.
@@ -1557,6 +1577,26 @@ public:
 ///
 class OMPAtomicDirective : public OMPExecutableDirective {
   friend class ASTStmtReader;
+  /// \brief Used for 'atomic update' or 'atomic capture' constructs. They may
+  /// have atomic expressions of forms
+  /// \code
+  /// x = x binop expr;
+  /// x = expr binop x;
+  /// \endcode
+  /// This field is true for the first form of the expression and false for the
+  /// second. Required for correct codegen of non-associative operations (like
+  /// << or >>).
+  bool IsXLHSInRHSPart;
+  /// \brief Used for 'atomic update' or 'atomic capture' constructs. They may
+  /// have atomic expressions of forms
+  /// \code
+  /// v = x; <update x>;
+  /// <update x>; v = x;
+  /// \endcode
+  /// This field is true for the first(postfix) form of the expression and false
+  /// otherwise.
+  bool IsPostfixUpdate;
+
   /// \brief Build directive with the given start and end location.
   ///
   /// \param StartLoc Starting location of the directive kind.
@@ -1566,7 +1606,8 @@ class OMPAtomicDirective : public OMPExecutableDirective {
   OMPAtomicDirective(SourceLocation StartLoc, SourceLocation EndLoc,
                      unsigned NumClauses)
       : OMPExecutableDirective(this, OMPAtomicDirectiveClass, OMPD_atomic,
-                               StartLoc, EndLoc, NumClauses, 4) {}
+                               StartLoc, EndLoc, NumClauses, 5),
+        IsXLHSInRHSPart(false), IsPostfixUpdate(false) {}
 
   /// \brief Build an empty directive.
   ///
@@ -1575,14 +1616,19 @@ class OMPAtomicDirective : public OMPExecutableDirective {
   explicit OMPAtomicDirective(unsigned NumClauses)
       : OMPExecutableDirective(this, OMPAtomicDirectiveClass, OMPD_atomic,
                                SourceLocation(), SourceLocation(), NumClauses,
-                               4) {}
+                               5),
+        IsXLHSInRHSPart(false), IsPostfixUpdate(false) {}
 
   /// \brief Set 'x' part of the associated expression/statement.
   void setX(Expr *X) { *std::next(child_begin()) = X; }
+  /// \brief Set helper expression of the form
+  /// 'OpaqueValueExpr(x) binop OpaqueValueExpr(expr)' or
+  /// 'OpaqueValueExpr(expr) binop OpaqueValueExpr(x)'.
+  void setUpdateExpr(Expr *UE) { *std::next(child_begin(), 2) = UE; }
   /// \brief Set 'v' part of the associated expression/statement.
-  void setV(Expr *V) { *std::next(child_begin(), 2) = V; }
+  void setV(Expr *V) { *std::next(child_begin(), 3) = V; }
   /// \brief Set 'expr' part of the associated expression/statement.
-  void setExpr(Expr *E) { *std::next(child_begin(), 3) = E; }
+  void setExpr(Expr *E) { *std::next(child_begin(), 4) = E; }
 
 public:
   /// \brief Creates directive with a list of \a Clauses and 'x', 'v' and 'expr'
@@ -1597,11 +1643,17 @@ public:
   /// \param X 'x' part of the associated expression/statement.
   /// \param V 'v' part of the associated expression/statement.
   /// \param E 'expr' part of the associated expression/statement.
-  ///
+  /// \param UE Helper expression of the form
+  /// 'OpaqueValueExpr(x) binop OpaqueValueExpr(expr)' or
+  /// 'OpaqueValueExpr(expr) binop OpaqueValueExpr(x)'.
+  /// \param IsXLHSInRHSPart true if \a UE has the first form and false if the
+  /// second.
+  /// \param IsPostfixUpdate true if original value of 'x' must be stored in
+  /// 'v', not an updated one.
   static OMPAtomicDirective *
   Create(const ASTContext &C, SourceLocation StartLoc, SourceLocation EndLoc,
          ArrayRef<OMPClause *> Clauses, Stmt *AssociatedStmt, Expr *X, Expr *V,
-         Expr *E);
+         Expr *E, Expr *UE, bool IsXLHSInRHSPart, bool IsPostfixUpdate);
 
   /// \brief Creates an empty directive with the place for \a NumClauses
   /// clauses.
@@ -1617,15 +1669,31 @@ public:
   const Expr *getX() const {
     return cast_or_null<Expr>(*std::next(child_begin()));
   }
-  /// \brief Get 'v' part of the associated expression/statement.
-  Expr *getV() { return cast_or_null<Expr>(*std::next(child_begin(), 2)); }
-  const Expr *getV() const {
+  /// \brief Get helper expression of the form
+  /// 'OpaqueValueExpr(x) binop OpaqueValueExpr(expr)' or
+  /// 'OpaqueValueExpr(expr) binop OpaqueValueExpr(x)'.
+  Expr *getUpdateExpr() {
     return cast_or_null<Expr>(*std::next(child_begin(), 2));
   }
-  /// \brief Get 'expr' part of the associated expression/statement.
-  Expr *getExpr() { return cast_or_null<Expr>(*std::next(child_begin(), 3)); }
-  const Expr *getExpr() const {
+  const Expr *getUpdateExpr() const {
+    return cast_or_null<Expr>(*std::next(child_begin(), 2));
+  }
+  /// \brief Return true if helper update expression has form
+  /// 'OpaqueValueExpr(x) binop OpaqueValueExpr(expr)' and false if it has form
+  /// 'OpaqueValueExpr(expr) binop OpaqueValueExpr(x)'.
+  bool isXLHSInRHSPart() const { return IsXLHSInRHSPart; }
+  /// \brief Return true if 'v' expression must be updated to original value of
+  /// 'x', false if 'v' must be updated to the new value of 'x'.
+  bool isPostfixUpdate() const { return IsPostfixUpdate; }
+  /// \brief Get 'v' part of the associated expression/statement.
+  Expr *getV() { return cast_or_null<Expr>(*std::next(child_begin(), 3)); }
+  const Expr *getV() const {
     return cast_or_null<Expr>(*std::next(child_begin(), 3));
+  }
+  /// \brief Get 'expr' part of the associated expression/statement.
+  Expr *getExpr() { return cast_or_null<Expr>(*std::next(child_begin(), 4)); }
+  const Expr *getExpr() const {
+    return cast_or_null<Expr>(*std::next(child_begin(), 4));
   }
 
   static bool classof(const Stmt *T) {
