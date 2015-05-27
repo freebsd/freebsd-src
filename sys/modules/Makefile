@@ -172,7 +172,8 @@ SUBDIR=	\
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
-	${_ixgbe} \
+	${_ix} \
+	${_ixv} \
 	${_ixl} \
 	${_ixlv} \
 	jme \
