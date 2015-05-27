@@ -179,8 +179,36 @@
 /*
  * GPIO block
  */
+#define	AR934X_GPIO_REG_OUT_FUNC0	0x2c
+#define	AR934X_GPIO_REG_OUT_FUNC1	0x30
+#define	AR934X_GPIO_REG_OUT_FUNC2	0x34
+#define	AR934X_GPIO_REG_OUT_FUNC3	0x38
+#define	AR934X_GPIO_REG_OUT_FUNC4	0x3c
+#define	AR934X_GPIO_REG_OUT_FUNC5	0x40
 #define	AR934X_GPIO_REG_FUNC		0x6c
 #define	AR934X_GPIO_COUNT		23
+
+/* GPIO functions */
+#define	AR934X_GPIO_FUNC_CLK_OBS7_EN           (1 << 9)
+#define	AR934X_GPIO_FUNC_CLK_OBS6_EN           (1 << 8)
+#define	AR934X_GPIO_FUNC_CLK_OBS5_EN           (1 << 7)
+#define	AR934X_GPIO_FUNC_CLK_OBS4_EN           (1 << 6)
+#define	AR934X_GPIO_FUNC_CLK_OBS3_EN           (1 << 5)
+#define	AR934X_GPIO_FUNC_CLK_OBS2_EN           (1 << 4)
+#define	AR934X_GPIO_FUNC_CLK_OBS1_EN           (1 << 3)
+#define	AR934X_GPIO_FUNC_CLK_OBS0_EN           (1 << 2)
+#define	AR934X_GPIO_FUNC_JTAG_DISABLE          (1 << 1)
+
+/* GPIO MUX output function: AR934X_GPIO_REG_OUT_FUNCx */
+#define	AR934X_GPIO_OUT_GPIO		0	/* I'm a GPIO */
+#define	AR934X_GPIO_OUT_SPI_CS1		7	/* I'm SPI CS1 */
+#define	AR934X_GPIO_OUT_LED_LINK0	41	/* I'm switch phy link0 */
+#define	AR934X_GPIO_OUT_LED_LINK1	42
+#define	AR934X_GPIO_OUT_LED_LINK2	43
+#define	AR934X_GPIO_OUT_LED_LINK3	44
+#define	AR934X_GPIO_OUT_LED_LINK4	45
+#define	AR934X_GPIO_OUT_EXT_LNA0	46	/* I'm WMAC EXT LNA chain 0 */
+#define	AR934X_GPIO_OUT_EXT_LNA1	47	/* I'm WMAC EXT LNA chain 1 */
 
 /*
  * SRIF block

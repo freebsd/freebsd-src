@@ -20,6 +20,14 @@
 
 #ifdef LLDB_USE_BUILTIN_DEMANGLER
 
+// Provide a fast-path demangler implemented in FastDemangle.cpp until it can
+// replace the existing C++ demangler with a complete implementation
+namespace lldb_private
+{
+    extern char * FastDemangle (const char * mangled_name,
+                                long mangled_name_length);
+}
+
 //----------------------------------------------------------------------
 // Inlined copy of:
 // http://llvm.org/svn/llvm-project/libcxxabi/trunk/src/cxa_demangle.cpp
@@ -3932,15 +3940,15 @@ parse_nested_name(const char* first, const char* last, C& db)
         const char* t0 = parse_cv_qualifiers(first+1, last, cv);
         if (t0 == last)
             return first;
-        db.ref = 0;
+        unsigned ref = 0;
         if (*t0 == 'R')
         {
-            db.ref = 1;
+            ref = 1;
             ++t0;
         }
         else if (*t0 == 'O')
         {
-            db.ref = 2;
+            ref = 2;
             ++t0;
         }
         db.names.emplace_back();
@@ -4054,6 +4062,7 @@ parse_nested_name(const char* first, const char* last, C& db)
             }
         }
         first = t0 + 1;
+        db.ref = ref;
         db.cv = cv;
         if (pop_subs && !db.subs.empty())
             db.subs.pop_back();
@@ -4413,7 +4422,7 @@ parse_special_name(const char* first, const char* last, C& db)
                 {
                     if (db.names.empty())
                         return first;
-                    if (first[2] == 'v')
+                    if (first[1] == 'v')
                     {
                         db.names.back().first.insert(0, "virtual thunk to ");
                         first = t;
@@ -4877,7 +4886,7 @@ struct string_pair
 
 struct Db
 {
-    typedef String String;
+    typedef ::String String;
     typedef Vector<string_pair> sub_type;
     typedef Vector<sub_type> template_param_type;
     Vector<string_pair> names;
@@ -4977,9 +4986,11 @@ __cxa_demangle(const char* mangled_name, char* buf, size_t* n, int* status)
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/Timer.h"
+#include "lldb/Target/CPPLanguageRuntime.h"
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+
 
 using namespace lldb_private;
 
@@ -4989,6 +5000,57 @@ cstring_is_mangled (const char *s)
     if (s)
         return s[0] == '_' && s[1] == 'Z';
     return false;
+}
+
+static const ConstString &
+get_demangled_name_without_arguments (const Mangled *obj)
+{
+    // This pair is <mangled name, demangled name without function arguments>
+    static std::pair<ConstString, ConstString> g_most_recent_mangled_to_name_sans_args;
+
+    // Need to have the mangled & demangled names we're currently examining as statics
+    // so we can return a const ref to them at the end of the func if we don't have
+    // anything better.
+    static ConstString g_last_mangled;
+    static ConstString g_last_demangled;
+
+    ConstString mangled = obj->GetMangledName ();
+    ConstString demangled = obj->GetDemangledName ();
+
+    if (mangled && g_most_recent_mangled_to_name_sans_args.first == mangled)
+    {
+        return g_most_recent_mangled_to_name_sans_args.second;
+    }
+
+    g_last_demangled = demangled;
+    g_last_mangled = mangled;
+
+    const char *mangled_name_cstr = mangled.GetCString();
+
+    if (demangled && mangled_name_cstr && mangled_name_cstr[0])
+    {
+        if (mangled_name_cstr[0] == '_' && mangled_name_cstr[1] == 'Z' &&
+            (mangled_name_cstr[2] != 'T' && // avoid virtual table, VTT structure, typeinfo structure, and typeinfo mangled_name
+            mangled_name_cstr[2] != 'G' && // avoid guard variables
+            mangled_name_cstr[2] != 'Z'))  // named local entities (if we eventually handle eSymbolTypeData, we will want this back)
+        {
+            CPPLanguageRuntime::MethodName cxx_method (demangled);
+            if (!cxx_method.GetBasename().empty() && !cxx_method.GetContext().empty())
+            {
+                std::string shortname = cxx_method.GetContext().str();
+                shortname += "::";
+                shortname += cxx_method.GetBasename().str();
+                ConstString result(shortname.c_str());
+                g_most_recent_mangled_to_name_sans_args.first = mangled;
+                g_most_recent_mangled_to_name_sans_args.second = result;
+                return g_most_recent_mangled_to_name_sans_args.second;
+            }
+        }
+    }
+
+    if (demangled)
+        return g_last_demangled;
+    return g_last_mangled;
 }
 
 #pragma mark Mangled
@@ -5128,7 +5190,6 @@ Mangled::SetValue (const ConstString &name)
     }
 }
 
-
 //----------------------------------------------------------------------
 // Generate the demangled name on demand using this accessor. Code in
 // this class will need to use this accessor if it wishes to decode
@@ -5157,7 +5218,13 @@ Mangled::GetDemangledName () const
                 // We didn't already mangle this name, demangle it and if all goes well
                 // add it to our map.
 #ifdef LLDB_USE_BUILTIN_DEMANGLER
-                char *demangled_name = __cxa_demangle (mangled_cstr, NULL, NULL, NULL);
+                // Try to use the fast-path demangler first for the
+                // performance win, falling back to the full demangler only
+                // when necessary
+                char *demangled_name = FastDemangle (mangled_cstr,
+                                                     m_mangled.GetLength());
+                if (!demangled_name)
+                    demangled_name = __cxa_demangle (mangled_cstr, NULL, NULL, NULL);
 #elif defined(_MSC_VER)
                 // Cannot demangle on msvc.
                 char *demangled_name = nullptr;
@@ -5201,6 +5268,14 @@ Mangled::NameMatches (const RegularExpression& regex) const
 const ConstString&
 Mangled::GetName (Mangled::NamePreference preference) const
 {
+    if (preference == ePreferDemangledWithoutArguments)
+    {
+        // Call the accessor to make sure we get a demangled name in case
+        // it hasn't been demangled yet...
+        GetDemangledName();
+
+        return get_demangled_name_without_arguments (this);
+    }
     if (preference == ePreferDemangled)
     {
         // Call the accessor to make sure we get a demangled name in case
@@ -5242,7 +5317,8 @@ Mangled::Dump (Stream *s) const
 void
 Mangled::DumpDebug (Stream *s) const
 {
-    s->Printf("%*p: Mangled mangled = ", (int)sizeof(void*) * 2, this);
+    s->Printf("%*p: Mangled mangled = ", static_cast<int>(sizeof(void*) * 2),
+              static_cast<const void*>(this));
     m_mangled.DumpDebug(s);
     s->Printf(", demangled = ");
     m_demangled.DumpDebug(s);

@@ -8,39 +8,32 @@ sources in this tree - please see the specific source directories for
 more information).
 
 The Makefile in this directory supports a number of targets for
-building components (or all) of the FreeBSD source tree, the most
-commonly used one being ``world'', which rebuilds and installs
-everything in the FreeBSD system from the source tree except the
-kernel, the kernel-modules and the contents of /etc.  The ``world''
-target should only be used in cases where the source tree has not
-changed from the currently running version.  See:
-http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+building components (or all) of the FreeBSD source tree.  See build(7)
+and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 for more information, including setting make(1) variables.
 
-The ``buildkernel'' and ``installkernel'' targets build and install
+The `buildkernel` and `installkernel` targets build and install
 the kernel and the modules (see below).  Please see the top of
 the Makefile in this directory for more information on the
 standard build targets and compile-time flags.
 
-Building a kernel is a somewhat more involved process, documentation
-for which can be found at:
-   http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
-And in the config(8) man page.
+Building a kernel is a somewhat more involved process.  See build(7), config(8),
+and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
+for more information.
+
 Note: If you want to build and install the kernel with the
-``buildkernel'' and ``installkernel'' targets, you might need to build
+`buildkernel` and `installkernel` targets, you might need to build
 world before.  More information is available in the handbook.
 
-The sample kernel configuration files reside in the sys/<arch>/conf
-sub-directory (assuming that you've installed the kernel sources), the
-file named GENERIC being the one used to build your initial installation
-kernel.  The file NOTES contains entries and documentation for all possible
-devices, not just those commonly used.  It is the successor of the ancient
-LINT file, but in contrast to LINT, it is not buildable as a kernel but a
-pure reference and documentation file.
+The kernel configuration files reside in the sys/<arch>/conf
+sub-directory.  GENERIC is the default configuration used in release builds.
+NOTES contains entries and documentation for all possible
+devices, not just those commonly used.
 
 
 Source Roadmap:
 ---------------
+
 bin		System/user commands.
 
 cddl		Various commands and libraries under the Common Development
@@ -76,6 +69,9 @@ secure		Cryptographic libraries and commands.
 share		Shared resources.
 
 sys		Kernel sources.
+
+tests		Regression tests which can be run by Kyua.  See tests/README
+		for additional information.
 
 tools		Utilities for regression testing and miscellaneous tasks.
 

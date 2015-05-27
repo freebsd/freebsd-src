@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.16 2012/07/03 05:26:00 sjg Exp $
+# $Id: meta.sys.mk,v 1.20 2014/08/04 05:12:27 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -106,7 +106,13 @@ _metaError: .NOMETA .NOTMAIN
 
 # Are we, after all, in meta mode?
 .if ${.MAKE.MODE:Mmeta*} != ""
-MKDEP = meta.autodep
+MKDEP_MK = meta.autodep.mk
+
+# if we think we are updating dependencies, 
+# then filemon had better be present
+.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !exists(/dev/filemon)
+.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
+.endif
 
 .if ${.MAKE.LEVEL} == 0
 # make sure dirdeps target exists and do it first
@@ -121,19 +127,11 @@ dirdeps:
 # tell dirdeps.mk what we want
 BUILD_AT_LEVEL0 = no
 .endif
-
-.if ${.MAKE.DEPENDFILE:E} == ${MACHINE}
+.if ${.TARGETS:Nall} == "" 
 # it works best if we do everything via sub-makes
 BUILD_AT_LEVEL0 ?= no
 .endif
-BUILD_AT_LEVEL0 ?= yes
-.endif
 
-# if we think we are updating dependencies, 
-# then filemon had better be present
-.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !exists(/dev/filemon)
-.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
 .endif
-
 .endif
 .endif

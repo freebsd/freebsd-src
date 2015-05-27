@@ -17,6 +17,7 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
 #include <cassert>
+#include <limits>
 
 namespace llvm {
 
@@ -41,7 +42,12 @@ template <typename PointerTy, unsigned IntBits, typename IntType=unsigned,
           typename PtrTraits = PointerLikeTypeTraits<PointerTy> >
 class PointerIntPair {
   intptr_t Value;
-  enum LLVM_ENUM_INT_TYPE(uintptr_t) {
+  static_assert(PtrTraits::NumLowBitsAvailable <
+                std::numeric_limits<uintptr_t>::digits,
+                "cannot use a pointer type that has all bits free");
+  static_assert(IntBits <= PtrTraits::NumLowBitsAvailable,
+                "PointerIntPair with integer size too large for pointer");
+  enum : uintptr_t {
     /// PointerBitMask - The bits that come from the pointer.
     PointerBitMask =
       ~(uintptr_t)(((intptr_t)1 << PtrTraits::NumLowBitsAvailable)-1),
@@ -59,8 +65,6 @@ class PointerIntPair {
 public:
   PointerIntPair() : Value(0) {}
   PointerIntPair(PointerTy PtrVal, IntType IntVal) {
-    assert(IntBits <= PtrTraits::NumLowBitsAvailable &&
-           "PointerIntPair formed with integer size too large for pointer");
     setPointerAndInt(PtrVal, IntVal);
   }
   explicit PointerIntPair(PointerTy PtrVal) {
@@ -79,7 +83,7 @@ public:
   void setPointer(PointerTy PtrVal) {
     intptr_t PtrWord
       = reinterpret_cast<intptr_t>(PtrTraits::getAsVoidPointer(PtrVal));
-    assert((PtrWord & ((1 << PtrTraits::NumLowBitsAvailable)-1)) == 0 &&
+    assert((PtrWord & ~PointerBitMask) == 0 &&
            "Pointer is not sufficiently aligned");
     // Preserve all low bits, just update the pointer.
     Value = PtrWord | (Value & ~PointerBitMask);
@@ -87,7 +91,7 @@ public:
 
   void setInt(IntType IntVal) {
     intptr_t IntWord = static_cast<intptr_t>(IntVal);
-    assert(IntWord < (1 << IntBits) && "Integer too large for field");
+    assert((IntWord & ~IntMask) == 0 && "Integer too large for field");
     
     // Preserve all bits other than the ones we are updating.
     Value &= ~ShiftedIntMask;     // Remove integer field.
@@ -97,7 +101,7 @@ public:
   void initWithPointer(PointerTy PtrVal) {
     intptr_t PtrWord
       = reinterpret_cast<intptr_t>(PtrTraits::getAsVoidPointer(PtrVal));
-    assert((PtrWord & ((1 << PtrTraits::NumLowBitsAvailable)-1)) == 0 &&
+    assert((PtrWord & ~PointerBitMask) == 0 &&
            "Pointer is not sufficiently aligned");
     Value = PtrWord;
   }
@@ -105,10 +109,10 @@ public:
   void setPointerAndInt(PointerTy PtrVal, IntType IntVal) {
     intptr_t PtrWord
       = reinterpret_cast<intptr_t>(PtrTraits::getAsVoidPointer(PtrVal));
-    assert((PtrWord & ((1 << PtrTraits::NumLowBitsAvailable)-1)) == 0 &&
+    assert((PtrWord & ~PointerBitMask) == 0 &&
            "Pointer is not sufficiently aligned");
     intptr_t IntWord = static_cast<intptr_t>(IntVal);
-    assert(IntWord < (1 << IntBits) && "Integer too large for field");
+    assert((IntWord & ~IntMask) == 0 && "Integer too large for field");
 
     Value = PtrWord | (IntWord << IntShift);
   }
@@ -158,13 +162,13 @@ struct DenseMapInfo<PointerIntPair<PointerTy, IntBits, IntType> > {
   typedef PointerIntPair<PointerTy, IntBits, IntType> Ty;
   static Ty getEmptyKey() {
     uintptr_t Val = static_cast<uintptr_t>(-1);
-    Val <<= PointerLikeTypeTraits<PointerTy>::NumLowBitsAvailable;
-    return Ty(reinterpret_cast<PointerTy>(Val), IntType((1 << IntBits)-1));
+    Val <<= PointerLikeTypeTraits<Ty>::NumLowBitsAvailable;
+    return Ty::getFromOpaqueValue(reinterpret_cast<void *>(Val));
   }
   static Ty getTombstoneKey() {
     uintptr_t Val = static_cast<uintptr_t>(-2);
     Val <<= PointerLikeTypeTraits<PointerTy>::NumLowBitsAvailable;
-    return Ty(reinterpret_cast<PointerTy>(Val), IntType(0));
+    return Ty::getFromOpaqueValue(reinterpret_cast<void *>(Val));
   }
   static unsigned getHashValue(Ty V) {
     uintptr_t IV = reinterpret_cast<uintptr_t>(V.getOpaqueValue());

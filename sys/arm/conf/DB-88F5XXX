@@ -5,10 +5,10 @@
 #
 
 ident		DB-88F5XXX
-include		"../mv/orion/std.db88f5xxx"
+include 	"std.arm"
+include 	"../mv/orion/std.db88f5xxx"
 
 options 	SOC_MV_ORION
-makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
@@ -20,7 +20,7 @@ options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
 options 	TMPFS			# Efficient memory filesystem
 options 	FFS			# Berkeley Fast Filesystem
-options 	NFSCL			# New Network Filesystem Client
+options 	NFSCL			# Network Filesystem Client
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	BOOTP

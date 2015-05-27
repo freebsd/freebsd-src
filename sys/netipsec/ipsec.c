@@ -56,7 +56,6 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -119,11 +118,12 @@ VNET_DEFINE(int, ip4_esp_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_esp_net_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ah_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
-VNET_DEFINE(struct secpolicy, ip4_def_policy);
 /* ECN ignore(-1)/forbidden(0)/allowed(1) */
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
 VNET_DEFINE(int, ip4_esp_randpad) = -1;
 
+static VNET_DEFINE(struct secpolicy, def_policy);
+#define	V_def_policy	VNET(def_policy)
 /*
  * Crypto support requirements:
  *
@@ -142,7 +142,7 @@ SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(def_policy).policy, 0,
 	"IPsec default policy.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_esp_trans_deflev), 0,
@@ -214,7 +214,7 @@ SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(def_policy).policy, 0,
 	"IPsec default policy.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_esp_trans_deflev), 0,
@@ -238,17 +238,18 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
     struct ipsecstat, ipsec6stat, "IPsec IPv6 statistics.");
 #endif /* INET6 */
 
-static int ipsec_setspidx_inpcb __P((struct mbuf *, struct inpcb *));
-static int ipsec_setspidx __P((struct mbuf *, struct secpolicyindex *, int));
-static void ipsec4_get_ulp __P((struct mbuf *m, struct secpolicyindex *, int));
-static int ipsec4_setspidx_ipaddr __P((struct mbuf *, struct secpolicyindex *));
+static int ipsec_in_reject(struct secpolicy *, struct mbuf *);
+static int ipsec_setspidx_inpcb(struct mbuf *, struct inpcb *);
+static int ipsec_setspidx(struct mbuf *, struct secpolicyindex *, int);
+static void ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *, int);
+static int ipsec4_setspidx_ipaddr(struct mbuf *, struct secpolicyindex *);
 #ifdef INET6
-static void ipsec6_get_ulp __P((struct mbuf *m, struct secpolicyindex *, int));
-static int ipsec6_setspidx_ipaddr __P((struct mbuf *, struct secpolicyindex *));
+static void ipsec6_get_ulp(struct mbuf *m, struct secpolicyindex *, int);
+static int ipsec6_setspidx_ipaddr(struct mbuf *, struct secpolicyindex *);
 #endif
-static void ipsec_delpcbpolicy __P((struct inpcbpolicy *));
-static struct secpolicy *ipsec_deepcopy_policy __P((struct secpolicy *src));
-static void vshiftl __P((unsigned char *, int, int));
+static void ipsec_delpcbpolicy(struct inpcbpolicy *);
+static struct secpolicy *ipsec_deepcopy_policy(struct secpolicy *src);
+static void vshiftl(unsigned char *, int, int);
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
@@ -263,7 +264,7 @@ key_allocsp_default(const char* where, int tag)
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP key_allocsp_default from %s:%u\n", where, tag));
 
-	sp = &V_ip4_def_policy;
+	sp = &V_def_policy;
 	if (sp->policy != IPSEC_POLICY_DISCARD &&
 	    sp->policy != IPSEC_POLICY_NONE) {
 		ipseclog((LOG_INFO, "fixed system default policy: %d->%d\n",
@@ -418,7 +419,7 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
  *		others	: error occured.
  */
 struct secpolicy *
-ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
+ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int *error)
 {
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
@@ -429,17 +430,16 @@ ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
 		("invalid direction %u", dir));
 
 	sp = NULL;
+	*error = 0;
 	if (key_havesp(dir)) {
 		/* Make an index to look for a policy. */
-		*error = ipsec_setspidx(m, &spidx,
-					(flag & IP_FORWARDING) ? 0 : 1);
+		*error = ipsec_setspidx(m, &spidx, 0);
 		if (*error != 0) {
-			DPRINTF(("%s: setpidx failed, dir %u flag %u\n",
-				__func__, dir, flag));
+			DPRINTF(("%s: setpidx failed, dir %u\n",
+				__func__, dir));
 			return (NULL);
 		}
 		spidx.dir = dir;
-
 		sp = KEY_ALLOCSP(&spidx, dir);
 	}
 	if (sp == NULL)			/* No SP found, use system default. */
@@ -449,14 +449,13 @@ ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
 }
 
 struct secpolicy *
-ipsec4_checkpolicy(struct mbuf *m, u_int dir, u_int flag, int *error,
-    struct inpcb *inp)
+ipsec4_checkpolicy(struct mbuf *m, u_int dir, int *error, struct inpcb *inp)
 {
 	struct secpolicy *sp;
 
 	*error = 0;
 	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, dir, flag, error);
+		sp = ipsec_getpolicybyaddr(m, dir, error);
 	else
 		sp = ipsec_getpolicybysock(m, dir, inp, error);
 	if (sp == NULL) {
@@ -831,17 +830,13 @@ ipsec_init_policy(struct socket *so, struct inpcbpolicy **pcb_sp)
 		ipsec_delpcbpolicy(new);
 		return (ENOBUFS);
 	}
-	new->sp_in->state = IPSEC_SPSTATE_ALIVE;
 	new->sp_in->policy = IPSEC_POLICY_ENTRUST;
-
 	if ((new->sp_out = KEY_NEWSP()) == NULL) {
 		KEY_FREESP(&new->sp_in);
 		ipsec_delpcbpolicy(new);
 		return (ENOBUFS);
 	}
-	new->sp_out->state = IPSEC_SPSTATE_ALIVE;
 	new->sp_out->policy = IPSEC_POLICY_ENTRUST;
-
 	*pcb_sp = new;
 
 	return (0);
@@ -930,7 +925,6 @@ ipsec_deepcopy_policy(struct secpolicy *src)
 	}
 
 	dst->req = newchain;
-	dst->state = src->state;
 	dst->policy = src->policy;
 	/* Do not touch the refcnt fields. */
 
@@ -981,8 +975,6 @@ ipsec_set_policy_internal(struct secpolicy **pcb_sp, int optname,
 	/* Allocating new SP entry. */
 	if ((newsp = key_msg2sp(xpl, len, &error)) == NULL)
 		return (error);
-
-	newsp->state = IPSEC_SPSTATE_ALIVE;
 
 	/* Clear old SP and set new SP. */
 	KEY_FREESP(pcb_sp);
@@ -1200,7 +1192,7 @@ ipsec_get_reqlevel(struct ipsecrequest *isr)
  *	0: valid
  *	1: invalid
  */
-int
+static int
 ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
 {
 	struct ipsecrequest *isr;
@@ -1268,6 +1260,9 @@ ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
 	return (0);		/* Valid. */
 }
 
+/*
+ * Non zero return value means security policy DISCARD or policy violation.
+ */
 static int
 ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 {
@@ -1277,13 +1272,9 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
-	/*
-	 * Get SP for this packet.
-	 * When we are called from ip_forward(), we call
-	 * ipsec_getpolicybyaddr() with IP_FORWARDING flag.
-	 */
+	/* Get SP for this packet. */
 	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, IP_FORWARDING, &error);
+		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
 	else
 		sp = ipsec_getpolicybysock(m, IPSEC_DIR_INBOUND, inp, &error);
 
@@ -1291,8 +1282,7 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 		result = ipsec_in_reject(sp, m);
 		KEY_FREESP(&sp);
 	} else {
-		result = 0;	/* XXX Should be panic?
-				 * -> No, there may be error. */
+		result = 1;	/* treat errors as policy violation */
 	}
 	return (result);
 }
@@ -1409,12 +1399,9 @@ ipsec_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
-	/* Get SP for this packet.
-	 * When we are called from ip_forward(), we call
-	 * ipsec_getpolicybyaddr() with IP_FORWARDING flag.
-	 */
+	/* Get SP for this packet. */
 	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, dir, IP_FORWARDING, &error);
+		sp = ipsec_getpolicybyaddr(m, dir, &error);
 	else
 		sp = ipsec_getpolicybysock(m, dir, inp, &error);
 
@@ -1502,6 +1489,7 @@ ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
 int
 ipsec_updatereplay(u_int32_t seq, struct secasvar *sav)
 {
+	char buf[128];
 	struct secreplay *replay;
 	u_int32_t diff;
 	int fr;
@@ -1581,7 +1569,8 @@ ok:
 			return (1);
 
 		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
-		    __func__, replay->overflow, ipsec_logsastr(sav)));
+		    __func__, replay->overflow,
+		    ipsec_logsastr(sav, buf, sizeof(buf))));
 	}
 
 	replay->count++;
@@ -1612,67 +1601,37 @@ vshiftl(unsigned char *bitmap, int nbit, int wsize)
 	}
 }
 
-#ifdef INET
-/* Return a printable string for the IPv4 address. */
-static char *
-inet_ntoa4(struct in_addr ina)
-{
-	static char buf[4][4 * sizeof "123" + 4];
-	unsigned char *ucp = (unsigned char *) &ina;
-	static int i = 3;
-
-	/* XXX-BZ Returns static buffer. */
-	i = (i + 1) % 4;
-	sprintf(buf[i], "%d.%d.%d.%d", ucp[0] & 0xff, ucp[1] & 0xff,
-	    ucp[2] & 0xff, ucp[3] & 0xff);
-	return (buf[i]);
-}
-#endif
-
 /* Return a printable string for the address. */
-char *
-ipsec_address(union sockaddr_union* sa)
+char*
+ipsec_address(union sockaddr_union* sa, char *buf, socklen_t size)
 {
-#ifdef INET6
-	char ip6buf[INET6_ADDRSTRLEN];
-#endif
 
 	switch (sa->sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		return (inet_ntoa4(sa->sin.sin_addr));
+		return (inet_ntop(AF_INET, &sa->sin.sin_addr, buf, size));
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		return (ip6_sprintf(ip6buf, &sa->sin6.sin6_addr));
+		return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr, buf, size));
 #endif /* INET6 */
 	default:
 		return ("(unknown address family)");
 	}
 }
 
-const char *
-ipsec_logsastr(struct secasvar *sav)
+char *
+ipsec_logsastr(struct secasvar *sav, char *buf, size_t size)
 {
-	static char buf[256];
-	char *p;
-	struct secasindex *saidx = &sav->sah->saidx;
+	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
 
-	IPSEC_ASSERT(saidx->src.sa.sa_family == saidx->dst.sa.sa_family,
-		("address family mismatch"));
+	IPSEC_ASSERT(sav->sah->saidx.src.sa.sa_family ==
+	    sav->sah->saidx.dst.sa.sa_family, ("address family mismatch"));
 
-	p = buf;
-	snprintf(buf, sizeof(buf), "SA(SPI=%u ", (u_int32_t)ntohl(sav->spi));
-	while (p && *p)
-		p++;
-	/* NB: only use ipsec_address on one address at a time. */
-	snprintf(p, sizeof (buf) - (p - buf), "src=%s ",
-		ipsec_address(&saidx->src));
-	while (p && *p)
-		p++;
-	snprintf(p, sizeof (buf) - (p - buf), "dst=%s)",
-		ipsec_address(&saidx->dst));
-
+	snprintf(buf, size, "SA(SPI=%08lx src=%s dst=%s)",
+	    (u_long)ntohl(sav->spi),
+	    ipsec_address(&sav->sah->saidx.src, sbuf, sizeof(sbuf)),
+	    ipsec_address(&sav->sah->saidx.dst, dbuf, sizeof(dbuf)));
 	return (buf);
 }
 
@@ -1701,14 +1660,15 @@ ipsec_dumpmbuf(struct mbuf *m)
 }
 
 static void
-ipsec_init(const void *unused __unused)
+def_policy_init(const void *unused __unused)
 {
 
-	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
-	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free. */
+	bzero(&V_def_policy, sizeof(struct secpolicy));
+	V_def_policy.policy = IPSEC_POLICY_NONE;
+	V_def_policy.refcnt = 1;
 }
-VNET_SYSINIT(ipsec_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, ipsec_init,
-    NULL);
+VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
+    def_policy_init, NULL);
 
 
 /* XXX This stuff doesn't belong here... */

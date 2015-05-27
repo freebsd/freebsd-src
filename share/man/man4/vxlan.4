@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2014
+.Dd December 16, 2014
 .Dt VXLAN 4
 .Os
 .Sh NAME
@@ -140,7 +140,7 @@ or VNI.
 .Pp
 When configured with the
 .Xr ifconfig 8
-.Cm learn
+.Cm vxlanlearn
 parameter, the interface dynamically creates forwarding table entries
 from received packets.
 An entry in the forwarding table maps the inner source MAC address
@@ -153,16 +153,16 @@ Otherwise, when configured in multicast mode,
 the interface must flood the frame to all hosts in the group.
 The maximum number of entries in the table is configurable with the
 .Xr ifconfig 8
-.Cm maxaddr
+.Cm vxlanmaxaddr
 command.
 Stale entries in the table periodically pruned.
 The timeout is configurable with the
 .Xr ifconfig 8
-.Cm timeout
+.Cm vxlantimeout
 command.
 The table may be viewed with the
 .Xr sysctl 8
-.Cm net.link.vlxan.N.ftable.dump
+.Cm net.link.vxlan.N.ftable.dump
 command.
 .Sh MTU
 Since the
@@ -187,13 +187,13 @@ Create a
 .Nm
 interface in unicast mode
 with the
-.Cm local
+.Cm vxlanlocal
 tunnel address of 192.168.100.1,
 and the
-.Cm remote
+.Cm vxlanremote
 tunnel address of 192.168.100.2.
 .Bd -literal -offset indent
-ifconfig vxlan create vni 108 local 192.168.100.1 remote 192.168.100.2
+ifconfig vxlan create vxlanid 108 vxlanlocal 192.168.100.1 vxlanremote 192.168.100.2
 .Ed
 .Pp
 Create a
@@ -207,7 +207,7 @@ and the
 address of 224.0.2.6.
 The em0 interface will be used to transmit multicast packets.
 .Bd -literal -offset indent
-ifconfig vxlan create vni 42 local 192.168.10.95 group 224.0.2.6 vxlandev em0
+ifconfig vxlan create vxlanid 42 vxlanlocal 192.168.10.95 vxlangroup 224.0.2.6 vxlandev em0
 .Ed
 .Pp
 Once created, the
@@ -215,9 +215,9 @@ Once created, the
 interface can be configured with
 .Xr ifconfig 8 .
 .Sh SEE ALSO
-.Xr ifconfig 8 ,
 .Xr inet 4 ,
-.Xr inet 6 ,
+.Xr inet6 4 ,
+.Xr ifconfig 8 ,
 .Xr sysctl 8 ,
 .Xr vlan 8
 .Rs

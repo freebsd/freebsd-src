@@ -133,6 +133,7 @@ int	autofs_trigger(struct autofs_node *anp, const char *component,
 	    int componentlen);
 bool	autofs_cached(struct autofs_node *anp, const char *component,
 	    int componentlen);
+void	autofs_flush(struct autofs_mount *amp);
 bool	autofs_ignore_thread(const struct thread *td);
 int	autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 	    const char *name, int namelen, struct autofs_node **anpp);

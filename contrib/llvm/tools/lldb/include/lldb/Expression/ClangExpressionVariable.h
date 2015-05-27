@@ -65,6 +65,11 @@ class ClangExpressionVariable
 public:
     ClangExpressionVariable(ExecutionContextScope *exe_scope, lldb::ByteOrder byte_order, uint32_t addr_byte_size);
 
+    ClangExpressionVariable (ExecutionContextScope *exe_scope,
+                             Value &value,
+                             const ConstString &name,
+                             uint16_t flags = EVNone);
+    
     ClangExpressionVariable(const lldb::ValueObjectSP &valobj_sp);
 
     //----------------------------------------------------------------------
@@ -162,9 +167,9 @@ public:
         {
         }
 
-        off_t   m_alignment;    ///< The required alignment of the variable, in bytes
-        size_t  m_size;         ///< The space required for the variable, in bytes
-        off_t   m_offset;       ///< The offset of the variable in the struct, in bytes
+        lldb::offset_t   m_alignment; ///< The required alignment of the variable, in bytes
+        size_t  m_size;               ///< The space required for the variable, in bytes
+        lldb::offset_t   m_offset;    ///< The offset of the variable in the struct, in bytes
     };
     
 private:
@@ -237,8 +242,8 @@ public:
     // this function is used to copy the address-of m_live_sp into m_frozen_sp
     // this is necessary because the results of certain cast and pointer-arithmetic
     // operations (such as those described in bugzilla issues 11588 and 11618) generate
-    // frozen objcts that do not have a valid address-of, which can be troublesome when
-    // using synthetic children providers. transferring the address-of the live object
+    // frozen objects that do not have a valid address-of, which can be troublesome when
+    // using synthetic children providers. Transferring the address-of the live object
     // solves these issues and provides the expected user-level behavior
     void
     TransferAddress (bool force = false);

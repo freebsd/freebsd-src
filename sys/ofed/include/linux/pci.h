@@ -149,9 +149,8 @@ struct pci_dev {
 	uint16_t		device;
 	uint16_t		vendor;
 	unsigned int		irq;
-        unsigned int            devfn;
-        u8                      revision;
-        struct pci_devinfo      *bus; /* bus this device is on, equivalent to linux struct pci_bus */
+	unsigned int		devfn;
+	u8			revision;
 };
 
 static inline struct resource_list_entry *
@@ -267,6 +266,14 @@ pci_set_master(struct pci_dev *pdev)
 {
 
 	pci_enable_busmaster(pdev->dev.bsddev);
+	return (0);
+}
+
+static inline int
+pci_clear_master(struct pci_dev *pdev)
+{
+
+	pci_disable_busmaster(pdev->dev.bsddev);
 	return (0);
 }
 
@@ -410,146 +417,8 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 	return (0);
 }
 
-static struct pci_driver *
-linux_pci_find(device_t dev, const struct pci_device_id **idp)
-{
-	const struct pci_device_id *id;
-	struct pci_driver *pdrv;
-	uint16_t vendor;
-	uint16_t device;
-
-	vendor = pci_get_vendor(dev);
-	device = pci_get_device(dev);
-
-	spin_lock(&pci_lock);
-	list_for_each_entry(pdrv, &pci_drivers, links) {
-		for (id = pdrv->id_table; id->vendor != 0; id++) {
-			if (vendor == id->vendor && device == id->device) {
-				*idp = id;
-				spin_unlock(&pci_lock);
-				return (pdrv);
-			}
-		}
-	}
-	spin_unlock(&pci_lock);
-	return (NULL);
-}
-
-static inline int
-linux_pci_probe(device_t dev)
-{
-	const struct pci_device_id *id;
-	struct pci_driver *pdrv;
-
-	if ((pdrv = linux_pci_find(dev, &id)) == NULL)
-		return (ENXIO);
-	if (device_get_driver(dev) != &pdrv->driver)
-		return (ENXIO);
-	device_set_desc(dev, pdrv->name);
-	return (0);
-}
-
-static inline int
-linux_pci_attach(device_t dev)
-{
-	struct resource_list_entry *rle;
-	struct pci_dev *pdev;
-	struct pci_driver *pdrv;
-	const struct pci_device_id *id;
-	int error;
-
-	pdrv = linux_pci_find(dev, &id);
-	pdev = device_get_softc(dev);
-	pdev->dev.parent = &linux_rootdev;
-	pdev->dev.bsddev = dev;
-	INIT_LIST_HEAD(&pdev->dev.irqents);
-	pdev->device = id->device;
-	pdev->vendor = id->vendor;
-	pdev->dev.dma_mask = &pdev->dma_mask;
-	pdev->pdrv = pdrv;
-	kobject_init(&pdev->dev.kobj, &dev_ktype);
-	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_rootdev.kobj,
-	    kobject_name(&pdev->dev.kobj));
-	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
-	if (rle)
-		pdev->dev.irq = rle->start;
-	else
-		pdev->dev.irq = 0;
-	pdev->irq = pdev->dev.irq;
-	mtx_unlock(&Giant);
-	spin_lock(&pci_lock);
-	list_add(&pdev->links, &pci_devices);
-	spin_unlock(&pci_lock);
-	error = pdrv->probe(pdev, id);
-	mtx_lock(&Giant);
-	if (error) {
-		spin_lock(&pci_lock);
-		list_del(&pdev->links);
-		spin_unlock(&pci_lock);
-		put_device(&pdev->dev);
-		return (-error);
-	}
-	return (0);
-}
-
-static inline int
-linux_pci_detach(device_t dev)
-{
-	struct pci_dev *pdev;
-
-	pdev = device_get_softc(dev);
-	mtx_unlock(&Giant);
-	pdev->pdrv->remove(pdev);
-	mtx_lock(&Giant);
-	spin_lock(&pci_lock);
-	list_del(&pdev->links);
-	spin_unlock(&pci_lock);
-	put_device(&pdev->dev);
-
-	return (0);
-}
-
-static device_method_t pci_methods[] = {
-	DEVMETHOD(device_probe, linux_pci_probe),
-	DEVMETHOD(device_attach, linux_pci_attach),
-	DEVMETHOD(device_detach, linux_pci_detach),
-	{0, 0}
-};
-
-static inline int
-pci_register_driver(struct pci_driver *pdrv)
-{
-	devclass_t bus;
-	int error;
-
-	spin_lock(&pci_lock);
-	list_add(&pdrv->links, &pci_drivers);
-	spin_unlock(&pci_lock);
-	bus = devclass_find("pci");
-	pdrv->driver.name = pdrv->name;
-	pdrv->driver.methods = pci_methods;
-	pdrv->driver.size = sizeof(struct pci_dev);
-	mtx_lock(&Giant);
-	error = devclass_add_driver(bus, &pdrv->driver, BUS_PASS_DEFAULT,
-	    &pdrv->bsdclass);
-	mtx_unlock(&Giant);
-	if (error)
-		return (-error);
-	return (0);
-}
-
-static inline void
-pci_unregister_driver(struct pci_driver *pdrv)
-{
-	devclass_t bus;
-
-	list_del(&pdrv->links);
-	bus = devclass_find("pci");
-	mtx_lock(&Giant);
-	devclass_delete_driver(bus, &pdrv->driver);
-	mtx_unlock(&Giant);
-}
+extern int pci_register_driver(struct pci_driver *pdrv);
+extern void pci_unregister_driver(struct pci_driver *pdrv);
 
 struct msix_entry {
 	int entry;
@@ -581,12 +450,44 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 	avail = nreq;
 	if ((error = -pci_alloc_msix(pdev->dev.bsddev, &avail)) != 0)
 		return error;
+	/*
+	 * Handle case where "pci_alloc_msix()" may allocate less
+	 * interrupts than available and return with no error:
+	 */
+	if (avail < nreq) {
+		pci_release_msi(pdev->dev.bsddev);
+		return avail;
+	}
 	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 1);
 	pdev->dev.msix = rle->start;
 	pdev->dev.msix_max = rle->start + avail;
 	for (i = 0; i < nreq; i++)
 		entries[i].vector = pdev->dev.msix + i;
 	return (0);
+}
+
+#define	pci_enable_msix_range	linux_pci_enable_msix_range
+static inline int
+pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
+    int minvec, int maxvec)
+{
+	int nvec = maxvec;
+	int rc;
+
+	if (maxvec < minvec)
+		return (-ERANGE);
+
+	do {
+		rc = pci_enable_msix(dev, entries, nvec);
+		if (rc < 0) {
+			return (rc);
+		} else if (rc > 0) {
+			if (rc < minvec)
+				return (-ENOSPC);
+			nvec = rc;
+		}
+	} while (rc);
+	return (nvec);
 }
 
 static inline int pci_channel_offline(struct pci_dev *pdev)
@@ -829,6 +730,5 @@ static inline int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 v
 
         return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
 }
-
 
 #endif	/* _LINUX_PCI_H_ */

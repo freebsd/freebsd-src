@@ -19,14 +19,14 @@ def SDT_ZICmp               : SDTypeProfile<0, 3,
                                             [SDTCisSameAs<0, 1>,
                                              SDTCisVT<2, i32>]>;
 def SDT_ZBRCCMask           : SDTypeProfile<0, 3,
-                                            [SDTCisVT<0, i8>,
-                                             SDTCisVT<1, i8>,
+                                            [SDTCisVT<0, i32>,
+                                             SDTCisVT<1, i32>,
                                              SDTCisVT<2, OtherVT>]>;
 def SDT_ZSelectCCMask       : SDTypeProfile<1, 4,
                                             [SDTCisSameAs<0, 1>,
                                              SDTCisSameAs<1, 2>,
-                                             SDTCisVT<3, i8>,
-                                             SDTCisVT<4, i8>]>;
+                                             SDTCisVT<3, i32>,
+                                             SDTCisVT<4, i32>]>;
 def SDT_ZWrapPtr            : SDTypeProfile<1, 1,
                                             [SDTCisSameAs<0, 1>,
                                              SDTCisPtrTy<0>]>;
@@ -37,7 +37,7 @@ def SDT_ZWrapOffset         : SDTypeProfile<1, 2,
 def SDT_ZAdjDynAlloc        : SDTypeProfile<1, 0, [SDTCisVT<0, i64>]>;
 def SDT_ZExtractAccess      : SDTypeProfile<1, 1,
                                             [SDTCisVT<0, i32>,
-                                             SDTCisVT<1, i8>]>;
+                                             SDTCisVT<1, i32>]>;
 def SDT_ZGR128Binary32      : SDTypeProfile<1, 2,
                                             [SDTCisVT<0, untyped>,
                                              SDTCisVT<1, untyped>,
@@ -77,7 +77,7 @@ def SDT_ZString             : SDTypeProfile<1, 3,
                                              SDTCisVT<3, i32>]>;
 def SDT_ZI32Intrinsic       : SDTypeProfile<1, 0, [SDTCisVT<0, i32>]>;
 def SDT_ZPrefetch           : SDTypeProfile<0, 2,
-                                            [SDTCisVT<0, i8>,
+                                            [SDTCisVT<0, i32>,
                                              SDTCisPtrTy<1>]>;
 
 //===----------------------------------------------------------------------===//
@@ -103,6 +103,7 @@ def z_sibcall           : SDNode<"SystemZISD::SIBCALL", SDT_ZCall,
 def z_pcrel_wrapper     : SDNode<"SystemZISD::PCREL_WRAPPER", SDT_ZWrapPtr, []>;
 def z_pcrel_offset      : SDNode<"SystemZISD::PCREL_OFFSET",
                                  SDT_ZWrapOffset, []>;
+def z_iabs              : SDNode<"SystemZISD::IABS", SDTIntUnaryOp, []>;
 def z_icmp              : SDNode<"SystemZISD::ICMP", SDT_ZICmp, [SDNPOutGlue]>;
 def z_fcmp              : SDNode<"SystemZISD::FCMP", SDT_ZCmp, [SDNPOutGlue]>;
 def z_tm                : SDNode<"SystemZISD::TM", SDT_ZICmp, [SDNPOutGlue]>;
@@ -118,6 +119,9 @@ def z_sdivrem32         : SDNode<"SystemZISD::SDIVREM32", SDT_ZGR128Binary32>;
 def z_sdivrem64         : SDNode<"SystemZISD::SDIVREM64", SDT_ZGR128Binary64>;
 def z_udivrem32         : SDNode<"SystemZISD::UDIVREM32", SDT_ZGR128Binary32>;
 def z_udivrem64         : SDNode<"SystemZISD::UDIVREM64", SDT_ZGR128Binary64>;
+
+def z_serialize         : SDNode<"SystemZISD::SERIALIZE", SDTNone,
+                                 [SDNPHasChain, SDNPMayStore]>;
 
 class AtomicWOp<string name, SDTypeProfile profile = SDT_ZAtomicLoadBinaryW>
   : SDNode<"SystemZISD::"##name, profile,
@@ -247,7 +251,7 @@ def anyextloadi32 : PatFrag<(ops node:$ptr), (anyextload node:$ptr), [{
 // Aligned loads.
 class AlignedLoad<SDPatternOperator load>
   : PatFrag<(ops node:$addr), (load node:$addr), [{
-  LoadSDNode *Load = cast<LoadSDNode>(N);
+  auto *Load = cast<LoadSDNode>(N);
   return Load->getAlignment() >= Load->getMemoryVT().getStoreSize();
 }]>;
 def aligned_load         : AlignedLoad<load>;
@@ -259,7 +263,7 @@ def aligned_azextloadi32 : AlignedLoad<azextloadi32>;
 // Aligned stores.
 class AlignedStore<SDPatternOperator store>
   : PatFrag<(ops node:$src, node:$addr), (store node:$src, node:$addr), [{
-  StoreSDNode *Store = cast<StoreSDNode>(N);
+  auto *Store = cast<StoreSDNode>(N);
   return Store->getAlignment() >= Store->getMemoryVT().getStoreSize();
 }]>;
 def aligned_store         : AlignedStore<store>;
@@ -270,7 +274,7 @@ def aligned_truncstorei32 : AlignedStore<truncstorei32>;
 // location multiple times.
 class NonvolatileLoad<SDPatternOperator load>
   : PatFrag<(ops node:$addr), (load node:$addr), [{
-  LoadSDNode *Load = cast<LoadSDNode>(N);
+  auto *Load = cast<LoadSDNode>(N);
   return !Load->isVolatile();
 }]>;
 def nonvolatile_load          : NonvolatileLoad<load>;
@@ -281,7 +285,7 @@ def nonvolatile_anyextloadi32 : NonvolatileLoad<anyextloadi32>;
 // Non-volatile stores.
 class NonvolatileStore<SDPatternOperator store>
   : PatFrag<(ops node:$src, node:$addr), (store node:$src, node:$addr), [{
-  StoreSDNode *Store = cast<StoreSDNode>(N);
+  auto *Store = cast<StoreSDNode>(N);
   return !Store->isVolatile();
 }]>;
 def nonvolatile_store         : NonvolatileStore<store>;
@@ -345,6 +349,9 @@ def or_as_revinserti8 : PatFrag<(ops node:$src1, node:$src2),
   return CurDAG->MaskedValueIsZero(N->getOperand(1),
                                    APInt::getLowBitsSet(BitWidth, 8));
 }]>;
+
+// Negative integer absolute.
+def z_inegabs : PatFrag<(ops node:$src), (ineg (z_iabs node:$src))>;
 
 // Integer absolute, matching the canonical form generated by DAGCombiner.
 def z_iabs32 : PatFrag<(ops node:$src),

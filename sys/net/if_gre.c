@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #ifdef INET
@@ -118,16 +119,6 @@ static void	gre_updatehdr(struct gre_softc *);
 static int	gre_set_tunnel(struct ifnet *, struct sockaddr *,
     struct sockaddr *);
 static void	gre_delete_tunnel(struct ifnet *);
-
-int		gre_input(struct mbuf **, int *, int);
-#ifdef INET
-extern int	in_gre_attach(struct gre_softc *);
-extern int	in_gre_output(struct mbuf *, int, int);
-#endif
-#ifdef INET6
-extern int	in6_gre_attach(struct gre_softc *);
-extern int	in6_gre_output(struct mbuf *, int, int);
-#endif
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
@@ -451,6 +442,17 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		}
 		break;
+	case SIOCGTUNFIB:
+		ifr->ifr_fib = sc->gre_fibnum;
+		break;
+	case SIOCSTUNFIB:
+		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
+			break;
+		if (ifr->ifr_fib >= rt_numfibs)
+			error = EINVAL;
+		else
+			sc->gre_fibnum = ifr->ifr_fib;
+		break;
 	case GRESKEY:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
@@ -464,7 +466,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case GREGKEY:
-		error = copyout(&sc->gre_key, ifr->ifr_data, sizeof(sc->gre_key));
+		error = copyout(&sc->gre_key, ifr->ifr_data,
+		    sizeof(sc->gre_key));
 		break;
 	case GRESOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
@@ -735,7 +738,7 @@ gre_input(struct mbuf **mp, int *offp, int proto)
 	m_adj(m, *offp + hlen);
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
-	M_SETFIB(m, sc->gre_fibnum);
+	M_SETFIB(m, ifp->if_fib);
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
 #endif
@@ -762,7 +765,7 @@ gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 	count = 1;
 	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, NULL)) != NULL) {
+	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, mtag)) != NULL) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
 			return (EIO);

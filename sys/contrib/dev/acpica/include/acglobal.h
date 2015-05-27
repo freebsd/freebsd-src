@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -309,9 +309,11 @@ ACPI_INIT_GLOBAL (UINT8,                AcpiGbl_DbOutputFlags, ACPI_DB_CONSOLE_O
 
 ACPI_INIT_GLOBAL (UINT8,                AcpiGbl_NoResourceDisassembly, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_IgnoreNoopOperator, FALSE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_CstyleDisassembly, TRUE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_ForceAmlDisassembly, FALSE);
 
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_disasm);
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_verbose);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Disasm);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Verbose);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_NumExternalMethods);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_ResolvedExternalMethods);
 ACPI_GLOBAL (ACPI_EXTERNAL_LIST *,      AcpiGbl_ExternalList);
@@ -324,9 +326,7 @@ ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DbTerminateThreads, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_AbortMethod, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_MethodExecuting, FALSE);
 
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_tables);
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_stats);
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_ini_methods);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_NoIniMethods);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_NoRegionSupport);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOutputToFile);
 ACPI_GLOBAL (char *,                    AcpiGbl_DbBuffer);

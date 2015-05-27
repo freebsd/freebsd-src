@@ -138,9 +138,9 @@ protected:
 OptionDefinition
 CommandObjectSourceInfo::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_1, false, "line",       'l', OptionParser::eRequiredArgument, NULL, 0, eArgTypeLineNum,    "The line number at which to start the display source."},
-{ LLDB_OPT_SET_1, false, "file",       'f', OptionParser::eRequiredArgument, NULL, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,    "The file from which to display source."},
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+{ LLDB_OPT_SET_1, false, "line",       'l', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeLineNum,    "The line number at which to start the display source."},
+{ LLDB_OPT_SET_1, false, "file",       'f', OptionParser::eRequiredArgument, NULL, NULL, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,    "The file from which to display source."},
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 #pragma mark CommandObjectSourceList
@@ -421,7 +421,7 @@ protected:
             {
                 const bool show_inlines = true;
                 m_breakpoint_locations.Reset (start_file, 0, show_inlines);
-                SearchFilter target_search_filter (m_exe_ctx.GetTargetSP());
+                SearchFilterForUnconstrainedSearches target_search_filter (m_exe_ctx.GetTargetSP());
                 target_search_filter.Search (m_breakpoint_locations);
             }
             
@@ -682,19 +682,21 @@ protected:
                         m_breakpoint_locations.Clear();
                         const bool show_inlines = true;
                         m_breakpoint_locations.Reset (*sc.comp_unit, 0, show_inlines);
-                        SearchFilter target_search_filter (target->shared_from_this());
+                        SearchFilterForUnconstrainedSearches target_search_filter (target->shared_from_this());
                         target_search_filter.Search (m_breakpoint_locations);
                     }
                     
                     bool show_fullpaths = true;
                     bool show_module = true;
                     bool show_inlined_frames = true;
+                    const bool show_function_arguments = true;
                     sc.DumpStopContext(&result.GetOutputStream(),
                                        m_exe_ctx.GetBestExecutionContextScope(),
                                        sc.line_entry.range.GetBaseAddress(),
                                        show_fullpaths,
                                        show_module,
-                                       show_inlined_frames);
+                                       show_inlined_frames,
+                                       show_function_arguments);
                     result.GetOutputStream().EOL();
 
                     if (m_options.num_lines == 0)
@@ -741,7 +743,7 @@ protected:
                     {
                         const bool show_inlines = true;
                         m_breakpoint_locations.Reset (last_file_sp->GetFileSpec(), 0, show_inlines);
-                        SearchFilter target_search_filter (target->shared_from_this());
+                        SearchFilterForUnconstrainedSearches target_search_filter (target->shared_from_this());
                         target_search_filter.Search (m_breakpoint_locations);
                     }
                 }
@@ -804,7 +806,7 @@ protected:
                 result.SetStatus (eReturnStatusFailed);
                 return false;
             }
-            
+
             if (num_matches > 1)
             {
                 bool got_multiple = false;
@@ -820,7 +822,7 @@ protected:
                         {
                             if (test_cu_spec != static_cast<FileSpec *> (sc.comp_unit))
                                 got_multiple = true;
-                                break;
+                            break;
                         }
                         else
                             test_cu_spec = sc.comp_unit;
@@ -828,7 +830,7 @@ protected:
                 }
                 if (got_multiple)
                 {
-                    result.AppendErrorWithFormat("Multiple source files found matching: \"%s.\"\n", 
+                    result.AppendErrorWithFormat("Multiple source files found matching: \"%s.\"\n",
                                                  m_options.file_name.c_str());
                     result.SetStatus (eReturnStatusFailed);
                     return false;
@@ -844,7 +846,7 @@ protected:
                     {
                         const bool show_inlines = true;
                         m_breakpoint_locations.Reset (*sc.comp_unit, 0, show_inlines);
-                        SearchFilter target_search_filter (target->shared_from_this());
+                        SearchFilterForUnconstrainedSearches target_search_filter (target->shared_from_this());
                         target_search_filter.Search (m_breakpoint_locations);
                     }
                     else
@@ -891,16 +893,16 @@ protected:
 OptionDefinition
 CommandObjectSourceList::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "count",  'c', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCount,   "The number of source lines to display."},
+{ LLDB_OPT_SET_ALL, false, "count",  'c', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCount,   "The number of source lines to display."},
 { LLDB_OPT_SET_1  |
-  LLDB_OPT_SET_2  , false, "shlib",  's', OptionParser::eRequiredArgument, NULL, CommandCompletions::eModuleCompletion, eArgTypeShlibName, "Look up the source file in the given shared library."},
-{ LLDB_OPT_SET_ALL, false, "show-breakpoints", 'b', OptionParser::eNoArgument, NULL, 0, eArgTypeNone, "Show the line table locations from the debug information that indicate valid places to set source level breakpoints."},
-{ LLDB_OPT_SET_1  , false, "file",   'f', OptionParser::eRequiredArgument, NULL, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,    "The file from which to display source."},
-{ LLDB_OPT_SET_1  , false, "line",   'l', OptionParser::eRequiredArgument, NULL, 0, eArgTypeLineNum,    "The line number at which to start the display source."},
-{ LLDB_OPT_SET_2  , false, "name",   'n', OptionParser::eRequiredArgument, NULL, CommandCompletions::eSymbolCompletion, eArgTypeSymbol,    "The name of a function whose source to display."},
-{ LLDB_OPT_SET_3  , false, "address",'a', OptionParser::eRequiredArgument, NULL, 0, eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line."},
-{ LLDB_OPT_SET_4, false, "reverse", 'r', OptionParser::eNoArgument, NULL, 0, eArgTypeNone, "Reverse the listing to look backwards from the last displayed block of source."},
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+  LLDB_OPT_SET_2  , false, "shlib",  's', OptionParser::eRequiredArgument, NULL, NULL, CommandCompletions::eModuleCompletion, eArgTypeShlibName, "Look up the source file in the given shared library."},
+{ LLDB_OPT_SET_ALL, false, "show-breakpoints", 'b', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone, "Show the line table locations from the debug information that indicate valid places to set source level breakpoints."},
+{ LLDB_OPT_SET_1  , false, "file",   'f', OptionParser::eRequiredArgument, NULL, NULL, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,    "The file from which to display source."},
+{ LLDB_OPT_SET_1  , false, "line",   'l', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeLineNum,    "The line number at which to start the display source."},
+{ LLDB_OPT_SET_2  , false, "name",   'n', OptionParser::eRequiredArgument, NULL, NULL, CommandCompletions::eSymbolCompletion, eArgTypeSymbol,    "The name of a function whose source to display."},
+{ LLDB_OPT_SET_3  , false, "address",'a', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line."},
+{ LLDB_OPT_SET_4, false, "reverse", 'r', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone, "Reverse the listing to look backwards from the last displayed block of source."},
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 #pragma mark CommandObjectMultiwordSource

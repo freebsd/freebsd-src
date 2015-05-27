@@ -29,6 +29,11 @@
 
 /*
  * Macros to make working with the System Control Registers simpler.
+ *
+ * Note that when register r0 is hard-coded in these definitions it means the
+ * cp15 operation neither reads nor writes the register, and r0 is used only
+ * because some syntatically-valid register name has to appear at that point to
+ * keep the asm parser happy.
  */
 
 #ifndef MACHINE_SYSREG_H
@@ -99,11 +104,12 @@
 #if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_IFSR(rr)		p15, 0, rr, c5, c0,  1 /* Instruction Fault Status Register */
+#endif
+#if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_ADFSR(rr)		p15, 0, rr, c5, c1,  0 /* Auxiliary Data Fault Status Register */
 #define	CP15_AIFSR(rr)		p15, 0, rr, c5, c1,  1 /* Auxiliary Instruction Fault Status Register */
 #endif
-
 
 /*
  * CP15 C6 registers
@@ -118,7 +124,7 @@
 /*
  * CP15 C7 registers
  */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7 && defined(SMP)
 /* From ARMv7: */
 #define	CP15_ICIALLUIS		p15, 0, r0, c7, c1,  0 /* Instruction cache invalidate all PoU, IS */
 #define	CP15_BPIALLIS		p15, 0, r0, c7, c1,  6 /* Branch predictor invalidate all IS */
@@ -128,14 +134,14 @@
 
 #define	CP15_ICIALLU		p15, 0, r0, c7, c5,  0 /* Instruction cache invalidate all PoU */
 #define	CP15_ICIMVAU(rr)	p15, 0, rr, c7, c5,  1 /* Instruction cache invalidate */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Deprecated in ARMv7 */
 #define	CP15_CP15ISB		p15, 0, r0, c7, c5,  4 /* ISB */
 #endif
 #define	CP15_BPIALL		p15, 0, r0, c7, c5,  6 /* Branch predictor invalidate all */
 #define	CP15_BPIMVA		p15, 0, rr, c7, c5,  7 /* Branch predictor invalidate by MVA */
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_DCIALL		p15, 0, r0, c7, c6,  0 /* Data cache invalidate all */
 #endif
@@ -147,7 +153,7 @@
 #define	CP15_ATS1CUR(rr)	p15, 0, rr, c7, c8,  2 /* Stage 1 Current state unprivileged read */
 #define	CP15_ATS1CUW(rr)	p15, 0, rr, c7, c8,  3 /* Stage 1 Current state unprivileged write */
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_ATS12NSOPR(rr)	p15, 0, rr, c7, c8,  4 /* Stages 1 and 2 Non-secure only PL1 read */
 #define	CP15_ATS12NSOPW(rr)	p15, 0, rr, c7, c8,  5 /* Stages 1 and 2 Non-secure only PL1 write */
@@ -155,24 +161,25 @@
 #define	CP15_ATS12NSOUW(rr)	p15, 0, rr, c7, c8,  7 /* Stages 1 and 2 Non-secure only unprivileged write */
 #endif
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_DCCALL		p15, 0, r0, c7, c10, 0 /* Data cache clean all */
 #endif
 #define	CP15_DCCMVAC(rr)	p15, 0, rr, c7, c10, 1 /* Data cache clean by MVA PoC */
 #define	CP15_DCCSW(rr)		p15, 0, rr, c7, c10, 2 /* Data cache clean by set/way */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_CP15DSB		p15, 0, r0, c7, c10, 4 /* DSB */
 #define	CP15_CP15DMB		p15, 0, r0, c7, c10, 5 /* DMB */
+#define	CP15_CP15WFI		p15, 0, r0, c7, c0,  4 /* WFI */
 #endif
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_DCCMVAU(rr)	p15, 0, rr, c7, c11, 1 /* Data cache clean by MVA PoU */
 #endif
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_DCCIALL		p15, 0, r0, c7, c14, 0 /* Data cache clean and invalidate all */
 #endif
@@ -182,7 +189,7 @@
 /*
  * CP15 C8 registers
  */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7 && defined(SMP)
 /* From ARMv7: */
 #define	CP15_TLBIALLIS		p15, 0, r0, c8, c3, 0 /* Invalidate entire unified TLB IS */
 #define	CP15_TLBIMVAIS(rr)	p15, 0, rr, c8, c3, 1 /* Invalidate unified TLB by MVA IS */
@@ -197,6 +204,27 @@
 #if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_TLBIMVAA(rr)	p15, 0, rr, c8, c7, 3 /* Invalidate unified TLB by MVA, all ASID */
+#endif
+
+/*
+ * CP15 C9 registers
+ */
+#if __ARM_ARCH == 6 && defined(CPU_ARM1176)
+#define	CP15_PMCCNTR(rr)	p15, 0, rr, c15, c12, 1 /* PM Cycle Count Register */
+#elif __ARM_ARCH > 6
+#define	CP15_L2CTLR(rr)		p15, 1, rr,  c9, c0,  2 /* L2 Control Register */
+#define	CP15_PMCR(rr)		p15, 0, rr,  c9, c12, 0 /* Performance Monitor Control Register */
+#define	CP15_PMCNTENSET(rr)	p15, 0, rr,  c9, c12, 1 /* PM Count Enable Set Register */
+#define	CP15_PMCNTENCLR(rr)	p15, 0, rr,  c9, c12, 2 /* PM Count Enable Clear Register */
+#define	CP15_PMOVSR(rr)		p15, 0, rr,  c9, c12, 3 /* PM Overflow Flag Status Register */
+#define	CP15_PMSWINC(rr)	p15, 0, rr,  c9, c12, 4 /* PM Software Increment Register */
+#define	CP15_PMSELR(rr)		p15, 0, rr,  c9, c12, 5 /* PM Event Counter Selection Register */
+#define	CP15_PMCCNTR(rr)	p15, 0, rr,  c9, c13, 0 /* PM Cycle Count Register */
+#define	CP15_PMXEVTYPER(rr)	p15, 0, rr,  c9, c13, 1 /* PM Event Type Select Register */
+#define	CP15_PMXEVCNTRR(rr)	p15, 0, rr,  c9, c13, 2 /* PM Event Count Register */
+#define	CP15_PMUSERENR(rr)	p15, 0, rr,  c9, c14, 0 /* PM User Enable Register */
+#define	CP15_PMINTENSET(rr)	p15, 0, rr,  c9, c14, 1 /* PM Interrupt Enable Set Register */
+#define	CP15_PMINTENCLR(rr)	p15, 0, rr,  c9, c14, 2 /* PM Interrupt Enable Clear Register */
 #endif
 
 /*
@@ -228,5 +256,32 @@
 #define	CP15_TPIDRURW(rr)	p15, 0, rr, c13, c0, 2 /* User Read/Write Thread ID Register */
 #define	CP15_TPIDRURO(rr)	p15, 0, rr, c13, c0, 3 /* User Read-Only Thread ID Register */
 #define	CP15_TPIDRPRW(rr)	p15, 0, rr, c13, c0, 4 /* PL1 only Thread ID Register */
+
+/*
+ * CP15 C14 registers
+ * These are the Generic Timer registers and may be unallocated on some SoCs.
+ * Only use these when you know the Generic Timer is available.
+ */
+#define	CP15_CNTFRQ(rr)		p15, 0, rr, c14, c0, 0 /* Counter Frequency Register */
+#define	CP15_CNTKCTL(rr)	p15, 0, rr, c14, c1, 0 /* Timer PL1 Control Register */
+#define	CP15_CNTP_TVAL(rr)	p15, 0, rr, c14, c2, 0 /* PL1 Physical Timer Value Register */
+#define	CP15_CNTP_CTL(rr)	p15, 0, rr, c14, c2, 1 /* PL1 Physical Timer Control Register */
+#define	CP15_CNTV_TVAL(rr)	p15, 0, rr, c14, c3, 0 /* Virtual Timer Value Register */
+#define	CP15_CNTV_CTL(rr)	p15, 0, rr, c14, c3, 1 /* Virtual Timer Control Register */
+#define	CP15_CNTHCTL(rr)	p15, 4, rr, c14, c1, 0 /* Timer PL2 Control Register */
+#define	CP15_CNTHP_TVAL(rr)	p15, 4, rr, c14, c2, 0 /* PL2 Physical Timer Value Register */
+#define	CP15_CNTHP_CTL(rr)	p15, 4, rr, c14, c2, 1 /* PL2 Physical Timer Control Register */
+/* 64-bit registers for use with mcrr/mrrc */
+#define	CP15_CNTPCT(rq, rr)	p15, 0, rq, rr, c14	/* Physical Count Register */
+#define	CP15_CNTVCT(rq, rr)	p15, 1, rq, rr, c14	/* Virtual Count Register */
+#define	CP15_CNTP_CVAL(rq, rr)	p15, 2, rq, rr, c14	/* PL1 Physical Timer Compare Value Register */
+#define	CP15_CNTV_CVAL(rq, rr)	p15, 3, rq, rr, c14	/* Virtual Timer Compare Value Register */
+#define	CP15_CNTVOFF(rq, rr)	p15, 4, rq, rr, c14	/* Virtual Offset Register */
+#define	CP15_CNTHP_CVAL(rq, rr)	p15, 6, rq, rr, c14	/* PL2 Physical Timer Compare Value Register */
+
+/*
+ * CP15 C15 registers
+ */
+#define CP15_CBAR(rr)		p15, 4, rr, c15, c0, 0 /* Configuration Base Address Register */
 
 #endif /* !MACHINE_SYSREG_H */

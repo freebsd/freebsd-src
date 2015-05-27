@@ -15,6 +15,9 @@
 #include "llvm/IR/LLVMContext.h"
 #include "LLVMContextImpl.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -63,6 +66,33 @@ LLVMContext::LLVMContext() : pImpl(new LLVMContextImpl(*this)) {
   unsigned InvariantLdId = getMDKindID("invariant.load");
   assert(InvariantLdId == MD_invariant_load && "invariant.load kind id drifted");
   (void)InvariantLdId;
+
+  // Create the 'alias.scope' metadata kind.
+  unsigned AliasScopeID = getMDKindID("alias.scope");
+  assert(AliasScopeID == MD_alias_scope && "alias.scope kind id drifted");
+  (void)AliasScopeID;
+
+  // Create the 'noalias' metadata kind.
+  unsigned NoAliasID = getMDKindID("noalias");
+  assert(NoAliasID == MD_noalias && "noalias kind id drifted");
+  (void)NoAliasID;
+
+  // Create the 'nontemporal' metadata kind.
+  unsigned NonTemporalID = getMDKindID("nontemporal");
+  assert(NonTemporalID == MD_nontemporal && "nontemporal kind id drifted");
+  (void)NonTemporalID;
+
+  // Create the 'llvm.mem.parallel_loop_access' metadata kind.
+  unsigned MemParallelLoopAccessID = getMDKindID("llvm.mem.parallel_loop_access");
+  assert(MemParallelLoopAccessID == MD_mem_parallel_loop_access &&
+         "mem_parallel_loop_access kind id drifted");
+  (void)MemParallelLoopAccessID;
+
+
+  // Create the 'nonnull' metadata kind.
+  unsigned NonNullID = getMDKindID("nonnull");
+  assert(NonNullID == MD_nonnull && "nonnull kind id drifted");
+  (void)NonNullID;
 }
 LLVMContext::~LLVMContext() { delete pImpl; }
 
@@ -98,64 +128,117 @@ void *LLVMContext::getInlineAsmDiagnosticContext() const {
   return pImpl->InlineAsmDiagContext;
 }
 
+void LLVMContext::setDiagnosticHandler(DiagnosticHandlerTy DiagnosticHandler,
+                                       void *DiagnosticContext,
+                                       bool RespectFilters) {
+  pImpl->DiagnosticHandler = DiagnosticHandler;
+  pImpl->DiagnosticContext = DiagnosticContext;
+  pImpl->RespectDiagnosticFilters = RespectFilters;
+}
+
+LLVMContext::DiagnosticHandlerTy LLVMContext::getDiagnosticHandler() const {
+  return pImpl->DiagnosticHandler;
+}
+
+void *LLVMContext::getDiagnosticContext() const {
+  return pImpl->DiagnosticContext;
+}
+
+void LLVMContext::setYieldCallback(YieldCallbackTy Callback, void *OpaqueHandle)
+{
+  pImpl->YieldCallback = Callback;
+  pImpl->YieldOpaqueHandle = OpaqueHandle;
+}
+
+void LLVMContext::yield() {
+  if (pImpl->YieldCallback)
+    pImpl->YieldCallback(this, pImpl->YieldOpaqueHandle);
+}
+
 void LLVMContext::emitError(const Twine &ErrorStr) {
-  emitError(0U, ErrorStr);
+  diagnose(DiagnosticInfoInlineAsm(ErrorStr));
 }
 
 void LLVMContext::emitError(const Instruction *I, const Twine &ErrorStr) {
-  unsigned LocCookie = 0;
-  if (const MDNode *SrcLoc = I->getMetadata("srcloc")) {
-    if (SrcLoc->getNumOperands() != 0)
-      if (const ConstantInt *CI = dyn_cast<ConstantInt>(SrcLoc->getOperand(0)))
-        LocCookie = CI->getZExtValue();
+  assert (I && "Invalid instruction");
+  diagnose(DiagnosticInfoInlineAsm(*I, ErrorStr));
+}
+
+static bool isDiagnosticEnabled(const DiagnosticInfo &DI) {
+  // Optimization remarks are selective. They need to check whether the regexp
+  // pattern, passed via one of the -pass-remarks* flags, matches the name of
+  // the pass that is emitting the diagnostic. If there is no match, ignore the
+  // diagnostic and return.
+  switch (DI.getKind()) {
+  case llvm::DK_OptimizationRemark:
+    if (!cast<DiagnosticInfoOptimizationRemark>(DI).isEnabled())
+      return false;
+    break;
+  case llvm::DK_OptimizationRemarkMissed:
+    if (!cast<DiagnosticInfoOptimizationRemarkMissed>(DI).isEnabled())
+      return false;
+    break;
+  case llvm::DK_OptimizationRemarkAnalysis:
+    if (!cast<DiagnosticInfoOptimizationRemarkAnalysis>(DI).isEnabled())
+      return false;
+    break;
+  default:
+    break;
   }
-  return emitError(LocCookie, ErrorStr);
+  return true;
+}
+
+void LLVMContext::diagnose(const DiagnosticInfo &DI) {
+  // If there is a report handler, use it.
+  if (pImpl->DiagnosticHandler) {
+    if (!pImpl->RespectDiagnosticFilters || isDiagnosticEnabled(DI))
+      pImpl->DiagnosticHandler(DI, pImpl->DiagnosticContext);
+    return;
+  }
+
+  if (!isDiagnosticEnabled(DI))
+    return;
+
+  // Otherwise, print the message with a prefix based on the severity.
+  std::string MsgStorage;
+  raw_string_ostream Stream(MsgStorage);
+  DiagnosticPrinterRawOStream DP(Stream);
+  DI.print(DP);
+  Stream.flush();
+  switch (DI.getSeverity()) {
+  case DS_Error:
+    errs() << "error: " << MsgStorage << "\n";
+    exit(1);
+  case DS_Warning:
+    errs() << "warning: " << MsgStorage << "\n";
+    break;
+  case DS_Remark:
+    errs() << "remark: " << MsgStorage << "\n";
+    break;
+  case DS_Note:
+    errs() << "note: " << MsgStorage << "\n";
+    break;
+  }
 }
 
 void LLVMContext::emitError(unsigned LocCookie, const Twine &ErrorStr) {
-  // If there is no error handler installed, just print the error and exit.
-  if (pImpl->InlineAsmDiagHandler == 0) {
-    errs() << "error: " << ErrorStr << "\n";
-    exit(1);
-  }
-
-  // If we do have an error handler, we can report the error and keep going.
-  SMDiagnostic Diag("", SourceMgr::DK_Error, ErrorStr.str());
-
-  pImpl->InlineAsmDiagHandler(Diag, pImpl->InlineAsmDiagContext, LocCookie);
+  diagnose(DiagnosticInfoInlineAsm(LocCookie, ErrorStr));
 }
 
 //===----------------------------------------------------------------------===//
 // Metadata Kind Uniquing
 //===----------------------------------------------------------------------===//
 
-#ifndef NDEBUG
-/// isValidName - Return true if Name is a valid custom metadata handler name.
-static bool isValidName(StringRef MDName) {
-  if (MDName.empty())
-    return false;
-
-  if (!std::isalpha(static_cast<unsigned char>(MDName[0])))
-    return false;
-
-  for (StringRef::iterator I = MDName.begin() + 1, E = MDName.end(); I != E;
-       ++I) {
-    if (!std::isalnum(static_cast<unsigned char>(*I)) && *I != '_' &&
-        *I != '-' && *I != '.')
-      return false;
-  }
-  return true;
-}
-#endif
-
 /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
 unsigned LLVMContext::getMDKindID(StringRef Name) const {
-  assert(isValidName(Name) && "Invalid MDNode name");
+  assert(!std::isdigit(Name.front()) &&
+         "Named metadata may not start with a digit");
 
   // If this is new, assign it its ID.
-  return
-    pImpl->CustomMDKindNames.GetOrCreateValue(
-      Name, pImpl->CustomMDKindNames.size()).second;
+  return pImpl->CustomMDKindNames.insert(std::make_pair(
+                                             Name,
+                                             pImpl->CustomMDKindNames.size()))
+      .first->second;
 }
 
 /// getHandlerNames - Populate client supplied smallvector using custome

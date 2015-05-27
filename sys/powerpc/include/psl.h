@@ -39,6 +39,7 @@
  * Machine State Register (MSR) - All cores
  */
 #define	PSL_VEC		0x02000000UL	/* AltiVec/SPE vector unit available */
+#define	PSL_VSX		0x00800000UL	/* Vector-Scalar unit available */
 #define	PSL_EE		0x00008000UL	/* external interrupt enable */
 #define	PSL_PR		0x00004000UL	/* privilege mode (1 == user) */
 #define	PSL_FP		0x00002000UL	/* floating point enable */

@@ -56,11 +56,15 @@ Property::Property (const PropertyDefinition &definition) :
             // "definition.default_cstr_value" as a string value that represents the default
             // value.
             if (definition.default_cstr_value)
-                m_value_sp.reset (new OptionValueBoolean(Args::StringToBoolean (definition.default_cstr_value, false, NULL)));
+                m_value_sp.reset (new OptionValueBoolean(Args::StringToBoolean (definition.default_cstr_value, false, nullptr)));
             else
                 m_value_sp.reset (new OptionValueBoolean(definition.default_uint_value != 0));
             break;
-            
+
+        case OptionValue::eTypeChar:
+            m_value_sp.reset(new OptionValueChar(Args::StringToChar(definition.default_cstr_value, '\0', nullptr)));
+            break;
+
         case OptionValue::eTypeDictionary:
             // "definition.default_uint_value" is always a OptionValue::Type
             m_value_sp.reset (new OptionValueDictionary(OptionValue::ConvertTypeToMask((OptionValue::Type)definition.default_uint_value)));
@@ -108,7 +112,7 @@ Property::Property (const PropertyDefinition &definition) :
         {
             Format new_format = eFormatInvalid;
             if (definition.default_cstr_value)
-                Args::StringToFormat (definition.default_cstr_value, new_format, NULL);
+                Args::StringToFormat (definition.default_cstr_value, new_format, nullptr);
             else
                 new_format = (Format)definition.default_uint_value;
             m_value_sp.reset (new OptionValueFormat(new_format));
@@ -272,4 +276,13 @@ Property::DumpDescription (CommandInterpreter &interpreter,
         }
     }
 }
+
+
+void
+Property::SetValueChangedCallback (OptionValueChangedCallback callback, void *baton)
+{
+    if (m_value_sp)
+        m_value_sp->SetValueChangedCallback (callback, baton);
+}
+
 

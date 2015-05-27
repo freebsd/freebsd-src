@@ -66,12 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 #define	KTDSTATE(td)							\
 	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
 	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
@@ -107,17 +101,6 @@ static void	loadav(void *arg);
 
 SDT_PROVIDER_DECLARE(sched);
 SDT_PROBE_DEFINE(sched, , , preempt);
-
-/*
- * These probes reference Solaris features that are not implemented in FreeBSD.
- * Create the probes anyway for compatibility with existing D scripts; they'll
- * just never fire.
- */
-SDT_PROBE_DEFINE(sched, , , cpucaps__sleep);
-SDT_PROBE_DEFINE(sched, , , cpucaps__wakeup);
-SDT_PROBE_DEFINE(sched, , , schedctl__nopreempt);
-SDT_PROBE_DEFINE(sched, , , schedctl__preempt);
-SDT_PROBE_DEFINE(sched, , , schedctl__yield);
 
 static void
 sleepinit(void *unused)
@@ -486,9 +469,6 @@ mi_switch(int flags, struct thread *newtd)
 		    "lockname:\"%s\"", td->td_lockname);
 #endif
 	SDT_PROBE0(sched, , , preempt);
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
 	sched_switch(td, newtd, flags);
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
 	    "prio:%d", td->td_priority);
@@ -576,7 +556,7 @@ loadav(void *arg)
 static void
 synch_setup(void *dummy)
 {
-	callout_init(&loadav_callout, CALLOUT_MPSAFE);
+	callout_init(&loadav_callout, 1);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);

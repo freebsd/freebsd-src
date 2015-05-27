@@ -31,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -104,7 +106,7 @@ scheme_bootcode(int fd)
 {
 	struct stat sb;
 
-	if (scheme->bootcode == 0)
+	if (scheme == NULL || scheme->bootcode == 0)
 		return (ENXIO);
 
 	if (fstat(fd, &sb) == -1)
@@ -129,6 +131,8 @@ scheme_check_part(struct part *p)
 {
 	struct mkimg_alias *iter;
 	enum alias alias;
+
+	assert(scheme != NULL);
 
 	/* Check the partition type alias */
 	alias = scheme_parse_alias(p->alias);
@@ -158,29 +162,26 @@ u_int
 scheme_max_parts(void)
 {
 
-	return (scheme->nparts);
+	return ((scheme == NULL) ? 0 : scheme->nparts);
 }
 
 u_int
 scheme_max_secsz(void)
 {
 
-	return (scheme->maxsecsz);
+	return ((scheme == NULL) ? INT_MAX+1U : scheme->maxsecsz);
 }
 
 lba_t
 scheme_metadata(u_int where, lba_t start)
 {
 
-	return (scheme->metadata(where, start));
+	return ((scheme == NULL) ? start : scheme->metadata(where, start));
 }
 
 int
 scheme_write(lba_t end)
 {
-	int error;
 
-	end = image_get_size();
-	error = scheme->write(end, bootcode);
-	return (error);
+	return ((scheme == NULL) ? 0 : scheme->write(end, bootcode));
 }

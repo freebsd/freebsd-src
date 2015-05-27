@@ -261,7 +261,8 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 		 */
 		if (pool->dp_free_dir != NULL) {
 			spa_prop_add_list(*nvp, ZPOOL_PROP_FREEING, NULL,
-			    pool->dp_free_dir->dd_phys->dd_used_bytes, src);
+			    dsl_dir_phys(pool->dp_free_dir)->dd_used_bytes,
+			    src);
 		} else {
 			spa_prop_add_list(*nvp, ZPOOL_PROP_FREEING,
 			    NULL, 0, src);
@@ -269,7 +270,8 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 
 		if (pool->dp_leak_dir != NULL) {
 			spa_prop_add_list(*nvp, ZPOOL_PROP_LEAKED, NULL,
-			    pool->dp_leak_dir->dd_phys->dd_used_bytes, src);
+			    dsl_dir_phys(pool->dp_leak_dir)->dd_used_bytes,
+			    src);
 		} else {
 			spa_prop_add_list(*nvp, ZPOOL_PROP_LEAKED,
 			    NULL, 0, src);
@@ -3768,7 +3770,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 }
 
 #ifdef _KERNEL
-#if defined(sun)
+#ifdef illumos
 /*
  * Get the root pool information from the root disk, then import the root pool
  * during the system boot up time.
@@ -3969,7 +3971,7 @@ out:
 	return (error);
 }
 
-#else
+#else	/* !illumos */
 
 extern int vdev_geom_read_pool_label(const char *name, nvlist_t ***configs,
     uint64_t *count);
@@ -4160,8 +4162,8 @@ spa_import_rootpool(const char *name)
 	return (0);
 }
 
-#endif	/* sun */
-#endif
+#endif	/* illumos */
+#endif	/* _KERNEL */
 
 /*
  * Import a non-root pool into the system.
@@ -5329,13 +5331,13 @@ spa_vdev_split_mirror(spa_t *spa, char *newname, nvlist_t *config,
 	spa_activate(newspa, spa_mode_global);
 	spa_async_suspend(newspa);
 
-#ifndef sun
+#ifndef illumos
 	/* mark that we are creating new spa by splitting */
 	newspa->spa_splitting_newspa = B_TRUE;
 #endif
 	/* create the new pool from the disks of the original pool */
 	error = spa_load(newspa, SPA_LOAD_IMPORT, SPA_IMPORT_ASSEMBLE, B_TRUE);
-#ifndef sun
+#ifndef illumos
 	newspa->spa_splitting_newspa = B_FALSE;
 #endif
 	if (error)
@@ -6576,12 +6578,12 @@ spa_sync(spa_t *spa, uint64_t txg)
 #ifdef illumos
 	VERIFY(cyclic_reprogram(spa->spa_deadman_cycid,
 	    spa->spa_sync_starttime + spa->spa_deadman_synctime));
-#else	/* FreeBSD */
+#else	/* !illumos */
 #ifdef _KERNEL
 	callout_reset(&spa->spa_deadman_cycid,
 	    hz * spa->spa_deadman_synctime / NANOSEC, spa_deadman, spa);
 #endif
-#endif
+#endif	/* illumos */
 
 	/*
 	 * If we are upgrading to SPA_VERSION_RAIDZ_DEFLATE this txg,
@@ -6605,21 +6607,6 @@ spa_sync(spa_t *spa, uint64_t txg)
 	}
 
 	/*
-	 * If anything has changed in this txg, or if someone is waiting
-	 * for this txg to sync (eg, spa_vdev_remove()), push the
-	 * deferred frees from the previous txg.  If not, leave them
-	 * alone so that we don't generate work on an otherwise idle
-	 * system.
-	 */
-	if (!txg_list_empty(&dp->dp_dirty_datasets, txg) ||
-	    !txg_list_empty(&dp->dp_dirty_dirs, txg) ||
-	    !txg_list_empty(&dp->dp_sync_tasks, txg) ||
-	    ((dsl_scan_active(dp->dp_scan) ||
-	    txg_sync_waiting(dp)) && !spa_shutting_down(spa))) {
-		spa_sync_deferred_frees(spa, tx);
-	}
-
-	/*
 	 * Iterate to convergence.
 	 */
 	do {
@@ -6636,6 +6623,11 @@ spa_sync(spa_t *spa, uint64_t txg)
 		if (pass < zfs_sync_pass_deferred_free) {
 			spa_sync_frees(spa, free_bpl, tx);
 		} else {
+			/*
+			 * We can not defer frees in pass 1, because
+			 * we sync the deferred frees later in pass 1.
+			 */
+			ASSERT3U(pass, >, 1);
 			bplist_iterate(free_bpl, bpobj_enqueue_cb,
 			    &spa->spa_deferred_bpobj, tx);
 		}
@@ -6646,8 +6638,37 @@ spa_sync(spa_t *spa, uint64_t txg)
 		while (vd = txg_list_remove(&spa->spa_vdev_txg_list, txg))
 			vdev_sync(vd, txg);
 
-		if (pass == 1)
+		if (pass == 1) {
 			spa_sync_upgrades(spa, tx);
+			ASSERT3U(txg, >=,
+			    spa->spa_uberblock.ub_rootbp.blk_birth);
+			/*
+			 * Note: We need to check if the MOS is dirty
+			 * because we could have marked the MOS dirty
+			 * without updating the uberblock (e.g. if we
+			 * have sync tasks but no dirty user data).  We
+			 * need to check the uberblock's rootbp because
+			 * it is updated if we have synced out dirty
+			 * data (though in this case the MOS will most
+			 * likely also be dirty due to second order
+			 * effects, we don't want to rely on that here).
+			 */
+			if (spa->spa_uberblock.ub_rootbp.blk_birth < txg &&
+			    !dmu_objset_is_dirty(mos, txg)) {
+				/*
+				 * Nothing changed on the first pass,
+				 * therefore this TXG is a no-op.  Avoid
+				 * syncing deferred frees, so that we
+				 * can keep this TXG as a no-op.
+				 */
+				ASSERT(txg_list_empty(&dp->dp_dirty_datasets,
+				    txg));
+				ASSERT(txg_list_empty(&dp->dp_dirty_dirs, txg));
+				ASSERT(txg_list_empty(&dp->dp_sync_tasks, txg));
+				break;
+			}
+			spa_sync_deferred_frees(spa, tx);
+		}
 
 	} while (dmu_objset_is_dirty(mos, txg));
 
@@ -6707,11 +6728,11 @@ spa_sync(spa_t *spa, uint64_t txg)
 
 #ifdef illumos
 	VERIFY(cyclic_reprogram(spa->spa_deadman_cycid, CY_INFINITY));
-#else	/* FreeBSD */
+#else	/* !illumos */
 #ifdef _KERNEL
 	callout_drain(&spa->spa_deadman_cycid);
 #endif
-#endif
+#endif	/* illumos */
 
 	/*
 	 * Clear the dirty config list.

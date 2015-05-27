@@ -224,6 +224,11 @@ def AtomItineraries : ProcessorItineraries<
   InstrItinData<IIC_SSE_SQRTSD_RR, [InstrStage<62, [Port0, Port1]>] >,
   InstrItinData<IIC_SSE_SQRTSD_RM, [InstrStage<62, [Port0, Port1]>] >,
 
+  InstrItinData<IIC_SSE_RSQRTPS_RR, [InstrStage<9, [Port0, Port1]>] >,
+  InstrItinData<IIC_SSE_RSQRTPS_RM, [InstrStage<10, [Port0, Port1]>] >,
+  InstrItinData<IIC_SSE_RSQRTSS_RR, [InstrStage<4, [Port0]>] >,
+  InstrItinData<IIC_SSE_RSQRTSS_RM, [InstrStage<4, [Port0]>] >,
+
   InstrItinData<IIC_SSE_RCPP_RR, [InstrStage<9, [Port0, Port1]>] >,
   InstrItinData<IIC_SSE_RCPP_RM, [InstrStage<10, [Port0, Port1]>] >,
   InstrItinData<IIC_SSE_RCPS_RR, [InstrStage<4, [Port0]>] >,
@@ -534,6 +539,11 @@ def AtomModel : SchedMachineModel {
   let MicroOpBufferSize = 0; // In-order execution, always hide latency.
   let LoadLatency = 3; // Expected cycles, may be overriden by OperandCycles.
   let HighLatency = 30;// Expected, may be overriden by OperandCycles.
+
+  // On the Atom, the throughput for taken branches is 2 cycles. For small
+  // simple loops, expand by a small factor to hide the backedge cost.
+  let LoopMicroOpBufferSize = 10;
+  let PostRAScheduler = 1;
 
   let Itineraries = AtomItineraries;
 }

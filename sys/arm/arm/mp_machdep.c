@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
+#include <machine/pmap.h>
 #include <machine/pte.h>
 #include <machine/physmem.h>
 #include <machine/intr.h>
@@ -62,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_smp.h"
 
-void *temp_pagetable;
 extern struct pcpu __pcpu[];
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -112,8 +112,6 @@ void
 cpu_mp_start(void)
 {
 	int error, i;
-	vm_offset_t temp_pagetable_va;
-	vm_paddr_t addr, addr_end;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -121,30 +119,10 @@ cpu_mp_start(void)
 	for(i = 0; i < (mp_ncpus - 1); i++)
 		dpcpu[i] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO);
-	temp_pagetable_va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE,
-	    M_TEMP, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
-	addr = arm_physmem_kernaddr;
-	addr_end = (vm_offset_t)&_end - KERNVIRTADDR + arm_physmem_kernaddr;
-	addr_end &= ~L1_S_OFFSET;
-	addr_end += L1_S_SIZE;
-	bzero((void *)temp_pagetable_va,  L1_TABLE_SIZE);
-	for (addr = arm_physmem_kernaddr; addr <= addr_end; addr += L1_S_SIZE) { 
-		((int *)(temp_pagetable_va))[addr >> L1_S_SHIFT] =
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_B|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
-		((int *)(temp_pagetable_va))[(addr -
-			arm_physmem_kernaddr + KERNVIRTADDR) >> L1_S_SHIFT] = 
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_B|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
-	}
 
-#if defined(CPU_MV_PJ4B)
-	/* Add ARMADAXP registers required for snoop filter initialization */
-	((int *)(temp_pagetable_va))[MV_BASE >> L1_S_SHIFT] =
-	    L1_TYPE_S|L1_SHARED|L1_S_B|L1_S_AP(AP_KRW)|fdt_immr_pa;
-#endif
-
-	temp_pagetable = (void*)(vtophys(temp_pagetable_va));
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
+	cpu_idcache_wbinv_all();
 
 	/* Initialize boot code and start up processors */
 	platform_mp_start_ap();
@@ -157,7 +135,6 @@ cpu_mp_start(void)
 		for (i = 1; i < mp_ncpus; i++)
 			CPU_SET(i, &all_cpus);
 
-	contigfree((void *)temp_pagetable_va, L1_TABLE_SIZE, M_TEMP);
 }
 
 /* Introduce rest of cores to the world */
@@ -175,12 +152,20 @@ init_secondary(int cpu)
 	uint32_t loop_counter;
 	int start = 0, end = 0;
 
-	cpu_idcache_inv_all();
+#ifdef ARM_NEW_PMAP
+	pmap_set_tex();
+	reinit_mmu(pmap_kern_ttb, (1<<6) | (1<< 0), (1<<6) | (1<< 0));
+	cpu_setup();
 
-	cpu_setup(NULL);
+	/* Provide stack pointers for other processor modes. */
+	set_stackptrs(cpu);
+
+	enable_interrupts(PSR_A);
+#else /* ARM_NEW_PMAP */
+	cpu_setup();
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
-
+#endif /* ARM_NEW_PMAP */
 	pc = &__pcpu[cpu];
 
 	/*
@@ -192,16 +177,19 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
-
+#ifndef ARM_NEW_PMAP
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);
-
+#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
 	/* Spin until the BSP releases the APs */
-	while (!aps_ready)
-		;
+	while (!atomic_load_acq_int(&aps_ready)) {
+#if __ARM_ARCH >= 7
+		__asm __volatile("wfe");
+#endif
+	}
 
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -266,7 +254,7 @@ ipi_handler(void *arg)
 
 	cpu = PCPU_GET(cpuid);
 
-	ipi = pic_ipi_get((int)arg);
+	ipi = pic_ipi_read((int)arg);
 
 	while ((ipi != 0x3ff)) {
 		switch (ipi) {
@@ -329,7 +317,7 @@ ipi_handler(void *arg)
 		}
 
 		pic_ipi_clear(ipi);
-		ipi = pic_ipi_get(-1);
+		ipi = pic_ipi_read(-1);
 	}
 
 	return (FILTER_HANDLED);
@@ -368,6 +356,10 @@ release_aps(void *dummy __unused)
 		arm_unmask_irq(i);
 	}
 	atomic_store_rel_int(&aps_ready, 1);
+	/* Wake the other threads up */
+#if __ARM_ARCH >= 7
+	armv7_sev();
+#endif
 
 	printf("Release APs\n");
 

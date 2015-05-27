@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libkvm \
 	lib/libutil \
 	usr.bin/lex/lib \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

@@ -27,7 +27,7 @@
  */
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/modctl.h>
 #include <sys/kobj.h>
 #include <sys/kobj_impl.h>
@@ -41,7 +41,7 @@
 #endif
 
 #include <unistd.h>
-#if defined(sun)
+#ifdef illumos
 #include <project.h>
 #endif
 #include <strings.h>
@@ -51,7 +51,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <dirent.h>
-#if !defined(sun)
+#ifndef illumos
 #include <fcntl.h>
 #include <libproc_compat.h>
 #endif
@@ -572,7 +572,7 @@ dt_module_load_sect(dtrace_hdl_t *dtp, dt_module_t *dmp, ctf_sect_t *ctsp)
 	if (sp == NULL || (dp = elf_getdata(sp, NULL)) == NULL)
 		return (0);
 
-#if defined(sun)
+#ifdef illumos
 	ctsp->cts_data = dp->d_buf;
 #else
 	if ((ctsp->cts_data = malloc(dp->d_size)) == NULL)
@@ -921,7 +921,7 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	ctf_close(dmp->dm_ctfp);
 	dmp->dm_ctfp = NULL;
 
-#if !defined(sun)
+#ifndef illumos
 	if (dmp->dm_ctdata.cts_data != NULL) {
 		free(dmp->dm_ctdata.cts_data);
 	}
@@ -1115,7 +1115,7 @@ dt_module_getctflib(dtrace_hdl_t *dtp, dt_module_t *dmp, const char *name)
  * including the path.
  */
 static void
-#if defined(sun)
+#ifdef illumos
 dt_module_update(dtrace_hdl_t *dtp, const char *name)
 #else
 dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
@@ -1132,7 +1132,7 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	Elf_Data *dp;
 	Elf_Scn *sp;
 
-#if defined(sun)
+#ifdef illumos
 	(void) snprintf(fname, sizeof (fname),
 	    "%s/%s/object", OBJFS_ROOT, name);
 #else
@@ -1211,13 +1211,13 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 #if defined(__FreeBSD__)
 		if (sh.sh_size == 0)
 			continue;
-		if (is_elf_obj && (sh.sh_type == SHT_PROGBITS ||
-		    sh.sh_type == SHT_NOBITS)) {
+		if (sh.sh_type == SHT_PROGBITS || sh.sh_type == SHT_NOBITS) {
 			alignmask = sh.sh_addralign - 1;
 			mapbase += alignmask;
 			mapbase &= ~alignmask;
 			sh.sh_addr = mapbase;
-			dmp->dm_sec_offsets[elf_ndxscn(sp)] = sh.sh_addr;
+			if (is_elf_obj)
+				dmp->dm_sec_offsets[elf_ndxscn(sp)] = sh.sh_addr;
 			mapbase += sh.sh_size;
 		}
 #endif
@@ -1242,7 +1242,7 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	}
 
 	dmp->dm_flags |= DT_DM_KERNEL;
-#if defined(sun)
+#ifdef illumos
 	dmp->dm_modid = (int)OBJFS_MODID(st.st_ino);
 #else
 	/*
@@ -1265,7 +1265,7 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 		}
 	}
 #endif
-#endif
+#endif /* illumos */
 
 	if (dmp->dm_info.objfs_info_primary)
 		dmp->dm_flags |= DT_DM_PRIMARY;
@@ -1291,7 +1291,7 @@ dtrace_update(dtrace_hdl_t *dtp)
 	    dmp != NULL; dmp = dt_list_next(dmp))
 		dt_module_unload(dtp, dmp);
 
-#if defined(sun)
+#ifdef illumos
 	/*
 	 * Open /system/object and attempt to create a libdtrace module for
 	 * each kernel module that is loaded on the current system.
@@ -1331,11 +1331,11 @@ dtrace_update(dtrace_hdl_t *dtp)
 	dt_idhash_lookup(dtp->dt_macros, "pid")->di_id = getpid();
 	dt_idhash_lookup(dtp->dt_macros, "pgid")->di_id = getpgid(0);
 	dt_idhash_lookup(dtp->dt_macros, "ppid")->di_id = getppid();
-#if defined(sun)
+#ifdef illumos
 	dt_idhash_lookup(dtp->dt_macros, "projid")->di_id = getprojid();
 #endif
 	dt_idhash_lookup(dtp->dt_macros, "sid")->di_id = getsid(0);
-#if defined(sun)
+#ifdef illumos
 	dt_idhash_lookup(dtp->dt_macros, "taskid")->di_id = gettaskid();
 #endif
 	dt_idhash_lookup(dtp->dt_macros, "uid")->di_id = getuid();

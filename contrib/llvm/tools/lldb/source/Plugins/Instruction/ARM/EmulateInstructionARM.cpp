@@ -24,6 +24,7 @@
 #include "Plugins/Process/Utility/ARMUtils.h"
 #include "Utility/ARM_DWARF_Registers.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/MathExtras.h" // for SignExtend32 template function
                                      // and countTrailingZeros function
 
@@ -266,7 +267,7 @@ EmulateInstructionARM::WriteBits32Unknown (int n)
 }
 
 bool
-EmulateInstructionARM::GetRegisterInfo (uint32_t reg_kind, uint32_t reg_num, RegisterInfo &reg_info)
+EmulateInstructionARM::GetRegisterInfo (lldb::RegisterKind reg_kind, uint32_t reg_num, RegisterInfo &reg_info)
 {
     if (reg_kind == eRegisterKindGeneric)
     {
@@ -2169,7 +2170,7 @@ EmulateInstructionARM::EmulateVPOP (const uint32_t opcode, const ARMEncoding enc
         addr_t sp_offset = imm32;
         addr_t addr = sp;
         uint32_t i;
-        uint64_t data; // uint64_t to accomodate 64-bit registers.
+        uint64_t data; // uint64_t to accommodate 64-bit registers.
         
         EmulateInstruction::Context context;
         if (conditional)
@@ -3626,7 +3627,7 @@ EmulateInstructionARM::EmulateLDMDA (const uint32_t opcode, const ARMEncoding en
 }
   
 // LDMDB loads multiple registers from consecutive memory locations using an address from a base register.  The 
-// consecutive memory lcoations end just below this address, and the address of the lowest of those locations can 
+// consecutive memory locations end just below this address, and the address of the lowest of those locations can
 // be optionally written back to the base register.
 bool
 EmulateInstructionARM::EmulateLDMDB (const uint32_t opcode, const ARMEncoding encoding)
@@ -4033,7 +4034,7 @@ EmulateInstructionARM::EmulateLDRRtRnImm (const uint32_t opcode, const ARMEncodi
 }
 
 // STM (Store Multiple Increment After) stores multiple registers to consecutive memory locations using an address 
-// from a base register.  The consecutive memory locations start at this address, and teh address just above the last
+// from a base register.  The consecutive memory locations start at this address, and the address just above the last
 // of those locations can optionally be written back to the base register.
 bool
 EmulateInstructionARM::EmulateSTM (const uint32_t opcode, const ARMEncoding encoding)
@@ -4588,7 +4589,7 @@ EmulateInstructionARM::EmulateSTMIB (const uint32_t opcode, const ARMEncoding en
     return true;
 }
 
-// STR (store immediate) calcualtes an address from a base register value and an immediate offset, and stores a word
+// STR (store immediate) calculates an address from a base register value and an immediate offset, and stores a word
 // from a register to memory.  It can use offset, post-indexed, or pre-indexed addressing.
 bool
 EmulateInstructionARM::EmulateSTRThumb (const uint32_t opcode, const ARMEncoding encoding)
@@ -5076,7 +5077,7 @@ EmulateInstructionARM::EmulateSTRBThumb (const uint32_t opcode, const ARMEncodin
 }
 
 // STRH (register) calculates an address from a base register value and an offset register value, and stores a 
-// halfword from a register to memory.  The offset register alue can be shifted left by 0, 1, 2, or 3 bits.
+// halfword from a register to memory.  The offset register value can be shifted left by 0, 1, 2, or 3 bits.
 bool
 EmulateInstructionARM::EmulateSTRHRegister (const uint32_t opcode, const ARMEncoding encoding)
 {
@@ -5941,7 +5942,7 @@ EmulateInstructionARM::EmulateLDRImmediateARM (const uint32_t opcode, const ARME
 }
                   
 // LDR (register) calculates an address from a base register value and an offset register value, loads a word 
-// from memory, and writes it to a resgister.  The offset register value can optionally be shifted.  
+// from memory, and writes it to a register.  The offset register value can optionally be shifted.
 bool
 EmulateInstructionARM::EmulateLDRRegister (const uint32_t opcode, const ARMEncoding encoding)
 {
@@ -9872,12 +9873,14 @@ EmulateInstructionARM::EmulateSTREX (const uint32_t opcode, const ARMEncoding en
             if (!WriteRegisterUnsigned (context, eRegisterKindDWARF, dwarf_r0 + t, 0))
                 return false;
         }
+#if 0 // unreachable because if true
         else
         {
             // R[d] = 1;
             if (!WriteRegisterUnsigned (context, eRegisterKindDWARF, dwarf_r0 + t, 1))
                 return false;
         }
+#endif // unreachable because if true
     }
     return true;
 }
@@ -11033,7 +11036,7 @@ EmulateInstructionARM::EmulateVSTM (const uint32_t opcode, const ARMEncoding enc
 }
                                 
 // A8.6.320
-// This instruciton loads a single extension register fronm memory, using an address from an ARM core register, with
+// This instruction loads a single extension register from memory, using an address from an ARM core register, with
 // an optional offset.
 bool
 EmulateInstructionARM::EmulateVLDR (const uint32_t opcode, ARMEncoding encoding)
@@ -11638,7 +11641,7 @@ EmulateInstructionARM::EmulateVLD1Single (const uint32_t opcode, const ARMEncodi
 }
 
 // A8.6.391 VST1 (multiple single elements)
-// Vector Store (multiple single elements) stores elements to memory from one, two, three, or four regsiters, without
+// Vector Store (multiple single elements) stores elements to memory from one, two, three, or four registers, without
 // interleaving.  Every element of each register is stored.
 bool
 EmulateInstructionARM::EmulateVST1Multiple (const uint32_t opcode, ARMEncoding encoding)
@@ -12506,7 +12509,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction (const uint32_t opcode, uint32
         { 0xfe500000, 0xf8100000, ARMV6_ABOVE,  eEncodingA1, No_VFP, eSize32, &EmulateInstructionARM::EmulateRFE, "rfe{<amode>} <Rn>{!}" }
                   
     };
-    static const size_t k_num_arm_opcodes = sizeof(g_arm_opcodes)/sizeof(ARMOpcode);
+    static const size_t k_num_arm_opcodes = llvm::array_lengthof(g_arm_opcodes);
                   
     for (size_t i=0; i<k_num_arm_opcodes; ++i)
     {
@@ -12832,7 +12835,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction (const uint32_t opcode, uint
         { 0xfffff080, 0xfa1ff080, ARMV6T2_ABOVE, eEncodingT2, No_VFP, eSize32, &EmulateInstructionARM::EmulateUXTH, "uxth<c>.w <Rd>,<Rm>{,<rotation>}" },
     };
 
-    const size_t k_num_thumb_opcodes = sizeof(g_thumb_opcodes)/sizeof(ARMOpcode);
+    const size_t k_num_thumb_opcodes = llvm::array_lengthof(g_thumb_opcodes);
     for (size_t i=0; i<k_num_thumb_opcodes; ++i)
     {
         if ((g_thumb_opcodes[i].mask & opcode) == g_thumb_opcodes[i].value &&
@@ -13019,7 +13022,7 @@ EmulateInstructionARM::ConditionPassed (const uint32_t opcode, bool *is_conditio
         break;
     case 7: 
         // Always execute (cond == 0b1110, or the special 0b1111 which gives
-        // opcodes different meanings, but always means execution happpens.
+        // opcodes different meanings, but always means execution happens.
         if (is_conditional)
             *is_conditional = false;
         result = true; 
@@ -13307,7 +13310,8 @@ EmulateInstructionARM::AddWithCarry (uint32_t x, uint32_t y, uint8_t carry_in)
 uint32_t
 EmulateInstructionARM::ReadCoreReg(uint32_t num, bool *success)
 {
-    uint32_t reg_kind, reg_num;
+    lldb::RegisterKind reg_kind;
+    uint32_t reg_num;
     switch (num)
     {
     case SP_REG:
@@ -13388,7 +13392,8 @@ EmulateInstructionARM::WriteCoreRegOptionalFlags (Context &context,
     }
     else
     {
-        uint32_t reg_kind, reg_num;
+        lldb::RegisterKind reg_kind;
+        uint32_t reg_num;
         switch (Rd)
         {
         case SP_REG:

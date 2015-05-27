@@ -21,7 +21,7 @@ static T getU(uint32_t *offset_ptr, const DataExtractor *de,
   if (de->isValidOffsetForDataOfSize(offset, sizeof(val))) {
     std::memcpy(&val, &Data[offset], sizeof(val));
     if (sys::IsLittleEndianHost != isLittleEndian)
-      val = sys::SwapByteOrder(val);
+      sys::swapByteOrder(val);
 
     // Advance the offset
     *offset_ptr += sizeof(val);
@@ -44,7 +44,7 @@ static T *getUs(uint32_t *offset_ptr, T *dst, uint32_t count,
     // success
     return dst;
   }
-  return NULL;
+  return nullptr;
 }
 
 uint8_t DataExtractor::getU8(uint32_t *offset_ptr) const {
@@ -125,7 +125,7 @@ const char *DataExtractor::getCStr(uint32_t *offset_ptr) const {
     *offset_ptr = pos + 1;
     return Data.data() + offset;
   }
-  return NULL;
+  return nullptr;
 }
 
 uint64_t DataExtractor::getULEB128(uint32_t *offset_ptr) const {

@@ -146,13 +146,12 @@ struct fw_device *
 fw_noderesolve_nodeid(struct firewire_comm *fc, int dst)
 {
 	struct fw_device *fwdev;
-	int s;
 
-	s = splfw();
+	FW_GLOCK(fc);
 	STAILQ_FOREACH(fwdev, &fc->devices, link)
 		if (fwdev->dst == dst && fwdev->status != FWDEVINVAL)
 			break;
-	splx(s);
+	FW_GUNLOCK(fc);
 
 	return fwdev;
 }
@@ -164,15 +163,12 @@ struct fw_device *
 fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 *eui)
 {
 	struct fw_device *fwdev;
-	int s;
 
-	s = splfw();
 	FW_GLOCK(fc);
 	STAILQ_FOREACH(fwdev, &fc->devices, link)
 		if (FW_EUI64_EQUAL(fwdev->eui, *eui))
 			break;
 	FW_GUNLOCK(fc);
-	splx(s);
 
 	if (fwdev == NULL)
 		return NULL;
@@ -301,9 +297,7 @@ static void
 fw_asystart(struct fw_xfer *xfer)
 {
 	struct firewire_comm *fc = xfer->fc;
-	int s;
 
-	s = splfw();
 	/* Protect from interrupt/timeout */
 	FW_GLOCK(fc);
 	xfer->flag = FWXF_INQ;
@@ -312,7 +306,6 @@ fw_asystart(struct fw_xfer *xfer)
 	xfer->q->queued++;
 #endif
 	FW_GUNLOCK(fc);
-	splx(s);
 	/* XXX just queue for mbuf */
 	if (xfer->mbuf == NULL)
 		xfer->q->start(fc);
@@ -332,6 +325,7 @@ firewire_probe(device_t dev)
 	return (0);
 }
 
+/* Just use a per-packet callout? */
 static void
 firewire_xfer_timeout(void *arg, int pending)
 {
@@ -340,7 +334,7 @@ firewire_xfer_timeout(void *arg, int pending)
 	struct timeval tv;
 	struct timeval split_timeout;
 	STAILQ_HEAD(, fw_xfer) xfer_timeout;
-	int i, s;
+	int i;
 
 	split_timeout.tv_sec = 0;
 	split_timeout.tv_usec = 200 * 1000;	 /* 200 msec */
@@ -349,9 +343,8 @@ firewire_xfer_timeout(void *arg, int pending)
 	timevalsub(&tv, &split_timeout);
 	STAILQ_INIT(&xfer_timeout);
 
-	s = splfw();
 	mtx_lock(&fc->tlabel_lock);
-	for (i = 0; i < 0x40; i++) {
+	for (i = 0; i < nitems(fc->tlabels); i++) {
 		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			if ((xfer->flag & FWXF_SENT) == 0)
 				/* not sent yet */
@@ -370,7 +363,6 @@ firewire_xfer_timeout(void *arg, int pending)
 		}
 	}
 	mtx_unlock(&fc->tlabel_lock);
-	splx(s);
 	fc->timeout(fc);
 
 	STAILQ_FOREACH_SAFE(xfer, &xfer_timeout, tlabel, txfer)
@@ -761,8 +753,15 @@ fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 	src = &fc->crom_src_buf->src;
 	crom_load(src, newrom, CROMSIZE);
 	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
-		if (src->businfo.generation++ > FW_MAX_GENERATION)
+		/* Bump generation and reload. */
+		src->businfo.generation++;
+
+		/* Handle generation count wraps. */
+		if (src->businfo.generation < FW_GENERATION_CHANGEABLE)
 			src->businfo.generation = FW_GENERATION_CHANGEABLE;
+
+		/* Recalculate CRC to account for generation change. */
+		crom_load(src, newrom, CROMSIZE);
 		bcopy(newrom, fc->config_rom, CROMSIZE);
 	}
 	free(newrom, M_FW);
@@ -1022,9 +1021,7 @@ static void
 fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
 	struct fw_xfer *txfer;
-	int s;
 
-	s = splfw();
 	mtx_lock(&fc->tlabel_lock);
 	if (xfer->tl < 0) {
 		mtx_unlock(&fc->tlabel_lock);
@@ -1042,14 +1039,12 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		fw_dump_hdr(&xfer->recv.hdr, "recv");
 		kdb_backtrace();
 		mtx_unlock(&fc->tlabel_lock);
-		splx(s);
 		return;
 	}
 
 	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
 	xfer->tl = -1;
 	mtx_unlock(&fc->tlabel_lock);
-	splx(s);
 	return;
 }
 
@@ -1157,22 +1152,21 @@ fw_xfer_done(struct fw_xfer *xfer)
 void
 fw_xfer_unload(struct fw_xfer *xfer)
 {
-	int s;
 
 	if (xfer == NULL)
 		return;
-	if (xfer->flag & FWXF_INQ) {
-		printf("fw_xfer_free FWXF_INQ\n");
-		s = splfw();
-		FW_GLOCK(xfer->fc);
-		STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
-#if 0
-		xfer->q->queued--;
-#endif
-		FW_GUNLOCK(xfer->fc);
-		splx(s);
-	}
+
 	if (xfer->fc != NULL) {
+		FW_GLOCK(xfer->fc);
+		if (xfer->flag & FWXF_INQ) {
+			STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
+			xfer->flag &= ~FWXF_INQ;
+	#if 0
+			xfer->q->queued--;
+	#endif
+		}
+		FW_GUNLOCK(xfer->fc);
+
 		/*
 		 * Ensure that any tlabel owner can't access this
 		 * xfer after it's freed.
@@ -2036,6 +2030,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			rb->xfer->hand = fw_xfer_free;
 			if (fw_asyreq(rb->fc, -1, rb->xfer))
 				fw_xfer_free(rb->xfer);
+			return;
 		}
 		len = 0;
 		for (i = 0; i < rb->nvec; i++)

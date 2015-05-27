@@ -38,11 +38,18 @@ m_my_revision(0)
 {
 }
 
+TypeFormatImpl::~TypeFormatImpl ()
+{
+}
 
 TypeFormatImpl_Format::TypeFormatImpl_Format (lldb::Format f,
                                               const TypeFormatImpl::Flags& flags) :
 TypeFormatImpl(flags),
 m_format (f)
+{
+}
+
+TypeFormatImpl_Format::~TypeFormatImpl_Format ()
 {
 }
 
@@ -52,9 +59,9 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
 {
     if (!valobj)
         return false;
-    if (valobj->GetClangType().IsAggregateType () == false)
+    if (valobj->CanProvideValue())
     {
-        const Value& value(valobj->GetValue());
+        Value& value(valobj->GetValue());
         const Value::ContextType context_type = value.GetContextType();
         ExecutionContext exe_ctx (valobj->GetExecutionContextRef());
         DataExtractor data;
@@ -64,7 +71,10 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
             const RegisterInfo *reg_info = value.GetRegisterInfo();
             if (reg_info)
             {
-                valobj->GetData(data);
+                Error error;
+                valobj->GetData(data, error);
+                if (error.Fail())
+                    return false;
                 
                 StreamString reg_sstr;
                 data.Dump (&reg_sstr,
@@ -82,14 +92,14 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
         }
         else
         {
-            ClangASTType clang_type = valobj->GetClangType ();
+            ClangASTType clang_type = value.GetClangType ();
             if (clang_type)
             {
                 // put custom bytes to display in the DataExtractor to override the default value logic
                 if (GetFormat() == eFormatCString)
                 {
                     lldb_private::Flags type_flags(clang_type.GetTypeInfo(NULL)); // disambiguate w.r.t. TypeFormatImpl::Flags
-                    if (type_flags.Test(ClangASTType::eTypeIsPointer) && !type_flags.Test(ClangASTType::eTypeIsObjC))
+                    if (type_flags.Test(eTypeIsPointer) && !type_flags.Test(eTypeIsObjC))
                     {
                         // if we are dumping a pointer as a c-string, get the pointee data as a string
                         TargetSP target_sp(valobj->GetTargetSP());
@@ -105,7 +115,12 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
                     }
                 }
                 else
-                    valobj->GetData(data);
+                {
+                    Error error;
+                    valobj->GetData(data, error);
+                    if (error.Fail())
+                        return false;
+                }
                 
                 StreamString sstr;
                 clang_type.DumpTypeValue (&sstr,                         // The stream to use for display
@@ -154,6 +169,10 @@ m_types()
 {
 }
 
+TypeFormatImpl_EnumType::~TypeFormatImpl_EnumType ()
+{
+}
+
 bool
 TypeFormatImpl_EnumType::FormatObject (ValueObject *valobj,
                                        std::string& dest) const
@@ -161,7 +180,7 @@ TypeFormatImpl_EnumType::FormatObject (ValueObject *valobj,
     dest.clear();
     if (!valobj)
         return false;
-    if (valobj->GetClangType().IsAggregateType ())
+    if (!valobj->CanProvideValue())
         return false;
     ProcessSP process_sp;
     TargetSP target_sp;
@@ -190,7 +209,7 @@ TypeFormatImpl_EnumType::FormatObject (ValueObject *valobj,
         {
             if (!type_sp)
                 continue;
-            if ( (type_sp->GetClangForwardType().GetTypeInfo() & ClangASTType::eTypeIsEnumeration) == ClangASTType::eTypeIsEnumeration)
+            if ( (type_sp->GetClangForwardType().GetTypeInfo() & eTypeIsEnumeration) == eTypeIsEnumeration)
             {
                 valobj_enum_type = type_sp->GetClangFullType();
                 m_types.emplace(valobj_key,valobj_enum_type);
@@ -203,7 +222,10 @@ TypeFormatImpl_EnumType::FormatObject (ValueObject *valobj,
     if (valobj_enum_type.IsValid() == false)
         return false;
     DataExtractor data;
-    valobj->GetData(data);
+    Error error;
+    valobj->GetData(data, error);
+    if (error.Fail())
+        return false;
     ExecutionContext exe_ctx (valobj->GetExecutionContextRef());
     StreamString sstr;
     valobj_enum_type.DumpTypeValue(&sstr,

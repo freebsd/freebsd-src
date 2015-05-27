@@ -203,13 +203,25 @@ cbb_isa_attach(device_t dev)
 	return (ENOMEM);
 }
 
+static int
+cbb_isa_suspend(device_t dev)
+{
+	return (0);
+}
+
+static int
+cbb_isa_resume(device_t dev)
+{
+	return (0);
+}
+
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_isa_probe),
 	DEVMETHOD(device_attach,		cbb_isa_attach),
 	DEVMETHOD(device_detach,		cbb_detach),
-	DEVMETHOD(device_suspend,		cbb_suspend),
-	DEVMETHOD(device_resume,		cbb_resume),
+	DEVMETHOD(device_suspend,		cbb_isa_suspend),
+	DEVMETHOD(device_resume,		cbb_isa_resume),
 
 	/* bus methods */
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),

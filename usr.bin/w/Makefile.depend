@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libkvm \
+	lib/libsbuf \
 	lib/libutil \
 	lib/libxo \
 

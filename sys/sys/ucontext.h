@@ -99,7 +99,7 @@ struct thread;
 
 /* Machine-dependent functions: */
 int	get_mcontext(struct thread *, mcontext_t *, int);
-int	set_mcontext(struct thread *, const mcontext_t *);
+int	set_mcontext(struct thread *, mcontext_t *);
 
 #endif /* !_KERNEL */
 

@@ -67,7 +67,7 @@ ata_national_probe(device_t dev)
     if (pci_get_devid(dev) == ATA_SC1100) {
 	device_set_desc(dev, "National Geode SC1100 ATA33 controller");
 	ctlr->chipinit = ata_national_chipinit;
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_LOW_PRIORITY);
     }
     return ENXIO;
 }

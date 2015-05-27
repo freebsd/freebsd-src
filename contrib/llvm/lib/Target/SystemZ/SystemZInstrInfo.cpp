@@ -12,16 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemZInstrInfo.h"
-#include "SystemZTargetMachine.h"
 #include "SystemZInstrBuilder.h"
+#include "SystemZTargetMachine.h"
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+
+using namespace llvm;
 
 #define GET_INSTRINFO_CTOR_DTOR
 #define GET_INSTRMAP_INFO
 #include "SystemZGenInstrInfo.inc"
-
-using namespace llvm;
 
 // Return a mask with Count low bits set.
 static uint64_t allOnes(unsigned int Count) {
@@ -40,9 +40,9 @@ static bool isHighReg(unsigned int Reg) {
 // Pin the vtable to this file.
 void SystemZInstrInfo::anchor() {}
 
-SystemZInstrInfo::SystemZInstrInfo(SystemZTargetMachine &tm)
+SystemZInstrInfo::SystemZInstrInfo(SystemZSubtarget &sti)
   : SystemZGenInstrInfo(SystemZ::ADJCALLSTACKDOWN, SystemZ::ADJCALLSTACKUP),
-    RI(tm), TM(tm) {
+    RI(), STI(sti) {
 }
 
 // MI is a 128-bit load or store.  Split it into two 64-bit loads or stores,
@@ -53,7 +53,7 @@ void SystemZInstrInfo::splitMove(MachineBasicBlock::iterator MI,
   MachineFunction &MF = *MBB->getParent();
 
   // Get two load or store instructions.  Use the original instruction for one
-  // of them (arbitarily the second here) and create a clone for the other.
+  // of them (arbitrarily the second here) and create a clone for the other.
   MachineInstr *EarlierMI = MF.CloneMachineInstr(MI);
   MBB->insert(MI, EarlierMI);
 
@@ -280,15 +280,15 @@ bool SystemZInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
       }
 
       // If the block has any instructions after a JMP, delete them.
-      while (llvm::next(I) != MBB.end())
-        llvm::next(I)->eraseFromParent();
+      while (std::next(I) != MBB.end())
+        std::next(I)->eraseFromParent();
 
       Cond.clear();
-      FBB = 0;
+      FBB = nullptr;
 
       // Delete the JMP if it's equivalent to a fall-through.
       if (MBB.isLayoutSuccessor(Branch.Target->getMBB())) {
-        TBB = 0;
+        TBB = nullptr;
         I->eraseFromParent();
         I = MBB.end();
         continue;
@@ -418,7 +418,7 @@ bool SystemZInstrInfo::analyzeCompare(const MachineInstr *MI,
 static MachineInstr *getDef(unsigned Reg,
                             const MachineRegisterInfo *MRI) {
   if (TargetRegisterInfo::isPhysicalRegister(Reg))
-    return 0;
+    return nullptr;
   return MRI->getUniqueVRegDef(Reg);
 }
 
@@ -442,7 +442,7 @@ static void eraseIfDead(MachineInstr *MI, const MachineRegisterInfo *MRI) {
 static bool removeIPMBasedCompare(MachineInstr *Compare, unsigned SrcReg,
                                   const MachineRegisterInfo *MRI,
                                   const TargetRegisterInfo *TRI) {
-  MachineInstr *LGFR = 0;
+  MachineInstr *LGFR = nullptr;
   MachineInstr *RLL = getDef(SrcReg, MRI);
   if (RLL && RLL->getOpcode() == SystemZ::LGFR) {
     LGFR = RLL;
@@ -488,7 +488,7 @@ SystemZInstrInfo::optimizeCompareInstr(MachineInstr *Compare,
   bool IsLogical = (Compare->getDesc().TSFlags & SystemZII::IsLogical) != 0;
   if (Value == 0 &&
       !IsLogical &&
-      removeIPMBasedCompare(Compare, SrcReg, MRI, TM.getRegisterInfo()))
+      removeIPMBasedCompare(Compare, SrcReg, MRI, &RI))
     return true;
   return false;
 }
@@ -505,7 +505,7 @@ static unsigned getConditionalMove(unsigned Opcode) {
 
 bool SystemZInstrInfo::isPredicable(MachineInstr *MI) const {
   unsigned Opcode = MI->getOpcode();
-  if (TM.getSubtargetImpl()->hasLoadStoreOnCond() &&
+  if (STI.hasLoadStoreOnCond() &&
       getConditionalMove(Opcode))
     return true;
   return false;
@@ -537,12 +537,12 @@ PredicateInstruction(MachineInstr *MI,
   unsigned CCMask = Pred[1].getImm();
   assert(CCMask > 0 && CCMask < 15 && "Invalid predicate");
   unsigned Opcode = MI->getOpcode();
-  if (TM.getSubtargetImpl()->hasLoadStoreOnCond()) {
+  if (STI.hasLoadStoreOnCond()) {
     if (unsigned CondOpcode = getConditionalMove(Opcode)) {
       MI->setDesc(get(CondOpcode));
       MachineInstrBuilder(*MI->getParent()->getParent(), MI)
         .addImm(CCValid).addImm(CCMask)
-        .addReg(SystemZ::CC, RegState::Implicit);;
+        .addReg(SystemZ::CC, RegState::Implicit);
       return true;
     }
   }
@@ -628,16 +628,16 @@ static bool isSimpleBD12Move(const MachineInstr *MI, unsigned Flag) {
 }
 
 namespace {
-  struct LogicOp {
-    LogicOp() : RegSize(0), ImmLSB(0), ImmSize(0) {}
-    LogicOp(unsigned regSize, unsigned immLSB, unsigned immSize)
-      : RegSize(regSize), ImmLSB(immLSB), ImmSize(immSize) {}
+struct LogicOp {
+  LogicOp() : RegSize(0), ImmLSB(0), ImmSize(0) {}
+  LogicOp(unsigned regSize, unsigned immLSB, unsigned immSize)
+    : RegSize(regSize), ImmLSB(immLSB), ImmSize(immSize) {}
 
-    operator bool() const { return RegSize; }
+  LLVM_EXPLICIT operator bool() const { return RegSize; }
 
-    unsigned RegSize, ImmLSB, ImmSize;
-  };
-}
+  unsigned RegSize, ImmLSB, ImmSize;
+};
+} // end anonymous namespace
 
 static LogicOp interpretAndImmediate(unsigned Opcode) {
   switch (Opcode) {
@@ -685,7 +685,7 @@ SystemZInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
   // We prefer to keep the two-operand form where possible both
   // because it tends to be shorter and because some instructions
   // have memory forms that can be used during spilling.
-  if (TM.getSubtargetImpl()->hasDistinctOps()) {
+  if (STI.hasDistinctOps()) {
     MachineOperand &Dest = MI->getOperand(0);
     MachineOperand &Src = MI->getOperand(1);
     unsigned DestReg = Dest.getReg();
@@ -740,7 +740,7 @@ SystemZInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
       return finishConvertToThreeAddress(MI, MIB, LV);
     }
   }
-  return 0;
+  return nullptr;
 }
 
 MachineInstr *
@@ -761,12 +761,12 @@ SystemZInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
         .addFrameIndex(FrameIndex).addImm(0)
         .addImm(MI->getOperand(2).getImm());
     }
-    return 0;
+    return nullptr;
   }
 
   // All other cases require a single operand.
   if (Ops.size() != 1)
-    return 0;
+    return nullptr;
 
   unsigned OpNum = Ops[0];
   assert(Size == MF.getRegInfo()
@@ -858,14 +858,14 @@ SystemZInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
     }
   }
 
-  return 0;
+  return nullptr;
 }
 
 MachineInstr *
 SystemZInstrInfo::foldMemoryOperandImpl(MachineFunction &MF, MachineInstr* MI,
                                         const SmallVectorImpl<unsigned> &Ops,
                                         MachineInstr* LoadMI) const {
-  return 0;
+  return nullptr;
 }
 
 bool

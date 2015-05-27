@@ -37,7 +37,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#if (__FreeBSD_version >= 1100000)
 #include <sys/capsicum.h>
+#else
+#include <sys/capability.h>
+#endif
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -207,9 +211,9 @@ pmclog_get_buffer(struct pmc_owner *po)
 		TAILQ_REMOVE(&pmc_bufferlist, plb, plb_next);
 	mtx_unlock_spin(&pmc_bufferlist_mtx);
 
-	PMCDBG(LOG,GTB,1, "po=%p plb=%p", po, plb);
+	PMCDBG2(LOG,GTB,1, "po=%p plb=%p", po, plb);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	if (plb)
 		KASSERT(plb->plb_ptr == plb->plb_base &&
 		    plb->plb_base < plb->plb_fence,
@@ -257,7 +261,7 @@ pmclog_loop(void *arg)
 	ownercred = crhold(p->p_ucred);
 	PROC_UNLOCK(p);
 
-	PMCDBG(LOG,INI,1, "po=%p kt=%p", po, po->po_kthread);
+	PMCDBG2(LOG,INI,1, "po=%p kt=%p", po, po->po_kthread);
 	KASSERT(po->po_kthread == curthread->td_proc,
 	    ("[pmclog,%d] proc mismatch po=%p po/kt=%p curproc=%p", __LINE__,
 		po, po->po_kthread, curthread->td_proc));
@@ -308,7 +312,7 @@ pmclog_loop(void *arg)
 		mtx_unlock(&pmc_kthread_mtx);
 
 		/* process the request */
-		PMCDBG(LOG,WRI,2, "po=%p base=%p ptr=%p", po,
+		PMCDBG3(LOG,WRI,2, "po=%p base=%p ptr=%p", po,
 		    lb->plb_base, lb->plb_ptr);
 		/* change our thread's credentials before issuing the I/O */
 
@@ -339,7 +343,7 @@ pmclog_loop(void *arg)
 
 			po->po_error = error; /* save for flush log */
 
-			PMCDBG(LOG,WRI,2, "po=%p error=%d", po, error);
+			PMCDBG2(LOG,WRI,2, "po=%p error=%d", po, error);
 
 			break;
 		}
@@ -399,7 +403,7 @@ pmclog_release(struct pmc_owner *po)
 
 	mtx_unlock_spin(&po->po_mtx);
 
-	PMCDBG(LOG,REL,1, "po=%p", po);
+	PMCDBG1(LOG,REL,1, "po=%p", po);
 }
 
 
@@ -419,7 +423,7 @@ pmclog_reserve(struct pmc_owner *po, int length)
 	uint32_t *lh;
 	struct timespec ts;
 
-	PMCDBG(LOG,ALL,1, "po=%p len=%d", po, length);
+	PMCDBG2(LOG,ALL,1, "po=%p len=%d", po, length);
 
 	KASSERT(length % sizeof(uint32_t) == 0,
 	    ("[pmclog,%d] length not a multiple of word size", __LINE__));
@@ -515,7 +519,7 @@ pmclog_schedule_io(struct pmc_owner *po)
 	    ("[pmclog,%d] buffer invariants po=%p ptr=%p fenc=%p", __LINE__,
 		po, po->po_curbuf->plb_ptr, po->po_curbuf->plb_fence));
 
-	PMCDBG(LOG,SIO, 1, "po=%p", po);
+	PMCDBG1(LOG,SIO, 1, "po=%p", po);
 
 	mtx_assert(&po->po_mtx, MA_OWNED);
 
@@ -569,14 +573,13 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 	int error;
 	struct proc *p;
 	cap_rights_t rights;
-
 	/*
 	 * As long as it is possible to get a LOR between pmc_sx lock and
 	 * proctree/allproc sx locks used for adding a new process, assure
 	 * the former is not held here.
 	 */
 	sx_assert(&pmc_sx, SA_UNLOCKED);
-	PMCDBG(LOG,CFG,1, "config po=%p logfd=%d", po, logfd);
+	PMCDBG2(LOG,CFG,1, "config po=%p logfd=%d", po, logfd);
 
 	p = po->po_owner;
 
@@ -646,7 +649,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	int error;
 	struct pmclog_buffer *lb;
 
-	PMCDBG(LOG,CFG,1, "de-config po=%p", po);
+	PMCDBG1(LOG,CFG,1, "de-config po=%p", po);
 
 	if ((po->po_flags & PMC_PO_OWNS_LOGFILE) == 0)
 		return (EINVAL);
@@ -697,7 +700,7 @@ pmclog_flush(struct pmc_owner *po)
 	int error;
 	struct pmclog_buffer *lb;
 
-	PMCDBG(LOG,FLS,1, "po=%p", po);
+	PMCDBG1(LOG,FLS,1, "po=%p", po);
 
 	/*
 	 * If there is a pending error recorded by the logger thread,
@@ -738,7 +741,7 @@ int
 pmclog_close(struct pmc_owner *po)
 {
 
-	PMCDBG(LOG,CLO,1, "po=%p", po);
+	PMCDBG1(LOG,CLO,1, "po=%p", po);
 
 	mtx_lock(&pmc_kthread_mtx);
 
@@ -770,7 +773,7 @@ pmclog_process_callchain(struct pmc *pm, struct pmc_sample *ps)
 	uint32_t flags;
 	struct pmc_owner *po;
 
-	PMCDBG(LOG,SAM,1,"pm=%p pid=%d n=%d", pm, ps->ps_pid,
+	PMCDBG3(LOG,SAM,1,"pm=%p pid=%d n=%d", pm, ps->ps_pid,
 	    ps->ps_nsamples);
 
 	recordlen = offsetof(struct pmclog_callchain, pl_pc) +
@@ -840,7 +843,7 @@ pmclog_process_pmcallocate(struct pmc *pm)
 
 	po = pm->pm_owner;
 
-	PMCDBG(LOG,ALL,1, "pm=%p", pm);
+	PMCDBG1(LOG,ALL,1, "pm=%p", pm);
 
 	if (PMC_TO_CLASS(pm) == PMC_CLASS_SOFT) {
 		PMCLOG_RESERVE(po, PMCALLOCATEDYN,
@@ -871,7 +874,7 @@ pmclog_process_pmcattach(struct pmc *pm, pid_t pid, char *path)
 	int pathlen, recordlen;
 	struct pmc_owner *po;
 
-	PMCDBG(LOG,ATT,1,"pm=%p pid=%d", pm, pid);
+	PMCDBG2(LOG,ATT,1,"pm=%p pid=%d", pm, pid);
 
 	po = pm->pm_owner;
 
@@ -890,7 +893,7 @@ pmclog_process_pmcdetach(struct pmc *pm, pid_t pid)
 {
 	struct pmc_owner *po;
 
-	PMCDBG(LOG,ATT,1,"!pm=%p pid=%d", pm, pid);
+	PMCDBG2(LOG,ATT,1,"!pm=%p pid=%d", pm, pid);
 
 	po = pm->pm_owner;
 
@@ -912,7 +915,7 @@ pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v)
 	KASSERT(pm->pm_flags & PMC_F_LOG_PROCCSW,
 	    ("[pmclog,%d] log-process-csw called gratuitously", __LINE__));
 
-	PMCDBG(LOG,SWO,1,"pm=%p pid=%d v=%jx", pm, pp->pp_proc->p_pid,
+	PMCDBG3(LOG,SWO,1,"pm=%p pid=%d v=%jx", pm, pp->pp_proc->p_pid,
 	    v);
 
 	po = pm->pm_owner;
@@ -930,7 +933,7 @@ pmclog_process_procexec(struct pmc_owner *po, pmc_id_t pmid, pid_t pid,
 {
 	int pathlen, recordlen;
 
-	PMCDBG(LOG,EXC,1,"po=%p pid=%d path=\"%s\"", po, pid, path);
+	PMCDBG3(LOG,EXC,1,"po=%p pid=%d path=\"%s\"", po, pid, path);
 
 	pathlen   = strlen(path) + 1;	/* #bytes for the path */
 	recordlen = offsetof(struct pmclog_procexec, pl_pathname) + pathlen;
@@ -954,7 +957,7 @@ pmclog_process_procexit(struct pmc *pm, struct pmc_process *pp)
 	struct pmc_owner *po;
 
 	ri = PMC_TO_ROWINDEX(pm);
-	PMCDBG(LOG,EXT,1,"pm=%p pid=%d v=%jx", pm, pp->pp_proc->p_pid,
+	PMCDBG3(LOG,EXT,1,"pm=%p pid=%d v=%jx", pm, pp->pp_proc->p_pid,
 	    pp->pp_pmcs[ri].pp_pmcval);
 
 	po = pm->pm_owner;
@@ -1000,7 +1003,7 @@ pmclog_process_userlog(struct pmc_owner *po, struct pmc_op_writelog *wl)
 {
 	int error;
 
-	PMCDBG(LOG,WRI,1, "writelog po=%p ud=0x%x", po, wl->pm_userdata);
+	PMCDBG2(LOG,WRI,1, "writelog po=%p ud=0x%x", po, wl->pm_userdata);
 
 	error = 0;
 

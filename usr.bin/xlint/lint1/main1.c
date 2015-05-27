@@ -1,4 +1,4 @@
-/*	$NetBSD: main1.c,v 1.11 2002/01/29 02:43:38 tv Exp $	*/
+/*	$NetBSD: main1.c,v 1.17 2006/11/08 18:31:15 christos Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: main1.c,v 1.11 2002/01/29 02:43:38 tv Exp $");
+__RCSID("$NetBSD: main1.c,v 1.17 2006/11/08 18:31:15 christos Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -53,7 +53,7 @@ int	yflag;
 
 /*
  * Print warnings if an assignment of an integertype to another integertype
- * causes an implizit narrowing conversion. If aflag is 1, these warnings
+ * causes an implicit narrowing conversion. If aflag is 1, these warnings
  * are printed only if the source type is at least as wide as long. If aflag
  * is greater than 1, they are always printed.
  */
@@ -101,6 +101,8 @@ int	sflag;
 /* Traditional C mode. */
 int	tflag;
 
+/* Enable C9X extensions */
+int	Sflag;
 /*
  * Complain about functions and external variables used and not defined,
  * or defined and not used.
@@ -126,7 +128,7 @@ main(int argc, char *argv[])
 	char	*ptr;
 
 	ERR_ZERO(&msgset);
-	while ((c = getopt(argc, argv, "abcdeghmprstuvwyzFX:")) != -1) {
+	while ((c = getopt(argc, argv, "abcdeghmprstuvwyzFSX:")) != -1) {
 		switch (c) {
 		case 'a':	aflag++;	break;
 		case 'b':	bflag = 1;	break;
@@ -139,6 +141,7 @@ main(int argc, char *argv[])
 		case 'p':	pflag = 1;	break;
 		case 'r':	rflag = 1;	break;
 		case 's':	sflag = 1;	break;
+		case 'S':	Sflag = 1;	break;
 		case 't':	tflag = 1;	break;
 		case 'u':	uflag = 0;	break;
 		case 'w':	wflag = 1;	break;
@@ -154,7 +157,10 @@ main(int argc, char *argv[])
 			for (ptr = strtok(optarg, ","); ptr;
 			    ptr = strtok(NULL, ",")) {
 				char *eptr;
-				long msg = strtol(ptr, &eptr, 0);
+				long msg;
+
+				errno = 0;
+				msg = strtol(ptr, &eptr, 0);
 				if ((msg == LONG_MIN || msg == LONG_MAX) &&
 				    errno == ERANGE)
 				    err(1, "invalid error message id '%s'",
@@ -197,7 +203,9 @@ main(int argc, char *argv[])
 
 	/* Following warnings cannot be suppressed by LINTED */
 	nowarn = 0;
-
+#ifdef DEBUG
+	printf("%s, %d: nowarn = 0\n", curr_pos.p_file, curr_pos.p_line);
+#endif
 	chkglsyms();
 
 	outclose();
@@ -209,7 +217,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: lint1 [-abcdeghmprstuvwyzF] [-X <id>[,<id>]... src dest\n");
+	    "usage: lint1 [-abcdeghmprstuvwyzFS] [-X <id>[,<id>]... src dest\n");
 	exit(1);
 }
 

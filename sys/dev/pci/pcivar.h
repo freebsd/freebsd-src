@@ -39,6 +39,17 @@
 
 typedef uint64_t pci_addr_t;
 
+struct nvlist;
+
+/* Config registers for PCI-PCI and PCI-Cardbus bridges. */
+struct pcicfg_bridge {
+    uint8_t	br_seclat;
+    uint8_t	br_subbus;
+    uint8_t	br_secbus;
+    uint8_t	br_pribus;
+    uint16_t	br_control;
+};
+
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
     uint16_t	pp_cap;		/* PCI power management capabilities */
@@ -50,7 +61,7 @@ struct pcicfg_pp {
 struct pci_map {
     pci_addr_t	pm_value;	/* Raw BAR value */
     pci_addr_t	pm_size;
-    uint8_t	pm_reg;
+    uint16_t	pm_reg;
     STAILQ_ENTRY(pci_map) pm_link;
 };
 
@@ -143,6 +154,12 @@ struct pcicfg_pcix {
     uint8_t	pcix_location;	/* Offset of PCI-X capability registers. */
 };
 
+struct pcicfg_vf {
+       int index;
+};
+
+#define	PCICFG_VF	0x0001 /* Device is an SR-IOV Virtual Function */
+
 /* config header information common to all header types */
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
@@ -179,6 +196,10 @@ typedef struct pcicfg {
     uint8_t	slot;		/* config space slot address */
     uint8_t	func;		/* config space function number */
 
+    uint32_t	flags;		/* flags defined above */
+    size_t	devinfo_size;	/* Size of devinfo for this bus type. */
+
+    struct pcicfg_bridge bridge; /* Bridges */
     struct pcicfg_pp pp;	/* Power management */
     struct pcicfg_vpd vpd;	/* Vital product data */
     struct pcicfg_msi msi;	/* PCI MSI */
@@ -186,6 +207,8 @@ typedef struct pcicfg {
     struct pcicfg_ht ht;	/* HyperTransport */
     struct pcicfg_pcie pcie;	/* PCI Express */
     struct pcicfg_pcix pcix;	/* PCI-X */
+    struct pcicfg_iov *iov;	/* SR-IOV */
+    struct pcicfg_vf vf;	/* SR-IOV Virtual Function */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
@@ -513,6 +536,19 @@ pci_child_added(device_t dev)
     return (PCI_CHILD_ADDED(device_get_parent(dev), dev));
 }
 
+static __inline int
+pci_iov_attach(device_t dev, struct nvlist *pf_schema, struct nvlist *vf_schema)
+{
+	return (PCI_IOV_ATTACH(device_get_parent(dev), dev, pf_schema,
+	    vf_schema));
+}
+
+static __inline int
+pci_iov_detach(device_t dev)
+{
+	return (PCI_IOV_DETACH(device_get_parent(dev), dev));
+}
+
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
@@ -565,5 +601,6 @@ struct pcicfg_vpd *pci_fetch_vpd_list(device_t dev);
 int	vga_pci_is_boot_display(device_t dev);
 void *	vga_pci_map_bios(device_t dev, size_t *size);
 void	vga_pci_unmap_bios(device_t dev, void *bios);
+int	vga_pci_repost(device_t dev);
 
 #endif /* _PCIVAR_H_ */

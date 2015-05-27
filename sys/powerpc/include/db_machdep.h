@@ -87,7 +87,7 @@ typedef	intptr_t	db_expr_t;	/* expression - signed */
 #define	inst_load(ins)		0
 #define	inst_store(ins)		0
 
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
+#define	DB_SMALL_VALUE_MAX	(KERNBASE-1)
 #define	DB_SMALL_VALUE_MIN	(-0x40001)
 
 #endif	/* _POWERPC_DB_MACHDEP_H_ */

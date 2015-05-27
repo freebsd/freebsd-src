@@ -1200,6 +1200,44 @@ ar9300_noise_floor_cal_or_power_get(struct ath_hal *ah, int32_t frequency,
     return nf_use;
 }
 
+/*
+ * Return the Rx NF offset for specific channel.
+ * The values saved in EEPROM/OTP/Flash is converted through the following way:
+ *     ((_p) - NOISE_PWR_DATA_OFFSET) << 2
+ * So we need to convert back to the original values.
+ */
+int ar9300_get_rx_nf_offset(struct ath_hal *ah, struct ieee80211_channel *chan, int8_t *nf_pwr, int8_t *nf_cal) {
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+    int8_t rx_nf_pwr, rx_nf_cal;
+    int i; 
+    //HALASSERT(ichan);
+
+    /* Fill 0 if valid internal channel is not found */
+    if (ichan == AH_NULL) {
+        OS_MEMZERO(nf_pwr, sizeof(nf_pwr[0])*OSPREY_MAX_CHAINS);
+        OS_MEMZERO(nf_cal, sizeof(nf_cal[0])*OSPREY_MAX_CHAINS);
+        return -1;
+    }
+
+    for (i = 0; i < OSPREY_MAX_CHAINS; i++) {
+	    if ((rx_nf_pwr = ar9300_noise_floor_cal_or_power_get(ah, ichan->channel, i, 0)) == 1) {
+	        nf_pwr[i] = 0;
+	    } else {
+	        //printk("%s: raw nf_pwr[%d] = %d\n", __func__, i, rx_nf_pwr);
+            nf_pwr[i] = NOISE_PWR_DBM_2_INT(rx_nf_pwr);
+	    }
+
+	    if ((rx_nf_cal = ar9300_noise_floor_cal_or_power_get(ah, ichan->channel, i, 1)) == 1) {
+	        nf_cal[i] = 0;
+	    } else {
+	        //printk("%s: raw nf_cal[%d] = %d\n", __func__, i, rx_nf_cal);
+            nf_cal[i] = NOISE_PWR_DBM_2_INT(rx_nf_cal);
+	    }
+    }
+
+    return 0;
+}
+
 int32_t ar9300_rx_gain_index_get(struct ath_hal *ah)
 {
     ar9300_eeprom_t *eep = &AH9300(ah)->ah_eeprom;
@@ -1528,6 +1566,61 @@ u_int16_t ar9300_ant_ctrl_chain_get(struct ath_hal *ah, int chain,
         }
     }
     return 0;
+}
+
+/*
+ * Select the usage of antenna via the RF switch.
+ * Default values are loaded from eeprom.
+ */
+HAL_BOOL ar9300_ant_swcom_sel(struct ath_hal *ah, u_int8_t ops,
+                        u_int32_t *common_tbl1, u_int32_t *common_tbl2)
+{
+    ar9300_eeprom_t *eep = &AH9300(ah)->ah_eeprom;
+    struct ath_hal_private  *ap  = AH_PRIVATE(ah);
+    const struct ieee80211_channel *curchan = ap->ah_curchan;
+    enum {
+        ANT_SELECT_OPS_GET,
+        ANT_SELECT_OPS_SET,
+    };
+
+    if (AR_SREV_JUPITER(ah) || AR_SREV_SCORPION(ah))
+        return AH_FALSE;
+
+    if (!curchan)
+        return AH_FALSE;
+
+#define AR_SWITCH_TABLE_COM_ALL (0xffff)
+#define AR_SWITCH_TABLE_COM_ALL_S (0)
+#define AR_SWITCH_TABLE_COM2_ALL (0xffffff)
+#define AR_SWITCH_TABLE_COM2_ALL_S (0)
+    switch (ops) {
+    case ANT_SELECT_OPS_GET:
+        *common_tbl1 = OS_REG_READ_FIELD(ah, AR_PHY_SWITCH_COM,
+                            AR_SWITCH_TABLE_COM_ALL);
+        *common_tbl2 = OS_REG_READ_FIELD(ah, AR_PHY_SWITCH_COM_2,
+                            AR_SWITCH_TABLE_COM2_ALL);
+        break;
+    case ANT_SELECT_OPS_SET:
+        OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
+            AR_SWITCH_TABLE_COM_ALL, *common_tbl1);
+        OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2,
+            AR_SWITCH_TABLE_COM2_ALL, *common_tbl2);
+
+        /* write back to eeprom */
+        if (IEEE80211_IS_CHAN_2GHZ(curchan)) {
+            eep->modal_header_2g.ant_ctrl_common = *common_tbl1;
+            eep->modal_header_2g.ant_ctrl_common2 = *common_tbl2;
+        } else {
+            eep->modal_header_5g.ant_ctrl_common = *common_tbl1;
+            eep->modal_header_5g.ant_ctrl_common2 = *common_tbl2;
+        }
+
+        break;
+    default:
+        break;
+    }
+
+    return AH_TRUE;
 }
 
 HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
@@ -2412,15 +2505,30 @@ ar9300_eeprom_set_power_per_rate_table(
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 #endif
 
-    tx_chainmask = chainmask ? chainmask : ahp->ah_tx_chainmask;
+    if (chainmask)
+        tx_chainmask = chainmask;
+    else
+        tx_chainmask = ahp->ah_tx_chainmaskopt ?
+                            ahp->ah_tx_chainmaskopt :ahp->ah_tx_chainmask;
 
     ar9300_get_channel_centers(ah, chan, &centers);
 
+#if 1
     if (IEEE80211_IS_CHAN_2GHZ(chan)) {
         ahp->twice_antenna_gain = p_eep_data->modal_header_2g.antenna_gain;
     } else {
         ahp->twice_antenna_gain = p_eep_data->modal_header_5g.antenna_gain;
     }
+
+#else
+    if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+        ahp->twice_antenna_gain = AH_MAX(p_eep_data->modal_header_2g.antenna_gain,
+                                         AH_PRIVATE(ah)->ah_antenna_gain_2g);
+    } else {
+        ahp->twice_antenna_gain = AH_MAX(p_eep_data->modal_header_5g.antenna_gain,
+                                         AH_PRIVATE(ah)->ah_antenna_gain_5g);
+    }
+#endif
 
     /* Save max allowed antenna gain to ease future lookups */
     ahp->twice_antenna_reduction = twice_antenna_reduction; 
@@ -2958,7 +3066,8 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
     }
     max_power_level = target_power_val_t2[i];
     /* Adjusting the ah_max_power_level based on chains and antennaGain*/
-    switch (ar9300_get_ntxchains(ahp->ah_tx_chainmask))
+    switch (ar9300_get_ntxchains(((ahp->ah_tx_chainmaskopt > 0) ?
+                                    ahp->ah_tx_chainmaskopt : ahp->ah_tx_chainmask)))
     {
         case 1:
             break;
@@ -4367,8 +4476,16 @@ HAL_BOOL ar9300_tuning_caps_apply(struct ath_hal *ah)
     if ((eep->base_eep_header.feature_enable & 0x40) >> 6) {
         tuning_caps_params &= 0x7f;
 
-        if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON(ah) || AR_SREV_WASP(ah)) {
+        /* XXX TODO: ath9k skips it for Wasp and Honeybee/AR9531, not Poseidon */
+        if (AR_SREV_POSEIDON(ah) || AR_SREV_WASP(ah)) {
             return AH_TRUE;
+        } else if (AR_SREV_HORNET(ah)) {
+            OS_REG_RMW_FIELD(ah,
+                AR_HORNET_CH0_XTAL, AR_OSPREY_CHO_XTAL_CAPINDAC,
+                tuning_caps_params);
+            OS_REG_RMW_FIELD(ah,
+                AR_HORNET_CH0_XTAL, AR_OSPREY_CHO_XTAL_CAPOUTDAC,
+                tuning_caps_params);
         } else if (AR_SREV_SCORPION(ah)) {
             OS_REG_RMW_FIELD(ah,
                 AR_SCORPION_CH0_XTAL, AR_OSPREY_CHO_XTAL_CAPINDAC,

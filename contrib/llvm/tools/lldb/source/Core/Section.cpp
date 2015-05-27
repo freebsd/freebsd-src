@@ -13,6 +13,8 @@
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 
+#include <limits>
+
 using namespace lldb;
 using namespace lldb_private;
 
@@ -25,7 +27,9 @@ Section::Section (const ModuleSP &module_sp,
                   addr_t byte_size,
                   lldb::offset_t file_offset,
                   lldb::offset_t file_size,
-                  uint32_t flags) :
+                  uint32_t log2align,
+                  uint32_t flags,
+                  uint32_t target_byte_size/*=1*/) :
     ModuleChild     (module_sp),
     UserID          (sect_id),
     Flags           (flags),
@@ -37,10 +41,12 @@ Section::Section (const ModuleSP &module_sp,
     m_byte_size     (byte_size),
     m_file_offset   (file_offset),
     m_file_size     (file_size),
+    m_log2align     (log2align),
     m_children      (),
     m_fake          (false),
     m_encrypted     (false),
-    m_thread_specific (false)
+    m_thread_specific (false),
+    m_target_byte_size(target_byte_size)
 {
 //    printf ("Section::Section(%p): module=%p, sect_id = 0x%16.16" PRIx64 ", addr=[0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), file [0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), flags = 0x%8.8x, name = %s\n",
 //            this, module_sp.get(), sect_id, file_addr, file_addr + byte_size, file_offset, file_offset + file_size, flags, name.GetCString());
@@ -56,7 +62,9 @@ Section::Section (const lldb::SectionSP &parent_section_sp,
                   addr_t byte_size,
                   lldb::offset_t file_offset,
                   lldb::offset_t file_size,
-                  uint32_t flags) :
+                  uint32_t log2align,
+                  uint32_t flags,
+                  uint32_t target_byte_size/*=1*/) :
     ModuleChild     (module_sp),
     UserID          (sect_id),
     Flags           (flags),
@@ -68,10 +76,12 @@ Section::Section (const lldb::SectionSP &parent_section_sp,
     m_byte_size     (byte_size),
     m_file_offset   (file_offset),
     m_file_size     (file_size),
+    m_log2align     (log2align),
     m_children      (),
     m_fake          (false),
     m_encrypted     (false),
-    m_thread_specific (false)
+    m_thread_specific (false),
+    m_target_byte_size(target_byte_size)
 {
 //    printf ("Section::Section(%p): module=%p, sect_id = 0x%16.16" PRIx64 ", addr=[0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), file [0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), flags = 0x%8.8x, name = %s.%s\n",
 //            this, module_sp.get(), sect_id, file_addr, file_addr + byte_size, file_offset, file_offset + file_size, flags, parent_section_sp->GetName().GetCString(), name.GetCString());
@@ -140,7 +150,7 @@ Section::GetLoadBaseAddress (Target *target) const
         if (load_base_addr != LLDB_INVALID_ADDRESS)
             load_base_addr += GetOffset();
     }
-    else
+    if (load_base_addr == LLDB_INVALID_ADDRESS)
     {
         load_base_addr = target->GetSectionLoadList().GetSectionLoadAddress (const_cast<Section *>(this)->shared_from_this());
     }
@@ -180,7 +190,7 @@ Section::ContainsFileAddress (addr_t vm_addr) const
     {
         if (file_addr <= vm_addr)
         {
-            const addr_t offset = vm_addr - file_addr;
+            const addr_t offset = (vm_addr - file_addr) *  m_target_byte_size;
             return offset < GetByteSize();
         }
     }
@@ -331,10 +341,14 @@ SectionList::operator = (const SectionList& rhs)
 size_t
 SectionList::AddSection (const lldb::SectionSP& section_sp)
 {
-    assert (section_sp.get());
-    size_t section_index = m_sections.size();
-    m_sections.push_back(section_sp);
-    return section_index;
+    if (section_sp)
+    {
+        size_t section_index = m_sections.size();
+        m_sections.push_back(section_sp);
+        return section_index;
+    }
+
+    return std::numeric_limits<size_t>::max ();
 }
 
 // Warning, this can be slow as it's removing items from a std::vector.
@@ -433,14 +447,16 @@ SectionList::FindSectionByName (const ConstString &section_dstr) const
         for (sect_iter = m_sections.begin(); sect_iter != end && sect_sp.get() == NULL; ++sect_iter)
         {
             Section *child_section = sect_iter->get();
-            assert (child_section);
-            if (child_section->GetName() == section_dstr)
+            if (child_section)
             {
-                sect_sp = *sect_iter;
-            }
-            else
-            {
-                sect_sp = child_section->GetChildren().FindSectionByName(section_dstr);
+                if (child_section->GetName() == section_dstr)
+                {
+                    sect_sp = *sect_iter;
+                }
+                else
+                {
+                    sect_sp = child_section->GetChildren().FindSectionByName(section_dstr);
+                }
             }
         }
     }

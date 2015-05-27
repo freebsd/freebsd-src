@@ -39,5 +39,5 @@ ctx.resolvconf("/etc/resolv.conf")
 
 status, result = ctx.resolve(unbound.reverse("74.125.43.147") + ".in-addr.arpa.", unbound.RR_TYPE_PTR, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result.data:", result.data, result.data.domain_list
+    print("Result.data:", result.data, result.data.domain_list)
 

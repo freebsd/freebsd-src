@@ -955,18 +955,14 @@ send_mpa_req(struct c4iw_ep *ep)
 	if (mpa_rev_to_use == 2)
 		mpalen += sizeof(struct mpa_v2_conn_params);
 
-	if (mpalen > MHLEN)
-		CXGBE_UNIMPLEMENTED(__func__);
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	if (mpa == NULL) {
+failed:
 		connect_reply_upcall(ep, -ENOMEM);
 		return;
 	}
 
-	mpa = mtod(m, struct mpa_message *);
-	m->m_len = mpalen;
-	m->m_pkthdr.len = mpalen;
+	memset(mpa, 0, mpalen);
 	memcpy(mpa->key, MPA_KEY_REQ, sizeof(mpa->key));
 	mpa->flags = (crc_enabled ? MPA_CRC : 0) |
 		(markers_enabled ? MPA_MARKERS : 0) |
@@ -1013,11 +1009,18 @@ send_mpa_req(struct c4iw_ep *ep)
 		CTR2(KTR_IW_CXGBE, "%s:smr7 %p", __func__, ep);
 	}
 
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT, ep->com.thread);
-	if (err) {
-		connect_reply_upcall(ep, -ENOMEM);
-		return;
+	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		free(mpa, M_CXGBE);
+		goto failed;
 	}
+	m_copyback(m, 0, mpalen, (void *)mpa);
+	free(mpa, M_CXGBE);
+
+	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
+	    ep->com.thread);
+	if (err)
+		goto failed;
 
 	START_EP_TIMER(ep);
 	state_set(&ep->com, MPA_REQ_SENT);
@@ -1044,22 +1047,11 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		    ep->mpa_attr.version, mpalen);
 	}
 
-	if (mpalen > MHLEN)
-		CXGBE_UNIMPLEMENTED(__func__);
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
-
-		printf("%s - cannot alloc mbuf!\n", __func__);
-		CTR2(KTR_IW_CXGBE, "%s:smrej2 %p", __func__, ep);
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	if (mpa == NULL)
 		return (-ENOMEM);
-	}
 
-
-	mpa = mtod(m, struct mpa_message *);
-	m->m_len = mpalen;
-	m->m_pkthdr.len = mpalen;
-	memset(mpa, 0, sizeof(*mpa));
+	memset(mpa, 0, mpalen);
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = MPA_REJECT;
 	mpa->revision = mpa_rev;
@@ -1091,7 +1083,15 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		if (plen)
 			memcpy(mpa->private_data, pdata, plen);
 
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT, ep->com.thread);
+	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		free(mpa, M_CXGBE);
+		return (-ENOMEM);
+	}
+	m_copyback(m, 0, mpalen, (void *)mpa);
+	free(mpa, M_CXGBE);
+
+	err = -sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT, ep->com.thread);
 	if (!err)
 		ep->snd_seq += mpalen;
 	CTR4(KTR_IW_CXGBE, "%s:smrejE %p %u %d", __func__, ep, ep->hwtid, err);
@@ -1117,21 +1117,10 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		mpalen += sizeof(struct mpa_v2_conn_params);
 	}
 
-	if (mpalen > MHLEN)
-		CXGBE_UNIMPLEMENTED(__func__);
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
-
-		CTR2(KTR_IW_CXGBE, "%s:smrep2 %p", __func__, ep);
-		printf("%s - cannot alloc mbuf!\n", __func__);
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	if (mpa == NULL)
 		return (-ENOMEM);
-	}
 
-
-	mpa = mtod(m, struct mpa_message *);
-	m->m_len = mpalen;
-	m->m_pkthdr.len = mpalen;
 	memset(mpa, 0, sizeof(*mpa));
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = (ep->mpa_attr.crc_enabled ? MPA_CRC : 0) |
@@ -1182,9 +1171,18 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		if (plen)
 			memcpy(mpa->private_data, pdata, plen);
 
+	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		free(mpa, M_CXGBE);
+		return (-ENOMEM);
+	}
+	m_copyback(m, 0, mpalen, (void *)mpa);
+	free(mpa, M_CXGBE);
+
+
 	state_set(&ep->com, MPA_REP_SENT);
 	ep->snd_seq += mpalen;
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
+	err = -sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
 			ep->com.thread);
 	CTR3(KTR_IW_CXGBE, "%s:smrepE %p %d", __func__, ep, err);
 	return err;

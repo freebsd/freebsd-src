@@ -24,7 +24,6 @@ PS3			opt_platform.h
 MAMBO
 PSERIES
 PSIM
-WII			opt_platform.h
 
 SC_OFWFB		opt_ofwfb.h
 

@@ -44,6 +44,19 @@
 
 %pythoncode %{
    import encodings.idna
+   try:
+       import builtins
+   except ImportError:
+       import __builtin__ as builtins
+
+   # Ensure compatibility with older python versions
+   if 'bytes' not in vars():
+       bytes = str
+
+   def ord(s):
+       if isinstance(s, int):
+           return s
+       return builtins.ord(s)
 %}
 
 //%include "doc.i"
@@ -559,10 +572,10 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
                :returns: * (int) 0 if OK, else error.
                          * (:class:`ub_result`) the result data is returned in a newly allocated result structure. May be None on return, return value is set to an error in that case (out of memory).
             """
-            if isinstance(name, unicode): #probably IDN
-                return _unbound.ub_resolve(self,idn2dname(name),rrtype,rrclass)
-            else:
+            if isinstance(name, bytes): #probably IDN
                 return _unbound.ub_resolve(self,name,rrtype,rrclass)
+            else:
+                return _unbound.ub_resolve(self,idn2dname(name),rrtype,rrclass)
             #parameters: struct ub_ctx *,char *,int,int,
             #retvals: int,struct ub_result **
 
@@ -597,10 +610,10 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
                         * `result` - the result structure. The result may be None, in that case err is set.
 
             """
-            if isinstance(name, unicode): #probably IDN
-                return _unbound._ub_resolve_async(self,idn2dname(name),rrtype,rrclass,mydata,callback)
-            else:
+            if isinstance(name, bytes): #probably IDN
                 return _unbound._ub_resolve_async(self,name,rrtype,rrclass,mydata,callback)
+            else:
+                return _unbound._ub_resolve_async(self,idn2dname(name),rrtype,rrclass,mydata,callback)
             #parameters: struct ub_ctx *,char *,int,int,void *,ub_callback_t,
             #retvals: int, int
 
@@ -689,7 +702,8 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
          idx = ofs
          while (idx < slen):
             complen = ord(s[idx])
-            res.append(s[idx+1:idx+1+complen])
+            # In python 3.x `str()` converts the string to unicode which is the expected text string type
+            res.append(str(s[idx+1:idx+1+complen].decode()))
             idx += complen + 1
 
          return res
@@ -764,13 +778,13 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
      
      list = PyList_New(cnt);
      for (i=0;i<cnt;i++) 
-         PyList_SetItem(list, i, PyString_FromStringAndSize(result->data[i],result->len[i]));
+         PyList_SetItem(list, i, PyBytes_FromStringAndSize(result->data[i],result->len[i]));
      
      return list;
   }
 
   PyObject* _packet() {
-      return PyString_FromStringAndSize($self->answer_packet, $self->answer_len);
+      return PyBytes_FromStringAndSize($self->answer_packet, $self->answer_len);
   }
   
  %pythoncode %{

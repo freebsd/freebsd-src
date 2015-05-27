@@ -62,6 +62,7 @@ OptionValueEnumeration::SetValueFromCString (const char *value, VarSetOperationT
     {
         case eVarSetOperationClear:
             Clear ();
+            NotifyValueChanged();
             break;
             
         case eVarSetOperationReplace:
@@ -73,6 +74,7 @@ OptionValueEnumeration::SetValueFromCString (const char *value, VarSetOperationT
                 if (enumerator_entry)
                 {
                     m_current_value = enumerator_entry->value.value;
+                    NotifyValueChanged();
                 }
                 else
                 {
@@ -113,7 +115,7 @@ OptionValueEnumeration::SetEnumerations (const OptionEnumValueElement *enumerato
     m_enumerations.Clear();
     if (enumerators)
     {
-        for (size_t i=0; enumerators[i].string_value != NULL; ++i)
+        for (size_t i=0; enumerators[i].string_value != nullptr; ++i)
         {
             ConstString const_enumerator_name(enumerators[i].string_value);
             EnumeratorInfo enumerator_info = { enumerators[i].value, enumerators[i].usage };

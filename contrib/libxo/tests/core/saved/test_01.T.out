@@ -36,3 +36,11 @@ Item 'fish':
    In stock: 45
    On order: 1
    SKU: GRO-000-533
+Item: gum
+Item: rope
+Item: ladder
+Item: bolt
+Item: water
+XXXXXXXX
+X        XCost: 425
+X                              XCost: 455

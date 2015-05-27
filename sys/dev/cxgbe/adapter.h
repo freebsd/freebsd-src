@@ -57,6 +57,7 @@
 #include "common/t4_msg.h"
 #include "firmware/t4fw_interface.h"
 
+#define KTR_CXGBE	KTR_SPARE3
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
@@ -151,7 +152,8 @@ enum {
 	CL_METADATA_SIZE = CACHE_LINE_SIZE,
 
 	SGE_MAX_WR_NDESC = SGE_MAX_WR_LEN / EQ_ESIZE, /* max WR size in desc */
-	TX_SGL_SEGS = 36,
+	TX_SGL_SEGS = 39,
+	TX_SGL_SEGS_TSO = 38,
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
 
@@ -190,7 +192,7 @@ enum {
 	/* INTR_DIRECT	= (1 << 2),	No longer used. */
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
-	TOM_INIT_DONE	= (1 << 5),
+	/* TOM_INIT_DONE= (1 << 5),	No longer used */
 	BUF_PACKING_OK	= (1 << 6),
 
 	CXGBE_BUSY	= (1 << 9),
@@ -272,6 +274,7 @@ struct port_info {
 	struct timeval last_refreshed;
  	struct port_stats stats;
 	u_int tnl_cong_drops;
+	u_int tx_parse_error;
 
 	eventhandler_tag vlan_c;
 
@@ -307,23 +310,9 @@ struct tx_desc {
 	__be64 flit[8];
 };
 
-struct tx_map {
-	struct mbuf *m;
-	bus_dmamap_t map;
-};
-
-/* DMA maps used for tx */
-struct tx_maps {
-	struct tx_map *maps;
-	uint32_t map_total;	/* # of DMA maps */
-	uint32_t map_pidx;	/* next map to be used */
-	uint32_t map_cidx;	/* reclaimed up to this index */
-	uint32_t map_avail;	/* # of available maps */
-};
-
 struct tx_sdesc {
+	struct mbuf *m;		/* m_nextpkt linked chain of frames */
 	uint8_t desc_used;	/* # of hardware descriptors used by the WR */
-	uint8_t credits;	/* NIC txq: # of frames sent out in the WR */
 };
 
 
@@ -377,16 +366,12 @@ struct sge_iq {
 enum {
 	EQ_CTRL		= 1,
 	EQ_ETH		= 2,
-#ifdef TCP_OFFLOAD
 	EQ_OFLD		= 3,
-#endif
 
 	/* eq flags */
-	EQ_TYPEMASK	= 7,		/* 3 lsbits hold the type */
-	EQ_ALLOCATED	= (1 << 3),	/* firmware resources allocated */
-	EQ_DOOMED	= (1 << 4),	/* about to be destroyed */
-	EQ_CRFLUSHED	= (1 << 5),	/* expecting an update from SGE */
-	EQ_STALLED	= (1 << 6),	/* out of hw descriptors or dmamaps */
+	EQ_TYPEMASK	= 0x3,		/* 2 lsbits hold the type (see above) */
+	EQ_ALLOCATED	= (1 << 2),	/* firmware resources allocated */
+	EQ_ENABLED	= (1 << 3),	/* open for business */
 };
 
 /* Listed in order of preference.  Update t4_sysctls too if you change these */
@@ -401,32 +386,25 @@ enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
 struct sge_eq {
 	unsigned int flags;	/* MUST be first */
 	unsigned int cntxt_id;	/* SGE context id for the eq */
-	bus_dma_tag_t desc_tag;
-	bus_dmamap_t desc_map;
-	char lockname[16];
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
-	bus_addr_t ba;		/* bus address of descriptor ring */
-	struct sge_qstat *spg;	/* status page, for convenience */
 	uint16_t doorbells;
 	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
 	u_int udb_qid;		/* relative qid within the doorbell page */
-	uint16_t cap;		/* max # of desc, for convenience */
-	uint16_t avail;		/* available descriptors, for convenience */
-	uint16_t qsize;		/* size (# of entries) of the queue */
+	uint16_t sidx;		/* index of the entry with the status page */
 	uint16_t cidx;		/* consumer idx (desc idx) */
 	uint16_t pidx;		/* producer idx (desc idx) */
-	uint16_t pending;	/* # of descriptors used since last doorbell */
+	uint16_t equeqidx;	/* EQUEQ last requested at this pidx */
+	uint16_t dbidx;		/* pidx of the most recent doorbell */
 	uint16_t iqid;		/* iq that gets egr_update for the eq */
 	uint8_t tx_chan;	/* tx channel used by the eq */
-	struct task tx_task;
-	struct callout tx_callout;
+	volatile u_int equiq;	/* EQUIQ outstanding */
 
-	/* stats */
-
-	uint32_t egr_update;	/* # of SGE_EGR_UPDATE notifications for eq */
-	uint32_t unstalled;	/* recovered from stall */
+	bus_dma_tag_t desc_tag;
+	bus_dmamap_t desc_map;
+	bus_addr_t ba;		/* bus address of descriptor ring */
+	char lockname[16];
 };
 
 struct sw_zone_info {
@@ -498,18 +476,19 @@ struct sge_fl {
 	struct cluster_layout cll_alt;	/* alternate refill zone, layout */
 };
 
+struct mp_ring;
+
 /* txq: SGE egress queue + what's needed for Ethernet NIC */
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
 
 	struct ifnet *ifp;	/* the interface this txq belongs to */
-	bus_dma_tag_t tx_tag;	/* tag for transmit buffers */
-	struct buf_ring *br;	/* tx buffer ring */
+	struct mp_ring *r;	/* tx software ring */
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
-	struct mbuf *m;		/* held up due to temporary resource shortage */
+	struct sglist *gl;
+	__be32 cpl_ctrl0;	/* for convenience */
 
-	struct tx_maps txmaps;
-
+	struct task tx_reclaim_task;
 	/* stats for common events first */
 
 	uint64_t txcsum;	/* # of times hardware assisted with checksum */
@@ -518,13 +497,12 @@ struct sge_txq {
 	uint64_t imm_wrs;	/* # of work requests with immediate data */
 	uint64_t sgl_wrs;	/* # of work requests with direct SGL */
 	uint64_t txpkt_wrs;	/* # of txpkt work requests (not coalesced) */
-	uint64_t txpkts_wrs;	/* # of coalesced tx work requests */
-	uint64_t txpkts_pkts;	/* # of frames in coalesced tx work requests */
+	uint64_t txpkts0_wrs;	/* # of type0 coalesced tx work requests */
+	uint64_t txpkts1_wrs;	/* # of type1 coalesced tx work requests */
+	uint64_t txpkts0_pkts;	/* # of frames in type0 coalesced tx WRs */
+	uint64_t txpkts1_pkts;	/* # of frames in type1 coalesced tx WRs */
 
 	/* stats for not-that-common events */
-
-	uint32_t no_dmamap;	/* no DMA map to load the mbuf */
-	uint32_t no_desc;	/* out of hardware descriptors */
 } __aligned(CACHE_LINE_SIZE);
 
 /* rxq: SGE ingress queue + SGE free list + miscellaneous items */
@@ -573,7 +551,13 @@ struct wrqe {
 	STAILQ_ENTRY(wrqe) link;
 	struct sge_wrq *wrq;
 	int wr_len;
-	uint64_t wr[] __aligned(16);
+	char wr[] __aligned(16);
+};
+
+struct wrq_cookie {
+	TAILQ_ENTRY(wrq_cookie) link;
+	int ndesc;
+	int pidx;
 };
 
 /*
@@ -584,17 +568,32 @@ struct sge_wrq {
 	struct sge_eq eq;	/* MUST be first */
 
 	struct adapter *adapter;
+	struct task wrq_tx_task;
 
-	/* List of WRs held up due to lack of tx descriptors */
+	/* Tx desc reserved but WR not "committed" yet. */
+	TAILQ_HEAD(wrq_incomplete_wrs , wrq_cookie) incomplete_wrs;
+
+	/* List of WRs ready to go out as soon as descriptors are available. */
 	STAILQ_HEAD(, wrqe) wr_list;
+	u_int nwr_pending;
+	u_int ndesc_needed;
 
 	/* stats for common events first */
 
-	uint64_t tx_wrs;	/* # of tx work requests */
+	uint64_t tx_wrs_direct;	/* # of WRs written directly to desc ring. */
+	uint64_t tx_wrs_ss;	/* # of WRs copied from scratch space. */
+	uint64_t tx_wrs_copied;	/* # of WRs queued and copied to desc ring. */
 
 	/* stats for not-that-common events */
 
-	uint32_t no_desc;	/* out of hardware descriptors */
+	/*
+	 * Scratch space for work requests that wrap around after reaching the
+	 * status page, and some infomation about the last WR that used it.
+	 */
+	uint16_t ss_pidx;
+	uint16_t ss_len;
+	uint8_t ss[SGE_MAX_WR_LEN];
+
 } __aligned(CACHE_LINE_SIZE);
 
 
@@ -695,6 +694,7 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
+	int pad_boundary;
 	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
@@ -742,7 +742,7 @@ struct adapter {
 	struct sge sge;
 	int lro_timeout;
 
-	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
+	struct taskqueue *tq[NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
 
@@ -758,7 +758,8 @@ struct adapter {
 	uint16_t doorbells;
 	int open_device_map;
 #ifdef TCP_OFFLOAD
-	int offload_map;
+	int offload_map;	/* ports with IFCAP_TOE enabled */
+	int active_ulds;	/* ULDs activated on this adapter */
 #endif
 	int flags;
 
@@ -812,7 +813,6 @@ struct adapter {
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
 
-/* XXX: not bulletproof, but much better than nothing */
 #define ASSERT_SYNCHRONIZED_OP(sc)	\
     KASSERT(IS_BUSY(sc) && \
 	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
@@ -976,12 +976,11 @@ static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
 
-	return (eq->qsize / 4);
+	/* not quite the same as qsize / 4, but this will do. */
+	return (eq->sidx / 4);
 }
 
 /* t4_main.c */
-void t4_tx_task(void *, int);
-void t4_tx_callout(void *);
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
@@ -1022,16 +1021,16 @@ int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
 int t4_setup_port_queues(struct port_info *);
 int t4_teardown_port_queues(struct port_info *);
-int t4_alloc_tx_maps(struct tx_maps *, bus_dma_tag_t, int, int);
-void t4_free_tx_maps(struct tx_maps *, bus_dma_tag_t);
 void t4_intr_all(void *);
 void t4_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
 void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
-int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
-int can_resume_tx(struct sge_eq *);
+int parse_pkt(struct mbuf **);
+void *start_wrq_wr(struct sge_wrq *, int, struct wrq_cookie *);
+void commit_wrq_wr(struct sge_wrq *, void *, struct wrq_cookie *);
+int tnl_cong(struct port_info *);
 
 /* t4_tracer.c */
 struct t4_tracer;

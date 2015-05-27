@@ -106,3 +106,21 @@ METHOD int pin_setflags {
 	uint32_t pin_num;
 	uint32_t flags;
 };
+
+#
+# Get the pin name
+#
+METHOD int pin_getname {
+	device_t dev;
+	uint32_t pin_num;
+	char *name;
+};
+
+#
+# Set the pin name
+#
+METHOD int pin_setname {
+	device_t dev;
+	uint32_t pin_num;
+	const char *name;
+};

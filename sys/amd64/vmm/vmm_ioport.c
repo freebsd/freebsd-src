@@ -28,20 +28,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/systm.h>
-
-#include <vm/vm.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
-#include <x86/psl.h>
 
 #include "vatpic.h"
 #include "vatpit.h"
 #include "vpmtmr.h"
+#include "vrtc.h"
 #include "vmm_ioport.h"
 #include "vmm_ktr.h"
 
@@ -60,6 +55,8 @@ ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
 	[IO_ELCR1] = vatpic_elc_handler,
 	[IO_ELCR2] = vatpic_elc_handler,
 	[IO_PMTMR] = vpmtmr_handler,
+	[IO_RTC] = vrtc_addr_handler,
+	[IO_RTC + 1] = vrtc_data_handler,
 };
 
 #ifdef KTR
@@ -71,7 +68,7 @@ inout_instruction(struct vm_exit *vmexit)
 	static const char *iodesc[] = {
 		"outb", "outw", "outl",
 		"inb", "inw", "inl",
-		"outsb", "outsw", "outsd"
+		"outsb", "outsw", "outsd",
 		"insb", "insw", "insd",
 	};
 

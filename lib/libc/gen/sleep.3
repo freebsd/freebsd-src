@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm sleep
-.Nd suspend process execution for an interval measured in seconds
+.Nd suspend thread execution for an interval measured in seconds
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -43,11 +43,11 @@
 .Sh DESCRIPTION
 The
 .Fn sleep
-function suspends execution of the calling process until either
+function suspends execution of the calling thread until either
 .Fa seconds
-seconds have elapsed or a signal is delivered to the process and its
+seconds have elapsed or a signal is delivered to the thread and its
 action is to invoke a signal-catching function or to terminate the
-process.
+thread or process.
 System activity may lengthen the sleep by an indeterminate amount.
 .Pp
 This function is implemented using

@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 /* LM75 registers. */
 #define	LM75_TEMP	0x0
+#define	LM75_TEMP_MASK		0xff80
+#define	LM75A_TEMP_MASK		0xffe0
 #define	LM75_CONF	0x1
 #define	LM75_CONF_FSHIFT	3
 #define	LM75_CONF_FAULT		0x18
@@ -87,8 +89,6 @@ struct lm75_softc {
 	uint32_t		sc_addr;
 	uint32_t		sc_conf;
 };
-
-static int lm75_faults[4] = { 1, 2, 4, 6 };
 
 /* Utility functions */
 static int  lm75_conf_read(struct lm75_softc *);
@@ -132,7 +132,7 @@ lm75_read(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data, size_t len)
 	    { addr, IIC_M_RD, len, data },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0)
+	if (iicbus_transfer(dev, msg, nitems(msg)) != 0)
 		return (-1);
 
 	return (0);
@@ -145,7 +145,7 @@ lm75_write(device_t dev, uint32_t addr, uint8_t *data, size_t len)
 	    { addr, IIC_M_WR, len, data },
 	};
 
-	if (iicbus_transfer(dev, msg, 1) != 0)
+	if (iicbus_transfer(dev, msg, nitems(msg)) != 0)
 		return (-1);
 
 	return (0);
@@ -226,7 +226,8 @@ lm75_type_detect(struct lm75_softc *sc)
 	 */
 	lm75a = 0;
 	for (i = 4; i <= 6; i++) {
-		if (lm75_read(sc->sc_dev, sc->sc_addr, i, &buf8, 1) < 0)
+		if (lm75_read(sc->sc_dev, sc->sc_addr, i,
+		    &buf8, sizeof(buf8)) < 0)
 			return (-1);
 		if (buf8 != LM75_TEST_PATTERN && buf8 != 0xff)
 			return (-1);
@@ -286,16 +287,16 @@ lm75_start(void *xdev)
 
 	/* Configuration parameters. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "faults",
-	    CTLFLAG_RW | CTLTYPE_UINT, dev, 0,
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
 	    lm75_faults_sysctl, "IU", "LM75 fault queue");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "mode",
-	    CTLFLAG_RW | CTLTYPE_STRING, dev, 0,
+	    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_MPSAFE, dev, 0,
 	    lm75_mode_sysctl, "A", "LM75 mode");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "polarity",
-	    CTLFLAG_RW | CTLTYPE_STRING, dev, 0,
+	    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_MPSAFE, dev, 0,
 	    lm75_pol_sysctl, "A", "LM75 OS polarity");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "shutdown",
-	    CTLFLAG_RW | CTLTYPE_UINT, dev, 0,
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
 	    lm75_shutdown_sysctl, "IU", "LM75 shutdown");
 }
 
@@ -304,9 +305,9 @@ lm75_conf_read(struct lm75_softc *sc)
 {
 	uint8_t buf8;
 
-	if (lm75_read(sc->sc_dev, sc->sc_addr, LM75_CONF, &buf8, 1) < 0)
+	if (lm75_read(sc->sc_dev, sc->sc_addr, LM75_CONF,
+	    &buf8, sizeof(buf8)) < 0)
 		return (-1);
-
 	sc->sc_conf = (uint32_t)buf8;
 
 	return (0);
@@ -319,8 +320,7 @@ lm75_conf_write(struct lm75_softc *sc)
 
 	buf8[0] = LM75_CONF;
 	buf8[1] = (uint8_t)sc->sc_conf & LM75_CONF_MASK;
-
-	if (lm75_write(sc->sc_dev, sc->sc_addr, buf8, 2) < 0)
+	if (lm75_write(sc->sc_dev, sc->sc_addr, buf8, sizeof(buf8)) < 0)
 		return (-1);
 
 	return (0);
@@ -331,20 +331,24 @@ lm75_temp_read(struct lm75_softc *sc, uint8_t reg, int *temp)
 {
 	uint8_t buf8[2];
 	uint16_t buf;
-	int t;
+	int neg, t;
 
-	if (lm75_read(sc->sc_dev, sc->sc_addr, reg, buf8, 2) < 0)
+	if (lm75_read(sc->sc_dev, sc->sc_addr, reg, buf8, sizeof(buf8)) < 0)
 		return (-1);
-
-	buf = (buf8[0] << 8) | (buf8[1] & 0xff);
-
+	buf = (uint16_t)((buf8[0] << 8) | (buf8[1] & 0xff));
 	/*
 	 * LM75 has a 9 bit ADC with resolution of 0.5 C per bit.
 	 * LM75A has an 11 bit ADC with resolution of 0.125 C per bit.
 	 * Temperature is stored with two's complement.
 	 */
-	if (buf & LM75_NEG_BIT)
-		buf = ~buf + 1;
+	neg = 0;
+	if (buf & LM75_NEG_BIT) {
+		if (sc->sc_hwtype == HWTYPE_LM75A)
+			buf = ~(buf & LM75A_TEMP_MASK) + 1;
+		else
+			buf = ~(buf & LM75_TEMP_MASK) + 1;
+		neg = 1;
+	}
 	*temp = ((int16_t)buf >> 8) * 10;
 	t = 0;
 	if (sc->sc_hwtype == HWTYPE_LM75A) {
@@ -357,7 +361,7 @@ lm75_temp_read(struct lm75_softc *sc, uint8_t reg, int *temp)
 		t += 500;
 	t /= 100;
 	*temp += t;
-	if (buf & LM75_NEG_BIT)
+	if (neg)
 		*temp = -(*temp);
 	*temp += TZ_ZEROC;
 
@@ -370,6 +374,7 @@ lm75_temp_write(struct lm75_softc *sc, uint8_t reg, int temp)
 	uint8_t buf8[3];
 	uint16_t buf;
 
+	temp = (temp - TZ_ZEROC) / 10;
 	if (temp > LM75_MAX_TEMP)
 		temp = LM75_MAX_TEMP;
 	if (temp < LM75_MIN_TEMP)
@@ -381,8 +386,7 @@ lm75_temp_write(struct lm75_softc *sc, uint8_t reg, int temp)
 	buf8[0] = reg;
 	buf8[1] = buf >> 8;
 	buf8[2] = buf & 0xff;
-
-	if (lm75_write(sc->sc_dev, sc->sc_addr, buf8, 3) < 0)
+	if (lm75_write(sc->sc_dev, sc->sc_addr, buf8, sizeof(buf8)) < 0)
 		return (-1);
 
 	return (0);
@@ -451,14 +455,15 @@ static int
 lm75_faults_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
+	int lm75_faults[] = { 1, 2, 4, 6 };
 	int error, faults, i, newf, tmp;
 	struct lm75_softc *sc;
 
 	dev = (device_t)arg1;
 	sc = device_get_softc(dev);
 	tmp = (sc->sc_conf & LM75_CONF_FAULT) >> LM75_CONF_FSHIFT;
-	if (tmp > nitems(lm75_faults))
-		tmp = nitems(lm75_faults);
+	if (tmp >= nitems(lm75_faults))
+		tmp = nitems(lm75_faults) - 1;
 	faults = lm75_faults[tmp];
 
 	error = sysctl_handle_int(oidp, &faults, 0, req);

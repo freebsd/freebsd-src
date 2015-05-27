@@ -39,6 +39,7 @@
 .Op Fl CVgp
 .Op Fl I Ar path
 .Op Fl d Ar destdir
+.Op Fl s Ar srcdir
 .Ar SYSTEM_NAME
 .Nm
 .Op Fl x Ar kernel
@@ -85,6 +86,10 @@ Note that
 does not append
 .Ar SYSTEM_NAME
 to the directory given.
+.It Fl s Ar srcdir
+Use
+.Ar srcdir
+as the source directory, instead of the default one.
 .It Fl m
 Print the MACHINE and MACHINE_ARCH values for this
 kernel and exit.
@@ -142,6 +147,14 @@ in building the system;
 header files,
 definitions of
 the number of various devices that will be compiled into the system.
+.Pp
+The
+.Nm
+utility looks for kernel sources in the directory
+.Pa ../..
+or the one given with the
+.Fl s
+option.
 .Pp
 After running
 .Nm ,

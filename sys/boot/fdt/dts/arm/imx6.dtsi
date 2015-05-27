@@ -126,11 +126,12 @@
 			gpt: timer@02098000 {
 				compatible = "fsl,imx6q-gpt", "fsl,imx51-gpt";
 				reg = <0x02098000 0x4000>;
-				interrupt-parent = <&gic>; interrupts = <87>;
+				interrupt-parent = <&gic>;
+				interrupts = <87>;
 			};
 
 			iomux@020e0000 {
-				compatible = "fsl,imx6q-iomux";
+				compatible = "fsl,imx6q-iomuxc";
 				reg = <0x020e0000 0x4000>;
 				interrupt-parent = <&gic>;
 				interrupts = <32>;
@@ -311,6 +312,9 @@
 				compatible = "fsl,imx6q-ssi";
 				reg = <0x02028000 0x4000>;
 				interrupts = < 78 >;
+				dmas = <&sdma 37 1 0>,
+				       <&sdma 38 1 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 

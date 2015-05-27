@@ -303,7 +303,7 @@ extern LZMA_API(uint64_t) lzma_index_memused(const lzma_index *i)
  * \return      On success, a pointer to an empty initialized lzma_index is
  *              returned. If allocation fails, NULL is returned.
  */
-extern LZMA_API(lzma_index *) lzma_index_init(lzma_allocator *allocator)
+extern LZMA_API(lzma_index *) lzma_index_init(const lzma_allocator *allocator)
 		lzma_nothrow;
 
 
@@ -312,8 +312,8 @@ extern LZMA_API(lzma_index *) lzma_index_init(lzma_allocator *allocator)
  *
  * If i is NULL, this does nothing.
  */
-extern LZMA_API(void) lzma_index_end(lzma_index *i, lzma_allocator *allocator)
-		lzma_nothrow;
+extern LZMA_API(void) lzma_index_end(
+		lzma_index *i, const lzma_allocator *allocator) lzma_nothrow;
 
 
 /**
@@ -341,7 +341,7 @@ extern LZMA_API(void) lzma_index_end(lzma_index *i, lzma_allocator *allocator)
  *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_index_append(
-		lzma_index *i, lzma_allocator *allocator,
+		lzma_index *i, const lzma_allocator *allocator,
 		lzma_vli unpadded_size, lzma_vli uncompressed_size)
 		lzma_nothrow lzma_attr_warn_unused_result;
 
@@ -564,8 +564,8 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
  *              - LZMA_MEM_ERROR
  *              - LZMA_PROG_ERROR
  */
-extern LZMA_API(lzma_ret) lzma_index_cat(
-		lzma_index *dest, lzma_index *src, lzma_allocator *allocator)
+extern LZMA_API(lzma_ret) lzma_index_cat(lzma_index *dest, lzma_index *src,
+		const lzma_allocator *allocator)
 		lzma_nothrow lzma_attr_warn_unused_result;
 
 
@@ -575,7 +575,7 @@ extern LZMA_API(lzma_ret) lzma_index_cat(
  * \return      A copy of the lzma_index, or NULL if memory allocation failed.
  */
 extern LZMA_API(lzma_index *) lzma_index_dup(
-		const lzma_index *i, lzma_allocator *allocator)
+		const lzma_index *i, const lzma_allocator *allocator)
 		lzma_nothrow lzma_attr_warn_unused_result;
 
 
@@ -677,6 +677,6 @@ extern LZMA_API(lzma_ret) lzma_index_buffer_encode(const lzma_index *i,
  *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_index_buffer_decode(lzma_index **i,
-		uint64_t *memlimit, lzma_allocator *allocator,
+		uint64_t *memlimit, const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size)
 		lzma_nothrow;

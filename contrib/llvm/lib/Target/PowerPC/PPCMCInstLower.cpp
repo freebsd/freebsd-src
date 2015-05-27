@@ -13,19 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
-#include "PPCSubtarget.h"
 #include "MCTargetDesc/PPCMCExpr.h"
+#include "PPCSubtarget.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
 using namespace llvm;
 
 static MachineModuleInfoMachO &getMachOMMI(AsmPrinter &AP) {
@@ -35,36 +37,41 @@ static MachineModuleInfoMachO &getMachOMMI(AsmPrinter &AP) {
 
 static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
   const TargetMachine &TM = AP.TM;
+  Mangler *Mang = AP.Mang;
+  const DataLayout *DL = TM.getSubtargetImpl()->getDataLayout();
   MCContext &Ctx = AP.OutContext;
-  bool isDarwin = TM.getSubtarget<PPCSubtarget>().isDarwin();
+  bool isDarwin = Triple(TM.getTargetTriple()).isOSDarwin();
 
   SmallString<128> Name;
+  StringRef Suffix;
+  if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB) {
+    if (isDarwin)
+      Suffix = "$stub";
+  } else if (MO.getTargetFlags() & PPCII::MO_NLP_FLAG)
+    Suffix = "$non_lazy_ptr";
+
+  if (!Suffix.empty())
+    Name += DL->getPrivateGlobalPrefix();
+
+  unsigned PrefixLen = Name.size();
+
   if (!MO.isGlobal()) {
     assert(MO.isSymbol() && "Isn't a symbol reference");
-    Name += AP.MAI->getGlobalPrefix();
-    Name += MO.getSymbolName();
-  } else {    
+    Mang->getNameWithPrefix(Name, MO.getSymbolName());
+  } else {
     const GlobalValue *GV = MO.getGlobal();
-    bool isImplicitlyPrivate = false;
-    if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB ||
-        (MO.getTargetFlags() & PPCII::MO_NLP_FLAG))
-      isImplicitlyPrivate = true;
-    
-    AP.Mang->getNameWithPrefix(Name, GV, isImplicitlyPrivate);
+    TM.getNameWithPrefix(Name, GV, *Mang);
   }
-  
+
+  unsigned OrigLen = Name.size() - PrefixLen;
+
+  Name += Suffix;
+  MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
+  StringRef OrigName = StringRef(Name).substr(PrefixLen, OrigLen);
+
   // If the target flags on the operand changes the name of the symbol, do that
   // before we return the symbol.
   if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB && isDarwin) {
-    Name += "$stub";
-    const char *PGP = AP.MAI->getPrivateGlobalPrefix();
-    const char *Prefix = "";
-    if (!Name.startswith(PGP)) {
-      // http://llvm.org/bugs/show_bug.cgi?id=15763
-      // all stubs and lazy_ptrs should be local symbols, which need leading 'L'
-      Prefix = PGP;
-    }
-    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Twine(Prefix) + Twine(Name));
     MachineModuleInfoImpl::StubValueTy &StubSym =
       getMachOMMI(AP).getFnStubEntry(Sym);
     if (StubSym.getPointer())
@@ -76,10 +83,9 @@ static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
       StubValueTy(AP.getSymbol(MO.getGlobal()),
                   !MO.getGlobal()->hasInternalLinkage());
     } else {
-      Name.erase(Name.end()-5, Name.end());
       StubSym =
       MachineModuleInfoImpl::
-      StubValueTy(Ctx.GetOrCreateSymbol(Name.str()), false);
+      StubValueTy(Ctx.GetOrCreateSymbol(OrigName), false);
     }
     return Sym;
   }
@@ -87,16 +93,13 @@ static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
   // If the symbol reference is actually to a non_lazy_ptr, not to the symbol,
   // then add the suffix.
   if (MO.getTargetFlags() & PPCII::MO_NLP_FLAG) {
-    Name += "$non_lazy_ptr";
-    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
-  
     MachineModuleInfoMachO &MachO = getMachOMMI(AP);
     
     MachineModuleInfoImpl::StubValueTy &StubSym =
       (MO.getTargetFlags() & PPCII::MO_NLP_HIDDEN_FLAG) ? 
          MachO.getHiddenGVStubEntry(Sym) : MachO.getGVStubEntry(Sym);
     
-    if (StubSym.getPointer() == 0) {
+    if (!StubSym.getPointer()) {
       assert(MO.isGlobal() && "Extern symbol not handled yet");
       StubSym = MachineModuleInfoImpl::
                    StubValueTy(AP.getSymbol(MO.getGlobal()),
@@ -105,7 +108,7 @@ static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
     return Sym;
   }
   
-  return Ctx.GetOrCreateSymbol(Name.str());
+  return Sym;
 }
 
 static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
@@ -133,6 +136,12 @@ static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
       break;
     case PPCII::MO_TLS:
       RefKind = MCSymbolRefExpr::VK_PPC_TLS;
+      break;
+    case PPCII::MO_TLSGD:
+      RefKind = MCSymbolRefExpr::VK_PPC_TLSGD;
+      break;
+    case PPCII::MO_TLSLD:
+      RefKind = MCSymbolRefExpr::VK_PPC_TLSLD;
       break;
   }
 

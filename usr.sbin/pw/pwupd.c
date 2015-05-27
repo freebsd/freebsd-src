@@ -33,7 +33,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <pwd.h>
 #include <libutil.h>
 #include <errno.h>
@@ -52,12 +51,13 @@ int
 setpwdir(const char * dir)
 {
 	if (dir == NULL)
-		return -1;
+		return (-1);
 	else
 		pwpath = strdup(dir);
 	if (pwpath == NULL)
-		return -1;
-	return 0;
+		return (-1);
+
+	return (0);
 }
 
 char *
@@ -66,23 +66,20 @@ getpwpath(char const * file)
 	static char pathbuf[MAXPATHLEN];
 
 	snprintf(pathbuf, sizeof pathbuf, "%s/%s", pwpath, file);
-	return pathbuf;
+
+	return (pathbuf);
 }
 
 static int
-pwdb(char *arg,...)
+pwdb_check(void)
 {
 	int             i = 0;
 	pid_t           pid;
-	va_list         ap;
 	char           *args[10];
 
 	args[i++] = _PATH_PWD_MKDB;
-	va_start(ap, arg);
-	while (i < 6 && arg != NULL) {
-		args[i++] = arg;
-		arg = va_arg(ap, char *);
-	}
+	args[i++] = "-C";
+
 	if (pwpath != pathpwd) {
 		args[i++] = "-d";
 		args[i++] = pwpath;
@@ -100,65 +97,66 @@ pwdb(char *arg,...)
 		if (WEXITSTATUS(i))
 			i = EIO;
 	}
-	va_end(ap);
-	return i;
+
+	return (i);
 }
 
 static int
 pw_update(struct passwd * pwd, char const * user)
 {
-	int             rc = 0;
+	struct passwd	*pw = NULL;
+	struct passwd	*old_pw = NULL;
+	int		 rc, pfd, tfd;
 
-	rc = pwdb("-C", (char *)NULL);	/* Check only */
-	if (rc == 0) {
-		int pfd, tfd;
-		struct passwd *pw = NULL;
-		struct passwd *old_pw = NULL;
+	if ((rc = pwdb_check()) != 0)
+		return (rc);
 
-		if (pwd != NULL)
-			pw = pw_dup(pwd);
+	if (pwd != NULL)
+		pw = pw_dup(pwd);
 
-		if (user != NULL)
-			old_pw = GETPWNAM(user);
+	if (user != NULL)
+		old_pw = GETPWNAM(user);
 
-		if (pw_init(pwpath, NULL))
-			err(1, "pw_init()");
-		if ((pfd = pw_lock()) == -1) {
-			pw_fini();
-			err(1, "pw_lock()");
-		}
-		if ((tfd = pw_tmp(-1)) == -1) {
-			pw_fini();
-			err(1, "pw_tmp()");
-		}
-		if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
-			pw_fini();
-			err(1, "pw_copy()");
-		}
-		/*
-		 * in case of deletion of a user, the whole database
-		 * needs to be regenerated
-		 */
-		if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
-			pw_fini();
-			err(1, "pw_mkdb()");
-		}
-		free(pw);
+	if (pw_init(pwpath, NULL))
+		err(1, "pw_init()");
+	if ((pfd = pw_lock()) == -1) {
 		pw_fini();
+		err(1, "pw_lock()");
 	}
-	return 0;
+	if ((tfd = pw_tmp(-1)) == -1) {
+		pw_fini();
+		err(1, "pw_tmp()");
+	}
+	if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
+		pw_fini();
+		err(1, "pw_copy()");
+	}
+	/*
+	 * in case of deletion of a user, the whole database
+	 * needs to be regenerated
+	 */
+	if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
+		pw_fini();
+		err(1, "pw_mkdb()");
+	}
+	free(pw);
+	pw_fini();
+
+	return (0);
 }
 
 int
 addpwent(struct passwd * pwd)
 {
-	return pw_update(pwd, NULL);
+
+	return (pw_update(pwd, NULL));
 }
 
 int
 chgpwent(char const * login, struct passwd * pwd)
 {
-	return pw_update(pwd, login);
+
+	return (pw_update(pwd, login));
 }
 
 int
@@ -167,5 +165,6 @@ delpwent(struct passwd * pwd)
 	char login[MAXLOGNAME];
 	
 	strlcpy(login, pwd->pw_name, MAXLOGNAME);
-	return pw_update(NULL, login);
+
+	return (pw_update(NULL, login));
 }

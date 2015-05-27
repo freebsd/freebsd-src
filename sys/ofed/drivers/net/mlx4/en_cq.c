@@ -190,7 +190,7 @@ void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 
         taskqueue_drain(cq->tq, &cq->cq_task);
         if (cq->is_tx)
-                del_timer(&cq->timer);
+                del_timer_sync(&cq->timer);
 
         mlx4_cq_free(mdev->dev, &cq->mcq);
 }

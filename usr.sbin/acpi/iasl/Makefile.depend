@@ -10,6 +10,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>
@@ -60,6 +61,10 @@ aslpredef.o: aslcompiler.y.h
 aslpredef.po: aslcompiler.y.h
 aslprepkg.o: aslcompiler.y.h
 aslprepkg.po: aslcompiler.y.h
+aslprintf.o: aslcompiler.y.h
+aslprintf.po: aslcompiler.y.h
+aslprune.o: aslcompiler.y.h
+aslprune.po: aslcompiler.y.h
 aslresource.o: aslcompiler.y.h
 aslresource.po: aslcompiler.y.h
 aslrestype1.o: aslcompiler.y.h

@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd November 4, 2014
+.Dd April 10, 2015
 .Dt TAP 4
 .Os
 .Sh NAME
@@ -32,6 +32,17 @@ it is simulating
 or a terminal for
 .Xr pty 4 ) ,
 and a character-special device
+.Dq control
+interface.
+A client program transfers Ethernet frames to or from the
+.Nm
+.Dq control
+interface.
+The
+.Xr tun 4
+interface provides similar functionality at the network layer:
+a client will transfer IP (by default) packets to or from a
+.Xr tun 4
 .Dq control
 interface.
 .Pp
@@ -264,7 +275,9 @@ brought down
 .Dq ifconfig tap Ns Sy N No down )
 unless the device is a
 .Em VMnet
-device.
+device, or has
+.Dv IFF_LINK0
+flag set.
 All queued frames are thrown away.
 If the interface is up when the data
 device is not open, output frames are thrown away rather than
@@ -314,4 +327,5 @@ VMware
 .El
 .Sh SEE ALSO
 .Xr inet 4 ,
-.Xr intro 4
+.Xr intro 4 ,
+.Xr tun 4

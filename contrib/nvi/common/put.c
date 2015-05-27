@@ -30,7 +30,7 @@ static const char sccsid[] = "$Id: put.c,v 10.19 04/07/11 17:00:24 zy Exp $";
  * put --
  *	Put text buffer contents into the file.
  *
- * PUBLIC: int put __P((SCR *, CB *, CHAR_T *, MARK *, MARK *, int));
+ * PUBLIC: int put(SCR *, CB *, CHAR_T *, MARK *, MARK *, int);
  */
 int
 put(

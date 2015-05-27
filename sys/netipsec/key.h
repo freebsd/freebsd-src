@@ -86,28 +86,26 @@ extern void key_freesav(struct secasvar **, const char*, int);
 #define	KEY_FREESAV(psav)					\
 	key_freesav(psav, __FILE__, __LINE__)
 
-extern void key_freeso __P((struct socket *));
-extern int key_checktunnelsanity __P((struct secasvar *, u_int,
-					caddr_t, caddr_t));
-extern int key_checkrequest
-	__P((struct ipsecrequest *isr, const struct secasindex *));
-
-extern struct secpolicy *key_msg2sp __P((struct sadb_x_policy *,
-	size_t, int *));
-extern struct mbuf *key_sp2msg __P((struct secpolicy *));
-extern int key_ismyaddr __P((struct sockaddr *));
-extern int key_spdacquire __P((struct secpolicy *));
-extern u_long key_random __P((void));
-extern void key_randomfill __P((void *, size_t));
-extern void key_freereg __P((struct socket *));
-extern int key_parse __P((struct mbuf *, struct socket *));
-extern void key_init __P((void));
+extern void key_freeso(struct socket *);
+extern int key_checktunnelsanity(struct secasvar *, u_int,
+    caddr_t, caddr_t);
+extern int key_checkrequest(struct ipsecrequest *isr,
+    const struct secasindex *);
+extern struct secpolicy *key_msg2sp(struct sadb_x_policy *,
+    size_t, int *);
+extern struct mbuf *key_sp2msg(struct secpolicy *);
+extern int key_ismyaddr(struct sockaddr *);
+extern int key_spdacquire(struct secpolicy *);
+extern u_long key_random(void);
+extern void key_randomfill(void *, size_t);
+extern void key_freereg(struct socket *);
+extern int key_parse(struct mbuf *, struct socket *);
+extern void key_init(void);
 #ifdef VIMAGE
 extern void key_destroy(void);
 #endif
-extern void key_sa_recordxfer __P((struct secasvar *, struct mbuf *));
-extern void key_sa_routechange __P((struct sockaddr *));
-extern void key_sa_stir_iv __P((struct secasvar *));
+extern void key_sa_recordxfer(struct secasvar *, struct mbuf *);
+extern void key_sa_stir_iv(struct secasvar *);
 #ifdef IPSEC_NAT_T
 u_int16_t key_portfromsaddr(struct sockaddr *);
 #define	KEY_PORTFROMSADDR(saddr)				\

@@ -12,7 +12,6 @@
 // NOP is placed.
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "delay-slot-filler"
 #include "Sparc.h"
 #include "SparcSubtarget.h"
 #include "llvm/ADT/SmallSet.h"
@@ -26,6 +25,8 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "delay-slot-filler"
 
 STATISTIC(FilledSlots, "Number of delay slots filled");
 
@@ -49,12 +50,12 @@ namespace {
         Subtarget(&TM.getSubtarget<SparcSubtarget>()) {
     }
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "SPARC Delay Slot Filler";
     }
 
     bool runOnMachineBasicBlock(MachineBasicBlock &MBB);
-    bool runOnMachineFunction(MachineFunction &F) {
+    bool runOnMachineFunction(MachineFunction &F) override {
       bool Changed = false;
 
       // This pass invalidates liveness information when it reorders
@@ -109,7 +110,7 @@ FunctionPass *llvm::createSparcDelaySlotFillerPass(TargetMachine &tm) {
 bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool Changed = false;
 
-  const TargetInstrInfo *TII = TM.getInstrInfo();
+  const TargetInstrInfo *TII = TM.getSubtargetImpl()->getInstrInfo();
 
   for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ) {
     MachineBasicBlock::iterator MI = I;
@@ -186,7 +187,7 @@ Filler::findDelayInstr(MachineBasicBlock &MBB,
     if (J->getOpcode() == SP::RESTORErr
         || J->getOpcode() == SP::RESTOREri) {
       // change retl to ret.
-      slot->setDesc(TM.getInstrInfo()->get(SP::RET));
+      slot->setDesc(TM.getSubtargetImpl()->getInstrInfo()->get(SP::RET));
       return J;
     }
   }
@@ -211,12 +212,8 @@ Filler::findDelayInstr(MachineBasicBlock &MBB,
     if (I->isDebugValue())
       continue;
 
-
-    if (I->hasUnmodeledSideEffects()
-        || I->isInlineAsm()
-        || I->isLabel()
-        || I->hasDelaySlot()
-        || I->isBundledWithSucc())
+    if (I->hasUnmodeledSideEffects() || I->isInlineAsm() || I->isPosition() ||
+        I->hasDelaySlot() || I->isBundledWithSucc())
       break;
 
     if (delayHasHazard(I, sawLoad, sawStore, RegDefs, RegUses)) {
@@ -332,7 +329,8 @@ void Filler::insertDefsUses(MachineBasicBlock::iterator MI,
 bool Filler::IsRegInSet(SmallSet<unsigned, 32>& RegSet, unsigned Reg)
 {
   // Check Reg and all aliased Registers.
-  for (MCRegAliasIterator AI(Reg, TM.getRegisterInfo(), true);
+  for (MCRegAliasIterator AI(Reg, TM.getSubtargetImpl()->getRegisterInfo(),
+                             true);
        AI.isValid(); ++AI)
     if (RegSet.count(*AI))
       return true;
@@ -479,13 +477,13 @@ bool Filler::tryCombineRestoreWithPrevInst(MachineBasicBlock &MBB,
          && MBBI->getOperand(1).getReg() == SP::G0
          && MBBI->getOperand(2).getReg() == SP::G0);
 
-  MachineBasicBlock::iterator PrevInst = llvm::prior(MBBI);
+  MachineBasicBlock::iterator PrevInst = std::prev(MBBI);
 
   // It cannot be combined with a bundled instruction.
   if (PrevInst->isBundledWithSucc())
     return false;
 
-  const TargetInstrInfo *TII = TM.getInstrInfo();
+  const TargetInstrInfo *TII = TM.getSubtargetImpl()->getInstrInfo();
 
   switch (PrevInst->getOpcode()) {
   default: break;

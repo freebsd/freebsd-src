@@ -10,6 +10,9 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libexpat \
+	lib/libmt \
+	lib/libsbuf \
 
 
 .include <dirdeps.mk>

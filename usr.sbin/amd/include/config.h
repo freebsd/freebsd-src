@@ -668,9 +668,6 @@
 /* Define to 1 if you have the <net/if.h> header file. */
 #define HAVE_NET_IF_H 1
 
-/* Define to 1 if you have the <net/if_var.h> header file. */
-#define HAVE_NET_IF_VAR_H 1
-
 /* Define to 1 if you have the <net/route.h> header file. */
 #define HAVE_NET_ROUTE_H 1
 

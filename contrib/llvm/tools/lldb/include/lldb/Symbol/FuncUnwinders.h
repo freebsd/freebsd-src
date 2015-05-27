@@ -1,6 +1,8 @@
 #ifndef liblldb_FuncUnwinders_h
 #define liblldb_FuncUnwinders_h
 
+#include <vector>
+
 #include "lldb/Core/AddressRange.h"
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/AddressRange.h"
@@ -16,12 +18,13 @@ public:
     // FuncUnwinders objects are used to track UnwindPlans for a function
     // (named or not - really just an address range)
 
-    // We'll record three different UnwindPlans for each address range:
+    // We'll record four different UnwindPlans for each address range:
+    //   
     //   1. Unwinding from a call site (a valid exception throw location)
     //      This is often sourced from the eh_frame exception handling info
     //   2. Unwinding from a non-call site (any location in the function)
     //      This is often done by analyzing the function prologue assembly
-    //      langauge instructions
+    //      language instructions
     //   3. A fast unwind method for this function which only retrieves a 
     //      limited set of registers necessary to walk the stack
     //   4. An architectural default unwind plan when none of the above are
@@ -31,7 +34,7 @@ public:
     // instructions are finished for migrating breakpoints past the 
     // stack frame setup instructions when we don't have line table information.
 
-    FuncUnwinders (lldb_private::UnwindTable& unwind_table, const lldb::UnwindAssemblySP& assembly_profiler, AddressRange range);
+    FuncUnwinders (lldb_private::UnwindTable& unwind_table, AddressRange range);
 
     ~FuncUnwinders ();
 
@@ -41,10 +44,10 @@ public:
     // offset value will have already been decremented by 1 to stay within the bounds of the 
     // correct function body.
     lldb::UnwindPlanSP
-    GetUnwindPlanAtCallSite (int current_offset);
+    GetUnwindPlanAtCallSite (Target &target, int current_offset);
 
     lldb::UnwindPlanSP
-    GetUnwindPlanAtNonCallSite (lldb_private::Thread& thread);
+    GetUnwindPlanAtNonCallSite (Target& target, lldb_private::Thread& thread, int current_offset);
 
     lldb::UnwindPlanSP
     GetUnwindPlanFastUnwind (lldb_private::Thread& Thread);
@@ -67,33 +70,72 @@ public:
         return m_range.ContainsFileAddress (addr);
     }
 
-    // When we're doing an unwind using the UnwindPlanAtNonCallSite and we find an
-    // impossible unwind condition, we know that the UnwindPlan is invalid.  Calling
-    // this method on the FuncUnwinder will tell it to replace that UnwindPlan with
-    // the architectural default UnwindPlan so hopefully our stack walk will get past
-    // this frame.
-    void
-    InvalidateNonCallSiteUnwindPlan (lldb_private::Thread& Thread);
+    // A function may have a Language Specific Data Area specified -- a block of data in
+    // the object file which is used in the processing of an exception throw / catch.
+    // If any of the UnwindPlans have the address of the LSDA region for this function,
+    // this will return it.  
+    Address
+    GetLSDAAddress (Target &target);
+
+    // A function may have a Personality Routine associated with it -- used in the
+    // processing of throwing an exception.  If any of the UnwindPlans have the
+    // address of the personality routine, this will return it.  Read the target-pointer
+    // at this address to get the personality function address.
+    Address
+    GetPersonalityRoutinePtrAddress (Target &target);
+
+
+
+    // The following methods to retrieve specific unwind plans should rarely be used.
+    // Instead, clients should ask for the *behavior* they are looking for, using one
+    // of the above UnwindPlan retrieval methods.
+
+    lldb::UnwindPlanSP
+    GetAssemblyUnwindPlan (Target &target, Thread &thread, int current_offset);
+
+    lldb::UnwindPlanSP
+    GetEHFrameUnwindPlan (Target &target, int current_offset);
+
+    lldb::UnwindPlanSP
+    GetEHFrameAugmentedUnwindPlan (Target &target, Thread &thread, int current_offset);
+
+    lldb::UnwindPlanSP
+    GetCompactUnwindUnwindPlan (Target &target, int current_offset);
+
+    lldb::UnwindPlanSP
+    GetArchDefaultUnwindPlan (Thread &thread);
+
+    lldb::UnwindPlanSP
+    GetArchDefaultAtFuncEntryUnwindPlan (Thread &thread);
 
 private:
+
+    lldb::UnwindAssemblySP
+    GetUnwindAssemblyProfiler ();
+
     UnwindTable& m_unwind_table;
-    lldb::UnwindAssemblySP m_assembly_profiler;
     AddressRange m_range;
 
     Mutex m_mutex;
-    lldb::UnwindPlanSP m_unwind_plan_call_site_sp;
-    lldb::UnwindPlanSP m_unwind_plan_non_call_site_sp;
-    lldb::UnwindPlanSP m_unwind_plan_fast_sp;
-    lldb::UnwindPlanSP m_unwind_plan_arch_default_sp;
-    lldb::UnwindPlanSP m_unwind_plan_arch_default_at_func_entry_sp;
 
-    bool m_tried_unwind_at_call_site:1,
-         m_tried_unwind_at_non_call_site:1,
+    lldb::UnwindPlanSP              m_unwind_plan_assembly_sp;
+    lldb::UnwindPlanSP              m_unwind_plan_eh_frame_sp;
+    lldb::UnwindPlanSP              m_unwind_plan_eh_frame_augmented_sp;   // augmented by assembly inspection so it's valid everywhere
+    std::vector<lldb::UnwindPlanSP> m_unwind_plan_compact_unwind;
+    lldb::UnwindPlanSP              m_unwind_plan_fast_sp;
+    lldb::UnwindPlanSP              m_unwind_plan_arch_default_sp;
+    lldb::UnwindPlanSP              m_unwind_plan_arch_default_at_func_entry_sp;
+
+    // Fetching the UnwindPlans can be expensive - if we've already attempted
+    // to get one & failed, don't try again.
+    bool m_tried_unwind_plan_assembly:1,
+         m_tried_unwind_plan_eh_frame:1,
+         m_tried_unwind_plan_eh_frame_augmented:1,
+         m_tried_unwind_plan_compact_unwind:1,
          m_tried_unwind_fast:1,
          m_tried_unwind_arch_default:1,
          m_tried_unwind_arch_default_at_func_entry:1;
-         
-         
+
     Address m_first_non_prologue_insn;
 
     DISALLOW_COPY_AND_ASSIGN (FuncUnwinders);

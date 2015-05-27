@@ -88,9 +88,48 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
  * Ensure the correct size of various mbuf parameters.  It could be off due
  * to compiler-induced padding and alignment artifacts.
  */
-CTASSERT(sizeof(struct mbuf) == MSIZE);
 CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
 CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
+
+/*
+ * mbuf data storage should be 64-bit aligned regardless of architectural
+ * pointer size; check this is the case with and without a packet header.
+ */
+CTASSERT(offsetof(struct mbuf, m_dat) % 8 == 0);
+CTASSERT(offsetof(struct mbuf, m_pktdat) % 8 == 0);
+
+/*
+ * While the specific values here don't matter too much (i.e., +/- a few
+ * words), we do want to ensure that changes to these values are carefully
+ * reasoned about and properly documented.  This is especially the case as
+ * network-protocol and device-driver modules encode these layouts, and must
+ * be recompiled if the structures change.  Check these values at compile time
+ * against the ones documented in comments in mbuf.h.
+ *
+ * NB: Possibly they should be documented there via #define's and not just
+ * comments.
+ */
+#if defined(__LP64__)
+CTASSERT(offsetof(struct mbuf, m_dat) == 32);
+CTASSERT(sizeof(struct pkthdr) == 56);
+CTASSERT(sizeof(struct m_ext) == 48);
+#else
+CTASSERT(offsetof(struct mbuf, m_dat) == 24);
+CTASSERT(sizeof(struct pkthdr) == 48);
+CTASSERT(sizeof(struct m_ext) == 28);
+#endif
+
+/*
+ * Assert that the queue(3) macros produce code of the same size as an old
+ * plain pointer does.
+ */
+#ifdef INVARIANTS
+static struct mbuf m_assertbuf;
+CTASSERT(sizeof(m_assertbuf.m_slist) == sizeof(m_assertbuf.m_next));
+CTASSERT(sizeof(m_assertbuf.m_stailq) == sizeof(m_assertbuf.m_next));
+CTASSERT(sizeof(m_assertbuf.m_slistpkt) == sizeof(m_assertbuf.m_nextpkt));
+CTASSERT(sizeof(m_assertbuf.m_stailqpkt) == sizeof(m_assertbuf.m_nextpkt));
+#endif
 
 /*
  * m_get2() allocates minimum mbuf that would fit "size" argument.
@@ -196,8 +235,7 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 		}
 
 		/* Book keeping. */
-		len -= (mb->m_flags & M_EXT) ? mb->m_ext.ext_size :
-			((mb->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		len -= M_SIZE(mb);
 		if (mtail != NULL)
 			mtail->m_next = mb;
 		else
@@ -388,7 +426,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
  * cleaned too.
  */
 void
-m_demote(struct mbuf *m0, int all)
+m_demote(struct mbuf *m0, int all, int flags)
 {
 	struct mbuf *m;
 
@@ -400,7 +438,7 @@ m_demote(struct mbuf *m0, int all)
 			m->m_flags &= ~M_PKTHDR;
 			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
 		}
-		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
+		m->m_flags = m->m_flags & (M_EXT | M_RDONLY | M_NOFREE | flags);
 	}
 }
 
@@ -430,11 +468,8 @@ m_sanity(struct mbuf *m0, int sanitize)
 		 * unrelated kernel memory before or after us is trashed.
 		 * No way to recover from that.
 		 */
-		a = ((m->m_flags & M_EXT) ? m->m_ext.ext_buf :
-			((m->m_flags & M_PKTHDR) ? (caddr_t)(&m->m_pktdat) :
-			 (caddr_t)(&m->m_dat)) );
-		b = (caddr_t)(a + (m->m_flags & M_EXT ? m->m_ext.ext_size :
-			((m->m_flags & M_PKTHDR) ? MHLEN : MLEN)));
+		a = M_START(m);
+		b = a + M_SIZE(m);
 		if ((caddr_t)m->m_data < a)
 			M_SANITY_ACTION("m_data outside mbuf data range left");
 		if ((caddr_t)m->m_data > b)
@@ -574,13 +609,8 @@ m_prepend(struct mbuf *m, int len, int how)
 		m_move_pkthdr(mn, m);
 	mn->m_next = m;
 	m = mn;
-	if(m->m_flags & M_PKTHDR) {
-		if (len < MHLEN)
-			MH_ALIGN(m, len);
-	} else {
-		if (len < MLEN)
-			M_ALIGN(m, len);
-	}
+	if (len < M_SIZE(m))
+		M_ALIGN(m, len);
 	m->m_len = len;
 	return (m);
 }
@@ -654,152 +684,6 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 nospace:
 	m_freem(top);
 	return (NULL);
-}
-
-/*
- * Returns mbuf chain with new head for the prepending case.
- * Copies from mbuf (chain) n from off for len to mbuf (chain) m
- * either prepending or appending the data.
- * The resulting mbuf (chain) m is fully writeable.
- * m is destination (is made writeable)
- * n is source, off is offset in source, len is len from offset
- * dir, 0 append, 1 prepend
- * how, wait or nowait
- */
-
-static int
-m_bcopyxxx(void *s, void *t, u_int len)
-{
-	bcopy(s, t, (size_t)len);
-	return 0;
-}
-
-struct mbuf *
-m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
-    int prep, int how)
-{
-	struct mbuf *mm, *x, *z, *prev = NULL;
-	caddr_t p;
-	int i, nlen = 0;
-	caddr_t buf[MLEN];
-
-	KASSERT(m != NULL && n != NULL, ("m_copymdata, no target or source"));
-	KASSERT(off >= 0, ("m_copymdata, negative off %d", off));
-	KASSERT(len >= 0, ("m_copymdata, negative len %d", len));
-	KASSERT(prep == 0 || prep == 1, ("m_copymdata, unknown direction %d", prep));
-
-	mm = m;
-	if (!prep) {
-		while(mm->m_next) {
-			prev = mm;
-			mm = mm->m_next;
-		}
-	}
-	for (z = n; z != NULL; z = z->m_next)
-		nlen += z->m_len;
-	if (len == M_COPYALL)
-		len = nlen - off;
-	if (off + len > nlen || len < 1)
-		return NULL;
-
-	if (!M_WRITABLE(mm)) {
-		/* XXX: Use proper m_xxx function instead. */
-		x = m_getcl(how, MT_DATA, mm->m_flags);
-		if (x == NULL)
-			return NULL;
-		bcopy(mm->m_ext.ext_buf, x->m_ext.ext_buf, x->m_ext.ext_size);
-		p = x->m_ext.ext_buf + (mm->m_data - mm->m_ext.ext_buf);
-		x->m_data = p;
-		mm->m_next = NULL;
-		if (mm != m)
-			prev->m_next = x;
-		m_free(mm);
-		mm = x;
-	}
-
-	/*
-	 * Append/prepend the data.  Allocating mbufs as necessary.
-	 */
-	/* Shortcut if enough free space in first/last mbuf. */
-	if (!prep && M_TRAILINGSPACE(mm) >= len) {
-		m_apply(n, off, len, m_bcopyxxx, mtod(mm, caddr_t) +
-			 mm->m_len);
-		mm->m_len += len;
-		mm->m_pkthdr.len += len;
-		return m;
-	}
-	if (prep && M_LEADINGSPACE(mm) >= len) {
-		mm->m_data = mtod(mm, caddr_t) - len;
-		m_apply(n, off, len, m_bcopyxxx, mtod(mm, caddr_t));
-		mm->m_len += len;
-		mm->m_pkthdr.len += len;
-		return mm;
-	}
-
-	/* Expand first/last mbuf to cluster if possible. */
-	if (!prep && !(mm->m_flags & M_EXT) && len > M_TRAILINGSPACE(mm)) {
-		bcopy(mm->m_data, &buf, mm->m_len);
-		m_clget(mm, how);
-		if (!(mm->m_flags & M_EXT))
-			return NULL;
-		bcopy(&buf, mm->m_ext.ext_buf, mm->m_len);
-		mm->m_data = mm->m_ext.ext_buf;
-	}
-	if (prep && !(mm->m_flags & M_EXT) && len > M_LEADINGSPACE(mm)) {
-		bcopy(mm->m_data, &buf, mm->m_len);
-		m_clget(mm, how);
-		if (!(mm->m_flags & M_EXT))
-			return NULL;
-		bcopy(&buf, (caddr_t *)mm->m_ext.ext_buf +
-		    mm->m_ext.ext_size - mm->m_len, mm->m_len);
-		mm->m_data = (caddr_t)mm->m_ext.ext_buf +
-		    mm->m_ext.ext_size - mm->m_len;
-	}
-
-	/* Append/prepend as many mbuf (clusters) as necessary to fit len. */
-	if (!prep && len > M_TRAILINGSPACE(mm)) {
-		if (!m_getm(mm, len - M_TRAILINGSPACE(mm), how, MT_DATA))
-			return NULL;
-	}
-	if (prep && len > M_LEADINGSPACE(mm)) {
-		if (!(z = m_getm(NULL, len - M_LEADINGSPACE(mm), how, MT_DATA)))
-			return NULL;
-		i = 0;
-		for (x = z; x != NULL; x = x->m_next) {
-			i += x->m_flags & M_EXT ? x->m_ext.ext_size :
-			    (x->m_flags & M_PKTHDR ? MHLEN : MLEN);
-			if (!x->m_next)
-				break;
-		}
-		z->m_data += i - len;
-		m_move_pkthdr(mm, z);
-		x->m_next = mm;
-		mm = z;
-	}
-
-	/* Seek to start position in source mbuf. Optimization for long chains. */
-	while (off > 0) {
-		if (off < n->m_len)
-			break;
-		off -= n->m_len;
-		n = n->m_next;
-	}
-
-	/* Copy data into target mbuf. */
-	z = mm;
-	while (len > 0) {
-		KASSERT(z != NULL, ("m_copymdata, falling off target edge"));
-		i = M_TRAILINGSPACE(z);
-		m_apply(n, off, i, m_bcopyxxx, mtod(z, caddr_t) + z->m_len);
-		z->m_len += i;
-		/* fixup pkthdr.len if necessary */
-		if ((prep ? mm : m)->m_flags & M_PKTHDR)
-			(prep ? mm : m)->m_pkthdr.len += i;
-		off += i;
-		len -= i;
-		z = z->m_next;
-	}
-	return (prep ? mm : m);
 }
 
 /*
@@ -929,6 +813,7 @@ m_dup(struct mbuf *m, int how)
 			}
 			if ((n->m_flags & M_EXT) == 0)
 				nsize = MHLEN;
+			n->m_flags &= ~M_RDONLY;
 		}
 		n->m_len = 0;
 
@@ -997,7 +882,7 @@ m_catpkt(struct mbuf *m, struct mbuf *n)
 	M_ASSERTPKTHDR(n);
 
 	m->m_pkthdr.len += n->m_pkthdr.len;
-	m_demote(n, 1);
+	m_demote(n, 1, 0);
 
 	m_cat(m, n);
 }
@@ -1226,7 +1111,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 			goto extpacket;
 		if (remain > MHLEN) {
 			/* m can't be the lead packet */
-			MH_ALIGN(n, 0);
+			M_ALIGN(n, 0);
 			n->m_next = m_split(m, len, wait);
 			if (n->m_next == NULL) {
 				(void) m_free(n);
@@ -1236,7 +1121,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 				return (n);
 			}
 		} else
-			MH_ALIGN(n, remain);
+			M_ALIGN(n, remain);
 	} else if (remain == 0) {
 		n = m->m_next;
 		m->m_next = NULL;
@@ -1885,33 +1770,6 @@ m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
 	}
 
 	return (0);
-}
-
-/*
- * Set the m_data pointer of a newly-allocated mbuf
- * to place an object of the specified size at the
- * end of the mbuf, longword aligned.
- */
-void
-m_align(struct mbuf *m, int len)
-{
-#ifdef INVARIANTS
-	const char *msg = "%s: not a virgin mbuf";
-#endif
-	int adjust;
-
-	if (m->m_flags & M_EXT) {
-		KASSERT(m->m_data == m->m_ext.ext_buf, (msg, __func__));
-		adjust = m->m_ext.ext_size - len;
-	} else if (m->m_flags & M_PKTHDR) {
-		KASSERT(m->m_data == m->m_pktdat, (msg, __func__));
-		adjust = MHLEN - len;
-	} else {
-		KASSERT(m->m_data == m->m_dat, (msg, __func__));
-		adjust = MLEN - len;
-	}
-
-	m->m_data += adjust &~ (sizeof(long)-1);
 }
 
 /*

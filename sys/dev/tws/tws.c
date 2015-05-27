@@ -113,7 +113,7 @@ static struct cdevsw tws_cdevsw = {
  */
 
 int
-tws_open(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
+tws_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
     struct tws_softc *sc = dev->si_drv1;
 
@@ -123,7 +123,7 @@ tws_open(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
 }
 
 int
-tws_close(struct cdev *dev, int fflag, int devtype, d_thread_t *td)
+tws_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
     struct tws_softc *sc = dev->si_drv1;
 
@@ -198,7 +198,7 @@ tws_attach(device_t dev)
     mtx_init( &sc->sim_lock,  "tws_sim_lock", NULL, MTX_DEF);
     mtx_init( &sc->gen_lock,  "tws_gen_lock", NULL, MTX_DEF);
     mtx_init( &sc->io_lock,  "tws_io_lock", NULL, MTX_DEF | MTX_RECURSE);
-    callout_init(&sc->stats_timer, CALLOUT_MPSAFE);
+    callout_init(&sc->stats_timer, 1);
 
     if ( tws_init_trace_q(sc) == FAILURE )
         printf("trace init failure\n");
@@ -719,7 +719,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
 
         sc->reqs[i].cmd_pkt->hdr.header_desc.size_header = 128;
 
-	callout_init(&sc->reqs[i].timeout, CALLOUT_MPSAFE);
+	callout_init(&sc->reqs[i].timeout, 1);
         sc->reqs[i].state = TWS_REQ_STATE_FREE;
         if ( i >= TWS_RESERVED_REQS )
             tws_q_insert_tail(sc, &sc->reqs[i], TWS_FREE_Q);

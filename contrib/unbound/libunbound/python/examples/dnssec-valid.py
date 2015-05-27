@@ -48,12 +48,12 @@ if os.path.isfile("keys"):
 status, result = ctx.resolve("www.nic.cz", RR_TYPE_A, RR_CLASS_IN)
 if status == 0 and result.havedata:
 
-    print "Result:", result.data.address_list
+    print("Result:", result.data.address_list)
 
     if result.secure:
-        print "Result is secure"
+        print("Result is secure")
     elif result.bogus:
-        print "Result is bogus"
+        print("Result is bogus")
     else:
-        print "Result is insecure"
+        print("Result is insecure")
 

@@ -7,7 +7,7 @@
 .\" # LICENSE.
 .\" # Phil Shafer, July 2014
 .\" 
-.Dd July, 2014
+.Dd December 4, 2014
 .Dt LIBXO 3
 .Os
 .Sh NAME
@@ -21,9 +21,12 @@
 .Sy typedef int (*xo_write_func_t)(void *, const char *);
 .Pp
 .Sy typedef void (*xo_close_func_t)(void *);
+.Pp
+.Sy typedef int (*xo_flush_func_t)(void *);
 .Fn xo_set_writer "xo_handle_t *handle" "void *opaque"
                         "xo_write_func_t write_func"
                         "xo_close_func_t close_func"
+                        "xo_flush_func_t flush_func"
 .Sh DESCRIPTION
 The
 .Fn xo_set_writer
@@ -31,30 +34,38 @@ function allows custom
 .Dq write
 functions
 which can tailor how
-.Em libxo
-writes data.  An
+.Nm libxo
+writes data.
+An
 .Fa opaque
 argument is
 recorded and passed back to the
 .Fa write_func
 function, allowing the function
-to acquire context information. The
+to acquire context information.
+The
 .Fa close_func
 function can
 release this opaque data and any other resources as needed.
+The
+.Fa flush_func
+function should
+flush any pending data associated with the opaque pointer.
 .Sh ADDITIONAL DOCUMENTATION
-.Pp
 Complete documentation can be found on github:
 .Bd -literal -offset indent
 http://juniper.github.io/libxo/libxo-manual.html
 .Ed
 .Pp
-libxo lives on github as:
+.Nm libxo
+lives on github as:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo
 .Ed
 .Pp
-The latest release of libxo is available at:
+The latest release of
+.Nm libxo
+is available at:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo/releases
 .Ed
@@ -62,7 +73,8 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_emit 3
 .Sh HISTORY
 The
-.Fa libxo
-library was added in FreeBSD 11.0.
+.Nm libxo
+library was added in
+.Fx 11.0 .
 .Sh AUTHOR
 Phil Shafer

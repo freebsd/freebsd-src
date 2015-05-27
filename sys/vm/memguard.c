@@ -69,7 +69,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
 static u_int vm_memguard_divisor;
 SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &vm_memguard_divisor,
-    0, "(kmem_size/memguard_divisor) == memguard submap size");     
+    0, "(kmem_size/memguard_divisor) == memguard submap size");
 
 /*
  * Short description (ks_shortdesc) of memory type to monitor.
@@ -89,9 +89,7 @@ memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	mtx_lock(&malloc_mtx);
-	/*
-	 * If mtp is NULL, it will be initialized in memguard_cmp().
-	 */
+	/* If mtp is NULL, it will be initialized in memguard_cmp() */
 	vm_memguard_mtype = malloc_desc2type(desc);
 	strlcpy(vm_memguard_desc, desc, sizeof(vm_memguard_desc));
 	mtx_unlock(&malloc_mtx);
@@ -164,6 +162,7 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 	u_long mem_pgs, parent_size;
 
 	vm_memguard_divisor = 10;
+	/* CTFLAG_RDTUN doesn't work during the early boot process. */
 	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
 
 	parent_size = vm_map_max(parent_map) - vm_map_min(parent_map) +
@@ -502,7 +501,7 @@ int
 memguard_cmp_zone(uma_zone_t zone)
 {
 
-	 if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
+	if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
 	    zone->uz_flags & UMA_ZONE_NOFREE)
 		return (0);
 

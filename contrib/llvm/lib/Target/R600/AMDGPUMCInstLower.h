@@ -8,21 +8,22 @@
 /// \file
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPU_MCINSTLOWER_H
-#define AMDGPU_MCINSTLOWER_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUMCINSTLOWER_H
+#define LLVM_LIB_TARGET_R600_AMDGPUMCINSTLOWER_H
 
 namespace llvm {
 
-class MCInst;
-class MCContext;
+class AMDGPUSubtarget;
 class MachineInstr;
+class MCContext;
+class MCInst;
 
 class AMDGPUMCInstLower {
-
   MCContext &Ctx;
+  const AMDGPUSubtarget &ST;
 
 public:
-  AMDGPUMCInstLower(MCContext &ctx);
+  AMDGPUMCInstLower(MCContext &ctx, const AMDGPUSubtarget &ST);
 
   /// \brief Lower a MachineInstr to an MCInst
   void lower(const MachineInstr *MI, MCInst &OutMI) const;
@@ -31,4 +32,4 @@ public:
 
 } // End namespace llvm
 
-#endif //AMDGPU_MCINSTLOWER_H
+#endif

@@ -6,13 +6,12 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
 TESTSDIR=	${TESTSBASE}/lib/msun
 
-.if ${MACHINE} == "sparc" || ${MACHINE} == "i386" \
-	|| ${MACHINE} == "amd64" || ${MACHINE_CPU} == "arm"	\
-	|| ${MACHINE} == "sparc64"
+# All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
-.endif
 
-.if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
+# Not sure why this isn't defined for all architectures, since most
+# have long double.
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-D__HAVE_LONG_DOUBLE
 .endif
 
@@ -41,8 +40,7 @@ NETBSD_ATF_TESTS_C+=	tanh_test
 
 CSTD=		c99
 
-LDADD+=		-lm
-DPADD+=		${LIBM}
+LIBADD+=	m
 #COPTS+=	-Wfloat-equal
 
 # Copied from lib/msun/Makefile

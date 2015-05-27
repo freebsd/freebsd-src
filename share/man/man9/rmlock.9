@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd June 25, 2013
+.Dd December 13, 2014
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -156,6 +156,15 @@ Allow threads to recursively acquire shared locks for
 .Fa rm .
 .It Dv RM_SLEEPABLE
 Create a sleepable read-mostly lock.
+.It Dv RM_NEW
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
+.Fn rm_init_flags
+will assert that the
+.Fa rm
+has not been initialized multiple times without intervening calls to
+.Fn rm_destroy
+unless this option is specified.
 .El
 .It Fn rm_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 Lock
@@ -280,8 +289,8 @@ Assert that the current thread does not hold a recursive lock of
 .Xr mutex 9 ,
 .Xr panic 9 ,
 .Xr rwlock 9 ,
-.Xr sleep 9 ,
 .Xr sema 9 ,
+.Xr sleep 9 ,
 .Xr sx 9
 .Sh HISTORY
 These

@@ -27,7 +27,7 @@
 .\"
 .\" Support for miscellaneous binary image activators
 .\"
-.Dd April 10, 2014
+.Dd December 30, 2014
 .Dt BINMISCCTL 8
 .Os
 .Sh NAME
@@ -146,46 +146,159 @@ Look up and print out the activator entry identified with
 Take a snapshot and print all the activator entries currently configured.
 .El
 .Sh EXAMPLES
+Add an image activator to run the LLVM interpreter (lli) on bitcode
+compiled files:
 .Bd -ragged -offset indent
 # binmiscctl add llvmbc --interpreter ''/usr/bin/lli --fake-argv0=#a''
 --magic ''BC\\xc0\\xde'' --size 4 --set-enabled
 .Ed
 .Pp
-Add an image activator to run the LLVM interpreter (lli) on bitcode
-compiled files.
 .Ar #a
-gets replaced with the old
+is replaced with the old
 .Dv argv0
 value so that 'lli' can fake its
 .Dv argv0 .
 Set its state to enabled.
 .Pp
+Set the state of the
+.Ar llvmbc
+image activator to disabled:
 .Dl # binmiscctl disable llvmbc
 .Pp
 Set the state of the
 .Ar llvmbc
-image activator to disabled.
-.Pp
+image activator to enabled:
 .Dl # binmiscctl enable llvmbc
-.Pp
-Set the state of the
-.Ar llvmbc
-image activator to enabled.
-.Pp
-.Dl # binmiscctl remove llvmbc
 .Pp
 Delete the
 .Ar llvmbc
-image activator.
-.Pp
-.Dl # binmiscctl lookup llvmbc
+image activator:
+.Dl # binmiscctl remove llvmbc
 .Pp
 Look up and list the record for the
 .Ar llvmbc
-image activator.
+image activator:
+.Dl # binmiscctl lookup llvmbc
+.Pp
+Add QEMU bsd-user program as an image activator for ARM AARCH64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add arm64 \e
+  --interpreter "/usr/local/bin/qemu-aarch64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex01\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\exb7\ex00" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for ARM little-endian binaries:
+.Bd -literal -offset indent
+# binmiscctl add armelf \e
+  --interpreter "/usr/local/bin/qemu-arm-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex01\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex28\ex00" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for ARM big-endian binaries:
+.Bd -literal -offset indent
+# binmiscctl add armebelf \e
+  --interpreter "/usr/local/bin/qemu-arm-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex28" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for MIPS32 binaries:
+.Bd -literal -offset indent
+# binmiscctl add mips32 \e
+  --interpreter "/usr/local/bin/qemu-mips-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex08" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for MIPS64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add mips64 \e
+  --interpreter "/usr/local/bin/qemu-mips64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex08" \e
+  --mask "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+          \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for PowerPC binaries:
+.Bd -literal -offset indent
+# binmiscctl add powerpc \e
+  --interpreter "/usr/local/bin/qemu-ppc-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex14" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for PowerPC64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add powerpc64 \e
+  --interpreter "/usr/local/bin/qemu-ppc64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex15" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for SPARC64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add sparc64 \e
+  --interpreter "/usr/local/bin/qemu-sparc64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex2b" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+.Ss "Create and use an ARMv6 chroot on an AMD64 host"
+Use an existing source tree to build a chroot host with architecture
+overrides:
+.Bd -literal
+D=/path/to/chroot
+cd /usr/src
+mkdir -p $D
+make world TARGET=arm TARGET_ARCH=armv6 DESTDIR=$D
+make distribution TARGET=arm TARGET_ARCH=armv6 DESTDIR=$D
+.Ed
+.Pp
+With
+.Pa emulators/qemu-user-static
+from the
+.Fx
+Ports Collection, the emulator must be copied into the jail path
+specified in the binmiscctl command.
+Using the example above:
+.Bd -literal
+mkdir $D/usr/local/bin
+cp /usr/local/bin/qemu-arm-static $D/usr/local/bin
+.Ed
+.Pp
+Now the user can chroot into the environment normally, as root:
+.Bd -literal
+chroot $D
+.Ed
 .Sh SEE ALSO
 .Xr lli 1 ,
-.Xr execve 2
+.Xr execve 2 ,
+.Xr jail 8
 .Sh HISTORY
 The
 .Cm binmiscctl

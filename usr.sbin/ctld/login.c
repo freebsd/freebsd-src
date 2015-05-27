@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -127,17 +125,17 @@ login_receive(struct connection *conn, bool initial)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-min 0x%x", bhslr->bhslr_version_min);
 	}
-	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhslr->bhslr_cmdsn), conn->conn_cmdsn)) {
 		login_send_error(request, 0x02, 0x05);
 		log_errx(1, "received Login PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn,
+		    "was %u, is %u", conn->conn_cmdsn,
 		    ntohl(bhslr->bhslr_cmdsn));
 	}
 	if (initial == false &&
 	    ntohl(bhslr->bhslr_expstatsn) != conn->conn_statsn) {
 		login_send_error(request, 0x02, 0x05);
 		log_errx(1, "received Login PDU with wrong ExpStatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_expstatsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhslr->bhslr_cmdsn);
@@ -453,7 +451,8 @@ static void
 login_negotiate_key(struct pdu *request, const char *name,
     const char *value, bool skipped_security, struct keys *response_keys)
 {
-	int which, tmp;
+	int which;
+	size_t tmp;
 	struct connection *conn;
 
 	conn = request->pdu_connection;
@@ -552,10 +551,10 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid "
 			    "MaxRecvDataSegmentLength");
 		}
-		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
+		if (tmp > conn->conn_data_segment_limit) {
 			log_debugx("capping MaxRecvDataSegmentLength "
-			    "from %d to %d", tmp, MAX_DATA_SEGMENT_LENGTH);
-			tmp = MAX_DATA_SEGMENT_LENGTH;
+			    "from %zd to %zd", tmp, conn->conn_data_segment_limit);
+			tmp = conn->conn_data_segment_limit;
 		}
 		conn->conn_max_data_segment_length = tmp;
 		keys_add_int(response_keys, name, tmp);
@@ -566,7 +565,7 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid MaxBurstLength");
 		}
 		if (tmp > MAX_BURST_LENGTH) {
-			log_debugx("capping MaxBurstLength from %d to %d",
+			log_debugx("capping MaxBurstLength from %zd to %d",
 			    tmp, MAX_BURST_LENGTH);
 			tmp = MAX_BURST_LENGTH;
 		}
@@ -579,10 +578,10 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid "
 			    "FirstBurstLength");
 		}
-		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping FirstBurstLength from %d to %d",
-			    tmp, MAX_DATA_SEGMENT_LENGTH);
-			tmp = MAX_DATA_SEGMENT_LENGTH;
+		if (tmp > conn->conn_data_segment_limit) {
+			log_debugx("capping FirstBurstLength from %zd to %zd",
+			    tmp, conn->conn_data_segment_limit);
+			tmp = conn->conn_data_segment_limit;
 		}
 		/*
 		 * We don't pass the value to the kernel; it only enforces
@@ -679,6 +678,18 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	struct keys *request_keys, *response_keys;
 	int i;
 	bool redirected, skipped_security;
+
+	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		/*
+		 * Query the kernel for MaxDataSegmentLength it can handle.
+		 * In case of offload, it depends on hardware capabilities.
+		 */
+		assert(conn->conn_target != NULL);
+		kernel_limits(conn->conn_portal->p_portal_group->pg_offload,
+		    &conn->conn_data_segment_limit);
+	} else {
+		conn->conn_data_segment_limit = MAX_DATA_SEGMENT_LENGTH;
+	}
 
 	if (request == NULL) {
 		log_debugx("beginning operational parameter negotiation; "
@@ -789,9 +800,6 @@ login(struct connection *conn)
 	}
 	conn->conn_initiator_name = checked_strdup(initiator_name);
 	log_set_peer_name(conn->conn_initiator_name);
-	/*
-	 * XXX: This doesn't work (does nothing) because of Capsicum.
-	 */
 	setproctitle("%s (%s)", conn->conn_initiator_addr, conn->conn_initiator_name);
 
 	redirected = login_portal_redirect(conn, request);
@@ -827,19 +835,22 @@ login(struct connection *conn)
 			log_errx(1, "received Login PDU without TargetName");
 		}
 
-		conn->conn_target = target_find(pg->pg_conf, target_name);
-		if (conn->conn_target == NULL) {
+		conn->conn_port = port_find_in_pg(pg, target_name);
+		if (conn->conn_port == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
 			    target_name);
 		}
+		conn->conn_target = conn->conn_port->p_target;
 	}
 
 	/*
 	 * At this point we know what kind of authentication we need.
 	 */
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		ag = conn->conn_target->t_auth_group;
+		ag = conn->conn_port->p_auth_group;
+		if (ag == NULL)
+			ag = conn->conn_target->t_auth_group;
 		if (ag->ag_name != NULL) {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; auth-group \"%s\"",

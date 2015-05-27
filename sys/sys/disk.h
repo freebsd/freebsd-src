@@ -131,6 +131,7 @@ struct diocgattr_arg {
 	union {
 		char str[DISK_IDENT_SIZE];
 		off_t off;
+		int i;
 	} value;
 };
 #define	DIOCGATTR _IOWR('d', 142, struct diocgattr_arg)

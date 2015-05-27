@@ -22,6 +22,7 @@ bool opt_stdout = false;
 bool opt_force = false;
 bool opt_keep_original = false;
 bool opt_robot = false;
+bool opt_ignore_check = false;
 
 // We don't modify or free() this, but we need to assign it in some
 // non-const pointers.
@@ -55,6 +56,67 @@ parse_memlimit(const char *name, const char *name_percentage, char *str,
 
 
 static void
+parse_block_list(char *str)
+{
+	// It must be non-empty and not begin with a comma.
+	if (str[0] == '\0' || str[0] == ',')
+		message_fatal(_("%s: Invalid argument to --block-list"), str);
+
+	// Count the number of comma-separated strings.
+	size_t count = 1;
+	for (size_t i = 0; str[i] != '\0'; ++i)
+		if (str[i] == ',')
+			++count;
+
+	// Prevent an unlikely integer overflow.
+	if (count > SIZE_MAX / sizeof(uint64_t) - 1)
+		message_fatal(_("%s: Too many arguments to --block-list"),
+				str);
+
+	// Allocate memory to hold all the sizes specified.
+	// If --block-list was specified already, its value is forgotten.
+	free(opt_block_list);
+	opt_block_list = xmalloc((count + 1) * sizeof(uint64_t));
+
+	for (size_t i = 0; i < count; ++i) {
+		// Locate the next comma and replace it with \0.
+		char *p = strchr(str, ',');
+		if (p != NULL)
+			*p = '\0';
+
+		if (str[0] == '\0') {
+			// There is no string, that is, a comma follows
+			// another comma. Use the previous value.
+			//
+			// NOTE: We checked earler that the first char
+			// of the whole list cannot be a comma.
+			assert(i > 0);
+			opt_block_list[i] = opt_block_list[i - 1];
+		} else {
+			opt_block_list[i] = str_to_uint64("block-list", str,
+					0, UINT64_MAX);
+
+			// Zero indicates no more new Blocks.
+			if (opt_block_list[i] == 0) {
+				if (i + 1 != count)
+					message_fatal(_("0 can only be used "
+							"as the last element "
+							"in --block-list"));
+
+				opt_block_list[i] = UINT64_MAX;
+			}
+		}
+
+		str = p + 1;
+	}
+
+	// Terminate the array.
+	opt_block_list[count] = 0;
+	return;
+}
+
+
+static void
 parse_real(args_info *args, int argc, char **argv)
 {
 	enum {
@@ -68,14 +130,19 @@ parse_real(args_info *args, int argc, char **argv)
 		OPT_LZMA1,
 		OPT_LZMA2,
 
+		OPT_SINGLE_STREAM,
 		OPT_NO_SPARSE,
 		OPT_FILES,
 		OPT_FILES0,
+		OPT_BLOCK_SIZE,
+		OPT_BLOCK_LIST,
 		OPT_MEM_COMPRESS,
 		OPT_MEM_DECOMPRESS,
 		OPT_NO_ADJUST,
 		OPT_INFO_MEMORY,
 		OPT_ROBOT,
+		OPT_FLUSH_TIMEOUT,
+		OPT_IGNORE_CHECK,
 	};
 
 	static const char short_opts[]
@@ -94,6 +161,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "force",        no_argument,       NULL,  'f' },
 		{ "stdout",       no_argument,       NULL,  'c' },
 		{ "to-stdout",    no_argument,       NULL,  'c' },
+		{ "single-stream", no_argument,      NULL,  OPT_SINGLE_STREAM },
 		{ "no-sparse",    no_argument,       NULL,  OPT_NO_SPARSE },
 		{ "suffix",       required_argument, NULL,  'S' },
 		// { "recursive",      no_argument,       NULL,  'r' }, // TODO
@@ -103,12 +171,16 @@ parse_real(args_info *args, int argc, char **argv)
 		// Basic compression settings
 		{ "format",       required_argument, NULL,  'F' },
 		{ "check",        required_argument, NULL,  'C' },
+		{ "ignore-check", no_argument,       NULL,  OPT_IGNORE_CHECK },
+		{ "block-size",   required_argument, NULL,  OPT_BLOCK_SIZE },
+		{ "block-list",  required_argument, NULL,  OPT_BLOCK_LIST },
 		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
 		{ "memlimit-decompress", required_argument, NULL, OPT_MEM_DECOMPRESS },
 		{ "memlimit",     required_argument, NULL,  'M' },
 		{ "memory",       required_argument, NULL,  'M' }, // Old alias
 		{ "no-adjust",    no_argument,       NULL,  OPT_NO_ADJUST },
 		{ "threads",      required_argument, NULL,  'T' },
+		{ "flush-timeout", required_argument, NULL, OPT_FLUSH_TIMEOUT },
 
 		{ "extreme",      no_argument,       NULL,  'e' },
 		{ "fast",         no_argument,       NULL,  '0' },
@@ -175,8 +247,9 @@ parse_real(args_info *args, int argc, char **argv)
 			break;
 
 		case 'T':
-			hardware_threadlimit_set(str_to_uint64(
-					"threads", optarg, 0, UINT32_MAX));
+			// The max is from src/liblzma/common/common.h.
+			hardware_threads_set(str_to_uint64("threads",
+					optarg, 0, 16384));
 			break;
 
 		// --version
@@ -368,6 +441,24 @@ parse_real(args_info *args, int argc, char **argv)
 			break;
 		}
 
+		case OPT_IGNORE_CHECK:
+			opt_ignore_check = true;
+			break;
+
+		case OPT_BLOCK_SIZE:
+			opt_block_size = str_to_uint64("block-size", optarg,
+					0, LZMA_VLI_MAX);
+			break;
+
+		case OPT_BLOCK_LIST: {
+			parse_block_list(optarg);
+			break;
+		}
+
+		case OPT_SINGLE_STREAM:
+			opt_single_stream = true;
+			break;
+
 		case OPT_NO_SPARSE:
 			io_no_sparse();
 			break;
@@ -399,6 +490,11 @@ parse_real(args_info *args, int argc, char **argv)
 
 		case OPT_NO_ADJUST:
 			opt_auto_adjust = false;
+			break;
+
+		case OPT_FLUSH_TIMEOUT:
+			opt_flush_timeout = str_to_uint64("flush-timeout",
+					optarg, 0, UINT64_MAX);
 			break;
 
 		default:
@@ -576,3 +672,13 @@ args_parse(args_info *args, int argc, char **argv)
 
 	return;
 }
+
+
+#ifndef NDEBUG
+extern void
+args_free(void)
+{
+	free(opt_block_list);
+	return;
+}
+#endif

@@ -169,12 +169,15 @@ g_dev_destroy(void *arg, int flags __unused)
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_dev_softc *sc;
+	char buf[SPECNAMELEN + 6];
 
 	g_topology_assert();
 	cp = arg;
 	gp = cp->geom;
 	sc = cp->private;
 	g_trace(G_T_TOPOLOGY, "g_dev_destroy(%p(%s))", cp, gp->name);
+	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
+	devctl_notify_f("GEOM", "DEV", "DESTROY", buf, M_WAITOK);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	g_detach(cp);
@@ -209,10 +212,13 @@ g_dev_attrchanged(struct g_consumer *cp, const char *attr)
 		dev = sc->sc_dev;
 		snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
 		devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
+		devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
 		dev = sc->sc_alias;
 		if (dev != NULL) {
 			snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
 			devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf,
+			    M_WAITOK);
+			devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf,
 			    M_WAITOK);
 		}
 		return;
@@ -269,7 +275,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct g_dev_softc *sc;
 	int error, len;
 	struct cdev *dev, *adev;
-	char buf[64], *val;
+	char buf[SPECNAMELEN + 6], *val;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -326,6 +332,8 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	}
 
 	g_dev_attrchanged(cp, "GEOM::physpath");
+	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
+	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
 
 	return (gp);
 }
@@ -564,7 +572,7 @@ g_dev_done(struct bio *bp2)
 	}
 	mtx_unlock(&sc->sc_mtx);
 	if (destroy)
-		g_post_event(g_dev_destroy, cp, M_WAITOK, NULL);
+		g_post_event(g_dev_destroy, cp, M_NOWAIT, NULL);
 	biodone(bp);
 }
 

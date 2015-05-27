@@ -342,7 +342,7 @@ ppc970_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -445,7 +445,7 @@ ppc970_read_pmc(int cpu, int ri, pmc_value_t *v)
 		ri));
 
 	tmp = ppc970_pmcn_read(ri);
-	PMCDBG(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
+	PMCDBG2(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = POWERPC_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
 	else
@@ -469,7 +469,7 @@ ppc970_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = POWERPC_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 	
-	PMCDBG(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	ppc970_pmcn_write(ri, v);
 
@@ -481,14 +481,13 @@ ppc970_intr(int cpu, struct trapframe *tf)
 {
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
-	pmc_value_t v;
 	uint32_t config;
 	int i, error, retval;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	retval = 0;
@@ -503,8 +502,7 @@ ppc970_intr(int cpu, struct trapframe *tf)
 	 * If found, we call a helper to process the interrupt.
 	 */
 
-	config  = mfspr(SPR_970MMCR0);
-	mtspr(SPR_970MMCR0, config | SPR_MMCR0_FC);
+	config  = mfspr(SPR_970MMCR0) & ~SPR_MMCR0_FC;
 	for (i = 0; i < PPC970_MAX_PMCS; i++) {
 		if ((pm = pac->pc_ppcpmcs[i].phw_pmc) == NULL ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
@@ -519,24 +517,21 @@ ppc970_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		/* Stop the PMC, reload count. */
-		v       = pm->pm_sc.pm_reloadcount;
-
-		ppc970_pmcn_write(i, v);
-
-		/* Restart the counter if logging succeeded. */
 		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
-		mtspr(SPR_970MMCR0, config);
 		if (error != 0)
 			ppc970_stop_pmc(cpu, i);
-		atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-				&pmc_stats.pm_intr_ignored, 1);
 
+		/* reload sampling count. */
+		ppc970_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
 	}
 
+	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
+	    &pmc_stats.pm_intr_ignored, 1);
+
 	/* Re-enable PERF exceptions. */
-	mtspr(SPR_970MMCR0, mfspr(SPR_970MMCR0) | SPR_MMCR0_PMXE);
+	if (retval)
+		mtspr(SPR_970MMCR0, config | SPR_MMCR0_PMXE);
 
 	return (retval);
 }
@@ -551,7 +546,7 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] wrong cpu number %d", __LINE__, cpu));
-	PMCDBG(MDP,INI,1,"powerpc-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"powerpc-init cpu=%d", cpu);
 
 	powerpc_pcpu[cpu] = pac = malloc(sizeof(struct powerpc_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
@@ -560,7 +555,7 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 	pac->pc_class = PMC_CLASS_PPC970;
 
 	pc = pmc_pcpu[cpu];
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC970].pcd_ri;
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC].pcd_ri;
 	KASSERT(pc != NULL, ("[powerpc,%d] NULL per-cpu pointer", __LINE__));
 
 	for (i = 0, phw = pac->pc_ppcpmcs; i < PPC970_MAX_PMCS; i++, phw++) {
@@ -572,10 +567,10 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
 	/* 970 PMC is not counted when set to 0x08 */
-	mtspr(SPR_970MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE | SPR_MMCR0_PMC1CE |
-	    SPR_MMCR0_PMCNCE | SPR_970MMCR0_PMC1SEL(0x8) | SPR_970MMCR0_PMC2SEL(0x8));
+	mtspr(SPR_970MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
+	    SPR_MMCR0_FCECE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE |
+	    SPR_970MMCR0_PMC1SEL(0x8) | SPR_970MMCR0_PMC2SEL(0x8));
 	mtspr(SPR_970MMCR1, 0x4218420);
-	mtmsr(mfmsr() | PSL_PMM);
 
 	return 0;
 }
@@ -585,7 +580,6 @@ ppc970_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
 	register_t mmcr0 = mfspr(SPR_MMCR0);
 
-	mtmsr(mfmsr() & ~PSL_PMM);
 	mmcr0 |= SPR_MMCR0_FC;
 	mmcr0 &= ~SPR_MMCR0_PMXE;
 	mtspr(SPR_MMCR0, mmcr0);
@@ -638,7 +632,7 @@ ppc970_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_powerpc.pm_powerpc_evsel = config;
 
-	PMCDBG(MDP,ALL,2,"powerpc-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP,ALL,2,"powerpc-allocate ri=%d -> config=0x%x", ri, config);
 
 	return 0;
 }
@@ -667,7 +661,7 @@ pmc_ppc970_initialize(struct pmc_mdep *pmc_mdep)
 	
 	pmc_mdep->pmd_cputype = PMC_CPU_PPC_970;
 
-	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC970];
+	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC];
 	pcd->pcd_caps  = POWERPC_PMC_CAPS;
 	pcd->pcd_class = PMC_CLASS_PPC970;
 	pcd->pcd_num   = PPC970_MAX_PMCS;

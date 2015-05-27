@@ -305,14 +305,14 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-	cpu_setup("");
+	cpu_setup();
 
 	/*
 	 * Fetch the SDRAM start/size from the i80321 SDRAM configration
 	 * registers.
 	 */
 	i80321_calibrate_delay();
-	i80321_sdram_bounds(&obio_bs_tag, IQ80321_80321_VBASE + VERDE_MCU_BASE,
+	i80321_sdram_bounds(obio_bs_tag, IQ80321_80321_VBASE + VERDE_MCU_BASE,
 	    &memstart, &memsize);
 	physmem = memsize / PAGE_SIZE;
 	cninit();

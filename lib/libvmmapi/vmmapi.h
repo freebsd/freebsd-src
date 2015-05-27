@@ -32,6 +32,12 @@
 #include <sys/param.h>
 #include <sys/cpuset.h>
 
+/*
+ * API version for out-of-tree consumers like grub-bhyve for making compile
+ * time decisions.
+ */
+#define	VMMAPI_VERSION	0101	/* 2 digit major followed by 2 digit minor */
+
 struct iovec;
 struct vmctx;
 enum x2apic_state;
@@ -57,6 +63,8 @@ int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len,
 int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
+int	vm_gla2gpa(struct vmctx *, int vcpuid, struct vm_guest_paging *paging,
+		   uint64_t gla, int prot, uint64_t *gpa, int *fault);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
@@ -70,13 +78,12 @@ int	vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg,
 			struct seg_desc *seg_desc);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
-int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
-	       struct vm_exit *ret_vmexit);
+int	vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *ret_vmexit);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
-int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
-int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
+int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vector,
+    int errcode_valid, uint32_t errcode, int restart_instruction);
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
 int	vm_lapic_local_irq(struct vmctx *ctx, int vcpu, int vector);
 int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);
@@ -124,14 +131,27 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 /*
  * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
  * The 'iovcnt' should be big enough to accomodate all GPA segments.
- * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
+ *
+ * retval	fault		Interpretation
+ *   0		  0		Success
+ *   0		  1		An exception was injected into the guest
+ * EFAULT	 N/A		Error
  */
 int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
-	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
+	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
+	    int *fault);
 void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 	    struct iovec *guest_iov, size_t len);
+void	vm_copy_teardown(struct vmctx *ctx, int vcpu, struct iovec *iov,
+	    int iovcnt);
+
+/* RTC */
+int	vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value);
+int	vm_rtc_read(struct vmctx *ctx, int offset, uint8_t *retval);
+int	vm_rtc_settime(struct vmctx *ctx, time_t secs);
+int	vm_rtc_gettime(struct vmctx *ctx, time_t *secs);
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);

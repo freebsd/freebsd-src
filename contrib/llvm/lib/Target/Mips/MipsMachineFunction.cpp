@@ -24,10 +24,10 @@ FixGlobalBaseReg("mips-fix-global-base-reg", cl::Hidden, cl::init(true),
                  cl::desc("Always use $gp as the global base register."));
 
 // class MipsCallEntry.
-MipsCallEntry::MipsCallEntry(const StringRef &N) {
+MipsCallEntry::MipsCallEntry(StringRef N) {
 #ifndef NDEBUG
   Name = N;
-  Val = 0;
+  Val = nullptr;
 #endif
 }
 
@@ -65,9 +65,8 @@ MipsFunctionInfo::~MipsFunctionInfo() {
        ++I)
     delete I->getValue();
 
-  for (ValueMap<const GlobalValue *, const MipsCallEntry *>::iterator
-       I = GlobalCallEntries.begin(), E = GlobalCallEntries.end(); I != E; ++I)
-    delete I->second;
+  for (const auto &Entry : GlobalCallEntries)
+    delete Entry.second;
 }
 
 bool MipsFunctionInfo::globalBaseRegSet() const {
@@ -81,13 +80,10 @@ unsigned MipsFunctionInfo::getGlobalBaseReg() {
 
   const MipsSubtarget &ST = MF.getTarget().getSubtarget<MipsSubtarget>();
 
-  const TargetRegisterClass *RC;
-  if (ST.inMips16Mode())
-    RC=(const TargetRegisterClass*)&Mips::CPU16RegsRegClass;
-  else
-    RC = ST.isABI_N64() ?
-      (const TargetRegisterClass*)&Mips::GPR64RegClass :
-      (const TargetRegisterClass*)&Mips::GPR32RegClass;
+  const TargetRegisterClass *RC =
+    ST.inMips16Mode() ? &Mips::CPU16RegsRegClass
+                      : ST.isABI_N64() ? &Mips::GPR64RegClass
+                                       : &Mips::GPR32RegClass;
   return GlobalBaseReg = MF.getRegInfo().createVirtualRegister(RC);
 }
 
@@ -99,8 +95,7 @@ unsigned MipsFunctionInfo::getMips16SPAliasReg() {
   if (Mips16SPAliasReg)
     return Mips16SPAliasReg;
 
-  const TargetRegisterClass *RC;
-  RC=(const TargetRegisterClass*)&Mips::CPU16RegsRegClass;
+  const TargetRegisterClass *RC = &Mips::CPU16RegsRegClass;
   return Mips16SPAliasReg = MF.getRegInfo().createVirtualRegister(RC);
 }
 
@@ -120,7 +115,7 @@ bool MipsFunctionInfo::isEhDataRegFI(int FI) const {
                         || FI == EhDataRegFI[2] || FI == EhDataRegFI[3]);
 }
 
-MachinePointerInfo MipsFunctionInfo::callPtrInfo(const StringRef &Name) {
+MachinePointerInfo MipsFunctionInfo::callPtrInfo(StringRef Name) {
   const MipsCallEntry *&E = ExternalCallEntries[Name];
 
   if (!E)
@@ -136,6 +131,14 @@ MachinePointerInfo MipsFunctionInfo::callPtrInfo(const GlobalValue *Val) {
     E = new MipsCallEntry(Val);
 
   return MachinePointerInfo(E);
+}
+
+int MipsFunctionInfo::getMoveF64ViaSpillFI(const TargetRegisterClass *RC) {
+  if (MoveF64ViaSpillFI == -1) {
+    MoveF64ViaSpillFI = MF.getFrameInfo()->CreateStackObject(
+        RC->getSize(), RC->getAlignment(), false);
+  }
+  return MoveF64ViaSpillFI;
 }
 
 void MipsFunctionInfo::anchor() { }

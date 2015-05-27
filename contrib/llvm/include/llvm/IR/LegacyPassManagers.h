@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_PASSMANAGERS_H
-#define LLVM_PASSMANAGERS_H
+#ifndef LLVM_IR_LEGACYPASSMANAGERS_H
+#define LLVM_IR_LEGACYPASSMANAGERS_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -61,7 +61,7 @@
 //
 // [o] class FunctionPassManager;
 //
-// This is a external interface used by JIT to manage FunctionPasses. This
+// This is a external interface used to manage FunctionPasses. This
 // interface relies on FunctionPassManagerImpl to do all the tasks.
 //
 // [o] class FunctionPassManagerImpl : public ModulePass, PMDataManager,
@@ -101,15 +101,15 @@ namespace llvm {
 
 // enums for debugging strings
 enum PassDebuggingString {
-  EXECUTION_MSG, // "Executing Pass '"
-  MODIFICATION_MSG, // "' Made Modification '"
-  FREEING_MSG, // " Freeing Pass '"
-  ON_BASICBLOCK_MSG, // "'  on BasicBlock '" + PassName + "'...\n"
+  EXECUTION_MSG, // "Executing Pass '" + PassName
+  MODIFICATION_MSG, // "Made Modification '" + PassName
+  FREEING_MSG, // " Freeing Pass '" + PassName
+  ON_BASICBLOCK_MSG, // "' on BasicBlock '" + InstructionName + "'...\n"
   ON_FUNCTION_MSG, // "' on Function '" + FunctionName + "'...\n"
   ON_MODULE_MSG, // "' on Module '" + ModuleName + "'...\n"
-  ON_REGION_MSG, // " 'on Region ...\n'"
-  ON_LOOP_MSG, // " 'on Loop ...\n'"
-  ON_CG_MSG // "' on Call Graph ...\n'"
+  ON_REGION_MSG, // "' on Region '" + Msg + "'...\n'"
+  ON_LOOP_MSG, // "' on Loop '" + Msg + "'...\n'"
+  ON_CG_MSG // "' on Call Graph Nodes '" + Msg + "'...\n'"
 };
 
 /// PassManagerPrettyStackEntry - This is used to print informative information
@@ -120,14 +120,14 @@ class PassManagerPrettyStackEntry : public PrettyStackTraceEntry {
   Module *M;
 public:
   explicit PassManagerPrettyStackEntry(Pass *p)
-    : P(p), V(0), M(0) {}  // When P is releaseMemory'd.
+    : P(p), V(nullptr), M(nullptr) {}  // When P is releaseMemory'd.
   PassManagerPrettyStackEntry(Pass *p, Value &v)
-    : P(p), V(&v), M(0) {} // When P is run on V
+    : P(p), V(&v), M(nullptr) {} // When P is run on V
   PassManagerPrettyStackEntry(Pass *p, Module &m)
-    : P(p), V(0), M(&m) {} // When P is run on M
+    : P(p), V(nullptr), M(&m) {} // When P is run on M
 
   /// print - Emit information about this stack frame to OS.
-  virtual void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS) const override;
 };
 
 
@@ -195,6 +195,9 @@ public:
   /// then return NULL.
   Pass *findAnalysisPass(AnalysisID AID);
 
+  /// Retrieve the PassInfo for an analysis.
+  const PassInfo *findAnalysisPassInfo(AnalysisID AID) const;
+
   /// Find analysis usage information for the pass P.
   AnalysisUsage *findAnalysisUsage(Pass *P);
 
@@ -248,9 +251,15 @@ private:
   DenseMap<Pass *, SmallPtrSet<Pass *, 8> > InversedLastUser;
 
   /// Immutable passes are managed by top level manager.
-  SmallVector<ImmutablePass *, 8> ImmutablePasses;
+  SmallVector<ImmutablePass *, 16> ImmutablePasses;
 
   DenseMap<Pass *, AnalysisUsage *> AnUsageMap;
+
+  /// Collection of PassInfo objects found via analysis IDs and in this top
+  /// level manager. This is used to memoize queries to the pass registry.
+  /// FIXME: This is an egregious hack because querying the pass registry is
+  /// either slow or racy.
+  mutable DenseMap<AnalysisID, const PassInfo *> AnalysisPassInfos;
 };
 
 
@@ -263,7 +272,7 @@ private:
 class PMDataManager {
 public:
 
-  explicit PMDataManager() : TPM(NULL), Depth(0) {
+  explicit PMDataManager() : TPM(nullptr), Depth(0) {
     initializeAnalysisInfo();
   }
 
@@ -303,7 +312,7 @@ public:
   void initializeAnalysisInfo() {
     AvailableAnalysis.clear();
     for (unsigned i = 0; i < PMT_Last; ++i)
-      InheritedAnalysis[i] = NULL;
+      InheritedAnalysis[i] = nullptr;
   }
 
   // Return true if P preserves high level analysis used by other
@@ -393,7 +402,7 @@ private:
 
   // Collection of higher level analysis used by the pass managed by
   // this manager.
-  SmallVector<Pass *, 8> HigherLevelAnalysis;
+  SmallVector<Pass *, 16> HigherLevelAnalysis;
 
   unsigned Depth;
 };
@@ -414,7 +423,7 @@ public:
   /// run - Execute all of the passes scheduled for execution.  Keep track of
   /// whether any of the passes modifies the module, and if so, return true.
   bool runOnFunction(Function &F);
-  bool runOnModule(Module &M);
+  bool runOnModule(Module &M) override;
 
   /// cleanup - After running all passes, clean up pass manager cache.
   void cleanup();
@@ -426,7 +435,7 @@ public:
 
   /// doInitialization - Run all of the initializers for the function passes.
   ///
-  bool doInitialization(Module &M);
+  bool doInitialization(Module &M) override;
 
   /// doFinalization - Overrides ModulePass doFinalization for global
   /// finalization tasks
@@ -435,20 +444,20 @@ public:
   
   /// doFinalization - Run all of the finalizers for the function passes.
   ///
-  bool doFinalization(Module &M);
+  bool doFinalization(Module &M) override;
 
-  virtual PMDataManager *getAsPMDataManager() { return this; }
-  virtual Pass *getAsPass() { return this; }
+  PMDataManager *getAsPMDataManager() override { return this; }
+  Pass *getAsPass() override { return this; }
 
   /// Pass Manager itself does not invalidate any analysis info.
-  void getAnalysisUsage(AnalysisUsage &Info) const {
+  void getAnalysisUsage(AnalysisUsage &Info) const override {
     Info.setPreservesAll();
   }
 
   // Print passes managed by this manager
-  void dumpPassStructure(unsigned Offset);
+  void dumpPassStructure(unsigned Offset) override;
 
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "Function Pass Manager";
   }
 
@@ -458,7 +467,7 @@ public:
     return FP;
   }
 
-  virtual PassManagerType getPassManagerType() const {
+  PassManagerType getPassManagerType() const override {
     return PMT_FunctionPassManager;
   }
 };

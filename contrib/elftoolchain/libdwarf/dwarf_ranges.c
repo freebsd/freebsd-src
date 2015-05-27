@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_ranges.c 2075 2011-10-27 03:47:28Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_ranges.c 3029 2014-04-21 23:26:02Z kaiwang27 $");
 
 static int
 _dwarf_get_ranges(Dwarf_Debug dbg, Dwarf_CU cu, Dwarf_Off off,
@@ -63,7 +63,7 @@ dwarf_get_ranges(Dwarf_Debug dbg, Dwarf_Off offset, Dwarf_Ranges **ranges,
 	}
 
 	if (!dbg->dbg_info_loaded) {
-		if (_dwarf_info_load(dbg, 1, error) != DW_DLE_NONE)
+		if (_dwarf_info_load(dbg, 1, 1, error) != DW_DLE_NONE)
 			return (DW_DLV_ERROR);
 	}
 

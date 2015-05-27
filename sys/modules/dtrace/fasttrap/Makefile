@@ -28,5 +28,6 @@ CFLAGS+=	-DSMP
 .include <bsd.kmod.mk>
 
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
+
 CWARNFLAGS+=	-Wno-cast-qual
 CWARNFLAGS+=	-Wno-unused

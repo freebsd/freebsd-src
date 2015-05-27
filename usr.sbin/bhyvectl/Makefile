@@ -7,8 +7,7 @@ SRCS=	bhyvectl.c
 
 MAN=
 
-DPADD=	${LIBVMMAPI} ${LIBUTIL}
-LDADD=	-lvmmapi -lutil
+LIBADD=	vmmapi
 
 WARNS?=	3
 

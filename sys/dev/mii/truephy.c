@@ -244,9 +244,7 @@ truephy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, TRUEPHY_CTRL,
 		  TRUEPHY_CTRL_DIAG | TRUEPHY_CTRL_RSV1 | TRUEPHY_CTRL_RSV0);
 
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
-
-	for (i = 0; i < N(truephy_dspcode); ++i) {
+	for (i = 0; i < nitems(truephy_dspcode); ++i) {
 		const struct truephy_dsp *dsp = &truephy_dspcode[i];
 
 		PHY_WRITE(sc, TRUEPHY_INDEX, dsp->index);
@@ -255,8 +253,6 @@ truephy_reset(struct mii_softc *sc)
 		PHY_WRITE(sc, TRUEPHY_INDEX, dsp->index);
 		PHY_READ(sc, TRUEPHY_DATA);
 	}
-
-#undef N
 
 	PHY_READ(sc, MII_BMCR);
 	PHY_READ(sc, TRUEPHY_CTRL);

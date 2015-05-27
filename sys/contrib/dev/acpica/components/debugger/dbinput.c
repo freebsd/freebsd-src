@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -969,7 +969,7 @@ AcpiDbCommandDispatch (
 
     case CMD_LOAD:
 
-        Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL);
+        Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL, FALSE);
         break;
 
     case CMD_LOCKS:

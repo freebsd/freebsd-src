@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -917,6 +917,8 @@ int
 AslCompilererror (
     const char              *CompilerMessage)
 {
+
+    Gbl_SyntaxError++;
 
     AslCommonError (ASL_ERROR, ASL_MSG_SYNTAX, Gbl_CurrentLineNumber,
         Gbl_LogicalLineNumber, Gbl_CurrentLineOffset,

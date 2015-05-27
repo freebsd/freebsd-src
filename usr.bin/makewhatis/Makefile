@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=		makewhatis
-DPADD=		${LIBZ}
-LDADD=		-lz
+LIBADD=		z
 SCRIPTS=	makewhatis.local.sh
 MAN=		makewhatis.1 makewhatis.local.8
 SCRIPTSDIR=	/usr/libexec

@@ -13,7 +13,6 @@ DIRDEPS = \
 	kerberos5/lib/libheimbase \
 	kerberos5/lib/libheimipcc \
 	kerberos5/lib/libheimntlm \
-	kerberos5/lib/libheimsqlite \
 	kerberos5/lib/libhx509 \
 	kerberos5/lib/libkdc \
 	kerberos5/lib/libkrb5 \
@@ -25,6 +24,7 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libsqlite3 \
 	lib/libthr \
 	lib/libutil \
 	secure/lib/libcrypto \

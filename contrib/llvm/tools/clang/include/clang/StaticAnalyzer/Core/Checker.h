@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SA_CORE_CHECKER
-#define LLVM_CLANG_SA_CORE_CHECKER
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_CHECKER_H
+#define LLVM_CLANG_STATICANALYZER_CORE_CHECKER_H
 
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -453,14 +453,29 @@ public:
 } // end eval namespace
 
 class CheckerBase : public ProgramPointTag {
+  CheckName Name;
+  friend class ::clang::ento::CheckerManager;
+
 public:
-  StringRef getTagDescription() const;
+  StringRef getTagDescription() const override;
+  CheckName getCheckName() const;
 
   /// See CheckerManager::runCheckersForPrintState.
   virtual void printState(raw_ostream &Out, ProgramStateRef State,
                           const char *NL, const char *Sep) const { }
 };
-  
+
+/// Dump checker name to stream.
+raw_ostream& operator<<(raw_ostream &Out, const CheckerBase &Checker);
+
+/// Tag that can use a checker name as a message provider 
+/// (see SimpleProgramPointTag).
+class CheckerProgramPointTag : public SimpleProgramPointTag {
+public:
+  CheckerProgramPointTag(StringRef CheckerName, StringRef Msg);
+  CheckerProgramPointTag(const CheckerBase *Checker, StringRef Msg);
+};
+
 template <typename CHECK1, typename CHECK2=check::_VoidCheck,
           typename CHECK3=check::_VoidCheck, typename CHECK4=check::_VoidCheck,
           typename CHECK5=check::_VoidCheck, typename CHECK6=check::_VoidCheck,
@@ -511,7 +526,7 @@ template <typename EVENT>
 class EventDispatcher {
   CheckerManager *Mgr;
 public:
-  EventDispatcher() : Mgr(0) { }
+  EventDispatcher() : Mgr(nullptr) { }
 
   template <typename CHECKER>
   static void _register(CHECKER *checker, CheckerManager &mgr) {

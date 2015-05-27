@@ -1088,7 +1088,7 @@ send_reset(struct toepcb *toep)
 	req->cmd = CPL_ABORT_SEND_RST;
 
 	if (tp->t_state == TCPS_SYN_SENT)
-		mbufq_tail(&toep->out_of_order_queue, m); /* defer */
+		(void )mbufq_enqueue(&toep->out_of_order_queue, m); /* defer */
 	else
 		l2t_send(sc, m, toep->tp_l2t);
 }
@@ -1199,7 +1199,7 @@ do_rx_data(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	}
 
 	toep->tp_enqueued += m->m_pkthdr.len;
-	sbappendstream_locked(so_rcv, m);
+	sbappendstream_locked(so_rcv, m, 0);
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(so_rcv);
 

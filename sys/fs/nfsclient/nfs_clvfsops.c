@@ -86,8 +86,8 @@ extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern struct mtx ncl_iod_mutex;
 NFSCLSTATEMUTEX;
 
-MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
-MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
+MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "NFS request header");
+MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "NFS mount struct");
 
 SYSCTL_DECL(_vfs_nfs);
 static int nfs_ip_paranoia = 1;
@@ -100,6 +100,11 @@ SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_INITIAL_DELAY,
 static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
+#ifdef NFS_DEBUG
+int nfs_debug;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0,
+    "Toggle debug flag");
+#endif
 
 static int	nfs_mountroot(struct mount *);
 static void	nfs_sec_name(char *, int *);
@@ -152,7 +157,7 @@ MODULE_DEPEND(nfs, nfslock, 1, 1, 1);
  * will be defined for kernels built without NFS_ROOT, although it
  * isn't used in that case.
  */
-#if !defined(NFS_ROOT) && !defined(NFSCLIENT)
+#if !defined(NFS_ROOT)
 struct nfs_diskless	nfs_diskless = { { { 0 } } };
 struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
 int			nfs_diskless_valid = 0;
@@ -196,16 +201,16 @@ newnfs_iosize(struct nfsmount *nmp)
 	}
 	if (nmp->nm_rsize > maxio || nmp->nm_rsize == 0)
 		nmp->nm_rsize = maxio;
-	if (nmp->nm_rsize > MAXBSIZE)
-		nmp->nm_rsize = MAXBSIZE;
+	if (nmp->nm_rsize > NFS_MAXBSIZE)
+		nmp->nm_rsize = NFS_MAXBSIZE;
 	if (nmp->nm_readdirsize > maxio || nmp->nm_readdirsize == 0)
 		nmp->nm_readdirsize = maxio;
 	if (nmp->nm_readdirsize > nmp->nm_rsize)
 		nmp->nm_readdirsize = nmp->nm_rsize;
 	if (nmp->nm_wsize > maxio || nmp->nm_wsize == 0)
 		nmp->nm_wsize = maxio;
-	if (nmp->nm_wsize > MAXBSIZE)
-		nmp->nm_wsize = MAXBSIZE;
+	if (nmp->nm_wsize > NFS_MAXBSIZE)
+		nmp->nm_wsize = NFS_MAXBSIZE;
 
 	/*
 	 * Calculate the size used for io buffers.  Use the larger
@@ -704,7 +709,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 			while (newnfs_connect(nmp, &nmp->nm_sockreq,
 			    cred, td, 0)) {
 				printf("newnfs_args: retrying connect\n");
-				(void) nfs_catnap(PSOCK, 0, "newnfscon");
+				(void) nfs_catnap(PSOCK, 0, "nfscon");
 			}
 		}
 	} else {
@@ -1063,7 +1068,7 @@ nfs_mount(struct mount *mp)
 		 * greater than NFS_MAXDGRAMDATA, those thread(s) will be
 		 * hung, retrying the RPC(s) forever. Usually these threads
 		 * will be seen doing an uninterruptible sleep on wait channel
-		 * "newnfsreq" (truncated to "newnfsre" by procstat).
+		 * "nfsreq".
 		 */
 		if (args.sotype == SOCK_DGRAM && nmp->nm_sotype == SOCK_STREAM)
 			tprintf(td->td_proc, LOG_WARNING,
@@ -1193,7 +1198,8 @@ nfs_mount(struct mount *mp)
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
-		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_NO_IOPF;
+		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_NO_IOPF |
+		    MNTK_USES_BCACHE;
 		MNT_IUNLOCK(mp);
 	}
 	return (error);
@@ -1318,10 +1324,13 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
-	if (desiredvnodes >= 11000)
-		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
-	else
-		nmp->nm_wcommitsize = hibufspace / 10;
+
+	/* This is empirical approximation of sqrt(hibufspace) * 256. */
+	nmp->nm_wcommitsize = NFS_MAXBSIZE / 256;
+	while ((long)nmp->nm_wcommitsize * nmp->nm_wcommitsize < hibufspace)
+		nmp->nm_wcommitsize *= 2;
+	nmp->nm_wcommitsize *= 256;
+
 	if ((argp->flags & NFSMNT_NFSV4) != 0)
 		nmp->nm_minorvers = minvers;
 	else

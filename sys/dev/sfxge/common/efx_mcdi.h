@@ -231,7 +231,10 @@ efx_mcdi_version(
 			MC_CMD_ ## _field)
 
 #define	MCDI_EV_FIELD(_eqp, _field)					\
-	EFX_QWORD_FIELD(*eqp, MCDI_EVENT_ ## _field)
+	EFX_QWORD_FIELD(*_eqp, MCDI_EVENT_ ## _field)
+
+#define MCDI_CMD_DWORD_FIELD(_edp, _field)				\
+	EFX_DWORD_FIELD(*_edp, MC_CMD_ ## _field)
 
 #ifdef	__cplusplus
 }

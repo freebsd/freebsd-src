@@ -9,9 +9,7 @@ UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound
 PROG=	unbound-checkconf
 SRCS=	unbound-checkconf.c worker_cb.c
 CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR}
-DPADD=	${LIBUNBOUND} ${LIBLDNS} ${LIBUTIL} ${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
-LDADD=	${LDUNBOUND} ${LDLDNS} -lutil -lssl -lcrypto -lpthread
-USEPRIVATELIB=	ldns
+LIBADD=	unbound pthread
 MAN=	unbound-checkconf.8
 
 .include <bsd.prog.mk>

@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2014
+.Dd May 22, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -196,10 +196,16 @@
 .Ic portlist
 .Op Fl f Ar frontend
 .Op Fl i
+.Op Fl l
 .Op Fl p Ar targ_port
 .Op Fl q
 .Op Fl v
 .Op Fl x
+.Nm
+.Ic lunmap
+.Aq Fl p Ar targ_port
+.Op Fl l Ar pLUN
+.Op Fl L Ar cLUN
 .Nm
 .Ic dumpooa
 .Nm
@@ -782,7 +788,9 @@ List CTL frontend ports.
 .It Fl f Ar frontend
 Specify the frontend type.
 .It Fl i
-Report target and connected initiators addresses
+Report target and connected initiators addresses.
+.It Fl l
+Report LUN mapping.
 .It Fl p Ar targ_port
 Specify the frontend port number.
 .It Fl q
@@ -791,6 +799,31 @@ Omit the header in the port list output.
 Enable verbose output (report all port options).
 .It Fl x
 Output the port list in XML format.
+.El
+.It Ic lunmap
+Change LUN mapping for specified port.
+If both
+.Ar pLUN
+and
+.Ar cLUN
+are specified -- LUN will be mapped.
+If
+.Ar pLUN
+is specified, but
+.Ar cLUN
+is not -- LUN will be unmapped.
+If neither
+.Ar pLUN
+nor
+.Ar cLUN
+are specified -- LUN mapping will be disabled, exposing all CTL LUNs.
+.Bl -tag -width 12n
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl l Ar pLUN
+LUN number visible by specified port.
+.It Fl L Ar cLUN
+CTL LUN number.
 .El
 .It Ic dumpooa
 Dump the OOA (Order Of Arrival) queue for each LUN registered with CTL.
@@ -995,6 +1028,20 @@ command sequence order shall be explicitly handled by the application
 client through the selection of appropriate commands and task attributes.
 The default value is "restricted".  It improves data integrity, but may
 introduce some additional delays.
+.It Va serseq
+Set to "on" to serialize conseсutive reads/writes.
+Set to "read" to serialize conseсutive reads.
+Set to "off" to allow them be issued in parallel.
+Parallel issue of consecutive operations may confuse logic of the
+backing file system, hurting performance; but it may improve performance
+of backing stores without prefetch/write-back.
+.It Va pblocksize
+.It Va pblockoffset
+Specify physical block size and offset of the device.
+.It Va ublocksize
+.It Va ublockoffset
+Specify UNMAP block size and offset of the device.
+.It Va rpm
 .It Va rpm
 Specifies medium rotation rate of the device: 0 -- not reported,
 1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.
@@ -1007,10 +1054,11 @@ Set to "on", enables UNMAP support for the LUN, if supported by the backend.
 .It Va used-threshold
 .It Va pool-avail-threshold
 .It Va pool-used-threshold
-Set per-LUN/-pool thin provisioning soft thresholds for ZVOL-backed LUNs.
+Set per-LUN/-pool thin provisioning soft thresholds.
 LUN will establish UNIT ATTENTION condition if its or pool available space
 get below configured avail values, or its or pool used space get above
 configured used values.
+Pool thresholds are working only for ZVOL-backed LUNs.
 .It Va writecache
 Set to "off", disables write caching for the LUN, if supported by the backend.
 .El
@@ -1112,7 +1160,8 @@ This will result in a sense key of NOT READY (0x02), and an ASC/ASCQ of
 .Xr ctl 4 ,
 .Xr xpt 4 ,
 .Xr camcontrol 8 ,
-.Xr ctld 8
+.Xr ctld 8 ,
+.Xr ctlstat 8
 .Sh HISTORY
 The
 .Nm

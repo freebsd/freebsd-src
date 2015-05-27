@@ -49,11 +49,7 @@ static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 {
 
-	/* Chatham puts the NVMe MMRs behind BAR 2/3, not BAR 0/1. */
-	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
-		ctrlr->resource_id = PCIR_BAR(2);
-	else
-		ctrlr->resource_id = PCIR_BAR(0);
+	ctrlr->resource_id = PCIR_BAR(0);
 
 	ctrlr->resource = bus_alloc_resource(ctrlr->dev, SYS_RES_MEMORY,
 	    &ctrlr->resource_id, 0, ~0, 1, RF_ACTIVE);
@@ -80,117 +76,6 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 
 	return (0);
 }
-
-#ifdef CHATHAM2
-static int
-nvme_ctrlr_allocate_chatham_bar(struct nvme_controller *ctrlr)
-{
-
-	ctrlr->chatham_resource_id = PCIR_BAR(CHATHAM_CONTROL_BAR);
-	ctrlr->chatham_resource = bus_alloc_resource(ctrlr->dev,
-	    SYS_RES_MEMORY, &ctrlr->chatham_resource_id, 0, ~0, 1,
-	    RF_ACTIVE);
-
-	if(ctrlr->chatham_resource == NULL) {
-		nvme_printf(ctrlr, "unable to alloc pci resource\n");
-		return (ENOMEM);
-	}
-
-	ctrlr->chatham_bus_tag = rman_get_bustag(ctrlr->chatham_resource);
-	ctrlr->chatham_bus_handle =
-	    rman_get_bushandle(ctrlr->chatham_resource);
-
-	return (0);
-}
-
-static void
-nvme_ctrlr_setup_chatham(struct nvme_controller *ctrlr)
-{
-	uint64_t reg1, reg2, reg3;
-	uint64_t temp1, temp2;
-	uint32_t temp3;
-	uint32_t use_flash_timings = 0;
-
-	DELAY(10000);
-
-	temp3 = chatham_read_4(ctrlr, 0x8080);
-
-	device_printf(ctrlr->dev, "Chatham version: 0x%x\n", temp3);
-
-	ctrlr->chatham_lbas = chatham_read_4(ctrlr, 0x8068) - 0x110;
-	ctrlr->chatham_size = ctrlr->chatham_lbas * 512;
-
-	device_printf(ctrlr->dev, "Chatham size: %jd\n",
-	    (intmax_t)ctrlr->chatham_size);
-
-	reg1 = reg2 = reg3 = ctrlr->chatham_size - 1;
-
-	TUNABLE_INT_FETCH("hw.nvme.use_flash_timings", &use_flash_timings);
-	if (use_flash_timings) {
-		device_printf(ctrlr->dev, "Chatham: using flash timings\n");
-		temp1 = 0x00001b58000007d0LL;
-		temp2 = 0x000000cb00000131LL;
-	} else {
-		device_printf(ctrlr->dev, "Chatham: using DDR timings\n");
-		temp1 = temp2 = 0x0LL;
-	}
-
-	chatham_write_8(ctrlr, 0x8000, reg1);
-	chatham_write_8(ctrlr, 0x8008, reg2);
-	chatham_write_8(ctrlr, 0x8010, reg3);
-
-	chatham_write_8(ctrlr, 0x8020, temp1);
-	temp3 = chatham_read_4(ctrlr, 0x8020);
-
-	chatham_write_8(ctrlr, 0x8028, temp2);
-	temp3 = chatham_read_4(ctrlr, 0x8028);
-
-	chatham_write_8(ctrlr, 0x8030, temp1);
-	chatham_write_8(ctrlr, 0x8038, temp2);
-	chatham_write_8(ctrlr, 0x8040, temp1);
-	chatham_write_8(ctrlr, 0x8048, temp2);
-	chatham_write_8(ctrlr, 0x8050, temp1);
-	chatham_write_8(ctrlr, 0x8058, temp2);
-
-	DELAY(10000);
-}
-
-static void
-nvme_chatham_populate_cdata(struct nvme_controller *ctrlr)
-{
-	struct nvme_controller_data *cdata;
-
-	cdata = &ctrlr->cdata;
-
-	cdata->vid = 0x8086;
-	cdata->ssvid = 0x2011;
-
-	/*
-	 * Chatham2 puts garbage data in these fields when we
-	 *  invoke IDENTIFY_CONTROLLER, so we need to re-zero
-	 *  the fields before calling bcopy().
-	 */
-	memset(cdata->sn, 0, sizeof(cdata->sn));
-	memcpy(cdata->sn, "2012", strlen("2012"));
-	memset(cdata->mn, 0, sizeof(cdata->mn));
-	memcpy(cdata->mn, "CHATHAM2", strlen("CHATHAM2"));
-	memset(cdata->fr, 0, sizeof(cdata->fr));
-	memcpy(cdata->fr, "0", strlen("0"));
-	cdata->rab = 8;
-	cdata->aerl = 3;
-	cdata->lpa.ns_smart = 1;
-	cdata->sqes.min = 6;
-	cdata->sqes.max = 6;
-	cdata->cqes.min = 4;
-	cdata->cqes.max = 4;
-	cdata->nn = 1;
-
-	/* Chatham2 doesn't support DSM command */
-	cdata->oncs.dsm = 0;
-
-	cdata->vwc.present = 1;
-}
-#endif /* CHATHAM2 */
 
 static void
 nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
@@ -460,11 +345,6 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 		nvme_printf(ctrlr, "nvme_identify_controller failed!\n");
 		return (ENXIO);
 	}
-
-#ifdef CHATHAM2
-	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
-		nvme_chatham_populate_cdata(ctrlr);
-#endif
 
 	/*
 	 * Use MDTS to ensure our default max_xfer_size doesn't exceed what the
@@ -779,10 +659,6 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	/* aerl is a zero-based value, so we need to add 1 here. */
 	ctrlr->num_aers = min(NVME_MAX_ASYNC_EVENTS, (ctrlr->cdata.aerl+1));
 
-	/* Chatham doesn't support AERs. */
-	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
-		ctrlr->num_aers = 0;
-
 	for (i = 0; i < ctrlr->num_aers; i++) {
 		aer = &ctrlr->aer[i];
 		nvme_ctrlr_construct_and_submit_aer(ctrlr, aer);
@@ -1034,27 +910,6 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		break;
 	case NVME_PASSTHROUGH_CMD:
 		pt = (struct nvme_pt_command *)arg;
-#ifdef CHATHAM2
-		/*
-		 * Chatham IDENTIFY data is spoofed, so copy the spoofed data
-		 *  rather than issuing the command to the Chatham controller.
-		 */
-		if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID &&
-                    pt->cmd.opc == NVME_OPC_IDENTIFY) {
-			if (pt->cmd.cdw10 == 1) {
-                        	if (pt->len != sizeof(ctrlr->cdata))
-                                	return (EINVAL);
-                        	return (copyout(&ctrlr->cdata, pt->buf,
-				    pt->len));
-			} else {
-				if (pt->len != sizeof(ctrlr->ns[0].data) ||
-				    pt->cmd.nsid != 1)
-					return (EINVAL);
-				return (copyout(&ctrlr->ns[0].data, pt->buf,
-				    pt->len));
-			}
-		}
-#endif
 		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, pt->cmd.nsid,
 		    1 /* is_user_buffer */, 1 /* is_admin_cmd */));
 	default:
@@ -1086,15 +941,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	if (status != 0)
 		return (status);
-
-#ifdef CHATHAM2
-	if (pci_get_devid(dev) == CHATHAM_PCI_ID) {
-		status = nvme_ctrlr_allocate_chatham_bar(ctrlr);
-		if (status != 0)
-			return (status);
-		nvme_ctrlr_setup_chatham(ctrlr);
-	}
-#endif
 
 	/*
 	 * Software emulators may set the doorbell stride to something
@@ -1144,9 +990,17 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	/* One vector per IO queue, plus one vector for admin queue. */
 	num_vectors = ctrlr->num_io_queues + 1;
 
-	if (pci_msix_count(dev) < num_vectors) {
+	/*
+	 * If we cannot even allocate 2 vectors (one for admin, one for
+	 *  I/O), then revert to INTx.
+	 */
+	if (pci_msix_count(dev) < 2) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
+	} else if (pci_msix_count(dev) < num_vectors) {
+		ctrlr->per_cpu_io_queues = FALSE;
+		ctrlr->num_io_queues = 1;
+		num_vectors = 2; /* one for admin, one for I/O */
 	}
 
 	if (pci_alloc_msix(dev, &num_vectors) != 0) {
@@ -1236,14 +1090,8 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	 *   during shutdown).  This ensures the controller receives a
 	 *   shutdown notification in case the system is shutdown before
 	 *   reloading the driver.
-	 *
-	 *  Chatham does not let you re-enable the controller after shutdown
-	 *   notification has been received, so do not send it in this case.
-	 *   This is OK because Chatham does not depend on the shutdown
-	 *   notification anyways.
 	 */
-	if (pci_get_devid(ctrlr->dev) != CHATHAM_PCI_ID)
-		nvme_ctrlr_shutdown(ctrlr);
+	nvme_ctrlr_shutdown(ctrlr);
 
 	nvme_ctrlr_disable(ctrlr);
 	taskqueue_free(ctrlr->taskqueue);
@@ -1271,13 +1119,6 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
 	}
-
-#ifdef CHATHAM2
-	if (ctrlr->chatham_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->chatham_resource_id, ctrlr->chatham_resource);
-	}
-#endif
 
 	if (ctrlr->tag)
 		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);

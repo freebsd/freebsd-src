@@ -61,7 +61,8 @@
  *	count packets that might be missed due to lost interrupts.
  */
 SYSCTL_DECL(_dev_netmap);
-static int ix_rx_miss, ix_rx_miss_bufs, ix_crcstrip;
+static int ix_rx_miss, ix_rx_miss_bufs;
+int ix_crcstrip;
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
     CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss,

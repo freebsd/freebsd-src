@@ -323,29 +323,25 @@ static SYSCTL_NODE(_debug, OID_AUTO, hashstat, CTLFLAG_RW, NULL,
 static int
 sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 {
-	int error;
 	struct nchashhead *ncpp;
 	struct namecache *ncp;
-	int n_nchash;
-	int count;
+	int i, error, n_nchash, *cntbuf;
 
 	n_nchash = nchash + 1;	/* nchash is max index, not count */
-	if (!req->oldptr)
+	if (req->oldptr == NULL)
 		return SYSCTL_OUT(req, 0, n_nchash * sizeof(int));
-
-	/* Scan hash tables for applicable entries */
-	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
-		CACHE_RLOCK();
-		count = 0;
-		LIST_FOREACH(ncp, ncpp, nc_hash) {
-			count++;
-		}
-		CACHE_RUNLOCK();
-		error = SYSCTL_OUT(req, &count, sizeof(count));
-		if (error)
-			return (error);
-	}
-	return (0);
+	cntbuf = malloc(n_nchash * sizeof(int), M_TEMP, M_ZERO | M_WAITOK);
+	CACHE_RLOCK();
+	/* Scan hash tables counting entries */
+	for (ncpp = nchashtbl, i = 0; i < n_nchash; ncpp++, i++)
+		LIST_FOREACH(ncp, ncpp, nc_hash)
+			cntbuf[i]++;
+	CACHE_RUNLOCK();
+	for (error = 0, i = 0; i < n_nchash; i++)
+		if ((error = SYSCTL_OUT(req, &cntbuf[i], sizeof(int))) != 0)
+			break;
+	free(cntbuf, M_TEMP);
+	return (error);
 }
 SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD|
     CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_rawnchash, "S,int",
@@ -363,6 +359,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 	if (!req->oldptr)
 		return SYSCTL_OUT(req, 0, 4 * sizeof(int));
 
+	CACHE_RLOCK();
 	n_nchash = nchash + 1;	/* nchash is max index, not count */
 	used = 0;
 	maxlength = 0;
@@ -370,17 +367,16 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 	/* Scan hash tables for applicable entries */
 	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
 		count = 0;
-		CACHE_RLOCK();
 		LIST_FOREACH(ncp, ncpp, nc_hash) {
 			count++;
 		}
-		CACHE_RUNLOCK();
 		if (count)
 			used++;
 		if (maxlength < count)
 			maxlength = count;
 	}
 	n_nchash = nchash + 1;
+	CACHE_RUNLOCK();
 	pct = (used * 100) / (n_nchash / 100);
 	error = SYSCTL_OUT(req, &n_nchash, sizeof(n_nchash));
 	if (error)
@@ -1043,14 +1039,6 @@ vfs_cache_lookup(ap)
 	return (error);
 }
 
-
-#ifndef _SYS_SYSPROTO_H_
-struct  __getcwd_args {
-	u_char	*buf;
-	u_int	buflen;
-};
-#endif
-
 /*
  * XXX All of these sysctls would probably be more productive dead.
  */
@@ -1065,11 +1053,13 @@ sys___getcwd(td, uap)
 	struct __getcwd_args *uap;
 {
 
-	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen));
+	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen,
+	    MAXPATHLEN));
 }
 
 int
-kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
+kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
+    u_int path_max)
 {
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
@@ -1080,8 +1070,8 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 		return (ENODEV);
 	if (buflen < 2)
 		return (EINVAL);
-	if (buflen > MAXPATHLEN)
-		buflen = MAXPATHLEN;
+	if (buflen > path_max)
+		buflen = path_max;
 
 	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;

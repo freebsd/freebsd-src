@@ -19,11 +19,53 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
-#include "llvm/TableGen/TableGenBackend.h"
 #include <map>
 
 using namespace llvm;
 using namespace X86Disassembler;
+
+/// stringForContext - Returns a string containing the name of a particular
+///   InstructionContext, usually for diagnostic purposes.
+///
+/// @param insnContext  - The instruction class to transform to a string.
+/// @return           - A statically-allocated string constant that contains the
+///                     name of the instruction class.
+static inline const char* stringForContext(InstructionContext insnContext) {
+  switch (insnContext) {
+  default:
+    llvm_unreachable("Unhandled instruction class");
+#define ENUM_ENTRY(n, r, d)   case n: return #n; break;
+#define ENUM_ENTRY_K_B(n, r, d) ENUM_ENTRY(n, r, d) ENUM_ENTRY(n##_K_B, r, d)\
+        ENUM_ENTRY(n##_KZ, r, d) ENUM_ENTRY(n##_K, r, d) ENUM_ENTRY(n##_B, r, d)\
+        ENUM_ENTRY(n##_KZ_B, r, d)
+  INSTRUCTION_CONTEXTS
+#undef ENUM_ENTRY
+#undef ENUM_ENTRY_K_B
+  }
+}
+
+/// stringForOperandType - Like stringForContext, but for OperandTypes.
+static inline const char* stringForOperandType(OperandType type) {
+  switch (type) {
+  default:
+    llvm_unreachable("Unhandled type");
+#define ENUM_ENTRY(i, d) case i: return #i;
+  TYPES
+#undef ENUM_ENTRY
+  }
+}
+
+/// stringForOperandEncoding - like stringForContext, but for
+///   OperandEncodings.
+static inline const char* stringForOperandEncoding(OperandEncoding encoding) {
+  switch (encoding) {
+  default:
+    llvm_unreachable("Unhandled encoding");
+#define ENUM_ENTRY(i, d) case i: return #i;
+  ENCODINGS
+#undef ENUM_ENTRY
+  }
+}
 
 /// inheritsFrom - Indicates whether all instructions in one class also belong
 ///   to another class.
@@ -33,13 +75,13 @@ using namespace X86Disassembler;
 /// @return       - True if child is a subset of parent, false otherwise.
 static inline bool inheritsFrom(InstructionContext child,
                                 InstructionContext parent,
-                                bool VEX_LIG = false) {
+                                bool VEX_LIG = false, bool AdSize64 = false) {
   if (child == parent)
     return true;
 
   switch (parent) {
   case IC:
-    return(inheritsFrom(child, IC_64BIT) ||
+    return(inheritsFrom(child, IC_64BIT, AdSize64) ||
            inheritsFrom(child, IC_OPSIZE) ||
            inheritsFrom(child, IC_ADSIZE) ||
            inheritsFrom(child, IC_XD) ||
@@ -47,13 +89,19 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_64BIT:
     return(inheritsFrom(child, IC_64BIT_REXW)   ||
            inheritsFrom(child, IC_64BIT_OPSIZE) ||
-           inheritsFrom(child, IC_64BIT_ADSIZE) ||
+           (!AdSize64 && inheritsFrom(child, IC_64BIT_ADSIZE)) ||
            inheritsFrom(child, IC_64BIT_XD)     ||
            inheritsFrom(child, IC_64BIT_XS));
   case IC_OPSIZE:
-    return inheritsFrom(child, IC_64BIT_OPSIZE);
+    return inheritsFrom(child, IC_64BIT_OPSIZE) ||
+           inheritsFrom(child, IC_OPSIZE_ADSIZE);
   case IC_ADSIZE:
+    return inheritsFrom(child, IC_OPSIZE_ADSIZE);
+  case IC_OPSIZE_ADSIZE:
+    return false;
   case IC_64BIT_ADSIZE:
+    return inheritsFrom(child, IC_64BIT_OPSIZE_ADSIZE);
+  case IC_64BIT_OPSIZE_ADSIZE:
     return false;
   case IC_XD:
     return inheritsFrom(child, IC_64BIT_XD);
@@ -66,9 +114,12 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_64BIT_REXW:
     return(inheritsFrom(child, IC_64BIT_REXW_XS) ||
            inheritsFrom(child, IC_64BIT_REXW_XD) ||
-           inheritsFrom(child, IC_64BIT_REXW_OPSIZE));
+           inheritsFrom(child, IC_64BIT_REXW_OPSIZE) ||
+           (!AdSize64 && inheritsFrom(child, IC_64BIT_REXW_ADSIZE)));
   case IC_64BIT_OPSIZE:
-    return(inheritsFrom(child, IC_64BIT_REXW_OPSIZE));
+    return inheritsFrom(child, IC_64BIT_REXW_OPSIZE) ||
+           (!AdSize64 && inheritsFrom(child, IC_64BIT_OPSIZE_ADSIZE)) ||
+           (!AdSize64 && inheritsFrom(child, IC_64BIT_REXW_ADSIZE));
   case IC_64BIT_XD:
     return(inheritsFrom(child, IC_64BIT_REXW_XD));
   case IC_64BIT_XS:
@@ -79,6 +130,7 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_64BIT_REXW_XD:
   case IC_64BIT_REXW_XS:
   case IC_64BIT_REXW_OPSIZE:
+  case IC_64BIT_REXW_ADSIZE:
     return false;
   case IC_VEX:
     return (VEX_LIG && inheritsFrom(child, IC_VEX_L_W)) ||
@@ -129,12 +181,17 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_EVEX_OPSIZE:
     return inheritsFrom(child, IC_EVEX_W_OPSIZE) ||
            inheritsFrom(child, IC_EVEX_L_W_OPSIZE);
+  case IC_EVEX_B:
+    return false;
   case IC_EVEX_W:
   case IC_EVEX_W_XS:
   case IC_EVEX_W_XD:
   case IC_EVEX_W_OPSIZE:
     return false;
   case IC_EVEX_L:
+  case IC_EVEX_L_K_B:
+  case IC_EVEX_L_KZ_B:
+  case IC_EVEX_L_B:
   case IC_EVEX_L_XS:
   case IC_EVEX_L_XD:
   case IC_EVEX_L_OPSIZE:
@@ -163,41 +220,67 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_EVEX_XD_K:
     return inheritsFrom(child, IC_EVEX_W_XD_K) ||
            inheritsFrom(child, IC_EVEX_L_W_XD_K);
+  case IC_EVEX_K_B:
+  case IC_EVEX_KZ:
+    return false;
+  case IC_EVEX_XS_KZ:
+    return inheritsFrom(child, IC_EVEX_W_XS_KZ) ||
+           inheritsFrom(child, IC_EVEX_L_W_XS_KZ);
+  case IC_EVEX_XD_KZ:
+    return inheritsFrom(child, IC_EVEX_W_XD_KZ) ||
+           inheritsFrom(child, IC_EVEX_L_W_XD_KZ);
+  case IC_EVEX_KZ_B:
   case IC_EVEX_OPSIZE_K:
-    return inheritsFrom(child, IC_EVEX_W_OPSIZE_K) ||
-           inheritsFrom(child, IC_EVEX_W_OPSIZE_K);
+  case IC_EVEX_OPSIZE_B:
+  case IC_EVEX_OPSIZE_K_B:
+  case IC_EVEX_OPSIZE_KZ:
+  case IC_EVEX_OPSIZE_KZ_B:
+    return false;
   case IC_EVEX_W_K:
   case IC_EVEX_W_XS_K:
   case IC_EVEX_W_XD_K:
   case IC_EVEX_W_OPSIZE_K:
+  case IC_EVEX_W_OPSIZE_B:
+  case IC_EVEX_W_OPSIZE_K_B:
     return false;
   case IC_EVEX_L_K:
   case IC_EVEX_L_XS_K:
   case IC_EVEX_L_XD_K:
   case IC_EVEX_L_OPSIZE_K:
+  case IC_EVEX_L_OPSIZE_B:
+  case IC_EVEX_L_OPSIZE_K_B:
     return false;
   case IC_EVEX_W_KZ:
   case IC_EVEX_W_XS_KZ:
   case IC_EVEX_W_XD_KZ:
   case IC_EVEX_W_OPSIZE_KZ:
+  case IC_EVEX_W_OPSIZE_KZ_B:
     return false;
   case IC_EVEX_L_KZ:
   case IC_EVEX_L_XS_KZ:
   case IC_EVEX_L_XD_KZ:
   case IC_EVEX_L_OPSIZE_KZ:
+  case IC_EVEX_L_OPSIZE_KZ_B:
     return false;
   case IC_EVEX_L_W_K:
   case IC_EVEX_L_W_XS_K:
   case IC_EVEX_L_W_XD_K:
   case IC_EVEX_L_W_OPSIZE_K:
+  case IC_EVEX_L_W_OPSIZE_B:
+  case IC_EVEX_L_W_OPSIZE_K_B:
   case IC_EVEX_L_W_KZ:
   case IC_EVEX_L_W_XS_KZ:
   case IC_EVEX_L_W_XD_KZ:
   case IC_EVEX_L_W_OPSIZE_KZ:
+  case IC_EVEX_L_W_OPSIZE_KZ_B:
     return false;
   case IC_EVEX_L2_K:
   case IC_EVEX_L2_B:
+  case IC_EVEX_L2_K_B:
+  case IC_EVEX_L2_KZ_B:
   case IC_EVEX_L2_XS_K:
+  case IC_EVEX_L2_XS_B:
+  case IC_EVEX_L2_XD_B:
   case IC_EVEX_L2_XD_K:
   case IC_EVEX_L2_OPSIZE_K:
   case IC_EVEX_L2_OPSIZE_B:
@@ -212,6 +295,7 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_EVEX_L2_W_B:
   case IC_EVEX_L2_W_XS_K:
   case IC_EVEX_L2_W_XD_K:
+  case IC_EVEX_L2_W_XD_B:
   case IC_EVEX_L2_W_OPSIZE_K:
   case IC_EVEX_L2_W_OPSIZE_B:
   case IC_EVEX_L2_W_OPSIZE_K_B:
@@ -222,6 +306,8 @@ static inline bool inheritsFrom(InstructionContext child,
   case IC_EVEX_L2_W_OPSIZE_KZ_B:
     return false;
   default:
+    errs() << "Unknown instruction class: " <<
+      stringForContext((InstructionContext)parent) << "\n";
     llvm_unreachable("Unknown instruction class");
   }
 }
@@ -249,49 +335,6 @@ static inline bool outranks(InstructionContext upper,
 #undef ENUM_ENTRY_K_B
 
   return (ranks[upper] > ranks[lower]);
-}
-
-/// stringForContext - Returns a string containing the name of a particular
-///   InstructionContext, usually for diagnostic purposes.
-///
-/// @param insnContext  - The instruction class to transform to a string.
-/// @return           - A statically-allocated string constant that contains the
-///                     name of the instruction class.
-static inline const char* stringForContext(InstructionContext insnContext) {
-  switch (insnContext) {
-  default:
-    llvm_unreachable("Unhandled instruction class");
-#define ENUM_ENTRY(n, r, d)   case n: return #n; break;
-#define ENUM_ENTRY_K_B(n, r, d) ENUM_ENTRY(n, r, d) ENUM_ENTRY(n##_K_B, r, d)\
-        ENUM_ENTRY(n##_KZ, r, d) ENUM_ENTRY(n##_K, r, d) ENUM_ENTRY(n##_B, r, d)\
-        ENUM_ENTRY(n##_KZ_B, r, d)
-  INSTRUCTION_CONTEXTS
-#undef ENUM_ENTRY
-#undef ENUM_ENTRY_K_B
-  }
-}
-
-/// stringForOperandType - Like stringForContext, but for OperandTypes.
-static inline const char* stringForOperandType(OperandType type) {
-  switch (type) {
-  default:
-    llvm_unreachable("Unhandled type");
-#define ENUM_ENTRY(i, d) case i: return #i;
-  TYPES
-#undef ENUM_ENTRY
-  }
-}
-
-/// stringForOperandEncoding - like stringForContext, but for
-///   OperandEncodings.
-static inline const char* stringForOperandEncoding(OperandEncoding encoding) {
-  switch (encoding) {
-  default:
-    llvm_unreachable("Unhandled encoding");
-#define ENUM_ENTRY(i, d) case i: return #i;
-  ENCODINGS
-#undef ENUM_ENTRY
-  }
 }
 
 /// getDecisionType - Determines whether a ModRM decision with 255 entries can
@@ -353,22 +396,6 @@ static const char* stringForDecisionType(ModRMDecisionType dt) {
     default:
       llvm_unreachable("Unknown decision type");
     MODRMTYPES
-  };
-#undef ENUM_ENTRY
-}
-
-/// stringForModifierType - Returns a statically-allocated string corresponding
-///   to an opcode modifier type.
-///
-/// @param mt - The modifier type.
-/// @return   - A pointer to the statically-allocated string (e.g.,
-///             "MODIFIER_NONE" for MODIFIER_NONE).
-static const char* stringForModifierType(ModifierType mt) {
-#define ENUM_ENTRY(n) case n: return #n;
-  switch(mt) {
-    default:
-      llvm_unreachable("Unknown modifier type");
-    MODIFIER_TYPES
   };
 #undef ENUM_ENTRY
 }
@@ -598,14 +625,6 @@ void DisassemblerTables::emitInstructionInfo(raw_ostream &o,
     o.indent(i * 2) << "{ /* " << index << " */" << "\n";
     i++;
 
-    o.indent(i * 2) << stringForModifierType(
-                       (ModifierType)InstructionSpecifiers[index].modifierType);
-    o << ",\n";
-
-    o.indent(i * 2) << "0x";
-    o << format("%02hhx", (uint16_t)InstructionSpecifiers[index].modifierBase);
-    o << ",\n";
-
     OperandListTy OperandList;
     for (unsigned OperandIndex = 0; OperandIndex < X86_MAX_OPERANDS;
          ++OperandIndex) {
@@ -636,14 +655,36 @@ void DisassemblerTables::emitInstructionInfo(raw_ostream &o,
 }
 
 void DisassemblerTables::emitContextTable(raw_ostream &o, unsigned &i) const {
+  const unsigned int tableSize = 16384;
   o.indent(i * 2) << "static const uint8_t " CONTEXTS_STR
-                     "[256] = {\n";
+                     "[" << tableSize << "] = {\n";
   i++;
 
-  for (unsigned index = 0; index < 256; ++index) {
+  for (unsigned index = 0; index < tableSize; ++index) {
     o.indent(i * 2);
 
-    if ((index & ATTR_VEXL) && (index & ATTR_REXW) && (index & ATTR_OPSIZE))
+    if (index & ATTR_EVEX) {
+      o << "IC_EVEX";
+      if (index & ATTR_EVEXL2)
+        o << "_L2";
+      else if (index & ATTR_EVEXL)
+        o << "_L";
+      if (index & ATTR_REXW)
+        o << "_W";
+      if (index & ATTR_OPSIZE)
+        o << "_OPSIZE";
+      else if (index & ATTR_XD)
+        o << "_XD";
+      else if (index & ATTR_XS)
+        o << "_XS";
+      if (index & ATTR_EVEXKZ)
+        o << "_KZ";
+      else if (index & ATTR_EVEXK)
+        o << "_K";
+      if (index & ATTR_EVEXB)
+        o << "_B";
+    }
+    else if ((index & ATTR_VEXL) && (index & ATTR_REXW) && (index & ATTR_OPSIZE))
       o << "IC_VEX_L_W_OPSIZE";
     else if ((index & ATTR_VEXL) && (index & ATTR_REXW) && (index & ATTR_XD))
       o << "IC_VEX_L_W_XD";
@@ -682,6 +723,9 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, unsigned &i) const {
     else if ((index & ATTR_64BIT) && (index & ATTR_REXW) &&
              (index & ATTR_OPSIZE))
       o << "IC_64BIT_REXW_OPSIZE";
+    else if ((index & ATTR_64BIT) && (index & ATTR_REXW) &&
+             (index & ATTR_ADSIZE))
+      o << "IC_64BIT_REXW_ADSIZE";
     else if ((index & ATTR_64BIT) && (index & ATTR_XD) && (index & ATTR_OPSIZE))
       o << "IC_64BIT_XD_OPSIZE";
     else if ((index & ATTR_64BIT) && (index & ATTR_XS) && (index & ATTR_OPSIZE))
@@ -690,6 +734,9 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, unsigned &i) const {
       o << "IC_64BIT_XS";
     else if ((index & ATTR_64BIT) && (index & ATTR_XD))
       o << "IC_64BIT_XD";
+    else if ((index & ATTR_64BIT) && (index & ATTR_OPSIZE) &&
+             (index & ATTR_ADSIZE))
+      o << "IC_64BIT_OPSIZE_ADSIZE";
     else if ((index & ATTR_64BIT) && (index & ATTR_OPSIZE))
       o << "IC_64BIT_OPSIZE";
     else if ((index & ATTR_64BIT) && (index & ATTR_ADSIZE))
@@ -706,6 +753,8 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, unsigned &i) const {
       o << "IC_XS";
     else if (index & ATTR_XD)
       o << "IC_XD";
+    else if ((index & ATTR_OPSIZE) && (index & ATTR_ADSIZE))
+      o << "IC_OPSIZE_ADSIZE";
     else if (index & ATTR_OPSIZE)
       o << "IC_OPSIZE";
     else if (index & ATTR_ADSIZE)
@@ -713,7 +762,7 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, unsigned &i) const {
     else
       o << "IC";
 
-    if (index < 255)
+    if (index < tableSize - 1)
       o << ",";
     else
       o << " ";
@@ -734,11 +783,9 @@ void DisassemblerTables::emitContextDecisions(raw_ostream &o1, raw_ostream &o2,
   emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[1], TWOBYTE_STR);
   emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[2], THREEBYTE38_STR);
   emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[3], THREEBYTE3A_STR);
-  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[4], THREEBYTEA6_STR);
-  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[5], THREEBYTEA7_STR);
-  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[6], XOP8_MAP_STR);
-  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[7], XOP9_MAP_STR);
-  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[8], XOPA_MAP_STR);
+  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[4], XOP8_MAP_STR);
+  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[5], XOP9_MAP_STR);
+  emitContextDecision(o1, o2, i1, i2, ModRMTableNum, *Tables[6], XOPA_MAP_STR);
 }
 
 void DisassemblerTables::emit(raw_ostream &o) const {
@@ -793,9 +840,6 @@ void DisassemblerTables::setTableFields(ModRMDecision     &decision,
         InstructionSpecifier &previousInfo =
           InstructionSpecifiers[decision.instructionIDs[index]];
 
-        if(newInfo.filtered)
-          continue; // filtered instructions get lowest priority
-
         if(previousInfo.name == "NOOP" && (newInfo.name == "XCHG16ar" ||
                                            newInfo.name == "XCHG32ar" ||
                                            newInfo.name == "XCHG32ar64" ||
@@ -805,8 +849,7 @@ void DisassemblerTables::setTableFields(ModRMDecision     &decision,
         if (outranks(previousInfo.insnContext, newInfo.insnContext))
           continue;
 
-        if (previousInfo.insnContext == newInfo.insnContext &&
-            !previousInfo.filtered) {
+        if (previousInfo.insnContext == newInfo.insnContext) {
           errs() << "Error: Primary decode conflict: ";
           errs() << newInfo.name << " would overwrite " << previousInfo.name;
           errs() << "\n";
@@ -828,15 +871,19 @@ void DisassemblerTables::setTableFields(OpcodeType          type,
                                         const ModRMFilter   &filter,
                                         InstrUID            uid,
                                         bool                is32bit,
-                                        bool                ignoresVEX_L) {
+                                        bool                ignoresVEX_L,
+                                        unsigned            addressSize) {
   ContextDecision &decision = *Tables[type];
 
   for (unsigned index = 0; index < IC_max; ++index) {
-    if (is32bit && inheritsFrom((InstructionContext)index, IC_64BIT))
+    if ((is32bit || addressSize == 16) &&
+        inheritsFrom((InstructionContext)index, IC_64BIT))
       continue;
 
+    bool adSize64 = addressSize == 64;
     if (inheritsFrom((InstructionContext)index,
-                     InstructionSpecifiers[uid].insnContext, ignoresVEX_L))
+                     InstructionSpecifiers[uid].insnContext, ignoresVEX_L,
+                     adSize64))
       setTableFields(decision.opcodeDecisions[index].modRMDecisions[opcode],
                      filter,
                      uid,

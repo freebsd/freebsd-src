@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DTUTILS_C__
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
@@ -366,6 +364,7 @@ DtGetFieldType (
         break;
 
     case ACPI_DMT_BUFFER:
+    case ACPI_DMT_RAW_BUFFER:
     case ACPI_DMT_BUF7:
     case ACPI_DMT_BUF10:
     case ACPI_DMT_BUF16:
@@ -377,6 +376,7 @@ DtGetFieldType (
 
     case ACPI_DMT_GAS:
     case ACPI_DMT_HESTNTFY:
+    case ACPI_DMT_IORTMEM:
 
         Type = DT_FIELD_TYPE_INLINE_SUBTABLE;
         break;
@@ -521,6 +521,7 @@ DtGetFieldLength (
     case ACPI_DMT_UINT16:
     case ACPI_DMT_DMAR:
     case ACPI_DMT_HEST:
+    case ACPI_DMT_NFIT:
     case ACPI_DMT_PCI_PATH:
 
         ByteLength = 2;
@@ -533,7 +534,6 @@ DtGetFieldLength (
 
     case ACPI_DMT_UINT32:
     case ACPI_DMT_NAME4:
-    case ACPI_DMT_SLIC:
     case ACPI_DMT_SIG:
     case ACPI_DMT_LPIT:
 
@@ -589,7 +589,13 @@ DtGetFieldLength (
         ByteLength = sizeof (ACPI_HEST_NOTIFY);
         break;
 
+    case ACPI_DMT_IORTMEM:
+
+        ByteLength = sizeof (ACPI_IORT_MEMORY_ACCESS);
+        break;
+
     case ACPI_DMT_BUFFER:
+    case ACPI_DMT_RAW_BUFFER:
 
         Value = DtGetFieldValue (Field);
         if (Value)

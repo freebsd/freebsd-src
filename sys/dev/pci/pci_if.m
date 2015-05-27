@@ -36,7 +36,19 @@ CODE {
 	{
 		return (0);
 	}
+	
+	static device_t
+	null_create_iov_child(device_t bus, device_t pf, uint16_t rid,
+	    uint16_t vid, uint16_t did)
+	{
+		device_printf(bus, "PCI_IOV not implemented on this bus.\n");
+		return (NULL);
+	}
 };
+
+HEADER {
+	struct nvlist;
+}
 
 
 METHOD u_int32_t read_config {
@@ -189,3 +201,40 @@ METHOD void child_added {
 	device_t	dev;
 	device_t	child;
 };
+
+METHOD int iov_attach {
+	device_t	dev;
+	device_t	child;
+	struct nvlist	*pf_schema;
+	struct nvlist	*vf_schema;
+};
+
+METHOD int iov_detach {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD int init_iov {
+	device_t		dev;
+	uint16_t		num_vfs;
+	const struct nvlist	*config;
+};
+
+METHOD void uninit_iov {
+	device_t		dev;
+};
+
+METHOD int add_vf {
+	device_t		dev;
+	uint16_t		vfnum;
+	const struct nvlist	*config;
+};
+
+METHOD device_t create_iov_child {
+	device_t bus;
+	device_t pf;
+	uint16_t rid;
+	uint16_t vid;
+	uint16_t did;
+} DEFAULT null_create_iov_child;
+

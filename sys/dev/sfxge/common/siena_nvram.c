@@ -330,6 +330,14 @@ static siena_parttbl_entry_t siena_parttbl[] = {
 	{MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT1,	2, EFX_NVRAM_BOOTROM_CFG},
 	{MC_CMD_NVRAM_TYPE_PHY_PORT0,		1, EFX_NVRAM_PHY},
 	{MC_CMD_NVRAM_TYPE_PHY_PORT1,		2, EFX_NVRAM_PHY},
+	{MC_CMD_NVRAM_TYPE_FPGA,		1, EFX_NVRAM_FPGA},
+	{MC_CMD_NVRAM_TYPE_FPGA,		2, EFX_NVRAM_FPGA},
+	{MC_CMD_NVRAM_TYPE_FPGA_BACKUP,		1, EFX_NVRAM_FPGA_BACKUP},
+	{MC_CMD_NVRAM_TYPE_FPGA_BACKUP,		2, EFX_NVRAM_FPGA_BACKUP},
+	{MC_CMD_NVRAM_TYPE_FC_FW,		1, EFX_NVRAM_FCFW},
+	{MC_CMD_NVRAM_TYPE_FC_FW,		2, EFX_NVRAM_FCFW},
+	{MC_CMD_NVRAM_TYPE_CPLD,		1, EFX_NVRAM_CPLD},
+	{MC_CMD_NVRAM_TYPE_CPLD,		2, EFX_NVRAM_CPLD},
 	{0, 0, 0},
 };
 
@@ -587,7 +595,7 @@ siena_nvram_get_subtype(
 	__out			uint32_t *subtypep)
 {
 	efx_mcdi_req_t req;
-	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LEN];
+	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LENMAX];
 	efx_word_t *fw_list;
 	int rc;
 
@@ -605,9 +613,16 @@ siena_nvram_get_subtype(
 		goto fail1;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_GET_BOARD_CFG_OUT_LENMIN) {
 		rc = EMSGSIZE;
 		goto fail2;
+	}
+
+	if (req.emr_out_length_used <
+	    MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST +
+	    (partn + 1) * sizeof (efx_word_t)) {
+		rc = ENOENT;
+		goto fail3;
 	}
 
 	fw_list = MCDI_OUT2(req, efx_word_t,
@@ -616,6 +631,8 @@ siena_nvram_get_subtype(
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -270,7 +270,8 @@ const char                      *AslPreprocessorMsgs [] =
 /*    ASL_MSG_TOO_MANY_ARGUMENTS */         "Too many macro arguments",
 /*    ASL_MSG_UNKNOWN_DIRECTIVE */          "Unknown directive",
 /*    ASL_MSG_UNKNOWN_PRAGMA */             "Unknown pragma",
-/*    ASL_MSG_WARNING_DIRECTIVE */          "#warning"
+/*    ASL_MSG_WARNING_DIRECTIVE */          "#warning",
+/*    ASL_MSG_INCLUDE_FILE */               "Found a # preprocessor directive in ASL Include() file"
 };
 
 
@@ -331,7 +332,7 @@ AeDecodeMessageId (
 
         if (Index >= ACPI_ARRAY_LENGTH (AslPreprocessorMsgs))
         {
-            return ("[Unknown Preprocesor exception ID]");
+            return ("[Unknown Preprocessor exception ID]");
         }
     }
 

@@ -7,13 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This header file implements the operating system Program concept.
+//  This file implements the operating system Program concept.
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Program.h"
 #include "llvm/Config/config.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 using namespace llvm;
 using namespace sys;
 
@@ -34,7 +34,8 @@ int sys::ExecuteAndWait(StringRef Program, const char **args, const char **envp,
   if (Execute(PI, Program, args, envp, redirects, memoryLimit, ErrMsg)) {
     if (ExecutionFailed)
       *ExecutionFailed = false;
-    ProcessInfo Result = Wait(PI, secondsToWait, true, ErrMsg);
+    ProcessInfo Result = Wait(
+        PI, secondsToWait, /*WaitUntilTerminates=*/secondsToWait == 0, ErrMsg);
     return Result.ReturnCode;
   }
 

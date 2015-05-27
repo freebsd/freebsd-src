@@ -41,6 +41,29 @@ __FBSDID("$FreeBSD$");
 #include <asm/pci-bridge.h>
 #endif /* CONFIG_PPC_PMAC */
 
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+/* from radeon_encoder.c */
+extern uint32_t
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
+			uint8_t dac);
+extern void radeon_link_encoder_connector(struct drm_device *dev);
+
+/* from radeon_connector.c */
+extern void
+radeon_add_legacy_connector(struct drm_device *dev,
+			    uint32_t connector_id,
+			    uint32_t supported_device,
+			    int connector_type,
+			    struct radeon_i2c_bus_rec *i2c_bus,
+			    uint16_t connector_object_id,
+			    struct radeon_hpd *hpd);
+
+/* from radeon_legacy_encoder.c */
+extern void
+radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
+			  uint32_t supported_device);
+#endif
+
 /* old legacy ATI BIOS routines */
 
 /* COMBIOS table offsets */
@@ -440,7 +463,7 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 
 	raw = rdev->bios + edid_info;
 	size = EDID_LENGTH * (raw[0x7e] + 1);
-	edid = malloc(size, DRM_MEM_KMS, M_WAITOK);
+	edid = malloc(size, DRM_MEM_KMS, M_NOWAIT);
 	if (edid == NULL)
 		return false;
 
@@ -464,7 +487,7 @@ radeon_bios_get_hardcoded_edid(struct radeon_device *rdev)
 
 	if (rdev->mode_info.bios_hardcoded_edid) {
 		edid = malloc(rdev->mode_info.bios_hardcoded_edid_size,
-		    DRM_MEM_KMS, M_WAITOK);
+		    DRM_MEM_KMS, M_NOWAIT);
 		if (edid) {
 			memcpy((unsigned char *)edid,
 			       (unsigned char *)rdev->mode_info.bios_hardcoded_edid,
@@ -931,7 +954,7 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 	int found = 0;
 
 	p_dac = malloc(sizeof(struct radeon_encoder_primary_dac),
-			DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 	if (!p_dac)
 		return NULL;
@@ -952,6 +975,15 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 		/* if the values are all zeros, use the table */
 		if (p_dac->ps2_pdac_adj)
 			found = 1;
+	}
+
+	/* quirks */
+	/* Radeon 9100 (R200) */
+	if ((dev->pci_device == 0x514D) &&
+	    (dev->pci_subvendor == 0x174B) &&
+	    (dev->pci_subdevice == 0x7149)) {
+		/* vbios value is bad, use the default */
+		found = 0;
 	}
 
 	if (!found) /* fallback to defaults */
@@ -1067,7 +1099,7 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 	int found = 0;
 
 	tv_dac = malloc(sizeof(struct radeon_encoder_tv_dac),
-	    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!tv_dac)
 		return NULL;
 
@@ -1156,7 +1188,7 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 	uint32_t lvds_ss_gen_cntl = RREG32(RADEON_LVDS_SS_GEN_CNTL);
 
 	lvds = malloc(sizeof(struct radeon_encoder_lvds),
-	    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 	if (!lvds)
 		return NULL;
@@ -1232,7 +1264,7 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 
 	if (lcd_info) {
 		lvds = malloc(sizeof(struct radeon_encoder_lvds),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 		if (!lvds)
 			return NULL;
@@ -2690,15 +2722,15 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 
 	/* allocate 2 power states */
 	rdev->pm.power_state = malloc(sizeof(struct radeon_power_state) * 2,
-	    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (rdev->pm.power_state) {
 		/* allocate 1 clock mode per state */
 		rdev->pm.power_state[0].clock_info =
 			malloc(sizeof(struct radeon_pm_clock_info) * 1,
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		rdev->pm.power_state[1].clock_info =
 			malloc(sizeof(struct radeon_pm_clock_info) * 1,
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (!rdev->pm.power_state[0].clock_info ||
 		    !rdev->pm.power_state[1].clock_info)
 			goto pm_failed;
@@ -2743,13 +2775,13 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 				i2c_bus = combios_setup_i2c_bus(rdev, gpio, 0, 0);
 			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
 			if (rdev->pm.i2c_bus) {
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 				struct i2c_board_info info = { };
 				const char *name = thermal_controller_names[thermal_controller];
 				info.addr = i2c_addr >> 1;
 				strlcpy(info.type, name, sizeof(info.type));
 				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 			}
 		}
 	} else {
@@ -2762,7 +2794,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			i2c_bus = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
 			if (rdev->pm.i2c_bus) {
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 				struct i2c_board_info info = { };
 				const char *name = "f75375";
 				info.addr = 0x28;
@@ -2770,7 +2802,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
 				DRM_INFO("Possible %s thermal controller at 0x%02x\n",
 					 name, info.addr);
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 			}
 		}
 	}
@@ -2974,12 +3006,12 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 					case 3:
 						val = RBIOS16(index);
 						index += 2;
-						DRM_UDELAY(val);
+						udelay(val);
 						break;
 					case 4:
 						val = RBIOS16(index);
 						index += 2;
-						DRM_MDELAY(val);
+						mdelay(val);
 						break;
 					case 6:
 						slave_addr = id & 0xff;
@@ -3028,7 +3060,7 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 				case 4:
 					val = RBIOS16(index);
 					index += 2;
-					DRM_UDELAY(val);
+					udelay(val);
 					break;
 				case 5:
 					reg = id & 0x1fff;
@@ -3106,7 +3138,7 @@ static void combios_parse_mmio_table(struct drm_device *dev, uint16_t offset)
 			case 4:
 				val = RBIOS16(offset);
 				offset += 2;
-				DRM_UDELAY(val);
+				udelay(val);
 				break;
 			case 5:
 				val = RBIOS16(offset);
@@ -3175,10 +3207,10 @@ static void combios_parse_pll_table(struct drm_device *dev, uint16_t offset)
 				tmp = 1000;
 				switch (addr) {
 				case 1:
-					DRM_UDELAY(150);
+					udelay(150);
 					break;
 				case 2:
-					DRM_MDELAY(1);
+					mdelay(1);
 					break;
 				case 3:
 					while (tmp--) {
@@ -3209,13 +3241,13 @@ static void combios_parse_pll_table(struct drm_device *dev, uint16_t offset)
 						/*mclk_cntl |= 0x00001111;*//* ??? */
 						WREG32_PLL(RADEON_MCLK_CNTL,
 							   mclk_cntl);
-						DRM_MDELAY(10);
+						mdelay(10);
 #endif
 						WREG32_PLL
 						    (RADEON_CLK_PWRMGT_CNTL,
 						     tmp &
 						     ~RADEON_CG_NO1_DEBUG_0);
-						DRM_MDELAY(10);
+						mdelay(10);
 					}
 					break;
 				default:

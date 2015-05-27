@@ -17,23 +17,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CodeGen/CodeGenABITypes.h"
-
-#include "clang/CodeGen/CGFunctionInfo.h"
 #include "CodeGenModule.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
+#include "clang/Frontend/CodeGenOptions.h"
 
 using namespace clang;
 using namespace CodeGen;
 
 CodeGenABITypes::CodeGenABITypes(ASTContext &C,
-                                 const CodeGenOptions &CodeGenOpts,
                                  llvm::Module &M,
                                  const llvm::DataLayout &TD,
-                                 DiagnosticsEngine &Diags)
-  : CGM(new CodeGen::CodeGenModule(C, CodeGenOpts, M, TD, Diags)) {
+                                 CoverageSourceInfo *CoverageInfo)
+  : CGO(new CodeGenOptions),
+    CGM(new CodeGen::CodeGenModule(C, *CGO, M, TD, C.getDiagnostics(),
+                                   CoverageInfo)) {
 }
 
 CodeGenABITypes::~CodeGenABITypes()
 {
+  delete CGO;
   delete CGM;
 }
 
@@ -60,10 +62,11 @@ CodeGenABITypes::arrangeCXXMethodType(const CXXRecordDecl *RD,
 }
 
 const CGFunctionInfo &
-CodeGenABITypes::arrangeLLVMFunctionInfo(CanQualType returnType,
-                                         llvm::ArrayRef<CanQualType> argTypes,
+CodeGenABITypes::arrangeFreeFunctionCall(CanQualType returnType,
+                                         ArrayRef<CanQualType> argTypes,
                                          FunctionType::ExtInfo info,
                                          RequiredArgs args) {
-  return CGM->getTypes().arrangeLLVMFunctionInfo(returnType, argTypes,
-                                                info, args);
+  return CGM->getTypes().arrangeLLVMFunctionInfo(
+      returnType, /*IsInstanceMethod=*/false, /*IsChainCall=*/false, argTypes,
+      info, args);
 }

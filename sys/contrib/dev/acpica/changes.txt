@@ -1,4 +1,350 @@
 ----------------------------------------
+08 April 2015. Summary of changes for version 20150515:
+
+This release implements most of ACPI 6.0 as described below.
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented runtime argument checking and return value checking for all 
+new ACPI 6.0 predefined names. This includes: _BTH, _CR3, _DSD, _LPI, 
+_MTL, _PRR, _RDI, _RST, _TFP, _TSN.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  99.9K Code, 27.5K Data, 127.4K Total
+    Debug Version:     195.2K Code, 80.8K Data, 276.0K Total
+  Previous Release:
+    Non-Debug Version:  99.1K Code, 27.3K Data, 126.4K Total
+    Debug Version:     192.8K Code, 79.9K Data, 272.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL compiler: Added compile-time support for all new ACPI 6.0 predefined 
+names (argument count validation and return value typechecking.)
+
+iASL disassembler and table compiler: implemented support for all new 
+ACPI 6.0 tables. This includes: DRTM, IORT, LPIT, NFIT, STAO, WPBT, XENV. 
+
+iASL disassembler and table compiler: Added ACPI 6.0 changes to existing 
+tables: FADT, MADT.
+
+iASL preprocessor: Added a new directive to enable inclusion of binary 
+blobs into ASL code. The new directive is #includebinary. It takes a 
+binary file as input and emits a named ascii buffer object into the ASL 
+code.
+
+AcpiHelp: Added support for all new ACPI 6.0 predefined names.
+
+AcpiHelp: Added a new option, -d, to display all iASL preprocessor 
+directives.
+
+AcpiHelp: Added a new option, -t, to display all known/supported ACPI 
+tables.
+
+----------------------------------------
+10 April 2015. Summary of changes for version 20150410:
+
+Reverted a change introduced in version 20150408 that caused
+a regression in the disassembler where incorrect operator
+symbols could be emitted.
+
+----------------------------------------
+08 April 2015. Summary of changes for version 20150408:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Permanently set the return value for the _REV predefined name. It now 
+returns 2 (was 5). This matches other ACPI implementations. _REV will be 
+deprecated in the future, and is now defined to be 1 for ACPI 1.0, and 2 
+for ACPI 2.0 and later. It should never be used to differentiate or 
+identify operating systems.
+
+Added the "Windows 2015" string to the _OSI support. ACPICA will now 
+return TRUE to a query with this string.
+
+Fixed several issues with the local version of the printf function.
+
+Added the C99 compiler option (-std=c99) to the Unix makefiles.
+
+  Current Release:
+    Non-Debug Version:  99.9K Code, 27.4K Data, 127.3K Total
+    Debug Version:     195.2K Code, 80.7K Data, 275.9K Total
+  Previous Release:
+    Non-Debug Version:  98.8K Code, 27.3K Data, 126.1K Total
+    Debug Version:     192.1K Code, 79.8K Data, 271.9K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented an enhancement to the constant folding feature to 
+transform the parse tree to a simple Store operation whenever possible:
+    Add (2, 3, X) ==> is converted to: Store (5, X)
+    X = 2 + 3     ==> is converted to: Store (5, X)
+
+Updated support for the SLIC table (Software Licensing Description Table) 
+in both the Data Table compiler and the disassembler. The SLIC table 
+support now conforms to "Microsoft Software Licensing Tables (SLIC and 
+MSDM). November 29, 2011. Copyright 2011 Microsoft". Note: Any SLIC data 
+following the ACPI header is now defined to be "Proprietary Data", and as 
+such, can only be entered or displayed as a hex data block.
+
+Implemented full support for the MSDM table as described in the document 
+above. Note: The format of MSDM is similar to SLIC. Any MSDM data 
+following the ACPI header is defined to be "Proprietary Data", and can 
+only be entered or displayed as a hex data block.
+
+Implemented the -Pn option for the iASL Table Compiler (was only 
+implemented for the ASL compiler). This option disables the iASL 
+preprocessor.
+
+Disassembler: For disassembly of Data Tables, added a comment field 
+around the Ascii equivalent data that is emitted as part of the "Raw 
+Table Data" block. This prevents the iASL Preprocessor from possible 
+confusion if/when the table is compiled.
+
+Disassembler: Added an option (-df) to force the disassembler to assume 
+that the table being disassembled contains valid AML. This feature is 
+useful for disassembling AML files that contain ACPI signatures other 
+than DSDT or SSDT (such as OEMx or other signatures).
+
+Changes for the EFI version of the tools:
+1) Fixed a build error/issue
+2) Fixed a cast warning
+
+iASL: Fixed a path issue with the __FILE__ operator by making the 
+directory prefix optional within the internal SplitInputFilename 
+function.
+
+Debugger: Removed some unused global variables.
+
+Tests: Updated the makefile for proper generation of the AAPITS suite.
+
+----------------------------------------
+04 February 2015. Summary of changes for version 20150204:
+
+ACPICA kernel-resident subsystem:
+
+Updated all ACPICA copyrights and signons to 2014. Added the 2014 
+copyright to all module headers and signons, including the standard Linux 
+header. This affects virtually every file in the ACPICA core subsystem, 
+iASL compiler, all ACPICA utilities, and the test suites.
+
+Events: Introduce ACPI_GPE_DISPATCH_RAW_HANDLER to fix GPE storm issues.
+A raw gpe handling mechanism was created to allow better handling of GPE
+storms that aren't easily managed by the normal handler. The raw handler
+allows disabling/renabling of the the GPE so that interrupt storms can be
+avoided in cases where events cannot be timely serviced. In this 
+scenario, handlers should use the AcpiSetGpe() API to disable/enable the 
+GPE. This API will leave the reference counts undisturbed, thereby 
+preventing unintentional clearing of the GPE when the intent in only to 
+temporarily disable it. Raw handlers allow enabling and disabling of a 
+GPE by removing GPE register locking. As such, raw handlers much provide 
+their own locks while using GPE API's to protect access to GPE data 
+structures.
+Lv Zheng
+
+Events: Always modify GPE registers under the GPE lock.
+Applies GPE lock around AcpiFinishGpe() to protect access to GPE register
+values. Reported as bug by joe.liu@apple.com.
+
+Unix makefiles: Separate option to disable optimizations and 
+_FORTIFY_SOURCE. This change removes the _FORTIFY_SOURCE flag from the 
+NOOPT disable option and creates a separate flag (NOFORTIFY) for this 
+purpose. Some toolchains may define _FORTIFY_SOURCE which leads redefined 
+errors when building ACPICA. This allows disabling the option without 
+also having to disable optimazations.
+David Box
+
+  Current Release:
+    Non-Debug Version: 101.7K Code, 27.9K Data, 129.6K Total
+    Debug Version:     199.2K Code, 82.4K Data, 281.6K Total
+
+----------------------------------------
+07 November 2014. Summary of changes for version 20141107:
+
+This release is available at https://acpica.org/downloads
+
+This release introduces and implements language extensions to ASL that 
+provide support for symbolic ("C-style") operators and expressions. These 
+language extensions are known collectively as ASL+.
+
+
+1) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem with disassembly of the UartSerialBus 
+macro. Changed "StopBitsNone" to the correct "StopBitsZero". David E. 
+Box.
+
+Disassembler: Fixed the Unicode macro support to add escape sequences. 
+All non-printable ASCII values are emitted as escape sequences, as well 
+as the standard escapes for quote and backslash. Ensures that the 
+disassembled macro can be correctly recompiled.
+
+iASL: Added Printf/Fprintf macros for formatted output. These macros are 
+translated to existing AML Concatenate and Store operations. Printf 
+writes to the ASL Debug object. Fprintf allows the specification of an 
+ASL name as the target. Only a single format specifier is required, %o, 
+since the AML interpreter dynamically converts objects to the required 
+type. David E. Box.
+
+    (old)    Store (Concatenate (Concatenate (Concatenate (Concatenate
+                 (Concatenate (Concatenate (Concatenate ("", Arg0),
+                 ": Unexpected value for "), Arg1), ", "), Arg2),
+                 " at line "), Arg3), Debug)
+
+    (new)    Printf ("%o: Unexpected value for %o, %o at line %o",
+                 Arg0, Arg1, Arg2, Arg3)
+
+    (old)    Store (Concatenate (Concatenate (Concatenate (Concatenate
+                 ("", Arg1), ": "), Arg0), " Successful"), STR1)
+
+    (new)    Fprintf (STR1, "%o: %o Successful", Arg1, Arg0)
+
+iASL: Added debug options (-bp, -bt) to dynamically prune levels of the 
+ASL parse tree before the AML code is generated. This allows blocks of 
+ASL code to be removed in order to help locate and identify problem 
+devices and/or code. David E. Box.
+
+AcpiExec: Added support (-fi) for an optional namespace object 
+initialization file. This file specifies initial values for namespace 
+objects as necessary for debugging and testing different ASL code paths 
+that may be taken as a result of BIOS options.
+
+
+2) Overview of symbolic operator support for ASL (ASL+)
+-------------------------------------------------------
+
+As an extension to the ASL language, iASL implements support for symbolic 
+(C-style) operators for math and logical expressions. This can greatly 
+simplify ASL code as well as improve both readability and 
+maintainability. These language extensions can exist concurrently with 
+all legacy ASL code and expressions.
+
+The symbolic extensions are 100% compatible with existing AML 
+interpreters, since no new AML opcodes are created. To implement the 
+extensions, the iASL compiler transforms the symbolic expressions into 
+the legacy ASL/AML equivalents at compile time.
+
+Full symbolic expressions are supported, along with the standard C 
+precedence and associativity rules.
+
+Full disassembler support for the symbolic expressions is provided, and 
+creates an automatic migration path for existing ASL code to ASL+ code 
+via the disassembly process. By default, the disassembler now emits ASL+ 
+code with symbolic expressions. An option (-dl) is provided to force the 
+disassembler to emit legacy ASL code if desired.
+
+Below is the complete list of the currently supported symbolic operators 
+with examples. See the iASL User Guide for additional information.
+
+
+ASL+ Syntax      Legacy ASL Equivalent
+-----------      ---------------------
+
+    // Math operators
+
+Z = X + Y        Add (X, Y, Z)
+Z = X - Y        Subtract (X, Y, Z)
+Z = X * Y        Multiply (X, Y, Z)
+Z = X / Y        Divide (X, Y, , Z)
+Z = X % Y        Mod (X, Y, Z)
+Z = X << Y       ShiftLeft (X, Y, Z)
+Z = X >> Y       ShiftRight (X, Y, Z)
+Z = X & Y        And (X, Y, Z)
+Z = X | Y        Or (X, Y, Z)
+Z = X ^ Y        Xor (X, Y, Z)
+Z = ~X           Not (X, Z)
+X++              Increment (X)
+X--              Decrement (X)
+
+    // Logical operators
+
+(X == Y)         LEqual (X, Y)
+(X != Y)         LNotEqual (X, Y)
+(X < Y)          LLess (X, Y)
+(X > Y)          LGreater (X, Y)
+(X <= Y)         LLessEqual (X, Y)
+(X >= Y)         LGreaterEqual (X, Y)
+(X && Y)         LAnd (X, Y)
+(X || Y)         LOr (X, Y)
+(!X)             LNot (X)
+
+    // Assignment and compound assignment operations
+
+X = Y           Store (Y, X)
+X += Y          Add (X, Y, X)
+X -= Y          Subtract (X, Y, X)
+X *= Y          Multiply (X, Y, X)
+X /= Y          Divide (X, Y, , X)
+X %= Y          Mod (X, Y, X)
+X <<= Y         ShiftLeft (X, Y, X)
+X >>= Y         ShiftRight (X, Y, X)
+X &= Y          And (X, Y, X)
+X |= Y          Or (X, Y, X)
+X ^= Y          Xor (X, Y, X)
+
+
+3) ASL+ Examples:
+-----------------
+
+Legacy ASL:
+        If (LOr (LOr (LEqual (And (R510, 0x03FB), 0x02E0), LEqual (
+            And (R520, 0x03FB), 0x02E0)), LOr (LEqual (And (R530, 
+0x03FB), 
+            0x02E0), LEqual (And (R540, 0x03FB), 0x02E0))))
+        {
+            And (MEMB, 0xFFFFFFF0, SRMB)
+            Store (MEMB, Local2)
+            Store (PDBM, Local1)
+            And (PDBM, 0xFFFFFFFFFFFFFFF9, PDBM)
+            Store (SRMB, MEMB)
+            Or (PDBM, 0x02, PDBM)
+        }
+
+ASL+ version:
+        If (((R510 & 0x03FB) == 0x02E0) ||
+            ((R520 & 0x03FB) == 0x02E0) ||
+            ((R530 & 0x03FB) == 0x02E0) || 
+            ((R540 & 0x03FB) == 0x02E0))
+        {
+            SRMB = (MEMB & 0xFFFFFFF0)
+            Local2 = MEMB
+            Local1 = PDBM
+            PDBM &= 0xFFFFFFFFFFFFFFF9
+            MEMB = SRMB
+            PDBM |= 0x02
+        }
+
+Legacy ASL:
+        Store (0x1234, Local1)
+        Multiply (Add (Add (Local1, TEST), 0x20), Local2, Local3)
+        Multiply (Local2, Add (Add (Local1, TEST), 0x20), Local3)
+        Add (Local1, Add (TEST, Multiply (0x20, Local2)), Local3)
+        Store (Index (PKG1, 0x03), Local6)
+        Store (Add (Local3, Local2), Debug)
+        Add (Local1, 0x0F, Local2)
+        Add (Local1, Multiply (Local2, Local3), Local2)
+        Multiply (Add (Add (Local1, TEST), 0x20), ToBCD (Local1), Local3)
+
+ASL+ version:
+        Local1 = 0x1234
+        Local3 = (((Local1 + TEST) + 0x20) * Local2)
+        Local3 = (Local2 * ((Local1 + TEST) + 0x20))
+        Local3 = (Local1 + (TEST + (0x20 * Local2)))
+        Local6 = Index (PKG1, 0x03)
+        Debug = (Local3 + Local2)
+        Local2 = (Local1 + 0x0F)
+        Local2 = (Local1 + (Local2 * Local3))
+        Local3 = (((Local1 + TEST) + 0x20) * ToBCD (Local1))
+
+
+----------------------------------------
 26 September 2014. Summary of changes for version 20140926:
 
 1) ACPICA kernel-resident subsystem:

@@ -117,7 +117,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_vers == NFS_VER2) {
-		if (rqst->rq_proc > NFSV2PROC_STATFS) {
+		if (rqst->rq_proc > NFSV2PROC_STATFS ||
+		    newnfs_nfsv3_procid[rqst->rq_proc] == NFSPROC_NOOP) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
 			goto out;

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/pioctl.h>
 #include <sys/ptrace.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -77,12 +78,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef VIMAGE
 #include <net/vnet.h>
-#endif
-
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 #endif
 
 #ifdef	HWPMC_HOOKS
@@ -135,9 +130,6 @@ userret(struct thread *td, struct trapframe *frame)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
 
 	/*
 	 * Check for misbehavior.
@@ -157,8 +149,6 @@ userret(struct thread *td, struct trapframe *frame)
 	    td->td_rw_rlocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
-	KASSERT((td->td_pflags & TDP_DEVMEMIO) == 0,
-	    ("userret: Returning with /dev/mem i/o leaked"));
 	KASSERT(td->td_no_sleeping == 0,
 	    ("userret: Returning with sleep disabled"));
 	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
@@ -174,11 +164,13 @@ userret(struct thread *td, struct trapframe *frame)
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
-#ifdef	RACCT
-	PROC_LOCK(p);
-	while (p->p_throttled == 1)
-		msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
-	PROC_UNLOCK(p);
+#ifdef RACCT
+	if (racct_enable) {
+		PROC_LOCK(p);
+		while (p->p_throttled == 1)
+			msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
+		PROC_UNLOCK(p);
+	}
 #endif
 }
 

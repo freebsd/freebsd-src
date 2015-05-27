@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -442,11 +442,11 @@ AcpiUtVsnprintf (
     const char              *Format,
     va_list                 Args)
 {
-    UINT8                   Base = 10;
-    UINT8                   Type = 0;
-    INT32                   Width = -1;
-    INT32                   Precision = -1;
-    char                    Qualifier = 0;
+    UINT8                   Base;
+    UINT8                   Type;
+    INT32                   Width;
+    INT32                   Precision;
+    char                    Qualifier;
     UINT64                  Number;
     char                    *Pos;
     char                    *End;
@@ -467,6 +467,9 @@ AcpiUtVsnprintf (
             Pos = AcpiUtBoundStringOutput (Pos, End, *Format);
             continue;
         }
+
+        Type = 0;
+        Base = 10;
 
         /* Process sign */
 

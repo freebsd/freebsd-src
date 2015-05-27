@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: msg.c,v 11.0 2012/10/17 06:34:37 zy Exp $";
+static const char sccsid[] = "$Id: msg.c,v 11.1 2015/02/09 11:12:44 marc Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -36,7 +36,7 @@ static const char sccsid[] = "$Id: msg.c,v 11.0 2012/10/17 06:34:37 zy Exp $";
  * msgq --
  *	Display a message.
  *
- * PUBLIC: void msgq __P((SCR *, mtype_t, const char *, ...));
+ * PUBLIC: void msgq(SCR *, mtype_t, const char *, ...);
  */
 void
 msgq(
@@ -60,7 +60,7 @@ msgq(
 	size_t blen, len, mlen, nlen;
 	const char *p;
 	char *bp, *mp;
-        va_list ap;
+	va_list ap;
 #ifndef NL_ARGMAX
 	int ch;
 	char *rbp, *s_rbp;
@@ -274,7 +274,7 @@ retry:		FREE_SPACE(sp, bp, blen);
 #ifndef NL_ARGMAX
 format:	/* Format the arguments into the string. */
 #endif
-        va_start(ap, fmt);
+	va_start(ap, fmt);
 	len = vsnprintf(mp, REM, fmt, ap);
 	va_end(ap);
 	if (len >= nlen)
@@ -356,7 +356,7 @@ alloc_err:
  * msgq_wstr --
  *	Display a message with an embedded string.
  *
- * PUBLIC: void msgq_wstr __P((SCR *, mtype_t, const CHAR_T *, const char *));
+ * PUBLIC: void msgq_wstr(SCR *, mtype_t, const CHAR_T *, const char *);
  */
 void
 msgq_wstr(
@@ -380,7 +380,7 @@ msgq_wstr(
  * msgq_str --
  *	Display a message with an embedded string.
  *
- * PUBLIC: void msgq_str __P((SCR *, mtype_t, const char *, const char *));
+ * PUBLIC: void msgq_str(SCR *, mtype_t, const char *, const char *);
  */
 void
 msgq_str(
@@ -423,7 +423,7 @@ msgq_str(
  * the command 2d}, from the 'b' would report that two lines were deleted,
  * not one.
  *
- * PUBLIC: void mod_rpt __P((SCR *));
+ * PUBLIC: void mod_rpt(SCR *);
  */
 void
 mod_rpt(SCR *sp)
@@ -533,7 +533,7 @@ alloc_err:
  * msgq_status --
  *	Report on the file's status.
  *
- * PUBLIC: void msgq_status __P((SCR *, recno_t, u_int));
+ * PUBLIC: void msgq_status(SCR *, recno_t, u_int);
  */
 void
 msgq_status(
@@ -647,7 +647,7 @@ msgq_status(
 			p += len;
 		} else {
 			t = msg_cat(sp, "027|line %lu of %lu [%ld%%]", &len);
-			(void)snprintf(p, ep - p, t, lno, last,
+			(void)snprintf(p, ep - p, t, (u_long)lno, (u_long)last,
 			    ((u_long)lno * 100) / last);
 			p += strlen(p);
 		}
@@ -705,7 +705,7 @@ alloc_err:
  * msg_open --
  *	Open the message catalogs.
  *
- * PUBLIC: int msg_open __P((SCR *, char *));
+ * PUBLIC: int msg_open(SCR *, char *);
  */
 int
 msg_open(
@@ -772,7 +772,7 @@ ret:	free(p);
  * msg_close --
  *	Close the message catalogs.
  *
- * PUBLIC: void msg_close __P((GS *));
+ * PUBLIC: void msg_close(GS *);
  */
 void
 msg_close(GS *gp)
@@ -785,7 +785,7 @@ msg_close(GS *gp)
  * msg_cont --
  *	Return common continuation messages.
  *
- * PUBLIC: const char *msg_cmsg __P((SCR *, cmsg_t, size_t *));
+ * PUBLIC: const char *msg_cmsg(SCR *, cmsg_t, size_t *);
  */
 const char *
 msg_cmsg(
@@ -823,7 +823,7 @@ msg_cmsg(
  * Only a single catalog message can be accessed at a time, if multiple
  * ones are needed, they must be copied into local memory.
  *
- * PUBLIC: const char *msg_cat __P((SCR *, const char *, size_t *));
+ * PUBLIC: const char *msg_cat(SCR *, const char *, size_t *);
  */
 const char *
 msg_cat(
@@ -861,7 +861,7 @@ msg_cat(
  * msg_print --
  *	Return a printable version of a string, in allocated memory.
  *
- * PUBLIC: char *msg_print __P((SCR *, const char *, int *));
+ * PUBLIC: char *msg_print(SCR *, const char *, int *);
  */
 char *
 msg_print(

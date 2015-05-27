@@ -11,54 +11,33 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCORETARGETMACHINE_H
-#define XCORETARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCORETARGETMACHINE_H
+#define LLVM_LIB_TARGET_XCORE_XCORETARGETMACHINE_H
 
-#include "XCoreFrameLowering.h"
-#include "XCoreISelLowering.h"
-#include "XCoreInstrInfo.h"
-#include "XCoreSelectionDAGInfo.h"
 #include "XCoreSubtarget.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
 class XCoreTargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   XCoreSubtarget Subtarget;
-  const DataLayout DL;       // Calculates type size & alignment
-  XCoreInstrInfo InstrInfo;
-  XCoreFrameLowering FrameLowering;
-  XCoreTargetLowering TLInfo;
-  XCoreSelectionDAGInfo TSInfo;
 public:
   XCoreTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS, const TargetOptions &Options,
                      Reloc::Model RM, CodeModel::Model CM,
                      CodeGenOpt::Level OL);
+  ~XCoreTargetMachine() override;
 
-  virtual const XCoreInstrInfo *getInstrInfo() const { return &InstrInfo; }
-  virtual const XCoreFrameLowering *getFrameLowering() const {
-    return &FrameLowering;
-  }
-  virtual const XCoreSubtarget *getSubtargetImpl() const { return &Subtarget; }
-  virtual const XCoreTargetLowering *getTargetLowering() const {
-    return &TLInfo;
-  }
-
-  virtual const XCoreSelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-
-  virtual const TargetRegisterInfo *getRegisterInfo() const {
-    return &InstrInfo.getRegisterInfo();
-  }
-  virtual const DataLayout       *getDataLayout() const { return &DL; }
+  const XCoreSubtarget *getSubtargetImpl() const override { return &Subtarget; }
 
   // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  virtual void addAnalysisPasses(PassManagerBase &PM);
+  void addAnalysisPasses(PassManagerBase &PM) override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 };
 
 } // end namespace llvm

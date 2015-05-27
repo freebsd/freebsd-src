@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/smp.h>
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 
 #include "vmm_lapic.h"
@@ -79,6 +80,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
 #define AMD_CPUID_SVM_DECODE_ASSIST	BIT(7)  /* Decode assist */
 #define AMD_CPUID_SVM_PAUSE_INC		BIT(10) /* Pause intercept filter. */
 #define AMD_CPUID_SVM_PAUSE_FTH		BIT(12) /* Pause filter threshold */
+#define	AMD_CPUID_SVM_AVIC		BIT(13)	/* AVIC present */
 
 #define	VMCB_CACHE_DEFAULT	(VMCB_CACHE_ASID 	|	\
 				VMCB_CACHE_IOPM		|	\
@@ -429,8 +431,24 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 			svm_enable_intercept(sc, vcpu, VMCB_CR_INTCPT, mask);
 	}
 
-	/* Intercept Machine Check exceptions. */
-	svm_enable_intercept(sc, vcpu, VMCB_EXC_INTCPT, BIT(IDT_MC));
+
+	/*
+	 * Intercept everything when tracing guest exceptions otherwise
+	 * just intercept machine check exception.
+	 */
+	if (vcpu_trace_exceptions(sc->vm, vcpu)) {
+		for (n = 0; n < 32; n++) {
+			/*
+			 * Skip unimplemented vectors in the exception bitmap.
+			 */
+			if (n == 2 || n == 9) {
+				continue;
+			}
+			svm_enable_intercept(sc, vcpu, VMCB_EXC_INTCPT, BIT(n));
+		}
+	} else {
+		svm_enable_intercept(sc, vcpu, VMCB_EXC_INTCPT, BIT(IDT_MC));
+	}
 
 	/* Intercept various events (for e.g. I/O, MSR and CPUID accesses) */
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IO);
@@ -443,6 +461,9 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_SHUTDOWN);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
 	    VMCB_INTCPT_FERR_FREEZE);
+
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_MONITOR);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_MWAIT);
 
 	/*
 	 * From section "Canonicalization and Consistency Checks" in APMv2
@@ -534,12 +555,26 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	pml4_pa = svm_sc->nptp;
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
+		vcpu->nextrip = ~0;
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
 		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
 		svm_msr_guest_init(svm_sc, i);
 	}
 	return (svm_sc);
+}
+
+/*
+ * Collateral for a generic SVM VM-exit.
+ */
+static void
+vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
+{
+
+	vme->exitcode = VM_EXITCODE_SVM;
+	vme->u.svm.exitcode = code;
+	vme->u.svm.exitinfo1 = info1;
+	vme->u.svm.exitinfo2 = info2;
 }
 
 static int
@@ -777,8 +812,14 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	KASSERT(error == 0, ("%s: vmcb_seg(CS) error %d", __func__, error));
 
 	switch(paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = seg.base;
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = seg.base;
+
 		/*
 		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
 		 */
@@ -786,6 +827,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 		    1 : 0;
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;	
 	}
@@ -1051,6 +1093,76 @@ clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 	KASSERT(!error, ("%s: error %d setting intr_shadow", __func__, error));
 }
 
+#define	EFER_MBZ_BITS	0xFFFFFFFFFFFF0200UL
+
+static int
+svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
+{
+	struct vm_exit *vme;
+	struct vmcb_state *state;
+	uint64_t changed, lma, oldval;
+	int error;
+
+	state = svm_get_vmcb_state(sc, vcpu);
+
+	oldval = state->efer;
+	VCPU_CTR2(sc->vm, vcpu, "wrmsr(efer) %#lx/%#lx", oldval, newval);
+
+	newval &= ~0xFE;		/* clear the Read-As-Zero (RAZ) bits */
+	changed = oldval ^ newval;
+
+	if (newval & EFER_MBZ_BITS)
+		goto gpf;
+
+	/* APMv2 Table 14-5 "Long-Mode Consistency Checks" */
+	if (changed & EFER_LME) {
+		if (state->cr0 & CR0_PG)
+			goto gpf;
+	}
+
+	/* EFER.LMA = EFER.LME & CR0.PG */
+	if ((newval & EFER_LME) != 0 && (state->cr0 & CR0_PG) != 0)
+		lma = EFER_LMA;
+	else
+		lma = 0;
+
+	if ((newval & EFER_LMA) != lma)
+		goto gpf;
+
+	if (newval & EFER_NXE) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_NO_EXECUTE))
+			goto gpf;
+	}
+
+	/*
+	 * XXX bhyve does not enforce segment limits in 64-bit mode. Until
+	 * this is fixed flag guest attempt to set EFER_LMSLE as an error.
+	 */
+	if (newval & EFER_LMSLE) {
+		vme = vm_exitinfo(sc->vm, vcpu);
+		vm_exit_svm(vme, VMCB_EXIT_MSR, 1, 0);
+		*retu = true;
+		return (0);
+	}
+
+	if (newval & EFER_FFXSR) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_FFXSR))
+			goto gpf;
+	}
+
+	if (newval & EFER_TCE) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_TCE))
+			goto gpf;
+	}
+
+	error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, newval);
+	KASSERT(error == 0, ("%s: error %d updating efer", __func__, error));
+	return (0);
+gpf:
+	vm_inject_gp(sc->vm, vcpu);
+	return (0);
+}
+
 static int
 emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
     bool *retu)
@@ -1060,7 +1172,7 @@ emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
 	if (lapic_msr(num))
 		error = lapic_wrmsr(sc->vm, vcpu, num, val, retu);
 	else if (num == MSR_EFER)
-		error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, val);
+		error = svm_write_efer(sc, vcpu, val, retu);
 	else
 		error = svm_wrmsr(sc, vcpu, num, val, retu);
 
@@ -1123,6 +1235,10 @@ exit_reason_to_str(uint64_t reason)
 		return ("msr");
 	case VMCB_EXIT_IRET:
 		return ("iret");
+	case VMCB_EXIT_MONITOR:
+		return ("monitor");
+	case VMCB_EXIT_MWAIT:
+		return ("mwait");
 	default:
 		snprintf(reasonbuf, sizeof(reasonbuf), "%#lx", reason);
 		return (reasonbuf);
@@ -1156,19 +1272,6 @@ nrip_valid(uint64_t exitcode)
 	}
 }
 
-/*
- * Collateral for a generic SVM VM-exit.
- */
-static void
-vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
-{
-
-	vme->exitcode = VM_EXITCODE_SVM;
-	vme->u.svm.exitcode = code;
-	vme->u.svm.exitinfo1 = info1;
-	vme->u.svm.exitinfo2 = info2;
-}
-
 static int
 svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 {
@@ -1178,7 +1281,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct svm_regctx *ctx;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
-	int handled;
+	int error, errcode_valid, handled, idtvec, reflect;
 	bool retu;
 
 	ctx = svm_get_guest_regctx(svm_sc, vcpu);
@@ -1237,8 +1340,75 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	case VMCB_EXIT_NMI:	/* external NMI */
 		handled = 1;
 		break;
-	case VMCB_EXIT_MC:	/* machine check */
+	case 0x40 ... 0x5F:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXCEPTION, 1);
+		reflect = 1;
+		idtvec = code - 0x40;
+		switch (idtvec) {
+		case IDT_MC:
+			/*
+			 * Call the machine check handler by hand. Also don't
+			 * reflect the machine check back into the guest.
+			 */
+			reflect = 0;
+			VCPU_CTR0(svm_sc->vm, vcpu, "Vectoring to MCE handler");
+			__asm __volatile("int $18");
+			break;
+		case IDT_PF:
+			error = svm_setreg(svm_sc, vcpu, VM_REG_GUEST_CR2,
+			    info2);
+			KASSERT(error == 0, ("%s: error %d updating cr2",
+			    __func__, error));
+			/* fallthru */
+		case IDT_NP:
+		case IDT_SS:
+		case IDT_GP:
+		case IDT_AC:
+		case IDT_TS:
+			errcode_valid = 1;
+			break;
+
+		case IDT_DF:
+			errcode_valid = 1;
+			info1 = 0;
+			break;
+
+		case IDT_BP:
+		case IDT_OF:
+		case IDT_BR:
+			/*
+			 * The 'nrip' field is populated for INT3, INTO and
+			 * BOUND exceptions and this also implies that
+			 * 'inst_length' is non-zero.
+			 *
+			 * Reset 'inst_length' to zero so the guest %rip at
+			 * event injection is identical to what it was when
+			 * the exception originally happened.
+			 */
+			VCPU_CTR2(svm_sc->vm, vcpu, "Reset inst_length from %d "
+			    "to zero before injecting exception %d",
+			    vmexit->inst_length, idtvec);
+			vmexit->inst_length = 0;
+			/* fallthru */
+		default:
+			errcode_valid = 0;
+			info1 = 0;
+			break;
+		}
+		KASSERT(vmexit->inst_length == 0, ("invalid inst_length (%d) "
+		    "when reflecting exception %d into guest",
+		    vmexit->inst_length, idtvec));
+
+		if (reflect) {
+			/* Reflect the exception back into the guest */
+			VCPU_CTR2(svm_sc->vm, vcpu, "Reflecting exception "
+			    "%d/%#x into the guest", idtvec, (int)info1);
+			error = vm_inject_exception(svm_sc->vm, vcpu, idtvec,
+			    errcode_valid, info1, 0);
+			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
+			    __func__, error));
+		}
+		handled = 1;
 		break;
 	case VMCB_EXIT_MSR:	/* MSR access. */
 		eax = state->rax;
@@ -1318,6 +1488,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			    info2, info1, state->rip);
 		}
 		break;
+	case VMCB_EXIT_MONITOR:
+		vmexit->exitcode = VM_EXITCODE_MONITOR;
+		break;
+	case VMCB_EXIT_MWAIT:
+		vmexit->exitcode = VM_EXITCODE_MWAIT;
+		break;
 	default:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
@@ -1375,14 +1551,23 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	struct svm_vcpu *vcpustate;
 	uint8_t v_tpr;
 	int vector, need_intr_window, pending_apic_vector;
 
 	state = svm_get_vmcb_state(sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(sc, vcpu);
+	vcpustate = svm_get_vcpu(sc, vcpu);
 
 	need_intr_window = 0;
 	pending_apic_vector = 0;
+
+	if (vcpustate->nextrip != state->rip) {
+		ctrl->intr_shadow = 0;
+		VCPU_CTR2(sc->vm, vcpu, "Guest interrupt blocking "
+		    "cleared due to rip change: %#lx/%#lx",
+		    vcpustate->nextrip, state->rip);
+	}
 
 	/*
 	 * Inject pending events or exceptions for this vcpu.
@@ -1533,7 +1718,7 @@ done:
 	 * VMRUN.
 	 */
 	v_tpr = vlapic_get_cr8(vlapic);
-	KASSERT(v_tpr >= 0 && v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
+	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
 		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
@@ -1700,14 +1885,14 @@ static __inline void
 disable_gintr(void)
 {
 
-        __asm __volatile("clgi" : : :);
+	__asm __volatile("clgi");
 }
 
 static __inline void
 enable_gintr(void)
 {
 
-        __asm __volatile("stgi" : : :);
+        __asm __volatile("stgi");
 }
 
 /*
@@ -1803,7 +1988,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		}
 
 		/* We are asked to give the cpu by scheduler. */
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+		if (vcpu_should_yield(vm, vcpu)) {
 			enable_gintr();
 			vm_exit_astpending(vm, vcpu, state->rip);
 			break;
@@ -1853,6 +2038,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* #VMEXIT disables interrupts so re-enable them here. */ 
 		enable_gintr();
+
+		/* Update 'nextrip' */
+		vcpustate->nextrip = state->rip;
 
 		/* Handle #VMEXIT and if required return to user space. */
 		handled = svm_vmexit(svm_sc, vcpu, vmexit);

@@ -55,7 +55,6 @@ SYSCTL_DECL(_hw_usb);
 
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
-MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
 
 #ifndef USB_GLOBAL_INCLUDE_FILE
@@ -543,6 +542,11 @@ struct usb_endpoint_descriptor {
 #define	UE_ISO_ADAPT	0x08
 #define	UE_ISO_SYNC	0x0c
 #define	UE_GET_ISO_TYPE(a)	((a) & UE_ISO_TYPE)
+#define	UE_ISO_USAGE	0x30
+#define	UE_ISO_USAGE_DATA	0x00
+#define	UE_ISO_USAGE_FEEDBACK	0x10
+#define	UE_ISO_USAGE_IMPLICT_FB	0x20
+#define	UE_GET_ISO_USAGE(a)	((a) & UE_ISO_USAGE)
 	uWord	wMaxPacketSize;
 #define	UE_ZERO_MPS 0xFFFF		/* for internal use only */
 	uByte	bInterval;

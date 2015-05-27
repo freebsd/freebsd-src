@@ -167,15 +167,22 @@ svr4_sys_execv(td, uap)
 	struct svr4_sys_execv_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -185,16 +192,23 @@ svr4_sys_execve(td, uap)
 	struct svr4_sys_execve_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
 	    uap->envp);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -864,9 +878,9 @@ svr4_sys_times(td, uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	calcru(p, &utime, &stime);
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 	calccru(p, &cutime, &cstime);
 	PROC_UNLOCK(p);
 
@@ -1277,9 +1291,9 @@ loop:
 			pid = p->p_pid;
 			status = p->p_xstat;
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 
@@ -1304,9 +1318,9 @@ loop:
 			pid = p->p_pid;
 			status = W_STOPCODE(p->p_xstat);
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
@@ -1328,9 +1342,9 @@ loop:
 			pid = p->p_pid;
 			ru = p->p_ru;
 			status = SIGCONT;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {

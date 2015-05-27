@@ -9,6 +9,7 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	kerberos5/lib/libasn1 \
+	kerberos5/lib/libhdb \
 	kerberos5/lib/libheimbase \
 	kerberos5/lib/libheimipcc \
 	kerberos5/lib/libhx509 \
@@ -21,6 +22,7 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libsqlite3 \
 	lib/libthr \
 	lib/libutil \
 	secure/lib/libcrypto \

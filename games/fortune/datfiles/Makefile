@@ -15,7 +15,7 @@ FILESDIR=	${SHAREDIR}/games/fortune
 
 .for f in ${DB}
 $f.dat: $f
-	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
+	PATH=$$PATH:/usr/bin:${.OBJDIR}/../strfile \
 	    strfile -Cs ${.ALLSRC} ${.TARGET}
 .endfor
 

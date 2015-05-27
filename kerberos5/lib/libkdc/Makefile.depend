@@ -20,7 +20,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcom_err \
 	lib/libcompiler_rt \
-	lib/libcrypt \
+	lib/libthr \
 	lib/libutil \
 	secure/lib/libcrypto \
 	usr.bin/xinstall.host \

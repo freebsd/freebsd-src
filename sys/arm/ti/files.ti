@@ -2,19 +2,18 @@
 
 kern/kern_clocksource.c				standard
 
-arm/arm/bus_space-v6.c				standard
+arm/arm/bus_space_base.c			standard
 arm/arm/bus_space_generic.c			standard
 arm/arm/bus_space_asm_generic.S			standard
-arm/arm/cpufunc_asm_armv5.S			standard
-arm/arm/cpufunc_asm_arm10.S			standard
-arm/arm/cpufunc_asm_arm11.S			standard
-arm/arm/cpufunc_asm_armv7.S			standard
+arm/arm/pmu.c					optional	hwpmc
 
 arm/ti/ti_common.c				standard
 arm/ti/ti_cpuid.c				standard
+arm/ti/ti_hwmods.c				standard
 arm/ti/ti_machdep.c				standard
 arm/ti/ti_prcm.c				standard
 arm/ti/ti_scm.c					standard
+arm/ti/ti_pinmux.c				standard
 dev/mbox/mbox_if.m				optional	ti_mbox
 arm/ti/ti_mbox.c				optional	ti_mbox
 arm/ti/ti_pruss.c				optional	ti_pruss

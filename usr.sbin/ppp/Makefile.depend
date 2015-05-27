@@ -12,7 +12,6 @@ DIRDEPS = \
 	lib/libalias/libalias \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libcrypt \
 	lib/libmd \
 	lib/libnetgraph \
 	lib/libpam/libpam \

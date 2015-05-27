@@ -15,7 +15,7 @@
 
 extern LZMA_API(lzma_ret)
 lzma_filter_flags_decode(
-		lzma_filter *filter, lzma_allocator *allocator,
+		lzma_filter *filter, const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size)
 {
 	// Set the pointer to NULL so the caller can always safely free it.

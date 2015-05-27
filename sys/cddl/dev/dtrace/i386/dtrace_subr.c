@@ -143,122 +143,6 @@ dtrace_sync(void)
 }
 
 #ifdef notyet
-int (*dtrace_fasttrap_probe_ptr)(struct regs *);
-int (*dtrace_pid_probe_ptr)(struct regs *);
-int (*dtrace_return_probe_ptr)(struct regs *);
-
-void
-dtrace_user_probe(struct regs *rp, caddr_t addr, processorid_t cpuid)
-{
-	krwlock_t *rwp;
-	proc_t *p = curproc;
-	extern void trap(struct regs *, caddr_t, processorid_t);
-
-	if (USERMODE(rp->r_cs) || (rp->r_ps & PS_VM)) {
-		if (curthread->t_cred != p->p_cred) {
-			cred_t *oldcred = curthread->t_cred;
-			/*
-			 * DTrace accesses t_cred in probe context.  t_cred
-			 * must always be either NULL, or point to a valid,
-			 * allocated cred structure.
-			 */
-			curthread->t_cred = crgetcred();
-			crfree(oldcred);
-		}
-	}
-
-	if (rp->r_trapno == T_DTRACE_RET) {
-		uint8_t step = curthread->t_dtrace_step;
-		uint8_t ret = curthread->t_dtrace_ret;
-		uintptr_t npc = curthread->t_dtrace_npc;
-
-		if (curthread->t_dtrace_ast) {
-			aston(curthread);
-			curthread->t_sig_check = 1;
-		}
-
-		/*
-		 * Clear all user tracing flags.
-		 */
-		curthread->t_dtrace_ft = 0;
-
-		/*
-		 * If we weren't expecting to take a return probe trap, kill
-		 * the process as though it had just executed an unassigned
-		 * trap instruction.
-		 */
-		if (step == 0) {
-			tsignal(curthread, SIGILL);
-			return;
-		}
-
-		/*
-		 * If we hit this trap unrelated to a return probe, we're
-		 * just here to reset the AST flag since we deferred a signal
-		 * until after we logically single-stepped the instruction we
-		 * copied out.
-		 */
-		if (ret == 0) {
-			rp->r_pc = npc;
-			return;
-		}
-
-		/*
-		 * We need to wait until after we've called the
-		 * dtrace_return_probe_ptr function pointer to set %pc.
-		 */
-		rwp = &CPU->cpu_ft_lock;
-		rw_enter(rwp, RW_READER);
-		if (dtrace_return_probe_ptr != NULL)
-			(void) (*dtrace_return_probe_ptr)(rp);
-		rw_exit(rwp);
-		rp->r_pc = npc;
-
-	} else if (rp->r_trapno == T_DTRACE_PROBE) {
-		rwp = &CPU->cpu_ft_lock;
-		rw_enter(rwp, RW_READER);
-		if (dtrace_fasttrap_probe_ptr != NULL)
-			(void) (*dtrace_fasttrap_probe_ptr)(rp);
-		rw_exit(rwp);
-
-	} else if (rp->r_trapno == T_BPTFLT) {
-		uint8_t instr;
-		rwp = &CPU->cpu_ft_lock;
-
-		/*
-		 * The DTrace fasttrap provider uses the breakpoint trap
-		 * (int 3). We let DTrace take the first crack at handling
-		 * this trap; if it's not a probe that DTrace knowns about,
-		 * we call into the trap() routine to handle it like a
-		 * breakpoint placed by a conventional debugger.
-		 */
-		rw_enter(rwp, RW_READER);
-		if (dtrace_pid_probe_ptr != NULL &&
-		    (*dtrace_pid_probe_ptr)(rp) == 0) {
-			rw_exit(rwp);
-			return;
-		}
-		rw_exit(rwp);
-
-		/*
-		 * If the instruction that caused the breakpoint trap doesn't
-		 * look like an int 3 anymore, it may be that this tracepoint
-		 * was removed just after the user thread executed it. In
-		 * that case, return to user land to retry the instuction.
-		 */
-		if (fuword8((void *)(rp->r_pc - 1), &instr) == 0 &&
-		    instr != FASTTRAP_INSTR) {
-			rp->r_pc--;
-			return;
-		}
-
-		trap(rp, addr, cpuid);
-
-	} else {
-		trap(rp, addr, cpuid);
-	}
-}
-
 void
 dtrace_safe_synchronous_signal(void)
 {
@@ -473,7 +357,7 @@ dtrace_gethrestime(void)
 
 /* Function to handle DTrace traps during probes. See i386/i386/trap.c */
 int
-dtrace_trap(struct trapframe *frame)
+dtrace_trap(struct trapframe *frame, u_int type)
 {
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
@@ -489,7 +373,7 @@ dtrace_trap(struct trapframe *frame)
 		 * There are only a couple of trap types that are expected.
 		 * All the rest will be handled in the usual way.
 		 */
-		switch (frame->tf_trapno) {
+		switch (type) {
 		/* General protection fault. */
 		case T_PROTFLT:
 			/* Flag an illegal operation. */

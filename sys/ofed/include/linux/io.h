@@ -31,6 +31,7 @@
 #define	_LINUX_IO_H_
 
 #include <machine/vm.h>
+#include <sys/endian.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
@@ -87,6 +88,20 @@ static inline void
 writew(uint16_t b, void *addr)
 {
         *(volatile uint16_t *)addr = b;
+}
+
+#undef ioread32be
+static inline uint32_t
+ioread32be(const volatile void *addr)
+{
+	return be32toh(*(const volatile uint32_t *)addr);
+}
+
+#undef iowrite32be
+static inline void
+iowrite32be(uint32_t v, volatile void *addr)
+{
+	*(volatile uint32_t *)addr = htobe32(v);
 }
 
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);

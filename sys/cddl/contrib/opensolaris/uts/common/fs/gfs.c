@@ -107,7 +107,7 @@
  * 	gfs_root_create_file()
  */
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_make_opsvec: take an array of vnode type definitions and create
  * their vnodeops_t structures
@@ -141,7 +141,7 @@ gfs_make_opsvec(gfs_opsvec_t *vec)
 	}
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * Low level directory routines
@@ -347,7 +347,7 @@ gfs_readdir_emit(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
 	    cookies));
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_readdir_emitn: like gfs_readdir_emit(), but takes an integer
  * instead of a string for the entry's name.
@@ -489,7 +489,7 @@ gfs_file_create(size_t size, vnode_t *pvp, vfs_t *vfsp, vnodeops_t *ops)
 	 * Allocate vnode and internal data structure
 	 */
 	fp = kmem_zalloc(size, KM_SLEEP);
-	error = getnewvnode("zfs", vfsp, ops, &vp);
+	error = getnewvnode("zfs_gfs", vfsp, ops, &vp);
 	ASSERT(error == 0);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_data = (caddr_t)fp;
@@ -599,7 +599,7 @@ gfs_root_create(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino,
 	return (vp);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_root_create_file(): create a root vnode for a GFS file as a filesystem
  *
@@ -619,7 +619,7 @@ gfs_root_create_file(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino)
 
 	return (vp);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * gfs_file_inactive()
@@ -1146,7 +1146,7 @@ gfs_vop_readdir(ap)
 }
 
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_vop_map: VOP_MAP() entry point
  *
@@ -1218,7 +1218,7 @@ gfs_vop_map(vnode_t *vp, offset_t off, struct as *as, caddr_t *addrp,
 
 	return (rv);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * gfs_vop_reclaim: VOP_RECLAIM() entry point (solaris' VOP_INACTIVE())

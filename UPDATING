@@ -31,8 +31,175 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150521:
+	TI platform code switched to using vendor DTS files and this update
+	may break existing systems running on Beaglebone, Beaglebone Black,
+	and Pandaboard:
+
+	- dtb files should be regenerated/reinstalled. Filenames are the
+	  same but content is different now
+	- GPIO addressing was changed, now each GPIO bank (32 pins per bank)
+	  has its own /dev/gpiocX device, e.g. pin 121 on /dev/gpioc0 in old
+	  addressing scheme is now pin 25 on /dev/gpioc3.
+	- Pandaboard: /etc/ttys should be updated, serial console device is
+	  now /dev/ttyu2, not /dev/ttyu0
+
+20150501:
+	soelim(1) from gnu/usr.bin/groff has been replaced by usr.bin/soelim.
+	If you need the GNU extension from groff soelim(1), install groff
+	from package: pkg install groff, or via ports: textproc/groff.
+
+20150423:
+	chmod, chflags, chown and chgrp now affect symlinks in -R mode as
+	defined in symlink(7); previously symlinks were silently ignored.
+
+20150415:
+	The const qualifier has been removed from iconv(3) to comply with
+	POSIX.  The ports tree is aware of this from r384038 onwards.
+
+20150416:
+	Libraries specified by LIBADD in Makefiles must have a corresponding
+	DPADD_<lib> variable to ensure correct dependencies.  This is now
+	enforced in src.libnames.mk.
+
+20150324:
+	From legacy ata(4) driver was removed support for SATA controllers
+	supported by more functional drivers ahci(4), siis(4) and mvs(4).
+	Kernel modules ataahci and ataadaptec were removed completely,
+	replaced by ahci and mvs modules respectively.
+
+20150315:
+	Clang, llvm and lldb have been upgraded to 3.6.0 release.  Please see
+	the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using 3.5.0 or higher.
+
+20150307:
+	The 32-bit PowerPC kernel has been changed to a position-independent
+	executable. This can only be booted with a version of loader(8)
+	newer than January 31, 2015, so make sure to update both world and
+	kernel before rebooting.
+
+20150217:
+	If you are running a -CURRENT kernel since r273872 (Oct 30th, 2014),
+	but before r278950, the RNG was not seeded properly.  Immediately
+	upgrade the kernel to r278950 or later and regenerate any keys (e.g.
+	ssh keys or openssl keys) that were generated w/ a kernel from that
+	range.  This does not affect programs that directly used /dev/random
+	or /dev/urandom.  All userland uses of arc4random(3) are affected.
+
+20150210:
+	The autofs(4) ABI was changed in order to restore binary compatibility
+	with 10.1-RELEASE.  The automountd(8) daemon needs to be rebuilt to work
+	with the new kernel.
+
+20150131:
+	The powerpc64 kernel has been changed to a position-independent
+	executable. This can only be booted with a new version of loader(8),
+	so make sure to update both world and kernel before rebooting.
+
+20150118:
+	Clang and llvm have been upgraded to 3.5.1 release.  This is a bugfix
+	only release, no new features have been added.  Please see the 20141231
+	entry below for information about prerequisites and upgrading, if you
+	are not already using 3.5.0.
+
+20150107:
+	ELF tools addr2line, elfcopy (strip), nm, size, and strings are now
+	taken from the ELF Tool Chain project rather than GNU binutils. They
+	should be drop-in replacements, with the addition of arm64 support.
+	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
+	binutils tools, if necessary.
+
+20150105:
+	The default Unbound configuration now enables remote control
+	using a local socket.  Users who have already enabled the
+	local_unbound service should regenerate their configuration
+	by running "service local_unbound setup" as root.
+	
+20150102:
+	The GNU texinfo and GNU info pages have been removed.
+	To be able to view GNU info pages please install texinfo from ports.
+
+20141231:
+	Clang, llvm and lldb have been upgraded to 3.5.0 release.
+
+	As of this release, a prerequisite for building clang, llvm and lldb is
+	a C++11 capable compiler and C++11 standard library.  This means that to
+	be able to successfully build the cross-tools stage of buildworld, with
+	clang as the bootstrap compiler, your system compiler or cross compiler
+	should either be clang 3.3 or later, or gcc 4.8 or later, and your
+	system C++ library should be libc++, or libdstdc++ from gcc 4.8 or
+	later.
+
+	On any standard FreeBSD 10.x or 11.x installation, where clang and
+	libc++ are on by default (that is, on x86 or arm), this should work out
+	of the box.
+
+	On 9.x installations where clang is enabled by default, e.g. on x86 and
+	powerpc, libc++ will not be enabled by default, so libc++ should be
+	built (with clang) and installed first.  If both clang and libc++ are
+	missing, build clang first, then use it to build libc++.
+
+	On 8.x and earlier installations, upgrade to 9.x first, and then follow
+	the instructions for 9.x above.
+
+	Sparc64 and mips users are unaffected, as they still use gcc 4.2.1 by
+	default, and do not build clang.
+
+	Many embedded systems are resource constrained, and will not be able to
+	build clang in a reasonable time, or in some cases at all.  In those
+	cases, cross building bootable systems on amd64 is a workaround.
+
+	This new version of clang introduces a number of new warnings, of which
+	the following are most likely to appear:
+
+	-Wabsolute-value
+
+	This warns in two cases, for both C and C++:
+	* When the code is trying to take the absolute value of an unsigned
+	  quantity, which is effectively a no-op, and almost never what was
+	  intended.  The code should be fixed, if at all possible.  If you are
+	  sure that the unsigned quantity can be safely cast to signed, without
+	  loss of information or undefined behavior, you can add an explicit
+	  cast, or disable the warning.
+
+	* When the code is trying to take an absolute value, but the called
+	  abs() variant is for the wrong type, which can lead to truncation.
+	  If you want to disable the warning instead of fixing the code, please
+	  make sure that truncation will not occur, or it might lead to unwanted
+	  side-effects.
+
+	-Wtautological-undefined-compare and
+	-Wundefined-bool-conversion
+
+	These warn when C++ code is trying to compare 'this' against NULL, while
+	'this' should never be NULL in well-defined C++ code.  However, there is
+	some legacy (pre C++11) code out there, which actively abuses this
+	feature, which was less strictly defined in previous C++ versions.
+
+	Squid and openjdk do this, for example.  The warning can be turned off
+	for C++98 and earlier, but compiling the code in C++11 mode might result
+	in unexpected behavior; for example, the parts of the program that are
+	unreachable could be optimized away.
+
+20141222:
+	The old NFS client and server (kernel options NFSCLIENT, NFSSERVER)
+	kernel sources have been removed. The .h files remain, since some
+	utilities include them. This will need to be fixed later.
+	If "mount -t oldnfs ..." is attempted, it will fail.
+	If the "-o" option on mountd(8), nfsd(8) or nfsstat(1) is used,
+	the utilities will report errors.
+
+20141121:
+	The handling of LOCAL_LIB_DIRS has been altered to skip addition of
+	directories to top level SUBDIR variable when their parent
+	directory is included in LOCAL_DIRS.  Users with build systems with
+	such hierarchies and without SUBDIR entries in the parent
+	directory Makefiles should add them or add the directories to
+	LOCAL_DIRS.
+
 20141109:
-	faith(4) and faithd(8) has been removed from base system. It
+	faith(4) and faithd(8) have been removed from the base system. Faith
 	has been obsolete for a very long time.
 
 20141104:
@@ -55,7 +222,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20141102:
 	pjdfstest has been integrated into kyua as an opt-in test suite.
-	Please see share/doc/pjdfstest/README for a more details on how to
+	Please see share/doc/pjdfstest/README for more details on how to
 	execute it.
 
 20141009:
@@ -77,7 +244,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20140729:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
-	using vt(4), no longer allows mmap() of all of physical memory. This
+	using vt(4), no longer allows mmap() of all physical memory. This
 	will prevent Xorg on PowerPC with some ATI graphics cards from
 	initializing properly unless x11-servers/xorg-server is updated to
 	1.12.4_8 or newer.
@@ -98,6 +265,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The GNU texinfo and GNU info pages are not built and installed
 	anymore, WITH_INFO knob has been added to allow to built and install
 	them again.
+	UPDATE: see 20150102 entry on texinfo's removal
 
 20140708:
 	The GNU readline library is now an INTERNALLIB - that is, it is
@@ -179,6 +347,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20140430:
 	The lindev device has been removed since /dev/full has been made a
 	standard device.  __FreeBSD_version has been bumped.
+
+20140424:
+	The knob WITHOUT_VI was added to the base system, which controls
+	building ex(1), vi(1), etc. Older releases of FreeBSD required ex(1)
+	in order to reorder files share/termcap and didn't build ex(1) as a
+	build tool, so building/installing with WITH_VI is highly advised for
+	build hosts for older releases.
+
+	This issue has been fixed in stable/9 and stable/10 in r277022 and
+	r276991, respectively.
 
 20140418:
 	The YES_HESIOD knob has been removed. It has been obsolete for

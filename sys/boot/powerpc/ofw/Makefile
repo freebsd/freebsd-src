@@ -21,6 +21,7 @@ LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
 LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	no
+LOADER_FDT_SUPPORT?=	yes
 
 .if ${LOADER_DISK_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_DISK_SUPPORT
@@ -48,6 +49,14 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 .endif
 .if ${LOADER_TFTP_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
+.endif
+.if ${LOADER_FDT_SUPPORT} == "yes"
+SRCS+=		ofwfdt.c
+CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${.OBJDIR}/../../fdt
+CFLAGS+=	-I${.CURDIR}/../../../contrib/libfdt
+CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
 .if ${MK_FORTH} != "no"
@@ -77,9 +86,6 @@ CFLAGS+=	-DRELOC=${RELOC}
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
-# 64-bit bridge extensions
-CFLAGS+= -Wa,-mppc64bridge
-
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../ofw/common
 .include	"${.CURDIR}/../../ofw/common/Makefile.inc"
@@ -92,22 +98,18 @@ CFLAGS+=	-I${.CURDIR}/../../ofw/libofw
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader.help: help.common help.ofw
+loader.help: help.common help.ofw ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
-FILES=	loader.help loader.4th support.4th loader.conf
-FILES+=	screen.4th frames.4th
-FILES+=	beastie.4th brand.4th check-password.4th color.4th delay.4th
-FILES+=	menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
-FILESDIR_loader.conf=	/boot/defaults
+.include	"${.CURDIR}/../../forth/Makefile.inc"
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+= loader.rc

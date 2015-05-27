@@ -1,6 +1,6 @@
 if [ ! "$_KEYMAP_SUBR" ]; then _KEYMAP_SUBR=1
 #
-# Copyright (c) 2013 Devin Teske
+# Copyright (c) 2013-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -219,7 +219,7 @@ f_keymap_get_all()
 			echo -n "$k "
 			# NOTE: Translate '8x8' to '8x08' before sending to
 			# sort(1) so that things work out as we might expect.
-			debug= keymap_$k get desc | sed -e 's/8x8/8x08/g'
+			debug= keymap_$k get desc | awk 'gsub(/8x8/,"8x08")||1'
 		done | sort -k2 | awk '{
 			printf "%s%s", (started ? " " : ""), $1; started = 1
 		}'

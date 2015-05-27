@@ -8,6 +8,5 @@ WARNS?=	2
 
 BINOWN=	root
 BINMODE=4555
-PRECIOUSPROG=
 
 .include <bsd.prog.mk>

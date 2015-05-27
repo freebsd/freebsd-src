@@ -7,5 +7,5 @@ Name: LibUCL
 Description: Universal configuration library
 Version: @UCL_VERSION@
 Libs: -L${libdir} -lucl
-Libs.private: @LIBS_EXTRA@
+Libs.private: @LIBS_EXTRA@ @LUA_LIB@
 Cflags: -I${includedir}/

@@ -713,9 +713,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 * If there's an mbuf and it has a flowid, then let's initialise the
 	 * inp with that particular flowid.
 	 */
-	if (m != NULL && m->m_flags & M_FLOWID) {
-		inp->inp_flags |= INP_HW_FLOWID;
-		inp->inp_flags &= ~INP_SW_FLOWID;
+	if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
@@ -1744,6 +1742,7 @@ syncookie_mac(struct in_conninfo *inc, tcp_seq irs, uint8_t flags,
 	}
 	SipHash_Update(&ctx, &inc->inc_fport, sizeof(inc->inc_fport));
 	SipHash_Update(&ctx, &inc->inc_lport, sizeof(inc->inc_lport));
+	SipHash_Update(&ctx, &irs, sizeof(irs));
 	SipHash_Update(&ctx, &flags, sizeof(flags));
 	SipHash_Update(&ctx, &secmod, sizeof(secmod));
 	SipHash_Final((u_int8_t *)&siphash, &ctx);

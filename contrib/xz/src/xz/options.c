@@ -31,8 +31,8 @@ typedef struct {
 } option_map;
 
 
-/// Parses option=value pairs that are separated with colons, semicolons,
-/// or commas: opt=val:opt=val;opt=val,opt=val
+/// Parses option=value pairs that are separated with commas:
+/// opt=val,opt=val,opt=val
 ///
 /// Each option is a string, that is converted to an integer using the
 /// index where the option string is in the array.

@@ -19,6 +19,7 @@
 
 ident		LN2410SBC
 
+include 	"std.arm"
 include 	"../samsung/s3c2xx0/std.ln2410sbc"
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
@@ -44,7 +45,7 @@ options 	ROOTDEVNAME=\"ufs:da0s1\"
 
 #options 	BOOTP
 #options 	BOOTP_NFSROOT		# NFS mount root filesystem using BOOTP info
-#options 	NFSCL			# New Network Filesystem Client
+#options 	NFSCL			# Network Filesystem Client
 #options 	NFS_ROOT		# NFS usable as root device
 
 options 	GEOM_PART_BSD		# BSD partition scheme

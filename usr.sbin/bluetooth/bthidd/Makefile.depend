@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libusbhid \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

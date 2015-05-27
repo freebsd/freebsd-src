@@ -37,6 +37,10 @@ INCLUDES+= -I$S/contrib/libfdt
 
 CFLAGS+= -msoft-float -Wa,-many
 
+# Build position-independent kernel
+CFLAGS+= -fPIC
+LDFLAGS+= -pie
+
 .if !empty(DDB_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer
 .endif

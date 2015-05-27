@@ -1,10 +1,11 @@
+#
 # BEAGLEBONE -- Custom configuration for the BeagleBone ARM development
 # platforms, check out http://www.beagleboard.org/bone and
 # http://www.beagleboard.org/black. This kernel config file is used for the
 # original BeagleBone and the BeagleBone Black.
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -22,43 +23,29 @@
 
 ident		BEAGLEBONE
 
-include		"../ti/am335x/std.am335x"
+include 	"std.armv6"
+include 	"../ti/am335x/std.am335x"
 
-makeoptions	WITHOUT_MODULES="ahc"
+makeoptions	MODULES_EXTRA="dtb/am335x"
+
+# DTrace support
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
+makeoptions	WITH_CTF=1
+makeoptions	MODULES_EXTRA+="opensolaris dtrace dtrace/lockstat dtrace/profile dtrace/fbt"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	GEOM_PART_BSD		# BSD partition scheme
-options 	GEOM_PART_MBR		# MBR partition scheme
-options 	TMPFS			# Efficient memory filesystem
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options 	KTRACE			# ktrace(1) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	PREEMPTION
 options 	PLATFORM
-options 	FREEBSD_BOOT_LOADER
-options 	VFP			# vfp/neon
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options 	KDB
+options 	KDB			# Enable kernel debugger support
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic
+# For full debugger support use this instead:
 options 	DDB			# Enable the kernel debugger
 options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
@@ -66,18 +53,18 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	DIAGNOSTIC
 
-# NFS support
-options 	NFSCL
-#options	NFSD
-options 	NFSLOCKD
+# NFS server support
+#options 	NFSD
 
-# Uncomment this for NFS root
-#options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+# NFS root from boopt/dhcp
+#options 	BOOTP
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
-#options 	BOOTP
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=cpsw0
+
+# Boot device is 2nd slice on MMC/SD card
+options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
@@ -90,8 +77,7 @@ device		iic
 device		ti_i2c
 device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 
-# Boot device is 2nd slice on MMC/SD card
-options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
+device		am335x_rtc		# RTC support (power management only)
 
 # Console and misc
 device		uart
@@ -147,7 +133,8 @@ device		axe			# ASIX Electronics USB Ethernet
 device		usb_template    	# Control of the gadget
 device		usfs
 
+# Pinmux
+device		fdt_pinctrl
+
 # Flattened Device Tree
-options         FDT
-options         FDT_DTB_STATIC
-makeoptions     FDT_DTS_FILE=beaglebone.dts
+options 	FDT			# Configure using FDT/DTB data

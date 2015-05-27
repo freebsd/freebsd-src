@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2014
+.Dd April 19, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -60,9 +60,15 @@ file is:
 .Dl ...
 }
 
+.No lun Ar name No {
+.Dl path Ar path
+}
+
 .No target Ar name {
 .Dl auth-group Ar name
-.Dl portal-group Ar name
+.Dl portal-group Ar name Op Ar agname
+.Dl port Ar name
+.Dl lun Ar number Ar name
 .Dl lun Ar number No {
 .Dl 	path Ar path
 .Dl }
@@ -95,6 +101,10 @@ Create a
 configuration context,
 defining a new portal-group,
 which can then be assigned to any number of targets.
+.It Ic lun Ar name
+Create a
+.Sy lun
+configuration context, defining a LUN to be exported by some target(s).
 .It Ic target Ar name
 Create a
 .Sy target
@@ -218,7 +228,10 @@ An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
 .\"An IPv4 or IPv6 address and port to listen on for incoming connections
 .\"using iSER (iSCSI over RDMA) protocol.
-.It Ic redirect Aq Ar address
+.It Ic offload Ar driver
+Define iSCSI hardware offload driver to use for this
+.Sy portal-group .
+.It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to portal
 belonging to this
@@ -301,17 +314,28 @@ This clause is mutually exclusive with
 .Sy auth-group ;
 one cannot use
 both in a single target.
-.It Ic portal-group Ar name
+.It Ic portal-group Ar name Op Ar agname
 Assign a previously defined portal group to the target.
 The default portal group is
 .Qq Ar default ,
 which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
-.It Ic redirect Aq Ar address
+Optional second argument specifies auth group name for connections
+to this specific portal group.
+If second argument is not specified, target auth group is used.
+.It Ic port Ar name
+Assign specified CTL port (such as "isp0") to the target.
+On startup ctld configures LUN mapping and enables all assigned ports.
+Each port can be assigned to only one target.
+.It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to this target
 will get redirected using "Target moved temporarily" login response.
 Redirection happens after successful authentication.
+.It Ic lun Ar number Ar name
+Export previously defined
+.Sy lun
+by the parent target.
 .It Ic lun Ar number
 Create a
 .Sy lun
@@ -341,7 +365,12 @@ All CTL-specific options are documented in the
 section of
 .Xr ctladm 8 .
 .It Ic path Ar path
-The path to the file or device node used to back the LUN.
+The path to the file, device node, or
+.Xr zfs 8
+volume used to back the LUN.
+For optimal performance, create the volume with the
+.Qq Ar volmode=dev
+property set.
 .It Ic serial Ar string
 The SCSI serial number presented to the initiator.
 .It Ic size Ar size
@@ -356,8 +385,6 @@ configuration file.
 .El
 .Sh EXAMPLES
 .Bd -literal
-pidfile	/var/run/ctld.pid
-
 auth-group ag0 {
 	chap-mutual "user" "secret" "mutualuser" "mutualsecret"
 	chap-mutual "user2" "secret2" "mutualuser" "mutualsecret"
@@ -389,29 +416,32 @@ target iqn.2012-06.com.example:target0 {
 	}
 }
 
+lun example_1 {
+	path /dev/zvol/tank/example_1
+	option naa 0x50015178f369f093
+}
+
 target iqn.2012-06.com.example:target1 {
-	chap chapuser chapsecret
-	lun 0 {
-		path /dev/zvol/tank/example_1
+	auth-group ag0
+	portal-group pg0
+	lun 0 example_1
+	lun 1 {
+		path /dev/zvol/tank/example_2
+		option foo bar
 	}
 }
 
-target iqn.2012-06.com.example:target2 {
-	auth-group ag0
-	portal-group pg0
-	lun 0 {
-		path /dev/zvol/tank/example2_0
-	}
-	lun 1 {
-		path /dev/zvol/tank/example2_1
-		option foo bar
-	}
+target naa.50015178f369f092 {
+	port isp0
+	port isp1
+	lun 0 example_1
 }
 .Ed
 .Sh SEE ALSO
 .Xr ctl 4 ,
 .Xr ctladm 8 ,
-.Xr ctld 8
+.Xr ctld 8 ,
+.Xr zfs 8
 .Sh AUTHORS
 The
 .Nm

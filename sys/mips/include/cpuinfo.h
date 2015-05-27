@@ -67,6 +67,12 @@ struct mips_cpuinfo {
 		u_int8_t	dc_nways;
 		u_int16_t	dc_nsets;
 	} l1;
+	struct {
+		u_int32_t	dc_size;
+		u_int8_t	dc_linesize;
+		u_int8_t	dc_nways;
+		u_int16_t	dc_nsets;
+	} l2;
 };
 
 extern struct mips_cpuinfo cpuinfo;

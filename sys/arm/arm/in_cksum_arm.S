@@ -46,6 +46,7 @@
 #include "assym.s"
 __FBSDID("$FreeBSD$");
 
+	.syntax	unified
 /*
  * int in_cksum(struct mbuf *m, int len)
  *
@@ -128,9 +129,9 @@ ASENTRY_NP(L_cksumdata)
 	blt	.Lcksumdata_endgame
 	cmp	r7, #0x02
 	ldrb	r4, [r0], #0x01		/* Fetch 1st byte */
-	ldrgeb	r5, [r0], #0x01		/* Fetch 2nd byte */
+	ldrbge	r5, [r0], #0x01		/* Fetch 2nd byte */
 	movlt	r5, #0x00
-	ldrgtb	r6, [r0], #0x01		/* Fetch 3rd byte */
+	ldrbgt	r6, [r0], #0x01		/* Fetch 3rd byte */
 	movle	r6, #0x00
 	/* Combine the three bytes depending on endianness and alignment */
 #ifdef __ARMEB__
@@ -196,7 +197,7 @@ ASENTRY_NP(L_cksumdata)
 	adcs	r2, r2, r5
 	adc	r2, r2, #0x00
 	subs	r1, r1, #0x40
-	ldrged	r4, [r0], #0x08
+	ldrdge	r4, [r0], #0x08
 	bge	.Lcksumdata_bigloop
 
 	adds	r2, r2, r6		/* r6/r7 still need summing */
@@ -241,7 +242,7 @@ ASENTRY_NP(L_cksumdata)
 	cmp	r1, #0x20
 
 #ifdef _ARM_ARCH_5E
-	ldrged	r4, [r0], #0x08		/* Avoid stalling pld and result */
+	ldrdge	r4, [r0], #0x08		/* Avoid stalling pld and result */
 	blt	.Lcksumdata_less_than_32
 	pld	[r0, #0x18]
 	ldrd	r6, [r0], #0x08
@@ -319,9 +320,9 @@ ASENTRY_NP(L_cksumdata)
 .Lcksumdata_endgame:
 	ldrb	r3, [r0]		/* Fetch first byte */
 	cmp	r1, #0x02
-	ldrgeb	r4, [r0, #0x01]		/* Fetch 2nd and 3rd as necessary */
+	ldrbge	r4, [r0, #0x01]		/* Fetch 2nd and 3rd as necessary */
 	movlt	r4, #0x00
-	ldrgtb	r5, [r0, #0x02]
+	ldrbgt	r5, [r0, #0x02]
 	movle	r5, #0x00
 	/* Combine the three bytes depending on endianness and alignment */
 	tst	r0, #0x01

@@ -26,14 +26,9 @@ SRCS=	add_enctype.c \
 
 CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken \
 	-I${KRB5DIR}/lib/sl -I. ${LDAPCFLAGS}
-DPADD=	${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5} ${LIBHX509} \
-	${LIBSL} ${LIBROKEN} ${LIBVERS} ${LIBASN1} \
-	${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
-	${LIBEDIT} ${LIBNCURSESW} ${LDAPDPADD}
-LDADD=	-lkadm5clnt -lkadm5srv -lhdb -lkrb5 -lhx509 \
-	${LIBSL} -lroken ${LIBVERS} -lasn1 \
-	-lcrypto -lcrypt -lcom_err \
-	-ledit -lncursesw ${LDAPLDADD}
+LIBADD=	kadm5clnt kadm5srv hdb krb5 roken vers sl asn1 crypto edit
+DPADD=	${LDAPDPADD}
+LDADD=	${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>

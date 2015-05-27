@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libsbuf \
 	lib/libutil \
 
 

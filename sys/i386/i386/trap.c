@@ -246,7 +246,7 @@ trap(struct trapframe *frame)
 	 * flag is cleared and finally re-scheduling is enabled.
 	 */
 	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
-	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
+	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
 		goto out;
 #endif
 
@@ -881,7 +881,7 @@ trap_pfault(frame, usermode, eva)
 	 */
 	if (frame->tf_err & PGEX_W)
 		ftype = VM_PROT_WRITE;
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	else if ((frame->tf_err & PGEX_I) && pg_nx != 0)
 		ftype = VM_PROT_EXECUTE;
 #endif

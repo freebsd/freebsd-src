@@ -88,7 +88,7 @@ bool trans::isPlusOne(const Expr *E) {
   if (const CallExpr *
         callE = dyn_cast<CallExpr>(E->IgnoreParenCasts())) {
     if (const FunctionDecl *FD = callE->getDirectCallee()) {
-      if (FD->getAttr<CFReturnsRetainedAttr>())
+      if (FD->hasAttr<CFReturnsRetainedAttr>())
         return true;
 
       if (FD->isGlobal() &&
@@ -264,9 +264,8 @@ public:
   }
   
   bool VisitCompoundStmt(CompoundStmt *S) {
-    for (CompoundStmt::body_iterator
-        I = S->body_begin(), E = S->body_end(); I != E; ++I)
-      mark(*I);
+    for (auto *I : S->body())
+      mark(I);
     return true;
   }
   
@@ -414,8 +413,7 @@ bool MigrationContext::rewritePropertyAttribute(StringRef fromAttr,
   if (tok.isNot(tok::at)) return false;
   lexer.LexFromRawLexer(tok);
   if (tok.isNot(tok::raw_identifier)) return false;
-  if (StringRef(tok.getRawIdentifierData(), tok.getLength())
-        != "property")
+  if (tok.getRawIdentifier() != "property")
     return false;
   lexer.LexFromRawLexer(tok);
   if (tok.isNot(tok::l_paren)) return false;
@@ -431,8 +429,7 @@ bool MigrationContext::rewritePropertyAttribute(StringRef fromAttr,
 
   while (1) {
     if (tok.isNot(tok::raw_identifier)) return false;
-    StringRef ident(tok.getRawIdentifierData(), tok.getLength());
-    if (ident == fromAttr) {
+    if (tok.getRawIdentifier() == fromAttr) {
       if (!toAttr.empty()) {
         Pass.TA.replaceText(tok.getLocation(), fromAttr, toAttr);
         return true;
@@ -497,8 +494,7 @@ bool MigrationContext::addPropertyAttribute(StringRef attr,
   if (tok.isNot(tok::at)) return false;
   lexer.LexFromRawLexer(tok);
   if (tok.isNot(tok::raw_identifier)) return false;
-  if (StringRef(tok.getRawIdentifierData(), tok.getLength())
-        != "property")
+  if (tok.getRawIdentifier() != "property")
     return false;
   lexer.LexFromRawLexer(tok);
 
@@ -538,15 +534,12 @@ static void GCRewriteFinalize(MigrationPass &pass) {
   impl_iterator;
   for (impl_iterator I = impl_iterator(DC->decls_begin()),
        E = impl_iterator(DC->decls_end()); I != E; ++I) {
-    for (ObjCImplementationDecl::instmeth_iterator
-         MI = I->instmeth_begin(),
-         ME = I->instmeth_end(); MI != ME; ++MI) {
-      ObjCMethodDecl *MD = *MI;
+    for (const auto *MD : I->instance_methods()) {
       if (!MD->hasBody())
         continue;
       
       if (MD->isInstanceMethod() && MD->getSelector() == FinalizeSel) {
-        ObjCMethodDecl *FinalizeM = MD;
+        const ObjCMethodDecl *FinalizeM = MD;
         Transaction Trans(TA);
         TA.insert(FinalizeM->getSourceRange().getBegin(), 
                   "#if !__has_feature(objc_arc)\n");

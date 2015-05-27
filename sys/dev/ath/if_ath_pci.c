@@ -279,6 +279,13 @@ ath_pci_attach(device_t dev)
 	 */
 	sc->sc_invalid = 1;
 
+	ATH_LOCK_INIT(sc);
+	ATH_PCU_LOCK_INIT(sc);
+	ATH_RX_LOCK_INIT(sc);
+	ATH_TX_LOCK_INIT(sc);
+	ATH_TX_IC_LOCK_INIT(sc);
+	ATH_TXSTATUS_LOCK_INIT(sc);
+
 	/*
 	 * Arrange interrupt line.
 	 */
@@ -329,7 +336,7 @@ ath_pci_attach(device_t dev)
 		if (fw == NULL) {
 			device_printf(dev, "%s: couldn't find firmware\n",
 			    __func__);
-			goto bad3;
+			goto bad4;
 		}
 
 		device_printf(dev, "%s: EEPROM firmware @ %p\n",
@@ -339,30 +346,20 @@ ath_pci_attach(device_t dev)
 		if (! sc->sc_eepromdata) {
 			device_printf(dev, "%s: can't malloc eepromdata\n",
 			    __func__);
-			goto bad3;
+			goto bad4;
 		}
 		memcpy(sc->sc_eepromdata, fw->data, fw->datasize);
 		firmware_put(fw, 0);
 	}
 #endif /* ATH_EEPROM_FIRMWARE */
 
-	ATH_LOCK_INIT(sc);
-	ATH_PCU_LOCK_INIT(sc);
-	ATH_RX_LOCK_INIT(sc);
-	ATH_TX_LOCK_INIT(sc);
-	ATH_TX_IC_LOCK_INIT(sc);
-	ATH_TXSTATUS_LOCK_INIT(sc);
-
 	error = ath_attach(pci_get_device(dev), sc);
 	if (error == 0)					/* success */
 		return 0;
 
-	ATH_TXSTATUS_LOCK_DESTROY(sc);
-	ATH_PCU_LOCK_DESTROY(sc);
-	ATH_RX_LOCK_DESTROY(sc);
-	ATH_TX_IC_LOCK_DESTROY(sc);
-	ATH_TX_LOCK_DESTROY(sc);
-	ATH_LOCK_DESTROY(sc);
+#ifdef	ATH_EEPROM_FIRMWARE
+bad4:
+#endif
 	bus_dma_tag_destroy(sc->sc_dmat);
 bad3:
 	bus_teardown_intr(dev, psc->sc_irq, psc->sc_ih);
@@ -370,6 +367,14 @@ bad2:
 	bus_release_resource(dev, SYS_RES_IRQ, 0, psc->sc_irq);
 bad1:
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, psc->sc_sr);
+
+	ATH_TXSTATUS_LOCK_DESTROY(sc);
+	ATH_PCU_LOCK_DESTROY(sc);
+	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
+	ATH_TX_LOCK_DESTROY(sc);
+	ATH_LOCK_DESTROY(sc);
+
 bad:
 	return (error);
 }

@@ -132,6 +132,10 @@ vdevice_attach(device_t dev)
 
 	root = ofw_bus_get_node(dev);
 
+	/* The XICP (root PIC) will handle all our interrupts */
+	powerpc_register_pic(root_pic, OF_xref_from_node(root),
+	    1 << 24 /* 24-bit XIRR field */, 1 /* Number of IPIs */, FALSE);
+
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 
@@ -142,7 +146,7 @@ vdevice_attach(device_t dev)
                 }
 		resource_list_init(&dinfo->mdi_resources);
 
-		ofw_bus_intr_to_rl(dev, child, &dinfo->mdi_resources);
+		ofw_bus_intr_to_rl(dev, child, &dinfo->mdi_resources, NULL);
 
                 cdev = device_add_child(dev, NULL, -1);
                 if (cdev == NULL) {

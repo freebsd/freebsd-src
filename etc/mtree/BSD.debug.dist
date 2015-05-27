@@ -21,9 +21,15 @@
         usr
             bin
             ..
-            games
-            ..
             lib
+                clang
+                    3.6.0
+                        lib
+                            freebsd
+                            ..
+                        ..
+                    ..
+                ..
                 engines
                 ..
                 i18n

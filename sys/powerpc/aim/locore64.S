@@ -68,36 +68,30 @@
 /* Locate the per-CPU data structure */
 #define GET_CPUINFO(r)  \
         mfsprg0  r
+#define GET_TOCBASE(r)  \
+	li	r,TRAP_TOCBASE;	/* Magic address for TOC */ \
+	ld	r,0(r)
 
-/*
- * Compiled KERNBASE location and the kernel load address
- */
-        .globl  kernbase
-        .set    kernbase, KERNBASE
-
-#define	TMPSTKSZ	16384		/* 16K temporary stack */
+/* Glue for linker script */
+.globl  kernbase
+.set    kernbase, KERNBASE
 
 /*
  * Globals
  */
 	.data
+	.align 3
+GLOBAL(__startkernel)
+	.llong	begin
+GLOBAL(__endkernel)
+	.llong	end
+
 	.align	4
+#define	TMPSTKSZ	16384		/* 16K temporary stack */
 GLOBAL(tmpstk)
 	.space	TMPSTKSZ
-GLOBAL(esym)
-	.llong	0			/* end of symbol table */
 
-#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
-GLOBAL(intrnames)
-	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(sintrnames)
-	.quad	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-
-	.align 4
-GLOBAL(intrcnt)
-	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(sintrcnt)
-	.quad	INTRCNT_COUNT * 4 * 2
+TOC_ENTRY(tmpstk)
 
 	.text
 	.globl	btext
@@ -113,88 +107,74 @@ kernel_text:
 /*
  * Startup entry.  Note, this must be the first thing in the text
  * segment!
+ *
+ * Calling convention:
+ * r3: Flattened Device Tree pointer (or zero)
+ * r4: ignored
+ * r5: OF client interface pointer (or zero)
+ * r6: Loader metadata pointer (or zero)
  */
 	.text
 ASENTRY_NOPROF(__start)
-	li	8,0
-	li	9,0x100
-	mtctr	9
-1:
-	dcbf	0,8
-	icbi	0,8
-	addi	8,8,0x20
-	bdnz	1b
-	sync
-	isync
+	/* Set up the TOC pointer */
+	b	0f
+	.align 3
+0:	nop
+	bl	1f
+	.llong	__tocbase + 0x8000 - .
+1:	mflr	%r2
+	ld	%r1,0(%r2)
+	add	%r2,%r1,%r2
 
-	/* Save the argument pointer and length */
-	mr	20,6
-	mr	21,7
-
-	lis	8,openfirmware_entry@ha
-	std	5,openfirmware_entry@l(8) /* save client interface handler */
+	/* Get load offset */
+	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
+	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
 
 	/* Set up the stack pointer */
-	lis	1,(tmpstk+TMPSTKSZ-48)@ha
-	addi	1,1,(tmpstk+TMPSTKSZ-48)@l
+	ld	%r1,TOC_REF(tmpstk)(%r2)
+	addi	%r1,%r1,TMPSTKSZ-96
+	add	%r1,%r1,%r31
 
-	/* Set up the TOC pointer */
-	lis	2,tocbase@ha
-	ld	2,tocbase@l(2)
-
-	mfmsr	0
-	lis	9,ofmsr@ha
-	stdu	0,ofmsr@l(9)
-
-	mfsprg0	0			/* save SPRG0-3 */
-	std	0,8(9)			/* ofmsr[1] = sprg0 */
-	mfsprg1 0
-	std	0,16(9)			/* ofmsr[2] = sprg1 */
-	mfsprg2 0
-	std	0,24(9)			/* ofmsr[3] = sprg2 */
-	mfsprg3 0
-	std	0,32(9)			/* ofmsr[4] = sprg3 */
+	/* Relocate kernel */
+	std	%r3,48(%r1)
+	std	%r4,56(%r1)
+	std	%r5,64(%r1)
+	std	%r6,72(%r1)
+	bl	1f
+	.llong _DYNAMIC-.
+1:	mflr	%r3
+	ld	%r4,0(%r3)
+	add	%r3,%r4,%r3
+	mr	%r4,%r31
+	bl	elf_reloc_self
+	nop
+	ld	%r3,48(%r1)
+	ld	%r4,56(%r1)
+	ld	%r5,64(%r1)
+	ld	%r6,72(%r1)
 
 	/* Switch to 64-bit mode */
-	mfmsr	9
-	li	8,1
-	insrdi	9,8,1,0
-	mtmsrd	9
+	mfmsr	%r9
+	li	%r8,1
+	insrdi	%r9,%r8,1,0
+	mtmsrd	%r9
 	isync
 	
-	bl	OF_initial_setup
-	nop
-
-	lis	3,kernbase@ha
-	addi	3,3,kernbase@l
-
-	lis	4,end@ha
-	addi	4,4,end@l
-	add	4,4,3
-	mr	5,4
-
-	/* Restore the argument pointer and length */
-	mr	6,20
-	mr	7,21
-
+	/* Begin CPU init */
+	mr	%r4,%r2 /* Replace ignored r4 with tocbase for trap handlers */
 	bl	powerpc_init
 	nop
+
+	/* Set stack pointer to new value and branch to mi_startup */
 	mr	%r1, %r3
 	li	%r3, 0
 	std	%r3, 0(%r1)
 	bl	mi_startup
 	nop
+
+	/* If this returns (it won't), go back to firmware */
 	b	OF_exit
 	nop
-
-/*
- * PPC64 ABI TOC base
- */
-
-        .align  3
-	.globl	tocbase
-tocbase:
-        .llong  .TOC.@tocbase
 
 /*
  * int setfault()

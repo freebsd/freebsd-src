@@ -14,7 +14,7 @@ DIRDEPS = \
 	lib/libjail \
 	lib/libkvm \
 	lib/msun \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,7 @@
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmopcode")
+
 
 /* Local prototypes */
 
@@ -567,7 +568,6 @@ AcpiDmRegionFlags (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-
     /* The next Op contains the SpaceId */
 
     Op = AcpiPsGetDepthNext (NULL, Op);
@@ -637,7 +637,6 @@ AcpiDmMatchKeyword (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-
     if (((UINT32) Op->Common.Value.Integer) > ACPI_MAX_MATCH_OPCODE)
     {
         AcpiOsPrintf ("/* Unknown Match Keyword encoding */");
@@ -694,27 +693,27 @@ AcpiDmDisassembleOneOp (
 
     case ACPI_DASM_LNOT_SUFFIX:
 
-        switch (Op->Common.AmlOpcode)
+        if (!AcpiGbl_CstyleDisassembly)
         {
-        case AML_LEQUAL_OP:
+            switch (Op->Common.AmlOpcode)
+            {
+            case AML_LEQUAL_OP:
+                AcpiOsPrintf ("LNotEqual");
+                break;
 
-            AcpiOsPrintf ("LNotEqual");
-            break;
+            case AML_LGREATER_OP:
+                AcpiOsPrintf ("LLessEqual");
+                break;
 
-        case AML_LGREATER_OP:
+            case AML_LLESS_OP:
+                AcpiOsPrintf ("LGreaterEqual");
+                break;
 
-            AcpiOsPrintf ("LLessEqual");
-            break;
-
-        case AML_LLESS_OP:
-
-            AcpiOsPrintf ("LGreaterEqual");
-            break;
-
-        default:
-
-            break;
+            default:
+                break;
+            }
         }
+
         Op->Common.DisasmOpcode = 0;
         Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
         return;
@@ -722,7 +721,6 @@ AcpiDmDisassembleOneOp (
     default:
         break;
     }
-
 
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
@@ -845,24 +843,12 @@ AcpiDmDisassembleOneOp (
         else if (AcpiDmIsPldBuffer (Op))
         {
             Op->Common.DisasmOpcode = ACPI_DASM_PLD_METHOD;
-            AcpiOsPrintf ("Buffer");
+            AcpiOsPrintf ("ToPLD (");
         }
         else
         {
             Op->Common.DisasmOpcode = ACPI_DASM_BUFFER;
             AcpiOsPrintf ("Buffer");
-        }
-        break;
-
-    case AML_INT_STATICSTRING_OP:
-
-        if (Op->Common.Value.String)
-        {
-            AcpiOsPrintf ("%s", Op->Common.Value.String);
-        }
-        else
-        {
-            AcpiOsPrintf ("\"<NULL STATIC STRING PTR>\"");
         }
         break;
 

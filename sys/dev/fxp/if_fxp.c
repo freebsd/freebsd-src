@@ -157,52 +157,52 @@ static const u_char fxp_cb_config_template[] = {
  * them.
  */
 static const struct fxp_ident fxp_ident_table[] = {
-    { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
-    { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1032,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1033,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1034,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1035,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1036,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1037,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1038,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1039,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103A,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103B,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x103C,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103D,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103E,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x1050,	-1,	5, "Intel 82801BA (D865) Pro/100 VE Ethernet" },
-    { 0x1051,	-1,	5, "Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
-    { 0x1059,	-1,	0, "Intel 82551QM Pro/100 M Mobile Connection" },
-    { 0x1064,	-1,	6, "Intel 82562EZ (ICH6)" },
-    { 0x1065,	-1,	6, "Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
-    { 0x1068,	-1,	6, "Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
-    { 0x1069,	-1,	6, "Intel 82562EM/EX/GX Pro/100 Ethernet" },
-    { 0x1091,	-1,	7, "Intel 82562GX Pro/100 Ethernet" },
-    { 0x1092,	-1,	7, "Intel Pro/100 VE Network Connection" },
-    { 0x1093,	-1,	7, "Intel Pro/100 VM Network Connection" },
-    { 0x1094,	-1,	7, "Intel Pro/100 946GZ (ICH7) Network Connection" },
-    { 0x1209,	-1,	0, "Intel 82559ER Embedded 10/100 Ethernet" },
-    { 0x1229,	0x01,	0, "Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x02,	0, "Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x03,	0, "Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x04,	0, "Intel 82558 Pro/100 Ethernet" },
-    { 0x1229,	0x05,	0, "Intel 82558 Pro/100 Ethernet" },
-    { 0x1229,	0x06,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x07,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
-    { 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0d,	0, "Intel 82550C Pro/100 Ethernet" },
-    { 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
-    { 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
-    { 0x1229,	-1,	0, "Intel 82557/8/9 Pro/100 Ethernet" },
-    { 0x2449,	-1,	2, "Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
-    { 0x27dc,	-1,	7, "Intel 82801GB (ICH7) 10/100 Ethernet" },
-    { 0,	-1,	0, NULL },
+    { 0x8086, 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
+    { 0x8086, 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1032,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1033,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1034,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1035,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x8086, 0x1036,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x8086, 0x1037,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x8086, 0x1038,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1039,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x8086, 0x103A,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x8086, 0x103B,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x8086, 0x103C,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x8086, 0x103D,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x8086, 0x103E,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1050,	-1,	5, "Intel 82801BA (D865) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1051,	-1,	5, "Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1059,	-1,	0, "Intel 82551QM Pro/100 M Mobile Connection" },
+    { 0x8086, 0x1064,	-1,	6, "Intel 82562EZ (ICH6)" },
+    { 0x8086, 0x1065,	-1,	6, "Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
+    { 0x8086, 0x1068,	-1,	6, "Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1069,	-1,	6, "Intel 82562EM/EX/GX Pro/100 Ethernet" },
+    { 0x8086, 0x1091,	-1,	7, "Intel 82562GX Pro/100 Ethernet" },
+    { 0x8086, 0x1092,	-1,	7, "Intel Pro/100 VE Network Connection" },
+    { 0x8086, 0x1093,	-1,	7, "Intel Pro/100 VM Network Connection" },
+    { 0x8086, 0x1094,	-1,	7, "Intel Pro/100 946GZ (ICH7) Network Connection" },
+    { 0x8086, 0x1209,	-1,	0, "Intel 82559ER Embedded 10/100 Ethernet" },
+    { 0x8086, 0x1229,	0x01,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x02,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x03,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x04,	0, "Intel 82558 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x05,	0, "Intel 82558 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x06,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x07,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0d,	0, "Intel 82550C Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	-1,	0, "Intel 82557/8/9 Pro/100 Ethernet" },
+    { 0x8086, 0x2449,	-1,	2, "Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
+    { 0x8086, 0x27dc,	-1,	7, "Intel 82801GB (ICH7) 10/100 Ethernet" },
+    { 0,      0,	-1,	0, NULL },
 };
 
 #ifdef FXP_IP_CSUM_WAR
@@ -374,18 +374,18 @@ fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
 static const struct fxp_ident *
 fxp_find_ident(device_t dev)
 {
-	uint16_t devid;
+	uint16_t vendor;
+	uint16_t device;
 	uint8_t revid;
 	const struct fxp_ident *ident;
 
-	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
-		devid = pci_get_device(dev);
-		revid = pci_get_revid(dev);
-		for (ident = fxp_ident_table; ident->name != NULL; ident++) {
-			if (ident->devid == devid &&
-			    (ident->revid == revid || ident->revid == -1)) {
-				return (ident);
-			}
+	vendor = pci_get_vendor(dev);
+	device = pci_get_device(dev);
+	revid = pci_get_revid(dev);
+	for (ident = fxp_ident_table; ident->name != NULL; ident++) {
+		if (ident->vendor == vendor && ident->device == device &&
+		    (ident->revid == revid || ident->revid == -1)) {
+			return (ident);
 		}
 	}
 	return (NULL);
@@ -628,7 +628,7 @@ fxp_attach(device_t dev)
 	/* For 82559 or later chips, Rx checksum offload is supported. */
 	if (sc->revision >= FXP_REV_82559_A0) {
 		/* 82559ER does not support Rx checksum offloading. */
-		if (sc->ident->devid != 0x1209)
+		if (sc->ident->device != 0x1209)
 			sc->flags |= FXP_FLAG_82559_RXCSUM;
 	}
 	/*

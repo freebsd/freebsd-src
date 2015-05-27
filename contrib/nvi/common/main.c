@@ -10,14 +10,6 @@
 #include "config.h"
 
 #ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1992, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n\
-@(#) Copyright (c) 1992, 1993, 1994, 1995, 1996\n\
-	Keith Bostic.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 static const char sccsid[] = "$Id: main.c,v 11.0 2012/10/17 06:34:37 zy Exp $";
 #endif /* not lint */
 
@@ -38,15 +30,15 @@ static const char sccsid[] = "$Id: main.c,v 11.0 2012/10/17 06:34:37 zy Exp $";
 #include "../vi/vi.h"
 #include "pathnames.h"
 
-static void	 attach __P((GS *));
-static void	 v_estr __P((char *, int, char *));
-static int	 v_obsolete __P((char *, char *[]));
+static void	 attach(GS *);
+static void	 v_estr(char *, int, char *);
+static int	 v_obsolete(char *, char *[]);
 
 /*
  * editor --
  *	Main editor routine.
  *
- * PUBLIC: int editor __P((GS *, int, char *[]));
+ * PUBLIC: int editor(GS *, int, char *[]);
  */
 int
 editor(
@@ -436,7 +428,7 @@ err:		rval = 1;
  * v_end --
  *	End the program, discarding screens and most of the global area.
  *
- * PUBLIC: void v_end __P((GS *));
+ * PUBLIC: void v_end(GS *);
  */
 void
 v_end(gp)
@@ -455,7 +447,7 @@ v_end(gp)
 	while ((sp = TAILQ_FIRST(gp->hq)) != NULL)
 		(void)screen_end(sp);
 
-#if defined(DEBUG) || defined(PURIFY) || defined(LIBRARY)
+#if defined(DEBUG) || defined(PURIFY)
 	{ FREF *frp;
 		/* Free FREF's. */
 		while ((frp = TAILQ_FIRST(gp->frefq)) != NULL) {
@@ -499,13 +491,13 @@ v_end(gp)
 		(void)fprintf(stderr, "%s%.*s",
 		    mp->mtype == M_ERR ? "ex/vi: " : "", (int)mp->len, mp->buf);
 		SLIST_REMOVE_HEAD(gp->msgq, q);
-#if defined(DEBUG) || defined(PURIFY) || defined(LIBRARY)
+#if defined(DEBUG) || defined(PURIFY)
 		free(mp->buf);
 		free(mp);
 #endif
 	}
 
-#if defined(DEBUG) || defined(PURIFY) || defined(LIBRARY)
+#if defined(DEBUG) || defined(PURIFY)
 	/* Free any temporary space. */
 	if (gp->tmp_bp != NULL)
 		free(gp->tmp_bp);

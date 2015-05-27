@@ -76,14 +76,3 @@ Lst_EnQueue(Lst l, void *d)
     return (Lst_InsertAfter(l, Lst_Last(l), d));
 }
 
-ReturnStatus
-Lst_EnQueueOnce(Lst l, void *d)
-{
-    if (LstValid (l) == FALSE) {
-	return (FAILURE);
-    }
-
-    if (Lst_Member(l, d))
-	return (SUCCESS);
-    return (Lst_InsertAfter(l, Lst_Last(l), d));
-}

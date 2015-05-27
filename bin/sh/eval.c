@@ -149,7 +149,7 @@ evalcmd(int argc, char **argv)
  */
 
 void
-evalstring(char *s, int flags)
+evalstring(const char *s, int flags)
 {
 	union node *n;
 	struct stackmark smark;
@@ -498,7 +498,7 @@ exphere(union node *redir, struct arglist *fn)
 	struct localvar *savelocalvars;
 	int need_longjmp = 0;
 
-	redir->nhere.expdoc = nullstr;
+	redir->nhere.expdoc = "";
 	savelocalvars = localvars;
 	localvars = NULL;
 	forcelocal++;
@@ -539,13 +539,13 @@ expredir(union node *n)
 		case NFROMTO:
 		case NAPPEND:
 		case NCLOBBER:
-			expandarg(redir->nfile.fname, &fn, EXP_TILDE | EXP_REDIR);
+			expandarg(redir->nfile.fname, &fn, EXP_TILDE);
 			redir->nfile.expfname = fn.list->text;
 			break;
 		case NFROMFD:
 		case NTOFD:
 			if (redir->ndup.vname) {
-				expandarg(redir->ndup.vname, &fn, EXP_TILDE | EXP_REDIR);
+				expandarg(redir->ndup.vname, &fn, EXP_TILDE);
 				fixredir(redir, fn.list->text, 1);
 			}
 			break;
@@ -774,15 +774,7 @@ xtracecommand(struct arglist *varlist, struct arglist *arglist)
 	for (sp = arglist->list ; sp ; sp = sp->next) {
 		if (sep != 0)
 			out2c(' ');
-		/* Disambiguate command looking like assignment. */
-		if (sp == arglist->list &&
-				strchr(sp->text, '=') != NULL &&
-				strchr(sp->text, '\'') == NULL) {
-			out2c('\'');
-			out2str(sp->text);
-			out2c('\'');
-		} else
-			out2qstr(sp->text);
+		out2qstr(sp->text);
 		sep = ' ';
 	}
 	out2c('\n');

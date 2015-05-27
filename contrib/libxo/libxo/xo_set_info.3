@@ -7,7 +7,7 @@
 .\" # LICENSE.
 .\" # Phil Shafer, July 2014
 .\" 
-.Dd July, 2014
+.Dd December 4, 2014
 .Dt LIBXO 3
 .Os
 .Sh NAME
@@ -21,19 +21,23 @@
 .Fn xo_set_info "xo_handle_t *handle" "xo_info_t *info" "int count"
 .Sh DESCRIPTION
 HTML data can include additional information in attributes that
-begin with "data-".  To enable this, three things must occur:
+begin with "data-".
+To enable this, three things must occur:
 .Pp
-First the application must build an array of xo_info_t structures,
-one per tag.  The array must be sorted by name, since
-.Em libxo
+First the application must build an array of
+.Dv xo_info_t
+structures,
+one per tag.
+The array must be sorted by name, since
+.Nm libxo
 uses a
 binary search to find the entry that matches names from format
 instructions.
 .Pp
 The
-.Em xo_info_t
+.Dv xo_info_t
 structure is defined in
-.Em <libxo/xo.h> :
+.In libxo/xo.h :
 .Bd -literal -offset indent
     typedef struct xo_info_s {
         const char *xi_name;    /* Name of the element */
@@ -43,21 +47,27 @@ structure is defined in
 .Ed
 .Pp
 Second, the application must inform
-.Em libxo
+.Nm libxo
 about this information using the
 .Fn xo_set_info
-call.  Like other libxo calls, passing NULL for the handle tells
-.Em libxo
+call.
+Like other
+.Nm libxo
+calls, passing
+.Dv NULL
+for the handle tells
+.Nm libxo
 to use the default handle.
 .Pp
 If the
 .Fa count
 is -1,
-.Em libxo
+.Nm libxo
 will count the elements of
 .Fa info ,
 but there
-must be an empty element at the end.  More typically, the number is
+must be an empty element at the end.
+More typically, the number is
 known to the application:
 .Bd -literal -offset indent
     xo_info_t info[] = {
@@ -72,8 +82,8 @@ known to the application:
     xo_set_info(NULL, info, info_count);
 .Ed
 .Pp
-Third, the emitting of info must be triggered with the
-.Em XOF_INFO
+Third, the emission of info must be triggered with the
+.Dv XOF_INFO
 flag
 using either the
 .Fn xo_set_flags
@@ -88,18 +98,20 @@ and "data-help" attributes:
        data-help="Stock Keeping Unit">GRO-000-533</div>
 .Ed
 .Sh ADDITIONAL DOCUMENTATION
-.Pp
 Complete documentation can be found on github:
 .Bd -literal -offset indent
 http://juniper.github.io/libxo/libxo-manual.html
 .Ed
 .Pp
-libxo lives on github as:
+.Nm libxo
+lives on github as:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo
 .Ed
 .Pp
-The latest release of libxo is available at:
+The latest release of
+.Nm libxo
+is available at:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo/releases
 .Ed
@@ -107,7 +119,8 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_emit 3
 .Sh HISTORY
 The
-.Fa libxo
-library was added in FreeBSD 11.0.
+.Nm libxo
+library was added in
+.Fx 11.0 .
 .Sh AUTHOR
 Phil Shafer

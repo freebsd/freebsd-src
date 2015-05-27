@@ -14,19 +14,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "adce"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/InstIterator.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "adce"
 
 STATISTIC(NumRemoved, "Number of instructions removed");
 
@@ -37,9 +38,9 @@ namespace {
       initializeADCEPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnFunction(Function& F);
+    bool runOnFunction(Function& F) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage& AU) const {
+    void getAnalysisUsage(AnalysisUsage& AU) const override {
       AU.setPreservesCFG();
     }
 
@@ -50,6 +51,9 @@ char ADCE::ID = 0;
 INITIALIZE_PASS(ADCE, "adce", "Aggressive Dead Code Elimination", false, false)
 
 bool ADCE::runOnFunction(Function& F) {
+  if (skipOptnoneFunction(F))
+    return false;
+
   SmallPtrSet<Instruction*, 128> alive;
   SmallVector<Instruction*, 128> worklist;
 
@@ -69,7 +73,7 @@ bool ADCE::runOnFunction(Function& F) {
     for (Instruction::op_iterator OI = curr->op_begin(), OE = curr->op_end();
          OI != OE; ++OI)
       if (Instruction* Inst = dyn_cast<Instruction>(OI))
-        if (alive.insert(Inst))
+        if (alive.insert(Inst).second)
           worklist.push_back(Inst);
   }
 

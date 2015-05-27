@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_errmsg.c 2576 2012-09-13 09:16:11Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_errmsg.c 2975 2014-01-21 20:08:04Z kaiwang27 $");
 
 static const char *_libdwarf_errors[] = {
 #define	DEFINE_ERROR(N,S)		[DW_DLE_##N] = S

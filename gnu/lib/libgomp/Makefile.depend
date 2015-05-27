@@ -17,6 +17,9 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+affinity.So: gstdint.h
+affinity.o: gstdint.h
+affinity.po: gstdint.h
 alloc.So: gstdint.h
 alloc.o: gstdint.h
 alloc.po: gstdint.h

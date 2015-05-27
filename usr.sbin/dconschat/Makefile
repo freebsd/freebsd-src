@@ -5,8 +5,7 @@ MAN=	dconschat.8
 
 CFLAGS+= -I${.CURDIR}/../../sys
 
-DPADD=  ${LIBKVM}
-LDADD=  -lkvm
+LIBADD=	kvm
 
 WARNS?=	1
 

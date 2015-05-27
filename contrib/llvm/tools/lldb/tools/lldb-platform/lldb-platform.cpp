@@ -11,7 +11,9 @@
 
 // C Includes
 #include <errno.h>
-#include "lldb/Host/HostGetOpt.h"
+#if defined(__APPLE__)
+#include <netinet/in.h>
+#endif
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -23,10 +25,11 @@
 // Other libraries and framework includes
 #include "lldb/lldb-private-log.h"
 #include "lldb/Core/Error.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/ConnectionMachPort.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/StreamFile.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
+#include "lldb/Host/HostGetOpt.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -230,10 +233,6 @@ main (int argc, char *argv[])
         exit(option_error);
     }
     
-    // Skip any options we consumed with getopt_long_only
-    argc -= optind;
-    argv += optind;
-
     // Execute any LLDB commands that we were asked to evaluate.
     for (const auto &lldb_command : lldb_commands)
     {
@@ -286,7 +285,7 @@ main (int argc, char *argv[])
                     bool done = false;
                     while (!interrupt && !done)
                     {
-                        if (!gdb_server.GetPacketAndSendResponse (UINT32_MAX, error, interrupt, done))
+                        if (gdb_server.GetPacketAndSendResponse (UINT32_MAX, error, interrupt, done) != GDBRemoteCommunication::PacketResult::Success)
                             break;
                     }
                     

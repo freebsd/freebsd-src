@@ -81,5 +81,6 @@ STAGE_DIR= ${STAGE_LIBDIR}
 STAGE_FILES= ${OBJS} ${SOBJS} ${TGTOBJS}
 staging: stage_files
 .endif
+.NOPATH: ${CLEANFILES}
 
 .include <bsd.lib.mk>

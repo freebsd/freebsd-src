@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -102,41 +101,14 @@ ip_ipsec_filtertunnel(struct mbuf *m)
 /*
  * Check if this packet has an active SA and needs to be dropped instead
  * of forwarded.
- * Called from ip_input().
+ * Called from ip_forward().
  * 1 = drop packet, 0 = forward packet.
  */
 int
 ip_ipsec_fwd(struct mbuf *m)
 {
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
-	struct secpolicy *sp;
-	int error;
 
-	mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-	} else {
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-					   IP_FORWARDING, &error);   
-	}
-	if (sp == NULL) {	/* NB: can happen if error */
-		/*XXX error stat???*/
-		DPRINTF(("ip_input: no SP for forwarding\n"));	/*XXX*/
-		return 1;
-	}
-
-	/*
-	 * Check security policy against packet attributes.
-	 */
-	error = ipsec_in_reject(sp, m);
-	KEY_FREESP(&sp);
-	if (error) {
-		IPSTAT_INC(ips_cantforward);
-		return 1;
-	}
-	return 0;
+	return (ipsec4_in_reject(m, NULL));
 }
 
 /*
@@ -147,49 +119,16 @@ ip_ipsec_fwd(struct mbuf *m)
  * 1 = drop packet, 0 = continue processing packet.
  */
 int
-ip_ipsec_input(struct mbuf *m)
+ip_ipsec_input(struct mbuf *m, int nxt)
 {
-	struct ip *ip = mtod(m, struct ip *);
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
-	struct secpolicy *sp;
-	int error;
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if ((inetsw[ip_protox[ip->ip_p]].pr_flags & PR_LASTHDR) != 0) {
-		/*
-		 * Check if the packet has already had IPsec processing
-		 * done.  If so, then just pass it along.  This tag gets
-		 * set during AH, ESP, etc. input handling, before the
-		 * packet is returned to the ip input queue for delivery.
-		 */ 
-		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-		if (mtag != NULL) {
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-		} else {
-			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-						   IP_FORWARDING, &error);   
-		}
-		if (sp != NULL) {
-			/*
-			 * Check security policy against packet attributes.
-			 */
-			error = ipsec_in_reject(sp, m);
-			KEY_FREESP(&sp);
-		} else {
-			/* XXX error stat??? */
-			error = EINVAL;
-			DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
-			return 1;
-		}
-		if (error)
-			return 1;
-	}
-	return 0;
+	if ((inetsw[ip_protox[nxt]].pr_flags & PR_LASTHDR) != 0)
+		return (ipsec4_in_reject(m, NULL));
+	return (0);
 }
 
 /*
@@ -206,35 +145,7 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
 	 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
 	 * XXX quickhack!!!
 	 */
-	struct secpolicy *sp = NULL;
-	int ipsecerror;
-	int ipsechdr;
-	struct route *ro;
-	sp = ipsec_getpolicybyaddr(m,
-				   IPSEC_DIR_OUTBOUND,
-				   IP_FORWARDING,
-				   &ipsecerror);
-	if (sp != NULL) {
-		/* count IPsec header size */
-		ipsechdr = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL);
-
-		/*
-		 * find the correct route for outer IPv4
-		 * header, compute tunnel MTU.
-		 */
-		if (sp->req != NULL &&
-		    sp->req->sav != NULL &&
-		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->route_cache.sa_route;
-			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
-				mtu = ro->ro_rt->rt_mtu ? ro->ro_rt->rt_mtu :
-				    ro->ro_rt->rt_ifp->if_mtu;
-				mtu -= ipsechdr;
-			}
-		}
-		KEY_FREESP(&sp);
-	}
-	return mtu;
+	return (mtu - ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL));
 }
 
 /*
@@ -244,11 +155,9 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
  * -1 = packet was reinjected and stop processing packet
  */
 int
-ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
+ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
-	struct secpolicy *sp = NULL;
-	struct tdb_ident *tdbi;
-	struct m_tag *mtag;
+	struct secpolicy *sp;
 	/*
 	 * Check the security policy (SP) for the packet and, if
 	 * required, do IPsec-related processing.  There are two
@@ -258,17 +167,11 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 	 * AH, ESP, etc. processing), there will be a tag to bypass
 	 * the lookup and related policy checking.
 	 */
-	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
-		if (sp == NULL)
-			*error = -EINVAL;	/* force silent drop */
-		m_tag_delete(*m, mtag);
-	} else {
-		sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
-					error, inp);
+	if (m_tag_find(*m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL) {
+		*error = 0;
+		return (0);
 	}
+	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, error, inp);
 	/*
 	 * There are four return cases:
 	 *    sp != NULL	 	    apply IPsec policy
@@ -277,40 +180,6 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 	 *    sp == NULL, error != 0	    discard packet, report error
 	 */
 	if (sp != NULL) {
-		/* Loop detection, check if ipsec processing already done */
-		KASSERT(sp->req != NULL, ("ip_output: no ipsec request"));
-		for (mtag = m_tag_first(*m); mtag != NULL;
-		     mtag = m_tag_next(*m, mtag)) {
-			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
-				continue;
-			if (mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_DONE &&
-			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
-				continue;
-			/*
-			 * Check if policy has an SA associated with it.
-			 * This can happen when an SP has yet to acquire
-			 * an SA; e.g. on first reference.  If it occurs,
-			 * then we let ipsec4_process_packet do its thing.
-			 */
-			if (sp->req->sav == NULL)
-				break;
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			if (tdbi->spi == sp->req->sav->spi &&
-			    tdbi->proto == sp->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &sp->req->sav->sah->saidx.dst,
-				 sizeof (union sockaddr_union)) == 0) {
-				/*
-				 * No IPsec processing is needed, free
-				 * reference to SP.
-				 *
-				 * NB: null pointer to avoid free at
-				 *     done: below.
-				 */
-				KEY_FREESP(&sp), sp = NULL;
-				goto done;
-			}
-		}
-
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
@@ -329,7 +198,10 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 #endif
 
 		/* NB: callee frees mbuf */
-		*error = ipsec4_process_packet(*m, sp->req, *flags, 0);
+		*error = ipsec4_process_packet(*m, sp->req);
+		/* Release SP if an error occured */
+		if (*error != 0)
+			KEY_FREESP(&sp);
 		if (*error == EJUSTRETURN) {
 			/*
 			 * We had a SP with a level of 'use' and no SA. We
@@ -361,18 +233,13 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 			if (*error == -EINVAL)
 				*error = 0;
 			goto bad;
-		} else {
-			/* No IPsec processing for this packet. */
 		}
+		/* No IPsec processing for this packet. */
 	}
 done:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return 0;
+	return (0);
 reinjected:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return -1;
+	return (-1);
 bad:
 	if (sp != NULL)
 		KEY_FREESP(&sp);

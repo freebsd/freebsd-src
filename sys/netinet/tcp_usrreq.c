@@ -476,8 +476,12 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+	if (inp->inp_flags & INP_TIMEWAIT) {
+		error = EADDRINUSE;
+		goto out;
+	}
+	if (inp->inp_flags & INP_DROPPED) {
+		error = ECONNREFUSED;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -523,8 +527,12 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+	if (inp->inp_flags & INP_TIMEWAIT) {
+		error = EADDRINUSE;
+		goto out;
+	}
+	if (inp->inp_flags & INP_DROPPED) {
+		error = ECONNREFUSED;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -821,7 +829,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		if (control)
 			m_freem(control);
-		if (m)
+		/*
+		 * In case of PRUS_NOTREADY, tcp_usr_ready() is responsible
+		 * for freeing memory.
+		 */
+		if (m && (flags & PRUS_NOTREADY) == 0)
 			m_freem(m);
 		error = ECONNRESET;
 		goto out;
@@ -843,7 +855,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		m_freem(control);	/* empty control, just free it */
 	}
 	if (!(flags & PRUS_OOB)) {
-		sbappendstream(&so->so_snd, m);
+		sbappendstream(&so->so_snd, m, flags);
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
 			 * Do implied connect if not yet connected,
@@ -875,7 +887,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			socantsendmore(so);
 			tcp_usrclosed(tp);
 		}
-		if (!(inp->inp_flags & INP_DROPPED)) {
+		if (!(inp->inp_flags & INP_DROPPED) &&
+		    !(flags & PRUS_NOTREADY)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
 			error = tcp_output(tp);
@@ -901,7 +914,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		 * of data past the urgent section.
 		 * Otherwise, snd_up should be one lower.
 		 */
-		sbappendstream_locked(&so->so_snd, m);
+		sbappendstream_locked(&so->so_snd, m, flags);
 		SOCKBUF_UNLOCK(&so->so_snd);
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
@@ -925,10 +938,12 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
 			tcp_mss(tp, -1);
 		}
-		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
-		tp->t_flags |= TF_FORCEDATA;
-		error = tcp_output(tp);
-		tp->t_flags &= ~TF_FORCEDATA;
+		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
+		if (!(flags & PRUS_NOTREADY)) {
+			tp->t_flags |= TF_FORCEDATA;
+			error = tcp_output(tp);
+			tp->t_flags &= ~TF_FORCEDATA;
+		}
 	}
 out:
 	TCPDEBUG2((flags & PRUS_OOB) ? PRU_SENDOOB :
@@ -936,6 +951,33 @@ out:
 	INP_WUNLOCK(inp);
 	if (flags & PRUS_EOF)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+	return (error);
+}
+
+static int
+tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	int error;
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		for (int i = 0; i < count; i++)
+			m = m_free(m);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+
+	SOCKBUF_LOCK(&so->so_snd);
+	error = sbready(&so->so_snd, m, count);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	if (error == 0)
+		error = tcp_output(tp);
+	INP_WUNLOCK(inp);
+
 	return (error);
 }
 
@@ -1073,6 +1115,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
+	.pru_ready =		tcp_usr_ready,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
@@ -1095,6 +1138,7 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
+	.pru_ready =		tcp_usr_ready,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,

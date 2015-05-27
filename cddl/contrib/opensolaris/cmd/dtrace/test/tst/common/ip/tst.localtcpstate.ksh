@@ -79,6 +79,7 @@ cat > test.pl <<-EOPERL
 	die "Could not connect to host $local port $tcpport" unless \$s;
 	print \$s "testing state machine transitions";
 	close \$s;
+	sleep(2);
 EOPERL
 
 $dtrace -c '/usr/bin/perl test.pl' -qs /dev/stdin <<EODTRACE

@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
@@ -143,6 +144,7 @@ socket_open(char const *node)
 	bit_set(filter.event_mask, NG_HCI_EVENT_READ_CLOCK_OFFSET_COMPL - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_CON_PKT_TYPE_CHANGED - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_ROLE_CHANGE - 1);
+	bit_set(filter.event_mask, NG_HCI_EVENT_LE -1);
 
 	if (setsockopt(s, SOL_HCI_RAW, SO_HCI_RAW_FILTER, 
 			(void * const) &filter, sizeof(filter)) < 0)
@@ -181,6 +183,7 @@ do_hci_command(char const *node, int argc, char **argv)
 			print_hci_command(host_controller_baseband_commands);
 			print_hci_command(info_commands);
 			print_hci_command(status_commands);
+			print_hci_command(le_commands);
 			print_hci_command(node_commands);
 			fprintf(stdout, "\nFor more information use " \
 				"'help command'\n");
@@ -212,6 +215,11 @@ do_hci_command(char const *node, int argc, char **argv)
 	if (c != NULL)
 		goto execute;
 
+	c = find_hci_command(cmd, le_commands);
+	if (c != NULL)
+		goto execute;
+
+	
 	c = find_hci_command(cmd, node_commands);
 	if (c == NULL) {
 		fprintf(stdout, "Unknown command: \"%s\"\n", cmd);

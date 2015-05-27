@@ -88,6 +88,12 @@ uart_getrange(struct uart_class *uc)
 	return ((uc != NULL) ? uc->uc_range : 0);
 }
 
+u_int
+uart_getregshift(struct uart_class *uc)
+{
+	return ((uc != NULL) ? uc->uc_rshift : 0);
+}
+
 /*
  * Schedule a soft interrupt. We do this on the 0 to !0 transition
  * of the TTY pending interrupt status.

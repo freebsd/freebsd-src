@@ -19,6 +19,8 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
+extern struct uart_class uart_s3c2410_class;
+
 static int uart_s3c2410_probe(device_t dev);
 
 static device_method_t uart_s3c2410_methods[] = {

@@ -131,6 +131,8 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	}
 
 	/*
+	 * The following comment is dated but still partially applies:
+	 *
 	 * XXX: This code is flawed because it considers a "writable" mbuf
 	 *      data region to require all of the following:
 	 *	  (i) mbuf _has_ to have M_EXT set; if it is just a regular
@@ -147,10 +149,6 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * to 1), but we'll fail to notice it unless we re-evaluate
 	 * M_WRITABLE(). For now, we only evaluate once at the beginning and
 	 * live with this.
-	 */
-	/*
-	 * XXX: This is dumb. If we're just a regular mbuf with no M_EXT,
-	 *      then we're not "writable," according to this code.
 	 */
 	writable = 0;
 	if ((n->m_flags & M_EXT) == 0 ||

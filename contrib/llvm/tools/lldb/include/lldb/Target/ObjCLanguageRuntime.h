@@ -20,8 +20,9 @@
 // Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Core/PluginInterface.h"
+#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/DeclVendor.h"
 #include "lldb/Symbol/Type.h"
-#include "lldb/Symbol/TypeVendor.h"
 #include "lldb/Target/LanguageRuntime.h"
 
 namespace lldb_private {
@@ -165,6 +166,9 @@ public:
         virtual ClassDescriptorSP
         GetSuperclass () = 0;
         
+        virtual ClassDescriptorSP
+        GetMetaclass () const = 0;
+        
         // virtual if any implementation has some other version-specific rules
         // but for the known v1/v2 this is all that needs to be done
         virtual bool
@@ -221,7 +225,7 @@ public:
         Describe (std::function <void (ObjCISA)> const &superclass_func,
                   std::function <bool (const char*, const char*)> const &instance_method_func,
                   std::function <bool (const char*, const char*)> const &class_method_func,
-                  std::function <bool (const char *, const char *, lldb::addr_t, uint64_t)> const &ivar_func)
+                  std::function <bool (const char *, const char *, lldb::addr_t, uint64_t)> const &ivar_func) const
         {
             return false;
         }
@@ -238,6 +242,25 @@ public:
             m_type_wp = type_sp;
         }
         
+        struct iVarDescriptor {
+            ConstString m_name;
+            ClangASTType m_type;
+            uint64_t m_size;
+            int32_t m_offset;
+        };
+        
+        virtual size_t
+        GetNumIVars ()
+        {
+            return 0;
+        }
+        
+        virtual iVarDescriptor
+        GetIVarAtIndex (size_t idx)
+        {
+            return iVarDescriptor();
+        }
+        
     protected:
         bool
         IsPointerValid (lldb::addr_t value,
@@ -251,6 +274,25 @@ public:
         LazyBool m_is_cf;
         lldb::TypeWP m_type_wp;
     };
+    
+    class EncodingToType
+    {
+    public:
+        virtual ClangASTType RealizeType (ClangASTContext& ast_ctx, const char* name, bool for_expression);
+        virtual ClangASTType RealizeType (const char* name, bool for_expression);
+        
+        virtual ClangASTType RealizeType (clang::ASTContext& ast_ctx, const char* name, bool for_expression) = 0;
+        
+        virtual ~EncodingToType();
+        
+    protected:
+        std::unique_ptr<ClangASTContext> m_scratch_ast_ctx_ap;
+    };
+    
+    typedef std::shared_ptr<EncodingToType> EncodingToTypeSP;
+    
+    virtual EncodingToTypeSP
+    GetEncodingToType ();
     
     virtual ClassDescriptorSP
     GetClassDescriptor (ValueObject& in_value);
@@ -343,8 +385,8 @@ public:
     virtual ObjCISA
     GetParentClass(ObjCISA isa);
     
-    virtual TypeVendor *
-    GetTypeVendor()
+    virtual DeclVendor *
+    GetDeclVendor()
     {
         return NULL;
     }

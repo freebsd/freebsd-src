@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Advanced Computing Technologies LLC
+ * Copyright (c) 2009 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -130,6 +130,8 @@ sg_pager_dealloc(vm_object_t object)
 	
 	sg = object->handle;
 	sglist_free(sg);
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 static int

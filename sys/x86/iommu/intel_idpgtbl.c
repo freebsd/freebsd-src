@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -146,7 +147,7 @@ ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
 		}
 	}
 	/* ctx_get_idmap_pgtbl flushes CPU cache if needed. */
-	dmar_unmap_pgtbl(sf, true);
+	dmar_unmap_pgtbl(sf);
 	VM_OBJECT_WLOCK(tbl->pgtbl_obj);
 }
 
@@ -361,7 +362,7 @@ ctx_pgtbl_map_pte(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl, int flags,
 		pte = (dmar_pte_t *)sf_buf_kva(*sf);
 	} else {
 		if (*sf != NULL)
-			dmar_unmap_pgtbl(*sf, DMAR_IS_COHERENT(ctx->dmar));
+			dmar_unmap_pgtbl(*sf);
 		*idxp = idx;
 retry:
 		pte = dmar_map_pgtbl(ctx->pgtbl_obj, idx, flags, sf);
@@ -397,9 +398,10 @@ retry:
 			}
 			dmar_pte_store(&ptep->pte, DMAR_PTE_R | DMAR_PTE_W |
 			    VM_PAGE_TO_PHYS(m));
+			dmar_flush_pte_to_ram(ctx->dmar, ptep);
 			sf_buf_page(sfp)->wire_count += 1;
 			m->wire_count--;
-			dmar_unmap_pgtbl(sfp, DMAR_IS_COHERENT(ctx->dmar));
+			dmar_unmap_pgtbl(sfp);
 			/* Only executed once. */
 			goto retry;
 		}
@@ -463,24 +465,24 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 		KASSERT(size >= pg_sz,
 		    ("mapping loop overflow %p %jx %jx %jx", ctx,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
+		KASSERT(pg_sz > 0, ("pg_sz 0 lvl %d", lvl));
 		pte = ctx_pgtbl_map_pte(ctx, base, lvl, flags, &idx, &sf);
 		if (pte == NULL) {
 			KASSERT((flags & DMAR_PGF_WAITOK) == 0,
 			    ("failed waitable pte alloc %p", ctx));
-			if (sf != NULL) {
-				dmar_unmap_pgtbl(sf,
-				    DMAR_IS_COHERENT(ctx->dmar));
-			}
+			if (sf != NULL)
+				dmar_unmap_pgtbl(sf);
 			ctx_unmap_buf_locked(ctx, base1, base - base1, flags);
 			TD_PINNED_ASSERT;
 			return (ENOMEM);
 		}
 		dmar_pte_store(&pte->pte, VM_PAGE_TO_PHYS(ma[pi]) | pflags |
 		    (superpage ? DMAR_PTE_SP : 0));
+		dmar_flush_pte_to_ram(ctx->dmar, pte);
 		sf_buf_page(sf)->wire_count += 1;
 	}
 	if (sf != NULL)
-		dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(ctx->dmar));
+		dmar_unmap_pgtbl(sf);
 	TD_PINNED_ASSERT;
 	return (0);
 }
@@ -567,9 +569,10 @@ ctx_unmap_clear_pte(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl,
 	vm_page_t m;
 
 	dmar_pte_clear(&pte->pte);
+	dmar_flush_pte_to_ram(ctx->dmar, pte);
 	m = sf_buf_page(*sf);
 	if (free_sf) {
-		dmar_unmap_pgtbl(*sf, DMAR_IS_COHERENT(ctx->dmar));
+		dmar_unmap_pgtbl(*sf);
 		*sf = NULL;
 	}
 	m->wire_count--;
@@ -651,7 +654,7 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
 	}
 	if (sf != NULL)
-		dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(ctx->dmar));
+		dmar_unmap_pgtbl(sf);
 	/*
 	 * See 11.1 Write Buffer Flushing for an explanation why RWBF
 	 * can be ignored there.

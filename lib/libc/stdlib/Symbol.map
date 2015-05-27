@@ -113,9 +113,11 @@ FBSD_1.4 {
 	hcreate_r;
 	hdestroy_r;
 	hsearch_r;
+	reallocarray;
 };
 
 FBSDprivate_1.0 {
 	__system;
 	_system;
+	__libc_system;
 };

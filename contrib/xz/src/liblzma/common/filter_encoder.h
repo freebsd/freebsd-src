@@ -16,12 +16,12 @@
 #include "common.h"
 
 
-// FIXME: Might become a part of the public API once finished.
-// extern lzma_vli lzma_chunk_size(const lzma_filter *filters);
+// FIXME: Might become a part of the public API.
+extern uint64_t lzma_mt_block_size(const lzma_filter *filters);
 
 
 extern lzma_ret lzma_raw_encoder_init(
-		lzma_next_coder *next, lzma_allocator *allocator,
+		lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter *filters);
 
 #endif

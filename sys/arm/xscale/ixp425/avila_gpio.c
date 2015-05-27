@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <arm/xscale/ixp425/ixp425reg.h>
 #include <arm/xscale/ixp425/ixp425var.h>
+#include <dev/gpio/gpiobusvar.h>
 
 #include "gpio_if.h"
 
@@ -60,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 struct avila_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	bus_space_tag_t		sc_iot;
 	bus_space_handle_t	sc_gpio_ioh;
 	uint32_t		sc_valid;
@@ -116,6 +118,7 @@ static int avila_gpio_detach(device_t dev);
 /*
  * GPIO interface
  */
+static device_t avila_gpio_get_bus(device_t);
 static int avila_gpio_pin_max(device_t dev, int *maxpin);
 static int avila_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps);
 static int avila_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t
@@ -160,6 +163,16 @@ avila_gpio_pin_configure(struct avila_gpio_softc *sc, struct gpio_pin *pin,
 		}
 		IXP4XX_GPIO_UNLOCK();
 	}
+}
+
+static device_t
+avila_gpio_get_bus(device_t dev)
+{
+	struct avila_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -310,10 +323,11 @@ avila_gpio_attach(device_t dev)
 		sc->sc_valid |= 1 << p->pin;
 	}
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		return (ENXIO);
 
-	return (bus_generic_attach(dev));
+	return (0);
 #undef N
 }
 
@@ -321,7 +335,7 @@ static int
 avila_gpio_detach(device_t dev)
 {
 
-	bus_generic_detach(dev);
+	gpiobus_detach_bus(dev);
 
 	return(0);
 }
@@ -332,6 +346,7 @@ static device_method_t gpio_avila_methods[] = {
 	DEVMETHOD(device_detach, avila_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus, avila_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max, avila_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname, avila_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags, avila_gpio_pin_getflags),
@@ -344,15 +359,11 @@ static device_method_t gpio_avila_methods[] = {
 };
 
 static driver_t gpio_avila_driver = {
-	"gpio_avila",
+	"gpio",
 	gpio_avila_methods,
 	sizeof(struct avila_gpio_softc),
 };
 static devclass_t gpio_avila_devclass;
-extern devclass_t gpiobus_devclass, gpioc_devclass;
-extern driver_t gpiobus_driver, gpioc_driver;
 
 DRIVER_MODULE(gpio_avila, ixp, gpio_avila_driver, gpio_avila_devclass, 0, 0);
-DRIVER_MODULE(gpiobus, gpio_avila, gpiobus_driver, gpiobus_devclass, 0, 0);
-DRIVER_MODULE(gpioc, gpio_avila, gpioc_driver, gpioc_devclass, 0, 0);
 MODULE_VERSION(gpio_avila, 1);

@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -116,6 +117,7 @@ static VNET_DEFINE(struct callout, tcp_hc_callout);
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
+static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
 static void tcp_hc_purge_internal(int);
 static void tcp_hc_purge(void *);
 
@@ -154,6 +156,9 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, 0, 0,
     sysctl_tcp_hc_list, "A", "List of all hostcache entries");
 
+SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
+    CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+    sysctl_tcp_hc_purgenow, "I", "Immediately purge all entries");
 
 static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
 
@@ -233,7 +238,7 @@ tcp_hc_init(void)
 	/*
 	 * Set up periodic cache cleanup.
 	 */
-	callout_init(&V_tcp_hc_callout, CALLOUT_MPSAFE);
+	callout_init(&V_tcp_hc_callout, 1);
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
 	    tcp_hc_purge, curvnet);
 }
@@ -595,30 +600,27 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 static int
 sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
-	int bufsize;
-	int linesize = 128;
-	char *p, *buf;
-	int len, i, error;
+	const int linesize = 128;
+	struct sbuf sb;
+	int i, error;
 	struct hc_metrics *hc_entry;
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
 
-	bufsize = linesize * (V_tcp_hostcache.cache_count + 1);
+	sbuf_new(&sb, NULL, linesize * (V_tcp_hostcache.cache_count + 1),
+		SBUF_INCLUDENUL);
 
-	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
-
-	len = snprintf(p, linesize,
-		"\nIP address        MTU  SSTRESH      RTT   RTTVAR BANDWIDTH "
+	sbuf_printf(&sb,
+	        "\nIP address        MTU  SSTRESH      RTT   RTTVAR BANDWIDTH "
 		"    CWND SENDPIPE RECVPIPE HITS  UPD  EXP\n");
-	p += len;
 
 #define msec(u) (((u) + 500) / 1000)
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 		TAILQ_FOREACH(hc_entry, &V_tcp_hostcache.hashbase[i].hch_bucket,
 			      rmx_q) {
-			len = snprintf(p, linesize,
+			sbuf_printf(&sb,
 			    "%-15s %5lu %8lu %6lums %6lums %9lu %8lu %8lu %8lu "
 			    "%4lu %4lu %4i\n",
 			    hc_entry->ip4.s_addr ? inet_ntoa(hc_entry->ip4) :
@@ -640,13 +642,14 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_hits,
 			    hc_entry->rmx_updates,
 			    hc_entry->rmx_expire);
-			p += len;
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 	}
 #undef msec
-	error = SYSCTL_OUT(req, buf, p - buf);
-	free(buf, M_TEMP);
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
 	return(error);
 }
 
@@ -696,4 +699,25 @@ tcp_hc_purge(void *arg)
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
 	    tcp_hc_purge, arg);
 	CURVNET_RESTORE();
+}
+
+/*
+ * Expire and purge all entries in hostcache immediately.
+ */
+static int
+sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	tcp_hc_purge_internal(1);
+
+	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
+	    tcp_hc_purge, curvnet);
+
+	return (0);
 }

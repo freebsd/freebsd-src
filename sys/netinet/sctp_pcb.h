@@ -404,6 +404,7 @@ struct sctp_inpcb {
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
+	uint32_t max_cwnd;
 	uint8_t local_strreset_support;
 	uint32_t sctp_cmt_on_off;
 	uint8_t ecn_supported;

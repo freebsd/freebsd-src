@@ -32,6 +32,13 @@
 #ifndef _SFXGE_RX_H
 #define	_SFXGE_RX_H
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
+#if defined(INET) || defined(INET6)
+#define	SFXGE_LRO	1
+#endif
+
 #define	SFXGE_MAGIC_RESERVED	0x8000
 
 #define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6
@@ -58,6 +65,8 @@ struct sfxge_rx_sw_desc {
 	int		flags;
 	int		size;
 };
+
+#ifdef SFXGE_LRO
 
 /**
  * struct sfxge_lro_conn - Connection state for software LRO
@@ -139,6 +148,8 @@ struct sfxge_lro_state {
 	unsigned n_drop_closed;
 };
 
+#endif	/* SFXGE_LRO */
+
 enum sfxge_flush_state {
 	SFXGE_FLUSH_DONE = 0,
 	SFXGE_FLUSH_PENDING,
@@ -167,7 +178,9 @@ struct sfxge_rxq {
 	unsigned int			pending;
 	unsigned int			completed;
 	unsigned int			loopback;
+#ifdef SFXGE_LRO
 	struct sfxge_lro_state		lro;
+#endif
 	unsigned int			refill_threshold;
 	struct callout			refill_callout;
 	unsigned int			refill_delay;

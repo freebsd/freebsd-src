@@ -101,7 +101,7 @@ static int uaudio_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
-SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uaudio_debug, 0, "uaudio debug level");
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RWTUN,
     &uaudio_default_rate, 0, "uaudio default sample rate");
@@ -111,9 +111,12 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RWTUN,
     &uaudio_default_channels, 0, "uaudio default sample channels");
 #endif
 
+#define	UAUDIO_IRQS	(8000 / UAUDIO_NFRAMES)	/* interrupts per second */
 #define	UAUDIO_NFRAMES		64	/* must be factor of 8 due HS-USB */
 #define	UAUDIO_NCHANBUFS	2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT	255	/* rounds */
+#define	UAUDIO_CHANNELS_MAX	MIN(64, AFMT_CHANNEL_MAX)
+#define	UAUDIO_MATRIX_MAX	8	/* channels */
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
@@ -211,25 +214,25 @@ struct uaudio_chan {
 	uint32_t sample_rem;
 	uint32_t sample_curr;
 	uint32_t max_buf;
+	int32_t jitter_rem;
+	int32_t jitter_curr;
+
+	int feedback_rate;
 
 	uint32_t pcm_format[2];
 
 	uint16_t bytes_per_frame[2];
 
-	uint8_t	num_alt;
-	uint8_t cur_alt;
-	uint8_t set_alt;
-	uint8_t operation;
+	uint32_t intr_counter;
+	uint32_t running;
+	uint32_t num_alt;
+	uint32_t cur_alt;
+	uint32_t set_alt;
+	uint32_t operation;
 #define	CHAN_OP_NONE 0
 #define	CHAN_OP_START 1
 #define	CHAN_OP_STOP 2
 #define	CHAN_OP_DRAIN 3
-
-	uint8_t last_sync_time;
-	uint8_t last_sync_state;
-#define	UAUDIO_SYNC_NONE 0
-#define	UAUDIO_SYNC_MORE 1
-#define	UAUDIO_SYNC_LESS 2
 };
 
 #define	UMIDI_EMB_JACK_MAX   16		/* units */
@@ -345,6 +348,7 @@ struct uaudio_softc {
 	uint8_t	sc_uq_au_no_xu:1;
 	uint8_t	sc_uq_bad_adc:1;
 	uint8_t	sc_uq_au_vendor_class:1;
+	uint8_t	sc_pcm_bitperfect:1;
 };
 
 struct uaudio_terminal_node {
@@ -1061,6 +1065,10 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 		 */
 		uaudio_pcm_setflags(dev, SD_F_SOFTPCMVOL);
 	}
+	if (sc->sc_pcm_bitperfect) {
+		DPRINTF("device needs bitperfect by default\n");
+		uaudio_pcm_setflags(dev, SD_F_BITPERFECT);
+	}
 	if (mixer_init(dev, mixer_class, sc))
 		goto detach;
 	sc->sc_mixer_init = 1;
@@ -1087,6 +1095,11 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	pcm_setstatus(dev, status);
 
 	uaudio_mixer_register_sysctl(sc, dev);
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "feedback_rate", CTLFLAG_RD, &sc->sc_play_chan.feedback_rate,
+	    0, "Feedback sample rate in Hz");
 
 	return (0);			/* success */
 
@@ -1286,7 +1299,6 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 	chan->frames_per_second = fps;
 	chan->sample_rem = chan_alt->sample_rate % fps;
 	chan->sample_curr = 0;
-	chan->frames_per_second = fps;
 
 	/* compute required buffer size */
 	buf_size = (chan->bytes_per_frame[1] * frames);
@@ -1563,6 +1575,19 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			asf1d.v1 = NULL;
 			ed1 = NULL;
 			sed.v1 = NULL;
+
+			/*
+			 * There can only be one USB audio instance
+			 * per USB device. Grab all USB audio
+			 * interfaces on this USB device so that we
+			 * don't attach USB audio twice:
+			 */
+			if (alt_index == 0 && curidx != sc->sc_mixer_iface_index &&
+			    (id->bInterfaceClass == UICLASS_AUDIO || audio_if != 0 ||
+			    midi_if != 0)) {
+				usbd_set_parent_iface(sc->sc_udev, curidx,
+				    sc->sc_mixer_iface_index);
+			}
 		}
 
 		if (audio_if == 0) {
@@ -1798,9 +1823,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
 
-		usbd_set_parent_iface(sc->sc_udev, curidx,
-		    sc->sc_mixer_iface_index);
-
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
 		else
@@ -1821,19 +1843,21 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 		format = chan_alt->p_fmt->freebsd_fmt;
 
+		/* get default SND_FORMAT() */
+		format = SND_FORMAT(format, chan_alt->channels, 0);
+
 		switch (chan_alt->channels) {
-		case 2:
-			/* stereo */
-			format = SND_FORMAT(format, 2, 0);
-			break;
+		uint32_t temp_fmt;
 		case 1:
-			/* mono */
-			format = SND_FORMAT(format, 1, 0);
+		case 2:
+			/* mono and stereo */
 			break;
 		default:
 			/* surround and more */
-			format = feeder_matrix_default_format(
-			    SND_FORMAT(format, chan_alt->channels, 0));
+			temp_fmt = feeder_matrix_default_format(format);
+			/* if multichannel, then format can be zero */
+			if (temp_fmt != 0)
+				format = temp_fmt;
 			break;
 		}
 
@@ -1859,6 +1883,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		}
 		chan->pcm_cap.fmtlist = chan->pcm_format;
 		chan->pcm_cap.fmtlist[0] = format;
+
+		/* check if device needs bitperfect */
+		if (chan_alt->channels > UAUDIO_MATRIX_MAX)
+			sc->sc_pcm_bitperfect = 1;
 
 		if (rate < chan->pcm_cap.minspeed || chan->pcm_cap.minspeed == 0)
 			chan->pcm_cap.minspeed = rate;
@@ -1934,15 +1962,15 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 			channels = 4;
 			break;
 		default:
-			channels = 16;
+			channels = UAUDIO_CHANNELS_MAX;
 			break;
 		}
-	} else if (channels > 16) {
-		channels = 16;
-	}
-	if (sbuf_new(&sc->sc_sndstat, NULL, 4096, SBUF_AUTOEXTEND)) {
+	} else if (channels > UAUDIO_CHANNELS_MAX)
+		channels = UAUDIO_CHANNELS_MAX;
+
+	if (sbuf_new(&sc->sc_sndstat, NULL, 4096, SBUF_AUTOEXTEND))
 		sc->sc_sndstat_valid = 1;
-	}
+
 	/* try to search for a valid config */
 
 	for (x = channels; x; x--) {
@@ -1966,7 +1994,7 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
-	uint64_t sample_rate = ch->usb_alt[ch->cur_alt].sample_rate;
+	uint64_t sample_rate;
 	uint8_t buf[4];
 	uint64_t temp;
 	int len;
@@ -2007,29 +2035,28 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (temp == 0)
 			break;
 
-		/* correctly scale value */
+		temp *= 125ULL;
 
-		temp = (temp * 125ULL) - 64;
+		sample_rate = ch->usb_alt[ch->cur_alt].sample_rate;
 
 		/* auto adjust */
-
 		while (temp < (sample_rate - (sample_rate / 4)))
 			temp *= 2;
-
+ 
 		while (temp > (sample_rate + (sample_rate / 2)))
 			temp /= 2;
 
-		/* compare */
-
-		DPRINTF("Comparing %d < %d\n",
+		DPRINTF("Comparing %d Hz :: %d Hz\n",
 		    (int)temp, (int)sample_rate);
 
-		if (temp == sample_rate)
-			ch->last_sync_state = UAUDIO_SYNC_NONE;
-		else if (temp > sample_rate)
-			ch->last_sync_state = UAUDIO_SYNC_MORE;
-		else
-			ch->last_sync_state = UAUDIO_SYNC_LESS;
+		/*
+		 * Use feedback value as fallback when there is no
+		 * recording channel:
+		 */
+		if (ch->priv_sc->sc_rec_chan.num_alt == 0)
+			ch->jitter_curr = temp - sample_rate;
+
+		ch->feedback_rate = temp;
 		break;
 
 	case USB_ST_SETUP:
@@ -2043,41 +2070,98 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 	}
 }
 
+static int
+uaudio_chan_is_async(struct uaudio_chan *ch, uint8_t alt)
+{
+	uint8_t attr = ch->usb_alt[alt].p_ed1->bmAttributes;
+	return (UE_GET_ISO_TYPE(attr) == UE_ISO_ASYNC);
+}
+
 static void
 uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
+	struct uaudio_chan *ch_rec;
 	struct usb_page_cache *pc;
-	uint32_t sample_size = ch->usb_alt[ch->cur_alt].sample_size;
 	uint32_t mfl;
 	uint32_t total;
 	uint32_t blockcount;
 	uint32_t n;
 	uint32_t offset;
+	int sample_size;
 	int actlen;
 	int sumlen;
 
-	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
-
-	if (ch->end == ch->start) {
-		DPRINTF("no buffer!\n");
+	if (ch->running == 0 || ch->start == ch->end) {
+		DPRINTF("not running or no buffer!\n");
 		return;
 	}
 
+	/* check if there is a record channel */
+	if (ch->priv_sc->sc_rec_chan.num_alt > 0)
+		ch_rec = &ch->priv_sc->sc_rec_chan;
+	else
+		ch_rec = NULL;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
+
 	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_SETUP:
+tr_setup:
+		if (ch_rec != NULL) {
+			/* reset receive jitter counters */
+			mtx_lock(ch_rec->pcm_mtx);
+			ch_rec->jitter_curr = 0;
+			ch_rec->jitter_rem = 0;
+			mtx_unlock(ch_rec->pcm_mtx);
+		}
+
+		/* reset transmit jitter counters */
+		ch->jitter_curr = 0;
+		ch->jitter_rem = 0;
+
+		/* FALLTHROUGH */
 	case USB_ST_TRANSFERRED:
-tr_transferred:
 		if (actlen < sumlen) {
 			DPRINTF("short transfer, "
 			    "%d of %d bytes\n", actlen, sumlen);
 		}
 		chn_intr(ch->pcm_ch);
 
-		/* start SYNC transfer, if any */
-		if ((ch->last_sync_time++ & 7) == 0)
-			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		/*
+		 * Check for asynchronous playback endpoint and that
+		 * the playback endpoint is properly configured:
+		 */
+		if (ch_rec != NULL &&
+		    uaudio_chan_is_async(ch, ch->cur_alt) != 0) {
+			mtx_lock(ch_rec->pcm_mtx);
+			if (ch_rec->cur_alt < ch_rec->num_alt) {
+				int64_t tx_jitter;
+				int64_t rx_rate;
 
-	case USB_ST_SETUP:
+				/* translate receive jitter into transmit jitter */
+				tx_jitter = ch->usb_alt[ch->cur_alt].sample_rate;
+				tx_jitter = (tx_jitter * ch_rec->jitter_curr) +
+				    ch->jitter_rem;
+
+				/* reset receive jitter counters */
+				ch_rec->jitter_curr = 0;
+				ch_rec->jitter_rem = 0;
+		
+				/* compute exact number of transmit jitter samples */
+				rx_rate = ch_rec->usb_alt[ch_rec->cur_alt].sample_rate;
+				ch->jitter_curr += tx_jitter / rx_rate;
+				ch->jitter_rem = tx_jitter % rx_rate;
+			}
+			mtx_unlock(ch_rec->pcm_mtx);
+		}
+
+		/* start the SYNC transfer one time per second, if any */
+		if (++(ch->intr_counter) >= UAUDIO_IRQS) {
+			ch->intr_counter = 0;
+			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		}
+
 		mfl = usbd_xfer_max_framelen(xfer);
 
 		if (ch->bytes_per_frame[1] > mfl) {
@@ -2092,6 +2176,9 @@ tr_transferred:
 
 		/* setup number of frames */
 		usbd_xfer_set_frames(xfer, blockcount);
+
+		/* get sample size */
+		sample_size = ch->usb_alt[ch->cur_alt].sample_size;
 
 		/* reset total length */
 		total = 0;
@@ -2108,30 +2195,23 @@ tr_transferred:
 				frame_len = ch->bytes_per_frame[0];
 			}
 
-			if (n == (blockcount - 1)) {
-				switch (ch->last_sync_state) {
-				case UAUDIO_SYNC_MORE:
-					DPRINTFN(6, "sending one sample more\n");
-					if ((frame_len + sample_size) <= mfl)
-						frame_len += sample_size;
-					ch->last_sync_state = UAUDIO_SYNC_NONE;
-					break;
-				case UAUDIO_SYNC_LESS:
-					DPRINTFN(6, "sending one sample less\n");
-					if (frame_len >= sample_size)
-						frame_len -= sample_size;
-					ch->last_sync_state = UAUDIO_SYNC_NONE;
-					break;
-				default:
-					break;
-				}
+			/* handle free running clock case */
+			if (ch->jitter_curr > 0 &&
+			    (frame_len + sample_size) <= mfl) {
+				DPRINTFN(6, "sending one sample more\n");
+				ch->jitter_curr--;
+				frame_len += sample_size;
+			} else if (ch->jitter_curr < 0 &&
+			    frame_len >= sample_size) {
+				DPRINTFN(6, "sending one sample less\n");
+				ch->jitter_curr++;
+				frame_len -= sample_size;
 			}
-
 			usbd_xfer_set_frame_len(xfer, n, frame_len);
 			total += frame_len;
 		}
 
-		DPRINTFN(6, "transfer %d bytes\n", total);
+		DPRINTFN(6, "transferring %d bytes\n", total);
 
 		offset = 0;
 
@@ -2139,28 +2219,25 @@ tr_transferred:
 		while (total > 0) {
 
 			n = (ch->end - ch->cur);
-			if (n > total) {
+			if (n > total)
 				n = total;
-			}
+
 			usbd_copy_in(pc, offset, ch->cur, n);
 
 			total -= n;
 			ch->cur += n;
 			offset += n;
 
-			if (ch->cur >= ch->end) {
+			if (ch->cur >= ch->end)
 				ch->cur = ch->start;
-			}
 		}
-
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (error == USB_ERR_CANCELLED) {
-			break;
-		}
-		goto tr_transferred;
+		if (error != USB_ERR_CANCELLED)
+			goto tr_setup;
+		break;
 	}
 }
 
@@ -2176,36 +2253,59 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
 	uint32_t offset0;
-	uint32_t offset1;
 	uint32_t mfl;
 	int m;
 	int n;
 	int len;
 	int actlen;
 	int nframes;
-	int blockcount;
+	int expected_bytes;
+	int sample_size;
 
-	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
-	mfl = usbd_xfer_max_framelen(xfer);
-
-	if (ch->end == ch->start) {
+	if (ch->start == ch->end) {
 		DPRINTF("no buffer!\n");
 		return;
 	}
 
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
+	mfl = usbd_xfer_max_framelen(xfer);
+
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-
-		DPRINTFN(6, "transferred %d bytes\n", actlen);
 
 		offset0 = 0;
 		pc = usbd_xfer_get_frame(xfer, 0);
 
-		for (n = 0; n != nframes; n++) {
+		/* try to compute the number of expected bytes */
+		ch->sample_curr += (ch->sample_rem * ch->intr_frames);
 
-			offset1 = offset0;
+		/* compute number of expected bytes */
+		expected_bytes = (ch->intr_frames * ch->bytes_per_frame[0]) +
+		    ((ch->sample_curr / ch->frames_per_second) *
+		    (ch->bytes_per_frame[1] - ch->bytes_per_frame[0]));
+
+		/* keep remainder */
+		ch->sample_curr %= ch->frames_per_second;
+
+		/* get current sample size */
+		sample_size = ch->usb_alt[ch->cur_alt].sample_size;
+
+		for (n = 0; n != nframes; n++) {
+			uint32_t offset1 = offset0;
+
 			len = usbd_xfer_frame_len(xfer, n);
 
+			/* make sure we only receive complete samples */
+			len = len - (len % sample_size);
+
+			/* subtract bytes received from expected payload */
+			expected_bytes -= len;
+
+			/* don't receive data when not ready */
+			if (ch->running == 0 || ch->cur_alt != ch->set_alt)
+				continue;
+
+			/* fill ring buffer with samples, if any */
 			while (len > 0) {
 
 				m = (ch->end - ch->cur);
@@ -2219,33 +2319,46 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 				offset1 += m;
 				ch->cur += m;
 
-				if (ch->cur >= ch->end) {
+				if (ch->cur >= ch->end)
 					ch->cur = ch->start;
-				}
 			}
 
 			offset0 += mfl;
 		}
 
-		chn_intr(ch->pcm_ch);
+		/* update current jitter */
+		ch->jitter_curr -= (expected_bytes / sample_size);
+
+		/* don't allow a huge amount of jitter to accumulate */
+		nframes = 2 * ch->intr_frames;
+
+		/* range check current jitter */
+		if (ch->jitter_curr < -nframes)
+			ch->jitter_curr = -nframes;
+		else if (ch->jitter_curr > nframes)
+			ch->jitter_curr = nframes;
+
+		DPRINTFN(6, "transferred %d bytes, jitter %d samples\n",
+		    actlen, ch->jitter_curr);
+
+		if (ch->running != 0)
+			chn_intr(ch->pcm_ch);
 
 	case USB_ST_SETUP:
 tr_setup:
-		blockcount = ch->intr_frames;
+		nframes = ch->intr_frames;
 
-		usbd_xfer_set_frames(xfer, blockcount);
-		for (n = 0; n < blockcount; n++) {
+		usbd_xfer_set_frames(xfer, nframes);
+		for (n = 0; n != nframes; n++)
 			usbd_xfer_set_frame_len(xfer, n, mfl);
-		}
 
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (error == USB_ERR_CANCELLED) {
-			break;
-		}
-		goto tr_setup;
+		if (error != USB_ERR_CANCELLED)
+			goto tr_setup;
+		break;
 	}
 }
 
@@ -2318,13 +2431,7 @@ int
 uaudio_chan_set_param_blocksize(struct uaudio_chan *ch, uint32_t blocksize)
 {
 	uint32_t temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
-
 	sndbuf_setup(ch->pcm_buf, ch->buf, temp);
-
-	ch->start = ch->buf;
-	ch->end = ch->buf + temp;
-	ch->cur = ch->buf;
-
 	return (temp / 2);
 }
 
@@ -2338,7 +2445,10 @@ uaudio_chan_set_param_fragments(struct uaudio_chan *ch, uint32_t blocksize,
 int
 uaudio_chan_set_param_speed(struct uaudio_chan *ch, uint32_t speed)
 {
+	struct uaudio_softc *sc;
 	uint8_t x;
+
+	sc = ch->priv_sc;
 
 	for (x = 0; x < ch->num_alt; x++) {
 		if (ch->usb_alt[x].sample_rate < speed) {
@@ -2350,7 +2460,9 @@ uaudio_chan_set_param_speed(struct uaudio_chan *ch, uint32_t speed)
 	if (x != 0)
 		x--;
 
+	usb_proc_explore_lock(sc->sc_udev);
 	ch->set_alt = x;
+	usb_proc_explore_unlock(sc->sc_udev);
 
 	DPRINTF("Selecting alt %d\n", (int)x);
 
@@ -2421,16 +2533,16 @@ uaudio_chan_set_param_format(struct uaudio_chan *ch, uint32_t format)
 	return (0);
 }
 
-int
-uaudio_chan_start(struct uaudio_chan *ch)
+static void
+uaudio_chan_start_sub(struct uaudio_chan *ch)
 {
 	struct uaudio_softc *sc = ch->priv_sc;
 	int do_start = 0;
 
-	usb_proc_explore_lock(sc->sc_udev);
 	if (ch->operation != CHAN_OP_DRAIN) {
 		if (ch->cur_alt == ch->set_alt &&
-		    ch->operation == CHAN_OP_NONE) {
+		    ch->operation == CHAN_OP_NONE &&
+		    mtx_owned(ch->pcm_mtx) != 0) {
 			/* save doing the explore task */
 			do_start = 1;
 		} else {
@@ -2439,25 +2551,81 @@ uaudio_chan_start(struct uaudio_chan *ch)
 			    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 		}
 	}
-	usb_proc_explore_unlock(sc->sc_udev);
-
 	if (do_start) {
 		usbd_transfer_start(ch->xfer[0]);
 		usbd_transfer_start(ch->xfer[1]);
 	}
-	return (0);
 }
 
-int
-uaudio_chan_stop(struct uaudio_chan *ch)
+static int
+uaudio_chan_need_both(struct uaudio_softc *sc)
+{
+	return (sc->sc_play_chan.num_alt > 0 &&
+	    sc->sc_play_chan.running != 0 &&
+	    uaudio_chan_is_async(&sc->sc_play_chan,
+	    sc->sc_play_chan.set_alt) != 0 &&
+	    sc->sc_rec_chan.num_alt > 0 &&
+	    sc->sc_rec_chan.running == 0);
+}
+
+static int
+uaudio_chan_need_none(struct uaudio_softc *sc)
+{
+	return (sc->sc_play_chan.num_alt > 0 &&
+	    sc->sc_play_chan.running == 0 &&
+	    sc->sc_rec_chan.num_alt > 0 &&
+	    sc->sc_rec_chan.running == 0);
+}
+
+void
+uaudio_chan_start(struct uaudio_chan *ch)
+{
+	struct uaudio_softc *sc = ch->priv_sc;
+
+	/* make operation atomic */
+	usb_proc_explore_lock(sc->sc_udev);
+
+	/* check if not running */
+	if (ch->running == 0) {
+	  	uint32_t temp;
+
+		/* get current buffer size */
+		temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
+
+		/* set running flag */
+		ch->running = 1;
+
+		/* ensure the hardware buffer is reset */
+		ch->start = ch->buf;
+		ch->end = ch->buf + temp;
+		ch->cur = ch->buf;
+
+		if (uaudio_chan_need_both(sc)) {
+			/*
+			 * Start both endpoints because of need for
+			 * jitter information:
+			 */
+			uaudio_chan_start_sub(&sc->sc_rec_chan);
+			uaudio_chan_start_sub(&sc->sc_play_chan);
+		} else {
+			uaudio_chan_start_sub(ch);
+		}
+	}
+
+	/* exit atomic operation */
+	usb_proc_explore_unlock(sc->sc_udev);
+}
+
+static void
+uaudio_chan_stop_sub(struct uaudio_chan *ch)
 {
 	struct uaudio_softc *sc = ch->priv_sc;
 	int do_stop = 0;
 
-	usb_proc_explore_lock(sc->sc_udev);
 	if (ch->operation != CHAN_OP_DRAIN) {
 		if (ch->cur_alt == ch->set_alt &&
-		    ch->operation == CHAN_OP_NONE) {
+		    ch->operation == CHAN_OP_NONE &&
+		    mtx_owned(ch->pcm_mtx) != 0) {
 			/* save doing the explore task */
 			do_stop = 1;
 		} else {
@@ -2466,13 +2634,44 @@ uaudio_chan_stop(struct uaudio_chan *ch)
 			    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 		}
 	}
-	usb_proc_explore_unlock(sc->sc_udev);
-
 	if (do_stop) {
 		usbd_transfer_stop(ch->xfer[0]);
 		usbd_transfer_stop(ch->xfer[1]);
 	}
-	return (0);
+}
+
+void
+uaudio_chan_stop(struct uaudio_chan *ch)
+{
+	struct uaudio_softc *sc = ch->priv_sc;
+
+	/* make operation atomic */
+	usb_proc_explore_lock(sc->sc_udev);
+
+	/* check if running */
+	if (ch->running != 0) {
+		/* clear running flag */
+		ch->running = 0;
+
+		if (uaudio_chan_need_both(sc)) {
+			/*
+			 * Leave the endpoints running because we need
+			 * information about jitter!
+			 */
+		} else if (uaudio_chan_need_none(sc)) {
+			/*
+			 * Stop both endpoints in case the one was used for
+			 * jitter information:
+			 */
+			uaudio_chan_stop_sub(&sc->sc_rec_chan);
+			uaudio_chan_stop_sub(&sc->sc_play_chan);
+		} else {
+			uaudio_chan_stop_sub(ch);
+		}
+	}
+
+	/* exit atomic operation */
+	usb_proc_explore_unlock(sc->sc_udev);
 }
 
 /*========================================================================*
@@ -2582,7 +2781,7 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
-			    OID_AUTO, "val", CTLTYPE_INT | CTLFLAG_RW, sc,
+			    OID_AUTO, "val", CTLTYPE_INT | CTLFLAG_RWTUN, sc,
 			    pmc->wValue[chan],
 			    uaudio_mixer_sysctl_handler, "I", "Current value");
 

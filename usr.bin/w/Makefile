@@ -4,8 +4,7 @@
 PROG=	w
 SRCS=	fmt.c pr_time.c proc_compare.c w.c
 MAN=	w.1 uptime.1
-DPADD=	${LIBKVM} ${LIBUTIL} ${LIBXO}
-LDADD=	-lkvm -lutil -lxo
+LIBADD=	kvm sbuf util xo
 #BINGRP= kmem
 #BINMODE=2555
 LINKS=	${BINDIR}/w ${BINDIR}/uptime

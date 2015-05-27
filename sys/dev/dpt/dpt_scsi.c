@@ -793,8 +793,8 @@ dptexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	dccb->state |= DCCB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&dpt->pending_ccb_list, &ccb->ccb_h, sim_links.le);
-	callout_reset(&dccb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    dpttimeout, dccb);
+	callout_reset_sbt(&dccb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    dpttimeout, dccb, 0);
 	if (dpt_send_eata_command(dpt, &dccb->eata_ccb,
 				  dccb->eata_ccb.cp_busaddr,
 				  EATA_CMD_DMA_SEND_CP, 0, 0, 0, 0) != 0) {
@@ -1388,7 +1388,7 @@ dpt_init(struct dpt_softc *dpt)
 				/* highaddr	*/ BUS_SPACE_MAXADDR,
 				/* filter	*/ NULL,
 				/* filterarg	*/ NULL,
-				/* maxsize	*/ MAXBSIZE,
+				/* maxsize	*/ DFLTPHYS,
 				/* nsegments	*/ dpt->sgsize,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,

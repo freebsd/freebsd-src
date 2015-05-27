@@ -10,8 +10,7 @@ CFLAGS+=-DINSECURE_OVERRIDE
 
 WARNS?=	0
 
-DPADD=	${LIBOPIE} ${LIBMD}
-LDADD=	-lopie -lmd
+LIBADD=	opie
 
 LINKS=	${BINDIR}/opiekey ${BINDIR}/otp-md4
 LINKS+=	${BINDIR}/opiekey ${BINDIR}/otp-md5

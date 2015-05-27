@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2014
+.Dd March 19, 2015
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -110,6 +110,10 @@
 .Aq Fl f Ar format
 .Op Fl P
 .Op Fl G
+.Op Fl q
+.Op Fl s
+.Op Fl S Ar offset
+.Op Fl X
 .Nm
 .Ic modepage
 .Op device id
@@ -234,6 +238,16 @@
 .Ic sleep
 .Op device id
 .Op generic args
+.Nm
+.Ic apm
+.Op device id
+.Op generic args
+.Op Fl l Ar level
+.Nm
+.Ic aam
+.Op device id
+.Op generic args
+.Op Fl l Ar level
 .Nm
 .Ic fwdownload
 .Op device id
@@ -513,18 +527,16 @@ connecting to that device.
 Note that this can have a destructive impact
 on the system.
 .It Ic defects
-Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and
+Send the
+.Tn SCSI
+READ DEFECT DATA (10) command (0x37) or the
+.Tn SCSI
+READ DEFECT DATA (12) command (0xB7) to the given device, and
 print out any combination of: the total number of defects, the primary
 defect list (PLIST), and the grown defect list (GLIST).
 .Bl -tag -width 11n
 .It Fl f Ar format
-The three format options are:
-.Em block ,
-to print out the list as logical blocks,
-.Em bfi ,
-to print out the list in bytes from index format, and
-.Em phys ,
-to print out the list in physical sector format.
+Specify the requested format of the defect list.
 The format argument is
 required.
 Most drives support the physical sector format.
@@ -541,12 +553,51 @@ If the drive uses a non-standard sense code to report that it does not
 support the requested format,
 .Nm
 will probably see the error as a failure to complete the request.
+.Pp
+The format options are:
+.Bl -tag -width 9n
+.It block
+Print out the list as logical blocks.
+This is limited to 32-bit block sizes, and isn't supported by many modern
+drives.
+.It longblock
+Print out the list as logical blocks.
+This option uses a 64-bit block size.
+.It bfi
+Print out the list in bytes from index format.
+.It extbfi
+Print out the list in extended bytes from index format.
+The extended format allows for ranges of blocks to be printed.
+.It phys
+Print out the list in physical sector format.
+Most drives support this format.
+.It extphys
+Print out the list in extended physical sector format.
+The extended format allows for ranges of blocks to be printed.
+.El
 .It Fl G
 Print out the grown defect list.
 This is a list of bad blocks that have
 been remapped since the disk left the factory.
 .It Fl P
 Print out the primary defect list.
+This is the list of defects that were present in the factory.
+.It Fl q
+When printing status information with
+.Fl s ,
+only print the number of defects.
+.It Fl s
+Just print the number of defects, not the list of defects.
+.It Fl S Ar offset
+Specify the starting offset into the defect list.
+This implies using the
+.Tn SCSI
+READ DEFECT DATA (12) command, as the 10 byte version of the command
+doesn't support the address descriptor index field.
+Not all drives support the 12 byte command, and some drives that support
+the 12 byte command don't support the address descriptor index field.
+.It Fl X
+Print out defects in hexadecimal (base 16) form instead of base 10 form.
 .El
 .Pp
 If neither
@@ -1249,6 +1300,19 @@ Value 0 disables timer.
 Put ATA device into SLEEP state.
 Note that the only way get device out of
 this state may be reset.
+.It Ic apm
+It optional parameter
+.Pq Fl l
+specified, enables and sets advanced power management level, where
+1 -- minimum power, 127 -- maximum performance with standby,
+128 -- minimum power without standby, 254 -- maximum performance.
+If not specified -- APM is disabled.
+.It Ic aam
+It optional parameter
+.Pq Fl l
+specified, enables and sets automatic acoustic management level, where
+1 -- minimum noise, 254 -- maximum performance.
+If not specified -- AAM is disabled.
 .It Ic security
 Update or report security settings, using an ATA identify command (0xec).
 By default,
@@ -1364,8 +1428,8 @@ Defaults to
 Confirm yes to dangerous options such as
 .Fl e
 without prompting for confirmation.
-.Pp
 .El
+.Pp
 If the password specified for any action commands does not match the configured
 password for the specified user the command will fail.
 .Pp
@@ -1434,8 +1498,8 @@ additional unlock calls until after a power-on reset.
 Confirm yes to dangerous options such as
 .Fl e
 without prompting for confirmation
-.Pp
 .El
+.Pp
 The password for all HPA commands is limited to 32 characters, longer passwords
 will fail.
 .It Ic fwdownload
@@ -1613,7 +1677,7 @@ For example:
 .It FC
 A Fibre Channel Transport ID consists of
 .Dq fcp,
-followed by a 64-bit Fibre Channel World Wide Name. 
+followed by a 64-bit Fibre Channel World Wide Name.
 For example:
 .Pp
 .Dl fcp,0x1234567812345678
@@ -1735,11 +1799,11 @@ May also be specified as
 .Dq exclusive_access .
 .It wr_ex_ro
 Write Exclusive Registrants Only mode.
-May also be specified as 
+May also be specified as
 .Dq write_exclusive_reg_only .
 .It ex_ac_ro
 Exclusive Access Registrants Only mode.
-May also be specified as 
+May also be specified as
 .Dq exclusive_access_reg_only .
 .It wr_ex_ar
 Write Exclusive All Registrants mode.
@@ -1747,7 +1811,7 @@ May also be specified as
 .Dq write_exclusive_all_regs .
 .It ex_ac_ar
 Exclusive Access All Registrants mode.
-May also be specified as 
+May also be specified as
 .Dq exclusive_access_all_regs .
 .El
 .It Fl U
@@ -1924,14 +1988,13 @@ power-on or hardware reset!
 .Pp
 .Em DO NOT
 use this on a device which has an active filesystem!
-.Pp
 .Bd -literal -offset indent
 camcontrol persist da0 -v -i read_keys
 .Ed
 .Pp
 This will read any persistent reservation keys registered with da0, and
 display any errors encountered when sending the PERSISTENT RESERVE IN
-.Tn SCSI 
+.Tn SCSI
 command.
 .Bd -literal -offset indent
 camcontrol persist da0 -v -o register -a -K 0x12345678
@@ -1976,9 +2039,9 @@ camcontrol persist da0 -v -o register_move -k 0x87654321 \e
 .Ed
 .Pp
 This will move the registration from the current initiator, whose
-Registration Key is 0x87654321, to the Fibre Channel initiator with the 
+Registration Key is 0x87654321, to the Fibre Channel initiator with the
 Fiber Channel World Wide Node Name 0x1234567812345678.
-A new registration key, 0x12345678, will be registered for the initiator 
+A new registration key, 0x12345678, will be registered for the initiator
 with the Fibre Channel World Wide Node Name 0x1234567812345678, and the
 current initiator will be unregistered from the target.
 The reservation will be moved to relative target port 2 on the target

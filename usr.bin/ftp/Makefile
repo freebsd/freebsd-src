@@ -20,8 +20,7 @@ CFLAGS+= -DINET6
 .endif
 
 CFLAGS+= -I${.CURDIR} -I${TNFTP}
-LDADD=	-ledit -ltermcapw
-DPADD=	${LIBEDIT} ${LIBTERMCAPW}
+LIBADD=	edit
 
 WARNS?=	2
 

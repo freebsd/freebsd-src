@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_hwmods.h>
 #include "gpio_if.h"
 
 struct ti_sdhci_softc {
@@ -66,7 +67,7 @@ struct ti_sdhci_softc {
 	struct resource *	irq_res;
 	void *			intr_cookie;
 	struct sdhci_slot	slot;
-	uint32_t		mmchs_device_id;
+	clk_ident_t		mmchs_clk_id;
 	uint32_t		mmchs_reg_off;
 	uint32_t		sdhci_reg_off;
 	uint32_t		baseclk_hz;
@@ -112,6 +113,7 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define	  MMCHS_CON_OD			  (1 << 0)
 #define MMCHS_SYSCTL			0x12C
 #define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
 #define   MMCHS_SYSCTL_CLKD_SHIFT	   6
@@ -327,7 +329,7 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
 	struct sdhci_slot *slot;
 	struct mmc_ios *ios;
-	uint32_t val32;
+	uint32_t val32, newval32;
 
 	slot = device_get_ivars(reqdev);
 	ios = &slot->host.ios;
@@ -339,10 +341,20 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	 * requested, then let the standard driver handle everything else.
 	 */
 	val32 = ti_mmchs_read_4(sc, MMCHS_CON);
+	newval32  = val32;
+
 	if (ios->bus_width == bus_width_8)
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 | MMCHS_CON_DW8); 
+		newval32 |= MMCHS_CON_DW8;
 	else
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 & ~MMCHS_CON_DW8); 
+		newval32 &= ~MMCHS_CON_DW8;
+
+	if (ios->bus_mode == opendrain)
+		newval32 |= MMCHS_CON_OD;
+	else /* if (ios->bus_mode == pushpull) */
+		newval32 &= ~MMCHS_CON_OD;
+
+	if (newval32 != val32)
+		ti_mmchs_write_4(sc, MMCHS_CON, newval32);
 
 	return (sdhci_generic_update_ios(brdev, reqdev));
 }
@@ -372,19 +384,18 @@ static void
 ti_sdhci_hw_init(device_t dev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
-	clk_ident_t clk;
 	uint32_t regval;
 	unsigned long timeout;
 
 	/* Enable the controller and interface/functional clocks */
-	clk = MMC0_CLK + sc->mmchs_device_id;
-	if (ti_prcm_clk_enable(clk) != 0) {
+	if (ti_prcm_clk_enable(sc->mmchs_clk_id) != 0) {
 		device_printf(dev, "Error: failed to enable MMC clock\n");
 		return;
 	}
 
 	/* Get the frequency of the source clock */
-	if (ti_prcm_clk_get_source_freq(clk, &sc->baseclk_hz) != 0) {
+	if (ti_prcm_clk_get_source_freq(sc->mmchs_clk_id,
+	    &sc->baseclk_hz) != 0) {
 		device_printf(dev, "Error: failed to get source clock freq\n");
 		return;
 	}
@@ -392,20 +403,42 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
+	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) &
+	    MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Controller reset operation timed out\n");
+			device_printf(dev,
+			    "Error: Controller reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
 	}
 
-	/* Reset both the command and data state machines */
+	/*
+	 * Reset the command and data state machines and also other aspects of
+	 * the controller such as bus clock and power.
+	 *
+	 * If we read the software reset register too fast after writing it we
+	 * can get back a zero that means the reset hasn't started yet rather
+	 * than that the reset is complete. Per TI recommendations, work around
+	 * it by reading until we see the reset bit asserted, then read until
+	 * it's clear. We also set the SDHCI_QUIRK_WAITFOR_RESET_ASSERTED quirk
+	 * so that the main sdhci driver uses this same logic in its resets.
+	 */
 	ti_sdhci_write_1(dev, NULL, SDHCI_SOFTWARE_RESET, SDHCI_RESET_ALL);
-	timeout = 1000;
-	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) & SDHCI_RESET_ALL)) {
+	timeout = 10000;
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL) != SDHCI_RESET_ALL) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Software reset operation timed out\n");
+			break;
+		}
+		DELAY(1);
+	}
+	timeout = 10000;
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL)) {
+		if (--timeout == 0) {
+			device_printf(dev,
+			    "Error: Software reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
@@ -451,12 +484,10 @@ ti_sdhci_attach(device_t dev)
 	 * up and added in freebsd, it doesn't exist in the published bindings.
 	 */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "mmchs-device-id", &prop, sizeof(prop))) <= 0) {
-		sc->mmchs_device_id = device_get_unit(dev);
-		device_printf(dev, "missing mmchs-device-id attribute in FDT, "
-		    "using unit number (%d)", sc->mmchs_device_id);
-	} else
-		sc->mmchs_device_id = fdt32_to_cpu(prop);
+	sc->mmchs_clk_id = ti_hwmods_get_clock(dev);
+	if (sc->mmchs_clk_id == INVALID_CLK_IDENT) {
+		device_printf(dev, "failed to get clock based on hwmods property\n");
+	}
 
 	/*
 	 * The hardware can inherently do dual-voltage (1p8v, 3p0v) on the first
@@ -467,7 +498,7 @@ ti_sdhci_attach(device_t dev)
 	 * be done once and never reset.
 	 */
 	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
-	if (sc->mmchs_device_id == 0 || OF_hasprop(node, "ti,dual-volt")) {
+	if (sc->mmchs_clk_id == MMC1_CLK || OF_hasprop(node, "ti,dual-volt")) {
 		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
 	}
 
@@ -566,6 +597,12 @@ ti_sdhci_attach(device_t dev)
 	 * the spec), so tell the sdhci driver not to do the same in software.
 	 */
 	sc->slot.quirks |= SDHCI_QUIRK_DONT_SHIFT_RESPONSE;
+
+	/*
+	 * Reset bits are broken, have to wait to see the bits asserted
+	 * before waiting to see them de-asserted.
+	 */
+	sc->slot.quirks |= SDHCI_QUIRK_WAITFOR_RESET_ASSERTED;
 
 	/*
 	 * DMA is not really broken, I just haven't implemented it yet.

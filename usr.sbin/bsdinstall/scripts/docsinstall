@@ -154,9 +154,12 @@ f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
 #
 # Install each of the selected packages
 #
+docsets=""
 for lang in $selected; do
-	f_package_add $lang-freebsd-doc || return $FAILURE
+	docsets="$docsets $lang-freebsd-doc"
 done
+
+ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install $docsets || return $FAILURE
 
 ################################################################################
 # END

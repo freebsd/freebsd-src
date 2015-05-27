@@ -13,11 +13,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCAsmInfoELF.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCSectionELF.h"
+#include "llvm/Support/ELF.h"
 using namespace llvm;
 
 void MCAsmInfoELF::anchor() { }
 
+const MCSection *
+MCAsmInfoELF::getNonexecutableStackSection(MCContext &Ctx) const {
+  return Ctx.getELFSection(".note.GNU-stack", ELF::SHT_PROGBITS,
+                           0, SectionKind::getMetadata());
+}
+
 MCAsmInfoELF::MCAsmInfoELF() {
   HasIdentDirective = true;
   WeakRefDirective = "\t.weak\t";
+  PrivateGlobalPrefix = ".L";
+  PrivateLabelPrefix = ".L";
 }

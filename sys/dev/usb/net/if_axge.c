@@ -67,6 +67,7 @@ static const STRUCT_USB_HOST_ID axge_devs[] = {
 	AXGE_DEV(ASIX, AX88178A),
 	AXGE_DEV(ASIX, AX88179),
 	AXGE_DEV(DLINK, DUB1312),
+	AXGE_DEV(LENOVO, GIGALAN),
 	AXGE_DEV(SITECOMEU, LN032),
 #undef AXGE_DEV
 };
@@ -134,7 +135,7 @@ static void	axge_csum_cfg(struct usb_ether *);
 static int axge_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, axge, CTLFLAG_RW, 0, "USB axge");
-SYSCTL_INT(_hw_usb_axge, OID_AUTO, debug, CTLFLAG_RW, &axge_debug, 0,
+SYSCTL_INT(_hw_usb_axge, OID_AUTO, debug, CTLFLAG_RWTUN, &axge_debug, 0,
     "Debug level");
 #endif
 

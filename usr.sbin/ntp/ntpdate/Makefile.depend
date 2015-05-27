@@ -17,6 +17,7 @@ DIRDEPS = \
 	lib/libthr \
 	lib/msun \
 	secure/lib/libcrypto \
+	secure/lib/libssl \
 	usr.sbin/ntp/libntp \
 
 

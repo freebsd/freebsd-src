@@ -32,7 +32,7 @@ public:
         return m_byte_size;
     }
 
-    virtual off_t
+    virtual lldb::offset_t
     GetByteOffset()
     {
         return m_byte_offset;
@@ -61,6 +61,9 @@ public:
 
     virtual ConstString
     GetQualifiedTypeName();
+    
+    virtual ConstString
+    GetDisplayTypeName();
     
     virtual bool
     IsInScope ();
@@ -103,6 +106,7 @@ protected:
 protected:
     friend class ValueObject;
     friend class ValueObjectConstResult;
+    friend class ValueObjectConstResultImpl;
     ValueObjectChild (ValueObject &parent,
                       const ClangASTType &clang_type,
                       const ConstString &name,

@@ -1,3 +1,5 @@
+BINDIR?= /usr/bin
+
 IBDIR=../../../..
 
 CFLAGS+= \

@@ -42,10 +42,10 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdio.h>
+#include <libutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <util.h>
 
 #include "ealloc.h"
 #include "sprite.h"

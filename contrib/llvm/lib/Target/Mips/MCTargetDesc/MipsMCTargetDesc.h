@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSMCTARGETDESC_H
-#define MIPSMCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSMCTARGETDESC_H
+#define LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSMCTARGETDESC_H
 
 #include "llvm/Support/DataTypes.h"
 
@@ -42,14 +42,18 @@ MCCodeEmitter *createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
                                          const MCSubtargetInfo &STI,
                                          MCContext &Ctx);
 
-MCAsmBackend *createMipsAsmBackendEB32(const Target &T, const MCRegisterInfo &MRI,
-                                       StringRef TT, StringRef CPU);
-MCAsmBackend *createMipsAsmBackendEL32(const Target &T, const MCRegisterInfo &MRI,
-                                       StringRef TT, StringRef CPU);
-MCAsmBackend *createMipsAsmBackendEB64(const Target &T, const MCRegisterInfo &MRI,
-                                       StringRef TT, StringRef CPU);
-MCAsmBackend *createMipsAsmBackendEL64(const Target &T, const MCRegisterInfo &MRI,
-                                       StringRef TT, StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEB32(const Target &T,
+                                       const MCRegisterInfo &MRI, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEL32(const Target &T,
+                                       const MCRegisterInfo &MRI, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEB64(const Target &T,
+                                       const MCRegisterInfo &MRI, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEL64(const Target &T,
+                                       const MCRegisterInfo &MRI, StringRef TT,
+                                       StringRef CPU);
 
 MCObjectWriter *createMipsELFObjectWriter(raw_ostream &OS,
                                           uint8_t OSABI,

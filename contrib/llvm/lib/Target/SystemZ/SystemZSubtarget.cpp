@@ -8,25 +8,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemZSubtarget.h"
+#include "MCTargetDesc/SystemZMCTargetDesc.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/Host.h"
-#include "MCTargetDesc/SystemZMCTargetDesc.h"
+
+using namespace llvm;
+
+#define DEBUG_TYPE "systemz-subtarget"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
 #include "SystemZGenSubtargetInfo.inc"
 
-using namespace llvm;
-
-// Pin the vtabel to this file.
+// Pin the vtable to this file.
 void SystemZSubtarget::anchor() {}
 
-SystemZSubtarget::SystemZSubtarget(const std::string &TT,
-                                   const std::string &CPU,
-                                   const std::string &FS)
-  : SystemZGenSubtargetInfo(TT, CPU, FS), HasDistinctOps(false),
-    HasLoadStoreOnCond(false), HasHighWord(false), HasFPExtension(false),
-    TargetTriple(TT) {
+SystemZSubtarget &
+SystemZSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
   std::string CPUName = CPU;
   if (CPUName.empty())
     CPUName = "generic";
@@ -34,10 +32,25 @@ SystemZSubtarget::SystemZSubtarget(const std::string &TT,
   if (CPUName == "generic")
     CPUName = sys::getHostCPUName();
 #endif
-
   // Parse features string.
   ParseSubtargetFeatures(CPUName, FS);
+  return *this;
 }
+
+SystemZSubtarget::SystemZSubtarget(const std::string &TT,
+                                   const std::string &CPU,
+                                   const std::string &FS,
+                                   const TargetMachine &TM)
+    : SystemZGenSubtargetInfo(TT, CPU, FS), HasDistinctOps(false),
+      HasLoadStoreOnCond(false), HasHighWord(false), HasFPExtension(false),
+      HasFastSerialization(false), HasInterlockedAccess1(false),
+      TargetTriple(TT),
+      // Make sure that global data has at least 16 bits of alignment by
+      // default, so that we can refer to it using LARL.  We don't have any
+      // special requirements for stack variables though.
+      DL("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-a:8:16-n32:64"),
+      InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM),
+      TSInfo(DL), FrameLowering() {}
 
 // Return true if GV binds locally under reloc model RM.
 static bool bindsLocally(const GlobalValue *GV, Reloc::Model RM) {

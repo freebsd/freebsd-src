@@ -37,11 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/mbuf.h>
 
+#include <net/rss_config.h>
+
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet/in_rss.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_rss.h>
 #endif /* INET6 */
 
 /*
@@ -105,7 +107,7 @@ in6_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, const struct in6_addr *laddrp,
 	switch (pcbinfo->ipi_hashfields) {
 	case IPI_HASHFIELDS_4TUPLE:
 #ifdef RSS
-		hash = rss_hash_ip6_4tuple(*faddrp, fport, *laddrp, lport);
+		hash = rss_hash_ip6_4tuple(faddrp, fport, laddrp, lport);
 #else
 		hash = faddrp->s6_addr32[3] ^ fport;
 #endif
@@ -113,7 +115,7 @@ in6_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, const struct in6_addr *laddrp,
 
 	case IPI_HASHFIELDS_2TUPLE:
 #ifdef RSS
-		hash = rss_hash_ip6_2tuple(*faddrp, *laddrp);
+		hash = rss_hash_ip6_2tuple(faddrp, laddrp);
 #else
 		hash = faddrp->s6_addr32[3] ^ laddrp->s6_addr32[3];
 #endif

@@ -27,13 +27,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2014
+.Dd March 13, 2015
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
 .Nm auto_master
 .Nd auto_master and map file format
 .Sh DESCRIPTION
+The automounter configuration consists of the
+.Nm
+configuration file, which assigns filesystem paths to map names,
+and maps, which contain actual mount information.
 The
 .Nm
 configuration file is used by the
@@ -120,6 +124,12 @@ is the path component used by
 .Xr automountd 8
 to find the right map entry to use.
 It is also used to form the final mountpoint.
+A wildcard
+.Pq Ql *
+can be used for the key.
+It matches every directory that does not match other keys.
+Those directories will not be visible to the user
+until accessed.
 .Pp
 The
 .Ar options
@@ -132,8 +142,12 @@ The special option
 .Li fstype
 is used to specify filesystem type.
 It is not passed to the mount program as an option.
-Instead, it is passed as argument to
+Instead, it is passed as an argument to
 .Cm "mount -t".
+The default
+.Li fstype
+is
+.Ql nfs .
 The special option
 .Li nobrowse
 is used to disable creation of top-level directories for special
@@ -147,15 +161,64 @@ for a single key.
 The
 .Ar location
 field specifies the filesystem to be mounted.
-To pass location that begins with
+Ampersands
+.Pq Ql &
+in the
+.Ar location
+field are replaced with the value of
+.Ar key .
+This is typically used with wildcards, like:
+.Bd -literal -offset indent
+.Li *	192.168.1.1:/share/&
+.Ed
+.Pp
+The
+.Ar location
+field may contain references to variables, like:
+.Bd -literal -offset indent
+.Li sys	192.168.1.1:/sys/${OSNAME}
+.Ed
+.Pp
+Defined variables are:
+.Pp
+.Bl -tag -width "-OSNAME" -compact
+.It Li ARCH
+Expands to the output of
+.Li "uname -p" .
+.It Li CPU
+Same as ARCH.
+.It Li HOST
+Expands to the output of
+.Li "uname -n" .
+.It Li OSNAME
+Expands to the output of
+.Li "uname -s" .
+.It Li OSREL
+Expands to the output of
+.Li "uname -r" .
+.It Li OSVERS
+Expands to the output of
+.Li "uname -v" .
+.El
+.Pp
+Additional variables can be defined with the
+.Fl D
+option of
+.Xr automount 8
+and
+.Xr automountd 8 .
+.Pp
+To pass a location that begins with
 .Li / ,
-prefix it with colon.
+prefix it with a colon.
 For example,
 .Li :/dev/cd0 .
 .Pp
-This example, when used with the
+This example, when put into
+.Pa /etc/auto_example ,
+and with
 .Nm
-example above, specifies that the NFS share
+referring to the map as described above, specifies that the NFS share
 .Li 192.168.1.1:/share/example/x
 will be mounted on
 .Pa /example/x/
@@ -163,9 +226,16 @@ when any process attempts to access that mountpoint, with
 .Li intr
 and
 .Li nfsv4
-mount options:
+mount options, described in
+.Xr mount_nfs 8 :
 .Bd -literal -offset indent
 .Li x -intr,nfsv4 192.168.1.1:/share/example/x
+.Ed
+.Pp
+Automatically mount an SMB share on access, as a guest user,
+without prompting for a password:
+.Bd -literal -offset indent
+.Li share -fstype=smbfs,-N ://@server/share
 .Ed
 .Pp
 Automatically mount the CD drive on access:
@@ -179,24 +249,48 @@ Supported special maps are:
 .Pp
 .Bl -tag -width "-hosts" -compact
 .It Li -hosts
-This map queries the remote NFS server and maps exported volumes.
-It is traditionally mounted on
+Query the remote NFS server and map exported shares.
+This map is traditionally mounted on
 .Pa /net .
-It enables access to files on a remote NFS server by accessing
-.Pa /net/nfs-server-ip/share-name/
-directory, without the need for any further configuration.
+Access to files on a remote NFS server is provided through the
+.Pf /net/ Ar nfs-server-ip Ns / Ns Ar share-name Ns/
+directory without any additional configuration.
+Directories for individual NFS servers are not present until the first access,
+when they are automatically created.
+.It Li -media
+Query devices that are not yet mounted, but contain valid filesystems.
+Generally used to access files on removable media.
+.It Li -noauto
+Mount filesystems configured in
+.Xr fstab 5
+as "noauto".
+This needs to be set up as a direct map.
 .It Li -null
-This map prevents the
+Prevent
 .Xr automountd 8
 from mounting anything on the mountpoint.
 .El
+.Pp
+It is possible to add custom special maps by adding them, as executable
+maps named
+.Pa special_foo ,
+to the
+.Pa /etc/autofs/
+directory.
 .Sh EXECUTABLE MAPS
 If the map file specified in
 .Nm
-has execute bit set, the
+has the execute bit set,
 .Xr automountd 8
 will execute it and parse the standard output instead of parsing
 the file contents.
+When called without command line arguments, the executable is
+expected to output a list of available map keys separated by
+newline characters.
+Otherwise, the executable will be called with a key name as
+a command line argument.
+Output from the executable is expected to be the entry for that key,
+not including the key itself.
 .Sh INDIRECT VERSUS DIRECT MAPS
 Indirect maps are referred to in
 .Nm
@@ -224,6 +318,7 @@ and this in
 map file:
 .Bd -literal -offset indent
 .Li /example/x -intr,nfsv4 192.168.1.1:/share/example/x
+.Li /example/share -fstype=smbfs,-N ://@server/share
 .Li /example/cd -fstype=cd9660 :/dev/cd0
 .Ed
 .Sh DIRECTORY SERVICES
@@ -262,6 +357,9 @@ It can be symlinked to
 The default location of the
 .Pa auto_master
 file.
+.It Pa /etc/autofs/
+Directory containing shell scripts to implement special maps and directory
+services.
 .El
 .Sh SEE ALSO
 .Xr autofs 5 ,

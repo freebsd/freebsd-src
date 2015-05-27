@@ -48,7 +48,7 @@ linux_fget(unsigned int fd)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
+	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
 	    NULL) != 0) {
 		return (NULL);
 	}
@@ -73,11 +73,19 @@ put_unused_fd(unsigned int fd)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
+	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
 	    NULL) != 0) {
 		return;
 	}
-	fdclose(curthread->td_proc->p_fd, file, fd, curthread);
+	/*
+	 * NOTE: We should only get here when the "fd" has not been
+	 * installed, so no need to free the associated Linux file
+	 * structure.
+	 */
+	fdclose(curthread, file, fd);
+
+	/* drop extra reference */
+	fdrop(file, curthread);
 }
 
 static inline void
@@ -85,12 +93,15 @@ fd_install(unsigned int fd, struct linux_file *filp)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
+	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
 	    NULL) != 0) {
 		file = NULL;
 	}
 	filp->_file = file;
-        finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+
+	/* drop the extra reference */
+	fput(filp);
 }
 
 static inline int
@@ -103,6 +114,8 @@ get_unused_fd(void)
 	error = falloc(curthread, &file, &fd, 0);
 	if (error)
 		return -error;
+	/* drop the extra reference */
+	fdrop(file, curthread);
 	return fd;
 }
 

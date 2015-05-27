@@ -20,13 +20,14 @@
 
 ident		CNS11XXNAS
 
+include 	"std.arm"
 #options 	PHYSADDR=0x10000000
 #options 	KERNPHYSADDR=0x10200000
 #options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 #options 	FLASHADDR=0x50000000
 #options 	LOADERRAMADDR=0x00000000
 
-include		"../cavium/cns11xx/std.econa"
+include 	"../cavium/cns11xx/std.econa"
 
 makeoptions	MODULES_OVERRIDE=""
 
@@ -67,8 +68,8 @@ options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-options 	NFSCL			# New Network Filesystem Client
-#options 	NFSD			# New Network Filesystem Server
+options 	NFSCL			# Network Filesystem Client
+#options 	NFSD			# Network Filesystem Server
 #options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	TMPFS			# Efficient memory filesystem
@@ -103,7 +104,7 @@ device		bpf
 device		loop
 
 device		md
-device          random			# Entropy device
+device		random			# Entropy device
 
 
 device		usb
@@ -114,12 +115,12 @@ device		umass
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		pass
-device 		cfi
+device		cfi
 
 #device		udav			# Davicom DM9601E USB
 
 device		geom_label
 device		geom_journal
-device 		geom_part_bsd
+device		geom_part_bsd
 
 options 	ROOTDEVNAME=\"ufs:da0s1a\"

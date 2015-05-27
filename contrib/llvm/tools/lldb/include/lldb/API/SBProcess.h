@@ -221,6 +221,9 @@ public:
     lldb::SBError
     Signal (int signal);
 
+    lldb::SBUnixSignals
+    GetUnixSignals();
+
     void
     SendAsyncInterrupt();
     
@@ -279,6 +282,9 @@ public:
     lldb::SBError
     UnloadImage (uint32_t image_token);
     
+    lldb::SBError
+    SendEventData (const char *data);
+    
     //------------------------------------------------------------------
     /// Return the number of different thread-origin extended backtraces
     /// this process can support.
@@ -310,6 +316,12 @@ public:
     //------------------------------------------------------------------
     const char *
     GetExtendedBacktraceTypeAtIndex (uint32_t idx);
+    
+    lldb::SBThreadCollection
+    GetHistoryThreads (addr_t addr);
+    
+    bool
+    IsInstrumentationRuntimePresent(InstrumentationRuntimeType type);
 
 protected:
     friend class SBAddress;
@@ -317,6 +329,7 @@ protected:
     friend class SBBreakpointLocation;
     friend class SBCommandInterpreter;
     friend class SBDebugger;
+    friend class SBExecutionContext;
     friend class SBFunction;
     friend class SBModule;
     friend class SBTarget;

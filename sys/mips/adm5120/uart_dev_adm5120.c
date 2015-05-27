@@ -175,7 +175,8 @@ struct uart_class uart_adm5120_uart_class = {
 	sizeof(struct adm5120_uart_softc),
 	.uc_ops = &uart_adm5120_uart_ops,
 	.uc_range = 1, /* use hinted range */
-	.uc_rclk = 62500000
+	.uc_rclk = 62500000,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

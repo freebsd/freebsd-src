@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_init.c 2948 2013-05-30 21:25:52Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_init.c 3136 2014-12-24 16:04:38Z kaiwang27 $");
 
 static int
 _dwarf_consumer_init(Dwarf_Debug dbg, Dwarf_Error *error)
@@ -69,7 +69,8 @@ _dwarf_consumer_init(Dwarf_Debug dbg, Dwarf_Error *error)
 
 	dbg->dbg_seccnt = cnt;
 
-	if ((dbg->dbg_section = calloc(cnt, sizeof(Dwarf_Section))) == NULL) {
+	if ((dbg->dbg_section = calloc(cnt + 1, sizeof(Dwarf_Section))) ==
+	    NULL) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
 		return (DW_DLE_MEMORY);
 	}
@@ -90,13 +91,12 @@ _dwarf_consumer_init(Dwarf_Debug dbg, Dwarf_Error *error)
 			return (ret);
 		}
 	}
+	dbg->dbg_section[cnt].ds_name = NULL;
 
-	if (_dwarf_find_section(dbg, ".debug_abbrev") == NULL ||
-	    ((dbg->dbg_info_sec = _dwarf_find_section(dbg, ".debug_info")) ==
-	     NULL)) {
-		DWARF_SET_ERROR(dbg, error, DW_DLE_DEBUG_INFO_NULL);
-		return (DW_DLE_DEBUG_INFO_NULL);
-	}
+	dbg->dbg_info_sec = _dwarf_find_section(dbg, ".debug_info");
+
+	/* Try to find the optional DWARF4 .debug_types section. */
+	dbg->dbg_types_sec = _dwarf_find_next_types_section(dbg, NULL);
 
 	/* Initialise call frame API related parameters. */
 	_dwarf_frame_params_init(dbg);
@@ -210,10 +210,10 @@ _dwarf_init(Dwarf_Debug dbg, Dwarf_Unsigned pro_flags, Dwarf_Handler errhand,
 	dbg->dbg_errarg = errarg;
 
 	STAILQ_INIT(&dbg->dbg_cu);
+	STAILQ_INIT(&dbg->dbg_tu);
 	STAILQ_INIT(&dbg->dbg_rllist);
 	STAILQ_INIT(&dbg->dbg_aslist);
 	STAILQ_INIT(&dbg->dbg_mslist);
-	TAILQ_INIT(&dbg->dbg_loclist);
 
 	if (dbg->dbg_mode == DW_DLC_READ || dbg->dbg_mode == DW_DLC_RDWR) {
 		ret = _dwarf_consumer_init(dbg, error);
@@ -270,7 +270,6 @@ _dwarf_consumer_deinit(Dwarf_Debug dbg)
 	assert(dbg != NULL && dbg->dbg_mode == DW_DLC_READ);
 
 	_dwarf_info_cleanup(dbg);
-	_dwarf_loclist_cleanup(dbg);
 	_dwarf_ranges_cleanup(dbg);
 	_dwarf_frame_cleanup(dbg);
 	_dwarf_arange_cleanup(dbg);

@@ -9,6 +9,13 @@ CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include \
 		-mlongcall
 
+# XXX: See the log for r232932 as to why the above -mlongcall is needed.  Since
+# clang doesn't support -mlongcall, and testing shows a clang linked with a
+# clang-built csu segfaults, this must currently be compiled with gcc.  Once
+# clang supports -mlongcall, or we get a fixed ld, this can be revisited.
+CC:=		gcc
+COMPILER_TYPE:=	gcc
+
 all: ${OBJS}
 
 CLEANFILES=	${OBJS}

@@ -139,8 +139,8 @@ static caddr_t	linker_file_lookup_symbol_internal(linker_file_t file,
 		    const char* name, int deps);
 static int	linker_load_module(const char *kldname,
 		    const char *modname, struct linker_file *parent,
-		    struct mod_depend *verinfo, struct linker_file **lfpp);
-static modlist_t modlist_lookup2(const char *name, struct mod_depend *verinfo);
+		    const struct mod_depend *verinfo, struct linker_file **lfpp);
+static modlist_t modlist_lookup2(const char *name, const struct mod_depend *verinfo);
 
 static void
 linker_init(void *arg)
@@ -1353,7 +1353,7 @@ modlist_lookup(const char *name, int ver)
 }
 
 static modlist_t
-modlist_lookup2(const char *name, struct mod_depend *verinfo)
+modlist_lookup2(const char *name, const struct mod_depend *verinfo)
 {
 	modlist_t mod, bestmod;
 	int ver;
@@ -1426,7 +1426,7 @@ linker_preload(void *arg)
 	linker_file_list_t depended_files;
 	struct mod_metadata *mp, *nmp;
 	struct mod_metadata **start, **stop, **mdp, **nmdp;
-	struct mod_depend *verinfo;
+	const struct mod_depend *verinfo;
 	int nver;
 	int resolves;
 	modlist_t mod;
@@ -1716,7 +1716,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
  */
 static char *
 linker_hints_lookup(const char *path, int pathlen, const char *modname,
-    int modnamelen, struct mod_depend *verinfo)
+    int modnamelen, const struct mod_depend *verinfo)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct ucred *cred = td ? td->td_ucred : NULL;
@@ -1752,7 +1752,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	/*
 	 * XXX: we need to limit this number to some reasonable value
 	 */
-	if (vattr.va_size > 100 * 1024) {
+	if (vattr.va_size > LINKER_HINTS_MAX) {
 		printf("hints file too large %ld\n", (long)vattr.va_size);
 		goto bad;
 	}
@@ -1849,7 +1849,7 @@ bad:
  */
 static char *
 linker_search_module(const char *modname, int modnamelen,
-    struct mod_depend *verinfo)
+    const struct mod_depend *verinfo)
 {
 	char *cp, *ep, *result;
 
@@ -1953,7 +1953,7 @@ linker_hwpmc_list_objects(void)
  */
 static int
 linker_load_module(const char *kldname, const char *modname,
-    struct linker_file *parent, struct mod_depend *verinfo,
+    struct linker_file *parent, const struct mod_depend *verinfo,
     struct linker_file **lfpp)
 {
 	linker_file_t lfdep;
@@ -2027,7 +2027,7 @@ linker_load_dependencies(linker_file_t lf)
 	linker_file_t lfdep;
 	struct mod_metadata **start, **stop, **mdp, **nmdp;
 	struct mod_metadata *mp, *nmp;
-	struct mod_depend *verinfo;
+	const struct mod_depend *verinfo;
 	modlist_t mod;
 	const char *modname, *nmodname;
 	int ver, error = 0, count;

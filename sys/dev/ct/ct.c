@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
@@ -140,6 +141,7 @@ static int ct_unbusy(struct ct_softc *);
 static void ct_attention(struct ct_softc *);
 static struct ct_synch_data *ct_make_synch_table(struct ct_softc *);
 static int ct_catch_intr(struct ct_softc *);
+static int ct_poll(void *);
 
 struct scsi_low_funcs ct_funcs = {
 	SC_LOW_INIT_T ct_world_start,
@@ -155,7 +157,7 @@ struct scsi_low_funcs ct_funcs = {
 	SC_LOW_MSG_T ct_msg,
 
 	SC_LOW_TIMEOUT_T NULL,
-	SC_LOW_POLL_T ctintr,
+	SC_LOW_POLL_T ct_poll,
 
 	NULL,	/* SC_LOW_POWER_T cthw_power, */
 };
@@ -876,8 +878,19 @@ ct_catch_intr(struct ct_softc *ct)
 	return EJUSTRETURN;
 }
 
-int
+void
 ctintr(void *arg)
+{
+	struct ct_softc *ct = arg;
+	struct scsi_low_softc *slp = &ct->sc_sclow;
+
+	SCSI_LOW_LOCK(slp);
+	ct_poll(ct);
+	SCSI_LOW_UNLOCK(slp);
+}
+
+static int
+ct_poll(void *arg)
 {
 	struct ct_softc *ct = arg;
 	struct scsi_low_softc *slp = &ct->sc_sclow;

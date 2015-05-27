@@ -189,7 +189,11 @@ restart:
 	fmode = *flagp;
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
-		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF;
+		/*
+		 * Set NOCACHE to avoid flushing the cache when
+		 * rolling in many files at once.
+		*/
+		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF | NOCACHE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
@@ -213,6 +217,8 @@ restart:
 					return (error);
 				goto restart;
 			}
+			if ((vn_open_flags & VN_OPEN_NAMECACHE) != 0)
+				ndp->ni_cnd.cn_flags |= MAKEENTRY;
 #ifdef MAC
 			error = mac_vnode_check_create(cred, ndp->ni_dvp,
 			    &ndp->ni_cnd, vap);
@@ -300,9 +306,15 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
+	if (fmode & O_CREAT)
+		accmode |= VCREAT;
+	if (fmode & O_VERIFY)
+		accmode |= VVERIFY;
 	error = mac_vnode_check_open(cred, vp, accmode);
 	if (error)
 		return (error);
+
+	accmode &= ~(VCREAT | VVERIFY);
 #endif
 	if ((fmode & O_CREAT) == 0) {
 		if (accmode & VWRITE) {
@@ -1600,7 +1612,7 @@ vn_suspendable(struct vnode *vp, struct mount **mpp)
 static int
 vn_start_write_locked(struct mount *mp, int flags)
 {
-	int error;
+	int error, mflags;
 
 	mtx_assert(MNT_MTX(mp), MA_OWNED);
 	error = 0;
@@ -1610,13 +1622,15 @@ vn_start_write_locked(struct mount *mp, int flags)
 	 */
 	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
 	    mp->mnt_susp_owner != curthread) {
+		mflags = ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ?
+		    (flags & PCATCH) : 0) | (PUSER - 1);
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 			if (flags & V_NOWAIT) {
 				error = EWOULDBLOCK;
 				goto unlock;
 			}
-			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
+			error = msleep(&mp->mnt_flag, MNT_MTX(mp), mflags,
+			    "suspfs", 0);
 			if (error)
 				goto unlock;
 		}
@@ -1732,8 +1746,9 @@ vn_start_secondary_write(vp, mpp, flags)
 	/*
 	 * Wait for the suspension to finish.
 	 */
-	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-		       (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
+	error = msleep(&mp->mnt_flag, MNT_MTX(mp), (PUSER - 1) | PDROP |
+	    ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ? (flags & PCATCH) : 0),
+	    "suspfs", 0);
 	vfs_rel(mp);
 	if (error == 0)
 		goto retry;

@@ -745,8 +745,7 @@ ex_rx_intr(struct ex_softc *sc)
 
 				while (pkt_len > 0) {
 					if (pkt_len >= MINCLSIZE) {
-						MCLGET(m, M_NOWAIT);
-						if (m->m_flags & M_EXT) {
+						if (MCLGET(m, M_NOWAIT)) {
 							m->m_len = MCLBYTES;
 						} else {
 							m_freem(ipkt);

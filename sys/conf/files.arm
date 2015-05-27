@@ -3,14 +3,27 @@ arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
-arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
-arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/busdma_machdep-v6.c 	optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b | cpu_krait
+arm/arm/busdma_machdep.c 	optional	!armv6
+arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
-arm/arm/cpufunc_asm_armv4.S 	standard
+arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9
+arm/arm/cpufunc_asm_arm10.S 	optional	cpu_arm9e
+arm/arm/cpufunc_asm_arm11.S	optional	cpu_arm1176
+arm/arm/cpufunc_asm_arm11x6.S	optional	cpu_arm1176
+arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80321 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_80219 | cpu_xscale_81342
+arm/arm/cpufunc_asm_armv5_ec.S 	optional	cpu_arm9e
+arm/arm/cpufunc_asm_armv6.S 	optional	cpu_arm1176
+arm/arm/cpufunc_asm_armv7.S	optional	cpu_cortexa | cpu_krait | cpu_mv_pj4b
+arm/arm/cpufunc_asm_fa526.S	optional	cpu_fa526
+arm/arm/cpufunc_asm_pj4b.S	optional	cpu_mv_pj4b
+arm/arm/cpufunc_asm_sheeva.S 	optional	cpu_arm9e
+arm/arm/cpufunc_asm_xscale.S	optional	cpu_xscale_80321 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_80219 | cpu_xscale_81342
+arm/arm/cpufunc_asm_xscale_c3.S	optional	cpu_xscale_81342
+arm/arm/cpuinfo.c		standard
+arm/arm/cpu_asm-v6.S		optional	armv6
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
@@ -24,6 +37,7 @@ arm/arm/fiq.c			standard
 arm/arm/fiq_subr.S		standard
 arm/arm/fusu.S			standard
 arm/arm/gdb_machdep.c		optional	gdb
+arm/arm/gic.c			optional	gic
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
@@ -39,8 +53,9 @@ arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
-arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/pmap-v6.c		optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b | cpu_krait
+arm/arm/pmap.c			optional	!armv6
+arm/arm/pmap-v6.c		optional	armv6 !arm_new_pmap
+arm/arm/pmap-v6-new.c		optional	armv6 arm_new_pmap
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -51,9 +66,11 @@ arm/arm/support.S		standard
 arm/arm/swtch.S			standard
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap.c			standard
+arm/arm/trap.c			optional	!armv6
+arm/arm/trap-v6.c		optional	armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
+arm/arm/unwind.c		optional	ddb | kdtrace_hooks
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
 board_id.h			standard				   \
@@ -67,7 +84,10 @@ crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
+dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
 dev/kbd/kbd.c			optional	sc | vt
+dev/psci/psci.c			optional	psci
+dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc

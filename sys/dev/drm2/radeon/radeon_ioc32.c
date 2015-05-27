@@ -291,6 +291,7 @@ static int compat_radeon_irq_emit(struct drm_device *dev, void *arg,
 }
 
 /* The two 64-bit arches where alignof(u64)==4 in 32-bit code */
+#if defined (CONFIG_X86_64) || defined(CONFIG_IA64)
 typedef struct drm_radeon_setparam32 {
 	int param;
 	u64 value;
@@ -309,6 +310,9 @@ static int compat_radeon_cp_setparam(struct drm_device *dev, void *arg,
 
 	return radeon_ioctls[DRM_IOCTL_RADEON_SETPARAM].func(dev, &request, file_priv);
 }
+#else
+#define compat_radeon_cp_setparam NULL
+#endif /* X86_64 || IA64 */
 
 struct drm_ioctl_desc radeon_compat_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_RADEON_CP_INIT, compat_radeon_cp_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -322,6 +326,6 @@ struct drm_ioctl_desc radeon_compat_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_RADEON_ALLOC, compat_radeon_mem_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_RADEON_IRQ_EMIT, compat_radeon_irq_emit, DRM_AUTH)
 };
-int radeon_num_compat_ioctls = DRM_ARRAY_SIZE(radeon_compat_ioctls);
+int radeon_num_compat_ioctls = ARRAY_SIZE(radeon_compat_ioctls);
 
 #endif

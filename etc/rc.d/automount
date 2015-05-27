@@ -18,7 +18,7 @@ required_modules="autofs"
 automount_start()
 {
 
-	/usr/sbin/automount
+	/usr/sbin/automount ${automount_flags}
 }
 
 automount_stop()

@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/rss_config.h>
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
@@ -216,10 +217,10 @@ udp_init(void)
 	 * a 4-tuple, flip this to 4-tuple.
 	 */
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
-	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+	    "udp_inpcb", udp_inpcb_init, NULL, 0,
 	    IPI_HASHFIELDS_2TUPLE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
 	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
@@ -232,7 +233,7 @@ udplite_init(void)
 
 	in_pcbinfo_init(&V_ulitecbinfo, "udplite", &V_ulitecb, UDBHASHSIZE,
 	    UDBHASHSIZE, "udplite_inpcb", udplite_inpcb_init, NULL,
-	    UMA_ZONE_NOFREE, IPI_HASHFIELDS_2TUPLE);
+	    0, IPI_HASHFIELDS_2TUPLE);
 }
 
 /*
@@ -323,7 +324,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		IPSECSTAT_INC(ips_in_polvio);
 		return;
 	}
 #ifdef IPSEC_NAT_T
@@ -1106,8 +1106,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	uint8_t pr;
 	uint16_t cscov = 0;
 	uint32_t flowid = 0;
-	int flowid_type = 0;
-	int use_flowid = 0;
+	uint8_t flowtype = M_HASHTYPE_NONE;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -1184,8 +1183,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 					error = EINVAL;
 					break;
 				}
-				flowid_type = *(uint32_t *) CMSG_DATA(cm);
-				use_flowid = 1;
+				flowtype = *(uint32_t *) CMSG_DATA(cm);
 				break;
 
 #ifdef	RSS
@@ -1451,10 +1449,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * Once the UDP code decides to set a flowid some other way,
 	 * this allows the flowid to be overridden by userland.
 	 */
-	if (use_flowid) {
-		m->m_flags |= M_FLOWID;
+	if (flowtype != M_HASHTYPE_NONE) {
 		m->m_pkthdr.flowid = flowid;
-		M_HASHTYPE_SET(m, flowid_type);
+		M_HASHTYPE_SET(m, flowtype);
 #ifdef	RSS
 	} else {
 		uint32_t hash_val, hash_type;
@@ -1477,7 +1474,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		if (rss_proto_software_hash_v4(faddr, laddr, fport, lport,
 		    pr, &hash_val, &hash_type) == 0) {
 			m->m_pkthdr.flowid = hash_val;
-			m->m_flags |= M_FLOWID;
 			M_HASHTYPE_SET(m, hash_type);
 		}
 #endif

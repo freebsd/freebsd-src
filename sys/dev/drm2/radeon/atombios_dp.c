@@ -140,7 +140,7 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
 			return send_bytes;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
-			DRM_UDELAY(400);
+			udelay(400);
 		else
 			return -EIO;
 	}
@@ -173,7 +173,7 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
 			return ret;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
-			DRM_UDELAY(400);
+			udelay(400);
 		else if (ret == 0)
 			return -EPROTO;
 		else
@@ -261,7 +261,7 @@ int radeon_dp_i2c_aux_ch(device_t dev, int mode, u8 write_byte, u8 *read_byte)
 			return -EREMOTEIO;
 		case AUX_NATIVE_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_ch native defer\n");
-			DRM_UDELAY(400);
+			udelay(400);
 			continue;
 		default:
 			DRM_ERROR("aux_ch invalid native reply 0x%02x\n", ack);
@@ -272,13 +272,13 @@ int radeon_dp_i2c_aux_ch(device_t dev, int mode, u8 write_byte, u8 *read_byte)
 		case AUX_I2C_REPLY_ACK:
 			if (mode == MODE_I2C_READ)
 				*read_byte = reply[0];
-			return (0); /* Return ret on Linux. */
+			return ret;
 		case AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
 			return -EREMOTEIO;
 		case AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
-			DRM_UDELAY(400);
+			udelay(400);
 			break;
 		default:
 			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", ack);
@@ -685,7 +685,7 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 
 static int radeon_dp_link_train_finish(struct radeon_dp_link_train_info *dp_info)
 {
-	DRM_UDELAY(400);
+	udelay(400);
 
 	/* disable the training pattern on the sink */
 	radeon_write_dpcd_reg(dp_info->radeon_connector,
@@ -713,7 +713,7 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 	memset(dp_info->train_set, 0, 4);
 	radeon_dp_update_vs_emph(dp_info);
 
-	DRM_UDELAY(400);
+	udelay(400);
 
 	/* clock recovery loop */
 	clock_recovery = false;

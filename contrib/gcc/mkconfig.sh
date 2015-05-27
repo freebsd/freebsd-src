@@ -1,5 +1,5 @@
 #! /bin/sh
-
+set -x
 # Copyright (C) 2001, 2002, 2006 Free Software Foundation, Inc.
 # This file is part of GCC.
 

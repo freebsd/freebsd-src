@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -111,8 +112,6 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
 	    ("%s: flowc for tid %u sent already", __func__, toep->tid));
 
-	CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
-
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
 	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
@@ -147,11 +146,18 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+
+		CTR6(KTR_CXGBE,
+		    "%s: tid %u, mss %u, sndbuf %u, snd_nxt 0x%x, rcv_nxt 0x%x",
+		    __func__, toep->tid, ftxp->mss, sndbuf, ftxp->snd_nxt,
+		    ftxp->rcv_nxt);
 	} else {
 		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
 		flowc->mnemval[4].val = htobe32(512);
 		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[5].val = htobe32(512);
+
+		CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
@@ -231,11 +237,20 @@ static void
 assign_rxopt(struct tcpcb *tp, unsigned int opt)
 {
 	struct toepcb *toep = tp->t_toe;
+	struct inpcb *inp = tp->t_inpcb;
 	struct adapter *sc = td_adapter(toep->td);
+	int n;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_LOCK_ASSERT(inp);
 
-	tp->t_maxseg = tp->t_maxopd = sc->params.mtus[G_TCPOPT_MSS(opt)] - 40;
+	if (inp->inp_inc.inc_flags & INC_ISIPV6)
+		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+	else
+		n = sizeof(struct ip) + sizeof(struct tcphdr);
+	tp->t_maxseg = tp->t_maxopd = sc->params.mtus[G_TCPOPT_MSS(opt)] - n;
+
+	CTR4(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u)", __func__, toep->tid,
+	    G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)]);
 
 	if (G_TCPOPT_TSTAMP(opt)) {
 		tp->t_flags |= TF_RCVD_TSTMP;	/* timestamps ok */
@@ -375,19 +390,17 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 		toep->rx_credits += toep->sb_cc - sbused(sb);
 		toep->sb_cc = sbused(sb);
 	}
-	credits = toep->rx_credits;
-	SOCKBUF_UNLOCK(sb);
+	if (toep->rx_credits > 0 &&
+	    (tp->rcv_wnd <= 32 * 1024 || toep->rx_credits >= 64 * 1024 ||
+	    (toep->rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||
+	    toep->sb_cc + tp->rcv_wnd < sb->sb_lowat)) {
 
-	if (credits > 0 &&
-	    (credits + 16384 >= tp->rcv_wnd || credits >= 15 * 1024)) {
-
-		credits = send_rx_credits(sc, toep, credits);
-		SOCKBUF_LOCK(sb);
+		credits = send_rx_credits(sc, toep, toep->rx_credits);
 		toep->rx_credits -= credits;
-		SOCKBUF_UNLOCK(sb);
 		tp->rcv_wnd += credits;
 		tp->rcv_adv += credits;
 	}
+	SOCKBUF_UNLOCK(sb);
 }
 
 /*
@@ -476,7 +489,7 @@ max_dsgl_nsegs(int tx_credits)
 
 static inline void
 write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
-    unsigned int plen, uint8_t credits, int shove, int ulp_mode)
+    unsigned int plen, uint8_t credits, int shove, int ulp_mode, int txalign)
 {
 	struct fw_ofld_tx_data_wr *txwr = dst;
 	unsigned int wr_ulp_mode;
@@ -498,6 +511,19 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 		V_FW_OFLD_TX_DATA_WR_URGENT(0) |	/* XXX */
 		V_FW_OFLD_TX_DATA_WR_SHOVE(shove));
 	txwr->plen = htobe32(plen);
+
+	if (txalign > 0) {
+		struct tcpcb *tp = intotcpcb(toep->inp);
+
+		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->port))
+			txwr->lsodisable_to_proxy |=
+			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
+		else
+			txwr->lsodisable_to_proxy |=
+			    htobe32(F_FW_OFLD_TX_DATA_WR_ALIGNPLD |
+				(tp->t_flags & TF_NODELAY ? 0 :
+				F_FW_OFLD_TX_DATA_WR_ALIGNPLDSHOVE));
+	}
 }
 
 /*
@@ -701,7 +727,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0);
+			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0,
+			    sc->tt.tx_align);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 			nsegs = 0;
 		} else {
@@ -719,7 +746,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0);
+			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0,
+			    sc->tt.tx_align);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -875,7 +903,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
 			write_tx_wr(txwr, toep, plen, ulp_len, credits, shove,
-								ulp_mode);
+								ulp_mode, 0);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 		} else {
 			int wr_len;
@@ -892,7 +920,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
 			write_tx_wr(txwr, toep, 0, ulp_len, credits, shove,
-								ulp_mode);
+								ulp_mode, 0);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -1075,19 +1103,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		m = get_ddp_mbuf(be32toh(cpl->rcv_nxt) - tp->rcv_nxt);
-		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
-
-		KASSERT(toep->sb_cc >= sbused(sb),
-		    ("%s: sb %p has more data (%d) than last time (%d).",
-		    __func__, sb, sbused(sb), toep->sb_cc));
-		toep->rx_credits += toep->sb_cc - sbused(sb);
-#ifdef USE_DDP_RX_FLOW_CONTROL
-		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
-#endif
-		sbappendstream_locked(sb, m);
-		toep->sb_cc = sbused(sb);
+		handle_ddp_close(toep, tp, sb, cpl->rcv_nxt);
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
 
@@ -1586,8 +1602,16 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: sb %p has more data (%d) than last time (%d).",
 	    __func__, sb, sbused(sb), toep->sb_cc));
 	toep->rx_credits += toep->sb_cc - sbused(sb);
-	sbappendstream_locked(sb, m);
+	sbappendstream_locked(sb, m, 0);
 	toep->sb_cc = sbused(sb);
+	if (toep->rx_credits > 0 && toep->sb_cc + tp->rcv_wnd < sb->sb_lowat) {
+		int credits;
+
+		credits = send_rx_credits(sc, toep, toep->rx_credits);
+		toep->rx_credits -= credits;
+		tp->rcv_wnd += credits;
+		tp->rcv_adv += credits;
+	}
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
 

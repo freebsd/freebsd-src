@@ -26,6 +26,7 @@
 #include "lldb/Core/Event.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/UserSettingsController.h"
+#include "lldb/Expression/ClangModulesDeclVendor.h"
 #include "lldb/Expression/ClangPersistentVariables.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/OptionValueBoolean.h"
@@ -80,6 +81,12 @@ public:
     
     void
     SetDisableASLR (bool b);
+    
+    bool
+    GetDetachOnError () const;
+    
+    void
+    SetDetachOnError (bool b);
     
     bool
     GetDisableSTDIO () const;
@@ -201,9 +208,15 @@ public:
         m_stop_others(true),
         m_debug(false),
         m_trap_exceptions(true),
+        m_generate_debug_info(false),
+        m_result_is_internal(false),
         m_use_dynamic(lldb::eNoDynamicValues),
-        m_timeout_usec(default_timeout)
-    {}
+        m_timeout_usec(default_timeout),
+        m_one_thread_timeout_usec(0),
+        m_cancel_callback (nullptr),
+        m_cancel_callback_baton (nullptr)
+    {
+    }
     
     ExecutionPolicy
     GetExecutionPolicy () const
@@ -301,6 +314,18 @@ public:
         m_timeout_usec = timeout;
     }
     
+    uint32_t
+    GetOneThreadTimeoutUsec () const
+    {
+        return m_one_thread_timeout_usec;
+    }
+    
+    void
+    SetOneThreadTimeoutUsec (uint32_t timeout = 0)
+    {
+        m_one_thread_timeout_usec = timeout;
+    }
+    
     bool
     GetTryAllThreads () const
     {
@@ -335,6 +360,20 @@ public:
     SetDebug(bool b)
     {
         m_debug = b;
+        if (m_debug)
+            m_generate_debug_info = true;
+    }
+    
+    bool
+    GetGenerateDebugInfo() const
+    {
+        return m_generate_debug_info;
+    }
+    
+    void
+    SetGenerateDebugInfo(bool b)
+    {
+        m_generate_debug_info = b;
     }
     
     bool
@@ -348,6 +387,34 @@ public:
     {
         m_trap_exceptions = b;
     }
+    
+    void
+    SetCancelCallback (lldb::ExpressionCancelCallback callback, void *baton)
+    {
+        m_cancel_callback_baton = baton;
+        m_cancel_callback = callback;
+    }
+    
+    bool
+    InvokeCancelCallback (lldb::ExpressionEvaluationPhase phase) const
+    {
+        if (m_cancel_callback == nullptr)
+            return false;
+        else
+            return m_cancel_callback (phase, m_cancel_callback_baton);
+    }
+
+    void
+    SetResultIsInternal (bool b)
+    {
+        m_result_is_internal = b;
+    }
+
+    bool
+    GetResultIsInternal () const
+    {
+        return m_result_is_internal;
+    }
 
 private:
     ExecutionPolicy m_execution_policy;
@@ -360,8 +427,13 @@ private:
     bool m_stop_others;
     bool m_debug;
     bool m_trap_exceptions;
+    bool m_generate_debug_info;
+    bool m_result_is_internal;
     lldb::DynamicValueType m_use_dynamic;
     uint32_t m_timeout_usec;
+    uint32_t m_one_thread_timeout_usec;
+    lldb::ExpressionCancelCallback m_cancel_callback;
+    void *m_cancel_callback_baton;
 };
 
 //----------------------------------------------------------------------
@@ -483,11 +555,19 @@ private:
     //------------------------------------------------------------------
     Target (Debugger &debugger,
             const ArchSpec &target_arch,
-            const lldb::PlatformSP &platform_sp);
+            const lldb::PlatformSP &platform_sp,
+            bool is_dummy_target);
 
     // Helper function.
     bool
     ProcessIsValid ();
+
+    // Copy breakpoints, stop hooks and so forth from the dummy target:
+    void
+    PrimeFromDummyTarget(Target *dummy_target);
+
+    void
+    AddBreakpoint(lldb::BreakpointSP breakpoint_sp, bool internal);
 
 public:
     ~Target();
@@ -513,7 +593,7 @@ public:
     /// in a target.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     //------------------------------------------------------------------
     void
     Dump (Stream *s, lldb::DescriptionLevel description_level);
@@ -536,8 +616,8 @@ public:
     Destroy();
     
     Error
-    Launch (Listener &listener,
-            ProcessLaunchInfo &launch_info);
+    Launch (ProcessLaunchInfo &launch_info,
+            Stream *stream); // Optional stream to receive first stop info
 
     //------------------------------------------------------------------
     // This part handles the breakpoints.
@@ -883,9 +963,9 @@ public:
     //------------------------------------------------------------------
     /// Return whether this FileSpec corresponds to a module that should be considered for general searches.
     ///
-    /// This API will be consulted by the SearchFilterForNonModuleSpecificSearches
+    /// This API will be consulted by the SearchFilterForUnconstrainedSearches
     /// and any module that returns \b true will not be searched.  Note the
-    /// SearchFilterForNonModuleSpecificSearches is the search filter that
+    /// SearchFilterForUnconstrainedSearches is the search filter that
     /// gets used in the CreateBreakpoint calls when no modules is provided.
     ///
     /// The target call at present just consults the Platform's call of the
@@ -897,14 +977,14 @@ public:
     /// @return \b true if the module should be excluded, \b false otherwise.
     //------------------------------------------------------------------
     bool
-    ModuleIsExcludedForNonModuleSpecificSearches (const FileSpec &module_spec);
+    ModuleIsExcludedForUnconstrainedSearches (const FileSpec &module_spec);
     
     //------------------------------------------------------------------
     /// Return whether this module should be considered for general searches.
     ///
-    /// This API will be consulted by the SearchFilterForNonModuleSpecificSearches
+    /// This API will be consulted by the SearchFilterForUnconstrainedSearches
     /// and any module that returns \b true will not be searched.  Note the
-    /// SearchFilterForNonModuleSpecificSearches is the search filter that
+    /// SearchFilterForUnconstrainedSearches is the search filter that
     /// gets used in the CreateBreakpoint calls when no modules is provided.
     ///
     /// The target call at present just consults the Platform's call of the
@@ -919,7 +999,7 @@ public:
     /// @return \b true if the module should be excluded, \b false otherwise.
     //------------------------------------------------------------------
     bool
-    ModuleIsExcludedForNonModuleSpecificSearches (const lldb::ModuleSP &module_sp);
+    ModuleIsExcludedForUnconstrainedSearches (const lldb::ModuleSP &module_sp);
 
     ArchSpec &
     GetArchitecture ()
@@ -1061,6 +1141,9 @@ public:
     Error
     Install(ProcessLaunchInfo *launch_info);
     
+    bool
+    ResolveFileAddress (lldb::addr_t load_addr,
+                        Address &so_addr);
     
     bool
     ResolveLoadAddress (lldb::addr_t load_addr,
@@ -1071,6 +1154,12 @@ public:
     SetSectionLoadAddress (const lldb::SectionSP &section,
                            lldb::addr_t load_addr,
                            bool warn_multiple = false);
+
+    size_t
+    UnloadModuleSections (const lldb::ModuleSP &module_sp);
+
+    size_t
+    UnloadModuleSections (const ModuleList &module_list);
 
     bool
     SetSectionUnloaded (const lldb::SectionSP &section_sp);
@@ -1086,7 +1175,7 @@ public:
     // we provide a way for expressions to be evaluated from the Target itself.
     // If an expression is going to be run, then it should have a frame filled
     // in in th execution context. 
-    ExecutionResults
+    lldb::ExpressionResults
     EvaluateExpression (const char *expression,
                         StackFrame *frame,
                         lldb::ValueObjectSP &result_valobj_sp,
@@ -1261,6 +1350,9 @@ public:
 
     SourceManager &
     GetSourceManager ();
+    
+    ClangModulesDeclVendor *
+    GetClangModulesDeclVendor ();
 
     //------------------------------------------------------------------
     // Methods.
@@ -1298,6 +1390,7 @@ protected:
     std::unique_ptr<ClangASTContext> m_scratch_ast_context_ap;
     std::unique_ptr<ClangASTSource> m_scratch_ast_source_ap;
     std::unique_ptr<ClangASTImporter> m_ast_importer_ap;
+    std::unique_ptr<ClangModulesDeclVendor> m_clang_modules_decl_vendor_ap;
     ClangPersistentVariables m_persistent_variables;      ///< These are the persistent variables associated with this process for the expression parser.
 
     std::unique_ptr<SourceManager> m_source_manager_ap;
@@ -1307,6 +1400,7 @@ protected:
     lldb::user_id_t         m_stop_hook_next_id;
     bool                    m_valid;
     bool                    m_suppress_stop_hooks;
+    bool                    m_is_dummy_target;
     
     static void
     ImageSearchPathsChanged (const PathMappingList &path_list,

@@ -91,10 +91,10 @@ struct pstunit {
 /*
  * Function prototypes
  */
-static	int	pst_start	P((int, struct peer *));
-static	void	pst_shutdown	P((int, struct peer *));
-static	void	pst_receive	P((struct recvbuf *));
-static	void	pst_poll	P((int, struct peer *));
+static	int	pst_start	(int, struct peer *);
+static	void	pst_shutdown	(int, struct peer *);
+static	void	pst_receive	(struct recvbuf *);
+static	void	pst_poll	(int, struct peer *);
 
 /*
  * Transfer vector
@@ -127,29 +127,27 @@ pst_start(
 	/*
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
-	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
+	snprintf(device, sizeof(device), DEVICE, unit);
+	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	if (fd <= 0)
 		return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct pstunit *)emalloc(sizeof(struct pstunit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct pstunit));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = pst_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 
 	/*
 	 * Initialize miscellaneous variables
@@ -157,7 +155,6 @@ pst_start(
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, WWVREFID, 4);
-	peer->burst = MAXSTAGE;
 	return (1);
 }
 
@@ -175,9 +172,11 @@ pst_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct pstunit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
+	if (NULL != up)
+		free(up);
 }
 
 
@@ -202,9 +201,9 @@ pst_receive(
 	/*
 	 * Initialize pointers and read the timecode and timestamp
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct pstunit *)pp->unitptr;
+	up = pp->unitptr;
 	up->lastptr += refclock_gtlin(rbufp, up->lastptr, pp->a_lastcode
 	    + BMAX - 2 - up->lastptr, &trtmp);
 	*up->lastptr++ = ' ';
@@ -295,13 +294,11 @@ pst_poll(
 	 * becomes unreachable, declare a timeout and keep going.
 	 */
 	pp = peer->procptr;
-	up = (struct pstunit *)pp->unitptr;
+	up = pp->unitptr;
 	up->tcswitch = 0;
 	up->lastptr = pp->a_lastcode;
 	if (write(pp->io.fd, "QTQDQMT", 6) != 6)
 		refclock_report(peer, CEVNT_FAULT);
-	if (peer->burst > 0)
-		return;
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
@@ -313,7 +310,6 @@ pst_poll(
 		printf("pst: timecode %d %s\n", pp->lencode,
 		    pp->a_lastcode);
 #endif
-	peer->burst = MAXSTAGE;
 	pp->polls++;
 }
 

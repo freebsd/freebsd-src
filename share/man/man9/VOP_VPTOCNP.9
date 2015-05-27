@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2011
+.Dd March 8, 2015
 .Dt VOP_VPTOCNP 9
 .Os
 .Sh NAME
@@ -36,9 +36,10 @@
 .Nd translate a vnode to its component name
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/ucred.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_VPTOCNP "struct vnode *vp" "struct vnode **dvp" "char *buf" "int *buflen"
+.Fn VOP_VPTOCNP "struct vnode *vp" "struct vnode **dvp" "struct ucred *cred" "char *buf" "int *buflen"
 .Sh DESCRIPTION
 This translates a vnode into its component name, and writes that name to
 the head of the buffer specified by
@@ -49,6 +50,8 @@ The vnode to translate.
 .It Fa dvp
 The vnode of the parent directory of
 .Fa vp .
+.It Fa cred
+The caller credentials.
 .It Fa buf
 The buffer into which to prepend the component name.
 .It Fa buflen
@@ -59,7 +62,8 @@ The default implementation of
 .Nm
 scans through
 .Fa vp Ns 's
-parent directory looking for a dirent with a matching file number.  If
+parent directory looking for a dirent with a matching file number.
+If
 .Fa vp
 is not a directory, then
 .Nm
@@ -78,8 +82,8 @@ The buffer was not large enough to hold the vnode's component name.
 The vnode was not found on the file system.
 .El
 .Sh SEE ALSO
-.Xr VOP_LOOKUP 9 ,
-.Xr vnode 9
+.Xr vnode 9 ,
+.Xr VOP_LOOKUP 9
 .Sh NOTES
 This interface is a work in progress.
 .Sh HISTORY

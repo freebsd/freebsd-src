@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/zlib.h>
 
 #include <geom/geom.h>
 
-#include <net/zlib.h>
 #include <contrib/xz-embedded/linux/include/linux/xz.h>
 
 #ifdef GEOM_UNCOMPRESS_DEBUG
@@ -464,7 +464,8 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_provider *pp2;
 	struct g_consumer *cp;
 	struct g_geom *gp;
-	uint32_t i, total_offsets, type;
+	uint64_t *offsets;
+	uint32_t i, r, total, total_offsets, type;
 	uint8_t *buf;
 	int error;
 
@@ -499,8 +500,8 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 */
 	DPRINTF(("%s: media sectorsize %u, mediasize %jd\n",
 	    gp->name, pp->sectorsize, (intmax_t)pp->mediasize));
-	i = roundup(sizeof(struct cloop_header), pp->sectorsize);
-	buf = g_read_data(cp, 0, i, NULL);
+	total = roundup(sizeof(struct cloop_header), pp->sectorsize);
+	buf = g_read_data(cp, 0, total, NULL);
 	if (buf == NULL)
 		goto err;
 	header = (struct cloop_header *) buf;
@@ -557,20 +558,30 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    gp->name, sc->nblocks);
 		goto err;
 	}
-	free(buf, M_GEOM);
+	g_free(buf);
 
-	i = roundup((sizeof(struct cloop_header) +
-	    total_offsets * sizeof(uint64_t)), pp->sectorsize);
-	buf = g_read_data(cp, 0, i, NULL);
-	if (buf == NULL)
-		goto err;
 	sc->offsets = malloc(total_offsets * sizeof(uint64_t),
-	    M_GEOM_UNCOMPRESS, M_WAITOK);
-	for (i = 0; i <= total_offsets; i++) {
-		sc->offsets[i] = be64toh(((uint64_t *)
-		    (buf+sizeof(struct cloop_header)))[i]);
+	    M_GEOM_UNCOMPRESS, M_WAITOK | M_ZERO);
+	total = roundup((sizeof(struct cloop_header) +
+	    total_offsets * sizeof(uint64_t)), pp->sectorsize);
+#define	RSZ	((total - r) > MAXPHYS ? MAXPHYS: (total - r))
+	for (r = 0, i = 0; r < total; r += MAXPHYS) {
+		buf = g_read_data(cp, r, RSZ, &error);
+		if (buf == NULL) {
+			free(sc->offsets, M_GEOM_UNCOMPRESS);
+			goto err;
+		}
+		offsets = (uint64_t *)buf;
+		if (r == 0)
+			offsets +=
+			    sizeof(struct cloop_header) / sizeof(uint64_t);
+		for (; i < total_offsets && offsets < (uint64_t *)(buf + RSZ);
+		    i++, offsets++)
+			sc->offsets[i] = be64toh(*offsets);
+		g_free(buf);
 	}
-	free(buf, M_GEOM);
+#undef RSZ
+	buf = NULL;
 	DPRINTF(("%s: done reading offsets\n", gp->name));
 	mtx_init(&sc->last_mtx, "geom_uncompress cache", NULL, MTX_DEF);
 	sc->last_blk = -1;
@@ -618,7 +629,7 @@ err:
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf != NULL)
-		free(buf, M_GEOM);
+		g_free(buf);
 	if (gp->softc != NULL) {
 		g_uncompress_softc_free(gp->softc, NULL);
 		gp->softc = NULL;

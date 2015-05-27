@@ -63,12 +63,6 @@ It implements the mount protocol as described in RFC 1094, Appendix A and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I.
 .Pp
-If the file system type is specified as ``oldnfs'', which implies this
-command is run as ``mount_oldnfs'', then it forces use of the old NFS
-client, which does not support the
-.Cm nfsv4
-option.
-.Pp
 By default,
 .Nm
 keeps retrying until the mount succeeds.
@@ -393,7 +387,7 @@ Use the specified version number for NFS requests.
 See the
 .Cm nfsv2 ,
 .Cm nfsv3 ,
-and 
+and
 .Cm nfsv4
 options for details.
 .It Cm wcommitsize Ns = Ns Aq Ar value

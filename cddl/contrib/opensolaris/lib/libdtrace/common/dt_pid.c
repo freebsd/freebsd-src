@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <libgen.h>
@@ -44,10 +44,15 @@
 #include <dt_program.h>
 #include <dt_pid.h>
 #include <dt_string.h>
-#if !defined(sun)
-#include <libproc_compat.h>
-#endif
 #include <dt_module.h>
+
+#ifndef illumos
+#include <sys/sysctl.h>
+#include <unistd.h>
+#include <libproc_compat.h>
+#include <libelf.h>
+#include <gelf.h>
+#endif
 
 typedef struct dt_pid_probe {
 	dtrace_hdl_t *dpp_dtp;
@@ -74,7 +79,7 @@ typedef struct dt_pid_probe {
 static void
 dt_pid_objname(char *buf, size_t len, Lmid_t lmid, const char *obj)
 {
-#if defined(sun)
+#ifdef illumos
 	if (lmid == LM_ID_BASE)
 		(void) strncpy(buf, obj, len);
 	else
@@ -126,7 +131,7 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 	int isdash = strcmp("-", func) == 0;
 	pid_t pid;
 
-#if defined(sun)
+#ifdef illumos
 	pid = Pstatus(pp->dpp_pr)->pr_pid;
 #else
 	pid = proc_getpid(pp->dpp_pr);
@@ -270,7 +275,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 	if (obj == NULL)
 		return (0);
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
 #endif
 	
@@ -279,7 +284,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 		pp->dpp_obj = obj;
 	else
 		pp->dpp_obj++;
-#if defined(sun)
+#ifdef illumos
 	if (Pxlookup_by_name(pp->dpp_pr, pp->dpp_lmid, obj, ".stret1", &sym,
 	    NULL) == 0)
 		pp->dpp_stret[0] = sym.st_value;
@@ -337,7 +342,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 				    GELF_ST_INFO(STB_LOCAL, STT_FUNC);
 				sym.st_other = 0;
 				sym.st_value = 0;
-#if defined(sun)
+#ifdef illumos
 				sym.st_size = Pstatus(pp->dpp_pr)->pr_dmodel ==
 				    PR_MODEL_ILP32 ? -1U : -1ULL;
 #else
@@ -404,7 +409,7 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	if (gmatch(obj, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
 #else
 	pp->dpp_lmid = 0;
@@ -418,7 +423,7 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	if (gmatch(pp->dpp_obj, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
 #endif
 
@@ -468,7 +473,7 @@ dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 	else
 		obj++;
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(P, pmp->pr_vaddr, &lmid);
 #endif
 
@@ -566,6 +571,12 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 	prsyminfo_t sip;
 	dof_helper_t dh;
 	GElf_Half e_type;
+#ifdef __FreeBSD__
+	dof_hdr_t hdr;
+	size_t sz;
+	uint64_t dofmax;
+	void *dof;
+#endif
 	const char *mname;
 	const char *syms[] = { "___SUNW_dof", "__SUNW_dof" };
 	int i, fd = -1;
@@ -595,17 +606,61 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 			continue;
 		}
 
+#ifdef __FreeBSD__
+		dh.dofhp_addr = (e_type == ET_EXEC) ? 0 : pmp->pr_vaddr;
+		if (Pread(P, &hdr, sizeof (hdr), sym.st_value) !=
+		    sizeof (hdr)) {
+			dt_dprintf("read of DOF header failed\n");
+			continue;
+		}
+
+		sz = sizeof(dofmax);
+		if (sysctlbyname("kern.dtrace.dof_maxsize", &dofmax, &sz,
+		    NULL, 0) != 0) {
+			dt_dprintf("failed to read dof_maxsize: %s\n",
+			    strerror(errno));
+			continue;
+		}
+		if (dofmax < hdr.dofh_loadsz) {
+			dt_dprintf("DOF load size exceeds maximum\n");
+			continue;
+		}
+
+		if ((dof = malloc(hdr.dofh_loadsz)) == NULL)
+			return (-1);
+
+		if (Pread(P, dof, hdr.dofh_loadsz, sym.st_value) !=
+		    hdr.dofh_loadsz) {
+			free(dof);
+			dt_dprintf("read of DOF section failed\n");
+			continue;
+		}
+
+		dh.dofhp_dof = (uintptr_t)dof;
+		dh.dofhp_pid = proc_getpid(P);
+
+		dt_pid_objname(dh.dofhp_mod, sizeof (dh.dofhp_mod),
+		    sip.prs_lmid, mname);
+
+		if (fd == -1 &&
+		    (fd = open("/dev/dtrace/helper", O_RDWR, 0)) < 0) {
+			dt_dprintf("open of helper device failed: %s\n",
+			    strerror(errno));
+			free(dof);
+			return (-1); /* errno is set for us */
+		}
+
+		if (ioctl(fd, DTRACEHIOC_ADDDOF, &dh, sizeof (dh)) < 0)
+			dt_dprintf("DOF was rejected for %s\n", dh.dofhp_mod);
+
+		free(dof);
+#else
 		dh.dofhp_dof = sym.st_value;
 		dh.dofhp_addr = (e_type == ET_EXEC) ? 0 : pmp->pr_vaddr;
 
 		dt_pid_objname(dh.dofhp_mod, sizeof (dh.dofhp_mod),
-#if defined(sun)
 		    sip.prs_lmid, mname);
-#else
-		    0, mname);
-#endif
 
-#if defined(sun)
 		if (fd == -1 &&
 		    (fd = pr_open(P, "/dev/dtrace/helper", O_RDWR, 0)) < 0) {
 			dt_dprintf("pr_open of helper device failed: %s\n",
@@ -618,8 +673,10 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 #endif
 	}
 
-#if defined(sun)
 	if (fd != -1)
+#ifdef __FreeBSD__
+		(void) close(fd);
+#else
 		(void) pr_close(P, fd);
 #endif
 
@@ -634,21 +691,17 @@ dt_pid_create_usdt_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 	int ret = 0;
 
 	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
-#if defined(sun)
 	(void) Pupdate_maps(P);
 	if (Pobject_iter(P, dt_pid_usdt_mapping, P) != 0) {
 		ret = -1;
 		(void) dt_pid_error(dtp, pcb, dpr, NULL, D_PROC_USDT,
 		    "failed to instantiate probes for pid %d: %s",
-#if defined(sun)
+#ifdef illumos
 		    (int)Pstatus(P)->pr_pid, strerror(errno));
 #else
 		    (int)proc_getpid(P), strerror(errno));
 #endif
 	}
-#else
-	ret = 0;
-#endif
 
 	/*
 	 * Put the module name in its canonical form.

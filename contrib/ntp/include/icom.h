@@ -83,5 +83,5 @@
 /*
  * Function prototypes
  */
-int	icom_init		P((char *, int, int));
-int	icom_freq		P((int, int, double));
+int	icom_init		(const char *, int, int);
+int	icom_freq		(int, int, double);

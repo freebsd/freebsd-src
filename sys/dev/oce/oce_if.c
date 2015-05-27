@@ -341,7 +341,7 @@ oce_attach(device_t dev)
 
 	oce_add_sysctls(sc);
 
-	callout_init(&sc->timer, CALLOUT_MPSAFE);
+	callout_init(&sc->timer, 1);
 	rc = callout_reset(&sc->timer, 2 * hz, oce_local_timer, sc);
 	if (rc)
 		goto stats_free;
@@ -563,7 +563,7 @@ oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
 	int queue_index = 0;
 	int status = 0;
 
-	if ((m->m_flags & M_FLOWID) != 0)
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		queue_index = m->m_pkthdr.flowid % sc->nwqs;
 
 	wq = sc->wq[queue_index];
@@ -1374,7 +1374,7 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 			m->m_pkthdr.flowid = (rq->queue_index - 1);
 		else
 			m->m_pkthdr.flowid = rq->queue_index;
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 		/* This deternies if vlan tag is Valid */
 		if (oce_cqe_vtp_valid(sc, cqe)) { 

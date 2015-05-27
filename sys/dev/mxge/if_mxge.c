@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
+#include <sys/zlib.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -58,7 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/zlib.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -2719,7 +2719,7 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 	/* flowid only valid if RSS hashing is enabled */
 	if (sc->num_slices > 1) {
 		m->m_pkthdr.flowid = (ss - sc->ss);
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
@@ -2787,7 +2787,7 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 	/* flowid only valid if RSS hashing is enabled */
 	if (sc->num_slices > 1) {
 		m->m_pkthdr.flowid = (ss - sc->ss);
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);

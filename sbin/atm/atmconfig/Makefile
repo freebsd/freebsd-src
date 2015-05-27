@@ -17,11 +17,9 @@ CFLAGS+= -I.
 .if !defined(RESCUE) && ${MK_BSNMP} != "no"
 CFLAGS+=	-DWITH_BSNMP
 SRCS+=	oid.h atmconfig_device.c
-DPADD+=	${LIBBSNMP}
-LDADD+=	-lbsnmp
+LIBADD+=	bsnmp
 . if ${MK_DYNAMICROOT} == "no" && ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+= -lcrypto
+LIBADD+=	crypto
 . endif
 .endif
 

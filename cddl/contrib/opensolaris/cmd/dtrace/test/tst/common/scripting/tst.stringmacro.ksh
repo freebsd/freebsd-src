@@ -41,7 +41,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-bname=`/bin/basename $0`
+bname=`basename $0`
 dfilename=/var/tmp/$bname.$$.d
 
 ## Create .d file

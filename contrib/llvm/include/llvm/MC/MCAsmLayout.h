@@ -17,6 +17,7 @@ namespace llvm {
 class MCAssembler;
 class MCFragment;
 class MCSectionData;
+class MCSymbol;
 class MCSymbolData;
 
 /// Encapsulates the layout of an assembly file at a particular point in time.
@@ -102,7 +103,14 @@ public:
 
   /// \brief Get the offset of the given symbol, as computed in the current
   /// layout.
+  /// \result True on success.
+  bool getSymbolOffset(const MCSymbolData *SD, uint64_t &Val) const;
+
+  /// \brief Variant that reports a fatal error if the offset is not computable.
   uint64_t getSymbolOffset(const MCSymbolData *SD) const;
+
+  /// \brief If this symbol is equivalent to A + Constant, return A.
+  const MCSymbol *getBaseSymbol(const MCSymbol &Symbol) const;
 
   /// @}
 };

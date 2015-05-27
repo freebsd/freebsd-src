@@ -683,21 +683,27 @@ g_provider_by_name(char const *arg)
 {
 	struct g_class *cp;
 	struct g_geom *gp;
-	struct g_provider *pp;
+	struct g_provider *pp, *wpp;
 
 	if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		arg += sizeof(_PATH_DEV) - 1;
 
+	wpp = NULL;
 	LIST_FOREACH(cp, &g_classes, class) {
 		LIST_FOREACH(gp, &cp->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (!strcmp(arg, pp->name))
+				if (strcmp(arg, pp->name) != 0)
+					continue;
+				if ((gp->flags & G_GEOM_WITHER) == 0 &&
+				    (pp->flags & G_PF_WITHER) == 0)
 					return (pp);
+				else
+					wpp = pp;
 			}
 		}
 	}
 
-	return (NULL);
+	return (wpp);
 }
 
 void

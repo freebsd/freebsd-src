@@ -22,6 +22,7 @@ using namespace llvm;
 using namespace object;
 
 static const char *const Magic = "!<arch>\n";
+static const char *const ThinMagic = "!<thin>\n";
 
 void Archive::anchor() { }
 
@@ -86,7 +87,10 @@ Archive::Child::Child(const Archive *Parent, const char *Start)
 
   const ArchiveMemberHeader *Header =
       reinterpret_cast<const ArchiveMemberHeader *>(Start);
-  Data = StringRef(Start, sizeof(ArchiveMemberHeader) + Header->getSize());
+  uint64_t Size = sizeof(ArchiveMemberHeader);
+  if (!Parent->IsThin || Header->getName() == "/" || Header->getName() == "//")
+    Size += Header->getSize();
+  Data = StringRef(Start, Size);
 
   // Setup StartOfFile and PaddingBytes.
   StartOfFile = sizeof(ArchiveMemberHeader);
@@ -100,6 +104,12 @@ Archive::Child::Child(const Archive *Parent, const char *Start)
   }
 }
 
+uint64_t Archive::Child::getSize() const {
+  if (Parent->IsThin)
+    return getHeader()->getSize();
+  return Data.size() - StartOfFile;
+}
+
 Archive::Child Archive::Child::getNext() const {
   size_t SpaceToSkip = Data.size();
   // If it's odd, add 1 to make it even.
@@ -109,24 +119,20 @@ Archive::Child Archive::Child::getNext() const {
   const char *NextLoc = Data.data() + SpaceToSkip;
 
   // Check to see if this is past the end of the archive.
-  if (NextLoc >= Parent->Data->getBufferEnd())
-    return Child(Parent, NULL);
+  if (NextLoc >= Parent->Data.getBufferEnd())
+    return Child(Parent, nullptr);
 
   return Child(Parent, NextLoc);
 }
 
-error_code Archive::Child::getName(StringRef &Result) const {
+ErrorOr<StringRef> Archive::Child::getName() const {
   StringRef name = getRawName();
   // Check if it's a special name.
   if (name[0] == '/') {
-    if (name.size() == 1) { // Linker member.
-      Result = name;
-      return object_error::success;
-    }
-    if (name.size() == 2 && name[1] == '/') { // String table.
-      Result = name;
-      return object_error::success;
-    }
+    if (name.size() == 1) // Linker member.
+      return name;
+    if (name.size() == 2 && name[1] == '/') // String table.
+      return name;
     // It's a long name.
     // Get the offset.
     std::size_t offset;
@@ -136,7 +142,7 @@ error_code Archive::Child::getName(StringRef &Result) const {
                        + sizeof(ArchiveMemberHeader)
                        + offset;
     // Verify it.
-    if (Parent->StringTable == Parent->end_children()
+    if (Parent->StringTable == Parent->child_end()
         || addr < (Parent->StringTable->Data.begin()
                    + sizeof(ArchiveMemberHeader))
         || addr > (Parent->StringTable->Data.begin()
@@ -147,65 +153,63 @@ error_code Archive::Child::getName(StringRef &Result) const {
     // GNU long file names end with a /.
     if (Parent->kind() == K_GNU) {
       StringRef::size_type End = StringRef(addr).find('/');
-      Result = StringRef(addr, End);
-    } else {
-      Result = addr;
+      return StringRef(addr, End);
     }
-    return object_error::success;
+    return StringRef(addr);
   } else if (name.startswith("#1/")) {
     uint64_t name_size;
     if (name.substr(3).rtrim(" ").getAsInteger(10, name_size))
       llvm_unreachable("Long name length is not an ingeter");
-    Result = Data.substr(sizeof(ArchiveMemberHeader), name_size)
+    return Data.substr(sizeof(ArchiveMemberHeader), name_size)
         .rtrim(StringRef("\0", 1));
-    return object_error::success;
   }
   // It's a simple name.
   if (name[name.size() - 1] == '/')
-    Result = name.substr(0, name.size() - 1);
-  else
-    Result = name;
-  return object_error::success;
+    return name.substr(0, name.size() - 1);
+  return name;
 }
 
-error_code Archive::Child::getMemoryBuffer(OwningPtr<MemoryBuffer> &Result,
-                                           bool FullPath) const {
-  StringRef Name;
-  if (error_code ec = getName(Name))
-    return ec;
-  SmallString<128> Path;
-  Result.reset(MemoryBuffer::getMemBuffer(
-      getBuffer(), FullPath ? (Twine(Parent->getFileName()) + "(" + Name + ")")
-                                  .toStringRef(Path)
-                            : Name,
-      false));
-  return error_code::success();
+ErrorOr<MemoryBufferRef> Archive::Child::getMemoryBufferRef() const {
+  ErrorOr<StringRef> NameOrErr = getName();
+  if (std::error_code EC = NameOrErr.getError())
+    return EC;
+  StringRef Name = NameOrErr.get();
+  return MemoryBufferRef(getBuffer(), Name);
 }
 
-error_code Archive::Child::getAsBinary(OwningPtr<Binary> &Result) const {
-  OwningPtr<Binary> ret;
-  OwningPtr<MemoryBuffer> Buff;
-  if (error_code ec = getMemoryBuffer(Buff))
-    return ec;
-  if (error_code ec = createBinary(Buff.take(), ret))
-    return ec;
-  Result.swap(ret);
-  return object_error::success;
+ErrorOr<std::unique_ptr<Binary>>
+Archive::Child::getAsBinary(LLVMContext *Context) const {
+  ErrorOr<MemoryBufferRef> BuffOrErr = getMemoryBufferRef();
+  if (std::error_code EC = BuffOrErr.getError())
+    return EC;
+
+  return createBinary(BuffOrErr.get(), Context);
 }
 
-Archive::Archive(MemoryBuffer *source, error_code &ec)
-  : Binary(Binary::ID_Archive, source), SymbolTable(end_children()) {
+ErrorOr<std::unique_ptr<Archive>> Archive::create(MemoryBufferRef Source) {
+  std::error_code EC;
+  std::unique_ptr<Archive> Ret(new Archive(Source, EC));
+  if (EC)
+    return EC;
+  return std::move(Ret);
+}
+
+Archive::Archive(MemoryBufferRef Source, std::error_code &ec)
+    : Binary(Binary::ID_Archive, Source), SymbolTable(child_end()) {
+  StringRef Buffer = Data.getBuffer();
   // Check for sufficient magic.
-  assert(source);
-  if (source->getBufferSize() < 8 ||
-      StringRef(source->getBufferStart(), 8) != Magic) {
+  if (Buffer.startswith(ThinMagic)) {
+    IsThin = true;
+  } else if (Buffer.startswith(Magic)) {
+    IsThin = false;
+  } else {
     ec = object_error::invalid_file_type;
     return;
   }
 
   // Get the special members.
-  child_iterator i = begin_children(false);
-  child_iterator e = end_children();
+  child_iterator i = child_begin(false);
+  child_iterator e = child_end();
 
   if (i == e) {
     ec = object_error::success;
@@ -245,10 +249,12 @@ Archive::Archive(MemoryBuffer *source, error_code &ec)
   if (Name.startswith("#1/")) {
     Format = K_BSD;
     // We know this is BSD, so getName will work since there is no string table.
-    ec = i->getName(Name);
+    ErrorOr<StringRef> NameOrErr = i->getName();
+    ec = NameOrErr.getError();
     if (ec)
       return;
-    if (Name == "__.SYMDEF SORTED") {
+    Name = NameOrErr.get();
+    if (Name == "__.SYMDEF SORTED" || Name == "__.SYMDEF") {
       SymbolTable = i;
       ++i;
     }
@@ -309,28 +315,27 @@ Archive::Archive(MemoryBuffer *source, error_code &ec)
   ec = object_error::success;
 }
 
-Archive::child_iterator Archive::begin_children(bool SkipInternal) const {
-  if (Data->getBufferSize() == 8) // empty archive.
-    return end_children();
+Archive::child_iterator Archive::child_begin(bool SkipInternal) const {
+  if (Data.getBufferSize() == 8) // empty archive.
+    return child_end();
 
   if (SkipInternal)
     return FirstRegular;
 
-  const char *Loc = Data->getBufferStart() + strlen(Magic);
+  const char *Loc = Data.getBufferStart() + strlen(Magic);
   Child c(this, Loc);
   return c;
 }
 
-Archive::child_iterator Archive::end_children() const {
-  return Child(this, NULL);
+Archive::child_iterator Archive::child_end() const {
+  return Child(this, nullptr);
 }
 
-error_code Archive::Symbol::getName(StringRef &Result) const {
-  Result = StringRef(Parent->SymbolTable->getBuffer().begin() + StringIndex);
-  return object_error::success;
+StringRef Archive::Symbol::getName() const {
+  return Parent->SymbolTable->getBuffer().begin() + StringIndex;
 }
 
-error_code Archive::Symbol::getMember(child_iterator &Result) const {
+ErrorOr<Archive::child_iterator> Archive::Symbol::getMember() const {
   const char *Buf = Parent->SymbolTable->getBuffer().begin();
   const char *Offsets = Buf + 4;
   uint32_t Offset = 0;
@@ -338,7 +343,14 @@ error_code Archive::Symbol::getMember(child_iterator &Result) const {
     Offset = *(reinterpret_cast<const support::ubig32_t*>(Offsets)
                + SymbolIndex);
   } else if (Parent->kind() == K_BSD) {
-    llvm_unreachable("BSD format is not supported");
+    // The SymbolIndex is an index into the ranlib structs that start at
+    // Offsets (the first uint32_t is the number of bytes of the ranlib
+    // structs).  The ranlib structs are a pair of uint32_t's the first
+    // being a string table offset and the second being the offset into
+    // the archive of the member that defines the symbol.  Which is what
+    // is needed here.
+    Offset = *(reinterpret_cast<const support::ulittle32_t *>(Offsets) +
+               (SymbolIndex * 2) + 1);
   } else {
     uint32_t MemberCount = *reinterpret_cast<const support::ulittle32_t*>(Buf);
     
@@ -370,21 +382,54 @@ error_code Archive::Symbol::getMember(child_iterator &Result) const {
   }
 
   const char *Loc = Parent->getData().begin() + Offset;
-  Result = Child(Parent, Loc);
-
-  return object_error::success;
+  child_iterator Iter(Child(Parent, Loc));
+  return Iter;
 }
 
 Archive::Symbol Archive::Symbol::getNext() const {
   Symbol t(*this);
-  // Go to one past next null.
-  t.StringIndex =
-      Parent->SymbolTable->getBuffer().find('\0', t.StringIndex) + 1;
+  if (Parent->kind() == K_BSD) {
+    // t.StringIndex is an offset from the start of the __.SYMDEF or
+    // "__.SYMDEF SORTED" member into the string table for the ranlib
+    // struct indexed by t.SymbolIndex .  To change t.StringIndex to the
+    // offset in the string table for t.SymbolIndex+1 we subtract the
+    // its offset from the start of the string table for t.SymbolIndex
+    // and add the offset of the string table for t.SymbolIndex+1.
+
+    // The __.SYMDEF or "__.SYMDEF SORTED" member starts with a uint32_t
+    // which is the number of bytes of ranlib structs that follow.  The ranlib
+    // structs are a pair of uint32_t's the first being a string table offset
+    // and the second being the offset into the archive of the member that
+    // define the symbol. After that the next uint32_t is the byte count of
+    // the string table followed by the string table.
+    const char *Buf = Parent->SymbolTable->getBuffer().begin();
+    uint32_t RanlibCount = 0;
+    RanlibCount = (*reinterpret_cast<const support::ulittle32_t *>(Buf)) /
+                  (sizeof(uint32_t) * 2);
+    // If t.SymbolIndex + 1 will be past the count of symbols (the RanlibCount)
+    // don't change the t.StringIndex as we don't want to reference a ranlib
+    // past RanlibCount.
+    if (t.SymbolIndex + 1 < RanlibCount) {
+      const char *Ranlibs = Buf + 4;
+      uint32_t CurRanStrx = 0;
+      uint32_t NextRanStrx = 0;
+      CurRanStrx = *(reinterpret_cast<const support::ulittle32_t *>(Ranlibs) +
+                     (t.SymbolIndex * 2));
+      NextRanStrx = *(reinterpret_cast<const support::ulittle32_t *>(Ranlibs) +
+                      ((t.SymbolIndex + 1) * 2));
+      t.StringIndex -= CurRanStrx;
+      t.StringIndex += NextRanStrx;
+    }
+  } else {
+    // Go to one past next null.
+    t.StringIndex =
+        Parent->SymbolTable->getBuffer().find('\0', t.StringIndex) + 1;
+  }
   ++t.SymbolIndex;
   return t;
 }
 
-Archive::symbol_iterator Archive::begin_symbols() const {
+Archive::symbol_iterator Archive::symbol_begin() const {
   if (!hasSymbolTable())
     return symbol_iterator(Symbol(this, 0, 0));
 
@@ -394,7 +439,22 @@ Archive::symbol_iterator Archive::begin_symbols() const {
     symbol_count = *reinterpret_cast<const support::ubig32_t*>(buf);
     buf += sizeof(uint32_t) + (symbol_count * (sizeof(uint32_t)));
   } else if (kind() == K_BSD) {
-    llvm_unreachable("BSD archive format is not supported");
+    // The __.SYMDEF or "__.SYMDEF SORTED" member starts with a uint32_t
+    // which is the number of bytes of ranlib structs that follow.  The ranlib
+    // structs are a pair of uint32_t's the first being a string table offset
+    // and the second being the offset into the archive of the member that
+    // define the symbol. After that the next uint32_t is the byte count of
+    // the string table followed by the string table.
+    uint32_t ranlib_count = 0;
+    ranlib_count = (*reinterpret_cast<const support::ulittle32_t *>(buf)) /
+                   (sizeof(uint32_t) * 2);
+    const char *ranlibs = buf + 4;
+    uint32_t ran_strx = 0;
+    ran_strx = *(reinterpret_cast<const support::ulittle32_t *>(ranlibs));
+    buf += sizeof(uint32_t) + (ranlib_count * (2 * (sizeof(uint32_t))));
+    // Skip the byte count of the string table.
+    buf += sizeof(uint32_t);
+    buf += ran_strx;
   } else {
     uint32_t member_count = 0;
     uint32_t symbol_count = 0;
@@ -407,7 +467,7 @@ Archive::symbol_iterator Archive::begin_symbols() const {
   return symbol_iterator(Symbol(this, 0, string_start_offset));
 }
 
-Archive::symbol_iterator Archive::end_symbols() const {
+Archive::symbol_iterator Archive::symbol_end() const {
   if (!hasSymbolTable())
     return symbol_iterator(Symbol(this, 0, 0));
 
@@ -416,7 +476,8 @@ Archive::symbol_iterator Archive::end_symbols() const {
   if (kind() == K_GNU) {
     symbol_count = *reinterpret_cast<const support::ubig32_t*>(buf);
   } else if (kind() == K_BSD) {
-    llvm_unreachable("BSD archive format is not supported");
+    symbol_count = (*reinterpret_cast<const support::ulittle32_t *>(buf)) /
+                   (sizeof(uint32_t) * 2);
   } else {
     uint32_t member_count = 0;
     member_count = *reinterpret_cast<const support::ulittle32_t*>(buf);
@@ -428,23 +489,22 @@ Archive::symbol_iterator Archive::end_symbols() const {
 }
 
 Archive::child_iterator Archive::findSym(StringRef name) const {
-  Archive::symbol_iterator bs = begin_symbols();
-  Archive::symbol_iterator es = end_symbols();
-  Archive::child_iterator result;
-  
-  StringRef symname;
+  Archive::symbol_iterator bs = symbol_begin();
+  Archive::symbol_iterator es = symbol_end();
+
   for (; bs != es; ++bs) {
-    if (bs->getName(symname))
-        return end_children();
-    if (symname == name) {
-      if (bs->getMember(result))
-        return end_children();
-      return result;
+    StringRef SymName = bs->getName();
+    if (SymName == name) {
+      ErrorOr<Archive::child_iterator> ResultOrErr = bs->getMember();
+      // FIXME: Should we really eat the error?
+      if (ResultOrErr.getError())
+        return child_end();
+      return ResultOrErr.get();
     }
   }
-  return end_children();
+  return child_end();
 }
 
 bool Archive::hasSymbolTable() const {
-  return SymbolTable != end_children();
+  return SymbolTable != child_end();
 }

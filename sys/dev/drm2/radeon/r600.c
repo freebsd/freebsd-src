@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define CAYMAN_RLC_UCODE_SIZE 1024
 #define ARUBA_RLC_UCODE_SIZE 1536
 
-#ifdef DUMBBELL_WIP
+#ifdef __linux__
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
 MODULE_FIRMWARE("radeon/R600_me.bin");
@@ -93,12 +93,18 @@ MODULE_FIRMWARE("radeon/SUMO_pfp.bin");
 MODULE_FIRMWARE("radeon/SUMO_me.bin");
 MODULE_FIRMWARE("radeon/SUMO2_pfp.bin");
 MODULE_FIRMWARE("radeon/SUMO2_me.bin");
-#endif /* DUMBBELL_WIP */
+#endif
 
 int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
 /* r600,rv610,rv630,rv620,rv635,rv670 */
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+int r600_mc_wait_for_idle(struct radeon_device *rdev);
+#endif
 static void r600_gpu_init(struct radeon_device *rdev);
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+void r600_fini(struct radeon_device *rdev);
+#endif
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 
@@ -860,7 +866,7 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		if (tmp) {
 			return;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 }
 
@@ -1021,7 +1027,7 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev)
 		tmp = RREG32(R_000E50_SRBM_STATUS) & 0x3F00;
 		if (!tmp)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }
@@ -1209,7 +1215,7 @@ static int r600_mc_init(struct radeon_device *rdev)
 int r600_vram_scratch_init(struct radeon_device *rdev)
 {
 	int r;
-	void *vram_scratch_ptr_ptr;
+	void *vram_scratch_ptr_ptr; /* FreeBSD: to please GCC 4.2. */
 
 	if (rdev->vram_scratch.robj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
@@ -1324,7 +1330,7 @@ static void r600_gpu_soft_reset_gfx(struct radeon_device *rdev)
 		dev_info(rdev->dev, "  R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
 		WREG32(R_008020_GRBM_SOFT_RESET, tmp);
 		RREG32(R_008020_GRBM_SOFT_RESET);
-		DRM_MDELAY(15);
+		mdelay(15);
 		WREG32(R_008020_GRBM_SOFT_RESET, 0);
 	}
 	/* Reset CP (we always reset CP) */
@@ -1332,7 +1338,7 @@ static void r600_gpu_soft_reset_gfx(struct radeon_device *rdev)
 	dev_info(rdev->dev, "R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
 	WREG32(R_008020_GRBM_SOFT_RESET, tmp);
 	RREG32(R_008020_GRBM_SOFT_RESET);
-	DRM_MDELAY(15);
+	mdelay(15);
 	WREG32(R_008020_GRBM_SOFT_RESET, 0);
 
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
@@ -1373,7 +1379,7 @@ static void r600_gpu_soft_reset_dma(struct radeon_device *rdev)
 	else
 		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
 	RREG32(SRBM_SOFT_RESET);
-	DRM_UDELAY(50);
+	udelay(50);
 	WREG32(SRBM_SOFT_RESET, 0);
 
 	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
@@ -1407,7 +1413,7 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 		r600_gpu_soft_reset_dma(rdev);
 
 	/* Wait a little for things to settle down */
-	DRM_MDELAY(1);
+	mdelay(1);
 
 	rv515_mc_resume(rdev, &save);
 	return 0;
@@ -2168,7 +2174,7 @@ static int r600_cp_load_microcode(struct radeon_device *rdev)
 	/* Reset cp */
 	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);
 	RREG32(GRBM_SOFT_RESET);
-	DRM_MDELAY(15);
+	mdelay(15);
 	WREG32(GRBM_SOFT_RESET, 0);
 
 	WREG32(CP_ME_RAM_WADDR, 0);
@@ -2231,7 +2237,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 	/* Reset cp */
 	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);
 	RREG32(GRBM_SOFT_RESET);
-	DRM_MDELAY(15);
+	mdelay(15);
 	WREG32(GRBM_SOFT_RESET, 0);
 
 	/* Set ring buffer size */
@@ -2265,7 +2271,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 		WREG32(SCRATCH_UMSK, 0);
 	}
 
-	DRM_MDELAY(1);
+	mdelay(1);
 	WREG32(CP_RB_CNTL, tmp);
 
 	WREG32(CP_RB_BASE, ring->gpu_addr >> 8);
@@ -2362,7 +2368,7 @@ int r600_dma_resume(struct radeon_device *rdev)
 	else
 		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
 	RREG32(SRBM_SOFT_RESET);
-	DRM_UDELAY(50);
+	udelay(50);
 	WREG32(SRBM_SOFT_RESET, 0);
 
 	WREG32(DMA_SEM_INCOMPLETE_TIMER_CNTL, 0);
@@ -3255,7 +3261,7 @@ void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size)
 int r600_ih_ring_alloc(struct radeon_device *rdev)
 {
 	int r;
-	void *ring_ptr;
+	void *ring_ptr; /* FreeBSD: to please GCC 4.2. */
 
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
@@ -3320,7 +3326,7 @@ void r600_rlc_stop(struct radeon_device *rdev)
 		/* r7xx asics need to soft reset RLC before halting */
 		WREG32(SRBM_SOFT_RESET, SOFT_RESET_RLC);
 		RREG32(SRBM_SOFT_RESET);
-		DRM_MDELAY(15);
+		mdelay(15);
 		WREG32(SRBM_SOFT_RESET, 0);
 		RREG32(SRBM_SOFT_RESET);
 	}
@@ -3813,7 +3819,7 @@ void r600_irq_disable(struct radeon_device *rdev)
 {
 	r600_disable_interrupts(rdev);
 	/* Wait and acknowledge irq */
-	DRM_MDELAY(1);
+	mdelay(1);
 	r600_irq_ack(rdev);
 	r600_disable_interrupt_state(rdev);
 }

@@ -1313,8 +1313,11 @@ restart:
 			} else {
 				/*
 				 * Copy the data from userland into a mbuf
-				 * chain.  If no data is to be copied in,
-				 * a single empty mbuf is returned.
+				 * chain.  If resid is 0, which can happen
+				 * only if we have control to send, then
+				 * a single empty mbuf is returned.  This
+				 * is a workaround to prevent protocol send
+				 * methods to panic.
 				 */
 				top = m_uiotombuf(uio, M_WAITOK, space,
 				    (atomic ? max_hdr : 0),
@@ -1706,7 +1709,8 @@ dontblock:
 	 */
 	moff = 0;
 	offset = 0;
-	while (m != NULL && uio->uio_resid > 0 && error == 0) {
+	while (m != NULL && !(m->m_flags & M_NOTAVAIL) && uio->uio_resid > 0
+	    && error == 0) {
 		/*
 		 * If the type of mbuf has changed since the last mbuf
 		 * examined ('type'), end the receive operation.
@@ -2001,7 +2005,7 @@ restart:
 
 	/* Socket buffer got some data that we shall deliver now. */
 	if (sbavail(sb) > 0 && !(flags & MSG_WAITALL) &&
-	    ((sb->sb_flags & SS_NBIO) ||
+	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
 	     sbavail(sb) >= sb->sb_lowat ||
 	     sbavail(sb) >= uio->uio_resid ||
@@ -2044,6 +2048,8 @@ deliver:
 			for (m = sb->sb_mb;
 			     m != NULL && m->m_len <= len;
 			     m = m->m_next) {
+				KASSERT(!(m->m_flags & M_NOTAVAIL),
+				    ("%s: m %p not available", __func__, m));
 				len -= m->m_len;
 				uio->uio_resid -= m->m_len;
 				sbfree(sb, m);
@@ -2249,7 +2255,8 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * Process one or more MT_CONTROL mbufs present before any data mbufs
 	 * in the first mbuf chain on the socket buffer.  We call into the
 	 * protocol to perform externalization (or freeing if controlp ==
-	 * NULL).
+	 * NULL). In some cases there can be only MT_CONTROL mbufs without
+	 * MT_DATA mbufs.
 	 */
 	if (m->m_type == MT_CONTROL) {
 		struct mbuf *cm = NULL, *cmn;
@@ -2279,8 +2286,8 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			cm = cmn;
 		}
 	}
-	KASSERT(m->m_type == MT_DATA, ("soreceive_dgram: !data"));
-
+	KASSERT(m == NULL || m->m_type == MT_DATA,
+	    ("soreceive_dgram: !data"));
 	while (m != NULL && uio->uio_resid > 0) {
 		len = uio->uio_resid;
 		if (len > m->m_len)
@@ -2297,9 +2304,10 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			m->m_len -= len;
 		}
 	}
-	if (m != NULL)
+	if (m != NULL) {
 		flags |= MSG_TRUNC;
-	m_freem(m);
+		m_freem(m);
+	}
 	if (flagsp != NULL)
 		*flagsp |= flags;
 	return (0);
@@ -3175,6 +3183,13 @@ pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 	return EOPNOTSUPP;
 }
 
+int
+pru_ready_notsupp(struct socket *so, struct mbuf *m, int count)
+{
+
+	return (EOPNOTSUPP);
+}
+
 /*
  * This isn't really a ``null'' operation, but it's the default one and
  * doesn't do anything destructive.
@@ -3426,11 +3441,9 @@ soisdisconnecting(struct socket *so)
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= SS_ISDISCONNECTING;
-	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
-	sorwakeup_locked(so);
+	socantrcvmore_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_state |= SBS_CANTSENDMORE;
-	sowwakeup_locked(so);
+	socantsendmore_locked(so);
 	wakeup(&so->so_timeo);
 }
 
@@ -3445,12 +3458,10 @@ soisdisconnected(struct socket *so)
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISDISCONNECTED;
-	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
-	sorwakeup_locked(so);
+	socantrcvmore_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_state |= SBS_CANTSENDMORE;
 	sbdrop_locked(&so->so_snd, sbused(&so->so_snd));
-	sowwakeup_locked(so);
+	socantsendmore_locked(so);
 	wakeup(&so->so_timeo);
 }
 

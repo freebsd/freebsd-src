@@ -13,6 +13,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/msun \
 	usr.bin/lex/lib \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

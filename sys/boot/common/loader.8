@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd December 22, 2014
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -670,6 +670,13 @@ Overrides the compile-time set value of
 .Dv TCBHASHSIZE
 or the preset default of 512.
 Must be a power of 2.
+.It Va twiddle_divisor
+Throttles the output of the
+.Sq twiddle
+I/O progress indicator displayed while loading the kernel and modules.
+This is useful on slow serial consoles where the time spent waiting for
+these characters to be written can add up to many seconds.
+The default is 1 (full speed); a value of 2 spins half as fast, and so on.
 .It Va vm.kmem_size
 Sets the size of kernel memory (bytes).
 This overrides the value determined when the kernel was compiled.

@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "DwarfException.h"
+#include "Win64Exception.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -30,7 +31,6 @@
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
@@ -38,20 +38,19 @@
 using namespace llvm;
 
 Win64Exception::Win64Exception(AsmPrinter *A)
-  : DwarfException(A),
-    shouldEmitPersonality(false), shouldEmitLSDA(false), shouldEmitMoves(false)
-    {}
+  : EHStreamer(A), shouldEmitPersonality(false), shouldEmitLSDA(false),
+    shouldEmitMoves(false) {}
 
 Win64Exception::~Win64Exception() {}
 
-/// EndModule - Emit all exception information that should come after the
+/// endModule - Emit all exception information that should come after the
 /// content.
-void Win64Exception::EndModule() {
+void Win64Exception::endModule() {
 }
 
-/// BeginFunction - Gather pre-function exception information. Assumes it's
+/// beginFunction - Gather pre-function exception information. Assumes it's
 /// being emitted immediately after the function entry point.
-void Win64Exception::BeginFunction(const MachineFunction *MF) {
+void Win64Exception::beginFunction(const MachineFunction *MF) {
   shouldEmitMoves = shouldEmitPersonality = shouldEmitLSDA = false;
 
   // If any landing pads survive, we need an EH table.
@@ -73,22 +72,22 @@ void Win64Exception::BeginFunction(const MachineFunction *MF) {
   if (!shouldEmitPersonality && !shouldEmitMoves)
     return;
 
-  Asm->OutStreamer.EmitWin64EHStartProc(Asm->CurrentFnSym);
+  Asm->OutStreamer.EmitWinCFIStartProc(Asm->CurrentFnSym);
 
   if (!shouldEmitPersonality)
     return;
 
-  MCSymbol *GCCHandlerSym =
-    Asm->GetExternalSymbolSymbol("_GCC_specific_handler");
-  Asm->OutStreamer.EmitWin64EHHandler(GCCHandlerSym, true, true);
+  const MCSymbol *PersHandlerSym =
+      TLOF.getCFIPersonalitySymbol(Per, *Asm->Mang, Asm->TM, MMI);
+  Asm->OutStreamer.EmitWinEHHandler(PersHandlerSym, true, true);
 
   Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_begin",
                                                 Asm->getFunctionNumber()));
 }
 
-/// EndFunction - Gather and emit post-function exception information.
+/// endFunction - Gather and emit post-function exception information.
 ///
-void Win64Exception::EndFunction() {
+void Win64Exception::endFunction(const MachineFunction *) {
   if (!shouldEmitPersonality && !shouldEmitMoves)
     return;
 
@@ -99,16 +98,10 @@ void Win64Exception::EndFunction() {
   MMI->TidyLandingPads();
 
   if (shouldEmitPersonality) {
-    const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
-    const Function *Per = MMI->getPersonalities()[MMI->getPersonalityIndex()];
-    const MCSymbol *Sym = TLOF.getCFIPersonalitySymbol(Per, Asm->Mang, MMI);
-
     Asm->OutStreamer.PushSection();
-    Asm->OutStreamer.EmitWin64EHHandlerData();
-    Asm->OutStreamer.EmitValue(MCSymbolRefExpr::Create(Sym, Asm->OutContext),
-                               4);
-    EmitExceptionTable();
+    Asm->OutStreamer.EmitWinEHHandlerData();
+    emitExceptionTable();
     Asm->OutStreamer.PopSection();
   }
-  Asm->OutStreamer.EmitWin64EHEndProc();
+  Asm->OutStreamer.EmitWinCFIEndProc();
 }

@@ -102,9 +102,9 @@ ctanh(double complex z)
 	 */
 	if (ix >= 0x7ff00000) {
 		if ((ix & 0xfffff) | lx)	/* x is NaN */
-			return (cpack(x, (y == 0 ? y : x * y)));
+			return (CMPLX(x, (y == 0 ? y : x * y)));
 		SET_HIGH_WORD(x, hx - 0x40000000);	/* x = copysign(1, x) */
-		return (cpack(x, copysign(0, isinf(y) ? y : sin(y) * cos(y))));
+		return (CMPLX(x, copysign(0, isinf(y) ? y : sin(y) * cos(y))));
 	}
 
 	/*
@@ -112,7 +112,7 @@ ctanh(double complex z)
 	 * ctanh(x +- i Inf) = NaN + i NaN
 	 */
 	if (!isfinite(y))
-		return (cpack(y - y, y - y));
+		return (CMPLX(y - y, y - y));
 
 	/*
 	 * ctanh(+-huge + i +-y) ~= +-1 +- i 2sin(2y)/exp(2x), using the
@@ -121,7 +121,7 @@ ctanh(double complex z)
 	 */
 	if (ix >= 0x40360000) {	/* x >= 22 */
 		double exp_mx = exp(-fabs(x));
-		return (cpack(copysign(1, x),
+		return (CMPLX(copysign(1, x),
 		    4 * sin(y) * cos(y) * exp_mx * exp_mx));
 	}
 
@@ -131,7 +131,7 @@ ctanh(double complex z)
 	s = sinh(x);
 	rho = sqrt(1 + s * s);	/* = cosh(x) */
 	denom = 1 + beta * s * s;
-	return (cpack((beta * rho * s) / denom, t / denom));
+	return (CMPLX((beta * rho * s) / denom, t / denom));
 }
 
 double complex
@@ -139,6 +139,6 @@ ctan(double complex z)
 {
 
 	/* ctan(z) = -I * ctanh(I * z) */
-	z = ctanh(cpack(-cimag(z), creal(z)));
-	return (cpack(cimag(z), -creal(z)));
+	z = ctanh(CMPLX(-cimag(z), creal(z)));
+	return (CMPLX(cimag(z), -creal(z)));
 }

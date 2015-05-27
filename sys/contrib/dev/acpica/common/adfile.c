@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -295,7 +295,10 @@ FlSplitInputPathname (
     char                    *Filename;
 
 
-    *OutDirectoryPath = NULL;
+    if (OutDirectoryPath)
+    {
+        *OutDirectoryPath = NULL;
+    }
 
     if (!InputPath)
     {
@@ -340,7 +343,10 @@ FlSplitInputPathname (
         return (AE_NO_MEMORY);
     }
 
-    *OutDirectoryPath = DirectoryPath;
+    if (OutDirectoryPath)
+    {
+        *OutDirectoryPath = DirectoryPath;
+    }
 
     if (OutFilename)
     {

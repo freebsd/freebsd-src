@@ -106,31 +106,30 @@ namespace llvm {
 class DefaultVLIWScheduler : public ScheduleDAGInstrs {
 public:
   DefaultVLIWScheduler(MachineFunction &MF, MachineLoopInfo &MLI,
-                   MachineDominatorTree &MDT, bool IsPostRA);
+                       bool IsPostRA);
   // Schedule - Actual scheduling work.
-  void schedule();
+  void schedule() override;
 };
 }
 
-DefaultVLIWScheduler::DefaultVLIWScheduler(
-  MachineFunction &MF, MachineLoopInfo &MLI, MachineDominatorTree &MDT,
-  bool IsPostRA) :
-  ScheduleDAGInstrs(MF, MLI, MDT, IsPostRA) {
+DefaultVLIWScheduler::DefaultVLIWScheduler(MachineFunction &MF,
+                                           MachineLoopInfo &MLI, bool IsPostRA)
+    : ScheduleDAGInstrs(MF, &MLI, IsPostRA) {
   CanHandleTerminators = true;
 }
 
 void DefaultVLIWScheduler::schedule() {
   // Build the scheduling graph.
-  buildSchedGraph(0);
+  buildSchedGraph(nullptr);
 }
 
 // VLIWPacketizerList Ctor
-VLIWPacketizerList::VLIWPacketizerList(
-  MachineFunction &MF, MachineLoopInfo &MLI, MachineDominatorTree &MDT,
-  bool IsPostRA) : TM(MF.getTarget()), MF(MF)  {
-  TII = TM.getInstrInfo();
-  ResourceTracker = TII->CreateTargetScheduleState(&TM, 0);
-  VLIWScheduler = new DefaultVLIWScheduler(MF, MLI, MDT, IsPostRA);
+VLIWPacketizerList::VLIWPacketizerList(MachineFunction &MF,
+                                       MachineLoopInfo &MLI, bool IsPostRA)
+    : MF(MF) {
+  TII = MF.getSubtarget().getInstrInfo();
+  ResourceTracker = TII->CreateTargetScheduleState(MF.getSubtarget());
+  VLIWScheduler = new DefaultVLIWScheduler(MF, MLI, IsPostRA);
 }
 
 // VLIWPacketizerList Dtor

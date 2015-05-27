@@ -11,6 +11,7 @@
 #include "MCTargetDesc/MipsFixupKinds.h"
 #include "MCTargetDesc/MipsMCTargetDesc.h"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCELF.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSection.h"
@@ -21,17 +22,6 @@
 using namespace llvm;
 
 namespace {
-  struct RelEntry {
-    RelEntry(const ELFRelocationEntry &R, const MCSymbol *S, int64_t O) :
-      Reloc(R), Sym(S), Offset(O) {}
-    ELFRelocationEntry Reloc;
-    const MCSymbol *Sym;
-    int64_t Offset;
-  };
-
-  typedef std::list<RelEntry> RelLs;
-  typedef RelLs::iterator RelLsIter;
-
   class MipsELFObjectWriter : public MCELFObjectTargetWriter {
   public:
     MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI,
@@ -39,16 +29,10 @@ namespace {
 
     virtual ~MipsELFObjectWriter();
 
-    virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
-                                  bool IsPCRel, bool IsRelocWithSymbol,
-                                  int64_t Addend) const;
-    virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
-                                           const MCValue &Target,
-                                           const MCFragment &F,
-                                           const MCFixup &Fixup,
-                                           bool IsPCRel) const;
-    virtual void sortRelocs(const MCAssembler &Asm,
-                            std::vector<ELFRelocationEntry> &Relocs);
+    unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
+                          bool IsPCRel) const override;
+    bool needsRelocateWithSymbol(const MCSymbolData &SD,
+                                 unsigned Type) const override;
   };
 }
 
@@ -60,26 +44,9 @@ MipsELFObjectWriter::MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI,
 
 MipsELFObjectWriter::~MipsELFObjectWriter() {}
 
-const MCSymbol *MipsELFObjectWriter::ExplicitRelSym(const MCAssembler &Asm,
-                                                    const MCValue &Target,
-                                                    const MCFragment &F,
-                                                    const MCFixup &Fixup,
-                                                    bool IsPCRel) const {
-  assert(Target.getSymA() && "SymA cannot be 0.");
-  const MCSymbol &Sym = Target.getSymA()->getSymbol().AliasedSymbol();
-
-  if (Sym.getSection().getKind().isMergeableCString() ||
-      Sym.getSection().getKind().isMergeableConst())
-    return &Sym;
-
-  return NULL;
-}
-
 unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
                                            const MCFixup &Fixup,
-                                           bool IsPCRel,
-                                           bool IsRelocWithSymbol,
-                                           int64_t Addend) const {
+                                           bool IsPCRel) const {
   // determine the type of the relocation
   unsigned Type = (unsigned)ELF::R_MIPS_NONE;
   unsigned Kind = (unsigned)Fixup.getKind();
@@ -195,6 +162,9 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
   case Mips::fixup_MICROMIPS_GOT16:
     Type = ELF::R_MICROMIPS_GOT16;
     break;
+  case Mips::fixup_MICROMIPS_PC7_S1:
+    Type = ELF::R_MICROMIPS_PC7_S1;
+    break;
   case Mips::fixup_MICROMIPS_PC16_S1:
     Type = ELF::R_MICROMIPS_PC16_S1;
     break;
@@ -210,6 +180,12 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
   case Mips::fixup_MICROMIPS_GOT_OFST:
     Type = ELF::R_MICROMIPS_GOT_OFST;
     break;
+  case Mips::fixup_MICROMIPS_TLS_GD:
+    Type = ELF::R_MICROMIPS_TLS_GD;
+    break;
+  case Mips::fixup_MICROMIPS_TLS_LDM:
+    Type = ELF::R_MICROMIPS_TLS_LDM;
+    break;
   case Mips::fixup_MICROMIPS_TLS_DTPREL_HI16:
     Type = ELF::R_MICROMIPS_TLS_DTPREL_HI16;
     break;
@@ -222,95 +198,65 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
   case Mips::fixup_MICROMIPS_TLS_TPREL_LO16:
     Type = ELF::R_MICROMIPS_TLS_TPREL_LO16;
     break;
+  case Mips::fixup_MIPS_PC19_S2:
+    Type = ELF::R_MIPS_PC19_S2;
+    break;
+  case Mips::fixup_MIPS_PC18_S3:
+    Type = ELF::R_MIPS_PC18_S3;
+    break;
+  case Mips::fixup_MIPS_PC21_S2:
+    Type = ELF::R_MIPS_PC21_S2;
+    break;
+  case Mips::fixup_MIPS_PC26_S2:
+    Type = ELF::R_MIPS_PC26_S2;
+    break;
+  case Mips::fixup_MIPS_PCHI16:
+    Type = ELF::R_MIPS_PCHI16;
+    break;
+  case Mips::fixup_MIPS_PCLO16:
+    Type = ELF::R_MIPS_PCLO16;
+    break;
   }
   return Type;
 }
 
-// Return true if R is either a GOT16 against a local symbol or HI16.
-static bool NeedsMatchingLo(const MCAssembler &Asm, const RelEntry &R) {
-  if (!R.Sym)
+bool
+MipsELFObjectWriter::needsRelocateWithSymbol(const MCSymbolData &SD,
+                                             unsigned Type) const {
+  // FIXME: This is extremely conservative. This really needs to use a
+  // whitelist with a clear explanation for why each realocation needs to
+  // point to the symbol, not to the section.
+  switch (Type) {
+  default:
+    return true;
+
+  case ELF::R_MIPS_GOT16:
+  case ELF::R_MIPS16_GOT16:
+  case ELF::R_MICROMIPS_GOT16:
+    llvm_unreachable("Should have been handled already");
+
+  // These relocations might be paired with another relocation. The pairing is
+  // done by the static linker by matching the symbol. Since we only see one
+  // relocation at a time, we have to force them to relocate with a symbol to
+  // avoid ending up with a pair where one points to a section and another
+  // points to a symbol.
+  case ELF::R_MIPS_HI16:
+  case ELF::R_MIPS16_HI16:
+  case ELF::R_MICROMIPS_HI16:
+  case ELF::R_MIPS_LO16:
+  case ELF::R_MIPS16_LO16:
+  case ELF::R_MICROMIPS_LO16:
+    return true;
+
+  case ELF::R_MIPS_32:
+    if (MCELF::getOther(SD) & (ELF::STO_MIPS_MICROMIPS >> 2))
+      return true;
+    // falltrough
+  case ELF::R_MIPS_26:
+  case ELF::R_MIPS_64:
+  case ELF::R_MIPS_GPREL16:
     return false;
-
-  MCSymbolData &SD = Asm.getSymbolData(R.Sym->AliasedSymbol());
-
-  return ((R.Reloc.Type == ELF::R_MIPS_GOT16) && !SD.isExternal()) ||
-    (R.Reloc.Type == ELF::R_MIPS_HI16);
-}
-
-static bool HasMatchingLo(const MCAssembler &Asm, RelLsIter I, RelLsIter Last) {
-  if (I == Last)
-    return false;
-
-  RelLsIter Hi = I++;
-
-  return (I->Reloc.Type == ELF::R_MIPS_LO16) && (Hi->Sym == I->Sym) &&
-    (Hi->Offset == I->Offset);
-}
-
-static bool HasSameSymbol(const RelEntry &R0, const RelEntry &R1) {
-  return R0.Sym == R1.Sym;
-}
-
-static int CompareOffset(const RelEntry &R0, const RelEntry &R1) {
-  return (R0.Offset > R1.Offset) ? 1 : ((R0.Offset == R1.Offset) ? 0 : -1);
-}
-
-void MipsELFObjectWriter::sortRelocs(const MCAssembler &Asm,
-                                     std::vector<ELFRelocationEntry> &Relocs) {
-  // Call the default function first. Relocations are sorted in descending
-  // order of r_offset.
-  MCELFObjectTargetWriter::sortRelocs(Asm, Relocs);
-
-  RelLs RelocLs;
-  std::vector<RelLsIter> Unmatched;
-
-  // Fill RelocLs. Traverse Relocs backwards so that relocations in RelocLs
-  // are in ascending order of r_offset.
-  for (std::vector<ELFRelocationEntry>::reverse_iterator R = Relocs.rbegin();
-       R != Relocs.rend(); ++R) {
-     std::pair<const MCSymbolRefExpr*, int64_t> P =
-       MipsGetSymAndOffset(*R->Fixup);
-     RelocLs.push_back(RelEntry(*R, P.first ? &P.first->getSymbol() : 0,
-                                P.second));
   }
-
-  // Get list of unmatched HI16 and GOT16.
-  for (RelLsIter R = RelocLs.begin(); R != RelocLs.end(); ++R)
-    if (NeedsMatchingLo(Asm, *R) && !HasMatchingLo(Asm, R, --RelocLs.end()))
-      Unmatched.push_back(R);
-
-  // Insert unmatched HI16 and GOT16 immediately before their matching LO16.
-  for (std::vector<RelLsIter>::iterator U = Unmatched.begin();
-       U != Unmatched.end(); ++U) {
-    RelLsIter LoPos = RelocLs.end(), HiPos = *U;
-    bool MatchedLo = false;
-
-    for (RelLsIter R = RelocLs.begin(); R != RelocLs.end(); ++R) {
-      if ((R->Reloc.Type == ELF::R_MIPS_LO16) && HasSameSymbol(*HiPos, *R) &&
-          (CompareOffset(*R, *HiPos) >= 0) &&
-          ((LoPos == RelocLs.end()) || ((CompareOffset(*R, *LoPos) < 0)) ||
-           (!MatchedLo && !CompareOffset(*R, *LoPos))))
-        LoPos = R;
-
-      MatchedLo = NeedsMatchingLo(Asm, *R) &&
-        HasMatchingLo(Asm, R, --RelocLs.end());
-    }
-
-    // If a matching LoPos was found, move HiPos and insert it before LoPos.
-    // Make the offsets of HiPos and LoPos match.
-    if (LoPos != RelocLs.end()) {
-      HiPos->Offset = LoPos->Offset;
-      RelocLs.insert(LoPos, *HiPos);
-      RelocLs.erase(HiPos);
-    }
-  }
-
-  // Put the sorted list back in reverse order.
-  assert(Relocs.size() == RelocLs.size());
-  unsigned I = RelocLs.size();
-
-  for (RelLsIter R = RelocLs.begin(); R != RelocLs.end(); ++R)
-    Relocs[--I] = R->Reloc;
 }
 
 MCObjectWriter *llvm::createMipsELFObjectWriter(raw_ostream &OS,

@@ -33,6 +33,7 @@
 #ifndef	_MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
+extern long Maxmem;
 extern char sigcode[];
 extern int szsigcode;
 extern uint32_t *vm_page_dump;

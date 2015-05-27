@@ -7,15 +7,17 @@
 	${WPA_DISTDIR}/src/drivers
 
 PROG=	hostapd
-SRCS=	accounting.c aes-wrap.c ap_config.c ap_drv_ops.c ap_mlme.c authsrv.c \
-	base64.c beacon.c chap.c common.c config_file.c ctrl_iface.c \
+SRCS=	accounting.c aes-omac1.c ap_config.c ap_drv_ops.c ap_mlme.c authsrv.c \
+	base64.c beacon.c bss_load.c chap.c common.c config_file.c \
+	ctrl_iface.c \
 	ctrl_iface_ap.c driver_common.c l2_packet_freebsd.c driver_bsd.c \
 	drivers.c drv_callbacks.c eap_common.c eap_peap_common.c \
 	eap_register.c eap_server.c eap_server_methods.c eap_user_db.c \
 	eapol_auth_dump.c eapol_auth_sm.c eloop.c gas.c gas_serv.c hostapd.c \
-	hs20.c http_client.c http_server.c httpread.c ieee802_11_auth.c \
+	hs20.c http_client.c http_server.c httpread.c \
+	hw_features_common.c ieee802_11_auth.c \
 	ieee802_11_common.c ieee802_11_shared.c ieee802_1x.c ip_addr.c \
-	main.c md5.c ms_funcs.c os_unix.c peerkey_auth.c pmksa_cache_auth.c \
+	main.c ms_funcs.c os_unix.c peerkey_auth.c pmksa_cache_auth.c \
 	preauth_auth.c radius.c radius_client.c radius_das.c sta_info.c \
 	tkip_countermeasures.c upnp_xml.c utils.c uuid.c vlan_init.c \
 	wpa_auth.c wpa_auth_glue.c wpa_auth_ie.c wpa_common.c wpa_debug.c \
@@ -46,8 +48,7 @@ CFLAGS+=-DCONFIG_DRIVER_BSD \
 CFLAGS+= -DCONFIG_IPV6
 .endif
 #CFLAGS+= -g
-DPADD+=	${LIBPCAP} ${LIBUTIL}
-LDADD+=	-lpcap -lutil
+LIBADD+=	pcap util
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}
@@ -65,10 +66,9 @@ CFLAGS+=-DDPKCS12_FUNCS \
 	-DEAP_SERVER_TLS \
 	-DEAP_SERVER_TTLS \
 	-DEAP_TLS_FUNCS \
-	-DEAP_SERVER_WSC \
-	-DCONFIG_NO_DUMP_STATE
-SRCS+=	dump_state.c \
-	eap_server_gtc.c \
+	-DEAP_SERVER_WSC
+
+SRCS+=	eap_server_gtc.c \
 	eap_server_identity.c \
 	eap_server_md5.c \
 	eap_server_mschapv2.c \

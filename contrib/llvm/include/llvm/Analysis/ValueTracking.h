@@ -25,39 +25,54 @@ namespace llvm {
   class DataLayout;
   class StringRef;
   class MDNode;
+  class AssumptionCache;
+  class DominatorTree;
   class TargetLibraryInfo;
 
-  /// ComputeMaskedBits - Determine which of the bits specified in Mask are
-  /// known to be either zero or one and return them in the KnownZero/KnownOne
-  /// bit sets.  This code only analyzes bits in Mask, in order to short-circuit
-  /// processing.
+  /// Determine which bits of V are known to be either zero or one and return
+  /// them in the KnownZero/KnownOne bit sets.
   ///
   /// This function is defined on values with integer type, values with pointer
   /// type (but only if TD is non-null), and vectors of integers.  In the case
-  /// where V is a vector, the mask, known zero, and known one values are the
+  /// where V is a vector, the known zero and known one values are the
   /// same width as the vector element, and the bit is set only if it is true
   /// for all of the elements in the vector.
-  void ComputeMaskedBits(Value *V,  APInt &KnownZero, APInt &KnownOne,
-                         const DataLayout *TD = 0, unsigned Depth = 0);
-  void computeMaskedBitsLoad(const MDNode &Ranges, APInt &KnownZero);
+  void computeKnownBits(Value *V, APInt &KnownZero, APInt &KnownOne,
+                        const DataLayout *TD = nullptr, unsigned Depth = 0,
+                        AssumptionCache *AC = nullptr,
+                        const Instruction *CxtI = nullptr,
+                        const DominatorTree *DT = nullptr);
+  /// Compute known bits from the range metadata.
+  /// \p KnownZero the set of bits that are known to be zero
+  void computeKnownBitsFromRangeMetadata(const MDNode &Ranges,
+                                         APInt &KnownZero);
 
   /// ComputeSignBit - Determine whether the sign bit is known to be zero or
-  /// one.  Convenience wrapper around ComputeMaskedBits.
+  /// one.  Convenience wrapper around computeKnownBits.
   void ComputeSignBit(Value *V, bool &KnownZero, bool &KnownOne,
-                      const DataLayout *TD = 0, unsigned Depth = 0);
+                      const DataLayout *TD = nullptr, unsigned Depth = 0,
+                      AssumptionCache *AC = nullptr,
+                      const Instruction *CxtI = nullptr,
+                      const DominatorTree *DT = nullptr);
 
   /// isKnownToBeAPowerOfTwo - Return true if the given value is known to have
   /// exactly one bit set when defined. For vectors return true if every
   /// element is known to be a power of two when defined.  Supports values with
   /// integer or pointer type and vectors of integers.  If 'OrZero' is set then
   /// returns true if the given value is either a power of two or zero.
-  bool isKnownToBeAPowerOfTwo(Value *V, bool OrZero = false, unsigned Depth = 0);
+  bool isKnownToBeAPowerOfTwo(Value *V, bool OrZero = false, unsigned Depth = 0,
+                              AssumptionCache *AC = nullptr,
+                              const Instruction *CxtI = nullptr,
+                              const DominatorTree *DT = nullptr);
 
   /// isKnownNonZero - Return true if the given value is known to be non-zero
   /// when defined.  For vectors return true if every element is known to be
   /// non-zero when defined.  Supports values with integer or pointer type and
   /// vectors of integers.
-  bool isKnownNonZero(Value *V, const DataLayout *TD = 0, unsigned Depth = 0);
+  bool isKnownNonZero(Value *V, const DataLayout *TD = nullptr,
+                      unsigned Depth = 0, AssumptionCache *AC = nullptr,
+                      const Instruction *CxtI = nullptr,
+                      const DominatorTree *DT = nullptr);
 
   /// MaskedValueIsZero - Return true if 'V & Mask' is known to be zero.  We use
   /// this predicate to simplify operations downstream.  Mask is known to be
@@ -68,10 +83,12 @@ namespace llvm {
   /// where V is a vector, the mask, known zero, and known one values are the
   /// same width as the vector element, and the bit is set only if it is true
   /// for all of the elements in the vector.
-  bool MaskedValueIsZero(Value *V, const APInt &Mask, 
-                         const DataLayout *TD = 0, unsigned Depth = 0);
+  bool MaskedValueIsZero(Value *V, const APInt &Mask,
+                         const DataLayout *TD = nullptr, unsigned Depth = 0,
+                         AssumptionCache *AC = nullptr,
+                         const Instruction *CxtI = nullptr,
+                         const DominatorTree *DT = nullptr);
 
-  
   /// ComputeNumSignBits - Return the number of times the sign bit of the
   /// register is replicated into the other bits.  We know that at least 1 bit
   /// is always equal to the sign bit (itself), but other cases can give us
@@ -80,8 +97,10 @@ namespace llvm {
   ///
   /// 'Op' must have a scalar integer type.
   ///
-  unsigned ComputeNumSignBits(Value *Op, const DataLayout *TD = 0,
-                              unsigned Depth = 0);
+  unsigned ComputeNumSignBits(Value *Op, const DataLayout *TD = nullptr,
+                              unsigned Depth = 0, AssumptionCache *AC = nullptr,
+                              const Instruction *CxtI = nullptr,
+                              const DominatorTree *DT = nullptr);
 
   /// ComputeMultiple - This function computes the integer multiple of Base that
   /// equals V.  If successful, it returns true and returns the multiple in
@@ -112,7 +131,7 @@ namespace llvm {
   /// insertvalues when a part of a nested struct is extracted.
   Value *FindInsertedValue(Value *V,
                            ArrayRef<unsigned> idx_range,
-                           Instruction *InsertBefore = 0);
+                           Instruction *InsertBefore = nullptr);
 
   /// GetPointerBaseWithConstantOffset - Analyze the specified pointer to see if
   /// it can be expressed as a base pointer plus a constant offset.  Return the
@@ -143,10 +162,10 @@ namespace llvm {
   /// being addressed.  Note that the returned value has pointer type if the
   /// specified value does.  If the MaxLookup value is non-zero, it limits the
   /// number of instructions to be stripped off.
-  Value *GetUnderlyingObject(Value *V, const DataLayout *TD = 0,
+  Value *GetUnderlyingObject(Value *V, const DataLayout *TD = nullptr,
                              unsigned MaxLookup = 6);
   static inline const Value *
-  GetUnderlyingObject(const Value *V, const DataLayout *TD = 0,
+  GetUnderlyingObject(const Value *V, const DataLayout *TD = nullptr,
                       unsigned MaxLookup = 6) {
     return GetUnderlyingObject(const_cast<Value *>(V), TD, MaxLookup);
   }
@@ -156,7 +175,7 @@ namespace llvm {
   /// multiple objects.
   void GetUnderlyingObjects(Value *V,
                             SmallVectorImpl<Value *> &Objects,
-                            const DataLayout *TD = 0,
+                            const DataLayout *TD = nullptr,
                             unsigned MaxLookup = 6);
 
   /// onlyUsedByLifetimeMarkers - Return true if the only users of this pointer
@@ -182,13 +201,31 @@ namespace llvm {
   /// However, this method can return true for instructions that read memory;
   /// for such instructions, moving them may change the resulting value.
   bool isSafeToSpeculativelyExecute(const Value *V,
-                                    const DataLayout *TD = 0);
+                                    const DataLayout *TD = nullptr);
 
   /// isKnownNonNull - Return true if this pointer couldn't possibly be null by
   /// its definition.  This returns true for allocas, non-extern-weak globals
   /// and byval arguments.
-  bool isKnownNonNull(const Value *V, const TargetLibraryInfo *TLI = 0);
+  bool isKnownNonNull(const Value *V, const TargetLibraryInfo *TLI = nullptr);
 
+  /// Return true if it is valid to use the assumptions provided by an
+  /// assume intrinsic, I, at the point in the control-flow identified by the
+  /// context instruction, CxtI.
+  bool isValidAssumeForContext(const Instruction *I, const Instruction *CxtI,
+                               const DataLayout *DL = nullptr,
+                               const DominatorTree *DT = nullptr);
+
+  enum class OverflowResult { AlwaysOverflows, MayOverflow, NeverOverflows };
+  OverflowResult computeOverflowForUnsignedMul(Value *LHS, Value *RHS,
+                                               const DataLayout *DL,
+                                               AssumptionCache *AC,
+                                               const Instruction *CxtI,
+                                               const DominatorTree *DT);
+  OverflowResult computeOverflowForUnsignedAdd(Value *LHS, Value *RHS,
+                                               const DataLayout *DL,
+                                               AssumptionCache *AC,
+                                               const Instruction *CxtI,
+                                               const DominatorTree *DT);
 } // end namespace llvm
 
 #endif

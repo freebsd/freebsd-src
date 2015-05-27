@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _elftc.h 2922 2013-03-17 22:53:15Z kaiwang27 $
+ * $Id: _elftc.h 3175 2015-03-27 17:21:24Z emaste $
  */
 
 /**
@@ -76,10 +76,17 @@
  * SUCH DAMAGE.
  */
 
+#ifndef	LIST_FOREACH_SAFE
+#define	LIST_FOREACH_SAFE(var, head, field, tvar)		\
+	for ((var) = LIST_FIRST((head));			\
+	    (var) && ((tvar) = LIST_NEXT((var), field), 1);	\
+	    (var) = (tvar))
+#endif
+
 #ifndef	SLIST_FOREACH_SAFE
-#define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
-	for ((var) = SLIST_FIRST((head));				\
-	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);		\
+#define	SLIST_FOREACH_SAFE(var, head, field, tvar)		\
+	for ((var) = SLIST_FIRST((head));			\
+	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);	\
 	    (var) = (tvar))
 #endif
 
@@ -287,7 +294,8 @@ struct name {							\
 #define	ELFTC_VCSID(ID)		__FBSDID(ID)
 #endif
 
-#if defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)
+#if defined(__APPLE__) || defined(__GLIBC__) || defined(__GNU__) || \
+    defined(__linux__)
 #if defined(__GNUC__)
 #define	ELFTC_VCSID(ID)		__asm__(".ident\t\"" ID "\"")
 #else
@@ -323,8 +331,8 @@ struct name {							\
 
 #ifndef	ELFTC_GETPROGNAME
 
-#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__minix) || \
-    defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
+    defined(__minix) || defined(__NetBSD__)
 
 #include <stdlib.h>
 
@@ -333,7 +341,7 @@ struct name {							\
 #endif	/* __DragonFly__ || __FreeBSD__ || __minix || __NetBSD__ */
 
 
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) || defined(__linux__)
 
 /*
  * GLIBC based systems have a global 'char *' pointer referencing
@@ -343,7 +351,7 @@ extern const char *program_invocation_short_name;
 
 #define	ELFTC_GETPROGNAME()	program_invocation_short_name
 
-#endif	/* __GLIBC__ */
+#endif	/* __GLIBC__ || __linux__ */
 
 
 #if defined(__OpenBSD__)
@@ -361,6 +369,21 @@ extern const char *__progname;
  ** Per-OS configuration.
  **/
 
+#if defined(__APPLE__)
+
+#include <machine/endian.h>
+#define	roundup2	roundup
+
+#define	ELFTC_BYTE_ORDER			_BYTE_ORDER
+#define	ELFTC_BYTE_ORDER_LITTLE_ENDIAN		_LITTLE_ENDIAN
+#define	ELFTC_BYTE_ORDER_BIG_ENDIAN		_BIG_ENDIAN
+
+#define	ELFTC_HAVE_MMAP				1
+#define	ELFTC_HAVE_STRMODE			1
+
+#endif /* __APPLE__ */
+
+
 #if defined(__DragonFly__)
 
 #include <osreldate.h>
@@ -374,7 +397,7 @@ extern const char *__progname;
 
 #endif
 
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) || defined(__linux__)
 
 #include <endian.h>
 
@@ -394,7 +417,7 @@ extern const char *__progname;
 
 #define	roundup2	roundup
 
-#endif	/* __GLIBC__ */
+#endif	/* __GLIBC__ || __linux__ */
 
 
 #if defined(__FreeBSD__)

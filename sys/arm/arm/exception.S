@@ -48,13 +48,23 @@
 
 #include "assym.s"
 
+#include "opt_kdtrace.h"
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef KDTRACE_HOOKS
+	.bss
+	.align 4
+	.global	_C_LABEL(dtrace_invop_calltrap_addr)
+_C_LABEL(dtrace_invop_calltrap_addr):
+	.word 0
+	.word 0
+#endif
+
 	.text	
-	.align	0
+	.align	2
 
 /*
  * ASM macros for pushing and pulling trapframes from the stack
@@ -147,7 +157,8 @@ __FBSDID("$FreeBSD$");
 	msr	cpsr_c, r2;		/* Punch into SVC mode */	   \
 	mov	r2, sp;			/* Save	SVC sp */		   \
 	bic	sp, sp, #7;		/* Align sp to an 8-byte addrress */  \
-	sub	sp, sp, #4;		/* Pad trapframe to keep alignment */ \
+	sub	sp, sp, #(4 * 17);	/* Pad trapframe to keep alignment */ \
+				    /* and for dtrace to emulate push/pop */  \
 	str	r0, [sp, #-4]!;		/* Push return address */	   \
 	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
 	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
@@ -184,7 +195,8 @@ __FBSDID("$FreeBSD$");
 	msr	cpsr_c, r2;		/* Punch into SVC mode */	   \
 	mov	r2, sp;			/* Save	SVC sp */		   \
 	bic	sp, sp, #7;		/* Align sp to an 8-byte addrress */  \
-	sub	sp, sp, #4;		/* Pad trapframe to keep alignment */ \
+	sub	sp, sp, #(4 * 17);	/* Pad trapframe to keep alignment */ \
+				    /* and for dtrace to emulate push/pop */  \
 	str	r0, [sp, #-4]!;		/* Push return address */	   \
 	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
 	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
@@ -241,26 +253,26 @@ __FBSDID("$FreeBSD$");
 #define	UNWINDSVCFRAME
 #endif
 
-#define	DO_AST								\
-	ldr	r0, [sp]		/* Get the SPSR from stack */	;\
-	mrs	r4, cpsr		/* save CPSR */			;\
-	orr	r1, r4, #(PSR_I|PSR_F)					;\
-	msr	cpsr_c, r1		/* Disable interrupts */	;\
-	and	r0, r0, #(PSR_MODE)	/* Returning to USR mode? */	;\
-	teq	r0, #(PSR_USR32_MODE)					;\
-	bne	2f			/* Nope, get out now */		;\
-	bic	r4, r4, #(PSR_I|PSR_F)					;\
-1:	GET_CURTHREAD_PTR(r5)						;\
-	ldr	r1, [r5, #(TD_FLAGS)]					;\
-	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED)		;\
-	teq	r1, #0x00000000						;\
-	beq	2f			/* Nope. Just bail */		;\
-	msr	cpsr_c, r4		/* Restore interrupts */	;\
-	mov	r0, sp							;\
-	bl	_C_LABEL(ast)		/* ast(frame) */		;\
-	orr	r0, r4, #(PSR_I|PSR_F)					;\
-	msr	cpsr_c, r0						;\
-	b	1b							;\
+#define	DO_AST								   \
+	ldr	r0, [sp];		/* Get the SPSR from stack */	   \
+	mrs	r4, cpsr;		/* save CPSR */			   \
+	orr	r1, r4, #(PSR_I|PSR_F);					   \
+	msr	cpsr_c, r1;		/* Disable interrupts */	   \
+	and	r0, r0, #(PSR_MODE);	/* Returning to USR mode? */	   \
+	teq	r0, #(PSR_USR32_MODE);					   \
+	bne	2f;			/* Nope, get out now */		   \
+	bic	r4, r4, #(PSR_I|PSR_F);					   \
+1:	GET_CURTHREAD_PTR(r5);						   \
+	ldr	r1, [r5, #(TD_FLAGS)];					   \
+	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED);		   \
+	teq	r1, #0;							   \
+	beq	2f;			/* Nope. Just bail */		   \
+	msr	cpsr_c, r4;		/* Restore interrupts */	   \
+	mov	r0, sp;							   \
+	bl	_C_LABEL(ast);		/* ast(frame) */		   \
+	orr	r0, r4, #(PSR_I|PSR_F);					   \
+	msr	cpsr_c, r0;						   \
+	b	1b;							   \
 2:
 
 
@@ -320,7 +332,8 @@ ASENTRY_NP(prefetch_abort_entry)
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit	/* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */
-	b	prefetch_abort_handler	/* trapframe to the handler. */
+	mov	r1, #1			/* Type flag */
+	b	_C_LABEL(abort_handler)
 END(prefetch_abort_entry)
 
 /*
@@ -337,9 +350,10 @@ ASENTRY_NP(data_abort_entry)
 #endif
 	sub	lr, lr, #8		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
-	adr	lr, exception_exit	/* Return from handler via standard */
-	mov	r0, sp			/* exception exit routine.  Pass the */
-	b	data_abort_handler	/* trapframe to the handler. */
+	adr	lr, exception_exit	/* Exception exit routine */
+	mov	r0, sp			/* Trapframe to the handler */
+	mov	r1, #0			/* Type flag */
+	b	_C_LABEL(abort_handler)
 END(data_abort_entry)
 
 /*
@@ -350,7 +364,6 @@ END(data_abort_entry)
  * on exit (without transitioning back through the undefined mode stack).
  */
 ASENTRY_NP(undefined_entry)
-	sub	lr, lr, #4		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit      /* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */

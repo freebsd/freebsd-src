@@ -43,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/cpu.h>
+#include <machine/cpu-v6.h>
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/pte.h>
 #include <machine/intr.h>
 #include <machine/sysarch.h>
@@ -57,19 +59,31 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(PCB_NOALIGNFLT, PCB_NOALIGNFLT);
+#ifdef ARM_NEW_PMAP
+ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
+#endif
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+#ifndef ARM_NEW_PMAP
 ASSYM(PCB_DACR, offsetof(struct pcb, pcb_dacr));
+#endif
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
+#ifndef ARM_NEW_PMAP
 ASSYM(PCB_L1VEC, offsetof(struct pcb, pcb_l1vec));
 ASSYM(PCB_PL1VEC, offsetof(struct pcb, pcb_pl1vec));
-ASSYM(PCB_R8, offsetof(struct pcb, un_32.pcb32_r8));
-ASSYM(PCB_R9, offsetof(struct pcb, un_32.pcb32_r9));
-ASSYM(PCB_R10, offsetof(struct pcb, un_32.pcb32_r10));
-ASSYM(PCB_R11, offsetof(struct pcb, un_32.pcb32_r11));
-ASSYM(PCB_R12, offsetof(struct pcb, un_32.pcb32_r12));
-ASSYM(PCB_PC, offsetof(struct pcb, un_32.pcb32_pc));
-ASSYM(PCB_SP, offsetof(struct pcb, un_32.pcb32_sp));
+#endif
+ASSYM(PCB_R4, offsetof(struct pcb, pcb_regs.sf_r4));
+ASSYM(PCB_R5, offsetof(struct pcb, pcb_regs.sf_r5));
+ASSYM(PCB_R6, offsetof(struct pcb, pcb_regs.sf_r6));
+ASSYM(PCB_R7, offsetof(struct pcb, pcb_regs.sf_r7));
+ASSYM(PCB_R8, offsetof(struct pcb, pcb_regs.sf_r8));
+ASSYM(PCB_R9, offsetof(struct pcb, pcb_regs.sf_r9));
+ASSYM(PCB_R10, offsetof(struct pcb, pcb_regs.sf_r10));
+ASSYM(PCB_R11, offsetof(struct pcb, pcb_regs.sf_r11));
+ASSYM(PCB_R12, offsetof(struct pcb, pcb_regs.sf_r12));
+ASSYM(PCB_SP, offsetof(struct pcb, pcb_regs.sf_sp));
+ASSYM(PCB_LR, offsetof(struct pcb, pcb_regs.sf_lr));
+ASSYM(PCB_PC, offsetof(struct pcb, pcb_regs.sf_pc));
 
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
@@ -125,7 +139,6 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 #endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
-ASSYM(PDESIZE, PDESIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);
 #ifdef PMAP_INCLUDE_PTE_SYNC
 ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
@@ -138,5 +151,16 @@ ASSYM(P_PROFIL, P_PROFIL);
 ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
+ASSYM(MAXCPU, MAXCPU);
+ASSYM(_NCPUWORDS, _NCPUWORDS);
 ASSYM(NIRQ, NIRQ);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
+ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
+ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+
+ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
+ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
+ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
+ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));

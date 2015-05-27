@@ -196,9 +196,34 @@ static struct mtx mfc6_mtx;
 static u_char n6expire[MF6CTBLSIZ];
 
 static struct mif6 mif6table[MAXMIFS];
-SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mif6table, CTLFLAG_RD,
-    &mif6table, sizeof(mif6table), "S,mif6[MAXMIFS]",
-    "IPv6 Multicast Interfaces (struct mif6[MAXMIFS], netinet6/ip6_mroute.h)");
+static int
+sysctl_mif6table(SYSCTL_HANDLER_ARGS)
+{
+	struct mif6_sctl *out;
+	int error;
+
+	out = malloc(sizeof(struct mif6_sctl) * MAXMIFS, M_TEMP, M_WAITOK);
+	for (int i = 0; i < MAXMIFS; i++) {
+		out[i].m6_flags		= mif6table[i].m6_flags;
+		out[i].m6_rate_limit	= mif6table[i].m6_rate_limit;
+		out[i].m6_lcl_addr	= mif6table[i].m6_lcl_addr;
+		if (mif6table[i].m6_ifp != NULL)
+			out[i].m6_ifp	= mif6table[i].m6_ifp->if_index;
+		else
+			out[i].m6_ifp	= 0;
+		out[i].m6_pkt_in	= mif6table[i].m6_pkt_in;
+		out[i].m6_pkt_out	= mif6table[i].m6_pkt_out;
+		out[i].m6_bytes_in	= mif6table[i].m6_bytes_in;
+		out[i].m6_bytes_out	= mif6table[i].m6_bytes_out;
+	}
+	error = SYSCTL_OUT(req, out, sizeof(struct mif6_sctl) * MAXMIFS);
+	free(out, M_TEMP);
+	return (error);
+}
+SYSCTL_PROC(_net_inet6_ip6, OID_AUTO, mif6table, CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sysctl_mif6table, "S,mif6_sctl[MAXMIFS]",
+    "IPv6 Multicast Interfaces (struct mif6_sctl[MAXMIFS], "
+    "netinet6/ip6_mroute.h)");
 
 static struct mtx mif6_mtx;
 #define	MIF6_LOCK()		mtx_lock(&mif6_mtx)

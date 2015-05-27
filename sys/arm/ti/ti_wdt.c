@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_wdt.h>
@@ -95,7 +94,7 @@ static devclass_t ti_wdt_devclass;
 
 DRIVER_MODULE(ti_wdt, simplebus, ti_wdt_driver, ti_wdt_devclass, 0, 0);
 
-static volatile __inline uint32_t
+static __inline uint32_t
 ti_wdt_reg_read(struct ti_wdt_softc *sc, uint32_t reg)
 {
 

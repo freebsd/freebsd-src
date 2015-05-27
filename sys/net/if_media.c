@@ -46,6 +46,8 @@
  * to implement this interface.
  */
 
+#include "opt_ifmedia.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -68,6 +70,7 @@ static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
     int flags, int mask);
 
 #ifdef IFMEDIA_DEBUG
+#include <net/if_var.h>
 int	ifmedia_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
 	    0, "if_media debugging msgs");
@@ -193,6 +196,21 @@ ifmedia_set(ifm, target)
 }
 
 /*
+ * Given a media word, return one suitable for an application
+ * using the original encoding.
+ */
+static int
+compat_media(int media)
+{
+
+	if (IFM_TYPE(media) == IFM_ETHER && IFM_SUBTYPE(media) > IFM_OTHER) {
+		media &= ~(IFM_ETH_XTYPE|IFM_TMASK);
+		media |= IFM_OTHER;
+	}
+	return (media);
+}
+
+/*
  * Device-independent media ioctl support function.
  */
 int
@@ -204,7 +222,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 {
 	struct ifmedia_entry *match;
 	struct ifmediareq *ifmr = (struct ifmediareq *) ifr;
-	int error = 0, sticky;
+	int error = 0;
 
 	if (ifp == NULL || ifr == NULL || ifm == NULL)
 		return(EINVAL);
@@ -271,21 +289,24 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 	 * Get list of available media and current media on interface.
 	 */
 	case  SIOCGIFMEDIA: 
+	case  SIOCGIFXMEDIA: 
 	{
 		struct ifmedia_entry *ep;
-		int *kptr, count;
-		int usermax;	/* user requested max */
+		int i;
 
-		kptr = NULL;		/* XXX gcc */
+		if (ifmr->ifm_count < 0)
+			return (EINVAL);
 
-		ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
-		    ifm->ifm_cur->ifm_media : IFM_NONE;
+		if (cmd == SIOCGIFMEDIA) {
+			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
+			    compat_media(ifm->ifm_cur->ifm_media) : IFM_NONE;
+		} else {
+			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
+			    ifm->ifm_cur->ifm_media : IFM_NONE;
+		}
 		ifmr->ifm_mask = ifm->ifm_mask;
 		ifmr->ifm_status = 0;
 		(*ifm->ifm_status)(ifp, ifmr);
-
-		count = 0;
-		usermax = 0;
 
 		/*
 		 * If there are more interfaces on the list, count
@@ -293,58 +314,17 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 		 * to 0 on the first call to know how much space to
 		 * allocate.
 		 */
+		i = 0;
 		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list)
-			usermax++;
-
-		/*
-		 * Don't allow the user to ask for too many
-		 * or a negative number.
-		 */
-		if (ifmr->ifm_count > usermax)
-			ifmr->ifm_count = usermax;
-		else if (ifmr->ifm_count < 0)
-			return (EINVAL);
-
-		if (ifmr->ifm_count != 0) {
-			kptr = (int *)malloc(ifmr->ifm_count * sizeof(int),
-			    M_TEMP, M_NOWAIT);
-
-			if (kptr == NULL)
-				return (ENOMEM);
-			/*
-			 * Get the media words from the interface's list.
-			 */
-			ep = LIST_FIRST(&ifm->ifm_list);
-			for (; ep != NULL && count < ifmr->ifm_count;
-			    ep = LIST_NEXT(ep, ifm_list), count++)
-				kptr[count] = ep->ifm_media;
-
-			if (ep != NULL)
-				error = E2BIG;	/* oops! */
-		} else {
-			count = usermax;
-		}
-
-		/*
-		 * We do the copyout on E2BIG, because that's
-		 * just our way of telling userland that there
-		 * are more.  This is the behavior I've observed
-		 * under BSD/OS 3.0
-		 */
-		sticky = error;
-		if ((error == 0 || error == E2BIG) && ifmr->ifm_count != 0) {
-			error = copyout((caddr_t)kptr,
-			    (caddr_t)ifmr->ifm_ulist,
-			    ifmr->ifm_count * sizeof(int));
-		}
-
-		if (error == 0)
-			error = sticky;
-
-		if (ifmr->ifm_count != 0)
-			free(kptr, M_TEMP);
-
-		ifmr->ifm_count = count;
+			if (i++ < ifmr->ifm_count) {
+				error = copyout(&ep->ifm_media,
+				    ifmr->ifm_ulist + i - 1, sizeof(int));
+				if (error)
+					break;
+			}
+		if (error == 0 && i > ifmr->ifm_count)
+			error = ifmr->ifm_count ? E2BIG : 0;
+		ifmr->ifm_count = i;
 		break;
 	}
 
@@ -398,8 +378,7 @@ ifmedia_baudrate(int mword)
 	int i;
 
 	for (i = 0; ifmedia_baudrate_descriptions[i].ifmb_word != 0; i++) {
-		if ((mword & (IFM_NMASK|IFM_TMASK)) ==
-		    ifmedia_baudrate_descriptions[i].ifmb_word)
+		if (IFM_TYPE_MATCH(mword, ifmedia_baudrate_descriptions[i].ifmb_word))
 			return (ifmedia_baudrate_descriptions[i].ifmb_baudrate);
 	}
 
@@ -505,7 +484,7 @@ ifmedia_printword(ifmw)
 		printf("<unknown type>\n");
 		return;
 	}
-	printf(desc->ifmt_string);
+	printf("%s", desc->ifmt_string);
 
 	/* Any mode. */
 	for (desc = ttos->modes; desc && desc->ifmt_string != NULL; desc++)

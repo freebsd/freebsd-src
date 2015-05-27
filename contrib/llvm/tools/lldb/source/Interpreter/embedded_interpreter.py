@@ -9,6 +9,10 @@ try:
     import rlcompleter
 except ImportError:
     have_readline = False
+except AttributeError:
+    # This exception gets hit by the rlcompleter when Linux is using
+    # the readline suppression import.
+    have_readline = False
 else:
     have_readline = True
     if 'libedit' in readline.__doc__:
@@ -57,7 +61,7 @@ def get_terminal_size(fd):
 
 def readfunc_stdio(prompt):
     sys.stdout.write(prompt)
-    return sys.stdin.readline()
+    return sys.stdin.readline().rstrip()
 
 def run_python_interpreter (local_dict):
     # Pass in the dictionary, for continuity from one session to the next.

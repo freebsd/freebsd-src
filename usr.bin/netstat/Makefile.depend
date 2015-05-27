@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libmemstat \
 	lib/libnetgraph \
 	lib/libutil \
+	lib/libxo \
 
 
 .include <dirdeps.mk>

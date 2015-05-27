@@ -95,10 +95,12 @@ SDT_PROBE_DEFINE2(vfs, , stat, mode, "char *", "int");
 SDT_PROBE_DEFINE2(vfs, , stat, reg, "char *", "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
-static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
 static int kern_chflagsat(struct thread *td, int fd, const char *path,
     enum uio_seg pathseg, u_long flags, int atflag);
 static int setfflags(struct thread *td, struct vnode *, u_long);
+static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
+static int getutimens(const struct timespec *, enum uio_seg,
+    struct timespec *, int *);
 static int setutimes(struct thread *td, struct vnode *,
     const struct timespec *, int, int);
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
@@ -432,9 +434,14 @@ sys_getfsstat(td, uap)
 		int flags;
 	} */ *uap;
 {
+	size_t count;
+	int error;
 
-	return (kern_getfsstat(td, &uap->buf, uap->bufsize, UIO_USERSPACE,
-	    uap->flags));
+	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
+	    UIO_USERSPACE, uap->flags);
+	if (error == 0)
+		td->td_retval[0] = count;
+	return (error);
 }
 
 /*
@@ -444,7 +451,7 @@ sys_getfsstat(td, uap)
  */
 int
 kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
-    enum uio_seg bufseg, int flags)
+    size_t *countp, enum uio_seg bufseg, int flags)
 {
 	struct mount *mp, *nmp;
 	struct statfs *sfsp, *sp, sb;
@@ -531,9 +538,9 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	}
 	mtx_unlock(&mountlist_mtx);
 	if (sfsp && count > maxcount)
-		td->td_retval[0] = maxcount;
+		*countp = maxcount;
 	else
-		td->td_retval[0] = count;
+		*countp = count;
 	return (0);
 }
 
@@ -622,9 +629,9 @@ freebsd4_getfsstat(td, uap)
 
 	count = uap->bufsize / sizeof(struct ostatfs);
 	size = count * sizeof(struct statfs);
-	error = kern_getfsstat(td, &buf, size, UIO_SYSSPACE, uap->flags);
+	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
+	    uap->flags);
 	if (size > 0) {
-		count = td->td_retval[0];
 		sp = buf;
 		while (count > 0 && error == 0) {
 			cvtstatfs(sp, &osb);
@@ -635,6 +642,8 @@ freebsd4_getfsstat(td, uap)
 		}
 		free(buf, M_TEMP);
 	}
+	if (error == 0)
+		td->td_retval[0] = count;
 	return (error);
 }
 
@@ -1269,8 +1278,9 @@ kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		return (error);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    pathseg, path, fd, cap_rights_init(&rights, CAP_MKNODAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, pathseg, path, fd, cap_rights_init(&rights, CAP_MKNODAT),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1384,8 +1394,9 @@ kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    pathseg, path, fd, cap_rights_init(&rights, CAP_MKFIFOAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, pathseg, path, fd, cap_rights_init(&rights, CAP_MKFIFOAT),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -1530,8 +1541,9 @@ again:
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2,
-	    segflg, path2, fd2, cap_rights_init(&rights, CAP_LINKAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2 |
+	    NOCACHE, segflg, path2, fd2, cap_rights_init(&rights, CAP_LINKAT),
+	    td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1650,8 +1662,9 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	AUDIT_ARG_TEXT(syspath);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    segflg, path2, fd, cap_rights_init(&rights, CAP_SYMLINKAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, segflg, path2, fd, cap_rights_init(&rights, CAP_SYMLINKAT),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	if (nd.ni_vp) {
@@ -1920,6 +1933,7 @@ olseek(td, uap)
 }
 #endif /* COMPAT_43 */
 
+#if defined(COMPAT_FREEBSD6)
 /* Version with the 'pad' argument */
 int
 freebsd6_lseek(td, uap)
@@ -1933,6 +1947,7 @@ freebsd6_lseek(td, uap)
 	ouap.whence = uap->whence;
 	return (sys_lseek(td, &ouap));
 }
+#endif
 
 /*
  * Check access permissions using passed credentials.
@@ -3003,7 +3018,53 @@ getutimes(usrtvp, tvpseg, tsp)
 }
 
 /*
- * Common implementation code for utimes(), lutimes(), and futimes().
+ * Common implementation code for futimens(), utimensat().
+ */
+#define	UTIMENS_NULL	0x1
+#define	UTIMENS_EXIT	0x2
+static int
+getutimens(const struct timespec *usrtsp, enum uio_seg tspseg,
+    struct timespec *tsp, int *retflags)
+{
+	struct timespec tsnow;
+	int error;
+
+	vfs_timestamp(&tsnow);
+	*retflags = 0;
+	if (usrtsp == NULL) {
+		tsp[0] = tsnow;
+		tsp[1] = tsnow;
+		*retflags |= UTIMENS_NULL;
+		return (0);
+	}
+	if (tspseg == UIO_SYSSPACE) {
+		tsp[0] = usrtsp[0];
+		tsp[1] = usrtsp[1];
+	} else if ((error = copyin(usrtsp, tsp, sizeof(*tsp) * 2)) != 0)
+		return (error);
+	if (tsp[0].tv_nsec == UTIME_OMIT && tsp[1].tv_nsec == UTIME_OMIT)
+		*retflags |= UTIMENS_EXIT;
+	if (tsp[0].tv_nsec == UTIME_NOW && tsp[1].tv_nsec == UTIME_NOW)
+		*retflags |= UTIMENS_NULL;
+	if (tsp[0].tv_nsec == UTIME_OMIT)
+		tsp[0].tv_sec = VNOVAL;
+	else if (tsp[0].tv_nsec == UTIME_NOW)
+		tsp[0] = tsnow;
+	else if (tsp[0].tv_nsec < 0 || tsp[0].tv_nsec >= 1000000000L)
+		return (EINVAL);
+	if (tsp[1].tv_nsec == UTIME_OMIT)
+		tsp[1].tv_sec = VNOVAL;
+	else if (tsp[1].tv_nsec == UTIME_NOW)
+		tsp[1] = tsnow;
+	else if (tsp[1].tv_nsec < 0 || tsp[1].tv_nsec >= 1000000000L)
+		return (EINVAL);
+
+	return (0);
+}
+
+/*
+ * Common implementation code for utimes(), lutimes(), futimes(), futimens(),
+ * and utimensat().
  */
 static int
 setutimes(td, vp, ts, numtimes, nullflag)
@@ -3192,6 +3253,82 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	return (error);
 }
 
+int
+sys_futimens(struct thread *td, struct futimens_args *uap)
+{
+
+	return (kern_futimens(td, uap->fd, uap->times, UIO_USERSPACE));
+}
+
+int
+kern_futimens(struct thread *td, int fd, struct timespec *tptr,
+    enum uio_seg tptrseg)
+{
+	struct timespec ts[2];
+	struct file *fp;
+	cap_rights_t rights;
+	int error, flags;
+
+	AUDIT_ARG_FD(fd);
+	error = getutimens(tptr, tptrseg, ts, &flags);
+	if (error != 0)
+		return (error);
+	if (flags & UTIMENS_EXIT)
+		return (0);
+	error = getvnode(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_FUTIMES), &fp);
+	if (error != 0)
+		return (error);
+#ifdef AUDIT
+	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(fp->f_vnode);
+	VOP_UNLOCK(fp->f_vnode, 0);
+#endif
+	error = setutimes(td, fp->f_vnode, ts, 2, flags & UTIMENS_NULL);
+	fdrop(fp, td);
+	return (error);
+}
+
+int
+sys_utimensat(struct thread *td, struct utimensat_args *uap)
+{
+
+	return (kern_utimensat(td, uap->fd, uap->path, UIO_USERSPACE,
+	    uap->times, UIO_USERSPACE, uap->flag));
+}
+
+int
+kern_utimensat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
+    struct timespec *tptr, enum uio_seg tptrseg, int flag)
+{
+	struct nameidata nd;
+	struct timespec ts[2];
+	cap_rights_t rights;
+	int error, flags;
+
+	if (flag & ~AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+
+	if ((error = getutimens(tptr, tptrseg, ts, &flags)) != 0)
+		return (error);
+	NDINIT_ATRIGHTS(&nd, LOOKUP, ((flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW :
+	    FOLLOW) | AUDITVNODE1, pathseg, path, fd,
+	    cap_rights_init(&rights, CAP_FUTIMES), td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	/*
+	 * We are allowed to call namei() regardless of 2xUTIME_OMIT.
+	 * POSIX states:
+	 * "If both tv_nsec fields are UTIME_OMIT... EACCESS may be detected."
+	 * "Search permission is denied by a component of the path prefix."
+	 */
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	if ((flags & UTIMENS_EXIT) == 0)
+		error = setutimes(td, nd.ni_vp, ts, 2, flags & UTIMENS_NULL);
+	vrele(nd.ni_vp);
+	return (error);
+}
+
 /*
  * Truncate a file given its path name.
  */
@@ -3288,6 +3425,7 @@ otruncate(td, uap)
 }
 #endif /* COMPAT_43 */
 
+#if defined(COMPAT_FREEBSD6)
 /* Versions with the pad argument */
 int
 freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
@@ -3308,6 +3446,7 @@ freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 	ouap.length = uap->length;
 	return (sys_ftruncate(td, &ouap));
 }
+#endif
 
 /*
  * Sync an open file.
@@ -3581,8 +3720,9 @@ kern_mkdirat(struct thread *td, int fd, char *path, enum uio_seg segflg,
 	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    segflg, path, fd, cap_rights_init(&rights, CAP_MKDIRAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, segflg, path, fd, cap_rights_init(&rights, CAP_MKDIRAT),
+	    td);
 	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -4018,13 +4158,13 @@ sys_umask(td, uap)
 		int newmask;
 	} */ *uap;
 {
-	register struct filedesc *fdp;
+	struct filedesc *fdp;
 
-	FILEDESC_XLOCK(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
 	td->td_retval[0] = fdp->fd_cmask;
 	fdp->fd_cmask = uap->newmask & ALLPERMS;
-	FILEDESC_XUNLOCK(td->td_proc->p_fd);
+	FILEDESC_XUNLOCK(fdp);
 	return (0);
 }
 
@@ -4090,7 +4230,7 @@ getvnode(struct filedesc *fdp, int fd, cap_rights_t *rightsp, struct file **fpp)
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(fdp, fd, rightsp, 0, &fp, NULL);
+	error = fget_unlocked(fdp, fd, rightsp, &fp, NULL);
 	if (error != 0)
 		return (error);
 

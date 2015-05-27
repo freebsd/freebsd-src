@@ -63,17 +63,13 @@ DEV_MODULE(dtraceall, dtraceall_modevent, NULL);
 MODULE_VERSION(dtraceall, 1);
 
 /* All the DTrace modules should be dependencies here: */
-MODULE_DEPEND(dtraceall, cyclic, 1, 1, 1);
 MODULE_DEPEND(dtraceall, opensolaris, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtrace, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
-#if defined(NFSCLIENT)
+#if defined(NFSCL)
 MODULE_DEPEND(dtraceall, dtnfscl, 1, 1, 1);
 #endif
-#if defined(NFSCLIENT)
-MODULE_DEPEND(dtraceall, dtnfsclient, 1, 1, 1);
-#endif
-#if defined(__amd64__) || defined(__i386__) || defined(__powerpc__)
+#if defined(__amd64__) || defined(__i386__) || defined(__powerpc__) || defined(__arm__)
 MODULE_DEPEND(dtraceall, fbt, 1, 1, 1);
 #endif
 #if defined(__amd64__) || defined(__i386__)

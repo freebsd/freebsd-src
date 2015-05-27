@@ -51,8 +51,6 @@ struct gnttab_free_callback {
 	uint16_t count;
 };
 
-int gnttab_init(device_t);
-
 /*
  * Allocate a grant table reference and return it in *result. Returns
  * zero on success or errno on error.

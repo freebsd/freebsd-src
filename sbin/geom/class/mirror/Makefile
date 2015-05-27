@@ -4,7 +4,6 @@
 
 GEOM_CLASS=	mirror
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.lib.mk>

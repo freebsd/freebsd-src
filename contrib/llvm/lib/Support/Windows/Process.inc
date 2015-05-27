@@ -12,11 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/WindowsError.h"
+#include <malloc.h>
 
-#include "Windows.h"
+// The Windows.h header must be after LLVM and standard headers.
+#include "WindowsSupport.h"
+
 #include <direct.h>
 #include <io.h>
-#include <malloc.h>
 #include <psapi.h>
 #include <shellapi.h>
 
@@ -45,11 +49,6 @@
 using namespace llvm;
 using namespace sys;
 
-
-process::id_type self_process::get_id() {
-  return GetCurrentProcessId();
-}
-
 static TimeValue getTimeValueFromFILETIME(FILETIME Time) {
   ULARGE_INTEGER TimeInteger;
   TimeInteger.LowPart = Time.dwLowDateTime;
@@ -62,44 +61,23 @@ static TimeValue getTimeValueFromFILETIME(FILETIME Time) {
           (TimeInteger.QuadPart % 10000000) * 100));
 }
 
-TimeValue self_process::get_user_time() const {
-  FILETIME ProcCreate, ProcExit, KernelTime, UserTime;
-  if (GetProcessTimes(GetCurrentProcess(), &ProcCreate, &ProcExit, &KernelTime,
-                      &UserTime) == 0)
-    return TimeValue();
-
-  return getTimeValueFromFILETIME(UserTime);
-}
-
-TimeValue self_process::get_system_time() const {
-  FILETIME ProcCreate, ProcExit, KernelTime, UserTime;
-  if (GetProcessTimes(GetCurrentProcess(), &ProcCreate, &ProcExit, &KernelTime,
-                      &UserTime) == 0)
-    return TimeValue();
-
-  return getTimeValueFromFILETIME(KernelTime);
-}
-
-// This function retrieves the page size using GetSystemInfo and is present
-// solely so it can be called once to initialize the self_process member below.
-static unsigned getPageSize() {
-  // NOTE: A 32-bit application running under WOW64 is supposed to use
-  // GetNativeSystemInfo.  However, this interface is not present prior
-  // to Windows XP so to use it requires dynamic linking.  It is not clear
-  // how this affects the reported page size, if at all.  One could argue
-  // that LLVM ought to run as 64-bits on a 64-bit system, anyway.
+// This function retrieves the page size using GetNativeSystemInfo() and is
+// present solely so it can be called once to initialize the self_process member
+// below.
+static unsigned computePageSize() {
+  // GetNativeSystemInfo() provides the physical page size which may differ
+  // from GetSystemInfo() in 32-bit applications running under WOW64.
   SYSTEM_INFO info;
-  GetSystemInfo(&info);
+  GetNativeSystemInfo(&info);
   // FIXME: FileOffset in MapViewOfFile() should be aligned to not dwPageSize,
   // but dwAllocationGranularity.
   return static_cast<unsigned>(info.dwPageSize);
 }
 
-// This constructor guaranteed to be run exactly once on a single thread, and
-// sets up various process invariants that can be queried cheaply from then on.
-self_process::self_process() : PageSize(getPageSize()) {
+unsigned Process::getPageSize() {
+  static unsigned Ret = computePageSize();
+  return Ret;
 }
-
 
 size_t
 Process::GetMallocUsage()
@@ -152,7 +130,7 @@ void Process::PreventCoreFiles() {
 Optional<std::string> Process::GetEnv(StringRef Name) {
   // Convert the argument to UTF-16 to pass it to _wgetenv().
   SmallVector<wchar_t, 128> NameUTF16;
-  if (error_code ec = windows::UTF8ToUTF16(Name, NameUTF16))
+  if (windows::UTF8ToUTF16(Name, NameUTF16))
     return None;
 
   // Environment variable can be encoded in non-UTF8 encoding, and there's no
@@ -173,42 +151,113 @@ Optional<std::string> Process::GetEnv(StringRef Name) {
 
   // Convert the result from UTF-16 to UTF-8.
   SmallVector<char, MAX_PATH> Res;
-  if (error_code ec = windows::UTF16ToUTF8(Buf.data(), Size, Res))
+  if (windows::UTF16ToUTF8(Buf.data(), Size, Res))
     return None;
   return std::string(Res.data());
 }
 
-error_code
-Process::GetArgumentVector(SmallVectorImpl<const char *> &Args,
-                           ArrayRef<const char *>,
-                           SpecificBumpPtrAllocator<char> &ArgAllocator) {
-  int NewArgCount;
-  error_code ec;
+static std::error_code windows_error(DWORD E) {
+  return mapWindowsError(E);
+}
 
-  wchar_t **UnicodeCommandLine = CommandLineToArgvW(GetCommandLineW(),
-                                                    &NewArgCount);
-  if (!UnicodeCommandLine)
-    return windows_error(::GetLastError());
+static void AllocateAndPush(const SmallVectorImpl<char> &S,
+                            SmallVectorImpl<const char *> &Vector,
+                            SpecificBumpPtrAllocator<char> &Allocator) {
+  char *Buffer = Allocator.Allocate(S.size() + 1);
+  ::memcpy(Buffer, S.data(), S.size());
+  Buffer[S.size()] = '\0';
+  Vector.push_back(Buffer);
+}
 
-  Args.reserve(NewArgCount);
+/// Convert Arg from UTF-16 to UTF-8 and push it onto Args.
+static std::error_code
+ConvertAndPushArg(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
+                  SpecificBumpPtrAllocator<char> &Allocator) {
+  SmallVector<char, MAX_PATH> ArgString;
+  if (std::error_code ec = windows::UTF16ToUTF8(Arg, wcslen(Arg), ArgString))
+    return ec;
+  AllocateAndPush(ArgString, Args, Allocator);
+  return std::error_code();
+}
 
-  for (int i = 0; i < NewArgCount; ++i) {
-    SmallVector<char, MAX_PATH> NewArgString;
-    ec = windows::UTF16ToUTF8(UnicodeCommandLine[i],
-                              wcslen(UnicodeCommandLine[i]),
-                              NewArgString);
+/// \brief Perform wildcard expansion of Arg, or just push it into Args if it
+/// doesn't have wildcards or doesn't match any files.
+static std::error_code
+WildcardExpand(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
+               SpecificBumpPtrAllocator<char> &Allocator) {
+  if (!wcspbrk(Arg, L"*?")) {
+    // Arg does not contain any wildcard characters. This is the common case.
+    return ConvertAndPushArg(Arg, Args, Allocator);
+  }
+
+  if (wcscmp(Arg, L"/?") == 0 || wcscmp(Arg, L"-?") == 0) {
+    // Don't wildcard expand /?. Always treat it as an option.
+    return ConvertAndPushArg(Arg, Args, Allocator);
+  }
+
+  // Extract any directory part of the argument.
+  SmallVector<char, MAX_PATH> Dir;
+  if (std::error_code ec = windows::UTF16ToUTF8(Arg, wcslen(Arg), Dir))
+    return ec;
+  sys::path::remove_filename(Dir);
+  const int DirSize = Dir.size();
+
+  // Search for matching files.
+  WIN32_FIND_DATAW FileData;
+  HANDLE FindHandle = FindFirstFileW(Arg, &FileData);
+  if (FindHandle == INVALID_HANDLE_VALUE) {
+    return ConvertAndPushArg(Arg, Args, Allocator);
+  }
+
+  std::error_code ec;
+  do {
+    SmallVector<char, MAX_PATH> FileName;
+    ec = windows::UTF16ToUTF8(FileData.cFileName, wcslen(FileData.cFileName),
+                              FileName);
     if (ec)
       break;
 
-    char *Buffer = ArgAllocator.Allocate(NewArgString.size() + 1);
-    ::memcpy(Buffer, NewArgString.data(), NewArgString.size() + 1);
-    Args.push_back(Buffer);
-  }
-  LocalFree(UnicodeCommandLine);
-  if (ec)
-    return ec;
+    // Push the filename onto Dir, and remove it afterwards.
+    llvm::sys::path::append(Dir, StringRef(FileName.data(), FileName.size()));
+    AllocateAndPush(Dir, Args, Allocator);
+    Dir.resize(DirSize);
+  } while (FindNextFileW(FindHandle, &FileData));
 
-  return error_code::success();
+  FindClose(FindHandle);
+  return ec;
+}
+
+std::error_code
+Process::GetArgumentVector(SmallVectorImpl<const char *> &Args,
+                           ArrayRef<const char *>,
+                           SpecificBumpPtrAllocator<char> &ArgAllocator) {
+  int ArgCount;
+  wchar_t **UnicodeCommandLine =
+      CommandLineToArgvW(GetCommandLineW(), &ArgCount);
+  if (!UnicodeCommandLine)
+    return windows_error(::GetLastError());
+
+  Args.reserve(ArgCount);
+  std::error_code ec;
+
+  for (int i = 0; i < ArgCount; ++i) {
+    ec = WildcardExpand(UnicodeCommandLine[i], Args, ArgAllocator);
+    if (ec)
+      break;
+  }
+
+  LocalFree(UnicodeCommandLine);
+  return ec;
+}
+
+std::error_code Process::FixupStandardFileDescriptors() {
+  return std::error_code();
+}
+
+std::error_code Process::SafelyCloseFileDescriptor(int FD) {
+  if (::close(FD) < 0)
+    return std::error_code(errno, std::generic_category());
+  return std::error_code();
 }
 
 bool Process::StandardInIsUserInput() {
@@ -357,4 +406,18 @@ const char *Process::ResetColor() {
   if (UseANSI) return "\033[0m";
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), defaultColors());
   return 0;
+}
+
+unsigned Process::GetRandomNumber() {
+  HCRYPTPROV HCPC;
+  if (!::CryptAcquireContextW(&HCPC, NULL, NULL, PROV_RSA_FULL,
+                              CRYPT_VERIFYCONTEXT))
+    report_fatal_error("Could not acquire a cryptographic context");
+
+  ScopedCryptContext CryptoProvider(HCPC);
+  unsigned Ret;
+  if (!::CryptGenRandom(CryptoProvider, sizeof(Ret),
+                        reinterpret_cast<BYTE *>(&Ret)))
+    report_fatal_error("Could not generate a random number");
+  return Ret;
 }

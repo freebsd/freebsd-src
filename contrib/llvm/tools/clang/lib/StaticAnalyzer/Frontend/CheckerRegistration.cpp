@@ -20,11 +20,11 @@
 #include "clang/StaticAnalyzer/Core/CheckerOptInfo.h"
 #include "clang/StaticAnalyzer/Core/CheckerRegistry.h"
 #include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <memory>
 
 using namespace clang;
 using namespace ento;
@@ -40,7 +40,7 @@ class ClangCheckerRegistry : public CheckerRegistry {
 
 public:
   ClangCheckerRegistry(ArrayRef<std::string> plugins,
-                       DiagnosticsEngine *diags = 0);
+                       DiagnosticsEngine *diags = nullptr);
 };
   
 } // end anonymous namespace
@@ -73,7 +73,7 @@ ClangCheckerRegistry::ClangCheckerRegistry(ArrayRef<std::string> plugins,
 
 bool ClangCheckerRegistry::isCompatibleAPIVersion(const char *versionString) {
   // If the version string is null, it's not an analyzer plugin.
-  if (versionString == 0)
+  if (!versionString)
     return false;
 
   // For now, none of the static analyzer API is considered stable.
@@ -99,13 +99,12 @@ void ClangCheckerRegistry::warnIncompatible(DiagnosticsEngine *diags,
       << pluginAPIVersion;
 }
 
-
-CheckerManager *ento::createCheckerManager(AnalyzerOptions &opts,
-                                           const LangOptions &langOpts,
-                                           ArrayRef<std::string> plugins,
-                                           DiagnosticsEngine &diags) {
-  OwningPtr<CheckerManager> checkerMgr(new CheckerManager(langOpts,
-                                                          &opts));
+std::unique_ptr<CheckerManager>
+ento::createCheckerManager(AnalyzerOptions &opts, const LangOptions &langOpts,
+                           ArrayRef<std::string> plugins,
+                           DiagnosticsEngine &diags) {
+  std::unique_ptr<CheckerManager> checkerMgr(
+      new CheckerManager(langOpts, &opts));
 
   SmallVector<CheckerOptInfo, 8> checkerOpts;
   for (unsigned i = 0, e = opts.CheckersControlList.size(); i != e; ++i) {
@@ -118,12 +117,15 @@ CheckerManager *ento::createCheckerManager(AnalyzerOptions &opts,
   checkerMgr->finishedCheckerRegistration();
 
   for (unsigned i = 0, e = checkerOpts.size(); i != e; ++i) {
-    if (checkerOpts[i].isUnclaimed())
+    if (checkerOpts[i].isUnclaimed()) {
       diags.Report(diag::err_unknown_analyzer_checker)
           << checkerOpts[i].getName();
+      diags.Report(diag::note_suggest_disabling_all_checkers);
+    }
+
   }
 
-  return checkerMgr.take();
+  return std::move(checkerMgr);
 }
 
 void ento::printCheckerHelp(raw_ostream &out, ArrayRef<std::string> plugins) {

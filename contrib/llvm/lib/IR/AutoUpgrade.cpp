@@ -11,17 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/AutoUpgrade.h"
-#include "llvm/DebugInfo.h"
+#include "llvm/IR/AutoUpgrade.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstring>
 using namespace llvm;
@@ -37,6 +39,22 @@ static bool UpgradeSSE41Function(Function* F, Intrinsic::ID IID,
     return false;
 
   // Yes, it's old, replace it with new version.
+  F->setName(F->getName() + ".old");
+  NewFn = Intrinsic::getDeclaration(F->getParent(), IID);
+  return true;
+}
+
+// Upgrade the declarations of intrinsic functions whose 8-bit immediate mask
+// arguments have changed their type from i32 to i8.
+static bool UpgradeX86IntrinsicsWith8BitMask(Function *F, Intrinsic::ID IID,
+                                             Function *&NewFn) {
+  // Check that the last argument is an i32.
+  Type *LastArgType = F->getFunctionType()->getParamType(
+     F->getFunctionType()->getNumParams() - 1);
+  if (!LastArgType->isIntegerTy(32))
+    return false;
+
+  // Move this function aside and map down.
   F->setName(F->getName() + ".old");
   NewFn = Intrinsic::getDeclaration(F->getParent(), IID);
   return true;
@@ -89,6 +107,20 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
     }
     break;
   }
+  case 'd': {
+    if (Name.startswith("dbg.declare") && F->arg_size() == 2) {
+      F->setName(Name + ".old");
+      NewFn = Intrinsic::getDeclaration(F->getParent(), Intrinsic::dbg_declare);
+      return true;
+    }
+    if (Name.startswith("dbg.value") && F->arg_size() == 3) {
+      F->setName(Name + ".old");
+      NewFn = Intrinsic::getDeclaration(F->getParent(), Intrinsic::dbg_value);
+      return true;
+    }
+    break;
+  }
+
   case 'o':
     // We only need to change the name to match the mangling including the
     // address space.
@@ -113,8 +145,11 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
         Name == "x86.avx.movnt.pd.256" ||
         Name == "x86.avx.movnt.ps.256" ||
         Name == "x86.sse42.crc32.64.8" ||
+        Name == "x86.avx.vbroadcast.ss" ||
+        Name == "x86.avx.vbroadcast.ss.256" ||
+        Name == "x86.avx.vbroadcast.sd.256" ||
         (Name.startswith("x86.xop.vpcom") && F->arg_size() == 2)) {
-      NewFn = 0;
+      NewFn = nullptr;
       return true;
     }
     // SSE4.1 ptest functions may have an old signature.
@@ -126,6 +161,51 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
       if (Name == "x86.sse41.ptestnzc")
         return UpgradeSSE41Function(F, Intrinsic::x86_sse41_ptestnzc, NewFn);
     }
+    // Several blend and other instructions with maskes used the wrong number of
+    // bits.
+    if (Name == "x86.sse41.pblendw")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_pblendw,
+                                              NewFn);
+    if (Name == "x86.sse41.blendpd")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_blendpd,
+                                              NewFn);
+    if (Name == "x86.sse41.blendps")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_blendps,
+                                              NewFn);
+    if (Name == "x86.sse41.insertps")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_insertps,
+                                              NewFn);
+    if (Name == "x86.sse41.dppd")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_dppd,
+                                              NewFn);
+    if (Name == "x86.sse41.dpps")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_dpps,
+                                              NewFn);
+    if (Name == "x86.sse41.mpsadbw")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_sse41_mpsadbw,
+                                              NewFn);
+    if (Name == "x86.avx.blend.pd.256")
+      return UpgradeX86IntrinsicsWith8BitMask(
+          F, Intrinsic::x86_avx_blend_pd_256, NewFn);
+    if (Name == "x86.avx.blend.ps.256")
+      return UpgradeX86IntrinsicsWith8BitMask(
+          F, Intrinsic::x86_avx_blend_ps_256, NewFn);
+    if (Name == "x86.avx.dp.ps.256")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_avx_dp_ps_256,
+                                              NewFn);
+    if (Name == "x86.avx2.pblendw")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_avx2_pblendw,
+                                              NewFn);
+    if (Name == "x86.avx2.pblendd.128")
+      return UpgradeX86IntrinsicsWith8BitMask(
+          F, Intrinsic::x86_avx2_pblendd_128, NewFn);
+    if (Name == "x86.avx2.pblendd.256")
+      return UpgradeX86IntrinsicsWith8BitMask(
+          F, Intrinsic::x86_avx2_pblendd_256, NewFn);
+    if (Name == "x86.avx2.mpsadbw")
+      return UpgradeX86IntrinsicsWith8BitMask(F, Intrinsic::x86_avx2_mpsadbw,
+                                              NewFn);
+
     // frcz.ss/sd may need to have an argument dropped
     if (Name.startswith("x86.xop.vfrcz.ss") && F->arg_size() == 2) {
       F->setName(Name + ".old");
@@ -157,7 +237,7 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
 }
 
 bool llvm::UpgradeIntrinsicFunction(Function *F, Function *&NewFn) {
-  NewFn = 0;
+  NewFn = nullptr;
   bool Upgraded = UpgradeIntrinsicFunction1(F, NewFn);
 
   // Upgrade intrinsic attributes.  This does not change the function.
@@ -172,6 +252,23 @@ bool llvm::UpgradeIntrinsicFunction(Function *F, Function *&NewFn) {
 bool llvm::UpgradeGlobalVariable(GlobalVariable *GV) {
   // Nothing to do yet.
   return false;
+}
+
+static MDNode *getNodeField(const MDNode *DbgNode, unsigned Elt) {
+  if (!DbgNode || Elt >= DbgNode->getNumOperands())
+    return nullptr;
+  return dyn_cast_or_null<MDNode>(DbgNode->getOperand(Elt));
+}
+
+static MetadataAsValue *getExpression(Value *VarOperand, Function *F) {
+  // Old-style DIVariables have an optional expression as the 8th element.
+  DIExpression Expr(getNodeField(
+      cast<MDNode>(cast<MetadataAsValue>(VarOperand)->getMetadata()), 8));
+  if (!Expr) {
+    DIBuilder DIB(*F->getParent(), /*AllowUnresolved*/ false);
+    Expr = DIB.createExpression();
+  }
+  return MetadataAsValue::get(F->getContext(), Expr);
 }
 
 // UpgradeIntrinsicCall - Upgrade a call to an old intrinsic to be a call the
@@ -210,8 +307,9 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
       Builder.SetInsertPoint(CI->getParent(), CI);
 
       Module *M = F->getParent();
-      SmallVector<Value *, 1> Elts;
-      Elts.push_back(ConstantInt::get(Type::getInt32Ty(C), 1));
+      SmallVector<Metadata *, 1> Elts;
+      Elts.push_back(
+          ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(C), 1)));
       MDNode *Node = MDNode::get(C, Elts);
 
       Value *Arg0 = CI->getArgOperand(0);
@@ -279,6 +377,19 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
       Value *Trunc0 = Builder.CreateTrunc(CI->getArgOperand(0), Type::getInt32Ty(C));
       Rep = Builder.CreateCall2(CRC32, Trunc0, CI->getArgOperand(1));
       Rep = Builder.CreateZExt(Rep, CI->getType(), "");
+    } else if (Name.startswith("llvm.x86.avx.vbroadcast")) {
+      // Replace broadcasts with a series of insertelements.
+      Type *VecTy = CI->getType();
+      Type *EltTy = VecTy->getVectorElementType();
+      unsigned EltNum = VecTy->getVectorNumElements();
+      Value *Cast = Builder.CreateBitCast(CI->getArgOperand(0),
+                                          EltTy->getPointerTo());
+      Value *Load = Builder.CreateLoad(Cast);
+      Type *I32Ty = Type::getInt32Ty(C);
+      Rep = UndefValue::get(VecTy);
+      for (unsigned I = 0; I < EltNum; ++I)
+        Rep = Builder.CreateInsertElement(Rep, Load,
+                                          ConstantInt::get(I32Ty, I));
     } else {
       bool PD128 = false, PD256 = false, PS128 = false, PS256 = false;
       if (Name == "llvm.x86.avx.vpermil.pd.256")
@@ -324,12 +435,32 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
   }
 
   std::string Name = CI->getName().str();
-  CI->setName(Name + ".old");
+  if (!Name.empty())
+    CI->setName(Name + ".old");
 
   switch (NewFn->getIntrinsicID()) {
   default:
     llvm_unreachable("Unknown function for CallInst upgrade.");
 
+  // Upgrade debug intrinsics to use an additional DIExpression argument.
+  case Intrinsic::dbg_declare: {
+    auto NewCI =
+        Builder.CreateCall3(NewFn, CI->getArgOperand(0), CI->getArgOperand(1),
+                            getExpression(CI->getArgOperand(1), F), Name);
+    NewCI->setDebugLoc(CI->getDebugLoc());
+    CI->replaceAllUsesWith(NewCI);
+    CI->eraseFromParent();
+    return;
+  }
+  case Intrinsic::dbg_value: {
+    auto NewCI = Builder.CreateCall4(
+        NewFn, CI->getArgOperand(0), CI->getArgOperand(1), CI->getArgOperand(2),
+        getExpression(CI->getArgOperand(2), F), Name);
+    NewCI->setDebugLoc(CI->getDebugLoc());
+    CI->replaceAllUsesWith(NewCI);
+    CI->eraseFromParent();
+    return;
+  }
   case Intrinsic::ctlz:
   case Intrinsic::cttz:
     assert(CI->getNumArgOperands() == 1 &&
@@ -347,14 +478,6 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     CI->eraseFromParent();
     return;
 
-  case Intrinsic::arm_neon_vclz: {
-    // Change name from llvm.arm.neon.vclz.* to llvm.ctlz.*
-    CI->replaceAllUsesWith(Builder.CreateCall2(NewFn, CI->getArgOperand(0),
-                                               Builder.getFalse(),
-                                               "llvm.ctlz." + Name.substr(14)));
-    CI->eraseFromParent();
-    return;
-  }
   case Intrinsic::ctpop: {
     CI->replaceAllUsesWith(Builder.CreateCall(NewFn, CI->getArgOperand(0)));
     CI->eraseFromParent();
@@ -396,6 +519,34 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     CI->eraseFromParent();
     return;
   }
+
+  case Intrinsic::x86_sse41_pblendw:
+  case Intrinsic::x86_sse41_blendpd:
+  case Intrinsic::x86_sse41_blendps:
+  case Intrinsic::x86_sse41_insertps:
+  case Intrinsic::x86_sse41_dppd:
+  case Intrinsic::x86_sse41_dpps:
+  case Intrinsic::x86_sse41_mpsadbw:
+  case Intrinsic::x86_avx_blend_pd_256:
+  case Intrinsic::x86_avx_blend_ps_256:
+  case Intrinsic::x86_avx_dp_ps_256:
+  case Intrinsic::x86_avx2_pblendw:
+  case Intrinsic::x86_avx2_pblendd_128:
+  case Intrinsic::x86_avx2_pblendd_256:
+  case Intrinsic::x86_avx2_mpsadbw: {
+    // Need to truncate the last argument from i32 to i8 -- this argument models
+    // an inherently 8-bit immediate operand to these x86 instructions.
+    SmallVector<Value *, 4> Args(CI->arg_operands().begin(),
+                                 CI->arg_operands().end());
+
+    // Replace the last argument with a trunc.
+    Args.back() = Builder.CreateTrunc(Args.back(), Type::getInt8Ty(C), "trunc");
+
+    CallInst *NewCall = Builder.CreateCall(NewFn, Args);
+    CI->replaceAllUsesWith(NewCall);
+    CI->eraseFromParent();
+    return;
+  }
   }
 }
 
@@ -410,7 +561,7 @@ void llvm::UpgradeCallsToIntrinsic(Function* F) {
   if (UpgradeIntrinsicFunction(F, NewFn)) {
     if (NewFn != F) {
       // Replace all uses to the old function with the new one if necessary.
-      for (Value::use_iterator UI = F->use_begin(), UE = F->use_end();
+      for (Value::user_iterator UI = F->user_begin(), UE = F->user_end();
            UI != UE; ) {
         if (CallInst *CI = dyn_cast<CallInst>(*UI++))
           UpgradeIntrinsicCall(CI, NewFn);
@@ -429,22 +580,18 @@ void llvm::UpgradeInstWithTBAATag(Instruction *I) {
     return;
 
   if (MD->getNumOperands() == 3) {
-    Value *Elts[] = {
-      MD->getOperand(0),
-      MD->getOperand(1)
-    };
+    Metadata *Elts[] = {MD->getOperand(0), MD->getOperand(1)};
     MDNode *ScalarType = MDNode::get(I->getContext(), Elts);
     // Create a MDNode <ScalarType, ScalarType, offset 0, const>
-    Value *Elts2[] = {
-      ScalarType, ScalarType,
-      Constant::getNullValue(Type::getInt64Ty(I->getContext())),
-      MD->getOperand(2)
-    };
+    Metadata *Elts2[] = {ScalarType, ScalarType,
+                         ConstantAsMetadata::get(Constant::getNullValue(
+                             Type::getInt64Ty(I->getContext()))),
+                         MD->getOperand(2)};
     I->setMetadata(LLVMContext::MD_tbaa, MDNode::get(I->getContext(), Elts2));
   } else {
     // Create a MDNode <MD, MD, offset 0>
-    Value *Elts[] = {MD, MD,
-      Constant::getNullValue(Type::getInt64Ty(I->getContext()))};
+    Metadata *Elts[] = {MD, MD, ConstantAsMetadata::get(Constant::getNullValue(
+                                    Type::getInt64Ty(I->getContext())))};
     I->setMetadata(LLVMContext::MD_tbaa, MDNode::get(I->getContext(), Elts));
   }
 }
@@ -452,9 +599,9 @@ void llvm::UpgradeInstWithTBAATag(Instruction *I) {
 Instruction *llvm::UpgradeBitCastInst(unsigned Opc, Value *V, Type *DestTy,
                                       Instruction *&Temp) {
   if (Opc != Instruction::BitCast)
-    return 0;
+    return nullptr;
 
-  Temp = 0;
+  Temp = nullptr;
   Type *SrcTy = V->getType();
   if (SrcTy->isPtrOrPtrVectorTy() && DestTy->isPtrOrPtrVectorTy() &&
       SrcTy->getPointerAddressSpace() != DestTy->getPointerAddressSpace()) {
@@ -468,12 +615,12 @@ Instruction *llvm::UpgradeBitCastInst(unsigned Opc, Value *V, Type *DestTy,
     return CastInst::Create(Instruction::IntToPtr, Temp, DestTy);
   }
 
-  return 0;
+  return nullptr;
 }
 
 Value *llvm::UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy) {
   if (Opc != Instruction::BitCast)
-    return 0;
+    return nullptr;
 
   Type *SrcTy = C->getType();
   if (SrcTy->isPtrOrPtrVectorTy() && DestTy->isPtrOrPtrVectorTy() &&
@@ -488,14 +635,29 @@ Value *llvm::UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy) {
                                      DestTy);
   }
 
-  return 0;
+  return nullptr;
 }
 
 /// Check the debug info version number, if it is out-dated, drop the debug
 /// info. Return true if module is modified.
 bool llvm::UpgradeDebugInfo(Module &M) {
-  if (getDebugMetadataVersionFromModule(M) == DEBUG_METADATA_VERSION)
+  unsigned Version = getDebugMetadataVersionFromModule(M);
+  if (Version == DEBUG_METADATA_VERSION)
     return false;
 
-  return StripDebugInfo(M);
+  bool RetCode = StripDebugInfo(M);
+  if (RetCode) {
+    DiagnosticInfoDebugMetadataVersion DiagVersion(M, Version);
+    M.getContext().diagnose(DiagVersion);
+  }
+  return RetCode;
+}
+
+void llvm::UpgradeMDStringConstant(std::string &String) {
+  const std::string OldPrefix = "llvm.vectorizer.";
+  if (String == "llvm.vectorizer.unroll") {
+    String = "llvm.loop.interleave.count";
+  } else if (String.find(OldPrefix) == 0) {
+    String.replace(0, OldPrefix.size(), "llvm.loop.vectorize.");
+  }
 }

@@ -157,6 +157,16 @@ void log_name_addr(enum verbosity_value v, const char* str, uint8_t* zone,
 	struct sockaddr_storage* addr, socklen_t addrlen);
 
 /**
+ * Log errno and addr.
+ * @param str: descriptive string printed with it.
+ * @param err: errno string to print, i.e. strerror(errno).
+ * @param addr: the sockaddr to print. Can be ip4 or ip6.
+ * @param addrlen: length of addr.
+ */
+void log_err_addr(const char* str, const char* err,
+	struct sockaddr_storage* addr, socklen_t addrlen);
+
+/**
  * Convert address string, with "@port" appendix, to sockaddr.
  * Uses DNS port by default.
  * @param str: the string

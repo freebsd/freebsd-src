@@ -11,18 +11,19 @@
 // different components in LLVM.
 //
 //===----------------------------------------------------------------------===//
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/ADT/OwningPtr.h"
+
 #include "llvm/Analysis/CallGraphSCCPass.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassNameParser.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -245,7 +246,7 @@ protected:
 
   /// Pick a random scalar type.
   Type *pickScalarType() {
-    Type *t = 0;
+    Type *t = nullptr;
     do {
       switch (Ran->Rand() % 30) {
       case 0: t = Type::getInt1Ty(Context); break;
@@ -271,7 +272,7 @@ protected:
       case 29: if (GenX86MMX) t = Type::getX86_MMXTy(Context); break;
       default: llvm_unreachable("Invalid scalar value");
       }
-    } while (t == 0);
+    } while (t == nullptr);
 
     return t;
   }
@@ -288,8 +289,8 @@ protected:
 
 struct LoadModifier: public Modifier {
   LoadModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  virtual void Act() {
-    // Try to use predefined pointers. If non exist, use undef pointer value;
+  void Act() override {
+    // Try to use predefined pointers. If non-exist, use undef pointer value;
     Value *Ptr = getRandomPointerValue();
     Value *V = new LoadInst(Ptr, "L", BB->getTerminator());
     PT->push_back(V);
@@ -298,8 +299,8 @@ struct LoadModifier: public Modifier {
 
 struct StoreModifier: public Modifier {
   StoreModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  virtual void Act() {
-    // Try to use predefined pointers. If non exist, use undef pointer value;
+  void Act() override {
+    // Try to use predefined pointers. If non-exist, use undef pointer value;
     Value *Ptr = getRandomPointerValue();
     Type  *Tp = Ptr->getType();
     Value *Val = getRandomValue(Tp->getContainedType(0));
@@ -317,7 +318,7 @@ struct StoreModifier: public Modifier {
 struct BinModifier: public Modifier {
   BinModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
 
-  virtual void Act() {
+  void Act() override {
     Value *Val0 = getRandomVal();
     Value *Val1 = getRandomValue(Val0->getType());
 
@@ -360,7 +361,7 @@ struct BinModifier: public Modifier {
 /// Generate constant values.
 struct ConstModifier: public Modifier {
   ConstModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  virtual void Act() {
+  void Act() override {
     Type *Ty = pickType();
 
     if (Ty->isVectorTy()) {
@@ -407,7 +408,7 @@ struct ConstModifier: public Modifier {
 struct AllocaModifier: public Modifier {
   AllocaModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R){}
 
-  virtual void Act() {
+  void Act() override {
     Type *Tp = pickType();
     PT->push_back(new AllocaInst(Tp, "A", BB->getFirstNonPHI()));
   }
@@ -417,7 +418,7 @@ struct ExtractElementModifier: public Modifier {
   ExtractElementModifier(BasicBlock *BB, PieceTable *PT, Random *R):
     Modifier(BB, PT, R) {}
 
-  virtual void Act() {
+  void Act() override {
     Value *Val0 = getRandomVectorValue();
     Value *V = ExtractElementInst::Create(Val0,
              ConstantInt::get(Type::getInt32Ty(BB->getContext()),
@@ -429,7 +430,7 @@ struct ExtractElementModifier: public Modifier {
 
 struct ShuffModifier: public Modifier {
   ShuffModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  virtual void Act() {
+  void Act() override {
 
     Value *Val0 = getRandomVectorValue();
     Value *Val1 = getRandomValue(Val0->getType());
@@ -458,7 +459,7 @@ struct InsertElementModifier: public Modifier {
   InsertElementModifier(BasicBlock *BB, PieceTable *PT, Random *R):
     Modifier(BB, PT, R) {}
 
-  virtual void Act() {
+  void Act() override {
     Value *Val0 = getRandomVectorValue();
     Value *Val1 = getRandomValue(Val0->getType()->getScalarType());
 
@@ -473,7 +474,7 @@ struct InsertElementModifier: public Modifier {
 
 struct CastModifier: public Modifier {
   CastModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  virtual void Act() {
+  void Act() override {
 
     Value *V = getRandomVal();
     Type *VTy = V->getType();
@@ -560,7 +561,7 @@ struct SelectModifier: public Modifier {
   SelectModifier(BasicBlock *BB, PieceTable *PT, Random *R):
     Modifier(BB, PT, R) {}
 
-  virtual void Act() {
+  void Act() override {
     // Try a bunch of different select configuration until a valid one is found.
       Value *Val0 = getRandomVal();
       Value *Val1 = getRandomValue(Val0->getType());
@@ -583,7 +584,7 @@ struct SelectModifier: public Modifier {
 
 struct CmpModifier: public Modifier {
   CmpModifier(BasicBlock *BB, PieceTable *PT, Random *R):Modifier(BB, PT, R) {}
-  virtual void Act() {
+  void Act() override {
 
     Value *Val0 = getRandomVal();
     Value *Val1 = getRandomValue(Val0->getType());
@@ -625,15 +626,15 @@ static void FillFunction(Function *F, Random &R) {
 
   // List of modifiers which add new random instructions.
   std::vector<Modifier*> Modifiers;
-  OwningPtr<Modifier> LM(new LoadModifier(BB, &PT, &R));
-  OwningPtr<Modifier> SM(new StoreModifier(BB, &PT, &R));
-  OwningPtr<Modifier> EE(new ExtractElementModifier(BB, &PT, &R));
-  OwningPtr<Modifier> SHM(new ShuffModifier(BB, &PT, &R));
-  OwningPtr<Modifier> IE(new InsertElementModifier(BB, &PT, &R));
-  OwningPtr<Modifier> BM(new BinModifier(BB, &PT, &R));
-  OwningPtr<Modifier> CM(new CastModifier(BB, &PT, &R));
-  OwningPtr<Modifier> SLM(new SelectModifier(BB, &PT, &R));
-  OwningPtr<Modifier> PM(new CmpModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> LM(new LoadModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> SM(new StoreModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> EE(new ExtractElementModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> SHM(new ShuffModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> IE(new InsertElementModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> BM(new BinModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> CM(new CastModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> SLM(new SelectModifier(BB, &PT, &R));
+  std::unique_ptr<Modifier> PM(new CmpModifier(BB, &PT, &R));
   Modifiers.push_back(LM.get());
   Modifiers.push_back(SM.get());
   Modifiers.push_back(EE.get());
@@ -687,7 +688,7 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "llvm codegen stress-tester\n");
   llvm_shutdown_obj Y;
 
-  OwningPtr<Module> M(new Module("/tmp/autogen.bc", getGlobalContext()));
+  std::unique_ptr<Module> M(new Module("/tmp/autogen.bc", getGlobalContext()));
   Function *F = GenEmptyFunction(M.get());
 
   // Pick an initial seed value
@@ -698,22 +699,22 @@ int main(int argc, char **argv) {
   IntroduceControlFlow(F, R);
 
   // Figure out what stream we are supposed to write to...
-  OwningPtr<tool_output_file> Out;
+  std::unique_ptr<tool_output_file> Out;
   // Default to standard output.
   if (OutputFilename.empty())
     OutputFilename = "-";
 
-  std::string ErrorInfo;
-  Out.reset(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
-                                 sys::fs::F_Binary));
-  if (!ErrorInfo.empty()) {
-    errs() << ErrorInfo << '\n';
+  std::error_code EC;
+  Out.reset(new tool_output_file(OutputFilename, EC, sys::fs::F_None));
+  if (EC) {
+    errs() << EC.message() << '\n';
     return 1;
   }
 
   PassManager Passes;
   Passes.add(createVerifierPass());
-  Passes.add(createPrintModulePass(&Out->os()));
+  Passes.add(createDebugInfoVerifierPass());
+  Passes.add(createPrintModulePass(Out->os()));
   Passes.run(*M.get());
   Out->keep();
 

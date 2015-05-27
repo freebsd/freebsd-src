@@ -49,8 +49,9 @@ __FBSDID("$FreeBSD$");
 
 static void	usage(void);
 static void	ofw_indent(int);
-static void	ofw_dump_properties(int, phandle_t, int, const char *, int,
-		    int);
+static void	ofw_dump_properties(int, phandle_t, int, int, int);
+static void	ofw_dump_property(int fd, phandle_t n, int level,
+		    const char *prop, int raw, int str);
 static void	ofw_dump(int, const char *, int, int, const char *, int, int);
 
 static void
@@ -140,62 +141,67 @@ ofw_indent(int level)
 }
 
 static void
-ofw_dump_properties(int fd, phandle_t n, int level, const char *pmatch, int raw,
+ofw_dump_properties(int fd, phandle_t n, int level, int raw, int str)
+{
+	int nlen;
+	char prop[32];
+
+	for (nlen = ofw_firstprop(fd, n, prop, sizeof(prop)); nlen != 0;
+	     nlen = ofw_nextprop(fd, n, prop, prop, sizeof(prop)))
+		ofw_dump_property(fd, n, level, prop, raw, str);
+}
+
+static void
+ofw_dump_property(int fd, phandle_t n, int level, const char *prop, int raw,
     int str)
 {
 	static void *pbuf = NULL;
 	static char *visbuf = NULL;
 	static char printbuf[CHARSPERLINE + 1];
 	static int pblen = 0, vblen = 0;
-	char prop[32];
-	int nlen, len, i, j, max, vlen;
+	int len, i, j, max, vlen;
 
-	for (nlen = ofw_firstprop(fd, n, prop, sizeof(prop)); nlen != 0;
-	     nlen = ofw_nextprop(fd, n, prop, prop, sizeof(prop))) {
-		if (pmatch != NULL && strcmp(pmatch, prop) != 0)
-			continue;
-		len = ofw_getprop_alloc(fd, n, prop, &pbuf, &pblen, 1);
-		if (len < 0)
-			continue;
-		if (raw)
-			write(STDOUT_FILENO, pbuf, len);
-		else if (str)
-			printf("%.*s\n", len, (char *)pbuf);
-		else {
-			ofw_indent(level * LVLINDENT + NAMEINDENT);
-			printf("%s:\n", prop);
-			/* Print in hex. */
-			for (i = 0; i < len; i += BYTESPERLINE) {
-				max = len - i;
-				max = max > BYTESPERLINE ? BYTESPERLINE : max;
-				ofw_indent(level * LVLINDENT + DUMPINDENT);
-				for (j = 0; j < max; j++)
-					printf("%02x ",
-					    ((unsigned char *)pbuf)[i + j]);
-				printf("\n");
-			}
-			/*
-			 * strvis() and print if it looks like it is
-			 * zero-terminated.
-			 */
-			if (((char *)pbuf)[len - 1] == '\0' &&
-			    strlen(pbuf) == (unsigned)len - 1) {
-				if (vblen < (len - 1) * 4 + 1) {
-					if (visbuf != NULL)
-						free(visbuf);
-					vblen = (OFIOCMAXVALUE + len) * 4 + 1;
+	len = ofw_getprop_alloc(fd, n, prop, &pbuf, &pblen, 1);
+	if (len < 0)
+		return;
+	if (raw)
+		write(STDOUT_FILENO, pbuf, len);
+	else if (str)
+		printf("%.*s\n", len, (char *)pbuf);
+	else {
+		ofw_indent(level * LVLINDENT + NAMEINDENT);
+		printf("%s:\n", prop);
+		/* Print in hex. */
+		for (i = 0; i < len; i += BYTESPERLINE) {
+			max = len - i;
+			max = max > BYTESPERLINE ? BYTESPERLINE : max;
+			ofw_indent(level * LVLINDENT + DUMPINDENT);
+			for (j = 0; j < max; j++)
+				printf("%02x ",
+				    ((unsigned char *)pbuf)[i + j]);
+			printf("\n");
+		}
+		/*
+		 * strvis() and print if it looks like it is
+		 * zero-terminated.
+		 */
+		if (((char *)pbuf)[len - 1] == '\0' &&
+		    strlen(pbuf) == (unsigned)len - 1) {
+			if (vblen < (len - 1) * 4 + 1) {
+				if (visbuf != NULL)
+					free(visbuf);
+				vblen = (OFIOCMAXVALUE + len) * 4 + 1;
 					if ((visbuf = malloc(vblen)) == NULL)
 						err(EX_OSERR,
 						    "malloc() failed");
-				}
-				vlen = strvis(visbuf, pbuf, VIS_TAB | VIS_NL);
-				for (i = 0; i < vlen; i += CHARSPERLINE) {
-					ofw_indent(level * LVLINDENT +
-					    DUMPINDENT);
-					strlcpy(printbuf, &visbuf[i],
-					    sizeof(printbuf));
-					printf("'%s'\n", printbuf);
-				}
+			}
+			vlen = strvis(visbuf, pbuf, VIS_TAB | VIS_NL);
+			for (i = 0; i < vlen; i += CHARSPERLINE) {
+				ofw_indent(level * LVLINDENT +
+				    DUMPINDENT);
+				strlcpy(printbuf, &visbuf[i],
+				    sizeof(printbuf));
+				printf("'%s'\n", printbuf);
 			}
 		}
 	}
@@ -219,8 +225,12 @@ ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop,
 		else
 			putchar('\n');
 	}
-	if (prop)
-		ofw_dump_properties(fd, n, level, pmatch, raw, str);
+	if (prop) {
+		if (pmatch)
+			ofw_dump_property(fd, n, level, pmatch, raw, str);
+		else
+			ofw_dump_properties(fd, n, level, raw, str);
+	}
 	if (rec) {
 		for (c = ofw_child(fd, n); c != 0; c = ofw_peer(fd, c)) {
 			ofw_dump_node(fd, c, level + 1, rec, prop, pmatch,

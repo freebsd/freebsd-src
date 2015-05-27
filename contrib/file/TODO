@@ -15,3 +15,5 @@ small amount of C is needed (because fast execution is typically only
 required for soft magic, not the more detailed information given by
 hard-wired routines). In this regard, note that hplip, which is
 BSD-licensed, has a magic reimplementation in Python.
+
+Read the kerberos magic entry for more ideas.

@@ -103,7 +103,6 @@ DEBUG_FLAGS=-g
 
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
 
-CWARNFLAGS+=-Wno-unknown-pragmas
 CWARNFLAGS+=-Wno-missing-prototypes
 CWARNFLAGS+=-Wno-undef
 CWARNFLAGS+=-Wno-strict-prototypes

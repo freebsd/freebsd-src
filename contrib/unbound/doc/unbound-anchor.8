@@ -1,4 +1,4 @@
-.TH "unbound-anchor" "8" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
+.TH "unbound-anchor" "8" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
 .\"
 .\" unbound-anchor.8 -- unbound anchor maintenance utility manual
 .\"
@@ -8,7 +8,6 @@
 .\"
 .\"
 .SH "NAME"
-.LP
 .B unbound\-anchor
 \- Unbound anchor utility.
 .SH "SYNOPSIS"
@@ -25,14 +24,14 @@ Suggested usage:
 .nf
 	# in the init scripts.
 	# provide or update the root anchor (if necessary)
-	unbound-anchor -a "/var/unbound/root.key"
+	unbound-anchor \-a "/var/unbound/root.key"
 	# Please note usage of this root anchor is at your own risk
 	# and under the terms of our LICENSE (see source).
 	#
 	# start validating resolver
 	# the unbound.conf contains:
 	#   auto-trust-anchor-file: "/var/unbound/root.key"
-	unbound -c unbound.conf
+	unbound \-c unbound.conf
 .fi
 .P
 This tool provides builtin default contents for the root anchor and root
@@ -139,7 +138,7 @@ tracking, or if an error occurred.
 .P
 You can check the exit value in this manner:
 .nf
-	unbound-anchor -a "root.key" || logger "Please check root.key"
+	unbound-anchor \-a "root.key" || logger "Please check root.key"
 .fi
 Or something more suitable for your operational environment.
 .SH "TRUST"

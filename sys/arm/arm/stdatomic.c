@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdatomic.h>
 #include <sys/types.h>
 
+#include <machine/acle-compat.h>
 #include <machine/cpufunc.h>
 #include <machine/sysarch.h>
 
@@ -66,16 +67,14 @@ do_sync(void)
 
 	__asm volatile ("" : : : "memory");
 }
-#elif defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__)
+#elif __ARM_ARCH >= 7
 static inline void
 do_sync(void)
 {
 
 	__asm volatile ("dmb" : : : "memory");
 }
-#elif defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || \
-    defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || \
-    defined(__ARM_ARCH_6ZK__)
+#elif __ARM_ARCH >= 6
 static inline void
 do_sync(void)
 {
@@ -90,14 +89,8 @@ do_sync(void)
  * New C11 __atomic_* API.
  */
 
-#if defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || \
-    defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || \
-    defined(__ARM_ARCH_6ZK__) || \
-    defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__)
-
-/* These systems should be supported by the compiler. */
-
-#else /* __ARM_ARCH_5__ */
+/* ARMv6+ systems should be supported by the compiler. */
+#if __ARM_ARCH <= 5
 
 /* Clang doesn't allow us to reimplement builtins without this. */
 #ifdef __clang__
@@ -331,7 +324,7 @@ EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
 
 #endif /* _KERNEL */
 
-#endif
+#endif /* __ARM_ARCH */
 
 #endif /* __CLANG_ATOMICS || __GNUC_ATOMICS */
 
@@ -365,10 +358,7 @@ EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
  * Old __sync_* API.
  */
 
-#if defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || \
-    defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || \
-    defined(__ARM_ARCH_6ZK__) || \
-    defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__)
+#if __ARM_ARCH >= 6
 
 /* Implementations for old GCC versions, lacking support for atomics. */
 
@@ -686,7 +676,7 @@ __strong_reference(__sync_fetch_and_xor_2_c, __sync_fetch_and_xor_2);
 __strong_reference(__sync_fetch_and_xor_4_c, __sync_fetch_and_xor_4);
 #endif
 
-#else /* __ARM_ARCH_5__ */
+#else /* __ARM_ARCH < 6 */
 
 #ifdef _KERNEL
 
@@ -850,8 +840,13 @@ EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_or, "orr")		\
 EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_sub, "sub")		\
 EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_xor, "eor")
 
+#ifdef __clang__
+EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "strbeq")
+EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "strheq")
+#else
 EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "streqb")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "streqh")
+#endif
 EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
 
 #ifndef __clang__
@@ -876,7 +871,7 @@ __strong_reference(__sync_fetch_and_or_4_c, __sync_fetch_and_or_4);
 __strong_reference(__sync_fetch_and_xor_1_c, __sync_fetch_and_xor_1);
 __strong_reference(__sync_fetch_and_xor_2_c, __sync_fetch_and_xor_2);
 __strong_reference(__sync_fetch_and_xor_4_c, __sync_fetch_and_xor_4);
-#endif
+#endif /* __ARM_ARCH */
 
 #endif /* _KERNEL */
 

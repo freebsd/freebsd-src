@@ -13,13 +13,14 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_FORMAT_TOKEN_H
-#define LLVM_CLANG_FORMAT_FORMAT_TOKEN_H
+#ifndef LLVM_CLANG_LIB_FORMAT_FORMATTOKEN_H
+#define LLVM_CLANG_LIB_FORMAT_FORMATTOKEN_H
 
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/OperatorPrecedence.h"
 #include "clang/Format/Format.h"
 #include "clang/Lex/Lexer.h"
-#include "llvm/ADT/OwningPtr.h"
+#include <memory>
 
 namespace clang {
 namespace format {
@@ -27,36 +28,48 @@ namespace format {
 enum TokenType {
   TT_ArrayInitializerLSquare,
   TT_ArraySubscriptLSquare,
+  TT_AttributeParen,
   TT_BinaryOperator,
   TT_BitFieldColon,
   TT_BlockComment,
   TT_CastRParen,
   TT_ConditionalExpr,
+  TT_ConflictAlternative,
+  TT_ConflictEnd,
+  TT_ConflictStart,
   TT_CtorInitializerColon,
   TT_CtorInitializerComma,
   TT_DesignatedInitializerPeriod,
   TT_DictLiteral,
-  TT_ImplicitStringLiteral,
-  TT_InlineASMColon,
-  TT_InheritanceColon,
+  TT_FunctionDeclarationName,
+  TT_FunctionLBrace,
   TT_FunctionTypeLParen,
+  TT_ImplicitStringLiteral,
+  TT_InheritanceColon,
+  TT_InlineASMColon,
+  TT_JavaAnnotation,
+  TT_LambdaArrow,
   TT_LambdaLSquare,
+  TT_LeadingJavaAnnotation,
   TT_LineComment,
+  TT_ObjCBlockLBrace,
   TT_ObjCBlockLParen,
   TT_ObjCDecl,
   TT_ObjCForIn,
   TT_ObjCMethodExpr,
   TT_ObjCMethodSpecifier,
   TT_ObjCProperty,
-  TT_ObjCSelectorName,
   TT_OverloadedOperator,
   TT_OverloadedOperatorLParen,
   TT_PointerOrReference,
   TT_PureVirtualSpecifier,
   TT_RangeBasedForLoopColon,
+  TT_RegexLiteral,
+  TT_SelectorName,
   TT_StartOfName,
   TT_TemplateCloser,
   TT_TemplateOpener,
+  TT_TrailingAnnotation,
   TT_TrailingReturnArrow,
   TT_TrailingUnaryOperator,
   TT_UnaryOperator,
@@ -87,7 +100,7 @@ class TokenRole;
 class AnnotatedLine;
 
 /// \brief A wrapper around a \c Token storing information about the
-/// whitespace characters preceeding it.
+/// whitespace characters preceding it.
 struct FormatToken {
   FormatToken()
       : NewlinesBefore(0), HasUnescapedNewline(false), LastNewlineOffset(0),
@@ -95,12 +108,14 @@ struct FormatToken {
         IsFirst(false), MustBreakBefore(false), IsUnterminatedLiteral(false),
         BlockKind(BK_Unknown), Type(TT_Unknown), SpacesRequiredBefore(0),
         CanBreakBefore(false), ClosesTemplateDeclaration(false),
-        ParameterCount(0), PackingKind(PPK_Inconclusive), TotalLength(0),
-        UnbreakableTailLength(0), BindingStrength(0), SplitPenalty(0),
+        ParameterCount(0), BlockParameterCount(0),
+        PackingKind(PPK_Inconclusive), TotalLength(0), UnbreakableTailLength(0),
+        BindingStrength(0), NestingLevel(0), SplitPenalty(0),
         LongestObjCSelectorName(0), FakeRParens(0),
         StartsBinaryExpression(false), EndsBinaryExpression(false),
-        LastInChainOfCalls(false), PartOfMultiVariableDeclStmt(false),
-        MatchingParen(NULL), Previous(NULL), Next(NULL),
+        OperatorIndex(0), LastOperator(false),
+        PartOfMultiVariableDeclStmt(false), IsForEachMacro(false),
+        MatchingParen(nullptr), Previous(nullptr), Next(nullptr),
         Decision(FD_Unformatted), Finalized(false) {}
 
   /// \brief The \c Token.
@@ -116,7 +131,7 @@ struct FormatToken {
   /// Token.
   bool HasUnescapedNewline;
 
-  /// \brief The range of the whitespace immediately preceeding the \c Token.
+  /// \brief The range of the whitespace immediately preceding the \c Token.
   SourceRange WhitespaceRange;
 
   /// \brief The offset just past the last '\n' in this token's leading
@@ -182,9 +197,13 @@ struct FormatToken {
   /// the number of commas.
   unsigned ParameterCount;
 
+  /// \brief Number of parameters that are nested blocks,
+  /// if this is "(", "[" or "<".
+  unsigned BlockParameterCount;
+
   /// \brief A token can have a special role that can carry extra information
   /// about the token's formatting.
-  llvm::OwningPtr<TokenRole> Role;
+  std::unique_ptr<TokenRole> Role;
 
   /// \brief If this is an opening parenthesis, how are the parameters packed?
   ParameterPackingKind PackingKind;
@@ -206,11 +225,18 @@ struct FormatToken {
   /// operator precedence, parenthesis nesting, etc.
   unsigned BindingStrength;
 
+  /// \brief The nesting level of this token, i.e. the number of surrounding (),
+  /// [], {} or <>.
+  unsigned NestingLevel;
+
   /// \brief Penalty for inserting a line break before this token.
   unsigned SplitPenalty;
 
   /// \brief If this is the first ObjC selector name in an ObjC method
   /// definition or call, this contains the length of the longest name.
+  ///
+  /// This being set to 0 means that the selectors should not be colon-aligned,
+  /// e.g. because several of them are block-type.
   unsigned LongestObjCSelectorName;
 
   /// \brief Stores the number of required fake parentheses and the
@@ -228,38 +254,54 @@ struct FormatToken {
   /// \brief \c true if this token ends a binary expression.
   bool EndsBinaryExpression;
 
-  /// \brief Is this the last "." or "->" in a builder-type call?
-  bool LastInChainOfCalls;
+  /// \brief Is this is an operator (or "."/"->") in a sequence of operators
+  /// with the same precedence, contains the 0-based operator index.
+  unsigned OperatorIndex;
+
+  /// \brief Is this the last operator (or "."/"->") in a sequence of operators
+  /// with the same precedence?
+  bool LastOperator;
 
   /// \brief Is this token part of a \c DeclStmt defining multiple variables?
   ///
   /// Only set if \c Type == \c TT_StartOfName.
   bool PartOfMultiVariableDeclStmt;
 
-  bool is(tok::TokenKind Kind) const { return Tok.is(Kind); }
+  /// \brief Is this a foreach macro?
+  bool IsForEachMacro;
 
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2) const {
+  bool is(tok::TokenKind Kind) const { return Tok.is(Kind); }
+  bool is(TokenType TT) const { return Type == TT; }
+  bool is(const IdentifierInfo *II) const {
+    return II && II == Tok.getIdentifierInfo();
+  }
+  template <typename A, typename B> bool isOneOf(A K1, B K2) const {
     return is(K1) || is(K2);
   }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2, tok::TokenKind K3) const {
+  template <typename A, typename B, typename C>
+  bool isOneOf(A K1, B K2, C K3) const {
     return is(K1) || is(K2) || is(K3);
   }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2, tok::TokenKind K3,
-               tok::TokenKind K4, tok::TokenKind K5 = tok::NUM_TOKENS,
-               tok::TokenKind K6 = tok::NUM_TOKENS,
-               tok::TokenKind K7 = tok::NUM_TOKENS,
-               tok::TokenKind K8 = tok::NUM_TOKENS,
-               tok::TokenKind K9 = tok::NUM_TOKENS,
-               tok::TokenKind K10 = tok::NUM_TOKENS,
-               tok::TokenKind K11 = tok::NUM_TOKENS,
-               tok::TokenKind K12 = tok::NUM_TOKENS) const {
+  template <typename A, typename B, typename C, typename D>
+  bool isOneOf(A K1, B K2, C K3, D K4) const {
+    return is(K1) || is(K2) || is(K3) || is(K4);
+  }
+  template <typename A, typename B, typename C, typename D, typename E>
+  bool isOneOf(A K1, B K2, C K3, D K4, E K5) const {
+    return is(K1) || is(K2) || is(K3) || is(K4) || is(K5);
+  }
+  template <typename T>
+  bool isOneOf(T K1, T K2, T K3, T K4, T K5, T K6, T K7 = tok::NUM_TOKENS,
+               T K8 = tok::NUM_TOKENS, T K9 = tok::NUM_TOKENS,
+               T K10 = tok::NUM_TOKENS, T K11 = tok::NUM_TOKENS,
+               T K12 = tok::NUM_TOKENS) const {
     return is(K1) || is(K2) || is(K3) || is(K4) || is(K5) || is(K6) || is(K7) ||
            is(K8) || is(K9) || is(K10) || is(K11) || is(K12);
   }
 
-  bool isNot(tok::TokenKind Kind) const { return Tok.isNot(Kind); }
+  template <typename T> bool isNot(T Kind) const { return !is(Kind); }
+
+  bool isStringLiteral() const { return tok::isStringLiteral(Tok.getKind()); }
 
   bool isObjCAtKeyword(tok::ObjCKeywordKind Kind) const {
     return Tok.isObjCAtKeyword(Kind);
@@ -270,6 +312,9 @@ struct FormatToken {
            (!ColonRequired || (Next && Next->is(tok::colon)));
   }
 
+  /// \brief Determine whether the token is a simple-type-specifier.
+  bool isSimpleTypeSpecifier() const;
+
   bool isObjCAccessSpecifier() const {
     return is(tok::at) && Next && (Next->isObjCAtKeyword(tok::objc_public) ||
                                    Next->isObjCAtKeyword(tok::objc_protected) ||
@@ -279,19 +324,19 @@ struct FormatToken {
 
   /// \brief Returns whether \p Tok is ([{ or a template opening <.
   bool opensScope() const {
-    return isOneOf(tok::l_paren, tok::l_brace, tok::l_square) ||
-           Type == TT_TemplateOpener;
+    return isOneOf(tok::l_paren, tok::l_brace, tok::l_square,
+                   TT_TemplateOpener);
   }
   /// \brief Returns whether \p Tok is )]} or a template closing >.
   bool closesScope() const {
-    return isOneOf(tok::r_paren, tok::r_brace, tok::r_square) ||
-           Type == TT_TemplateCloser;
+    return isOneOf(tok::r_paren, tok::r_brace, tok::r_square,
+                   TT_TemplateCloser);
   }
 
   /// \brief Returns \c true if this is a "." or "->" accessing a member.
   bool isMemberAccess() const {
-    return isOneOf(tok::arrow, tok::period) &&
-           Type != TT_DesignatedInitializerPeriod;
+    return isOneOf(tok::arrow, tok::period, tok::arrowstar) &&
+           !isOneOf(TT_DesignatedInitializerPeriod, TT_TrailingReturnArrow);
   }
 
   bool isUnaryOperator() const {
@@ -316,7 +361,28 @@ struct FormatToken {
   }
 
   bool isTrailingComment() const {
-    return is(tok::comment) && (!Next || Next->NewlinesBefore > 0);
+    return is(tok::comment) &&
+           (is(TT_LineComment) || !Next || Next->NewlinesBefore > 0);
+  }
+
+  /// \brief Returns \c true if this is a keyword that can be used
+  /// like a function call (e.g. sizeof, typeid, ...).
+  bool isFunctionLikeKeyword() const {
+    switch (Tok.getKind()) {
+    case tok::kw_throw:
+    case tok::kw_typeid:
+    case tok::kw_return:
+    case tok::kw_sizeof:
+    case tok::kw_alignof:
+    case tok::kw_alignas:
+    case tok::kw_decltype:
+    case tok::kw_noexcept:
+    case tok::kw_static_assert:
+    case tok::kw___attribute:
+      return true;
+    default:
+      return false;
+    }
   }
 
   prec::Level getPrecedence() const {
@@ -326,7 +392,7 @@ struct FormatToken {
   /// \brief Returns the previous token ignoring comments.
   FormatToken *getPreviousNonComment() const {
     FormatToken *Tok = Previous;
-    while (Tok != NULL && Tok->is(tok::comment))
+    while (Tok && Tok->is(tok::comment))
       Tok = Tok->Previous;
     return Tok;
   }
@@ -334,7 +400,7 @@ struct FormatToken {
   /// \brief Returns the next token ignoring comments.
   const FormatToken *getNextNonComment() const {
     const FormatToken *Tok = Next;
-    while (Tok != NULL && Tok->is(tok::comment))
+    while (Tok && Tok->is(tok::comment))
       Tok = Tok->Next;
     return Tok;
   }
@@ -342,10 +408,10 @@ struct FormatToken {
   /// \brief Returns \c true if this tokens starts a block-type list, i.e. a
   /// list that should be indented with a block indent.
   bool opensBlockTypeList(const FormatStyle &Style) const {
-    return Type == TT_ArrayInitializerLSquare ||
+    return is(TT_ArrayInitializerLSquare) ||
            (is(tok::l_brace) &&
-            (BlockKind == BK_Block || Type == TT_DictLiteral ||
-             !Style.Cpp11BracedListStyle));
+            (BlockKind == BK_Block || is(TT_DictLiteral) ||
+             (!Style.Cpp11BracedListStyle && NestingLevel == 0)));
   }
 
   /// \brief Same as opensBlockTypeList, but for the closing token.
@@ -388,10 +454,21 @@ public:
 
   /// \brief Apply the special formatting that the given role demands.
   ///
+  /// Assumes that the token having this role is already formatted.
+  ///
   /// Continues formatting from \p State leaving indentation to \p Indenter and
   /// returns the total penalty that this formatting incurs.
-  virtual unsigned format(LineState &State, ContinuationIndenter *Indenter,
-                          bool DryRun) {
+  virtual unsigned formatFromToken(LineState &State,
+                                   ContinuationIndenter *Indenter,
+                                   bool DryRun) {
+    return 0;
+  }
+
+  /// \brief Same as \c formatFromToken, but assumes that the first token has
+  /// already been set thereby deciding on the first line break.
+  virtual unsigned formatAfterToken(LineState &State,
+                                    ContinuationIndenter *Indenter,
+                                    bool DryRun) {
     return 0;
   }
 
@@ -404,15 +481,21 @@ protected:
 
 class CommaSeparatedList : public TokenRole {
 public:
-  CommaSeparatedList(const FormatStyle &Style) : TokenRole(Style) {}
+  CommaSeparatedList(const FormatStyle &Style)
+      : TokenRole(Style), HasNestedBracedList(false) {}
 
-  virtual void precomputeFormattingInfos(const FormatToken *Token);
+  void precomputeFormattingInfos(const FormatToken *Token) override;
 
-  virtual unsigned format(LineState &State, ContinuationIndenter *Indenter,
-                          bool DryRun);
+  unsigned formatAfterToken(LineState &State, ContinuationIndenter *Indenter,
+                            bool DryRun) override;
+
+  unsigned formatFromToken(LineState &State, ContinuationIndenter *Indenter,
+                           bool DryRun) override;
 
   /// \brief Adds \p Token as the next comma to the \c CommaSeparated list.
-  virtual void CommaFound(const FormatToken *Token) { Commas.push_back(Token); }
+  void CommaFound(const FormatToken *Token) override {
+    Commas.push_back(Token);
+  }
 
 private:
   /// \brief A struct that holds information on how to format a given list with
@@ -444,9 +527,75 @@ private:
 
   /// \brief Precomputed formats that can be used for this list.
   SmallVector<ColumnFormat, 4> Formats;
+
+  bool HasNestedBracedList;
+};
+
+/// \brief Encapsulates keywords that are context sensitive or for languages not
+/// properly supported by Clang's lexer.
+struct AdditionalKeywords {
+  AdditionalKeywords(IdentifierTable &IdentTable) {
+    kw_in = &IdentTable.get("in");
+    kw_CF_ENUM = &IdentTable.get("CF_ENUM");
+    kw_CF_OPTIONS = &IdentTable.get("CF_OPTIONS");
+    kw_NS_ENUM = &IdentTable.get("NS_ENUM");
+    kw_NS_OPTIONS = &IdentTable.get("NS_OPTIONS");
+
+    kw_finally = &IdentTable.get("finally");
+    kw_function = &IdentTable.get("function");
+    kw_var = &IdentTable.get("var");
+
+    kw_abstract = &IdentTable.get("abstract");
+    kw_extends = &IdentTable.get("extends");
+    kw_final = &IdentTable.get("final");
+    kw_implements = &IdentTable.get("implements");
+    kw_instanceof = &IdentTable.get("instanceof");
+    kw_interface = &IdentTable.get("interface");
+    kw_native = &IdentTable.get("native");
+    kw_package = &IdentTable.get("package");
+    kw_synchronized = &IdentTable.get("synchronized");
+    kw_throws = &IdentTable.get("throws");
+
+    kw_option = &IdentTable.get("option");
+    kw_optional = &IdentTable.get("optional");
+    kw_repeated = &IdentTable.get("repeated");
+    kw_required = &IdentTable.get("required");
+    kw_returns = &IdentTable.get("returns");
+  }
+
+  // ObjC context sensitive keywords.
+  IdentifierInfo *kw_in;
+  IdentifierInfo *kw_CF_ENUM;
+  IdentifierInfo *kw_CF_OPTIONS;
+  IdentifierInfo *kw_NS_ENUM;
+  IdentifierInfo *kw_NS_OPTIONS;
+
+  // JavaScript keywords.
+  IdentifierInfo *kw_finally;
+  IdentifierInfo *kw_function;
+  IdentifierInfo *kw_var;
+
+  // Java keywords.
+  IdentifierInfo *kw_abstract;
+  IdentifierInfo *kw_extends;
+  IdentifierInfo *kw_final;
+  IdentifierInfo *kw_implements;
+  IdentifierInfo *kw_instanceof;
+  IdentifierInfo *kw_interface;
+  IdentifierInfo *kw_native;
+  IdentifierInfo *kw_package;
+  IdentifierInfo *kw_synchronized;
+  IdentifierInfo *kw_throws;
+
+  // Proto keywords.
+  IdentifierInfo *kw_option;
+  IdentifierInfo *kw_optional;
+  IdentifierInfo *kw_repeated;
+  IdentifierInfo *kw_required;
+  IdentifierInfo *kw_returns;
 };
 
 } // namespace format
 } // namespace clang
 
-#endif // LLVM_CLANG_FORMAT_FORMAT_TOKEN_H
+#endif

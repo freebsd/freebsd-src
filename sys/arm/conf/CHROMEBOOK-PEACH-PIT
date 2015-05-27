@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"EXYNOS5420"
+include 	"EXYNOS5420"
 ident		CHROMEBOOK-PEACH-PIT
 
 hints		"CHROMEBOOK-PEACH-PIT.hints"
@@ -33,15 +33,15 @@ device		kbdmux
 device		ukbd
 
 # Uncomment this for NFS root
-#options	NFS_ROOT		# NFS usable as /, requires NFSCL
-#options	BOOTP_NFSROOT
-#options	BOOTP_COMPAT
-#options	BOOTP
-#options	BOOTP_NFSV3
-#options	BOOTP_WIRED_TO=ue0
-#options	ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/root\"
+#options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
+#options 	ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/root\"
 
 #FDT
-options		FDT
-options		FDT_DTB_STATIC
+options 	FDT
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=exynos5420-peach-pit.dts

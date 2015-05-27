@@ -5,7 +5,6 @@
 PROG=	ckdist
 SRCS=   ckdist.c crc.c
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.prog.mk>

@@ -368,7 +368,7 @@ callb_unlock_table(void)
 	mutex_exit(&ct->ct_lock);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Return a boolean value indicating whether a particular kernel thread is
  * stopped in accordance with the cpr callback protocol.  If returning
@@ -432,7 +432,7 @@ callb_is_stopped(kthread_id_t tp, caddr_t *thread_name)
 	mutex_exit(&ct->ct_lock);
 	return (ret_val);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 SYSINIT(sol_callb, SI_SUB_DRIVERS, SI_ORDER_FIRST, callb_init, NULL);
 SYSUNINIT(sol_callb, SI_SUB_DRIVERS, SI_ORDER_FIRST, callb_fini, NULL);

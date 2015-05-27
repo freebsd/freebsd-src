@@ -59,18 +59,15 @@ extern void do_call(void *, void *, void *, int);
 #if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 extern void arm9_idcache_wbinv_all(void);
-#elif defined(CPU_FA526) || defined(CPU_FA626TE)
+#elif defined(CPU_FA526)
 #define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
 extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
-#elif defined(CPU_ARM10)
-#define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
-extern void arm10_idcache_wbinv_all(void);
-#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#elif defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
+#elif defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
@@ -114,6 +111,10 @@ int     arm_pcache_unified;
 
 int     arm_dcache_align;
 int     arm_dcache_align_mask;
+
+int     arm_dcache_min_line_size = 32;
+int     arm_icache_min_line_size = 32;
+int     arm_idcache_min_line_size = 32;
 
 u_int	arm_cache_level;
 u_int	arm_cache_type[14];
@@ -277,6 +278,13 @@ get_cachetype_cp15()
 		goto out;
 
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
+		/* Resolve minimal cache line sizes */
+		arm_dcache_min_line_size = 1 << (CPU_CT_DMINLINE(ctype) + 2);
+		arm_icache_min_line_size = 1 << (CPU_CT_IMINLINE(ctype) + 2);
+		arm_idcache_min_line_size =
+		    (arm_dcache_min_line_size > arm_icache_min_line_size ?
+		    arm_icache_min_line_size : arm_dcache_min_line_size);
+
 		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
 		    : "=r" (clevel));
 		arm_cache_level = clevel;

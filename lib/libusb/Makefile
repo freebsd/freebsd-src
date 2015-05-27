@@ -19,8 +19,7 @@ PTHREAD_LIBS?=	-lpthread
 
 WARNS?=		2
 
-DPADD=		${LIBPTHREAD}
-LDADD=		${PTHREAD_LIBS}
+LIBADD=		pthread
 
 MLINKS+=	libusb.3 usb.3
 

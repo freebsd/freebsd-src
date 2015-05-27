@@ -252,7 +252,7 @@ END(arm9_context_switch)
  * four variables is assumed in the code above.  Hence the reason for
  * declaring them in the assembler file.
  */
-	.align 0
+	.align 2
 C_OBJECT(arm9_dcache_sets_max)
 	.space	4
 C_OBJECT(arm9_dcache_index_max)

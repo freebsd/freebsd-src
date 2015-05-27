@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	cddl/lib/libctf \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \

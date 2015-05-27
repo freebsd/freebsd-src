@@ -149,6 +149,7 @@ struct mbuf *ieee80211_alloc_cts(struct ieee80211com *,
 
 uint8_t *ieee80211_add_rates(uint8_t *, const struct ieee80211_rateset *);
 uint8_t *ieee80211_add_xrates(uint8_t *, const struct ieee80211_rateset *);
+uint8_t *ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
 uint8_t *ieee80211_add_wpa(uint8_t *, const struct ieee80211vap *);
 uint8_t *ieee80211_add_rsn(uint8_t *, const struct ieee80211vap *);
 uint8_t *ieee80211_add_qos(uint8_t *, const struct ieee80211_node *);

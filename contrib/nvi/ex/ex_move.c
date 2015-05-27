@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: ex_move.c,v 10.16 2012/02/11 15:52:33 zy Exp 
  * ex_copy -- :[line [,line]] co[py] line [flags]
  *	Copy selected lines.
  *
- * PUBLIC: int ex_copy __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_copy(SCR *, EXCMD *);
  */
 int
 ex_copy(SCR *sp, EXCMD *cmdp)
@@ -81,7 +81,7 @@ err:	text_lfree(cb.textq);
  * ex_move -- :[line [,line]] mo[ve] line
  *	Move selected lines.
  *
- * PUBLIC: int ex_move __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_move(SCR *, EXCMD *);
  */
 int
 ex_move(SCR *sp, EXCMD *cmdp)

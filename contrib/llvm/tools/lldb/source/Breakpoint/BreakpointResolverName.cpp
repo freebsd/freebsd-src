@@ -121,6 +121,17 @@ BreakpointResolverName::~BreakpointResolverName ()
 {
 }
 
+BreakpointResolverName::BreakpointResolverName(const BreakpointResolverName &rhs) :
+    BreakpointResolver(rhs.m_breakpoint, BreakpointResolver::NameResolver),
+    m_lookups(rhs.m_lookups),
+    m_class_name(rhs.m_class_name),
+    m_regex(rhs.m_regex),
+    m_match_type (rhs.m_match_type),
+    m_skip_prologue (rhs.m_skip_prologue)
+{
+
+}
+
 void
 BreakpointResolverName::AddNameLookup (const ConstString &name, uint32_t name_type_mask)
 {
@@ -234,7 +245,7 @@ BreakpointResolverName::SearchCallback
             if (context.module_sp)
             {
                 context.module_sp->FindFunctions (m_regex,
-                                                  !filter_by_cu, // include symbols only if we aren't filterning by CU
+                                                  !filter_by_cu, // include symbols only if we aren't filtering by CU
                                                   include_inlines, 
                                                   append, 
                                                   func_list);
@@ -264,7 +275,7 @@ BreakpointResolverName::SearchCallback
         }
     }
 
-    // Remove any duplicates between the funcion list and the symbol list
+    // Remove any duplicates between the function list and the symbol list
     SymbolContext sc;
     if (func_list.GetSize())
     {
@@ -371,3 +382,10 @@ BreakpointResolverName::Dump (Stream *s) const
 
 }
 
+lldb::BreakpointResolverSP
+BreakpointResolverName::CopyForBreakpoint (Breakpoint &breakpoint)
+{
+    lldb::BreakpointResolverSP ret_sp(new BreakpointResolverName(*this));
+    ret_sp->SetBreakpoint(&breakpoint);
+    return ret_sp;
+}

@@ -1903,8 +1903,8 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 		cm->cm_desc.SCSIIO.DevHandle = htole16(targ->handle);
 	}
 
-	callout_reset(&cm->cm_callout, (ccb->ccb_h.timeout * hz) / 1000,
-	   mprsas_scsiio_timeout, cm);
+	callout_reset_sbt(&cm->cm_callout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	   mprsas_scsiio_timeout, cm, 0);
 
 	targ->issued++;
 	targ->outstanding++;
@@ -3082,7 +3082,12 @@ mprsas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.ccb_h.flags = CAM_DIR_IN;
 		cdai.buftype = CDAI_TYPE_RCAPLONG;
+#if (__FreeBSD_version >= 1100061) || \
+    ((__FreeBSD_version >= 1001510) && (__FreeBSD_version < 1100000))
+		cdai.flags = CDAI_FLAG_NONE;
+#else
 		cdai.flags = 0;
+#endif
 		cdai.bufsiz = sizeof(rcap_buf);
 		cdai.buf = (uint8_t *)&rcap_buf;
 		xpt_action((union ccb *)&cdai);

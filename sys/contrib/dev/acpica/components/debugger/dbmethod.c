@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -396,11 +396,11 @@ AcpiDbDisassembleMethod (
 
     /* Now we can disassemble the method */
 
-    AcpiGbl_DbOpt_verbose = FALSE;
+    AcpiGbl_DbOpt_Verbose = FALSE;
 #ifdef ACPI_DISASSEMBLER
     AcpiDmDisassemble (NULL, Op, 0);
 #endif
-    AcpiGbl_DbOpt_verbose = TRUE;
+    AcpiGbl_DbOpt_Verbose = TRUE;
 
     AcpiPsDeleteParseTree (Op);
 

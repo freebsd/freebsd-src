@@ -13,7 +13,6 @@ DIRDEPS = \
 	targets/pseudo/gnu \
 	targets/pseudo/include \
 	targets/pseudo/kerberos5 \
-	targets/pseudo/lib \
 	targets/pseudo/libexec \
 	targets/pseudo/sbin \
 	targets/pseudo/secure \

@@ -195,6 +195,21 @@ int eloop_cancel_timeout(eloop_timeout_handler handler,
 			 void *eloop_data, void *user_data);
 
 /**
+ * eloop_cancel_timeout_one - Cancel a single timeout
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * @remaining: Time left on the cancelled timer
+ * Returns: Number of cancelled timeouts
+ *
+ * Cancel matching <handler,eloop_data,user_data> timeout registered with
+ * eloop_register_timeout() and return the remaining time left.
+ */
+int eloop_cancel_timeout_one(eloop_timeout_handler handler,
+			     void *eloop_data, void *user_data,
+			     struct os_reltime *remaining);
+
+/**
  * eloop_is_timeout_registered - Check if a timeout is already registered
  * @handler: Matching callback function
  * @eloop_data: Matching eloop_data
@@ -206,6 +221,40 @@ int eloop_cancel_timeout(eloop_timeout_handler handler,
  */
 int eloop_is_timeout_registered(eloop_timeout_handler handler,
 				void *eloop_data, void *user_data);
+
+/**
+ * eloop_deplete_timeout - Deplete a timeout that is already registered
+ * @req_secs: Requested number of seconds to the timeout
+ * @req_usecs: Requested number of microseconds to the timeout
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * Returns: 1 if the timeout is depleted, 0 if no change is made, -1 if no
+ * timeout matched
+ *
+ * Find a registered matching <handler,eloop_data,user_data> timeout. If found,
+ * deplete the timeout if remaining time is more than the requested time.
+ */
+int eloop_deplete_timeout(unsigned int req_secs, unsigned int req_usecs,
+			  eloop_timeout_handler handler, void *eloop_data,
+			  void *user_data);
+
+/**
+ * eloop_replenish_timeout - Replenish a timeout that is already registered
+ * @req_secs: Requested number of seconds to the timeout
+ * @req_usecs: Requested number of microseconds to the timeout
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * Returns: 1 if the timeout is replenished, 0 if no change is made, -1 if no
+ * timeout matched
+ *
+ * Find a registered matching <handler,eloop_data,user_data> timeout. If found,
+ * replenish the timeout if remaining time is less than the requested time.
+ */
+int eloop_replenish_timeout(unsigned int req_secs, unsigned int req_usecs,
+			    eloop_timeout_handler handler, void *eloop_data,
+			    void *user_data);
 
 /**
  * eloop_register_signal - Register handler for signals

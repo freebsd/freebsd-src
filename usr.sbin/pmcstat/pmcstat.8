@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 27, 2014
+.Dd May 8, 2015
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -236,7 +236,7 @@ This option requires the
 .Fl R
 option to read in samples that were previously collected and
 saved with the
-.Fl o
+.Fl O
 option.
 .It Fl c Ar cpu-spec
 Set the cpus for subsequent system mode PMCs specified on the
@@ -279,8 +279,9 @@ Set the pathname of the kernel directory to argument
 This directory specifies where
 .Nm
 should look for the kernel and its modules.
-The default is
-.Pa /boot/kernel .
+The default is to use the path of the running kernel obtained from the
+.Va kern.bootfile
+sysctl.
 .It Fl l Ar secs
 Set system-wide performance measurement duration for
 .Ar secs
@@ -300,6 +301,12 @@ is a
 .Dq Li -
 this information is sent to the output file specified by the
 .Fl o
+option.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
 option.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode

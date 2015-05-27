@@ -1,4 +1,4 @@
-//===-- AArch64BaseInfo.h - Top level definitions for AArch64- --*- C++ -*-===//
+//===-- AArch64BaseInfo.h - Top level definitions for AArch64 ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,95 +14,256 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_AARCH64_BASEINFO_H
-#define LLVM_AARCH64_BASEINFO_H
+#ifndef LLVM_LIB_TARGET_AARCH64_UTILS_AARCH64BASEINFO_H
+#define LLVM_LIB_TARGET_AARCH64_UTILS_AARCH64BASEINFO_H
 
-#include "llvm/ADT/StringSwitch.h"
+// FIXME: Is it easiest to fix this layering violation by moving the .inc
+// #includes from AArch64MCTargetDesc.h to here?
+#include "MCTargetDesc/AArch64MCTargetDesc.h" // For AArch64::X0 and friends.
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
 
-// // Enums corresponding to AArch64 condition codes
-namespace A64CC {
-  // The CondCodes constants map directly to the 4-bit encoding of the
-  // condition field for predicated instructions.
-  enum CondCodes {   // Meaning (integer)          Meaning (floating-point)
-    EQ = 0,        // Equal                      Equal
-    NE,            // Not equal                  Not equal, or unordered
-    HS,            // Unsigned higher or same    >, ==, or unordered
-    LO,            // Unsigned lower or same     Less than
-    MI,            // Minus, negative            Less than
-    PL,            // Plus, positive or zero     >, ==, or unordered
-    VS,            // Overflow                   Unordered
-    VC,            // No overflow                Ordered
-    HI,            // Unsigned higher            Greater than, or unordered
-    LS,            // Unsigned lower or same     Less than or equal
-    GE,            // Greater than or equal      Greater than or equal
-    LT,            // Less than                  Less than, or unordered
-    GT,            // Signed greater than        Greater than
-    LE,            // Signed less than or equal  <, ==, or unordered
-    AL,            // Always (unconditional)     Always (unconditional)
-    NV,             // Always (unconditional)     Always (unconditional)
-    // Note the NV exists purely to disassemble 0b1111. Execution
-    // is "always".
-    Invalid
-  };
+inline static unsigned getWRegFromXReg(unsigned Reg) {
+  switch (Reg) {
+  case AArch64::X0: return AArch64::W0;
+  case AArch64::X1: return AArch64::W1;
+  case AArch64::X2: return AArch64::W2;
+  case AArch64::X3: return AArch64::W3;
+  case AArch64::X4: return AArch64::W4;
+  case AArch64::X5: return AArch64::W5;
+  case AArch64::X6: return AArch64::W6;
+  case AArch64::X7: return AArch64::W7;
+  case AArch64::X8: return AArch64::W8;
+  case AArch64::X9: return AArch64::W9;
+  case AArch64::X10: return AArch64::W10;
+  case AArch64::X11: return AArch64::W11;
+  case AArch64::X12: return AArch64::W12;
+  case AArch64::X13: return AArch64::W13;
+  case AArch64::X14: return AArch64::W14;
+  case AArch64::X15: return AArch64::W15;
+  case AArch64::X16: return AArch64::W16;
+  case AArch64::X17: return AArch64::W17;
+  case AArch64::X18: return AArch64::W18;
+  case AArch64::X19: return AArch64::W19;
+  case AArch64::X20: return AArch64::W20;
+  case AArch64::X21: return AArch64::W21;
+  case AArch64::X22: return AArch64::W22;
+  case AArch64::X23: return AArch64::W23;
+  case AArch64::X24: return AArch64::W24;
+  case AArch64::X25: return AArch64::W25;
+  case AArch64::X26: return AArch64::W26;
+  case AArch64::X27: return AArch64::W27;
+  case AArch64::X28: return AArch64::W28;
+  case AArch64::FP: return AArch64::W29;
+  case AArch64::LR: return AArch64::W30;
+  case AArch64::SP: return AArch64::WSP;
+  case AArch64::XZR: return AArch64::WZR;
+  }
+  // For anything else, return it unchanged.
+  return Reg;
+}
 
-} // namespace A64CC
+inline static unsigned getXRegFromWReg(unsigned Reg) {
+  switch (Reg) {
+  case AArch64::W0: return AArch64::X0;
+  case AArch64::W1: return AArch64::X1;
+  case AArch64::W2: return AArch64::X2;
+  case AArch64::W3: return AArch64::X3;
+  case AArch64::W4: return AArch64::X4;
+  case AArch64::W5: return AArch64::X5;
+  case AArch64::W6: return AArch64::X6;
+  case AArch64::W7: return AArch64::X7;
+  case AArch64::W8: return AArch64::X8;
+  case AArch64::W9: return AArch64::X9;
+  case AArch64::W10: return AArch64::X10;
+  case AArch64::W11: return AArch64::X11;
+  case AArch64::W12: return AArch64::X12;
+  case AArch64::W13: return AArch64::X13;
+  case AArch64::W14: return AArch64::X14;
+  case AArch64::W15: return AArch64::X15;
+  case AArch64::W16: return AArch64::X16;
+  case AArch64::W17: return AArch64::X17;
+  case AArch64::W18: return AArch64::X18;
+  case AArch64::W19: return AArch64::X19;
+  case AArch64::W20: return AArch64::X20;
+  case AArch64::W21: return AArch64::X21;
+  case AArch64::W22: return AArch64::X22;
+  case AArch64::W23: return AArch64::X23;
+  case AArch64::W24: return AArch64::X24;
+  case AArch64::W25: return AArch64::X25;
+  case AArch64::W26: return AArch64::X26;
+  case AArch64::W27: return AArch64::X27;
+  case AArch64::W28: return AArch64::X28;
+  case AArch64::W29: return AArch64::FP;
+  case AArch64::W30: return AArch64::LR;
+  case AArch64::WSP: return AArch64::SP;
+  case AArch64::WZR: return AArch64::XZR;
+  }
+  // For anything else, return it unchanged.
+  return Reg;
+}
 
-inline static const char *A64CondCodeToString(A64CC::CondCodes CC) {
-  switch (CC) {
+static inline unsigned getBRegFromDReg(unsigned Reg) {
+  switch (Reg) {
+  case AArch64::D0:  return AArch64::B0;
+  case AArch64::D1:  return AArch64::B1;
+  case AArch64::D2:  return AArch64::B2;
+  case AArch64::D3:  return AArch64::B3;
+  case AArch64::D4:  return AArch64::B4;
+  case AArch64::D5:  return AArch64::B5;
+  case AArch64::D6:  return AArch64::B6;
+  case AArch64::D7:  return AArch64::B7;
+  case AArch64::D8:  return AArch64::B8;
+  case AArch64::D9:  return AArch64::B9;
+  case AArch64::D10: return AArch64::B10;
+  case AArch64::D11: return AArch64::B11;
+  case AArch64::D12: return AArch64::B12;
+  case AArch64::D13: return AArch64::B13;
+  case AArch64::D14: return AArch64::B14;
+  case AArch64::D15: return AArch64::B15;
+  case AArch64::D16: return AArch64::B16;
+  case AArch64::D17: return AArch64::B17;
+  case AArch64::D18: return AArch64::B18;
+  case AArch64::D19: return AArch64::B19;
+  case AArch64::D20: return AArch64::B20;
+  case AArch64::D21: return AArch64::B21;
+  case AArch64::D22: return AArch64::B22;
+  case AArch64::D23: return AArch64::B23;
+  case AArch64::D24: return AArch64::B24;
+  case AArch64::D25: return AArch64::B25;
+  case AArch64::D26: return AArch64::B26;
+  case AArch64::D27: return AArch64::B27;
+  case AArch64::D28: return AArch64::B28;
+  case AArch64::D29: return AArch64::B29;
+  case AArch64::D30: return AArch64::B30;
+  case AArch64::D31: return AArch64::B31;
+  }
+  // For anything else, return it unchanged.
+  return Reg;
+}
+
+
+static inline unsigned getDRegFromBReg(unsigned Reg) {
+  switch (Reg) {
+  case AArch64::B0:  return AArch64::D0;
+  case AArch64::B1:  return AArch64::D1;
+  case AArch64::B2:  return AArch64::D2;
+  case AArch64::B3:  return AArch64::D3;
+  case AArch64::B4:  return AArch64::D4;
+  case AArch64::B5:  return AArch64::D5;
+  case AArch64::B6:  return AArch64::D6;
+  case AArch64::B7:  return AArch64::D7;
+  case AArch64::B8:  return AArch64::D8;
+  case AArch64::B9:  return AArch64::D9;
+  case AArch64::B10: return AArch64::D10;
+  case AArch64::B11: return AArch64::D11;
+  case AArch64::B12: return AArch64::D12;
+  case AArch64::B13: return AArch64::D13;
+  case AArch64::B14: return AArch64::D14;
+  case AArch64::B15: return AArch64::D15;
+  case AArch64::B16: return AArch64::D16;
+  case AArch64::B17: return AArch64::D17;
+  case AArch64::B18: return AArch64::D18;
+  case AArch64::B19: return AArch64::D19;
+  case AArch64::B20: return AArch64::D20;
+  case AArch64::B21: return AArch64::D21;
+  case AArch64::B22: return AArch64::D22;
+  case AArch64::B23: return AArch64::D23;
+  case AArch64::B24: return AArch64::D24;
+  case AArch64::B25: return AArch64::D25;
+  case AArch64::B26: return AArch64::D26;
+  case AArch64::B27: return AArch64::D27;
+  case AArch64::B28: return AArch64::D28;
+  case AArch64::B29: return AArch64::D29;
+  case AArch64::B30: return AArch64::D30;
+  case AArch64::B31: return AArch64::D31;
+  }
+  // For anything else, return it unchanged.
+  return Reg;
+}
+
+namespace AArch64CC {
+
+// The CondCodes constants map directly to the 4-bit encoding of the condition
+// field for predicated instructions.
+enum CondCode {  // Meaning (integer)          Meaning (floating-point)
+  EQ = 0x0,      // Equal                      Equal
+  NE = 0x1,      // Not equal                  Not equal, or unordered
+  HS = 0x2,      // Unsigned higher or same    >, ==, or unordered
+  LO = 0x3,      // Unsigned lower             Less than
+  MI = 0x4,      // Minus, negative            Less than
+  PL = 0x5,      // Plus, positive or zero     >, ==, or unordered
+  VS = 0x6,      // Overflow                   Unordered
+  VC = 0x7,      // No overflow                Not unordered
+  HI = 0x8,      // Unsigned higher            Greater than, or unordered
+  LS = 0x9,      // Unsigned lower or same     Less than or equal
+  GE = 0xa,      // Greater than or equal      Greater than or equal
+  LT = 0xb,      // Less than                  Less than, or unordered
+  GT = 0xc,      // Greater than               Greater than
+  LE = 0xd,      // Less than or equal         <, ==, or unordered
+  AL = 0xe,      // Always (unconditional)     Always (unconditional)
+  NV = 0xf,      // Always (unconditional)     Always (unconditional)
+  // Note the NV exists purely to disassemble 0b1111. Execution is "always".
+  Invalid
+};
+
+inline static const char *getCondCodeName(CondCode Code) {
+  switch (Code) {
   default: llvm_unreachable("Unknown condition code");
-  case A64CC::EQ:  return "eq";
-  case A64CC::NE:  return "ne";
-  case A64CC::HS:  return "hs";
-  case A64CC::LO:  return "lo";
-  case A64CC::MI:  return "mi";
-  case A64CC::PL:  return "pl";
-  case A64CC::VS:  return "vs";
-  case A64CC::VC:  return "vc";
-  case A64CC::HI:  return "hi";
-  case A64CC::LS:  return "ls";
-  case A64CC::GE:  return "ge";
-  case A64CC::LT:  return "lt";
-  case A64CC::GT:  return "gt";
-  case A64CC::LE:  return "le";
-  case A64CC::AL:  return "al";
-  case A64CC::NV:  return "nv";
+  case EQ:  return "eq";
+  case NE:  return "ne";
+  case HS:  return "hs";
+  case LO:  return "lo";
+  case MI:  return "mi";
+  case PL:  return "pl";
+  case VS:  return "vs";
+  case VC:  return "vc";
+  case HI:  return "hi";
+  case LS:  return "ls";
+  case GE:  return "ge";
+  case LT:  return "lt";
+  case GT:  return "gt";
+  case LE:  return "le";
+  case AL:  return "al";
+  case NV:  return "nv";
   }
 }
 
-inline static A64CC::CondCodes A64StringToCondCode(StringRef CondStr) {
-  return StringSwitch<A64CC::CondCodes>(CondStr.lower())
-             .Case("eq", A64CC::EQ)
-             .Case("ne", A64CC::NE)
-             .Case("ne", A64CC::NE)
-             .Case("hs", A64CC::HS)
-             .Case("cs", A64CC::HS)
-             .Case("lo", A64CC::LO)
-             .Case("cc", A64CC::LO)
-             .Case("mi", A64CC::MI)
-             .Case("pl", A64CC::PL)
-             .Case("vs", A64CC::VS)
-             .Case("vc", A64CC::VC)
-             .Case("hi", A64CC::HI)
-             .Case("ls", A64CC::LS)
-             .Case("ge", A64CC::GE)
-             .Case("lt", A64CC::LT)
-             .Case("gt", A64CC::GT)
-             .Case("le", A64CC::LE)
-             .Case("al", A64CC::AL)
-             .Case("nv", A64CC::NV)
-             .Default(A64CC::Invalid);
+inline static CondCode getInvertedCondCode(CondCode Code) {
+  // To reverse a condition it's necessary to only invert the low bit:
+
+  return static_cast<CondCode>(static_cast<unsigned>(Code) ^ 0x1);
 }
 
-inline static A64CC::CondCodes A64InvertCondCode(A64CC::CondCodes CC) {
-  // It turns out that the condition codes have been designed so that in order
-  // to reverse the intent of the condition you only have to invert the low bit:
-
-  return static_cast<A64CC::CondCodes>(static_cast<unsigned>(CC) ^ 0x1);
+/// Given a condition code, return NZCV flags that would satisfy that condition.
+/// The flag bits are in the format expected by the ccmp instructions.
+/// Note that many different flag settings can satisfy a given condition code,
+/// this function just returns one of them.
+inline static unsigned getNZCVToSatisfyCondCode(CondCode Code) {
+  // NZCV flags encoded as expected by ccmp instructions, ARMv8 ISA 5.5.7.
+  enum { N = 8, Z = 4, C = 2, V = 1 };
+  switch (Code) {
+  default: llvm_unreachable("Unknown condition code");
+  case EQ: return Z; // Z == 1
+  case NE: return 0; // Z == 0
+  case HS: return C; // C == 1
+  case LO: return 0; // C == 0
+  case MI: return N; // N == 1
+  case PL: return 0; // N == 0
+  case VS: return V; // V == 1
+  case VC: return 0; // V == 0
+  case HI: return C; // C == 1 && Z == 0
+  case LS: return 0; // C == 0 || Z == 1
+  case GE: return 0; // N == V
+  case LT: return N; // N != V
+  case GT: return 0; // Z == 0 && N == V
+  case LE: return Z; // Z == 1 || N != V
+  }
 }
+} // end namespace AArch64CC
 
 /// Instances of this class can perform bidirectional mapping from random
 /// identifier strings to operand encodings. For example "MSR" takes a named
@@ -115,14 +276,14 @@ inline static A64CC::CondCodes A64InvertCondCode(A64CC::CondCodes CC) {
 /// out just how often these instructions are emitted before working on it. It
 /// might even be optimal to just reorder the tables for the common instructions
 /// rather than changing the algorithm.
-struct NamedImmMapper {
+struct AArch64NamedImmMapper {
   struct Mapping {
     const char *Name;
     uint32_t Value;
   };
 
   template<int N>
-  NamedImmMapper(const Mapping (&Pairs)[N], uint32_t TooBigImm)
+  AArch64NamedImmMapper(const Mapping (&Pairs)[N], uint32_t TooBigImm)
     : Pairs(&Pairs[0]), NumPairs(N), TooBigImm(TooBigImm) {}
 
   StringRef toString(uint32_t Value, bool &Valid) const;
@@ -138,7 +299,7 @@ protected:
   uint32_t TooBigImm;
 };
 
-namespace A64AT {
+namespace AArch64AT {
   enum ATValues {
     Invalid = -1,    // Op0 Op1  CRn   CRm   Op2
     S1E1R = 0x43c0,  // 01  000  0111  1000  000
@@ -155,14 +316,14 @@ namespace A64AT {
     S12E0W = 0x63c7  // 01  100  0111  1000  111
   };
 
-  struct ATMapper : NamedImmMapper {
+  struct ATMapper : AArch64NamedImmMapper {
     const static Mapping ATPairs[];
 
     ATMapper();
   };
 
 }
-namespace A64DB {
+namespace AArch64DB {
   enum DBValues {
     Invalid = -1,
     OSHLD = 0x1,
@@ -179,14 +340,14 @@ namespace A64DB {
     SY =    0xf
   };
 
-  struct DBarrierMapper : NamedImmMapper {
+  struct DBarrierMapper : AArch64NamedImmMapper {
     const static Mapping DBarrierPairs[];
 
     DBarrierMapper();
   };
 }
 
-namespace  A64DC {
+namespace  AArch64DC {
   enum DCValues {
     Invalid = -1,   // Op1  CRn   CRm   Op2
     ZVA   = 0x5ba1, // 01  011  0111  0100  001
@@ -199,7 +360,7 @@ namespace  A64DC {
     CISW  = 0x43f2  // 01  000  0111  1110  010
   };
 
-  struct DCMapper : NamedImmMapper {
+  struct DCMapper : AArch64NamedImmMapper {
     const static Mapping DCPairs[];
 
     DCMapper();
@@ -207,7 +368,7 @@ namespace  A64DC {
 
 }
 
-namespace  A64IC {
+namespace  AArch64IC {
   enum ICValues {
     Invalid = -1,     // Op1  CRn   CRm   Op2
     IALLUIS = 0x0388, // 000  0111  0001  000
@@ -216,7 +377,7 @@ namespace  A64IC {
   };
 
 
-  struct ICMapper : NamedImmMapper {
+  struct ICMapper : AArch64NamedImmMapper {
     const static Mapping ICPairs[];
 
     ICMapper();
@@ -227,19 +388,19 @@ namespace  A64IC {
   }
 }
 
-namespace  A64ISB {
+namespace  AArch64ISB {
   enum ISBValues {
     Invalid = -1,
     SY = 0xf
   };
-  struct ISBMapper : NamedImmMapper {
+  struct ISBMapper : AArch64NamedImmMapper {
     const static Mapping ISBPairs[];
 
     ISBMapper();
   };
 }
 
-namespace A64PRFM {
+namespace AArch64PRFM {
   enum PRFMValues {
     Invalid = -1,
     PLDL1KEEP = 0x00,
@@ -262,14 +423,14 @@ namespace A64PRFM {
     PSTL3STRM = 0x15
   };
 
-  struct PRFMMapper : NamedImmMapper {
+  struct PRFMMapper : AArch64NamedImmMapper {
     const static Mapping PRFMPairs[];
 
     PRFMMapper();
   };
 }
 
-namespace A64PState {
+namespace AArch64PState {
   enum PStateValues {
     Invalid = -1,
     SPSel = 0x05,
@@ -277,7 +438,7 @@ namespace A64PState {
     DAIFClr = 0x1f
   };
 
-  struct PStateMapper : NamedImmMapper {
+  struct PStateMapper : AArch64NamedImmMapper {
     const static Mapping PStatePairs[];
 
     PStateMapper();
@@ -285,7 +446,7 @@ namespace A64PState {
 
 }
 
-namespace A64SE {
+namespace AArch64SE {
     enum ShiftExtSpecifiers {
         Invalid = -1,
         LSL,
@@ -306,7 +467,7 @@ namespace A64SE {
     };
 }
 
-namespace A64Layout {
+namespace AArch64Layout {
     enum VectorLayout {
         Invalid = -1,
         VL_8B,
@@ -329,43 +490,43 @@ namespace A64Layout {
 }
 
 inline static const char *
-A64VectorLayoutToString(A64Layout::VectorLayout Layout) {
+AArch64VectorLayoutToString(AArch64Layout::VectorLayout Layout) {
   switch (Layout) {
-  case A64Layout::VL_8B:  return ".8b";
-  case A64Layout::VL_4H:  return ".4h";
-  case A64Layout::VL_2S:  return ".2s";
-  case A64Layout::VL_1D:  return ".1d";
-  case A64Layout::VL_16B:  return ".16b";
-  case A64Layout::VL_8H:  return ".8h";
-  case A64Layout::VL_4S:  return ".4s";
-  case A64Layout::VL_2D:  return ".2d";
-  case A64Layout::VL_B:  return ".b";
-  case A64Layout::VL_H:  return ".h";
-  case A64Layout::VL_S:  return ".s";
-  case A64Layout::VL_D:  return ".d";
+  case AArch64Layout::VL_8B:  return ".8b";
+  case AArch64Layout::VL_4H:  return ".4h";
+  case AArch64Layout::VL_2S:  return ".2s";
+  case AArch64Layout::VL_1D:  return ".1d";
+  case AArch64Layout::VL_16B:  return ".16b";
+  case AArch64Layout::VL_8H:  return ".8h";
+  case AArch64Layout::VL_4S:  return ".4s";
+  case AArch64Layout::VL_2D:  return ".2d";
+  case AArch64Layout::VL_B:  return ".b";
+  case AArch64Layout::VL_H:  return ".h";
+  case AArch64Layout::VL_S:  return ".s";
+  case AArch64Layout::VL_D:  return ".d";
   default: llvm_unreachable("Unknown Vector Layout");
   }
 }
 
-inline static A64Layout::VectorLayout
-A64StringToVectorLayout(StringRef LayoutStr) {
-  return StringSwitch<A64Layout::VectorLayout>(LayoutStr)
-             .Case(".8b", A64Layout::VL_8B)
-             .Case(".4h", A64Layout::VL_4H)
-             .Case(".2s", A64Layout::VL_2S)
-             .Case(".1d", A64Layout::VL_1D)
-             .Case(".16b", A64Layout::VL_16B)
-             .Case(".8h", A64Layout::VL_8H)
-             .Case(".4s", A64Layout::VL_4S)
-             .Case(".2d", A64Layout::VL_2D)
-             .Case(".b", A64Layout::VL_B)
-             .Case(".h", A64Layout::VL_H)
-             .Case(".s", A64Layout::VL_S)
-             .Case(".d", A64Layout::VL_D)
-             .Default(A64Layout::Invalid);
+inline static AArch64Layout::VectorLayout
+AArch64StringToVectorLayout(StringRef LayoutStr) {
+  return StringSwitch<AArch64Layout::VectorLayout>(LayoutStr)
+             .Case(".8b", AArch64Layout::VL_8B)
+             .Case(".4h", AArch64Layout::VL_4H)
+             .Case(".2s", AArch64Layout::VL_2S)
+             .Case(".1d", AArch64Layout::VL_1D)
+             .Case(".16b", AArch64Layout::VL_16B)
+             .Case(".8h", AArch64Layout::VL_8H)
+             .Case(".4s", AArch64Layout::VL_4S)
+             .Case(".2d", AArch64Layout::VL_2D)
+             .Case(".b", AArch64Layout::VL_B)
+             .Case(".h", AArch64Layout::VL_H)
+             .Case(".s", AArch64Layout::VL_S)
+             .Case(".d", AArch64Layout::VL_D)
+             .Default(AArch64Layout::Invalid);
 }
 
-namespace A64SysReg {
+namespace AArch64SysReg {
   enum SysRegROValues {
     MDCCSR_EL0        = 0x9808, // 10  011  0000  0001  000
     DBGDTRRX_EL0      = 0x9828, // 10  011  0000  0101  000
@@ -396,16 +557,16 @@ namespace A64SysReg {
     ID_ISAR3_EL1      = 0xc013, // 11  000  0000  0010  011
     ID_ISAR4_EL1      = 0xc014, // 11  000  0000  0010  100
     ID_ISAR5_EL1      = 0xc015, // 11  000  0000  0010  101
-    ID_AA64PFR0_EL1   = 0xc020, // 11  000  0000  0100  000
-    ID_AA64PFR1_EL1   = 0xc021, // 11  000  0000  0100  001
-    ID_AA64DFR0_EL1   = 0xc028, // 11  000  0000  0101  000
-    ID_AA64DFR1_EL1   = 0xc029, // 11  000  0000  0101  001
-    ID_AA64AFR0_EL1   = 0xc02c, // 11  000  0000  0101  100
-    ID_AA64AFR1_EL1   = 0xc02d, // 11  000  0000  0101  101
-    ID_AA64ISAR0_EL1  = 0xc030, // 11  000  0000  0110  000
-    ID_AA64ISAR1_EL1  = 0xc031, // 11  000  0000  0110  001
-    ID_AA64MMFR0_EL1  = 0xc038, // 11  000  0000  0111  000
-    ID_AA64MMFR1_EL1  = 0xc039, // 11  000  0000  0111  001
+    ID_A64PFR0_EL1    = 0xc020, // 11  000  0000  0100  000
+    ID_A64PFR1_EL1    = 0xc021, // 11  000  0000  0100  001
+    ID_A64DFR0_EL1    = 0xc028, // 11  000  0000  0101  000
+    ID_A64DFR1_EL1    = 0xc029, // 11  000  0000  0101  001
+    ID_A64AFR0_EL1    = 0xc02c, // 11  000  0000  0101  100
+    ID_A64AFR1_EL1    = 0xc02d, // 11  000  0000  0101  101
+    ID_A64ISAR0_EL1   = 0xc030, // 11  000  0000  0110  000
+    ID_A64ISAR1_EL1   = 0xc031, // 11  000  0000  0110  001
+    ID_A64MMFR0_EL1   = 0xc038, // 11  000  0000  0111  000
+    ID_A64MMFR1_EL1   = 0xc039, // 11  000  0000  0111  001
     MVFR0_EL1         = 0xc018, // 11  000  0000  0011  000
     MVFR1_EL1         = 0xc019, // 11  000  0000  0011  001
     MVFR2_EL1         = 0xc01a, // 11  000  0000  0011  010
@@ -960,38 +1121,45 @@ namespace A64SysReg {
     ICH_LR12_EL2      = 0xe66c, // 11  100  1100  1101  100
     ICH_LR13_EL2      = 0xe66d, // 11  100  1100  1101  101
     ICH_LR14_EL2      = 0xe66e, // 11  100  1100  1101  110
-    ICH_LR15_EL2      = 0xe66f  // 11  100  1100  1101  111
+    ICH_LR15_EL2      = 0xe66f, // 11  100  1100  1101  111
   };
 
-  // Note that these do not inherit from NamedImmMapper. This class is
+  // Cyclone specific system registers
+  enum CycloneSysRegValues {
+    CPM_IOACC_CTL_EL3 = 0xff90
+  };
+
+  // Note that these do not inherit from AArch64NamedImmMapper. This class is
   // sufficiently different in its behaviour that I don't believe it's worth
-  // burdening the common NamedImmMapper with abstractions only needed in
+  // burdening the common AArch64NamedImmMapper with abstractions only needed in
   // this one case.
   struct SysRegMapper {
-    static const NamedImmMapper::Mapping SysRegPairs[];
+    static const AArch64NamedImmMapper::Mapping SysRegPairs[];
+    static const AArch64NamedImmMapper::Mapping CycloneSysRegPairs[];
 
-    const NamedImmMapper::Mapping *InstPairs;
+    const AArch64NamedImmMapper::Mapping *InstPairs;
     size_t NumInstPairs;
+    uint64_t FeatureBits;
 
-    SysRegMapper() {}
+    SysRegMapper(uint64_t FeatureBits) : FeatureBits(FeatureBits) { }
     uint32_t fromString(StringRef Name, bool &Valid) const;
-    std::string toString(uint32_t Bits, bool &Valid) const;
+    std::string toString(uint32_t Bits) const;
   };
 
   struct MSRMapper : SysRegMapper {
-    static const NamedImmMapper::Mapping MSRPairs[];
-    MSRMapper();
+    static const AArch64NamedImmMapper::Mapping MSRPairs[];
+    MSRMapper(uint64_t FeatureBits);
   };
 
   struct MRSMapper : SysRegMapper {
-    static const NamedImmMapper::Mapping MRSPairs[];
-    MRSMapper();
+    static const AArch64NamedImmMapper::Mapping MRSPairs[];
+    MRSMapper(uint64_t FeatureBits);
   };
 
   uint32_t ParseGenericRegister(StringRef Name, bool &Valid);
 }
 
-namespace A64TLBI {
+namespace AArch64TLBI {
   enum TLBIValues {
     Invalid = -1,          // Op0 Op1  CRn   CRm   Op2
     IPAS2E1IS    = 0x6401, // 01  100  1000  0000  001
@@ -1028,7 +1196,7 @@ namespace A64TLBI {
     VAALE1       = 0x443f  // 01  000  1000  0111  111
   };
 
-  struct TLBIMapper : NamedImmMapper {
+  struct TLBIMapper : AArch64NamedImmMapper {
     const static Mapping TLBIPairs[];
 
     TLBIMapper();
@@ -1051,88 +1219,72 @@ namespace A64TLBI {
       return true;
     }
   }
-}
+} 
 
 namespace AArch64II {
-
+  /// Target Operand Flag enum.
   enum TOF {
-    //===--------------------------------------------------------------===//
+    //===------------------------------------------------------------------===//
     // AArch64 Specific MachineOperand flags.
 
     MO_NO_FLAG,
 
-    // MO_GOT - Represents a relocation referring to the GOT entry of a given
-    // symbol. Used in adrp.
-    MO_GOT,
+    MO_FRAGMENT = 0xf,
 
-    // MO_GOT_LO12 - Represents a relocation referring to the low 12 bits of the
-    // GOT entry of a given symbol. Used in ldr only.
-    MO_GOT_LO12,
+    /// MO_PAGE - A symbol operand with this flag represents the pc-relative
+    /// offset of the 4K page containing the symbol.  This is used with the
+    /// ADRP instruction.
+    MO_PAGE = 1,
 
-    // MO_DTPREL_* - Represents a relocation referring to the offset from a
-    // module's dynamic thread pointer. Used in the local-dynamic TLS access
-    // model.
-    MO_DTPREL_G1,
-    MO_DTPREL_G0_NC,
+    /// MO_PAGEOFF - A symbol operand with this flag represents the offset of
+    /// that symbol within a 4K page.  This offset is added to the page address
+    /// to produce the complete address.
+    MO_PAGEOFF = 2,
 
-    // MO_GOTTPREL_* - Represents a relocation referring to a GOT entry
-    // providing the offset of a variable from the thread-pointer. Used in
-    // initial-exec TLS model where this offset is assigned in the static thread
-    // block and thus known by the dynamic linker.
-    MO_GOTTPREL,
-    MO_GOTTPREL_LO12,
+    /// MO_G3 - A symbol operand with this flag (granule 3) represents the high
+    /// 16-bits of a 64-bit address, used in a MOVZ or MOVK instruction
+    MO_G3 = 3,
 
-    // MO_TLSDESC_* - Represents a relocation referring to a GOT entry providing
-    // a TLS descriptor chosen by the dynamic linker. Used for the
-    // general-dynamic and local-dynamic TLS access models where very littls is
-    // known at link-time.
-    MO_TLSDESC,
-    MO_TLSDESC_LO12,
+    /// MO_G2 - A symbol operand with this flag (granule 2) represents the bits
+    /// 32-47 of a 64-bit address, used in a MOVZ or MOVK instruction
+    MO_G2 = 4,
 
-    // MO_TPREL_* - Represents a relocation referring to the offset of a
-    // variable from the thread pointer itself. Used in the local-exec TLS
-    // access model.
-    MO_TPREL_G1,
-    MO_TPREL_G0_NC,
+    /// MO_G1 - A symbol operand with this flag (granule 1) represents the bits
+    /// 16-31 of a 64-bit address, used in a MOVZ or MOVK instruction
+    MO_G1 = 5,
 
-    // MO_LO12 - On a symbol operand, this represents a relocation containing
-    // lower 12 bits of the address. Used in add/sub/ldr/str.
-    MO_LO12,
+    /// MO_G0 - A symbol operand with this flag (granule 0) represents the bits
+    /// 0-15 of a 64-bit address, used in a MOVZ or MOVK instruction
+    MO_G0 = 6,
 
-    // MO_ABS_G* - Represent the 16-bit granules of an absolute reference using
-    // movz/movk instructions.
-    MO_ABS_G3,
-    MO_ABS_G2_NC,
-    MO_ABS_G1_NC,
-    MO_ABS_G0_NC
+    /// MO_HI12 - This flag indicates that a symbol operand represents the bits
+    /// 13-24 of a 64-bit address, used in a arithmetic immediate-shifted-left-
+    /// by-12-bits instruction.
+    MO_HI12 = 7,
+
+    /// MO_GOT - This flag indicates that a symbol operand represents the
+    /// address of the GOT entry for the symbol, rather than the address of
+    /// the symbol itself.
+    MO_GOT = 0x10,
+
+    /// MO_NC - Indicates whether the linker is expected to check the symbol
+    /// reference for overflow. For example in an ADRP/ADD pair of relocations
+    /// the ADRP usually does check, but not the ADD.
+    MO_NC = 0x20,
+
+    /// MO_TLS - Indicates that the operand being accessed is some kind of
+    /// thread-local symbol. On Darwin, only one type of thread-local access
+    /// exists (pre linker-relaxation), but on ELF the TLSModel used for the
+    /// referee will affect interpretation.
+    MO_TLS = 0x40,
+
+    /// MO_CONSTPOOL - This flag indicates that a symbol operand represents
+    /// the address of a constant pool entry for the symbol, rather than the
+    /// address of the symbol itself.
+    MO_CONSTPOOL = 0x80
   };
-}
+} // end namespace AArch64II
 
-class APFloat;
-
-namespace A64Imms {
-  bool isFPImm(const APFloat &Val, uint32_t &Imm8Bits);
-
-  inline bool isFPImm(const APFloat &Val) {
-    uint32_t Imm8;
-    return isFPImm(Val, Imm8);
-  }
-
-  bool isLogicalImm(unsigned RegWidth, uint64_t Imm, uint32_t &Bits);
-  bool isLogicalImmBits(unsigned RegWidth, uint32_t Bits, uint64_t &Imm);
-
-  bool isMOVZImm(int RegWidth, uint64_t Value, int &UImm16, int &Shift);
-  bool isMOVNImm(int RegWidth, uint64_t Value, int &UImm16, int &Shift);
-
-  // We sometimes want to know whether the immediate is representable with a
-  // MOVN but *not* with a MOVZ (because that would take priority).
-  bool isOnlyMOVNImm(int RegWidth, uint64_t Value, int &UImm16, int &Shift);
-
-  uint64_t decodeNeonModImm(unsigned Val, unsigned OpCmode, unsigned &EltBits);
-  bool decodeNeonModShiftImm(unsigned OpCmode, unsigned &ShiftImm,
-                             unsigned &ShiftOnesIn);
-  }
-
-} // end namespace llvm;
+} // end namespace llvm
 
 #endif

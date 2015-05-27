@@ -250,9 +250,9 @@ test_evfilt_write(int kq, int fd[2], const char *socktype)
  * sockets, and confirm that we can register for various events on them.
  */
 int
-main(int argc, char *argv[])
+main(void)
 {
-	int i, kq, sv[2];
+	int kq, sv[2];
 
 	printf("1..49\n");
 

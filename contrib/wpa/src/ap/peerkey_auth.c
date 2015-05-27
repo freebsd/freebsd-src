@@ -79,15 +79,15 @@ static void wpa_smk_send_error(struct wpa_authenticator *wpa_auth,
 
 
 void wpa_smk_m1(struct wpa_authenticator *wpa_auth,
-		struct wpa_state_machine *sm, struct wpa_eapol_key *key)
+		struct wpa_state_machine *sm, struct wpa_eapol_key *key,
+		const u8 *key_data, size_t key_data_len)
 {
 	struct wpa_eapol_ie_parse kde;
 	struct wpa_stsl_search search;
 	u8 *buf, *pos;
 	size_t buf_len;
 
-	if (wpa_parse_kde_ies((const u8 *) (key + 1),
-			      WPA_GET_BE16(key->key_data_length), &kde) < 0) {
+	if (wpa_parse_kde_ies(key_data, key_data_len, &kde) < 0) {
 		wpa_printf(MSG_INFO, "RSN: Failed to parse KDEs in SMK M1");
 		return;
 	}
@@ -221,8 +221,8 @@ static void wpa_send_smk_m5(struct wpa_authenticator *wpa_auth,
 		return;
 
 	/* Peer RSN IE */
-	os_memcpy(buf, kde->rsn_ie, kde->rsn_ie_len);
-	pos = buf + kde->rsn_ie_len;
+	os_memcpy(pos, kde->rsn_ie, kde->rsn_ie_len);
+	pos += kde->rsn_ie_len;
 
 	/* Peer MAC Address */
 	pos = wpa_add_kde(pos, RSN_KEY_DATA_MAC_ADDR, peer, ETH_ALEN, NULL, 0);
@@ -253,14 +253,14 @@ static void wpa_send_smk_m5(struct wpa_authenticator *wpa_auth,
 
 
 void wpa_smk_m3(struct wpa_authenticator *wpa_auth,
-		struct wpa_state_machine *sm, struct wpa_eapol_key *key)
+		struct wpa_state_machine *sm, struct wpa_eapol_key *key,
+		const u8 *key_data, size_t key_data_len)
 {
 	struct wpa_eapol_ie_parse kde;
 	struct wpa_stsl_search search;
 	u8 smk[32], buf[ETH_ALEN + 8 + 2 * WPA_NONCE_LEN], *pos;
 
-	if (wpa_parse_kde_ies((const u8 *) (key + 1),
-			      WPA_GET_BE16(key->key_data_length), &kde) < 0) {
+	if (wpa_parse_kde_ies(key_data, key_data_len, &kde) < 0) {
 		wpa_printf(MSG_INFO, "RSN: Failed to parse KDEs in SMK M3");
 		return;
 	}
@@ -324,15 +324,15 @@ void wpa_smk_m3(struct wpa_authenticator *wpa_auth,
 
 
 void wpa_smk_error(struct wpa_authenticator *wpa_auth,
-		   struct wpa_state_machine *sm, struct wpa_eapol_key *key)
+		   struct wpa_state_machine *sm,
+		   const u8 *key_data, size_t key_data_len)
 {
 	struct wpa_eapol_ie_parse kde;
 	struct wpa_stsl_search search;
 	struct rsn_error_kde error;
 	u16 mui, error_type;
 
-	if (wpa_parse_kde_ies((const u8 *) (key + 1),
-			      WPA_GET_BE16(key->key_data_length), &kde) < 0) {
+	if (wpa_parse_kde_ies(key_data, key_data_len, &kde) < 0) {
 		wpa_printf(MSG_INFO, "RSN: Failed to parse KDEs in SMK Error");
 		return;
 	}

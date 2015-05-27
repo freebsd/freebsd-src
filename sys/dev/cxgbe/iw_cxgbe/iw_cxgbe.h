@@ -864,7 +864,7 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
 					int page_list_len);
 struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length, u64
     virt, int acc, struct ib_udata *udata, int mr_id);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
@@ -881,8 +881,7 @@ int c4iw_reregister_phys_mem(struct ib_mr *mr,
 				     int acc, u64 *iova_start);
 int c4iw_dereg_mr(struct ib_mr *ib_mr);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
-struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
-					int vector,
+struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, struct ib_cq_init_attr *attr,
 					struct ib_ucontext *ib_context,
 					struct ib_udata *udata);
 int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata);

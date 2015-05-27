@@ -54,13 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-cyclic_clock_func_t	cyclic_clock_func = NULL;
-#endif
-
-int			cpu_can_deep_sleep = 0;	/* C3 state is available. */
-int			cpu_disable_deep_sleep = 0; /* Timer dies in C3. */
+int			cpu_deepest_sleep = 0;	/* Deepest Cx state available. */
+int			cpu_disable_c2_sleep = 0; /* Timer dies in C2. */
+int			cpu_disable_c3_sleep = 0; /* Timer dies in C3. */
 
 static void		setuptimer(void);
 static void		loadtimer(sbintime_t now, int first);
@@ -125,9 +121,6 @@ struct pcpu_state {
 	sbintime_t	nextprof;	/* Next profclock() event. */
 	sbintime_t	nextcall;	/* Next callout event. */
 	sbintime_t	nextcallopt;	/* Next optional callout event. */
-#ifdef KDTRACE_HOOKS
-	sbintime_t	nextcyc;	/* Next OpenSolaris cyclics event. */
-#endif
 	int		ipi;		/* This CPU needs IPI. */
 	int		idle;		/* This CPU is in idle mode. */
 };
@@ -219,13 +212,6 @@ handleevents(sbintime_t now, int fake)
 		callout_process(now);
 	}
 
-#ifdef KDTRACE_HOOKS
-	if (fake == 0 && now >= state->nextcyc && cyclic_clock_func != NULL) {
-		state->nextcyc = SBT_MAX;
-		(*cyclic_clock_func)(frame);
-	}
-#endif
-
 	t = getnextcpuevent(0);
 	ET_HW_LOCK(state);
 	if (!busy) {
@@ -271,10 +257,6 @@ getnextcpuevent(int idle)
 		if (profiling && event > state->nextprof)
 			event = state->nextprof;
 	}
-#ifdef KDTRACE_HOOKS
-	if (event > state->nextcyc)
-		event = state->nextcyc;
-#endif
 	return (event);
 }
 
@@ -595,9 +577,6 @@ cpu_initclocks_bsp(void)
 	CPU_FOREACH(cpu) {
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
-#ifdef KDTRACE_HOOKS
-		state->nextcyc = SBT_MAX;
-#endif
 		state->nextcall = SBT_MAX;
 		state->nextcallopt = SBT_MAX;
 	}
@@ -627,7 +606,7 @@ cpu_initclocks_bsp(void)
 	else if (!periodic && (timer->et_flags & ET_FLAGS_ONESHOT) == 0)
 		periodic = 1;
 	if (timer->et_flags & ET_FLAGS_C3STOP)
-		cpu_disable_deep_sleep++;
+		cpu_disable_c3_sleep++;
 
 	/*
 	 * We honor the requested 'hz' value.
@@ -816,41 +795,6 @@ cpu_et_frequency(struct eventtimer *et, uint64_t newfreq)
 	ET_UNLOCK();
 }
 
-#ifdef KDTRACE_HOOKS
-void
-clocksource_cyc_set(const struct bintime *bt)
-{
-	sbintime_t now, t;
-	struct pcpu_state *state;
-
-	/* Do not touch anything if somebody reconfiguring timers. */
-	if (busy)
-		return;
-	t = bttosbt(*bt);
-	state = DPCPU_PTR(timerstate);
-	if (periodic)
-		now = state->now;
-	else
-		now = sbinuptime();
-
-	CTR5(KTR_SPARE2, "set_cyc at %d:  now  %d.%08x  t  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff),
-	    (int)(t >> 32), (u_int)(t & 0xffffffff));
-
-	ET_HW_LOCK(state);
-	if (t == state->nextcyc)
-		goto done;
-	state->nextcyc = t;
-	if (t >= state->nextevent)
-		goto done;
-	state->nextevent = t;
-	if (!periodic)
-		loadtimer(now, 0);
-done:
-	ET_HW_UNLOCK(state);
-}
-#endif
-
 void
 cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 {
@@ -928,9 +872,9 @@ sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
 	configtimer(0);
 	et_free(timer);
 	if (et->et_flags & ET_FLAGS_C3STOP)
-		cpu_disable_deep_sleep++;
+		cpu_disable_c3_sleep++;
 	if (timer->et_flags & ET_FLAGS_C3STOP)
-		cpu_disable_deep_sleep--;
+		cpu_disable_c3_sleep--;
 	periodic = want_periodic;
 	timer = et;
 	et_init(timer, timercb, NULL, NULL);
@@ -964,3 +908,42 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, periodic,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
+
+#include "opt_ddb.h"
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(clocksource, db_show_clocksource)
+{
+	struct pcpu_state *st;
+	int c;
+
+	CPU_FOREACH(c) {
+		st = DPCPU_ID_PTR(c, timerstate);
+		db_printf(
+		    "CPU %2d: action %d handle %d  ipi %d idle %d\n"
+		    "        now %#jx nevent %#jx (%jd)\n"
+		    "        ntick %#jx (%jd) nhard %#jx (%jd)\n"
+		    "        nstat %#jx (%jd) nprof %#jx (%jd)\n"
+		    "        ncall %#jx (%jd) ncallopt %#jx (%jd)\n",
+		    c, st->action, st->handle, st->ipi, st->idle,
+		    (uintmax_t)st->now,
+		    (uintmax_t)st->nextevent,
+		    (uintmax_t)(st->nextevent - st->now) / tick_sbt,
+		    (uintmax_t)st->nexttick,
+		    (uintmax_t)(st->nexttick - st->now) / tick_sbt,
+		    (uintmax_t)st->nexthard,
+		    (uintmax_t)(st->nexthard - st->now) / tick_sbt,
+		    (uintmax_t)st->nextstat,
+		    (uintmax_t)(st->nextstat - st->now) / tick_sbt,
+		    (uintmax_t)st->nextprof,
+		    (uintmax_t)(st->nextprof - st->now) / tick_sbt,
+		    (uintmax_t)st->nextcall,
+		    (uintmax_t)(st->nextcall - st->now) / tick_sbt,
+		    (uintmax_t)st->nextcallopt,
+		    (uintmax_t)(st->nextcallopt - st->now) / tick_sbt);
+	}
+}
+
+#endif

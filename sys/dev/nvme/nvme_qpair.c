@@ -294,7 +294,7 @@ nvme_qpair_construct_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
     uint16_t cid)
 {
 
-	bus_dmamap_create(qpair->dma_tag, 0, &tr->payload_dma_map);
+	bus_dmamap_create(qpair->dma_tag_payload, 0, &tr->payload_dma_map);
 	bus_dmamap_create(qpair->dma_tag, 0, &tr->prp_dma_map);
 
 	bus_dmamap_load(qpair->dma_tag, tr->prp_dma_map, tr->prp,
@@ -337,7 +337,7 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 		nvme_qpair_submit_tracker(qpair, tr);
 	} else {
 		if (req->type != NVME_REQUEST_NULL)
-			bus_dmamap_unload(qpair->dma_tag,
+			bus_dmamap_unload(qpair->dma_tag_payload,
 			    tr->payload_dma_map);
 
 		nvme_free_request(req);
@@ -464,19 +464,11 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 {
 	struct nvme_tracker	*tr;
 	uint32_t		i;
+	int			err;
 
 	qpair->id = id;
 	qpair->vector = vector;
 	qpair->num_entries = num_entries;
-#ifdef CHATHAM2
-	/*
-	 * Chatham prototype board starts having issues at higher queue
-	 *  depths.  So use a conservative estimate here of no more than 64
-	 *  outstanding I/O per queue at any one point.
-	 */
-	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
-		num_trackers = min(num_trackers, 64);
-#endif
 	qpair->num_trackers = num_trackers;
 	qpair->ctrlr = ctrlr;
 
@@ -497,11 +489,20 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	mtx_init(&qpair->lock, "nvme qpair lock", NULL, MTX_DEF);
 
 	/* Note: NVMe PRP format is restricted to 4-byte alignment. */
-	bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
+	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    4, PAGE_SIZE, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, NVME_MAX_XFER_SIZE,
 	    (NVME_MAX_XFER_SIZE/PAGE_SIZE)+1, PAGE_SIZE, 0,
+	    NULL, NULL, &qpair->dma_tag_payload);
+	if (err != 0)
+		nvme_printf(ctrlr, "payload tag create failed %d\n", err);
+
+	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
+	    4, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE, 1, BUS_SPACE_MAXSIZE, 0,
 	    NULL, NULL, &qpair->dma_tag);
+	if (err != 0)
+		nvme_printf(ctrlr, "tag create failed %d\n", err);
 
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
@@ -513,8 +514,13 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	    sizeof(struct nvme_completion), M_NVME, M_ZERO,
 	    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 
-	bus_dmamap_create(qpair->dma_tag, 0, &qpair->cmd_dma_map);
-	bus_dmamap_create(qpair->dma_tag, 0, &qpair->cpl_dma_map);
+	err = bus_dmamap_create(qpair->dma_tag, 0, &qpair->cmd_dma_map);
+	if (err != 0)
+		nvme_printf(ctrlr, "cmd_dma_map create failed %d\n", err);
+
+	err = bus_dmamap_create(qpair->dma_tag, 0, &qpair->cpl_dma_map);
+	if (err != 0)
+		nvme_printf(ctrlr, "cpl_dma_map create failed %d\n", err);
 
 	bus_dmamap_load(qpair->dma_tag, qpair->cmd_dma_map,
 	    qpair->cmd, qpair->num_entries * sizeof(struct nvme_command),
@@ -569,6 +575,9 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 
 	if (qpair->dma_tag)
 		bus_dma_tag_destroy(qpair->dma_tag);
+
+	if (qpair->dma_tag_payload)
+		bus_dma_tag_destroy(qpair->dma_tag_payload);
 
 	if (qpair->act_tr)
 		free(qpair->act_tr, M_NVME);
@@ -707,8 +716,11 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	 *  is responsible for detecting the error status and failing the
 	 *  tracker manually.
 	 */
-	if (error != 0)
+	if (error != 0) {
+		nvme_printf(tr->qpair->ctrlr,
+		    "nvme_payload_map err %d\n", error);
 		return;
+	}
 
 	/*
 	 * Note that we specified PAGE_SIZE for alignment and max
@@ -728,6 +740,13 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 			    (uint64_t)seg[cur_nseg].ds_addr;
 			cur_nseg++;
 		}
+	} else {
+		/*
+		 * prp2 should not be used by the controller
+		 *  since there is only one segment, but set
+		 *  to 0 just to be safe.
+		 */
+		tr->req->cmd.prp2 = 0;
 	}
 
 	nvme_qpair_submit_tracker(tr->qpair, tr);
@@ -780,8 +799,9 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		KASSERT(req->payload_size <= qpair->ctrlr->max_xfer_size,
 		    ("payload_size (%d) exceeds max_xfer_size (%d)\n",
 		    req->payload_size, qpair->ctrlr->max_xfer_size));
-		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
-		    req->u.payload, req->payload_size, nvme_payload_map, tr, 0);
+		err = bus_dmamap_load(tr->qpair->dma_tag_payload,
+		    tr->payload_dma_map, req->u.payload, req->payload_size,
+		    nvme_payload_map, tr, 0);
 		if (err != 0)
 			nvme_printf(qpair->ctrlr,
 			    "bus_dmamap_load returned 0x%x!\n", err);
@@ -795,7 +815,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		    ("bio->bio_bcount (%jd) exceeds max_xfer_size (%d)\n",
 		    (intmax_t)req->u.bio->bio_bcount,
 		    qpair->ctrlr->max_xfer_size));
-		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
+		err = bus_dmamap_load_bio(tr->qpair->dma_tag_payload,
 		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
 		if (err != 0)
 			nvme_printf(qpair->ctrlr,

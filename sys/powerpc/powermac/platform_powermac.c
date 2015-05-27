@@ -126,6 +126,8 @@ powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	int physacells = 1;
 
 	memory = OF_finddevice("/memory");
+	if (memory == -1)
+		memory = OF_finddevice("/memory@0");
 
 	/* "reg" has variable #address-cells, but #size-cells is always 1 */
 	OF_getprop(OF_parent(memory), "#address-cells", &physacells,
@@ -154,23 +156,32 @@ powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	/* "available" always has #address-cells = 1 */
 	propsize = OF_getprop(memory, "available", memoryprop,
 	    sizeof(memoryprop));
-	propsize /= sizeof(cell_t);
-	for (i = 0, j = 0; i < propsize; i += 2, j++) {
-		avail[j].mr_start = memoryprop[i];
-		avail[j].mr_size = memoryprop[i + 1];
-	}
+	if (propsize <= 0) {
+		for (i = 0; i < *physsz; i++) {
+			avail[i].mr_start = phys[i].mr_start;
+			avail[i].mr_size = phys[i].mr_size;
+		}
+
+		*availsz = *physsz;
+	} else {
+		propsize /= sizeof(cell_t);
+		for (i = 0, j = 0; i < propsize; i += 2, j++) {
+			avail[j].mr_start = memoryprop[i];
+			avail[j].mr_size = memoryprop[i + 1];
+		}
 
 #ifdef __powerpc64__
-	/* Add in regions above 4 GB to the available list */
-	for (i = 0; i < *physsz; i++) {
-		if (phys[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
-			avail[j].mr_start = phys[i].mr_start;
-			avail[j].mr_size = phys[i].mr_size;
-			j++;
+		/* Add in regions above 4 GB to the available list */
+		for (i = 0; i < *physsz; i++) {
+			if (phys[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
+				avail[j].mr_start = phys[i].mr_start;
+				avail[j].mr_size = phys[i].mr_size;
+				j++;
+			}
 		}
-	}
 #endif
-	*availsz = j;
+		*availsz = j;
+	}
 }
 
 static int

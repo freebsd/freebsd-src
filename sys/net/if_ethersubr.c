@@ -63,6 +63,7 @@
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
 #include <net/pfil.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netpfil/pf/pf_mtag.h>
@@ -71,7 +72,6 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
-#include <netinet/in_rss.h>
 #include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
 #endif
@@ -147,18 +147,25 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
-	u_char esrc[ETHER_ADDR_LEN], edst[ETHER_ADDR_LEN];
+	u_char edst[ETHER_ADDR_LEN];
 	struct llentry *lle = NULL;
 	struct rtentry *rt0 = NULL;
 	struct ether_header *eh;
 	struct pf_mtag *t;
 	int loop_copy = 1;
 	int hlen;	/* link layer header length */
+	int is_gw = 0;
+	uint32_t pflags = 0;
 
 	if (ro != NULL) {
-		if (!(m->m_flags & (M_BCAST | M_MCAST)))
+		if (!(m->m_flags & (M_BCAST | M_MCAST))) {
 			lle = ro->ro_lle;
+			if (lle != NULL)
+				pflags = lle->la_flags;
+		}
 		rt0 = ro->ro_rt;
+		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
 	}
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -177,10 +184,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
+		if (lle != NULL && (pflags & LLE_VALID) != 0)
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+			error = arpresolve(ifp, is_gw, m, dst, edst, &pflags);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -215,10 +222,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
+		if (lle != NULL && (pflags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst,
+			    &pflags);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
@@ -227,10 +235,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	case pseudo_AF_HDRCMPLT:
 	    {
 		const struct ether_header *eh;
-		
+
 		hdrcmplt = 1;
-		eh = (const struct ether_header *)dst->sa_data;
-		(void)memcpy(esrc, eh->ether_shost, sizeof (esrc));
 		/* FALLTHROUGH */
 
 	case AF_UNSPEC:
@@ -245,7 +251,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		senderr(EAFNOSUPPORT);
 	}
 
-	if (lle != NULL && (lle->la_flags & LLE_IFADDR)) {
+	if ((pflags & LLE_IFADDR) != 0) {
 		update_mbuf_csumflags(m, m);
 		return (if_simloop(ifp, m, dst->sa_family, 0));
 	}
@@ -258,15 +264,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	if (m == NULL)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
-	(void)memcpy(&eh->ether_type, &type,
-		sizeof(eh->ether_type));
-	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
-	if (hdrcmplt)
-		(void)memcpy(eh->ether_shost, esrc,
-			sizeof(eh->ether_shost));
-	else
-		(void)memcpy(eh->ether_shost, IF_LLADDR(ifp),
-			sizeof(eh->ether_shost));
+	if (hdrcmplt == 0) {
+		memcpy(&eh->ether_type, &type, sizeof(eh->ether_type));
+		memcpy(eh->ether_dhost, edst, sizeof (edst));
+		memcpy(eh->ether_shost, IF_LLADDR(ifp),sizeof(eh->ether_shost));
+	}
 
 	/*
 	 * If a simplex interface, and the packet is being sent to our

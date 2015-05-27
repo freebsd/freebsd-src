@@ -834,6 +834,8 @@ zpool_do_create(int argc, char **argv)
 					enable_all_pool_feat = B_FALSE;
 				}
 			}
+			if (zpool_name_to_prop(optarg) == ZPOOL_PROP_ALTROOT)
+				altroot = propval;
 			break;
 		case 'O':
 			if ((propval = strchr(optarg, '=')) == NULL) {
@@ -4509,11 +4511,12 @@ zpool_do_status(int argc, char **argv)
 }
 
 typedef struct upgrade_cbdata {
-	int	cb_first;
-	char	cb_poolname[ZPOOL_MAXNAMELEN];
-	int	cb_argc;
-	uint64_t cb_version;
-	char	**cb_argv;
+	boolean_t	cb_first;
+	boolean_t	cb_unavail;
+	char		cb_poolname[ZPOOL_MAXNAMELEN];
+	int		cb_argc;
+	uint64_t	cb_version;
+	char		**cb_argv;
 } upgrade_cbdata_t;
 
 #ifdef __FreeBSD__
@@ -4629,6 +4632,14 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 	boolean_t printnl = B_FALSE;
 	int ret;
 
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		(void) fprintf(stderr, gettext("cannot upgrade '%s': pool is "
+		    "currently unavailable.\n\n"), zpool_get_name(zhp));
+		cbp->cb_unavail = B_TRUE;
+		/* Allow iteration to continue. */
+		return (0);
+	}
+
 	config = zpool_get_config(zhp, NULL);
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
 	    &version) == 0);
@@ -4690,11 +4701,40 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 }
 
 static int
+upgrade_list_unavail(zpool_handle_t *zhp, void *arg)
+{
+	upgrade_cbdata_t *cbp = arg;
+
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		if (cbp->cb_first) {
+			(void) fprintf(stderr, gettext("The following pools "
+			    "are unavailable and cannot be upgraded as this "
+			    "time.\n\n"));
+			(void) fprintf(stderr, gettext("POOL\n"));
+			(void) fprintf(stderr, gettext("------------\n"));
+			cbp->cb_first = B_FALSE;
+		}
+		(void) printf(gettext("%s\n"), zpool_get_name(zhp));
+		cbp->cb_unavail = B_TRUE;
+	}
+	return (0);
+}
+
+static int
 upgrade_list_older_cb(zpool_handle_t *zhp, void *arg)
 {
 	upgrade_cbdata_t *cbp = arg;
 	nvlist_t *config;
 	uint64_t version;
+
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		/*
+		 * This will have been reported by upgrade_list_unavail so
+		 * just allow iteration to continue.
+		 */
+		cbp->cb_unavail = B_TRUE;
+		return (0);
+	}
 
 	config = zpool_get_config(zhp, NULL);
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
@@ -4728,6 +4768,15 @@ upgrade_list_disabled_cb(zpool_handle_t *zhp, void *arg)
 	upgrade_cbdata_t *cbp = arg;
 	nvlist_t *config;
 	uint64_t version;
+
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		/*
+		 * This will have been reported by upgrade_list_unavail so
+		 * just allow iteration to continue.
+		 */
+		cbp->cb_unavail = B_TRUE;
+		return (0);
+	}
 
 	config = zpool_get_config(zhp, NULL);
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
@@ -4782,10 +4831,17 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 	uint64_t cur_version;
 	int ret;
 
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		(void) fprintf(stderr, gettext("cannot upgrade '%s': pool is "
+		    "is currently unavailable.\n\n"), zpool_get_name(zhp));
+		cbp->cb_unavail = B_TRUE;
+		return (1);
+	}
+
 	if (strcmp("log", zpool_get_name(zhp)) == 0) {
 		(void) printf(gettext("'log' is now a reserved word\n"
 		    "Pool 'log' must be renamed using export and import"
-		    " to upgrade.\n"));
+		    " to upgrade.\n\n"));
 		return (1);
 	}
 
@@ -4829,7 +4885,7 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 #endif	/* __FreeBSD __*/
 		} else if (cur_version == SPA_VERSION) {
 			(void) printf(gettext("Pool '%s' already has all "
-			    "supported features enabled.\n"),
+			    "supported features enabled.\n\n"),
 			    zpool_get_name(zhp));
 		}
 	}
@@ -4986,11 +5042,13 @@ zpool_do_upgrade(int argc, char **argv)
 		ret = zpool_iter(g_zfs, upgrade_cb, &cb);
 		if (ret == 0 && cb.cb_first) {
 			if (cb.cb_version == SPA_VERSION) {
-				(void) printf(gettext("All pools are already "
-				    "formatted using feature flags.\n\n"));
-				(void) printf(gettext("Every feature flags "
+				(void) printf(gettext("All %spools are already "
+				    "formatted using feature flags.\n\n"),
+				    cb.cb_unavail ? gettext("available ") : "");
+				(void) printf(gettext("Every %sfeature flags "
 				    "pool already has all supported features "
-				    "enabled.\n"));
+				    "enabled.\n"),
+				    cb.cb_unavail ? gettext("available ") : "");
 			} else {
 				(void) printf(gettext("All pools are already "
 				    "formatted with version %llu or higher.\n"),
@@ -4999,12 +5057,21 @@ zpool_do_upgrade(int argc, char **argv)
 		}
 	} else if (argc == 0) {
 		cb.cb_first = B_TRUE;
+		ret = zpool_iter(g_zfs, upgrade_list_unavail, &cb);
+		assert(ret == 0);
+
+		if (!cb.cb_first) {
+			(void) fprintf(stderr, "\n");
+		}
+
+		cb.cb_first = B_TRUE;
 		ret = zpool_iter(g_zfs, upgrade_list_older_cb, &cb);
 		assert(ret == 0);
 
 		if (cb.cb_first) {
-			(void) printf(gettext("All pools are formatted "
-			    "using feature flags.\n\n"));
+			(void) printf(gettext("All %spools are formatted using "
+			    "feature flags.\n\n"), cb.cb_unavail ?
+			    gettext("available ") : "");
 		} else {
 			(void) printf(gettext("\nUse 'zpool upgrade -v' "
 			    "for a list of available legacy versions.\n"));
@@ -5015,13 +5082,14 @@ zpool_do_upgrade(int argc, char **argv)
 		assert(ret == 0);
 
 		if (cb.cb_first) {
-			(void) printf(gettext("Every feature flags pool has "
-			    "all supported features enabled.\n"));
+			(void) printf(gettext("Every %sfeature flags pool has "
+			    "all supported features enabled.\n"),
+			    cb.cb_unavail ? gettext("available ") : "");
 		} else {
 			(void) printf(gettext("\n"));
 		}
 	} else {
-		ret = for_each_pool(argc, argv, B_FALSE, NULL,
+		ret = for_each_pool(argc, argv, B_TRUE, NULL,
 		    upgrade_one, &cb);
 	}
 

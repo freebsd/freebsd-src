@@ -67,10 +67,9 @@ CLEANFILES+= list.h bsdcpio_test
 MAN=
 
 PROG=bsdcpio_test
-DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../../../lib/libarchive/config_freebsd.h\"
 CFLAGS+=	-I${.CURDIR}/../../../lib/libarchive -I${.OBJDIR}
-LDADD= -larchive -lz -lbz2 -llzma
+LIBADD=	archive
 #CFLAGS+= -static -g -O2 -Wall
 CFLAGS+= -g -O2 -Wall
 CFLAGS+= -I${.OBJDIR}

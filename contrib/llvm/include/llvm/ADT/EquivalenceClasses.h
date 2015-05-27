@@ -86,14 +86,14 @@ class EquivalenceClasses {
     }
 
     void setNext(const ECValue *NewNext) const {
-      assert(getNext() == 0 && "Already has a next pointer!");
+      assert(getNext() == nullptr && "Already has a next pointer!");
       Next = (const ECValue*)((intptr_t)NewNext | (intptr_t)isLeader());
     }
   public:
     ECValue(const ECValue &RHS) : Leader(this), Next((ECValue*)(intptr_t)1),
                                   Data(RHS.Data) {
       // Only support copying of singleton nodes.
-      assert(RHS.isLeader() && RHS.getNext() == 0 && "Not a singleton!");
+      assert(RHS.isLeader() && RHS.getNext() == nullptr && "Not a singleton!");
     }
 
     bool operator<(const ECValue &UFN) const { return Data < UFN.Data; }
@@ -147,10 +147,10 @@ public:
   class member_iterator;
   member_iterator member_begin(iterator I) const {
     // Only leaders provide anything to iterate over.
-    return member_iterator(I->isLeader() ? &*I : 0);
+    return member_iterator(I->isLeader() ? &*I : nullptr);
   }
   member_iterator member_end() const {
-    return member_iterator(0);
+    return member_iterator(nullptr);
   }
 
   /// findValue - Return an iterator to the specified value.  If it does not
@@ -249,16 +249,15 @@ public:
 
     explicit member_iterator() {}
     explicit member_iterator(const ECValue *N) : Node(N) {}
-    member_iterator(const member_iterator &I) : Node(I.Node) {}
 
     reference operator*() const {
-      assert(Node != 0 && "Dereferencing end()!");
+      assert(Node != nullptr && "Dereferencing end()!");
       return Node->getData();
     }
     reference operator->() const { return operator*(); }
 
     member_iterator &operator++() {
-      assert(Node != 0 && "++'d off the end of the list!");
+      assert(Node != nullptr && "++'d off the end of the list!");
       Node = Node->getNext();
       return *this;
     }

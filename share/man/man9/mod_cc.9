@@ -31,19 +31,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2011
+.Dd December 26, 2014
 .Dt MOD_CC 9
 .Os
 .Sh NAME
 .Nm mod_cc ,
 .Nm DECLARE_CC_MODULE ,
-.Nm CC_VAR
+.Nm CCV
 .Nd Modular Congestion Control
 .Sh SYNOPSIS
 .In netinet/cc.h
 .In netinet/cc/cc_module.h
 .Fn DECLARE_CC_MODULE "ccname" "ccalgo"
-.Fn CC_VAR "ccv" "what"
+.Fn CCV "ccv" "what"
 .Sh DESCRIPTION
 The
 .Nm
@@ -223,7 +223,7 @@ To aid the eventual transition towards this goal, direct use of variables from
 the transport protocol's data structures is strongly discouraged.
 However, it is inevitable at the current time to require access to some of these
 variables, and so the
-.Fn CC_VAR
+.Fn CCV
 macro exists as a convenience accessor.
 The
 .Fa ccv
@@ -290,6 +290,7 @@ by the value of the congestion window.
 Algorithms should use the absence of this flag being set to avoid accumulating
 a large difference between the congestion window and send window.
 .Sh SEE ALSO
+.Xr cc_cdg 4 ,
 .Xr cc_chd 4 ,
 .Xr cc_cubic 4 ,
 .Xr cc_hd 4 ,

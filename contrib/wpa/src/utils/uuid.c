@@ -55,7 +55,7 @@ int uuid_bin2str(const u8 *bin, char *str, size_t max_len)
 			  bin[4], bin[5], bin[6], bin[7],
 			  bin[8], bin[9], bin[10], bin[11],
 			  bin[12], bin[13], bin[14], bin[15]);
-	if (len < 0 || (size_t) len >= max_len)
+	if (os_snprintf_error(max_len, len))
 		return -1;
 	return 0;
 }

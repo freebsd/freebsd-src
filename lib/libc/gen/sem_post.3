@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2000
+.Dd January 28, 2015
 .Dt SEM_POST 3
 .Os
 .Sh NAME
@@ -65,6 +65,9 @@ The
 .Fa sem
 argument
 points to an invalid semaphore.
+.It Bq Er EOVERFLOW
+The semaphore value would exceed
+.Dv SEM_VALUE_MAX .
 .El
 .Sh SEE ALSO
 .Xr sem_getvalue 3 ,

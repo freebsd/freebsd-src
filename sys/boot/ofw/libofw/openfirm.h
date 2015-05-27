@@ -82,6 +82,7 @@ void		OF_init(int (*openfirm)(void *));
 
 /* Generic functions */
 int		OF_test(char *);
+void		OF_quiesce(); /* Disable firmware */
 
 /* Device tree functions */
 phandle_t	OF_peer(phandle_t);

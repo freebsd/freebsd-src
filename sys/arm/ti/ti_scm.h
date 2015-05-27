@@ -43,26 +43,6 @@
 #ifndef _TI_SCM_H_
 #define _TI_SCM_H_
 
-struct ti_scm_padconf {
-	uint16_t    reg_off;
-	uint16_t    gpio_pin;
-	uint16_t    gpio_mode;
-	const char  *ballname;
-	const char  *muxmodes[8];
-};
-
-struct ti_scm_padstate {
-	const char  *state;
-	uint16_t    reg;
-};
-
-struct ti_scm_device {
-	uint16_t		padconf_muxmode_mask;
-	uint16_t		padconf_sate_mask;
-	struct ti_scm_padstate	*padstate;
-	struct ti_scm_padconf	*padconf;
-};
-
 struct ti_scm_softc {
 	device_t		sc_dev;
 	struct resource *	sc_res[4];
@@ -70,12 +50,6 @@ struct ti_scm_softc {
 	bus_space_handle_t	sc_bsh;
 };
 
-int ti_scm_padconf_set(const char *padname, const char *muxmode, 
-    unsigned int state);
-int ti_scm_padconf_get(const char *padname, const char **muxmode,
-    unsigned int *state);
-int ti_scm_padconf_set_gpiomode(uint32_t gpio, unsigned int state);
-int ti_scm_padconf_get_gpiomode(uint32_t gpio, unsigned int *state);
 int ti_scm_reg_read_4(uint32_t reg, uint32_t *val);
 int ti_scm_reg_write_4(uint32_t reg, uint32_t val);
 

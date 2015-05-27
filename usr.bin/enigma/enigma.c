@@ -43,6 +43,11 @@ setup(char *pw)
 	int32_t seed;
 	char *cryptpw;
 
+	if (crypt_set_format("des") == 0) {
+		fprintf(stderr, "crypt_set_format(\"des\") failed.\n");
+		exit(1);
+	}
+
 	strlcpy(salt, pw, sizeof(salt));
 	cryptpw = crypt(pw, salt);
 	if (cryptpw == NULL) {

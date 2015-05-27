@@ -208,11 +208,11 @@ void MD5::update(ArrayRef<uint8_t> Data) {
     memcpy(&buffer[used], Ptr, free);
     Ptr = Ptr + free;
     Size -= free;
-    body(ArrayRef<uint8_t>(buffer, 64));
+    body(makeArrayRef(buffer, 64));
   }
 
   if (Size >= 64) {
-    Ptr = body(ArrayRef<uint8_t>(Ptr, Size & ~(unsigned long) 0x3f));
+    Ptr = body(makeArrayRef(Ptr, Size & ~(unsigned long) 0x3f));
     Size &= 0x3f;
   }
 
@@ -229,7 +229,7 @@ void MD5::update(StringRef Str) {
 
 /// \brief Finish the hash and place the resulting hash into \p result.
 /// \param result is assumed to be a minimum of 16-bytes in size.
-void MD5::final(MD5Result &result) {
+void MD5::final(MD5Result &Result) {
   unsigned long used, free;
 
   used = lo & 0x3f;
@@ -240,7 +240,7 @@ void MD5::final(MD5Result &result) {
 
   if (free < 8) {
     memset(&buffer[used], 0, free);
-    body(ArrayRef<uint8_t>(buffer, 64));
+    body(makeArrayRef(buffer, 64));
     used = 0;
     free = 64;
   }
@@ -257,30 +257,30 @@ void MD5::final(MD5Result &result) {
   buffer[62] = hi >> 16;
   buffer[63] = hi >> 24;
 
-  body(ArrayRef<uint8_t>(buffer, 64));
+  body(makeArrayRef(buffer, 64));
 
-  result[0] = a;
-  result[1] = a >> 8;
-  result[2] = a >> 16;
-  result[3] = a >> 24;
-  result[4] = b;
-  result[5] = b >> 8;
-  result[6] = b >> 16;
-  result[7] = b >> 24;
-  result[8] = c;
-  result[9] = c >> 8;
-  result[10] = c >> 16;
-  result[11] = c >> 24;
-  result[12] = d;
-  result[13] = d >> 8;
-  result[14] = d >> 16;
-  result[15] = d >> 24;
+  Result[0] = a;
+  Result[1] = a >> 8;
+  Result[2] = a >> 16;
+  Result[3] = a >> 24;
+  Result[4] = b;
+  Result[5] = b >> 8;
+  Result[6] = b >> 16;
+  Result[7] = b >> 24;
+  Result[8] = c;
+  Result[9] = c >> 8;
+  Result[10] = c >> 16;
+  Result[11] = c >> 24;
+  Result[12] = d;
+  Result[13] = d >> 8;
+  Result[14] = d >> 16;
+  Result[15] = d >> 24;
 }
 
-void MD5::stringifyResult(MD5Result &result, SmallString<32> &Str) {
+void MD5::stringifyResult(MD5Result &Result, SmallString<32> &Str) {
   raw_svector_ostream Res(Str);
   for (int i = 0; i < 16; ++i)
-    Res << format("%.2x", result[i]);
+    Res << format("%.2x", Result[i]);
 }
 
 }

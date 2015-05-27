@@ -8,22 +8,13 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
-	kerberos5/lib/libasn1 \
-	kerberos5/lib/libheimbase \
-	kerberos5/lib/libhx509 \
-	kerberos5/lib/libkrb5 \
-	kerberos5/lib/libroken \
-	kerberos5/lib/libwind \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libedit \
-	lib/libgssapi \
-	lib/libmd \
+	lib/libldns \
 	lib/libpam/libpam \
-	lib/libthr \
 	lib/libutil \
 	lib/libz \
 	lib/ncurses/ncursesw \

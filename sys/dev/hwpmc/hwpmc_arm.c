@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
+#include <machine/stack.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -47,9 +48,12 @@ pmc_md_initialize()
 #ifdef CPU_XSCALE_IXP425
 	if (cpu_class == CPU_CLASS_XSCALE)
 		return pmc_xscale_initialize();
-	else
 #endif
-		return NULL;
+#ifdef CPU_CORTEXA
+	if (cpu_class == CPU_CLASS_CORTEXA)
+		return pmc_armv7_initialize();
+#endif
+	return NULL;
 }
 
 void
@@ -61,6 +65,10 @@ pmc_md_finalize(struct pmc_mdep *md)
 	else
 		KASSERT(0, ("[arm,%d] Unknown CPU Class 0x%x", __LINE__,
 		    cpu_class));
+#endif
+#ifdef CPU_CORTEXA
+	if (cpu_class == CPU_CLASS_CORTEXA)
+		pmc_armv7_finalize(md);
 #endif
 }
 

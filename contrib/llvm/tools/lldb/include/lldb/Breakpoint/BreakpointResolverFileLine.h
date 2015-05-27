@@ -37,26 +37,29 @@ public:
     virtual
     ~BreakpointResolverFileLine ();
 
-    virtual Searcher::CallbackReturn
+    Searcher::CallbackReturn
     SearchCallback (SearchFilter &filter,
                     SymbolContext &context,
                     Address *addr,
-                    bool containing);
+                    bool containing) override;
 
-    virtual Searcher::Depth
-    GetDepth ();
+    Searcher::Depth
+    GetDepth () override;
 
-    virtual void
-    GetDescription (Stream *s);
+    void
+    GetDescription (Stream *s) override;
 
-    virtual void
-    Dump (Stream *s) const;
+    void
+    Dump (Stream *s) const override;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const BreakpointResolverFileLine *) { return true; }
     static inline bool classof(const BreakpointResolver *V) {
         return V->getResolverID() == BreakpointResolver::FileLineResolver;
     }
+
+    lldb::BreakpointResolverSP
+    CopyForBreakpoint (Breakpoint &breakpoint) override;
 
 protected:
     friend class Breakpoint;

@@ -129,10 +129,6 @@ __FBSDID("$FreeBSD$");
 #	define RS690_MC_INDEX_MASK		0x1ff
 #	define RS690_MC_INDEX_WR_EN		(1 << 9)
 #	define RS690_MC_INDEX_WR_ACK		0x7f
-#define RS690_MC_NB_CNTL			0x0
-#	define RS690_HIDE_MMCFG_BAR		(1 << 3)
-#	define RS690_AGPMODE30			(1 << 4)
-#	define RS690_AGP30ENHANCED		(1 << 5)
 #define RS690_MC_DATA				0x7c
 #define RS690_MC_STATUS                         0x90
 #define RS690_MC_STATUS_IDLE                    (1 << 0)
@@ -364,7 +360,9 @@ __FBSDID("$FreeBSD$");
 #define AVIVO_D1CRTC_FRAME_COUNT                                0x60a4
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
+#define AVIVO_D1MODE_MASTER_UPDATE_LOCK                         0x60e0
 #define AVIVO_D1MODE_MASTER_UPDATE_MODE                         0x60e4
+#define AVIVO_D1CRTC_UPDATE_LOCK                                0x60e8
 
 /* master controls */
 #define AVIVO_DC_CRTC_MASTER_EN                                 0x60f8

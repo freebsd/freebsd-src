@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/rt305x/rt305x_gpio.h>
 #include <mips/rt305x/rt305x_gpiovar.h>
 #include <mips/rt305x/rt305x_sysctlvar.h>
+#include <dev/gpio/gpiobusvar.h>
 
 #include "gpio_if.h"
 
@@ -84,6 +85,7 @@ void 	rt305x_set_int_status(device_t, uint32_t);
 /*
  * GPIO interface
  */
+static device_t rt305x_gpio_get_bus(device_t);
 static int rt305x_gpio_pin_max(device_t dev, int *maxpin);
 static int rt305x_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps);
 static int rt305x_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t
@@ -155,6 +157,16 @@ rt305x_gpio_pin_configure(struct rt305x_gpio_softc *sc, struct gpio_pin *pin,
 #endif
 
 	GPIO_UNLOCK(sc);
+}
+
+static device_t
+rt305x_gpio_get_bus(device_t dev)
+{
+	struct rt305x_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->busdev);
 }
 
 static int
@@ -430,7 +442,7 @@ static int
 rt305x_gpio_attach(device_t dev)
 {
 	struct rt305x_gpio_softc *sc = device_get_softc(dev);
-	int error = 0, i;
+	int i;
 	uint64_t avlpins = 0;
 	sc->reset_gpio = DAP1350_RESET_GPIO;
 
@@ -446,14 +458,14 @@ rt305x_gpio_attach(device_t dev)
 
 	if (sc->gpio_mem_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
-		error = ENXIO;
 		rt305x_gpio_detach(dev);
-		return(error);
+		return (ENXIO);
 	}
 
 	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
 	    &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
+		rt305x_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -462,6 +474,7 @@ rt305x_gpio_attach(device_t dev)
 	    rt305x_gpio_intr, NULL, sc, &sc->gpio_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
+		rt305x_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -500,11 +513,13 @@ rt305x_gpio_attach(device_t dev)
 		device_printf(dev, "\tUse reset_gpio %d\n", sc->reset_gpio);
 	}
 #endif
+	sc->busdev = gpiobus_attach_bus(dev);
+	if (sc->busdev == NULL) {
+		rt305x_gpio_detach(dev);
+		return (ENXIO);
+	}
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
@@ -514,12 +529,15 @@ rt305x_gpio_detach(device_t dev)
 
 	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
 
-	bus_generic_detach(dev);
-
+	gpiobus_detach_bus(dev);
+	if (sc->gpio_ih)
+		bus_teardown_intr(dev, sc->gpio_irq_res, sc->gpio_ih);
+	if (sc->gpio_irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->gpio_irq_rid,
+		    sc->gpio_irq_res);
 	if (sc->gpio_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
 		    sc->gpio_mem_res);
-
 	mtx_destroy(&sc->gpio_mtx);
 
 	return(0);
@@ -585,6 +603,7 @@ static device_method_t rt305x_gpio_methods[] = {
 	DEVMETHOD(device_detach,	rt305x_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		rt305x_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		rt305x_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	rt305x_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	rt305x_gpio_pin_getflags),

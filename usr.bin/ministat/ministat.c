@@ -329,10 +329,8 @@ PlotSet(struct dataset *ds, int val)
 	else
 		bar = 0;
 
-	if (pl->bar == NULL) {
-		pl->bar = malloc(sizeof(char *) * pl->num_datasets);
-		memset(pl->bar, 0, sizeof(char*) * pl->num_datasets);
-	}
+	if (pl->bar == NULL)
+		pl->bar = calloc(sizeof(char *), pl->num_datasets);
 	if (pl->bar[bar] == NULL) {
 		pl->bar[bar] = malloc(pl->width);
 		memset(pl->bar[bar], 0, pl->width);

@@ -59,7 +59,6 @@ $FreeBSD$
 #include <dev/pci/pcivar.h>
 
 #include <cxgb_osdep.h>
-#include <sys/mbufq.h>
 
 struct adapter;
 struct sge_qset;
@@ -251,7 +250,7 @@ struct sge_txq {
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
-	struct mbuf_head sendq;
+	struct mbufq	sendq;
 
 	struct buf_ring *txq_mr;
 	struct ifaltq	*txq_ifq;

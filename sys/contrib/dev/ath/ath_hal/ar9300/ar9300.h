@@ -185,6 +185,8 @@ struct ar9300_ani_state {
     int32_t     rssi;       /* The current RSSI */
     u_int32_t   tx_frame_count;   /* Last tx_frame_count */
     u_int32_t   rx_frame_count;   /* Last rx Frame count */
+    u_int32_t   rx_busy_count; /* Last rx busy count */
+    u_int32_t   rx_ext_busy_count; /* Last rx busy count; extension channel */
     u_int32_t   cycle_count; /* Last cycle_count (can detect wrap-around) */
     u_int32_t   ofdm_phy_err_count;/* OFDM err count since last reset */
     u_int32_t   cck_phy_err_count; /* CCK err count since last reset */
@@ -204,6 +206,7 @@ struct ar9300_ani_state {
 #define DO_ANI(ah) \
     ((AH9300(ah)->ah_proc_phy_err & HAL_PROCESS_ANI))
 
+#if 0
 struct ar9300_stats {
     u_int32_t   ast_ani_niup;   /* ANI increased noise immunity */
     u_int32_t   ast_ani_nidown; /* ANI decreased noise immunity */
@@ -223,6 +226,7 @@ struct ar9300_stats {
     HAL_MIB_STATS   ast_mibstats;   /* MIB counter stats */
     HAL_NODE_STATS  ast_nodestats;  /* Latest rssi stats from driver */
 };
+#endif
 
 struct ar9300_rad_reader {
     u_int16_t   rd_index;
@@ -317,12 +321,12 @@ typedef struct {
 
 /* Support for multiple INIs */
 struct ar9300_ini_array {
-    u_int32_t *ia_array;
+    const u_int32_t *ia_array;
     u_int32_t ia_rows;
     u_int32_t ia_columns;
 };
 #define INIT_INI_ARRAY(iniarray, array, rows, columns) do {             \
-    (iniarray)->ia_array = (u_int32_t *)(array);    \
+    (iniarray)->ia_array = (const u_int32_t *)(array);    \
     (iniarray)->ia_rows = (rows);       \
     (iniarray)->ia_columns = (columns); \
 } while (0)
@@ -429,7 +433,7 @@ struct ath_hal_9300 {
     u_int32_t   ah_mask2Reg;         /* copy of AR_IMR_S2 */
     u_int32_t   ah_msi_reg;          /* copy of AR_PCIE_MSI */
     os_atomic_t ah_ier_ref_count;    /* reference count for enabling interrupts */
-    struct ar9300_stats ah_stats;        /* various statistics */
+    HAL_ANI_STATS ah_stats;        /* various statistics */
     RF_HAL_FUNCS    ah_rf_hal;
     u_int32_t   ah_tx_desc_mask;      /* mask for TXDESC */
     u_int32_t   ah_tx_ok_interrupt_mask;
@@ -575,6 +579,9 @@ struct ath_hal_9300 {
     HAL_HT_EXTPROTSPACING ah_ext_prot_spacing;
     u_int8_t    ah_tx_chainmask; /* tx chain mask */
     u_int8_t    ah_rx_chainmask; /* rx chain mask */
+
+    /* optional tx chainmask */
+    u_int8_t    ah_tx_chainmaskopt;
 
     u_int8_t    ah_tx_cal_chainmask; /* tx cal chain mask */
     u_int8_t    ah_rx_cal_chainmask; /* rx cal chain mask */
@@ -845,6 +852,7 @@ struct ath_hal_9300 {
     HAL_BOOL                ah_aic_enabled;
     u_int32_t           ah_aic_sram[ATH_AIC_MAX_BT_CHANNEL];
 #endif
+
 #endif /* ATH_SUPPORT_MCI */
     u_int8_t            ah_cac_quiet_enabled;
 #if ATH_WOW_OFFLOAD
@@ -852,6 +860,14 @@ struct ath_hal_9300 {
     u_int32_t           ah_mcast_filter_u32_set;
 #endif
     HAL_BOOL            ah_reduced_self_gen_mask;
+    HAL_BOOL                ah_chip_reset_done;
+    HAL_BOOL                ah_abort_txdma_norx;
+    /* store previous passive RX Cal info */
+    HAL_BOOL                ah_skip_rx_iq_cal;
+    HAL_BOOL                ah_rx_cal_complete; /* previous rx cal completed or not */
+    u_int32_t           ah_rx_cal_chan;     /* chan on which rx cal is done */
+    u_int32_t           ah_rx_cal_chan_flag;
+    u_int32_t           ah_rx_cal_corr[AR9300_MAX_CHAINS];
 
     /* Local additions for FreeBSD */
     /*
@@ -873,11 +889,11 @@ struct ath_hal_9300 {
     int                  ah_fccaifs;
     int ah_reset_reason;
     int ah_dcs_enable;
+    HAL_ANI_STATE ext_ani_state;     /* FreeBSD; external facing ANI state */
 
     struct ar9300NfLimits nf_2GHz;
     struct ar9300NfLimits nf_5GHz;
     struct ar9300NfLimits *nfp;
-
 };
 
 #define AH9300(_ah) ((struct ath_hal_9300 *)(_ah))
@@ -1194,7 +1210,8 @@ extern  HAL_BOOL ar9300_get_channel_edges(struct ath_hal *ah,
 extern  HAL_BOOL ar9300_fill_capability_info(struct ath_hal *ah);
 
 extern  void ar9300_beacon_init(struct ath_hal *ah,
-                              u_int32_t next_beacon, u_int32_t beacon_period, HAL_OPMODE opmode);
+                              u_int32_t next_beacon, u_int32_t beacon_period, 
+                              u_int32_t beacon_period_fraction, HAL_OPMODE opmode);
 extern  void ar9300_set_sta_beacon_timers(struct ath_hal *ah,
         const HAL_BEACON_STATE *);
 
@@ -1217,12 +1234,21 @@ extern  HAL_BOOL ar9300_set_key_cache_entry_mac(struct ath_hal *,
 extern  HAL_BOOL ar9300_set_key_cache_entry(struct ath_hal *ah, u_int16_t entry,
                        const HAL_KEYVAL *k, const u_int8_t *mac, int xor_key);
 extern  HAL_BOOL ar9300_print_keycache(struct ath_hal *ah);
+#if ATH_SUPPORT_KEYPLUMB_WAR
+extern  HAL_BOOL ar9300_check_key_cache_entry(struct ath_hal *ah, u_int16_t entry,
+                        const HAL_KEYVAL *k, int xorKey);
+#endif
 
 extern  void ar9300_get_mac_address(struct ath_hal *ah, u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_mac_address(struct ath_hal *ah, const u_int8_t *);
 extern  void ar9300_get_bss_id_mask(struct ath_hal *ah, u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_bss_id_mask(struct ath_hal *, const u_int8_t *);
 extern  HAL_STATUS ar9300_select_ant_config(struct ath_hal *ah, u_int32_t cfg);
+#if 0
+extern  u_int32_t ar9300_ant_ctrl_common_get(struct ath_hal *ah, HAL_BOOL is_2ghz);
+#endif
+extern HAL_BOOL ar9300_ant_swcom_sel(struct ath_hal *ah, u_int8_t ops,
+                                u_int32_t *common_tbl1, u_int32_t *common_tbl2);
 extern  HAL_BOOL ar9300_set_regulatory_domain(struct ath_hal *ah,
                                     u_int16_t reg_domain, HAL_STATUS *stats);
 extern  u_int ar9300_get_wireless_modes(struct ath_hal *ah);
@@ -1397,6 +1423,8 @@ extern HAL_BOOL ar9300_set_tx_power_limit(struct ath_hal *ah, u_int32_t limit,
                                        u_int16_t extra_txpow, u_int16_t tpc_in_db);
 extern void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
                                     struct ieee80211_channel *chan, int is_scan);
+extern int16_t ar9300_get_nf_from_reg(struct ath_hal *ah, struct ieee80211_channel *chan, int wait_time);
+extern int ar9300_get_rx_nf_offset(struct ath_hal *ah, struct ieee80211_channel *chan, int8_t *nf_pwr, int8_t *nf_cal);
 extern HAL_BOOL ar9300_load_nf(struct ath_hal *ah, int16_t nf[]);
 
 extern HAL_RFGAIN ar9300_get_rfgain(struct ath_hal *ah);
@@ -1418,7 +1446,7 @@ extern  void ar9300_disable_mib_counters(struct ath_hal *);
 extern  void ar9300_ani_attach(struct ath_hal *);
 extern  void ar9300_ani_detach(struct ath_hal *);
 extern  struct ar9300_ani_state *ar9300_ani_get_current_state(struct ath_hal *);
-extern  struct ar9300_stats *ar9300_ani_get_current_stats(struct ath_hal *);
+extern  HAL_ANI_STATS *ar9300_ani_get_current_stats(struct ath_hal *);
 extern  HAL_BOOL ar9300_ani_control(struct ath_hal *, HAL_ANI_CMD cmd, int param);
 struct ath_rx_status;
 
@@ -1681,6 +1709,8 @@ extern void ar9300_tx99_start(struct ath_hal *ah, u_int8_t *data);
 extern void ar9300_tx99_stop(struct ath_hal *ah);
 #endif /* ATH_SUPPORT_HTC */
 #endif /* ATH_TX99_DIAG */
+extern HAL_BOOL ar9300_set_ctl_pwr(struct ath_hal *ah, u_int8_t *ctl_array);
+extern void ar9300_set_txchainmaskopt(struct ath_hal *ah, u_int8_t mask);
 
 enum {
 	AR9300_COEFF_TX_TYPE = 0,

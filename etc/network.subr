@@ -754,7 +754,7 @@ ipv6_down()
 	IFS="$_ifs"
 	for _inet6 in $inetList ; do
 		# get rid of extraneous line
-		case $_inet in
+		case $_inet6 in
 		inet6\ *)	;;
 		*)		continue ;;
 		esac

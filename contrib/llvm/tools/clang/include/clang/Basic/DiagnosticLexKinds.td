@@ -151,7 +151,8 @@ def warn_ucn_not_valid_in_c89_literal : ExtWarn<
 // Literal
 def ext_nonstandard_escape : Extension<
   "use of non-standard escape character '\\%0'">;
-def ext_unknown_escape : ExtWarn<"unknown escape sequence '\\%0'">;
+def ext_unknown_escape : ExtWarn<"unknown escape sequence '\\%0'">,
+  InGroup<DiagGroup<"unknown-escape-sequence">>;
 def err_invalid_decimal_digit : Error<"invalid digit '%0' in decimal constant">;
 def err_invalid_binary_digit : Error<"invalid digit '%0' in binary constant">;
 def err_invalid_octal_digit : Error<"invalid digit '%0' in octal constant">;
@@ -160,8 +161,8 @@ def err_invalid_suffix_integer_constant : Error<
 def err_invalid_suffix_float_constant : Error<
   "invalid suffix '%0' on floating constant">;
 def warn_cxx11_compat_digit_separator : Warning<
-  "digit separators are incompatible with C++ standards before C++1y">,
-  InGroup<CXXPre1yCompat>, DefaultIgnore;
+  "digit separators are incompatible with C++ standards before C++14">,
+  InGroup<CXXPre14Compat>, DefaultIgnore;
 def err_digit_separator_not_between_digits : Error<
   "digit separator cannot appear at %select{start|end}0 of digit sequence">;
 def warn_extraneous_char_constant : Warning<
@@ -181,11 +182,11 @@ def ext_hexconstant_invalid : Extension<
   "hexadecimal floating constants are a C99 feature">, InGroup<C99>;
 def ext_binary_literal : Extension<
   "binary integer literals are a GNU extension">, InGroup<GNUBinaryLiteral>;
-def ext_binary_literal_cxx1y : Extension<
-  "binary integer literals are a C++1y extension">, InGroup<CXX1y>;
+def ext_binary_literal_cxx14 : Extension<
+  "binary integer literals are a C++14 extension">, InGroup<CXX14>;
 def warn_cxx11_compat_binary_literal : Warning<
-  "binary integer literals are incompatible with C++ standards before C++1y">,
-  InGroup<CXXPre1yCompatPedantic>, DefaultIgnore;
+  "binary integer literals are incompatible with C++ standards before C++14">,
+  InGroup<CXXPre14CompatPedantic>, DefaultIgnore;
 def err_pascal_string_too_long : Error<"Pascal string is too long">;
 def err_octal_escape_too_large : Error<"octal escape sequence out of range">;
 def err_hex_escape_too_large : Error<"hex escape sequence out of range">;
@@ -200,6 +201,9 @@ def warn_c99_compat_unicode_literal : Warning<
 def warn_cxx98_compat_unicode_literal : Warning<
   "unicode literals are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
+def warn_cxx14_compat_u8_character_literal : Warning<
+  "unicode literals are incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
 def warn_cxx11_compat_user_defined_literal : Warning<
   "identifier after literal will be treated as a user-defined literal suffix "
   "in C++11">, InGroup<CXX11Compat>, DefaultIgnore;
@@ -244,9 +248,9 @@ def err_invalid_pth_file : Error<
 // Preprocessor Diagnostics
 //===----------------------------------------------------------------------===//
 
-let CategoryName = "User Defined Issues" in {
+let CategoryName = "User-Defined Issue" in {
 def pp_hash_warning : Warning<"%0">,
-  InGroup<PoundWarning>, DefaultWarnShowInSystemHeader;
+  InGroup<PoundWarning>, ShowInSystemHeader;
 def err_pp_hash_error : Error<"%0">;
 }
 
@@ -286,6 +290,11 @@ def note_pp_ambiguous_macro_chosen : Note<
   "expanding this definition of %0">;
 def note_pp_ambiguous_macro_other : Note<
   "other definition of %0">;
+def warn_pp_macro_hides_keyword : Extension<
+  "keyword is hidden by macro definition">, InGroup<KeywordAsMacro>;
+def warn_pp_macro_is_reserved_id : Warning<
+  "macro name is a reserved identifier">, DefaultIgnore,
+  InGroup<ReservedIdAsMacro>;
 
 def pp_invalid_string_literal : Warning<
   "invalid string literal, ignoring final '\\'">;
@@ -300,6 +309,9 @@ def ext_pp_import_directive : Extension<"#import is a language extension">,
   InGroup<DiagGroup<"import-preprocessor-directive-pedantic">>;
 def err_pp_import_directive_ms : Error<
   "#import of type library is an unsupported Microsoft feature">;
+def ext_pp_include_search_ms : ExtWarn<
+  "#include resolved using non-portable MSVC search rules as: %0">,
+  InGroup<DiagGroup<"msvc-include">>;
 
 def ext_pp_ident_directive : Extension<"#ident is a language extension">;
 def ext_pp_include_next_directive : Extension<
@@ -312,7 +324,7 @@ def ext_pp_extra_tokens_at_eol : ExtWarn<
 def ext_pp_comma_expr : Extension<"comma operator in operand of #if">;
 def ext_pp_bad_vaargs_use : Extension<
   "__VA_ARGS__ can only appear in the expansion of a C99 variadic macro">;
-def ext_pp_macro_redef : ExtWarn<"%0 macro redefined">;
+def ext_pp_macro_redef : ExtWarn<"%0 macro redefined">, InGroup<MacroRedefined>;
 def ext_variadic_macro : Extension<"variadic macros are a C99 feature">,
   InGroup<VariadicMacros>;
 def warn_cxx98_compat_variadic_macro : Warning<
@@ -320,7 +332,7 @@ def warn_cxx98_compat_variadic_macro : Warning<
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
 def ext_named_variadic_macro : Extension<
   "named variadic macros are a GNU extension">, InGroup<VariadicMacros>;
-def err_embedded_include : Error<
+def err_embedded_directive : Error<
   "embedding a #%0 directive within macro arguments is not supported">;
 def ext_embedded_directive : Extension<
   "embedding a directive within macro arguments has undefined behavior">,
@@ -349,7 +361,7 @@ def err_pp_error_opening_file : Error<
 def err_pp_empty_filename : Error<"empty filename">;
 def err_pp_include_too_deep : Error<"#include nested too deeply">;
 def err_pp_expects_filename : Error<"expected \"FILENAME\" or <FILENAME>">;
-def err_pp_macro_not_identifier : Error<"macro names must be identifiers">;
+def err_pp_macro_not_identifier : Error<"macro name must be an identifier">;
 def err_pp_missing_macro_name : Error<"macro name missing">;
 def err_pp_missing_rparen_in_macro_def : Error<
   "missing ')' in macro parameter list">;
@@ -375,10 +387,7 @@ def err_pp_expected_value_in_expr : Error<"expected value in expression">;
 def err_pp_expected_rparen : Error<"expected ')' in preprocessor expression">;
 def err_pp_expected_eol : Error<
   "expected end of line in preprocessor expression">;
-def err_pp_defined_requires_identifier : Error<
-  "operator 'defined' requires an identifier">;
-def err_pp_missing_lparen : Error<"missing '(' after '%0'">;
-def err_pp_missing_rparen : Error<"missing ')' after '%0'">;
+def err_pp_expected_after : Error<"missing %1 after %0">;
 def err_pp_colon_without_question : Error<"':' without preceding '?'">;
 def err_pp_division_by_zero : Error<
   "division by zero in preprocessor expression">;
@@ -399,6 +408,9 @@ def err_warning_check_malformed : Error<
 def warn_has_warning_invalid_option :
    ExtWarn<"__has_warning expected option name (e.g. \"-Wundef\")">,
    InGroup<MalformedWarningCheck>;
+
+def err_pp_identifier_arg_not_identifier : Error<
+  "cannot convert %0 token to an identifier">;
 
 def warn_pragma_include_alias_mismatch_angle :
    ExtWarn<"angle-bracketed include <%0> cannot be aliased to double-quoted "
@@ -435,7 +447,8 @@ def err_pragma_message_malformed : Error<
 def err_pragma_push_pop_macro_malformed : Error<
    "pragma %0 requires a parenthesized string">;
 def warn_pragma_pop_macro_no_push : Warning<
-   "pragma pop_macro could not pop '%0', no matching push_macro">;
+   "pragma pop_macro could not pop '%0', no matching push_macro">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_message : Warning<"%0">,
    InGroup<PoundPragmaMessage>, DefaultWarnNoWerror;
 def err_pragma_message : Error<"%0">;
@@ -470,7 +483,7 @@ def warn_pragma_diagnostic_unknown_warning :
    InGroup<UnknownPragmas>;
 // - #pragma __debug
 def warn_pragma_debug_unexpected_command : Warning<
-  "unexpected debug command '%0'">;
+  "unexpected debug command '%0'">, InGroup<IgnoredPragmas>;
 
 def err_defined_macro_name : Error<"'defined' cannot be used as a macro name">;
 def err_paste_at_start : Error<
@@ -491,11 +504,13 @@ def err_too_few_args_in_macro_invoc : Error<
   "too few arguments provided to function-like macro invocation">;
 def err_pp_bad_paste : Error<
   "pasting formed '%0', an invalid preprocessing token">;
-def err_pp_bad_paste_ms : Warning<
+def ext_pp_bad_paste_ms : ExtWarn<
   "pasting formed '%0', an invalid preprocessing token">, DefaultError,
   InGroup<DiagGroup<"invalid-token-paste">>;
 def err_pp_operator_used_as_macro_name : Error<
-  "C++ operator '%0' cannot be used as a macro name">;
+  "C++ operator %0 (aka %1) used as a macro name">;
+def ext_pp_operator_used_as_macro_name : Extension<
+  "C++ operator %0 (aka %1) used as a macro name">, InGroup<Microsoft>;
 def err_pp_illegal_floating_literal : Error<
   "floating point literal in preprocessor expression">;
 def err_pp_line_requires_integer : Error<
@@ -535,6 +550,10 @@ def err_pp_include_in_arc_cf_code_audited : Error<
 def err_pp_eof_in_arc_cf_code_audited : Error<
   "'#pragma clang arc_cf_code_audited' was not ended within this file">;
 
+def warn_pp_date_time : Warning<
+  "expansion of date or time macro is not reproducible">,
+  ShowInSystemHeader, DefaultIgnore, InGroup<DiagGroup<"date-time">>;
+
 // Module map parsing
 def err_mmap_unknown_token : Error<"skipping stray token">;
 def err_mmap_expected_module : Error<"expected module declaration">;
@@ -551,8 +570,6 @@ def err_mmap_expected_mmap_file : Error<"expected a module map file name">;
 def err_mmap_module_redefinition : Error<
   "redefinition of module '%0'">;
 def note_mmap_prev_definition : Note<"previously defined here">;
-def err_mmap_header_not_found : Error<
-  "%select{|umbrella }0header '%1' not found">;
 def err_mmap_umbrella_dir_not_found : Error<
   "umbrella directory '%0' not found">;
 def err_mmap_umbrella_clash : Error<
@@ -605,16 +622,20 @@ def warn_auto_module_import : Warning<
   "import of module '%1'">, InGroup<AutoImport>, DefaultIgnore;
 def warn_uncovered_module_header : Warning<
   "umbrella header for module '%0' does not include header '%1'">, 
-  InGroup<IncompleteUmbrella>, DefaultIgnore;
-def warn_forgotten_module_header : Warning<
-  "header '%0' is included in module '%1' but not listed in module map">,
-  InGroup<IncompleteModule>, DefaultIgnore;
+  InGroup<IncompleteUmbrella>;
 def err_expected_id_building_module : Error<
   "expected a module name in '__building_module' expression">;
 def error_use_of_private_header_outside_module : Error<
   "use of private header from outside its module: '%0'">;
 def error_undeclared_use_of_module : Error<
-  "use of a module not declared used: '%0'">;
+  "module %0 does not depend on a module exporting '%1'">;
+def warn_non_modular_include_in_framework_module : Warning<
+  "include of non-modular header inside framework module '%0'">,
+  InGroup<NonModularIncludeInFrameworkModule>, DefaultIgnore;
+def warn_non_modular_include_in_module : Warning<
+  "include of non-modular header inside module '%0'">,
+  InGroup<NonModularIncludeInModule>, DefaultIgnore;
+
 
 def warn_header_guard : Warning<
   "%0 is used as a header guard here, followed by #define of a different macro">,

@@ -13,11 +13,12 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libedit \
-	lib/libedit/edit/readline \
 	lib/libmd \
+	lib/libthr \
 	lib/msun \
 	lib/ncurses/ncursesw \
 	secure/lib/libcrypto \
+	secure/lib/libssl \
 	usr.sbin/ntp/libntp \
 	usr.sbin/ntp/libopts \
 

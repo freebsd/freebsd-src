@@ -99,11 +99,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
-#ifdef __powerpc64__
-extern uintptr_t tocbase;
-#endif
-
-
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -149,7 +144,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	cf = (struct callframe *)tf - 1;
 	memset(cf, 0, sizeof(struct callframe));
 	#ifdef __powerpc64__
-	cf->cf_toc = tocbase;
+	cf->cf_toc = ((register_t *)fork_return)[1];
 	#endif
 	cf->cf_func = (register_t)fork_return;
 	cf->cf_arg0 = (register_t)td2;

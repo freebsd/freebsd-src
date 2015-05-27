@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -216,6 +216,7 @@ MpCreateGpioInfo (
     ACPI_GPIO_INFO          *Info;
     ACPI_GPIO_INFO          *NextGpio;
     ACPI_GPIO_INFO          *PrevGpio;
+    char                    *Buffer;
 
 
     /*
@@ -223,8 +224,8 @@ MpCreateGpioInfo (
      * sorted by both source device name and then the pin number. There is
      * one block per pin.
      */
-    Info = ACPI_CAST_PTR (ACPI_GPIO_INFO,
-        UtStringCacheCalloc (sizeof (ACPI_GPIO_INFO)));
+    Buffer = UtStringCacheCalloc (sizeof (ACPI_GPIO_INFO));
+    Info = ACPI_CAST_PTR (ACPI_GPIO_INFO, Buffer);
 
     NextGpio = Gbl_GpioList;
     PrevGpio = NULL;
@@ -293,14 +294,15 @@ MpCreateSerialInfo (
     ACPI_SERIAL_INFO        *Info;
     ACPI_SERIAL_INFO        *NextSerial;
     ACPI_SERIAL_INFO        *PrevSerial;
+    char                    *Buffer;
 
 
     /*
      * Allocate a new info block and insert it into the global Serial list
      * sorted by both source device name and then the address.
      */
-    Info = ACPI_CAST_PTR (ACPI_SERIAL_INFO,
-        UtStringCacheCalloc (sizeof (ACPI_SERIAL_INFO)));
+    Buffer = UtStringCacheCalloc (sizeof (ACPI_SERIAL_INFO));
+    Info = ACPI_CAST_PTR (ACPI_SERIAL_INFO, Buffer);
 
     NextSerial = Gbl_SerialList;
     PrevSerial = NULL;

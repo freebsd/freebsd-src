@@ -30,6 +30,9 @@ struct rsn_pmksa_cache_entry {
 	u8 eap_type_authsrv;
 	int vlan_id;
 	int opportunistic;
+
+	u32 acct_multi_session_id_hi;
+	u32 acct_multi_session_id_lo;
 };
 
 struct rsn_pmksa_cache;
@@ -47,6 +50,7 @@ struct rsn_pmksa_cache_entry * pmksa_cache_get_okc(
 struct rsn_pmksa_cache_entry *
 pmksa_cache_auth_add(struct rsn_pmksa_cache *pmksa,
 		     const u8 *pmk, size_t pmk_len,
+		     const u8 *kck, size_t kck_len,
 		     const u8 *aa, const u8 *spa, int session_timeout,
 		     struct eapol_state_machine *eapol, int akmp);
 struct rsn_pmksa_cache_entry *
@@ -55,5 +59,9 @@ pmksa_cache_add_okc(struct rsn_pmksa_cache *pmksa,
 		    const u8 *aa, const u8 *pmkid);
 void pmksa_cache_to_eapol_data(struct rsn_pmksa_cache_entry *entry,
 			       struct eapol_state_machine *eapol);
+void pmksa_cache_free_entry(struct rsn_pmksa_cache *pmksa,
+			    struct rsn_pmksa_cache_entry *entry);
+int pmksa_cache_auth_radius_das_disconnect(struct rsn_pmksa_cache *pmksa,
+					   struct radius_das_attrs *attr);
 
 #endif /* PMKSA_CACHE_H */

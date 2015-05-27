@@ -25,6 +25,7 @@
 #include "lldb/DataFormatters/TypeCategoryMap.h"
 
 #include <atomic>
+#include <functional>
 
 namespace lldb_private {
     
@@ -38,6 +39,14 @@ class FormatManager : public IFormatChangeListener
     typedef FormatMap<ConstString, TypeSummaryImpl> NamedSummariesMap;
     typedef TypeCategoryMap::MapType::iterator CategoryMapIterator;
 public:
+    
+    template <typename FormatterType>
+    using HardcodedFormatterFinder = std::function<typename FormatterType::SharedPointer (lldb_private::ValueObject&,
+                                                                                          lldb::DynamicValueType,
+                                                                                          FormatManager&)>;
+    
+    template <typename FormatterType>
+    using HardcodedFormatterFinders = std::vector<HardcodedFormatterFinder<FormatterType>>;
     
     typedef TypeCategoryMap::CallbackType CategoryCallback;
     
@@ -75,6 +84,18 @@ public:
     DisableCategory (const lldb::TypeCategoryImplSP& category)
     {
         m_categories_map.Disable(category);
+    }
+    
+    void
+    EnableAllCategories ()
+    {
+        m_categories_map.EnableAllCategories ();
+    }
+    
+    void
+    DisableAllCategories ()
+    {
+        m_categories_map.DisableAllCategories ();
     }
     
     bool
@@ -139,6 +160,9 @@ public:
     GetSyntheticChildrenForType (lldb::TypeNameSpecifierImplSP type_sp);
 #endif
     
+    lldb::TypeValidatorImplSP
+    GetValidatorForType (lldb::TypeNameSpecifierImplSP type_sp);
+    
     lldb::TypeFormatImplSP
     GetFormat (ValueObject& valobj,
                lldb::DynamicValueType use_dynamic);
@@ -152,6 +176,10 @@ public:
     GetSyntheticChildren (ValueObject& valobj,
                           lldb::DynamicValueType use_dynamic);
 #endif
+    
+    lldb::TypeValidatorImplSP
+    GetValidator (ValueObject& valobj,
+                  lldb::DynamicValueType use_dynamic);
     
     bool
     AnyMatches (ConstString type_name,
@@ -260,6 +288,23 @@ private:
     ConstString m_vectortypes_category_name;
     ConstString m_appkit_category_name;
     
+    HardcodedFormatterFinders<TypeFormatImpl> m_hardcoded_formats;
+    HardcodedFormatterFinders<TypeSummaryImpl> m_hardcoded_summaries;
+    HardcodedFormatterFinders<SyntheticChildren> m_hardcoded_synthetics;
+    HardcodedFormatterFinders<TypeValidatorImpl> m_hardcoded_validators;
+    
+    lldb::TypeFormatImplSP
+    GetHardcodedFormat (ValueObject&,lldb::DynamicValueType);
+    
+    lldb::TypeSummaryImplSP
+    GetHardcodedSummaryFormat (ValueObject&,lldb::DynamicValueType);
+
+    lldb::SyntheticChildrenSP
+    GetHardcodedSyntheticChildren (ValueObject&,lldb::DynamicValueType);
+    
+    lldb::TypeValidatorImplSP
+    GetHardcodedValidator (ValueObject&,lldb::DynamicValueType);
+    
     TypeCategoryMap&
     GetCategories ()
     {
@@ -281,8 +326,11 @@ private:
     
     void
     LoadObjCFormatters ();
+    
+    void
+    LoadHardcodedFormatters ();
 };
     
 } // namespace lldb_private
-
+    
 #endif	// lldb_FormatManager_h_

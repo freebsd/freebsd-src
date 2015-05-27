@@ -1345,7 +1345,7 @@ radius_alive(void *v)
 void
 radius_StartTimer(struct bundle *bundle)
 {
-  if (bundle->radius.cfg.file && bundle->radius.alive.interval) {
+  if (*bundle->radius.cfg.file && bundle->radius.alive.interval) {
     bundle->radius.alive.timer.func = radius_alive;
     bundle->radius.alive.timer.name = "radius alive";
     bundle->radius.alive.timer.load = bundle->radius.alive.interval * SECTICKS;

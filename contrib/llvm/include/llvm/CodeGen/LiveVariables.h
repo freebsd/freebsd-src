@@ -134,14 +134,14 @@ private:   // Intermediate data structures
   // PhysRegInfo - Keep track of which instruction was the last def of a
   // physical register. This is a purely local property, because all physical
   // register references are presumed dead across basic blocks.
-  MachineInstr **PhysRegDef;
+  std::vector<MachineInstr *> PhysRegDef;
 
   // PhysRegInfo - Keep track of which instruction was the last use of a
   // physical register. This is a purely local property, because all physical
   // register references are presumed dead across basic blocks.
-  MachineInstr **PhysRegUse;
+  std::vector<MachineInstr *> PhysRegUse;
 
-  SmallVector<unsigned, 4> *PHIVarInfo;
+  std::vector<SmallVector<unsigned, 4>> PHIVarInfo;
 
   // DistanceMap - Keep track the distance of a MI from the start of the
   // current basic block.
@@ -175,9 +175,13 @@ private:   // Intermediate data structures
   /// register which is used in a PHI node. We map that to the BB the vreg
   /// is coming from.
   void analyzePHINodes(const MachineFunction& Fn);
+
+  void runOnInstr(MachineInstr *MI, SmallVectorImpl<unsigned> &Defs);
+
+  void runOnBlock(MachineBasicBlock *MBB, unsigned NumRegs);
 public:
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
   /// RegisterDefIsDead - Return true if the specified instruction defines the
   /// specified register, but that definition is dead.
@@ -258,10 +262,10 @@ public:
     (void)Removed;
     return true;
   }
-  
-  void getAnalysisUsage(AnalysisUsage &AU) const;
 
-  virtual void releaseMemory() {
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+
+  void releaseMemory() override {
     VirtRegInfo.clear();
   }
 

@@ -419,7 +419,7 @@ qla_pci_attach(device_t dev)
 	taskqueue_start_threads(&ha->tx_tq, 1, PI_NET, "%s txq",
 		device_get_nameunit(ha->pci_dev));
 	
-	callout_init(&ha->tx_callout, TRUE);
+	callout_init(&ha->tx_callout, 1);
 	ha->flags.qla_callout_init = 1;
 
 	/* create ioctl device interface */
@@ -1140,7 +1140,8 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
 
 	QL_DPRINT8(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
-	if (m_head->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m_head) != M_HASHTYPE_NONE)
 		txr_idx = m_head->m_pkthdr.flowid & (ha->hw.num_tx_rings - 1);
 
 	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;

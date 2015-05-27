@@ -27,20 +27,21 @@
 #include <pwd.h>
 #endif
 
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Path.h"
-#include "llvm/Support/Program.h"
-
-#include "lldb/Core/StreamString.h"
-#include "lldb/Host/File.h"
-#include "lldb/Host/FileSpec.h"
-#include "lldb/Host/Host.h"
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataBufferMemoryMap.h"
 #include "lldb/Core/RegularExpression.h"
+#include "lldb/Core/StreamString.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Host/File.h"
+#include "lldb/Host/FileSpec.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Utility/CleanUp.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -54,104 +55,69 @@ GetFileStats (const FileSpec *file_spec, struct stat *stats_ptr)
     return false;
 }
 
-#ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER
-
-static const char*
-GetCachedGlobTildeSlash()
-{
-    static std::string g_tilde;
-    if (g_tilde.empty())
-    {
-        struct passwd *user_entry;
-        user_entry = getpwuid(geteuid());
-        if (user_entry != NULL)
-            g_tilde = user_entry->pw_dir;
-
-        if (g_tilde.empty())
-            return NULL;
-    }
-    return g_tilde.c_str();
-}
-
-#endif // #ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER
-
 // Resolves the username part of a path of the form ~user/other/directories, and
-// writes the result into dst_path.
-// Returns 0 if there WAS a ~ in the path but the username couldn't be resolved.
-// Otherwise returns the number of characters copied into dst_path.  If the return
-// is >= dst_len, then the resolved path is too long...
-size_t
-FileSpec::ResolveUsername (const char *src_path, char *dst_path, size_t dst_len)
+// writes the result into dst_path.  This will also resolve "~" to the current user.
+// If you want to complete "~" to the list of users, pass it to ResolvePartialUsername.
+void
+FileSpec::ResolveUsername (llvm::SmallVectorImpl<char> &path)
 {
-    if (src_path == NULL || src_path[0] == '\0')
-        return 0;
-
-#ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER
-
-    char user_home[PATH_MAX];
-    const char *user_name;
+#if LLDB_CONFIG_TILDE_RESOLVES_TO_USER
+    if (path.empty() || path[0] != '~')
+        return;
     
-    
-    // If there's no ~, then just copy src_path straight to dst_path (they may be the same string...)
-    if (src_path[0] != '~')
+    llvm::StringRef path_str(path.data());
+    size_t slash_pos = path_str.find_first_of("/", 1);
+    if (slash_pos == 1 || path.size() == 1)
     {
-        size_t len = strlen (src_path);
-        if (len >= dst_len)
+        // A path of ~/ resolves to the current user's home dir
+        llvm::SmallString<64> home_dir;
+        if (!llvm::sys::path::home_directory(home_dir))
+            return;
+        
+        // Overwrite the ~ with the first character of the homedir, and insert
+        // the rest.  This way we only trigger one move, whereas an insert
+        // followed by a delete (or vice versa) would trigger two.
+        path[0] = home_dir[0];
+        path.insert(path.begin() + 1, home_dir.begin() + 1, home_dir.end());
+        return;
+    }
+    
+    auto username_begin = path.begin()+1;
+    auto username_end = (slash_pos == llvm::StringRef::npos)
+                        ? path.end()
+                        : (path.begin() + slash_pos);
+    size_t replacement_length = std::distance(path.begin(), username_end);
+
+    llvm::SmallString<20> username(username_begin, username_end);
+    struct passwd *user_entry = ::getpwnam(username.c_str());
+    if (user_entry != nullptr)
+    {
+        // Copy over the first n characters of the path, where n is the smaller of the length
+        // of the home directory and the slash pos.
+        llvm::StringRef homedir(user_entry->pw_dir);
+        size_t initial_copy_length = std::min(homedir.size(), replacement_length);
+        auto src_begin = homedir.begin();
+        auto src_end = src_begin + initial_copy_length;
+        std::copy(src_begin, src_end, path.begin());
+        if (replacement_length > homedir.size())
         {
-            ::bcopy (src_path, dst_path, dst_len - 1);
-            dst_path[dst_len] = '\0';
+            // We copied the entire home directory, but the ~username portion of the path was
+            // longer, so there's characters that need to be removed.
+            path.erase(path.begin() + initial_copy_length, username_end);
         }
-        else
-            ::bcopy (src_path, dst_path, len + 1);
-        
-        return len;
-    }
-    
-    const char *first_slash = ::strchr (src_path, '/');
-    char remainder[PATH_MAX];
-    
-    if (first_slash == NULL)
-    {
-        // The whole name is the username (minus the ~):
-        user_name = src_path + 1;
-        remainder[0] = '\0';
+        else if (replacement_length < homedir.size())
+        {
+            // We copied all the way up to the slash in the destination, but there's still more
+            // characters that need to be inserted.
+            path.insert(username_end, src_end, homedir.end());
+        }
     }
     else
     {
-        size_t user_name_len = first_slash - src_path - 1;
-        ::memcpy (user_home, src_path + 1, user_name_len);
-        user_home[user_name_len] = '\0';
-        user_name = user_home;
-        
-        ::strcpy (remainder, first_slash);
+        // Unable to resolve username (user doesn't exist?)
+        path.clear();
     }
-    
-    if (user_name == NULL)
-        return 0;
-    // User name of "" means the current user...
-    
-    struct passwd *user_entry;
-    const char *home_dir = NULL;
-    
-    if (user_name[0] == '\0')
-    {
-        home_dir = GetCachedGlobTildeSlash();
-    }
-    else
-    {
-        user_entry = ::getpwnam (user_name);
-        if (user_entry != NULL)
-            home_dir = user_entry->pw_dir;
-    }
-    
-    if (home_dir == NULL)
-        return 0;
-    else 
-        return ::snprintf (dst_path, dst_len, "%s%s", home_dir, remainder);
-#else
-    // Resolving home directories is not supported, just copy the path...
-    return ::snprintf (dst_path, dst_len, "%s", src_path);
-#endif // #ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER    
+#endif
 }
 
 size_t
@@ -187,49 +153,24 @@ FileSpec::ResolvePartialUsername (const char *partial_name, StringList &matches)
 #endif // #ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER    
 }
 
-
-
-size_t
-FileSpec::Resolve (const char *src_path, char *dst_path, size_t dst_len)
+void
+FileSpec::Resolve (llvm::SmallVectorImpl<char> &path)
 {
-    if (src_path == NULL || src_path[0] == '\0')
-        return 0;
+    if (path.empty())
+        return;
 
-    // Glob if needed for ~/, otherwise copy in case src_path is same as dst_path...
-    char unglobbed_path[PATH_MAX];
 #ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER
-    if (src_path[0] == '~')
-    {
-        size_t return_count = ResolveUsername(src_path, unglobbed_path, sizeof(unglobbed_path));
-        
-        // If we couldn't find the user referred to, or the resultant path was too long,
-        // then just copy over the src_path.
-        if (return_count == 0 || return_count >= sizeof(unglobbed_path)) 
-            ::snprintf (unglobbed_path, sizeof(unglobbed_path), "%s", src_path);
-    }
-    else
+    if (path[0] == '~')
+        ResolveUsername(path);
 #endif // #ifdef LLDB_CONFIG_TILDE_RESOLVES_TO_USER
-    {
-    	::snprintf(unglobbed_path, sizeof(unglobbed_path), "%s", src_path);
-    }
 
-    // Now resolve the path if needed
-    char resolved_path[PATH_MAX];
-    if (::realpath (unglobbed_path, resolved_path))
-    {
-        // Success, copy the resolved path
-        return ::snprintf(dst_path, dst_len, "%s", resolved_path);
-    }
-    else
-    {
-        // Failed, just copy the unglobbed path
-        return ::snprintf(dst_path, dst_len, "%s", unglobbed_path);
-    }
+    llvm::sys::fs::make_absolute(path);
 }
 
-FileSpec::FileSpec() :
-    m_directory(),
-    m_filename()
+FileSpec::FileSpec() : 
+    m_directory(), 
+    m_filename(), 
+    m_syntax(FileSystem::GetNativePathSyntax())
 {
 }
 
@@ -237,13 +178,14 @@ FileSpec::FileSpec() :
 // Default constructor that can take an optional full path to a
 // file on disk.
 //------------------------------------------------------------------
-FileSpec::FileSpec(const char *pathname, bool resolve_path) :
+FileSpec::FileSpec(const char *pathname, bool resolve_path, PathSyntax syntax) :
     m_directory(),
     m_filename(),
-    m_is_resolved(false)
+    m_is_resolved(false),
+    m_syntax(syntax)
 {
     if (pathname && pathname[0])
-        SetFile(pathname, resolve_path);
+        SetFile(pathname, resolve_path, syntax);
 }
 
 //------------------------------------------------------------------
@@ -252,7 +194,8 @@ FileSpec::FileSpec(const char *pathname, bool resolve_path) :
 FileSpec::FileSpec(const FileSpec& rhs) :
     m_directory (rhs.m_directory),
     m_filename (rhs.m_filename),
-    m_is_resolved (rhs.m_is_resolved)
+    m_is_resolved (rhs.m_is_resolved),
+    m_syntax (rhs.m_syntax)
 {
 }
 
@@ -268,7 +211,7 @@ FileSpec::FileSpec(const FileSpec* rhs) :
 }
 
 //------------------------------------------------------------------
-// Virtual destrcuctor in case anyone inherits from this class.
+// Virtual destructor in case anyone inherits from this class.
 //------------------------------------------------------------------
 FileSpec::~FileSpec()
 {
@@ -285,8 +228,27 @@ FileSpec::operator= (const FileSpec& rhs)
         m_directory = rhs.m_directory;
         m_filename = rhs.m_filename;
         m_is_resolved = rhs.m_is_resolved;
+        m_syntax = rhs.m_syntax;
     }
     return *this;
+}
+
+void FileSpec::Normalize(llvm::SmallVectorImpl<char> &path, PathSyntax syntax)
+{
+    if (syntax == ePathSyntaxPosix ||
+        (syntax == ePathSyntaxHostNative && FileSystem::GetNativePathSyntax() == ePathSyntaxPosix))
+        return;
+
+    std::replace(path.begin(), path.end(), '\\', '/');
+}
+
+void FileSpec::DeNormalize(llvm::SmallVectorImpl<char> &path, PathSyntax syntax)
+{
+    if (syntax == ePathSyntaxPosix ||
+        (syntax == ePathSyntaxHostNative && FileSystem::GetNativePathSyntax() == ePathSyntaxPosix))
+        return;
+
+    std::replace(path.begin(), path.end(), '/', '\\');
 }
 
 //------------------------------------------------------------------
@@ -295,73 +257,40 @@ FileSpec::operator= (const FileSpec& rhs)
 // string values for quick comparison and efficient memory usage.
 //------------------------------------------------------------------
 void
-FileSpec::SetFile (const char *pathname, bool resolve)
+FileSpec::SetFile (const char *pathname, bool resolve, PathSyntax syntax)
 {
     m_filename.Clear();
     m_directory.Clear();
     m_is_resolved = false;
+    m_syntax = (syntax == ePathSyntaxHostNative) ? FileSystem::GetNativePathSyntax() : syntax;
+
     if (pathname == NULL || pathname[0] == '\0')
         return;
 
-    char resolved_path[PATH_MAX];
-    bool path_fit = true;
-    
+    llvm::SmallString<64> normalized(pathname);
+
     if (resolve)
     {
-        path_fit = (FileSpec::Resolve (pathname, resolved_path, sizeof(resolved_path)) < sizeof(resolved_path) - 1);
-        m_is_resolved = path_fit;
+        FileSpec::Resolve (normalized);
+        m_is_resolved = true;
+    }
+
+    // Only normalize after resolving the path.  Resolution will modify the path
+    // string, potentially adding wrong kinds of slashes to the path, that need
+    // to be re-normalized.
+    Normalize(normalized, syntax);
+
+    llvm::StringRef resolve_path_ref(normalized.c_str());
+    llvm::StringRef filename_ref = llvm::sys::path::filename(resolve_path_ref);
+    if (!filename_ref.empty())
+    {
+        m_filename.SetString (filename_ref);
+        llvm::StringRef directory_ref = llvm::sys::path::parent_path(resolve_path_ref);
+        if (!directory_ref.empty())
+            m_directory.SetString(directory_ref);
     }
     else
-    {
-        // Copy the path because "basename" and "dirname" want to muck with the
-        // path buffer
-        if (::strlen (pathname) > sizeof(resolved_path) - 1)
-            path_fit = false;
-        else
-            ::strcpy (resolved_path, pathname);
-    }
-
-    
-    if (path_fit)
-    {
-        char *filename = ::basename (resolved_path);
-        if (filename)
-        {
-            m_filename.SetCString (filename);
-            // Truncate the basename off the end of the resolved path
-
-            // Only attempt to get the dirname if it looks like we have a path
-            if (strchr(resolved_path, '/')
-#ifdef _WIN32
-                || strchr(resolved_path, '\\')
-#endif
-                )
-            {
-                char *directory = ::dirname (resolved_path);
-
-                // Make sure we didn't get our directory resolved to "." without having
-                // specified
-                if (directory)
-                    m_directory.SetCString(directory);
-                else
-                {
-                    char *last_resolved_path_slash = strrchr(resolved_path, '/');
-#ifdef _WIN32
-                    char* last_resolved_path_slash_windows = strrchr(resolved_path, '\\');
-                    if (last_resolved_path_slash_windows > last_resolved_path_slash)
-                        last_resolved_path_slash = last_resolved_path_slash_windows;
-#endif
-                    if (last_resolved_path_slash)
-                    {
-                        *last_resolved_path_slash = '\0';
-                        m_directory.SetCString(resolved_path);
-                    }
-                }
-            }
-        }
-        else
-            m_directory.SetCString(resolved_path);
-    }
+        m_directory.SetCString(normalized.c_str());
 }
 
 //----------------------------------------------------------------------
@@ -523,15 +452,129 @@ FileSpec::Compare(const FileSpec& a, const FileSpec& b, bool full)
 }
 
 bool
-FileSpec::Equal (const FileSpec& a, const FileSpec& b, bool full)
+FileSpec::Equal (const FileSpec& a, const FileSpec& b, bool full, bool remove_backups)
 {
     if (!full && (a.GetDirectory().IsEmpty() || b.GetDirectory().IsEmpty()))
         return a.m_filename == b.m_filename;
-    else
+    else if (remove_backups == false)
         return a == b;
+    else
+    {
+        if (a.m_filename != b.m_filename)
+            return false;
+        if (a.m_directory == b.m_directory)
+            return true;
+        ConstString a_without_dots;
+        ConstString b_without_dots;
+
+        RemoveBackupDots (a.m_directory, a_without_dots);
+        RemoveBackupDots (b.m_directory, b_without_dots);
+        return a_without_dots == b_without_dots;
+    }
 }
 
+void
+FileSpec::RemoveBackupDots (const ConstString &input_const_str, ConstString &result_const_str)
+{
+    const char *input = input_const_str.GetCString();
+    result_const_str.Clear();
+    if (!input || input[0] == '\0')
+        return;
 
+    const char win_sep = '\\';
+    const char unix_sep = '/';
+    char found_sep;
+    const char *win_backup = "\\..";
+    const char *unix_backup = "/..";
+
+    bool is_win = false;
+
+    // Determine the platform for the path (win or unix):
+    
+    if (input[0] == win_sep)
+        is_win = true;
+    else if (input[0] == unix_sep)
+        is_win = false;
+    else if (input[1] == ':')
+        is_win = true;
+    else if (strchr(input, unix_sep) != nullptr)
+        is_win = false;
+    else if (strchr(input, win_sep) != nullptr)
+        is_win = true;
+    else
+    {
+        // No separators at all, no reason to do any work here.
+        result_const_str = input_const_str;
+        return;
+    }
+
+    llvm::StringRef backup_sep;
+    if (is_win)
+    {
+        found_sep = win_sep;
+        backup_sep = win_backup;
+    }
+    else
+    {
+        found_sep = unix_sep;
+        backup_sep = unix_backup;
+    }
+    
+    llvm::StringRef input_ref(input);
+    llvm::StringRef curpos(input);
+
+    bool had_dots = false;
+    std::string result;
+
+    while (1)
+    {
+        // Start of loop
+        llvm::StringRef before_sep;
+        std::pair<llvm::StringRef, llvm::StringRef> around_sep = curpos.split(backup_sep);
+        
+        before_sep = around_sep.first;
+        curpos     = around_sep.second;
+
+        if (curpos.empty())
+        {
+            if (had_dots)
+            {
+                if (!before_sep.empty())
+                {
+                    result.append(before_sep.data(), before_sep.size());
+                }
+            }
+            break;
+        }
+        had_dots = true;
+
+        unsigned num_backups = 1;
+        while (curpos.startswith(backup_sep))
+        {
+            num_backups++;
+            curpos = curpos.slice(backup_sep.size(), curpos.size());
+        }
+        
+        size_t end_pos = before_sep.size();
+        while (num_backups-- > 0)
+        {
+            end_pos = before_sep.rfind(found_sep, end_pos);
+            if (end_pos == llvm::StringRef::npos)
+            {
+                result_const_str = input_const_str;
+                return;
+            }
+        }
+        result.append(before_sep.data(), end_pos);
+    }
+
+    if (had_dots)
+        result_const_str.SetCString(result.c_str());
+    else
+        result_const_str = input_const_str;
+        
+    return;
+}
 
 //------------------------------------------------------------------
 // Dump the object to the supplied stream. If the object contains
@@ -562,6 +605,15 @@ FileSpec::Exists () const
 }
 
 bool
+FileSpec::Readable () const
+{
+    const uint32_t permissions = GetPermissions();
+    if (permissions & eFilePermissionsEveryoneR)
+        return true;
+    return false;
+}
+
+bool
 FileSpec::ResolveExecutableLocation ()
 {
     if (!m_directory)
@@ -570,10 +622,12 @@ FileSpec::ResolveExecutableLocation ()
         if (file_cstr)
         {
             const std::string file_str (file_cstr);
-            std::string path = llvm::sys::FindProgramByName (file_str);
+            llvm::ErrorOr<std::string> error_or_path = llvm::sys::findProgramByName (file_str);
+            if (!error_or_path)
+                return false;
+            std::string path = error_or_path.get();
             llvm::StringRef dir_ref = llvm::sys::path::parent_path(path);
-            //llvm::StringRef dir_ref = path.getDirname();
-            if (! dir_ref.empty())
+            if (!dir_ref.empty())
             {
                 // FindProgramByName returns "." if it can't find the file.
                 if (strcmp (".", dir_ref.data()) == 0)
@@ -607,7 +661,7 @@ FileSpec::ResolvePath ()
         return true;    // We have already resolved this path
 
     char path_buf[PATH_MAX];    
-    if (!GetPath (path_buf, PATH_MAX))
+    if (!GetPath (path_buf, PATH_MAX, false))
         return false;
     // SetFile(...) will set m_is_resolved correctly if it can resolve the path
     SetFile (path_buf, true);
@@ -621,6 +675,12 @@ FileSpec::GetByteSize() const
     if (GetFileStats (this, &file_stats))
         return file_stats.st_size;
     return 0;
+}
+
+FileSpec::PathSyntax
+FileSpec::GetPathSyntax() const
+{
+    return m_syntax;
 }
 
 FileSpec::FileType
@@ -652,7 +712,7 @@ FileSpec::GetPermissions () const
 {
     uint32_t file_permissions = 0;
     if (*this)
-        Host::GetFilePermissions(GetPath().c_str(), file_permissions);
+        FileSystem::GetFilePermissions(GetPath().c_str(), file_permissions);
     return file_permissions;
 }
 
@@ -708,45 +768,30 @@ FileSpec::GetFilename() const
 // values.
 //------------------------------------------------------------------
 size_t
-FileSpec::GetPath(char *path, size_t path_max_len) const
+FileSpec::GetPath(char *path, size_t path_max_len, bool denormalize) const
 {
-    if (path_max_len)
-    {
-        const char *dirname = m_directory.GetCString();
-        const char *filename = m_filename.GetCString();
-        if (dirname)
-        {
-            if (filename)
-                return ::snprintf (path, path_max_len, "%s/%s", dirname, filename);
-            else
-                return ::snprintf (path, path_max_len, "%s", dirname);
-        }
-        else if (filename)
-        {
-            return ::snprintf (path, path_max_len, "%s", filename);
-        }
-    }
-    if (path)
-        path[0] = '\0';
-    return 0;
+    if (!path)
+        return 0;
+
+    std::string result = GetPath(denormalize);
+
+    size_t result_length = std::min(path_max_len-1, result.length());
+    ::strncpy(path, result.c_str(), result_length + 1);
+    return result_length;
 }
 
 std::string
-FileSpec::GetPath (void) const
+FileSpec::GetPath (bool denormalize) const
 {
-    static ConstString g_slash_only ("/");
-    std::string path;
-    const char *dirname = m_directory.GetCString();
-    const char *filename = m_filename.GetCString();
-    if (dirname)
-    {
-        path.append (dirname);
-        if (filename && m_directory != g_slash_only)
-            path.append ("/");
-    }
-    if (filename)
-        path.append (filename);
-    return path;
+    llvm::SmallString<64> result;
+    if (m_directory)
+        result.append(m_directory.GetCString());
+    if (m_filename)
+        llvm::sys::path::append(result, m_filename.GetCString());
+    if (denormalize && !result.empty())
+        DeNormalize(result, m_syntax);
+
+    return std::string(result.begin(), result.end());
 }
 
 ConstString
@@ -780,7 +825,7 @@ FileSpec::GetFileNameStrippingExtension () const
 // Returns a shared pointer to a data buffer that contains all or
 // part of the contents of a file. The data is memory mapped and
 // will lazily page in data from the file as memory is accessed.
-// The data that is mappped will start "file_offset" bytes into the
+// The data that is mapped will start "file_offset" bytes into the
 // file, and "file_size" bytes will be mapped. If "file_size" is
 // greater than the number of bytes available in the file starting
 // at "file_offset", the number of bytes will be appropriately
@@ -936,12 +981,11 @@ FileSpec::EnumerateDirectory
     if (dir_path && dir_path[0])
     {
 #if _WIN32
-        char szDir[MAX_PATH];
-        strcpy_s(szDir, MAX_PATH, dir_path);
-        strcat_s(szDir, MAX_PATH, "\\*");
+        std::string szDir(dir_path);
+        szDir += "\\*";
 
         WIN32_FIND_DATA ffd;
-        HANDLE hFind = FindFirstFile(szDir, &ffd);
+        HANDLE hFind = FindFirstFile(szDir.c_str(), &ffd);
 
         if (hFind == INVALID_HANDLE_VALUE)
         {
@@ -1025,6 +1069,8 @@ FileSpec::EnumerateDirectory
         lldb_utility::CleanUp <DIR *, int> dir_path_dir(opendir(dir_path), NULL, closedir);
         if (dir_path_dir.is_valid())
         {
+            char dir_path_last_char = dir_path[strlen(dir_path) - 1];
+
             long path_max = fpathconf (dirfd (dir_path_dir.get()), _PC_NAME_MAX);
 #if defined (__APPLE_) && defined (__DARWIN_MAXPATHLEN)
             if (path_max < __DARWIN_MAXPATHLEN)
@@ -1069,7 +1115,14 @@ FileSpec::EnumerateDirectory
                 if (call_callback)
                 {
                     char child_path[PATH_MAX];
-                    const int child_path_len = ::snprintf (child_path, sizeof(child_path), "%s/%s", dir_path, dp->d_name);
+
+                    // Don't make paths with "/foo//bar", that just confuses everybody.
+                    int child_path_len;
+                    if (dir_path_last_char == '/')
+                        child_path_len = ::snprintf (child_path, sizeof(child_path), "%s%s", dir_path, dp->d_name);
+                    else
+                        child_path_len = ::snprintf (child_path, sizeof(child_path), "%s/%s", dir_path, dp->d_name);
+
                     if (child_path_len < (int)(sizeof(child_path) - 1))
                     {
                         // Don't resolve the file type or path
@@ -1287,17 +1340,30 @@ FileSpec::IsSourceImplementationFile () const
 bool
 FileSpec::IsRelativeToCurrentWorkingDirectory () const
 {
-    const char *directory = m_directory.GetCString();
-    if (directory && directory[0])
+    const char *dir = m_directory.GetCString();
+    llvm::StringRef directory(dir ? dir : "");
+
+    if (directory.size() > 0)
     {
-        // If the path doesn't start with '/' or '~', return true
-        switch (directory[0])
+        if (m_syntax == ePathSyntaxWindows)
         {
-        case '/':
-        case '~':
-            return false;
-        default:
+            if (directory.size() >= 2 && directory[1] == ':')
+                return false;
+            if (directory[0] == '/')
+                return false;
             return true;
+        }
+        else
+        {
+            // If the path doesn't start with '/' or '~', return true
+            switch (directory[0])
+            {
+                case '/':
+                case '~':
+                    return false;
+                default:
+                    return true;
+            }
         }
     }
     else if (m_filename)

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_iface.c 267384 2014-06-12 09:59:11Z melifaro $");
+__FBSDID("$FreeBSD$");
 
 /*
  * Kernel interface tracking API.
@@ -397,20 +397,20 @@ ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic)
 
 /*
  * Unreference interface specified by @ic.
- * Must be called without holding any locks.
+ * Must be called while holding UH lock.
  */
 void
 ipfw_iface_unref(struct ip_fw_chain *ch, struct ipfw_ifc *ic)
 {
 	struct ipfw_iface *iif;
 
+	IPFW_UH_WLOCK_ASSERT(ch);
+
 	iif = ic->iface;
 	ic->iface = NULL;
 
-	IPFW_UH_WLOCK(ch);
 	iif->no.refcnt--;
 	/* TODO: check for references & delete */
-	IPFW_UH_WUNLOCK(ch);
 }
 
 /*

@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2014
+.Dd February 18, 2015
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -160,7 +160,7 @@ is specified,
 must be a multiple of the pagesize.
 If
 .Dv MAP_EXCL
-is not specified, a successfull
+is not specified, a successful
 .Dv MAP_FIXED
 request replaces any previous mappings for the process'
 pages in the range from
@@ -225,7 +225,7 @@ it.
 You can test file fragmentation by observing the KB/t (kilobytes per
 transfer) results from an
 .Dq Li iostat 1
-while reading a large file sequentially, e.g.\& using
+while reading a large file sequentially, e.g.,\& using
 .Dq Li dd if=filename of=/dev/null bs=32k .
 .Pp
 The
@@ -448,17 +448,3 @@ was specified and insufficient memory was available.
 .Xr munmap 2 ,
 .Xr getpagesize 3 ,
 .Xr getpagesizes 3
-.Sh BUGS
-The
-.Fa len
-argument
-is limited to the maximum file size or available userland address
-space.
-Files may not be able to be made more than 1TB large on 32 bit systems
-due to file systems restrictions and bugs, but address space is far more
-restrictive.
-Larger files may be possible on 64 bit systems.
-.Pp
-The previous documented limit of 2GB was a documentation bug.
-That limit has not existed since
-.Fx 2.2 .

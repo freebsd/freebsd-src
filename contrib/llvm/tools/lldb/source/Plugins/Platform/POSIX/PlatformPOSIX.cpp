@@ -15,11 +15,16 @@
 // Project includes
 
 #include "lldb/Core/DataBufferHeap.h"
+#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Core/Module.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Host/File.h"
+#include "lldb/Host/FileCache.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Target/ProcessLaunchInfo.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -55,6 +60,16 @@ PlatformPOSIX::GetConnectionOptions (lldb_private::CommandInterpreter& interpret
         m_options->Append(new OptionGroupPlatformCaching());
     }
     return m_options.get();
+}
+
+bool
+PlatformPOSIX::IsConnected () const
+{
+    if (IsHost())
+        return true;
+    else if (m_remote_platform_sp)
+        return m_remote_platform_sp->IsConnected();
+    return false;
 }
 
 lldb_private::Error
@@ -98,7 +113,7 @@ Error
 PlatformPOSIX::SetFilePermissions (const char *path, uint32_t file_permissions)
 {
     if (m_remote_platform_sp)
-        return m_remote_platform_sp->MakeDirectory(path, file_permissions);
+        return m_remote_platform_sp->SetFilePermissions(path, file_permissions);
     else
         return Platform::SetFilePermissions(path ,file_permissions);
 }
@@ -110,7 +125,7 @@ PlatformPOSIX::OpenFile (const FileSpec& file_spec,
                          Error &error)
 {
     if (IsHost())
-        return Host::OpenFile(file_spec, flags, mode, error);
+        return FileCache::GetInstance().OpenFile(file_spec, flags, mode, error);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->OpenFile(file_spec, flags, mode, error);
     else
@@ -121,7 +136,7 @@ bool
 PlatformPOSIX::CloseFile (lldb::user_id_t fd, Error &error)
 {
     if (IsHost())
-        return Host::CloseFile(fd, error);
+        return FileCache::GetInstance().CloseFile(fd, error);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->CloseFile(fd, error);
     else
@@ -136,7 +151,7 @@ PlatformPOSIX::ReadFile (lldb::user_id_t fd,
                          Error &error)
 {
     if (IsHost())
-        return Host::ReadFile(fd, offset, dst, dst_len, error);
+        return FileCache::GetInstance().ReadFile(fd, offset, dst, dst_len, error);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->ReadFile(fd, offset, dst, dst_len, error);
     else
@@ -151,7 +166,7 @@ PlatformPOSIX::WriteFile (lldb::user_id_t fd,
                           Error &error)
 {
     if (IsHost())
-        return Host::WriteFile(fd, offset, src, src_len, error);
+        return FileCache::GetInstance().WriteFile(fd, offset, src, src_len, error);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->WriteFile(fd, offset, src, src_len, error);
     else
@@ -317,8 +332,14 @@ PlatformPOSIX::PutFile (const lldb_private::FileSpec& source,
             error = source_file.Read(buffer_sp->GetBytes(), bytes_read);
             if (bytes_read)
             {
-                WriteFile(dest_file, offset, buffer_sp->GetBytes(), bytes_read, error);
-                offset += bytes_read;
+                const uint64_t bytes_written = WriteFile(dest_file, offset, buffer_sp->GetBytes(), bytes_read, error);
+                offset += bytes_written;
+                if (bytes_written != bytes_read)
+                {
+                    // We didn't write the correct numbe of bytes, so adjust
+                    // the file position in the source file we are reading from...
+                    source_file.SeekFromStart(offset);
+                }
             }
             else
                 break;
@@ -330,6 +351,18 @@ PlatformPOSIX::PutFile (const lldb_private::FileSpec& source,
 //        std::string dst_path (destination.GetPath());
 //        if (chown_file(this,dst_path.c_str(),uid,gid) != 0)
 //            return Error("unable to perform chown");
+
+
+        uint64_t src_md5[2];
+        uint64_t dst_md5[2];
+
+        if (FileSystem::CalculateMD5 (source, src_md5[0], src_md5[1]) && CalculateMD5 (destination, dst_md5[0], dst_md5[1]))
+        {
+            if (src_md5[0] != dst_md5[0] || src_md5[1] != dst_md5[1])
+            {
+                error.SetErrorString("md5 checksum of installed file doesn't match, installation failed");
+            }
+        }
         return error;
     }
     return Platform::PutFile(source,destination,uid,gid);
@@ -339,7 +372,7 @@ lldb::user_id_t
 PlatformPOSIX::GetFileSize (const FileSpec& file_spec)
 {
     if (IsHost())
-        return Host::GetFileSize(file_spec);
+        return FileSystem::GetFileSize(file_spec);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->GetFileSize(file_spec);
     else
@@ -350,7 +383,7 @@ Error
 PlatformPOSIX::CreateSymlink(const char *src, const char *dst)
 {
     if (IsHost())
-        return Host::Symlink(src, dst);
+        return FileSystem::Symlink(src, dst);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->CreateSymlink(src, dst);
     else
@@ -372,7 +405,7 @@ Error
 PlatformPOSIX::Unlink (const char *path)
 {
     if (IsHost())
-        return Host::Unlink (path);
+        return FileSystem::Unlink(path);
     else if (m_remote_platform_sp)
         return m_remote_platform_sp->Unlink(path);
     else
@@ -469,10 +502,9 @@ PlatformPOSIX::GetFile (const lldb_private::FileSpec& source /* remote file path
         if (permissions == 0)
             permissions = lldb::eFilePermissionsFileDefault;
 
-        user_id_t fd_dst = Host::OpenFile(destination,
-                                          File::eOpenOptionCanCreate | File::eOpenOptionWrite | File::eOpenOptionTruncate,
-                                          permissions,
-                                          error);
+        user_id_t fd_dst = FileCache::GetInstance().OpenFile(
+            destination, File::eOpenOptionCanCreate | File::eOpenOptionWrite | File::eOpenOptionTruncate, permissions,
+            error);
 
         if (fd_dst == UINT64_MAX)
         {
@@ -496,15 +528,11 @@ PlatformPOSIX::GetFile (const lldb_private::FileSpec& source /* remote file path
                     break;
                 if (n_read == 0)
                     break;
-                if (Host::WriteFile(fd_dst,
-                                    offset,
-                                    buffer_sp->GetBytes(),
-                                    n_read,
-                                    error) != n_read)
+                if (FileCache::GetInstance().WriteFile(fd_dst, offset, buffer_sp->GetBytes(), n_read, error) != n_read)
                 {
                     if (!error.Fail())
                         error.SetErrorString("unable to write to destination file");
-                        break;
+                    break;
                 }
                 offset += n_read;
             }
@@ -513,7 +541,7 @@ PlatformPOSIX::GetFile (const lldb_private::FileSpec& source /* remote file path
         if (fd_src != UINT64_MAX)
             CloseFile(fd_src, error);
         // And close the dst file descriptot.
-        if (fd_dst != UINT64_MAX && !Host::CloseFile(fd_dst, error))
+        if (fd_dst != UINT64_MAX && !FileCache::GetInstance().CloseFile(fd_dst, error))
         {
             if (!error.Fail())
                 error.SetErrorString("unable to close destination file");
@@ -587,6 +615,274 @@ PlatformPOSIX::SetRemoteWorkingDirectory(const lldb_private::ConstString &path)
         return m_remote_platform_sp->SetRemoteWorkingDirectory(path);
     else
         return Platform::SetRemoteWorkingDirectory(path);
+}
+
+bool
+PlatformPOSIX::GetRemoteOSVersion ()
+{
+    if (m_remote_platform_sp)
+        return m_remote_platform_sp->GetOSVersion (m_major_os_version,
+                                                   m_minor_os_version,
+                                                   m_update_os_version);
+    return false;
+}
+
+bool
+PlatformPOSIX::GetRemoteOSBuildString (std::string &s)
+{
+    if (m_remote_platform_sp)
+        return m_remote_platform_sp->GetRemoteOSBuildString (s);
+    s.clear();
+    return false;
+}
+
+size_t
+PlatformPOSIX::GetEnvironment (StringList &env)
+{
+    if (IsRemote())
+    {
+        if (m_remote_platform_sp)
+            return m_remote_platform_sp->GetEnvironment(env);
+        return 0;
+    }
+    return Host::GetEnvironment(env);
+}
+
+bool
+PlatformPOSIX::GetRemoteOSKernelDescription (std::string &s)
+{
+    if (m_remote_platform_sp)
+        return m_remote_platform_sp->GetRemoteOSKernelDescription (s);
+    s.clear();
+    return false;
+}
+
+// Remote Platform subclasses need to override this function
+ArchSpec
+PlatformPOSIX::GetRemoteSystemArchitecture ()
+{
+    if (m_remote_platform_sp)
+        return m_remote_platform_sp->GetRemoteSystemArchitecture ();
+    return ArchSpec();
+}
+
+const char *
+PlatformPOSIX::GetHostname ()
+{
+    if (IsHost())
+        return Platform::GetHostname();
+
+    if (m_remote_platform_sp)
+        return m_remote_platform_sp->GetHostname ();
+    return NULL;
+}
+
+const char *
+PlatformPOSIX::GetUserName (uint32_t uid)
+{
+    // Check the cache in Platform in case we have already looked this uid up
+    const char *user_name = Platform::GetUserName(uid);
+    if (user_name)
+        return user_name;
+
+    if (IsRemote() && m_remote_platform_sp)
+        return m_remote_platform_sp->GetUserName(uid);
+    return NULL;
+}
+
+const char *
+PlatformPOSIX::GetGroupName (uint32_t gid)
+{
+    const char *group_name = Platform::GetGroupName(gid);
+    if (group_name)
+        return group_name;
+
+    if (IsRemote() && m_remote_platform_sp)
+        return m_remote_platform_sp->GetGroupName(gid);
+    return NULL;
+}
+
+Error
+PlatformPOSIX::ConnectRemote (Args& args)
+{
+    Error error;
+    if (IsHost())
+    {
+        error.SetErrorStringWithFormat ("can't connect to the host platform '%s', always connected", GetPluginName().GetCString());
+    }
+    else
+    {
+        if (!m_remote_platform_sp)
+            m_remote_platform_sp = Platform::Create (ConstString("remote-gdb-server"), error);
+
+        if (m_remote_platform_sp && error.Success())
+            error = m_remote_platform_sp->ConnectRemote (args);
+        else
+            error.SetErrorString ("failed to create a 'remote-gdb-server' platform");
+
+        if (error.Fail())
+            m_remote_platform_sp.reset();
+    }
+
+    if (error.Success() && m_remote_platform_sp)
+    {
+        if (m_options.get())
+        {
+            OptionGroupOptions* options = m_options.get();
+            OptionGroupPlatformRSync* m_rsync_options = (OptionGroupPlatformRSync*)options->GetGroupWithOption('r');
+            OptionGroupPlatformSSH* m_ssh_options = (OptionGroupPlatformSSH*)options->GetGroupWithOption('s');
+            OptionGroupPlatformCaching* m_cache_options = (OptionGroupPlatformCaching*)options->GetGroupWithOption('c');
+
+            if (m_rsync_options->m_rsync)
+            {
+                SetSupportsRSync(true);
+                SetRSyncOpts(m_rsync_options->m_rsync_opts.c_str());
+                SetRSyncPrefix(m_rsync_options->m_rsync_prefix.c_str());
+                SetIgnoresRemoteHostname(m_rsync_options->m_ignores_remote_hostname);
+            }
+            if (m_ssh_options->m_ssh)
+            {
+                SetSupportsSSH(true);
+                SetSSHOpts(m_ssh_options->m_ssh_opts.c_str());
+            }
+            SetLocalCacheDirectory(m_cache_options->m_cache_dir.c_str());
+        }
+    }
+
+    return error;
+}
+
+Error
+PlatformPOSIX::DisconnectRemote ()
+{
+    Error error;
+
+    if (IsHost())
+    {
+        error.SetErrorStringWithFormat ("can't disconnect from the host platform '%s', always connected", GetPluginName().GetCString());
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            error = m_remote_platform_sp->DisconnectRemote ();
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return error;
+}
+
+Error
+PlatformPOSIX::LaunchProcess (ProcessLaunchInfo &launch_info)
+{
+    Error error;
+
+    if (IsHost())
+    {
+        error = Platform::LaunchProcess (launch_info);
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            error = m_remote_platform_sp->LaunchProcess (launch_info);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return error;
+}
+
+lldb::ProcessSP
+PlatformPOSIX::Attach (ProcessAttachInfo &attach_info,
+                       Debugger &debugger,
+                       Target *target,
+                       Error &error)
+{
+    lldb::ProcessSP process_sp;
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PLATFORM));
+
+    if (IsHost())
+    {
+        if (target == NULL)
+        {
+            TargetSP new_target_sp;
+
+            error = debugger.GetTargetList().CreateTarget (debugger,
+                                                           NULL,
+                                                           NULL,
+                                                           false,
+                                                           NULL,
+                                                           new_target_sp);
+            target = new_target_sp.get();
+            if (log)
+                log->Printf ("PlatformPOSIX::%s created new target", __FUNCTION__);
+        }
+        else
+        {
+            error.Clear();
+            if (log)
+                log->Printf ("PlatformPOSIX::%s target already existed, setting target", __FUNCTION__);
+        }
+
+        if (target && error.Success())
+        {
+            debugger.GetTargetList().SetSelectedTarget(target);
+            if (log)
+            {
+                ModuleSP exe_module_sp = target->GetExecutableModule ();
+                log->Printf ("PlatformPOSIX::%s set selected target to %p %s", __FUNCTION__,
+                             target,
+                             exe_module_sp ? exe_module_sp->GetFileSpec().GetPath().c_str () : "<null>" );
+            }
+
+
+            process_sp = target->CreateProcess (attach_info.GetListenerForProcess(debugger), attach_info.GetProcessPluginName(), NULL);
+
+            if (process_sp)
+            {
+                // Set UnixSignals appropriately.
+                process_sp->SetUnixSignals (Host::GetUnixSignals ());
+
+                ListenerSP listener_sp (new Listener("lldb.PlatformPOSIX.attach.hijack"));
+                attach_info.SetHijackListener(listener_sp);
+                process_sp->HijackProcessEvents(listener_sp.get());
+                error = process_sp->Attach (attach_info);
+            }
+        }
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            process_sp = m_remote_platform_sp->Attach (attach_info, debugger, target, error);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return process_sp;
+}
+
+lldb::ProcessSP
+PlatformPOSIX::DebugProcess (ProcessLaunchInfo &launch_info,
+                              Debugger &debugger,
+                              Target *target,       // Can be NULL, if NULL create a new target, else use existing one
+                              Error &error)
+{
+    ProcessSP process_sp;
+
+    if (IsHost())
+    {
+        // We are going to hand this process off to debugserver which will be in charge of setting the exit status.
+        // We still need to reap it from lldb but if we let the monitor thread also set the exit status, we set up a
+        // race between debugserver & us for who will find out about the debugged process's death.
+        launch_info.GetFlags().Set(eLaunchFlagDontSetExitStatus);
+        process_sp = Platform::DebugProcess (launch_info, debugger, target, error);
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            process_sp = m_remote_platform_sp->DebugProcess (launch_info, debugger, target, error);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return process_sp;
+
 }
 
 void

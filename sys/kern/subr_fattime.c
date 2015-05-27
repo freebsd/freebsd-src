@@ -45,7 +45,7 @@
  * Later on again, in Windows NT, timestamps were defined relative to GMT.
  *
  * Purists will point out that UTC replaced GMT for such uses around
- * a century ago, already then.  Ironically "NT" was an abbreviation of 
+ * half a century ago, already then.  Ironically "NT" was an abbreviation of 
  * "New Technology".  Anyway...
  *
  * The 'utc' argument determines if the resulting FATTIME timestamp

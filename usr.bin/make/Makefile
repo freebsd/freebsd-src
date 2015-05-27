@@ -115,6 +115,6 @@ CFLAGS+=	-DDEFSHELLNAME=\"${MAKE_SHELL}\"
 PROG=	fmake
 CLEANFILES+=	fmake.1
 fmake.1: make.1
-	cp ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

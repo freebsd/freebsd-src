@@ -492,7 +492,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		if (nr)
 			mb->m_next = mb_list[nr];
 		mb = mb_list[nr];
-		mb->m_len = frag_info[nr].frag_size;
+		mb->m_len = frag_info->frag_size;
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
                 /* Allocate a replacement page */
@@ -500,7 +500,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
                         goto fail;
 
 		/* Unmap buffer */
-		pci_unmap_single(mdev->pdev, dma, frag_info[nr].frag_size,
+		pci_unmap_single(mdev->pdev, dma, frag_info->frag_size,
 				 PCI_DMA_FROMDEVICE);
 	}
 	/* Adjust size of last fragment to match actual length */
@@ -604,7 +604,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		}
 
 		mb->m_pkthdr.flowid = cq->ring;
-		mb->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
 		    MLX4_CQE_VLAN_PRESENT_MASK) {

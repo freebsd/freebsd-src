@@ -165,7 +165,7 @@ static void
 malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 {
 	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%jx val 0x%x\n",
-	    __func__, (intmax_t)off, val);
+	    __func__, (uintmax_t)off, val);
 
 	bus_space_write_4(sc->malo_io0t, sc->malo_io0h, off, val);
 }
@@ -510,9 +510,10 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 	
 	ds = dd->dd_desc;
 	memset(ds, 0, dd->dd_desc_len);
-	DPRINTF(sc, MALO_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
+	DPRINTF(sc, MALO_DEBUG_RESET,
+	    "%s: %s DMA map: %p (%lu) -> 0x%jx (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    (uintmax_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
 
 	return 0;
 fail2:
@@ -877,10 +878,9 @@ malo_printrxbuf(const struct malo_rxbuf *bf, u_int ix)
 	const struct malo_rxdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->status);
 	
-	printf("R[%2u] (DS.V:%p DS.P:%p) NEXT:%08x DATA:%08x RC:%02x%s\n"
+	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	    "      STAT:%02x LEN:%04x SNR:%02x NF:%02x CHAN:%02x"
-	    " RATE:%02x QOS:%04x\n",
-	    ix, ds, (const struct malo_desc *)bf->bf_daddr,
+	    " RATE:%02x QOS:%04x\n", ix, ds, (uintmax_t)bf->bf_daddr,
 	    le32toh(ds->physnext), le32toh(ds->physbuffdata),
 	    ds->rxcontrol, 
 	    ds->rxcontrol != MALO_RXD_CTRL_DRIVER_OWN ?
@@ -896,8 +896,7 @@ malo_printtxbuf(const struct malo_txbuf *bf, u_int qnum, u_int ix)
 	uint32_t status = le32toh(ds->status);
 	
 	printf("Q%u[%3u]", qnum, ix);
-	printf(" (DS.V:%p DS.P:%p)\n",
-	    ds, (const struct malo_txdesc *)bf->bf_daddr);
+	printf(" (DS.V:%p DS.P:0x%jx)\n", ds, (uintmax_t)bf->bf_daddr);
 	printf("    NEXT:%08x DATA:%08x LEN:%04x STAT:%08x%s\n",
 	    le32toh(ds->physnext),
 	    le32toh(ds->pktptr), le16toh(ds->pktlen), status,

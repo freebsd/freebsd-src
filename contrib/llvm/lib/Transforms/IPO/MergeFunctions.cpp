@@ -9,13 +9,24 @@
 //
 // This pass looks for equivalent functions that are mergable and folds them.
 //
-// A hash is computed from the function, based on its type and number of
-// basic blocks.
+// Order relation is defined on set of functions. It was made through
+// special function comparison procedure that returns
+// 0 when functions are equal,
+// -1 when Left function is less than right function, and
+// 1 for opposite case. We need total-ordering, so we need to maintain
+// four properties on the functions set:
+// a <= a (reflexivity)
+// if a <= b and b <= a then a = b (antisymmetry)
+// if a <= b and b <= c then a <= c (transitivity).
+// for all a and b: a <= b or b <= a (totality).
 //
-// Once all hashes are computed, we perform an expensive equality comparison
-// on each function pair. This takes n^2/2 comparisons per bucket, so it's
-// important that the hash function be high quality. The equality comparison
-// iterates through each instruction in each basic block.
+// Comparison iterates through each instruction in each basic block.
+// Functions are kept on binary tree. For each new function F we perform
+// lookup in binary tree.
+// In practice it works the following way:
+// -- We define Function* container class with custom "operator<" (FunctionPtr).
+// -- "FunctionPtr" instances are stored in std::set collection, so every
+//    std::set::insert operation will give you result in log(N) time.
 //
 // When a match is found the functions are folded. If both functions are
 // overridable, we move the functionality into a new internal function and
@@ -31,9 +42,6 @@
 // the object they belong to. However, as long as it's only used for a lookup
 // and call, this is irrelevant, and we'd like to fold such functions.
 //
-// * switch from n^2 pair-wise comparisons to an n-way comparison for each
-// bucket.
-//
 // * be smarter about bitcasts.
 //
 // In order to fold functions, we will sometimes add either bitcast instructions
@@ -41,15 +49,45 @@
 // analysis since the two functions differ where one has a bitcast and the
 // other doesn't. We should learn to look through bitcasts.
 //
+// * Compare complex types with pointer types inside.
+// * Compare cross-reference cases.
+// * Compare complex expressions.
+//
+// All the three issues above could be described as ability to prove that
+// fA == fB == fC == fE == fF == fG in example below:
+//
+//  void fA() {
+//    fB();
+//  }
+//  void fB() {
+//    fA();
+//  }
+//
+//  void fE() {
+//    fF();
+//  }
+//  void fF() {
+//    fG();
+//  }
+//  void fG() {
+//    fE();
+//  }
+//
+// Simplest cross-reference case (fA <--> fB) was implemented in previous
+// versions of MergeFunctions, though it presented only in two function pairs
+// in test-suite (that counts >50k functions)
+// Though possibility to detect complex cross-referencing (e.g.: A->B->C->D->A)
+// could cover much more cases.
+//
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mergefunc"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
@@ -58,103 +96,28 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
 #include <vector>
 using namespace llvm;
+
+#define DEBUG_TYPE "mergefunc"
 
 STATISTIC(NumFunctionsMerged, "Number of functions merged");
 STATISTIC(NumThunksWritten, "Number of thunks generated");
 STATISTIC(NumAliasesWritten, "Number of aliases generated");
 STATISTIC(NumDoubleWeak, "Number of new functions created");
 
-/// Returns the type id for a type to be hashed. We turn pointer types into
-/// integers here because the actual compare logic below considers pointers and
-/// integers of the same size as equal.
-static Type::TypeID getTypeIDForHash(Type *Ty) {
-  if (Ty->isPointerTy())
-    return Type::IntegerTyID;
-  return Ty->getTypeID();
-}
-
-/// Creates a hash-code for the function which is the same for any two
-/// functions that will compare equal, without looking at the instructions
-/// inside the function.
-static unsigned profileFunction(const Function *F) {
-  FunctionType *FTy = F->getFunctionType();
-
-  FoldingSetNodeID ID;
-  ID.AddInteger(F->size());
-  ID.AddInteger(F->getCallingConv());
-  ID.AddBoolean(F->hasGC());
-  ID.AddBoolean(FTy->isVarArg());
-  ID.AddInteger(getTypeIDForHash(FTy->getReturnType()));
-  for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i)
-    ID.AddInteger(getTypeIDForHash(FTy->getParamType(i)));
-  return ID.ComputeHash();
-}
-
-namespace {
-
-/// ComparableFunction - A struct that pairs together functions with a
-/// DataLayout so that we can keep them together as elements in the DenseSet.
-class ComparableFunction {
-public:
-  static const ComparableFunction EmptyKey;
-  static const ComparableFunction TombstoneKey;
-  static DataLayout * const LookupOnly;
-
-  ComparableFunction(Function *Func, DataLayout *TD)
-    : Func(Func), Hash(profileFunction(Func)), TD(TD) {}
-
-  Function *getFunc() const { return Func; }
-  unsigned getHash() const { return Hash; }
-  DataLayout *getTD() const { return TD; }
-
-  // Drops AssertingVH reference to the function. Outside of debug mode, this
-  // does nothing.
-  void release() {
-    assert(Func &&
-           "Attempted to release function twice, or release empty/tombstone!");
-    Func = NULL;
-  }
-
-private:
-  explicit ComparableFunction(unsigned Hash)
-    : Func(NULL), Hash(Hash), TD(NULL) {}
-
-  AssertingVH<Function> Func;
-  unsigned Hash;
-  DataLayout *TD;
-};
-
-const ComparableFunction ComparableFunction::EmptyKey = ComparableFunction(0);
-const ComparableFunction ComparableFunction::TombstoneKey =
-    ComparableFunction(1);
-DataLayout *const ComparableFunction::LookupOnly = (DataLayout*)(-1);
-
-}
-
-namespace llvm {
-  template <>
-  struct DenseMapInfo<ComparableFunction> {
-    static ComparableFunction getEmptyKey() {
-      return ComparableFunction::EmptyKey;
-    }
-    static ComparableFunction getTombstoneKey() {
-      return ComparableFunction::TombstoneKey;
-    }
-    static unsigned getHashValue(const ComparableFunction &CF) {
-      return CF.getHash();
-    }
-    static bool isEqual(const ComparableFunction &LHS,
-                        const ComparableFunction &RHS);
-  };
-}
+static cl::opt<unsigned> NumFunctionsForSanityCheck(
+    "mergefunc-sanity",
+    cl::desc("How many functions in module could be used for "
+             "MergeFunctions pass sanity check. "
+             "'0' disables this check. Works only with '-debug' key."),
+    cl::init(0), cl::Hidden);
 
 namespace {
 
@@ -164,75 +127,518 @@ namespace {
 /// side of claiming that two functions are different).
 class FunctionComparator {
 public:
-  FunctionComparator(const DataLayout *TD, const Function *F1,
+  FunctionComparator(const DataLayout *DL, const Function *F1,
                      const Function *F2)
-    : F1(F1), F2(F2), TD(TD) {}
+      : FnL(F1), FnR(F2), DL(DL) {}
 
   /// Test whether the two functions have equivalent behaviour.
-  bool compare();
+  int compare();
 
 private:
   /// Test whether two basic blocks have equivalent behaviour.
-  bool compare(const BasicBlock *BB1, const BasicBlock *BB2);
+  int compare(const BasicBlock *BBL, const BasicBlock *BBR);
+
+  /// Constants comparison.
+  /// Its analog to lexicographical comparison between hypothetical numbers
+  /// of next format:
+  /// <bitcastability-trait><raw-bit-contents>
+  ///
+  /// 1. Bitcastability.
+  /// Check whether L's type could be losslessly bitcasted to R's type.
+  /// On this stage method, in case when lossless bitcast is not possible
+  /// method returns -1 or 1, thus also defining which type is greater in
+  /// context of bitcastability.
+  /// Stage 0: If types are equal in terms of cmpTypes, then we can go straight
+  ///          to the contents comparison.
+  ///          If types differ, remember types comparison result and check
+  ///          whether we still can bitcast types.
+  /// Stage 1: Types that satisfies isFirstClassType conditions are always
+  ///          greater then others.
+  /// Stage 2: Vector is greater then non-vector.
+  ///          If both types are vectors, then vector with greater bitwidth is
+  ///          greater.
+  ///          If both types are vectors with the same bitwidth, then types
+  ///          are bitcastable, and we can skip other stages, and go to contents
+  ///          comparison.
+  /// Stage 3: Pointer types are greater than non-pointers. If both types are
+  ///          pointers of the same address space - go to contents comparison.
+  ///          Different address spaces: pointer with greater address space is
+  ///          greater.
+  /// Stage 4: Types are neither vectors, nor pointers. And they differ.
+  ///          We don't know how to bitcast them. So, we better don't do it,
+  ///          and return types comparison result (so it determines the
+  ///          relationship among constants we don't know how to bitcast).
+  ///
+  /// Just for clearance, let's see how the set of constants could look
+  /// on single dimension axis:
+  ///
+  /// [NFCT], [FCT, "others"], [FCT, pointers], [FCT, vectors]
+  /// Where: NFCT - Not a FirstClassType
+  ///        FCT - FirstClassTyp:
+  ///
+  /// 2. Compare raw contents.
+  /// It ignores types on this stage and only compares bits from L and R.
+  /// Returns 0, if L and R has equivalent contents.
+  /// -1 or 1 if values are different.
+  /// Pretty trivial:
+  /// 2.1. If contents are numbers, compare numbers.
+  ///    Ints with greater bitwidth are greater. Ints with same bitwidths
+  ///    compared by their contents.
+  /// 2.2. "And so on". Just to avoid discrepancies with comments
+  /// perhaps it would be better to read the implementation itself.
+  /// 3. And again about overall picture. Let's look back at how the ordered set
+  /// of constants will look like:
+  /// [NFCT], [FCT, "others"], [FCT, pointers], [FCT, vectors]
+  ///
+  /// Now look, what could be inside [FCT, "others"], for example:
+  /// [FCT, "others"] =
+  /// [
+  ///   [double 0.1], [double 1.23],
+  ///   [i32 1], [i32 2],
+  ///   { double 1.0 },       ; StructTyID, NumElements = 1
+  ///   { i32 1 },            ; StructTyID, NumElements = 1
+  ///   { double 1, i32 1 },  ; StructTyID, NumElements = 2
+  ///   { i32 1, double 1 }   ; StructTyID, NumElements = 2
+  /// ]
+  ///
+  /// Let's explain the order. Float numbers will be less than integers, just
+  /// because of cmpType terms: FloatTyID < IntegerTyID.
+  /// Floats (with same fltSemantics) are sorted according to their value.
+  /// Then you can see integers, and they are, like a floats,
+  /// could be easy sorted among each others.
+  /// The structures. Structures are grouped at the tail, again because of their
+  /// TypeID: StructTyID > IntegerTyID > FloatTyID.
+  /// Structures with greater number of elements are greater. Structures with
+  /// greater elements going first are greater.
+  /// The same logic with vectors, arrays and other possible complex types.
+  ///
+  /// Bitcastable constants.
+  /// Let's assume, that some constant, belongs to some group of
+  /// "so-called-equal" values with different types, and at the same time
+  /// belongs to another group of constants with equal types
+  /// and "really" equal values.
+  ///
+  /// Now, prove that this is impossible:
+  ///
+  /// If constant A with type TyA is bitcastable to B with type TyB, then:
+  /// 1. All constants with equal types to TyA, are bitcastable to B. Since
+  ///    those should be vectors (if TyA is vector), pointers
+  ///    (if TyA is pointer), or else (if TyA equal to TyB), those types should
+  ///    be equal to TyB.
+  /// 2. All constants with non-equal, but bitcastable types to TyA, are
+  ///    bitcastable to B.
+  ///    Once again, just because we allow it to vectors and pointers only.
+  ///    This statement could be expanded as below:
+  /// 2.1. All vectors with equal bitwidth to vector A, has equal bitwidth to
+  ///      vector B, and thus bitcastable to B as well.
+  /// 2.2. All pointers of the same address space, no matter what they point to,
+  ///      bitcastable. So if C is pointer, it could be bitcasted to A and to B.
+  /// So any constant equal or bitcastable to A is equal or bitcastable to B.
+  /// QED.
+  ///
+  /// In another words, for pointers and vectors, we ignore top-level type and
+  /// look at their particular properties (bit-width for vectors, and
+  /// address space for pointers).
+  /// If these properties are equal - compare their contents.
+  int cmpConstants(const Constant *L, const Constant *R);
 
   /// Assign or look up previously assigned numbers for the two values, and
   /// return whether the numbers are equal. Numbers are assigned in the order
   /// visited.
-  bool enumerate(const Value *V1, const Value *V2);
+  /// Comparison order:
+  /// Stage 0: Value that is function itself is always greater then others.
+  ///          If left and right values are references to their functions, then
+  ///          they are equal.
+  /// Stage 1: Constants are greater than non-constants.
+  ///          If both left and right are constants, then the result of
+  ///          cmpConstants is used as cmpValues result.
+  /// Stage 2: InlineAsm instances are greater than others. If both left and
+  ///          right are InlineAsm instances, InlineAsm* pointers casted to
+  ///          integers and compared as numbers.
+  /// Stage 3: For all other cases we compare order we meet these values in
+  ///          their functions. If right value was met first during scanning,
+  ///          then left value is greater.
+  ///          In another words, we compare serial numbers, for more details
+  ///          see comments for sn_mapL and sn_mapR.
+  int cmpValues(const Value *L, const Value *R);
 
   /// Compare two Instructions for equivalence, similar to
   /// Instruction::isSameOperationAs but with modifications to the type
   /// comparison.
-  bool isEquivalentOperation(const Instruction *I1,
-                             const Instruction *I2) const;
+  /// Stages are listed in "most significant stage first" order:
+  /// On each stage below, we do comparison between some left and right
+  /// operation parts. If parts are non-equal, we assign parts comparison
+  /// result to the operation comparison result and exit from method.
+  /// Otherwise we proceed to the next stage.
+  /// Stages:
+  /// 1. Operations opcodes. Compared as numbers.
+  /// 2. Number of operands.
+  /// 3. Operation types. Compared with cmpType method.
+  /// 4. Compare operation subclass optional data as stream of bytes:
+  /// just convert it to integers and call cmpNumbers.
+  /// 5. Compare in operation operand types with cmpType in
+  /// most significant operand first order.
+  /// 6. Last stage. Check operations for some specific attributes.
+  /// For example, for Load it would be:
+  /// 6.1.Load: volatile (as boolean flag)
+  /// 6.2.Load: alignment (as integer numbers)
+  /// 6.3.Load: synch-scope (as integer numbers)
+  /// 6.4.Load: range metadata (as integer numbers)
+  /// On this stage its better to see the code, since its not more than 10-15
+  /// strings for particular instruction, and could change sometimes.
+  int cmpOperations(const Instruction *L, const Instruction *R) const;
 
   /// Compare two GEPs for equivalent pointer arithmetic.
-  bool isEquivalentGEP(const GEPOperator *GEP1, const GEPOperator *GEP2);
-  bool isEquivalentGEP(const GetElementPtrInst *GEP1,
-                       const GetElementPtrInst *GEP2) {
-    return isEquivalentGEP(cast<GEPOperator>(GEP1), cast<GEPOperator>(GEP2));
+  /// Parts to be compared for each comparison stage,
+  /// most significant stage first:
+  /// 1. Address space. As numbers.
+  /// 2. Constant offset, (if "DataLayout *DL" field is not NULL,
+  /// using GEPOperator::accumulateConstantOffset method).
+  /// 3. Pointer operand type (using cmpType method).
+  /// 4. Number of operands.
+  /// 5. Compare operands, using cmpValues method.
+  int cmpGEPs(const GEPOperator *GEPL, const GEPOperator *GEPR);
+  int cmpGEPs(const GetElementPtrInst *GEPL, const GetElementPtrInst *GEPR) {
+    return cmpGEPs(cast<GEPOperator>(GEPL), cast<GEPOperator>(GEPR));
   }
 
-  /// Compare two Types, treating all pointer types as equal.
-  bool isEquivalentType(Type *Ty1, Type *Ty2) const;
+  /// cmpType - compares two types,
+  /// defines total ordering among the types set.
+  ///
+  /// Return values:
+  /// 0 if types are equal,
+  /// -1 if Left is less than Right,
+  /// +1 if Left is greater than Right.
+  ///
+  /// Description:
+  /// Comparison is broken onto stages. Like in lexicographical comparison
+  /// stage coming first has higher priority.
+  /// On each explanation stage keep in mind total ordering properties.
+  ///
+  /// 0. Before comparison we coerce pointer types of 0 address space to
+  /// integer.
+  /// We also don't bother with same type at left and right, so
+  /// just return 0 in this case.
+  ///
+  /// 1. If types are of different kind (different type IDs).
+  ///    Return result of type IDs comparison, treating them as numbers.
+  /// 2. If types are vectors or integers, compare Type* values as numbers.
+  /// 3. Types has same ID, so check whether they belongs to the next group:
+  /// * Void
+  /// * Float
+  /// * Double
+  /// * X86_FP80
+  /// * FP128
+  /// * PPC_FP128
+  /// * Label
+  /// * Metadata
+  /// If so - return 0, yes - we can treat these types as equal only because
+  /// their IDs are same.
+  /// 4. If Left and Right are pointers, return result of address space
+  /// comparison (numbers comparison). We can treat pointer types of same
+  /// address space as equal.
+  /// 5. If types are complex.
+  /// Then both Left and Right are to be expanded and their element types will
+  /// be checked with the same way. If we get Res != 0 on some stage, return it.
+  /// Otherwise return 0.
+  /// 6. For all other cases put llvm_unreachable.
+  int cmpTypes(Type *TyL, Type *TyR) const;
+
+  int cmpNumbers(uint64_t L, uint64_t R) const;
+
+  int cmpAPInts(const APInt &L, const APInt &R) const;
+  int cmpAPFloats(const APFloat &L, const APFloat &R) const;
+  int cmpStrings(StringRef L, StringRef R) const;
+  int cmpAttrs(const AttributeSet L, const AttributeSet R) const;
 
   // The two functions undergoing comparison.
-  const Function *F1, *F2;
+  const Function *FnL, *FnR;
 
-  const DataLayout *TD;
+  const DataLayout *DL;
 
-  DenseMap<const Value *, const Value *> id_map;
-  DenseSet<const Value *> seen_values;
+  /// Assign serial numbers to values from left function, and values from
+  /// right function.
+  /// Explanation:
+  /// Being comparing functions we need to compare values we meet at left and
+  /// right sides.
+  /// Its easy to sort things out for external values. It just should be
+  /// the same value at left and right.
+  /// But for local values (those were introduced inside function body)
+  /// we have to ensure they were introduced at exactly the same place,
+  /// and plays the same role.
+  /// Let's assign serial number to each value when we meet it first time.
+  /// Values that were met at same place will be with same serial numbers.
+  /// In this case it would be good to explain few points about values assigned
+  /// to BBs and other ways of implementation (see below).
+  ///
+  /// 1. Safety of BB reordering.
+  /// It's safe to change the order of BasicBlocks in function.
+  /// Relationship with other functions and serial numbering will not be
+  /// changed in this case.
+  /// As follows from FunctionComparator::compare(), we do CFG walk: we start
+  /// from the entry, and then take each terminator. So it doesn't matter how in
+  /// fact BBs are ordered in function. And since cmpValues are called during
+  /// this walk, the numbering depends only on how BBs located inside the CFG.
+  /// So the answer is - yes. We will get the same numbering.
+  ///
+  /// 2. Impossibility to use dominance properties of values.
+  /// If we compare two instruction operands: first is usage of local
+  /// variable AL from function FL, and second is usage of local variable AR
+  /// from FR, we could compare their origins and check whether they are
+  /// defined at the same place.
+  /// But, we are still not able to compare operands of PHI nodes, since those
+  /// could be operands from further BBs we didn't scan yet.
+  /// So it's impossible to use dominance properties in general.
+  DenseMap<const Value*, int> sn_mapL, sn_mapR;
 };
 
+class FunctionNode {
+  AssertingVH<Function> F;
+  const DataLayout *DL;
+
+public:
+  FunctionNode(Function *F, const DataLayout *DL) : F(F), DL(DL) {}
+  Function *getFunc() const { return F; }
+  void release() { F = 0; }
+  bool operator<(const FunctionNode &RHS) const {
+    return (FunctionComparator(DL, F, RHS.getFunc()).compare()) == -1;
+  }
+};
 }
 
-// Any two pointers in the same address space are equivalent, intptr_t and
-// pointers are equivalent. Otherwise, standard type equivalence rules apply.
-bool FunctionComparator::isEquivalentType(Type *Ty1, Type *Ty2) const {
+int FunctionComparator::cmpNumbers(uint64_t L, uint64_t R) const {
+  if (L < R) return -1;
+  if (L > R) return 1;
+  return 0;
+}
 
-  PointerType *PTy1 = dyn_cast<PointerType>(Ty1);
-  PointerType *PTy2 = dyn_cast<PointerType>(Ty2);
+int FunctionComparator::cmpAPInts(const APInt &L, const APInt &R) const {
+  if (int Res = cmpNumbers(L.getBitWidth(), R.getBitWidth()))
+    return Res;
+  if (L.ugt(R)) return 1;
+  if (R.ugt(L)) return -1;
+  return 0;
+}
 
-  if (TD) {
-    if (PTy1 && PTy1->getAddressSpace() == 0) Ty1 = TD->getIntPtrType(Ty1);
-    if (PTy2 && PTy2->getAddressSpace() == 0) Ty2 = TD->getIntPtrType(Ty2);
+int FunctionComparator::cmpAPFloats(const APFloat &L, const APFloat &R) const {
+  if (int Res = cmpNumbers((uint64_t)&L.getSemantics(),
+                           (uint64_t)&R.getSemantics()))
+    return Res;
+  return cmpAPInts(L.bitcastToAPInt(), R.bitcastToAPInt());
+}
+
+int FunctionComparator::cmpStrings(StringRef L, StringRef R) const {
+  // Prevent heavy comparison, compare sizes first.
+  if (int Res = cmpNumbers(L.size(), R.size()))
+    return Res;
+
+  // Compare strings lexicographically only when it is necessary: only when
+  // strings are equal in size.
+  return L.compare(R);
+}
+
+int FunctionComparator::cmpAttrs(const AttributeSet L,
+                                 const AttributeSet R) const {
+  if (int Res = cmpNumbers(L.getNumSlots(), R.getNumSlots()))
+    return Res;
+
+  for (unsigned i = 0, e = L.getNumSlots(); i != e; ++i) {
+    AttributeSet::iterator LI = L.begin(i), LE = L.end(i), RI = R.begin(i),
+                           RE = R.end(i);
+    for (; LI != LE && RI != RE; ++LI, ++RI) {
+      Attribute LA = *LI;
+      Attribute RA = *RI;
+      if (LA < RA)
+        return -1;
+      if (RA < LA)
+        return 1;
+    }
+    if (LI != LE)
+      return 1;
+    if (RI != RE)
+      return -1;
+  }
+  return 0;
+}
+
+/// Constants comparison:
+/// 1. Check whether type of L constant could be losslessly bitcasted to R
+/// type.
+/// 2. Compare constant contents.
+/// For more details see declaration comments.
+int FunctionComparator::cmpConstants(const Constant *L, const Constant *R) {
+
+  Type *TyL = L->getType();
+  Type *TyR = R->getType();
+
+  // Check whether types are bitcastable. This part is just re-factored
+  // Type::canLosslesslyBitCastTo method, but instead of returning true/false,
+  // we also pack into result which type is "less" for us.
+  int TypesRes = cmpTypes(TyL, TyR);
+  if (TypesRes != 0) {
+    // Types are different, but check whether we can bitcast them.
+    if (!TyL->isFirstClassType()) {
+      if (TyR->isFirstClassType())
+        return -1;
+      // Neither TyL nor TyR are values of first class type. Return the result
+      // of comparing the types
+      return TypesRes;
+    }
+    if (!TyR->isFirstClassType()) {
+      if (TyL->isFirstClassType())
+        return 1;
+      return TypesRes;
+    }
+
+    // Vector -> Vector conversions are always lossless if the two vector types
+    // have the same size, otherwise not.
+    unsigned TyLWidth = 0;
+    unsigned TyRWidth = 0;
+
+    if (const VectorType *VecTyL = dyn_cast<VectorType>(TyL))
+      TyLWidth = VecTyL->getBitWidth();
+    if (const VectorType *VecTyR = dyn_cast<VectorType>(TyR))
+      TyRWidth = VecTyR->getBitWidth();
+
+    if (TyLWidth != TyRWidth)
+      return cmpNumbers(TyLWidth, TyRWidth);
+
+    // Zero bit-width means neither TyL nor TyR are vectors.
+    if (!TyLWidth) {
+      PointerType *PTyL = dyn_cast<PointerType>(TyL);
+      PointerType *PTyR = dyn_cast<PointerType>(TyR);
+      if (PTyL && PTyR) {
+        unsigned AddrSpaceL = PTyL->getAddressSpace();
+        unsigned AddrSpaceR = PTyR->getAddressSpace();
+        if (int Res = cmpNumbers(AddrSpaceL, AddrSpaceR))
+          return Res;
+      }
+      if (PTyL)
+        return 1;
+      if (PTyR)
+        return -1;
+
+      // TyL and TyR aren't vectors, nor pointers. We don't know how to
+      // bitcast them.
+      return TypesRes;
+    }
   }
 
-  if (Ty1 == Ty2)
-    return true;
+  // OK, types are bitcastable, now check constant contents.
 
-  if (Ty1->getTypeID() != Ty2->getTypeID())
-    return false;
+  if (L->isNullValue() && R->isNullValue())
+    return TypesRes;
+  if (L->isNullValue() && !R->isNullValue())
+    return 1;
+  if (!L->isNullValue() && R->isNullValue())
+    return -1;
 
-  switch (Ty1->getTypeID()) {
+  if (int Res = cmpNumbers(L->getValueID(), R->getValueID()))
+    return Res;
+
+  switch (L->getValueID()) {
+  case Value::UndefValueVal: return TypesRes;
+  case Value::ConstantIntVal: {
+    const APInt &LInt = cast<ConstantInt>(L)->getValue();
+    const APInt &RInt = cast<ConstantInt>(R)->getValue();
+    return cmpAPInts(LInt, RInt);
+  }
+  case Value::ConstantFPVal: {
+    const APFloat &LAPF = cast<ConstantFP>(L)->getValueAPF();
+    const APFloat &RAPF = cast<ConstantFP>(R)->getValueAPF();
+    return cmpAPFloats(LAPF, RAPF);
+  }
+  case Value::ConstantArrayVal: {
+    const ConstantArray *LA = cast<ConstantArray>(L);
+    const ConstantArray *RA = cast<ConstantArray>(R);
+    uint64_t NumElementsL = cast<ArrayType>(TyL)->getNumElements();
+    uint64_t NumElementsR = cast<ArrayType>(TyR)->getNumElements();
+    if (int Res = cmpNumbers(NumElementsL, NumElementsR))
+      return Res;
+    for (uint64_t i = 0; i < NumElementsL; ++i) {
+      if (int Res = cmpConstants(cast<Constant>(LA->getOperand(i)),
+                                 cast<Constant>(RA->getOperand(i))))
+        return Res;
+    }
+    return 0;
+  }
+  case Value::ConstantStructVal: {
+    const ConstantStruct *LS = cast<ConstantStruct>(L);
+    const ConstantStruct *RS = cast<ConstantStruct>(R);
+    unsigned NumElementsL = cast<StructType>(TyL)->getNumElements();
+    unsigned NumElementsR = cast<StructType>(TyR)->getNumElements();
+    if (int Res = cmpNumbers(NumElementsL, NumElementsR))
+      return Res;
+    for (unsigned i = 0; i != NumElementsL; ++i) {
+      if (int Res = cmpConstants(cast<Constant>(LS->getOperand(i)),
+                                 cast<Constant>(RS->getOperand(i))))
+        return Res;
+    }
+    return 0;
+  }
+  case Value::ConstantVectorVal: {
+    const ConstantVector *LV = cast<ConstantVector>(L);
+    const ConstantVector *RV = cast<ConstantVector>(R);
+    unsigned NumElementsL = cast<VectorType>(TyL)->getNumElements();
+    unsigned NumElementsR = cast<VectorType>(TyR)->getNumElements();
+    if (int Res = cmpNumbers(NumElementsL, NumElementsR))
+      return Res;
+    for (uint64_t i = 0; i < NumElementsL; ++i) {
+      if (int Res = cmpConstants(cast<Constant>(LV->getOperand(i)),
+                                 cast<Constant>(RV->getOperand(i))))
+        return Res;
+    }
+    return 0;
+  }
+  case Value::ConstantExprVal: {
+    const ConstantExpr *LE = cast<ConstantExpr>(L);
+    const ConstantExpr *RE = cast<ConstantExpr>(R);
+    unsigned NumOperandsL = LE->getNumOperands();
+    unsigned NumOperandsR = RE->getNumOperands();
+    if (int Res = cmpNumbers(NumOperandsL, NumOperandsR))
+      return Res;
+    for (unsigned i = 0; i < NumOperandsL; ++i) {
+      if (int Res = cmpConstants(cast<Constant>(LE->getOperand(i)),
+                                 cast<Constant>(RE->getOperand(i))))
+        return Res;
+    }
+    return 0;
+  }
+  case Value::FunctionVal:
+  case Value::GlobalVariableVal:
+  case Value::GlobalAliasVal:
+  default: // Unknown constant, cast L and R pointers to numbers and compare.
+    return cmpNumbers((uint64_t)L, (uint64_t)R);
+  }
+}
+
+/// cmpType - compares two types,
+/// defines total ordering among the types set.
+/// See method declaration comments for more details.
+int FunctionComparator::cmpTypes(Type *TyL, Type *TyR) const {
+
+  PointerType *PTyL = dyn_cast<PointerType>(TyL);
+  PointerType *PTyR = dyn_cast<PointerType>(TyR);
+
+  if (DL) {
+    if (PTyL && PTyL->getAddressSpace() == 0) TyL = DL->getIntPtrType(TyL);
+    if (PTyR && PTyR->getAddressSpace() == 0) TyR = DL->getIntPtrType(TyR);
+  }
+
+  if (TyL == TyR)
+    return 0;
+
+  if (int Res = cmpNumbers(TyL->getTypeID(), TyR->getTypeID()))
+    return Res;
+
+  switch (TyL->getTypeID()) {
   default:
     llvm_unreachable("Unknown type!");
     // Fall through in Release mode.
   case Type::IntegerTyID:
   case Type::VectorTyID:
-    // Ty1 == Ty2 would have returned true earlier.
-    return false;
+    // TyL == TyR would have returned true earlier.
+    return cmpNumbers((uint64_t)TyL, (uint64_t)TyR);
 
   case Type::VoidTyID:
   case Type::FloatTyID:
@@ -242,51 +648,54 @@ bool FunctionComparator::isEquivalentType(Type *Ty1, Type *Ty2) const {
   case Type::PPC_FP128TyID:
   case Type::LabelTyID:
   case Type::MetadataTyID:
-    return true;
+    return 0;
 
   case Type::PointerTyID: {
-    assert(PTy1 && PTy2 && "Both types must be pointers here.");
-    return PTy1->getAddressSpace() == PTy2->getAddressSpace();
+    assert(PTyL && PTyR && "Both types must be pointers here.");
+    return cmpNumbers(PTyL->getAddressSpace(), PTyR->getAddressSpace());
   }
 
   case Type::StructTyID: {
-    StructType *STy1 = cast<StructType>(Ty1);
-    StructType *STy2 = cast<StructType>(Ty2);
-    if (STy1->getNumElements() != STy2->getNumElements())
-      return false;
+    StructType *STyL = cast<StructType>(TyL);
+    StructType *STyR = cast<StructType>(TyR);
+    if (STyL->getNumElements() != STyR->getNumElements())
+      return cmpNumbers(STyL->getNumElements(), STyR->getNumElements());
 
-    if (STy1->isPacked() != STy2->isPacked())
-      return false;
+    if (STyL->isPacked() != STyR->isPacked())
+      return cmpNumbers(STyL->isPacked(), STyR->isPacked());
 
-    for (unsigned i = 0, e = STy1->getNumElements(); i != e; ++i) {
-      if (!isEquivalentType(STy1->getElementType(i), STy2->getElementType(i)))
-        return false;
+    for (unsigned i = 0, e = STyL->getNumElements(); i != e; ++i) {
+      if (int Res = cmpTypes(STyL->getElementType(i), STyR->getElementType(i)))
+        return Res;
     }
-    return true;
+    return 0;
   }
 
   case Type::FunctionTyID: {
-    FunctionType *FTy1 = cast<FunctionType>(Ty1);
-    FunctionType *FTy2 = cast<FunctionType>(Ty2);
-    if (FTy1->getNumParams() != FTy2->getNumParams() ||
-        FTy1->isVarArg() != FTy2->isVarArg())
-      return false;
+    FunctionType *FTyL = cast<FunctionType>(TyL);
+    FunctionType *FTyR = cast<FunctionType>(TyR);
+    if (FTyL->getNumParams() != FTyR->getNumParams())
+      return cmpNumbers(FTyL->getNumParams(), FTyR->getNumParams());
 
-    if (!isEquivalentType(FTy1->getReturnType(), FTy2->getReturnType()))
-      return false;
+    if (FTyL->isVarArg() != FTyR->isVarArg())
+      return cmpNumbers(FTyL->isVarArg(), FTyR->isVarArg());
 
-    for (unsigned i = 0, e = FTy1->getNumParams(); i != e; ++i) {
-      if (!isEquivalentType(FTy1->getParamType(i), FTy2->getParamType(i)))
-        return false;
+    if (int Res = cmpTypes(FTyL->getReturnType(), FTyR->getReturnType()))
+      return Res;
+
+    for (unsigned i = 0, e = FTyL->getNumParams(); i != e; ++i) {
+      if (int Res = cmpTypes(FTyL->getParamType(i), FTyR->getParamType(i)))
+        return Res;
     }
-    return true;
+    return 0;
   }
 
   case Type::ArrayTyID: {
-    ArrayType *ATy1 = cast<ArrayType>(Ty1);
-    ArrayType *ATy2 = cast<ArrayType>(Ty2);
-    return ATy1->getNumElements() == ATy2->getNumElements() &&
-           isEquivalentType(ATy1->getElementType(), ATy2->getElementType());
+    ArrayType *ATyL = cast<ArrayType>(TyL);
+    ArrayType *ATyR = cast<ArrayType>(TyR);
+    if (ATyL->getNumElements() != ATyR->getNumElements())
+      return cmpNumbers(ATyL->getNumElements(), ATyR->getNumElements());
+    return cmpTypes(ATyL->getElementType(), ATyR->getElementType());
   }
   }
 }
@@ -294,222 +703,323 @@ bool FunctionComparator::isEquivalentType(Type *Ty1, Type *Ty2) const {
 // Determine whether the two operations are the same except that pointer-to-A
 // and pointer-to-B are equivalent. This should be kept in sync with
 // Instruction::isSameOperationAs.
-bool FunctionComparator::isEquivalentOperation(const Instruction *I1,
-                                               const Instruction *I2) const {
+// Read method declaration comments for more details.
+int FunctionComparator::cmpOperations(const Instruction *L,
+                                      const Instruction *R) const {
   // Differences from Instruction::isSameOperationAs:
   //  * replace type comparison with calls to isEquivalentType.
   //  * we test for I->hasSameSubclassOptionalData (nuw/nsw/tail) at the top
   //  * because of the above, we don't test for the tail bit on calls later on
-  if (I1->getOpcode() != I2->getOpcode() ||
-      I1->getNumOperands() != I2->getNumOperands() ||
-      !isEquivalentType(I1->getType(), I2->getType()) ||
-      !I1->hasSameSubclassOptionalData(I2))
-    return false;
+  if (int Res = cmpNumbers(L->getOpcode(), R->getOpcode()))
+    return Res;
+
+  if (int Res = cmpNumbers(L->getNumOperands(), R->getNumOperands()))
+    return Res;
+
+  if (int Res = cmpTypes(L->getType(), R->getType()))
+    return Res;
+
+  if (int Res = cmpNumbers(L->getRawSubclassOptionalData(),
+                           R->getRawSubclassOptionalData()))
+    return Res;
 
   // We have two instructions of identical opcode and #operands.  Check to see
   // if all operands are the same type
-  for (unsigned i = 0, e = I1->getNumOperands(); i != e; ++i)
-    if (!isEquivalentType(I1->getOperand(i)->getType(),
-                          I2->getOperand(i)->getType()))
-      return false;
+  for (unsigned i = 0, e = L->getNumOperands(); i != e; ++i) {
+    if (int Res =
+            cmpTypes(L->getOperand(i)->getType(), R->getOperand(i)->getType()))
+      return Res;
+  }
 
   // Check special state that is a part of some instructions.
-  if (const LoadInst *LI = dyn_cast<LoadInst>(I1))
-    return LI->isVolatile() == cast<LoadInst>(I2)->isVolatile() &&
-           LI->getAlignment() == cast<LoadInst>(I2)->getAlignment() &&
-           LI->getOrdering() == cast<LoadInst>(I2)->getOrdering() &&
-           LI->getSynchScope() == cast<LoadInst>(I2)->getSynchScope();
-  if (const StoreInst *SI = dyn_cast<StoreInst>(I1))
-    return SI->isVolatile() == cast<StoreInst>(I2)->isVolatile() &&
-           SI->getAlignment() == cast<StoreInst>(I2)->getAlignment() &&
-           SI->getOrdering() == cast<StoreInst>(I2)->getOrdering() &&
-           SI->getSynchScope() == cast<StoreInst>(I2)->getSynchScope();
-  if (const CmpInst *CI = dyn_cast<CmpInst>(I1))
-    return CI->getPredicate() == cast<CmpInst>(I2)->getPredicate();
-  if (const CallInst *CI = dyn_cast<CallInst>(I1))
-    return CI->getCallingConv() == cast<CallInst>(I2)->getCallingConv() &&
-           CI->getAttributes() == cast<CallInst>(I2)->getAttributes();
-  if (const InvokeInst *CI = dyn_cast<InvokeInst>(I1))
-    return CI->getCallingConv() == cast<InvokeInst>(I2)->getCallingConv() &&
-           CI->getAttributes() == cast<InvokeInst>(I2)->getAttributes();
-  if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(I1))
-    return IVI->getIndices() == cast<InsertValueInst>(I2)->getIndices();
-  if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I1))
-    return EVI->getIndices() == cast<ExtractValueInst>(I2)->getIndices();
-  if (const FenceInst *FI = dyn_cast<FenceInst>(I1))
-    return FI->getOrdering() == cast<FenceInst>(I2)->getOrdering() &&
-           FI->getSynchScope() == cast<FenceInst>(I2)->getSynchScope();
-  if (const AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(I1))
-    return CXI->isVolatile() == cast<AtomicCmpXchgInst>(I2)->isVolatile() &&
-           CXI->getOrdering() == cast<AtomicCmpXchgInst>(I2)->getOrdering() &&
-           CXI->getSynchScope() == cast<AtomicCmpXchgInst>(I2)->getSynchScope();
-  if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I1))
-    return RMWI->getOperation() == cast<AtomicRMWInst>(I2)->getOperation() &&
-           RMWI->isVolatile() == cast<AtomicRMWInst>(I2)->isVolatile() &&
-           RMWI->getOrdering() == cast<AtomicRMWInst>(I2)->getOrdering() &&
-           RMWI->getSynchScope() == cast<AtomicRMWInst>(I2)->getSynchScope();
+  if (const LoadInst *LI = dyn_cast<LoadInst>(L)) {
+    if (int Res = cmpNumbers(LI->isVolatile(), cast<LoadInst>(R)->isVolatile()))
+      return Res;
+    if (int Res =
+            cmpNumbers(LI->getAlignment(), cast<LoadInst>(R)->getAlignment()))
+      return Res;
+    if (int Res =
+            cmpNumbers(LI->getOrdering(), cast<LoadInst>(R)->getOrdering()))
+      return Res;
+    if (int Res =
+            cmpNumbers(LI->getSynchScope(), cast<LoadInst>(R)->getSynchScope()))
+      return Res;
+    return cmpNumbers((uint64_t)LI->getMetadata(LLVMContext::MD_range),
+                      (uint64_t)cast<LoadInst>(R)->getMetadata(LLVMContext::MD_range));
+  }
+  if (const StoreInst *SI = dyn_cast<StoreInst>(L)) {
+    if (int Res =
+            cmpNumbers(SI->isVolatile(), cast<StoreInst>(R)->isVolatile()))
+      return Res;
+    if (int Res =
+            cmpNumbers(SI->getAlignment(), cast<StoreInst>(R)->getAlignment()))
+      return Res;
+    if (int Res =
+            cmpNumbers(SI->getOrdering(), cast<StoreInst>(R)->getOrdering()))
+      return Res;
+    return cmpNumbers(SI->getSynchScope(), cast<StoreInst>(R)->getSynchScope());
+  }
+  if (const CmpInst *CI = dyn_cast<CmpInst>(L))
+    return cmpNumbers(CI->getPredicate(), cast<CmpInst>(R)->getPredicate());
+  if (const CallInst *CI = dyn_cast<CallInst>(L)) {
+    if (int Res = cmpNumbers(CI->getCallingConv(),
+                             cast<CallInst>(R)->getCallingConv()))
+      return Res;
+    if (int Res =
+            cmpAttrs(CI->getAttributes(), cast<CallInst>(R)->getAttributes()))
+      return Res;
+    return cmpNumbers(
+        (uint64_t)CI->getMetadata(LLVMContext::MD_range),
+        (uint64_t)cast<CallInst>(R)->getMetadata(LLVMContext::MD_range));
+  }
+  if (const InvokeInst *CI = dyn_cast<InvokeInst>(L)) {
+    if (int Res = cmpNumbers(CI->getCallingConv(),
+                             cast<InvokeInst>(R)->getCallingConv()))
+      return Res;
+    if (int Res =
+            cmpAttrs(CI->getAttributes(), cast<InvokeInst>(R)->getAttributes()))
+      return Res;
+    return cmpNumbers(
+        (uint64_t)CI->getMetadata(LLVMContext::MD_range),
+        (uint64_t)cast<InvokeInst>(R)->getMetadata(LLVMContext::MD_range));
+  }
+  if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(L)) {
+    ArrayRef<unsigned> LIndices = IVI->getIndices();
+    ArrayRef<unsigned> RIndices = cast<InsertValueInst>(R)->getIndices();
+    if (int Res = cmpNumbers(LIndices.size(), RIndices.size()))
+      return Res;
+    for (size_t i = 0, e = LIndices.size(); i != e; ++i) {
+      if (int Res = cmpNumbers(LIndices[i], RIndices[i]))
+        return Res;
+    }
+  }
+  if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(L)) {
+    ArrayRef<unsigned> LIndices = EVI->getIndices();
+    ArrayRef<unsigned> RIndices = cast<ExtractValueInst>(R)->getIndices();
+    if (int Res = cmpNumbers(LIndices.size(), RIndices.size()))
+      return Res;
+    for (size_t i = 0, e = LIndices.size(); i != e; ++i) {
+      if (int Res = cmpNumbers(LIndices[i], RIndices[i]))
+        return Res;
+    }
+  }
+  if (const FenceInst *FI = dyn_cast<FenceInst>(L)) {
+    if (int Res =
+            cmpNumbers(FI->getOrdering(), cast<FenceInst>(R)->getOrdering()))
+      return Res;
+    return cmpNumbers(FI->getSynchScope(), cast<FenceInst>(R)->getSynchScope());
+  }
 
-  return true;
+  if (const AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(L)) {
+    if (int Res = cmpNumbers(CXI->isVolatile(),
+                             cast<AtomicCmpXchgInst>(R)->isVolatile()))
+      return Res;
+    if (int Res = cmpNumbers(CXI->isWeak(),
+                             cast<AtomicCmpXchgInst>(R)->isWeak()))
+      return Res;
+    if (int Res = cmpNumbers(CXI->getSuccessOrdering(),
+                             cast<AtomicCmpXchgInst>(R)->getSuccessOrdering()))
+      return Res;
+    if (int Res = cmpNumbers(CXI->getFailureOrdering(),
+                             cast<AtomicCmpXchgInst>(R)->getFailureOrdering()))
+      return Res;
+    return cmpNumbers(CXI->getSynchScope(),
+                      cast<AtomicCmpXchgInst>(R)->getSynchScope());
+  }
+  if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(L)) {
+    if (int Res = cmpNumbers(RMWI->getOperation(),
+                             cast<AtomicRMWInst>(R)->getOperation()))
+      return Res;
+    if (int Res = cmpNumbers(RMWI->isVolatile(),
+                             cast<AtomicRMWInst>(R)->isVolatile()))
+      return Res;
+    if (int Res = cmpNumbers(RMWI->getOrdering(),
+                             cast<AtomicRMWInst>(R)->getOrdering()))
+      return Res;
+    return cmpNumbers(RMWI->getSynchScope(),
+                      cast<AtomicRMWInst>(R)->getSynchScope());
+  }
+  return 0;
 }
 
 // Determine whether two GEP operations perform the same underlying arithmetic.
-bool FunctionComparator::isEquivalentGEP(const GEPOperator *GEP1,
-                                         const GEPOperator *GEP2) {
-  unsigned AS = GEP1->getPointerAddressSpace();
-  if (AS != GEP2->getPointerAddressSpace())
-    return false;
+// Read method declaration comments for more details.
+int FunctionComparator::cmpGEPs(const GEPOperator *GEPL,
+                               const GEPOperator *GEPR) {
 
-  if (TD) {
-    // When we have target data, we can reduce the GEP down to the value in bytes
-    // added to the address.
-    unsigned BitWidth = TD ? TD->getPointerSizeInBits(AS) : 1;
-    APInt Offset1(BitWidth, 0), Offset2(BitWidth, 0);
-    if (GEP1->accumulateConstantOffset(*TD, Offset1) &&
-        GEP2->accumulateConstantOffset(*TD, Offset2)) {
-      return Offset1 == Offset2;
-    }
+  unsigned int ASL = GEPL->getPointerAddressSpace();
+  unsigned int ASR = GEPR->getPointerAddressSpace();
+
+  if (int Res = cmpNumbers(ASL, ASR))
+    return Res;
+
+  // When we have target data, we can reduce the GEP down to the value in bytes
+  // added to the address.
+  if (DL) {
+    unsigned BitWidth = DL->getPointerSizeInBits(ASL);
+    APInt OffsetL(BitWidth, 0), OffsetR(BitWidth, 0);
+    if (GEPL->accumulateConstantOffset(*DL, OffsetL) &&
+        GEPR->accumulateConstantOffset(*DL, OffsetR))
+      return cmpAPInts(OffsetL, OffsetR);
   }
 
-  if (GEP1->getPointerOperand()->getType() !=
-      GEP2->getPointerOperand()->getType())
-    return false;
+  if (int Res = cmpNumbers((uint64_t)GEPL->getPointerOperand()->getType(),
+                           (uint64_t)GEPR->getPointerOperand()->getType()))
+    return Res;
 
-  if (GEP1->getNumOperands() != GEP2->getNumOperands())
-    return false;
+  if (int Res = cmpNumbers(GEPL->getNumOperands(), GEPR->getNumOperands()))
+    return Res;
 
-  for (unsigned i = 0, e = GEP1->getNumOperands(); i != e; ++i) {
-    if (!enumerate(GEP1->getOperand(i), GEP2->getOperand(i)))
-      return false;
+  for (unsigned i = 0, e = GEPL->getNumOperands(); i != e; ++i) {
+    if (int Res = cmpValues(GEPL->getOperand(i), GEPR->getOperand(i)))
+      return Res;
   }
 
-  return true;
+  return 0;
 }
 
-// Compare two values used by the two functions under pair-wise comparison. If
-// this is the first time the values are seen, they're added to the mapping so
-// that we will detect mismatches on next use.
-bool FunctionComparator::enumerate(const Value *V1, const Value *V2) {
-  // Check for function @f1 referring to itself and function @f2 referring to
-  // itself, or referring to each other, or both referring to either of them.
-  // They're all equivalent if the two functions are otherwise equivalent.
-  if (V1 == F1 && V2 == F2)
-    return true;
-  if (V1 == F2 && V2 == F1)
-    return true;
-
-  if (const Constant *C1 = dyn_cast<Constant>(V1)) {
-    if (V1 == V2) return true;
-    const Constant *C2 = dyn_cast<Constant>(V2);
-    if (!C2) return false;
-    // TODO: constant expressions with GEP or references to F1 or F2.
-    if (C1->isNullValue() && C2->isNullValue() &&
-        isEquivalentType(C1->getType(), C2->getType()))
-      return true;
-    // Try bitcasting C2 to C1's type. If the bitcast is legal and returns C1
-    // then they must have equal bit patterns.
-    return C1->getType()->canLosslesslyBitCastTo(C2->getType()) &&
-      C1 == ConstantExpr::getBitCast(const_cast<Constant*>(C2), C1->getType());
+/// Compare two values used by the two functions under pair-wise comparison. If
+/// this is the first time the values are seen, they're added to the mapping so
+/// that we will detect mismatches on next use.
+/// See comments in declaration for more details.
+int FunctionComparator::cmpValues(const Value *L, const Value *R) {
+  // Catch self-reference case.
+  if (L == FnL) {
+    if (R == FnR)
+      return 0;
+    return -1;
+  }
+  if (R == FnR) {
+    if (L == FnL)
+      return 0;
+    return 1;
   }
 
-  if (isa<InlineAsm>(V1) || isa<InlineAsm>(V2))
-    return V1 == V2;
+  const Constant *ConstL = dyn_cast<Constant>(L);
+  const Constant *ConstR = dyn_cast<Constant>(R);
+  if (ConstL && ConstR) {
+    if (L == R)
+      return 0;
+    return cmpConstants(ConstL, ConstR);
+  }
 
-  // Check that V1 maps to V2. If we find a value that V1 maps to then we simply
-  // check whether it's equal to V2. When there is no mapping then we need to
-  // ensure that V2 isn't already equivalent to something else. For this
-  // purpose, we track the V2 values in a set.
+  if (ConstL)
+    return 1;
+  if (ConstR)
+    return -1;
 
-  const Value *&map_elem = id_map[V1];
-  if (map_elem)
-    return map_elem == V2;
-  if (!seen_values.insert(V2).second)
-    return false;
-  map_elem = V2;
-  return true;
+  const InlineAsm *InlineAsmL = dyn_cast<InlineAsm>(L);
+  const InlineAsm *InlineAsmR = dyn_cast<InlineAsm>(R);
+
+  if (InlineAsmL && InlineAsmR)
+    return cmpNumbers((uint64_t)L, (uint64_t)R);
+  if (InlineAsmL)
+    return 1;
+  if (InlineAsmR)
+    return -1;
+
+  auto LeftSN = sn_mapL.insert(std::make_pair(L, sn_mapL.size())),
+       RightSN = sn_mapR.insert(std::make_pair(R, sn_mapR.size()));
+
+  return cmpNumbers(LeftSN.first->second, RightSN.first->second);
 }
-
 // Test whether two basic blocks have equivalent behaviour.
-bool FunctionComparator::compare(const BasicBlock *BB1, const BasicBlock *BB2) {
-  BasicBlock::const_iterator F1I = BB1->begin(), F1E = BB1->end();
-  BasicBlock::const_iterator F2I = BB2->begin(), F2E = BB2->end();
+int FunctionComparator::compare(const BasicBlock *BBL, const BasicBlock *BBR) {
+  BasicBlock::const_iterator InstL = BBL->begin(), InstLE = BBL->end();
+  BasicBlock::const_iterator InstR = BBR->begin(), InstRE = BBR->end();
 
   do {
-    if (!enumerate(F1I, F2I))
-      return false;
+    if (int Res = cmpValues(InstL, InstR))
+      return Res;
 
-    if (const GetElementPtrInst *GEP1 = dyn_cast<GetElementPtrInst>(F1I)) {
-      const GetElementPtrInst *GEP2 = dyn_cast<GetElementPtrInst>(F2I);
-      if (!GEP2)
-        return false;
+    const GetElementPtrInst *GEPL = dyn_cast<GetElementPtrInst>(InstL);
+    const GetElementPtrInst *GEPR = dyn_cast<GetElementPtrInst>(InstR);
 
-      if (!enumerate(GEP1->getPointerOperand(), GEP2->getPointerOperand()))
-        return false;
+    if (GEPL && !GEPR)
+      return 1;
+    if (GEPR && !GEPL)
+      return -1;
 
-      if (!isEquivalentGEP(GEP1, GEP2))
-        return false;
+    if (GEPL && GEPR) {
+      if (int Res =
+              cmpValues(GEPL->getPointerOperand(), GEPR->getPointerOperand()))
+        return Res;
+      if (int Res = cmpGEPs(GEPL, GEPR))
+        return Res;
     } else {
-      if (!isEquivalentOperation(F1I, F2I))
-        return false;
+      if (int Res = cmpOperations(InstL, InstR))
+        return Res;
+      assert(InstL->getNumOperands() == InstR->getNumOperands());
 
-      assert(F1I->getNumOperands() == F2I->getNumOperands());
-      for (unsigned i = 0, e = F1I->getNumOperands(); i != e; ++i) {
-        Value *OpF1 = F1I->getOperand(i);
-        Value *OpF2 = F2I->getOperand(i);
-
-        if (!enumerate(OpF1, OpF2))
-          return false;
-
-        if (OpF1->getValueID() != OpF2->getValueID() ||
-            !isEquivalentType(OpF1->getType(), OpF2->getType()))
-          return false;
+      for (unsigned i = 0, e = InstL->getNumOperands(); i != e; ++i) {
+        Value *OpL = InstL->getOperand(i);
+        Value *OpR = InstR->getOperand(i);
+        if (int Res = cmpValues(OpL, OpR))
+          return Res;
+        if (int Res = cmpNumbers(OpL->getValueID(), OpR->getValueID()))
+          return Res;
+        // TODO: Already checked in cmpOperation
+        if (int Res = cmpTypes(OpL->getType(), OpR->getType()))
+          return Res;
       }
     }
 
-    ++F1I, ++F2I;
-  } while (F1I != F1E && F2I != F2E);
+    ++InstL, ++InstR;
+  } while (InstL != InstLE && InstR != InstRE);
 
-  return F1I == F1E && F2I == F2E;
+  if (InstL != InstLE && InstR == InstRE)
+    return 1;
+  if (InstL == InstLE && InstR != InstRE)
+    return -1;
+  return 0;
 }
 
 // Test whether the two functions have equivalent behaviour.
-bool FunctionComparator::compare() {
-  // We need to recheck everything, but check the things that weren't included
-  // in the hash first.
+int FunctionComparator::compare() {
 
-  if (F1->getAttributes() != F2->getAttributes())
-    return false;
+  sn_mapL.clear();
+  sn_mapR.clear();
 
-  if (F1->hasGC() != F2->hasGC())
-    return false;
+  if (int Res = cmpAttrs(FnL->getAttributes(), FnR->getAttributes()))
+    return Res;
 
-  if (F1->hasGC() && F1->getGC() != F2->getGC())
-    return false;
+  if (int Res = cmpNumbers(FnL->hasGC(), FnR->hasGC()))
+    return Res;
 
-  if (F1->hasSection() != F2->hasSection())
-    return false;
+  if (FnL->hasGC()) {
+    if (int Res = cmpNumbers((uint64_t)FnL->getGC(), (uint64_t)FnR->getGC()))
+      return Res;
+  }
 
-  if (F1->hasSection() && F1->getSection() != F2->getSection())
-    return false;
+  if (int Res = cmpNumbers(FnL->hasSection(), FnR->hasSection()))
+    return Res;
 
-  if (F1->isVarArg() != F2->isVarArg())
-    return false;
+  if (FnL->hasSection()) {
+    if (int Res = cmpStrings(FnL->getSection(), FnR->getSection()))
+      return Res;
+  }
+
+  if (int Res = cmpNumbers(FnL->isVarArg(), FnR->isVarArg()))
+    return Res;
 
   // TODO: if it's internal and only used in direct calls, we could handle this
   // case too.
-  if (F1->getCallingConv() != F2->getCallingConv())
-    return false;
+  if (int Res = cmpNumbers(FnL->getCallingConv(), FnR->getCallingConv()))
+    return Res;
 
-  if (!isEquivalentType(F1->getFunctionType(), F2->getFunctionType()))
-    return false;
+  if (int Res = cmpTypes(FnL->getFunctionType(), FnR->getFunctionType()))
+    return Res;
 
-  assert(F1->arg_size() == F2->arg_size() &&
+  assert(FnL->arg_size() == FnR->arg_size() &&
          "Identically typed functions have different numbers of args!");
 
   // Visit the arguments so that they get enumerated in the order they're
   // passed in.
-  for (Function::const_arg_iterator f1i = F1->arg_begin(),
-         f2i = F2->arg_begin(), f1e = F1->arg_end(); f1i != f1e; ++f1i, ++f2i) {
-    if (!enumerate(f1i, f2i))
+  for (Function::const_arg_iterator ArgLI = FnL->arg_begin(),
+                                    ArgRI = FnR->arg_begin(),
+                                    ArgLE = FnL->arg_end();
+       ArgLI != ArgLE; ++ArgLI, ++ArgRI) {
+    if (cmpValues(ArgLI, ArgRI) != 0)
       llvm_unreachable("Arguments repeat!");
   }
 
@@ -517,33 +1027,36 @@ bool FunctionComparator::compare() {
   // linked list is immaterial. Our walk starts at the entry block for both
   // functions, then takes each block from each terminator in order. As an
   // artifact, this also means that unreachable blocks are ignored.
-  SmallVector<const BasicBlock *, 8> F1BBs, F2BBs;
+  SmallVector<const BasicBlock *, 8> FnLBBs, FnRBBs;
   SmallSet<const BasicBlock *, 128> VisitedBBs; // in terms of F1.
 
-  F1BBs.push_back(&F1->getEntryBlock());
-  F2BBs.push_back(&F2->getEntryBlock());
+  FnLBBs.push_back(&FnL->getEntryBlock());
+  FnRBBs.push_back(&FnR->getEntryBlock());
 
-  VisitedBBs.insert(F1BBs[0]);
-  while (!F1BBs.empty()) {
-    const BasicBlock *F1BB = F1BBs.pop_back_val();
-    const BasicBlock *F2BB = F2BBs.pop_back_val();
+  VisitedBBs.insert(FnLBBs[0]);
+  while (!FnLBBs.empty()) {
+    const BasicBlock *BBL = FnLBBs.pop_back_val();
+    const BasicBlock *BBR = FnRBBs.pop_back_val();
 
-    if (!enumerate(F1BB, F2BB) || !compare(F1BB, F2BB))
-      return false;
+    if (int Res = cmpValues(BBL, BBR))
+      return Res;
 
-    const TerminatorInst *F1TI = F1BB->getTerminator();
-    const TerminatorInst *F2TI = F2BB->getTerminator();
+    if (int Res = compare(BBL, BBR))
+      return Res;
 
-    assert(F1TI->getNumSuccessors() == F2TI->getNumSuccessors());
-    for (unsigned i = 0, e = F1TI->getNumSuccessors(); i != e; ++i) {
-      if (!VisitedBBs.insert(F1TI->getSuccessor(i)))
+    const TerminatorInst *TermL = BBL->getTerminator();
+    const TerminatorInst *TermR = BBR->getTerminator();
+
+    assert(TermL->getNumSuccessors() == TermR->getNumSuccessors());
+    for (unsigned i = 0, e = TermL->getNumSuccessors(); i != e; ++i) {
+      if (!VisitedBBs.insert(TermL->getSuccessor(i)).second)
         continue;
 
-      F1BBs.push_back(F1TI->getSuccessor(i));
-      F2BBs.push_back(F2TI->getSuccessor(i));
+      FnLBBs.push_back(TermL->getSuccessor(i));
+      FnRBBs.push_back(TermR->getSuccessor(i));
     }
   }
-  return true;
+  return 0;
 }
 
 namespace {
@@ -561,24 +1074,28 @@ public:
     initializeMergeFunctionsPass(*PassRegistry::getPassRegistry());
   }
 
-  bool runOnModule(Module &M);
+  bool runOnModule(Module &M) override;
 
 private:
-  typedef DenseSet<ComparableFunction> FnSetType;
+  typedef std::set<FunctionNode> FnTreeType;
 
   /// A work queue of functions that may have been modified and should be
   /// analyzed again.
   std::vector<WeakVH> Deferred;
 
-  /// Insert a ComparableFunction into the FnSet, or merge it away if it's
-  /// equal to one that's already present.
-  bool insert(ComparableFunction &NewF);
+  /// Checks the rules of order relation introduced among functions set.
+  /// Returns true, if sanity check has been passed, and false if failed.
+  bool doSanityCheck(std::vector<WeakVH> &Worklist);
 
-  /// Remove a Function from the FnSet and queue it up for a second sweep of
+  /// Insert a ComparableFunction into the FnTree, or merge it away if it's
+  /// equal to one that's already present.
+  bool insert(Function *NewFunction);
+
+  /// Remove a Function from the FnTree and queue it up for a second sweep of
   /// analysis.
   void remove(Function *F);
 
-  /// Find the functions that use this Value and remove them from FnSet and
+  /// Find the functions that use this Value and remove them from FnTree and
   /// queue the functions.
   void removeUsers(Value *V);
 
@@ -603,10 +1120,10 @@ private:
 
   /// The set of all distinct functions. Use the insert() and remove() methods
   /// to modify it.
-  FnSetType FnSet;
+  FnTreeType FnTree;
 
   /// DataLayout for more accurate GEP comparisons. May be NULL.
-  DataLayout *TD;
+  const DataLayout *DL;
 
   /// Whether or not the target supports global aliases.
   bool HasGlobalAliases;
@@ -621,19 +1138,93 @@ ModulePass *llvm::createMergeFunctionsPass() {
   return new MergeFunctions();
 }
 
+bool MergeFunctions::doSanityCheck(std::vector<WeakVH> &Worklist) {
+  if (const unsigned Max = NumFunctionsForSanityCheck) {
+    unsigned TripleNumber = 0;
+    bool Valid = true;
+
+    dbgs() << "MERGEFUNC-SANITY: Started for first " << Max << " functions.\n";
+
+    unsigned i = 0;
+    for (std::vector<WeakVH>::iterator I = Worklist.begin(), E = Worklist.end();
+         I != E && i < Max; ++I, ++i) {
+      unsigned j = i;
+      for (std::vector<WeakVH>::iterator J = I; J != E && j < Max; ++J, ++j) {
+        Function *F1 = cast<Function>(*I);
+        Function *F2 = cast<Function>(*J);
+        int Res1 = FunctionComparator(DL, F1, F2).compare();
+        int Res2 = FunctionComparator(DL, F2, F1).compare();
+
+        // If F1 <= F2, then F2 >= F1, otherwise report failure.
+        if (Res1 != -Res2) {
+          dbgs() << "MERGEFUNC-SANITY: Non-symmetric; triple: " << TripleNumber
+                 << "\n";
+          F1->dump();
+          F2->dump();
+          Valid = false;
+        }
+
+        if (Res1 == 0)
+          continue;
+
+        unsigned k = j;
+        for (std::vector<WeakVH>::iterator K = J; K != E && k < Max;
+             ++k, ++K, ++TripleNumber) {
+          if (K == J)
+            continue;
+
+          Function *F3 = cast<Function>(*K);
+          int Res3 = FunctionComparator(DL, F1, F3).compare();
+          int Res4 = FunctionComparator(DL, F2, F3).compare();
+
+          bool Transitive = true;
+
+          if (Res1 != 0 && Res1 == Res4) {
+            // F1 > F2, F2 > F3 => F1 > F3
+            Transitive = Res3 == Res1;
+          } else if (Res3 != 0 && Res3 == -Res4) {
+            // F1 > F3, F3 > F2 => F1 > F2
+            Transitive = Res3 == Res1;
+          } else if (Res4 != 0 && -Res3 == Res4) {
+            // F2 > F3, F3 > F1 => F2 > F1
+            Transitive = Res4 == -Res1;
+          }
+
+          if (!Transitive) {
+            dbgs() << "MERGEFUNC-SANITY: Non-transitive; triple: "
+                   << TripleNumber << "\n";
+            dbgs() << "Res1, Res3, Res4: " << Res1 << ", " << Res3 << ", "
+                   << Res4 << "\n";
+            F1->dump();
+            F2->dump();
+            F3->dump();
+            Valid = false;
+          }
+        }
+      }
+    }
+
+    dbgs() << "MERGEFUNC-SANITY: " << (Valid ? "Passed." : "Failed.") << "\n";
+    return Valid;
+  }
+  return true;
+}
+
 bool MergeFunctions::runOnModule(Module &M) {
   bool Changed = false;
-  TD = getAnalysisIfAvailable<DataLayout>();
+  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+  DL = DLP ? &DLP->getDataLayout() : nullptr;
 
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     if (!I->isDeclaration() && !I->hasAvailableExternallyLinkage())
       Deferred.push_back(WeakVH(I));
   }
-  FnSet.resize(Deferred.size());
 
   do {
     std::vector<WeakVH> Worklist;
     Deferred.swap(Worklist);
+
+    DEBUG(doSanityCheck(Worklist));
 
     DEBUG(dbgs() << "size of module: " << M.size() << '\n');
     DEBUG(dbgs() << "size of worklist: " << Worklist.size() << '\n');
@@ -646,8 +1237,7 @@ bool MergeFunctions::runOnModule(Module &M) {
       Function *F = cast<Function>(*I);
       if (!F->isDeclaration() && !F->hasAvailableExternallyLinkage() &&
           !F->mayBeOverridden()) {
-        ComparableFunction CF = ComparableFunction(F, TD);
-        Changed |= insert(CF);
+        Changed |= insert(F);
       }
     }
 
@@ -661,49 +1251,27 @@ bool MergeFunctions::runOnModule(Module &M) {
       Function *F = cast<Function>(*I);
       if (!F->isDeclaration() && !F->hasAvailableExternallyLinkage() &&
           F->mayBeOverridden()) {
-        ComparableFunction CF = ComparableFunction(F, TD);
-        Changed |= insert(CF);
+        Changed |= insert(F);
       }
     }
-    DEBUG(dbgs() << "size of FnSet: " << FnSet.size() << '\n');
+    DEBUG(dbgs() << "size of FnTree: " << FnTree.size() << '\n');
   } while (!Deferred.empty());
 
-  FnSet.clear();
+  FnTree.clear();
 
   return Changed;
-}
-
-bool DenseMapInfo<ComparableFunction>::isEqual(const ComparableFunction &LHS,
-                                               const ComparableFunction &RHS) {
-  if (LHS.getFunc() == RHS.getFunc() &&
-      LHS.getHash() == RHS.getHash())
-    return true;
-  if (!LHS.getFunc() || !RHS.getFunc())
-    return false;
-
-  // One of these is a special "underlying pointer comparison only" object.
-  if (LHS.getTD() == ComparableFunction::LookupOnly ||
-      RHS.getTD() == ComparableFunction::LookupOnly)
-    return false;
-
-  assert(LHS.getTD() == RHS.getTD() &&
-         "Comparing functions for different targets");
-
-  return FunctionComparator(LHS.getTD(), LHS.getFunc(),
-                            RHS.getFunc()).compare();
 }
 
 // Replace direct callers of Old with New.
 void MergeFunctions::replaceDirectCallers(Function *Old, Function *New) {
   Constant *BitcastNew = ConstantExpr::getBitCast(New, Old->getType());
-  for (Value::use_iterator UI = Old->use_begin(), UE = Old->use_end();
-       UI != UE;) {
-    Value::use_iterator TheIter = UI;
+  for (auto UI = Old->use_begin(), UE = Old->use_end(); UI != UE;) {
+    Use *U = &*UI;
     ++UI;
-    CallSite CS(*TheIter);
-    if (CS && CS.isCallee(TheIter)) {
+    CallSite CS(U->getUser());
+    if (CS && CS.isCallee(U)) {
       remove(CS.getInstruction()->getParent()->getParent());
-      TheIter.getUse().set(BitcastNew);
+      U->set(BitcastNew);
     }
   }
 }
@@ -723,9 +1291,24 @@ void MergeFunctions::writeThunkOrAlias(Function *F, Function *G) {
 
 // Helper for writeThunk,
 // Selects proper bitcast operation,
-// but a bit simplier then CastInst::getCastOpcode.
-static Value* createCast(IRBuilder<false> &Builder, Value *V, Type *DestTy) {
+// but a bit simpler then CastInst::getCastOpcode.
+static Value *createCast(IRBuilder<false> &Builder, Value *V, Type *DestTy) {
   Type *SrcTy = V->getType();
+  if (SrcTy->isStructTy()) {
+    assert(DestTy->isStructTy());
+    assert(SrcTy->getStructNumElements() == DestTy->getStructNumElements());
+    Value *Result = UndefValue::get(DestTy);
+    for (unsigned int I = 0, E = SrcTy->getStructNumElements(); I < E; ++I) {
+      Value *Element = createCast(
+          Builder, Builder.CreateExtractValue(V, makeArrayRef(I)),
+          DestTy->getStructElementType(I));
+
+      Result =
+          Builder.CreateInsertValue(Result, Element, makeArrayRef(I));
+    }
+    return Result;
+  }
+  assert(!DestTy->isStructTy());
   if (SrcTy->isIntegerTy() && DestTy->isPointerTy())
     return Builder.CreateIntToPtr(V, DestTy);
   else if (SrcTy->isPointerTy() && DestTy->isIntegerTy())
@@ -784,9 +1367,9 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
 
 // Replace G with an alias to F and delete G.
 void MergeFunctions::writeAlias(Function *F, Function *G) {
-  Constant *BitcastF = ConstantExpr::getBitCast(F, G->getType());
-  GlobalAlias *GA = new GlobalAlias(G->getType(), G->getLinkage(), "",
-                                    BitcastF, G->getParent());
+  PointerType *PTy = G->getType();
+  auto *GA = GlobalAlias::create(PTy->getElementType(), PTy->getAddressSpace(),
+                                 G->getLinkage(), "", F);
   F->setAlignment(std::max(F->getAlignment(), G->getAlignment()));
   GA->takeName(G);
   GA->setVisibility(G->getVisibility());
@@ -833,54 +1416,57 @@ void MergeFunctions::mergeTwoFunctions(Function *F, Function *G) {
   ++NumFunctionsMerged;
 }
 
-// Insert a ComparableFunction into the FnSet, or merge it away if equal to one
+// Insert a ComparableFunction into the FnTree, or merge it away if equal to one
 // that was already inserted.
-bool MergeFunctions::insert(ComparableFunction &NewF) {
-  std::pair<FnSetType::iterator, bool> Result = FnSet.insert(NewF);
+bool MergeFunctions::insert(Function *NewFunction) {
+  std::pair<FnTreeType::iterator, bool> Result =
+      FnTree.insert(FunctionNode(NewFunction, DL));
+
   if (Result.second) {
-    DEBUG(dbgs() << "Inserting as unique: " << NewF.getFunc()->getName() << '\n');
+    DEBUG(dbgs() << "Inserting as unique: " << NewFunction->getName() << '\n');
     return false;
   }
 
-  const ComparableFunction &OldF = *Result.first;
+  const FunctionNode &OldF = *Result.first;
 
   // Don't merge tiny functions, since it can just end up making the function
   // larger.
   // FIXME: Should still merge them if they are unnamed_addr and produce an
   // alias.
-  if (NewF.getFunc()->size() == 1) {
-    if (NewF.getFunc()->front().size() <= 2) {
-      DEBUG(dbgs() << NewF.getFunc()->getName()
-            << " is to small to bother merging\n");
+  if (NewFunction->size() == 1) {
+    if (NewFunction->front().size() <= 2) {
+      DEBUG(dbgs() << NewFunction->getName()
+                   << " is to small to bother merging\n");
       return false;
     }
   }
 
   // Never thunk a strong function to a weak function.
-  assert(!OldF.getFunc()->mayBeOverridden() ||
-         NewF.getFunc()->mayBeOverridden());
+  assert(!OldF.getFunc()->mayBeOverridden() || NewFunction->mayBeOverridden());
 
-  DEBUG(dbgs() << "  " << OldF.getFunc()->getName() << " == "
-               << NewF.getFunc()->getName() << '\n');
+  DEBUG(dbgs() << "  " << OldF.getFunc()->getName()
+               << " == " << NewFunction->getName() << '\n');
 
-  Function *DeleteF = NewF.getFunc();
-  NewF.release();
+  Function *DeleteF = NewFunction;
   mergeTwoFunctions(OldF.getFunc(), DeleteF);
   return true;
 }
 
-// Remove a function from FnSet. If it was already in FnSet, add it to Deferred
-// so that we'll look at it in the next round.
+// Remove a function from FnTree. If it was already in FnTree, add
+// it to Deferred so that we'll look at it in the next round.
 void MergeFunctions::remove(Function *F) {
   // We need to make sure we remove F, not a function "equal" to F per the
   // function equality comparator.
-  //
-  // The special "lookup only" ComparableFunction bypasses the expensive
-  // function comparison in favour of a pointer comparison on the underlying
-  // Function*'s.
-  ComparableFunction CF = ComparableFunction(F, ComparableFunction::LookupOnly);
-  if (FnSet.erase(CF)) {
-    DEBUG(dbgs() << "Removed " << F->getName() << " from set and deferred it.\n");
+  FnTreeType::iterator found = FnTree.find(FunctionNode(F, DL));
+  size_t Erased = 0;
+  if (found != FnTree.end() && found->getFunc() == F) {
+    Erased = 1;
+    FnTree.erase(found);
+  }
+
+  if (Erased) {
+    DEBUG(dbgs() << "Removed " << F->getName()
+                 << " from set and deferred it.\n");
     Deferred.push_back(F);
   }
 }
@@ -894,17 +1480,14 @@ void MergeFunctions::removeUsers(Value *V) {
     Value *V = Worklist.back();
     Worklist.pop_back();
 
-    for (Value::use_iterator UI = V->use_begin(), UE = V->use_end();
-         UI != UE; ++UI) {
-      Use &U = UI.getUse();
-      if (Instruction *I = dyn_cast<Instruction>(U.getUser())) {
+    for (User *U : V->users()) {
+      if (Instruction *I = dyn_cast<Instruction>(U)) {
         remove(I->getParent()->getParent());
-      } else if (isa<GlobalValue>(U.getUser())) {
+      } else if (isa<GlobalValue>(U)) {
         // do nothing
-      } else if (Constant *C = dyn_cast<Constant>(U.getUser())) {
-        for (Value::use_iterator CUI = C->use_begin(), CUE = C->use_end();
-             CUI != CUE; ++CUI)
-          Worklist.push_back(*CUI);
+      } else if (Constant *C = dyn_cast<Constant>(U)) {
+        for (User *UU : C->users())
+          Worklist.push_back(UU);
       }
     }
   }

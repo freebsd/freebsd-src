@@ -401,7 +401,8 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_sndptroff: %u\n", sb->sb_sndptroff);
 
 	db_print_indent(indent);
-	db_printf("sb_cc: %u   ", sb->sb_cc);
+	db_printf("sb_acc: %u   ", sb->sb_acc);
+	db_printf("sb_ccc: %u   ", sb->sb_ccc);
 	db_printf("sb_hiwat: %u   ", sb->sb_hiwat);
 	db_printf("sb_mbcnt: %u   ", sb->sb_mbcnt);
 	db_printf("sb_mbmax: %u\n", sb->sb_mbmax);

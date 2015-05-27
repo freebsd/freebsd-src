@@ -149,10 +149,14 @@ random_adaptor_choose(void)
 		    (random_adaptor_previous == NULL ? "NULL" : random_adaptor_previous->ra_ident),
 		    random_adaptor->ra_ident);
 #endif
-		if (random_adaptor_previous != NULL)
+		if (random_adaptor_previous != NULL) {
+			randomdev_deinit_reader();
 			(random_adaptor_previous->ra_deinit)();
+		}
 		(random_adaptor->ra_init)();
 	}
+
+	randomdev_init_reader(random_adaptor->ra_read);
 }
 
 

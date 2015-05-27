@@ -14,6 +14,7 @@
 
 #include "lldb/lldb-private.h"
 #include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-forward.h"
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/ConstString.h"
@@ -37,7 +38,7 @@ class QueueItem :
 {
 public:
 
-    QueueItem (lldb::QueueSP queue_sp);
+    QueueItem (lldb::QueueSP queue_sp, lldb::ProcessSP process_sp, lldb::addr_t item_ref, lldb_private::Address address);
 
     ~QueueItem ();
 
@@ -49,7 +50,7 @@ public:
     ///     represents.  eQueueItemKindUnknown may be returned.
     //------------------------------------------------------------------
     lldb::QueueItemKind
-    GetKind () const;
+    GetKind ();
 
     //------------------------------------------------------------------
     /// Set the type of work item this is
@@ -124,10 +125,7 @@ public:
     }
 
     lldb::addr_t
-    GetItemThatEnqueuedThis ()
-    {
-        return m_item_that_enqueued_this_ref;
-    }
+    GetItemThatEnqueuedThis ();
 
     void
     SetEnqueueingThreadID (lldb::tid_t tid)
@@ -136,10 +134,7 @@ public:
     }
 
     lldb::tid_t
-    GetEnqueueingThreadID ()
-    {
-        return m_enqueueing_thread_id;
-    }
+    GetEnqueueingThreadID ();
 
     void
     SetEnqueueingQueueID (lldb::queue_id_t qid)
@@ -148,10 +143,7 @@ public:
     }
 
     lldb::queue_id_t
-    GetEnqueueingQueueID ()
-    {
-        return m_enqueueing_queue_id;
-    }
+    GetEnqueueingQueueID ();
 
     void
     SetTargetQueueID (lldb::queue_id_t qid)
@@ -166,10 +158,7 @@ public:
     }
 
     uint32_t
-    GetStopID ()
-    {
-        return m_stop_id;
-    }
+    GetStopID ();
 
     void
     SetEnqueueingBacktrace (std::vector<lldb::addr_t> backtrace)
@@ -178,10 +167,7 @@ public:
     }
 
     std::vector<lldb::addr_t> &
-    GetEnqueueingBacktrace ()
-    {
-        return m_backtrace;
-    }
+    GetEnqueueingBacktrace ();
 
     void
     SetThreadLabel (std::string thread_name)
@@ -190,10 +176,7 @@ public:
     }
 
     std::string
-    GetThreadLabel ()
-    {
-        return m_thread_label;
-    }
+    GetThreadLabel ();
 
     void
     SetQueueLabel (std::string queue_name)
@@ -202,10 +185,7 @@ public:
     }
 
     std::string
-    GetQueueLabel ()
-    {
-        return m_queue_label;
-    }
+    GetQueueLabel ();
 
     void
     SetTargetQueueLabel (std::string queue_name)
@@ -213,11 +193,22 @@ public:
         m_target_queue_label = queue_name;
     }
 
-protected:
-    lldb::QueueWP           m_queue_wp;
-    lldb::QueueItemKind     m_kind;
-    lldb_private::Address   m_address;
+    lldb::ProcessSP
+    GetProcessSP ();
 
+protected:
+    void
+    FetchEntireItem ();
+
+
+    lldb::QueueWP           m_queue_wp;
+    lldb::ProcessWP         m_process_wp;
+
+    lldb::addr_t            m_item_ref;     // the token we can be used to fetch more information about this queue item
+    lldb_private::Address   m_address;
+    bool                    m_have_fetched_entire_item;
+
+    lldb::QueueItemKind     m_kind;
     lldb::addr_t            m_item_that_enqueued_this_ref;  // a handle that we can pass into libBacktraceRecording
                                                             // to get the QueueItem that enqueued this item
     lldb::tid_t             m_enqueueing_thread_id;    // thread that enqueued this item

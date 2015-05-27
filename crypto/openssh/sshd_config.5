@@ -35,7 +35,7 @@
 .\"
 .\" $OpenBSD: sshd_config.5,v 1.172 2014/02/27 22:47:07 djm Exp $
 .\" $FreeBSD$
-.Dd February 27, 2014
+.Dd March 22, 2015
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -1254,6 +1254,9 @@ Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
 .Dq FreeBSD-20140420 .
+The value
+.Dq none
+may be used to disable this.
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

@@ -53,7 +53,7 @@ main.o: main.c
 
 
 livelib.so: livelib.o prov.o
-	cc -z defs -G -o livelib.so livelib.o prov.o -lc
+	cc -shared -o livelib.so livelib.o prov.o -lc
 
 livelib.o: livelib.c prov.h
 	cc -c livelib.c
@@ -66,7 +66,7 @@ prov.h: prov.d
 
 
 deadlib.so: deadlib.o
-	cc -z defs -G -o deadlib.so deadlib.o -lc
+	cc -shared -o deadlib.so deadlib.o -lc
 
 deadlib.o: deadlib.c
 	cc -c deadlib.c

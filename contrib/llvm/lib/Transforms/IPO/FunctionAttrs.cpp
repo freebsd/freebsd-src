@@ -18,7 +18,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "functionattrs"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/SetVector.h"
@@ -29,11 +28,13 @@
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Support/InstIterator.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "functionattrs"
 
 STATISTIC(NumReadNone, "Number of functions marked readnone");
 STATISTIC(NumReadOnly, "Number of functions marked readonly");
@@ -46,12 +47,12 @@ STATISTIC(NumAnnotated, "Number of attributes added to library functions");
 namespace {
   struct FunctionAttrs : public CallGraphSCCPass {
     static char ID; // Pass identification, replacement for typeid
-    FunctionAttrs() : CallGraphSCCPass(ID), AA(0) {
+    FunctionAttrs() : CallGraphSCCPass(ID), AA(nullptr) {
       initializeFunctionAttrsPass(*PassRegistry::getPassRegistry());
     }
 
     // runOnSCC - Analyze the SCC, performing the transformation if possible.
-    bool runOnSCC(CallGraphSCC &SCC);
+    bool runOnSCC(CallGraphSCC &SCC) override;
 
     // AddReadAttrs - Deduce readonly/readnone attributes for the SCC.
     bool AddReadAttrs(const CallGraphSCC &SCC);
@@ -120,7 +121,7 @@ namespace {
     // call declarations.
     bool annotateLibraryCalls(const CallGraphSCC &SCC);
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       AU.addRequired<AliasAnalysis>();
       AU.addRequired<TargetLibraryInfo>();
@@ -137,7 +138,7 @@ char FunctionAttrs::ID = 0;
 INITIALIZE_PASS_BEGIN(FunctionAttrs, "functionattrs",
                 "Deduce function attributes", false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_PASS_END(FunctionAttrs, "functionattrs",
                 "Deduce function attributes", false, false)
@@ -160,8 +161,9 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (F == 0)
-      // External node - may write memory.  Just give up.
+    if (!F || F->hasFnAttribute(Attribute::OptimizeNone))
+      // External node or node we don't want to optimize - assume it may write
+      // memory and give up.
       return false;
 
     AliasAnalysis::ModRefBehavior MRB = AA->getModRefBehavior(F);
@@ -203,9 +205,11 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
                  CI != CE; ++CI) {
               Value *Arg = *CI;
               if (Arg->getType()->isPointerTy()) {
+                AAMDNodes AAInfo;
+                I->getAAMetadata(AAInfo);
+
                 AliasAnalysis::Location Loc(Arg,
-                                            AliasAnalysis::UnknownSize,
-                                            I->getMetadata(LLVMContext::MD_tbaa));
+                                            AliasAnalysis::UnknownSize, AAInfo);
                 if (!AA->pointsToConstantMemory(Loc, /*OrLocal=*/true)) {
                   if (MRB & AliasAnalysis::Mod)
                     // Writes non-local memory.  Give up.
@@ -319,7 +323,7 @@ namespace {
     ArgumentGraphNode SyntheticRoot;
 
   public:
-    ArgumentGraph() { SyntheticRoot.Definition = 0; }
+    ArgumentGraph() { SyntheticRoot.Definition = nullptr; }
 
     typedef SmallVectorImpl<ArgumentGraphNode*>::iterator iterator;
 
@@ -342,9 +346,9 @@ namespace {
     ArgumentUsesTracker(const SmallPtrSet<Function*, 8> &SCCNodes)
       : Captured(false), SCCNodes(SCCNodes) {}
 
-    void tooManyUses() { Captured = true; }
+    void tooManyUses() override { Captured = true; }
 
-    bool captured(Use *U) {
+    bool captured(const Use *U) override {
       CallSite CS(U->getUser());
       if (!CS.getInstruction()) { Captured = true; return true; }
 
@@ -414,17 +418,19 @@ determinePointerReadAttrs(Argument *A,
   SmallSet<Use*, 32> Visited;
   int Count = 0;
 
+  // inalloca arguments are always clobbered by the call.
+  if (A->hasInAllocaAttr())
+    return Attribute::None;
+
   bool IsRead = false;
   // We don't need to track IsWritten. If A is written to, return immediately.
 
-  for (Value::use_iterator UI = A->use_begin(), UE = A->use_end();
-       UI != UE; ++UI) {
+  for (Use &U : A->uses()) {
     if (Count++ >= 20)
       return Attribute::None;
 
-    Use *U = &UI.getUse();
-    Visited.insert(U);
-    Worklist.push_back(U);
+    Visited.insert(&U);
+    Worklist.push_back(&U);
   }
 
   while (!Worklist.empty()) {
@@ -437,25 +443,38 @@ determinePointerReadAttrs(Argument *A,
     case Instruction::GetElementPtr:
     case Instruction::PHI:
     case Instruction::Select:
+    case Instruction::AddrSpaceCast:
       // The original value is not read/written via this if the new value isn't.
-      for (Instruction::use_iterator UI = I->use_begin(), UE = I->use_end();
-           UI != UE; ++UI) {
-        Use *U = &UI.getUse();
-        if (Visited.insert(U))
-          Worklist.push_back(U);
-      }
+      for (Use &UU : I->uses())
+        if (Visited.insert(&UU).second)
+          Worklist.push_back(&UU);
       break;
 
     case Instruction::Call:
     case Instruction::Invoke: {
+      bool Captures = true;
+
+      if (I->getType()->isVoidTy())
+        Captures = false;
+
+      auto AddUsersToWorklistIfCapturing = [&] {
+        if (Captures)
+          for (Use &UU : I->uses())
+            if (Visited.insert(&UU).second)
+              Worklist.push_back(&UU);
+      };
+
       CallSite CS(I);
-      if (CS.doesNotAccessMemory())
+      if (CS.doesNotAccessMemory()) {
+        AddUsersToWorklistIfCapturing();
         continue;
+      }
 
       Function *F = CS.getCalledFunction();
       if (!F) {
         if (CS.onlyReadsMemory()) {
           IsRead = true;
+          AddUsersToWorklistIfCapturing();
           continue;
         }
         return Attribute::None;
@@ -470,6 +489,7 @@ determinePointerReadAttrs(Argument *A,
                    "More params than args in non-varargs call.");
             return Attribute::None;
           }
+          Captures &= !CS.doesNotCapture(A - B);
           if (SCCNodes.count(AI))
             continue;
           if (!CS.onlyReadsMemory() && !CS.onlyReadsMemory(A - B))
@@ -478,6 +498,7 @@ determinePointerReadAttrs(Argument *A,
             IsRead = true;
         }
       }
+      AddUsersToWorklistIfCapturing();
       break;
     }
 
@@ -507,7 +528,8 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
   // looking up whether a given CallGraphNode is in this SCC.
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
-    if (F && !F->isDeclaration() && !F->mayBeOverridden())
+    if (F && !F->isDeclaration() && !F->mayBeOverridden() &&
+        !F->hasFnAttribute(Attribute::OptimizeNone))
       SCCNodes.insert(F);
   }
 
@@ -521,8 +543,9 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (F == 0)
-      // External node - only a problem for arguments that we pass to it.
+    if (!F || F->hasFnAttribute(Attribute::OptimizeNone))
+      // External node or function we're trying not to optimize - only a problem
+      // for arguments that we pass to it.
       continue;
 
     // Definitions with weak linkage may be overridden at linktime with
@@ -599,9 +622,8 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
   // made.  If the definition doesn't have a 'nocapture' attribute by now, it
   // captures.
 
-  for (scc_iterator<ArgumentGraph*> I = scc_begin(&AG), E = scc_end(&AG);
-       I != E; ++I) {
-    std::vector<ArgumentGraphNode*> &ArgumentSCC = *I;
+  for (scc_iterator<ArgumentGraph*> I = scc_begin(&AG); !I.isAtEnd(); ++I) {
+    const std::vector<ArgumentGraphNode *> &ArgumentSCC = *I;
     if (ArgumentSCC.size() == 1) {
       if (!ArgumentSCC[0]->Definition) continue;  // synthetic root node
 
@@ -617,8 +639,8 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
     }
 
     bool SCCCaptured = false;
-    for (std::vector<ArgumentGraphNode*>::iterator I = ArgumentSCC.begin(),
-           E = ArgumentSCC.end(); I != E && !SCCCaptured; ++I) {
+    for (auto I = ArgumentSCC.begin(), E = ArgumentSCC.end();
+         I != E && !SCCCaptured; ++I) {
       ArgumentGraphNode *Node = *I;
       if (Node->Uses.empty()) {
         if (!Node->Definition->hasNoCaptureAttr())
@@ -630,13 +652,12 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
     SmallPtrSet<Argument*, 8> ArgumentSCCNodes;
     // Fill ArgumentSCCNodes with the elements of the ArgumentSCC.  Used for
     // quickly looking up whether a given Argument is in this ArgumentSCC.
-    for (std::vector<ArgumentGraphNode*>::iterator I = ArgumentSCC.begin(),
-           E = ArgumentSCC.end(); I != E; ++I) {
+    for (auto I = ArgumentSCC.begin(), E = ArgumentSCC.end(); I != E; ++I) {
       ArgumentSCCNodes.insert((*I)->Definition);
     }
 
-    for (std::vector<ArgumentGraphNode*>::iterator I = ArgumentSCC.begin(),
-           E = ArgumentSCC.end(); I != E && !SCCCaptured; ++I) {
+    for (auto I = ArgumentSCC.begin(), E = ArgumentSCC.end();
+         I != E && !SCCCaptured; ++I) {
       ArgumentGraphNode *N = *I;
       for (SmallVectorImpl<ArgumentGraphNode*>::iterator UI = N->Uses.begin(),
              UE = N->Uses.end(); UI != UE; ++UI) {
@@ -723,6 +744,7 @@ bool FunctionAttrs::IsFunctionMallocLike(Function *F,
         // Extend the analysis by looking upwards.
         case Instruction::BitCast:
         case Instruction::GetElementPtr:
+        case Instruction::AddrSpaceCast:
           FlowsToReturn.insert(RVI->getOperand(0));
           continue;
         case Instruction::Select: {
@@ -775,8 +797,8 @@ bool FunctionAttrs::AddNoAliasAttrs(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (F == 0)
-      // External node - skip it;
+    if (!F || F->hasFnAttribute(Attribute::OptimizeNone))
+      // External node or node we don't want to optimize - skip it;
       return false;
 
     // Already noalias.
@@ -815,6 +837,9 @@ bool FunctionAttrs::AddNoAliasAttrs(const CallGraphSCC &SCC) {
 /// given function and set any applicable attributes.  Returns true
 /// if any attributes were set and false otherwise.
 bool FunctionAttrs::inferPrototypeAttributes(Function &F) {
+  if (F.hasFnAttribute(Attribute::OptimizeNone))
+    return false;
+
   FunctionType *FTy = F.getFunctionType();
   LibFunc::Func TheLibFunc;
   if (!(TLI->getLibFunc(F.getName(), TheLibFunc) && TLI->has(TheLibFunc)))
@@ -1649,6 +1674,7 @@ bool FunctionAttrs::inferPrototypeAttributes(Function &F) {
     setDoesNotThrow(F);
     setDoesNotCapture(F, 1);
     setDoesNotCapture(F, 2);
+    break;
   default:
     // Didn't mark any attributes.
     return false;
@@ -1667,7 +1693,7 @@ bool FunctionAttrs::annotateLibraryCalls(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (F != 0 && F->isDeclaration())
+    if (F && F->isDeclaration())
       MadeChange |= inferPrototypeAttributes(*F);
   }
 

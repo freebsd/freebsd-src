@@ -6,7 +6,7 @@
  * Trimble SV6 clock support - several collected codepieces
  *
  * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /*	0000000000111111111122222222223333333	/ char
@@ -78,8 +78,8 @@ extern void printf P((const char *, ...));
   0
 };
 
-static unsigned long cvt_trimtaip P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_trimtaip P((parse_t *, unsigned int, timestamp_t *));
+static parse_cvt_fnc_t cvt_trimtaip;
+static parse_inp_fnc_t inp_trimtaip;
 
 clockformat_t clock_trimtaip =
 {
@@ -92,7 +92,8 @@ clockformat_t clock_trimtaip =
   0				/* no private data */
 };
 
-static unsigned long
+/* parse_cvt_fnc_t cvt_trimtaip */
+static u_long
 cvt_trimtaip(
 	     unsigned char *buffer,
 	     int            size,
@@ -141,31 +142,31 @@ cvt_trimtaip(
 }
 
 /*
- * inp_trimtaip
+ * parse_inp_fnc_t inp_trimtaip
  *
- * grep data from input stream
+ * grab data from input stream
  */
 static u_long
 inp_trimtaip(
 	     parse_t      *parseio,
-	     unsigned int  ch,
+	     char         ch,
 	     timestamp_t  *tstamp
 	  )
 {
 	unsigned int rtc;
-	
+
 	parseprintf(DD_PARSE, ("inp_trimtaip(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
-	
+
 	switch (ch)
 	{
 	case '>':
 		parseprintf(DD_PARSE, ("inp_trimptaip: START seen\n"));
-		
+
 		parseio->parse_index = 1;
 		parseio->parse_data[0] = ch;
 		parseio->parse_dtime.parse_stime = *tstamp; /* collect timestamp */
 		return PARSE_INP_SKIP;
-	  
+
 	case '<':
 		parseprintf(DD_PARSE, ("inp_trimtaip: END seen\n"));
 		if ((rtc = parse_addchar(parseio, ch)) == PARSE_INP_SKIP)

@@ -11,37 +11,33 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SPARC_FRAMEINFO_H
-#define SPARC_FRAMEINFO_H
+#ifndef LLVM_LIB_TARGET_SPARC_SPARCFRAMELOWERING_H
+#define LLVM_LIB_TARGET_SPARC_SPARCFRAMELOWERING_H
 
 #include "Sparc.h"
-#include "SparcSubtarget.h"
 #include "llvm/Target/TargetFrameLowering.h"
 
 namespace llvm {
-  class SparcSubtarget;
 
+class SparcSubtarget;
 class SparcFrameLowering : public TargetFrameLowering {
-  const SparcSubtarget &SubTarget;
 public:
-  explicit SparcFrameLowering(const SparcSubtarget &ST)
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
-                          ST.is64Bit() ? 16 : 8, 0, ST.is64Bit() ? 16 : 8),
-      SubTarget(ST) {}
+  explicit SparcFrameLowering(const SparcSubtarget &ST);
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
+  void emitPrologue(MachineFunction &MF) const override;
+  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+  void
+  eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator I) const override;
 
-  bool hasReservedCallFrame(const MachineFunction &MF) const;
-  bool hasFP(const MachineFunction &MF) const;
+  bool hasReservedCallFrame(const MachineFunction &MF) const override;
+  bool hasFP(const MachineFunction &MF) const override;
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                            RegScavenger *RS = NULL) const;
+                                     RegScavenger *RS = nullptr) const override;
 
 private:
   // Remap input registers to output registers for leaf procedure.

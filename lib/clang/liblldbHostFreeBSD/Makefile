@@ -5,7 +5,10 @@
 LIB=	lldbHostFreeBSD
 
 SRCDIR=	tools/lldb/source/Host/freebsd
-SRCS=	Host.cpp
+SRCS=	Host.cpp \
+	HostInfoFreeBSD.cpp \
+	HostThreadFreeBSD.cpp \
+	ThisThread.cpp
 
 TGHDRS=	DiagnosticCommonKinds \
 	DeclNodes \

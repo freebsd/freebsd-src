@@ -102,7 +102,7 @@
 #include <setjmp.h>
 #include <strings.h>
 #include <assert.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <stdlib.h>

@@ -1,8 +1,16 @@
 Rocket Controller Driver for FreeBSD
-Copyright (C) 2014 HighPoint Technologies, Inc. All rights reserved.
+Copyright (C) 2015 HighPoint Technologies, Inc. All rights reserved.
 
 #############################################################################
 Revision History:
+   v1.1.1 2015-03-26
+     * Support 4Kn drive.
+     * Change the SCSI target ID of the disk to be the index of physical connetion to the HBA.
+     * Support staggered drive spin up.
+     * Fix a bug that command would be timeout because of improper interrupt service routine.
+     * Error handling to avoid scsi command lost which caused system hang up.
+     * Fix a bug that fail to get the devcie's serial number via FreeNAS WebGUI.
+
    v1.0.1 2014-8-19
      * Do not retry the command and reset the disk when failed to enable or 
        disable spin up feature.
@@ -13,7 +21,7 @@ Revision History:
      * Support smartmontool for R750.
 
    v1.0 2013-7-3
-     *First source code release
+        First source code release
 
 #############################################################################
 
@@ -49,7 +57,7 @@ Revision History:
   2) Extract the driver files under the kernel source tree:
 
      # cd /usr/src/sys/
-     # tar xvzf /your/path/to/hptnr_freebsd_src_v1.0.1_14_08_19.tgz
+     # tar xvzf /your/path/to/hptnr-freebsd-src-v1.0-130701.tgz
 
   3) Update the kernel configuration file to include the HighPoint source.
      Assume the configure file is GENERIC, and new kernel configure file is 

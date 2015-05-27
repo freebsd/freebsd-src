@@ -4,13 +4,8 @@ kern/kern_clocksource.c				standard
 
 arm/arm/bus_space_generic.c			standard
 arm/arm/bus_space_asm_generic.S			standard
-arm/arm/cpufunc_asm_armv5.S			standard
-arm/arm/cpufunc_asm_arm10.S			standard
-arm/arm/cpufunc_asm_arm11.S			standard
-arm/arm/cpufunc_asm_armv7.S			standard
 
-arm/arm/bus_space-v6.c				standard
-arm/arm/gic.c					standard
+arm/arm/bus_space_base.c			standard
 arm/arm/mpcore_timer.c				standard
 
 arm/altera/socfpga/socfpga_common.c		standard
@@ -18,6 +13,7 @@ arm/altera/socfpga/socfpga_machdep.c		standard
 arm/altera/socfpga/socfpga_manager.c		standard
 arm/altera/socfpga/socfpga_rstmgr.c		standard
 arm/altera/socfpga/socfpga_mp.c			optional smp
+arm/altera/socfpga/socfpga_gpio.c		optional gpio
 
 dev/dwc/if_dwc.c				optional dwc
 dev/mii/micphy.c				optional micphy
@@ -26,3 +22,6 @@ dev/mmc/host/dwmmc.c				optional dwmmc
 # BERI specific
 dev/beri/beri_ring.c				optional beri_ring
 dev/beri/beri_mem.c				optional beri_mem
+dev/beri/virtio/virtio.c			optional beri_vtblk | vtbe
+dev/beri/virtio/virtio_block.c			optional beri_vtblk
+dev/beri/virtio/network/if_vtbe.c		optional vtbe

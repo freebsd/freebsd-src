@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: ex_set.c,v 10.8 2001/06/25 15:19:19 skimo Exp
  * ex_set -- :set
  *	Ex set option.
  *
- * PUBLIC: int ex_set __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_set(SCR *, EXCMD *);
  */
 int
 ex_set(SCR *sp, EXCMD *cmdp)

@@ -10,9 +10,7 @@ EXPATDIR= ${.CURDIR}/../../../contrib/expat
 PROG=	unbound-anchor
 SRCS=	unbound-anchor.c
 CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR} -I${EXPATDIR}/lib
-DPADD=	${LIBUNBOUND} ${LIBLDNS} ${LIBUTIL} ${LIBBSDXML} ${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
-LDADD=	${LDUNBOUND} ${LDLDNS} -lutil -lbsdxml -lssl -lcrypto -lpthread
-USEPRIVATELIB=	ldns
+LIBADD=	unbound bsdxml ssl crypto pthread
 MAN=	unbound-anchor.8
 
 .include <bsd.prog.mk>

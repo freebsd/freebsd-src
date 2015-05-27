@@ -76,6 +76,14 @@ siginfo_handler(int sig __unused)
 	siginfo = 1;
 }
 
+static void
+reset_siginfo(void)
+{
+
+	signal(SIGINFO, SIG_DFL);
+	siginfo = 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -140,12 +148,14 @@ main(int argc, char *argv[])
 		} while(*++argv);
 	}
 
+	xo_close_list("file");
+
 	if (total > 1) {
 		xo_open_container("total");
 		show_cnt("total", tlinect, twordct, tcharct, tlongline);
 		xo_close_container("total");
 	}
-	xo_close_list("file");
+
 	xo_close_container("wc");
 	xo_finish();
 	exit(errors == 0 ? 0 : 1);
@@ -227,6 +237,7 @@ cnt(const char *file)
 					} else
 						tmpll++;
 			}
+			reset_siginfo();
 			tlinect += linect;
 			if (dochar)
 				tcharct += charct;
@@ -249,6 +260,7 @@ cnt(const char *file)
 				return (1);
 			}
 			if (S_ISREG(sb.st_mode)) {
+				reset_siginfo();
 				charct = sb.st_size;
 				show_cnt(file, linect, wordct, charct, llct);
 				tcharct += charct;
@@ -309,6 +321,7 @@ word:	gotsp = 1;
 			}
 		}
 	}
+	reset_siginfo();
 	if (domulti && MB_CUR_MAX > 1)
 		if (mbrtowc(NULL, NULL, 0, &mbs) == (size_t)-1 && !warned)
 			xo_warn("%s", file != NULL ? file : "stdin");

@@ -48,6 +48,7 @@
 #include <sys/kdb.h>
 
 #include <machine/bus.h>
+#include <machine/md_var.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
@@ -188,6 +189,7 @@ static void fwohci_task_dma(void *, int);
 #define	OHCI_PREQLO		0x118
 #define	OHCI_PREQLOCLR		0x11c
 #define	OHCI_PREQUPPER		0x120
+#define OHCI_PREQUPPER_MAX	0xffff0000
 
 #define	OHCI_SID_BUF		0x64
 #define	OHCI_SID_CNT		0x68
@@ -854,7 +856,7 @@ fwohci_execute_db2(void *arg, bus_dma_segment_t *segs, int nseg,
 static void
 fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
-	int i, s;
+	int i;
 	int tcode, hdr_len, pl_off;
 	int fsegment = -1;
 	uint32_t off;
@@ -880,7 +882,6 @@ fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	if (dbch->flags & FWOHCI_DBCH_FULL)
 		return;
 
-	s = splfw();
 	db_tr = dbch->top;
 txloop:
 	xfer = STAILQ_FIRST(&dbch->xferq.q);
@@ -1030,7 +1031,6 @@ kick:
 	}
 
 	dbch->top = db_tr;
-	splx(s);
 	return;
 }
 
@@ -1821,6 +1821,7 @@ static void
 fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 {
 	struct firewire_comm *fc = (struct firewire_comm *)sc;
+	uintmax_t prequpper;
 	uint32_t node_id, plen;
 
 	FW_GLOCK_ASSERT(fc);
@@ -1852,8 +1853,17 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 			/* allow from all nodes */
 			OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
 			OWRITE(sc, OHCI_PREQLO, 0xffffffff);
-			/* 0 to 4GB region */
-			OWRITE(sc, OHCI_PREQUPPER, 0x10000);
+			prequpper = ((uintmax_t)Maxmem << PAGE_SHIFT) >> 16;
+			if (prequpper > OHCI_PREQUPPER_MAX) {
+				device_printf(fc->dev,
+				    "Physical memory size of 0x%jx exceeds "
+				    "fire wire address space.  Limiting dma "
+				    "to memory below 0x%jx\n",
+				    (uintmax_t)Maxmem << PAGE_SHIFT,
+				    (uintmax_t)OHCI_PREQUPPER_MAX << 16);
+				prequpper = OHCI_PREQUPPER_MAX;
+			}
+			OWRITE(sc, OHCI_PREQUPPER, prequpper & 0xffffffff);
 		}
 		/* Set ATRetries register */
 		OWRITE(sc, OHCI_ATRETRY, 1<<(13 + 16) | 0xfff);
@@ -2171,7 +2181,7 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 	struct fw_bulkxfer *chunk;
 	struct fw_xferq *ir;
 	uint32_t stat;
-	int s, w = 0, ldesc;
+	int w = 0, ldesc;
 
 	ir = fc->ir[dmach];
 	ldesc = sc->ir[dmach].ndesc - 1;
@@ -2179,7 +2189,6 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 #if 0
 	dump_db(sc, dmach);
 #endif
-	s = splfw();
 	if ((ir->flag & FWXFERQ_HANDLER) == 0)
 		FW_GLOCK(fc);
 	fwdma_sync_multiseg_all(sc->ir[dmach].am, BUS_DMASYNC_POSTREAD);
@@ -2218,7 +2227,6 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 	}
 	if ((ir->flag & FWXFERQ_HANDLER) == 0)
 		FW_GUNLOCK(fc);
-	splx(s);
 	if (w == 0)
 		return;
 

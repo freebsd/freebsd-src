@@ -20,13 +20,14 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "objc-arc-aa"
 #include "ObjCARC.h"
 #include "ObjCARCAliasAnalysis.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "llvm/PassSupport.h"
+
+#define DEBUG_TYPE "objc-arc-aa"
 
 namespace llvm {
   class Function;
@@ -61,8 +62,8 @@ ObjCARCAliasAnalysis::alias(const Location &LocA, const Location &LocB) {
   const Value *SA = StripPointerCastsAndObjCCalls(LocA.Ptr);
   const Value *SB = StripPointerCastsAndObjCCalls(LocB.Ptr);
   AliasResult Result =
-    AliasAnalysis::alias(Location(SA, LocA.Size, LocA.TBAATag),
-                         Location(SB, LocB.Size, LocB.TBAATag));
+    AliasAnalysis::alias(Location(SA, LocA.Size, LocA.AATags),
+                         Location(SB, LocB.Size, LocB.AATags));
   if (Result != MayAlias)
     return Result;
 
@@ -92,7 +93,7 @@ ObjCARCAliasAnalysis::pointsToConstantMemory(const Location &Loc,
   // First, strip off no-ops, including ObjC-specific no-ops, and try making
   // a precise alias query.
   const Value *S = StripPointerCastsAndObjCCalls(Loc.Ptr);
-  if (AliasAnalysis::pointsToConstantMemory(Location(S, Loc.Size, Loc.TBAATag),
+  if (AliasAnalysis::pointsToConstantMemory(Location(S, Loc.Size, Loc.AATags),
                                             OrLocal))
     return true;
 

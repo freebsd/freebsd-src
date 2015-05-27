@@ -71,34 +71,13 @@ struct ctl_fe_ioctl_params {
 	ctl_fe_ioctl_state	state;
 };
 
-#define	CTL_POOL_ENTRIES_INTERNAL	200
-#define	CTL_POOL_ENTRIES_EMERGENCY	300
 #define CTL_POOL_ENTRIES_OTHER_SC   200
 
-typedef enum {
-	CTL_POOL_INTERNAL,
-	CTL_POOL_FETD,
-	CTL_POOL_EMERGENCY,
-	CTL_POOL_4OTHERSC
-} ctl_pool_type;
-
-typedef enum {
-	CTL_POOL_FLAG_NONE	= 0x00,
-	CTL_POOL_FLAG_INVALID	= 0x01
-} ctl_pool_flags;
-
 struct ctl_io_pool {
-	ctl_pool_type			type;
-	ctl_pool_flags			flags;
+	char				name[64];
 	uint32_t			id;
 	struct ctl_softc		*ctl_softc;
-	uint32_t			refcount;
-	uint64_t			total_allocated;
-	uint64_t			total_freed;
-	int32_t				total_ctl_io;
-	int32_t				free_ctl_io;
-	STAILQ_HEAD(, ctl_io_hdr)	free_queue;
-	STAILQ_ENTRY(ctl_io_pool)	links;
+	struct uma_zone			*zone;
 };
 
 typedef enum {
@@ -118,6 +97,7 @@ typedef enum {
 	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
 	CTL_SER_EXTENTOPT,
+	CTL_SER_EXTENTSEQ,
 	CTL_SER_PASS,
 	CTL_SER_SKIP
 } ctl_serialize_action;
@@ -202,6 +182,12 @@ typedef enum {
 	CTL_LUN_SENSE_DESC	= 0x400,
 	CTL_LUN_READONLY	= 0x800
 } ctl_lun_flags;
+
+typedef enum {
+	CTL_LUN_SERSEQ_OFF,
+	CTL_LUN_SERSEQ_READ,
+	CTL_LUN_SERSEQ_ON
+} ctl_lun_serseq;
 
 typedef enum {
 	CTLBLOCK_FLAG_NONE	= 0x00,
@@ -356,6 +342,8 @@ static const struct ctl_page_index log_page_index_template[] = {
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SLS_LOGICAL_BLOCK_PROVISIONING, 0, 0, NULL,
 	 CTL_PAGE_FLAG_NONE, ctl_lbp_log_sense_handler, NULL},
+	{SLS_STAT_AND_PERF, 0, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, ctl_sap_log_sense_handler, NULL},
 };
 
 #define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
@@ -365,6 +353,11 @@ struct ctl_log_pages {
 	uint8_t				pages_page[CTL_NUM_LOG_PAGES];
 	uint8_t				subpages_page[CTL_NUM_LOG_PAGES * 2];
 	uint8_t				lbp_page[12*CTL_NUM_LBP_PARAMS];
+	struct stat_page {
+		struct scsi_log_stat_and_perf sap;
+		struct scsi_log_idle_time it;
+		struct scsi_log_time_interval ti;
+	} stat_page;
 	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };
 
@@ -407,6 +400,7 @@ struct ctl_lun {
 	struct ctl_id			target;
 	uint64_t			lun;
 	ctl_lun_flags			flags;
+	ctl_lun_serseq			serseq;
 	STAILQ_HEAD(,ctl_error_desc)	error_list;
 	uint64_t			error_serial;
 	struct ctl_softc		*ctl_softc;
@@ -416,6 +410,10 @@ struct ctl_lun {
 	struct ctl_lun_delay_info	delay_info;
 	int				sync_interval;
 	int				sync_count;
+#ifdef CTL_TIME_IO
+	sbintime_t			idle_time;
+	sbintime_t			last_busy;
+#endif
 	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
@@ -424,14 +422,14 @@ struct ctl_lun {
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
-	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
+	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
 	time_t				lasttpt;
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
 	unsigned int			PRGeneration;
-	uint64_t			pr_keys[2*CTL_MAX_INITIATORS];
+	uint64_t			*pr_keys[2 * CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
@@ -442,7 +440,7 @@ struct ctl_lun {
 
 typedef enum {
 	CTL_FLAG_REAL_SYNC	= 0x02,
-	CTL_FLAG_MASTER_SHELF	= 0x04
+	CTL_FLAG_ACTIVE_SHELF	= 0x04
 } ctl_gen_flags;
 
 #define CTL_MAX_THREADS		16
@@ -467,13 +465,16 @@ struct ctl_softc {
 	int num_luns;
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
+	int ha_id;
+	int ha_state;
+	int is_single;
+	int port_offset;
+	int persis_offset;
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
-	struct ctl_io_pool *internal_pool;
-	struct ctl_io_pool *emergency_pool;
-	struct ctl_io_pool *othersc_pool;
+	void *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
 	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
@@ -488,10 +489,8 @@ struct ctl_softc {
 	struct ctl_port *ctl_ports[CTL_MAX_PORTS];
 	uint32_t num_backends;
 	STAILQ_HEAD(, ctl_backend_driver) be_list;
-	struct mtx pool_lock;
-	uint32_t num_pools;
+	struct uma_zone *io_zone;
 	uint32_t cur_pool_id;
-	STAILQ_HEAD(, ctl_io_pool) io_pools;
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
@@ -504,8 +503,15 @@ extern const struct ctl_cmd_entry ctl_cmd_table[256];
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
 uint32_t ctl_port_idx(int port_num);
-int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
-		    uint32_t total_ctl_io, struct ctl_io_pool **npool);
+int ctl_lun_map_init(struct ctl_port *port);
+int ctl_lun_map_deinit(struct ctl_port *port);
+int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
+int ctl_lun_map_unset(struct ctl_port *port, uint32_t plun);
+int ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun);
+uint32_t ctl_lun_map_from_port(struct ctl_port *port, uint32_t plun);
+uint32_t ctl_lun_map_to_port(struct ctl_port *port, uint32_t glun);
+int ctl_pool_create(struct ctl_softc *ctl_softc, const char *pool_name,
+		    uint32_t total_ctl_io, void **npool);
 void ctl_pool_free(struct ctl_io_pool *pool);
 int ctl_scsi_release(struct ctl_scsiio *ctsio);
 int ctl_scsi_reserve(struct ctl_scsiio *ctsio);
@@ -536,6 +542,7 @@ int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
+int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 
 void ctl_tpc_init(struct ctl_softc *softc);
 void ctl_tpc_shutdown(struct ctl_softc *softc);

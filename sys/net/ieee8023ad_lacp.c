@@ -763,7 +763,7 @@ lacp_attach(struct lagg_softc *sc)
 	sc->sc_psc = lsc;
 	lsc->lsc_softc = sc;
 
-	lsc->lsc_hashkey = arc4random();
+	lsc->lsc_hashkey = m_ether_tcpip_hash_init();
 	lsc->lsc_active_aggregator = NULL;
 	lsc->lsc_strict_mode = 1;
 	LACP_LOCK_INIT(lsc);
@@ -835,10 +835,11 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 		return (NULL);
 	}
 
-	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) && (m->m_flags & M_FLOWID))
+	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
-		hash = lagg_hashmbuf(sc, m, lsc->lsc_hashkey);
+		hash = m_ether_tcpip_hash(sc->sc_flags, m, lsc->lsc_hashkey);
 	hash %= pm->pm_count;
 	lp = pm->pm_map[hash];
 
@@ -1065,12 +1066,16 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_100_T4:
 		case IFM_100_VG:
 		case IFM_100_T2:
+		case IFM_100_T:
 			key = IFM_100_TX;
 			break;
 		case IFM_1000_SX:
 		case IFM_1000_LX:
 		case IFM_1000_CX:
 		case IFM_1000_T:
+		case IFM_1000_KX:
+		case IFM_1000_SGMII:
+		case IFM_1000_CX_SGMII:
 			key = IFM_1000_SX;
 			break;
 		case IFM_10G_LR:
@@ -1080,15 +1085,53 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_10G_TWINAX_LONG:
 		case IFM_10G_LRM:
 		case IFM_10G_T:
+		case IFM_10G_KX4:
+		case IFM_10G_KR:
+		case IFM_10G_CR1:
+		case IFM_10G_ER:
+		case IFM_10G_SFI:
 			key = IFM_10G_LR;
+			break;
+		case IFM_20G_KR2:
+			key = IFM_20G_KR2;
+			break;
+		case IFM_2500_KX:
+		case IFM_2500_T:
+			key = IFM_2500_KX;
+			break;
+		case IFM_5000_T:
+			key = IFM_5000_T;
+			break;
+		case IFM_50G_PCIE:
+		case IFM_50G_CR2:
+		case IFM_50G_KR2:
+			key = IFM_50G_PCIE;
+			break;
+		case IFM_56G_R4:
+			key = IFM_56G_R4;
+			break;
+		case IFM_25G_PCIE:
+		case IFM_25G_CR:
+		case IFM_25G_KR:
+		case IFM_25G_SR:
+			key = IFM_25G_PCIE;
 			break;
 		case IFM_40G_CR4:
 		case IFM_40G_SR4:
 		case IFM_40G_LR4:
+		case IFM_40G_XLPPI:
+		case IFM_40G_KR4:
 			key = IFM_40G_CR4;
+			break;
+		case IFM_100G_CR4:
+		case IFM_100G_SR4:
+		case IFM_100G_KR4:
+		case IFM_100G_LR4:
+			key = IFM_100G_CR4;
 			break;
 		default:
 			key = subtype;
+			break;
 		}
 		/* bit 5..14:	(some bits of) if_index of lagg device */
 		key |= 0x7fe0 & ((sc->sc_ifp->if_index) << 5);

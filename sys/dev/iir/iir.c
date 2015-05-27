@@ -201,7 +201,8 @@ iir_init(struct gdt_softc *gdt)
                            /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
                            /*highaddr*/BUS_SPACE_MAXADDR,
                            /*filter*/NULL, /*filterarg*/NULL,
-                           /*maxsize*/MAXBSIZE, /*nsegments*/GDT_MAXSG,
+			   /*maxsize*/DFLTPHYS,
+			   /*nsegments*/GDT_MAXSG,
                            /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
                            /*flags*/BUS_DMA_ALLOCNOW,
 			   /*lockfunc*/busdma_lock_mutex,
@@ -267,7 +268,7 @@ iir_init(struct gdt_softc *gdt)
                               &gccb->gc_dmamap) != 0)
             return(1);
         gccb->gc_map_flag = TRUE;
-	gccb->gc_scratch = &gdt->sc_gcscratch[GDT_SCRATCH_SZ * i];
+        gccb->gc_scratch = &gdt->sc_gcscratch[GDT_SCRATCH_SZ * i];
         gccb->gc_scratch_busbase = gdt->sc_gcscratch_busbase + GDT_SCRATCH_SZ * i;
 	callout_init_mtx(&gccb->gc_timeout, &gdt->sc_lock, 0);
         SLIST_INSERT_HEAD(&gdt->sc_free_gccb, gccb, sle);
@@ -1234,8 +1235,8 @@ gdtexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
     
     ccb->ccb_h.status |= CAM_SIM_QUEUED;
     /* timeout handling */
-    callout_reset(&gccb->gc_timeout, (ccb->ccb_h.timeout * hz) / 1000,
-	iir_timeout, gccb);
+    callout_reset_sbt(&gccb->gc_timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+      iir_timeout, (caddr_t)gccb, 0);
 
     gdt->sc_copy_cmd(gdt, gccb);
 }

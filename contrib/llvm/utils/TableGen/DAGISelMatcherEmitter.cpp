@@ -142,7 +142,7 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
   switch (N->getKind()) {
   case Matcher::Scope: {
     const ScopeMatcher *SM = cast<ScopeMatcher>(N);
-    assert(SM->getNext() == 0 && "Shouldn't have next after scope");
+    assert(SM->getNext() == nullptr && "Shouldn't have next after scope");
 
     unsigned StartIdx = CurrentIdx;
 
@@ -332,7 +332,6 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
       // Emit the VBR.
       CurrentIdx += EmitVBRValue(ChildSize, OS);
 
-      OS << ' ';
       if (const SwitchOpcodeMatcher *SOM = dyn_cast<SwitchOpcodeMatcher>(N))
         OS << "TARGET_VAL(" << SOM->getCaseOpcode(i).getEnumName() << "),";
       else
@@ -376,6 +375,14 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
   case Matcher::CheckInteger: {
     OS << "OPC_CheckInteger, ";
     unsigned Bytes=1+EmitVBRValue(cast<CheckIntegerMatcher>(N)->getValue(), OS);
+    OS << '\n';
+    return Bytes;
+  }
+  case Matcher::CheckChildInteger: {
+    OS << "OPC_CheckChild" << cast<CheckChildIntegerMatcher>(N)->getChildNo()
+       << "Integer, ";
+    unsigned Bytes=1+EmitVBRValue(cast<CheckChildIntegerMatcher>(N)->getValue(),
+                                  OS);
     OS << '\n';
     return Bytes;
   }
@@ -608,7 +615,7 @@ EmitMatcherList(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
 void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit pattern predicates.
   if (!PatternPredicates.empty()) {
-    OS << "virtual bool CheckPatternPredicate(unsigned PredNo) const {\n";
+    OS << "bool CheckPatternPredicate(unsigned PredNo) const override {\n";
     OS << "  switch (PredNo) {\n";
     OS << "  default: llvm_unreachable(\"Invalid predicate in table?\");\n";
     for (unsigned i = 0, e = PatternPredicates.size(); i != e; ++i)
@@ -623,11 +630,11 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
 
   for (CodeGenDAGPatterns::pf_iterator I = CGP.pf_begin(), E = CGP.pf_end();
        I != E; ++I)
-    PFsByName[I->first->getName()] = I->second;
+    PFsByName[I->first->getName()] = I->second.get();
 
   if (!NodePredicates.empty()) {
-    OS << "virtual bool CheckNodePredicate(SDNode *Node,\n";
-    OS << "                                unsigned PredNo) const {\n";
+    OS << "bool CheckNodePredicate(SDNode *Node,\n";
+    OS << "                        unsigned PredNo) const override {\n";
     OS << "  switch (PredNo) {\n";
     OS << "  default: llvm_unreachable(\"Invalid predicate in table?\");\n";
     for (unsigned i = 0, e = NodePredicates.size(); i != e; ++i) {
@@ -646,9 +653,9 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit CompletePattern matchers.
   // FIXME: This should be const.
   if (!ComplexPatterns.empty()) {
-    OS << "virtual bool CheckComplexPattern(SDNode *Root, SDNode *Parent,\n";
-    OS << "                                 SDValue N, unsigned PatternNo,\n";
-    OS << "         SmallVectorImpl<std::pair<SDValue, SDNode*> > &Result) {\n";
+    OS << "bool CheckComplexPattern(SDNode *Root, SDNode *Parent,\n";
+    OS << "                         SDValue N, unsigned PatternNo,\n";
+    OS << "         SmallVectorImpl<std::pair<SDValue, SDNode*> > &Result) override {\n";
     OS << "  unsigned NextRes = Result.size();\n";
     OS << "  switch (PatternNo) {\n";
     OS << "  default: llvm_unreachable(\"Invalid pattern # in table?\");\n";
@@ -687,7 +694,7 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit SDNodeXForm handlers.
   // FIXME: This should be const.
   if (!NodeXForms.empty()) {
-    OS << "virtual SDValue RunSDNodeXForm(SDValue V, unsigned XFormNo) {\n";
+    OS << "SDValue RunSDNodeXForm(SDValue V, unsigned XFormNo) override {\n";
     OS << "  switch (XFormNo) {\n";
     OS << "  default: llvm_unreachable(\"Invalid xform # in table?\");\n";
 
@@ -718,7 +725,7 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
 }
 
 static void BuildHistogram(const Matcher *M, std::vector<unsigned> &OpcodeFreq){
-  for (; M != 0; M = M->getNext()) {
+  for (; M != nullptr; M = M->getNext()) {
     // Count this node.
     if (unsigned(M->getKind()) >= OpcodeFreq.size())
       OpcodeFreq.resize(M->getKind()+1);
@@ -769,6 +776,7 @@ void MatcherTableEmitter::EmitHistogram(const Matcher *M,
     case Matcher::SwitchType: OS << "OPC_SwitchType"; break;
     case Matcher::CheckChildType: OS << "OPC_CheckChildType"; break;
     case Matcher::CheckInteger: OS << "OPC_CheckInteger"; break;
+    case Matcher::CheckChildInteger: OS << "OPC_CheckChildInteger"; break;
     case Matcher::CheckCondCode: OS << "OPC_CheckCondCode"; break;
     case Matcher::CheckValueType: OS << "OPC_CheckValueType"; break;
     case Matcher::CheckComplexPat: OS << "OPC_CheckComplexPat"; break;
@@ -809,7 +817,7 @@ void llvm::EmitMatcherTable(const Matcher *TheMatcher,
   OS << "  // this.\n";
   OS << "  #define TARGET_VAL(X) X & 255, unsigned(X) >> 8\n";
   OS << "  static const unsigned char MatcherTable[] = {\n";
-  unsigned TotalSize = MatcherEmitter.EmitMatcherList(TheMatcher, 5, 0, OS);
+  unsigned TotalSize = MatcherEmitter.EmitMatcherList(TheMatcher, 6, 0, OS);
   OS << "    0\n  }; // Total Array size is " << (TotalSize+1) << " bytes\n\n";
 
   MatcherEmitter.EmitHistogram(TheMatcher, OS);

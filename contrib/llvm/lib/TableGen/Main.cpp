@@ -16,16 +16,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "TGParser.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Support/system_error.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
 #include <algorithm>
 #include <cstdio>
+#include <system_error>
 using namespace llvm;
 
 namespace {
@@ -56,19 +56,16 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
     errs() << argv0 << ": the option -d must be used together with -o\n";
     return 1;
   }
-  std::string Error;
-  tool_output_file DepOut(DependFilename.c_str(), Error);
-  if (!Error.empty()) {
-    errs() << argv0 << ": error opening " << DependFilename
-      << ":" << Error << "\n";
+  std::error_code EC;
+  tool_output_file DepOut(DependFilename, EC, sys::fs::F_Text);
+  if (EC) {
+    errs() << argv0 << ": error opening " << DependFilename << ":"
+           << EC.message() << "\n";
     return 1;
   }
   DepOut.os() << OutputFilename << ":";
-  const TGLexer::DependenciesMapTy &Dependencies = Parser.getDependencies();
-  for (TGLexer::DependenciesMapTy::const_iterator I = Dependencies.begin(),
-                                                  E = Dependencies.end();
-       I != E; ++I) {
-    DepOut.os() << " " << I->first;
+  for (const auto &Dep : Parser.getDependencies()) {
+    DepOut.os() << ' ' << Dep.first;
   }
   DepOut.os() << "\n";
   DepOut.keep();
@@ -81,17 +78,16 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   RecordKeeper Records;
 
   // Parse the input file.
-  OwningPtr<MemoryBuffer> File;
-  if (error_code ec =
-        MemoryBuffer::getFileOrSTDIN(InputFilename, File)) {
-    errs() << "Could not open input file '" << InputFilename << "': "
-           << ec.message() <<"\n";
+  ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
+      MemoryBuffer::getFileOrSTDIN(InputFilename);
+  if (std::error_code EC = FileOrErr.getError()) {
+    errs() << "Could not open input file '" << InputFilename
+           << "': " << EC.message() << "\n";
     return 1;
   }
-  MemoryBuffer *F = File.take();
 
   // Tell SrcMgr about this buffer, which is what TGParser will pick up.
-  SrcMgr.AddNewSourceBuffer(F, SMLoc());
+  SrcMgr.AddNewSourceBuffer(std::move(*FileOrErr), SMLoc());
 
   // Record the location of the include directory so that the lexer can find
   // it later.
@@ -102,11 +98,11 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   if (Parser.ParseFile())
     return 1;
 
-  std::string Error;
-  tool_output_file Out(OutputFilename.c_str(), Error);
-  if (!Error.empty()) {
-    errs() << argv0 << ": error opening " << OutputFilename
-      << ":" << Error << "\n";
+  std::error_code EC;
+  tool_output_file Out(OutputFilename, EC, sys::fs::F_Text);
+  if (EC) {
+    errs() << argv0 << ": error opening " << OutputFilename << ":"
+           << EC.message() << "\n";
     return 1;
   }
   if (!DependFilename.empty()) {

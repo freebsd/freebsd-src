@@ -239,8 +239,10 @@ ext2_create(struct vop_create_args *ap)
 	error =
 	    ext2_makeinode(MAKEIMODE(ap->a_vap->va_type, ap->a_vap->va_mode),
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
-	if (error)
+	if (error != 0)
 		return (error);
+	if ((ap->a_cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(ap->a_dvp, *ap->a_vpp, ap->a_cnp);
 	return (0);
 }
 
@@ -1221,7 +1223,6 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 	 *  the current directory and thus be
 	 *  non-empty.)
 	 */
-	error = 0;
 	if (ip->i_nlink != 2 || !ext2_dirempty(ip, dp->i_number, cnp->cn_cred)) {
 		error = ENOTEMPTY;
 		goto out;
@@ -1327,12 +1328,10 @@ ext2_strategy(struct vop_strategy_args *ap)
 {
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
-	struct inode *ip;
 	struct bufobj *bo;
 	daddr_t blkno;
 	int error;
 
-	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
@@ -1366,7 +1365,7 @@ ext2_print(struct vop_print_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
-	vn_printf(ip->i_devvp, "\tino %lu", (u_long)ip->i_number);
+	vn_printf(ip->i_devvp, "\tino %ju", (uintmax_t)ip->i_number);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");

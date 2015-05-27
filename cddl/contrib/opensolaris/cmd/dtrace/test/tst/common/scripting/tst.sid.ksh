@@ -41,7 +41,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-bname=`/bin/basename $0`
+bname=`basename $0`
 dfilename=/var/tmp/$bname.$$
 
 ## Create .d file
@@ -69,7 +69,7 @@ EOF
 
 chmod 555 $dfilename
 
-sessionid=`ps -o pid,sid | grep "$$ " | awk '{print $2}' 2>/dev/null`
+sessionid=`ps -x -o pid,sid | grep "$$ " | awk '{print $2}' 2>/dev/null`
 if [ $? -ne 0 ]; then
 	print -u2 "unable to get sid of the current process with pid = $$"
 	exit 1
@@ -82,5 +82,5 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-#/bin/rm -f $dfilename
+rm -f $dfilename
 exit 0

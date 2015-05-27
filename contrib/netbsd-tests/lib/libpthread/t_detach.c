@@ -38,11 +38,18 @@ __RCSID("$NetBSD: t_detach.c,v 1.1 2011/03/24 13:52:04 jruoho Exp $");
 
 #include "h_common.h"
 
+#ifdef __FreeBSD__
+#include <time.h>
+#endif
+
 static void	*func(void *);
 
 static void *
 func(void *arg)
 {
+#ifdef __FreeBSD__
+	sleep(2);
+#endif
 	return NULL;
 }
 
@@ -72,18 +79,25 @@ ATF_TC_BODY(pthread_detach, tc)
 	 */
 	PTHREAD_REQUIRE(pthread_detach(t));
 
+#ifdef __FreeBSD__
+	sleep(1);
+#endif
 	rv = pthread_join(t, NULL);
 	ATF_REQUIRE(rv == EINVAL);
 
 #ifdef __FreeBSD__
-	atf_tc_expect_fail("PR # 191906: fails with EINVAL, not ESRCH");
+	sleep(3);
 #endif
 
 	/*
 	 * As usual, ESRCH should follow if
 	 * we try to detach an invalid thread.
 	 */
+#ifdef __NetBSD__
 	rv = pthread_cancel(NULL);
+#else
+	rv = pthread_cancel(t);
+#endif
 	ATF_REQUIRE(rv == ESRCH);
 }
 

@@ -46,9 +46,25 @@ public:
     return BranchProbability(D - N, D);
   }
 
-  void print(raw_ostream &OS) const;
+  raw_ostream &print(raw_ostream &OS) const;
 
   void dump() const;
+
+  /// \brief Scale a large integer.
+  ///
+  /// Scales \c Num.  Guarantees full precision.  Returns the floor of the
+  /// result.
+  ///
+  /// \return \c Num times \c this.
+  uint64_t scale(uint64_t Num) const;
+
+  /// \brief Scale a large integer by the inverse.
+  ///
+  /// Scales \c Num by the inverse of \c this.  Guarantees full precision.
+  /// Returns the floor of the result.
+  ///
+  /// \return \c Num divided by \c this.
+  uint64_t scaleByInverse(uint64_t Num) const;
 
   bool operator==(BranchProbability RHS) const {
     return (uint64_t)N * RHS.D == (uint64_t)D * RHS.N;
@@ -59,18 +75,14 @@ public:
   bool operator<(BranchProbability RHS) const {
     return (uint64_t)N * RHS.D < (uint64_t)D * RHS.N;
   }
-  bool operator>(BranchProbability RHS) const {
-    return RHS < *this;
-  }
-  bool operator<=(BranchProbability RHS) const {
-    return (uint64_t)N * RHS.D <= (uint64_t)D * RHS.N;
-  }
-  bool operator>=(BranchProbability RHS) const {
-    return RHS <= *this;
-  }
+  bool operator>(BranchProbability RHS) const { return RHS < *this; }
+  bool operator<=(BranchProbability RHS) const { return !(RHS < *this); }
+  bool operator>=(BranchProbability RHS) const { return !(*this < RHS); }
 };
 
-raw_ostream &operator<<(raw_ostream &OS, const BranchProbability &Prob);
+inline raw_ostream &operator<<(raw_ostream &OS, const BranchProbability &Prob) {
+  return Prob.print(OS);
+}
 
 }
 

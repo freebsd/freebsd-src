@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2014
+.Dd March 29, 2015
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Fn kqueue "void"
 .Ft int
 .Fn kevent "int kq" "const struct kevent *changelist" "int nchanges" "struct kevent *eventlist" "int nevents" "const struct timespec *timeout"
-.Fn EV_SET "&kev" ident filter flags fflags data udata
+.Fn EV_SET "kev" ident filter flags fflags data udata
 .Sh DESCRIPTION
 The
 .Fn kqueue
@@ -162,56 +162,56 @@ struct kevent {
 The fields of
 .Fa struct kevent
 are:
-.Bl -tag -width XXXfilter
-.It ident
+.Bl -tag -width "Fa filter"
+.It Fa ident
 Value used to identify this event.
 The exact interpretation is determined by the attached filter,
 but often is a file descriptor.
-.It filter
+.It Fa filter
 Identifies the kernel filter used to process this event.
 The pre-defined
 system filters are described below.
-.It flags
+.It Fa flags
 Actions to perform on the event.
-.It fflags
+.It Fa fflags
 Filter-specific flags.
-.It data
+.It Fa data
 Filter-specific data value.
-.It udata
+.It Fa udata
 Opaque user-defined value passed through the kernel unchanged.
 .El
 .Pp
 The
 .Va flags
 field can contain the following values:
-.Bl -tag -width XXXEV_ONESHOT
-.It EV_ADD
+.Bl -tag -width EV_DISPATCH
+.It Dv EV_ADD
 Adds the event to the kqueue.
 Re-adding an existing event
 will modify the parameters of the original event, and not result
 in a duplicate entry.
 Adding an event automatically enables it,
 unless overridden by the EV_DISABLE flag.
-.It EV_ENABLE
+.It Dv EV_ENABLE
 Permit
 .Fn kevent
 to return the event if it is triggered.
-.It EV_DISABLE
+.It Dv EV_DISABLE
 Disable the event so
 .Fn kevent
 will not return it.
 The filter itself is not disabled.
-.It EV_DISPATCH
+.It Dv EV_DISPATCH
 Disable the event source immediately after delivery of an event.
 See
 .Dv EV_DISABLE
 above.
-.It EV_DELETE
+.It Dv EV_DELETE
 Removes the event from the kqueue.
 Events which are attached to
 file descriptors are automatically deleted on the last close of
 the descriptor.
-.It EV_RECEIPT
+.It Dv EV_RECEIPT
 This flag is useful for making bulk changes to a kqueue without draining
 any pending events.
 When passed as input, it forces
@@ -220,20 +220,20 @@ to always be returned.
 When a filter is successfully added the
 .Va data
 field will be zero.
-.It EV_ONESHOT
+.It Dv EV_ONESHOT
 Causes the event to return only the first occurrence of the filter
 being triggered.
 After the user retrieves the event from the kqueue,
 it is deleted.
-.It EV_CLEAR
+.It Dv EV_CLEAR
 After the event is retrieved by the user, its state is reset.
 This is useful for filters which report state transitions
 instead of the current state.
 Note that some filters may automatically
 set this flag internally.
-.It EV_EOF
+.It Dv EV_EOF
 Filters may set this flag to indicate filter-specific EOF condition.
-.It EV_ERROR
+.It Dv EV_ERROR
 See
 .Sx RETURN VALUES
 below.
@@ -245,8 +245,8 @@ Arguments may be passed to and from the filter via the
 and
 .Va data
 fields in the kevent structure.
-.Bl -tag -width EVFILT_PROCDESC
-.It EVFILT_READ
+.Bl -tag -width "Dv EVFILT_PROCDESC"
+.It Dv EVFILT_READ
 Takes a descriptor as the identifier, and returns whenever
 there is data available to read.
 The behavior of the filter is slightly different depending
@@ -265,7 +265,7 @@ subject to the
 value of the socket buffer.
 This may be overridden with a per-filter low water mark at the
 time the filter is added by setting the
-NOTE_LOWAT
+.Dv NOTE_LOWAT
 flag in
 .Va fflags ,
 and specifying the new low water mark in
@@ -275,7 +275,9 @@ On return,
 contains the number of bytes of protocol data available to read.
 .Pp
 If the read direction of the socket has shutdown, then the filter
-also sets EV_EOF in
+also sets
+.Dv EV_EOF
+in
 .Va flags ,
 and returns the socket error (if any) in
 .Va fflags .
@@ -291,9 +293,13 @@ Returns when the there is data to read;
 .Va data
 contains the number of bytes available.
 .Pp
-When the last writer disconnects, the filter will set EV_EOF in
+When the last writer disconnects, the filter will set
+.Dv EV_EOF
+in
 .Va flags .
-This may be cleared by passing in EV_CLEAR, at which point the
+This may be cleared by passing in
+.Dv EV_CLEAR ,
+at which point the
 filter will resume waiting for data to become available before
 returning.
 .It "BPF devices"
@@ -304,7 +310,7 @@ enabled and there is any data to read;
 .Va data
 contains the number of bytes available.
 .El
-.It EVFILT_WRITE
+.It Dv EVFILT_WRITE
 Takes a descriptor as the identifier, and returns whenever
 it is possible to write to the descriptor.
 For sockets, pipes
@@ -312,23 +318,30 @@ and fifos,
 .Va data
 will contain the amount of space remaining in the write buffer.
 The filter will set EV_EOF when the reader disconnects, and for
-the fifo case, this may be cleared by use of EV_CLEAR.
+the fifo case, this may be cleared by use of
+.Dv EV_CLEAR .
 Note that this filter is not supported for vnodes or BPF devices.
 .Pp
 For sockets, the low water mark and socket error handling is
-identical to the EVFILT_READ case.
-.It EVFILT_AIO
+identical to the
+.Dv EVFILT_READ
+case.
+.It Dv EVFILT_AIO
 The sigevent portion of the AIO request is filled in, with
 .Va sigev_notify_kqueue
 containing the descriptor of the kqueue that the event should
 be attached to,
 .Va sigev_notify_kevent_flags
-containing the kevent flags which should be EV_ONESHOT, EV_CLEAR or
-EV_DISPATCH,
+containing the kevent flags which should be
+.Dv EV_ONESHOT ,
+.Dv EV_CLEAR
+or
+.Dv EV_DISPATCH ,
 .Va sigev_value
 containing the udata value, and
 .Va sigev_notify
-set to SIGEV_KEVENT.
+set to
+.Dv SIGEV_KEVENT .
 When the
 .Fn aio_*
 system call is made, the event will be registered
@@ -339,29 +352,30 @@ argument set to the
 returned by the
 .Fn aio_*
 system call.
-The filter returns under the same conditions as aio_error.
-.It EVFILT_VNODE
+The filter returns under the same conditions as
+.Fn aio_error .
+.It Dv EVFILT_VNODE
 Takes a file descriptor as the identifier and the events to watch for in
 .Va fflags ,
 and returns when one or more of the requested events occurs on the descriptor.
 The events to monitor are:
-.Bl -tag -width XXNOTE_RENAME
-.It NOTE_DELETE
+.Bl -tag -width "Dv NOTE_RENAME"
+.It Dv NOTE_DELETE
 The
 .Fn unlink
 system call
 was called on the file referenced by the descriptor.
-.It NOTE_WRITE
+.It Dv NOTE_WRITE
 A write occurred on the file referenced by the descriptor.
-.It NOTE_EXTEND
+.It Dv NOTE_EXTEND
 The file referenced by the descriptor was extended.
-.It NOTE_ATTRIB
+.It Dv NOTE_ATTRIB
 The file referenced by the descriptor had its attributes changed.
-.It NOTE_LINK
+.It Dv NOTE_LINK
 The link count on the file changed.
-.It NOTE_RENAME
+.It Dv NOTE_RENAME
 The file referenced by the descriptor was renamed.
-.It NOTE_REVOKE
+.It Dv NOTE_REVOKE
 Access to the file was revoked via
 .Xr revoke 2
 or the underlying file system was unmounted.
@@ -370,26 +384,26 @@ or the underlying file system was unmounted.
 On return,
 .Va fflags
 contains the events which triggered the filter.
-.It EVFILT_PROC
+.It Dv EVFILT_PROC
 Takes the process ID to monitor as the identifier and the events to watch for
 in
 .Va fflags ,
 and returns when the process performs one or more of the requested events.
 If a process can normally see another process, it can attach an event to it.
 The events to monitor are:
-.Bl -tag -width XXNOTE_TRACKERR
-.It NOTE_EXIT
+.Bl -tag -width "Dv NOTE_TRACKERR"
+.It Dv NOTE_EXIT
 The process has exited.
 The exit status will be stored in
 .Va data .
-.It NOTE_FORK
+.It Dv NOTE_FORK
 The process has called
 .Fn fork .
-.It NOTE_EXEC
+.It Dv NOTE_EXEC
 The process has executed a new process via
 .Xr execve 2
 or a similar call.
-.It NOTE_TRACK
+.It Dv NOTE_TRACK
 Follow a process across
 .Fn fork
 calls.
@@ -397,22 +411,28 @@ The parent process registers a new kevent to monitor the child process
 using the same
 .Va fflags
 as the original event.
-The child process will signal an event with NOTE_CHILD set in
+The child process will signal an event with
+.Dv NOTE_CHILD
+set in
 .Va fflags
 and the parent PID in
 .Va data .
 .Pp
 If the parent process fails to register a new kevent
 .Pq usually due to resource limitations ,
-it will signal an event with NOTE_TRACKERR set in
+it will signal an event with
+.Dv NOTE_TRACKERR
+set in
 .Va fflags ,
-and the child process will not signal a NOTE_CHILD event.
+and the child process will not signal a
+.Dv NOTE_CHILD
+event.
 .El
 .Pp
 On return,
 .Va fflags
 contains the events which triggered the filter.
-.It EVFILT_PROCDESC
+.It Dv EVFILT_PROCDESC
 Takes the process descriptor created by
 .Xr pdfork 2
 to monitor as the identifier and the events to watch for in
@@ -420,8 +440,8 @@ to monitor as the identifier and the events to watch for in
 and returns when the associated process performs one or more of the
 requested events.
 The events to monitor are:
-.Bl -tag -width XXNOTE_EXIT
-.It NOTE_EXIT
+.Bl -tag -width "Dv NOTE_EXIT"
+.It Dv NOTE_EXIT
 The process has exited.
 The exit status will be stored in
 .Va data .
@@ -430,7 +450,7 @@ The exit status will be stored in
 On return,
 .Va fflags
 contains the events which triggered the filter.
-.It EVFILT_SIGNAL
+.It Dv EVFILT_SIGNAL
 Takes the signal number to monitor as the identifier and returns
 when the given signal is delivered to the process.
 This coexists with the
@@ -440,7 +460,9 @@ and
 facilities, and has a lower precedence.
 The filter will record
 all attempts to deliver a signal to a process, even if the signal has
-been marked as SIG_IGN, except for the
+been marked as
+.Dv SIG_IGN ,
+except for the
 .Dv SIGCHLD
 signal, which, if ignored, won't be recorded by the filter.
 Event notification happens after normal
@@ -448,14 +470,18 @@ signal delivery processing.
 .Va data
 returns the number of times the signal has occurred since the last call to
 .Fn kevent .
-This filter automatically sets the EV_CLEAR flag internally.
-.It EVFILT_TIMER
+This filter automatically sets the
+.Dv EV_CLEAR
+flag internally.
+.It Dv EVFILT_TIMER
 Establishes an arbitrary timer identified by
 .Va ident .
 When adding a timer,
 .Va data
 specifies the timeout period.
-The timer will be periodic unless EV_ONESHOT is specified.
+The timer will be periodic unless
+.Dv EV_ONESHOT
+is specified.
 On return,
 .Va data
 contains the number of times the timeout has expired since the last call to
@@ -465,7 +491,7 @@ There is a system wide limit on the number of timers
 which is controlled by the
 .Va kern.kq_calloutmax
 sysctl.
-.Bl -tag -width XXNOTE_USECONDS
+.Bl -tag -width "Dv NOTE_USECONDS"
 .It Dv NOTE_SECONDS
 .Va data
 is in seconds.
@@ -493,7 +519,7 @@ user level code.
 The lower 24 bits of the
 .Va fflags
 may be used for user defined flags and manipulated using the following:
-.Bl -tag -width XXNOTE_FFLAGSMASK
+.Bl -tag -width "Dv NOTE_FFLAGSMASK"
 .It Dv NOTE_FFNOP
 Ignore the input
 .Va fflags .
@@ -515,7 +541,7 @@ User defined flag mask for
 .El
 .Pp
 A user event is triggered for output with the following:
-.Bl -tag -width XXNOTE_FFLAGSMASK
+.Bl -tag -width "Dv NOTE_FFLAGSMASK"
 .It Dv NOTE_TRIGGER
 Cause the event to be triggered.
 .El
@@ -524,6 +550,16 @@ On return,
 .Va fflags
 contains the users defined flags in the lower 24 bits.
 .El
+.Sh CANCELLATION BEHAVIOUR
+If
+.Fa nevents
+is non-zero, i.e. the function is potentially blocking, the call
+is a cancellation point.
+Otherwise, i.e. if
+.Fa nevents
+is zero, the call is not cancellable.
+Cancellation can only occur before any changes are made to the kqueue,
+or when the call was blocked and no changes to the queue were requested.
 .Sh RETURN VALUES
 The
 .Fn kqueue
@@ -594,6 +630,8 @@ The specified descriptor is invalid.
 .It Bq Er EINTR
 A signal was delivered before the timeout expired and before any
 events were placed on the kqueue for return.
+.It Bq Er EINTR
+A cancellation request was delivered to the thread, but not yet handled.
 .It Bq Er EINVAL
 The specified time limit or filter is invalid.
 .It Bq Er ENOENT
@@ -608,6 +646,14 @@ sysctl.
 .It Bq Er ESRCH
 The specified process to attach to does not exist.
 .El
+.Pp
+When
+.Fn kevent
+call fails with
+.Er EINTR
+error, all changes in the
+.Fa changelist
+have been applied.
 .Sh SEE ALSO
 .Xr aio_error 2 ,
 .Xr aio_read 2 ,
@@ -617,6 +663,7 @@ The specified process to attach to does not exist.
 .Xr select 2 ,
 .Xr sigaction 2 ,
 .Xr write 2 ,
+.Xr pthread_setcancelstate 3 ,
 .Xr signal 3
 .Sh HISTORY
 The

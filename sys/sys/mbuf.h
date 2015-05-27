@@ -60,9 +60,15 @@
  * MLEN is data length in a normal mbuf.
  * MHLEN is data length in an mbuf with pktheader.
  * MINCLSIZE is a smallest amount of data that should be put into cluster.
+ *
+ * Compile-time assertions in uipc_mbuf.c test these values to ensure that
+ * they are sensible.
  */
-#define	MLEN		((int)(MSIZE - sizeof(struct m_hdr)))
-#define	MHLEN		((int)(MLEN - sizeof(struct pkthdr)))
+struct mbuf;
+#define	MHSIZE		offsetof(struct mbuf, m_dat)
+#define	MPKTHSIZE	offsetof(struct mbuf, m_pktdat)
+#define	MLEN		((int)(MSIZE - MHSIZE))
+#define	MHLEN		((int)(MSIZE - MPKTHSIZE))
 #define	MINCLSIZE	(MHLEN + 1)
 
 #ifdef _KERNEL
@@ -87,23 +93,6 @@ struct mb_args {
 #endif /* _KERNEL */
 
 /*
- * Header present at the beginning of every mbuf.
- * Size ILP32: 24
- *	 LP64: 32
- */
-struct m_hdr {
-	struct mbuf	*mh_next;	/* next buffer in chain */
-	struct mbuf	*mh_nextpkt;	/* next chain in queue/record */
-	caddr_t		 mh_data;	/* location of data */
-	int32_t		 mh_len;	/* amount of data in this mbuf */
-	uint32_t	 mh_type:8,	/* type of data in this mbuf */
-			 mh_flags:24;	/* flags; see below */
-#if !defined(__LP64__)
-	uint32_t	 mh_pad;	/* pad for 64bit alignment */
-#endif
-};
-
-/*
  * Packet tag structure (see below for details).
  */
 struct m_tag {
@@ -118,6 +107,8 @@ struct m_tag {
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
  * Size ILP32: 48
  *	 LP64: 56
+ * Compile-time assertions in uipc_mbuf.c test these values to ensure that
+ * they are correct.
  */
 struct pkthdr {
 	struct ifnet	*rcvif;		/* rcv interface */
@@ -166,6 +157,8 @@ struct pkthdr {
  * set.
  * Size ILP32: 28
  *	 LP64: 48
+ * Compile-time assertions in uipc_mbuf.c test these values to ensure that
+ * they are correct.
  */
 struct m_ext {
 	volatile u_int	*ext_cnt;	/* pointer to ref count info */
@@ -184,28 +177,49 @@ struct m_ext {
  * purposes.
  */
 struct mbuf {
-	struct m_hdr	m_hdr;
+	/*
+	 * Header present at the beginning of every mbuf.
+	 * Size ILP32: 24
+	 *      LP64: 32
+	 * Compile-time assertions in uipc_mbuf.c test these values to ensure
+	 * that they are correct.
+	 */
+	union {	/* next buffer in chain */
+		struct mbuf		*m_next;
+		SLIST_ENTRY(mbuf)	m_slist;
+		STAILQ_ENTRY(mbuf)	m_stailq;
+	};
+	union {	/* next chain in queue/record */
+		struct mbuf		*m_nextpkt;
+		SLIST_ENTRY(mbuf)	m_slistpkt;
+		STAILQ_ENTRY(mbuf)	m_stailqpkt;
+	};
+	caddr_t		 m_data;	/* location of data */
+	int32_t		 m_len;		/* amount of data in this mbuf */
+	uint32_t	 m_type:8,	/* type of data in this mbuf */
+			 m_flags:24;	/* flags; see below */
+#if !defined(__LP64__)
+	uint32_t	 m_pad;		/* pad for 64bit alignment */
+#endif
+
+	/*
+	 * A set of optional headers (packet header, external storage header)
+	 * and internal data storage.  Historically, these arrays were sized
+	 * to MHLEN (space left after a packet header) and MLEN (space left
+	 * after only a regular mbuf header); they are now variable size in
+	 * order to support future work on variable-size mbufs.
+	 */
 	union {
 		struct {
-			struct pkthdr	MH_pkthdr;	/* M_PKTHDR set */
+			struct pkthdr	m_pkthdr;	/* M_PKTHDR set */
 			union {
-				struct m_ext	MH_ext;	/* M_EXT set */
-				char		MH_databuf[MHLEN];
-			} MH_dat;
-		} MH;
-		char	M_databuf[MLEN];		/* !M_PKTHDR, !M_EXT */
-	} M_dat;
+				struct m_ext	m_ext;	/* M_EXT set */
+				char		m_pktdat[0];
+			};
+		};
+		char	m_dat[0];			/* !M_PKTHDR, !M_EXT */
+	};
 };
-#define	m_next		m_hdr.mh_next
-#define	m_len		m_hdr.mh_len
-#define	m_data		m_hdr.mh_data
-#define	m_type		m_hdr.mh_type
-#define	m_flags		m_hdr.mh_flags
-#define	m_nextpkt	m_hdr.mh_nextpkt
-#define	m_pkthdr	M_dat.MH.MH_pkthdr
-#define	m_ext		M_dat.MH.MH_dat.MH_ext
-#define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
-#define	m_dat		M_dat.M_databuf
 
 /*
  * mbuf flags of global significance and layer crossing.
@@ -221,7 +235,7 @@ struct mbuf {
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
-#define	M_FLOWID	0x00000100 /* deprecated: flowid is valid */
+#define	M_UNUSED_8	0x00000100 /* --available-- */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 
 #define	M_PROTO1	0x00001000 /* protocol-specific */
@@ -248,7 +262,7 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_FLOWID| \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG| \
      M_PROTOFLAGS)
 
 /*
@@ -256,7 +270,7 @@ struct mbuf {
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG\11M_FLOWID"
+    "\7M_PROMISC\10M_VLANTAG"
 #define	M_FLAG_PROTOBITS \
     "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
     "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
@@ -564,6 +578,7 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
 	m->m_ext.ext_arg1 = arg1;
 	m->m_ext.ext_arg2 = arg2;
 	m->m_ext.ext_type = EXT_EXTREF;
+	m->m_ext.ext_flags = 0;
 }
 
 static __inline uma_zone_t
@@ -601,8 +616,8 @@ m_getzone(int size)
  * should go away with constant propagation for !MGETHDR.
  */
 static __inline int
-m_init(struct mbuf *m, uma_zone_t zone, int size, int how, short type,
-    int flags)
+m_init(struct mbuf *m, uma_zone_t zone __unused, int size __unused, int how,
+    short type, int flags)
 {
 	int error;
 
@@ -667,12 +682,12 @@ m_getcl(int how, short type, int flags)
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
-static __inline void
+static __inline int
 m_clget(struct mbuf *m, int how)
 {
 
-	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has external storage\n", __func__, m);
+	KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
+	    __func__, m));
 	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 	/*
@@ -683,6 +698,7 @@ m_clget(struct mbuf *m, int how)
 		zone_drain(zone_pack);
 		uma_zalloc_arg(zone_clust, m, how);
 	}
+	return (m->m_flags & M_EXT);
 }
 
 /*
@@ -697,10 +713,11 @@ m_cljget(struct mbuf *m, int how, int size)
 {
 	uma_zone_t zone;
 
-	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has external storage\n", __func__, m);
-	if (m != NULL)
+	if (m != NULL) {
+		KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
+		    __func__, m));
 		m->m_ext.ext_buf = NULL;
+	}
 
 	zone = m_getzone(size);
 	return (uma_zalloc_arg(zone, m, how));
@@ -757,7 +774,10 @@ static __inline void
 m_clrprotoflags(struct mbuf *m)
 {
 
-	m->m_flags &= ~M_PROTOFLAGS;
+	while (m) {
+		m->m_flags &= ~M_PROTOFLAGS;
+		m = m->m_next;
+	}
 }
 
 static __inline struct mbuf *
@@ -807,42 +827,6 @@ m_last(struct mbuf *m)
 	    ("%s: attempted use of a free mbuf!", __func__))
 
 /*
- * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place an
- * object of the specified size at the end of the mbuf, longword aligned.
- */
-#define	M_ALIGN(m, len) do {						\
-	KASSERT(!((m)->m_flags & (M_PKTHDR|M_EXT)),			\
-		("%s: M_ALIGN not normal mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_dat,				\
-		("%s: M_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
-
-/*
- * As above, for mbufs allocated with m_gethdr/MGETHDR or initialized by
- * M_DUP/MOVE_PKTHDR.
- */
-#define	MH_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_PKTHDR && !((m)->m_flags & M_EXT),	\
-		("%s: MH_ALIGN not PKTHDR mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_pktdat,				\
-		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
-
-/*
- * As above, for mbuf with external storage.
- */
-#define	MEXT_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_EXT,					\
-		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));	\
-	KASSERT((m)->m_data == (m)->m_ext.ext_buf,			\
-		("%s: MEXT_ALIGN not a virgin mbuf", __func__));	\
-	(m)->m_data += ((m)->m_ext.ext_size - (len)) &			\
-	    ~(sizeof(long) - 1); 					\
-} while (0)
-
-/*
  * Return the address of the start of the buffer associated with an mbuf,
  * handling external storage, packet-header mbufs, and regular data mbufs.
  */
@@ -859,6 +843,34 @@ m_last(struct mbuf *m)
 	(((m)->m_flags & M_EXT) ? (m)->m_ext.ext_size :			\
 	 ((m)->m_flags & M_PKTHDR) ? MHLEN :				\
 	 MLEN)
+
+/*
+ * Set the m_data pointer of a newly allocated mbuf to place an object of the
+ * specified size at the end of the mbuf, longword aligned.
+ *
+ * NB: Historically, we had M_ALIGN(), MH_ALIGN(), and MEXT_ALIGN() as
+ * separate macros, each asserting that it was called at the proper moment.
+ * This required callers to themselves test the storage type and call the
+ * right one.  Rather than require callers to be aware of those layout
+ * decisions, we centralize here.
+ */
+static __inline void
+m_align(struct mbuf *m, int len)
+{
+#ifdef INVARIANTS
+	const char *msg = "%s: not a virgin mbuf";
+#endif
+	int adjust;
+
+	KASSERT(m->m_data == M_START(m), (msg, __func__));
+
+	adjust = M_SIZE(m) - len;
+	m->m_data += adjust &~ (sizeof(long)-1);
+}
+
+#define	M_ALIGN(m, len)		m_align(m, len)
+#define	MH_ALIGN(m, len)	m_align(m, len)
+#define	MEXT_ALIGN(m, len)	m_align(m, len)
 
 /*
  * Compute the amount of space available before the current start of data in
@@ -931,7 +943,6 @@ extern int		nmbclusters;	/* Maximum number of clusters */
 struct uio;
 
 void		 m_adj(struct mbuf *, int);
-void		 m_align(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
@@ -944,13 +955,11 @@ struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct mbuf	*m_copym(struct mbuf *, int, int, int);
-struct mbuf	*m_copymdata(struct mbuf *, struct mbuf *,
-		    int, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_copyup(struct mbuf *, int, int);
 struct mbuf	*m_defrag(struct mbuf *, int);
-void		 m_demote(struct mbuf *, int);
+void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(struct mbuf *, int);
@@ -1113,7 +1122,7 @@ m_tag_first(struct mbuf *m)
  * Return the next tag in the list of tags associated with an mbuf.
  */
 static __inline struct m_tag *
-m_tag_next(struct mbuf *m, struct m_tag *t)
+m_tag_next(struct mbuf *m __unused, struct m_tag *t)
 {
 
 	return (SLIST_NEXT(t, m_tag_link));
@@ -1169,7 +1178,7 @@ m_free(struct mbuf *m)
 	return (n);
 }
 
-static int inline
+static __inline int
 rt_m_getfib(struct mbuf *m)
 {
 	KASSERT(m->m_flags & M_PKTHDR , ("Attempt to get FIB from non header mbuf."));
@@ -1183,7 +1192,14 @@ rt_m_getfib(struct mbuf *m)
 	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
 
-#endif /* _KERNEL */
+/* flags passed as first argument for "m_ether_tcpip_hash()" */
+#define	MBUF_HASHFLAG_L2	(1 << 2)
+#define	MBUF_HASHFLAG_L3	(1 << 3)
+#define	MBUF_HASHFLAG_L4	(1 << 4)
+
+/* mbuf hashing helper routines */
+uint32_t	m_ether_tcpip_hash_init(void);
+uint32_t	m_ether_tcpip_hash(const uint32_t, const struct mbuf *, const uint32_t);
 
 #ifdef MBUF_PROFILING
  void m_profile(struct mbuf *m);
@@ -1192,5 +1208,103 @@ rt_m_getfib(struct mbuf *m)
  #define M_PROFILE(m)
 #endif
 
+struct mbufq {
+	STAILQ_HEAD(, mbuf)	mq_head;
+	int			mq_len;
+	int			mq_maxlen;
+};
 
+static inline void
+mbufq_init(struct mbufq *mq, int maxlen)
+{
+
+	STAILQ_INIT(&mq->mq_head);
+	mq->mq_maxlen = maxlen;
+	mq->mq_len = 0;
+}
+
+static inline struct mbuf *
+mbufq_flush(struct mbufq *mq)
+{
+	struct mbuf *m;
+
+	m = STAILQ_FIRST(&mq->mq_head);
+	STAILQ_INIT(&mq->mq_head);
+	mq->mq_len = 0;
+	return (m);
+}
+
+static inline void
+mbufq_drain(struct mbufq *mq)
+{
+	struct mbuf *m, *n;
+
+	n = mbufq_flush(mq);
+	while ((m = n) != NULL) {
+		n = STAILQ_NEXT(m, m_stailqpkt);
+		m_freem(m);
+	}
+}
+
+static inline struct mbuf *
+mbufq_first(const struct mbufq *mq)
+{
+
+	return (STAILQ_FIRST(&mq->mq_head));
+}
+
+static inline struct mbuf *
+mbufq_last(const struct mbufq *mq)
+{
+
+	return (STAILQ_LAST(&mq->mq_head, mbuf, m_stailqpkt));
+}
+
+static inline int
+mbufq_full(const struct mbufq *mq)
+{
+
+	return (mq->mq_len >= mq->mq_maxlen);
+}
+
+static inline int
+mbufq_len(const struct mbufq *mq)
+{
+
+	return (mq->mq_len);
+}
+
+static inline int
+mbufq_enqueue(struct mbufq *mq, struct mbuf *m)
+{
+
+	if (mbufq_full(mq))
+		return (ENOBUFS);
+	STAILQ_INSERT_TAIL(&mq->mq_head, m, m_stailqpkt);
+	mq->mq_len++;
+	return (0);
+}
+
+static inline struct mbuf *
+mbufq_dequeue(struct mbufq *mq)
+{
+	struct mbuf *m;
+
+	m = STAILQ_FIRST(&mq->mq_head);
+	if (m) {
+		STAILQ_REMOVE_HEAD(&mq->mq_head, m_stailqpkt);
+		m->m_nextpkt = NULL;
+		mq->mq_len--;
+	}
+	return (m);
+}
+
+static inline void
+mbufq_prepend(struct mbufq *mq, struct mbuf *m)
+{
+
+	STAILQ_INSERT_HEAD(&mq->mq_head, m, m_stailqpkt);
+	mq->mq_len++;
+}
+#endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */

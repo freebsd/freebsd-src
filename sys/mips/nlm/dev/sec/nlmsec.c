@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -114,12 +114,12 @@ DRIVER_MODULE(nlmsec, pci, xlp_sec_driver, xlp_sec_devclass, 0, 0);
 MODULE_DEPEND(nlmsec, crypto, 1, 1, 1);
 
 void
-nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id, 
+nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
     struct nlm_fmn_msg *msg, void *data);
 
 #ifdef NLM_SEC_DEBUG
 
-#define extract_bits(x, bitshift, bitcnt) 				\
+#define extract_bits(x, bitshift, bitcnt)				\
     (((unsigned long long)x >> bitshift) & ((1ULL << bitcnt) - 1))
 
 void
@@ -197,7 +197,7 @@ print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 	return;
 }
 
-void 
+void
 xlp_sec_print_data(struct cryptop *crp)
 {
 	int i, key_len;
@@ -265,7 +265,7 @@ print_cmd(struct xlp_sec_command *cmd)
 }
 #endif /* NLM_SEC_DEBUG */
 
-static int 
+static int
 xlp_sec_init(struct xlp_sec_softc *sc)
 {
 
@@ -675,7 +675,7 @@ error:
 	return (err);
 }
 
-static void 
+static void
 xlp_free_cmd_params(struct xlp_sec_command *cmd)
 {
 	if (cmd->ctrlp != NULL)
@@ -754,7 +754,7 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 			}
 			if (crd1->crd_flags & CRD_F_IV_EXPLICIT)
 				cmd->cipheroff = cmd->ivlen;
-			else 
+			else
 				cmd->cipheroff = cmd->enccrd->crd_skip;
 			cmd->cipherlen = cmd->enccrd->crd_len;
 			if (crd1->crd_flags & CRD_F_IV_PRESENT)

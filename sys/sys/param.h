@@ -50,7 +50,7 @@
  * there.
  * Currently this lives here in the doc/ repository:
  *
- *	head/en_US.ISO8859-1/books/porters-handbook/book.xml
+ *	head/en_US.ISO8859-1/books/porters-handbook/versions/chapter.xml
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1100047	/* Master, propagated to newvers */
+#define __FreeBSD_version 1100073	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -81,7 +81,6 @@
 #define	P_OSREL_SIGSEGV		700004
 #define	P_OSREL_MAP_ANON	800104
 #define	P_OSREL_MAP_FSTRICT	1100036
-#define	P_OSREL_MAP_RENAME	1100039
 
 #define	P_OSREL_MAJOR(x)	((x) / 100000)
 #endif
@@ -234,10 +233,19 @@
  *		and may be made smaller at the risk of not being able to use
  *		filesystems which require a block size exceeding MAXBSIZE.
  *
+ * MAXBCACHEBUF - Maximum size of a buffer in the buffer cache.  This must
+ *		be >= MAXBSIZE and can be set differently for different
+ *		architectures by defining it in <machine/param.h>.
+ *		Making this larger allows NFS to do larger reads/writes.
+ *
  * BKVASIZE -	Nominal buffer space per buffer, in bytes.  BKVASIZE is the
  *		minimum KVM memory reservation the kernel is willing to make.
  *		Filesystems can of course request smaller chunks.  Actual 
  *		backing memory uses a chunk size of a page (PAGE_SIZE).
+ *		The default value here can be overridden on a per-architecture
+ *		basis by defining it in <machine/param.h>.  This should
+ *		probably be done to increase its value, when MAXBCACHEBUF is
+ *		defined as a larger value in <machine/param.h>.
  *
  *		If you make BKVASIZE too small you risk seriously fragmenting
  *		the buffer KVM map which may slow things down a bit.  If you
@@ -249,7 +257,12 @@
  *		normal UFS filesystem.
  */
 #define MAXBSIZE	65536	/* must be power of 2 */
+#ifndef	MAXBCACHEBUF
+#define	MAXBCACHEBUF	MAXBSIZE /* must be a power of 2 >= MAXBSIZE */
+#endif
+#ifndef	BKVASIZE
 #define BKVASIZE	16384	/* must be power of 2 */
+#endif
 #define BKVAMASK	(BKVASIZE-1)
 
 /*

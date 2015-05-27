@@ -40,7 +40,7 @@ public:
   /// intrinsic, Tys should point to an array of numTys pointers to Type,
   /// and must provide exactly one type for each overloaded type in the
   /// intrinsic.
-  virtual std::string getName(unsigned IID, Type **Tys = 0,
+  virtual std::string getName(unsigned IID, Type **Tys = nullptr,
                               unsigned numTys = 0) const = 0;
 
   /// Look up target intrinsic by name. Return intrinsic ID or 0 for unknown
@@ -52,11 +52,11 @@ public:
 
   /// Returns true if the intrinsic can be overloaded.
   virtual bool isOverloaded(unsigned IID) const = 0;
-  
+
   /// Create or insert an LLVM Function declaration for an intrinsic,
   /// and return it. The Tys and numTys are for intrinsics with overloaded
   /// types. See above for more information.
-  virtual Function *getDeclaration(Module *M, unsigned ID, Type **Tys = 0,
+  virtual Function *getDeclaration(Module *M, unsigned ID, Type **Tys = nullptr,
                                    unsigned numTys = 0) const = 0;
 };
 

@@ -3,7 +3,6 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	bin/cat.host \
 	usr.bin/mkcsmapper_static.host \
 
 

@@ -28,6 +28,8 @@
 
 #include "assym.s"
 
+#include "opt_hwpmc_hooks.h"
+
 #include <machine/asm.h>
 #include <machine/hid.h>
 #include <machine/param.h>
@@ -205,9 +207,27 @@ done_mapping:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, tmpstack@ha
-	addi	%r1, %r1, tmpstack@l
-	addi	%r1, %r1, (TMPSTACKSZ - 8)
+	bl	1f
+	.long tmpstack-.
+1:	mflr	%r1
+	lwz	%r2,0(%r1)
+	add	%r1,%r1,%r2
+	addi	%r1, %r1, (TMPSTACKSZ - 16)
+
+/*
+ * Relocate kernel
+ */
+	bl      1f
+	.long   _DYNAMIC-.
+	.long   _GLOBAL_OFFSET_TABLE_-.
+1:	mflr    %r5
+	lwz	%r3,0(%r5)	/* _DYNAMIC in %r3 */
+	add	%r3,%r3,%r5
+	lwz	%r4,4(%r5)	/* GOT pointer */
+	add	%r4,%r4,%r5
+	lwz	%r4,4(%r4)	/* got[0] is _DYNAMIC link addr */
+	subf	%r4,%r4,%r3	/* subtract to calculate relocbase */
+	bl	elf_reloc_self
 
 /*
  * Initialise exception vector offsets
@@ -338,10 +358,13 @@ bp_tlb1_end:
 	blt	4b
 
 	/* Switch to the final mapping */
-	lis	%r5, __boot_page@ha
-	ori	%r5, %r5, __boot_page@l
 	bl	5f
-5:	mflr	%r3
+	.long __boot_page-.
+5:	mflr	%r5
+	lwz	%r3,0(%r3)
+	add	%r5,%r5,%r3		/* __boot_page in r5 */
+	bl	6f
+6:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
 	add	%r3, %r3, %r5		/* Make this virtual address */
 	addi	%r3, %r3, 32
@@ -365,9 +388,12 @@ bp_tlb1_end:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, tmpstack@ha
-	addi	%r1, %r1, tmpstack@l
-	addi	%r1, %r1, (TMPSTACKSZ - 8)
+	bl	1f
+	.long tmpstack-.
+1:	mflr	%r1
+	lwz	%r2,0(%r1)
+	add	%r1,%r1,%r2
+	addi	%r1, %r1, (TMPSTACKSZ - 16)
 
 /*
  * Initialise exception vector offsets
@@ -377,8 +403,11 @@ bp_tlb1_end:
 	/*
 	 * Assign our pcpu instance
 	 */
-	lis	%r3, ap_pcpu@h
-	ori	%r3, %r3, ap_pcpu@l
+	bl	1f
+	.long ap_pcpu-.
+1:	mflr	%r4
+	lwz	%r3, 0(%r4)
+	add	%r3, %r3, %r4
 	lwz	%r3, 0(%r3)
 	mtsprg0	%r3
 
@@ -536,42 +565,6 @@ __boot_page_padding:
 /* locore subroutines */
 /************************************************************************/
 
-ivor_setup:
-	/* Set base address of interrupt handler routines */
-	lis	%r3, interrupt_vector_base@h
-	mtspr	SPR_IVPR, %r3
-
-	/* Assign interrupt handler routines offsets */
-	li	%r3, int_critical_input@l
-	mtspr	SPR_IVOR0, %r3
-	li	%r3, int_machine_check@l
-	mtspr	SPR_IVOR1, %r3
-	li	%r3, int_data_storage@l
-	mtspr	SPR_IVOR2, %r3
-	li	%r3, int_instr_storage@l
-	mtspr	SPR_IVOR3, %r3
-	li	%r3, int_external_input@l
-	mtspr	SPR_IVOR4, %r3
-	li	%r3, int_alignment@l
-	mtspr	SPR_IVOR5, %r3
-	li	%r3, int_program@l
-	mtspr	SPR_IVOR6, %r3
-	li	%r3, int_syscall@l
-	mtspr	SPR_IVOR8, %r3
-	li	%r3, int_decrementer@l
-	mtspr	SPR_IVOR10, %r3
-	li	%r3, int_fixed_interval_timer@l
-	mtspr	SPR_IVOR11, %r3
-	li	%r3, int_watchdog@l
-	mtspr	SPR_IVOR12, %r3
-	li	%r3, int_data_tlb_error@l
-	mtspr	SPR_IVOR13, %r3
-	li	%r3, int_inst_tlb_error@l
-	mtspr	SPR_IVOR14, %r3
-	li	%r3, int_debug@l
-	mtspr	SPR_IVOR15, %r3
-	blr
-
 /*
  * void tid_flush(tlbtid_t tid);
  *
@@ -579,23 +572,13 @@ ivor_setup:
  * dedicated for cases when invalidation(s) should NOT be propagated to other
  * CPUs.
  *
- * Global vars tlb0_ways, tlb0_entries_per_way are assumed to have been set up
- * correctly (by tlb0_get_tlbconf()).
+ * void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
  *
+ * XXX: why isn't this in C?
  */
 ENTRY(tid_flush)
 	cmpwi	%r3, TID_KERNEL
 	beq	tid_flush_end	/* don't evict kernel translations */
-
-	/* Number of TLB0 ways */
-	lis	%r4, tlb0_ways@h
-	ori	%r4, %r4, tlb0_ways@l
-	lwz	%r4, 0(%r4)
-
-	/* Number of entries / way */
-	lis	%r5, tlb0_entries_per_way@h
-	ori	%r5, %r5, tlb0_entries_per_way@l
-	lwz	%r5, 0(%r5)
 
 	/* Disable interrupts */
 	mfmsr	%r10
@@ -741,12 +724,10 @@ setfault:
 	lwz	%r4, TD_PCB(%r2)
 	stw	%r3, PCB_ONFAULT(%r4)
 	mfcr	%r10
-	mfctr	%r11
-	mfxer	%r12
 	stw	%r0, 0(%r3)
 	stw	%r1, 4(%r3)
 	stw	%r2, 8(%r3)
-	stmw	%r10, 12(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
+	stmw	%r13, 12(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
 	li	%r3, 0			/* return FALSE */
 	blr
 
@@ -754,30 +735,21 @@ setfault:
 /* Data section								*/
 /************************************************************************/
 	.data
+	.align 3
+GLOBAL(__startkernel)
+	.long   begin
+GLOBAL(__endkernel)
+	.long   end
 	.align	4
 tmpstack:
 	.space	TMPSTACKSZ
+tmpstackbound:
+	.space 10240	/* XXX: this really should not be necessary */
 
 /*
  * Compiled KERNBASE locations
  */
 	.globl	kernbase
 	.set	kernbase, KERNBASE
-
-/*
- * Globals
- */
-#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
-
-GLOBAL(intrnames)
-	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(sintrnames)
-	.long	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-
-	.align 4
-GLOBAL(intrcnt)
-	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(sintrcnt)
-	.long	INTRCNT_COUNT * 4 * 2
 
 #include <powerpc/booke/trap_subr.S>

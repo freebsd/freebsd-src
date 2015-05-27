@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <string.h>
 #include <getopt.h>
+#include <time.h>
 #include <assert.h>
 
 #include <machine/cpufunc.h>
@@ -157,6 +158,11 @@ usage(bool cpu_intel)
 	"       [--inject-nmi]\n"
 	"       [--force-reset]\n"
 	"       [--force-poweroff]\n"
+	"       [--get-rtc-time]\n"
+	"       [--set-rtc-time=<secs>]\n"
+	"       [--get-rtc-nvram]\n"
+	"       [--set-rtc-nvram=<val>]\n"
+	"       [--rtc-nvram-offset=<offset>]\n"
 	"       [--get-active-cpus]\n"
 	"       [--get-suspended-cpus]\n"
 	"       [--get-intinfo]\n"
@@ -220,6 +226,12 @@ usage(bool cpu_intel)
 	exit(1);
 }
 
+static int get_rtc_time, set_rtc_time;
+static int get_rtc_nvram, set_rtc_nvram;
+static int rtc_nvram_offset;
+static uint8_t rtc_nvram_value;
+static time_t rtc_secs;
+
 static int get_stats, getcap, setcap, capval, get_gpa_pmap;
 static int inject_nmi, assert_lapic_lvt;
 static int force_reset, force_poweroff;
@@ -281,6 +293,7 @@ static int get_guest_pat, get_host_pat;
 static int get_guest_sysenter, get_vmcs_link;
 static int get_exit_reason, get_vmcs_exit_qualification;
 static int get_vmcs_exit_interruption_info, get_vmcs_exit_interruption_error;
+static int get_vmcs_exit_inst_length;
 
 static uint64_t desc_base;
 static uint32_t desc_limit, desc_access;
@@ -545,6 +558,9 @@ enum {
 	UNASSIGN_PPTDEV,
 	GET_GPA_PMAP,
 	ASSERT_LAPIC_LVT,
+	SET_RTC_TIME,
+	SET_RTC_NVRAM,
+	RTC_NVRAM_OFFSET,
 };
 
 static void
@@ -625,9 +641,9 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
 	uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-	int error;
+	int error = 0;
 
-	if (get_efer || get_all) {
+	if (!error && (get_efer || get_all)) {
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_EFER, &efer);
 		if (error == 0)
 			printf("efer[%d]\t\t0x%016lx\n", vcpu, efer);
@@ -772,10 +788,10 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 static int
 get_all_segments(struct vmctx *ctx, int vcpu)
 {
-	int error;
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
+	int error = 0;
 
-	if (get_desc_ds || get_all) {
+	if (!error && (get_desc_ds || get_all)) {
 		error = vm_get_desc(ctx, vcpu, VM_REG_GUEST_DS,
 				   &desc_base, &desc_limit, &desc_access);
 		if (error == 0) {
@@ -920,9 +936,9 @@ static int
 get_misc_vmcs(struct vmctx *ctx, int vcpu)
 {
 	uint64_t ctl, cr0, cr3, cr4, rsp, rip, pat, addr, u64;
-	int error;
-	
-	if (get_cr0_mask || get_all) {
+	int error = 0;
+
+	if (!error && (get_cr0_mask || get_all)) {
 		uint64_t cr0mask;
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_CR0_MASK, &cr0mask);
 		if (error == 0)
@@ -1130,7 +1146,15 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, u64);
 		}
 	}
-	
+
+	if (!error && (get_vmcs_exit_inst_length || get_all)) {
+		error = vm_get_vmcs_field(ctx, vcpu,
+		    VMCS_EXIT_INSTRUCTION_LENGTH, &u64);
+		if (error == 0)
+			printf("vmcs_exit_inst_length[%d]\t0x%08x\n", vcpu,
+			    (uint32_t)u64);
+	}
+
 	if (!error && (get_vmcs_exit_qualification || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_QUALIFICATION,
 					  &u64);
@@ -1146,9 +1170,9 @@ static int
 get_misc_vmcb(struct vmctx *ctx, int vcpu)
 {
 	uint64_t ctl, addr;
-	int error;
+	int error = 0;
 
-	if (get_vmcb_intercept || get_all) {
+	if (!error && (get_vmcb_intercept || get_all)) {
 		error = vm_get_vmcb_field(ctx, vcpu, VMCB_OFF_CR_INTERCEPT, 4,
 		    &ctl);
 		if (error == 0)
@@ -1269,6 +1293,11 @@ setup_options(bool cpu_intel)
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
 		{ "get-gpa-pmap", REQ_ARG,	0,	GET_GPA_PMAP },
 		{ "assert-lapic-lvt", REQ_ARG,	0,	ASSERT_LAPIC_LVT },
+		{ "get-rtc-time", NO_ARG,	&get_rtc_time,	1 },
+		{ "set-rtc-time", REQ_ARG,	0,	SET_RTC_TIME },
+		{ "rtc-nvram-offset", REQ_ARG,	0,	RTC_NVRAM_OFFSET },
+		{ "get-rtc-nvram", NO_ARG,	&get_rtc_nvram,	1 },
+		{ "set-rtc-nvram", REQ_ARG,	0,	SET_RTC_NVRAM },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
 		{ "get-desc-ds",NO_ARG,		&get_desc_ds,	1 },
@@ -1385,6 +1414,8 @@ setup_options(bool cpu_intel)
 				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "get-vmcs-exit-qualification",
 				NO_ARG,	&get_vmcs_exit_qualification, 1 },
+		{ "get-vmcs-exit-inst-length",
+				NO_ARG,	&get_vmcs_exit_inst_length, 1 },
 		{ "get-vmcs-interruptibility",
 				NO_ARG, &get_vmcs_interruptibility, 1 },
 		{ "get-vmcs-exit-interruption-error",
@@ -1462,6 +1493,33 @@ setup_options(bool cpu_intel)
 	return (all_opts);
 }
 
+static const char *
+wday_str(int idx)
+{
+	static const char *weekdays[] = {
+		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+	};
+
+	if (idx >= 0 && idx < 7)
+		return (weekdays[idx]);
+	else
+		return ("UNK");
+}
+
+static const char *
+mon_str(int idx)
+{
+	static const char *months[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	};
+
+	if (idx >= 0 && idx < 12)
+		return (months[idx]);
+	else
+		return ("UNK");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1477,6 +1535,7 @@ main(int argc, char *argv[])
 	cpuset_t cpus;
 	bool cpu_intel;
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
+	struct tm tm;
 	struct option *opts;
 
 	cpu_intel = cpu_vendor_intel();
@@ -1593,6 +1652,17 @@ main(int argc, char *argv[])
 		case SET_CAP:
 			capval = strtoul(optarg, NULL, 0);
 			setcap = 1;
+			break;
+		case SET_RTC_TIME:
+			rtc_secs = strtoul(optarg, NULL, 0);
+			set_rtc_time = 1;
+			break;
+		case SET_RTC_NVRAM:
+			rtc_nvram_value = (uint8_t)strtoul(optarg, NULL, 0);
+			set_rtc_nvram = 1;
+			break;
+		case RTC_NVRAM_OFFSET:
+			rtc_nvram_offset = strtoul(optarg, NULL, 0);
 			break;
 		case GET_GPA_PMAP:
 			gpa_pmap = strtoul(optarg, NULL, 0);
@@ -1971,6 +2041,31 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (!error && set_rtc_nvram)
+		error = vm_rtc_write(ctx, rtc_nvram_offset, rtc_nvram_value);
+
+	if (!error && (get_rtc_nvram || get_all)) {
+		error = vm_rtc_read(ctx, rtc_nvram_offset, &rtc_nvram_value);
+		if (error == 0) {
+			printf("rtc nvram[%03d]: 0x%02x\n", rtc_nvram_offset,
+			    rtc_nvram_value);
+		}
+	}
+
+	if (!error && set_rtc_time)
+		error = vm_rtc_settime(ctx, rtc_secs);
+
+	if (!error && (get_rtc_time || get_all)) {
+		error = vm_rtc_gettime(ctx, &rtc_secs);
+		if (error == 0) {
+			gmtime_r(&rtc_secs, &tm);
+			printf("rtc time %#lx: %s %s %02d %02d:%02d:%02d %d\n",
+			    rtc_secs, wday_str(tm.tm_wday), mon_str(tm.tm_mon),
+			    tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
+			    1900 + tm.tm_year);
+		}
+	}
+
 	if (!error && (getcap || get_all)) {
 		int captype, val, getcaptype;
 
@@ -2034,10 +2129,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && run) {
-		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
-		assert(error == 0);
-
-		error = vm_run(ctx, vcpu, rip, &vmexit);
+		error = vm_run(ctx, vcpu, &vmexit);
 		if (error == 0)
 			dump_vm_run_exitcode(&vmexit, vcpu);
 		else

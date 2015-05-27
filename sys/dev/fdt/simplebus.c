@@ -38,26 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-struct simplebus_range {
-	uint64_t bus;
-	uint64_t host;
-	uint64_t size;
-};
-
-struct simplebus_softc {
-	device_t dev;
-	phandle_t node;
-
-	struct simplebus_range *ranges;
-	int nranges;
-
-	pcell_t acells, scells;
-};
-
-struct simplebus_devinfo {
-	struct ofw_bus_devinfo	obdinfo;
-	struct resource_list	rl;
-};
+#include <dev/fdt/simplebus.h>
 
 /*
  * Bus interface.
@@ -68,7 +49,10 @@ static struct resource *simplebus_alloc_resource(device_t, device_t, int,
     int *, u_long, u_long, u_long, u_int);
 static void		simplebus_probe_nomatch(device_t bus, device_t child);
 static int		simplebus_print_child(device_t bus, device_t child);
-
+static device_t		simplebus_add_child(device_t dev, u_int order,
+    const char *name, int unit);
+static struct resource_list *simplebus_get_resource_list(device_t bus,
+    device_t child);
 /*
  * ofw_bus interface
  */
@@ -81,8 +65,6 @@ static const struct ofw_bus_devinfo *simplebus_get_devinfo(device_t bus,
 
 static int simplebus_fill_ranges(phandle_t node,
     struct simplebus_softc *sc);
-static struct simplebus_devinfo *simplebus_setup_dinfo(device_t dev,
-    phandle_t node);
 
 /*
  * Driver methods.
@@ -91,10 +73,17 @@ static device_method_t	simplebus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		simplebus_probe),
 	DEVMETHOD(device_attach,	simplebus_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_add_child,	simplebus_add_child),
 	DEVMETHOD(bus_print_child,	simplebus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	simplebus_probe_nomatch),
+	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	simplebus_alloc_resource),
@@ -102,7 +91,10 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_get_resource_list, simplebus_get_resource_list),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	simplebus_get_devinfo),
@@ -115,11 +107,9 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t simplebus_driver = {
-	"simplebus",
-	simplebus_methods,
-	sizeof(struct simplebus_softc)
-};
+DEFINE_CLASS_0(simplebus, simplebus_driver, simplebus_methods,
+    sizeof(struct simplebus_softc));
+
 static devclass_t simplebus_devclass;
 EARLY_DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, simplebus_devclass,
     0, 0, BUS_PASS_BUS);
@@ -153,13 +143,33 @@ static int
 simplebus_attach(device_t dev)
 {
 	struct		simplebus_softc *sc;
-	struct		simplebus_devinfo *di;
 	phandle_t	node;
-	device_t	cdev;
 
-	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
+	simplebus_init(dev, 0);
+	if (simplebus_fill_ranges(sc->node, sc) < 0) {
+		device_printf(dev, "could not get ranges\n");
+		return (ENXIO);
+	}
 
+	/*
+	 * In principle, simplebus could have an interrupt map, but ignore that
+	 * for now
+	 */
+
+	for (node = OF_child(sc->node); node > 0; node = OF_peer(node))
+		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
+	return (bus_generic_attach(dev));
+}
+
+void
+simplebus_init(device_t dev, phandle_t node)
+{
+	struct simplebus_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (node == 0)
+		node = ofw_bus_get_node(dev);
 	sc->dev = dev;
 	sc->node = node;
 
@@ -170,33 +180,6 @@ simplebus_attach(device_t dev)
 	OF_getencprop(node, "#address-cells", &sc->acells, sizeof(sc->acells));
 	sc->scells = 1;
 	OF_getencprop(node, "#size-cells", &sc->scells, sizeof(sc->scells));
-
-	if (simplebus_fill_ranges(node, sc) < 0) {
-		device_printf(dev, "could not get ranges\n");
-		return (ENXIO);
-	}
-
-	/*
-	 * In principle, simplebus could have an interrupt map, but ignore that
-	 * for now
-	 */
-
-	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
-		if ((di = simplebus_setup_dinfo(dev, node)) == NULL)
-			continue;
-		cdev = device_add_child(dev, NULL, -1);
-		if (cdev == NULL) {
-			device_printf(dev, "<%s>: device_add_child failed\n",
-			    di->obdinfo.obd_name);
-			resource_list_free(&di->rl);
-			ofw_bus_gen_destroy_devinfo(&di->obdinfo);
-			free(di, M_DEVBUF);
-			continue;
-		}
-		device_set_ivars(cdev, di);
-	}
-
-	return (bus_generic_attach(dev));
 }
 
 static int
@@ -248,54 +231,71 @@ simplebus_fill_ranges(phandle_t node, struct simplebus_softc *sc)
 	return (sc->nranges);
 }
 
-static struct simplebus_devinfo *
-simplebus_setup_dinfo(device_t dev, phandle_t node)
+struct simplebus_devinfo *
+simplebus_setup_dinfo(device_t dev, phandle_t node,
+    struct simplebus_devinfo *di)
 {
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *ndi;
-	uint32_t *reg;
-	uint64_t phys, size;
-	int i, j, k;
-	int nreg;
 
 	sc = device_get_softc(dev);
-
-	ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (di == NULL)
+		ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
+	else
+		ndi = di;
 	if (ofw_bus_gen_setup_devinfo(&ndi->obdinfo, node) != 0) {
-		free(ndi, M_DEVBUF);
+		if (di == NULL)
+			free(ndi, M_DEVBUF);
 		return (NULL);
 	}
 
 	resource_list_init(&ndi->rl);
-	nreg = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
-	if (nreg == -1)
-		nreg = 0;
-	if (nreg % (sc->acells + sc->scells) != 0) {
-		if (bootverbose)
-			device_printf(dev, "Malformed reg property on <%s>\n",
-			    ndi->obdinfo.obd_name);
-		nreg = 0;
-	}
-
-	for (i = 0, k = 0; i < nreg; i += sc->acells + sc->scells, k++) {
-		phys = size = 0;
-		for (j = 0; j < sc->acells; j++) {
-			phys <<= 32;
-			phys |= reg[i + j];
-		}
-		for (j = 0; j < sc->scells; j++) {
-			size <<= 32;
-			size |= reg[i + sc->acells + j];
-		}
-		
-		resource_list_add(&ndi->rl, SYS_RES_MEMORY, k,
-		    phys, phys + size - 1, size);
-	}
-	free(reg, M_OFWPROP);
-
-	ofw_bus_intr_to_rl(dev, node, &ndi->rl);
+	ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells, &ndi->rl);
+	ofw_bus_intr_to_rl(dev, node, &ndi->rl, NULL);
 
 	return (ndi);
+}
+
+device_t
+simplebus_add_device(device_t dev, phandle_t node, u_int order,
+    const char *name, int unit, struct simplebus_devinfo *di)
+{
+	struct simplebus_devinfo *ndi;
+	device_t cdev;
+
+	if ((ndi = simplebus_setup_dinfo(dev, node, di)) == NULL)
+		return (NULL);
+	cdev = device_add_child_ordered(dev, order, name, unit);
+	if (cdev == NULL) {
+		device_printf(dev, "<%s>: device_add_child failed\n",
+		    ndi->obdinfo.obd_name);
+		resource_list_free(&ndi->rl);
+		ofw_bus_gen_destroy_devinfo(&ndi->obdinfo);
+		if (di == NULL)
+			free(ndi, M_DEVBUF);
+		return (NULL);
+	}
+	device_set_ivars(cdev, ndi);
+
+	return(cdev);
+}
+
+static device_t
+simplebus_add_child(device_t dev, u_int order, const char *name, int unit)
+{
+	device_t cdev;
+	struct simplebus_devinfo *ndi;
+
+	cdev = device_add_child_ordered(dev, order, name, unit);
+	if (cdev == NULL)
+		return (NULL);
+
+	ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
+	ndi->obdinfo.obd_node = -1;
+	resource_list_init(&ndi->rl);
+	device_set_ivars(cdev, ndi);
+
+	return (cdev);
 }
 
 static const struct ofw_bus_devinfo *
@@ -305,6 +305,15 @@ simplebus_get_devinfo(device_t bus __unused, device_t child)
         
         ndi = device_get_ivars(child);
         return (&ndi->obdinfo);
+}
+
+static struct resource_list *
+simplebus_get_resource_list(device_t bus __unused, device_t child)
+{
+	struct simplebus_devinfo *ndi;
+
+	ndi = device_get_ivars(child);
+	return (&ndi->rl);
 }
 
 static struct resource *
@@ -385,9 +394,11 @@ simplebus_probe_nomatch(device_t bus, device_t child)
 	if (!bootverbose)
 		return;
 
+	compat = ofw_bus_get_compat(child);
+	if (compat == NULL)
+		return;
 	name = ofw_bus_get_name(child);
 	type = ofw_bus_get_type(child);
-	compat = ofw_bus_get_compat(child);
 
 	device_printf(bus, "<%s>", name != NULL ? name : "unknown");
 	simplebus_print_res(device_get_ivars(child));
@@ -395,9 +406,7 @@ simplebus_probe_nomatch(device_t bus, device_t child)
 		printf(" disabled");
 	if (type)
 		printf(" type %s", type);
-	if (compat)
-		printf(" compat %s", compat);
-	printf(" (no driver attached)\n");
+	printf(" compat %s (no driver attached)\n", compat);
 }
 
 static int

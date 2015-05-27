@@ -374,7 +374,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 	}
 
 	if (offloc != MII_OFFSET_ANY && (offloc < 0 || offloc >= MII_NPHY)) {
-		printf("%s: ivalid offloc %d\n", __func__, offloc);
+		printf("%s: invalid offloc %d\n", __func__, offloc);
 		return (EINVAL);
 	}
 
@@ -383,7 +383,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		phymax = MII_NPHY - 1;
 	} else {
 		if (phyloc < 0 || phyloc >= MII_NPHY) {
-			printf("%s: ivalid phyloc %d\n", __func__, phyloc);
+			printf("%s: invalid phyloc %d\n", __func__, phyloc);
 			return (EINVAL);
 		}
 		phymin = phymax = phyloc;
@@ -612,18 +612,6 @@ mii_pollstat(struct mii_data *mii)
 	}
 }
 
-/*
- * Inform the PHYs that the interface is down.
- */
-void
-mii_down(struct mii_data *mii)
-{
-	struct mii_softc *child;
-
-	LIST_FOREACH(child, &mii->mii_phys, mii_list)
-		mii_phy_down(child);
-}
-
 static unsigned char
 mii_bitreverse(unsigned char x)
 {
@@ -644,4 +632,34 @@ mii_oui(u_int id1, u_int id2)
 	return ((mii_bitreverse(h >> 16) << 16) |
 	    (mii_bitreverse((h >> 8) & 0xff) << 8) |
 	    mii_bitreverse(h & 0xff));
+}
+
+int
+mii_phy_mac_match(struct mii_softc *mii, const char *name)
+{
+
+	return (strcmp(device_get_name(device_get_parent(mii->mii_dev)),
+	    name) == 0);
+}
+
+int
+mii_dev_mac_match(device_t parent, const char *name)
+{
+
+	return (strcmp(device_get_name(device_get_parent(
+	    device_get_parent(parent))), name) == 0);
+}
+
+void *
+mii_phy_mac_softc(struct mii_softc *mii)
+{
+
+	return (device_get_softc(device_get_parent(mii->mii_dev)));
+}
+
+void *
+mii_dev_mac_softc(device_t parent)
+{
+
+	return (device_get_softc(device_get_parent(device_get_parent(parent))));
 }

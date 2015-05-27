@@ -47,7 +47,7 @@
 #	and can be ignored for many purposes. These differences
 #	are tabulated in Circular T, which is published monthly
 #	by the International Bureau of Weights and Measures
-#	(BIPM). See www.bipm.fr for more information.
+#	(BIPM). See www.bipm.org for more information.
 #
 #	3. The current definition of the relationship between UTC
 #	and TAI dates from 1 January 1972. A number of different
@@ -127,6 +127,15 @@
 #	with, since the difficulty of unambiguously representing the epoch
 #	during the leap second does not arise.
 #
+#	Some systems implement leap seconds by amortizing the leap second
+#	over the last few minutes of the day. The frequency of the local
+#	clock is decreased (or increased) to realize the positive (or
+#	negative) leap second. This method removes the time step described
+#	above. Although the long-term behavior of the time scale is correct
+#	in this case, this method introduces an error during the adjustment
+#	period both in time and in frequency with respect to the official
+#	definition of UTC.
+#
 #	Questions or comments to:
 #		Judah Levine
 #		Time and Frequency Division
@@ -134,7 +143,7 @@
 #		Boulder, Colorado
 #		Judah.Levine@nist.gov
 #
-#	Last Update of leap second values:   11 January 2012
+#	Last Update of leap second values:   5 January 2015
 #
 #	The following line shows this last update date in NTP timestamp
 #	format. This is the date on which the most recent change to
@@ -142,7 +151,7 @@
 #	be identified by the unique pair of characters in the first two
 #	columns as shown below.
 #
-#$	 3535228800
+#$	 3629404800
 #
 #	The NTP timestamps are in units of seconds since the NTP epoch,
 #	which is 1 January 1900, 00:00:00. The Modified Julian Day number
@@ -190,10 +199,10 @@
 #	current -- the update time stamp, the data and the name of the file
 #	will not change.
 #
-#	Updated through IERS Bulletin C48
-#	File expires on:  28 June 2015
+#	Updated through IERS Bulletin C49
+#	File expires on:  28 December 2015
 #
-#@	3644438400
+#@	3660249600
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -221,6 +230,7 @@
 3345062400	33	# 1 Jan 2006
 3439756800	34	# 1 Jan 2009
 3550089600	35	# 1 Jul 2012
+3644697600	36	# 1 Jul 2015
 #
 #	the following special comment contains the
 #	hash value of the data in this file computed
@@ -236,4 +246,4 @@
 #	the hash line is also ignored in the
 #	computation.
 #
-#h	a4862ccd c6f43c6 964f3604 85944a26 b5cfad4e
+#h	45e70fa7 a9df2033 f4a49ab0 ec648273 7b6c22c

@@ -1493,13 +1493,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		    the_len, M_NOWAIT);
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = dmbuf; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(dmbuf, SCTP_MBUF_ICOPY);
 		}
 #endif
 	} else {
@@ -2296,7 +2290,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_data_chunk *ch, chunk_buf;
@@ -2391,7 +2385,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2406,7 +2400,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2475,7 +2469,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					    m, iphlen,
 					    src, dst,
 					    sh, op_err,
-					    use_mflowid, mflowid,
+					    mflowtype, mflowid,
 					    vrf_id, port);
 					return (2);
 				}
@@ -2603,12 +2597,14 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 			 * cumack trackers for first transmissions,
 			 * and retransmissions.
 			 */
-			if ((tp1->whoTo->find_pseudo_cumack == 1) && (tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			if ((tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			    (tp1->whoTo->find_pseudo_cumack == 1) &&
 			    (tp1->snd_count == 1)) {
 				tp1->whoTo->pseudo_cumack = tp1->rec.data.TSN_seq;
 				tp1->whoTo->find_pseudo_cumack = 0;
 			}
-			if ((tp1->whoTo->find_rtx_pseudo_cumack == 1) && (tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			if ((tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			    (tp1->whoTo->find_rtx_pseudo_cumack == 1) &&
 			    (tp1->snd_count > 1)) {
 				tp1->whoTo->rtx_pseudo_cumack = tp1->rec.data.TSN_seq;
 				tp1->whoTo->find_rtx_pseudo_cumack = 0;
@@ -3518,7 +3514,7 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 	if ((tp1->sent >= SCTP_DATAGRAM_ACKED) || (tp1->data == NULL)) {
 		/* TSN's skipped we do NOT move back. */
 		sctp_misc_ints(SCTP_FLIGHT_LOG_DWN_WP_FWD,
-		    tp1->whoTo->flight_size,
+		    tp1->whoTo ? tp1->whoTo->flight_size : 0,
 		    tp1->book_size,
 		    (uintptr_t) tp1->whoTo,
 		    tp1->rec.data.TSN_seq);
@@ -3618,24 +3614,17 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			send_s = asoc->sending_seq;
 		}
 		if (SCTP_TSN_GE(cumack, send_s)) {
-#ifndef INVARIANTS
 			struct mbuf *op_err;
 			char msg[SCTP_DIAG_INFO_LEN];
 
-#endif
-#ifdef INVARIANTS
-			panic("Impossible sack 1");
-#else
-
 			*abort_now = 1;
 			/* XXX */
-			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal then TSN %8.8x",
+			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
 			    cumack, send_s);
 			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;
 			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 			return;
-#endif
 		}
 	}
 	asoc->this_sack_highest_gap = cumack;
@@ -4199,7 +4188,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	hopeless_peer:
 			*abort_now = 1;
 			/* XXX */
-			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal then TSN %8.8x",
+			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
 			    cum_ack, send_s);
 			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;
