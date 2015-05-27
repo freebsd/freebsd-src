@@ -9,10 +9,12 @@
 
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/ADT/PointerUnion.h"
+#include "llvm/Analysis/LibCallSemantics.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/WinEHFuncInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -116,7 +118,7 @@ MCSymbol *MMIAddrLabelMap::getAddrLabelSymbol(BasicBlock *BB) {
   BBCallbacks.back().setMap(this);
   Entry.Index = BBCallbacks.size()-1;
   Entry.Fn = BB->getParent();
-  MCSymbol *Result = Context.CreateTempSymbol();
+  MCSymbol *Result = Context.createTempSymbol();
   Entry.Symbols = Result;
   return Result;
 }
@@ -276,6 +278,7 @@ bool MachineModuleInfo::doInitialization(Module &M) {
   DbgInfoAvailable = UsesVAFloatArgument = UsesMorestackAddr = false;
   // Always emit some info, by default "no personality" info.
   Personalities.push_back(nullptr);
+  PersonalityTypeCache = EHPersonality::Unknown;
   AddrLabelSymbols = nullptr;
   TheModule = nullptr;
 
@@ -398,7 +401,7 @@ void MachineModuleInfo::addInvoke(MachineBasicBlock *LandingPad,
 /// addLandingPad - Provide the label of a try LandingPad block.
 ///
 MCSymbol *MachineModuleInfo::addLandingPad(MachineBasicBlock *LandingPad) {
-  MCSymbol *LandingPadLabel = Context.CreateTempSymbol();
+  MCSymbol *LandingPadLabel = Context.createTempSymbol();
   LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
   LP.LandingPadLabel = LandingPadLabel;
   return LandingPadLabel;
@@ -421,6 +424,12 @@ void MachineModuleInfo::addPersonality(MachineBasicBlock *LandingPad,
     Personalities[0] = Personality;
   else
     Personalities.push_back(Personality);
+}
+
+void MachineModuleInfo::addWinEHState(MachineBasicBlock *LandingPad,
+                                      int State) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  LP.WinEHState = State;
 }
 
 /// addCatchTypeInfo - Provide the catch typeinfo for a landing pad.
@@ -450,6 +459,25 @@ addFilterTypeInfo(MachineBasicBlock *LandingPad,
 void MachineModuleInfo::addCleanup(MachineBasicBlock *LandingPad) {
   LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
   LP.TypeIds.push_back(0);
+}
+
+void MachineModuleInfo::addSEHCatchHandler(MachineBasicBlock *LandingPad,
+                                           const Function *Filter,
+                                           const BlockAddress *RecoverBA) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  SEHHandler Handler;
+  Handler.FilterOrFinally = Filter;
+  Handler.RecoverBA = RecoverBA;
+  LP.SEHHandlers.push_back(Handler);
+}
+
+void MachineModuleInfo::addSEHCleanupHandler(MachineBasicBlock *LandingPad,
+                                             const Function *Cleanup) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  SEHHandler Handler;
+  Handler.FilterOrFinally = Cleanup;
+  Handler.RecoverBA = nullptr;
+  LP.SEHHandlers.push_back(Handler);
 }
 
 /// TidyLandingPads - Remap landing pad labels and remove any deleted landing
@@ -546,9 +574,18 @@ try_next:;
 
 /// getPersonality - Return the personality function for the current function.
 const Function *MachineModuleInfo::getPersonality() const {
-  // FIXME: Until PR1414 will be fixed, we're using 1 personality function per
-  // function
-  return !LandingPads.empty() ? LandingPads[0].Personality : nullptr;
+  for (const LandingPadInfo &LPI : LandingPads)
+    if (LPI.Personality)
+      return LPI.Personality;
+  return nullptr;
+}
+
+EHPersonality MachineModuleInfo::getPersonalityType() {
+  if (PersonalityTypeCache == EHPersonality::Unknown) {
+    if (const Function *F = getPersonality())
+      PersonalityTypeCache = classifyEHPersonality(F);
+  }
+  return PersonalityTypeCache;
 }
 
 /// getPersonalityIndex - Return unique index for current personality
@@ -571,4 +608,19 @@ unsigned MachineModuleInfo::getPersonalityIndex() const {
   // This will happen if the current personality function is
   // in the zero index.
   return 0;
+}
+
+const Function *MachineModuleInfo::getWinEHParent(const Function *F) const {
+  StringRef WinEHParentName =
+      F->getFnAttribute("wineh-parent").getValueAsString();
+  if (WinEHParentName.empty() || WinEHParentName == F->getName())
+    return F;
+  return F->getParent()->getFunction(WinEHParentName);
+}
+
+WinEHFuncInfo &MachineModuleInfo::getWinEHFuncInfo(const Function *F) {
+  auto &Ptr = FuncInfoMap[getWinEHParent(F)];
+  if (!Ptr)
+    Ptr.reset(new WinEHFuncInfo);
+  return *Ptr;
 }

@@ -7,12 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/Support/LockFileManager.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -91,7 +89,7 @@ LockFileManager::LockFileManager(StringRef FileName)
   UniqueLockFileName += "-%%%%%%%%";
   int UniqueLockFileID;
   if (std::error_code EC = sys::fs::createUniqueFile(
-          UniqueLockFileName.str(), UniqueLockFileID, UniqueLockFileName)) {
+          UniqueLockFileName, UniqueLockFileID, UniqueLockFileName)) {
     Error = EC;
     return;
   }
@@ -116,7 +114,7 @@ LockFileManager::LockFileManager(StringRef FileName)
       // We failed to write out PID, so make up an excuse, remove the
       // unique lock file, and fail.
       Error = make_error_code(errc::no_space_on_device);
-      sys::fs::remove(UniqueLockFileName.c_str());
+      sys::fs::remove(UniqueLockFileName);
       return;
     }
   }
@@ -124,7 +122,7 @@ LockFileManager::LockFileManager(StringRef FileName)
   while (1) {
     // Create a link from the lock file name. If this succeeds, we're done.
     std::error_code EC =
-        sys::fs::create_link(UniqueLockFileName.str(), LockFileName.str());
+        sys::fs::create_link(UniqueLockFileName, LockFileName);
     if (!EC)
       return;
 
@@ -137,11 +135,11 @@ LockFileManager::LockFileManager(StringRef FileName)
     // from the lock file.
     if ((Owner = readLockFile(LockFileName))) {
       // Wipe out our unique lock file (it's useless now)
-      sys::fs::remove(UniqueLockFileName.str());
+      sys::fs::remove(UniqueLockFileName);
       return;
     }
 
-    if (!sys::fs::exists(LockFileName.str())) {
+    if (!sys::fs::exists(LockFileName)) {
       // The previous owner released the lock file before we could read it.
       // Try to get ownership again.
       continue;
@@ -149,7 +147,7 @@ LockFileManager::LockFileManager(StringRef FileName)
 
     // There is a lock file that nobody owns; try to clean it up and get
     // ownership.
-    if ((EC = sys::fs::remove(LockFileName.str()))) {
+    if ((EC = sys::fs::remove(LockFileName))) {
       Error = EC;
       return;
     }
@@ -171,8 +169,8 @@ LockFileManager::~LockFileManager() {
     return;
 
   // Since we own the lock, remove the lock file and our own unique lock file.
-  sys::fs::remove(LockFileName.str());
-  sys::fs::remove(UniqueLockFileName.str());
+  sys::fs::remove(LockFileName);
+  sys::fs::remove(UniqueLockFileName);
 }
 
 LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
@@ -186,9 +184,9 @@ LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
   Interval.tv_sec = 0;
   Interval.tv_nsec = 1000000;
 #endif
-  // Don't wait more than five minutes for the file to appear.
-  unsigned MaxSeconds = 300;
-  bool LockFileGone = false;
+  // Don't wait more than five minutes per iteration. Total timeout for the file
+  // to appear is ~8.5 mins.
+  const unsigned MaxSeconds = 5*60;
   do {
     // Sleep for the designated interval, to allow the owning process time to
     // finish up and remove the lock file.
@@ -199,47 +197,18 @@ LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
 #else
     nanosleep(&Interval, nullptr);
 #endif
-    bool LockFileJustDisappeared = false;
 
-    // If the lock file is still expected to be there, check whether it still
-    // is.
-    if (!LockFileGone) {
-      if (sys::fs::access(LockFileName.c_str(), sys::fs::AccessMode::Exist) ==
-          errc::no_such_file_or_directory) {
-        LockFileGone = true;
-        LockFileJustDisappeared = true;
-      }
+    if (sys::fs::access(LockFileName.c_str(), sys::fs::AccessMode::Exist) ==
+        errc::no_such_file_or_directory) {
+      // If the original file wasn't created, somone thought the lock was dead.
+      if (!sys::fs::exists(FileName))
+        return Res_OwnerDied;
+      return Res_Success;
     }
 
-    // If the lock file is no longer there, check if the original file is
-    // available now.
-    if (LockFileGone) {
-      if (sys::fs::exists(FileName.str())) {
-        return Res_Success;
-      }
-
-      // The lock file is gone, so now we're waiting for the original file to
-      // show up. If this just happened, reset our waiting intervals and keep
-      // waiting.
-      if (LockFileJustDisappeared) {
-        MaxSeconds = 5;
-
-#if LLVM_ON_WIN32
-        Interval = 1;
-#else
-        Interval.tv_sec = 0;
-        Interval.tv_nsec = 1000000;
-#endif
-        continue;
-      }
-    }
-
-    // If we're looking for the lock file to disappear, but the process
-    // owning the lock died without cleaning up, just bail out.
-    if (!LockFileGone &&
-        !processStillExecuting((*Owner).first, (*Owner).second)) {
+    // If the process owning the lock died without cleaning up, just bail out.
+    if (!processStillExecuting((*Owner).first, (*Owner).second))
       return Res_OwnerDied;
-    }
 
     // Exponentially increase the time we wait for the lock to be removed.
 #if LLVM_ON_WIN32
@@ -262,4 +231,8 @@ LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
 
   // Give up.
   return Res_Timeout;
+}
+
+std::error_code LockFileManager::unsafeRemoveLockFile() {
+  return sys::fs::remove(LockFileName);
 }

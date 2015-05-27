@@ -57,7 +57,8 @@ HWMultMode("msp430-hwmult-mode", cl::Hidden,
                 "Assume hardware multiplier cannot be used inside interrupts"),
              clEnumValEnd));
 
-MSP430TargetLowering::MSP430TargetLowering(const TargetMachine &TM)
+MSP430TargetLowering::MSP430TargetLowering(const TargetMachine &TM,
+                                           const MSP430Subtarget &STI)
     : TargetLowering(TM) {
 
   // Set up the register classes.
@@ -65,7 +66,7 @@ MSP430TargetLowering::MSP430TargetLowering(const TargetMachine &TM)
   addRegisterClass(MVT::i16, &MSP430::GR16RegClass);
 
   // Compute derived properties from the register classes
-  computeRegisterProperties();
+  computeRegisterProperties(STI.getRegisterInfo());
 
   // Provide all sorts of operation actions
 
@@ -224,10 +225,10 @@ MSP430TargetLowering::getConstraintType(const std::string &Constraint) const {
   return TargetLowering::getConstraintType(Constraint);
 }
 
-std::pair<unsigned, const TargetRegisterClass*>
-MSP430TargetLowering::
-getRegForInlineAsmConstraint(const std::string &Constraint,
-                             MVT VT) const {
+std::pair<unsigned, const TargetRegisterClass *>
+MSP430TargetLowering::getRegForInlineAsmConstraint(
+    const TargetRegisterInfo *TRI, const std::string &Constraint,
+    MVT VT) const {
   if (Constraint.size() == 1) {
     // GCC Constraint Letters
     switch (Constraint[0]) {
@@ -240,7 +241,7 @@ getRegForInlineAsmConstraint(const std::string &Constraint,
     }
   }
 
-  return TargetLowering::getRegForInlineAsmConstraint(Constraint, VT);
+  return TargetLowering::getRegForInlineAsmConstraint(TRI, Constraint, VT);
 }
 
 //===----------------------------------------------------------------------===//
@@ -328,7 +329,7 @@ static void AnalyzeArguments(CCState &State,
     if (!UseStack && Parts <= RegsLeft) {
       unsigned FirstVal = ValNo;
       for (unsigned j = 0; j < Parts; j++) {
-        unsigned Reg = State.AllocateReg(RegList, NbRegs);
+        unsigned Reg = State.AllocateReg(RegList);
         State.addLoc(CCValAssign::getReg(ValNo++, ArgVT, Reg, LocVT, LocInfo));
         RegsLeft--;
       }
@@ -592,7 +593,7 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
   // Get a count of how many bytes are to be pushed on the stack.
   unsigned NumBytes = CCInfo.getNextStackOffset();
 
-  Chain = DAG.getCALLSEQ_START(Chain ,DAG.getConstant(NumBytes,
+  Chain = DAG.getCALLSEQ_START(Chain, DAG.getConstant(NumBytes, dl,
                                                       getPointerTy(), true),
                                dl);
 
@@ -633,17 +634,19 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
 
       SDValue PtrOff = DAG.getNode(ISD::ADD, dl, getPointerTy(),
                                    StackPtr,
-                                   DAG.getIntPtrConstant(VA.getLocMemOffset()));
+                                   DAG.getIntPtrConstant(VA.getLocMemOffset(),
+                                                         dl));
 
       SDValue MemOp;
       ISD::ArgFlagsTy Flags = Outs[i].Flags;
 
       if (Flags.isByVal()) {
-        SDValue SizeNode = DAG.getConstant(Flags.getByValSize(), MVT::i16);
+        SDValue SizeNode = DAG.getConstant(Flags.getByValSize(), dl, MVT::i16);
         MemOp = DAG.getMemcpy(Chain, dl, PtrOff, Arg, SizeNode,
                               Flags.getByValAlign(),
                               /*isVolatile*/false,
                               /*AlwaysInline=*/true,
+                              /*isTailCall=*/false,
                               MachinePointerInfo(),
                               MachinePointerInfo());
       } else {
@@ -698,8 +701,9 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
 
   // Create the CALLSEQ_END node.
   Chain = DAG.getCALLSEQ_END(Chain,
-                             DAG.getConstant(NumBytes, getPointerTy(), true),
-                             DAG.getConstant(0, getPointerTy(), true),
+                             DAG.getConstant(NumBytes, dl, getPointerTy(),
+                                             true),
+                             DAG.getConstant(0, dl, getPointerTy(), true),
                              InFlag, dl);
   InFlag = Chain.getValue(1);
 
@@ -841,7 +845,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
     // fold constant into instruction.
     if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
       LHS = RHS;
-      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
       TCC = MSP430CC::COND_LO;
       break;
     }
@@ -854,7 +858,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
     // fold constant into instruction.
     if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
       LHS = RHS;
-      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
       TCC = MSP430CC::COND_HS;
       break;
     }
@@ -867,7 +871,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
     // fold constant into instruction.
     if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
       LHS = RHS;
-      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
       TCC = MSP430CC::COND_L;
       break;
     }
@@ -880,7 +884,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
     // fold constant into instruction.
     if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
       LHS = RHS;
-      RHS = DAG.getConstant(C->getSExtValue() + 1, C->getValueType(0));
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
       TCC = MSP430CC::COND_GE;
       break;
     }
@@ -888,7 +892,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
     break;
   }
 
-  TargetCC = DAG.getConstant(TCC, MVT::i8);
+  TargetCC = DAG.getConstant(TCC, dl, MVT::i8);
   return DAG.getNode(MSP430ISD::CMP, dl, MVT::Glue, LHS, RHS);
 }
 
@@ -965,7 +969,7 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
      break;
   }
   EVT VT = Op.getValueType();
-  SDValue One  = DAG.getConstant(1, VT);
+  SDValue One  = DAG.getConstant(1, dl, VT);
   if (Convert) {
     SDValue SR = DAG.getCopyFromReg(DAG.getEntryNode(), dl, MSP430::SR,
                                     MVT::i16, Flag);
@@ -977,13 +981,9 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
       SR = DAG.getNode(ISD::XOR, dl, MVT::i16, SR, One);
     return SR;
   } else {
-    SDValue Zero = DAG.getConstant(0, VT);
+    SDValue Zero = DAG.getConstant(0, dl, VT);
     SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
-    SmallVector<SDValue, 4> Ops;
-    Ops.push_back(One);
-    Ops.push_back(Zero);
-    Ops.push_back(TargetCC);
-    Ops.push_back(Flag);
+    SDValue Ops[] = {One, Zero, TargetCC, Flag};
     return DAG.getNode(MSP430ISD::SELECT_CC, dl, VTs, Ops);
   }
 }
@@ -1001,11 +1001,7 @@ SDValue MSP430TargetLowering::LowerSELECT_CC(SDValue Op,
   SDValue Flag = EmitCMP(LHS, RHS, TargetCC, CC, dl, DAG);
 
   SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
-  SmallVector<SDValue, 4> Ops;
-  Ops.push_back(TrueV);
-  Ops.push_back(FalseV);
-  Ops.push_back(TargetCC);
-  Ops.push_back(Flag);
+  SDValue Ops[] = {TrueV, FalseV, TargetCC, Flag};
 
   return DAG.getNode(MSP430ISD::SELECT_CC, dl, VTs, Ops);
 }
@@ -1054,7 +1050,7 @@ SDValue MSP430TargetLowering::LowerRETURNADDR(SDValue Op,
   if (Depth > 0) {
     SDValue FrameAddr = LowerFRAMEADDR(Op, DAG);
     SDValue Offset =
-        DAG.getConstant(getDataLayout()->getPointerSize(), MVT::i16);
+        DAG.getConstant(getDataLayout()->getPointerSize(), dl, MVT::i16);
     return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
                        DAG.getNode(ISD::ADD, dl, getPointerTy(),
                                    FrameAddr, Offset),
@@ -1135,7 +1131,7 @@ bool MSP430TargetLowering::getPostIndexedAddressParts(SDNode *N, SDNode *Op,
       return false;
 
     Base = Op->getOperand(0);
-    Offset = DAG.getConstant(RHSC, VT);
+    Offset = DAG.getConstant(RHSC, SDLoc(N), VT);
     AM = ISD::POST_INC;
     return true;
   }
@@ -1145,8 +1141,8 @@ bool MSP430TargetLowering::getPostIndexedAddressParts(SDNode *N, SDNode *Op,
 
 
 const char *MSP430TargetLowering::getTargetNodeName(unsigned Opcode) const {
-  switch (Opcode) {
-  default: return nullptr;
+  switch ((MSP430ISD::NodeType)Opcode) {
+  case MSP430ISD::FIRST_NUMBER:       break;
   case MSP430ISD::RET_FLAG:           return "MSP430ISD::RET_FLAG";
   case MSP430ISD::RETI_FLAG:          return "MSP430ISD::RETI_FLAG";
   case MSP430ISD::RRA:                return "MSP430ISD::RRA";
@@ -1156,10 +1152,13 @@ const char *MSP430TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case MSP430ISD::Wrapper:            return "MSP430ISD::Wrapper";
   case MSP430ISD::BR_CC:              return "MSP430ISD::BR_CC";
   case MSP430ISD::CMP:                return "MSP430ISD::CMP";
+  case MSP430ISD::SETCC:              return "MSP430ISD::SETCC";
   case MSP430ISD::SELECT_CC:          return "MSP430ISD::SELECT_CC";
   case MSP430ISD::SHL:                return "MSP430ISD::SHL";
   case MSP430ISD::SRA:                return "MSP430ISD::SRA";
+  case MSP430ISD::SRL:                return "MSP430ISD::SRL";
   }
+  return nullptr;
 }
 
 bool MSP430TargetLowering::isTruncateFree(Type *Ty1,
@@ -1201,8 +1200,7 @@ MSP430TargetLowering::EmitShiftInstr(MachineInstr *MI,
   MachineFunction *F = BB->getParent();
   MachineRegisterInfo &RI = F->getRegInfo();
   DebugLoc dl = MI->getDebugLoc();
-  const TargetInstrInfo &TII =
-      *getTargetMachine().getSubtargetImpl()->getInstrInfo();
+  const TargetInstrInfo &TII = *F->getSubtarget().getInstrInfo();
 
   unsigned Opc;
   const TargetRegisterClass * RC;
@@ -1313,8 +1311,7 @@ MSP430TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
       Opc == MSP430::Srl8 || Opc == MSP430::Srl16)
     return EmitShiftInstr(MI, BB);
 
-  const TargetInstrInfo &TII =
-      *getTargetMachine().getSubtargetImpl()->getInstrInfo();
+  const TargetInstrInfo &TII = *BB->getParent()->getSubtarget().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
 
   assert((Opc == MSP430::Select16 || Opc == MSP430::Select8) &&

@@ -538,8 +538,9 @@ void RAGreedy::enqueue(PQueue &CurQueue, LiveInterval *LI) {
     // Giant live ranges fall back to the global assignment heuristic, which
     // prevents excessive spilling in pathological cases.
     bool ReverseLocal = TRI->reverseLocalAssignment();
+    const TargetRegisterClass &RC = *MRI->getRegClass(Reg);
     bool ForceGlobal = !ReverseLocal &&
-      (Size / SlotIndex::InstrDist) > (2 * MRI->getRegClass(Reg)->getNumRegs());
+      (Size / SlotIndex::InstrDist) > (2 * RC.getNumRegs());
 
     if (ExtraRegInfo[Reg].Stage == RS_Assign && !ForceGlobal && !LI->empty() &&
         LIS->intervalIsInOneMBB(*LI)) {
@@ -552,10 +553,10 @@ void RAGreedy::enqueue(PQueue &CurQueue, LiveInterval *LI) {
         // Allocating bottom up may allow many short LRGs to be assigned first
         // to one of the cheap registers. This could be much faster for very
         // large blocks on targets with many physical registers.
-        Prio = Indexes->getZeroIndex().getInstrDistance(LI->beginIndex());
+        Prio = Indexes->getZeroIndex().getInstrDistance(LI->endIndex());
       }
-    }
-    else {
+      Prio |= RC.AllocationPriority << 24;
+    } else {
       // Allocate global and split ranges in long->short order. Long ranges that
       // don't fit should be spilled (or split) ASAP so they don't create
       // interference.  Mark a bit to prioritize global above local ranges.
@@ -1554,7 +1555,8 @@ RAGreedy::tryInstructionSplit(LiveInterval &VirtReg, AllocationOrder &Order,
 
   DEBUG(dbgs() << "Split around " << Uses.size() << " individual instrs.\n");
 
-  const TargetRegisterClass *SuperRC = TRI->getLargestLegalSuperClass(CurRC);
+  const TargetRegisterClass *SuperRC =
+      TRI->getLargestLegalSuperClass(CurRC, *MF);
   unsigned SuperRCNumAllocatableRegs = RCI.getNumAllocatableRegs(SuperRC);
   // Split around every non-copy instruction if this split will relax
   // the constraints on the virtual register.

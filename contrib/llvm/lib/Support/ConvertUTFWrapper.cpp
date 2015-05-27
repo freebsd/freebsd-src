@@ -109,8 +109,9 @@ bool convertUTF16ToUTF8String(ArrayRef<char> SrcBytes, std::string &Out) {
   if (Src[0] == UNI_UTF16_BYTE_ORDER_MARK_NATIVE)
     Src++;
 
-  // Just allocate enough space up front.  We'll shrink it later.
-  Out.resize(SrcBytes.size() * UNI_MAX_UTF8_BYTES_PER_CODE_POINT);
+  // Just allocate enough space up front.  We'll shrink it later.  Allocate
+  // enough that we can fit a null terminator without reallocating.
+  Out.resize(SrcBytes.size() * UNI_MAX_UTF8_BYTES_PER_CODE_POINT + 1);
   UTF8 *Dst = reinterpret_cast<UTF8 *>(&Out[0]);
   UTF8 *DstEnd = Dst + Out.size();
 
@@ -124,6 +125,46 @@ bool convertUTF16ToUTF8String(ArrayRef<char> SrcBytes, std::string &Out) {
   }
 
   Out.resize(reinterpret_cast<char *>(Dst) - &Out[0]);
+  Out.push_back(0);
+  Out.pop_back();
+  return true;
+}
+
+bool convertUTF8ToUTF16String(StringRef SrcUTF8,
+                              SmallVectorImpl<UTF16> &DstUTF16) {
+  assert(DstUTF16.empty());
+
+  // Avoid OOB by returning early on empty input.
+  if (SrcUTF8.empty()) {
+    DstUTF16.push_back(0);
+    DstUTF16.pop_back();
+    return true;
+  }
+
+  const UTF8 *Src = reinterpret_cast<const UTF8 *>(SrcUTF8.begin());
+  const UTF8 *SrcEnd = reinterpret_cast<const UTF8 *>(SrcUTF8.end());
+
+  // Allocate the same number of UTF-16 code units as UTF-8 code units. Encoding
+  // as UTF-16 should always require the same amount or less code units than the
+  // UTF-8 encoding.  Allocate one extra byte for the null terminator though,
+  // so that someone calling DstUTF16.data() gets a null terminated string.
+  // We resize down later so we don't have to worry that this over allocates.
+  DstUTF16.resize(SrcUTF8.size()+1);
+  UTF16 *Dst = &DstUTF16[0];
+  UTF16 *DstEnd = Dst + DstUTF16.size();
+
+  ConversionResult CR =
+      ConvertUTF8toUTF16(&Src, SrcEnd, &Dst, DstEnd, strictConversion);
+  assert(CR != targetExhausted);
+
+  if (CR != conversionOK) {
+    DstUTF16.clear();
+    return false;
+  }
+
+  DstUTF16.resize(Dst - &DstUTF16[0]);
+  DstUTF16.push_back(0);
+  DstUTF16.pop_back();
   return true;
 }
 

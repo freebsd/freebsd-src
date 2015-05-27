@@ -14,7 +14,7 @@
 #include "HexagonAsmPrinter.h"
 #include "Hexagon.h"
 #include "HexagonInstPrinter.h"
-#include "MCTargetDesc/HexagonMCInst.h"
+#include "MCTargetDesc/HexagonMCInstrInfo.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
@@ -73,50 +73,46 @@ StringRef HexagonInstPrinter::getOpcodeName(unsigned Opcode) const {
   return MII.getName(Opcode);
 }
 
-StringRef HexagonInstPrinter::getRegName(unsigned RegNo) const {
-  return getRegisterName(RegNo);
+void HexagonInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
+  OS << getRegisterName(RegNo);
 }
 
-void HexagonInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                   StringRef Annot) {
-  printInst((const HexagonMCInst*)(MI), O, Annot);
-}
-
-void HexagonInstPrinter::printInst(const HexagonMCInst *MI, raw_ostream &O,
-                                   StringRef Annot) {
+void HexagonInstPrinter::printInst(MCInst const *MI, raw_ostream &O,
+                                   StringRef Annot,
+                                   const MCSubtargetInfo &STI) {
   const char startPacket = '{',
              endPacket = '}';
   // TODO: add outer HW loop when it's supported too.
   if (MI->getOpcode() == Hexagon::ENDLOOP0) {
     // Ending a harware loop is different from ending an regular packet.
-    assert(MI->isPacketEnd() && "Loop-end must also end the packet");
+    assert(HexagonMCInstrInfo::isPacketEnd(*MI) && "Loop-end must also end the packet");
 
-    if (MI->isPacketBegin()) {
+    if (HexagonMCInstrInfo::isPacketBegin(*MI)) {
       // There must be a packet to end a loop.
       // FIXME: when shuffling is always run, this shouldn't be needed.
-      HexagonMCInst Nop;
+      MCInst Nop;
       StringRef NoAnnot;
 
       Nop.setOpcode (Hexagon::A2_nop);
-      Nop.setPacketBegin (MI->isPacketBegin());
-      printInst (&Nop, O, NoAnnot);
+      HexagonMCInstrInfo::setPacketBegin (Nop, HexagonMCInstrInfo::isPacketBegin(*MI));
+      printInst (&Nop, O, NoAnnot, STI);
     }
 
     // Close the packet.
-    if (MI->isPacketEnd())
+    if (HexagonMCInstrInfo::isPacketEnd(*MI))
       O << PacketPadding << endPacket;
 
     printInstruction(MI, O);
   }
   else {
     // Prefix the insn opening the packet.
-    if (MI->isPacketBegin())
+    if (HexagonMCInstrInfo::isPacketBegin(*MI))
       O << PacketPadding << startPacket << '\n';
 
     printInstruction(MI, O);
 
     // Suffix the insn closing the packet.
-    if (MI->isPacketEnd())
+    if (HexagonMCInstrInfo::isPacketEnd(*MI))
       // Suffix the packet in a new line always, since the GNU assembler has
       // issues with a closing brace on the same line as CONST{32,64}.
       O << '\n' << PacketPadding << endPacket;
@@ -130,7 +126,7 @@ void HexagonInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO = MI->getOperand(OpNo);
 
   if (MO.isReg()) {
-    O << getRegisterName(MO.getReg());
+    printRegName(O, MO.getReg());
   } else if(MO.isExpr()) {
     O << *MO.getExpr();
   } else if(MO.isImm()) {
@@ -192,7 +188,7 @@ void HexagonInstPrinter::printMEMriOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO0 = MI->getOperand(OpNo);
   const MCOperand& MO1 = MI->getOperand(OpNo + 1);
 
-  O << getRegisterName(MO0.getReg());
+  printRegName(O, MO0.getReg());
   O << " + #" << MO1.getImm();
 }
 
@@ -201,7 +197,8 @@ void HexagonInstPrinter::printFrameIndexOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO0 = MI->getOperand(OpNo);
   const MCOperand& MO1 = MI->getOperand(OpNo + 1);
 
-  O << getRegisterName(MO0.getReg()) << ", #" << MO1.getImm();
+  printRegName(O, MO0.getReg());
+  O << ", #" << MO1.getImm();
 }
 
 void HexagonInstPrinter::printGlobalOperand(const MCInst *MI, unsigned OpNo,
@@ -251,4 +248,18 @@ void HexagonInstPrinter::printSymbol(const MCInst *MI, unsigned OpNo,
   O << '#' << (hi ? "HI" : "LO") << "(#";
   printOperand(MI, OpNo, O);
   O << ')';
+}
+
+void HexagonInstPrinter::printExtBrtarget(const MCInst *MI, unsigned OpNo,
+                                          raw_ostream &O) const {
+  const MCOperand &MO = MI->getOperand(OpNo);
+  const MCInstrDesc &MII = getMII().get(MI->getOpcode());
+
+  assert((isExtendable(MII.TSFlags) || isExtended(MII.TSFlags)) &&
+         "Expecting an extendable operand");
+
+  if (MO.isExpr() || isExtended(MII.TSFlags)) {
+    O << "##";
+  }
+  printOperand(MI, OpNo, O);
 }

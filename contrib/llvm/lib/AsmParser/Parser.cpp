@@ -13,6 +13,7 @@
 
 #include "llvm/AsmParser/Parser.h"
 #include "LLParser.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
@@ -23,7 +24,7 @@ using namespace llvm;
 
 bool llvm::parseAssemblyInto(MemoryBufferRef F, Module &M, SMDiagnostic &Err) {
   SourceMgr SM;
-  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(F, false);
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(F);
   SM.AddNewSourceBuffer(std::move(Buf), SMLoc());
 
   return LLParser(F.getBuffer(), SM, Err, &M).Run();
@@ -38,7 +39,7 @@ std::unique_ptr<Module> llvm::parseAssembly(MemoryBufferRef F,
   if (parseAssemblyInto(F, *M, Err))
     return nullptr;
 
-  return std::move(M);
+  return M;
 }
 
 std::unique_ptr<Module> llvm::parseAssemblyFile(StringRef Filename,

@@ -23,6 +23,7 @@
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -33,7 +34,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
@@ -78,7 +79,8 @@ namespace {
     bool HandleFree(CallInst *F);
     bool handleEndBlock(BasicBlock &BB);
     void RemoveAccessedObjects(const AliasAnalysis::Location &LoadedLoc,
-                               SmallSetVector<Value*, 16> &DeadStackObjects);
+                               SmallSetVector<Value *, 16> &DeadStackObjects,
+                               const DataLayout &DL);
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
@@ -166,7 +168,7 @@ static bool hasMemoryWrite(Instruction *I, const TargetLibraryInfo *TLI) {
       return true;
     }
   }
-  if (CallSite CS = I) {
+  if (auto CS = CallSite(I)) {
     if (Function *F = CS.getCalledFunction()) {
       if (TLI && TLI->has(LibFunc::strcpy) &&
           F->getName() == TLI->getName(LibFunc::strcpy)) {
@@ -194,18 +196,12 @@ static bool hasMemoryWrite(Instruction *I, const TargetLibraryInfo *TLI) {
 /// describe the memory operations for this instruction.
 static AliasAnalysis::Location
 getLocForWrite(Instruction *Inst, AliasAnalysis &AA) {
-  const DataLayout *DL = AA.getDataLayout();
   if (StoreInst *SI = dyn_cast<StoreInst>(Inst))
     return AA.getLocation(SI);
 
   if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(Inst)) {
     // memcpy/memmove/memset.
     AliasAnalysis::Location Loc = AA.getLocationForDest(MI);
-    // If we don't have target data around, an unknown size in Location means
-    // that we should use the size of the pointee type.  This isn't valid for
-    // memset/memcpy, which writes more than an i8.
-    if (Loc.Size == AliasAnalysis::UnknownSize && DL == nullptr)
-      return AliasAnalysis::Location();
     return Loc;
   }
 
@@ -215,11 +211,6 @@ getLocForWrite(Instruction *Inst, AliasAnalysis &AA) {
   switch (II->getIntrinsicID()) {
   default: return AliasAnalysis::Location(); // Unhandled intrinsic.
   case Intrinsic::init_trampoline:
-    // If we don't have target data around, an unknown size in Location means
-    // that we should use the size of the pointee type.  This isn't valid for
-    // init.trampoline, which writes more than an i8.
-    if (!DL) return AliasAnalysis::Location();
-
     // FIXME: We don't know the size of the trampoline, so we can't really
     // handle it here.
     return AliasAnalysis::Location(II->getArgOperand(0));
@@ -271,7 +262,7 @@ static bool isRemovable(Instruction *I) {
     }
   }
 
-  if (CallSite CS = I)
+  if (auto CS = CallSite(I))
     return CS.getInstruction()->use_empty();
 
   return false;
@@ -315,15 +306,16 @@ static Value *getStoredPointerOperand(Instruction *I) {
     }
   }
 
-  CallSite CS = I;
+  CallSite CS(I);
   // All the supported functions so far happen to have dest as their first
   // argument.
   return CS.getArgument(0);
 }
 
-static uint64_t getPointerSize(const Value *V, AliasAnalysis &AA) {
+static uint64_t getPointerSize(const Value *V, const DataLayout &DL,
+                               const TargetLibraryInfo *TLI) {
   uint64_t Size;
-  if (getObjectSize(V, Size, AA.getDataLayout(), AA.getTargetLibraryInfo()))
+  if (getObjectSize(V, Size, DL, TLI))
     return Size;
   return AliasAnalysis::UnknownSize;
 }
@@ -343,10 +335,9 @@ namespace {
 /// overwritten by 'Later', or 'OverwriteUnknown' if nothing can be determined
 static OverwriteResult isOverwrite(const AliasAnalysis::Location &Later,
                                    const AliasAnalysis::Location &Earlier,
-                                   AliasAnalysis &AA,
-                                   int64_t &EarlierOff,
-                                   int64_t &LaterOff) {
-  const DataLayout *DL = AA.getDataLayout();
+                                   const DataLayout &DL,
+                                   const TargetLibraryInfo *TLI,
+                                   int64_t &EarlierOff, int64_t &LaterOff) {
   const Value *P1 = Earlier.Ptr->stripPointerCasts();
   const Value *P2 = Later.Ptr->stripPointerCasts();
 
@@ -367,7 +358,7 @@ static OverwriteResult isOverwrite(const AliasAnalysis::Location &Later,
   // Otherwise, we have to have size information, and the later store has to be
   // larger than the earlier one.
   if (Later.Size == AliasAnalysis::UnknownSize ||
-      Earlier.Size == AliasAnalysis::UnknownSize || DL == nullptr)
+      Earlier.Size == AliasAnalysis::UnknownSize)
     return OverwriteUnknown;
 
   // Check to see if the later store is to the entire object (either a global,
@@ -382,7 +373,7 @@ static OverwriteResult isOverwrite(const AliasAnalysis::Location &Later,
     return OverwriteUnknown;
 
   // If the "Later" store is to a recognizable object, get its size.
-  uint64_t ObjectSize = getPointerSize(UO2, AA);
+  uint64_t ObjectSize = getPointerSize(UO2, DL, TLI);
   if (ObjectSize != AliasAnalysis::UnknownSize)
     if (ObjectSize == Later.Size && ObjectSize >= Earlier.Size)
       return OverwriteComplete;
@@ -560,8 +551,10 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
       if (isRemovable(DepWrite) &&
           !isPossibleSelfRead(Inst, Loc, DepWrite, *AA)) {
         int64_t InstWriteOffset, DepWriteOffset;
-        OverwriteResult OR = isOverwrite(Loc, DepLoc, *AA,
-                                         DepWriteOffset, InstWriteOffset);
+        const DataLayout &DL = BB.getModule()->getDataLayout();
+        OverwriteResult OR =
+            isOverwrite(Loc, DepLoc, DL, AA->getTargetLibraryInfo(),
+                        DepWriteOffset, InstWriteOffset);
         if (OR == OverwriteComplete) {
           DEBUG(dbgs() << "DSE: Remove Dead Store:\n  DEAD: "
                 << *DepWrite << "\n  KILLER: " << *Inst << '\n');
@@ -655,6 +648,7 @@ bool DSE::HandleFree(CallInst *F) {
   AliasAnalysis::Location Loc = AliasAnalysis::Location(F->getOperand(0));
   SmallVector<BasicBlock *, 16> Blocks;
   Blocks.push_back(F->getParent());
+  const DataLayout &DL = F->getModule()->getDataLayout();
 
   while (!Blocks.empty()) {
     BasicBlock *BB = Blocks.pop_back_val();
@@ -668,7 +662,7 @@ bool DSE::HandleFree(CallInst *F) {
         break;
 
       Value *DepPointer =
-        GetUnderlyingObject(getStoredPointerOperand(Dependency));
+          GetUnderlyingObject(getStoredPointerOperand(Dependency), DL);
 
       // Check for aliasing.
       if (!AA->isMustAlias(F->getArgOperand(0), DepPointer))
@@ -728,6 +722,8 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
     if (AI->hasByValOrInAllocaAttr())
       DeadStackObjects.insert(AI);
 
+  const DataLayout &DL = BB.getModule()->getDataLayout();
+
   // Scan the basic block backwards
   for (BasicBlock::iterator BBI = BB.end(); BBI != BB.begin(); ){
     --BBI;
@@ -736,7 +732,7 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
     if (hasMemoryWrite(BBI, TLI) && isRemovable(BBI)) {
       // See through pointer-to-pointer bitcasts
       SmallVector<Value *, 4> Pointers;
-      GetUnderlyingObjects(getStoredPointerOperand(BBI), Pointers);
+      GetUnderlyingObjects(getStoredPointerOperand(BBI), Pointers, DL);
 
       // Stores to stack values are valid candidates for removal.
       bool AllDead = true;
@@ -784,7 +780,7 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
       continue;
     }
 
-    if (CallSite CS = cast<Value>(BBI)) {
+    if (auto CS = CallSite(BBI)) {
       // Remove allocation function calls from the list of dead stack objects; 
       // there can't be any references before the definition.
       if (isAllocLikeFn(BBI, TLI))
@@ -799,8 +795,8 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
       // the call is live.
       DeadStackObjects.remove_if([&](Value *I) {
         // See if the call site touches the value.
-        AliasAnalysis::ModRefResult A =
-            AA->getModRefInfo(CS, I, getPointerSize(I, *AA));
+        AliasAnalysis::ModRefResult A = AA->getModRefInfo(
+            CS, I, getPointerSize(I, DL, AA->getTargetLibraryInfo()));
 
         return A == AliasAnalysis::ModRef || A == AliasAnalysis::Ref;
       });
@@ -835,7 +831,7 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
 
     // Remove any allocas from the DeadPointer set that are loaded, as this
     // makes any stores above the access live.
-    RemoveAccessedObjects(LoadedLoc, DeadStackObjects);
+    RemoveAccessedObjects(LoadedLoc, DeadStackObjects, DL);
 
     // If all of the allocas were clobbered by the access then we're not going
     // to find anything else to process.
@@ -850,8 +846,9 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
 /// of the stack objects in the DeadStackObjects set.  If so, they become live
 /// because the location is being loaded.
 void DSE::RemoveAccessedObjects(const AliasAnalysis::Location &LoadedLoc,
-                                SmallSetVector<Value*, 16> &DeadStackObjects) {
-  const Value *UnderlyingPointer = GetUnderlyingObject(LoadedLoc.Ptr);
+                                SmallSetVector<Value *, 16> &DeadStackObjects,
+                                const DataLayout &DL) {
+  const Value *UnderlyingPointer = GetUnderlyingObject(LoadedLoc.Ptr, DL);
 
   // A constant can't be in the dead pointer set.
   if (isa<Constant>(UnderlyingPointer))
@@ -867,7 +864,8 @@ void DSE::RemoveAccessedObjects(const AliasAnalysis::Location &LoadedLoc,
   // Remove objects that could alias LoadedLoc.
   DeadStackObjects.remove_if([&](Value *I) {
     // See if the loaded location could alias the stack location.
-    AliasAnalysis::Location StackLoc(I, getPointerSize(I, *AA));
+    AliasAnalysis::Location StackLoc(
+        I, getPointerSize(I, DL, AA->getTargetLibraryInfo()));
     return !AA->isNoAlias(StackLoc, LoadedLoc);
   });
 }

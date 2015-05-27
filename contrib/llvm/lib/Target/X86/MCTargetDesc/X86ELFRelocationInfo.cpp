@@ -34,9 +34,9 @@ public:
     uint64_t  SymSize; SymI->getSize(SymSize);
     int64_t  Addend;  getELFRelocationAddend(Rel, Addend);
 
-    MCSymbol *Sym = Ctx.GetOrCreateSymbol(SymName);
+    MCSymbol *Sym = Ctx.getOrCreateSymbol(SymName);
     // FIXME: check that the value is actually the same.
-    if (Sym->isVariable() == false)
+    if (!Sym->isVariable())
       Sym->setVariableValue(MCConstantExpr::Create(SymAddr, Ctx));
 
     const MCExpr *Expr = nullptr;

@@ -229,11 +229,18 @@ namespace ISD {
     SMULO, UMULO,
 
     /// Simple binary floating point operators.
-    FADD, FSUB, FMUL, FMA, FDIV, FREM,
+    FADD, FSUB, FMUL, FDIV, FREM,
+
+    /// FMA - Perform a * b + c with no intermediate rounding step.
+    FMA,
+
+    /// FMAD - Perform a * b + c, while getting the same result as the
+    /// separately rounded operations.
+    FMAD,
 
     /// FCOPYSIGN(X, Y) - Return the value of X with the sign of Y.  NOTE: This
-    /// DAG node does not require that X and Y have the same type, just that the
-    /// are both floating point.  X and the result must have the same type.
+    /// DAG node does not require that X and Y have the same type, just that
+    /// they are both floating point.  X and the result must have the same type.
     /// FCOPYSIGN(f32, f64) is allowed.
     FCOPYSIGN,
 
@@ -300,6 +307,10 @@ namespace ISD {
     /// producing an unsigned/signed value of type i[2*N], then return the top
     /// part.
     MULHU, MULHS,
+
+    /// [US]{MIN/MAX} - Binary minimum or maximum or signed or unsigned
+    /// integers.
+    SMIN, SMAX, UMIN, UMAX,
 
     /// Bitwise operators - logical and, logical or, logical xor.
     AND, OR, XOR,
@@ -680,12 +691,28 @@ namespace ISD {
     ATOMIC_LOAD_UMIN,
     ATOMIC_LOAD_UMAX,
 
-    // Masked load and store
+    // Masked load and store - consecutive vector load and store operations
+    // with additional mask operand that prevents memory accesses to the
+    // masked-off lanes.
     MLOAD, MSTORE,
+
+    // Masked gather and scatter - load and store operations for a vector of
+    // random addresses with additional mask operand that prevents memory
+    // accesses to the masked-off lanes.
+    MGATHER, MSCATTER,
 
     /// This corresponds to the llvm.lifetime.* intrinsics. The first operand
     /// is the chain and the second operand is the alloca pointer.
     LIFETIME_START, LIFETIME_END,
+
+    /// GC_TRANSITION_START/GC_TRANSITION_END - These operators mark the
+    /// beginning and end of GC transition  sequence, and carry arbitrary
+    /// information that target might need for lowering.  The first operand is
+    /// a chain, the rest are specified by the target and not touched by the DAG
+    /// optimizers. GC_TRANSITION_START..GC_TRANSITION_END pairs may not be
+    /// nested.
+    GC_TRANSITION_START,
+    GC_TRANSITION_END,
 
     /// BUILTIN_OP_END - This must be the last enum value in this list.
     /// The target-specific pre-isel opcode values start here.
@@ -696,7 +723,7 @@ namespace ISD {
   /// which do not reference a specific memory location should be less than
   /// this value. Those that do must not be less than this value, and can
   /// be used with SelectionDAG::getMemIntrinsicNode.
-  static const int FIRST_TARGET_MEMORY_OPCODE = BUILTIN_OP_END+180;
+  static const int FIRST_TARGET_MEMORY_OPCODE = BUILTIN_OP_END+200;
 
   //===--------------------------------------------------------------------===//
   /// MemIndexedMode enum - This enum defines the load / store indexed

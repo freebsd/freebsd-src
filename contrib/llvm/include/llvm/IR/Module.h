@@ -219,14 +219,7 @@ private:
   std::string TargetTriple;       ///< Platform target triple Module compiled on
                                   ///< Format: (arch)(sub)-(vendor)-(sys0-(abi)
   void *NamedMDSymTab;            ///< NamedMDNode names.
-
-  // We need to keep the string because the C API expects us to own the string
-  // representation.
-  // Since we have it, we also use an empty string to represent a module without
-  // a DataLayout. If it has a DataLayout, these variables are in sync and the
-  // string is just a cache of getDataLayout()->getStringRepresentation().
-  std::string DataLayoutStr;
-  DataLayout DL;
+  DataLayout DL;                  ///< DataLayout associated with the module
 
   friend class Constant;
 
@@ -256,10 +249,12 @@ public:
 
   /// Get the data layout string for the module's target platform. This is
   /// equivalent to getDataLayout()->getStringRepresentation().
-  const std::string &getDataLayoutStr() const { return DataLayoutStr; }
+  const std::string getDataLayoutStr() const {
+    return DL.getStringRepresentation();
+  }
 
   /// Get the data layout for the module's target platform.
-  const DataLayout *getDataLayout() const;
+  const DataLayout &getDataLayout() const;
 
   /// Get the target triple which is a string describing the target host.
   /// @returns a string containing the target triple.
@@ -293,12 +288,13 @@ public:
 
   /// Set the data layout
   void setDataLayout(StringRef Desc);
-  void setDataLayout(const DataLayout *Other);
+  void setDataLayout(const DataLayout &Other);
 
   /// Set the target triple.
   void setTargetTriple(StringRef T) { TargetTriple = T; }
 
   /// Set the module-scope inline assembly blocks.
+  /// A trailing newline is added if the input doesn't have one.
   void setModuleInlineAsm(StringRef Asm) {
     GlobalScopeAsm = Asm;
     if (!GlobalScopeAsm.empty() &&
@@ -306,8 +302,8 @@ public:
       GlobalScopeAsm += '\n';
   }
 
-  /// Append to the module-scope inline assembly blocks, automatically inserting
-  /// a separating newline if necessary.
+  /// Append to the module-scope inline assembly blocks.
+  /// A trailing newline is added if the input doesn't have one.
   void appendModuleInlineAsm(StringRef Asm) {
     GlobalScopeAsm += Asm;
     if (!GlobalScopeAsm.empty() &&
@@ -496,7 +492,7 @@ public:
   /// If the GlobalValue is read in, and if the GVMaterializer supports it,
   /// release the memory for the function, and set it up to be materialized
   /// lazily. If !isDematerializable(), this method is a no-op.
-  void Dematerialize(GlobalValue *GV);
+  void dematerialize(GlobalValue *GV);
 
   /// Make sure all GlobalValues in this Module are fully read.
   std::error_code materializeAll();
@@ -505,6 +501,8 @@ public:
   /// Materializer. If the module is corrupt, this DOES NOT clear the old
   /// Materializer.
   std::error_code materializeAllPermanently();
+
+  std::error_code materializeMetadata();
 
 /// @}
 /// @name Direct access to the globals list, functions list, and symbol table
@@ -630,13 +628,25 @@ public:
                                                          named_metadata_end());
   }
 
+  /// Destroy ConstantArrays in LLVMContext if they are not used.
+  /// ConstantArrays constructed during linking can cause quadratic memory
+  /// explosion. Releasing all unused constants can cause a 20% LTO compile-time
+  /// slowdown for a large application.
+  ///
+  /// NOTE: Constants are currently owned by LLVMContext. This can then only
+  /// be called where all uses of the LLVMContext are understood.
+  void dropTriviallyDeadConstantArrays();
+
 /// @}
 /// @name Utility functions for printing and dumping Module objects
 /// @{
 
   /// Print the module to an output stream with an optional
-  /// AssemblyAnnotationWriter.
-  void print(raw_ostream &OS, AssemblyAnnotationWriter *AAW) const;
+  /// AssemblyAnnotationWriter.  If \c ShouldPreserveUseListOrder, then include
+  /// uselistorder directives so that use-lists can be recreated when reading
+  /// the assembly.
+  void print(raw_ostream &OS, AssemblyAnnotationWriter *AAW,
+             bool ShouldPreserveUseListOrder = false) const;
 
   /// Dump the module to stderr (for debugging).
   void dump() const;

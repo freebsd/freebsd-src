@@ -21,6 +21,7 @@
 #include "llvm/IR/Function.h"        // To access Function attributes
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
@@ -332,9 +333,7 @@ Thumb2SizeReduce::VerifyPredAndCC(MachineInstr *MI, const ReduceEntry &Entry,
 
 static bool VerifyLowRegs(MachineInstr *MI) {
   unsigned Opc = MI->getOpcode();
-  bool isPCOk = (Opc == ARM::t2LDMIA_RET || Opc == ARM::t2LDMIA     ||
-                 Opc == ARM::t2LDMDB     || Opc == ARM::t2LDMIA_UPD ||
-                 Opc == ARM::t2LDMDB_UPD);
+  bool isPCOk = (Opc == ARM::t2LDMIA_RET || Opc == ARM::t2LDMIA_UPD);
   bool isLROk = (Opc == ARM::t2STMDB_UPD);
   bool isSPOk = isPCOk || isLROk;
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
@@ -412,16 +411,14 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
     HasShift = true;
     OpNum = 4;
     break;
-  case ARM::t2LDMIA:
-  case ARM::t2LDMDB: {
+  case ARM::t2LDMIA: {
     unsigned BaseReg = MI->getOperand(0).getReg();
-    if (!isARMLowRegister(BaseReg) || Entry.WideOpc != ARM::t2LDMIA)
-      return false;
+    assert(isARMLowRegister(BaseReg));
 
     // For the non-writeback version (this one), the base register must be
     // one of the registers being loaded.
     bool isOK = false;
-    for (unsigned i = 4; i < MI->getNumOperands(); ++i) {
+    for (unsigned i = 3; i < MI->getNumOperands(); ++i) {
       if (MI->getOperand(i).getReg() == BaseReg) {
         isOK = true;
         break;
@@ -445,7 +442,6 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
     break;
   }
   case ARM::t2LDMIA_UPD:
-  case ARM::t2LDMDB_UPD:
   case ARM::t2STMIA_UPD:
   case ARM::t2STMDB_UPD: {
     OpNum = 0;
@@ -469,9 +465,11 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
 
   unsigned OffsetReg = 0;
   bool OffsetKill = false;
+  bool OffsetInternal = false;
   if (HasShift) {
     OffsetReg  = MI->getOperand(2).getReg();
     OffsetKill = MI->getOperand(2).isKill();
+    OffsetInternal = MI->getOperand(2).isInternalRead();
 
     if (MI->getOperand(3).getImm())
       // Thumb1 addressing mode doesn't support shift.
@@ -501,7 +499,8 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
     assert((!HasShift || OffsetReg) && "Invalid so_reg load / store address!");
 
     if (HasOffReg)
-      MIB.addReg(OffsetReg, getKillRegState(OffsetKill));
+      MIB.addReg(OffsetReg, getKillRegState(OffsetKill) |
+                            getInternalReadRegState(OffsetInternal));
   }
 
   // Transfer the rest of operands.
@@ -570,7 +569,7 @@ Thumb2SizeReduce::ReduceSpecial(MachineBasicBlock &MBB, MachineInstr *MI,
   if (Entry.LowRegs1 && !VerifyLowRegs(MI))
     return false;
 
-  if (MI->mayLoad() || MI->mayStore())
+  if (MI->mayLoadOrStore())
     return ReduceLoadStore(MBB, MI, Entry);
 
   switch (Opc) {
@@ -1001,17 +1000,15 @@ bool Thumb2SizeReduce::ReduceMBB(MachineBasicBlock &MBB) {
 }
 
 bool Thumb2SizeReduce::runOnMachineFunction(MachineFunction &MF) {
-  const TargetMachine &TM = MF.getTarget();
-  TII = static_cast<const Thumb2InstrInfo *>(
-      TM.getSubtargetImpl()->getInstrInfo());
-  STI = &TM.getSubtarget<ARMSubtarget>();
+  STI = &static_cast<const ARMSubtarget &>(MF.getSubtarget());
+  if (STI->isThumb1Only() || STI->prefers32BitThumb())
+    return false;
+
+  TII = static_cast<const Thumb2InstrInfo *>(STI->getInstrInfo());
 
   // Optimizing / minimizing size?
-  AttributeSet FnAttrs = MF.getFunction()->getAttributes();
-  OptimizeSize = FnAttrs.hasAttribute(AttributeSet::FunctionIndex,
-                                      Attribute::OptimizeForSize);
-  MinimizeSize =
-      FnAttrs.hasAttribute(AttributeSet::FunctionIndex, Attribute::MinSize);
+  OptimizeSize = MF.getFunction()->hasFnAttribute(Attribute::OptimizeForSize);
+  MinimizeSize = MF.getFunction()->hasFnAttribute(Attribute::MinSize);
 
   BlockInfo.clear();
   BlockInfo.resize(MF.getNumBlockIDs());

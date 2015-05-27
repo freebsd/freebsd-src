@@ -23,7 +23,7 @@ class R600InstrInfo;
 
 class R600TargetLowering : public AMDGPUTargetLowering {
 public:
-  R600TargetLowering(TargetMachine &TM);
+  R600TargetLowering(TargetMachine &TM, const AMDGPUSubtarget &STI);
   MachineBasicBlock * EmitInstrWithCustomInserter(MachineInstr *MI,
       MachineBasicBlock * BB) const override;
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -50,7 +50,8 @@ private:
 
   void lowerImplicitParameter(MachineInstr *MI, MachineBasicBlock &BB,
       MachineRegisterInfo & MRI, unsigned dword_offset) const;
-  SDValue OptimizeSwizzle(SDValue BuildVector, SDValue Swz[], SelectionDAG &DAG) const;
+  SDValue OptimizeSwizzle(SDValue BuildVector, SDValue Swz[], SelectionDAG &DAG,
+                          SDLoc DL) const;
   SDValue vectorToVerticalVector(SelectionDAG &DAG, SDValue Vector) const;
 
   SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
@@ -63,6 +64,8 @@ private:
   SDValue LowerTrig(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSHLParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSRXParts(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerUADDSUBO(SDValue Op, SelectionDAG &DAG,
+                        unsigned mainop, unsigned ovf) const;
 
   SDValue stackPtrToRegIndex(SDValue Ptr, unsigned StackWidth,
                                           SelectionDAG &DAG) const;

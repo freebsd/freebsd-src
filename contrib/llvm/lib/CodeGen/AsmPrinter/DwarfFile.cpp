@@ -17,9 +17,8 @@
 #include "llvm/Target/TargetLoweringObjectFile.h"
 
 namespace llvm {
-DwarfFile::DwarfFile(AsmPrinter *AP, DwarfDebug &DD, StringRef Pref,
-                     BumpPtrAllocator &DA)
-    : Asm(AP), DD(DD), StrPool(DA, *Asm, Pref) {}
+DwarfFile::DwarfFile(AsmPrinter *AP, StringRef Pref, BumpPtrAllocator &DA)
+    : Asm(AP), StrPool(DA, *Asm, Pref) {}
 
 DwarfFile::~DwarfFile() {}
 
@@ -48,15 +47,15 @@ void DwarfFile::addUnit(std::unique_ptr<DwarfUnit> U) {
 
 // Emit the various dwarf units to the unit section USection with
 // the abbreviations going into ASection.
-void DwarfFile::emitUnits(const MCSymbol *ASectionSym) {
+void DwarfFile::emitUnits(bool UseOffsets) {
   for (const auto &TheU : CUs) {
     DIE &Die = TheU->getUnitDie();
-    const MCSection *USection = TheU->getSection();
-    Asm->OutStreamer.SwitchSection(USection);
+    MCSection *USection = TheU->getSection();
+    Asm->OutStreamer->SwitchSection(USection);
 
-    TheU->emitHeader(ASectionSym);
+    TheU->emitHeader(UseOffsets);
 
-    DD.emitDIE(Die);
+    Asm->emitDwarfDIE(Die);
   }
 }
 
@@ -120,37 +119,26 @@ unsigned DwarfFile::computeSizeAndOffset(DIE &Die, unsigned Offset) {
   Die.setSize(Offset - Die.getOffset());
   return Offset;
 }
-void DwarfFile::emitAbbrevs(const MCSection *Section) {
+
+void DwarfFile::emitAbbrevs(MCSection *Section) {
   // Check to see if it is worth the effort.
   if (!Abbreviations.empty()) {
     // Start the debug abbrev section.
-    Asm->OutStreamer.SwitchSection(Section);
-
-    // For each abbrevation.
-    for (const DIEAbbrev *Abbrev : Abbreviations) {
-      // Emit the abbrevations code (base 1 index.)
-      Asm->EmitULEB128(Abbrev->getNumber(), "Abbreviation Code");
-
-      // Emit the abbreviations data.
-      Abbrev->Emit(Asm);
-    }
-
-    // Mark end of abbreviations.
-    Asm->EmitULEB128(0, "EOM(3)");
+    Asm->OutStreamer->SwitchSection(Section);
+    Asm->emitDwarfAbbrevs(Abbreviations);
   }
 }
 
 // Emit strings into a string section.
-void DwarfFile::emitStrings(const MCSection *StrSection,
-                            const MCSection *OffsetSection) {
+void DwarfFile::emitStrings(MCSection *StrSection, MCSection *OffsetSection) {
   StrPool.emit(*Asm, StrSection, OffsetSection);
 }
 
-void DwarfFile::addScopeVariable(LexicalScope *LS, DbgVariable *Var) {
+bool DwarfFile::addScopeVariable(LexicalScope *LS, DbgVariable *Var) {
   SmallVectorImpl<DbgVariable *> &Vars = ScopeVariables[LS];
-  DIVariable DV = Var->getVariable();
+  const DILocalVariable *DV = Var->getVariable();
   // Variables with positive arg numbers are parameters.
-  if (unsigned ArgNum = DV.getArgNumber()) {
+  if (unsigned ArgNum = DV->getArg()) {
     // Keep all parameters in order at the start of the variable list to ensure
     // function types are correct (no out-of-order parameters)
     //
@@ -160,7 +148,7 @@ void DwarfFile::addScopeVariable(LexicalScope *LS, DbgVariable *Var) {
     // rather than linear search.
     auto I = Vars.begin();
     while (I != Vars.end()) {
-      unsigned CurNum = (*I)->getVariable().getArgNumber();
+      unsigned CurNum = (*I)->getVariable()->getArg();
       // A local (non-parameter) variable has been found, insert immediately
       // before it.
       if (CurNum == 0)
@@ -168,18 +156,17 @@ void DwarfFile::addScopeVariable(LexicalScope *LS, DbgVariable *Var) {
       // A later indexed parameter has been found, insert immediately before it.
       if (CurNum > ArgNum)
         break;
-      // FIXME: There are still some cases where two inlined functions are
-      // conflated together (two calls to the same function at the same
-      // location (eg: via a macro, or without column info, etc)) and then
-      // their arguments are conflated as well.
-      assert((LS->getParent() || CurNum != ArgNum) &&
-             "Duplicate argument for top level (non-inlined) function");
+      if (CurNum == ArgNum) {
+        (*I)->addMMIEntry(*Var);
+        return false;
+      }
       ++I;
     }
     Vars.insert(I, Var);
-    return;
+    return true;
   }
 
   Vars.push_back(Var);
+  return true;
 }
 }

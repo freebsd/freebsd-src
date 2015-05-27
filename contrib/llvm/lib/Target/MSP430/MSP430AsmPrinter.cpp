@@ -39,8 +39,8 @@ using namespace llvm;
 namespace {
   class MSP430AsmPrinter : public AsmPrinter {
   public:
-    MSP430AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-      : AsmPrinter(TM, Streamer) {}
+    MSP430AsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+        : AsmPrinter(TM, std::move(Streamer)) {}
 
     const char *getPassName() const override {
       return "MSP430 Assembly Printer";
@@ -152,7 +152,7 @@ void MSP430AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
-  EmitToStreamer(OutStreamer, TmpInst);
+  EmitToStreamer(*OutStreamer, TmpInst);
 }
 
 // Force static initialization.

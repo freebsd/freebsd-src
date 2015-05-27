@@ -95,6 +95,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::GLOBAL_OFFSET_TABLE:        return "GLOBAL_OFFSET_TABLE";
   case ISD::RETURNADDR:                 return "RETURNADDR";
   case ISD::FRAMEADDR:                  return "FRAMEADDR";
+  case ISD::FRAME_ALLOC_RECOVER:        return "FRAME_ALLOC_RECOVER";
   case ISD::READ_REGISTER:              return "READ_REGISTER";
   case ISD::WRITE_REGISTER:             return "WRITE_REGISTER";
   case ISD::FRAME_TO_ARGS_OFFSET:       return "FRAME_TO_ARGS_OFFSET";
@@ -187,10 +188,15 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FMUL:                       return "fmul";
   case ISD::FDIV:                       return "fdiv";
   case ISD::FMA:                        return "fma";
+  case ISD::FMAD:                       return "fmad";
   case ISD::FREM:                       return "frem";
   case ISD::FCOPYSIGN:                  return "fcopysign";
   case ISD::FGETSIGN:                   return "fgetsign";
   case ISD::FPOW:                       return "fpow";
+  case ISD::SMIN:                       return "smin";
+  case ISD::SMAX:                       return "smax";
+  case ISD::UMIN:                       return "umin";
+  case ISD::UMAX:                       return "umax";
 
   case ISD::FPOWI:                      return "fpowi";
   case ISD::SETCC:                      return "setcc";
@@ -271,6 +277,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::STORE:                      return "store";
   case ISD::MLOAD:                      return "masked_load";
   case ISD::MSTORE:                     return "masked_store";
+  case ISD::MGATHER:                    return "masked_gather";
+  case ISD::MSCATTER:                   return "masked_scatter";
   case ISD::VAARG:                      return "vaarg";
   case ISD::VACOPY:                     return "vacopy";
   case ISD::VAEND:                      return "vaend";
@@ -284,6 +292,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::DEBUGTRAP:                  return "debugtrap";
   case ISD::LIFETIME_START:             return "lifetime.start";
   case ISD::LIFETIME_END:               return "lifetime.end";
+  case ISD::GC_TRANSITION_START:        return "gc_transition.start";
+  case ISD::GC_TRANSITION_END:          return "gc_transition.end";
 
   // Bit manipulation
   case ISD::BSWAP:                      return "bswap";
@@ -518,22 +528,20 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
   if (getNodeId() != -1)
     OS << " [ID=" << getNodeId() << ']';
 
-  DebugLoc dl = getDebugLoc();
-  if (G && !dl.isUnknown()) {
-    DIScope
-      Scope(dl.getScope(G->getMachineFunction().getFunction()->getContext()));
-    OS << " dbg:";
-    assert((!Scope || Scope.isScope()) &&
-      "Scope of a DebugLoc should be null or a DIScope.");
-    // Omit the directory, since it's usually long and uninteresting.
-    if (Scope)
-      OS << Scope.getFilename();
-    else
-      OS << "<unknown>";
-    OS << ':' << dl.getLine();
-    if (dl.getCol() != 0)
-      OS << ':' << dl.getCol();
-  }
+  if (!G)
+    return;
+
+  DILocation *L = getDebugLoc();
+  if (!L)
+    return;
+
+  if (auto *Scope = L->getScope())
+    OS << Scope->getFilename();
+  else
+    OS << "<unknown>";
+  OS << ':' << L->getLine();
+  if (unsigned C = L->getColumn())
+    OS << ':' << C;
 }
 
 static void DumpNodes(const SDNode *N, unsigned indent, const SelectionDAG *G) {

@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "X86RegisterInfo.h"
+#include "X86FrameLowering.h"
 #include "X86InstrBuilder.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86Subtarget.h"
@@ -53,34 +54,35 @@ static cl::opt<bool>
 EnableBasePointer("x86-use-base-pointer", cl::Hidden, cl::init(true),
           cl::desc("Enable use of a base pointer for complex stack frames"));
 
-X86RegisterInfo::X86RegisterInfo(const X86Subtarget &STI)
-    : X86GenRegisterInfo(
-          (STI.is64Bit() ? X86::RIP : X86::EIP),
-          X86_MC::getDwarfRegFlavour(STI.getTargetTriple(), false),
-          X86_MC::getDwarfRegFlavour(STI.getTargetTriple(), true),
-          (STI.is64Bit() ? X86::RIP : X86::EIP)),
-      Subtarget(STI) {
+X86RegisterInfo::X86RegisterInfo(const Triple &TT)
+    : X86GenRegisterInfo((TT.isArch64Bit() ? X86::RIP : X86::EIP),
+                         X86_MC::getDwarfRegFlavour(TT, false),
+                         X86_MC::getDwarfRegFlavour(TT, true),
+                         (TT.isArch64Bit() ? X86::RIP : X86::EIP)) {
   X86_MC::InitLLVM2SEHRegisterMapping(this);
 
   // Cache some information.
-  Is64Bit = Subtarget.is64Bit();
-  IsWin64 = Subtarget.isTargetWin64();
+  Is64Bit = TT.isArch64Bit();
+  IsWin64 = Is64Bit && TT.isOSWindows();
 
+  // Use a callee-saved register as the base pointer.  These registers must
+  // not conflict with any ABI requirements.  For example, in 32-bit mode PIC
+  // requires GOT in the EBX register before function calls via PLT GOT pointer.
   if (Is64Bit) {
     SlotSize = 8;
-    StackPtr = (Subtarget.isTarget64BitLP64() || Subtarget.isTargetNaCl64()) ?
-        X86::RSP : X86::ESP;
-    FramePtr = (Subtarget.isTarget64BitLP64() || Subtarget.isTargetNaCl64()) ?
-        X86::RBP : X86::EBP;
+    // This matches the simplified 32-bit pointer code in the data layout
+    // computation.
+    // FIXME: Should use the data layout?
+    bool Use64BitReg = TT.getEnvironment() != Triple::GNUX32;
+    StackPtr = Use64BitReg ? X86::RSP : X86::ESP;
+    FramePtr = Use64BitReg ? X86::RBP : X86::EBP;
+    BasePtr = Use64BitReg ? X86::RBX : X86::EBX;
   } else {
     SlotSize = 4;
     StackPtr = X86::ESP;
     FramePtr = X86::EBP;
+    BasePtr = X86::ESI;
   }
-  // Use a callee-saved register as the base pointer.  These registers must
-  // not conflict with any ABI requirements.  For example, in 32-bit mode PIC
-  // requires GOT in the EBX register before function calls via PLT GOT pointer.
-  BasePtr = Is64Bit ? X86::RBX : X86::ESI;
 }
 
 bool
@@ -119,8 +121,9 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
   return X86GenRegisterInfo::getMatchingSuperRegClass(A, B, SubIdx);
 }
 
-const TargetRegisterClass*
-X86RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC) const{
+const TargetRegisterClass *
+X86RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                                           const MachineFunction &MF) const {
   // Don't allow super-classes of GR8_NOREX.  This class is only used after
   // extracting sub_8bit_hi sub-registers.  The H sub-registers cannot be copied
   // to the full GR8 register class in 64-bit mode, so we cannot allow the
@@ -160,6 +163,7 @@ X86RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC) const{
 const TargetRegisterClass *
 X86RegisterInfo::getPointerRegClass(const MachineFunction &MF,
                                     unsigned Kind) const {
+  const X86Subtarget &Subtarget = MF.getSubtarget<X86Subtarget>();
   switch (Kind) {
   default: llvm_unreachable("Unexpected Kind in getPointerRegClass!");
   case 0: // Normal GPRs.
@@ -171,9 +175,9 @@ X86RegisterInfo::getPointerRegClass(const MachineFunction &MF,
       return &X86::GR64_NOSPRegClass;
     return &X86::GR32_NOSPRegClass;
   case 2: // Available for tailcall (not callee-saved GPRs).
-    if (Subtarget.isTargetWin64())
+    if (IsWin64)
       return &X86::GR64_TCW64RegClass;
-    else if (Subtarget.is64Bit())
+    else if (Is64Bit)
       return &X86::GR64_TCRegClass;
 
     const Function *F = MF.getFunction();
@@ -209,7 +213,7 @@ X86RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   case X86::GR64RegClassID:
     return 12 - FPDiff;
   case X86::VR128RegClassID:
-    return Subtarget.is64Bit() ? 10 : 4;
+    return Is64Bit ? 10 : 4;
   case X86::VR64RegClassID:
     return 4;
   }
@@ -217,8 +221,10 @@ X86RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
 
 const MCPhysReg *
 X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  const X86Subtarget &Subtarget = MF->getSubtarget<X86Subtarget>();
   bool HasAVX = Subtarget.hasAVX();
   bool HasAVX512 = Subtarget.hasAVX512();
+  bool CallsEHReturn = MF->getMMI().callsEHReturn();
 
   assert(MF && "MachineFunction required");
   switch (MF->getFunction()->getCallingConv()) {
@@ -252,11 +258,16 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     if (Is64Bit)
       return CSR_64_MostRegs_SaveList;
     break;
+  case CallingConv::X86_64_Win64:
+    return CSR_Win64_SaveList;
+  case CallingConv::X86_64_SysV:
+    if (CallsEHReturn)
+      return CSR_64EHRet_SaveList;
+    return CSR_64_SaveList;
   default:
     break;
   }
 
-  bool CallsEHReturn = MF->getMMI().callsEHReturn();
   if (Is64Bit) {
     if (IsWin64)
       return CSR_Win64_SaveList;
@@ -269,8 +280,10 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CSR_32_SaveList;
 }
 
-const uint32_t*
-X86RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+const uint32_t *
+X86RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                      CallingConv::ID CC) const {
+  const X86Subtarget &Subtarget = MF.getSubtarget<X86Subtarget>();
   bool HasAVX = Subtarget.hasAVX();
   bool HasAVX512 = Subtarget.hasAVX512();
 
@@ -307,6 +320,10 @@ X86RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
     break;
   default:
     break;
+  case CallingConv::X86_64_Win64:
+    return CSR_Win64_RegMask;
+  case CallingConv::X86_64_SysV:
+    return CSR_64_RegMask;
   }
 
   // Unlike getCalleeSavedRegs(), we don't have MMI so we can't check
@@ -348,13 +365,15 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   // Set the base-pointer register and its aliases as reserved if needed.
   if (hasBasePointer(MF)) {
     CallingConv::ID CC = MF.getFunction()->getCallingConv();
-    const uint32_t* RegMask = getCallPreservedMask(CC);
+    const uint32_t *RegMask = getCallPreservedMask(MF, CC);
     if (MachineOperand::clobbersPhysReg(RegMask, getBaseRegister()))
       report_fatal_error(
         "Stack realignment in presence of dynamic allocas is not supported with"
         "this calling convention.");
 
-    for (MCSubRegIterator I(getBaseRegister(), this, /*IncludeSelf=*/true);
+    unsigned BasePtr = getX86SubSuperRegister(getBaseRegister(), MVT::i64,
+                                              false);
+    for (MCSubRegIterator I(BasePtr, this, /*IncludeSelf=*/true);
          I.isValid(); ++I)
       Reserved.set(*I);
   }
@@ -390,7 +409,7 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
         Reserved.set(*AI);
     }
   }
-  if (!Is64Bit || !Subtarget.hasAVX512()) {
+  if (!Is64Bit || !MF.getSubtarget<X86Subtarget>().hasAVX512()) {
     for (unsigned n = 16; n != 32; ++n) {
       for (MCRegAliasIterator AI(X86::XMM0 + n, this, true); AI.isValid(); ++AI)
         Reserved.set(*AI);
@@ -445,10 +464,8 @@ bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const Function *F = MF.getFunction();
   unsigned StackAlign =
     MF.getSubtarget().getFrameLowering()->getStackAlignment();
-  bool requiresRealignment =
-    ((MFI->getMaxAlignment() > StackAlign) ||
-     F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
-                                     Attribute::StackAlignment));
+  bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
+                              F->hasFnAttribute(Attribute::StackAlignment));
 
   // If we've requested that we force align the stack do so now.
   if (ForceStackAlign)
@@ -475,7 +492,8 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   unsigned BasePtr;
 
   unsigned Opc = MI.getOpcode();
-  bool AfterFPPop = Opc == X86::TAILJMPm64 || Opc == X86::TAILJMPm;
+  bool AfterFPPop = Opc == X86::TAILJMPm64 || Opc == X86::TAILJMPm ||
+                    Opc == X86::TCRETURNmi || Opc == X86::TCRETURNmi64;
   if (hasBasePointer(MF))
     BasePtr = (FrameIndex < 0 ? FramePtr : getBaseRegister());
   else if (needsStackRealignment(MF))
@@ -484,6 +502,24 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     BasePtr = StackPtr;
   else
     BasePtr = (TFI->hasFP(MF) ? FramePtr : StackPtr);
+
+  // FRAME_ALLOC uses a single offset, with no register. It only works in the
+  // simple FP case, and doesn't work with stack realignment. On 32-bit, the
+  // offset is from the traditional base pointer location.  On 64-bit, the
+  // offset is from the SP at the end of the prologue, not the FP location. This
+  // matches the behavior of llvm.frameaddress.
+  if (Opc == TargetOpcode::FRAME_ALLOC) {
+    MachineOperand &FI = MI.getOperand(FIOperandNum);
+    bool IsWinEH = MF.getTarget().getMCAsmInfo()->usesWindowsCFI();
+    int Offset;
+    if (IsWinEH)
+      Offset = static_cast<const X86FrameLowering *>(TFI)
+                     ->getFrameIndexOffsetFromSP(MF, FrameIndex);
+    else
+      Offset = TFI->getFrameIndexOffset(MF, FrameIndex);
+    FI.ChangeToImmediate(Offset);
+    return;
+  }
 
   // For LEA64_32r when BasePtr is 32-bits (X32) we can use full-size 64-bit
   // register as source operand, semantic is the same and destination is
@@ -536,8 +572,9 @@ unsigned X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return TFI->hasFP(MF) ? FramePtr : StackPtr;
 }
 
-unsigned X86RegisterInfo::getPtrSizedFrameRegister(
-    const MachineFunction &MF) const {
+unsigned
+X86RegisterInfo::getPtrSizedFrameRegister(const MachineFunction &MF) const {
+  const X86Subtarget &Subtarget = MF.getSubtarget<X86Subtarget>();
   unsigned FrameReg = getFrameRegister(MF);
   if (Subtarget.isTarget64BitILP32())
     FrameReg = getX86SubSuperRegister(FrameReg, MVT::i32, false);

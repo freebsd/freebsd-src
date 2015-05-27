@@ -66,6 +66,10 @@ static cl::opt<std::string>
   BlockInfoFilename("block-info",
                     cl::desc("Use the BLOCK_INFO from the given file"));
 
+static cl::opt<bool>
+  ShowBinaryBlobs("show-binary-blobs",
+                  cl::desc("Print binary blobs using hex escapes"));
+
 namespace {
 
 /// CurStreamTypeType - A type for CurStreamType
@@ -222,8 +226,10 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
 
     case bitc::FUNC_CODE_INST_BINOP:        return "INST_BINOP";
     case bitc::FUNC_CODE_INST_CAST:         return "INST_CAST";
-    case bitc::FUNC_CODE_INST_GEP:          return "INST_GEP";
-    case bitc::FUNC_CODE_INST_INBOUNDS_GEP: return "INST_INBOUNDS_GEP";
+    case bitc::FUNC_CODE_INST_GEP_OLD:
+      return "INST_GEP_OLD";
+    case bitc::FUNC_CODE_INST_INBOUNDS_GEP_OLD:
+      return "INST_INBOUNDS_GEP_OLD";
     case bitc::FUNC_CODE_INST_SELECT:       return "INST_SELECT";
     case bitc::FUNC_CODE_INST_EXTRACTELT:   return "INST_EXTRACTELT";
     case bitc::FUNC_CODE_INST_INSERTELT:    return "INST_INSERTELT";
@@ -248,6 +254,8 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
     case bitc::FUNC_CODE_DEBUG_LOC_AGAIN:   return "DEBUG_LOC_AGAIN";
     case bitc::FUNC_CODE_INST_CALL:         return "INST_CALL";
     case bitc::FUNC_CODE_DEBUG_LOC:         return "DEBUG_LOC";
+    case bitc::FUNC_CODE_INST_GEP:
+      return "INST_GEP";
     }
   case bitc::VALUE_SYMTAB_BLOCK_ID:
     switch (CodeID) {
@@ -456,17 +464,22 @@ static bool ParseBlock(BitstreamCursor &Stream, unsigned BlockID,
 
       if (Blob.data()) {
         outs() << " blob data = ";
-        bool BlobIsPrintable = true;
-        for (unsigned i = 0, e = Blob.size(); i != e; ++i)
-          if (!isprint(static_cast<unsigned char>(Blob[i]))) {
-            BlobIsPrintable = false;
-            break;
-          }
+        if (ShowBinaryBlobs) {
+          outs() << "'";
+          outs().write_escaped(Blob, /*hex=*/true) << "'";
+        } else {
+          bool BlobIsPrintable = true;
+          for (unsigned i = 0, e = Blob.size(); i != e; ++i)
+            if (!isprint(static_cast<unsigned char>(Blob[i]))) {
+              BlobIsPrintable = false;
+              break;
+            }
 
-        if (BlobIsPrintable)
-          outs() << "'" << Blob << "'";
-        else
-          outs() << "unprintable, " << Blob.size() << " bytes.";
+          if (BlobIsPrintable)
+            outs() << "'" << Blob << "'";
+          else
+            outs() << "unprintable, " << Blob.size() << " bytes.";          
+        }
       }
 
       outs() << "\n";

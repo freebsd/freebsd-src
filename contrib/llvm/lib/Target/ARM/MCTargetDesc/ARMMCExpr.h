@@ -26,8 +26,8 @@ private:
   const VariantKind Kind;
   const MCExpr *Expr;
 
-  explicit ARMMCExpr(VariantKind _Kind, const MCExpr *_Expr)
-    : Kind(_Kind), Expr(_Expr) {}
+  explicit ARMMCExpr(VariantKind Kind, const MCExpr *Expr)
+      : Kind(Kind), Expr(Expr) {}
 
 public:
   /// @name Construction
@@ -62,8 +62,8 @@ public:
                                  const MCFixup *Fixup) const override {
     return false;
   }
-  void visitUsedExpr(MCStreamer &Streamer) const override; 
-  const MCSection *FindAssociatedSection() const override {
+  void visitUsedExpr(MCStreamer &Streamer) const override;
+  MCSection *FindAssociatedSection() const override {
     return getSubExpr()->FindAssociatedSection();
   }
 

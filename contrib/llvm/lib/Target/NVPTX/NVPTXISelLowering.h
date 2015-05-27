@@ -21,7 +21,7 @@
 
 namespace llvm {
 namespace NVPTXISD {
-enum NodeType {
+enum NodeType : unsigned {
   // Start the numbering from where ISD NodeType finishes.
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   Wrapper,
@@ -436,7 +436,8 @@ class NVPTXSubtarget;
 //===--------------------------------------------------------------------===//
 class NVPTXTargetLowering : public TargetLowering {
 public:
-  explicit NVPTXTargetLowering(const NVPTXTargetMachine &TM);
+  explicit NVPTXTargetLowering(const NVPTXTargetMachine &TM,
+                               const NVPTXSubtarget &STI);
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -469,7 +470,8 @@ public:
   ConstraintType
   getConstraintType(const std::string &Constraint) const override;
   std::pair<unsigned, const TargetRegisterClass *>
-  getRegForInlineAsmConstraint(const std::string &Constraint,
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               const std::string &Constraint,
                                MVT VT) const override;
 
   SDValue LowerFormalArguments(
@@ -495,6 +497,12 @@ public:
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
 
+  unsigned getInlineAsmMemConstraint(
+      const std::string &ConstraintCode) const override {
+    // FIXME: Map different constraints differently.
+    return InlineAsm::Constraint_m;
+  }
+
   const NVPTXTargetMachine *nvTM;
 
   // PTX always uses 32-bit shift amounts
@@ -510,7 +518,7 @@ public:
   bool enableAggressiveFMAFusion(EVT VT) const override { return true; }
 
 private:
-  const NVPTXSubtarget &nvptxSubtarget; // cache the subtarget here
+  const NVPTXSubtarget &STI; // cache the subtarget here
 
   SDValue getExtSymb(SelectionDAG &DAG, const char *name, int idx,
                      EVT = MVT::i32) const;
@@ -528,6 +536,8 @@ private:
 
   SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerSelect(SDValue Op, SelectionDAG &DAG) const;
 
   void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
                           SelectionDAG &DAG) const override;

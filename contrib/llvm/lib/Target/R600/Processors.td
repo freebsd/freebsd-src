@@ -83,9 +83,13 @@ def : Proc<"cayman",     R600_VLIW4_Itin,
 // Southern Islands
 //===----------------------------------------------------------------------===//
 
-def : ProcessorModel<"SI",       SIFullSpeedModel, [FeatureSouthernIslands]>;
+def : ProcessorModel<"SI", SIFullSpeedModel,
+  [FeatureSouthernIslands, FeatureFastFMAF32]
+>;
 
-def : ProcessorModel<"tahiti",   SIFullSpeedModel, [FeatureSouthernIslands]>;
+def : ProcessorModel<"tahiti",   SIFullSpeedModel,
+  [FeatureSouthernIslands, FeatureFastFMAF32]
+>;
 
 def : ProcessorModel<"pitcairn", SIQuarterSpeedModel, [FeatureSouthernIslands]>;
 
@@ -99,15 +103,24 @@ def : ProcessorModel<"hainan",   SIQuarterSpeedModel, [FeatureSouthernIslands]>;
 // Sea Islands
 //===----------------------------------------------------------------------===//
 
-def : ProcessorModel<"bonaire",    SIQuarterSpeedModel, [FeatureSeaIslands]>;
+def : ProcessorModel<"bonaire",    SIQuarterSpeedModel,
+  [FeatureSeaIslands, FeatureLDSBankCount32]
+>;
 
-def : ProcessorModel<"kabini",     SIQuarterSpeedModel, [FeatureSeaIslands]>;
+def : ProcessorModel<"kabini",     SIQuarterSpeedModel,
+  [FeatureSeaIslands, FeatureLDSBankCount16]
+>;
 
-def : ProcessorModel<"kaveri",     SIQuarterSpeedModel, [FeatureSeaIslands]>;
+def : ProcessorModel<"kaveri",     SIQuarterSpeedModel,
+  [FeatureSeaIslands, FeatureLDSBankCount32]
+>;
 
-def : ProcessorModel<"hawaii",     SIFullSpeedModel, [FeatureSeaIslands]>;
+def : ProcessorModel<"hawaii", SIFullSpeedModel,
+  [FeatureSeaIslands, FeatureFastFMAF32, FeatureLDSBankCount32]
+>;
 
-def : ProcessorModel<"mullins",    SIQuarterSpeedModel, [FeatureSeaIslands]>;
+def : ProcessorModel<"mullins",    SIQuarterSpeedModel,
+  [FeatureSeaIslands, FeatureLDSBankCount16]>;
 
 //===----------------------------------------------------------------------===//
 // Volcanic Islands

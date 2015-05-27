@@ -14,18 +14,16 @@
 
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/MC/MCAsmInfo.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 
@@ -54,11 +52,11 @@ static cl::opt<bool> DisableMachineLICM("disable-machine-licm", cl::Hidden,
 static cl::opt<bool> DisableMachineCSE("disable-machine-cse", cl::Hidden,
     cl::desc("Disable Machine Common Subexpression Elimination"));
 static cl::opt<cl::boolOrDefault>
-OptimizeRegAlloc("optimize-regalloc", cl::Hidden,
+    EnableShrinkWrapOpt("enable-shrink-wrap", cl::Hidden,
+                        cl::desc("enable the shrink-wrapping pass"));
+static cl::opt<cl::boolOrDefault> OptimizeRegAlloc(
+    "optimize-regalloc", cl::Hidden,
     cl::desc("Enable optimized register allocation compilation path."));
-static cl::opt<cl::boolOrDefault>
-EnableMachineSched("enable-misched",
-    cl::desc("Enable the machine instruction scheduling pass."));
 static cl::opt<bool> DisablePostRAMachineLICM("disable-postra-machine-licm",
     cl::Hidden,
     cl::desc("Disable Machine LICM"));
@@ -82,7 +80,9 @@ static cl::opt<bool> PrintGCInfo("print-gc", cl::Hidden,
     cl::desc("Dump garbage collector data"));
 static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
-    cl::init(getenv("LLVM_VERIFY_MACHINEINSTRS")!=nullptr));
+    cl::init(false),
+    cl::ZeroOrMore);
+
 static cl::opt<std::string>
 PrintMachineInstrs("print-machineinstrs", cl::ValueOptional,
                    cl::desc("Print machine instrs"),
@@ -113,28 +113,6 @@ static IdentifyingPassPtr applyDisable(IdentifyingPassPtr PassID,
   if (Override)
     return IdentifyingPassPtr();
   return PassID;
-}
-
-/// Allow Pass selection to be overriden by command line options. This supports
-/// flags with ternary conditions. TargetID is passed through by default. The
-/// pass is suppressed when the option is false. When the option is true, the
-/// StandardID is selected if the target provides no default.
-static IdentifyingPassPtr applyOverride(IdentifyingPassPtr TargetID,
-                                        cl::boolOrDefault Override,
-                                        AnalysisID StandardID) {
-  switch (Override) {
-  case cl::BOU_UNSET:
-    return TargetID;
-  case cl::BOU_TRUE:
-    if (TargetID.isValid())
-      return TargetID;
-    if (StandardID == nullptr)
-      report_fatal_error("Target cannot enable pass");
-    return StandardID;
-  case cl::BOU_FALSE:
-    return IdentifyingPassPtr();
-  }
-  llvm_unreachable("Invalid command line option state");
 }
 
 /// Allow standard passes to be disabled by the command line, regardless of who
@@ -180,9 +158,6 @@ static IdentifyingPassPtr overridePass(AnalysisID StandardID,
 
   if (StandardID == &MachineCSEID)
     return applyDisable(TargetID, DisableMachineCSE);
-
-  if (StandardID == &MachineSchedulerID)
-    return applyOverride(TargetID, EnableMachineSched, StandardID);
 
   if (StandardID == &TargetPassConfig::PostRAMachineLICMID)
     return applyDisable(TargetID, DisablePostRAMachineLICM);
@@ -234,10 +209,10 @@ TargetPassConfig::~TargetPassConfig() {
 // Out of line constructor provides default values for pass options and
 // registers all common codegen passes.
 TargetPassConfig::TargetPassConfig(TargetMachine *tm, PassManagerBase &pm)
-  : ImmutablePass(ID), PM(&pm), StartAfter(nullptr), StopAfter(nullptr),
-    Started(true), Stopped(false), AddingMachinePasses(false), TM(tm),
-    Impl(nullptr), Initialized(false), DisableVerify(false),
-    EnableTailMerge(true) {
+    : ImmutablePass(ID), PM(&pm), StartAfter(nullptr), StopAfter(nullptr),
+      Started(true), Stopped(false), AddingMachinePasses(false), TM(tm),
+      Impl(nullptr), Initialized(false), DisableVerify(false),
+      EnableTailMerge(true), EnableShrinkWrap(false) {
 
   Impl = new PassConfigImpl();
 
@@ -248,11 +223,6 @@ TargetPassConfig::TargetPassConfig(TargetMachine *tm, PassManagerBase &pm)
   // Substitute Pseudo Pass IDs for real ones.
   substitutePass(&EarlyTailDuplicateID, &TailDuplicateID);
   substitutePass(&PostRAMachineLICMID, &MachineLICMID);
-
-  // Temporarily disable experimental passes.
-  const TargetSubtargetInfo &ST = TM->getSubtarget<TargetSubtargetInfo>();
-  if (!ST.useMachineScheduler())
-    disablePass(&MachineSchedulerID);
 }
 
 /// Insert InsertedPassID pass after TargetPassID.
@@ -408,10 +378,8 @@ void TargetPassConfig::addIRPasses() {
 
   // Before running any passes, run the verifier to determine if the input
   // coming from the front-end and/or optimizer is valid.
-  if (!DisableVerify) {
+  if (!DisableVerify)
     addPass(createVerifierPass());
-    addPass(createDebugInfoVerifierPass());
-  }
 
   // Run loop strength reduction before anything else.
   if (getOptLevel() != CodeGenOpt::None && !DisableLSR) {
@@ -420,7 +388,10 @@ void TargetPassConfig::addIRPasses() {
       addPass(createPrintFunctionPass(dbgs(), "\n\n*** Code after LSR ***\n"));
   }
 
+  // Run GC lowering passes for builtin collectors
+  // TODO: add a pass insertion point here
   addPass(createGCLoweringPass());
+  addPass(createShadowStackGCLoweringPass());
 
   // Make sure that no unreachable blocks are instruction selected.
   addPass(createUnreachableBlockEliminationPass());
@@ -448,10 +419,15 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     // FALLTHROUGH
   case ExceptionHandling::DwarfCFI:
   case ExceptionHandling::ARM:
-  case ExceptionHandling::ItaniumWinEH:
     addPass(createDwarfEHPass(TM));
     break;
-  case ExceptionHandling::MSVC: // FIXME: Add preparation.
+  case ExceptionHandling::WinEH:
+    // We support using both GCC-style and MSVC-style exceptions on Windows, so
+    // add both preparation passes. Each pass will only actually run if it
+    // recognizes the personality function.
+    addPass(createWinEHPass(TM));
+    addPass(createDwarfEHPass(TM));
+    break;
   case ExceptionHandling::None:
     addPass(createLowerInvokePass());
 
@@ -473,12 +449,6 @@ void TargetPassConfig::addCodeGenPrepare() {
 /// instruction selection.
 void TargetPassConfig::addISelPrepare() {
   addPreISel();
-
-  // Need to verify DebugInfo *before* creating the stack protector analysis.
-  // It's a function pass, and verifying between it and its users causes a
-  // crash.
-  if (!DisableVerify)
-    addPass(createDebugInfoVerifierPass());
 
   addPass(createStackProtectorPass(TM));
 
@@ -557,6 +527,8 @@ void TargetPassConfig::addMachinePasses() {
   addPostRegAlloc();
 
   // Insert prolog/epilog code.  Eliminate abstract frame index references...
+  if (getEnableShrinkWrap())
+    addPass(&ShrinkWrapID);
   addPass(&PrologEpilogCodeInserterID);
 
   /// Add passes that optimize machine instructions after register allocation.
@@ -630,6 +602,21 @@ void TargetPassConfig::addMachineSSAOptimization() {
   // Clean-up the dead code that may have been generated by peephole
   // rewriting.
   addPass(&DeadMachineInstructionElimID);
+}
+
+bool TargetPassConfig::getEnableShrinkWrap() const {
+  switch (EnableShrinkWrapOpt) {
+  case cl::BOU_UNSET:
+    return EnableShrinkWrap && getOptLevel() != CodeGenOpt::None;
+  // If EnableShrinkWrap is set, it takes precedence on whatever the
+  // target sets. The rational is that we assume we want to test
+  // something related to shrink-wrapping.
+  case cl::BOU_TRUE:
+    return true;
+  case cl::BOU_FALSE:
+    return false;
+  }
+  llvm_unreachable("Invalid shrink-wrapping state");
 }
 
 //===---------------------------------------------------------------------===//

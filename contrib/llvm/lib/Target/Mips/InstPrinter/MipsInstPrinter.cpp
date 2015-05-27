@@ -77,7 +77,7 @@ void MipsInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 }
 
 void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                StringRef Annot) {
+                                StringRef Annot, const MCSubtargetInfo &STI) {
   switch (MI->getOpcode()) {
   default:
     break;
@@ -290,6 +290,7 @@ bool MipsInstPrinter::printAlias(const char *Str, const MCInst &MI,
 bool MipsInstPrinter::printAlias(const MCInst &MI, raw_ostream &OS) {
   switch (MI.getOpcode()) {
   case Mips::BEQ:
+  case Mips::BEQ_MM:
     // beq $zero, $zero, $L2 => b $L2
     // beq $r0, $zero, $L2 => beqz $r0, $L2
     return (isReg<Mips::ZERO>(MI, 0) && isReg<Mips::ZERO>(MI, 1) &&

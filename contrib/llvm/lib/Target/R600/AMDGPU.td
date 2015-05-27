@@ -1,11 +1,11 @@
-//===-- AMDIL.td - AMDIL Tablegen files --*- tablegen -*-------------------===//
+//===-- AMDGPU.td - AMDGPU Tablegen files ------------------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
 //
-//==-----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
 include "llvm/Target/Target.td"
 
@@ -16,6 +16,11 @@ include "llvm/Target/Target.td"
 // Debugging Features
 
 def FeatureDumpCode : SubtargetFeature <"DumpCode",
+        "DumpCode",
+        "true",
+        "Dump MachineInstrs in the CodeEmitter">;
+
+def FeatureDumpCodeLower : SubtargetFeature <"dumpcode",
         "DumpCode",
         "true",
         "Dump MachineInstrs in the CodeEmitter">;
@@ -47,6 +52,12 @@ def FeatureFP64Denormals : SubtargetFeature<"fp64-denormals",
         "true",
         "Enable double precision denormal handling",
         [FeatureFP64]>;
+
+def FeatureFastFMAF32 : SubtargetFeature<"fast-fmaf",
+        "FastFMAF32",
+        "true",
+        "Assuming f32 fma is at least as fast as mul + add",
+        []>;
 
 // Some instructions do not support denormals despite this flag. Using
 // fp32 denormals also causes instructions to run at the double
@@ -121,11 +132,46 @@ def FeatureWavefrontSize16 : SubtargetFeatureWavefrontSize<16>;
 def FeatureWavefrontSize32 : SubtargetFeatureWavefrontSize<32>;
 def FeatureWavefrontSize64 : SubtargetFeatureWavefrontSize<64>;
 
+class SubtargetFeatureLDSBankCount <int Value> : SubtargetFeature <
+      "ldsbankcount"#Value,
+      "LDSBankCount",
+      !cast<string>(Value),
+      "The number of LDS banks per compute unit.">;
+
+def FeatureLDSBankCount16 : SubtargetFeatureLDSBankCount<16>;
+def FeatureLDSBankCount32 : SubtargetFeatureLDSBankCount<32>;
+
 class SubtargetFeatureLocalMemorySize <int Value> : SubtargetFeature<
         "localmemorysize"#Value,
         "LocalMemorySize",
         !cast<string>(Value),
         "The size of local memory in bytes">;
+
+def FeatureGCN : SubtargetFeature<"gcn",
+        "IsGCN",
+        "true",
+        "GCN or newer GPU">;
+
+def FeatureGCN1Encoding : SubtargetFeature<"gcn1-encoding",
+        "GCN1Encoding",
+        "true",
+        "Encoding format for SI and CI">;
+
+def FeatureGCN3Encoding : SubtargetFeature<"gcn3-encoding",
+        "GCN3Encoding",
+        "true",
+        "Encoding format for VI">;
+
+def FeatureCIInsts : SubtargetFeature<"ci-insts",
+        "CIInsts",
+        "true",
+        "Additional intstructions for CI+">;
+
+// Dummy feature used to disable assembler instructions.
+def FeatureDisable : SubtargetFeature<"",
+                                      "FeatureDisable","true",
+                                      "Dummy feature to disable assembler"
+                                      " instructions">;
 
 class SubtargetFeatureGeneration <string Value,
                                   list<SubtargetFeature> Implies> :
@@ -152,20 +198,24 @@ def FeatureNorthernIslands : SubtargetFeatureGeneration<"NORTHERN_ISLANDS",
 
 def FeatureSouthernIslands : SubtargetFeatureGeneration<"SOUTHERN_ISLANDS",
         [Feature64BitPtr, FeatureFP64, FeatureLocalMemorySize32768,
-         FeatureWavefrontSize64]>;
+         FeatureWavefrontSize64, FeatureGCN, FeatureGCN1Encoding,
+         FeatureLDSBankCount32]>;
 
 def FeatureSeaIslands : SubtargetFeatureGeneration<"SEA_ISLANDS",
         [Feature64BitPtr, FeatureFP64, FeatureLocalMemorySize65536,
-         FeatureWavefrontSize64, FeatureFlatAddressSpace]>;
+         FeatureWavefrontSize64, FeatureGCN, FeatureFlatAddressSpace,
+         FeatureGCN1Encoding, FeatureCIInsts]>;
 
 def FeatureVolcanicIslands : SubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
         [Feature64BitPtr, FeatureFP64, FeatureLocalMemorySize65536,
-         FeatureWavefrontSize64, FeatureFlatAddressSpace]>;
+         FeatureWavefrontSize64, FeatureFlatAddressSpace, FeatureGCN,
+         FeatureGCN3Encoding, FeatureCIInsts, FeatureLDSBankCount32]>;
 
 //===----------------------------------------------------------------------===//
 
 def AMDGPUInstrInfo : InstrInfo {
   let guessInstructionProperties = 1;
+  let noNamedPositionallyEncodedOperands = 1;
 }
 
 def AMDGPUAsmParser : AsmParser {
@@ -188,10 +238,20 @@ def NullALU : InstrItinClass;
 // Predicate helper class
 //===----------------------------------------------------------------------===//
 
+def TruePredicate : Predicate<"true">;
+def isSICI : Predicate<
+  "Subtarget->getGeneration() == AMDGPUSubtarget::SOUTHERN_ISLANDS ||"
+  "Subtarget->getGeneration() == AMDGPUSubtarget::SEA_ISLANDS"
+>, AssemblerPredicate<"FeatureGCN1Encoding">;
+
 class PredicateControl {
   Predicate SubtargetPredicate;
+  Predicate SIAssemblerPredicate = isSICI;
+  list<Predicate> AssemblerPredicates = [];
+  Predicate AssemblerPredicate = TruePredicate;
   list<Predicate> OtherPredicates = [];
-  list<Predicate> Predicates = !listconcat([SubtargetPredicate],
+  list<Predicate> Predicates = !listconcat([SubtargetPredicate, AssemblerPredicate],
+                                            AssemblerPredicates,
                                             OtherPredicates);
 }
 

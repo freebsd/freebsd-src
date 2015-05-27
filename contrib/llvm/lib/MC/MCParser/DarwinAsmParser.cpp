@@ -407,7 +407,7 @@ bool DarwinAsmParser::parseDirectiveDesc(StringRef, SMLoc) {
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in '.desc' directive");
@@ -444,7 +444,7 @@ bool DarwinAsmParser::parseDirectiveIndirectSymbol(StringRef, SMLoc Loc) {
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in .indirect_symbol directive");
 
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   // Assembler local symbols don't make any sense here. Complain loudly.
   if (Sym->isTemporary())
@@ -519,7 +519,7 @@ bool DarwinAsmParser::parseDirectiveLsym(StringRef, SMLoc) {
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in '.lsym' directive");
@@ -626,7 +626,7 @@ bool DarwinAsmParser::parseDirectiveSecureLogUnique(StringRef, SMLoc IDLoc) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in '.secure_log_unique' directive");
 
-  if (getContext().getSecureLogUsed() != false)
+  if (getContext().getSecureLogUsed())
     return Error(IDLoc, ".secure_log_unique specified multiple times");
 
   // Get the secure log path.
@@ -695,7 +695,7 @@ bool DarwinAsmParser::parseDirectiveTBSS(StringRef, SMLoc) {
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in directive");
@@ -778,7 +778,7 @@ bool DarwinAsmParser::parseDirectiveZerofill(StringRef, SMLoc) {
     return TokError("expected identifier in directive");
 
   // handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(IDStr);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(IDStr);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in directive");

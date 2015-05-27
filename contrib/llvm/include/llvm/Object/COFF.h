@@ -314,6 +314,10 @@ public:
     return (getType() & 0xF0) >> COFF::SCT_COMPLEX_TYPE_SHIFT;
   }
 
+  bool isAbsolute() const {
+    return getSectionNumber() == -1;
+  }
+
   bool isExternal() const {
     return getStorageClass() == COFF::IMAGE_SYM_CLASS_EXTERNAL;
   }
@@ -348,6 +352,10 @@ public:
 
   bool isFileRecord() const {
     return getStorageClass() == COFF::IMAGE_SYM_CLASS_FILE;
+  }
+
+  bool isSection() const {
+    return getStorageClass() == COFF::IMAGE_SYM_CLASS_SECTION;
   }
 
   bool isSectionDefinition() const {
@@ -439,6 +447,27 @@ struct coff_aux_clr_token {
   uint8_t              AuxType;
   uint8_t              Reserved;
   support::ulittle32_t SymbolTableIndex;
+};
+
+struct coff_import_header {
+  support::ulittle16_t Sig1;
+  support::ulittle16_t Sig2;
+  support::ulittle16_t Version;
+  support::ulittle16_t Machine;
+  support::ulittle32_t TimeDateStamp;
+  support::ulittle32_t SizeOfData;
+  support::ulittle16_t OrdinalHint;
+  support::ulittle16_t TypeInfo;
+  int getType() const { return TypeInfo & 0x3; }
+  int getNameType() const { return (TypeInfo & 0x7) >> 2; }
+};
+
+struct coff_import_directory_table_entry {
+  support::ulittle32_t ImportLookupTableRVA;
+  support::ulittle32_t TimeDateStamp;
+  support::ulittle32_t ForwarderChain;
+  support::ulittle32_t NameRVA;
+  support::ulittle32_t ImportAddressTableRVA;
 };
 
 struct coff_load_configuration32 {
@@ -612,6 +641,7 @@ protected:
   std::error_code getRelocationOffset(DataRefImpl Rel,
                                       uint64_t &Res) const override;
   symbol_iterator getRelocationSymbol(DataRefImpl Rel) const override;
+  section_iterator getRelocationSection(DataRefImpl Rel) const override;
   std::error_code getRelocationType(DataRefImpl Rel,
                                     uint64_t &Res) const override;
   std::error_code

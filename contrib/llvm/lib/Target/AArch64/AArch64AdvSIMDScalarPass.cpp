@@ -64,7 +64,7 @@ STATISTIC(NumCopiesInserted, "Number of cross-class copies inserted");
 namespace {
 class AArch64AdvSIMDScalar : public MachineFunctionPass {
   MachineRegisterInfo *MRI;
-  const AArch64InstrInfo *TII;
+  const TargetInstrInfo *TII;
 
 private:
   // isProfitableToTransform - Predicate function to determine whether an
@@ -158,7 +158,7 @@ static unsigned getSrcFromCopy(const MachineInstr *MI,
 // getTransformOpcode - For any opcode for which there is an AdvSIMD equivalent
 // that we're considering transforming to, return that AdvSIMD opcode. For all
 // others, return the original opcode.
-static int getTransformOpcode(unsigned Opc) {
+static unsigned getTransformOpcode(unsigned Opc) {
   switch (Opc) {
   default:
     break;
@@ -179,7 +179,7 @@ static int getTransformOpcode(unsigned Opc) {
 }
 
 static bool isTransformable(const MachineInstr *MI) {
-  int Opc = MI->getOpcode();
+  unsigned Opc = MI->getOpcode();
   return Opc != getTransformOpcode(Opc);
 }
 
@@ -268,7 +268,7 @@ AArch64AdvSIMDScalar::isProfitableToTransform(const MachineInstr *MI) const {
   return TransformAll;
 }
 
-static MachineInstr *insertCopy(const AArch64InstrInfo *TII, MachineInstr *MI,
+static MachineInstr *insertCopy(const TargetInstrInfo *TII, MachineInstr *MI,
                                 unsigned Dst, unsigned Src, bool IsKill) {
   MachineInstrBuilder MIB =
       BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), TII->get(AArch64::COPY),
@@ -286,8 +286,8 @@ void AArch64AdvSIMDScalar::transformInstruction(MachineInstr *MI) {
   DEBUG(dbgs() << "Scalar transform: " << *MI);
 
   MachineBasicBlock *MBB = MI->getParent();
-  int OldOpc = MI->getOpcode();
-  int NewOpc = getTransformOpcode(OldOpc);
+  unsigned OldOpc = MI->getOpcode();
+  unsigned NewOpc = getTransformOpcode(OldOpc);
   assert(OldOpc != NewOpc && "transform an instruction to itself?!");
 
   // Check if we need a copy for the source registers.
@@ -376,10 +376,8 @@ bool AArch64AdvSIMDScalar::runOnMachineFunction(MachineFunction &mf) {
   bool Changed = false;
   DEBUG(dbgs() << "***** AArch64AdvSIMDScalar *****\n");
 
-  const TargetMachine &TM = mf.getTarget();
   MRI = &mf.getRegInfo();
-  TII = static_cast<const AArch64InstrInfo *>(
-      TM.getSubtargetImpl()->getInstrInfo());
+  TII = mf.getSubtarget().getInstrInfo();
 
   // Just check things on a one-block-at-a-time basis.
   for (MachineFunction::iterator I = mf.begin(), E = mf.end(); I != E; ++I)

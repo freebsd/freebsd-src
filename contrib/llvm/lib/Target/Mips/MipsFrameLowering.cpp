@@ -100,7 +100,7 @@ bool MipsFrameLowering::hasFP(const MachineFunction &MF) const {
 
 uint64_t MipsFrameLowering::estimateStackSize(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
 
   int64_t Offset = 0;
 
@@ -130,4 +130,21 @@ uint64_t MipsFrameLowering::estimateStackSize(const MachineFunction &MF) const {
                                 std::max(MaxAlign, getStackAlignment()));
 
   return RoundUpToAlignment(Offset, getStackAlignment());
+}
+
+// Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions
+void MipsFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  unsigned SP = STI.getABI().IsN64() ? Mips::SP_64 : Mips::SP;
+
+  if (!hasReservedCallFrame(MF)) {
+    int64_t Amount = I->getOperand(0).getImm();
+    if (I->getOpcode() == Mips::ADJCALLSTACKDOWN)
+      Amount = -Amount;
+
+    STI.getInstrInfo()->adjustStackPtr(SP, Amount, MBB, I);
+  }
+
+  MBB.erase(I);
 }

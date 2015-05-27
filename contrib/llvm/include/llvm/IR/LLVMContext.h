@@ -58,7 +58,9 @@ public:
     MD_noalias = 8, // "noalias",
     MD_nontemporal = 9, // "nontemporal"
     MD_mem_parallel_loop_access = 10, // "llvm.mem.parallel_loop_access"
-    MD_nonnull = 11 // "nonnull"
+    MD_nonnull = 11, // "nonnull"
+    MD_dereferenceable = 12, // "dereferenceable"
+    MD_dereferenceable_or_null = 13 // "dereferenceable_or_null"
   };
 
   /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
@@ -176,8 +178,8 @@ public:
   }
 
 private:
-  LLVMContext(LLVMContext&) LLVM_DELETED_FUNCTION;
-  void operator=(LLVMContext&) LLVM_DELETED_FUNCTION;
+  LLVMContext(LLVMContext&) = delete;
+  void operator=(LLVMContext&) = delete;
 
   /// addModule - Register a module as being instantiated in this context.  If
   /// the context is deleted, the module will be deleted as well.

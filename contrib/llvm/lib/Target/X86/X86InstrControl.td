@@ -240,13 +240,13 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
   // mcinst.
   def TAILJMPd : Ii32PCRel<0xE9, RawFrm, (outs),
                            (ins i32imm_pcrel:$dst),
-                           "jmp\t$dst  # TAILCALL",
+                           "jmp\t$dst",
                            [], IIC_JMP_REL>;
   def TAILJMPr : I<0xFF, MRM4r, (outs), (ins ptr_rc_tailcall:$dst),
                    "", [], IIC_JMP_REG>;  // FIXME: Remove encoding when JIT is dead.
   let mayLoad = 1 in
   def TAILJMPm : I<0xFF, MRM4m, (outs), (ins i32mem_TC:$dst),
-                   "jmp{l}\t{*}$dst  # TAILCALL", [], IIC_JMP_MEM>;
+                   "jmp{l}\t{*}$dst", [], IIC_JMP_MEM>;
 }
 
 
@@ -278,18 +278,6 @@ let isCall = 1, Uses = [RSP], SchedRW = [WriteJump] in {
                        "lcall{q}\t{*}$dst", [], IIC_CALL_FAR_MEM>;
 }
 
-let isCall = 1, isCodeGenOnly = 1 in
-  // __chkstk(MSVC):     clobber R10, R11 and EFLAGS
-  // ___chkstk_ms(Mingw64): clobber R10, R11 and EFLAGS
-  // ___chkstk(Mingw64): clobber R10, R11, RAX and EFLAGS, and update RSP.
-  let Defs = [RAX, R10, R11, RSP, EFLAGS],
-      Uses = [RSP] in {
-    def W64ALLOCA : Ii32PCRel<0xE8, RawFrm,
-                      (outs), (ins i64i32imm_pcrel:$dst),
-                      "call{q}\t$dst", [], IIC_CALL_RI>,
-                    Requires<[IsWin64]>, Sched<[WriteJump]>;
-  }
-
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
     isCodeGenOnly = 1, Uses = [RSP], usesCustomInserter = 1,
     SchedRW = [WriteJump] in {
@@ -302,13 +290,25 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
   def TCRETURNmi64 : PseudoI<(outs),
                        (ins i64mem_TC:$dst, i32imm:$offset), []>;
 
-  def TAILJMPd64 : Ii32PCRel<0xE9, RawFrm, (outs),
-                                      (ins i64i32imm_pcrel:$dst),
-                   "jmp\t$dst  # TAILCALL", [], IIC_JMP_REL>;
+  def TAILJMPd64 : Ii32PCRel<0xE9, RawFrm, (outs), (ins i64i32imm_pcrel:$dst),
+                   "jmp\t$dst", [], IIC_JMP_REL>;
   def TAILJMPr64 : I<0xFF, MRM4r, (outs), (ins ptr_rc_tailcall:$dst),
-                     "jmp{q}\t{*}$dst  # TAILCALL", [], IIC_JMP_MEM>;
+                     "jmp{q}\t{*}$dst", [], IIC_JMP_MEM>;
 
   let mayLoad = 1 in
   def TAILJMPm64 : I<0xFF, MRM4m, (outs), (ins i64mem_TC:$dst),
-                     "jmp{q}\t{*}$dst  # TAILCALL", [], IIC_JMP_MEM>;
+                     "jmp{q}\t{*}$dst", [], IIC_JMP_MEM>;
+
+  // Win64 wants jumps leaving the function to have a REX_W prefix.
+  let hasREX_WPrefix = 1 in {
+    def TAILJMPd64_REX : Ii32PCRel<0xE9, RawFrm, (outs),
+                                   (ins i64i32imm_pcrel:$dst),
+                                   "rex64 jmp\t$dst", [], IIC_JMP_REL>;
+    def TAILJMPr64_REX : I<0xFF, MRM4r, (outs), (ins ptr_rc_tailcall:$dst),
+                           "rex64 jmp{q}\t{*}$dst", [], IIC_JMP_MEM>;
+
+    let mayLoad = 1 in
+    def TAILJMPm64_REX : I<0xFF, MRM4m, (outs), (ins i64mem_TC:$dst),
+                           "rex64 jmp{q}\t{*}$dst", [], IIC_JMP_MEM>;
+  }
 }

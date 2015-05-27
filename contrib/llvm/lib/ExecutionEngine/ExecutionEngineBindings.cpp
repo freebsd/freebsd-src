@@ -177,11 +177,22 @@ LLVMBool LLVMCreateMCJITCompilerForModule(
   memcpy(&options, PassedOptions, SizeOfPassedOptions);
   
   TargetOptions targetOptions;
-  targetOptions.NoFramePointerElim = options.NoFramePointerElim;
   targetOptions.EnableFastISel = options.EnableFastISel;
+  std::unique_ptr<Module> Mod(unwrap(M));
+
+  if (Mod)
+    // Set function attribute "no-frame-pointer-elim" based on
+    // NoFramePointerElim.
+    for (auto &F : *Mod) {
+      auto Attrs = F.getAttributes();
+      auto Value = options.NoFramePointerElim ? "true" : "false";
+      Attrs = Attrs.addAttribute(F.getContext(), AttributeSet::FunctionIndex,
+                                 "no-frame-pointer-elim", Value);
+      F.setAttributes(Attrs);
+    }
 
   std::string Error;
-  EngineBuilder builder(std::unique_ptr<Module>(unwrap(M)));
+  EngineBuilder builder(std::move(Mod));
   builder.setEngineKind(EngineKind::JIT)
          .setErrorStr(&Error)
          .setOptLevel((CodeGenOpt::Level)options.OptLevel)
@@ -351,7 +362,7 @@ class SimpleBindingMemoryManager : public RTDyldMemoryManager {
 public:
   SimpleBindingMemoryManager(const SimpleBindingMMFunctions& Functions,
                              void *Opaque);
-  virtual ~SimpleBindingMemoryManager();
+  ~SimpleBindingMemoryManager() override;
 
   uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
                                unsigned SectionID,

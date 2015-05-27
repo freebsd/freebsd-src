@@ -30,7 +30,9 @@ public:
                      CodeGenOpt::Level OL, bool is64bit);
   ~SparcTargetMachine() override;
 
-  const SparcSubtarget *getSubtargetImpl() const override { return &Subtarget; }
+  const SparcSubtarget *getSubtargetImpl(const Function &) const override {
+    return &Subtarget;
+  }
 
   // Pass Pipeline Configuration
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
@@ -56,9 +58,18 @@ public:
 class SparcV9TargetMachine : public SparcTargetMachine {
   virtual void anchor();
 public:
-  SparcV9TargetMachine(const Target &T, StringRef TT,
-                       StringRef CPU, StringRef FS,
-                       const TargetOptions &Options,
+  SparcV9TargetMachine(const Target &T, StringRef TT, StringRef CPU,
+                       StringRef FS, const TargetOptions &Options,
+                       Reloc::Model RM, CodeModel::Model CM,
+                       CodeGenOpt::Level OL);
+};
+
+class SparcelTargetMachine : public SparcTargetMachine {
+  virtual void anchor();
+
+public:
+  SparcelTargetMachine(const Target &T, StringRef TT, StringRef CPU,
+                       StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
 };

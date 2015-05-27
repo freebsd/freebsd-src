@@ -24,7 +24,6 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetSchedule.h"
-#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -247,7 +246,7 @@ namespace {
         return true;
       else if (Incr1 == Incr2) {
         // Favors subsumption.
-        if (C1->NeedSubsumption == false && C2->NeedSubsumption == true)
+        if (!C1->NeedSubsumption && C2->NeedSubsumption)
           return true;
         else if (C1->NeedSubsumption == C2->NeedSubsumption) {
           // Favors diamond over triangle, etc.
@@ -271,15 +270,13 @@ INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_END(IfConverter, "if-converter", "If Converter", false, false)
 
 bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
-  TLI = MF.getSubtarget().getTargetLowering();
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
+  const TargetSubtargetInfo &ST = MF.getSubtarget();
+  TLI = ST.getTargetLowering();
+  TII = ST.getInstrInfo();
+  TRI = ST.getRegisterInfo();
   MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   MRI = &MF.getRegInfo();
-
-  const TargetSubtargetInfo &ST =
-    MF.getTarget().getSubtarget<TargetSubtargetInfo>();
   SchedModel.init(ST.getSchedModel(), &ST, TII);
 
   if (!TII) return false;
@@ -290,7 +287,7 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   if (!PreRegAlloc) {
     // Tail merge tend to expose more if-conversion opportunities.
     BranchFolder BF(true, false, *MBFI, *MBPI);
-    BFChange = BF.OptimizeFunction(MF, TII, MF.getSubtarget().getRegisterInfo(),
+    BFChange = BF.OptimizeFunction(MF, TII, ST.getRegisterInfo(),
                                    getAnalysisIfAvailable<MachineModuleInfo>());
   }
 
@@ -728,6 +725,12 @@ bool IfConverter::FeasibilityAnalysis(BBInfo &BBI,
   if (BBI.IsDone || BBI.IsUnpredicable)
     return false;
 
+  // If it is already predicated but we couldn't analyze its terminator, the
+  // latter might fallthrough, but we can't determine where to.
+  // Conservatively avoid if-converting again.
+  if (BBI.Predicate.size() && !BBI.IsBrAnalyzable)
+    return false;
+
   // If it is already predicated, check if the new predicate subsumes
   // its predicate.
   if (BBI.Predicate.size() && !TII->SubsumesPredicate(Pred, BBI.Predicate))
@@ -971,26 +974,37 @@ void IfConverter::RemoveExtraEdges(BBInfo &BBI) {
 /// Behaves like LiveRegUnits::StepForward() but also adds implicit uses to all
 /// values defined in MI which are not live/used by MI.
 static void UpdatePredRedefs(MachineInstr *MI, LivePhysRegs &Redefs) {
-  for (ConstMIBundleOperands Ops(MI); Ops.isValid(); ++Ops) {
-    if (!Ops->isReg() || !Ops->isKill())
-      continue;
-    unsigned Reg = Ops->getReg();
-    if (Reg == 0)
-      continue;
-    Redefs.removeReg(Reg);
-  }
-  for (MIBundleOperands Ops(MI); Ops.isValid(); ++Ops) {
-    if (!Ops->isReg() || !Ops->isDef())
-      continue;
-    unsigned Reg = Ops->getReg();
-    if (Reg == 0 || Redefs.contains(Reg))
-      continue;
-    Redefs.addReg(Reg);
+  SmallVector<std::pair<unsigned, const MachineOperand*>, 4> Clobbers;
+  Redefs.stepForward(*MI, Clobbers);
 
-    MachineOperand &Op = *Ops;
-    MachineInstr *MI = Op.getParent();
-    MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
-    MIB.addReg(Reg, RegState::Implicit | RegState::Undef);
+  // Now add the implicit uses for each of the clobbered values.
+  for (auto Reg : Clobbers) {
+    // FIXME: Const cast here is nasty, but better than making StepForward
+    // take a mutable instruction instead of const.
+    MachineOperand &Op = const_cast<MachineOperand&>(*Reg.second);
+    MachineInstr *OpMI = Op.getParent();
+    MachineInstrBuilder MIB(*OpMI->getParent()->getParent(), OpMI);
+    if (Op.isRegMask()) {
+      // First handle regmasks.  They clobber any entries in the mask which
+      // means that we need a def for those registers.
+      MIB.addReg(Reg.first, RegState::Implicit | RegState::Undef);
+
+      // We also need to add an implicit def of this register for the later
+      // use to read from.
+      // For the register allocator to have allocated a register clobbered
+      // by the call which is used later, it must be the case that
+      // the call doesn't return.
+      MIB.addReg(Reg.first, RegState::Implicit | RegState::Define);
+      continue;
+    }
+    assert(Op.isReg() && "Register operand required");
+    if (Op.isDead()) {
+      // If we found a dead def, but it needs to be live, then remove the dead
+      // flag.
+      if (Redefs.contains(Op.getReg()))
+        Op.setIsDead(false);
+    }
+    MIB.addReg(Reg.first, RegState::Implicit | RegState::Undef);
   }
 }
 
@@ -1370,7 +1384,8 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
 
   for (MachineBasicBlock::const_iterator I = BBI1->BB->begin(), E = DI1; I != E;
        ++I) {
-    Redefs.stepForward(*I);
+    SmallVector<std::pair<unsigned, const MachineOperand*>, 4> IgnoredClobbers;
+    Redefs.stepForward(*I, IgnoredClobbers);
   }
   BBI.BB->splice(BBI.BB->end(), BBI1->BB, BBI1->BB->begin(), DI1);
   BBI2->BB->erase(BBI2->BB->begin(), DI2);
@@ -1504,10 +1519,9 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
 }
 
 static bool MaySpeculate(const MachineInstr *MI,
-                         SmallSet<unsigned, 4> &LaterRedefs,
-                         const TargetInstrInfo *TII) {
+                         SmallSet<unsigned, 4> &LaterRedefs) {
   bool SawStore = true;
-  if (!MI->isSafeToMove(TII, nullptr, SawStore))
+  if (!MI->isSafeToMove(nullptr, SawStore))
     return false;
 
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
@@ -1538,7 +1552,7 @@ void IfConverter::PredicateBlock(BBInfo &BBI,
     // It may be possible not to predicate an instruction if it's the 'true'
     // side of a diamond and the 'false' side may re-define the instruction's
     // defs.
-    if (MaySpec && MaySpeculate(I, *LaterRedefs, TII)) {
+    if (MaySpec && MaySpeculate(I, *LaterRedefs)) {
       AnyUnpred = true;
       continue;
     }
@@ -1557,7 +1571,7 @@ void IfConverter::PredicateBlock(BBInfo &BBI,
     UpdatePredRedefs(I, Redefs);
   }
 
-  std::copy(Cond.begin(), Cond.end(), std::back_inserter(BBI.Predicate));
+  BBI.Predicate.append(Cond.begin(), Cond.end());
 
   BBI.IsAnalyzed = false;
   BBI.NonPredSize = 0;
@@ -1622,9 +1636,8 @@ void IfConverter::CopyAndPredicateBlock(BBInfo &ToBBI, BBInfo &FromBBI,
     }
   }
 
-  std::copy(FromBBI.Predicate.begin(), FromBBI.Predicate.end(),
-            std::back_inserter(ToBBI.Predicate));
-  std::copy(Cond.begin(), Cond.end(), std::back_inserter(ToBBI.Predicate));
+  ToBBI.Predicate.append(FromBBI.Predicate.begin(), FromBBI.Predicate.end());
+  ToBBI.Predicate.append(Cond.begin(), Cond.end());
 
   ToBBI.ClobbersPred |= FromBBI.ClobbersPred;
   ToBBI.IsAnalyzed = false;
@@ -1663,8 +1676,7 @@ void IfConverter::MergeBlocks(BBInfo &ToBBI, BBInfo &FromBBI, bool AddEdges) {
   if (NBB && !FromBBI.BB->isSuccessor(NBB))
     FromBBI.BB->addSuccessor(NBB);
 
-  std::copy(FromBBI.Predicate.begin(), FromBBI.Predicate.end(),
-            std::back_inserter(ToBBI.Predicate));
+  ToBBI.Predicate.append(FromBBI.Predicate.begin(), FromBBI.Predicate.end());
   FromBBI.Predicate.clear();
 
   ToBBI.NonPredSize += FromBBI.NonPredSize;

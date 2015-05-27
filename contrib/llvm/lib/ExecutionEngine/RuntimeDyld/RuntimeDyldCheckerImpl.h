@@ -19,6 +19,7 @@ class RuntimeDyldCheckerImpl {
   friend class RuntimeDyldChecker;
   friend class RuntimeDyldImpl;
   friend class RuntimeDyldCheckerExprEval;
+  friend class RuntimeDyldELF;
 
 public:
   RuntimeDyldCheckerImpl(RuntimeDyld &RTDyld, MCDisassembler *Disassembler,
@@ -42,7 +43,7 @@ private:
   RuntimeDyldImpl &getRTDyld() const { return *RTDyld.Dyld; }
 
   bool isSymbolValid(StringRef Symbol) const;
-  uint64_t getSymbolLinkerAddr(StringRef Symbol) const;
+  uint64_t getSymbolLocalAddr(StringRef Symbol) const;
   uint64_t getSymbolRemoteAddr(StringRef Symbol) const;
   uint64_t readMemoryAtAddr(uint64_t Addr, unsigned Size) const;
 

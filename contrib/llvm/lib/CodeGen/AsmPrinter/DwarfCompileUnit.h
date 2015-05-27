@@ -36,9 +36,6 @@ class DwarfCompileUnit : public DwarfUnit {
   /// Skeleton unit associated with this unit.
   DwarfCompileUnit *Skeleton;
 
-  /// A label at the start of the non-dwo section related to this unit.
-  MCSymbol *SectionSym;
-
   /// The start of the unit within its section.
   MCSymbol *LabelBegin;
 
@@ -69,20 +66,20 @@ class DwarfCompileUnit : public DwarfUnit {
   bool includeMinimalInlineScopes() const;
 
 public:
-  DwarfCompileUnit(unsigned UID, DICompileUnit Node, AsmPrinter *A,
+  DwarfCompileUnit(unsigned UID, const DICompileUnit *Node, AsmPrinter *A,
                    DwarfDebug *DW, DwarfFile *DWU);
 
   DwarfCompileUnit *getSkeleton() const {
     return Skeleton;
   }
 
-  void initStmtList(MCSymbol *DwarfLineSectionSym);
+  void initStmtList();
 
   /// Apply the DW_AT_stmt_list from this compile unit to the specified DIE.
   void applyStmtList(DIE &D);
 
   /// getOrCreateGlobalVariableDIE - get or create global variable DIE.
-  DIE *getOrCreateGlobalVariableDIE(DIGlobalVariable GV);
+  DIE *getOrCreateGlobalVariableDIE(const DIGlobalVariable *GV);
 
   /// addLabelAddress - Add a dwarf label attribute data and value using
   /// either DW_FORM_addr or DW_FORM_GNU_addr_index.
@@ -116,7 +113,7 @@ public:
   /// DW_AT_low_pc and DW_AT_high_pc attributes. If there are global
   /// variables in this scope then create and insert DIEs for these
   /// variables.
-  DIE &updateSubprogramScopeDIE(DISubprogram SP);
+  DIE &updateSubprogramScopeDIE(const DISubprogram *SP);
 
   void constructScopeDIE(LexicalScope *Scope,
                          SmallVectorImpl<std::unique_ptr<DIE>> &FinalChildren);
@@ -159,31 +156,18 @@ public:
 
   /// \brief Construct import_module DIE.
   std::unique_ptr<DIE>
-  constructImportedEntityDIE(const DIImportedEntity &Module);
+  constructImportedEntityDIE(const DIImportedEntity *Module);
 
-  void finishSubprogramDefinition(DISubprogram SP);
+  void finishSubprogramDefinition(const DISubprogram *SP);
 
-  void collectDeadVariables(DISubprogram SP);
+  void collectDeadVariables(const DISubprogram *SP);
 
   /// Set the skeleton unit associated with this unit.
   void setSkeleton(DwarfCompileUnit &Skel) { Skeleton = &Skel; }
 
-  MCSymbol *getSectionSym() const {
+  const MCSymbol *getSectionSym() const {
     assert(Section);
-    return SectionSym;
-  }
-
-  /// Pass in the SectionSym even though we could recreate it in every compile
-  /// unit (type units will have actually distinct symbols once they're in
-  /// comdat sections).
-  void initSection(const MCSection *Section, MCSymbol *SectionSym) {
-    DwarfUnit::initSection(Section);
-    this->SectionSym = SectionSym;
-
-    // Don't bother labeling the .dwo unit, as its offset isn't used.
-    if (!Skeleton)
-      LabelBegin =
-          Asm->GetTempSymbol(Section->getLabelBeginName(), getUniqueID());
+    return Section->getBeginSymbol();
   }
 
   unsigned getLength() {
@@ -191,7 +175,7 @@ public:
         getHeaderSize() + UnitDie.getSize();
   }
 
-  void emitHeader(const MCSymbol *ASectionSym) const override;
+  void emitHeader(bool UseOffsets) override;
 
   MCSymbol *getLabelBegin() const {
     assert(Section);
@@ -199,10 +183,11 @@ public:
   }
 
   /// Add a new global name to the compile unit.
-  void addGlobalName(StringRef Name, DIE &Die, DIScope Context) override;
+  void addGlobalName(StringRef Name, DIE &Die, const DIScope *Context) override;
 
   /// Add a new global type to the compile unit.
-  void addGlobalType(DIType Ty, const DIE &Die, DIScope Context) override;
+  void addGlobalType(const DIType *Ty, const DIE &Die,
+                     const DIScope *Context) override;
 
   const StringMap<const DIE *> &getGlobalNames() const { return GlobalNames; }
   const StringMap<const DIE *> &getGlobalTypes() const { return GlobalTypes; }
@@ -213,7 +198,7 @@ public:
                           MachineLocation Location);
   /// Add an address attribute to a die based on the location provided.
   void addAddress(DIE &Die, dwarf::Attribute Attribute,
-                  const MachineLocation &Location, bool Indirect = false);
+                  const MachineLocation &Location);
 
   /// Start with the address based on the location provided, and generate the
   /// DWARF information necessary to find the actual variable (navigating the
@@ -230,7 +215,8 @@ public:
   /// Add a Dwarf expression attribute data and value.
   void addExpr(DIELoc &Die, dwarf::Form Form, const MCExpr *Expr);
 
-  void applySubprogramAttributesToDefinition(DISubprogram SP, DIE &SPDie);
+  void applySubprogramAttributesToDefinition(const DISubprogram *SP,
+                                             DIE &SPDie);
 
   /// getRangeLists - Get the vector of range lists.
   const SmallVectorImpl<RangeSpanList> &getRangeLists() const {

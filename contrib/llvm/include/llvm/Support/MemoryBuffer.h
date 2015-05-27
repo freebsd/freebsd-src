@@ -17,11 +17,9 @@
 #include "llvm-c/Support.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/CBindingWrapping.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorOr.h"
 #include <memory>
-#include <system_error>
 
 namespace llvm {
 class MemoryBufferRef;
@@ -40,8 +38,8 @@ class MemoryBuffer {
   const char *BufferStart; // Start of the buffer.
   const char *BufferEnd;   // End of the buffer.
 
-  MemoryBuffer(const MemoryBuffer &) LLVM_DELETED_FUNCTION;
-  MemoryBuffer &operator=(const MemoryBuffer &) LLVM_DELETED_FUNCTION;
+  MemoryBuffer(const MemoryBuffer &) = delete;
+  MemoryBuffer &operator=(const MemoryBuffer &) = delete;
 protected:
   MemoryBuffer() {}
   void init(const char *BufStart, const char *BufEnd,

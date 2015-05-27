@@ -22,15 +22,44 @@
 #include "PPCGenRegisterInfo.inc"
 
 namespace llvm {
-class PPCSubtarget;
-class TargetInstrInfo;
-class Type;
+
+inline static unsigned getCRFromCRBit(unsigned SrcReg) {
+  unsigned Reg = 0;
+  if (SrcReg == PPC::CR0LT || SrcReg == PPC::CR0GT ||
+      SrcReg == PPC::CR0EQ || SrcReg == PPC::CR0UN)
+    Reg = PPC::CR0;
+  else if (SrcReg == PPC::CR1LT || SrcReg == PPC::CR1GT ||
+           SrcReg == PPC::CR1EQ || SrcReg == PPC::CR1UN)
+    Reg = PPC::CR1;
+  else if (SrcReg == PPC::CR2LT || SrcReg == PPC::CR2GT ||
+           SrcReg == PPC::CR2EQ || SrcReg == PPC::CR2UN)
+    Reg = PPC::CR2;
+  else if (SrcReg == PPC::CR3LT || SrcReg == PPC::CR3GT ||
+           SrcReg == PPC::CR3EQ || SrcReg == PPC::CR3UN)
+    Reg = PPC::CR3;
+  else if (SrcReg == PPC::CR4LT || SrcReg == PPC::CR4GT ||
+           SrcReg == PPC::CR4EQ || SrcReg == PPC::CR4UN)
+    Reg = PPC::CR4;
+  else if (SrcReg == PPC::CR5LT || SrcReg == PPC::CR5GT ||
+           SrcReg == PPC::CR5EQ || SrcReg == PPC::CR5UN)
+    Reg = PPC::CR5;
+  else if (SrcReg == PPC::CR6LT || SrcReg == PPC::CR6GT ||
+           SrcReg == PPC::CR6EQ || SrcReg == PPC::CR6UN)
+    Reg = PPC::CR6;
+  else if (SrcReg == PPC::CR7LT || SrcReg == PPC::CR7GT ||
+           SrcReg == PPC::CR7EQ || SrcReg == PPC::CR7UN)
+    Reg = PPC::CR7;
+
+  assert(Reg != 0 && "Invalid CR bit register");
+  return Reg;
+}
+
 
 class PPCRegisterInfo : public PPCGenRegisterInfo {
   DenseMap<unsigned, unsigned> ImmToIdxMap;
-  const PPCSubtarget &Subtarget;
+  const PPCTargetMachine &TM;
 public:
-  PPCRegisterInfo(const PPCSubtarget &SubTarget);
+  PPCRegisterInfo(const PPCTargetMachine &TM);
   
   /// getPointerRegClass - Return the register class to use to hold pointers.
   /// This is used for addressing modes.
@@ -40,13 +69,14 @@ public:
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
 
-  const TargetRegisterClass*
-  getLargestLegalSuperClass(const TargetRegisterClass *RC) const override;
+  const TargetRegisterClass *
+  getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                            const MachineFunction &MF) const override;
 
   /// Code Generation virtual methods...
-  const MCPhysReg *
-  getCalleeSavedRegs(const MachineFunction* MF =nullptr) const override;
-  const uint32_t *getCallPreservedMask(CallingConv::ID CC) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID CC) const override;
   const uint32_t *getNoPreservedMask() const;
 
   void adjustStackMapLiveOutMask(uint32_t *Mask) const override;
@@ -97,7 +127,7 @@ public:
                                     int64_t Offset) const override;
   void resolveFrameIndex(MachineInstr &MI, unsigned BaseReg,
                          int64_t Offset) const override;
-  bool isFrameOffsetLegal(const MachineInstr *MI,
+  bool isFrameOffsetLegal(const MachineInstr *MI, unsigned BaseReg,
                           int64_t Offset) const override;
 
   // Debug information queries.
