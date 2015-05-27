@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2015
+.Dd May 27, 2015
 .Dt PS 1
 .Os
 .Sh NAME
@@ -350,6 +350,9 @@ the include file
 .In sys/proc.h :
 .Bl -column P2_INHERIT_PROTECTED 0x00000001
 .It Dv "P2_INHERIT_PROTECTED" Ta No "0x00000001" Ta "New children get P_PROTECTED"
+.It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No ptrace(2) attach or coredumps"
+.It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta "Keep P2_NOPTRACE on exec(2)"
+.It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
 .El
 .It Cm label
 The MAC label of the process.
