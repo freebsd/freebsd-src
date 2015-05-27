@@ -37,7 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .\" .Op Fl fimst
-.Op Fl afHhimPsz
+.Op Fl afHhimoPsz
 .Op Fl M Ar core Op Fl N Ar system
 .Op Fl c Ar count
 .Op Fl n Ar devs
@@ -119,6 +119,9 @@ Report on the usage of kernel dynamic memory allocated using
 by type.
 .It Fl n
 Change the maximum number of disks to display from the default of 2.
+.It Fl o
+Display a list of virtual memory objects in the system and the resident
+memory used by each object.
 .It Fl P
 Report per-cpu system/user/idle cpu statistics.
 .It Fl p
