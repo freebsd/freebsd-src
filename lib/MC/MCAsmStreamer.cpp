@@ -36,11 +36,10 @@ using namespace llvm;
 
 namespace {
 
-class MCAsmStreamer : public MCStreamer {
-protected:
+class MCAsmStreamer final : public MCStreamer {
+  std::unique_ptr<formatted_raw_ostream> OSOwner;
   formatted_raw_ostream &OS;
   const MCAsmInfo *MAI;
-private:
   std::unique_ptr<MCInstPrinter> InstPrinter;
   std::unique_ptr<MCCodeEmitter> Emitter;
   std::unique_ptr<MCAsmBackend> AsmBackend;
@@ -57,16 +56,18 @@ private:
   void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) override;
 
 public:
-  MCAsmStreamer(MCContext &Context, formatted_raw_ostream &os,
+  MCAsmStreamer(MCContext &Context, std::unique_ptr<formatted_raw_ostream> os,
                 bool isVerboseAsm, bool useDwarfDirectory,
                 MCInstPrinter *printer, MCCodeEmitter *emitter,
                 MCAsmBackend *asmbackend, bool showInst)
-      : MCStreamer(Context), OS(os), MAI(Context.getAsmInfo()),
-        InstPrinter(printer), Emitter(emitter), AsmBackend(asmbackend),
-        CommentStream(CommentToEmit), IsVerboseAsm(isVerboseAsm),
-        ShowInst(showInst), UseDwarfDirectory(useDwarfDirectory) {
-    if (InstPrinter && IsVerboseAsm)
-      InstPrinter->setCommentStream(CommentStream);
+      : MCStreamer(Context), OSOwner(std::move(os)), OS(*OSOwner),
+        MAI(Context.getAsmInfo()), InstPrinter(printer), Emitter(emitter),
+        AsmBackend(asmbackend), CommentStream(CommentToEmit),
+        IsVerboseAsm(isVerboseAsm), ShowInst(showInst),
+        UseDwarfDirectory(useDwarfDirectory) {
+    assert(InstPrinter);
+    if (IsVerboseAsm)
+        InstPrinter->setCommentStream(CommentStream);
   }
 
   inline void EmitEOL() {
@@ -114,8 +115,7 @@ public:
   /// @name MCStreamer Interface
   /// @{
 
-  void ChangeSection(const MCSection *Section,
-                     const MCExpr *Subsection) override;
+  void ChangeSection(MCSection *Section, const MCExpr *Subsection) override;
 
   void EmitLOHDirective(MCLOHType Kind, const MCLOHArgs &Args) override;
   void EmitLabel(MCSymbol *Symbol) override;
@@ -150,11 +150,11 @@ public:
   void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                              unsigned ByteAlignment) override;
 
-  void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = nullptr,
+  void EmitZerofill(MCSection *Section, MCSymbol *Symbol = nullptr,
                     uint64_t Size = 0, unsigned ByteAlignment = 0) override;
 
-  void EmitTBSSSymbol (const MCSection *Section, MCSymbol *Symbol,
-                       uint64_t Size, unsigned ByteAlignment = 0) override;
+  void EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
+                      unsigned ByteAlignment = 0) override;
 
   void EmitBytes(StringRef Data) override;
 
@@ -267,7 +267,7 @@ void MCAsmStreamer::EmitCommentsAndEOL() {
   }
 
   CommentStream.flush();
-  StringRef Comments = CommentToEmit.str();
+  StringRef Comments = CommentToEmit;
 
   assert(Comments.back() == '\n' &&
          "Comment array not newline terminated");
@@ -297,7 +297,7 @@ void MCAsmStreamer::emitRawComment(const Twine &T, bool TabPrefix) {
   EmitEOL();
 }
 
-void MCAsmStreamer::ChangeSection(const MCSection *Section,
+void MCAsmStreamer::ChangeSection(MCSection *Section,
                                   const MCExpr *Subsection) {
   assert(Section && "Cannot switch to a null section!");
   Section->PrintSwitchToSection(*MAI, OS, Subsection);
@@ -542,7 +542,7 @@ void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   EmitEOL();
 }
 
-void MCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
+void MCAsmStreamer::EmitZerofill(MCSection *Section, MCSymbol *Symbol,
                                  uint64_t Size, unsigned ByteAlignment) {
   if (Symbol)
     AssignSection(Symbol, Section);
@@ -565,7 +565,7 @@ void MCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
 // .tbss sym, size, align
 // This depends that the symbol has already been mangled from the original,
 // e.g. _a.
-void MCAsmStreamer::EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
+void MCAsmStreamer::EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,
                                    uint64_t Size, unsigned ByteAlignment) {
   AssignSection(Symbol, Section);
 
@@ -946,7 +946,7 @@ void MCAsmStreamer::EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) {
 }
 
 void MCAsmStreamer::EmitRegisterName(int64_t Register) {
-  if (InstPrinter && !MAI->useDwarfRegNumForCFI()) {
+  if (!MAI->useDwarfRegNumForCFI()) {
     const MCRegisterInfo *MRI = getContext().getRegisterInfo();
     unsigned LLVMRegister = MRI->getLLVMRegNum(Register, true);
     InstPrinter->printRegName(OS, LLVMRegister);
@@ -1102,7 +1102,7 @@ void MCAsmStreamer::EmitWinEHHandlerData() {
   // We only do this so the section switch that terminates the handler
   // data block is visible.
   WinEH::FrameInfo *CurFrame = getCurrentWinFrameInfo();
-  if (const MCSection *XData = WinEH::UnwindEmitter::getXDataSection(
+  if (MCSection *XData = WinEH::UnwindEmitter::getXDataSection(
           CurFrame->Function, getContext()))
     SwitchSectionNoChange(XData);
 
@@ -1167,7 +1167,7 @@ void MCAsmStreamer::AddEncodingComment(const MCInst &Inst,
   SmallString<256> Code;
   SmallVector<MCFixup, 4> Fixups;
   raw_svector_ostream VecOS(Code);
-  Emitter->EncodeInstruction(Inst, VecOS, Fixups, STI);
+  Emitter->encodeInstruction(Inst, VecOS, Fixups, STI);
   VecOS.flush();
 
   // If we are showing fixups, create symbolic markers in the encoded
@@ -1256,15 +1256,12 @@ void MCAsmStreamer::EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &S
 
   // Show the MCInst if enabled.
   if (ShowInst) {
-    Inst.dump_pretty(GetCommentOS(), MAI, InstPrinter.get(), "\n ");
+    Inst.dump_pretty(GetCommentOS(), InstPrinter.get(), "\n ");
     GetCommentOS() << "\n";
   }
 
-  // If we have an AsmPrinter, use that to print, otherwise print the MCInst.
-  if (InstPrinter)
-    InstPrinter->printInst(&Inst, OS, "");
-  else
-    Inst.print(OS, MAI);
+  InstPrinter->printInst(&Inst, OS, "", STI);
+
   EmitEOL();
 }
 
@@ -1314,10 +1311,10 @@ void MCAsmStreamer::FinishImpl() {
 }
 
 MCStreamer *llvm::createAsmStreamer(MCContext &Context,
-                                    formatted_raw_ostream &OS,
+                                    std::unique_ptr<formatted_raw_ostream> OS,
                                     bool isVerboseAsm, bool useDwarfDirectory,
                                     MCInstPrinter *IP, MCCodeEmitter *CE,
                                     MCAsmBackend *MAB, bool ShowInst) {
-  return new MCAsmStreamer(Context, OS, isVerboseAsm, useDwarfDirectory, IP, CE,
-                           MAB, ShowInst);
+  return new MCAsmStreamer(Context, std::move(OS), isVerboseAsm,
+                           useDwarfDirectory, IP, CE, MAB, ShowInst);
 }

@@ -1,5 +1,7 @@
 @ RUN: llvm-mc %s -triple=armv7-unknown-linux-gnueabi -filetype=obj -o - \
-@ RUN:   | llvm-readobj -s -sd -sr -t | FileCheck %s
+@ RUN:   | llvm-readobj -s -sd -sr -t > %t
+@ RUN: FileCheck %s < %t
+@ RUN: FileCheck --check-prefix=RELOC %s < %t
 
 @ Check whether the section is switched back properly.
 
@@ -52,7 +54,8 @@ func2:
 @ Check the .TEST1 section.  There should be two "bx lr" instructions.
 @-------------------------------------------------------------------------------
 @ CHECK:   Section {
-@ CHECK:     Name: .TEST1
+@ CHECK:     Index: 5
+@ CHECK-NEXT:     Name: .TEST1
 @ CHECK:     SectionData (
 @ CHECK:       0000: 1EFF2FE1 1EFF2FE1                    |../.../.|
 @ CHECK:     )
@@ -69,10 +72,14 @@ func2:
 @ CHECK:       0000: 00000000 B0B0B000 00000000 B0B0B000  |................|
 @ CHECK:     )
 @ CHECK:   }
-@ CHECK:     Relocations [
-@ CHECK:       0x0 R_ARM_PREL31 __gxx_personality_v0 0x0
-@ CHECK:       0x8 R_ARM_PREL31 __gxx_personality_v0 0x0
-@ CHECK:     ]
+
+@ RELOC:   Section {
+@ RELOC:     Name: .rel.ARM.extab.TEST1
+@ RELOC:     Relocations [
+@ RELOC:       0x0 R_ARM_PREL31 __gxx_personality_v0 0x0
+@ RELOC:       0x8 R_ARM_PREL31 __gxx_personality_v0 0x0
+@ RELOC:     ]
+@ RELOC:   }
 
 
 @-------------------------------------------------------------------------------
@@ -80,7 +87,7 @@ func2:
 @-------------------------------------------------------------------------------
 @ CHECK:   Section {
 @ CHECK:     Name: .ARM.exidx.TEST1
-@ CHECK:     Link: 4
+@ CHECK:     Link: 5
 @-------------------------------------------------------------------------------
 @ The first word should be the offset to .TEST1.
 @ The second word should be the offset to .ARM.extab.TEST1
@@ -89,18 +96,21 @@ func2:
 @ CHECK:       0000: 00000000 00000000 04000000 08000000  |................|
 @ CHECK:     )
 @ CHECK:   }
-@ CHECK: ]
 @-------------------------------------------------------------------------------
 @ The first word of each entry should be relocated to .TEST1 section.
 @ The second word of each entry should be relocated to
 @ .ARM.extab.TESET1 section.
 @-------------------------------------------------------------------------------
-@ CHECK:     Relocations [
-@ CHECK:       0x0 R_ARM_PREL31 .TEST1 0x0
-@ CHECK:       0x4 R_ARM_PREL31 .ARM.extab.TEST1 0x0
-@ CHECK:       0x8 R_ARM_PREL31 .TEST1 0x0
-@ CHECK:       0xC R_ARM_PREL31 .ARM.extab.TEST1 0x0
-@ CHECK:     ]
+
+@ RELOC:   Section {
+@ RELOC:     Name: .rel.ARM.exidx.TEST1
+@ RELOC:     Relocations [
+@ RELOC:       0x0 R_ARM_PREL31 .TEST1 0x0
+@ RELOC:       0x4 R_ARM_PREL31 .ARM.extab.TEST1 0x0
+@ RELOC:       0x8 R_ARM_PREL31 .TEST1 0x0
+@ RELOC:       0xC R_ARM_PREL31 .ARM.extab.TEST1 0x0
+@ RELOC:     ]
+@ RELOC:   }
 
 
 @-------------------------------------------------------------------------------
@@ -114,7 +124,7 @@ func2:
 @ CHECK:     Binding: Global (0x1)
 @ CHECK:     Type: Function (0x2)
 @ CHECK:     Other: 0
-@ CHECK:     Section: .TEST1 (0x4)
+@ CHECK:     Section: .TEST1
 @ CHECK:   }
 @ CHECK:   Symbol {
 @ CHECK:     Name: func2
@@ -123,6 +133,6 @@ func2:
 @ CHECK:     Binding: Global (0x1)
 @ CHECK:     Type: Function (0x2)
 @ CHECK:     Other: 0
-@ CHECK:     Section: .TEST1 (0x4)
+@ CHECK:     Section: .TEST1
 @ CHECK:   }
 @ CHECK: ]

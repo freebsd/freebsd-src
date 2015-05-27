@@ -78,11 +78,11 @@ entry:
   %arr = alloca [10 x i32], align 16
   %sum = alloca i32, align 4
   call void @llvm.dbg.declare(metadata [10 x i32]* %arr, metadata !14), !dbg !18
-  %arrayidx = getelementptr inbounds [10 x i32]* %arr, i32 0, i64 0, !dbg !19
+  %arrayidx = getelementptr inbounds [10 x i32], [10 x i32]* %arr, i32 0, i64 0, !dbg !19
   store i32 5, i32* %arrayidx, align 4, !dbg !19
   call void @llvm.dbg.declare(metadata i32* %sum, metadata !20), !dbg !21
   store i32 4, i32* %sum, align 4, !dbg !21
-  %0 = load i32* %sum, align 4, !dbg !22
+  %0 = load i32, i32* %sum, align 4, !dbg !22
   ret i32 %0, !dbg !22
 }
 
@@ -99,7 +99,7 @@ entry:
   call void @llvm.dbg.declare(metadata i32* %i, metadata !24), !dbg !25
   %call = call i32 @_Z3foov(), !dbg !25
   store i32 %call, i32* %i, align 4, !dbg !25
-  %0 = load i32* %i, align 4, !dbg !26
+  %0 = load i32, i32* %i, align 4, !dbg !26
   ret i32 %0, !dbg !26
 }
 
@@ -132,12 +132,12 @@ attributes #3 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "
 !15 = !{i32 786433, null, null, !"", i32 0, i64 320, i64 32, i32 0, i32 0, !9, !16, i32 0, null, null, null} ; [ DW_TAG_array_type ] [line 0, size 320, align 32, offset 0] [from int]
 !16 = !{!17}
 !17 = !{i32 786465, i64 0, i64 10}       ; [ DW_TAG_subrange_type ] [0, 9]
-!18 = !MDLocation(line: 3, scope: !4)
-!19 = !MDLocation(line: 4, scope: !4)
+!18 = !DILocation(line: 3, scope: !4)
+!19 = !DILocation(line: 4, scope: !4)
 !20 = !{i32 786688, !4, !"sum", !6, i32 5, !9, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [sum] [line 5]
-!21 = !MDLocation(line: 5, scope: !4)
-!22 = !MDLocation(line: 6, scope: !4)
-!23 = !MDLocation(line: 13, scope: !10)
+!21 = !DILocation(line: 5, scope: !4)
+!22 = !DILocation(line: 6, scope: !4)
+!23 = !DILocation(line: 13, scope: !10)
 !24 = !{i32 786688, !10, !"i", !6, i32 14, !9, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [i] [line 14]
-!25 = !MDLocation(line: 14, scope: !10)
-!26 = !MDLocation(line: 15, scope: !10)
+!25 = !DILocation(line: 14, scope: !10)
+!26 = !DILocation(line: 15, scope: !10)

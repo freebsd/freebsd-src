@@ -357,6 +357,7 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "llvm machine code playground\n");
   MCTargetOptions MCOptions = InitMCTargetOptionsFromFlags();
   TripleName = Triple::normalize(TripleName);
+  Triple TheTriple(TripleName);
   setDwarfDebugFlags(argc, argv);
 
   setDwarfDebugProducer();
@@ -438,7 +439,8 @@ int main(int argc, char **argv) {
   if (!Out)
     return 1;
 
-  formatted_raw_ostream FOS(Out->os());
+  std::unique_ptr<buffer_ostream> BOS;
+  raw_pwrite_stream *OS = &Out->os();
   std::unique_ptr<MCStreamer> Str;
 
   std::unique_ptr<MCInstrInfo> MCII(TheTarget->createMCInstrInfo());
@@ -447,8 +449,8 @@ int main(int argc, char **argv) {
 
   MCInstPrinter *IP = nullptr;
   if (FileType == OFT_AssemblyFile) {
-    IP =
-      TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *MCII, *MRI, *STI);
+    IP = TheTarget->createMCInstPrinter(Triple(TripleName), OutputAsmVariant,
+                                        *MAI, *MCII, *MRI);
 
     // Set the display preference for hex vs. decimal immediates.
     IP->setPrintImmHex(PrintImmHex);
@@ -457,21 +459,29 @@ int main(int argc, char **argv) {
     MCCodeEmitter *CE = nullptr;
     MCAsmBackend *MAB = nullptr;
     if (ShowEncoding) {
-      CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
+      CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, Ctx);
       MAB = TheTarget->createMCAsmBackend(*MRI, TripleName, MCPU);
     }
-    Str.reset(TheTarget->createAsmStreamer(Ctx, FOS, /*asmverbose*/ true,
-                                           /*useDwarfDirectory*/ true, IP, CE,
-                                           MAB, ShowInst));
+    auto FOut = llvm::make_unique<formatted_raw_ostream>(*OS);
+    Str.reset(TheTarget->createAsmStreamer(
+        Ctx, std::move(FOut), /*asmverbose*/ true,
+        /*useDwarfDirectory*/ true, IP, CE, MAB, ShowInst));
 
   } else if (FileType == OFT_Null) {
-    Str.reset(createNullStreamer(Ctx));
+    Str.reset(TheTarget->createNullStreamer(Ctx));
   } else {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
-    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
+
+    if (!Out->os().supportsSeeking()) {
+      BOS = make_unique<buffer_ostream>(Out->os());
+      OS = BOS.get();
+    }
+
+    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, Ctx);
     MCAsmBackend *MAB = TheTarget->createMCAsmBackend(*MRI, TripleName, MCPU);
-    Str.reset(TheTarget->createMCObjectStreamer(TripleName, Ctx, *MAB, FOS, CE,
-                                                *STI, RelaxAll));
+    Str.reset(TheTarget->createMCObjectStreamer(TheTriple, Ctx, *MAB, *OS, CE,
+                                                *STI, RelaxAll,
+                                                /*DWARFMustBeAtTheEnd*/ false));
     if (NoExecStack)
       Str->InitSections(true);
   }

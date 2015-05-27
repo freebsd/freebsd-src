@@ -11,21 +11,21 @@ target triple = "x86_64-apple-macosx10.8.0"
 ; CHECK-LABEL: @test(
 define i32 @test() #0 {
 entry:
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !9, metadata !{}), !dbg !18
+  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !9, metadata !DIExpression()), !dbg !18
   br label %for.body, !dbg !18
 
 for.body:
   ;CHECK: load <4 x i32>
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds [1024 x i32]* @B, i64 0, i64 %indvars.iv, !dbg !19
-  %0 = load i32* %arrayidx, align 4, !dbg !19
-  %arrayidx2 = getelementptr inbounds [1024 x i32]* @C, i64 0, i64 %indvars.iv, !dbg !19
-  %1 = load i32* %arrayidx2, align 4, !dbg !19
+  %arrayidx = getelementptr inbounds [1024 x i32], [1024 x i32]* @B, i64 0, i64 %indvars.iv, !dbg !19
+  %0 = load i32, i32* %arrayidx, align 4, !dbg !19
+  %arrayidx2 = getelementptr inbounds [1024 x i32], [1024 x i32]* @C, i64 0, i64 %indvars.iv, !dbg !19
+  %1 = load i32, i32* %arrayidx2, align 4, !dbg !19
   %add = add nsw i32 %1, %0, !dbg !19
-  %arrayidx4 = getelementptr inbounds [1024 x i32]* @A, i64 0, i64 %indvars.iv, !dbg !19
+  %arrayidx4 = getelementptr inbounds [1024 x i32], [1024 x i32]* @A, i64 0, i64 %indvars.iv, !dbg !19
   store i32 %add, i32* %arrayidx4, align 4, !dbg !19
   %indvars.iv.next = add i64 %indvars.iv, 1, !dbg !18
-  tail call void @llvm.dbg.value(metadata !{null}, i64 0, metadata !9, metadata !{}), !dbg !18
+  tail call void @llvm.dbg.value(metadata !{null}, i64 0, metadata !9, metadata !DIExpression()), !dbg !18
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32, !dbg !18
   %exitcond = icmp ne i32 %lftr.wideiv, 1024, !dbg !18
   br i1 %exitcond, label %for.body, label %for.end, !dbg !18
@@ -44,27 +44,27 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!26}
 
-!0 = !{!"0x11\004\00clang\001\00\000\00\000", !25, !1, !1, !2, !11, null} ; [ DW_TAG_compile_unit ]
-!1 = !{i32 0}
+!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang", isOptimized: true, emissionKind: 0, file: !25, enums: !1, retainedTypes: !1, subprograms: !2, globals: !11)
+!1 = !{}
 !2 = !{!3}
-!3 = !{!"0x2e\00test\00test\00test\005\000\001\000\006\00256\001\005", !25, !4, !5, null, i32 ()* @test, null, null, !8} ; [ DW_TAG_subprogram ]
-!4 = !{!"0x29", !25} ; [ DW_TAG_file_type ]
-!5 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !6, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!3 = !DISubprogram(name: "test", linkageName: "test", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 5, file: !25, scope: !4, type: !5, function: i32 ()* @test, variables: !8)
+!4 = !DIFile(filename: "test", directory: "/path/to/somewhere")
+!5 = !DISubroutineType(types: !6)
 !6 = !{!7}
-!7 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ]
+!7 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !8 = !{!9}
-!9 = !{!"0x100\00i\006\000", !10, !4, !7} ; [ DW_TAG_auto_variable ]
-!10 = !{!"0xb\006\000\000", !25, !3} ; [ DW_TAG_lexical_block ]
+!9 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "i", line: 6, scope: !10, file: !4, type: !7)
+!10 = distinct !DILexicalBlock(line: 6, column: 0, file: !25, scope: !3)
 !11 = !{!12, !16, !17}
-!12 = !{!"0x34\00A\00A\00\001\000\001", null, !4, !13, [1024 x i32]* @A, null} ; [ DW_TAG_variable ]
-!13 = !{!"0x1\00\000\0032768\0032\000\000", null, null, !7, !14, i32 0, null, null, null} ; [ DW_TAG_array_type ] [line 0, size 32768, align 32, offset 0] [from int]
+!12 = !DIGlobalVariable(name: "A", line: 1, isLocal: false, isDefinition: true, scope: null, file: !4, type: !13, variable: [1024 x i32]* @A)
+!13 = !DICompositeType(tag: DW_TAG_array_type, size: 32768, align: 32, baseType: !7, elements: !14)
 !14 = !{!15}
 !15 = !{i32 786465, i64 0, i64 1024}
-!16 = !{!"0x34\00B\00B\00\002\000\001", null, !4, !13, [1024 x i32]* @B, null} ; [ DW_TAG_variable ]
-!17 = !{!"0x34\00C\00C\00\003\000\001", null, !4, !13, [1024 x i32]* @C, null} ; [ DW_TAG_variable ]
-!18 = !MDLocation(line: 6, scope: !10)
-!19 = !MDLocation(line: 7, scope: !20)
-!20 = !{!"0xb\006\000\001", !25, !10} ; [ DW_TAG_lexical_block ]
-!24 = !MDLocation(line: 9, scope: !3)
-!25 = !{!"test", !"/path/to/somewhere"}
-!26 = !{i32 1, !"Debug Info Version", i32 2}
+!16 = !DIGlobalVariable(name: "B", line: 2, isLocal: false, isDefinition: true, scope: null, file: !4, type: !13, variable: [1024 x i32]* @B)
+!17 = !DIGlobalVariable(name: "C", line: 3, isLocal: false, isDefinition: true, scope: null, file: !4, type: !13, variable: [1024 x i32]* @C)
+!18 = !DILocation(line: 6, scope: !10)
+!19 = !DILocation(line: 7, scope: !20)
+!20 = distinct !DILexicalBlock(line: 6, column: 0, file: !25, scope: !10)
+!24 = !DILocation(line: 9, scope: !3)
+!25 = !DIFile(filename: "test", directory: "/path/to/somewhere")
+!26 = !{i32 1, !"Debug Info Version", i32 3}

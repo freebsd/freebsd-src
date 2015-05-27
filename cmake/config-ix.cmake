@@ -79,6 +79,7 @@ check_symbol_exists(FE_INEXACT "fenv.h" HAVE_DECL_FE_INEXACT)
 
 check_include_file(mach/mach.h HAVE_MACH_MACH_H)
 check_include_file(mach-o/dyld.h HAVE_MACH_O_DYLD_H)
+check_include_file(histedit.h HAVE_HISTEDIT_H)
 
 # size_t must be defined before including cxxabi.h on FreeBSD 10.0.
 check_cxx_source_compiles("
@@ -110,7 +111,9 @@ if( NOT PURE_WINDOWS )
   else()
     set(HAVE_LIBZ 0)
   endif()
-  check_library_exists(edit el_init "" HAVE_LIBEDIT)
+  if (HAVE_HISTEDIT_H)
+    check_library_exists(edit el_init "" HAVE_LIBEDIT)
+  endif()
   if(LLVM_ENABLE_TERMINFO)
     set(HAVE_TERMINFO 0)
     foreach(library tinfo terminfo curses ncurses ncursesw)
@@ -134,20 +137,6 @@ check_symbol_exists(getpagesize unistd.h HAVE_GETPAGESIZE)
 check_symbol_exists(getrusage sys/resource.h HAVE_GETRUSAGE)
 check_symbol_exists(setrlimit sys/resource.h HAVE_SETRLIMIT)
 check_symbol_exists(isatty unistd.h HAVE_ISATTY)
-check_symbol_exists(isinf cmath HAVE_ISINF_IN_CMATH)
-check_symbol_exists(isinf math.h HAVE_ISINF_IN_MATH_H)
-check_symbol_exists(finite ieeefp.h HAVE_FINITE_IN_IEEEFP_H)
-check_symbol_exists(isnan cmath HAVE_ISNAN_IN_CMATH)
-check_symbol_exists(isnan math.h HAVE_ISNAN_IN_MATH_H)
-check_symbol_exists(ceilf math.h HAVE_CEILF)
-check_symbol_exists(floorf math.h HAVE_FLOORF)
-check_symbol_exists(fmodf math.h HAVE_FMODF)
-check_symbol_exists(log math.h HAVE_LOG)
-check_symbol_exists(log2 math.h HAVE_LOG2)
-check_symbol_exists(log10 math.h HAVE_LOG10)
-check_symbol_exists(exp math.h HAVE_EXP)
-check_symbol_exists(exp2 math.h HAVE_EXP2)
-check_symbol_exists(exp10 math.h HAVE_EXP10)
 check_symbol_exists(futimens sys/stat.h HAVE_FUTIMENS)
 check_symbol_exists(futimes sys/time.h HAVE_FUTIMES)
 if( HAVE_SETJMP_H )
@@ -159,7 +148,7 @@ endif()
 if( HAVE_SYS_UIO_H )
   check_symbol_exists(writev sys/uio.h HAVE_WRITEV)
 endif()
-check_symbol_exists(nearbyintf math.h HAVE_NEARBYINTF)
+check_symbol_exists(mallctl malloc_np.h HAVE_MALLCTL)
 check_symbol_exists(mallinfo malloc.h HAVE_MALLINFO)
 check_symbol_exists(malloc_zone_statistics malloc/malloc.h
                     HAVE_MALLOC_ZONE_STATISTICS)
@@ -426,6 +415,24 @@ if( MSVC )
   set(SHLIBEXT ".lib")
   set(stricmp "_stricmp")
   set(strdup "_strdup")
+
+  # See if the DIA SDK is available and usable.
+  set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
+
+  # Due to a bug in MSVC 2013's installation software, it is possible
+  # for MSVC 2013 to write the DIA SDK into the Visual Studio 2012
+  # install directory.  If this happens, the installation is corrupt
+  # and there's nothing we can do.  It happens with enough frequency
+  # though that we should handle it.  We do so by simply checking that
+  # the DIA SDK folder exists.  Should this happen you will need to
+  # uninstall VS 2012 and then re-install VS 2013.
+  if (IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
+    set(HAVE_DIA_SDK 1)
+  else()
+    set(HAVE_DIA_SDK 0)
+  endif()
+else()
+  set(HAVE_DIA_SDK 0)
 endif( MSVC )
 
 if( PURE_WINDOWS )
@@ -517,6 +524,14 @@ else()
       message(STATUS "Go bindings disabled, need at least Go 1.2.")
     endif()
   endif()
+endif()
+
+find_program(GOLD_EXECUTABLE NAMES ${LLVM_DEFAULT_TARGET_TRIPLE}-ld.gold ld.gold ${LLVM_DEFAULT_TARGET_TRIPLE}-ld ld DOC "The gold linker")
+set(LLVM_BINUTILS_INCDIR "" CACHE PATH
+	"PATH to binutils/include containing plugin-api.h for gold plugin.")
+
+if(APPLE)
+  find_program(LD64_EXECUTABLE NAMES ld DOC "The ld64 linker")
 endif()
 
 include(FindOCaml)

@@ -16,8 +16,8 @@ define { i64, i64 } @function(i32 %x, i32 %y, i32 %z) nounwind {
 ; CHECK-NOT: bitcast i96* %retval to %struct._my_struct*
 entry:
   %retval = alloca %struct._my_struct, align 8
-  %k.sroa.0.0.copyload = load i96* bitcast (%struct._my_struct* @initval to i96*), align 1
-  %k.sroa.1.12.copyload = load i32* bitcast ([4 x i8]* getelementptr inbounds (%struct._my_struct* @initval, i64 0, i32 1) to i32*), align 1
+  %k.sroa.0.0.copyload = load i96, i96* bitcast (%struct._my_struct* @initval to i96*), align 1
+  %k.sroa.1.12.copyload = load i32, i32* bitcast ([4 x i8]* getelementptr inbounds (%struct._my_struct, %struct._my_struct* @initval, i64 0, i32 1) to i32*), align 1
   %0 = zext i32 %x to i96
   %bf.value = shl nuw nsw i96 %0, 6
   %bf.clear = and i96 %k.sroa.0.0.copyload, -288230376151711744
@@ -32,14 +32,14 @@ entry:
   %bf.set10 = or i96 %bf.set5, %bf.clear
   %retval.0.cast7 = bitcast %struct._my_struct* %retval to i96*
   store i96 %bf.set10, i96* %retval.0.cast7, align 8
-  %retval.12.idx8 = getelementptr inbounds %struct._my_struct* %retval, i64 0, i32 1
+  %retval.12.idx8 = getelementptr inbounds %struct._my_struct, %struct._my_struct* %retval, i64 0, i32 1
   %retval.12.cast9 = bitcast [4 x i8]* %retval.12.idx8 to i32*
   store i32 %k.sroa.1.12.copyload, i32* %retval.12.cast9, align 4
   %trunc = trunc i96 %bf.set10 to i64
   %.fca.0.insert = insertvalue { i64, i64 } undef, i64 %trunc, 0
-  %retval.8.idx12 = getelementptr inbounds %struct._my_struct* %retval, i64 0, i32 0, i64 8
+  %retval.8.idx12 = getelementptr inbounds %struct._my_struct, %struct._my_struct* %retval, i64 0, i32 0, i64 8
   %retval.8.cast13 = bitcast i8* %retval.8.idx12 to i64*
-  %retval.8.load14 = load i64* %retval.8.cast13, align 8
+  %retval.8.load14 = load i64, i64* %retval.8.cast13, align 8
   %.fca.1.insert = insertvalue { i64, i64 } %.fca.0.insert, i64 %retval.8.load14, 1
   ret { i64, i64 } %.fca.1.insert
 }

@@ -1,8 +1,8 @@
 ; FIXME: FastISel currently returns false if it hits code that uses VSX
-; registers and with -fast-isel-abort turned on the test case will then fail.
+; registers and with -fast-isel-abort=1 turned on the test case will then fail.
 ; When fastisel better supports VSX fix up this test case.
 ;
-; RUN: llc < %s -O0 -verify-machineinstrs -mattr=-vsx -fast-isel-abort -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s --check-prefix=ELF64
+; RUN: llc < %s -O0 -verify-machineinstrs -mattr=-vsx -fast-isel-abort=1 -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s --check-prefix=ELF64
 
 define i32 @t1(i8 signext %a) nounwind {
   %1 = sext i8 %a to i32
@@ -85,7 +85,7 @@ define i32 @bar0(i32 %i) nounwind {
 ;define void @foo3() uwtable {
 ;  %fptr = alloca i32 (i32)*, align 8
 ;  store i32 (i32)* @bar0, i32 (i32)** %fptr, align 8
-;  %1 = load i32 (i32)** %fptr, align 8
+;  %1 = load i32 (i32)*, i32 (i32)** %fptr, align 8
 ;  %call = call i32 %1(i32 0)
 ;  ret void
 ;}

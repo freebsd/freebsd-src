@@ -40,14 +40,14 @@ RTTI for this class hierarchy:
      double SideLength;
    public:
      Square(double S) : SideLength(S) {}
-     double computeArea() /* override */;
+     double computeArea() override;
    };
 
    class Circle : public Shape {
      double Radius;
    public:
      Circle(double R) : Radius(R) {}
-     double computeArea() /* override */;
+     double computeArea() override;
    };
 
 The most basic working setup for LLVM-style RTTI requires the following
@@ -135,7 +135,7 @@ steps:
        public:
       -  Square(double S) : SideLength(S) {}
       +  Square(double S) : Shape(SK_Square), SideLength(S) {}
-         double computeArea() /* override */;
+         double computeArea() override;
        };
 
        class Circle : public Shape {
@@ -143,7 +143,7 @@ steps:
        public:
       -  Circle(double R) : Radius(R) {}
       +  Circle(double R) : Shape(SK_Circle), Radius(R) {}
-         double computeArea() /* override */;
+         double computeArea() override;
        };
 
 #. Finally, you need to inform LLVM's RTTI templates how to dynamically
@@ -175,7 +175,7 @@ steps:
          double SideLength;
        public:
          Square(double S) : Shape(SK_Square), SideLength(S) {}
-         double computeArea() /* override */;
+         double computeArea() override;
       +
       +  static bool classof(const Shape *S) {
       +    return S->getKind() == SK_Square;
@@ -186,7 +186,7 @@ steps:
          double Radius;
        public:
          Circle(double R) : Shape(SK_Circle), Radius(R) {}
-         double computeArea() /* override */;
+         double computeArea() override;
       +
       +  static bool classof(const Shape *S) {
       +    return S->getKind() == SK_Circle;
@@ -376,6 +376,20 @@ To be more precise, let ``classof`` be inside a class ``C``.  Then the
 contract for ``classof`` is "return ``true`` if the dynamic type of the
 argument is-a ``C``".  As long as your implementation fulfills this
 contract, you can tweak and optimize it as much as you want.
+
+For example, LLVM-style RTTI can work fine in the presence of
+multiple-inheritance by defining an appropriate ``classof``.
+An example of this in practice is
+`Decl <http://clang.llvm.org/doxygen/classclang_1_1Decl.html>`_ vs.
+`DeclContext <http://clang.llvm.org/doxygen/classclang_1_1DeclContext.html>`_
+inside Clang.
+The ``Decl`` hierarchy is done very similarly to the example setup
+demonstrated in this tutorial.
+The key part is how to then incorporate ``DeclContext``: all that is needed
+is in ``bool DeclContext::classof(const Decl *)``, which asks the question
+"Given a ``Decl``, how can I determine if it is-a ``DeclContext``?".
+It answers this with a simple switch over the set of ``Decl`` "kinds", and
+returning true for ones that are known to be ``DeclContext``'s.
 
 .. TODO::
 

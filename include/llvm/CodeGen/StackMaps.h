@@ -14,6 +14,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/Support/Debug.h"
 #include <map>
 #include <vector>
 
@@ -84,15 +85,23 @@ public:
 /// MI-level Statepoint operands
 ///
 /// Statepoint operands take the form:
-///   <num call arguments>, <call target>, [call arguments],
-///   <StackMaps::ConstantOp>, <flags>,
+///   <id>, <num patch bytes >, <num call arguments>, <call target>,
+///   [call arguments], <StackMaps::ConstantOp>, <calling convention>,
+///   <StackMaps::ConstantOp>, <statepoint flags>,
 ///   <StackMaps::ConstantOp>, <num other args>, [other args],
 ///   [gc values]
 class StatepointOpers {
 private:
+  // These values are aboolute offsets into the operands of the statepoint
+  // instruction.
+  enum { IDPos, NBytesPos, NCallArgsPos, CallTargetPos, MetaEnd };
+
+  // These values are relative offests from the start of the statepoint meta
+  // arguments (i.e. the end of the call arguments).
   enum {
-    NCallArgsPos = 0,
-    CallTargetPos = 1
+    CCOffset = 1,
+    FlagsOffset = 3,
+    NumVMSArgsOffset = 5
   };
 
 public:
@@ -100,22 +109,17 @@ public:
     MI(MI) { }
 
   /// Get starting index of non call related arguments
-  /// (statepoint flags, vm state and gc state).
+  /// (calling convention, statepoint flags, vm state and gc state).
   unsigned getVarIdx() const {
-    return MI->getOperand(NCallArgsPos).getImm() + 2;
+    return MI->getOperand(NCallArgsPos).getImm() + MetaEnd;
   }
 
-  /// Returns the index of the operand containing the number of non-gc non-call
-  /// arguments. 
-  unsigned getNumVMSArgsIdx() const {
-    return getVarIdx() + 3;
-  }
+  /// Return the ID for the given statepoint.
+  uint64_t getID() const { return MI->getOperand(IDPos).getImm(); }
 
-  /// Returns the number of non-gc non-call arguments attached to the
-  /// statepoint.  Note that this is the number of arguments, not the number of
-  /// operands required to represent those arguments.
-  unsigned getNumVMSArgs() const {
-    return MI->getOperand(getNumVMSArgsIdx()).getImm();
+  /// Return the number of patchable bytes the given statepoint should emit.
+  uint32_t getNumPatchBytes() const {
+    return MI->getOperand(NBytesPos).getImm();
   }
 
   /// Returns the target of the underlying call.
@@ -245,7 +249,10 @@ private:
   void emitConstantPoolEntries(MCStreamer &OS);
 
   /// \brief Emit the callsite info for each stackmap/patchpoint intrinsic call.
-  void emitCallsiteEntries(MCStreamer &OS, const TargetRegisterInfo *TRI);
+  void emitCallsiteEntries(MCStreamer &OS);
+
+  void print(raw_ostream &OS);
+  void debug() { print(dbgs()); }
 };
 
 }

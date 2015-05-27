@@ -25,9 +25,9 @@ target triple = "x86_64-apple-macosx10.9.0"
 define i32 @main() #0 {
 entry:
   store i8 0, i8* @h, align 1
-  %0 = load i32* @j, align 4
+  %0 = load i32, i32* @j, align 4
   %tobool.i = icmp eq i32 %0, 0
-  %1 = load i32* @d, align 4
+  %1 = load i32, i32* @d, align 4
   %cmp3 = icmp sgt i32 %1, -1
   %.lobit = lshr i32 %1, 31
   %.lobit.not = xor i32 %.lobit, 1
@@ -55,7 +55,7 @@ for.end:                                          ; preds = %fn3.exit
   %conv7 = sext i8 %inc to i32
   %add = add nsw i32 %conv7, %conv
   store i32 %add, i32* @e, align 4
-  %call = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32 %add) #2
+  %call = tail call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32 %add) #2
   ret i32 0
 }
 

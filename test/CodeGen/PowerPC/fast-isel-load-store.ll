@@ -1,8 +1,8 @@
 ; FIXME: FastISel currently returns false if it hits code that uses VSX
-; registers and with -fast-isel-abort turned on the test case will then fail.
+; registers and with -fast-isel-abort=1 turned on the test case will then fail.
 ; When fastisel better supports VSX fix up this test case.
 ;
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel -fast-isel-abort -mattr=-vsx -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s --check-prefix=ELF64
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel -fast-isel-abort=1 -mattr=-vsx -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s --check-prefix=ELF64
 
 ; This test verifies that load/store instructions are properly generated,
 ; and that they pass MI verification.
@@ -26,7 +26,7 @@
 
 define i8 @t1() nounwind uwtable ssp {
 ; ELF64: t1
-  %1 = load i8* @a, align 1
+  %1 = load i8, i8* @a, align 1
 ; ELF64: lbz
   %2 = add nsw i8 %1, 1
 ; ELF64: addi
@@ -35,7 +35,7 @@ define i8 @t1() nounwind uwtable ssp {
 
 define i16 @t2() nounwind uwtable ssp {
 ; ELF64: t2
-  %1 = load i16* @b, align 2
+  %1 = load i16, i16* @b, align 2
 ; ELF64: lhz
   %2 = add nsw i16 %1, 1
 ; ELF64: addi
@@ -44,7 +44,7 @@ define i16 @t2() nounwind uwtable ssp {
 
 define i32 @t3() nounwind uwtable ssp {
 ; ELF64: t3
-  %1 = load i32* @c, align 4
+  %1 = load i32, i32* @c, align 4
 ; ELF64: lwz
   %2 = add nsw i32 %1, 1
 ; ELF64: addi
@@ -53,7 +53,7 @@ define i32 @t3() nounwind uwtable ssp {
 
 define i64 @t4() nounwind uwtable ssp {
 ; ELF64: t4
-  %1 = load i64* @d, align 4
+  %1 = load i64, i64* @d, align 4
 ; ELF64: ld
   %2 = add nsw i64 %1, 1
 ; ELF64: addi
@@ -62,7 +62,7 @@ define i64 @t4() nounwind uwtable ssp {
 
 define float @t5() nounwind uwtable ssp {
 ; ELF64: t5
-  %1 = load float* @e, align 4
+  %1 = load float, float* @e, align 4
 ; ELF64: lfs
   %2 = fadd float %1, 1.0
 ; ELF64: fadds
@@ -71,7 +71,7 @@ define float @t5() nounwind uwtable ssp {
 
 define double @t6() nounwind uwtable ssp {
 ; ELF64: t6
-  %1 = load double* @f, align 8
+  %1 = load double, double* @f, align 8
 ; ELF64: lfd
   %2 = fadd double %1, 1.0
 ; ELF64: fadd
@@ -145,7 +145,7 @@ define void @t12(double %v) nounwind uwtable ssp {
 ;; lwa requires an offset divisible by 4, so we need lwax here.
 define i64 @t13() nounwind uwtable ssp {
 ; ELF64: t13
-  %1 = load i32* getelementptr inbounds (%struct.s* @g, i32 0, i32 1), align 1
+  %1 = load i32, i32* getelementptr inbounds (%struct.s, %struct.s* @g, i32 0, i32 1), align 1
   %2 = sext i32 %1 to i64
 ; ELF64: li
 ; ELF64: lwax
@@ -157,7 +157,7 @@ define i64 @t13() nounwind uwtable ssp {
 ;; ld requires an offset divisible by 4, so we need ldx here.
 define i64 @t14() nounwind uwtable ssp {
 ; ELF64: t14
-  %1 = load i64* getelementptr inbounds (%struct.t* @h, i32 0, i32 1), align 1
+  %1 = load i64, i64* getelementptr inbounds (%struct.t, %struct.t* @h, i32 0, i32 1), align 1
 ; ELF64: li
 ; ELF64: ldx
   %2 = add nsw i64 %1, 1
@@ -169,7 +169,7 @@ define i64 @t14() nounwind uwtable ssp {
 define void @t15(i64 %v) nounwind uwtable ssp {
 ; ELF64: t15
   %1 = add nsw i64 %v, 1
-  store i64 %1, i64* getelementptr inbounds (%struct.t* @h, i32 0, i32 1), align 1
+  store i64 %1, i64* getelementptr inbounds (%struct.t, %struct.t* @h, i32 0, i32 1), align 1
 ; ELF64: addis
 ; ELF64: addi
 ; ELF64: addi
@@ -181,7 +181,7 @@ define void @t15(i64 %v) nounwind uwtable ssp {
 ;; ld requires an offset that fits in 16 bits, so we need ldx here.
 define i64 @t16() nounwind uwtable ssp {
 ; ELF64: t16
-  %1 = load i64* getelementptr inbounds ([8192 x i64]* @i, i32 0, i64 5000), align 8
+  %1 = load i64, i64* getelementptr inbounds ([8192 x i64], [8192 x i64]* @i, i32 0, i64 5000), align 8
 ; ELF64: lis
 ; ELF64: ori
 ; ELF64: ldx
@@ -194,7 +194,7 @@ define i64 @t16() nounwind uwtable ssp {
 define void @t17(i64 %v) nounwind uwtable ssp {
 ; ELF64: t17
   %1 = add nsw i64 %v, 1
-  store i64 %1, i64* getelementptr inbounds ([8192 x i64]* @i, i32 0, i64 5000), align 8
+  store i64 %1, i64* getelementptr inbounds ([8192 x i64], [8192 x i64]* @i, i32 0, i64 5000), align 8
 ; ELF64: addis
 ; ELF64: ld
 ; ELF64: addi

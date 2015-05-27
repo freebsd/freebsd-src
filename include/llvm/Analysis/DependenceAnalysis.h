@@ -217,13 +217,9 @@ namespace llvm {
   /// input dependences are unordered.
   class FullDependence : public Dependence {
   public:
-    FullDependence(Instruction *Src,
-                   Instruction *Dst,
-                   bool LoopIndependent,
+    FullDependence(Instruction *Src, Instruction *Dst, bool LoopIndependent,
                    unsigned Levels);
-    ~FullDependence() {
-      delete[] DV;
-    }
+    ~FullDependence() override { delete[] DV; }
 
     /// isLoopIndependent - Returns true if this is a loop-independent
     /// dependence.
@@ -266,6 +262,7 @@ namespace llvm {
     /// if no subscript in the source or destination mention the induction
     /// variable associated with the loop at this level.
     bool isScalar(unsigned Level) const override;
+
   private:
     unsigned short Levels;
     bool LoopIndependent;
@@ -278,8 +275,8 @@ namespace llvm {
   /// DependenceAnalysis - This class is the main dependence-analysis driver.
   ///
   class DependenceAnalysis : public FunctionPass {
-    void operator=(const DependenceAnalysis &) LLVM_DELETED_FUNCTION;
-    DependenceAnalysis(const DependenceAnalysis &) LLVM_DELETED_FUNCTION;
+    void operator=(const DependenceAnalysis &) = delete;
+    DependenceAnalysis(const DependenceAnalysis &) = delete;
   public:
     /// depends - Tests for a dependence between the Src and Dst instructions.
     /// Returns NULL if no dependence; otherwise, returns a Dependence (or a

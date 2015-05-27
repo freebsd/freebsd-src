@@ -16,6 +16,7 @@
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELF.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Object/ELF.h"
@@ -85,7 +86,7 @@ void AArch64MCExpr::visitUsedExpr(MCStreamer &Streamer) const {
   Streamer.visitUsedExpr(*getSubExpr());
 }
 
-const MCSection *AArch64MCExpr::FindAssociatedSection() const {
+MCSection *AArch64MCExpr::FindAssociatedSection() const {
   llvm_unreachable("FIXME: what goes here?");
 }
 

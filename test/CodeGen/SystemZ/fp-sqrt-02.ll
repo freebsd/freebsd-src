@@ -1,6 +1,8 @@
 ; Test 64-bit square root.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 \
+; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-SCALAR %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z13 | FileCheck %s
 
 declare double @llvm.sqrt.f64(double %f)
 declare double @sqrt(double)
@@ -19,7 +21,7 @@ define double @f2(double *%ptr) {
 ; CHECK-LABEL: f2:
 ; CHECK: sqdb %f0, 0(%r2)
 ; CHECK: br %r14
-  %val = load double *%ptr
+  %val = load double , double *%ptr
   %res = call double @llvm.sqrt.f64(double %val)
   ret double %res
 }
@@ -29,8 +31,8 @@ define double @f3(double *%base) {
 ; CHECK-LABEL: f3:
 ; CHECK: sqdb %f0, 4088(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 511
-  %val = load double *%ptr
+  %ptr = getelementptr double, double *%base, i64 511
+  %val = load double , double *%ptr
   %res = call double @llvm.sqrt.f64(double %val)
   ret double %res
 }
@@ -42,8 +44,8 @@ define double @f4(double *%base) {
 ; CHECK: aghi %r2, 4096
 ; CHECK: sqdb %f0, 0(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 512
-  %val = load double *%ptr
+  %ptr = getelementptr double, double *%base, i64 512
+  %val = load double , double *%ptr
   %res = call double @llvm.sqrt.f64(double %val)
   ret double %res
 }
@@ -54,8 +56,8 @@ define double @f5(double *%base) {
 ; CHECK: aghi %r2, -8
 ; CHECK: sqdb %f0, 0(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 -1
-  %val = load double *%ptr
+  %ptr = getelementptr double, double *%base, i64 -1
+  %val = load double , double *%ptr
   %res = call double @llvm.sqrt.f64(double %val)
   ret double %res
 }
@@ -66,9 +68,9 @@ define double @f6(double *%base, i64 %index) {
 ; CHECK: sllg %r1, %r3, 3
 ; CHECK: sqdb %f0, 800(%r1,%r2)
 ; CHECK: br %r14
-  %ptr1 = getelementptr double *%base, i64 %index
-  %ptr2 = getelementptr double *%ptr1, i64 100
-  %val = load double *%ptr2
+  %ptr1 = getelementptr double, double *%base, i64 %index
+  %ptr2 = getelementptr double, double *%ptr1, i64 100
+  %val = load double , double *%ptr2
   %res = call double @llvm.sqrt.f64(double %val)
   ret double %res
 }
@@ -77,25 +79,25 @@ define double @f6(double *%base, i64 %index) {
 ; to use SQDB if possible.
 define void @f7(double *%ptr) {
 ; CHECK-LABEL: f7:
-; CHECK: sqdb {{%f[0-9]+}}, 160(%r15)
+; CHECK-SCALAR: sqdb {{%f[0-9]+}}, 160(%r15)
 ; CHECK: br %r14
-  %val0 = load volatile double *%ptr
-  %val1 = load volatile double *%ptr
-  %val2 = load volatile double *%ptr
-  %val3 = load volatile double *%ptr
-  %val4 = load volatile double *%ptr
-  %val5 = load volatile double *%ptr
-  %val6 = load volatile double *%ptr
-  %val7 = load volatile double *%ptr
-  %val8 = load volatile double *%ptr
-  %val9 = load volatile double *%ptr
-  %val10 = load volatile double *%ptr
-  %val11 = load volatile double *%ptr
-  %val12 = load volatile double *%ptr
-  %val13 = load volatile double *%ptr
-  %val14 = load volatile double *%ptr
-  %val15 = load volatile double *%ptr
-  %val16 = load volatile double *%ptr
+  %val0 = load volatile double , double *%ptr
+  %val1 = load volatile double , double *%ptr
+  %val2 = load volatile double , double *%ptr
+  %val3 = load volatile double , double *%ptr
+  %val4 = load volatile double , double *%ptr
+  %val5 = load volatile double , double *%ptr
+  %val6 = load volatile double , double *%ptr
+  %val7 = load volatile double , double *%ptr
+  %val8 = load volatile double , double *%ptr
+  %val9 = load volatile double , double *%ptr
+  %val10 = load volatile double , double *%ptr
+  %val11 = load volatile double , double *%ptr
+  %val12 = load volatile double , double *%ptr
+  %val13 = load volatile double , double *%ptr
+  %val14 = load volatile double , double *%ptr
+  %val15 = load volatile double , double *%ptr
+  %val16 = load volatile double , double *%ptr
 
   %sqrt0 = call double @llvm.sqrt.f64(double %val0)
   %sqrt1 = call double @llvm.sqrt.f64(double %val1)

@@ -22,38 +22,38 @@ include "SparcInstrFormats.td"
 //===----------------------------------------------------------------------===//
 
 // True when generating 32-bit code.
-def Is32Bit : Predicate<"!Subtarget.is64Bit()">;
+def Is32Bit : Predicate<"!Subtarget->is64Bit()">;
 
 // True when generating 64-bit code. This also implies HasV9.
-def Is64Bit : Predicate<"Subtarget.is64Bit()">;
+def Is64Bit : Predicate<"Subtarget->is64Bit()">;
 
 // HasV9 - This predicate is true when the target processor supports V9
 // instructions.  Note that the machine may be running in 32-bit mode.
-def HasV9   : Predicate<"Subtarget.isV9()">,
+def HasV9   : Predicate<"Subtarget->isV9()">,
               AssemblerPredicate<"FeatureV9">;
 
 // HasNoV9 - This predicate is true when the target doesn't have V9
 // instructions.  Use of this is just a hack for the isel not having proper
 // costs for V8 instructions that are more expensive than their V9 ones.
-def HasNoV9 : Predicate<"!Subtarget.isV9()">;
+def HasNoV9 : Predicate<"!Subtarget->isV9()">;
 
 // HasVIS - This is true when the target processor has VIS extensions.
-def HasVIS : Predicate<"Subtarget.isVIS()">,
+def HasVIS : Predicate<"Subtarget->isVIS()">,
              AssemblerPredicate<"FeatureVIS">;
-def HasVIS2 : Predicate<"Subtarget.isVIS2()">,
+def HasVIS2 : Predicate<"Subtarget->isVIS2()">,
              AssemblerPredicate<"FeatureVIS2">;
-def HasVIS3 : Predicate<"Subtarget.isVIS3()">,
+def HasVIS3 : Predicate<"Subtarget->isVIS3()">,
              AssemblerPredicate<"FeatureVIS3">;
 
 // HasHardQuad - This is true when the target processor supports quad floating
 // point instructions.
-def HasHardQuad : Predicate<"Subtarget.hasHardQuad()">;
+def HasHardQuad : Predicate<"Subtarget->hasHardQuad()">;
 
 // UseDeprecatedInsts - This predicate is true when the target processor is a
 // V8, or when it is V9 but the V8 deprecated instructions are efficient enough
 // to use when appropriate.  In either of these cases, the instruction selector
 // will pick deprecated instructions.
-def UseDeprecatedInsts : Predicate<"Subtarget.useDeprecatedV8Instructions()">;
+def UseDeprecatedInsts : Predicate<"Subtarget->useDeprecatedV8Instructions()">;
 
 //===----------------------------------------------------------------------===//
 // Instruction Pattern Stuff
@@ -64,13 +64,14 @@ def simm11  : PatLeaf<(imm), [{ return isInt<11>(N->getSExtValue()); }]>;
 def simm13  : PatLeaf<(imm), [{ return isInt<13>(N->getSExtValue()); }]>;
 
 def LO10 : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant((unsigned)N->getZExtValue() & 1023,
+  return CurDAG->getTargetConstant((unsigned)N->getZExtValue() & 1023, SDLoc(N),
                                    MVT::i32);
 }]>;
 
 def HI22 : SDNodeXForm<imm, [{
   // Transformation function: shift the immediate value down into the low bits.
-  return CurDAG->getTargetConstant((unsigned)N->getZExtValue() >> 10, MVT::i32);
+  return CurDAG->getTargetConstant((unsigned)N->getZExtValue() >> 10, SDLoc(N),
+                                   MVT::i32);
 }]>;
 
 def SETHIimm : PatLeaf<(imm), [{
@@ -282,6 +283,17 @@ multiclass Load<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
                  [(set Ty:$dst, (OpNode ADDRri:$addr))]>;
 }
 
+// LoadA multiclass - As above, but also define alternate address space variant
+multiclass LoadA<string OpcStr, bits<6> Op3Val, bits<6> LoadAOp3Val,
+                 SDPatternOperator OpNode, RegisterClass RC, ValueType Ty> :
+             Load<OpcStr, Op3Val, OpNode, RC, Ty> {
+  // TODO: The LD*Arr instructions are currently asm only; hooking up
+  // CodeGen's address spaces to use these is a future task.
+  def Arr  : F3_1_asi<3, LoadAOp3Val, (outs RC:$dst), (ins MEMrr:$addr, i8imm:$asi),
+                !strconcat(OpcStr, "a [$addr] $asi, $dst"),
+                []>;
+}
+
 // Store multiclass - Define both Reg+Reg/Reg+Imm patterns in one shot.
 multiclass Store<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
            RegisterClass RC, ValueType Ty> {
@@ -293,6 +305,16 @@ multiclass Store<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
                  (outs), (ins MEMri:$addr, RC:$rd),
                  !strconcat(OpcStr, " $rd, [$addr]"),
                  [(OpNode Ty:$rd, ADDRri:$addr)]>;
+}
+
+multiclass StoreA<string OpcStr, bits<6> Op3Val, bits<6> StoreAOp3Val,
+                  SDPatternOperator OpNode, RegisterClass RC, ValueType Ty> :
+             Store<OpcStr, Op3Val, OpNode, RC, Ty> {
+  // TODO: The ST*Arr instructions are currently asm only; hooking up
+  // CodeGen's address spaces to use these is a future task.
+  def Arr  : F3_1_asi<3, StoreAOp3Val, (outs), (ins MEMrr:$addr, RC:$rd, i8imm:$asi),
+                  !strconcat(OpcStr, "a $rd, [$addr] $asi"),
+                  []>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -416,11 +438,11 @@ let isReturn = 1, isTerminator = 1, hasDelaySlot = 1,
 
 // Section B.1 - Load Integer Instructions, p. 90
 let DecoderMethod = "DecodeLoadInt" in {
-  defm LDSB : Load<"ldsb", 0b001001, sextloadi8,  IntRegs, i32>;
-  defm LDSH : Load<"ldsh", 0b001010, sextloadi16, IntRegs, i32>;
-  defm LDUB : Load<"ldub", 0b000001, zextloadi8,  IntRegs, i32>;
-  defm LDUH : Load<"lduh", 0b000010, zextloadi16, IntRegs, i32>;
-  defm LD   : Load<"ld",   0b000000, load,        IntRegs, i32>;
+  defm LDSB : LoadA<"ldsb", 0b001001, 0b011001, sextloadi8,  IntRegs, i32>;
+  defm LDSH : LoadA<"ldsh", 0b001010, 0b011010, sextloadi16, IntRegs, i32>;
+  defm LDUB : LoadA<"ldub", 0b000001, 0b010001, zextloadi8,  IntRegs, i32>;
+  defm LDUH : LoadA<"lduh", 0b000010, 0b010010, zextloadi16, IntRegs, i32>;
+  defm LD   : LoadA<"ld",   0b000000, 0b010000, load,        IntRegs, i32>;
 }
 
 // Section B.2 - Load Floating-point Instructions, p. 92
@@ -434,9 +456,9 @@ let DecoderMethod = "DecodeLoadQFP" in
 
 // Section B.4 - Store Integer Instructions, p. 95
 let DecoderMethod = "DecodeStoreInt" in {
-  defm STB   : Store<"stb", 0b000101, truncstorei8,  IntRegs, i32>;
-  defm STH   : Store<"sth", 0b000110, truncstorei16, IntRegs, i32>;
-  defm ST    : Store<"st",  0b000100, store,         IntRegs, i32>;
+  defm STB   : StoreA<"stb", 0b000101, 0b010101, truncstorei8,  IntRegs, i32>;
+  defm STH   : StoreA<"sth", 0b000110, 0b010110, truncstorei16, IntRegs, i32>;
+  defm ST    : StoreA<"st",  0b000100, 0b010100, store,         IntRegs, i32>;
 }
 
 // Section B.5 - Store Floating-point Instructions, p. 97
@@ -704,20 +726,67 @@ let Uses = [O6],
 }
 
 // Section B.28 - Read State Register Instructions
-let Uses = [Y], rs1 = 0, rs2 = 0 in
-  def RDY : F3_1<2, 0b101000,
-                 (outs IntRegs:$dst), (ins),
-                 "rd %y, $dst", []>;
+let rs2 = 0 in
+  def RDASR : F3_1<2, 0b101000,
+                 (outs IntRegs:$rd), (ins ASRRegs:$rs1),
+                 "rd $rs1, $rd", []>;
+
+// PSR, WIM, and TBR don't exist on the SparcV9, only the V8.
+let Predicates = [HasNoV9] in {
+  let rs2 = 0, rs1 = 0, Uses=[PSR] in
+    def RDPSR : F3_1<2, 0b101001,
+		     (outs IntRegs:$rd), (ins),
+		     "rd %psr, $rd", []>;
+
+  let rs2 = 0, rs1 = 0, Uses=[WIM] in
+    def RDWIM : F3_1<2, 0b101010,
+		     (outs IntRegs:$rd), (ins),
+		     "rd %wim, $rd", []>;
+
+  let rs2 = 0, rs1 = 0, Uses=[TBR] in
+    def RDTBR : F3_1<2, 0b101011,
+		     (outs IntRegs:$rd), (ins),
+		     "rd %tbr, $rd", []>;
+}
 
 // Section B.29 - Write State Register Instructions
-let Defs = [Y], rd = 0 in {
-  def WRYrr : F3_1<2, 0b110000,
-                   (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
-                   "wr $rs1, $rs2, %y", []>;
-  def WRYri : F3_2<2, 0b110000,
-                   (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
-                   "wr $rs1, $simm13, %y", []>;
+def WRASRrr : F3_1<2, 0b110000,
+                 (outs ASRRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
+                 "wr $rs1, $rs2, $rd", []>;
+def WRASRri : F3_2<2, 0b110000,
+                 (outs ASRRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
+                 "wr $rs1, $simm13, $rd", []>;
+
+// PSR, WIM, and TBR don't exist on the SparcV9, only the V8.
+let Predicates = [HasNoV9] in {
+  let Defs = [PSR], rd=0 in {
+    def WRPSRrr : F3_1<2, 0b110001,
+		     (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
+		     "wr $rs1, $rs2, %psr", []>;
+    def WRPSRri : F3_2<2, 0b110001,
+		     (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
+		     "wr $rs1, $simm13, %psr", []>;
+  }
+
+  let Defs = [WIM], rd=0 in {
+    def WRWIMrr : F3_1<2, 0b110010,
+		     (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
+		     "wr $rs1, $rs2, %wim", []>;
+    def WRWIMri : F3_2<2, 0b110010,
+		     (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
+		     "wr $rs1, $simm13, %wim", []>;
+  }
+
+  let Defs = [TBR], rd=0 in {
+    def WRTBRrr : F3_1<2, 0b110011,
+		     (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
+		     "wr $rs1, $rs2, %tbr", []>;
+    def WRTBRri : F3_2<2, 0b110011,
+		     (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
+		     "wr $rs1, $simm13, %tbr", []>;
+  }
 }
+
 // Convert Integer to Floating-point Instructions, p. 141
 def FITOS : F3_3u<2, 0b110100, 0b011000100,
                  (outs FPRegs:$rd), (ins FPRegs:$rs2),
@@ -1116,10 +1185,20 @@ let Constraints = "$val = $dst", DecoderMethod = "DecodeSWAP" in {
                  (outs IntRegs:$dst), (ins MEMri:$addr, IntRegs:$val),
                  "swap [$addr], $dst",
                  [(set i32:$dst, (atomic_swap_32 ADDRri:$addr, i32:$val))]>;
+  def SWAPArr : F3_1_asi<3, 0b011111,
+                 (outs IntRegs:$dst), (ins MEMrr:$addr, i8imm:$asi, IntRegs:$val),
+                 "swapa [$addr] $asi, $dst",
+                 [/*FIXME: pattern?*/]>;
 }
 
-let Predicates = [HasV9], Constraints = "$swap = $rd" in
-  def CASrr: F3_1_asi<3, 0b111100, 0b10000000,
+// TODO: Should add a CASArr variant. In fact, the CAS instruction,
+// unlike other instructions, only comes in a form which requires an
+// ASI be provided. The ASI value hardcoded here is ASI_PRIMARY, the
+// default unprivileged ASI for SparcV9.  (Also of note: some modern
+// SparcV8 implementations provide CASA as an extension, but require
+// the use of SparcV8's default ASI, 0xA ("User Data") instead.)
+let Predicates = [HasV9], Constraints = "$swap = $rd", asi = 0b10000000 in
+  def CASrr: F3_1_asi<3, 0b111100,
                 (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2,
                                      IntRegs:$swap),
                  "cas [$rs1], $rs2, $rd",

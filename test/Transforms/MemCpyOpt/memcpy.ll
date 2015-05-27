@@ -93,7 +93,7 @@ entry:
   %y = alloca %struct.S, align 16
   %tmp = bitcast %struct.S* %y to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* %tmp, i8* bitcast (%struct.S* @sS to i8*), i64 32, i32 16, i1 false)
-  %a = getelementptr %struct.S* %y, i64 0, i32 1, i64 0
+  %a = getelementptr %struct.S, %struct.S* %y, i64 0, i32 1, i64 0
   store i8 4, i8* %a
   call void @test5a(%struct.S* align 16 byval %y)
   ret i32 0
@@ -139,10 +139,10 @@ define void @test8() {
 ; CHECK: test8
 ; CHECK-NOT: memcpy
   %A = tail call i8* @malloc(i32 10)
-  %B = getelementptr inbounds i8* %A, i64 2
-  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %B, i8* getelementptr inbounds ([7 x i8]* @test8.str, i64 0, i64 0), i32 7, i32 1, i1 false)
+  %B = getelementptr inbounds i8, i8* %A, i64 2
+  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %B, i8* getelementptr inbounds ([7 x i8], [7 x i8]* @test8.str, i64 0, i64 0), i32 7, i32 1, i1 false)
   %C = tail call i8* @malloc(i32 10)
-  %D = getelementptr inbounds i8* %C, i64 2
+  %D = getelementptr inbounds i8, i8* %C, i64 2
   tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %D, i8* %B, i32 7, i32 1, i1 false)
   ret void
 ; CHECK: ret void
@@ -196,7 +196,7 @@ define void @test10(%opaque* noalias nocapture sret %x, i32 %y) {
   %a = alloca i32, align 4
   store i32 %y, i32* %a
   call void @foo(i32* noalias nocapture %a)
-  %c = load i32* %a
+  %c = load i32, i32* %a
   %d = bitcast %opaque* %x to i32*
   store i32 %c, i32* %d
   ret void

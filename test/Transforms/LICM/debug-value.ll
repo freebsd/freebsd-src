@@ -15,7 +15,7 @@ if.then:                                          ; preds = %for.body
 
 if.then27:                                        ; preds = %if.then
 ; CHECK: tail call void @llvm.dbg.value
-  tail call void @llvm.dbg.value(metadata double undef, i64 0, metadata !19, metadata !{}), !dbg !21
+  tail call void @llvm.dbg.value(metadata double undef, i64 0, metadata !19, metadata !DIExpression()), !dbg !21
   br label %for.body61.us
 
 if.end.if.end.split_crit_edge.critedge:           ; preds = %if.then
@@ -36,30 +36,30 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.module.flags = !{!26}
 !llvm.dbg.sp = !{!0, !6, !9, !10}
 
-!0 = !{!"0x2e\00idamax\00idamax\00\00112\000\001\000\006\00256\000\000", !25, !1, !3, i32 0, null, null, null, null} ; [ DW_TAG_subprogram ]
-!1 = !{!"0x29", !25} ; [ DW_TAG_file_type ]
-!2 = !{!"0x11\0012\00clang version 2.9 (trunk 127169)\001\00\000\00\000", !25, !8, !8, !8, null, null} ; [ DW_TAG_compile_unit ]
-!3 = !{!"0x15\00\000\000\000\000\000\000", !25, !1, null, !4, i32 0} ; [ DW_TAG_subroutine_type ]
+!0 = !DISubprogram(name: "idamax", line: 112, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !25, scope: !1, type: !3)
+!1 = !DIFile(filename: "/Volumes/Lalgate/work/llvm/projects/llvm-test/SingleSource/Benchmarks/CoyoteBench/lpbench.c", directory: "/private/tmp")
+!2 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 2.9 (trunk 127169)", isOptimized: true, emissionKind: 0, file: !25, enums: !8, retainedTypes: !8, subprograms: !8)
+!3 = !DISubroutineType(types: !4)
 !4 = !{!5}
-!5 = !{!"0x24\00int\000\0032\0032\000\000\005", null, !2} ; [ DW_TAG_base_type ]
-!6 = !{!"0x2e\00dscal\00dscal\00\00206\000\001\000\006\00256\000\000", !25, !1, !7, i32 0, null, null, null, null} ; [ DW_TAG_subprogram ]
-!7 = !{!"0x15\00\000\000\000\000\000\000", !25, !1, null, !8, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!5 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!6 = !DISubprogram(name: "dscal", line: 206, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !25, scope: !1, type: !7)
+!7 = !DISubroutineType(types: !8)
 !8 = !{null}
-!9 = !{!"0x2e\00daxpy\00daxpy\00\00230\000\001\000\006\00256\000\000", !25, !1, !7, i32 0, null, null, null, null} ; [ DW_TAG_subprogram ]
-!10 = !{!"0x2e\00dgefa\00dgefa\00\00267\000\001\000\006\00256\000\000", !25, !1, !7, null, null, null, null, null} ; [ DW_TAG_subprogram ] [line 267] [def] [scope 0] [dgefa]
-!11 = !MDLocation(line: 281, column: 9, scope: !12)
-!12 = !{!"0xb\00272\005\0032", !25, !13} ; [ DW_TAG_lexical_block ]
-!13 = !{!"0xb\00271\005\0031", !25, !14} ; [ DW_TAG_lexical_block ]
-!14 = !{!"0xb\00267\001\0030", !25, !10} ; [ DW_TAG_lexical_block ]
-!15 = !MDLocation(line: 271, column: 5, scope: !14)
-!16 = !MDLocation(line: 284, column: 10, scope: !17)
-!17 = !{!"0xb\00282\009\0033", !25, !12} ; [ DW_TAG_lexical_block ]
+!9 = !DISubprogram(name: "daxpy", line: 230, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !25, scope: !1, type: !7)
+!10 = !DISubprogram(name: "dgefa", line: 267, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !25, scope: !1, type: !7)
+!11 = !DILocation(line: 281, column: 9, scope: !12)
+!12 = distinct !DILexicalBlock(line: 272, column: 5, file: !25, scope: !13)
+!13 = distinct !DILexicalBlock(line: 271, column: 5, file: !25, scope: !14)
+!14 = distinct !DILexicalBlock(line: 267, column: 1, file: !25, scope: !10)
+!15 = !DILocation(line: 271, column: 5, scope: !14)
+!16 = !DILocation(line: 284, column: 10, scope: !17)
+!17 = distinct !DILexicalBlock(line: 282, column: 9, file: !25, scope: !12)
 !18 = !{double undef}
-!19 = !{!"0x100\00temp\00268\000", !14, !1, !20} ; [ DW_TAG_auto_variable ]
-!20 = !{!"0x24\00double\000\0064\0064\000\000\004", null, !2} ; [ DW_TAG_base_type ]
-!21 = !MDLocation(line: 286, column: 14, scope: !22)
-!22 = !{!"0xb\00285\0013\0034", !25, !17} ; [ DW_TAG_lexical_block ]
-!23 = !MDLocation(line: 296, column: 13, scope: !17)
-!24 = !MDLocation(line: 313, column: 1, scope: !14)
-!25 = !{!"/Volumes/Lalgate/work/llvm/projects/llvm-test/SingleSource/Benchmarks/CoyoteBench/lpbench.c", !"/private/tmp"}
-!26 = !{i32 1, !"Debug Info Version", i32 2}
+!19 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "temp", line: 268, scope: !14, file: !1, type: !20)
+!20 = !DIBasicType(tag: DW_TAG_base_type, name: "double", size: 64, align: 64, encoding: DW_ATE_float)
+!21 = !DILocation(line: 286, column: 14, scope: !22)
+!22 = distinct !DILexicalBlock(line: 285, column: 13, file: !25, scope: !17)
+!23 = !DILocation(line: 296, column: 13, scope: !17)
+!24 = !DILocation(line: 313, column: 1, scope: !14)
+!25 = !DIFile(filename: "/Volumes/Lalgate/work/llvm/projects/llvm-test/SingleSource/Benchmarks/CoyoteBench/lpbench.c", directory: "/private/tmp")
+!26 = !{i32 1, !"Debug Info Version", i32 3}

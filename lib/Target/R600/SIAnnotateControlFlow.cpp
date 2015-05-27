@@ -102,7 +102,7 @@ public:
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<LoopInfo>();
+    AU.addRequired<LoopInfoWrapperPass>();
     AU.addRequired<DominatorTreeWrapperPass>();
     AU.addPreserved<DominatorTreeWrapperPass>();
     FunctionPass::getAnalysisUsage(AU);
@@ -312,7 +312,8 @@ void SIAnnotateControlFlow::closeControlFlow(BasicBlock *BB) {
       if (std::find(Latches.begin(), Latches.end(), *PI) == Latches.end())
         Preds.push_back(*PI);
     }
-    BB = llvm::SplitBlockPredecessors(BB, Preds, "endcf.split", this);
+    BB = llvm::SplitBlockPredecessors(BB, Preds, "endcf.split", nullptr, DT,
+                                      LI, false);
   }
 
   CallInst::Create(EndCf, popSaved(), "", BB->getFirstInsertionPt());
@@ -322,7 +323,7 @@ void SIAnnotateControlFlow::closeControlFlow(BasicBlock *BB) {
 /// recognize if/then/else and loops.
 bool SIAnnotateControlFlow::runOnFunction(Function &F) {
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  LI = &getAnalysis<LoopInfo>();
+  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 
   for (df_iterator<BasicBlock *> I = df_begin(&F.getEntryBlock()),
        E = df_end(&F.getEntryBlock()); I != E; ++I) {

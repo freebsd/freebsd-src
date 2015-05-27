@@ -14,31 +14,31 @@ declare i8* @stpcpy(i8*, i8*)
 define i8* @test_simplify1() {
 ; CHECK-LABEL: @test_simplify1(
 
-  %dst = getelementptr [32 x i8]* @a, i32 0, i32 0
-  %src = getelementptr [6 x i8]* @hello, i32 0, i32 0
+  %dst = getelementptr [32 x i8], [32 x i8]* @a, i32 0, i32 0
+  %src = getelementptr [6 x i8], [6 x i8]* @hello, i32 0, i32 0
 
   %ret = call i8* @stpcpy(i8* %dst, i8* %src)
 ; CHECK: @llvm.memcpy.p0i8.p0i8.i32
-; CHECK-NEXT: getelementptr inbounds ([32 x i8]* @a, i32 0, i32 5)
+; CHECK-NEXT: getelementptr inbounds ([32 x i8], [32 x i8]* @a, i32 0, i32 5)
   ret i8* %ret
 }
 
 define i8* @test_simplify2() {
 ; CHECK-LABEL: @test_simplify2(
 
-  %dst = getelementptr [32 x i8]* @a, i32 0, i32 0
+  %dst = getelementptr [32 x i8], [32 x i8]* @a, i32 0, i32 0
 
   %ret = call i8* @stpcpy(i8* %dst, i8* %dst)
 ; CHECK: [[LEN:%[a-z]+]] = call i32 @strlen
-; CHECK-NEXT: getelementptr inbounds [32 x i8]* @a, i32 0, i32 [[LEN]]
+; CHECK-NEXT: getelementptr inbounds [32 x i8], [32 x i8]* @a, i32 0, i32 [[LEN]]
   ret i8* %ret
 }
 
 define i8* @test_no_simplify1() {
 ; CHECK-LABEL: @test_no_simplify1(
 
-  %dst = getelementptr [32 x i8]* @a, i32 0, i32 0
-  %src = getelementptr [32 x i8]* @b, i32 0, i32 0
+  %dst = getelementptr [32 x i8], [32 x i8]* @a, i32 0, i32 0
+  %src = getelementptr [32 x i8], [32 x i8]* @b, i32 0, i32 0
 
   %ret = call i8* @stpcpy(i8* %dst, i8* %src)
 ; CHECK: call i8* @stpcpy

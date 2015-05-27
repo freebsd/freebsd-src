@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -soft-float -mips16-hard-float -relocation-model=static -mips16-constant-islands   < %s | FileCheck %s -check-prefix=constisle
+; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -mattr=+soft-float -mips16-hard-float -relocation-model=static -mips16-constant-islands   < %s | FileCheck %s -check-prefix=constisle
 
 @i = common global i32 0, align 4
 @b = common global i32 0, align 4
@@ -8,7 +8,7 @@
 define void @foo() #0 {
 entry:
   store i32 305419896, i32* @i, align 4
-  %0 = load i32* @b, align 4
+  %0 = load i32, i32* @b, align 4
   %tobool = icmp ne i32 %0, 0
   br i1 %tobool, label %if.then, label %if.else
 

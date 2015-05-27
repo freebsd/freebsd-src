@@ -5,7 +5,7 @@
 
 define i32 @test_initial_exec() {
 ; CHECK-LABEL: test_initial_exec:
-  %val = load i32* @initial_exec_var
+  %val = load i32, i32* @initial_exec_var
 
 ; CHECK: adrp x[[GOTADDR:[0-9]+]], :gottprel:initial_exec_var
 ; CHECK: ldr x[[TP_OFFSET:[0-9]+]], [x[[GOTADDR]], :gottprel_lo12:initial_exec_var]
@@ -36,7 +36,7 @@ define i32* @test_initial_exec_addr() {
 
 define i32 @test_local_exec() {
 ; CHECK-LABEL: test_local_exec:
-  %val = load i32* @local_exec_var
+  %val = load i32, i32* @local_exec_var
 
 ; CHECK: mrs x[[R1:[0-9]+]], TPIDR_EL0
 ; CHECK: add x[[R2:[0-9]+]], x[[R1]], :tprel_hi12:local_exec_var

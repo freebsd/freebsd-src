@@ -16,6 +16,7 @@
 #include "BugDriver.h"
 #include "ToolRunner.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
@@ -86,23 +87,28 @@ std::unique_ptr<Module> llvm::parseInputFile(StringRef Filename,
                                              LLVMContext &Ctxt) {
   SMDiagnostic Err;
   std::unique_ptr<Module> Result = parseIRFile(Filename, Err, Ctxt);
-  if (!Result)
+  if (!Result) {
     Err.print("bugpoint", errs());
+    return Result;
+  }
+
+  if (verifyModule(*Result, &errs())) {
+    errs() << "bugpoint: " << Filename << ": error: input module is broken!\n";
+    return std::unique_ptr<Module>();
+  }
 
   // If we don't have an override triple, use the first one to configure
   // bugpoint, or use the host triple if none provided.
-  if (Result) {
-    if (TargetTriple.getTriple().empty()) {
-      Triple TheTriple(Result->getTargetTriple());
+  if (TargetTriple.getTriple().empty()) {
+    Triple TheTriple(Result->getTargetTriple());
 
-      if (TheTriple.getTriple().empty())
-        TheTriple.setTriple(sys::getDefaultTargetTriple());
+    if (TheTriple.getTriple().empty())
+      TheTriple.setTriple(sys::getDefaultTargetTriple());
 
-      TargetTriple.setTriple(TheTriple.getTriple());
-    }
-
-    Result->setTargetTriple(TargetTriple.getTriple());  // override the triple
+    TargetTriple.setTriple(TheTriple.getTriple());
   }
+
+  Result->setTargetTriple(TargetTriple.getTriple()); // override the triple
   return Result;
 }
 

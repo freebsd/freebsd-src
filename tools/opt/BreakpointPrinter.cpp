@@ -29,18 +29,16 @@ struct BreakpointPrinter : public ModulePass {
 
   BreakpointPrinter(raw_ostream &out) : ModulePass(ID), Out(out) {}
 
-  void getContextName(DIDescriptor Context, std::string &N) {
-    if (Context.isNameSpace()) {
-      DINameSpace NS(Context);
-      if (!NS.getName().empty()) {
-        getContextName(NS.getContext(), N);
-        N = N + NS.getName().str() + "::";
+  void getContextName(const DIScope *Context, std::string &N) {
+    if (auto *NS = dyn_cast<DINamespace>(Context)) {
+      if (!NS->getName().empty()) {
+        getContextName(NS->getScope(), N);
+        N = N + NS->getName().str() + "::";
       }
-    } else if (Context.isType()) {
-      DIType TY(Context);
-      if (!TY.getName().empty()) {
-        getContextName(TY.getContext().resolve(TypeIdentifierMap), N);
-        N = N + TY.getName().str() + "::";
+    } else if (auto *TY = dyn_cast<DIType>(Context)) {
+      if (!TY->getName().empty()) {
+        getContextName(TY->getScope().resolve(TypeIdentifierMap), N);
+        N = N + TY->getName().str() + "::";
       }
     }
   }
@@ -55,13 +53,11 @@ struct BreakpointPrinter : public ModulePass {
     if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
       for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
         std::string Name;
-        DISubprogram SP(NMD->getOperand(i));
-        assert((!SP || SP.isSubprogram()) &&
-               "A MDNode in llvm.dbg.sp should be null or a DISubprogram.");
+        auto *SP = cast_or_null<DISubprogram>(NMD->getOperand(i));
         if (!SP)
           continue;
-        getContextName(SP.getContext().resolve(TypeIdentifierMap), Name);
-        Name = Name + SP.getDisplayName().str();
+        getContextName(SP->getScope().resolve(TypeIdentifierMap), Name);
+        Name = Name + SP->getDisplayName().str();
         if (!Name.empty() && Processed.insert(Name).second) {
           Out << Name << "\n";
         }

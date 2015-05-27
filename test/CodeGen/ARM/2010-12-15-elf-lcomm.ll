@@ -12,13 +12,8 @@
 ; ASM:          .type   array00,%object         @ @array00
 ; ASM-NEXT:     .local  array00
 ; ASM-NEXT:     .comm   array00,80,1
-; ASM-NEXT:     .type   _MergedGlobals,%object  @ @_MergedGlobals
+; ASM-NEXT:     .type   sum,%object  @ @sum
 
-
-; OBJ:      Sections [
-; OBJ:        Section {
-; OBJ:          Index: 4
-; OBJ-NEXT:     Name: .bss
 
 ; OBJ:      Symbols [
 ; OBJ:        Symbol {
@@ -31,9 +26,9 @@
 ; OBJ-NEXT:     Section: .bss
 
 define i32 @main(i32 %argc) nounwind {
-  %1 = load i32* @sum, align 4
-  %2 = getelementptr [80 x i8]* @array00, i32 0, i32 %argc
-  %3 = load i8* %2
+  %1 = load i32, i32* @sum, align 4
+  %2 = getelementptr [80 x i8], [80 x i8]* @array00, i32 0, i32 %argc
+  %3 = load i8, i8* %2
   %4 = zext i8 %3 to i32
   %5 = add i32 %1, %4
   ret i32 %5

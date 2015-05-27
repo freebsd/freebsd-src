@@ -30,9 +30,9 @@ entry:
 }
 
 ; SI-LABEL: {{^}}zext_i1_to_i64:
+; SI: s_mov_b32 s{{[0-9]+}}, 0
 ; SI: v_cmp_eq_i32
 ; SI: v_cndmask_b32
-; SI: s_mov_b32 s{{[0-9]+}}, 0
 define void @zext_i1_to_i64(i64 addrspace(1)* %out, i32 %a, i32 %b) nounwind {
   %cmp = icmp eq i32 %a, %b
   %ext = zext i1 %cmp to i64

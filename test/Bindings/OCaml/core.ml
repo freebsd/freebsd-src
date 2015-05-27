@@ -1428,15 +1428,24 @@ let test_builder () =
     add_incoming (p2, b2) phi;
     insist ([(p1, b1); (p2, b2)] = incoming phi);
 
+    (* CHECK: %PhiEmptyNode = phi i8
+     *)
+    let phi_empty = build_empty_phi i8_type "PhiEmptyNode" at_jb in
+    insist ([] = incoming phi_empty);
+
+    (* can't emit an empty phi to bitcode *)
+    add_incoming (const_int i8_type 1, b1) phi_empty;
+    add_incoming (const_int i8_type 2, b2) phi_empty;
+
     ignore (build_unreachable at_jb);
   end
 
 (* End-of-file checks for things like metdata and attributes.
  * CHECK: attributes #0 = {{.*}}uwtable{{.*}}
  * CHECK: !llvm.module.flags = !{!0}
- * CHECK: !0 = !{i32 1, !"Debug Info Version", i32 2}
+ * CHECK: !0 = !{i32 1, !"Debug Info Version", i32 3}
  * CHECK: !1 = !{i32 1, !"metadata test"}
- * CHECK: !2 = !MDLocation(line: 2, column: 3, scope: !3, inlinedAt: !3)
+ * CHECK: !2 = !DILocation(line: 2, column: 3, scope: !3, inlinedAt: !3)
  *)
 
 (*===-- Pass Managers -----------------------------------------------------===*)

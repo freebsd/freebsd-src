@@ -15,12 +15,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF0000000000000, float* %x, align 4
 	store float 0x7FF8000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -36,12 +36,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF0000000000000, float* %x, align 4
 	store float 0.000000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -55,12 +55,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF0000000000000, float* %x, align 4
 	store float 3.500000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -74,12 +74,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF0000000000000, float* %x, align 4
 	store float 0x7FF0000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -93,12 +93,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF8000000000000, float* %x, align 4
 	store float 0x7FF0000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -112,12 +112,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF8000000000000, float* %x, align 4
 	store float 0.000000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -131,12 +131,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF8000000000000, float* %x, align 4
 	store float 3.500000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -150,12 +150,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0x7FF8000000000000, float* %x, align 4
 	store float 0x7FF8000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -169,12 +169,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0.000000e+00, float* %x, align 4
 	store float 0x7FF8000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -188,12 +188,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0.000000e+00, float* %x, align 4
 	store float 0x7FF0000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -207,12 +207,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0.000000e+00, float* %x, align 4
 	store float 0.000000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -226,12 +226,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 0.000000e+00, float* %x, align 4
 	store float 3.500000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -245,12 +245,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 3.500000e+00, float* %x, align 4
 	store float 0x7FF8000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -264,12 +264,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 3.500000e+00, float* %x, align 4
 	store float 0x7FF0000000000000, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -283,12 +283,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 3.500000e+00, float* %x, align 4
 	store float 0.000000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry
@@ -302,12 +302,12 @@ entry:
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store float 3.500000e+00, float* %x, align 4
 	store float 3.500000e+00, float* %y, align 4
-	%0 = load float* %y, align 4		; <float> [#uses=1]
+	%0 = load float, float* %y, align 4		; <float> [#uses=1]
 	%1 = fpext float %0 to double		; <double> [#uses=1]
-	%2 = load float* %x, align 4		; <float> [#uses=1]
+	%2 = load float, float* %x, align 4		; <float> [#uses=1]
 	%3 = fpext float %2 to double		; <double> [#uses=1]
 	%4 = frem double %3, %1		; <double> [#uses=1]
-	%5 = call i32 (i8*, ...)* @printf(i8* getelementptr ([4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
+	%5 = call i32 (i8*, ...) @printf(i8* getelementptr ([4 x i8], [4 x i8]* @"\01LC", i32 0, i32 0), double %4) nounwind		; <i32> [#uses=0]
 	br label %return
 
 return:		; preds = %entry

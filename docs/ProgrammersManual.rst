@@ -488,6 +488,9 @@ gathered, use the '``-stats``' option:
   $ opt -stats -mypassname < program.bc > /dev/null
   ... statistics output ...
 
+Note that in order to use the '``-stats``' option, LLVM must be
+compiled with assertions enabled.
+
 When running ``opt`` on a C file from the SPEC benchmark suite, it gives a
 report that looks like this:
 
@@ -937,7 +940,7 @@ There are a variety of ways to pass around and use strings in C and C++, and
 LLVM adds a few new options to choose from.  Pick the first option on this list
 that will do what you need, they are ordered according to their relative cost.
 
-Note that is is generally preferred to *not* pass strings around as ``const
+Note that it is generally preferred to *not* pass strings around as ``const
 char*``'s.  These have a number of problems, including the fact that they
 cannot represent embedded nul ("\0") characters, and do not have a length
 available efficiently.  The general replacement for '``const char*``' is
@@ -1102,10 +1105,10 @@ If you have a set-like data structure that is usually small and whose elements
 are reasonably small, a ``SmallSet<Type, N>`` is a good choice.  This set has
 space for N elements in place (thus, if the set is dynamically smaller than N,
 no malloc traffic is required) and accesses them with a simple linear search.
-When the set grows beyond 'N' elements, it allocates a more expensive
+When the set grows beyond N elements, it allocates a more expensive
 representation that guarantees efficient access (for most types, it falls back
-to std::set, but for pointers it uses something far better, :ref:`SmallPtrSet
-<dss_smallptrset>`.
+to :ref:`std::set <dss_set>`, but for pointers it uses something far better,
+:ref:`SmallPtrSet <dss_smallptrset>`.
 
 The magic of this class is that it handles small sets extremely efficiently, but
 gracefully handles extremely large sets without loss of efficiency.  The
@@ -1117,16 +1120,31 @@ and erasing, but does not support iteration.
 llvm/ADT/SmallPtrSet.h
 ^^^^^^^^^^^^^^^^^^^^^^
 
-SmallPtrSet has all the advantages of ``SmallSet`` (and a ``SmallSet`` of
+``SmallPtrSet`` has all the advantages of ``SmallSet`` (and a ``SmallSet`` of
 pointers is transparently implemented with a ``SmallPtrSet``), but also supports
-iterators.  If more than 'N' insertions are performed, a single quadratically
+iterators.  If more than N insertions are performed, a single quadratically
 probed hash table is allocated and grows as needed, providing extremely
 efficient access (constant time insertion/deleting/queries with low constant
 factors) and is very stingy with malloc traffic.
 
-Note that, unlike ``std::set``, the iterators of ``SmallPtrSet`` are invalidated
-whenever an insertion occurs.  Also, the values visited by the iterators are not
-visited in sorted order.
+Note that, unlike :ref:`std::set <dss_set>`, the iterators of ``SmallPtrSet``
+are invalidated whenever an insertion occurs.  Also, the values visited by the
+iterators are not visited in sorted order.
+
+.. _dss_stringset:
+
+llvm/ADT/StringSet.h
+^^^^^^^^^^^^^^^^^^^^
+
+``StringSet`` is a thin wrapper around :ref:`StringMap\<char\> <dss_stringmap>`,
+and it allows efficient storage and retrieval of unique strings.
+
+Functionally analogous to ``SmallSet<StringRef>``, ``StringSet`` also suports
+iteration. (The iterator dereferences to a ``StringMapEntry<char>``, so you
+need to call ``i->getKey()`` to access the item of the StringSet.)  On the
+other hand, ``StringSet`` doesn't support range-insertion and
+copy-construction, which :ref:`SmallSet <dss_smallset>` and :ref:`SmallPtrSet
+<dss_smallptrset>` do support.
 
 .. _dss_denseset:
 
@@ -1294,8 +1312,9 @@ never use hash_set and unordered_set because they are generally very expensive
 (each insertion requires a malloc) and very non-portable.
 
 std::multiset is useful if you're not interested in elimination of duplicates,
-but has all the drawbacks of std::set.  A sorted vector (where you don't delete
-duplicate entries) or some other approach is almost always better.
+but has all the drawbacks of :ref:`std::set <dss_set>`.  A sorted vector
+(where you don't delete duplicate entries) or some other approach is almost
+always better.
 
 .. _ds_map:
 
@@ -1408,7 +1427,7 @@ llvm/ADT/IntervalMap.h
 
 IntervalMap is a compact map for small keys and values.  It maps key intervals
 instead of single keys, and it will automatically coalesce adjacent intervals.
-When then map only contains a few intervals, they are stored in the map object
+When the map only contains a few intervals, they are stored in the map object
 itself to avoid allocations.
 
 The IntervalMap iterators are quite big, so they should not be passed around as
@@ -1684,8 +1703,8 @@ they will automatically convert to a ptr-to-instance type whenever they need to.
 Instead of derferencing the iterator and then taking the address of the result,
 you can simply assign the iterator to the proper pointer type and you get the
 dereference and address-of operation as a result of the assignment (behind the
-scenes, this is a result of overloading casting mechanisms).  Thus the last line
-of the last example,
+scenes, this is a result of overloading casting mechanisms).  Thus the second
+line of the last example,
 
 .. code-block:: c++
 
@@ -1813,7 +1832,7 @@ chain of ``F``:
 
   Function *F = ...;
 
-  for (User *U : GV->users()) {    
+  for (User *U : F->users()) {
     if (Instruction *Inst = dyn_cast<Instruction>(U)) {
       errs() << "F is used in instruction:\n";
       errs() << *Inst << "\n";
@@ -2480,6 +2499,92 @@ ensures that the first bytes of ``User`` (if interpreted as a pointer) never has
 the LSBit set. (Portability is relying on the fact that all known compilers
 place the ``vptr`` in the first word of the instances.)
 
+.. _polymorphism:
+
+Designing Type Hiercharies and Polymorphic Interfaces
+-----------------------------------------------------
+
+There are two different design patterns that tend to result in the use of
+virtual dispatch for methods in a type hierarchy in C++ programs. The first is
+a genuine type hierarchy where different types in the hierarchy model
+a specific subset of the functionality and semantics, and these types nest
+strictly within each other. Good examples of this can be seen in the ``Value``
+or ``Type`` type hierarchies.
+
+A second is the desire to dispatch dynamically across a collection of
+polymorphic interface implementations. This latter use case can be modeled with
+virtual dispatch and inheritance by defining an abstract interface base class
+which all implementations derive from and override. However, this
+implementation strategy forces an **"is-a"** relationship to exist that is not
+actually meaningful. There is often not some nested hierarchy of useful
+generalizations which code might interact with and move up and down. Instead,
+there is a singular interface which is dispatched across a range of
+implementations.
+
+The preferred implementation strategy for the second use case is that of
+generic programming (sometimes called "compile-time duck typing" or "static
+polymorphism"). For example, a template over some type parameter ``T`` can be
+instantiated across any particular implementation that conforms to the
+interface or *concept*. A good example here is the highly generic properties of
+any type which models a node in a directed graph. LLVM models these primarily
+through templates and generic programming. Such templates include the
+``LoopInfoBase`` and ``DominatorTreeBase``. When this type of polymorphism
+truly needs **dynamic** dispatch you can generalize it using a technique
+called *concept-based polymorphism*. This pattern emulates the interfaces and
+behaviors of templates using a very limited form of virtual dispatch for type
+erasure inside its implementation. You can find examples of this technique in
+the ``PassManager.h`` system, and there is a more detailed introduction to it
+by Sean Parent in several of his talks and papers:
+
+#. `Inheritance Is The Base Class of Evil
+   <http://channel9.msdn.com/Events/GoingNative/2013/Inheritance-Is-The-Base-Class-of-Evil>`_
+   - The GoingNative 2013 talk describing this technique, and probably the best
+   place to start.
+#. `Value Semantics and Concepts-based Polymorphism
+   <http://www.youtube.com/watch?v=_BpMYeUFXv8>`_ - The C++Now! 2012 talk
+   describing this technique in more detail.
+#. `Sean Parent's Papers and Presentations
+   <http://github.com/sean-parent/sean-parent.github.com/wiki/Papers-and-Presentations>`_
+   - A Github project full of links to slides, video, and sometimes code.
+
+When deciding between creating a type hierarchy (with either tagged or virtual
+dispatch) and using templates or concepts-based polymorphism, consider whether
+there is some refinement of an abstract base class which is a semantically
+meaningful type on an interface boundary. If anything more refined than the
+root abstract interface is meaningless to talk about as a partial extension of
+the semantic model, then your use case likely fits better with polymorphism and
+you should avoid using virtual dispatch. However, there may be some exigent
+circumstances that require one technique or the other to be used.
+
+If you do need to introduce a type hierarchy, we prefer to use explicitly
+closed type hierarchies with manual tagged dispatch and/or RTTI rather than the
+open inheritance model and virtual dispatch that is more common in C++ code.
+This is because LLVM rarely encourages library consumers to extend its core
+types, and leverages the closed and tag-dispatched nature of its hierarchies to
+generate significantly more efficient code. We have also found that a large
+amount of our usage of type hierarchies fits better with tag-based pattern
+matching rather than dynamic dispatch across a common interface. Within LLVM we
+have built custom helpers to facilitate this design. See this document's
+section on :ref:`isa and dyn_cast <isa>` and our :doc:`detailed document
+<HowToSetUpLLVMStyleRTTI>` which describes how you can implement this
+pattern for use with the LLVM helpers.
+
+.. _abi_breaking_checks:
+
+ABI Breaking Checks
+-------------------
+
+Checks and asserts that alter the LLVM C++ ABI are predicated on the
+preprocessor symbol `LLVM_ENABLE_ABI_BREAKING_CHECKS` -- LLVM
+libraries built with `LLVM_ENABLE_ABI_BREAKING_CHECKS` are not ABI
+compatible LLVM libraries built without it defined.  By default,
+turning on assertions also turns on `LLVM_ENABLE_ABI_BREAKING_CHECKS`
+so a default +Asserts build is not ABI compatible with a
+default -Asserts build.  Clients that want ABI compatibility
+between +Asserts and -Asserts builds should use the CMake or autoconf
+build systems to set `LLVM_ENABLE_ABI_BREAKING_CHECKS` independently
+of `LLVM_ENABLE_ASSERTIONS`.
+
 .. _coreclasses:
 
 The Core LLVM Class Hierarchy Reference
@@ -2493,8 +2598,9 @@ doxygen info: `Type Clases <http://llvm.org/doxygen/classllvm_1_1Type.html>`_
 
 The Core LLVM classes are the primary means of representing the program being
 inspected or transformed.  The core LLVM classes are defined in header files in
-the ``include/llvm/`` directory, and implemented in the ``lib/VMCore``
-directory.
+the ``include/llvm/IR`` directory, and implemented in the ``lib/IR``
+directory. It's worth noting that, for historical reasons, this library is
+called ``libLLVMCore.so``, not ``libLLVMIR.so`` as you might expect.
 
 .. _Type:
 
@@ -2562,7 +2668,7 @@ Important Derived Types
   Subclass of SequentialType for vector types.  A vector type is similar to an
   ArrayType but is distinguished because it is a first class type whereas
   ArrayType is not.  Vector types are used for vector operations and are usually
-  small vectors of of an integer or floating point type.
+  small vectors of an integer or floating point type.
 
 ``StructType``
   Subclass of DerivedTypes for struct types.

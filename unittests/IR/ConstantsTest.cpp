@@ -7,12 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
 
 namespace llvm {
@@ -185,6 +187,13 @@ TEST(ConstantsTest, AsInstructionsTest) {
   Constant *P6 = ConstantExpr::getBitCast(P4, VectorType::get(Int16Ty, 2));
 
   Constant *One = ConstantInt::get(Int32Ty, 1);
+  Constant *Two = ConstantInt::get(Int64Ty, 2);
+  Constant *Big = ConstantInt::get(getGlobalContext(),
+                                   APInt{256, uint64_t(-1), true});
+  Constant *Elt = ConstantInt::get(Int16Ty, 2015);
+  Constant *Undef16  = UndefValue::get(Int16Ty);
+  Constant *Undef64  = UndefValue::get(Int64Ty);
+  Constant *UndefV16 = UndefValue::get(P6->getType());
 
   #define P0STR "ptrtoint (i32** @dummy to i32)"
   #define P1STR "uitofp (i32 ptrtoint (i32** @dummy to i32) to float)"
@@ -246,12 +255,23 @@ TEST(ConstantsTest, AsInstructionsTest) {
   // FIXME: getGetElementPtr() actually creates an inbounds ConstantGEP,
   //        not a normal one!
   //CHECK(ConstantExpr::getGetElementPtr(Global, V, false),
-  //      "getelementptr i32** @dummy, i32 1");
-  CHECK(ConstantExpr::getInBoundsGetElementPtr(Global, V),
-        "getelementptr inbounds i32** @dummy, i32 1");
+  //      "getelementptr i32*, i32** @dummy, i32 1");
+  CHECK(ConstantExpr::getInBoundsGetElementPtr(PointerType::getUnqual(Int32Ty),
+                                               Global, V),
+        "getelementptr inbounds i32*, i32** @dummy, i32 1");
 
   CHECK(ConstantExpr::getExtractElement(P6, One), "extractelement <2 x i16> "
         P6STR ", i32 1");
+
+  EXPECT_EQ(Undef16, ConstantExpr::getExtractElement(P6, Two));
+  EXPECT_EQ(Undef16, ConstantExpr::getExtractElement(P6, Big));
+  EXPECT_EQ(Undef16, ConstantExpr::getExtractElement(P6, Undef64));
+
+  EXPECT_EQ(Elt, ConstantExpr::getExtractElement(
+                 ConstantExpr::getInsertElement(P6, Elt, One), One));
+  EXPECT_EQ(UndefV16, ConstantExpr::getInsertElement(P6, Elt, Two));
+  EXPECT_EQ(UndefV16, ConstantExpr::getInsertElement(P6, Elt, Big));
+  EXPECT_EQ(UndefV16, ConstantExpr::getInsertElement(P6, Elt, Undef64));
 }
 
 #ifdef GTEST_HAS_DEATH_TEST
@@ -264,7 +284,8 @@ TEST(ConstantsTest, ReplaceWithConstantTest) {
 
   Constant *Global =
       M->getOrInsertGlobal("dummy", PointerType::getUnqual(Int32Ty));
-  Constant *GEP = ConstantExpr::getGetElementPtr(Global, One);
+  Constant *GEP = ConstantExpr::getGetElementPtr(
+      PointerType::getUnqual(Int32Ty), Global, One);
   EXPECT_DEATH(Global->replaceAllUsesWith(GEP),
                "this->replaceAllUsesWith\\(expr\\(this\\)\\) is NOT valid!");
 }
@@ -327,11 +348,11 @@ TEST(ConstantsTest, GEPReplaceWithConstant) {
   std::unique_ptr<Module> M(new Module("MyModule", Context));
 
   Type *IntTy = Type::getInt32Ty(Context);
-  Type *PtrTy = PointerType::get(IntTy, 0);
+  auto *PtrTy = PointerType::get(IntTy, 0);
   auto *C1 = ConstantInt::get(IntTy, 1);
   auto *Placeholder = new GlobalVariable(
       *M, IntTy, false, GlobalValue::ExternalWeakLinkage, nullptr);
-  auto *GEP = ConstantExpr::getGetElementPtr(Placeholder, C1);
+  auto *GEP = ConstantExpr::getGetElementPtr(IntTy, Placeholder, C1);
   ASSERT_EQ(GEP->getOperand(0), Placeholder);
 
   auto *Ref =
@@ -340,11 +361,25 @@ TEST(ConstantsTest, GEPReplaceWithConstant) {
 
   auto *Global = new GlobalVariable(*M, PtrTy, false,
                                     GlobalValue::ExternalLinkage, nullptr);
-  auto *Alias = GlobalAlias::create(IntTy, 0, GlobalValue::ExternalLinkage,
+  auto *Alias = GlobalAlias::create(PtrTy, GlobalValue::ExternalLinkage,
                                     "alias", Global, M.get());
   Placeholder->replaceAllUsesWith(Alias);
   ASSERT_EQ(GEP, Ref->getInitializer());
   ASSERT_EQ(GEP->getOperand(0), Alias);
+}
+
+TEST(ConstantsTest, AliasCAPI) {
+  LLVMContext Context;
+  SMDiagnostic Error;
+  std::unique_ptr<Module> M =
+      parseAssemblyString("@g = global i32 42", Error, Context);
+  GlobalVariable *G = M->getGlobalVariable("g");
+  Type *I16Ty = Type::getInt16Ty(Context);
+  Type *I16PTy = PointerType::get(I16Ty, 0);
+  Constant *Aliasee = ConstantExpr::getBitCast(G, I16PTy);
+  LLVMValueRef AliasRef =
+      LLVMAddAlias(wrap(M.get()), wrap(I16PTy), wrap(Aliasee), "a");
+  ASSERT_EQ(unwrap<GlobalAlias>(AliasRef)->getAliasee(), Aliasee);
 }
 
 }  // end anonymous namespace

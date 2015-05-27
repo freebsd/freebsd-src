@@ -1,6 +1,9 @@
 ; Test rounding functions for z196 and above.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z196 | FileCheck %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z196 \
+; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-SCALAR %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z13 \
+; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-VECTOR %s
 
 ; Test rint for f32.
 declare float @llvm.rint.f32(float %f)
@@ -16,7 +19,8 @@ define float @f1(float %f) {
 declare double @llvm.rint.f64(double %f)
 define double @f2(double %f) {
 ; CHECK-LABEL: f2:
-; CHECK: fidbr %f0, 0, %f0
+; CHECK-SCALAR: fidbr %f0, 0, %f0
+; CHECK-VECTOR: fidbra %f0, 0, %f0, 0
 ; CHECK: br %r14
   %res = call double @llvm.rint.f64(double %f)
   ret double %res
@@ -28,7 +32,7 @@ define void @f3(fp128 *%ptr) {
 ; CHECK-LABEL: f3:
 ; CHECK: fixbr %f0, 0, %f0
 ; CHECK: br %r14
-  %src = load fp128 *%ptr
+  %src = load fp128 , fp128 *%ptr
   %res = call fp128 @llvm.rint.f128(fp128 %src)
   store fp128 %res, fp128 *%ptr
   ret void
@@ -60,7 +64,7 @@ define void @f6(fp128 *%ptr) {
 ; CHECK-LABEL: f6:
 ; CHECK: fixbra %f0, 0, %f0, 4
 ; CHECK: br %r14
-  %src = load fp128 *%ptr
+  %src = load fp128 , fp128 *%ptr
   %res = call fp128 @llvm.nearbyint.f128(fp128 %src)
   store fp128 %res, fp128 *%ptr
   ret void
@@ -92,7 +96,7 @@ define void @f9(fp128 *%ptr) {
 ; CHECK-LABEL: f9:
 ; CHECK: fixbra %f0, 7, %f0, 4
 ; CHECK: br %r14
-  %src = load fp128 *%ptr
+  %src = load fp128 , fp128 *%ptr
   %res = call fp128 @llvm.floor.f128(fp128 %src)
   store fp128 %res, fp128 *%ptr
   ret void
@@ -124,7 +128,7 @@ define void @f12(fp128 *%ptr) {
 ; CHECK-LABEL: f12:
 ; CHECK: fixbra %f0, 6, %f0, 4
 ; CHECK: br %r14
-  %src = load fp128 *%ptr
+  %src = load fp128 , fp128 *%ptr
   %res = call fp128 @llvm.ceil.f128(fp128 %src)
   store fp128 %res, fp128 *%ptr
   ret void
@@ -156,7 +160,7 @@ define void @f15(fp128 *%ptr) {
 ; CHECK-LABEL: f15:
 ; CHECK: fixbra %f0, 5, %f0, 4
 ; CHECK: br %r14
-  %src = load fp128 *%ptr
+  %src = load fp128 , fp128 *%ptr
   %res = call fp128 @llvm.trunc.f128(fp128 %src)
   store fp128 %res, fp128 *%ptr
   ret void
@@ -188,7 +192,7 @@ define void @f18(fp128 *%ptr) {
 ; CHECK-LABEL: f18:
 ; CHECK: fixbra %f0, 1, %f0, 4
 ; CHECK: br %r14
-  %src = load fp128 *%ptr
+  %src = load fp128 , fp128 *%ptr
   %res = call fp128 @llvm.round.f128(fp128 %src)
   store fp128 %res, fp128 *%ptr
   ret void

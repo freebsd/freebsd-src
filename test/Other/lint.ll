@@ -19,11 +19,11 @@ define i32 @foo() noreturn {
 ; CHECK: Null pointer dereference
   store i32 0, i32* null
 ; CHECK: Null pointer dereference
-  %t = load i32* null
+  %t = load i32, i32* null
 ; CHECK: Undef pointer dereference
   store i32 0, i32* undef
 ; CHECK: Undef pointer dereference
-  %u = load i32* undef
+  %u = load i32, i32* undef
 ; CHECK: All-ones pointer dereference
   store i32 0, i32* inttoptr (i64 -1 to i32*)
 ; CHECK: Address one pointer dereference
@@ -31,7 +31,7 @@ define i32 @foo() noreturn {
 ; CHECK: Memory reference address is misaligned
   store i8 0, i8* %buf, align 2
 ; CHECK: Memory reference address is misaligned
-  %gep = getelementptr {i8, i8}* %buf2, i32 0, i32 1
+  %gep = getelementptr {i8, i8}, {i8, i8}* %buf2, i32 0, i32 1
   store i8 0, i8* %gep, align 2
 ; CHECK: Division by zero
   %sd = sdiv i32 2, 0
@@ -61,9 +61,9 @@ define i32 @foo() noreturn {
 ; CHECK: Write to text section
   store i32 8, i32* bitcast (i32()* @foo to i32*)
 ; CHECK: Load from block address
-  %lb = load i32* bitcast (i8* blockaddress(@foo, %next) to i32*)
+  %lb = load i32, i32* bitcast (i8* blockaddress(@foo, %next) to i32*)
 ; CHECK: Call to block address
-  call void()* bitcast (i8* blockaddress(@foo, %next) to void()*)()
+  call void() bitcast (i8* blockaddress(@foo, %next) to void()*)()
 ; CHECK: Undefined behavior: Null pointer dereference
   call void @llvm.stackrestore(i8* null)
 ; CHECK: Undefined behavior: Null pointer dereference
@@ -71,11 +71,11 @@ define i32 @foo() noreturn {
 ; CHECK: Unusual: noalias argument aliases another argument
   call void @has_noaliases(i32* @CG, i32* @CG)
 ; CHECK: Call argument count mismatches callee argument count
-  call void (i32, i32)* bitcast (void (i32)* @one_arg to void (i32, i32)*)(i32 0, i32 0)
+  call void (i32, i32) bitcast (void (i32)* @one_arg to void (i32, i32)*)(i32 0, i32 0)
 ; CHECK: Call argument count mismatches callee argument count
-  call void ()* bitcast (void (i32)* @one_arg to void ()*)()
+  call void () bitcast (void (i32)* @one_arg to void ()*)()
 ; CHECK: Call argument type mismatches callee parameter type
-  call void (float)* bitcast (void (i32)* @one_arg to void (float)*)(float 0.0)
+  call void (float) bitcast (void (i32)* @one_arg to void (float)*)(float 0.0)
 
 ; CHECK: Write to read-only memory
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* bitcast (i32* @CG to i8*), i8* bitcast (i32* @CG to i8*), i64 1, i32 1, i1 0)
@@ -84,11 +84,11 @@ define i32 @foo() noreturn {
   %wider = bitcast i8* %buf to i16*
   store i16 0, i16* %wider
 ; CHECK: Undefined behavior: Buffer overflow
-  %inner = getelementptr {i8, i8}* %buf2, i32 0, i32 1
+  %inner = getelementptr {i8, i8}, {i8, i8}* %buf2, i32 0, i32 1
   %wider2 = bitcast i8* %inner to i16*
   store i16 0, i16* %wider2
 ; CHECK: Undefined behavior: Buffer overflow
-  %before = getelementptr i8* %buf, i32 -1
+  %before = getelementptr i8, i8* %buf, i32 -1
   %wider3 = bitcast i8* %before to i16*
   store i16 0, i16* %wider3
 
@@ -140,7 +140,7 @@ define void @use_tail(i8* %valist) {
 ; CHECK: Unusual: Returning alloca value
 define i8* @return_local(i32 %n, i32 %m) {
   %t = alloca i8, i32 %n
-  %s = getelementptr i8* %t, i32 %m
+  %s = getelementptr i8, i8* %t, i32 %m
   ret i8* %s
 }
 
@@ -152,7 +152,7 @@ entry:
   store i32* %x, i32** %retval
   br label %next
 next:
-  %t0 = load i32** %retval
+  %t0 = load i32*, i32** %retval
   %t1 = insertvalue { i32, i32, i32* } zeroinitializer, i32* %t0, 2
   %t2 = extractvalue { i32, i32, i32* } %t1, 2
   br label %exit
@@ -172,7 +172,7 @@ entry:
 exit:
   %t3 = phi i32* [ %t4, %exit ]
   %t4 = bitcast i32* %t3 to i32*
-  %x = load volatile i32* %t3
+  %x = load volatile i32, i32* %t3
   br label %exit
 }
 

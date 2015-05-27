@@ -19,7 +19,7 @@ define i64 @f2(i64 %a, i32 *%src) {
 ; CHECK-LABEL: f2:
 ; CHECK: algf %r2, 0(%r3)
 ; CHECK: br %r14
-  %b = load i32 *%src
+  %b = load i32 , i32 *%src
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -30,8 +30,8 @@ define i64 @f3(i64 %a, i32 *%src) {
 ; CHECK-LABEL: f3:
 ; CHECK: algf %r2, 524284(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%src, i64 131071
-  %b = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%src, i64 131071
+  %b = load i32 , i32 *%ptr
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -44,8 +44,8 @@ define i64 @f4(i64 %a, i32 *%src) {
 ; CHECK: agfi %r3, 524288
 ; CHECK: algf %r2, 0(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%src, i64 131072
-  %b = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%src, i64 131072
+  %b = load i32 , i32 *%ptr
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -56,8 +56,8 @@ define i64 @f5(i64 %a, i32 *%src) {
 ; CHECK-LABEL: f5:
 ; CHECK: algf %r2, -4(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%src, i64 -1
-  %b = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%src, i64 -1
+  %b = load i32 , i32 *%ptr
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -68,8 +68,8 @@ define i64 @f6(i64 %a, i32 *%src) {
 ; CHECK-LABEL: f6:
 ; CHECK: algf %r2, -524288(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%src, i64 -131072
-  %b = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%src, i64 -131072
+  %b = load i32 , i32 *%ptr
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -82,8 +82,8 @@ define i64 @f7(i64 %a, i32 *%src) {
 ; CHECK: agfi %r3, -524292
 ; CHECK: algf %r2, 0(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%src, i64 -131073
-  %b = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%src, i64 -131073
+  %b = load i32 , i32 *%ptr
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -97,7 +97,7 @@ define i64 @f8(i64 %a, i64 %src, i64 %index) {
   %add1 = add i64 %src, %index
   %add2 = add i64 %add1, 524284
   %ptr = inttoptr i64 %add2 to i32 *
-  %b = load i32 *%ptr
+  %b = load i32 , i32 *%ptr
   %bext = zext i32 %b to i64
   %add = add i64 %a, %bext
   ret i64 %add
@@ -109,26 +109,26 @@ define i64 @f9(i32 *%ptr0) {
 ; CHECK: brasl %r14, foo@PLT
 ; CHECK: algf %r2, 16{{[04]}}(%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr i32 *%ptr0, i64 2
-  %ptr2 = getelementptr i32 *%ptr0, i64 4
-  %ptr3 = getelementptr i32 *%ptr0, i64 6
-  %ptr4 = getelementptr i32 *%ptr0, i64 8
-  %ptr5 = getelementptr i32 *%ptr0, i64 10
-  %ptr6 = getelementptr i32 *%ptr0, i64 12
-  %ptr7 = getelementptr i32 *%ptr0, i64 14
-  %ptr8 = getelementptr i32 *%ptr0, i64 16
-  %ptr9 = getelementptr i32 *%ptr0, i64 18
+  %ptr1 = getelementptr i32, i32 *%ptr0, i64 2
+  %ptr2 = getelementptr i32, i32 *%ptr0, i64 4
+  %ptr3 = getelementptr i32, i32 *%ptr0, i64 6
+  %ptr4 = getelementptr i32, i32 *%ptr0, i64 8
+  %ptr5 = getelementptr i32, i32 *%ptr0, i64 10
+  %ptr6 = getelementptr i32, i32 *%ptr0, i64 12
+  %ptr7 = getelementptr i32, i32 *%ptr0, i64 14
+  %ptr8 = getelementptr i32, i32 *%ptr0, i64 16
+  %ptr9 = getelementptr i32, i32 *%ptr0, i64 18
 
-  %val0 = load i32 *%ptr0
-  %val1 = load i32 *%ptr1
-  %val2 = load i32 *%ptr2
-  %val3 = load i32 *%ptr3
-  %val4 = load i32 *%ptr4
-  %val5 = load i32 *%ptr5
-  %val6 = load i32 *%ptr6
-  %val7 = load i32 *%ptr7
-  %val8 = load i32 *%ptr8
-  %val9 = load i32 *%ptr9
+  %val0 = load i32 , i32 *%ptr0
+  %val1 = load i32 , i32 *%ptr1
+  %val2 = load i32 , i32 *%ptr2
+  %val3 = load i32 , i32 *%ptr3
+  %val4 = load i32 , i32 *%ptr4
+  %val5 = load i32 , i32 *%ptr5
+  %val6 = load i32 , i32 *%ptr6
+  %val7 = load i32 , i32 *%ptr7
+  %val8 = load i32 , i32 *%ptr8
+  %val9 = load i32 , i32 *%ptr9
 
   %frob0 = add i32 %val0, 100
   %frob1 = add i32 %val1, 100

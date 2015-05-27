@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
@@ -47,7 +48,7 @@ namespace {
     MachineRegisterInfo *MRI;
   public:
     static char ID; // Pass identification
-    MachineCSE() : MachineFunctionPass(ID), LookAheadLimit(5), CurrVN(0) {
+    MachineCSE() : MachineFunctionPass(ID), LookAheadLimit(0), CurrVN(0) {
       initializeMachineCSEPass(*PassRegistry::getPassRegistry());
     }
 
@@ -68,7 +69,7 @@ namespace {
     }
 
   private:
-    const unsigned LookAheadLimit;
+    unsigned LookAheadLimit;
     typedef RecyclingAllocator<BumpPtrAllocator,
         ScopedHashTableVal<MachineInstr*, unsigned> > AllocatorTy;
     typedef ScopedHashTable<MachineInstr*, unsigned,
@@ -580,8 +581,15 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     // Actually perform the elimination.
     if (DoCSE) {
       for (unsigned i = 0, e = CSEPairs.size(); i != e; ++i) {
-        MRI->replaceRegWith(CSEPairs[i].first, CSEPairs[i].second);
-        MRI->clearKillFlags(CSEPairs[i].second);
+        unsigned OldReg = CSEPairs[i].first;
+        unsigned NewReg = CSEPairs[i].second;
+        // OldReg may have been unused but is used now, clear the Dead flag
+        MachineInstr *Def = MRI->getUniqueVRegDef(NewReg);
+        assert(Def != nullptr && "CSEd register has no unique definition?");
+        Def->clearRegisterDeads(NewReg);
+        // Replace with NewReg and clear kill flags which may be wrong now.
+        MRI->replaceRegWith(OldReg, NewReg);
+        MRI->clearKillFlags(NewReg);
       }
 
       // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
@@ -708,5 +716,6 @@ bool MachineCSE::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   AA = &getAnalysis<AliasAnalysis>();
   DT = &getAnalysis<MachineDominatorTree>();
+  LookAheadLimit = TII->getMachineCSELookAheadLimit();
   return PerformCSE(DT->getRootNode());
 }

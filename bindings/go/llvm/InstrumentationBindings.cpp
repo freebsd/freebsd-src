@@ -12,10 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstrumentationBindings.h"
-
 #include "llvm-c/Core.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
-#include "llvm/PassManager.h"
 #include "llvm/Transforms/Instrumentation.h"
 
 using namespace llvm;
@@ -37,6 +36,11 @@ void LLVMAddMemorySanitizerPass(LLVMPassManagerRef PM) {
 }
 
 void LLVMAddDataFlowSanitizerPass(LLVMPassManagerRef PM,
-                                  const char *ABIListFile) {
-  unwrap(PM)->add(createDataFlowSanitizerPass(ABIListFile));
+                                  int ABIListFilesNum,
+                                  const char **ABIListFiles) {
+  std::vector<std::string> ABIListFilesVec;
+  for (int i = 0; i != ABIListFilesNum; ++i) {
+    ABIListFilesVec.push_back(ABIListFiles[i]);
+  }
+  unwrap(PM)->add(createDataFlowSanitizerPass(ABIListFilesVec));
 }

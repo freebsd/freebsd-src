@@ -10,9 +10,9 @@ target triple = "x86_64-apple-darwin11.0.0"
 @_NSConcreteStackBlock = external global i8*
 @.str = private unnamed_addr constant [6 x i8] c"v8@?0\00"
 @"\01L_OBJC_CLASS_NAME_" = internal global [3 x i8] c"\01@\00", section "__TEXT,__objc_classname,cstring_literals", align 1
-@__block_descriptor_tmp = internal constant %0 { i64 0, i64 40, i8* bitcast (void (i8*, i8*)* @__copy_helper_block_ to i8*), i8* bitcast (void (i8*)* @__destroy_helper_block_ to i8*), i8* getelementptr inbounds ([6 x i8]* @.str, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8]* @"\01L_OBJC_CLASS_NAME_", i32 0, i32 0) }
+@__block_descriptor_tmp = internal constant %0 { i64 0, i64 40, i8* bitcast (void (i8*, i8*)* @__copy_helper_block_ to i8*), i8* bitcast (void (i8*)* @__destroy_helper_block_ to i8*), i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i32 0, i32 0), i8* getelementptr inbounds ([3 x i8], [3 x i8]* @"\01L_OBJC_CLASS_NAME_", i32 0, i32 0) }
 @"\01L_OBJC_IMAGE_INFO" = internal constant [2 x i32] [i32 0, i32 16], section "__DATA, __objc_imageinfo, regular, no_dead_strip"
-@llvm.used = appending global [2 x i8*] [i8* getelementptr inbounds ([3 x i8]* @"\01L_OBJC_CLASS_NAME_", i32 0, i32 0), i8* bitcast ([2 x i32]* @"\01L_OBJC_IMAGE_INFO" to i8*)], section "llvm.metadata"
+@llvm.used = appending global [2 x i8*] [i8* getelementptr inbounds ([3 x i8], [3 x i8]* @"\01L_OBJC_CLASS_NAME_", i32 0, i32 0), i8* bitcast ([2 x i32]* @"\01L_OBJC_IMAGE_INFO" to i8*)], section "llvm.metadata"
 
 ; Eliminate unnecessary weak pointer copies.
 
@@ -50,17 +50,17 @@ entry:
   %block = alloca %1, align 8
   %0 = call i8* @objc_retain(i8* %me) nounwind
   %1 = call i8* @objc_initWeak(i8** %w, i8* %0) nounwind
-  %block.isa = getelementptr inbounds %1* %block, i64 0, i32 0
+  %block.isa = getelementptr inbounds %1, %1* %block, i64 0, i32 0
   store i8* bitcast (i8** @_NSConcreteStackBlock to i8*), i8** %block.isa, align 8
-  %block.flags = getelementptr inbounds %1* %block, i64 0, i32 1
+  %block.flags = getelementptr inbounds %1, %1* %block, i64 0, i32 1
   store i32 1107296256, i32* %block.flags, align 8
-  %block.reserved = getelementptr inbounds %1* %block, i64 0, i32 2
+  %block.reserved = getelementptr inbounds %1, %1* %block, i64 0, i32 2
   store i32 0, i32* %block.reserved, align 4
-  %block.invoke = getelementptr inbounds %1* %block, i64 0, i32 3
+  %block.invoke = getelementptr inbounds %1, %1* %block, i64 0, i32 3
   store i8* bitcast (void (i8*)* @__qux_block_invoke_0 to i8*), i8** %block.invoke, align 8
-  %block.descriptor = getelementptr inbounds %1* %block, i64 0, i32 4
+  %block.descriptor = getelementptr inbounds %1, %1* %block, i64 0, i32 4
   store %struct.__block_descriptor* bitcast (%0* @__block_descriptor_tmp to %struct.__block_descriptor*), %struct.__block_descriptor** %block.descriptor, align 8
-  %block.captured = getelementptr inbounds %1* %block, i64 0, i32 5
+  %block.captured = getelementptr inbounds %1, %1* %block, i64 0, i32 5
   %2 = call i8* @objc_loadWeak(i8** %w) nounwind
   %3 = call i8* @objc_initWeak(i8** %block.captured, i8* %2) nounwind
   %4 = bitcast %1* %block to void ()*

@@ -12,7 +12,6 @@
 ; RUN: llc -mcpu=pwr8 -mattr=+vsx -O2 -mtriple=powerpc64le-unknown-linux-gnu < %s > %t
 ; RUN: grep lxvd2x < %t | count 6
 ; RUN: grep stxvd2x < %t | count 6
-; RUN: grep xxpermdi < %t | count 12
 
 @vsi = global <4 x i32> <i32 -1, i32 2, i32 -3, i32 4>, align 16
 @vui = global <4 x i32> <i32 0, i32 1, i32 2, i32 3>, align 16
@@ -30,12 +29,12 @@
 ; Function Attrs: nounwind
 define void @test1() {
 entry:
-  %0 = load <4 x i32>* @vsi, align 16
-  %1 = load <4 x i32>* @vui, align 16
-  %2 = load <4 x i32>* bitcast (<4 x float>* @vf to <4 x i32>*), align 16
-  %3 = load <2 x double>* bitcast (<2 x i64>* @vsll to <2 x double>*), align 16
-  %4 = load <2 x double>* bitcast (<2 x i64>* @vull to <2 x double>*), align 16
-  %5 = load <2 x double>* @vd, align 16
+  %0 = load <4 x i32>, <4 x i32>* @vsi, align 16
+  %1 = load <4 x i32>, <4 x i32>* @vui, align 16
+  %2 = load <4 x i32>, <4 x i32>* bitcast (<4 x float>* @vf to <4 x i32>*), align 16
+  %3 = load <2 x double>, <2 x double>* bitcast (<2 x i64>* @vsll to <2 x double>*), align 16
+  %4 = load <2 x double>, <2 x double>* bitcast (<2 x i64>* @vull to <2 x double>*), align 16
+  %5 = load <2 x double>, <2 x double>* @vd, align 16
   store <4 x i32> %0, <4 x i32>* @res_vsi, align 16
   store <4 x i32> %1, <4 x i32>* @res_vui, align 16
   store <4 x i32> %2, <4 x i32>* bitcast (<4 x float>* @res_vf to <4 x i32>*), align 16

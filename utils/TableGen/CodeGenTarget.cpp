@@ -57,6 +57,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::i32:      return "MVT::i32";
   case MVT::i64:      return "MVT::i64";
   case MVT::i128:     return "MVT::i128";
+  case MVT::Any:      return "MVT::Any";
   case MVT::iAny:     return "MVT::iAny";
   case MVT::fAny:     return "MVT::fAny";
   case MVT::vAny:     return "MVT::vAny";
@@ -98,6 +99,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v4i64:    return "MVT::v4i64";
   case MVT::v8i64:    return "MVT::v8i64";
   case MVT::v16i64:   return "MVT::v16i64";
+  case MVT::v1i128:   return "MVT::v1i128";
   case MVT::v2f16:    return "MVT::v2f16";
   case MVT::v4f16:    return "MVT::v4f16";
   case MVT::v8f16:    return "MVT::v8f16";
@@ -409,9 +411,9 @@ ComplexPattern::ComplexPattern(Record *R) {
     } else if (PropList[i]->getName() == "SDNPWantParent") {
       Properties |= 1 << SDNPWantParent;
     } else {
-      errs() << "Unsupported SD Node property '" << PropList[i]->getName()
-             << "' on ComplexPattern '" << R->getName() << "'!\n";
-      exit(1);
+      PrintFatalError("Unsupported SD Node property '" +
+                      PropList[i]->getName() + "' on ComplexPattern '" +
+                      R->getName() + "'!");
     }
 }
 
@@ -442,6 +444,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
   canThrow = false;
   isNoReturn = false;
   isNoDuplicate = false;
+  isConvergent = false;
 
   if (DefName.size() <= 4 ||
       std::string(DefName.begin(), DefName.begin() + 4) != "int_")
@@ -572,6 +575,8 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       canThrow = true;
     else if (Property->getName() == "IntrNoDuplicate")
       isNoDuplicate = true;
+    else if (Property->getName() == "IntrConvergent")
+      isConvergent = true;
     else if (Property->getName() == "IntrNoReturn")
       isNoReturn = true;
     else if (Property->isSubClassOf("NoCapture")) {

@@ -209,3 +209,135 @@ vector float f(vector float a, vector float b) {
     return b; 
 }
 
+//===----------------------------------------------------------------------===//
+
+We should do a little better with eliminating dead stores.
+The stores to the stack are dead since %a and %b are not needed
+
+; Function Attrs: nounwind
+define <16 x i8> @test_vpmsumb() #0 {
+  entry:
+  %a = alloca <16 x i8>, align 16
+  %b = alloca <16 x i8>, align 16
+  store <16 x i8> <i8 1, i8 2, i8 3, i8 4, i8 5, i8 6, i8 7, i8 8, i8 9, i8 10, i8 11, i8 12, i8 13, i8 14, i8 15, i8 16>, <16 x i8>* %a, align 16
+  store <16 x i8> <i8 113, i8 114, i8 115, i8 116, i8 117, i8 118, i8 119, i8 120, i8 121, i8 122, i8 123, i8 124, i8 125, i8 126, i8 127, i8 112>, <16 x i8>* %b, align 16
+  %0 = load <16 x i8>* %a, align 16
+  %1 = load <16 x i8>* %b, align 16
+  %2 = call <16 x i8> @llvm.ppc.altivec.crypto.vpmsumb(<16 x i8> %0, <16 x i8> %1)
+  ret <16 x i8> %2
+}
+
+
+; Function Attrs: nounwind readnone
+declare <16 x i8> @llvm.ppc.altivec.crypto.vpmsumb(<16 x i8>, <16 x i8>) #1
+
+
+Produces the following code with -mtriple=powerpc64-unknown-linux-gnu:
+# BB#0:                                 # %entry
+    addis 3, 2, .LCPI0_0@toc@ha
+    addis 4, 2, .LCPI0_1@toc@ha
+    addi 3, 3, .LCPI0_0@toc@l
+    addi 4, 4, .LCPI0_1@toc@l
+    lxvw4x 0, 0, 3
+    addi 3, 1, -16
+    lxvw4x 35, 0, 4
+    stxvw4x 0, 0, 3
+    ori 2, 2, 0
+    lxvw4x 34, 0, 3
+    addi 3, 1, -32
+    stxvw4x 35, 0, 3
+    vpmsumb 2, 2, 3
+    blr
+    .long   0
+    .quad   0
+
+The two stxvw4x instructions are not needed.
+With -mtriple=powerpc64le-unknown-linux-gnu, the associated permutes
+are present too.
+
+//===----------------------------------------------------------------------===//
+
+The following example is found in test/CodeGen/PowerPC/vec_add_sub_doubleword.ll:
+
+define <2 x i64> @increment_by_val(<2 x i64> %x, i64 %val) nounwind {
+       %tmpvec = insertelement <2 x i64> <i64 0, i64 0>, i64 %val, i32 0
+       %tmpvec2 = insertelement <2 x i64> %tmpvec, i64 %val, i32 1
+       %result = add <2 x i64> %x, %tmpvec2
+       ret <2 x i64> %result
+
+This will generate the following instruction sequence:
+        std 5, -8(1)
+        std 5, -16(1)
+        addi 3, 1, -16
+        ori 2, 2, 0
+        lxvd2x 35, 0, 3
+        vaddudm 2, 2, 3
+        blr
+
+This will almost certainly cause a load-hit-store hazard.  
+Since val is a value parameter, it should not need to be saved onto
+the stack, unless it's being done set up the vector register. Instead,
+it would be better to splat the value into a vector register, and then
+remove the (dead) stores to the stack.
+
+//===----------------------------------------------------------------------===//
+
+At the moment we always generate a lxsdx in preference to lfd, or stxsdx in
+preference to stfd.  When we have a reg-immediate addressing mode, this is a
+poor choice, since we have to load the address into an index register.  This
+should be fixed for P7/P8. 
+
+//===----------------------------------------------------------------------===//
+
+Right now, ShuffleKind 0 is supported only on BE, and ShuffleKind 2 only on LE.
+However, we could actually support both kinds on either endianness, if we check
+for the appropriate shufflevector pattern for each case ...  this would cause
+some additional shufflevectors to be recognized and implemented via the
+"swapped" form.
+
+//===----------------------------------------------------------------------===//
+
+There is a utility program called PerfectShuffle that generates a table of the
+shortest instruction sequence for implementing a shufflevector operation on
+PowerPC.  However, this was designed for big-endian code generation.  We could
+modify this program to create a little endian version of the table.  The table
+is used in PPCISelLowering.cpp, PPCTargetLowering::LOWERVECTOR_SHUFFLE().
+
+//===----------------------------------------------------------------------===//
+
+Opportunies to use instructions from PPCInstrVSX.td during code gen
+  - Conversion instructions (Sections 7.6.1.5 and 7.6.1.6 of ISA 2.07)
+  - Scalar comparisons (xscmpodp and xscmpudp)
+  - Min and max (xsmaxdp, xsmindp, xvmaxdp, xvmindp, xvmaxsp, xvminsp)
+
+Related to this: we currently do not generate the lxvw4x instruction for either
+v4f32 or v4i32, probably because adding a dag pattern to the recognizer requires
+a single target type.  This should probably be addressed in the PPCISelDAGToDAG logic.
+
+//===----------------------------------------------------------------------===//
+
+Currently EXTRACT_VECTOR_ELT and INSERT_VECTOR_ELT are type-legal only
+for v2f64 with VSX available.  We should create custom lowering
+support for the other vector types.  Without this support, we generate
+sequences with load-hit-store hazards.
+
+v4f32 can be supported with VSX by shifting the correct element into
+big-endian lane 0, using xscvspdpn to produce a double-precision
+representation of the single-precision value in big-endian
+double-precision lane 0, and reinterpreting lane 0 as an FPR or
+vector-scalar register.
+
+v2i64 can be supported with VSX and P8Vector in the same manner as
+v2f64, followed by a direct move to a GPR.
+
+v4i32 can be supported with VSX and P8Vector by shifting the correct
+element into big-endian lane 1, using a direct move to a GPR, and
+sign-extending the 32-bit result to 64 bits.
+
+v8i16 can be supported with VSX and P8Vector by shifting the correct
+element into big-endian lane 3, using a direct move to a GPR, and
+sign-extending the 16-bit result to 64 bits.
+
+v16i8 can be supported with VSX and P8Vector by shifting the correct
+element into big-endian lane 7, using a direct move to a GPR, and
+sign-extending the 8-bit result to 64 bits.

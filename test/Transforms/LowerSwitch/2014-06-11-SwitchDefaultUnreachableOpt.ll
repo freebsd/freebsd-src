@@ -1,5 +1,8 @@
 ; RUN: opt < %s -lowerswitch -S | FileCheck %s
-; CHECK-NOT: {{.*}}icmp eq{{.*}}
+;
+; The switch is lowered with a single icmp.
+; CHECK: icmp
+; CHECK-NOT: icmp
 ;
 ;int foo(int a) {
 ;
@@ -14,11 +17,11 @@
 ;
 ;}
 
-define i32 @foo(i32 %a) nounwind ssp uwtable {
+define i32 @foo(i32 %a) {
   %1 = alloca i32, align 4
   %2 = alloca i32, align 4
   store i32 %a, i32* %2, align 4
-  %3 = load i32* %2, align 4
+  %3 = load i32, i32* %2, align 4
   switch i32 %3, label %6 [
     i32 0, label %4
     i32 1, label %5
@@ -36,6 +39,6 @@ define i32 @foo(i32 %a) nounwind ssp uwtable {
   unreachable
 
 ; <label>:7
-  %8 = load i32* %1
+  %8 = load i32, i32* %1
   ret i32 %8
 }

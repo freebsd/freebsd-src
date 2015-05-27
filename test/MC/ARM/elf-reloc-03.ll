@@ -78,10 +78,10 @@ entry:
 
 define i32 @main() nounwind {
 entry:
-  %0 = load i32* @startval, align 4
-  %1 = getelementptr inbounds [10 x i32 (...)*]* @vtable, i32 0, i32 %0
-  %2 = load i32 (...)** %1, align 4
-  %3 = tail call i32 (...)* %2() nounwind
+  %0 = load i32, i32* @startval, align 4
+  %1 = getelementptr inbounds [10 x i32 (...)*], [10 x i32 (...)*]* @vtable, i32 0, i32 %0
+  %2 = load i32 (...)*, i32 (...)** %1, align 4
+  %3 = tail call i32 (...) %2() nounwind
   tail call void @exit(i32 %3) noreturn nounwind
   unreachable
 }
@@ -89,7 +89,7 @@ entry:
 declare void @exit(i32) noreturn nounwind
 
 ;; OBJ: Relocations [
-;; OBJ:   Section (2) .rel.text {
+;; OBJ:   Section {{.*}} .rel.text {
 ;; OBJ:     0x{{[0-9,A-F]+}} R_ARM_MOVW_ABS_NC vtable
 ;; OBJ:   }
 ;; OBJ: ]

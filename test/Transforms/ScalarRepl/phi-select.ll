@@ -13,14 +13,14 @@ define i32 @test1(i32 %x) nounwind readnone ssp {
 entry:
   %a = alloca %struct.X, align 8                  ; <%struct.X*> [#uses=2]
   %b = alloca %struct.X, align 8                  ; <%struct.X*> [#uses=2]
-  %0 = getelementptr inbounds %struct.X* %a, i64 0, i32 0 ; <i32*> [#uses=1]
+  %0 = getelementptr inbounds %struct.X, %struct.X* %a, i64 0, i32 0 ; <i32*> [#uses=1]
   store i32 1, i32* %0, align 8
-  %1 = getelementptr inbounds %struct.X* %b, i64 0, i32 0 ; <i32*> [#uses=1]
+  %1 = getelementptr inbounds %struct.X, %struct.X* %b, i64 0, i32 0 ; <i32*> [#uses=1]
   store i32 2, i32* %1, align 8
   %2 = icmp eq i32 %x, 0                          ; <i1> [#uses=1]
   %p.0 = select i1 %2, %struct.X* %b, %struct.X* %a ; <%struct.X*> [#uses=1]
-  %3 = getelementptr inbounds %struct.X* %p.0, i64 0, i32 0 ; <i32*> [#uses=1]
-  %4 = load i32* %3, align 8                      ; <i32> [#uses=1]
+  %3 = getelementptr inbounds %struct.X, %struct.X* %p.0, i64 0, i32 0 ; <i32*> [#uses=1]
+  %4 = load i32, i32* %3, align 8                      ; <i32> [#uses=1]
   ret i32 %4
 }
 
@@ -30,16 +30,16 @@ entry:
 define i32 @test2(i1 %c) {
 entry:
   %A = alloca {i32, i32}
-  %B = getelementptr {i32, i32}* %A, i32 0, i32 0
+  %B = getelementptr {i32, i32}, {i32, i32}* %A, i32 0, i32 0
   store i32 1, i32* %B
   br i1 %c, label %T, label %F
 T:
-  %C = getelementptr {i32, i32}* %A, i32 0, i32 1
+  %C = getelementptr {i32, i32}, {i32, i32}* %A, i32 0, i32 1
   store i32 2, i32* %C
   br label %F
 F:
   %X = phi i32* [%B, %entry], [%C, %T]
-  %Q = load i32* %X
+  %Q = load i32, i32* %X
   ret i32 %Q
 }
 
@@ -49,13 +49,13 @@ F:
 ; rdar://8904039
 define i32 @test3(i1 %c) {
   %A = alloca {i32, i32}
-  %B = getelementptr {i32, i32}* %A, i32 0, i32 0
+  %B = getelementptr {i32, i32}, {i32, i32}* %A, i32 0, i32 0
   store i32 1, i32* %B
-  %C = getelementptr {i32, i32}* %A, i32 0, i32 1
+  %C = getelementptr {i32, i32}, {i32, i32}* %A, i32 0, i32 1
   store i32 2, i32* %C
   
   %X = select i1 %c, i32* %B, i32* %C
-  %Q = load i32* %X
+  %Q = load i32, i32* %X
   ret i32 %Q
 }
 
@@ -65,14 +65,14 @@ entry:
   %A = alloca %PairTy
   ; CHECK-LABEL: @test4(
   ; CHECK: %A = alloca %PairTy
-  %B = getelementptr %PairTy* %A, i32 0, i32 0
+  %B = getelementptr %PairTy, %PairTy* %A, i32 0, i32 0
   store i32 1, i32* %B
-  %C = getelementptr %PairTy* %A, i32 0, i32 1
+  %C = getelementptr %PairTy, %PairTy* %A, i32 0, i32 1
   store i32 2, i32* %B
   
   %X = select i1 %c, i32* %B, i32* %C
   %Y = bitcast i32* %X to i64*
-  %Q = load i64* %Y
+  %Q = load i64, i64* %Y
   ret i64 %Q
 }
 
@@ -91,7 +91,7 @@ entry:
   %p.0 = select i1 false, i32* %b, i32* %P
   store i32 123, i32* %p.0
   
-  %r = load i32* %b, align 8
+  %r = load i32, i32* %b, align 8
   ret i32 %r
   
 ; CHECK-LABEL: @test5(
@@ -105,7 +105,7 @@ define i32 @test6(i32 %x, i1 %c) nounwind readnone ssp {
   store i32 1, i32* %a, align 8
   store i32 2, i32* %b, align 8
   %p.0 = select i1 %c, i32* %b, i32* %a
-  %r = load i32* %p.0, align 8
+  %r = load i32, i32* %p.0, align 8
   ret i32 %r
 ; CHECK-LABEL: @test6(
 ; CHECK-NEXT: %r = select i1 %c, i32 2, i32 1
@@ -122,7 +122,7 @@ define i32 @test7(i32 %x, i1 %c) nounwind readnone ssp {
   
   store i32 0, i32* %a
   
-  %r = load i32* %p.0, align 8
+  %r = load i32, i32* %p.0, align 8
   ret i32 %r
 ; CHECK-LABEL: @test7(
 ; CHECK-NOT: alloca i32
@@ -148,6 +148,6 @@ T:
   br label %Cont
 Cont:
   %p.0 = phi i32* [%b, %entry],[%a, %T]
-  %r = load i32* %p.0, align 8
+  %r = load i32, i32* %p.0, align 8
   ret i32 %r
 }

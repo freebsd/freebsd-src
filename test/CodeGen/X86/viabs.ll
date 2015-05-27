@@ -1,7 +1,7 @@
-; RUN: llc < %s -march=x86-64 -mcpu=x86-64 | FileCheck %s -check-prefix=SSE2
-; RUN: llc < %s -march=x86-64 -mcpu=corei7 | FileCheck %s -check-prefix=SSSE3
-; RUN: llc < %s -march=x86-64 -mcpu=core-avx2 | FileCheck %s -check-prefix=AVX2
-; RUN: llc < %s -march=x86-64 -mcpu=knl | FileCheck %s -check-prefix=AVX512
+; RUN: llc < %s -march=x86-64 -mattr=sse2    | FileCheck %s -check-prefix=SSE2
+; RUN: llc < %s -march=x86-64 -mattr=ssse3   | FileCheck %s -check-prefix=SSSE3
+; RUN: llc < %s -march=x86-64 -mattr=avx2    | FileCheck %s -check-prefix=AVX2
+; RUN: llc < %s -march=x86-64 -mattr=avx512f | FileCheck %s -check-prefix=AVX512
 
 define <4 x i32> @test1(<4 x i32> %a) nounwind {
 ; SSE2-LABEL: test1:
@@ -262,7 +262,7 @@ define <8 x i64> @test13(<8 x i64>* %a.ptr) nounwind {
 ; AVX512-LABEL: test13:
 ; AVX512: vpabsq (%
 ; AVX512-NEXT: ret
-        %a = load <8 x i64>* %a.ptr, align 8
+        %a = load <8 x i64>, <8 x i64>* %a.ptr, align 8
         %tmp1neg = sub <8 x i64> zeroinitializer, %a
         %b = icmp sle <8 x i64> %a, zeroinitializer
         %abs = select <8 x i1> %b, <8 x i64> %tmp1neg, <8 x i64> %a

@@ -54,7 +54,7 @@ define i32 @AtomicSwap32(i32 signext %newval) nounwind {
 entry:
   %newval.addr = alloca i32, align 4
   store i32 %newval, i32* %newval.addr, align 4
-  %tmp = load i32* %newval.addr, align 4
+  %tmp = load i32, i32* %newval.addr, align 4
   %0 = atomicrmw xchg i32* @x, i32 %tmp monotonic
   ret i32 %0
 
@@ -74,7 +74,7 @@ define i32 @AtomicCmpSwap32(i32 signext %oldval, i32 signext %newval) nounwind {
 entry:
   %newval.addr = alloca i32, align 4
   store i32 %newval, i32* %newval.addr, align 4
-  %tmp = load i32* %newval.addr, align 4
+  %tmp = load i32, i32* %newval.addr, align 4
   %0 = cmpxchg i32* @x, i32 %oldval, i32 %tmp monotonic monotonic
   %1 = extractvalue { i32, i1 } %0, 0
   ret i32 %1
@@ -429,7 +429,7 @@ entry:
 ; FIXME: At the moment, we don't seem to do addr+offset for any atomic load/store.
 define i32 @AtomicLoadAdd32_OffGt9Bit(i32 signext %incr) nounwind {
 entry:
-  %0 = atomicrmw add i32* getelementptr(i32* @x, i32 256), i32 %incr monotonic
+  %0 = atomicrmw add i32* getelementptr(i32, i32* @x, i32 256), i32 %incr monotonic
   ret i32 %0
 
 ; ALL-LABEL: AtomicLoadAdd32_OffGt9Bit:

@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -soft-float -mips16-hard-float -relocation-model=pic -mips16-constant-islands -mips-constant-islands-no-load-relaxation  < %s | FileCheck %s -check-prefix=no-load-relax
+; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -mattr=+soft-float -mips16-hard-float -relocation-model=pic -mips16-constant-islands -mips-constant-islands-no-load-relaxation  < %s | FileCheck %s -check-prefix=no-load-relax
 
 ; ModuleID = 'const4.c'
 target datalayout = "E-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32-S64"
@@ -14,7 +14,7 @@ target triple = "mips--linux-gnu"
 define void @t() #0 {
 entry:
   store i32 -559023410, i32* @i, align 4
-  %0 = load i32* @b, align 4
+  %0 = load i32, i32* @b, align 4
 ; no-load-relax:	lw	${{[0-9]+}}, $CPI0_1	# 16 bit inst
   %tobool = icmp ne i32 %0, 0
   br i1 %tobool, label %if.then, label %if.else

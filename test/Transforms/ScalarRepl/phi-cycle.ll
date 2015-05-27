@@ -11,9 +11,9 @@ target triple = "x86_64-unknown-linux-gnu"
 define i32 @main(i32 %argc, i8** nocapture %argv) nounwind uwtable {
 entry:
   %f = alloca %struct.foo, align 4
-  %x.i = getelementptr inbounds %struct.foo* %f, i64 0, i32 0
+  %x.i = getelementptr inbounds %struct.foo, %struct.foo* %f, i64 0, i32 0
   store i32 1, i32* %x.i, align 4
-  %y.i = getelementptr inbounds %struct.foo* %f, i64 0, i32 1
+  %y.i = getelementptr inbounds %struct.foo, %struct.foo* %f, i64 0, i32 1
   br label %while.cond.i
 
 ; CHECK: while.cond.i:
@@ -67,10 +67,10 @@ while.cond.backedge.i:                            ; preds = %if.end.i, %while.bo
 
 ; CHECK: func.exit:
 ; CHECK-NOT: load
-; CHECK: %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([6 x i8]* @.str, i64 0, i64 0), i32 %tmp) [[NUW:#[0-9]+]]
+; CHECK: %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i64 0, i64 0), i32 %tmp) [[NUW:#[0-9]+]]
 func.exit:                                        ; preds = %while.body.i.func.exit_crit_edge, %while.cond.i.func.exit_crit_edge
-  %tmp3 = load i32* %x.i, align 4
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([6 x i8]* @.str, i64 0, i64 0), i32 %tmp3) nounwind
+  %tmp3 = load i32, i32* %x.i, align 4
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i64 0, i64 0), i32 %tmp3) nounwind
   ret i32 0
 }
 

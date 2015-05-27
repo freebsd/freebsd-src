@@ -14,6 +14,7 @@
 
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -43,7 +44,7 @@ namespace {
       errs() <<  "  " << Val << " " << Desc << " responses ("
              << Val*100/Sum << "%)\n";
     }
-    ~AliasAnalysisCounter() {
+    ~AliasAnalysisCounter() override {
       unsigned AASum = No+May+Partial+Must;
       unsigned MRSum = NoMR+JustRef+JustMod+MR;
       if (AASum + MRSum) { // Print a report if any counted queries occurred...
@@ -76,7 +77,7 @@ namespace {
 
     bool runOnModule(Module &M) override {
       this->M = &M;
-      InitializeAliasAnalysis(this);
+      InitializeAliasAnalysis(this, &M.getDataLayout());
       return false;
     }
 

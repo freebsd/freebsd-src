@@ -21,13 +21,13 @@
 define void @layout_ssp() ssp {
 entry:
 ; Expected stack layout for ssp is
-;  180 large_char          . Group 1, nested arrays, arrays >= ssp-buffer-size
-;  172 struct_large_char   .
-;  168 scalar1             | Everything else
-;  164 scalar2
-;  160 scalar3
-;  156 addr-of
-;  152 small_nonchar (84+68)
+;  176 large_char          . Group 1, nested arrays, arrays >= ssp-buffer-size
+;  168 struct_large_char   .
+;  164 scalar1             | Everything else
+;  160 scalar2
+;  156 scalar3
+;  152 addr-of
+;  148 small_nonchar
 ;  112 large_nonchar
 ;  110 small_char
 ;  108 struct_small_char
@@ -35,27 +35,25 @@ entry:
 ;   68 struct_small_nonchar
 
 ; CHECK: layout_ssp:
-; r[[SP]] is used as an offset into the stack later
-; CHECK: add r[[SP:[0-9]+]], sp, #68
 
 ; CHECK: bl get_scalar1
-; CHECK: str r0, [sp, #168]
+; CHECK: str r0, [sp, #164]
 ; CHECK: bl end_scalar1
 
 ; CHECK: bl get_scalar2
-; CHECK: str r0, [sp, #164]
+; CHECK: str r0, [sp, #160]
 ; CHECK: bl end_scalar2
 
 ; CHECK: bl get_scalar3
-; CHECK: str r0, [sp, #160]
+; CHECK: str r0, [sp, #156]
 ; CHECK: bl end_scalar3
 
 ; CHECK: bl get_addrof
-; CHECK: str r0, [sp, #156]
+; CHECK: str r0, [sp, #152]
 ; CHECK: bl end_addrof
 
 ; CHECK: get_small_nonchar
-; CHECK: strh r0, [r[[SP]], #84]
+; CHECK: strh r0, [sp, #148]
 ; CHECK: bl end_small_nonchar
 
 ; CHECK: bl get_large_nonchar
@@ -67,11 +65,11 @@ entry:
 ; CHECK: bl end_small_char
 
 ; CHECK: bl get_large_char
-; CHECK: strb r0, [sp, #180]
+; CHECK: strb r0, [sp, #176]
 ; CHECK: bl end_large_char
 
 ; CHECK: bl get_struct_large_char
-; CHECK: strb r0, [sp, #172]
+; CHECK: strb r0, [sp, #168]
 ; CHECK: bl end_struct_large_char
 
 ; CHECK: bl get_struct_small_char
@@ -83,7 +81,7 @@ entry:
 ; CHECK: bl end_struct_large_nonchar
 
 ; CHECK: bl get_struct_small_nonchar
-; CHECK: strh r0, [r[[SP]]]
+; CHECK: strh r0, [sp, #68]
 ; CHECK: bl end_struct_small_nonchar
   %x = alloca i32, align 4
   %y = alloca i32, align 4
@@ -110,58 +108,58 @@ entry:
   store i32 %call3, i32* %ptr, align 4
   call void @end_addrof()
   %call4 = call signext i16 @get_small_nonchar()
-  %arrayidx = getelementptr inbounds [2 x i16]* %small2, i32 0, i64 0
+  %arrayidx = getelementptr inbounds [2 x i16], [2 x i16]* %small2, i32 0, i64 0
   store i16 %call4, i16* %arrayidx, align 2
   call void @end_small_nonchar()
   %call5 = call i32 @get_large_nonchar()
-  %arrayidx6 = getelementptr inbounds [8 x i32]* %large2, i32 0, i64 0
+  %arrayidx6 = getelementptr inbounds [8 x i32], [8 x i32]* %large2, i32 0, i64 0
   store i32 %call5, i32* %arrayidx6, align 4
   call void @end_large_nonchar()
   %call7 = call signext i8 @get_small_char()
-  %arrayidx8 = getelementptr inbounds [2 x i8]* %small, i32 0, i64 0
+  %arrayidx8 = getelementptr inbounds [2 x i8], [2 x i8]* %small, i32 0, i64 0
   store i8 %call7, i8* %arrayidx8, align 1
   call void @end_small_char()
   %call9 = call signext i8 @get_large_char()
-  %arrayidx10 = getelementptr inbounds [8 x i8]* %large, i32 0, i64 0
+  %arrayidx10 = getelementptr inbounds [8 x i8], [8 x i8]* %large, i32 0, i64 0
   store i8 %call9, i8* %arrayidx10, align 1
   call void @end_large_char()
   %call11 = call signext i8 @get_struct_large_char()
-  %foo = getelementptr inbounds %struct.struct_large_char* %a, i32 0, i32 0
-  %arrayidx12 = getelementptr inbounds [8 x i8]* %foo, i32 0, i64 0
+  %foo = getelementptr inbounds %struct.struct_large_char, %struct.struct_large_char* %a, i32 0, i32 0
+  %arrayidx12 = getelementptr inbounds [8 x i8], [8 x i8]* %foo, i32 0, i64 0
   store i8 %call11, i8* %arrayidx12, align 1
   call void @end_struct_large_char()
   %call13 = call signext i8 @get_struct_small_char()
-  %foo14 = getelementptr inbounds %struct.struct_small_char* %b, i32 0, i32 0
-  %arrayidx15 = getelementptr inbounds [2 x i8]* %foo14, i32 0, i64 0
+  %foo14 = getelementptr inbounds %struct.struct_small_char, %struct.struct_small_char* %b, i32 0, i32 0
+  %arrayidx15 = getelementptr inbounds [2 x i8], [2 x i8]* %foo14, i32 0, i64 0
   store i8 %call13, i8* %arrayidx15, align 1
   call void @end_struct_small_char()
   %call16 = call i32 @get_struct_large_nonchar()
-  %foo17 = getelementptr inbounds %struct.struct_large_nonchar* %c, i32 0, i32 0
-  %arrayidx18 = getelementptr inbounds [8 x i32]* %foo17, i32 0, i64 0
+  %foo17 = getelementptr inbounds %struct.struct_large_nonchar, %struct.struct_large_nonchar* %c, i32 0, i32 0
+  %arrayidx18 = getelementptr inbounds [8 x i32], [8 x i32]* %foo17, i32 0, i64 0
   store i32 %call16, i32* %arrayidx18, align 4
   call void @end_struct_large_nonchar()
   %call19 = call signext i16 @get_struct_small_nonchar()
-  %foo20 = getelementptr inbounds %struct.struct_small_nonchar* %d, i32 0, i32 0
-  %arrayidx21 = getelementptr inbounds [2 x i16]* %foo20, i32 0, i64 0
+  %foo20 = getelementptr inbounds %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
+  %arrayidx21 = getelementptr inbounds [2 x i16], [2 x i16]* %foo20, i32 0, i64 0
   store i16 %call19, i16* %arrayidx21, align 2
   call void @end_struct_small_nonchar()
-  %arraydecay = getelementptr inbounds [8 x i8]* %large, i32 0, i32 0
-  %arraydecay22 = getelementptr inbounds [2 x i8]* %small, i32 0, i32 0
-  %arraydecay23 = getelementptr inbounds [8 x i32]* %large2, i32 0, i32 0
-  %arraydecay24 = getelementptr inbounds [2 x i16]* %small2, i32 0, i32 0
-  %0 = load i32* %x, align 4
-  %1 = load i32* %y, align 4
-  %2 = load i32* %z, align 4
-  %coerce.dive = getelementptr %struct.struct_large_char* %a, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [8 x i8], [8 x i8]* %large, i32 0, i32 0
+  %arraydecay22 = getelementptr inbounds [2 x i8], [2 x i8]* %small, i32 0, i32 0
+  %arraydecay23 = getelementptr inbounds [8 x i32], [8 x i32]* %large2, i32 0, i32 0
+  %arraydecay24 = getelementptr inbounds [2 x i16], [2 x i16]* %small2, i32 0, i32 0
+  %0 = load i32, i32* %x, align 4
+  %1 = load i32, i32* %y, align 4
+  %2 = load i32, i32* %z, align 4
+  %coerce.dive = getelementptr %struct.struct_large_char, %struct.struct_large_char* %a, i32 0, i32 0
   %3 = bitcast [8 x i8]* %coerce.dive to i64*
-  %4 = load i64* %3, align 1
-  %coerce.dive25 = getelementptr %struct.struct_small_char* %b, i32 0, i32 0
+  %4 = load i64, i64* %3, align 1
+  %coerce.dive25 = getelementptr %struct.struct_small_char, %struct.struct_small_char* %b, i32 0, i32 0
   %5 = bitcast [2 x i8]* %coerce.dive25 to i16*
-  %6 = load i16* %5, align 1
-  %coerce.dive26 = getelementptr %struct.struct_small_nonchar* %d, i32 0, i32 0
+  %6 = load i16, i16* %5, align 1
+  %coerce.dive26 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
   %7 = bitcast [2 x i16]* %coerce.dive26 to i32*
-  %8 = load i32* %7, align 1
-  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 8 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
+  %8 = load i32, i32* %7, align 1
+  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
   ret void
 }
 
@@ -182,8 +180,6 @@ entry:
 ; 68   scalar3                +
 ;   
 ; CHECK: layout_sspstrong:
-; r[[SP]] is used as an offset into the stack later
-; CHECK: add r[[SP:[0-9]+]], sp, #84
 
 ; CHECK: bl get_scalar1
 ; CHECK: str r0, [sp, #76]
@@ -202,7 +198,7 @@ entry:
 ; CHECK: bl end_addrof
 
 ; CHECK: get_small_nonchar
-; CHECK: strh r0, [r[[SP]], #8]
+; CHECK: strh r0, [sp, #92]
 ; CHECK: bl end_small_nonchar
 
 ; CHECK: bl get_large_nonchar
@@ -230,7 +226,7 @@ entry:
 ; CHECK: bl end_struct_large_nonchar
 
 ; CHECK: bl get_struct_small_nonchar
-; CHECK: strh r0, [r[[SP]]]
+; CHECK: strh r0, [sp, #84]
 ; CHECK: bl end_struct_small_nonchar
   %x = alloca i32, align 4
   %y = alloca i32, align 4
@@ -257,58 +253,58 @@ entry:
   store i32 %call3, i32* %ptr, align 4
   call void @end_addrof()
   %call4 = call signext i16 @get_small_nonchar()
-  %arrayidx = getelementptr inbounds [2 x i16]* %small2, i32 0, i64 0
+  %arrayidx = getelementptr inbounds [2 x i16], [2 x i16]* %small2, i32 0, i64 0
   store i16 %call4, i16* %arrayidx, align 2
   call void @end_small_nonchar()
   %call5 = call i32 @get_large_nonchar()
-  %arrayidx6 = getelementptr inbounds [8 x i32]* %large2, i32 0, i64 0
+  %arrayidx6 = getelementptr inbounds [8 x i32], [8 x i32]* %large2, i32 0, i64 0
   store i32 %call5, i32* %arrayidx6, align 4
   call void @end_large_nonchar()
   %call7 = call signext i8 @get_small_char()
-  %arrayidx8 = getelementptr inbounds [2 x i8]* %small, i32 0, i64 0
+  %arrayidx8 = getelementptr inbounds [2 x i8], [2 x i8]* %small, i32 0, i64 0
   store i8 %call7, i8* %arrayidx8, align 1
   call void @end_small_char()
   %call9 = call signext i8 @get_large_char()
-  %arrayidx10 = getelementptr inbounds [8 x i8]* %large, i32 0, i64 0
+  %arrayidx10 = getelementptr inbounds [8 x i8], [8 x i8]* %large, i32 0, i64 0
   store i8 %call9, i8* %arrayidx10, align 1
   call void @end_large_char()
   %call11 = call signext i8 @get_struct_large_char()
-  %foo = getelementptr inbounds %struct.struct_large_char* %a, i32 0, i32 0
-  %arrayidx12 = getelementptr inbounds [8 x i8]* %foo, i32 0, i64 0
+  %foo = getelementptr inbounds %struct.struct_large_char, %struct.struct_large_char* %a, i32 0, i32 0
+  %arrayidx12 = getelementptr inbounds [8 x i8], [8 x i8]* %foo, i32 0, i64 0
   store i8 %call11, i8* %arrayidx12, align 1
   call void @end_struct_large_char()
   %call13 = call signext i8 @get_struct_small_char()
-  %foo14 = getelementptr inbounds %struct.struct_small_char* %b, i32 0, i32 0
-  %arrayidx15 = getelementptr inbounds [2 x i8]* %foo14, i32 0, i64 0
+  %foo14 = getelementptr inbounds %struct.struct_small_char, %struct.struct_small_char* %b, i32 0, i32 0
+  %arrayidx15 = getelementptr inbounds [2 x i8], [2 x i8]* %foo14, i32 0, i64 0
   store i8 %call13, i8* %arrayidx15, align 1
   call void @end_struct_small_char()
   %call16 = call i32 @get_struct_large_nonchar()
-  %foo17 = getelementptr inbounds %struct.struct_large_nonchar* %c, i32 0, i32 0
-  %arrayidx18 = getelementptr inbounds [8 x i32]* %foo17, i32 0, i64 0
+  %foo17 = getelementptr inbounds %struct.struct_large_nonchar, %struct.struct_large_nonchar* %c, i32 0, i32 0
+  %arrayidx18 = getelementptr inbounds [8 x i32], [8 x i32]* %foo17, i32 0, i64 0
   store i32 %call16, i32* %arrayidx18, align 4
   call void @end_struct_large_nonchar()
   %call19 = call signext i16 @get_struct_small_nonchar()
-  %foo20 = getelementptr inbounds %struct.struct_small_nonchar* %d, i32 0, i32 0
-  %arrayidx21 = getelementptr inbounds [2 x i16]* %foo20, i32 0, i64 0
+  %foo20 = getelementptr inbounds %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
+  %arrayidx21 = getelementptr inbounds [2 x i16], [2 x i16]* %foo20, i32 0, i64 0
   store i16 %call19, i16* %arrayidx21, align 2
   call void @end_struct_small_nonchar()
-  %arraydecay = getelementptr inbounds [8 x i8]* %large, i32 0, i32 0
-  %arraydecay22 = getelementptr inbounds [2 x i8]* %small, i32 0, i32 0
-  %arraydecay23 = getelementptr inbounds [8 x i32]* %large2, i32 0, i32 0
-  %arraydecay24 = getelementptr inbounds [2 x i16]* %small2, i32 0, i32 0
-  %0 = load i32* %x, align 4
-  %1 = load i32* %y, align 4
-  %2 = load i32* %z, align 4
-  %coerce.dive = getelementptr %struct.struct_large_char* %a, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [8 x i8], [8 x i8]* %large, i32 0, i32 0
+  %arraydecay22 = getelementptr inbounds [2 x i8], [2 x i8]* %small, i32 0, i32 0
+  %arraydecay23 = getelementptr inbounds [8 x i32], [8 x i32]* %large2, i32 0, i32 0
+  %arraydecay24 = getelementptr inbounds [2 x i16], [2 x i16]* %small2, i32 0, i32 0
+  %0 = load i32, i32* %x, align 4
+  %1 = load i32, i32* %y, align 4
+  %2 = load i32, i32* %z, align 4
+  %coerce.dive = getelementptr %struct.struct_large_char, %struct.struct_large_char* %a, i32 0, i32 0
   %3 = bitcast [8 x i8]* %coerce.dive to i64*
-  %4 = load i64* %3, align 1
-  %coerce.dive25 = getelementptr %struct.struct_small_char* %b, i32 0, i32 0
+  %4 = load i64, i64* %3, align 1
+  %coerce.dive25 = getelementptr %struct.struct_small_char, %struct.struct_small_char* %b, i32 0, i32 0
   %5 = bitcast [2 x i8]* %coerce.dive25 to i16*
-  %6 = load i16* %5, align 1
-  %coerce.dive26 = getelementptr %struct.struct_small_nonchar* %d, i32 0, i32 0
+  %6 = load i16, i16* %5, align 1
+  %coerce.dive26 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
   %7 = bitcast [2 x i16]* %coerce.dive26 to i32*
-  %8 = load i32* %7, align 1
-  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 8 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
+  %8 = load i32, i32* %7, align 1
+  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
   ret void
 }
 
@@ -317,8 +313,6 @@ entry:
 ; Expected stack layout for sspreq is the same as sspstrong
 ;   
 ; CHECK: layout_sspreq:
-; r[[SP]] is used as an offset into the stack later
-; CHECK: add r[[SP:[0-9]+]], sp, #84
 
 ; CHECK: bl get_scalar1
 ; CHECK: str r0, [sp, #76]
@@ -337,7 +331,7 @@ entry:
 ; CHECK: bl end_addrof
 
 ; CHECK: get_small_nonchar
-; CHECK: strh r0, [r[[SP]], #8]
+; CHECK: strh r0, [sp, #92]
 ; CHECK: bl end_small_nonchar
 
 ; CHECK: bl get_large_nonchar
@@ -365,7 +359,7 @@ entry:
 ; CHECK: bl end_struct_large_nonchar
 
 ; CHECK: bl get_struct_small_nonchar
-; CHECK: strh r0, [r[[SP]]]
+; CHECK: strh r0, [sp, #84]
 ; CHECK: bl end_struct_small_nonchar
   %x = alloca i32, align 4
   %y = alloca i32, align 4
@@ -392,58 +386,58 @@ entry:
   store i32 %call3, i32* %ptr, align 4
   call void @end_addrof()
   %call4 = call signext i16 @get_small_nonchar()
-  %arrayidx = getelementptr inbounds [2 x i16]* %small2, i32 0, i64 0
+  %arrayidx = getelementptr inbounds [2 x i16], [2 x i16]* %small2, i32 0, i64 0
   store i16 %call4, i16* %arrayidx, align 2
   call void @end_small_nonchar()
   %call5 = call i32 @get_large_nonchar()
-  %arrayidx6 = getelementptr inbounds [8 x i32]* %large2, i32 0, i64 0
+  %arrayidx6 = getelementptr inbounds [8 x i32], [8 x i32]* %large2, i32 0, i64 0
   store i32 %call5, i32* %arrayidx6, align 4
   call void @end_large_nonchar()
   %call7 = call signext i8 @get_small_char()
-  %arrayidx8 = getelementptr inbounds [2 x i8]* %small, i32 0, i64 0
+  %arrayidx8 = getelementptr inbounds [2 x i8], [2 x i8]* %small, i32 0, i64 0
   store i8 %call7, i8* %arrayidx8, align 1
   call void @end_small_char()
   %call9 = call signext i8 @get_large_char()
-  %arrayidx10 = getelementptr inbounds [8 x i8]* %large, i32 0, i64 0
+  %arrayidx10 = getelementptr inbounds [8 x i8], [8 x i8]* %large, i32 0, i64 0
   store i8 %call9, i8* %arrayidx10, align 1
   call void @end_large_char()
   %call11 = call signext i8 @get_struct_large_char()
-  %foo = getelementptr inbounds %struct.struct_large_char* %a, i32 0, i32 0
-  %arrayidx12 = getelementptr inbounds [8 x i8]* %foo, i32 0, i64 0
+  %foo = getelementptr inbounds %struct.struct_large_char, %struct.struct_large_char* %a, i32 0, i32 0
+  %arrayidx12 = getelementptr inbounds [8 x i8], [8 x i8]* %foo, i32 0, i64 0
   store i8 %call11, i8* %arrayidx12, align 1
   call void @end_struct_large_char()
   %call13 = call signext i8 @get_struct_small_char()
-  %foo14 = getelementptr inbounds %struct.struct_small_char* %b, i32 0, i32 0
-  %arrayidx15 = getelementptr inbounds [2 x i8]* %foo14, i32 0, i64 0
+  %foo14 = getelementptr inbounds %struct.struct_small_char, %struct.struct_small_char* %b, i32 0, i32 0
+  %arrayidx15 = getelementptr inbounds [2 x i8], [2 x i8]* %foo14, i32 0, i64 0
   store i8 %call13, i8* %arrayidx15, align 1
   call void @end_struct_small_char()
   %call16 = call i32 @get_struct_large_nonchar()
-  %foo17 = getelementptr inbounds %struct.struct_large_nonchar* %c, i32 0, i32 0
-  %arrayidx18 = getelementptr inbounds [8 x i32]* %foo17, i32 0, i64 0
+  %foo17 = getelementptr inbounds %struct.struct_large_nonchar, %struct.struct_large_nonchar* %c, i32 0, i32 0
+  %arrayidx18 = getelementptr inbounds [8 x i32], [8 x i32]* %foo17, i32 0, i64 0
   store i32 %call16, i32* %arrayidx18, align 4
   call void @end_struct_large_nonchar()
   %call19 = call signext i16 @get_struct_small_nonchar()
-  %foo20 = getelementptr inbounds %struct.struct_small_nonchar* %d, i32 0, i32 0
-  %arrayidx21 = getelementptr inbounds [2 x i16]* %foo20, i32 0, i64 0
+  %foo20 = getelementptr inbounds %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
+  %arrayidx21 = getelementptr inbounds [2 x i16], [2 x i16]* %foo20, i32 0, i64 0
   store i16 %call19, i16* %arrayidx21, align 2
   call void @end_struct_small_nonchar()
-  %arraydecay = getelementptr inbounds [8 x i8]* %large, i32 0, i32 0
-  %arraydecay22 = getelementptr inbounds [2 x i8]* %small, i32 0, i32 0
-  %arraydecay23 = getelementptr inbounds [8 x i32]* %large2, i32 0, i32 0
-  %arraydecay24 = getelementptr inbounds [2 x i16]* %small2, i32 0, i32 0
-  %0 = load i32* %x, align 4
-  %1 = load i32* %y, align 4
-  %2 = load i32* %z, align 4
-  %coerce.dive = getelementptr %struct.struct_large_char* %a, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [8 x i8], [8 x i8]* %large, i32 0, i32 0
+  %arraydecay22 = getelementptr inbounds [2 x i8], [2 x i8]* %small, i32 0, i32 0
+  %arraydecay23 = getelementptr inbounds [8 x i32], [8 x i32]* %large2, i32 0, i32 0
+  %arraydecay24 = getelementptr inbounds [2 x i16], [2 x i16]* %small2, i32 0, i32 0
+  %0 = load i32, i32* %x, align 4
+  %1 = load i32, i32* %y, align 4
+  %2 = load i32, i32* %z, align 4
+  %coerce.dive = getelementptr %struct.struct_large_char, %struct.struct_large_char* %a, i32 0, i32 0
   %3 = bitcast [8 x i8]* %coerce.dive to i64*
-  %4 = load i64* %3, align 1
-  %coerce.dive25 = getelementptr %struct.struct_small_char* %b, i32 0, i32 0
+  %4 = load i64, i64* %3, align 1
+  %coerce.dive25 = getelementptr %struct.struct_small_char, %struct.struct_small_char* %b, i32 0, i32 0
   %5 = bitcast [2 x i8]* %coerce.dive25 to i16*
-  %6 = load i16* %5, align 1
-  %coerce.dive26 = getelementptr %struct.struct_small_nonchar* %d, i32 0, i32 0
+  %6 = load i16, i16* %5, align 1
+  %coerce.dive26 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
   %7 = bitcast [2 x i16]* %coerce.dive26 to i32*
-  %8 = load i32* %7, align 1
-  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 8 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
+  %8 = load i32, i32* %7, align 1
+  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
   ret void
 }
 
@@ -463,26 +457,26 @@ entry:
   %d1 = alloca %struct.struct_large_nonchar, align 8
   %d2 = alloca %struct.struct_small_nonchar, align 2
   %call = call signext i8 @get_struct_small_char()
-  %foo = getelementptr inbounds %struct.struct_small_char* %a, i32 0, i32 0
-  %arrayidx = getelementptr inbounds [2 x i8]* %foo, i32 0, i64 0
+  %foo = getelementptr inbounds %struct.struct_small_char, %struct.struct_small_char* %a, i32 0, i32 0
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %foo, i32 0, i64 0
   store i8 %call, i8* %arrayidx, align 1
   call void @end_struct_small_char()
   %call1 = call signext i8 @get_struct_large_char2()
-  %foo2 = getelementptr inbounds %struct.struct_large_char2* %b, i32 0, i32 1
-  %arrayidx3 = getelementptr inbounds [8 x i8]* %foo2, i32 0, i64 0
+  %foo2 = getelementptr inbounds %struct.struct_large_char2, %struct.struct_large_char2* %b, i32 0, i32 1
+  %arrayidx3 = getelementptr inbounds [8 x i8], [8 x i8]* %foo2, i32 0, i64 0
   store i8 %call1, i8* %arrayidx3, align 1
   call void @end_struct_large_char2()
   %0 = bitcast %struct.struct_large_char2* %b to %struct.struct_large_char*
-  %coerce.dive = getelementptr %struct.struct_large_char* %0, i32 0, i32 0
+  %coerce.dive = getelementptr %struct.struct_large_char, %struct.struct_large_char* %0, i32 0, i32 0
   %1 = bitcast [8 x i8]* %coerce.dive to i64*
-  %2 = load i64* %1, align 1
-  %coerce.dive4 = getelementptr %struct.struct_small_char* %a, i32 0, i32 0
+  %2 = load i64, i64* %1, align 1
+  %coerce.dive4 = getelementptr %struct.struct_small_char, %struct.struct_small_char* %a, i32 0, i32 0
   %3 = bitcast [2 x i8]* %coerce.dive4 to i16*
-  %4 = load i16* %3, align 1
-  %coerce.dive5 = getelementptr %struct.struct_small_nonchar* %d2, i32 0, i32 0
+  %4 = load i16, i16* %3, align 1
+  %coerce.dive5 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d2, i32 0, i32 0
   %5 = bitcast [2 x i16]* %coerce.dive5 to i32*
-  %6 = load i32* %5, align 1
-  call void @takes_all(i64 %2, i16 %4, %struct.struct_large_nonchar* byval align 8 %d1, i32 %6, i8* null, i8* null, i32* null, i16* null, i32* null, i32 0, i32 0, i32 0)
+  %6 = load i32, i32* %5, align 1
+  call void @takes_all(i64 %2, i16 %4, %struct.struct_large_nonchar* byval align 4 %d1, i32 %6, i8* null, i8* null, i32* null, i16* null, i32* null, i32 0, i32 0, i32 0)
   ret void
 }
 

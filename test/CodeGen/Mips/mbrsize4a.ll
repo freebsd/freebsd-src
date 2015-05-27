@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -soft-float -mips16-hard-float -relocation-model=static -mips16-constant-islands   < %s | FileCheck %s -check-prefix=jal16
+; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -mattr=+soft-float -mips16-hard-float -relocation-model=static -mips16-constant-islands   < %s | FileCheck %s -check-prefix=jal16
 
 @j = global i32 10, align 4
 @.str = private unnamed_addr constant [11 x i8] c"at bottom\0A\00", align 1
@@ -17,11 +17,11 @@ z:                                                ; preds = %y, %entry
   br label %y
 
 y:                                                ; preds = %z
-  %call1 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([11 x i8]* @.str, i32 0, i32 0))
+  %call1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i32 0, i32 0))
   br label %z
 
 return:                                           ; No predecessors!
-  %0 = load i32* %retval
+  %0 = load i32, i32* %retval
   ret i32 %0
 ; jal16: 	jal	$BB{{[0-9]+}}_{{[0-9]+}}
 }

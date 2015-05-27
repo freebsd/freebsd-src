@@ -1,5 +1,6 @@
-; RUN: llc -march=amdgcn -mcpu=bonaire -verify-machineinstrs < %s | FileCheck -check-prefix=CI -check-prefix=FUNC %s
 ; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN: llc -march=amdgcn -mcpu=bonaire -verify-machineinstrs < %s | FileCheck -check-prefix=CI -check-prefix=FUNC %s
+; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefix=CI -check-prefix=FUNC %s
 
 declare double @llvm.ceil.f64(double) nounwind readnone
 declare <2 x double> @llvm.ceil.v2f64(<2 x double>) nounwind readnone
@@ -11,19 +12,19 @@ declare <16 x double> @llvm.ceil.v16f64(<16 x double>) nounwind readnone
 ; FUNC-LABEL: {{^}}fceil_f64:
 ; CI: v_ceil_f64_e32
 ; SI: s_bfe_u32 [[SEXP:s[0-9]+]], {{s[0-9]+}}, 0xb0014
+; SI: s_and_b32 s{{[0-9]+}}, s{{[0-9]+}}, 0x80000000
 ; SI: s_add_i32 s{{[0-9]+}}, [[SEXP]], 0xfffffc01
 ; SI: s_lshr_b64
 ; SI: s_not_b64
 ; SI: s_and_b64
-; SI-DAG: s_and_b32 s{{[0-9]+}}, s{{[0-9]+}}, 0x80000000
-; SI-DAG: cmp_lt_i32
-; SI: cndmask_b32
-; SI: cndmask_b32
 ; SI: cmp_gt_i32
 ; SI: cndmask_b32
 ; SI: cndmask_b32
-; SI: v_cmp_lg_f64
-; SI: v_cmp_gt_f64
+; SI: cmp_lt_i32
+; SI: cndmask_b32
+; SI: cndmask_b32
+; SI-DAG: v_cmp_lt_f64
+; SI-DAG: v_cmp_lg_f64
 ; SI: s_and_b64
 ; SI: v_cndmask_b32
 ; SI: v_cndmask_b32

@@ -87,7 +87,7 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
   if (SymbolicOp.AddSymbol.Present) {
     if (SymbolicOp.AddSymbol.Name) {
       StringRef Name(SymbolicOp.AddSymbol.Name);
-      MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name);
+      MCSymbol *Sym = Ctx.getOrCreateSymbol(Name);
       Add = MCSymbolRefExpr::Create(Sym, Ctx);
     } else {
       Add = MCConstantExpr::Create((int)SymbolicOp.AddSymbol.Value, Ctx);
@@ -98,7 +98,7 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
   if (SymbolicOp.SubtractSymbol.Present) {
       if (SymbolicOp.SubtractSymbol.Name) {
       StringRef Name(SymbolicOp.SubtractSymbol.Name);
-      MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name);
+      MCSymbol *Sym = Ctx.getOrCreateSymbol(Name);
       Sub = MCSymbolRefExpr::Create(Sym, Ctx);
     } else {
       Sub = MCConstantExpr::Create((int)SymbolicOp.SubtractSymbol.Value, Ctx);
@@ -136,7 +136,7 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
   if (!Expr)
     return false;
 
-  MI.addOperand(MCOperand::CreateExpr(Expr));
+  MI.addOperand(MCOperand::createExpr(Expr));
   return true;
 }
 
@@ -186,13 +186,11 @@ void MCExternalSymbolizer::tryAddingPcLoadReferenceComment(raw_ostream &cStream,
 namespace llvm {
 MCSymbolizer *createMCSymbolizer(StringRef TT, LLVMOpInfoCallback GetOpInfo,
                                  LLVMSymbolLookupCallback SymbolLookUp,
-                                 void *DisInfo,
-                                 MCContext *Ctx,
-                                 MCRelocationInfo *RelInfo) {
+                                 void *DisInfo, MCContext *Ctx,
+                                 std::unique_ptr<MCRelocationInfo> &&RelInfo) {
   assert(Ctx && "No MCContext given for symbolic disassembly");
 
-  return new MCExternalSymbolizer(*Ctx,
-                                  std::unique_ptr<MCRelocationInfo>(RelInfo),
-                                  GetOpInfo, SymbolLookUp, DisInfo);
+  return new MCExternalSymbolizer(*Ctx, std::move(RelInfo), GetOpInfo,
+                                  SymbolLookUp, DisInfo);
 }
 }

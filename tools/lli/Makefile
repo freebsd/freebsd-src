@@ -14,12 +14,12 @@ PARALLEL_DIRS := ChildTarget
 
 include $(LEVEL)/Makefile.config
 
-LINK_COMPONENTS := mcjit instrumentation interpreter nativecodegen bitreader asmparser irreader selectiondag native
+LINK_COMPONENTS := mcjit orcjit instrumentation interpreter nativecodegen bitreader asmparser irreader selectiondag native
 
 # If Intel JIT Events support is confiured, link against the LLVM Intel JIT
 # Events interface library
 ifeq ($(USE_INTEL_JITEVENTS), 1)
-  LINK_COMPONENTS += debuginfo inteljitevents object
+  LINK_COMPONENTS += debuginfodwarf inteljitevents object
 endif
 
 # If oprofile support is confiured, link against the LLVM oprofile interface

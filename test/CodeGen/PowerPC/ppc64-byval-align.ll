@@ -30,8 +30,8 @@ entry:
 
 define i64 @callee2(%struct.pad* byval nocapture readnone %x, i32 signext %y, %struct.test* byval align 16 nocapture readonly %z) {
 entry:
-  %x1 = getelementptr inbounds %struct.test* %z, i64 0, i32 0
-  %0 = load i64* %x1, align 16
+  %x1 = getelementptr inbounds %struct.test, %struct.test* %z, i64 0, i32 0
+  %0 = load i64, i64* %x1, align 16
   ret i64 %0
 }
 ; CHECK-LABEL: @callee2
@@ -43,14 +43,16 @@ declare i64 @test2(%struct.pad* byval, i32 signext, %struct.test* byval align 16
 define void @caller2(i64 %z) {
 entry:
   %tmp = alloca %struct.test, align 16
-  %.compoundliteral.sroa.0.0..sroa_idx = getelementptr inbounds %struct.test* %tmp, i64 0, i32 0
+  %.compoundliteral.sroa.0.0..sroa_idx = getelementptr inbounds %struct.test, %struct.test* %tmp, i64 0, i32 0
   store i64 %z, i64* %.compoundliteral.sroa.0.0..sroa_idx, align 16
   %call = call i64 @test2(%struct.pad* byval @gp, i32 signext 0, %struct.test* byval align 16 %tmp)
   ret void
 }
 ; CHECK-LABEL: @caller2
 ; CHECK: std 3, [[OFF:[0-9]+]](1)
-; CHECK: ld [[REG:[0-9]+]], [[OFF]](1)
-; CHECK: std [[REG]], 128(1)
+; CHECK: addi [[REG1:[0-9]+]], 1, [[OFF]]
+; CHECK: lxvw4x [[REG2:[0-9]+]], 0, [[REG1]]
+; CHECK: li [[REG3:[0-9]+]], 128
+; CHECK: stxvw4x 0, 1, [[REG3]]
 ; CHECK: bl test2
 

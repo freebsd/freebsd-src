@@ -5,21 +5,21 @@ declare void @llvm.memcpy.p0i8.p0i8.i32(i8*, i8*, i32, i32, i1)
 
 define void @test1({ i8, i8 }* %a, { i8, i8 }* %b) {
 ; CHECK-LABEL: @test1(
-; CHECK: %[[gep_a0:.*]] = getelementptr inbounds { i8, i8 }* %a, i64 0, i32 0
-; CHECK: %[[a0:.*]] = load i8* %[[gep_a0]], align 16
-; CHECK: %[[gep_a1:.*]] = getelementptr inbounds { i8, i8 }* %a, i64 0, i32 1
-; CHECK: %[[a1:.*]] = load i8* %[[gep_a1]], align 1
-; CHECK: %[[gep_b0:.*]] = getelementptr inbounds { i8, i8 }* %b, i64 0, i32 0
+; CHECK: %[[gep_a0:.*]] = getelementptr inbounds { i8, i8 }, { i8, i8 }* %a, i64 0, i32 0
+; CHECK: %[[a0:.*]] = load i8, i8* %[[gep_a0]], align 16
+; CHECK: %[[gep_a1:.*]] = getelementptr inbounds { i8, i8 }, { i8, i8 }* %a, i64 0, i32 1
+; CHECK: %[[a1:.*]] = load i8, i8* %[[gep_a1]], align 1
+; CHECK: %[[gep_b0:.*]] = getelementptr inbounds { i8, i8 }, { i8, i8 }* %b, i64 0, i32 0
 ; CHECK: store i8 %[[a0]], i8* %[[gep_b0]], align 16
-; CHECK: %[[gep_b1:.*]] = getelementptr inbounds { i8, i8 }* %b, i64 0, i32 1
+; CHECK: %[[gep_b1:.*]] = getelementptr inbounds { i8, i8 }, { i8, i8 }* %b, i64 0, i32 1
 ; CHECK: store i8 %[[a1]], i8* %[[gep_b1]], align 1
 ; CHECK: ret void
 
 entry:
   %alloca = alloca { i8, i8 }, align 16
-  %gep_a = getelementptr { i8, i8 }* %a, i32 0, i32 0
-  %gep_alloca = getelementptr { i8, i8 }* %alloca, i32 0, i32 0
-  %gep_b = getelementptr { i8, i8 }* %b, i32 0, i32 0
+  %gep_a = getelementptr { i8, i8 }, { i8, i8 }* %a, i32 0, i32 0
+  %gep_alloca = getelementptr { i8, i8 }, { i8, i8 }* %alloca, i32 0, i32 0
+  %gep_b = getelementptr { i8, i8 }, { i8, i8 }* %b, i32 0, i32 0
 
   store i8 420, i8* %gep_alloca, align 16
 
@@ -31,17 +31,17 @@ entry:
 define void @test2() {
 ; CHECK-LABEL: @test2(
 ; CHECK: alloca i16
-; CHECK: load i8* %{{.*}}
+; CHECK: load i8, i8* %{{.*}}
 ; CHECK: store i8 42, i8* %{{.*}}
 ; CHECK: ret void
 
 entry:
   %a = alloca { i8, i8, i8, i8 }, align 2
-  %gep1 = getelementptr { i8, i8, i8, i8 }* %a, i32 0, i32 1
+  %gep1 = getelementptr { i8, i8, i8, i8 }, { i8, i8, i8, i8 }* %a, i32 0, i32 1
   %cast1 = bitcast i8* %gep1 to i16*
   store volatile i16 0, i16* %cast1
-  %gep2 = getelementptr { i8, i8, i8, i8 }* %a, i32 0, i32 2
-  %result = load i8* %gep2
+  %gep2 = getelementptr { i8, i8, i8, i8 }, { i8, i8, i8, i8 }* %a, i32 0, i32 2
+  %result = load i8, i8* %gep2
   store i8 42, i8* %gep2
   ret void
 }
@@ -49,7 +49,7 @@ entry:
 define void @PR13920(<2 x i64>* %a, i16* %b) {
 ; Test that alignments on memcpy intrinsics get propagated to loads and stores.
 ; CHECK-LABEL: @PR13920(
-; CHECK: load <2 x i64>* %a, align 2
+; CHECK: load <2 x i64>, <2 x i64>* %a, align 2
 ; CHECK: store <2 x i64> {{.*}}, <2 x i64>* {{.*}}, align 2
 ; CHECK: ret void
 
@@ -79,7 +79,7 @@ entry:
   %a_raw = bitcast { i8*, i8*, i8* }* %a to i8*
   call void @llvm.memcpy.p0i8.p0i8.i32(i8* %a_raw, i8* %x, i32 22, i32 8, i1 false)
   %b_raw = bitcast { i8*, i8*, i8* }* %b to i8*
-  %b_gep = getelementptr i8* %b_raw, i32 6
+  %b_gep = getelementptr i8, i8* %b_raw, i32 6
   call void @llvm.memcpy.p0i8.p0i8.i32(i8* %b_gep, i8* %x, i32 18, i32 2, i1 false)
   ret void
 }
@@ -93,28 +93,28 @@ define void @test5() {
 ; CHECK: alloca [9 x i8]
 ; CHECK: alloca [9 x i8]
 ; CHECK: store volatile double 0.0{{.*}}, double* %{{.*}}, align 1
-; CHECK: load volatile i16* %{{.*}}, align 1
-; CHECK: load double* %{{.*}}, align 1
+; CHECK: load volatile i16, i16* %{{.*}}, align 1
+; CHECK: load double, double* %{{.*}}, align 1
 ; CHECK: store volatile double %{{.*}}, double* %{{.*}}, align 1
-; CHECK: load volatile i16* %{{.*}}, align 1
+; CHECK: load volatile i16, i16* %{{.*}}, align 1
 ; CHECK: ret void
 
 entry:
   %a = alloca [18 x i8]
-  %raw1 = getelementptr inbounds [18 x i8]* %a, i32 0, i32 0
+  %raw1 = getelementptr inbounds [18 x i8], [18 x i8]* %a, i32 0, i32 0
   %ptr1 = bitcast i8* %raw1 to double*
   store volatile double 0.0, double* %ptr1, align 1
-  %weird_gep1 = getelementptr inbounds [18 x i8]* %a, i32 0, i32 7
+  %weird_gep1 = getelementptr inbounds [18 x i8], [18 x i8]* %a, i32 0, i32 7
   %weird_cast1 = bitcast i8* %weird_gep1 to i16*
-  %weird_load1 = load volatile i16* %weird_cast1, align 1
+  %weird_load1 = load volatile i16, i16* %weird_cast1, align 1
 
-  %raw2 = getelementptr inbounds [18 x i8]* %a, i32 0, i32 9
+  %raw2 = getelementptr inbounds [18 x i8], [18 x i8]* %a, i32 0, i32 9
   %ptr2 = bitcast i8* %raw2 to double*
-  %d1 = load double* %ptr1, align 1
+  %d1 = load double, double* %ptr1, align 1
   store volatile double %d1, double* %ptr2, align 1
-  %weird_gep2 = getelementptr inbounds [18 x i8]* %a, i32 0, i32 16
+  %weird_gep2 = getelementptr inbounds [18 x i8], [18 x i8]* %a, i32 0, i32 16
   %weird_cast2 = bitcast i8* %weird_gep2 to i16*
-  %weird_load2 = load volatile i16* %weird_cast2, align 1
+  %weird_load2 = load volatile i16, i16* %weird_cast2, align 1
 
   ret void
 }
@@ -130,13 +130,13 @@ define void @test6() {
 
 entry:
   %a = alloca [16 x i8]
-  %raw1 = getelementptr inbounds [16 x i8]* %a, i32 0, i32 0
+  %raw1 = getelementptr inbounds [16 x i8], [16 x i8]* %a, i32 0, i32 0
   %ptr1 = bitcast i8* %raw1 to double*
   store volatile double 0.0, double* %ptr1, align 1
 
-  %raw2 = getelementptr inbounds [16 x i8]* %a, i32 0, i32 8
+  %raw2 = getelementptr inbounds [16 x i8], [16 x i8]* %a, i32 0, i32 8
   %ptr2 = bitcast i8* %raw2 to double*
-  %val = load double* %ptr1, align 1
+  %val = load double, double* %ptr1, align 1
   store volatile double %val, double* %ptr2, align 1
 
   ret void
@@ -150,17 +150,17 @@ define void @test7(i8* %out) {
 
 entry:
   %a = alloca [16 x i8]
-  %raw1 = getelementptr inbounds [16 x i8]* %a, i32 0, i32 0
+  %raw1 = getelementptr inbounds [16 x i8], [16 x i8]* %a, i32 0, i32 0
   %ptr1 = bitcast i8* %raw1 to double*
-  %raw2 = getelementptr inbounds [16 x i8]* %a, i32 0, i32 8
+  %raw2 = getelementptr inbounds [16 x i8], [16 x i8]* %a, i32 0, i32 8
   %ptr2 = bitcast i8* %raw2 to double*
 
   call void @llvm.memcpy.p0i8.p0i8.i32(i8* %raw1, i8* %out, i32 16, i32 0, i1 false)
-; CHECK: %[[val2:.*]] = load double* %{{.*}}, align 1
-; CHECK: %[[val1:.*]] = load double* %{{.*}}, align 1
+; CHECK: %[[val2:.*]] = load double, double* %{{.*}}, align 1
+; CHECK: %[[val1:.*]] = load double, double* %{{.*}}, align 1
 
-  %val1 = load double* %ptr2, align 1
-  %val2 = load double* %ptr1, align 1
+  %val1 = load double, double* %ptr2, align 1
+  %val2 = load double, double* %ptr1, align 1
 
   store double %val1, double* %ptr1, align 1
   store double %val2, double* %ptr2, align 1

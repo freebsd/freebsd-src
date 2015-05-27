@@ -106,17 +106,12 @@ protected:
 private:
   template <typename UseT> // UseT == 'Use' or 'const Use'
   class use_iterator_impl
-      : public std::iterator<std::forward_iterator_tag, UseT *, ptrdiff_t> {
-    typedef std::iterator<std::forward_iterator_tag, UseT *, ptrdiff_t> super;
-
+      : public std::iterator<std::forward_iterator_tag, UseT *> {
     UseT *U;
     explicit use_iterator_impl(UseT *u) : U(u) {}
     friend class Value;
 
   public:
-    typedef typename super::reference reference;
-    typedef typename super::pointer pointer;
-
     use_iterator_impl() : U() {}
 
     bool operator==(const use_iterator_impl &x) const { return U == x.U; }
@@ -147,17 +142,12 @@ private:
 
   template <typename UserTy> // UserTy == 'User' or 'const User'
   class user_iterator_impl
-      : public std::iterator<std::forward_iterator_tag, UserTy *, ptrdiff_t> {
-    typedef std::iterator<std::forward_iterator_tag, UserTy *, ptrdiff_t> super;
-
+      : public std::iterator<std::forward_iterator_tag, UserTy *> {
     use_iterator_impl<Use> UI;
     explicit user_iterator_impl(Use *U) : UI(U) {}
     friend class Value;
 
   public:
-    typedef typename super::reference reference;
-    typedef typename super::pointer pointer;
-
     user_iterator_impl() {}
 
     bool operator==(const user_iterator_impl &x) const { return UI == x.UI; }
@@ -188,15 +178,10 @@ private:
     }
 
     Use &getUse() const { return *UI; }
-
-    /// \brief Return the operand # of this use in its User.
-    ///
-    /// FIXME: Replace all callers with a direct call to Use::getOperandNo.
-    unsigned getOperandNo() const { return UI->getOperandNo(); }
   };
 
-  void operator=(const Value &) LLVM_DELETED_FUNCTION;
-  Value(const Value &) LLVM_DELETED_FUNCTION;
+  void operator=(const Value &) = delete;
+  Value(const Value &) = delete;
 
 protected:
   Value(Type *Ty, unsigned scid);
@@ -231,6 +216,7 @@ public:
 
 private:
   void destroyValueName();
+  void setNameImpl(const Twine &Name);
 
 public:
   /// \brief Return a constant reference to the value's name.
@@ -461,12 +447,6 @@ public:
     return const_cast<Value*>(this)->stripInBoundsOffsets();
   }
 
-  /// \brief Check if this is always a dereferenceable pointer.
-  ///
-  /// Test if this value is always a pointer to allocated and suitably aligned
-  /// memory for a simple load or store.
-  bool isDereferenceablePointer(const DataLayout *DL = nullptr) const;
-
   /// \brief Translate PHI node to its predecessor from the given basic block.
   ///
   /// If this value is a PHI node with CurBB as its parent, return the value in
@@ -484,7 +464,8 @@ public:
   ///
   /// This is the greatest alignment value supported by load, store, and alloca
   /// instructions, and global values.
-  static const unsigned MaximumAlignment = 1u << 29;
+  static const unsigned MaxAlignmentExponent = 29;
+  static const unsigned MaximumAlignment = 1u << MaxAlignmentExponent;
 
   /// \brief Mutate the type of this Value to be of the specified type.
   ///

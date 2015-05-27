@@ -45,7 +45,7 @@ bb33.i:		; preds = %bb42.i
 	unreachable
 
 bb34.i:		; preds = %bb42.i
-	%3 = load i32* @_C_nextcmd, align 4		; <i32> [#uses=1]
+	%3 = load i32, i32* @_C_nextcmd, align 4		; <i32> [#uses=1]
 	%4 = add i32 %3, 1		; <i32> [#uses=1]
 	store i32 %4, i32* @_C_nextcmd, align 4
 	%5 = call  noalias i8* @calloc(i32 22, i32 1) nounwind		; <i8*> [#uses=0]
@@ -60,7 +60,7 @@ bb37.i:		; preds = %bb42.i
 	unreachable
 
 bb39.i:		; preds = %bb42.i
-	call  void @Z_fatal(i8* getelementptr ([28 x i8]* @.str31, i32 0, i32 0)) nounwind
+	call  void @Z_fatal(i8* getelementptr ([28 x i8], [28 x i8]* @.str31, i32 0, i32 0)) nounwind
 	unreachable
 
 bb40.i:		; preds = %bb42.i, %bb5.i, %bb1.i2

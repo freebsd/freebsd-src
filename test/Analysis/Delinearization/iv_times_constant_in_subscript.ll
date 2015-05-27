@@ -8,9 +8,9 @@
 ;       A[2i+b][2j] = 1.0;
 ; }
 
-; AddRec: {{((%m * %b * sizeof(double)) + %A),+,(2 * %m * sizeof(double))}<%for.i>,+,(2 * sizeof(double))}<%for.j>
+; AddRec: {{((%m * %b * 8) + %A),+,(2 * %m * 8)}<%for.i>,+,(2 * 8)}<%for.j>
 ; CHECK: Base offset: %A
-; CHECK: ArrayDecl[UnknownSize][%m] with elements of sizeof(double) bytes.
+; CHECK: ArrayDecl[UnknownSize][%m] with elements of 8 bytes.
 ; CHECK: ArrayRef[{%b,+,2}<%for.i>][{0,+,2}<%for.j>]
 
 
@@ -29,7 +29,7 @@ for.j:
   %j = phi i64 [ 0, %for.i ], [ %j.inc, %for.j ]
   %prodj = mul i64 %j, 2
   %vlaarrayidx.sum = add i64 %prodj, %tmp
-  %arrayidx = getelementptr inbounds double* %A, i64 %vlaarrayidx.sum
+  %arrayidx = getelementptr inbounds double, double* %A, i64 %vlaarrayidx.sum
   store double 1.0, double* %arrayidx
   %j.inc = add nsw i64 %j, 1
   %j.exitcond = icmp eq i64 %j.inc, %m

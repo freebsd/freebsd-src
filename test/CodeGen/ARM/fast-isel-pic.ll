@@ -1,8 +1,8 @@
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=pic -mtriple=thumbv7-apple-ios | FileCheck %s --check-prefix=THUMB
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=pic -mtriple=arm-apple-ios | FileCheck %s --check-prefix=ARM
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=pic -mtriple=armv7-apple-ios | FileCheck %s --check-prefix=ARMv7
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=pic -mtriple=thumbv7-none-linux-gnueabi | FileCheck %s --check-prefix=THUMB-ELF
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=pic -mtriple=armv7-none-linux-gnueabi | FileCheck %s --check-prefix=ARMv7-ELF
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=pic -mtriple=thumbv7-apple-ios | FileCheck %s --check-prefix=THUMB
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=pic -mtriple=arm-apple-ios | FileCheck %s --check-prefix=ARM
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=pic -mtriple=armv7-apple-ios | FileCheck %s --check-prefix=ARMv7
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=pic -mtriple=thumbv7-none-linux-gnueabi | FileCheck %s --check-prefix=THUMB-ELF
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=pic -mtriple=armv7-none-linux-gnueabi | FileCheck %s --check-prefix=ARMv7-ELF
 
 @g = global i32 0, align 4
 
@@ -29,7 +29,7 @@ entry:
 ; ARMv7-ELF-NEXT: add r[[reg2]], pc
 ; ARMv7-ELF: ldr r[[reg3:[0-9]+]],
 ; ARMv7-ELF: ldr r[[reg2]], [r[[reg3]], r[[reg2]]]
-  %tmp = load i32* @g
+  %tmp = load i32, i32* @g
   ret i32 %tmp
 }
 
@@ -60,6 +60,6 @@ entry:
 ; ARMv7-ELF-NEXT: add r[[reg5]], pc
 ; ARMv7-ELF: ldr r[[reg6:[0-9]+]],
 ; ARMv7-ELF: ldr r[[reg5]], [r[[reg6]], r[[reg5]]]
-  %tmp = load i32* @i
+  %tmp = load i32, i32* @i
   ret i32 %tmp
 }

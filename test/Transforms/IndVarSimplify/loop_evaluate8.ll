@@ -23,7 +23,7 @@ bb19:		; preds = %bb30
 	br i1 undef, label %bb20, label %bb29
 
 bb20:		; preds = %bb19
-	%0 = load i32* undef, align 4		; <i32> [#uses=1]
+	%0 = load i32, i32* undef, align 4		; <i32> [#uses=1]
 	%1 = sub i32 %0, undef		; <i32> [#uses=1]
 	br label %bb23
 
@@ -32,7 +32,7 @@ bb21:		; preds = %bb23
 	br i1 %2, label %bb22, label %overflow2
 
 bb22:		; preds = %bb21
-	%3 = getelementptr i8* %q.0, i32 1		; <i8*> [#uses=1]
+	%3 = getelementptr i8, i8* %q.0, i32 1		; <i8*> [#uses=1]
 	br label %bb23
 
 bb23:		; preds = %bb22, %bb20

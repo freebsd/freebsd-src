@@ -5,9 +5,7 @@
 ; into 2 modifiers, although theoretically that should work.
 
 ; FUNC-LABEL: {{^}}fneg_fabs_fadd_f64:
-; SI: v_mov_b32_e32 [[IMMREG:v[0-9]+]], 0x7fffffff
-; SI: v_and_b32_e32 v[[FABS:[0-9]+]], {{s[0-9]+}}, [[IMMREG]]
-; SI: v_add_f64 {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}}, -v{{\[[0-9]+}}:[[FABS]]{{\]}}
+; SI: v_add_f64 {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, -|v{{\[[0-9]+:[0-9]+\]}}|
 define void @fneg_fabs_fadd_f64(double addrspace(1)* %out, double %x, double %y) {
   %fabs = call double @llvm.fabs.f64(double %x)
   %fsub = fsub double -0.000000e+00, %fabs
@@ -17,8 +15,8 @@ define void @fneg_fabs_fadd_f64(double addrspace(1)* %out, double %x, double %y)
 }
 
 define void @v_fneg_fabs_fadd_f64(double addrspace(1)* %out, double addrspace(1)* %xptr, double addrspace(1)* %yptr) {
-  %x = load double addrspace(1)* %xptr, align 8
-  %y = load double addrspace(1)* %xptr, align 8
+  %x = load double, double addrspace(1)* %xptr, align 8
+  %y = load double, double addrspace(1)* %xptr, align 8
   %fabs = call double @llvm.fabs.f64(double %x)
   %fsub = fsub double -0.000000e+00, %fabs
   %fadd = fadd double %y, %fsub
@@ -57,8 +55,8 @@ define void @fneg_fabs_fn_free_f64(double addrspace(1)* %out, i64 %in) {
 }
 
 ; FUNC-LABEL: {{^}}fneg_fabs_f64:
-; SI: s_load_dwordx2
 ; SI: s_load_dwordx2 s{{\[}}[[LO_X:[0-9]+]]:[[HI_X:[0-9]+]]{{\]}}
+; SI: s_load_dwordx2
 ; SI: v_mov_b32_e32 [[IMMREG:v[0-9]+]], 0x80000000
 ; SI-DAG: v_or_b32_e32 v[[HI_V:[0-9]+]], s[[HI_X]], [[IMMREG]]
 ; SI-DAG: v_mov_b32_e32 v[[LO_V:[0-9]+]], s[[LO_X]]

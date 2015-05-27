@@ -9,9 +9,9 @@
 ;SI-NOT: [[REG]]
 ;SI: buffer_store_dword [[REG]],
 define void @test1(i32 addrspace(1)* %out, i32 addrspace(1)* %in) {
-  %b_ptr = getelementptr i32 addrspace(1)* %in, i32 1
-  %a = load i32 addrspace(1)* %in
-  %b = load i32 addrspace(1)* %b_ptr
+  %b_ptr = getelementptr i32, i32 addrspace(1)* %in, i32 1
+  %a = load i32, i32 addrspace(1)* %in
+  %b = load i32, i32 addrspace(1)* %b_ptr
   %result = add i32 %a, %b
   store i32 %result, i32 addrspace(1)* %out
   ret void
@@ -25,9 +25,9 @@ define void @test1(i32 addrspace(1)* %out, i32 addrspace(1)* %in) {
 ;SI: v_add_i32_e32 v{{[0-9]+, v[0-9]+, v[0-9]+}}
 
 define void @test2(<2 x i32> addrspace(1)* %out, <2 x i32> addrspace(1)* %in) {
-  %b_ptr = getelementptr <2 x i32> addrspace(1)* %in, i32 1
-  %a = load <2 x i32> addrspace(1)* %in
-  %b = load <2 x i32> addrspace(1)* %b_ptr
+  %b_ptr = getelementptr <2 x i32>, <2 x i32> addrspace(1)* %in, i32 1
+  %a = load <2 x i32>, <2 x i32> addrspace(1)* %in
+  %b = load <2 x i32>, <2 x i32> addrspace(1)* %b_ptr
   %result = add <2 x i32> %a, %b
   store <2 x i32> %result, <2 x i32> addrspace(1)* %out
   ret void
@@ -45,9 +45,9 @@ define void @test2(<2 x i32> addrspace(1)* %out, <2 x i32> addrspace(1)* %in) {
 ;SI: v_add_i32_e32 v{{[0-9]+, v[0-9]+, v[0-9]+}}
 
 define void @test4(<4 x i32> addrspace(1)* %out, <4 x i32> addrspace(1)* %in) {
-  %b_ptr = getelementptr <4 x i32> addrspace(1)* %in, i32 1
-  %a = load <4 x i32> addrspace(1)* %in
-  %b = load <4 x i32> addrspace(1)* %b_ptr
+  %b_ptr = getelementptr <4 x i32>, <4 x i32> addrspace(1)* %in, i32 1
+  %a = load <4 x i32>, <4 x i32> addrspace(1)* %in
+  %b = load <4 x i32>, <4 x i32> addrspace(1)* %b_ptr
   %result = add <4 x i32> %a, %b
   store <4 x i32> %result, <4 x i32> addrspace(1)* %out
   ret void
@@ -62,6 +62,7 @@ define void @test4(<4 x i32> addrspace(1)* %out, <4 x i32> addrspace(1)* %in) {
 ; EG: ADD_INT
 ; EG: ADD_INT
 ; EG: ADD_INT
+
 ; SI: s_add_i32
 ; SI: s_add_i32
 ; SI: s_add_i32
@@ -94,6 +95,7 @@ entry:
 ; EG: ADD_INT
 ; EG: ADD_INT
 ; EG: ADD_INT
+
 ; SI: s_add_i32
 ; SI: s_add_i32
 ; SI: s_add_i32
@@ -120,6 +122,14 @@ entry:
 ; FUNC-LABEL: {{^}}add64:
 ; SI: s_add_u32
 ; SI: s_addc_u32
+
+; EG: MEM_RAT_CACHELESS STORE_RAW [[LO:T[0-9]+\.[XYZW]]]
+; EG: MEM_RAT_CACHELESS STORE_RAW [[HI:T[0-9]+\.[XYZW]]]
+; EG-DAG: ADD_INT {{[* ]*}}[[LO]]
+; EG-DAG: ADDC_UINT
+; EG-DAG: ADD_INT
+; EG-DAG: ADD_INT {{[* ]*}}[[HI]]
+; EG-NOT: SUB
 define void @add64(i64 addrspace(1)* %out, i64 %a, i64 %b) {
 entry:
   %0 = add i64 %a, %b
@@ -134,9 +144,17 @@ entry:
 
 ; FUNC-LABEL: {{^}}add64_sgpr_vgpr:
 ; SI-NOT: v_addc_u32_e32 s
+
+; EG: MEM_RAT_CACHELESS STORE_RAW [[LO:T[0-9]+\.[XYZW]]]
+; EG: MEM_RAT_CACHELESS STORE_RAW [[HI:T[0-9]+\.[XYZW]]]
+; EG-DAG: ADD_INT {{[* ]*}}[[LO]]
+; EG-DAG: ADDC_UINT
+; EG-DAG: ADD_INT
+; EG-DAG: ADD_INT {{[* ]*}}[[HI]]
+; EG-NOT: SUB
 define void @add64_sgpr_vgpr(i64 addrspace(1)* %out, i64 %a, i64 addrspace(1)* %in) {
 entry:
-  %0 = load i64 addrspace(1)* %in
+  %0 = load i64, i64 addrspace(1)* %in
   %1 = add i64 %a, %0
   store i64 %1, i64 addrspace(1)* %out
   ret void
@@ -146,13 +164,21 @@ entry:
 ; FUNC-LABEL: {{^}}add64_in_branch:
 ; SI: s_add_u32
 ; SI: s_addc_u32
+
+; EG: MEM_RAT_CACHELESS STORE_RAW [[LO:T[0-9]+\.[XYZW]]]
+; EG: MEM_RAT_CACHELESS STORE_RAW [[HI:T[0-9]+\.[XYZW]]]
+; EG-DAG: ADD_INT {{[* ]*}}[[LO]]
+; EG-DAG: ADDC_UINT
+; EG-DAG: ADD_INT
+; EG-DAG: ADD_INT {{[* ]*}}[[HI]]
+; EG-NOT: SUB
 define void @add64_in_branch(i64 addrspace(1)* %out, i64 addrspace(1)* %in, i64 %a, i64 %b, i64 %c) {
 entry:
   %0 = icmp eq i64 %a, 0
   br i1 %0, label %if, label %else
 
 if:
-  %1 = load i64 addrspace(1)* %in
+  %1 = load i64, i64 addrspace(1)* %in
   br label %endif
 
 else:

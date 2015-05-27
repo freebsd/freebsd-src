@@ -1,9 +1,9 @@
 ; RUN: llc -march=mipsel < %s | FileCheck %s
 ; RUN: llc -march=mipsel -force-mips-long-branch -O3 < %s \
 ; RUN:   | FileCheck %s -check-prefix=O32
-; RUN: llc -march=mips64el -mcpu=mips4 -mattr=n64 -force-mips-long-branch -O3 \
+; RUN: llc -march=mips64el -mcpu=mips4 -target-abi=n64 -force-mips-long-branch -O3 \
 ; RUN:   < %s | FileCheck %s -check-prefix=N64
-; RUN: llc -march=mips64el -mcpu=mips64 -mattr=n64 -force-mips-long-branch -O3 \
+; RUN: llc -march=mips64el -mcpu=mips64 -target-abi=n64 -force-mips-long-branch -O3 \
 ; RUN:   < %s | FileCheck %s -check-prefix=N64
 ; RUN: llc -march=mipsel -mcpu=mips32r2 -mattr=micromips \
 ; RUN:   -force-mips-long-branch -O3 < %s | FileCheck %s -check-prefix=MICROMIPS
@@ -124,10 +124,9 @@ end:
 ; MICROMIPS:   $[[BB0]]:
 ; MICROMIPS:        lw      $[[R1:[0-9]+]], %got(x)($[[GP]])
 ; MICROMIPS:        li16    $[[R2:[0-9]+]], 1
-; MICROMIPS:        sw      $[[R2]], 0($[[R1]])
+; MICROMIPS:        sw16    $[[R2]], 0($[[R1]])
 ; MICROMIPS:   $[[BB2]]:
-; MICROMIPS:        jr      $ra
-; MICROMIPS:        nop
+; MICROMIPS:        jrc      $ra
 
 
 ; Check the NaCl version.  Check that sp change is not in the branch delay slot

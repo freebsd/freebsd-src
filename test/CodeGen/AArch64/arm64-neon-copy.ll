@@ -188,7 +188,7 @@ define <2 x float> @ins4f2(<4 x float> %tmp1, <2 x float> %tmp2) {
 
 define <1 x double> @ins2f1(<2 x double> %tmp1, <1 x double> %tmp2) {
 ; CHECK-LABEL: ins2f1:
-; CHECK: ins {{v[0-9]+}}.d[0], {{v[0-9]+}}.d[1]
+; CHECK: mov {{d[0-9]+}}, {{v[0-9]+}}.d[1]
   %tmp3 = extractelement <2 x double> %tmp1, i32 1
   %tmp4 = insertelement <1 x double> %tmp2, double %tmp3, i32 0
   ret <1 x double> %tmp4
@@ -1086,7 +1086,7 @@ define <2 x i32> @test_concat_diff_v1i32_v1i32(i32 %a, i32 %b) {
 ; CHECK-LABEL: test_concat_diff_v1i32_v1i32:
 ; CHECK: sqabs s{{[0-9]+}}, s{{[0-9]+}}
 ; CHECK: sqabs s{{[0-9]+}}, s{{[0-9]+}}
-; CHECK-NEXT: zip1 {{v[0-9]+}}.2s, {{v[0-9]+}}.2s, {{v[0-9]+}}.2s
+; CHECK: ins {{v[0-9]+}}.s[1], w{{[0-9]+}}
 entry:
   %c = tail call i32 @llvm.aarch64.neon.sqabs.i32(i32 %a)
   %d = insertelement <2 x i32> undef, i32 %c, i32 0

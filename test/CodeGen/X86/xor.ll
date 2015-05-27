@@ -1,6 +1,6 @@
-; RUN: llc < %s -mcpu=corei7 -march=x86 -mattr=+sse2  | FileCheck %s -check-prefix=X32
-; RUN: llc < %s -mcpu=corei7 -mtriple=x86_64-linux | FileCheck %s -check-prefix=X64
-; RUN: llc < %s -mcpu=corei7 -mtriple=x86_64-win32 | FileCheck %s -check-prefix=X64
+; RUN: llc < %s -march=x86            -mattr=+sse2 | FileCheck %s -check-prefix=X32
+; RUN: llc < %s -mtriple=x86_64-linux -mattr=+sse2 | FileCheck %s -check-prefix=X64
+; RUN: llc < %s -mtriple=x86_64-win32 -mattr=+sse2 | FileCheck %s -check-prefix=X64
 
 ; Though it is undefined, we want xor undef,undef to produce zero.
 define <4 x i32> @test1() nounwind {
@@ -180,4 +180,16 @@ define i32 @PR17487(i1 %tobool) {
 ; X64: andn
 ; X32-LABEL: PR17487:
 ; X32: andn
+}
+
+define i32 @test11(i32 %b) {
+  %shl = shl i32 1, %b
+  %neg = xor i32 %shl, -1
+  ret i32 %neg
+; X64-LABEL: test11:
+; X64: movl    $-2, %[[REG:.*]]
+; X64: roll    %{{.*}}, %[[REG]]
+; X32-LABEL: test11:
+; X32: movl    $-2, %[[REG:.*]]
+; X32: roll    %{{.*}}, %[[REG]]
 }

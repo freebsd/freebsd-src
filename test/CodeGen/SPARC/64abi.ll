@@ -240,10 +240,10 @@ define void @call_inreg_ii(i32* %p, i32 %i1, i32 %i2) {
 ; CHECK: ldx [%i2], %i0
 ; CHECK: ldx [%i3], %i1
 define { i64, i64 } @ret_i64_pair(i32 %a0, i32 %a1, i64* %p, i64* %q) {
-  %r1 = load i64* %p
+  %r1 = load i64, i64* %p
   %rv1 = insertvalue { i64, i64 } undef, i64 %r1, 0
   store i64 0, i64* %p
-  %r2 = load i64* %q
+  %r2 = load i64, i64* %q
   %rv2 = insertvalue { i64, i64 } %rv1, i64 %r2, 1
   ret { i64, i64 } %rv2
 }
@@ -268,10 +268,10 @@ define void @call_ret_i64_pair(i64* %i0) {
 ; CHECK: ld [%i3], %f2
 define { i32, float } @ret_i32_float_pair(i32 %a0, i32 %a1,
                                           i32* %p, float* %q) {
-  %r1 = load i32* %p
+  %r1 = load i32, i32* %p
   %rv1 = insertvalue { i32, float } undef, i32 %r1, 0
   store i32 0, i32* %p
-  %r2 = load float* %q
+  %r2 = load float, float* %q
   %rv2 = insertvalue { i32, float } %rv1, float %r2, 1
   ret { i32, float } %rv2
 }
@@ -297,10 +297,10 @@ define void @call_ret_i32_float_pair(i32* %i0, float* %i1) {
 ; CHECK: ld [%i3], %f1
 define inreg { i32, float } @ret_i32_float_packed(i32 %a0, i32 %a1,
                                                   i32* %p, float* %q) {
-  %r1 = load i32* %p
+  %r1 = load i32, i32* %p
   %rv1 = insertvalue { i32, float } undef, i32 %r1, 0
   store i32 0, i32* %p
-  %r2 = load float* %q
+  %r2 = load float, float* %q
   %rv2 = insertvalue { i32, float } %rv1, float %r2, 1
   ret { i32, float } %rv2
 }
@@ -329,10 +329,10 @@ define void @call_ret_i32_float_packed(i32* %i0, float* %i1) {
 ; CHECK: or [[R3]], [[R1]], %i0
 define inreg { i32, i32 } @ret_i32_packed(i32 %a0, i32 %a1,
                                           i32* %p, i32* %q) {
-  %r1 = load i32* %p
+  %r1 = load i32, i32* %p
   %rv1 = insertvalue { i32, i32 } undef, i32 %r1, 1
   store i32 0, i32* %p
-  %r2 = load i32* %q
+  %r2 = load i32, i32* %q
   %rv2 = insertvalue { i32, i32 } %rv1, i32 %r2, 0
   ret { i32, i32 } %rv2
 }
@@ -405,7 +405,7 @@ entry:
 define i32 @test_large_stack() {
 entry:
   %buffer1 = alloca [16384 x i8], align 8
-  %buffer1.sub = getelementptr inbounds [16384 x i8]* %buffer1, i32 0, i32 0
+  %buffer1.sub = getelementptr inbounds [16384 x i8], [16384 x i8]* %buffer1, i32 0, i32 0
   %0 = call i32 @use_buf(i32 16384, i8* %buffer1.sub)
   ret i32 %0
 }
@@ -436,7 +436,7 @@ declare i64 @receive_fp128(i64 %a, ...)
 ; CHECK:       call receive_fp128
 define i64 @test_fp128_variable_args(i64 %a, fp128 %b) {
 entry:
-  %0 = call i64 (i64, ...)* @receive_fp128(i64 %a, fp128 %b)
+  %0 = call i64 (i64, ...) @receive_fp128(i64 %a, fp128 %b)
   ret i64 %0
 }
 

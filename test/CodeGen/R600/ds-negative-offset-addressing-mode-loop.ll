@@ -18,7 +18,7 @@ declare void @llvm.AMDGPU.barrier.local() #1
 ; SI-DAG: v_add_i32_e32 [[VADDR0x100:v[0-9]+]], 0x100, [[VADDR]]
 ; SI-DAG: ds_read_b32 v{{[0-9]+}}, [[VADDR0x100]]
 
-; CI-DAG: ds_read2_b32 v{{\[[0-9]+:[0-9]+\]}}, [[VADDR]] offset0:0 offset1:1
+; CI-DAG: ds_read2_b32 v{{\[[0-9]+:[0-9]+\]}}, [[VADDR]] offset1:1
 ; CI-DAG: ds_read2_b32 v{{\[[0-9]+:[0-9]+\]}}, [[VADDR]] offset0:32 offset1:33
 ; CI-DAG: ds_read_b32 v{{[0-9]+}}, [[VADDR]] offset:256
 ; CHECK: s_endpgm
@@ -33,20 +33,20 @@ for.body:                                         ; preds = %for.body, %entry
   %offset.02 = phi i32 [ %mul, %entry ], [ %add14, %for.body ]
   %k.01 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
   tail call void @llvm.AMDGPU.barrier.local() #1
-  %arrayidx = getelementptr inbounds float addrspace(3)* %lptr, i32 %offset.02
-  %tmp = load float addrspace(3)* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds float, float addrspace(3)* %lptr, i32 %offset.02
+  %tmp = load float, float addrspace(3)* %arrayidx, align 4
   %add1 = add nsw i32 %offset.02, 1
-  %arrayidx2 = getelementptr inbounds float addrspace(3)* %lptr, i32 %add1
-  %tmp1 = load float addrspace(3)* %arrayidx2, align 4
+  %arrayidx2 = getelementptr inbounds float, float addrspace(3)* %lptr, i32 %add1
+  %tmp1 = load float, float addrspace(3)* %arrayidx2, align 4
   %add3 = add nsw i32 %offset.02, 32
-  %arrayidx4 = getelementptr inbounds float addrspace(3)* %lptr, i32 %add3
-  %tmp2 = load float addrspace(3)* %arrayidx4, align 4
+  %arrayidx4 = getelementptr inbounds float, float addrspace(3)* %lptr, i32 %add3
+  %tmp2 = load float, float addrspace(3)* %arrayidx4, align 4
   %add5 = add nsw i32 %offset.02, 33
-  %arrayidx6 = getelementptr inbounds float addrspace(3)* %lptr, i32 %add5
-  %tmp3 = load float addrspace(3)* %arrayidx6, align 4
+  %arrayidx6 = getelementptr inbounds float, float addrspace(3)* %lptr, i32 %add5
+  %tmp3 = load float, float addrspace(3)* %arrayidx6, align 4
   %add7 = add nsw i32 %offset.02, 64
-  %arrayidx8 = getelementptr inbounds float addrspace(3)* %lptr, i32 %add7
-  %tmp4 = load float addrspace(3)* %arrayidx8, align 4
+  %arrayidx8 = getelementptr inbounds float, float addrspace(3)* %lptr, i32 %add7
+  %tmp4 = load float, float addrspace(3)* %arrayidx8, align 4
   %add9 = fadd float %tmp, %tmp1
   %add10 = fadd float %add9, %tmp2
   %add11 = fadd float %add10, %tmp3
@@ -59,7 +59,7 @@ for.body:                                         ; preds = %for.body, %entry
 
 for.end:                                          ; preds = %for.body
   %tmp5 = sext i32 %x.i to i64
-  %arrayidx15 = getelementptr inbounds float addrspace(1)* %out, i64 %tmp5
+  %arrayidx15 = getelementptr inbounds float, float addrspace(1)* %out, i64 %tmp5
   store float %add13, float addrspace(1)* %arrayidx15, align 4
   ret void
 }

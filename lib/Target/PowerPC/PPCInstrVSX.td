@@ -11,6 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+// *********************************** NOTE ***********************************
+// ** For POWER8 Little Endian, the VSX swap optimization relies on knowing  **
+// ** which VMX and VSX instructions are lane-sensitive and which are not.   **
+// ** A lane-sensitive instruction relies, implicitly or explicitly, on      **
+// ** whether lanes are numbered from left to right.  An instruction like    **
+// ** VADDFP is not lane-sensitive, because each lane of the result vector   **
+// ** relies only on the corresponding lane of the source vectors.  However, **
+// ** an instruction like VMULESB is lane-sensitive, because "even" and      **
+// ** "odd" lanes are different for big-endian and little-endian numbering.  **
+// **                                                                        **
+// ** When adding new VMX and VSX instructions, please consider whether they **
+// ** are lane-sensitive.  If so, they must be added to a switch statement   **
+// ** in PPCVSXSwapRemoval::gatherVectorInstructions().                      **
+// ****************************************************************************
+
 def PPCRegVSRCAsmOperand : AsmOperandClass {
   let Name = "RegVSRC"; let PredicateMethod = "isVSRegNumber";
 }
@@ -23,6 +38,13 @@ def PPCRegVSFRCAsmOperand : AsmOperandClass {
 }
 def vsfrc : RegisterOperand<VSFRC> {
   let ParserMatchClass = PPCRegVSFRCAsmOperand;
+}
+
+def PPCRegVSSRCAsmOperand : AsmOperandClass {
+  let Name = "RegVSSRC"; let PredicateMethod = "isVSRegNumber";
+}
+def vssrc : RegisterOperand<VSSRC> {
+  let ParserMatchClass = PPCRegVSSRCAsmOperand;
 }
 
 // Little-endian-specific nodes.
@@ -41,6 +63,9 @@ def PPClxvd2x  : SDNode<"PPCISD::LXVD2X", SDT_PPClxvd2x,
 def PPCstxvd2x : SDNode<"PPCISD::STXVD2X", SDT_PPCstxvd2x,
                         [SDNPHasChain, SDNPMayStore]>;
 def PPCxxswapd : SDNode<"PPCISD::XXSWAPD", SDT_PPCxxswapd, [SDNPHasChain]>;
+def PPCmfvsr : SDNode<"PPCISD::MFVSR", SDTUnaryOp, []>;
+def PPCmtvsra : SDNode<"PPCISD::MTVSRA", SDTUnaryOp, []>;
+def PPCmtvsrz : SDNode<"PPCISD::MTVSRZ", SDTUnaryOp, []>;
 
 multiclass XX3Form_Rcr<bits<6> opcode, bits<7> xo, dag OOL, dag IOL,
                     string asmbase, string asmstr, InstrItinClass itin,
@@ -66,7 +91,7 @@ let hasSideEffects = 0 in { // VSX instructions don't have side effects.
 let Uses = [RM] in {
 
   // Load indexed instructions
-  let mayLoad = 1, canFoldAsLoad = 1 in {
+  let mayLoad = 1 in {
     def LXSDX : XX1Form<31, 588,
                         (outs vsfrc:$XT), (ins memrr:$src),
                         "lxsdx $XT, $src", IIC_LdStLFD,
@@ -85,7 +110,7 @@ let Uses = [RM] in {
                          (outs vsrc:$XT), (ins memrr:$src),
                          "lxvw4x $XT, $src", IIC_LdStLFD,
                          [(set v4i32:$XT, (int_ppc_vsx_lxvw4x xoaddr:$src))]>;
-  }
+  } // mayLoad
 
   // Store indexed instructions
   let mayStore = 1 in {
@@ -97,13 +122,14 @@ let Uses = [RM] in {
     def STXVD2X : XX1Form<31, 972,
                          (outs), (ins vsrc:$XT, memrr:$dst),
                          "stxvd2x $XT, $dst", IIC_LdStSTFD,
-                         [(int_ppc_vsx_stxvd2x v2f64:$XT, xoaddr:$dst)]>;
+                         [(store v2f64:$XT, xoaddr:$dst)]>;
 
     def STXVW4X : XX1Form<31, 908,
                          (outs), (ins vsrc:$XT, memrr:$dst),
                          "stxvw4x $XT, $dst", IIC_LdStSTFD,
-                         [(int_ppc_vsx_stxvw4x v4i32:$XT, xoaddr:$dst)]>;
-  }
+                         [(store v4i32:$XT, xoaddr:$dst)]>;
+
+  } // mayStore
 
   // Add/Mul Instructions
   let isCommutable = 1 in {
@@ -773,6 +799,15 @@ let usesCustomInserter = 1,    // Expanded after instruction selection.
                            "#SELECT_VSFRC",
                            [(set f64:$dst,
                                  (select i1:$cond, f64:$T, f64:$F))]>;
+  def SELECT_CC_VSSRC: Pseudo<(outs f4rc:$dst),
+                              (ins crrc:$cond, f4rc:$T, f4rc:$F,
+                               i32imm:$BROPC), "#SELECT_CC_VSSRC",
+                              []>;
+  def SELECT_VSSRC: Pseudo<(outs f4rc:$dst),
+                           (ins crbitrc:$cond, f4rc:$T, f4rc:$F),
+                           "#SELECT_VSSRC",
+                           [(set f32:$dst,
+                                 (select i1:$cond, f32:$T, f32:$F))]>;
 } // usesCustomInserter
 } // AddedComplexity
 
@@ -872,6 +907,11 @@ def : Pat<(v2f64 (bitconvert v2i64:$A)),
 def : Pat<(v2i64 (bitconvert v2f64:$A)),
           (COPY_TO_REGCLASS $A, VRRC)>;
 
+def : Pat<(v2f64 (bitconvert v1i128:$A)),
+          (COPY_TO_REGCLASS $A, VRRC)>;
+def : Pat<(v1i128 (bitconvert v2f64:$A)),
+          (COPY_TO_REGCLASS $A, VRRC)>;
+
 // sign extension patterns
 // To extend "in place" from v2i32 to v2i64, we have input data like:
 // | undef | i32 | undef | i32 |
@@ -891,9 +931,11 @@ def : Pat<(v4i32 (load xoaddr:$src)), (LXVW4X xoaddr:$src)>;
 def : Pat<(v2f64 (PPClxvd2x xoaddr:$src)), (LXVD2X xoaddr:$src)>;
 
 // Stores.
-def : Pat<(store v2f64:$rS, xoaddr:$dst), (STXVD2X $rS, xoaddr:$dst)>;
+def : Pat<(int_ppc_vsx_stxvd2x v2f64:$rS, xoaddr:$dst),
+          (STXVD2X $rS, xoaddr:$dst)>;
 def : Pat<(store v2i64:$rS, xoaddr:$dst), (STXVD2X $rS, xoaddr:$dst)>;
-def : Pat<(store v4i32:$rS, xoaddr:$dst), (STXVW4X $rS, xoaddr:$dst)>;
+def : Pat<(int_ppc_vsx_stxvw4x v4i32:$rS, xoaddr:$dst),
+          (STXVW4X $rS, xoaddr:$dst)>;
 def : Pat<(PPCstxvd2x v2f64:$rS, xoaddr:$dst), (STXVD2X $rS, xoaddr:$dst)>;
 
 // Permutes.
@@ -938,3 +980,124 @@ def : Pat<(int_ppc_vsx_xvdivdp v2f64:$A, v2f64:$B),
 } // AddedComplexity
 } // HasVSX
 
+// The following VSX instructions were introduced in Power ISA 2.07
+/* FIXME: if the operands are v2i64, these patterns will not match.
+   we should define new patterns or otherwise match the same patterns
+   when the elements are larger than i32.
+*/
+def HasP8Vector : Predicate<"PPCSubTarget->hasP8Vector()">;
+def HasDirectMove : Predicate<"PPCSubTarget->hasDirectMove()">;
+let Predicates = [HasP8Vector] in {
+let AddedComplexity = 400 in { // Prefer VSX patterns over non-VSX patterns.
+  let isCommutable = 1 in {
+    def XXLEQV : XX3Form<60, 186,
+                         (outs vsrc:$XT), (ins vsrc:$XA, vsrc:$XB),
+                         "xxleqv $XT, $XA, $XB", IIC_VecGeneral,
+                         [(set v4i32:$XT, (vnot_ppc (xor v4i32:$XA, v4i32:$XB)))]>;
+    def XXLNAND : XX3Form<60, 178,
+                          (outs vsrc:$XT), (ins vsrc:$XA, vsrc:$XB),
+                          "xxlnand $XT, $XA, $XB", IIC_VecGeneral,
+                          [(set v4i32:$XT, (vnot_ppc (and v4i32:$XA,
+                                                    v4i32:$XB)))]>;
+  } // isCommutable
+
+  def XXLORC : XX3Form<60, 170,
+                       (outs vsrc:$XT), (ins vsrc:$XA, vsrc:$XB),
+                       "xxlorc $XT, $XA, $XB", IIC_VecGeneral,
+                       [(set v4i32:$XT, (or v4i32:$XA, (vnot_ppc v4i32:$XB)))]>;
+
+  // VSX scalar loads introduced in ISA 2.07
+  let mayLoad = 1 in {
+    def LXSSPX : XX1Form<31, 524, (outs vssrc:$XT), (ins memrr:$src),
+                         "lxsspx $XT, $src", IIC_LdStLFD,
+                         [(set f32:$XT, (load xoaddr:$src))]>;
+    def LXSIWAX : XX1Form<31, 76, (outs vsfrc:$XT), (ins memrr:$src),
+                          "lxsiwax $XT, $src", IIC_LdStLFD,
+                          [(set f64:$XT, (PPClfiwax xoaddr:$src))]>;
+    def LXSIWZX : XX1Form<31, 12, (outs vsfrc:$XT), (ins memrr:$src),
+                          "lxsiwzx $XT, $src", IIC_LdStLFD,
+                          [(set f64:$XT, (PPClfiwzx xoaddr:$src))]>;
+  } // mayLoad
+
+  // VSX scalar stores introduced in ISA 2.07
+  let mayStore = 1 in {
+    def STXSSPX : XX1Form<31, 652, (outs), (ins vssrc:$XT, memrr:$dst),
+                          "stxsspx $XT, $dst", IIC_LdStSTFD,
+                          [(store f32:$XT, xoaddr:$dst)]>;
+    def STXSIWX : XX1Form<31, 140, (outs), (ins vsfrc:$XT, memrr:$dst),
+                          "stxsiwx $XT, $dst", IIC_LdStSTFD,
+                          [(PPCstfiwx f64:$XT, xoaddr:$dst)]>;
+  } // mayStore
+
+  def : Pat<(f64 (extloadf32 xoaddr:$src)),
+            (COPY_TO_REGCLASS (LXSSPX xoaddr:$src), VSFRC)>;
+  def : Pat<(f64 (fextend f32:$src)),
+            (COPY_TO_REGCLASS $src, VSFRC)>;
+  def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETLT)),
+            (SELECT_VSSRC (CRANDC $rhs, $lhs), $tval, $fval)>;
+  def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETLE)),
+            (SELECT_VSSRC (CRORC  $rhs, $lhs), $tval, $fval)>;
+  def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETEQ)),
+            (SELECT_VSSRC (CREQV $lhs, $rhs), $tval, $fval)>;
+  def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETGE)),
+            (SELECT_VSSRC (CRORC  $lhs, $rhs), $tval, $fval)>;
+  def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETGT)),
+            (SELECT_VSSRC (CRANDC $lhs, $rhs), $tval, $fval)>;
+  def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETNE)),
+          (SELECT_VSSRC (CRXOR $lhs, $rhs), $tval, $fval)>;
+
+  // VSX Elementary Scalar FP arithmetic (SP)
+  let isCommutable = 1 in {
+    def XSADDSP : XX3Form<60, 0,
+                          (outs vssrc:$XT), (ins vssrc:$XA, vssrc:$XB),
+                          "xsaddsp $XT, $XA, $XB", IIC_VecFP,
+                          [(set f32:$XT, (fadd f32:$XA, f32:$XB))]>;
+    def XSMULSP : XX3Form<60, 16,
+                          (outs vssrc:$XT), (ins vssrc:$XA, vssrc:$XB),
+                          "xsmulsp $XT, $XA, $XB", IIC_VecFP,
+                          [(set f32:$XT, (fmul f32:$XA, f32:$XB))]>;
+  } // isCommutable
+
+  def XSDIVSP : XX3Form<60, 24,
+                        (outs vssrc:$XT), (ins vssrc:$XA, vssrc:$XB),
+                        "xsdivsp $XT, $XA, $XB", IIC_FPDivS,
+                        [(set f32:$XT, (fdiv f32:$XA, f32:$XB))]>;
+  def XSRESP : XX2Form<60, 26,
+                        (outs vssrc:$XT), (ins vssrc:$XB),
+                        "xsresp $XT, $XB", IIC_VecFP,
+                        [(set f32:$XT, (PPCfre f32:$XB))]>;
+  def XSSQRTSP : XX2Form<60, 11,
+                        (outs vssrc:$XT), (ins vssrc:$XB),
+                        "xssqrtsp $XT, $XB", IIC_FPSqrtS,
+                        [(set f32:$XT, (fsqrt f32:$XB))]>;
+  def XSRSQRTESP : XX2Form<60, 10,
+                           (outs vssrc:$XT), (ins vssrc:$XB),
+                           "xsrsqrtesp $XT, $XB", IIC_VecFP,
+                           [(set f32:$XT, (PPCfrsqrte f32:$XB))]>;
+  def XSSUBSP : XX3Form<60, 8,
+                        (outs vssrc:$XT), (ins vssrc:$XA, vssrc:$XB),
+                        "xssubsp $XT, $XA, $XB", IIC_VecFP,
+                        [(set f32:$XT, (fsub f32:$XA, f32:$XB))]>;
+} // AddedComplexity = 400
+} // HasP8Vector
+
+let Predicates = [HasDirectMove, HasVSX] in {
+  // VSX direct move instructions
+  def MFVSRD : XX1_RS6_RD5_XO<31, 51, (outs g8rc:$rA), (ins vsfrc:$XT),
+                              "mfvsrd $rA, $XT", IIC_VecGeneral,
+                              [(set i64:$rA, (PPCmfvsr f64:$XT))]>,
+      Requires<[In64BitMode]>;
+  def MFVSRWZ : XX1_RS6_RD5_XO<31, 115, (outs gprc:$rA), (ins vsfrc:$XT),
+                               "mfvsrwz $rA, $XT", IIC_VecGeneral,
+                               [(set i32:$rA, (PPCmfvsr f64:$XT))]>;
+  def MTVSRD : XX1_RS6_RD5_XO<31, 179, (outs vsfrc:$XT), (ins g8rc:$rA),
+                              "mtvsrd $XT, $rA", IIC_VecGeneral,
+                              [(set f64:$XT, (PPCmtvsra i64:$rA))]>,
+      Requires<[In64BitMode]>;
+  def MTVSRWA : XX1_RS6_RD5_XO<31, 211, (outs vsfrc:$XT), (ins gprc:$rA),
+                               "mtvsrwa $XT, $rA", IIC_VecGeneral,
+                               [(set f64:$XT, (PPCmtvsra i32:$rA))]>;
+  def MTVSRWZ : XX1_RS6_RD5_XO<31, 243, (outs vsfrc:$XT), (ins gprc:$rA),
+                               "mtvsrwz $XT, $rA", IIC_VecGeneral,
+                               [(set f64:$XT, (PPCmtvsrz i32:$rA))]>;
+} // HasDirectMove, HasVSX

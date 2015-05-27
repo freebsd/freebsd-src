@@ -79,13 +79,13 @@ if.then126:                                       ; preds = %if.end123
   %maskcond.i.i187 = icmp eq i64 %maskedptr.i.i186, 0
   tail call void @llvm.assume(i1 %maskcond.i.i187) #0
   %ret.0..sroa_cast.i.i188 = bitcast %type1* undef to i32*
-  %ret.0.copyload.i.i189 = load i32* %ret.0..sroa_cast.i.i188, align 2
+  %ret.0.copyload.i.i189 = load i32, i32* %ret.0..sroa_cast.i.i188, align 2
 
 ; CHECK: load {{.*}} align 2
 
   %0 = tail call i32 @llvm.bswap.i32(i32 %ret.0.copyload.i.i189) #0
   %conv131 = zext i32 %0 to i64
-  %add.ptr132 = getelementptr inbounds i8* undef, i64 %conv131
+  %add.ptr132 = getelementptr inbounds i8, i8* undef, i64 %conv131
   %1 = bitcast i8* %add.ptr132 to %type1*
   br i1 undef, label %if.end150, label %if.end.i173
 
@@ -113,11 +113,11 @@ for.body137:                                      ; preds = %test1b.exit, %for.b
   br i1 undef, label %for.body137.if.end146_crit_edge, label %if.then140
 
 for.body137.if.end146_crit_edge:                  ; preds = %for.body137
-  %incdec.ptr = getelementptr inbounds %type1* %ShndxTable.0309, i64 1
+  %incdec.ptr = getelementptr inbounds %type1, %type1* %ShndxTable.0309, i64 1
   br i1 undef, label %cond.false.i70, label %cond.end.i
 
 if.then140:                                       ; preds = %for.body137
-  %ret.0.copyload.i.i102 = load i32* %ret.0..sroa_cast.i.i106, align 2
+  %ret.0.copyload.i.i102 = load i32, i32* %ret.0..sroa_cast.i.i106, align 2
 
 ; CHECK: load {{.*}} align 2
 

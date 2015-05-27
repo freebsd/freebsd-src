@@ -38,7 +38,7 @@ define void @uint_to_fp_v2i32_to_v2f32(<2 x float> addrspace(1)* %out, <2 x i32>
 ; SI: v_cvt_f32_u32_e32
 ; SI: s_endpgm
 define void @uint_to_fp_v4i32_to_v4f32(<4 x float> addrspace(1)* %out, <4 x i32> addrspace(1)* %in) {
-  %value = load <4 x i32> addrspace(1) * %in
+  %value = load <4 x i32>, <4 x i32> addrspace(1) * %in
   %result = uitofp <4 x i32> %value to <4 x float>
   store <4 x float> %result, <4 x float> addrspace(1)* %out
   ret void
@@ -50,7 +50,7 @@ define void @uint_to_fp_v4i32_to_v4f32(<4 x float> addrspace(1)* %out, <4 x i32>
 ; R600: MULADD_IEEE
 ; SI: v_cvt_f32_u32_e32
 ; SI: v_cvt_f32_u32_e32
-; SI: v_mad_f32
+; SI: v_madmk_f32_e32 {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}, 0x4f800000
 ; SI: s_endpgm
 define void @uint_to_fp_i64_to_f32(float addrspace(1)* %out, i64 %in) {
 entry:

@@ -10,8 +10,8 @@
 ; CHECK: br label %invoke.cont, !dbg ![[MD]]
 ; The branch instruction has the source location of line 9 and its inlined location
 ; has the source location of line 14.
-; CHECK: ![[INL:[0-9]+]] = !MDLocation(line: 14, scope: {{.*}})
-; CHECK: ![[MD]] = !MDLocation(line: 9, scope: {{.*}}, inlinedAt: ![[INL]])
+; CHECK: ![[INL:[0-9]+]] = distinct !DILocation(line: 14, scope: {{.*}})
+; CHECK: ![[MD]] = !DILocation(line: 9, scope: {{.*}}, inlinedAt: ![[INL]])
 
 ; ModuleID = 'test.cpp'
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
@@ -27,27 +27,27 @@ entry:
   %k.addr = alloca i32, align 4
   %k2 = alloca i32, align 4
   store i32 %k, i32* %k.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %k.addr, metadata !13, metadata !{!"0x102"}), !dbg !14
-  call void @llvm.dbg.declare(metadata i32* %k2, metadata !15, metadata !{!"0x102"}), !dbg !16
-  %0 = load i32* %k.addr, align 4, !dbg !16
+  call void @llvm.dbg.declare(metadata i32* %k.addr, metadata !13, metadata !DIExpression()), !dbg !14
+  call void @llvm.dbg.declare(metadata i32* %k2, metadata !15, metadata !DIExpression()), !dbg !16
+  %0 = load i32, i32* %k.addr, align 4, !dbg !16
   %call = call i32 @_Z8test_exti(i32 %0), !dbg !16
   store i32 %call, i32* %k2, align 4, !dbg !16
-  %1 = load i32* %k2, align 4, !dbg !17
+  %1 = load i32, i32* %k2, align 4, !dbg !17
   %cmp = icmp sgt i32 %1, 100, !dbg !17
   br i1 %cmp, label %if.then, label %if.end, !dbg !17
 
 if.then:                                          ; preds = %entry
-  %2 = load i32* %k2, align 4, !dbg !18
+  %2 = load i32, i32* %k2, align 4, !dbg !18
   store i32 %2, i32* %retval, !dbg !18
   br label %return, !dbg !18
 
 if.end:                                           ; preds = %entry
   store i32 0, i32* %retval, !dbg !19
-  %3 = load i32* %retval, !dbg !20                ; hand-edited
+  %3 = load i32, i32* %retval, !dbg !20                ; hand-edited
   ret i32 %3, !dbg !20                            ; hand-edited
 
 return:                                           ; preds = %if.end, %if.then
-  %4 = load i32* %retval, !dbg !20
+  %4 = load i32, i32* %retval, !dbg !20
   ret i32 %4, !dbg !20
 }
 
@@ -62,7 +62,7 @@ entry:
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
   %e = alloca i32, align 4
-  %0 = load i32* @global_var, align 4, !dbg !21
+  %0 = load i32, i32* @global_var, align 4, !dbg !21
   %call = invoke i32 @_Z4testi(i32 %0)
           to label %invoke.cont unwind label %lpad, !dbg !21
 
@@ -79,17 +79,17 @@ lpad:                                             ; preds = %entry
   br label %catch.dispatch, !dbg !21
 
 catch.dispatch:                                   ; preds = %lpad
-  %sel = load i32* %ehselector.slot, !dbg !23
+  %sel = load i32, i32* %ehselector.slot, !dbg !23
   %4 = call i32 @llvm.eh.typeid.for(i8* bitcast (i8** @_ZTIi to i8*)) #2, !dbg !23
   %matches = icmp eq i32 %sel, %4, !dbg !23
   br i1 %matches, label %catch, label %eh.resume, !dbg !23
 
 catch:                                            ; preds = %catch.dispatch
-  call void @llvm.dbg.declare(metadata i32* %e, metadata !24, metadata !{!"0x102"}), !dbg !25
-  %exn = load i8** %exn.slot, !dbg !23
+  call void @llvm.dbg.declare(metadata i32* %e, metadata !24, metadata !DIExpression()), !dbg !25
+  %exn = load i8*, i8** %exn.slot, !dbg !23
   %5 = call i8* @__cxa_begin_catch(i8* %exn) #2, !dbg !23
   %6 = bitcast i8* %5 to i32*, !dbg !23
-  %7 = load i32* %6, align 4, !dbg !23
+  %7 = load i32, i32* %6, align 4, !dbg !23
   store i32 %7, i32* %e, align 4, !dbg !23
   store i32 0, i32* @global_var, align 4, !dbg !26
   call void @__cxa_end_catch() #2, !dbg !28
@@ -100,8 +100,8 @@ try.cont:                                         ; preds = %catch, %invoke.cont
   ret i32 0, !dbg !30
 
 eh.resume:                                        ; preds = %catch.dispatch
-  %exn1 = load i8** %exn.slot, !dbg !23
-  %sel2 = load i32* %ehselector.slot, !dbg !23
+  %exn1 = load i8*, i8** %exn.slot, !dbg !23
+  %sel2 = load i32, i32* %ehselector.slot, !dbg !23
   %lpad.val = insertvalue { i8*, i32 } undef, i8* %exn1, 0, !dbg !23
   %lpad.val3 = insertvalue { i8*, i32 } %lpad.val, i32 %sel2, 1, !dbg !23
   resume { i8*, i32 } %lpad.val3, !dbg !23
@@ -122,35 +122,35 @@ attributes #2 = { nounwind }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!31}
 
-!0 = !{!"0x11\004\00clang version 3.3 \000\00\000\00\000", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [<unknown>] [DW_LANG_C_plus_plus]
-!1 = !{!"<unknown>", !""}
-!2 = !{i32 0}
+!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.3 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!1 = !DIFile(filename: "<unknown>", directory: "")
+!2 = !{}
 !3 = !{!4, !10}
-!4 = !{!"0x2e\00test\00test\00_Z4testi\004\000\001\000\006\00256\000\004", !5, !6, !7, null, i32 (i32)* @_Z4testi, null, null, !2} ; [ DW_TAG_subprogram ] [line 4] [def] [test]
-!5 = !{!"test.cpp", !""}
-!6 = !{!"0x29", !5}          ; [ DW_TAG_file_type ] [test.cpp]
-!7 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !8, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!4 = !DISubprogram(name: "test", linkageName: "_Z4testi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 4, file: !5, scope: !6, type: !7, function: i32 (i32)* @_Z4testi, variables: !2)
+!5 = !DIFile(filename: "test.cpp", directory: "")
+!6 = !DIFile(filename: "test.cpp", directory: "")
+!7 = !DISubroutineType(types: !8)
 !8 = !{!9, !9}
-!9 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!10 = !{!"0x2e\00test2\00test2\00_Z5test2v\0011\000\001\000\006\00256\000\0011", !5, !6, !11, null, i32 ()* @_Z5test2v, null, null, !2} ; [ DW_TAG_subprogram ] [line 11] [def] [test2]
-!11 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !12, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!10 = !DISubprogram(name: "test2", linkageName: "_Z5test2v", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 11, file: !5, scope: !6, type: !11, function: i32 ()* @_Z5test2v, variables: !2)
+!11 = !DISubroutineType(types: !12)
 !12 = !{!9}
-!13 = !{!"0x101\00k\0016777220\000", !4, !6, !9} ; [ DW_TAG_arg_variable ] [k] [line 4]
-!14 = !MDLocation(line: 4, scope: !4)
-!15 = !{!"0x100\00k2\005\000", !4, !6, !9} ; [ DW_TAG_auto_variable ] [k2] [line 5]
-!16 = !MDLocation(line: 5, scope: !4)
-!17 = !MDLocation(line: 6, scope: !4)
-!18 = !MDLocation(line: 7, scope: !4)
-!19 = !MDLocation(line: 8, scope: !4)
-!20 = !MDLocation(line: 9, scope: !4)
-!21 = !MDLocation(line: 14, scope: !22)
-!22 = !{!"0xb\0013\000\000", !5, !10} ; [ DW_TAG_lexical_block ] [test.cpp]
-!23 = !MDLocation(line: 15, scope: !22)
-!24 = !{!"0x100\00e\0016\000", !10, !6, !9} ; [ DW_TAG_auto_variable ] [e] [line 16]
-!25 = !MDLocation(line: 16, scope: !10)
-!26 = !MDLocation(line: 17, scope: !27)
-!27 = !{!"0xb\0016\000\001", !5, !10} ; [ DW_TAG_lexical_block ] [test.cpp]
-!28 = !MDLocation(line: 18, scope: !27)
-!29 = !MDLocation(line: 19, scope: !10)
-!30 = !MDLocation(line: 20, scope: !10)
-!31 = !{i32 1, !"Debug Info Version", i32 2}
+!13 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "k", line: 4, arg: 1, scope: !4, file: !6, type: !9)
+!14 = !DILocation(line: 4, scope: !4)
+!15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "k2", line: 5, scope: !4, file: !6, type: !9)
+!16 = !DILocation(line: 5, scope: !4)
+!17 = !DILocation(line: 6, scope: !4)
+!18 = !DILocation(line: 7, scope: !4)
+!19 = !DILocation(line: 8, scope: !4)
+!20 = !DILocation(line: 9, scope: !4)
+!21 = !DILocation(line: 14, scope: !22)
+!22 = distinct !DILexicalBlock(line: 13, column: 0, file: !5, scope: !10)
+!23 = !DILocation(line: 15, scope: !22)
+!24 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "e", line: 16, scope: !10, file: !6, type: !9)
+!25 = !DILocation(line: 16, scope: !10)
+!26 = !DILocation(line: 17, scope: !27)
+!27 = distinct !DILexicalBlock(line: 16, column: 0, file: !5, scope: !10)
+!28 = !DILocation(line: 18, scope: !27)
+!29 = !DILocation(line: 19, scope: !10)
+!30 = !DILocation(line: 20, scope: !10)
+!31 = !{i32 1, !"Debug Info Version", i32 3}

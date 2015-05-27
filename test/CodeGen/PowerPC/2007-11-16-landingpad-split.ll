@@ -29,7 +29,7 @@ entry:
 			to label %bb30.preheader unwind label %unwind
 
 bb30.preheader:		; preds = %entry
-	%tmp26 = getelementptr %struct.Range* %effectiveRange, i64 0, i32 1		; <i64*> [#uses=1]
+	%tmp26 = getelementptr %struct.Range, %struct.Range* %effectiveRange, i64 0, i32 1		; <i64*> [#uses=1]
 	br label %bb30
 
 unwind:		; preds = %cond_true, %entry
@@ -39,7 +39,7 @@ unwind:		; preds = %cond_true, %entry
         resume { i8*, i32 } %exn
 
 invcont23:		; preds = %cond_true
-	%tmp27 = load i64* %tmp26, align 8		; <i64> [#uses=1]
+	%tmp27 = load i64, i64* %tmp26, align 8		; <i64> [#uses=1]
 	%tmp28 = sub i64 %range_addr.1.0, %tmp27		; <i64> [#uses=1]
 	br label %bb30
 

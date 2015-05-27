@@ -14,8 +14,8 @@ target triple = "x86_64-apple-macosx"
 ; <rdar://problem/18675020>
 
 ; CHECK-LABEL: test:
-; CHECK: vmovdqa {{.*#+}} xmm0 = [65535,0,0,65535]
-; CHECK: vmovdqa {{.*#+}} xmm2 = [65533,124,125,14807]
+; CHECK: vmovdqa {{.*#+}} xmm1 = [65533,124,125,14807]
+; CHECK: vmovdqa {{.*#+}} xmm1 = [65535,0,0,65535]
 ; CHECK: ret
 define void @test(<4 x i16>* %a, <4 x i16>* %b) {
 body:
@@ -33,17 +33,18 @@ body:
 ; of the condition.
 ;
 ; CHECK-LABEL: test2:
-; CHECK:	vpslld	$31, %xmm0, %xmm0
-; CHECK-NEXT:	vpmovsxdq	%xmm0, %xmm1
-; CHECK-NEXT:	vpshufd	$78, %xmm0, %xmm0       ## xmm0 = xmm0[2,3,0,1]
-; CHECK-NEXT:	vpmovsxdq	%xmm0, %xmm0
-; CHECK-NEXT:	vinsertf128	$1, %xmm0, %ymm1, [[MASK:%ymm[0-9]+]]
-; CHECK: vblendvpd	[[MASK]]
-; CHECK: retq
+; CHECK:       vpslld $31, %xmm0, %xmm0
+; CHECK-NEXT:  vpsrad $31, %xmm0, %xmm0
+; CHECK-NEXT:  vpmovsxdq %xmm0, %xmm1
+; CHECK-NEXT:  vpshufd {{.*#+}} xmm0 = xmm0[2,3,0,1]
+; CHECK-NEXT:  vpmovsxdq %xmm0, %xmm0
+; CHECK-NEXT:  vinsertf128 $1, %xmm0, %ymm1, [[MASK:%ymm[0-9]+]]
+; CHECK:       vblendvpd [[MASK]]
+; CHECK:       retq
 define void @test2(double** %call1559, i64 %indvars.iv4198, <4 x i1> %tmp1895) {
 bb:
-  %arrayidx1928 = getelementptr inbounds double** %call1559, i64 %indvars.iv4198
-  %tmp1888 = load double** %arrayidx1928, align 8
+  %arrayidx1928 = getelementptr inbounds double*, double** %call1559, i64 %indvars.iv4198
+  %tmp1888 = load double*, double** %arrayidx1928, align 8
   %predphi.v.v = select <4 x i1> %tmp1895, <4 x double> <double -5.000000e-01, double -5.000000e-01, double -5.000000e-01, double -5.000000e-01>, <4 x double> <double 5.000000e-01, double 5.000000e-01, double 5.000000e-01, double 5.000000e-01>
   %tmp1900 = bitcast double* %tmp1888 to <4 x double>*
   store <4 x double> %predphi.v.v, <4 x double>* %tmp1900, align 8
@@ -59,19 +60,15 @@ bb:
 ; 
 ; <rdar://problem/18819506>
 
-; Note: For now, hard code ORIG_MASK and SHRUNK_MASK registers, because we
-; cannot express that ORIG_MASK must not be equal to ORIG_MASK. Otherwise,
-; even a faulty pattern would pass!
-;  
 ; CHECK-LABEL: test3:
-; Compute the original mask.
-;	CHECK: vpcmpeqd {{%xmm[0-9]+}}, {{%xmm[0-9]+}}, [[ORIG_MASK:%xmm0]]
-; Shrink the bit of the mask.
-; CHECK-NEXT: vpslld	$31, [[ORIG_MASK]], [[SHRUNK_MASK:%xmm3]]
-; Use the shrunk mask in the blend.
-; CHECK-NEXT:	vblendvps	[[SHRUNK_MASK]], %xmm{{[0-9]+}}, %xmm{{[0-9]+}}, %xmm{{[0-9]+}}
-; Use the original mask in the and.
-; CHECK-NEXT: vpand LCPI2_2(%rip), [[ORIG_MASK]], {{%xmm[0-9]+}} 
+; Compute the mask.
+;	CHECK: vpcmpeqd {{%xmm[0-9]+}}, {{%xmm[0-9]+}}, [[MASK:%xmm[0-9]+]]
+; Do not shrink the bit of the mask.
+; CHECK-NOT: vpslld	$31, [[MASK]], {{%xmm[0-9]+}}
+; Use the mask in the blend.
+; CHECK-NEXT:	vblendvps	[[MASK]], %xmm{{[0-9]+}}, %xmm{{[0-9]+}}, %xmm{{[0-9]+}}
+; Use the mask in the and.
+; CHECK-NEXT: vpand LCPI2_2(%rip), [[MASK]], {{%xmm[0-9]+}} 
 ; CHECK: retq
 define void @test3(<4 x i32> %induction30, <4 x i16>* %tmp16, <4 x i16>* %tmp17,  <4 x i16> %tmp3, <4 x i16> %tmp12) {
   %tmp6 = srem <4 x i32> %induction30, <i32 3, i32 3, i32 3, i32 3>
@@ -82,4 +79,15 @@ define void @test3(<4 x i32> %induction30, <4 x i16>* %tmp16, <4 x i16>* %tmp17,
   store <4 x i16> %predphi31, <4 x i16>* %tmp16, align 8
   store <4 x i16> %predphi, <4 x i16>* %tmp17, align 8
  ret void
+}
+
+; We shouldn't try to lower this directly using VSELECT because we don't have
+; vpblendvb in AVX1, only in AVX2. Instead, it should be expanded.
+;
+; CHECK-LABEL: PR22706:
+; CHECK: vpcmpgtb
+; CHECK: vpcmpgtb
+define <32 x i8> @PR22706(<32 x i1> %x) {
+  %tmp = select <32 x i1> %x, <32 x i8> <i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1>, <32 x i8> <i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2>
+  ret <32 x i8> %tmp
 }

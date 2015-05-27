@@ -4,16 +4,16 @@ target triple = "x86_64-unknown-linux-gnu"
 
 %struct.S = type { i8, i8 }
 
-@c = internal global i8** bitcast (i8* getelementptr (i8* bitcast ([8 x i8*]* @b to i8*), i64 48) to i8**), align 8
-@b = internal global [8 x i8*] [i8* null, i8* null, i8* null, i8* null, i8* null, i8* null, i8* getelementptr inbounds (%struct.S* @a, i32 0, i32 0), i8* getelementptr (i8* getelementptr inbounds (%struct.S* @a, i32 0, i32 0), i64 1)], align 16
+@c = internal global i8** bitcast (i8* getelementptr (i8, i8* bitcast ([8 x i8*]* @b to i8*), i64 48) to i8**), align 8
+@b = internal global [8 x i8*] [i8* null, i8* null, i8* null, i8* null, i8* null, i8* null, i8* getelementptr inbounds (%struct.S, %struct.S* @a, i32 0, i32 0), i8* getelementptr (i8, i8* getelementptr inbounds (%struct.S, %struct.S* @a, i32 0, i32 0), i64 1)], align 16
 @a = internal global %struct.S zeroinitializer, align 1
 
 ; Function Attrs: nounwind uwtable
 define signext i8 @foo() #0 {
 entry:
-  %0 = load i8*** @c, align 8
-  %1 = load i8** %0, align 8
-  %2 = load i8* %1, align 1
+  %0 = load i8**, i8*** @c, align 8
+  %1 = load i8*, i8** %0, align 8
+  %2 = load i8, i8* %1, align 1
   ret i8 %2
 
 ; CHECK-LABEL: @foo

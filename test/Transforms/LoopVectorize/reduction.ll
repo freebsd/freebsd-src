@@ -20,10 +20,10 @@ define i32 @reduction_sum(i32 %n, i32* noalias nocapture %A, i32* noalias nocapt
 .lr.ph:                                           ; preds = %0, %.lr.ph
   %indvars.iv = phi i64 [ %indvars.iv.next, %.lr.ph ], [ 0, %0 ]
   %sum.02 = phi i32 [ %9, %.lr.ph ], [ 0, %0 ]
-  %2 = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %3 = load i32* %2, align 4
-  %4 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %5 = load i32* %4, align 4
+  %2 = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %5 = load i32, i32* %4, align 4
   %6 = trunc i64 %indvars.iv to i32
   %7 = add i32 %sum.02, %6
   %8 = add i32 %7, %3
@@ -55,10 +55,10 @@ define i32 @reduction_prod(i32 %n, i32* noalias nocapture %A, i32* noalias nocap
 .lr.ph:                                           ; preds = %0, %.lr.ph
   %indvars.iv = phi i64 [ %indvars.iv.next, %.lr.ph ], [ 0, %0 ]
   %prod.02 = phi i32 [ %9, %.lr.ph ], [ 1, %0 ]
-  %2 = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %3 = load i32* %2, align 4
-  %4 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %5 = load i32* %4, align 4
+  %2 = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %5 = load i32, i32* %4, align 4
   %6 = trunc i64 %indvars.iv to i32
   %7 = mul i32 %prod.02, %6
   %8 = mul i32 %7, %3
@@ -90,10 +90,10 @@ define i32 @reduction_mix(i32 %n, i32* noalias nocapture %A, i32* noalias nocapt
 .lr.ph:                                           ; preds = %0, %.lr.ph
   %indvars.iv = phi i64 [ %indvars.iv.next, %.lr.ph ], [ 0, %0 ]
   %sum.02 = phi i32 [ %9, %.lr.ph ], [ 0, %0 ]
-  %2 = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %3 = load i32* %2, align 4
-  %4 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %5 = load i32* %4, align 4
+  %2 = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %5 = load i32, i32* %4, align 4
   %6 = mul nsw i32 %5, %3
   %7 = trunc i64 %indvars.iv to i32
   %8 = add i32 %sum.02, %7
@@ -123,10 +123,10 @@ define i32 @reduction_mul(i32 %n, i32* noalias nocapture %A, i32* noalias nocapt
 .lr.ph:                                           ; preds = %0, %.lr.ph
   %indvars.iv = phi i64 [ %indvars.iv.next, %.lr.ph ], [ 0, %0 ]
   %sum.02 = phi i32 [ %9, %.lr.ph ], [ 19, %0 ]
-  %2 = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %3 = load i32* %2, align 4
-  %4 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %5 = load i32* %4, align 4
+  %2 = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %5 = load i32, i32* %4, align 4
   %6 = trunc i64 %indvars.iv to i32
   %7 = add i32 %3, %6
   %8 = add i32 %7, %5
@@ -158,10 +158,10 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
   %sum.09 = phi i32 [ %add, %for.body ], [ 120, %entry ]
-  %arrayidx = getelementptr inbounds i32* %in, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
-  %arrayidx2 = getelementptr inbounds i32* %coeff, i64 %indvars.iv
-  %1 = load i32* %arrayidx2, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %in, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds i32, i32* %coeff, i64 %indvars.iv
+  %1 = load i32, i32* %arrayidx2, align 4
   %mul = mul nsw i32 %1, %0
   %add = add nsw i32 %mul, %sum.09
   %indvars.iv.next = add i64 %indvars.iv, 1
@@ -191,10 +191,10 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
   %result.08 = phi i32 [ %and, %for.body ], [ -1, %entry ]
-  %arrayidx = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
-  %arrayidx2 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %1 = load i32* %arrayidx2, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %1 = load i32, i32* %arrayidx2, align 4
   %add = add nsw i32 %1, %0
   %and = and i32 %add, %result.08
   %indvars.iv.next = add i64 %indvars.iv, 1
@@ -223,10 +223,10 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
   %result.08 = phi i32 [ %or, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
-  %arrayidx2 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %1 = load i32* %arrayidx2, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %1 = load i32, i32* %arrayidx2, align 4
   %add = add nsw i32 %1, %0
   %or = or i32 %add, %result.08
   %indvars.iv.next = add i64 %indvars.iv, 1
@@ -255,10 +255,10 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
   %result.08 = phi i32 [ %xor, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
-  %arrayidx2 = getelementptr inbounds i32* %B, i64 %indvars.iv
-  %1 = load i32* %arrayidx2, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds i32, i32* %B, i64 %indvars.iv
+  %1 = load i32, i32* %arrayidx2, align 4
   %add = add nsw i32 %1, %0
   %xor = xor i32 %add, %result.08
   %indvars.iv.next = add i64 %indvars.iv, 1
@@ -284,8 +284,8 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
   %x.05 = phi i32 [ %sub, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %sub = sub nsw i32 %0, %x.05
   %indvars.iv.next = add i64 %indvars.iv, 1
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32
@@ -311,8 +311,8 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
   %x.05 = phi i32 [ %sub, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %A, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %sub = sub nsw i32 %x.05, %0
   %indvars.iv.next = add i64 %indvars.iv, 1
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32
@@ -335,10 +335,10 @@ entry:
 for.body:
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.inc ]
   %sum.033 = phi float [ %S, %entry ], [ %sum.1, %for.inc ]
-  %arrayidx = getelementptr inbounds float* %A, i64 %indvars.iv
-  %0 = load float* %arrayidx, align 4
-  %arrayidx2 = getelementptr inbounds float* %B, i64 %indvars.iv
-  %1 = load float* %arrayidx2, align 4
+  %arrayidx = getelementptr inbounds float, float* %A, i64 %indvars.iv
+  %0 = load float, float* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds float, float* %B, i64 %indvars.iv
+  %1 = load float, float* %arrayidx2, align 4
   %cmp3 = fcmp ogt float %0, %1
   br i1 %cmp3, label %if.then, label %for.inc
 
@@ -380,10 +380,10 @@ entry:
 for.body:
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.inc ]
   %sum.033 = phi float [ %S, %entry ], [ %sum.1, %for.inc ]
-  %arrayidx = getelementptr inbounds float* %A, i64 %indvars.iv
-  %0 = load float* %arrayidx, align 4
-  %arrayidx2 = getelementptr inbounds float* %B, i64 %indvars.iv
-  %1 = load float* %arrayidx2, align 4
+  %arrayidx = getelementptr inbounds float, float* %A, i64 %indvars.iv
+  %0 = load float, float* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds float, float* %B, i64 %indvars.iv
+  %1 = load float, float* %arrayidx2, align 4
   %cmp3 = fcmp ogt float %0, %1
   br i1 %cmp3, label %if.then, label %for.inc
 
@@ -427,8 +427,8 @@ for.body:
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
   %sum2.09 = phi float [ 0.000000e+00, %entry ], [ %add1, %for.body ]
   %sum.08 = phi float [ %S, %entry ], [ %add, %for.body ]
-  %arrayidx = getelementptr inbounds float* %B, i64 %indvars.iv
-  %0 = load float* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds float, float* %B, i64 %indvars.iv
+  %0 = load float, float* %arrayidx, align 4
   %add = fadd fast float %sum.08, %0
   %add1 = fadd fast float %sum2.09, %add
   %indvars.iv.next = add i64 %indvars.iv, 1

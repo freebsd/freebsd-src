@@ -104,12 +104,12 @@ define <4 x float addrspace(2)*> @combine_addrspacecast_types_vector(<4 x i32 ad
 
 define i32 @canonicalize_addrspacecast([16 x i32] addrspace(1)* %arr) {
 ; CHECK-LABEL: @canonicalize_addrspacecast(
-; CHECK-NEXT: getelementptr inbounds [16 x i32] addrspace(1)* %arr, i32 0, i32 0
+; CHECK-NEXT: getelementptr inbounds [16 x i32], [16 x i32] addrspace(1)* %arr, i32 0, i32 0
 ; CHECK-NEXT: addrspacecast i32 addrspace(1)* %{{[a-zA-Z0-9]+}} to i32*
-; CHECK-NEXT: load i32*
+; CHECK-NEXT: load i32, i32*
 ; CHECK-NEXT: ret i32
   %p = addrspacecast [16 x i32] addrspace(1)* %arr to i32*
-  %v = load i32* %p
+  %v = load i32, i32* %p
   ret i32 %v
 }
 
@@ -127,14 +127,14 @@ declare void @foo(i8*) nounwind
 define i32 @memcpy_addrspacecast() nounwind {
 entry:
   %alloca = alloca i8, i32 48
-  call void @llvm.memcpy.p0i8.p1i8.i32(i8* %alloca, i8 addrspace(1)* addrspacecast (i8 addrspace(2)* getelementptr inbounds ([60 x i8] addrspace(2)* @const_array, i16 0, i16 4) to i8 addrspace(1)*), i32 48, i32 4, i1 false) nounwind
+  call void @llvm.memcpy.p0i8.p1i8.i32(i8* %alloca, i8 addrspace(1)* addrspacecast (i8 addrspace(2)* getelementptr inbounds ([60 x i8], [60 x i8] addrspace(2)* @const_array, i16 0, i16 4) to i8 addrspace(1)*), i32 48, i32 4, i1 false) nounwind
   br label %loop.body
 
 loop.body:
   %i = phi i32 [ 0, %entry ], [ %i.inc, %loop.body ]
   %sum = phi i32 [ 0, %entry ], [ %sum.inc, %loop.body]
-  %ptr = getelementptr i8* %alloca, i32 %i
-  %load = load i8* %ptr
+  %ptr = getelementptr i8, i8* %alloca, i32 %i
+  %load = load i8, i8* %ptr
   %ext = zext i8 %load to i32
   %sum.inc = add i32 %sum, %ext
   %i.inc = add i32 %i, 1

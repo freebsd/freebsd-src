@@ -1,11 +1,20 @@
 ; RUN: llc %s -o - -filetype=asm -O0 -mtriple=x86_64-unknown-linux-gnu \
-; RUN:   | FileCheck --check-prefix=CHECK --check-prefix=SINGLE --check-prefix=SINGLE-64 %s
+; RUN:   | FileCheck --check-prefix=SINGLE --check-prefix=SINGLE-64 --check-prefix=GNUOP %s
 
 ; RUN: llc %s -o - -filetype=asm -O0 -mtriple=i386-linux-gnu \
-; RUN:   | FileCheck --check-prefix=CHECK --check-prefix=SINGLE --check-prefix=SINGLE-32 %s
+; RUN:   | FileCheck --check-prefix=SINGLE --check-prefix=SINGLE-32 --check-prefix=GNUOP %s
 
 ; RUN: llc %s -o - -filetype=asm -O0 -mtriple=x86_64-unknown-linux-gnu -split-dwarf=Enable \
-; RUN:   | FileCheck --check-prefix=CHECK --check-prefix=FISSION %s
+; RUN:   | FileCheck --check-prefix=FISSION --check-prefix=GNUOP %s
+
+; RUN: llc %s -o - -filetype=asm -O0 -mtriple=x86_64-scei-ps4 \
+; RUN:   | FileCheck --check-prefix=SINGLE --check-prefix=SINGLE-64 --check-prefix=STDOP %s
+
+; RUN: llc %s -o - -filetype=asm -O0 -mtriple=x86_64-apple-darwin \
+; RUN:   | FileCheck --check-prefix=DARWIN --check-prefix=STDOP %s
+
+; RUN: llc %s -o - -filetype=asm -O0 -mtriple=x86_64-unknown-freebsd \
+; RUN:   | FileCheck --check-prefix=SINGLE --check-prefix=SINGLE-64 --check-prefix=GNUOP %s
 
 ; FIXME: add relocation and DWARF expression support to llvm-dwarfdump & use
 ; that here instead of raw assembly printing
@@ -19,19 +28,29 @@
 ; FISSION-NEXT: .byte 0
 
 ; SINGLE: .section     .debug_info,
+; DARWIN: .section     {{.*}}debug_info,
+
 ; 10 bytes of data in this DW_FORM_block1 representation of the location of 'tls'
 ; SINGLE-64: .byte     10 # DW_AT_location
 ; DW_OP_const8u (0x0e == 14) of address
 ; SINGLE-64-NEXT: .byte        14
 ; SINGLE-64-NEXT: .quad tls@DTPOFF
 
+; DARWIN: .byte     10 ## DW_AT_location
+; DW_OP_const8u (0x0e == 14) of address
+; DARWIN-NEXT: .byte        14
+; DARWIN-NEXT: .quad _tls
+
+; 6 bytes of data in 32-bit mode
 ; SINGLE-32: .byte     6 # DW_AT_location
 ; DW_OP_const4u (0x0e == 12) of address
 ; SINGLE-32-NEXT: .byte        12
 ; SINGLE-32-NEXT: .long tls@DTPOFF
 
 ; DW_OP_GNU_push_tls_address
-; CHECK-NEXT: .byte 224
+; GNUOP-NEXT: .byte 224
+; DW_OP_form_tls_address
+; STDOP-NEXT: .byte 155
 
 ; FISSION: DW_TAG_variable
 ; FISSION: .byte 2 # DW_AT_location
@@ -49,6 +68,7 @@
 
 ; check that the expected TLS address description is the first thing in the debug_addr section
 ; FISSION: .section    .debug_addr
+; FISSION: addr_sec:
 ; FISSION-NEXT: .quad  tls@DTPOFF
 ; FISSION-NEXT: .quad  glbl
 ; FISSION-NOT: .quad  glbl
@@ -81,22 +101,22 @@ attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointe
 !llvm.module.flags = !{!15, !16}
 !llvm.ident = !{!17}
 
-!0 = !{!"0x11\004\00clang version 3.5 \000\00\000\00-.dwo\000", !1, !2, !2, !3, !12, !2} ; [ DW_TAG_compile_unit ] [/tmp/dbginfo/tls.cpp] [DW_LANG_C_plus_plus]
-!1 = !{!"tls.cpp", !"/tmp/dbginfo"}
+!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5 ", isOptimized: false, splitDebugFilename: "-.dwo", emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !12, imports: !2)
+!1 = !DIFile(filename: "tls.cpp", directory: "/tmp/dbginfo")
 !2 = !{}
 !3 = !{!4}
-!4 = !{!"0x2e\00func<&glbl>\00func<&glbl>\00_Z4funcIXadL_Z4glblEEEiv\005\000\001\000\006\00256\000\005", !1, !5, !6, null, i32 ()* @_Z4funcIXadL_Z4glblEEEiv, !9, null, !2} ; [ DW_TAG_subprogram ] [line 5] [def] [func<&glbl>]
-!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [/tmp/dbginfo/tls.cpp]
-!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !7, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!4 = !DISubprogram(name: "func<&glbl>", linkageName: "_Z4funcIXadL_Z4glblEEEiv", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !5, type: !6, function: i32 ()* @_Z4funcIXadL_Z4glblEEEiv, templateParams: !9, variables: !2)
+!5 = !DIFile(filename: "tls.cpp", directory: "/tmp/dbginfo")
+!6 = !DISubroutineType(types: !7)
 !7 = !{!8}
-!8 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10}
-!10 = !{!"0x30\00I\000\000", null, !11, i32* @glbl, null} ; [ DW_TAG_template_value_parameter ]
-!11 = !{!"0xf\00\000\0064\0064\000\000", null, null, !8} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from int]
+!10 = !DITemplateValueParameter(tag: DW_TAG_template_value_parameter, name: "I", type: !11, value: i32* @glbl)
+!11 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !8)
 !12 = !{!13, !14}
-!13 = !{!"0x34\00tls\00tls\00\001\000\001", null, !5, !8, i32* @tls, null} ; [ DW_TAG_variable ] [tls] [line 1] [def]
-!14 = !{!"0x34\00glbl\00glbl\00\002\000\001", null, !5, !8, i32* @glbl, null} ; [ DW_TAG_variable ] [glbl] [line 2] [def]
+!13 = !DIGlobalVariable(name: "tls", line: 1, isLocal: false, isDefinition: true, scope: null, file: !5, type: !8, variable: i32* @tls)
+!14 = !DIGlobalVariable(name: "glbl", line: 2, isLocal: false, isDefinition: true, scope: null, file: !5, type: !8, variable: i32* @glbl)
 !15 = !{i32 2, !"Dwarf Version", i32 4}
-!16 = !{i32 1, !"Debug Info Version", i32 2}
+!16 = !{i32 1, !"Debug Info Version", i32 3}
 !17 = !{!"clang version 3.5 "}
-!18 = !MDLocation(line: 6, scope: !4)
+!18 = !DILocation(line: 6, scope: !4)

@@ -7,6 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifdef _MSC_VER
+// Disable warnings about alignment-based structure padding.
+// This must be above the includes to suppress warnings in included templates.
+#pragma warning(disable:4324)
+#endif
+
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Compiler.h"
 #include "gtest/gtest.h"
@@ -22,35 +28,21 @@ namespace {
 
 // Suppress direct base '{anonymous}::S1' inaccessible in '{anonymous}::D9'
 // due to ambiguity warning.
-//
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Winaccessible-base"
+#elif ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402
 // Pragma based warning suppression was introduced in GGC 4.2.  Additionally
 // this warning is "enabled by default".  The warning still appears if -Wall is
 // suppressed.  Apparently GCC suppresses it when -w is specifed, which is odd.
-// At any rate, clang on the other hand gripes about -Wunknown-pragma, so
-// leaving it out of this.
-#if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402 && !defined(__clang__)
 #pragma GCC diagnostic warning "-w"
 #endif
 
 // Define some fixed alignment types to use in these tests.
-#if __has_feature(cxx_alignas)
-struct alignas(1) A1 { };
-struct alignas(2) A2 { };
-struct alignas(4) A4 { };
-struct alignas(8) A8 { };
-#elif defined(__GNUC__)
-struct A1 { } __attribute__((aligned(1)));
-struct A2 { } __attribute__((aligned(2)));
-struct A4 { } __attribute__((aligned(4)));
-struct A8 { } __attribute__((aligned(8)));
-#elif defined(_MSC_VER)
-__declspec(align(1)) struct A1 { };
-__declspec(align(2)) struct A2 { };
-__declspec(align(4)) struct A4 { };
-__declspec(align(8)) struct A8 { };
-#else
-# error No supported align as directive.
-#endif
+struct LLVM_ALIGNAS(1) A1 {};
+struct LLVM_ALIGNAS(2) A2 {};
+struct LLVM_ALIGNAS(4) A4 {};
+struct LLVM_ALIGNAS(8) A8 {};
 
 struct S1 {};
 struct S2 { char a; };
@@ -69,12 +61,22 @@ struct D8 : S1, D4, D5 { double x[2]; };
 struct D9 : S1, D1 { S1 s1; };
 struct V1 { virtual ~V1(); };
 struct V2 { int x; virtual ~V2(); };
-struct V3 : V1 { virtual ~V3(); };
-struct V4 : virtual V2 { int y; virtual ~V4(); };
-struct V5 : V4, V3 { double z; virtual ~V5(); };
+struct V3 : V1 {
+  ~V3() override;
+};
+struct V4 : virtual V2 { int y;
+  ~V4() override;
+};
+struct V5 : V4, V3 { double z;
+  ~V5() override;
+};
 struct V6 : S1 { virtual ~V6(); };
-struct V7 : virtual V2, virtual V6 { virtual ~V7(); };
-struct V8 : V5, virtual V6, V7 { double zz; virtual ~V8(); };
+struct V7 : virtual V2, virtual V6 {
+  ~V7() override;
+};
+struct V8 : V5, virtual V6, V7 { double zz;
+  ~V8() override;
+};
 
 double S6::f() { return 0.0; }
 float D2::g() { return 0.0f; }

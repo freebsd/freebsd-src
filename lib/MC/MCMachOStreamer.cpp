@@ -26,6 +26,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -39,6 +40,9 @@ private:
   /// need for local relocations. False by default.
   bool LabelSections;
 
+  bool DWARFMustBeAtTheEnd;
+  bool CreatedADWARFSection;
+
   /// HasSectionLabel - map of which sections have already had a non-local
   /// label emitted to them. Used so we don't emit extraneous linker local
   /// labels in the middle of the section.
@@ -50,10 +54,10 @@ private:
   void EmitDataRegionEnd();
 
 public:
-  MCMachOStreamer(MCContext &Context, MCAsmBackend &MAB, raw_ostream &OS,
-                  MCCodeEmitter *Emitter, bool label)
-      : MCObjectStreamer(Context, MAB, OS, Emitter),
-        LabelSections(label) {}
+  MCMachOStreamer(MCContext &Context, MCAsmBackend &MAB, raw_pwrite_stream &OS,
+                  MCCodeEmitter *Emitter, bool DWARFMustBeAtTheEnd, bool label)
+      : MCObjectStreamer(Context, MAB, OS, Emitter), LabelSections(label),
+        DWARFMustBeAtTheEnd(DWARFMustBeAtTheEnd), CreatedADWARFSection(false) {}
 
   /// state management
   void reset() override {
@@ -64,7 +68,7 @@ public:
   /// @name MCStreamer Interface
   /// @{
 
-  void ChangeSection(const MCSection *Sect, const MCExpr *Subsect) override;
+  void ChangeSection(MCSection *Sect, const MCExpr *Subsect) override;
   void EmitLabel(MCSymbol *Symbol) override;
   void EmitEHSymAttributes(const MCSymbol *Symbol, MCSymbol *EHSymbol) override;
   void EmitAssemblerFlag(MCAssemblerFlag Flag) override;
@@ -94,9 +98,9 @@ public:
   }
   void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                              unsigned ByteAlignment) override;
-  void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = nullptr,
+  void EmitZerofill(MCSection *Section, MCSymbol *Symbol = nullptr,
                     uint64_t Size = 0, unsigned ByteAlignment = 0) override;
-  void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol, uint64_t Size,
+  void EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
                       unsigned ByteAlignment = 0) override;
 
   void EmitFileDirective(StringRef Filename) override {
@@ -119,14 +123,47 @@ public:
 
 } // end anonymous namespace.
 
-void MCMachOStreamer::ChangeSection(const MCSection *Section,
+static bool canGoAfterDWARF(const MCSectionMachO &MSec) {
+  // These sections are created by the assembler itself after the end of
+  // the .s file.
+  StringRef SegName = MSec.getSegmentName();
+  StringRef SecName = MSec.getSectionName();
+
+  if (SegName == "__LD" && SecName == "__compact_unwind")
+    return true;
+
+  if (SegName == "__IMPORT") {
+    if (SecName == "__jump_table")
+      return true;
+
+    if (SecName == "__pointers")
+      return true;
+  }
+
+  if (SegName == "__TEXT" && SecName == "__eh_frame")
+    return true;
+
+  if (SegName == "__DATA" && SecName == "__nl_symbol_ptr")
+    return true;
+
+  return false;
+}
+
+void MCMachOStreamer::ChangeSection(MCSection *Section,
                                     const MCExpr *Subsection) {
   // Change the section normally.
-  MCObjectStreamer::ChangeSection(Section, Subsection);
+  bool Created = MCObjectStreamer::changeSectionImpl(Section, Subsection);
+  const MCSectionMachO &MSec = *cast<MCSectionMachO>(Section);
+  StringRef SegName = MSec.getSegmentName();
+  if (SegName == "__DWARF")
+    CreatedADWARFSection = true;
+  else if (Created && DWARFMustBeAtTheEnd && !canGoAfterDWARF(MSec))
+    assert(!CreatedADWARFSection && "Creating regular section after DWARF");
+
   // Output a linker-local symbol so we don't need section-relative local
   // relocations. The linker hates us when we do that.
   if (LabelSections && !HasSectionLabel[Section]) {
-    MCSymbol *Label = getContext().CreateLinkerPrivateTempSymbol();
+    MCSymbol *Label = getContext().createLinkerPrivateTempSymbol();
     EmitLabel(Label);
     HasSectionLabel[Section] = true;
   }
@@ -171,7 +208,7 @@ void MCMachOStreamer::EmitDataRegion(DataRegionData::KindTy Kind) {
   if (!getAssembler().getBackend().hasDataInCodeSupport())
     return;
   // Create a temporary label to mark the start of the data region.
-  MCSymbol *Start = getContext().CreateTempSymbol();
+  MCSymbol *Start = getContext().createTempSymbol();
   EmitLabel(Start);
   // Record the region for the object writer to use.
   DataRegionData Data = { Kind, Start, nullptr };
@@ -183,11 +220,11 @@ void MCMachOStreamer::EmitDataRegionEnd() {
   if (!getAssembler().getBackend().hasDataInCodeSupport())
     return;
   std::vector<DataRegionData> &Regions = getAssembler().getDataRegions();
-  assert(Regions.size() && "Mismatched .end_data_region!");
+  assert(!Regions.empty() && "Mismatched .end_data_region!");
   DataRegionData &Data = Regions.back();
   assert(!Data.End && "Mismatched .end_data_region!");
   // Create a temporary label to mark the end of the data region.
-  Data.End = getContext().CreateTempSymbol();
+  Data.End = getContext().createTempSymbol();
   EmitLabel(Data.End);
 }
 
@@ -250,7 +287,7 @@ bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
     // important for matching the string table that 'as' generates.
     IndirectSymbolData ISD;
     ISD.Symbol = Symbol;
-    ISD.SectionData = getCurrentSectionData();
+    ISD.Section = getCurrentSectionData();
     getAssembler().getIndirectSymbols().push_back(ISD);
     return true;
   }
@@ -364,9 +401,9 @@ void MCMachOStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                       Symbol, Size, ByteAlignment);
 }
 
-void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
+void MCMachOStreamer::EmitZerofill(MCSection *Section, MCSymbol *Symbol,
                                    uint64_t Size, unsigned ByteAlignment) {
-  MCSectionData &SectData = getAssembler().getOrCreateSectionData(*Section);
+  getAssembler().registerSection(*Section);
 
   // The symbol may not be present, which only creates the section.
   if (!Symbol)
@@ -381,21 +418,21 @@ void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
 
   // Emit an align fragment if necessary.
   if (ByteAlignment != 1)
-    new MCAlignFragment(ByteAlignment, 0, 0, ByteAlignment, &SectData);
+    new MCAlignFragment(ByteAlignment, 0, 0, ByteAlignment, Section);
 
-  MCFragment *F = new MCFillFragment(0, 0, Size, &SectData);
+  MCFragment *F = new MCFillFragment(0, 0, Size, Section);
   SD.setFragment(F);
 
   AssignSection(Symbol, Section);
 
   // Update the maximum alignment on the zero fill section if necessary.
-  if (ByteAlignment > SectData.getAlignment())
-    SectData.setAlignment(ByteAlignment);
+  if (ByteAlignment > Section->getAlignment())
+    Section->setAlignment(ByteAlignment);
 }
 
 // This should always be called with the thread local bss section.  Like the
 // .zerofill directive this doesn't actually switch sections on us.
-void MCMachOStreamer::EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
+void MCMachOStreamer::EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,
                                      uint64_t Size, unsigned ByteAlignment) {
   EmitZerofill(Section, Symbol, Size, ByteAlignment);
   return;
@@ -408,7 +445,7 @@ void MCMachOStreamer::EmitInstToData(const MCInst &Inst,
   SmallVector<MCFixup, 4> Fixups;
   SmallString<256> Code;
   raw_svector_ostream VecOS(Code);
-  getAssembler().getEmitter().EncodeInstruction(Inst, VecOS, Fixups, STI);
+  getAssembler().getEmitter().encodeInstruction(Inst, VecOS, Fixups, STI);
   VecOS.flush();
 
   // Add the fixups and data.
@@ -427,13 +464,13 @@ void MCMachOStreamer::FinishImpl() {
 
   // First, scan the symbol table to build a lookup table from fragments to
   // defining symbols.
-  DenseMap<const MCFragment*, MCSymbolData*> DefiningSymbolMap;
-  for (MCSymbolData &SD : getAssembler().symbols()) {
-    if (getAssembler().isSymbolLinkerVisible(SD.getSymbol()) &&
-        SD.getFragment()) {
+  DenseMap<const MCFragment *, const MCSymbol *> DefiningSymbolMap;
+  for (const MCSymbol &Symbol : getAssembler().symbols()) {
+    MCSymbolData &SD = Symbol.getData();
+    if (getAssembler().isSymbolLinkerVisible(Symbol) && SD.getFragment()) {
       // An atom defining symbol should never be internal to a fragment.
       assert(SD.getOffset() == 0 && "Invalid offset in atom defining symbol!");
-      DefiningSymbolMap[SD.getFragment()] = &SD;
+      DefiningSymbolMap[SD.getFragment()] = &Symbol;
     }
   }
 
@@ -441,11 +478,11 @@ void MCMachOStreamer::FinishImpl() {
   // symbol.
   for (MCAssembler::iterator it = getAssembler().begin(),
          ie = getAssembler().end(); it != ie; ++it) {
-    MCSymbolData *CurrentAtom = nullptr;
-    for (MCSectionData::iterator it2 = it->begin(),
-           ie2 = it->end(); it2 != ie2; ++it2) {
-      if (MCSymbolData *SD = DefiningSymbolMap.lookup(it2))
-        CurrentAtom = SD;
+    const MCSymbol *CurrentAtom = nullptr;
+    for (MCSection::iterator it2 = it->begin(), ie2 = it->end(); it2 != ie2;
+         ++it2) {
+      if (const MCSymbol *Symbol = DefiningSymbolMap.lookup(it2))
+        CurrentAtom = Symbol;
       it2->setAtom(CurrentAtom);
     }
   }
@@ -454,10 +491,11 @@ void MCMachOStreamer::FinishImpl() {
 }
 
 MCStreamer *llvm::createMachOStreamer(MCContext &Context, MCAsmBackend &MAB,
-                                      raw_ostream &OS, MCCodeEmitter *CE,
-                                      bool RelaxAll,
+                                      raw_pwrite_stream &OS, MCCodeEmitter *CE,
+                                      bool RelaxAll, bool DWARFMustBeAtTheEnd,
                                       bool LabelSections) {
-  MCMachOStreamer *S = new MCMachOStreamer(Context, MAB, OS, CE, LabelSections);
+  MCMachOStreamer *S = new MCMachOStreamer(Context, MAB, OS, CE,
+                                           DWARFMustBeAtTheEnd, LabelSections);
   if (RelaxAll)
     S->getAssembler().setRelaxAll(true);
   return S;

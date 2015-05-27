@@ -90,7 +90,7 @@ next:
   select i1 true, void ()* @f3, void ()* @f4
   store void ()* @f5, void ()** %x
   call void @f6()
-  call void (void ()*, void ()*)* bitcast (void ()* @f7 to void (void ()*, void ()*)*)(void ()* @f8, void ()* @f9)
+  call void (void ()*, void ()*) bitcast (void ()* @f7 to void (void ()*, void ()*)*)(void ()* @f8, void ()* @f9)
   invoke void @f10() to label %exit unwind label %unwind
 
 exit:
@@ -118,10 +118,10 @@ define void @test2() {
 ; CHECK-NEXT: -> f1
 ; CHECK-NOT: ->
 
-  load i8** bitcast (void ()** @g to i8**)
-  load i8** bitcast (void ()** getelementptr ([4 x void ()*]* @g1, i32 0, i32 2) to i8**)
-  load i8** bitcast (void ()** getelementptr ({i8, void ()*, i8}* @g2, i32 0, i32 1) to i8**)
-  load i8** bitcast (void ()** @h to i8**)
+  load i8*, i8** bitcast (void ()** @g to i8**)
+  load i8*, i8** bitcast (void ()** getelementptr ([4 x void ()*], [4 x void ()*]* @g1, i32 0, i32 2) to i8**)
+  load i8*, i8** bitcast (void ()** getelementptr ({i8, void ()*, i8}, {i8, void ()*, i8}* @g2, i32 0, i32 1) to i8**)
+  load i8*, i8** bitcast (void ()** @h to i8**)
   ret void
 }
 

@@ -12,6 +12,7 @@
 @i5 = external hidden thread_local global i32
 @s1 = thread_local global i16 15
 @b1 = thread_local global i8 0
+@b2 = thread_local(localexec) global i8 0
 
 define i32 @f1() {
 ; X32_LINUX-LABEL: f1:
@@ -40,7 +41,7 @@ define i32 @f1() {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i32* @i1
+	%tmp1 = load i32, i32* @i1
 	ret i32 %tmp1
 }
 
@@ -105,7 +106,7 @@ define i32 @f3() nounwind {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i32* @i2
+	%tmp1 = load i32, i32* @i2
 	ret i32 %tmp1
 }
 
@@ -168,7 +169,7 @@ define i32 @f5() nounwind {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i32* @i3
+	%tmp1 = load i32, i32* @i3
 	ret i32 %tmp1
 }
 
@@ -219,7 +220,7 @@ define i32 @f7() {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i32* @i4
+	%tmp1 = load i32, i32* @i4
 	ret i32 %tmp1
 }
 
@@ -258,7 +259,7 @@ define i32 @f9() {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i32* @i5
+	%tmp1 = load i32, i32* @i5
 	ret i32 %tmp1
 }
 
@@ -309,7 +310,7 @@ define i16 @f11() {
 ; MINGW32: retl
 
 entry:
-	%tmp1 = load i16* @s1
+	%tmp1 = load i16, i16* @s1
 	ret i16 %tmp1
 }
 
@@ -341,7 +342,7 @@ define i32 @f12() {
 
 
 entry:
-	%tmp1 = load i16* @s1
+	%tmp1 = load i16, i16* @s1
   %tmp2 = sext i16 %tmp1 to i32
 	ret i32 %tmp2
 }
@@ -373,7 +374,7 @@ define i8 @f13() {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i8* @b1
+	%tmp1 = load i8, i8* @b1
 	ret i8 %tmp1
 }
 
@@ -404,8 +405,36 @@ define i32 @f14() {
 ; MINGW32-NEXT: retl
 
 entry:
-	%tmp1 = load i8* @b1
+	%tmp1 = load i8, i8* @b1
   %tmp2 = sext i8 %tmp1 to i32
 	ret i32 %tmp2
+}
+
+define i8* @f15() {
+; X32_LINUX-LABEL: f15:
+; X32_LINUX:      movl %gs:0, %eax
+; X32_LINUX-NEXT: leal b2@NTPOFF(%eax), %eax
+; X32_LINUX-NEXT: ret
+; X64_LINUX-LABEL: f15:
+; X64_LINUX:      movq %fs:0, %rax
+; X64_LINUX-NEXT: leaq b2@TPOFF(%rax), %rax
+; X64_LINUX-NEXT: ret
+; X32_WIN-LABEL: f15:
+; X32_WIN:      movl %fs:__tls_array, %eax
+; X32_WIN-NEXT: movl (%eax), %eax
+; X32_WIN-NEXT: leal _b2@SECREL32(%eax), %eax
+; X32_WIN-NEXT: ret
+; X64_WIN-LABEL: f15:
+; X64_WIN:      movq %gs:88, %rax
+; X64_WIN-NEXT: movq (%rax), %rax
+; X64_WIN-NEXT: leaq b2@SECREL32(%rax), %rax
+; X64_WIN-NEXT: ret
+; MINGW32-LABEL: f15:
+; MINGW32:      movl %fs:44, %eax
+; MINGW32-NEXT: movl (%eax), %eax
+; MINGW32-NEXT: leal _b2@SECREL32(%eax), %eax
+; MINGW32-NEXT: ret
+entry:
+	ret i8* @b2
 }
 

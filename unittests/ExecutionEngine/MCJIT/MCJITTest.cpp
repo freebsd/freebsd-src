@@ -22,7 +22,7 @@ namespace {
 
 class MCJITTest : public testing::Test, public MCJITTestBase {
 protected:
-  virtual void SetUp() { M.reset(createEmptyModule("<main>")); }
+  void SetUp() override { M.reset(createEmptyModule("<main>")); }
 };
 
 // FIXME: Ensure creating an execution engine does not crash when constructed
@@ -169,7 +169,7 @@ TEST_F(MCJITTest, multiple_functions) {
     std::stringstream funcName;
     funcName << "level_" << i;
     Outer = startFunction<int32_t(void)>(M.get(), funcName.str());
-    Value *innerResult = Builder.CreateCall(Inner);
+    Value *innerResult = Builder.CreateCall(Inner, {});
     endFunctionWithRet(Outer, innerResult);
 
     Inner = Outer;

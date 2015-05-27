@@ -18,7 +18,7 @@ entry:
 }
 
 ; CHECK: vmovq
-; CHECK-NEXT: vunpcklpd %xmm
+; CHECK-NEXT: vmovddup %xmm
 ; CHECK-NEXT: vinsertf128 $1
 define <4 x i64> @funcC(i64 %q) nounwind uwtable readnone ssp {
 entry:
@@ -29,7 +29,7 @@ entry:
   ret <4 x i64> %vecinit6.i
 }
 
-; CHECK: vunpcklpd %xmm
+; CHECK: vmovddup %xmm
 ; CHECK-NEXT: vinsertf128 $1
 define <4 x double> @funcD(double %q) nounwind uwtable readnone ssp {
 entry:
@@ -42,7 +42,7 @@ entry:
 
 ; Test this turns into a broadcast:
 ;   shuffle (scalar_to_vector (load (ptr + 4))), undef, <0, 0, 0, 0>
-;   
+;
 ; CHECK: vbroadcastss
 define <8 x float> @funcE() nounwind {
 allocas:
@@ -56,9 +56,9 @@ for_exit499:                                      ; preds = %for_test505.prehead
   br i1 undef, label %__load_and_broadcast_32.exit1249, label %load.i1247
 
 load.i1247:                                       ; preds = %for_exit499
-  %ptr1227 = getelementptr [18 x [18 x float]]* %udx495, i64 0, i64 1, i64 1
+  %ptr1227 = getelementptr [18 x [18 x float]], [18 x [18 x float]]* %udx495, i64 0, i64 1, i64 1
   %ptr.i1237 = bitcast float* %ptr1227 to i32*
-  %val.i1238 = load i32* %ptr.i1237, align 4
+  %val.i1238 = load i32, i32* %ptr.i1237, align 4
   %ret6.i1245 = insertelement <8 x i32> undef, i32 %val.i1238, i32 6
   %ret7.i1246 = insertelement <8 x i32> %ret6.i1245, i32 %val.i1238, i32 7
   %phitmp = bitcast <8 x i32> %ret7.i1246 to <8 x float>

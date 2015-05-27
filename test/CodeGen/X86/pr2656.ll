@@ -11,15 +11,15 @@ target triple = "i686-apple-darwin9.4.0"
 
 define void @foo(%struct.anon* byval %p) nounwind {
 entry:
-	%tmp = getelementptr %struct.anon* %p, i32 0, i32 0		; <float*> [#uses=1]
-	%tmp1 = load float* %tmp		; <float> [#uses=1]
-	%tmp2 = getelementptr %struct.anon* %p, i32 0, i32 1		; <float*> [#uses=1]
-	%tmp3 = load float* %tmp2		; <float> [#uses=1]
+	%tmp = getelementptr %struct.anon, %struct.anon* %p, i32 0, i32 0		; <float*> [#uses=1]
+	%tmp1 = load float, float* %tmp		; <float> [#uses=1]
+	%tmp2 = getelementptr %struct.anon, %struct.anon* %p, i32 0, i32 1		; <float*> [#uses=1]
+	%tmp3 = load float, float* %tmp2		; <float> [#uses=1]
 	%neg = fsub float -0.000000e+00, %tmp1		; <float> [#uses=1]
 	%conv = fpext float %neg to double		; <double> [#uses=1]
 	%neg4 = fsub float -0.000000e+00, %tmp3		; <float> [#uses=1]
 	%conv5 = fpext float %neg4 to double		; <double> [#uses=1]
-	%call = call i32 (...)* @printf( i8* getelementptr ([17 x i8]* @.str, i32 0, i32 0), double %conv, double %conv5 )		; <i32> [#uses=0]
+	%call = call i32 (...) @printf( i8* getelementptr ([17 x i8], [17 x i8]* @.str, i32 0, i32 0), double %conv, double %conv5 )		; <i32> [#uses=0]
 	ret void
 }
 

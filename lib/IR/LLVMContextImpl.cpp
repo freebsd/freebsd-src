@@ -35,7 +35,8 @@ LLVMContextImpl::LLVMContextImpl(LLVMContext &C)
     Int8Ty(C, 8),
     Int16Ty(C, 16),
     Int32Ty(C, 32),
-    Int64Ty(C, 64) {
+    Int64Ty(C, 64),
+    Int128Ty(C, 128) {
   InlineAsmDiagHandler = nullptr;
   InlineAsmDiagContext = nullptr;
   DiagnosticHandler = nullptr;
@@ -77,10 +78,10 @@ LLVMContextImpl::~LLVMContextImpl() {
   // unnecessary RAUW when nodes are still unresolved.
   for (auto *I : DistinctMDNodes)
     I->dropAllReferences();
-  for (auto *I : MDTuples)
+#define HANDLE_MDNODE_LEAF(CLASS)                                              \
+  for (auto *I : CLASS##s)                                                     \
     I->dropAllReferences();
-  for (auto *I : MDLocations)
-    I->dropAllReferences();
+#include "llvm/IR/Metadata.def"
 
   // Also drop references that come from the Value bridges.
   for (auto &Pair : ValuesAsMetadata)
@@ -89,15 +90,14 @@ LLVMContextImpl::~LLVMContextImpl() {
     Pair.second->dropUse();
 
   // Destroy MDNodes.
-  for (UniquableMDNode *I : DistinctMDNodes)
+  for (MDNode *I : DistinctMDNodes)
     I->deleteAsSubclass();
-  for (MDTuple *I : MDTuples)
+#define HANDLE_MDNODE_LEAF(CLASS)                                              \
+  for (CLASS *I : CLASS##s)                                                    \
     delete I;
-  for (MDLocation *I : MDLocations)
-    delete I;
+#include "llvm/IR/Metadata.def"
 
-  // Free the constants.  This is important to do here to ensure that they are
-  // freed before the LeakDetector is torn down.
+  // Free the constants.
   std::for_each(ExprConstants.map_begin(), ExprConstants.map_end(),
                 DropFirst());
   std::for_each(ArrayConstants.map_begin(), ArrayConstants.map_end(),
@@ -162,6 +162,62 @@ LLVMContextImpl::~LLVMContextImpl() {
   MDStringCache.clear();
 }
 
+void LLVMContextImpl::dropTriviallyDeadConstantArrays() {
+  bool Changed;
+  do {
+    Changed = false;
+
+    for (auto I = ArrayConstants.map_begin(), E = ArrayConstants.map_end();
+         I != E; ) {
+      auto *C = I->first;
+      I++;
+      if (C->use_empty()) {
+        Changed = true;
+        C->destroyConstant();
+      }
+    }
+
+  } while (Changed);
+}
+
+void Module::dropTriviallyDeadConstantArrays() {
+  Context.pImpl->dropTriviallyDeadConstantArrays();
+}
+
+namespace llvm {
+/// \brief Make MDOperand transparent for hashing.
+///
+/// This overload of an implementation detail of the hashing library makes
+/// MDOperand hash to the same value as a \a Metadata pointer.
+///
+/// Note that overloading \a hash_value() as follows:
+///
+/// \code
+///     size_t hash_value(const MDOperand &X) { return hash_value(X.get()); }
+/// \endcode
+///
+/// does not cause MDOperand to be transparent.  In particular, a bare pointer
+/// doesn't get hashed before it's combined, whereas \a MDOperand would.
+static const Metadata *get_hashable_data(const MDOperand &X) { return X.get(); }
+}
+
+unsigned MDNodeOpsKey::calculateHash(MDNode *N, unsigned Offset) {
+  unsigned Hash = hash_combine_range(N->op_begin() + Offset, N->op_end());
+#ifndef NDEBUG
+  {
+    SmallVector<Metadata *, 8> MDs(N->op_begin() + Offset, N->op_end());
+    unsigned RawHash = calculateHash(MDs);
+    assert(Hash == RawHash &&
+           "Expected hash of MDOperand to equal hash of Metadata*");
+  }
+#endif
+  return Hash;
+}
+
+unsigned MDNodeOpsKey::calculateHash(ArrayRef<Metadata *> Ops) {
+  return hash_combine_range(Ops.begin(), Ops.end());
+}
+
 // ConstantsContext anchors
 void UnaryConstantExpr::anchor() { }
 
@@ -182,3 +238,4 @@ void InsertValueConstantExpr::anchor() { }
 void GetElementPtrConstantExpr::anchor() { }
 
 void CompareConstantExpr::anchor() { }
+

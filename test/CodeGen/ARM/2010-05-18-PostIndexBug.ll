@@ -16,12 +16,12 @@ entry:
 ; THUMB-DAG:       movs [[VAL:r[0-9]+]], #0
 ; THUMB-NOT: str {{[a-z0-9]+}}, [{{[a-z0-9]+}}], {{[a-z0-9]+}}
 ; THUMB:     str [[VAL]], [r[[ADDR]]]
-  %0 = getelementptr inbounds %struct.foo* %this, i32 0, i32 1 ; <i64*> [#uses=1]
+  %0 = getelementptr inbounds %struct.foo, %struct.foo* %this, i32 0, i32 1 ; <i64*> [#uses=1]
   store i32 0, i32* inttoptr (i32 8 to i32*), align 8
   br i1 %tst, label %bb.nph96, label %bb3
 
 bb3:                                              ; preds = %entry
-  %1 = load i64* %0, align 4                      ; <i64> [#uses=0]
+  %1 = load i64, i64* %0, align 4                      ; <i64> [#uses=0]
   ret i8 42
 
 bb.nph96:                                         ; preds = %entry

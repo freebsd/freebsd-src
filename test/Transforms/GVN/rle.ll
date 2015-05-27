@@ -5,7 +5,7 @@
 define i32 @test0(i32 %V, i32* %P) {
   store i32 %V, i32* %P
 
-  %A = load i32* %P
+  %A = load i32, i32* %P
   ret i32 %A
 ; CHECK-LABEL: @test0(
 ; CHECK: ret i32 %V
@@ -20,7 +20,7 @@ define i32 @test0(i32 %V, i32* %P) {
 define i8 @crash0({i32, i32} %A, {i32, i32}* %P) {
   store {i32, i32} %A, {i32, i32}* %P
   %X = bitcast {i32, i32}* %P to i8*
-  %Y = load i8* %X
+  %Y = load i8, i8* %X
   ret i8 %Y
 }
 
@@ -28,7 +28,7 @@ define i8 @crash0({i32, i32} %A, {i32, i32}* %P) {
 declare void @helper()
 define void @crash1() {
   tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* undef, i8* undef, i64 undef, i32 1, i1 false) nounwind
-  %tmp = load i8* bitcast (void ()* @helper to i8*)
+  %tmp = load i8, i8* bitcast (void ()* @helper to i8*)
   %x = icmp eq i8 %tmp, 15
   ret void
 }
@@ -45,7 +45,7 @@ define float @coerce_mustalias1(i32 %V, i32* %P) {
    
   %P2 = bitcast i32* %P to float*
 
-  %A = load float* %P2
+  %A = load float, float* %P2
   ret float %A
 ; CHECK-LABEL: @coerce_mustalias1(
 ; CHECK-NOT: load
@@ -58,7 +58,7 @@ define float @coerce_mustalias2(i32* %V, i32** %P) {
    
   %P2 = bitcast i32** %P to float*
 
-  %A = load float* %P2
+  %A = load float, float* %P2
   ret float %A
 ; CHECK-LABEL: @coerce_mustalias2(
 ; CHECK-NOT: load
@@ -71,7 +71,7 @@ define i32* @coerce_mustalias3(float %V, float* %P) {
    
   %P2 = bitcast float* %P to i32**
 
-  %A = load i32** %P2
+  %A = load i32*, i32** %P2
   ret i32* %A
 ; CHECK-LABEL: @coerce_mustalias3(
 ; CHECK-NOT: load
@@ -80,10 +80,10 @@ define i32* @coerce_mustalias3(float %V, float* %P) {
 
 ;; i32 -> f32 load forwarding.
 define float @coerce_mustalias4(i32* %P, i1 %cond) {
-  %A = load i32* %P
+  %A = load i32, i32* %P
   
   %P2 = bitcast i32* %P to float*
-  %B = load float* %P2
+  %B = load float, float* %P2
   br i1 %cond, label %T, label %F
 T:
   ret float %B
@@ -93,7 +93,7 @@ F:
   ret float %X
 
 ; CHECK-LABEL: @coerce_mustalias4(
-; CHECK: %A = load i32* %P
+; CHECK: %A = load i32, i32* %P
 ; CHECK-NOT: load
 ; CHECK: ret float
 ; CHECK: F:
@@ -105,7 +105,7 @@ define i8 @coerce_mustalias5(i32 %V, i32* %P) {
    
   %P2 = bitcast i32* %P to i8*
 
-  %A = load i8* %P2
+  %A = load i8, i8* %P2
   ret i8 %A
 ; CHECK-LABEL: @coerce_mustalias5(
 ; CHECK-NOT: load
@@ -118,7 +118,7 @@ define float @coerce_mustalias6(i64 %V, i64* %P) {
    
   %P2 = bitcast i64* %P to float*
 
-  %A = load float* %P2
+  %A = load float, float* %P2
   ret float %A
 ; CHECK-LABEL: @coerce_mustalias6(
 ; CHECK-NOT: load
@@ -131,7 +131,7 @@ define i8* @coerce_mustalias7(i64 %V, i64* %P) {
    
   %P2 = bitcast i64* %P to i8**
 
-  %A = load i8** %P2
+  %A = load i8*, i8** %P2
   ret i8* %A
 ; CHECK-LABEL: @coerce_mustalias7(
 ; CHECK-NOT: load
@@ -143,8 +143,8 @@ define signext i16 @memset_to_i16_local(i16* %A) nounwind ssp {
 entry:
   %conv = bitcast i16* %A to i8* 
   tail call void @llvm.memset.p0i8.i64(i8* %conv, i8 1, i64 200, i32 1, i1 false)
-  %arrayidx = getelementptr inbounds i16* %A, i64 42
-  %tmp2 = load i16* %arrayidx
+  %arrayidx = getelementptr inbounds i16, i16* %A, i64 42
+  %tmp2 = load i16, i16* %arrayidx
   ret i16 %tmp2
 ; CHECK-LABEL: @memset_to_i16_local(
 ; CHECK-NOT: load
@@ -156,8 +156,8 @@ define float @memset_to_float_local(float* %A, i8 %Val) nounwind ssp {
 entry:
   %conv = bitcast float* %A to i8*                ; <i8*> [#uses=1]
   tail call void @llvm.memset.p0i8.i64(i8* %conv, i8 %Val, i64 400, i32 1, i1 false)
-  %arrayidx = getelementptr inbounds float* %A, i64 42 ; <float*> [#uses=1]
-  %tmp2 = load float* %arrayidx                   ; <float> [#uses=1]
+  %arrayidx = getelementptr inbounds float, float* %A, i64 42 ; <float*> [#uses=1]
+  %tmp2 = load float, float* %arrayidx                   ; <float> [#uses=1]
   ret float %tmp2
 ; CHECK-LABEL: @memset_to_float_local(
 ; CHECK-NOT: load
@@ -183,8 +183,8 @@ F:
   br label %Cont
 
 Cont:
-  %P2 = getelementptr i16* %P, i32 4
-  %A = load i16* %P2
+  %P2 = getelementptr i16, i16* %P, i32 4
+  %A = load i16, i16* %P2
   ret i16 %A
 
 ; CHECK-LABEL: @memset_to_i16_nonlocal0(
@@ -202,8 +202,8 @@ define float @memcpy_to_float_local(float* %A) nounwind ssp {
 entry:
   %conv = bitcast float* %A to i8*                ; <i8*> [#uses=1]
   tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* %conv, i8* bitcast ({i32, float, i32 }* @GCst to i8*), i64 12, i32 1, i1 false)
-  %arrayidx = getelementptr inbounds float* %A, i64 1 ; <float*> [#uses=1]
-  %tmp2 = load float* %arrayidx                   ; <float> [#uses=1]
+  %arrayidx = getelementptr inbounds float, float* %A, i64 1 ; <float*> [#uses=1]
+  %tmp2 = load float, float* %arrayidx                   ; <float> [#uses=1]
   ret float %tmp2
 ; CHECK-LABEL: @memcpy_to_float_local(
 ; CHECK-NOT: load
@@ -215,8 +215,8 @@ define float @memcpy_to_float_local_as1(float* %A) nounwind ssp {
 entry:
   %conv = bitcast float* %A to i8*                ; <i8*> [#uses=1]
   tail call void @llvm.memcpy.p0i8.p1i8.i64(i8* %conv, i8 addrspace(1)* bitcast ({i32, float, i32 } addrspace(1)* @GCst_as1 to i8 addrspace(1)*), i64 12, i32 1, i1 false)
-  %arrayidx = getelementptr inbounds float* %A, i64 1 ; <float*> [#uses=1]
-  %tmp2 = load float* %arrayidx                   ; <float> [#uses=1]
+  %arrayidx = getelementptr inbounds float, float* %A, i64 1 ; <float*> [#uses=1]
+  %tmp2 = load float, float* %arrayidx                   ; <float> [#uses=1]
   ret float %tmp2
 ; CHECK-LABEL: @memcpy_to_float_local_as1(
 ; CHECK-NOT: load
@@ -237,7 +237,7 @@ F:
   br label %Cont
 
 Cont:
-  %A = load i8* %P3
+  %A = load i8, i8* %P3
   ret i8 %A
 
 ; CHECK-LABEL: @coerce_mustalias_nonlocal0(
@@ -263,7 +263,7 @@ F:
 
 Cont:
   %P3 = bitcast i32* %P to i8*
-  %A = load i8* %P3
+  %A = load i8, i8* %P3
   ret i8 %A
 
 ; CHECK-LABEL: @coerce_mustalias_nonlocal1(
@@ -286,12 +286,12 @@ F:
   br label %Cont
 
 Cont:
-  %A = load i8* %P3
+  %A = load i8, i8* %P3
   ret i8 %A
 
 ; CHECK-LABEL: @coerce_mustalias_pre0(
 ; CHECK: F:
-; CHECK:   load i8* %P3
+; CHECK:   load i8, i8* %P3
 ; CHECK: Cont:
 ; CHECK:   %A = phi i8 [
 ; CHECK-NOT: load
@@ -309,9 +309,9 @@ define i8 @coerce_offset0(i32 %V, i32* %P) {
   store i32 %V, i32* %P
    
   %P2 = bitcast i32* %P to i8*
-  %P3 = getelementptr i8* %P2, i32 2
+  %P3 = getelementptr i8, i8* %P2, i32 2
 
-  %A = load i8* %P3
+  %A = load i8, i8* %P3
   ret i8 %A
 ; CHECK-LABEL: @coerce_offset0(
 ; CHECK-NOT: load
@@ -322,9 +322,9 @@ define i8 @coerce_offset0_addrspacecast(i32 %V, i32* %P) {
   store i32 %V, i32* %P
 
   %P2 = addrspacecast i32* %P to i8 addrspace(1)*
-  %P3 = getelementptr i8 addrspace(1)* %P2, i32 2
+  %P3 = getelementptr i8, i8 addrspace(1)* %P2, i32 2
 
-  %A = load i8 addrspace(1)* %P3
+  %A = load i8, i8 addrspace(1)* %P3
   ret i8 %A
 ; CHECK-LABEL: @coerce_offset0_addrspacecast(
 ; CHECK-NOT: load
@@ -335,7 +335,7 @@ define i8 @coerce_offset0_addrspacecast(i32 %V, i32* %P) {
 define i8 @coerce_offset_nonlocal0(i32* %P, i1 %cond) {
   %P2 = bitcast i32* %P to float*
   %P3 = bitcast i32* %P to i8*
-  %P4 = getelementptr i8* %P3, i32 2
+  %P4 = getelementptr i8, i8* %P3, i32 2
   br i1 %cond, label %T, label %F
 T:
   store i32 57005, i32* %P
@@ -346,7 +346,7 @@ F:
   br label %Cont
 
 Cont:
-  %A = load i8* %P4
+  %A = load i8, i8* %P4
   ret i8 %A
 
 ; CHECK-LABEL: @coerce_offset_nonlocal0(
@@ -360,7 +360,7 @@ Cont:
 ;; non-local i32 -> i8 partial redundancy load forwarding.
 define i8 @coerce_offset_pre0(i32* %P, i1 %cond) {
   %P3 = bitcast i32* %P to i8*
-  %P4 = getelementptr i8* %P3, i32 2
+  %P4 = getelementptr i8, i8* %P3, i32 2
   br i1 %cond, label %T, label %F
 T:
   store i32 42, i32* %P
@@ -370,12 +370,12 @@ F:
   br label %Cont
 
 Cont:
-  %A = load i8* %P4
+  %A = load i8, i8* %P4
   ret i8 %A
 
 ; CHECK-LABEL: @coerce_offset_pre0(
 ; CHECK: F:
-; CHECK:   load i8* %P4
+; CHECK:   load i8, i8* %P4
 ; CHECK: Cont:
 ; CHECK:   %A = phi i8 [
 ; CHECK-NOT: load
@@ -386,28 +386,28 @@ define i32 @chained_load(i32** %p, i32 %x, i32 %y) {
 block1:
   %A = alloca i32*
 
-  %z = load i32** %p
+  %z = load i32*, i32** %p
   store i32* %z, i32** %A
   %cmp = icmp eq i32 %x, %y
   br i1 %cmp, label %block2, label %block3
 
 block2:
- %a = load i32** %p
+ %a = load i32*, i32** %p
  br label %block4
 
 block3:
-  %b = load i32** %p
+  %b = load i32*, i32** %p
   br label %block4
 
 block4:
-  %c = load i32** %p
-  %d = load i32* %c
+  %c = load i32*, i32** %p
+  %d = load i32, i32* %c
   ret i32 %d
   
 ; CHECK-LABEL: @chained_load(
-; CHECK: %z = load i32** %p
+; CHECK: %z = load i32*, i32** %p
 ; CHECK-NOT: load
-; CHECK: %d = load i32* %z
+; CHECK: %d = load i32, i32* %z
 ; CHECK-NEXT: ret i32 %d
 }
 
@@ -427,13 +427,13 @@ F1:
   br i1 %cond2, label %T1, label %TY
   
 T1:
-  %P2 = getelementptr i32* %P, i32 %A
-  %x = load i32* %P2
+  %P2 = getelementptr i32, i32* %P, i32 %A
+  %x = load i32, i32* %P2
   %cond = call i1 @cond2()
   br i1 %cond, label %TX, label %F
   
 F:
-  %P3 = getelementptr i32* %P, i32 2
+  %P3 = getelementptr i32, i32* %P, i32 2
   store i32 17, i32* %P3
   
   store i32 42, i32* %P2  ; Provides "P[A]".
@@ -464,7 +464,7 @@ block2:
  br label %block4
 
 block3:
-  %p2 = getelementptr i32* %p, i32 43
+  %p2 = getelementptr i32, i32* %p, i32 43
   store i32 97, i32* %p2
   br label %block4
 
@@ -481,11 +481,11 @@ block5:
   br i1 %cmpxy, label %block6, label %exit
   
 block6:
-  %C = getelementptr i32* %p, i32 %B
+  %C = getelementptr i32, i32* %p, i32 %B
   br i1 %cmpxy, label %block7, label %exit
   
 block7:
-  %D = load i32* %C
+  %D = load i32, i32* %C
   ret i32 %D
   
 ; CHECK: block7:
@@ -498,17 +498,17 @@ exit:
 define i8 @phi_trans4(i8* %p) {
 ; CHECK-LABEL: @phi_trans4(
 entry:
-  %X3 = getelementptr i8* %p, i32 192
+  %X3 = getelementptr i8, i8* %p, i32 192
   store i8 192, i8* %X3
   
-  %X = getelementptr i8* %p, i32 4
-  %Y = load i8* %X
+  %X = getelementptr i8, i8* %p, i32 4
+  %Y = load i8, i8* %X
   br label %loop
 
 loop:
   %i = phi i32 [4, %entry], [192, %loop]
-  %X2 = getelementptr i8* %p, i32 %i
-  %Y2 = load i8* %X2
+  %X2 = getelementptr i8, i8* %p, i32 %i
+  %Y2 = load i8, i8* %X2
   
 ; CHECK: loop:
 ; CHECK-NEXT: %Y2 = phi i8 [ %Y, %entry ], [ 0, %loop ]
@@ -529,29 +529,29 @@ define i8 @phi_trans5(i8* %p) {
 ; CHECK-LABEL: @phi_trans5(
 entry:
   
-  %X4 = getelementptr i8* %p, i32 2
+  %X4 = getelementptr i8, i8* %p, i32 2
   store i8 19, i8* %X4
   
-  %X = getelementptr i8* %p, i32 4
-  %Y = load i8* %X
+  %X = getelementptr i8, i8* %p, i32 4
+  %Y = load i8, i8* %X
   br label %loop
 
 loop:
   %i = phi i32 [4, %entry], [3, %cont]
-  %X2 = getelementptr i8* %p, i32 %i
-  %Y2 = load i8* %X2  ; Ensure this load is not being incorrectly replaced.
+  %X2 = getelementptr i8, i8* %p, i32 %i
+  %Y2 = load i8, i8* %X2  ; Ensure this load is not being incorrectly replaced.
   %cond = call i1 @cond2()
   br i1 %cond, label %cont, label %out
 
 cont:
-  %Z = getelementptr i8* %X2, i32 -1
+  %Z = getelementptr i8, i8* %X2, i32 -1
   %Z2 = bitcast i8 *%Z to i32*
   store i32 50462976, i32* %Z2  ;; (1 << 8) | (2 << 16) | (3 << 24)
 
 
 ; CHECK: store i32
-; CHECK-NEXT: getelementptr i8* %p, i32 3
-; CHECK-NEXT: load i8*
+; CHECK-NEXT: getelementptr i8, i8* %p, i32 3
+; CHECK-NEXT: load i8, i8*
   br label %loop
   
 out:
@@ -566,8 +566,8 @@ entry:
   %x = alloca [256 x i32], align 4                ; <[256 x i32]*> [#uses=2]
   %tmp = bitcast [256 x i32]* %x to i8*           ; <i8*> [#uses=1]
   call void @llvm.memset.p0i8.i64(i8* %tmp, i8 0, i64 1024, i32 4, i1 false)
-  %arraydecay = getelementptr inbounds [256 x i32]* %x, i32 0, i32 0 ; <i32*>
-  %tmp1 = load i32* %arraydecay                   ; <i32> [#uses=1]
+  %arraydecay = getelementptr inbounds [256 x i32], [256 x i32]* %x, i32 0, i32 0 ; <i32*>
+  %tmp1 = load i32, i32* %arraydecay                   ; <i32> [#uses=1]
   ret i32 %tmp1
 ; CHECK-LABEL: @memset_to_load(
 ; CHECK: ret i32 0
@@ -581,15 +581,15 @@ entry:
 define i32 @load_load_partial_alias(i8* %P) nounwind ssp {
 entry:
   %0 = bitcast i8* %P to i32*
-  %tmp2 = load i32* %0
-  %add.ptr = getelementptr inbounds i8* %P, i64 1
-  %tmp5 = load i8* %add.ptr
+  %tmp2 = load i32, i32* %0
+  %add.ptr = getelementptr inbounds i8, i8* %P, i64 1
+  %tmp5 = load i8, i8* %add.ptr
   %conv = zext i8 %tmp5 to i32
   %add = add nsw i32 %tmp2, %conv
   ret i32 %add
 
 ; TEMPORARILYDISABLED-LABEL: @load_load_partial_alias(
-; TEMPORARILYDISABLED: load i32*
+; TEMPORARILYDISABLED: load i32, i32*
 ; TEMPORARILYDISABLED-NOT: load
 ; TEMPORARILYDISABLED: lshr i32 {{.*}}, 8
 ; TEMPORARILYDISABLED-NOT: load
@@ -603,13 +603,13 @@ entry:
 define i32 @load_load_partial_alias_cross_block(i8* %P) nounwind ssp {
 entry:
   %xx = bitcast i8* %P to i32*
-  %x1 = load i32* %xx, align 4
+  %x1 = load i32, i32* %xx, align 4
   %cmp = icmp eq i32 %x1, 127
   br i1 %cmp, label %land.lhs.true, label %if.end
 
 land.lhs.true:                                    ; preds = %entry
-  %arrayidx4 = getelementptr inbounds i8* %P, i64 1
-  %tmp5 = load i8* %arrayidx4, align 1
+  %arrayidx4 = getelementptr inbounds i8, i8* %P, i64 1
+  %tmp5 = load i8, i8* %arrayidx4, align 1
   %conv6 = zext i8 %tmp5 to i32
   ret i32 %conv6
 
@@ -632,39 +632,39 @@ if.end:
 
 define i32 @test_widening1(i8* %P) nounwind ssp noredzone {
 entry:
-  %tmp = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 1), align 4
+  %tmp = load i8, i8* getelementptr inbounds (%widening1, %widening1* @f, i64 0, i32 1), align 4
   %conv = zext i8 %tmp to i32
-  %tmp1 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 2), align 1
+  %tmp1 = load i8, i8* getelementptr inbounds (%widening1, %widening1* @f, i64 0, i32 2), align 1
   %conv2 = zext i8 %tmp1 to i32
   %add = add nsw i32 %conv, %conv2
   ret i32 %add
 ; CHECK-LABEL: @test_widening1(
 ; CHECK-NOT: load
-; CHECK: load i16*
+; CHECK: load i16, i16*
 ; CHECK-NOT: load
 ; CHECK: ret i32
 }
 
 define i32 @test_widening2() nounwind ssp noredzone {
 entry:
-  %tmp = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 1), align 4
+  %tmp = load i8, i8* getelementptr inbounds (%widening1, %widening1* @f, i64 0, i32 1), align 4
   %conv = zext i8 %tmp to i32
-  %tmp1 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 2), align 1
+  %tmp1 = load i8, i8* getelementptr inbounds (%widening1, %widening1* @f, i64 0, i32 2), align 1
   %conv2 = zext i8 %tmp1 to i32
   %add = add nsw i32 %conv, %conv2
 
-  %tmp2 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 3), align 2
+  %tmp2 = load i8, i8* getelementptr inbounds (%widening1, %widening1* @f, i64 0, i32 3), align 2
   %conv3 = zext i8 %tmp2 to i32
   %add2 = add nsw i32 %add, %conv3
 
-  %tmp3 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 4), align 1
+  %tmp3 = load i8, i8* getelementptr inbounds (%widening1, %widening1* @f, i64 0, i32 4), align 1
   %conv4 = zext i8 %tmp3 to i32
   %add3 = add nsw i32 %add2, %conv3
 
   ret i32 %add3
 ; CHECK-LABEL: @test_widening2(
 ; CHECK-NOT: load
-; CHECK: load i32*
+; CHECK: load i32, i32*
 ; CHECK-NOT: load
 ; CHECK: ret i32
 }
@@ -691,9 +691,9 @@ declare void @use3(i8***, i8**)
 ; PR8908
 define void @test_escape1() nounwind {
   %x = alloca i8**, align 8
-  store i8** getelementptr inbounds ([5 x i8*]* @_ZTV1X, i64 0, i64 2), i8*** %x, align 8
+  store i8** getelementptr inbounds ([5 x i8*], [5 x i8*]* @_ZTV1X, i64 0, i64 2), i8*** %x, align 8
   call void @use() nounwind
-  %DEAD = load i8*** %x, align 8
+  %DEAD = load i8**, i8*** %x, align 8
   call void @use3(i8*** %x, i8** %DEAD) nounwind
   ret void
 ; CHECK: test_escape1

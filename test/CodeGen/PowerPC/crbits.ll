@@ -107,7 +107,7 @@ entry:
 ; CHECK-LABEL: @test6
 ; CHECK-DAG: andi. {{[0-9]+}}, 3, 1
 ; CHECK-DAG: cmpwi {{[0-9]+}}, 5, -2
-; CHECK-DAG: cror [[REG1:[0-9]+]], 1, 1
+; CHECK-DAG: crmove [[REG1:[0-9]+]], 1
 ; CHECK-DAG: andi. {{[0-9]+}}, 4, 1
 ; CHECK-DAG: li [[REG2:[0-9]+]], 1
 ; CHECK-DAG: crorc [[REG4:[0-9]+]], 1,
@@ -145,7 +145,7 @@ entry:
 
 define zeroext i32 @exttest8() #0 {
 entry:
-  %v0 = load i64* undef, align 8
+  %v0 = load i64, i64* undef, align 8
   %sub = sub i64 80, %v0
   %div = lshr i64 %sub, 1
   %conv13 = trunc i64 %div to i32

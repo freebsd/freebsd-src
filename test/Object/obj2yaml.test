@@ -210,27 +210,21 @@ ELF-MIPSEL-NEXT:     Relocations:
 ELF-MIPSEL-NEXT:       - Offset:          0x0000000000000000
 ELF-MIPSEL-NEXT:         Symbol:          _gp_disp
 ELF-MIPSEL-NEXT:         Type:            R_MIPS_HI16
-ELF-MIPSEL-NEXT:         Addend:          0
 ELF-MIPSEL-NEXT:       - Offset:          0x0000000000000004
 ELF-MIPSEL-NEXT:         Symbol:          _gp_disp
 ELF-MIPSEL-NEXT:         Type:            R_MIPS_LO16
-ELF-MIPSEL-NEXT:         Addend:          0
 ELF-MIPSEL-NEXT:       - Offset:          0x0000000000000018
 ELF-MIPSEL-NEXT:         Symbol:          '$.str'
 ELF-MIPSEL-NEXT:         Type:            R_MIPS_GOT16
-ELF-MIPSEL-NEXT:         Addend:          0
 ELF-MIPSEL-NEXT:       - Offset:          0x000000000000001C
 ELF-MIPSEL-NEXT:         Symbol:          '$.str'
 ELF-MIPSEL-NEXT:         Type:            R_MIPS_LO16
-ELF-MIPSEL-NEXT:         Addend:          0
 ELF-MIPSEL-NEXT:       - Offset:          0x0000000000000020
 ELF-MIPSEL-NEXT:         Symbol:          puts
 ELF-MIPSEL-NEXT:         Type:            R_MIPS_CALL16
-ELF-MIPSEL-NEXT:         Addend:          0
 ELF-MIPSEL-NEXT:       - Offset:          0x000000000000002C
 ELF-MIPSEL-NEXT:         Symbol:          SomeOtherFunction
 ELF-MIPSEL-NEXT:         Type:            R_MIPS_CALL16
-ELF-MIPSEL-NEXT:         Addend:          0
 ELF-MIPSEL-NEXT:   - Name:            .data
 ELF-MIPSEL-NEXT:     Type:            SHT_PROGBITS
 ELF-MIPSEL-NEXT:     Flags:           [ SHF_WRITE, SHF_ALLOC ]
@@ -259,7 +253,12 @@ ELF-MIPSEL-NEXT:   - Name:            .MIPS.abiflags
 ELF-MIPSEL-NEXT:     Type:            SHT_MIPS_ABIFLAGS
 ELF-MIPSEL-NEXT:     Flags:           [ SHF_ALLOC ]
 ELF-MIPSEL-NEXT:     AddressAlign:    0x0000000000000008
-ELF-MIPSEL-NEXT:     Content:         '000020010101000100000000000000000100000000000000'
+ELF-MIPSEL-NEXT:     ISA:             MIPS32
+ELF-MIPSEL-NEXT:     ISARevision:     0x01
+ELF-MIPSEL-NEXT:     FpABI:           FP_DOUBLE
+ELF-MIPSEL-NEXT:     GPRSize:         REG_32
+ELF-MIPSEL-NEXT:     CPR1Size:        REG_32
+ELF-MIPSEL-NEXT:     Flags1:          [ ODDSPREG ]
 ELF-MIPSEL-NEXT: Symbols:
 ELF-MIPSEL-NEXT:   Local:
 ELF-MIPSEL-NEXT:     - Name:            trivial.ll
@@ -328,7 +327,6 @@ ELF-MIPS64EL-NEXT:     Relocations:
 ELF-MIPS64EL-NEXT:       - Offset:          0
 ELF-MIPS64EL-NEXT:         Symbol:          zed
 ELF-MIPS64EL-NEXT:         Type:            R_MIPS_64
-ELF-MIPS64EL-NEXT:         Addend:          0
 ELF-MIPS64EL-NEXT:   - Name:            .bss
 ELF-MIPS64EL-NEXT:     Type:            SHT_NOBITS
 ELF-MIPS64EL-NEXT:     Flags:           [ SHF_WRITE, SHF_ALLOC ]
@@ -398,7 +396,6 @@ ELF-X86-64-NEXT:     Relocations:
 ELF-X86-64-NEXT:       - Offset:          0x000000000000000D
 ELF-X86-64-NEXT:         Symbol:          .rodata.str1.1
 ELF-X86-64-NEXT:         Type:            R_X86_64_32S
-ELF-X86-64-NEXT:         Addend:          0
 ELF-X86-64-NEXT:       - Offset:          0x0000000000000012
 ELF-X86-64-NEXT:         Symbol:          puts
 ELF-X86-64-NEXT:         Type:            R_X86_64_PC32

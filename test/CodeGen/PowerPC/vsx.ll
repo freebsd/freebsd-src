@@ -501,7 +501,7 @@ define <2 x i64> @test27(<2 x i64> %a, <2 x i64> %b) {
 }
 
 define <2 x double> @test28(<2 x double>* %a) {
-  %v = load <2 x double>* %a, align 16
+  %v = load <2 x double>, <2 x double>* %a, align 16
   ret <2 x double> %v
 
 ; CHECK-LABEL: @test28
@@ -519,7 +519,7 @@ define void @test29(<2 x double>* %a, <2 x double> %b) {
 }
 
 define <2 x double> @test28u(<2 x double>* %a) {
-  %v = load <2 x double>* %a, align 8
+  %v = load <2 x double>, <2 x double>* %a, align 8
   ret <2 x double> %v
 
 ; CHECK-LABEL: @test28u
@@ -537,7 +537,7 @@ define void @test29u(<2 x double>* %a, <2 x double> %b) {
 }
 
 define <2 x i64> @test30(<2 x i64>* %a) {
-  %v = load <2 x i64>* %a, align 16
+  %v = load <2 x i64>, <2 x i64>* %a, align 16
   ret <2 x i64> %v
 
 ; CHECK-REG-LABEL: @test30
@@ -562,7 +562,7 @@ define void @test31(<2 x i64>* %a, <2 x i64> %b) {
 }
 
 define <4 x float> @test32(<4 x float>* %a) {
-  %v = load <4 x float>* %a, align 16
+  %v = load <4 x float>, <4 x float>* %a, align 16
   ret <4 x float> %v
 
 ; CHECK-REG-LABEL: @test32
@@ -590,7 +590,7 @@ define void @test33(<4 x float>* %a, <4 x float> %b) {
 }
 
 define <4 x float> @test32u(<4 x float>* %a) {
-  %v = load <4 x float>* %a, align 8
+  %v = load <4 x float>, <4 x float>* %a, align 8
   ret <4 x float> %v
 
 ; CHECK-LABEL: @test32u
@@ -616,7 +616,7 @@ define void @test33u(<4 x float>* %a, <4 x float> %b) {
 }
 
 define <4 x i32> @test34(<4 x i32>* %a) {
-  %v = load <4 x i32>* %a, align 16
+  %v = load <4 x i32>, <4 x i32>* %a, align 16
   ret <4 x i32> %v
 
 ; CHECK-REG-LABEL: @test34
@@ -718,7 +718,7 @@ define <2 x i64> @test47(<2 x float> %a) {
 }
 
 define <2 x double> @test50(double* %a) {
-  %v = load double* %a, align 8
+  %v = load double, double* %a, align 8
   %w = insertelement <2 x double> undef, double %v, i32 0
   %x = insertelement <2 x double> %w, double %v, i32 1
   ret <2 x double> %x
@@ -733,7 +733,7 @@ define <2 x double> @test51(<2 x double> %a, <2 x double> %b) {
   ret <2 x double> %v
 
 ; CHECK-LABEL: @test51
-; CHECK: xxpermdi 34, 34, 34, 0
+; CHECK: xxspltd 34, 34, 0
 ; CHECK: blr
 }
 
@@ -742,7 +742,7 @@ define <2 x double> @test52(<2 x double> %a, <2 x double> %b) {
   ret <2 x double> %v
 
 ; CHECK-LABEL: @test52
-; CHECK: xxpermdi 34, 34, 35, 0
+; CHECK: xxmrghd 34, 34, 35
 ; CHECK: blr
 }
 
@@ -751,7 +751,7 @@ define <2 x double> @test53(<2 x double> %a, <2 x double> %b) {
   ret <2 x double> %v
 
 ; CHECK-LABEL: @test53
-; CHECK: xxpermdi 34, 35, 34, 0
+; CHECK: xxmrghd 34, 35, 34
 ; CHECK: blr
 }
 
@@ -769,7 +769,7 @@ define <2 x double> @test55(<2 x double> %a, <2 x double> %b) {
   ret <2 x double> %v
 
 ; CHECK-LABEL: @test55
-; CHECK: xxpermdi 34, 34, 35, 3
+; CHECK: xxmrgld 34, 34, 35
 ; CHECK: blr
 }
 
@@ -778,7 +778,7 @@ define <2 x i64> @test56(<2 x i64> %a, <2 x i64> %b) {
   ret <2 x i64> %v
 
 ; CHECK-LABEL: @test56
-; CHECK: xxpermdi 34, 34, 35, 3
+; CHECK: xxmrgld 34, 34, 35
 ; CHECK: blr
 }
 
@@ -843,11 +843,11 @@ define double @test64(<2 x double> %a) {
   ret double %v
 
 ; CHECK-REG-LABEL: @test64
-; CHECK-REG: xxpermdi 1, 34, 34, 2
+; CHECK-REG: xxswapd 1, 34
 ; CHECK-REG: blr
 
 ; CHECK-FISL-LABEL: @test64
-; CHECK-FISL: xxpermdi 34, 34, 34, 2
+; CHECK-FISL: xxswapd  34, 34
 ; CHECK-FISL: xxlor 0, 34, 34
 ; CHECK-FISL: fmr 1, 0
 ; CHECK-FISL: blr

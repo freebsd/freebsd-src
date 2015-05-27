@@ -111,7 +111,7 @@ define double @f9(double %a, double %b, i64 %i1, i32 *%ptr) {
 ; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %unext = load i32 *%ptr
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -123,7 +123,7 @@ define double @f10(double %a, double %b, i64 %i1, i32 *%ptr) {
 ; CHECK-LABEL: f10:
 ; CHECK-NOT: clgf
 ; CHECK: br %r14
-  %unext = load i32 *%ptr
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp slt i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -137,7 +137,7 @@ define double @f11(double %a, double %b, i64 %i1, i32 *%ptr) {
 ; CHECK-NEXT: je
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %unext = load i32 *%ptr
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp eq i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -151,7 +151,7 @@ define double @f12(double %a, double %b, i64 %i1, i32 *%ptr) {
 ; CHECK-NEXT: jlh
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %unext = load i32 *%ptr
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ne i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -165,8 +165,8 @@ define double @f13(double %a, double %b, i64 %i1, i32 *%base) {
 ; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%base, i64 131071
-  %unext = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%base, i64 131071
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -182,8 +182,8 @@ define double @f14(double %a, double %b, i64 %i1, i32 *%base) {
 ; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%base, i64 131072
-  %unext = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%base, i64 131072
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -197,8 +197,8 @@ define double @f15(double %a, double %b, i64 %i1, i32 *%base) {
 ; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%base, i64 -1
-  %unext = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%base, i64 -1
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -212,8 +212,8 @@ define double @f16(double %a, double %b, i64 %i1, i32 *%base) {
 ; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%base, i64 -131072
-  %unext = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%base, i64 -131072
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -229,8 +229,8 @@ define double @f17(double %a, double %b, i64 %i1, i32 *%base) {
 ; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i32 *%base, i64 -131073
-  %unext = load i32 *%ptr
+  %ptr = getelementptr i32, i32 *%base, i64 -131073
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -247,7 +247,7 @@ define double @f18(double %a, double %b, i64 %i1, i64 %base, i64 %index) {
   %add1 = add i64 %base, %index
   %add2 = add i64 %add1, 524284
   %ptr = inttoptr i64 %add2 to i32 *
-  %unext = load i32 *%ptr
+  %unext = load i32 , i32 *%ptr
   %i2 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b
@@ -260,26 +260,26 @@ define i64 @f19(i32 *%ptr0) {
 ; CHECK: brasl %r14, foo@PLT
 ; CHECK: clgf {{%r[0-9]+}}, 16{{[04]}}(%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr i32 *%ptr0, i64 2
-  %ptr2 = getelementptr i32 *%ptr0, i64 4
-  %ptr3 = getelementptr i32 *%ptr0, i64 6
-  %ptr4 = getelementptr i32 *%ptr0, i64 8
-  %ptr5 = getelementptr i32 *%ptr0, i64 10
-  %ptr6 = getelementptr i32 *%ptr0, i64 12
-  %ptr7 = getelementptr i32 *%ptr0, i64 14
-  %ptr8 = getelementptr i32 *%ptr0, i64 16
-  %ptr9 = getelementptr i32 *%ptr0, i64 18
+  %ptr1 = getelementptr i32, i32 *%ptr0, i64 2
+  %ptr2 = getelementptr i32, i32 *%ptr0, i64 4
+  %ptr3 = getelementptr i32, i32 *%ptr0, i64 6
+  %ptr4 = getelementptr i32, i32 *%ptr0, i64 8
+  %ptr5 = getelementptr i32, i32 *%ptr0, i64 10
+  %ptr6 = getelementptr i32, i32 *%ptr0, i64 12
+  %ptr7 = getelementptr i32, i32 *%ptr0, i64 14
+  %ptr8 = getelementptr i32, i32 *%ptr0, i64 16
+  %ptr9 = getelementptr i32, i32 *%ptr0, i64 18
 
-  %val0 = load i32 *%ptr0
-  %val1 = load i32 *%ptr1
-  %val2 = load i32 *%ptr2
-  %val3 = load i32 *%ptr3
-  %val4 = load i32 *%ptr4
-  %val5 = load i32 *%ptr5
-  %val6 = load i32 *%ptr6
-  %val7 = load i32 *%ptr7
-  %val8 = load i32 *%ptr8
-  %val9 = load i32 *%ptr9
+  %val0 = load i32 , i32 *%ptr0
+  %val1 = load i32 , i32 *%ptr1
+  %val2 = load i32 , i32 *%ptr2
+  %val3 = load i32 , i32 *%ptr3
+  %val4 = load i32 , i32 *%ptr4
+  %val5 = load i32 , i32 *%ptr5
+  %val6 = load i32 , i32 *%ptr6
+  %val7 = load i32 , i32 *%ptr7
+  %val8 = load i32 , i32 *%ptr8
+  %val9 = load i32 , i32 *%ptr9
 
   %frob0 = add i32 %val0, 100
   %frob1 = add i32 %val1, 100
@@ -374,7 +374,7 @@ define double @f22(double %a, double %b, i64 %i2, i32 *%ptr) {
 ; CHECK-NEXT: jh {{\.L.*}}
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %unext = load i32 *%ptr
+  %unext = load i32 , i32 *%ptr
   %i1 = zext i32 %unext to i64
   %cond = icmp ult i64 %i1, %i2
   %res = select i1 %cond, double %a, double %b

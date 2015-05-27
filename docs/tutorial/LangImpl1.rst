@@ -73,14 +73,21 @@ in the various pieces. The structure of the tutorial is:
    about this is how easy and trivial it is to construct SSA form in
    LLVM: no, LLVM does *not* require your front-end to construct SSA
    form!
--  `Chapter #8 <LangImpl8.html>`_: Conclusion and other useful LLVM
+-  `Chapter #8 <LangImpl8.html>`_: Extending the Language: Debug
+   Information - Having built a decent little programming language with
+   control flow, functions and mutable variables, we consider what it
+   takes to add debug information to standalone executables. This debug
+   information will allow you to set breakpoints in Kaleidoscope
+   functions, print out argument variables, and call functions - all
+   from within the debugger!
+-  `Chapter #9 <LangImpl8.html>`_: Conclusion and other useful LLVM
    tidbits - This chapter wraps up the series by talking about
    potential ways to extend the language, but also includes a bunch of
    pointers to info about "special topics" like adding garbage
    collection support, exceptions, debugging, support for "spaghetti
    stacks", and a bunch of other tips and tricks.
 
-By the end of the tutorial, we'll have written a bit less than 700 lines
+By the end of the tutorial, we'll have written a bit less than 1000 lines
 of non-comment, non-blank, lines of code. With this small amount of
 code, we'll have built up a very reasonable compiler for a non-trivial
 language including a hand-written lexer, parser, AST, as well as code

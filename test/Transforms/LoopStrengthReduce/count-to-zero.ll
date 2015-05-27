@@ -1,6 +1,9 @@
 ; RUN: opt < %s -loop-reduce -S | FileCheck %s
 ; rdar://7382068
 
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
 define void @t(i32 %c) nounwind optsize {
 entry:
   br label %bb6
@@ -19,7 +22,7 @@ bb3:                                              ; preds = %bb1
   %tmp4 = add i32 %c_addr.1, -1                   ; <i32> [#uses=1]
   %c_addr.1.be = select i1 %tmp2, i32 %tmp3, i32 %tmp4 ; <i32> [#uses=1]
   %indvar.next = add i32 %indvar, 1               ; <i32> [#uses=1]
-; CHECK: add i32 %lsr.iv, -1
+; CHECK: add nsw i32 %lsr.iv, -1
   br label %bb6
 
 bb6:                                              ; preds = %bb3, %entry

@@ -26,7 +26,6 @@
 #include <map>
 
 namespace llvm {
-class raw_ostream;
 
 // RecTy subclasses.
 class BitRecTy;
@@ -81,7 +80,7 @@ public:
 
 private:
   RecTyKind Kind;
-  ListRecTy *ListTy;
+  std::unique_ptr<ListRecTy> ListTy;
   virtual void anchor();
 
 public:
@@ -108,14 +107,14 @@ public:   // These methods should only be called from subclasses of Init
   virtual Init *convertValue(   IntInit *II) { return nullptr; }
   virtual Init *convertValue(StringInit *SI) { return nullptr; }
   virtual Init *convertValue(  ListInit *LI) { return nullptr; }
-  virtual Init *convertValue( UnOpInit *UI) {
-    return convertValue((TypedInit*)UI);
+  virtual Init *convertValue( UnOpInit *UO) {
+    return convertValue((TypedInit*)UO);
   }
-  virtual Init *convertValue( BinOpInit *UI) {
-    return convertValue((TypedInit*)UI);
+  virtual Init *convertValue( BinOpInit *BO) {
+    return convertValue((TypedInit*)BO);
   }
-  virtual Init *convertValue( TernOpInit *UI) {
-    return convertValue((TypedInit*)UI);
+  virtual Init *convertValue( TernOpInit *TO) {
+    return convertValue((TypedInit*)TO);
   }
   virtual Init *convertValue(VarBitInit *VB) { return nullptr; }
   virtual Init *convertValue(   DefInit *DI) { return nullptr; }
@@ -150,21 +149,13 @@ public:
 
   static BitRecTy *get() { return &Shared; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override { return (Init*)UI; }
   Init *convertValue(   BitInit *BI) override { return (Init*)BI; }
   Init *convertValue(  BitsInit *BI) override;
   Init *convertValue(   IntInit *II) override;
-  Init *convertValue(StringInit *SI) override { return nullptr; }
-  Init *convertValue(  ListInit *LI) override { return nullptr; }
   Init *convertValue(VarBitInit *VB) override { return (Init*)VB; }
-  Init *convertValue(   DefInit *DI) override { return nullptr; }
-  Init *convertValue(   DagInit *DI) override { return nullptr; }
-  Init *convertValue( UnOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( BinOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( TernOpInit *UI) override {return RecTy::convertValue(UI);}
   Init *convertValue( TypedInit *TI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
 
   std::string getAsString() const override { return "bit"; }
 
@@ -189,21 +180,12 @@ public:
 
   unsigned getNumBits() const { return Size; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override;
   Init *convertValue(   BitInit *UI) override;
   Init *convertValue(  BitsInit *BI) override;
   Init *convertValue(   IntInit *II) override;
-  Init *convertValue(StringInit *SI) override { return nullptr; }
-  Init *convertValue(  ListInit *LI) override { return nullptr; }
-  Init *convertValue(VarBitInit *VB) override { return nullptr; }
-  Init *convertValue(   DefInit *DI) override { return nullptr; }
-  Init *convertValue(   DagInit *DI) override { return nullptr; }
-  Init *convertValue(  UnOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( BinOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue(TernOpInit *UI) override { return RecTy::convertValue(UI);}
   Init *convertValue( TypedInit *TI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
 
   std::string getAsString() const override;
 
@@ -226,21 +208,12 @@ public:
 
   static IntRecTy *get() { return &Shared; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override { return (Init*)UI; }
   Init *convertValue(   BitInit *BI) override;
   Init *convertValue(  BitsInit *BI) override;
   Init *convertValue(   IntInit *II) override { return (Init*)II; }
-  Init *convertValue(StringInit *SI) override { return nullptr; }
-  Init *convertValue(  ListInit *LI) override { return nullptr; }
-  Init *convertValue(VarBitInit *VB) override { return nullptr; }
-  Init *convertValue(   DefInit *DI) override { return nullptr; }
-  Init *convertValue(   DagInit *DI) override { return nullptr; }
-  Init *convertValue( UnOpInit *UI)  override { return RecTy::convertValue(UI);}
-  Init *convertValue( BinOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( TernOpInit *UI) override {return RecTy::convertValue(UI);}
   Init *convertValue( TypedInit *TI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
 
   std::string getAsString() const override { return "int"; }
 
@@ -264,22 +237,12 @@ public:
 
   static StringRecTy *get() { return &Shared; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override { return (Init*)UI; }
-  Init *convertValue(   BitInit *BI) override { return nullptr; }
-  Init *convertValue(  BitsInit *BI) override { return nullptr; }
-  Init *convertValue(   IntInit *II) override { return nullptr; }
   Init *convertValue(StringInit *SI) override { return (Init*)SI; }
-  Init *convertValue(  ListInit *LI) override { return nullptr; }
-  Init *convertValue( UnOpInit *BO) override;
+  Init *convertValue(  UnOpInit *UO) override;
   Init *convertValue( BinOpInit *BO) override;
-  Init *convertValue( TernOpInit *BO) override {return RecTy::convertValue(BO);}
-
-  Init *convertValue(VarBitInit *VB) override { return nullptr; }
-  Init *convertValue(   DefInit *DI) override { return nullptr; }
-  Init *convertValue(   DagInit *DI) override { return nullptr; }
   Init *convertValue( TypedInit *TI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
 
   std::string getAsString() const override { return "string"; }
 
@@ -304,21 +267,10 @@ public:
   static ListRecTy *get(RecTy *T) { return T->getListTy(); }
   RecTy *getElementType() const { return Ty; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override { return (Init*)UI; }
-  Init *convertValue(   BitInit *BI) override { return nullptr; }
-  Init *convertValue(  BitsInit *BI) override { return nullptr; }
-  Init *convertValue(   IntInit *II) override { return nullptr; }
-  Init *convertValue(StringInit *SI) override { return nullptr; }
   Init *convertValue(  ListInit *LI) override;
-  Init *convertValue(VarBitInit *VB) override { return nullptr; }
-  Init *convertValue(   DefInit *DI) override { return nullptr; }
-  Init *convertValue(   DagInit *DI) override { return nullptr; }
-  Init *convertValue(  UnOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( BinOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue(TernOpInit *UI) override { return RecTy::convertValue(UI);}
   Init *convertValue( TypedInit *TI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
 
   std::string getAsString() const override;
 
@@ -342,21 +294,12 @@ public:
 
   static DagRecTy *get() { return &Shared; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override { return (Init*)UI; }
-  Init *convertValue(   BitInit *BI) override { return nullptr; }
-  Init *convertValue(  BitsInit *BI) override { return nullptr; }
-  Init *convertValue(   IntInit *II) override { return nullptr; }
-  Init *convertValue(StringInit *SI) override { return nullptr; }
-  Init *convertValue(  ListInit *LI) override { return nullptr; }
-  Init *convertValue(VarBitInit *VB) override { return nullptr; }
-  Init *convertValue(   DefInit *DI) override { return nullptr; }
-  Init *convertValue( UnOpInit *BO) override;
+  Init *convertValue(  UnOpInit *UO) override;
   Init *convertValue( BinOpInit *BO) override;
-  Init *convertValue( TernOpInit *BO) override {return RecTy::convertValue(BO);}
-  Init *convertValue(   DagInit *CI) override { return (Init*)CI; }
+  Init *convertValue(   DagInit *DI) override { return (Init*)DI; }
   Init *convertValue( TypedInit *TI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
 
   std::string getAsString() const override { return "dag"; }
 
@@ -382,21 +325,10 @@ public:
 
   Record *getRecord() const { return Rec; }
 
+  using RecTy::convertValue;
   Init *convertValue( UnsetInit *UI) override { return (Init*)UI; }
-  Init *convertValue(   BitInit *BI) override { return nullptr; }
-  Init *convertValue(  BitsInit *BI) override { return nullptr; }
-  Init *convertValue(   IntInit *II) override { return nullptr; }
-  Init *convertValue(StringInit *SI) override { return nullptr; }
-  Init *convertValue(  ListInit *LI) override { return nullptr; }
-  Init *convertValue(VarBitInit *VB) override { return nullptr; }
-  Init *convertValue( UnOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( BinOpInit *UI) override { return RecTy::convertValue(UI);}
-  Init *convertValue( TernOpInit *UI) override {return RecTy::convertValue(UI);}
   Init *convertValue(   DefInit *DI) override;
-  Init *convertValue(   DagInit *DI) override { return nullptr; }
-  Init *convertValue( TypedInit *VI) override;
-  Init *convertValue(   VarInit *VI) override { return RecTy::convertValue(VI);}
-  Init *convertValue( FieldInit *FI) override { return RecTy::convertValue(FI);}
+  Init *convertValue( TypedInit *TI) override;
 
   std::string getAsString() const override;
 
@@ -454,8 +386,8 @@ protected:
 
 private:
   const InitKind Kind;
-  Init(const Init &) LLVM_DELETED_FUNCTION;
-  Init &operator=(const Init &) LLVM_DELETED_FUNCTION;
+  Init(const Init &) = delete;
+  Init &operator=(const Init &) = delete;
   virtual void anchor();
 
 public:
@@ -561,11 +493,16 @@ inline raw_ostream &operator<<(raw_ostream &OS, const Init &I) {
 class TypedInit : public Init {
   RecTy *Ty;
 
-  TypedInit(const TypedInit &Other) LLVM_DELETED_FUNCTION;
-  TypedInit &operator=(const TypedInit &Other) LLVM_DELETED_FUNCTION;
+  TypedInit(const TypedInit &Other) = delete;
+  TypedInit &operator=(const TypedInit &Other) = delete;
 
 protected:
   explicit TypedInit(InitKind K, RecTy *T) : Init(K), Ty(T) {}
+  ~TypedInit() {
+    // If this is a DefInit we need to delete the RecordRecTy.
+    if (getKind() == IK_DefInit)
+      delete Ty;
+  }
 
 public:
   static bool classof(const Init *I) {
@@ -596,8 +533,8 @@ public:
 ///
 class UnsetInit : public Init {
   UnsetInit() : Init(IK_UnsetInit) {}
-  UnsetInit(const UnsetInit &) LLVM_DELETED_FUNCTION;
-  UnsetInit &operator=(const UnsetInit &Other) LLVM_DELETED_FUNCTION;
+  UnsetInit(const UnsetInit &) = delete;
+  UnsetInit &operator=(const UnsetInit &Other) = delete;
   void anchor() override;
 
 public:
@@ -624,8 +561,8 @@ class BitInit : public Init {
   bool Value;
 
   explicit BitInit(bool V) : Init(IK_BitInit), Value(V) {}
-  BitInit(const BitInit &Other) LLVM_DELETED_FUNCTION;
-  BitInit &operator=(BitInit &Other) LLVM_DELETED_FUNCTION;
+  BitInit(const BitInit &Other) = delete;
+  BitInit &operator=(BitInit &Other) = delete;
   void anchor() override;
 
 public:
@@ -658,8 +595,8 @@ class BitsInit : public TypedInit, public FoldingSetNode {
     : TypedInit(IK_BitsInit, BitsRecTy::get(Range.size())),
       Bits(Range.begin(), Range.end()) {}
 
-  BitsInit(const BitsInit &Other) LLVM_DELETED_FUNCTION;
-  BitsInit &operator=(const BitsInit &Other) LLVM_DELETED_FUNCTION;
+  BitsInit(const BitsInit &Other) = delete;
+  BitsInit &operator=(const BitsInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -713,8 +650,8 @@ class IntInit : public TypedInit {
   explicit IntInit(int64_t V)
     : TypedInit(IK_IntInit, IntRecTy::get()), Value(V) {}
 
-  IntInit(const IntInit &Other) LLVM_DELETED_FUNCTION;
-  IntInit &operator=(const IntInit &Other) LLVM_DELETED_FUNCTION;
+  IntInit(const IntInit &Other) = delete;
+  IntInit &operator=(const IntInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -753,8 +690,8 @@ class StringInit : public TypedInit {
   explicit StringInit(const std::string &V)
     : TypedInit(IK_StringInit, StringRecTy::get()), Value(V) {}
 
-  StringInit(const StringInit &Other) LLVM_DELETED_FUNCTION;
-  StringInit &operator=(const StringInit &Other) LLVM_DELETED_FUNCTION;
+  StringInit(const StringInit &Other) = delete;
+  StringInit &operator=(const StringInit &Other) = delete;
   void anchor() override;
 
 public:
@@ -798,8 +735,8 @@ private:
     : TypedInit(IK_ListInit, ListRecTy::get(EltTy)),
       Values(Range.begin(), Range.end()) {}
 
-  ListInit(const ListInit &Other) LLVM_DELETED_FUNCTION;
-  ListInit &operator=(const ListInit &Other) LLVM_DELETED_FUNCTION;
+  ListInit(const ListInit &Other) = delete;
+  ListInit &operator=(const ListInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -838,7 +775,6 @@ public:
   inline const_iterator begin() const { return Values.begin(); }
   inline const_iterator end  () const { return Values.end();   }
 
-  inline size_t         size () const { return Values.size();  }
   inline bool           empty() const { return Values.empty(); }
 
   /// resolveListElementReference - This method is used to implement
@@ -855,8 +791,8 @@ public:
 /// OpInit - Base class for operators
 ///
 class OpInit : public TypedInit {
-  OpInit(const OpInit &Other) LLVM_DELETED_FUNCTION;
-  OpInit &operator=(OpInit &Other) LLVM_DELETED_FUNCTION;
+  OpInit(const OpInit &Other) = delete;
+  OpInit &operator=(OpInit &Other) = delete;
 
 protected:
   explicit OpInit(InitKind K, RecTy *Type) : TypedInit(K, Type) {}
@@ -899,8 +835,8 @@ private:
   UnOpInit(UnaryOp opc, Init *lhs, RecTy *Type)
     : OpInit(IK_UnOpInit, Type), Opc(opc), LHS(lhs) {}
 
-  UnOpInit(const UnOpInit &Other) LLVM_DELETED_FUNCTION;
-  UnOpInit &operator=(const UnOpInit &Other) LLVM_DELETED_FUNCTION;
+  UnOpInit(const UnOpInit &Other) = delete;
+  UnOpInit &operator=(const UnOpInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -946,8 +882,8 @@ private:
   BinOpInit(BinaryOp opc, Init *lhs, Init *rhs, RecTy *Type) :
       OpInit(IK_BinOpInit, Type), Opc(opc), LHS(lhs), RHS(rhs) {}
 
-  BinOpInit(const BinOpInit &Other) LLVM_DELETED_FUNCTION;
-  BinOpInit &operator=(const BinOpInit &Other) LLVM_DELETED_FUNCTION;
+  BinOpInit(const BinOpInit &Other) = delete;
+  BinOpInit &operator=(const BinOpInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1000,8 +936,8 @@ private:
              RecTy *Type) :
       OpInit(IK_TernOpInit, Type), Opc(opc), LHS(lhs), MHS(mhs), RHS(rhs) {}
 
-  TernOpInit(const TernOpInit &Other) LLVM_DELETED_FUNCTION;
-  TernOpInit &operator=(const TernOpInit &Other) LLVM_DELETED_FUNCTION;
+  TernOpInit(const TernOpInit &Other) = delete;
+  TernOpInit &operator=(const TernOpInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1058,8 +994,8 @@ class VarInit : public TypedInit {
   explicit VarInit(Init *VN, RecTy *T)
       : TypedInit(IK_VarInit, T), VarName(VN) {}
 
-  VarInit(const VarInit &Other) LLVM_DELETED_FUNCTION;
-  VarInit &operator=(const VarInit &Other) LLVM_DELETED_FUNCTION;
+  VarInit(const VarInit &Other) = delete;
+  VarInit &operator=(const VarInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1111,8 +1047,8 @@ class VarBitInit : public Init {
            "Illegal VarBitInit expression!");
   }
 
-  VarBitInit(const VarBitInit &Other) LLVM_DELETED_FUNCTION;
-  VarBitInit &operator=(const VarBitInit &Other) LLVM_DELETED_FUNCTION;
+  VarBitInit(const VarBitInit &Other) = delete;
+  VarBitInit &operator=(const VarBitInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1150,8 +1086,8 @@ class VarListElementInit : public TypedInit {
            "Illegal VarBitInit expression!");
   }
 
-  VarListElementInit(const VarListElementInit &Other) LLVM_DELETED_FUNCTION;
-  void operator=(const VarListElementInit &Other) LLVM_DELETED_FUNCTION;
+  VarListElementInit(const VarListElementInit &Other) = delete;
+  void operator=(const VarListElementInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1186,8 +1122,8 @@ class DefInit : public TypedInit {
   DefInit(Record *D, RecordRecTy *T) : TypedInit(IK_DefInit, T), Def(D) {}
   friend class Record;
 
-  DefInit(const DefInit &Other) LLVM_DELETED_FUNCTION;
-  DefInit &operator=(const DefInit &Other) LLVM_DELETED_FUNCTION;
+  DefInit(const DefInit &Other) = delete;
+  DefInit &operator=(const DefInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1233,8 +1169,8 @@ class FieldInit : public TypedInit {
     assert(getType() && "FieldInit with non-record type!");
   }
 
-  FieldInit(const FieldInit &Other) LLVM_DELETED_FUNCTION;
-  FieldInit &operator=(const FieldInit &Other) LLVM_DELETED_FUNCTION;
+  FieldInit(const FieldInit &Other) = delete;
+  FieldInit &operator=(const FieldInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1276,8 +1212,8 @@ class DagInit : public TypedInit, public FoldingSetNode {
           Args(ArgRange.begin(), ArgRange.end()),
           ArgNames(NameRange.begin(), NameRange.end()) {}
 
-  DagInit(const DagInit &Other) LLVM_DELETED_FUNCTION;
-  DagInit &operator=(const DagInit &Other) LLVM_DELETED_FUNCTION;
+  DagInit(const DagInit &Other) = delete;
+  DagInit &operator=(const DagInit &Other) = delete;
 
 public:
   static bool classof(const Init *I) {
@@ -1442,8 +1378,6 @@ public:
     TheInit(O.TheInit), IsAnonymous(O.IsAnonymous),
     ResolveFirst(O.ResolveFirst) { }
 
-  ~Record() {}
-
   static unsigned getNewUID() { return LastID++; }
 
   unsigned getID() const { return ID; }
@@ -1477,7 +1411,7 @@ public:
     return false;
   }
   bool isTemplateArg(StringRef Name) const {
-    return isTemplateArg(StringInit::get(Name.str()));
+    return isTemplateArg(StringInit::get(Name));
   }
 
   const RecordVal *getValue(const Init *Name) const {
@@ -1502,7 +1436,7 @@ public:
     TemplateArgs.push_back(Name);
   }
   void addTemplateArg(StringRef Name) {
-    addTemplateArg(StringInit::get(Name.str()));
+    addTemplateArg(StringInit::get(Name));
   }
 
   void addValue(const RecordVal &RV) {
@@ -1527,7 +1461,7 @@ public:
   }
 
   void removeValue(StringRef Name) {
-    removeValue(StringInit::get(Name.str()));
+    removeValue(StringInit::get(Name));
   }
 
   bool isSubClassOf(const Record *R) const {

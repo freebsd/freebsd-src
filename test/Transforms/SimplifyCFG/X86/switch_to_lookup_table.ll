@@ -7,22 +7,22 @@ target triple = "x86_64-unknown-linux-gnu"
 ; CHECK: @switch.table = private unnamed_addr constant [7 x i32] [i32 55, i32 123, i32 0, i32 -1, i32 27, i32 62, i32 1]
 
 ; The float table for @h
-; CHECK: @switch.table1 = private unnamed_addr constant [4 x float] [float 0x40091EB860000000, float 0x3FF3BE76C0000000, float 0x4012449BA0000000, float 0x4001AE1480000000]
+; CHECK: @switch.table.1 = private unnamed_addr constant [4 x float] [float 0x40091EB860000000, float 0x3FF3BE76C0000000, float 0x4012449BA0000000, float 0x4001AE1480000000]
 
 ; The table for @foostring
-; CHECK: @switch.table2 = private unnamed_addr constant [4 x i8*] [i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i8* getelementptr inbounds ([4 x i8]* @.str1, i64 0, i64 0), i8* getelementptr inbounds ([4 x i8]* @.str2, i64 0, i64 0), i8* getelementptr inbounds ([4 x i8]* @.str3, i64 0, i64 0)]
+; CHECK: @switch.table.2 = private unnamed_addr constant [4 x i8*] [i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str1, i64 0, i64 0), i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str2, i64 0, i64 0), i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str3, i64 0, i64 0)]
 
 ; The table for @earlyreturncrash
-; CHECK: @switch.table3 = private unnamed_addr constant [4 x i32] [i32 42, i32 9, i32 88, i32 5]
+; CHECK: @switch.table.3 = private unnamed_addr constant [4 x i32] [i32 42, i32 9, i32 88, i32 5]
 
 ; The table for @large.
-; CHECK: @switch.table4 = private unnamed_addr constant [199 x i32] [i32 1, i32 4, i32 9,
+; CHECK: @switch.table.4 = private unnamed_addr constant [199 x i32] [i32 1, i32 4, i32 9,
 
 ; The table for @cprop
-; CHECK: @switch.table5 = private unnamed_addr constant [7 x i32] [i32 5, i32 42, i32 126, i32 -452, i32 128, i32 6, i32 7]
+; CHECK: @switch.table.5 = private unnamed_addr constant [7 x i32] [i32 5, i32 42, i32 126, i32 -452, i32 128, i32 6, i32 7]
 
-; The table for @unreachable
-; CHECK: @switch.table6 = private unnamed_addr constant [5 x i32] [i32 0, i32 0, i32 0, i32 1, i32 -1]
+; The table for @unreachable_case
+; CHECK: @switch.table.6 = private unnamed_addr constant [9 x i32] [i32 0, i32 0, i32 0, i32 2, i32 -1, i32 1, i32 1, i32 1, i32 1]
 
 ; A simple int-to-int selection switch.
 ; It is dense enough to be replaced by table lookup.
@@ -58,8 +58,8 @@ return:
 ; CHECK-NEXT: %0 = icmp ult i32 %switch.tableidx, 7
 ; CHECK-NEXT: br i1 %0, label %switch.lookup, label %return
 ; CHECK: switch.lookup:
-; CHECK-NEXT: %switch.gep = getelementptr inbounds [7 x i32]* @switch.table, i32 0, i32 %switch.tableidx
-; CHECK-NEXT: %switch.load = load i32* %switch.gep
+; CHECK-NEXT: %switch.gep = getelementptr inbounds [7 x i32], [7 x i32]* @switch.table, i32 0, i32 %switch.tableidx
+; CHECK-NEXT: %switch.load = load i32, i32* %switch.gep
 ; CHECK-NEXT: ret i32 %switch.load
 ; CHECK: return:
 ; CHECK-NEXT: ret i32 15
@@ -97,8 +97,8 @@ sw.epilog:
 ; CHECK-NEXT: %switch.shiftamt = mul i32 %switch.tableidx, 8
 ; CHECK-NEXT: %switch.downshift = lshr i32 89655594, %switch.shiftamt
 ; CHECK-NEXT: %switch.masked = trunc i32 %switch.downshift to i8
-; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x float]* @switch.table1, i32 0, i32 %switch.tableidx
-; CHECK-NEXT: %switch.load = load float* %switch.gep
+; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x float], [4 x float]* @switch.table.1, i32 0, i32 %switch.tableidx
+; CHECK-NEXT: %switch.load = load float, float* %switch.gep
 ; CHECK-NEXT: br label %sw.epilog
 ; CHECK: sw.epilog:
 ; CHECK-NEXT: %a.0 = phi i8 [ %switch.masked, %switch.lookup ], [ 7, %entry ]
@@ -131,11 +131,11 @@ sw.bb3: br label %return
 sw.default: br label %return
 
 return:
-  %retval.0 = phi i8* [ getelementptr inbounds ([6 x i8]* @.str4, i64 0, i64 0), %sw.default ],
-                      [ getelementptr inbounds ([4 x i8]* @.str3, i64 0, i64 0), %sw.bb3 ],
-                      [ getelementptr inbounds ([4 x i8]* @.str2, i64 0, i64 0), %sw.bb2 ],
-                      [ getelementptr inbounds ([4 x i8]* @.str1, i64 0, i64 0), %sw.bb1 ],
-                      [ getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), %entry ]
+  %retval.0 = phi i8* [ getelementptr inbounds ([6 x i8], [6 x i8]* @.str4, i64 0, i64 0), %sw.default ],
+                      [ getelementptr inbounds ([4 x i8], [4 x i8]* @.str3, i64 0, i64 0), %sw.bb3 ],
+                      [ getelementptr inbounds ([4 x i8], [4 x i8]* @.str2, i64 0, i64 0), %sw.bb2 ],
+                      [ getelementptr inbounds ([4 x i8], [4 x i8]* @.str1, i64 0, i64 0), %sw.bb1 ],
+                      [ getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), %entry ]
   ret i8* %retval.0
 
 ; CHECK-LABEL: @foostring(
@@ -144,8 +144,8 @@ return:
 ; CHECK-NEXT: %0 = icmp ult i32 %switch.tableidx, 4
 ; CHECK-NEXT: br i1 %0, label %switch.lookup, label %return
 ; CHECK: switch.lookup:
-; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x i8*]* @switch.table2, i32 0, i32 %switch.tableidx
-; CHECK-NEXT: %switch.load = load i8** %switch.gep
+; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x i8*], [4 x i8*]* @switch.table.2, i32 0, i32 %switch.tableidx
+; CHECK-NEXT: %switch.load = load i8*, i8** %switch.gep
 ; CHECK-NEXT: ret i8* %switch.load
 }
 
@@ -173,8 +173,8 @@ sw.epilog:
 
 ; CHECK-LABEL: @earlyreturncrash(
 ; CHECK: switch.lookup:
-; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x i32]* @switch.table3, i32 0, i32 %switch.tableidx
-; CHECK-NEXT: %switch.load = load i32* %switch.gep
+; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x i32], [4 x i32]* @switch.table.3, i32 0, i32 %switch.tableidx
+; CHECK-NEXT: %switch.load = load i32, i32* %switch.gep
 ; CHECK-NEXT: ret i32 %switch.load
 ; CHECK: sw.epilog:
 ; CHECK-NEXT: ret i32 7
@@ -749,10 +749,10 @@ return:
 
 ; CHECK-LABEL: @cprop(
 ; CHECK: switch.lookup:
-; CHECK: %switch.gep = getelementptr inbounds [7 x i32]* @switch.table5, i32 0, i32 %switch.tableidx
+; CHECK: %switch.gep = getelementptr inbounds [7 x i32], [7 x i32]* @switch.table.5, i32 0, i32 %switch.tableidx
 }
 
-define i32 @unreachable(i32 %x)  {
+define i32 @unreachable_case(i32 %x)  {
 entry:
   switch i32 %x, label %sw.default [
     i32 0, label %sw.bb
@@ -770,15 +770,44 @@ sw.bb: br label %return
 sw.bb1: unreachable
 sw.bb2: br label %return
 sw.bb3: br label %return
-sw.default: unreachable
+sw.default: br label %return
 
 return:
-  %retval.0 = phi i32 [ 1, %sw.bb3 ], [ -1, %sw.bb2 ], [ 0, %sw.bb ]
+  %retval.0 = phi i32 [ 1, %sw.bb3 ], [ -1, %sw.bb2 ], [ 0, %sw.bb ], [ 2, %sw.default ]
   ret i32 %retval.0
 
-; CHECK-LABEL: @unreachable(
+; CHECK-LABEL: @unreachable_case(
 ; CHECK: switch.lookup:
-; CHECK: getelementptr inbounds [5 x i32]* @switch.table6, i32 0, i32 %switch.tableidx
+; CHECK: getelementptr inbounds [9 x i32], [9 x i32]* @switch.table.6, i32 0, i32 %switch.tableidx
+}
+
+define i32 @unreachable_default(i32 %x)  {
+entry:
+  switch i32 %x, label %default [
+    i32 0, label %bb0
+    i32 1, label %bb1
+    i32 2, label %bb2
+    i32 3, label %bb3
+  ]
+
+bb0: br label %return
+bb1: br label %return
+bb2: br label %return
+bb3: br label %return
+default: unreachable
+
+return:
+  %retval = phi i32 [ 42, %bb0 ], [ 52, %bb1 ], [ 1, %bb2 ], [ 2, %bb3 ]
+  ret i32 %retval
+
+; CHECK-LABEL: @unreachable_default(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i32 %x, 0
+; CHECK-NOT: icmp
+; CHECK-NOT: br 1i
+; CHECK-NEXT: %switch.gep = getelementptr inbounds [4 x i32], [4 x i32]* @switch.table.7, i32 0, i32 %switch.tableidx
+; CHECK-NEXT: %switch.load = load i32, i32* %switch.gep
+; CHECK-NEXT: ret i32 %switch.load
 }
 
 ; Don't create a table with illegal type
@@ -967,10 +996,10 @@ sw.bb2:
 sw.default:
   br label %return
 return:
-  %retval.0 = phi i32* [ getelementptr inbounds ([3 x i32]* @dllimport_d, i32 0, i32 0), %sw.default ],
-                       [ getelementptr inbounds ([3 x i32]* @dllimport_c, i32 0, i32 0), %sw.bb2 ],
-                       [ getelementptr inbounds ([3 x i32]* @dllimport_b, i32 0, i32 0), %sw.bb1 ],
-                       [ getelementptr inbounds ([3 x i32]* @dllimport_a, i32 0, i32 0), %entry ]
+  %retval.0 = phi i32* [ getelementptr inbounds ([3 x i32], [3 x i32]* @dllimport_d, i32 0, i32 0), %sw.default ],
+                       [ getelementptr inbounds ([3 x i32], [3 x i32]* @dllimport_c, i32 0, i32 0), %sw.bb2 ],
+                       [ getelementptr inbounds ([3 x i32], [3 x i32]* @dllimport_b, i32 0, i32 0), %sw.bb1 ],
+                       [ getelementptr inbounds ([3 x i32], [3 x i32]* @dllimport_a, i32 0, i32 0), %entry ]
   ret i32* %retval.0
 ; CHECK-LABEL: @dllimport(
 ; CHECK: switch i32
@@ -1243,4 +1272,33 @@ end:
   ret void
 ; CHECK-LABEL: @pr20210
 ; CHECK: switch i8 %x
+}
+
+; Make sure we do not crash due to trying to generate an unguarded
+; lookup (since i3 can only hold values in the range of explicit
+; values) and simultaneously trying to generate a branch to deal with
+; the fact that we have holes in the range.
+define i32 @covered_switch_with_bit_tests(i3) {
+entry:
+  switch i3 %0, label %l6 [
+    i3 -3, label %l5
+    i3 -4, label %l5
+    i3 3, label %l1
+    i3 2, label %l1
+  ]
+
+l1: br label %l2
+
+l2:
+  %x = phi i32 [ 1, %l1 ], [ 2, %l5 ]
+  br label %l6
+
+l5: br label %l2
+
+l6:
+  %r = phi i32 [ %x, %l2 ], [ 0, %entry ]
+  ret i32 %r
+; CHECK-LABEL: @covered_switch_with_bit_tests
+; CHECK: entry
+; CHECK-NEXT: switch
 }

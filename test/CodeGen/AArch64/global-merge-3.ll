@@ -1,6 +1,6 @@
-; RUN: llc %s -mtriple=aarch64-none-linux-gnu -enable-global-merge -global-merge-on-external -o - | FileCheck %s
-; RUN: llc %s -mtriple=aarch64-linux-gnuabi -enable-global-merge -global-merge-on-external -o - | FileCheck %s
-; RUN: llc %s -mtriple=aarch64-apple-ios -enable-global-merge -global-merge-on-external -o - | FileCheck %s --check-prefix=CHECK-APPLE-IOS
+; RUN: llc %s -mtriple=aarch64-none-linux-gnu -aarch64-global-merge -global-merge-on-external -o - | FileCheck %s
+; RUN: llc %s -mtriple=aarch64-linux-gnuabi -aarch64-global-merge -global-merge-on-external -o - | FileCheck %s
+; RUN: llc %s -mtriple=aarch64-apple-ios -aarch64-global-merge -global-merge-on-external -o - | FileCheck %s --check-prefix=CHECK-APPLE-IOS
 
 @x = global [1000 x i32] zeroinitializer, align 1
 @y = global [1000 x i32] zeroinitializer, align 1
@@ -12,8 +12,8 @@ define void @f1(i32 %a1, i32 %a2, i32 %a3) {
 ;CHECK-APPLE-IOS: add	x8, x8, __MergedGlobals_x@PAGEOFF
 ;CHECK-APPLE-IOS: adrp	x9, __MergedGlobals_y@PAGE
 ;CHECK-APPLE-IOS: add	x9, x9, __MergedGlobals_y@PAGEOFF
-  %x3 = getelementptr inbounds [1000 x i32]* @x, i32 0, i64 3
-  %y3 = getelementptr inbounds [1000 x i32]* @y, i32 0, i64 3
+  %x3 = getelementptr inbounds [1000 x i32], [1000 x i32]* @x, i32 0, i64 3
+  %y3 = getelementptr inbounds [1000 x i32], [1000 x i32]* @y, i32 0, i64 3
   store i32 %a1, i32* %x3, align 4
   store i32 %a2, i32* %y3, align 4
   store i32 %a3, i32* @z, align 4

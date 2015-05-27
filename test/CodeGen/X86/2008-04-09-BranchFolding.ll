@@ -16,7 +16,7 @@ bb140:		; preds = %entry
 bb17.i:		; preds = %bb140
 	ret %struct.tree_node* null
 bb143:		; preds = %entry
-	%tmp8.i43 = load %struct.tree_node** null, align 4		; <%struct.tree_node*> [#uses=1]
+	%tmp8.i43 = load %struct.tree_node*, %struct.tree_node** null, align 4		; <%struct.tree_node*> [#uses=1]
 	br i1 %tmp3.i40, label %bb160, label %bb9.i48
 bb9.i48:		; preds = %bb143
 	ret %struct.tree_node* null
@@ -39,7 +39,7 @@ bb226.i:		; preds = %bb73.i
 bb273.i:		; preds = %bb226.i
 	ret %struct.tree_node* null
 bb260:		; preds = %bb226.i
-	tail call void (i8*, i32, ...)* @pedwarn_with_file_and_line( i8* %file.0, i32 %line.0, i8* null ) nounwind 
+	tail call void (i8*, i32, ...) @pedwarn_with_file_and_line( i8* %file.0, i32 %line.0, i8* null ) nounwind 
 	ret %struct.tree_node* null
 bb344:		; preds = %bb174
 	ret %struct.tree_node* null

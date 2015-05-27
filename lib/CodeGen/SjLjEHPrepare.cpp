@@ -46,6 +46,8 @@ STATISTIC(NumSpilled, "Number of registers live across unwind edges");
 namespace {
 class SjLjEHPrepare : public FunctionPass {
   const TargetMachine *TM;
+  Type *doubleUnderDataTy;
+  Type *doubleUnderJBufTy;
   Type *FunctionContextTy;
   Constant *RegisterFn;
   Constant *UnregisterFn;
@@ -93,12 +95,14 @@ bool SjLjEHPrepare::doInitialization(Module &M) {
   // builtin_setjmp uses a five word jbuf
   Type *VoidPtrTy = Type::getInt8PtrTy(M.getContext());
   Type *Int32Ty = Type::getInt32Ty(M.getContext());
-  FunctionContextTy = StructType::get(VoidPtrTy,                  // __prev
-                                      Int32Ty,                    // call_site
-                                      ArrayType::get(Int32Ty, 4), // __data
-                                      VoidPtrTy, // __personality
-                                      VoidPtrTy, // __lsda
-                                      ArrayType::get(VoidPtrTy, 5), // __jbuf
+  doubleUnderDataTy = ArrayType::get(Int32Ty, 4);
+  doubleUnderJBufTy = ArrayType::get(VoidPtrTy, 5);
+  FunctionContextTy = StructType::get(VoidPtrTy,         // __prev
+                                      Int32Ty,           // call_site
+                                      doubleUnderDataTy, // __data
+                                      VoidPtrTy,         // __personality
+                                      VoidPtrTy,         // __lsda
+                                      doubleUnderJBufTy, // __jbuf
                                       nullptr);
   RegisterFn = M.getOrInsertFunction(
       "_Unwind_SjLj_Register", Type::getVoidTy(M.getContext()),
@@ -128,7 +132,8 @@ void SjLjEHPrepare::insertCallSiteStore(Instruction *I, int Number) {
   Value *Zero = ConstantInt::get(Int32Ty, 0);
   Value *One = ConstantInt::get(Int32Ty, 1);
   Value *Idxs[2] = { Zero, One };
-  Value *CallSite = Builder.CreateGEP(FuncCtx, Idxs, "call_site");
+  Value *CallSite =
+      Builder.CreateGEP(FunctionContextTy, FuncCtx, Idxs, "call_site");
 
   // Insert a store of the call-site number
   ConstantInt *CallSiteNoC =
@@ -191,7 +196,7 @@ Value *SjLjEHPrepare::setupFunctionContext(Function &F,
   // Create an alloca for the incoming jump buffer ptr and the new jump buffer
   // that needs to be restored on all exits from the function. This is an alloca
   // because the value needs to be added to the global context list.
-  const TargetLowering *TLI = TM->getSubtargetImpl()->getTargetLowering();
+  const TargetLowering *TLI = TM->getSubtargetImpl(F)->getTargetLowering();
   unsigned Align =
       TLI->getDataLayout()->getPrefTypeAlignment(FunctionContextTy);
   FuncCtx = new AllocaInst(FunctionContextTy, nullptr, Align, "fn_context",
@@ -203,16 +208,17 @@ Value *SjLjEHPrepare::setupFunctionContext(Function &F,
     IRBuilder<> Builder(LPI->getParent()->getFirstInsertionPt());
 
     // Reference the __data field.
-    Value *FCData = Builder.CreateConstGEP2_32(FuncCtx, 0, 2, "__data");
+    Value *FCData =
+        Builder.CreateConstGEP2_32(FunctionContextTy, FuncCtx, 0, 2, "__data");
 
     // The exception values come back in context->__data[0].
-    Value *ExceptionAddr =
-        Builder.CreateConstGEP2_32(FCData, 0, 0, "exception_gep");
+    Value *ExceptionAddr = Builder.CreateConstGEP2_32(doubleUnderDataTy, FCData,
+                                                      0, 0, "exception_gep");
     Value *ExnVal = Builder.CreateLoad(ExceptionAddr, true, "exn_val");
     ExnVal = Builder.CreateIntToPtr(ExnVal, Builder.getInt8PtrTy());
 
-    Value *SelectorAddr =
-        Builder.CreateConstGEP2_32(FCData, 0, 1, "exn_selector_gep");
+    Value *SelectorAddr = Builder.CreateConstGEP2_32(doubleUnderDataTy, FCData,
+                                                     0, 1, "exn_selector_gep");
     Value *SelVal = Builder.CreateLoad(SelectorAddr, true, "exn_selector_val");
 
     substituteLPadValues(LPI, ExnVal, SelVal);
@@ -222,15 +228,16 @@ Value *SjLjEHPrepare::setupFunctionContext(Function &F,
   IRBuilder<> Builder(EntryBB->getTerminator());
   if (!PersonalityFn)
     PersonalityFn = LPads[0]->getPersonalityFn();
-  Value *PersonalityFieldPtr =
-      Builder.CreateConstGEP2_32(FuncCtx, 0, 3, "pers_fn_gep");
+  Value *PersonalityFieldPtr = Builder.CreateConstGEP2_32(
+      FunctionContextTy, FuncCtx, 0, 3, "pers_fn_gep");
   Builder.CreateStore(
       Builder.CreateBitCast(PersonalityFn, Builder.getInt8PtrTy()),
       PersonalityFieldPtr, /*isVolatile=*/true);
 
   // LSDA address
-  Value *LSDA = Builder.CreateCall(LSDAAddrFn, "lsda_addr");
-  Value *LSDAFieldPtr = Builder.CreateConstGEP2_32(FuncCtx, 0, 4, "lsda_gep");
+  Value *LSDA = Builder.CreateCall(LSDAAddrFn, {}, "lsda_addr");
+  Value *LSDAFieldPtr =
+      Builder.CreateConstGEP2_32(FunctionContextTy, FuncCtx, 0, 4, "lsda_gep");
   Builder.CreateStore(LSDA, LSDAFieldPtr, /*isVolatile=*/true);
 
   return FuncCtx;
@@ -399,18 +406,21 @@ bool SjLjEHPrepare::setupEntryBlockAndCallSites(Function &F) {
   IRBuilder<> Builder(EntryBB->getTerminator());
 
   // Get a reference to the jump buffer.
-  Value *JBufPtr = Builder.CreateConstGEP2_32(FuncCtx, 0, 5, "jbuf_gep");
+  Value *JBufPtr =
+      Builder.CreateConstGEP2_32(FunctionContextTy, FuncCtx, 0, 5, "jbuf_gep");
 
   // Save the frame pointer.
-  Value *FramePtr = Builder.CreateConstGEP2_32(JBufPtr, 0, 0, "jbuf_fp_gep");
+  Value *FramePtr = Builder.CreateConstGEP2_32(doubleUnderJBufTy, JBufPtr, 0, 0,
+                                               "jbuf_fp_gep");
 
   Value *Val = Builder.CreateCall(FrameAddrFn, Builder.getInt32(0), "fp");
   Builder.CreateStore(Val, FramePtr, /*isVolatile=*/true);
 
   // Save the stack pointer.
-  Value *StackPtr = Builder.CreateConstGEP2_32(JBufPtr, 0, 2, "jbuf_sp_gep");
+  Value *StackPtr = Builder.CreateConstGEP2_32(doubleUnderJBufTy, JBufPtr, 0, 2,
+                                               "jbuf_sp_gep");
 
-  Val = Builder.CreateCall(StackAddrFn, "sp");
+  Val = Builder.CreateCall(StackAddrFn, {}, "sp");
   Builder.CreateStore(Val, StackPtr, /*isVolatile=*/true);
 
   // Call the setjmp instrinsic. It fills in the rest of the jmpbuf.

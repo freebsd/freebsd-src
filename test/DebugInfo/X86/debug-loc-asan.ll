@@ -46,7 +46,7 @@ define i32 @_Z3bari(i32 %y) #0 {
 entry:
   %MyAlloca = alloca [64 x i8], align 32
   %0 = ptrtoint [64 x i8]* %MyAlloca to i64
-  %1 = load i32* @__asan_option_detect_stack_use_after_return
+  %1 = load i32, i32* @__asan_option_detect_stack_use_after_return
   %2 = icmp ne i32 %1, 0
   br i1 %2, label %3, label %5
 
@@ -75,9 +75,9 @@ entry:
   %19 = lshr i64 %18, 3
   %20 = add i64 %19, 2147450880
   %21 = inttoptr i64 %20 to i8*
-  %22 = load i8* %21
+  %22 = load i8, i8* %21
   %23 = icmp ne i8 %22, 0
-  call void @llvm.dbg.declare(metadata i32* %8, metadata !12, metadata !14)
+  call void @llvm.dbg.declare(metadata i32* %8, metadata !12, metadata !14), !dbg !DILocation(scope: !4)
   br i1 %23, label %24, label %30
 
 ; <label>:24                                      ; preds = %5
@@ -98,7 +98,7 @@ entry:
   %32 = lshr i64 %31, 3, !dbg !13
   %33 = add i64 %32, 2147450880, !dbg !13
   %34 = inttoptr i64 %33 to i8*, !dbg !13
-  %35 = load i8* %34, !dbg !13
+  %35 = load i8, i8* %34, !dbg !13
   %36 = icmp ne i8 %35, 0, !dbg !13
   br i1 %36, label %37, label %43, !dbg !13
 
@@ -115,7 +115,7 @@ entry:
   unreachable
 
 ; <label>:43                                      ; preds = %37, %30
-  %44 = load i32* %8, align 4, !dbg !13
+  %44 = load i32, i32* %8, align 4, !dbg !13
   %add = add nsw i32 %44, 2, !dbg !13
   store i64 1172321806, i64* %9, !dbg !13
   %45 = icmp ne i64 %6, %0, !dbg !13
@@ -127,7 +127,7 @@ entry:
   store i64 -723401728380766731, i64* %48, !dbg !13
   %49 = add i64 %6, 56, !dbg !13
   %50 = inttoptr i64 %49 to i64*, !dbg !13
-  %51 = load i64* %50, !dbg !13
+  %51 = load i64, i64* %50, !dbg !13
   %52 = inttoptr i64 %51 to i8*, !dbg !13
   store i8 0, i8* %52, !dbg !13
   br label %56, !dbg !13
@@ -165,18 +165,18 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = !{!"0x11\004\00clang version 3.5.0 (209308)\000\00\000\00\001", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [/llvm_cmake_gcc/test.cc] [DW_LANG_C_plus_plus]
-!1 = !{!"test.cc", !"/llvm_cmake_gcc"}
+!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (209308)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!1 = !DIFile(filename: "test.cc", directory: "/llvm_cmake_gcc")
 !2 = !{}
 !3 = !{!4}
-!4 = !{!"0x2e\00bar\00bar\00_Z3bari\001\000\001\000\006\00256\000\001", !1, !5, !6, null, i32 (i32)* @_Z3bari, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [bar]
-!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [/llvm_cmake_gcc/test.cc]
-!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !7, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!4 = !DISubprogram(name: "bar", linkageName: "_Z3bari", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, function: i32 (i32)* @_Z3bari, variables: !2)
+!5 = !DIFile(filename: "test.cc", directory: "/llvm_cmake_gcc")
+!6 = !DISubroutineType(types: !7)
 !7 = !{!8, !8}
-!8 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{i32 2, !"Dwarf Version", i32 4}
-!10 = !{i32 2, !"Debug Info Version", i32 2}
+!10 = !{i32 2, !"Debug Info Version", i32 3}
 !11 = !{!"clang version 3.5.0 (209308)"}
-!12 = !{!"0x101\00y\0016777217\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [y] [line 1]
-!13 = !MDLocation(line: 2, scope: !4)
-!14 = !{!"0x102\006"} ; [ DW_TAG_expression ] [DW_OP_deref]
+!12 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "y", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!13 = !DILocation(line: 2, scope: !4)
+!14 = !DIExpression(DW_OP_deref)

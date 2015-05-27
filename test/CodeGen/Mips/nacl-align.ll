@@ -67,8 +67,8 @@ default:
 
 define i32 @test2(i32 %i) {
 entry:
-  %elementptr = getelementptr inbounds [2 x i8*]* @bb_array, i32 0, i32 %i
-  %0 = load i8** %elementptr, align 4
+  %elementptr = getelementptr inbounds [2 x i8*], [2 x i8*]* @bb_array, i32 0, i32 %i
+  %0 = load i8*, i8** %elementptr, align 4
   indirectbr i8* %0, [label %bb1, label %bb2]
 
 bb1:

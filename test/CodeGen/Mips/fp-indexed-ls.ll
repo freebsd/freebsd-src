@@ -1,10 +1,10 @@
 ; RUN: llc -march=mipsel   -mcpu=mips32   < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS32R1
 ; RUN: llc -march=mipsel   -mcpu=mips32r2 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS32R2
 ; RUN: llc -march=mipsel   -mcpu=mips32r6 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS32R6
-; RUN: llc -march=mips64el -mcpu=mips4    -mattr=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS4
-; RUN: llc -march=mips64el -mcpu=mips64   -mattr=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS4
-; RUN: llc -march=mips64el -mcpu=mips64r2 -mattr=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS4
-; RUN: llc -march=mips64el -mcpu=mips64r6 -mattr=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS64R6
+; RUN: llc -march=mips64el -mcpu=mips4    -target-abi=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS4
+; RUN: llc -march=mips64el -mcpu=mips64   -target-abi=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS4
+; RUN: llc -march=mips64el -mcpu=mips64r2 -target-abi=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS4
+; RUN: llc -march=mips64el -mcpu=mips64r6 -target-abi=n64 < %s | FileCheck %s -check-prefix=ALL -check-prefix=MIPS64R6
 
 ; Check that [ls][dwu]xc1 are not emitted for nacl.
 ; RUN: llc -mtriple=mipsel-none-nacl-gnu -mcpu=mips32r2 < %s | FileCheck %s -check-prefix=CHECK-NACL
@@ -45,8 +45,8 @@ entry:
 
 ; CHECK-NACL-NOT: lwxc1
 
-  %arrayidx = getelementptr inbounds float* %b, i32 %o
-  %0 = load float* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds float, float* %b, i32 %o
+  %0 = load float, float* %arrayidx, align 4
   ret float %0
 }
 
@@ -76,8 +76,8 @@ entry:
 
 ; CHECK-NACL-NOT: ldxc1
 
-  %arrayidx = getelementptr inbounds double* %b, i32 %o
-  %0 = load double* %arrayidx, align 8
+  %arrayidx = getelementptr inbounds double, double* %b, i32 %o
+  %0 = load double, double* %arrayidx, align 8
   ret double %0
 }
 
@@ -100,8 +100,8 @@ entry:
 ; luxc1 was removed in MIPS64r6
 ; MIPS64R6-NOT:  luxc1
 
-  %arrayidx1 = getelementptr inbounds [4 x %struct.S]* @s, i32 0, i32 %b, i32 0, i32 %c
-  %0 = load float* %arrayidx1, align 1
+  %arrayidx1 = getelementptr inbounds [4 x %struct.S], [4 x %struct.S]* @s, i32 0, i32 %b, i32 0, i32 %c
+  %0 = load float, float* %arrayidx1, align 1
   ret float %0
 }
 
@@ -129,8 +129,8 @@ entry:
 
 ; CHECK-NACL-NOT: swxc1
 
-  %0 = load float* @gf, align 4
-  %arrayidx = getelementptr inbounds float* %b, i32 %o
+  %0 = load float, float* @gf, align 4
+  %arrayidx = getelementptr inbounds float, float* %b, i32 %o
   store float %0, float* %arrayidx, align 4
   ret void
 }
@@ -159,8 +159,8 @@ entry:
 
 ; CHECK-NACL-NOT: sdxc1
 
-  %0 = load double* @gd, align 8
-  %arrayidx = getelementptr inbounds double* %b, i32 %o
+  %0 = load double, double* @gd, align 8
+  %arrayidx = getelementptr inbounds double, double* %b, i32 %o
   store double %0, double* %arrayidx, align 8
   ret void
 }
@@ -179,8 +179,8 @@ entry:
 
 ; MIPS64R6-NOT:  suxc1
 
-  %0 = load float* @gf, align 4
-  %arrayidx1 = getelementptr inbounds [4 x %struct.S]* @s, i32 0, i32 %b, i32 0, i32 %c
+  %0 = load float, float* @gf, align 4
+  %arrayidx1 = getelementptr inbounds [4 x %struct.S], [4 x %struct.S]* @s, i32 0, i32 %b, i32 0, i32 %c
   store float %0, float* %arrayidx1, align 1
   ret void
 }
@@ -199,8 +199,8 @@ entry:
 
 ; MIPS64R6-NOT:  luxc1
 
-  %arrayidx1 = getelementptr inbounds [4 x %struct.S2]* @s2, i32 0, i32 %b, i32 0, i32 %c
-  %0 = load double* %arrayidx1, align 1
+  %arrayidx1 = getelementptr inbounds [4 x %struct.S2], [4 x %struct.S2]* @s2, i32 0, i32 %b, i32 0, i32 %c
+  %0 = load double, double* %arrayidx1, align 1
   ret double %0
 }
 
@@ -218,8 +218,8 @@ entry:
 
 ; MIPS64R6-NOT:  suxc1
 
-  %0 = load double* @gd, align 8
-  %arrayidx1 = getelementptr inbounds [4 x %struct.S2]* @s2, i32 0, i32 %b, i32 0, i32 %c
+  %0 = load double, double* @gd, align 8
+  %arrayidx1 = getelementptr inbounds [4 x %struct.S2], [4 x %struct.S2]* @s2, i32 0, i32 %b, i32 0, i32 %c
   store double %0, double* %arrayidx1, align 1
   ret void
 }
@@ -238,7 +238,7 @@ entry:
 
 ; MIPS64R6-NOT:  luxc1
 
-  %0 = load float* getelementptr inbounds (%struct.S3* @s3, i32 0, i32 1), align 1
+  %0 = load float, float* getelementptr inbounds (%struct.S3, %struct.S3* @s3, i32 0, i32 1), align 1
   ret float %0
 }
 
@@ -256,7 +256,7 @@ entry:
 
 ; MIPS64R6-NOT:  suxc1
 
-  store float %f, float* getelementptr inbounds (%struct.S3* @s3, i32 0, i32 1), align 1
+  store float %f, float* getelementptr inbounds (%struct.S3, %struct.S3* @s3, i32 0, i32 1), align 1
   ret void
 }
 

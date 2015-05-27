@@ -9,11 +9,11 @@ target triple = "x86_64-apple-macosx10.8.0"
 ;CHECK: ret void
 define void @fextr(double* %ptr) {
 entry:
-  %LD = load <2 x double>* undef
+  %LD = load <2 x double>, <2 x double>* undef
   %V0 = extractelement <2 x double> %LD, i32 0
   %V1 = extractelement <2 x double> %LD, i32 1
-  %P0 = getelementptr inbounds double* %ptr, i64 0
-  %P1 = getelementptr inbounds double* %ptr, i64 1
+  %P0 = getelementptr inbounds double, double* %ptr, i64 0
+  %P1 = getelementptr inbounds double, double* %ptr, i64 1
   %A0 = fadd double %V0, 0.0
   %A1 = fadd double %V1, 1.1
   store double %A0, double* %P0, align 4
@@ -27,11 +27,11 @@ entry:
 ;CHECK: ret void
 define void @fextr1(double* %ptr) {
 entry:
-  %LD = load <2 x double>* undef
+  %LD = load <2 x double>, <2 x double>* undef
   %V0 = extractelement <2 x double> %LD, i32 0
   %V1 = extractelement <2 x double> %LD, i32 1
-  %P0 = getelementptr inbounds double* %ptr, i64 1  ; <--- incorrect order
-  %P1 = getelementptr inbounds double* %ptr, i64 0
+  %P0 = getelementptr inbounds double, double* %ptr, i64 1  ; <--- incorrect order
+  %P1 = getelementptr inbounds double, double* %ptr, i64 0
   %A0 = fadd double %V0, 1.2
   %A1 = fadd double %V1, 3.4
   store double %A0, double* %P0, align 4
@@ -45,11 +45,11 @@ entry:
 ;CHECK: ret void
 define void @fextr2(double* %ptr) {
 entry:
-  %LD = load <4 x double>* undef
+  %LD = load <4 x double>, <4 x double>* undef
   %V0 = extractelement <4 x double> %LD, i32 0  ; <--- invalid size.
   %V1 = extractelement <4 x double> %LD, i32 1
-  %P0 = getelementptr inbounds double* %ptr, i64 0
-  %P1 = getelementptr inbounds double* %ptr, i64 1
+  %P0 = getelementptr inbounds double, double* %ptr, i64 0
+  %P1 = getelementptr inbounds double, double* %ptr, i64 1
   %A0 = fadd double %V0, 5.5
   %A1 = fadd double %V1, 6.6
   store double %A0, double* %P0, align 4

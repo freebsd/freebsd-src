@@ -15,14 +15,14 @@ entry:
 	%tmp = alloca i32, align 4		; <i32*> [#uses=3]
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store volatile i32 0, i32* %v, align 4
-	%tmp1 = call i32 @_setjmp( %struct.__jmp_buf_tag* getelementptr ([1 x %struct.__jmp_buf_tag]* @j, i32 0, i32 0) )		; <i32> [#uses=1]
+	%tmp1 = call i32 @_setjmp( %struct.__jmp_buf_tag* getelementptr ([1 x %struct.__jmp_buf_tag], [1 x %struct.__jmp_buf_tag]* @j, i32 0, i32 0) )		; <i32> [#uses=1]
 	%tmp2 = icmp ne i32 %tmp1, 0		; <i1> [#uses=1]
 	%tmp23 = zext i1 %tmp2 to i8		; <i8> [#uses=1]
 	%toBool = icmp ne i8 %tmp23, 0		; <i1> [#uses=1]
 	br i1 %toBool, label %bb, label %bb5
 
 bb:		; preds = %entry
-	%tmp4 = load volatile i32* %v, align 4		; <i32> [#uses=1]
+	%tmp4 = load volatile i32, i32* %v, align 4		; <i32> [#uses=1]
 	store i32 %tmp4, i32* %tmp, align 4
 	br label %bb6
 
@@ -33,12 +33,12 @@ bb5:		; preds = %entry
 	br label %bb6
 
 bb6:		; preds = %bb5, %bb
-	%tmp7 = load i32* %tmp, align 4		; <i32> [#uses=1]
+	%tmp7 = load i32, i32* %tmp, align 4		; <i32> [#uses=1]
 	store i32 %tmp7, i32* %retval, align 4
 	br label %return
 
 return:		; preds = %bb6
-	%retval8 = load i32* %retval		; <i32> [#uses=1]
+	%retval8 = load i32, i32* %retval		; <i32> [#uses=1]
 	ret i32 %retval8
 }
 

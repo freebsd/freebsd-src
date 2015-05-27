@@ -9,16 +9,16 @@ target triple = "x86_64-apple-macosx10.8.0"
 ; CHECK: ret
 define void @test1(double* %a, double* %b, double* %c) {
 entry:
-  %i0 = load double* %a, align 8
-  %i1 = load double* %b, align 8
+  %i0 = load double, double* %a, align 8
+  %i1 = load double, double* %b, align 8
   %mul = fmul double %i0, %i1
-  %arrayidx3 = getelementptr inbounds double* %a, i64 1
-  %i3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %b, i64 1
-  %i4 = load double* %arrayidx4, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %a, i64 1
+  %i3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %b, i64 1
+  %i4 = load double, double* %arrayidx4, align 8
   %mul5 = fmul double %i3, %i4
   store double %mul, double* %c, align 8
-  %arrayidx5 = getelementptr inbounds double* %c, i64 1
+  %arrayidx5 = getelementptr inbounds double, double* %c, i64 1
   store double %mul5, double* %arrayidx5, align 8
   ret void
 }
@@ -29,17 +29,17 @@ entry:
 ; CHECK: ret
 define void @test2(double* %a, double* %b, i8* %e) {
 entry:
-  %i0 = load double* %a, align 8
-  %i1 = load double* %b, align 8
+  %i0 = load double, double* %a, align 8
+  %i1 = load double, double* %b, align 8
   %mul = fmul double %i0, %i1
-  %arrayidx3 = getelementptr inbounds double* %a, i64 1
-  %i3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %b, i64 1
-  %i4 = load double* %arrayidx4, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %a, i64 1
+  %i3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %b, i64 1
+  %i4 = load double, double* %arrayidx4, align 8
   %mul5 = fmul double %i3, %i4
   %c = bitcast i8* %e to double*
   store double %mul, double* %c, align 8
-  %carrayidx5 = getelementptr inbounds i8* %e, i64 8
+  %carrayidx5 = getelementptr inbounds i8, i8* %e, i64 8
   %arrayidx5 = bitcast i8* %carrayidx5 to double*
   store double %mul5, double* %arrayidx5, align 8
   ret void
@@ -52,16 +52,16 @@ entry:
 ; CHECK: ret
 define void @test_volatile_load(double* %a, double* %b, double* %c) {
 entry:
-  %i0 = load volatile double* %a, align 8
-  %i1 = load volatile double* %b, align 8
+  %i0 = load volatile double, double* %a, align 8
+  %i1 = load volatile double, double* %b, align 8
   %mul = fmul double %i0, %i1
-  %arrayidx3 = getelementptr inbounds double* %a, i64 1
-  %i3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %b, i64 1
-  %i4 = load double* %arrayidx4, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %a, i64 1
+  %i3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %b, i64 1
+  %i4 = load double, double* %arrayidx4, align 8
   %mul5 = fmul double %i3, %i4
   store double %mul, double* %c, align 8
-  %arrayidx5 = getelementptr inbounds double* %c, i64 1
+  %arrayidx5 = getelementptr inbounds double, double* %c, i64 1
   store double %mul5, double* %arrayidx5, align 8
   ret void
 }
@@ -72,16 +72,16 @@ entry:
 ; CHECK: ret
 define void @test_volatile_store(double* %a, double* %b, double* %c) {
 entry:
-  %i0 = load double* %a, align 8
-  %i1 = load double* %b, align 8
+  %i0 = load double, double* %a, align 8
+  %i1 = load double, double* %b, align 8
   %mul = fmul double %i0, %i1
-  %arrayidx3 = getelementptr inbounds double* %a, i64 1
-  %i3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %b, i64 1
-  %i4 = load double* %arrayidx4, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %a, i64 1
+  %i3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %b, i64 1
+  %i4 = load double, double* %arrayidx4, align 8
   %mul5 = fmul double %i3, %i4
   store volatile double %mul, double* %c, align 8
-  %arrayidx5 = getelementptr inbounds double* %c, i64 1
+  %arrayidx5 = getelementptr inbounds double, double* %c, i64 1
   store volatile double %mul5, double* %arrayidx5, align 8
   ret void
 }

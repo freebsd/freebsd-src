@@ -8,7 +8,7 @@
 ; CHECK-NEXT:         .loc 1 0 0
 ;      CHECK:         cltd
 ; CHECK-NEXT:         idivl
-; CHECK-NEXT:         .loc 2 4 3
+; CHECK-NEXT:         .loc 1 4 3
 
 define i32 @foo(i32 %w, i32 %x, i32 %y, i32 %z) nounwind {
 entry:
@@ -21,16 +21,16 @@ entry:
 !llvm.dbg.cu = !{!3}
 !llvm.module.flags = !{!12}
 
-!0 = !{!"0x101\00x\001\000", !1, !2, !6} ; [ DW_TAG_arg_variable ]
-!1 = !{!"0x2e\00foo\00foo\00foo\001\000\001\000\006\000\000\001", !10, !2, !4, null, i32 (i32, i32, i32, i32)* @foo, null, null, null} ; [ DW_TAG_subprogram ]
-!2 = !{!"0x29", !10} ; [ DW_TAG_file_type ]
-!3 = !{!"0x11\0012\00producer\000\00\000\00\000", !10, !11, !11, !9, null, null} ; [ DW_TAG_compile_unit ]
-!4 = !{!"0x15\00\000\000\000\000\000\000", !10, !2, null, !5, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!0 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "x", line: 1, arg: 0, scope: !1, file: !2, type: !6)
+!1 = !DISubprogram(name: "foo", linkageName: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 1, file: !10, scope: !2, type: !4, function: i32 (i32, i32, i32, i32)* @foo)
+!2 = !DIFile(filename: "test.c", directory: "/dir")
+!3 = !DICompileUnit(language: DW_LANG_C99, producer: "producer", isOptimized: false, emissionKind: 0, file: !10, enums: !11, retainedTypes: !11, subprograms: !9)
+!4 = !DISubroutineType(types: !5)
 !5 = !{!6}
-!6 = !{!"0x24\00int\000\0032\0032\000\000\005", !10, !2} ; [ DW_TAG_base_type ]
-!7 = !{!"0xb\001\0030\000", !2, !1} ; [ DW_TAG_lexical_block ]
-!8 = !MDLocation(line: 4, column: 3, scope: !7)
+!6 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!7 = distinct !DILexicalBlock(line: 1, column: 30, file: !10, scope: !1)
+!8 = !DILocation(line: 4, column: 3, scope: !7)
 !9 = !{!1}
-!10 = !{!"test.c", !"/dir"}
-!11 = !{i32 0}
-!12 = !{i32 1, !"Debug Info Version", i32 2}
+!10 = !DIFile(filename: "test.c", directory: "/dir")
+!11 = !{}
+!12 = !{i32 1, !"Debug Info Version", i32 3}

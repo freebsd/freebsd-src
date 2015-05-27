@@ -64,7 +64,9 @@ To upload a new patch:
 * Paste the text diff or upload the patch file.
   Note that TODO
 * Leave the drop down on *Create a new Revision...* and click *Continue*.
-* Enter a descriptive title and summary; add reviewers and mailing
+* Enter a descriptive title and summary.  The title and summary are usually
+  in the form of a :ref:`commit message <commit messages>`.
+* Add reviewers and mailing
   lists that you want to be included in the review. If your patch is
   for LLVM, add llvm-commits as a subscriber; if your patch is for Clang,
   add cfe-commits.
@@ -85,8 +87,11 @@ Reviewing code with Phabricator
 Phabricator allows you to add inline comments as well as overall comments
 to a revision. To add an inline comment, select the lines of code you want
 to comment on by clicking and dragging the line numbers in the diff pane.
+When you have added all your comments, scroll to the bottom of the page and
+click the Submit button.
 
-You can add overall comments or submit your comments at the bottom of the page.
+You can add overall comments in the text box at the bottom of the page.
+When you're done, click the Submit button.
 
 Phabricator has many useful features, for example allowing you to select
 diffs between different versions of the patch as it was reviewed in the
@@ -128,13 +133,33 @@ This allows people reading the version history to see the review for
 context.  This also allows Phabricator to detect the commit, close the
 review, and add a link from the review to the commit.
 
+Abandoning a change
+-------------------
+
+If you decide you should not commit the patch, you should explicitly abandon
+the review so that reviewers don't think it is still open. In the web UI,
+scroll to the bottom of the page where normally you would enter an overall
+comment. In the drop-down Action list, which defaults to "Comment," you should
+select "Abandon Revision" and then enter a comment explaining why. Click the
+Submit button to finish closing the review.
+
 Status
 ------
 
-Please let us know whether you like it and what could be improved!
+Please let us know whether you like it and what could be improved! We're still
+working on setting up a bug tracker, but you can email klimek-at-google-dot-com
+and chandlerc-at-gmail-dot-com and CC the llvmdev mailing list with questions
+until then. We also could use help implementing improvements. This sadly is
+really painful and hard because the Phabricator codebase is in PHP and not as
+testable as you might like. However, we've put exactly what we're deploying up
+on an `llvm-reviews GitHub project`_ where folks can hack on it and post pull
+requests. We're looking into what the right long-term hosting for this is, but
+note that it is a derivative of an existing open source project, and so not
+trivially a good fit for an official LLVM project.
 
 .. _LLVM's Phabricator: http://reviews.llvm.org
 .. _`http://reviews.llvm.org`: http://reviews.llvm.org
 .. _Code Repository Browser: http://reviews.llvm.org/diffusion/
 .. _Arcanist Quick Start: http://www.phabricator.com/docs/phabricator/article/Arcanist_Quick_Start.html
 .. _Arcanist User Guide: http://www.phabricator.com/docs/phabricator/article/Arcanist_User_Guide.html
+.. _llvm-reviews GitHub project: https://github.com/r4nt/llvm-reviews/

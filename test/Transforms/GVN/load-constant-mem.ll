@@ -4,10 +4,10 @@
 
 define i32 @test(i8* %p, i32 %i) nounwind {
 entry:
-	%P = getelementptr [4 x i32]* @G, i32 0, i32 %i
-	%A = load i32* %P
+	%P = getelementptr [4 x i32], [4 x i32]* @G, i32 0, i32 %i
+	%A = load i32, i32* %P
 	store i8 4, i8* %p
-	%B = load i32* %P
+	%B = load i32, i32* %P
 	%C = sub i32 %A, %B
 	ret i32 %C
 }

@@ -29,15 +29,15 @@ target triple = "aarch64"
 
 define void @f1(double* nocapture readonly %p, double* nocapture %q) #0 {
 entry:
-  %0 = load double* %p, align 8
-  %arrayidx1 = getelementptr inbounds double* %p, i64 1
-  %1 = load double* %arrayidx1, align 8
-  %arrayidx2 = getelementptr inbounds double* %p, i64 2
-  %2 = load double* %arrayidx2, align 8
-  %arrayidx3 = getelementptr inbounds double* %p, i64 3
-  %3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %p, i64 4
-  %4 = load double* %arrayidx4, align 8
+  %0 = load double, double* %p, align 8
+  %arrayidx1 = getelementptr inbounds double, double* %p, i64 1
+  %1 = load double, double* %arrayidx1, align 8
+  %arrayidx2 = getelementptr inbounds double, double* %p, i64 2
+  %2 = load double, double* %arrayidx2, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %p, i64 3
+  %3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %p, i64 4
+  %4 = load double, double* %arrayidx4, align 8
   %mul = fmul fast double %0, %1
   %add = fadd fast double %mul, %4
   %mul5 = fmul fast double %1, %2
@@ -47,18 +47,18 @@ entry:
   %mul8 = fmul fast double %2, %3
   %add9 = fadd fast double %mul8, %sub
   store double %add9, double* %q, align 8
-  %arrayidx11 = getelementptr inbounds double* %p, i64 5
-  %5 = load double* %arrayidx11, align 8
-  %arrayidx12 = getelementptr inbounds double* %p, i64 6
-  %6 = load double* %arrayidx12, align 8
-  %arrayidx13 = getelementptr inbounds double* %p, i64 7
-  %7 = load double* %arrayidx13, align 8
+  %arrayidx11 = getelementptr inbounds double, double* %p, i64 5
+  %5 = load double, double* %arrayidx11, align 8
+  %arrayidx12 = getelementptr inbounds double, double* %p, i64 6
+  %6 = load double, double* %arrayidx12, align 8
+  %arrayidx13 = getelementptr inbounds double, double* %p, i64 7
+  %7 = load double, double* %arrayidx13, align 8
   %mul15 = fmul fast double %6, %7
   %mul16 = fmul fast double %0, %5
   %add17 = fadd fast double %mul16, %mul15
   %mul18 = fmul fast double %5, %6
   %add19 = fadd fast double %mul18, %add17
-  %arrayidx20 = getelementptr inbounds double* %q, i64 1
+  %arrayidx20 = getelementptr inbounds double, double* %q, i64 1
   store double %add19, double* %arrayidx20, align 8
   ret void
 }
@@ -81,21 +81,21 @@ entry:
 
 define void @f2(double* nocapture readonly %p, double* nocapture %q) #0 {
 entry:
-  %0 = load double* %p, align 8
-  %arrayidx1 = getelementptr inbounds double* %p, i64 1
-  %1 = load double* %arrayidx1, align 8
-  %arrayidx2 = getelementptr inbounds double* %p, i64 2
-  %2 = load double* %arrayidx2, align 8
-  %arrayidx3 = getelementptr inbounds double* %p, i64 3
-  %3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %p, i64 4
-  %4 = load double* %arrayidx4, align 8
-  %arrayidx5 = getelementptr inbounds double* %p, i64 5
-  %5 = load double* %arrayidx5, align 8
-  %arrayidx6 = getelementptr inbounds double* %p, i64 6
-  %6 = load double* %arrayidx6, align 8
-  %arrayidx7 = getelementptr inbounds double* %p, i64 7
-  %7 = load double* %arrayidx7, align 8
+  %0 = load double, double* %p, align 8
+  %arrayidx1 = getelementptr inbounds double, double* %p, i64 1
+  %1 = load double, double* %arrayidx1, align 8
+  %arrayidx2 = getelementptr inbounds double, double* %p, i64 2
+  %2 = load double, double* %arrayidx2, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %p, i64 3
+  %3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %p, i64 4
+  %4 = load double, double* %arrayidx4, align 8
+  %arrayidx5 = getelementptr inbounds double, double* %p, i64 5
+  %5 = load double, double* %arrayidx5, align 8
+  %arrayidx6 = getelementptr inbounds double, double* %p, i64 6
+  %6 = load double, double* %arrayidx6, align 8
+  %arrayidx7 = getelementptr inbounds double, double* %p, i64 7
+  %7 = load double, double* %arrayidx7, align 8
   %mul = fmul fast double %0, %1
   %add = fadd fast double %mul, %7
   %mul8 = fmul fast double %5, %6
@@ -110,7 +110,7 @@ entry:
   %mul16 = fmul fast double %2, %3
   %add17 = fadd fast double %mul16, %sub
   store double %add17, double* %q, align 8
-  %arrayidx19 = getelementptr inbounds double* %q, i64 1
+  %arrayidx19 = getelementptr inbounds double, double* %q, i64 1
   store double %add15, double* %arrayidx19, align 8
   ret void
 }
@@ -127,15 +127,15 @@ entry:
 
 define void @f3(double* nocapture readonly %p, double* nocapture %q) #0 {
 entry:
-  %0 = load double* %p, align 8
-  %arrayidx1 = getelementptr inbounds double* %p, i64 1
-  %1 = load double* %arrayidx1, align 8
-  %arrayidx2 = getelementptr inbounds double* %p, i64 2
-  %2 = load double* %arrayidx2, align 8
-  %arrayidx3 = getelementptr inbounds double* %p, i64 3
-  %3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %p, i64 4
-  %4 = load double* %arrayidx4, align 8
+  %0 = load double, double* %p, align 8
+  %arrayidx1 = getelementptr inbounds double, double* %p, i64 1
+  %1 = load double, double* %arrayidx1, align 8
+  %arrayidx2 = getelementptr inbounds double, double* %p, i64 2
+  %2 = load double, double* %arrayidx2, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %p, i64 3
+  %3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %p, i64 4
+  %4 = load double, double* %arrayidx4, align 8
   %mul = fmul fast double %0, %1
   %add = fadd fast double %mul, %4
   %mul5 = fmul fast double %1, %2
@@ -176,21 +176,21 @@ declare void @g(...) #1
 
 define void @f4(float* nocapture readonly %p, float* nocapture %q) #0 {
 entry:
-  %0 = load float* %p, align 4
-  %arrayidx1 = getelementptr inbounds float* %p, i64 1
-  %1 = load float* %arrayidx1, align 4
-  %arrayidx2 = getelementptr inbounds float* %p, i64 2
-  %2 = load float* %arrayidx2, align 4
-  %arrayidx3 = getelementptr inbounds float* %p, i64 3
-  %3 = load float* %arrayidx3, align 4
-  %arrayidx4 = getelementptr inbounds float* %p, i64 4
-  %4 = load float* %arrayidx4, align 4
-  %arrayidx5 = getelementptr inbounds float* %p, i64 5
-  %5 = load float* %arrayidx5, align 4
-  %arrayidx6 = getelementptr inbounds float* %p, i64 6
-  %6 = load float* %arrayidx6, align 4
-  %arrayidx7 = getelementptr inbounds float* %p, i64 7
-  %7 = load float* %arrayidx7, align 4
+  %0 = load float, float* %p, align 4
+  %arrayidx1 = getelementptr inbounds float, float* %p, i64 1
+  %1 = load float, float* %arrayidx1, align 4
+  %arrayidx2 = getelementptr inbounds float, float* %p, i64 2
+  %2 = load float, float* %arrayidx2, align 4
+  %arrayidx3 = getelementptr inbounds float, float* %p, i64 3
+  %3 = load float, float* %arrayidx3, align 4
+  %arrayidx4 = getelementptr inbounds float, float* %p, i64 4
+  %4 = load float, float* %arrayidx4, align 4
+  %arrayidx5 = getelementptr inbounds float, float* %p, i64 5
+  %5 = load float, float* %arrayidx5, align 4
+  %arrayidx6 = getelementptr inbounds float, float* %p, i64 6
+  %6 = load float, float* %arrayidx6, align 4
+  %arrayidx7 = getelementptr inbounds float, float* %p, i64 7
+  %7 = load float, float* %arrayidx7, align 4
   %mul = fmul fast float %0, %1
   %add = fadd fast float %mul, %7
   %mul8 = fmul fast float %5, %6
@@ -205,7 +205,7 @@ entry:
   %mul16 = fmul fast float %2, %3
   %add17 = fadd fast float %mul16, %sub
   store float %add17, float* %q, align 4
-  %arrayidx19 = getelementptr inbounds float* %q, i64 1
+  %arrayidx19 = getelementptr inbounds float, float* %q, i64 1
   store float %add15, float* %arrayidx19, align 4
   ret void
 }
@@ -222,15 +222,15 @@ entry:
 
 define void @f5(float* nocapture readonly %p, float* nocapture %q) #0 {
 entry:
-  %0 = load float* %p, align 4
-  %arrayidx1 = getelementptr inbounds float* %p, i64 1
-  %1 = load float* %arrayidx1, align 4
-  %arrayidx2 = getelementptr inbounds float* %p, i64 2
-  %2 = load float* %arrayidx2, align 4
-  %arrayidx3 = getelementptr inbounds float* %p, i64 3
-  %3 = load float* %arrayidx3, align 4
-  %arrayidx4 = getelementptr inbounds float* %p, i64 4
-  %4 = load float* %arrayidx4, align 4
+  %0 = load float, float* %p, align 4
+  %arrayidx1 = getelementptr inbounds float, float* %p, i64 1
+  %1 = load float, float* %arrayidx1, align 4
+  %arrayidx2 = getelementptr inbounds float, float* %p, i64 2
+  %2 = load float, float* %arrayidx2, align 4
+  %arrayidx3 = getelementptr inbounds float, float* %p, i64 3
+  %3 = load float, float* %arrayidx3, align 4
+  %arrayidx4 = getelementptr inbounds float, float* %p, i64 4
+  %4 = load float, float* %arrayidx4, align 4
   %mul = fmul fast float %0, %1
   %add = fadd fast float %mul, %4
   %mul5 = fmul fast float %1, %2
@@ -264,15 +264,15 @@ if.end:                                           ; preds = %if.then, %entry
 
 define void @f6(double* nocapture readonly %p, double* nocapture %q) #0 {
 entry:
-  %0 = load double* %p, align 8
-  %arrayidx1 = getelementptr inbounds double* %p, i64 1
-  %1 = load double* %arrayidx1, align 8
-  %arrayidx2 = getelementptr inbounds double* %p, i64 2
-  %2 = load double* %arrayidx2, align 8
-  %arrayidx3 = getelementptr inbounds double* %p, i64 3
-  %3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %p, i64 4
-  %4 = load double* %arrayidx4, align 8
+  %0 = load double, double* %p, align 8
+  %arrayidx1 = getelementptr inbounds double, double* %p, i64 1
+  %1 = load double, double* %arrayidx1, align 8
+  %arrayidx2 = getelementptr inbounds double, double* %p, i64 2
+  %2 = load double, double* %arrayidx2, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %p, i64 3
+  %3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %p, i64 4
+  %4 = load double, double* %arrayidx4, align 8
   %mul = fmul fast double %0, %1
   %add = fadd fast double %mul, %4
   %mul5 = fmul fast double %1, %2
@@ -299,15 +299,15 @@ declare double @hh(double) #1
 
 define void @f7(double* nocapture readonly %p, double* nocapture %q) #0 {
 entry:
-  %0 = load double* %p, align 8
-  %arrayidx1 = getelementptr inbounds double* %p, i64 1
-  %1 = load double* %arrayidx1, align 8
-  %arrayidx2 = getelementptr inbounds double* %p, i64 2
-  %2 = load double* %arrayidx2, align 8
-  %arrayidx3 = getelementptr inbounds double* %p, i64 3
-  %3 = load double* %arrayidx3, align 8
-  %arrayidx4 = getelementptr inbounds double* %p, i64 4
-  %4 = load double* %arrayidx4, align 8
+  %0 = load double, double* %p, align 8
+  %arrayidx1 = getelementptr inbounds double, double* %p, i64 1
+  %1 = load double, double* %arrayidx1, align 8
+  %arrayidx2 = getelementptr inbounds double, double* %p, i64 2
+  %2 = load double, double* %arrayidx2, align 8
+  %arrayidx3 = getelementptr inbounds double, double* %p, i64 3
+  %3 = load double, double* %arrayidx3, align 8
+  %arrayidx4 = getelementptr inbounds double, double* %p, i64 4
+  %4 = load double, double* %arrayidx4, align 8
   %mul = fmul fast double %0, %1
   %add = fadd fast double %mul, %4
   %mul5 = fmul fast double %1, %2

@@ -22,7 +22,7 @@ entry:
   %block_count = alloca i32, align 4
   %index_cache = alloca i32, align 4
   store i32 0, i32* %index_cache, align 4
-  %tmp = load i32* @G, align 4
+  %tmp = load i32, i32* @G, align 4
   %tmp1 = call i32 @bar(i32 0, i32 0, i32 %tmp) nounwind
   switch i32 %tmp1, label %bb8 [
     i32 0, label %bb
@@ -31,7 +31,7 @@ entry:
   ]
 
 bb:
-  %tmp2 = load i32* @G, align 4
+  %tmp2 = load i32, i32* @G, align 4
   %tmp4 = icmp eq i32 %tmp2, 0
   br i1 %tmp4, label %bb1, label %bb8
 
@@ -41,14 +41,14 @@ bb1:
 ; CHECK: blx _Get
 ; CHECK: umull
 ; CHECK: blx _foo
-  %tmp5 = load i32* %block_size, align 4
-  %tmp6 = load i32* %block_count, align 4
+  %tmp5 = load i32, i32* %block_size, align 4
+  %tmp6 = load i32, i32* %block_count, align 4
   %tmp7 = call %struct.FF* @Get() nounwind
   store %struct.FF* %tmp7, %struct.FF** @FuncPtr, align 4
   %tmp10 = zext i32 %tmp6 to i64
   %tmp11 = zext i32 %tmp5 to i64
   %tmp12 = mul nsw i64 %tmp10, %tmp11
-  %tmp13 = call i32 @foo(i8* getelementptr inbounds ([6 x i8]* @.str1, i32 0, i32 0), i64 %tmp12, i32 %tmp5) nounwind
+  %tmp13 = call i32 @foo(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str1, i32 0, i32 0), i64 %tmp12, i32 %tmp5) nounwind
   br label %bb8
 
 bb4:

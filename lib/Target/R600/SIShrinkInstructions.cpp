@@ -18,9 +18,10 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 
 #define DEBUG_TYPE "si-shrink-instructions"
@@ -88,6 +89,11 @@ static bool canShrink(MachineInstr &MI, const SIInstrInfo *TII,
 
   const MachineOperand *Src2 = TII->getNamedOperand(MI, AMDGPU::OpName::src2);
   // Can't shrink instruction with three operands.
+  // FIXME: v_cndmask_b32 has 3 operands and is shrinkable, but we need to add
+  // a special case for it.  It can only be shrunk if the third operand
+  // is vcc.  We should handle this the same way we handle vopc, by addding
+  // a register allocation hint pre-regalloc and then do the shrining
+  // post-regalloc.
   if (Src2)
     return false;
 
@@ -127,30 +133,31 @@ static void foldImmediates(MachineInstr &MI, const SIInstrInfo *TII,
          TII->isVOPC(MI.getOpcode()));
 
   const SIRegisterInfo &TRI = TII->getRegisterInfo();
-  MachineOperand *Src0 = TII->getNamedOperand(MI, AMDGPU::OpName::src0);
+  int Src0Idx = AMDGPU::getNamedOperandIdx(MI.getOpcode(), AMDGPU::OpName::src0);
+  MachineOperand &Src0 = MI.getOperand(Src0Idx);
 
   // Only one literal constant is allowed per instruction, so if src0 is a
   // literal constant then we can't do any folding.
-  if (Src0->isImm() && TII->isLiteralConstant(*Src0))
+  if (Src0.isImm() &&
+      TII->isLiteralConstant(Src0, TII->getOpSize(MI, Src0Idx)))
     return;
-
 
   // Literal constants and SGPRs can only be used in Src0, so if Src0 is an
   // SGPR, we cannot commute the instruction, so we can't fold any literal
   // constants.
-  if (Src0->isReg() && !isVGPR(Src0, TRI, MRI))
+  if (Src0.isReg() && !isVGPR(&Src0, TRI, MRI))
     return;
 
   // Try to fold Src0
-  if (Src0->isReg()) {
-    unsigned Reg = Src0->getReg();
+  if (Src0.isReg()) {
+    unsigned Reg = Src0.getReg();
     MachineInstr *Def = MRI.getUniqueVRegDef(Reg);
     if (Def && Def->isMoveImmediate()) {
       MachineOperand &MovSrc = Def->getOperand(1);
       bool ConstantFolded = false;
 
       if (MovSrc.isImm() && isUInt<32>(MovSrc.getImm())) {
-        Src0->ChangeToImmediate(MovSrc.getImm());
+        Src0.ChangeToImmediate(MovSrc.getImm());
         ConstantFolded = true;
       }
       if (ConstantFolded) {
@@ -189,7 +196,7 @@ bool SIShrinkInstructions::runOnMachineFunction(MachineFunction &MF) {
         const MachineOperand &Src = MI.getOperand(1);
 
         if (Src.isImm()) {
-          if (isInt<16>(Src.getImm()) && !TII->isInlineConstant(Src))
+          if (isInt<16>(Src.getImm()) && !TII->isInlineConstant(Src, 4))
             MI.setDesc(TII->get(AMDGPU::S_MOVK_I32));
         }
 

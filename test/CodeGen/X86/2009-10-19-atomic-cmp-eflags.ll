@@ -23,7 +23,7 @@ entry:
   br i1 %tobool.i, label %if.then.i, label %if.end.i
 
 if.then.i:                                        ; preds = %entry
-  %call1.i = call i32 @warn_dlerror(i8* getelementptr inbounds ([45 x i8]* @.str76843, i32 0, i32 0)) nounwind ; <i32> [#uses=0]
+  %call1.i = call i32 @warn_dlerror(i8* getelementptr inbounds ([45 x i8], [45 x i8]* @.str76843, i32 0, i32 0)) nounwind ; <i32> [#uses=0]
   store i32 -1, i32* %retval.i
   br label %lt_init.exit
 
@@ -32,13 +32,12 @@ if.end.i:                                         ; preds = %entry
   br label %lt_init.exit
 
 lt_init.exit:                                     ; preds = %if.end.i, %if.then.i
-  %3 = load i32* %retval.i                        ; <i32> [#uses=1]
+  %3 = load i32, i32* %retval.i                        ; <i32> [#uses=1]
   call void asm sideeffect "cpuid", "~{ax},~{bx},~{cx},~{dx},~{memory},~{dirflag},~{fpsr},~{flags}"() nounwind
   %4 = call i64 @llvm.readcyclecounter() nounwind ; <i64> [#uses=1]
   %5 = sub i64 %4, %2                             ; <i64> [#uses=1]
-  %6 = atomicrmw add i64* getelementptr inbounds ([1216 x i64]* @__profiling_callsite_timestamps_live, i32 0, i32 51), i64 %5 monotonic
-;CHECK: lock
-;CHECK-NEXT: {{xadd|addq}} %rdx, __profiling_callsite_timestamps_live
+  %6 = atomicrmw add i64* getelementptr inbounds ([1216 x i64], [1216 x i64]* @__profiling_callsite_timestamps_live, i32 0, i32 51), i64 %5 monotonic
+;CHECK: lock {{xadd|addq}} %rdx, __profiling_callsite_timestamps_live
 ;CHECK-NEXT: cmpl $0,
 ;CHECK-NEXT: jne
   %cmp = icmp eq i32 %3, 0                        ; <i1> [#uses=1]
@@ -50,11 +49,11 @@ if.then:                                          ; preds = %lt_init.exit
 
 if.end:                                           ; preds = %if.then, %lt_init.exit
   store i32 0, i32* %retval
-  %7 = load i32* %retval                          ; <i32> [#uses=1]
+  %7 = load i32, i32* %retval                          ; <i32> [#uses=1]
   tail call void asm sideeffect "cpuid", "~{ax},~{bx},~{cx},~{dx},~{memory},~{dirflag},~{fpsr},~{flags}"() nounwind
   %8 = tail call i64 @llvm.readcyclecounter() nounwind ; <i64> [#uses=1]
   %9 = sub i64 %8, %0                             ; <i64> [#uses=1]
-  %10 = atomicrmw add i64* getelementptr inbounds ([1216 x i64]* @__profiling_callsite_timestamps_live, i32 0, i32 50), i64 %9 monotonic
+  %10 = atomicrmw add i64* getelementptr inbounds ([1216 x i64], [1216 x i64]* @__profiling_callsite_timestamps_live, i32 0, i32 50), i64 %9 monotonic
   ret i32 %7
 }
 

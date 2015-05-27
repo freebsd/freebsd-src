@@ -1,14 +1,14 @@
 ; RUN: llc -mtriple=mips-linux-gnu -relocation-model=static < %s | FileCheck --check-prefix=ALL --check-prefix=O32 --check-prefix=O32-BE %s
 ; RUN: llc -mtriple=mipsel-linux-gnu -relocation-model=static < %s | FileCheck --check-prefix=ALL --check-prefix=O32 --check-prefix=O32-LE %s
 
-; RUN-TODO: llc -mtriple=mips64-linux-gnu -relocation-model=static -mattr=-n64,+o32 < %s | FileCheck --check-prefix=ALL --check-prefix=O32 %s
-; RUN-TODO: llc -mtriple=mips64el-linux-gnu -relocation-model=static -mattr=-n64,+o32 < %s | FileCheck --check-prefix=ALL --check-prefix=O32 %s
+; RUN-TODO: llc -mtriple=mips64-linux-gnu -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefix=ALL --check-prefix=O32 %s
+; RUN-TODO: llc -mtriple=mips64el-linux-gnu -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefix=ALL --check-prefix=O32 %s
 
-; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 --check-prefix=N32-BE %s
-; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 --check-prefix=N32-LE %s
+; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 --check-prefix=N32-BE %s
+; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 --check-prefix=N32-LE %s
 
-; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 --check-prefix=N64-BE %s
-; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 --check-prefix=N64-LE %s
+; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 --check-prefix=N64-BE %s
+; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 --check-prefix=N64-LE %s
 
 ; Test struct returns for all ABI's and byte orders.
 
@@ -22,7 +22,7 @@ declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture, i8* nocapture readonly, i
 
 define inreg {i8} @ret_struct_i8() nounwind {
 entry:
-        %0 = load volatile {i8}* @struct_byte
+        %0 = load volatile {i8}, {i8}* @struct_byte
         ret {i8} %0
 }
 
@@ -52,9 +52,9 @@ define inreg {i16} @ret_struct_i16() nounwind {
 entry:
         %retval = alloca {i8,i8}, align 1
         %0 = bitcast {i8,i8}* %retval to i8*
-        call void @llvm.memcpy.p0i8.p0i8.i64(i8* %0, i8* getelementptr inbounds ({i8,i8}* @struct_2byte, i32 0, i32 0), i64 2, i32 1, i1 false)
+        call void @llvm.memcpy.p0i8.p0i8.i64(i8* %0, i8* getelementptr inbounds ({i8,i8}, {i8,i8}* @struct_2byte, i32 0, i32 0), i64 2, i32 1, i1 false)
         %1 = bitcast {i8,i8}* %retval to {i16}*
-        %2 = load volatile {i16}* %1
+        %2 = load volatile {i16}, {i16}* %1
         ret {i16} %2
 }
 
@@ -91,7 +91,7 @@ entry:
 ; missed by the CCPromoteToType and the shift didn't happen.
 define inreg {i48} @ret_struct_3xi16() nounwind {
 entry:
-        %0 = load volatile i48* bitcast ({[3 x i16]}* @struct_3xi16 to i48*), align 2
+        %0 = load volatile i48, i48* bitcast ({[3 x i16]}* @struct_3xi16 to i48*), align 2
         %1 = insertvalue {i48} undef, i48 %0, 0
         ret {i48} %1
 }
@@ -174,7 +174,7 @@ entry:
 ; This time we let the backend lower the sret argument.
 define {[6 x i32]} @ret_struct_6xi32() {
 entry:
-        %0 = load volatile {[6 x i32]}* @struct_6xi32, align 2
+        %0 = load volatile {[6 x i32]}, {[6 x i32]}* @struct_6xi32, align 2
         ret {[6 x i32]} %0
 }
 

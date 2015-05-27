@@ -5,8 +5,8 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 ; CHECK-LABEL: func
-; CHECK: kortestw
-; CHECK: kortestw
+; CHECK: testb
+; CHECK: testb
 define void @func() {
 bb1:
   br i1 undef, label %L_10, label %L_10
@@ -18,7 +18,7 @@ bb56:                                             ; preds = %L_10
   br label %bb33
 
 bb33:                                             ; preds = %bb51, %bb56
-  %r111 = load i64* undef, align 8
+  %r111 = load i64, i64* undef, align 8
   br i1 undef, label %bb51, label %bb35
 
 bb35:                                             ; preds = %bb33

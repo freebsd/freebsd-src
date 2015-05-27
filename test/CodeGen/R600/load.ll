@@ -13,7 +13,7 @@
 
 ; SI: buffer_load_ubyte v{{[0-9]+}},
 define void @load_i8(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
-  %1 = load i8 addrspace(1)* %in
+  %1 = load i8, i8 addrspace(1)* %in
   %2 = zext i8 %1 to i32
   store i32 %2, i32 addrspace(1)* %out
   ret void
@@ -21,14 +21,12 @@ define void @load_i8(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
 
 ; FUNC-LABEL: {{^}}load_i8_sext:
 ; R600: VTX_READ_8 [[DST:T[0-9]\.[XYZW]]], [[DST]]
-; R600: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
-; R600: 24
-; R600: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
-; R600: 24
+; R600: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST]], 0.0, literal
+; R600: 8
 ; SI: buffer_load_sbyte
 define void @load_i8_sext(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
 entry:
-  %0 = load i8 addrspace(1)* %in
+  %0 = load i8, i8 addrspace(1)* %in
   %1 = sext i8 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -41,7 +39,7 @@ entry:
 ; SI: buffer_load_ubyte
 define void @load_v2i8(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(1)* %in) {
 entry:
-  %0 = load <2 x i8> addrspace(1)* %in
+  %0 = load <2 x i8>, <2 x i8> addrspace(1)* %in
   %1 = zext <2 x i8> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -50,19 +48,16 @@ entry:
 ; FUNC-LABEL: {{^}}load_v2i8_sext:
 ; R600-DAG: VTX_READ_8 [[DST_X:T[0-9]\.[XYZW]]], [[DST_X]]
 ; R600-DAG: VTX_READ_8 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_X_CHAN:[XYZW]]], [[DST_X]]
-; R600-DAG: 24
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_X_CHAN]]
-; R600-DAG: 24
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_Y_CHAN:[XYZW]]], [[DST_Y]]
-; R600-DAG: 24
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Y_CHAN]]
-; R600-DAG: 24
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_X]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_Y]], 0.0, literal
+; R600-DAG: 8
+; R600-DAG: 8
+
 ; SI: buffer_load_sbyte
 ; SI: buffer_load_sbyte
 define void @load_v2i8_sext(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(1)* %in) {
 entry:
-  %0 = load <2 x i8> addrspace(1)* %in
+  %0 = load <2 x i8>, <2 x i8> addrspace(1)* %in
   %1 = sext <2 x i8> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -79,7 +74,7 @@ entry:
 ; SI: buffer_load_ubyte
 define void @load_v4i8(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(1)* %in) {
 entry:
-  %0 = load <4 x i8> addrspace(1)* %in
+  %0 = load <4 x i8>, <4 x i8> addrspace(1)* %in
   %1 = zext <4 x i8> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -90,29 +85,21 @@ entry:
 ; R600-DAG: VTX_READ_8 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
 ; R600-DAG: VTX_READ_8 [[DST_Z:T[0-9]\.[XYZW]]], [[DST_Z]]
 ; R600-DAG: VTX_READ_8 [[DST_W:T[0-9]\.[XYZW]]], [[DST_W]]
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_X_CHAN:[XYZW]]], [[DST_X]]
-; R600-DAG: 24
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_X_CHAN]]
-; R600-DAG: 24
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_Y_CHAN:[XYZW]]], [[DST_Y]]
-; R600-DAG: 24
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Y_CHAN]]
-; R600-DAG: 24
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_Z_CHAN:[XYZW]]], [[DST_Z]]
-; R600-DAG: 24
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Z_CHAN]]
-; R600-DAG: 24
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_W_CHAN:[XYZW]]], [[DST_W]]
-; R600-DAG: 24
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_W_CHAN]]
-; R600-DAG: 24
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_X]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_Y]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_Z]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_W]], 0.0, literal
+; R600-DAG: 8
+; R600-DAG: 8
+; R600-DAG: 8
+; R600-DAG: 8
 ; SI: buffer_load_sbyte
 ; SI: buffer_load_sbyte
 ; SI: buffer_load_sbyte
 ; SI: buffer_load_sbyte
 define void @load_v4i8_sext(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(1)* %in) {
 entry:
-  %0 = load <4 x i8> addrspace(1)* %in
+  %0 = load <4 x i8>, <4 x i8> addrspace(1)* %in
   %1 = sext <4 x i8> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -124,7 +111,7 @@ entry:
 ; SI: buffer_load_ushort
 define void @load_i16(i32 addrspace(1)* %out, i16 addrspace(1)* %in) {
 entry:
-  %0 = load i16	 addrspace(1)* %in
+  %0 = load i16	, i16	 addrspace(1)* %in
   %1 = zext i16 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -132,14 +119,12 @@ entry:
 
 ; FUNC-LABEL: {{^}}load_i16_sext:
 ; R600: VTX_READ_16 [[DST:T[0-9]\.[XYZW]]], [[DST]]
-; R600: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
-; R600: 16
-; R600: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
+; R600: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST]], 0.0, literal
 ; R600: 16
 ; SI: buffer_load_sshort
 define void @load_i16_sext(i32 addrspace(1)* %out, i16 addrspace(1)* %in) {
 entry:
-  %0 = load i16 addrspace(1)* %in
+  %0 = load i16, i16 addrspace(1)* %in
   %1 = sext i16 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -152,7 +137,7 @@ entry:
 ; SI: buffer_load_ushort
 define void @load_v2i16(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(1)* %in) {
 entry:
-  %0 = load <2 x i16> addrspace(1)* %in
+  %0 = load <2 x i16>, <2 x i16> addrspace(1)* %in
   %1 = zext <2 x i16> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -161,19 +146,15 @@ entry:
 ; FUNC-LABEL: {{^}}load_v2i16_sext:
 ; R600-DAG: VTX_READ_16 [[DST_X:T[0-9]\.[XYZW]]], [[DST_X]]
 ; R600-DAG: VTX_READ_16 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_X_CHAN:[XYZW]]], [[DST_X]]
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_X]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_Y]], 0.0, literal
 ; R600-DAG: 16
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_X_CHAN]]
-; R600-DAG: 16
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_Y_CHAN:[XYZW]]], [[DST_Y]]
-; R600-DAG: 16
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Y_CHAN]]
 ; R600-DAG: 16
 ; SI: buffer_load_sshort
 ; SI: buffer_load_sshort
 define void @load_v2i16_sext(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(1)* %in) {
 entry:
-  %0 = load <2 x i16> addrspace(1)* %in
+  %0 = load <2 x i16>, <2 x i16> addrspace(1)* %in
   %1 = sext <2 x i16> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -190,7 +171,7 @@ entry:
 ; SI: buffer_load_ushort
 define void @load_v4i16(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(1)* %in) {
 entry:
-  %0 = load <4 x i16> addrspace(1)* %in
+  %0 = load <4 x i16>, <4 x i16> addrspace(1)* %in
   %1 = zext <4 x i16> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -201,21 +182,13 @@ entry:
 ; R600-DAG: VTX_READ_16 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
 ; R600-DAG: VTX_READ_16 [[DST_Z:T[0-9]\.[XYZW]]], [[DST_Z]]
 ; R600-DAG: VTX_READ_16 [[DST_W:T[0-9]\.[XYZW]]], [[DST_W]]
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_X_CHAN:[XYZW]]], [[DST_X]]
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_X]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_Y]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_Z]], 0.0, literal
+; R600-DAG: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST_W]], 0.0, literal
 ; R600-DAG: 16
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_X_CHAN]]
 ; R600-DAG: 16
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_Y_CHAN:[XYZW]]], [[DST_Y]]
 ; R600-DAG: 16
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Y_CHAN]]
-; R600-DAG: 16
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_Z_CHAN:[XYZW]]], [[DST_Z]]
-; R600-DAG: 16
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Z_CHAN]]
-; R600-DAG: 16
-; R600-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_W_CHAN:[XYZW]]], [[DST_W]]
-; R600-DAG: 16
-; R600-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_W_CHAN]]
 ; R600-DAG: 16
 ; SI: buffer_load_sshort
 ; SI: buffer_load_sshort
@@ -223,7 +196,7 @@ entry:
 ; SI: buffer_load_sshort
 define void @load_v4i16_sext(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(1)* %in) {
 entry:
-  %0 = load <4 x i16> addrspace(1)* %in
+  %0 = load <4 x i16>, <4 x i16> addrspace(1)* %in
   %1 = sext <4 x i16> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -236,7 +209,7 @@ entry:
 ; SI: buffer_load_dword v{{[0-9]+}}
 define void @load_i32(i32 addrspace(1)* %out, i32 addrspace(1)* %in) {
 entry:
-  %0 = load i32 addrspace(1)* %in
+  %0 = load i32, i32 addrspace(1)* %in
   store i32 %0, i32 addrspace(1)* %out
   ret void
 }
@@ -248,7 +221,7 @@ entry:
 ; SI: buffer_load_dword v{{[0-9]+}}
 define void @load_f32(float addrspace(1)* %out, float addrspace(1)* %in) {
 entry:
-  %0 = load float addrspace(1)* %in
+  %0 = load float, float addrspace(1)* %in
   store float %0, float addrspace(1)* %out
   ret void
 }
@@ -260,7 +233,7 @@ entry:
 ; SI: buffer_load_dwordx2
 define void @load_v2f32(<2 x float> addrspace(1)* %out, <2 x float> addrspace(1)* %in) {
 entry:
-  %0 = load <2 x float> addrspace(1)* %in
+  %0 = load <2 x float>, <2 x float> addrspace(1)* %in
   store <2 x float> %0, <2 x float> addrspace(1)* %out
   ret void
 }
@@ -270,7 +243,7 @@ entry:
 ; SI: buffer_load_dwordx2
 define void @load_i64(i64 addrspace(1)* %out, i64 addrspace(1)* %in) {
 entry:
-  %0 = load i64 addrspace(1)* %in
+  %0 = load i64, i64 addrspace(1)* %in
   store i64 %0, i64 addrspace(1)* %out
   ret void
 }
@@ -284,7 +257,7 @@ entry:
 
 define void @load_i64_sext(i64 addrspace(1)* %out, i32 addrspace(1)* %in) {
 entry:
-  %0 = load i32 addrspace(1)* %in
+  %0 = load i32, i32 addrspace(1)* %in
   %1 = sext i32 %0 to i64
   store i64 %1, i64 addrspace(1)* %out
   ret void
@@ -295,7 +268,7 @@ entry:
 ; R600: MEM_RAT
 define void @load_i64_zext(i64 addrspace(1)* %out, i32 addrspace(1)* %in) {
 entry:
-  %0 = load i32 addrspace(1)* %in
+  %0 = load i32, i32 addrspace(1)* %in
   %1 = zext i32 %0 to i64
   store i64 %1, i64 addrspace(1)* %out
   ret void
@@ -315,7 +288,7 @@ entry:
 ; SI: buffer_load_dword
 define void @load_v8i32(<8 x i32> addrspace(1)* %out, <8 x i32> addrspace(1)* %in) {
 entry:
-  %0 = load <8 x i32> addrspace(1)* %in
+  %0 = load <8 x i32>, <8 x i32> addrspace(1)* %in
   store <8 x i32> %0, <8 x i32> addrspace(1)* %out
   ret void
 }
@@ -344,7 +317,7 @@ entry:
 ; SI: buffer_load_dword
 define void @load_v16i32(<16 x i32> addrspace(1)* %out, <16 x i32> addrspace(1)* %in) {
 entry:
-  %0 = load <16 x i32> addrspace(1)* %in
+  %0 = load <16 x i32>, <16 x i32> addrspace(1)* %in
   store <16 x i32> %0, <16 x i32> addrspace(1)* %out
   ret void
 }
@@ -356,14 +329,12 @@ entry:
 ; Load a sign-extended i8 value
 ; FUNC-LABEL: {{^}}load_const_i8_sext:
 ; R600: VTX_READ_8 [[DST:T[0-9]\.[XYZW]]], [[DST]]
-; R600: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
-; R600: 24
-; R600: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
-; R600: 24
+; R600: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST]], 0.0, literal
+; R600: 8
 ; SI: buffer_load_sbyte v{{[0-9]+}},
 define void @load_const_i8_sext(i32 addrspace(1)* %out, i8 addrspace(2)* %in) {
 entry:
-  %0 = load i8 addrspace(2)* %in
+  %0 = load i8, i8 addrspace(2)* %in
   %1 = sext i8 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -375,7 +346,7 @@ entry:
 ; SI: buffer_load_ubyte v{{[0-9]+}},
 define void @load_const_i8_aligned(i32 addrspace(1)* %out, i8 addrspace(2)* %in) {
 entry:
-  %0 = load i8 addrspace(2)* %in
+  %0 = load i8, i8 addrspace(2)* %in
   %1 = zext i8 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -387,8 +358,8 @@ entry:
 ; SI: buffer_load_ubyte v{{[0-9]+}},
 define void @load_const_i8_unaligned(i32 addrspace(1)* %out, i8 addrspace(2)* %in) {
 entry:
-  %0 = getelementptr i8 addrspace(2)* %in, i32 1
-  %1 = load i8 addrspace(2)* %0
+  %0 = getelementptr i8, i8 addrspace(2)* %in, i32 1
+  %1 = load i8, i8 addrspace(2)* %0
   %2 = zext i8 %1 to i32
   store i32 %2, i32 addrspace(1)* %out
   ret void
@@ -397,14 +368,12 @@ entry:
 ; Load a sign-extended i16 value
 ; FUNC-LABEL: {{^}}load_const_i16_sext:
 ; R600: VTX_READ_16 [[DST:T[0-9]\.[XYZW]]], [[DST]]
-; R600: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
-; R600: 16
-; R600: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
+; R600: BFE_INT {{[* ]*}}T{{[0-9].[XYZW]}}, [[DST]], 0.0, literal
 ; R600: 16
 ; SI: buffer_load_sshort
 define void @load_const_i16_sext(i32 addrspace(1)* %out, i16 addrspace(2)* %in) {
 entry:
-  %0 = load i16 addrspace(2)* %in
+  %0 = load i16, i16 addrspace(2)* %in
   %1 = sext i16 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -416,7 +385,7 @@ entry:
 ; SI: buffer_load_ushort
 define void @load_const_i16_aligned(i32 addrspace(1)* %out, i16 addrspace(2)* %in) {
 entry:
-  %0 = load i16 addrspace(2)* %in
+  %0 = load i16, i16 addrspace(2)* %in
   %1 = zext i16 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -428,8 +397,8 @@ entry:
 ; SI: buffer_load_ushort
 define void @load_const_i16_unaligned(i32 addrspace(1)* %out, i16 addrspace(2)* %in) {
 entry:
-  %0 = getelementptr i16 addrspace(2)* %in, i32 1
-  %1 = load i16 addrspace(2)* %0
+  %0 = getelementptr i16, i16 addrspace(2)* %in, i32 1
+  %1 = load i16, i16 addrspace(2)* %0
   %2 = zext i16 %1 to i32
   store i32 %2, i32 addrspace(1)* %out
   ret void
@@ -442,7 +411,7 @@ entry:
 ; SI: s_load_dword s{{[0-9]+}}
 define void @load_const_addrspace_i32(i32 addrspace(1)* %out, i32 addrspace(2)* %in) {
 entry:
-  %0 = load i32 addrspace(2)* %in
+  %0 = load i32, i32 addrspace(2)* %in
   store i32 %0, i32 addrspace(1)* %out
   ret void
 }
@@ -453,7 +422,7 @@ entry:
 
 ; SI: s_load_dword s{{[0-9]+}}
 define void @load_const_addrspace_f32(float addrspace(1)* %out, float addrspace(2)* %in) {
-  %1 = load float addrspace(2)* %in
+  %1 = load float, float addrspace(2)* %in
   store float %1, float addrspace(1)* %out
   ret void
 }
@@ -469,7 +438,7 @@ define void @load_const_addrspace_f32(float addrspace(1)* %out, float addrspace(
 ; SI: s_mov_b32 m0
 ; SI: ds_read_u8
 define void @load_i8_local(i32 addrspace(1)* %out, i8 addrspace(3)* %in) {
-  %1 = load i8 addrspace(3)* %in
+  %1 = load i8, i8 addrspace(3)* %in
   %2 = zext i8 %1 to i32
   store i32 %2, i32 addrspace(1)* %out
   ret void
@@ -477,13 +446,13 @@ define void @load_i8_local(i32 addrspace(1)* %out, i8 addrspace(3)* %in) {
 
 ; FUNC-LABEL: {{^}}load_i8_sext_local:
 ; R600: LDS_UBYTE_READ_RET
-; R600: ASHR
+; R600: BFE_INT
 ; SI-NOT: s_wqm_b64
 ; SI: s_mov_b32 m0
 ; SI: ds_read_i8
 define void @load_i8_sext_local(i32 addrspace(1)* %out, i8 addrspace(3)* %in) {
 entry:
-  %0 = load i8 addrspace(3)* %in
+  %0 = load i8, i8 addrspace(3)* %in
   %1 = sext i8 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -498,7 +467,7 @@ entry:
 ; SI: ds_read_u8
 define void @load_v2i8_local(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(3)* %in) {
 entry:
-  %0 = load <2 x i8> addrspace(3)* %in
+  %0 = load <2 x i8>, <2 x i8> addrspace(3)* %in
   %1 = zext <2 x i8> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -507,15 +476,15 @@ entry:
 ; FUNC-LABEL: {{^}}load_v2i8_sext_local:
 ; R600-DAG: LDS_UBYTE_READ_RET
 ; R600-DAG: LDS_UBYTE_READ_RET
-; R600-DAG: ASHR
-; R600-DAG: ASHR
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
 ; SI-NOT: s_wqm_b64
 ; SI: s_mov_b32 m0
 ; SI: ds_read_i8
 ; SI: ds_read_i8
 define void @load_v2i8_sext_local(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(3)* %in) {
 entry:
-  %0 = load <2 x i8> addrspace(3)* %in
+  %0 = load <2 x i8>, <2 x i8> addrspace(3)* %in
   %1 = sext <2 x i8> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -534,7 +503,7 @@ entry:
 ; SI: ds_read_u8
 define void @load_v4i8_local(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(3)* %in) {
 entry:
-  %0 = load <4 x i8> addrspace(3)* %in
+  %0 = load <4 x i8>, <4 x i8> addrspace(3)* %in
   %1 = zext <4 x i8> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -545,10 +514,10 @@ entry:
 ; R600-DAG: LDS_UBYTE_READ_RET
 ; R600-DAG: LDS_UBYTE_READ_RET
 ; R600-DAG: LDS_UBYTE_READ_RET
-; R600-DAG: ASHR
-; R600-DAG: ASHR
-; R600-DAG: ASHR
-; R600-DAG: ASHR
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
 ; SI-NOT: s_wqm_b64
 ; SI: s_mov_b32 m0
 ; SI: ds_read_i8
@@ -557,7 +526,7 @@ entry:
 ; SI: ds_read_i8
 define void @load_v4i8_sext_local(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(3)* %in) {
 entry:
-  %0 = load <4 x i8> addrspace(3)* %in
+  %0 = load <4 x i8>, <4 x i8> addrspace(3)* %in
   %1 = sext <4 x i8> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -571,7 +540,7 @@ entry:
 ; SI: ds_read_u16
 define void @load_i16_local(i32 addrspace(1)* %out, i16 addrspace(3)* %in) {
 entry:
-  %0 = load i16	 addrspace(3)* %in
+  %0 = load i16	, i16	 addrspace(3)* %in
   %1 = zext i16 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -579,13 +548,13 @@ entry:
 
 ; FUNC-LABEL: {{^}}load_i16_sext_local:
 ; R600: LDS_USHORT_READ_RET
-; R600: ASHR
+; R600: BFE_INT
 ; SI-NOT: s_wqm_b64
 ; SI: s_mov_b32 m0
 ; SI: ds_read_i16
 define void @load_i16_sext_local(i32 addrspace(1)* %out, i16 addrspace(3)* %in) {
 entry:
-  %0 = load i16 addrspace(3)* %in
+  %0 = load i16, i16 addrspace(3)* %in
   %1 = sext i16 %0 to i32
   store i32 %1, i32 addrspace(1)* %out
   ret void
@@ -600,7 +569,7 @@ entry:
 ; SI: ds_read_u16
 define void @load_v2i16_local(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(3)* %in) {
 entry:
-  %0 = load <2 x i16> addrspace(3)* %in
+  %0 = load <2 x i16>, <2 x i16> addrspace(3)* %in
   %1 = zext <2 x i16> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -609,15 +578,15 @@ entry:
 ; FUNC-LABEL: {{^}}load_v2i16_sext_local:
 ; R600-DAG: LDS_USHORT_READ_RET
 ; R600-DAG: LDS_USHORT_READ_RET
-; R600-DAG: ASHR
-; R600-DAG: ASHR
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
 ; SI-NOT: s_wqm_b64
 ; SI: s_mov_b32 m0
 ; SI: ds_read_i16
 ; SI: ds_read_i16
 define void @load_v2i16_sext_local(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(3)* %in) {
 entry:
-  %0 = load <2 x i16> addrspace(3)* %in
+  %0 = load <2 x i16>, <2 x i16> addrspace(3)* %in
   %1 = sext <2 x i16> %0 to <2 x i32>
   store <2 x i32> %1, <2 x i32> addrspace(1)* %out
   ret void
@@ -636,7 +605,7 @@ entry:
 ; SI: ds_read_u16
 define void @load_v4i16_local(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(3)* %in) {
 entry:
-  %0 = load <4 x i16> addrspace(3)* %in
+  %0 = load <4 x i16>, <4 x i16> addrspace(3)* %in
   %1 = zext <4 x i16> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -647,10 +616,10 @@ entry:
 ; R600-DAG: LDS_USHORT_READ_RET
 ; R600-DAG: LDS_USHORT_READ_RET
 ; R600-DAG: LDS_USHORT_READ_RET
-; R600-DAG: ASHR
-; R600-DAG: ASHR
-; R600-DAG: ASHR
-; R600-DAG: ASHR
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
+; R600-DAG: BFE_INT
 ; SI-NOT: s_wqm_b64
 ; SI: s_mov_b32 m0
 ; SI: ds_read_i16
@@ -659,7 +628,7 @@ entry:
 ; SI: ds_read_i16
 define void @load_v4i16_sext_local(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(3)* %in) {
 entry:
-  %0 = load <4 x i16> addrspace(3)* %in
+  %0 = load <4 x i16>, <4 x i16> addrspace(3)* %in
   %1 = sext <4 x i16> %0 to <4 x i32>
   store <4 x i32> %1, <4 x i32> addrspace(1)* %out
   ret void
@@ -673,7 +642,7 @@ entry:
 ; SI: ds_read_b32
 define void @load_i32_local(i32 addrspace(1)* %out, i32 addrspace(3)* %in) {
 entry:
-  %0 = load i32 addrspace(3)* %in
+  %0 = load i32, i32 addrspace(3)* %in
   store i32 %0, i32 addrspace(1)* %out
   ret void
 }
@@ -685,7 +654,7 @@ entry:
 ; SI: ds_read_b32
 define void @load_f32_local(float addrspace(1)* %out, float addrspace(3)* %in) {
 entry:
-  %0 = load float addrspace(3)* %in
+  %0 = load float, float addrspace(3)* %in
   store float %0, float addrspace(1)* %out
   ret void
 }
@@ -698,7 +667,7 @@ entry:
 ; SI: ds_read_b64
 define void @load_v2f32_local(<2 x float> addrspace(1)* %out, <2 x float> addrspace(3)* %in) {
 entry:
-  %0 = load <2 x float> addrspace(3)* %in
+  %0 = load <2 x float>, <2 x float> addrspace(3)* %in
   store <2 x float> %0, <2 x float> addrspace(1)* %out
   ret void
 }
@@ -711,10 +680,10 @@ entry:
 ; SI-DAG: ds_read_b32
 ; SI-DAG: ds_read2_b32
 define void @load_i32_v2i32_local(<2 x i32> addrspace(1)* %out, i32 addrspace(3)* %in) {
-  %scalar = load i32 addrspace(3)* %in
+  %scalar = load i32, i32 addrspace(3)* %in
   %tmp0 = bitcast i32 addrspace(3)* %in to <2 x i32> addrspace(3)*
-  %vec_ptr = getelementptr <2 x i32> addrspace(3)* %tmp0, i32 2
-  %vec0 = load <2 x i32> addrspace(3)* %vec_ptr, align 4
+  %vec_ptr = getelementptr <2 x i32>, <2 x i32> addrspace(3)* %tmp0, i32 2
+  %vec0 = load <2 x i32>, <2 x i32> addrspace(3)* %vec_ptr, align 4
   %vec1 = insertelement <2 x i32> <i32 0, i32 0>, i32 %scalar, i32 0
   %vec = add <2 x i32> %vec0, %vec1
   store <2 x i32> %vec, <2 x i32> addrspace(1)* %out
@@ -732,9 +701,9 @@ define void @load_i32_v2i32_local(<2 x i32> addrspace(1)* %out, i32 addrspace(3)
 ; R600: LDS_READ_RET
 define void @load_i32_local_const_ptr(i32 addrspace(1)* %out, i32 addrspace(3)* %in) {
 entry:
-  %tmp0 = getelementptr [512 x i32] addrspace(3)* @lds, i32 0, i32 1
-  %tmp1 = load i32 addrspace(3)* %tmp0
-  %tmp2 = getelementptr i32 addrspace(1)* %out, i32 1
+  %tmp0 = getelementptr [512 x i32], [512 x i32] addrspace(3)* @lds, i32 0, i32 1
+  %tmp1 = load i32, i32 addrspace(3)* %tmp0
+  %tmp2 = getelementptr i32, i32 addrspace(1)* %out, i32 1
   store i32 %tmp1, i32 addrspace(1)* %tmp2
   ret void
 }

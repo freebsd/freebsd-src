@@ -29,12 +29,14 @@ namespace llvm {
   class raw_ostream;
 
   /// Read the header of the specified bitcode buffer and prepare for lazy
-  /// deserialization of function bodies.  If successful, this moves Buffer. On
+  /// deserialization of function bodies. If ShouldLazyLoadMetadata is true,
+  /// lazily load metadata as well. If successful, this moves Buffer. On
   /// error, this *does not* move Buffer.
   ErrorOr<Module *>
   getLazyBitcodeModule(std::unique_ptr<MemoryBuffer> &&Buffer,
                        LLVMContext &Context,
-                       DiagnosticHandlerFunction DiagnosticHandler = nullptr);
+                       DiagnosticHandlerFunction DiagnosticHandler = nullptr,
+                       bool ShouldLazyLoadMetadata = false);
 
   /// Read the header of the specified stream and prepare for lazy
   /// deserialization and streaming of function bodies.
@@ -54,11 +56,16 @@ namespace llvm {
   parseBitcodeFile(MemoryBufferRef Buffer, LLVMContext &Context,
                    DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
-  /// WriteBitcodeToFile - Write the specified module to the specified
-  /// raw output stream.  For streams where it matters, the given stream
-  /// should be in "binary" mode.
-  void WriteBitcodeToFile(const Module *M, raw_ostream &Out);
-
+  /// \brief Write the specified module to the specified raw output stream.
+  ///
+  /// For streams where it matters, the given stream should be in "binary"
+  /// mode.
+  ///
+  /// If \c ShouldPreserveUseListOrder, encode the use-list order for each \a
+  /// Value in \c M.  These will be reconstructed exactly when \a M is
+  /// deserialized.
+  void WriteBitcodeToFile(const Module *M, raw_ostream &Out,
+                          bool ShouldPreserveUseListOrder = false);
 
   /// isBitcodeWrapper - Return true if the given bytes are the magic bytes
   /// for an LLVM IR bitcode wrapper.

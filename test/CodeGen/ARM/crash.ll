@@ -5,7 +5,7 @@
 
 define void @func() nounwind {
 entry:
-  %tmp = load i32* undef, align 4
+  %tmp = load i32, i32* undef, align 4
   br label %bb1
 
 bb1:
@@ -17,7 +17,7 @@ bb1:
 
 bb2:
   %tmp120 = add i32 %tmp119, 0
-  %scevgep810.i = getelementptr %struct.foo* null, i32 %tmp120, i32 1
+  %scevgep810.i = getelementptr %struct.foo, %struct.foo* null, i32 %tmp120, i32 1
   store i32 undef, i32* %scevgep810.i, align 4
   br i1 undef, label %bb2, label %bb3
 

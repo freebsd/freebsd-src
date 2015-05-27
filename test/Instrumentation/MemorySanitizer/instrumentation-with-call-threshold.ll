@@ -11,12 +11,12 @@ target triple = "x86_64-unknown-linux-gnu"
 
 define void @LoadAndCmp(i32* nocapture %a) nounwind uwtable sanitize_memory {
 entry:
-  %0 = load i32* %a, align 4
+  %0 = load i32, i32* %a, align 4
   %tobool = icmp eq i32 %0, 0
   br i1 %tobool, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry
-  tail call void (...)* @foo() nounwind
+  tail call void (...) @foo() nounwind
   br label %if.end
 
 if.end:                                           ; preds = %entry, %if.then

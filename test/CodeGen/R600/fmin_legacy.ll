@@ -27,11 +27,11 @@ define void @test_fmin_legacy_f32(<4 x float> addrspace(1)* %out, <4 x float> in
 ; SI-NONAN: v_min_f32_e32 {{v[0-9]+}}, [[B]], [[A]]
 define void @test_fmin_legacy_ule_f32(float addrspace(1)* %out, float addrspace(1)* %in) #0 {
   %tid = call i32 @llvm.r600.read.tidig.x() #1
-  %gep.0 = getelementptr float addrspace(1)* %in, i32 %tid
-  %gep.1 = getelementptr float addrspace(1)* %gep.0, i32 1
+  %gep.0 = getelementptr float, float addrspace(1)* %in, i32 %tid
+  %gep.1 = getelementptr float, float addrspace(1)* %gep.0, i32 1
 
-  %a = load float addrspace(1)* %gep.0, align 4
-  %b = load float addrspace(1)* %gep.1, align 4
+  %a = load float, float addrspace(1)* %gep.0, align 4
+  %b = load float, float addrspace(1)* %gep.1, align 4
 
   %cmp = fcmp ule float %a, %b
   %val = select i1 %cmp, float %a, float %b
@@ -46,11 +46,11 @@ define void @test_fmin_legacy_ule_f32(float addrspace(1)* %out, float addrspace(
 ; SI-NONAN: v_min_f32_e32 {{v[0-9]+}}, [[B]], [[A]]
 define void @test_fmin_legacy_ole_f32(float addrspace(1)* %out, float addrspace(1)* %in) #0 {
   %tid = call i32 @llvm.r600.read.tidig.x() #1
-  %gep.0 = getelementptr float addrspace(1)* %in, i32 %tid
-  %gep.1 = getelementptr float addrspace(1)* %gep.0, i32 1
+  %gep.0 = getelementptr float, float addrspace(1)* %in, i32 %tid
+  %gep.1 = getelementptr float, float addrspace(1)* %gep.0, i32 1
 
-  %a = load float addrspace(1)* %gep.0, align 4
-  %b = load float addrspace(1)* %gep.1, align 4
+  %a = load float, float addrspace(1)* %gep.0, align 4
+  %b = load float, float addrspace(1)* %gep.1, align 4
 
   %cmp = fcmp ole float %a, %b
   %val = select i1 %cmp, float %a, float %b
@@ -65,11 +65,11 @@ define void @test_fmin_legacy_ole_f32(float addrspace(1)* %out, float addrspace(
 ; SI-NONAN: v_min_f32_e32 {{v[0-9]+}}, [[B]], [[A]]
 define void @test_fmin_legacy_olt_f32(float addrspace(1)* %out, float addrspace(1)* %in) #0 {
   %tid = call i32 @llvm.r600.read.tidig.x() #1
-  %gep.0 = getelementptr float addrspace(1)* %in, i32 %tid
-  %gep.1 = getelementptr float addrspace(1)* %gep.0, i32 1
+  %gep.0 = getelementptr float, float addrspace(1)* %in, i32 %tid
+  %gep.1 = getelementptr float, float addrspace(1)* %gep.0, i32 1
 
-  %a = load float addrspace(1)* %gep.0, align 4
-  %b = load float addrspace(1)* %gep.1, align 4
+  %a = load float, float addrspace(1)* %gep.0, align 4
+  %b = load float, float addrspace(1)* %gep.1, align 4
 
   %cmp = fcmp olt float %a, %b
   %val = select i1 %cmp, float %a, float %b
@@ -84,11 +84,11 @@ define void @test_fmin_legacy_olt_f32(float addrspace(1)* %out, float addrspace(
 ; SI-NONAN: v_min_f32_e32 {{v[0-9]+}}, [[B]], [[A]]
 define void @test_fmin_legacy_ult_f32(float addrspace(1)* %out, float addrspace(1)* %in) #0 {
   %tid = call i32 @llvm.r600.read.tidig.x() #1
-  %gep.0 = getelementptr float addrspace(1)* %in, i32 %tid
-  %gep.1 = getelementptr float addrspace(1)* %gep.0, i32 1
+  %gep.0 = getelementptr float, float addrspace(1)* %in, i32 %tid
+  %gep.1 = getelementptr float, float addrspace(1)* %gep.0, i32 1
 
-  %a = load float addrspace(1)* %gep.0, align 4
-  %b = load float addrspace(1)* %gep.1, align 4
+  %a = load float, float addrspace(1)* %gep.0, align 4
+  %b = load float, float addrspace(1)* %gep.1, align 4
 
   %cmp = fcmp ult float %a, %b
   %val = select i1 %cmp, float %a, float %b
@@ -106,11 +106,11 @@ define void @test_fmin_legacy_ult_f32(float addrspace(1)* %out, float addrspace(
 ; SI: s_endpgm
 define void @test_fmin_legacy_ole_f32_multi_use(float addrspace(1)* %out0, i1 addrspace(1)* %out1, float addrspace(1)* %in) #0 {
   %tid = call i32 @llvm.r600.read.tidig.x() #1
-  %gep.0 = getelementptr float addrspace(1)* %in, i32 %tid
-  %gep.1 = getelementptr float addrspace(1)* %gep.0, i32 1
+  %gep.0 = getelementptr float, float addrspace(1)* %in, i32 %tid
+  %gep.1 = getelementptr float, float addrspace(1)* %gep.0, i32 1
 
-  %a = load float addrspace(1)* %gep.0, align 4
-  %b = load float addrspace(1)* %gep.1, align 4
+  %a = load float, float addrspace(1)* %gep.0, align 4
+  %b = load float, float addrspace(1)* %gep.1, align 4
 
   %cmp = fcmp ole float %a, %b
   %val0 = select i1 %cmp, float %a, float %b

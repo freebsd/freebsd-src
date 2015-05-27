@@ -17,12 +17,12 @@ target triple = "x86_64-apple-macosx10.9.0"
 
 ;define fastcc void @bar() {
 define void @bar() {
-  %1 = getelementptr inbounds %0* undef, i64 0, i32 1, i32 0
-  %2 = getelementptr inbounds %0* undef, i64 0, i32 1, i32 1
-  %3 = getelementptr inbounds %0* undef, i64 0, i32 1, i32 0
-  %4 = getelementptr inbounds %0* undef, i64 0, i32 1, i32 1
-  %5 = getelementptr inbounds %0* undef, i64 0, i32 1, i32 0
-  %6 = getelementptr inbounds %0* undef, i64 0, i32 1, i32 1
+  %1 = getelementptr inbounds %0, %0* undef, i64 0, i32 1, i32 0
+  %2 = getelementptr inbounds %0, %0* undef, i64 0, i32 1, i32 1
+  %3 = getelementptr inbounds %0, %0* undef, i64 0, i32 1, i32 0
+  %4 = getelementptr inbounds %0, %0* undef, i64 0, i32 1, i32 1
+  %5 = getelementptr inbounds %0, %0* undef, i64 0, i32 1, i32 0
+  %6 = getelementptr inbounds %0, %0* undef, i64 0, i32 1, i32 1
   br label %7
 
 ; <label>:7                                       ; preds = %18, %17, %17, %0
@@ -30,8 +30,8 @@ define void @bar() {
   %9 = phi double [ 1.800000e+01, %0 ], [ %10, %18 ], [ %10, %17 ], [ %10, %17 ]
   store double %9, double* %1, align 8
   store double %8, double* %2, align 8
-  %10 = load double* %3, align 8
-  %11 = load double* %4, align 8
+  %10 = load double, double* %3, align 8
+  %11 = load double, double* %4, align 8
   br i1 undef, label %12, label %13
 
 ; <label>:12                                      ; preds = %7

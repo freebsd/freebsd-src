@@ -6,7 +6,7 @@
 
 define fastcc void @insert_picture_in_dpb(%struct.FrameStore* nocapture %fs, %struct.StorablePicture* %p) nounwind ssp {
 entry:
-  %0 = getelementptr inbounds %struct.FrameStore* %fs, i64 0, i32 12 ; <%struct.StorablePicture**> [#uses=1]
+  %0 = getelementptr inbounds %struct.FrameStore, %struct.FrameStore* %fs, i64 0, i32 12 ; <%struct.StorablePicture**> [#uses=1]
   %1 = icmp eq i32 undef, 0                       ; <i1> [#uses=1]
   br i1 %1, label %bb.i, label %bb36.i
 
@@ -69,7 +69,7 @@ bb38.i:                                           ; preds = %bb66.i, %bb67.prehe
   %23 = phi %struct.StorablePicture* [ %40, %bb66.i ], [ %12, %bb67.preheader.i ] ; <%struct.StorablePicture*> [#uses=1]
   %indvar248.i = phi i64 [ %indvar.next249.i, %bb66.i ], [ 0, %bb67.preheader.i ] ; <i64> [#uses=3]
   %storemerge52.i = trunc i64 %indvar248.i to i32 ; <i32> [#uses=1]
-  %24 = getelementptr inbounds %struct.StorablePicture* %23, i64 0, i32 19 ; <i32*> [#uses=0]
+  %24 = getelementptr inbounds %struct.StorablePicture, %struct.StorablePicture* %23, i64 0, i32 19 ; <i32*> [#uses=0]
   br i1 undef, label %bb.nph51.i, label %bb66.i
 
 bb.nph51.i:                                       ; preds = %bb38.i
@@ -94,13 +94,13 @@ bb41.i:                                           ; preds = %bb40.i
   br i1 undef, label %bb45.i, label %bb47.i
 
 bb45.i:                                           ; preds = %bb41.i
-  %33 = getelementptr inbounds %struct.StorablePicture* %26, i64 0, i32 5, i64 undef, i64 %32, i64 undef ; <i64*> [#uses=1]
-  %34 = load i64* %33, align 8                    ; <i64> [#uses=1]
+  %33 = getelementptr inbounds %struct.StorablePicture, %struct.StorablePicture* %26, i64 0, i32 5, i64 undef, i64 %32, i64 undef ; <i64*> [#uses=1]
+  %34 = load i64, i64* %33, align 8                    ; <i64> [#uses=1]
   br label %bb47.i
 
 bb47.i:                                           ; preds = %bb45.i, %bb41.i
   %storemerge11.i = phi i64 [ %34, %bb45.i ], [ 0, %bb41.i ] ; <i64> [#uses=0]
-  %scevgep246.i = getelementptr i64* undef, i64 undef ; <i64*> [#uses=0]
+  %scevgep246.i = getelementptr i64, i64* undef, i64 undef ; <i64*> [#uses=0]
   br label %bb64.i
 
 bb57.i:                                           ; preds = %bb40.i, %bb39.i
@@ -110,10 +110,10 @@ bb58.i:                                           ; preds = %bb57.i
   br label %bb60.i
 
 bb60.i:                                           ; preds = %bb58.i, %bb57.i
-  %35 = load i64*** undef, align 8                ; <i64**> [#uses=1]
-  %scevgep256.i = getelementptr i64** %35, i64 %indvar248.i ; <i64**> [#uses=1]
-  %36 = load i64** %scevgep256.i, align 8         ; <i64*> [#uses=1]
-  %scevgep243.i = getelementptr i64* %36, i64 undef ; <i64*> [#uses=1]
+  %35 = load i64**, i64*** undef, align 8                ; <i64**> [#uses=1]
+  %scevgep256.i = getelementptr i64*, i64** %35, i64 %indvar248.i ; <i64**> [#uses=1]
+  %36 = load i64*, i64** %scevgep256.i, align 8         ; <i64*> [#uses=1]
+  %scevgep243.i = getelementptr i64, i64* %36, i64 undef ; <i64*> [#uses=1]
   store i64 -1, i64* %scevgep243.i, align 8
   br label %bb64.i
 
@@ -160,7 +160,7 @@ bb101.i:                                          ; preds = %bb82.i
   br label %bb102.i
 
 bb102.i:                                          ; preds = %bb101.i, %bb83.i
-  %48 = load %struct.StorablePicture** %0, align 8 ; <%struct.StorablePicture*> [#uses=2]
+  %48 = load %struct.StorablePicture*, %struct.StorablePicture** %0, align 8 ; <%struct.StorablePicture*> [#uses=2]
   br i1 undef, label %bb81.i, label %bb104.i
 
 bb104.i:                                          ; preds = %bb102.i, %bb80.i

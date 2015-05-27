@@ -58,7 +58,7 @@ public:
 
   explicit SelectionDAGISel(TargetMachine &tm,
                             CodeGenOpt::Level OL = CodeGenOpt::Default);
-  virtual ~SelectionDAGISel();
+  ~SelectionDAGISel() override;
 
   const TargetLowering *getTargetLowering() const { return TLI; }
 
@@ -80,12 +80,12 @@ public:
   virtual SDNode *Select(SDNode *N) = 0;
 
   /// SelectInlineAsmMemoryOperand - Select the specified address as a target
-  /// addressing mode, according to the specified constraint code.  If this does
+  /// addressing mode, according to the specified constraint.  If this does
   /// not match or is not implemented, return true.  The resultant operands
   /// (which will appear in the machine instruction) should be added to the
   /// OutOps vector.
   virtual bool SelectInlineAsmMemoryOperand(const SDValue &Op,
-                                            char ConstraintCode,
+                                            unsigned ConstraintID,
                                             std::vector<SDValue> &OutOps) {
     return true;
   }
@@ -199,7 +199,7 @@ protected:
 
   /// SelectInlineAsmMemoryOperands - Calls to this are automatically generated
   /// by tblgen.  Others should not call it.
-  void SelectInlineAsmMemoryOperands(std::vector<SDValue> &Ops);
+  void SelectInlineAsmMemoryOperands(std::vector<SDValue> &Ops, SDLoc DL);
 
 
 public:
@@ -260,7 +260,10 @@ private:
   SDNode *MorphNode(SDNode *Node, unsigned TargetOpc, SDVTList VTs,
                     ArrayRef<SDValue> Ops, unsigned EmitNodeInfo);
 
-  void PrepareEHLandingPad();
+  /// Prepares the landing pad to take incoming values or do other EH
+  /// personality specific tasks. Returns true if the block should be
+  /// instruction selected, false if no code should be emitted for it.
+  bool PrepareEHLandingPad();
 
   /// \brief Perform instruction selection on all basic blocks in the function.
   void SelectAllBasicBlocks(const Function &Fn);

@@ -1,5 +1,5 @@
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios | FileCheck %s --check-prefix=ALL
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi | FileCheck %s --check-prefix=ALL
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios | FileCheck %s --check-prefix=ALL
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi | FileCheck %s --check-prefix=ALL
 
 ; FIXME Add tests for thumbv7, they currently fail MI verification because
 ;       of a mismatch in register classes in uses.
@@ -17,7 +17,7 @@ define i8 @t1() nounwind uwtable ssp {
 ; ALL: @t1
 ; ALL: ldrb
 ; ALL: add
-  %1 = load i8* @a, align 1
+  %1 = load i8, i8* @a, align 1
   %2 = add nsw i8 %1, 1
   ret i8 %2
 }
@@ -26,7 +26,7 @@ define i16 @t2() nounwind uwtable ssp {
 ; ALL: @t2
 ; ALL: ldrh
 ; ALL: add
-  %1 = load i16* @b, align 2
+  %1 = load i16, i16* @b, align 2
   %2 = add nsw i16 %1, 1
   ret i16 %2
 }
@@ -35,7 +35,7 @@ define i32 @t3() nounwind uwtable ssp {
 ; ALL: @t3
 ; ALL: ldr
 ; ALL: add
-  %1 = load i32* @c, align 4
+  %1 = load i32, i32* @c, align 4
   %2 = add nsw i32 %1, 1
   ret i32 %2
 }

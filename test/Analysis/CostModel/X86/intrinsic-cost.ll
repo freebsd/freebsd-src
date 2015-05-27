@@ -9,9 +9,9 @@ vector.ph:
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
-  %0 = getelementptr inbounds float* %f, i64 %index
+  %0 = getelementptr inbounds float, float* %f, i64 %index
   %1 = bitcast float* %0 to <4 x float>*
-  %wide.load = load <4 x float>* %1, align 4
+  %wide.load = load <4 x float>, <4 x float>* %1, align 4
   %2 = call <4 x float> @llvm.ceil.v4f32(<4 x float> %wide.load)
   store <4 x float> %2, <4 x float>* %1, align 4
   %index.next = add i64 %index, 4
@@ -22,7 +22,7 @@ for.end:                                          ; preds = %vector.body
   ret void
 
 ; CORE2: Printing analysis 'Cost Model Analysis' for function 'test1':
-; CORE2: Cost Model: Found an estimated cost of 400 for instruction:   %2 = call <4 x float> @llvm.ceil.v4f32(<4 x float> %wide.load)
+; CORE2: Cost Model: Found an estimated cost of 46 for instruction:   %2 = call <4 x float> @llvm.ceil.v4f32(<4 x float> %wide.load)
 
 ; COREI7: Printing analysis 'Cost Model Analysis' for function 'test1':
 ; COREI7: Cost Model: Found an estimated cost of 1 for instruction:   %2 = call <4 x float> @llvm.ceil.v4f32(<4 x float> %wide.load)
@@ -37,9 +37,9 @@ vector.ph:
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
-  %0 = getelementptr inbounds float* %f, i64 %index
+  %0 = getelementptr inbounds float, float* %f, i64 %index
   %1 = bitcast float* %0 to <4 x float>*
-  %wide.load = load <4 x float>* %1, align 4
+  %wide.load = load <4 x float>, <4 x float>* %1, align 4
   %2 = call <4 x float> @llvm.nearbyint.v4f32(<4 x float> %wide.load)
   store <4 x float> %2, <4 x float>* %1, align 4
   %index.next = add i64 %index, 4
@@ -50,7 +50,7 @@ for.end:                                          ; preds = %vector.body
   ret void
 
 ; CORE2: Printing analysis 'Cost Model Analysis' for function 'test2':
-; CORE2: Cost Model: Found an estimated cost of 400 for instruction:   %2 = call <4 x float> @llvm.nearbyint.v4f32(<4 x float> %wide.load)
+; CORE2: Cost Model: Found an estimated cost of 46 for instruction:   %2 = call <4 x float> @llvm.nearbyint.v4f32(<4 x float> %wide.load)
 
 ; COREI7: Printing analysis 'Cost Model Analysis' for function 'test2':
 ; COREI7: Cost Model: Found an estimated cost of 1 for instruction:   %2 = call <4 x float> @llvm.nearbyint.v4f32(<4 x float> %wide.load)
@@ -65,9 +65,9 @@ vector.ph:
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
-  %0 = getelementptr inbounds float* %f, i64 %index
+  %0 = getelementptr inbounds float, float* %f, i64 %index
   %1 = bitcast float* %0 to <4 x float>*
-  %wide.load = load <4 x float>* %1, align 4
+  %wide.load = load <4 x float>, <4 x float>* %1, align 4
   %2 = call <4 x float> @llvm.fmuladd.v4f32(<4 x float> %wide.load, <4 x float> %b, <4 x float> %c)
   store <4 x float> %2, <4 x float>* %1, align 4
   %index.next = add i64 %index, 4

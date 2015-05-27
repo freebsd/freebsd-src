@@ -1,6 +1,6 @@
-; RUN: llc -O0 -fast-isel-abort -fast-isel-abort-args -code-model=small -verify-machineinstrs -mtriple=arm64-apple-darwin   < %s | FileCheck %s
-; RUN: llc -O0 -fast-isel-abort -fast-isel-abort-args -code-model=large -verify-machineinstrs -mtriple=arm64-apple-darwin   < %s | FileCheck %s --check-prefix=LARGE
-; RUN: llc -O0 -fast-isel-abort -fast-isel-abort-args -code-model=small -verify-machineinstrs -mtriple=aarch64_be-linux-gnu < %s | FileCheck %s --check-prefix=CHECK-BE
+; RUN: llc -O0 -fast-isel-abort=2 -code-model=small -verify-machineinstrs -mtriple=arm64-apple-darwin   < %s | FileCheck %s
+; RUN: llc -O0 -fast-isel-abort=2 -code-model=large -verify-machineinstrs -mtriple=arm64-apple-darwin   < %s | FileCheck %s --check-prefix=LARGE
+; RUN: llc -O0 -fast-isel-abort=2 -code-model=small -verify-machineinstrs -mtriple=aarch64_be-linux-gnu < %s | FileCheck %s --check-prefix=CHECK-BE
 
 define void @call0() nounwind {
 entry:
@@ -23,7 +23,7 @@ define i32 @call1(i32 %a) nounwind {
 entry:
   %a.addr = alloca i32, align 4
   store i32 %a, i32* %a.addr, align 4
-  %tmp = load i32* %a.addr, align 4
+  %tmp = load i32, i32* %a.addr, align 4
   ret i32 %tmp
 }
 
@@ -35,7 +35,7 @@ entry:
 ; CHECK-NEXT:  bl _call1
   %a.addr = alloca i32, align 4
   store i32 %a, i32* %a.addr, align 4
-  %tmp = load i32* %a.addr, align 4
+  %tmp = load i32, i32* %a.addr, align 4
   %call = call i32 @call1(i32 %tmp)
   ret i32 %call
 }

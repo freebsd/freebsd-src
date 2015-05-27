@@ -23,7 +23,7 @@ for.body:                                         ; preds = %for.body, %entry
   %i.01 = phi i32 [ 0, %entry ], [ %tmp19, %for.body ]
   %arrayidx_v4 = bitcast <8 x i8> addrspace(1)* %src to <32 x i8> addrspace(1)*
   %0 = bitcast <32 x i8> addrspace(1)* %arrayidx_v4 to <8 x i32> addrspace(1)*
-  %vecload2 = load <8 x i32> addrspace(1)* %0, align 32
+  %vecload2 = load <8 x i32>, <8 x i32> addrspace(1)* %0, align 32
   %1 = bitcast <8 x i32> %vecload2 to <32 x i8>
   %tmp5 = shufflevector <32 x i8> %1, <32 x i8> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
   %tmp8 = shufflevector <32 x i8> %1, <32 x i8> undef, <8 x i32> <i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
@@ -32,7 +32,7 @@ for.body:                                         ; preds = %for.body, %entry
   %tmp13 = add nsw <8 x i8> %tmp9, %tmp12
   %tmp16 = shufflevector <32 x i8> %1, <32 x i8> undef, <8 x i32> <i32 24, i32 25, i32 26, i32 27, i32 28, i32 29, i32 30, i32 31>
   %tmp17 = add nsw <8 x i8> %tmp13, %tmp16
-  %scevgep = getelementptr <8 x i8> addrspace(1)* %result, i32 %i.01
+  %scevgep = getelementptr <8 x i8>, <8 x i8> addrspace(1)* %result, i32 %i.01
   %2 = bitcast <8 x i8> %tmp17 to <2 x i32>
   %3 = bitcast <8 x i8> addrspace(1)* %scevgep to <2 x i32> addrspace(1)*
   store <2 x i32> %2, <2 x i32> addrspace(1)* %3, align 8

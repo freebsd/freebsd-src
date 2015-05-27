@@ -10,12 +10,12 @@ entry:
   %0 = alloca i32                                 ; <i32*> [#uses=2]
   %"alloca point" = bitcast i32 0 to i32          ; <i32> [#uses=0]
   store i32 42, i32* %0, align 4, !dbg !0
-  %1 = load i32* %0, align 4, !dbg !0             ; <i32> [#uses=1]
+  %1 = load i32, i32* %0, align 4, !dbg !0             ; <i32> [#uses=1]
   store i32 %1, i32* %retval, align 4, !dbg !0
   br label %return, !dbg !0
 
 return:                                           ; preds = %entry
-  %retval1 = load i32* %retval, !dbg !0           ; <i32> [#uses=1]
+  %retval1 = load i32, i32* %retval, !dbg !0           ; <i32> [#uses=1]
   ret i32 %retval1, !dbg !7
 }
 
@@ -23,15 +23,15 @@ return:                                           ; preds = %entry
 !llvm.module.flags = !{!12}
 !9 = !{!1}
 
-!0 = !MDLocation(line: 2, scope: !1)
-!1 = !{!"0x2e\00foo\00foo\00foo\002\000\001\000\006\000\000\002", !10, null, !4, null, i32 ()* @foo, null, null, null} ; [ DW_TAG_subprogram ]
-!2 = !{!"0x29", !10} ; [ DW_TAG_file_type ]
-!3 = !{!"0x11\001\004.2.1 (Based on Apple Inc. build 5658) (LLVM build)\000\00\000\00\000", !10, !11, !11, !9, null,  null} ; [ DW_TAG_compile_unit ]
-!4 = !{!"0x15\00\000\000\000\000\000\000", !10, !2, null, !5, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!0 = !DILocation(line: 2, scope: !1)
+!1 = !DISubprogram(name: "foo", linkageName: "foo", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 2, file: !10, scope: null, type: !4, function: i32 ()* @foo)
+!2 = !DIFile(filename: "a.c", directory: "/tmp")
+!3 = !DICompileUnit(language: DW_LANG_C89, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: false, emissionKind: 0, file: !10, enums: !11, retainedTypes: !11, subprograms: !9, imports:  null)
+!4 = !DISubroutineType(types: !5)
 !5 = !{!6}
-!6 = !{!"0x24\00int\000\0032\0032\000\000\005", !10, !2} ; [ DW_TAG_base_type ]
-!7 = !MDLocation(line: 2, scope: !8)
-!8 = !{!"0xb\002\000\000", !10, !1} ; [ DW_TAG_lexical_block ]
-!10 = !{!"a.c", !"/tmp"}
-!11 = !{i32 0}
-!12 = !{i32 1, !"Debug Info Version", i32 2}
+!6 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!7 = !DILocation(line: 2, scope: !8)
+!8 = distinct !DILexicalBlock(line: 2, column: 0, file: !10, scope: !1)
+!10 = !DIFile(filename: "a.c", directory: "/tmp")
+!11 = !{}
+!12 = !{i32 1, !"Debug Info Version", i32 3}

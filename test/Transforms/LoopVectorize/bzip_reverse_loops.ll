@@ -16,8 +16,8 @@ entry:
 do.body:                                          ; preds = %cond.end, %entry
   %n.addr.0 = phi i32 [ %n, %entry ], [ %dec, %cond.end ]
   %p.addr.0 = phi i16* [ %p, %entry ], [ %incdec.ptr, %cond.end ]
-  %incdec.ptr = getelementptr inbounds i16* %p.addr.0, i64 -1
-  %0 = load i16* %incdec.ptr, align 2
+  %incdec.ptr = getelementptr inbounds i16, i16* %p.addr.0, i64 -1
+  %0 = load i16, i16* %incdec.ptr, align 2
   %conv = zext i16 %0 to i32
   %cmp = icmp ult i32 %conv, %size
   br i1 %cmp, label %cond.end, label %cond.true
@@ -51,8 +51,8 @@ entry:
 do.body:                                          ; preds = %do.body, %entry
   %n.addr.0 = phi i32 [ %n, %entry ], [ %dec, %do.body ]
   %p.0 = phi i32* [ %a, %entry ], [ %incdec.ptr, %do.body ]
-  %incdec.ptr = getelementptr inbounds i32* %p.0, i64 -1
-  %0 = load i32* %incdec.ptr, align 4
+  %incdec.ptr = getelementptr inbounds i32, i32* %p.0, i64 -1
+  %0 = load i32, i32* %incdec.ptr, align 4
   %cmp = icmp slt i32 %0, %wsize
   %sub = sub nsw i32 %0, %wsize
   %cond = select i1 %cmp, i32 0, i32 %sub

@@ -36,9 +36,8 @@ public:
 
 class MipsRegInfoRecord : public MipsOptionRecord {
 public:
-  MipsRegInfoRecord(MipsELFStreamer *S, MCContext &Context,
-                    const MCSubtargetInfo &STI)
-      : Streamer(S), Context(Context), STI(STI) {
+  MipsRegInfoRecord(MipsELFStreamer *S, MCContext &Context)
+      : Streamer(S), Context(Context) {
     ri_gprmask = 0;
     ri_cprmask[0] = ri_cprmask[1] = ri_cprmask[2] = ri_cprmask[3] = 0;
     ri_gp_value = 0;
@@ -53,7 +52,7 @@ public:
     COP2RegClass = &(TRI->getRegClass(Mips::COP2RegClassID));
     COP3RegClass = &(TRI->getRegClass(Mips::COP3RegClassID));
   }
-  ~MipsRegInfoRecord() {}
+  ~MipsRegInfoRecord() override {}
 
   void EmitMipsOptionRecord() override;
   void SetPhysRegUsed(unsigned Reg, const MCRegisterInfo *MCRegInfo);
@@ -61,7 +60,6 @@ public:
 private:
   MipsELFStreamer *Streamer;
   MCContext &Context;
-  const MCSubtargetInfo &STI;
   const MCRegisterClass *GPR32RegClass;
   const MCRegisterClass *GPR64RegClass;
   const MCRegisterClass *FGR32RegClass;

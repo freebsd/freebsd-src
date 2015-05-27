@@ -9,7 +9,7 @@ target triple = "i386-pc-linux-gnu"
 
 define i32 @main() nounwind  {
 entry:
-	%l = load i32* @g_37, align 4		; <i32> [#uses=1]
+	%l = load i32, i32* @g_37, align 4		; <i32> [#uses=1]
 	%cmpa = icmp ne i32 %l, 0		; <i1> [#uses=3]
 	br i1 %cmpa, label %func_1.exit, label %mooseblock
 
@@ -29,7 +29,7 @@ cowblock:		; preds = %beeblock, %monkeyblock
 
 func_1.exit:		; preds = %cowblock, %entry
 	%outval = phi i32 [ %cowval, %cowblock ], [ 1, %entry ]		; <i32> [#uses=1]
-	%pout = tail call i32 (i8*, ...)* @printf( i8* noalias  getelementptr ([4 x i8]* @.str, i32 0, i32 0), i32 %outval ) nounwind 		; <i32> [#uses=0]
+	%pout = tail call i32 (i8*, ...) @printf( i8* noalias  getelementptr ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %outval ) nounwind 		; <i32> [#uses=0]
 	ret i32 0
 }
 

@@ -24,9 +24,9 @@ no_vectors:
   ret i32 0
 
 spill_vectors:
-  %vp1 = getelementptr <4 x i32>* %vp0, i32 1
-  %v0 = load <4 x i32>* %vp0
-  %v1 = load <4 x i32>* %vp1
+  %vp1 = getelementptr <4 x i32>, <4 x i32>* %vp0, i32 1
+  %v0 = load <4 x i32>, <4 x i32>* %vp0
+  %v1 = load <4 x i32>, <4 x i32>* %vp1
   %vicmp = icmp slt <4 x i32> %v0, %v1
   %icmp = extractelement <4 x i1> %vicmp, i32 0
   call void @escape_vla_and_icmp(i8* null, i1 zeroext %icmp)
@@ -49,9 +49,9 @@ no_vectors:
   ret i32 0
 
 spill_vectors:
-  %vp1 = getelementptr <4 x i32>* %vp0, i32 1
-  %v0 = load <4 x i32>* %vp0
-  %v1 = load <4 x i32>* %vp1
+  %vp1 = getelementptr <4 x i32>, <4 x i32>* %vp0, i32 1
+  %v0 = load <4 x i32>, <4 x i32>* %vp0
+  %v1 = load <4 x i32>, <4 x i32>* %vp1
   %vicmp = icmp slt <4 x i32> %v0, %v1
   %icmp = extractelement <4 x i1> %vicmp, i32 0
   %vla = alloca i8, i32 %n
@@ -77,9 +77,9 @@ no_vectors:
   ret i32 0
 
 spill_vectors:
-  %vp1 = getelementptr <4 x i32>* %vp0, i32 1
-  %v0 = load <4 x i32>* %vp0
-  %v1 = load <4 x i32>* %vp1
+  %vp1 = getelementptr <4 x i32>, <4 x i32>* %vp0, i32 1
+  %v0 = load <4 x i32>, <4 x i32>* %vp0
+  %v1 = load <4 x i32>, <4 x i32>* %vp1
   %vicmp = icmp slt <4 x i32> %v0, %v1
   %icmp = extractelement <4 x i1> %vicmp, i32 0
   %vla = alloca i8, i32 %n

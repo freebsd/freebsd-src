@@ -29,10 +29,10 @@ ENDIF:
 ; FIXME: This could be folded into the s_or_b64 instruction
 ; SI: s_mov_b64 [[ZERO:s\[[0-9]+:[0-9]+\]]], 0
 ; SI: [[LOOP_LABEL:[A-Z0-9]+]]
-; SI: v_cmp_ne_i32_e64 [[COND:s\[[0-9]+:[0-9]+\]]], v{{[0-9]+}}, 0
+; SI: v_cmp_ne_i32_e32 vcc, 0, v{{[0-9]+}}
 
 ; SI_IF_BREAK instruction:
-; SI: s_or_b64 [[BREAK:s\[[0-9]+:[0-9]+\]]], [[COND]], [[ZERO]]
+; SI: s_or_b64 [[BREAK:s\[[0-9]+:[0-9]+\]]], vcc, [[ZERO]]
 
 ; SI_LOOP instruction:
 ; SI: s_andn2_b64 exec, exec, [[BREAK]]

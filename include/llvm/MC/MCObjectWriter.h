@@ -13,6 +13,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/EndianStream.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 
@@ -37,17 +38,17 @@ class MCValue;
 /// The object writer also contains a number of helper methods for writing
 /// binary data to the output stream.
 class MCObjectWriter {
-  MCObjectWriter(const MCObjectWriter &) LLVM_DELETED_FUNCTION;
-  void operator=(const MCObjectWriter &) LLVM_DELETED_FUNCTION;
+  MCObjectWriter(const MCObjectWriter &) = delete;
+  void operator=(const MCObjectWriter &) = delete;
 
 protected:
-  raw_ostream &OS;
+  raw_pwrite_stream &OS;
 
   unsigned IsLittleEndian : 1;
 
 protected: // Can only create subclasses.
-  MCObjectWriter(raw_ostream &_OS, bool _IsLittleEndian)
-    : OS(_OS), IsLittleEndian(_IsLittleEndian) {}
+  MCObjectWriter(raw_pwrite_stream &OS, bool IsLittleEndian)
+      : OS(OS), IsLittleEndian(IsLittleEndian) {}
 
 public:
   virtual ~MCObjectWriter();
@@ -59,7 +60,7 @@ public:
 
   raw_ostream &getStream() { return OS; }
 
-  /// @name High-Level API
+  /// \name High-Level API
   /// @{
 
   /// \brief Perform any late binding of symbols (for example, to assign symbol
@@ -76,30 +77,31 @@ public:
   /// post layout binding. The implementation is responsible for storing
   /// information about the relocation so that it can be emitted during
   /// WriteObject().
-  virtual void RecordRelocation(const MCAssembler &Asm,
-                                const MCAsmLayout &Layout,
+  virtual void RecordRelocation(MCAssembler &Asm, const MCAsmLayout &Layout,
                                 const MCFragment *Fragment,
                                 const MCFixup &Fixup, MCValue Target,
-                                bool &IsPCRel,
-                                uint64_t &FixedValue) = 0;
+                                bool &IsPCRel, uint64_t &FixedValue) = 0;
 
   /// \brief Check whether the difference (A - B) between two symbol
   /// references is fully resolved.
   ///
   /// Clients are not required to answer precisely and may conservatively return
   /// false, even when a difference is fully resolved.
-  bool
-  IsSymbolRefDifferenceFullyResolved(const MCAssembler &Asm,
-                                     const MCSymbolRefExpr *A,
-                                     const MCSymbolRefExpr *B,
-                                     bool InSet) const;
+  bool IsSymbolRefDifferenceFullyResolved(const MCAssembler &Asm,
+                                          const MCSymbolRefExpr *A,
+                                          const MCSymbolRefExpr *B,
+                                          bool InSet) const;
 
-  virtual bool
-  IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
-                                         const MCSymbolData &DataA,
-                                         const MCFragment &FB,
-                                         bool InSet,
-                                         bool IsPCRel) const;
+  virtual bool IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
+                                                      const MCSymbol &SymA,
+                                                      const MCFragment &FB,
+                                                      bool InSet,
+                                                      bool IsPCRel) const;
+
+  /// \brief True if this symbol (which is a variable) is weak. This is not
+  /// just STB_WEAK, but more generally whether or not we can evaluate
+  /// past it.
+  virtual bool isWeak(const MCSymbol &Sym) const;
 
   /// \brief Write the object file.
   ///
@@ -110,7 +112,7 @@ public:
                            const MCAsmLayout &Layout) = 0;
 
   /// @}
-  /// @name Binary Output
+  /// \name Binary Output
   /// @{
 
   void Write8(uint8_t Value) {
@@ -118,33 +120,27 @@ public:
   }
 
   void WriteLE16(uint16_t Value) {
-    Write8(uint8_t(Value >> 0));
-    Write8(uint8_t(Value >> 8));
+    support::endian::Writer<support::little>(OS).write(Value);
   }
 
   void WriteLE32(uint32_t Value) {
-    WriteLE16(uint16_t(Value >> 0));
-    WriteLE16(uint16_t(Value >> 16));
+    support::endian::Writer<support::little>(OS).write(Value);
   }
 
   void WriteLE64(uint64_t Value) {
-    WriteLE32(uint32_t(Value >> 0));
-    WriteLE32(uint32_t(Value >> 32));
+    support::endian::Writer<support::little>(OS).write(Value);
   }
 
   void WriteBE16(uint16_t Value) {
-    Write8(uint8_t(Value >> 8));
-    Write8(uint8_t(Value >> 0));
+    support::endian::Writer<support::big>(OS).write(Value);
   }
 
   void WriteBE32(uint32_t Value) {
-    WriteBE16(uint16_t(Value >> 16));
-    WriteBE16(uint16_t(Value >> 0));
+    support::endian::Writer<support::big>(OS).write(Value);
   }
 
   void WriteBE64(uint64_t Value) {
-    WriteBE32(uint32_t(Value >> 32));
-    WriteBE32(uint32_t(Value >> 0));
+    support::endian::Writer<support::big>(OS).write(Value);
   }
 
   void Write16(uint16_t Value) {

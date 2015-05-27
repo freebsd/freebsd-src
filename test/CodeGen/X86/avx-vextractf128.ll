@@ -1,6 +1,6 @@
-; RUN: llc < %s -mtriple=x86_64-apple-darwin -mcpu=corei7-avx -mattr=+avx | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-apple-darwin -mattr=+avx | FileCheck %s
 
-; CHECK: @A
+; CHECK-LABEL: A:
 ; CHECK-NOT: vunpck
 ; CHECK: vextractf128 $1
 define <8 x float> @A(<8 x float> %a) nounwind uwtable readnone ssp {
@@ -9,7 +9,7 @@ entry:
   ret <8 x float> %shuffle
 }
 
-; CHECK: @B
+; CHECK-LABEL: B:
 ; CHECK-NOT: vunpck
 ; CHECK: vextractf128 $1
 define <4 x double> @B(<4 x double> %a) nounwind uwtable readnone ssp {
@@ -18,7 +18,7 @@ entry:
   ret <4 x double> %shuffle
 }
 
-; CHECK: @t0
+; CHECK-LABEL: t0:
 ; CHECK-NOT: vextractf128 $1, %ymm0, %xmm0
 ; CHECK-NOT: vmovaps %xmm0, (%rdi)
 ; CHECK: vextractf128 $1, %ymm0, (%rdi)
@@ -32,7 +32,7 @@ entry:
 
 declare <4 x float> @llvm.x86.avx.vextractf128.ps.256(<8 x float>, i8) nounwind readnone
 
-; CHECK: @t2
+; CHECK-LABEL: t2:
 ; CHECK-NOT: vextractf128 $1, %ymm0, %xmm0
 ; CHECK-NOT: vmovaps %xmm0, (%rdi)
 ; CHECK: vextractf128 $1, %ymm0, (%rdi)
@@ -46,7 +46,7 @@ entry:
 
 declare <2 x double> @llvm.x86.avx.vextractf128.pd.256(<4 x double>, i8) nounwind readnone
 
-; CHECK: @t4
+; CHECK-LABEL: t4:
 ; CHECK-NOT: vextractf128 $1, %ymm0, %xmm0
 ; CHECK-NOT: vmovaps %xmm0, (%rdi)
 ; CHECK: vextractf128 $1, %ymm0, (%rdi)
@@ -61,7 +61,7 @@ entry:
 
 declare <4 x i32> @llvm.x86.avx.vextractf128.si.256(<8 x i32>, i8) nounwind readnone
 
-; CHECK: @t5
+; CHECK-LABEL: t5:
 ; CHECK: vmovaps %xmm0, (%rdi)
 define void @t5(float* nocapture %addr, <8 x float> %a) nounwind uwtable ssp {
 entry:
@@ -71,7 +71,7 @@ entry:
   ret void
 }
 
-; CHECK: @t6
+; CHECK-LABEL: t6:
 ; CHECK: vmovaps %xmm0, (%rdi)
 define void @t6(double* nocapture %addr, <4 x double> %a) nounwind uwtable ssp {
 entry:
@@ -81,7 +81,7 @@ entry:
   ret void
 }
 
-; CHECK: @t7
+; CHECK-LABEL: t7:
 ; CHECK: vmovaps %xmm0, (%rdi)
 define void @t7(<2 x i64>* nocapture %addr, <4 x i64> %a) nounwind uwtable ssp {
 entry:
@@ -92,7 +92,7 @@ entry:
   ret void
 }
 
-; CHECK: @t8
+; CHECK-LABEL: t8:
 ; CHECK: vmovups %xmm0, (%rdi)
 define void @t8(<2 x i64>* nocapture %addr, <4 x i64> %a) nounwind uwtable ssp {
 entry:
@@ -106,17 +106,16 @@ entry:
 ; PR15462
 define void @t9(i64* %p) {
  store i64 0, i64* %p
- %q = getelementptr i64* %p, i64 1
+ %q = getelementptr i64, i64* %p, i64 1
  store i64 0, i64* %q
- %r = getelementptr i64* %p, i64 2
+ %r = getelementptr i64, i64* %p, i64 2
  store i64 0, i64* %r
- %s = getelementptr i64* %p, i64 3
+ %s = getelementptr i64, i64* %p, i64 3
  store i64 0, i64* %s
  ret void
 
 ; CHECK-LABEL: t9:
 ; CHECK: vxorps	%xmm
 ; CHECK-NOT: vextractf
-; CHECK: vmovups
 ; CHECK: vmovups
 }

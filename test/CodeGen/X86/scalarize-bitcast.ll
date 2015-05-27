@@ -6,7 +6,7 @@ target triple = "x86_64-pc-linux-gnu"
 
 define void @mmxCombineMaskU(i32* nocapture %src, i32* nocapture %mask) nounwind {
 entry:
-	%tmp1 = load i32* %src		; <i32> [#uses=1]
+	%tmp1 = load i32, i32* %src		; <i32> [#uses=1]
 	%0 = insertelement <2 x i32> undef, i32 %tmp1, i32 0		; <<2 x i32>> [#uses=1]
 	%1 = insertelement <2 x i32> %0, i32 0, i32 1		; <<2 x i32>> [#uses=1]
 	%conv.i.i = bitcast <2 x i32> %1 to <1 x i64>		; <<1 x i64>> [#uses=1]
@@ -21,7 +21,7 @@ entry:
 	%tmp24.i = extractelement <1 x i64> %tmp10.i, i32 0		; <i64> [#uses=1]
 	%tmp10 = bitcast i64 %tmp24.i to <1 x i64>		; <<1 x i64>> [#uses=1]
 	%tmp7 = extractelement <1 x i64> %tmp10, i32 0		; <i64> [#uses=1]
-	%call6 = tail call i32 (...)* @store8888(i64 %tmp7)		; <i32> [#uses=1]
+	%call6 = tail call i32 (...) @store8888(i64 %tmp7)		; <i32> [#uses=1]
 	store i32 %call6, i32* %src
 	ret void
 }

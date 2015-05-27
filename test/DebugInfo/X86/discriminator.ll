@@ -16,12 +16,12 @@ entry:
   %retval = alloca i32, align 4
   %i.addr = alloca i32, align 4
   store i32 %i, i32* %i.addr, align 4
-  %0 = load i32* %i.addr, align 4, !dbg !10
+  %0 = load i32, i32* %i.addr, align 4, !dbg !10
   %cmp = icmp slt i32 %0, 10, !dbg !10
   br i1 %cmp, label %if.then, label %if.end, !dbg !10
 
 if.then:                                          ; preds = %entry
-  %1 = load i32* %i.addr, align 4, !dbg !14
+  %1 = load i32, i32* %i.addr, align 4, !dbg !14
   %sub = sub nsw i32 %1, 1, !dbg !14
   store i32 %sub, i32* %retval, !dbg !14
   br label %return, !dbg !14
@@ -31,7 +31,7 @@ if.end:                                           ; preds = %entry
   br label %return, !dbg !12
 
 return:                                           ; preds = %if.end, %if.then
-  %2 = load i32* %retval, !dbg !13
+  %2 = load i32, i32* %retval, !dbg !13
   ret i32 %2, !dbg !13
 }
 
@@ -41,22 +41,22 @@ attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointe
 !llvm.module.flags = !{!7, !8}
 !llvm.ident = !{!9}
 
-!0 = !{!"0x11\0012\00clang version 3.5 \000\00\000\00\000", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [./discriminator.c] [DW_LANG_C99]
-!1 = !{!"discriminator.c", !"."}
+!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!1 = !DIFile(filename: "discriminator.c", directory: ".")
 !2 = !{}
 !3 = !{!4}
-!4 = !{!"0x2e\00foo\00foo\00\001\000\001\000\006\00256\000\001", !1, !5, !6, null, i32 (i32)* @foo, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
-!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [./discriminator.c]
-!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !2, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!4 = !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, function: i32 (i32)* @foo, variables: !2)
+!5 = !DIFile(filename: "discriminator.c", directory: ".")
+!6 = !DISubroutineType(types: !2)
 !7 = !{i32 2, !"Dwarf Version", i32 4}
-!8 = !{i32 1, !"Debug Info Version", i32 2}
+!8 = !{i32 1, !"Debug Info Version", i32 3}
 !9 = !{!"clang version 3.5 "}
-!10 = !MDLocation(line: 2, scope: !11)
-!11 = !{!"0xb\002\000\000", !1, !4} ; [ DW_TAG_lexical_block ] [./discriminator.c]
-!12 = !MDLocation(line: 3, scope: !4)
-!13 = !MDLocation(line: 4, scope: !4)
-!14 = !MDLocation(line: 2, scope: !15)
-!15 = !{!"0xb\0042", !1, !4} ; [ DW_TAG_lexical_block ] [./discriminator.c]
+!10 = !DILocation(line: 2, scope: !11)
+!11 = distinct !DILexicalBlock(line: 2, column: 0, file: !1, scope: !4)
+!12 = !DILocation(line: 3, scope: !4)
+!13 = !DILocation(line: 4, scope: !4)
+!14 = !DILocation(line: 2, scope: !15)
+!15 = !DILexicalBlockFile(discriminator: 42, file: !1, scope: !4)
 
 ; CHECK: Address            Line   Column File   ISA Discriminator Flags
 ; CHECK: ------------------ ------ ------ ------ --- ------------- -------------

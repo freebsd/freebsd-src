@@ -10,7 +10,7 @@
 
 declare void @_Z3bari(i32)
 
-; CHECK-LINUX: .text._Z3fooILi1EEvi,"axG",@progbits,_Z3fooILi1EEvi,comdat
+; CHECK-LINUX: _Z3fooILi1EEvi:
 define linkonce void @_Z3fooILi1EEvi(i32 %Y) nounwind {
 entry:
 ; CHECK:       L0$pb
@@ -31,7 +31,7 @@ entry:
 	%Y_addr = alloca i32		; <i32*> [#uses=2]
 	%"alloca point" = bitcast i32 0 to i32		; <i32> [#uses=0]
 	store i32 %Y, i32* %Y_addr
-	%tmp = load i32* %Y_addr		; <i32> [#uses=1]
+	%tmp = load i32, i32* %Y_addr		; <i32> [#uses=1]
 	switch i32 %tmp, label %bb10 [
 		 i32 0, label %bb3
 		 i32 1, label %bb
@@ -55,13 +55,15 @@ entry:
 	]
 
 bb:		; preds = %entry, %entry, %entry, %entry, %entry, %entry, %entry, %entry, %entry, %entry
+	call void @_Z3bari( i32 0 )
 	br label %bb1
 
 bb1:		; preds = %bb, %entry
+	call void @_Z3bari( i32 1 )
 	br label %bb2
 
 bb2:		; preds = %bb1, %entry
-	call void @_Z3bari( i32 1 )
+	call void @_Z3bari( i32 2 )
 	br label %bb11
 
 bb3:		; preds = %entry

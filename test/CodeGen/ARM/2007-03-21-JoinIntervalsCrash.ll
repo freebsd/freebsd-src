@@ -41,7 +41,7 @@ entry:
 	%spec.1961.adj.ins = or i64 %spec.1961.adj, 0		; <i64> [#uses=2]
 	%tmp10959 = lshr i64 %spec.1961.adj.ins, 32		; <i64> [#uses=2]
 	%tmp1920 = inttoptr i64 %tmp10959 to %struct.tree_common*		; <%struct.tree_common*> [#uses=1]
-	%tmp21 = getelementptr %struct.tree_common* %tmp1920, i32 0, i32 3		; <i8*> [#uses=1]
+	%tmp21 = getelementptr %struct.tree_common, %struct.tree_common* %tmp1920, i32 0, i32 3		; <i8*> [#uses=1]
 	%tmp2122 = bitcast i8* %tmp21 to i32*		; <i32*> [#uses=1]
 	br i1 false, label %cond_next53, label %cond_true
 
@@ -71,7 +71,7 @@ cond_next856:		; preds = %cond_true851
 	ret void
 
 bb866:		; preds = %cond_true851
-	%tmp874 = load i32* %tmp2122		; <i32> [#uses=1]
+	%tmp874 = load i32, i32* %tmp2122		; <i32> [#uses=1]
 	%tmp876877 = trunc i32 %tmp874 to i8		; <i8> [#uses=1]
 	icmp eq i8 %tmp876877, 1		; <i1>:0 [#uses=1]
 	br i1 %0, label %cond_next881, label %cond_true878
@@ -81,9 +81,9 @@ cond_true878:		; preds = %bb866
 
 cond_next881:		; preds = %bb866
 	%tmp884885 = inttoptr i64 %tmp10959 to %struct.tree_identifier*		; <%struct.tree_identifier*> [#uses=1]
-	%tmp887 = getelementptr %struct.tree_identifier* %tmp884885, i32 0, i32 1, i32 0		; <i8**> [#uses=1]
-	%tmp888 = load i8** %tmp887		; <i8*> [#uses=1]
-	tail call void (i32, ...)* @error( i32 undef, i8* %tmp888 )
+	%tmp887 = getelementptr %struct.tree_identifier, %struct.tree_identifier* %tmp884885, i32 0, i32 1, i32 0		; <i8**> [#uses=1]
+	%tmp888 = load i8*, i8** %tmp887		; <i8*> [#uses=1]
+	tail call void (i32, ...) @error( i32 undef, i8* %tmp888 )
 	ret void
 
 cond_true918:		; preds = %cond_false841

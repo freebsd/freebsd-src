@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMTargetObjectFile.h"
-#include "ARMSubtarget.h"
+#include "ARMTargetMachine.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -27,7 +27,8 @@ using namespace dwarf;
 
 void ARMElfTargetObjectFile::Initialize(MCContext &Ctx,
                                         const TargetMachine &TM) {
-  bool isAAPCS_ABI = TM.getSubtarget<ARMSubtarget>().isAAPCS_ABI();
+  bool isAAPCS_ABI = static_cast<const ARMTargetMachine &>(TM).TargetABI ==
+                     ARMTargetMachine::ARMABI::ARM_ABI_AAPCS;
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
   InitializeELF(isAAPCS_ABI);
 
@@ -36,10 +37,7 @@ void ARMElfTargetObjectFile::Initialize(MCContext &Ctx,
   }
 
   AttributesSection =
-    getContext().getELFSection(".ARM.attributes",
-                               ELF::SHT_ARM_ATTRIBUTES,
-                               0,
-                               SectionKind::getMetadata());
+      getContext().getELFSection(".ARM.attributes", ELF::SHT_ARM_ATTRIBUTES, 0);
 }
 
 const MCExpr *ARMElfTargetObjectFile::getTTypeGlobalReference(

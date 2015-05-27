@@ -1,6 +1,9 @@
 ; RUN: opt -S < %s -indvars | opt -analyze -iv-users | grep "%cmp = icmp slt i32" | grep "= {%\.ph,+,1}<%for.cond>"
 ; PR8079
 
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
 ; LoopSimplify should invalidate indvars when splitting out the
 ; inner loop.
 
@@ -15,7 +18,7 @@ for.cond:                                         ; preds = %if.then5, %if.end, 
   %0 = phi i32 [ 0, %entry ], [ %add, %if.end ], [ %add, %if.then5 ]
   %add = add i32 %0, 1
   %cmp = icmp slt i32 %0, 1
-  %tmp1 = load i32* @maxStat, align 4
+  %tmp1 = load i32, i32* @maxStat, align 4
   br i1 %cmp, label %for.body, label %for.cond14.preheader
 
 for.cond14.preheader:                             ; preds = %for.cond
@@ -39,7 +42,7 @@ for.body18:                                       ; preds = %for.body18, %for.co
   %i13.027 = phi i32 [ %1, %for.body18 ], [ 0, %for.cond14.preheader ]
   call void @foo() nounwind
   %1 = add nsw i32 %i13.027, 1
-  %tmp16 = load i32* @maxStat, align 4
+  %tmp16 = load i32, i32* @maxStat, align 4
   %cmp17 = icmp slt i32 %1, %tmp16
   br i1 %cmp17, label %for.body18, label %return
 

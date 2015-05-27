@@ -155,7 +155,7 @@ TEST(ScaledNumberHelpersTest, getQuotient) {
   EXPECT_EQ(SP32(0xaaaaaaab, -33), getQuotient32(1, 3));
   EXPECT_EQ(SP32(0xd5555555, -31), getQuotient32(5, 3));
 
-  // 64-bit division is hard to test, since divide64 doesn't canonicalized its
+  // 64-bit division is hard to test, since divide64 doesn't canonicalize its
   // output.  However, this is the algorithm the implementation uses:
   //
   // - Shift divisor right.
@@ -530,6 +530,35 @@ TEST(ScaledNumberHelpersTest, getDifference) {
   EXPECT_EQ(SP64(0, 0), getDifference64(1, 0, 1, 1));
   EXPECT_EQ(SP64(0, 0), getDifference64(1, -64, 1, 0));
   EXPECT_EQ(SP64(0, 0), getDifference64(1, -64, 1, -1));
+}
+
+TEST(ScaledNumberHelpersTest, arithmeticOperators) {
+  EXPECT_EQ(ScaledNumber<uint32_t>(10, 0),
+            ScaledNumber<uint32_t>(1, 3) + ScaledNumber<uint32_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint32_t>(6, 0),
+            ScaledNumber<uint32_t>(1, 3) - ScaledNumber<uint32_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint32_t>(2, 3),
+            ScaledNumber<uint32_t>(1, 3) * ScaledNumber<uint32_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint32_t>(1, 2),
+            ScaledNumber<uint32_t>(1, 3) / ScaledNumber<uint32_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint32_t>(1, 2), ScaledNumber<uint32_t>(1, 3) >> 1);
+  EXPECT_EQ(ScaledNumber<uint32_t>(1, 4), ScaledNumber<uint32_t>(1, 3) << 1);
+
+  EXPECT_EQ(ScaledNumber<uint64_t>(10, 0),
+            ScaledNumber<uint64_t>(1, 3) + ScaledNumber<uint64_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint64_t>(6, 0),
+            ScaledNumber<uint64_t>(1, 3) - ScaledNumber<uint64_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint64_t>(2, 3),
+            ScaledNumber<uint64_t>(1, 3) * ScaledNumber<uint64_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint64_t>(1, 2),
+            ScaledNumber<uint64_t>(1, 3) / ScaledNumber<uint64_t>(1, 1));
+  EXPECT_EQ(ScaledNumber<uint64_t>(1, 2), ScaledNumber<uint64_t>(1, 3) >> 1);
+  EXPECT_EQ(ScaledNumber<uint64_t>(1, 4), ScaledNumber<uint64_t>(1, 3) << 1);
+}
+
+TEST(ScaledNumberHelpersTest, toIntBug) {
+  ScaledNumber<uint32_t> n(1, 0);
+  EXPECT_EQ(1u, (n * n).toInt<uint32_t>());
 }
 
 } // end namespace
