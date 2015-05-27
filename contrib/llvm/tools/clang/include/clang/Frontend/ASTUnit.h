@@ -416,8 +416,8 @@ private:
   /// \brief Clear out and deallocate 
   void ClearCachedCompletionResults();
   
-  ASTUnit(const ASTUnit &) LLVM_DELETED_FUNCTION;
-  void operator=(const ASTUnit &) LLVM_DELETED_FUNCTION;
+  ASTUnit(const ASTUnit &) = delete;
+  void operator=(const ASTUnit &) = delete;
   
   explicit ASTUnit(bool MainFileIsAST);
 
@@ -484,8 +484,8 @@ public:
     }
   };
   friend class ConcurrencyCheck;
-  
-  ~ASTUnit();
+
+  ~ASTUnit() override;
 
   bool isMainFileAST() const { return MainFileIsAST; }
 
@@ -675,8 +675,8 @@ public:
   /// \brief Returns an iterator range for the local preprocessing entities
   /// of the local Preprocessor, if this is a parsed source file, or the loaded
   /// preprocessing entities of the primary module if this is an AST file.
-  std::pair<PreprocessingRecord::iterator, PreprocessingRecord::iterator>
-    getLocalPreprocessingEntities() const;
+  llvm::iterator_range<PreprocessingRecord::iterator>
+  getLocalPreprocessingEntities() const;
 
   /// \brief Type for a function iterating over a number of declarations.
   /// \returns true to continue iteration and false to abort.
@@ -880,7 +880,7 @@ public:
   }
 
   void makeModuleVisible(Module *Mod, Module::NameVisibilityKind Visibility,
-                         SourceLocation ImportLoc, bool Complain) override {}
+                         SourceLocation ImportLoc) override {}
 
   GlobalModuleIndex *loadGlobalModuleIndex(SourceLocation TriggerLoc) override
     { return nullptr; }

@@ -73,11 +73,7 @@ class FileEntry {
   mutable std::unique_ptr<vfs::File> File;
   friend class FileManager;
 
-  void closeFile() const {
-    File.reset(); // rely on destructor to close File
-  }
-
-  void operator=(const FileEntry &) LLVM_DELETED_FUNCTION;
+  void operator=(const FileEntry &) = delete;
 
 public:
   FileEntry()
@@ -109,6 +105,10 @@ public:
   /// \brief Check whether the file is a named pipe (and thus can't be opened by
   /// the native FileManager methods).
   bool isNamedPipe() const { return IsNamedPipe; }
+
+  void closeFile() const {
+    File.reset(); // rely on destructor to close File
+  }
 };
 
 struct FileData;

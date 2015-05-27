@@ -64,6 +64,9 @@ private:
   /// \brief The top-level modules that are known.
   llvm::StringMap<Module *> Modules;
 
+  /// \brief The number of modules we have created in total.
+  unsigned NumCreatedModules;
+
 public:
   /// \brief Flags describing the role of a module header.
   enum ModuleHeaderRole {
@@ -104,7 +107,7 @@ public:
 
     // \brief Whether this known header is valid (i.e., it has an
     // associated module).
-    LLVM_EXPLICIT operator bool() const {
+    explicit operator bool() const {
       return Storage.getPointer() != nullptr;
     }
   };
@@ -434,11 +437,13 @@ public:
   
   /// \brief Sets the umbrella header of the given module to the given
   /// header.
-  void setUmbrellaHeader(Module *Mod, const FileEntry *UmbrellaHeader);
+  void setUmbrellaHeader(Module *Mod, const FileEntry *UmbrellaHeader,
+                         Twine NameAsWritten);
 
   /// \brief Sets the umbrella directory of the given module to the given
   /// directory.
-  void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir);
+  void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir,
+                      Twine NameAsWritten);
 
   /// \brief Adds this header to the given module.
   /// \param Role The role of the header wrt the module.

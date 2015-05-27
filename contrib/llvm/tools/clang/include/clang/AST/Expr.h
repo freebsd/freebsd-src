@@ -276,6 +276,7 @@ public:
     MLV_LValueCast,           // Specialized form of MLV_InvalidExpression.
     MLV_IncompleteType,
     MLV_ConstQualified,
+    MLV_ConstAddrSpace,
     MLV_ArrayType,
     MLV_NoSetterProperty,
     MLV_MemberFunction,
@@ -324,6 +325,7 @@ public:
       CM_LValueCast, // Same as CM_RValue, but indicates GCC cast-as-lvalue ext
       CM_NoSetterProperty,// Implicit assignment to ObjC property without setter
       CM_ConstQualified,
+      CM_ConstAddrSpace,
       CM_ArrayType,
       CM_IncompleteType
     };
@@ -1239,8 +1241,8 @@ class APNumericStorage {
 
   bool hasAllocation() const { return llvm::APInt::getNumWords(BitWidth) > 1; }
 
-  APNumericStorage(const APNumericStorage &) LLVM_DELETED_FUNCTION;
-  void operator=(const APNumericStorage &) LLVM_DELETED_FUNCTION;
+  APNumericStorage(const APNumericStorage &) = delete;
+  void operator=(const APNumericStorage &) = delete;
 
 protected:
   APNumericStorage() : VAL(0), BitWidth(0) { }
@@ -1997,18 +1999,7 @@ public:
 
   UnaryExprOrTypeTraitExpr(UnaryExprOrTypeTrait ExprKind, Expr *E,
                            QualType resultType, SourceLocation op,
-                           SourceLocation rp) :
-      Expr(UnaryExprOrTypeTraitExprClass, resultType, VK_RValue, OK_Ordinary,
-           false, // Never type-dependent (C++ [temp.dep.expr]p3).
-           // Value-dependent if the argument is type-dependent.
-           E->isTypeDependent(),
-           E->isInstantiationDependent(),
-           E->containsUnexpandedParameterPack()),
-      OpLoc(op), RParenLoc(rp) {
-    UnaryExprOrTypeTraitExprBits.Kind = ExprKind;
-    UnaryExprOrTypeTraitExprBits.IsType = false;
-    Argument.Ex = E;
-  }
+                           SourceLocation rp);
 
   /// \brief Construct an empty sizeof/alignof expression.
   explicit UnaryExprOrTypeTraitExpr(EmptyShell Empty)
@@ -2287,7 +2278,7 @@ public:
   /// getCallReturnType - Get the return type of the call expr. This is not
   /// always the type of the expr itself, if the return type is a reference
   /// type.
-  QualType getCallReturnType() const;
+  QualType getCallReturnType(const ASTContext &Ctx) const;
 
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
@@ -2336,6 +2327,9 @@ class MemberExpr : public Expr {
   /// MemberLoc - This is the location of the member name.
   SourceLocation MemberLoc;
 
+  /// This is the location of the -> or . in the expression.
+  SourceLocation OperatorLoc;
+
   /// IsArrow - True if this is "X->F", false if this is "X.F".
   bool IsArrow : 1;
 
@@ -2370,18 +2364,16 @@ class MemberExpr : public Expr {
   }
 
 public:
-  MemberExpr(Expr *base, bool isarrow, ValueDecl *memberdecl,
-             const DeclarationNameInfo &NameInfo, QualType ty,
-             ExprValueKind VK, ExprObjectKind OK)
-    : Expr(MemberExprClass, ty, VK, OK,
-           base->isTypeDependent(),
-           base->isValueDependent(),
-           base->isInstantiationDependent(),
-           base->containsUnexpandedParameterPack()),
-      Base(base), MemberDecl(memberdecl), MemberDNLoc(NameInfo.getInfo()),
-      MemberLoc(NameInfo.getLoc()), IsArrow(isarrow),
-      HasQualifierOrFoundDecl(false), HasTemplateKWAndArgsInfo(false),
-      HadMultipleCandidates(false) {
+  MemberExpr(Expr *base, bool isarrow, SourceLocation operatorloc,
+             ValueDecl *memberdecl, const DeclarationNameInfo &NameInfo,
+             QualType ty, ExprValueKind VK, ExprObjectKind OK)
+      : Expr(MemberExprClass, ty, VK, OK, base->isTypeDependent(),
+             base->isValueDependent(), base->isInstantiationDependent(),
+             base->containsUnexpandedParameterPack()),
+        Base(base), MemberDecl(memberdecl), MemberDNLoc(NameInfo.getInfo()),
+        MemberLoc(NameInfo.getLoc()), OperatorLoc(operatorloc),
+        IsArrow(isarrow), HasQualifierOrFoundDecl(false),
+        HasTemplateKWAndArgsInfo(false), HadMultipleCandidates(false) {
     assert(memberdecl->getDeclName() == NameInfo.getName());
   }
 
@@ -2389,25 +2381,25 @@ public:
   // the member name can not provide additional syntactic info
   // (i.e., source locations for C++ operator names or type source info
   // for constructors, destructors and conversion operators).
-  MemberExpr(Expr *base, bool isarrow, ValueDecl *memberdecl,
-             SourceLocation l, QualType ty,
+  MemberExpr(Expr *base, bool isarrow, SourceLocation operatorloc,
+             ValueDecl *memberdecl, SourceLocation l, QualType ty,
              ExprValueKind VK, ExprObjectKind OK)
-    : Expr(MemberExprClass, ty, VK, OK,
-           base->isTypeDependent(), base->isValueDependent(),
-           base->isInstantiationDependent(),
-           base->containsUnexpandedParameterPack()),
-      Base(base), MemberDecl(memberdecl), MemberDNLoc(), MemberLoc(l),
-      IsArrow(isarrow),
-      HasQualifierOrFoundDecl(false), HasTemplateKWAndArgsInfo(false),
-      HadMultipleCandidates(false) {}
+      : Expr(MemberExprClass, ty, VK, OK, base->isTypeDependent(),
+             base->isValueDependent(), base->isInstantiationDependent(),
+             base->containsUnexpandedParameterPack()),
+        Base(base), MemberDecl(memberdecl), MemberDNLoc(), MemberLoc(l),
+        OperatorLoc(operatorloc), IsArrow(isarrow),
+        HasQualifierOrFoundDecl(false), HasTemplateKWAndArgsInfo(false),
+        HadMultipleCandidates(false) {}
 
   static MemberExpr *Create(const ASTContext &C, Expr *base, bool isarrow,
+                            SourceLocation OperatorLoc,
                             NestedNameSpecifierLoc QualifierLoc,
-                            SourceLocation TemplateKWLoc,
-                            ValueDecl *memberdecl, DeclAccessPair founddecl,
+                            SourceLocation TemplateKWLoc, ValueDecl *memberdecl,
+                            DeclAccessPair founddecl,
                             DeclarationNameInfo MemberNameInfo,
-                            const TemplateArgumentListInfo *targs,
-                            QualType ty, ExprValueKind VK, ExprObjectKind OK);
+                            const TemplateArgumentListInfo *targs, QualType ty,
+                            ExprValueKind VK, ExprObjectKind OK);
 
   void setBase(Expr *E) { Base = E; }
   Expr *getBase() const { return cast<Expr>(Base); }
@@ -2550,6 +2542,8 @@ public:
     return DeclarationNameInfo(MemberDecl->getDeclName(),
                                MemberLoc, MemberDNLoc);
   }
+
+  SourceLocation getOperatorLoc() const LLVM_READONLY { return OperatorLoc; }
 
   bool isArrow() const { return IsArrow; }
   void setArrow(bool A) { IsArrow = A; }

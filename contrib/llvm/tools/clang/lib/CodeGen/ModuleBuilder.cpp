@@ -63,7 +63,7 @@ namespace {
         CoverageInfo(CoverageInfo),
         M(new llvm::Module(ModuleName, C)) {}
 
-    virtual ~CodeGeneratorImpl() {
+    ~CodeGeneratorImpl() override {
       // There should normally not be any leftover inline method definitions.
       assert(DeferredInlineMethodDefinitions.empty() ||
              Diags.hasErrorOccurred());
@@ -95,7 +95,8 @@ namespace {
 
       M->setTargetTriple(Ctx->getTargetInfo().getTriple().getTriple());
       M->setDataLayout(Ctx->getTargetInfo().getTargetDescription());
-      TD.reset(new llvm::DataLayout(Ctx->getTargetInfo().getTargetDescription()));
+      TD.reset(
+          new llvm::DataLayout(Ctx->getTargetInfo().getTargetDescription()));
       Builder.reset(new CodeGen::CodeGenModule(Context, CodeGenOpts, *M, *TD,
                                                Diags, CoverageInfo));
 
@@ -211,11 +212,11 @@ namespace {
       Builder->EmitTentativeDefinition(D);
     }
 
-    void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) override {
+    void HandleVTable(CXXRecordDecl *RD) override {
       if (Diags.hasErrorOccurred())
         return;
 
-      Builder->EmitVTable(RD, DefinitionRequired);
+      Builder->EmitVTable(RD);
     }
 
     void HandleLinkerOptionPragma(llvm::StringRef Opts) override {
@@ -238,7 +239,6 @@ void CodeGenerator::anchor() { }
 CodeGenerator *clang::CreateLLVMCodeGen(DiagnosticsEngine &Diags,
                                         const std::string& ModuleName,
                                         const CodeGenOptions &CGO,
-                                        const TargetOptions &/*TO*/,
                                         llvm::LLVMContext& C,
                                         CoverageSourceInfo *CoverageInfo) {
   return new CodeGeneratorImpl(Diags, ModuleName, CGO, C, CoverageInfo);

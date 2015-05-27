@@ -111,7 +111,7 @@ class VariantMatcher {
                               ArrayRef<VariantMatcher> InnerMatchers) const;
 
   protected:
-    ~MatcherOps() {}
+    ~MatcherOps() = default;
 
   private:
     ast_type_traits::ASTNodeKind NodeKind;
@@ -122,7 +122,7 @@ class VariantMatcher {
   /// It follows a similar interface as VariantMatcher itself.
   class Payload : public RefCountedBaseVPTR {
   public:
-    virtual ~Payload();
+    ~Payload() override;
     virtual llvm::Optional<DynTypedMatcher> getSingleMatcher() const = 0;
     virtual std::string getTypeAsString() const = 0;
     virtual llvm::Optional<DynTypedMatcher>
@@ -258,7 +258,7 @@ public:
   VariantValue(const VariantMatcher &Matchers);
 
   /// \brief Returns true iff this is not an empty value.
-  LLVM_EXPLICIT operator bool() const { return hasValue(); }
+  explicit operator bool() const { return hasValue(); }
   bool hasValue() const { return Type != VT_Nothing; }
 
   /// \brief Unsigned value functions.

@@ -54,6 +54,7 @@ const char *const CommonOptionsParser::HelpMessage =
     "\tsuffix of a path in the compile command database.\n"
     "\n";
 
+namespace {
 class ArgumentsAdjustingCompilations : public CompilationDatabase {
 public:
   ArgumentsAdjustingCompilations(
@@ -89,6 +90,7 @@ private:
     return Commands;
   }
 };
+} // namespace
 
 CommonOptionsParser::CommonOptionsParser(int &argc, const char **argv,
                                          cl::OptionCategory &Category,
@@ -112,15 +114,7 @@ CommonOptionsParser::CommonOptionsParser(int &argc, const char **argv,
       cl::desc("Additional argument to prepend to the compiler command line"),
       cl::cat(Category));
 
-  // Hide unrelated options.
-  StringMap<cl::Option*> Options;
-  cl::getRegisteredOptions(Options);
-  for (StringMap<cl::Option *>::iterator I = Options.begin(), E = Options.end();
-       I != E; ++I) {
-    if (I->second->Category != &Category && I->first() != "help" &&
-        I->first() != "version")
-      I->second->setHiddenFlag(cl::ReallyHidden);
-  }
+  cl::HideUnrelatedOptions(Category);
 
   Compilations.reset(FixedCompilationDatabase::loadFromCommandLine(argc,
                                                                    argv));
