@@ -4,8 +4,7 @@
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-; Check the presence of __msan_init
-; CHECK: @llvm.global_ctors {{.*}} @__msan_init
+; CHECK: @llvm.global_ctors {{.*}} @msan.module_ctor
 
 ; Check the presence and the linkage type of __msan_track_origins and
 ; other interface symbols.
@@ -70,12 +69,12 @@ entry:
 ; load followed by cmp: check that we load the shadow and call __msan_warning.
 define void @LoadAndCmp(i32* nocapture %a) nounwind uwtable sanitize_memory {
 entry:
-  %0 = load i32* %a, align 4
+  %0 = load i32, i32* %a, align 4
   %tobool = icmp eq i32 %0, 0
   br i1 %tobool, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry
-  tail call void (...)* @foo() nounwind
+  tail call void (...) @foo() nounwind
   br label %if.end
 
 if.end:                                           ; preds = %entry, %if.then
@@ -124,11 +123,11 @@ entry:
   br i1 %tobool, label %if.else, label %if.then
 
   if.then:                                          ; preds = %entry
-  %0 = load i32* %b, align 4
+  %0 = load i32, i32* %b, align 4
   br label %if.end
 
   if.else:                                          ; preds = %entry
-  %1 = load i32* %c, align 4
+  %1 = load i32, i32* %c, align 4
   br label %if.end
 
   if.end:                                           ; preds = %if.else, %if.then
@@ -147,7 +146,7 @@ entry:
 ; Compute shadow for "x << 10"
 define void @ShlConst(i32* nocapture %x) nounwind uwtable sanitize_memory {
 entry:
-  %0 = load i32* %x, align 4
+  %0 = load i32, i32* %x, align 4
   %1 = shl i32 %0, 10
   store i32 %1, i32* %x, align 4
   ret void
@@ -165,7 +164,7 @@ entry:
 ; Compute shadow for "10 << x": it should have 'sext i1'.
 define void @ShlNonConst(i32* nocapture %x) nounwind uwtable sanitize_memory {
 entry:
-  %0 = load i32* %x, align 4
+  %0 = load i32, i32* %x, align 4
   %1 = shl i32 10, %0
   store i32 %1, i32* %x, align 4
   ret void
@@ -182,7 +181,7 @@ entry:
 ; SExt
 define void @SExt(i32* nocapture %a, i16* nocapture %b) nounwind uwtable sanitize_memory {
 entry:
-  %0 = load i16* %b, align 2
+  %0 = load i16, i16* %b, align 2
   %1 = sext i16 %0 to i32
   store i32 %1, i32* %a, align 4
   ret void
@@ -345,8 +344,8 @@ entry:
 }
 
 ; CHECK: @IntToPtr
-; CHECK: load i64*{{.*}}__msan_param_tls
-; CHECK-ORIGINS-NEXT: load i32*{{.*}}__msan_param_origin_tls
+; CHECK: load i64, i64*{{.*}}__msan_param_tls
+; CHECK-ORIGINS-NEXT: load i32, i32*{{.*}}__msan_param_origin_tls
 ; CHECK-NEXT: inttoptr
 ; CHECK-NEXT: store i64{{.*}}__msan_retval_tls
 ; CHECK: ret i8*
@@ -359,7 +358,7 @@ entry:
 }
 
 ; CHECK: @IntToPtr_ZExt
-; CHECK: load i16*{{.*}}__msan_param_tls
+; CHECK: load i16, i16*{{.*}}__msan_param_tls
 ; CHECK: zext
 ; CHECK-NEXT: inttoptr
 ; CHECK-NEXT: store i64{{.*}}__msan_retval_tls
@@ -475,25 +474,25 @@ entry:
 
 define i32 @ShadowLoadAlignmentLarge() nounwind uwtable sanitize_memory {
   %y = alloca i32, align 64
-  %1 = load volatile i32* %y, align 64
+  %1 = load volatile i32, i32* %y, align 64
   ret i32 %1
 }
 
 ; CHECK: @ShadowLoadAlignmentLarge
-; CHECK: load volatile i32* {{.*}} align 64
-; CHECK: load i32* {{.*}} align 64
+; CHECK: load volatile i32, i32* {{.*}} align 64
+; CHECK: load i32, i32* {{.*}} align 64
 ; CHECK: ret i32
 
 define i32 @ShadowLoadAlignmentSmall() nounwind uwtable sanitize_memory {
   %y = alloca i32, align 2
-  %1 = load volatile i32* %y, align 2
+  %1 = load volatile i32, i32* %y, align 2
   ret i32 %1
 }
 
 ; CHECK: @ShadowLoadAlignmentSmall
-; CHECK: load volatile i32* {{.*}} align 2
-; CHECK: load i32* {{.*}} align 2
-; CHECK-ORIGINS: load i32* {{.*}} align 4
+; CHECK: load volatile i32, i32* {{.*}} align 2
+; CHECK: load i32, i32* {{.*}} align 2
+; CHECK-ORIGINS: load i32, i32* {{.*}} align 4
 ; CHECK: ret i32
 
 
@@ -580,8 +579,8 @@ define <16 x i8> @LoadIntrinsic(i8* %p) nounwind uwtable sanitize_memory {
 declare <16 x i8> @llvm.x86.sse3.ldu.dq(i8* %p) nounwind
 
 ; CHECK: @LoadIntrinsic
-; CHECK: load <16 x i8>* {{.*}} align 1
-; CHECK-ORIGINS: [[ORIGIN:%[01-9a-z]+]] = load i32* {{.*}}
+; CHECK: load <16 x i8>, <16 x i8>* {{.*}} align 1
+; CHECK-ORIGINS: [[ORIGIN:%[01-9a-z]+]] = load i32, i32* {{.*}}
 ; CHECK-NOT: br
 ; CHECK-NOT: = or
 ; CHECK: call <16 x i8> @llvm.x86.sse3.ldu.dq
@@ -602,10 +601,10 @@ define <8 x i16> @Paddsw128(<8 x i16> %a, <8 x i16> %b) nounwind uwtable sanitiz
 declare <8 x i16> @llvm.x86.sse2.padds.w(<8 x i16> %a, <8 x i16> %b) nounwind
 
 ; CHECK: @Paddsw128
-; CHECK-NEXT: load <8 x i16>* {{.*}} @__msan_param_tls
-; CHECK-ORIGINS: load i32* {{.*}} @__msan_param_origin_tls
-; CHECK-NEXT: load <8 x i16>* {{.*}} @__msan_param_tls
-; CHECK-ORIGINS: load i32* {{.*}} @__msan_param_origin_tls
+; CHECK-NEXT: load <8 x i16>, <8 x i16>* {{.*}} @__msan_param_tls
+; CHECK-ORIGINS: load i32, i32* {{.*}} @__msan_param_origin_tls
+; CHECK-NEXT: load <8 x i16>, <8 x i16>* {{.*}} @__msan_param_tls
+; CHECK-ORIGINS: load i32, i32* {{.*}} @__msan_param_origin_tls
 ; CHECK-NEXT: = or <8 x i16>
 ; CHECK-ORIGINS: = bitcast <8 x i16> {{.*}} to i128
 ; CHECK-ORIGINS-NEXT: = icmp ne i128 {{.*}}, 0
@@ -620,13 +619,13 @@ declare <8 x i16> @llvm.x86.sse2.padds.w(<8 x i16> %a, <8 x i16> %b) nounwind
 ; Check that shadow of such vector is a vector of integers.
 
 define <8 x i8*> @VectorOfPointers(<8 x i8*>* %p) nounwind uwtable sanitize_memory {
-  %x = load <8 x i8*>* %p
+  %x = load <8 x i8*>, <8 x i8*>* %p
   ret <8 x i8*> %x
 }
 
 ; CHECK: @VectorOfPointers
-; CHECK: load <8 x i8*>*
-; CHECK: load <8 x i64>*
+; CHECK: load <8 x i8*>, <8 x i8*>*
+; CHECK: load <8 x i64>, <8 x i64>*
 ; CHECK: store <8 x i64> {{.*}} @__msan_retval_tls
 ; CHECK: ret <8 x i8*>
 
@@ -656,7 +655,7 @@ entry:
   %x.addr = alloca i32, align 4
   %va = alloca [1 x %struct.__va_list_tag], align 16
   store i32 %x, i32* %x.addr, align 4
-  %arraydecay = getelementptr inbounds [1 x %struct.__va_list_tag]* %va, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [1 x %struct.__va_list_tag], [1 x %struct.__va_list_tag]* %va, i32 0, i32 0
   %arraydecay1 = bitcast %struct.__va_list_tag* %arraydecay to i8*
   call void @llvm.va_start(i8* %arraydecay1)
   ret void
@@ -772,7 +771,7 @@ cond.end:                                         ; preds = %cond.false, %cond.t
 
 define i32 @NoSanitizeMemoryParamTLS(i32* nocapture readonly %x) {
 entry:
-  %0 = load i32* %x, align 4
+  %0 = load i32, i32* %x, align 4
   %call = tail call i32 @NoSanitizeMemoryParamTLSHelper(i32 %0)
   ret i32 %call
 }
@@ -792,7 +791,7 @@ entry:
 }
 
 ; CHECK: @ArgumentShadowAlignment
-; CHECK: load <2 x i64>* {{.*}} @__msan_param_tls {{.*}}, align 8
+; CHECK: load <2 x i64>, <2 x i64>* {{.*}} @__msan_param_tls {{.*}}, align 8
 ; CHECK: store <2 x i64> {{.*}} @__msan_retval_tls {{.*}}, align 8
 ; CHECK: ret <2 x i64>
 
@@ -835,13 +834,13 @@ entry:
   %agg.tmp2 = alloca %struct.StructByVal, align 8
   %0 = bitcast %struct.StructByVal* %s to i8*
   %agg.tmp.sroa.0.0..sroa_cast = bitcast %struct.StructByVal* %s to i64*
-  %agg.tmp.sroa.0.0.copyload = load i64* %agg.tmp.sroa.0.0..sroa_cast, align 4
-  %agg.tmp.sroa.2.0..sroa_idx = getelementptr inbounds %struct.StructByVal* %s, i64 0, i32 2
+  %agg.tmp.sroa.0.0.copyload = load i64, i64* %agg.tmp.sroa.0.0..sroa_cast, align 4
+  %agg.tmp.sroa.2.0..sroa_idx = getelementptr inbounds %struct.StructByVal, %struct.StructByVal* %s, i64 0, i32 2
   %agg.tmp.sroa.2.0..sroa_cast = bitcast i32* %agg.tmp.sroa.2.0..sroa_idx to i64*
-  %agg.tmp.sroa.2.0.copyload = load i64* %agg.tmp.sroa.2.0..sroa_cast, align 4
+  %agg.tmp.sroa.2.0.copyload = load i64, i64* %agg.tmp.sroa.2.0..sroa_cast, align 4
   %1 = bitcast %struct.StructByVal* %agg.tmp2 to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* %1, i8* %0, i64 16, i32 4, i1 false)
-  call void (i32, ...)* @VAArgStructFn(i32 undef, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, %struct.StructByVal* byval align 8 %agg.tmp2)
+  call void (i32, ...) @VAArgStructFn(i32 undef, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, %struct.StructByVal* byval align 8 %agg.tmp2)
   ret void
 }
 
@@ -862,7 +861,7 @@ entry:
 ; CHECK: bitcast { i32, i32, i32, i32 }* {{.*}}@__msan_va_arg_tls {{.*}}, i64 176
 ; CHECK: call void @llvm.memcpy.p0i8.p0i8.i64
 ; CHECK: store i64 16, i64* @__msan_va_arg_overflow_size_tls
-; CHECK: call void (i32, ...)* @VAArgStructFn
+; CHECK: call void (i32, ...) @VAArgStructFn
 ; CHECK: ret void
 
 declare i32 @InnerTailCall(i32 %a)
@@ -878,3 +877,6 @@ define void @MismatchedReturnTypeTailCall(i32 %a) sanitize_memory {
 ; CHECK-LABEL: define void @MismatchedReturnTypeTailCall
 ; CHECK: tail call i32 @InnerTailCall
 ; CHECK: ret void
+
+; CHECK-LABEL: define internal void @msan.module_ctor
+; CHECK: call void @__msan_init()

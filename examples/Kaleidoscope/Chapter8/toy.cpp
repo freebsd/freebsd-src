@@ -1,25 +1,26 @@
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Transforms/Scalar.h"
 #include <cctype>
 #include <cstdio>
+#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
-#include <iostream>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -92,13 +93,13 @@ class ExprAST;
 }
 static IRBuilder<> Builder(getGlobalContext());
 struct DebugInfo {
-  DICompileUnit TheCU;
-  DIType DblTy;
+  DICompileUnit *TheCU;
+  DIType *DblTy;
   std::vector<DIScope *> LexicalBlocks;
-  std::map<const PrototypeAST *, DIScope> FnScopeMap;
+  std::map<const PrototypeAST *, DIScope *> FnScopeMap;
 
   void emitLocation(ExprAST *AST);
-  DIType getDoubleTy();
+  DIType *getDoubleTy();
 } KSDbgInfo;
 
 static std::string IdentifierStr; // Filled in if tok_identifier
@@ -220,10 +221,10 @@ class NumberExprAST : public ExprAST {
 
 public:
   NumberExprAST(double val) : Val(val) {}
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     return ExprAST::dump(out << Val, ind);
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -234,10 +235,10 @@ public:
   VariableExprAST(SourceLocation Loc, const std::string &name)
       : ExprAST(Loc), Name(name) {}
   const std::string &getName() const { return Name; }
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     return ExprAST::dump(out << Name, ind);
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// UnaryExprAST - Expression class for a unary operator.
@@ -248,12 +249,12 @@ class UnaryExprAST : public ExprAST {
 public:
   UnaryExprAST(char opcode, ExprAST *operand)
       : Opcode(opcode), Operand(operand) {}
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     ExprAST::dump(out << "unary" << Opcode, ind);
     Operand->dump(out, ind + 1);
     return out;
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -264,13 +265,13 @@ class BinaryExprAST : public ExprAST {
 public:
   BinaryExprAST(SourceLocation Loc, char op, ExprAST *lhs, ExprAST *rhs)
       : ExprAST(Loc), Op(op), LHS(lhs), RHS(rhs) {}
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     ExprAST::dump(out << "binary" << Op, ind);
     LHS->dump(indent(out, ind) << "LHS:", ind + 1);
     RHS->dump(indent(out, ind) << "RHS:", ind + 1);
     return out;
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// CallExprAST - Expression class for function calls.
@@ -282,13 +283,13 @@ public:
   CallExprAST(SourceLocation Loc, const std::string &callee,
               std::vector<ExprAST *> &args)
       : ExprAST(Loc), Callee(callee), Args(args) {}
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     ExprAST::dump(out << "call " << Callee, ind);
     for (ExprAST *Arg : Args)
       Arg->dump(indent(out, ind + 1), ind + 1);
     return out;
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// IfExprAST - Expression class for if/then/else.
@@ -298,14 +299,14 @@ class IfExprAST : public ExprAST {
 public:
   IfExprAST(SourceLocation Loc, ExprAST *cond, ExprAST *then, ExprAST *_else)
       : ExprAST(Loc), Cond(cond), Then(then), Else(_else) {}
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     ExprAST::dump(out << "if", ind);
     Cond->dump(indent(out, ind) << "Cond:", ind + 1);
     Then->dump(indent(out, ind) << "Then:", ind + 1);
     Else->dump(indent(out, ind) << "Else:", ind + 1);
     return out;
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// ForExprAST - Expression class for for/in.
@@ -317,7 +318,7 @@ public:
   ForExprAST(const std::string &varname, ExprAST *start, ExprAST *end,
              ExprAST *step, ExprAST *body)
       : VarName(varname), Start(start), End(end), Step(step), Body(body) {}
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     ExprAST::dump(out << "for", ind);
     Start->dump(indent(out, ind) << "Cond:", ind + 1);
     End->dump(indent(out, ind) << "End:", ind + 1);
@@ -325,7 +326,7 @@ public:
     Body->dump(indent(out, ind) << "Body:", ind + 1);
     return out;
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// VarExprAST - Expression class for var/in
@@ -338,14 +339,14 @@ public:
              ExprAST *body)
       : VarNames(varnames), Body(body) {}
 
-  virtual std::ostream &dump(std::ostream &out, int ind) {
+  std::ostream &dump(std::ostream &out, int ind) override {
     ExprAST::dump(out << "var", ind);
     for (const auto &NamedVar : VarNames)
       NamedVar.second->dump(indent(out, ind) << NamedVar.first << ':', ind + 1);
     Body->dump(indent(out, ind) << "Body:", ind + 1);
     return out;
   }
-  virtual Value *Codegen();
+  Value *Codegen() override;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -815,8 +816,8 @@ static PrototypeAST *ParseExtern() {
 
 static DIBuilder *DBuilder;
 
-DIType DebugInfo::getDoubleTy() {
-  if (DblTy.isValid())
+DIType *DebugInfo::getDoubleTy() {
+  if (DblTy)
     return DblTy;
 
   DblTy = DBuilder->createBasicType("double", 64, 64, dwarf::DW_ATE_float);
@@ -828,16 +829,16 @@ void DebugInfo::emitLocation(ExprAST *AST) {
     return Builder.SetCurrentDebugLocation(DebugLoc());
   DIScope *Scope;
   if (LexicalBlocks.empty())
-    Scope = &TheCU;
+    Scope = TheCU;
   else
     Scope = LexicalBlocks.back();
   Builder.SetCurrentDebugLocation(
-      DebugLoc::get(AST->getLine(), AST->getCol(), DIScope(*Scope)));
+      DebugLoc::get(AST->getLine(), AST->getCol(), Scope));
 }
 
-static DICompositeType CreateFunctionType(unsigned NumArgs, DIFile Unit) {
+static DISubroutineType *CreateFunctionType(unsigned NumArgs, DIFile *Unit) {
   SmallVector<Metadata *, 8> EltTys;
-  DIType DblTy = KSDbgInfo.getDoubleTy();
+  DIType *DblTy = KSDbgInfo.getDoubleTy();
 
   // Add the result type.
   EltTys.push_back(DblTy);
@@ -845,8 +846,8 @@ static DICompositeType CreateFunctionType(unsigned NumArgs, DIFile Unit) {
   for (unsigned i = 0, e = NumArgs; i != e; ++i)
     EltTys.push_back(DblTy);
 
-  DITypeArray EltTypeArray = DBuilder->getOrCreateTypeArray(EltTys);
-  return DBuilder->createSubroutineType(Unit, EltTypeArray);
+  return DBuilder->createSubroutineType(Unit,
+                                        DBuilder->getOrCreateTypeArray(EltTys));
 }
 
 //===----------------------------------------------------------------------===//
@@ -855,7 +856,7 @@ static DICompositeType CreateFunctionType(unsigned NumArgs, DIFile Unit) {
 
 static Module *TheModule;
 static std::map<std::string, AllocaInst *> NamedValues;
-static FunctionPassManager *TheFPM;
+static legacy::FunctionPassManager *TheFPM;
 
 Value *ErrorV(const char *Str) {
   Error(Str);
@@ -907,7 +908,10 @@ Value *BinaryExprAST::Codegen() {
   // Special case '=' because we don't want to emit the LHS as an expression.
   if (Op == '=') {
     // Assignment requires the LHS to be an identifier.
-    VariableExprAST *LHSE = dynamic_cast<VariableExprAST *>(LHS);
+    // This assume we're building without RTTI because LLVM builds that way by
+    // default.  If you build LLVM with RTTI this can be changed to a
+    // dynamic_cast for automatic error checking.
+    VariableExprAST *LHSE = static_cast<VariableExprAST *>(LHS);
     if (!LHSE)
       return ErrorV("destination of '=' must be a variable");
     // Codegen the RHS.
@@ -1223,15 +1227,15 @@ Function *PrototypeAST::Codegen() {
     AI->setName(Args[Idx]);
 
   // Create a subprogram DIE for this function.
-  DIFile Unit = DBuilder->createFile(KSDbgInfo.TheCU.getFilename(),
-                                     KSDbgInfo.TheCU.getDirectory());
-  DIDescriptor FContext(Unit);
+  DIFile *Unit = DBuilder->createFile(KSDbgInfo.TheCU->getFilename(),
+                                      KSDbgInfo.TheCU->getDirectory());
+  DIScope *FContext = Unit;
   unsigned LineNo = Line;
   unsigned ScopeLine = Line;
-  DISubprogram SP = DBuilder->createFunction(
+  DISubprogram *SP = DBuilder->createFunction(
       FContext, Name, StringRef(), Unit, LineNo,
       CreateFunctionType(Args.size(), Unit), false /* internal linkage */,
-      true /* definition */, ScopeLine, DIDescriptor::FlagPrototyped, false, F);
+      true /* definition */, ScopeLine, DINode::FlagPrototyped, false, F);
 
   KSDbgInfo.FnScopeMap[this] = SP;
   return F;
@@ -1247,15 +1251,15 @@ void PrototypeAST::CreateArgumentAllocas(Function *F) {
 
     // Create a debug descriptor for the variable.
     DIScope *Scope = KSDbgInfo.LexicalBlocks.back();
-    DIFile Unit = DBuilder->createFile(KSDbgInfo.TheCU.getFilename(),
-                                       KSDbgInfo.TheCU.getDirectory());
-    DIVariable D = DBuilder->createLocalVariable(dwarf::DW_TAG_arg_variable,
-                                                 *Scope, Args[Idx], Unit, Line,
-                                                 KSDbgInfo.getDoubleTy(), Idx);
+    DIFile *Unit = DBuilder->createFile(KSDbgInfo.TheCU->getFilename(),
+                                        KSDbgInfo.TheCU->getDirectory());
+    DILocalVariable *D = DBuilder->createLocalVariable(
+        dwarf::DW_TAG_arg_variable, Scope, Args[Idx], Unit, Line,
+        KSDbgInfo.getDoubleTy(), Idx);
 
-    Instruction *Call = DBuilder->insertDeclare(
-        Alloca, D, DBuilder->createExpression(), Builder.GetInsertBlock());
-    Call->setDebugLoc(DebugLoc::get(Line, 0, *Scope));
+    DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+                            DebugLoc::get(Line, 0, Scope),
+                            Builder.GetInsertBlock());
 
     // Store the initial value into the alloca.
     Builder.CreateStore(AI, Alloca);
@@ -1273,7 +1277,7 @@ Function *FunctionAST::Codegen() {
     return 0;
 
   // Push the current scope.
-  KSDbgInfo.LexicalBlocks.push_back(&KSDbgInfo.FnScopeMap[Proto]);
+  KSDbgInfo.LexicalBlocks.push_back(KSDbgInfo.FnScopeMap[Proto]);
 
   // Unset the location for the prologue emission (leading instructions with no
   // location in a function are considered part of the prologue and the debugger
@@ -1454,12 +1458,11 @@ int main() {
     exit(1);
   }
 
-  FunctionPassManager OurFPM(TheModule);
+  legacy::FunctionPassManager OurFPM(TheModule);
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.
-  TheModule->setDataLayout(TheExecutionEngine->getDataLayout());
-  OurFPM.add(new DataLayoutPass());
+  TheModule->setDataLayout(*TheExecutionEngine->getDataLayout());
 #if 0
   // Provide basic AliasAnalysis support for GVN.
   OurFPM.add(createBasicAliasAnalysisPass());

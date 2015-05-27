@@ -12,18 +12,19 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 
 namespace llvm {
 class MCAssembler;
 class MCCodeEmitter;
-class MCSectionData;
 class MCSubtargetInfo;
 class MCExpr;
 class MCFragment;
 class MCDataFragment;
 class MCAsmBackend;
 class raw_ostream;
+class raw_pwrite_stream;
 
 /// \brief Streaming object file generation interface.
 ///
@@ -34,8 +35,8 @@ class raw_ostream;
 /// implementation.
 class MCObjectStreamer : public MCStreamer {
   MCAssembler *Assembler;
-  MCSectionData *CurSectionData;
-  MCSectionData::iterator CurInsertionPoint;
+  MCSection *CurSectionData;
+  MCSection::iterator CurInsertionPoint;
   bool EmitEHFrame;
   bool EmitDebugFrame;
   SmallVector<MCSymbolData *, 2> PendingLabels;
@@ -44,16 +45,10 @@ class MCObjectStreamer : public MCStreamer {
   void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame) override;
   void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) override;
 
-  // If any labels have been emitted but not assigned fragments, ensure that
-  // they get assigned, either to F if possible or to a new data fragment.
-  void flushPendingLabels(MCFragment *F);
-
 protected:
-  MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &_OS,
-                   MCCodeEmitter *_Emitter);
-  MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &_OS,
-                   MCCodeEmitter *_Emitter, MCAssembler *_Assembler);
-  ~MCObjectStreamer();
+  MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB, raw_pwrite_stream &OS,
+                   MCCodeEmitter *Emitter);
+  ~MCObjectStreamer() override;
 
 public:
   /// state management
@@ -69,9 +64,7 @@ public:
   void EmitCFISections(bool EH, bool Debug) override;
 
 protected:
-  MCSectionData *getCurrentSectionData() const {
-    return CurSectionData;
-  }
+  MCSection *getCurrentSectionData() const { return CurSectionData; }
 
   MCFragment *getCurrentFragment() const;
 
@@ -85,12 +78,20 @@ protected:
   /// fragment is not a data fragment.
   MCDataFragment *getOrCreateDataFragment();
 
+  bool changeSectionImpl(MCSection *Section, const MCExpr *Subsection);
+
+  /// If any labels have been emitted but not assigned fragments, ensure that
+  /// they get assigned, either to F if possible or to a new data fragment.
+  /// Optionally, it is also possible to provide an offset \p FOffset, which
+  /// will be used as a symbol offset within the fragment.
+  void flushPendingLabels(MCFragment *F, uint64_t FOffset = 0);
+
 public:
   void visitUsedSymbol(const MCSymbol &Sym) override;
 
   MCAssembler &getAssembler() { return *Assembler; }
 
-  /// @name MCStreamer Interface
+  /// \name MCStreamer Interface
   /// @{
 
   void EmitLabel(MCSymbol *Symbol) override;
@@ -100,8 +101,7 @@ public:
   void EmitULEB128Value(const MCExpr *Value) override;
   void EmitSLEB128Value(const MCExpr *Value) override;
   void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) override;
-  void ChangeSection(const MCSection *Section,
-                     const MCExpr *Subsection) override;
+  void ChangeSection(MCSection *Section, const MCExpr *Subsection) override;
   void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo& STI) override;
 
   /// \brief Emit an instruction to a special fragment, because this instruction
@@ -133,9 +133,18 @@ public:
   void EmitZeros(uint64_t NumBytes) override;
   void FinishImpl() override;
 
-  bool mayHaveInstructions() const override {
-    return getCurrentSectionData()->hasInstructions();
-  }
+  /// Emit the absolute difference between two symbols if possible.
+  ///
+  /// Emit the absolute difference between \c Hi and \c Lo, as long as we can
+  /// compute it.  Currently, that requires that both symbols are in the same
+  /// data fragment.  Otherwise, do nothing and return \c false.
+  ///
+  /// \pre Offset of \c Hi is greater than the offset \c Lo.
+  /// \return true on success.
+  bool emitAbsoluteSymbolDiff(const MCSymbol *Hi, const MCSymbol *Lo,
+                              unsigned Size) override;
+
+  bool mayHaveInstructions(MCSection &Sec) const override;
 };
 
 } // end namespace llvm

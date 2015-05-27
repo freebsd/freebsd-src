@@ -9,7 +9,7 @@
 
 LEVEL = ../..
 
-PARALLEL_DIRS = Utils
+PARALLEL_DIRS = IPO Utils
 
 include $(LEVEL)/Makefile.common
 

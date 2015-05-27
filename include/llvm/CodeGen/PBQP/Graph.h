@@ -21,6 +21,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <vector>
 
 namespace llvm {
 namespace PBQP {
@@ -507,14 +508,14 @@ namespace PBQP {
       return getNode(NId).getAdjEdgeIds().size();
     }
 
-    /// @brief Set an edge's cost matrix.
+    /// @brief Update an edge's cost matrix.
     /// @param EId Edge id.
     /// @param Costs New cost matrix.
     template <typename OtherMatrixT>
-    void setEdgeCosts(EdgeId EId, OtherMatrixT Costs) {
+    void updateEdgeCosts(EdgeId EId, OtherMatrixT Costs) {
       MatrixPtr AllocatedCosts = CostAlloc.getMatrix(std::move(Costs));
       if (Solver)
-        Solver->handleSetEdgeCosts(EId, *AllocatedCosts);
+        Solver->handleUpdateCosts(EId, *AllocatedCosts);
       getEdge(EId).Costs = AllocatedCosts;
     }
 
@@ -548,14 +549,14 @@ namespace PBQP {
     /// @brief Get the first node connected to this edge.
     /// @param EId Edge id.
     /// @return The first node connected to the given edge.
-    NodeId getEdgeNode1Id(EdgeId EId) {
+    NodeId getEdgeNode1Id(EdgeId EId) const {
       return getEdge(EId).getN1Id();
     }
 
     /// @brief Get the second node connected to this edge.
     /// @param EId Edge id.
     /// @return The second node connected to the given edge.
-    NodeId getEdgeNode2Id(EdgeId EId) {
+    NodeId getEdgeNode2Id(EdgeId EId) const {
       return getEdge(EId).getN2Id();
     }
 
@@ -671,69 +672,6 @@ namespace PBQP {
       FreeNodeIds.clear();
       Edges.clear();
       FreeEdgeIds.clear();
-    }
-
-    /// @brief Dump a graph to an output stream.
-    template <typename OStream>
-    void dumpToStream(OStream &OS) {
-      OS << nodeIds().size() << " " << edgeIds().size() << "\n";
-
-      for (auto NId : nodeIds()) {
-        const Vector& V = getNodeCosts(NId);
-        OS << "\n" << V.getLength() << "\n";
-        assert(V.getLength() != 0 && "Empty vector in graph.");
-        OS << V[0];
-        for (unsigned i = 1; i < V.getLength(); ++i) {
-          OS << " " << V[i];
-        }
-        OS << "\n";
-      }
-
-      for (auto EId : edgeIds()) {
-        NodeId N1Id = getEdgeNode1Id(EId);
-        NodeId N2Id = getEdgeNode2Id(EId);
-        assert(N1Id != N2Id && "PBQP graphs shound not have self-edges.");
-        const Matrix& M = getEdgeCosts(EId);
-        OS << "\n" << N1Id << " " << N2Id << "\n"
-           << M.getRows() << " " << M.getCols() << "\n";
-        assert(M.getRows() != 0 && "No rows in matrix.");
-        assert(M.getCols() != 0 && "No cols in matrix.");
-        for (unsigned i = 0; i < M.getRows(); ++i) {
-          OS << M[i][0];
-          for (unsigned j = 1; j < M.getCols(); ++j) {
-            OS << " " << M[i][j];
-          }
-          OS << "\n";
-        }
-      }
-    }
-
-    /// @brief Dump this graph to dbgs().
-    void dump() {
-      dumpToStream(dbgs());
-    }
-
-    /// @brief Print a representation of this graph in DOT format.
-    /// @param OS Output stream to print on.
-    template <typename OStream>
-    void printDot(OStream &OS) {
-      OS << "graph {\n";
-      for (auto NId : nodeIds()) {
-        OS << "  node" << NId << " [ label=\""
-           << NId << ": " << getNodeCosts(NId) << "\" ]\n";
-      }
-      OS << "  edge [ len=" << nodeIds().size() << " ]\n";
-      for (auto EId : edgeIds()) {
-        OS << "  node" << getEdgeNode1Id(EId)
-           << " -- node" << getEdgeNode2Id(EId)
-           << " [ label=\"";
-        const Matrix &EdgeCosts = getEdgeCosts(EId);
-        for (unsigned i = 0; i < EdgeCosts.getRows(); ++i) {
-          OS << EdgeCosts.getRowAsVector(i) << "\\n";
-        }
-        OS << "\" ]\n";
-      }
-      OS << "}\n";
     }
   };
 

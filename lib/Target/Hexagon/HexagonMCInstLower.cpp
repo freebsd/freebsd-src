@@ -15,7 +15,6 @@
 #include "Hexagon.h"
 #include "HexagonAsmPrinter.h"
 #include "HexagonMachineFunctionInfo.h"
-#include "MCTargetDesc/HexagonMCInst.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Mangler.h"
@@ -35,11 +34,11 @@ static MCOperand GetSymbolRef(const MachineOperand& MO, const MCSymbol* Symbol,
     ME = MCBinaryExpr::CreateAdd(ME, MCConstantExpr::Create(MO.getOffset(), MC),
                                  MC);
 
-  return (MCOperand::CreateExpr(ME));
+  return (MCOperand::createExpr(ME));
 }
 
 // Create an MCInst from a MachineInstr
-void llvm::HexagonLowerToMC(const MachineInstr* MI, HexagonMCInst& MCI,
+void llvm::HexagonLowerToMC(MachineInstr const* MI, MCInst& MCI,
                             HexagonAsmPrinter& AP) {
   MCI.setOpcode(MI->getOpcode());
 
@@ -54,20 +53,20 @@ void llvm::HexagonLowerToMC(const MachineInstr* MI, HexagonMCInst& MCI,
     case MachineOperand::MO_Register:
       // Ignore all implicit register operands.
       if (MO.isImplicit()) continue;
-      MCO = MCOperand::CreateReg(MO.getReg());
+      MCO = MCOperand::createReg(MO.getReg());
       break;
     case MachineOperand::MO_FPImmediate: {
       APFloat Val = MO.getFPImm()->getValueAPF();
       // FP immediates are used only when setting GPRs, so they may be dealt
       // with like regular immediates from this point on.
-      MCO = MCOperand::CreateImm(*Val.bitcastToAPInt().getRawData());
+      MCO = MCOperand::createImm(*Val.bitcastToAPInt().getRawData());
       break;
     }
     case MachineOperand::MO_Immediate:
-      MCO = MCOperand::CreateImm(MO.getImm());
+      MCO = MCOperand::createImm(MO.getImm());
       break;
     case MachineOperand::MO_MachineBasicBlock:
-      MCO = MCOperand::CreateExpr
+      MCO = MCOperand::createExpr
               (MCSymbolRefExpr::Create(MO.getMBB()->getSymbol(),
                AP.OutContext));
       break;

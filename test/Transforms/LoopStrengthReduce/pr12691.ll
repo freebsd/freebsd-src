@@ -1,5 +1,8 @@
 ; RUN: opt < %s -loop-reduce -S | FileCheck %s
 
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
 @d = common global i32 0, align 4
 
 define void @fn2(i32 %x) nounwind uwtable {
@@ -13,13 +16,13 @@ for.cond:
   br i1 %tobool, label %for.cond, label %for.end
 
 for.end:
-; CHECK:  %tmp1 = load i32* @d, align 4
-; CHECK-NEXT:  %tmp2 = load i32* @d, align 4
+; CHECK:  %tmp1 = load i32, i32* @d, align 4
+; CHECK-NEXT:  %tmp2 = load i32, i32* @d, align 4
 ; CHECK-NEXT:  %0 = sub i32 %tmp1, %tmp2
 
-  %tmp1 = load i32* @d, align 4
+  %tmp1 = load i32, i32* @d, align 4
   %add = add nsw i32 %tmp1, %g.0
-  %tmp2 = load i32* @d, align 4
+  %tmp2 = load i32, i32* @d, align 4
   %tobool26 = icmp eq i32 %x, 0
   br i1 %tobool26, label %for.end5, label %for.body.lr.ph
 

@@ -34,9 +34,9 @@ template<typename ValueSubClass, typename ItemParentClass>
 
 class GlobalVariable : public GlobalObject, public ilist_node<GlobalVariable> {
   friend class SymbolTableListTraits<GlobalVariable, Module>;
-  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
-  void operator=(const GlobalVariable &) LLVM_DELETED_FUNCTION;
-  GlobalVariable(const GlobalVariable &) LLVM_DELETED_FUNCTION;
+  void *operator new(size_t, unsigned) = delete;
+  void operator=(const GlobalVariable &) = delete;
+  GlobalVariable(const GlobalVariable &) = delete;
 
   void setParent(Module *parent);
 
@@ -66,7 +66,7 @@ public:
                  ThreadLocalMode = NotThreadLocal, unsigned AddressSpace = 0,
                  bool isExternallyInitialized = false);
 
-  ~GlobalVariable() {
+  ~GlobalVariable() override {
     NumOperands = 1; // FIXME: needed by operator delete
   }
 

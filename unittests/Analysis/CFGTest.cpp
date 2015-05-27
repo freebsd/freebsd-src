@@ -16,7 +16,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
@@ -72,23 +72,23 @@ protected:
         PassInfo *PI = new PassInfo("isPotentiallyReachable testing pass",
                                     "", &ID, nullptr, true, true);
         PassRegistry::getPassRegistry()->registerPass(*PI, false);
-        initializeLoopInfoPass(*PassRegistry::getPassRegistry());
+        initializeLoopInfoWrapperPassPass(*PassRegistry::getPassRegistry());
         initializeDominatorTreeWrapperPassPass(
             *PassRegistry::getPassRegistry());
         return 0;
       }
 
-      void getAnalysisUsage(AnalysisUsage &AU) const {
+      void getAnalysisUsage(AnalysisUsage &AU) const override {
         AU.setPreservesAll();
-        AU.addRequired<LoopInfo>();
+        AU.addRequired<LoopInfoWrapperPass>();
         AU.addRequired<DominatorTreeWrapperPass>();
       }
 
-      bool runOnFunction(Function &F) {
+      bool runOnFunction(Function &F) override {
         if (!F.hasName() || F.getName() != "test")
           return false;
 
-        LoopInfo *LI = &getAnalysis<LoopInfo>();
+        LoopInfo *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
         DominatorTree *DT =
             &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
         EXPECT_EQ(isPotentiallyReachable(A, B, nullptr, nullptr),
@@ -107,7 +107,7 @@ protected:
 
     IsPotentiallyReachableTestPass *P =
         new IsPotentiallyReachableTestPass(ExpectedResult, A, B);
-    PassManager PM;
+    legacy::PassManager PM;
     PM.add(P);
     PM.run(*M);
   }

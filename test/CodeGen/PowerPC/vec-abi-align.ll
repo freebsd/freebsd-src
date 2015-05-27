@@ -26,52 +26,52 @@ entry:
 ; Function Attrs: nounwind
 define void @test2(i64 %d1, i64 %d2, i64 %d3, i64 %d4, i64 %d5, i64 %d6, i64 %d7, i64 %d8, %struct.s2* byval nocapture readonly %vs) #0 {
 entry:
-  %m = getelementptr inbounds %struct.s2* %vs, i64 0, i32 0
-  %0 = load i64* %m, align 8
+  %m = getelementptr inbounds %struct.s2, %struct.s2* %vs, i64 0, i32 0
+  %0 = load i64, i64* %m, align 8
   store i64 %0, i64* @n, align 8
-  %v = getelementptr inbounds %struct.s2* %vs, i64 0, i32 1
-  %1 = load <4 x float>* %v, align 16
+  %v = getelementptr inbounds %struct.s2, %struct.s2* %vs, i64 0, i32 1
+  %1 = load <4 x float>, <4 x float>* %v, align 16
   store <4 x float> %1, <4 x float>* @ve, align 16
   ret void
 
 ; CHECK-LABEL: @test2
-; CHECK: ld {{[0-9]+}}, 112(1)
-; CHECK: li [[REG16:[0-9]+]], 16
-; CHECK: addi [[REGB:[0-9]+]], 1, 112
-; CHECK: lvx 2, [[REGB]], [[REG16]]
+; CHECK-DAG: ld {{[0-9]+}}, 112(1)
+; CHECK-DAG: li [[REG16:[0-9]+]], 16
+; CHECK-DAG: addi [[REGB:[0-9]+]], 1, 112
+; CHECK-DAG: lvx 2, [[REGB]], [[REG16]]
 ; CHECK: blr
 
 ; CHECK-VSX-LABEL: @test2
-; CHECK-VSX: ld {{[0-9]+}}, 112(1)
-; CHECK-VSX: li [[REG16:[0-9]+]], 16
-; CHECK-VSX: addi [[REGB:[0-9]+]], 1, 112
-; CHECK-VSX: lxvw4x {{[0-9]+}}, [[REGB]], [[REG16]]
+; CHECK-VSX-DAG: ld {{[0-9]+}}, 112(1)
+; CHECK-VSX-DAG: li [[REG16:[0-9]+]], 16
+; CHECK-VSX-DAG: addi [[REGB:[0-9]+]], 1, 112
+; CHECK-VSX-DAG: lxvw4x {{[0-9]+}}, [[REGB]], [[REG16]]
 ; CHECK-VSX: blr
 }
 
 ; Function Attrs: nounwind
 define void @test3(i64 %d1, i64 %d2, i64 %d3, i64 %d4, i64 %d5, i64 %d6, i64 %d7, i64 %d8, i64 %d9, %struct.s2* byval nocapture readonly %vs) #0 {
 entry:
-  %m = getelementptr inbounds %struct.s2* %vs, i64 0, i32 0
-  %0 = load i64* %m, align 8
+  %m = getelementptr inbounds %struct.s2, %struct.s2* %vs, i64 0, i32 0
+  %0 = load i64, i64* %m, align 8
   store i64 %0, i64* @n, align 8
-  %v = getelementptr inbounds %struct.s2* %vs, i64 0, i32 1
-  %1 = load <4 x float>* %v, align 16
+  %v = getelementptr inbounds %struct.s2, %struct.s2* %vs, i64 0, i32 1
+  %1 = load <4 x float>, <4 x float>* %v, align 16
   store <4 x float> %1, <4 x float>* @ve, align 16
   ret void
 
 ; CHECK-LABEL: @test3
-; CHECK: ld {{[0-9]+}}, 128(1)
-; CHECK: li [[REG16:[0-9]+]], 16
-; CHECK: addi [[REGB:[0-9]+]], 1, 128
-; CHECK: lvx 2, [[REGB]], [[REG16]]
+; CHECK-DAG: ld {{[0-9]+}}, 128(1)
+; CHECK-DAG: li [[REG16:[0-9]+]], 16
+; CHECK-DAG: addi [[REGB:[0-9]+]], 1, 128
+; CHECK-DAG: lvx 2, [[REGB]], [[REG16]]
 ; CHECK: blr
 
 ; CHECK-VSX-LABEL: @test3
-; CHECK-VSX: ld {{[0-9]+}}, 128(1)
-; CHECK-VSX: li [[REG16:[0-9]+]], 16
-; CHECK-VSX: addi [[REGB:[0-9]+]], 1, 128
-; CHECK-VSX: lxvw4x {{[0-9]+}}, [[REGB]], [[REG16]]
+; CHECK-VSX-DAG: ld {{[0-9]+}}, 128(1)
+; CHECK-VSX-DAG: li [[REG16:[0-9]+]], 16
+; CHECK-VSX-DAG: addi [[REGB:[0-9]+]], 1, 128
+; CHECK-VSX-DAG: lxvw4x {{[0-9]+}}, [[REGB]], [[REG16]]
 ; CHECK-VSX: blr
 }
 

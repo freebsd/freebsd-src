@@ -12,7 +12,7 @@ define void @st1lane_ro_16b(<16 x i8> %A, i8* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_16b
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.b { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i8* %D, i64 %offset
+  %ptr = getelementptr i8, i8* %D, i64 %offset
   %tmp = extractelement <16 x i8> %A, i32 1
   store i8 %tmp, i8* %ptr
   ret void
@@ -22,7 +22,7 @@ define void @st1lane0_ro_16b(<16 x i8> %A, i8* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_16b
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.b { v0 }[0], [x[[XREG]]]
-  %ptr = getelementptr i8* %D, i64 %offset
+  %ptr = getelementptr i8, i8* %D, i64 %offset
   %tmp = extractelement <16 x i8> %A, i32 0
   store i8 %tmp, i8* %ptr
   ret void
@@ -40,7 +40,7 @@ define void @st1lane_ro_8h(<8 x i16> %A, i16* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_8h
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.h { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i16* %D, i64 %offset
+  %ptr = getelementptr i16, i16* %D, i64 %offset
   %tmp = extractelement <8 x i16> %A, i32 1
   store i16 %tmp, i16* %ptr
   ret void
@@ -49,7 +49,7 @@ define void @st1lane_ro_8h(<8 x i16> %A, i16* %D, i64 %offset) {
 define void @st1lane0_ro_8h(<8 x i16> %A, i16* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_8h
 ; CHECK: str h0, [x0, x1, lsl #1]
-  %ptr = getelementptr i16* %D, i64 %offset
+  %ptr = getelementptr i16, i16* %D, i64 %offset
   %tmp = extractelement <8 x i16> %A, i32 0
   store i16 %tmp, i16* %ptr
   ret void
@@ -67,7 +67,7 @@ define void @st1lane_ro_4s(<4 x i32> %A, i32* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_4s
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.s { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i32* %D, i64 %offset
+  %ptr = getelementptr i32, i32* %D, i64 %offset
   %tmp = extractelement <4 x i32> %A, i32 1
   store i32 %tmp, i32* %ptr
   ret void
@@ -76,7 +76,7 @@ define void @st1lane_ro_4s(<4 x i32> %A, i32* %D, i64 %offset) {
 define void @st1lane0_ro_4s(<4 x i32> %A, i32* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_4s
 ; CHECK: str s0, [x0, x1, lsl #2]
-  %ptr = getelementptr i32* %D, i64 %offset
+  %ptr = getelementptr i32, i32* %D, i64 %offset
   %tmp = extractelement <4 x i32> %A, i32 0
   store i32 %tmp, i32* %ptr
   ret void
@@ -94,7 +94,7 @@ define void @st1lane_ro_4s_float(<4 x float> %A, float* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_4s_float
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.s { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr float* %D, i64 %offset
+  %ptr = getelementptr float, float* %D, i64 %offset
   %tmp = extractelement <4 x float> %A, i32 1
   store float %tmp, float* %ptr
   ret void
@@ -103,7 +103,7 @@ define void @st1lane_ro_4s_float(<4 x float> %A, float* %D, i64 %offset) {
 define void @st1lane0_ro_4s_float(<4 x float> %A, float* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_4s_float
 ; CHECK: str s0, [x0, x1, lsl #2]
-  %ptr = getelementptr float* %D, i64 %offset
+  %ptr = getelementptr float, float* %D, i64 %offset
   %tmp = extractelement <4 x float> %A, i32 0
   store float %tmp, float* %ptr
   ret void
@@ -121,7 +121,7 @@ define void @st1lane_ro_2d(<2 x i64> %A, i64* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_2d
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.d { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i64* %D, i64 %offset
+  %ptr = getelementptr i64, i64* %D, i64 %offset
   %tmp = extractelement <2 x i64> %A, i32 1
   store i64 %tmp, i64* %ptr
   ret void
@@ -130,7 +130,7 @@ define void @st1lane_ro_2d(<2 x i64> %A, i64* %D, i64 %offset) {
 define void @st1lane0_ro_2d(<2 x i64> %A, i64* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_2d
 ; CHECK: str d0, [x0, x1, lsl #3]
-  %ptr = getelementptr i64* %D, i64 %offset
+  %ptr = getelementptr i64, i64* %D, i64 %offset
   %tmp = extractelement <2 x i64> %A, i32 0
   store i64 %tmp, i64* %ptr
   ret void
@@ -148,7 +148,7 @@ define void @st1lane_ro_2d_double(<2 x double> %A, double* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_2d_double
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.d { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr double* %D, i64 %offset
+  %ptr = getelementptr double, double* %D, i64 %offset
   %tmp = extractelement <2 x double> %A, i32 1
   store double %tmp, double* %ptr
   ret void
@@ -157,7 +157,7 @@ define void @st1lane_ro_2d_double(<2 x double> %A, double* %D, i64 %offset) {
 define void @st1lane0_ro_2d_double(<2 x double> %A, double* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_2d_double
 ; CHECK: str d0, [x0, x1, lsl #3]
-  %ptr = getelementptr double* %D, i64 %offset
+  %ptr = getelementptr double, double* %D, i64 %offset
   %tmp = extractelement <2 x double> %A, i32 0
   store double %tmp, double* %ptr
   ret void
@@ -175,7 +175,7 @@ define void @st1lane_ro_8b(<8 x i8> %A, i8* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_8b
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.b { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i8* %D, i64 %offset
+  %ptr = getelementptr i8, i8* %D, i64 %offset
   %tmp = extractelement <8 x i8> %A, i32 1
   store i8 %tmp, i8* %ptr
   ret void
@@ -185,7 +185,7 @@ define void @st1lane0_ro_8b(<8 x i8> %A, i8* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_8b
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.b { v0 }[0], [x[[XREG]]]
-  %ptr = getelementptr i8* %D, i64 %offset
+  %ptr = getelementptr i8, i8* %D, i64 %offset
   %tmp = extractelement <8 x i8> %A, i32 0
   store i8 %tmp, i8* %ptr
   ret void
@@ -203,7 +203,7 @@ define void @st1lane_ro_4h(<4 x i16> %A, i16* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_4h
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.h { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i16* %D, i64 %offset
+  %ptr = getelementptr i16, i16* %D, i64 %offset
   %tmp = extractelement <4 x i16> %A, i32 1
   store i16 %tmp, i16* %ptr
   ret void
@@ -212,7 +212,7 @@ define void @st1lane_ro_4h(<4 x i16> %A, i16* %D, i64 %offset) {
 define void @st1lane0_ro_4h(<4 x i16> %A, i16* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_4h
 ; CHECK: str h0, [x0, x1, lsl #1]
-  %ptr = getelementptr i16* %D, i64 %offset
+  %ptr = getelementptr i16, i16* %D, i64 %offset
   %tmp = extractelement <4 x i16> %A, i32 0
   store i16 %tmp, i16* %ptr
   ret void
@@ -230,7 +230,7 @@ define void @st1lane_ro_2s(<2 x i32> %A, i32* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_2s
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.s { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr i32* %D, i64 %offset
+  %ptr = getelementptr i32, i32* %D, i64 %offset
   %tmp = extractelement <2 x i32> %A, i32 1
   store i32 %tmp, i32* %ptr
   ret void
@@ -239,7 +239,7 @@ define void @st1lane_ro_2s(<2 x i32> %A, i32* %D, i64 %offset) {
 define void @st1lane0_ro_2s(<2 x i32> %A, i32* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_2s
 ; CHECK: str s0, [x0, x1, lsl #2]
-  %ptr = getelementptr i32* %D, i64 %offset
+  %ptr = getelementptr i32, i32* %D, i64 %offset
   %tmp = extractelement <2 x i32> %A, i32 0
   store i32 %tmp, i32* %ptr
   ret void
@@ -257,7 +257,7 @@ define void @st1lane_ro_2s_float(<2 x float> %A, float* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane_ro_2s_float
 ; CHECK: add x[[XREG:[0-9]+]], x0, x1
 ; CHECK: st1.s { v0 }[1], [x[[XREG]]]
-  %ptr = getelementptr float* %D, i64 %offset
+  %ptr = getelementptr float, float* %D, i64 %offset
   %tmp = extractelement <2 x float> %A, i32 1
   store float %tmp, float* %ptr
   ret void
@@ -266,7 +266,7 @@ define void @st1lane_ro_2s_float(<2 x float> %A, float* %D, i64 %offset) {
 define void @st1lane0_ro_2s_float(<2 x float> %A, float* %D, i64 %offset) {
 ; CHECK-LABEL: st1lane0_ro_2s_float
 ; CHECK: str s0, [x0, x1, lsl #2]
-  %ptr = getelementptr float* %D, i64 %offset
+  %ptr = getelementptr float, float* %D, i64 %offset
   %tmp = extractelement <2 x float> %A, i32 0
   store float %tmp, float* %ptr
   ret void
@@ -374,21 +374,21 @@ declare void @llvm.aarch64.neon.st4lane.v2i64.p0i64(<2 x i64>, <2 x i64>, <2 x i
 
 define void @st2_8b(<8 x i8> %A, <8 x i8> %B, i8* %P) nounwind {
 ; CHECK-LABEL: st2_8b
-; CHECK st2.8b
+; CHECK: st2.8b
 	call void @llvm.aarch64.neon.st2.v8i8.p0i8(<8 x i8> %A, <8 x i8> %B, i8* %P)
 	ret void
 }
 
 define void @st3_8b(<8 x i8> %A, <8 x i8> %B, <8 x i8> %C, i8* %P) nounwind {
 ; CHECK-LABEL: st3_8b
-; CHECK st3.8b
+; CHECK: st3.8b
 	call void @llvm.aarch64.neon.st3.v8i8.p0i8(<8 x i8> %A, <8 x i8> %B, <8 x i8> %C, i8* %P)
 	ret void
 }
 
 define void @st4_8b(<8 x i8> %A, <8 x i8> %B, <8 x i8> %C, <8 x i8> %D, i8* %P) nounwind {
 ; CHECK-LABEL: st4_8b
-; CHECK st4.8b
+; CHECK: st4.8b
 	call void @llvm.aarch64.neon.st4.v8i8.p0i8(<8 x i8> %A, <8 x i8> %B, <8 x i8> %C, <8 x i8> %D, i8* %P)
 	ret void
 }
@@ -399,21 +399,21 @@ declare void @llvm.aarch64.neon.st4.v8i8.p0i8(<8 x i8>, <8 x i8>, <8 x i8>, <8 x
 
 define void @st2_16b(<16 x i8> %A, <16 x i8> %B, i8* %P) nounwind {
 ; CHECK-LABEL: st2_16b
-; CHECK st2.16b
+; CHECK: st2.16b
 	call void @llvm.aarch64.neon.st2.v16i8.p0i8(<16 x i8> %A, <16 x i8> %B, i8* %P)
 	ret void
 }
 
 define void @st3_16b(<16 x i8> %A, <16 x i8> %B, <16 x i8> %C, i8* %P) nounwind {
 ; CHECK-LABEL: st3_16b
-; CHECK st3.16b
+; CHECK: st3.16b
 	call void @llvm.aarch64.neon.st3.v16i8.p0i8(<16 x i8> %A, <16 x i8> %B, <16 x i8> %C, i8* %P)
 	ret void
 }
 
 define void @st4_16b(<16 x i8> %A, <16 x i8> %B, <16 x i8> %C, <16 x i8> %D, i8* %P) nounwind {
 ; CHECK-LABEL: st4_16b
-; CHECK st4.16b
+; CHECK: st4.16b
 	call void @llvm.aarch64.neon.st4.v16i8.p0i8(<16 x i8> %A, <16 x i8> %B, <16 x i8> %C, <16 x i8> %D, i8* %P)
 	ret void
 }
@@ -424,21 +424,21 @@ declare void @llvm.aarch64.neon.st4.v16i8.p0i8(<16 x i8>, <16 x i8>, <16 x i8>, 
 
 define void @st2_4h(<4 x i16> %A, <4 x i16> %B, i16* %P) nounwind {
 ; CHECK-LABEL: st2_4h
-; CHECK st2.4h
+; CHECK: st2.4h
 	call void @llvm.aarch64.neon.st2.v4i16.p0i16(<4 x i16> %A, <4 x i16> %B, i16* %P)
 	ret void
 }
 
 define void @st3_4h(<4 x i16> %A, <4 x i16> %B, <4 x i16> %C, i16* %P) nounwind {
 ; CHECK-LABEL: st3_4h
-; CHECK st3.4h
+; CHECK: st3.4h
 	call void @llvm.aarch64.neon.st3.v4i16.p0i16(<4 x i16> %A, <4 x i16> %B, <4 x i16> %C, i16* %P)
 	ret void
 }
 
 define void @st4_4h(<4 x i16> %A, <4 x i16> %B, <4 x i16> %C, <4 x i16> %D, i16* %P) nounwind {
 ; CHECK-LABEL: st4_4h
-; CHECK st4.4h
+; CHECK: st4.4h
 	call void @llvm.aarch64.neon.st4.v4i16.p0i16(<4 x i16> %A, <4 x i16> %B, <4 x i16> %C, <4 x i16> %D, i16* %P)
 	ret void
 }
@@ -449,21 +449,21 @@ declare void @llvm.aarch64.neon.st4.v4i16.p0i16(<4 x i16>, <4 x i16>, <4 x i16>,
 
 define void @st2_8h(<8 x i16> %A, <8 x i16> %B, i16* %P) nounwind {
 ; CHECK-LABEL: st2_8h
-; CHECK st2.8h
+; CHECK: st2.8h
 	call void @llvm.aarch64.neon.st2.v8i16.p0i16(<8 x i16> %A, <8 x i16> %B, i16* %P)
 	ret void
 }
 
 define void @st3_8h(<8 x i16> %A, <8 x i16> %B, <8 x i16> %C, i16* %P) nounwind {
 ; CHECK-LABEL: st3_8h
-; CHECK st3.8h
+; CHECK: st3.8h
 	call void @llvm.aarch64.neon.st3.v8i16.p0i16(<8 x i16> %A, <8 x i16> %B, <8 x i16> %C, i16* %P)
 	ret void
 }
 
 define void @st4_8h(<8 x i16> %A, <8 x i16> %B, <8 x i16> %C, <8 x i16> %D, i16* %P) nounwind {
 ; CHECK-LABEL: st4_8h
-; CHECK st4.8h
+; CHECK: st4.8h
 	call void @llvm.aarch64.neon.st4.v8i16.p0i16(<8 x i16> %A, <8 x i16> %B, <8 x i16> %C, <8 x i16> %D, i16* %P)
 	ret void
 }
@@ -474,21 +474,21 @@ declare void @llvm.aarch64.neon.st4.v8i16.p0i16(<8 x i16>, <8 x i16>, <8 x i16>,
 
 define void @st2_2s(<2 x i32> %A, <2 x i32> %B, i32* %P) nounwind {
 ; CHECK-LABEL: st2_2s
-; CHECK st2.2s
+; CHECK: st2.2s
 	call void @llvm.aarch64.neon.st2.v2i32.p0i32(<2 x i32> %A, <2 x i32> %B, i32* %P)
 	ret void
 }
 
 define void @st3_2s(<2 x i32> %A, <2 x i32> %B, <2 x i32> %C, i32* %P) nounwind {
 ; CHECK-LABEL: st3_2s
-; CHECK st3.2s
+; CHECK: st3.2s
 	call void @llvm.aarch64.neon.st3.v2i32.p0i32(<2 x i32> %A, <2 x i32> %B, <2 x i32> %C, i32* %P)
 	ret void
 }
 
 define void @st4_2s(<2 x i32> %A, <2 x i32> %B, <2 x i32> %C, <2 x i32> %D, i32* %P) nounwind {
 ; CHECK-LABEL: st4_2s
-; CHECK st4.2s
+; CHECK: st4.2s
 	call void @llvm.aarch64.neon.st4.v2i32.p0i32(<2 x i32> %A, <2 x i32> %B, <2 x i32> %C, <2 x i32> %D, i32* %P)
 	ret void
 }
@@ -499,21 +499,21 @@ declare void @llvm.aarch64.neon.st4.v2i32.p0i32(<2 x i32>, <2 x i32>, <2 x i32>,
 
 define void @st2_4s(<4 x i32> %A, <4 x i32> %B, i32* %P) nounwind {
 ; CHECK-LABEL: st2_4s
-; CHECK st2.4s
+; CHECK: st2.4s
 	call void @llvm.aarch64.neon.st2.v4i32.p0i32(<4 x i32> %A, <4 x i32> %B, i32* %P)
 	ret void
 }
 
 define void @st3_4s(<4 x i32> %A, <4 x i32> %B, <4 x i32> %C, i32* %P) nounwind {
 ; CHECK-LABEL: st3_4s
-; CHECK st3.4s
+; CHECK: st3.4s
 	call void @llvm.aarch64.neon.st3.v4i32.p0i32(<4 x i32> %A, <4 x i32> %B, <4 x i32> %C, i32* %P)
 	ret void
 }
 
 define void @st4_4s(<4 x i32> %A, <4 x i32> %B, <4 x i32> %C, <4 x i32> %D, i32* %P) nounwind {
 ; CHECK-LABEL: st4_4s
-; CHECK st4.4s
+; CHECK: st4.4s
 	call void @llvm.aarch64.neon.st4.v4i32.p0i32(<4 x i32> %A, <4 x i32> %B, <4 x i32> %C, <4 x i32> %D, i32* %P)
 	ret void
 }
@@ -522,23 +522,24 @@ declare void @llvm.aarch64.neon.st2.v4i32.p0i32(<4 x i32>, <4 x i32>, i32*) noun
 declare void @llvm.aarch64.neon.st3.v4i32.p0i32(<4 x i32>, <4 x i32>, <4 x i32>, i32*) nounwind readonly
 declare void @llvm.aarch64.neon.st4.v4i32.p0i32(<4 x i32>, <4 x i32>, <4 x i32>, <4 x i32>, i32*) nounwind readonly
 
+; If there's only one element, st2/3/4 don't make much sense, stick to st1.
 define void @st2_1d(<1 x i64> %A, <1 x i64> %B, i64* %P) nounwind {
 ; CHECK-LABEL: st2_1d
-; CHECK st1.2d
+; CHECK: st1.1d
 	call void @llvm.aarch64.neon.st2.v1i64.p0i64(<1 x i64> %A, <1 x i64> %B, i64* %P)
 	ret void
 }
 
 define void @st3_1d(<1 x i64> %A, <1 x i64> %B, <1 x i64> %C, i64* %P) nounwind {
 ; CHECK-LABEL: st3_1d
-; CHECK st1.3d
+; CHECK: st1.1d
 	call void @llvm.aarch64.neon.st3.v1i64.p0i64(<1 x i64> %A, <1 x i64> %B, <1 x i64> %C, i64* %P)
 	ret void
 }
 
 define void @st4_1d(<1 x i64> %A, <1 x i64> %B, <1 x i64> %C, <1 x i64> %D, i64* %P) nounwind {
 ; CHECK-LABEL: st4_1d
-; CHECK st1.4d
+; CHECK: st1.1d
 	call void @llvm.aarch64.neon.st4.v1i64.p0i64(<1 x i64> %A, <1 x i64> %B, <1 x i64> %C, <1 x i64> %D, i64* %P)
 	ret void
 }
@@ -549,21 +550,21 @@ declare void @llvm.aarch64.neon.st4.v1i64.p0i64(<1 x i64>, <1 x i64>, <1 x i64>,
 
 define void @st2_2d(<2 x i64> %A, <2 x i64> %B, i64* %P) nounwind {
 ; CHECK-LABEL: st2_2d
-; CHECK st2.2d
+; CHECK: st2.2d
 	call void @llvm.aarch64.neon.st2.v2i64.p0i64(<2 x i64> %A, <2 x i64> %B, i64* %P)
 	ret void
 }
 
 define void @st3_2d(<2 x i64> %A, <2 x i64> %B, <2 x i64> %C, i64* %P) nounwind {
 ; CHECK-LABEL: st3_2d
-; CHECK st2.3d
+; CHECK: st3.2d
 	call void @llvm.aarch64.neon.st3.v2i64.p0i64(<2 x i64> %A, <2 x i64> %B, <2 x i64> %C, i64* %P)
 	ret void
 }
 
 define void @st4_2d(<2 x i64> %A, <2 x i64> %B, <2 x i64> %C, <2 x i64> %D, i64* %P) nounwind {
 ; CHECK-LABEL: st4_2d
-; CHECK st2.4d
+; CHECK: st4.2d
 	call void @llvm.aarch64.neon.st4.v2i64.p0i64(<2 x i64> %A, <2 x i64> %B, <2 x i64> %C, <2 x i64> %D, i64* %P)
 	ret void
 }

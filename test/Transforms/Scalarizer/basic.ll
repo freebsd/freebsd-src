@@ -19,15 +19,15 @@ define void @f1(<4 x float> %init, <4 x float> *%base, i32 %count) {
 ; CHECK:   %acc.i2 = phi float [ %init.i2, %entry ], [ %sel.i2, %loop ]
 ; CHECK:   %acc.i3 = phi float [ %init.i3, %entry ], [ %sel.i3, %loop ]
 ; CHECK:   %nexti = sub i32 %i, 1
-; CHECK:   %ptr = getelementptr <4 x float>* %base, i32 %i
+; CHECK:   %ptr = getelementptr <4 x float>, <4 x float>* %base, i32 %i
 ; CHECK:   %ptr.i0 = bitcast <4 x float>* %ptr to float*
-; CHECK:   %val.i0 = load float* %ptr.i0, align 16
-; CHECK:   %ptr.i1 = getelementptr float* %ptr.i0, i32 1
-; CHECK:   %val.i1 = load float* %ptr.i1, align 4
-; CHECK:   %ptr.i2 = getelementptr float* %ptr.i0, i32 2
-; CHECK:   %val.i2 = load float* %ptr.i2, align 8
-; CHECK:   %ptr.i3 = getelementptr float* %ptr.i0, i32 3
-; CHECK:   %val.i3 = load float* %ptr.i3, align 4
+; CHECK:   %val.i0 = load float, float* %ptr.i0, align 16
+; CHECK:   %ptr.i1 = getelementptr float, float* %ptr.i0, i32 1
+; CHECK:   %val.i1 = load float, float* %ptr.i1, align 4
+; CHECK:   %ptr.i2 = getelementptr float, float* %ptr.i0, i32 2
+; CHECK:   %val.i2 = load float, float* %ptr.i2, align 8
+; CHECK:   %ptr.i3 = getelementptr float, float* %ptr.i0, i32 3
+; CHECK:   %val.i3 = load float, float* %ptr.i3, align 4
 ; CHECK:   %add.i0 = fadd float %val.i0, %val.i2
 ; CHECK:   %add.i1 = fadd float %val.i1, %val.i3
 ; CHECK:   %add.i2 = fadd float %acc.i0, %acc.i2
@@ -65,8 +65,8 @@ loop:
   %acc = phi <4 x float> [ %init, %entry ], [ %sel, %loop ]
   %nexti = sub i32 %i, 1
 
-  %ptr = getelementptr <4 x float> *%base, i32 %i
-  %val = load <4 x float> *%ptr
+  %ptr = getelementptr <4 x float>, <4 x float> *%base, i32 %i
+  %val = load <4 x float> , <4 x float> *%ptr
   %dval = bitcast <4 x float> %val to <2 x double>
   %dacc = bitcast <4 x float> %acc to <2 x double>
   %shuffle1 = shufflevector <2 x double> %dval, <2 x double> %dacc,
@@ -105,15 +105,15 @@ define void @f2(<4 x i32> %init, <4 x i8> *%base, i32 %count) {
 ; CHECK:   %acc.i2 = phi i32 [ %init.i2, %entry ], [ %sel.i2, %loop ]
 ; CHECK:   %acc.i3 = phi i32 [ %init.i3, %entry ], [ %sel.i3, %loop ]
 ; CHECK:   %nexti = sub i32 %i, 1
-; CHECK:   %ptr = getelementptr <4 x i8>* %base, i32 %i
+; CHECK:   %ptr = getelementptr <4 x i8>, <4 x i8>* %base, i32 %i
 ; CHECK:   %ptr.i0 = bitcast <4 x i8>* %ptr to i8*
-; CHECK:   %val.i0 = load i8* %ptr.i0, align 4
-; CHECK:   %ptr.i1 = getelementptr i8* %ptr.i0, i32 1
-; CHECK:   %val.i1 = load i8* %ptr.i1, align 1
-; CHECK:   %ptr.i2 = getelementptr i8* %ptr.i0, i32 2
-; CHECK:   %val.i2 = load i8* %ptr.i2, align 2
-; CHECK:   %ptr.i3 = getelementptr i8* %ptr.i0, i32 3
-; CHECK:   %val.i3 = load i8* %ptr.i3, align 1
+; CHECK:   %val.i0 = load i8, i8* %ptr.i0, align 4
+; CHECK:   %ptr.i1 = getelementptr i8, i8* %ptr.i0, i32 1
+; CHECK:   %val.i1 = load i8, i8* %ptr.i1, align 1
+; CHECK:   %ptr.i2 = getelementptr i8, i8* %ptr.i0, i32 2
+; CHECK:   %val.i2 = load i8, i8* %ptr.i2, align 2
+; CHECK:   %ptr.i3 = getelementptr i8, i8* %ptr.i0, i32 3
+; CHECK:   %val.i3 = load i8, i8* %ptr.i3, align 1
 ; CHECK:   %ext.i0 = sext i8 %val.i0 to i32
 ; CHECK:   %ext.i1 = sext i8 %val.i1 to i32
 ; CHECK:   %ext.i2 = sext i8 %val.i2 to i32
@@ -150,8 +150,8 @@ loop:
   %acc = phi <4 x i32> [ %init, %entry ], [ %sel, %loop ]
   %nexti = sub i32 %i, 1
 
-  %ptr = getelementptr <4 x i8> *%base, i32 %i
-  %val = load <4 x i8> *%ptr
+  %ptr = getelementptr <4 x i8>, <4 x i8> *%base, i32 %i
+  %val = load <4 x i8> , <4 x i8> *%ptr
   %ext = sext <4 x i8> %val to <4 x i32>
   %add = add <4 x i32> %ext, %acc
   %cmp = icmp slt <4 x i32> %add, <i32 -10, i32 -11, i32 -12, i32 -13>
@@ -172,16 +172,16 @@ exit:
 ; Check that !tbaa information is preserved.
 define void @f3(<4 x i32> *%src, <4 x i32> *%dst) {
 ; CHECK-LABEL: @f3(
-; CHECK: %val.i0 = load i32* %src.i0, align 16, !tbaa ![[TAG:[0-9]*]]
-; CHECK: %val.i1 = load i32* %src.i1, align 4, !tbaa ![[TAG]]
-; CHECK: %val.i2 = load i32* %src.i2, align 8, !tbaa ![[TAG]]
-; CHECK: %val.i3 = load i32* %src.i3, align 4, !tbaa ![[TAG]]
+; CHECK: %val.i0 = load i32, i32* %src.i0, align 16, !tbaa ![[TAG:[0-9]*]]
+; CHECK: %val.i1 = load i32, i32* %src.i1, align 4, !tbaa ![[TAG]]
+; CHECK: %val.i2 = load i32, i32* %src.i2, align 8, !tbaa ![[TAG]]
+; CHECK: %val.i3 = load i32, i32* %src.i3, align 4, !tbaa ![[TAG]]
 ; CHECK: store i32 %add.i0, i32* %dst.i0, align 16, !tbaa ![[TAG:[0-9]*]]
 ; CHECK: store i32 %add.i1, i32* %dst.i1, align 4, !tbaa ![[TAG]]
 ; CHECK: store i32 %add.i2, i32* %dst.i2, align 8, !tbaa ![[TAG]]
 ; CHECK: store i32 %add.i3, i32* %dst.i3, align 4, !tbaa ![[TAG]]
 ; CHECK: ret void
-  %val = load <4 x i32> *%src, !tbaa !1
+  %val = load <4 x i32> , <4 x i32> *%src, !tbaa !1
   %add = add <4 x i32> %val, %val
   store <4 x i32> %add, <4 x i32> *%dst, !tbaa !2
   ret void
@@ -190,16 +190,16 @@ define void @f3(<4 x i32> *%src, <4 x i32> *%dst) {
 ; Check that !tbaa.struct information is preserved.
 define void @f4(<4 x i32> *%src, <4 x i32> *%dst) {
 ; CHECK-LABEL: @f4(
-; CHECK: %val.i0 = load i32* %src.i0, align 16, !tbaa.struct ![[TAG:[0-9]*]]
-; CHECK: %val.i1 = load i32* %src.i1, align 4, !tbaa.struct ![[TAG]]
-; CHECK: %val.i2 = load i32* %src.i2, align 8, !tbaa.struct ![[TAG]]
-; CHECK: %val.i3 = load i32* %src.i3, align 4, !tbaa.struct ![[TAG]]
+; CHECK: %val.i0 = load i32, i32* %src.i0, align 16, !tbaa.struct ![[TAG:[0-9]*]]
+; CHECK: %val.i1 = load i32, i32* %src.i1, align 4, !tbaa.struct ![[TAG]]
+; CHECK: %val.i2 = load i32, i32* %src.i2, align 8, !tbaa.struct ![[TAG]]
+; CHECK: %val.i3 = load i32, i32* %src.i3, align 4, !tbaa.struct ![[TAG]]
 ; CHECK: store i32 %add.i0, i32* %dst.i0, align 16, !tbaa.struct ![[TAG]]
 ; CHECK: store i32 %add.i1, i32* %dst.i1, align 4, !tbaa.struct ![[TAG]]
 ; CHECK: store i32 %add.i2, i32* %dst.i2, align 8, !tbaa.struct ![[TAG]]
 ; CHECK: store i32 %add.i3, i32* %dst.i3, align 4, !tbaa.struct ![[TAG]]
 ; CHECK: ret void
-  %val = load <4 x i32> *%src, !tbaa.struct !5
+  %val = load <4 x i32> , <4 x i32> *%src, !tbaa.struct !5
   %add = add <4 x i32> %val, %val
   store <4 x i32> %add, <4 x i32> *%dst, !tbaa.struct !5
   ret void
@@ -208,10 +208,10 @@ define void @f4(<4 x i32> *%src, <4 x i32> *%dst) {
 ; Check that llvm.mem.parallel_loop_access information is preserved.
 define void @f5(i32 %count, <4 x i32> *%src, <4 x i32> *%dst) {
 ; CHECK-LABEL: @f5(
-; CHECK: %val.i0 = load i32* %this_src.i0, align 16, !llvm.mem.parallel_loop_access ![[TAG:[0-9]*]]
-; CHECK: %val.i1 = load i32* %this_src.i1, align 4, !llvm.mem.parallel_loop_access ![[TAG]]
-; CHECK: %val.i2 = load i32* %this_src.i2, align 8, !llvm.mem.parallel_loop_access ![[TAG]]
-; CHECK: %val.i3 = load i32* %this_src.i3, align 4, !llvm.mem.parallel_loop_access ![[TAG]]
+; CHECK: %val.i0 = load i32, i32* %this_src.i0, align 16, !llvm.mem.parallel_loop_access ![[TAG:[0-9]*]]
+; CHECK: %val.i1 = load i32, i32* %this_src.i1, align 4, !llvm.mem.parallel_loop_access ![[TAG]]
+; CHECK: %val.i2 = load i32, i32* %this_src.i2, align 8, !llvm.mem.parallel_loop_access ![[TAG]]
+; CHECK: %val.i3 = load i32, i32* %this_src.i3, align 4, !llvm.mem.parallel_loop_access ![[TAG]]
 ; CHECK: store i32 %add.i0, i32* %this_dst.i0, align 16, !llvm.mem.parallel_loop_access ![[TAG]]
 ; CHECK: store i32 %add.i1, i32* %this_dst.i1, align 4, !llvm.mem.parallel_loop_access ![[TAG]]
 ; CHECK: store i32 %add.i2, i32* %this_dst.i2, align 8, !llvm.mem.parallel_loop_access ![[TAG]]
@@ -222,9 +222,9 @@ entry:
 
 loop:
   %index = phi i32 [ 0, %entry ], [ %next_index, %loop ]
-  %this_src = getelementptr <4 x i32> *%src, i32 %index
-  %this_dst = getelementptr <4 x i32> *%dst, i32 %index
-  %val = load <4 x i32> *%this_src, !llvm.mem.parallel_loop_access !3
+  %this_src = getelementptr <4 x i32>, <4 x i32> *%src, i32 %index
+  %this_dst = getelementptr <4 x i32>, <4 x i32> *%dst, i32 %index
+  %val = load <4 x i32> , <4 x i32> *%this_src, !llvm.mem.parallel_loop_access !3
   %add = add <4 x i32> %val, %val
   store <4 x i32> %add, <4 x i32> *%this_dst, !llvm.mem.parallel_loop_access !3
   %next_index = add i32 %index, -1
@@ -261,7 +261,7 @@ define void @f7(<4 x i32> *%src, <4 x i32> *%dst) {
 ; CHECK-LABEL: @f7(
 ; CHECK-NOT: !foo
 ; CHECK: ret void
-  %val = load <4 x i32> *%src, !foo !5
+  %val = load <4 x i32> , <4 x i32> *%src, !foo !5
   %add = add <4 x i32> %val, %val
   store <4 x i32> %add, <4 x i32> *%dst, !foo !5
   ret void
@@ -272,18 +272,18 @@ define void @f8(<4 x float *> *%dest, <4 x float *> %ptr0, <4 x i32> %i0,
                 float *%other) {
 ; CHECK-LABEL: @f8(
 ; CHECK: %dest.i0 = bitcast <4 x float*>* %dest to float**
-; CHECK: %dest.i1 = getelementptr float** %dest.i0, i32 1
-; CHECK: %dest.i2 = getelementptr float** %dest.i0, i32 2
-; CHECK: %dest.i3 = getelementptr float** %dest.i0, i32 3
+; CHECK: %dest.i1 = getelementptr float*, float** %dest.i0, i32 1
+; CHECK: %dest.i2 = getelementptr float*, float** %dest.i0, i32 2
+; CHECK: %dest.i3 = getelementptr float*, float** %dest.i0, i32 3
 ; CHECK: %i0.i1 = extractelement <4 x i32> %i0, i32 1
 ; CHECK: %i0.i3 = extractelement <4 x i32> %i0, i32 3
 ; CHECK: %ptr0.i0 = extractelement <4 x float*> %ptr0, i32 0
-; CHECK: %val.i0 = getelementptr float* %ptr0.i0, i32 100
-; CHECK: %val.i1 = getelementptr float* %other, i32 %i0.i1
+; CHECK: %val.i0 = getelementptr float, float* %ptr0.i0, i32 100
+; CHECK: %val.i1 = getelementptr float, float* %other, i32 %i0.i1
 ; CHECK: %ptr0.i2 = extractelement <4 x float*> %ptr0, i32 2
-; CHECK: %val.i2 = getelementptr float* %ptr0.i2, i32 100
+; CHECK: %val.i2 = getelementptr float, float* %ptr0.i2, i32 100
 ; CHECK: %ptr0.i3 = extractelement <4 x float*> %ptr0, i32 3
-; CHECK: %val.i3 = getelementptr float* %ptr0.i3, i32 %i0.i3
+; CHECK: %val.i3 = getelementptr float, float* %ptr0.i3, i32 %i0.i3
 ; CHECK: store float* %val.i0, float** %dest.i0, align 32
 ; CHECK: store float* %val.i1, float** %dest.i1, align 8
 ; CHECK: store float* %val.i2, float** %dest.i2, align 16
@@ -292,7 +292,7 @@ define void @f8(<4 x float *> *%dest, <4 x float *> %ptr0, <4 x i32> %i0,
   %i1 = insertelement <4 x i32> %i0, i32 100, i32 0
   %i2 = insertelement <4 x i32> %i1, i32 100, i32 2
   %ptr1 = insertelement <4 x float *> %ptr0, float *%other, i32 1
-  %val = getelementptr <4 x float *> %ptr1, <4 x i32> %i2
+  %val = getelementptr float, <4 x float *> %ptr1, <4 x i32> %i2
   store <4 x float *> %val, <4 x float *> *%dest
   ret void
 }
@@ -301,23 +301,23 @@ define void @f8(<4 x float *> *%dest, <4 x float *> %ptr0, <4 x i32> %i0,
 define void @f9(<4 x float> *%dest, <4 x float> *%src) {
 ; CHECK: @f9(
 ; CHECK: %dest.i0 = bitcast <4 x float>* %dest to float*
-; CHECK: %dest.i1 = getelementptr float* %dest.i0, i32 1
-; CHECK: %dest.i2 = getelementptr float* %dest.i0, i32 2
-; CHECK: %dest.i3 = getelementptr float* %dest.i0, i32 3
+; CHECK: %dest.i1 = getelementptr float, float* %dest.i0, i32 1
+; CHECK: %dest.i2 = getelementptr float, float* %dest.i0, i32 2
+; CHECK: %dest.i3 = getelementptr float, float* %dest.i0, i32 3
 ; CHECK: %src.i0 = bitcast <4 x float>* %src to float*
-; CHECK: %val.i0 = load float* %src.i0, align 4
-; CHECK: %src.i1 = getelementptr float* %src.i0, i32 1
-; CHECK: %val.i1 = load float* %src.i1, align 4
-; CHECK: %src.i2 = getelementptr float* %src.i0, i32 2
-; CHECK: %val.i2 = load float* %src.i2, align 4
-; CHECK: %src.i3 = getelementptr float* %src.i0, i32 3
-; CHECK: %val.i3 = load float* %src.i3, align 4
+; CHECK: %val.i0 = load float, float* %src.i0, align 4
+; CHECK: %src.i1 = getelementptr float, float* %src.i0, i32 1
+; CHECK: %val.i1 = load float, float* %src.i1, align 4
+; CHECK: %src.i2 = getelementptr float, float* %src.i0, i32 2
+; CHECK: %val.i2 = load float, float* %src.i2, align 4
+; CHECK: %src.i3 = getelementptr float, float* %src.i0, i32 3
+; CHECK: %val.i3 = load float, float* %src.i3, align 4
 ; CHECK: store float %val.i0, float* %dest.i0, align 8
 ; CHECK: store float %val.i1, float* %dest.i1, align 4
 ; CHECK: store float %val.i2, float* %dest.i2, align 8
 ; CHECK: store float %val.i3, float* %dest.i3, align 4
 ; CHECK: ret void
-  %val = load <4 x float> *%src, align 4
+  %val = load <4 x float> , <4 x float> *%src, align 4
   store <4 x float> %val, <4 x float> *%dest, align 8
   ret void
 }
@@ -326,23 +326,23 @@ define void @f9(<4 x float> *%dest, <4 x float> *%src) {
 define void @f10(<4 x float> *%dest, <4 x float> *%src) {
 ; CHECK: @f10(
 ; CHECK: %dest.i0 = bitcast <4 x float>* %dest to float*
-; CHECK: %dest.i1 = getelementptr float* %dest.i0, i32 1
-; CHECK: %dest.i2 = getelementptr float* %dest.i0, i32 2
-; CHECK: %dest.i3 = getelementptr float* %dest.i0, i32 3
+; CHECK: %dest.i1 = getelementptr float, float* %dest.i0, i32 1
+; CHECK: %dest.i2 = getelementptr float, float* %dest.i0, i32 2
+; CHECK: %dest.i3 = getelementptr float, float* %dest.i0, i32 3
 ; CHECK: %src.i0 = bitcast <4 x float>* %src to float*
-; CHECK: %val.i0 = load float* %src.i0, align 1
-; CHECK: %src.i1 = getelementptr float* %src.i0, i32 1
-; CHECK: %val.i1 = load float* %src.i1, align 1
-; CHECK: %src.i2 = getelementptr float* %src.i0, i32 2
-; CHECK: %val.i2 = load float* %src.i2, align 1
-; CHECK: %src.i3 = getelementptr float* %src.i0, i32 3
-; CHECK: %val.i3 = load float* %src.i3, align 1
+; CHECK: %val.i0 = load float, float* %src.i0, align 1
+; CHECK: %src.i1 = getelementptr float, float* %src.i0, i32 1
+; CHECK: %val.i1 = load float, float* %src.i1, align 1
+; CHECK: %src.i2 = getelementptr float, float* %src.i0, i32 2
+; CHECK: %val.i2 = load float, float* %src.i2, align 1
+; CHECK: %src.i3 = getelementptr float, float* %src.i0, i32 3
+; CHECK: %val.i3 = load float, float* %src.i3, align 1
 ; CHECK: store float %val.i0, float* %dest.i0, align 2
 ; CHECK: store float %val.i1, float* %dest.i1, align 2
 ; CHECK: store float %val.i2, float* %dest.i2, align 2
 ; CHECK: store float %val.i3, float* %dest.i3, align 2
 ; CHECK: ret void
-  %val = load <4 x float> *%src, align 1
+  %val = load <4 x float> , <4 x float> *%src, align 1
   store <4 x float> %val, <4 x float> *%dest, align 2
   ret void
 }
@@ -350,13 +350,13 @@ define void @f10(<4 x float> *%dest, <4 x float> *%src) {
 ; Test that sub-byte loads aren't scalarized.
 define void @f11(<32 x i1> *%dest, <32 x i1> *%src0) {
 ; CHECK: @f11(
-; CHECK: %val0 = load <32 x i1>* %src0
-; CHECK: %val1 = load <32 x i1>* %src1
+; CHECK: %val0 = load <32 x i1>, <32 x i1>* %src0
+; CHECK: %val1 = load <32 x i1>, <32 x i1>* %src1
 ; CHECK: store <32 x i1> %and, <32 x i1>* %dest
 ; CHECK: ret void
-  %src1 = getelementptr <32 x i1> *%src0, i32 1
-  %val0 = load <32 x i1> *%src0
-  %val1 = load <32 x i1> *%src1
+  %src1 = getelementptr <32 x i1>, <32 x i1> *%src0, i32 1
+  %val0 = load <32 x i1> , <32 x i1> *%src0
+  %val1 = load <32 x i1> , <32 x i1> *%src1
   %and = and <32 x i1> %val0, %val1
   store <32 x i1> %and, <32 x i1> *%dest
   ret void
@@ -375,7 +375,7 @@ define void @f12(<4 x i32> *%dest, <4 x i32> *%src, i32 %index) {
 ; CHECK-DAG: %val2.i2 = shl i32 3, %val1.i2
 ; CHECK-DAG: %val2.i3 = shl i32 4, %val1.i3
 ; CHECK: ret void
-  %val0 = load <4 x i32> *%src
+  %val0 = load <4 x i32> , <4 x i32> *%src
   %val1 = insertelement <4 x i32> %val0, i32 1, i32 %index
   %val2 = shl <4 x i32> <i32 1, i32 2, i32 3, i32 4>, %val1
   store <4 x i32> %val2, <4 x i32> *%dest
@@ -387,27 +387,27 @@ define void @f13(<4 x float *> *%dest, <4 x [4 x float] *> %ptr, <4 x i32> %i,
                  float *%other) {
 ; CHECK-LABEL: @f13(
 ; CHECK: %dest.i0 = bitcast <4 x float*>* %dest to float**
-; CHECK: %dest.i1 = getelementptr float** %dest.i0, i32 1
-; CHECK: %dest.i2 = getelementptr float** %dest.i0, i32 2
-; CHECK: %dest.i3 = getelementptr float** %dest.i0, i32 3
+; CHECK: %dest.i1 = getelementptr float*, float** %dest.i0, i32 1
+; CHECK: %dest.i2 = getelementptr float*, float** %dest.i0, i32 2
+; CHECK: %dest.i3 = getelementptr float*, float** %dest.i0, i32 3
 ; CHECK: %i.i0 = extractelement <4 x i32> %i, i32 0
 ; CHECK: %ptr.i0 = extractelement <4 x [4 x float]*> %ptr, i32 0
-; CHECK: %val.i0 = getelementptr inbounds [4 x float]* %ptr.i0, i32 0, i32 %i.i0
+; CHECK: %val.i0 = getelementptr inbounds [4 x float], [4 x float]* %ptr.i0, i32 0, i32 %i.i0
 ; CHECK: %i.i1 = extractelement <4 x i32> %i, i32 1
 ; CHECK: %ptr.i1 = extractelement <4 x [4 x float]*> %ptr, i32 1
-; CHECK: %val.i1 = getelementptr inbounds [4 x float]* %ptr.i1, i32 1, i32 %i.i1
+; CHECK: %val.i1 = getelementptr inbounds [4 x float], [4 x float]* %ptr.i1, i32 1, i32 %i.i1
 ; CHECK: %i.i2 = extractelement <4 x i32> %i, i32 2
 ; CHECK: %ptr.i2 = extractelement <4 x [4 x float]*> %ptr, i32 2
-; CHECK: %val.i2 = getelementptr inbounds [4 x float]* %ptr.i2, i32 2, i32 %i.i2
+; CHECK: %val.i2 = getelementptr inbounds [4 x float], [4 x float]* %ptr.i2, i32 2, i32 %i.i2
 ; CHECK: %i.i3 = extractelement <4 x i32> %i, i32 3
 ; CHECK: %ptr.i3 = extractelement <4 x [4 x float]*> %ptr, i32 3
-; CHECK: %val.i3 = getelementptr inbounds [4 x float]* %ptr.i3, i32 3, i32 %i.i3
+; CHECK: %val.i3 = getelementptr inbounds [4 x float], [4 x float]* %ptr.i3, i32 3, i32 %i.i3
 ; CHECK: store float* %val.i0, float** %dest.i0, align 32
 ; CHECK: store float* %val.i1, float** %dest.i1, align 8
 ; CHECK: store float* %val.i2, float** %dest.i2, align 16
 ; CHECK: store float* %val.i3, float** %dest.i3, align 8
 ; CHECK: ret void
-  %val = getelementptr inbounds <4 x [4 x float] *> %ptr,
+  %val = getelementptr inbounds [4 x float], <4 x [4 x float] *> %ptr,
                                 <4 x i32> <i32 0, i32 1, i32 2, i32 3>,
                                 <4 x i32> %i
   store <4 x float *> %val, <4 x float *> *%dest

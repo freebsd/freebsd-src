@@ -1,9 +1,11 @@
 ; RUN: llc -generate-arange-section < %s | FileCheck %s
 
+; CHECK: .section .debug_aranges,"",@progbits
+
 ; First CU
-; CHECK:      .long   44                      # Length of ARange Set
+; CHECK-NEXT: .long   44                      # Length of ARange Set
 ; CHECK-NEXT: .short  2                       # DWARF Arange version number
-; CHECK-NEXT: .long   .L.debug_info_begin0    # Offset Into Debug Info Section
+; CHECK-NEXT: .long   .Lcu_begin0             # Offset Into Debug Info Section
 ; CHECK-NEXT: .byte   8                       # Address Size (in bytes)
 ; CHECK-NEXT: .byte   0                       # Segment Size (in bytes)
 ; CHECK-NEXT: .zero   4,255
@@ -15,12 +17,12 @@
 ; Second CU
 ; CHECK-NEXT: .long   44                      # Length of ARange Set
 ; CHECK-NEXT: .short  2                       # DWARF Arange version number
-; CHECK-NEXT: .long   .L.debug_info_begin1    # Offset Into Debug Info Section
+; CHECK-NEXT: .long   .Lcu_begin1             # Offset Into Debug Info Section
 ; CHECK-NEXT: .byte   8                       # Address Size (in bytes)
 ; CHECK-NEXT: .byte   0                       # Segment Size (in bytes)
 ; CHECK-NEXT: .zero   4,255
 ; CHECK-NEXT: .quad   rainbows
-; CHECK-NEXT: .quad   .Ldebug_end0-rainbows
+; CHECK-NEXT: .quad   .Lsec_end0-rainbows
 ; CHECK-NEXT: .quad   0                       # ARange terminator
 ; CHECK-NEXT: .quad   0
 
@@ -42,17 +44,17 @@ target triple = "x86_64-unknown-linux-gnu"
 !llvm.dbg.cu = !{!0, !7}
 !llvm.module.flags = !{!12, !13}
 
-!0 = !{!"0x11\0012\00clang version 3.4 \000\00\000\00\000", !1, !2, !2, !2, !3, !2} ; [ DW_TAG_compile_unit ] [/home/kayamon/test1.c] [DW_LANG_C99]
-!1 = !{!"test1.c", !"/home/kayamon"}
+!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !2, globals: !3, imports: !2)
+!1 = !DIFile(filename: "test1.c", directory: "/home/kayamon")
 !2 = !{}
 !3 = !{!4}
-!4 = !{!"0x34\00kittens\00kittens\00\001\000\001", null, !5, !6, i32* @kittens, null} ; [ DW_TAG_variable ] [kittens] [line 1] [def]
-!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [/home/kayamon/test1.c]
-!6 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!7 = !{!"0x11\0012\00clang version 3.4 \000\00\000\00\000", !8, !2, !2, !2, !9, !2} ; [ DW_TAG_compile_unit ] [/home/kayamon/test2.c] [DW_LANG_C99]
-!8 = !{!"test2.c", !"/home/kayamon"}
+!4 = !DIGlobalVariable(name: "kittens", line: 1, isLocal: false, isDefinition: true, scope: null, file: !5, type: !6, variable: i32* @kittens)
+!5 = !DIFile(filename: "test1.c", directory: "/home/kayamon")
+!6 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!7 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 ", isOptimized: false, emissionKind: 0, file: !8, enums: !2, retainedTypes: !2, subprograms: !2, globals: !9, imports: !2)
+!8 = !DIFile(filename: "test2.c", directory: "/home/kayamon")
 !9 = !{!10}
-!10 = !{!"0x34\00rainbows\00rainbows\00\001\000\001", null, !11, !6, i32* @rainbows, null} ; [ DW_TAG_variable ] [rainbows] [line 1] [def]
-!11 = !{!"0x29", !8}         ; [ DW_TAG_file_type ] [/home/kayamon/test2.c]
+!10 = !DIGlobalVariable(name: "rainbows", line: 1, isLocal: false, isDefinition: true, scope: null, file: !11, type: !6, variable: i32* @rainbows)
+!11 = !DIFile(filename: "test2.c", directory: "/home/kayamon")
 !12 = !{i32 2, !"Dwarf Version", i32 4}
-!13 = !{i32 1, !"Debug Info Version", i32 2}
+!13 = !{i32 1, !"Debug Info Version", i32 3}

@@ -39,8 +39,8 @@ define i1 @c5(i32* %q, i32 %bitno) {
 	%tmp2 = lshr i32 %tmp, %bitno
 	%bit = and i32 %tmp2, 1
         ; subtle escape mechanism follows
-	%lookup = getelementptr [2 x i1]* @lookup_table, i32 0, i32 %bit
-	%val = load i1* %lookup
+	%lookup = getelementptr [2 x i1], [2 x i1]* @lookup_table, i32 0, i32 %bit
+	%val = load i1, i1* %lookup
 	ret i1 %val
 }
 
@@ -64,14 +64,14 @@ define i1* @lookup_bit(i32* %q, i32 %bitno) readnone nounwind {
 	%tmp = ptrtoint i32* %q to i32
 	%tmp2 = lshr i32 %tmp, %bitno
 	%bit = and i32 %tmp2, 1
-	%lookup = getelementptr [2 x i1]* @lookup_table, i32 0, i32 %bit
+	%lookup = getelementptr [2 x i1], [2 x i1]* @lookup_table, i32 0, i32 %bit
 	ret i1* %lookup
 }
 
 ; CHECK: define i1 @c7(i32* readonly %q, i32 %bitno)
 define i1 @c7(i32* %q, i32 %bitno) {
 	%ptr = call i1* @lookup_bit(i32* %q, i32 %bitno)
-	%val = load i1* %ptr
+	%val = load i1, i1* %ptr
 	ret i1 %val
 }
 
@@ -85,7 +85,7 @@ l:
 	%y = phi i32* [ %q, %e ]
 	%tmp = bitcast i32* %x to i32*		; <i32*> [#uses=2]
 	%tmp2 = select i1 %b, i32* %tmp, i32* %y
-	%val = load i32* %tmp2		; <i32> [#uses=1]
+	%val = load i32, i32* %tmp2		; <i32> [#uses=1]
 	store i32 0, i32* %tmp
 	store i32* %y, i32** @g
 	ret i32 %val
@@ -100,7 +100,7 @@ l:
 	%y = phi i32* [ %q, %e ]
 	%tmp = addrspacecast i32 addrspace(1)* %x to i32*		; <i32*> [#uses=2]
 	%tmp2 = select i1 %b, i32* %tmp, i32* %y
-	%val = load i32* %tmp2		; <i32> [#uses=1]
+	%val = load i32, i32* %tmp2		; <i32> [#uses=1]
 	store i32 0, i32* %tmp
 	store i32* %y, i32** @g
 	ret i32 %val
@@ -188,7 +188,7 @@ declare void @test6_1(i8* %x6_1, i8* nocapture %y6_1, ...)
 
 ; CHECK: define void @test6_2(i8* %x6_2, i8* nocapture %y6_2, i8* %z6_2)
 define void @test6_2(i8* %x6_2, i8* %y6_2, i8* %z6_2) {
-  call void (i8*, i8*, ...)* @test6_1(i8* %x6_2, i8* %y6_2, i8* %z6_2)
+  call void (i8*, i8*, ...) @test6_1(i8* %x6_2, i8* %y6_2, i8* %z6_2)
   store i32* null, i32** @g
   ret void
 }

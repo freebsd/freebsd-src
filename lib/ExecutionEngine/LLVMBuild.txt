@@ -16,10 +16,10 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = Interpreter MCJIT RuntimeDyld IntelJITEvents OProfileJIT
+subdirectories = Interpreter MCJIT RuntimeDyld IntelJITEvents OProfileJIT Orc
 
 [component_0]
 type = Library
 name = ExecutionEngine
 parent = Libraries
-required_libraries = Core MC Object Support RuntimeDyld
+required_libraries = Core MC Object RuntimeDyld Support

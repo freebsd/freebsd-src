@@ -19,6 +19,7 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetSelect.h"
 #include <string>
 
 using namespace llvm::dsymutil;
@@ -29,12 +30,20 @@ using namespace llvm::cl;
 static opt<std::string> InputFile(Positional, desc("<input file>"),
                                   init("a.out"));
 
+static opt<std::string> OutputFileOpt("o", desc("Specify the output file."
+                                                " default: <input file>.dwarf"),
+                                      value_desc("filename"));
+
 static opt<std::string> OsoPrependPath("oso-prepend-path",
                                        desc("Specify a directory to prepend "
                                             "to the paths of object files."),
                                        value_desc("path"));
 
 static opt<bool> Verbose("v", desc("Verbosity level"), init(false));
+
+static opt<bool> NoOutput("no-output", desc("Do the link in memory, but do "
+                                            "not emit the result file."),
+                          init(false));
 
 static opt<bool>
     ParseOnly("parse-only",
@@ -47,9 +56,18 @@ int main(int argc, char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram StackPrinter(argc, argv);
   llvm::llvm_shutdown_obj Shutdown;
+  LinkOptions Options;
 
   llvm::cl::ParseCommandLineOptions(argc, argv, "llvm dsymutil\n");
   auto DebugMapPtrOrErr = parseDebugMap(InputFile, OsoPrependPath, Verbose);
+
+  Options.Verbose = Verbose;
+  Options.NoOutput = NoOutput;
+
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllAsmPrinters();
 
   if (auto EC = DebugMapPtrOrErr.getError()) {
     llvm::errs() << "error: cannot parse the debug map for \"" << InputFile
@@ -63,9 +81,15 @@ int main(int argc, char **argv) {
   if (ParseOnly)
     return 0;
 
-  std::string OutputBasename(InputFile);
-  if (OutputBasename == "-")
-    OutputBasename = "a.out";
+  std::string OutputFile;
+  if (OutputFileOpt.empty()) {
+    if (InputFile == "-")
+      OutputFile = "a.out.dwarf";
+    else
+      OutputFile = InputFile + ".dwarf";
+  } else {
+    OutputFile = OutputFileOpt;
+  }
 
-  return !linkDwarf(OutputBasename + ".dwarf", **DebugMapPtrOrErr, Verbose);
+  return !linkDwarf(OutputFile, **DebugMapPtrOrErr, Options);
 }

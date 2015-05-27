@@ -5,6 +5,10 @@
 
 target triple = "x86-apple-darwin"
 
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
+
 ; CHECK-LABEL: @test(
 ; multiplies are hoisted out of the loop
 ; CHECK: while.body.lr.ph:
@@ -17,10 +21,10 @@ target triple = "x86-apple-darwin"
 ; CHECK: phi
 ; CHECK: phi
 ; CHECK-NOT: phi
-; CHECK: bitcast float* {{.*}} to i8*
-; CHECK: bitcast float* {{.*}} to i8*
-; CHECK: getelementptr i8*
-; CHECK: getelementptr i8*
+; CHECK: bitcast float* {{.*}} to i1*
+; CHECK: bitcast float* {{.*}} to i1*
+; CHECK: getelementptr i1, i1*
+; CHECK: getelementptr i1, i1*
 
 define float @test(float* nocapture %A, float* nocapture %B, i32 %N, i32 %IA, i32 %IB) nounwind uwtable readonly ssp {
 entry:
@@ -37,12 +41,12 @@ while.body:                                       ; preds = %while.body.lr.ph, %
   %B.addr.04 = phi float* [ %B, %while.body.lr.ph ], [ %add.ptr3, %while.body ]
   %N.addr.03 = phi i32 [ %N, %while.body.lr.ph ], [ %sub, %while.body ]
   %Sum0.02 = phi float [ 0.000000e+00, %while.body.lr.ph ], [ %add, %while.body ]
-  %0 = load float* %A.addr.05, align 4
-  %1 = load float* %B.addr.04, align 4
+  %0 = load float, float* %A.addr.05, align 4
+  %1 = load float, float* %B.addr.04, align 4
   %mul = fmul float %0, %1
   %add = fadd float %Sum0.02, %mul
-  %add.ptr = getelementptr inbounds float* %A.addr.05, i64 %idx.ext
-  %add.ptr3 = getelementptr inbounds float* %B.addr.04, i64 %idx.ext2
+  %add.ptr = getelementptr inbounds float, float* %A.addr.05, i64 %idx.ext
+  %add.ptr3 = getelementptr inbounds float, float* %B.addr.04, i64 %idx.ext2
   %sub = add nsw i32 %N.addr.03, -1
   %cmp = icmp sgt i32 %sub, 0
   br i1 %cmp, label %while.body, label %while.end

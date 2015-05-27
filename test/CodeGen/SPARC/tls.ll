@@ -34,7 +34,7 @@
 
 define i32 @test_tls_local() {
 entry:
-  %0 = load i32* @local_symbol, align 4
+  %0 = load i32, i32* @local_symbol, align 4
   %1 = add i32 %0, 1
   store i32 %1, i32* @local_symbol, align 4
   ret i32 %1
@@ -68,7 +68,7 @@ entry:
 
 define i32 @test_tls_extern() {
 entry:
-  %0 = load i32* @extern_symbol, align 4
+  %0 = load i32, i32* @extern_symbol, align 4
   %1 = add i32 %0, 1
   store i32 %1, i32* @extern_symbol, align 4
   ret i32 %1
@@ -99,7 +99,7 @@ entry:
 ; v9abs-obj: ]
 
 ; pic-obj: Relocations [
-; pic-obj:  Section (2) .rela.text {
+; pic-obj:  Section {{.*}} .rela.text {
 ; pic-obj:    0x{{[0-9,A-F]+}} R_SPARC_PC22 _GLOBAL_OFFSET_TABLE_ 0x4
 ; pic-obj:    0x{{[0-9,A-F]+}} R_SPARC_PC10 _GLOBAL_OFFSET_TABLE_ 0x8
 ; pic-obj:    0x{{[0-9,A-F]+}} R_SPARC_TLS_LDO_HIX22 local_symbol 0x0

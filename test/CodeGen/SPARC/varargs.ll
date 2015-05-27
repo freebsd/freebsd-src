@@ -24,8 +24,8 @@ entry:
 for.cond:
   %fmt.addr.0 = phi i8* [ %fmt, %entry ], [ %incdec.ptr, %for.cond.backedge ]
   %sum.addr.0 = phi double [ %sum, %entry ], [ %sum.addr.0.be, %for.cond.backedge ]
-  %incdec.ptr = getelementptr inbounds i8* %fmt.addr.0, i64 1
-  %0 = load i8* %fmt.addr.0, align 1
+  %incdec.ptr = getelementptr inbounds i8, i8* %fmt.addr.0, i64 1
+  %0 = load i8, i8* %fmt.addr.0, align 1
   %conv = sext i8 %0 to i32
   switch i32 %conv, label %sw.default [
     i32 105, label %sw.bb
@@ -71,6 +71,6 @@ declare void @llvm.va_start(i8*)
 ; CHECK: , %f2
 define i32 @call_1d() #0 {
 entry:
-  %call = call double (i8*, double, ...)* @varargsfunc(i8* undef, double 1.000000e+00, double 2.000000e+00)
+  %call = call double (i8*, double, ...) @varargsfunc(i8* undef, double 1.000000e+00, double 2.000000e+00)
   ret i32 1
 }

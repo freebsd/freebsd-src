@@ -1,7 +1,7 @@
 ; RUN: llc -march=mipsel < %s | FileCheck %s -check-prefix=32
-; RUN: llc -march=mips64el -mcpu=mips4 -mattr=n64 < %s | \
+; RUN: llc -march=mips64el -mcpu=mips4 -target-abi=n64 < %s | \
 ; RUN:     FileCheck %s -check-prefix=64
-; RUN: llc -march=mips64el -mcpu=mips64 -mattr=n64 < %s | \
+; RUN: llc -march=mips64el -mcpu=mips64 -target-abi=n64 < %s | \
 ; RUN:     FileCheck %s -check-prefix=64
 
 %struct.S1 = type { [65536 x i8] }
@@ -27,8 +27,8 @@ entry:
 ; 64:  sd  $ra, 24($[[R1]])
 
   %agg.tmp = alloca %struct.S1, align 1
-  %tmp = getelementptr inbounds %struct.S1* %agg.tmp, i32 0, i32 0, i32 0
-  call void @llvm.memcpy.p0i8.p0i8.i32(i8* %tmp, i8* getelementptr inbounds (%struct.S1* @s1, i32 0, i32 0, i32 0), i32 65536, i32 1, i1 false)
+  %tmp = getelementptr inbounds %struct.S1, %struct.S1* %agg.tmp, i32 0, i32 0, i32 0
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* %tmp, i8* getelementptr inbounds (%struct.S1, %struct.S1* @s1, i32 0, i32 0, i32 0), i32 65536, i32 1, i1 false)
   call void @f2(%struct.S1* byval %agg.tmp) nounwind
   ret void
 }

@@ -1,5 +1,9 @@
 ; RUN: opt < %s -indvars -S | FileCheck %s
 
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
+
 target triple = "x86_64-apple-darwin"
 
 ; CHECK-LABEL: @sloop
@@ -20,8 +24,8 @@ B18:                                        ; preds = %B24, %Prologue
   %.02 = phi i32 [ 0, %Prologue ], [ %tmp33, %B24 ]
   %tmp23 = zext i32 %.02 to i64
   %tmp33 = add i32 %.02, 1
-  %o = getelementptr i32* %a, i32 %.02
-  %v = load i32* %o
+  %o = getelementptr i32, i32* %a, i32 %.02
+  %v = load i32, i32* %o
   %t = icmp eq i32 %v, 0
   br i1 %t, label %exit24, label %B24
 

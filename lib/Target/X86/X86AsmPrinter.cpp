@@ -47,22 +47,21 @@ using namespace llvm;
 /// runOnMachineFunction - Emit the function body.
 ///
 bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
+  Subtarget = &MF.getSubtarget<X86Subtarget>();
+
   SMShadowTracker.startFunction(MF);
 
   SetupMachineFunction(MF);
 
   if (Subtarget->isTargetCOFF()) {
     bool Intrn = MF.getFunction()->hasInternalLinkage();
-    OutStreamer.BeginCOFFSymbolDef(CurrentFnSym);
-    OutStreamer.EmitCOFFSymbolStorageClass(Intrn ? COFF::IMAGE_SYM_CLASS_STATIC
-                                              : COFF::IMAGE_SYM_CLASS_EXTERNAL);
-    OutStreamer.EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_FUNCTION
+    OutStreamer->BeginCOFFSymbolDef(CurrentFnSym);
+    OutStreamer->EmitCOFFSymbolStorageClass(Intrn ? COFF::IMAGE_SYM_CLASS_STATIC
+                                            : COFF::IMAGE_SYM_CLASS_EXTERNAL);
+    OutStreamer->EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_FUNCTION
                                                << COFF::SCT_COMPLEX_TYPE_SHIFT);
-    OutStreamer.EndCOFFSymbolDef();
+    OutStreamer->EndCOFFSymbolDef();
   }
-
-  // Have common code print out the function header with linkage info etc.
-  EmitFunctionHeader();
 
   // Emit the rest of the function body.
   EmitFunctionBody();
@@ -98,7 +97,7 @@ static void printSymbolOperand(X86AsmPrinter &P, const MachineOperand &MO,
     // Handle dllimport linkage.
     if (MO.getTargetFlags() == X86II::MO_DLLIMPORT)
       GVSym =
-          P.OutContext.GetOrCreateSymbol(Twine("__imp_") + GVSym->getName());
+          P.OutContext.getOrCreateSymbol(Twine("__imp_") + GVSym->getName());
 
     if (MO.getTargetFlags() == X86II::MO_DARWIN_NONLAZY ||
         MO.getTargetFlags() == X86II::MO_DARWIN_NONLAZY_PIC_BASE) {
@@ -505,26 +504,27 @@ bool X86AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 }
 
 void X86AsmPrinter::EmitStartOfAsmFile(Module &M) {
-  if (Subtarget->isTargetMachO())
-    OutStreamer.SwitchSection(getObjFileLowering().getTextSection());
+  Triple TT(TM.getTargetTriple());
 
-  if (Subtarget->isTargetCOFF()) {
+  if (TT.isOSBinFormatMachO())
+    OutStreamer->SwitchSection(getObjFileLowering().getTextSection());
+
+  if (TT.isOSBinFormatCOFF()) {
     // Emit an absolute @feat.00 symbol.  This appears to be some kind of
     // compiler features bitfield read by link.exe.
-    if (!Subtarget->is64Bit()) {
-      MCSymbol *S = MMI->getContext().GetOrCreateSymbol(StringRef("@feat.00"));
-      OutStreamer.BeginCOFFSymbolDef(S);
-      OutStreamer.EmitCOFFSymbolStorageClass(COFF::IMAGE_SYM_CLASS_STATIC);
-      OutStreamer.EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_NULL);
-      OutStreamer.EndCOFFSymbolDef();
+    if (TT.getArch() == Triple::x86) {
+      MCSymbol *S = MMI->getContext().getOrCreateSymbol(StringRef("@feat.00"));
+      OutStreamer->BeginCOFFSymbolDef(S);
+      OutStreamer->EmitCOFFSymbolStorageClass(COFF::IMAGE_SYM_CLASS_STATIC);
+      OutStreamer->EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_NULL);
+      OutStreamer->EndCOFFSymbolDef();
       // According to the PE-COFF spec, the LSB of this value marks the object
       // for "registered SEH".  This means that all SEH handler entry points
       // must be registered in .sxdata.  Use of any unregistered handlers will
       // cause the process to terminate immediately.  LLVM does not know how to
       // register any SEH handlers, so its object files should be safe.
-      S->setAbsolute();
-      OutStreamer.EmitSymbolAttribute(S, MCSA_Global);
-      OutStreamer.EmitAssignment(
+      OutStreamer->EmitSymbolAttribute(S, MCSA_Global);
+      OutStreamer->EmitAssignment(
           S, MCConstantExpr::Create(int64_t(1), MMI->getContext()));
     }
   }
@@ -558,14 +558,13 @@ MCSymbol *X86AsmPrinter::GetCPISymbol(unsigned CPID) const {
     const MachineConstantPoolEntry &CPE =
         MF->getConstantPool()->getConstants()[CPID];
     if (!CPE.isMachineConstantPoolEntry()) {
-      SectionKind Kind =
-          CPE.getSectionKind(TM.getSubtargetImpl()->getDataLayout());
+      SectionKind Kind = CPE.getSectionKind(TM.getDataLayout());
       const Constant *C = CPE.Val.ConstVal;
       if (const MCSectionCOFF *S = dyn_cast<MCSectionCOFF>(
             getObjFileLowering().getSectionForConstant(Kind, C))) {
         if (MCSymbol *Sym = S->getCOMDATSymbol()) {
           if (Sym->isUndefined())
-            OutStreamer.EmitSymbolAttribute(Sym, MCSA_Global);
+            OutStreamer->EmitSymbolAttribute(Sym, MCSA_Global);
           return Sym;
         }
       }
@@ -579,31 +578,34 @@ void X86AsmPrinter::GenerateExportDirective(const MCSymbol *Sym, bool IsData) {
   SmallString<128> Directive;
   raw_svector_ostream OS(Directive);
   StringRef Name = Sym->getName();
+  Triple TT(TM.getTargetTriple());
 
-  if (Subtarget->isTargetKnownWindowsMSVC())
+  if (TT.isKnownWindowsMSVCEnvironment())
     OS << " /EXPORT:";
   else
     OS << " -export:";
 
-  if ((Subtarget->isTargetWindowsGNU() || Subtarget->isTargetWindowsCygwin()) &&
+  if ((TT.isWindowsGNUEnvironment() || TT.isWindowsCygwinEnvironment()) &&
       (Name[0] == getDataLayout().getGlobalPrefix()))
     Name = Name.drop_front();
 
   OS << Name;
 
   if (IsData) {
-    if (Subtarget->isTargetKnownWindowsMSVC())
+    if (TT.isKnownWindowsMSVCEnvironment())
       OS << ",DATA";
     else
       OS << ",data";
   }
 
   OS.flush();
-  OutStreamer.EmitBytes(Directive);
+  OutStreamer->EmitBytes(Directive);
 }
 
 void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
-  if (Subtarget->isTargetMachO()) {
+  Triple TT(TM.getTargetTriple());
+
+  if (TT.isOSBinFormatMachO()) {
     // All darwin targets use mach-o.
     MachineModuleInfoMachO &MMIMacho =
         MMI->getObjFileInfo<MachineModuleInfoMachO>();
@@ -613,58 +615,55 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
 
     Stubs = MMIMacho.GetFnStubList();
     if (!Stubs.empty()) {
-      const MCSection *TheSection =
-        OutContext.getMachOSection("__IMPORT", "__jump_table",
-                                   MachO::S_SYMBOL_STUBS |
-                                   MachO::S_ATTR_SELF_MODIFYING_CODE |
-                                   MachO::S_ATTR_PURE_INSTRUCTIONS,
-                                   5, SectionKind::getMetadata());
-      OutStreamer.SwitchSection(TheSection);
+      MCSection *TheSection = OutContext.getMachOSection(
+          "__IMPORT", "__jump_table",
+          MachO::S_SYMBOL_STUBS | MachO::S_ATTR_SELF_MODIFYING_CODE |
+              MachO::S_ATTR_PURE_INSTRUCTIONS,
+          5, SectionKind::getMetadata());
+      OutStreamer->SwitchSection(TheSection);
 
       for (const auto &Stub : Stubs) {
         // L_foo$stub:
-        OutStreamer.EmitLabel(Stub.first);
+        OutStreamer->EmitLabel(Stub.first);
         //   .indirect_symbol _foo
-        OutStreamer.EmitSymbolAttribute(Stub.second.getPointer(),
-                                        MCSA_IndirectSymbol);
+        OutStreamer->EmitSymbolAttribute(Stub.second.getPointer(),
+                                         MCSA_IndirectSymbol);
         // hlt; hlt; hlt; hlt; hlt     hlt = 0xf4.
         const char HltInsts[] = "\xf4\xf4\xf4\xf4\xf4";
-        OutStreamer.EmitBytes(StringRef(HltInsts, 5));
+        OutStreamer->EmitBytes(StringRef(HltInsts, 5));
       }
 
       Stubs.clear();
-      OutStreamer.AddBlankLine();
+      OutStreamer->AddBlankLine();
     }
 
     // Output stubs for external and common global variables.
     Stubs = MMIMacho.GetGVStubList();
     if (!Stubs.empty()) {
-      const MCSection *TheSection =
-        OutContext.getMachOSection("__IMPORT", "__pointers",
-                                   MachO::S_NON_LAZY_SYMBOL_POINTERS,
-                                   SectionKind::getMetadata());
-      OutStreamer.SwitchSection(TheSection);
+      MCSection *TheSection = OutContext.getMachOSection(
+          "__IMPORT", "__pointers", MachO::S_NON_LAZY_SYMBOL_POINTERS,
+          SectionKind::getMetadata());
+      OutStreamer->SwitchSection(TheSection);
 
       for (auto &Stub : Stubs)
-        emitNonLazySymbolPointer(OutStreamer, Stub.first, Stub.second);
+        emitNonLazySymbolPointer(*OutStreamer, Stub.first, Stub.second);
 
       Stubs.clear();
-      OutStreamer.AddBlankLine();
+      OutStreamer->AddBlankLine();
     }
 
     Stubs = MMIMacho.GetHiddenGVStubList();
     if (!Stubs.empty()) {
-      const MCSection *TheSection =
-        OutContext.getMachOSection("__IMPORT", "__pointers",
-                                   MachO::S_NON_LAZY_SYMBOL_POINTERS,
-                                   SectionKind::getMetadata());
-      OutStreamer.SwitchSection(TheSection);
+      MCSection *TheSection = OutContext.getMachOSection(
+          "__IMPORT", "__pointers", MachO::S_NON_LAZY_SYMBOL_POINTERS,
+          SectionKind::getMetadata());
+      OutStreamer->SwitchSection(TheSection);
 
       for (auto &Stub : Stubs)
-        emitNonLazySymbolPointer(OutStreamer, Stub.first, Stub.second);
+        emitNonLazySymbolPointer(*OutStreamer, Stub.first, Stub.second);
 
       Stubs.clear();
-      OutStreamer.AddBlankLine();
+      OutStreamer->AddBlankLine();
     }
 
     SM.serializeToStackMapSection();
@@ -674,16 +673,17 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
     // implementation of multiple entry points).  If this doesn't occur, the
     // linker can safely perform dead code stripping.  Since LLVM never
     // generates code that does this, it is always safe to set.
-    OutStreamer.EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
+    OutStreamer->EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
   }
 
-  if (Subtarget->isTargetKnownWindowsMSVC() && MMI->usesVAFloatArgument()) {
-    StringRef SymbolName = Subtarget->is64Bit() ? "_fltused" : "__fltused";
-    MCSymbol *S = MMI->getContext().GetOrCreateSymbol(SymbolName);
-    OutStreamer.EmitSymbolAttribute(S, MCSA_Global);
+  if (TT.isKnownWindowsMSVCEnvironment() && MMI->usesVAFloatArgument()) {
+    StringRef SymbolName =
+        (TT.getArch() == Triple::x86_64) ? "_fltused" : "__fltused";
+    MCSymbol *S = MMI->getContext().getOrCreateSymbol(SymbolName);
+    OutStreamer->EmitSymbolAttribute(S, MCSA_Global);
   }
 
-  if (Subtarget->isTargetCOFF()) {
+  if (TT.isOSBinFormatCOFF()) {
     // Necessary for dllexport support
     std::vector<const MCSymbol*> DLLExportedFns, DLLExportedGlobals;
 
@@ -710,7 +710,7 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
       const TargetLoweringObjectFileCOFF &TLOFCOFF =
         static_cast<const TargetLoweringObjectFileCOFF&>(getObjFileLowering());
 
-      OutStreamer.SwitchSection(TLOFCOFF.getDrectveSection());
+      OutStreamer->SwitchSection(TLOFCOFF.getDrectveSection());
 
       for (auto & Symbol : DLLExportedGlobals)
         GenerateExportDirective(Symbol, /*IsData=*/true);
@@ -719,28 +719,8 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
     }
   }
 
-  if (Subtarget->isTargetELF()) {
-    const TargetLoweringObjectFileELF &TLOFELF =
-      static_cast<const TargetLoweringObjectFileELF &>(getObjFileLowering());
-
-    MachineModuleInfoELF &MMIELF = MMI->getObjFileInfo<MachineModuleInfoELF>();
-
-    // Output stubs for external and common global variables.
-    MachineModuleInfoELF::SymbolListTy Stubs = MMIELF.GetGVStubList();
-    if (!Stubs.empty()) {
-      OutStreamer.SwitchSection(TLOFELF.getDataRelSection());
-      const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
-
-      for (const auto &Stub : Stubs) {
-        OutStreamer.EmitLabel(Stub.first);
-        OutStreamer.EmitSymbolValue(Stub.second.getPointer(),
-                                    TD->getPointerSize());
-      }
-      Stubs.clear();
-    }
-
+  if (TT.isOSBinFormatELF())
     SM.serializeToStackMapSection();
-  }
 }
 
 //===----------------------------------------------------------------------===//

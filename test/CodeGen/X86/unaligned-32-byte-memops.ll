@@ -20,7 +20,7 @@ define <8 x float> @load32bytes(<8 x float>* %Ap) {
   ; HASWELL: vmovups
   ; HASWELL: retq
 
-  %A = load <8 x float>* %Ap, align 16
+  %A = load <8 x float>, <8 x float>* %Ap, align 16
   ret <8 x float> %A
 }
 
@@ -48,56 +48,6 @@ define void @store32bytes(<8 x float> %A, <8 x float>* %P) {
 ; Merge two consecutive 16-byte subvector loads into a single 32-byte load
 ; if it's faster.
 
-declare <8 x float> @llvm.x86.avx.vinsertf128.ps.256(<8 x float>, <4 x float>, i8)
-
-; Use the vinsertf128 intrinsic to model source code 
-; that explicitly uses AVX intrinsics.
-define <8 x float> @combine_16_byte_loads(<4 x float>* %ptr) {
-  ; CHECK-LABEL: combine_16_byte_loads
-
-  ; SANDYB: vmovups
-  ; SANDYB-NEXT: vinsertf128
-  ; SANDYB-NEXT: retq
-
-  ; BTVER2: vmovups
-  ; BTVER2-NEXT: retq
-
-  ; HASWELL: vmovups
-  ; HASWELL-NEXT: retq
-
-  %ptr2 = getelementptr inbounds <4 x float>* %ptr, i64 1
-  %v1 = load <4 x float>* %ptr, align 1
-  %v2 = load <4 x float>* %ptr2, align 1
-  %shuffle = shufflevector <4 x float> %v1, <4 x float> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
-  %v3 = tail call <8 x float> @llvm.x86.avx.vinsertf128.ps.256(<8 x float> %shuffle, <4 x float> %v2, i8 1)
-  ret <8 x float> %v3
-}
-
-; Swap the operands of the shufflevector and vinsertf128 to ensure that the
-; pattern still matches.
-define <8 x float> @combine_16_byte_loads_swap(<4 x float>* %ptr) {
-  ; CHECK-LABEL: combine_16_byte_loads_swap
-
-  ; SANDYB: vmovups
-  ; SANDYB-NEXT: vinsertf128
-  ; SANDYB-NEXT: retq
-
-  ; BTVER2: vmovups
-  ; BTVER2-NEXT: retq
-
-  ; HASWELL: vmovups
-  ; HASWELL-NEXT: retq
-
-  %ptr2 = getelementptr inbounds <4 x float>* %ptr, i64 1
-  %v1 = load <4 x float>* %ptr, align 1
-  %v2 = load <4 x float>* %ptr2, align 1
-  %shuffle = shufflevector <4 x float> %v2, <4 x float> undef, <8 x i32> <i32 undef, i32 undef, i32 undef, i32 undef, i32 0, i32 1, i32 2, i32 3>
-  %v3 = tail call <8 x float> @llvm.x86.avx.vinsertf128.ps.256(<8 x float> %shuffle, <4 x float> %v1, i8 0)
-  ret <8 x float> %v3
-}
-
-; Replace the vinsertf128 intrinsic with a shufflevector as might be
-; expected from auto-vectorized code.
 define <8 x float> @combine_16_byte_loads_no_intrinsic(<4 x float>* %ptr) {
   ; CHECK-LABEL: combine_16_byte_loads_no_intrinsic
 
@@ -111,9 +61,10 @@ define <8 x float> @combine_16_byte_loads_no_intrinsic(<4 x float>* %ptr) {
   ; HASWELL: vmovups
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <4 x float>* %ptr, i64 1
-  %v1 = load <4 x float>* %ptr, align 1
-  %v2 = load <4 x float>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <4 x float>, <4 x float>* %ptr, i64 3
+  %ptr2 = getelementptr inbounds <4 x float>, <4 x float>* %ptr, i64 4
+  %v1 = load <4 x float>, <4 x float>* %ptr1, align 1
+  %v2 = load <4 x float>, <4 x float>* %ptr2, align 1
   %v3 = shufflevector <4 x float> %v1, <4 x float> %v2, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
   ret <8 x float> %v3
 }
@@ -133,9 +84,10 @@ define <8 x float> @combine_16_byte_loads_no_intrinsic_swap(<4 x float>* %ptr) {
   ; HASWELL: vmovups
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <4 x float>* %ptr, i64 1
-  %v1 = load <4 x float>* %ptr, align 1
-  %v2 = load <4 x float>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <4 x float>, <4 x float>* %ptr, i64 4
+  %ptr2 = getelementptr inbounds <4 x float>, <4 x float>* %ptr, i64 5
+  %v1 = load <4 x float>, <4 x float>* %ptr1, align 1
+  %v2 = load <4 x float>, <4 x float>* %ptr2, align 1
   %v3 = shufflevector <4 x float> %v2, <4 x float> %v1, <8 x i32> <i32 4, i32 5, i32 6, i32 7, i32 0, i32 1, i32 2, i32 3>
   ret <8 x float> %v3
 }
@@ -160,13 +112,14 @@ define <4 x i64> @combine_16_byte_loads_i64(<2 x i64>* %ptr, <4 x i64> %x) {
   ; BTVER2-NEXT: vinsertf128
   ; BTVER2-NEXT: retq
 
-  ; HASWELL: vmovdqu
-  ; HASWELL-NEXT: vpaddq
+  ; HASWELL-NOT: vextract
+  ; HASWELL: vpaddq
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <2 x i64>* %ptr, i64 1
-  %v1 = load <2 x i64>* %ptr, align 1
-  %v2 = load <2 x i64>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <2 x i64>, <2 x i64>* %ptr, i64 5
+  %ptr2 = getelementptr inbounds <2 x i64>, <2 x i64>* %ptr, i64 6
+  %v1 = load <2 x i64>, <2 x i64>* %ptr1, align 1
+  %v2 = load <2 x i64>, <2 x i64>* %ptr2, align 1
   %v3 = shufflevector <2 x i64> %v1, <2 x i64> %v2, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
   %v4 = add <4 x i64> %v3, %x
   ret <4 x i64> %v4
@@ -187,13 +140,14 @@ define <8 x i32> @combine_16_byte_loads_i32(<4 x i32>* %ptr, <8 x i32> %x) {
   ; BTVER2-NEXT: vinsertf128
   ; BTVER2-NEXT: retq
 
-  ; HASWELL: vmovdqu
-  ; HASWELL-NEXT: vpaddd
+  ; HASWELL-NOT: vextract
+  ; HASWELL: vpaddd
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <4 x i32>* %ptr, i64 1
-  %v1 = load <4 x i32>* %ptr, align 1
-  %v2 = load <4 x i32>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <4 x i32>, <4 x i32>* %ptr, i64 6
+  %ptr2 = getelementptr inbounds <4 x i32>, <4 x i32>* %ptr, i64 7
+  %v1 = load <4 x i32>, <4 x i32>* %ptr1, align 1
+  %v2 = load <4 x i32>, <4 x i32>* %ptr2, align 1
   %v3 = shufflevector <4 x i32> %v1, <4 x i32> %v2, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
   %v4 = add <8 x i32> %v3, %x
   ret <8 x i32> %v4
@@ -214,13 +168,14 @@ define <16 x i16> @combine_16_byte_loads_i16(<8 x i16>* %ptr, <16 x i16> %x) {
   ; BTVER2-NEXT: vinsertf128
   ; BTVER2-NEXT: retq
 
-  ; HASWELL: vmovdqu
-  ; HASWELL-NEXT: vpaddw
+  ; HASWELL-NOT: vextract
+  ; HASWELL: vpaddw
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <8 x i16>* %ptr, i64 1
-  %v1 = load <8 x i16>* %ptr, align 1
-  %v2 = load <8 x i16>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <8 x i16>, <8 x i16>* %ptr, i64 7
+  %ptr2 = getelementptr inbounds <8 x i16>, <8 x i16>* %ptr, i64 8
+  %v1 = load <8 x i16>, <8 x i16>* %ptr1, align 1
+  %v2 = load <8 x i16>, <8 x i16>* %ptr2, align 1
   %v3 = shufflevector <8 x i16> %v1, <8 x i16> %v2, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
   %v4 = add <16 x i16> %v3, %x
   ret <16 x i16> %v4
@@ -241,13 +196,14 @@ define <32 x i8> @combine_16_byte_loads_i8(<16 x i8>* %ptr, <32 x i8> %x) {
   ; BTVER2-NEXT: vinsertf128
   ; BTVER2-NEXT: retq
 
-  ; HASWELL: vmovdqu
-  ; HASWELL-NEXT: vpaddb
+  ; HASWELL-NOT: vextract
+  ; HASWELL: vpaddb
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <16 x i8>* %ptr, i64 1
-  %v1 = load <16 x i8>* %ptr, align 1
-  %v2 = load <16 x i8>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <16 x i8>, <16 x i8>* %ptr, i64 8
+  %ptr2 = getelementptr inbounds <16 x i8>, <16 x i8>* %ptr, i64 9
+  %v1 = load <16 x i8>, <16 x i8>* %ptr1, align 1
+  %v2 = load <16 x i8>, <16 x i8>* %ptr2, align 1
   %v3 = shufflevector <16 x i8> %v1, <16 x i8> %v2, <32 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20, i32 21, i32 22, i32 23, i32 24, i32 25, i32 26, i32 27, i32 28, i32 29, i32 30, i32 31>
   %v4 = add <32 x i8> %v3, %x
   ret <32 x i8> %v4
@@ -261,17 +217,18 @@ define <4 x double> @combine_16_byte_loads_double(<2 x double>* %ptr, <4 x doubl
   ; SANDYB-NEXT: vaddpd
   ; SANDYB-NEXT: retq
 
-  ; BTVER2: vmovupd
-  ; BTVER2-NEXT: vaddpd
+  ; BTVER2-NOT: vinsertf128
+  ; BTVER2: vaddpd
   ; BTVER2-NEXT: retq
 
-  ; HASWELL: vmovupd
+  ; HASWELL-NOT: vinsertf128
   ; HASWELL: vaddpd
   ; HASWELL-NEXT: retq
 
-  %ptr2 = getelementptr inbounds <2 x double>* %ptr, i64 1
-  %v1 = load <2 x double>* %ptr, align 1
-  %v2 = load <2 x double>* %ptr2, align 1
+  %ptr1 = getelementptr inbounds <2 x double>, <2 x double>* %ptr, i64 9
+  %ptr2 = getelementptr inbounds <2 x double>, <2 x double>* %ptr, i64 10
+  %v1 = load <2 x double>, <2 x double>* %ptr1, align 1
+  %v2 = load <2 x double>, <2 x double>* %ptr2, align 1
   %v3 = shufflevector <2 x double> %v1, <2 x double> %v2, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
   %v4 = fadd <4 x double> %v3, %x
   ret <4 x double> %v4

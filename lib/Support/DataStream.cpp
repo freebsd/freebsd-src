@@ -18,8 +18,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Program.h"
-#include <cerrno>
-#include <cstdio>
 #include <string>
 #include <system_error>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -56,9 +54,7 @@ class DataFileStreamer : public DataStreamer {
  int Fd;
 public:
   DataFileStreamer() : Fd(0) {}
-  virtual ~DataFileStreamer() {
-    close(Fd);
-  }
+  ~DataFileStreamer() override { close(Fd); }
   size_t GetBytes(unsigned char *buf, size_t len) override {
     NumStreamFetches++;
     return read(Fd, buf, len);

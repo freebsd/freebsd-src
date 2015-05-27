@@ -52,12 +52,11 @@ void MachineTraceMetrics::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool MachineTraceMetrics::runOnMachineFunction(MachineFunction &Func) {
   MF = &Func;
-  TII = MF->getSubtarget().getInstrInfo();
-  TRI = MF->getSubtarget().getRegisterInfo();
+  const TargetSubtargetInfo &ST = MF->getSubtarget();
+  TII = ST.getInstrInfo();
+  TRI = ST.getRegisterInfo();
   MRI = &MF->getRegInfo();
   Loops = &getAnalysis<MachineLoopInfo>();
-  const TargetSubtargetInfo &ST =
-    MF->getTarget().getSubtarget<TargetSubtargetInfo>();
   SchedModel.init(ST.getSchedModel(), &ST, TII);
   BlockInfo.resize(MF->getNumBlockIDs());
   ProcResourceCycles.resize(MF->getNumBlockIDs() *
@@ -321,9 +320,7 @@ MinInstrCountEnsemble::pickTracePred(const MachineBasicBlock *MBB) {
   unsigned CurCount = MTM.getResources(MBB)->InstrCount;
   const MachineBasicBlock *Best = nullptr;
   unsigned BestDepth = 0;
-  for (MachineBasicBlock::const_pred_iterator
-       I = MBB->pred_begin(), E = MBB->pred_end(); I != E; ++I) {
-    const MachineBasicBlock *Pred = *I;
+  for (const MachineBasicBlock *Pred : MBB->predecessors()) {
     const MachineTraceMetrics::TraceBlockInfo *PredTBI =
       getDepthResources(Pred);
     // Ignore cycles that aren't natural loops.
@@ -345,9 +342,7 @@ MinInstrCountEnsemble::pickTraceSucc(const MachineBasicBlock *MBB) {
   const MachineLoop *CurLoop = getLoopFor(MBB);
   const MachineBasicBlock *Best = nullptr;
   unsigned BestHeight = 0;
-  for (MachineBasicBlock::const_succ_iterator
-       I = MBB->succ_begin(), E = MBB->succ_end(); I != E; ++I) {
-    const MachineBasicBlock *Succ = *I;
+  for (const MachineBasicBlock *Succ : MBB->successors()) {
     // Don't consider back-edges.
     if (CurLoop && Succ == CurLoop->getHeader())
       continue;
@@ -464,13 +459,11 @@ void MachineTraceMetrics::Ensemble::computeTrace(const MachineBasicBlock *MBB) {
   // Run an upwards post-order search for the trace start.
   Bounds.Downward = false;
   Bounds.Visited.clear();
-  typedef ipo_ext_iterator<const MachineBasicBlock*, LoopBounds> UpwardPO;
-  for (UpwardPO I = ipo_ext_begin(MBB, Bounds), E = ipo_ext_end(MBB, Bounds);
-       I != E; ++I) {
+  for (auto I : inverse_post_order_ext(MBB, Bounds)) {
     DEBUG(dbgs() << "  pred for BB#" << I->getNumber() << ": ");
     TraceBlockInfo &TBI = BlockInfo[I->getNumber()];
     // All the predecessors have been visited, pick the preferred one.
-    TBI.Pred = pickTracePred(*I);
+    TBI.Pred = pickTracePred(I);
     DEBUG({
       if (TBI.Pred)
         dbgs() << "BB#" << TBI.Pred->getNumber() << '\n';
@@ -478,19 +471,17 @@ void MachineTraceMetrics::Ensemble::computeTrace(const MachineBasicBlock *MBB) {
         dbgs() << "null\n";
     });
     // The trace leading to I is now known, compute the depth resources.
-    computeDepthResources(*I);
+    computeDepthResources(I);
   }
 
   // Run a downwards post-order search for the trace end.
   Bounds.Downward = true;
   Bounds.Visited.clear();
-  typedef po_ext_iterator<const MachineBasicBlock*, LoopBounds> DownwardPO;
-  for (DownwardPO I = po_ext_begin(MBB, Bounds), E = po_ext_end(MBB, Bounds);
-       I != E; ++I) {
+  for (auto I : post_order_ext(MBB, Bounds)) {
     DEBUG(dbgs() << "  succ for BB#" << I->getNumber() << ": ");
     TraceBlockInfo &TBI = BlockInfo[I->getNumber()];
     // All the successors have been visited, pick the preferred one.
-    TBI.Succ = pickTraceSucc(*I);
+    TBI.Succ = pickTraceSucc(I);
     DEBUG({
       if (TBI.Succ)
         dbgs() << "BB#" << TBI.Succ->getNumber() << '\n';
@@ -498,7 +489,7 @@ void MachineTraceMetrics::Ensemble::computeTrace(const MachineBasicBlock *MBB) {
         dbgs() << "null\n";
     });
     // The trace leaving I is now known, compute the height resources.
-    computeHeightResources(*I);
+    computeHeightResources(I);
   }
 }
 

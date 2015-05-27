@@ -1,14 +1,14 @@
 ; RUN: llc -march=mips -relocation-model=static < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=O32 --check-prefix=O32BE %s
 ; RUN: llc -march=mipsel -relocation-model=static < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=O32 --check-prefix=O32LE %s
 
-; RUN-TODO: llc -march=mips64 -relocation-model=static -mattr=-n64,+o32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=O32 %s
-; RUN-TODO: llc -march=mips64el -relocation-model=static -mattr=-n64,+o32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=O32 %s
+; RUN-TODO: llc -march=mips64 -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=O32 %s
+; RUN-TODO: llc -march=mips64el -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=O32 %s
 
-; RUN: llc -march=mips64 -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=N32 --check-prefix=NEW --check-prefix=NEWBE %s
-; RUN: llc -march=mips64el -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=N32 --check-prefix=NEW --check-prefix=NEWLE %s
+; RUN: llc -march=mips64 -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=N32 --check-prefix=NEW --check-prefix=NEWBE %s
+; RUN: llc -march=mips64el -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM32 --check-prefix=N32 --check-prefix=NEW --check-prefix=NEWLE %s
 
-; RUN: llc -march=mips64 -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM64 --check-prefix=N64 --check-prefix=NEW --check-prefix=NEWBE %s
-; RUN: llc -march=mips64el -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM64 --check-prefix=N64 --check-prefix=NEW --check-prefix=NEWLE %s
+; RUN: llc -march=mips64 -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM64 --check-prefix=N64 --check-prefix=NEW --check-prefix=NEWBE %s
+; RUN: llc -march=mips64el -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=SYM64 --check-prefix=N64 --check-prefix=NEW --check-prefix=NEWLE %s
 
 ; Test the effect of varargs on floating point types in the non-variable part
 ; of the argument list as specified by section 2 of the MIPSpro N32 Handbook.
@@ -25,14 +25,14 @@
 define void @double_args(double %a, ...)
                          nounwind {
 entry:
-        %0 = getelementptr [11 x double]* @doubles, i32 0, i32 1
+        %0 = getelementptr [11 x double], [11 x double]* @doubles, i32 0, i32 1
         store volatile double %a, double* %0
 
         %ap = alloca i8*
         %ap2 = bitcast i8** %ap to i8*
         call void @llvm.va_start(i8* %ap2)
         %b = va_arg i8** %ap, double
-        %1 = getelementptr [11 x double]* @doubles, i32 0, i32 2
+        %1 = getelementptr [11 x double], [11 x double]* @doubles, i32 0, i32 2
         store volatile double %b, double* %1
         call void @llvm.va_end(i8* %ap2)
         ret void
@@ -90,14 +90,14 @@ entry:
 
 define void @float_args(float %a, ...) nounwind {
 entry:
-        %0 = getelementptr [11 x float]* @floats, i32 0, i32 1
+        %0 = getelementptr [11 x float], [11 x float]* @floats, i32 0, i32 1
         store volatile float %a, float* %0
 
         %ap = alloca i8*
         %ap2 = bitcast i8** %ap to i8*
         call void @llvm.va_start(i8* %ap2)
         %b = va_arg i8** %ap, float
-        %1 = getelementptr [11 x float]* @floats, i32 0, i32 2
+        %1 = getelementptr [11 x float], [11 x float]* @floats, i32 0, i32 2
         store volatile float %b, float* %1
         call void @llvm.va_end(i8* %ap2)
         ret void

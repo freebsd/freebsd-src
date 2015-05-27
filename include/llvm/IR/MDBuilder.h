@@ -60,12 +60,18 @@ public:
   /// \brief Return metadata containing a number of branch weights.
   MDNode *createBranchWeights(ArrayRef<uint32_t> Weights);
 
+  /// Return metadata containing the entry count for a function.
+  MDNode *createFunctionEntryCount(uint64_t Count);
+
   //===------------------------------------------------------------------===//
   // Range metadata.
   //===------------------------------------------------------------------===//
 
   /// \brief Return metadata describing the range [Lo, Hi).
   MDNode *createRange(const APInt &Lo, const APInt &Hi);
+
+  /// \brief Return metadata describing the range [Lo, Hi).
+  MDNode *createRange(Constant *Lo, Constant *Hi);
 
   //===------------------------------------------------------------------===//
   // AA metadata.

@@ -3,6 +3,7 @@ set(LLVM_LINK_COMPONENTS
   ExecutionEngine
   MC
   MCJIT
+  RuntimeDyld
   Support
   nativecodegen
   )
@@ -11,8 +12,10 @@ set(LLVM_LINK_COMPONENTS
 set(LLVM_REQUIRES_EH 1)
 set(LLVM_REQUIRES_RTTI 1)
 
+set(LLVM_BUILD_EXAMPLES OFF)
+
 add_llvm_example(ExceptionDemo
   ExceptionDemo.cpp
   )
 
-set_target_properties(ExceptionDemo PROPERTIES ENABLE_EXPORTS 1)
+export_executable_symbols(ExceptionDemo)

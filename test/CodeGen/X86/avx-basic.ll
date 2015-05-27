@@ -57,10 +57,10 @@ entry:
 define <8 x i32> @VMOVZQI2PQI([0 x float]* nocapture %aFOO) nounwind {
 allocas:
   %ptrcast.i33.i = bitcast [0 x float]* %aFOO to i32*
-  %val.i34.i = load i32* %ptrcast.i33.i, align 4
-  %ptroffset.i22.i992 = getelementptr [0 x float]* %aFOO, i64 0, i64 1
+  %val.i34.i = load i32, i32* %ptrcast.i33.i, align 4
+  %ptroffset.i22.i992 = getelementptr [0 x float], [0 x float]* %aFOO, i64 0, i64 1
   %ptrcast.i23.i = bitcast float* %ptroffset.i22.i992 to i32*
-  %val.i24.i = load i32* %ptrcast.i23.i, align 4
+  %val.i24.i = load i32, i32* %ptrcast.i23.i, align 4
   %updatedret.i30.i = insertelement <8 x i32> undef, i32 %val.i34.i, i32 1
   ret <8 x i32> %updatedret.i30.i
 }
@@ -90,4 +90,13 @@ define i64 @VMOVPQIto64rr(<2 x i64> %a) {
 entry:
   %vecext.i = extractelement <2 x i64> %a, i32 0
   ret i64 %vecext.i
+}
+
+; PR22685
+; CHECK: mov00
+; CHECK: vmovss
+define <8 x float> @mov00_8f32(float* %ptr) {
+  %val = load float, float* %ptr
+  %vec = insertelement <8 x float> zeroinitializer, float %val, i32 0
+  ret <8 x float> %vec
 }

@@ -16,9 +16,9 @@ target triple = "x86_64-unknown-linux-gnu"
 ; CHECK: @.str = internal unnamed_addr constant { [14 x i8], [50 x i8] } { [14 x i8] c"Hello, world!\00", [50 x i8] zeroinitializer }, align 32
 
 ; Check emitted location descriptions:
-; CHECK: [[VARNAME:@__asan_gen_[0-9]+]] = private unnamed_addr constant [7 x i8] c"global\00", align 1
-; CHECK: [[FILENAME:@__asan_gen_[0-9]+]] = private unnamed_addr constant [22 x i8] c"/tmp/asan-globals.cpp\00", align 1
-; CHECK: [[LOCDESCR:@__asan_gen_[0-9]+]] = private unnamed_addr constant { [22 x i8]*, i32, i32 } { [22 x i8]* [[FILENAME]], i32 5, i32 5 }
+; CHECK: [[VARNAME:@__asan_gen_.[0-9]+]] = private unnamed_addr constant [7 x i8] c"global\00", align 1
+; CHECK: [[FILENAME:@__asan_gen_.[0-9]+]] = private unnamed_addr constant [22 x i8] c"/tmp/asan-globals.cpp\00", align 1
+; CHECK: [[LOCDESCR:@__asan_gen_.[0-9]+]] = private unnamed_addr constant { [22 x i8]*, i32, i32 } { [22 x i8]* [[FILENAME]], i32 5, i32 5 }
 
 ; Check that location decriptors and global names were passed into __asan_register_globals:
 ; CHECK: i64 ptrtoint ([7 x i8]* [[VARNAME]] to i64)
@@ -27,7 +27,7 @@ target triple = "x86_64-unknown-linux-gnu"
 ; Function Attrs: nounwind sanitize_address
 define internal void @__cxx_global_var_init() #0 section ".text.startup" {
 entry:
-  %0 = load i32* @global, align 4
+  %0 = load i32, i32* @global, align 4
   store i32 %0, i32* @dyn_init_global, align 4
   ret void
 }
@@ -36,7 +36,7 @@ entry:
 define void @_Z4funcv() #1 {
 entry:
   %literal = alloca i8*, align 8
-  store i8* getelementptr inbounds ([14 x i8]* @.str, i32 0, i32 0), i8** %literal, align 8
+  store i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i32 0, i32 0), i8** %literal, align 8
   ret void
 }
 

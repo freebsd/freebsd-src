@@ -17,12 +17,12 @@ entry:
   %i.addr = alloca i32, align 4
   %j = alloca i32, align 4
   store i32 %i, i32* %i.addr, align 4
-  %0 = load i32* %i.addr, align 4
+  %0 = load i32, i32* %i.addr, align 4
   %add = add nsw i32 %0, 1
   store i32 %add, i32* %j, align 4
-  %1 = load i32* %j, align 4
+  %1 = load i32, i32* %j, align 4
   call void @callee(i32 %1)
-  %2 = load i32* %j, align 4
+  %2 = load i32, i32* %j, align 4
   %add1 = add nsw i32 %2, 1
   ret i32 %add1
 }
@@ -30,9 +30,9 @@ entry:
 ; CHECK-ARM: push {r11, lr}
 ; CHECK-ARM: mov r11, sp
 
-; CHECK-THUMB: push {r4, r6, r7, lr}
-; CHECK-THUMB: add r7, sp, #8
+; CHECK-THUMB: push {r7, lr}
+; CHECK-THUMB: add r7, sp, #0
 
 ; CHECK-DARWIN-ARM: push {r7, lr}
-; CHECK-DARWIN-THUMB: push {r4, r7, lr}
+; CHECK-DARWIN-THUMB: push {r7, lr}
 

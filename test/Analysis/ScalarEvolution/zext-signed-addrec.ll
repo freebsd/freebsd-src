@@ -15,16 +15,16 @@ target triple = "x86_64-unknown-linux-gnu"
 ; CHECK-LABEL: foo
 define i32 @foo() {
 entry:
-  %.pr = load i32* @b, align 4
+  %.pr = load i32, i32* @b, align 4
   %cmp10 = icmp slt i32 %.pr, 1
   br i1 %cmp10, label %for.cond1.preheader.lr.ph, label %entry.for.end9_crit_edge
 
 entry.for.end9_crit_edge:                         ; preds = %entry
-  %.pre = load i32* @c, align 4
+  %.pre = load i32, i32* @c, align 4
   br label %for.end9
 
 for.cond1.preheader.lr.ph:                        ; preds = %entry
-  %0 = load i32* @a, align 4
+  %0 = load i32, i32* @a, align 4
   %tobool = icmp eq i32 %0, 0
   br i1 %tobool, label %for.cond1.preheader.for.cond1.preheader.split_crit_edge, label %return.loopexit.split
 
@@ -43,7 +43,7 @@ if.end:                                           ; preds = %if.end, %for.cond1.
   %shl = and i32 %conv7, 510
   store i32 %shl, i32* @c, align 4
 
-; CHECK: %lsr.iv.next = add i32 %lsr.iv, -258
+; CHECK: %lsr.iv.next = add nsw i32 %lsr.iv, -258
   %dec = add i8 %2, -1
 
   %cmp2 = icmp sgt i8 %dec, -1
@@ -63,7 +63,7 @@ for.cond.for.end9_crit_edge:                      ; preds = %for.inc8
 
 for.end9:                                         ; preds = %entry.for.end9_crit_edge, %for.cond.for.end9_crit_edge
   %3 = phi i32 [ %.pre, %entry.for.end9_crit_edge ], [ %shl, %for.cond.for.end9_crit_edge ]
-  %call = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32 %3) #2
+  %call = tail call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32 %3) #2
   br label %return
 
 return.loopexit.split:                            ; preds = %for.cond1.preheader.lr.ph

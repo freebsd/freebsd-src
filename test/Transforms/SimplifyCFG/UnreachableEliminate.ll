@@ -22,10 +22,14 @@ entry:
         invoke void @test2( )
                         to label %N unwind label %U
 U:
+  %res = landingpad { i8* } personality i32 (...)* @__gxx_personality_v0
+          cleanup
         unreachable
 N:
         ret void
 }
+
+declare i32 @__gxx_personality_v0(...)
 
 define i32 @test3(i32 %v) {
 ; CHECK-LABEL: @test3(
@@ -42,32 +46,6 @@ default:
         ret i32 1
 U:
         unreachable
-T:
-        ret i32 2
-}
-
-; PR9450
-define i32 @test4(i32 %v, i32 %w) {
-; CHECK: entry:
-; CHECK-NEXT:  switch i32 %v, label %T [
-; CHECK-NEXT:    i32 3, label %V
-; CHECK-NEXT:    i32 2, label %U
-; CHECK-NEXT:  ]
-
-entry:
-        br label %SWITCH
-V:
-        ret i32 7
-SWITCH:
-        switch i32 %v, label %default [
-                 i32 1, label %T
-                 i32 2, label %U
-                 i32 3, label %V
-        ]
-default:
-        unreachable
-U:
-        ret i32 %w
 T:
         ret i32 2
 }

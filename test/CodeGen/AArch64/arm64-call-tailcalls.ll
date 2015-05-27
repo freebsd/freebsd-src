@@ -9,7 +9,7 @@ define void @t2() {
 ; CHECK: ldr	x[[ADDR:[0-9]+]], [x[[GOTADDR]], _t@GOTPAGEOFF]
 ; CHECK: ldr	x[[DEST:[0-9]+]], [x[[ADDR]]]
 ; CHECK: br	x[[DEST]]
-  %tmp = load i32 ()** @t
+  %tmp = load i32 ()*, i32 ()** @t
   %tmp.upgrd.2 = tail call i32 %tmp()
   ret void
 }
@@ -53,9 +53,9 @@ bb:                                               ; preds = %entry
 
 define i32 @t8(i32 %x) nounwind ssp {
 ; CHECK-LABEL: t8:
+; CHECK: b	_c
 ; CHECK: b	_a
 ; CHECK: b	_b
-; CHECK: b	_c
   %and = and i32 %x, 1
   %tobool = icmp eq i32 %and, 0
   br i1 %tobool, label %if.end, label %if.then

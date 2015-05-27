@@ -85,13 +85,13 @@ endif
 # just removing them here won't work.
 # Solaris does not have the -m flag for ulimit
 ifeq ($(HOST_OS),SunOS)
-ULIMIT=ulimit -t 600 ; ulimit -d 512000 ; ulimit -v 512000 ;
+ULIMIT=ulimit -t 1200 ; ulimit -d 512000 ; ulimit -v 512000 ;
 else # !SunOS
 # Newer versions of python try to allocate an insane amount of address space for
 # its thread-local storage, don't set a limit here.
 # When -v is not used, then -s has to be used to limit the stack size.
 # FIXME: Those limits should be enforced by lit instead of globally.
-ULIMIT=ulimit -t 600 ; ulimit -d 512000 ; ulimit -m 512000 ; ulimit -s 8192 ;
+ULIMIT=ulimit -t 1200 ; ulimit -d 512000 ; ulimit -m 512000 ; ulimit -s 8192 ;
 endif # SunOS
 
 check-local:: lit.site.cfg Unit/lit.site.cfg
@@ -128,6 +128,8 @@ lit.site.cfg: FORCE
 	@$(ECHOPATH) s=@SHLIBEXT@=$(SHLIBEXT)=g >> lit.tmp
 	@$(ECHOPATH) s=@EXEEXT@=$(EXEEXT)=g >> lit.tmp
 	@$(ECHOPATH) s=@PYTHON_EXECUTABLE@=$(PYTHON)=g >> lit.tmp
+	@$(ECHOPATH) s=@GOLD_EXECUTABLE@=ld=g >> lit.tmp
+	@$(ECHOPATH) s=@LD64_EXECUTABLE@=ld=g >> lit.tmp
 	@$(ECHOPATH) s=@OCAMLFIND@=$(OCAMLFIND)=g >> lit.tmp
 	@$(ECHOPATH) s!@OCAMLFLAGS@!$(addprefix -cclib ,$(LDFLAGS))!g >> lit.tmp
 	@$(ECHOPATH) s=@HAVE_OCAMLOPT@=$(HAVE_OCAMLOPT)=g >> lit.tmp
@@ -143,6 +145,7 @@ lit.site.cfg: FORCE
 	@$(ECHOPATH) s=@HOST_OS@=$(HOST_OS)=g >> lit.tmp
 	@$(ECHOPATH) s=@HOST_ARCH@=$(HOST_ARCH)=g >> lit.tmp
 	@$(ECHOPATH) s=@HAVE_LIBZ@=$(HAVE_LIBZ)=g >> lit.tmp
+	@$(ECHOPATH) s=@HAVE_DIA_SDK@=0=g >> lit.tmp
 	@sed -f lit.tmp $(PROJ_SRC_DIR)/lit.site.cfg.in > $@
 	@-rm -f lit.tmp
 

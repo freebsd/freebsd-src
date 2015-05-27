@@ -1,8 +1,8 @@
-; RUN: llc -march=mips64 -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
-; RUN: llc -march=mips64el -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
+; RUN: llc -march=mips64 -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
+; RUN: llc -march=mips64el -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
 
-; RUN: llc -march=mips64 -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
-; RUN: llc -march=mips64el -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
+; RUN: llc -march=mips64 -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
+; RUN: llc -march=mips64el -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
 
 ; Test the fp128 returns for N32/N64 and all byte orders as specified by
 ; section 5 of MD00305 (MIPS ABIs Described).
@@ -13,7 +13,7 @@
 
 define fp128 @retldouble() nounwind {
 entry:
-        %0 = load volatile fp128* @fp128
+        %0 = load volatile fp128, fp128* @fp128
         ret fp128 %0
 }
 

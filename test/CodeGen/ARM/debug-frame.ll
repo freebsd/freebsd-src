@@ -128,41 +128,41 @@ declare void @_ZSt9terminatev()
 !llvm.module.flags = !{!10, !11}
 !llvm.ident = !{!12}
 
-!0 = !{!"0x11\004\00clang version 3.5 \000\00\000\00\000", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [/tmp/exp.cpp] [DW_LANG_C_plus_plus]
-!1 = !{!"exp.cpp", !"/tmp"}
+!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!1 = !DIFile(filename: "exp.cpp", directory: "/tmp")
 !2 = !{}
 !3 = !{!4}
-!4 = !{!"0x2e\00test\00test\00_Z4testiiiiiddddd\004\000\001\000\006\00256\000\005", !1, !5, !6, null, void (i32, i32, i32, i32, i32, double, double, double, double, double)* @_Z4testiiiiiddddd, null, null, !2} ; [ DW_TAG_subprogram ] [line 4] [def] [scope 5] [test]
-!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [/tmp/exp.cpp]
-!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !7, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!4 = !DISubprogram(name: "test", linkageName: "_Z4testiiiiiddddd", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !5, type: !6, function: void (i32, i32, i32, i32, i32, double, double, double, double, double)* @_Z4testiiiiiddddd, variables: !2)
+!5 = !DIFile(filename: "exp.cpp", directory: "/tmp")
+!6 = !DISubroutineType(types: !7)
 !7 = !{null, !8, !8, !8, !8, !8, !9, !9, !9, !9, !9}
-!8 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!9 = !{!"0x24\00double\000\0064\0064\000\000\004", null, null} ; [ DW_TAG_base_type ] [double] [line 0, size 64, align 64, offset 0, enc DW_ATE_float]
+!8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!9 = !DIBasicType(tag: DW_TAG_base_type, name: "double", size: 64, align: 64, encoding: DW_ATE_float)
 !10 = !{i32 2, !"Dwarf Version", i32 4}
-!11 = !{i32 1, !"Debug Info Version", i32 2}
+!11 = !{i32 1, !"Debug Info Version", i32 3}
 !12 = !{!"clang version 3.5 "}
-!13 = !{!"0x101\00a\0016777220\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [a] [line 4]
-!14 = !MDLocation(line: 4, scope: !4)
-!15 = !{!"0x101\00b\0033554436\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [b] [line 4]
-!16 = !{!"0x101\00c\0050331652\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [c] [line 4]
-!17 = !{!"0x101\00d\0067108868\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [d] [line 4]
-!18 = !{!"0x101\00e\0083886084\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [e] [line 4]
-!19 = !{!"0x101\00m\00100663301\000", !4, !5, !9} ; [ DW_TAG_arg_variable ] [m] [line 5]
-!20 = !MDLocation(line: 5, scope: !4)
-!21 = !{!"0x101\00n\00117440517\000", !4, !5, !9} ; [ DW_TAG_arg_variable ] [n] [line 5]
-!22 = !{!"0x101\00p\00134217733\000", !4, !5, !9} ; [ DW_TAG_arg_variable ] [p] [line 5]
-!23 = !{!"0x101\00q\00150994949\000", !4, !5, !9} ; [ DW_TAG_arg_variable ] [q] [line 5]
-!24 = !{!"0x101\00r\00167772165\000", !4, !5, !9} ; [ DW_TAG_arg_variable ] [r] [line 5]
-!25 = !MDLocation(line: 7, scope: !26)
-!26 = !{!"0xb\006\000\000", !1, !4} ; [ DW_TAG_lexical_block ] [/tmp/exp.cpp]
-!27 = !MDLocation(line: 8, scope: !26)
-!28 = !MDLocation(line: 11, scope: !26)
-!29 = !MDLocation(line: 9, scope: !30)
-!30 = !{!"0xb\008\000\001", !1, !4} ; [ DW_TAG_lexical_block ] [/tmp/exp.cpp]
-!31 = !MDLocation(line: 10, scope: !30)
-!32 = !MDLocation(line: 10, scope: !4)
-!33 = !MDLocation(line: 11, scope: !4)
-!34 = !MDLocation(line: 11, scope: !30)
+!13 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 4, arg: 1, scope: !4, file: !5, type: !8)
+!14 = !DILocation(line: 4, scope: !4)
+!15 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "b", line: 4, arg: 2, scope: !4, file: !5, type: !8)
+!16 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "c", line: 4, arg: 3, scope: !4, file: !5, type: !8)
+!17 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "d", line: 4, arg: 4, scope: !4, file: !5, type: !8)
+!18 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "e", line: 4, arg: 5, scope: !4, file: !5, type: !8)
+!19 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "m", line: 5, arg: 6, scope: !4, file: !5, type: !9)
+!20 = !DILocation(line: 5, scope: !4)
+!21 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "n", line: 5, arg: 7, scope: !4, file: !5, type: !9)
+!22 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p", line: 5, arg: 8, scope: !4, file: !5, type: !9)
+!23 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "q", line: 5, arg: 9, scope: !4, file: !5, type: !9)
+!24 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "r", line: 5, arg: 10, scope: !4, file: !5, type: !9)
+!25 = !DILocation(line: 7, scope: !26)
+!26 = distinct !DILexicalBlock(line: 6, column: 0, file: !1, scope: !4)
+!27 = !DILocation(line: 8, scope: !26)
+!28 = !DILocation(line: 11, scope: !26)
+!29 = !DILocation(line: 9, scope: !30)
+!30 = distinct !DILexicalBlock(line: 8, column: 0, file: !1, scope: !4)
+!31 = !DILocation(line: 10, scope: !30)
+!32 = !DILocation(line: 10, scope: !4)
+!33 = !DILocation(line: 11, scope: !4)
+!34 = !DILocation(line: 11, scope: !30)
 
 ; CHECK-FP-LABEL: _Z4testiiiiiddddd:
 ; CHECK-FP:   .cfi_startproc
@@ -179,7 +179,7 @@ declare void @_ZSt9terminatev()
 ; CHECK-FP:   .cfi_offset r4, -36
 ; CHECK-FP:   add    r11, sp, #28
 ; CHECK-FP:   .cfi_def_cfa r11, 8
-; CHECK-FP:   sub    sp, sp, #28
+; CHECK-FP:   sub    sp, sp, #44
 ; CHECK-FP:   .cfi_endproc
 
 ; CHECK-FP-ELIM-LABEL: _Z4testiiiiiddddd:
@@ -195,8 +195,8 @@ declare void @_ZSt9terminatev()
 ; CHECK-FP-ELIM:   .cfi_offset r6, -28
 ; CHECK-FP-ELIM:   .cfi_offset r5, -32
 ; CHECK-FP-ELIM:   .cfi_offset r4, -36
-; CHECK-FP-ELIM:   sub   sp, sp, #28
-; CHECK-FP-ELIM:   .cfi_def_cfa_offset 64
+; CHECK-FP-ELIM:   sub   sp, sp, #36
+; CHECK-FP-ELIM:   .cfi_def_cfa_offset 72
 ; CHECK-FP-ELIM:   .cfi_endproc
 
 ; CHECK-V7-FP-LABEL: _Z4testiiiiiddddd:
@@ -264,14 +264,14 @@ declare void @_ZSt9terminatev()
 
 ; CHECK-THUMB-V7-FP-LABEL: _Z4testiiiiiddddd:
 ; CHECK-THUMB-V7-FP:   .cfi_startproc
-; CHECK-THUMB-V7-FP:   push.w   {r4, r7, r11, lr}
+; CHECK-THUMB-V7-FP:   push   {r4, r6, r7, lr}
 ; CHECK-THUMB-V7-FP:   .cfi_def_cfa_offset 16
 ; CHECK-THUMB-V7-FP:   .cfi_offset lr, -4
-; CHECK-THUMB-V7-FP:   .cfi_offset r11, -8
-; CHECK-THUMB-V7-FP:   .cfi_offset r7, -12
+; CHECK-THUMB-V7-FP:   .cfi_offset r7, -8
+; CHECK-THUMB-V7-FP:   .cfi_offset r6, -12
 ; CHECK-THUMB-V7-FP:   .cfi_offset r4, -16
-; CHECK-THUMB-V7-FP:   add    r7, sp, #4
-; CHECK-THUMB-V7-FP:   .cfi_def_cfa r7, 12
+; CHECK-THUMB-V7-FP:   add    r7, sp, #8
+; CHECK-THUMB-V7-FP:   .cfi_def_cfa r7, 8
 ; CHECK-THUMB-V7-FP:   vpush  {d8, d9, d10, d11, d12}
 ; CHECK-THUMB-V7-FP:   .cfi_offset d12, -24
 ; CHECK-THUMB-V7-FP:   .cfi_offset d11, -32
@@ -300,14 +300,14 @@ declare void @_ZSt9terminatev()
 
 ; CHECK-THUMB-V7-FP-NOIAS-LABEL: _Z4testiiiiiddddd:
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_startproc
-; CHECK-THUMB-V7-FP-NOIAS:   push.w   {r4, r7, r11, lr}
+; CHECK-THUMB-V7-FP-NOIAS:   push   {r4, r6, r7, lr}
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa_offset 16
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 14, -4
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 11, -8
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 7, -12
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 7, -8
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 6, -12
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 4, -16
-; CHECK-THUMB-V7-FP-NOIAS:   add    r7, sp, #4
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa 7, 12
+; CHECK-THUMB-V7-FP-NOIAS:   add    r7, sp, #8
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa 7, 8
 ; CHECK-THUMB-V7-FP-NOIAS:   vpush  {d8, d9, d10, d11, d12}
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 268, -24
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 267, -32
@@ -404,11 +404,11 @@ entry:
 
 ; CHECK-THUMB-V7-FP-ELIM-LABEL: test2:
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_startproc
-; CHECK-THUMB-V7-FP-ELIM:   push.w  {r11, lr}
+; CHECK-THUMB-V7-FP-ELIM:   push  {r7, lr}
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_def_cfa_offset 8
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset lr, -4
-; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r11, -8
-; CHECK-THUMB-V7-FP-ELIM:   pop.w   {r11, pc}
+; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r7, -8
+; CHECK-THUMB-V7-FP-ELIM:   pop   {r7, pc}
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_endproc
 
 
@@ -522,13 +522,13 @@ entry:
 
 ; CHECK-THUMB-V7-FP-ELIM-LABEL: test3:
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_startproc
-; CHECK-THUMB-V7-FP-ELIM:   push.w  {r4, r5, r11, lr}
+; CHECK-THUMB-V7-FP-ELIM:   push  {r4, r5, r7, lr}
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_def_cfa_offset 16
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset lr, -4
-; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r11, -8
+; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r7, -8
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r5, -12
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r4, -16
-; CHECK-THUMB-V7-FP-ELIM:   pop.w   {r4, r5, r11, pc}
+; CHECK-THUMB-V7-FP-ELIM:   pop   {r4, r5, r7, pc}
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_endproc
 
 

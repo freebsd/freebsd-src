@@ -10,10 +10,11 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/AsmParser/Parser.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
 
@@ -25,7 +26,7 @@ namespace llvm {
   namespace {
     struct DPass : public FunctionPass {
       static char ID;
-      virtual bool runOnFunction(Function &F) {
+      bool runOnFunction(Function &F) override {
         DominatorTree *DT =
             &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
         PostDominatorTree *PDT = &getAnalysis<PostDominatorTree>();
@@ -174,9 +175,36 @@ namespace llvm {
         EXPECT_EQ(DominatedBBs.size(), 0UL);
         EXPECT_EQ(PostDominatedBBs.size(), 0UL);
 
+        // Check DFS Numbers before
+        EXPECT_EQ(DT->getNode(BB0)->getDFSNumIn(), 0UL);
+        EXPECT_EQ(DT->getNode(BB0)->getDFSNumOut(), 7UL);
+        EXPECT_EQ(DT->getNode(BB1)->getDFSNumIn(), 1UL);
+        EXPECT_EQ(DT->getNode(BB1)->getDFSNumOut(), 2UL);
+        EXPECT_EQ(DT->getNode(BB2)->getDFSNumIn(), 5UL);
+        EXPECT_EQ(DT->getNode(BB2)->getDFSNumOut(), 6UL);
+        EXPECT_EQ(DT->getNode(BB4)->getDFSNumIn(), 3UL);
+        EXPECT_EQ(DT->getNode(BB4)->getDFSNumOut(), 4UL);
+
+        // Reattach block 3 to block 1 and recalculate
+        BB1->getTerminator()->eraseFromParent();
+        BranchInst::Create(BB4, BB3, ConstantInt::getTrue(F.getContext()), BB1);
+        DT->recalculate(F);
+
+        // Check DFS Numbers after
+        EXPECT_EQ(DT->getNode(BB0)->getDFSNumIn(), 0UL);
+        EXPECT_EQ(DT->getNode(BB0)->getDFSNumOut(), 9UL);
+        EXPECT_EQ(DT->getNode(BB1)->getDFSNumIn(), 1UL);
+        EXPECT_EQ(DT->getNode(BB1)->getDFSNumOut(), 4UL);
+        EXPECT_EQ(DT->getNode(BB2)->getDFSNumIn(), 7UL);
+        EXPECT_EQ(DT->getNode(BB2)->getDFSNumOut(), 8UL);
+        EXPECT_EQ(DT->getNode(BB3)->getDFSNumIn(), 2UL);
+        EXPECT_EQ(DT->getNode(BB3)->getDFSNumOut(), 3UL);
+        EXPECT_EQ(DT->getNode(BB4)->getDFSNumIn(), 5UL);
+        EXPECT_EQ(DT->getNode(BB4)->getDFSNumOut(), 6UL);
+
         return false;
       }
-      virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      void getAnalysisUsage(AnalysisUsage &AU) const override {
         AU.addRequired<DominatorTreeWrapperPass>();
         AU.addRequired<PostDominatorTree>();
       }
@@ -218,7 +246,7 @@ namespace llvm {
     TEST(DominatorTree, Unreachable) {
       DPass *P = new DPass();
       std::unique_ptr<Module> M = makeLLVMModule(P);
-      PassManager Passes;
+      legacy::PassManager Passes;
       Passes.add(P);
       Passes.run(*M);
     }

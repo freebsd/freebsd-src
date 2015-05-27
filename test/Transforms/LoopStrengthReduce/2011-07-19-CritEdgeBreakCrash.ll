@@ -24,12 +24,12 @@ H_MPZ_LBL:                                        ; preds = %indirectgoto
 while.cond.i:                                     ; preds = %while.body.i15795, %if.then.i15791
   %phi = phi i64 [ %tmp20916, %while.body.i15795 ], [ 0, %H_MPZ_LBL ]
   %tmp20916 = add i64 %phi, 1
-  %incdec.ptr.i15793 = getelementptr i64* %pc.0.lcssa.i1610719352, i64 %tmp20916
+  %incdec.ptr.i15793 = getelementptr i64, i64* %pc.0.lcssa.i1610719352, i64 %tmp20916
   %boo2 = call i1 @foo()
   br i1 %boo2, label %indirectgoto, label %while.body.i15795
 
 while.body.i15795:                                ; preds = %while.cond.i
-  %tmp20.i = load i64* %incdec.ptr.i15793, align 8
+  %tmp20.i = load i64, i64* %incdec.ptr.i15793, align 8
   %boo1 = call i1 @foo()
   br i1 %boo1, label %while.cond.i, label %body_failed
 

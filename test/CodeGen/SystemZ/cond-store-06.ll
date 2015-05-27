@@ -14,7 +14,7 @@ define void @f1(double *%ptr, double %alt, i32 %limit) {
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -30,7 +30,7 @@ define void @f2(double *%ptr, double %alt, i32 %limit) {
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %alt, double %orig
   store double %res, double *%ptr
   ret void
@@ -45,9 +45,9 @@ define void @f3(double *%base, double %alt, i32 %limit) {
 ; CHECK: std %f0, 4088(%r2)
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 511
+  %ptr = getelementptr double, double *%base, i64 511
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -62,9 +62,9 @@ define void @f4(double *%base, double %alt, i32 %limit) {
 ; CHECK: stdy %f0, 4096(%r2)
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 512
+  %ptr = getelementptr double, double *%base, i64 512
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -79,9 +79,9 @@ define void @f5(double *%base, double %alt, i32 %limit) {
 ; CHECK: stdy %f0, 524280(%r2)
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 65535
+  %ptr = getelementptr double, double *%base, i64 65535
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -98,9 +98,9 @@ define void @f6(double *%base, double %alt, i32 %limit) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 65536
+  %ptr = getelementptr double, double *%base, i64 65536
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -115,9 +115,9 @@ define void @f7(double *%base, double %alt, i32 %limit) {
 ; CHECK: stdy %f0, -524288(%r2)
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 -65536
+  %ptr = getelementptr double, double *%base, i64 -65536
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -134,9 +134,9 @@ define void @f8(double *%base, double %alt, i32 %limit) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: [[LABEL]]:
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 -65537
+  %ptr = getelementptr double, double *%base, i64 -65537
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -155,7 +155,7 @@ define void @f9(i64 %base, i64 %index, double %alt, i32 %limit) {
   %add2 = add i64 %add1, 524287
   %ptr = inttoptr i64 %add2 to double *
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -170,7 +170,7 @@ define void @f10(double *%ptr, double %alt, i32 %limit) {
 ; CHECK: std {{%f[0-5]}}, 0(%r2)
 ; CHECK: br %r14
   %cond = icmp ult i32 %limit, 420
-  %orig = load volatile double *%ptr
+  %orig = load volatile double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   ret void
@@ -185,7 +185,7 @@ define void @f11(double *%ptr, double %alt, i32 %limit) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: br %r14
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store volatile double %res, double *%ptr
   ret void
@@ -205,7 +205,7 @@ define void @f12(double %alt, i32 %limit) {
   %ptr = alloca double
   call void @foo(double *%ptr)
   %cond = icmp ult i32 %limit, 420
-  %orig = load double *%ptr
+  %orig = load double , double *%ptr
   %res = select i1 %cond, double %orig, double %alt
   store double %res, double *%ptr
   call void @foo(double *%ptr)

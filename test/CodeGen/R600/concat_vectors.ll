@@ -288,7 +288,7 @@ define void @test_concat_v16i16(<32 x i16> addrspace(1)* %out, <16 x i16> %a, <1
 ; SI: s_endpgm
 define void @concat_vector_crash(<8 x float> addrspace(1)* %out, <2 x float> addrspace(1)* %in) {
 bb:
-  %tmp = load <2 x float> addrspace(1)* %in, align 4
+  %tmp = load <2 x float>, <2 x float> addrspace(1)* %in, align 4
   %tmp1 = shufflevector <2 x float> %tmp, <2 x float> undef, <8 x i32> <i32 0, i32 1, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef>
   %tmp2 = shufflevector <8 x float> undef, <8 x float> %tmp1, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 8, i32 9>
   store <8 x float> %tmp2, <8 x float> addrspace(1)* %out, align 32

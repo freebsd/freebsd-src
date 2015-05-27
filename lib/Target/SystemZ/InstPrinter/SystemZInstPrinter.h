@@ -39,7 +39,8 @@ public:
 
   // Override MCInstPrinter.
   void printRegName(raw_ostream &O, unsigned RegNo) const override;
-  void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot) override;
+  void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot,
+                 const MCSubtargetInfo &STI) override;
 
 private:
   // Print various types of operand.
@@ -47,15 +48,21 @@ private:
   void printBDAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printBDXAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printBDLAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printBDVAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printU1ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printU2ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printU3ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU4ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU6ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printS8ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU8ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printU12ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printS16ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU16ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printS32ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU32ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printPCRelOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printPCRelTLSOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printAccessRegOperand(const MCInst *MI, int OpNum, raw_ostream &O);
 
   // Print the mnemonic for a condition-code mask ("ne", "lh", etc.)

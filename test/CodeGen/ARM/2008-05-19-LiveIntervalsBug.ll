@@ -21,14 +21,14 @@ entry:
 	br i1 false, label %init_orig_buffers.exit, label %cond_true.i29
 
 cond_true.i29:		; preds = %entry
-	%tmp17.i = load i32* getelementptr (%struct.ImageParameters* @images, i32 0, i32 20), align 8		; <i32> [#uses=1]
-	%tmp20.i27 = load i32* getelementptr (%struct.ImageParameters* @images, i32 0, i32 16), align 8		; <i32> [#uses=1]
+	%tmp17.i = load i32, i32* getelementptr (%struct.ImageParameters, %struct.ImageParameters* @images, i32 0, i32 20), align 8		; <i32> [#uses=1]
+	%tmp20.i27 = load i32, i32* getelementptr (%struct.ImageParameters, %struct.ImageParameters* @images, i32 0, i32 16), align 8		; <i32> [#uses=1]
 	%tmp8.i.i = select i1 false, i32 1, i32 0		; <i32> [#uses=1]
 	br label %bb.i8.us.i
 
 bb.i8.us.i:		; preds = %get_mem2Dpel.exit.i.us.i, %cond_true.i29
 	%j.04.i.us.i = phi i32 [ %indvar.next39.i, %get_mem2Dpel.exit.i.us.i ], [ 0, %cond_true.i29 ]		; <i32> [#uses=2]
-	%tmp13.i.us.i = getelementptr i16*** null, i32 %j.04.i.us.i		; <i16***> [#uses=0]
+	%tmp13.i.us.i = getelementptr i16**, i16*** null, i32 %j.04.i.us.i		; <i16***> [#uses=0]
 	%tmp15.i.i.us.i = tail call i8* @calloc( i32 0, i32 2 )		; <i8*> [#uses=0]
 	store i16* null, i16** null, align 4
 	br label %bb.i.i.us.i

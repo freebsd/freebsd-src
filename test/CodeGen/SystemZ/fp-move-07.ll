@@ -1,6 +1,7 @@
 ; Test 64-bit floating-point stores.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 | FileCheck %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z13 | FileCheck %s
 
 ; Test the low end of the STD range.
 define void @f1(double *%src, double %val) {
@@ -16,7 +17,7 @@ define void @f2(double *%src, double %val) {
 ; CHECK-LABEL: f2:
 ; CHECK: std %f0, 4088(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 511
+  %ptr = getelementptr double, double *%src, i64 511
   store double %val, double *%ptr
   ret void
 }
@@ -26,7 +27,7 @@ define void @f3(double *%src, double %val) {
 ; CHECK-LABEL: f3:
 ; CHECK: stdy %f0, 4096(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 512
+  %ptr = getelementptr double, double *%src, i64 512
   store double %val, double *%ptr
   ret void
 }
@@ -36,7 +37,7 @@ define void @f4(double *%src, double %val) {
 ; CHECK-LABEL: f4:
 ; CHECK: stdy %f0, 524280(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 65535
+  %ptr = getelementptr double, double *%src, i64 65535
   store double %val, double *%ptr
   ret void
 }
@@ -48,7 +49,7 @@ define void @f5(double *%src, double %val) {
 ; CHECK: agfi %r2, 524288
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 65536
+  %ptr = getelementptr double, double *%src, i64 65536
   store double %val, double *%ptr
   ret void
 }
@@ -58,7 +59,7 @@ define void @f6(double *%src, double %val) {
 ; CHECK-LABEL: f6:
 ; CHECK: stdy %f0, -8(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 -1
+  %ptr = getelementptr double, double *%src, i64 -1
   store double %val, double *%ptr
   ret void
 }
@@ -68,7 +69,7 @@ define void @f7(double *%src, double %val) {
 ; CHECK-LABEL: f7:
 ; CHECK: stdy %f0, -524288(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 -65536
+  %ptr = getelementptr double, double *%src, i64 -65536
   store double %val, double *%ptr
   ret void
 }
@@ -80,7 +81,7 @@ define void @f8(double *%src, double %val) {
 ; CHECK: agfi %r2, -524296
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%src, i64 -65537
+  %ptr = getelementptr double, double *%src, i64 -65537
   store double %val, double *%ptr
   ret void
 }

@@ -35,6 +35,8 @@ class TempEnvVar {
 #if HAVE_SETENV
     // Assume setenv and unsetenv come together.
     unsetenv(name);
+#else
+    (void)name; // Suppress -Wunused-private-field.
 #endif
   }
 
@@ -63,21 +65,19 @@ public:
   StackOption(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3)
     : Base(M0, M1, M2, M3) {}
 
-  ~StackOption() {
-    this->removeArgument();
-  }
+  ~StackOption() override { this->removeArgument(); }
 };
 
 
 cl::OptionCategory TestCategory("Test Options", "Description");
-cl::opt<int> TestOption("test-option", cl::desc("old description"));
 TEST(CommandLineTest, ModifyExisitingOption) {
+  StackOption<int> TestOption("test-option", cl::desc("old description"));
+
   const char Description[] = "New description";
   const char ArgString[] = "new-test-option";
   const char ValueString[] = "Integer";
 
-  StringMap<cl::Option*> Map;
-  cl::getRegisteredOptions(Map);
+  StringMap<cl::Option *> &Map = cl::getRegisteredOptions();
 
   ASSERT_TRUE(Map.count("test-option") == 1) <<
     "Could not find option in map.";
@@ -230,5 +230,44 @@ TEST(CommandLineTest, AliasRequired) {
   testAliasRequired(array_lengthof(opts2), opts2);
 }
 
+TEST(CommandLineTest, HideUnrelatedOptions) {
+  StackOption<int> TestOption1("hide-option-1");
+  StackOption<int> TestOption2("hide-option-2", cl::cat(TestCategory));
+
+  cl::HideUnrelatedOptions(TestCategory);
+
+  ASSERT_EQ(cl::ReallyHidden, TestOption1.getOptionHiddenFlag())
+      << "Failed to hide extra option.";
+  ASSERT_EQ(cl::NotHidden, TestOption2.getOptionHiddenFlag())
+      << "Hid extra option that should be visable.";
+
+  StringMap<cl::Option *> &Map = cl::getRegisteredOptions();
+  ASSERT_EQ(cl::NotHidden, Map["help"]->getOptionHiddenFlag())
+      << "Hid default option that should be visable.";
+}
+
+cl::OptionCategory TestCategory2("Test Options set 2", "Description");
+
+TEST(CommandLineTest, HideUnrelatedOptionsMulti) {
+  StackOption<int> TestOption1("multi-hide-option-1");
+  StackOption<int> TestOption2("multi-hide-option-2", cl::cat(TestCategory));
+  StackOption<int> TestOption3("multi-hide-option-3", cl::cat(TestCategory2));
+
+  const cl::OptionCategory *VisibleCategories[] = {&TestCategory,
+                                                   &TestCategory2};
+
+  cl::HideUnrelatedOptions(makeArrayRef(VisibleCategories));
+
+  ASSERT_EQ(cl::ReallyHidden, TestOption1.getOptionHiddenFlag())
+      << "Failed to hide extra option.";
+  ASSERT_EQ(cl::NotHidden, TestOption2.getOptionHiddenFlag())
+      << "Hid extra option that should be visable.";
+  ASSERT_EQ(cl::NotHidden, TestOption3.getOptionHiddenFlag())
+      << "Hid extra option that should be visable.";
+
+  StringMap<cl::Option *> &Map = cl::getRegisteredOptions();
+  ASSERT_EQ(cl::NotHidden, Map["help"]->getOptionHiddenFlag())
+      << "Hid default option that should be visable.";
+}
 
 }  // anonymous namespace

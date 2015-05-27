@@ -32,13 +32,13 @@ namespace {
 class SparcDAGToDAGISel : public SelectionDAGISel {
   /// Subtarget - Keep a pointer to the Sparc Subtarget around so that we can
   /// make the right decision when generating code for different targets.
-  const SparcSubtarget &Subtarget;
-  SparcTargetMachine &TM;
+  const SparcSubtarget *Subtarget;
 public:
-  explicit SparcDAGToDAGISel(SparcTargetMachine &tm)
-    : SelectionDAGISel(tm),
-      Subtarget(tm.getSubtarget<SparcSubtarget>()),
-      TM(tm) {
+  explicit SparcDAGToDAGISel(SparcTargetMachine &tm) : SelectionDAGISel(tm) {}
+
+  bool runOnMachineFunction(MachineFunction &MF) override {
+    Subtarget = &MF.getSubtarget<SparcSubtarget>();
+    return SelectionDAGISel::runOnMachineFunction(MF);
   }
 
   SDNode *Select(SDNode *N) override;
@@ -50,7 +50,7 @@ public:
   /// SelectInlineAsmMemoryOperand - Implement addressing mode selection for
   /// inline asm expressions.
   bool SelectInlineAsmMemoryOperand(const SDValue &Op,
-                                    char ConstraintCode,
+                                    unsigned ConstraintID,
                                     std::vector<SDValue> &OutOps) override;
 
   const char *getPassName() const override {
@@ -66,8 +66,7 @@ private:
 }  // end anonymous namespace
 
 SDNode* SparcDAGToDAGISel::getGlobalBaseReg() {
-  unsigned GlobalBaseReg =
-      TM.getSubtargetImpl()->getInstrInfo()->getGlobalBaseReg(MF);
+  unsigned GlobalBaseReg = Subtarget->getInstrInfo()->getGlobalBaseReg(MF);
   return CurDAG->getRegister(GlobalBaseReg, TLI->getPointerTy()).getNode();
 }
 
@@ -75,7 +74,7 @@ bool SparcDAGToDAGISel::SelectADDRri(SDValue Addr,
                                      SDValue &Base, SDValue &Offset) {
   if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
     Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), TLI->getPointerTy());
-    Offset = CurDAG->getTargetConstant(0, MVT::i32);
+    Offset = CurDAG->getTargetConstant(0, SDLoc(Addr), MVT::i32);
     return true;
   }
   if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
@@ -94,7 +93,8 @@ bool SparcDAGToDAGISel::SelectADDRri(SDValue Addr,
         } else {
           Base = Addr.getOperand(0);
         }
-        Offset = CurDAG->getTargetConstant(CN->getZExtValue(), MVT::i32);
+        Offset = CurDAG->getTargetConstant(CN->getZExtValue(), SDLoc(Addr),
+                                           MVT::i32);
         return true;
       }
     }
@@ -110,7 +110,7 @@ bool SparcDAGToDAGISel::SelectADDRri(SDValue Addr,
     }
   }
   Base = Addr;
-  Offset = CurDAG->getTargetConstant(0, MVT::i32);
+  Offset = CurDAG->getTargetConstant(0, SDLoc(Addr), MVT::i32);
   return true;
 }
 
@@ -163,12 +163,15 @@ SDNode *SparcDAGToDAGISel::Select(SDNode *N) {
     SDValue TopPart;
     if (N->getOpcode() == ISD::SDIV) {
       TopPart = SDValue(CurDAG->getMachineNode(SP::SRAri, dl, MVT::i32, DivLHS,
-                                   CurDAG->getTargetConstant(31, MVT::i32)), 0);
+                                   CurDAG->getTargetConstant(31, dl, MVT::i32)),
+                        0);
     } else {
       TopPart = CurDAG->getRegister(SP::G0, MVT::i32);
     }
-    TopPart = SDValue(CurDAG->getMachineNode(SP::WRYrr, dl, MVT::Glue, TopPart,
-                                     CurDAG->getRegister(SP::G0, MVT::i32)), 0);
+    TopPart = SDValue(CurDAG->getMachineNode(SP::WRASRrr, dl, MVT::i32,
+                                 TopPart,
+                                 CurDAG->getRegister(SP::G0, MVT::i32)), 0);
+    TopPart = CurDAG->getCopyToReg(TopPart, dl, SP::Y, TopPart, SDValue()).getValue(1);
 
     // FIXME: Handle div by immediate.
     unsigned Opcode = N->getOpcode() == ISD::SDIV ? SP::SDIVrr : SP::UDIVrr;
@@ -184,7 +187,9 @@ SDNode *SparcDAGToDAGISel::Select(SDNode *N) {
     SDNode *Mul = CurDAG->getMachineNode(Opcode, dl, MVT::i32, MVT::Glue,
                                          MulLHS, MulRHS);
     // The high part is in the Y register.
-    return CurDAG->SelectNodeTo(N, SP::RDY, MVT::i32, SDValue(Mul, 1));
+    return CurDAG->SelectNodeTo(N, SP::RDASR, MVT::i32,
+                                CurDAG->getRegister(SP::Y, MVT::i32),
+                                SDValue(Mul, 1));
   }
   }
 
@@ -196,12 +201,13 @@ SDNode *SparcDAGToDAGISel::Select(SDNode *N) {
 /// inline asm expressions.
 bool
 SparcDAGToDAGISel::SelectInlineAsmMemoryOperand(const SDValue &Op,
-                                                char ConstraintCode,
+                                                unsigned ConstraintID,
                                                 std::vector<SDValue> &OutOps) {
   SDValue Op0, Op1;
-  switch (ConstraintCode) {
+  switch (ConstraintID) {
   default: return true;
-  case 'm':   // memory
+  case InlineAsm::Constraint_i:
+  case InlineAsm::Constraint_m: // memory
    if (!SelectADDRrr(Op, Op0, Op1))
      SelectADDRri(Op, Op0, Op1);
    break;

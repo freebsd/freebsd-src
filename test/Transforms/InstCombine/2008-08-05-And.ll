@@ -6,8 +6,8 @@ entry:
         br label %bb
 
 bb:
-	%g1 = getelementptr i8* %x, i32 0
-        %l1 = load i8* %g1, align 1
+	%g1 = getelementptr i8, i8* %x, i32 0
+        %l1 = load i8, i8* %g1, align 1
 	%s1 = sub i8 %l1, 6
 	%c1 = icmp ugt i8 %s1, 2
 	%s2 = sub i8 %l1, 10

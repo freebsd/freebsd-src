@@ -1,5 +1,9 @@
 ; RUN: opt < %s -loop-reduce -S -mtriple=x86_64-unknown-unknown | grep "phi double" | count 1
 
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
+
 define void @foobar(i32 %n) nounwind {
 entry:
 	icmp eq i32 %n, 0		; <i1>:0 [#uses=2]
@@ -50,7 +54,7 @@ return:		; preds = %bb, %entry
 ; Unable to eliminate cast due to potentional overflow.
 define void @foobar3() nounwind {
 entry:
-	tail call i32 (...)* @nn( ) nounwind		; <i32>:0 [#uses=1]
+	tail call i32 (...) @nn( ) nounwind		; <i32>:0 [#uses=1]
 	icmp eq i32 %0, 0		; <i1>:1 [#uses=1]
 	br i1 %1, label %return, label %bb
 
@@ -60,7 +64,7 @@ bb:		; preds = %bb, %entry
 	uitofp i32 %i.03 to double		; <double>:2 [#uses=1]
 	tail call void @foo( double %2 ) nounwind
 	add i32 %i.03, 1		; <i32>:3 [#uses=2]
-	tail call i32 (...)* @nn( ) nounwind		; <i32>:4 [#uses=1]
+	tail call i32 (...) @nn( ) nounwind		; <i32>:4 [#uses=1]
 	icmp ugt i32 %4, %3		; <i1>:5 [#uses=1]
 	br i1 %5, label %bb, label %return
 

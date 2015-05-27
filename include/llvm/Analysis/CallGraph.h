@@ -273,8 +273,8 @@ private:
   /// CalledFunctions array of this or other CallGraphNodes.
   unsigned NumReferences;
 
-  CallGraphNode(const CallGraphNode &) LLVM_DELETED_FUNCTION;
-  void operator=(const CallGraphNode &) LLVM_DELETED_FUNCTION;
+  CallGraphNode(const CallGraphNode &) = delete;
+  void operator=(const CallGraphNode &) = delete;
 
   void DropRef() { --NumReferences; }
   void AddRef() { ++NumReferences; }
@@ -318,7 +318,7 @@ public:
   static char ID; // Class identification, replacement for typeinfo
 
   CallGraphWrapperPass();
-  virtual ~CallGraphWrapperPass();
+  ~CallGraphWrapperPass() override;
 
   /// \brief The internal \c CallGraph around which the rest of this interface
   /// is wrapped.

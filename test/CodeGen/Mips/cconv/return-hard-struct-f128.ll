@@ -1,8 +1,8 @@
-; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
-; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -mattr=-n64,+n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
+; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
+; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefix=ALL --check-prefix=N32 %s
 
-; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
-; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -mattr=-n64,+n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
+; RUN: llc -mtriple=mips64-linux-gnu -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
+; RUN: llc -mtriple=mips64el-linux-gnu -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefix=ALL --check-prefix=N64 %s
 
 ; Test return of {fp128} agrees with de-facto N32/N64 ABI.
 
@@ -10,7 +10,7 @@
 
 define inreg {fp128} @ret_struct_fp128() nounwind {
 entry:
-        %0 = load volatile {fp128}* @struct_fp128
+        %0 = load volatile {fp128}, {fp128}* @struct_fp128
         ret {fp128} %0
 }
 

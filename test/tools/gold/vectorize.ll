@@ -1,6 +1,6 @@
 ; RUN: llvm-as %s -o %t.o
 
-; RUN: ld -plugin %llvmshlibdir/LLVMgold.so \
+; RUN: %gold -m elf_x86_64 -plugin %llvmshlibdir/LLVMgold.so \
 ; RUN:    --plugin-opt=save-temps \
 ; RUN:    -shared %t.o -o %t2.o
 ; RUN: llvm-dis %t2.o.opt.bc -o - | FileCheck %s
@@ -17,8 +17,8 @@ bb:
 
 bb1:
   %i.0 = phi i64 [ 0, %bb ], [ %tmp4, %bb1 ]
-  %tmp = getelementptr inbounds float* %x, i64 %i.0
-  %tmp2 = load float* %tmp, align 4
+  %tmp = getelementptr inbounds float, float* %x, i64 %i.0
+  %tmp2 = load float, float* %tmp, align 4
   %tmp3 = fadd float %tmp2, 1.000000e+00
   store float %tmp3, float* %tmp, align 4
   %tmp4 = add nsw i64 %i.0, 1

@@ -9,6 +9,7 @@
 
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/LLVMContext.h"
@@ -32,7 +33,7 @@ protected:
     Engine.reset(EngineBuilder(std::move(Owner)).setErrorStr(&Error).create());
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(Engine.get() != nullptr) << "EngineBuilder returned error: '"
       << Error << "'";
   }
@@ -53,6 +54,7 @@ TEST_F(ExecutionEngineTest, ForwardGlobalMapping) {
   int32_t Mem1 = 3;
   Engine->addGlobalMapping(G1, &Mem1);
   EXPECT_EQ(&Mem1, Engine->getPointerToGlobalIfAvailable(G1));
+  EXPECT_EQ(&Mem1, Engine->getPointerToGlobalIfAvailable("Global1"));
   int32_t Mem2 = 4;
   Engine->updateGlobalMapping(G1, &Mem2);
   EXPECT_EQ(&Mem2, Engine->getPointerToGlobalIfAvailable(G1));

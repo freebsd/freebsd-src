@@ -1,12 +1,12 @@
 ; FIXME: FastISel currently returns false if it hits code that uses VSX
-; registers and with -fast-isel-abort turned on the test case will then fail.
+; registers and with -fast-isel-abort=1 turned on the test case will then fail.
 ; When fastisel better supports VSX fix up this test case.
 ;
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 -mattr=-vsx | FileCheck %s --check-prefix=ELF64
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -mtriple=powerpc64le-unknown-linux-gnu -mcpu=pwr8 -mattr=-vsx | FileCheck %s --check-prefix=ELF64LE
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 -mattr=-vsx | FileCheck %s --check-prefix=ELF64
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -mtriple=powerpc64le-unknown-linux-gnu -mcpu=pwr8 -mattr=-vsx | FileCheck %s --check-prefix=ELF64LE
 ; RUN: llc < %s -O0 -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu -mcpu=970 -mattr=-vsx | FileCheck %s --check-prefix=PPC970
 
-;; Tests for 970 don't use -fast-isel-abort because we intentionally punt
+;; Tests for 970 don't use -fast-isel-abort=1 because we intentionally punt
 ;; to SelectionDAG in some cases.
 
 ; Test sitofp
@@ -253,7 +253,7 @@ entry:
 ; ELF64LE: std
 ; ELF64LE: lfd
 ; ELF64LE: fcfidus
-; PPC970: rlwinm {{[0-9]+}}, {{[0-9]+}}, 0, 16, 31
+; PPC970: clrlwi {{[0-9]+}}, {{[0-9]+}}, 16
 ; PPC970: std
 ; PPC970: lfd
 ; PPC970: fcfid
@@ -277,7 +277,7 @@ entry:
 ; ELF64LE: std
 ; ELF64LE: lfd
 ; ELF64LE: fcfidus
-; PPC970: rlwinm {{[0-9]+}}, {{[0-9]+}}, 0, 24, 31
+; PPC970: clrlwi {{[0-9]+}}, {{[0-9]+}}, 24
 ; PPC970: std
 ; PPC970: lfd
 ; PPC970: fcfid
@@ -342,7 +342,7 @@ entry:
 ; ELF64LE: std
 ; ELF64LE: lfd
 ; ELF64LE: fcfidu
-; PPC970: rlwinm {{[0-9]+}}, {{[0-9]+}}, 0, 16, 31
+; PPC970: clrlwi {{[0-9]+}}, {{[0-9]+}}, 16
 ; PPC970: std
 ; PPC970: lfd
 ; PPC970: fcfid
@@ -365,7 +365,7 @@ entry:
 ; ELF64LE: std
 ; ELF64LE: lfd
 ; ELF64LE: fcfidu
-; PPC970: rlwinm {{[0-9]+}}, {{[0-9]+}}, 0, 24, 31
+; PPC970: clrlwi {{[0-9]+}}, {{[0-9]+}}, 24
 ; PPC970: std
 ; PPC970: lfd
 ; PPC970: fcfid

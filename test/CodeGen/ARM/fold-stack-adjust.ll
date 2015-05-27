@@ -12,11 +12,11 @@ declare void @bar(i8*)
 
 define void @check_simple() minsize {
 ; CHECK-LABEL: check_simple:
-; CHECK: push.w {r7, r8, r9, r10, r11, lr}
+; CHECK: push {r3, r4, r5, r6, r7, lr}
 ; CHECK-NOT: sub sp, sp,
 ; ...
 ; CHECK-NOT: add sp, sp,
-; CHECK: pop.w {r0, r1, r2, r3, r11, pc}
+; CHECK: pop {r0, r1, r2, r3, r7, pc}
 
 ; CHECK-T1-LABEL: check_simple:
 ; CHECK-T1: push {r3, r4, r5, r6, r7, lr}
@@ -44,11 +44,11 @@ define void @check_simple() minsize {
 
 define void @check_simple_too_big() minsize {
 ; CHECK-LABEL: check_simple_too_big:
-; CHECK: push.w {r11, lr}
+; CHECK: push {r7, lr}
 ; CHECK: sub sp,
 ; ...
 ; CHECK: add sp,
-; CHECK: pop.w {r11, pc}
+; CHECK: pop {r7, pc}
   %var = alloca i8, i32 64
   call void @bar(i8* %var)
   ret void
@@ -82,7 +82,7 @@ define void @check_vfp_fold() minsize {
 
   %var = alloca i8, i32 16
 
-  %tmp = load %bigVec* @var
+  %tmp = load %bigVec, %bigVec* @var
   call void @bar(i8* %var)
   store %bigVec %tmp, %bigVec* @var
 
@@ -93,11 +93,11 @@ define void @check_vfp_fold() minsize {
 ; folded in except that doing so would clobber the value being returned.
 define i64 @check_no_return_clobber() minsize {
 ; CHECK-LABEL: check_no_return_clobber:
-; CHECK: push.w {r5, r6, r7, r8, r9, r10, r11, lr}
+; CHECK: push {r1, r2, r3, r4, r5, r6, r7, lr}
 ; CHECK-NOT: sub sp,
 ; ...
 ; CHECK: add sp, #24
-; CHECK: pop.w {r11, pc}
+; CHECK: pop {r7, pc}
 
   ; Just to keep iOS FileCheck within previous function:
 ; CHECK-IOS-LABEL: check_no_return_clobber:
@@ -119,7 +119,7 @@ define arm_aapcs_vfpcc double @check_vfp_no_return_clobber() minsize {
 
   %var = alloca i8, i32 64
 
-  %tmp = load %bigVec* @var
+  %tmp = load %bigVec, %bigVec* @var
   call void @bar(i8* %var)
   store %bigVec %tmp, %bigVec* @var
 
@@ -152,7 +152,7 @@ define void @test_fold_point(i1 %tst) minsize {
 
   ; We want a long-lived floating register so that a callee-saved dN is used and
   ; there's both a vpop and a pop.
-  %live_val = load double* @dbl
+  %live_val = load double, double* @dbl
   br i1 %tst, label %true, label %end
 true:
   call void @bar(i8* %var)
@@ -176,9 +176,9 @@ define void @test_varsize(...) minsize {
 
 ; CHECK-LABEL: test_varsize:
 ; CHECK: sub	sp, #16
-; CHECK: push.w {r9, r10, r11, lr}
+; CHECK: push	{r5, r6, r7, lr}
 ; ...
-; CHECK: pop.w	{r2, r3, r11, lr}
+; CHECK: pop.w	{r2, r3, r7, lr}
 ; CHECK: add	sp, #16
 ; CHECK: bx	lr
 

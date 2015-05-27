@@ -37,8 +37,8 @@ define void @imp_def_vcc_split_i64_add_1(i64 addrspace(1)* %out, i32 %val0, i64 
 ; SI: v_addc_u32
 define void @imp_def_vcc_split_i64_add_2(i64 addrspace(1)* %out, i32 addrspace(1)* %in, i32 %val0, i64 %val1) {
   %tid = call i32 @llvm.r600.read.tidig.x() readnone
-  %gep = getelementptr i32 addrspace(1)* %in, i32 %tid
-  %load = load i32 addrspace(1)* %gep
+  %gep = getelementptr i32, i32 addrspace(1)* %in, i32 %tid
+  %load = load i32, i32 addrspace(1)* %gep
   %vec.0 = insertelement <2 x i32> undef, i32 %val0, i32 0
   %vec.1 = insertelement <2 x i32> %vec.0, i32 %load, i32 1
   %bc = bitcast <2 x i32> %vec.1 to i64

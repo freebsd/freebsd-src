@@ -10,7 +10,7 @@
 
 ; AddRec: {{{(56 + (8 * (-4 + (3 * %m)) * (%o + %p)) + %A),+,(8 * (%o + %p) * %m)}<%for.cond4.preheader.lr.ph.us>,+,(8 * (%o + %p))}<%for.body6.lr.ph.us.us>,+,8}<%for.body6.us.us>
 ; CHECK: Base offset: %A
-; CHECK: ArrayDecl[UnknownSize][%m][(%o + %p)] with elements of sizeof(double) bytes.
+; CHECK: ArrayDecl[UnknownSize][%m][(%o + %p)] with elements of 8 bytes.
 ; CHECK: ArrayRef[{3,+,1}<nw><%for.cond4.preheader.lr.ph.us>][{-4,+,1}<nw><%for.body6.lr.ph.us.us>][{7,+,1}<nw><%for.body6.us.us>]
 
 define void @foo(i64 %n, i64 %m, i64 %o, i64 %p, double* nocapture %A) nounwind uwtable {
@@ -51,7 +51,7 @@ for.body6.us.us:                                  ; preds = %for.body6.us.us, %f
   %k.019.us.us = phi i64 [ 0, %for.body6.lr.ph.us.us ], [ %inc.us.us, %for.body6.us.us ]
   %arrayidx.sum.us.us = add i64 %k.019.us.us, 7
   %arrayidx9.sum.us.us = add i64 %arrayidx.sum.us.us, %tmp17.us.us
-  %arrayidx10.us.us = getelementptr inbounds double* %A, i64 %arrayidx9.sum.us.us
+  %arrayidx10.us.us = getelementptr inbounds double, double* %A, i64 %arrayidx9.sum.us.us
   store double 1.000000e+00, double* %arrayidx10.us.us, align 8
   %inc.us.us = add nsw i64 %k.019.us.us, 1
   %exitcond = icmp eq i64 %inc.us.us, %o

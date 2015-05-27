@@ -1,12 +1,81 @@
 =====================================
-Accurate Garbage Collection with LLVM
+Garbage Collection with LLVM
 =====================================
 
 .. contents::
    :local:
 
+Abstract
+========
+
+This document covers how to integrate LLVM into a compiler for a language which
+supports garbage collection.  **Note that LLVM itself does not provide a 
+garbage collector.**  You must provide your own.  
+
+Quick Start
+============
+
+First, you should pick a collector strategy.  LLVM includes a number of built 
+in ones, but you can also implement a loadable plugin with a custom definition.
+Note that the collector strategy is a description of how LLVM should generate 
+code such that it interacts with your collector and runtime, not a description
+of the collector itself.
+
+Next, mark your generated functions as using your chosen collector strategy.  
+From c++, you can call: 
+
+.. code-block:: c++
+
+  F.setGC(<collector description name>);
+
+
+This will produce IR like the following fragment:
+
+.. code-block:: llvm
+
+  define void @foo() gc "<collector description name>" { ... }
+
+
+When generating LLVM IR for your functions, you will need to:
+
+* Use ``@llvm.gcread`` and/or ``@llvm.gcwrite`` in place of standard load and 
+  store instructions.  These intrinsics are used to represent load and store 
+  barriers.  If you collector does not require such barriers, you can skip 
+  this step.  
+
+* Use the memory allocation routines provided by your garbage collector's 
+  runtime library.
+
+* If your collector requires them, generate type maps according to your 
+  runtime's binary interface.  LLVM is not involved in the process.  In 
+  particular, the LLVM type system is not suitable for conveying such 
+  information though the compiler.
+
+* Insert any coordination code required for interacting with your collector.  
+  Many collectors require running application code to periodically check a
+  flag and conditionally call a runtime function.  This is often referred to 
+  as a safepoint poll.  
+
+You will need to identify roots (i.e. references to heap objects your collector 
+needs to know about) in your generated IR, so that LLVM can encode them into 
+your final stack maps.  Depending on the collector strategy chosen, this is 
+accomplished by using either the ``@llvm.gcroot`` intrinsics or an 
+``gc.statepoint`` relocation sequence. 
+
+Don't forget to create a root for each intermediate value that is generated when
+evaluating an expression.  In ``h(f(), g())``, the result of ``f()`` could 
+easily be collected if evaluating ``g()`` triggers a collection.
+
+Finally, you need to link your runtime library with the generated program 
+executable (for a static compiler) or ensure the appropriate symbols are 
+available for the runtime linker (for a JIT compiler).  
+
+
 Introduction
 ============
+
+What is Garbage Collection?
+---------------------------
 
 Garbage collection is a widely used technique that frees the programmer from
 having to know the lifetimes of heap objects, making software easier to produce
@@ -59,31 +128,34 @@ instance, the intrinsics permit:
 
 * generational collectors
 
-* reference counting
-
 * incremental collectors
 
 * concurrent collectors
 
 * cooperative collectors
 
-We hope that the primitive support built into the LLVM IR is sufficient to
-support a broad class of garbage collected languages including Scheme, ML, Java,
-C#, Perl, Python, Lua, Ruby, other scripting languages, and more.
+* reference counting
 
-However, LLVM does not itself provide a garbage collector --- this should be
-part of your language's runtime library.  LLVM provides a framework for compile
-time :ref:`code generation plugins <plugin>`.  The role of these plugins is to
+We hope that the support built into the LLVM IR is sufficient to support a 
+broad class of garbage collected languages including Scheme, ML, Java, C#, 
+Perl, Python, Lua, Ruby, other scripting languages, and more.
+
+Note that LLVM **does not itself provide a garbage collector** --- this should
+be part of your language's runtime library.  LLVM provides a framework for
+describing the garbage collectors requirements to the compiler.  In particular,
+LLVM provides support for generating stack maps at call sites, polling for a 
+safepoint, and emitting load and store barriers.  You can also extend LLVM - 
+possibly through a loadable :ref:`code generation plugins <plugin>` - to
 generate code and data structures which conforms to the *binary interface*
 specified by the *runtime library*.  This is similar to the relationship between
 LLVM and DWARF debugging info, for example.  The difference primarily lies in
 the lack of an established standard in the domain of garbage collection --- thus
-the plugins.
+the need for a flexible extension mechanism.
 
 The aspects of the binary interface with which LLVM's GC support is
 concerned are:
 
-* Creation of GC-safe points within code where collection is allowed to execute
+* Creation of GC safepoints within code where collection is allowed to execute
   safely.
 
 * Computation of the stack map.  For each safe point in the code, object
@@ -111,205 +183,63 @@ There are additional areas that LLVM does not directly address:
 In general, LLVM's support for GC does not include features which can be
 adequately addressed with other features of the IR and does not specify a
 particular binary interface.  On the plus side, this means that you should be
-able to integrate LLVM with an existing runtime.  On the other hand, it leaves a
-lot of work for the developer of a novel language.  However, it's easy to get
-started quickly and scale up to a more sophisticated implementation as your
-compiler matures.
-
-Getting started
-===============
-
-Using a GC with LLVM implies many things, for example:
-
-* Write a runtime library or find an existing one which implements a GC heap.
-
-  #. Implement a memory allocator.
-
-  #. Design a binary interface for the stack map, used to identify references
-     within a stack frame on the machine stack.\*
-
-  #. Implement a stack crawler to discover functions on the call stack.\*
-
-  #. Implement a registry for global roots.
-
-  #. Design a binary interface for type maps, used to identify references
-     within heap objects.
-
-  #. Implement a collection routine bringing together all of the above.
-
-* Emit compatible code from your compiler.
-
-  * Initialization in the main function.
-
-  * Use the ``gc "..."`` attribute to enable GC code generation (or
-    ``F.setGC("...")``).
-
-  * Use ``@llvm.gcroot`` to mark stack roots.
-
-  * Use ``@llvm.gcread`` and/or ``@llvm.gcwrite`` to manipulate GC references,
-    if necessary.
-
-  * Allocate memory using the GC allocation routine provided by the runtime
-    library.
-
-  * Generate type maps according to your runtime's binary interface.
-
-* Write a compiler plugin to interface LLVM with the runtime library.\*
-
-  * Lower ``@llvm.gcread`` and ``@llvm.gcwrite`` to appropriate code
-    sequences.\*
-
-  * Compile LLVM's stack map to the binary form expected by the runtime.
-
-* Load the plugin into the compiler.  Use ``llc -load`` or link the plugin
-  statically with your language's compiler.\*
-
-* Link program executables with the runtime.
-
-To help with several of these tasks (those indicated with a \*), LLVM includes a
-highly portable, built-in ShadowStack code generator.  It is compiled into
-``llc`` and works even with the interpreter and C backends.
-
-In your compiler
-----------------
-
-To turn the shadow stack on for your functions, first call:
-
-.. code-block:: c++
-
-  F.setGC("shadow-stack");
-
-for each function your compiler emits. Since the shadow stack is built into
-LLVM, you do not need to load a plugin.
-
-Your compiler must also use ``@llvm.gcroot`` as documented.  Don't forget to
-create a root for each intermediate value that is generated when evaluating an
-expression.  In ``h(f(), g())``, the result of ``f()`` could easily be collected
-if evaluating ``g()`` triggers a collection.
-
-There's no need to use ``@llvm.gcread`` and ``@llvm.gcwrite`` over plain
-``load`` and ``store`` for now.  You will need them when switching to a more
-advanced GC.
-
-In your runtime
----------------
-
-The shadow stack doesn't imply a memory allocation algorithm.  A semispace
-collector or building atop ``malloc`` are great places to start, and can be
-implemented with very little code.
-
-When it comes time to collect, however, your runtime needs to traverse the stack
-roots, and for this it needs to integrate with the shadow stack.  Luckily, doing
-so is very simple. (This code is heavily commented to help you understand the
-data structure, but there are only 20 lines of meaningful code.)
-
-.. code-block:: c++
-
-  /// @brief The map for a single function's stack frame.  One of these is
-  ///        compiled as constant data into the executable for each function.
-  ///
-  /// Storage of metadata values is elided if the %metadata parameter to
-  /// @llvm.gcroot is null.
-  struct FrameMap {
-    int32_t NumRoots;    //< Number of roots in stack frame.
-    int32_t NumMeta;     //< Number of metadata entries.  May be < NumRoots.
-    const void *Meta[0]; //< Metadata for each root.
-  };
-
-  /// @brief A link in the dynamic shadow stack.  One of these is embedded in
-  ///        the stack frame of each function on the call stack.
-  struct StackEntry {
-    StackEntry *Next;    //< Link to next stack entry (the caller's).
-    const FrameMap *Map; //< Pointer to constant FrameMap.
-    void *Roots[0];      //< Stack roots (in-place array).
-  };
-
-  /// @brief The head of the singly-linked list of StackEntries.  Functions push
-  ///        and pop onto this in their prologue and epilogue.
-  ///
-  /// Since there is only a global list, this technique is not threadsafe.
-  StackEntry *llvm_gc_root_chain;
-
-  /// @brief Calls Visitor(root, meta) for each GC root on the stack.
-  ///        root and meta are exactly the values passed to
-  ///        @llvm.gcroot.
-  ///
-  /// Visitor could be a function to recursively mark live objects.  Or it
-  /// might copy them to another heap or generation.
-  ///
-  /// @param Visitor A function to invoke for every GC root on the stack.
-  void visitGCRoots(void (*Visitor)(void **Root, const void *Meta)) {
-    for (StackEntry *R = llvm_gc_root_chain; R; R = R->Next) {
-      unsigned i = 0;
-
-      // For roots [0, NumMeta), the metadata pointer is in the FrameMap.
-      for (unsigned e = R->Map->NumMeta; i != e; ++i)
-        Visitor(&R->Roots[i], R->Map->Meta[i]);
-
-      // For roots [NumMeta, NumRoots), the metadata pointer is null.
-      for (unsigned e = R->Map->NumRoots; i != e; ++i)
-        Visitor(&R->Roots[i], NULL);
-    }
-  }
-
-About the shadow stack
-----------------------
-
-Unlike many GC algorithms which rely on a cooperative code generator to compile
-stack maps, this algorithm carefully maintains a linked list of stack roots
-[:ref:`Henderson2002 <henderson02>`].  This so-called "shadow stack" mirrors the
-machine stack.  Maintaining this data structure is slower than using a stack map
-compiled into the executable as constant data, but has a significant portability
-advantage because it requires no special support from the target code generator,
-and does not require tricky platform-specific code to crawl the machine stack.
-
-The tradeoff for this simplicity and portability is:
-
-* High overhead per function call.
-
-* Not thread-safe.
-
-Still, it's an easy way to get started.  After your compiler and runtime are up
-and running, writing a :ref:`plugin <plugin>` will allow you to take advantage
-of :ref:`more advanced GC features <collector-algos>` of LLVM in order to
-improve performance.
+able to integrate LLVM with an existing runtime.  On the other hand, it can 
+have the effect of leaving a lot of work for the developer of a novel 
+language.  We try to mitigate this by providing built in collector strategy 
+descriptions that can work with many common collector designs and easy 
+extension points.  If you don't already have a specific binary interface 
+you need to support, we recommend trying to use one of these built in collector 
+strategies.
 
 .. _gc_intrinsics:
 
-IR features
-===========
+LLVM IR Features
+================
 
 This section describes the garbage collection facilities provided by the
 :doc:`LLVM intermediate representation <LangRef>`.  The exact behavior of these
-IR features is specified by the binary interface implemented by a :ref:`code
-generation plugin <plugin>`, not by this document.
-
-These facilities are limited to those strictly necessary; they are not intended
-to be a complete interface to any garbage collector.  A program will need to
-interface with the GC library using the facilities provided by that program.
+IR features is specified by the selected :ref:`GC strategy description 
+<plugin>`. 
 
 Specifying GC code generation: ``gc "..."``
 -------------------------------------------
 
 .. code-block:: llvm
 
-  define ty @name(...) gc "name" { ...
+  define <returntype> @name(...) gc "name" { ... }
 
-The ``gc`` function attribute is used to specify the desired GC style to the
+The ``gc`` function attribute is used to specify the desired GC strategy to the
 compiler.  Its programmatic equivalent is the ``setGC`` method of ``Function``.
 
-Setting ``gc "name"`` on a function triggers a search for a matching code
-generation plugin "*name*"; it is that plugin which defines the exact nature of
-the code generated to support GC.  If none is found, the compiler will raise an
-error.
+Setting ``gc "name"`` on a function triggers a search for a matching subclass
+of GCStrategy.  Some collector strategies are built in.  You can add others 
+using either the loadable plugin mechanism, or by patching your copy of LLVM.
+It is the selected GC strategy which defines the exact nature of the code 
+generated to support GC.  If none is found, the compiler will raise an error.
 
 Specifying the GC style on a per-function basis allows LLVM to link together
 programs that use different garbage collection algorithms (or none at all).
 
 .. _gcroot:
 
-Identifying GC roots on the stack: ``llvm.gcroot``
---------------------------------------------------
+Identifying GC roots on the stack
+----------------------------------
+
+LLVM currently supports two different mechanisms for describing references in
+compiled code at safepoints.  ``llvm.gcroot`` is the older mechanism; 
+``gc.statepoint`` has been added more recently.  At the moment, you can choose 
+either implementation (on a per :ref:`GC strategy <plugin>` basis).  Longer 
+term, we will probably either migrate away from ``llvm.gcroot`` entirely, or 
+substantially merge their implementations. Note that most new development 
+work is focused on ``gc.statepoint``.  
+
+Using ``gc.statepoint``
+^^^^^^^^^^^^^^^^^^^^^^^^
+:doc:`This page <Statepoints>` contains detailed documentation for 
+``gc.statepoint``. 
+
+Using ``llvm.gcwrite``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: llvm
 
@@ -317,23 +247,26 @@ Identifying GC roots on the stack: ``llvm.gcroot``
 
 The ``llvm.gcroot`` intrinsic is used to inform LLVM that a stack variable
 references an object on the heap and is to be tracked for garbage collection.
-The exact impact on generated code is specified by a :ref:`compiler plugin
-<plugin>`.  All calls to ``llvm.gcroot`` **must** reside inside the first basic
-block.
-
-A compiler which uses mem2reg to raise imperative code using ``alloca`` into SSA
-form need only add a call to ``@llvm.gcroot`` for those variables which a
-pointers into the GC heap.
-
-It is also important to mark intermediate values with ``llvm.gcroot``.  For
-example, consider ``h(f(), g())``.  Beware leaking the result of ``f()`` in the
-case that ``g()`` triggers a collection.  Note, that stack variables must be
-initialized and marked with ``llvm.gcroot`` in function's prologue.
+The exact impact on generated code is specified by the Function's selected 
+:ref:`GC strategy <plugin>`.  All calls to ``llvm.gcroot`` **must** reside 
+inside the first basic block.
 
 The first argument **must** be a value referring to an alloca instruction or a
 bitcast of an alloca.  The second contains a pointer to metadata that should be
 associated with the pointer, and **must** be a constant or global value
 address.  If your target collector uses tags, use a null pointer for metadata.
+
+A compiler which performs manual SSA construction **must** ensure that SSA 
+values representing GC references are stored in to the alloca passed to the
+respective ``gcroot`` before every call site and reloaded after every call.  
+A compiler which uses mem2reg to raise imperative code using ``alloca`` into 
+SSA form need only add a call to ``@llvm.gcroot`` for those variables which 
+are pointers into the GC heap.  
+
+It is also important to mark intermediate values with ``llvm.gcroot``.  For
+example, consider ``h(f(), g())``.  Beware leaking the result of ``f()`` in the
+case that ``g()`` triggers a collection.  Note, that stack variables must be
+initialized and marked with ``llvm.gcroot`` in function's prologue.
 
 The ``%metadata`` argument can be used to avoid requiring heap objects to have
 'isa' pointers or tag bits. [Appel89_, Goldberg91_, Tolmach94_] If specified,
@@ -407,12 +340,18 @@ pointer:
   %derived = getelementptr %object, i32 0, i32 2, i32 %n
 
 LLVM does not enforce this relationship between the object and derived pointer
-(although a :ref:`plugin <plugin>` might).  However, it would be an unusual
-collector that violated it.
+(although a particular :ref:`collector strategy <plugin>` might).  However, it
+would be an unusual collector that violated it.
 
-The use of these intrinsics is naturally optional if the target GC does require
-the corresponding barrier.  Such a GC plugin will replace the intrinsic calls
-with the corresponding ``load`` or ``store`` instruction if they are used.
+The use of these intrinsics is naturally optional if the target GC does not 
+require the corresponding barrier.  The GC strategy used with such a collector 
+should replace the intrinsic calls with the corresponding ``load`` or 
+``store`` instruction if they are used.
+
+One known deficiency with the current design is that the barrier intrinsics do 
+not include the size or alignment of the underlying operation performed.  It is 
+currently assumed that the operation is of pointer size and the alignment is
+assumed to be the target machine's default alignment.
 
 Write barrier: ``llvm.gcwrite``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -423,8 +362,8 @@ Write barrier: ``llvm.gcwrite``
 
 For write barriers, LLVM provides the ``llvm.gcwrite`` intrinsic function.  It
 has exactly the same semantics as a non-volatile ``store`` to the derived
-pointer (the third argument).  The exact code generated is specified by a
-compiler :ref:`plugin <plugin>`.
+pointer (the third argument).  The exact code generated is specified by the
+Function's selected :ref:`GC strategy <plugin>`.
 
 Many important algorithms require write barriers, including generational and
 concurrent collectors.  Additionally, write barriers could be used to implement
@@ -439,16 +378,212 @@ Read barrier: ``llvm.gcread``
 
 For read barriers, LLVM provides the ``llvm.gcread`` intrinsic function.  It has
 exactly the same semantics as a non-volatile ``load`` from the derived pointer
-(the second argument).  The exact code generated is specified by a
-:ref:`compiler plugin <plugin>`.
+(the second argument).  The exact code generated is specified by the Function's
+selected :ref:`GC strategy <plugin>`.
 
 Read barriers are needed by fewer algorithms than write barriers, and may have a
 greater performance impact since pointer reads are more frequent than writes.
 
 .. _plugin:
 
+.. _builtin-gc-strategies:
+
+Built In GC Strategies
+======================
+
+LLVM includes built in support for several varieties of garbage collectors.  
+
+The Shadow Stack GC
+----------------------
+
+To use this collector strategy, mark your functions with:
+
+.. code-block:: c++
+
+  F.setGC("shadow-stack");
+
+Unlike many GC algorithms which rely on a cooperative code generator to compile
+stack maps, this algorithm carefully maintains a linked list of stack roots
+[:ref:`Henderson2002 <henderson02>`].  This so-called "shadow stack" mirrors the
+machine stack.  Maintaining this data structure is slower than using a stack map
+compiled into the executable as constant data, but has a significant portability
+advantage because it requires no special support from the target code generator,
+and does not require tricky platform-specific code to crawl the machine stack.
+
+The tradeoff for this simplicity and portability is:
+
+* High overhead per function call.
+
+* Not thread-safe.
+
+Still, it's an easy way to get started.  After your compiler and runtime are up
+and running, writing a :ref:`plugin <plugin>` will allow you to take advantage
+of :ref:`more advanced GC features <collector-algos>` of LLVM in order to
+improve performance.
+
+
+The shadow stack doesn't imply a memory allocation algorithm.  A semispace
+collector or building atop ``malloc`` are great places to start, and can be
+implemented with very little code.
+
+When it comes time to collect, however, your runtime needs to traverse the stack
+roots, and for this it needs to integrate with the shadow stack.  Luckily, doing
+so is very simple. (This code is heavily commented to help you understand the
+data structure, but there are only 20 lines of meaningful code.)
+
+.. code-block:: c++
+
+  /// @brief The map for a single function's stack frame.  One of these is
+  ///        compiled as constant data into the executable for each function.
+  ///
+  /// Storage of metadata values is elided if the %metadata parameter to
+  /// @llvm.gcroot is null.
+  struct FrameMap {
+    int32_t NumRoots;    //< Number of roots in stack frame.
+    int32_t NumMeta;     //< Number of metadata entries.  May be < NumRoots.
+    const void *Meta[0]; //< Metadata for each root.
+  };
+
+  /// @brief A link in the dynamic shadow stack.  One of these is embedded in
+  ///        the stack frame of each function on the call stack.
+  struct StackEntry {
+    StackEntry *Next;    //< Link to next stack entry (the caller's).
+    const FrameMap *Map; //< Pointer to constant FrameMap.
+    void *Roots[0];      //< Stack roots (in-place array).
+  };
+
+  /// @brief The head of the singly-linked list of StackEntries.  Functions push
+  ///        and pop onto this in their prologue and epilogue.
+  ///
+  /// Since there is only a global list, this technique is not threadsafe.
+  StackEntry *llvm_gc_root_chain;
+
+  /// @brief Calls Visitor(root, meta) for each GC root on the stack.
+  ///        root and meta are exactly the values passed to
+  ///        @llvm.gcroot.
+  ///
+  /// Visitor could be a function to recursively mark live objects.  Or it
+  /// might copy them to another heap or generation.
+  ///
+  /// @param Visitor A function to invoke for every GC root on the stack.
+  void visitGCRoots(void (*Visitor)(void **Root, const void *Meta)) {
+    for (StackEntry *R = llvm_gc_root_chain; R; R = R->Next) {
+      unsigned i = 0;
+
+      // For roots [0, NumMeta), the metadata pointer is in the FrameMap.
+      for (unsigned e = R->Map->NumMeta; i != e; ++i)
+        Visitor(&R->Roots[i], R->Map->Meta[i]);
+
+      // For roots [NumMeta, NumRoots), the metadata pointer is null.
+      for (unsigned e = R->Map->NumRoots; i != e; ++i)
+        Visitor(&R->Roots[i], NULL);
+    }
+  }
+
+
+The 'Erlang' and 'Ocaml' GCs
+-----------------------------
+
+LLVM ships with two example collectors which leverage the ``gcroot`` 
+mechanisms.  To our knowledge, these are not actually used by any language 
+runtime, but they do provide a reasonable starting point for someone interested 
+in writing an ``gcroot`` compatible GC plugin.  In particular, these are the 
+only in tree examples of how to produce a custom binary stack map format using 
+a ``gcroot`` strategy.
+
+As there names imply, the binary format produced is intended to model that 
+used by the Erlang and OCaml compilers respectively.  
+
+.. _statepoint_example_gc:
+
+The Statepoint Example GC
+-------------------------
+
+.. code-block:: c++
+
+  F.setGC("statepoint-example");
+
+This GC provides an example of how one might use the infrastructure provided 
+by ``gc.statepoint``. This example GC is compatible with the 
+:ref:`PlaceSafepoints` and :ref:`RewriteStatepointsForGC` utility passes 
+which simplify ``gc.statepoint`` sequence insertion. If you need to build a 
+custom GC strategy around the ``gc.statepoints`` mechanisms, it is recommended
+that you use this one as a starting point.
+
+This GC strategy does not support read or write barriers.  As a result, these 
+intrinsics are lowered to normal loads and stores.
+
+The stack map format generated by this GC strategy can be found in the 
+:ref:`stackmap-section` using a format documented :ref:`here 
+<statepoint-stackmap-format>`. This format is intended to be the standard 
+format supported by LLVM going forward.
+
+The CoreCLR GC
+-------------------------
+
+.. code-block:: c++
+
+  F.setGC("coreclr");
+
+This GC leverages the ``gc.statepoint`` mechanism to support the 
+`CoreCLR <https://github.com/dotnet/coreclr>`__ runtime.
+
+Support for this GC strategy is a work in progress. This strategy will 
+differ from 
+:ref:`statepoint-example GC<statepoint_example_gc>` strategy in 
+certain aspects like:
+
+* Base-pointers of interior pointers are not explicitly 
+  tracked and reported.
+
+* A different format is used for encoding stack maps.
+
+* Safe-point polls are only needed before loop-back edges
+  and before tail-calls (not needed at function-entry).
+
+Custom GC Strategies
+====================
+
+If none of the built in GC strategy descriptions met your needs above, you will
+need to define a custom GCStrategy and possibly, a custom LLVM pass to perform 
+lowering.  Your best example of where to start defining a custom GCStrategy 
+would be to look at one of the built in strategies.
+
+You may be able to structure this additional code as a loadable plugin library.
+Loadable plugins are sufficient if all you need is to enable a different 
+combination of built in functionality, but if you need to provide a custom 
+lowering pass, you will need to build a patched version of LLVM.  If you think 
+you need a patched build, please ask for advice on llvm-dev.  There may be an 
+easy way we can extend the support to make it work for your use case without 
+requiring a custom build.  
+
+Collector Requirements
+----------------------
+
+You should be able to leverage any existing collector library that includes the following elements:
+
+#. A memory allocator which exposes an allocation function your compiled 
+   code can call.
+
+#. A binary format for the stack map.  A stack map describes the location
+   of references at a safepoint and is used by precise collectors to identify
+   references within a stack frame on the machine stack. Note that collectors
+   which conservatively scan the stack don't require such a structure.
+
+#. A stack crawler to discover functions on the call stack, and enumerate the
+   references listed in the stack map for each call site.  
+
+#. A mechanism for identifying references in global locations (e.g. global 
+   variables).
+
+#. If you collector requires them, an LLVM IR implementation of your collectors
+   load and store barriers.  Note that since many collectors don't require 
+   barriers at all, LLVM defaults to lowering such barriers to normal loads 
+   and stores unless you arrange otherwise.
+
+
 Implementing a collector plugin
-===============================
+-------------------------------
 
 User code specifies which GC code generation to use with the ``gc`` function
 attribute or, equivalently, with the ``setGC`` method of ``Function``.
@@ -721,8 +856,9 @@ this feature should be used by all GC plugins.  It is enabled by default.
 Custom lowering of intrinsics: ``CustomRoots``, ``CustomReadBarriers``, and ``CustomWriteBarriers``
 ---------------------------------------------------------------------------------------------------
 
-For GCs which use barriers or unusual treatment of stack roots, these flags
-allow the collector to perform arbitrary transformations of the LLVM IR:
+For GCs which use barriers or unusual treatment of stack roots, these 
+flags allow the collector to perform arbitrary transformations of the
+LLVM IR:
 
 .. code-block:: c++
 
@@ -733,70 +869,18 @@ allow the collector to perform arbitrary transformations of the LLVM IR:
       CustomReadBarriers = true;
       CustomWriteBarriers = true;
     }
-
-    virtual bool initializeCustomLowering(Module &M);
-    virtual bool performCustomLowering(Function &F);
   };
 
-If any of these flags are set, then LLVM suppresses its default lowering for the
-corresponding intrinsics and instead calls ``performCustomLowering``.
+If any of these flags are set, LLVM suppresses its default lowering for
+the corresponding intrinsics.  Instead, you must provide a custom Pass
+which lowers the intrinsics as desired.  If you have opted in to custom
+lowering of a particular intrinsic your pass **must** eliminate all 
+instances of the corresponding intrinsic in functions which opt in to
+your GC.  The best example of such a pass is the ShadowStackGC and it's 
+ShadowStackGCLowering pass.  
 
-LLVM's default action for each intrinsic is as follows:
-
-* ``llvm.gcroot``: Leave it alone.  The code generator must see it or the stack
-  map will not be computed.
-
-* ``llvm.gcread``: Substitute a ``load`` instruction.
-
-* ``llvm.gcwrite``: Substitute a ``store`` instruction.
-
-If ``CustomReadBarriers`` or ``CustomWriteBarriers`` are specified, then
-``performCustomLowering`` **must** eliminate the corresponding barriers.
-
-``performCustomLowering`` must comply with the same restrictions as
-:ref:`FunctionPass::runOnFunction <writing-an-llvm-pass-runOnFunction>`
-Likewise, ``initializeCustomLowering`` has the same semantics as
-:ref:`Pass::doInitialization(Module&)
-<writing-an-llvm-pass-doInitialization-mod>`
-
-The following can be used as a template:
-
-.. code-block:: c++
-
-  #include "llvm/IR/Module.h"
-  #include "llvm/IR/IntrinsicInst.h"
-
-  bool MyGC::initializeCustomLowering(Module &M) {
-    return false;
-  }
-
-  bool MyGC::performCustomLowering(Function &F) {
-    bool MadeChange = false;
-
-    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
-      for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; )
-        if (IntrinsicInst *CI = dyn_cast<IntrinsicInst>(II++))
-          if (Function *F = CI->getCalledFunction())
-            switch (F->getIntrinsicID()) {
-            case Intrinsic::gcwrite:
-              // Handle llvm.gcwrite.
-              CI->eraseFromParent();
-              MadeChange = true;
-              break;
-            case Intrinsic::gcread:
-              // Handle llvm.gcread.
-              CI->eraseFromParent();
-              MadeChange = true;
-              break;
-            case Intrinsic::gcroot:
-              // Handle llvm.gcroot.
-              CI->eraseFromParent();
-              MadeChange = true;
-              break;
-            }
-
-    return MadeChange;
-  }
+There is currently no way to register such a custom lowering pass 
+without building a custom copy of LLVM.
 
 .. _safe-points:
 

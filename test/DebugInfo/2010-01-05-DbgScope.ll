@@ -2,7 +2,7 @@
 ; PR 5942
 define i8* @foo() nounwind {
 entry:
-  %0 = load i32* undef, align 4, !dbg !0          ; <i32> [#uses=1]
+  %0 = load i32, i32* undef, align 4, !dbg !0          ; <i32> [#uses=1]
   %1 = inttoptr i32 %0 to i8*, !dbg !0            ; <i8*> [#uses=1]
   ret i8* %1, !dbg !10
 
@@ -11,15 +11,15 @@ entry:
 !llvm.dbg.cu = !{!3}
 !llvm.module.flags = !{!14}
 
-!0 = !MDLocation(line: 571, column: 3, scope: !1)
-!1 = !{!"0xb\001\001\000", !11, !2}; [DW_TAG_lexical_block ]
-!2 = !{!"0x2e\00foo\00foo\00foo\00561\000\001\000\006\000\000\000", i32 0, !3, !4, null, null, null, null, null}; [DW_TAG_subprogram ]
-!3 = !{!"0x11\0012\00clang 1.1\001\00\000\00\000", !11, !12, !12, !13, null, null}; [DW_TAG_compile_unit ]
-!4 = !{!"0x15\00\000\000\000\000\000\000", null, !3, null, !5, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!0 = !DILocation(line: 571, column: 3, scope: !1)
+!1 = distinct !DILexicalBlock(line: 1, column: 1, file: !11, scope: !2)
+!2 = !DISubprogram(name: "foo", linkageName: "foo", line: 561, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scope: !3, type: !4)
+!3 = !DICompileUnit(language: DW_LANG_C99, producer: "clang 1.1", isOptimized: true, emissionKind: 0, file: !11, enums: !12, retainedTypes: !12, subprograms: !13)
+!4 = !DISubroutineType(types: !5)
 !5 = !{!6}
-!6 = !{!"0x24\00char\000\008\008\000\000\006", null, !3} ; [ DW_TAG_base_type ]
-!10 = !MDLocation(line: 588, column: 1, scope: !2)
-!11 = !{!"hashtab.c", !"/usr/src/gnu/usr.bin/cc/cc_tools/../../../../contrib/gcclibs/libiberty"}
-!12 = !{i32 0}
+!6 = !DIBasicType(tag: DW_TAG_base_type, name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
+!10 = !DILocation(line: 588, column: 1, scope: !2)
+!11 = !DIFile(filename: "hashtab.c", directory: "/usr/src/gnu/usr.bin/cc/cc_tools/../../../../contrib/gcclibs/libiberty")
+!12 = !{}
 !13 = !{!2}
-!14 = !{i32 1, !"Debug Info Version", i32 2}
+!14 = !{i32 1, !"Debug Info Version", i32 3}

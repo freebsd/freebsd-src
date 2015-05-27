@@ -1,9 +1,9 @@
 ; RUN: llc -march=mipsel -relocation-model=pic < %s | FileCheck %s -check-prefix=PIC-O32
 ; RUN: llc -march=mipsel -relocation-model=static -mtriple=mipsel-linux-gnu < %s | FileCheck %s -check-prefix=STATIC-O32
-; RUN: llc -march=mips64el -mcpu=mips64r2 -mattr=-n64,n32 -relocation-model=pic < %s | FileCheck %s -check-prefix=PIC-N32
-; RUN: llc -march=mips64el -mcpu=mips64r2 -mattr=-n64,n32 -relocation-model=static  -mtriple=mipsel-linux-gnu < %s | FileCheck %s -check-prefix=STATIC-N32
-; RUN: llc -march=mips64el -mcpu=mips64r2 -mattr=-n64,n64 -relocation-model=pic < %s | FileCheck %s -check-prefix=PIC-N64
-; RUN: llc -march=mips64el -mcpu=mips64r2 -mattr=-n64,n64 -relocation-model=static < %s | FileCheck %s -check-prefix=STATIC-N64
+; RUN: llc -march=mips64el -mcpu=mips64r2 -target-abi n32 -relocation-model=pic < %s | FileCheck %s -check-prefix=PIC-N32
+; RUN: llc -march=mips64el -mcpu=mips64r2 -target-abi n32 -relocation-model=static  -mtriple=mipsel-linux-gnu < %s | FileCheck %s -check-prefix=STATIC-N32
+; RUN: llc -march=mips64el -mcpu=mips64r2 -target-abi n64 -relocation-model=pic < %s | FileCheck %s -check-prefix=PIC-N64
+; RUN: llc -march=mips64el -mcpu=mips64r2 -target-abi n64 -relocation-model=static < %s | FileCheck %s -check-prefix=STATIC-N64
 
 @s1 = internal unnamed_addr global i32 8, align 4
 @g1 = external global i32
@@ -33,9 +33,9 @@ entry:
 ; STATIC-N64: lw  ${{[0-9]+}}, %got_ofst(s1)($[[R1]])
 ; STATIC-N64: ld  ${{[0-9]+}}, %got_disp(g1)
 
-  %0 = load i32* @s1, align 4
+  %0 = load i32, i32* @s1, align 4
   tail call void @foo1(i32 %0) nounwind
-  %1 = load i32* @g1, align 4
+  %1 = load i32, i32* @g1, align 4
   store i32 %1, i32* @s1, align 4
   %add = add nsw i32 %1, 2
   store i32 %add, i32* @g1, align 4

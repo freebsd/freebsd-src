@@ -8,10 +8,10 @@
 
 define i32 @t(%TRp* inreg %rp) nounwind optsize ssp {
 entry:
-  %handler = getelementptr inbounds %TRp* %rp, i32 0, i32 1
-  %0 = load %TRH** %handler, align 4
-  %sync = getelementptr inbounds %TRH* %0, i32 0, i32 4
-  %sync12 = load {}** %sync, align 4
+  %handler = getelementptr inbounds %TRp, %TRp* %rp, i32 0, i32 1
+  %0 = load %TRH*, %TRH** %handler, align 4
+  %sync = getelementptr inbounds %TRH, %TRH* %0, i32 0, i32 4
+  %sync12 = load {}*, {}** %sync, align 4
   %1 = bitcast {}* %sync12 to i32 (%TRp*)*
   %call = tail call i32 %1(%TRp* inreg %rp) nounwind optsize
   ret i32 %call
@@ -25,17 +25,17 @@ entry:
 
 define { <2 x float>, <2 x float> } @t2(%btConeShape* %this) unnamed_addr uwtable ssp align 2 {
 entry:
-  %0 = getelementptr inbounds %btConeShape* %this, i64 0, i32 0
+  %0 = getelementptr inbounds %btConeShape, %btConeShape* %this, i64 0, i32 0
   br i1 undef, label %if.then, label %if.end17
 
 if.then:                                          ; preds = %entry
-  %vecnorm.sroa.2.8.copyload = load float* undef, align 4
+  %vecnorm.sroa.2.8.copyload = load float, float* undef, align 4
   %cmp4 = fcmp olt float undef, 0x3D10000000000000
   %vecnorm.sroa.2.8.copyload36 = select i1 %cmp4, float -1.000000e+00, float %vecnorm.sroa.2.8.copyload
   %call.i.i.i = tail call float @sqrtf(float 0.000000e+00) nounwind readnone
   %div.i.i = fdiv float 1.000000e+00, %call.i.i.i
   %mul7.i.i.i = fmul float %div.i.i, %vecnorm.sroa.2.8.copyload36
-  %1 = load float (%btConvexInternalShape*)** undef, align 8
+  %1 = load float (%btConvexInternalShape*)*, float (%btConvexInternalShape*)** undef, align 8
   %call12 = tail call float %1(%btConvexInternalShape* %0)
   %mul7.i.i = fmul float %call12, %mul7.i.i.i
   %retval.sroa.0.4.insert = insertelement <2 x float> zeroinitializer, float undef, i32 1

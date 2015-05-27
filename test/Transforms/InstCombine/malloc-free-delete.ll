@@ -3,9 +3,9 @@
 define i32 @main(i32 %argc, i8** %argv) {
 ; CHECK-LABEL: @main(
     %c_19 = alloca i8*
-    %malloc_206 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i8* getelementptr (i8* null, i32 1) to i32), i32 10))
+    %malloc_206 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i8* getelementptr (i8, i8* null, i32 1) to i32), i32 10))
     store i8* %malloc_206, i8** %c_19
-    %tmp_207 = load i8** %c_19
+    %tmp_207 = load i8*, i8** %c_19
     tail call void @free(i8* %tmp_207)
     ret i32 0
 ; CHECK-NEXT: ret i32 0
@@ -146,17 +146,36 @@ lpad.i:                                           ; preds = %entry
 }
 
 declare i8* @_Znwm(i64) nobuiltin
-declare void @_ZdlPvm(i8*, i64) nobuiltin
 declare i8* @_Znwj(i32) nobuiltin
-declare void @_ZdlPvj(i8*, i32) nobuiltin
 declare i8* @_Znam(i64) nobuiltin
-declare void @_ZdaPvm(i8*, i64) nobuiltin
 declare i8* @_Znaj(i32) nobuiltin
-declare void @_ZdaPvj(i8*, i32) nobuiltin
+declare void @_ZdlPv(i8*) nobuiltin
+declare void @_ZdaPv(i8*) nobuiltin
+
+define linkonce void @_ZdlPvm(i8* %p, i64) nobuiltin {
+  call void @_ZdlPv(i8* %p)
+  ret void
+}
+define linkonce void @_ZdlPvj(i8* %p, i32) nobuiltin {
+  call void @_ZdlPv(i8* %p)
+  ret void
+}
+define linkonce void @_ZdaPvm(i8* %p, i64) nobuiltin {
+  call void @_ZdaPv(i8* %p)
+  ret void
+}
+define linkonce void @_ZdaPvj(i8* %p, i32) nobuiltin {
+  call void @_ZdaPv(i8* %p)
+  ret void
+}
 
 ; CHECK-LABEL: @test8(
 define void @test8() {
   ; CHECK-NOT: call
+  %nw = call i8* @_Znwm(i64 32) builtin
+  call void @_ZdlPv(i8* %nw) builtin
+  %na = call i8* @_Znam(i64 32) builtin
+  call void @_ZdaPv(i8* %na) builtin
   %nwm = call i8* @_Znwm(i64 32) builtin
   call void @_ZdlPvm(i8* %nwm, i64 32) builtin
   %nwj = call i8* @_Znwj(i32 32) builtin

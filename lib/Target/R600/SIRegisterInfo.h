@@ -24,11 +24,12 @@ namespace llvm {
 
 struct SIRegisterInfo : public AMDGPURegisterInfo {
 
-  SIRegisterInfo(const AMDGPUSubtarget &st);
+  SIRegisterInfo();
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
-  unsigned getRegPressureSetLimit(unsigned Idx) const override;
+  unsigned getRegPressureSetLimit(const MachineFunction &MF,
+                                  unsigned Idx) const override;
 
   bool requiresRegisterScavenging(const MachineFunction &Fn) const override;
 

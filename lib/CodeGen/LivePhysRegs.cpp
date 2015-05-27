@@ -16,17 +16,23 @@
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 
 /// \brief Remove all registers from the set that get clobbered by the register
 /// mask.
-void LivePhysRegs::removeRegsInMask(const MachineOperand &MO) {
+/// The clobbers set will be the list of live registers clobbered
+/// by the regmask.
+void LivePhysRegs::removeRegsInMask(const MachineOperand &MO,
+        SmallVectorImpl<std::pair<unsigned, const MachineOperand*>> *Clobbers) {
   SparseSet<unsigned>::iterator LRI = LiveRegs.begin();
   while (LRI != LiveRegs.end()) {
-    if (MO.clobbersPhysReg(*LRI))
+    if (MO.clobbersPhysReg(*LRI)) {
+      if (Clobbers)
+        Clobbers->push_back(std::make_pair(*LRI, &MO));
       LRI = LiveRegs.erase(LRI);
-    else
+    } else
       ++LRI;
   }
 }
@@ -44,7 +50,7 @@ void LivePhysRegs::stepBackward(const MachineInstr &MI) {
         continue;
       removeReg(Reg);
     } else if (O->isRegMask())
-      removeRegsInMask(*O);
+      removeRegsInMask(*O, nullptr);
   }
 
   // Add uses to the set.
@@ -62,8 +68,8 @@ void LivePhysRegs::stepBackward(const MachineInstr &MI) {
 /// killed-uses, add defs. This is the not recommended way, because it depends
 /// on accurate kill flags. If possible use stepBackwards() instead of this
 /// function.
-void LivePhysRegs::stepForward(const MachineInstr &MI) {
-  SmallVector<unsigned, 4> Defs;
+void LivePhysRegs::stepForward(const MachineInstr &MI,
+        SmallVectorImpl<std::pair<unsigned, const MachineOperand*>> &Clobbers) {
   // Remove killed registers from the set.
   for (ConstMIBundleOperands O(&MI); O.isValid(); ++O) {
     if (O->isReg()) {
@@ -71,8 +77,9 @@ void LivePhysRegs::stepForward(const MachineInstr &MI) {
       if (Reg == 0)
         continue;
       if (O->isDef()) {
-        if (!O->isDead())
-          Defs.push_back(Reg);
+        // Note, dead defs are still recorded.  The caller should decide how to
+        // handle them.
+        Clobbers.push_back(std::make_pair(Reg, &*O));
       } else {
         if (!O->isKill())
           continue;
@@ -80,12 +87,16 @@ void LivePhysRegs::stepForward(const MachineInstr &MI) {
         removeReg(Reg);
       }
     } else if (O->isRegMask())
-      removeRegsInMask(*O);
+      removeRegsInMask(*O, &Clobbers);
   }
 
   // Add defs to the set.
-  for (unsigned i = 0, e = Defs.size(); i != e; ++i)
-    addReg(Defs[i]);
+  for (auto Reg : Clobbers) {
+    // Skip dead defs.  They shouldn't be added to the set.
+    if (Reg.second->isReg() && Reg.second->isDead())
+      continue;
+    addReg(Reg.first);
+  }
 }
 
 /// Prin the currently live registers to OS.

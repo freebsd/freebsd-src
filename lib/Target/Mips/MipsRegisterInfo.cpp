@@ -17,6 +17,7 @@
 #include "MipsInstrInfo.h"
 #include "MipsMachineFunction.h"
 #include "MipsSubtarget.h"
+#include "MipsTargetMachine.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -42,15 +43,15 @@ using namespace llvm;
 #define GET_REGINFO_TARGET_DESC
 #include "MipsGenRegisterInfo.inc"
 
-MipsRegisterInfo::MipsRegisterInfo(const MipsSubtarget &ST)
-  : MipsGenRegisterInfo(Mips::RA), Subtarget(ST) {}
+MipsRegisterInfo::MipsRegisterInfo() : MipsGenRegisterInfo(Mips::RA) {}
 
 unsigned MipsRegisterInfo::getPICCallReg() { return Mips::T9; }
 
 const TargetRegisterClass *
 MipsRegisterInfo::getPointerRegClass(const MachineFunction &MF,
                                      unsigned Kind) const {
-  return Subtarget.isABI_N64() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
+  MipsABIInfo ABI = MF.getSubtarget<MipsSubtarget>().getABI();
+  return ABI.ArePtrs64bit() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
 }
 
 unsigned
@@ -81,6 +82,7 @@ MipsRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
 /// Mips Callee Saved Registers
 const MCPhysReg *
 MipsRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  const MipsSubtarget &Subtarget = MF->getSubtarget<MipsSubtarget>();
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_SaveList;
 
@@ -99,8 +101,10 @@ MipsRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CSR_O32_SaveList;
 }
 
-const uint32_t*
-MipsRegisterInfo::getCallPreservedMask(CallingConv::ID) const {
+const uint32_t *
+MipsRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const {
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_RegMask;
 
@@ -134,6 +138,7 @@ getReservedRegs(const MachineFunction &MF) const {
   };
 
   BitVector Reserved(getNumRegs());
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
   typedef TargetRegisterClass::const_iterator RegIter;
 
   for (unsigned I = 0; I < array_lengthof(ReservedGPR32); ++I)
@@ -167,7 +172,7 @@ getReservedRegs(const MachineFunction &MF) const {
       Reserved.set(*Reg);
   }
   // Reserve FP if this function should have a dedicated frame pointer register.
-  if (MF.getSubtarget().getFrameLowering()->hasFP(MF)) {
+  if (Subtarget.getFrameLowering()->hasFP(MF)) {
     if (Subtarget.inMips16Mode())
       Reserved.set(Mips::S0);
     else {
@@ -256,8 +261,10 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 
 unsigned MipsRegisterInfo::
 getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
-  bool IsN64 = Subtarget.isABI_N64();
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
+  const TargetFrameLowering *TFI = Subtarget.getFrameLowering();
+  bool IsN64 =
+      static_cast<const MipsTargetMachine &>(MF.getTarget()).getABI().IsN64();
 
   if (Subtarget.inMips16Mode())
     return TFI->hasFP(MF) ? Mips::S0 : Mips::SP;

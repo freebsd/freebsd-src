@@ -85,16 +85,16 @@ entry:
 ; PIC16: jalrc
 ; PIC16: .end caller5
 
-  %0 = load i32* @g0, align 4
-  %1 = load i32* @g1, align 4
-  %2 = load i32* @g2, align 4
-  %3 = load i32* @g3, align 4
-  %4 = load i32* @g4, align 4
-  %5 = load i32* @g5, align 4
-  %6 = load i32* @g6, align 4
-  %7 = load i32* @g7, align 4
-  %8 = load i32* @g8, align 4
-  %9 = load i32* @g9, align 4
+  %0 = load i32, i32* @g0, align 4
+  %1 = load i32, i32* @g1, align 4
+  %2 = load i32, i32* @g2, align 4
+  %3 = load i32, i32* @g3, align 4
+  %4 = load i32, i32* @g4, align 4
+  %5 = load i32, i32* @g5, align 4
+  %6 = load i32, i32* @g6, align 4
+  %7 = load i32, i32* @g7, align 4
+  %8 = load i32, i32* @g8, align 4
+  %9 = load i32, i32* @g9, align 4
   %call = tail call fastcc i32 @callee5(i32 %0, i32 %1, i32 %2, i32 %3, i32 %4, i32 %5, i32 %6, i32 %7, i32 %8, i32 %9)
   ret i32 %call
 }
@@ -136,7 +136,7 @@ entry:
 ; PIC16: jalrc
 ; PIC16: .end caller8_1
 
-  %call = tail call i32 (i32, ...)* @callee8(i32 2, i32 1) nounwind
+  %call = tail call i32 (i32, ...) @callee8(i32 2, i32 1) nounwind
   ret i32 %call
 }
 
@@ -239,7 +239,7 @@ entry:
 ; PIC16: .ent caller13
 ; PIC16: jalrc
 
-  %call = tail call i32 (i32, ...)* @callee13(i32 1, i32 2) nounwind
+  %call = tail call i32 (i32, ...) @callee13(i32 1, i32 2) nounwind
   ret i32 %call
 }
 

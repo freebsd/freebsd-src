@@ -23,7 +23,7 @@ namespace {
 
 class LinkModuleTest : public testing::Test {
 protected:
-  virtual void SetUp() {
+  void SetUp() override {
     M.reset(new Module("MyModule", Ctx));
     FunctionType *FTy = FunctionType::get(
         Type::getInt8PtrTy(Ctx), Type::getInt32Ty(Ctx), false /*=isVarArg*/);
@@ -35,7 +35,7 @@ protected:
     SwitchCase2BB = BasicBlock::Create(Ctx, "switch.case.2", F);
     ExitBB = BasicBlock::Create(Ctx, "exit", F);
 
-    ArrayType *AT = ArrayType::get(Type::getInt8PtrTy(Ctx), 3);
+    AT = ArrayType::get(Type::getInt8PtrTy(Ctx), 3);
 
     GV = new GlobalVariable(*M.get(), AT, false /*=isConstant*/,
                             GlobalValue::InternalLinkage, nullptr,"switch.bas");
@@ -56,11 +56,12 @@ protected:
     GV->setInitializer(ConstantArray::get(AT, Init));
   }
 
-  virtual void TearDown() { M.reset(); }
+  void TearDown() override { M.reset(); }
 
   LLVMContext Ctx;
   std::unique_ptr<Module> M;
   Function *F;
+  ArrayType *AT;
   GlobalVariable *GV;
   BasicBlock *EntryBB;
   BasicBlock *SwitchCase1BB;
@@ -75,7 +76,7 @@ TEST_F(LinkModuleTest, BlockAddress) {
   GEPIndices.push_back(ConstantInt::get(Type::getInt32Ty(Ctx), 0));
   GEPIndices.push_back(F->arg_begin());
 
-  Value *GEP = Builder.CreateGEP(GV, GEPIndices, "switch.gep");
+  Value *GEP = Builder.CreateGEP(AT, GV, GEPIndices, "switch.gep");
   Value *Load = Builder.CreateLoad(GEP, "switch.load");
 
   Builder.CreateRet(Load);

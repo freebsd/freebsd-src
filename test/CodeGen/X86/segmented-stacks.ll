@@ -11,16 +11,16 @@
 ; RUN: llc < %s -mcpu=generic -mtriple=x86_64-mingw32 -verify-machineinstrs | FileCheck %s -check-prefix=X64-MinGW
 
 ; We used to crash with filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=i686-linux -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=x86_64-linux -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=x86_64-linux-gnux32 -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=i686-darwin -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=x86_64-darwin -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=i686-mingw32 -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=x86_64-freebsd -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=i686-dragonfly -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=x86_64-dragonfly -filetype=obj
-; RUN: llc < %s -mcpu=generic -mtriple=x86_64-mingw32 -filetype=obj
+; RUN: llc < %s -mcpu=generic -mtriple=i686-linux -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=x86_64-linux -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=x86_64-linux-gnux32 -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=i686-darwin -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=x86_64-darwin -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=i686-mingw32 -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=x86_64-freebsd -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=i686-dragonfly -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=x86_64-dragonfly -filetype=obj -o /dev/null
+; RUN: llc < %s -mcpu=generic -mtriple=x86_64-mingw32 -filetype=obj -o /dev/null
 
 ; RUN: not llc < %s -mcpu=generic -mtriple=x86_64-solaris 2> %t.log
 ; RUN: FileCheck %s -input-file=%t.log -check-prefix=X64-Solaris
@@ -152,7 +152,7 @@ define void @test_basic() #0 {
 }
 
 define i32 @test_nested(i32 * nest %closure, i32 %other) #0 {
-       %addend = load i32 * %closure
+       %addend = load i32 , i32 * %closure
        %result = add i32 %other, %addend
        %mem = alloca i32, i32 10
        call void @dummy_use (i32* %mem, i32 10)

@@ -411,10 +411,10 @@ define i32 @shady_range(i32 %argc, i8** nocapture %argv) uwtable {
   %a8 = bitcast [4 x %struct.Klass]* %a.i to i8*
   %b8 = bitcast [4 x %struct.Klass]* %b.i to i8*
   ; I am used outside the lifetime zone below:
-  %z2 = getelementptr inbounds [4 x %struct.Klass]* %a.i, i64 0, i64 0, i32 0
+  %z2 = getelementptr inbounds [4 x %struct.Klass], [4 x %struct.Klass]* %a.i, i64 0, i64 0, i32 0
   call void @llvm.lifetime.start(i64 -1, i8* %a8)
   call void @llvm.lifetime.start(i64 -1, i8* %b8)
-  %z3 = load i32* %z2, align 16
+  %z3 = load i32, i32* %z2, align 16
   %r = call i32 @foo(i32 %z3, i8* %a8)
   %r2 = call i32 @foo(i32 %z3, i8* %b8)
   call void @llvm.lifetime.end(i64 -1, i8* %a8)

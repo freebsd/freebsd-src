@@ -4,6 +4,10 @@
 ; A sign extend feeds an IVUser and cannot be hoisted into the AddRec.
 ; CollectIVChains should bailout on this case.
 
+
+; Provide legal integer types.
+target datalayout = "n8:16:32:64"
+
 %struct = type { i8*, i8*, i16, i64, i16, i16, i16, i64, i64, i16, i8*, i64, i64, i64 }
 
 ; CHECK-LABEL: @test(
@@ -27,13 +31,13 @@ for.body:                                         ; preds = %sw.epilog, %land.en
   br label %if.end388
 
 if.end388:                                        ; preds = %if.then380, %if.else356
-  %ColLength = getelementptr inbounds %struct* %fbh.0, i64 0, i32 7
+  %ColLength = getelementptr inbounds %struct, %struct* %fbh.0, i64 0, i32 7
   %call405 = call signext i16 @SQLColAttribute(i8* undef, i16 zeroext %conv258, i16 zeroext 1003, i8* null, i16 signext 0, i16* null, i64* %ColLength) nounwind
   br label %sw.epilog
 
 sw.epilog:                                        ; preds = %sw.bb542, %sw.bb523, %if.end475
   %inc601 = add i16 %column_n.0, 1
-  %incdec.ptr = getelementptr inbounds %struct* %fbh.0, i64 1
+  %incdec.ptr = getelementptr inbounds %struct, %struct* %fbh.0, i64 1
   br label %for.body
 
 return:                                           ; preds = %entry

@@ -3,11 +3,11 @@
 ; CHECK:      .section	.opd,"aw",@progbits
 ; CHECK-NEXT: test1:
 ; CHECK-NEXT:	.align 3
-; CHECK-NEXT:	.quad .L.test1
+; CHECK-NEXT:	.quad .L[[BEGIN:.*]]
 ; CHECK-NEXT:	.quad .TOC.@tocbase
 ; CHECK-NEXT:   .quad 0
 ; CHECK-NEXT:	.text
-; CHECK-NEXT: .L.test1:
+; CHECK-NEXT: .L[[BEGIN]]:
 
 define i32 @test1(i32 %a) nounwind {
 entry:
@@ -19,4 +19,4 @@ entry:
 ; however, using this directive with recent binutils will result in the error:
 ;  .size expression for XXX does not evaluate to a constant
 ; so we must use the label which actually tags the start of the function.
-; CHECK: .size	test1, .Ltmp0-.L.test1
+; CHECK: .size	test1, .Lfunc_end0-.L[[BEGIN]]

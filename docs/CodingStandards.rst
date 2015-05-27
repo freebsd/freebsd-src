@@ -83,7 +83,7 @@ Supported C++11 Language and Library Features
 
 While LLVM, Clang, and LLD use C++11, not all features are available in all of
 the toolchains which we support. The set of features supported for use in LLVM
-is the intersection of those supported in MSVC 2012, GCC 4.7, and Clang 3.1.
+is the intersection of those supported in MSVC 2013, GCC 4.7, and Clang 3.1.
 The ultimate definition of this set is what build bots with those respective
 toolchains accept. Don't argue with the build bots. However, we have some
 guidance below to help you know what to expect.
@@ -123,6 +123,20 @@ unlikely to be supported by our host compilers.
 
 * ``override`` and ``final``: N2928_, N3206_, N3272_
 * Atomic operations and the C++11 memory model: N2429_
+* Variadic templates: N2242_
+* Explicit conversion operators: N2437_
+* Defaulted and deleted functions: N2346_
+
+  * But not defaulted move constructors or move assignment operators, MSVC 2013
+    cannot synthesize them.
+* Initializer lists: N2627_
+* Delegating constructors: N1986_
+* Default member initializers (non-static data member initializers): N2756_
+
+  * Only use these for scalar members that would otherwise be left
+    uninitialized. Non-scalar members generally have appropriate default
+    constructors, and MSVC 2013 has problems when braced initializer lists are
+    involved.
 
 .. _N2118: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2118.html
 .. _N2439: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2439.htm
@@ -143,7 +157,12 @@ unlikely to be supported by our host compilers.
 .. _N3206: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2010/n3206.htm
 .. _N3272: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2011/n3272.htm
 .. _N2429: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2429.htm
-.. _MSVC-compatible RTTI: http://llvm.org/PR18951
+.. _N2242: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2242.pdf
+.. _N2437: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2437.pdf
+.. _N2346: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2346.htm
+.. _N2627: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2672.htm
+.. _N1986: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n1986.pdf
+.. _N2756: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2756.htm
 
 The supported features in the C++11 standard libraries are less well tracked,
 but also much greater. Most of the standard libraries implement most of C++11's
@@ -159,9 +178,6 @@ being aware of:
 * While most of the atomics library is well implemented, the fences are
   missing. Fortunately, they are rarely needed.
 * The locale support is incomplete.
-* ``std::initializer_list`` (and the constructors and functions that take it as
-  an argument) are not always available, so you cannot (for example) initialize
-  a ``std::vector`` with a braced initializer list.
 * ``std::equal()`` (and other algorithms) incorrectly assert in MSVC when given
   ``nullptr`` as an iterator.
 
@@ -231,8 +247,8 @@ tree.  The standard header looks like this:
   //===----------------------------------------------------------------------===//
   ///
   /// \file
-  /// \brief This file contains the declaration of the Instruction class, which is
-  /// the base class for all of the VM instructions.
+  /// This file contains the declaration of the Instruction class, which is the
+  /// base class for all of the VM instructions.
   ///
   //===----------------------------------------------------------------------===//
 
@@ -251,10 +267,11 @@ The next section in the file is a concise note that defines the license that the
 file is released under.  This makes it perfectly clear what terms the source
 code can be distributed under and should not be modified in any way.
 
-The main body is a ``doxygen`` comment describing the purpose of the file.  It
-should have a ``\brief`` command that describes the file in one or two
-sentences.  Any additional information should be separated by a blank line.  If
-an algorithm is being implemented or something tricky is going on, a reference
+The main body is a ``doxygen`` comment (identified by the ``///`` comment
+marker instead of the usual ``//``) describing the purpose of the file.  The
+first sentence or a passage beginning with ``\brief`` is used as an abstract.
+Any additional information should be separated by a blank line.  If an
+algorithm is being implemented or something tricky is going on, a reference
 to the paper where it is published should be included, as well as any notes or
 *gotchas* in the code to watch out for.
 
@@ -281,7 +298,8 @@ happens: does the method return null?  Abort?  Format your hard disk?
 Comment Formatting
 ^^^^^^^^^^^^^^^^^^
 
-In general, prefer C++ style (``//``) comments.  They take less space, require
+In general, prefer C++ style comments (``//`` for normal comments, ``///`` for
+``doxygen`` documentation comments).  They take less space, require
 less typing, don't have nesting problems, etc.  There are a few cases when it is
 useful to use C style (``/* */``) comments however:
 
@@ -302,10 +320,11 @@ Doxygen Use in Documentation Comments
 Use the ``\file`` command to turn the standard file header into a file-level
 comment.
 
-Include descriptive ``\brief`` paragraphs for all public interfaces (public
-classes, member and non-member functions).  Explain API use and purpose in
-``\brief`` paragraphs, don't just restate the information that can be inferred
-from the API name.  Put detailed discussion into separate paragraphs.
+Include descriptive paragraphs for all public interfaces (public classes,
+member and non-member functions).  Don't just restate the information that can
+be inferred from the API name.  The first sentence or a paragraph beginning
+with ``\brief`` is used as an abstract. Put detailed discussion into separate
+paragraphs.
 
 To refer to parameter names inside a paragraph, use the ``\p name`` command.
 Don't use the ``\arg name`` command since it starts a new paragraph that
@@ -325,8 +344,8 @@ A minimal documentation comment:
 
 .. code-block:: c++
 
-  /// \brief Does foo and bar.
-  void fooBar(bool Baz);
+  /// Sets the xyzzy property to \p Baz.
+  void setXyzzy(bool Baz);
 
 A documentation comment that uses all Doxygen features in a preferred way:
 
@@ -383,10 +402,10 @@ Correct:
 
   // In Something.h:
 
-  /// \brief An abstraction for some complicated thing.
+  /// An abstraction for some complicated thing.
   class Something {
   public:
-    /// \brief Does foo and bar.
+    /// Does foo and bar.
     void fooBar();
   };
 
@@ -710,7 +729,7 @@ the symbol (e.g., MSVC).  This can lead to problems at link time.
   // Bar isn't POD, but it does look like a struct.
   struct Bar {
     int Data;
-    Foo() : Data(0) { }
+    Bar() : Data(0) { }
   };
 
 Do not use Braced Initializer Lists to Call a Constructor
@@ -1289,34 +1308,6 @@ if you return from each case of a covered switch-over-enum because GCC assumes
 that the enum expression may take any representable value, not just those of
 individual enumerators. To suppress this warning, use ``llvm_unreachable`` after
 the switch.
-
-Use ``LLVM_DELETED_FUNCTION`` to mark uncallable methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Prior to C++11, a common pattern to make a class uncopyable was to declare an
-unimplemented copy constructor and copy assignment operator and make them
-private. This would give a compiler error for accessing a private method or a
-linker error because it wasn't implemented.
-
-With C++11, we can mark methods that won't be implemented with ``= delete``.
-This will trigger a much better error message and tell the compiler that the
-method will never be implemented. This enables other checks like
-``-Wunused-private-field`` to run correctly on classes that contain these
-methods.
-
-For compatibility with MSVC, ``LLVM_DELETED_FUNCTION`` should be used which
-will expand to ``= delete`` on compilers that support it. These methods should
-still be declared private. Example of the uncopyable pattern:
-
-.. code-block:: c++
-
-  class DontCopy {
-  private:
-    DontCopy(const DontCopy&) LLVM_DELETED_FUNCTION;
-    DontCopy &operator =(const DontCopy&) LLVM_DELETED_FUNCTION;
-  public:
-    ...
-  };
 
 Don't evaluate ``end()`` every time through a loop
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -663,6 +663,17 @@ Constant *ConstantFP::get(Type *Ty, StringRef Str) {
   return C; 
 }
 
+Constant *ConstantFP::getNaN(Type *Ty, bool Negative, unsigned Type) {
+  const fltSemantics &Semantics = *TypeToFloatSemantics(Ty->getScalarType());
+  APFloat NaN = APFloat::getNaN(Semantics, Negative, Type);
+  Constant *C = get(Ty->getContext(), NaN);
+
+  if (VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return ConstantVector::getSplat(VTy->getNumElements(), C);
+
+  return C;
+}
+
 Constant *ConstantFP::getNegativeZero(Type *Ty) {
   const fltSemantics &Semantics = *TypeToFloatSemantics(Ty->getScalarType());
   APFloat NegZero = APFloat::getZero(Semantics, /*Negative=*/true);
@@ -911,23 +922,25 @@ Constant *ConstantArray::getImpl(ArrayType *Ty, ArrayRef<Constant*> V) {
 
     if (ConstantFP *CFP = dyn_cast<ConstantFP>(C)) {
       if (CFP->getType()->isFloatTy()) {
-        SmallVector<float, 16> Elts;
+        SmallVector<uint32_t, 16> Elts;
         for (unsigned i = 0, e = V.size(); i != e; ++i)
           if (ConstantFP *CFP = dyn_cast<ConstantFP>(V[i]))
-            Elts.push_back(CFP->getValueAPF().convertToFloat());
+            Elts.push_back(
+                CFP->getValueAPF().bitcastToAPInt().getLimitedValue());
           else
             break;
         if (Elts.size() == V.size())
-          return ConstantDataArray::get(C->getContext(), Elts);
+          return ConstantDataArray::getFP(C->getContext(), Elts);
       } else if (CFP->getType()->isDoubleTy()) {
-        SmallVector<double, 16> Elts;
+        SmallVector<uint64_t, 16> Elts;
         for (unsigned i = 0, e = V.size(); i != e; ++i)
           if (ConstantFP *CFP = dyn_cast<ConstantFP>(V[i]))
-            Elts.push_back(CFP->getValueAPF().convertToDouble());
+            Elts.push_back(
+                CFP->getValueAPF().bitcastToAPInt().getLimitedValue());
           else
             break;
         if (Elts.size() == V.size())
-          return ConstantDataArray::get(C->getContext(), Elts);
+          return ConstantDataArray::getFP(C->getContext(), Elts);
       }
     }
   }
@@ -1097,23 +1110,25 @@ Constant *ConstantVector::getImpl(ArrayRef<Constant*> V) {
 
     if (ConstantFP *CFP = dyn_cast<ConstantFP>(C)) {
       if (CFP->getType()->isFloatTy()) {
-        SmallVector<float, 16> Elts;
+        SmallVector<uint32_t, 16> Elts;
         for (unsigned i = 0, e = V.size(); i != e; ++i)
           if (ConstantFP *CFP = dyn_cast<ConstantFP>(V[i]))
-            Elts.push_back(CFP->getValueAPF().convertToFloat());
+            Elts.push_back(
+                CFP->getValueAPF().bitcastToAPInt().getLimitedValue());
           else
             break;
         if (Elts.size() == V.size())
-          return ConstantDataVector::get(C->getContext(), Elts);
+          return ConstantDataVector::getFP(C->getContext(), Elts);
       } else if (CFP->getType()->isDoubleTy()) {
-        SmallVector<double, 16> Elts;
+        SmallVector<uint64_t, 16> Elts;
         for (unsigned i = 0, e = V.size(); i != e; ++i)
           if (ConstantFP *CFP = dyn_cast<ConstantFP>(V[i]))
-            Elts.push_back(CFP->getValueAPF().convertToDouble());
+            Elts.push_back(
+                CFP->getValueAPF().bitcastToAPInt().getLimitedValue());
           else
             break;
         if (Elts.size() == V.size())
-          return ConstantDataVector::get(C->getContext(), Elts);
+          return ConstantDataVector::getFP(C->getContext(), Elts);
       }
     }
   }
@@ -1211,11 +1226,9 @@ ConstantExpr::getWithOperandReplaced(unsigned OpNo, Constant *Op) const {
 Constant *ConstantExpr::getWithOperands(ArrayRef<Constant *> Ops, Type *Ty,
                                         bool OnlyIfReduced) const {
   assert(Ops.size() == getNumOperands() && "Operand count mismatch!");
-  bool AnyChange = Ty != getType();
-  for (unsigned i = 0; i != Ops.size(); ++i)
-    AnyChange |= Ops[i] != getOperand(i);
 
-  if (!AnyChange)  // No operands changed, return self.
+  // If no operands changed return self.
+  if (Ty == getType() && std::equal(Ops.begin(), Ops.end(), op_begin()))
     return const_cast<ConstantExpr*>(this);
 
   Type *OnlyIfReducedTy = OnlyIfReduced ? Ty : nullptr;
@@ -1250,7 +1263,7 @@ Constant *ConstantExpr::getWithOperands(ArrayRef<Constant *> Ops, Type *Ty,
     return ConstantExpr::getShuffleVector(Ops[0], Ops[1], Ops[2],
                                           OnlyIfReducedTy);
   case Instruction::GetElementPtr:
-    return ConstantExpr::getGetElementPtr(Ops[0], Ops.slice(1),
+    return ConstantExpr::getGetElementPtr(nullptr, Ops[0], Ops.slice(1),
                                           cast<GEPOperator>(this)->isInBounds(),
                                           OnlyIfReducedTy);
   case Instruction::ICmp:
@@ -1923,7 +1936,7 @@ Constant *ConstantExpr::getSizeOf(Type* Ty) {
   // Note that a non-inbounds gep is used, as null isn't within any object.
   Constant *GEPIdx = ConstantInt::get(Type::getInt32Ty(Ty->getContext()), 1);
   Constant *GEP = getGetElementPtr(
-                 Constant::getNullValue(PointerType::getUnqual(Ty)), GEPIdx);
+      Ty, Constant::getNullValue(PointerType::getUnqual(Ty)), GEPIdx);
   return getPtrToInt(GEP, 
                      Type::getInt64Ty(Ty->getContext()));
 }
@@ -1937,7 +1950,7 @@ Constant *ConstantExpr::getAlignOf(Type* Ty) {
   Constant *Zero = ConstantInt::get(Type::getInt64Ty(Ty->getContext()), 0);
   Constant *One = ConstantInt::get(Type::getInt32Ty(Ty->getContext()), 1);
   Constant *Indices[2] = { Zero, One };
-  Constant *GEP = getGetElementPtr(NullPtr, Indices);
+  Constant *GEP = getGetElementPtr(AligningTy, NullPtr, Indices);
   return getPtrToInt(GEP,
                      Type::getInt64Ty(Ty->getContext()));
 }
@@ -1955,7 +1968,7 @@ Constant *ConstantExpr::getOffsetOf(Type* Ty, Constant *FieldNo) {
     FieldNo
   };
   Constant *GEP = getGetElementPtr(
-                Constant::getNullValue(PointerType::getUnqual(Ty)), GEPIdx);
+      Ty, Constant::getNullValue(PointerType::getUnqual(Ty)), GEPIdx);
   return getPtrToInt(GEP,
                      Type::getInt64Ty(Ty->getContext()));
 }
@@ -1999,19 +2012,24 @@ Constant *ConstantExpr::getSelect(Constant *C, Constant *V1, Constant *V2,
   return pImpl->ExprConstants.getOrCreate(V1->getType(), Key);
 }
 
-Constant *ConstantExpr::getGetElementPtr(Constant *C, ArrayRef<Value *> Idxs,
-                                         bool InBounds, Type *OnlyIfReducedTy) {
-  assert(C->getType()->isPtrOrPtrVectorTy() &&
-         "Non-pointer type for constant GetElementPtr expression");
+Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
+                                         ArrayRef<Value *> Idxs, bool InBounds,
+                                         Type *OnlyIfReducedTy) {
+  if (!Ty)
+    Ty = cast<PointerType>(C->getType()->getScalarType())->getElementType();
+  else
+    assert(
+        Ty ==
+        cast<PointerType>(C->getType()->getScalarType())->getContainedType(0u));
 
-  if (Constant *FC = ConstantFoldGetElementPtr(C, InBounds, Idxs))
+  if (Constant *FC = ConstantFoldGetElementPtr(Ty, C, InBounds, Idxs))
     return FC;          // Fold a few common cases.
 
   // Get the result type of the getelementptr!
-  Type *Ty = GetElementPtrInst::getIndexedType(C->getType(), Idxs);
-  assert(Ty && "GEP indices invalid!");
+  Type *DestTy = GetElementPtrInst::getIndexedType(Ty, Idxs);
+  assert(DestTy && "GEP indices invalid!");
   unsigned AS = C->getType()->getPointerAddressSpace();
-  Type *ReqTy = Ty->getPointerTo(AS);
+  Type *ReqTy = DestTy->getPointerTo(AS);
   if (VectorType *VecTy = dyn_cast<VectorType>(C->getType()))
     ReqTy = VectorType::get(ReqTy, VecTy->getNumElements());
 
@@ -2032,7 +2050,8 @@ Constant *ConstantExpr::getGetElementPtr(Constant *C, ArrayRef<Value *> Idxs,
     ArgVec.push_back(cast<Constant>(Idxs[i]));
   }
   const ConstantExprKeyType Key(Instruction::GetElementPtr, ArgVec, 0,
-                                InBounds ? GEPOperator::IsInBounds : 0);
+                                InBounds ? GEPOperator::IsInBounds : 0, None,
+                                Ty);
 
   LLVMContextImpl *pImpl = C->getContext().pImpl;
   return pImpl->ExprConstants.getOrCreate(ReqTy, Key);
@@ -2362,17 +2381,20 @@ const char *ConstantExpr::getOpcodeName() const {
   return Instruction::getOpcodeName(getOpcode());
 }
 
-
-
-GetElementPtrConstantExpr::
-GetElementPtrConstantExpr(Constant *C, ArrayRef<Constant*> IdxList,
-                          Type *DestTy)
-  : ConstantExpr(DestTy, Instruction::GetElementPtr,
-                 OperandTraits<GetElementPtrConstantExpr>::op_end(this)
-                 - (IdxList.size()+1), IdxList.size()+1) {
-  OperandList[0] = C;
+GetElementPtrConstantExpr::GetElementPtrConstantExpr(
+    Type *SrcElementTy, Constant *C, ArrayRef<Constant *> IdxList, Type *DestTy)
+    : ConstantExpr(DestTy, Instruction::GetElementPtr,
+                   OperandTraits<GetElementPtrConstantExpr>::op_end(this) -
+                       (IdxList.size() + 1),
+                   IdxList.size() + 1),
+      SrcElementTy(SrcElementTy) {
+  Op<0>() = C;
   for (unsigned i = 0, E = IdxList.size(); i != E; ++i)
     OperandList[i+1] = IdxList[i];
+}
+
+Type *GetElementPtrConstantExpr::getSourceElementType() const {
+  return SrcElementTy;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2544,7 +2566,31 @@ Constant *ConstantDataArray::get(LLVMContext &Context, ArrayRef<float> Elts) {
 Constant *ConstantDataArray::get(LLVMContext &Context, ArrayRef<double> Elts) {
   Type *Ty = ArrayType::get(Type::getDoubleTy(Context), Elts.size());
   const char *Data = reinterpret_cast<const char *>(Elts.data());
-  return getImpl(StringRef(const_cast<char *>(Data), Elts.size()*8), Ty);
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 8), Ty);
+}
+
+/// getFP() constructors - Return a constant with array type with an element
+/// count and element type of float with precision matching the number of
+/// bits in the ArrayRef passed in. (i.e. half for 16bits, float for 32bits,
+/// double for 64bits) Note that this can return a ConstantAggregateZero
+/// object.
+Constant *ConstantDataArray::getFP(LLVMContext &Context,
+                                   ArrayRef<uint16_t> Elts) {
+  Type *Ty = VectorType::get(Type::getHalfTy(Context), Elts.size());
+  const char *Data = reinterpret_cast<const char *>(Elts.data());
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 2), Ty);
+}
+Constant *ConstantDataArray::getFP(LLVMContext &Context,
+                                   ArrayRef<uint32_t> Elts) {
+  Type *Ty = ArrayType::get(Type::getFloatTy(Context), Elts.size());
+  const char *Data = reinterpret_cast<const char *>(Elts.data());
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 4), Ty);
+}
+Constant *ConstantDataArray::getFP(LLVMContext &Context,
+                                   ArrayRef<uint64_t> Elts) {
+  Type *Ty = ArrayType::get(Type::getDoubleTy(Context), Elts.size());
+  const char *Data = reinterpret_cast<const char *>(Elts.data());
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 8), Ty);
 }
 
 /// getString - This method constructs a CDS and initializes it with a text
@@ -2597,7 +2643,31 @@ Constant *ConstantDataVector::get(LLVMContext &Context, ArrayRef<float> Elts) {
 Constant *ConstantDataVector::get(LLVMContext &Context, ArrayRef<double> Elts) {
   Type *Ty = VectorType::get(Type::getDoubleTy(Context), Elts.size());
   const char *Data = reinterpret_cast<const char *>(Elts.data());
-  return getImpl(StringRef(const_cast<char *>(Data), Elts.size()*8), Ty);
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 8), Ty);
+}
+
+/// getFP() constructors - Return a constant with vector type with an element
+/// count and element type of float with the precision matching the number of
+/// bits in the ArrayRef passed in.  (i.e. half for 16bits, float for 32bits,
+/// double for 64bits) Note that this can return a ConstantAggregateZero
+/// object.
+Constant *ConstantDataVector::getFP(LLVMContext &Context,
+                                    ArrayRef<uint16_t> Elts) {
+  Type *Ty = VectorType::get(Type::getHalfTy(Context), Elts.size());
+  const char *Data = reinterpret_cast<const char *>(Elts.data());
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 2), Ty);
+}
+Constant *ConstantDataVector::getFP(LLVMContext &Context,
+                                    ArrayRef<uint32_t> Elts) {
+  Type *Ty = VectorType::get(Type::getFloatTy(Context), Elts.size());
+  const char *Data = reinterpret_cast<const char *>(Elts.data());
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 4), Ty);
+}
+Constant *ConstantDataVector::getFP(LLVMContext &Context,
+                                    ArrayRef<uint64_t> Elts) {
+  Type *Ty = VectorType::get(Type::getDoubleTy(Context), Elts.size());
+  const char *Data = reinterpret_cast<const char *>(Elts.data());
+  return getImpl(StringRef(const_cast<char *>(Data), Elts.size() * 8), Ty);
 }
 
 Constant *ConstantDataVector::getSplat(unsigned NumElts, Constant *V) {
@@ -2623,13 +2693,14 @@ Constant *ConstantDataVector::getSplat(unsigned NumElts, Constant *V) {
 
   if (ConstantFP *CFP = dyn_cast<ConstantFP>(V)) {
     if (CFP->getType()->isFloatTy()) {
-      SmallVector<float, 16> Elts(NumElts, CFP->getValueAPF().convertToFloat());
-      return get(V->getContext(), Elts);
+      SmallVector<uint32_t, 16> Elts(
+          NumElts, CFP->getValueAPF().bitcastToAPInt().getLimitedValue());
+      return getFP(V->getContext(), Elts);
     }
     if (CFP->getType()->isDoubleTy()) {
-      SmallVector<double, 16> Elts(NumElts,
-                                   CFP->getValueAPF().convertToDouble());
-      return get(V->getContext(), Elts);
+      SmallVector<uint64_t, 16> Elts(
+          NumElts, CFP->getValueAPF().bitcastToAPInt().getLimitedValue());
+      return getFP(V->getContext(), Elts);
     }
   }
   return ConstantVector::getSplat(NumElts, V);
@@ -2667,13 +2738,13 @@ APFloat ConstantDataSequential::getElementAsAPFloat(unsigned Elt) const {
   default:
     llvm_unreachable("Accessor can only be used when element is float/double!");
   case Type::FloatTyID: {
-      const float *FloatPrt = reinterpret_cast<const float *>(EltPtr);
-      return APFloat(*const_cast<float *>(FloatPrt));
-    }
+    auto EltVal = *reinterpret_cast<const uint32_t *>(EltPtr);
+    return APFloat(APFloat::IEEEsingle, APInt(32, EltVal));
+  }
   case Type::DoubleTyID: {
-      const double *DoublePtr = reinterpret_cast<const double *>(EltPtr);
-      return APFloat(*const_cast<double *>(DoublePtr));
-    }
+    auto EltVal = *reinterpret_cast<const uint64_t *>(EltPtr);
+    return APFloat(APFloat::IEEEdouble, APInt(64, EltVal));
+  }
   }
 }
 
@@ -2918,10 +2989,7 @@ void ConstantExpr::replaceUsesOfWithOnConstant(Value *From, Value *ToV,
 }
 
 Instruction *ConstantExpr::getAsInstruction() {
-  SmallVector<Value*,4> ValueOperands;
-  for (op_iterator I = op_begin(), E = op_end(); I != E; ++I)
-    ValueOperands.push_back(cast<Value>(I));
-
+  SmallVector<Value *, 4> ValueOperands(op_begin(), op_end());
   ArrayRef<Value*> Ops(ValueOperands);
 
   switch (getOpcode()) {
@@ -2953,12 +3021,14 @@ Instruction *ConstantExpr::getAsInstruction() {
   case Instruction::ShuffleVector:
     return new ShuffleVectorInst(Ops[0], Ops[1], Ops[2]);
 
-  case Instruction::GetElementPtr:
-    if (cast<GEPOperator>(this)->isInBounds())
-      return GetElementPtrInst::CreateInBounds(Ops[0], Ops.slice(1));
-    else
-      return GetElementPtrInst::Create(Ops[0], Ops.slice(1));
-
+  case Instruction::GetElementPtr: {
+    const auto *GO = cast<GEPOperator>(this);
+    if (GO->isInBounds())
+      return GetElementPtrInst::CreateInBounds(GO->getSourceElementType(),
+                                               Ops[0], Ops.slice(1));
+    return GetElementPtrInst::Create(GO->getSourceElementType(), Ops[0],
+                                     Ops.slice(1));
+  }
   case Instruction::ICmp:
   case Instruction::FCmp:
     return CmpInst::Create((Instruction::OtherOps)getOpcode(),

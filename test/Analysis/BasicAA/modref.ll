@@ -13,7 +13,7 @@ define i32 @test0(i8* %P) {
 
   call void @llvm.memset.p0i8.i32(i8* %P, i8 0, i32 42, i32 1, i1 false)
 
-  %B = load i32* %A
+  %B = load i32, i32* %A
   ret i32 %B
 
 ; CHECK-LABEL: @test0
@@ -29,30 +29,30 @@ define i8 @test1() {
 
   call void @llvm.memcpy.p0i8.p0i8.i8(i8* %A, i8* %B, i8 -1, i32 0, i1 false)
 
-  %C = load i8* %B
+  %C = load i8, i8* %B
   ret i8 %C
 ; CHECK: ret i8 2
 }
 
 define i8 @test2(i8* %P) {
 ; CHECK-LABEL: @test2
-  %P2 = getelementptr i8* %P, i32 127
+  %P2 = getelementptr i8, i8* %P, i32 127
   store i8 1, i8* %P2  ;; Not dead across memset
   call void @llvm.memset.p0i8.i8(i8* %P, i8 2, i8 127, i32 0, i1 false)
-  %A = load i8* %P2
+  %A = load i8, i8* %P2
   ret i8 %A
 ; CHECK: ret i8 1
 }
 
 define i8 @test2a(i8* %P) {
 ; CHECK-LABEL: @test2
-  %P2 = getelementptr i8* %P, i32 126
+  %P2 = getelementptr i8, i8* %P, i32 126
 
   ;; FIXME: DSE isn't zapping this dead store.
   store i8 1, i8* %P2  ;; Dead, clobbered by memset.
 
   call void @llvm.memset.p0i8.i8(i8* %P, i8 2, i8 127, i32 0, i1 false)
-  %A = load i8* %P2
+  %A = load i8, i8* %P2
   ret i8 %A
 ; CHECK-NOT: load
 ; CHECK: ret i8 2
@@ -64,7 +64,7 @@ define void @test3(i8* %P, i8 %X) {
 ; CHECK-NOT: %Y
   %Y = add i8 %X, 1     ;; Dead, because the only use (the store) is dead.
 
-  %P2 = getelementptr i8* %P, i32 2
+  %P2 = getelementptr i8, i8* %P, i32 2
   store i8 %Y, i8* %P2  ;; Not read by lifetime.end, should be removed.
 ; CHECK: store i8 2, i8* %P2
   call void @llvm.lifetime.end(i64 1, i8* %P)
@@ -78,7 +78,7 @@ define void @test3a(i8* %P, i8 %X) {
 ; CHECK-LABEL: @test3a
   %Y = add i8 %X, 1     ;; Dead, because the only use (the store) is dead.
 
-  %P2 = getelementptr i8* %P, i32 2
+  %P2 = getelementptr i8, i8* %P, i32 2
   store i8 %Y, i8* %P2
 ; CHECK-NEXT: call void @llvm.lifetime.end
   call void @llvm.lifetime.end(i64 10, i8* %P)
@@ -90,9 +90,9 @@ define void @test3a(i8* %P, i8 %X) {
 @G2 = external global [4000 x i32]
 
 define i32 @test4(i8* %P) {
-  %tmp = load i32* @G1
+  %tmp = load i32, i32* @G1
   call void @llvm.memset.p0i8.i32(i8* bitcast ([4000 x i32]* @G2 to i8*), i8 0, i32 4000, i32 1, i1 false)
-  %tmp2 = load i32* @G1
+  %tmp2 = load i32, i32* @G1
   %sub = sub i32 %tmp2, %tmp
   ret i32 %sub
 ; CHECK-LABEL: @test4
@@ -105,9 +105,9 @@ define i32 @test4(i8* %P) {
 ; Verify that basicaa is handling variable length memcpy, knowing it doesn't
 ; write to G1.
 define i32 @test5(i8* %P, i32 %Len) {
-  %tmp = load i32* @G1
+  %tmp = load i32, i32* @G1
   call void @llvm.memcpy.p0i8.p0i8.i32(i8* bitcast ([4000 x i32]* @G2 to i8*), i8* bitcast (i32* @G1 to i8*), i32 %Len, i32 1, i1 false)
-  %tmp2 = load i32* @G1
+  %tmp2 = load i32, i32* @G1
   %sub = sub i32 %tmp2, %tmp
   ret i32 %sub
 ; CHECK: @test5
@@ -118,13 +118,13 @@ define i32 @test5(i8* %P, i32 %Len) {
 }
 
 define i8 @test6(i8* %p, i8* noalias %a) {
-  %x = load i8* %a
+  %x = load i8, i8* %a
   %t = va_arg i8* %p, float
-  %y = load i8* %a
+  %y = load i8, i8* %a
   %z = add i8 %x, %y
   ret i8 %z
 ; CHECK-LABEL: @test6
-; CHECK: load i8* %a
+; CHECK: load i8, i8* %a
 ; CHECK-NOT: load
 ; CHECK: ret
 }
@@ -135,14 +135,14 @@ define i32 @test7() nounwind uwtable ssp {
 entry:
   %x = alloca i32, align 4
   store i32 0, i32* %x, align 4
-  %add.ptr = getelementptr inbounds i32* %x, i64 1
+  %add.ptr = getelementptr inbounds i32, i32* %x, i64 1
   call void @test7decl(i32* %add.ptr)
-  %tmp = load i32* %x, align 4
+  %tmp = load i32, i32* %x, align 4
   ret i32 %tmp
 ; CHECK-LABEL: @test7(
 ; CHECK: store i32 0
 ; CHECK: call void @test7decl
-; CHECK: load i32*
+; CHECK: load i32, i32*
 }
 
 declare void @llvm.memset.p0i8.i32(i8* nocapture, i8, i32, i32, i1) nounwind

@@ -7,10 +7,10 @@
 .section	.note.GNU-,"",@progbits
 .section	-.note.GNU,"","progbits"
 
-// CHECK: Name: .note.GNU-stack (56)
-// CHECK: Name: .note.GNU-stack2 (153)
-// CHECK: Name: .note.GNU- (170)
-// CHECK: Name: -.note.GNU (142)
+// CHECK: Name: .note.GNU-stack
+// CHECK: Name: .note.GNU-stack2
+// CHECK: Name: .note.GNU-
+// CHECK: Name: -.note.GNU
 
 // Test that the defaults are used
 
@@ -27,7 +27,7 @@
 // CHECK-NEXT:       SHF_EXECINSTR
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x50
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Link: 0
 // CHECK-NEXT:     Info: 0
@@ -35,7 +35,7 @@
 // CHECK-NEXT:     EntrySize: 0
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Section {
-// CHECK-NEXT:     Index: 11
+// CHECK-NEXT:     Index:
 // CHECK-NEXT:     Name: .fini
 // CHECK-NEXT:     Type: SHT_PROGBITS
 // CHECK-NEXT:     Flags [
@@ -43,7 +43,7 @@
 // CHECK-NEXT:       SHF_EXECINSTR
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x50
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Link: 0
 // CHECK-NEXT:     Info: 0
@@ -51,14 +51,14 @@
 // CHECK-NEXT:     EntrySize: 0
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Section {
-// CHECK-NEXT:     Index: 12
+// CHECK-NEXT:     Index:
 // CHECK-NEXT:     Name: .rodata
 // CHECK-NEXT:     Type: SHT_PROGBITS
 // CHECK-NEXT:     Flags [
 // CHECK-NEXT:       SHF_ALLOC
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x50
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Link: 0
 // CHECK-NEXT:     Info: 0
@@ -66,13 +66,13 @@
 // CHECK-NEXT:     EntrySize: 0
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Section {
-// CHECK-NEXT:     Index: 13
+// CHECK-NEXT:     Index:
 // CHECK-NEXT:     Name: zed
 // CHECK-NEXT:     Type: SHT_PROGBITS
 // CHECK-NEXT:     Flags [
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x50
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Link: 0
 // CHECK-NEXT:     Info: 0
@@ -87,7 +87,7 @@
 // CHECK-NEXT:     Flags [
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x50
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Link: 0
 // CHECK-NEXT:     Info: 0
@@ -112,7 +112,7 @@ bar:
 // CHECK-NEXT:       SHF_ALLOC
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x50
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Link: 0
 // CHECK-NEXT:     Info: 0
@@ -129,7 +129,7 @@ bar:
 // CHECK-NEXT:     SHF_EXCLUDE (0x80000000)
 // CHECK-NEXT:   ]
 // CHECK-NEXT:   Address: 0x0
-// CHECK-NEXT:   Offset: 0x50
+// CHECK-NEXT:   Offset:
 // CHECK-NEXT:   Size: 0
 // CHECK-NEXT:   Link: 0
 // CHECK-NEXT:   Info: 0
@@ -142,6 +142,6 @@ bar:
 .section "foo"
 
 // CHECK:        Section {
-// CHECK:          Name: bar-"foo" (181)
+// CHECK:          Name: bar-"foo"
 // CHECK:        Section {
-// CHECK:          Name: foo (52)
+// CHECK:          Name: foo

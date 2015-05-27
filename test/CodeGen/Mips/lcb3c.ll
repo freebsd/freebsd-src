@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -soft-float -mips16-hard-float -relocation-model=static -O0    < %s | FileCheck %s -check-prefix=lcb
+; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -mattr=+soft-float -mips16-hard-float -relocation-model=static -O0    < %s | FileCheck %s -check-prefix=lcb
 
 @i = global i32 0, align 4
 @j = common global i32 0, align 4
@@ -7,7 +7,7 @@
 ; Function Attrs: nounwind
 define i32 @s() #0 {
 entry:
-  %0 = load i32* @i, align 4
+  %0 = load i32, i32* @i, align 4
   %cmp = icmp eq i32 %0, 0
   br i1 %cmp, label %if.then, label %if.else
 
@@ -30,7 +30,7 @@ if.end:                                           ; preds = %if.else, %if.then
 ; Function Attrs: nounwind
 define i32 @b() #0 {
 entry:
-  %0 = load i32* @i, align 4
+  %0 = load i32, i32* @i, align 4
   %cmp = icmp eq i32 %0, 0
   br i1 %cmp, label %if.then, label %if.else
 

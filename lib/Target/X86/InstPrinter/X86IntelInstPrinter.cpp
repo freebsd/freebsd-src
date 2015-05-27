@@ -33,7 +33,8 @@ void X86IntelInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 }
 
 void X86IntelInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
-                                    StringRef Annot) {
+                                    StringRef Annot,
+                                    const MCSubtargetInfo &STI) {
   const MCInstrDesc &Desc = MII.get(MI->getOpcode());
   uint64_t TSFlags = Desc.TSFlags;
 
@@ -50,7 +51,9 @@ void X86IntelInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
     EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
 }
 
-static void printSSEAVXCC(int64_t Imm, raw_ostream &O) {
+void X86IntelInstPrinter::printSSEAVXCC(const MCInst *MI, unsigned Op,
+                                        raw_ostream &O) {
+  int64_t Imm = MI->getOperand(Op).getImm();
   switch (Imm) {
   default: llvm_unreachable("Invalid avxcc argument!");
   case    0: O << "eq"; break;
@@ -88,22 +91,24 @@ static void printSSEAVXCC(int64_t Imm, raw_ostream &O) {
   }
 }
 
-void X86IntelInstPrinter::printSSECC(const MCInst *MI, unsigned Op,
+void X86IntelInstPrinter::printXOPCC(const MCInst *MI, unsigned Op,
                                      raw_ostream &O) {
   int64_t Imm = MI->getOperand(Op).getImm();
-  assert((Imm & 0x7) == Imm); // Ensure valid immediate.
-  printSSEAVXCC(Imm, O);
-}
-
-void X86IntelInstPrinter::printAVXCC(const MCInst *MI, unsigned Op,
-                                     raw_ostream &O) {
-  int64_t Imm = MI->getOperand(Op).getImm();
-  assert((Imm & 0x1f) == Imm); // Ensure valid immediate.
-  printSSEAVXCC(Imm, O);
+  switch (Imm) {
+  default: llvm_unreachable("Invalid xopcc argument!");
+  case 0: O << "lt"; break;
+  case 1: O << "le"; break;
+  case 2: O << "gt"; break;
+  case 3: O << "ge"; break;
+  case 4: O << "eq"; break;
+  case 5: O << "neq"; break;
+  case 6: O << "false"; break;
+  case 7: O << "true"; break;
+  }
 }
 
 void X86IntelInstPrinter::printRoundingControl(const MCInst *MI, unsigned Op,
-                                   raw_ostream &O) {
+                                               raw_ostream &O) {
   int64_t Imm = MI->getOperand(Op).getImm() & 0x3;
   switch (Imm) {
   case 0: O << "{rn-sae}"; break;
@@ -244,4 +249,9 @@ void X86IntelInstPrinter::printMemOffset(const MCInst *MI, unsigned Op,
   }
 
   O << ']';
+}
+
+void X86IntelInstPrinter::printU8Imm(const MCInst *MI, unsigned Op,
+                                     raw_ostream &O) {
+  O << formatImm(MI->getOperand(Op).getImm() & 0xff);
 }

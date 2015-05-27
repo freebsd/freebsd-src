@@ -13,8 +13,10 @@ LINK_COMPONENTS :=interpreter
 
 include $(LEVEL)/Makefile.config
 
+PARALLEL_DIRS = Orc
+
 ifeq ($(TARGET_HAS_JIT),1)
-  PARALLEL_DIRS = MCJIT
+  PARALLEL_DIRS += MCJIT
 endif
 
 include $(LLVM_SRC_ROOT)/unittests/Makefile.unittest

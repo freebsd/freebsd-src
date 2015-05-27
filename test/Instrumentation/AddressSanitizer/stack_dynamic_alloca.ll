@@ -8,7 +8,7 @@ entry:
 ; CHECK-LABEL: Func1
 
 ; CHECK: entry:
-; CHECK: load i32* @__asan_option_detect_stack_use_after_return
+; CHECK: load i32, i32* @__asan_option_detect_stack_use_after_return
 
 ; CHECK: <label>:[[UAR_ENABLED_BB:[0-9]+]]
 ; CHECK: [[FAKE_STACK_RT:%[0-9]+]] = call i64 @__asan_stack_malloc_
@@ -26,6 +26,8 @@ entry:
 ; CHECK: ret void
 
   %XXX = alloca [20 x i8], align 1
+  %arr.ptr = bitcast [20 x i8]* %XXX to i8*
+  store volatile i8 0, i8* %arr.ptr
   ret void
 }
 
@@ -37,6 +39,8 @@ entry:
 ; CHECK: ret void
 
   %XXX = alloca [20 x i8], align 1
+  %arr.ptr = bitcast [20 x i8]* %XXX to i8*
+  store volatile i8 0, i8* %arr.ptr
   call void asm sideeffect "mov %%rbx, %%rcx", "~{dirflag},~{fpsr},~{flags}"() nounwind
   ret void
 }

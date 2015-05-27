@@ -1,8 +1,10 @@
-; RUN: opt < %s -lcssa -S -verify-loop-info | grep "[%]tmp33 = load i1\*\* [%]tmp"
+; RUN: opt < %s -lcssa -S -verify-loop-info | FileCheck %s
 ; PR6546
 
 ; LCSSA doesn't need to transform uses in blocks not reachable
 ; from the entry block.
+
+; CHECK: %tmp33 = load i1*, i1** %tmp
 
 define fastcc void @dfs() nounwind {
 bb:
@@ -19,7 +21,7 @@ bb15:
   br label %bb44
 
 bb32:
-  %tmp33 = load i1** %tmp, align 8
+  %tmp33 = load i1*, i1** %tmp, align 8
   br label %bb45
 
 bb45:

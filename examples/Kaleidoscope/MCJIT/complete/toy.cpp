@@ -7,10 +7,10 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -37,7 +37,7 @@ namespace {
               cl::value_desc("input IR file name"));
 
   cl::opt<bool>
-  VerboseOutput("verbose", 
+  VerboseOutput("verbose",
                 cl::desc("Enable verbose output (results, IR, etc.) to stderr"),
                 cl::init(false));
 
@@ -830,8 +830,8 @@ private:
 
 class HelpingMemoryManager : public SectionMemoryManager
 {
-  HelpingMemoryManager(const HelpingMemoryManager&) LLVM_DELETED_FUNCTION;
-  void operator=(const HelpingMemoryManager&) LLVM_DELETED_FUNCTION;
+  HelpingMemoryManager(const HelpingMemoryManager&) = delete;
+  void operator=(const HelpingMemoryManager&) = delete;
 
 public:
   HelpingMemoryManager(MCJITHelper *Helper) : MasterHelper(Helper) {}
@@ -1113,7 +1113,7 @@ Value *BinaryExprAST::Codegen() {
     // This assume we're building without RTTI because LLVM builds that way by
     // default.  If you build LLVM with RTTI this can be changed to a
     // dynamic_cast for automatic error checking.
-    VariableExprAST *LHSE = reinterpret_cast<VariableExprAST*>(LHS);
+    VariableExprAST *LHSE = static_cast<VariableExprAST*>(LHS);
     if (!LHSE)
       return ErrorV("destination of '=' must be a variable");
     // Codegen the RHS.

@@ -30,23 +30,22 @@
 using namespace llvm;
 
 ARMInstrInfo::ARMInstrInfo(const ARMSubtarget &STI)
-  : ARMBaseInstrInfo(STI), RI(STI) {
-}
+    : ARMBaseInstrInfo(STI), RI() {}
 
 /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
 void ARMInstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
   if (hasNOP()) {
     NopInst.setOpcode(ARM::HINT);
-    NopInst.addOperand(MCOperand::CreateImm(0));
-    NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
-    NopInst.addOperand(MCOperand::CreateReg(0));
+    NopInst.addOperand(MCOperand::createImm(0));
+    NopInst.addOperand(MCOperand::createImm(ARMCC::AL));
+    NopInst.addOperand(MCOperand::createReg(0));
   } else {
     NopInst.setOpcode(ARM::MOVr);
-    NopInst.addOperand(MCOperand::CreateReg(ARM::R0));
-    NopInst.addOperand(MCOperand::CreateReg(ARM::R0));
-    NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
-    NopInst.addOperand(MCOperand::CreateReg(0));
-    NopInst.addOperand(MCOperand::CreateReg(0));
+    NopInst.addOperand(MCOperand::createReg(ARM::R0));
+    NopInst.addOperand(MCOperand::createReg(ARM::R0));
+    NopInst.addOperand(MCOperand::createImm(ARMCC::AL));
+    NopInst.addOperand(MCOperand::createReg(0));
+    NopInst.addOperand(MCOperand::createReg(0));
   }
 }
 
@@ -93,7 +92,7 @@ unsigned ARMInstrInfo::getUnindexedOpcode(unsigned Opc) const {
 void ARMInstrInfo::expandLoadStackGuard(MachineBasicBlock::iterator MI,
                                         Reloc::Model RM) const {
   MachineFunction &MF = *MI->getParent()->getParent();
-  const ARMSubtarget &Subtarget = MF.getTarget().getSubtarget<ARMSubtarget>();
+  const ARMSubtarget &Subtarget = MF.getSubtarget<ARMSubtarget>();
 
   if (!Subtarget.useMovt(MF)) {
     if (RM == Reloc::PIC_)
@@ -144,21 +143,24 @@ namespace {
       ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
       if (AFI->getGlobalBaseReg() == 0)
         return false;
+      const ARMSubtarget &STI =
+          static_cast<const ARMSubtarget &>(MF.getSubtarget());
+      // Don't do this for Thumb1.
+      if (STI.isThumb1Only())
+	return false;
 
-      const ARMTargetMachine *TM =
-        static_cast<const ARMTargetMachine *>(&MF.getTarget());
-      if (TM->getRelocationModel() != Reloc::PIC_)
+      const TargetMachine &TM = MF.getTarget();
+      if (TM.getRelocationModel() != Reloc::PIC_)
         return false;
 
       LLVMContext *Context = &MF.getFunction()->getContext();
       unsigned ARMPCLabelIndex = AFI->createPICLabelUId();
-      unsigned PCAdj = TM->getSubtarget<ARMSubtarget>().isThumb() ? 4 : 8;
+      unsigned PCAdj = STI.isThumb() ? 4 : 8;
       ARMConstantPoolValue *CPV = ARMConstantPoolSymbol::Create(
           *Context, "_GLOBAL_OFFSET_TABLE_", ARMPCLabelIndex, PCAdj);
 
-      unsigned Align =
-          TM->getSubtargetImpl()->getDataLayout()->getPrefTypeAlignment(
-              Type::getInt32PtrTy(*Context));
+      unsigned Align = TM.getDataLayout()->getPrefTypeAlignment(
+          Type::getInt32PtrTy(*Context));
       unsigned Idx = MF.getConstantPool()->getConstantPoolIndex(CPV, Align);
 
       MachineBasicBlock &FirstMBB = MF.front();
@@ -166,9 +168,8 @@ namespace {
       DebugLoc DL = FirstMBB.findDebugLoc(MBBI);
       unsigned TempReg =
           MF.getRegInfo().createVirtualRegister(&ARM::rGPRRegClass);
-      unsigned Opc = TM->getSubtarget<ARMSubtarget>().isThumb2() ?
-                     ARM::t2LDRpci : ARM::LDRcp;
-      const TargetInstrInfo &TII = *TM->getSubtargetImpl()->getInstrInfo();
+      unsigned Opc = STI.isThumb2() ? ARM::t2LDRpci : ARM::LDRcp;
+      const TargetInstrInfo &TII = *STI.getInstrInfo();
       MachineInstrBuilder MIB = BuildMI(FirstMBB, MBBI, DL,
                                         TII.get(Opc), TempReg)
                                 .addConstantPoolIndex(Idx);
@@ -178,14 +179,12 @@ namespace {
 
       // Fix the GOT address by adding pc.
       unsigned GlobalBaseReg = AFI->getGlobalBaseReg();
-      Opc = TM->getSubtarget<ARMSubtarget>().isThumb2() ? ARM::tPICADD
-                                                        : ARM::PICADD;
+      Opc = STI.isThumb2() ? ARM::tPICADD : ARM::PICADD;
       MIB = BuildMI(FirstMBB, MBBI, DL, TII.get(Opc), GlobalBaseReg)
                 .addReg(TempReg)
                 .addImm(ARMPCLabelIndex);
       if (Opc == ARM::PICADD)
         AddDefaultPred(MIB);
-
 
       return true;
     }

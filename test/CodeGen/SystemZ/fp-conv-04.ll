@@ -21,7 +21,7 @@ define void @f2(fp128 *%dst, double *%ptr) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: std %f2, 8(%r2)
 ; CHECK: br %r14
-  %val = load double *%ptr
+  %val = load double , double *%ptr
   %res = fpext double %val to fp128
   store fp128 %res, fp128 *%dst
   ret void
@@ -34,8 +34,8 @@ define void @f3(fp128 *%dst, double *%base) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: std %f2, 8(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 511
-  %val = load double *%ptr
+  %ptr = getelementptr double, double *%base, i64 511
+  %val = load double , double *%ptr
   %res = fpext double %val to fp128
   store fp128 %res, fp128 *%dst
   ret void
@@ -50,8 +50,8 @@ define void @f4(fp128 *%dst, double *%base) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: std %f2, 8(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 512
-  %val = load double *%ptr
+  %ptr = getelementptr double, double *%base, i64 512
+  %val = load double , double *%ptr
   %res = fpext double %val to fp128
   store fp128 %res, fp128 *%dst
   ret void
@@ -65,8 +65,8 @@ define void @f5(fp128 *%dst, double *%base) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: std %f2, 8(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr double *%base, i64 -1
-  %val = load double *%ptr
+  %ptr = getelementptr double, double *%base, i64 -1
+  %val = load double , double *%ptr
   %res = fpext double %val to fp128
   store fp128 %res, fp128 *%dst
   ret void
@@ -80,9 +80,9 @@ define void @f6(fp128 *%dst, double *%base, i64 %index) {
 ; CHECK: std %f0, 0(%r2)
 ; CHECK: std %f2, 8(%r2)
 ; CHECK: br %r14
-  %ptr1 = getelementptr double *%base, i64 %index
-  %ptr2 = getelementptr double *%ptr1, i64 100
-  %val = load double *%ptr2
+  %ptr1 = getelementptr double, double *%base, i64 %index
+  %ptr2 = getelementptr double, double *%ptr1, i64 100
+  %val = load double , double *%ptr2
   %res = fpext double %val to fp128
   store fp128 %res, fp128 *%dst
   ret void
@@ -94,23 +94,23 @@ define void @f7(fp128 *%ptr1, double *%ptr2) {
 ; CHECK-LABEL: f7:
 ; CHECK: lxdb {{%f[0-9]+}}, 160(%r15)
 ; CHECK: br %r14
-  %val0 = load volatile double *%ptr2
-  %val1 = load volatile double *%ptr2
-  %val2 = load volatile double *%ptr2
-  %val3 = load volatile double *%ptr2
-  %val4 = load volatile double *%ptr2
-  %val5 = load volatile double *%ptr2
-  %val6 = load volatile double *%ptr2
-  %val7 = load volatile double *%ptr2
-  %val8 = load volatile double *%ptr2
-  %val9 = load volatile double *%ptr2
-  %val10 = load volatile double *%ptr2
-  %val11 = load volatile double *%ptr2
-  %val12 = load volatile double *%ptr2
-  %val13 = load volatile double *%ptr2
-  %val14 = load volatile double *%ptr2
-  %val15 = load volatile double *%ptr2
-  %val16 = load volatile double *%ptr2
+  %val0 = load volatile double , double *%ptr2
+  %val1 = load volatile double , double *%ptr2
+  %val2 = load volatile double , double *%ptr2
+  %val3 = load volatile double , double *%ptr2
+  %val4 = load volatile double , double *%ptr2
+  %val5 = load volatile double , double *%ptr2
+  %val6 = load volatile double , double *%ptr2
+  %val7 = load volatile double , double *%ptr2
+  %val8 = load volatile double , double *%ptr2
+  %val9 = load volatile double , double *%ptr2
+  %val10 = load volatile double , double *%ptr2
+  %val11 = load volatile double , double *%ptr2
+  %val12 = load volatile double , double *%ptr2
+  %val13 = load volatile double , double *%ptr2
+  %val14 = load volatile double , double *%ptr2
+  %val15 = load volatile double , double *%ptr2
+  %val16 = load volatile double , double *%ptr2
 
   %ext0 = fpext double %val0 to fp128
   %ext1 = fpext double %val1 to fp128

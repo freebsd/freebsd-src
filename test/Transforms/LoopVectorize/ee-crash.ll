@@ -11,18 +11,18 @@ target triple = "x86_64-apple-macosx10.8.0"
 define i32 @_Z4foo1Pii(i32* %A, i32 %n, <2 x i32> %q) #0 {
 entry:
   %idx.ext = sext i32 %n to i64
-  %add.ptr = getelementptr inbounds i32* %A, i64 %idx.ext
+  %add.ptr = getelementptr inbounds i32, i32* %A, i64 %idx.ext
   %cmp3.i = icmp eq i32 %n, 0
   br i1 %cmp3.i, label %_ZSt10accumulateIPiiET0_T_S2_S1_.exit, label %for.body.i
 
 for.body.i:                                       ; preds = %entry, %for.body.i
   %__init.addr.05.i = phi i32 [ %add.i, %for.body.i ], [ 0, %entry ]
   %__first.addr.04.i = phi i32* [ %incdec.ptr.i, %for.body.i ], [ %A, %entry ]
-  %0 = load i32* %__first.addr.04.i, align 4
+  %0 = load i32, i32* %__first.addr.04.i, align 4
   %q1 = extractelement <2 x i32> %q, i32 %n
   %q2 = add nsw i32 %0, %q1
   %add.i = add nsw i32 %q2, %__init.addr.05.i
-  %incdec.ptr.i = getelementptr inbounds i32* %__first.addr.04.i, i64 1
+  %incdec.ptr.i = getelementptr inbounds i32, i32* %__first.addr.04.i, i64 1
   %cmp.i = icmp eq i32* %incdec.ptr.i, %add.ptr
   br i1 %cmp.i, label %_ZSt10accumulateIPiiET0_T_S2_S1_.exit, label %for.body.i
 

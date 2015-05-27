@@ -47,7 +47,7 @@ if.end:                                           ; preds = %if.then, %entry
   %vld2_lane1.1.extract = extractvalue { <1 x i64>, <1 x i64> } %vld2_lane1, 1
   %t3 = bitcast <2 x i64>* %val1 to i8*
   call void @llvm.aarch64.neon.st2.v1i64.p0i8(<1 x i64> %vld2_lane1.0.extract, <1 x i64> %vld2_lane1.1.extract, i8* %t3)
-  %t4 = load <2 x i64>* %val1, align 16
+  %t4 = load <2 x i64>, <2 x i64>* %val1, align 16
   %vsubhn = sub <2 x i64> <i64 11, i64 0>, %t4
   %vsubhn1 = lshr <2 x i64> %vsubhn, <i64 32, i64 32>
   %vsubhn2 = trunc <2 x i64> %vsubhn1 to <2 x i32>

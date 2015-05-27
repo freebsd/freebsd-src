@@ -7,62 +7,75 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;
 
-namespace llvm {
-
-static void PrintTo(const StringRef &S, ::std::ostream *os) {
-  *os << "(" << (const void *)S.data() << "," << S.size() << ") = '";
-  for (auto C : S)
-    if (C)
-      *os << C;
-    else
-      *os << "\\00";
-  *os << "'";
-}
-static void PrintTo(const DIHeaderFieldIterator &I, ::std::ostream *os) {
-  PrintTo(I.getCurrent(), os);
-  *os << " in ";
-  PrintTo(I.getHeader(), os);
-}
-
-} // end namespace llvm
-
 namespace {
 
-#define MAKE_FIELD_ITERATOR(S)                                                 \
-  DIHeaderFieldIterator(StringRef(S, sizeof(S) - 1))
-TEST(DebugInfoTest, DIHeaderFieldIterator) {
-  ASSERT_EQ(DIHeaderFieldIterator(), DIHeaderFieldIterator());
+TEST(DINodeTest, getFlag) {
+  // Some valid flags.
+  EXPECT_EQ(DINode::FlagPublic, DINode::getFlag("DIFlagPublic"));
+  EXPECT_EQ(DINode::FlagProtected, DINode::getFlag("DIFlagProtected"));
+  EXPECT_EQ(DINode::FlagPrivate, DINode::getFlag("DIFlagPrivate"));
+  EXPECT_EQ(DINode::FlagVector, DINode::getFlag("DIFlagVector"));
+  EXPECT_EQ(DINode::FlagRValueReference,
+            DINode::getFlag("DIFlagRValueReference"));
 
-  ASSERT_NE(DIHeaderFieldIterator(), MAKE_FIELD_ITERATOR(""));
-  ASSERT_EQ(DIHeaderFieldIterator(), ++MAKE_FIELD_ITERATOR(""));
-  ASSERT_EQ("", *DIHeaderFieldIterator(""));
+  // FlagAccessibility shouldn't work.
+  EXPECT_EQ(0u, DINode::getFlag("DIFlagAccessibility"));
 
-  ASSERT_NE(DIHeaderFieldIterator(), MAKE_FIELD_ITERATOR("stuff"));
-  ASSERT_EQ(DIHeaderFieldIterator(), ++MAKE_FIELD_ITERATOR("stuff"));
-  ASSERT_EQ("stuff", *DIHeaderFieldIterator("stuff"));
+  // Some other invalid strings.
+  EXPECT_EQ(0u, DINode::getFlag("FlagVector"));
+  EXPECT_EQ(0u, DINode::getFlag("Vector"));
+  EXPECT_EQ(0u, DINode::getFlag("other things"));
+  EXPECT_EQ(0u, DINode::getFlag("DIFlagOther"));
+}
 
-  ASSERT_NE(DIHeaderFieldIterator(), MAKE_FIELD_ITERATOR("st\0uff"));
-  ASSERT_NE(DIHeaderFieldIterator(), ++MAKE_FIELD_ITERATOR("st\0uff"));
-  ASSERT_EQ(DIHeaderFieldIterator(), ++++MAKE_FIELD_ITERATOR("st\0uff"));
-  ASSERT_EQ("st", *MAKE_FIELD_ITERATOR("st\0uff"));
-  ASSERT_EQ("uff", *++MAKE_FIELD_ITERATOR("st\0uff"));
+TEST(DINodeTest, getFlagString) {
+  // Some valid flags.
+  EXPECT_EQ(StringRef("DIFlagPublic"),
+            DINode::getFlagString(DINode::FlagPublic));
+  EXPECT_EQ(StringRef("DIFlagProtected"),
+            DINode::getFlagString(DINode::FlagProtected));
+  EXPECT_EQ(StringRef("DIFlagPrivate"),
+            DINode::getFlagString(DINode::FlagPrivate));
+  EXPECT_EQ(StringRef("DIFlagVector"),
+            DINode::getFlagString(DINode::FlagVector));
+  EXPECT_EQ(StringRef("DIFlagRValueReference"),
+            DINode::getFlagString(DINode::FlagRValueReference));
 
-  ASSERT_NE(DIHeaderFieldIterator(), MAKE_FIELD_ITERATOR("stuff\0"));
-  ASSERT_NE(DIHeaderFieldIterator(), ++MAKE_FIELD_ITERATOR("stuff\0"));
-  ASSERT_EQ(DIHeaderFieldIterator(), ++++MAKE_FIELD_ITERATOR("stuff\0"));
-  ASSERT_EQ("stuff", *MAKE_FIELD_ITERATOR("stuff\0"));
-  ASSERT_EQ("", *++MAKE_FIELD_ITERATOR("stuff\0"));
+  // FlagAccessibility actually equals FlagPublic.
+  EXPECT_EQ(StringRef("DIFlagPublic"),
+            DINode::getFlagString(DINode::FlagAccessibility));
 
-  ASSERT_NE(DIHeaderFieldIterator(), MAKE_FIELD_ITERATOR("\0stuff"));
-  ASSERT_NE(DIHeaderFieldIterator(), ++MAKE_FIELD_ITERATOR("\0stuff"));
-  ASSERT_EQ(DIHeaderFieldIterator(), ++++MAKE_FIELD_ITERATOR("\0stuff"));
-  ASSERT_EQ("", *MAKE_FIELD_ITERATOR("\0stuff"));
-  ASSERT_EQ("stuff", *++MAKE_FIELD_ITERATOR("\0stuff"));
+  // Some other invalid flags.
+  EXPECT_EQ(StringRef(),
+            DINode::getFlagString(DINode::FlagPublic | DINode::FlagVector));
+  EXPECT_EQ(StringRef(), DINode::getFlagString(DINode::FlagFwdDecl |
+                                               DINode::FlagArtificial));
+  EXPECT_EQ(StringRef(), DINode::getFlagString(0xffff));
+}
+
+TEST(DINodeTest, splitFlags) {
+// Some valid flags.
+#define CHECK_SPLIT(FLAGS, VECTOR, REMAINDER)                                  \
+  {                                                                            \
+    SmallVector<unsigned, 8> V;                                                \
+    EXPECT_EQ(REMAINDER, DINode::splitFlags(FLAGS, V));                        \
+    EXPECT_TRUE(makeArrayRef(V).equals(VECTOR));                               \
+  }
+  CHECK_SPLIT(DINode::FlagPublic, {DINode::FlagPublic}, 0u);
+  CHECK_SPLIT(DINode::FlagProtected, {DINode::FlagProtected}, 0u);
+  CHECK_SPLIT(DINode::FlagPrivate, {DINode::FlagPrivate}, 0u);
+  CHECK_SPLIT(DINode::FlagVector, {DINode::FlagVector}, 0u);
+  CHECK_SPLIT(DINode::FlagRValueReference, {DINode::FlagRValueReference}, 0u);
+  unsigned Flags[] = {DINode::FlagFwdDecl, DINode::FlagVector};
+  CHECK_SPLIT(DINode::FlagFwdDecl | DINode::FlagVector, Flags, 0u);
+  CHECK_SPLIT(0x100000u, {}, 0x100000u);
+  CHECK_SPLIT(0x100000u | DINode::FlagVector, {DINode::FlagVector}, 0x100000u);
+#undef CHECK_SPLIT
 }
 
 } // end namespace

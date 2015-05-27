@@ -79,20 +79,20 @@ bb54:		; preds = %entry
 	br label %bb69.loopexit
 
 bb59:		; preds = %bb63.preheader
-	%0 = load %struct..4sPragmaType** %3, align 4		; <%struct..4sPragmaType*> [#uses=0]
+	%0 = load %struct..4sPragmaType*, %struct..4sPragmaType** %3, align 4		; <%struct..4sPragmaType*> [#uses=0]
 	br label %bb65
 
 bb65:		; preds = %bb63.preheader, %bb59
-	%1 = load %struct..4sPragmaType** %4, align 4		; <%struct..4sPragmaType*> [#uses=0]
+	%1 = load %struct..4sPragmaType*, %struct..4sPragmaType** %4, align 4		; <%struct..4sPragmaType*> [#uses=0]
 	br i1 false, label %bb67, label %bb63.preheader
 
 bb67:		; preds = %bb65
-	%2 = getelementptr %struct.IdList* %pColumn, i32 0, i32 0		; <%struct..4sPragmaType**> [#uses=0]
+	%2 = getelementptr %struct.IdList, %struct.IdList* %pColumn, i32 0, i32 0		; <%struct..4sPragmaType**> [#uses=0]
 	unreachable
 
 bb69.loopexit:		; preds = %bb54, %entry
-	%3 = getelementptr %struct.IdList* %pColumn, i32 0, i32 0		; <%struct..4sPragmaType**> [#uses=1]
-	%4 = getelementptr %struct.IdList* %pColumn, i32 0, i32 0		; <%struct..4sPragmaType**> [#uses=1]
+	%3 = getelementptr %struct.IdList, %struct.IdList* %pColumn, i32 0, i32 0		; <%struct..4sPragmaType**> [#uses=1]
+	%4 = getelementptr %struct.IdList, %struct.IdList* %pColumn, i32 0, i32 0		; <%struct..4sPragmaType**> [#uses=1]
 	br label %bb63.preheader
 
 bb63.preheader:		; preds = %bb69.loopexit, %bb65

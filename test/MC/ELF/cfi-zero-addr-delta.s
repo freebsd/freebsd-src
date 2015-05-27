@@ -30,7 +30,7 @@ f:
 // CHECK-NEXT:     Relocations [
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     SectionData (
-// CHECK-NEXT:       0000: 14000000 00000000 037A5200 01781001
+// CHECK-NEXT:       0000: 14000000 00000000 017A5200 01781001
 // CHECK-NEXT:       0010: 1B0C0708 90010000 1C000000 1C000000
 // CHECK-NEXT:       0020: 00000000 04000000 00410E10 410A0E08
 // CHECK-NEXT:       0030: 410B0000 00000000
@@ -43,10 +43,10 @@ f:
 // CHECK-NEXT:     Flags [
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x398
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 24
-// CHECK-NEXT:     Link: 7
-// CHECK-NEXT:     Info: 4
+// CHECK-NEXT:     Link:
+// CHECK-NEXT:     Info:
 // CHECK-NEXT:     AddressAlignment: 8
 // CHECK-NEXT:     EntrySize: 24
 // CHECK-NEXT:     Relocations [

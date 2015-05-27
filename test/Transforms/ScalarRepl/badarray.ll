@@ -10,9 +10,9 @@ define i32 @test1() {
 ; CHECK-LABEL: @test1(
 ; CHECK-NOT: = alloca
 	%X = alloca [4 x i32]
-	%Y = getelementptr [4 x i32]* %X, i64 0, i64 6		; <i32*> [#uses=2]
+	%Y = getelementptr [4 x i32], [4 x i32]* %X, i64 0, i64 6		; <i32*> [#uses=2]
 	store i32 0, i32* %Y
-	%Z = load i32* %Y		; <i32> [#uses=1]
+	%Z = load i32, i32* %Y		; <i32> [#uses=1]
 	ret i32 %Z
 }
 
@@ -24,7 +24,7 @@ entry:
 ; CHECK-NOT: = alloca
         %yx2.i = alloca float, align 4          ; <float*> [#uses=1]            
         %yx26.i = bitcast float* %yx2.i to i64*         ; <i64*> [#uses=1]      
-        %0 = load i64* %yx26.i, align 8         ; <i64> [#uses=0]               
+        %0 = load i64, i64* %yx26.i, align 8         ; <i64> [#uses=0]               
         unreachable
 }
 
@@ -38,9 +38,9 @@ entry:
 ; CHECK-NOT: = alloca
 ; CHECK: store i64
   %var_1 = alloca %padded, align 8                ; <%padded*> [#uses=3]
-  %0 = getelementptr inbounds %padded* %var_1, i32 0, i32 0 ; <%base*> [#uses=2]
+  %0 = getelementptr inbounds %padded, %padded* %var_1, i32 0, i32 0 ; <%base*> [#uses=2]
   
-  %p2 = getelementptr inbounds %base* %0, i32 0, i32 1, i32 0 ; <i8*> [#uses=1]
+  %p2 = getelementptr inbounds %base, %base* %0, i32 0, i32 1, i32 0 ; <i8*> [#uses=1]
   store i8 72, i8* %p2, align 1
   
   ; 72 -> a[0].

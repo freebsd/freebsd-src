@@ -1,7 +1,7 @@
 ; Test the saving and restoring of FPRs in large frames.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck -check-prefix=CHECK-NOFP %s
-; RUN: llc < %s -mtriple=s390x-linux-gnu -disable-fp-elim | FileCheck -check-prefix=CHECK-FP %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 | FileCheck -check-prefix=CHECK-NOFP %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 -disable-fp-elim | FileCheck -check-prefix=CHECK-FP %s
 
 ; Test a frame size that requires some FPRs to be saved and loaded using
 ; the 20-bit STDY and LDY while others can use the 12-bit STD and LD.
@@ -66,24 +66,24 @@ define void @f1(double *%ptr, i64 %x) {
 ; CHECK-FP: lmg %r11, %r15, 4216(%r11)
 ; CHECK-FP: br %r14
   %y = alloca [486 x i64], align 8
-  %elem = getelementptr inbounds [486 x i64]* %y, i64 0, i64 0
+  %elem = getelementptr inbounds [486 x i64], [486 x i64]* %y, i64 0, i64 0
   store volatile i64 %x, i64* %elem
-  %l0 = load volatile double *%ptr
-  %l1 = load volatile double *%ptr
-  %l2 = load volatile double *%ptr
-  %l3 = load volatile double *%ptr
-  %l4 = load volatile double *%ptr
-  %l5 = load volatile double *%ptr
-  %l6 = load volatile double *%ptr
-  %l7 = load volatile double *%ptr
-  %l8 = load volatile double *%ptr
-  %l9 = load volatile double *%ptr
-  %l10 = load volatile double *%ptr
-  %l11 = load volatile double *%ptr
-  %l12 = load volatile double *%ptr
-  %l13 = load volatile double *%ptr
-  %l14 = load volatile double *%ptr
-  %l15 = load volatile double *%ptr
+  %l0 = load volatile double , double *%ptr
+  %l1 = load volatile double , double *%ptr
+  %l2 = load volatile double , double *%ptr
+  %l3 = load volatile double , double *%ptr
+  %l4 = load volatile double , double *%ptr
+  %l5 = load volatile double , double *%ptr
+  %l6 = load volatile double , double *%ptr
+  %l7 = load volatile double , double *%ptr
+  %l8 = load volatile double , double *%ptr
+  %l9 = load volatile double , double *%ptr
+  %l10 = load volatile double , double *%ptr
+  %l11 = load volatile double , double *%ptr
+  %l12 = load volatile double , double *%ptr
+  %l13 = load volatile double , double *%ptr
+  %l14 = load volatile double , double *%ptr
+  %l15 = load volatile double , double *%ptr
   %add0 = fadd double %l0, %l0
   %add1 = fadd double %l1, %add0
   %add2 = fadd double %l2, %add1
@@ -195,24 +195,24 @@ define void @f2(double *%ptr, i64 %x) {
 ; CHECK-FP: lmg %r11, %r15, 524280(%r11)
 ; CHECK-FP: br %r14
   %y = alloca [65510 x i64], align 8
-  %elem = getelementptr inbounds [65510 x i64]* %y, i64 0, i64 0
+  %elem = getelementptr inbounds [65510 x i64], [65510 x i64]* %y, i64 0, i64 0
   store volatile i64 %x, i64* %elem
-  %l0 = load volatile double *%ptr
-  %l1 = load volatile double *%ptr
-  %l2 = load volatile double *%ptr
-  %l3 = load volatile double *%ptr
-  %l4 = load volatile double *%ptr
-  %l5 = load volatile double *%ptr
-  %l6 = load volatile double *%ptr
-  %l7 = load volatile double *%ptr
-  %l8 = load volatile double *%ptr
-  %l9 = load volatile double *%ptr
-  %l10 = load volatile double *%ptr
-  %l11 = load volatile double *%ptr
-  %l12 = load volatile double *%ptr
-  %l13 = load volatile double *%ptr
-  %l14 = load volatile double *%ptr
-  %l15 = load volatile double *%ptr
+  %l0 = load volatile double , double *%ptr
+  %l1 = load volatile double , double *%ptr
+  %l2 = load volatile double , double *%ptr
+  %l3 = load volatile double , double *%ptr
+  %l4 = load volatile double , double *%ptr
+  %l5 = load volatile double , double *%ptr
+  %l6 = load volatile double , double *%ptr
+  %l7 = load volatile double , double *%ptr
+  %l8 = load volatile double , double *%ptr
+  %l9 = load volatile double , double *%ptr
+  %l10 = load volatile double , double *%ptr
+  %l11 = load volatile double , double *%ptr
+  %l12 = load volatile double , double *%ptr
+  %l13 = load volatile double , double *%ptr
+  %l14 = load volatile double , double *%ptr
+  %l15 = load volatile double , double *%ptr
   %add0 = fadd double %l0, %l0
   %add1 = fadd double %l1, %add0
   %add2 = fadd double %l2, %add1

@@ -75,8 +75,8 @@ define void @caller_to16_from16([8 x i32], i64 %a, i64 %b) {
 
 ; CHECK: ldr [[VAL0:x[0-9]+]],
 ; CHECK: ldr [[VAL1:x[0-9]+]],
-; CHECK: str [[VAL1]],
 ; CHECK: str [[VAL0]],
+; CHECK: str [[VAL1]],
 
 ; CHECK-NOT: add sp, sp,
 ; CHECK: b callee_stack16
@@ -88,7 +88,7 @@ define void @indirect_tail() {
 ; CHECK-LABEL: indirect_tail:
 ; CHECK-NOT: sub sp, sp
 
-  %fptr = load void(i32)** @func
+  %fptr = load void(i32)*, void(i32)** @func
   tail call void %fptr(i32 42)
   ret void
 ; CHECK: ldr [[FPTR:x[1-9]+]], [{{x[0-9]+}}, {{#?}}:lo12:func]

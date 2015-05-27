@@ -1,6 +1,6 @@
-=======================================================
-Kaleidoscope: Extending the Language: Debug Information
-=======================================================
+======================================
+Kaleidoscope: Adding Debug Information
+======================================
 
 .. contents::
    :local:
@@ -187,13 +187,13 @@ expressions:
   static DIBuilder *DBuilder;
 
   struct DebugInfo {
-    DICompileUnit TheCU;
-    DIType DblTy;
+    DICompileUnit *TheCU;
+    DIType *DblTy;
 
-    DIType getDoubleTy();
+    DIType *getDoubleTy();
   } KSDbgInfo;
 
-  DIType DebugInfo::getDoubleTy() {
+  DIType *DebugInfo::getDoubleTy() {
     if (DblTy.isValid())
       return DblTy;
 
@@ -245,26 +245,26 @@ So the context:
 
 .. code-block:: c++
 
-  DIFile Unit = DBuilder->createFile(KSDbgInfo.TheCU.getFilename(),
-                                     KSDbgInfo.TheCU.getDirectory());
+  DIFile *Unit = DBuilder->createFile(KSDbgInfo.TheCU.getFilename(),
+                                      KSDbgInfo.TheCU.getDirectory());
 
-giving us a DIFile and asking the ``Compile Unit`` we created above for the
+giving us an DIFile and asking the ``Compile Unit`` we created above for the
 directory and filename where we are currently. Then, for now, we use some
 source locations of 0 (since our AST doesn't currently have source location
 information) and construct our function definition:
 
 .. code-block:: c++
 
-  DIDescriptor FContext(Unit);
+  DIScope *FContext = Unit;
   unsigned LineNo = 0;
   unsigned ScopeLine = 0;
-  DISubprogram SP = DBuilder->createFunction(
+  DISubprogram *SP = DBuilder->createFunction(
       FContext, Name, StringRef(), Unit, LineNo,
       CreateFunctionType(Args.size(), Unit), false /* internal linkage */,
-      true /* definition */, ScopeLine, DIDescriptor::FlagPrototyped, false, F);
+      true /* definition */, ScopeLine, DINode::FlagPrototyped, false, F);
 
-and we now have a DISubprogram that contains a reference to all of our metadata
-for the function.
+and we now have an DISubprogram that contains a reference to all of our
+metadata for the function.
 
 Source Locations
 ================
@@ -332,11 +332,11 @@ by constructing another small function:
   void DebugInfo::emitLocation(ExprAST *AST) {
     DIScope *Scope;
     if (LexicalBlocks.empty())
-      Scope = &TheCU;
+      Scope = TheCU;
     else
       Scope = LexicalBlocks.back();
     Builder.SetCurrentDebugLocation(
-        DebugLoc::get(AST->getLine(), AST->getCol(), DIScope(*Scope)));
+        DebugLoc::get(AST->getLine(), AST->getCol(), Scope));
   }
 
 that both tells the main ``IRBuilder`` where we are, but also what scope
@@ -348,10 +348,10 @@ of scopes:
 .. code-block:: c++
 
    std::vector<DIScope *> LexicalBlocks;
-   std::map<const PrototypeAST *, DIScope> FnScopeMap;
+   std::map<const PrototypeAST *, DIScope *> FnScopeMap;
 
-and keep a map of each function to the scope that it represents (a DISubprogram
-is also a DIScope).
+and keep a map of each function to the scope that it represents (an
+DISubprogram is also an DIScope).
 
 Then we make sure to:
 
@@ -393,15 +393,15 @@ argument allocas in ``PrototypeAST::CreateArgumentAllocas``.
 .. code-block:: c++
 
   DIScope *Scope = KSDbgInfo.LexicalBlocks.back();
-  DIFile Unit = DBuilder->createFile(KSDbgInfo.TheCU.getFilename(),
-                                     KSDbgInfo.TheCU.getDirectory());
-  DIVariable D = DBuilder->createLocalVariable(dwarf::DW_TAG_arg_variable,
-                                               *Scope, Args[Idx], Unit, Line,
-                                               KSDbgInfo.getDoubleTy(), Idx);
+  DIFile *Unit = DBuilder->createFile(KSDbgInfo.TheCU.getFilename(),
+                                      KSDbgInfo.TheCU.getDirectory());
+  DILocalVariable D = DBuilder->createLocalVariable(
+      dwarf::DW_TAG_arg_variable, Scope, Args[Idx], Unit, Line,
+      KSDbgInfo.getDoubleTy(), Idx);
 
   Instruction *Call = DBuilder->insertDeclare(
       Alloca, D, DBuilder->createExpression(), Builder.GetInsertBlock());
-  Call->setDebugLoc(DebugLoc::get(Line, 0, *Scope));
+  Call->setDebugLoc(DebugLoc::get(Line, 0, Scope));
 
 Here we're doing a few things. First, we're grabbing our current scope
 for the variable so we can say what range of code our variable is valid

@@ -11,7 +11,7 @@ target triple = "i386-apple-darwin9.8"
 
 define internal void @_GLOBAL__I__ZN21btConeTwistConstraintC2Ev() nounwind section "__TEXT,__StaticInit,regular,pure_instructions" {
 entry:
-  store float 1.0, float* getelementptr inbounds (%struct.btSimdScalar* @_ZL6vTwist, i32 0, i32 0, i32 0, i32 3), align 4
+  store float 1.0, float* getelementptr inbounds (%struct.btSimdScalar, %struct.btSimdScalar* @_ZL6vTwist, i32 0, i32 0, i32 0, i32 3), align 4
   ret void
 }
 
@@ -31,11 +31,11 @@ entry:
   unreachable
 
 bb.nph.i: 
-  %scevgep.i539 = getelementptr i8* %C, i64 4
+  %scevgep.i539 = getelementptr i8, i8* %C, i64 4
   unreachable
 
 xx:
-  %E = load %T** @switch_inf, align 8 
+  %E = load %T*, %T** @switch_inf, align 8 
   unreachable
 }
 
@@ -46,7 +46,7 @@ declare noalias i8* @malloc(i64) nounwind
 @permute_bitrev.bitrev = internal global i32* null, align 8
 define void @permute_bitrev() nounwind {
 entry:
-  %tmp = load i32** @permute_bitrev.bitrev, align 8
+  %tmp = load i32*, i32** @permute_bitrev.bitrev, align 8
   %conv = sext i32 0 to i64
   %mul = mul i64 %conv, 4
   %call = call i8* @malloc(i64 %mul)
@@ -60,7 +60,7 @@ entry:
 
 @data8 = internal global [8000 x i8] zeroinitializer, align 16
 define void @memset_with_strange_user() ssp {
-  call void @llvm.memset.p0i8.i64(i8* getelementptr inbounds ([8000 x i8]* @data8, i64 0, i64 0), i8 undef, i64 ptrtoint (i8* getelementptr ([8000 x i8]* @data8, i64 1, i64 sub (i64 0, i64 ptrtoint ([8000 x i8]* @data8 to i64))) to i64), i32 16, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* getelementptr inbounds ([8000 x i8], [8000 x i8]* @data8, i64 0, i64 0), i8 undef, i64 ptrtoint (i8* getelementptr ([8000 x i8], [8000 x i8]* @data8, i64 1, i64 sub (i64 0, i64 ptrtoint ([8000 x i8]* @data8 to i64))) to i64), i32 16, i1 false)
   ret void
 }
 declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) nounwind
@@ -72,7 +72,7 @@ declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) nounwind
 
 define void @icmp_user_of_stored_once() nounwind ssp {
 entry:
-  %tmp4 = load i32*** @g_52, align 8
+  %tmp4 = load i32**, i32*** @g_52, align 8
   store i32** @g_90, i32*** @g_52
   %cmp17 = icmp ne i32*** undef, @g_52
   ret void

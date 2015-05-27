@@ -11,7 +11,9 @@
 #define LLVM_OPTION_ARGLIST_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Option/OptSpecifier.h"
 #include "llvm/Option/Option.h"
 #include <list>
@@ -52,10 +54,10 @@ public:
   typedef std::forward_iterator_tag   iterator_category;
   typedef std::ptrdiff_t              difference_type;
 
-  arg_iterator(SmallVectorImpl<Arg*>::const_iterator it,
-                const ArgList &_Args, OptSpecifier _Id0 = 0U,
-                OptSpecifier _Id1 = 0U, OptSpecifier _Id2 = 0U)
-    : Current(it), Args(_Args), Id0(_Id0), Id1(_Id1), Id2(_Id2) {
+  arg_iterator(SmallVectorImpl<Arg *>::const_iterator it, const ArgList &Args,
+               OptSpecifier Id0 = 0U, OptSpecifier Id1 = 0U,
+               OptSpecifier Id2 = 0U)
+      : Current(it), Args(Args), Id0(Id0), Id1(Id1), Id2(Id2) {
     SkipToNextArg();
   }
 
@@ -91,8 +93,8 @@ public:
 /// and to iterate over groups of arguments.
 class ArgList {
 private:
-  ArgList(const ArgList &) LLVM_DELETED_FUNCTION;
-  void operator=(const ArgList &) LLVM_DELETED_FUNCTION;
+  ArgList(const ArgList &) = delete;
+  void operator=(const ArgList &) = delete;
 
 public:
   typedef SmallVector<Arg*, 16> arglist_type;
@@ -188,6 +190,10 @@ public:
   /// \p Claim Whether the argument should be claimed, if it exists.
   Arg *getLastArgNoClaim(OptSpecifier Id) const;
   Arg *getLastArgNoClaim(OptSpecifier Id0, OptSpecifier Id1) const;
+  Arg *getLastArgNoClaim(OptSpecifier Id0, OptSpecifier Id1,
+                         OptSpecifier Id2) const;
+  Arg *getLastArgNoClaim(OptSpecifier Id0, OptSpecifier Id1, OptSpecifier Id2,
+                         OptSpecifier Id3) const;
   Arg *getLastArg(OptSpecifier Id) const;
   Arg *getLastArg(OptSpecifier Id0, OptSpecifier Id1) const;
   Arg *getLastArg(OptSpecifier Id0, OptSpecifier Id1, OptSpecifier Id2) const;
@@ -277,16 +283,13 @@ public:
   /// @name Arg Synthesis
   /// @{
 
-  /// MakeArgString - Construct a constant string pointer whose
+  /// Construct a constant string pointer whose
   /// lifetime will match that of the ArgList.
-  virtual const char *MakeArgString(StringRef Str) const = 0;
-  const char *MakeArgString(const char *Str) const {
-    return MakeArgString(StringRef(Str));
+  virtual const char *MakeArgStringRef(StringRef Str) const = 0;
+  const char *MakeArgString(const Twine &Str) const {
+    SmallString<256> Buf;
+    return MakeArgStringRef(Str.toStringRef(Buf));
   }
-  const char *MakeArgString(std::string Str) const {
-    return MakeArgString(StringRef(Str));
-  }
-  const char *MakeArgString(const Twine &Str) const;
 
   /// \brief Create an arg string for (\p LHS + \p RHS), reusing the
   /// string at \p Index if possible.
@@ -317,7 +320,7 @@ private:
 
 public:
   InputArgList(const char* const *ArgBegin, const char* const *ArgEnd);
-  ~InputArgList();
+  ~InputArgList() override;
 
   const char *getArgString(unsigned Index) const override {
     return ArgStrings[Index];
@@ -336,7 +339,7 @@ public:
   unsigned MakeIndex(StringRef String0, StringRef String1) const;
 
   using ArgList::MakeArgString;
-  const char *MakeArgString(StringRef Str) const override;
+  const char *MakeArgStringRef(StringRef Str) const override;
 
   /// @}
 };
@@ -352,7 +355,7 @@ class DerivedArgList : public ArgList {
 public:
   /// Construct a new derived arg list from \p BaseArgs.
   DerivedArgList(const InputArgList &BaseArgs);
-  ~DerivedArgList();
+  ~DerivedArgList() override;
 
   const char *getArgString(unsigned Index) const override {
     return BaseArgs.getArgString(Index);
@@ -374,7 +377,7 @@ public:
   void AddSynthesizedArg(Arg *A);
 
   using ArgList::MakeArgString;
-  const char *MakeArgString(StringRef Str) const override;
+  const char *MakeArgStringRef(StringRef Str) const override;
 
   /// AddFlagArg - Construct a new FlagArg for the given option \p Id and
   /// append it to the argument list.

@@ -1,9 +1,9 @@
 ; RUN: opt < %s -analyze -scalar-evolution | FileCheck %s
 
 ; CHECK: %tmp3 = sext i8 %tmp2 to i32
-; CHECK: -->  (sext i8 {0,+,1}<%bb1> to i32)   Exits: -1
+; CHECK: -->  (sext i8 {0,+,1}<%bb1> to i32){{ U: [^ ]+ S: [^ ]+}}{{ *}}Exits: -1
 ; CHECK: %tmp4 = mul i32 %tmp3, %i.02
-; CHECK: -->  ((sext i8 {0,+,1}<%bb1> to i32) * {0,+,1}<%bb>)   Exits: {0,+,-1}<%bb>
+; CHECK: -->  ((sext i8 {0,+,1}<%bb1> to i32) * {0,+,1}<%bb>){{ U: [^ ]+ S: [^ ]+}}{{ *}}Exits: {0,+,-1}<%bb>
 
 ; These sexts are not foldable.
 
@@ -32,7 +32,7 @@ bb1:		; preds = %bb2, %bb.nph
 	%tmp4 = mul i32 %tmp3, %i.02		; <i32> [#uses=1]
 	%tmp5 = sext i32 %i.02 to i64		; <i64> [#uses=1]
 	%tmp6 = sext i32 %j.01 to i64		; <i64> [#uses=1]
-	%tmp7 = getelementptr [32 x [256 x i32]]* @table, i64 0, i64 %tmp5, i64 %tmp6		; <i32*> [#uses=1]
+	%tmp7 = getelementptr [32 x [256 x i32]], [32 x [256 x i32]]* @table, i64 0, i64 %tmp5, i64 %tmp6		; <i32*> [#uses=1]
 	store i32 %tmp4, i32* %tmp7, align 4
 	%tmp8 = add i32 %j.01, 1		; <i32> [#uses=2]
 	br label %bb2
@@ -56,7 +56,7 @@ bb4.bb5_crit_edge:		; preds = %bb4
 	br label %bb5
 
 bb5:		; preds = %bb4.bb5_crit_edge, %entry
-	%tmp12 = load i32* getelementptr ([32 x [256 x i32]]* @table, i64 0, i64 9, i64 132), align 16		; <i32> [#uses=1]
+	%tmp12 = load i32, i32* getelementptr ([32 x [256 x i32]], [32 x [256 x i32]]* @table, i64 0, i64 9, i64 132), align 16		; <i32> [#uses=1]
 	%tmp13 = icmp eq i32 %tmp12, -1116		; <i1> [#uses=1]
 	br i1 %tmp13, label %bb7, label %bb6
 

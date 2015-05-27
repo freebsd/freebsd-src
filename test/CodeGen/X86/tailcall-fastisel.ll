@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=x86_64-apple-darwin -tailcallopt -fast-isel -fast-isel-abort | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-apple-darwin -tailcallopt -fast-isel -fast-isel-abort=1 | FileCheck %s
 
 %0 = type { i64, i32, i8* }
 
@@ -11,7 +11,7 @@ fail:                                             ; preds = %entry
 
 define i32 @foo() nounwind {
 entry:
- %0 = tail call i32 (...)* @bar() nounwind       ; <i32> [#uses=1]
+ %0 = tail call i32 (...) @bar() nounwind       ; <i32> [#uses=1]
  ret i32 %0
 }
 

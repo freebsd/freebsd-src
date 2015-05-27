@@ -94,7 +94,7 @@ entry:
 ; LINUX-LABEL:     sret4:
 ; LINUX:     retl $4
 
-  %x = getelementptr inbounds %struct.S4* %agg.result, i32 0, i32 0
+  %x = getelementptr inbounds %struct.S4, %struct.S4* %agg.result, i32 0, i32 0
   store i32 42, i32* %x, align 4
   ret void
 }
@@ -106,8 +106,8 @@ define x86_thiscallcc void @"\01?foo@C5@@QAE?AUS5@@XZ"(%struct.S5* noalias sret 
 entry:
   %this.addr = alloca %class.C5*, align 4
   store %class.C5* %this, %class.C5** %this.addr, align 4
-  %this1 = load %class.C5** %this.addr
-  %x = getelementptr inbounds %struct.S5* %agg.result, i32 0, i32 0
+  %this1 = load %class.C5*, %class.C5** %this.addr
+  %x = getelementptr inbounds %struct.S5, %struct.S5* %agg.result, i32 0, i32 0
   store i32 42, i32* %x, align 4
   ret void
 ; WIN32-LABEL:     {{^}}"?foo@C5@@QAE?AUS5@@XZ":
@@ -155,25 +155,25 @@ define void @test6_f(%struct.test6* %x) nounwind {
 ; LINUX-LABEL: test6_f:
 
 ; The %x argument is moved to %ecx. It will be the this pointer.
-; WIN32: movl    8(%ebp), %ecx
+; WIN32: movl    20(%esp), %ecx
 
 ; The %x argument is moved to (%esp). It will be the this pointer. With -O0
 ; we copy esp to ecx and use (ecx) instead of (esp).
-; MINGW_X86: movl    8(%ebp), %eax
+; MINGW_X86: movl    20(%esp), %eax
 ; MINGW_X86: movl    %eax, (%e{{([a-d]x)|(sp)}})
 
-; CYGWIN: movl    8(%ebp), %eax
+; CYGWIN: movl    20(%esp), %eax
 ; CYGWIN: movl    %eax, (%e{{([a-d]x)|(sp)}})
 
 ; The sret pointer is (%esp)
-; WIN32:          leal    8(%esp), %[[REG:e[a-d]x]]
+; WIN32:          leal    4(%esp), %[[REG:e[a-d]x]]
 ; WIN32-NEXT:     movl    %[[REG]], (%e{{([a-d]x)|(sp)}})
 
 ; The sret pointer is %ecx
-; MINGW_X86-NEXT: leal    8(%esp), %ecx
+; MINGW_X86-NEXT: leal    4(%esp), %ecx
 ; MINGW_X86-NEXT: calll   _test6_g
 
-; CYGWIN-NEXT: leal    8(%esp), %ecx
+; CYGWIN-NEXT: leal    4(%esp), %ecx
 ; CYGWIN-NEXT: calll   _test6_g
 
   %tmp = alloca %struct.test6, align 4
@@ -191,16 +191,16 @@ define void @test7_f(%struct.test7* %x) nounwind {
 ; LINUX-LABEL: test7_f:
 
 ; The %x argument is moved to %ecx on all OSs. It will be the this pointer.
-; WIN32:      movl    8(%ebp), %ecx
-; MINGW_X86:  movl    8(%ebp), %ecx
-; CYGWIN:     movl    8(%ebp), %ecx
+; WIN32:      movl    20(%esp), %ecx
+; MINGW_X86:  movl    20(%esp), %ecx
+; CYGWIN:     movl    20(%esp), %ecx
 
 ; The sret pointer is (%esp)
-; WIN32:          leal    8(%esp), %[[REG:e[a-d]x]]
+; WIN32:          leal    4(%esp), %[[REG:e[a-d]x]]
 ; WIN32-NEXT:     movl    %[[REG]], (%e{{([a-d]x)|(sp)}})
-; MINGW_X86:      leal    8(%esp), %[[REG:e[a-d]x]]
+; MINGW_X86:      leal    4(%esp), %[[REG:e[a-d]x]]
 ; MINGW_X86-NEXT: movl    %[[REG]], (%e{{([a-d]x)|(sp)}})
-; CYGWIN:         leal    8(%esp), %[[REG:e[a-d]x]]
+; CYGWIN:         leal    4(%esp), %[[REG:e[a-d]x]]
 ; CYGWIN-NEXT:    movl    %[[REG]], (%e{{([a-d]x)|(sp)}})
 
   %tmp = alloca %struct.test7, align 4
@@ -209,9 +209,9 @@ define void @test7_f(%struct.test7* %x) nounwind {
 }
 
 define x86_thiscallcc void @test7_g(%struct.test7* %in, %struct.test7* sret %out) {
-  %s = getelementptr %struct.test7* %in, i32 0, i32 0
-  %d = getelementptr %struct.test7* %out, i32 0, i32 0
-  %v = load i32* %s
+  %s = getelementptr %struct.test7, %struct.test7* %in, i32 0, i32 0
+  %d = getelementptr %struct.test7, %struct.test7* %out, i32 0, i32 0
+  %v = load i32, i32* %s
   store i32 %v, i32* %d
   call void @clobber_eax()
   ret void

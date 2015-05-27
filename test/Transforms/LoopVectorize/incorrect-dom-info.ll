@@ -45,7 +45,7 @@ thread-pre-split.preheader:                       ; preds = %9
 
 .thread-pre-split.loopexit_crit_edge:             ; preds = %19
   %scevgep.sum = xor i64 %umax, -1
-  %scevgep45 = getelementptr i8* %d.020, i64 %scevgep.sum
+  %scevgep45 = getelementptr i8, i8* %d.020, i64 %scevgep.sum
   br label %thread-pre-split.loopexit
 
 thread-pre-split.loopexit:                        ; preds = %11, %.thread-pre-split.loopexit_crit_edge
@@ -58,8 +58,8 @@ thread-pre-split.loopexit:                        ; preds = %11, %.thread-pre-sp
   br i1 undef, label %11, label %22
 
 ; <label>:11                                      ; preds = %.lr.ph21
-  %12 = getelementptr inbounds [0 x i8]* @PL_utf8skip, i64 0, i64 undef
-  %13 = load i8* %12, align 1
+  %12 = getelementptr inbounds [0 x i8], [0 x i8]* @PL_utf8skip, i64 0, i64 undef
+  %13 = load i8, i8* %12, align 1
   %14 = zext i8 %13 to i64
   %15 = icmp ugt i64 %14, %10
   %. = select i1 %15, i64 %10, i64 %14
@@ -91,7 +91,7 @@ thread-pre-split.loopexit:                        ; preds = %11, %.thread-pre-sp
   br label %26
 
 ; <label>:26                                      ; preds = %25, %24, %23, %22
-  %27 = load i64* %len, align 8
+  %27 = load i64, i64* %len, align 8
   %28 = add i64 %27, -1
   br i1 undef, label %thread-pre-split._crit_edge, label %.lr.ph21
 

@@ -6,23 +6,16 @@
 	jmp	-256              # R_X86_64_PC32
 
 // CHECK:        Section {
-// CHECK:          Index: 1
-// CHECK-NEXT:     Name: .text
-// CHECK:          Relocations [
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   }
-
-// CHECK:        Section {
-// CHECK:          Index: 2
-// CHECK-NEXT:     Name: .rela.text
+// CHECK:          Index:
+// CHECK:          Name: .rela.text
 // CHECK-NEXT:     Type: SHT_RELA
 // CHECK-NEXT:     Flags [
 // CHECK-NEXT:     ]
 // CHECK-NEXT:     Address: 0x0
-// CHECK-NEXT:     Offset: 0x2E8
+// CHECK-NEXT:     Offset:
 // CHECK-NEXT:     Size: 48
-// CHECK-NEXT:     Link: 6
-// CHECK-NEXT:     Info: 1
+// CHECK-NEXT:     Link:
+// CHECK-NEXT:     Info:
 // CHECK-NEXT:     AddressAlignment: 8
 // CHECK-NEXT:     EntrySize: 24
 // CHECK-NEXT:     Relocations [

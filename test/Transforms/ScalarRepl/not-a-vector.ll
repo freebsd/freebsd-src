@@ -8,12 +8,12 @@ define double @test(double %A, double %B) {
 	%C = bitcast [7 x i64]* %ARR to double*
 	store double %A, double* %C
 
-	%D = getelementptr [7 x i64]* %ARR, i32 0, i32 4
+	%D = getelementptr [7 x i64], [7 x i64]* %ARR, i32 0, i32 4
 	%E = bitcast i64* %D to double*
 	store double %B, double* %E
 
-	%F = getelementptr double* %C, i32 4
-	%G = load double* %F
+	%F = getelementptr double, double* %C, i32 4
+	%G = load double, double* %F
 	ret double %G
 }
 

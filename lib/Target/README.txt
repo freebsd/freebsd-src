@@ -1268,7 +1268,8 @@ int foo (void) {
 ..
   else if (strchr ("<>", *intel_parser.op_string)
 
-Those should be turned into a switch.
+Those should be turned into a switch.  SimplifyLibCalls only gets the second
+case.
 
 //===---------------------------------------------------------------------===//
 
@@ -1841,44 +1842,6 @@ we remove checking in code like
   char *p = malloc(strlen(s)+1);
   __strcpy_chk(p, s, __builtin_objectsize(p, 0));
 
-//===---------------------------------------------------------------------===//
-
-This code (from Benchmarks/Dhrystone/dry.c):
-
-define i32 @Func1(i32, i32) nounwind readnone optsize ssp {
-entry:
-  %sext = shl i32 %0, 24
-  %conv = ashr i32 %sext, 24
-  %sext6 = shl i32 %1, 24
-  %conv4 = ashr i32 %sext6, 24
-  %cmp = icmp eq i32 %conv, %conv4
-  %. = select i1 %cmp, i32 10000, i32 0
-  ret i32 %.
-}
-
-Should be simplified into something like:
-
-define i32 @Func1(i32, i32) nounwind readnone optsize ssp {
-entry:
-  %sext = shl i32 %0, 24
-  %conv = and i32 %sext, 0xFF000000
-  %sext6 = shl i32 %1, 24
-  %conv4 = and i32 %sext6, 0xFF000000
-  %cmp = icmp eq i32 %conv, %conv4
-  %. = select i1 %cmp, i32 10000, i32 0
-  ret i32 %.
-}
-
-and then to:
-
-define i32 @Func1(i32, i32) nounwind readnone optsize ssp {
-entry:
-  %conv = and i32 %0, 0xFF
-  %conv4 = and i32 %1, 0xFF
-  %cmp = icmp eq i32 %conv, %conv4
-  %. = select i1 %cmp, i32 10000, i32 0
-  ret i32 %.
-}
 //===---------------------------------------------------------------------===//
 
 clang -O3 currently compiles this code

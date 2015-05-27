@@ -11,8 +11,8 @@ define void @foo() nounwind ssp {
 entry:
 ; CHECK: mtctr r12
 ; CHECK: bctrl
-  %0 = load void (...)** @p, align 4              ; <void (...)*> [#uses=1]
-  call void (...)* %0() nounwind
+  %0 = load void (...)*, void (...)** @p, align 4              ; <void (...)*> [#uses=1]
+  call void (...) %0() nounwind
   br label %return
 
 return:                                           ; preds = %entry

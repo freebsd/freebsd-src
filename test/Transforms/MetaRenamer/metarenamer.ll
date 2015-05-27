@@ -24,14 +24,14 @@ define i32 @func_3_xxx() nounwind uwtable ssp {
 
 define void @func_4_xxx(%struct.foo_xxx* sret %agg.result) nounwind uwtable ssp {
   %1 = alloca %struct.foo_xxx, align 8
-  %2 = getelementptr inbounds %struct.foo_xxx* %1, i32 0, i32 0
+  %2 = getelementptr inbounds %struct.foo_xxx, %struct.foo_xxx* %1, i32 0, i32 0
   store i32 1, i32* %2, align 4
-  %3 = getelementptr inbounds %struct.foo_xxx* %1, i32 0, i32 1
+  %3 = getelementptr inbounds %struct.foo_xxx, %struct.foo_xxx* %1, i32 0, i32 1
   store float 2.000000e+00, float* %3, align 4
-  %4 = getelementptr inbounds %struct.foo_xxx* %1, i32 0, i32 2
-  %5 = getelementptr inbounds %struct.bar_xxx* %4, i32 0, i32 0
+  %4 = getelementptr inbounds %struct.foo_xxx, %struct.foo_xxx* %1, i32 0, i32 2
+  %5 = getelementptr inbounds %struct.bar_xxx, %struct.bar_xxx* %4, i32 0, i32 0
   store i32 3, i32* %5, align 4
-  %6 = getelementptr inbounds %struct.bar_xxx* %4, i32 0, i32 1
+  %6 = getelementptr inbounds %struct.bar_xxx, %struct.bar_xxx* %4, i32 0, i32 1
   store double 4.000000e+00, double* %6, align 8
   %7 = bitcast %struct.foo_xxx* %agg.result to i8*
   %8 = bitcast %struct.foo_xxx* %1 to i8*
@@ -59,7 +59,7 @@ define i32 @func_5_xxx(i32 %arg_1_xxx, i32 %arg_2_xxx, i32 %arg_3_xxx, i32 %arg_
   br label %5
 
 ; <label>:5                                       ; preds = %9, %0
-  %6 = load i32* %i, align 4
+  %6 = load i32, i32* %i, align 4
   %7 = icmp slt i32 %6, 10
   br i1 %7, label %8, label %12
 
@@ -67,24 +67,24 @@ define i32 @func_5_xxx(i32 %arg_1_xxx, i32 %arg_2_xxx, i32 %arg_3_xxx, i32 %arg_
   br label %9
 
 ; <label>:9                                       ; preds = %8
-  %10 = load i32* %i, align 4
+  %10 = load i32, i32* %i, align 4
   %11 = add nsw i32 %10, 1
   store i32 %11, i32* %i, align 4
   br label %5
 
 ; <label>:12                                      ; preds = %5
-  %13 = load i32* %local_1_xxx, align 4
-  %14 = load i32* %1, align 4
+  %13 = load i32, i32* %local_1_xxx, align 4
+  %14 = load i32, i32* %1, align 4
   %15 = add nsw i32 %13, %14
-  %16 = load i32* %local_2_xxx, align 4
+  %16 = load i32, i32* %local_2_xxx, align 4
   %17 = add nsw i32 %15, %16
-  %18 = load i32* %2, align 4
+  %18 = load i32, i32* %2, align 4
   %19 = add nsw i32 %17, %18
-  %20 = load i32* @func_5_xxx.static_local_3_xxx, align 4
+  %20 = load i32, i32* @func_5_xxx.static_local_3_xxx, align 4
   %21 = add nsw i32 %19, %20
-  %22 = load i32* %3, align 4
+  %22 = load i32, i32* %3, align 4
   %23 = add nsw i32 %21, %22
-  %24 = load i32* %4, align 4
+  %24 = load i32, i32* %4, align 4
   %25 = add nsw i32 %23, %24
   ret i32 %25
 }

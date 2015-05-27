@@ -15,7 +15,7 @@ define i32 @main() uwtable optsize ssp {
 
 ; MINGW64: .seh_proc
 ; MINGW64: .seh_handler __gxx_personality_v0
-; MINGW64: .seh_setframe 5, 0
+; MINGW64: .seh_setframe 5, 32
 ; MINGW64: callq _Unwind_Resume
 ; MINGW64: .seh_handlerdata
 ; MINGW64: GCC_except_table0:
@@ -37,6 +37,7 @@ entry:
 
 lpad:
   %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+          cleanup
           catch i8* bitcast (i8** @_ZTIi to i8*)
   br label %eh.resume
 

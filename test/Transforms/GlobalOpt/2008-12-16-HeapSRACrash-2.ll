@@ -6,9 +6,9 @@ target triple = "i386-apple-darwin7"
 
 define void @bar(i32 %Size) nounwind noinline {
 entry:
-        %malloccall = tail call i8* @malloc(i32 trunc (i64 mul (i64 ptrtoint (i32* getelementptr (i32* null, i32 1) to i64), i64 2000000) to i32))
+        %malloccall = tail call i8* @malloc(i32 trunc (i64 mul (i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64), i64 2000000) to i32))
         %tmp = bitcast i8* %malloccall to [1000000 x %struct.foo]*
-	%.sub = getelementptr [1000000 x %struct.foo]* %tmp, i32 0, i32 0		; <%struct.foo*> [#uses=1]
+	%.sub = getelementptr [1000000 x %struct.foo], [1000000 x %struct.foo]* %tmp, i32 0, i32 0		; <%struct.foo*> [#uses=1]
 	store %struct.foo* %.sub, %struct.foo** @X, align 4
 	ret void
 }
@@ -18,11 +18,11 @@ declare noalias i8* @malloc(i32)
 
 define i32 @baz() nounwind readonly noinline {
 bb1.thread:
-	%tmpLD1 = load %struct.foo** @X, align 4		; <%struct.foo*> [#uses=2]
+	%tmpLD1 = load %struct.foo*, %struct.foo** @X, align 4		; <%struct.foo*> [#uses=2]
 	br label %bb1
 
 bb1:		; preds = %bb1, %bb1.thread
 	%tmp = phi %struct.foo* [ %tmpLD1, %bb1.thread ], [ %tmpLD1, %bb1 ]		; <%struct.foo*> [#uses=1]
-	%0 = getelementptr %struct.foo* %tmp, i32 1		; <%struct.foo*> [#uses=0]
+	%0 = getelementptr %struct.foo, %struct.foo* %tmp, i32 1		; <%struct.foo*> [#uses=0]
 	br label %bb1
 }

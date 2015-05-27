@@ -153,7 +153,8 @@ define <4 x i32> @test12(<4 x i32> %a, <4 x i32> %b) {
 define <4 x i32> @test13(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-LABEL: test13:
 ; CHECK:       # BB#0:
-; CHECK-NEXT:    shufps {{.*#+}} xmm0 = xmm0[1,1],xmm1[2,3]
+; CHECK-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[1,1,2,3]
+; CHECK-NEXT:    pblendw {{.*#+}} xmm0 = xmm0[0,1,2,3],xmm1[4,5,6,7]
 ; CHECK-NEXT:    retq
   %shuf1 = shufflevector <4 x i32> %a, <4 x i32> zeroinitializer, <4 x i32><i32 1, i32 1, i32 4, i32 4>
   %shuf2 = shufflevector <4 x i32> %b, <4 x i32> zeroinitializer, <4 x i32><i32 4, i32 4, i32 2, i32 3>
@@ -177,8 +178,9 @@ define <2 x i64> @test14(<2 x i64> %a, <2 x i64> %b) {
 define <4 x i32> @test15(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-LABEL: test15:
 ; CHECK:       # BB#0:
-; CHECK-NEXT:    shufps {{.*#+}} xmm1 = xmm1[2,1],xmm0[2,1]
-; CHECK-NEXT:    movaps %xmm1, %xmm0
+; CHECK-NEXT:    pshufd {{.*#+}} xmm2 = xmm0[0,1,2,1]
+; CHECK-NEXT:    pshufd {{.*#+}} xmm0 = xmm1[2,1,2,3]
+; CHECK-NEXT:    pblendw {{.*#+}} xmm0 = xmm0[0,1,2,3],xmm2[4,5,6,7]
 ; CHECK-NEXT:    retq
   %shuf1 = shufflevector <4 x i32> %a, <4 x i32> zeroinitializer, <4 x i32><i32 4, i32 4, i32 2, i32 1>
   %shuf2 = shufflevector <4 x i32> %b, <4 x i32> zeroinitializer, <4 x i32><i32 2, i32 1, i32 4, i32 4>
@@ -206,12 +208,9 @@ define <2 x i64> @test16(<2 x i64> %a, <2 x i64> %b) {
 define <4 x i32> @test17(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-LABEL: test17:
 ; CHECK:       # BB#0:
-; CHECK-NEXT:    xorps %xmm2, %xmm2
-; CHECK-NEXT:    shufps {{.*#+}} xmm1 = xmm1[0,1],xmm2[0,0]
-; CHECK-NEXT:    shufps {{.*#+}} xmm2 = xmm2[0,0],xmm0[0,2]
-; CHECK-NEXT:    shufps {{.*#+}} xmm2 = xmm2[0,2,1,3]
-; CHECK-NEXT:    orps %xmm1, %xmm2
-; CHECK-NEXT:    movaps %xmm2, %xmm0
+; CHECK-NEXT:    psllq $32, %xmm0
+; CHECK-NEXT:    movq {{.*#+}} xmm1 = xmm1[0],zero
+; CHECK-NEXT:    por %xmm1, %xmm0
 ; CHECK-NEXT:    retq
   %shuf1 = shufflevector <4 x i32> %a, <4 x i32> zeroinitializer, <4 x i32><i32 4, i32 0, i32 4, i32 2>
   %shuf2 = shufflevector <4 x i32> %b, <4 x i32> zeroinitializer, <4 x i32><i32 0, i32 1, i32 4, i32 4>
@@ -239,12 +238,12 @@ define <4 x i32> @test18(<4 x i32> %a, <4 x i32> %b) {
 define <4 x i32> @test19(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-LABEL: test19:
 ; CHECK:       # BB#0:
-; CHECK-NEXT:    xorps %xmm2, %xmm2
-; CHECK-NEXT:    shufps {{.*#+}} xmm2 = xmm2[0,0],xmm0[0,3]
-; CHECK-NEXT:    shufps {{.*#+}} xmm2 = xmm2[0,2,1,3]
-; CHECK-NEXT:    insertps {{.*#+}} xmm1 = xmm1[0],zero,xmm1[2,2]
-; CHECK-NEXT:    orps %xmm1, %xmm2
-; CHECK-NEXT:    movaps %xmm2, %xmm0
+; CHECK-NEXT:    pshufd {{.*#+}} xmm2 = xmm0[0,0,2,3]
+; CHECK-NEXT:    pxor %xmm3, %xmm3
+; CHECK-NEXT:    pblendw {{.*#+}} xmm2 = xmm3[0,1],xmm2[2,3],xmm3[4,5],xmm2[6,7]
+; CHECK-NEXT:    pshufd {{.*#+}} xmm0 = xmm1[0,1,2,2]
+; CHECK-NEXT:    pblendw {{.*#+}} xmm0 = xmm0[0,1],xmm3[2,3],xmm0[4,5,6,7]
+; CHECK-NEXT:    por %xmm2, %xmm0
 ; CHECK-NEXT:    retq
   %shuf1 = shufflevector <4 x i32> %a, <4 x i32> zeroinitializer, <4 x i32><i32 4, i32 0, i32 4, i32 3>
   %shuf2 = shufflevector <4 x i32> %b, <4 x i32> zeroinitializer, <4 x i32><i32 0, i32 4, i32 2, i32 2>
@@ -256,8 +255,8 @@ define <4 x i32> @test19(<4 x i32> %a, <4 x i32> %b) {
 define <2 x i64> @test20(<2 x i64> %a, <2 x i64> %b) {
 ; CHECK-LABEL: test20:
 ; CHECK:       # BB#0:
-; CHECK-NEXT:    orps %xmm1, %xmm0
-; CHECK-NEXT:    movq %xmm0, %xmm0
+; CHECK-NEXT:    por %xmm1, %xmm0
+; CHECK-NEXT:    movq {{.*#+}} xmm0 = xmm0[0],zero
 ; CHECK-NEXT:    retq
   %shuf1 = shufflevector <2 x i64> %a, <2 x i64> zeroinitializer, <2 x i32><i32 0, i32 2>
   %shuf2 = shufflevector <2 x i64> %b, <2 x i64> zeroinitializer, <2 x i32><i32 0, i32 2>
@@ -277,6 +276,70 @@ define <2 x i64> @test21(<2 x i64> %a, <2 x i64> %b) {
   %or = or <2 x i64> %shuf1, %shuf2
   ret <2 x i64> %or
 }
+
+
+; Verify that the dag-combiner keeps the correct domain for float/double vectors
+; bitcast to use the mask-or blend combine.
+
+define <2 x double> @test22(<2 x double> %a0, <2 x double> %a1) {
+; CHECK-LABEL: test22:
+; CHECK:       # BB#0:
+; CHECK-NEXT:    blendpd {{.*#+}} xmm0 = xmm1[0],xmm0[1]
+; CHECK-NEXT:    retq
+  %bc1 = bitcast <2 x double> %a0 to <2 x i64>
+  %bc2 = bitcast <2 x double> %a1 to <2 x i64>
+  %and1 = and <2 x i64> %bc1, <i64 0, i64 -1>
+  %and2 = and <2 x i64> %bc2, <i64 -1, i64 0>
+  %or = or <2 x i64> %and1, %and2
+  %bc3 = bitcast <2 x i64> %or to <2 x double>
+  ret <2 x double> %bc3
+}
+
+
+define <4 x float> @test23(<4 x float> %a0, <4 x float> %a1) {
+; CHECK-LABEL: test23:
+; CHECK:       # BB#0:
+; CHECK-NEXT:    blendps {{.*#+}} xmm0 = xmm1[0],xmm0[1,2],xmm1[3]
+; CHECK-NEXT:    retq
+  %bc1 = bitcast <4 x float> %a0 to <4 x i32>
+  %bc2 = bitcast <4 x float> %a1 to <4 x i32>
+  %and1 = and <4 x i32> %bc1, <i32 0, i32 -1, i32 -1, i32 0>
+  %and2 = and <4 x i32> %bc2, <i32 -1, i32 0, i32 0, i32 -1>
+  %or = or <4 x i32> %and1, %and2
+  %bc3 = bitcast <4 x i32> %or to <4 x float>
+  ret <4 x float> %bc3
+}
+
+
+define <4 x float> @test24(<4 x float> %a0, <4 x float> %a1) {
+; CHECK-LABEL: test24:
+; CHECK:       # BB#0:
+; CHECK-NEXT:    blendpd {{.*#+}} xmm0 = xmm1[0],xmm0[1]
+; CHECK-NEXT:    retq
+  %bc1 = bitcast <4 x float> %a0 to <2 x i64>
+  %bc2 = bitcast <4 x float> %a1 to <2 x i64>
+  %and1 = and <2 x i64> %bc1, <i64 0, i64 -1>
+  %and2 = and <2 x i64> %bc2, <i64 -1, i64 0>
+  %or = or <2 x i64> %and1, %and2
+  %bc3 = bitcast <2 x i64> %or to <4 x float>
+  ret <4 x float> %bc3
+}
+
+
+define <4 x float> @test25(<4 x float> %a0) {
+; CHECK-LABEL: test25:
+; CHECK:       # BB#0:
+; CHECK-NEXT:    blendps {{.*#+}} xmm0 = mem[0],xmm0[1,2],mem[3]
+; CHECK-NEXT:    retq
+  %bc1 = bitcast <4 x float> %a0 to <4 x i32>
+  %bc2 = bitcast <4 x float> <float 1.0, float 1.0, float 1.0, float 1.0> to <4 x i32>
+  %and1 = and <4 x i32> %bc1, <i32 0, i32 -1, i32 -1, i32 0>
+  %and2 = and <4 x i32> %bc2, <i32 -1, i32 0, i32 0, i32 -1>
+  %or = or <4 x i32> %and1, %and2
+  %bc3 = bitcast <4 x i32> %or to <4 x float>
+  ret <4 x float> %bc3
+}
+
 
 ; Verify that the DAGCombiner doesn't crash in the attempt to check if a shuffle
 ; with illegal type has a legal mask. Method 'isShuffleMaskLegal' only knows how to

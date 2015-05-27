@@ -1,4 +1,4 @@
-; RUN: llc -O0 -fast-isel-abort -verify-machineinstrs -mtriple=arm64-apple-darwin < %s | FileCheck %s
+; RUN: llc -O0 -fast-isel-abort=1 -verify-machineinstrs -mtriple=arm64-apple-darwin < %s | FileCheck %s
 
 @fn.table = internal global [2 x i8*] [i8* blockaddress(@fn, %ZERO), i8* blockaddress(@fn, %ONE)], align 8
 
@@ -8,10 +8,10 @@ entry:
   %retval = alloca i32, align 4
   %target.addr = alloca i32, align 4
   store i32 %target, i32* %target.addr, align 4
-  %0 = load i32* %target.addr, align 4
+  %0 = load i32, i32* %target.addr, align 4
   %idxprom = zext i32 %0 to i64
-  %arrayidx = getelementptr inbounds [2 x i8*]* @fn.table, i32 0, i64 %idxprom
-  %1 = load i8** %arrayidx, align 8
+  %arrayidx = getelementptr inbounds [2 x i8*], [2 x i8*]* @fn.table, i32 0, i64 %idxprom
+  %1 = load i8*, i8** %arrayidx, align 8
   br label %indirectgoto
 
 ZERO:                                             ; preds = %indirectgoto
@@ -25,7 +25,7 @@ ONE:                                              ; preds = %indirectgoto
   br label %return
 
 return:                                           ; preds = %ONE, %ZERO
-  %2 = load i32* %retval
+  %2 = load i32, i32* %retval
   ret i32 %2
 
 indirectgoto:                                     ; preds = %entry

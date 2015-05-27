@@ -49,6 +49,10 @@ N: Peter Collingbourne
 E: peter@pcc.me.uk
 D: llgo
 
+N: Quentin Colombet
+E: qcolombet@apple.com
+D: Register allocators
+
 N: Anshuman Dasgupta
 E: adasgupt@codeaurora.org
 D: Hexagon Backend
@@ -85,6 +89,10 @@ N: Lang Hames
 E: lhames@gmail.com
 D: MCJIT, RuntimeDyld and JIT event listeners
 
+N: David Majnemer
+E: david.majnemer@gmail.com
+D: IR Constant Folder
+
 N: Galina Kistanova
 E: gkistanova@gmail.com
 D: LLVM Buildbot
@@ -116,7 +124,7 @@ D: SampleProfile and related parts of ProfileData
 
 N: Jakob Olesen
 E: stoklund@2pi.dk
-D: Register allocators and TableGen
+D: TableGen
 
 N: Richard Osborne
 E: richard@xmos.com
@@ -125,6 +133,10 @@ D: XCore Backend
 N: Chad Rosier
 E: mcrosier@codeaurora.org
 D: Fast-Isel
+
+N: Alex Rosenberg
+E: alexr@leftfield.org
+D: Sony PlayStation®4 support
 
 N: Nadav Rotem
 E: nrotem@apple.com
@@ -146,10 +158,14 @@ N: Michael Spencer
 E: bigcheesegs@gmail.com
 D: Windows parts of Support, Object, ar, nm, objdump, ranlib, size
 
+N: Alexei Starovoitov
+E: alexei.starovoitov@gmail.com
+D: BPF backend
+
 N: Tom Stellard
 E: thomas.stellard@amd.com
 E: mesa-dev@lists.freedesktop.org
-D: Release manager for the 3.5 branch, R600 Backend, libclc
+D: Release manager for the 3.5 and 3.6 branches, R600 Backend, libclc
 
 N: Evgeniy Stepanov
 E: eugenis@google.com
@@ -170,3 +186,7 @@ D: libLTO, IR Linker
 N: Peter Zotov
 E: whitequark@whitequark.org
 D: OCaml bindings
+
+N: Andrey Churbanov
+E: andrey.churbanov@intel.com
+D: OpenMP runtime library

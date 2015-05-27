@@ -9,8 +9,8 @@ entry:
 body:
   %iv = phi i32 [ 0, %entry ], [ %next, %body ]
   %base = phi i32 [ 0, %entry ], [ %sum, %body ]
-  %arrayidx = getelementptr inbounds i32* %a, i32 %iv
-  %0 = load i32* %arrayidx
+  %arrayidx = getelementptr inbounds i32, i32* %a, i32 %iv
+  %0 = load i32, i32* %arrayidx
   %sum = add nsw i32 %0, %base
   %next = add i32 %iv, 1
   %exitcond = icmp eq i32 %next, %i
@@ -153,8 +153,8 @@ define i32 @test_cold_call_sites(i32* %a) {
 ; CHECK: edge entry -> else probability is 64 / 68 = 94.1176% [HOT edge]
 
 entry:
-  %gep1 = getelementptr i32* %a, i32 1
-  %val1 = load i32* %gep1
+  %gep1 = getelementptr i32, i32* %a, i32 1
+  %val1 = load i32, i32* %gep1
   %cond1 = icmp ugt i32 %val1, 1
   br i1 %cond1, label %then, label %else
 
@@ -164,8 +164,8 @@ then:
   br label %exit
 
 else:
-  %gep2 = getelementptr i32* %a, i32 2
-  %val2 = load i32* %gep2
+  %gep2 = getelementptr i32, i32* %a, i32 2
+  %val2 = load i32, i32* %gep2
   %val3 = call i32 @regular_function(i32 %val2)
   br label %exit
 
@@ -203,6 +203,34 @@ entry:
 
 then:
   br label %exit
+
+else:
+  br label %exit
+
+exit:
+  %result = phi i32 [ %a, %then ], [ %b, %else ]
+  ret i32 %result
+}
+
+define i32 @zero3(i32 %i, i32 %a, i32 %b) {
+; CHECK: Printing analysis {{.*}} for function 'zero3'
+entry:
+; AND'ing with a single bit bitmask essentially leads to a bool comparison,
+; meaning we don't have probability information.
+  %and = and i32 %i, 2
+  %tobool = icmp eq i32 %and, 0
+  br i1 %tobool, label %then, label %else
+; CHECK: edge entry -> then probability is 16 / 32
+; CHECK: edge entry -> else probability is 16 / 32
+
+then:
+; AND'ing with other bitmask might be something else, so we still assume the
+; usual probabilities.
+  %and2 = and i32 %i, 5
+  %tobool2 = icmp eq i32 %and2, 0
+  br i1 %tobool2, label %else, label %exit
+; CHECK: edge then -> else probability is 12 / 32
+; CHECK: edge then -> exit probability is 20 / 32
 
 else:
   br label %exit

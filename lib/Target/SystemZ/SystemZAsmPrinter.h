@@ -22,14 +22,9 @@ class Module;
 class raw_ostream;
 
 class LLVM_LIBRARY_VISIBILITY SystemZAsmPrinter : public AsmPrinter {
-private:
-  const SystemZSubtarget *Subtarget;
-
 public:
-  SystemZAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-    : AsmPrinter(TM, Streamer) {
-    Subtarget = &TM.getSubtarget<SystemZSubtarget>();
-  }
+  SystemZAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+      : AsmPrinter(TM, std::move(Streamer)) {}
 
   // Override AsmPrinter.
   const char *getPassName() const override {
@@ -43,7 +38,6 @@ public:
   bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                              unsigned AsmVariant, const char *ExtraCode,
                              raw_ostream &OS) override;
-  void EmitEndOfAsmFile(Module &M) override;
 };
 } // end namespace llvm
 

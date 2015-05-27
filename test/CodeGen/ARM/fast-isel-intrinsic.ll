@@ -1,9 +1,9 @@
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=ARM
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi -verify-machineinstrs | FileCheck %s --check-prefix=ARM
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=THUMB
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios -arm-long-calls -verify-machineinstrs | FileCheck %s --check-prefix=ARM-LONG
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi -arm-long-calls -verify-machineinstrs | FileCheck %s --check-prefix=ARM-LONG
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios -arm-long-calls -verify-machineinstrs | FileCheck %s --check-prefix=THUMB-LONG
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=ARM
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi -verify-machineinstrs | FileCheck %s --check-prefix=ARM
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=THUMB
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios -arm-long-calls -verify-machineinstrs | FileCheck %s --check-prefix=ARM-LONG
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi -arm-long-calls -verify-machineinstrs | FileCheck %s --check-prefix=ARM-LONG
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios -arm-long-calls -verify-machineinstrs | FileCheck %s --check-prefix=THUMB-LONG
 
 ; Note that some of these tests assume that relocations are either
 ; movw/movt or constant pool loads. Different platforms will select
@@ -39,7 +39,7 @@ define void @t1() nounwind ssp {
 ; THUMB-LONG: movt r3, :upper16:L_memset$non_lazy_ptr
 ; THUMB-LONG: ldr r3, [r3]
 ; THUMB-LONG: blx r3
-  call void @llvm.memset.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @message1, i32 0, i32 5), i8 64, i32 10, i32 4, i1 false)
+  call void @llvm.memset.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @message1, i32 0, i32 5), i8 64, i32 10, i32 4, i1 false)
   ret void
 }
 
@@ -78,7 +78,7 @@ define void @t2() nounwind ssp {
 ; THUMB-LONG: movt r3, :upper16:L_memcpy$non_lazy_ptr
 ; THUMB-LONG: ldr r3, [r3]
 ; THUMB-LONG: blx r3
-  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 16), i32 17, i32 4, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 16), i32 17, i32 4, i1 false)
   ret void
 }
 
@@ -115,7 +115,7 @@ define void @t3() nounwind ssp {
 ; THUMB-LONG: movt r3, :upper16:L_memmove$non_lazy_ptr
 ; THUMB-LONG: ldr r3, [r3]
 ; THUMB-LONG: blx r3
-  call void @llvm.memmove.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 16), i32 10, i32 1, i1 false)
+  call void @llvm.memmove.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 16), i32 10, i32 1, i1 false)
   ret void
 }
 
@@ -142,7 +142,7 @@ define void @t4() nounwind ssp {
 ; THUMB: ldrh r1, [r0, #24]
 ; THUMB: strh r1, [r0, #12]
 ; THUMB: bx lr
-  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 16), i32 10, i32 4, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 16), i32 10, i32 4, i1 false)
   ret void
 }
 
@@ -179,7 +179,7 @@ define void @t5() nounwind ssp {
 ; THUMB: ldrh r1, [r0, #24]
 ; THUMB: strh r1, [r0, #12]
 ; THUMB: bx lr
-  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 16), i32 10, i32 2, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 16), i32 10, i32 2, i1 false)
   ret void
 }
 
@@ -234,14 +234,14 @@ define void @t6() nounwind ssp {
 ; THUMB: ldrb r1, [r0, #25]
 ; THUMB: strb r1, [r0, #13]
 ; THUMB: bx lr
-  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 16), i32 10, i32 1, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 16), i32 10, i32 1, i1 false)
   ret void
 }
 
 ; rdar://13202135
 define void @t7() nounwind ssp {
 ; Just make sure this doesn't assert when we have an odd length and an alignment of 2.
-  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8]* @temp, i32 0, i32 16), i32 3, i32 2, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 4), i8* getelementptr inbounds ([60 x i8], [60 x i8]* @temp, i32 0, i32 16), i32 3, i32 2, i1 false)
   ret void
 }
 

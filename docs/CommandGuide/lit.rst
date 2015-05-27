@@ -56,7 +56,7 @@ GENERAL OPTIONS
  Search for :file:`{NAME}.cfg` and :file:`{NAME}.site.cfg` when searching for
  test suites, instead of :file:`lit.cfg` and :file:`lit.site.cfg`.
 
-.. option:: --param NAME, --param NAME=VALUE
+.. option:: -D NAME, -D NAME=VALUE, --param NAME, --param NAME=VALUE
 
  Add a user defined parameter ``NAME`` with the given ``VALUE`` (or the empty
  string if not given).  The meaning and use of these parameters is test suite
@@ -341,7 +341,7 @@ LOCAL CONFIGURATION FILES
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When :program:`lit` loads a subdirectory in a test suite, it instantiates a
-local test configuration by cloning the configuration for the parent direction
+local test configuration by cloning the configuration for the parent directory
 --- the root of this configuration chain will always be a test suite.  Once the
 test configuration is cloned :program:`lit` checks for a *lit.local.cfg* file
 in the subdirectory.  If present, this file will be loaded and can be used to

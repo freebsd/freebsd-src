@@ -18,15 +18,15 @@ entry:
   ;; preceded by an alloca, but shown for completeness).
   call void @llvm.lifetime.start(i64 8, i8* %y)
 
-  %0 = getelementptr %"struct.std::pair<int,int>"* %x, i32 0, i32 0
+  %0 = getelementptr %"struct.std::pair<int,int>", %"struct.std::pair<int,int>"* %x, i32 0, i32 0
   store i32 4, i32* %0, align 8
-  %1 = getelementptr %"struct.std::pair<int,int>"* %x, i32 0, i32 1
+  %1 = getelementptr %"struct.std::pair<int,int>", %"struct.std::pair<int,int>"* %x, i32 0, i32 1
   store i32 5, i32* %1, align 4
 
   ;; Constructor has finished here.
   %inv = call {}* @llvm.invariant.start(i64 8, i8* %y)
   call void @_Z3barRKi(i32* %0) nounwind
-  %2 = load i32* %0, align 8
+  %2 = load i32, i32* %0, align 8
 
   ;; Destructor is run here.
   call void @llvm.invariant.end({}* %inv, i64 8, i8* %y)

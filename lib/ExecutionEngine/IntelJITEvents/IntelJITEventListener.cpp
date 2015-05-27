@@ -13,11 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Config/config.h"
-#include "EventListenerCommon.h"
 #include "IntelJITEventsWrapper.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/DebugInfo/DIContext.h"
+#include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
@@ -29,7 +29,6 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
-using namespace llvm::jitprofiling;
 using namespace llvm::object;
 
 #define DEBUG_TYPE "amplifier-jit-event-listener"
@@ -41,7 +40,6 @@ class IntelJITEventListener : public JITEventListener {
 
   std::unique_ptr<IntelJITEventsWrapper> Wrapper;
   MethodIDMap MethodIDs;
-  FilenameCache Filenames;
 
   typedef SmallVector<const void *, 64> MethodAddressVector;
   typedef DenseMap<const void *, MethodAddressVector>  ObjectMap;
@@ -105,7 +103,7 @@ void IntelJITEventListener::NotifyObjectEmitted(
 
   // Get the address of the object image for use as a unique identifier
   const void* ObjData = DebugObj.getData().data();
-  DIContext* Context = DIContext::getDWARFContext(DebugObj);
+  DIContext* Context = new DWARFContextInMemory(DebugObj);
   MethodAddressVector Functions;
 
   // Use symbol info to iterate functions in the object.

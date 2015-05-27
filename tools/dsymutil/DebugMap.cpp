@@ -23,9 +23,12 @@ DebugMapObject::DebugMapObject(StringRef ObjectFilename)
     : Filename(ObjectFilename) {}
 
 bool DebugMapObject::addSymbol(StringRef Name, uint64_t ObjectAddress,
-                               uint64_t LinkedAddress) {
+                               uint64_t LinkedAddress, uint32_t Size) {
   auto InsertResult = Symbols.insert(
-      std::make_pair(Name, SymbolMapping(ObjectAddress, LinkedAddress)));
+      std::make_pair(Name, SymbolMapping(ObjectAddress, LinkedAddress, Size)));
+
+  if (InsertResult.second)
+    AddressToMapping[ObjectAddress] = &*InsertResult.first;
   return InsertResult.second;
 }
 
@@ -42,9 +45,9 @@ void DebugMapObject::print(raw_ostream &OS) const {
       Entries.begin(), Entries.end(),
       [](const Entry &LHS, const Entry &RHS) { return LHS.first < RHS.first; });
   for (const auto &Sym : Entries) {
-    OS << format("\t%016" PRIx64 " => %016" PRIx64 "\t%s\n",
+    OS << format("\t%016" PRIx64 " => %016" PRIx64 "+0x%x\t%s\n",
                  Sym.second.ObjectAddress, Sym.second.BinaryAddress,
-                 Sym.first.data());
+                 Sym.second.Size, Sym.first.data());
   }
   OS << '\n';
 }
@@ -58,16 +61,25 @@ DebugMapObject &DebugMap::addDebugMapObject(StringRef ObjectFilePath) {
   return *Objects.back();
 }
 
-const DebugMapObject::SymbolMapping *
+const DebugMapObject::DebugMapEntry *
 DebugMapObject::lookupSymbol(StringRef SymbolName) const {
   StringMap<SymbolMapping>::const_iterator Sym = Symbols.find(SymbolName);
   if (Sym == Symbols.end())
     return nullptr;
-  return &Sym->getValue();
+  return &*Sym;
+}
+
+const DebugMapObject::DebugMapEntry *
+DebugMapObject::lookupObjectAddress(uint64_t Address) const {
+  auto Mapping = AddressToMapping.find(Address);
+  if (Mapping == AddressToMapping.end())
+    return nullptr;
+  return Mapping->getSecond();
 }
 
 void DebugMap::print(raw_ostream &OS) const {
-  OS << "DEBUG MAP:   object addr =>  executable addr\tsymbol name\n";
+  OS << "DEBUG MAP: " << BinaryTriple.getTriple()
+     << "\n\tobject addr =>  executable addr\tsymbol name\n";
   for (const auto &Obj : objects())
     Obj->print(OS);
   OS << "END DEBUG MAP\n";

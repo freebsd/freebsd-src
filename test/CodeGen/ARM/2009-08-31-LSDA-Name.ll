@@ -1,7 +1,9 @@
 ; RUN: llc < %s -mtriple=arm-apple-darwin9 -march=arm | FileCheck %s
 
-; CHECK: L_LSDA_0:
-
+; CHECK: .cfi_lsda 16, [[LABEL:.*]]
+; CHECK: .long  [[LABEL]]-
+; CHECK: [[LABEL]]:
+; CHECK: .byte   255                     @ @LPStart Encoding = omit
 
 %struct.A = type { i32* }
 
@@ -22,14 +24,14 @@ invcont:                                          ; preds = %entry
   br label %return
 
 bb:                                               ; preds = %ppad
-  %eh_select = load i32* %eh_selector
+  %eh_select = load i32, i32* %eh_selector
   store i32 %eh_select, i32* %save_filt.1, align 4
-  %eh_value = load i8** %eh_exception
+  %eh_value = load i8*, i8** %eh_exception
   store i8* %eh_value, i8** %save_eptr.0, align 4
   call void @_ZN1AD1Ev(%struct.A* %a) nounwind
-  %0 = load i8** %save_eptr.0, align 4
+  %0 = load i8*, i8** %save_eptr.0, align 4
   store i8* %0, i8** %eh_exception, align 4
-  %1 = load i32* %save_filt.1, align 4
+  %1 = load i32, i32* %save_filt.1, align 4
   store i32 %1, i32* %eh_selector, align 4
   br label %Unwind
 
@@ -49,7 +51,7 @@ ppad:                                             ; preds = %lpad
   br label %bb
 
 Unwind:                                           ; preds = %bb
-  %eh_ptr3 = load i8** %eh_exception
+  %eh_ptr3 = load i8*, i8** %eh_exception
   call void @_Unwind_SjLj_Resume(i8* %eh_ptr3)
   unreachable
 }
@@ -61,8 +63,8 @@ entry:
   store %struct.A* %this, %struct.A** %this_addr
   %0 = call i8* @_Znwm(i32 4)
   %1 = bitcast i8* %0 to i32*
-  %2 = load %struct.A** %this_addr, align 4
-  %3 = getelementptr inbounds %struct.A* %2, i32 0, i32 0
+  %2 = load %struct.A*, %struct.A** %this_addr, align 4
+  %3 = getelementptr inbounds %struct.A, %struct.A* %2, i32 0, i32 0
   store i32* %1, i32** %3, align 4
   br label %return
 
@@ -77,9 +79,9 @@ entry:
   %this_addr = alloca %struct.A*
   %"alloca point" = bitcast i32 0 to i32
   store %struct.A* %this, %struct.A** %this_addr
-  %0 = load %struct.A** %this_addr, align 4
-  %1 = getelementptr inbounds %struct.A* %0, i32 0, i32 0
-  %2 = load i32** %1, align 4
+  %0 = load %struct.A*, %struct.A** %this_addr, align 4
+  %1 = getelementptr inbounds %struct.A, %struct.A* %0, i32 0, i32 0
+  %2 = load i32*, i32** %1, align 4
   %3 = bitcast i32* %2 to i8*
   call void @_ZdlPv(i8* %3) nounwind
   br label %bb

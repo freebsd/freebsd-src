@@ -53,6 +53,7 @@ namespace llvm {
   class TargetLibraryInfo;
   class TargetMachine;
   class raw_ostream;
+  class raw_pwrite_stream;
 
 //===----------------------------------------------------------------------===//
 /// C++ class which implements the opaque lto_code_gen_t type.
@@ -67,12 +68,19 @@ struct LTOCodeGenerator {
   // Merge given module, return true on success.
   bool addModule(struct LTOModule *);
 
+  // Set the destination module.
+  void setModule(struct LTOModule *);
+
   void setTargetOptions(TargetOptions options);
   void setDebugInfo(lto_debug_model);
   void setCodePICModel(lto_codegen_model);
 
   void setCpu(const char *mCpu) { MCpu = mCpu; }
   void setAttr(const char *mAttr) { MAttr = mAttr; }
+  void setOptLevel(unsigned optLevel) { OptLevel = optLevel; }
+
+  void setShouldInternalize(bool Value) { ShouldInternalize = Value; }
+  void setShouldEmbedUselists(bool Value) { ShouldEmbedUselists = Value; }
 
   void addMustPreserveSymbol(const char *sym) { MustPreserveSymbols[sym] = 1; }
 
@@ -99,7 +107,6 @@ struct LTOCodeGenerator {
   //  Do not try to remove the object file in LTOCodeGenerator's destructor
   //  as we don't who (LTOCodeGenerator or the obj file) will last longer.
   bool compile_to_file(const char **name,
-                       bool disableOpt,
                        bool disableInline,
                        bool disableGVNLoadPRE,
                        bool disableVectorization,
@@ -111,11 +118,21 @@ struct LTOCodeGenerator {
   // caller. This function should delete intermediate object file once its content
   // is brought to memory. Return NULL if the compilation was not successful.
   const void *compile(size_t *length,
-                      bool disableOpt,
                       bool disableInline,
                       bool disableGVNLoadPRE,
                       bool disableVectorization,
                       std::string &errMsg);
+
+  // Optimizes the merged module. Returns true on success.
+  bool optimize(bool disableInline,
+                bool disableGVNLoadPRE,
+                bool disableVectorization,
+                std::string &errMsg);
+
+  // Compiles the merged optimized module into a single object file. It brings
+  // the object to a buffer, and returns the buffer to the caller. Return NULL
+  // if the compilation was not successful.
+  const void *compileOptimized(size_t *length, std::string &errMsg);
 
   void setDiagnosticHandler(lto_diagnostic_handler_t, void *);
 
@@ -124,9 +141,8 @@ struct LTOCodeGenerator {
 private:
   void initializeLTOPasses();
 
-  bool generateObjectFile(raw_ostream &out, bool disableOpt, bool disableInline,
-                          bool disableGVNLoadPRE, bool disableVectorization,
-                          std::string &errMsg);
+  bool compileOptimized(raw_pwrite_stream &out, std::string &errMsg);
+  bool compileOptimizedToFile(const char **name, std::string &errMsg);
   void applyScopeRestrictions();
   void applyRestriction(GlobalValue &GV, ArrayRef<StringRef> Libcalls,
                         std::vector<const char *> &MustPreserveList,
@@ -140,14 +156,14 @@ private:
 
   typedef StringMap<uint8_t> StringSet;
 
-  void initialize();
+  void destroyMergedModule();
   std::unique_ptr<LLVMContext> OwnedContext;
   LLVMContext &Context;
   Linker IRLinker;
-  TargetMachine *TargetMach;
-  bool EmitDwarfDebugInfo;
-  bool ScopeRestrictionsDone;
-  lto_codegen_model CodeModel;
+  TargetMachine *TargetMach = nullptr;
+  bool EmitDwarfDebugInfo = false;
+  bool ScopeRestrictionsDone = false;
+  lto_codegen_model CodeModel = LTO_CODEGEN_PIC_MODEL_DEFAULT;
   StringSet MustPreserveSymbols;
   StringSet AsmUndefinedRefs;
   std::unique_ptr<MemoryBuffer> NativeObjectFile;
@@ -156,8 +172,12 @@ private:
   std::string MAttr;
   std::string NativeObjectPath;
   TargetOptions Options;
-  lto_diagnostic_handler_t DiagHandler;
-  void *DiagContext;
+  unsigned OptLevel = 2;
+  lto_diagnostic_handler_t DiagHandler = nullptr;
+  void *DiagContext = nullptr;
+  LTOModule *OwnedModule = nullptr;
+  bool ShouldInternalize = true;
+  bool ShouldEmbedUselists = false;
 };
 }
 #endif

@@ -77,16 +77,15 @@ static MCCodeGenInfo *createXCoreMCCodeGenInfo(StringRef TT, Reloc::Model RM,
   if (CM != CodeModel::Small && CM != CodeModel::Large)
     report_fatal_error("Target only supports CodeModel Small or Large");
 
-  X->InitMCCodeGenInfo(RM, CM, OL);
+  X->initMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
-static MCInstPrinter *createXCoreMCInstPrinter(const Target &T,
+static MCInstPrinter *createXCoreMCInstPrinter(const Triple &T,
                                                unsigned SyntaxVariant,
                                                const MCAsmInfo &MAI,
                                                const MCInstrInfo &MII,
-                                               const MCRegisterInfo &MRI,
-                                               const MCSubtargetInfo &STI) {
+                                               const MCRegisterInfo &MRI) {
   return new XCoreInstPrinter(MAI, MII, MRI);
 }
 
@@ -126,15 +125,11 @@ void XCoreTargetAsmStreamer::emitCCBottomFunction(StringRef Name) {
 }
 }
 
-static MCStreamer *
-createXCoreMCAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
-                         bool isVerboseAsm, bool useDwarfDirectory,
-                         MCInstPrinter *InstPrint, MCCodeEmitter *CE,
-                         MCAsmBackend *TAB, bool ShowInst) {
-  MCStreamer *S = llvm::createAsmStreamer(
-      Ctx, OS, isVerboseAsm, useDwarfDirectory, InstPrint, CE, TAB, ShowInst);
-  new XCoreTargetAsmStreamer(*S, OS);
-  return S;
+static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
+                                                 formatted_raw_ostream &OS,
+                                                 MCInstPrinter *InstPrint,
+                                                 bool isVerboseAsm) {
+  return new XCoreTargetAsmStreamer(S, OS);
 }
 
 // Force static initialization.
@@ -160,5 +155,6 @@ extern "C" void LLVMInitializeXCoreTargetMC() {
   TargetRegistry::RegisterMCInstPrinter(TheXCoreTarget,
                                         createXCoreMCInstPrinter);
 
-  TargetRegistry::RegisterAsmStreamer(TheXCoreTarget, createXCoreMCAsmStreamer);
+  TargetRegistry::RegisterAsmTargetStreamer(TheXCoreTarget,
+                                            createTargetAsmStreamer);
 }

@@ -64,7 +64,7 @@ define   <16 x float> @_ss16xfloat_maskz(float %a, <16 x i32> %mask1) {
 ;CHECK: vbroadcastss (%{{.*}}, %zmm
 ;CHECK: ret
 define   <16 x float> @_ss16xfloat_load(float* %a.ptr) {
-  %a = load float* %a.ptr
+  %a = load float, float* %a.ptr
   %b = insertelement <16 x float> undef, float %a, i32 0
   %c = shufflevector <16 x float> %b, <16 x float> undef, <16 x i32> zeroinitializer
   ret <16 x float> %c
@@ -74,7 +74,7 @@ define   <16 x float> @_ss16xfloat_load(float* %a.ptr) {
 ;CHECK: vbroadcastss (%rdi), %zmm0 {%k1}
 ;CHECK: ret
 define   <16 x float> @_ss16xfloat_mask_load(float* %a.ptr, <16 x float> %i, <16 x i32> %mask1) {
-  %a = load float* %a.ptr
+  %a = load float, float* %a.ptr
   %mask = icmp ne <16 x i32> %mask1, zeroinitializer
   %b = insertelement <16 x float> undef, float %a, i32 0
   %c = shufflevector <16 x float> %b, <16 x float> undef, <16 x i32> zeroinitializer
@@ -86,7 +86,7 @@ define   <16 x float> @_ss16xfloat_mask_load(float* %a.ptr, <16 x float> %i, <16
 ;CHECK: vbroadcastss (%rdi), %zmm0 {%k1} {z}
 ;CHECK: ret
 define   <16 x float> @_ss16xfloat_maskz_load(float* %a.ptr, <16 x i32> %mask1) {
-  %a = load float* %a.ptr
+  %a = load float, float* %a.ptr
   %mask = icmp ne <16 x i32> %mask1, zeroinitializer
   %b = insertelement <16 x float> undef, float %a, i32 0
   %c = shufflevector <16 x float> %b, <16 x float> undef, <16 x i32> zeroinitializer
@@ -130,7 +130,7 @@ define   <8 x double> @_sd8xdouble_maskz(double %a, <8 x i32> %mask1) {
 ;CHECK: vbroadcastsd (%rdi), %zmm
 ;CHECK: ret
 define   <8 x double> @_sd8xdouble_load(double* %a.ptr) {
-  %a = load double* %a.ptr
+  %a = load double, double* %a.ptr
   %b = insertelement <8 x double> undef, double %a, i32 0
   %c = shufflevector <8 x double> %b, <8 x double> undef, <8 x i32> zeroinitializer
   ret <8 x double> %c
@@ -140,7 +140,7 @@ define   <8 x double> @_sd8xdouble_load(double* %a.ptr) {
 ;CHECK: vbroadcastsd (%rdi), %zmm0 {%k1}
 ;CHECK: ret
 define   <8 x double> @_sd8xdouble_mask_load(double* %a.ptr, <8 x double> %i, <8 x i32> %mask1) {
-  %a = load double* %a.ptr
+  %a = load double, double* %a.ptr
   %mask = icmp ne <8 x i32> %mask1, zeroinitializer
   %b = insertelement <8 x double> undef, double %a, i32 0
   %c = shufflevector <8 x double> %b, <8 x double> undef, <8 x i32> zeroinitializer
@@ -152,7 +152,7 @@ define   <8 x double> @_sd8xdouble_maskz_load(double* %a.ptr, <8 x i32> %mask1) 
 ; CHECK-LABEL: _sd8xdouble_maskz_load:
 ; CHECK:    vbroadcastsd (%rdi), %zmm0 {%k1} {z}
 ; CHECK:    ret
-  %a = load double* %a.ptr
+  %a = load double, double* %a.ptr
   %mask = icmp ne <8 x i32> %mask1, zeroinitializer
   %b = insertelement <8 x double> undef, double %a, i32 0
   %c = shufflevector <8 x double> %b, <8 x double> undef, <8 x i32> zeroinitializer
@@ -299,4 +299,32 @@ entry:
   %vecinit6.i = insertelement <8 x double> %vecinit5.i, double %0, i32 6
   %vecinit7.i = insertelement <8 x double> %vecinit6.i, double %0, i32 7
   ret <8 x double> %vecinit7.i
+}
+
+; CHECK-LABEL: test1
+; CHECK: vbroadcastss
+define <16 x float> @test1(<8 x float>%a)  {
+  %res = shufflevector <8 x float> %a, <8 x float> undef, <16 x i32> zeroinitializer
+  ret <16 x float>%res
+}
+
+; CHECK-LABEL: test2
+; CHECK: vbroadcastsd
+define <8 x double> @test2(<4 x double>%a)  {
+  %res = shufflevector <4 x double> %a, <4 x double> undef, <8 x i32> zeroinitializer
+  ret <8 x double>%res
+}
+
+; CHECK-LABEL: test3
+; CHECK: vpbroadcastd
+define <16 x i32> @test3(<8 x i32>%a)  {
+  %res = shufflevector <8 x i32> %a, <8 x i32> undef, <16 x i32> zeroinitializer
+  ret <16 x i32>%res
+}
+
+; CHECK-LABEL: test4
+; CHECK: vpbroadcastq
+define <8 x i64> @test4(<4 x i64>%a)  {
+  %res = shufflevector <4 x i64> %a, <4 x i64> undef, <8 x i32> zeroinitializer
+  ret <8 x i64>%res
 }

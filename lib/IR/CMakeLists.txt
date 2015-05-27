@@ -11,6 +11,7 @@ add_llvm_library(LLVMCore
   DIBuilder.cpp
   DataLayout.cpp
   DebugInfo.cpp
+  DebugInfoMetadata.cpp
   DebugLoc.cpp
   DiagnosticInfo.cpp
   DiagnosticPrinter.cpp
@@ -33,6 +34,7 @@ add_llvm_library(LLVMCore
   Metadata.cpp
   MetadataTracking.cpp
   Module.cpp
+  Operator.cpp
   Pass.cpp
   PassManager.cpp
   PassRegistry.cpp
@@ -40,12 +42,14 @@ add_llvm_library(LLVMCore
   Type.cpp
   TypeFinder.cpp
   Use.cpp
-  UseListOrder.cpp
   User.cpp
   Value.cpp
   ValueSymbolTable.cpp
   ValueTypes.cpp
   Verifier.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/IR
   )
 
 add_dependencies(LLVMCore intrinsics_gen)

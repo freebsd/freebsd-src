@@ -10,12 +10,14 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/NoFolder.h"
+#include "llvm/IR/Verifier.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -24,7 +26,7 @@ namespace {
 
 class IRBuilderTest : public testing::Test {
 protected:
-  virtual void SetUp() {
+  void SetUp() override {
     M.reset(new Module("MyModule", Ctx));
     FunctionType *FTy = FunctionType::get(Type::getVoidTy(Ctx),
                                           /*isVarArg=*/false);
@@ -34,7 +36,7 @@ protected:
                             GlobalValue::ExternalLinkage, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     BB = nullptr;
     M.reset();
   }
@@ -110,9 +112,9 @@ TEST_F(IRBuilderTest, LandingPadName) {
 TEST_F(IRBuilderTest, DataLayout) {
   std::unique_ptr<Module> M(new Module("test", Ctx));
   M->setDataLayout("e-n32");
-  EXPECT_TRUE(M->getDataLayout()->isLegalInteger(32));
+  EXPECT_TRUE(M->getDataLayout().isLegalInteger(32));
   M->setDataLayout("e");
-  EXPECT_FALSE(M->getDataLayout()->isLegalInteger(32));
+  EXPECT_FALSE(M->getDataLayout().isLegalInteger(32));
 }
 
 TEST_F(IRBuilderTest, GetIntTy) {
@@ -121,7 +123,7 @@ TEST_F(IRBuilderTest, GetIntTy) {
   EXPECT_EQ(Ty1, IntegerType::get(Ctx, 1));
 
   DataLayout* DL = new DataLayout(M.get());
-  IntegerType *IntPtrTy = Builder.getIntPtrTy(DL);
+  IntegerType *IntPtrTy = Builder.getIntPtrTy(*DL);
   unsigned IntPtrBitSize =  DL->getPointerSizeInBits(0);
   EXPECT_EQ(IntPtrTy, IntegerType::get(Ctx, IntPtrBitSize));
   delete DL;
@@ -285,6 +287,38 @@ TEST_F(IRBuilderTest, RAIIHelpersTest) {
 
   EXPECT_EQ(BB->end(), Builder.GetInsertPoint());
   EXPECT_EQ(BB, Builder.GetInsertBlock());
+}
+
+TEST_F(IRBuilderTest, DIBuilder) {
+  IRBuilder<> Builder(BB);
+  DIBuilder DIB(*M);
+  auto File = DIB.createFile("F.CBL", "/");
+  auto CU = DIB.createCompileUnit(dwarf::DW_LANG_Cobol74, "F.CBL", "/",
+                                  "llvm-cobol74", true, "", 0);
+  auto Type = DIB.createSubroutineType(File, DIB.getOrCreateTypeArray(None));
+  DIB.createFunction(CU, "foo", "", File, 1, Type, false, true, 1, 0, true, F);
+  AllocaInst *I = Builder.CreateAlloca(Builder.getInt8Ty());
+  auto BarSP = DIB.createFunction(CU, "bar", "", File, 1, Type, false, true, 1,
+                                  0, true, nullptr);
+  auto BadScope = DIB.createLexicalBlockFile(BarSP, File, 0);
+  I->setDebugLoc(DebugLoc::get(2, 0, BadScope));
+  DIB.finalize();
+  EXPECT_TRUE(verifyModule(*M));
+}
+
+TEST_F(IRBuilderTest, InsertExtractElement) {
+  IRBuilder<> Builder(BB);
+
+  auto VecTy = VectorType::get(Builder.getInt64Ty(), 4);
+  auto Elt1 = Builder.getInt64(-1);
+  auto Elt2 = Builder.getInt64(-2);
+  Value *Vec = UndefValue::get(VecTy);
+  Vec = Builder.CreateInsertElement(Vec, Elt1, Builder.getInt8(1));
+  Vec = Builder.CreateInsertElement(Vec, Elt2, 2);
+  auto X1 = Builder.CreateExtractElement(Vec, 1);
+  auto X2 = Builder.CreateExtractElement(Vec, Builder.getInt32(2));
+  EXPECT_EQ(Elt1, X1);
+  EXPECT_EQ(Elt2, X2);
 }
 
 

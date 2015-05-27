@@ -1,18 +1,18 @@
-; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s --check-prefix=ELF64
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort=1 -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s --check-prefix=ELF64
 
 ; zext
 
 define i32 @zext_8_32(i8 %a) nounwind ssp {
 ; ELF64: zext_8_32
   %r = zext i8 %a to i32
-; ELF64: rlwinm {{[0-9]+}}, {{[0-9]+}}, 0, 24, 31
+; ELF64: clrlwi {{[0-9]+}}, {{[0-9]+}}, 24
   ret i32 %r
 }
 
 define i32 @zext_16_32(i16 %a) nounwind ssp {
 ; ELF64: zext_16_32
   %r = zext i16 %a to i32
-; ELF64: rlwinm {{[0-9]+}}, {{[0-9]+}}, 0, 16, 31
+; ELF64: clrlwi {{[0-9]+}}, {{[0-9]+}}, 16
   ret i32 %r
 }
 

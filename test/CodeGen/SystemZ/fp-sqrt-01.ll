@@ -19,7 +19,7 @@ define float @f2(float *%ptr) {
 ; CHECK-LABEL: f2:
 ; CHECK: sqeb %f0, 0(%r2)
 ; CHECK: br %r14
-  %val = load float *%ptr
+  %val = load float , float *%ptr
   %res = call float @llvm.sqrt.f32(float %val)
   ret float %res
 }
@@ -29,8 +29,8 @@ define float @f3(float *%base) {
 ; CHECK-LABEL: f3:
 ; CHECK: sqeb %f0, 4092(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr float *%base, i64 1023
-  %val = load float *%ptr
+  %ptr = getelementptr float, float *%base, i64 1023
+  %val = load float , float *%ptr
   %res = call float @llvm.sqrt.f32(float %val)
   ret float %res
 }
@@ -42,8 +42,8 @@ define float @f4(float *%base) {
 ; CHECK: aghi %r2, 4096
 ; CHECK: sqeb %f0, 0(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr float *%base, i64 1024
-  %val = load float *%ptr
+  %ptr = getelementptr float, float *%base, i64 1024
+  %val = load float , float *%ptr
   %res = call float @llvm.sqrt.f32(float %val)
   ret float %res
 }
@@ -54,8 +54,8 @@ define float @f5(float *%base) {
 ; CHECK: aghi %r2, -4
 ; CHECK: sqeb %f0, 0(%r2)
 ; CHECK: br %r14
-  %ptr = getelementptr float *%base, i64 -1
-  %val = load float *%ptr
+  %ptr = getelementptr float, float *%base, i64 -1
+  %val = load float , float *%ptr
   %res = call float @llvm.sqrt.f32(float %val)
   ret float %res
 }
@@ -66,9 +66,9 @@ define float @f6(float *%base, i64 %index) {
 ; CHECK: sllg %r1, %r3, 2
 ; CHECK: sqeb %f0, 400(%r1,%r2)
 ; CHECK: br %r14
-  %ptr1 = getelementptr float *%base, i64 %index
-  %ptr2 = getelementptr float *%ptr1, i64 100
-  %val = load float *%ptr2
+  %ptr1 = getelementptr float, float *%base, i64 %index
+  %ptr2 = getelementptr float, float *%ptr1, i64 100
+  %val = load float , float *%ptr2
   %res = call float @llvm.sqrt.f32(float %val)
   ret float %res
 }
@@ -79,23 +79,23 @@ define void @f7(float *%ptr) {
 ; CHECK-LABEL: f7:
 ; CHECK: sqeb {{%f[0-9]+}}, 16{{[04]}}(%r15)
 ; CHECK: br %r14
-  %val0 = load volatile float *%ptr
-  %val1 = load volatile float *%ptr
-  %val2 = load volatile float *%ptr
-  %val3 = load volatile float *%ptr
-  %val4 = load volatile float *%ptr
-  %val5 = load volatile float *%ptr
-  %val6 = load volatile float *%ptr
-  %val7 = load volatile float *%ptr
-  %val8 = load volatile float *%ptr
-  %val9 = load volatile float *%ptr
-  %val10 = load volatile float *%ptr
-  %val11 = load volatile float *%ptr
-  %val12 = load volatile float *%ptr
-  %val13 = load volatile float *%ptr
-  %val14 = load volatile float *%ptr
-  %val15 = load volatile float *%ptr
-  %val16 = load volatile float *%ptr
+  %val0 = load volatile float , float *%ptr
+  %val1 = load volatile float , float *%ptr
+  %val2 = load volatile float , float *%ptr
+  %val3 = load volatile float , float *%ptr
+  %val4 = load volatile float , float *%ptr
+  %val5 = load volatile float , float *%ptr
+  %val6 = load volatile float , float *%ptr
+  %val7 = load volatile float , float *%ptr
+  %val8 = load volatile float , float *%ptr
+  %val9 = load volatile float , float *%ptr
+  %val10 = load volatile float , float *%ptr
+  %val11 = load volatile float , float *%ptr
+  %val12 = load volatile float , float *%ptr
+  %val13 = load volatile float , float *%ptr
+  %val14 = load volatile float , float *%ptr
+  %val15 = load volatile float , float *%ptr
+  %val16 = load volatile float , float *%ptr
 
   %sqrt0 = call float @llvm.sqrt.f32(float %val0)
   %sqrt1 = call float @llvm.sqrt.f32(float %val1)

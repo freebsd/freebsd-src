@@ -45,7 +45,7 @@ class MachineCombiner : public MachineFunctionPass {
 
   TargetSchedModel TSchedModel;
 
-  /// OptSize - True if optimizing for code size.
+  /// True if optimizing for code size.
   bool OptSize;
 
 public:
@@ -109,7 +109,7 @@ MachineInstr *MachineCombiner::getOperandDef(const MachineOperand &MO) {
   return DefInstr;
 }
 
-/// getDepth - Computes depth of instructions in vector \InsInstr.
+/// Computes depth of instructions in vector \InsInstr.
 ///
 /// \param InsInstrs is a vector of machine instructions
 /// \param InstrIdxForVirtReg is a dense map of virtual register to index
@@ -125,14 +125,13 @@ MachineCombiner::getDepth(SmallVectorImpl<MachineInstr *> &InsInstrs,
   SmallVector<unsigned, 16> InstrDepth;
   assert(TSchedModel.hasInstrSchedModel() && "Missing machine model\n");
 
-  // Foreach instruction in in the new sequence compute the depth based on the
+  // For each instruction in the new sequence compute the depth based on the
   // operands. Use the trace information when possible. For new operands which
   // are tracked in the InstrIdxForVirtReg map depth is looked up in InstrDepth
   for (auto *InstrPtr : InsInstrs) { // for each Use
     unsigned IDepth = 0;
     DEBUG(dbgs() << "NEW INSTR "; InstrPtr->dump(); dbgs() << "\n";);
-    for (unsigned i = 0, e = InstrPtr->getNumOperands(); i != e; ++i) {
-      const MachineOperand &MO = InstrPtr->getOperand(i);
+    for (const MachineOperand &MO : InstrPtr->operands()) {
       // Check for virtual register operand.
       if (!(MO.isReg() && TargetRegisterInfo::isVirtualRegister(MO.getReg())))
         continue;
@@ -169,8 +168,7 @@ MachineCombiner::getDepth(SmallVectorImpl<MachineInstr *> &InsInstrs,
   return InstrDepth[NewRootIdx];
 }
 
-/// getLatency - Computes instruction latency as max of latency of defined
-/// operands
+/// Computes instruction latency as max of latency of defined operands.
 ///
 /// \param Root is a machine instruction that could be replaced by NewRoot.
 /// It is used to compute a more accurate latency information for NewRoot in
@@ -187,8 +185,7 @@ unsigned MachineCombiner::getLatency(MachineInstr *Root, MachineInstr *NewRoot,
   // Check each definition in NewRoot and compute the latency
   unsigned NewRootLatency = 0;
 
-  for (unsigned i = 0, e = NewRoot->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = NewRoot->getOperand(i);
+  for (const MachineOperand &MO : NewRoot->operands()) {
     // Check for virtual register operand.
     if (!(MO.isReg() && TargetRegisterInfo::isVirtualRegister(MO.getReg())))
       continue;
@@ -211,12 +208,12 @@ unsigned MachineCombiner::getLatency(MachineInstr *Root, MachineInstr *NewRoot,
   return NewRootLatency;
 }
 
-/// preservesCriticalPathlen - True when the new instruction sequence does not
+/// True when the new instruction sequence does not
 /// lengthen the critical path. The DAGCombine code sequence ends in MI
 /// (Machine Instruction) Root. The new code sequence ends in MI NewRoot. A
 /// necessary condition for the new sequence to replace the old sequence is that
-/// is cannot lengthen the critical path. This is decided by the formula
-/// (NewRootDepth + NewRootLatency) <=  (RootDepth + RootLatency + RootSlack)).
+/// it cannot lengthen the critical path. This is decided by the formula
+/// (NewRootDepth + NewRootLatency) <= (RootDepth + RootLatency + RootSlack)).
 /// The slack is the number of cycles Root can be delayed before the critical
 /// patch becomes longer.
 bool MachineCombiner::preservesCriticalPathLen(
@@ -264,8 +261,7 @@ void MachineCombiner::instr2instrSC(
     InstrsSC.push_back(SC);
   }
 }
-/// preservesResourceLen - True when the new instructions do not increase
-/// resource length
+/// True when the new instructions do not increase resource length
 bool MachineCombiner::preservesResourceLen(
     MachineBasicBlock *MBB, MachineTraceMetrics::Trace BlockTrace,
     SmallVectorImpl<MachineInstr *> &InsInstrs,
@@ -300,7 +296,7 @@ bool MachineCombiner::preservesResourceLen(
 }
 
 /// \returns true when new instruction sequence should be generated
-/// independent if it lenghtens critical path or not
+/// independent if it lengthens critical path or not
 bool MachineCombiner::doSubstitute(unsigned NewSize, unsigned OldSize) {
   if (OptSize && (NewSize < OldSize))
     return true;
@@ -309,7 +305,7 @@ bool MachineCombiner::doSubstitute(unsigned NewSize, unsigned OldSize) {
   return false;
 }
 
-/// combineInstructions - substitute a slow code sequence with a faster one by
+/// Substitute a slow code sequence with a faster one by
 /// evaluating instruction combining pattern.
 /// The prototype of such a pattern is MUl + ADD -> MADD. Performs instruction
 /// combining based on machine trace metrics. Only combine a sequence of
@@ -370,7 +366,7 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
           continue;
         // Substitute when we optimize for codesize and the new sequence has
         // fewer instructions OR
-        // the new sequence neither lenghten the critical path nor increases
+        // the new sequence neither lengthens the critical path nor increases
         // resource pressure.
         if (doSubstitute(InsInstrs.size(), DelInstrs.size()) ||
             (preservesCriticalPathLen(MBB, &MI, BlockTrace, InsInstrs,
@@ -406,8 +402,7 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
 }
 
 bool MachineCombiner::runOnMachineFunction(MachineFunction &MF) {
-  const TargetSubtargetInfo &STI =
-      MF.getTarget().getSubtarget<TargetSubtargetInfo>();
+  const TargetSubtargetInfo &STI = MF.getSubtarget();
   TII = STI.getInstrInfo();
   TRI = STI.getRegisterInfo();
   SchedModel = STI.getSchedModel();
@@ -416,8 +411,7 @@ bool MachineCombiner::runOnMachineFunction(MachineFunction &MF) {
   Traces = &getAnalysis<MachineTraceMetrics>();
   MinInstr = 0;
 
-  OptSize = MF.getFunction()->getAttributes().hasAttribute(
-      AttributeSet::FunctionIndex, Attribute::OptimizeForSize);
+  OptSize = MF.getFunction()->hasFnAttribute(Attribute::OptimizeForSize);
 
   DEBUG(dbgs() << getPassName() << ": " << MF.getName() << '\n');
   if (!TII->useMachineCombiner()) {

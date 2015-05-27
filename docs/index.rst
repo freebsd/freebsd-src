@@ -1,6 +1,11 @@
 Overview
 ========
 
+.. warning::
+
+   If you are using a released version of LLVM, see `the download page
+   <http://llvm.org/releases/>`_ to find your documentation.
+
 The LLVM compiler infrastructure supports a wide range of projects, from
 industrial strength compilers to specialized JIT applications to small
 research projects.
@@ -65,6 +70,7 @@ representation.
    CommandGuide/index
    GettingStarted
    GettingStartedVS
+   BuildingLLVMWithAutotools
    FAQ
    Lexicon
    HowToAddABuilder
@@ -78,6 +84,7 @@ representation.
    Passes
    YamlIO
    GetElementPtr
+   Frontend/PerformanceTips
    MCJITDesignAndImplementation
 
 :doc:`GettingStarted`
@@ -98,6 +105,10 @@ representation.
 :doc:`GettingStartedVS`
    An addendum to the main Getting Started guide for those using Visual Studio
    on Windows.
+
+:doc:`BuildingLLVMWithAutotools`
+   An addendum to the Getting Started guide with instructions for building LLVM
+   with the Autotools build system.
 
 :doc:`tutorial/index`
    Tutorials about using LLVM. Includes a tutorial about making a custom
@@ -145,6 +156,11 @@ representation.
   Answers to some very frequent questions about LLVM's most frequently
   misunderstood instruction.
 
+:doc:`Frontend/PerformanceTips`
+   A collection of tips for frontend authors on how to generate IR 
+   which LLVM is able to effectively optimize.
+
+
 Programming Documentation
 =========================
 
@@ -161,6 +177,7 @@ For developers of applications which use LLVM as a library.
    HowToSetUpLLVMStyleRTTI
    ProgrammersManual
    Extensions
+   LibFuzzer
 
 :doc:`LLVM Language Reference Manual <LangRef>`
   Defines the LLVM intermediate representation and the assembly form of the
@@ -202,6 +219,9 @@ For developers of applications which use LLVM as a library.
 :doc:`CompilerWriterInfo`
   A list of helpful links for compiler writers.
 
+:doc:`LibFuzzer`
+  A library for writing in-process guided fuzzers.
+
 Subsystem Documentation
 =======================
 
@@ -239,6 +259,7 @@ For API clients and LLVM developers.
    CoverageMappingFormat
    Statepoints
    MergeFunctions
+   BitSets
 
 :doc:`WritingAnLLVMPass`
    Information on how to write LLVM transformations and analyses.
@@ -337,6 +358,9 @@ For API clients and LLVM developers.
 
 :doc:`MergeFunctions`
   Describes functions merging optimization.
+
+:doc:`InAlloca`
+  Description of the ``inalloca`` argument attribute.
 
 Development Process Documentation
 =================================

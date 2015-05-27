@@ -169,11 +169,11 @@ entry:
 ; CHECK: testPR4485
 define void @testPR4485(x86_fp80* %a) {
 entry:
-	%0 = load x86_fp80* %a, align 16
+	%0 = load x86_fp80, x86_fp80* %a, align 16
 	%1 = fmul x86_fp80 %0, 0xK4006B400000000000000
 	%2 = fmul x86_fp80 %1, 0xK4012F424000000000000
 	tail call void asm sideeffect "fistpl $0", "{st},~{st}"(x86_fp80 %2)
-	%3 = load x86_fp80* %a, align 16
+	%3 = load x86_fp80, x86_fp80* %a, align 16
 	%4 = fmul x86_fp80 %3, 0xK4006B400000000000000
 	%5 = fmul x86_fp80 %4, 0xK4012F424000000000000
 	tail call void asm sideeffect "fistpl $0", "{st},~{st}"(x86_fp80 %5)
@@ -367,7 +367,7 @@ entry:
 ; Function Attrs: ssp
 define void @test_live_st(i32 %a1) {
 entry:
-  %0 = load x86_fp80* undef, align 16
+  %0 = load x86_fp80, x86_fp80* undef, align 16
   %cond = icmp eq i32 %a1, 1
   br i1 %cond, label %sw.bb4.i, label %_Z5tointRKe.exit
 
@@ -380,7 +380,7 @@ _Z5tointRKe.exit:
   %result.0.i = phi x86_fp80 [ %1, %sw.bb4.i ], [ %0, %entry ]
   %conv.i1814 = fptosi x86_fp80 %result.0.i to i32
   %conv626 = sitofp i32 %conv.i1814 to x86_fp80
-  store x86_fp80 %conv626, x86_fp80* getelementptr inbounds (%struct.fpu_t* @fpu, i32 0, i32 1)
+  store x86_fp80 %conv626, x86_fp80* getelementptr inbounds (%struct.fpu_t, %struct.fpu_t* @fpu, i32 0, i32 1)
   br label %return
 
 return:

@@ -130,6 +130,45 @@ TEST(YAMLParser, ParsesArrayOfArrays) {
   ExpectParseSuccess("Array of arrays", "[[]]");
 }
 
+TEST(YAMLParser, ParsesBlockLiteralScalars) {
+  ExpectParseSuccess("Block literal scalar", "test: |\n  Hello\n  World\n");
+  ExpectParseSuccess("Block literal scalar EOF", "test: |\n  Hello\n  World");
+  ExpectParseSuccess("Empty block literal scalar header EOF", "test: | ");
+  ExpectParseSuccess("Empty block literal scalar", "test: |\ntest2: 20");
+  ExpectParseSuccess("Empty block literal scalar 2", "- | \n  \n\n \n- 42");
+  ExpectParseSuccess("Block literal scalar in sequence",
+                     "- |\n  Testing\n  Out\n\n- 22");
+  ExpectParseSuccess("Block literal scalar in document",
+                     "--- |\n  Document\n...");
+  ExpectParseSuccess("Empty non indented lines still count",
+                     "- |\n  First line\n \n\n  Another line\n\n- 2");
+  ExpectParseSuccess("Comment in block literal scalar header",
+                     "test: | # Comment \n  No Comment\ntest 2: | # Void");
+  ExpectParseSuccess("Chomping indicators in block literal scalar header",
+                     "test: |- \n  Hello\n\ntest 2: |+ \n\n  World\n\n\n");
+  ExpectParseSuccess("Indent indicators in block literal scalar header",
+                     "test: |1 \n  \n Hello \n  World\n");
+  ExpectParseSuccess("Chomping and indent indicators in block literals",
+                     "test: |-1\n Hello\ntest 2: |9+\n         World");
+  ExpectParseSuccess("Trailing comments in block literals",
+                     "test: |\n  Content\n # Trailing\n  #Comment\ntest 2: 3");
+  ExpectParseError("Invalid block scalar header", "test: | failure");
+  ExpectParseError("Invalid line indentation", "test: |\n  First line\n Error");
+  ExpectParseError("Long leading space line", "test: |\n   \n  Test\n");
+}
+
+TEST(YAMLParser, NullTerminatedBlockScalars) {
+  SourceMgr SM;
+  yaml::Stream Stream("test: |\n  Hello\n  World\n", SM);
+  yaml::Document &Doc = *Stream.begin();
+  yaml::MappingNode *Map = cast<yaml::MappingNode>(Doc.getRoot());
+  StringRef Value =
+      cast<yaml::BlockScalarNode>(Map->begin()->getValue())->getValue();
+
+  EXPECT_EQ(Value, "Hello\nWorld\n");
+  EXPECT_EQ(Value.data()[Value.size()], '\0');
+}
+
 TEST(YAMLParser, HandlesEndOfFileGracefully) {
   ExpectParseError("In string starting with EOF", "[\"");
   ExpectParseError("In string hitting EOF", "[\"   ");
@@ -139,6 +178,10 @@ TEST(YAMLParser, HandlesEndOfFileGracefully) {
   ExpectParseError("In array hitting EOF", "[[] ");
   ExpectParseError("In array hitting EOF", "[[]");
   ExpectParseError("In object hitting EOF", "{\"\"");
+}
+
+TEST(YAMLParser, HandlesNullValuesInKeyValueNodesGracefully) {
+  ExpectParseError("KeyValueNode with null value", "test: '");
 }
 
 // Checks that the given string can be parsed into an identical string inside

@@ -204,7 +204,7 @@ define void @f34()
 ; CHECK: define void @f34()
 {
         call void @nobuiltin() nobuiltin
-; CHECK: call void @nobuiltin() #25
+; CHECK: call void @nobuiltin() #26
         ret void;
 }
 
@@ -245,6 +245,17 @@ define void @f41(i8* align 32, double* align 64) {
         ret void
 }
 
+; CHECK: define dereferenceable_or_null(8) i8* @f42(i8* dereferenceable_or_null(8) %foo)
+define dereferenceable_or_null(8) i8* @f42(i8* dereferenceable_or_null(8) %foo) {
+ entry:
+  ret i8* %foo
+}
+
+; CHECK: define void @f43() #25
+define void @f43() convergent {
+  ret void
+}
+
 ; CHECK: attributes #0 = { noreturn }
 ; CHECK: attributes #1 = { nounwind }
 ; CHECK: attributes #2 = { readnone }
@@ -270,4 +281,5 @@ define void @f41(i8* align 32, double* align 64) {
 ; CHECK: attributes #22 = { minsize }
 ; CHECK: attributes #23 = { noinline optnone }
 ; CHECK: attributes #24 = { jumptable }
-; CHECK: attributes #25 = { nobuiltin }
+; CHECK: attributes #25 = { convergent }
+; CHECK: attributes #26 = { nobuiltin }

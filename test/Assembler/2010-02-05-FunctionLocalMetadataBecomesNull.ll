@@ -7,15 +7,15 @@ target triple = "x86_64-apple-darwin10.2"
 %struct.anon = type { i32, i32 }
 %struct.test = type { i64, %struct.anon, %struct.test* }
 
-@TestArrayPtr = global %struct.test* getelementptr inbounds ([10 x %struct.test]* @TestArray, i64 0, i64 3) ; <%struct.test**> [#uses=1]
+@TestArrayPtr = global %struct.test* getelementptr inbounds ([10 x %struct.test], [10 x %struct.test]* @TestArray, i64 0, i64 3) ; <%struct.test**> [#uses=1]
 @TestArray = common global [10 x %struct.test] zeroinitializer, align 32 ; <[10 x %struct.test]*> [#uses=2]
 
 define i32 @main() nounwind readonly {
   %diff1 = alloca i64                             ; <i64*> [#uses=2]
 ; CHECK: call void @llvm.dbg.value(metadata i64 72,
-  call void @llvm.dbg.declare(metadata i64* %diff1, metadata !0, metadata !{!"0x102"})
+  call void @llvm.dbg.declare(metadata i64* %diff1, metadata !0, metadata !DIExpression()), !dbg !DILocation(scope: !1)
   store i64 72, i64* %diff1, align 8
-  %v1 = load %struct.test** @TestArrayPtr, align 8 ; <%struct.test*> [#uses=1]
+  %v1 = load %struct.test*, %struct.test** @TestArrayPtr, align 8 ; <%struct.test*> [#uses=1]
   %v2 = ptrtoint %struct.test* %v1 to i64 ; <i64> [#uses=1]
   %v3 = sub i64 %v2, ptrtoint ([10 x %struct.test]* @TestArray to i64) ; <i64> [#uses=1]
   store i64 %v3, i64* %diff1, align 8
@@ -25,15 +25,15 @@ define i32 @main() nounwind readonly {
 declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 
 !7 = !{!1}
-!6 = !{!"0x11\0012\00clang version 3.0 (trunk 131941)\001\00\000\00\000", !8, !9, !9, !7, null, null} ; [ DW_TAG_compile_unit ]
-!0 = !{!"0x100\00c\002\000", !1, !2, !5} ; [ DW_TAG_auto_variable ]
-!1 = !{!"0x2e\00main\00main\00\001\000\001\000\006\00256\000\001", !8, !2, !3, null, i32 ()* @main, null, null, null} ; [ DW_TAG_subprogram ]
-!2 = !{!"0x29", !8} ; [ DW_TAG_file_type ]
-!3 = !{!"0x15\00\000\000\000\000\000\000", !8, !2, null, !4, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!6 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 (trunk 131941)", isOptimized: true, emissionKind: 0, file: !8, enums: !9, retainedTypes: !9, subprograms: !7)
+!0 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "c", line: 2, scope: !1, file: !2, type: !5)
+!1 = !DISubprogram(name: "main", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !8, scope: !2, type: !3, function: i32 ()* @main)
+!2 = !DIFile(filename: "/d/j/debug-test.c", directory: "/Volumes/Data/b")
+!3 = !DISubroutineType(types: !4)
 !4 = !{!5}
-!5 = !{!"0x24\00int\000\0032\0032\000\000\005", null, !6} ; [ DW_TAG_base_type ]
-!8 = !{!"/d/j/debug-test.c", !"/Volumes/Data/b"}
+!5 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!8 = !DIFile(filename: "/d/j/debug-test.c", directory: "/Volumes/Data/b")
 !9 = !{i32 0}
 
 !llvm.module.flags = !{!10}
-!10 = !{i32 1, !"Debug Info Version", i32 2}
+!10 = !{i32 1, !"Debug Info Version", i32 3}

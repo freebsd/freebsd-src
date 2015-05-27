@@ -35,7 +35,7 @@ define arm_aapcscc void @irq_fn() alignstack(8) "interrupt"="IRQ" {
   ; Normal AAPCS function (r0-r3 pushed onto stack by hardware, lr set to
   ; appropriate sentinel so no special return needed).
 ; CHECK-M-LABEL: irq_fn:
-; CHECK-M: push.w {r4, r10, r11, lr}
+; CHECK-M: push.w {r4, r7, r11, lr}
 ; CHECK-M: add.w r11, sp, #8
 ; CHECK-M: mov r4, sp
 ; CHECK-M: bfc r4, #0, #3
@@ -43,7 +43,7 @@ define arm_aapcscc void @irq_fn() alignstack(8) "interrupt"="IRQ" {
 ; CHECK-M: bl _bar
 ; CHECK-M: sub.w r4, r11, #8
 ; CHECK-M: mov sp, r4
-; CHECK-M: pop.w {r4, r10, r11, pc}
+; CHECK-M: pop.w {r4, r7, r11, pc}
 
   call arm_aapcscc void @bar()
   ret void
@@ -65,7 +65,7 @@ define arm_aapcscc void @fiq_fn() alignstack(8) "interrupt"="FIQ" {
 
 ; CHECK-A-THUMB-LABEL: fiq_fn:
 ; CHECK-M-LABEL: fiq_fn:
-  %val = load volatile [16 x i32]* @bigvar
+  %val = load volatile [16 x i32], [16 x i32]* @bigvar
   store volatile [16 x i32] %val, [16 x i32]* @bigvar
   ret void
 }
@@ -81,7 +81,7 @@ define arm_aapcscc void @swi_fn() alignstack(8) "interrupt"="SWI" {
 ; CHECK-A: pop {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, lr}
 ; CHECK-A: subs pc, lr, #0
 
-  %val = load volatile [16 x i32]* @bigvar
+  %val = load volatile [16 x i32], [16 x i32]* @bigvar
   store volatile [16 x i32] %val, [16 x i32]* @bigvar
   ret void
 }
@@ -126,8 +126,8 @@ define arm_aapcscc void @floating_fn() alignstack(8) "interrupt"="IRQ" {
 ; CHECK-A-NOT: vstr
 ; CHECK-A-NOT: vstm
 ; CHECK-A: vadd.f64 {{d[0-9]+}}, {{d[0-9]+}}, {{d[0-9]+}}
-  %lhs = load volatile double* @var
-  %rhs = load volatile double* @var
+  %lhs = load volatile double, double* @var
+  %rhs = load volatile double, double* @var
   %sum = fadd double %lhs, %rhs
   store double %sum, double* @var
   ret void

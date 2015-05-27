@@ -26,6 +26,7 @@
 # CHECK-EL: sh16    $4, 8($17)      # encoding: [0x14,0xaa]
 # CHECK-EL: sw16    $4, 4($17)      # encoding: [0x11,0xea]
 # CHECK-EL: sw16    $zero, 4($17)   # encoding: [0x11,0xe8]
+# CHECK-EL: lw      $3, 32($gp)     # encoding: [0x88,0x65]
 # CHECK-EL: lw      $3, 32($sp)     # encoding: [0x68,0x48]
 # CHECK-EL: sw      $4, 124($sp)    # encoding: [0x9f,0xc8]
 # CHECK-EL: li16    $3, -1          # encoding: [0xff,0xed]
@@ -42,6 +43,7 @@
 # CHECK-EL: mfhi    $9              # encoding: [0x09,0x46]
 # CHECK-EL: mflo    $9              # encoding: [0x49,0x46]
 # CHECK-EL: move    $25, $1         # encoding: [0x21,0x0f]
+# CHECK-EL: movep   $5, $6, $2, $3  # encoding: [0x34,0x84]
 # CHECK-EL: jrc     $9              # encoding: [0xa9,0x45]
 # CHECK-NEXT: jalr    $9            # encoding: [0xc9,0x45]
 # CHECK-EL: jraddiusp 20            # encoding: [0x05,0x47]
@@ -53,6 +55,10 @@
 # CHECK-EL: nop                     # encoding: [0x00,0x00,0x00,0x00]
 # CHECK-EL: bnez16 $6, 20           # encoding: [0x0a,0xaf]
 # CHECK-EL: nop                     # encoding: [0x00,0x00,0x00,0x00]
+# CHECK-EL: b16 132                 # encoding: [0x42,0xcc]
+# CHECK-EL: nop
+# CHECK-EL: b16 132                 # encoding: [0x42,0xcc]
+# CHECK-EL: nop
 # CHECK-EL: break16 8               # encoding: [0x88,0x46]
 # CHECK-EL: sdbbp16 14              # encoding: [0xce,0x46]
 #------------------------------------------------------------------------------
@@ -75,6 +81,7 @@
 # CHECK-EB: sh16    $4, 8($17)      # encoding: [0xaa,0x14]
 # CHECK-EB: sw16    $4, 4($17)      # encoding: [0xea,0x11]
 # CHECK-EB: sw16    $zero, 4($17)   # encoding: [0xe8,0x11]
+# CHECK-EB: lw      $3, 32($gp)     # encoding: [0x65,0x88]
 # CHECK-EB: lw      $3, 32($sp)     # encoding: [0x48,0x68]
 # CHECK-EB: sw      $4, 124($sp)    # encoding: [0xc8,0x9f]
 # CHECK-EB: li16    $3, -1          # encoding: [0xed,0xff]
@@ -91,6 +98,7 @@
 # CHECK-EB: mfhi    $9              # encoding: [0x46,0x09]
 # CHECK-EB: mflo    $9              # encoding: [0x46,0x49]
 # CHECK-EB: move    $25, $1         # encoding: [0x0f,0x21]
+# CHECK-EB: movep   $5, $6, $2, $3  # encoding: [0x84,0x34]
 # CHECK-EB: jrc     $9              # encoding: [0x45,0xa9]
 # CHECK-NEXT: jalr    $9            # encoding: [0x45,0xc9]
 # CHECK-EB: jraddiusp 20            # encoding: [0x47,0x05]
@@ -102,6 +110,10 @@
 # CHECK-EB: nop                     # encoding: [0x00,0x00,0x00,0x00]
 # CHECK-EB: bnez16 $6, 20           # encoding: [0xaf,0x0a]
 # CHECK-EB: nop                     # encoding: [0x00,0x00,0x00,0x00]
+# CHECK-EB: b16 132                 # encoding: [0xcc,0x42]
+# CHECK-EB: nop
+# CHECK-EB: b16 132                 # encoding: [0xcc,0x42]
+# CHECK-EB: nop
 # CHECK-EB: break16 8               # encoding: [0x46,0x88]
 # CHECK-EB: sdbbp16 14              # encoding: [0x46,0xce]
 
@@ -122,6 +134,7 @@
     sh16    $4, 8($17)
     sw16    $4, 4($17)
     sw16    $0, 4($17)
+    lw      $3, 32($gp)
     lw      $3, 32($sp)
     sw      $4, 124($sp)
     li16    $3, -1
@@ -138,6 +151,7 @@
     mfhi    $9
     mflo    $9
     move    $25, $1
+    movep   $5, $6, $2, $3
     jrc     $9
     jalr    $9
     jraddiusp 20
@@ -145,5 +159,7 @@
     jr16    $9
     beqz16 $6, 20
     bnez16 $6, 20
+    b   132
+    b16 132
     break16 8
     sdbbp16 14

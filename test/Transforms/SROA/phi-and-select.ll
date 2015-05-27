@@ -7,12 +7,12 @@ entry:
 	%a = alloca [2 x i32]
 ; CHECK-NOT: alloca
 
-  %a0 = getelementptr [2 x i32]* %a, i64 0, i32 0
-  %a1 = getelementptr [2 x i32]* %a, i64 0, i32 1
+  %a0 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 0
+  %a1 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
 	store i32 0, i32* %a0
 	store i32 1, i32* %a1
-	%v0 = load i32* %a0
-	%v1 = load i32* %a1
+	%v0 = load i32, i32* %a0
+	%v1 = load i32, i32* %a1
 ; CHECK-NOT: store
 ; CHECK-NOT: load
 
@@ -26,7 +26,7 @@ exit:
 	%phi = phi i32* [ %a1, %then ], [ %a0, %entry ]
 ; CHECK: phi i32 [ 1, %{{.*}} ], [ 0, %{{.*}} ]
 
-	%result = load i32* %phi
+	%result = load i32, i32* %phi
 	ret i32 %result
 }
 
@@ -36,12 +36,12 @@ entry:
 	%a = alloca [2 x i32]
 ; CHECK-NOT: alloca
 
-  %a0 = getelementptr [2 x i32]* %a, i64 0, i32 0
-  %a1 = getelementptr [2 x i32]* %a, i64 0, i32 1
+  %a0 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 0
+  %a1 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
 	store i32 0, i32* %a0
 	store i32 1, i32* %a1
-	%v0 = load i32* %a0
-	%v1 = load i32* %a1
+	%v0 = load i32, i32* %a0
+	%v1 = load i32, i32* %a1
 ; CHECK-NOT: store
 ; CHECK-NOT: load
 
@@ -49,7 +49,7 @@ entry:
 	%select = select i1 %cond, i32* %a1, i32* %a0
 ; CHECK: select i1 %{{.*}}, i32 1, i32 0
 
-	%result = load i32* %select
+	%result = load i32, i32* %select
 	ret i32 %result
 }
 
@@ -62,10 +62,10 @@ entry:
   ; Note that we build redundant GEPs here to ensure that having different GEPs
   ; into the same alloca partation continues to work with PHI speculation. This
   ; was the underlying cause of PR13926.
-  %a0 = getelementptr [2 x i32]* %a, i64 0, i32 0
-  %a0b = getelementptr [2 x i32]* %a, i64 0, i32 0
-  %a1 = getelementptr [2 x i32]* %a, i64 0, i32 1
-  %a1b = getelementptr [2 x i32]* %a, i64 0, i32 1
+  %a0 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 0
+  %a0b = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 0
+  %a1 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
+  %a1b = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
 	store i32 0, i32* %a0
 	store i32 1, i32* %a1
 ; CHECK-NOT: store
@@ -100,7 +100,7 @@ exit:
                   [ %a1b, %bb4 ], [ %a0b, %bb5 ], [ %a0b, %bb6 ], [ %a1b, %bb7 ]
 ; CHECK: phi i32 [ 1, %{{.*}} ], [ 0, %{{.*}} ], [ 0, %{{.*}} ], [ 1, %{{.*}} ], [ 1, %{{.*}} ], [ 0, %{{.*}} ], [ 0, %{{.*}} ], [ 1, %{{.*}} ]
 
-	%result = load i32* %phi
+	%result = load i32, i32* %phi
 	ret i32 %result
 }
 
@@ -110,12 +110,12 @@ entry:
 	%a = alloca [2 x i32]
 ; CHECK-NOT: alloca
 
-  %a0 = getelementptr [2 x i32]* %a, i64 0, i32 0
-  %a1 = getelementptr [2 x i32]* %a, i64 0, i32 1
+  %a0 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 0
+  %a1 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
 	store i32 0, i32* %a0
 	store i32 1, i32* %a1
-	%v0 = load i32* %a0
-	%v1 = load i32* %a1
+	%v0 = load i32, i32* %a0
+	%v1 = load i32, i32* %a1
 ; CHECK-NOT: store
 ; CHECK-NOT: load
 
@@ -123,7 +123,7 @@ entry:
 	%select = select i1 %cond, i32* %a0, i32* %a0
 ; CHECK-NOT: select
 
-	%result = load i32* %select
+	%result = load i32, i32* %select
 	ret i32 %result
 ; CHECK: ret i32 0
 }
@@ -134,14 +134,14 @@ entry:
 	%a = alloca [2 x i32]
 ; CHECK-NOT: alloca
 
-  %a1 = getelementptr [2 x i32]* %a, i64 0, i32 1
+  %a1 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
 	store i32 1, i32* %a1
 ; CHECK-NOT: store
 
 	%select = select i1 true, i32* %a1, i32* %b
 ; CHECK-NOT: select
 
-	%result = load i32* %select
+	%result = load i32, i32* %select
 ; CHECK-NOT: load
 
 	ret i32 %result
@@ -157,7 +157,7 @@ entry:
   %c = alloca i32
 ; CHECK-NOT: alloca
 
-  %a1 = getelementptr [2 x i32]* %a, i64 0, i32 1
+  %a1 = getelementptr [2 x i32], [2 x i32]* %a, i64 0, i32 1
 	store i32 1, i32* %a1
 
 	%select = select i1 true, i32* %a1, i32* %b
@@ -172,10 +172,10 @@ entry:
 ; CHECK: call void @f(i32* %[[select2]], i32* %[[select3]])
 
 
-	%result = load i32* %select
+	%result = load i32, i32* %select
 ; CHECK-NOT: load
 
-  %dead = load i32* %c
+  %dead = load i32, i32* %c
 
 	ret i32 %result
 ; CHECK: ret i32 1
@@ -190,19 +190,19 @@ entry:
   br i1 undef, label %good, label %bad
 
 good:
-  %Y1 = getelementptr i32* %X, i64 0
+  %Y1 = getelementptr i32, i32* %X, i64 0
   store i32 0, i32* %Y1
   br label %exit
 
 bad:
-  %Y2 = getelementptr i32* %X, i64 1
+  %Y2 = getelementptr i32, i32* %X, i64 1
   store i32 0, i32* %Y2
   br label %exit
 
 exit:
 	%P = phi i32* [ %Y1, %good ], [ %Y2, %bad ]
 ; CHECK: %[[phi:.*]] = phi i32 [ 0, %good ],
-  %Z2 = load i32* %P
+  %Z2 = load i32, i32* %P
   ret i32 %Z2
 ; CHECK: ret i32 %[[phi]]
 }
@@ -213,7 +213,7 @@ define i32 @test8(i32 %b, i32* %ptr) {
 ; CHECK-LABEL: @test8(
 ; CHECK-NOT: alloca
 ; CHECK-NOT: load
-; CHECK: %[[value:.*]] = load i32* %ptr
+; CHECK: %[[value:.*]] = load i32, i32* %ptr
 ; CHECK-NOT: load
 ; CHECK: %[[result:.*]] = phi i32 [ undef, %else ], [ %[[value]], %then ]
 ; CHECK-NEXT: ret i32 %[[result]]
@@ -232,7 +232,7 @@ else:
 
 exit:
   %phi = phi i32* [ %bitcast, %else ], [ %ptr, %then ]
-  %loaded = load i32* %phi, align 4
+  %loaded = load i32, i32* %phi, align 4
   ret i32 %loaded
 }
 
@@ -241,7 +241,7 @@ define i32 @test9(i32 %b, i32* %ptr) {
 ; CHECK-LABEL: @test9(
 ; CHECK-NOT: alloca
 ; CHECK-NOT: load
-; CHECK: %[[value:.*]] = load i32* %ptr
+; CHECK: %[[value:.*]] = load i32, i32* %ptr
 ; CHECK-NOT: load
 ; CHECK: %[[result:.*]] = select i1 %{{.*}}, i32 undef, i32 %[[value]]
 ; CHECK-NEXT: ret i32 %[[result]]
@@ -252,7 +252,7 @@ entry:
   %test = icmp ne i32 %b, 0
   %bitcast = bitcast float* %f to i32*
   %select = select i1 %test, i32* %bitcast, i32* %ptr
-  %loaded = load i32* %select, align 4
+  %loaded = load i32, i32* %select, align 4
   ret i32 %loaded
 }
 
@@ -262,9 +262,9 @@ define float @test10(i32 %b, float* %ptr) {
 ; node.
 ; CHECK-LABEL: @test10(
 ; CHECK: %[[alloca:.*]] = alloca
-; CHECK: %[[argvalue:.*]] = load float* %ptr
+; CHECK: %[[argvalue:.*]] = load float, float* %ptr
 ; CHECK: %[[cast:.*]] = bitcast double* %[[alloca]] to float*
-; CHECK: %[[allocavalue:.*]] = load float* %[[cast]]
+; CHECK: %[[allocavalue:.*]] = load float, float* %[[cast]]
 ; CHECK: %[[result:.*]] = phi float [ %[[allocavalue]], %else ], [ %[[argvalue]], %then ]
 ; CHECK-NEXT: ret float %[[result]]
 
@@ -283,7 +283,7 @@ else:
 
 exit:
   %phi = phi float* [ %bitcast, %else ], [ %ptr, %then ]
-  %loaded = load float* %phi, align 4
+  %loaded = load float, float* %phi, align 4
   ret float %loaded
 }
 
@@ -292,8 +292,8 @@ define float @test11(i32 %b, float* %ptr) {
 ; CHECK-LABEL: @test11(
 ; CHECK: %[[alloca:.*]] = alloca
 ; CHECK: %[[cast:.*]] = bitcast double* %[[alloca]] to float*
-; CHECK: %[[allocavalue:.*]] = load float* %[[cast]]
-; CHECK: %[[argvalue:.*]] = load float* %ptr
+; CHECK: %[[allocavalue:.*]] = load float, float* %[[cast]]
+; CHECK: %[[argvalue:.*]] = load float, float* %ptr
 ; CHECK: %[[result:.*]] = select i1 %{{.*}}, float %[[allocavalue]], float %[[argvalue]]
 ; CHECK-NEXT: ret float %[[result]]
 
@@ -304,7 +304,7 @@ entry:
   %test = icmp ne i32 %b, 0
   %bitcast = bitcast double* %f to float*
   %select = select i1 %test, float* %bitcast, float* %ptr
-  %loaded = load float* %select, align 4
+  %loaded = load float, float* %select, align 4
   ret float %loaded
 }
 
@@ -320,7 +320,7 @@ entry:
   %a = alloca i32
   store i32 %x, i32* %a
   %dead = select i1 undef, i32* %a, i32* %p
-  %load = load i32* %a
+  %load = load i32, i32* %a
   ret i32 %load
 }
 
@@ -342,7 +342,7 @@ loop:
   br i1 undef, label %loop, label %exit
 
 exit:
-  %load = load i32* %a
+  %load = load i32, i32* %a
   ret i32 %load
 }
 
@@ -376,9 +376,9 @@ else:
 exit:
   %f.phi = phi i32* [ %f, %then ], [ %f.select, %else ]
   %g.phi = phi i32* [ %g, %then ], [ %ptr, %else ]
-  %f.loaded = load i32* %f.phi
+  %f.loaded = load i32, i32* %f.phi
   %g.select = select i1 %b1, i32* %g, i32* %g.phi
-  %g.loaded = load i32* %g.select
+  %g.loaded = load i32, i32* %g.select
   %result = add i32 %f.loaded, %g.loaded
   ret i32 %result
 }
@@ -456,8 +456,8 @@ if.then:
 ; CHECK: %[[ext:.*]] = zext i8 1 to i64
 
 if.end:
-  %tmp = load i64** %ptr
-  %result = load i64* %tmp
+  %tmp = load i64*, i64** %ptr
+  %result = load i64, i64* %tmp
 ; CHECK-NOT: load
 ; CHECK: %[[result:.*]] = phi i64 [ %[[ext]], %if.then ], [ 0, %entry ]
 
@@ -488,14 +488,14 @@ then:
 
 else:
   %a.raw = bitcast i64* %a to i8*
-  %a.raw.4 = getelementptr i8* %a.raw, i64 4
+  %a.raw.4 = getelementptr i8, i8* %a.raw, i64 4
   %a.raw.4.f = bitcast i8* %a.raw.4 to float*
   br label %end
 ; CHECK: %[[hi_cast:.*]] = bitcast i32 %[[hi]] to float
 
 end:
   %a.phi.f = phi float* [ %a.f, %then ], [ %a.raw.4.f, %else ]
-  %f = load float* %a.phi.f
+  %f = load float, float* %a.phi.f
   ret float %f
 ; CHECK: %[[phi:.*]] = phi float [ %[[lo_cast]], %then ], [ %[[hi_cast]], %else ]
 ; CHECK-NOT: load
@@ -516,19 +516,19 @@ entry:
   br i1 %cond, label %then, label %else
 
 then:
-  %0 = getelementptr inbounds [4 x float]* %arr, i64 0, i64 3
+  %0 = getelementptr inbounds [4 x float], [4 x float]* %arr, i64 0, i64 3
   store float 1.000000e+00, float* %0, align 4
   br label %merge
 
 else:
-  %1 = getelementptr inbounds [4 x float]* %arr, i64 0, i64 3
+  %1 = getelementptr inbounds [4 x float], [4 x float]* %arr, i64 0, i64 3
   store float 2.000000e+00, float* %1, align 4
   br label %merge
 
 merge:
   %2 = phi float* [ %0, %then ], [ %1, %else ]
   store float 0.000000e+00, float* %temp, align 4
-  %3 = load float* %2, align 4
+  %3 = load float, float* %2, align 4
   ret float %3
 }
 
@@ -546,7 +546,7 @@ entry:
   br i1 %cond, label %then, label %else
 
 then:
-  %0 = getelementptr inbounds [4 x float]* %arr, i64 0, i64 3
+  %0 = getelementptr inbounds [4 x float], [4 x float]* %arr, i64 0, i64 3
   store float 1.000000e+00, float* %0, align 4
   br label %then2
 
@@ -556,14 +556,14 @@ then2:
   br label %merge
 
 else:
-  %2 = getelementptr inbounds [4 x float]* %arr, i64 0, i64 3
+  %2 = getelementptr inbounds [4 x float], [4 x float]* %arr, i64 0, i64 3
   store float 3.000000e+00, float* %2, align 4
   br label %merge
 
 merge:
   %3 = phi float* [ %1, %then2 ], [ %2, %else ]
   store float 0.000000e+00, float* %temp, align 4
-  %4 = load float* %3, align 4
+  %4 = load float, float* %3, align 4
   ret float %4
 }
 

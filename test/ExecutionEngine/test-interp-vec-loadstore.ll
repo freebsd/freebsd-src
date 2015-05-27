@@ -35,13 +35,13 @@ define i32 @main() {
   store i32 4, i32* %pint_3
   
   ; load stored scalars
-  %val_int0 = load i32* %pint_0
-  %val_int1 = load i32* %pint_1
-  %val_int2 = load i32* %pint_2
-  %val_int3 = load i32* %pint_3
+  %val_int0 = load i32, i32* %pint_0
+  %val_int1 = load i32, i32* %pint_1
+  %val_int2 = load i32, i32* %pint_2
+  %val_int3 = load i32, i32* %pint_3
 
   ; load stored vector
-  %val0 = load <4 x i32> *%a, align 16
+  %val0 = load <4 x i32> , <4 x i32> *%a, align 16
 
   ; extract integers from the loaded vector
   %res_i32_0 = extractelement <4 x i32> %val0, i32 0
@@ -72,8 +72,8 @@ define i32 @main() {
   ; if TRUE print message
   br i1 %res_i, label %Print_int, label %Double
 Print_int:
-  %ptr0 = getelementptr [17 x i8]* @msg_int, i32 0, i32 0
-  call i32 (i8*,...)* @printf(i8* %ptr0)
+  %ptr0 = getelementptr [17 x i8], [17 x i8]* @msg_int, i32 0, i32 0
+  call i32 (i8*,...) @printf(i8* %ptr0)
   br label %Double
 Double:
   store <4 x double> <double 5.0, double 6.0, double 7.0, double 8.0>, <4 x double>* %b, align 16
@@ -84,12 +84,12 @@ Double:
   store double 8.0, double* %pdouble_3
 
   ; load stored vector
-  %val1 = load <4 x double> *%b, align 16
+  %val1 = load <4 x double> , <4 x double> *%b, align 16
   ; load stored scalars
-  %val_double0 = load double* %pdouble_0
-  %val_double1 = load double* %pdouble_1
-  %val_double2 = load double* %pdouble_2
-  %val_double3 = load double* %pdouble_3
+  %val_double0 = load double, double* %pdouble_0
+  %val_double1 = load double, double* %pdouble_1
+  %val_double2 = load double, double* %pdouble_2
+  %val_double3 = load double, double* %pdouble_3
 
   %res_double_0 = extractelement <4 x double> %val1, i32 0
   %res_double_1 = extractelement <4 x double> %val1, i32 1
@@ -116,8 +116,8 @@ Double:
 
   br i1 %res_double, label %Print_double, label %Float
 Print_double:
-  %ptr1 = getelementptr [20 x i8]* @msg_double, i32 0, i32 0
-  call i32 (i8*,...)* @printf(i8* %ptr1)
+  %ptr1 = getelementptr [20 x i8], [20 x i8]* @msg_double, i32 0, i32 0
+  call i32 (i8*,...) @printf(i8* %ptr1)
   br label %Float
 Float:
   store <4 x float> <float 9.0, float 10.0, float 11.0, float 12.0>, <4 x float>* %c, align 16
@@ -128,12 +128,12 @@ Float:
   store float 12.0, float* %pfloat_3
 
   ; load stored vector
-  %val2 = load <4 x float> *%c, align 16
+  %val2 = load <4 x float> , <4 x float> *%c, align 16
   ; load stored scalars
-  %val_float0 = load float* %pfloat_0
-  %val_float1 = load float* %pfloat_1
-  %val_float2 = load float* %pfloat_2
-  %val_float3 = load float* %pfloat_3
+  %val_float0 = load float, float* %pfloat_0
+  %val_float1 = load float, float* %pfloat_1
+  %val_float2 = load float, float* %pfloat_2
+  %val_float3 = load float, float* %pfloat_3
 
   %res_float_0 = extractelement <4 x float> %val2, i32 0
   %res_float_1 = extractelement <4 x float> %val2, i32 1
@@ -160,8 +160,8 @@ Float:
 
   br i1 %res_float, label %Print_float, label %Exit
 Print_float:
-  %ptr2 = getelementptr [19 x i8]* @msg_float, i32 0, i32 0
-  call i32 (i8*,...)* @printf(i8* %ptr2)
+  %ptr2 = getelementptr [19 x i8], [19 x i8]* @msg_float, i32 0, i32 0
+  call i32 (i8*,...) @printf(i8* %ptr2)
   br label %Exit
 Exit:
 

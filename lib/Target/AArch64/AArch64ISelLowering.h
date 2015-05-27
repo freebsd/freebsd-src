@@ -18,13 +18,14 @@
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/IR/CallingConv.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/Target/TargetLowering.h"
 
 namespace llvm {
 
 namespace AArch64ISD {
 
-enum {
+enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   WrapperLarge, // 4-instruction MOVZ/MOVK sequence for 64-bit addresses.
   CALL,         // Function call.
@@ -140,6 +141,18 @@ enum {
   FCMLEz,
   FCMLTz,
 
+  // Vector across-lanes addition
+  // Only the lower result lane is defined.
+  SADDV,
+  UADDV,
+
+  // Vector across-lanes min/max
+  // Only the lower result lane is defined.
+  SMINV,
+  UMINV,
+  SMAXV,
+  UMAXV,
+
   // Vector bitwise negation
   NOT,
 
@@ -207,7 +220,8 @@ class AArch64TargetLowering : public TargetLowering {
   bool RequireStrictAlign;
 
 public:
-  explicit AArch64TargetLowering(const TargetMachine &TM);
+  explicit AArch64TargetLowering(const TargetMachine &TM,
+                                 const AArch64Subtarget &STI);
 
   /// Selects the correct CCAssignFn for a given CallingConvention value.
   CCAssignFn *CCAssignFnForCall(CallingConv::ID CC, bool IsVarArg) const;
@@ -222,7 +236,7 @@ public:
   MVT getScalarShiftAmountTy(EVT LHSTy) const override;
 
   /// allowsMisalignedMemoryAccesses - Returns true if the target allows
-  /// unaligned memory accesses. of the specified type.
+  /// unaligned memory accesses of the specified type.
   bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AddrSpace = 0,
                                       unsigned Align = 1,
                                       bool *Fast = nullptr) const override {
@@ -243,10 +257,6 @@ public:
 
   /// getFunctionAlignment - Return the Log2 alignment of this function.
   unsigned getFunctionAlignment(const Function *F) const;
-
-  /// getMaximalGlobalOffset - Returns the maximal possible offset which can
-  /// be used for loads / stores from the global.
-  unsigned getMaximalGlobalOffset() const override;
 
   /// Returns true if a cast between SrcAS and DestAS is a noop.
   bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override {
@@ -284,6 +294,8 @@ public:
 
   bool isTruncateFree(Type *Ty1, Type *Ty2) const override;
   bool isTruncateFree(EVT VT1, EVT VT2) const override;
+
+  bool isProfitableToHoist(Instruction *I) const override;
 
   bool isZExtFree(Type *Ty1, Type *Ty2) const override;
   bool isZExtFree(EVT VT1, EVT VT2) const override;
@@ -335,13 +347,16 @@ public:
 
   bool shouldExpandAtomicLoadInIR(LoadInst *LI) const override;
   bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
-  bool shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
+  TargetLoweringBase::AtomicRMWExpansionKind
+  shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
 
   bool useLoadStackGuardNode() const override;
   TargetLoweringBase::LegalizeTypeAction
   getPreferredVectorAction(EVT VT) const override;
 
 private:
+  bool isExtFreeImpl(const Instruction *Ext) const override;
+
   /// Subtarget - Keep a pointer to the AArch64Subtarget around so that we can
   /// make the right decision when generating code for different targets.
   const AArch64Subtarget *Subtarget;
@@ -405,6 +420,9 @@ private:
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSELECT_CC(ISD::CondCode CC, SDValue LHS, SDValue RHS,
+                         SDValue TVal, SDValue FVal, SDLoc dl,
+                         SelectionDAG &DAG) const;
   SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -453,11 +471,22 @@ private:
                                  const char *constraint) const override;
 
   std::pair<unsigned, const TargetRegisterClass *>
-  getRegForInlineAsmConstraint(const std::string &Constraint,
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               const std::string &Constraint,
                                MVT VT) const override;
   void LowerAsmOperandForConstraint(SDValue Op, std::string &Constraint,
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
+
+  unsigned getInlineAsmMemConstraint(
+      const std::string &ConstraintCode) const override {
+    if (ConstraintCode == "Q")
+      return InlineAsm::Constraint_Q;
+    // FIXME: clang has code for 'Ump', 'Utf', 'Usa', and 'Ush' but these are
+    //        followed by llvm_unreachable so we'll leave them unimplemented in
+    //        the backend for now.
+    return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
+  }
 
   bool isUsedByReturnOnly(SDNode *N, SDValue &Chain) const override;
   bool mayBeEmittedAsTailCall(CallInst *CI) const override;

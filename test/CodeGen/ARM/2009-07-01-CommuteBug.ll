@@ -30,9 +30,9 @@ bb11:		; preds = %bb9
 	br i1 undef, label %bb15, label %bb12
 
 bb12:		; preds = %bb11
-	%0 = load i32** @II, align 4		; <i32*> [#uses=1]
-	%1 = load i32** @JJ, align 4		; <i32*> [#uses=1]
-	%2 = load i32* @qr, align 4		; <i32> [#uses=1]
+	%0 = load i32*, i32** @II, align 4		; <i32*> [#uses=1]
+	%1 = load i32*, i32** @JJ, align 4		; <i32*> [#uses=1]
+	%2 = load i32, i32* @qr, align 4		; <i32> [#uses=1]
 	br label %bb228.i
 
 bb74.i:		; preds = %bb228.i
@@ -90,15 +90,15 @@ bb168.i:		; preds = %bb167.i, %bb163.i, %bb161.i, %bb160.i, %bb158.i
 	%fi.5.i = phi i32 [ %fi.614.i, %bb167.i ], [ %ci.910.i, %bb158.i ], [ %fi.614.i, %bb160.i ], [ %ci.910.i, %bb161.i ], [ %fi.614.i, %bb163.i ]		; <i32> [#uses=2]
 	%fj.4.i = phi i32 [ %cj.811.i, %bb167.i ], [ %cj.811.i, %bb158.i ], [ %fj.515.i, %bb160.i ], [ %cj.811.i, %bb161.i ], [ %fj.515.i, %bb163.i ]		; <i32> [#uses=2]
 	%f.5.i = phi i32 [ %3, %bb167.i ], [ %4, %bb158.i ], [ %3, %bb160.i ], [ %3, %bb161.i ], [ %3, %bb163.i ]		; <i32> [#uses=2]
-	%scevgep88.i = getelementptr i32* %0, i32 undef		; <i32*> [#uses=2]
-	%scevgep89.i = getelementptr i32* %1, i32 undef		; <i32*> [#uses=2]
+	%scevgep88.i = getelementptr i32, i32* %0, i32 undef		; <i32*> [#uses=2]
+	%scevgep89.i = getelementptr i32, i32* %1, i32 undef		; <i32*> [#uses=2]
 	%ci.10.i = select i1 undef, i32 %pi.316.i, i32 undef		; <i32> [#uses=0]
 	%cj.9.i = select i1 undef, i32 %pj.317.i, i32 undef		; <i32> [#uses=0]
 	%ci.12.i = select i1 undef, i32 %fi.5.i, i32 undef		; <i32> [#uses=2]
 	%cj.11.i100 = select i1 undef, i32 %fj.4.i, i32 undef		; <i32> [#uses=2]
 	%c.14.i = select i1 undef, i32 %f.5.i, i32 undef		; <i32> [#uses=1]
-	%6 = load i32* %scevgep88.i, align 4		; <i32> [#uses=1]
-	%7 = load i32* %scevgep89.i, align 4		; <i32> [#uses=1]
+	%6 = load i32, i32* %scevgep88.i, align 4		; <i32> [#uses=1]
+	%7 = load i32, i32* %scevgep89.i, align 4		; <i32> [#uses=1]
 	store i32 %ci.12.i, i32* %scevgep88.i, align 4
 	store i32 %cj.11.i100, i32* %scevgep89.i, align 4
 	br i1 undef, label %bb211.i, label %bb218.i

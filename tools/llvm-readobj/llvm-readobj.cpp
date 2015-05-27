@@ -25,6 +25,7 @@
 #include "StreamWriter.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Object/MachOUniversal.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -127,9 +128,14 @@ namespace opts {
   cl::opt<bool> ExpandRelocs("expand-relocs",
     cl::desc("Expand each shown relocation to multiple lines"));
 
-  // -codeview-linetables
-  cl::opt<bool> CodeViewLineTables("codeview-linetables",
-    cl::desc("Display CodeView line table information"));
+  // -codeview
+  cl::opt<bool> CodeView("codeview",
+                         cl::desc("Display CodeView debug information"));
+
+  // -codeview-subsection-bytes
+  cl::opt<bool> CodeViewSubsectionBytes(
+      "codeview-subsection-bytes",
+      cl::desc("Dump raw contents of codeview debug sections and records"));
 
   // -arm-attributes, -a
   cl::opt<bool> ARMAttributes("arm-attributes",
@@ -141,6 +147,10 @@ namespace opts {
   cl::opt<bool>
   MipsPLTGOT("mips-plt-got",
              cl::desc("Display the MIPS GOT and PLT GOT sections"));
+
+  // -mips-abi-flags
+  cl::opt<bool> MipsABIFlags("mips-abi-flags",
+                             cl::desc("Display the MIPS.abiflags section"));
 
   // -coff-imports
   cl::opt<bool>
@@ -281,9 +291,12 @@ static void dumpObject(const ObjectFile *Obj) {
   if (Obj->getArch() == llvm::Triple::arm && Obj->isELF())
     if (opts::ARMAttributes)
       Dumper->printAttributes();
-  if (isMipsArch(Obj->getArch()) && Obj->isELF())
+  if (isMipsArch(Obj->getArch()) && Obj->isELF()) {
     if (opts::MipsPLTGOT)
       Dumper->printMipsPLTGOT();
+    if (opts::MipsABIFlags)
+      Dumper->printMipsABIFlags();
+  }
   if (opts::COFFImports)
     Dumper->printCOFFImports();
   if (opts::COFFExports)
@@ -315,6 +328,18 @@ static void dumpArchive(const Archive *Arc) {
   }
 }
 
+/// @brief Dumps each object file in \a MachO Universal Binary;
+static void dumpMachOUniversalBinary(const MachOUniversalBinary *UBinary) {
+  for (const MachOUniversalBinary::ObjectForArch &Obj : UBinary->objects()) {
+    ErrorOr<std::unique_ptr<MachOObjectFile>> ObjOrErr = Obj.getAsObjectFile();
+    if (ObjOrErr)
+      dumpObject(&*ObjOrErr.get());
+    else if (ErrorOr<std::unique_ptr<Archive>> AOrErr = Obj.getAsArchive())
+      dumpArchive(&*AOrErr.get());
+    else
+      reportError(UBinary->getFileName(), ObjOrErr.getError().message());
+  }
+}
 
 /// @brief Opens \a File and dumps it.
 static void dumpInput(StringRef File) {
@@ -334,6 +359,9 @@ static void dumpInput(StringRef File) {
 
   if (Archive *Arc = dyn_cast<Archive>(&Binary))
     dumpArchive(Arc);
+  else if (MachOUniversalBinary *UBinary =
+               dyn_cast<MachOUniversalBinary>(&Binary))
+    dumpMachOUniversalBinary(UBinary);
   else if (ObjectFile *Obj = dyn_cast<ObjectFile>(&Binary))
     dumpObject(Obj);
   else

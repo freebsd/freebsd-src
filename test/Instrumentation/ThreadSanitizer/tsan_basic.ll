@@ -5,17 +5,17 @@ target triple = "x86_64-unknown-linux-gnu"
 
 define i32 @read_4_bytes(i32* %a) sanitize_thread {
 entry:
-  %tmp1 = load i32* %a, align 4
+  %tmp1 = load i32, i32* %a, align 4
   ret i32 %tmp1
 }
 
-; CHECK: @llvm.global_ctors = {{.*}}@__tsan_init
+; CHECK: @llvm.global_ctors = {{.*}}@tsan.module_ctor
 
 ; CHECK: define i32 @read_4_bytes(i32* %a)
 ; CHECK:        call void @__tsan_func_entry(i8* %0)
 ; CHECK-NEXT:   %1 = bitcast i32* %a to i8*
 ; CHECK-NEXT:   call void @__tsan_read4(i8* %1)
-; CHECK-NEXT:   %tmp1 = load i32* %a, align 4
+; CHECK-NEXT:   %tmp1 = load i32, i32* %a, align 4
 ; CHECK-NEXT:   call void @__tsan_func_exit()
 ; CHECK: ret i32
 
@@ -53,3 +53,6 @@ entry:
 ; CHECK: call i8* @memset
 ; CHECK: ret void
 }
+
+; CHECK: define internal void @tsan.module_ctor()
+; CHECK: call void @__tsan_init()

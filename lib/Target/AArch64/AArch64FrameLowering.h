@@ -22,7 +22,7 @@ class AArch64FrameLowering : public TargetFrameLowering {
 public:
   explicit AArch64FrameLowering()
       : TargetFrameLowering(StackGrowsDown, 16, 0, 16,
-                            false /*StackRealignable*/) {}
+                            true /*StackRealignable*/) {}
 
   void emitCalleeSavedFrameMoves(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
@@ -34,7 +34,7 @@ public:
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const override;
+  void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
   int getFrameIndexOffset(const MachineFunction &MF, int FI) const override;

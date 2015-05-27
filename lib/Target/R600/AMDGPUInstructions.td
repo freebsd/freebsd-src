@@ -23,8 +23,6 @@ class AMDGPUInst <dag outs, dag ins, string asm, list<dag> pattern> : Instructio
   let Pattern = pattern;
   let Itinerary = NullALU;
 
-  let isCodeGenOnly = 1;
-
   let TSFlags{63} = isRegisterLoad;
   let TSFlags{62} = isRegisterStore;
 }
@@ -185,11 +183,14 @@ def constant_load : PatFrag<(ops node:$ptr), (load node:$ptr), [{
     return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
 }]>;
 
-def az_extload : PatFrag<(ops node:$ptr), (unindexedload node:$ptr), [{
+class AZExtLoadBase <SDPatternOperator ld_node>: PatFrag<(ops node:$ptr),
+                                              (ld_node node:$ptr), [{
   LoadSDNode *L = cast<LoadSDNode>(N);
   return L->getExtensionType() == ISD::ZEXTLOAD ||
          L->getExtensionType() == ISD::EXTLOAD;
 }]>;
+
+def az_extload : AZExtLoadBase <unindexedload>;
 
 def az_extloadi8 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
   return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i8;
@@ -360,25 +361,29 @@ def atomic_load_umax_local : local_binary_atomic_op<atomic_load_umax>;
 
 def mskor_global : PatFrag<(ops node:$val, node:$ptr),
                             (AMDGPUstore_mskor node:$val, node:$ptr), [{
-  return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::GLOBAL_ADDRESS;
+  return cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::GLOBAL_ADDRESS;
 }]>;
 
+multiclass AtomicCmpSwapLocal <SDNode cmp_swap_node> {
 
-def atomic_cmp_swap_32_local :
-  PatFrag<(ops node:$ptr, node:$cmp, node:$swap),
-          (atomic_cmp_swap node:$ptr, node:$cmp, node:$swap), [{
-  AtomicSDNode *AN = cast<AtomicSDNode>(N);
-  return AN->getMemoryVT() == MVT::i32 &&
-         AN->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
-}]>;
+  def _32_local : PatFrag <
+    (ops node:$ptr, node:$cmp, node:$swap),
+    (cmp_swap_node node:$ptr, node:$cmp, node:$swap), [{
+      AtomicSDNode *AN = cast<AtomicSDNode>(N);
+      return AN->getMemoryVT() == MVT::i32 &&
+             AN->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
+  }]>;
 
-def atomic_cmp_swap_64_local :
-  PatFrag<(ops node:$ptr, node:$cmp, node:$swap),
-          (atomic_cmp_swap node:$ptr, node:$cmp, node:$swap), [{
-  AtomicSDNode *AN = cast<AtomicSDNode>(N);
-  return AN->getMemoryVT() == MVT::i64 &&
-         AN->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
-}]>;
+  def _64_local : PatFrag<
+    (ops node:$ptr, node:$cmp, node:$swap),
+    (cmp_swap_node node:$ptr, node:$cmp, node:$swap), [{
+      AtomicSDNode *AN = cast<AtomicSDNode>(N);
+      return AN->getMemoryVT() == MVT::i64 &&
+             AN->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
+  }]>;
+}
+
+defm atomic_cmp_swap : AtomicCmpSwapLocal <atomic_cmp_swap>;
 
 def flat_load : PatFrag<(ops node:$ptr), (load node:$ptr), [{
     return isFlatLoad(dyn_cast<LoadSDNode>(N));
@@ -391,7 +396,7 @@ def flat_store : PatFrag<(ops node:$val, node:$ptr),
 
 def mskor_flat : PatFrag<(ops node:$val, node:$ptr),
                             (AMDGPUstore_mskor node:$val, node:$ptr), [{
-  return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::FLAT_ADDRESS;
+  return cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::FLAT_ADDRESS;
 }]>;
 
 class global_binary_atomic_op<SDNode atomic_op> : PatFrag<
@@ -415,11 +420,6 @@ def atomic_xor_global : global_binary_atomic_op<atomic_load_xor>;
 // Misc Pattern Fragments
 //===----------------------------------------------------------------------===//
 
-def fmad : PatFrag <
-  (ops node:$src0, node:$src1, node:$src2),
-  (fadd (fmul node:$src0, node:$src1), node:$src2)
->;
-
 class Constants {
 int TWO_PI = 0x40c90fdb;
 int PI = 0x40490fdb;
@@ -438,6 +438,11 @@ def FP_ZERO : PatLeaf <
 def FP_ONE : PatLeaf <
   (fpimm),
   [{return N->isExactlyValue(1.0);}]
+>;
+
+def FP_HALF : PatLeaf <
+  (fpimm),
+  [{return N->isExactlyValue(0.5);}]
 >;
 
 let isCodeGenOnly = 1, isPseudo = 1 in {
@@ -580,21 +585,19 @@ class SHA256MaPattern <Instruction BFI_INT, Instruction XOR> : Pat <
 
 // Bitfield extract patterns
 
-/*
+def IMMZeroBasedBitfieldMask : PatLeaf <(imm), [{
+  return isMask_32(N->getZExtValue());
+}]>;
 
-XXX: The BFE pattern is not working correctly because the XForm is not being
-applied.
+def IMMPopCount : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(countPopulation(N->getZExtValue()), SDLoc(N),
+                                   MVT::i32);
+}]>;
 
-def legalshift32 : ImmLeaf <i32, [{return Imm >=0 && Imm < 32;}]>;
-def bfemask : PatLeaf <(imm), [{return isMask_32(N->getZExtValue());}],
-                            SDNodeXForm<imm, [{ return CurDAG->getTargetConstant(CountTrailingOnes_32(N->getZExtValue()), MVT::i32);}]>>;
-
-class BFEPattern <Instruction BFE> : Pat <
-  (and (srl i32:$x, legalshift32:$y), bfemask:$z),
-  (BFE $x, $y, $z)
+class BFEPattern <Instruction BFE, Instruction MOV> : Pat <
+  (i32 (and (i32 (srl i32:$src, i32:$rshift)), IMMZeroBasedBitfieldMask:$mask)),
+  (BFE $src, $rshift, (MOV (i32 (IMMPopCount $mask))))
 >;
-
-*/
 
 // rotr pattern
 class ROTRPattern <Instruction BIT_ALIGN> : Pat <
@@ -604,6 +607,20 @@ class ROTRPattern <Instruction BIT_ALIGN> : Pat <
 
 // 24-bit arithmetic patterns
 def umul24 : PatFrag <(ops node:$x, node:$y), (mul node:$x, node:$y)>;
+
+// Special conversion patterns
+
+def cvt_rpi_i32_f32 : PatFrag <
+  (ops node:$src),
+  (fp_to_sint (ffloor (fadd $src, FP_HALF))),
+  [{ (void) N; return TM.Options.NoNaNsFPMath; }]
+>;
+
+def cvt_flr_i32_f32 : PatFrag <
+  (ops node:$src),
+  (fp_to_sint (ffloor $src)),
+  [{ (void)N; return TM.Options.NoNaNsFPMath; }]
+>;
 
 /*
 class UMUL24Pattern <Instruction UMUL24> : Pat <

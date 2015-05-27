@@ -1,4 +1,5 @@
-; RUN: llc < %s -mtriple=i386-apple-darwin -mattr=-avx,+sse2 | FileCheck %s
+; RUN: llc < %s -mtriple=i386-apple-darwin -mattr=-avx,+sse2 | FileCheck %s --check-prefix=CHECK --check-prefix=SSE
+; RUN: llc < %s -mtriple=i386-apple-darwin -mcpu=knl | FileCheck %s
 
 define <2 x double> @test_x86_sse2_add_sd(<2 x double> %a0, <2 x double> %a1) {
   ; CHECK: addsd
@@ -142,7 +143,7 @@ declare i32 @llvm.x86.sse2.cvtsd2si(<2 x double>) nounwind readnone
 
 define <4 x float> @test_x86_sse2_cvtsd2ss(<4 x float> %a0, <2 x double> %a1) {
   ; CHECK: cvtsd2ss 
-  ; CHECK-NOT: cvtsd2ss %xmm{{[0-9]+}}, %xmm{{[0-9]+}}, %xmm{{[0-9]+}} 
+  ; SSE-NOT: cvtsd2ss %xmm{{[0-9]+}}, %xmm{{[0-9]+}}, %xmm{{[0-9]+}} 
   %res = call <4 x float> @llvm.x86.sse2.cvtsd2ss(<4 x float> %a0, <2 x double> %a1) ; <<4 x float>> [#uses=1]
   ret <4 x float> %res
 }
@@ -410,22 +411,6 @@ define <4 x i32> @test_x86_sse2_psll_d(<4 x i32> %a0, <4 x i32> %a1) {
 declare <4 x i32> @llvm.x86.sse2.psll.d(<4 x i32>, <4 x i32>) nounwind readnone
 
 
-define <2 x i64> @test_x86_sse2_psll_dq(<2 x i64> %a0) {
-  ; CHECK: pslldq {{.*#+}} xmm0 = xmm0[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-  %res = call <2 x i64> @llvm.x86.sse2.psll.dq(<2 x i64> %a0, i32 7) ; <<2 x i64>> [#uses=1]
-  ret <2 x i64> %res
-}
-declare <2 x i64> @llvm.x86.sse2.psll.dq(<2 x i64>, i32) nounwind readnone
-
-
-define <2 x i64> @test_x86_sse2_psll_dq_bs(<2 x i64> %a0) {
-  ; CHECK: pslldq {{.*#+}} xmm0 = zero,zero,zero,zero,zero,zero,zero,xmm0[0,1,2,3,4,5,6,7,8]
-  %res = call <2 x i64> @llvm.x86.sse2.psll.dq.bs(<2 x i64> %a0, i32 7) ; <<2 x i64>> [#uses=1]
-  ret <2 x i64> %res
-}
-declare <2 x i64> @llvm.x86.sse2.psll.dq.bs(<2 x i64>, i32) nounwind readnone
-
-
 define <2 x i64> @test_x86_sse2_psll_q(<2 x i64> %a0, <2 x i64> %a1) {
   ; CHECK: psllq
   %res = call <2 x i64> @llvm.x86.sse2.psll.q(<2 x i64> %a0, <2 x i64> %a1) ; <<2 x i64>> [#uses=1]
@@ -504,22 +489,6 @@ define <4 x i32> @test_x86_sse2_psrl_d(<4 x i32> %a0, <4 x i32> %a1) {
   ret <4 x i32> %res
 }
 declare <4 x i32> @llvm.x86.sse2.psrl.d(<4 x i32>, <4 x i32>) nounwind readnone
-
-
-define <2 x i64> @test_x86_sse2_psrl_dq(<2 x i64> %a0) {
-  ; CHECK: psrldq {{.*#+}} xmm0 = xmm0[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-  %res = call <2 x i64> @llvm.x86.sse2.psrl.dq(<2 x i64> %a0, i32 7) ; <<2 x i64>> [#uses=1]
-  ret <2 x i64> %res
-}
-declare <2 x i64> @llvm.x86.sse2.psrl.dq(<2 x i64>, i32) nounwind readnone
-
-
-define <2 x i64> @test_x86_sse2_psrl_dq_bs(<2 x i64> %a0) {
-  ; CHECK: psrldq {{.*#+}} xmm0 = xmm0[7,8,9,10,11,12,13,14,15],zero,zero,zero,zero,zero,zero,zero
-  %res = call <2 x i64> @llvm.x86.sse2.psrl.dq.bs(<2 x i64> %a0, i32 7) ; <<2 x i64>> [#uses=1]
-  ret <2 x i64> %res
-}
-declare <2 x i64> @llvm.x86.sse2.psrl.dq.bs(<2 x i64>, i32) nounwind readnone
 
 
 define <2 x i64> @test_x86_sse2_psrl_q(<2 x i64> %a0, <2 x i64> %a1) {
@@ -613,7 +582,7 @@ declare <2 x double> @llvm.x86.sse2.sqrt.sd(<2 x double>) nounwind readnone
 define void @test_x86_sse2_storel_dq(i8* %a0, <4 x i32> %a1) {
   ; CHECK: test_x86_sse2_storel_dq
   ; CHECK: movl
-  ; CHECK: movq
+  ; CHECK: movlps
   call void @llvm.x86.sse2.storel.dq(i8* %a0, <4 x i32> %a1)
   ret void
 }

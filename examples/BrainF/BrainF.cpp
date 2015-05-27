@@ -163,7 +163,7 @@ void BrainF::header(LLVMContext& C) {
       };
 
       Constant *msgptr = ConstantExpr::
-        getGetElementPtr(aberrormsg, gep_params);
+        getGetElementPtr(aberrormsg->getValueType(), aberrormsg, gep_params);
 
       Value *puts_params[] = {
         msgptr
@@ -201,7 +201,8 @@ void BrainF::readloop(PHINode *phi, BasicBlock *oldbb, BasicBlock *testbb,
       case SYM_READ:
         {
           //%tape.%d = call i32 @getchar()
-          CallInst *getchar_call = builder->CreateCall(getchar_func, tapereg);
+          CallInst *getchar_call =
+              builder->CreateCall(getchar_func, {}, tapereg);
           getchar_call->setTailCall(false);
           Value *tape_0 = getchar_call;
 

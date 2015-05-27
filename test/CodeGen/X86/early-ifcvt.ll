@@ -14,8 +14,8 @@ do.body:
   %min.0 = phi i32 [ 0, %entry ], [ %min.1, %do.cond ]
   %n.addr.0 = phi i32 [ %n, %entry ], [ %dec, %do.cond ]
   %p.addr.0 = phi i32* [ %p, %entry ], [ %incdec.ptr, %do.cond ]
-  %incdec.ptr = getelementptr inbounds i32* %p.addr.0, i64 1
-  %0 = load i32* %p.addr.0, align 4
+  %incdec.ptr = getelementptr inbounds i32, i32* %p.addr.0, i64 1
+  %0 = load i32, i32* %p.addr.0, align 4
   %cmp = icmp sgt i32 %0, %max.0
   br i1 %cmp, label %do.cond, label %if.else
 
@@ -62,7 +62,7 @@ if.then37:
 
 if.end41:
   %exit_status.0 = phi i32 [ 2, %if.then29 ], [ 0, %if.then37 ], [ 66, %entry ]
-  call void (...)* @fprintf(i32 %exit_status.0) nounwind
+  call void (...) @fprintf(i32 %exit_status.0) nounwind
   unreachable
 }
 
@@ -108,7 +108,7 @@ if.end2042:                                       ; preds = %while.body2038
   br i1 undef, label %if.end2048, label %while.end2104
 
 if.end2048:                                       ; preds = %if.end2042
-  %bsLive2054.pre = getelementptr inbounds i8* %s, i32 8
+  %bsLive2054.pre = getelementptr inbounds i8, i8* %s, i32 8
   br label %sw.bb2050
 
 sw.bb2050:                                        ; preds = %if.end2048, %if.end.sw.bb2050_crit_edge

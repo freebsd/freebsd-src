@@ -25,11 +25,11 @@ define void @_Z19getClosestDiagonal3ii(%0* noalias sret, i32, i32) nounwind {
   %storemerge = phi double [ -1.000000e+00, %4 ], [ 1.000000e+00, %3 ], [ 1.000000e+00, %3 ] ; <double> [#uses=1]
   %v_6 = icmp slt i32 %1, 2                         ; <i1> [#uses=1]
   %storemerge1 = select i1 %v_6, double 1.000000e+00, double -1.000000e+00 ; <double> [#uses=3]
-  call void @llvm.dbg.value(metadata double %storemerge, i64 0, metadata !91, metadata !{!"0x102"}), !dbg !0
+  call void @llvm.dbg.value(metadata double %storemerge, i64 0, metadata !91, metadata !DIExpression()), !dbg !0
   %v_7 = icmp eq i32 %2, 1, !dbg !92                ; <i1> [#uses=1]
   %storemerge2 = select i1 %v_7, double 1.000000e+00, double -1.000000e+00 ; <double> [#uses=3]
-  %v_8 = getelementptr inbounds %0* %0, i32 0, i32 0, i32 0 ; <double*> [#uses=1]
-  %v_10 = getelementptr inbounds %0* %0, i32 0, i32 0, i32 2 ; <double*> [#uses=1]
+  %v_8 = getelementptr inbounds %0, %0* %0, i32 0, i32 0, i32 0 ; <double*> [#uses=1]
+  %v_10 = getelementptr inbounds %0, %0* %0, i32 0, i32 0, i32 2 ; <double*> [#uses=1]
   %v_11 = fmul double %storemerge1, %storemerge1, !dbg !93 ; <double> [#uses=1]
   %v_15 = tail call double @sqrt(double %v_11) nounwind readonly, !dbg !93 ; <double> [#uses=1]
   %v_16 = fdiv double 1.000000e+00, %v_15, !dbg !93   ; <double> [#uses=3]
@@ -48,108 +48,108 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 
 !llvm.dbg.cu = !{!5}
 !llvm.module.flags = !{!104}
-!0 = !MDLocation(line: 46, scope: !1)
-!1 = !{!"0xb\0044\000\000", !101, !2} ; [ DW_TAG_lexical_block ]
-!2 = !{!"0xb\0044\000\000", !101, !3} ; [ DW_TAG_lexical_block ]
-!3 = !{!"0x2e\00getClosestDiagonal3\00getClosestDiagonal3\00_Z19getClosestDiagonal3ii\0044\000\001\000\006\000\000\000", !101, null, !6, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!4 = !{!"0x29", !101} ; [ DW_TAG_file_type ]
-!5 = !{!"0x11\004\004.2.1 (Based on Apple Inc. build 5658) (LLVM build 00)\001\00\000\00\000", !101, !102, !102, !103, null, null} ; [ DW_TAG_compile_unit ]
-!6 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !7, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!0 = !DILocation(line: 46, scope: !1)
+!1 = distinct !DILexicalBlock(line: 44, column: 0, file: !101, scope: !2)
+!2 = distinct !DILexicalBlock(line: 44, column: 0, file: !101, scope: !3)
+!3 = !DISubprogram(name: "getClosestDiagonal3", linkageName: "_Z19getClosestDiagonal3ii", line: 44, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !101, scope: null, type: !6)
+!4 = !DIFile(filename: "ggEdgeDiscrepancy.cc", directory: "/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src")
+!5 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build 00)", isOptimized: true, emissionKind: 0, file: !101, enums: !102, retainedTypes: !102, subprograms: !103)
+!6 = !DISubroutineType(types: !7)
 !7 = !{!8, !22, !22}
-!8 = !{!"0x13\00ggVector3\0066\00192\0032\000\000\000", !99, null, null, !10, null, null, null} ; [ DW_TAG_structure_type ] [ggVector3] [line 66, size 192, align 32, offset 0] [def] [from ]
-!9 = !{!"0x29", !"ggVector3.h", !"/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src", !5} ; [ DW_TAG_file_type ]
-!99 = !{!"ggVector3.h", !"/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src"}
+!8 = !DICompositeType(tag: DW_TAG_structure_type, name: "ggVector3", line: 66, size: 192, align: 32, file: !99, elements: !10)
+!9 = !DIFile(filename: "ggVector3.h", directory: "/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src")
+!99 = !DIFile(filename: "ggVector3.h", directory: "/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src")
 !10 = !{!11, !16, !23, !26, !29, !30, !35, !36, !37, !41, !42, !43, !46, !47, !48, !52, !53, !54, !57, !60, !63, !66, !70, !71, !74, !75, !76, !77, !78, !81, !82, !83, !84, !85, !88, !89, !90}
-!11 = !{!"0xd\00e\00160\00192\0032\000\000", !99, !8, !12} ; [ DW_TAG_member ]
-!12 = !{!"0x1\00\000\00192\0032\000\000", !101, !4, !13, !14, i32 0, null, null, null} ; [ DW_TAG_array_type ] [line 0, size 192, align 32, offset 0] [from double]
-!13 = !{!"0x24\00double\000\0064\0032\000\000\004", !101, !4} ; [ DW_TAG_base_type ]
+!11 = !DIDerivedType(tag: DW_TAG_member, name: "e", line: 160, size: 192, align: 32, file: !99, scope: !8, baseType: !12)
+!12 = !DICompositeType(tag: DW_TAG_array_type, size: 192, align: 32, file: !101, scope: !4, baseType: !13, elements: !14)
+!13 = !DIBasicType(tag: DW_TAG_base_type, name: "double", size: 64, align: 32, encoding: DW_ATE_float)
 !14 = !{!15}
-!15 = !{!"0x21\000\003"}        ; [ DW_TAG_subrange_type ]
-!16 = !{!"0x2e\00ggVector3\00ggVector3\00\0072\000\000\000\006\000\000\000", !9, !8, !17, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!17 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !18, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!15 = !DISubrange(count: 3)
+!16 = !DISubprogram(name: "ggVector3", line: 72, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !17)
+!17 = !DISubroutineType(types: !18)
 !18 = !{null, !19, !20}
-!19 = !{!"0xf\00\000\0032\0032\000\0064", !101, !4, !8} ; [ DW_TAG_pointer_type ]
-!20 = !{!"0x16\00ggBoolean\00478\000\000\000\000", !100, null, !22} ; [ DW_TAG_typedef ]
-!21 = !{!"0x29", !"math.h", !"/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS4.2.Internal.sdk/usr/include/architecture/arm", !5} ; [ DW_TAG_file_type ]
-!100 = !{!"math.h", !"/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS4.2.Internal.sdk/usr/include/architecture/arm"}
-!22 = !{!"0x24\00int\000\0032\0032\000\000\005", !101, !4} ; [ DW_TAG_base_type ]
-!23 = !{!"0x2e\00ggVector3\00ggVector3\00\0073\000\000\000\006\000\000\000", !9, !8, !24, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!24 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !25, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!19 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, flags: DIFlagArtificial, file: !101, scope: !4, baseType: !8)
+!20 = !DIDerivedType(tag: DW_TAG_typedef, name: "ggBoolean", line: 478, file: !100, baseType: !22)
+!21 = !DIFile(filename: "math.h", directory: "/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS4.2.Internal.sdk/usr/include/architecture/arm")
+!100 = !DIFile(filename: "math.h", directory: "/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS4.2.Internal.sdk/usr/include/architecture/arm")
+!22 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!23 = !DISubprogram(name: "ggVector3", line: 73, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !24)
+!24 = !DISubroutineType(types: !25)
 !25 = !{null, !19}
-!26 = !{!"0x2e\00ggVector3\00ggVector3\00\0074\000\000\000\006\000\000\000", !9, !8, !27, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!27 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !28, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!26 = !DISubprogram(name: "ggVector3", line: 74, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !27)
+!27 = !DISubroutineType(types: !28)
 !28 = !{null, !19, !13, !13, !13}
-!29 = !{!"0x2e\00Set\00Set\00_ZN9ggVector33SetEddd\0081\000\000\000\006\000\000\000", !9, !8, !27, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!30 = !{!"0x2e\00x\00x\00_ZNK9ggVector31xEv\0082\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!31 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !32, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!29 = !DISubprogram(name: "Set", linkageName: "_ZN9ggVector33SetEddd", line: 81, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !27)
+!30 = !DISubprogram(name: "x", linkageName: "_ZNK9ggVector31xEv", line: 82, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!31 = !DISubroutineType(types: !32)
 !32 = !{!13, !33}
-!33 = !{!"0xf\00\000\0032\0032\000\0064", !101, !4, !34} ; [ DW_TAG_pointer_type ]
-!34 = !{!"0x26\00\000\00192\0032\000\000", !101, !4, !8} ; [ DW_TAG_const_type ]
-!35 = !{!"0x2e\00y\00y\00_ZNK9ggVector31yEv\0083\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!36 = !{!"0x2e\00z\00z\00_ZNK9ggVector31zEv\0084\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!37 = !{!"0x2e\00x\00x\00_ZN9ggVector31xEv\0085\000\001\000\006\000\000\000", !9, !8, !38, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!38 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !39, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!33 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, flags: DIFlagArtificial, file: !101, scope: !4, baseType: !34)
+!34 = !DIDerivedType(tag: DW_TAG_const_type, size: 192, align: 32, file: !101, scope: !4, baseType: !8)
+!35 = !DISubprogram(name: "y", linkageName: "_ZNK9ggVector31yEv", line: 83, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!36 = !DISubprogram(name: "z", linkageName: "_ZNK9ggVector31zEv", line: 84, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!37 = !DISubprogram(name: "x", linkageName: "_ZN9ggVector31xEv", line: 85, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !38)
+!38 = !DISubroutineType(types: !39)
 !39 = !{!40, !19}
-!40 = !{!"0x10\00double\000\0032\0032\000\000", !101, !4, !13} ; [ DW_TAG_reference_type ]
-!41 = !{!"0x2e\00y\00y\00_ZN9ggVector31yEv\0086\000\001\000\006\000\000\000", !9, !8, !38, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!42 = !{!"0x2e\00z\00z\00_ZN9ggVector31zEv\0087\000\001\000\006\000\000\000", !9, !8, !38, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!43 = !{!"0x2e\00SetX\00SetX\00_ZN9ggVector34SetXEd\0088\000\000\000\006\000\000\000", !9, !8, !44, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!44 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !45, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!40 = !DIDerivedType(tag: DW_TAG_reference_type, name: "double", size: 32, align: 32, file: !101, scope: !4, baseType: !13)
+!41 = !DISubprogram(name: "y", linkageName: "_ZN9ggVector31yEv", line: 86, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !38)
+!42 = !DISubprogram(name: "z", linkageName: "_ZN9ggVector31zEv", line: 87, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !38)
+!43 = !DISubprogram(name: "SetX", linkageName: "_ZN9ggVector34SetXEd", line: 88, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !44)
+!44 = !DISubroutineType(types: !45)
 !45 = !{null, !19, !13}
-!46 = !{!"0x2e\00SetY\00SetY\00_ZN9ggVector34SetYEd\0089\000\000\000\006\000\000\000", !9, !8, !44, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!47 = !{!"0x2e\00SetZ\00SetZ\00_ZN9ggVector34SetZEd\0090\000\000\000\006\000\000\000", !9, !8, !44, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!48 = !{!"0x2e\00ggVector3\00ggVector3\00\0092\000\000\000\006\000\000\000", !9, !8, !49, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!49 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !50, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!46 = !DISubprogram(name: "SetY", linkageName: "_ZN9ggVector34SetYEd", line: 89, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !44)
+!47 = !DISubprogram(name: "SetZ", linkageName: "_ZN9ggVector34SetZEd", line: 90, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !44)
+!48 = !DISubprogram(name: "ggVector3", line: 92, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !49)
+!49 = !DISubroutineType(types: !50)
 !50 = !{null, !19, !51}
-!51 = !{!"0x10\00\000\0032\0032\000\000", !101, !4, !34} ; [ DW_TAG_reference_type ]
-!52 = !{!"0x2e\00tolerance\00tolerance\00_ZNK9ggVector39toleranceEv\00100\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!53 = !{!"0x2e\00tolerance\00tolerance\00_ZN9ggVector39toleranceEv\00101\000\000\000\006\000\000\000", !9, !8, !38, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!54 = !{!"0x2e\00operator+\00operator+\00_ZNK9ggVector3psEv\00107\000\000\000\006\000\000\000", !9, !8, !55, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!55 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !56, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!51 = !DIDerivedType(tag: DW_TAG_reference_type, size: 32, align: 32, file: !101, scope: !4, baseType: !34)
+!52 = !DISubprogram(name: "tolerance", linkageName: "_ZNK9ggVector39toleranceEv", line: 100, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!53 = !DISubprogram(name: "tolerance", linkageName: "_ZN9ggVector39toleranceEv", line: 101, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !38)
+!54 = !DISubprogram(name: "operator+", linkageName: "_ZNK9ggVector3psEv", line: 107, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !55)
+!55 = !DISubroutineType(types: !56)
 !56 = !{!51, !33}
-!57 = !{!"0x2e\00operator-\00operator-\00_ZNK9ggVector3ngEv\00108\000\000\000\006\000\000\000", !9, !8, !58, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!58 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !59, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!57 = !DISubprogram(name: "operator-", linkageName: "_ZNK9ggVector3ngEv", line: 108, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !58)
+!58 = !DISubroutineType(types: !59)
 !59 = !{!8, !33}
-!60 = !{!"0x2e\00operator[]\00operator[]\00_ZNK9ggVector3ixEi\00290\000\000\000\006\000\000\000", !9, !8, !61, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!61 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !62, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!60 = !DISubprogram(name: "operator[]", linkageName: "_ZNK9ggVector3ixEi", line: 290, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !61)
+!61 = !DISubroutineType(types: !62)
 !62 = !{!13, !33, !22}
-!63 = !{!"0x2e\00operator[]\00operator[]\00_ZN9ggVector3ixEi\00278\000\000\000\006\000\000\000", !9, !8, !64, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!64 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !65, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!63 = !DISubprogram(name: "operator[]", linkageName: "_ZN9ggVector3ixEi", line: 278, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !64)
+!64 = !DISubroutineType(types: !65)
 !65 = !{!40, !19, !22}
-!66 = !{!"0x2e\00operator+=\00operator+=\00_ZN9ggVector3pLERKS_\00303\000\000\000\006\000\000\000", !9, !8, !67, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!67 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !68, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!66 = !DISubprogram(name: "operator+=", linkageName: "_ZN9ggVector3pLERKS_", line: 303, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !67)
+!67 = !DISubroutineType(types: !68)
 !68 = !{!69, !19, !51}
-!69 = !{!"0x10\00ggVector3\000\0032\0032\000\000", !101, !4, !8} ; [ DW_TAG_reference_type ]
-!70 = !{!"0x2e\00operator-=\00operator-=\00_ZN9ggVector3mIERKS_\00310\000\000\000\006\000\000\000", !9, !8, !67, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!71 = !{!"0x2e\00operator*=\00operator*=\00_ZN9ggVector3mLEd\00317\000\000\000\006\000\000\000", !9, !8, !72, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!72 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !73, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!69 = !DIDerivedType(tag: DW_TAG_reference_type, name: "ggVector3", size: 32, align: 32, file: !101, scope: !4, baseType: !8)
+!70 = !DISubprogram(name: "operator-=", linkageName: "_ZN9ggVector3mIERKS_", line: 310, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !67)
+!71 = !DISubprogram(name: "operator*=", linkageName: "_ZN9ggVector3mLEd", line: 317, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !72)
+!72 = !DISubroutineType(types: !73)
 !73 = !{!69, !19, !13}
-!74 = !{!"0x2e\00operator/=\00operator/=\00_ZN9ggVector3dVEd\00324\000\000\000\006\000\000\000", !9, !8, !72, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!75 = !{!"0x2e\00length\00length\00_ZNK9ggVector36lengthEv\00121\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!76 = !{!"0x2e\00squaredLength\00squaredLength\00_ZNK9ggVector313squaredLengthEv\00122\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!77 = !{!"0x2e\00MakeUnitVector\00MakeUnitVector\00_ZN9ggVector314MakeUnitVectorEv\00217\000\001\000\006\000\000\000", !9, !8, !24, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!78 = !{!"0x2e\00Perturb\00Perturb\00_ZNK9ggVector37PerturbEdd\00126\000\000\000\006\000\000\000", !9, !8, !79, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!79 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !80, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!74 = !DISubprogram(name: "operator/=", linkageName: "_ZN9ggVector3dVEd", line: 324, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !72)
+!75 = !DISubprogram(name: "length", linkageName: "_ZNK9ggVector36lengthEv", line: 121, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!76 = !DISubprogram(name: "squaredLength", linkageName: "_ZNK9ggVector313squaredLengthEv", line: 122, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!77 = !DISubprogram(name: "MakeUnitVector", linkageName: "_ZN9ggVector314MakeUnitVectorEv", line: 217, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !24)
+!78 = !DISubprogram(name: "Perturb", linkageName: "_ZNK9ggVector37PerturbEdd", line: 126, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !79)
+!79 = !DISubroutineType(types: !80)
 !80 = !{!8, !33, !13, !13}
-!81 = !{!"0x2e\00maxComponent\00maxComponent\00_ZNK9ggVector312maxComponentEv\00128\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!82 = !{!"0x2e\00minComponent\00minComponent\00_ZNK9ggVector312minComponentEv\00129\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!83 = !{!"0x2e\00maxAbsComponent\00maxAbsComponent\00_ZNK9ggVector315maxAbsComponentEv\00131\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!84 = !{!"0x2e\00minAbsComponent\00minAbsComponent\00_ZNK9ggVector315minAbsComponentEv\00132\000\000\000\006\000\000\000", !9, !8, !31, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!85 = !{!"0x2e\00indexOfMinComponent\00indexOfMinComponent\00_ZNK9ggVector319indexOfMinComponentEv\00133\000\000\000\006\000\000\000", !9, !8, !86, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!86 = !{!"0x15\00\000\000\000\000\000\000", !101, !4, null, !87, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!81 = !DISubprogram(name: "maxComponent", linkageName: "_ZNK9ggVector312maxComponentEv", line: 128, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!82 = !DISubprogram(name: "minComponent", linkageName: "_ZNK9ggVector312minComponentEv", line: 129, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!83 = !DISubprogram(name: "maxAbsComponent", linkageName: "_ZNK9ggVector315maxAbsComponentEv", line: 131, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!84 = !DISubprogram(name: "minAbsComponent", linkageName: "_ZNK9ggVector315minAbsComponentEv", line: 132, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !31)
+!85 = !DISubprogram(name: "indexOfMinComponent", linkageName: "_ZNK9ggVector319indexOfMinComponentEv", line: 133, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !86)
+!86 = !DISubroutineType(types: !87)
 !87 = !{!22, !33}
-!88 = !{!"0x2e\00indexOfMinAbsComponent\00indexOfMinAbsComponent\00_ZNK9ggVector322indexOfMinAbsComponentEv\00137\000\000\000\006\000\000\000", !9, !8, !86, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!89 = !{!"0x2e\00indexOfMaxComponent\00indexOfMaxComponent\00_ZNK9ggVector319indexOfMaxComponentEv\00146\000\000\000\006\000\000\000", !9, !8, !86, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!90 = !{!"0x2e\00indexOfMaxAbsComponent\00indexOfMaxAbsComponent\00_ZNK9ggVector322indexOfMaxAbsComponentEv\00150\000\000\000\006\000\000\000", !9, !8, !86, null, null, null, null, null} ; [ DW_TAG_subprogram ]
-!91 = !{!"0x100\00vx\0046\000", !1, !4, !13} ; [ DW_TAG_auto_variable ]
-!92 = !MDLocation(line: 48, scope: !1)
-!93 = !MDLocation(line: 218, scope: !94, inlinedAt: !96)
-!94 = !{!"0xb\00217\000\000", !101, !95} ; [ DW_TAG_lexical_block ]
-!95 = !{!"0xb\00217\000\000", !101, !77} ; [ DW_TAG_lexical_block ]
-!96 = !MDLocation(line: 51, scope: !1)
-!97 = !MDLocation(line: 227, scope: !94, inlinedAt: !96)
-!98 = !MDLocation(line: 52, scope: !1)
-!101 = !{!"ggEdgeDiscrepancy.cc", !"/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src"}
-!102 = !{i32 0}
+!88 = !DISubprogram(name: "indexOfMinAbsComponent", linkageName: "_ZNK9ggVector322indexOfMinAbsComponentEv", line: 137, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !86)
+!89 = !DISubprogram(name: "indexOfMaxComponent", linkageName: "_ZNK9ggVector319indexOfMaxComponentEv", line: 146, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !86)
+!90 = !DISubprogram(name: "indexOfMaxAbsComponent", linkageName: "_ZNK9ggVector322indexOfMaxAbsComponentEv", line: 150, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !9, scope: !8, type: !86)
+!91 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "vx", line: 46, scope: !1, file: !4, type: !13)
+!92 = !DILocation(line: 48, scope: !1)
+!93 = !DILocation(line: 218, scope: !94, inlinedAt: !96)
+!94 = distinct !DILexicalBlock(line: 217, column: 0, file: !101, scope: !95)
+!95 = distinct !DILexicalBlock(line: 217, column: 0, file: !101, scope: !77)
+!96 = !DILocation(line: 51, scope: !1)
+!97 = !DILocation(line: 227, scope: !94, inlinedAt: !96)
+!98 = !DILocation(line: 52, scope: !1)
+!101 = !DIFile(filename: "ggEdgeDiscrepancy.cc", directory: "/Volumes/Home/grosbaj/sources/llvm-externals/speccpu2000/benchspec/CINT2000/252.eon/src")
+!102 = !{}
 !103 = !{!3, !77}
-!104 = !{i32 1, !"Debug Info Version", i32 2}
+!104 = !{i32 1, !"Debug Info Version", i32 3}

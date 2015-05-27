@@ -37,20 +37,20 @@ define void @f1(i32 *%ptr0) {
 ; CHECK-NOT: %r15
 ; CHECK: lmg
 ; CHECK: br %r14
-  %ptr1 = getelementptr i32 *%ptr0, i32 2
-  %ptr2 = getelementptr i32 *%ptr0, i32 4
-  %ptr3 = getelementptr i32 *%ptr0, i32 6
-  %ptr4 = getelementptr i32 *%ptr0, i32 8
-  %ptr5 = getelementptr i32 *%ptr0, i32 10
-  %ptr6 = getelementptr i32 *%ptr0, i32 12
+  %ptr1 = getelementptr i32, i32 *%ptr0, i32 2
+  %ptr2 = getelementptr i32, i32 *%ptr0, i32 4
+  %ptr3 = getelementptr i32, i32 *%ptr0, i32 6
+  %ptr4 = getelementptr i32, i32 *%ptr0, i32 8
+  %ptr5 = getelementptr i32, i32 *%ptr0, i32 10
+  %ptr6 = getelementptr i32, i32 *%ptr0, i32 12
 
-  %val0 = load i32 *%ptr0
-  %val1 = load i32 *%ptr1
-  %val2 = load i32 *%ptr2
-  %val3 = load i32 *%ptr3
-  %val4 = load i32 *%ptr4
-  %val5 = load i32 *%ptr5
-  %val6 = load i32 *%ptr6
+  %val0 = load i32 , i32 *%ptr0
+  %val1 = load i32 , i32 *%ptr1
+  %val2 = load i32 , i32 *%ptr2
+  %val3 = load i32 , i32 *%ptr3
+  %val4 = load i32 , i32 *%ptr4
+  %val5 = load i32 , i32 *%ptr5
+  %val6 = load i32 , i32 *%ptr6
 
   call void @foo()
 
@@ -73,24 +73,24 @@ define void @f2(i32 *%ptr0) {
 ; CHECK: brasl %r14, foo@PLT
 ; CHECK: mvc [[OFFSET2]](4,{{%r[0-9]+}}), [[OFFSET1]](%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr i32 *%ptr0, i64 2
-  %ptr2 = getelementptr i32 *%ptr0, i64 4
-  %ptr3 = getelementptr i32 *%ptr0, i64 6
-  %ptr4 = getelementptr i32 *%ptr0, i64 8
-  %ptr5 = getelementptr i32 *%ptr0, i64 10
-  %ptr6 = getelementptr i32 *%ptr0, i64 12
-  %ptr7 = getelementptr i32 *%ptr0, i64 14
-  %ptr8 = getelementptr i32 *%ptr0, i64 16
+  %ptr1 = getelementptr i32, i32 *%ptr0, i64 2
+  %ptr2 = getelementptr i32, i32 *%ptr0, i64 4
+  %ptr3 = getelementptr i32, i32 *%ptr0, i64 6
+  %ptr4 = getelementptr i32, i32 *%ptr0, i64 8
+  %ptr5 = getelementptr i32, i32 *%ptr0, i64 10
+  %ptr6 = getelementptr i32, i32 *%ptr0, i64 12
+  %ptr7 = getelementptr i32, i32 *%ptr0, i64 14
+  %ptr8 = getelementptr i32, i32 *%ptr0, i64 16
 
-  %val0 = load i32 *%ptr0
-  %val1 = load i32 *%ptr1
-  %val2 = load i32 *%ptr2
-  %val3 = load i32 *%ptr3
-  %val4 = load i32 *%ptr4
-  %val5 = load i32 *%ptr5
-  %val6 = load i32 *%ptr6
-  %val7 = load i32 *%ptr7
-  %val8 = load i32 *%ptr8
+  %val0 = load i32 , i32 *%ptr0
+  %val1 = load i32 , i32 *%ptr1
+  %val2 = load i32 , i32 *%ptr2
+  %val3 = load i32 , i32 *%ptr3
+  %val4 = load i32 , i32 *%ptr4
+  %val5 = load i32 , i32 *%ptr5
+  %val6 = load i32 , i32 *%ptr6
+  %val7 = load i32 , i32 *%ptr7
+  %val8 = load i32 , i32 *%ptr8
 
   call void @foo()
 
@@ -115,24 +115,24 @@ define void @f3(i64 *%ptr0) {
 ; CHECK: brasl %r14, foo@PLT
 ; CHECK: mvc [[OFFSET]](8,{{%r[0-9]+}}), 160(%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr i64 *%ptr0, i64 2
-  %ptr2 = getelementptr i64 *%ptr0, i64 4
-  %ptr3 = getelementptr i64 *%ptr0, i64 6
-  %ptr4 = getelementptr i64 *%ptr0, i64 8
-  %ptr5 = getelementptr i64 *%ptr0, i64 10
-  %ptr6 = getelementptr i64 *%ptr0, i64 12
-  %ptr7 = getelementptr i64 *%ptr0, i64 14
-  %ptr8 = getelementptr i64 *%ptr0, i64 16
+  %ptr1 = getelementptr i64, i64 *%ptr0, i64 2
+  %ptr2 = getelementptr i64, i64 *%ptr0, i64 4
+  %ptr3 = getelementptr i64, i64 *%ptr0, i64 6
+  %ptr4 = getelementptr i64, i64 *%ptr0, i64 8
+  %ptr5 = getelementptr i64, i64 *%ptr0, i64 10
+  %ptr6 = getelementptr i64, i64 *%ptr0, i64 12
+  %ptr7 = getelementptr i64, i64 *%ptr0, i64 14
+  %ptr8 = getelementptr i64, i64 *%ptr0, i64 16
 
-  %val0 = load i64 *%ptr0
-  %val1 = load i64 *%ptr1
-  %val2 = load i64 *%ptr2
-  %val3 = load i64 *%ptr3
-  %val4 = load i64 *%ptr4
-  %val5 = load i64 *%ptr5
-  %val6 = load i64 *%ptr6
-  %val7 = load i64 *%ptr7
-  %val8 = load i64 *%ptr8
+  %val0 = load i64 , i64 *%ptr0
+  %val1 = load i64 , i64 *%ptr1
+  %val2 = load i64 , i64 *%ptr2
+  %val3 = load i64 , i64 *%ptr3
+  %val4 = load i64 , i64 *%ptr4
+  %val5 = load i64 , i64 *%ptr5
+  %val6 = load i64 , i64 *%ptr6
+  %val7 = load i64 , i64 *%ptr7
+  %val8 = load i64 , i64 *%ptr8
 
   call void @foo()
 
@@ -160,26 +160,26 @@ define void @f4(float *%ptr0) {
 ; CHECK: brasl %r14, foo@PLT
 ; CHECK: mvc [[OFFSET2]](4,{{%r[0-9]+}}), [[OFFSET1]](%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr float *%ptr0, i64 2
-  %ptr2 = getelementptr float *%ptr0, i64 4
-  %ptr3 = getelementptr float *%ptr0, i64 6
-  %ptr4 = getelementptr float *%ptr0, i64 8
-  %ptr5 = getelementptr float *%ptr0, i64 10
-  %ptr6 = getelementptr float *%ptr0, i64 12
-  %ptr7 = getelementptr float *%ptr0, i64 14
-  %ptr8 = getelementptr float *%ptr0, i64 16
-  %ptr9 = getelementptr float *%ptr0, i64 18
+  %ptr1 = getelementptr float, float *%ptr0, i64 2
+  %ptr2 = getelementptr float, float *%ptr0, i64 4
+  %ptr3 = getelementptr float, float *%ptr0, i64 6
+  %ptr4 = getelementptr float, float *%ptr0, i64 8
+  %ptr5 = getelementptr float, float *%ptr0, i64 10
+  %ptr6 = getelementptr float, float *%ptr0, i64 12
+  %ptr7 = getelementptr float, float *%ptr0, i64 14
+  %ptr8 = getelementptr float, float *%ptr0, i64 16
+  %ptr9 = getelementptr float, float *%ptr0, i64 18
 
-  %val0 = load float *%ptr0
-  %val1 = load float *%ptr1
-  %val2 = load float *%ptr2
-  %val3 = load float *%ptr3
-  %val4 = load float *%ptr4
-  %val5 = load float *%ptr5
-  %val6 = load float *%ptr6
-  %val7 = load float *%ptr7
-  %val8 = load float *%ptr8
-  %val9 = load float *%ptr9
+  %val0 = load float , float *%ptr0
+  %val1 = load float , float *%ptr1
+  %val2 = load float , float *%ptr2
+  %val3 = load float , float *%ptr3
+  %val4 = load float , float *%ptr4
+  %val5 = load float , float *%ptr5
+  %val6 = load float , float *%ptr6
+  %val7 = load float , float *%ptr7
+  %val8 = load float , float *%ptr8
+  %val9 = load float , float *%ptr9
 
   call void @foo()
 
@@ -204,26 +204,26 @@ define void @f5(double *%ptr0) {
 ; CHECK: brasl %r14, foo@PLT
 ; CHECK: mvc [[OFFSET]](8,{{%r[0-9]+}}), 160(%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr double *%ptr0, i64 2
-  %ptr2 = getelementptr double *%ptr0, i64 4
-  %ptr3 = getelementptr double *%ptr0, i64 6
-  %ptr4 = getelementptr double *%ptr0, i64 8
-  %ptr5 = getelementptr double *%ptr0, i64 10
-  %ptr6 = getelementptr double *%ptr0, i64 12
-  %ptr7 = getelementptr double *%ptr0, i64 14
-  %ptr8 = getelementptr double *%ptr0, i64 16
-  %ptr9 = getelementptr double *%ptr0, i64 18
+  %ptr1 = getelementptr double, double *%ptr0, i64 2
+  %ptr2 = getelementptr double, double *%ptr0, i64 4
+  %ptr3 = getelementptr double, double *%ptr0, i64 6
+  %ptr4 = getelementptr double, double *%ptr0, i64 8
+  %ptr5 = getelementptr double, double *%ptr0, i64 10
+  %ptr6 = getelementptr double, double *%ptr0, i64 12
+  %ptr7 = getelementptr double, double *%ptr0, i64 14
+  %ptr8 = getelementptr double, double *%ptr0, i64 16
+  %ptr9 = getelementptr double, double *%ptr0, i64 18
 
-  %val0 = load double *%ptr0
-  %val1 = load double *%ptr1
-  %val2 = load double *%ptr2
-  %val3 = load double *%ptr3
-  %val4 = load double *%ptr4
-  %val5 = load double *%ptr5
-  %val6 = load double *%ptr6
-  %val7 = load double *%ptr7
-  %val8 = load double *%ptr8
-  %val9 = load double *%ptr9
+  %val0 = load double , double *%ptr0
+  %val1 = load double , double *%ptr1
+  %val2 = load double , double *%ptr2
+  %val3 = load double , double *%ptr3
+  %val4 = load double , double *%ptr4
+  %val5 = load double , double *%ptr5
+  %val6 = load double , double *%ptr6
+  %val7 = load double , double *%ptr7
+  %val8 = load double , double *%ptr8
+  %val9 = load double , double *%ptr9
 
   call void @foo()
 
@@ -246,24 +246,24 @@ define void @f6(i32 *%ptr0) {
 ; CHECK-LABEL: f6:
 ; CHECK-NOT: mvc
 ; CHECK: br %r14
-  %ptr1 = getelementptr i32 *%ptr0, i64 2
-  %ptr2 = getelementptr i32 *%ptr0, i64 4
-  %ptr3 = getelementptr i32 *%ptr0, i64 6
-  %ptr4 = getelementptr i32 *%ptr0, i64 8
-  %ptr5 = getelementptr i32 *%ptr0, i64 10
-  %ptr6 = getelementptr i32 *%ptr0, i64 12
-  %ptr7 = getelementptr i32 *%ptr0, i64 14
-  %ptr8 = getelementptr i32 *%ptr0, i64 16
+  %ptr1 = getelementptr i32, i32 *%ptr0, i64 2
+  %ptr2 = getelementptr i32, i32 *%ptr0, i64 4
+  %ptr3 = getelementptr i32, i32 *%ptr0, i64 6
+  %ptr4 = getelementptr i32, i32 *%ptr0, i64 8
+  %ptr5 = getelementptr i32, i32 *%ptr0, i64 10
+  %ptr6 = getelementptr i32, i32 *%ptr0, i64 12
+  %ptr7 = getelementptr i32, i32 *%ptr0, i64 14
+  %ptr8 = getelementptr i32, i32 *%ptr0, i64 16
 
-  %val0 = load atomic i32 *%ptr0 unordered, align 4
-  %val1 = load atomic i32 *%ptr1 unordered, align 4
-  %val2 = load atomic i32 *%ptr2 unordered, align 4
-  %val3 = load atomic i32 *%ptr3 unordered, align 4
-  %val4 = load atomic i32 *%ptr4 unordered, align 4
-  %val5 = load atomic i32 *%ptr5 unordered, align 4
-  %val6 = load atomic i32 *%ptr6 unordered, align 4
-  %val7 = load atomic i32 *%ptr7 unordered, align 4
-  %val8 = load atomic i32 *%ptr8 unordered, align 4
+  %val0 = load atomic i32 , i32 *%ptr0 unordered, align 4
+  %val1 = load atomic i32 , i32 *%ptr1 unordered, align 4
+  %val2 = load atomic i32 , i32 *%ptr2 unordered, align 4
+  %val3 = load atomic i32 , i32 *%ptr3 unordered, align 4
+  %val4 = load atomic i32 , i32 *%ptr4 unordered, align 4
+  %val5 = load atomic i32 , i32 *%ptr5 unordered, align 4
+  %val6 = load atomic i32 , i32 *%ptr6 unordered, align 4
+  %val7 = load atomic i32 , i32 *%ptr7 unordered, align 4
+  %val8 = load atomic i32 , i32 *%ptr8 unordered, align 4
 
   call void @foo()
 
@@ -285,24 +285,24 @@ define void @f7(i32 *%ptr0) {
 ; CHECK-LABEL: f7:
 ; CHECK-NOT: mvc
 ; CHECK: br %r14
-  %ptr1 = getelementptr i32 *%ptr0, i64 2
-  %ptr2 = getelementptr i32 *%ptr0, i64 4
-  %ptr3 = getelementptr i32 *%ptr0, i64 6
-  %ptr4 = getelementptr i32 *%ptr0, i64 8
-  %ptr5 = getelementptr i32 *%ptr0, i64 10
-  %ptr6 = getelementptr i32 *%ptr0, i64 12
-  %ptr7 = getelementptr i32 *%ptr0, i64 14
-  %ptr8 = getelementptr i32 *%ptr0, i64 16
+  %ptr1 = getelementptr i32, i32 *%ptr0, i64 2
+  %ptr2 = getelementptr i32, i32 *%ptr0, i64 4
+  %ptr3 = getelementptr i32, i32 *%ptr0, i64 6
+  %ptr4 = getelementptr i32, i32 *%ptr0, i64 8
+  %ptr5 = getelementptr i32, i32 *%ptr0, i64 10
+  %ptr6 = getelementptr i32, i32 *%ptr0, i64 12
+  %ptr7 = getelementptr i32, i32 *%ptr0, i64 14
+  %ptr8 = getelementptr i32, i32 *%ptr0, i64 16
 
-  %val0 = load volatile i32 *%ptr0
-  %val1 = load volatile i32 *%ptr1
-  %val2 = load volatile i32 *%ptr2
-  %val3 = load volatile i32 *%ptr3
-  %val4 = load volatile i32 *%ptr4
-  %val5 = load volatile i32 *%ptr5
-  %val6 = load volatile i32 *%ptr6
-  %val7 = load volatile i32 *%ptr7
-  %val8 = load volatile i32 *%ptr8
+  %val0 = load volatile i32 , i32 *%ptr0
+  %val1 = load volatile i32 , i32 *%ptr1
+  %val2 = load volatile i32 , i32 *%ptr2
+  %val3 = load volatile i32 , i32 *%ptr3
+  %val4 = load volatile i32 , i32 *%ptr4
+  %val5 = load volatile i32 , i32 *%ptr5
+  %val6 = load volatile i32 , i32 *%ptr6
+  %val7 = load volatile i32 , i32 *%ptr7
+  %val8 = load volatile i32 , i32 *%ptr8
 
   call void @foo()
 
@@ -324,16 +324,16 @@ define void @f8() {
 ; CHECK-LABEL: f8:
 ; CHECK-NOT: mvc
 ; CHECK: br %r14
-  %val0 = load i32 *@g0
-  %val1 = load i32 *@g1
-  %val2 = load i32 *@g2
-  %val3 = load i32 *@g3
-  %val4 = load i32 *@g4
-  %val5 = load i32 *@g5
-  %val6 = load i32 *@g6
-  %val7 = load i32 *@g7
-  %val8 = load i32 *@g8
-  %val9 = load i32 *@g9
+  %val0 = load i32 , i32 *@g0
+  %val1 = load i32 , i32 *@g1
+  %val2 = load i32 , i32 *@g2
+  %val3 = load i32 , i32 *@g3
+  %val4 = load i32 , i32 *@g4
+  %val5 = load i32 , i32 *@g5
+  %val6 = load i32 , i32 *@g6
+  %val7 = load i32 , i32 *@g7
+  %val8 = load i32 , i32 *@g8
+  %val9 = load i32 , i32 *@g9
 
   call void @foo()
 
@@ -356,16 +356,16 @@ define void @f9() {
 ; CHECK-LABEL: f9:
 ; CHECK-NOT: mvc
 ; CHECK: br %r14
-  %val0 = load i64 *@h0
-  %val1 = load i64 *@h1
-  %val2 = load i64 *@h2
-  %val3 = load i64 *@h3
-  %val4 = load i64 *@h4
-  %val5 = load i64 *@h5
-  %val6 = load i64 *@h6
-  %val7 = load i64 *@h7
-  %val8 = load i64 *@h8
-  %val9 = load i64 *@h9
+  %val0 = load i64 , i64 *@h0
+  %val1 = load i64 , i64 *@h1
+  %val2 = load i64 , i64 *@h2
+  %val3 = load i64 , i64 *@h3
+  %val4 = load i64 , i64 *@h4
+  %val5 = load i64 , i64 *@h5
+  %val6 = load i64 , i64 *@h6
+  %val7 = load i64 , i64 *@h7
+  %val8 = load i64 , i64 *@h8
+  %val9 = load i64 , i64 *@h9
 
   call void @foo()
 
@@ -400,16 +400,16 @@ define void @f10() {
 ; CHECK: stgrl [[REG]], h8
 ; CHECK: br %r14
 entry:
-  %val8 = load volatile i64 *@h8
-  %val0 = load volatile i64 *@h0
-  %val1 = load volatile i64 *@h1
-  %val2 = load volatile i64 *@h2
-  %val3 = load volatile i64 *@h3
-  %val4 = load volatile i64 *@h4
-  %val5 = load volatile i64 *@h5
-  %val6 = load volatile i64 *@h6
-  %val7 = load volatile i64 *@h7
-  %val9 = load volatile i64 *@h9
+  %val8 = load volatile i64 , i64 *@h8
+  %val0 = load volatile i64 , i64 *@h0
+  %val1 = load volatile i64 , i64 *@h1
+  %val2 = load volatile i64 , i64 *@h2
+  %val3 = load volatile i64 , i64 *@h3
+  %val4 = load volatile i64 , i64 *@h4
+  %val5 = load volatile i64 , i64 *@h5
+  %val6 = load volatile i64 , i64 *@h6
+  %val7 = load volatile i64 , i64 *@h7
+  %val9 = load volatile i64 , i64 *@h9
 
   call void @foo()
 
@@ -422,7 +422,7 @@ entry:
   store volatile i64 %val6, i64 *@h6
   store volatile i64 %val7, i64 *@h7
 
-  %check = load volatile i64 *@h0
+  %check = load volatile i64 , i64 *@h0
   %cond = icmp eq i64 %check, 0
   br i1 %cond, label %skip, label %fallthru
 
@@ -464,17 +464,17 @@ define void @f11() {
 ; CHECK-NOT: mvc [[OFFSET:[0-9]+]](8,%r15), [[OFFSET]](%r15)
 ; CHECK: br %r14
 entry:
-  %val0 = load volatile i64 *@h0
-  %val1 = load volatile i64 *@h1
-  %val2 = load volatile i64 *@h2
-  %val3 = load volatile i64 *@h3
-  %val4 = load volatile i64 *@h4
-  %val5 = load volatile i64 *@h5
-  %val6 = load volatile i64 *@h6
-  %val7 = load volatile i64 *@h7
+  %val0 = load volatile i64 , i64 *@h0
+  %val1 = load volatile i64 , i64 *@h1
+  %val2 = load volatile i64 , i64 *@h2
+  %val3 = load volatile i64 , i64 *@h3
+  %val4 = load volatile i64 , i64 *@h4
+  %val5 = load volatile i64 , i64 *@h5
+  %val6 = load volatile i64 , i64 *@h6
+  %val7 = load volatile i64 , i64 *@h7
 
-  %altval0 = load volatile i64 *@h0
-  %altval1 = load volatile i64 *@h1
+  %altval0 = load volatile i64 , i64 *@h0
+  %altval1 = load volatile i64 , i64 *@h1
 
   call void @foo()
 
@@ -487,7 +487,7 @@ entry:
   store volatile i64 %val6, i64 *@h6
   store volatile i64 %val7, i64 *@h7
 
-  %check = load volatile i64 *@h0
+  %check = load volatile i64 , i64 *@h0
   %cond = icmp eq i64 %check, 0
   br i1 %cond, label %a1, label %b1
 

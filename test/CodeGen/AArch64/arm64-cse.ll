@@ -1,4 +1,4 @@
-; RUN: llc -O3 < %s -aarch64-atomic-cfg-tidy=0 -aarch64-gep-opt=false | FileCheck %s
+; RUN: llc -O3 < %s -aarch64-atomic-cfg-tidy=0 -aarch64-gep-opt=false -verify-machineinstrs | FileCheck %s
 target triple = "arm64-apple-ios"
 
 ; rdar://12462006
@@ -15,7 +15,7 @@ entry:
 ; CHECK: sub
 ; CHECK-NOT: sub
 ; CHECK: ret
- %0 = load i32* %offset, align 4
+ %0 = load i32, i32* %offset, align 4
  %cmp = icmp slt i32 %0, %size
  %s = sub nsw i32 %0, %size
  br i1 %cmp, label %return, label %if.end
@@ -25,7 +25,7 @@ if.end:
  %s2 = sub nsw i32 %s, %size
  %s3 = sub nsw i32 %sub, %s2
  store i32 %s3, i32* %offset, align 4
- %add.ptr = getelementptr inbounds i8* %base, i32 %sub
+ %add.ptr = getelementptr inbounds i8, i8* %base, i32 %sub
  br label %return
 
 return:
@@ -43,14 +43,14 @@ entry:
 ; CHECK: b.lt
 ; CHECK-NOT: sub
 ; CHECK: ret
- %0 = load i32* %offset, align 4
+ %0 = load i32, i32* %offset, align 4
  %cmp = icmp slt i32 %0, 1
  br i1 %cmp, label %return, label %if.end
 
 if.end:
  %sub = sub nsw i32 %0, 1
  store i32 %sub, i32* %offset, align 4
- %add.ptr = getelementptr inbounds i8* %base, i32 %sub
+ %add.ptr = getelementptr inbounds i8, i8* %base, i32 %sub
  br label %return
 
 return:

@@ -29,10 +29,10 @@ declare void @myhextochar(i32 %n, i8* nocapture %buffer) nounwind
 
 define i32 @main() nounwind {
 entry:
-  %0 = tail call i32 (...)* @write(i32 1, i8* getelementptr inbounds ([7 x i8]* @.str, i32 0, i32 0), i32 6) nounwind
-  %1 = tail call i32 (...)* @write(i32 1, i8* getelementptr inbounds ([8 x i8]* @.str1, i32 0, i32 0), i32 7) nounwind
-  %2 = tail call i32 (...)* @write(i32 1, i8* getelementptr inbounds ([13 x i8]* @.str2, i32 0, i32 0), i32 12) nounwind
-  %3 = tail call i32 (...)* @write(i32 1, i8* getelementptr inbounds ([7 x i8]* @.str3, i32 0, i32 0), i32 6) nounwind
+  %0 = tail call i32 (...) @write(i32 1, i8* getelementptr inbounds ([7 x i8], [7 x i8]* @.str, i32 0, i32 0), i32 6) nounwind
+  %1 = tail call i32 (...) @write(i32 1, i8* getelementptr inbounds ([8 x i8], [8 x i8]* @.str1, i32 0, i32 0), i32 7) nounwind
+  %2 = tail call i32 (...) @write(i32 1, i8* getelementptr inbounds ([13 x i8], [13 x i8]* @.str2, i32 0, i32 0), i32 12) nounwind
+  %3 = tail call i32 (...) @write(i32 1, i8* getelementptr inbounds ([7 x i8], [7 x i8]* @.str3, i32 0, i32 0), i32 6) nounwind
   tail call void @exit(i32 55) noreturn nounwind
   unreachable
 }
@@ -42,7 +42,7 @@ declare i32 @write(...)
 declare void @exit(i32) noreturn nounwind
 
 ;; OBJ:      Relocations [
-;; OBJ:        Section (2) .rel.text {
+;; OBJ:        Section {{.*}} .rel.text {
 ;; OBJ-NEXT:     0x{{[0-9,A-F]+}} R_ARM_MOVW_ABS_NC .L.str
 ;; OBJ:        }
 ;; OBJ:      ]

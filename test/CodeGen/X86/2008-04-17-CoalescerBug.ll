@@ -33,16 +33,16 @@ bb161.i:		; preds = %bb142.i
 bb182.i:		; preds = %bb142.i
 	ret void
 bb3261:		; preds = %bb7834, %bb161.i
-	%tmp3263 = load i32* null, align 4		; <i32> [#uses=1]
+	%tmp3263 = load i32, i32* null, align 4		; <i32> [#uses=1]
 	%tmp3264 = icmp eq i32 %tmp3263, 37		; <i1> [#uses=1]
 	br i1 %tmp3264, label %bb3306, label %bb3267
 bb3267:		; preds = %bb3261
 	ret void
 bb3306:		; preds = %bb3261
-	%tmp3310 = invoke %struct.wxStringBase* @_ZN12wxStringBaseaSEPKw( %struct.wxStringBase* null, i32* getelementptr ([5 x i32]* @.str89, i32 0, i32 0) )
+	%tmp3310 = invoke %struct.wxStringBase* @_ZN12wxStringBaseaSEPKw( %struct.wxStringBase* null, i32* getelementptr ([5 x i32], [5 x i32]* @.str89, i32 0, i32 0) )
 			to label %bb3314 unwind label %lpad		; <%struct.wxStringBase*> [#uses=0]
 bb3314:		; preds = %bb3306
-	%tmp3316 = load i32* null, align 4		; <i32> [#uses=1]
+	%tmp3316 = load i32, i32* null, align 4		; <i32> [#uses=1]
 	switch i32 %tmp3316, label %bb7595 [
 		 i32 0, label %bb7819
 		 i32 37, label %bb7806
@@ -108,7 +108,7 @@ bb278.i8617:		; preds = %bb182.i8560
 	%timeOnly50.0.i8622 = add i32 0, 0		; <i32> [#uses=1]
 	br i1 %foo, label %bb440.i8663, label %bb448.i8694
 bb440.i8663:		; preds = %bb278.i8617
-	invoke void @_Z10wxOnAssertPKwiPKcS0_S0_( i32* getelementptr ([27 x i32]* @.str, i32 0, i32 0), i32 1717, i8* getelementptr ([6 x i8]* @_ZZNK10wxDateTime5GetTmERKNS_8TimeZoneEE12__FUNCTION__, i32 0, i32 0), i32* getelementptr ([29 x i32]* @.str33, i32 0, i32 0), i32* getelementptr ([14 x i32]* @.str4, i32 0, i32 0) )
+	invoke void @_Z10wxOnAssertPKwiPKcS0_S0_( i32* getelementptr ([27 x i32], [27 x i32]* @.str, i32 0, i32 0), i32 1717, i8* getelementptr ([6 x i8], [6 x i8]* @_ZZNK10wxDateTime5GetTmERKNS_8TimeZoneEE12__FUNCTION__, i32 0, i32 0), i32* getelementptr ([29 x i32], [29 x i32]* @.str33, i32 0, i32 0), i32* getelementptr ([14 x i32], [14 x i32]* @.str4, i32 0, i32 0) )
 			to label %bb448.i8694 unwind label %lpad
 bb448.i8694:		; preds = %bb440.i8663, %bb278.i8617
 	%tmp477.i8669 = srem i32 %timeOnly50.0.i8622, 1000		; <i32> [#uses=1]
@@ -117,13 +117,13 @@ bb448.i8694:		; preds = %bb440.i8663, %bb278.i8617
 invcont5814:		; preds = %bb448.i8694, %bb265.i8606
 	%tmp812.0.0 = phi i16 [ %tmp477478.i8670, %bb448.i8694 ], [ %tmp273274.i8595, %bb265.i8606 ]		; <i16> [#uses=1]
 	%tmp58165817 = zext i16 %tmp812.0.0 to i32		; <i32> [#uses=1]
-	invoke void (%struct.wxString*, i32*, ...)* @_ZN8wxString6FormatEPKwz( %struct.wxString* noalias sret  null, i32* null, i32 %tmp58165817 )
+	invoke void (%struct.wxString*, i32*, ...) @_ZN8wxString6FormatEPKwz( %struct.wxString* noalias sret  null, i32* null, i32 %tmp58165817 )
 			to label %invcont5831 unwind label %lpad
 invcont5831:		; preds = %invcont5814
 	%tmp5862 = invoke zeroext  i8 @_ZN12wxStringBase10ConcatSelfEmPKwm( %struct.wxStringBase* null, i32 0, i32* null, i32 0 ) 
 			to label %bb7834 unwind label %lpad8185		; <i8> [#uses=0]
 bb5968:		; preds = %bb3314
-	invoke void (%struct.wxString*, i32*, ...)* @_ZN8wxString6FormatEPKwz( %struct.wxString* noalias sret  null, i32* null, i32 0 )
+	invoke void (%struct.wxString*, i32*, ...) @_ZN8wxString6FormatEPKwz( %struct.wxString* noalias sret  null, i32* null, i32 0 )
 			to label %invcont5981 unwind label %lpad
 invcont5981:		; preds = %bb5968
 	ret void

@@ -7,7 +7,8 @@ foreach(entry ${entries})
     if((NOT ${entry} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}/compiler-rt) AND
        (NOT ${entry} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}/dragonegg) AND
        (NOT ${entry} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}/libcxx) AND
-       (NOT ${entry} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}/libcxxabi))
+       (NOT ${entry} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}/libcxxabi) AND
+       (NOT ${entry} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR}/libunwind))
       add_subdirectory(${entry})
     endif()
   endif()
@@ -19,8 +20,11 @@ if(${LLVM_BUILD_RUNTIME})
   # MSVC isn't quite working with libc++ yet, disable it until issues are
   # fixed.
   if(NOT MSVC)
-    add_llvm_external_project(libcxx)
+    # libc++ uses the libc++abi target names so libc++abi should be added
+    # first.
     add_llvm_external_project(libcxxabi)
+    add_llvm_external_project(libcxx)
+    add_llvm_external_project(libunwind)
   endif()
   if(NOT LLVM_BUILD_EXTERNAL_COMPILER_RT)
     add_llvm_external_project(compiler-rt)

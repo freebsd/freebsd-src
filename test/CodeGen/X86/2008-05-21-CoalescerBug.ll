@@ -74,7 +74,7 @@ entry:
 	br label %bb497
 
 bb483:		; preds = %bb497
-	%tmp496 = load %struct.tree_node** null, align 4		; <%struct.tree_node*> [#uses=1]
+	%tmp496 = load %struct.tree_node*, %struct.tree_node** null, align 4		; <%struct.tree_node*> [#uses=1]
 	br label %bb497
 
 bb497:		; preds = %bb483, %entry
@@ -87,9 +87,9 @@ bb502:		; preds = %bb497
 	br i1 %foo, label %bb507, label %bb841
 
 bb507:		; preds = %bb502
-	%tmp517 = getelementptr %struct.tree_node* %last.0, i32 0, i32 0		; <%struct.tree_function_decl*> [#uses=1]
+	%tmp517 = getelementptr %struct.tree_node, %struct.tree_node* %last.0, i32 0, i32 0		; <%struct.tree_function_decl*> [#uses=1]
 	%tmp517518 = bitcast %struct.tree_function_decl* %tmp517 to %struct.tree_common*		; <%struct.tree_common*> [#uses=1]
-	%tmp519 = getelementptr %struct.tree_common* %tmp517518, i32 0, i32 0		; <%struct.tree_node**> [#uses=1]
+	%tmp519 = getelementptr %struct.tree_common, %struct.tree_common* %tmp517518, i32 0, i32 0		; <%struct.tree_node**> [#uses=1]
 	store %struct.tree_node* null, %struct.tree_node** %tmp519, align 4
 	br label %bb841
 

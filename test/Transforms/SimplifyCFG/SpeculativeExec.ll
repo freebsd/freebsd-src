@@ -28,33 +28,17 @@ bb3:		; preds = %bb2, %entry
 	ret i32 %tmp5
 }
 
-declare i8 @llvm.cttz.i8(i8, i1)
-
-define i8 @test2(i8 %a) {
-; CHECK-LABEL: @test2(
-  br i1 undef, label %bb_true, label %bb_false
-bb_true:
-  %b = tail call i8 @llvm.cttz.i8(i8 %a, i1 false)
-  br label %join
-bb_false:
-  br label %join
-join:
-  %c = phi i8 [%b, %bb_true], [%a, %bb_false]
-; CHECK: select
-  ret i8 %c
-}
-
 define i8* @test4(i1* %dummy, i8* %a, i8* %b) {
 ; Test that we don't speculate an arbitrarily large number of unfolded constant
 ; expressions.
 ; CHECK-LABEL: @test4(
 
 entry:
-  %cond1 = load volatile i1* %dummy
+  %cond1 = load volatile i1, i1* %dummy
   br i1 %cond1, label %if, label %end
 
 if:
-  %cond2 = load volatile i1* %dummy
+  %cond2 = load volatile i1, i1* %dummy
   br i1 %cond2, label %then, label %end
 
 then:

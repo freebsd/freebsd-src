@@ -14,6 +14,9 @@
 #include "LLVMSymbolize.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
+#include "llvm/DebugInfo/DWARF/DWARFContext.h"
+#include "llvm/DebugInfo/PDB/PDB.h"
+#include "llvm/DebugInfo/PDB/PDBContext.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/Casting.h"
@@ -25,6 +28,11 @@
 #include "llvm/Support/Path.h"
 #include <sstream>
 #include <stdlib.h>
+
+#if defined(_MSC_VER)
+#include <Windows.h>
+#include <DbgHelp.h>
+#endif
 
 namespace llvm {
 namespace symbolize {
@@ -163,6 +171,7 @@ DILineInfo ModuleInfo::symbolizeCode(
 DIInliningInfo ModuleInfo::symbolizeInlinedCode(
     uint64_t ModuleOffset, const LLVMSymbolizer::Options &Opts) const {
   DIInliningInfo InlinedContext;
+
   if (DebugInfoContext) {
     InlinedContext = DebugInfoContext->getInliningInfoForAddress(
         ModuleOffset, getDILineInfoSpecifier(Opts));
@@ -460,7 +469,20 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
     Modules.insert(make_pair(ModuleName, (ModuleInfo *)nullptr));
     return nullptr;
   }
-  DIContext *Context = DIContext::getDWARFContext(*Objects.second);
+  DIContext *Context = nullptr;
+  if (auto CoffObject = dyn_cast<COFFObjectFile>(Objects.first)) {
+    // If this is a COFF object, assume it contains PDB debug information.  If
+    // we don't find any we will fall back to the DWARF case.
+    std::unique_ptr<IPDBSession> Session;
+    PDB_ErrorCode Error = loadDataForEXE(PDB_ReaderType::DIA,
+                                         Objects.first->getFileName(), Session);
+    if (Error == PDB_ErrorCode::Success) {
+      Context = new PDBContext(*CoffObject, std::move(Session),
+                               Opts.RelativeAddresses);
+    }
+  }
+  if (!Context)
+    Context = new DWARFContextInMemory(*Objects.second);
   assert(Context);
   ModuleInfo *Info = new ModuleInfo(Objects.first, Context);
   Modules.insert(make_pair(ModuleName, Info));
@@ -507,7 +529,17 @@ std::string LLVMSymbolizer::DemangleName(const std::string &Name) {
   free(DemangledName);
   return Result;
 #else
-  return Name;
+  char DemangledName[1024] = {0};
+  DWORD result = ::UnDecorateSymbolName(
+      Name.c_str(), DemangledName, 1023,
+      UNDNAME_NO_ACCESS_SPECIFIERS |       // Strip public, private, protected
+          UNDNAME_NO_ALLOCATION_LANGUAGE | // Strip __thiscall, __stdcall, etc
+          UNDNAME_NO_THROW_SIGNATURES |    // Strip throw() specifications
+          UNDNAME_NO_MEMBER_TYPE |      // Strip virtual, static, etc specifiers
+          UNDNAME_NO_MS_KEYWORDS |      // Strip all MS extension keywords
+          UNDNAME_NO_FUNCTION_RETURNS); // Strip function return types
+
+  return (result == 0) ? Name : std::string(DemangledName);
 #endif
 }
 

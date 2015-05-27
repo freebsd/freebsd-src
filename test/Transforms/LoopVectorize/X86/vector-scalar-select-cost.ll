@@ -15,12 +15,12 @@ define void @scalarselect(i1 %cond) {
 
 ; <label>:1
   %indvars.iv = phi i64 [ 0, %0 ], [ %indvars.iv.next, %1 ]
-  %2 = getelementptr inbounds [2048 x i32]* @b, i64 0, i64 %indvars.iv
-  %3 = load i32* %2, align 4
-  %4 = getelementptr inbounds [2048 x i32]* @c, i64 0, i64 %indvars.iv
-  %5 = load i32* %4, align 4
+  %2 = getelementptr inbounds [2048 x i32], [2048 x i32]* @b, i64 0, i64 %indvars.iv
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds [2048 x i32], [2048 x i32]* @c, i64 0, i64 %indvars.iv
+  %5 = load i32, i32* %4, align 4
   %6 = add nsw i32 %5, %3
-  %7 = getelementptr inbounds [2048 x i32]* @a, i64 0, i64 %indvars.iv
+  %7 = getelementptr inbounds [2048 x i32], [2048 x i32]* @a, i64 0, i64 %indvars.iv
 
 ; A scalar select has a cost of 1 on core2
 ; CHECK: cost of 1 for VF 2 {{.*}}  select i1 %cond, i32 %6, i32 0
@@ -42,16 +42,16 @@ define void @vectorselect(i1 %cond) {
 
 ; <label>:1
   %indvars.iv = phi i64 [ 0, %0 ], [ %indvars.iv.next, %1 ]
-  %2 = getelementptr inbounds [2048 x i32]* @b, i64 0, i64 %indvars.iv
-  %3 = load i32* %2, align 4
-  %4 = getelementptr inbounds [2048 x i32]* @c, i64 0, i64 %indvars.iv
-  %5 = load i32* %4, align 4
+  %2 = getelementptr inbounds [2048 x i32], [2048 x i32]* @b, i64 0, i64 %indvars.iv
+  %3 = load i32, i32* %2, align 4
+  %4 = getelementptr inbounds [2048 x i32], [2048 x i32]* @c, i64 0, i64 %indvars.iv
+  %5 = load i32, i32* %4, align 4
   %6 = add nsw i32 %5, %3
-  %7 = getelementptr inbounds [2048 x i32]* @a, i64 0, i64 %indvars.iv
+  %7 = getelementptr inbounds [2048 x i32], [2048 x i32]* @a, i64 0, i64 %indvars.iv
   %8 = icmp ult i64 %indvars.iv, 8
 
-; A vector select has a cost of 4 on core2
-; CHECK: cost of 4 for VF 2 {{.*}}  select i1 %8, i32 %6, i32 0
+; A vector select has a cost of 1 on core2
+; CHECK: cost of 1 for VF 2 {{.*}}  select i1 %8, i32 %6, i32 0
 
   %sel = select i1 %8, i32 %6, i32 zeroinitializer
   store i32 %sel, i32* %7, align 4
