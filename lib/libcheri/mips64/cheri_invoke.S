@@ -152,7 +152,11 @@ cheri_invoke_bundle_idc:
 	dli		$t0, 4*CHERICAP_SIZE
 	# XXXRW: Soon:
 	#csetbounds	$c26, $c26, $t0
+#if defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 256)
 	SOFT_CSetBounds($c26, $c26, $t0, $t1)
+#else
+	CSetBounds	$c26, $c26, $t0
+#endif
 
 	#
 	# The compiler is responsible for scrubbing unused argument registers
