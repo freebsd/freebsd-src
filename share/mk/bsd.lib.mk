@@ -11,6 +11,7 @@ _LD=	${CXX}
 _LD=	${CC}
 .endif
 
+LIB_PRIVATE=	${PRIVATELIB:Dprivate}
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
@@ -23,7 +24,7 @@ _LD=	${CC}
 SHLIB=		${LIB}
 .endif
 .if !defined(SHLIB_NAME) && defined(SHLIB) && defined(SHLIB_MAJOR)
-SHLIB_NAME=	lib${SHLIB}.so.${SHLIB_MAJOR}
+SHLIB_NAME=	lib${LIB_PRIVATE}${SHLIB}.so.${SHLIB_MAJOR}
 .endif
 .if defined(SHLIB_NAME) && !empty(SHLIB_NAME:M*.so.*)
 SHLIB_LINK?=	${SHLIB_NAME:R}
@@ -128,13 +129,8 @@ PO_FLAG=-pg
 all: beforebuild .WAIT
 beforebuild: objwarn
 
-.if defined(PRIVATELIB)
-_LIBDIR:=${LIBPRIVATEDIR}
-_SHLIBDIR:=${LIBPRIVATEDIR}
-.else
 _LIBDIR:=${LIBDIR}
 _SHLIBDIR:=${SHLIBDIR}
-.endif
 
 .if defined(SHLIB_NAME)
 .if ${MK_DEBUG_FILES} != "no"
@@ -162,19 +158,15 @@ ${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
-.if defined(USEPRIVATELIB)
-LDFLAGS+= -rpath ${LIBPRIVATEDIR}
-.endif
-
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:R:S/$/.o/}
 NOPATH_FILES+=	${OBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
-_LIBS=		lib${LIB}.a
+_LIBS=		lib${LIB_PRIVATE}${LIB}.a
 
-lib${LIB}.a: ${OBJS} ${STATICOBJS}
+lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
@@ -184,11 +176,11 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 .if !defined(INTERNALLIB)
 
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB}_p.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 NOPATH_FILES+=	${POBJS}
 
-lib${LIB}_p.a: ${POBJS}
+lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
@@ -243,9 +235,9 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .endif #defined(SHLIB_NAME)
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-_LIBS+=		lib${LIB}_pic.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
-lib${LIB}_pic.a: ${SOBJS}
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
@@ -305,13 +297,13 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
-.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no" && !defined(PRIVATELIB)
+.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}.a ${DESTDIR}${_LIBDIR}
 .endif
-.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB) && !defined(PRIVATELIB)
+.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}_p.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -325,7 +317,7 @@ _libinstall:
 	    ${_INSTALLFLAGS} \
 	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
 .endif
-.if defined(SHLIB_LINK) && !defined(PRIVATELIB)
+.if defined(SHLIB_LINK)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
 # and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
 # prefix where shared objects will be installed by the install target.
@@ -366,7 +358,7 @@ _libinstall:
 .endif # SHLIB_LDSCRIPT
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no" && !defined(PRIVATELIB)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}
 .endif

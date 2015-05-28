@@ -331,7 +331,7 @@ glxsb_attach(device_t dev)
 		sc->sc_rnghz = hz / 100;
 	else
 		sc->sc_rnghz = 1;
-	callout_init(&sc->sc_rngco, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_rngco, 1);
 	glxsb_rnd(sc);
 
 	return (0);

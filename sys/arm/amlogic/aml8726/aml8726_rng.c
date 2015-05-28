@@ -115,7 +115,7 @@ aml8726_rng_attach(device_t dev)
 	else
 		sc->ticks = 1;
 
-	callout_init(&sc->co, CALLOUT_MPSAFE);
+	callout_init(&sc->co, 1);
 	callout_reset(&sc->co, sc->ticks, aml8726_rng_harvest, sc);
 
 	return (0);

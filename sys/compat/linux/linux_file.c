@@ -235,6 +235,7 @@ linux_lseek(struct thread *td, struct linux_lseek_args *args)
     return error;
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_llseek(struct thread *td, struct linux_llseek_args *args)
 {
@@ -273,6 +274,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	lda.count = 1;
 	return linux_getdents(td, &lda);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 /*
  * Note that linux_getdents(2) and linux_getdents64(2) have the same
@@ -367,8 +369,8 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	lbuf = malloc(LINUX_MAXRECLEN, M_TEMP, M_WAITOK | M_ZERO);
+	buf = malloc(buflen, M_LINUX, M_WAITOK);
+	lbuf = malloc(LINUX_MAXRECLEN, M_LINUX, M_WAITOK | M_ZERO);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	aiov.iov_base = buf;
@@ -519,8 +521,8 @@ out:
 	VOP_UNLOCK(vp, 0);
 	foffset_unlock(fp, off, 0);
 	fdrop(fp, td);
-	free(buf, M_TEMP);
-	free(lbuf, M_TEMP);
+	free(buf, M_LINUX);
+	free(lbuf, M_LINUX);
 	return (error);
 }
 
@@ -579,10 +581,8 @@ int
 linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 {
 	char *path;
-	int error, dfd, flag;
+	int error, dfd;
 
-	if (args->flag & ~LINUX_AT_EACCESS)
-		return (EINVAL);
 	/* linux convention */
 	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
@@ -595,8 +595,7 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
-	flag = (args->flag & LINUX_AT_EACCESS) == 0 ? 0 : AT_EACCESS;
-	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, flag, args->amode);
+	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -924,6 +923,7 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 {
@@ -941,6 +941,8 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 	LFREEPATH(path);
 	return (error);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
 int
 linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 {
@@ -1129,6 +1131,7 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 {
@@ -1138,6 +1141,7 @@ linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 	args2.flags = 0;
 	return (linux_umount(td, &args2));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_umount(struct thread *td, struct linux_umount_args *args)
@@ -1268,7 +1272,7 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
-fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
+fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 {
 	struct l_flock linux_flock;
 	struct flock bsd_flock;
@@ -1386,6 +1390,9 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		fdrop(fp, td);
 
 		return (kern_fcntl(td, args->fd, F_SETOWN, args->arg));
+
+	case LINUX_F_DUPFD_CLOEXEC:
+		return (kern_fcntl(td, args->fd, F_DUPFD_CLOEXEC, args->arg));
 	}
 
 	return (EINVAL);
@@ -1394,17 +1401,13 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 int
 linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 {
-	struct linux_fcntl64_args args64;
 
 #ifdef DEBUG
 	if (ldebug(fcntl))
 		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
 #endif
 
-	args64.fd = args->fd;
-	args64.cmd = args->cmd;
-	args64.arg = args->arg;
-	return (fcntl_common(td, &args64));
+	return (fcntl_common(td, args));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
@@ -1413,6 +1416,7 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 {
 	struct l_flock64 linux_flock;
 	struct flock bsd_flock;
+	struct linux_fcntl_args fcntl_args;
 	int error;
 
 #ifdef DEBUG
@@ -1453,7 +1457,10 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    (intptr_t)&bsd_flock));
 	}
 
-	return (fcntl_common(td, args));
+	fcntl_args.fd = args->fd;
+	fcntl_args.cmd = args->cmd;
+	fcntl_args.arg = args->arg;
+	return (fcntl_common(td, &fcntl_args));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -1551,6 +1558,7 @@ linux_fadvise64(struct thread *td, struct linux_fadvise64_args *args)
 	    advice));
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 {
@@ -1562,6 +1570,7 @@ linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
 	    advice));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_pipe(struct thread *td, struct linux_pipe_args *args)
@@ -1607,4 +1616,38 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 
 	/* XXX: Close descriptors on error. */
 	return (copyout(fildes, args->pipefds, sizeof(fildes)));
+}
+
+int
+linux_dup3(struct thread *td, struct linux_dup3_args *args)
+{
+	int cmd;
+	intptr_t newfd;
+
+	if (args->oldfd == args->newfd)
+		return (EINVAL);
+	if ((args->flags & ~LINUX_O_CLOEXEC) != 0)
+		return (EINVAL);
+	if (args->flags & LINUX_O_CLOEXEC)
+		cmd = F_DUP2FD_CLOEXEC;
+	else
+		cmd = F_DUP2FD;
+
+	newfd = args->newfd;
+	return (kern_fcntl(td, args->oldfd, cmd, newfd));
+}
+
+int
+linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
+{
+
+	/*
+	 * We emulate only posix_fallocate system call for which
+	 * mode should be 0.
+	 */
+	if (args->mode != 0)
+		return (ENOSYS);
+
+	return (kern_posix_fallocate(td, args->fd, args->offset,
+	    args->len));
 }

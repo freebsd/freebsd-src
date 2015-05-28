@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2014
+.Dd May 9, 2015
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -69,14 +69,12 @@ them (such as
 Enable dumping Debug objects without
 .Cd "options ACPI_DEBUG" .
 Default is 0, ignore Debug objects.
-.It Va hw.acpi.acline
-AC line state (1 means online, 0 means on battery power).
-.It Va hw.acpi.cpu.cx_usage
+.It Va dev.cpu.N.cx_usage
 Debugging information listing the percent of total usage for each sleep state.
 The values are reset when
-.Va hw.acpi.cpu.cx_lowest
+.Va dev.cpu.N.cx_lowest
 is modified.
-.It Va hw.acpi.cpu.cx_lowest
+.It Va dev.cpu.N.cx_lowest
 Lowest Cx state to use for idling the CPU.
 A scheduling algorithm will select states between
 .Li C1
@@ -111,6 +109,11 @@ semantics as the
 state.
 Deeper sleeps provide more power savings but increased transition
 latency when an interrupt occurs.
+.It Va dev.cpu.N.cx_method
+List of supported CPU idle states and their transition methods, as
+directed by the firmware.
+.It Va hw.acpi.acline
+AC line state (1 means online, 0 means on battery power).
 .It Va hw.acpi.disable_on_reboot
 Disable ACPI during the reboot process.
 Most systems reboot fine with ACPI still enabled, but some require
@@ -374,6 +377,14 @@ typically as a child of a PCI bus.
 .Pq Vt device
 Supports an ACPI laptop lid switch, which typically puts a
 system to sleep.
+.It Li mwait
+.Pq Vt feature
+Do not ask firmware for available x86-vendor specific methods to enter
+.Li Cx
+sleep states.
+Only query and use the generic I/O-based entrance method.
+The knob is provided to work around inconsistencies in the tables
+filled by firmware.
 .It Li quirks
 .Pq Vt feature
 Do not honor quirks.

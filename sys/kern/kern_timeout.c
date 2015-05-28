@@ -607,7 +607,7 @@ callout_process(sbintime_t now)
 				continue;
 			}
 
-			/* insert callout into temporary list */
+			/* Insert callout into temporary list */
 			LIST_INSERT_HEAD(&cc->cc_tmplist, tmp, c_links.le);
 			
 			/* Skip events from distant future. */

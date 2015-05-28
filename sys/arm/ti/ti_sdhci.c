@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_hwmods.h>
 #include "gpio_if.h"
 
 struct ti_sdhci_softc {
@@ -66,7 +67,7 @@ struct ti_sdhci_softc {
 	struct resource *	irq_res;
 	void *			intr_cookie;
 	struct sdhci_slot	slot;
-	uint32_t		mmchs_device_id;
+	clk_ident_t		mmchs_clk_id;
 	uint32_t		mmchs_reg_off;
 	uint32_t		sdhci_reg_off;
 	uint32_t		baseclk_hz;
@@ -383,19 +384,18 @@ static void
 ti_sdhci_hw_init(device_t dev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
-	clk_ident_t clk;
 	uint32_t regval;
 	unsigned long timeout;
 
 	/* Enable the controller and interface/functional clocks */
-	clk = MMC0_CLK + sc->mmchs_device_id;
-	if (ti_prcm_clk_enable(clk) != 0) {
+	if (ti_prcm_clk_enable(sc->mmchs_clk_id) != 0) {
 		device_printf(dev, "Error: failed to enable MMC clock\n");
 		return;
 	}
 
 	/* Get the frequency of the source clock */
-	if (ti_prcm_clk_get_source_freq(clk, &sc->baseclk_hz) != 0) {
+	if (ti_prcm_clk_get_source_freq(sc->mmchs_clk_id,
+	    &sc->baseclk_hz) != 0) {
 		device_printf(dev, "Error: failed to get source clock freq\n");
 		return;
 	}
@@ -484,12 +484,10 @@ ti_sdhci_attach(device_t dev)
 	 * up and added in freebsd, it doesn't exist in the published bindings.
 	 */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "mmchs-device-id", &prop, sizeof(prop))) <= 0) {
-		sc->mmchs_device_id = device_get_unit(dev);
-		device_printf(dev, "missing mmchs-device-id attribute in FDT, "
-		    "using unit number (%d)", sc->mmchs_device_id);
-	} else
-		sc->mmchs_device_id = fdt32_to_cpu(prop);
+	sc->mmchs_clk_id = ti_hwmods_get_clock(dev);
+	if (sc->mmchs_clk_id == INVALID_CLK_IDENT) {
+		device_printf(dev, "failed to get clock based on hwmods property\n");
+	}
 
 	/*
 	 * The hardware can inherently do dual-voltage (1p8v, 3p0v) on the first
@@ -500,7 +498,7 @@ ti_sdhci_attach(device_t dev)
 	 * be done once and never reset.
 	 */
 	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
-	if (sc->mmchs_device_id == 0 || OF_hasprop(node, "ti,dual-volt")) {
+	if (sc->mmchs_clk_id == MMC1_CLK || OF_hasprop(node, "ti,dual-volt")) {
 		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
 	}
 

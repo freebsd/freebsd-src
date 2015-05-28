@@ -127,7 +127,8 @@ static int  wi_newstate_sta(struct ieee80211vap *, enum ieee80211_state, int);
 static int  wi_newstate_hostap(struct ieee80211vap *, enum ieee80211_state,
 		int);
 static void wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-		int subtype, int rssi, int nf);
+		int subtype, const struct ieee80211_rx_stats *rxs,
+		int rssi, int nf);
 static int  wi_reset(struct wi_softc *);
 static void wi_watchdog(void *);
 static int  wi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -143,8 +144,8 @@ static void wi_info_intr(struct wi_softc *);
 static int  wi_write_txrate(struct wi_softc *, struct ieee80211vap *);
 static int  wi_write_wep(struct wi_softc *, struct ieee80211vap *);
 static int  wi_write_multi(struct wi_softc *);
-static void wi_update_mcast(struct ifnet *);
-static void wi_update_promisc(struct ifnet *);
+static void wi_update_mcast(struct ieee80211com *);
+static void wi_update_promisc(struct ieee80211com *);
 static int  wi_alloc_fid(struct wi_softc *, int, int *);
 static void wi_read_nicid(struct wi_softc *);
 static int  wi_write_ssid(struct wi_softc *, int, u_int8_t *, int);
@@ -344,6 +345,8 @@ wi_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_caps = IEEE80211_C_STA
@@ -803,7 +806,7 @@ wi_scan_end(struct ieee80211com *ic)
 
 static void
 wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	int subtype, int rssi, int nf)
+	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
@@ -814,7 +817,7 @@ wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		/* NB: filter frames that trigger state changes */
 		return;
 	}
-	WI_VAP(vap)->wv_recv_mgmt(ni, m, subtype, rssi, nf);
+	WI_VAP(vap)->wv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 }
 
 static int
@@ -1620,22 +1623,22 @@ allmulti:
 }
 
 static void
-wi_update_mcast(struct ifnet *ifp)
+wi_update_mcast(struct ieee80211com *ic)
 {
-	wi_write_multi(ifp->if_softc);
+
+	wi_write_multi(ic->ic_softc);
 }
 
 static void
-wi_update_promisc(struct ifnet *ifp)
+wi_update_promisc(struct ieee80211com *ic)
 {
-	struct wi_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct wi_softc *sc = ic->ic_softc;
 
 	WI_LOCK(sc);
 	/* XXX handle WEP special case handling? */
 	wi_write_val(sc, WI_RID_PROMISC, 
 	    (ic->ic_opmode == IEEE80211_M_MONITOR ||
-	     (ifp->if_flags & IFF_PROMISC)));
+	     (ic->ic_ifp->if_flags & IFF_PROMISC)));
 	WI_UNLOCK(sc);
 }
 

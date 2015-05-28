@@ -168,19 +168,22 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
-#define	HAS_SEQ(type)	((type & 0x4) == 0)
 #define	SEQNO(a)	((a) >> IEEE80211_SEQ_SEQ_SHIFT)
 #define	FRAGNO(a)	((a) & IEEE80211_SEQ_FRAG_MASK)
 	uint16_t rxseq;
-	uint8_t type;
+	uint8_t type, subtype;
 	uint8_t tid;
 	struct ieee80211_rx_ampdu *rap;
 
 	rxseq = le16toh(*(uint16_t *)wh->i_seq);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
-	/* Types with no sequence number are always treated valid */
-	if (! HAS_SEQ(type))
+	/*
+	 * Types with no sequence number (or QoS (+)Null frames)
+	 * are always treated valid.
+	 */
+	if (! IEEE80211_HAS_SEQ(type, subtype))
 		return 1;
 
 	tid = ieee80211_gettid(wh);
@@ -235,7 +238,6 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
 	return 1;
 #undef	SEQ_LEQ
 #undef	SEQ_EQ
-#undef	HAS_SEQ
 #undef	SEQNO
 #undef	FRAGNO
 }
@@ -253,6 +255,7 @@ void ieee80211_send_error(struct ieee80211_node *,
 		const uint8_t mac[IEEE80211_ADDR_LEN], int subtype, int arg);
 int	ieee80211_alloc_challenge(struct ieee80211_node *);
 int	ieee80211_parse_beacon(struct ieee80211_node *, struct mbuf *,
+		struct ieee80211_channel *,
 		struct ieee80211_scanparams *);
 int	ieee80211_parse_action(struct ieee80211_node *, struct mbuf *);
 #endif /* _NET80211_IEEE80211_INPUT_H_ */

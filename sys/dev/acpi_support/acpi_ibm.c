@@ -445,7 +445,8 @@ acpi_ibm_attach(device_t dev)
 
 	/* Hook up light to led(4) */
 	if (sc->light_set_supported)
-		sc->led_dev = led_create_state(ibm_led, sc, "thinklight", sc->light_val);
+		sc->led_dev = led_create_state(ibm_led, sc, "thinklight",
+		    (sc->light_val ? 1 : 0));
 
 	return (0);
 }
@@ -530,7 +531,7 @@ acpi_ibm_sysctl(SYSCTL_HANDLER_ARGS)
 	int			error = 0;
 	int			function;
 	int			method;
-	
+
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = (struct acpi_ibm_softc *)oidp->oid_arg1;
@@ -823,7 +824,7 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 		return (FALSE);
 
 	case ACPI_IBM_METHOD_FANSPEED:
-		/* 
+		/*
 		 * Some models report the fan speed in levels from 0-7
 		 * Newer models report it contiguously
 		 */
@@ -834,7 +835,7 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 
 	case ACPI_IBM_METHOD_FANLEVEL:
 	case ACPI_IBM_METHOD_FANSTATUS:
-		/* 
+		/*
 		 * Fan status is only supported on those models,
 		 * which report fan RPM contiguously, not in levels
 		 */
@@ -871,10 +872,10 @@ acpi_ibm_thermal_sysctl(SYSCTL_HANDLER_ARGS)
 
 	for (int i = 0; i < 8; ++i) {
 		temp_cmd[3] = '0' + i;
-		
-		/* 
+
+		/*
 		 * The TMPx methods seem to return +/- 128 or 0
-		 * when the respecting sensor is not available 
+		 * when the respecting sensor is not available
 		 */
 		if (ACPI_FAILURE(acpi_GetInteger(sc->ec_handle, temp_cmd,
 		    &temp[i])) || ABS(temp[i]) == 128 || temp[i] == 0)

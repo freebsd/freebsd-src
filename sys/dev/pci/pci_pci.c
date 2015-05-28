@@ -442,16 +442,7 @@ pcib_probe_windows(struct pcib_softc *sc)
 	dev = sc->dev;
 
 	if (pci_clear_pcib) {
-		pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
-		pci_write_config(dev, PCIR_IOBASEH_1, 0xffff, 2);
-		pci_write_config(dev, PCIR_IOLIMITL_1, 0, 1);
-		pci_write_config(dev, PCIR_IOLIMITH_1, 0, 2);
-		pci_write_config(dev, PCIR_MEMBASE_1, 0xffff, 2);
-		pci_write_config(dev, PCIR_MEMLIMIT_1, 0, 2);
-		pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
-		pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
-		pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
-		pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
+		pcib_bridge_init(dev);
 	}
 
 	/* Determine if the I/O port window is implemented. */
@@ -1113,6 +1104,21 @@ pcib_resume(device_t dev)
 
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
+}
+
+void
+pcib_bridge_init(device_t dev)
+{
+	pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
+	pci_write_config(dev, PCIR_IOBASEH_1, 0xffff, 2);
+	pci_write_config(dev, PCIR_IOLIMITL_1, 0, 1);
+	pci_write_config(dev, PCIR_IOLIMITH_1, 0, 2);
+	pci_write_config(dev, PCIR_MEMBASE_1, 0xffff, 2);
+	pci_write_config(dev, PCIR_MEMLIMIT_1, 0, 2);
+	pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
+	pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
+	pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
+	pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
 }
 
 int

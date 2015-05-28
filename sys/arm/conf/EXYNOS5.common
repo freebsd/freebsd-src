@@ -20,6 +20,7 @@
 
 makeoptions	WERROR="-Werror"
 
+include 	"std.armv6"
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -57,7 +58,7 @@ options 	SMP			# Enable multiple cores
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
 options 	KDB			# Enable kernel debugger support
 # For minimum debugger support (stable branch) use:
@@ -83,6 +84,9 @@ options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		dwmmc
+
+# Interrupt controller
+device		gic
 
 # Pseudo devices
 

@@ -90,7 +90,6 @@ volatile sig_atomic_t info;
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
 static int copy(char *[], enum op, int);
-static int mastercmp(const FTSENT * const *, const FTSENT * const *);
 static void siginfo(int __unused);
 
 int
@@ -274,7 +273,7 @@ copy(char *argv[], enum op type, int fts_options)
 	mask = ~umask(0777);
 	umask(~mask);
 
-	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
+	if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL)
 		err(1, "fts_open");
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
 		switch (curr->fts_info) {
@@ -486,32 +485,6 @@ copy(char *argv[], enum op type, int fts_options)
 		err(1, "fts_read");
 	fts_close(ftsp);
 	return (rval);
-}
-
-/*
- * mastercmp --
- *	The comparison function for the copy order.  The order is to copy
- *	non-directory files before directory files.  The reason for this
- *	is because files tend to be in the same cylinder group as their
- *	parent directory, whereas directories tend not to be.  Copying the
- *	files first reduces seeking.
- */
-static int
-mastercmp(const FTSENT * const *a, const FTSENT * const *b)
-{
-	int a_info, b_info;
-
-	a_info = (*a)->fts_info;
-	if (a_info == FTS_ERR || a_info == FTS_NS || a_info == FTS_DNR)
-		return (0);
-	b_info = (*b)->fts_info;
-	if (b_info == FTS_ERR || b_info == FTS_NS || b_info == FTS_DNR)
-		return (0);
-	if (a_info == FTS_D)
-		return (-1);
-	if (b_info == FTS_D)
-		return (1);
-	return (0);
 }
 
 static void

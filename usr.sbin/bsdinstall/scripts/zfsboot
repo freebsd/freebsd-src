@@ -287,10 +287,12 @@ msg_stripe_desc="Stripe - No Redundancy"
 msg_stripe_help="[1+ Disks] Striping provides maximum storage but no redundancy"
 msg_swap_encrypt="Encrypt Swap?"
 msg_swap_encrypt_help="Encrypt swap partitions with temporary keys, discarded on reboot"
+msg_swap_invalid="The selected swap size (%s) is invalid. Enter a number optionally followed by units. Example: 2G"
 msg_swap_mirror="Mirror Swap?"
 msg_swap_mirror_help="Mirror swap partitions for redundancy, breaks crash dumps"
 msg_swap_size="Swap Size"
 msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
+msg_swap_toosmall="The selected swap size (%s) is to small. Please enter a value greater than 100MB or enter 0 for no swap"
 msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 50%% or more of each of the following selected disk\ndevices (not recommended):\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
 msg_uefi_not_supported="The FreeBSD UEFI loader does not currently support booting root-on-ZFS. Your system will need to boot in legacy (CSM) mode.\nDo you want to continue?"
 msg_unable_to_get_disk_capacity="Unable to get disk capacity of \`%s'"
@@ -951,6 +953,8 @@ zfs_create_diskpart()
 	esac # $ZFSBOOT_PARTITION_SCHEME
 
 	# Update fstab(5)
+	local swapsize
+	f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
 	if [ "$isswapmirror" ]; then
 		# This is not the first disk in the mirror, do nothing
 	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
@@ -970,6 +974,8 @@ zfs_create_diskpart()
 		             /dev/$disk${swappart}.eli none swap sw 0 0 \
 		             $BSDINSTALL_TMPETC/fstab ||
 		             return $FAILURE
+	elif [ ${swapsize:-0} -eq 0 ]; then
+		# If swap is 0 sized, don't add it to fstab
 	else
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/$disk$swappart none swap sw 0 0 \
@@ -1557,10 +1563,26 @@ while :; do
 		;;
 	?" $msg_swap_size")
 		# Prompt the user to input/change the swap size for each disk
-		f_dialog_input input \
-			"$msg_please_enter_amount_of_swap_space" \
-			"$ZFSBOOT_SWAP_SIZE" &&
-			ZFSBOOT_SWAP_SIZE="${input:-0}"
+		while :; do
+		    f_dialog_input input \
+			    "$msg_please_enter_amount_of_swap_space" \
+			    "$ZFSBOOT_SWAP_SIZE" &&
+			    ZFSBOOT_SWAP_SIZE="${input:-0}"
+		    if f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
+		    then
+			if [ $swapsize -ne 0 -a $swapsize -lt 104857600 ]; then
+			    f_show_err "$msg_swap_toosmall" \
+				       "$ZFSBOOT_SWAP_SIZE"
+			    continue;
+			else
+			    break;
+			fi
+		    else
+			f_show_err "$msg_swap_invalid" \
+				   "$ZFSBOOT_SWAP_SIZE"
+			continue;
+		    fi
+		done
 		;;
 	?" $msg_swap_mirror")
 		# Toggle the variable referenced both by the menu and later

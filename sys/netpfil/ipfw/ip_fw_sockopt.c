@@ -2846,7 +2846,7 @@ compare_sh(const void *_a, const void *_b)
  * Returns pointer to handler or NULL.
  */
 static struct ipfw_sopt_handler *
-find_sh(uint16_t code, uint8_t version, void *handler)
+find_sh(uint16_t code, uint8_t version, sopt_handler_f *handler)
 {
 	struct ipfw_sopt_handler *sh, h;
 

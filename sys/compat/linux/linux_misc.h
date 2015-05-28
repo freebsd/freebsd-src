@@ -31,6 +31,11 @@
 #ifndef _LINUX_MISC_H_
 #define	_LINUX_MISC_H_
 
+#include <sys/sysctl.h>
+
+				/* bits per mask */
+#define	LINUX_NFDBITS		sizeof(l_fd_mask) * 8
+
 /*
  * Miscellaneous
  */
@@ -57,7 +62,7 @@
 
 #define	LINUX_PATH_MAX		4096
 
-extern const char *linux_platform;
+extern const char *linux_kplatform;
 
 /*
  * Non-standard aux entry types used in Linux ELF binaries.
@@ -70,7 +75,12 @@ extern const char *linux_platform;
 #define	LINUX_AT_BASE_PLATFORM	24	/* string identifying real platform, may
 					 * differ from AT_PLATFORM.
 					 */
+#define	LINUX_AT_RANDOM		25	/* address of random bytes */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
+#define	LINUX_AT_SYSINFO	32	/* vsyscall */
+#define	LINUX_AT_SYSINFO_EHDR	33	/* vdso header */
+
+#define	LINUX_AT_RANDOM_LEN	16	/* size of random bytes */
 
 /* Linux sets the i387 to extended precision. */
 #if defined(__i386__) || defined(__amd64__)
@@ -89,10 +99,6 @@ extern const char *linux_platform;
 #define	LINUX_CLONE_PARENT_SETTID	0x00100000
 #define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
 #define	LINUX_CLONE_CHILD_SETTID	0x01000000
-
-#define	LINUX_THREADING_FLAGS					\
-	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
-	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
 
 /* Scheduling policies */
 #define	LINUX_SCHED_OTHER	0
@@ -115,13 +121,37 @@ struct l_new_utsname {
 #define	LINUX_CLOCK_REALTIME_HR		4
 #define	LINUX_CLOCK_MONOTONIC_HR	5
 
+#define LINUX_UTIME_NOW			0x3FFFFFFF
+#define LINUX_UTIME_OMIT		0x3FFFFFFE
+
 extern int stclohz;
 
-#define __WCLONE 0x80000000
+#define	LINUX_WNOHANG		0x00000001
+#define	LINUX_WUNTRACED		0x00000002
+#define	LINUX_WSTOPPED		LINUX_WUNTRACED
+#define	LINUX_WEXITED		0x00000004
+#define	LINUX_WCONTINUED	0x00000008
+#define	LINUX_WNOWAIT		0x01000000
+
+
+#define	__WNOTHREAD		0x20000000
+#define	__WALL			0x40000000
+#define	__WCLONE		0x80000000
+
+/* Linux waitid idtype  */
+#define	LINUX_P_ALL		0
+#define	LINUX_P_PID		1
+#define	LINUX_P_PGID		2
+
+#define	LINUX_RLIM_INFINITY	(~0UL)
 
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
+void linux_to_bsd_waitopts(int options, int *bsdopts);
 int linux_set_upcall_kse(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);
+struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
+
+int linux_sysctl_debug(SYSCTL_HANDLER_ARGS);
 
 #endif	/* _LINUX_MISC_H_ */

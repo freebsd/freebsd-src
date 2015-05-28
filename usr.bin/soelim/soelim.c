@@ -27,17 +27,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include <sys/types.h>
 
+#include <ctype.h>
+#include <err.h>
+#include <limits.h>
 #define _WITH_GETLINE
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <stringlist.h>
-#include <err.h>
-#include <ctype.h>
+#include <unistd.h>
 
 #define C_OPTION 0x1
 
@@ -56,7 +56,7 @@ static FILE *
 soelim_fopen(const char *name)
 {
 	FILE *f;
-	char path[MAXPATHLEN];
+	char path[PATH_MAX];
 	size_t i;
 
 	if (strcmp(name, "-") == 0)
@@ -108,11 +108,12 @@ soelim_file(FILE *f, int flag)
 		while (isspace(*walk))
 			walk++;
 
-		cp = walk + strlen(walk) - 1;
-		while (cp > walk && isspace(*cp)) {
-			*cp = 0;
-			cp--;
-		}
+		cp = walk;
+		while (*cp != '\0' && !isspace(*cp))
+			cp++;
+		*cp = 0;
+		if (cp < line + linelen)
+			cp++;
 
 		if (*walk == '\0') {
 			printf("%s", line);
@@ -122,6 +123,8 @@ soelim_file(FILE *f, int flag)
 			free(line);
 			return (1);
 		}
+		if (*cp != '\0')
+			printf("%s", cp);
 	}
 
 	free(line);

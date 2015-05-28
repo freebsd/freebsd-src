@@ -23,7 +23,9 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
 LIBADD=	m opts ntp ntpevent pthread
 
 .if ${MK_OPENSSL} != "no"
-LIBADD+=	md ssl crypto
+LIBADD+=	crypto
+.else
+LIBADD+=	md
 .endif
 
 .include <bsd.prog.mk>

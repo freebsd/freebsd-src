@@ -46,6 +46,8 @@
 
 typedef enum {
 
+	INVALID_CLK_IDENT = 0,
+
 	/* System clocks, typically you can only call ti_prcm_clk_get_source_freq()
 	 * on these clocks as they are enabled by default.
 	 */
@@ -55,19 +57,19 @@ typedef enum {
 	MPU_CLK = 20,
 
 	/* MMC modules */
-	MMC0_CLK = 100,
-	MMC1_CLK,
+	MMC1_CLK = 100,
 	MMC2_CLK,
 	MMC3_CLK,
 	MMC4_CLK,
 	MMC5_CLK,
+	MMC6_CLK,
 
 	/* I2C modules */
-	I2C0_CLK = 200,
-	I2C1_CLK,
+	I2C1_CLK = 200,
 	I2C2_CLK,
 	I2C3_CLK,
 	I2C4_CLK,
+	I2C5_CLK,
 
 	/* USB module(s) */
 	USBTLL_CLK = 300,
@@ -81,8 +83,7 @@ typedef enum {
 	USBP2_HSIC_CLK,
 
 	/* UART modules */
-	UART0_CLK = 400,
-	UART1_CLK,
+	UART1_CLK = 400,
 	UART2_CLK,
 	UART3_CLK,
 	UART4_CLK,
@@ -90,20 +91,21 @@ typedef enum {
 	UART6_CLK,
 	UART7_CLK,
 	UART8_CLK,
+	UART9_CLK,
 
 	/* General purpose timer modules */
-	GPTIMER1_CLK = 500,
-	GPTIMER2_CLK,
-	GPTIMER3_CLK,
-	GPTIMER4_CLK,
-	GPTIMER5_CLK,
-	GPTIMER6_CLK,
-	GPTIMER7_CLK,
-	GPTIMER8_CLK,
-	GPTIMER9_CLK,
-	GPTIMER10_CLK,
-	GPTIMER11_CLK,
-	GPTIMER12_CLK,
+	TIMER1_CLK = 500,
+	TIMER2_CLK,
+	TIMER3_CLK,
+	TIMER4_CLK,
+	TIMER5_CLK,
+	TIMER6_CLK,
+	TIMER7_CLK,
+	TIMER8_CLK,
+	TIMER9_CLK,
+	TIMER10_CLK,
+	TIMER11_CLK,
+	TIMER12_CLK,
 
 	/* McBSP module(s) */
 	MCBSP1_CLK = 600,
@@ -113,26 +115,16 @@ typedef enum {
 	MCBSP5_CLK,
 
 	/* General purpose I/O modules */
-	GPIO0_CLK = 700,
-	GPIO1_CLK,
+	GPIO1_CLK = 700,
 	GPIO2_CLK,
 	GPIO3_CLK,
 	GPIO4_CLK,
 	GPIO5_CLK,
 	GPIO6_CLK,
+	GPIO7_CLK,
 
 	/* sDMA module */
 	SDMA_CLK = 800,
-
-	/* DMTimer modules */
-	DMTIMER0_CLK = 900,
-	DMTIMER1_CLK,
-	DMTIMER2_CLK,
-	DMTIMER3_CLK,
-	DMTIMER4_CLK,
-	DMTIMER5_CLK,
-	DMTIMER6_CLK,
-	DMTIMER7_CLK,
 
 	/* CPSW modules */
 	CPSW_CLK = 1000,
@@ -166,9 +158,6 @@ typedef enum {
 
 	/* RTC module */
 	RTC_CLK = 1900,
-
-	INVALID_CLK_IDENT
-
 } clk_ident_t;
 
 /*

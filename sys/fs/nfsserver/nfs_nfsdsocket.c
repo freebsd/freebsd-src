@@ -46,7 +46,8 @@ extern struct nfsrvfh nfs_pubfh, nfs_rootfh;
 extern int nfs_pubfhset, nfs_rootfhset;
 extern struct nfsv4lock nfsv4rootfs_lock;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
-extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
+extern struct nfsclienthashhead *nfsclienthash;
+extern int nfsrv_clienthashsize;
 extern int nfsrc_floodlevel, nfsrc_tcpsavedreplies;
 extern int nfsd_debuglevel;
 NFSV4ROOTLOCKMUTEX;
@@ -610,7 +611,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		 */
 		if (nfsrv_stablefirst.nsf_flags & NFSNSF_EXPIREDCLIENT) {
 			nfsrv_stablefirst.nsf_flags &= ~NFSNSF_EXPIREDCLIENT;
-			for (i = 0; i < NFSCLIENTHASHSIZE; i++) {
+			for (i = 0; i < nfsrv_clienthashsize; i++) {
 			    LIST_FOREACH_SAFE(clp, &nfsclienthash[i], lc_hash,
 				nclp) {
 				if (clp->lc_flags & LCL_EXPIREIT) {

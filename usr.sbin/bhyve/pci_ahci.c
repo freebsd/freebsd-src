@@ -135,11 +135,13 @@ struct ahci_port {
 	char ident[20 + 1];
 	int atapi;
 	int reset;
+	int waitforclear;
 	int mult_sectors;
 	uint8_t xfermode;
 	uint8_t err_cfis[20];
 	uint8_t sense_key;
 	uint8_t asc;
+	u_int ccs;
 	uint32_t pending;
 
 	uint32_t clb;
@@ -203,6 +205,8 @@ struct pci_ahci_softc {
 	struct ahci_port port[MAX_PORTS];
 };
 #define	ahci_ctx(sc)	((sc)->asc_pi->pi_vmctx)
+
+static void ahci_handle_port(struct ahci_port *p);
 
 static inline void lba_to_msf(uint8_t *buf, int lba)
 {
@@ -285,8 +289,10 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 		WPRINTF("unsupported fis type %d\n", ft);
 		return;
 	}
-	if (fis[2] & ATA_S_ERROR)
+	if (fis[2] & ATA_S_ERROR) {
+		p->waitforclear = 1;
 		irq |= AHCI_P_IX_TFE;
+	}
 	memcpy(p->rfis + offset, fis, len);
 	if (irq) {
 		p->is |= irq;
@@ -406,9 +412,11 @@ ahci_check_stopped(struct ahci_port *p)
 	 */
 	if (!(p->cmd & AHCI_P_CMD_ST)) {
 		if (p->pending == 0) {
+			p->ccs = 0;
 			p->cmd &= ~(AHCI_P_CMD_CR | AHCI_P_CMD_CCS_MASK);
 			p->ci = 0;
 			p->sact = 0;
+			p->waitforclear = 0;
 		}
 	}
 }
@@ -783,6 +791,8 @@ next:
 			ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
 			p->pending &= ~(1 << slot);
 			ahci_check_stopped(p);
+			if (!first)
+				ahci_handle_port(p);
 			return;
 		}
 		goto next;
@@ -1754,20 +1764,23 @@ ahci_handle_slot(struct ahci_port *p, int slot)
 static void
 ahci_handle_port(struct ahci_port *p)
 {
-	int i;
 
 	if (!(p->cmd & AHCI_P_CMD_ST))
 		return;
 
 	/*
 	 * Search for any new commands to issue ignoring those that
-	 * are already in-flight.
+	 * are already in-flight.  Stop if device is busy or in error.
 	 */
-	for (i = 0; (i < 32) && p->ci; i++) {
-		if ((p->ci & (1 << i)) && !(p->pending & (1 << i))) {
+	for (; (p->ci & ~p->pending) != 0; p->ccs = ((p->ccs + 1) & 31)) {
+		if ((p->tfd & (ATA_S_BUSY | ATA_S_DRQ)) != 0)
+			break;
+		if (p->waitforclear)
+			break;
+		if ((p->ci & ~p->pending & (1 << p->ccs)) != 0) {
 			p->cmd &= ~AHCI_P_CMD_CCS_MASK;
-			p->cmd |= i << AHCI_P_CMD_CCS_SHIFT;
-			ahci_handle_slot(p, i);
+			p->cmd |= p->ccs << AHCI_P_CMD_CCS_SHIFT;
+			ahci_handle_slot(p, p->ccs);
 		}
 	}
 }
@@ -1844,6 +1857,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	p->pending &= ~(1 << slot);
 
 	ahci_check_stopped(p);
+	ahci_handle_port(p);
 out:
 	pthread_mutex_unlock(&sc->mtx);
 	DPRINTF("%s exit\n", __func__);
@@ -1905,6 +1919,7 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	p->pending &= ~(1 << slot);
 
 	ahci_check_stopped(p);
+	ahci_handle_port(p);
 out:
 	pthread_mutex_unlock(&sc->mtx);
 	DPRINTF("%s exit\n", __func__);
@@ -2001,7 +2016,7 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		}
 
 		if (value & AHCI_P_CMD_CLO) {
-			p->tfd = 0;
+			p->tfd &= ~(ATA_S_BUSY | ATA_S_DRQ);
 			p->cmd &= ~AHCI_P_CMD_CLO;
 		}
 
@@ -2078,7 +2093,7 @@ pci_ahci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	struct pci_ahci_softc *sc = pi->pi_arg;
 
 	assert(baridx == 5);
-	assert(size == 4);
+	assert((offset % 4) == 0 && size == 4);
 
 	pthread_mutex_lock(&sc->mtx);
 
@@ -2167,24 +2182,29 @@ pci_ahci_port_read(struct pci_ahci_softc *sc, uint64_t offset)
 
 static uint64_t
 pci_ahci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
-    uint64_t offset, int size)
+    uint64_t regoff, int size)
 {
 	struct pci_ahci_softc *sc = pi->pi_arg;
+	uint64_t offset;
 	uint32_t value;
 
 	assert(baridx == 5);
-	assert(size == 4);
+	assert(size == 1 || size == 2 || size == 4);
+	assert((regoff & (size - 1)) == 0);
 
 	pthread_mutex_lock(&sc->mtx);
 
+	offset = regoff & ~0x3;	    /* round down to a multiple of 4 bytes */
 	if (offset < AHCI_OFFSET)
 		value = pci_ahci_host_read(sc, offset);
 	else if (offset < AHCI_OFFSET + sc->ports * AHCI_STEP)
 		value = pci_ahci_port_read(sc, offset);
 	else {
 		value = 0;
-		WPRINTF("pci_ahci: unknown i/o read offset 0x%"PRIx64"\n", offset);
+		WPRINTF("pci_ahci: unknown i/o read offset 0x%"PRIx64"\n",
+		    regoff);
 	}
+	value >>= 8 * (regoff & 0x3);
 
 	pthread_mutex_unlock(&sc->mtx);
 

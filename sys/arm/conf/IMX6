@@ -19,45 +19,16 @@
 # $FreeBSD$
 
 ident		IMX6
+include 	"std.armv6"
 include 	"../freescale/imx/std.imx6"
 
 options 	SOC_IMX6
 
 options 	HZ=500			# Scheduling quantum is 2 milliseconds.
 options 	SCHED_ULE		# ULE scheduler
-options 	PREEMPTION		# Enable kernel thread preemption
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	SCTP			# Stream Control Transmission Protocol
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-options 	QUOTA			# Enable disk quotas for UFS
-options 	NFSCL			# Network Filesystem Client
 #options 	NFSD			# Network Filesystem Server
-options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCL
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	TMPFS			# Efficient memory filesystem
-options 	GEOM_PART_GPT		# GUID Partition Tables
-options 	GEOM_PART_BSD		# BSD partition scheme
-options 	GEOM_PART_MBR		# MBR partition scheme
-options 	GEOM_LABEL		# Provides labelization
-options 	KTRACE			# ktrace(1) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	PLATFORM
-options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
-options 	VFP			# Enable floating point hardware support
 options 	SMP			# Enable multiple cores
 
 # Debugging for use in -current
@@ -86,6 +57,9 @@ options 	ALT_BREAK_TO_DEBUGGER	# Use <CR><tilde><ctrl-b> to enter debugger.
 
 # U-Boot stuff lives on slice 1, FreeBSD on slice 2.
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
+
+# Interrupt controller
+device		gic
 
 # Pseudo devices.
 device		loop			# Network loopback

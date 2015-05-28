@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2014
+.Dd May 27, 2015
 .Dt PS 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd process status
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl aCcdefHhjlmrSTuvwXxZ
 .Op Fl O Ar fmt | Fl o Ar fmt
 .Op Fl G Ar gid Ns Op , Ns Ar gid Ns Ar ...
@@ -47,6 +48,7 @@
 .Op Fl t Ar tty Ns Op , Ns Ar tty Ns Ar ...
 .Op Fl U Ar user Ns Op , Ns Ar user Ns Ar ...
 .Nm
+.Op Fl -libxo
 .Op Fl L
 .Sh DESCRIPTION
 The
@@ -348,6 +350,9 @@ the include file
 .In sys/proc.h :
 .Bl -column P2_INHERIT_PROTECTED 0x00000001
 .It Dv "P2_INHERIT_PROTECTED" Ta No "0x00000001" Ta "New children get P_PROTECTED"
+.It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No ptrace(2) attach or coredumps"
+.It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta "Keep P2_NOPTRACE on exec(2)"
+.It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
 .El
 .It Cm label
 The MAC label of the process.
@@ -733,7 +738,9 @@ Display information on all system processes:
 .Xr procstat 1 ,
 .Xr w 1 ,
 .Xr kvm 3 ,
+.Xr libxo 3
 .Xr strftime 3 ,
+.Xr xo_parse_args 3
 .Xr mac 4 ,
 .Xr procfs 5 ,
 .Xr pstat 8 ,

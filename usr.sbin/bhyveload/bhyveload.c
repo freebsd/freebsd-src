@@ -609,7 +609,7 @@ disk_open(char *path)
 {
 	int err, fd;
 
-	if (ndisks > NDISKS)
+	if (ndisks >= NDISKS)
 		return (ERANGE);
 
 	err = 0;

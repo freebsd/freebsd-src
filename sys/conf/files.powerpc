@@ -43,6 +43,7 @@ dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc | vt
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
+dev/nand/nfc_rb.c		optional	nand mpc85xx
 # ofw can be either aim or fdt: fdt case handled in files. aim only powerpc specific.
 dev/ofw/openfirm.c		optional	aim
 dev/ofw/openfirmio.c		optional	aim
@@ -137,6 +138,7 @@ powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
+powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx
 powerpc/ofw/ofw_machdep.c	standard
 powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcibus.c	optional	pci

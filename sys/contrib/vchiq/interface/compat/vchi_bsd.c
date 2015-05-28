@@ -80,7 +80,7 @@ void
 init_timer(struct timer_list *t)
 {
 	mtx_init(&t->mtx, "dahdi timer lock", NULL, MTX_SPIN);
-	callout_init(&t->callout, CALLOUT_MPSAFE);
+	callout_init(&t->callout, 1);
 	t->expires = 0;
 	/*
 	 * function and data are not initialized intentionally:

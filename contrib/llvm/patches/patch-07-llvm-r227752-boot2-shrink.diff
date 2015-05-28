@@ -596,7 +596,7 @@ Index: lib/Target/X86/X86FrameLowering.cpp
  static unsigned getLEArOpcode(unsigned IsLP64) {
    return IsLP64 ? X86::LEA64r : X86::LEA32r;
  }
-@@ -1848,100 +1865,6 @@ void X86FrameLowering::adjustForHiPEPrologue(Machi
+@@ -1882,100 +1899,6 @@ void X86FrameLowering::adjustForHiPEPrologue(Machi
  #endif
  }
  
@@ -697,7 +697,7 @@ Index: lib/Target/X86/X86FrameLowering.cpp
  void X86FrameLowering::
  eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator I) const {
-@@ -1956,7 +1879,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
+@@ -1990,7 +1913,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
    bool IsLP64 = STI.isTarget64BitLP64();
    DebugLoc DL = I->getDebugLoc();
    uint64_t Amount = !reserveCallFrame ? I->getOperand(0).getImm() : 0;
@@ -706,7 +706,7 @@ Index: lib/Target/X86/X86FrameLowering.cpp
    I = MBB.erase(I);
  
    if (!reserveCallFrame) {
-@@ -1976,24 +1899,18 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
+@@ -2010,24 +1933,18 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
      Amount = (Amount + StackAlign - 1) / StackAlign * StackAlign;
  
      MachineInstr *New = nullptr;
@@ -740,7 +740,7 @@ Index: lib/Target/X86/X86FrameLowering.cpp
          unsigned Opc = getADDriOpcode(IsLP64, Amount);
          New = BuildMI(MF, DL, TII.get(Opc), StackPtr)
            .addReg(StackPtr).addImm(Amount);
-@@ -2011,13 +1928,13 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
+@@ -2045,13 +1962,13 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
      return;
    }
  
@@ -761,7 +761,7 @@ Index: lib/Target/X86/X86FrameLowering.h
 ===================================================================
 --- lib/Target/X86/X86FrameLowering.h
 +++ lib/Target/X86/X86FrameLowering.h
-@@ -64,6 +64,8 @@ class X86FrameLowering : public TargetFrameLowerin
+@@ -66,6 +66,8 @@ class X86FrameLowering : public TargetFrameLowerin
  
    bool hasFP(const MachineFunction &MF) const override;
    bool hasReservedCallFrame(const MachineFunction &MF) const override;

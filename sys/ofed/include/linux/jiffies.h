@@ -42,7 +42,7 @@ msecs_to_jiffies(int msec)
 
 	tv.tv_sec = msec / 1000;
 	tv.tv_usec = (msec % 1000) * 1000;
-	return (tvtohz(&tv));
+	return (tvtohz(&tv) - 1);
 }
 
 #define jiffies                 ticks

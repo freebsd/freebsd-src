@@ -177,8 +177,9 @@ static int	wpi_add_node_entry_adhoc(struct wpi_softc *);
 static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	wpi_node_free(struct ieee80211_node *);
-static void	wpi_recv_mgmt(struct ieee80211_node *, struct mbuf *, int, int,
-		    int);
+static void	wpi_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
+		    const struct ieee80211_rx_stats *,
+		    int, int);
 static void	wpi_restore_node(void *, struct ieee80211_node *);
 static void	wpi_restore_node_table(struct wpi_softc *, struct wpi_vap *);
 static int	wpi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -218,8 +219,8 @@ static int	wpi_add_ibss_node(struct wpi_softc *, struct ieee80211_node *);
 static void	wpi_del_node(struct wpi_softc *, struct ieee80211_node *);
 static int	wpi_updateedca(struct ieee80211com *);
 static void	wpi_set_promisc(struct wpi_softc *);
-static void	wpi_update_promisc(struct ifnet *);
-static void	wpi_update_mcast(struct ifnet *);
+static void	wpi_update_promisc(struct ieee80211com *);
+static void	wpi_update_mcast(struct ieee80211com *);
 static void	wpi_set_led(struct wpi_softc *, uint8_t, uint8_t, uint8_t);
 static int	wpi_set_timing(struct wpi_softc *, struct ieee80211_node *);
 static void	wpi_power_calibration(struct wpi_softc *);
@@ -452,6 +453,8 @@ wpi_attach(device_t dev)
 
 	ic = ifp->if_l2com;
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
 
@@ -1692,15 +1695,16 @@ wpi_check_bss_filter(struct wpi_softc *sc)
 }
 
 static void
-wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype, int rssi,
-    int nf)
+wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
+    const struct ieee80211_rx_stats *rxs,
+    int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	uint64_t ni_tstamp, rx_tstamp;
 
-	wvp->wv_recv_mgmt(ni, m, subtype, rssi, nf);
+	wvp->wv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 
 	if (vap->iv_opmode == IEEE80211_M_IBSS &&
 	    vap->iv_state == IEEE80211_S_RUN &&
@@ -3538,9 +3542,9 @@ wpi_set_promisc(struct wpi_softc *sc)
 }
 
 static void
-wpi_update_promisc(struct ifnet *ifp)
+wpi_update_promisc(struct ieee80211com *ic)
 {
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 
 	WPI_RXON_LOCK(sc);
 	wpi_set_promisc(sc);
@@ -3553,7 +3557,7 @@ wpi_update_promisc(struct ifnet *ifp)
 }
 
 static void
-wpi_update_mcast(struct ifnet *ifp)
+wpi_update_mcast(struct ieee80211com *ic)
 {
 	/* Ignore */
 }
