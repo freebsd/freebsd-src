@@ -53,11 +53,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pci_iov.h>
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pci_iov_private.h>
 #include <dev/pci/schema_private.h>
 
-#include "pci_if.h"
 #include "pcib_if.h"
 
 static MALLOC_DEFINE(M_SRIOV, "sr_iov", "PCI SR-IOV allocations");
@@ -483,13 +483,13 @@ pci_iov_config_page_size(struct pci_devinfo *dinfo)
 }
 
 static int
-pci_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t *config)
+pci_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *config)
 {
 	const nvlist_t *device, *driver_config;
 
 	device = nvlist_get_nvlist(config, PF_CONFIG_NAME);
 	driver_config = nvlist_get_nvlist(device, DRIVER_CONFIG_NAME);
-	return (PCI_INIT_IOV(dev, num_vfs, driver_config));
+	return (PCI_IOV_INIT(dev, num_vfs, driver_config));
 }
 
 static int
@@ -595,7 +595,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 
 		pci_iov_add_bars(iov, vfinfo);
 
-		error = PCI_ADD_VF(dev, i, driver_config);
+		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
 			pci_delete_child(bus, vf);
@@ -652,7 +652,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	if (error != 0)
 		goto out;
 
-	error = pci_init_iov(dev, num_vfs, config);
+	error = pci_iov_init(dev, num_vfs, config);
 	if (error != 0)
 		goto out;
 	iov_inited = 1;
@@ -700,7 +700,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	return (0);
 out:
 	if (iov_inited)
-		PCI_UNINIT_IOV(dev);
+		PCI_IOV_UNINIT(dev);
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		if (iov->iov_bar[i].res != NULL) {
@@ -793,7 +793,7 @@ pci_iov_delete(struct cdev *cdev)
 		if (pci_iov_is_child_vf(iov, vf))
 			pci_delete_child(bus, vf);
 	}
-	PCI_UNINIT_IOV(dev);
+	PCI_IOV_UNINIT(dev);
 
 	iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
 	iov_ctl &= ~(PCIM_SRIOV_VF_EN | PCIM_SRIOV_VF_MSE);
