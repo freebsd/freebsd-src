@@ -106,7 +106,8 @@ struct mod_metadata {
 	DATA_SET(modmetadata_set, _mod_metadata##uniquifier)
 
 #define	MODULE_DEPEND(module, mdepend, vmin, vpref, vmax)		\
-	static struct mod_depend _##module##_depend_on_##mdepend = {	\
+	static struct mod_depend _##module##_depend_on_##mdepend	\
+	    __section(".data") = {					\
 		vmin,							\
 		vpref,							\
 		vmax							\
@@ -146,7 +147,8 @@ struct mod_metadata {
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
 
 #define	MODULE_VERSION(module, version)					\
-	static struct mod_version _##module##_version = {		\
+	static struct mod_version _##module##_version			\
+	    __section(".data") = {					\
 		version							\
 	};								\
 	MODULE_METADATA(_##module##_version, MDT_VERSION,		\
