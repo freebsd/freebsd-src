@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2011-2014 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * LSI MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -36,6 +35,7 @@ struct mprsas_lun {
 	lun_id_t	lun_id;
 	uint8_t		eedp_formatted;
 	uint32_t	eedp_block_size;
+	uint8_t		stop_at_shutdown;
 };
 
 struct mprsas_target {
@@ -55,10 +55,11 @@ struct mprsas_target {
 #define MPRSAS_TARGET_INREMOVAL	(1 << 3)
 #define MPR_TARGET_FLAGS_RAID_COMPONENT (1 << 4)
 #define MPR_TARGET_FLAGS_VOLUME         (1 << 5)
-#define MPR_TARGET_IS_SATA_SSD	(1 << 6)
 #define MPRSAS_TARGET_INRECOVERY (MPRSAS_TARGET_INABORT | \
     MPRSAS_TARGET_INRESET | MPRSAS_TARGET_INCHIPRESET)
 
+#define MPRSAS_TARGET_ADD       (1 << 29)
+#define MPRSAS_TARGET_REMOVE    (1 << 30)
 	uint16_t	tid;
 	SLIST_HEAD(, mprsas_lun) luns;
 	TAILQ_HEAD(, mpr_command) commands;
@@ -81,8 +82,6 @@ struct mprsas_target {
 	unsigned int    logical_unit_resets;
 	unsigned int    target_resets;
 	uint8_t		scsi_req_desc_type;
-	uint8_t		stop_at_shutdown;
-	uint8_t		supports_SSU;
 };
 
 struct mprsas_softc {
@@ -93,6 +92,7 @@ struct mprsas_softc {
 #define MPRSAS_DISCOVERY_TIMEOUT_PENDING	(1 << 2)
 #define MPRSAS_QUEUE_FROZEN	(1 << 3)
 #define	MPRSAS_SHUTDOWN		(1 << 4)
+#define	MPRSAS_SCANTHREAD	(1 << 5)
 	u_int			maxtargets;
 	struct mprsas_target	*targets;
 	struct cam_devq		*devq;
@@ -103,6 +103,7 @@ struct mprsas_softc {
 	struct mpr_event_handle	*mprsas_eh;
 
 	u_int                   startup_refcount;
+	u_int                   tm_count;
 	struct proc             *sysctl_proc;
 
 	struct taskqueue	*ev_tq;
@@ -149,19 +150,6 @@ mprsas_set_lun(uint8_t *lun, u_int ccblun)
 	return (0);
 }
 
-static __inline void
-mprsas_set_ccbstatus(union ccb *ccb, int status)
-{
-	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-	ccb->ccb_h.status |= status;
-}
-
-static __inline int
-mprsas_get_ccbstatus(union ccb *ccb)
-{
-	return (ccb->ccb_h.status & CAM_STATUS_MASK);
-}
-
 #define MPR_SET_SINGLE_LUN(req, lun)	\
 do {					\
 	bzero((req)->LUN, 8);		\
@@ -170,10 +158,11 @@ do {					\
 
 void mprsas_rescan_target(struct mpr_softc *sc, struct mprsas_target *targ);
 void mprsas_discovery_end(struct mprsas_softc *sassc);
-void mprsas_prepare_for_tm(struct mpr_softc *sc, struct mpr_command *tm,
-    struct mprsas_target *target, lun_id_t lun_id);
 void mprsas_startup_increment(struct mprsas_softc *sassc);
 void mprsas_startup_decrement(struct mprsas_softc *sassc);
+void mprsas_release_simq_reinit(struct mprsas_softc *sassc);
 
+struct mpr_command * mprsas_alloc_tm(struct mpr_softc *sc);
+void mprsas_free_tm(struct mpr_softc *sc, struct mpr_command *tm);
 void mprsas_firmware_event_work(void *arg, int pending);
 int mprsas_check_id(struct mprsas_softc *sassc, int id);
