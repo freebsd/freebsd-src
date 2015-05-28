@@ -171,9 +171,10 @@ SUBDIR=	\
 	${_iwifw} \
 	${_iwn} \
 	${_iwnfw} \
-	${_ixgb} \
 	${_ix} \
 	${_ixv} \
+	${_ixgb} \
+	${_ixgbe} \
 	${_ixl} \
 	${_ixlv} \
 	jme \
@@ -616,6 +617,8 @@ _iwn=		iwn
 .if ${MK_SOURCELESS_UCODE} != "no"
 _iwnfw=		iwnfw
 .endif
+_ix=		ix
+_ixv=		ixv
 _ixgb=		ixgb
 _ixgbe=		ixgbe
 _mly=		mly
@@ -722,6 +725,8 @@ _iwn=		iwn
 .if ${MK_SOURCELESS_UCODE} != "no"
 _iwnfw=		iwnfw
 .endif
+_ix=		ix
+_ixv=		ixv
 _ixgb=		ixgb
 _ixgbe=		ixgbe
 _ixl=		ixl
