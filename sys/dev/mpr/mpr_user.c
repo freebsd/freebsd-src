@@ -27,11 +27,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD userland interface
+ * LSI MPT-Fusion Host Adapter FreeBSD userland interface
  */
 /*-
- * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2011-2014 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +54,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * LSI MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -91,7 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <cam/cam.h>
-#include <cam/cam_ccb.h>
+#include <cam/scsi/scsi_all.h>
 
 #include <dev/mpr/mpi/mpi2_type.h>
 #include <dev/mpr/mpi/mpi2.h>
@@ -285,7 +284,8 @@ mpr_user_read_cfg_header(struct mpr_softc *sc,
 
 static int
 mpr_user_read_cfg_page(struct mpr_softc *sc,
-    struct mpr_cfg_page_req *page_req, void *buf)
+    struct mpr_cfg_page_req *page_req,
+    void *buf)
 {
 	MPI2_CONFIG_PAGE_HEADER *reqhdr, *hdr;
 	struct mpr_config_params params;
@@ -328,10 +328,6 @@ mpr_user_read_extcfg_header(struct mpr_softc *sc,
 	hdr->PageNumber = ext_page_req->header.PageNumber;
 	hdr->ExtPageType = ext_page_req->header.ExtPageType;
 	params.page_address = le32toh(ext_page_req->page_address);
-	params.buffer = NULL;
-	params.length = 0;
-	params.callback = NULL;
-
 	if ((error = mpr_read_config_page(sc, &params)) != 0) {
 		/*
 		 * Leave the request. Without resetting the chip, it's
@@ -369,8 +365,8 @@ mpr_user_read_extcfg_page(struct mpr_softc *sc,
 	params.action = MPI2_CONFIG_ACTION_PAGE_READ_CURRENT;
 	params.page_address = le32toh(ext_page_req->page_address);
 	hdr->PageVersion = reqhdr->PageVersion;
-	hdr->PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	hdr->PageNumber = reqhdr->PageNumber;
+	hdr->PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	hdr->ExtPageType = reqhdr->ExtPageType;
 	hdr->ExtPageLength = reqhdr->ExtPageLength;
 	params.buffer = buf;
@@ -544,8 +540,6 @@ mpi_pre_fw_upload(struct mpr_command *cm, struct mpr_usr_command *cmd)
 
 	req->ImageOffset = 0;
 	req->ImageSize = cmd->len;
-
-	cm->cm_flags |= MPR_CM_FLAGS_DATAIN;
 
 	return (mpr_push_ieee_sge(cm, &req->SGL, 0));
 }
@@ -840,22 +834,11 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		task->TaskMID = cm->cm_desc.Default.SMID;
 
 		cm->cm_data = NULL;
-		cm->cm_desc.HighPriority.RequestFlags =
-		    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
+		cm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 		cm->cm_complete = NULL;
 		cm->cm_complete_data = NULL;
 
-		targ = mprsas_find_target_by_handle(sc->sassc, 0,
-		    task->DevHandle);
-		if (targ == NULL) {
-			mpr_dprint(sc, MPR_INFO,
-			   "%s %d : invalid handle for requested TM 0x%x \n",
-			   __func__, __LINE__, task->DevHandle);
-			err = 1;
-		} else {
-			mprsas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
-			err = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
-		}
+		err = mpr_wait_command(sc, cm, 30, CAN_SLEEP);
 
 		if (err != 0) {
 			err = EIO;
@@ -1046,7 +1029,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		if (cm->cm_flags & MPR_CM_FLAGS_DATAIN)
 			dir = BUS_DMASYNC_POSTREAD;
 		else if (cm->cm_flags & MPR_CM_FLAGS_DATAOUT)
-			dir = BUS_DMASYNC_POSTWRITE;
+			dir = BUS_DMASYNC_POSTWRITE;;
 		bus_dmamap_sync(sc->buffer_dmat, cm->cm_dmamap, dir);
 		bus_dmamap_unload(sc->buffer_dmat, cm->cm_dmamap);
 
@@ -1368,8 +1351,8 @@ done:
 }
 
 static int
-mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
-    uint32_t *return_code)
+mpr_diag_register(struct mpr_softc *sc,
+    mpr_fw_diag_register_t *diag_register, uint32_t *return_code)
 {
 	mpr_fw_diagnostic_buffer_t	*pBuffer;
 	uint8_t				extended_type, buffer_type, i;
