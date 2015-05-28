@@ -192,6 +192,7 @@ SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
 void
 elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+#ifdef __amd64__
 	void *buf;
 	size_t len;
 
@@ -209,6 +210,7 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 			    cpu_max_ext_state_size, NULL);
 	}
 	*off = len;
+#endif
 }
 
 void
