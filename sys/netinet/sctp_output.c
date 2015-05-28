@@ -4063,7 +4063,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			sctp_route_t iproute;
 			int len;
 
-			len = sizeof(struct ip) + sizeof(struct sctphdr);
+			len = SCTP_MIN_V4_OVERHEAD;
 			if (port) {
 				len += sizeof(struct udphdr);
 			}
@@ -4345,7 +4345,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				flowlabel = ntohl(((struct in6pcb *)inp)->in6p_flowinfo);
 			}
 			flowlabel &= 0x000fffff;
-			len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr);
+			len = SCTP_MIN_OVERHEAD;
 			if (port) {
 				len += sizeof(struct udphdr);
 			}
@@ -5107,10 +5107,11 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 				if (op_err == NULL) {
 					/* Ok need to try to get a mbuf */
 #ifdef INET6
-					l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+					l_len = SCTP_MIN_OVERHEAD;
 #else
-					l_len = sizeof(struct ip) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+					l_len = SCTP_MIN_V4_OVERHEAD;
 #endif
+					l_len += sizeof(struct sctp_chunkhdr);
 					l_len += plen;
 					l_len += sizeof(struct sctp_paramhdr);
 					op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
@@ -5176,10 +5177,11 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 
 					/* Ok need to try to get an mbuf */
 #ifdef INET6
-					l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+					l_len = SCTP_MIN_OVERHEAD;
 #else
-					l_len = sizeof(struct ip) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+					l_len = SCTP_MIN_V4_OVERHEAD;
 #endif
+					l_len += sizeof(struct sctp_chunkhdr);
 					l_len += plen;
 					l_len += sizeof(struct sctp_paramhdr);
 					op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
@@ -5251,10 +5253,11 @@ invalid_size:
 		int l_len;
 
 #ifdef INET6
-		l_len = sizeof(struct ip6_hdr) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+		l_len = SCTP_MIN_OVERHEAD;
 #else
-		l_len = sizeof(struct ip) + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+		l_len = SCTP_MIN_V4_OVERHEAD;
 #endif
+		l_len += sizeof(struct sctp_chunkhdr);
 		l_len += (2 * sizeof(struct sctp_paramhdr));
 		op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
 		if (op_err) {
@@ -7961,12 +7964,12 @@ again_one_more_time:
 		switch (((struct sockaddr *)&net->ro._l_addr)->sa_family) {
 #ifdef INET
 		case AF_INET:
-			mtu = net->mtu - (sizeof(struct ip) + sizeof(struct sctphdr));
+			mtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
-			mtu = net->mtu - (sizeof(struct ip6_hdr) + sizeof(struct sctphdr));
+			mtu = net->mtu - SCTP_MIN_OVERHEAD;
 			break;
 #endif
 		default:
@@ -8513,16 +8516,16 @@ again_one_more_time:
 		switch (((struct sockaddr *)&net->ro._l_addr)->sa_family) {
 #ifdef INET
 		case AF_INET:
-			if (net->mtu > (sizeof(struct ip) + sizeof(struct sctphdr)))
-				omtu = net->mtu - (sizeof(struct ip) + sizeof(struct sctphdr));
+			if (net->mtu > SCTP_MIN_V4_OVERHEAD)
+				omtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
 			else
 				omtu = 0;
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
-			if (net->mtu > (sizeof(struct ip6_hdr) + sizeof(struct sctphdr)))
-				omtu = net->mtu - (sizeof(struct ip6_hdr) + sizeof(struct sctphdr));
+			if (net->mtu > SCTP_MIN_OVERHEAD)
+				omtu = net->mtu - SCTP_MIN_OVERHEAD;
 			else
 				omtu = 0;
 			break;
