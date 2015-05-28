@@ -3462,12 +3462,18 @@ sctp_fs_audit(struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
 	int inflight = 0, resend = 0, inbetween = 0, acked = 0, above = 0;
-	int entry_flight, entry_cnt, ret;
+	int ret;
 
+#ifndef INVARIANTS
+	int entry_flight, entry_cnt;
+
+#endif
+
+	ret = 0;
+#ifndef INVARIANTS
 	entry_flight = asoc->total_flight;
 	entry_cnt = asoc->total_flight_count;
-	ret = 0;
-
+#endif
 	if (asoc->pr_sctp_cnt >= asoc->sent_queue_cnt)
 		return (0);
 

@@ -1449,7 +1449,7 @@ sctp_timeout_handler(void *t)
 	struct socket *so;
 
 #endif
-	int did_output, type;
+	int did_output;
 
 	tmr = (struct sctp_timer *)t;
 	inp = (struct sctp_inpcb *)tmr->ep;
@@ -1488,7 +1488,6 @@ sctp_timeout_handler(void *t)
 	}
 	/* if this is an iterator timeout, get the struct and clear inp */
 	tmr->stopped_from = 0xa003;
-	type = tmr->type;
 	if (inp) {
 		SCTP_INP_INCR_REF(inp);
 		if ((inp->sctp_socket == NULL) &&
@@ -1873,7 +1872,7 @@ out_decr:
 	}
 out_no_decr:
 	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type %d)\n",
-	    type);
+	    tmr->type);
 	CURVNET_RESTORE();
 }
 
