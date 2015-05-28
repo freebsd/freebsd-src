@@ -224,9 +224,9 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 	}
 
 	/*
-	 * This wait should return an empty pid.  The parent should
-	 * see the child as non-exited until the debugger sees the
-	 * exit.
+	 * This wait should return a pid of 0 to indicate no status to
+	 * report.  The parent should see the child as non-exited
+	 * until the debugger sees the exit.
 	 */
 	wpid = waitpid(child, &status, WNOHANG);
 	ATF_REQUIRE(wpid == 0);
@@ -357,9 +357,9 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 	}
 
 	/*
-	 * This wait should return an empty pid.  The parent should
-	 * see the child as non-exited until the debugger sees the
-	 * exit.
+	 * This wait should return a pid of 0 to indicate no status to
+	 * report.  The parent should see the child as non-exited
+	 * until the debugger sees the exit.
 	 */
 	wpid = waitpid(child, &status, WNOHANG);
 	ATF_REQUIRE(wpid == 0);
