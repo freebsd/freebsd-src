@@ -555,7 +555,9 @@ sctp_process_asconf_set_primary(struct sockaddr *src,
 		    (stcb->asoc.primary_destination->dest_state &
 		    SCTP_ADDR_UNCONFIRMED) == 0) {
 
-			sctp_timer_stop(SCTP_TIMER_TYPE_PRIM_DELETED, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_TIMER + SCTP_LOC_7);
+			sctp_timer_stop(SCTP_TIMER_TYPE_PRIM_DELETED,
+			    stcb->sctp_ep, stcb, NULL,
+			    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_1);
 			if (sctp_is_mobility_feature_on(stcb->sctp_ep,
 			    SCTP_MOBILITY_FASTHANDOFF)) {
 				sctp_assoc_immediate_retrans(stcb,
@@ -991,7 +993,7 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &stcb->asoc.primary_destination->ro._l_addr.sa);
 		sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb,
 		    stcb->asoc.deleted_primary,
-		    SCTP_FROM_SCTP_TIMER + SCTP_LOC_8);
+		    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_3);
 		stcb->asoc.num_send_timers_up--;
 		if (stcb->asoc.num_send_timers_up < 0) {
 			stcb->asoc.num_send_timers_up = 0;
@@ -1030,7 +1032,7 @@ sctp_net_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *net)
 
 	SCTPDBG(SCTP_DEBUG_ASCONF1, "net_immediate_retrans: RTO is %d\n", net->RTO);
 	sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, net,
-	    SCTP_FROM_SCTP_TIMER + SCTP_LOC_5);
+	    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_4);
 	stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);
 	net->error_count = 0;
 	TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
@@ -1684,7 +1686,7 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 	if (serial_num == asoc->asconf_seq_out - 1) {
 		/* stop our timer */
 		sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net,
-		    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_3);
+		    SCTP_FROM_SCTP_ASCONF + SCTP_LOC_5);
 	}
 	/* process the ASCONF-ACK contents */
 	ack_length = ntohs(cp->ch.chunk_length) -
