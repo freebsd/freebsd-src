@@ -13,8 +13,8 @@ device		pcf2123_rtc
 
 # GEOM modules
 device		geom_redboot	# to get access to the SPI flash partitions
-device		geom_uzip	# compressed in-memory filesystem support
-options 	GEOM_UZIP
+device		geom_uncompress	# compressed in-memory filesystem support
+options 	GEOM_UNCOMPRESS
 
 # For DOS
 options 	MSDOSFS
@@ -26,5 +26,5 @@ device		etherswitch
 device		arswitch
 
 # Boot off of flash
-options 	ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"
+options 	ROOTDEVNAME=\"ufs:redboot/rootfs.uncompress\"
 

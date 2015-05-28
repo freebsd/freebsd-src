@@ -196,6 +196,8 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linux_common} \
+	${_linux64} \
 	${_linuxapi} \
 	lmc \
 	lpt \
@@ -456,6 +458,7 @@ _txp=		txp
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_ARCH:C/mips(el)?/mips/} != "mips" && \
 	${MACHINE_ARCH} != "powerpc"
 _cxgbe=		cxgbe
 .endif
@@ -626,6 +629,8 @@ _sfxge=		sfxge
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+_linux_common=	linux_common
+_linux64=	linux64
 .endif
 .endif
 

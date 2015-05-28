@@ -1,10 +1,11 @@
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
 #include <sched.h>
 #include <stdio.h>
-
-#include <err.h>
+#include <stdlib.h>
 #include <sysexits.h>
+#include <unistd.h>
+
 #include "prutil.h"
 
 /*
@@ -12,7 +13,7 @@
  */
 void quit(const char *text)
 {
-	err(errno, text);
+	err(errno, "%s", text);
 }
 
 char *sched_text(int scheduler)

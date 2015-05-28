@@ -33,10 +33,10 @@
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
 
-/* 
+/*
  * Define cache functions used by startup code, which counts on the fact that
  * only r0-r3,r12 (ip) are modified and no stack space is used.  These functions
- * must be called with interrupts disabled.  Moreover, these work only with 
+ * must be called with interrupts disabled.  Moreover, these work only with
  * caches integrated to CPU (accessible via CP15); systems with an external L2
  * cache controller such as a PL310 need separate calls to that device driver
  * to affect L2 caches.  This is not a factor during early kernel startup, as

@@ -48,14 +48,14 @@ extern unsigned long linux_timer_hz_mask;
 do {									\
 	(timer)->function = (func);					\
 	(timer)->data = (dat);						\
-	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
+	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
 #define	init_timer(timer)						\
 do {									\
 	(timer)->function = NULL;					\
 	(timer)->data = 0;						\
-	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
+	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
 extern void mod_timer(struct timer_list *, unsigned long);

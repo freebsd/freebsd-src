@@ -13,6 +13,7 @@ FBSD_1.0 {
 
 	_setjmp;
 	_longjmp;
+	fabs;
 	setjmp;
 	longjmp;
 	sigsetjmp;

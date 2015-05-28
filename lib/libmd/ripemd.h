@@ -81,6 +81,41 @@ typedef struct RIPEMD160state_st {
 } RIPEMD160_CTX;
 
 __BEGIN_DECLS
+
+/* Ensure libmd symbols do not clash with libcrypto */
+
+#ifndef RIPEMD160_Init
+#define RIPEMD160_Init		_libmd_RIPEMD160_Init
+#endif
+#ifndef RIPEMD160_Update
+#define RIPEMD160_Update	_libmd_RIPEMD160_Update
+#endif
+#ifndef RIPEMD160_Final
+#define RIPEMD160_Final		_libmd_RIPEMD160_Final
+#endif
+#ifndef RIPEMD160_End
+#define RIPEMD160_End		_libmd_RIPEMD160_End
+#endif
+#ifndef RIPEMD160_File
+#define RIPEMD160_File		_libmd_RIPEMD160_File
+#endif
+#ifndef RIPEMD160_FileChunk
+#define RIPEMD160_FileChunk	_libmd_RIPEMD160_FileChunk
+#endif
+#ifndef RIPEMD160_Data
+#define RIPEMD160_Data		_libmd_RIPEMD160_Data
+#endif
+
+#ifndef RIPEMD160_Transform
+#define RIPEMD160_Transform	_libmd_RIPEMD160_Transform
+#endif
+#ifndef RMD160_version
+#define RMD160_version		_libmd_RMD160_version
+#endif
+#ifndef ripemd160_block
+#define ripemd160_block		_libmd_ripemd160_block
+#endif
+
 void	RIPEMD160_Init(RIPEMD160_CTX *c);
 void	RIPEMD160_Update(RIPEMD160_CTX *c, const void *data,
 			 size_t len);

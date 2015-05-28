@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_gpio.h>
-#include <arm/ti/ti_scm.h>
+#include <arm/ti/ti_pinmux.h>
 
 #include <arm/ti/am335x/am335x_scm_padconf.h>
 
@@ -86,6 +86,8 @@ static int
 am335x_gpio_set_flags(device_t dev, uint32_t gpio, uint32_t flags)
 {
 	unsigned int state = 0;
+	struct ti_gpio_softc *sc = device_get_softc(dev);
+
 	if (flags & GPIO_PIN_OUTPUT) {
 		if (flags & GPIO_PIN_PULLUP)
 			state = PADCONF_OUTPUT_PULLUP;
@@ -99,15 +101,16 @@ am335x_gpio_set_flags(device_t dev, uint32_t gpio, uint32_t flags)
 		else
 			state = PADCONF_INPUT;
 	}
-	return ti_scm_padconf_set_gpiomode(gpio, state);
+	return ti_pinmux_padconf_set_gpiomode(sc->sc_bank*32 + gpio, state);
 }
 
 static int
 am335x_gpio_get_flags(device_t dev, uint32_t gpio, uint32_t *flags)
 {
 	unsigned int state;
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 
-	if (ti_scm_padconf_get_gpiomode(gpio, &state) != 0) {
+	if (ti_pinmux_padconf_get_gpiomode(sc->sc_bank*32 + gpio, &state) != 0) {
 		*flags = 0;
 		return (EINVAL);
 	} else {

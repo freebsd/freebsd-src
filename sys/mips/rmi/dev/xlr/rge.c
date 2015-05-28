@@ -1894,9 +1894,9 @@ rge_attach(device_t dev)
 	if (!gmac_common_init_done) {
 		mac_common_init();
 		gmac_common_init_done = 1;
-		callout_init(&xlr_tx_stop_bkp, CALLOUT_MPSAFE);
+		callout_init(&xlr_tx_stop_bkp, 1);
 		callout_reset(&xlr_tx_stop_bkp, hz, xlr_tx_q_wakeup, NULL);
-		callout_init(&rge_dbg_count, CALLOUT_MPSAFE);
+		callout_init(&rge_dbg_count, 1);
 		//callout_reset(&rge_dbg_count, hz, xlr_debug_count, NULL);
 	}
 	if ((ret = rmi_xlr_mac_open(sc)) == -1) {

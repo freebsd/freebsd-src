@@ -99,8 +99,6 @@ u_int	arm_cache_level;
 u_int	arm_cache_type[14];
 u_int	arm_cache_loc;
 
-/* 1 == use cpu_sleep(), 0 == don't */
-int cpu_do_powersave;
 int ctrl;
 
 #ifdef CPU_ARM9
@@ -363,7 +361,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 struct cpu_functions xscale_cpufuncs = {
 	/* CPU functions */
-	
+
 	cpufunc_id,			/* id			*/
 	xscale_cpwait,			/* cpwait		*/
 
@@ -428,7 +426,7 @@ struct cpu_functions xscale_cpufuncs = {
 #ifdef CPU_XSCALE_81342
 struct cpu_functions xscalec3_cpufuncs = {
 	/* CPU functions */
-	
+
 	cpufunc_id,			/* id			*/
 	xscale_cpwait,			/* cpwait		*/
 
@@ -555,63 +553,63 @@ struct cpu_functions fa526_cpufuncs = {
 #if defined(CPU_ARM1176)
 struct cpu_functions arm1176_cpufuncs = {
 	/* CPU functions */
-	
+
 	cpufunc_id,                     /* id                   */
 	cpufunc_nullop,                 /* cpwait               */
-	
+
 	/* MMU functions */
-	
+
 	cpufunc_control,                /* control              */
 	cpufunc_domains,                /* Domain               */
 	arm11x6_setttb,                 /* Setttb               */
 	cpufunc_faultstatus,            /* Faultstatus          */
 	cpufunc_faultaddress,           /* Faultaddress         */
-	
+
 	/* TLB functions */
-	
+
 	arm11_tlb_flushID,              /* tlb_flushID          */
 	arm11_tlb_flushID_SE,           /* tlb_flushID_SE       */
 	arm11_tlb_flushI,               /* tlb_flushI           */
 	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
 	arm11_tlb_flushD,               /* tlb_flushD           */
 	arm11_tlb_flushD_SE,            /* tlb_flushD_SE        */
-	
+
 	/* Cache operations */
-	
+
 	arm11x6_icache_sync_all,        /* icache_sync_all      */
 	arm11x6_icache_sync_range,      /* icache_sync_range    */
-	
+
 	arm11x6_dcache_wbinv_all,       /* dcache_wbinv_all     */
 	armv6_dcache_wbinv_range,       /* dcache_wbinv_range   */
 	armv6_dcache_inv_range,         /* dcache_inv_range     */
 	armv6_dcache_wb_range,          /* dcache_wb_range      */
-	
+
 	armv6_idcache_inv_all,		/* idcache_inv_all	*/
 	arm11x6_idcache_wbinv_all,      /* idcache_wbinv_all    */
 	arm11x6_idcache_wbinv_range,    /* idcache_wbinv_range  */
-	
+
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_all    */
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
 	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
-	
+
 	/* Other functions */
-	
+
 	arm11x6_flush_prefetchbuf,      /* flush_prefetchbuf    */
 	arm11_drain_writebuf,           /* drain_writebuf       */
 	cpufunc_nullop,                 /* flush_brnchtgt_C     */
 	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
-	
+
 	arm11x6_sleep,                  /* sleep                */
-	
+
 	/* Soft functions */
-	
+
 	cpufunc_null_fixup,             /* dataabt_fixup        */
 	cpufunc_null_fixup,             /* prefetchabt_fixup    */
-	
+
 	arm11_context_switch,           /* context_switch       */
-	
+
 	arm11x6_setup                   /* cpu setup            */
 };
 #endif /*CPU_ARM1176 */
@@ -619,46 +617,46 @@ struct cpu_functions arm1176_cpufuncs = {
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
-	
+
 	cpufunc_id,                     /* id                   */
 	cpufunc_nullop,                 /* cpwait               */
-	
+
 	/* MMU functions */
-	
+
 	cpufunc_control,                /* control              */
 	cpufunc_domains,                /* Domain               */
 	armv7_setttb,                   /* Setttb               */
 	cpufunc_faultstatus,            /* Faultstatus          */
 	cpufunc_faultaddress,           /* Faultaddress         */
-	
-	/* 
+
+	/*
 	 * TLB functions.  ARMv7 does all TLB ops based on a unified TLB model
 	 * whether the hardware implements separate I+D or not, so we use the
 	 * same 'ID' functions for all 3 variations.
 	 */
-	
+
 	armv7_tlb_flushID,              /* tlb_flushID          */
 	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
 	armv7_tlb_flushID,              /* tlb_flushI           */
 	armv7_tlb_flushID_SE,           /* tlb_flushI_SE        */
 	armv7_tlb_flushID,              /* tlb_flushD           */
 	armv7_tlb_flushID_SE,           /* tlb_flushD_SE        */
-	
+
 	/* Cache operations */
-	
+
 	armv7_icache_sync_all, 	        /* icache_sync_all      */
 	armv7_icache_sync_range,        /* icache_sync_range    */
-	
+
 	armv7_dcache_wbinv_all,         /* dcache_wbinv_all     */
 	armv7_dcache_wbinv_range,       /* dcache_wbinv_range   */
 	armv7_dcache_inv_range,         /* dcache_inv_range     */
 	armv7_dcache_wb_range,          /* dcache_wb_range      */
-	
+
 	armv7_idcache_inv_all,		/* idcache_inv_all	*/
 	armv7_idcache_wbinv_all,        /* idcache_wbinv_all    */
 	armv7_idcache_wbinv_range,      /* idcache_wbinv_range  */
-	
-	/* 
+
+	/*
 	 * Note: For CPUs using the PL310 the L2 ops are filled in when the
 	 * L2 cache controller is actually enabled.
 	 */
@@ -667,23 +665,23 @@ struct cpu_functions cortexa_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
 	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
-	
+
 	/* Other functions */
-	
+
 	cpufunc_nullop,                 /* flush_prefetchbuf    */
 	armv7_drain_writebuf,           /* drain_writebuf       */
 	cpufunc_nullop,                 /* flush_brnchtgt_C     */
 	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
-	
-	armv7_sleep,                    /* sleep                */
-	
+
+	armv7_cpu_sleep,                /* sleep                */
+
 	/* Soft functions */
-	
+
 	cpufunc_null_fixup,             /* dataabt_fixup        */
 	cpufunc_null_fixup,             /* prefetchabt_fixup    */
-	
+
 	armv7_context_switch,           /* context_switch       */
-	
+
 	cortexa_setup                     /* cpu setup            */
 };
 #endif /* CPU_CORTEXA */
@@ -760,7 +758,7 @@ get_cachetype_cp15()
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
 				arm_cache_type[sel] = csize;
-				arm_dcache_align = 1 << 
+				arm_dcache_align = 1 <<
 				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
 				arm_dcache_align_mask = arm_dcache_align - 1;
 			}
@@ -837,11 +835,6 @@ set_cpufuncs()
 {
 	cputype = cpufunc_id();
 	cputype &= CPU_ID_CPU_MASK;
-
-	/*
-	 * NOTE: cpu_do_powersave defaults to off.  If we encounter a
-	 * CPU type where we want to use it by default, then we set it.
-	 */
 
 #ifdef CPU_ARM9
 	if (((cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD ||
@@ -920,14 +913,12 @@ set_cpufuncs()
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
-		
+
 		pmap_pte_init_mmu_v6();
-		/* Use powersave on this CPU. */
-		cpu_do_powersave = 1;
 		goto out;
 	}
 #endif /* CPU_CORTEXA */
-		
+
 #if defined(CPU_MV_PJ4B)
 	if (cputype == CPU_ID_MV88SV581X_V7 ||
 	    cputype == CPU_ID_MV88SV584X_V7 ||
@@ -945,9 +936,6 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* SA needs it	*/
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
-
-		/* Use powersave on this CPU. */
-		cpu_do_powersave = 1;
 
 		goto out;
 	}
@@ -984,9 +972,6 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
-
-		/* Use powersave on this CPU. */
-		cpu_do_powersave = 1;
 
 		goto out;
 	}
@@ -1131,37 +1116,20 @@ cpu_scc_setup_ccnt(void)
  * you want!
  */
 #ifdef _PMC_USER_READ_WRITE_
-#if defined(CPU_ARM1176)
-	/* Use the Secure User and Non-secure Access Validation Control Register
-	 * to allow userland access
-	 */
-	__asm volatile ("mcr	p15, 0, %0, c15, c9, 0\n\t"
-			:
-			: "r"(0x00000001));
-#else
 	/* Set PMUSERENR[0] to allow userland access */
-	__asm volatile ("mcr	p15, 0, %0, c9, c14, 0\n\t"
-			:
-			: "r"(0x00000001));
-#endif
+	cp15_pmuserenr_set(1);
 #endif
 #if defined(CPU_ARM1176)
 	/* Set PMCR[2,0] to enable counters and reset CCNT */
-	__asm volatile ("mcr	p15, 0, %0, c15, c12, 0\n\t"
-			:
-			: "r"(0x00000005));
+	cp15_pmcr_set(5);
 #else
 	/* Set up the PMCCNTR register as a cyclecounter:
 	 * Set PMINTENCLR to 0xFFFFFFFF to block interrupts
 	 * Set PMCR[2,0] to enable counters and reset CCNT
 	 * Set PMCNTENSET to 0x80000000 to enable CCNT */
-	__asm volatile ("mcr	p15, 0, %0, c9, c14, 2\n\t"
-			"mcr	p15, 0, %1, c9, c12, 0\n\t"
-			"mcr	p15, 0, %2, c9, c12, 1\n\t"
-			:
-			: "r"(0xFFFFFFFF),
-			  "r"(0x00000005),
-			  "r"(0x80000000));
+	cp15_pminten_clr(0xFFFFFFFF);
+	cp15_pmcr_set(5);
+	cp15_pmcnten_set(0x80000000);
 #endif
 }
 #endif
@@ -1197,7 +1165,7 @@ arm11x6_setup(void)
 		(3 << 30) | /* SBZ */
 		(1 << 29) | /* FA */
 		(1 << 28) | /* TR */
-		(3 << 26) | /* SBZ */ 
+		(3 << 26) | /* SBZ */
 		(3 << 19) | /* SBZ */
 		(1 << 17);  /* SBZ */
 
@@ -1229,19 +1197,18 @@ arm11x6_setup(void)
 	__asm volatile ("mcr\tp15, 0, %0, c7, c7, 0" : : "r"(sbz));
 
 	/* Allow detection code to find the VFP if it's fitted.  */
-	__asm volatile ("mcr\tp15, 0, %0, c1, c0, 2" : : "r" (0x0fffffff));
+	cp15_cpacr_set(0x0fffffff);
 
 	/* Set the control register */
 	ctrl = cpuctrl;
 	cpu_control(~cpuctrl_wax, cpuctrl);
 
-	__asm volatile ("mrc	p15, 0, %0, c1, c0, 1\n\t"
-			"and	%1, %0, %2\n\t"
-			"orr	%1, %1, %3\n\t"
-			"teq	%0, %1\n\t"
-			"mcrne	p15, 0, %1, c1, c0, 1\n\t"
-			: "=r"(tmp), "=r"(tmp2) :
-			  "r"(auxctrl_wax), "r"(auxctrl));
+	tmp = cp15_actlr_get();
+	tmp2 = tmp;
+	tmp &= auxctrl_wax;
+	tmp |= auxctrl;
+	if (tmp != tmp2)
+		cp15_actlr_set(tmp);
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
@@ -1291,39 +1258,39 @@ void
 cortexa_setup(void)
 {
 	int cpuctrl, cpuctrlmask;
-	
+
 	cpuctrlmask = CPU_CONTROL_MMU_ENABLE |     /* MMU enable         [0] */
 	    CPU_CONTROL_AFLT_ENABLE |    /* Alignment fault    [1] */
 	    CPU_CONTROL_DC_ENABLE |      /* DCache enable      [2] */
 	    CPU_CONTROL_BPRD_ENABLE |    /* Branch prediction [11] */
 	    CPU_CONTROL_IC_ENABLE |      /* ICache enable     [12] */
 	    CPU_CONTROL_VECRELOC;        /* Vector relocation [13] */
-	
+
 	cpuctrl = CPU_CONTROL_MMU_ENABLE |
 	    CPU_CONTROL_IC_ENABLE |
 	    CPU_CONTROL_DC_ENABLE |
 	    CPU_CONTROL_BPRD_ENABLE;
-	
+
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
-	
+
 	/* Switch to big endian */
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
-	
+
 	/* Check if the vector page is at the high address (0xffff0000) */
 	if (vector_page == ARM_VECTORS_HIGH)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
-	
+
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
-	
+
 	/* Set the control register */
 	ctrl = cpuctrl;
 	cpu_control(cpuctrlmask, cpuctrl);
-	
+
 	/* And again. */
 	cpu_idcache_wbinv_all();
 #ifdef SMP

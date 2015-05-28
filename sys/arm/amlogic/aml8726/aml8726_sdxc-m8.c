@@ -758,7 +758,6 @@ aml8726_sdxc_attach(device_t dev)
 		device_printf(dev, "unsupported SoC\n");
 		return (ENXIO);
 		/* NOTREACHED */
-		break;
 	}
 
 	node = ofw_bus_get_node(dev);

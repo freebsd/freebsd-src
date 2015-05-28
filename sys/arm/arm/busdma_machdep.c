@@ -237,7 +237,7 @@ dmamap_ctor(void *mem, int size, void *arg, int flags)
  * This is the dtor function passed to uma_zcreate() for the pool of dma maps.
  * It may need platform-specific changes if this code is copied              .
  */
-static void 
+static void
 dmamap_dtor(void *mem, int size, void *arg)
 {
 	bus_dmamap_t map;
@@ -256,9 +256,9 @@ busdma_init(void *dummy)
 	    dmamap_ctor, dmamap_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
-	standard_allocator = busdma_bufalloc_create("buffer", 
+	standard_allocator = busdma_bufalloc_create("buffer",
 	    arm_dcache_align,	/* minimum_alignment */
-	    NULL,		/* uma_alloc func */ 
+	    NULL,		/* uma_alloc func */
 	    NULL,		/* uma_free func */
 	    0);			/* uma_zcreate_flags */
 
@@ -268,8 +268,8 @@ busdma_init(void *dummy)
 	 */
 	coherent_allocator = busdma_bufalloc_create("coherent",
 	    arm_dcache_align,	/* minimum_alignment */
-	    busdma_bufalloc_alloc_uncacheable, 
-	    busdma_bufalloc_free_uncacheable, 
+	    busdma_bufalloc_alloc_uncacheable,
+	    busdma_bufalloc_free_uncacheable,
 	    0);			/* uma_zcreate_flags */
 }
 
@@ -308,7 +308,7 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
 			retval = 1;
 
-		dmat = dmat->parent;		
+		dmat = dmat->parent;
 	} while (retval == 0 && dmat != NULL);
 	return (retval);
 }
@@ -531,13 +531,13 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 #endif
 
 	if (dmat != NULL) {
-		
+
                 if (dmat->map_count != 0)
                         return (EBUSY);
-		
+
                 while (dmat != NULL) {
                         bus_dma_tag_t parent;
-			
+
                         parent = dmat->parent;
                         atomic_subtract_int(&dmat->ref_count, 1);
                         if (dmat->ref_count == 0) {
@@ -588,7 +588,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * now, because we can't sleep for resources at map load time.
 	 */
 	if (dmat->segments == NULL) {
-		dmat->segments = malloc(dmat->nsegments * 
+		dmat->segments = malloc(dmat->nsegments *
 		    sizeof(*dmat->segments), M_DEVBUF, M_NOWAIT);
 		if (dmat->segments == NULL) {
 			free(slist, M_DEVBUF);
@@ -701,7 +701,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddrp, int flags,
 	 * now, because we can't sleep for resources at map load time.
 	 */
 	if (dmat->segments == NULL)
-		dmat->segments = malloc(dmat->nsegments * 
+		dmat->segments = malloc(dmat->nsegments *
 		   sizeof(*dmat->segments), M_DEVBUF, mflags);
 
 	slist = malloc(sizeof(*slist) * dmat->nsegments, M_DEVBUF, M_NOWAIT);
@@ -918,7 +918,7 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 		 * memory address to an address in the DMA window.
 		 */
 		curaddr = (curaddr - dr->dr_sysbase) + dr->dr_busbase;
-					
+
 	}
 
 	seg = *segp;
@@ -1206,7 +1206,7 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
 		if (op & BUS_DMASYNC_PREWRITE) {
 			if (bpage->datavaddr != 0)
-				bcopy((void *)bpage->datavaddr, 
+				bcopy((void *)bpage->datavaddr,
 				    (void *)bpage->vaddr, bpage->datacount);
 			else
 				physcopyout(bpage->dataaddr,

@@ -1005,7 +1005,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		pte = *ptep;
-		
+
 		if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
 			/*
 			 * Page tables must have the cache-mode set to
@@ -1357,7 +1357,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 
 		if (!(oflags & maskbits)) {
 			if ((maskbits & PVF_WRITE) && (pv->pv_flags & PVF_NC)) {
-				if (pg->md.pv_memattr != 
+				if (pg->md.pv_memattr !=
 				    VM_MEMATTR_UNCACHEABLE) {
 					PMAP_LOCK(pm);
 					l2b = pmap_get_l2_bucket(pm, va);
@@ -1955,7 +1955,7 @@ pmap_postinit(void)
 	pt_entry_t *ptep, pte;
 	vm_offset_t va, eva;
 	u_int loop, needed;
-	
+
 	needed = (maxproc / PMAP_DOMAINS) + ((maxproc % PMAP_DOMAINS) ? 1 : 0);
 	needed -= 1;
 	l1 = malloc(sizeof(*l1) * needed, M_VMPMAP, M_WAITOK);
@@ -1970,7 +1970,7 @@ pmap_postinit(void)
 
 		eva = va + L1_TABLE_SIZE;
 		pl1pt = (pd_entry_t *)va;
-		
+
 		while (va < eva) {
 				l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 				ptep = &l2b->l2b_kva[l2pte_index(va)];
@@ -1979,7 +1979,7 @@ pmap_postinit(void)
 				*ptep = pte;
 				PTE_SYNC(ptep);
 				cpu_tlb_flushD_SE(va);
-				
+
 				va += PAGE_SIZE;
 		}
 		pmap_init_l1(l1, pl1pt);
@@ -2162,11 +2162,11 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 
 	PDEBUG(1, printf("firstaddr = %08x, lastaddr = %08x\n",
 	    firstaddr, vm_max_kernel_address));
-	
+
 	virtual_avail = firstaddr;
 	kernel_pmap->pm_l1 = l1;
 	kernel_l1pa = l1pt->pv_pa;
-	
+
 	/*
 	 * Scan the L1 translation table created by initarm() and create
 	 * the required metadata for all valid mappings found in it.
@@ -2187,7 +2187,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 		 */
 		pa = (vm_paddr_t)(pde & L1_C_ADDR_MASK);
 		ptep = (pt_entry_t *)kernel_pt_lookup(pa);
-		
+
 		if (ptep == NULL) {
 			panic("pmap_bootstrap: No L2 for va 0x%x, pa 0x%lx",
 			    (u_int)l1idx << L1_S_SHIFT, (long unsigned int)pa);
@@ -2241,7 +2241,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 		}
 	}
 
-	
+
 	/*
 	 * Ensure the primary (kernel) L1 has the correct cache mode for
 	 * a page table. Bitch if it is not correctly set.
@@ -2267,7 +2267,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	 * Initialize the global pv list lock.
 	 */
 	rw_init_flags(&pvh_global_lock, "pmap pv global", RW_RECURSE);
-	
+
 	/*
 	 * Reserve some special page table entries/VA space for temporary
 	 * mapping of pages.
@@ -2281,7 +2281,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * L2_TABLE_SIZE_REAL) / PAGE_SIZE,
 	    &pmap_kernel_l2ptp_kva, NULL);
-	
+
 	size = (size + (L2_BUCKET_SIZE - 1)) / L2_BUCKET_SIZE;
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * sizeof(struct l2_dtable)) / PAGE_SIZE,
@@ -2319,7 +2319,7 @@ void
 pmap_release(pmap_t pmap)
 {
 	struct pcb *pcb;
-	
+
 	pmap_idcache_wbinv_all(pmap);
 	cpu_l2cache_wbinv_all();
 	pmap_tlb_flushID(pmap);
@@ -2352,7 +2352,7 @@ pmap_release(pmap_t pmap)
 
 	}
 	pmap_free_l1(pmap);
-	
+
 	dprintf("pmap_release()\n");
 }
 
@@ -2368,7 +2368,7 @@ pmap_grow_map(vm_offset_t va, pt_entry_t cache_mode, vm_paddr_t *pap)
 	pt_entry_t *ptep;
 	vm_paddr_t pa;
 	struct vm_page *pg;
-	
+
 	pg = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 	if (pg == NULL)
 		return (1);
@@ -2530,7 +2530,7 @@ pmap_remove_pages(pmap_t pmap)
 	struct l2_bucket *l2b = NULL;
 	vm_page_t m;
 	pt_entry_t *pt;
-	
+
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	cpu_idcache_wbinv_all();
@@ -2576,7 +2576,7 @@ pmap_kenter_supersection(vm_offset_t va, uint64_t pa, int flags)
 	pd_entry_t pd = L1_S_PROTO | L1_S_SUPERSEC | (pa & L1_SUP_FRAME) |
 	    (((pa >> 32) & 0xf) << 20) | L1_S_PROT(PTE_KERNEL,
 	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
-	struct l1_ttable *l1;	
+	struct l1_ttable *l1;
 	vm_offset_t va0, va_end;
 
 	KASSERT(((va | pa) & L1_SUP_OFFSET) == 0,
@@ -2685,7 +2685,7 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 		rw_wlock(&pvh_global_lock);
 		if (!TAILQ_EMPTY(&m->md.pv_list) || m->md.pv_kva != 0) {
 			if ((pve = pmap_get_pv_entry()) == NULL)
-				panic("pmap_kenter_internal: no pv entries");	
+				panic("pmap_kenter_internal: no pv entries");
 			PMAP_LOCK(pmap_kernel());
 			pmap_enter_pv(m, pve, pmap_kernel(), va,
 			    PVF_WRITE | PVF_UNMAN);
@@ -2716,7 +2716,7 @@ pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
 	vm_offset_t sva;
 
-	KASSERT((size & PAGE_MASK) == 0, 
+	KASSERT((size & PAGE_MASK) == 0,
 	    ("%s: device mapping not page-sized", __func__));
 
 	sva = va;
@@ -2733,7 +2733,7 @@ pmap_kremove_device(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t sva;
 
-	KASSERT((size & PAGE_MASK) == 0, 
+	KASSERT((size & PAGE_MASK) == 0,
 	    ("%s: device mapping not page-sized", __func__));
 
 	sva = va;
@@ -2775,7 +2775,7 @@ pmap_kremove(vm_offset_t va)
 	struct pv_entry *pve;
 	vm_page_t m;
 	vm_offset_t pa;
-		
+
 	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 	if (!l2b)
 		return;
@@ -3287,9 +3287,9 @@ do_l2b_alloc:
 		 *   so no need to re-do referenced emulation here.
 		 */
 		npte |= L2_S_PROTO;
-		
+
 		nflags |= PVF_REF;
-		
+
 		if (m && ((prot & VM_PROT_WRITE) != 0 ||
 		    (m->md.pvh_attrs & PVF_MOD))) {
 			/*
@@ -3310,7 +3310,7 @@ do_l2b_alloc:
 		 */
 		npte |= L2_TYPE_INV;
 	}
-	
+
 	if (prot & VM_PROT_WRITE) {
 		npte |= L2_S_PROT_W;
 		if (m != NULL &&
@@ -3326,7 +3326,7 @@ do_l2b_alloc:
 		oflags = pmap_modify_pv(m, pmap, va,
 		    PVF_WRITE | PVF_EXEC | PVF_WIRED |
 		    PVF_MOD | PVF_REF, nflags);
-		
+
 		/*
 		 * We may need to flush the cache if we're
 		 * doing rw-ro...
@@ -3544,7 +3544,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pv_entry_t pv;
 	vm_offset_t next_bucket;
 	vm_page_t m;
- 
+
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	while (sva < eva) {
@@ -3690,7 +3690,7 @@ retry:
 			m = PHYS_TO_VM_PAGE(pa);
 			vm_page_hold(m);
 		}
-			
+
 	} else {
 		/*
 		 * Note that we can't rely on the validity of the L1
@@ -3717,13 +3717,13 @@ retry:
 			case L2_TYPE_L:
 				pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
 				break;
-				
+
 			default:
 				pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
 				break;
 			}
 			if (vm_page_pa_tryrelock(pmap, pa & PG_FRAME, &paddr))
-				goto retry;		
+				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
 			vm_page_hold(m);
 		}
@@ -3743,12 +3743,12 @@ int
 pmap_pinit(pmap_t pmap)
 {
 	PDEBUG(1, printf("pmap_pinit: pmap = %08x\n", (uint32_t) pmap));
-	
+
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
 	CPU_ZERO(&pmap->pm_active);
-		
+
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_stats.resident_count = 1;
@@ -3783,7 +3783,7 @@ static pv_entry_t
 pmap_get_pv_entry(void)
 {
 	pv_entry_t ret_value;
-	
+
 	pv_entry_count++;
 	if (pv_entry_count > pv_entry_high_water)
 		pagedaemon_wakeup();
@@ -4310,7 +4310,13 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 }
 
-int unmapped_buf_allowed = 1;
+/*
+ * We have code to do unmapped I/O. However, it isn't quite right and
+ * causes un-page-aligned I/O to devices to fail (most notably newfs
+ * or fsck). We give up a little performance to not allow unmapped I/O
+ * to gain stability.
+ */
+int unmapped_buf_allowed = 0;
 
 void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
@@ -4347,7 +4353,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	pv_entry_t pv;
 	int loops = 0;
 	boolean_t rv;
-	
+
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
@@ -4419,7 +4425,7 @@ pmap_is_modified(vm_page_t m)
 	    ("pmap_is_modified: page %p is not managed", m));
 	if (m->md.pvh_attrs & PVF_MOD)
 		return (TRUE);
-	
+
 	return(FALSE);
 }
 
@@ -4625,7 +4631,7 @@ pmap_link_l2pt(vm_offset_t l1pt, vm_offset_t va, struct pv_addr *l2pv)
 
 	SLIST_INSERT_HEAD(&kernel_pt_list, l2pv, pv_list);
 
-	
+
 }
 
 /*
@@ -4787,7 +4793,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
-	/* 
+	/*
 	 * Remember the memattr in a field that gets used to set the appropriate
 	 * bits in the PTEs as mappings are established.
 	 */

@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #define PT_OUTER_WT	(2 << 3)
 #define PT_OUTER_WB	(3 << 3)
 #define PT_OUTER_WBWA	(1 << 3)
-	
+
 #ifdef SMP
 #define PT_ATTR	(PT_S|PT_INNER_WBWA|PT_OUTER_WBWA|PT_NOS)
 #else
@@ -365,10 +365,4 @@ ENTRY(armv7_idcache_inv_all)
 	isb                             @ instruction sync barrier
 	bx      lr                      @ return
 END(armv7_idcache_inv_all)
-
-ENTRY_NP(armv7_sleep)
-	dsb
-	wfi
-	bx	lr
-END(armv7_sleep)
 

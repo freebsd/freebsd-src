@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <x86/acpica_machdep.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -99,6 +100,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+
+#define	STATE_RUNNING	0x0
+#define	STATE_MWAIT	0x1
+#define	STATE_SLEEPING	0x2
 
 /*
  * Machine dependent boot() routine
@@ -119,6 +124,38 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 	/* Not applicable */
+}
+
+void
+acpi_cpu_c1(void)
+{
+
+	__asm __volatile("sti; hlt");
+}
+
+void
+acpi_cpu_idle_mwait(uint32_t mwait_hint)
+{
+	int *state;
+
+	/*
+	 * XXXKIB.  Software coordination mode should be supported,
+	 * but all Intel CPUs provide hardware coordination.
+	 */
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	KASSERT(*state == STATE_SLEEPING,
+		("cpu_mwait_cx: wrong monitorbuf state"));
+	*state = STATE_MWAIT;
+	cpu_monitor(state, 0, 0);
+	if (*state == STATE_MWAIT)
+		cpu_mwait(MWAIT_INTRBREAK, mwait_hint);
+
+	/*
+	 * We should exit on any event that interrupts mwait, because
+	 * that event might be a wanted interrupt.
+	 */
+	*state = STATE_RUNNING;
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -194,15 +231,20 @@ cpu_halt(void)
 		halt();
 }
 
+bool
+cpu_mwait_usable(void)
+{
+
+	return ((cpu_feature2 & CPUID2_MON) != 0 && ((cpu_mon_mwait_flags &
+	    (CPUID5_MON_MWAIT_EXT | CPUID5_MWAIT_INTRBREAK)) ==
+	    (CPUID5_MON_MWAIT_EXT | CPUID5_MWAIT_INTRBREAK)));
+}
+
 void (*cpu_idle_hook)(sbintime_t) = NULL;	/* ACPI idle hook. */
 static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
 SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
-
-#define	STATE_RUNNING	0x0
-#define	STATE_MWAIT	0x1
-#define	STATE_SLEEPING	0x2
 
 #ifndef PC98
 static void
@@ -220,7 +262,7 @@ cpu_idle_acpi(sbintime_t sbt)
 	else if (cpu_idle_hook)
 		cpu_idle_hook(sbt);
 	else
-		__asm __volatile("sti; hlt");
+		acpi_cpu_c1();
 	*state = STATE_RUNNING;
 }
 #endif /* !PC98 */
@@ -253,7 +295,7 @@ cpu_idle_hlt(sbintime_t sbt)
 	if (sched_runnable())
 		enable_intr();
 	else
-		__asm __volatile("sti; hlt");
+		acpi_cpu_c1();
 	*state = STATE_RUNNING;
 }
 

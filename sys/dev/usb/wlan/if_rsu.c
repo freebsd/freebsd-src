@@ -142,7 +142,7 @@ static void	rsu_vap_delete(struct ieee80211vap *);
 static void	rsu_scan_start(struct ieee80211com *);
 static void	rsu_scan_end(struct ieee80211com *);
 static void	rsu_set_channel(struct ieee80211com *);
-static void	rsu_update_mcast(struct ifnet *);
+static void	rsu_update_mcast(struct ieee80211com *);
 static int	rsu_alloc_rx_list(struct rsu_softc *);
 static void	rsu_free_rx_list(struct rsu_softc *);
 static int	rsu_alloc_tx_list(struct rsu_softc *);
@@ -355,6 +355,8 @@ rsu_attach(device_t self)
 	ifp->if_hwassist = CSUM_TCP;
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* Not only, but not used. */
 	ic->ic_opmode = IEEE80211_M_STA;	/* Default to BSS mode. */
 
@@ -532,7 +534,7 @@ rsu_set_channel(struct ieee80211com *ic __unused)
 }
 
 static void
-rsu_update_mcast(struct ifnet *ifp)
+rsu_update_mcast(struct ieee80211com *ic)
 {
         /* XXX do nothing?  */
 }

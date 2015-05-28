@@ -30,7 +30,7 @@ options 	SMP			# Enable multiple cores
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-#options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 options 	KDB			# Enable kernel debugger support
 # For minimum debugger support (stable branch) use:
 #options 	KDB_TRACE		# Print a stack trace for a panic
@@ -49,6 +49,9 @@ options 	DDB			# Enable the kernel debugger
 #options 	BOOTP_NFSV3
 
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
+
+# Interrupt controller
+device		gic
 
 device		loop
 device		random

@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -48,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
-#include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
@@ -73,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
 
+static void	bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru);
+
 struct l_old_select_argv {
 	l_int		nfds;
 	l_uintptr_t	readfds;
@@ -81,33 +84,9 @@ struct l_old_select_argv {
 	l_uintptr_t	timeout;
 } __packed;
 
-int
-linux_to_bsd_sigaltstack(int lsa)
-{
-	int bsa = 0;
-
-	if (lsa & LINUX_SS_DISABLE)
-		bsa |= SS_DISABLE;
-	if (lsa & LINUX_SS_ONSTACK)
-		bsa |= SS_ONSTACK;
-	return (bsa);
-}
-
 static int	linux_mmap_common(struct thread *td, l_uintptr_t addr,
 		    l_size_t len, l_int prot, l_int flags, l_int fd,
 		    l_loff_t pos);
-
-int
-bsd_to_linux_sigaltstack(int bsa)
-{
-	int lsa = 0;
-
-	if (bsa & SS_DISABLE)
-		lsa |= LINUX_SS_DISABLE;
-	if (bsa & SS_ONSTACK)
-		lsa |= LINUX_SS_ONSTACK;
-	return (lsa);
-}
 
 static void
 bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
@@ -134,6 +113,16 @@ bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
 }
 
 int
+linux_copyout_rusage(struct rusage *ru, void *uaddr)
+{
+	struct l_rusage lru;
+
+	bsd_to_linux_rusage(ru, &lru);
+
+	return (copyout(&lru, uaddr, sizeof(struct l_rusage)));
+}
+
+int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
 	struct image_args eargs;
@@ -151,15 +140,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	    args->argp, args->envp);
 	free(path, M_TEMP);
 	if (error == 0)
-		error = kern_execve(td, &eargs, NULL);
-	if (error == 0)
-		/* Linux process can execute FreeBSD one, do not attempt
-		 * to create emuldata for such process using
-		 * linux_proc_init, this leads to a panic on KASSERT
-		 * because such process has p->p_emuldata == NULL.
-		 */
-		if (SV_PROC_ABI(td->td_proc) == SV_ABI_LINUX)
-			error = linux_proc_init(td, 0, 0);
+		error = linux_common_execve(td, &eargs);
 	return (error);
 }
 
@@ -457,8 +438,14 @@ int
 linux_set_upcall_kse(struct thread *td, register_t stack)
 {
 
-	td->td_frame->tf_rsp = stack;
+	if (stack)
+		td->td_frame->tf_rsp = stack;
 
+	/*
+	 * The newly created Linux thread returns
+	 * to the user space by the same path that a parent do.
+	 */
+	td->td_frame->tf_rax = 0;
 	return (0);
 }
 
@@ -721,7 +708,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		act.lsa_flags = osa.lsa_flags;
 		act.lsa_restorer = osa.lsa_restorer;
 		LINUX_SIGEMPTYSET(act.lsa_mask);
-		act.lsa_mask.__bits[0] = osa.lsa_mask;
+		act.lsa_mask.__mask = osa.lsa_mask;
 	}
 
 	error = linux_do_sigaction(td, args->sig, args->nsa ? &act : NULL,
@@ -731,7 +718,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		osa.lsa_handler = oact.lsa_handler;
 		osa.lsa_flags = oact.lsa_flags;
 		osa.lsa_restorer = oact.lsa_restorer;
-		osa.lsa_mask = oact.lsa_mask.__bits[0];
+		osa.lsa_mask = oact.lsa_mask.__mask;
 		error = copyout(&osa, args->osa, sizeof(l_osigaction_t));
 	}
 
@@ -755,7 +742,7 @@ linux_sigsuspend(struct thread *td, struct linux_sigsuspend_args *args)
 #endif
 
 	LINUX_SIGEMPTYSET(mask);
-	mask.__bits[0] = args->mask;
+	mask.__mask = args->mask;
 	linux_to_bsd_sigset(&mask, &sigmask);
 	return (kern_sigsuspend(td, sigmask));
 }
@@ -902,34 +889,15 @@ linux_settimeofday(struct thread *td, struct linux_settimeofday_args *uap)
 int
 linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 {
-	struct l_rusage s32;
 	struct rusage s;
 	int error;
 
 	error = kern_getrusage(td, uap->who, &s);
 	if (error != 0)
 		return (error);
-	if (uap->rusage != NULL) {
-		bsd_to_linux_rusage(&s, &s32);
-		error = copyout(&s32, uap->rusage, sizeof(s32));
-	}
+	if (uap->rusage != NULL)
+		error = linux_copyout_rusage(&s, uap->rusage);
 	return (error);
-}
-
-int
-linux_sched_rr_get_interval(struct thread *td,
-    struct linux_sched_rr_get_interval_args *uap)
-{
-	struct timespec ts;
-	struct l_timespec ts32;
-	int error;
-
-	error = kern_sched_rr_get_interval(td, uap->pid, &ts);
-	if (error != 0)
-		return (error);
-	ts32.tv_sec = ts.tv_sec;
-	ts32.tv_nsec = ts.tv_nsec;
-	return (copyout(&ts32, uap->interval, sizeof(ts32)));
 }
 
 int
@@ -1033,38 +1001,4 @@ linux_set_thread_area(struct thread *td,
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);
-}
-
-int
-linux_wait4(struct thread *td, struct linux_wait4_args *args)
-{
-	int error, options;
-	struct rusage ru, *rup;
-	struct l_rusage lru;
-
-#ifdef DEBUG
-	if (ldebug(wait4))
-		printf(ARGS(wait4, "%d, %p, %d, %p"),
-		    args->pid, (void *)args->status, args->options,
-		    (void *)args->rusage);
-#endif
-
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
-
-	if (args->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = linux_common_wait(td, args->pid, args->status, options, rup);
-	if (error)
-		return (error);
-	if (args->rusage != NULL) {
-		bsd_to_linux_rusage(rup, &lru);
-		error = copyout(&lru, args->rusage, sizeof(lru));
-	}
-
-	return (error);
 }

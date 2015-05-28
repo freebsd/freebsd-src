@@ -166,9 +166,9 @@ static void	ath_bmiss_proc(void *, int);
 static void	ath_key_update_begin(struct ieee80211vap *);
 static void	ath_key_update_end(struct ieee80211vap *);
 static void	ath_update_mcast_hw(struct ath_softc *);
-static void	ath_update_mcast(struct ifnet *);
-static void	ath_update_promisc(struct ifnet *);
-static void	ath_updateslot(struct ifnet *);
+static void	ath_update_mcast(struct ieee80211com *);
+static void	ath_update_promisc(struct ieee80211com *);
+static void	ath_updateslot(struct ieee80211com *);
 static void	ath_bstuck_proc(void *, int);
 static void	ath_reset_proc(void *, int);
 static int	ath_desc_alloc(struct ath_softc *);
@@ -592,6 +592,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad;
 	}
 	ic = ifp->if_l2com;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(sc->sc_dev);
 
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
@@ -847,7 +849,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
 	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
-	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_ledtimer, 1);
 
 	/*
 	 * Don't setup hardware-based blinking.
@@ -3545,9 +3547,9 @@ ath_key_update_end(struct ieee80211vap *vap)
 }
 
 static void
-ath_update_promisc(struct ifnet *ifp)
+ath_update_promisc(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	u_int32_t rfilt;
 
 	/* configure rx filter */
@@ -3609,9 +3611,9 @@ ath_update_mcast_hw(struct ath_softc *sc)
  * awake before operating.
  */
 static void
-ath_update_mcast(struct ifnet *ifp)
+ath_update_mcast(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -3695,10 +3697,9 @@ ath_setslottime(struct ath_softc *sc)
  * slot time based on the current setting.
  */
 static void
-ath_updateslot(struct ifnet *ifp)
+ath_updateslot(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_softc *sc = ic->ic_softc;
 
 	/*
 	 * When not coordinating the BSS, change the hardware

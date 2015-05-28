@@ -983,10 +983,12 @@ recv_begin_check_existing_impl(dmu_recv_begin_arg_t *drba, dsl_dataset_t *ds,
 
 		dsl_dataset_rele(snap, FTAG);
 	} else {
-		/* if full, most recent snapshot must be $ORIGIN */
-		if (dsl_dataset_phys(ds)->ds_prev_snap_txg >= TXG_INITIAL)
-			return (SET_ERROR(ENODEV));
-		drba->drba_snapobj = dsl_dataset_phys(ds)->ds_prev_snap_obj;
+		/* if full, then must be forced */
+		if (!drba->drba_cookie->drc_force)
+			return (SET_ERROR(EEXIST));
+		/* start from $ORIGIN@$ORIGIN, if supported */
+		drba->drba_snapobj = dp->dp_origin_snap != NULL ?
+		    dp->dp_origin_snap->ds_object : 0;
 	}
 
 	return (0);
@@ -1142,7 +1144,8 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 		}
 		dsobj = dsl_dataset_create_sync(ds->ds_dir, recv_clone_name,
 		    snap, crflags, drba->drba_cred, tx);
-		dsl_dataset_rele(snap, FTAG);
+		if (drba->drba_snapobj != 0)
+			dsl_dataset_rele(snap, FTAG);
 		dsl_dataset_rele(ds, FTAG);
 	} else {
 		dsl_dir_t *dd;

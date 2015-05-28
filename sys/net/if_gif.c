@@ -920,6 +920,17 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		}
 		break;
+	case SIOCGTUNFIB:
+		ifr->ifr_fib = sc->gif_fibnum;
+		break;
+	case SIOCSTUNFIB:
+		if ((error = priv_check(curthread, PRIV_NET_GIF)) != 0)
+			break;
+		if (ifr->ifr_fib >= rt_numfibs)
+			error = EINVAL;
+		else
+			sc->gif_fibnum = ifr->ifr_fib;
+		break;
 	case GIFGOPTS:
 		options = sc->gif_options;
 		error = copyout(&options, ifr->ifr_data, sizeof(options));
@@ -935,7 +946,6 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else
 			sc->gif_options = options;
 		break;
-
 	default:
 		error = EINVAL;
 		break;
