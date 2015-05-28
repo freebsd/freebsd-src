@@ -1,4 +1,4 @@
-/* $OpenBSD: gnum4.c,v 1.46 2014/07/10 14:12:31 espie Exp $ */
+/* $OpenBSD: gnum4.c,v 1.50 2015/04/29 00:13:26 millert Exp $ */
 
 /*
  * Copyright (c) 1999 Marc Espie
@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
  * functions needed to support gnu-m4 extensions, including a fake freezing
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <ctype.h>
@@ -40,10 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <regex.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <limits.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
@@ -76,9 +77,7 @@ new_path_entry(const char *dirname)
 	n = malloc(sizeof(struct path_entry));
 	if (!n)
 		errx(1, "out of memory");
-	n->name = strdup(dirname);
-	if (!n->name)
-		errx(1, "out of memory");
+	n->name = xstrdup(dirname);
 	n->next = 0;
 	return n;
 }
@@ -113,9 +112,7 @@ ensure_m4path(void)
 	if (!envpath)
 		return;
 	/* for portability: getenv result is read-only */
-	envpath = strdup(envpath);
-	if (!envpath)
-		errx(1, "out of memory");
+	envpath = xstrdup(envpath);
 	for (sweep = envpath;
 	    (path = strsep(&sweep, ":")) != NULL;)
 	    addtoincludepath(path);
@@ -126,7 +123,7 @@ static
 struct input_file *
 dopath(struct input_file *i, const char *filename)
 {
-	char path[MAXPATHLEN];
+	char path[PATH_MAX];
 	struct path_entry *pe;
 	FILE *f;
 
@@ -214,8 +211,11 @@ addchars(const char *c, size_t n)
 	while (current + n > bufsize) {
 		if (bufsize == 0)
 			bufsize = 1024;
-		else
+		else if (bufsize <= SIZE_MAX/2) {
 			bufsize *= 2;
+		} else {
+			errx(1, "size overflow");
+		}
 		buffer = xrealloc(buffer, bufsize, NULL);
 	}
 	memcpy(buffer+current, c, n);

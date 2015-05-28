@@ -266,7 +266,7 @@ static void		urtwn_set_channel(struct ieee80211com *);
 static void		urtwn_set_chan(struct urtwn_softc *,
 		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
-static void		urtwn_update_mcast(struct ifnet *);
+static void		urtwn_update_mcast(struct ieee80211com *);
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
 static void		urtwn_init(void *);
@@ -442,6 +442,8 @@ urtwn_attach(device_t self)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
 
@@ -1195,7 +1197,7 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 	uint8_t *rom = (uint8_t *)&sc->rom;
 	uint16_t addr = 0;
 	uint32_t reg;
-	uint8_t off, msk, vol;
+	uint8_t off, msk;
 	int i;
 
 	urtwn_efuse_switch_power(sc);
@@ -1228,18 +1230,15 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 		printf("\n");
 	}
 #endif
-	/* Disable LDO 2.5V. */
-	vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
-	urtwn_write_1(sc, R92C_EFUSE_TEST + 3, vol & ~(0x80));
-
+	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_OFF);
 }
+
 static void
 urtwn_efuse_switch_power(struct urtwn_softc *sc)
 {
 	uint32_t reg;
 
-	if (sc->chip & URTWN_CHIP_88E)
-		urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_ON);
+	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_ON);
 
 	reg = urtwn_read_2(sc, R92C_SYS_ISO_CTRL);
 	if (!(reg & R92C_SYS_ISO_CTRL_PWC_EV12V)) {
@@ -1256,16 +1255,6 @@ urtwn_efuse_switch_power(struct urtwn_softc *sc)
 	    (R92C_SYS_CLKR_LOADER_EN | R92C_SYS_CLKR_ANA8M)) {
 		urtwn_write_2(sc, R92C_SYS_CLKR,
 		    reg | R92C_SYS_CLKR_LOADER_EN | R92C_SYS_CLKR_ANA8M);
-	}
-
-	if (!(sc->chip & URTWN_CHIP_88E)) {
-		uint8_t vol;
-
-		/* Enable LDO 2.5V. */
-		vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
-		vol &= 0x0f;
-		vol |= 0x30;
-		urtwn_write_1(sc, R92C_EFUSE_TEST + 3, (vol | 0x80));
 	}
 }
 
@@ -1905,10 +1894,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE, 8));
 		txd->txdw5 |= htole32(0x0001ff00);
 		/* Send data at OFDM54. */
-		if (sc->chip & URTWN_CHIP_88E)
-			txd->txdw5 |= htole32(0x13 & 0x3f);
-		else
-			txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 11));
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 11));
 	} else {
 		txd->txdw1 |= htole32(
 		    SM(R92C_TXDW1_MACID, 0) |
@@ -3161,7 +3147,7 @@ urtwn_set_channel(struct ieee80211com *ic)
 }
 
 static void
-urtwn_update_mcast(struct ifnet *ifp)
+urtwn_update_mcast(struct ieee80211com *ic)
 {
 	/* XXX do nothing?  */
 }
@@ -3364,6 +3350,7 @@ urtwn_init_locked(void *arg)
 
 	urtwn_rxfilter_init(sc);
 
+	/* Set response rate. */
 	reg = urtwn_read_4(sc, R92C_RRSR);
 	reg = RW(reg, R92C_RRSR_RATE_BITMAP, R92C_RRSR_RATE_CCK_ONLY_1M);
 	urtwn_write_4(sc, R92C_RRSR, reg);

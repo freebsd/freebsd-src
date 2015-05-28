@@ -37,7 +37,7 @@ options 	SMP			# Enable multiple cores
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
 options 	KDB			# Enable kernel debugger support
 # For minimum debugger support (stable branch) use:
@@ -56,6 +56,10 @@ options 	DDB			# Enable the kernel debugger
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ue0
+
+device		fdt_pinctrl
+# Interrupt controller
+device		gic
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
@@ -78,6 +82,7 @@ device		pl310			# PL310 L2 cache controller
 
 # GPIO
 device		gpio
+device		gpioled
 
 # The following enables MFS as root, this seems similar to an initramfs or initrd
 # as used in Linux.

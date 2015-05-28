@@ -60,8 +60,6 @@
 1:	addq	$TF_RIP,%rsp;
 
 
-	.globl	calltrap
-	.type	calltrap,@function
 	ENTRY(dtrace_invop_start)
 
 	/*

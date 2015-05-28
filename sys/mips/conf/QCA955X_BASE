@@ -27,7 +27,7 @@ hints		"QCA955X_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 # makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc"
-makeoptions	MODULES_OVERRIDE="if_vlan ipfw if_gre if_gif if_bridge bridgestp hwpmc"
+makeoptions	MODULES_OVERRIDE="if_vlan ipfw if_gre if_gif if_bridge bridgestp"
 
 options 	DDB
 options 	KDB
@@ -53,10 +53,10 @@ options 	NBUF=128
 # Limit UMTX hash size
 # options 	UMTX_NUM_CHAINS=64
 
-# PMC
+# PMC - fow now there's no hwpmc module for mips74k
 #options 	HWPMC_HOOKS
 #device		hwpmc
-#device		hwpmc_mips24k
+#device		hwpmc_mips74k
 
 # options 	NFS_LEGACYRPC
 # Debugging for use in -current
@@ -108,12 +108,6 @@ options 	USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
 options 	USB_DEBUG
 options 	USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
 device		ehci
-
-device		pci
-# XXX TODO: need to write a qca955x_pci bridge
-# .. since it now handles >1 PCIe bus and the reset
-# registers may have changed a bit.
-# device		ar724x_pci
 
 device		scbus
 device		umass

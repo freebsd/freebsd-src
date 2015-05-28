@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/acle-compat.h>
 #include <machine/md_var.h>
 #include <machine/vfp.h>
 
@@ -107,10 +108,10 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 #endif
 #endif
 	td2->td_pcb = pcb2;
-	
+
 	/* Clone td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
-	
+
 	/* Point to mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
@@ -132,7 +133,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 
 	pcb2->pcb_vfpcpu = -1;
 	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
-	
+
 	tf = td2->td_frame;
 	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
@@ -148,7 +149,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	td2->td_md.md_tp = td1->td_md.md_tp;
 #endif
 }
-				
+
 void
 cpu_thread_swapin(struct thread *td)
 {
@@ -204,7 +205,12 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/*
 		 * Reconstruct the pc to point at the swi.
 		 */
-		frame->tf_pc -= INSN_SIZE;
+#if __ARM_ARCH >= 7
+		if ((frame->tf_spsr & PSR_T) != 0)
+			frame->tf_pc -= THUMB_INSN_SIZE;
+		else
+#endif
+			frame->tf_pc -= INSN_SIZE;
 		break;
 	case EJUSTRETURN:
 		/* nothing to do */
@@ -330,7 +336,7 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 void
 swi_vm(void *dummy)
 {
-	
+
 	if (busdma_swi_pending)
 		busdma_swi();
 }

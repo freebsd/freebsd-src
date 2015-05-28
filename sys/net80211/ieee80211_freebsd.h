@@ -28,7 +28,9 @@
 #define _NET80211_IEEE80211_FREEBSD_H_
 
 #ifdef _KERNEL
-#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
@@ -183,6 +185,34 @@ typedef struct mtx ieee80211_scan_table_lock_t;
 #define	IEEE80211_SCAN_TABLE_LOCK(_st)		mtx_lock(&(_st)->st_lock)
 #define	IEEE80211_SCAN_TABLE_UNLOCK(_st)	mtx_unlock(&(_st)->st_lock)
 
+typedef struct mtx ieee80211_scan_iter_lock_t;
+#define	IEEE80211_SCAN_ITER_LOCK_INIT(_st, _name) \
+	mtx_init(&(_st)->st_scanlock, _name, "802.11 scangen", MTX_DEF)
+#define	IEEE80211_SCAN_ITER_LOCK_DESTROY(_st)	mtx_destroy(&(_st)->st_scanlock)
+#define	IEEE80211_SCAN_ITER_LOCK(_st)		mtx_lock(&(_st)->st_scanlock)
+#define	IEEE80211_SCAN_ITER_UNLOCK(_st)	mtx_unlock(&(_st)->st_scanlock)
+
+/*
+ * Mesh node/routing definitions.
+ */
+typedef struct mtx ieee80211_rte_lock_t;
+#define	MESH_RT_ENTRY_LOCK_INIT(_rt, _name) \
+	mtx_init(&(rt)->rt_lock, _name, "802.11s route entry", MTX_DEF)
+#define	MESH_RT_ENTRY_LOCK_DESTROY(_rt) \
+	mtx_destroy(&(_rt)->rt_lock)
+#define	MESH_RT_ENTRY_LOCK(rt)	mtx_lock(&(rt)->rt_lock)
+#define	MESH_RT_ENTRY_LOCK_ASSERT(rt) mtx_assert(&(rt)->rt_lock, MA_OWNED)
+#define	MESH_RT_ENTRY_UNLOCK(rt)	mtx_unlock(&(rt)->rt_lock)
+
+typedef struct mtx ieee80211_rt_lock_t;
+#define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
+#define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_INIT(ms, name) \
+	mtx_init(&(ms)->ms_rt_lock, name, "802.11s routing table", MTX_DEF)
+#define	MESH_RT_LOCK_DESTROY(ms) \
+	mtx_destroy(&(ms)->ms_rt_lock)
+
 /*
  * Node reference counting definitions.
  *
@@ -234,21 +264,9 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_FF		M_PROTO6		/* fast frame */
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
-
-/*
- * FreeBSD-HEAD from 1000046 retired M_*FRAG* flags and turned them
- * into header flags instead.  So, we use the new protocol-specific
- * flags.
- *
- * Earlier FreeBSD versions overload M_FRAG, M_FIRSTFRAG and M_LASTFRAG.
- *
- * XXX TODO: rename these fields so there are no namespace clashes!
- */
-#if __FreeBSD_version >= 1000046
 #define	M_FRAG		M_PROTO9		/* frame fragmentation */
 #define	M_FIRSTFRAG	M_PROTO10		/* first frame fragment */
 #define	M_LASTFRAG	M_PROTO11		/* last frame fragment */
-#endif
 
 #define	M_80211_TX \
 	(M_ENCAP|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB| \
@@ -262,18 +280,10 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #endif
 #define	M_80211_RX	(M_AMPDU|M_WEP|M_AMPDU_MPDU)
 
-#if __FreeBSD_version >= 1000046
 #define	IEEE80211_MBUF_TX_FLAG_BITS \
 	M_FLAG_BITS \
 	"\15M_ENCAP\17M_EAPOL\20M_PWR_SAV\21M_MORE_DATA\22M_FF\23M_TXCB" \
 	"\24M_AMPDU_MPDU\25M_FRAG\26M_FIRSTFRAG\27M_LASTFRAG"
-#else
-/* There aren't any flag bits available for versions before this */
-/* XXX TODO: implement M_FLAG_BITS for this! */
-#define	IEEE80211_MBUF_TX_FLAG_BITS \
-	"\15M_ENCAP\17M_EAPOL\20M_PWR_SAV\21M_MORE_DATA\22M_FF\23M_TXCB" \
-	"\24M_AMPDU_MPDU"
-#endif
 
 #define	IEEE80211_MBUF_RX_FLAG_BITS \
 	M_FLAG_BITS \
@@ -596,4 +606,19 @@ struct ieee80211_bpf_params {
 	uint8_t		ibp_try3;	/* series 4 try count */
 	uint8_t		ibp_rate3;	/* series 4 IEEE tx rate */
 };
+
+/*
+ * Malloc API.  Other BSD operating systems have slightly
+ * different malloc/free namings (eg DragonflyBSD.)
+ */
+#define	IEEE80211_MALLOC	malloc
+#define	IEEE80211_FREE		free
+
+/* XXX TODO: get rid of WAITOK, fix all the users of it? */
+#define	IEEE80211_M_NOWAIT	M_NOWAIT
+#define	IEEE80211_M_WAITOK	M_WAITOK
+#define	IEEE80211_M_ZERO	M_ZERO
+
+/* XXX TODO: the type fields */
+
 #endif /* _NET80211_IEEE80211_FREEBSD_H_ */

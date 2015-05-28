@@ -50,7 +50,7 @@ db_print_thread(void)
 }
 
 void
-db_set_thread(db_expr_t tid, boolean_t hastid, db_expr_t cnt, char *mod)
+db_set_thread(db_expr_t tid, bool hastid, db_expr_t cnt, char *mod)
 {
 	struct thread *thr;
 	db_expr_t radix;
@@ -86,7 +86,7 @@ db_set_thread(db_expr_t tid, boolean_t hastid, db_expr_t cnt, char *mod)
 }
 
 void
-db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
+db_show_threads(db_expr_t addr, bool hasaddr, db_expr_t cnt, char *mod)
 {
 	jmp_buf jb;
 	void *prev_jb;
@@ -115,7 +115,7 @@ db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
  * process.  Otherwise, we treat the addr as a pointer to a thread.
  */
 struct thread *
-db_lookup_thread(db_expr_t addr, boolean_t check_pid)
+db_lookup_thread(db_expr_t addr, bool check_pid)
 {
 	struct thread *td;
 	db_expr_t decaddr;

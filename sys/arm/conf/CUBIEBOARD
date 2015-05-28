@@ -29,7 +29,7 @@ options 	SCHED_4BSD		# 4BSD scheduler
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
 options 	KDB			# Enable kernel debugger support
 # For minimum debugger support (stable branch) use:
@@ -53,8 +53,8 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
 # MMC/SD/SDIO Card slot support
-#device		mmc			# mmc/sd bus
-#device		mmcsd			# mmc/sd flash cards
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
 
 # ATA controllers
 #device		ahci			# AHCI-compatible SATA controllers
@@ -96,8 +96,6 @@ device		umass
 device		loop
 device		ether
 device		mii
-device		smscphy
-#device		cpsw
 device		bpf
 
 device		emac

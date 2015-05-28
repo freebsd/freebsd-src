@@ -559,9 +559,8 @@ gnttab_resume(device_t dev)
 		KASSERT(dev != NULL,
 		    ("No resume frames and no device provided"));
 
-		gnttab_pseudo_phys_res = bus_alloc_resource(dev,
-		    SYS_RES_MEMORY, &gnttab_pseudo_phys_res_id, 0, ~0,
-		    PAGE_SIZE * max_nr_gframes, RF_ACTIVE);
+		gnttab_pseudo_phys_res = xenmem_alloc(dev,
+		    &gnttab_pseudo_phys_res_id, PAGE_SIZE * max_nr_gframes);
 		if (gnttab_pseudo_phys_res == NULL)
 			panic("Unable to reserve physical memory for gnttab");
 		resume_frames = rman_get_start(gnttab_pseudo_phys_res);

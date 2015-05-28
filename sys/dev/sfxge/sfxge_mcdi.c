@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -37,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
+#include <sys/malloc.h>
 
 #include "common/efx.h"
 #include "common/efx_mcdi.h"
@@ -47,36 +52,6 @@ __FBSDID("$FreeBSD$");
 #define	SFXGE_MCDI_POLL_INTERVAL_MIN 10		/* 10us in 1us units */
 #define	SFXGE_MCDI_POLL_INTERVAL_MAX 100000	/* 100ms in 1us units */
 #define	SFXGE_MCDI_WATCHDOG_INTERVAL 10000000	/* 10s in 1us units */
-
-/* Acquire exclusive access to MCDI for the duration of a request. */
-static void
-sfxge_mcdi_acquire(struct sfxge_mcdi *mcdi)
-{
-	SFXGE_MCDI_LOCK(mcdi);
-	KASSERT(mcdi->state != SFXGE_MCDI_UNINITIALIZED,
-	    ("MCDI not initialized"));
-
-	while (mcdi->state != SFXGE_MCDI_INITIALIZED)
-		(void)cv_wait_sig(&mcdi->cv, &mcdi->lock);
-	mcdi->state = SFXGE_MCDI_BUSY;
-
-	SFXGE_MCDI_UNLOCK(mcdi);
-}
-
-/* Release ownership of MCDI on request completion. */
-static void
-sfxge_mcdi_release(struct sfxge_mcdi *mcdi)
-{
-	SFXGE_MCDI_LOCK(mcdi);
-	KASSERT((mcdi->state == SFXGE_MCDI_BUSY ||
-	    mcdi->state == SFXGE_MCDI_COMPLETED),
-	    ("MCDI not busy or task not completed"));
-
-	mcdi->state = SFXGE_MCDI_INITIALIZED;
-	cv_broadcast(&mcdi->cv);
-
-	SFXGE_MCDI_UNLOCK(mcdi);
-}
 
 static void
 sfxge_mcdi_timeout(struct sfxge_softc *sc)
@@ -140,13 +115,16 @@ sfxge_mcdi_execute(void *arg, efx_mcdi_req_t *emrp)
 	sc = (struct sfxge_softc *)arg;
 	mcdi = &sc->mcdi;
 
-	sfxge_mcdi_acquire(mcdi);
+	SFXGE_MCDI_LOCK(mcdi);
+
+	KASSERT(mcdi->state == SFXGE_MCDI_INITIALIZED,
+	    ("MCDI not initialized"));
 
 	/* Issue request and poll for completion. */
 	efx_mcdi_request_start(sc->enp, emrp, B_FALSE);
 	sfxge_mcdi_poll(sc);
 
-	sfxge_mcdi_release(mcdi);
+	SFXGE_MCDI_UNLOCK(mcdi);
 }
 
 static void
@@ -158,11 +136,10 @@ sfxge_mcdi_ev_cpl(void *arg)
 	sc = (struct sfxge_softc *)arg;
 	mcdi = &sc->mcdi;
 
-	SFXGE_MCDI_LOCK(mcdi);
-	KASSERT(mcdi->state == SFXGE_MCDI_BUSY, ("MCDI not busy"));
-	mcdi->state = SFXGE_MCDI_COMPLETED;
-	cv_broadcast(&mcdi->cv);
-	SFXGE_MCDI_UNLOCK(mcdi);
+	KASSERT(mcdi->state == SFXGE_MCDI_INITIALIZED,
+	    ("MCDI not initialized"));
+
+	/* We do not use MCDI completion, MCDI is simply polled */
 }
 
 static void
@@ -187,16 +164,95 @@ sfxge_mcdi_exception(void *arg, efx_mcdi_exception_t eme)
 }
 
 int
+sfxge_mcdi_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip)
+{
+	const efx_nic_cfg_t *encp = efx_nic_cfg_get(sc->enp);
+	struct sfxge_mcdi *mp = &(sc->mcdi);
+	efx_mcdi_req_t emr;
+	uint8_t *mcdibuf;
+	int rc;
+
+	if (mp->state == SFXGE_MCDI_UNINITIALIZED) {
+		rc = ENODEV;
+		goto fail1;
+	}
+
+	if (!(encp->enc_features & EFX_FEATURE_MCDI)) {
+		rc = ENOTSUP;
+		goto fail2;
+	}
+
+	if (ip->u.mcdi.len > SFXGE_MCDI_MAX_PAYLOAD) {
+		rc = EINVAL;
+		goto fail3;
+	}
+
+	mcdibuf = malloc(SFXGE_MCDI_MAX_PAYLOAD, M_TEMP, M_WAITOK | M_ZERO);
+	if (mcdibuf == NULL) {
+		rc = ENOMEM;
+		goto fail4;
+	}
+	if ((rc = copyin(ip->u.mcdi.payload, mcdibuf, ip->u.mcdi.len)) != 0) {
+		goto fail5;
+	}
+
+	emr.emr_cmd = ip->u.mcdi.cmd;
+	emr.emr_in_buf = mcdibuf;
+	emr.emr_in_length = ip->u.mcdi.len;
+
+	emr.emr_out_buf = mcdibuf;
+	emr.emr_out_length = SFXGE_MCDI_MAX_PAYLOAD;
+
+	sfxge_mcdi_execute(sc, &emr);
+
+	ip->u.mcdi.rc = emr.emr_rc;
+	ip->u.mcdi.cmd = emr.emr_cmd;
+	ip->u.mcdi.len = emr.emr_out_length_used;
+	if ((rc = copyout(mcdibuf, ip->u.mcdi.payload, ip->u.mcdi.len)) != 0) {
+		goto fail6;
+	}
+
+	/*
+	 * Helpfully trigger a device reset in response to an MCDI_CMD_REBOOT
+	 * Both ports will see ->emt_exception callbacks on the next MCDI poll
+	 */
+	if (ip->u.mcdi.cmd == MC_CMD_REBOOT) {
+
+		EFSYS_PROBE(mcdi_ioctl_mc_reboot);
+		/* sfxge_t->s_state_lock held */
+		(void) sfxge_schedule_reset(sc);
+	}
+
+	free(mcdibuf, M_TEMP);
+
+	return (0);
+
+fail6:
+fail5:
+	free(mcdibuf, M_TEMP);
+fail4:
+fail3:
+fail2:
+fail1:
+	return (rc);
+}
+
+
+int
 sfxge_mcdi_init(struct sfxge_softc *sc)
 {
 	efx_nic_t *enp;
 	struct sfxge_mcdi *mcdi;
 	efx_mcdi_transport_t *emtp;
+	efsys_mem_t *esmp;
+	int max_msg_size;
 	int rc;
 
 	enp = sc->enp;
 	mcdi = &sc->mcdi;
 	emtp = &mcdi->transport;
+	esmp = &mcdi->mem;
+	max_msg_size = sizeof (uint32_t) + MCDI_CTL_SDU_LEN_MAX_V2;
 
 	KASSERT(mcdi->state == SFXGE_MCDI_UNINITIALIZED,
 	    ("MCDI already initialized"));
@@ -205,12 +261,14 @@ sfxge_mcdi_init(struct sfxge_softc *sc)
 
 	mcdi->state = SFXGE_MCDI_INITIALIZED;
 
+	if ((rc = sfxge_dma_alloc(sc, max_msg_size, esmp)) != 0)
+		goto fail;
+
 	emtp->emt_context = sc;
+	emtp->emt_dma_mem = esmp;
 	emtp->emt_execute = sfxge_mcdi_execute;
 	emtp->emt_ev_cpl = sfxge_mcdi_ev_cpl;
 	emtp->emt_exception = sfxge_mcdi_exception;
-
-	cv_init(&mcdi->cv, "sfxge_mcdi");
 
 	if ((rc = efx_mcdi_init(enp, emtp)) != 0)
 		goto fail;
@@ -229,10 +287,12 @@ sfxge_mcdi_fini(struct sfxge_softc *sc)
 	struct sfxge_mcdi *mcdi;
 	efx_nic_t *enp;
 	efx_mcdi_transport_t *emtp;
+	efsys_mem_t *esmp;
 
 	enp = sc->enp;
 	mcdi = &sc->mcdi;
 	emtp = &mcdi->transport;
+	esmp = &mcdi->mem;
 
 	SFXGE_MCDI_LOCK(mcdi);
 	KASSERT(mcdi->state == SFXGE_MCDI_INITIALIZED,
@@ -241,8 +301,9 @@ sfxge_mcdi_fini(struct sfxge_softc *sc)
 	efx_mcdi_fini(enp);
 	bzero(emtp, sizeof(*emtp));
 
-	cv_destroy(&mcdi->cv);
 	SFXGE_MCDI_UNLOCK(mcdi);
+
+	sfxge_dma_free(esmp);
 
 	SFXGE_MCDI_LOCK_DESTROY(mcdi);
 }

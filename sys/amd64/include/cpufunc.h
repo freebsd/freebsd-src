@@ -540,9 +540,8 @@ static __inline void
 invpcid(struct invpcid_descr *d, int type)
 {
 
-	/* invpcid (%rdx),%rax */
-	__asm __volatile(".byte 0x66,0x0f,0x38,0x82,0x02"
-	    : : "d" (d), "a" ((u_long)type) : "memory");
+	__asm __volatile("invpcid (%0),%1"
+	    : : "r" (d), "r" ((u_long)type) : "memory");
 }
 
 static __inline u_short

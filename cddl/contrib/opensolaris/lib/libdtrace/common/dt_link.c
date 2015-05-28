@@ -1785,17 +1785,11 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    "failed to open %s: %s", file, strerror(errno)));
 	}
 #else
-	if (dtp->dt_lazyload) {
-		if ((fd = open(file, O_RDWR | O_CREAT | O_TRUNC, 0666)) < 0)
-			return (dt_link_error(dtp, NULL, -1, NULL,
-			    "failed to open %s: %s", file, strerror(errno)));
-	} else {
-		snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
-		if ((fd = mkstemp(tfile)) == -1)
-			return (dt_link_error(dtp, NULL, -1, NULL,
-			    "failed to create temporary file %s: %s",
-			    tfile, strerror(errno)));
-	}
+	snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
+	if ((fd = mkostemp(tfile, O_CLOEXEC)) == -1)
+		return (dt_link_error(dtp, NULL, -1, NULL,
+		    "failed to create temporary file %s: %s",
+		    tfile, strerror(errno)));
 #endif
 
 	/*
@@ -1868,23 +1862,9 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, fd, drti);
 #else
 		const char *fmt = "%s -o %s -r %s %s";
+		dt_dirpath_t *dp = dt_list_next(&dtp->dt_lib_path);
 
-#if defined(__amd64__)
-		/*
-		 * Arches which default to 64-bit need to explicitly use
-		 * the 32-bit library path.
-		 */
-		int use_32 = (dtp->dt_oflags & DTRACE_O_ILP32);
-#else
-		/*
-		 * Arches which are 32-bit only just use the normal
-		 * library path.
-		 */
-		int use_32 = 0;
-#endif
-
-		(void) snprintf(drti, sizeof (drti), "/usr/lib%s/dtrace/drti.o",
-		    use_32 ? "32" : "");
+		(void) snprintf(drti, sizeof (drti), "%s/drti.o", dp->dir_path);
 
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
@@ -1951,14 +1931,23 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		}
 #endif
 	} else {
+#ifdef __FreeBSD__
+		if (rename(tfile, file) != 0) {
+			ret = dt_link_error(dtp, NULL, fd, NULL,
+			    "failed to rename %s to %s: %s", tfile, file,
+			    strerror(errno));
+			goto done;
+		}
+#endif
 		(void) close(fd);
 	}
 
 done:
 	dtrace_dof_destroy(dtp, dof);
 
-#ifndef illumos
-	unlink(tfile);
+#ifdef __FreeBSD__
+	if (!dtp->dt_lazyload)
+		(void) unlink(tfile);
 #endif
 	return (ret);
 }

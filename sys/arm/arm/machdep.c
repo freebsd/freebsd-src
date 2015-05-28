@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -87,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
@@ -244,7 +247,7 @@ void
 board_set_serial(uint64_t serial)
 {
 
-	snprintf(board_serial, sizeof(board_serial)-1, 
+	snprintf(board_serial, sizeof(board_serial)-1,
 		    "%016jx", serial);
 }
 
@@ -296,7 +299,7 @@ sendsig(catcher, ksi, mask)
 
 	/* make room on the stack */
 	fp--;
-	
+
 	/* make the stack aligned */
 	fp = (struct sigframe *)STACKALIGN(fp);
 	/* Populate the siginfo frame. */
@@ -317,17 +320,13 @@ sendsig(catcher, ksi, mask)
 		sigexit(td, SIGILL);
 	}
 
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
 	/*
 	 * Build context to run handler in.  We invoke the handler
 	 * directly, only returning via the trampoline.  Note the
 	 * trampoline version numbers are coordinated with machine-
 	 * dependent code in libc.
 	 */
-	
+
 	tf->tf_r0 = sig;
 	tf->tf_r1 = (register_t)&fp->sf_si;
 	tf->tf_r2 = (register_t)&fp->sf_uc;
@@ -337,6 +336,13 @@ sendsig(catcher, ksi, mask)
 	tf->tf_pc = (register_t)catcher;
 	tf->tf_usr_sp = (register_t)fp;
 	tf->tf_usr_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	/* Set the mode to enter in the signal handler */
+#if __ARM_ARCH >= 7
+	if ((register_t)catcher & 1)
+		tf->tf_spsr |= PSR_T;
+	else
+		tf->tf_spsr &= ~PSR_T;
+#endif
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_usr_lr,
 	    tf->tf_usr_sp);
@@ -422,7 +428,7 @@ cpu_startup(void *dummy)
 	/*
 	 * Display the RAM layout.
 	 */
-	printf("real memory  = %ju (%ju MB)\n", 
+	printf("real memory  = %ju (%ju MB)\n",
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
@@ -484,7 +490,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_idle(int busy)
 {
-	
+
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
 	spinlock_enter();
 #ifndef NO_EVENTTIMERS
@@ -554,14 +560,14 @@ int
 set_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf = td->td_frame;
-	
+
 	bcopy(regs->r, &tf->tf_r0, sizeof(regs->r));
 	tf->tf_usr_sp = regs->r_sp;
 	tf->tf_usr_lr = regs->r_lr;
 	tf->tf_pc = regs->r_pc;
 	tf->tf_spsr &=  ~PSR_FLAGS;
 	tf->tf_spsr |= regs->r_cpsr & PSR_FLAGS;
-	return (0);								
+	return (0);
 }
 
 int
@@ -625,7 +631,11 @@ ptrace_single_step(struct thread *td)
 {
 	struct proc *p;
 	int error;
-	
+
+	/* TODO: This needs to be updated for Thumb-2 */
+	if ((td->td_frame->tf_spsr & PSR_T) != 0)
+		return (EINVAL);
+
 	KASSERT(td->td_md.md_ptrace_instr == 0,
 	 ("Didn't clear single step"));
 	p = td->td_proc;
@@ -648,6 +658,10 @@ int
 ptrace_clear_single_step(struct thread *td)
 {
 	struct proc *p;
+
+	/* TODO: This needs to be updated for Thumb-2 */
+	if ((td->td_frame->tf_spsr & PSR_T) != 0)
+		return (EINVAL);
 
 	if (td->td_md.md_ptrace_instr) {
 		p = td->td_proc;
@@ -796,7 +810,7 @@ sys_sigreturn(td, uap)
 {
 	ucontext_t uc;
 	int spsr;
-	
+
 	if (uap == NULL)
 		return (EFAULT);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
@@ -1003,7 +1017,6 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
-	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;
 }
 #endif
@@ -1086,6 +1099,113 @@ set_stackptrs(int cpu)
 	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
 }
 #endif
+
+#ifdef EFI
+#define efi_next_descriptor(ptr, size) \
+	((struct efi_md *)(((uint8_t *) ptr) + size))
+
+static void
+add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
+    int *mrcnt, uint32_t *memsize)
+{
+	struct efi_md *map, *p;
+	const char *type;
+	size_t efisz, memory_size;
+	int ndesc, i, j;
+
+	static const char *types[] = {
+		"Reserved",
+		"LoaderCode",
+		"LoaderData",
+		"BootServicesCode",
+		"BootServicesData",
+		"RuntimeServicesCode",
+		"RuntimeServicesData",
+		"ConventionalMemory",
+		"UnusableMemory",
+		"ACPIReclaimMemory",
+		"ACPIMemoryNVS",
+		"MemoryMappedIO",
+		"MemoryMappedIOPortSpace",
+		"PalCode"
+	};
+
+	*mrcnt = 0;
+	*memsize = 0;
+
+	/*
+	 * Memory map data provided by UEFI via the GetMemoryMap
+	 * Boot Services API.
+	 */
+	efisz = roundup2(sizeof(struct efi_map_header), 0x10);
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
+
+	if (efihdr->descriptor_size == 0)
+		return;
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	if (boothowto & RB_VERBOSE)
+		printf("%23s %12s %12s %8s %4s\n",
+		    "Type", "Physical", "Virtual", "#Pages", "Attr");
+
+	memory_size = 0;
+	for (i = 0, j = 0, p = map; i < ndesc; i++,
+	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+		if (boothowto & RB_VERBOSE) {
+			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+				type = types[p->md_type];
+			else
+				type = "<INVALID>";
+			printf("%23s %012llx %12p %08llx ", type, p->md_phys,
+			    p->md_virt, p->md_pages);
+			if (p->md_attr & EFI_MD_ATTR_UC)
+				printf("UC ");
+			if (p->md_attr & EFI_MD_ATTR_WC)
+				printf("WC ");
+			if (p->md_attr & EFI_MD_ATTR_WT)
+				printf("WT ");
+			if (p->md_attr & EFI_MD_ATTR_WB)
+				printf("WB ");
+			if (p->md_attr & EFI_MD_ATTR_UCE)
+				printf("UCE ");
+			if (p->md_attr & EFI_MD_ATTR_WP)
+				printf("WP ");
+			if (p->md_attr & EFI_MD_ATTR_RP)
+				printf("RP ");
+			if (p->md_attr & EFI_MD_ATTR_XP)
+				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_RT)
+				printf("RUNTIME");
+			printf("\n");
+		}
+
+		switch (p->md_type) {
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
+		case EFI_MD_TYPE_BS_CODE:
+		case EFI_MD_TYPE_BS_DATA:
+		case EFI_MD_TYPE_FREE:
+			/*
+			 * We're allowed to use any entry with these types.
+			 */
+			break;
+		default:
+			continue;
+		}
+
+		j++;
+		if (j >= FDT_MEM_REGIONS)
+			break;
+
+		mr[j].mr_start = p->md_phys;
+		mr[j].mr_size = p->md_pages * PAGE_SIZE;
+		memory_size += mr[j].mr_size;
+	}
+
+	*mrcnt = j;
+	*memsize = memory_size;
+}
+#endif /* EFI */
 
 #ifdef FDT
 static char *
@@ -1171,7 +1291,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Grab reserved memory regions information from device tree. */
 	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		arm_physmem_exclude_regions(mem_regions, mem_regions_sz, 
+		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	/* Platform-specific initialisation */
@@ -1377,7 +1497,7 @@ initarm(struct arm_boot_params *abp)
 	 *
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
-	arm_physmem_exclude_region(abp->abp_physaddr, 
+	arm_physmem_exclude_region(abp->abp_physaddr,
 	    (virtual_avail - KERNVIRTADDR), EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();
 
@@ -1398,6 +1518,9 @@ initarm(struct arm_boot_params *abp)
 	char *env;
 	void *kmdp;
 	int err_devmap, mem_regions_sz;
+#ifdef EFI
+	struct efi_map_header *efihdr;
+#endif
 
 	/* get last allocated physical address */
 	arm_physmem_kernaddr = abp->abp_physaddr;
@@ -1430,9 +1553,20 @@ initarm(struct arm_boot_params *abp)
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
 
-	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
-		panic("Cannot get physical memory regions");
+#ifdef EFI
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	if (efihdr != NULL) {
+		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz,
+		   &memsize);
+	} else
+#endif
+	{
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
+		    &memsize) != 0)
+			panic("Cannot get physical memory regions");
+	}
 	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 
 	/* Grab reserved memory regions information from device tree. */

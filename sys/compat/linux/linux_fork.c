@@ -34,13 +34,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/imgact.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/sched.h>
-#include <sys/sdt.h>
+#include <sys/syscallsubr.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -49,18 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-#include <compat/linux/linux_dtrace.h>
-#include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_misc.h>
-
-/* DTrace init */
-LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
-
-/* Linuxulator-global DTrace probes */
-LIN_SDT_PROBE_DECLARE(locks, emul_lock, locked);
-LIN_SDT_PROBE_DECLARE(locks, emul_lock, unlock);
-
+#include <compat/linux/linux_util.h>
 
 int
 linux_fork(struct thread *td, struct linux_fork_args *args)
@@ -78,14 +77,11 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	    != 0)
 		return (error);
 
-	td->td_retval[0] = p2->p_pid;
-	td->td_retval[1] = 0;
-
-	error = linux_proc_init(td, td->td_retval[0], 0);
-	if (error)
-		return (error);
-
 	td2 = FIRST_THREAD_IN_PROC(p2);
+
+	linux_proc_init(td, td2, 0);
+
+	td->td_retval[0] = p2->p_pid;
 
 	/*
 	 * Make this runnable after we are finished with it.
@@ -115,17 +111,16 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	    NULL, 0)) != 0)
 		return (error);
 
-   	td->td_retval[0] = p2->p_pid;
 
-	error = linux_proc_init(td, td->td_retval[0], 0);
-	if (error)
-		return (error);
+	td2 = FIRST_THREAD_IN_PROC(p2);
+
+	linux_proc_init(td, td2, 0);
 
 	PROC_LOCK(p2);
 	p2->p_flag |= P_PPWAIT;
 	PROC_UNLOCK(p2);
 
-	td2 = FIRST_THREAD_IN_PROC(p2);
+   	td->td_retval[0] = p2->p_pid;
 
 	/*
 	 * Make this runnable after we are finished with it.
@@ -144,8 +139,8 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	return (0);
 }
 
-int
-linux_clone(struct thread *td, struct linux_clone_args *args)
+static int
+linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 {
 	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
@@ -163,9 +158,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 	exit_signal = args->flags & 0x000000ff;
 	if (LINUX_SIG_VALID(exit_signal)) {
-		if (exit_signal <= LINUX_SIGTBLSZ)
-			exit_signal =
-			    linux_to_bsd_signal[_SIG_IDX(exit_signal)];
+		exit_signal = linux_to_bsd_signal(exit_signal);
 	} else if (exit_signal != 0)
 		return (EINVAL);
 
@@ -182,22 +175,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (!(args->flags & (LINUX_CLONE_FILES | LINUX_CLONE_FS)))
 		ff |= RFFDG;
 
-	/*
-	 * Attempt to detect when linux_clone(2) is used for creating
-	 * kernel threads. Unfortunately despite the existence of the
-	 * CLONE_THREAD flag, version of linuxthreads package used in
-	 * most popular distros as of beginning of 2005 doesn't make
-	 * any use of it. Therefore, this detection relies on
-	 * empirical observation that linuxthreads sets certain
-	 * combination of flags, so that we can make more or less
-	 * precise detection and notify the FreeBSD kernel that several
-	 * processes are in fact part of the same threading group, so
-	 * that special treatment is necessary for signal delivery
-	 * between those processes and fd locking.
-	 */
-	if ((args->flags & 0xffffff00) == LINUX_THREADING_FLAGS)
-		ff |= RFTHREAD;
-
 	if (args->flags & LINUX_CLONE_PARENT_SETTID)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
@@ -206,29 +183,13 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (error)
 		return (error);
 
-	if (args->flags & (LINUX_CLONE_PARENT | LINUX_CLONE_THREAD)) {
-	   	sx_xlock(&proctree_lock);
-		PROC_LOCK(p2);
-		proc_reparent(p2, td->td_proc->p_pptr);
-		PROC_UNLOCK(p2);
-		sx_xunlock(&proctree_lock);
-	}
+	td2 = FIRST_THREAD_IN_PROC(p2);
 
 	/* create the emuldata */
-	error = linux_proc_init(td, p2->p_pid, args->flags);
-	/* reference it - no need to check this */
-	em = em_find(p2, EMUL_DOLOCK);
-	KASSERT(em != NULL, ("clone: emuldata not found."));
-	/* and adjust it */
+	linux_proc_init(td, td2, args->flags);
 
-	if (args->flags & LINUX_CLONE_THREAD) {
-#ifdef notyet
-	   	PROC_LOCK(p2);
-	   	p2->p_pgrp = td->td_proc->p_pgrp;
-	   	PROC_UNLOCK(p2);
-#endif
-		exit_signal = 0;
-	}
+	em = em_find(td2);
+	KASSERT(em != NULL, ("clone_proc: emuldata not found.\n"));
 
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
@@ -240,8 +201,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	else
 	   	em->child_clear_tid = NULL;
 
-	EMUL_UNLOCK(&emul_lock);
-
 	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
 		error = copyout(&p2->p_pid, args->parent_tidptr,
 		    sizeof(p2->p_pid));
@@ -252,14 +211,12 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
-	td2 = FIRST_THREAD_IN_PROC(p2);
 	/*
 	 * In a case of stack = NULL, we are supposed to COW calling process
 	 * stack. This is what normal fork() does, so we just keep tf_rsp arg
 	 * intact.
 	 */
-	if (args->stack)
-		linux_set_upcall_kse(td2, PTROUT(args->stack));
+	linux_set_upcall_kse(td2, PTROUT(args->stack));
 
 	if (args->flags & LINUX_CLONE_SETTLS)
 		linux_set_cloned_tls(td2, args->tls);
@@ -270,6 +227,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		    "stack %p sig = %d"), (int)p2->p_pid, args->stack,
 		    exit_signal);
 #endif
+
 	if (args->flags & LINUX_CLONE_VFORK) {
 	   	PROC_LOCK(p2);
 	   	p2->p_flag |= P_PPWAIT;
@@ -285,7 +243,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	thread_unlock(td2);
 
 	td->td_retval[0] = p2->p_pid;
-	td->td_retval[1] = 0;
 
 	if (args->flags & LINUX_CLONE_VFORK) {
 		/* wait for the children to exit, ie. emulate vfork */
@@ -296,4 +253,211 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	}
 
 	return (0);
+}
+
+static int
+linux_clone_thread(struct thread *td, struct linux_clone_args *args)
+{
+	struct linux_emuldata *em;
+	struct thread *newtd;
+	struct proc *p;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(clone)) {
+		printf(ARGS(clone, "thread: flags %x, stack %p, parent tid: %p, "
+		    "child tid: %p"), (unsigned)args->flags,
+		    args->stack, args->parent_tidptr, args->child_tidptr);
+	}
+#endif
+
+	LINUX_CTR4(clone_thread, "thread(%d) flags %x ptid %p ctid %p",
+	    td->td_tid, (unsigned)args->flags,
+	    args->parent_tidptr, args->child_tidptr);
+
+	if (args->flags & LINUX_CLONE_PARENT_SETTID)
+		if (args->parent_tidptr == NULL)
+			return (EINVAL);
+
+	/* Threads should be created with own stack */
+	if (args->stack == NULL)
+		return (EINVAL);
+
+	p = td->td_proc;
+
+	/* Initialize our td */
+	error = kern_thr_alloc(p, 0, &newtd);
+	if (error)
+		return (error);
+														
+	cpu_set_upcall(newtd, td);
+
+	bzero(&newtd->td_startzero,
+	    __rangeof(struct thread, td_startzero, td_endzero));
+	bcopy(&td->td_startcopy, &newtd->td_startcopy,
+	    __rangeof(struct thread, td_startcopy, td_endcopy));
+
+	newtd->td_proc = p;
+	newtd->td_ucred = crhold(td->td_ucred);
+
+	/* create the emuldata */
+	linux_proc_init(td, newtd, args->flags);
+
+	em = em_find(newtd);
+	KASSERT(em != NULL, ("clone_thread: emuldata not found.\n"));
+
+	if (args->flags & LINUX_CLONE_SETTLS)
+		linux_set_cloned_tls(newtd, args->tls);
+
+	if (args->flags & LINUX_CLONE_CHILD_SETTID)
+		em->child_set_tid = args->child_tidptr;
+	else
+	   	em->child_set_tid = NULL;
+
+	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
+		em->child_clear_tid = args->child_tidptr;
+	else
+	   	em->child_clear_tid = NULL;
+
+	cpu_thread_clean(newtd);
+	
+	linux_set_upcall_kse(newtd, PTROUT(args->stack));
+
+	PROC_LOCK(p);
+	p->p_flag |= P_HADTHREADS;
+	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
+
+	if (args->flags & LINUX_CLONE_PARENT)
+		thread_link(newtd, p->p_pptr);
+	else
+		thread_link(newtd, p);
+
+	thread_lock(td);
+	/* let the scheduler know about these things. */
+	sched_fork_thread(td, newtd);
+	thread_unlock(td);
+	if (P_SHOULDSTOP(p))
+		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
+	PROC_UNLOCK(p);
+
+	tidhash_add(newtd);
+
+#ifdef DEBUG
+	if (ldebug(clone))
+		printf(ARGS(clone, "successful clone to %d, stack %p"),
+		(int)newtd->td_tid, args->stack);
+#endif
+
+	LINUX_CTR2(clone_thread, "thread(%d) successful clone to %d",
+	    td->td_tid, newtd->td_tid);
+
+	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
+		error = copyout(&newtd->td_tid, args->parent_tidptr,
+		    sizeof(newtd->td_tid));
+		if (error)
+			printf(LMSG("clone_thread: copyout failed!"));
+	}
+
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
+	thread_lock(newtd);
+	TD_SET_CAN_RUN(newtd);
+	sched_add(newtd, SRQ_BORING);
+	thread_unlock(newtd);
+
+	td->td_retval[0] = newtd->td_tid;
+
+	return (0);
+}
+
+int
+linux_clone(struct thread *td, struct linux_clone_args *args)
+{
+
+	if (args->flags & LINUX_CLONE_THREAD)
+		return (linux_clone_thread(td, args));
+	else
+		return (linux_clone_proc(td, args));
+}
+
+int
+linux_exit(struct thread *td, struct linux_exit_args *args)
+{
+	struct linux_emuldata *em;
+
+	em = em_find(td);
+	KASSERT(em != NULL, ("exit: emuldata not found.\n"));
+
+	LINUX_CTR2(exit, "thread(%d) (%d)", em->em_tid, args->rval);
+
+	linux_thread_detach(td);
+
+	/*
+	 * XXX. When the last two threads of a process
+	 * exit via pthread_exit() try thr_exit() first.
+	 */
+	kern_thr_exit(td);
+	exit1(td, W_EXITCODE(args->rval, 0));
+		/* NOTREACHED */
+}
+
+int
+linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args)
+{
+	struct linux_emuldata *em;
+
+	em = em_find(td);
+	KASSERT(em != NULL, ("set_tid_address: emuldata not found.\n"));
+
+	em->child_clear_tid = args->tidptr;
+
+	td->td_retval[0] = em->em_tid;
+
+	LINUX_CTR3(set_tid_address, "tidptr(%d) %p, returns %d",
+	    em->em_tid, args->tidptr, td->td_retval[0]);
+
+	return (0);
+}
+
+void
+linux_thread_detach(struct thread *td)
+{
+	struct linux_sys_futex_args cup;
+	struct linux_emuldata *em;
+	int *child_clear_tid;
+	int error;
+
+	em = em_find(td);
+	KASSERT(em != NULL, ("thread_detach: emuldata not found.\n"));
+
+	LINUX_CTR1(thread_detach, "thread(%d)", em->em_tid);
+
+	release_futexes(td, em);
+
+	child_clear_tid = em->child_clear_tid;
+
+	if (child_clear_tid != NULL) {
+
+		LINUX_CTR2(thread_detach, "thread(%d) %p",
+		    em->em_tid, child_clear_tid);
+	
+		error = suword32(child_clear_tid, 0);
+		if (error != 0)
+			return;
+
+		cup.uaddr = child_clear_tid;
+		cup.op = LINUX_FUTEX_WAKE;
+		cup.val = 1;		/* wake one */
+		cup.timeout = NULL;
+		cup.uaddr2 = NULL;
+		cup.val3 = 0;
+		error = linux_sys_futex(td, &cup);
+		/*
+		 * this cannot happen at the moment and if this happens it
+		 * probably means there is a user space bug
+		 */
+		if (error != 0)
+			linux_msg(td, "futex stuff in thread_detach failed.");
+	}
 }

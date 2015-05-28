@@ -151,6 +151,7 @@ static VNET_DEFINE(struct pf_send_head, pf_sendqueue);
 #define	V_pf_sendqueue	VNET(pf_sendqueue)
 
 static struct mtx pf_sendqueue_mtx;
+MTX_SYSINIT(pf_sendqueue_mtx, &pf_sendqueue_mtx, "pf send queue", MTX_DEF);
 #define	PF_SENDQ_LOCK()		mtx_lock(&pf_sendqueue_mtx)
 #define	PF_SENDQ_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
 
@@ -172,11 +173,15 @@ static VNET_DEFINE(struct task, pf_overloadtask);
 #define	V_pf_overloadtask	VNET(pf_overloadtask)
 
 static struct mtx pf_overloadqueue_mtx;
+MTX_SYSINIT(pf_overloadqueue_mtx, &pf_overloadqueue_mtx,
+    "pf overload/flush queue", MTX_DEF);
 #define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
 #define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
 VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
+MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
+    MTX_DEF);
 
 static VNET_DEFINE(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
@@ -804,18 +809,13 @@ pf_initialize()
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
-
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
 	SLIST_INIT(&V_pf_overloadqueue);
 	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, curvnet);
-	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
-	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
-	    MTX_DEF);
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
-	mtx_init(&pf_unlnkdrules_mtx, "pf unlinked rules", NULL, MTX_DEF);
 }
 
 void
@@ -857,10 +857,6 @@ pf_cleanup()
 		m_freem(pfse->pfse_m);
 		free(pfse, M_PFTEMP);
 	}
-
-	mtx_destroy(&pf_sendqueue_mtx);
-	mtx_destroy(&pf_overloadqueue_mtx);
-	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
@@ -5903,13 +5899,14 @@ done:
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
+		} else {
+			if (pqid || (pd.tos & IPTOS_LOWDELAY))
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
+			pd.pf_mtag->hdr = h;
 		}
-		if (pqid || (pd.tos & IPTOS_LOWDELAY))
-			pd.pf_mtag->qid = r->pqid;
-		else
-			pd.pf_mtag->qid = r->qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
 
 	}
 #endif /* ALTQ */
@@ -5948,9 +5945,11 @@ done:
 					log = 1;
 					DPFPRINTF(PF_DEBUG_MISC,
 					    ("pf: failed to allocate tag\n"));
+				} else {
+					pd.pf_mtag->flags |=
+					    PF_FASTFWD_OURS_PRESENT;
+					m->m_flags &= ~M_FASTFWD_OURS;
 				}
-				pd.pf_mtag->flags |= PF_FASTFWD_OURS_PRESENT;
-				m->m_flags &= ~M_FASTFWD_OURS;
 			}
 			ip_divert_ptr(*m0, dir ==  PF_IN ? DIR_IN : DIR_OUT);
 			*m0 = NULL;
@@ -6332,13 +6331,14 @@ done:
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
+		} else {
+			if (pd.tos & IPTOS_LOWDELAY)
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
+			pd.pf_mtag->hdr = h;
 		}
-		if (pd.tos & IPTOS_LOWDELAY)
-			pd.pf_mtag->qid = r->pqid;
-		else
-			pd.pf_mtag->qid = r->qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
 	}
 #endif /* ALTQ */
 

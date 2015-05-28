@@ -70,7 +70,7 @@ FEATURE(racct, "Resource Accounting");
  * Do not block processes that have their %cpu usage <= pcpu_threshold.
  */
 static int pcpu_threshold = 1;
-#ifdef RACCT_DISABLED
+#ifdef RACCT_DEFAULT_TO_DISABLED
 int racct_enable = 0;
 #else
 int racct_enable = 1;

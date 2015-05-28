@@ -72,7 +72,7 @@ static device_method_t ofw_iicbus_methods[] = {
 };
 
 struct ofw_iicbus_devinfo {
-	struct iicbus_ivar	opd_dinfo;
+	struct iicbus_ivar	opd_dinfo;	/* Must be the first. */
 	struct ofw_bus_devinfo	opd_obdinfo;
 };
 
@@ -153,7 +153,11 @@ ofw_iicbus_attach(device_t dev)
 			free(dinfo, M_DEVBUF);
 			continue;
 		}
+
 		childdev = device_add_child(dev, NULL, -1);
+		resource_list_init(&dinfo->opd_dinfo.rl);
+		ofw_bus_intr_to_rl(childdev, child,
+					&dinfo->opd_dinfo.rl, NULL);
 		device_set_ivars(childdev, dinfo);
 	}
 
