@@ -31,6 +31,7 @@
 #ifndef _MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
+#include <machine/cpufunc.h>
 #include <machine/pte.h>
 
 #if defined(MIPS_EXC_CNTRS) && defined(CPU_CHERI)
