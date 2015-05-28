@@ -632,6 +632,10 @@ callout_process(sbintime_t now)
 		 */
 	} while (((int)(firstb - lastb)) <= 0);
 
+	cc->cc_firstevent = last;
+#ifndef NO_EVENTTIMERS
+	cpu_new_callout(curcpu, last, first);
+#endif
 	/*
 	 * Check for expired direct callouts, if any:
 	 */
@@ -639,11 +643,6 @@ callout_process(sbintime_t now)
 		LIST_REMOVE(tmp, c_links.le);
 		softclock_call_cc(tmp, cc, 1);
 	}
-
-	cc->cc_firstevent = last;
-#ifndef NO_EVENTTIMERS
-	cpu_new_callout(curcpu, last, first);
-#endif
 #ifdef CALLOUT_PROFILING
 	callout_update_stats(cc, 1);
 #endif
