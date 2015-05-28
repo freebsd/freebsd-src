@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2014
+.Dd May 28, 2015
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -97,10 +97,6 @@
 .Ft int
 .Fn pci_get_vpd_readonly "device_t dev" "const char *kw" "const char **vptr"
 .Ft int
-.Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
-.Ft int
-.Fn pci_iov_detach "device_t dev"
-.Ft int
 .Fn pci_msi_count "device_t dev"
 .Ft int
 .Fn pci_msix_count "device_t dev"
@@ -122,6 +118,11 @@
 .Fn pci_set_powerstate "device_t dev" "int state"
 .Ft void
 .Fn pci_write_config "device_t dev" "int reg" "uint32_t val" "int width"
+.In dev/pci/pci_iov.h
+.Ft int
+.Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
+.Ft int
+.Fn pci_iov_detach "device_t dev"
 .Sh DESCRIPTION
 The
 .Nm
@@ -446,10 +447,10 @@ function is used to advertise that the given device
 supports PCI Single-Root I/O Virtualization
 .Po SR-IOV Pc .
 A driver that supports SR-IOV must implement the
-.Xr PCI_INIT_IOV 9 ,
-.Xr PCI_ADD_VF 9
+.Xr PCI_IOV_INIT 9 ,
+.Xr PCI_IOV_ADD_VF 9
 and
-.Xr PCI_UNIT_IOV 9
+.Xr PCI_IOV_UNINIT 9
 methods.
 This function should be called during the
 .Xr DEVICE_ATTACH 9
