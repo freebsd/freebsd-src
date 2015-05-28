@@ -324,7 +324,7 @@ struct callout_cpu {
 	struct cc_exec 		cc_exec_entity[2];
 	struct callout		*cc_callout;
 	struct callout_list	*cc_callwheel;
-	struct callout_list	cc_tmplist;
+	struct callout_list	cc_directlist;
 	struct callout_tailq	cc_expireq;
 	struct callout_slist	cc_callfree;
 	sbintime_t		cc_firstevent;
@@ -427,7 +427,7 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 	for (i = 0; i < callwheelsize; i++)
 		LIST_INIT(&cc->cc_callwheel[i]);
 	TAILQ_INIT(&cc->cc_expireq);
-	LIST_INIT(&cc->cc_tmplist);
+	LIST_INIT(&cc->cc_directlist);
 	cc->cc_firstevent = SBT_MAX;
 	snprintf(cc->cc_ktr_event_name, sizeof(cc->cc_ktr_event_name),
 	    "callwheel cpu %d", cpu);
@@ -539,6 +539,7 @@ void
 callout_process(sbintime_t now)
 {
 	struct callout *tmp;
+	struct callout *next;
 	struct callout_cpu *cc;
 	struct callout_list *sc;
 	sbintime_t first, last, max, tmp_max;
@@ -583,33 +584,24 @@ callout_process(sbintime_t now)
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
 	do {
 		sc = &cc->cc_callwheel[firstb & callwheelmask];
-		while (1) {
-			tmp = LIST_FIRST(sc);
-			if (tmp == NULL)
-				break;
 
-			LIST_REMOVE(tmp, c_links.le);
-
+		/* Iterate all callouts in the current bucket */
+		LIST_FOREACH_SAFE(tmp, sc, c_links.le, next) {
 			/* Run the callout if present time within allowed. */
 			if (tmp->c_time <= now) {
-				/*
-				 * Consumer told us the callout may be
-				 * run directly from the hardware
-				 * interrupt context:
-				 */
+				/* Remove callout from bucket */
+				LIST_REMOVE(tmp, c_links.le);
 				if (tmp->c_flags & CALLOUT_DIRECT) {
-					softclock_call_cc(tmp, cc, 1);
+					/* Insert callout into direct list */
+					LIST_INSERT_HEAD(&cc->cc_directlist, tmp, c_links.le);
 				} else {
-					TAILQ_INSERT_TAIL(&cc->cc_expireq,
-					    tmp, c_links.tqe);
+					/* Insert callout into expired list */
+					TAILQ_INSERT_TAIL(&cc->cc_expireq, tmp, c_links.tqe);
 					tmp->c_flags |= CALLOUT_PROCESSED;
 				}
 				continue;
 			}
 
-			/* Insert callout into temporary list */
-			LIST_INSERT_HEAD(&cc->cc_tmplist, tmp, c_links.le);
-			
 			/* Skip events from distant future. */
 			if (tmp->c_time >= max)
 				continue;
@@ -630,9 +622,6 @@ callout_process(sbintime_t now)
 				last = tmp_max;
 		}
 
-		/* Put temporary list back into the main bucket */
-		LIST_SWAP(sc, &cc->cc_tmplist, callout, c_links.le);
-		
 		/* Proceed with the next bucket. */
 		firstb++;
 
@@ -642,6 +631,15 @@ callout_process(sbintime_t now)
 		 * Stop if we looked far enough into the future.
 		 */
 	} while (((int)(firstb - lastb)) <= 0);
+
+	/*
+	 * Check for expired direct callouts, if any:
+	 */
+	while ((tmp = LIST_FIRST(&cc->cc_directlist)) != NULL) {
+		LIST_REMOVE(tmp, c_links.le);
+		softclock_call_cc(tmp, cc, 1);
+	}
+
 	cc->cc_firstevent = last;
 #ifndef NO_EVENTTIMERS
 	cpu_new_callout(curcpu, last, first);
