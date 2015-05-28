@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2011-2014 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * LSI MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -39,7 +38,6 @@
  * @dev_handle: device handle for the device pointed by this entry
  * @slot: slot ID
  * @is_processed: Flag to indicate whether this entry is processed or not
- * @is_SATA_SSD: 1 if this is a SATA device AND an SSD, 0 otherwise
  */
 struct _map_phy_change {
 	uint64_t	physical_id;
@@ -48,8 +46,6 @@ struct _map_phy_change {
 	uint16_t	slot;
 	uint8_t	reason;
 	uint8_t	is_processed;
-	uint8_t	is_SATA_SSD;
-	uint8_t reserved;
 };
 
 /**
@@ -70,6 +66,6 @@ struct _map_topology_change {
 
 extern int
 mprsas_get_sas_address_for_sata_disk(struct mpr_softc *ioc,
-    u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
+    u64 *sas_address, u16 handle, u32 device_info);
 
 #endif
