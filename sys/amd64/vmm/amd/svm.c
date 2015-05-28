@@ -1900,7 +1900,7 @@ enable_gintr(void)
  */
 static int
 svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap, 
-	void *rend_cookie, void *suspended_cookie)
+	struct vm_eventinfo *evinfo)
 {
 	struct svm_regctx *gctx;
 	struct svm_softc *svm_sc;
@@ -1975,15 +1975,21 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */
 		disable_gintr();
 
-		if (vcpu_suspended(suspended_cookie)) {
+		if (vcpu_suspended(evinfo)) {
 			enable_gintr();
 			vm_exit_suspended(vm, vcpu, state->rip);
 			break;
 		}
 
-		if (vcpu_rendezvous_pending(rend_cookie)) {
+		if (vcpu_rendezvous_pending(evinfo)) {
 			enable_gintr();
 			vm_exit_rendezvous(vm, vcpu, state->rip);
+			break;
+		}
+
+		if (vcpu_reqidle(evinfo)) {
+			enable_gintr();
+			vm_exit_reqidle(vm, vcpu, state->rip);
 			break;
 		}
 
