@@ -672,7 +672,6 @@ if_free_internal(struct ifnet *ifp)
 	if (ifp->if_description != NULL)
 		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
-	rw_destroy(&ifp->if_lock);
 	if (ifp->if_snd)
 		if_snd_free(ifp->if_snd);
 
@@ -684,6 +683,7 @@ if_free_internal(struct ifnet *ifp)
 
 	ifmedia_free(ifp);
 
+	rw_destroy(&ifp->if_lock);
 	free(ifp, M_IFNET);
 }
 
