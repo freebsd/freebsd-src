@@ -210,7 +210,6 @@ struct  ether_addr {
 typedef struct mbuf mb_t;
 
 #else	/* !_KERNEL */
-#ifndef _NET_IF_VAR_H_
 /*
  * Userland emulation of struct ifnet.
  */
@@ -222,7 +221,6 @@ struct ifnet {
 	int	(*if_output)(struct ifnet *, struct mbuf *,
 	    const struct sockaddr *, struct route *);
 };
-#endif /* _NET_IF_VAR_H_ */
 #endif /* _KERNEL */
 
 #  define	IFNAME(x)	((struct ifnet *)x)->if_xname
