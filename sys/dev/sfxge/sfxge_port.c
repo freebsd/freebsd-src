@@ -710,6 +710,8 @@ sfxge_link_mode_to_phy_cap(efx_link_mode_t mode)
 static int
 sfxge_phy_cap_mask(struct sfxge_softc *sc, int ifmedia, uint32_t *phy_cap_mask)
 {
+	/* Get global options (duplex), type and subtype bits */
+	int ifmedia_masked = ifmedia & (IFM_GMASK | IFM_NMASK | IFM_TMASK);
 	efx_phy_media_type_t medium_type;
 	boolean_t mode_found = B_FALSE;
 	uint32_t cap_mask, mode_cap_mask;
@@ -725,7 +727,7 @@ sfxge_phy_cap_mask(struct sfxge_softc *sc, int ifmedia, uint32_t *phy_cap_mask)
 	efx_phy_adv_cap_get(sc->enp, EFX_PHY_CAP_PERM, &cap_mask);
 
 	for (mode = EFX_LINK_10HDX; mode < EFX_LINK_NMODES; mode++) {
-		if (ifmedia == sfxge_link_mode[medium_type][mode]) {
+		if (ifmedia_masked == sfxge_link_mode[medium_type][mode]) {
 			mode_found = B_TRUE;
 			break;
 		}
@@ -736,8 +738,8 @@ sfxge_phy_cap_mask(struct sfxge_softc *sc, int ifmedia, uint32_t *phy_cap_mask)
 		 * If media is not in the table, it must be IFM_AUTO.
 		 */
 		KASSERT((cap_mask & (1 << EFX_PHY_CAP_AN)) &&
-		    ifmedia == (IFM_ETHER | IFM_AUTO),
-		    ("%s: no mode for media %d", __func__, ifmedia));
+		    ifmedia_masked == (IFM_ETHER | IFM_AUTO),
+		    ("%s: no mode for media %#x", __func__, ifmedia));
 		*phy_cap_mask = (cap_mask & ~(1 << EFX_PHY_CAP_ASYM));
 		return (0);
 	}
