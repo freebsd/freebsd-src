@@ -9302,8 +9302,6 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 			atomic_add_int(&chk->whoTo->ref_count, 1);
 		}
 		chk->data = m_ack;
-		chk->send_size = 0;
-		/* Get size */
 		chk->send_size = ack->len;
 		chk->sent = SCTP_DATAGRAM_UNSENT;
 		chk->snd_count = 0;
