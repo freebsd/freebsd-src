@@ -517,7 +517,6 @@ _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
-_linux_common=	linux_common
 .if ${MK_OFED} != "no"
 _linuxapi=	linuxapi
 .endif
@@ -623,6 +622,7 @@ _x86bios=	x86bios
 _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
+_linux_common=	linux_common
 _ntb=		ntb
 _qlxge=		qlxge
 _qlxgb=		qlxgb
