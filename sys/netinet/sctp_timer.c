@@ -152,7 +152,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		struct mbuf *op_err;
 
 		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
-		    "Association error couter exceeded");
+		    "Association error counter exceeded");
 		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
 		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		return (1);
