@@ -3644,12 +3644,6 @@ flags_out:
 			    (sid < stcb->asoc.streamoutcnt) &&
 			    ((policy == SCTP_PR_SCTP_ALL) ||
 			    (PR_SCTP_VALID_POLICY(policy)))) {
-#else
-			if ((stcb != NULL) &&
-			    (policy != SCTP_PR_SCTP_NONE) &&
-			    (sid < stcb->asoc.streamoutcnt) &&
-			    (policy == SCTP_PR_SCTP_ALL)) {
-#endif
 				if (policy == SCTP_PR_SCTP_ALL) {
 					sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[0];
 					sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[0];
@@ -3657,6 +3651,13 @@ flags_out:
 					sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[policy];
 					sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[policy];
 				}
+#else
+			if ((stcb != NULL) &&
+			    (policy == SCTP_PR_SCTP_ALL) &&
+			    (sid < stcb->asoc.streamoutcnt)) {
+				sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[0];
+				sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[0];
+#endif
 				SCTP_TCB_UNLOCK(stcb);
 				*optsize = sizeof(struct sctp_prstatus);
 			} else {
