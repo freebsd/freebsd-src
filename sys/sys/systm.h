@@ -187,6 +187,7 @@ void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 void	g_waitidle(void);
 
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
+void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);
