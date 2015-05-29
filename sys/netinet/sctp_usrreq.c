@@ -4054,7 +4054,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						SCTP_TCB_UNLOCK(stcb);
 					}
 					SCTP_INP_RUNLOCK(inp);
-
 				} else {
 					/*
 					 * Can't set stream value without
