@@ -3694,6 +3694,33 @@ flags_out:
 			}
 			break;
 		}
+	case SCTP_MAX_CWND:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, *optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				av->assoc_value = stcb->asoc.max_cwnd;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					SCTP_INP_RLOCK(inp);
+					av->assoc_value = inp->max_cwnd;
+					SCTP_INP_RUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			if (error == 0) {
+				*optsize = sizeof(struct sctp_assoc_value);
+			}
+			break;
+		}
 	default:
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOPROTOOPT);
 		error = ENOPROTOOPT;
@@ -6564,6 +6591,42 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					} else {
 						inp->pktdrop_supported = 1;
 					}
+					SCTP_INP_WUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			break;
+		}
+	case SCTP_MAX_CWND:
+		{
+			struct sctp_assoc_value *av;
+			struct sctp_nets *net;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				stcb->asoc.max_cwnd = av->assoc_value;
+				if (stcb->asoc.max_cwnd > 0) {
+					TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+						if ((net->cwnd > stcb->asoc.max_cwnd) &&
+						    (net->cwnd > (net->mtu - sizeof(struct sctphdr)))) {
+							net->cwnd = stcb->asoc.max_cwnd;
+							if (net->cwnd < (net->mtu - sizeof(struct sctphdr))) {
+								net->cwnd = net->mtu - sizeof(struct sctphdr);
+							}
+						}
+					}
+				}
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					SCTP_INP_WLOCK(inp);
+					inp->max_cwnd = av->assoc_value;
 					SCTP_INP_WUNLOCK(inp);
 				} else {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
