@@ -68,6 +68,7 @@ static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
     int flags, int mask);
 
 #ifdef IFMEDIA_DEBUG
+#include <net/if_var.h>
 int	ifmedia_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
 	    0, "if_media debugging msgs");
@@ -193,6 +194,21 @@ ifmedia_set(ifm, target)
 }
 
 /*
+ * Given a media word, return one suitable for an application
+ * using the original encoding.
+ */
+static int
+compat_media(int media)
+{
+
+	if (IFM_TYPE(media) == IFM_ETHER && IFM_SUBTYPE(media) > IFM_OTHER) {
+		media &= ~(IFM_ETH_XTYPE|IFM_TMASK);
+		media |= IFM_OTHER;
+	}
+	return (media);
+}
+
+/*
  * Device-independent media ioctl support function.
  */
 int
@@ -271,6 +287,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 	 * Get list of available media and current media on interface.
 	 */
 	case  SIOCGIFMEDIA: 
+	case  SIOCGIFXMEDIA: 
 	{
 		struct ifmedia_entry *ep;
 		int *kptr, count;
@@ -278,8 +295,13 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 
 		kptr = NULL;		/* XXX gcc */
 
-		ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
-		    ifm->ifm_cur->ifm_media : IFM_NONE;
+		if (cmd == SIOCGIFMEDIA) {
+			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
+			    compat_media(ifm->ifm_cur->ifm_media) : IFM_NONE;
+		} else {
+			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
+			    ifm->ifm_cur->ifm_media : IFM_NONE;
+		}
 		ifmr->ifm_mask = ifm->ifm_mask;
 		ifmr->ifm_status = 0;
 		(*ifm->ifm_status)(ifp, ifmr);
@@ -398,8 +420,7 @@ ifmedia_baudrate(int mword)
 	int i;
 
 	for (i = 0; ifmedia_baudrate_descriptions[i].ifmb_word != 0; i++) {
-		if ((mword & (IFM_NMASK|IFM_TMASK)) ==
-		    ifmedia_baudrate_descriptions[i].ifmb_word)
+		if (IFM_TYPE_MATCH(mword, ifmedia_baudrate_descriptions[i].ifmb_word))
 			return (ifmedia_baudrate_descriptions[i].ifmb_baudrate);
 	}
 
@@ -505,7 +526,7 @@ ifmedia_printword(ifmw)
 		printf("<unknown type>\n");
 		return;
 	}
-	printf(desc->ifmt_string);
+	printf("%s", desc->ifmt_string);
 
 	/* Any mode. */
 	for (desc = ttos->modes; desc && desc->ifmt_string != NULL; desc++)
