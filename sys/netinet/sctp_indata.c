@@ -2597,12 +2597,14 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 			 * cumack trackers for first transmissions,
 			 * and retransmissions.
 			 */
-			if ((tp1->whoTo->find_pseudo_cumack == 1) && (tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			if ((tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			    (tp1->whoTo->find_pseudo_cumack == 1) &&
 			    (tp1->snd_count == 1)) {
 				tp1->whoTo->pseudo_cumack = tp1->rec.data.TSN_seq;
 				tp1->whoTo->find_pseudo_cumack = 0;
 			}
-			if ((tp1->whoTo->find_rtx_pseudo_cumack == 1) && (tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			if ((tp1->sent < SCTP_DATAGRAM_RESEND) &&
+			    (tp1->whoTo->find_rtx_pseudo_cumack == 1) &&
 			    (tp1->snd_count > 1)) {
 				tp1->whoTo->rtx_pseudo_cumack = tp1->rec.data.TSN_seq;
 				tp1->whoTo->find_rtx_pseudo_cumack = 0;
@@ -3512,7 +3514,7 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 	if ((tp1->sent >= SCTP_DATAGRAM_ACKED) || (tp1->data == NULL)) {
 		/* TSN's skipped we do NOT move back. */
 		sctp_misc_ints(SCTP_FLIGHT_LOG_DWN_WP_FWD,
-		    tp1->whoTo->flight_size,
+		    tp1->whoTo ? tp1->whoTo->flight_size : 0,
 		    tp1->book_size,
 		    (uintptr_t) tp1->whoTo,
 		    tp1->rec.data.TSN_seq);
