@@ -595,7 +595,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(sc->sc_dev);
 
-	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 	CURVNET_RESTORE();
@@ -612,8 +611,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
 	    sc->sc_eepromdata, &ah_config, &status);
 	if (ah == NULL) {
-		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
-			status);
+		device_printf(sc->sc_dev,
+		    "unable to attach hardware; HAL status %u\n", status);
 		error = ENXIO;
 		goto bad;
 	}
@@ -664,8 +663,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_keymax = ath_hal_keycachesize(ah);
 	if (sc->sc_keymax > ATH_KEYMAX) {
-		if_printf(ifp, "Warning, using only %u of %u key cache slots\n",
-			ATH_KEYMAX, sc->sc_keymax);
+		device_printf(sc->sc_dev,
+		    "Warning, using only %u of %u key cache slots\n",
+		    ATH_KEYMAX, sc->sc_keymax);
 		sc->sc_keymax = ATH_KEYMAX;
 	}
 	/*
@@ -704,14 +704,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	error = ath_desc_alloc(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
-		    error);
+		device_printf(sc->sc_dev,
+		    "failed to allocate TX descriptors: %d\n", error);
 		goto bad;
 	}
 	error = ath_txdma_setup(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
-		    error);
+		device_printf(sc->sc_dev,
+		    "failed to allocate TX descriptors: %d\n", error);
 		goto bad;
 	}
 
@@ -720,8 +720,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	error = ath_rxdma_setup(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate RX descriptors: %d\n",
-		    error);
+		device_printf(sc->sc_dev,
+		     "failed to allocate RX descriptors: %d\n", error);
 		goto bad;
 	}
 
@@ -752,20 +752,22 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_bhalq = ath_beaconq_setup(sc);
 	if (sc->sc_bhalq == (u_int) -1) {
-		if_printf(ifp, "unable to setup a beacon xmit queue!\n");
+		device_printf(sc->sc_dev,
+		    "unable to setup a beacon xmit queue!\n");
 		error = EIO;
 		goto bad2;
 	}
 	sc->sc_cabq = ath_txq_setup(sc, HAL_TX_QUEUE_CAB, 0);
 	if (sc->sc_cabq == NULL) {
-		if_printf(ifp, "unable to setup CAB xmit queue!\n");
+		device_printf(sc->sc_dev, "unable to setup CAB xmit queue!\n");
 		error = EIO;
 		goto bad2;
 	}
 	/* NB: insure BK queue is the lowest priority h/w queue */
 	if (!ath_tx_setup(sc, WME_AC_BK, HAL_WME_AC_BK)) {
-		if_printf(ifp, "unable to setup xmit queue for %s traffic!\n",
-			ieee80211_wme_acnames[WME_AC_BK]);
+		device_printf(sc->sc_dev,
+		    "unable to setup xmit queue for %s traffic!\n",
+		    ieee80211_wme_acnames[WME_AC_BK]);
 		error = EIO;
 		goto bad2;
 	}
@@ -1828,8 +1830,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * be reset if we just destroyed the last vap).
 		 */
 		if (ath_startrecv(sc) != 0)
-			if_printf(ifp, "%s: unable to restart recv logic\n",
-			    __func__);
+			device_printf(sc->sc_dev,
+			    "%s: unable to restart recv logic\n", __func__);
 		if (sc->sc_beacons) {		/* restart beacons */
 #ifdef IEEE80211_SUPPORT_TDMA
 			if (sc->sc_tdma)
@@ -2316,7 +2318,7 @@ ath_fatal_proc(void *arg, int pending)
 	u_int32_t len;
 	void *sp;
 
-	if_printf(ifp, "hardware error; resetting\n");
+	device_printf(sc->sc_dev, "hardware error; resetting\n");
 	/*
 	 * Fatal errors are unrecoverable.  Typically these
 	 * are caused by DMA errors.  Collect h/w state from
@@ -2325,9 +2327,9 @@ ath_fatal_proc(void *arg, int pending)
 	if (ath_hal_getfatalstate(sc->sc_ah, &sp, &len)) {
 		KASSERT(len >= 6*sizeof(u_int32_t), ("len %u bytes", len));
 		state = sp;
-		if_printf(ifp, "0x%08x 0x%08x 0x%08x, 0x%08x 0x%08x 0x%08x\n",
-		    state[0], state[1] , state[2], state[3],
-		    state[4], state[5]);
+		device_printf(sc->sc_dev,
+		    "0x%08x 0x%08x 0x%08x, 0x%08x 0x%08x 0x%08x\n", state[0],
+		    state[1] , state[2], state[3], state[4], state[5]);
 	}
 	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
@@ -2434,7 +2436,8 @@ ath_bmiss_proc(void *arg, int pending)
 	 */
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
 		ath_reset(ifp, ATH_RESET_NOLOSS);
-		if_printf(ifp, "bb hang detected (0x%x), resetting\n", hangs);
+		device_printf(sc->sc_dev,
+		    "bb hang detected (0x%x), resetting\n", hangs);
 	} else {
 		ath_reset(ifp, ATH_RESET_NOLOSS);
 		ieee80211_beacon_miss(ifp->if_l2com);
@@ -2509,9 +2512,10 @@ ath_init(void *arg)
 	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 	    sc->sc_cur_rxchainmask);
 
-	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE, &status)) {
-		if_printf(ifp, "unable to reset hardware; hal status %u\n",
-			status);
+	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE,
+	    &status)) {
+		device_printf(sc->sc_dev,
+		    "unable to reset hardware; hal status %u\n", status);
 		ATH_UNLOCK(sc);
 		return;
 	}
@@ -2569,7 +2573,7 @@ ath_init(void *arg)
 	 * here except setup the interrupt mask.
 	 */
 	if (ath_startrecv(sc) != 0) {
-		if_printf(ifp, "unable to start recv logic\n");
+		device_printf(sc->sc_dev, "unable to start recv logic\n");
 		ath_power_restore_power_state(sc);
 		ATH_UNLOCK(sc);
 		return;
@@ -2911,8 +2915,9 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 	    sc->sc_cur_rxchainmask);
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
-		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
-			__func__, status);
+		device_printf(sc->sc_dev,
+		    "%s: unable to reset hardware; hal status %u\n",
+		    __func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
 
 	ATH_RX_LOCK(sc);
@@ -2941,7 +2946,8 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 		ath_hal_setenforcetxop(sc->sc_ah, 0);
 
 	if (ath_startrecv(sc) != 0)	/* restart recv */
-		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
+		device_printf(sc->sc_dev,
+		    "%s: unable to start recv logic\n", __func__);
 	/*
 	 * We may be doing a reset in response to an ioctl
 	 * that changes the channel so update any state that
@@ -3747,7 +3753,7 @@ ath_reset_proc(void *arg, int pending)
 	struct ifnet *ifp = sc->sc_ifp;
 
 #if 0
-	if_printf(ifp, "%s: resetting\n", __func__);
+	device_printf(sc->sc_dev, "%s: resetting\n", __func__);
 #endif
 	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
@@ -3763,15 +3769,15 @@ ath_bstuck_proc(void *arg, int pending)
 	uint32_t hangs = 0;
 
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0)
-		if_printf(ifp, "bb hang detected (0x%x)\n", hangs);
+		device_printf(sc->sc_dev, "bb hang detected (0x%x)\n", hangs);
 
 #ifdef	ATH_DEBUG_ALQ
 	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_STUCK_BEACON))
 		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_STUCK_BEACON, 0, NULL);
 #endif
 
-	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
-		sc->sc_bmisscount);
+	device_printf(sc->sc_dev, "stuck beacon; resetting (bmiss count %u)\n",
+	    sc->sc_bmisscount);
 	sc->sc_stats.ast_bstuck++;
 	/*
 	 * This assumes that there's no simultaneous channel mode change
@@ -3803,7 +3809,6 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
-	struct ifnet *ifp = sc->sc_ifp;
 	int error;
 
 	dd->dd_descsize = ds_size;
@@ -3844,7 +3849,8 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 		       NULL,			/* lockarg */
 		       &dd->dd_dmat);
 	if (error != 0) {
-		if_printf(ifp, "cannot allocate %s DMA tag\n", dd->dd_name);
+		device_printf(sc->sc_dev,
+		    "cannot allocate %s DMA tag\n", dd->dd_name);
 		return error;
 	}
 
@@ -3853,8 +3859,9 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &dd->dd_dmamap);
 	if (error != 0) {
-		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
-			"error %u\n", ndesc, dd->dd_name, error);
+		device_printf(sc->sc_dev,
+		    "unable to alloc memory for %u %s descriptors, error %u\n",
+		    ndesc, dd->dd_name, error);
 		goto fail1;
 	}
 
@@ -3863,8 +3870,9 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 				ath_load_cb, &dd->dd_desc_paddr,
 				BUS_DMA_NOWAIT);
 	if (error != 0) {
-		if_printf(ifp, "unable to map %s descriptors, error %u\n",
-			dd->dd_name, error);
+		device_printf(sc->sc_dev,
+		    "unable to map %s descriptors, error %u\n",
+		    dd->dd_name, error);
 		goto fail2;
 	}
 
@@ -3894,7 +3902,6 @@ ath_descdma_setup(struct ath_softc *sc,
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
-	struct ifnet *ifp = sc->sc_ifp;
 	uint8_t *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
@@ -3914,8 +3921,9 @@ ath_descdma_setup(struct ath_softc *sc,
 	bsize = sizeof(struct ath_buf) * nbuf;
 	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
-		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
-			dd->dd_name, bsize);
+		device_printf(sc->sc_dev,
+		    "malloc of %s buffers failed, size %u\n",
+		    dd->dd_name, bsize);
 		goto fail3;
 	}
 	dd->dd_bufptr = bf;
@@ -3941,8 +3949,9 @@ ath_descdma_setup(struct ath_softc *sc,
 		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
 				&bf->bf_dmamap);
 		if (error != 0) {
-			if_printf(ifp, "unable to create dmamap for %s "
-				"buffer %u, error %u\n", dd->dd_name, i, error);
+			device_printf(sc->sc_dev, "unable to create dmamap "
+			    "for %s buffer %u, error %u\n",
+			    dd->dd_name, i, error);
 			ath_descdma_cleanup(sc, dd, head);
 			return error;
 		}
@@ -3978,7 +3987,6 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
 	const char *name, int nbuf, int rx_status_len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_buf *bf;
 	int i, bsize, error;
 
@@ -4001,8 +4009,9 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	bsize = sizeof(struct ath_buf) * nbuf;
 	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
-		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
-			dd->dd_name, bsize);
+		device_printf(sc->sc_dev,
+		    "malloc of %s buffers failed, size %u\n",
+		    dd->dd_name, bsize);
 		error = ENOMEM;
 		goto fail3;
 	}
@@ -4017,8 +4026,9 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
 				&bf->bf_dmamap);
 		if (error != 0) {
-			if_printf(ifp, "unable to create dmamap for %s "
-				"buffer %u, error %u\n", dd->dd_name, i, error);
+			device_printf(sc->sc_dev, "unable to create dmamap "
+			    "for %s buffer %u, error %u\n",
+			    dd->dd_name, i, error);
 			ath_descdma_cleanup(sc, dd, head);
 			return error;
 		}
@@ -4392,9 +4402,8 @@ ath_txq_update(struct ath_softc *sc, int ac)
 	    qi.tqi_aifs, qi.tqi_cwmin, qi.tqi_cwmax, qi.tqi_burstTime);
 
 	if (!ath_hal_settxqueueprops(ah, txq->axq_qnum, &qi)) {
-		if_printf(ifp, "unable to update hardware queue "
-			"parameters for %s traffic!\n",
-			ieee80211_wme_acnames[ac]);
+		device_printf(sc->sc_dev, "unable to update hardware queue "
+		    "parameters for %s traffic!\n", ieee80211_wme_acnames[ac]);
 		return 0;
 	} else {
 		ath_hal_resettxqueue(ah, txq->axq_qnum); /* push to h/w */
@@ -5560,7 +5569,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 		    sc->sc_cur_rxchainmask);
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
-			if_printf(ifp, "%s: unable to reset "
+			device_printf(sc->sc_dev, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",
 			    __func__, ieee80211_chan2ieee(ic, chan),
 			    chan->ic_freq, chan->ic_flags, status);
@@ -5599,8 +5608,8 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * Re-enable rx framework.
 		 */
 		if (ath_startrecv(sc) != 0) {
-			if_printf(ifp, "%s: unable to restart recv logic\n",
-			    __func__);
+			device_printf(sc->sc_dev,
+			    "%s: unable to restart recv logic\n", __func__);
 			ret = EIO;
 			goto finish;
 		}
@@ -6375,8 +6384,9 @@ ath_getchannels(struct ath_softc *sc)
 	status = ath_hal_init_channels(ah, ic->ic_channels, IEEE80211_CHAN_MAX,
 	    &ic->ic_nchans, HAL_MODE_ALL, CTRY_DEFAULT, SKU_NONE, AH_TRUE);
 	if (status != HAL_OK) {
-		if_printf(ifp, "%s: unable to collect channel list from hal, "
-		    "status %d\n", __func__, status);
+		device_printf(sc->sc_dev,
+		    "%s: unable to collect channel list from hal, status %d\n",
+		    __func__, status);
 		return EINVAL;
 	}
 	(void) ath_hal_getregdomain(ah, &sc->sc_eerd);
@@ -6538,10 +6548,10 @@ ath_watchdog(void *arg)
 
 		if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) &&
 		    hangs != 0) {
-			if_printf(ifp, "%s hang detected (0x%x)\n",
+			device_printf(sc->sc_dev, "%s hang detected (0x%x)\n",
 			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
-			if_printf(ifp, "device timeout\n");
+			device_printf(sc->sc_dev, "device timeout\n");
 		do_reset = 1;
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->sc_stats.ast_watchdog++;
@@ -6786,31 +6796,32 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 ath_announce(struct ath_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 
-	if_printf(ifp, "AR%s mac %d.%d RF%s phy %d.%d\n",
+	device_printf(sc->sc_dev, "AR%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
-	if_printf(ifp, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
+	device_printf(sc->sc_dev, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
 		ah->ah_analog2GhzRev, ah->ah_analog5GhzRev);
 	if (bootverbose) {
 		int i;
 		for (i = 0; i <= WME_AC_VO; i++) {
 			struct ath_txq *txq = sc->sc_ac2q[i];
-			if_printf(ifp, "Use hw queue %u for %s traffic\n",
-				txq->axq_qnum, ieee80211_wme_acnames[i]);
+			device_printf(sc->sc_dev,
+			    "Use hw queue %u for %s traffic\n",
+			    txq->axq_qnum, ieee80211_wme_acnames[i]);
 		}
-		if_printf(ifp, "Use hw queue %u for CAB traffic\n",
-			sc->sc_cabq->axq_qnum);
-		if_printf(ifp, "Use hw queue %u for beacons\n", sc->sc_bhalq);
+		device_printf(sc->sc_dev, "Use hw queue %u for CAB traffic\n",
+		    sc->sc_cabq->axq_qnum);
+		device_printf(sc->sc_dev, "Use hw queue %u for beacons\n",
+		    sc->sc_bhalq);
 	}
 	if (ath_rxbuf != ATH_RXBUF)
-		if_printf(ifp, "using %u rx buffers\n", ath_rxbuf);
+		device_printf(sc->sc_dev, "using %u rx buffers\n", ath_rxbuf);
 	if (ath_txbuf != ATH_TXBUF)
-		if_printf(ifp, "using %u tx buffers\n", ath_txbuf);
+		device_printf(sc->sc_dev, "using %u tx buffers\n", ath_txbuf);
 	if (sc->sc_mcastkey && bootverbose)
-		if_printf(ifp, "using multicast key search\n");
+		device_printf(sc->sc_dev, "using multicast key search\n");
 }
 
 static void
