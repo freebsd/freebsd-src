@@ -1691,8 +1691,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			flags |= HAL_TXDESC_NOACK;
 		break;
 	default:
-		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
-			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
+		device_printf(sc->sc_dev, "bogus frame type 0x%x (%s)\n",
+		    wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
 		/* XXX free tx dmamap */
 		ath_freetx(m0);
