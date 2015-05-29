@@ -6466,6 +6466,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				switch (pr_supported->chunk_types[i]) {
 				case SCTP_ASCONF:
 					peer_supports_asconf = 1;
+					break;
 				case SCTP_ASCONF_ACK:
 					peer_supports_asconf_ack = 1;
 					break;
