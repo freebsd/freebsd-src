@@ -155,7 +155,6 @@ cpu_fork(td1, p2, td2, flags)
 	struct pcb *pcb2;
 	struct mdproc *mdp1, *mdp2;
 	struct proc_ldt *pldt;
-	pmap_t pmap2;
 
 	p1 = td1->td_proc;
 	if ((flags & RFPROC) == 0) {
@@ -218,7 +217,6 @@ cpu_fork(td1, p2, td2, flags)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-	pmap2 = vmspace_pmap(p2->p_vmspace);
 	pcb2->pcb_r12 = (register_t)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_rbp = 0;
 	pcb2->pcb_rsp = (register_t)td2->td_frame - sizeof(void *);
