@@ -7420,7 +7420,7 @@ dont_do_it:
 				SCTP_TCB_SEND_LOCK(stcb);
 				send_lock_up = 1;
 			}
-			if (chk->data == NULL) {
+			if (sp->data == NULL) {
 				/* unsteal the data */
 				sp->data = chk->data;
 				sp->tail_mbuf = chk->last_mbuf;
