@@ -5503,10 +5503,12 @@ process_control_chunks:
 			if ((ch->chunk_type & 0x40) && (stcb != NULL)) {
 				struct mbuf *mm;
 				struct sctp_paramhdr *phd;
+				int len;
 
 				mm = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 				    0, M_NOWAIT, 1, MT_DATA);
 				if (mm) {
+					len = min(SCTP_SIZE32(chk_length), (uint32_t) (length - *offset));
 					phd = mtod(mm, struct sctp_paramhdr *);
 					/*
 					 * We cheat and use param type since
@@ -5516,11 +5518,11 @@ process_control_chunks:
 					 * names.
 					 */
 					phd->param_type = htons(SCTP_CAUSE_UNRECOG_CHUNK);
-					phd->param_length = htons(chk_length + sizeof(*phd));
+					phd->param_length = htons(len + sizeof(*phd));
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
-					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
+					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, len, M_NOWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
-						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
+						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(len) - len, NULL) == NULL) {
 							sctp_m_freem(mm);
 						} else {
 #ifdef SCTP_MBUF_LOGGING
