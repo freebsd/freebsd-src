@@ -1174,7 +1174,6 @@ struct sctp_association {
 
 	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
-	uint8_t used_alt_onsack;
 	uint8_t used_alt_asconfack;
 	uint8_t fast_retran_loss_recovery;
 	uint8_t sat_t3_loss_recovery;
