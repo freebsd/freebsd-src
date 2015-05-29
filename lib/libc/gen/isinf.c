@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include <machine/float.h>
+
 #include <math.h>
 
 #include "fpmath.h"
@@ -62,9 +64,9 @@ __isinfl(long double e)
 
 	u.e = e;
 	mask_nbit_l(u);
-#ifndef __alpha__
-	return (u.bits.exp == 32767 && u.bits.manl == 0 && u.bits.manh == 0);
-#else
+#if LDBL_MANT_DIG == 53
 	return (u.bits.exp == 2047 && u.bits.manl == 0 && u.bits.manh == 0);
+#else
+	return (u.bits.exp == 32767 && u.bits.manl == 0 && u.bits.manh == 0);
 #endif
 }
