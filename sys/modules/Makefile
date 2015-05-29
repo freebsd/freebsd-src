@@ -522,6 +522,7 @@ _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+_linux_common=	linux_common
 .if ${MK_OFED} != "no"
 _linuxapi=	linuxapi
 .endif
@@ -626,6 +627,7 @@ _x86bios=	x86bios
 .if ${MACHINE_CPUARCH} == "amd64"
 _ixl=		ixl
 _ixlv=		ixlv
+_linux64=	linux64
 _ntb=		ntb
 _qlxge=		qlxge
 _qlxgb=		qlxgb
@@ -634,8 +636,6 @@ _sfxge=		sfxge
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
-_linux_common=	linux_common
-_linux64=	linux64
 .endif
 .endif
 
