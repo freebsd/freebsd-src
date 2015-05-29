@@ -3111,7 +3111,7 @@ static inline void
 bxe_update_sge_prod(struct bxe_softc          *sc,
                     struct bxe_fastpath       *fp,
                     uint16_t                  sge_len,
-                    struct eth_end_agg_rx_cqe *cqe)
+                    union eth_sgl_or_raw_data *cqe)
 {
     uint16_t last_max, last_elem, first_elem;
     uint16_t delta = 0;
@@ -3124,17 +3124,17 @@ bxe_update_sge_prod(struct bxe_softc          *sc,
     /* first mark all used pages */
     for (i = 0; i < sge_len; i++) {
         BIT_VEC64_CLEAR_BIT(fp->sge_mask,
-                            RX_SGE(le16toh(cqe->sgl_or_raw_data.sgl[i])));
+                            RX_SGE(le16toh(cqe->sgl[i])));
     }
 
     BLOGD(sc, DBG_LRO,
           "fp[%02d] fp_cqe->sgl[%d] = %d\n",
           fp->index, sge_len - 1,
-          le16toh(cqe->sgl_or_raw_data.sgl[sge_len - 1]));
+          le16toh(cqe->sgl[sge_len - 1]));
 
     /* assume that the last SGE index is the biggest */
     bxe_update_last_max_sge(fp,
-                            le16toh(cqe->sgl_or_raw_data.sgl[sge_len - 1]));
+                            le16toh(cqe->sgl[sge_len - 1]));
 
     last_max = RX_SGE(fp->last_max_sge);
     last_elem = last_max >> BIT_VEC64_ELEM_SHIFT;
@@ -3250,6 +3250,53 @@ bxe_tpa_stop_exit:
 }
 
 static uint8_t
+bxe_service_rxsgl(
+                 struct bxe_fastpath *fp,
+                 uint16_t len,
+                 uint16_t lenonbd,
+                 struct mbuf *m,
+                 struct eth_fast_path_rx_cqe *cqe_fp)
+{
+    struct mbuf *m_frag;
+    uint16_t frags, frag_len;
+    uint16_t sge_idx = 0;
+    uint16_t j;
+    uint8_t i, rc = 0;
+    uint32_t frag_size;
+
+    /* adjust the mbuf */
+    m->m_len = lenonbd;
+
+    frag_size =  len - lenonbd;
+    frags = SGE_PAGE_ALIGN(frag_size) >> SGE_PAGE_SHIFT;
+
+    for (i = 0, j = 0; i < frags; i += PAGES_PER_SGE, j++) {
+        sge_idx = RX_SGE(le16toh(cqe_fp->sgl_or_raw_data.sgl[j]));
+
+        m_frag = fp->rx_sge_mbuf_chain[sge_idx].m;
+        frag_len = min(frag_size, (uint32_t)(SGE_PAGE_SIZE));
+        m_frag->m_len = frag_len;
+
+       /* allocate a new mbuf for the SGE */
+        rc = bxe_alloc_rx_sge_mbuf(fp, sge_idx);
+        if (rc) {
+            /* Leave all remaining SGEs in the ring! */
+            return (rc);
+        }
+        fp->eth_q_stats.mbuf_alloc_sge--;
+
+        /* concatenate the fragment to the head mbuf */
+        m_cat(m, m_frag);
+
+        frag_size -= frag_len;
+    }
+
+    bxe_update_sge_prod(fp->sc, fp, frags, &cqe_fp->sgl_or_raw_data);
+
+    return rc;
+}
+
+static uint8_t
 bxe_rxeof(struct bxe_softc    *sc,
           struct bxe_fastpath *fp)
 {
@@ -3289,7 +3336,7 @@ bxe_rxeof(struct bxe_softc    *sc,
         struct eth_fast_path_rx_cqe *cqe_fp;
         uint8_t cqe_fp_flags;
         enum eth_rx_cqe_type cqe_fp_type;
-        uint16_t len, pad;
+        uint16_t len, lenonbd,  pad;
         struct mbuf *m = NULL;
 
         comp_ring_cons = RCQ(sw_cq_cons);
@@ -3304,7 +3351,7 @@ bxe_rxeof(struct bxe_softc    *sc,
         BLOGD(sc, DBG_RX,
               "fp[%02d] Rx hw_cq_cons=%d hw_sw_cons=%d "
               "BD prod=%d cons=%d CQE type=0x%x err=0x%x "
-              "status=0x%x rss_hash=0x%x vlan=0x%x len=%u\n",
+              "status=0x%x rss_hash=0x%x vlan=0x%x len=%u lenonbd=%u\n",
               fp->index,
               hw_cq_cons,
               sw_cq_cons,
@@ -3315,7 +3362,8 @@ bxe_rxeof(struct bxe_softc    *sc,
               cqe_fp->status_flags,
               le32toh(cqe_fp->rss_hash_result),
               le16toh(cqe_fp->vlan_tag),
-              le16toh(cqe_fp->pkt_len_or_gro_seg_len));
+              le16toh(cqe_fp->pkt_len_or_gro_seg_len),
+              le16toh(cqe_fp->len_on_bd));
 
         /* is this a slowpath msg? */
         if (__predict_false(CQE_TYPE_SLOW(cqe_fp_type))) {
@@ -3362,7 +3410,7 @@ bxe_rxeof(struct bxe_softc    *sc,
             bxe_tpa_stop(sc, fp, tpa_info, queue, pages,
                          &cqe->end_agg_cqe, comp_ring_cons);
 
-            bxe_update_sge_prod(sc, fp, pages, &cqe->end_agg_cqe);
+            bxe_update_sge_prod(sc, fp, pages, &cqe->end_agg_cqe.sgl_or_raw_data);
 
             goto next_cqe;
         }
@@ -3378,6 +3426,7 @@ bxe_rxeof(struct bxe_softc    *sc,
         }
 
         len = le16toh(cqe_fp->pkt_len_or_gro_seg_len);
+        lenonbd = le16toh(cqe_fp->len_on_bd);
         pad = cqe_fp->placement_offset;
 
         m = rx_buf->m;
@@ -3423,6 +3472,12 @@ bxe_rxeof(struct bxe_softc    *sc,
         /* we allocated a replacement mbuf, fixup the current one */
         m_adj(m, pad);
         m->m_pkthdr.len = m->m_len = len;
+
+        if (len != lenonbd){
+            rc = bxe_service_rxsgl(fp, len, lenonbd, m, cqe_fp);
+            if (rc)
+                break;
+        }
 
         /* assign packet to this interface interface */
         m->m_pkthdr.rcvif = ifp;
@@ -6217,30 +6272,27 @@ static void
 bxe_set_fp_rx_buf_size(struct bxe_softc *sc)
 {
     int i;
+    uint32_t rx_buf_size;
 
-    BLOGD(sc, DBG_LOAD, "mtu = %d\n", sc->mtu);
+    rx_buf_size = (IP_HEADER_ALIGNMENT_PADDING + ETH_OVERHEAD + sc->mtu);
 
     for (i = 0; i < sc->num_queues; i++) {
-        /* get the Rx buffer size for RX frames */
-        sc->fp[i].rx_buf_size =
-            (IP_HEADER_ALIGNMENT_PADDING +
-             ETH_OVERHEAD +
-             sc->mtu);
-
-        BLOGD(sc, DBG_LOAD, "rx_buf_size for fp[%02d] = %d\n",
-              i, sc->fp[i].rx_buf_size);
-
-        /* get the mbuf allocation size for RX frames */
-        if (sc->fp[i].rx_buf_size <= MCLBYTES) {
+        if(rx_buf_size <= MCLBYTES){
+            sc->fp[i].rx_buf_size = rx_buf_size;
             sc->fp[i].mbuf_alloc_size = MCLBYTES;
-        } else if (sc->fp[i].rx_buf_size <= BCM_PAGE_SIZE) {
-            sc->fp[i].mbuf_alloc_size = PAGE_SIZE;
-        } else {
-            sc->fp[i].mbuf_alloc_size = MJUM9BYTES;
+        }else if (rx_buf_size <= MJUMPAGESIZE){
+            sc->fp[i].rx_buf_size = rx_buf_size;
+            sc->fp[i].mbuf_alloc_size = MJUMPAGESIZE;
+        }else if (rx_buf_size <= (MJUMPAGESIZE + MCLBYTES)){
+            sc->fp[i].rx_buf_size = MCLBYTES;
+            sc->fp[i].mbuf_alloc_size = MCLBYTES;
+        }else if (rx_buf_size <= (2 * MJUMPAGESIZE)){
+            sc->fp[i].rx_buf_size = MJUMPAGESIZE;
+            sc->fp[i].mbuf_alloc_size = MJUMPAGESIZE;
+        }else {
+            sc->fp[i].rx_buf_size = MCLBYTES;
+            sc->fp[i].mbuf_alloc_size = MCLBYTES;
         }
-
-        BLOGD(sc, DBG_LOAD, "mbuf_alloc_size for fp[%02d] = %d\n",
-              i, sc->fp[i].mbuf_alloc_size);
     }
 }
 
