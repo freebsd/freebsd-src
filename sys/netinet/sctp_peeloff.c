@@ -127,6 +127,7 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 	n_inp->pktdrop_supported = inp->pktdrop_supported;
 	n_inp->partial_delivery_point = inp->partial_delivery_point;
 	n_inp->sctp_context = inp->sctp_context;
+	n_inp->max_cwnd = inp->max_cwnd;
 	n_inp->local_strreset_support = inp->local_strreset_support;
 	n_inp->inp_starting_point_for_iterator = NULL;
 	/* copy in the authentication parameters from the original endpoint */
