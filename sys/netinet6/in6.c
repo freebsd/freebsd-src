@@ -1279,6 +1279,7 @@ in6_broadcast_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		nd6_dad_start((struct ifaddr *)ia, delay);
 	}
 
+	in6_newaddrmsg(ia, RTM_ADD);
 	ifa_free(&ia->ia_ifa);
 	return (error);
 }
@@ -1327,6 +1328,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 		ia->ia_flags &= ~IFA_ROUTE;
 	}
 
+	in6_newaddrmsg(ia, RTM_DELETE);
 	in6_unlink_ifa(ia, ifp);
 }
 

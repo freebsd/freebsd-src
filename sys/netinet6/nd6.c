@@ -2185,7 +2185,6 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 		ln->la_expire = 0;  /* for IPv6 this means permanent */
 		ln->ln_state = ND6_LLINFO_REACHABLE;
 		LLE_WUNLOCK(ln);
-		in6_newaddrmsg(ia, RTM_ADD);
 		return (0);
 	}
 
@@ -2204,8 +2203,6 @@ nd6_rem_ifa_lle(struct in6_ifaddr *ia)
 {
 	struct sockaddr_in6 mask, addr;
 	struct ifnet *ifp;
-
-	in6_newaddrmsg(ia, RTM_DELETE);
 
 	ifp = ia->ia_ifa.ifa_ifp;
 	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
