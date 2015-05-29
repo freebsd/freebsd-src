@@ -337,7 +337,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			return (NULL);
 		}
 	}
-	do {
+	for (;;) {
 		alt = TAILQ_NEXT(mnet, sctp_next);
 		if (alt == NULL) {
 			once++;
@@ -356,7 +356,6 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			}
 			alt->src_addr_selected = 0;
 		}
-		/* sa_ignore NO_NULL_CHK */
 		if (((alt->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE) &&
 		    (alt->ro.ro_rt != NULL) &&
 		    (!(alt->dest_state & SCTP_ADDR_UNCONFIRMED))) {
@@ -364,14 +363,14 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			break;
 		}
 		mnet = alt;
-	} while (alt != NULL);
+	}
 
 	if (alt == NULL) {
 		/* Case where NO insv network exists (dormant state) */
 		/* we rotate destinations */
 		once = 0;
 		mnet = net;
-		do {
+		for (;;) {
 			if (mnet == NULL) {
 				return (TAILQ_FIRST(&stcb->asoc.nets));
 			}
@@ -382,15 +381,17 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 					break;
 				}
 				alt = TAILQ_FIRST(&stcb->asoc.nets);
+				if (alt == NULL) {
+					break;
+				}
 			}
-			/* sa_ignore NO_NULL_CHK */
 			if ((!(alt->dest_state & SCTP_ADDR_UNCONFIRMED)) &&
 			    (alt != net)) {
 				/* Found an alternate address */
 				break;
 			}
 			mnet = alt;
-		} while (alt != NULL);
+		}
 	}
 	if (alt == NULL) {
 		return (net);
