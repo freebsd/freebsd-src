@@ -2325,12 +2325,13 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	    sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE)) {
 		sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE, inp, stcb, NULL);
 	}
-	/* calculate the RTT */
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 	if ((netp) && (*netp)) {
+		/* calculate the RTT and set the encaps port */
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
 		    &cookie->time_entered, sctp_align_unsafe_makecopy,
 		    SCTP_RTT_FROM_NON_DATA);
+		(*netp)->port = port;
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
