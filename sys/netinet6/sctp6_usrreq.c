@@ -1129,8 +1129,11 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 		return (ENOENT);
 	}
-	if ((error = sa6_recoverscope(sin6)) != 0)
+	if ((error = sa6_recoverscope(sin6)) != 0) {
+		SCTP_FREE_SONAME(sin6);
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, error);
 		return (error);
+	}
 	*addr = (struct sockaddr *)sin6;
 	return (0);
 }
