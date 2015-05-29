@@ -6953,7 +6953,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 				SCTP_INP_DECR_REF(tinp);
 				return (EADDRINUSE);
 			} else if (tinp) {
-				SCTP_INP_DECR_REF(inp);
+				SCTP_INP_DECR_REF(tinp);
 			}
 		}
 	}
