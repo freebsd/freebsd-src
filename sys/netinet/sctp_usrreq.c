@@ -6249,6 +6249,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					stcb->asoc.def_net_failure = thlds->spt_pathmaxrxt;
 					stcb->asoc.def_net_pf_threshold = thlds->spt_pathpfthld;
 				}
+				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
