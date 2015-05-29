@@ -2166,11 +2166,6 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 	SCTP_INP_INFO_RLOCK();
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(vtag,
 	    SCTP_BASE_INFO(hashasocmark))];
-	if (head == NULL) {
-		/* invalid vtag */
-		SCTP_INP_INFO_RUNLOCK();
-		return (NULL);
-	}
 	LIST_FOREACH(stcb, head, sctp_asocs) {
 		SCTP_INP_RLOCK(stcb->sctp_ep);
 		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
@@ -6755,10 +6750,6 @@ sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *
 	SCTP_INP_INFO_RLOCK();
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(tag,
 	    SCTP_BASE_INFO(hashasocmark))];
-	if (head == NULL) {
-		/* invalid vtag */
-		goto skip_vtag_check;
-	}
 	LIST_FOREACH(stcb, head, sctp_asocs) {
 		/*
 		 * We choose not to lock anything here. TCB's can't be
@@ -6782,8 +6773,6 @@ sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *
 			return (0);
 		}
 	}
-skip_vtag_check:
-
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	/* Now what about timed wait ? */
 	LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
