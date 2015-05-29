@@ -11,9 +11,19 @@ _here := ${_PARSEDIR}
 
 .MAIN: no-default
 
+.if !empty(SB_NAME)
+# mk wrapper
+MAKE_CMD= mk
+MAKE_MACHINE_CMD= mk --machine <machine>
+.else
+# not using 'mk'
+MAKE_CMD= ${.MAKE:T}
+MAKE_MACHINE_CMD= env MACHINE=<machine> ${.MAKE:T}
+.endif
+
 no-default:
 	@echo "ERROR: there is no supported default target."; \
-	echo "Try 'mk help'"
+	echo "Try '${MAKE_CMD} help'"
 
 
 .if make(show-valid-targets)
@@ -25,7 +35,8 @@ BUILD_TARGETS != cd ${_here} && \
 	sed 's,/Makefile.*,,;s,^./,,' | sort -u
 
 show-valid-targets:
-	@echo "Build targets for ${MACHINE}:"; echo "${BUILD_TARGETS:ts\n}"
+	@echo "Build targets for ${MACHINE} (leave out the ${target_dirs:S,${_here:T},,:S,^/,,:S,$,/,}):"
+	@echo "${BUILD_TARGETS:ts\n}"
 	@echo; echo "Other targets:"; echo "${OTHER_TARGETS:ts\n}"
 .endif
 
@@ -33,7 +44,7 @@ help: show-help
 show-help:
 	@echo; \
 	echo "You can see the targets which are valid for a given machine"; \
-	echo "by running 'mk --machine <machine> show-valid-targets'"; \
+	echo "by running '${MAKE_MACHINE_CMD} show-valid-targets'"; \
 	echo "For other information, read: ${HELP_DOCS:@d@${.newline}$d@}"; \
 	echo
 
