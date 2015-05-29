@@ -10,7 +10,7 @@ CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 .if defined(ALL_ARCH)
 CSCOPE_ARCHDIR = amd64 arm arm64 i386 mips pc98 powerpc sparc64 x86
 .else
-CSCOPE_ARCHDIR = ${MACHINE} 
+CSCOPE_ARCHDIR = ${MACHINE}
 .if ${MACHINE} != ${MACHINE_CPUARCH}
 CSCOPE_ARCHDIR += ${MACHINE_CPUARCH}
 .endif
