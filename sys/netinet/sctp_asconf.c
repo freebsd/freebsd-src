@@ -596,7 +596,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 	uint32_t serial_num;
 	struct mbuf *n, *m_ack, *m_result, *m_tail;
 	struct sctp_asconf_ack_chunk *ack_cp;
-	struct sctp_asconf_paramhdr *aph, *ack_aph;
+	struct sctp_asconf_paramhdr *aph;
 	struct sctp_ipv6addr_param *p_addr;
 	unsigned int asconf_limit, cnt;
 	int error = 0;		/* did an error occur? */
@@ -679,13 +679,6 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 	}
 	/* param_length is already validated in process_control... */
 	offset += ntohs(p_addr->ph.param_length);	/* skip lookup addr */
-
-	/* get pointer to first asconf param in ASCONF-ACK */
-	ack_aph = (struct sctp_asconf_paramhdr *)(mtod(m_ack, caddr_t)+sizeof(struct sctp_asconf_ack_chunk));
-	if (ack_aph == NULL) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "Gak in asconf2\n");
-		return;
-	}
 	/* get pointer to first asconf param in ASCONF */
 	aph = (struct sctp_asconf_paramhdr *)sctp_m_getptr(m, offset, sizeof(struct sctp_asconf_paramhdr), (uint8_t *) & aparam_buf);
 	if (aph == NULL) {
