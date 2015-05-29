@@ -7,18 +7,13 @@ _TARGETS:= ${.TARGETS}
 .endif
 
 .if (!empty(_TARGETS) && ${_TARGETS:Nbuildworld:Nuniverse:Ninstallworld} == "") || defined(WITHOUT_META_MODE)
-MK_AUTO_OBJ= no
+MK_AUTO_OBJ?= no
 MK_META_MODE= no
 MK_STAGING= no
 MK_STAGING_PROG= no
 MK_SYSROOT= no
 UPDATE_DEPENDFILE=NO
 .endif
-
-SRCCONF:= ${.PARSEDIR}/src.conf
-# ensure we are self contained
-__MAKE_CONF:= ${SRCCONF}
-.-include "src.conf"
 
 # some handy macros
 _this = ${.PARSEDIR:tA}/${.PARSEFILE}
