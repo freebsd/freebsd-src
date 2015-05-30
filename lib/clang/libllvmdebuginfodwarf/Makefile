@@ -2,11 +2,11 @@
 
 .include <src.opts.mk>
 
-LIB=	llvmdebuginfo
+LIB=	llvmdebuginfodwarf
 
-SRCDIR=	lib/DebugInfo
-SRCS=	DIContext.cpp \
-	DWARFAbbreviationDeclaration.cpp \
+SRCDIR=	lib/DebugInfo/DWARF
+SRCS=	DWARFAbbreviationDeclaration.cpp \
+	DWARFAcceleratorTable.cpp \
 	DWARFCompileUnit.cpp \
 	DWARFContext.cpp \
 	DWARFDebugAbbrev.cpp \
@@ -19,11 +19,7 @@ SRCS=	DIContext.cpp \
 	DWARFDebugRangeList.cpp \
 	DWARFFormValue.cpp \
 	DWARFTypeUnit.cpp \
-	DWARFUnit.cpp
-
-.if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	DWARFAcceleratorTable.cpp \
+	DWARFUnit.cpp \
 	SyntaxHighlighting.cpp
-.endif
 
 .include "../clang.lib.mk"

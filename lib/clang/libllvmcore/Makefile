@@ -17,6 +17,7 @@ SRCS=	AsmWriter.cpp \
 	DIBuilder.cpp \
 	DataLayout.cpp \
 	DebugInfo.cpp \
+	DebugInfoMetadata.cpp \
 	DebugLoc.cpp \
 	DiagnosticInfo.cpp \
 	DiagnosticPrinter.cpp \
@@ -39,6 +40,7 @@ SRCS=	AsmWriter.cpp \
 	Metadata.cpp \
 	MetadataTracking.cpp \
 	Module.cpp \
+	Operator.cpp \
 	Pass.cpp \
 	PassManager.cpp \
 	PassRegistry.cpp \
@@ -46,7 +48,6 @@ SRCS=	AsmWriter.cpp \
 	Type.cpp \
 	TypeFinder.cpp \
 	Use.cpp \
-	UseListOrder.cpp \
 	User.cpp \
 	Value.cpp \
 	ValueSymbolTable.cpp \

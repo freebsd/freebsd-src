@@ -28,7 +28,7 @@
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
 
-#define PACKAGE_STRING "LLVM 3.6.1"
+#define PACKAGE_STRING "LLVM 3.7.0svn"
 
 /* The LLVM product name and version */
 #define BACKEND_PACKAGE_STRING PACKAGE_STRING

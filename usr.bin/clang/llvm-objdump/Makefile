@@ -11,7 +11,7 @@ SRCS=	llvm-objdump.cpp \
 	ELFDump.cpp \
 	MachODump.cpp
 
-LIBDEPS=llvmdebuginfo \
+LIBDEPS=llvmdebuginfodwarf \
 	llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
@@ -49,13 +49,13 @@ LIBDEPS=llvmdebuginfo \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \

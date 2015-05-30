@@ -10,8 +10,8 @@ SRCS=	Error.cpp \
 	Record.cpp \
 	SetTheory.cpp \
 	StringMatcher.cpp \
-	TableGenBackend.cpp \
 	TGLexer.cpp \
-	TGParser.cpp
+	TGParser.cpp \
+	TableGenBackend.cpp
 
 .include "../clang.lib.mk"
