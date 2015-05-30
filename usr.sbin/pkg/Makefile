@@ -6,7 +6,7 @@ MAN=	pkg.7
 
 CFLAGS+=-I${.CURDIR}/../../contrib/libucl/include
 .PATH:	${.CURDIR}/../../contrib/libucl/include
-DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBUCL} ${LIBSBUF} ${LIBSSL} \
+DPADD=	${LIBARCHIVE} ${LIBFETCH} ${LIBUCL} ${LIBSBUF} ${LIBSSL} \
 	${LIBCRYPTO} ${LIBM}
 LDADD=	-larchive -lfetch -lucl -lsbuf -lssl -lcrypto -lm
 USEPRIVATELIB=	ucl
