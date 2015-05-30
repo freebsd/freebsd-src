@@ -127,7 +127,6 @@
 			current-speed = <115200>;
 			clock-frequency = < 24000000 >;
 			busy-detect = <1>;
-			broken-txfifo = <1>;
 		};
 
 		emac@01c0b000 {
