@@ -4,7 +4,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <atf-c/atf-c.h>
+#include <atf-c.h>
 
 #define	LEET "0.s0.l33t"
 
