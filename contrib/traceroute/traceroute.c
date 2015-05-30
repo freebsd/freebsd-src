@@ -669,8 +669,11 @@ main(int argc, char **argv)
 
 	if (lsrr > 0)
 		optlen = (lsrr + 1) * sizeof(gwlist[0]);
-	minpacket = sizeof(*outip) + proto->hdrlen + sizeof(struct outdata) + optlen;
-	packlen = minpacket;			/* minimum sized packet */
+	minpacket = sizeof(*outip) + proto->hdrlen + optlen;
+	if (minpacket > 40)
+		packlen = minpacket;
+	else
+		packlen = 40;
 
 	/* Process destination and optional packet size */
 	switch (argc - optind) {
