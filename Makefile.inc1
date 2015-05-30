@@ -1363,6 +1363,16 @@ _kerberos5_bootstrap_tools= \
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
+.if ${MK_MANDOCDB} != "no"
+_makewhatis=	lib/libohash \
+		lib/libsqlite3 \
+		lib/libmandoc \
+		usr.bin/mandoc
+${_bt}-usr.bin/mandoc: ${_bt}-lib/libohash ${_bt}-lib/libsqlite3
+.else
+_makewhatis=usr.bin/makewhatis
+.endif
+
 # Rebuild up-to-date libmd for xinstall
 ${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
 
@@ -1383,7 +1393,7 @@ bootstrap-tools: .PHONY
     ${_awk} \
     ${_cat} \
     usr.bin/lorder \
-    usr.bin/makewhatis \
+    ${_makewhatis} \
     usr.bin/rpcgen \
     ${_sed} \
     ${_yacc} \
