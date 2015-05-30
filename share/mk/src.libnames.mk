@@ -9,8 +9,8 @@
 
 .include <src.opts.mk>
 
-.if defined(MAKEOBJDIRPREFIX) && ${.OBJDIR:M${MAKEOBJDIRPREFIX}/*} != ""
-ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${SRCTOP}
+.if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
+ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 .elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
 ROOTOBJDIR=	${OBJTOP}
 .endif
