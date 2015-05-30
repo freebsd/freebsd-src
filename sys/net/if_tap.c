@@ -888,7 +888,7 @@ tapread(struct cdev *dev, struct uio *uio, int flag)
 	tp->tap_flags &= ~TAP_RWAIT;
 
 	/* sleep until we get a packet */
-	while ((m = mbufq_dequeue(&tp->tap_queue)) != NULL) {
+	while ((m = mbufq_dequeue(&tp->tap_queue)) == NULL) {
 		if (flag & O_NONBLOCK) {
 			mtx_unlock(&tp->tap_mtx);
 			return (EWOULDBLOCK);
