@@ -541,12 +541,12 @@ main(int argc, char **argv)
 		case 'a':
 			as_path = 1;
 			break;
-			
+
 		case 'A':
 			as_path = 1;
 			as_server = optarg;
 			break;
-			    
+
 		case 'd':
 			options |= SO_DEBUG;
 			break;
@@ -931,7 +931,7 @@ main(int argc, char **argv)
 			as_path = 0;
 		}
 	}
-	
+
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
 		errx(1, "%s", ipsec_strerror());
@@ -1494,7 +1494,7 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 /*
  * Checksum routine for UDP and TCP headers.
  */
-u_short 
+u_short
 p_cksum(struct ip *ip, u_short *data, int len)
 {
 	static struct ipovly ipo;
