@@ -1276,8 +1276,8 @@ _sed=		usr.bin/sed
 .endif
 
 .if ${BOOTSTRAPPING} < 1000002
-_m4=		lib/libohash \
-		usr.bin/m4
+_libohash=	lib/libohash
+_m4=		usr.bin/m4
 
 ${_bt}-usr.bin/m4: ${_bt}-lib/libohash
 .endif
@@ -1364,8 +1364,8 @@ _kerberos5_bootstrap_tools= \
 .endif
 
 .if ${MK_MANDOCDB} != "no"
-_makewhatis=	lib/libohash \
-		lib/libsqlite3 \
+_libohash?=	lib/libohash
+_makewhatis=	lib/libsqlite3 \
 		lib/libmandoc \
 		usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libohash ${_bt}-lib/libsqlite3
@@ -1393,6 +1393,7 @@ bootstrap-tools: .PHONY
     ${_awk} \
     ${_cat} \
     usr.bin/lorder \
+    ${_libohash} \
     ${_makewhatis} \
     usr.bin/rpcgen \
     ${_sed} \
