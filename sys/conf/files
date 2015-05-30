@@ -1427,6 +1427,8 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
+dev/ichiic/ig4_iic.c		optional ichiic
+dev/ichiic/ig4_pci.c		optional ichiic pci
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -2024,6 +2026,7 @@ dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci
 dev/pci/pci_if.m		standard
 dev/pci/pci_iov.c		optional pci pci_iov
+dev/pci/pci_iov_if.m		standard
 dev/pci/pci_iov_schema.c	optional pci pci_iov
 dev/pci/pci_pci.c		optional pci
 dev/pci/pci_subr.c		optional pci

@@ -2554,7 +2554,7 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 
 static int
 vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
-    void *rendezvous_cookie, void *suspend_cookie)
+    struct vm_eventinfo *evinfo)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
@@ -2623,15 +2623,21 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 * vmx_inject_interrupts() can suspend the vcpu due to a
 		 * triple fault.
 		 */
-		if (vcpu_suspended(suspend_cookie)) {
+		if (vcpu_suspended(evinfo)) {
 			enable_intr();
 			vm_exit_suspended(vmx->vm, vcpu, rip);
 			break;
 		}
 
-		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
+		if (vcpu_rendezvous_pending(evinfo)) {
 			enable_intr();
 			vm_exit_rendezvous(vmx->vm, vcpu, rip);
+			break;
+		}
+
+		if (vcpu_reqidle(evinfo)) {
+			enable_intr();
+			vm_exit_reqidle(vmx->vm, vcpu, rip);
 			break;
 		}
 

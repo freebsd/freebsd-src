@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20150529: new clang import which bumps version from 3.6.1 to 3.7.0.
+# 2015mmdd: new clang import which bumps version from 3.6.1 to 3.7.0.
 OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
@@ -99,6 +99,10 @@ OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.6.1/lib
 OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150528: PCI IOV device driver methods moved to a separate kobj interface.
+OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9
+OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9
+OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9
 # 20150525: new clang import which bumps version from 3.6.0 to 3.6.1.
 OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h

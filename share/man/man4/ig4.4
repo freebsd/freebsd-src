@@ -1,5 +1,4 @@
-.\"
-.\" Copyright (c) 2014 Sandvine Inc.
+.\" Copyright (c) 2015 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,40 +24,56 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2014
-.Dt PCI_UNINIT_IOV 9
+.Dd May 30, 2015
+.Dt IG4 4
 .Os
 .Sh NAME
-.Nm PCI_UNINIT_IOV
-.Nd disable SR-IOV on a PF device
+.Nm ig4
+.Nd Intel(R) fourth generation mobile CPU integrated I2C SMBus driver
 .Sh SYNOPSIS
-.In sys/bus.h
-.In dev/pci/pcireg.h
-.In dev/pci/pcivar.h
-.Ft void
-.Fn PCI_UNINIT_IOV "device_t dev"
+To compile this driver into the kernel, place the following lines into
+the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ig4"
+.Cd "device smbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ig4_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
-.Fn PCI_UNINIT_IOV
-method is called by the PCI Single-Root I/O Virtualization (SR-IOV)
-infrastructure when the user requests that SR-IOV be disabled on a Physical
-Function (PF).
-When this method is called, the PF driver must release any SR-IOV-related
-resources that it has allocated and disable any device-specific SR-IOV
-configuration in the device.
-.Pp
-This method will only be called following a successful call to
-.Xr PCI_INIT_IOV .
-It is not guaranteed that
-.Xr PCI_ADD_VF
-will have been called for any Virtual Function (VF) after the call to
-.Xr PCI_INIT_IOV
-and before the call to
-.Nm .
+.Nm
+driver provides access to peripherals attached to an I2C SMB controller.
+.Nm
+supports the SMBus controller found in fourth generation Intel(R) Core(TM)
+processors based on the mobile U-processor line for intelligent systems.
+This includes the i7-4650U, i5-4300U, i3-4010U, and 2980U.
+.Sh SYSCTL VARIABLES
+These
+.Xr sysctl 8
+variables are available:
+.Bl -tag -width "debug.ig4_dump"
+.It Va debug.ig4_dump
+Setting this to a non-zero value dumps controller registers to console and
+syslog once.
+The sysctl resets to zero immediately.
+.El
 .Sh SEE ALSO
-.Xr pci 9 ,
-.Xr PCI_ADD_VF 9 ,
-.Xr PCI_INIT_IOV 9
+.Xr smb 4 ,
+.Xr smbus 4
 .Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for DragonFly BSD by
+.An Matthew Dillon
+and subsequently ported to
+.Fx
+by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Pp
 This manual page was written by
-.An Ryan Stone Aq Mt rstone@FreeBSD.org .
+.An Michael Gmelin Aq Mt freebsd@grem.de .

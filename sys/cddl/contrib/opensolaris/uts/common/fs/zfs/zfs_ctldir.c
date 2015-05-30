@@ -697,6 +697,7 @@ zfsctl_unmount_snap(zfs_snapentry_t *sep, int fflags, cred_t *cr)
 
 	return (0);
 #else
+	vfs_ref(vn_mountedvfs(svp));
 	return (dounmount(vn_mountedvfs(svp), fflags, curthread));
 #endif
 }
