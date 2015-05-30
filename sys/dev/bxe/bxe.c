@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.78"
+#define BXE_DRIVER_VERSION "1.78.79"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -483,6 +483,8 @@ static const struct {
                 4, STATS_FLAGS_FUNC, "rx_pkts"},
     { STATS_OFFSET32(rx_tpa_pkts),
                 4, STATS_FLAGS_FUNC, "rx_tpa_pkts"},
+    { STATS_OFFSET32(rx_jumbo_sge_pkts),
+                4, STATS_FLAGS_FUNC, "rx_jumbo_sge_pkts"},
     { STATS_OFFSET32(rx_soft_errors),
                 4, STATS_FLAGS_FUNC, "rx_soft_errors"},
     { STATS_OFFSET32(rx_hw_csum_errors),
@@ -594,6 +596,8 @@ static const struct {
                 4, "rx_pkts"},
     { Q_STATS_OFFSET32(rx_tpa_pkts),
                 4, "rx_tpa_pkts"},
+    { Q_STATS_OFFSET32(rx_jumbo_sge_pkts),
+                4, "rx_jumbo_sge_pkts"},
     { Q_STATS_OFFSET32(rx_soft_errors),
                 4, "rx_soft_errors"},
     { Q_STATS_OFFSET32(rx_hw_csum_errors),
@@ -3477,6 +3481,7 @@ bxe_rxeof(struct bxe_softc    *sc,
             rc = bxe_service_rxsgl(fp, len, lenonbd, m, cqe_fp);
             if (rc)
                 break;
+            fp->eth_q_stats.rx_jumbo_sge_pkts++;
         }
 
         /* assign packet to this interface interface */
@@ -6862,42 +6867,40 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
         fp->rx_cq_prod = cqe_ring_prod;
         fp->eth_q_stats.rx_calls = fp->eth_q_stats.rx_pkts = 0;
 
-        if (sc->ifnet->if_capenable & IFCAP_LRO) {
-            max_agg_queues = MAX_AGG_QS(sc);
+        max_agg_queues = MAX_AGG_QS(sc);
 
-            fp->tpa_enable = TRUE;
+        fp->tpa_enable = TRUE;
 
-            /* fill the TPA pool */
-            for (j = 0; j < max_agg_queues; j++) {
-                rc = bxe_alloc_rx_tpa_mbuf(fp, j);
-                if (rc != 0) {
-                    BLOGE(sc, "mbuf alloc fail for fp[%02d] TPA queue %d\n",
+        /* fill the TPA pool */
+        for (j = 0; j < max_agg_queues; j++) {
+            rc = bxe_alloc_rx_tpa_mbuf(fp, j);
+            if (rc != 0) {
+                BLOGE(sc, "mbuf alloc fail for fp[%02d] TPA queue %d\n",
                           i, j);
+                fp->tpa_enable = FALSE;
+                goto bxe_alloc_fp_buffers_error;
+            }
+
+            fp->rx_tpa_info[j].state = BXE_TPA_STATE_STOP;
+        }
+
+        if (fp->tpa_enable) {
+            /* fill the RX SGE chain */
+            ring_prod = 0;
+            for (j = 0; j < RX_SGE_USABLE; j++) {
+                rc = bxe_alloc_rx_sge_mbuf(fp, ring_prod);
+                if (rc != 0) {
+                    BLOGE(sc, "mbuf alloc fail for fp[%02d] SGE %d\n",
+                              i, ring_prod);
                     fp->tpa_enable = FALSE;
+                    ring_prod = 0;
                     goto bxe_alloc_fp_buffers_error;
                 }
 
-                fp->rx_tpa_info[j].state = BXE_TPA_STATE_STOP;
+                ring_prod = RX_SGE_NEXT(ring_prod);
             }
 
-            if (fp->tpa_enable) {
-                /* fill the RX SGE chain */
-                ring_prod = 0;
-                for (j = 0; j < RX_SGE_USABLE; j++) {
-                    rc = bxe_alloc_rx_sge_mbuf(fp, ring_prod);
-                    if (rc != 0) {
-                        BLOGE(sc, "mbuf alloc fail for fp[%02d] SGE %d\n",
-                              i, ring_prod);
-                        fp->tpa_enable = FALSE;
-                        ring_prod = 0;
-                        goto bxe_alloc_fp_buffers_error;
-                    }
-
-                    ring_prod = RX_SGE_NEXT(ring_prod);
-                }
-
-                fp->rx_sge_prod = ring_prod;
-            }
+            fp->rx_sge_prod = ring_prod;
         }
     }
 
@@ -11781,28 +11784,26 @@ bxe_pf_rx_q_prep(struct bxe_softc              *sc,
     uint16_t sge_sz = 0;
     uint16_t tpa_agg_size = 0;
 
-    if (sc->ifnet->if_capenable & IFCAP_LRO) {
-        pause->sge_th_lo = SGE_TH_LO(sc);
-        pause->sge_th_hi = SGE_TH_HI(sc);
+    pause->sge_th_lo = SGE_TH_LO(sc);
+    pause->sge_th_hi = SGE_TH_HI(sc);
 
-        /* validate SGE ring has enough to cross high threshold */
-        if (sc->dropless_fc &&
+    /* validate SGE ring has enough to cross high threshold */
+    if (sc->dropless_fc &&
             (pause->sge_th_hi + FW_PREFETCH_CNT) >
             (RX_SGE_USABLE_PER_PAGE * RX_SGE_NUM_PAGES)) {
-            BLOGW(sc, "sge ring threshold limit\n");
-        }
-
-        /* minimum max_aggregation_size is 2*MTU (two full buffers) */
-        tpa_agg_size = (2 * sc->mtu);
-        if (tpa_agg_size < sc->max_aggregation_size) {
-            tpa_agg_size = sc->max_aggregation_size;
-        }
-
-        max_sge = SGE_PAGE_ALIGN(sc->mtu) >> SGE_PAGE_SHIFT;
-        max_sge = ((max_sge + PAGES_PER_SGE - 1) &
-                   (~(PAGES_PER_SGE - 1))) >> PAGES_PER_SGE_SHIFT;
-        sge_sz = (uint16_t)min(SGE_PAGES, 0xffff);
+        BLOGW(sc, "sge ring threshold limit\n");
     }
+
+    /* minimum max_aggregation_size is 2*MTU (two full buffers) */
+    tpa_agg_size = (2 * sc->mtu);
+    if (tpa_agg_size < sc->max_aggregation_size) {
+        tpa_agg_size = sc->max_aggregation_size;
+    }
+
+    max_sge = SGE_PAGE_ALIGN(sc->mtu) >> SGE_PAGE_SHIFT;
+    max_sge = ((max_sge + PAGES_PER_SGE - 1) &
+                   (~(PAGES_PER_SGE - 1))) >> PAGES_PER_SGE_SHIFT;
+    sge_sz = (uint16_t)min(SGE_PAGES, 0xffff);
 
     /* pause - not for e1 */
     if (!CHIP_IS_E1(sc)) {
