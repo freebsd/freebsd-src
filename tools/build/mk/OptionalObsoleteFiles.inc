@@ -3744,6 +3744,7 @@ OLD_FILES+=usr/lib32/private/libldns.so
 OLD_LIBS+=usr/lib32/private/libldns.so.5
 OLD_FILES+=usr/lib32/private/libldns_p.a
 .endif
+.endif
 
 .if ${MK_LDNS_UTILS} == no
 OLD_FILES+=usr/bin/drill
