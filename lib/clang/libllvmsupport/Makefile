@@ -14,6 +14,7 @@ SRCS=	APFloat.cpp \
 	Atomic.cpp \
 	BlockFrequency.cpp \
 	BranchProbability.cpp \
+	COM.cpp \
 	CommandLine.cpp \
 	Compression.cpp \
 	ConvertUTF.c \
@@ -36,8 +37,6 @@ SRCS=	APFloat.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
-	IsInf.cpp \
-	IsNAN.cpp \
 	LEB128.cpp \
 	LineIterator.cpp \
 	Locale.cpp \
@@ -71,6 +70,7 @@ SRCS=	APFloat.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
 	StringRef.cpp \
+	TargetParser.cpp \
 	TargetRegistry.cpp \
 	ThreadLocal.cpp \
 	Threading.cpp \

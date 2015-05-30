@@ -15,6 +15,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	CallingConvLower.cpp \
 	CodeGen.cpp \
 	CodeGenPrepare.cpp \
+	CoreCLRGC.cpp \
 	CriticalAntiDepBreaker.cpp \
 	DFAPacketizer.cpp \
 	DeadMachineInstructionElim.cpp \
@@ -25,16 +26,15 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
 	ExpandPostRAPseudos.cpp \
-	ForwardControlFlowIntegrity.cpp \
 	GCMetadata.cpp \
 	GCMetadataPrinter.cpp \
+	GCRootLowering.cpp \
 	GCStrategy.cpp \
 	GlobalMerge.cpp \
 	IfConversion.cpp \
 	InlineSpiller.cpp \
 	InterferenceCache.cpp \
 	IntrinsicLowering.cpp \
-	JumpInstrTables.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \
 	LexicalScopes.cpp \
@@ -101,6 +101,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ScheduleDAGPrinter.cpp \
 	ScoreboardHazardRecognizer.cpp \
 	ShadowStackGC.cpp \
+	ShadowStackGCLowering.cpp \
+	ShrinkWrap.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	SpillPlacement.cpp \
@@ -121,7 +123,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	TargetSchedule.cpp \
 	TwoAddressInstructionPass.cpp \
 	UnreachableBlockElim.cpp \
-	VirtRegMap.cpp
+	VirtRegMap.cpp \
+	WinEHPrepare.cpp
 
 TGHDRS=	Intrinsics
 

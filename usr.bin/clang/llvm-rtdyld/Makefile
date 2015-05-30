@@ -8,7 +8,7 @@ PROG_CXX=llvm-rtdyld
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
 
-LIBDEPS=llvmdebuginfo \
+LIBDEPS=llvmdebuginfodwarf \
 	llvmmcjit \
 	llvmexecutionengine \
 	llvmruntimedyld \

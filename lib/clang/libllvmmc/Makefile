@@ -25,6 +25,7 @@ SRCS=	ConstantPools.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
 	MCInstrAnalysis.cpp \
+	MCInstrDesc.cpp \
 	MCLabel.cpp \
 	MCLinkerOptimizationHint.cpp \
 	MCMachOStreamer.cpp \

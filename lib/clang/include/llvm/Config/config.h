@@ -44,9 +44,6 @@
 /* Define to 1 if you have the `backtrace' function. */
 /* #undef HAVE_BACKTRACE */
 
-/* Define to 1 if you have the `ceilf' function. */
-#define HAVE_CEILF 1
-
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
 
@@ -93,12 +90,6 @@
 #define HAVE_EXECINFO_H 1
 #endif
 
-/* Define to 1 if you have the `exp' function. */
-#define HAVE_EXP 1
-
-/* Define to 1 if you have the `exp2' function. */
-#define HAVE_EXP2 1
-
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
@@ -113,15 +104,6 @@
 
 /* Define to 1 if you have the <ffi.h> header file. */
 /* #undef HAVE_FFI_H */
-
-/* Set to 1 if the finite function is found in <ieeefp.h> */
-/* #undef HAVE_FINITE_IN_IEEEFP_H */
-
-/* Define to 1 if you have the `floorf' function. */
-#define HAVE_FLOORF 1
-
-/* Define to 1 if you have the `fmodf' function. */
-#define HAVE_FMODF 1
 
 /* Define to 1 if you have the `futimens' function. */
 #if __FreeBSD_version >= 1100056
@@ -155,18 +137,6 @@
 /* Define to 1 if you have the `isatty' function. */
 #define HAVE_ISATTY 1
 
-/* Set to 1 if the isinf function is found in <cmath> */
-#define HAVE_ISINF_IN_CMATH 1
-
-/* Set to 1 if the isinf function is found in <math.h> */
-#define HAVE_ISINF_IN_MATH_H 1
-
-/* Set to 1 if the isnan function is found in <cmath> */
-#define HAVE_ISNAN_IN_CMATH 1
-
-/* Set to 1 if the isnan function is found in <math.h> */
-#define HAVE_ISNAN_IN_MATH_H 1
-
 /* Define if libedit is available on this platform. */
 #define HAVE_LIBEDIT 1
 
@@ -197,17 +167,6 @@
 /* Define if you can use -Wl,-R. to pass -R. to the linker, in order to add
    the current directory to the dynamic linker search path. */
 #define HAVE_LINK_R 1
-
-/* Define to 1 if you have the `log' function. */
-#define HAVE_LOG 1
-
-/* Define to 1 if you have the `log10' function. */
-#define HAVE_LOG10 1
-
-/* Define to 1 if you have the `log2' function. */
-#if __FreeBSD_version >= 900027 || (__FreeBSD_version < 900000 && __FreeBSD_version >= 802502)
-#define HAVE_LOG2 1
-#endif
 
 /* Define to 1 if you have the `longjmp' function. */
 #define HAVE_LONGJMP 1
@@ -252,14 +211,8 @@
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 /* #undef HAVE_NDIR_H */
 
-/* Define to 1 if you have the `nearbyintf' function. */
-#define HAVE_NEARBYINTF 1
-
 /* Define to 1 if you have the `posix_spawn' function. */
 /* #undef HAVE_POSIX_SPAWN */
-
-/* Define to 1 if you have the `powf' function. */
-#define HAVE_POWF 1
 
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
@@ -284,15 +237,6 @@
 
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
-
-/* Define to 1 if you have the `rintf' function. */
-#define HAVE_RINTF 1
-
-/* Define to 1 if you have the `round' function. */
-#define HAVE_ROUND 1
-
-/* Define to 1 if you have the `roundf' function. */
-#define HAVE_ROUNDF 1
 
 /* Define to 1 if you have the `sbrk' function. */
 #define HAVE_SBRK 1
@@ -324,12 +268,6 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
-/* Set to 1 if the std::isinf function is found in <cmath> */
-#define HAVE_STD_ISINF_IN_CMATH 1
-
-/* Set to 1 if the std::isnan function is found in <cmath> */
-#define HAVE_STD_ISNAN_IN_CMATH 1
-
 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_STRERROR 1
 
@@ -341,9 +279,6 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
-
-/* Define to 1 if you have the `strtof' function. */
-#define HAVE_STRTOF 1
 
 /* Define to 1 if you have the `strtoll' function. */
 #define HAVE_STRTOLL 1
@@ -470,6 +405,9 @@
 /* Have host's ___chkstk */
 /* #undef HAVE____CHKSTK */
 
+/* Have host's ___chkstk_ms */
+/* #undef HAVE____CHKSTK_MS */
+
 /* Linker version detected at compile time. */
 /* #undef HOST_LINK_VERSION */
 
@@ -487,6 +425,9 @@
 
 /* Installation directory for documentation */
 /* #undef LLVM_DOCSDIR */
+
+/* Define to enable checks that alter the LLVM C++ ABI */
+#define LLVM_ENABLE_ABI_BREAKING_CHECKS 1
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 0
@@ -555,13 +496,13 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 6
+#define LLVM_VERSION_MINOR 7
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 1
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.6.1"
+#define LLVM_VERSION_STRING "3.7.0svn"
 
 /* The shared library extension */
 #define LTDL_SHLIB_EXT ".so"
@@ -577,13 +518,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.6.1"
+#define PACKAGE_STRING "LLVM 3.7.0svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.6.1"
+#define PACKAGE_VERSION "3.7.0svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

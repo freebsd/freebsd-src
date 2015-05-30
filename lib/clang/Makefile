@@ -97,7 +97,11 @@ SUBDIR=	libclanganalysis \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=libllvmdebuginfo
+SUBDIR+=libllvmdebuginfodwarf \
+	libllvmdebuginfopdb \
+	libllvmlto \
+	libllvmorcjit \
+	libllvmpasses
 .endif # MK_CLANG_EXTRAS
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=libllvmexecutionengine \
