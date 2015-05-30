@@ -89,10 +89,6 @@ static cl::opt<bool> EnableLoopDistribute(
     "enable-loop-distribute", cl::init(false), cl::Hidden,
     cl::desc("Enable the new, experimental LoopDistribution Pass"));
 
-static cl::opt<bool> EnableGVN("enable-gvn",
-  cl::init(true), cl::Hidden,
-  cl::desc("Run the global value numbering pass"));
-
 PassManagerBuilder::PassManagerBuilder() {
     OptLevel = 2;
     SizeLevel = 0;
@@ -265,8 +261,7 @@ void PassManagerBuilder::populateModulePassManager(
   if (OptLevel > 1) {
     if (EnableMLSM)
       MPM.add(createMergedLoadStoreMotionPass()); // Merge ld/st in diamonds
-    if (EnableGVN)
-      MPM.add(createGVNPass(DisableGVNLoadPRE));  // Remove redundancies
+    MPM.add(createGVNPass(DisableGVNLoadPRE));  // Remove redundancies
   }
   MPM.add(createMemCpyOptPass());             // Remove memcpy / form memset
   MPM.add(createSCCPPass());                  // Constant prop with SCCP
