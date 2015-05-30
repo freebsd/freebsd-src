@@ -321,8 +321,7 @@ free_fingerprint_list(struct fingerprint_list* list)
 	struct fingerprint *fingerprint, *tmp;
 
 	STAILQ_FOREACH_SAFE(fingerprint, list, next, tmp) {
-		if (fingerprint->name)
-			free(fingerprint->name);
+		free(fingerprint->name);
 		free(fingerprint);
 	}
 	free(list);
@@ -724,12 +723,9 @@ cleanup:
 	if (revoked)
 		free_fingerprint_list(revoked);
 	if (sc) {
-		if (sc->cert)
-			free(sc->cert);
-		if (sc->sig)
-			free(sc->sig);
-		if (sc->name)
-			free(sc->name);
+		free(sc->cert);
+		free(sc->sig);
+		free(sc->name);
 		free(sc);
 	}
 
