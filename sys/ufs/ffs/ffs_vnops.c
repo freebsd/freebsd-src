@@ -1366,11 +1366,6 @@ struct vop_openextattr_args {
 };
 */
 {
-	struct inode *ip;
-	struct fs *fs;
-
-	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1394,11 +1389,6 @@ struct vop_closeextattr_args {
 };
 */
 {
-	struct inode *ip;
-	struct fs *fs;
-
-	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1512,13 +1502,11 @@ vop_getextattr {
 */
 {
 	struct inode *ip;
-	struct fs *fs;
 	u_char *eae, *p;
 	unsigned easize;
 	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1567,14 +1555,12 @@ vop_listextattr {
 */
 {
 	struct inode *ip;
-	struct fs *fs;
 	u_char *eae, *p, *pe, *pn;
 	unsigned easize;
 	uint32_t ul;
 	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);

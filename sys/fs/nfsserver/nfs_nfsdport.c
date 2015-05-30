@@ -58,7 +58,10 @@ extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
 extern struct nfsv4lock nfsd_suspend_lock;
-extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
+extern struct nfsclienthashhead *nfsclienthash;
+extern struct nfslockhashhead *nfslockhash;
+extern struct nfssessionhash *nfssessionhash;
+extern int nfsrv_sessionhashsize;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
@@ -3330,9 +3333,6 @@ nfsd_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfsrc_udpmtx, "nfsuc", NULL, MTX_DEF);
 		mtx_init(&nfs_v4root_mutex, "nfs4rt", NULL, MTX_DEF);
 		mtx_init(&nfsv4root_mnt.mnt_mtx, "nfs4mnt", NULL, MTX_DEF);
-		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
-			mtx_init(&nfssessionhash[i].mtx, "nfssm",
-			    NULL, MTX_DEF);
 		lockinit(&nfsv4root_mnt.mnt_explock, PVFS, "explock", 0, 0);
 		nfsrvd_initcache();
 		nfsd_init();
@@ -3380,9 +3380,12 @@ nfsd_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);
-		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+		for (i = 0; i < nfsrv_sessionhashsize; i++)
 			mtx_destroy(&nfssessionhash[i].mtx);
 		lockdestroy(&nfsv4root_mnt.mnt_explock);
+		free(nfsclienthash, M_NFSDCLIENT);
+		free(nfslockhash, M_NFSDLOCKFILE);
+		free(nfssessionhash, M_NFSDSESSION);
 		loaded = 0;
 		break;
 	default:

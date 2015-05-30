@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2014 Kai Wang
+ * Copyright (c) 2009-2015 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3189 2015-04-20 17:02:01Z emaste $");
+ELFTC_VCSID("$Id: readelf.c 3223 2015-05-25 20:37:57Z emaste $");
 
 /*
  * readelf(1) options.
@@ -302,6 +302,7 @@ static void dump_gnu_hash(struct readelf *re, struct section *s);
 static void dump_hash(struct readelf *re);
 static void dump_phdr(struct readelf *re);
 static void dump_ppc_attributes(uint8_t *p, uint8_t *pe);
+static void dump_section_groups(struct readelf *re);
 static void dump_symtab(struct readelf *re, int i);
 static void dump_symtabs(struct readelf *re);
 static uint8_t *dump_unknown_tag(uint64_t tag, uint8_t *p);
@@ -445,6 +446,7 @@ elf_machine(unsigned int mach)
 	case EM_SPARC: return "Sun SPARC";
 	case EM_386: return "Intel i386";
 	case EM_68K: return "Motorola 68000";
+	case EM_IAMCU: return "Intel MCU";
 	case EM_88K: return "Motorola 88000";
 	case EM_860: return "Intel i860";
 	case EM_MIPS: return "MIPS R3000 Big-Endian only";
@@ -1050,6 +1052,7 @@ r_type(unsigned int mach, unsigned int type)
 	switch(mach) {
 	case EM_NONE: return "";
 	case EM_386:
+	case EM_IAMCU:
 		switch(type) {
 		case 0: return "R_386_NONE";
 		case 1: return "R_386_32";
@@ -2381,6 +2384,7 @@ dwarf_reg(unsigned int mach, unsigned int reg)
 
 	switch (mach) {
 	case EM_386:
+	case EM_IAMCU:
 		switch (reg) {
 		case 0: return "eax";
 		case 1: return "ecx";
@@ -4046,6 +4050,61 @@ dump_liblist(struct readelf *re)
 }
 
 #undef Elf_Lib
+
+static void
+dump_section_groups(struct readelf *re)
+{
+	struct section *s;
+	const char *symname;
+	Elf_Data *d;
+	uint32_t *w;
+	int i, j, elferr;
+	size_t n;
+
+	for (i = 0; (size_t) i < re->shnum; i++) {
+		s = &re->sl[i];
+		if (s->type != SHT_GROUP)
+			continue;
+		(void) elf_errno();
+		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
+			elferr = elf_errno();
+			if (elferr != 0)
+				warnx("elf_getdata failed: %s",
+				    elf_errmsg(elferr));
+			continue;
+		}
+		if (d->d_size <= 0)
+			continue;
+
+		w = d->d_buf;
+
+		/* We only support COMDAT section. */
+#ifndef GRP_COMDAT
+#define	GRP_COMDAT 0x1
+#endif
+		if ((*w++ & GRP_COMDAT) == 0)
+			return;
+
+		if (s->entsize == 0)
+			s->entsize = 4;
+
+		symname = get_symbol_name(re, s->link, s->info);
+		n = s->sz / s->entsize;
+		if (n-- < 1)
+			return;
+
+		printf("\nCOMDAT group section [%5d] `%s' [%s] contains %ju"
+		    " sections:\n", i, s->name, symname, (uintmax_t)n);
+		printf("   %-10.10s %s\n", "[Index]", "Name");
+		for (j = 0; (size_t) j < n; j++, w++) {
+			if (*w >= re->shnum) {
+				warnx("invalid section index: %u", *w);
+				continue;
+			}
+			printf("   [%5u]   %s\n", *w, re->sl[*w].name);
+		}
+	}
+}
 
 static uint8_t *
 dump_unknown_tag(uint64_t tag, uint8_t *p)
@@ -6838,6 +6897,8 @@ dump_elf(struct readelf *re)
 		dump_phdr(re);
 	if (re->options & RE_SS)
 		dump_shdr(re);
+	if (re->options & RE_G)
+		dump_section_groups(re);
 	if (re->options & RE_D)
 		dump_dynamic(re);
 	if (re->options & RE_R)
@@ -7311,7 +7372,7 @@ Usage: %s [options] file...\n\
   -c | --archive-index     Print the archive symbol table for archives.\n\
   -d | --dynamic           Print the contents of SHT_DYNAMIC sections.\n\
   -e | --headers           Print all headers in the object.\n\
-  -g | --section-groups    (accepted, but ignored)\n\
+  -g | --section-groups    Print the contents of the section groups.\n\
   -h | --file-header       Print the file header for the object.\n\
   -l | --program-headers   Print the PHDR table for the object.\n\
   -n | --notes             Print the contents of SHT_NOTE sections.\n\
@@ -7365,8 +7426,8 @@ main(int argc, char **argv)
 			re->options |= RE_AA;
 			break;
 		case 'a':
-			re->options |= RE_AA | RE_D | RE_H | RE_II | RE_L |
-			    RE_R | RE_SS | RE_S | RE_VV;
+			re->options |= RE_AA | RE_D | RE_G | RE_H | RE_II |
+			    RE_L | RE_R | RE_SS | RE_S | RE_VV;
 			break;
 		case 'c':
 			re->options |= RE_C;

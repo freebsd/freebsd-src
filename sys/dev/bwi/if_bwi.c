@@ -446,6 +446,10 @@ bwi_attach(struct bwi_softc *sc)
 	if (error)
 		goto fail;
 
+	error = bwi_mac_fw_alloc(mac);
+	if (error)
+		goto fail;
+
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
@@ -1921,7 +1925,7 @@ bwi_dma_alloc(struct bwi_softc *sc)
 			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->sc_parent_dtag);
 	if (error) {
@@ -1941,8 +1945,8 @@ bwi_dma_alloc(struct bwi_softc *sc)
 				NULL, NULL,
 				tx_ring_sz,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				tx_ring_sz,
+				0,
 				NULL, NULL,
 				&sc->sc_txring_dtag);
 	if (error) {
@@ -1971,8 +1975,8 @@ bwi_dma_alloc(struct bwi_softc *sc)
 				NULL, NULL,
 				rx_ring_sz,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				rx_ring_sz,
+				0,
 				NULL, NULL,
 				&sc->sc_rxring_dtag);
 	if (error) {
@@ -2096,8 +2100,8 @@ bwi_dma_txstats_alloc(struct bwi_softc *sc, uint32_t ctrl_base,
 				NULL, NULL,
 				dma_size,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				dma_size,
+				0,
 				NULL, NULL,
 				&st->stats_ring_dtag);
 	if (error) {
@@ -2144,8 +2148,8 @@ bwi_dma_txstats_alloc(struct bwi_softc *sc, uint32_t ctrl_base,
 				NULL, NULL,
 				dma_size,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				dma_size,
+				0,
 				NULL, NULL,
 				&st->stats_dtag);
 	if (error) {
@@ -2227,7 +2231,7 @@ bwi_dma_mbuf_create(struct bwi_softc *sc)
 				NULL, NULL,
 				MCLBYTES,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
+				MCLBYTES,
 				BUS_DMA_ALLOCNOW,
 				NULL, NULL,
 				&sc->sc_buf_dtag);

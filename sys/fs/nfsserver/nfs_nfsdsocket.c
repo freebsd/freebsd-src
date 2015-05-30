@@ -46,7 +46,8 @@ extern struct nfsrvfh nfs_pubfh, nfs_rootfh;
 extern int nfs_pubfhset, nfs_rootfhset;
 extern struct nfsv4lock nfsv4rootfs_lock;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
-extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
+extern struct nfsclienthashhead *nfsclienthash;
+extern int nfsrv_clienthashsize;
 extern int nfsrc_floodlevel, nfsrc_tcpsavedreplies;
 extern int nfsd_debuglevel;
 NFSV4ROOTLOCKMUTEX;
@@ -439,9 +440,12 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 			if (nd->nd_procnum == NFSPROC_READ ||
 			    nd->nd_procnum == NFSPROC_WRITE ||
 			    nd->nd_procnum == NFSPROC_READDIR ||
+			    nd->nd_procnum == NFSPROC_READDIRPLUS ||
 			    nd->nd_procnum == NFSPROC_READLINK ||
 			    nd->nd_procnum == NFSPROC_GETATTR ||
-			    nd->nd_procnum == NFSPROC_ACCESS)
+			    nd->nd_procnum == NFSPROC_ACCESS ||
+			    nd->nd_procnum == NFSPROC_FSSTAT ||
+			    nd->nd_procnum == NFSPROC_FSINFO)
 				lktype = LK_SHARED;
 			else
 				lktype = LK_EXCLUSIVE;
@@ -543,7 +547,7 @@ static void
 nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
     int taglen, u_int32_t minorvers, NFSPROC_T *p)
 {
-	int i, op, op0 = 0;
+	int i, lktype, op, op0 = 0;
 	u_int32_t *tl;
 	struct nfsclient *clp, *nclp;
 	int numops, error = 0, igotlock;
@@ -610,7 +614,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		 */
 		if (nfsrv_stablefirst.nsf_flags & NFSNSF_EXPIREDCLIENT) {
 			nfsrv_stablefirst.nsf_flags &= ~NFSNSF_EXPIREDCLIENT;
-			for (i = 0; i < NFSCLIENTHASHSIZE; i++) {
+			for (i = 0; i < nfsrv_clienthashsize; i++) {
 			    LIST_FOREACH_SAFE(clp, &nfsclienthash[i], lc_hash,
 				nclp) {
 				if (clp->lc_flags & LCL_EXPIREIT) {
@@ -952,11 +956,15 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				panic("nfsrvd_compound");
 			if (nfsv4_opflag[op].needscfh) {
 				if (vp != NULL) {
-					if (nfsv4_opflag[op].modifyfs)
+					lktype = nfsv4_opflag[op].lktype;
+					if (nfsv4_opflag[op].modifyfs) {
 						vn_start_write(vp, &temp_mp,
 						    V_WAIT);
-					if (NFSVOPLOCK(vp, nfsv4_opflag[op].lktype)
-					    == 0)
+						if (op == NFSV4OP_WRITE &&
+						    MNT_SHARED_WRITES(temp_mp))
+							lktype = LK_SHARED;
+					}
+					if (NFSVOPLOCK(vp, lktype) == 0)
 						VREF(vp);
 					else
 						nd->nd_repstat = NFSERR_PERM;
