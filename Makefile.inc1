@@ -1806,8 +1806,9 @@ kerberos5/lib/libroken__L: lib/libcrypt__L
 kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libheimbase__L: lib/libthr__L
 kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L
-lib/libsqlite3__L: lib/libthr__L
 .endif
+
+lib/libsqlite3__L: lib/libthr__L
 
 .if ${MK_GSSAPI} != "no"
 _lib_libgssapi=	lib/libgssapi
