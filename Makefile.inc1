@@ -1366,7 +1366,6 @@ _kerberos5_bootstrap_tools= \
 .if ${MK_MANDOCDB} != "no"
 _libohash?=	lib/libohash
 _makewhatis=	lib/libsqlite3 \
-		lib/libmandoc \
 		usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libohash ${_bt}-lib/libsqlite3
 .else
