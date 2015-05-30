@@ -1330,7 +1330,7 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 		hiplen = ((u_char *)icp + cc) - (u_char *)hip;
 		hlen = hip->ip_hl << 2;
 		inner = (u_char *)((u_char *)hip + hlen);
-		if (hlen + 12 <= cc
+		if (hlen + 16 <= cc
 		    && hip->ip_p == proto->num
 		    && (*proto->check)(inner, (u_char)seq))
 			return (type == ICMP_TIMXCEED ? -1 : code + 1);
