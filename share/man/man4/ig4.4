@@ -1,0 +1,79 @@
+.\" Copyright (c) 2015 Michael Gmelin <freebsd@grem.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 30, 2015
+.Dt IG4 4
+.Os
+.Sh NAME
+.Nm ig4
+.Nd Intel(R) fourth generation mobile CPU integrated I2C SMBus driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ig4"
+.Cd "device smbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ig4_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to peripherals attached to an I2C SMB controller.
+.Nm
+supports the SMBus controller found in fourth generation Intel(R) Core(TM)
+processors based on the mobile U-processor line for intelligent systems.
+This includes the i7-4650U, i5-4300U, i3-4010U, and 2980U.
+.Sh SYSCTL VARIABLES
+These
+.Xr sysctl 8
+variables are available:
+.Bl -tag -width "debug.ig4_dump"
+.It Va debug.ig4_dump
+Setting this to a non-zero value dumps controller registers to console and
+syslog once.
+The sysctl resets to zero immediately.
+.El
+.Sh SEE ALSO
+.Xr smb 4 ,
+.Xr smbus 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for DragonFly BSD by
+.An Matthew Dillon
+and subsequently ported to
+.Fx
+by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Pp
+This manual page was written by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
