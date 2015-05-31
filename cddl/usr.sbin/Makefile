@@ -36,4 +36,6 @@ _dtruss=	dtruss
 _lockstat=	lockstat
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
