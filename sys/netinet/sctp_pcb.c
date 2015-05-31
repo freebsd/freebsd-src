@@ -3548,7 +3548,8 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_FORCE, SCTP_FROM_SCTP_PCB + SCTP_LOC_8) == 0) {
+		if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_FORCE,
+		    SCTP_FROM_SCTP_PCB + SCTP_LOC_8) == 0) {
 			cnt++;
 		}
 	}

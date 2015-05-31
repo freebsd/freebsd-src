@@ -215,7 +215,8 @@ sctp6_notify_mbuf(struct sctp_inpcb *inp, struct icmp6_hdr *icmp6,
 	 */
 	nxtsz = ntohl(icmp6->icmp6_mtu);
 	/* Stop any PMTU timer */
-	sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, NULL, SCTP_FROM_SCTP6_USRREQ + SCTP_LOC_1);
+	sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, NULL,
+	    SCTP_FROM_SCTP6_USRREQ + SCTP_LOC_1);
 
 	/* Adjust destination size limit */
 	if (net->mtu > nxtsz) {
@@ -337,7 +338,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 		SCTP_TCB_LOCK(stcb);
 		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
-		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
+		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
+		    SCTP_FROM_SCTP6_USRREQ + SCTP_LOC_2);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 		/* SCTP_TCB_UNLOCK(stcb); MT: I think this is not needed. */
