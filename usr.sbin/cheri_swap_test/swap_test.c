@@ -191,6 +191,7 @@ dotest(int force_pageout)
 	uint64_t hash, tags, found_tags;
 	size_t i, j, k, nsealed, ntagged, pagesz, sz;
 	int mismatches, rc, want_tag, want_seal;
+	char mincore_values[NPAGES];
 
 	pagesz = getpagesize();
 	sz = pagesz * NPAGES;
@@ -255,6 +256,18 @@ dotest(int force_pageout)
 		rc = msync(p, sz, MS_PAGEOUT);
 		if (rc == -1) {
 			printf("msync(MS_PAGEOUT) failed, but continuing\n");
+		}
+		rc = mincore(p, sz, mincore_values);
+		if (rc < 0) {
+			printf("mincore() failed, but continuing\n");
+		} else {
+			for (i = 0; i < NPAGES; i++) {
+				if (mincore_values[i] & MINCORE_INCORE) {
+					printf("mincore() reports page %u is "
+					    "in core, but continuing\n",
+					    (unsigned int)i);
+				}
+			}
 		}
 	}
 
