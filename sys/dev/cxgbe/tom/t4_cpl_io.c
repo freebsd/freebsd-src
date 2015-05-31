@@ -769,7 +769,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		    toep->tx_nocompl >= toep->tx_total / 4)
 			compl = 1;
 
-		if (compl) {
+		if (compl || toep->ulp_mode == ULP_MODE_RDMA) {
 			txwr->op_to_immdlen |= htobe32(F_FW_WR_COMPL);
 			toep->tx_nocompl = 0;
 			toep->plen_nocompl = 0;

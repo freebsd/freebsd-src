@@ -94,7 +94,7 @@ static void abort_socket(struct c4iw_ep *ep);
 static void send_mpa_req(struct c4iw_ep *ep);
 static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen);
 static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen);
-static void close_complete_upcall(struct c4iw_ep *ep);
+static void close_complete_upcall(struct c4iw_ep *ep, int status);
 static int abort_connection(struct c4iw_ep *ep);
 static void peer_close_upcall(struct c4iw_ep *ep);
 static void peer_abort_upcall(struct c4iw_ep *ep);
@@ -366,7 +366,7 @@ process_peer_close(struct c4iw_ep *ep)
 						C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 			}
 			close_socket(&ep->com, 0);
-			close_complete_upcall(ep);
+			close_complete_upcall(ep, 0);
 			__state_set(&ep->com, DEAD);
 			release = 1;
 			disconnect = 0;
@@ -474,7 +474,7 @@ process_conn_error(struct c4iw_ep *ep)
 	if (state != ABORTING) {
 
 		CTR2(KTR_IW_CXGBE, "%s:pce1 %p", __func__, ep);
-		close_socket(&ep->com, 0);
+		close_socket(&ep->com, 1);
 		state_set(&ep->com, DEAD);
 		c4iw_put_ep(&ep->com);
 	}
@@ -528,7 +528,7 @@ process_close_complete(struct c4iw_ep *ep)
 				CTR2(KTR_IW_CXGBE, "%s:pcc4 %p", __func__, ep);
 				close_socket(&ep->com, 0);
 			}
-			close_complete_upcall(ep);
+			close_complete_upcall(ep, 0);
 			__state_set(&ep->com, DEAD);
 			release = 1;
 			break;
@@ -1206,13 +1206,14 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 
 
-static void close_complete_upcall(struct c4iw_ep *ep)
+static void close_complete_upcall(struct c4iw_ep *ep, int status)
 {
 	struct iw_cm_event event;
 
 	CTR2(KTR_IW_CXGBE, "%s:ccuB %p", __func__, ep);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CLOSE;
+	event.status = status;
 
 	if (ep->com.cm_id) {
 
@@ -1231,7 +1232,7 @@ static int abort_connection(struct c4iw_ep *ep)
 	int err;
 
 	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
-	close_complete_upcall(ep);
+	close_complete_upcall(ep, -ECONNRESET);
 	state_set(&ep->com, ABORTING);
 	abort_socket(ep);
 	err = close_socket(&ep->com, 0);
@@ -2098,14 +2099,15 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		CTR2(KTR_IW_CXGBE, "%s:cc7 %p", __func__, ep);
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
 		err = -EHOSTUNREACH;
-		goto fail3;
+		goto fail2;
 	}
 
-
-	if (!(rt->rt_ifp->if_flags & IFCAP_TOE)) {
+	if (!(rt->rt_ifp->if_capenable & IFCAP_TOE)) {
 
 		CTR2(KTR_IW_CXGBE, "%s:cc8 %p", __func__, ep);
 		printf("%s - interface not TOE capable.\n", __func__);
+		close_socket(&ep->com, 0);
+		err = -ENOPROTOOPT;
 		goto fail3;
 	}
 	tdev = TOEDEV(rt->rt_ifp);
@@ -2126,9 +2128,11 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ep->com.thread);
 
 	if (!err) {
-
 		CTR2(KTR_IW_CXGBE, "%s:cca %p", __func__, ep);
 		goto out;
+	} else {
+		close_socket(&ep->com, 0);
+		goto fail2;
 	}
 
 fail3:
@@ -2225,7 +2229,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 		CTR2(KTR_IW_CXGBE, "%s:ced1 %p", __func__, ep);
 		fatal = 1;
-		close_complete_upcall(ep);
+		close_complete_upcall(ep, -EIO);
 		ep->com.state = DEAD;
 	}
 	CTR3(KTR_IW_CXGBE, "%s:ced2 %p %s", __func__, ep,
