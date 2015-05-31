@@ -199,6 +199,11 @@ struct tom_data {
 	struct mtx clip_table_lock;
 	struct clip_head clip_table;
 	int clip_gen;
+
+	/* WRs that will not be sent to the chip because L2 resolution failed */
+	struct mtx unsent_wr_lock;
+	STAILQ_HEAD(, wrqe) unsent_wr_list;
+	struct task reclaim_wr_resources;
 };
 
 static inline struct tom_data *
@@ -241,6 +246,7 @@ void release_lip(struct tom_data *, struct clip_entry *);
 void t4_init_connect_cpl_handlers(struct adapter *);
 int t4_connect(struct toedev *, struct socket *, struct rtentry *,
     struct sockaddr *);
+void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 
 /* t4_listen.c */
 void t4_init_listen_cpl_handlers(struct adapter *);
