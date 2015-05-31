@@ -135,8 +135,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			if (rc == -1)
 				err(EX_IOERR, "group '%s' not available (NIS?)", grp->gr_name);
 			else if (rc != 0) {
-				warn("group update");
-				return EX_IOERR;
+				err(EX_IOERR, "group update");
 			}
 			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
 			return EXIT_SUCCESS;
@@ -201,10 +200,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				fputc('\n', stdout);
 				fflush(stdout);
 			}
-			if (b < 0) {
-				warn("-h file descriptor");
-				return EX_OSERR;
-			}
+			if (b < 0)
+				err(EX_OSERR, "-h file descriptor");
 			line[b] = '\0';
 			if ((p = strpbrk(line, " \t\r\n")) != NULL)
 				*p = '\0';
@@ -265,16 +262,16 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 	if (mode == M_ADD && (rc = addgrent(grp)) != 0) {
 		if (rc == -1)
-			warnx("group '%s' already exists", grp->gr_name);
+			errx(EX_IOERR, "group '%s' already exists",
+			    grp->gr_name);
 		else
-			warn("group update");
-		return EX_IOERR;
+			err(EX_IOERR, "group update");
 	} else if (mode == M_UPDATE && (rc = chggrent(a_name->val, grp)) != 0) {
 		if (rc == -1)
-			warnx("group '%s' not available (NIS?)", grp->gr_name);
+			errx(EX_IOERR, "group '%s' not available (NIS?)",
+			    grp->gr_name);
 		else
-			warn("group update");
-		return EX_IOERR;
+			err(EX_IOERR, "group update");
 	}
 
 	arg = a_newname != NULL ? a_newname : a_name;
