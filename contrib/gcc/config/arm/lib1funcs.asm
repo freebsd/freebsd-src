@@ -252,7 +252,7 @@ SYM (\name):
 
 #ifdef __thumb__
 #define THUMB_FUNC .thumb_func
-#define THUMB_CODE .force_thumb
+#define THUMB_CODE .thumb
 #else
 #define THUMB_FUNC
 #define THUMB_CODE
