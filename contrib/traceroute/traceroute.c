@@ -371,7 +371,7 @@ u_short	in_cksum(u_short *, int);
 u_int32_t sctp_crc32c(const void *, u_int32_t);
 char	*inetname(struct in_addr);
 int	main(int, char **);
-u_short p_cksum(struct ip *, u_short *, int);
+u_short p_cksum(struct ip *, u_short *, int, int);
 int	packet_ok(u_char *, int, struct sockaddr_in *, int);
 char	*pr_type(u_char);
 void	print(u_char *, int, struct sockaddr_in *);
@@ -391,6 +391,8 @@ int	usleep(u_int);
 
 void	udp_prep(struct outdata *);
 int	udp_check(const u_char *, int);
+void	udplite_prep(struct outdata *);
+int	udplite_check(const u_char *, int);
 void	tcp_prep(struct outdata *);
 int	tcp_check(const u_char *, int);
 void	sctp_prep(struct outdata *);
@@ -426,6 +428,15 @@ struct	outproto protos[] = {
 		32768 + 666,
 		udp_prep,
 		udp_check
+	},
+	{
+		"udplite",
+		"spt dpt cov sum",
+		IPPROTO_UDPLITE,
+		sizeof(struct udphdr),
+		32768 + 666,
+		udplite_prep,
+		udplite_check
 	},
 	{
 		"tcp",
@@ -1404,7 +1415,7 @@ udp_prep(struct outdata *outdata)
 	outudp->uh_ulen = htons((u_short)protlen);
 	outudp->uh_sum = 0;
 	if (doipcksum) {
-	    u_short sum = p_cksum(outip, (u_short*)outudp, protlen);
+	    u_short sum = p_cksum(outip, (u_short*)outudp, protlen, protlen);
 	    outudp->uh_sum = (sum) ? sum : 0xffff;
 	}
 
@@ -1413,6 +1424,32 @@ udp_prep(struct outdata *outdata)
 
 int
 udp_check(const u_char *data, int seq)
+{
+	struct udphdr *const udp = (struct udphdr *) data;
+
+	return (ntohs(udp->uh_sport) == ident + (fixedPort ? seq : 0) &&
+	    ntohs(udp->uh_dport) == port + (fixedPort ? 0 : seq));
+}
+
+void
+udplite_prep(struct outdata *outdata)
+{
+	struct udphdr *const outudp = (struct udphdr *) outp;
+
+	outudp->uh_sport = htons(ident + (fixedPort ? outdata->seq : 0));
+	outudp->uh_dport = htons(port + (fixedPort ? 0 : outdata->seq));
+	outudp->uh_ulen = htons(8);
+	outudp->uh_sum = 0;
+	if (doipcksum) {
+	    u_short sum = p_cksum(outip, (u_short*)outudp, protlen, 8);
+	    outudp->uh_sum = (sum) ? sum : 0xffff;
+	}
+
+	return;
+}
+
+int
+udplite_check(const u_char *data, int seq)
 {
 	struct udphdr *const udp = (struct udphdr *) data;
 
@@ -1434,7 +1471,7 @@ tcp_prep(struct outdata *outdata)
 	tcp->th_sum = 0;
 
 	if (doipcksum) {
-	    u_short sum = p_cksum(outip, (u_short*)tcp, protlen);
+	    u_short sum = p_cksum(outip, (u_short*)tcp, protlen, protlen);
 	    tcp->th_sum = (sum) ? sum : 0xffff;
 	}
 }
@@ -1557,7 +1594,7 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
  * Checksum routine for UDP and TCP headers.
  */
 u_short
-p_cksum(struct ip *ip, u_short *data, int len)
+p_cksum(struct ip *ip, u_short *data, int len, int cov)
 {
 	static struct ipovly ipo;
 	u_short sum[2];
@@ -1568,7 +1605,7 @@ p_cksum(struct ip *ip, u_short *data, int len)
 	ipo.ih_dst = ip->ip_dst;
 
 	sum[1] = in_cksum((u_short*)&ipo, sizeof(ipo)); /* pseudo ip hdr cksum */
-	sum[0] = in_cksum(data, len);                   /* payload data cksum */
+	sum[0] = in_cksum(data, cov);                   /* payload data cksum */
 
 	return ~in_cksum(sum, sizeof(sum));
 }
