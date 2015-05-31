@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 /* ARGSUSED */
 static bool_t
-x_putlong(XDR *xdrs, long *longp)
+x_putlong(XDR *xdrs, const long *longp)
 {
 	xdrs->x_handy += BYTES_PER_XDR_UNIT;
 	return (TRUE);
@@ -55,7 +55,7 @@ x_putlong(XDR *xdrs, long *longp)
 
 /* ARGSUSED */
 static bool_t
-x_putbytes(XDR *xdrs, char *bp, u_int len)
+x_putbytes(XDR *xdrs, const char *bp, u_int len)
 {
 	xdrs->x_handy += len;
 	return (TRUE);
