@@ -110,6 +110,8 @@
 	/* Save user $c0; install kernel $c0. */			\
 	cmove	CHERI_REG_SEC0, CHERI_REG_C0;				\
 	cmove	CHERI_REG_C0, CHERI_REG_KDC;				\
+	/* cgetdefault	CHERI_REG_SEC0; */				\
+	/* csetdefault	CHERI_REG_KDC; */				\
 64:
 
 /*
@@ -133,6 +135,7 @@
 	b	66f;							\
 	/* If returning to userspace, restore saved user $c0. */	\
 	cmove	CHERI_REG_C0, CHERI_REG_SEC0;	/* Branch-delay. */	\
+	/* csetdefault	CHERI_REG_SEC0; */	/* Branch-delay. */	\
 65:									\
 	/* If returning to kernelspace, reinstall kernel code PCC. */	\
 	/*								\
