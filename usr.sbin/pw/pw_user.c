@@ -286,8 +286,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		arg = getarg(args, 'C');
 		if (write_userconfig(arg ? arg->val : NULL))
 			return EXIT_SUCCESS;
-		warn("config update");
-		return EX_IOERR;
+		err(EX_IOERR, "config udpate");
 	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
@@ -416,10 +415,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			rc = delpwent(pwd);
 			if (rc == -1)
 				err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
-			else if (rc != 0) {
-				warn("passwd update");
-				return EX_IOERR;
-			}
+			else if (rc != 0)
+				err(EX_IOERR, "passwd update");
 
 			if (cnf->nispasswd && *cnf->nispasswd=='/') {
 				rc = delnispwent(cnf->nispasswd, a_name->val);
@@ -672,11 +669,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				fputc('\n', stdout);
 				fflush(stdout);
 			}
-			if (b < 0) {
-				warn("-%c file descriptor", precrypt ? 'H' :
-				    'h');
-				return EX_IOERR;
-			}
+			if (b < 0)
+				err(EX_IOERR, "-%c file descriptor",
+				    precrypt ? 'H' : 'h');
 			line[b] = '\0';
 			if ((p = strpbrk(line, "\r\n")) != NULL)
 				*p = '\0';
@@ -709,13 +704,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if (mode == M_ADD) {
 		edited = 1;	/* Always */
 		rc = addpwent(pwd);
-		if (rc == -1) {
-			warnx("user '%s' already exists", pwd->pw_name);
-			return EX_IOERR;
-		} else if (rc != 0) {
-			warn("passwd file update");
-			return EX_IOERR;
-		}
+		if (rc == -1)
+			errx(EX_IOERR, "user '%s' already exists",
+			    pwd->pw_name);
+		else if (rc != 0)
+			err(EX_IOERR, "passwd file update");
 		if (cnf->nispasswd && *cnf->nispasswd=='/') {
 			rc = addnispwent(cnf->nispasswd, pwd);
 			if (rc == -1)
@@ -727,13 +720,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
 		if (edited) {	/* Only updated this if required */
 			rc = chgpwent(a_name->val, pwd);
-			if (rc == -1) {
-				warnx("user '%s' does not exist (NIS?)", pwd->pw_name);
-				return EX_IOERR;
-			} else if (rc != 0) {
-				warn("passwd file update");
-				return EX_IOERR;
-			}
+			if (rc == -1)
+				errx(EX_IOERR, "user '%s' does not exist (NIS?)", pwd->pw_name);
+			else if (rc != 0)
+				err(EX_IOERR, "passwd file update");
 			if ( cnf->nispasswd && *cnf->nispasswd=='/') {
 				rc = chgnispwent(cnf->nispasswd, a_name->val, pwd);
 				if (rc == -1)
