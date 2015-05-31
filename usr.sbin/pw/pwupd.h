@@ -93,7 +93,6 @@ char * getpwpath(char const * file);
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);
 int chggrent(char const * name, struct group * grp);
-int editgroups(char *name, char **groups);
 
 int setgrdir(const char * dir);
 char * getgrpath(const char *file);
