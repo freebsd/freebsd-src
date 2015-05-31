@@ -1346,8 +1346,8 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 		Printf("\n%d bytes from %s to ", cc, inet_ntoa(from->sin_addr));
 		Printf("%s: icmp type %d (%s) code %d\n",
 		    inet_ntoa(ip->ip_dst), type, pr_type(type), icp->icmp_code);
-		for (i = 4; i < cc ; i += sizeof(*lp))
-			Printf("%2d: x%8.8x\n", i, *lp++);
+		for (i = 4; i <= cc - ICMP_MINLEN; i += sizeof(*lp))
+			Printf("%2d: %8.8x\n", i, ntohl(*lp++));
 	}
 #endif
 	return(0);
