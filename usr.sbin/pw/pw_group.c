@@ -116,7 +116,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				char	*fmems[1];
 				fmems[0] = NULL;
 				fakegroup.gr_name = a_name ? a_name->val : "nogroup";
-				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : -1;
+				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : (uid_t)-1;
 				fakegroup.gr_mem = fmems;
 				return print_group(&fakegroup, getarg(args, 'P') != NULL);
 			}
