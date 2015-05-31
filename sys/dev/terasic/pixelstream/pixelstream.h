@@ -31,7 +31,7 @@
  */
 
 #ifndef _DEV_PIXELSTREAM_H_
-#define	_DEV_PIXLESTREAM_H_
+#define	_DEV_PIXELSTREAM_H_
 
 struct pixelstream_softc {
 	/*
