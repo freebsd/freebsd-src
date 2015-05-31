@@ -19,6 +19,18 @@ linux_assym.h			optional	compat_linux		\
 	no-obj no-implicit-rule before-depend				\
 	clean		"linux_assym.h"
 #
+linux_locore.o			optional	compat_linux		\
+	dependency 	"linux_assym.h $S/i386/linux/linux_locore.s"	\
+	compile-with	"${CC} -x assembler-with-cpp -DLOCORE -shared -s -pipe -I. -I$S -Werror -Wall -fno-common -nostdinc -nostdlib -Wl,-T$S/i386/linux/linux_vdso.lds.s -Wl,-soname=linux_vdso.so,--eh-frame-hdr,-fPIC,-warn-common ${.IMPSRC} -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"linux_locore.o"
+#
+linux_vdso.so			optional	compat_linux		\
+	dependency 	"linux_locore.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd --binary-architecture i386 linux_locore.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"linux_vdso.so"
+#
 svr4_genassym.o			optional	compat_svr4		\
 	dependency 	"$S/i386/svr4/svr4_genassym.c"			\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
@@ -69,6 +81,7 @@ hptrr_lib.o			optional	hptrr			\
 cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
+compat/linux/linux_event.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
 compat/linux/linux_file.c	optional compat_linux
 compat/linux/linux_fork.c	optional compat_linux
@@ -86,6 +99,8 @@ compat/linux/linux_time.c	optional compat_linux
 compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
+compat/linux/linux_vdso.c	optional compat_linux
+compat/linux/linux.c		optional compat_linux
 compat/ndis/kern_ndis.c		optional ndisapi pci
 compat/ndis/kern_windrv.c	optional ndisapi pci
 compat/ndis/subr_hal.c		optional ndisapi pci
@@ -490,8 +505,6 @@ i386/isa/prof_machdep.c		optional profiling-routine
 i386/isa/spic.c			optional spic
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
-i386/linux/linux_locore.s	optional compat_linux	\
-	dependency 	"linux_assym.h"
 i386/linux/linux_machdep.c	optional compat_linux
 i386/linux/linux_ptrace.c	optional compat_linux
 i386/linux/linux_support.s	optional compat_linux	\

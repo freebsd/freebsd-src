@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/selinfo.h>
+#include <sys/sysent.h>
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
 #include <sys/rwlock.h>
@@ -884,6 +885,14 @@ thread_suspend_check(int return_instead)
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
 			PROC_UNLOCK(p);
 			tidhash_remove(td);
+
+			/*
+			 * Allow Linux emulation layer to do some work
+			 * before thread suicide.
+			 */
+			if (__predict_false(p->p_sysent->sv_thread_detach != NULL))
+				(p->p_sysent->sv_thread_detach)(td);
+
 			PROC_LOCK(p);
 			tdsigcleanup(td);
 			umtx_thread_exit(td);

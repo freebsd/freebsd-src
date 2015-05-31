@@ -432,6 +432,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 				free(freepath, M_TEMP);
 		}
 	}
+	if (error == 0)
+		CTR3(KTR_PTRACE, "PT_VM_ENTRY: pid %d, entry %d, start %p",
+		    p->p_pid, pve->pve_entry, pve->pve_start);
 
 	return (error);
 }
@@ -826,6 +829,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (p->p_flag & P_PPWAIT)
 			p->p_flag |= P_PPTRACE;
 		p->p_oppid = p->p_pptr->p_pid;
+		CTR1(KTR_PTRACE, "PT_TRACE_ME: pid %d", p->p_pid);
 		break;
 
 	case PT_ATTACH:
@@ -845,17 +849,25 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			proc_reparent(p, td->td_proc);
 		}
 		data = SIGSTOP;
+		CTR2(KTR_PTRACE, "PT_ATTACH: pid %d, oppid %d", p->p_pid,
+		    p->p_oppid);
 		goto sendsig;	/* in PT_CONTINUE below */
 
 	case PT_CLEARSTEP:
+		CTR2(KTR_PTRACE, "PT_CLEARSTEP: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = ptrace_clear_single_step(td2);
 		break;
 
 	case PT_SETSTEP:
+		CTR2(KTR_PTRACE, "PT_SETSTEP: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = ptrace_single_step(td2);
 		break;
 
 	case PT_SUSPEND:
+		CTR2(KTR_PTRACE, "PT_SUSPEND: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_SUSPEND;
 		thread_lock(td2);
 		td2->td_flags |= TDF_NEEDSUSPCHK;
@@ -863,10 +875,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_RESUME:
+		CTR2(KTR_PTRACE, "PT_RESUME: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags &= ~TDB_SUSPEND;
 		break;
 
 	case PT_FOLLOW_FORK:
+		CTR3(KTR_PTRACE, "PT_FOLLOW_FORK: pid %d %s -> %s", p->p_pid,
+		    p->p_flag & P_FOLLOWFORK ? "enabled" : "disabled",
+		    data ? "enabled" : "disabled");
 		if (data)
 			p->p_flag |= P_FOLLOWFORK;
 		else
@@ -887,6 +904,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		switch (req) {
 		case PT_STEP:
+			CTR2(KTR_PTRACE, "PT_STEP: tid %d (pid %d)",
+			    td2->td_tid, p->p_pid);
 			error = ptrace_single_step(td2);
 			if (error)
 				goto out;
@@ -904,12 +923,25 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			switch (req) {
 			case PT_TO_SCE:
 				p->p_stops |= S_PT_SCE;
+				CTR2(KTR_PTRACE,
+				    "PT_TO_SCE: pid %d, stops = %#x", p->p_pid,
+				    p->p_stops);
 				break;
 			case PT_TO_SCX:
 				p->p_stops |= S_PT_SCX;
+				CTR2(KTR_PTRACE,
+				    "PT_TO_SCX: pid %d, stops = %#x", p->p_pid,
+				    p->p_stops);
 				break;
 			case PT_SYSCALL:
 				p->p_stops |= S_PT_SCE | S_PT_SCX;
+				CTR2(KTR_PTRACE,
+				    "PT_SYSCALL: pid %d, stops = %#x", p->p_pid,
+				    p->p_stops);
+				break;
+			case PT_CONTINUE:
+				CTR1(KTR_PTRACE,
+				    "PT_CONTINUE: pid %d", p->p_pid);
 				break;
 			}
 			break;
@@ -924,7 +956,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				proc_reparent(p, pp);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
-			}
+				CTR2(KTR_PTRACE,
+				    "PT_DETACH: pid %d reparented to pid %d",
+				    p->p_pid, pp->p_pid);
+			} else
+				CTR1(KTR_PTRACE, "PT_DETACH: pid %d", p->p_pid);
 			p->p_oppid = 0;
 			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 
@@ -1001,6 +1037,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 		if (!write)
 			td->td_retval[0] = tmp;
+		if (error == 0) {
+			if (write)
+				CTR3(KTR_PTRACE, "PT_WRITE: pid %d: %p <= %#x",
+				    p->p_pid, addr, data);
+			else
+				CTR3(KTR_PTRACE, "PT_READ: pid %d: %p >= %#x",
+				    p->p_pid, addr, tmp);
+		}
 		PROC_LOCK(p);
 		break;
 
@@ -1033,10 +1077,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		switch (tmp) {
 		case PIOD_READ_D:
 		case PIOD_READ_I:
+			CTR3(KTR_PTRACE, "PT_IO: pid %d: READ (%p, %#x)",
+			    p->p_pid, (uintptr_t)uio.uio_offset, uio.uio_resid);
 			uio.uio_rw = UIO_READ;
 			break;
 		case PIOD_WRITE_D:
 		case PIOD_WRITE_I:
+			CTR3(KTR_PTRACE, "PT_IO: pid %d: WRITE (%p, %#x)",
+			    p->p_pid, (uintptr_t)uio.uio_offset, uio.uio_resid);
 			td2->td_dbgflags |= TDB_USERWR;
 			uio.uio_rw = UIO_WRITE;
 			break;
@@ -1056,33 +1104,46 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_KILL:
+		CTR1(KTR_PTRACE, "PT_KILL: pid %d", p->p_pid);
 		data = SIGKILL;
 		goto sendsig;	/* in PT_CONTINUE above */
 
 	case PT_SETREGS:
+		CTR2(KTR_PTRACE, "PT_SETREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(regs, td2, addr);
 		break;
 
 	case PT_GETREGS:
+		CTR2(KTR_PTRACE, "PT_GETREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = PROC_READ(regs, td2, addr);
 		break;
 
 	case PT_SETFPREGS:
+		CTR2(KTR_PTRACE, "PT_SETFPREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(fpregs, td2, addr);
 		break;
 
 	case PT_GETFPREGS:
+		CTR2(KTR_PTRACE, "PT_GETFPREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = PROC_READ(fpregs, td2, addr);
 		break;
 
 	case PT_SETDBREGS:
+		CTR2(KTR_PTRACE, "PT_SETDBREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(dbregs, td2, addr);
 		break;
 
 	case PT_GETDBREGS:
+		CTR2(KTR_PTRACE, "PT_GETDBREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = PROC_READ(dbregs, td2, addr);
 		break;
 
@@ -1145,13 +1206,21 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (wrap32)
 			ptrace_lwpinfo_to32(pl, pl32);
 #endif
+		CTR5(KTR_PTRACE,
+	    "PT_LWPINFO: tid %d (pid %d) event %d flags %#x child pid %d",
+		    td2->td_tid, p->p_pid, pl->pl_event, pl->pl_flags,
+		    pl->pl_child_pid);
 		break;
 
 	case PT_GETNUMLWPS:
+		CTR2(KTR_PTRACE, "PT_GETNUMLWPS: pid %d: %d threads", p->p_pid,
+		    p->p_numthreads);
 		td->td_retval[0] = p->p_numthreads;
 		break;
 
 	case PT_GETLWPLIST:
+		CTR3(KTR_PTRACE, "PT_GETLWPLIST: pid %d: data %d, actual %d",
+		    p->p_pid, data, p->p_numthreads);
 		if (data <= 0) {
 			error = EINVAL;
 			break;
@@ -1175,6 +1244,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_VM_TIMESTAMP:
+		CTR2(KTR_PTRACE, "PT_VM_TIMESTAMP: pid %d: timestamp %d",
+		    p->p_pid, p->p_vmspace->vm_map.timestamp);
 		td->td_retval[0] = p->p_vmspace->vm_map.timestamp;
 		break;
 
@@ -1225,6 +1296,8 @@ stopevent(struct proc *p, unsigned int event, unsigned int val)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_step = 1;
+	CTR3(KTR_PTRACE, "stopevent: pid %d event %u val %u", p->p_pid, event,
+	    val);
 	do {
 		p->p_xstat = val;
 		p->p_xthread = NULL;

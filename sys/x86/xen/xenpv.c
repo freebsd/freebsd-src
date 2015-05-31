@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
+#include <sys/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -72,7 +73,11 @@ xenpv_identify(driver_t *driver, device_t parent)
 	if (devclass_get_device(xenpv_devclass, 0))
 		return;
 
-	if (BUS_ADD_CHILD(parent, 0, "xenpv", 0) == NULL)
+	/*
+	 * The xenpv bus should be the last to attach in order
+	 * to properly detect if an ISA bus has already been added.
+	 */
+	if (BUS_ADD_CHILD(parent, UINT_MAX, "xenpv", 0) == NULL)
 		panic("Unable to attach xenpv bus.");
 }
 

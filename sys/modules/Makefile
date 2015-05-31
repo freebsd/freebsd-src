@@ -196,6 +196,8 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linux_common} \
+	${_linux64} \
 	${_linuxapi} \
 	lmc \
 	lpt \
@@ -619,6 +621,8 @@ _x86bios=	x86bios
 .if ${MACHINE_CPUARCH} == "amd64"
 _ixl=		ixl
 _ixlv=		ixlv
+_linux64=	linux64
+_linux_common=	linux_common
 _ntb=		ntb
 _qlxge=		qlxge
 _qlxgb=		qlxgb

@@ -9,8 +9,12 @@
 
 .include <src.opts.mk>
 
-ROOTSRCDIR=	${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
-ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${ROOTSRCDIR}
+.if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
+ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
+ROOTOBJDIR=	${OBJTOP}
+.endif
+
 _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
@@ -255,7 +259,7 @@ LDADD_${_l}?=	-lprivate${_l}
 .else
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .endif
-.if defined(_DP_${_l}) && defined(NO_SHARED)
+.if defined(_DP_${_l}) && defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}

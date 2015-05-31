@@ -1,11 +1,6 @@
-/*	$NetBSD: fork.S,v 1.11 2003/08/07 16:42:17 agc Exp $	*/
-
 /*-
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Ralph Campbell.
+ * Copyright (c) 2015 John Wehle <john@feith.com>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -30,28 +22,56 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-#include "SYS.h"
+/*
+ * The basic single core aml8726 (aka meson) uses an Amlogic interrupt
+ * controller, however meson.dtsi specifies GIC (which is present on
+ * the multicore aml8726) so we need to override things here.
+ */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	ASMSTR("from: @(#)fork.s	8.1 (Berkeley) 6/4/93")
-	ASMSTR("$NetBSD: fork.S,v 1.11 2003/08/07 16:42:17 agc Exp $")
-#endif /* LIBC_SCCS and not lint */
+/include/ "meson.dtsi"
 
-LEAF(__sys_fork)
-	WEAK_ALIAS(fork, __sys_fork)
-	WEAK_ALIAS(_fork, __sys_fork)
-	PIC_PROLOGUE(__sys_fork)
-	li	v0, SYS_fork	# pid = fork()
-	syscall
-	bne	a3, zero, 2f
-	beq	v1, zero, 1f	# v1 == 0 in parent, 1 in child
-	move	v0, zero
-1:
-	PIC_RETURN()
-2:
-	PIC_TAILCALL(__cerror)
-END(__sys_fork)
+/ {
+	model = "Amlogic Meson3 SoC";
+	compatible = "amlogic,meson3";
+
+	interrupt-parent = <&pic>;
+
+	pic: pic@c1109a40 {
+		device_type = "interrupt-controller";
+		compatible = "amlogic,aml8726-pic";
+		reg = <0xc1109a40 128>; /* cbus 0x2690 */
+
+		interrupt-controller;
+		#interrupt-cells = <3>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x200>;
+		};
+	};
+
+	clk81: clk@0 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+};
+
+&gic {
+	status = "disabled";
+};
+
+&L2 {
+	interrupts = <0 61 1>;
+};

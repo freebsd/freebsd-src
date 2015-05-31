@@ -55,6 +55,7 @@ struct sendfile_args;
 struct sockaddr;
 struct stat;
 struct thr_param;
+struct sched_param;
 struct __wrusage;
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
@@ -120,6 +121,10 @@ int	kern_jail_get(struct thread *td, struct uio *options, int flags);
 int	kern_jail_set(struct thread *td, struct uio *options, int flags);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
+int	kern_kevent_fp(struct thread *td, struct file *fp, int nchanges,
+	    int nevents, struct kevent_copyops *k_ops,
+	    const struct timespec *timeout);
+int	kern_kqueue(struct thread *td, int flags);
 int	kern_kldload(struct thread *td, const char *file, int *fileid);
 int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
 int	kern_kldunload(struct thread *td, int fileid, int flags);
@@ -169,7 +174,17 @@ int	kern_renameat(struct thread *td, int oldfd, char *old, int newfd,
 	    char *new, enum uio_seg pathseg);
 int	kern_rmdirat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg);
+int	kern_sched_getparam(struct thread *td, struct thread *targettd,
+	    struct sched_param *param);
+int	kern_sched_getscheduler(struct thread *td, struct thread *targettd,
+	    int *policy);
+int	kern_sched_setparam(struct thread *td, struct thread *targettd,
+	    struct sched_param *param);
+int	kern_sched_setscheduler(struct thread *td, struct thread *targettd,
+	    int policy, struct sched_param *param);
 int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
+	    struct timespec *ts);
+int	kern_sched_rr_get_interval_td(struct thread *td, struct thread *targettd,
 	    struct timespec *ts);
 int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	    union semun *arg, register_t *rval);
@@ -214,6 +229,8 @@ int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
 int	kern_ktimer_gettime(struct thread *td, int timer_id,
 	    struct itimerspec *val);
 int	kern_ktimer_getoverrun(struct thread *td, int timer_id);
+int	kern_thr_alloc(struct proc *, int pages, struct thread **);
+int	kern_thr_exit(struct thread *td);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,

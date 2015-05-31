@@ -541,12 +541,12 @@ main(int argc, char **argv)
 		case 'a':
 			as_path = 1;
 			break;
-			
+
 		case 'A':
 			as_path = 1;
 			as_server = optarg;
 			break;
-			    
+
 		case 'd':
 			options |= SO_DEBUG;
 			break;
@@ -669,8 +669,11 @@ main(int argc, char **argv)
 
 	if (lsrr > 0)
 		optlen = (lsrr + 1) * sizeof(gwlist[0]);
-	minpacket = sizeof(*outip) + proto->hdrlen + sizeof(struct outdata) + optlen;
-	packlen = minpacket;			/* minimum sized packet */
+	minpacket = sizeof(*outip) + proto->hdrlen + optlen;
+	if (minpacket > 40)
+		packlen = minpacket;
+	else
+		packlen = 40;
 
 	/* Process destination and optional packet size */
 	switch (argc - optind) {
@@ -931,7 +934,7 @@ main(int argc, char **argv)
 			as_path = 0;
 		}
 	}
-	
+
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
 		errx(1, "%s", ipsec_strerror());
@@ -1330,7 +1333,7 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 		hiplen = ((u_char *)icp + cc) - (u_char *)hip;
 		hlen = hip->ip_hl << 2;
 		inner = (u_char *)((u_char *)hip + hlen);
-		if (hlen + 12 <= cc
+		if (hlen + 16 <= cc
 		    && hip->ip_p == proto->num
 		    && (*proto->check)(inner, (u_char)seq))
 			return (type == ICMP_TIMXCEED ? -1 : code + 1);
@@ -1494,7 +1497,7 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 /*
  * Checksum routine for UDP and TCP headers.
  */
-u_short 
+u_short
 p_cksum(struct ip *ip, u_short *data, int len)
 {
 	static struct ipovly ipo;

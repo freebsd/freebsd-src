@@ -516,15 +516,9 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
  * connect bpf write calls to the 802.11 layer for injecting
  * raw 802.11 frames.
  */
-#if __FreeBSD_version >= 1000031
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
-#else
-int
-ieee80211_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
-#endif
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
@@ -1950,7 +1944,7 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic)
 		 * re-calculation.
 		 */
 		if (ic->ic_countryie != NULL)
-			free(ic->ic_countryie, M_80211_NODE_IE);
+			IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = ieee80211_alloc_countryie(ic);
 		if (ic->ic_countryie == NULL)
 			return frm;

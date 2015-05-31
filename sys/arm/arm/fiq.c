@@ -59,7 +59,7 @@ extern uint32_t fiq_nullhandler_size;
  * fiq_installhandler:
  *
  *	Actually install the FIQ handler down at the FIQ vector.
- *	
+ *
  *	The FIQ vector is fixed by the hardware definition as the
  *	seventh 32-bit word in the vector page.
  *

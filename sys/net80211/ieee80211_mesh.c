@@ -85,9 +85,10 @@ static void	mesh_transmit_to_gate(struct ieee80211vap *, struct mbuf *,
 		    struct ieee80211_mesh_route *);
 static void	mesh_forward(struct ieee80211vap *, struct mbuf *,
 		    const struct ieee80211_meshcntl *);
-static int	mesh_input(struct ieee80211_node *, struct mbuf *, int, int);
+static int	mesh_input(struct ieee80211_node *, struct mbuf *,
+		    const struct ieee80211_rx_stats *rxs, int, int);
 static void	mesh_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
-		    int, int);
+		    const struct ieee80211_rx_stats *rxs, int, int);
 static void	mesh_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
 static void	mesh_peer_timeout_setup(struct ieee80211_node *);
 static void	mesh_peer_timeout_backoff(struct ieee80211_node *);
@@ -161,14 +162,6 @@ static const struct ieee80211_mesh_proto_metric mesh_metric_airtime = {
 static struct ieee80211_mesh_proto_path		mesh_proto_paths[4];
 static struct ieee80211_mesh_proto_metric	mesh_proto_metrics[4];
 
-#define	RT_ENTRY_LOCK(rt)	mtx_lock(&(rt)->rt_lock)
-#define	RT_ENTRY_LOCK_ASSERT(rt) mtx_assert(&(rt)->rt_lock, MA_OWNED)
-#define	RT_ENTRY_UNLOCK(rt)	mtx_unlock(&(rt)->rt_lock)
-
-#define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
-#define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
-#define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
-
 MALLOC_DEFINE(M_80211_MESH_PREQ, "80211preq", "802.11 MESH Path Request frame");
 MALLOC_DEFINE(M_80211_MESH_PREP, "80211prep", "802.11 MESH Path Reply frame");
 MALLOC_DEFINE(M_80211_MESH_PERR, "80211perr", "802.11 MESH Path Error frame");
@@ -210,13 +203,14 @@ mesh_rt_add_locked(struct ieee80211vap *vap,
 
 	MESH_RT_LOCK_ASSERT(ms);
 
-	rt = malloc(ALIGN(sizeof(struct ieee80211_mesh_route)) +
-	    ms->ms_ppath->mpp_privlen, M_80211_MESH_RT, M_NOWAIT | M_ZERO);
+	rt = IEEE80211_MALLOC(ALIGN(sizeof(struct ieee80211_mesh_route)) +
+	    ms->ms_ppath->mpp_privlen, M_80211_MESH_RT,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (rt != NULL) {
 		rt->rt_vap = vap;
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
-		mtx_init(&rt->rt_lock, "MBSS_RT", "802.11s route entry", MTX_DEF);
+		MESH_RT_ENTRY_LOCK_INIT(rt, "MBSS_RT");
 		callout_init(&rt->rt_discovery, 1);
 		rt->rt_updtime = ticks;	/* create time */
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
@@ -269,11 +263,11 @@ ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
 	KASSERT(rt != NULL, ("route is NULL"));
 
 	now = ticks;
-	RT_ENTRY_LOCK(rt);
+	MESH_RT_ENTRY_LOCK(rt);
 
 	/* dont clobber a proxy entry gated by us */
 	if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY && rt->rt_nhops == 0) {
-		RT_ENTRY_UNLOCK(rt);
+		MESH_RT_ENTRY_UNLOCK(rt);
 		return rt->rt_lifetime;
 	}
 
@@ -294,7 +288,7 @@ ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
 			new_lifetime, rt->rt_lifetime);
 	}
 	lifetime = rt->rt_lifetime;
-	RT_ENTRY_UNLOCK(rt);
+	MESH_RT_ENTRY_UNLOCK(rt);
 
 	return lifetime;
 }
@@ -356,10 +350,10 @@ mesh_rt_del(struct ieee80211_mesh_state *ms, struct ieee80211_mesh_route *rt)
 	 * Grab the lock before destroying it, to be sure no one else
 	 * is holding the route.
 	 */
-	RT_ENTRY_LOCK(rt);
+	MESH_RT_ENTRY_LOCK(rt);
 	callout_drain(&rt->rt_discovery);
-	mtx_destroy(&rt->rt_lock);
-	free(rt, M_80211_MESH_RT);
+	MESH_RT_ENTRY_LOCK_DESTROY(rt);
+	IEEE80211_FREE(rt, M_80211_MESH_RT);
 }
 
 void
@@ -651,9 +645,9 @@ mesh_vdetach(struct ieee80211vap *vap)
 	ieee80211_iterate_nodes(&vap->iv_ic->ic_sta, mesh_vdetach_peers,
 	    NULL);
 	ieee80211_mesh_rt_flush(vap);
-	mtx_destroy(&ms->ms_rt_lock);
+	MESH_RT_LOCK_DESTROY(ms);
 	ms->ms_ppath->mpp_vdetach(vap);
-	free(vap->iv_mesh, M_80211_VAP);
+	IEEE80211_FREE(vap->iv_mesh, M_80211_VAP);
 	vap->iv_mesh = NULL;
 }
 
@@ -666,8 +660,8 @@ mesh_vattach(struct ieee80211vap *vap)
 	vap->iv_opdetach = mesh_vdetach;
 	vap->iv_recv_mgmt = mesh_recv_mgmt;
 	vap->iv_recv_ctl = mesh_recv_ctl;
-	ms = malloc(sizeof(struct ieee80211_mesh_state), M_80211_VAP,
-	    M_NOWAIT | M_ZERO);
+	ms = IEEE80211_MALLOC(sizeof(struct ieee80211_mesh_state), M_80211_VAP,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ms == NULL) {
 		printf("%s: couldn't alloc MBSS state\n", __func__);
 		return;
@@ -678,7 +672,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	ms->ms_ttl = IEEE80211_MESH_DEFAULT_TTL;
 	TAILQ_INIT(&ms->ms_known_gates);
 	TAILQ_INIT(&ms->ms_routes);
-	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
+	MESH_RT_LOCK_INIT(ms, "MBSS");
 	callout_init(&ms->ms_cleantimer, 1);
 	callout_init(&ms->ms_gatetimer, 1);
 	ms->ms_gateseq = 0;
@@ -884,8 +878,9 @@ ieee80211_mesh_mark_gate(struct ieee80211vap *vap, const uint8_t *addr,
 		/* New mesh gate add it to known table. */
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, addr,
 		    "%s", "stored new gate information from pro-PREQ.");
-		gr = malloc(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
-		    M_80211_MESH_GT_RT, M_NOWAIT | M_ZERO);
+		gr = IEEE80211_MALLOC(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
+		    M_80211_MESH_GT_RT,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		IEEE80211_ADDR_COPY(gr->gr_addr, addr);
 		TAILQ_INSERT_TAIL(&ms->ms_known_gates, gr, gr_next);
 	}
@@ -1532,7 +1527,8 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 }
 
 static int
-mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
+mesh_input(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 #define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
@@ -1831,7 +1827,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		vap->iv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 		goto out;
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
@@ -1859,11 +1855,12 @@ out:
 
 static void
 mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
-    int rssi, int nf)
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
 	struct ieee80211_mesh_route *rt;
 	uint8_t *frm, *efrm;
@@ -1876,11 +1873,17 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	case IEEE80211_FC0_SUBTYPE_BEACON:
 	{
 		struct ieee80211_scanparams scan;
+		struct ieee80211_channel *c;
 		/*
 		 * We process beacon/probe response
 		 * frames to discover neighbors.
 		 */
-		if (ieee80211_parse_beacon(ni, m0, &scan) != 0)
+		if (rxs != NULL) {
+			c = ieee80211_lookup_channel_rxstatus(vap, rxs);
+			if (c != NULL)
+				rxchan = c;
+		}
+		if (ieee80211_parse_beacon(ni, m0, rxchan, &scan) != 0)
 			return;
 		/*
 		 * Count frame now that we know it's to be processed.
@@ -1906,7 +1909,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, ic->ic_curchan, &scan, wh,
+			ieee80211_add_scan(vap, rxchan, &scan, wh,
 			    subtype, rssi, nf);
 			return;
 		}
@@ -2634,8 +2637,9 @@ mesh_recv_action_meshgate(struct ieee80211_node *ni,
 		/* this GANN is from a new mesh Gate add it to known table. */
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie.gann_addr,
 		    "stored new GANN information, seq %u.", ie.gann_seq);
-		gr = malloc(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
-		    M_80211_MESH_GT_RT, M_NOWAIT | M_ZERO);
+		gr = IEEE80211_MALLOC(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
+		    M_80211_MESH_GT_RT,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		IEEE80211_ADDR_COPY(gr->gr_addr, ie.gann_addr);
 		TAILQ_INSERT_TAIL(&ms->ms_known_gates, gr, gr_next);
 	}
@@ -3482,7 +3486,8 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			}
 			ireq->i_len = len;
 			/* XXX M_WAIT? */
-			p = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
+			p = IEEE80211_MALLOC(len, M_TEMP,
+			    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 			if (p == NULL)
 				return ENOMEM;
 			off = 0;
@@ -3507,7 +3512,7 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			MESH_RT_UNLOCK(ms);
 			error = copyout(p, (uint8_t *)ireq->i_data,
 			    ireq->i_len);
-			free(p, M_TEMP);
+			IEEE80211_FREE(p, M_TEMP);
 			break;
 		case IEEE80211_MESH_RTCMD_FLUSH:
 		case IEEE80211_MESH_RTCMD_ADD:

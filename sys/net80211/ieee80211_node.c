@@ -172,9 +172,10 @@ ieee80211_node_latevattach(struct ieee80211vap *vap)
 			    "WARNING: max aid too small, changed to %d\n",
 			    vap->iv_max_aid);
 		}
-		vap->iv_aid_bitmap = (uint32_t *) malloc(
+		vap->iv_aid_bitmap = (uint32_t *) IEEE80211_MALLOC(
 			howmany(vap->iv_max_aid, 32) * sizeof(uint32_t),
-			M_80211_NODE, M_NOWAIT | M_ZERO);
+			M_80211_NODE,
+			IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (vap->iv_aid_bitmap == NULL) {
 			/* XXX no way to recover */
 			printf("%s: no memory for AID bitmap, max aid %d!\n",
@@ -199,7 +200,7 @@ ieee80211_node_vdetach(struct ieee80211vap *vap)
 		vap->iv_bss = NULL;
 	}
 	if (vap->iv_aid_bitmap != NULL) {
-		free(vap->iv_aid_bitmap, M_80211_NODE);
+		IEEE80211_FREE(vap->iv_aid_bitmap, M_80211_NODE);
 		vap->iv_aid_bitmap = NULL;
 	}
 }
@@ -892,8 +893,8 @@ node_alloc(struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_node *ni;
 
-	ni = (struct ieee80211_node *) malloc(sizeof(struct ieee80211_node),
-		M_80211_NODE, M_NOWAIT | M_ZERO);
+	ni = (struct ieee80211_node *) IEEE80211_MALLOC(sizeof(struct ieee80211_node),
+		M_80211_NODE, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	return ni;
 }
 
@@ -910,11 +911,12 @@ ieee80211_ies_init(struct ieee80211_ies *ies, const uint8_t *data, int len)
 	memset(ies, 0, offsetof(struct ieee80211_ies, data));
 	if (ies->data != NULL && ies->len != len) {
 		/* data size changed */
-		free(ies->data, M_80211_NODE_IE);
+		IEEE80211_FREE(ies->data, M_80211_NODE_IE);
 		ies->data = NULL;
 	}
 	if (ies->data == NULL) {
-		ies->data = (uint8_t *) malloc(len, M_80211_NODE_IE, M_NOWAIT);
+		ies->data = (uint8_t *) IEEE80211_MALLOC(len, M_80211_NODE_IE,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (ies->data == NULL) {
 			ies->len = 0;
 			/* NB: pointers have already been zero'd above */
@@ -933,7 +935,7 @@ void
 ieee80211_ies_cleanup(struct ieee80211_ies *ies)
 {
 	if (ies->data != NULL)
-		free(ies->data, M_80211_NODE_IE);
+		IEEE80211_FREE(ies->data, M_80211_NODE_IE);
 }
 
 /*
@@ -1045,7 +1047,7 @@ node_cleanup(struct ieee80211_node *ni)
 
 	ni->ni_associd = 0;
 	if (ni->ni_challenge != NULL) {
-		free(ni->ni_challenge, M_80211_NODE);
+		IEEE80211_FREE(ni->ni_challenge, M_80211_NODE);
 		ni->ni_challenge = NULL;
 	}
 	/*
@@ -1080,7 +1082,7 @@ node_free(struct ieee80211_node *ni)
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);
-	free(ni, M_80211_NODE);
+	IEEE80211_FREE(ni, M_80211_NODE);
 }
 
 static void
@@ -1908,22 +1910,22 @@ ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt,
 	const char *name, int inact, int keyixmax)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 
 	nt->nt_ic = ic;
-	IEEE80211_NODE_LOCK_INIT(nt, ifp->if_xname);
-	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ifp->if_xname);
+	IEEE80211_NODE_LOCK_INIT(nt, ic->ic_name);
+	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ic->ic_name);
 	TAILQ_INIT(&nt->nt_node);
 	nt->nt_name = name;
 	nt->nt_scangen = 1;
 	nt->nt_inact_init = inact;
 	nt->nt_keyixmax = keyixmax;
 	if (nt->nt_keyixmax > 0) {
-		nt->nt_keyixmap = (struct ieee80211_node **) malloc(
+		nt->nt_keyixmap = (struct ieee80211_node **) IEEE80211_MALLOC(
 			keyixmax * sizeof(struct ieee80211_node *),
-			M_80211_NODE, M_NOWAIT | M_ZERO);
+			M_80211_NODE,
+			IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (nt->nt_keyixmap == NULL)
-			if_printf(ic->ic_ifp,
+			ic_printf(ic,
 			    "Cannot allocate key index map with %u entries\n",
 			    keyixmax);
 	} else
@@ -1980,7 +1982,7 @@ ieee80211_node_table_cleanup(struct ieee80211_node_table *nt)
 				printf("%s: %s[%u] still active\n", __func__,
 					nt->nt_name, i);
 #endif
-		free(nt->nt_keyixmap, M_80211_NODE);
+		IEEE80211_FREE(nt->nt_keyixmap, M_80211_NODE);
 		nt->nt_keyixmap = NULL;
 	}
 	IEEE80211_NODE_ITERATE_LOCK_DESTROY(nt);
@@ -2256,8 +2258,8 @@ ieee80211_iterate_nt(struct ieee80211_node_table *nt,
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 		if (i >= max_aid) {
 			ret = E2BIG;
-			if_printf(nt->nt_ic->ic_ifp,
-			    "Node array overflow: max=%u", max_aid);
+			ic_printf(nt->nt_ic, "Node array overflow: max=%u",
+			    max_aid);
 			break;
 		}
 		ni_arr[i] = ieee80211_ref_node(ni);
@@ -2319,8 +2321,8 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 		max_aid = vap->iv_max_aid;
 
 	size = max_aid * sizeof(struct ieee80211_node *);
-	ni_arr = (struct ieee80211_node **) malloc(size, M_80211_NODE,
-	    M_NOWAIT | M_ZERO);
+	ni_arr = (struct ieee80211_node **) IEEE80211_MALLOC(size, M_80211_NODE,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ni_arr == NULL)
 		return;
 
@@ -2343,7 +2345,7 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	}
 
 done:
-	free(ni_arr, M_80211_NODE);
+	IEEE80211_FREE(ni_arr, M_80211_NODE);
 }
 
 void

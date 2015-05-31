@@ -38,6 +38,71 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150528: PCI IOV device driver methods moved to a separate kobj interface.
+OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9
+OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9
+OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9
+# 20150525: new clang import which bumps version from 3.6.0 to 3.6.1.
+OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.6.0/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/xopintrin.h
+OLD_DIRS+=usr/lib/clang/3.6.0/include
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.6.0/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.6.0/lib
+OLD_DIRS+=usr/lib/clang/3.6.0
 # 20150521
 OLD_FILES+=usr/bin/demandoc
 OLD_FILES+=usr/share/man/man1/demandoc.1.gz
