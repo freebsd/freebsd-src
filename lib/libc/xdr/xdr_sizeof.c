@@ -103,7 +103,7 @@ x_inline(XDR *xdrs, u_int len)
 }
 
 static int
-harmless()
+harmless(void)
 {
 	/* Always return FALSE/NULL, as the case may be */
 	return (0);
