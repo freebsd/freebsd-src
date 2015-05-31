@@ -335,7 +335,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if (pwd == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
 				fakeuser.pw_name = a_name ? a_name->val : "nouser";
-				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : -1;
+				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : (uid_t) -1;
 				return print_user(&fakeuser,
 						  getarg(args, 'P') != NULL,
 						  getarg(args, '7') != NULL);
@@ -791,7 +791,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	grp = GETGRGID(pwd->pw_gid);
 	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%ld):%s:%s:%s",
 	       pwd->pw_name, (long) pwd->pw_uid,
-	    grp ? grp->gr_name : "unknown", (long) (grp ? grp->gr_gid : -1),
+	    grp ? grp->gr_name : "unknown", (long) (grp ? grp->gr_gid : (uid_t)-1),
 	       pwd->pw_gecos, pwd->pw_dir, pwd->pw_shell);
 
 	/*
