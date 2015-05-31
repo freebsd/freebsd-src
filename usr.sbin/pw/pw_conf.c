@@ -453,19 +453,19 @@ write_userconfig(char const * file)
 			    config.default_class : "");
 			break;
 		case _UC_MINUID:
-			sbuf_printf(buf, "%lu", (unsigned long) config.min_uid);
+			sbuf_printf(buf, "%u", config.min_uid);
 			quote = 0;
 			break;
 		case _UC_MAXUID:
-			sbuf_printf(buf, "%lu", (unsigned long) config.max_uid);
+			sbuf_printf(buf, "%u", config.max_uid);
 			quote = 0;
 			break;
 		case _UC_MINGID:
-			sbuf_printf(buf, "%lu", (unsigned long) config.min_gid);
+			sbuf_printf(buf, "%u", config.min_gid);
 			quote = 0;
 			break;
 		case _UC_MAXGID:
-			sbuf_printf(buf, "%lu", (unsigned long) config.max_gid);
+			sbuf_printf(buf, "%u", config.max_gid);
 			quote = 0;
 			break;
 		case _UC_EXPIRE:

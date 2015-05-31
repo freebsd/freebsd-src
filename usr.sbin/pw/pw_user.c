@@ -139,7 +139,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		uid_t next = pw_uidpolicy(cnf, args);
 		if (getarg(args, 'q'))
 			return next;
-		printf("%ld:", (long)next);
+		printf("%u:", next);
 		pw_group(cnf, mode, args);
 		return EXIT_SUCCESS;
 	}
@@ -449,7 +449,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 			ENDGRENT();
 
-			pw_log(cnf, mode, W_USER, "%s(%ld) account removed", a_name->val, (long) uid);
+			pw_log(cnf, mode, W_USER, "%s(%u) account removed", a_name->val, uid);
 
 			if (!PWALTDIR()) {
 				/*
@@ -469,8 +469,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				if (getarg(args, 'r') != NULL && *home == '/' && getpwuid(uid) == NULL) {
 					if (stat(home, &st) != -1) {
 						rm_r(home, uid);
-						pw_log(cnf, mode, W_USER, "%s(%ld) home '%s' %sremoved",
-						       a_name->val, (long) uid, home,
+						pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
+						       a_name->val, uid, home,
 						       stat(home, &st) == -1 ? "" : "not completely ");
 					}
 				}
@@ -789,9 +789,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
 
 	grp = GETGRGID(pwd->pw_gid);
-	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%ld):%s:%s:%s",
-	       pwd->pw_name, (long) pwd->pw_uid,
-	    grp ? grp->gr_name : "unknown", (long) (grp ? grp->gr_gid : (uid_t)-1),
+	pw_log(cnf, mode, W_USER, "%s(%u):%s(%u):%s:%s:%s",
+	       pwd->pw_name, pwd->pw_uid,
+	    grp ? grp->gr_name : "unknown", (grp ? grp->gr_gid : (uid_t)-1),
 	       pwd->pw_gecos, pwd->pw_dir, pwd->pw_shell);
 
 	/*
@@ -815,8 +815,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 	if (!PWALTDIR() && getarg(args, 'm') != NULL && pwd->pw_dir && *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
 		copymkdir(pwd->pw_dir, cnf->dotdir, cnf->homemode, pwd->pw_uid, pwd->pw_gid);
-		pw_log(cnf, mode, W_USER, "%s(%ld) home %s made",
-		       pwd->pw_name, (long) pwd->pw_uid, pwd->pw_dir);
+		pw_log(cnf, mode, W_USER, "%s(%u) home %s made",
+		       pwd->pw_name, pwd->pw_uid, pwd->pw_dir);
 	}
 
 
@@ -835,8 +835,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				fputs(line, pfp);
 			}
 			pclose(pfp);
-			pw_log(cnf, mode, W_USER, "%s(%ld) new user mail sent",
-			    pwd->pw_name, (long) pwd->pw_uid);
+			pw_log(cnf, mode, W_USER, "%s(%u) new user mail sent",
+			    pwd->pw_name, pwd->pw_uid);
 		}
 		fclose(fp);
 	}
@@ -859,7 +859,7 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 		uid = (uid_t) atol(a_uid->val);
 
 		if ((pwd = GETPWUID(uid)) != NULL && getarg(args, 'o') == NULL)
-			errx(EX_DATAERR, "uid `%ld' has already been allocated", (long) pwd->pw_uid);
+			errx(EX_DATAERR, "uid `%u' has already been allocated", pwd->pw_uid);
 	} else {
 		struct bitmap   bm;
 
@@ -1183,14 +1183,14 @@ print_user(struct passwd * pwd, int pretty, int v7)
 			strftime(acexpire, sizeof acexpire, "%c", tptr);
 		if (pwd->pw_change > (time_t)0 && (tptr = localtime(&pwd->pw_change)) != NULL)
 			strftime(pwexpire, sizeof pwexpire, "%c", tptr);
-		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
+		printf("Login Name: %-15s   #%-12u Group: %-15s   #%u\n"
 		       " Full Name: %s\n"
 		       "      Home: %-26.26s      Class: %s\n"
 		       "     Shell: %-26.26s     Office: %s\n"
 		       "Work Phone: %-26.26s Home Phone: %s\n"
 		       "Acc Expire: %-26.26s Pwd Expire: %s\n",
-		       pwd->pw_name, (long) pwd->pw_uid,
-		       grp ? grp->gr_name : "(invalid)", (long) pwd->pw_gid,
+		       pwd->pw_name, pwd->pw_uid,
+		       grp ? grp->gr_name : "(invalid)", pwd->pw_gid,
 		       uname, pwd->pw_dir, pwd->pw_class,
 		       pwd->pw_shell, office, wphone, hphone,
 		       acexpire, pwexpire);
