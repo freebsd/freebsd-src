@@ -153,17 +153,6 @@ VECTOR(_locore, unknown)
 	cmove	$c29, $c0		# Preserve $kcc
 	/* cgetdefault	CHERI_REG_KCC	# Preserve $kcc */
 	/* cgetdefault	CHERI_REG_KDC	# Preserve $kdc */
-
-	/*
-	 * Initialise saved user $c0 so we can later restore it.
-	 *
-	 * XXXRW: This will be removed once we more explicitly manage user
-	 * thread capabilities.
-	 *
-	 * XXXRW: Now might be that time?
-	 */
-	cmove	$c25, $c0		# Global $udc for now
-	/* cgetdefault	CHERI_REG_C25	# Global $udc for now */
 #endif
 
 #if defined(CPU_CHERI) || defined(CPU_BERI)
