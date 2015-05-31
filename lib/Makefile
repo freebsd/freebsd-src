@@ -136,7 +136,6 @@ SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libuti
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
-SUBDIR_DEPEND_libreadline= ncurses
 SUBDIR_DEPEND_libsmb= libkiconv
 SUBDIR_DEPEND_libstdc++= msun
 SUBDIR_DEPEND_libtacplus= libmd
