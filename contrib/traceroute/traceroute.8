@@ -16,7 +16,7 @@
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"	$FreeBSD$
 .\"
-.Dd June 19, 2012
+.Dd May 31, 2015
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
@@ -65,7 +65,7 @@ Turn  on  AS#  lookups  and  use the given server instead of the
 default.
 .It Fl e
 Firewall evasion mode.
-Use fixed destination ports for UDP and TCP probes.
+Use fixed destination ports for UDP, TCP and SCTP probes.
 The destination port does NOT increment with each packet sent.
 .It Fl f Ar first_ttl
 Set the initial time-to-live used in the first outgoing probe packet.
@@ -110,14 +110,14 @@ Print hop addresses numerically rather than symbolically and numerically
 path).
 .It Fl P Ar proto
 Send packets of specified IP protocol. The currently supported protocols
-are: UDP, TCP, GRE and ICMP. Other protocols may also be specified (either by
-name or by number), though
+are: UDP, TCP, SCTP, GRE and ICMP. Other protocols may also be specified
+(either by name or by number), though
 .Nm
 does not implement any special knowledge of their packet formats. This
 option is useful for determining which router along a path may be
 blocking packets based on IP protocol number. But see BUGS below.
 .It Fl p Ar port
-Protocol specific. For UDP and TCP, sets
+Protocol specific. For UDP, TCP and SCTP, sets
 the base
 .Ar port
 number used in probes (default is 33434).
