@@ -162,9 +162,6 @@ chgpwent(char const * login, struct passwd * pwd)
 int
 delpwent(struct passwd * pwd)
 {
-	char login[MAXLOGNAME];
-	
-	strlcpy(login, pwd->pw_name, MAXLOGNAME);
 
-	return (pw_update(NULL, login));
+	return (pw_update(NULL, pwd->pw_name));
 }
