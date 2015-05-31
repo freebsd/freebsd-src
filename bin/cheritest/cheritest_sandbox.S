@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2013-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -65,7 +65,10 @@ cheritest_ccall:
         csc     $c24, $sp, 224($c11)
 
 	/* Move $c0, with an offset of $sp, into $idc to be saved by CCall. */
-	csetoffset	$c26, $c0, $sp
+	/* NB: Incorrectly assumes that $c0 == $c11. */
+	/* NB: Should push and pop a proper restore frame as in cheri_invoke. */
+	cgetdefault	$c12
+	csetoffset	$c26, $c12, $sp
 
         /* Invoke object capability. */
         ccall	$c1, $c2
@@ -73,7 +76,7 @@ cheritest_ccall:
 	/* Restore $c0 and $sp from $idc.  Make sure to reset $c26's offset. */
 	cgetoffset	$sp, $c26
 	csetoffset	$c26, $c26, $zero
-	cmove		$c0, $c26
+	csetdefault	$c26
 
 	/* Also use $idc for $c11. */
 	cmove	$c11, $c26
