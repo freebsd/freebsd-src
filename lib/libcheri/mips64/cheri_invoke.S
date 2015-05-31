@@ -140,12 +140,14 @@ cheri_invoke_save_caps:
 	#
 	# Prepare $idc to be saved (and restored) by CCall; don't need to seal
 	# as CCall will protect its integrity.  No more stack use after this
-	# point until $c11 and $sp are restored.
+	# point until $c11 and $sp are restored.  Move $c0 through $c12 to
+	# avoid direct use.
 	#
 cheri_invoke_bundle_idc:
 	daddiu		$sp, -4*CHERICAP_SIZE
 	csd		$sp, $sp, 3*CHERICAP_SIZE($c11)	# MIPS stack pointer
-	csc		$c0, $sp, 2*CHERICAP_SIZE($c11)	# Default capability
+	cgetdefault	$c12
+	csc		$c12, $sp, 2*CHERICAP_SIZE($c11)# Default capability
 	csc		$c11, $sp, CHERICAP_SIZE($c11)	# CHERI stack capability
 	csc		$c26, $sp, 0($c11)	# Save original $idc
 	cfromptr	$c26, $c11, $sp
@@ -173,11 +175,13 @@ cheri_invoke_ccall:
 
 	#
 	# Restore $idc-saved recovery state; $idc must be restored last.  The
-	# stack is usable again after this.
+	# stack is usable again after this.  Move $c0 through $c12 to avoid
+	# direct use.
 	#
 cheri_invoke_unbundle_idc:
 	cld		$sp, $zero, 3*CHERICAP_SIZE($c26)# MIPS stack pointer
-	clc		$c0, $zero, 2*CHERICAP_SIZE($c26)# Default capability
+	clc		$c12, $zero, 2*CHERICAP_SIZE($c26)# Default capability
+	csetdefault	$c12
 	clc		$c11, $zero, CHERICAP_SIZE($c26) # CHERI stack capability
 	clc		$c26, $zero, 0($c26)	# Restore original $idc
 	daddiu		$sp, 4*CHERICAP_SIZE

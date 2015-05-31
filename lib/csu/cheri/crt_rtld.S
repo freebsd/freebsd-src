@@ -70,7 +70,8 @@ __rtld_vector:
 	# capabilities to the sandbox-local heap (currently).
 	#
 	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
-	candperm	$c0, $c26, $t0
+	candperm	$c12, $c26, $t0
+	csetdefault	$c12
 
 	#
 	# The compiler is responsible for scrubbing unused argument registers
@@ -132,14 +133,14 @@ constructors:
 	sd	$t1, 0($t2)
 
 	# Code capability
-	clc	$c12, $t0, 32($c0)
+	clc	$c12, $t0, 32($c26)
 	dla	$t2, _cheri_system_object;
-	csc	$c12, $t2, 0($c0)
+	csc	$c12, $t2, 0($c26)
 
 	# Data capability
-	clc	$c12, $t0, 32+CHERICAP_SIZE($c0)
+	clc	$c12, $t0, 32+CHERICAP_SIZE($c26)
 	dla	$t2, _cheri_system_object;
-	csc	$c12, $t2, CHERICAP_SIZE($c0)
+	csc	$c12, $t2, CHERICAP_SIZE($c26)
 
 	#
 	# Perform constructor intialisation from C; the C code must be very

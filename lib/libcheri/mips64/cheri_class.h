@@ -92,8 +92,9 @@ __cheri_ ## class ## _entry:						\
 	 * data structure referenced by $idc.  For now, also use as     \
 	 * stack capability.						\
 	 */								\
-	clc	$c0, $zero, 0($c26);					\
-	cmove	$c11, $c0;						\
+	clc	$c12, $zero, 0($c26);					\
+	csetdefault	$c12;						\
+	cmove	$c11, $c12;						\
 									\
 	/*								\
 	 * Install global invocation stack.  NB: this means we can't	\

@@ -103,7 +103,8 @@ __invoke_vector:
 	# capabilities to the sandbox-local heap (currently).
 	#
 	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
-	candperm	$c0, $c26, $t0
+	candperm	$c12, $c26, $t0
+	csetdefault	$c12
 
 	#
 	# The compiler is responsible for scrubbing unused argument registers
