@@ -465,7 +465,7 @@ struct	outproto protos[] = {
 	},
 	{
 		NULL,
-		NULL,
+		"",
 		0,
 		2 * sizeof(u_short),
 		0,
