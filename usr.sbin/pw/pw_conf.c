@@ -357,8 +357,7 @@ read_userconfig(char const * file)
 				break;
 			}
 		}
-		if (linecap > 0)
-			free(buf);
+		free(buf);
 		fclose(fp);
 	}
 	return (&config);
