@@ -131,7 +131,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	int error;
+	int error, len, mcast;
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -141,7 +141,8 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		 * the frame back when the time is right.
 		 * XXX lose WDS vap linkage?
 		 */
-		(void) ieee80211_pwrsave(ni, m);
+		if (ieee80211_pwrsave(ni, m) != 0)
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_free_node(ni);
 
 		/*
@@ -170,6 +171,8 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * interface it (might have been) received on.
 	 */
 	m->m_pkthdr.rcvif = (void *)ni;
+	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1: 0;
+	len = m->m_pkthdr.len;
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
@@ -235,7 +238,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 			/* NB: stat+msg handled in ieee80211_encap */
 			IEEE80211_TX_UNLOCK(ic);
 			ieee80211_free_node(ni);
-			/* XXX better status? */
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		}
 	}
@@ -249,8 +252,11 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	if (error != 0) {
 		/* NB: IFQ_HANDOFF reclaims mbuf */
 		ieee80211_free_node(ni);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	} else {
 		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OMCASTS, mcast);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
 	}
 	ic->ic_lastdata = ticks;
 
@@ -314,6 +320,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 			    eh->ether_dhost, "mcast", "%s", "on DWDS");
 			vap->iv_stats.is_dwds_mcast++;
 			m_freem(m);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* XXX better status? */
 			return (ENOBUFS);
 		}
@@ -415,9 +422,9 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
 		    "%s: ignore queue, parent %s not up+running\n",
 		    __func__, parent->if_xname);
-		/* XXX stat */
 		m_freem(m);
-		return (EINVAL);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		return (ENETDOWN);
 	}
 	if (vap->iv_state == IEEE80211_S_SLEEP) {
 		/*
@@ -444,7 +451,8 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 			IEEE80211_UNLOCK(ic);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			m_freem(m);
-			return (EINVAL);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			return (ENETDOWN);
 		}
 		IEEE80211_UNLOCK(ic);
 	}
