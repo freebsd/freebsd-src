@@ -83,7 +83,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		gid_t next = gr_gidpolicy(cnf, args);
 		if (getarg(args, 'q'))
 			return next;
-		printf("%ld\n", (long)next);
+		printf("%u\n", next);
 		return EXIT_SUCCESS;
 	}
 
@@ -137,7 +137,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			else if (rc != 0) {
 				err(EX_IOERR, "group update");
 			}
-			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
+			pw_log(cnf, mode, W_GROUP, "%s(%u) removed", a_name->val, gid);
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
 			return print_group(grp, getarg(args, 'P') != NULL);
@@ -279,7 +279,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	if ((grp = GETGRNAM(arg->val)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
-	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
+	pw_log(cnf, mode, W_GROUP, "%s(%u)", grp->gr_name, grp->gr_gid);
 
 	free(members);
 
@@ -361,7 +361,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		gid = (gid_t) atol(a_gid->val);
 
 		if ((grp = GETGRGID(gid)) != NULL && getarg(args, 'o') == NULL)
-			errx(EX_DATAERR, "gid `%ld' has already been allocated", (long) grp->gr_gid);
+			errx(EX_DATAERR, "gid `%u' has already been allocated", grp->gr_gid);
 	} else {
 		struct bitmap   bm;
 
