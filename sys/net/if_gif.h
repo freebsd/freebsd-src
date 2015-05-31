@@ -117,7 +117,9 @@ int gif_encapcheck(const struct mbuf *, int, int, void *);
 #define GIFSOPTS	_IOW('i', 151, struct ifreq)
 
 #define	GIF_ACCEPT_REVETHIP	0x0001
+#define	GIF_IGNORE_SOURCE	0x0002
 #define	GIF_SEND_REVETHIP	0x0010
-#define	GIF_OPTMASK		(GIF_ACCEPT_REVETHIP|GIF_SEND_REVETHIP)
+#define	GIF_OPTMASK		(GIF_ACCEPT_REVETHIP|GIF_SEND_REVETHIP| \
+    GIF_IGNORE_SOURCE)
 
 #endif /* _NET_IF_GIF_H_ */
