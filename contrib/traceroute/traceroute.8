@@ -125,9 +125,9 @@ Traceroute hopes that nothing is listening on UDP ports (or UDP-Lite ports
 if used by
 .Nm
 and supported by the peer)
-.Em base
+.Em base + 1
 to
-.Em base + nhops * nprobes - 1
+.Em base + nhops * nprobes
 at the destination host (so an ICMP PORT_UNREACHABLE message will
 be returned to terminate the route tracing).  If something is
 listening on a port in the default range, this option can be used
