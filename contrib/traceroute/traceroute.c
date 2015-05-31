@@ -1470,10 +1470,8 @@ tcp_prep(struct outdata *outdata)
 	tcp->th_flags = TH_SYN;
 	tcp->th_sum = 0;
 
-	if (doipcksum) {
-	    u_short sum = p_cksum(outip, (u_short*)tcp, protlen, protlen);
-	    tcp->th_sum = (sum) ? sum : 0xffff;
-	}
+	if (doipcksum)
+	    tcp->th_sum = p_cksum(outip, (u_short*)tcp, protlen, protlen);
 }
 
 int
