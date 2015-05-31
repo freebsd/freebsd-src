@@ -137,7 +137,9 @@ STAGE_DIR.man${_page:T:E}?= ${STAGE_OBJTOP}${MANDIR}${_page:T:E}${MANSUBDIR}
 .endfor
 .if !empty(MLINKS)
 staging: stage_links
-STAGE_LINKS.${_mansets:[1]} := ${MLINKS:S,^,${MANDIR}${_mansets:[1]:S,man,,}${MANSUBDIR}/,}
+.for __section in ${MLINKS:E:O:u}
+STAGE_LINKS.man${__section}:= ${MLINKS:M*.${__section}:S,^,${MANDIR}${__section}${MANSUBDIR}/,}
+.endfor
 .endif
 .endif
 
