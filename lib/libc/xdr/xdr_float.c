@@ -204,9 +204,7 @@ static struct dbl_limits {
 
 
 bool_t
-xdr_double(xdrs, dp)
-	XDR *xdrs;
-	double *dp;
+xdr_double(XDR *xdrs, double *dp)
 {
 #ifdef IEEEFP
 	int32_t *i32p;
