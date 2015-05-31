@@ -357,9 +357,10 @@ read_userconfig(char const * file)
 				break;
 			}
 		}
-		free(buf);
-		fclose(fp);
 	}
+	free(buf);
+	fclose(fp);
+
 	return (&config);
 }
 
