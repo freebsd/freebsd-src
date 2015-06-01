@@ -123,7 +123,7 @@ core_pcpu_init(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[iaf,%d] insane cpu number %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,1,"core-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"core-init cpu=%d", cpu);
 
 	core_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_ri;
 	npmc = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_num;
@@ -162,7 +162,7 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] insane cpu number (%d)", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,1,"core-pcpu-fini cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"core-pcpu-fini cpu=%d", cpu);
 
 	if ((cc = core_pcpu[cpu]) == NULL)
 		return (0);
@@ -223,7 +223,7 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,ALL,1, "iaf-allocate ri=%d reqcaps=0x%x", ri, pm->pm_caps);
+	PMCDBG2(MDP,ALL,1, "iaf-allocate ri=%d reqcaps=0x%x", ri, pm->pm_caps);
 
 	if (ri < 0 || ri > core_iaf_npmc)
 		return (EINVAL);
@@ -267,7 +267,7 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_iaf.pm_iaf_ctrl = (flags << (ri * 4));
 
-	PMCDBG(MDP,ALL,2, "iaf-allocate config=0x%jx",
+	PMCDBG1(MDP,ALL,2, "iaf-allocate config=0x%jx",
 	    (uintmax_t) pm->pm_md.pm_iaf.pm_iaf_ctrl);
 
 	return (0);
@@ -282,7 +282,7 @@ iaf_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < core_iaf_npmc,
 	    ("[core,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,CFG,1, "iaf-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "iaf-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(core_pcpu[cpu] != NULL, ("[core,%d] null per-cpu %d", __LINE__,
 	    cpu));
@@ -362,7 +362,7 @@ iaf_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		*v = tmp;
 
-	PMCDBG(MDP,REA,1, "iaf-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
+	PMCDBG4(MDP,REA,1, "iaf-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    IAF_RI_TO_MSR(ri), *v);
 
 	return (0);
@@ -371,7 +371,7 @@ iaf_read_pmc(int cpu, int ri, pmc_value_t *v)
 static int
 iaf_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-	PMCDBG(MDP,REL,1, "iaf-release cpu=%d ri=%d pm=%p", cpu, ri, pmc);
+	PMCDBG3(MDP,REL,1, "iaf-release cpu=%d ri=%d pm=%p", cpu, ri, pmc);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal CPU value %d", __LINE__, cpu));
@@ -396,7 +396,7 @@ iaf_start_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < core_iaf_npmc,
 	    ("[core,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,STA,1,"iaf-start cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STA,1,"iaf-start cpu=%d ri=%d", cpu, ri);
 
 	iafc = core_pcpu[cpu];
 	pm = iafc->pc_corepmcs[ri + core_iaf_ri].phw_pmc;
@@ -414,7 +414,7 @@ iaf_start_pmc(int cpu, int ri)
  					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
 
-	PMCDBG(MDP,STA,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
+	PMCDBG4(MDP,STA,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
 	    iafc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
 	    iafc->pc_globalctrl, rdmsr(IA_GLOBAL_CTRL));
 
@@ -428,7 +428,7 @@ iaf_stop_pmc(int cpu, int ri)
 	struct core_cpu *iafc;
 	uint64_t msr = 0;
 
-	PMCDBG(MDP,STO,1,"iaf-stop cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STO,1,"iaf-stop cpu=%d ri=%d", cpu, ri);
 
 	iafc = core_pcpu[cpu];
 
@@ -445,7 +445,7 @@ iaf_stop_pmc(int cpu, int ri)
 
 	iafc->pc_iafctrl &= ~fc;
 
-	PMCDBG(MDP,STO,1,"iaf-stop iafctrl=%x", iafc->pc_iafctrl);
+	PMCDBG1(MDP,STO,1,"iaf-stop iafctrl=%x", iafc->pc_iafctrl);
  	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
  	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
 
@@ -457,7 +457,7 @@ iaf_stop_pmc(int cpu, int ri)
  					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
 
-	PMCDBG(MDP,STO,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
+	PMCDBG4(MDP,STO,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
 	    iafc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
 	    iafc->pc_globalctrl, rdmsr(IA_GLOBAL_CTRL));
 
@@ -495,7 +495,7 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
 	wrmsr(IAF_CTRL, msr | (cc->pc_iafctrl & IAF_CTRL_MASK));
 
-	PMCDBG(MDP,WRI,1, "iaf-write cpu=%d ri=%d msr=0x%x v=%jx iafctrl=%jx "
+	PMCDBG6(MDP,WRI,1, "iaf-write cpu=%d ri=%d msr=0x%x v=%jx iafctrl=%jx "
 	    "pmc=%jx", cpu, ri, IAF_RI_TO_MSR(ri), v,
 	    (uintmax_t) rdmsr(IAF_CTRL),
 	    (uintmax_t) rdpmc(IAF_RI_TO_MSR(ri)));
@@ -511,7 +511,7 @@ iaf_initialize(struct pmc_mdep *md, int maxcpu, int npmc, int pmcwidth)
 
 	KASSERT(md != NULL, ("[iaf,%d] md is NULL", __LINE__));
 
-	PMCDBG(MDP,INI,1, "%s", "iaf-initialize");
+	PMCDBG0(MDP,INI,1, "iaf-initialize");
 
 	pcd = &md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAF];
 
@@ -2265,7 +2265,7 @@ iap_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < core_iap_npmc,
 	    ("[core,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,CFG,1, "iap-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "iap-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(core_pcpu[cpu] != NULL, ("[core,%d] null per-cpu %d", __LINE__,
 	    cpu));
@@ -2344,7 +2344,7 @@ iap_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		*v = tmp & ((1ULL << core_iap_width) - 1);
 
-	PMCDBG(MDP,REA,1, "iap-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
+	PMCDBG4(MDP,REA,1, "iap-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    ri, *v);
 
 	return (0);
@@ -2355,7 +2355,7 @@ iap_release_pmc(int cpu, int ri, struct pmc *pm)
 {
 	(void) pm;
 
-	PMCDBG(MDP,REL,1, "iap-release cpu=%d ri=%d pm=%p", cpu, ri,
+	PMCDBG3(MDP,REL,1, "iap-release cpu=%d ri=%d pm=%p", cpu, ri,
 	    pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -2388,11 +2388,11 @@ iap_start_pmc(int cpu, int ri)
 	    ("[core,%d] starting cpu%d,ri%d with no pmc configured",
 		__LINE__, cpu, ri));
 
-	PMCDBG(MDP,STA,1, "iap-start cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STA,1, "iap-start cpu=%d ri=%d", cpu, ri);
 
 	evsel = pm->pm_md.pm_iap.pm_iap_evsel;
 
-	PMCDBG(MDP,STA,2, "iap-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
+	PMCDBG4(MDP,STA,2, "iap-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
 	    cpu, ri, IAP_EVSEL0 + ri, evsel);
 
 	/* Event specific configuration. */
@@ -2440,7 +2440,7 @@ iap_stop_pmc(int cpu, int ri)
 	    ("[core,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
 
-	PMCDBG(MDP,STO,1, "iap-stop cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STO,1, "iap-stop cpu=%d ri=%d", cpu, ri);
 
 	msr = rdmsr(IAP_EVSEL0 + ri) & ~IAP_EVSEL_MASK;
 	wrmsr(IAP_EVSEL0 + ri, msr);	/* stop hw */
@@ -2477,7 +2477,7 @@ iap_write_pmc(int cpu, int ri, pmc_value_t v)
 	    ("[core,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
 
-	PMCDBG(MDP,WRI,1, "iap-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
+	PMCDBG4(MDP,WRI,1, "iap-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
 	    IAP_PMC0 + ri, v);
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -2502,7 +2502,7 @@ iap_initialize(struct pmc_mdep *md, int maxcpu, int npmc, int pmcwidth,
 
 	KASSERT(md != NULL, ("[iap,%d] md is NULL", __LINE__));
 
-	PMCDBG(MDP,INI,1, "%s", "iap-initialize");
+	PMCDBG0(MDP,INI,1, "iap-initialize");
 
 	/* Remember the set of architectural events supported. */
 	core_architectural_events = ~flags;
@@ -2540,7 +2540,7 @@ core_intr(int cpu, struct trapframe *tf)
 	int error, found_interrupt, ri;
 	uint64_t msr;
 
-	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	found_interrupt = 0;
@@ -2599,7 +2599,7 @@ core2_intr(int cpu, struct trapframe *tf)
 	struct core_cpu *cc;
 	pmc_value_t v;
 
-	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	/*
@@ -2611,7 +2611,7 @@ core2_intr(int cpu, struct trapframe *tf)
 	intrstatus = rdmsr(IA_GLOBAL_STATUS);
 	intrenable = intrstatus & core_pmcmask;
 
-	PMCDBG(MDP,INT, 1, "cpu=%d intrstatus=%jx", cpu,
+	PMCDBG2(MDP,INT, 1, "cpu=%d intrstatus=%jx", cpu,
 	    (uintmax_t) intrstatus);
 
 	found_interrupt = 0;
@@ -2657,7 +2657,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		/* Reload sampling count. */
 		wrmsr(IAF_CTR0 + n, v);
 
-		PMCDBG(MDP,INT, 1, "iaf-intr cpu=%d error=%d v=%jx(%jx)", cpu,
+		PMCDBG4(MDP,INT, 1, "iaf-intr cpu=%d error=%d v=%jx(%jx)", cpu,
 		    error, (uintmax_t) v, (uintmax_t) rdpmc(IAF_RI_TO_MSR(n)));
 	}
 
@@ -2682,7 +2682,7 @@ core2_intr(int cpu, struct trapframe *tf)
 
 		v = iap_reload_count_to_perfctr_value(pm->pm_sc.pm_reloadcount);
 
-		PMCDBG(MDP,INT, 1, "iap-intr cpu=%d error=%d v=%jx", cpu, error,
+		PMCDBG3(MDP,INT, 1, "iap-intr cpu=%d error=%d v=%jx", cpu, error,
 		    (uintmax_t) v);
 
 		/* Reload sampling count. */
@@ -2692,14 +2692,14 @@ core2_intr(int cpu, struct trapframe *tf)
 	/*
 	 * Reenable all non-stalled PMCs.
 	 */
-	PMCDBG(MDP,INT, 1, "cpu=%d intrenable=%jx", cpu,
+	PMCDBG2(MDP,INT, 1, "cpu=%d intrenable=%jx", cpu,
 	    (uintmax_t) intrenable);
 
 	cc->pc_globalctrl |= intrenable;
 
 	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl & IA_GLOBAL_CTRL_MASK);
 
-	PMCDBG(MDP,INT, 1, "cpu=%d fixedctrl=%jx globalctrl=%jx status=%jx "
+	PMCDBG5(MDP,INT, 1, "cpu=%d fixedctrl=%jx globalctrl=%jx status=%jx "
 	    "ovf=%jx", cpu, (uintmax_t) rdmsr(IAF_CTRL),
 	    (uintmax_t) rdmsr(IA_GLOBAL_CTRL),
 	    (uintmax_t) rdmsr(IA_GLOBAL_STATUS),
@@ -2724,7 +2724,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 
 	ipa_version = cpuid[CORE_CPUID_EAX] & 0xFF;
 
-	PMCDBG(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
+	PMCDBG3(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
 	    md->pmd_cputype, maxcpu, ipa_version);
 
 	if (ipa_version < 1 || ipa_version > 3) {
@@ -2770,7 +2770,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 		core_pmcmask |= ((1ULL << core_iaf_npmc) - 1) << IAF_OFFSET;
 	}
 
-	PMCDBG(MDP,INI,1,"core-init pmcmask=0x%jx iafri=%d", core_pmcmask,
+	PMCDBG2(MDP,INI,1,"core-init pmcmask=0x%jx iafri=%d", core_pmcmask,
 	    core_iaf_ri);
 
 	core_pcpu = malloc(sizeof(struct core_cpu **) * maxcpu, M_PMC,
@@ -2793,7 +2793,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 void
 pmc_core_finalize(struct pmc_mdep *md)
 {
-	PMCDBG(MDP,INI,1, "%s", "core-finalize");
+	PMCDBG0(MDP,INI,1, "core-finalize");
 
 	free(core_pcpu, M_PMC);
 	core_pcpu = NULL;
