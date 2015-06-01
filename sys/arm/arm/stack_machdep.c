@@ -49,16 +49,6 @@ extern vm_offset_t kernel_vm_end;
 static void
 stack_capture(struct stack *st, u_int32_t *frame)
 {
-#if !defined(__ARM_EABI__) && !defined(__clang__)
-	vm_offset_t callpc;
-
-	while (INKERNEL(frame) && (vm_offset_t)frame < kernel_vm_end) {
-		callpc = frame[FR_SCP];
-		if (stack_put(st, callpc) == -1)
-			break;
-		frame = (u_int32_t *)(frame[FR_RFP]);
-	}
-#endif
 }
 
 void
