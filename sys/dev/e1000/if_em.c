@@ -1660,6 +1660,16 @@ em_msix_link(void *arg)
 	} else
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS,
 		    EM_MSIX_LINK | E1000_IMS_LSC);
+	/*
+ 	** Because we must read the ICR for this interrupt
+ 	** it may clear other causes using autoclear, for
+ 	** this reason we simply create a soft interrupt
+ 	** for all these vectors.
+ 	*/
+	if (reg_icr) {
+		E1000_WRITE_REG(&adapter->hw,
+			E1000_ICS, adapter->ims);
+	}
 	return;
 }
 
@@ -2365,7 +2375,7 @@ em_update_link_status(struct adapter *adapter)
 		    (hw->mac.type == e1000_82572))) {
 			int tarc0;
 			tarc0 = E1000_READ_REG(hw, E1000_TARC(0));
-			tarc0 &= ~SPEED_MODE_BIT;
+			tarc0 &= ~TARC_SPEED_MODE_BIT;
 			E1000_WRITE_REG(hw, E1000_TARC(0), tarc0);
 		}
 		if (bootverbose)
@@ -2603,6 +2613,7 @@ em_allocate_msix(struct adapter *adapter)
 		** NOTHING to do with the MSIX vector
 		*/
 		rxr->ims = 1 << (20 + i);
+		adapter->ims |= rxr->ims;
 		adapter->ivars |= (8 | rxr->msix) << (i * 4);
 
 		em_last_bind_cpu = CPU_NEXT(em_last_bind_cpu);
@@ -2647,6 +2658,7 @@ em_allocate_msix(struct adapter *adapter)
 		** NOTHING to do with the MSIX vector
 		*/
 		txr->ims = 1 << (22 + i);
+		adapter->ims |= txr->ims;
 		adapter->ivars |= (8 | txr->msix) << (8 + (i * 4));
 
 		em_last_bind_cpu = CPU_NEXT(em_last_bind_cpu);
@@ -3538,15 +3550,25 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_82571) ||
 	    (adapter->hw.mac.type == e1000_82572)) {
 		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
-		tarc |= SPEED_MODE_BIT;
+		tarc |= TARC_SPEED_MODE_BIT;
 		E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
 	} else if (adapter->hw.mac.type == e1000_80003es2lan) {
+		/* errata: program both queues to unweighted RR */
 		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
 		tarc |= 1;
 		E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
 		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(1));
 		tarc |= 1;
 		E1000_WRITE_REG(&adapter->hw, E1000_TARC(1), tarc);
+	} else if (adapter->hw.mac.type == e1000_82574) {
+		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
+		tarc |= TARC_ERRATA_BIT;
+		if ( adapter->num_queues > 1) {
+			tarc |= (TARC_COMPENSATION_MODE | TARC_MQ_FIX);
+			E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
+			E1000_WRITE_REG(&adapter->hw, E1000_TARC(1), tarc);
+		} else
+			E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
 	}
 
 	adapter->txd_cmd = E1000_TXD_CMD_IFCS;
@@ -5970,6 +5992,23 @@ em_enable_vectors_82574(struct adapter *adapter)
 #endif
 
 #ifdef DDB
+DB_COMMAND(em_reset_dev, em_ddb_reset_dev)
+{
+	devclass_t	dc;
+	int max_em;
+
+	dc = devclass_find("em");
+	max_em = devclass_get_maxunit(dc);
+
+	for (int index = 0; index < (max_em - 1); index++) {
+		device_t dev;
+		dev = devclass_get_device(dc, index);
+		if (device_get_driver(dev) == &em_driver) {
+			struct adapter *adapter = device_get_softc(dev);
+			em_init_locked(adapter);
+		}
+	}
+}
 DB_COMMAND(em_dump_queue, em_ddb_dump_queue)
 {
 	devclass_t	dc;

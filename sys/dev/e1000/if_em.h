@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -215,7 +215,15 @@
  */
 #define EM_DBA_ALIGN			128
 
-#define SPEED_MODE_BIT (1<<21)		/* On PCI-E MACs only */
+/*
+ * See Intel 82574 Driver Programming Interface Manual, Section 10.2.6.9
+ */
+#define TARC_COMPENSATION_MODE	(1 << 7)	/* Compensation Mode */
+#define TARC_SPEED_MODE_BIT 	(1 << 21)	/* On PCI-E MACs only */
+#define TARC_MQ_FIX	(1 << 23) | \
+			(1 << 24) | \
+			(1 << 25)		/* Handle errata in MQ mode */
+#define TARC_ERRATA_BIT 	(1 << 26)	/* Note from errata on 82574 */
 
 /* PCI Config defines */
 #define EM_BAR_TYPE(v)		((v) & EM_BAR_TYPE_MASK)
