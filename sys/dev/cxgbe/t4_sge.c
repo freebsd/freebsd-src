@@ -2665,7 +2665,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 				    F_FW_IQ_CMD_FL0CONGEN);
 		}
 		c.fl0dcaen_to_fl0cidxfthresh =
-		    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_64B) |
+		    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_128B) |
 			V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
 		c.fl0size = htobe16(fl->qsize);
 		c.fl0addr = htobe64(fl->ba);
