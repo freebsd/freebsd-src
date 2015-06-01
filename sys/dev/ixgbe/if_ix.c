@@ -230,9 +230,9 @@ static device_method_t ix_methods[] = {
 	DEVMETHOD(device_suspend, ixgbe_suspend),
 	DEVMETHOD(device_resume, ixgbe_resume),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_init_iov, ixgbe_init_iov),
-	DEVMETHOD(pci_uninit_iov, ixgbe_uninit_iov),
-	DEVMETHOD(pci_add_vf, ixgbe_add_vf),
+	DEVMETHOD(pci_iov_init, ixgbe_init_iov),
+	DEVMETHOD(pci_iov_uninit, ixgbe_uninit_iov),
+	DEVMETHOD(pci_iov_add_vf, ixgbe_add_vf),
 #endif /* PCI_IOV */
 	DEVMETHOD_END
 };
