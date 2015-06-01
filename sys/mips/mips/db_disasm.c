@@ -144,7 +144,7 @@ static const char *cheri_flow_control_opname[16] = {
 };
 static const char *cheri_cap_inspect_opname[8] = {
 	"CGetPerm", "CGetType", "CGetBase", "CGetLen",
-	"invalid", "CGetTag", "CGetUnsealed", "CGetPCC"
+	"invalid", "CGetTag", "CGetSealed", "CGetPCC"
 };
 static const char *cheri_cap_modify_name[8] = {
 	"CAndPerm", "CSetType", "CIncBase", "CSetLen",
