@@ -98,7 +98,7 @@ arm_install_base() {
 		installworld installkernel distribution
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
 
-	arm_create_user
+	#arm_create_user
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
