@@ -31,9 +31,6 @@
 #ifndef _CHERITEST_SANDBOX_H_
 #define	_CHERITEST_SANDBOX_H_
 
-register_t	cheritest_ccall(register_t v0, __capability void *c1,
-		    __capability void *c2) __attribute__((cheri_ccall));
-
 extern void	sandbox_creturn;
 extern void	sandbox_creturn_end;
 
