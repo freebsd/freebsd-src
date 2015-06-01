@@ -2,8 +2,8 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= etc
-SUBDIR= sys
+SUBDIR+= etc
+SUBDIR+= sys
 
 TESTSDIR= ${TESTSBASE}
 KYUAFILE= yes

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
 .PATH: ${MDOCMLDIR}
 
@@ -7,7 +9,14 @@ PROG=	mandoc
 FILES=	example.style.css style.css
 FILESDIR=	${SHAREDIR}/mdocml
 MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 # roff.7
-MLINKS= mandoc.1 mdocml.1
+MLINKS=	mandoc.1 mdocml.1
+.if ${MK_MANDOCDB} != no
+MAN+=	apropos.1 makewhatis.8
+MLINKS+=	apropos.1 whatis.1
+LINKS=	${BINDIR}/mandoc ${BINDIR}/whatis \
+	${BINDIR}/mandoc ${BINDIR}/makewhatis \
+	${BINDIR}/mandoc ${BINDIR}/apropos
+.endif
 
 LIBMAN_SRCS=	man.c \
 		man_hash.c \

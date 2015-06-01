@@ -7208,7 +7208,6 @@ deallocate_dependencies(bp, freeblks, off)
 {
 	struct indirdep *indirdep;
 	struct pagedep *pagedep;
-	struct allocdirect *adp;
 	struct worklist *wk, *wkn;
 	struct ufsmount *ump;
 
@@ -7255,7 +7254,6 @@ deallocate_dependencies(bp, freeblks, off)
 			break;
 
 		case D_ALLOCDIRECT:
-			adp = WK_ALLOCDIRECT(wk);
 			if (off != 0)
 				continue;
 			/* FALLTHROUGH */
