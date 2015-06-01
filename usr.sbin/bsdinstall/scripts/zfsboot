@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013 Allan Jude
-# Copyright (c) 2013 Devin Teske
+# Copyright (c) 2013-2014 Allan Jude
+# Copyright (c) 2013-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -287,10 +287,12 @@ msg_stripe_desc="Stripe - No Redundancy"
 msg_stripe_help="[1+ Disks] Striping provides maximum storage but no redundancy"
 msg_swap_encrypt="Encrypt Swap?"
 msg_swap_encrypt_help="Encrypt swap partitions with temporary keys, discarded on reboot"
+msg_swap_invalid="The selected swap size (%s) is invalid. Enter a number optionally followed by units. Example: 2G"
 msg_swap_mirror="Mirror Swap?"
 msg_swap_mirror_help="Mirror swap partitions for redundancy, breaks crash dumps"
 msg_swap_size="Swap Size"
 msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
+msg_swap_toosmall="The selected swap size (%s) is to small. Please enter a value greater than 100MB or enter 0 for no swap"
 msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 50%% or more of each of the following selected disk\ndevices (not recommended):\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
 msg_uefi_not_supported="The FreeBSD UEFI loader does not currently support booting root-on-ZFS. Your system will need to boot in legacy (CSM) mode.\nDo you want to continue?"
 msg_unable_to_get_disk_capacity="Unable to get disk capacity of \`%s'"
@@ -320,31 +322,34 @@ dialog_menu_main()
 	[ "$ZFSBOOT_SWAP_MIRROR" ] && swapmirror="$msg_yes"
 	local disks n disks_grammar
 	f_count n $ZFSBOOT_DISKS
-	{ [ $n -eq 1 ] && disks_grammar=$msg_disk_singular; } || 
+	{ [ $n -eq 1 ] && disks_grammar=$msg_disk_singular; } ||
 		disks_grammar=$msg_disk_plural # grammar
 	local menu_list="
-		'>>> $msg_install'        '$msg_install_desc'
-		                          '$msg_install_help'
-		'T $msg_pool_type_disks'  '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
-                                          '$msg_pool_type_disks_help'
-		'- $msg_rescan_devices'   '*'
-		                          '$msg_rescan_devices_help'
-		'- $msg_disk_info'        '*'
-		                          '$msg_disk_info_help'
-		'N $msg_pool_name'        '$ZFSBOOT_POOL_NAME'
-		                          '$msg_pool_name_help'
-		'4 $msg_force_4k_sectors' '$force4k'
-		                          '$msg_force_4k_sectors_help'
-		'E $msg_encrypt_disks'    '$usegeli'
-		                          '$msg_encrypt_disks_help'
-		'P $msg_partition_scheme' '$ZFSBOOT_PARTITION_SCHEME'
-		                          '$msg_partition_scheme_help'
-		'S $msg_swap_size'        '$ZFSBOOT_SWAP_SIZE'
-		                          '$msg_swap_size_help'
-		'M $msg_swap_mirror'      '$swapmirror'
-		                          '$msg_swap_mirror_help'
-		'W $msg_swap_encrypt'     '$swapgeli'
-		                          '$msg_swap_encrypt_help'
+		'>>> $msg_install'      '$msg_install_desc'
+		                        '$msg_install_help'
+		'T $msg_pool_type_disks'
+		                        '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
+		                        '$msg_pool_type_disks_help'
+		'- $msg_rescan_devices' '*'
+		                        '$msg_rescan_devices_help'
+		'- $msg_disk_info'      '*'
+		                        '$msg_disk_info_help'
+		'N $msg_pool_name'      '$ZFSBOOT_POOL_NAME'
+		                        '$msg_pool_name_help'
+		'4 $msg_force_4k_sectors'
+		                        '$force4k'
+		                        '$msg_force_4k_sectors_help'
+		'E $msg_encrypt_disks'  '$usegeli'
+		                        '$msg_encrypt_disks_help'
+		'P $msg_partition_scheme'
+		                        '$ZFSBOOT_PARTITION_SCHEME'
+		                        '$msg_partition_scheme_help'
+		'S $msg_swap_size'      '$ZFSBOOT_SWAP_SIZE'
+		                        '$msg_swap_size_help'
+		'M $msg_swap_mirror'    '$swapmirror'
+		                        '$msg_swap_mirror_help'
+		'W $msg_swap_encrypt'   '$swapgeli'
+		                        '$msg_swap_encrypt_help'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -937,17 +942,19 @@ zfs_create_diskpart()
 		# 5. Add freebsd-zfs partition for zroot
 		#
 		f_eval_catch $funcname gpart "$GPART_ADD_INDEX" \
-			     $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
+		             $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
-				/dev/$disk$targetpart # Pedantic
+		                /dev/$disk$targetpart # Pedantic
 		f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-			     /boot/zfsboot /dev/${disk}s1 count=1 ||
-			     return $FAILURE
+		             /boot/zfsboot /dev/${disk}s1 count=1 ||
+		             return $FAILURE
 		;;
 
 	esac # $ZFSBOOT_PARTITION_SCHEME
 
 	# Update fstab(5)
+	local swapsize
+	f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
 	if [ "$isswapmirror" ]; then
 		# This is not the first disk in the mirror, do nothing
 	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
@@ -967,6 +974,8 @@ zfs_create_diskpart()
 		             /dev/$disk${swappart}.eli none swap sw 0 0 \
 		             $BSDINSTALL_TMPETC/fstab ||
 		             return $FAILURE
+	elif [ ${swapsize:-0} -eq 0 ]; then
+		# If swap is 0 sized, don't add it to fstab
 	else
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/$disk$swappart none swap sw 0 0 \
@@ -1123,7 +1132,7 @@ zfs_create_boot()
 		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 			# Generate an encryption key using random(4)
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-				     /dev/random "$bootpool/$zroot_key" \
+			             /dev/random "$bootpool/$zroot_key" \
 			             "bs=4096 count=1" || return $FAILURE
 			f_eval_catch $funcname chmod "$CHMOD_MODE" \
 			             go-wrx "$bootpool/$zroot_key" ||
@@ -1180,6 +1189,7 @@ zfs_create_boot()
 			return $FAILURE
 		f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 	fi
+
 	#
 	# Create the gmirror(8) GEOMS for swap
 	#
@@ -1260,7 +1270,7 @@ zfs_create_boot()
 	# MBR boot loader touch-up
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 		f_dprintf "$funcname: Updating MBR boot loader on disks..."
-		# Stick the ZFS boot loader in the "convienient hole" after 
+		# Stick the ZFS boot loader in the "convienient hole" after
 		# the ZFS internal metadata
 		for disk in $disks; do
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
@@ -1299,8 +1309,10 @@ zfs_create_boot()
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 
 	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
-		f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_mirror_load=\"YES\"' \
-		             $BSDINSTALL_TMPBOOT/loader.conf.gmirror || return $FAILURE
+		f_eval_catch $funcname echo "$ECHO_APPEND" \
+		             'geom_mirror_load=\"YES\"' \
+		             $BSDINSTALL_TMPBOOT/loader.conf.gmirror ||
+		             return $FAILURE
 	fi
 
 	# We're all done unless we should go on for boot pool
@@ -1323,8 +1335,8 @@ zfs_create_boot()
 		             return $FAILURE
 	done
 	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-	    "\"zfs:$zroot_name/$zroot_bootfs\"" \
-	    $BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
+		"\"zfs:$zroot_name/$zroot_bootfs\"" \
+		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
 
 	# We're all done unless we should go on to do encryption
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] || return $SUCCESS
@@ -1334,9 +1346,9 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Configuring disk encryption..."
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'aesni_load=\"YES\"' \
-	    $BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
+		$BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
-	    $BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" \
 		'geom_eli_passphrase_prompt=\"YES\"' \
 		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
@@ -1410,14 +1422,14 @@ f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 # ZFS with UEFI yet
 #
 if f_interactive; then
-    bootmethod=$(sysctl -n machdep.bootmethod)
-    f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
-    if [ "$bootmethod" != "BIOS" ]; then
-	dialog_uefi_prompt
-	retval=$?
-	f_dprintf "uefi_prompt=[%s]" "$retval"
-	[ $retval -eq $DIALOG_OK ] || f_die
-    fi
+	bootmethod=$( sysctl -n machdep.bootmethod )
+	f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
+	if [ "$bootmethod" != "BIOS" ]; then
+		dialog_uefi_prompt
+		retval=$?
+		f_dprintf "uefi_prompt=[%s]" "$retval"
+		[ $retval -eq $DIALOG_OK ] || f_die
+	fi
 fi
 
 #
@@ -1548,10 +1560,26 @@ while :; do
 		;;
 	?" $msg_swap_size")
 		# Prompt the user to input/change the swap size for each disk
-		f_dialog_input input \
-			"$msg_please_enter_amount_of_swap_space" \
-			"$ZFSBOOT_SWAP_SIZE" &&
-			ZFSBOOT_SWAP_SIZE="${input:-0}"
+		while :; do
+		    f_dialog_input input \
+			    "$msg_please_enter_amount_of_swap_space" \
+			    "$ZFSBOOT_SWAP_SIZE" &&
+			    ZFSBOOT_SWAP_SIZE="${input:-0}"
+		    if f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
+		    then
+			if [ $swapsize -ne 0 -a $swapsize -lt 104857600 ]; then
+			    f_show_err "$msg_swap_toosmall" \
+				       "$ZFSBOOT_SWAP_SIZE"
+			    continue;
+			else
+			    break;
+			fi
+		    else
+			f_show_err "$msg_swap_invalid" \
+				   "$ZFSBOOT_SWAP_SIZE"
+			continue;
+		    fi
+		done
 		;;
 	?" $msg_swap_mirror")
 		# Toggle the variable referenced both by the menu and later
