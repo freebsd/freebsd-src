@@ -235,6 +235,7 @@ out:
 		} else
 			PROC_LOCK(p);
 		p->p_oppid = 0;
+		p->p_stops = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
 		sx_xunlock(&proctree_lock);
 
