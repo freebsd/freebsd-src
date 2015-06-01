@@ -1238,7 +1238,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	struct vnode vnode;
 	char tagstr[12];
 	void *vp;
-	int error, found;
+	int error;
 	unsigned int i;
 
 	assert(kd);
@@ -1267,7 +1267,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	/*
 	 * Find appropriate handler.
 	 */
-	for (i = 0, found = 0; i < NTYPES; i++)
+	for (i = 0; i < NTYPES; i++)
 		if (!strcmp(fstypes[i].tag, tagstr)) {
 			if (fstypes[i].handler(kd, &vnode, vn) != 0) {
 				goto fail;
