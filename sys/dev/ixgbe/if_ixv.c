@@ -43,7 +43,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixv_driver_version[] = "1.4.0";
+char ixv_driver_version[] = "1.2.5";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -150,10 +150,6 @@ MODULE_DEPEND(ixv, ether, 1, 1, 1);
 /*
 ** TUNEABLE PARAMETERS:
 */
-
-/* Number of Queues - do not exceed MSIX vectors - 1 */
-static int ixv_num_queues = 1;
-TUNABLE_INT("hw.ixv.num_queues", &ixv_num_queues);
 
 /*
 ** AIM: Adaptive Interrupt Moderation
@@ -341,11 +337,6 @@ ixv_attach(device_t dev)
 	ixgbe_init_mbx_params_vf(hw);
 
 	ixgbe_reset_hw(hw);
-
-	/* Get the Mailbox API version */
-	device_printf(dev,"MBX API %d negotiation: %d\n",
-	    ixgbe_mbox_api_11,
-	    ixgbevf_negotiate_api_version(hw, ixgbe_mbox_api_11));
 
 	error = ixgbe_init_hw(hw);
 	if (error) {
@@ -1322,13 +1313,10 @@ static int
 ixv_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int rid, want, msgs;
+	int rid, want;
 
 
-	/* Must have at least 2 MSIX vectors */
-	msgs = pci_msix_count(dev);
-	if (msgs < 2)
-		goto out;
+	/* First try MSI/X */
 	rid = PCIR_BAR(3);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -1339,16 +1327,11 @@ ixv_setup_msix(struct adapter *adapter)
 	}
 
 	/*
-	** Want vectors for the queues,
+	** Want two vectors: one for a queue,
 	** plus an additional for mailbox.
 	*/
-	want = adapter->num_queues + 1;
-	if (want > msgs) {
-		want = msgs;
-		adapter->num_queues = msgs - 1;
-	} else
-		msgs = want;
-	if ((pci_alloc_msix(dev, &msgs) == 0) && (msgs == want)) {
+	want = 2;
+	if ((pci_alloc_msix(dev, &want) == 0) && (want == 2)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", want);
 		return (want);
@@ -1387,9 +1370,7 @@ ixv_allocate_pci_resources(struct adapter *adapter)
 		rman_get_bushandle(adapter->pci_mem);
 	adapter->hw.hw_addr = (u8 *) &adapter->osdep.mem_bus_space_handle;
 
-	/* Pick up the tuneable queues */
-	adapter->num_queues = ixv_num_queues;
-
+	adapter->num_queues = 1;
 	adapter->hw.back = &adapter->osdep;
 
 	/*
@@ -1610,41 +1591,32 @@ ixv_initialize_receive_units(struct adapter *adapter)
 {
 	struct	rx_ring	*rxr = adapter->rx_rings;
 	struct ixgbe_hw	*hw = &adapter->hw;
-	struct ifnet	*ifp = adapter->ifp;
-	u32		bufsz, rxcsum, psrtype;
-	int		max_frame;
+	struct ifnet   *ifp = adapter->ifp;
+	u32		bufsz, fctrl, rxcsum, hlreg;
 
-	if (ifp->if_mtu > ETHERMTU)
+
+	/* Enable broadcasts */
+	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+	fctrl |= IXGBE_FCTRL_BAM;
+	fctrl |= IXGBE_FCTRL_DPF;
+	fctrl |= IXGBE_FCTRL_PMCF;
+	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+
+	/* Set for Jumbo Frames? */
+	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
+	if (ifp->if_mtu > ETHERMTU) {
+		hlreg |= IXGBE_HLREG0_JUMBOEN;
 		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	else
+	} else {
+		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
 		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-
-	psrtype = IXGBE_PSRTYPE_TCPHDR | IXGBE_PSRTYPE_UDPHDR |
-	    IXGBE_PSRTYPE_IPV4HDR | IXGBE_PSRTYPE_IPV6HDR |
-	    IXGBE_PSRTYPE_L2HDR;
-
-	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, psrtype);
-
-	/* Tell PF our expected packet-size */
-	max_frame = ifp->if_mtu + IXGBE_MTU_HDR;
-	ixgbevf_rlpml_set_vf(hw, max_frame);
+	}
+	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
 		u32 reg, rxdctl;
 
-		/* Disable the queue */
-		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
-		rxdctl &= ~(IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME);
-		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), rxdctl);
-		for (int j = 0; j < 10; j++) {
-			if (IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i)) &
-			    IXGBE_RXDCTL_ENABLE)
-				msec_delay(1);
-			else
-				break;
-		}
-		wmb();
 		/* Setup the Base and Length of the Rx Descriptor Ring */
 		IXGBE_WRITE_REG(hw, IXGBE_VFRDBAL(i),
 		    (rdba & 0x00000000ffffffffULL));
@@ -1652,10 +1624,6 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		    (rdba >> 32));
 		IXGBE_WRITE_REG(hw, IXGBE_VFRDLEN(i),
 		    adapter->num_rx_desc * sizeof(union ixgbe_adv_rx_desc));
-
-		/* Reset the ring indices */
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDH(rxr->me), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me), 0);
 
 		/* Set up the SRRCTL register */
 		reg = IXGBE_READ_REG(hw, IXGBE_VFSRRCTL(i));
@@ -1665,14 +1633,14 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		reg |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 		IXGBE_WRITE_REG(hw, IXGBE_VFSRRCTL(i), reg);
 
-		/* Set the Tail Pointer */
+		/* Setup the HW Rx Head and Tail Descriptor Pointers */
+		IXGBE_WRITE_REG(hw, IXGBE_VFRDH(rxr->me), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me),
 		    adapter->num_rx_desc - 1);
-
 		/* Set the processing limit */
 		rxr->process_limit = ixv_rx_process_limit;
 
-		/* Capture Rx Tail index */
+		/* Set Rx Tail register */
 		rxr->tail = IXGBE_VFRDT(rxr->me);
 
 		/* Do the queue enabling last */
@@ -2065,7 +2033,9 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 			CTLFLAG_RD, &(txr->total_packets),
 			"TX Packets");
-
+	SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "tx_bytes",
+			CTLFLAG_RD, &(txr->bytes), 0,
+			"TX Bytes");
 	SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_no_desc",
 			CTLFLAG_RD, &(txr->no_desc_avail),
 			"# of times not enough descriptors were available during TX");
