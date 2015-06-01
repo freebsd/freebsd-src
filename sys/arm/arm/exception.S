@@ -237,7 +237,6 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
 #endif
 
-#if defined(__ARM_EABI__)
 /*
  * Unwind hints so we can unwind past functions that use
  * PULLFRAMEFROMSVCANDEXIT. They are run in reverse order.
@@ -249,9 +248,6 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	.pad #(2*4);			/* Skip user sp and lr */	   \
 	.save {r0-r12};			/* Restore r0-r12 */		   \
 	.pad #(4)			/* Skip spsr */
-#else
-#define	UNWINDSVCFRAME
-#endif
 
 #define	DO_AST								   \
 	ldr	r0, [sp];		/* Get the SPSR from stack */	   \
