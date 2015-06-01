@@ -95,6 +95,7 @@
 #ifdef PCI_IOV
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
+#include <dev/pci/pci_iov.h>
 #endif
 
 #include "ixgbe_api.h"
