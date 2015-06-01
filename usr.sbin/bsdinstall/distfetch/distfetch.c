@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 Nathan Whitehorn
+ * Copyright (c) 2014 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,15 +23,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <stdio.h>
+#include <ctype.h>
+#include <err.h>
+#include <dialog.h>
 #include <errno.h>
 #include <fetch.h>
-#include <dialog.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 static int fetch_files(int nfiles, char **urls);
 
@@ -39,12 +46,13 @@ main(void)
 {
 	char *diststring;
 	char **urls;
-	int i, nfetched, ndists = 0;
+	int i;
+	int ndists = 0;
+	int nfetched;
+	char error[PATH_MAX + 512];
 
-	if (getenv("DISTRIBUTIONS") == NULL) {
-		fprintf(stderr, "DISTRIBUTIONS variable is not set\n");
-		return (1);
-	}
+	if (getenv("DISTRIBUTIONS") == NULL)
+		errx(EXIT_FAILURE, "DISTRIBUTIONS variable is not set");
 
 	diststring = strdup(getenv("DISTRIBUTIONS"));
 	for (i = 0; diststring[i] != 0; i++)
@@ -54,9 +62,8 @@ main(void)
 
 	urls = calloc(ndists, sizeof(const char *));
 	if (urls == NULL) {
-		fprintf(stderr, "Out of memory!\n");
 		free(diststring);
-		return (1);
+		errx(EXIT_FAILURE, "Out of memory!");
 	}
 
 	init_dialog(stdin, stdout);
@@ -65,17 +72,17 @@ main(void)
 
 	for (i = 0; i < ndists; i++) {
 		urls[i] = malloc(PATH_MAX);
-		sprintf(urls[i], "%s/%s", getenv("BSDINSTALL_DISTSITE"),
-		    strsep(&diststring, " \t"));
+		snprintf(urls[i], PATH_MAX, "%s/%s",
+		    getenv("BSDINSTALL_DISTSITE"), strsep(&diststring, " \t"));
 	}
 
 	if (chdir(getenv("BSDINSTALL_DISTDIR")) != 0) {
-		char error[512];
-		sprintf(error, "Could could change to directory %s: %s\n",
+		snprintf(error, sizeof(error),
+		    "Could could change to directory %s: %s\n",
 		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
 		dialog_msgbox("Error", error, 0, 0, TRUE);
 		end_dialog();
-		return (1);
+		return (EXIT_FAILURE);
 	}
 
 	nfetched = fetch_files(ndists, urls);
@@ -87,31 +94,32 @@ main(void)
 		free(urls[i]);
 	free(urls);
 
-	return ((nfetched == ndists) ? 0 : 1);
+	return ((nfetched == ndists) ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static int
 fetch_files(int nfiles, char **urls)
 {
+	FILE *fetch_out;
+	FILE *file_out;
 	const char **items;
-	FILE *fetch_out, *file_out;
-	struct url_stat ustat;
-	off_t total_bytes, current_bytes, fsize;
-	char status[8];
-	char errormsg[512];
-	uint8_t block[4096];
-	size_t chunk;
-	int i, progress, last_progress;
+	int i;
+	int last_progress;
 	int nsuccess = 0; /* Number of files successfully downloaded */
+	int progress = 0;
+	size_t chunk;
+	off_t current_bytes;
+	off_t fsize;
+	off_t total_bytes;
+	char status[8];
+	struct url_stat ustat;
+	char errormsg[PATH_MAX + 512];
+	uint8_t block[4096];
 
-	progress = 0;
-	
 	/* Make the transfer list for dialog */
 	items = calloc(sizeof(char *), nfiles * 2);
-	if (items == NULL) {
-		fprintf(stderr, "Out of memory!\n");
-		return (-1);
-	}
+	if (items == NULL)
+		errx(EXIT_FAILURE, "Out of memory!");
 
 	for (i = 0; i < nfiles; i++) {
 		items[i*2] = strrchr(urls[i], '/');
@@ -177,7 +185,8 @@ fetch_files(int nfiles, char **urls)
 			}
 
 			if (ustat.size > 0) {
-				sprintf(status, "-%jd", (fsize*100)/ustat.size);
+				snprintf(status, sizeof(status), "-%jd",
+				    (fsize*100)/ustat.size);
 				items[i*2 + 1] = status;
 			}
 
@@ -212,4 +221,3 @@ fetch_files(int nfiles, char **urls)
 	free(items);
 	return (nsuccess);
 }
-
