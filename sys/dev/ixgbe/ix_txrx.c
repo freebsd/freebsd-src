@@ -578,7 +578,6 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
 	struct ixgbe_tx_buf *txbuf;
-	int i;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_slot *slot;
@@ -601,7 +600,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Free any existing tx buffers. */
         txbuf = txr->tx_buffers;
-	for (i = 0; i < txr->num_desc; i++, txbuf++) {
+	for (int i = 0; i < txr->num_desc; i++, txbuf++) {
 		if (txbuf->m_head != NULL) {
 			bus_dmamap_sync(txr->txtag, txbuf->map,
 			    BUS_DMASYNC_POSTWRITE);
@@ -622,7 +621,8 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 */
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
-			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
+			netmap_load_map(na, txr->txtag,
+			    txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP descriptor pointer */
@@ -777,8 +777,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
 		vlan_macip_lens |= (vtag << IXGBE_ADVTXD_VLAN_SHIFT);
-	} 
-	else if (!IXGBE_IS_X550VF(adapter) && (offload == FALSE))
+	} else if (!IXGBE_IS_X550VF(adapter) && (offload == FALSE))
 		return (0);
 
 	/*
@@ -1379,7 +1378,7 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	device_t 		dev = adapter->dev;
 	struct ixgbe_rx_buf 	*rxbuf;
-	int             	i, bsize, error;
+	int             	bsize, error;
 
 	bsize = sizeof(struct ixgbe_rx_buf) * rxr->num_desc;
 	if (!(rxr->rx_buffers =
@@ -1406,7 +1405,7 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 		goto fail;
 	}
 
-	for (i = 0; i < rxr->num_desc; i++, rxbuf++) {
+	for (int i = 0; i < rxr->num_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
 		error = bus_dmamap_create(rxr->ptag, 0, &rxbuf->pmap);
 		if (error) {
@@ -1428,9 +1427,8 @@ static void
 ixgbe_free_receive_ring(struct rx_ring *rxr)
 { 
 	struct ixgbe_rx_buf       *rxbuf;
-	int i;
 
-	for (i = 0; i < rxr->num_desc; i++) {
+	for (int i = 0; i < rxr->num_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf != NULL) {
 			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
@@ -2140,6 +2138,9 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	struct rx_ring	*rxr;
 	int rsize, tsize, error = IXGBE_SUCCESS;
 	int txconf = 0, rxconf = 0;
+#ifdef PCI_IOV
+	enum ixgbe_iov_mode iov_mode;
+#endif
 
         /* First allocate the top level queue structs */
         if (!(adapter->queues =
@@ -2172,6 +2173,12 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	tsize = roundup2(adapter->num_tx_desc *
 	    sizeof(union ixgbe_adv_tx_desc), DBA_ALIGN);
 
+#ifdef PCI_IOV
+	iov_mode = ixgbe_get_iov_mode(adapter);
+	adapter->pool = ixgbe_max_vfs(iov_mode);
+#else
+	adapter->pool = 0;
+#endif
 	/*
 	 * Now set up the TX queues, txconf is needed to handle the
 	 * possibility that things fail midcourse and we need to
@@ -2181,7 +2188,11 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		/* Set up some basics */
 		txr = &adapter->tx_rings[i];
 		txr->adapter = adapter;
+#ifdef PCI_IOV
+		txr->me = ixgbe_pf_que_index(iov_mode, i);
+#else
 		txr->me = i;
+#endif
 		txr->num_desc = adapter->num_tx_desc;
 
 		/* Initialize the TX side lock */
@@ -2228,7 +2239,11 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		rxr = &adapter->rx_rings[i];
 		/* Set up some basics */
 		rxr->adapter = adapter;
+#ifdef PCI_IOV
+		rxr->me = ixgbe_pf_que_index(iov_mode, i);
+#else
 		rxr->me = i;
+#endif
 		rxr->num_desc = adapter->num_rx_desc;
 
 		/* Initialize the RX side lock */
