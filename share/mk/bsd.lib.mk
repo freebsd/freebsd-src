@@ -182,7 +182,7 @@ _LIBS=		lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a
 lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -196,7 +196,7 @@ NOPATH_FILES+=	${POBJS}
 lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -258,7 +258,7 @@ _LIBS+=		lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_pic.a
 lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
