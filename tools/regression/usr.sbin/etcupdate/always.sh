@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2010 Advanced Computing Technologies LLC
+# Copyright (c) 2010 Hudson River Trading LLC
 # Written by: John H. Baldwin <jhb@FreeBSD.org>
 # All rights reserved.
 #
