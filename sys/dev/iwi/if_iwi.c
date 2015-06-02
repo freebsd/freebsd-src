@@ -1083,8 +1083,7 @@ iwi_wme_setparams(struct iwi_softc *sc, struct ieee80211com *ic)
 static void
 iwi_update_wme(void *arg, int npending)
 {
-	struct ieee80211com *ic = arg;
-	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_softc *sc = arg;
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
