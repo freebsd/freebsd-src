@@ -120,13 +120,18 @@ struct vm_object;
 struct vm_guest_paging;
 struct pmap;
 
+struct vm_eventinfo {
+	void	*rptr;		/* rendezvous cookie */
+	int	*sptr;		/* suspend cookie */
+	int	*iptr;		/* reqidle cookie */
+};
+
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap, void *rendezvous_cookie,
-				  void *suspend_cookie);
+		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -208,6 +213,7 @@ struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
 
 #ifdef _SYS__CPUSET_H_
 /*
@@ -232,17 +238,24 @@ cpuset_t vm_suspended_cpus(struct vm *vm);
 #endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
-vcpu_rendezvous_pending(void *rendezvous_cookie)
+vcpu_rendezvous_pending(struct vm_eventinfo *info)
 {
 
-	return (*(uintptr_t *)rendezvous_cookie != 0);
+	return (*((uintptr_t *)(info->rptr)) != 0);
 }
 
 static __inline int
-vcpu_suspended(void *suspend_cookie)
+vcpu_suspended(struct vm_eventinfo *info)
 {
 
-	return (*(int *)suspend_cookie);
+	return (*info->sptr);
+}
+
+static __inline int
+vcpu_reqidle(struct vm_eventinfo *info)
+{
+
+	return (*info->iptr);
 }
 
 /*
@@ -506,6 +519,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MONITOR,
 	VM_EXITCODE_MWAIT,
 	VM_EXITCODE_SVM,
+	VM_EXITCODE_REQIDLE,
 	VM_EXITCODE_MAX
 };
 

@@ -224,9 +224,9 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 	}
 
 	/*
-	 * This wait should return an empty pid.  The parent should
-	 * see the child as non-exited until the debugger sees the
-	 * exit.
+	 * This wait should return a pid of 0 to indicate no status to
+	 * report.  The parent should see the child as non-exited
+	 * until the debugger sees the exit.
 	 */
 	wpid = waitpid(child, &status, WNOHANG);
 	ATF_REQUIRE(wpid == 0);
@@ -304,7 +304,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		ATF_REQUIRE(write(dpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		/* Wait for parent's failed wait. */
-		ATF_REQUIRE(read(dpipe[1], &c, sizeof(c)) == 0);
+		ATF_REQUIRE(read(dpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		wpid = waitpid(child, &status, 0);
 		ATF_REQUIRE(wpid == child);
@@ -313,6 +313,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 
 		exit(0);
 	}
+	close(dpipe[1]);
 
 	/* Parent process. */
 
@@ -357,18 +358,19 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 	}
 
 	/*
-	 * This wait should return an empty pid.  The parent should
-	 * see the child as non-exited until the debugger sees the
-	 * exit.
+	 * This wait should return a pid of 0 to indicate no status to
+	 * report.  The parent should see the child as non-exited
+	 * until the debugger sees the exit.
 	 */
 	wpid = waitpid(child, &status, WNOHANG);
 	ATF_REQUIRE(wpid == 0);
 
 	/* Signal the debugger to wait for the child. */
-	close(dpipe[0]);
+	ATF_REQUIRE(write(dpipe[0], &c, sizeof(c)) == sizeof(c));
 
 	/* Wait for the debugger. */
-	ATF_REQUIRE(read(dpipe[1], &c, sizeof(c)) == 0);
+	ATF_REQUIRE(read(dpipe[0], &c, sizeof(c)) == 0);
+	close(dpipe[0]);
 
 	/* The child process should now be ready. */
 	wpid = waitpid(child, &status, WNOHANG);

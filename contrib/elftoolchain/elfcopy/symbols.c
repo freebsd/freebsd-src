@@ -33,7 +33,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3191 2015-05-04 17:07:01Z jkoshy $");
+ELFTC_VCSID("$Id: symbols.c 3222 2015-05-24 23:47:23Z kaiwang27 $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -77,7 +77,8 @@ static int	is_weak_symbol(unsigned char st_info);
 static int	lookup_exact_string(hash_head *hash, const char *buf,
 		    const char *s);
 static int	generate_symbols(struct elfcopy *ecp);
-static void	mark_symbols(struct elfcopy *ecp, size_t sc);
+static void	mark_reloc_symbols(struct elfcopy *ecp, size_t sc);
+static void	mark_section_group_symbols(struct elfcopy *ecp, size_t sc);
 static int	match_wildcard(const char *name, const char *pattern);
 uint32_t	str_hash(const char *s);
 
@@ -160,6 +161,10 @@ is_needed_symbol(struct elfcopy *ecp, int i, GElf_Sym *s)
 	if (BIT_ISSET(ecp->v_rel, i))
 		return (1);
 
+	/* Symbols refered by COMDAT sections are needed. */
+	if (BIT_ISSET(ecp->v_grp, i))
+		return (1);
+
 	/*
 	 * For relocatable files (.o files), global and weak symbols
 	 * are needed.
@@ -207,7 +212,10 @@ is_remove_symbol(struct elfcopy *ecp, size_t sc, int i, GElf_Sym *s,
 		return (1);
 
 	if (ecp->v_rel == NULL)
-		mark_symbols(ecp, sc);
+		mark_reloc_symbols(ecp, sc);
+
+	if (ecp->v_grp == NULL)
+		mark_section_group_symbols(ecp, sc);
 
 	if (is_needed_symbol(ecp, i, s))
 		return (0);
@@ -233,7 +241,7 @@ is_remove_symbol(struct elfcopy *ecp, size_t sc, int i, GElf_Sym *s,
  * Mark symbols refered by relocation entries.
  */
 static void
-mark_symbols(struct elfcopy *ecp, size_t sc)
+mark_reloc_symbols(struct elfcopy *ecp, size_t sc)
 {
 	const char	*name;
 	Elf_Data	*d;
@@ -311,6 +319,49 @@ mark_symbols(struct elfcopy *ecp, size_t sc)
 		    elf_errmsg(elferr));
 }
 
+static void
+mark_section_group_symbols(struct elfcopy *ecp, size_t sc)
+{
+	const char	*name;
+	Elf_Scn		*s;
+	GElf_Shdr	 sh;
+	size_t		 indx;
+	int		 elferr;
+
+	ecp->v_grp = calloc((sc + 7) / 8, 1);
+	if (ecp->v_grp == NULL)
+		err(EXIT_FAILURE, "calloc failed");
+
+	if (elf_getshstrndx(ecp->ein, &indx) == 0)
+		errx(EXIT_FAILURE, "elf_getshstrndx failed: %s",
+		    elf_errmsg(-1));
+
+	s = NULL;
+	while ((s = elf_nextscn(ecp->ein, s)) != NULL) {
+		if (gelf_getshdr(s, &sh) != &sh)
+			errx(EXIT_FAILURE, "elf_getshdr failed: %s",
+			    elf_errmsg(-1));
+
+		if (sh.sh_type != SHT_GROUP)
+			continue;
+
+		if ((name = elf_strptr(ecp->ein, indx, sh.sh_name)) == NULL)
+			errx(EXIT_FAILURE, "elf_strptr failed: %s",
+			    elf_errmsg(-1));
+		if (is_remove_section(ecp, name))
+			continue;
+
+		if (sh.sh_info > 0 && sh.sh_info < sc)
+			BIT_SET(ecp->v_grp, sh.sh_info);
+		else if (sh.sh_info != 0)
+			warnx("invalid symbox index");
+	}
+	elferr = elf_errno();
+	if (elferr != 0)
+		errx(EXIT_FAILURE, "elf_nextscn failed: %s",
+		    elf_errmsg(elferr));
+}
+
 static int
 generate_symbols(struct elfcopy *ecp)
 {
@@ -351,6 +402,8 @@ generate_symbols(struct elfcopy *ecp)
 	ecp->symtab->buf = sy_buf;
 	ecp->strtab->buf = st_buf;
 
+	gsym = NULL;
+
 	/*
 	 * Create bit vector v_secsym, which is used to mark sections
 	 * that already have corresponding STT_SECTION symbols.
@@ -384,7 +437,7 @@ generate_symbols(struct elfcopy *ecp)
 	/* Symbol table should exist if this function is called. */
 	if (symndx == 0) {
 		warnx("can't find .strtab section");
-		return (0);
+		goto clean;
 	}
 
 	/* Locate .symtab of input object. */
@@ -413,7 +466,6 @@ generate_symbols(struct elfcopy *ecp)
 	 * output object, it is used by update_reloc() later to update
 	 * relocation information.
 	 */
-	gsym = NULL;
 	sc = ish.sh_size / ish.sh_entsize;
 	if (sc > 0) {
 		ecp->symndx = calloc(sc, sizeof(*ecp->symndx));
@@ -427,7 +479,7 @@ generate_symbols(struct elfcopy *ecp)
 			if (elferr != 0)
 				errx(EXIT_FAILURE, "elf_getdata failed: %s",
 				    elf_errmsg(elferr));
-			return (0);
+			goto clean;
 		}
 	} else
 		return (0);
@@ -523,7 +575,7 @@ generate_symbols(struct elfcopy *ecp)
 	 * check if that only local symbol is the reserved symbol.
 	 */
 	if (sy_buf->nls <= 1 && sy_buf->ngs == 0)
-		return (0);
+		goto clean;
 
 	/*
 	 * Create STT_SECTION symbols for sections that do not already
@@ -550,6 +602,7 @@ generate_symbols(struct elfcopy *ecp)
 			sym.st_value = s->vma;
 			sym.st_size  = 0;
 			sym.st_info  = GELF_ST_INFO(STB_LOCAL, STT_SECTION);
+			sym.st_other = STV_DEFAULT;
 			/*
 			 * Don't let add_to_symtab() touch sym.st_shndx.
 			 * In this case, we know the index already.
@@ -583,6 +636,12 @@ generate_symbols(struct elfcopy *ecp)
 	}
 
 	return (1);
+
+clean:
+	free(gsym);
+	free_symtab(ecp);
+
+	return (0);
 }
 
 void
@@ -624,7 +683,9 @@ create_symtab(struct elfcopy *ecp)
 	if (((ecp->flags & SYMTAB_INTACT) == 0) && !generate_symbols(ecp)) {
 		TAILQ_REMOVE(&ecp->v_sec, ecp->symtab, sec_list);
 		TAILQ_REMOVE(&ecp->v_sec, ecp->strtab, sec_list);
+		free(ecp->symtab->buf);
 		free(ecp->symtab);
+		free(ecp->strtab->buf);
 		free(ecp->strtab);
 		ecp->symtab = NULL;
 		ecp->strtab = NULL;
@@ -696,6 +757,23 @@ free_symtab(struct elfcopy *ecp)
 				free(sh);
 			}
 		}
+	}
+
+	if (ecp->symndx != NULL) {
+		free(ecp->symndx);
+		ecp->symndx = NULL;
+	}
+	if (ecp->v_rel != NULL) {
+		free(ecp->v_rel);
+		ecp->v_rel = NULL;
+	}
+	if (ecp->v_grp != NULL) {
+		free(ecp->v_grp);
+		ecp->v_grp = NULL;
+	}
+	if (ecp->v_secsym != NULL) {
+		free(ecp->v_secsym);
+		ecp->v_secsym = NULL;
 	}
 }
 

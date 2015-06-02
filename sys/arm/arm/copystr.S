@@ -194,6 +194,7 @@ END(copyoutstr)
 
 /* A fault occurred during the copy */
 .Lcopystrfault:
+	mov	r0, #EFAULT
 	mov	r1, #0x00000000
 	str	r1, [r4, #PCB_ONFAULT]
 	RESTORE_REGS

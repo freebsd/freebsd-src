@@ -1037,7 +1037,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
-			if_printf(ifp, "%s: no buffer!\n", __func__);
+			device_printf(sc->sc_dev, "%s: no buffer!\n", __func__);
 			break;
 		} else if (bf == NULL) {
 			/*
@@ -1054,7 +1054,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			 * will be no mbuf; try again to re-populate it.
 			 */
 			/* XXX make debug msg */
-			if_printf(ifp, "%s: no mbuf!\n", __func__);
+			device_printf(sc->sc_dev, "%s: no mbuf!\n", __func__);
 			TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
 			goto rx_proc_next;
 		}

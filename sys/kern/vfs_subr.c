@@ -3502,8 +3502,9 @@ vfs_unmountall(void)
 	 */
 	while(!TAILQ_EMPTY(&mountlist)) {
 		mp = TAILQ_LAST(&mountlist, mntlist);
+		vfs_ref(mp);
 		error = dounmount(mp, MNT_FORCE, td);
-		if (error) {
+		if (error != 0) {
 			TAILQ_REMOVE(&mountlist, mp, mnt_list);
 			/*
 			 * XXX: Due to the way in which we mount the root

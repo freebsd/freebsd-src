@@ -192,6 +192,7 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	ifmib.4 \
+	ig4.4 \
 	igb.4 \
 	igmp.4 \
 	iic.4 \

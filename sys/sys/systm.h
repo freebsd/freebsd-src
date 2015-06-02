@@ -431,4 +431,6 @@ void free_unr(struct unrhdr *uh, u_int item);
 
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
+extern void (*softdep_ast_cleanup)(void);
+
 #endif /* !_SYS_SYSTM_H_ */

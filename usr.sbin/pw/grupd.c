@@ -116,9 +116,6 @@ chggrent(char const * login, struct group * grp)
 int
 delgrent(struct group * grp)
 {
-	char group[MAXLOGNAME];
 
-	strlcpy(group, grp->gr_name, MAXLOGNAME);
-
-	return gr_update(NULL, group);
+	return (gr_update(NULL, grp->gr_name));
 }

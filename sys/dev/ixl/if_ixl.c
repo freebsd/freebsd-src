@@ -199,8 +199,8 @@ static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
 #ifdef PCI_IOV
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
 
-static int	ixl_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t*);
-static void	ixl_uninit_iov(device_t dev);
+static int	ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t*);
+static void	ixl_iov_uninit(device_t dev);
 static int	ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t*);
 
 static void	ixl_handle_vf_msg(struct ixl_pf *,
@@ -222,9 +222,9 @@ static device_method_t ixl_methods[] = {
 	DEVMETHOD(device_detach, ixl_detach),
 	DEVMETHOD(device_shutdown, ixl_shutdown),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_init_iov, ixl_init_iov),
-	DEVMETHOD(pci_uninit_iov, ixl_uninit_iov),
-	DEVMETHOD(pci_add_vf, ixl_add_vf),
+	DEVMETHOD(pci_iov_init, ixl_iov_init),
+	DEVMETHOD(pci_iov_uninit, ixl_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, ixl_add_vf),
 #endif
 	{0, 0}
 };
@@ -6456,7 +6456,7 @@ ixl_adminq_err_to_errno(enum i40e_admin_queue_err err)
 }
 
 static int
-ixl_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t *params)
+ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 {
 	struct ixl_pf *pf;
 	struct i40e_hw *hw;
@@ -6504,7 +6504,7 @@ fail:
 }
 
 static void
-ixl_uninit_iov(device_t dev)
+ixl_iov_uninit(device_t dev)
 {
 	struct ixl_pf *pf;
 	struct i40e_hw *hw;

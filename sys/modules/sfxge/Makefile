@@ -34,6 +34,7 @@ SRCS+=	hunt_nvram.c hunt_rx.c hunt_phy.c hunt_sram.c hunt_tx.c hunt_vpd.c
 SRCS+=	hunt_filter.c
 SRCS+=	hunt_impl.h
 
-DEBUG_FLAGS= -DDEBUG=1
+# Extra debug checks
+#CFLAGS += -DDEBUG=1
 
 .include <bsd.kmod.mk>

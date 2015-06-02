@@ -3544,7 +3544,8 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_FORCE, SCTP_FROM_SCTP_PCB + SCTP_LOC_8) == 0) {
+		if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_FORCE,
+		    SCTP_FROM_SCTP_PCB + SCTP_LOC_8) == 0) {
 			cnt++;
 		}
 	}
@@ -3791,13 +3792,9 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			/* assure len is set */
 			sin->sin_len = sizeof(struct sockaddr_in);
 			if (set_scope) {
-#ifdef SCTP_DONT_DO_PRIVADDR_SCOPE
-				stcb->asoc.scope.ipv4_local_scope = 1;
-#else
 				if (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
 					stcb->asoc.scope.ipv4_local_scope = 1;
 				}
-#endif				/* SCTP_DONT_DO_PRIVADDR_SCOPE */
 			} else {
 				/* Validate the address is in scope */
 				if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) &&

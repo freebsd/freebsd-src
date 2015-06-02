@@ -25,62 +25,39 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2014
-.Dt PCI_INIT_IOV 9
+.Dd May 28, 2015
+.Dt PCI_IOV_UNINIT 9
 .Os
 .Sh NAME
-.Nm PCI_INIT_IOV
-.Nd enable SR-IOV on a PF device
+.Nm PCI_IOV_UNINIT
+.Nd disable SR-IOV on a PF device
 .Sh SYNOPSIS
 .In sys/bus.h
-.In machine/stdarg.h
-.In sys/nv.h
-.In dev/pci/pcireg.h
-.In dev/pci/pcivar.h
-.Ft int
-.Fn PCI_INIT_IOV "device_t dev" "uint16_t num_vfs" "const nvlist_t *pf_config"
+.In dev/pci/pci_iov.h
+.Ft void
+.Fn PCI_IOV_UNINIT "device_t dev"
 .Sh DESCRIPTION
 The
-.Fn PCI_INIT_IOV
+.Fn PCI_IOV_UNINIT
 method is called by the PCI Single-Root I/O Virtualization (SR-IOV)
-infrastucture when the user requests that SR-IOV be enabled on a Physical
+infrastructure when the user requests that SR-IOV be disabled on a Physical
 Function (PF).
-The number of Virtual Functions (VFs) that will be created is passed to this
-method in the
-.Fa num_vfs
-argument.
+When this method is called, the PF driver must release any SR-IOV-related
+resources that it has allocated and disable any device-specific SR-IOV
+configuration in the device.
 .Pp
-If the driver requested device-specific PF configuration parameters via a PF
-schema in its call to
-.Xr pci_iov_attach 9 ,
-those parameters will be available in the
-.Fa pf_config
-argument.
-All configuration parameters that were either set as required parameters or that
-had a default value set in the PF schema are guaranteed to be present in
-.Fa pf_config .
-Configuration parameters that were neither set as required nor were given a
-default value are optional and may or may not be present in
-.Fa pf_config .
-.Fa pf_config
-will not contain any configuration parameters that were not specified in the PF
-schema.
-All configuration parameters will have the correct type and are in the range of
-valid values specified in the schema.
-.Pp
-If this method returns successfully, then this method will not be called again
-on the same device until after a call to
-.Xr PCI_UNINIT_IOV .
-.Sh RETURN VALUES
-Returns 0 on success, otherwise an appropriate error is returned.
-If this method returns an error then the SR-IOV configuration will be aborted
-and no VFs will be created.
+This method will only be called following a successful call to
+.Xr PCI_IOV_INIT .
+It is not guaranteed that
+.Xr PCI_IOV_ADD_VF
+will have been called for any Virtual Function (VF) after the call to
+.Xr PCI_IOV_INIT
+and before the call to
+.Nm .
 .Sh SEE ALSO
-.Xr nv 9 ,
 .Xr pci 9 ,
-.Xr pci_iov_schema 9 ,
-.Xr PCI_ADD_VF 9 ,
-.Xr PCI_UNINIT_IOV 9
+.Xr PCI_IOV_ADD_VF 9 ,
+.Xr PCI_IOV_INIT 9
 .Sh AUTHORS
 This manual page was written by
 .An Ryan Stone Aq Mt rstone@FreeBSD.org .

@@ -277,6 +277,7 @@ struct thread {
 	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
+	void		*td_su;		/* (k) FFS SU private */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -677,6 +678,7 @@ struct proc {
 #define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
 #define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
 #define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
+#define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
