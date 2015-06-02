@@ -578,7 +578,7 @@ enum ahci_err_type {
 #define AHCI_Q_RESTORE_CAP	0x00080000
 
 #define AHCI_Q_BIT_STRING	\
-	"\021"			\
+	"\020"			\
 	"\001NOFORCE"		\
 	"\002NOPMP"		\
 	"\003NONCQ"		\
