@@ -154,7 +154,7 @@ static void	iwi_node_free(struct ieee80211_node *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwi_wme_init(struct iwi_softc *);
-static int	iwi_wme_setparams(struct iwi_softc *, struct ieee80211com *);
+static int	iwi_wme_setparams(struct iwi_softc *);
 static void	iwi_update_wme(void *, int);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
@@ -1059,8 +1059,9 @@ iwi_wme_init(struct iwi_softc *sc)
 }
 
 static int
-iwi_wme_setparams(struct iwi_softc *sc, struct ieee80211com *ic)
+iwi_wme_setparams(struct iwi_softc *sc)
 {
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	const struct wmeParams *wmep;
 	int ac;
 
@@ -1087,7 +1088,7 @@ iwi_update_wme(void *arg, int npending)
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
-	(void) iwi_wme_setparams(sc, ic);
+	(void) iwi_wme_setparams(sc);
 	IWI_UNLOCK(sc);
 }
 
@@ -2946,7 +2947,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 
 	if ((vap->iv_flags & IEEE80211_F_WME) && ni->ni_ies.wme_ie != NULL) {
 		/* NB: don't treat WME setup as failure */
-		if (iwi_wme_setparams(sc, ic) == 0 && iwi_wme_setie(sc) == 0)
+		if (iwi_wme_setparams(sc) == 0 && iwi_wme_setie(sc) == 0)
 			assoc->policy |= htole16(IWI_POLICY_WME);
 		/* XXX complain on failure? */
 	}
