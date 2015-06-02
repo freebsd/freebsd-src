@@ -2566,12 +2566,11 @@ atahpa(struct cam_device *device, int retry_count, int timeout,
 	struct ata_params *ident_buf;
 	struct ccb_getdev cgd;
 	struct ata_set_max_pwd pwd;
-	int error, confirm, quiet, c, action, actions, setpwd, persist;
+	int error, confirm, quiet, c, action, actions, persist;
 	int security, is48bit, pwdsize;
 	u_int64_t hpasize, maxsize;
 
 	actions = 0;
-	setpwd = 0;
 	confirm = 0;
 	quiet = 0;
 	maxsize = 0;
