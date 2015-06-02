@@ -81,6 +81,8 @@ struct dbreg {
 	unsigned long	dbr_inst[8];
 };
 
+#define __HAVE_REG32
+
 #ifdef _KERNEL
 struct thread;
 
