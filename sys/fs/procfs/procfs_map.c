@@ -159,11 +159,11 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		freepath = NULL;
 		fullpath = "-";
 		if (lobj) {
+			vp = NULL;
 			switch (lobj->type) {
 			default:
 			case OBJT_DEFAULT:
 				type = "default";
-				vp = NULL;
 				break;
 			case OBJT_VNODE:
 				type = "vnode";
@@ -171,13 +171,19 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				vref(vp);
 				break;
 			case OBJT_SWAP:
-				type = "swap";
-				vp = NULL;
+				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
+					type = "vnode";
+					if ((lobj->flags & OBJ_TMPFS) != 0) {
+						vp = lobj->un_pager.swp.swp_tmpfs;
+						vref(vp);
+					}
+				} else {
+					type = "swap";
+				}
 				break;
 			case OBJT_SG:
 			case OBJT_DEVICE:
 				type = "device";
-				vp = NULL;
 				break;
 			}
 			if (lobj != obj)
