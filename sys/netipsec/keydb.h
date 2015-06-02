@@ -85,12 +85,6 @@ struct seclifetime {
 	u_int64_t usetime;
 };
 
-union sa_route_union {
-	struct route		sa_route;
-	struct route		sin_route;	/* Duplicate for consistency. */
-	struct route_in6	sin6_route;
-};
-
 /* Security Association Data Base */
 struct secashead {
 	LIST_ENTRY(secashead) chain;
@@ -105,8 +99,6 @@ struct secashead {
 	LIST_HEAD(_satree, secasvar) savtree[SADB_SASTATE_MAX+1];
 					/* SA chain */
 					/* The first of this list is newer SA */
-
-	union sa_route_union route_cache;
 };
 
 struct xformsw;

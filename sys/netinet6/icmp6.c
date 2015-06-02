@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -106,11 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/send.h>
-
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif
 
 extern struct domain inet6domain;
 
@@ -2503,9 +2497,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	sdst.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
-#ifdef IPSEC
-	key_sa_routechange((struct sockaddr *)&sdst);
-#endif /* IPSEC */
     }
 
  freeit:

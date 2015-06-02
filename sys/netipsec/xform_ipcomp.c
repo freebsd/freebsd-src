@@ -48,7 +48,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netipsec/ipsec.h>

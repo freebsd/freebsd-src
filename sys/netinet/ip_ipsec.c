@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -215,35 +214,7 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
 	 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
 	 * XXX quickhack!!!
 	 */
-	struct secpolicy *sp = NULL;
-	int ipsecerror;
-	int ipsechdr;
-	struct route *ro;
-	sp = ipsec_getpolicybyaddr(m,
-				   IPSEC_DIR_OUTBOUND,
-				   IP_FORWARDING,
-				   &ipsecerror);
-	if (sp != NULL) {
-		/* count IPsec header size */
-		ipsechdr = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL);
-
-		/*
-		 * find the correct route for outer IPv4
-		 * header, compute tunnel MTU.
-		 */
-		if (sp->req != NULL &&
-		    sp->req->sav != NULL &&
-		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->route_cache.sa_route;
-			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
-				mtu = ro->ro_rt->rt_mtu ? ro->ro_rt->rt_mtu :
-				    ro->ro_rt->rt_ifp->if_mtu;
-				mtu -= ipsechdr;
-			}
-		}
-		KEY_FREESP(&sp);
-	}
-	return mtu;
+	return (mtu - ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL));
 }
 
 /*

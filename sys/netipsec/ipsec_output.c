@@ -45,7 +45,6 @@
 
 #include <net/if.h>
 #include <net/pfil.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
