@@ -17,7 +17,8 @@ SRCS+=	cheritest_bounds_stack.c					\
 	cheritest_trusted_stack.c					\
 	cheritest_util.c						\
 	cheritest_var.c							\
-	cheritest_vm.c
+	cheritest_vm.c							\
+	cheritest_vm_swap.c
 .endif
 
 MAN=

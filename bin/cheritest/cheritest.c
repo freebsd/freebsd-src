@@ -463,6 +463,10 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "read capabilities from a faulted copy-on-write page",
 	  .ct_func = cheritest_vm_cow_write, },
 
+	{ .ct_name = "cheritest_vm_swap",
+	  .ct_desc = "check tags are swapped out by swap pager",
+	  .ct_func = cheritest_vm_swap, },
+
 	/*
 	 * Simple CCall/CReturn tests that sometimes generate signals.
 	 */

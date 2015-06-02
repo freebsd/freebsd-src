@@ -310,4 +310,7 @@ void	cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp
 void	cheritest_vm_cow_read(const struct cheri_test *ctp);
 void	cheritest_vm_cow_write(const struct cheri_test *ctp);
 
+/* cheritest_vm_swap.c */
+void	cheritest_vm_swap(const struct cheri_test *ctp __unused);
+
 #endif /* !_CHERITEST_H_ */

@@ -137,6 +137,7 @@
 #define	cheritest_vm_tag_tmpfile_private_prefault	NULL
 #define	cheritest_vm_cow_read				NULL
 #define	cheritest_vm_cow_write				NULL
+#define	cheritest_vm_swap				NULL
 #define	test_fault_creturn				NULL
 #define	test_nofault_ccall_creturn			NULL
 #define	test_nofault_ccall_nop_creturn			NULL

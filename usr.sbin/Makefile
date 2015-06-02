@@ -143,7 +143,6 @@ SUBDIR+=	bsnmpd
 
 .if ${MK_CHERI} != "no"
 SUBDIR+=	cheri_tcpdump_control
-SUBDIR+=	cheri_swap_test
 .endif
 
 .if ${MK_CTM} != "no"

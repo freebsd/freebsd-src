@@ -1,19 +1,53 @@
+/*-
+ * Copyright (c) 2015 Munraj Vadera
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include <machine/cheri.h>
 #include <machine/cheric.h>
+
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <err.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "cheritest.h"
+
 #define	NPAGES		1000
 #define	NPATTERN	16
 #define	SLEEPTIME	5
 
-uint64_t orig_pattern[NPATTERN + 1] = {
+static uint64_t orig_pattern[NPATTERN + 1] = {
 	0xFFEEDDCCBBAA9988,
 	0x7766554433221100,
 	0x1010101010101010,
@@ -33,25 +67,26 @@ uint64_t orig_pattern[NPATTERN + 1] = {
 	0x0000000000000000
 };
 
-uint64_t pattern[NPATTERN + 1];
+static uint64_t pattern[NPATTERN + 1];
 
+#define	PRINTF(fmt, ...)	do {} while (0)
 #define	CNE(p1, p2)	cne2(p1, p2)
 #define	caps(p)		caps2(#p, (p))
-const char	*caps2(const char *nam, __capability void *p);
-int		 cne2(__capability void *p1, __capability void *p2);
-int		 dotest(int force_pageout);
-void		 init_patterns(void);
-void		 mix_patterns(void);
-uint64_t	 quickhash(uint64_t v);
+static const char	*caps2(const char *nam, __capability void *p);
+static int		 cne2(__capability void *p1, __capability void *p2);
+static int		 dotest(int force_pageout);
+static void		 init_patterns(void);
+static void		 mix_patterns(void);
+static uint64_t		 quickhash(uint64_t v);
 
-int
-main(void)
+void
+cheritest_vm_swap(const struct cheri_test *ctp __unused)
 {
 
-	return (dotest(1));
+	(void)dotest(1);
 }
 
-const char *
+static const char *
 caps2(const char *nam, __capability void *p)
 {
 	static char s[512];
@@ -70,7 +105,7 @@ caps2(const char *nam, __capability void *p)
 	return (s);
 }
 
-int
+static int
 cne2(__capability void *p1, __capability void *p2)
 {
 
@@ -86,14 +121,14 @@ cne2(__capability void *p1, __capability void *p2)
 	return (0);
 }
 
-void
+static void
 init_patterns(void)
 {
 
 	memcpy(pattern, orig_pattern, (NPATTERN + 1) * sizeof(uint64_t));
 }
 
-void
+static void
 mix_patterns(void)
 {
 	uint64_t a0, a1, a2, a3, h, t, p[128];
@@ -143,7 +178,7 @@ mix_patterns(void)
 	}
 }
 
-uint64_t
+static uint64_t
 quickhash(uint64_t v)
 {
 	uint64_t a0, a1, a2, a3, t, h;
@@ -183,7 +218,7 @@ quickhash(uint64_t v)
 	return (h);
 }
 
-int
+static int
 dotest(int force_pageout)
 {
 	__capability void **p;
@@ -199,7 +234,7 @@ dotest(int force_pageout)
 	    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (p == (void *)MAP_FAILED)
 		err(1, "mmap");
-	printf("p=%p\n", p);
+	PRINTF("p=%p\n", p);
 
 #define	LOOP_INNER do {							\
 		if (j == 8 * sizeof(*pattern)) {			\
@@ -238,7 +273,7 @@ dotest(int force_pageout)
 } while (0)
 
 	/* Set tags based on patterns. */
-	printf("Filling pages...\n");
+	PRINTF("Filling pages...\n");
 	init_patterns();
 	j = 8 * sizeof(*pattern);
 	k = NPATTERN;
@@ -248,23 +283,23 @@ dotest(int force_pageout)
 		LOOP_INNER;
 		p[i] = tmp;
 	}
-	printf("%zu sealed and %zu tagged out of %zu\n",
+	PRINTF("%zu sealed and %zu tagged out of %zu\n",
 	    nsealed, ntagged, i);
 
 	if (force_pageout) {
-		printf("Paging out...\n");
+		PRINTF("Paging out...\n");
 		rc = msync(p, sz, MS_PAGEOUT);
-		if (rc == -1) {
-			printf("msync(MS_PAGEOUT) failed, but continuing\n");
-		}
+		if (rc == -1)
+			cheritest_failure_errx("msync(MS_PAGEOUT) failed\n");
 		rc = mincore(p, sz, mincore_values);
-		if (rc < 0) {
-			printf("mincore() failed, but continuing\n");
-		} else {
+		if (rc < 0)
+			cheritest_failure_errx("mincore() failed\n");
+		else {
 			for (i = 0; i < NPAGES; i++) {
 				if (mincore_values[i] & MINCORE_INCORE) {
-					printf("mincore() reports page %u is "
-					    "in core, but continuing\n",
+					cheritest_failure_errx(
+					    "mincore() reports page %u is "
+					    "in core\n",
 					    (unsigned int)i);
 				}
 			}
@@ -272,11 +307,11 @@ dotest(int force_pageout)
 	}
 
 	/* Allow inspection via job backgrounding. */
-	printf("Sleeping for %d sec...\n", SLEEPTIME);
-	sleep(SLEEPTIME);
+	/*PRINTF("Sleeping for %d sec...\n", SLEEPTIME);
+	sleep(SLEEPTIME);*/
 
 	/* Scan for validity. */
-	printf("Checking pages...\n");
+	PRINTF("Checking pages...\n");
 	init_patterns();
 	mismatches = 0;
 	j = 8 * sizeof(*pattern);
@@ -287,7 +322,7 @@ dotest(int force_pageout)
 	for (i = 0; i < sz / sizeof(__capability void *); i++) {
 		if (j == 8 * sizeof(*pattern)) {
 			if (found_tags != pattern[k])
-				printf("found: 0x%llx expected: 0x%llx\n",
+				warnx("found: 0x%llx expected: 0x%llx\n",
 				    (unsigned long long)found_tags,
 				    (unsigned long long)pattern[k]);
 			found_tags = 0;
@@ -299,17 +334,17 @@ dotest(int force_pageout)
 			found_tags |= (1ULL << (uint64_t)(j - 1));
 
 		if (CNE(p[i], tmp)) {
-			fprintf(stderr, "mismatch at %zu:\n", i);
-			fprintf(stderr, "%s\n", caps(tmp));
-			fprintf(stderr, "%s\n", caps(p[i]));
+			warnx("mismatch at %zu:\n", i);
+			warnx("%s\n", caps(tmp));
+			warnx("%s\n", caps(p[i]));
 			mismatches++;
 		}
 	}
 
 	if (mismatches == 0)
-		printf("OK!\n");
+		cheritest_success();
 	else
-		printf("%d mismatches\n", mismatches);
+		cheritest_failure_errx("%d mismatches\n", mismatches);
 
 	return (0);
 }
