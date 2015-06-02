@@ -402,7 +402,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
-		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
+		vp = vm_object_vnode(lobj);
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
