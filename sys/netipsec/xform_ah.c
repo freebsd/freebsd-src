@@ -56,7 +56,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip6.h>
 
-#include <net/route.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ah.h>
 #include <netipsec/ah_var.h>

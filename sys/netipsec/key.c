@@ -58,7 +58,6 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/raw_cb.h>
 #include <net/vnet.h>
 
@@ -2766,10 +2765,6 @@ key_delsah(sah)
 		/* remove from tree of SA index */
 		if (__LIST_CHAINED(sah))
 			LIST_REMOVE(sah, chain);
-		if (sah->route_cache.sa_route.ro_rt) {
-			RTFREE(sah->route_cache.sa_route.ro_rt);
-			sah->route_cache.sa_route.ro_rt = (struct rtentry *)NULL;
-		}
 		free(sah, M_IPSEC_SAH);
 	}
 }
@@ -7891,26 +7886,6 @@ key_sa_recordxfer(sav, m)
 	/* XXX check for expires? */
 
 	return;
-}
-
-/* dumb version */
-void
-key_sa_routechange(dst)
-	struct sockaddr *dst;
-{
-	struct secashead *sah;
-	struct route *ro;
-
-	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		ro = &sah->route_cache.sa_route;
-		if (ro->ro_rt && dst->sa_len == ro->ro_dst.sa_len
-		 && bcmp(dst, &ro->ro_dst, dst->sa_len) == 0) {
-			RTFREE(ro->ro_rt);
-			ro->ro_rt = (struct rtentry *)NULL;
-		}
-	}
-	SAHTREE_UNLOCK();
 }
 
 static void
