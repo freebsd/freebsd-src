@@ -204,9 +204,19 @@
 #define EM_EEPROM_APME			0x400;
 #define EM_82544_APME			0x0004;
 
-#define EM_QUEUE_IDLE			0
-#define EM_QUEUE_WORKING		1
-#define EM_QUEUE_HUNG			2
+/*
+ * Driver state logic for the detection of a hung state
+ * in hardware.  Set TX_HUNG whenever a TX packet is used
+ * (data is sent) and clear it when txeof() is invoked if
+ * any descriptors from the ring are cleaned/reclaimed.
+ * Increment internal counter if no descriptors are cleaned
+ * and compare to TX_MAXTRIES.  When counter > TX_MAXTRIES,
+ * reset adapter.
+ */
+#define EM_TX_IDLE			0x00000000
+#define EM_TX_BUSY			0x00000001
+#define EM_TX_HUNG			0x80000000
+#define EM_TX_MAXTRIES			10
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -313,8 +323,7 @@ struct tx_ring {
         u32                     me;
         u32                     msix;
 	u32			ims;
-        int			queue_status;
-        int                     watchdog_time;
+        int			busy;
 	struct em_dma_alloc	txdma;
 	struct e1000_tx_desc	*tx_base;
         struct task             tx_task;
@@ -400,7 +409,6 @@ struct adapter {
 	int		if_flags;
 	int		max_frame_size;
 	int		min_frame_size;
-	int		pause_frames;
 	struct mtx	core_mtx;
 	int		em_insert_vlan_header;
 	u32		ims;
