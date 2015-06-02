@@ -46,6 +46,8 @@
  * to implement this interface.
  */
 
+#include "opt_ifmedia.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>

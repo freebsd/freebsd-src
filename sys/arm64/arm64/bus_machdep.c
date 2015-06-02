@@ -169,10 +169,10 @@ struct bus_space memmap_bus = {
 	.bs_r_8_s = NULL,
 
 	/* read multiple stream */
-	.bs_rm_1_s = NULL,
-	.bs_rm_2_s = NULL,
-	.bs_rm_4_s = NULL,
-	.bs_rm_8_s = NULL,
+	.bs_rm_1_s = generic_bs_rm_1,
+	.bs_rm_2_s = generic_bs_rm_2,
+	.bs_rm_4_s = generic_bs_rm_4,
+	.bs_rm_8_s = generic_bs_rm_8,
 
 	/* read region stream */
 	.bs_rr_1_s = NULL,
@@ -187,10 +187,10 @@ struct bus_space memmap_bus = {
 	.bs_w_8_s = NULL,
 
 	/* write multiple stream */
-	.bs_wm_1_s = NULL,
-	.bs_wm_2_s = NULL,
-	.bs_wm_4_s = NULL,
-	.bs_wm_8_s = NULL,
+	.bs_wm_1_s = generic_bs_wm_1,
+	.bs_wm_2_s = generic_bs_wm_2,
+	.bs_wm_4_s = generic_bs_wm_4,
+	.bs_wm_8_s = generic_bs_wm_8,
 
 	/* write region stream */
 	.bs_wr_1_s = NULL,

@@ -3065,9 +3065,11 @@ bridge_state_change(struct ifnet *ifp, int state)
 		"discarding"
 	};
 
+	CURVNET_SET(ifp->if_vnet);
 	if (V_log_stp)
 		log(LOG_NOTICE, "%s: state changed to %s on %s\n",
 		    sc->sc_ifp->if_xname, stpstates[state], ifp->if_xname);
+	CURVNET_RESTORE();
 }
 
 /*

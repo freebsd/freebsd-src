@@ -75,7 +75,7 @@ int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
-int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *);
+int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *, int *);
 
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);
@@ -100,5 +100,11 @@ const struct ofw_compat_data *
 
 /* Helper routine for checking existence of a prop */
 int ofw_bus_has_prop(device_t, const char *);
+
+/* Helper to search for a child with a given compat prop */
+phandle_t ofw_bus_find_compatible(phandle_t, const char *);
+
+/* Helper to search for a child with a given name */
+phandle_t ofw_bus_find_child(phandle_t, const char *);
 
 #endif /* !_DEV_OFW_OFW_BUS_SUBR_H_ */

@@ -1379,6 +1379,20 @@ mmc_discover_cards(struct mmc_softc *sc)
 					ivar->hs_tran_speed = SD_MAX_HS;
 				}
 			}
+
+			/*
+			 * We reselect the card here. Some cards become
+			 * unselected and timeout with the above two commands,
+			 * although the state tables / diagrams in the standard
+			 * suggest they go back to the transfer state. The only
+			 * thing we use from the sd_status is the erase sector
+			 * size, but it is still nice to get that right. It is
+			 * normally harmless for cards not misbehaving. The
+			 * Atmel bridge will complain about this command timing
+			 * out. Others seem to handle it correctly, so it may
+			 * be a combination of card and controller.
+			 */
+			mmc_select_card(sc, ivar->rca);
 			mmc_app_sd_status(sc, ivar->rca, ivar->raw_sd_status);
 			mmc_app_decode_sd_status(ivar->raw_sd_status,
 			    &ivar->sd_status);
@@ -1797,6 +1811,7 @@ static driver_t mmc_driver = {
 };
 static devclass_t mmc_devclass;
 
+DRIVER_MODULE(mmc, a10_mmc, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, aml8726_mmc, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
@@ -1807,4 +1822,3 @@ DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_ti, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, ti_mmchs, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);
-

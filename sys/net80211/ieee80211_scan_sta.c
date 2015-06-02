@@ -102,7 +102,7 @@ struct sta_table {
 	ieee80211_scan_table_lock_t st_lock;	/* on scan table */
 	TAILQ_HEAD(, sta_entry) st_entry;	/* all entries */
 	LIST_HEAD(, sta_entry) st_hash[STA_HASHSIZE];
-	struct mtx	st_scanlock;		/* on st_scaniter */
+	ieee80211_scan_iter_lock_t st_scanlock;		/* on st_scaniter */
 	u_int		st_scaniter;		/* gen# for iterator */
 	u_int		st_scangen;		/* scan generation # */
 	int		st_newscan;
@@ -159,12 +159,13 @@ sta_attach(struct ieee80211_scan_state *ss)
 {
 	struct sta_table *st;
 
-	st = (struct sta_table *) malloc(sizeof(struct sta_table),
-		M_80211_SCAN, M_NOWAIT | M_ZERO);
+	st = (struct sta_table *) IEEE80211_MALLOC(sizeof(struct sta_table),
+		M_80211_SCAN,
+		IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (st == NULL)
 		return 0;
 	IEEE80211_SCAN_TABLE_LOCK_INIT(st, "scantable");
-	mtx_init(&st->st_scanlock, "scangen", "802.11 scangen", MTX_DEF);
+	IEEE80211_SCAN_ITER_LOCK_INIT(st, "scangen");
 	TAILQ_INIT(&st->st_entry);
 	ss->ss_priv = st;
 	nrefs++;			/* NB: we assume caller locking */
@@ -182,8 +183,8 @@ sta_detach(struct ieee80211_scan_state *ss)
 	if (st != NULL) {
 		sta_flush_table(st);
 		IEEE80211_SCAN_TABLE_LOCK_DESTROY(st);
-		mtx_destroy(&st->st_scanlock);
-		free(st, M_80211_SCAN);
+		IEEE80211_SCAN_ITER_LOCK_DESTROY(st);
+		IEEE80211_FREE(st, M_80211_SCAN);
 		KASSERT(nrefs > 0, ("imbalanced attach/detach"));
 		nrefs--;		/* NB: we assume caller locking */
 	}
@@ -217,7 +218,7 @@ sta_flush_table(struct sta_table *st)
 		TAILQ_REMOVE(&st->st_entry, se, se_list);
 		LIST_REMOVE(se, se_hash);
 		ieee80211_ies_cleanup(&se->base.se_ies);
-		free(se, M_80211_SCAN);
+		IEEE80211_FREE(se, M_80211_SCAN);
 	}
 	memset(st->st_maxrssi, 0, sizeof(st->st_maxrssi));
 }
@@ -228,6 +229,7 @@ sta_flush_table(struct sta_table *st)
  */
 static int
 sta_add(struct ieee80211_scan_state *ss, 
+	struct ieee80211_channel *curchan,
 	const struct ieee80211_scanparams *sp,
 	const struct ieee80211_frame *wh,
 	int subtype, int rssi, int noise)
@@ -251,8 +253,8 @@ sta_add(struct ieee80211_scan_state *ss,
 	LIST_FOREACH(se, &st->st_hash[hash], se_hash)
 		if (IEEE80211_ADDR_EQ(se->base.se_macaddr, macaddr))
 			goto found;
-	se = (struct sta_entry *) malloc(sizeof(struct sta_entry),
-		M_80211_SCAN, M_NOWAIT | M_ZERO);
+	se = (struct sta_entry *) IEEE80211_MALLOC(sizeof(struct sta_entry),
+		M_80211_SCAN, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (se == NULL) {
 		IEEE80211_SCAN_TABLE_UNLOCK(st);
 		return 0;
@@ -310,15 +312,15 @@ found:
 		 * IEEE80211_BPARSE_OFFCHAN.
 		 */
 		c = ieee80211_find_channel_byieee(ic, sp->chan,
-		    ic->ic_curchan->ic_flags);
+		    curchan->ic_flags);
 		if (c != NULL) {
 			ise->se_chan = c;
 		} else if (ise->se_chan == NULL) {
 			/* should not happen, pick something */
-			ise->se_chan = ic->ic_curchan;
+			ise->se_chan = curchan;
 		}
 	} else
-		ise->se_chan = ic->ic_curchan;
+		ise->se_chan = curchan;
 	if (IEEE80211_IS_CHAN_HT(ise->se_chan) && sp->htcap == NULL) {
 		/* Demote legacy networks to a non-HT channel. */
 		c = ieee80211_find_channel(ic, ise->se_chan->ic_freq,
@@ -1401,7 +1403,7 @@ sta_iterate(struct ieee80211_scan_state *ss,
 	struct sta_entry *se;
 	u_int gen;
 
-	mtx_lock(&st->st_scanlock);
+	IEEE80211_SCAN_ITER_LOCK(st);
 	gen = st->st_scaniter++;
 restart:
 	IEEE80211_SCAN_TABLE_LOCK(st);
@@ -1417,7 +1419,7 @@ restart:
 	}
 	IEEE80211_SCAN_TABLE_UNLOCK(st);
 
-	mtx_unlock(&st->st_scanlock);
+	IEEE80211_SCAN_ITER_UNLOCK(st);
 }
 
 static void
@@ -1679,7 +1681,7 @@ adhoc_age(struct ieee80211_scan_state *ss)
 			TAILQ_REMOVE(&st->st_entry, se, se_list);
 			LIST_REMOVE(se, se_hash);
 			ieee80211_ies_cleanup(&se->base.se_ies);
-			free(se, M_80211_SCAN);
+			IEEE80211_FREE(se, M_80211_SCAN);
 		}
 	}
 	IEEE80211_SCAN_TABLE_UNLOCK(st);

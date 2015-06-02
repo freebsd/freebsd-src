@@ -1731,7 +1731,7 @@ crypto_args(
 	tstamp_t tstamp;	/* NTP timestamp */
 	struct exten *ep;	/* extension field pointer */
 	u_int	len;		/* extension field length */
-	size_t	slen;
+	size_t	slen = 0;
 
 	tstamp = crypto_time();
 	len = sizeof(struct exten);

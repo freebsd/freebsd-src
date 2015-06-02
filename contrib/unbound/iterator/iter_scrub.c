@@ -680,7 +680,9 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 				 * (we dont want its glue that was approved
 				 * during the normalize action) */
 				del_addi = 1;
-			} else if(!env->cfg->harden_glue) {
+			} else if(!env->cfg->harden_glue && (
+				rrset->type == LDNS_RR_TYPE_A ||
+				rrset->type == LDNS_RR_TYPE_AAAA)) {
 				/* store in cache! Since it is relevant
 				 * (from normalize) it will be picked up 
 				 * from the cache to be used later */

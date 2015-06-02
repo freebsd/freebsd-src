@@ -68,6 +68,7 @@ AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_YACC
 AC_PROG_CC_C_O
+AX_C99_STRUCT_INIT
 
 NTP_VPATH_HACK		dnl used only by ntpd/Makefile.am
 
@@ -1499,12 +1500,13 @@ AC_CACHE_CHECK(
 	    ;;
 	 *)
 	    AC_PREPROC_IFELSE(
-		[
-		    #include <sys/syscall.h>
-		    #if !defined(SYS_ntp_gettime) || !defined(SYS_ntp_adjtime)
-		    # error
-		    #endif
-		],
+		[AC_LANG_SOURCE(
+		    [
+			#include <sys/syscall.h>
+			#if !defined(SYS_ntp_gettime) || !defined(SYS_ntp_adjtime)
+			# error
+			#endif
+		    ])],
 		[ntp_cv_var_ntp_syscalls=kernel]
 	    )
 	    ;;
@@ -1526,12 +1528,13 @@ AC_CACHE_CHECK(
     [if sys/timex.h has STA_FLL],
     [ntp_cv_var_sta_fll],
     [AC_PREPROC_IFELSE(
-	[
-	    #include <sys/timex.h>
-	    #ifndef STA_FLL
-	    # error
-	    #endif
-	],
+	[AC_LANG_SOURCE(
+	    [
+		#include <sys/timex.h>
+		#ifndef STA_FLL
+		# error
+		#endif
+	    ])],
 	[ntp_cv_var_sta_fll=yes],
 	[ntp_cv_var_sta_fll=no]
     )]
@@ -1586,12 +1589,12 @@ AC_MSG_CHECKING([for TTY PPS ioctl TIOCGPPSEV])
 case "$ac_cv_header_termios_h" in
  yes)
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <termios.h>
 	    #ifndef TIOCGPPSEV
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_ok=yes],
 	[ntp_ok=no]
     )
@@ -1612,12 +1615,12 @@ AC_MSG_CHECKING([for TTY PPS ioctl TIOCSPPS])
 case "$ac_cv_header_termios_h" in
  yes)
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <termios.h>
 	    #ifndef TIOCSPPS
 	    # error
 	    #endif
-	 ],
+	 ])],
 	 [ntp_ok=yes],
 	 [ntp_ok=no]
     )
@@ -1638,12 +1641,12 @@ AC_MSG_CHECKING([for TTY PPS ioctl CIOGETEV])
 case "$ac_cv_header_sys_ppsclock_h" in
  yes)
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <sys/ppsclock.h>
 	    #ifndef CIOGETEV
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_ok=yes],
 	[ntp_ok=no]
     )
@@ -1689,7 +1692,7 @@ case "$ac_cv_header_sys_ppsclock_h$ac_cv_header_linux_serial_h" in
   yesyes)
     AC_MSG_CHECKING([ioctl TIOCGSERIAL, TIOCSSERIAL, ASYNC_PPS_CD_POS, ASYNC_PPS_CD_NEG])
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <sys/time.h>
 	    typedef int u_int;
 	    #include <sys/ppsclock.h>
@@ -1710,7 +1713,7 @@ case "$ac_cv_header_sys_ppsclock_h$ac_cv_header_linux_serial_h" in
 	    #ifndef CIOGETEV
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_ok=yes],
 	[ntp_ok=no]
     )
@@ -4193,7 +4196,6 @@ case "$ans" in
 esac
 
 AC_MSG_CHECKING([if we should enable NIST lockclock scheme])
-
 AC_ARG_ENABLE(
 	[nist],
 	[AS_HELP_STRING(
@@ -4213,7 +4215,6 @@ case "$ans" in
 esac
 
 AC_MSG_CHECKING([if we want support for Samba's signing daemon])
-
 AC_ARG_ENABLE(
     [ntp-signd],
     [AS_HELP_STRING(
@@ -4266,14 +4267,14 @@ AC_CACHE_CHECK(
     [for interface list sysctl],
     [ntp_cv_iflist_sysctl],
     [AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <sys/param.h>
 	    #include <sys/sysctl.h>
 	    #include <sys/socket.h>
 	    #ifndef NET_RT_IFLIST
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_cv_iflist_sysctl=yes],
 	[ntp_cv_iflist_sysctl=no]
     )]
@@ -4333,20 +4334,21 @@ AC_CONFIG_FILES([ntpq/Makefile])
 AC_CONFIG_FILES([ntpsnmpd/Makefile])
 AC_CONFIG_FILES([parseutil/Makefile])
 AC_CONFIG_FILES([scripts/Makefile])
-AC_CONFIG_FILES([scripts/lib/Makefile])
-AC_CONFIG_FILES([scripts/calc_tickadj/calc_tickadj], [chmod +x scripts/calc_tickadj/calc_tickadj])
-AC_CONFIG_FILES([scripts/calc_tickadj/Makefile])
+AC_CONFIG_FILES([scripts/build/Makefile])
 AC_CONFIG_FILES([scripts/build/mkver],	[chmod +x scripts/build/mkver])
-AC_CONFIG_FILES([scripts/ntp-wait/ntp-wait],	[chmod +x scripts/ntp-wait/ntp-wait])
+AC_CONFIG_FILES([scripts/calc_tickadj/Makefile])
+AC_CONFIG_FILES([scripts/calc_tickadj/calc_tickadj], [chmod +x scripts/calc_tickadj/calc_tickadj])
+AC_CONFIG_FILES([scripts/lib/Makefile])
 AC_CONFIG_FILES([scripts/ntp-wait/Makefile])
-AC_CONFIG_FILES([scripts/ntpsweep/ntpsweep],	[chmod +x scripts/ntpsweep/ntpsweep])
+AC_CONFIG_FILES([scripts/ntp-wait/ntp-wait],	[chmod +x scripts/ntp-wait/ntp-wait])
 AC_CONFIG_FILES([scripts/ntpsweep/Makefile])
-AC_CONFIG_FILES([scripts/ntptrace/ntptrace],	[chmod +x scripts/ntptrace/ntptrace])
+AC_CONFIG_FILES([scripts/ntpsweep/ntpsweep],	[chmod +x scripts/ntpsweep/ntpsweep])
 AC_CONFIG_FILES([scripts/ntptrace/Makefile])
+AC_CONFIG_FILES([scripts/ntptrace/ntptrace],	[chmod +x scripts/ntptrace/ntptrace])
 AC_CONFIG_FILES([scripts/ntpver],	[chmod +x scripts/ntpver])
 AC_CONFIG_FILES([scripts/plot_summary],	[chmod +x scripts/plot_summary])
 AC_CONFIG_FILES([scripts/summary],	[chmod +x scripts/summary])
-AC_CONFIG_FILES([scripts/build/Makefile])
+AC_CONFIG_FILES([scripts/update-leap/Makefile])
 AC_CONFIG_FILES([tests/Makefile])
 AC_CONFIG_FILES([tests/libntp/Makefile])
 AC_CONFIG_FILES([tests/ntpd/Makefile])

@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.107 2015/01/13 02:37:20 mrg Exp $	*/
+/*	$NetBSD: gzip.c,v 1.108 2015/04/15 02:29:12 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -1409,13 +1409,16 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		timestamp = ts[3] << 24 | ts[2] << 16 | ts[1] << 8 | ts[0];
 
 		if (header1[3] & ORIG_NAME) {
-			rbytes = pread(fd, name, sizeof name, GZIP_ORIGNAME);
+			rbytes = pread(fd, name, sizeof(name) - 1, GZIP_ORIGNAME);
 			if (rbytes < 0) {
 				maybe_warn("can't read %s", file);
 				goto lose;
 			}
-			if (name[0] != 0) {
+			if (name[0] != '\0') {
 				char *dp, *nf;
+
+				/* Make sure that name is NUL-terminated */
+				name[rbytes] = '\0';
 
 				/* strip saved directory name */
 				nf = strrchr(name, '/');

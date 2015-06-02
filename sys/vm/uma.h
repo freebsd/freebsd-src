@@ -690,4 +690,7 @@ struct uma_percpu_stat {
 	uint64_t	_ups_reserved[5];	/* Reserved. */
 };
 
+void uma_reclaim_wakeup(void);
+void uma_reclaim_worker(void *);
+
 #endif	/* _VM_UMA_H_ */

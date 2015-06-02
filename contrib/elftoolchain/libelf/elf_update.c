@@ -41,7 +41,7 @@
 #include <sys/mman.h>
 #endif
 
-ELFTC_VCSID("$Id: elf_update.c 3013 2014-03-23 06:16:59Z jkoshy $");
+ELFTC_VCSID("$Id: elf_update.c 3190 2015-05-04 15:23:08Z jkoshy $");
 
 /*
  * Layout strategy:
@@ -271,8 +271,10 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t rc)
 	 * offsets and alignment for sanity.
 	 */
 	if (e->e_flags & ELF_F_LAYOUT) {
-		if (scn_alignment > sh_align || sh_offset % sh_align ||
-		    sh_size < scn_size) {
+		if (scn_alignment > sh_align ||
+		    sh_offset % sh_align ||
+		    sh_size < scn_size ||
+		    sh_offset % _libelf_falign(elftype, ec)) {
 			LIBELF_SET_ERROR(LAYOUT, 0);
 			return (0);
 		}

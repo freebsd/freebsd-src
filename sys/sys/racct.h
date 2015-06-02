@@ -83,6 +83,10 @@ struct ucred;
 #define	RACCT_DECAYING		0x20
 
 extern int racct_types[];
+extern int racct_enable;
+
+#define ASSERT_RACCT_ENABLED()	KASSERT(racct_enable, \
+				    ("%s called with !racct_enable", __func__))
 
 /*
  * Amount stored in c_resources[] is 10**6 times bigger than what's

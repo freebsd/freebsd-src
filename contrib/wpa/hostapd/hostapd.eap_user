@@ -48,6 +48,12 @@
 # TTLS-CHAP, TTLS-MSCHAP, TTLS-MSCHAPV2. TTLS-PAP and TTLS-CHAP require a
 # plaintext password while TTLS-MSCHAP and TTLS-MSCHAPV2 can use NT password
 # hash.
+#
+# Arbitrary RADIUS attributes can be added into Access-Accept packets similarly
+# to the way radius_auth_req_attr is used for Access-Request packet in
+# hostapd.conf. For EAP server, this is configured separately for each user
+# entry with radius_accept_attr=<value> line(s) following the main user entry
+# line.
 
 # Phase 1 users
 "user"		MD5	"password"

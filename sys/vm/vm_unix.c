@@ -130,35 +130,39 @@ sys_obreak(td, uap)
 			goto done;
 		}
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		error = racct_set(td->td_proc, RACCT_DATA, new - base);
-		if (error != 0) {
-			PROC_UNLOCK(td->td_proc);
-			error = ENOMEM;
-			goto done;
-		}
-		error = racct_set(td->td_proc, RACCT_VMEM,
-		    map->size + (new - old));
-		if (error != 0) {
-			racct_set_force(td->td_proc, RACCT_DATA, old - base);
-			PROC_UNLOCK(td->td_proc);
-			error = ENOMEM;
-			goto done;
-		}
-		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-			error = racct_set(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(pmap_wired_count(map->pmap)) + (new - old));
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			error = racct_set(td->td_proc, RACCT_DATA, new - base);
 			if (error != 0) {
-				racct_set_force(td->td_proc, RACCT_DATA,
-				    old - base);
-				racct_set_force(td->td_proc, RACCT_VMEM,
-				    map->size);
 				PROC_UNLOCK(td->td_proc);
 				error = ENOMEM;
 				goto done;
 			}
+			error = racct_set(td->td_proc, RACCT_VMEM,
+			    map->size + (new - old));
+			if (error != 0) {
+				racct_set_force(td->td_proc, RACCT_DATA,
+				    old - base);
+				PROC_UNLOCK(td->td_proc);
+				error = ENOMEM;
+				goto done;
+			}
+			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+				error = racct_set(td->td_proc, RACCT_MEMLOCK,
+				    ptoa(pmap_wired_count(map->pmap)) +
+				    (new - old));
+				if (error != 0) {
+					racct_set_force(td->td_proc, RACCT_DATA,
+					    old - base);
+					racct_set_force(td->td_proc, RACCT_VMEM,
+					    map->size);
+					PROC_UNLOCK(td->td_proc);
+					error = ENOMEM;
+					goto done;
+				}
+			}
+			PROC_UNLOCK(td->td_proc);
 		}
-		PROC_UNLOCK(td->td_proc);
 #endif
 		prot = VM_PROT_RW;
 #ifdef COMPAT_FREEBSD32
@@ -170,14 +174,19 @@ sys_obreak(td, uap)
 		rv = vm_map_insert(map, NULL, 0, old, new, prot, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 #ifdef RACCT
-			PROC_LOCK(td->td_proc);
-			racct_set_force(td->td_proc, RACCT_DATA, old - base);
-			racct_set_force(td->td_proc, RACCT_VMEM, map->size);
-			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-				racct_set_force(td->td_proc, RACCT_MEMLOCK,
-				    ptoa(pmap_wired_count(map->pmap)));
+			if (racct_enable) {
+				PROC_LOCK(td->td_proc);
+				racct_set_force(td->td_proc,
+				    RACCT_DATA, old - base);
+				racct_set_force(td->td_proc,
+				    RACCT_VMEM, map->size);
+				if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+					racct_set_force(td->td_proc,
+					    RACCT_MEMLOCK,
+					    ptoa(pmap_wired_count(map->pmap)));
+				}
+				PROC_UNLOCK(td->td_proc);
 			}
-			PROC_UNLOCK(td->td_proc);
 #endif
 			error = ENOMEM;
 			goto done;
@@ -205,14 +214,16 @@ sys_obreak(td, uap)
 		}
 		vm->vm_dsize -= btoc(old - new);
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		racct_set_force(td->td_proc, RACCT_DATA, new - base);
-		racct_set_force(td->td_proc, RACCT_VMEM, map->size);
-		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-			racct_set_force(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(pmap_wired_count(map->pmap)));
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			racct_set_force(td->td_proc, RACCT_DATA, new - base);
+			racct_set_force(td->td_proc, RACCT_VMEM, map->size);
+			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+				racct_set_force(td->td_proc, RACCT_MEMLOCK,
+				    ptoa(pmap_wired_count(map->pmap)));
+			}
+			PROC_UNLOCK(td->td_proc);
 		}
-		PROC_UNLOCK(td->td_proc);
 #endif
 	}
 done:

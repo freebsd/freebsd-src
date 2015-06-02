@@ -326,12 +326,9 @@ branch_taken(u_int insn, db_addr_t pc)
 				default:
 					break; /* XXX */
 				}
-					
 			}
 			return (addr + offset);
-				
 		}
-		
 	case 0xa:	/* b ... */
 	case 0xb:	/* bl ... */
 		addr = ((insn << 2) & 0x03ffffff);

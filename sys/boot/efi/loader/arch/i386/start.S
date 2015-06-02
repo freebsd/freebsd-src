@@ -53,9 +53,7 @@ ENTRY(_start)
 	addl	$_DYNAMIC-0b, %ebx
 	pushl	%ebx		/* dynamic */
 	pushl	%eax		/* ImageBase */
-	call	_reloc
-	cmpl	$EFI_SUCCESS, %eax
-	jne	1f
+	call	self_reloc
 	popl	%ebx		/* remove ImageBase from the stack */
 	popl	%ebx		/* remove dynamic from the stack */
 	call	efi_main

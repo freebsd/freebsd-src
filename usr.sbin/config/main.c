@@ -686,7 +686,7 @@ kernconfdump(const char *file)
 {
 	struct stat st;
 	FILE *fp, *pp;
-	int error, len, osz, r;
+	int error, osz, r;
 	unsigned int i, off, size, t1, t2, align;
 	char *cmd, *o;
 
@@ -714,7 +714,7 @@ kernconfdump(const char *file)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "popen() failed");
 	free(cmd);
-	len = fread(o, osz, 1, pp);
+	fread(o, osz, 1, pp);
 	pclose(pp);
 	r = sscanf(o, "%d%d%d%d%d", &off, &size, &t1, &t2, &align);
 	free(o);

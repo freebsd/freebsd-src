@@ -248,8 +248,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 
 	/*
 	 * when the kernel forwards a packet, it is not proper to apply
-	 * IPsec transport mode to the packet is not proper.  this check
-	 * avoid from this.
+	 * IPsec transport mode to the packet. This check avoid from this.
 	 * at present, if there is even a transport mode SA request in the
 	 * security policy, the kernel does not apply IPsec to the packet.
 	 * this check is not enough because the following case is valid.
@@ -283,9 +282,9 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * ipsec6_proces_packet will send the packet using ip6_output
 	 */
 	error = ipsec6_process_packet(m, sp->req);
-
-	KEY_FREESP(&sp);
-
+	/* Release SP if an error occured */
+	if (error != 0)
+		KEY_FREESP(&sp);
 	if (error == EJUSTRETURN) {
 		/*
 		 * We had a SP with a level of 'use' and no SA. We

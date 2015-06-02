@@ -1240,7 +1240,7 @@ nlm_xlpge_attach(device_t dev)
 	sc->prepad_en = sc->network_sc->prepad_en;
 	sc->prepad_size = sc->network_sc->prepad_size;
 
-	callout_init(&sc->xlpge_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->xlpge_callout, 1);
 
 	XLPGE_LOCK_INIT(sc, device_get_nameunit(dev));
 

@@ -792,6 +792,7 @@ const char *_dtrace_libdir = "/usr/lib/dtrace"; /* default library directory */
 #ifdef illumos
 const char *_dtrace_provdir = "/dev/dtrace/provider"; /* provider directory */
 #else
+const char *_dtrace_libdir32 = "/usr/lib32/dtrace";
 const char *_dtrace_provdir = "/dev/dtrace"; /* provider directory */
 #endif
 
@@ -1581,8 +1582,19 @@ alloc:
 	 * compile, and to provide better error reporting (because the full
 	 * reporting of compiler errors requires dtrace_open() to succeed).
 	 */
+#ifdef __FreeBSD__
+#ifdef __LP64__
+	if ((dtp->dt_oflags & DTRACE_O_ILP32) != 0) {
+		if (dtrace_setopt(dtp, "libdir", _dtrace_libdir32) != 0)
+			return (set_open_errno(dtp, errp, dtp->dt_errno));
+	}
+#endif
 	if (dtrace_setopt(dtp, "libdir", _dtrace_libdir) != 0)
 		return (set_open_errno(dtp, errp, dtp->dt_errno));
+#else
+	if (dtrace_setopt(dtp, "libdir", _dtrace_libdir) != 0)
+		return (set_open_errno(dtp, errp, dtp->dt_errno));
+#endif
 
 	return (dtp);
 }

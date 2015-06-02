@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - test code
- * Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2013, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -21,17 +21,14 @@
 #include "eloop.h"
 #include "utils/base64.h"
 #include "rsn_supp/wpa.h"
-#include "eap_peer/eap_i.h"
 #include "wpa_supplicant_i.h"
 #include "radius/radius.h"
 #include "radius/radius_client.h"
 #include "common/wpa_ctrl.h"
 #include "ctrl_iface.h"
 #include "pcsc_funcs.h"
+#include "wpas_glue.h"
 
-
-extern int wpa_debug_level;
-extern int wpa_debug_show_keys;
 
 struct wpa_driver_ops *wpa_drivers[] = { NULL };
 
@@ -49,6 +46,7 @@ struct eapol_test_data {
 	int eapol_test_num_reauths;
 	int no_mppe_keys;
 	int num_mppe_ok, num_mppe_mismatch;
+	int req_eap_key_name;
 
 	u8 radius_identifier;
 	struct radius_msg *last_recv_radius;
@@ -61,6 +59,8 @@ struct eapol_test_data {
 
 	u8 authenticator_pmk[PMK_LEN];
 	size_t authenticator_pmk_len;
+	u8 authenticator_eap_key_name[256];
+	size_t authenticator_eap_key_name_len;
 	int radius_access_accept_received;
 	int radius_access_reject_received;
 	int auth_timed_out;
@@ -73,6 +73,9 @@ struct eapol_test_data {
 	struct extra_radius_attr *extra_attrs;
 
 	FILE *server_cert_file;
+
+	const char *pcsc_reader;
+	const char *pcsc_pin;
 };
 
 static struct eapol_test_data eapol_test;
@@ -211,6 +214,13 @@ static void ieee802_1x_encapsulate_radius(struct eapol_test_data *e,
 		goto fail;
 	}
 
+	if (e->req_eap_key_name &&
+	    !radius_msg_add_attr(msg, RADIUS_ATTR_EAP_KEY_NAME, (u8 *) "\0",
+				 1)) {
+		printf("Could not add EAP-Key-Name\n");
+		goto fail;
+	}
+
 	if (!find_extra_attr(e->extra_attrs, RADIUS_ATTR_NAS_IP_ADDRESS) &&
 	    !radius_msg_add_attr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
 				 (u8 *) &e->own_ip_addr, 4)) {
@@ -336,6 +346,8 @@ static int eapol_test_compare_pmk(struct eapol_test_data *e)
 {
 	u8 pmk[PMK_LEN];
 	int ret = 1;
+	const u8 *sess_id;
+	size_t sess_id_len;
 
 	if (eapol_sm_get_key(e->wpa_s->eapol, pmk, PMK_LEN) == 0) {
 		wpa_hexdump(MSG_DEBUG, "PMK from EAPOL", pmk, PMK_LEN);
@@ -364,14 +376,37 @@ static int eapol_test_compare_pmk(struct eapol_test_data *e)
 	else if (!e->no_mppe_keys)
 		e->num_mppe_ok++;
 
+	sess_id = eapol_sm_get_session_id(e->wpa_s->eapol, &sess_id_len);
+	if (!sess_id)
+		return ret;
+	if (e->authenticator_eap_key_name_len == 0) {
+		wpa_printf(MSG_INFO, "No EAP-Key-Name received from server");
+		return ret;
+	}
+
+	if (e->authenticator_eap_key_name_len != sess_id_len ||
+	    os_memcmp(e->authenticator_eap_key_name, sess_id, sess_id_len) != 0)
+	{
+		wpa_printf(MSG_INFO,
+			   "Locally derived EAP Session-Id does not match EAP-Key-Name from server");
+		wpa_hexdump(MSG_DEBUG, "EAP Session-Id", sess_id, sess_id_len);
+		wpa_hexdump(MSG_DEBUG, "EAP-Key-Name from server",
+			    e->authenticator_eap_key_name,
+			    e->authenticator_eap_key_name_len);
+	} else {
+		wpa_printf(MSG_INFO,
+			   "Locally derived EAP Session-Id matches EAP-Key-Name from server");
+	}
+
 	return ret;
 }
 
 
-static void eapol_sm_cb(struct eapol_sm *eapol, int success, void *ctx)
+static void eapol_sm_cb(struct eapol_sm *eapol, enum eapol_supp_result result,
+			void *ctx)
 {
 	struct eapol_test_data *e = ctx;
-	printf("eapol_sm_cb: success=%d\n", success);
+	printf("eapol_sm_cb: result=%d\n", result);
 	e->eapol_test_num_reauths--;
 	if (e->eapol_test_num_reauths < 0)
 		eloop_terminate();
@@ -396,7 +431,56 @@ static void eapol_test_write_cert(FILE *f, const char *subject,
 }
 
 
+#if defined(CONFIG_CTRL_IFACE) || !defined(CONFIG_NO_STDOUT_DEBUG)
+static void eapol_test_eap_param_needed(void *ctx, enum wpa_ctrl_req_type field,
+					const char *default_txt)
+{
+	struct eapol_test_data *e = ctx;
+	struct wpa_supplicant *wpa_s = e->wpa_s;
+	struct wpa_ssid *ssid = wpa_s->current_ssid;
+	const char *field_name, *txt = NULL;
+	char *buf;
+	size_t buflen;
+	int len;
+
+	if (ssid == NULL)
+		return;
+
+	field_name = wpa_supplicant_ctrl_req_to_string(field, default_txt,
+						       &txt);
+	if (field_name == NULL) {
+		wpa_printf(MSG_WARNING, "Unhandled EAP param %d needed",
+			   field);
+		return;
+	}
+
+	buflen = 100 + os_strlen(txt) + ssid->ssid_len;
+	buf = os_malloc(buflen);
+	if (buf == NULL)
+		return;
+	len = os_snprintf(buf, buflen,
+			  WPA_CTRL_REQ "%s-%d:%s needed for SSID ",
+			  field_name, ssid->id, txt);
+	if (os_snprintf_error(buflen, len)) {
+		os_free(buf);
+		return;
+	}
+	if (ssid->ssid && buflen > len + ssid->ssid_len) {
+		os_memcpy(buf + len, ssid->ssid, ssid->ssid_len);
+		len += ssid->ssid_len;
+		buf[len] = '\0';
+	}
+	buf[buflen - 1] = '\0';
+	wpa_msg(wpa_s, MSG_INFO, "%s", buf);
+	os_free(buf);
+}
+#else /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
+#define eapol_test_eap_param_needed NULL
+#endif /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
+
+
 static void eapol_test_cert_cb(void *ctx, int depth, const char *subject,
+			       const char *altsubject[], int num_altsubject,
 			       const char *cert_hash,
 			       const struct wpabuf *cert)
 {
@@ -425,6 +509,14 @@ static void eapol_test_cert_cb(void *ctx, int depth, const char *subject,
 		if (e->server_cert_file)
 			eapol_test_write_cert(e->server_cert_file,
 					      subject, cert);
+	}
+
+	if (altsubject) {
+		int i;
+
+		for (i = 0; i < num_altsubject; i++)
+			wpa_msg(e->wpa_s, MSG_INFO, WPA_EVENT_EAP_PEER_ALT
+				"depth=%d %s", depth, altsubject[i]);
 	}
 }
 
@@ -485,6 +577,8 @@ static int test_eapol(struct eapol_test_data *e, struct wpa_supplicant *wpa_s,
 	ctx->opensc_engine_path = wpa_s->conf->opensc_engine_path;
 	ctx->pkcs11_engine_path = wpa_s->conf->pkcs11_engine_path;
 	ctx->pkcs11_module_path = wpa_s->conf->pkcs11_module_path;
+	ctx->openssl_ciphers = wpa_s->conf->openssl_ciphers;
+	ctx->eap_param_needed = eapol_test_eap_param_needed;
 	ctx->cert_cb = eapol_test_cert_cb;
 	ctx->cert_in_cb = 1;
 	ctx->set_anon_id = eapol_test_set_anon_id;
@@ -502,6 +596,7 @@ static int test_eapol(struct eapol_test_data *e, struct wpa_supplicant *wpa_s,
 	eapol_conf.required_keys = 0;
 	eapol_conf.fast_reauth = wpa_s->conf->fast_reauth;
 	eapol_conf.workaround = ssid->eap_workaround;
+	eapol_conf.external_sim = wpa_s->conf->external_sim;
 	eapol_sm_notify_config(wpa_s->eapol, &ssid->eap, &eapol_conf);
 	eapol_sm_register_scard_ctx(wpa_s->eapol, wpa_s->scard);
 
@@ -701,6 +796,8 @@ static void ieee802_1x_get_keys(struct eapol_test_data *e,
 				size_t shared_secret_len)
 {
 	struct radius_ms_mppe_keys *keys;
+	u8 *buf;
+	size_t len;
 
 	keys = radius_msg_get_ms_keys(msg, req, shared_secret,
 				      shared_secret_len);
@@ -738,6 +835,14 @@ static void ieee802_1x_get_keys(struct eapol_test_data *e,
 		os_free(keys->send);
 		os_free(keys->recv);
 		os_free(keys);
+	}
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_EAP_KEY_NAME, &buf, &len,
+				    NULL) == 0) {
+		os_memcpy(e->authenticator_eap_key_name, buf, len);
+		e->authenticator_eap_key_name_len = len;
+	} else {
+		e->authenticator_eap_key_name_len = 0;
 	}
 }
 
@@ -833,7 +938,11 @@ static void wpa_init_conf(struct eapol_test_data *e,
 		*pos++ = a[3];
 	}
 #else /* CONFIG_NATIVE_WINDOWS or CONFIG_ANSI_C_EXTRA */
-	inet_aton(authsrv, &as->addr.u.v4);
+	if (inet_aton(authsrv, &as->addr.u.v4) < 0) {
+		wpa_printf(MSG_ERROR, "Invalid IP address '%s'",
+			   authsrv);
+		assert(0);
+	}
 #endif /* CONFIG_NATIVE_WINDOWS or CONFIG_ANSI_C_EXTRA */
 	as->addr.af = AF_INET;
 	as->port = port;
@@ -862,7 +971,7 @@ static void wpa_init_conf(struct eapol_test_data *e,
 }
 
 
-static int scard_test(void)
+static int scard_test(struct eapol_test_data *e)
 {
 	struct scard_data *scard;
 	size_t len;
@@ -893,10 +1002,10 @@ static int scard_test(void)
 	unsigned char aka_ik[IK_LEN];
 	unsigned char aka_ck[CK_LEN];
 
-	scard = scard_init(SCARD_TRY_BOTH, NULL);
+	scard = scard_init(e->pcsc_reader);
 	if (scard == NULL)
 		return -1;
-	if (scard_set_pin(scard, "1234")) {
+	if (scard_set_pin(scard, e->pcsc_pin)) {
 		wpa_printf(MSG_WARNING, "PIN validation failed");
 		scard_deinit(scard);
 		return -1;
@@ -971,7 +1080,7 @@ failed:
 }
 
 
-static int scard_get_triplets(int argc, char *argv[])
+static int scard_get_triplets(struct eapol_test_data *e, int argc, char *argv[])
 {
 	struct scard_data *scard;
 	size_t len;
@@ -993,7 +1102,7 @@ static int scard_get_triplets(int argc, char *argv[])
 		wpa_debug_level = 99;
 	}
 
-	scard = scard_init(SCARD_GSM_SIM_ONLY, NULL);
+	scard = scard_init(e->pcsc_reader);
 	if (scard == NULL) {
 		printf("Failed to open smartcard connection\n");
 		return -1;
@@ -1047,11 +1156,12 @@ static void eapol_test_terminate(int sig, void *signal_ctx)
 static void usage(void)
 {
 	printf("usage:\n"
-	       "eapol_test [-nWS] -c<conf> [-a<AS IP>] [-p<AS port>] "
+	       "eapol_test [-enWS] -c<conf> [-a<AS IP>] [-p<AS port>] "
 	       "[-s<AS secret>]\\\n"
 	       "           [-r<count>] [-t<timeout>] [-C<Connect-Info>] \\\n"
 	       "           [-M<client MAC address>] [-o<server cert file] \\\n"
-	       "           [-N<attr spec>] \\\n"
+	       "           [-N<attr spec>] [-R<PC/SC reader>] "
+	       "[-P<PC/SC PIN>] \\\n"
 	       "           [-A<client IP>]\n"
 	       "eapol_test scard\n"
 	       "eapol_test sim <PIN> <num triplets> [debug]\n"
@@ -1067,6 +1177,7 @@ static void usage(void)
 	       "  -A<client IP> = IP address of the client, default: select "
 	       "automatically\n"
 	       "  -r<count> = number of re-authentications\n"
+	       "  -e = Request EAP-Key-Name\n"
 	       "  -W = wait for a control interface monitor before starting\n"
 	       "  -S = save configuration after authentication\n"
 	       "  -n = no MPPE keys expected\n"
@@ -1095,6 +1206,7 @@ static void usage(void)
 
 int main(int argc, char *argv[])
 {
+	struct wpa_global global;
 	struct wpa_supplicant wpa_s;
 	int c, ret = 1, wait_for_monitor = 0, save_config = 0;
 	char *as_addr = "127.0.0.1";
@@ -1114,12 +1226,13 @@ int main(int argc, char *argv[])
 	os_memset(&eapol_test, 0, sizeof(eapol_test));
 	eapol_test.connect_info = "CONNECT 11Mbps 802.11b";
 	os_memcpy(eapol_test.own_addr, "\x02\x00\x00\x00\x00\x01", ETH_ALEN);
+	eapol_test.pcsc_pin = "1234";
 
 	wpa_debug_level = 0;
 	wpa_debug_show_keys = 1;
 
 	for (;;) {
-		c = getopt(argc, argv, "a:A:c:C:M:nN:o:p:r:s:St:W");
+		c = getopt(argc, argv, "a:A:c:C:eM:nN:o:p:P:r:R:s:St:W");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -1134,6 +1247,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'C':
 			eapol_test.connect_info = optarg;
+			break;
+		case 'e':
+			eapol_test.req_eap_key_name = 1;
 			break;
 		case 'M':
 			if (hwaddr_aton(optarg, eapol_test.own_addr)) {
@@ -1157,8 +1273,14 @@ int main(int argc, char *argv[])
 		case 'p':
 			as_port = atoi(optarg);
 			break;
+		case 'P':
+			eapol_test.pcsc_pin = optarg;
+			break;
 		case 'r':
 			eapol_test.eapol_test_num_reauths = atoi(optarg);
+			break;
+		case 'R':
+			eapol_test.pcsc_reader = optarg;
 			break;
 		case 's':
 			as_secret = optarg;
@@ -1207,11 +1329,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc > optind && os_strcmp(argv[optind], "scard") == 0) {
-		return scard_test();
+		return scard_test(&eapol_test);
 	}
 
 	if (argc > optind && os_strcmp(argv[optind], "sim") == 0) {
-		return scard_get_triplets(argc - optind - 1,
+		return scard_get_triplets(&eapol_test, argc - optind - 1,
 					  &argv[optind + 1]);
 	}
 
@@ -1231,9 +1353,13 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	os_memset(&global, 0, sizeof(global));
 	os_memset(&wpa_s, 0, sizeof(wpa_s));
+	wpa_s.global = &global;
 	eapol_test.wpa_s = &wpa_s;
-	wpa_s.conf = wpa_config_read(conf);
+	dl_list_init(&wpa_s.bss);
+	dl_list_init(&wpa_s.bss_id);
+	wpa_s.conf = wpa_config_read(conf, NULL);
 	if (wpa_s.conf == NULL) {
 		printf("Failed to parse configuration file '%s'.\n", conf);
 		return -1;
@@ -1241,6 +1367,11 @@ int main(int argc, char *argv[])
 	if (wpa_s.conf->ssid == NULL) {
 		printf("No networks defined.\n");
 		return -1;
+	}
+
+	if (eapol_test.pcsc_reader) {
+		os_free(wpa_s.conf->pcsc_reader);
+		wpa_s.conf->pcsc_reader = os_strdup(eapol_test.pcsc_reader);
 	}
 
 	wpa_init_conf(&eapol_test, &wpa_s, as_addr, as_port, as_secret,

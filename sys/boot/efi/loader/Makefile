@@ -20,7 +20,7 @@ SRCS=	autoload.c \
 	copy.c \
 	devicename.c \
 	main.c \
-	reloc.c \
+	self_reloc.c \
 	smbios.c \
 	vers.c
 
@@ -37,6 +37,12 @@ CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../i386/libi386
 CFLAGS+=	-DNO_PCI -DEFI
+
+# make buildenv doesn't set DESTDIR, this means LIBSTAND
+# will be wrong when crossbuilding.
+.if exists(${.OBJDIR}/../../../../lib/libstand/libstand.a)
+LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
+.endif
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes

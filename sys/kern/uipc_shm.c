@@ -170,7 +170,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	if (uio->uio_rw == UIO_READ && vm_page_lookup(obj, idx) == NULL &&
 	    !vm_pager_has_page(obj, idx, NULL, NULL)) {
 		VM_OBJECT_WUNLOCK(obj);
-		return (uiomove(__DECONST(void *, zero_region), len, uio));
+		return (uiomove(__DECONST(void *, zero_region), tlen, uio));
 	}
 
 	/*

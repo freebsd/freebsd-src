@@ -6,7 +6,6 @@ arm/arm/bus_space_generic.c			standard
 arm/arm/bus_space_asm_generic.S			standard
 
 arm/arm/bus_space_base.c			standard
-arm/arm/gic.c					standard
 arm/arm/mpcore_timer.c				standard
 
 arm/altera/socfpga/socfpga_common.c		standard

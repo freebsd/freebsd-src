@@ -39,7 +39,7 @@ The program can operate in any of several modes, including client/server,
 symmetric and broadcast modes, and with both symmetric-key and public-key
 cryptography.
 
-  <p>This document applies to version 4.2.8p1 of <code>ntpd</code>.
+  <p>This document applies to version 4.2.8p2 of <code>ntpd</code>.
 
 <ul class="menu">
 <li><a accesskey="1" href="#ntpd-Description">ntpd Description</a>:             Description
@@ -169,7 +169,8 @@ This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 <li><a accesskey="6" href="#ntpd-configfile">ntpd configfile</a>:              configfile option (-c)
 <li><a accesskey="7" href="#ntpd-driftfile">ntpd driftfile</a>:               driftfile option (-f)
 <li><a accesskey="8" href="#ntpd-panicgate">ntpd panicgate</a>:               panicgate option (-g)
-<li><a accesskey="9" href="#ntpd-jaildir">ntpd jaildir</a>:                 jaildir option (-i)
+<li><a accesskey="9" href="#ntpd-force_002dstep_002donce">ntpd force-step-once</a>:         force-step-once option (-G)
+<li><a href="#ntpd-jaildir">ntpd jaildir</a>:                 jaildir option (-i)
 <li><a href="#ntpd-interface">ntpd interface</a>:               interface option (-I)
 <li><a href="#ntpd-keyfile">ntpd keyfile</a>:                 keyfile option (-k)
 <li><a href="#ntpd-logfile">ntpd logfile</a>:                 logfile option (-l)
@@ -219,7 +220,7 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">ntpd - NTP daemon program - Ver. 4.2.8p1-RC2
+<pre class="example">ntpd - NTP daemon program - Ver. 4.2.8p2-RC3
 Usage:  ntpd [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... \
                 [ &lt;server1&gt; ... &lt;serverN&gt; ]
   Flg Arg Option-Name    Description
@@ -240,6 +241,7 @@ Usage:  ntpd [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ].
    -f Str driftfile      frequency drift file name
    -g no  panicgate      Allow the first adjustment to be Big
                                 - may appear multiple times
+   -G no  force-step-once Step any initial offset correction.
    -i Str jaildir        Jail directory
    -I Str interface      Listen on an interface name or address
                                 - may appear multiple times
@@ -413,7 +415,7 @@ configuration specification in the
 file. 
 <div class="node">
 <p><hr>
-<a name="ntpd-panicgate"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-jaildir">ntpd jaildir</a>,
+<a name="ntpd-panicgate"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-force_002dstep_002donce">ntpd force-step-once</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-driftfile">ntpd driftfile</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 <br>
@@ -443,15 +445,37 @@ See the
 configuration file directive for other options. 
 <div class="node">
 <p><hr>
-<a name="ntpd-jaildir"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-interface">ntpd interface</a>,
+<a name="ntpd-force_002dstep_002donce"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-jaildir">ntpd jaildir</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-panicgate">ntpd panicgate</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
+<br>
+</div>
+
+<h4 class="subsection">force-step-once option (-G)</h4>
+
+<p><a name="index-ntpd_002dforce_002dstep_002donce-11"></a>
+This is the &ldquo;step any initial offset correction.&rdquo; option. 
+Normally,
+<code>ntpd</code>
+steps the time if the time offset exceeds the step threshold,
+which is 128 ms by default, and otherwise slews the time. 
+This option forces the initial offset correction to be stepped,
+so the highest time accuracy can be achieved quickly. 
+However, this may also cause the time to be stepped back
+so this option must not be used if
+applications requiring monotonic time are running. 
+See the <code>tinker</code> configuration file directive for other options. 
+<div class="node">
+<p><hr>
+<a name="ntpd-jaildir"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-interface">ntpd interface</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-force_002dstep_002donce">ntpd force-step-once</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 <br>
 </div>
 
 <h4 class="subsection">jaildir option (-i)</h4>
 
-<p><a name="index-ntpd_002djaildir-11"></a>
+<p><a name="index-ntpd_002djaildir-12"></a>
 This is the &ldquo;jail directory&rdquo; option. 
 This option takes a string argument.
 
@@ -482,7 +506,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">interface option (-I)</h4>
 
-<p><a name="index-ntpd_002dinterface-12"></a>
+<p><a name="index-ntpd_002dinterface-13"></a>
 This is the &ldquo;listen on an interface name or address&rdquo; option. 
 This option takes a string argument <span class="file">iface</span>.
 
@@ -506,7 +530,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">keyfile option (-k)</h4>
 
-<p><a name="index-ntpd_002dkeyfile-13"></a>
+<p><a name="index-ntpd_002dkeyfile-14"></a>
 This is the &ldquo;path to symmetric keys&rdquo; option. 
 This option takes a string argument. 
 Specify the name and path of the symmetric key file. 
@@ -525,7 +549,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">logfile option (-l)</h4>
 
-<p><a name="index-ntpd_002dlogfile-14"></a>
+<p><a name="index-ntpd_002dlogfile-15"></a>
 This is the &ldquo;path to the log file&rdquo; option. 
 This option takes a string argument. 
 Specify the name and path of the log file. 
@@ -543,7 +567,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">novirtualips option (-L)</h4>
 
-<p><a name="index-ntpd_002dnovirtualips-15"></a>
+<p><a name="index-ntpd_002dnovirtualips-16"></a>
 This is the &ldquo;do not listen to virtual interfaces&rdquo; option. 
 Do not listen to virtual interfaces, defined as those with
 names containing a colon.  This option is deprecated.  Please
@@ -559,7 +583,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">modifymmtimer option (-M)</h4>
 
-<p><a name="index-ntpd_002dmodifymmtimer-16"></a>
+<p><a name="index-ntpd_002dmodifymmtimer-17"></a>
 This is the &ldquo;modify multimedia timer (windows only)&rdquo; option.
 
 <p class="noindent">This option has some usage constraints.  It:
@@ -580,7 +604,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">nice option (-N)</h4>
 
-<p><a name="index-ntpd_002dnice-17"></a>
+<p><a name="index-ntpd_002dnice-18"></a>
 This is the &ldquo;run at high priority&rdquo; option. 
 To the extent permitted by the operating system, run
 <code>ntpd</code>
@@ -595,7 +619,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">pidfile option (-p)</h4>
 
-<p><a name="index-ntpd_002dpidfile-18"></a>
+<p><a name="index-ntpd_002dpidfile-19"></a>
 This is the &ldquo;path to the pid file&rdquo; option. 
 This option takes a string argument. 
 Specify the name and path of the file used to record
@@ -614,7 +638,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">priority option (-P)</h4>
 
-<p><a name="index-ntpd_002dpriority-19"></a>
+<p><a name="index-ntpd_002dpriority-20"></a>
 This is the &ldquo;process priority&rdquo; option. 
 This option takes a number argument. 
 To the extent permitted by the operating system, run
@@ -632,7 +656,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">quit option (-q)</h4>
 
-<p><a name="index-ntpd_002dquit-20"></a>
+<p><a name="index-ntpd_002dquit-21"></a>
 This is the &ldquo;set the time and quit&rdquo; option.
 
 <p class="noindent">This option has some usage constraints.  It:
@@ -662,7 +686,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">propagationdelay option (-r)</h4>
 
-<p><a name="index-ntpd_002dpropagationdelay-21"></a>
+<p><a name="index-ntpd_002dpropagationdelay-22"></a>
 This is the &ldquo;broadcast/propagation delay&rdquo; option. 
 This option takes a string argument. 
 Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol. 
@@ -676,7 +700,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">saveconfigquit option</h4>
 
-<p><a name="index-ntpd_002dsaveconfigquit-22"></a>
+<p><a name="index-ntpd_002dsaveconfigquit-23"></a>
 This is the &ldquo;save parsed configuration and quit&rdquo; option. 
 This option takes a string argument.
 
@@ -700,7 +724,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">statsdir option (-s)</h4>
 
-<p><a name="index-ntpd_002dstatsdir-23"></a>
+<p><a name="index-ntpd_002dstatsdir-24"></a>
 This is the &ldquo;statistics file location&rdquo; option. 
 This option takes a string argument. 
 Specify the directory path for files created by the statistics facility. 
@@ -717,7 +741,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">trustedkey option (-t)</h4>
 
-<p><a name="index-ntpd_002dtrustedkey-24"></a>
+<p><a name="index-ntpd_002dtrustedkey-25"></a>
 This is the &ldquo;trusted key number&rdquo; option. 
 This option takes a string argument <span class="file">tkey</span>.
 
@@ -737,7 +761,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">user option (-u)</h4>
 
-<p><a name="index-ntpd_002duser-25"></a>
+<p><a name="index-ntpd_002duser-26"></a>
 This is the &ldquo;run as userid (or userid:groupid)&rdquo; option. 
 This option takes a string argument.
 
@@ -762,7 +786,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">updateinterval option (-U)</h4>
 
-<p><a name="index-ntpd_002dupdateinterval-26"></a>
+<p><a name="index-ntpd_002dupdateinterval-27"></a>
 This is the &ldquo;interval in seconds between scans for new or dropped interfaces&rdquo; option. 
 This option takes a number argument. 
 Give the time in seconds between two scans for new or dropped interfaces. 
@@ -779,7 +803,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">wait-sync option (-w)</h4>
 
-<p><a name="index-ntpd_002dwait_002dsync-27"></a>
+<p><a name="index-ntpd_002dwait_002dsync-28"></a>
 This is the &ldquo;seconds to wait for first clock sync&rdquo; option. 
 This option takes a number argument.
 
@@ -808,7 +832,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">slew option (-x)</h4>
 
-<p><a name="index-ntpd_002dslew-28"></a>
+<p><a name="index-ntpd_002dslew-29"></a>
 This is the &ldquo;slew up to 600 seconds&rdquo; option. 
 Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold. 
 This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually. 
@@ -833,7 +857,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">usepcc option</h4>
 
-<p><a name="index-ntpd_002dusepcc-29"></a>
+<p><a name="index-ntpd_002dusepcc-30"></a>
 This is the &ldquo;use cpu cycle counter (windows only)&rdquo; option.
 
 <p class="noindent">This option has some usage constraints.  It:
@@ -855,7 +879,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">pccfreq option</h4>
 
-<p><a name="index-ntpd_002dpccfreq-30"></a>
+<p><a name="index-ntpd_002dpccfreq-31"></a>
 This is the &ldquo;force cpu cycle counter use (windows only)&rdquo; option. 
 This option takes a string argument.
 
@@ -877,7 +901,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
 
 <h4 class="subsection">mdns option (-m)</h4>
 
-<p><a name="index-ntpd_002dmdns-31"></a>
+<p><a name="index-ntpd_002dmdns-32"></a>
 This is the &ldquo;register with mdns as a ntp server&rdquo; option.
 
 <p class="noindent">This option has some usage constraints.  It:

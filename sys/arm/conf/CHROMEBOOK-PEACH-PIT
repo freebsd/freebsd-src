@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"EXYNOS5420"
+include 	"EXYNOS5420"
 ident		CHROMEBOOK-PEACH-PIT
 
 hints		"CHROMEBOOK-PEACH-PIT.hints"

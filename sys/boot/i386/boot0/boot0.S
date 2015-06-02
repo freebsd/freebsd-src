@@ -541,11 +541,11 @@ putchr:
 		int $0x10			#  character
 		popw %bx			# Restore
 #else /* SIO */
-		movb $0x01,%ah			# BIOS: Send
+		movb $0x01,%ah			# BIOS: Send character
 bioscom:
 		pushw %dx			# Save
 		xorw %dx,%dx 			# Use COM1
-		int $0x14			#  Character
+		int $0x14			# BIOS: Serial I/O
 		popw %dx			# Restore
 #endif /* SIO */
 		retw				# To caller

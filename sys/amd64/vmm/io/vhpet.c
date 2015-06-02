@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 
 #include <dev/acpica/acpi_hpet.h>
 

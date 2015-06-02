@@ -316,7 +316,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 		if ((vdir->vd_flags & VRING_DESC_F_INDIRECT) == 0) {
 			_vq_record(i, vdir, ctx, iov, n_iov, flags);
 			i++;
-		} else if ((vs->vs_negotiated_caps &
+		} else if ((vs->vs_vc->vc_hv_caps &
 		    VIRTIO_RING_F_INDIRECT_DESC) == 0) {
 			fprintf(stderr,
 			    "%s: descriptor has forbidden INDIRECT flag, "

@@ -251,7 +251,7 @@ simplebus_setup_dinfo(device_t dev, phandle_t node,
 
 	resource_list_init(&ndi->rl);
 	ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells, &ndi->rl);
-	ofw_bus_intr_to_rl(dev, node, &ndi->rl);
+	ofw_bus_intr_to_rl(dev, node, &ndi->rl, NULL);
 
 	return (ndi);
 }

@@ -56,6 +56,7 @@ SUBDIR += ${_urtwn} ${_urtwnfw}
 SUBDIR += atp uhid ukbd ums udbp ufm uep wsp uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
+SUBDIR += udl
 SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
 SUBDIR += urndis
 SUBDIR += usfs umass urio

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2015
+.Dd May 5, 2015
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -668,6 +668,8 @@ for GPT.
 .It Cm apple-hfs
 An Apple Mac OS X partition that contains a HFS or HFS+ filesystem.
 The scheme-specific types are
+.Qq Li "!175"
+for MBR,
 .Qq Li "!Apple_HFS"
 for APM and
 .Qq Li "!48465300-0000-11aa-aa11-00306543ecac"
@@ -696,6 +698,8 @@ for GPT.
 .It Cm apple-ufs
 An Apple Mac OS X partition that contains a UFS filesystem.
 The scheme-specific types are
+.Qq Li "!168"
+for MBR,
 .Qq Li "!Apple_UNIX_SVR2"
 for APM and
 .Qq Li "!55465300-0000-11aa-aa11-00306543ecac"

@@ -818,7 +818,6 @@ dmar_bus_task_dmamap(void *arg, int pending)
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
 	struct dmar_unit *unit;
-	struct dmar_ctx *ctx;
 
 	unit = arg;
 	DMAR_LOCK(unit);
@@ -826,7 +825,6 @@ dmar_bus_task_dmamap(void *arg, int pending)
 		TAILQ_REMOVE(&unit->delayed_maps, map, delay_link);
 		DMAR_UNLOCK(unit);
 		tag = map->tag;
-		ctx = map->tag->ctx;
 		map->cansleep = true;
 		map->locked = false;
 		bus_dmamap_load_mem((bus_dma_tag_t)tag, (bus_dmamap_t)map,
@@ -847,9 +845,7 @@ dmar_bus_task_dmamap(void *arg, int pending)
 static void
 dmar_bus_schedule_dmamap(struct dmar_unit *unit, struct bus_dmamap_dmar *map)
 {
-	struct dmar_ctx *ctx;
 
-	ctx = map->tag->ctx;
 	map->locked = false;
 	DMAR_LOCK(unit);
 	TAILQ_INSERT_TAIL(&unit->delayed_maps, map, delay_link);

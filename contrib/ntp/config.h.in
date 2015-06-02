@@ -1331,6 +1331,10 @@
 /* Should we recommend a minimum value for tickadj? */
 #undef MIN_REC_TICKADJ
 
+/* Define to 1 if the compiler does not support C99's structure
+   initialization. */
+#undef MISSING_C99_STRUCT_INIT
+
 /* Do we need HPUX adjtime() library support? */
 #undef NEED_HPUX_ADJTIME
 

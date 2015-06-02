@@ -121,6 +121,12 @@ MAN=	aac.4 \
 	dpt.4 \
 	ds1307.4 \
 	ds3231.4 \
+	${_dtrace_io.4} \
+	${_dtrace_ip.4} \
+	${_dtrace_proc.4} \
+	${_dtrace_sched.4} \
+	${_dtrace_tcp.4} \
+	${_dtrace_udp.4} \
 	dummynet.4 \
 	ed.4 \
 	edsc.4 \
@@ -186,6 +192,7 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	ifmib.4 \
+	ig4.4 \
 	igb.4 \
 	igmp.4 \
 	iic.4 \
@@ -810,6 +817,15 @@ SUBDIR=	man4.${MACHINE_CPUARCH}
 
 .if ${MK_CCD} != "no"
 _ccd.4=		ccd.4
+.endif
+
+.if ${MK_CDDL} != "no"
+_dtrace_io.4=	dtrace-io.4
+_dtrace_ip.4=	dtrace-ip.4
+_dtrace_proc.4=	dtrace-proc.4
+_dtrace_sched.4= dtrace-sched.4
+_dtrace_tcp.4=	dtrace-tcp.4
+_dtrace_udp.4=	dtrace-udp.4
 .endif
 
 .if ${MK_ISCSI} != "no"

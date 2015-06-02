@@ -120,13 +120,18 @@ struct vm_object;
 struct vm_guest_paging;
 struct pmap;
 
+struct vm_eventinfo {
+	void	*rptr;		/* rendezvous cookie */
+	int	*sptr;		/* suspend cookie */
+	int	*iptr;		/* reqidle cookie */
+};
+
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap, void *rendezvous_cookie,
-				  void *suspend_cookie);
+		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -204,13 +209,13 @@ int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
 
+#ifdef _SYS__CPUSET_H_
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
  * The rendezvous 'func(arg)' is not allowed to do anything that will
@@ -228,19 +233,29 @@ void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
 void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
+cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
+#endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
-vcpu_rendezvous_pending(void *rendezvous_cookie)
+vcpu_rendezvous_pending(struct vm_eventinfo *info)
 {
 
-	return (*(uintptr_t *)rendezvous_cookie != 0);
+	return (*((uintptr_t *)(info->rptr)) != 0);
 }
 
 static __inline int
-vcpu_suspended(void *suspend_cookie)
+vcpu_suspended(struct vm_eventinfo *info)
 {
 
-	return (*(int *)suspend_cookie);
+	return (*info->sptr);
+}
+
+static __inline int
+vcpu_reqidle(struct vm_eventinfo *info)
+{
+
+	return (*info->iptr);
 }
 
 /*
@@ -274,7 +289,13 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 static int __inline
 vcpu_should_yield(struct vm *vm, int vcpu)
 {
-	return (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED));
+
+	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
+		return (1);
+	else if (curthread->td_owepreempt)
+		return (1);
+	else
+		return (0);
 }
 #endif
 
@@ -343,9 +364,10 @@ struct vm_copyinfo {
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
  * a copyin or PROT_WRITE for a copyout. 
  *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
+ * retval	is_fault	Intepretation
+ *   0		   0		Success
+ *   0		   1		An exception was injected into the guest
+ * EFAULT	  N/A		Unrecoverable error
  *
  * The 'copyinfo[]' can be passed to 'vm_copyin()' or 'vm_copyout()' only if
  * the return value is 0. The 'copyinfo[]' resources should be freed by calling
@@ -353,7 +375,7 @@ struct vm_copyinfo {
  */
 int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
-    int num_copyinfo);
+    int num_copyinfo, int *is_fault);
 void vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     int num_copyinfo);
 void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
@@ -497,6 +519,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MONITOR,
 	VM_EXITCODE_MWAIT,
 	VM_EXITCODE_SVM,
+	VM_EXITCODE_REQIDLE,
 	VM_EXITCODE_MAX
 };
 

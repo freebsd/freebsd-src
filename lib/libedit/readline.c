@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.113 2014/10/18 08:33:23 snj Exp $	*/
+/*	$NetBSD: readline.c,v 1.115 2015/04/01 15:23:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.113 2014/10/18 08:33:23 snj Exp $");
+__RCSID("$NetBSD: readline.c,v 1.115 2015/04/01 15:23:15 christos Exp $");
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -364,6 +364,37 @@ rl_initialize(void)
 	    _el_rl_tstp);
 	el_set(e, EL_BIND, "^Z", "rl_tstp", NULL);
 		
+	/*
+	 * Set some readline compatible key-bindings.
+	 */
+	el_set(e, EL_BIND, "^R", "em-inc-search-prev", NULL);
+
+	/*
+	 * Allow the use of Home/End keys.
+	 */
+	el_set(e, EL_BIND, "\\e[1~", "ed-move-to-beg", NULL);
+	el_set(e, EL_BIND, "\\e[4~", "ed-move-to-end", NULL);
+	el_set(e, EL_BIND, "\\e[7~", "ed-move-to-beg", NULL);
+	el_set(e, EL_BIND, "\\e[8~", "ed-move-to-end", NULL);
+	el_set(e, EL_BIND, "\\e[H", "ed-move-to-beg", NULL);
+	el_set(e, EL_BIND, "\\e[F", "ed-move-to-end", NULL);
+
+	/*
+	 * Allow the use of the Delete/Insert keys.
+	 */
+	el_set(e, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
+	el_set(e, EL_BIND, "\\e[2~", "ed-quoted-insert", NULL);
+
+	/*
+	 * Ctrl-left-arrow and Ctrl-right-arrow for word moving.
+	 */
+	el_set(e, EL_BIND, "\\e[1;5C", "em-next-word", NULL);
+	el_set(e, EL_BIND, "\\e[1;5D", "ed-prev-word", NULL);
+	el_set(e, EL_BIND, "\\e[5C", "em-next-word", NULL);
+	el_set(e, EL_BIND, "\\e[5D", "ed-prev-word", NULL);
+	el_set(e, EL_BIND, "\\e\\e[C", "em-next-word", NULL);
+	el_set(e, EL_BIND, "\\e\\e[D", "ed-prev-word", NULL);
+
 	/* read settings from configuration file */
 	el_source(e, NULL);
 
@@ -950,7 +981,8 @@ loop:
 		for (; str[j]; j++) {
 			if (str[j] == '\\' &&
 			    str[j + 1] == history_expansion_char) {
-				(void)strcpy(&str[j], &str[j + 1]);
+				len = strlen(&str[j + 1]) + 1;
+				memmove(&str[j], &str[j + 1], len);
 				continue;
 			}
 			if (!loop_again) {

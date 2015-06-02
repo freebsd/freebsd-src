@@ -221,8 +221,9 @@ main(int argc, char *argv[])
 		char * etcpath = getarg(&arglist, 'V')->val;
 		if (*etcpath) {
 			if (config == NULL) {	/* Only override config location if -C not specified */
-				config = malloc(MAXPATHLEN);
-				snprintf(config, MAXPATHLEN, "%s/pw.conf", etcpath);
+				asprintf(&config, "%s/pw.conf", etcpath);
+				if (config == NULL)
+					 errx(EX_OSERR, "out of memory");
 			}
 			memcpy(&PWF, &VPWF, sizeof PWF);
 			setpwdir(etcpath);

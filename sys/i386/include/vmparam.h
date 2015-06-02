@@ -135,11 +135,7 @@
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
-#if defined(XEN) && !defined(XEN_PRIVILEGED_GUEST)
-#define	KERNLOAD		0
-#else
 #define	KERNLOAD		(1 << PDRSHIFT)
-#endif
 #endif /* !defined(KERNLOAD) */
 
 /*
@@ -149,11 +145,7 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#ifdef XEN
-#define VM_MAX_KERNEL_ADDRESS	HYPERVISOR_VIRT_START
-#else
 #define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
-#endif
 
 #define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
 

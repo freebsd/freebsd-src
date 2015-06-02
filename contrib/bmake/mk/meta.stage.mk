@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.30 2013/04/19 16:32:57 sjg Exp $
+# $Id: meta.stage.mk,v 1.34 2014/11/20 22:40:08 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -35,7 +35,13 @@ _stage_file_basename = $${f\#\#*/}
 _stage_target_dirname = $${t%/*}
 .endif
 
+_OBJROOT ?= ${OBJROOT:U${OBJTOP:H}}
+.if ${_OBJROOT:M*/} != ""
+_objroot ?= ${_OBJROOT:tA}/
+.else
 _objroot ?= ${_OBJROOT:tA}
+.endif
+
 # make sure this is global
 _STAGED_DIRS ?=
 .export _STAGED_DIRS
@@ -46,7 +52,7 @@ STAGE_DIR_FILTER = tA:@d@$${_STAGED_DIRS::+=$$d}$$d@
 # convert _STAGED_DIRS into suitable filters
 GENDIRDEPS_FILTER += Nnot-empty-is-important \
 	${_STAGED_DIRS:O:u:M${OBJTOP}*:S,${OBJTOP}/,N,} \
-	${_STAGED_DIRS:O:u:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
+	${_STAGED_DIRS:O:u:M${_objroot}*:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
 
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
@@ -113,10 +119,14 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 _STAGE_BASENAME_USE:	.USE ${.TARGET:T}
 	@${STAGE_FILE_SCRIPT}; StageFiles ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T}
 
+_STAGE_AS_BASENAME_USE:        .USE ${.TARGET:T}
+	@${STAGE_AS_SCRIPT}; StageAs ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T} ${STAGE_AS_${.TARGET:T}:U${.TARGET:T}}
+
 .if !empty(STAGE_INCSDIR)
 STAGE_TARGETS += stage_incs
 STAGE_INCS ?= ${.ALLSRC:N.dirdep}
 
+stage_includes: stage_incs
 stage_incs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_INCSDIR:${STAGE_DIR_FILTER}} ${STAGE_INCS}
 	@touch $@
@@ -129,11 +139,13 @@ STAGE_LIBS ?= ${.ALLSRC:N.dirdep}
 
 stage_libs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${STAGE_LIBS}
+.if !defined(NO_SHLIB_LINKS)
 .if !empty(SHLIB_LINKS)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} \
 	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*} $t@}
 .elif !empty(SHLIB_LINK) && !empty(SHLIB_NAME)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK} ${SYMLINKS:T}
+.endif
 .endif
 	@touch $@
 .endif
@@ -212,7 +224,7 @@ stage_as.$s:	.dirdep
 .endfor
 .endif
 
-CLEANFILES += ${STAGE_TARGETS}
+CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 
 # stage_*links usually needs to follow any others.
 .for t in ${STAGE_TARGETS:N*links:O:u}
@@ -240,5 +252,26 @@ INSTALL := ${STAGE_INSTALL}
 beforeinstall: .dirdep
 .endif
 .endif
+.NOPATH: ${STAGE_FILES}
 
+.if !empty(STAGE_TARGETS)
+MK_STALE_STAGED?= no
+.if ${MK_STALE_STAGED} == "yes"
+all: stale_staged
+# get a list of paths that we have just staged
+# get a list of paths that we have previously staged to those same dirs
+# anything in the 2nd list but not the first is stale - remove it.
+stale_staged: staging .NOMETA
+	@egrep '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
+	sed "/\.dirdep/d;s,.* '*\(${STAGE_OBJTOP}/[^ '][^ ']*\).*,\1," | \
+	sort > ${.TARGET}.staged1
+	@grep -l '${_dirdep}' /dev/null ${_STAGED_DIRS:M${STAGE_OBJTOP}*:O:u:@d@$d/*.dirdep@} | \
+	sed 's,\.dirdep,,' | sort > ${.TARGET}.staged2
+	@comm -13 ${.TARGET}.staged1 ${.TARGET}.staged2 > ${.TARGET}.stale
+	@test ! -s ${.TARGET}.stale || { \
+		echo "Removing stale staged files..."; \
+		sed 's,.*,& &.dirdep,' ${.TARGET}.stale | xargs rm -f; }
+
+.endif
+.endif
 .endif

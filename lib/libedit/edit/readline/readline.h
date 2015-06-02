@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.31 2010/08/04 20:29:18 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.34 2013/05/28 00:10:34 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.

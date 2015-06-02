@@ -690,7 +690,7 @@ fetch_check_params () {
 	fi
 
 	# Check that we have updates ready to install
-	if [ -f ${BDHASH}-install/kerneldone && $FORCEFETCH -eq 0 ]; then
+	if [ -f ${BDHASH}-install/kerneldone -a $FORCEFETCH -eq 0 ]; then
 		echo "You have a partially completed upgrade pending"
 		echo "Run '$0 install' first."
 		echo "Run '$0 fetch -F' to proceed anyway."
@@ -3220,7 +3220,7 @@ get_params () {
 # Fetch command.  Make sure that we're being called
 # interactively, then run fetch_check_params and fetch_run
 cmd_fetch () {
-	if [ ! -t 0 && $NOTTYOK -eq 0 ]; then
+	if [ ! -t 0 -a $NOTTYOK -eq 0 ]; then
 		echo -n "`basename $0` fetch should not "
 		echo "be run non-interactively."
 		echo "Run `basename $0` cron instead."

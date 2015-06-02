@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/clock.h>
 #include <sys/time.h>
 #include <sys/bus.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
@@ -58,12 +59,20 @@ __FBSDID("$FreeBSD$");
 #define TPS65217D		0x6
 
 /* TPS65217 Reisters */
-#define TPS65217_CHIPID_REG	0x00
-#define TPS65217_STATUS_REG	0x0A
-#define	TPS65217_STATUS_OFF		(1U << 7)
-#define	TPS65217_STATUS_ACPWR		(1U << 3)
-#define	TPS65217_STATUS_USBPWR		(1U << 2)
-#define	TPS65217_STATUS_BT		(1U << 0)
+#define	TPS65217_CHIPID_REG	0x00
+#define	TPS65217_INT_REG	0x02
+#define	 TPS65217_INT_PBM		(1U << 6)
+#define	 TPS65217_INT_ACM		(1U << 5)
+#define	 TPS65217_INT_USBM		(1U << 4)
+#define	 TPS65217_INT_PBI		(1U << 2)
+#define	 TPS65217_INT_ACI		(1U << 1)
+#define	 TPS65217_INT_USBI		(1U << 0)
+
+#define	TPS65217_STATUS_REG	0x0A
+#define	 TPS65217_STATUS_OFF		(1U << 7)
+#define	 TPS65217_STATUS_ACPWR		(1U << 3)
+#define	 TPS65217_STATUS_USBPWR		(1U << 2)
+#define	 TPS65217_STATUS_BT		(1U << 0)
 
 #define MAX_IIC_DATA_SIZE	2
 
@@ -72,6 +81,8 @@ struct am335x_pmic_softc {
 	device_t		sc_dev;
 	uint32_t		sc_addr;
 	struct intr_config_hook enum_hook;
+	struct resource		*sc_irq_res;
+	void			*sc_intrhand;
 };
 
 static void am335x_pmic_shutdown(void *, int);
@@ -105,17 +116,50 @@ am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 	return (iicbus_transfer(dev, msg, 1));
 }
 
+static void
+am335x_pmic_intr(void *arg)
+{
+	struct am335x_pmic_softc *sc = (struct am335x_pmic_softc *)arg;
+	uint8_t int_reg, status_reg;
+	int rv;
+	char notify_buf[16];
+
+	THREAD_SLEEPING_OK();
+	rv = am335x_pmic_read(sc->sc_dev, TPS65217_INT_REG, &int_reg, 1);
+	if (rv != 0) {
+		device_printf(sc->sc_dev, "Cannot read interrupt register\n");
+		THREAD_NO_SLEEPING();
+		return;
+	}
+	rv = am335x_pmic_read(sc->sc_dev, TPS65217_STATUS_REG, &status_reg, 1);
+	if (rv != 0) {
+		device_printf(sc->sc_dev, "Cannot read status register\n");
+		THREAD_NO_SLEEPING();
+		return;
+	}
+	THREAD_NO_SLEEPING();
+
+	if ((int_reg & TPS65217_INT_PBI) && (status_reg & TPS65217_STATUS_BT))
+		shutdown_nice(RB_POWEROFF);
+	if (int_reg & TPS65217_INT_ACI) {
+		snprintf(notify_buf, sizeof(notify_buf), "notify=0x%02x",
+		    (status_reg & TPS65217_STATUS_ACPWR) ? 1 : 0);
+		devctl_notify_f("ACPI", "ACAD", "power", notify_buf, M_NOWAIT);
+	}
+}
+
 static int
 am335x_pmic_probe(device_t dev)
 {
 	struct am335x_pmic_softc *sc;
 
-	if (!ofw_bus_is_compatible(dev, "ti,am335x-pmic"))
+	if (!ofw_bus_is_compatible(dev, "ti,tps65217"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_addr = iicbus_get_addr(dev);
+	/* Convert to 8-bit addressing */
+	sc->sc_addr = iicbus_get_addr(dev) << 1;
 
 	device_set_desc(dev, "TI TPS65217 Power Management IC");
 
@@ -130,6 +174,7 @@ am335x_pmic_start(void *xdev)
 	uint8_t reg;
 	char name[20];
 	char pwr[4][11] = {"Unknown", "USB", "AC", "USB and AC"};
+	int rv;
 
 	sc = device_get_softc(dev);
 
@@ -158,14 +203,37 @@ am335x_pmic_start(void *xdev)
 	    SHUTDOWN_PRI_LAST);
 
 	config_intrhook_disestablish(&sc->enum_hook);
+
+	/* Unmask all interrupts and clear pending status */
+	reg = 0;
+	am335x_pmic_write(dev, TPS65217_INT_REG, &reg, 1);
+	am335x_pmic_read(dev, TPS65217_INT_REG, &reg, 1);
+
+	if (sc->sc_irq_res != NULL) {
+		rv = bus_setup_intr(dev, sc->sc_irq_res,
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, am335x_pmic_intr,
+		    sc, &sc->sc_intrhand);
+		if (rv != 0)
+			device_printf(dev,
+			    "Unable to setup the irq handler.\n");
+	}
 }
 
 static int
 am335x_pmic_attach(device_t dev)
 {
 	struct am335x_pmic_softc *sc;
+	int rid;
 
 	sc = device_get_softc(dev);
+
+	rid = 0;
+	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (!sc->sc_irq_res) {
+		device_printf(dev, "cannot allocate interrupt\n");
+		/* return (ENXIO); */
+	}
 
 	sc->enum_hook.ich_func = am335x_pmic_start;
 	sc->enum_hook.ich_arg = dev;

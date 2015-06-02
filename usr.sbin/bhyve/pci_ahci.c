@@ -124,7 +124,7 @@ struct ahci_ioreq {
 	uint32_t len;
 	uint32_t done;
 	int slot;
-	int prdtl;
+	int more;
 };
 
 struct ahci_port {
@@ -135,11 +135,13 @@ struct ahci_port {
 	char ident[20 + 1];
 	int atapi;
 	int reset;
+	int waitforclear;
 	int mult_sectors;
 	uint8_t xfermode;
 	uint8_t err_cfis[20];
 	uint8_t sense_key;
 	uint8_t asc;
+	u_int ccs;
 	uint32_t pending;
 
 	uint32_t clb;
@@ -203,6 +205,8 @@ struct pci_ahci_softc {
 	struct ahci_port port[MAX_PORTS];
 };
 #define	ahci_ctx(sc)	((sc)->asc_pi->pi_vmctx)
+
+static void ahci_handle_port(struct ahci_port *p);
 
 static inline void lba_to_msf(uint8_t *buf, int lba)
 {
@@ -269,21 +273,25 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 	case FIS_TYPE_REGD2H:
 		offset = 0x40;
 		len = 20;
-		irq = AHCI_P_IX_DHR;
+		irq = (fis[1] & (1 << 6)) ? AHCI_P_IX_DHR : 0;
 		break;
 	case FIS_TYPE_SETDEVBITS:
 		offset = 0x58;
 		len = 8;
-		irq = AHCI_P_IX_SDB;
+		irq = (fis[1] & (1 << 6)) ? AHCI_P_IX_SDB : 0;
 		break;
 	case FIS_TYPE_PIOSETUP:
 		offset = 0x20;
 		len = 20;
-		irq = 0;
+		irq = (fis[1] & (1 << 6)) ? AHCI_P_IX_PS : 0;
 		break;
 	default:
 		WPRINTF("unsupported fis type %d\n", ft);
 		return;
+	}
+	if (fis[2] & ATA_S_ERROR) {
+		p->waitforclear = 1;
+		irq |= AHCI_P_IX_TFE;
 	}
 	memcpy(p->rfis + offset, fis, len);
 	if (irq) {
@@ -309,22 +317,23 @@ ahci_write_fis_sdb(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	uint8_t error;
 
 	error = (tfd >> 8) & 0xff;
+	tfd &= 0x77;
 	memset(fis, 0, sizeof(fis));
 	fis[0] = FIS_TYPE_SETDEVBITS;
 	fis[1] = (1 << 6);
-	fis[2] = tfd & 0x77;
+	fis[2] = tfd;
 	fis[3] = error;
 	if (fis[2] & ATA_S_ERROR) {
-		p->is |= AHCI_P_IX_TFE;
 		p->err_cfis[0] = slot;
-		p->err_cfis[2] = tfd & 0x77;
+		p->err_cfis[2] = tfd;
 		p->err_cfis[3] = error;
 		memcpy(&p->err_cfis[4], cfis + 4, 16);
 	} else {
 		*(uint32_t *)(fis + 4) = (1 << slot);
 		p->sact &= ~(1 << slot);
 	}
-	p->tfd = tfd;
+	p->tfd &= ~0x77;
+	p->tfd |= tfd;
 	ahci_write_fis(p, FIS_TYPE_SETDEVBITS, fis);
 }
 
@@ -351,7 +360,6 @@ ahci_write_fis_d2h(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	fis[12] = cfis[12];
 	fis[13] = cfis[13];
 	if (fis[2] & ATA_S_ERROR) {
-		p->is |= AHCI_P_IX_TFE;
 		p->err_cfis[0] = 0x80;
 		p->err_cfis[2] = tfd & 0xff;
 		p->err_cfis[3] = error;
@@ -359,6 +367,21 @@ ahci_write_fis_d2h(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	} else
 		p->ci &= ~(1 << slot);
 	p->tfd = tfd;
+	ahci_write_fis(p, FIS_TYPE_REGD2H, fis);
+}
+
+static void
+ahci_write_fis_d2h_ncq(struct ahci_port *p, int slot)
+{
+	uint8_t fis[20];
+
+	p->tfd = ATA_S_READY | ATA_S_DSC;
+	memset(fis, 0, sizeof(fis));
+	fis[0] = FIS_TYPE_REGD2H;
+	fis[1] = 0;			/* No interrupt */
+	fis[2] = p->tfd;		/* Status */
+	fis[3] = 0;			/* No error */
+	p->ci &= ~(1 << slot);
 	ahci_write_fis(p, FIS_TYPE_REGD2H, fis);
 }
 
@@ -389,9 +412,11 @@ ahci_check_stopped(struct ahci_port *p)
 	 */
 	if (!(p->cmd & AHCI_P_CMD_ST)) {
 		if (p->pending == 0) {
+			p->ccs = 0;
 			p->cmd &= ~(AHCI_P_CMD_CR | AHCI_P_CMD_CCS_MASK);
 			p->ci = 0;
 			p->sact = 0;
+			p->waitforclear = 0;
 		}
 	}
 }
@@ -418,7 +443,8 @@ ahci_port_stop(struct ahci_port *p)
 		slot = aior->slot;
 		cfis = aior->cfis;
 		if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
-		    cfis[2] == ATA_READ_FPDMA_QUEUED)
+		    cfis[2] == ATA_READ_FPDMA_QUEUED ||
+		    cfis[2] == ATA_SEND_FPDMA_QUEUED)
 			ncq = 1;
 
 		if (ncq)
@@ -489,6 +515,9 @@ ahci_reset(struct pci_ahci_softc *sc)
 	for (i = 0; i < sc->ports; i++) {
 		sc->port[i].ie = 0;
 		sc->port[i].is = 0;
+		sc->port[i].cmd = (AHCI_P_CMD_SUD | AHCI_P_CMD_POD);
+		if (sc->port[i].bctx)
+			sc->port[i].cmd |= AHCI_P_CMD_CPS;
 		sc->port[i].sctl = 0;
 		ahci_port_reset(&sc->port[i]);
 	}
@@ -520,26 +549,79 @@ atapi_string(uint8_t *dest, const char *src, int len)
 	}
 }
 
+/*
+ * Build up the iovec based on the PRDT, 'done' and 'len'.
+ */
 static void
-ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
-    int seek)
+ahci_build_iov(struct ahci_port *p, struct ahci_ioreq *aior,
+    struct ahci_prdt_entry *prdt, uint16_t prdtl)
+{
+	struct blockif_req *breq = &aior->io_req;
+	int i, j, skip, todo, left, extra;
+	uint32_t dbcsz;
+
+	/* Copy part of PRDT between 'done' and 'len' bytes into the iov. */
+	skip = aior->done;
+	left = aior->len - aior->done;
+	todo = 0;
+	for (i = 0, j = 0; i < prdtl && j < BLOCKIF_IOV_MAX && left > 0;
+	    i++, prdt++) {
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
+		/* Skip already done part of the PRDT */
+		if (dbcsz <= skip) {
+			skip -= dbcsz;
+			continue;
+		}
+		dbcsz -= skip;
+		if (dbcsz > left)
+			dbcsz = left;
+		breq->br_iov[j].iov_base = paddr_guest2host(ahci_ctx(p->pr_sc),
+		    prdt->dba + skip, dbcsz);
+		breq->br_iov[j].iov_len = dbcsz;
+		todo += dbcsz;
+		left -= dbcsz;
+		skip = 0;
+		j++;
+	}
+
+	/* If we got limited by IOV length, round I/O down to sector size. */
+	if (j == BLOCKIF_IOV_MAX) {
+		extra = todo % blockif_sectsz(p->bctx);
+		todo -= extra;
+		assert(todo > 0);
+		while (extra > 0) {
+			if (breq->br_iov[j - 1].iov_len > extra) {
+				breq->br_iov[j - 1].iov_len -= extra;
+				break;
+			}
+			extra -= breq->br_iov[j - 1].iov_len;
+			j--;
+		}
+	}
+
+	breq->br_iovcnt = j;
+	breq->br_resid = todo;
+	aior->done += todo;
+	aior->more = (aior->done < aior->len && i < prdtl);
+}
+
+static void
+ahci_handle_rw(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 {
 	struct ahci_ioreq *aior;
 	struct blockif_req *breq;
-	struct pci_ahci_softc *sc;
 	struct ahci_prdt_entry *prdt;
 	struct ahci_cmd_hdr *hdr;
 	uint64_t lba;
 	uint32_t len;
-	int i, err, iovcnt, ncq, readop;
+	int err, first, ncq, readop;
 
-	sc = p->pr_sc;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	ncq = 0;
 	readop = 1;
+	first = (done == 0);
 
-	prdt += seek;
 	if (cfis[2] == ATA_WRITE || cfis[2] == ATA_WRITE48 ||
 	    cfis[2] == ATA_WRITE_MUL || cfis[2] == ATA_WRITE_MUL48 ||
 	    cfis[2] == ATA_WRITE_DMA || cfis[2] == ATA_WRITE_DMA48 ||
@@ -580,57 +662,33 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	lba *= blockif_sectsz(p->bctx);
 	len *= blockif_sectsz(p->bctx);
 
-	/*
-	 * Pull request off free list
-	 */
+	/* Pull request off free list */
 	aior = STAILQ_FIRST(&p->iofhd);
 	assert(aior != NULL);
 	STAILQ_REMOVE_HEAD(&p->iofhd, io_flist);
+
 	aior->cfis = cfis;
 	aior->slot = slot;
 	aior->len = len;
 	aior->done = done;
 	breq = &aior->io_req;
 	breq->br_offset = lba + done;
-	iovcnt = hdr->prdtl - seek;
-	if (iovcnt > BLOCKIF_IOV_MAX) {
-		aior->prdtl = iovcnt - BLOCKIF_IOV_MAX;
-		iovcnt = BLOCKIF_IOV_MAX;
-	} else
-		aior->prdtl = 0;
-	breq->br_iovcnt = iovcnt;
+	ahci_build_iov(p, aior, prdt, hdr->prdtl);
 
-	/*
-	 * Mark this command in-flight.
-	 */
+	/* Mark this command in-flight. */
 	p->pending |= 1 << slot;
 
-	/*
-	 * Stuff request onto busy list
-	 */
+	/* Stuff request onto busy list. */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
 
-	/*
-	 * Build up the iovec based on the prdt
-	 */
-	for (i = 0; i < iovcnt; i++) {
-		uint32_t dbcsz;
+	if (ncq && first)
+		ahci_write_fis_d2h_ncq(p, slot);
 
-		dbcsz = (prdt->dbc & DBCMASK) + 1;
-		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-		    prdt->dba, dbcsz);
-		breq->br_iov[i].iov_len = dbcsz;
-		aior->done += dbcsz;
-		prdt++;
-	}
 	if (readop)
 		err = blockif_read(p->bctx, breq);
 	else
 		err = blockif_write(p->bctx, breq);
 	assert(err == 0);
-
-	if (ncq)
-		p->ci &= ~(1 << slot);
 }
 
 static void
@@ -650,7 +708,7 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	aior->slot = slot;
 	aior->len = 0;
 	aior->done = 0;
-	aior->prdtl = 0;
+	aior->more = 0;
 	breq = &aior->io_req;
 
 	/*
@@ -703,15 +761,18 @@ ahci_handle_dsm_trim(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done
 	uint8_t *entry;
 	uint64_t elba;
 	uint32_t len, elen;
-	int err;
+	int err, first, ncq;
 	uint8_t buf[512];
 
+	first = (done == 0);
 	if (cfis[2] == ATA_DATA_SET_MANAGEMENT) {
 		len = (uint16_t)cfis[13] << 8 | cfis[12];
 		len *= 512;
+		ncq = 0;
 	} else { /* ATA_SEND_FPDMA_QUEUED */
 		len = (uint16_t)cfis[11] << 8 | cfis[3];
 		len *= 512;
+		ncq = 1;
 	}
 	read_prdt(p, slot, cfis, buf, sizeof(buf));
 
@@ -730,6 +791,8 @@ next:
 			ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
 			p->pending &= ~(1 << slot);
 			ahci_check_stopped(p);
+			if (!first)
+				ahci_handle_port(p);
 			return;
 		}
 		goto next;
@@ -745,12 +808,11 @@ next:
 	aior->slot = slot;
 	aior->len = len;
 	aior->done = done;
-	aior->prdtl = 0;
+	aior->more = (len != done);
 
 	breq = &aior->io_req;
 	breq->br_offset = elba * blockif_sectsz(p->bctx);
-	breq->br_iovcnt = 1;
-	breq->br_iov[0].iov_len = elen * blockif_sectsz(p->bctx);
+	breq->br_resid = elen * blockif_sectsz(p->bctx);
 
 	/*
 	 * Mark this command in-flight.
@@ -761,6 +823,9 @@ next:
 	 * Stuff request onto busy list
 	 */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
+
+	if (ncq && first)
+		ahci_write_fis_d2h_ncq(p, slot);
 
 	err = blockif_delete(p->bctx, breq);
 	assert(err == 0);
@@ -903,7 +968,6 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[88] = 0x7f;
 		if (p->xfermode & ATA_UDMA0)
 			buf[88] |= (1 << ((p->xfermode & 7) + 8));
-		buf[93] = (1 | 1 <<14);
 		buf[100] = sectors;
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
@@ -1242,8 +1306,7 @@ atapi_report_luns(struct ahci_port *p, int slot, uint8_t *cfis)
 }
 
 static void
-atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
-		uint32_t done, int seek)
+atapi_read(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 {
 	struct ahci_ioreq *aior;
 	struct ahci_cmd_hdr *hdr;
@@ -1253,14 +1316,13 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	uint8_t *acmd;
 	uint64_t lba;
 	uint32_t len;
-	int i, err, iovcnt;
+	int err;
 
 	sc = p->pr_sc;
 	acmd = cfis + 0x40;
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 
-	prdt += seek;
 	lba = be32dec(acmd + 2);
 	if (acmd[0] == READ_10)
 		len = be16dec(acmd + 7);
@@ -1285,37 +1347,14 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	aior->done = done;
 	breq = &aior->io_req;
 	breq->br_offset = lba + done;
-	iovcnt = hdr->prdtl - seek;
-	if (iovcnt > BLOCKIF_IOV_MAX) {
-		aior->prdtl = iovcnt - BLOCKIF_IOV_MAX;
-		iovcnt = BLOCKIF_IOV_MAX;
-	} else
-		aior->prdtl = 0;
-	breq->br_iovcnt = iovcnt;
+	ahci_build_iov(p, aior, prdt, hdr->prdtl);
 
-	/*
-	 * Mark this command in-flight.
-	 */
+	/* Mark this command in-flight. */
 	p->pending |= 1 << slot;
 
-	/*
-	 * Stuff request onto busy list
-	 */
+	/* Stuff request onto busy list. */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
 
-	/*
-	 * Build up the iovec based on the prdt
-	 */
-	for (i = 0; i < iovcnt; i++) {
-		uint32_t dbcsz;
-
-		dbcsz = (prdt->dbc & DBCMASK) + 1;
-		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-		    prdt->dba, dbcsz);
-		breq->br_iov[i].iov_len = dbcsz;
-		aior->done += dbcsz;
-		prdt++;
-	}
 	err = blockif_read(p->bctx, breq);
 	assert(err == 0);
 }
@@ -1515,7 +1554,7 @@ handle_packet_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		break;
 	case READ_10:
 	case READ_12:
-		atapi_read(p, slot, cfis, 0, 0);
+		atapi_read(p, slot, cfis, 0);
 		break;
 	case REQUEST_SENSE:
 		atapi_request_sense(p, slot, cfis);
@@ -1543,6 +1582,7 @@ static void
 ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 
+	p->tfd |= ATA_S_BUSY;
 	switch (cfis[2]) {
 	case ATA_ATA_IDENTIFY:
 		handle_identify(p, slot, cfis);
@@ -1614,7 +1654,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_WRITE_DMA48:
 	case ATA_READ_FPDMA_QUEUED:
 	case ATA_WRITE_FPDMA_QUEUED:
-		ahci_handle_dma(p, slot, cfis, 0, 0);
+		ahci_handle_rw(p, slot, cfis, 0);
 		break;
 	case ATA_FLUSHCACHE:
 	case ATA_FLUSHCACHE48:
@@ -1724,20 +1764,23 @@ ahci_handle_slot(struct ahci_port *p, int slot)
 static void
 ahci_handle_port(struct ahci_port *p)
 {
-	int i;
 
 	if (!(p->cmd & AHCI_P_CMD_ST))
 		return;
 
 	/*
 	 * Search for any new commands to issue ignoring those that
-	 * are already in-flight.
+	 * are already in-flight.  Stop if device is busy or in error.
 	 */
-	for (i = 0; (i < 32) && p->ci; i++) {
-		if ((p->ci & (1 << i)) && !(p->pending & (1 << i))) {
+	for (; (p->ci & ~p->pending) != 0; p->ccs = ((p->ccs + 1) & 31)) {
+		if ((p->tfd & (ATA_S_BUSY | ATA_S_DRQ)) != 0)
+			break;
+		if (p->waitforclear)
+			break;
+		if ((p->ci & ~p->pending & (1 << p->ccs)) != 0) {
 			p->cmd &= ~AHCI_P_CMD_CCS_MASK;
-			p->cmd |= i << AHCI_P_CMD_CCS_SHIFT;
-			ahci_handle_slot(p, i);
+			p->cmd |= p->ccs << AHCI_P_CMD_CCS_SHIFT;
+			ahci_handle_slot(p, p->ccs);
 		}
 	}
 }
@@ -1755,7 +1798,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	struct pci_ahci_softc *sc;
 	uint32_t tfd;
 	uint8_t *cfis;
-	int pending, slot, ncq, dsm;
+	int slot, ncq, dsm;
 
 	DPRINTF("%s %d\n", __func__, err);
 
@@ -1764,7 +1807,6 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	p = aior->io_pr;
 	cfis = aior->cfis;
 	slot = aior->slot;
-	pending = aior->prdtl;
 	sc = p->pr_sc;
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 
@@ -1792,25 +1834,18 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	if (!err)
 		hdr->prdbc = aior->done;
 
-	if (dsm) {
-		if (aior->done != aior->len && !err) {
+	if (!err && aior->more) {
+		if (dsm)
 			ahci_handle_dsm_trim(p, slot, cfis, aior->done);
-			goto out;
-		}
-	} else {
-		if (pending && !err) {
-			ahci_handle_dma(p, slot, cfis, aior->done,
-			    hdr->prdtl - pending);
-			goto out;
-		}
+		else 
+			ahci_handle_rw(p, slot, cfis, aior->done);
+		goto out;
 	}
 
-	if (!err && aior->done == aior->len) {
+	if (!err)
 		tfd = ATA_S_READY | ATA_S_DSC;
-	} else {
+	else
 		tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-	}
-
 	if (ncq)
 		ahci_write_fis_sdb(p, slot, cfis, tfd);
 	else
@@ -1822,6 +1857,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	p->pending &= ~(1 << slot);
 
 	ahci_check_stopped(p);
+	ahci_handle_port(p);
 out:
 	pthread_mutex_unlock(&sc->mtx);
 	DPRINTF("%s exit\n", __func__);
@@ -1836,7 +1872,7 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	struct pci_ahci_softc *sc;
 	uint8_t *cfis;
 	uint32_t tfd;
-	int pending, slot;
+	int slot;
 
 	DPRINTF("%s %d\n", __func__, err);
 
@@ -1844,7 +1880,6 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	p = aior->io_pr;
 	cfis = aior->cfis;
 	slot = aior->slot;
-	pending = aior->prdtl;
 	sc = p->pr_sc;
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + aior->slot * AHCI_CL_SIZE);
 
@@ -1863,19 +1898,18 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	if (!err)
 		hdr->prdbc = aior->done;
 
-	if (pending && !err) {
-		atapi_read(p, slot, cfis, aior->done, hdr->prdtl - pending);
+	if (!err && aior->more) {
+		atapi_read(p, slot, cfis, aior->done);
 		goto out;
 	}
 
-	if (!err && aior->done == aior->len) {
+	if (!err) {
 		tfd = ATA_S_READY | ATA_S_DSC;
 	} else {
 		p->sense_key = ATA_SENSE_ILLEGAL_REQUEST;
 		p->asc = 0x21;
 		tfd = (p->sense_key << 12) | ATA_S_READY | ATA_S_ERROR;
 	}
-
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
 	ahci_write_fis_d2h(p, slot, cfis, tfd);
 
@@ -1885,6 +1919,7 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	p->pending &= ~(1 << slot);
 
 	ahci_check_stopped(p);
+	ahci_handle_port(p);
 out:
 	pthread_mutex_unlock(&sc->mtx);
 	DPRINTF("%s exit\n", __func__);
@@ -1949,8 +1984,15 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		break;
 	case AHCI_P_CMD:
 	{
-		p->cmd = value;
-		
+		p->cmd &= ~(AHCI_P_CMD_ST | AHCI_P_CMD_SUD | AHCI_P_CMD_POD |
+		    AHCI_P_CMD_CLO | AHCI_P_CMD_FRE | AHCI_P_CMD_APSTE |
+		    AHCI_P_CMD_ATAPI | AHCI_P_CMD_DLAE | AHCI_P_CMD_ALPE |
+		    AHCI_P_CMD_ASP | AHCI_P_CMD_ICC_MASK);
+		p->cmd |= (AHCI_P_CMD_ST | AHCI_P_CMD_SUD | AHCI_P_CMD_POD |
+		    AHCI_P_CMD_CLO | AHCI_P_CMD_FRE | AHCI_P_CMD_APSTE |
+		    AHCI_P_CMD_ATAPI | AHCI_P_CMD_DLAE | AHCI_P_CMD_ALPE |
+		    AHCI_P_CMD_ASP | AHCI_P_CMD_ICC_MASK) & value;
+
 		if (!(value & AHCI_P_CMD_ST)) {
 			ahci_port_stop(p);
 		} else {
@@ -1974,8 +2016,12 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		}
 
 		if (value & AHCI_P_CMD_CLO) {
-			p->tfd = 0;
+			p->tfd &= ~(ATA_S_BUSY | ATA_S_DRQ);
 			p->cmd &= ~AHCI_P_CMD_CLO;
+		}
+
+		if (value & AHCI_P_CMD_ICC_MASK) {
+			p->cmd &= ~AHCI_P_CMD_ICC_MASK;
 		}
 
 		ahci_handle_port(p);
@@ -2047,7 +2093,7 @@ pci_ahci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	struct pci_ahci_softc *sc = pi->pi_arg;
 
 	assert(baridx == 5);
-	assert(size == 4);
+	assert((offset % 4) == 0 && size == 4);
 
 	pthread_mutex_lock(&sc->mtx);
 
@@ -2136,24 +2182,29 @@ pci_ahci_port_read(struct pci_ahci_softc *sc, uint64_t offset)
 
 static uint64_t
 pci_ahci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
-    uint64_t offset, int size)
+    uint64_t regoff, int size)
 {
 	struct pci_ahci_softc *sc = pi->pi_arg;
+	uint64_t offset;
 	uint32_t value;
 
 	assert(baridx == 5);
-	assert(size == 4);
+	assert(size == 1 || size == 2 || size == 4);
+	assert((regoff & (size - 1)) == 0);
 
 	pthread_mutex_lock(&sc->mtx);
 
+	offset = regoff & ~0x3;	    /* round down to a multiple of 4 bytes */
 	if (offset < AHCI_OFFSET)
 		value = pci_ahci_host_read(sc, offset);
 	else if (offset < AHCI_OFFSET + sc->ports * AHCI_STEP)
 		value = pci_ahci_port_read(sc, offset);
 	else {
 		value = 0;
-		WPRINTF("pci_ahci: unknown i/o read offset 0x%"PRIx64"\n", offset);
+		WPRINTF("pci_ahci: unknown i/o read offset 0x%"PRIx64"\n",
+		    regoff);
 	}
+	value >>= 8 * (regoff & 0x3);
 
 	pthread_mutex_unlock(&sc->mtx);
 

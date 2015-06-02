@@ -126,6 +126,7 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
+    MANDOCDB \
     NDIS \
     NETCAT \
     NETGRAPH \
@@ -154,7 +155,6 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
     SVNLITE \
-    SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
     TALK \
@@ -234,9 +234,11 @@ __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .endif
 .if ${__T} == "aarch64"
-BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
-# There was no support for arm64 prior to FreeBSD 11
-BROKEN_OPTIONS+=SYSCALL_COMPAT
+BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
+.endif
+# LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
+.if ${__T} == "arm" || ${__T} == "armeb"
+BROKEN_OPTIONS+=LLDB
 .endif
 
 .include <bsd.mkopt.mk>

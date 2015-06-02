@@ -307,9 +307,8 @@ bucket_init(void)
 {
 	struct uma_bucket_zone *ubz;
 	int size;
-	int i;
 
-	for (i = 0, ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
+	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
 		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
@@ -1892,7 +1891,7 @@ uma_startup3(void)
 #ifdef UMA_DEBUG
 	printf("Starting callout.\n");
 #endif
-	callout_init(&uma_callout, CALLOUT_MPSAFE);
+	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 #ifdef UMA_DEBUG
 	printf("UMA startup3 complete.\n");
@@ -3223,16 +3222,17 @@ uma_find_refcnt(uma_zone_t zone, void *item)
 }
 
 /* See uma.h */
-void
-uma_reclaim(void)
+static void
+uma_reclaim_locked(bool kmem_danger)
 {
+
 #ifdef UMA_DEBUG
 	printf("UMA: vm asked us to release pages!\n");
 #endif
-	sx_xlock(&uma_drain_lock);
+	sx_assert(&uma_drain_lock, SA_XLOCKED);
 	bucket_enable();
 	zone_foreach(zone_drain);
-	if (vm_page_count_min()) {
+	if (vm_page_count_min() || kmem_danger) {
 		cache_drain_safe(NULL);
 		zone_foreach(zone_drain);
 	}
@@ -3244,7 +3244,40 @@ uma_reclaim(void)
 	zone_drain(slabzone);
 	zone_drain(slabrefzone);
 	bucket_zone_drain();
+}
+
+void
+uma_reclaim(void)
+{
+
+	sx_xlock(&uma_drain_lock);
+	uma_reclaim_locked(false);
 	sx_xunlock(&uma_drain_lock);
+}
+
+static int uma_reclaim_needed;
+
+void
+uma_reclaim_wakeup(void)
+{
+
+	uma_reclaim_needed = 1;
+	wakeup(&uma_reclaim_needed);
+}
+
+void
+uma_reclaim_worker(void *arg __unused)
+{
+
+	sx_xlock(&uma_drain_lock);
+	for (;;) {
+		sx_sleep(&uma_reclaim_needed, &uma_drain_lock, PVM,
+		    "umarcl", 0);
+		if (uma_reclaim_needed) {
+			uma_reclaim_needed = 0;
+			uma_reclaim_locked(true);
+		}
+	}
 }
 
 /* See uma.h */

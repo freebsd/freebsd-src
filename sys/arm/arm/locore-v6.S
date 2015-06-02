@@ -39,7 +39,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#ifndef	ARM_NEW_PMAP
+#ifndef ARM_NEW_PMAP
 #define	PTE1_OFFSET	L1_S_OFFSET
 #define	PTE1_SHIFT	L1_S_SHIFT
 #define	PTE1_SIZE	L1_S_SIZE
@@ -52,13 +52,13 @@ __FBSDID("$FreeBSD$");
 	.align	2
 
 /*
- * On entry for	FreeBSD	boot ABI:
- *	r0 - metadata pointer or 0 (boothowto on AT91's	boot2)
- *	r1 - if	(r0 == 0) then metadata	pointer
- * On entry for	Linux boot ABI:
+ * On entry for FreeBSD boot ABI:
+ *	r0 - metadata pointer or 0 (boothowto on AT91's boot2)
+ *	r1 - if (r0 == 0) then metadata pointer
+ * On entry for Linux boot ABI:
  *	r0 - 0
  *	r1 - machine type (passed as arg2 to initarm)
- *	r2 - Pointer to	a tagged list or dtb image (phys addr) (passed as arg1 initarm)
+ *	r2 - Pointer to a tagged list or dtb image (phys addr) (passed as arg1 initarm)
  *
  * For both types of boot we gather up the args, put them in a struct arm_boot_params
  * structure and pass that to initarm.
@@ -66,17 +66,17 @@ __FBSDID("$FreeBSD$");
 	.globl	btext
 btext:
 ASENTRY_NP(_start)
-	STOP_UNWINDING		/* Can't unwind	into the bootloader! */
+	STOP_UNWINDING		/* Can't unwind into the bootloader! */
 
-	/* Make	sure interrupts	are disabled. */
+	/* Make sure interrupts are disabled. */
 	cpsid	ifa
 
-	mov	r8, r0		/* 0 or	boot mode from boot2 */
-	mov	r9, r1		/* Save	Machine	type */
-	mov	r10, r2		/* Save	meta data */
+	mov	r8, r0		/* 0 or boot mode from boot2 */
+	mov	r9, r1		/* Save Machine type */
+	mov	r10, r2		/* Save meta data */
 	mov	r11, r3		/* Future expansion */
 
-	/* 
+	/*
 	 * Check whether data cache is enabled.  If it is, then we know
 	 * current tags are valid (not power-on garbage values) and there
 	 * might be dirty lines that need cleaning.  Disable cache to prevent
@@ -93,7 +93,7 @@ ASENTRY_NP(_start)
 	 * valid.  Disable all caches and the MMU, and invalidate everything
 	 * before setting up new page tables and re-enabling the mmu.
 	 */
-1:	
+1:
 	bic	r7, #CPU_CONTROL_DC_ENABLE
 	bic	r7, #CPU_CONTROL_MMU_ENABLE
 	bic	r7, #CPU_CONTROL_IC_ENABLE
@@ -119,13 +119,13 @@ ASENTRY_NP(_start)
 	/*
 	 * Map PA == VA
 	 */
-	/* Find	the start kernels load address */
+	/* Find the start kernels load address */
 	adr	r5, _start
 	ldr	r2, =(PTE1_OFFSET)
 	bic	r5, r2
 	mov	r1, r5
 	mov	r2, r5
-	/* Map 64MiB, preserved	over calls to build_pagetables */
+	/* Map 64MiB, preserved over calls to build_pagetables */
 	mov	r3, #64
 	bl	build_pagetables
 
@@ -142,41 +142,41 @@ ASENTRY_NP(_start)
 #endif
 	bl	init_mmu
 
-	/* Switch to virtual addresses.	*/
+	/* Switch to virtual addresses. */
 	ldr	pc, =1f
 1:
 
-	/* Setup stack,	clear BSS */
+	/* Setup stack, clear BSS */
 	ldr	r1, =.Lstart
 	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
 	add	sp, sp,	#INIT_ARM_STACK_SIZE
-	sub	r2, r2,	r1		/* get zero init data */
+	sub	r2, r2, r1		/* get zero init data */
 	mov	r3, #0
 2:
 	str	r3, [r1], #0x0004	/* get zero init data */
-	subs	r2, r2,	#4
+	subs	r2, r2, #4
 	bgt	2b
 
-	mov	r1, #28			/* loader info size is 28 bytes	also second arg	*/
-	subs	sp, sp,	r1		/* allocate arm_boot_params struct on stack */
-	mov	r0, sp			/* loader info pointer is first	arg */
-	bic	sp, sp,	#7		/* align stack to 8 bytes */
-	str	r1, [r0]		/* Store length	of loader info */
+	mov	r1, #28			/* loader info size is 28 bytes also second arg */
+	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
+	mov	r0, sp			/* loader info pointer is first arg */
+	bic	sp, sp, #7		/* align stack to 8 bytes */
+	str	r1, [r0]		/* Store length of loader info */
 	str	r8, [r0, #4]		/* Store r0 from boot loader */
 	str	r9, [r0, #8]		/* Store r1 from boot loader */
 	str	r10, [r0, #12]		/* store r2 from boot loader */
 	str	r11, [r0, #16]		/* store r3 from boot loader */
 	str	r5, [r0, #20]		/* store the physical address */
-	adr	r4, Lpagetable		/* load	the pagetable address */
+	adr	r4, Lpagetable		/* load the pagetable address */
 	ldr	r5, [r4, #4]
 	str	r5, [r0, #24]		/* store the pagetable address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
-	/* init	arm will return	the new	stack pointer. */
+	/* init arm will return the new stack pointer. */
 	mov	sp, r0
 
-	bl	_C_LABEL(mi_startup)	/* call	mi_startup()! */
+	bl	_C_LABEL(mi_startup)	/* call mi_startup()! */
 
 	ldr	r0, =.Lmainreturned
 	b	_C_LABEL(panic)
@@ -219,8 +219,8 @@ translate_va_to_pa:
 	mov	pc, lr
 
 /*
- * Init	MMU
- * r0 -	The table base address
+ * Init MMU
+ * r0 - the table base address
  */
 
 ASENTRY_NP(init_mmu)
@@ -267,11 +267,11 @@ END(init_mmu)
 
 
 /*
- * Init	SMP coherent mode, enable caching and switch to	final MMU table.
- * Called with disabled	caches
- * r0 -	The table base address
- * r1 -	clear bits for aux register
- * r2 -	set bits for aux register
+ * Init SMP coherent mode, enable caching and switch to final MMU table.
+ * Called with disabled caches
+ * r0 - The table base address
+ * r1 - clear bits for aux register
+ * r2 - set bits for aux register
  */
 ASENTRY_NP(reinit_mmu)
 	push	{r4-r11, lr}
@@ -331,11 +331,11 @@ END(reinit_mmu)
 
 /*
  * Builds the page table
- * r0 -	The table base address
- * r1 -	The physical address (trashed)
- * r2 -	The virtual address (trashed)
- * r3 -	The number of 1MiB sections
- * r4 -	Trashed
+ * r0 - The table base address
+ * r1 - The physical address (trashed)
+ * r2 - The virtual address (trashed)
+ * r3 - The number of 1MiB sections
+ * r4 - Trashed
  *
  * Addresses must be 1MiB aligned
  */
@@ -350,15 +350,15 @@ build_pagetables:
 #endif
 	orr	r1, r4
 
-	/* Move	the virtual address to the correct bit location	*/
+	/* Move the virtual address to the correct bit location */
 	lsr	r2, #(PTE1_SHIFT - 2)
 
 	mov	r4, r3
 1:
 	str	r1, [r0, r2]
-	add	r2, r2,	#4
-	add	r1, r1,	#(PTE1_SIZE)
-	adds	r4, r4,	#-1
+	add	r2, r2, #4
+	add	r1, r1, #(PTE1_SIZE)
+	adds	r4, r4, #-1
 	bhi	1b
 
 	mov	pc, lr
@@ -372,7 +372,7 @@ VA_TO_PA_POINTER(Lpagetable, boot_pt1)
 	.word	svcstk			/* must remain in order together. */
 
 .Lmainreturned:
-	.asciz	"main()	returned"
+	.asciz	"main() returned"
 	.align	2
 
 	.bss
@@ -380,8 +380,8 @@ svcstk:
 	.space	INIT_ARM_STACK_SIZE * MAXCPU
 
 /*
- * Memory for the initial pagetable. We	are unable to place this in
- * the bss as this will	be cleared after the table is loaded.
+ * Memory for the initial pagetable. We are unable to place this in
+ * the bss as this will be cleared after the table is loaded.
  */
 	.section ".init_pagetable"
 	.align	14 /* 16KiB aligned */
@@ -398,7 +398,7 @@ boot_pt1:
 #if defined(SMP)
 
 ASENTRY_NP(mpentry)
-	/* Make	sure interrupts	are disabled. */
+	/* Make sure interrupts are disabled. */
 	cpsid	ifa
 
 	/* Setup core, disable all caches. */
@@ -419,10 +419,10 @@ ASENTRY_NP(mpentry)
 	mcr	CP15_ICIALLU
 	ISB
 
-	/* Find	the delta between VA and PA */
+	/* Find the delta between VA and PA */
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
-	
+
 	bl	init_mmu
 
 	adr	r1, .Lstart+8		/* Get initstack pointer from */
@@ -433,7 +433,7 @@ ASENTRY_NP(mpentry)
 	mul	r2, r1,	r0		/* Point sp to initstack */
 	add	sp, sp,	r2		/* area for this processor. */
 
-	/* Switch to virtual addresses.	*/
+	/* Switch to virtual addresses. */
 	ldr	pc, =1f
 1:
 	mov	fp, #0			/* trace back starts here */
@@ -459,14 +459,14 @@ ENTRY_NP(cpu_halt)
 	ldr	r4, [r4]
 	teq	r4, #0
 	movne	pc, r4
-1:	
+1:
 	WFI
 	b	1b
 
 	/*
 	 * _cpu_reset_address contains the address to branch to, to complete
 	 * the cpu reset after turning the MMU off
-	 * This	variable is provided by	the hardware specific code
+	 * This variable is provided by the hardware specific code
 	 */
 .Lcpu_reset_address:
 	.word	_C_LABEL(cpu_reset_address)
@@ -498,38 +498,37 @@ END(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
-	add	r0, r0,	#SIGF_UC
+	add	r0, r0, #SIGF_UC
 
 	/*
-	 * Call	the sigreturn system call.
+	 * Call the sigreturn system call.
 	 *
 	 * We have to load r7 manually rather than using
-	 * "ldr	r7, =SYS_sigreturn" to ensure the value	of szsigcode is
+	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
 	 * correct. Using the alternative places esigcode at the address
-	 * of the data rather than the address one past	the data.
+	 * of the data rather than the address one past the data.
 	 */
 
-	ldr	r7, [pc, #12]	/* Load	SYS_sigreturn */
+	ldr	r7, [pc, #12]	/* Load SYS_sigreturn */
 	swi	SYS_sigreturn
 
-	/* Well	if that	failed we better exit quick ! */
+	/* Well if that failed we better exit quick ! */
 
-	ldr	r7, [pc, #8]	/* Load	SYS_exit */
+	ldr	r7, [pc, #8]	/* Load SYS_exit */
 	swi	SYS_exit
 
-	/* Branch back to retry	SYS_sigreturn */
+	/* Branch back to retry SYS_sigreturn */
 	b	. - 16
 END(sigcode)
-
 	.word	SYS_sigreturn
 	.word	SYS_exit
 
 	.align	2
-	.global	_C_LABEL(esigcode)
+	.global _C_LABEL(esigcode)
 		_C_LABEL(esigcode):
 
 	.data
-	.global	szsigcode
+	.global szsigcode
 szsigcode:
 	.long esigcode-sigcode
 

@@ -293,6 +293,7 @@ static int get_guest_pat, get_host_pat;
 static int get_guest_sysenter, get_vmcs_link;
 static int get_exit_reason, get_vmcs_exit_qualification;
 static int get_vmcs_exit_interruption_info, get_vmcs_exit_interruption_error;
+static int get_vmcs_exit_inst_length;
 
 static uint64_t desc_base;
 static uint32_t desc_limit, desc_access;
@@ -640,9 +641,9 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
 	uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-	int error;
+	int error = 0;
 
-	if (get_efer || get_all) {
+	if (!error && (get_efer || get_all)) {
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_EFER, &efer);
 		if (error == 0)
 			printf("efer[%d]\t\t0x%016lx\n", vcpu, efer);
@@ -787,10 +788,10 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 static int
 get_all_segments(struct vmctx *ctx, int vcpu)
 {
-	int error;
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
+	int error = 0;
 
-	if (get_desc_ds || get_all) {
+	if (!error && (get_desc_ds || get_all)) {
 		error = vm_get_desc(ctx, vcpu, VM_REG_GUEST_DS,
 				   &desc_base, &desc_limit, &desc_access);
 		if (error == 0) {
@@ -935,9 +936,9 @@ static int
 get_misc_vmcs(struct vmctx *ctx, int vcpu)
 {
 	uint64_t ctl, cr0, cr3, cr4, rsp, rip, pat, addr, u64;
-	int error;
-	
-	if (get_cr0_mask || get_all) {
+	int error = 0;
+
+	if (!error && (get_cr0_mask || get_all)) {
 		uint64_t cr0mask;
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_CR0_MASK, &cr0mask);
 		if (error == 0)
@@ -1145,7 +1146,15 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, u64);
 		}
 	}
-	
+
+	if (!error && (get_vmcs_exit_inst_length || get_all)) {
+		error = vm_get_vmcs_field(ctx, vcpu,
+		    VMCS_EXIT_INSTRUCTION_LENGTH, &u64);
+		if (error == 0)
+			printf("vmcs_exit_inst_length[%d]\t0x%08x\n", vcpu,
+			    (uint32_t)u64);
+	}
+
 	if (!error && (get_vmcs_exit_qualification || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_QUALIFICATION,
 					  &u64);
@@ -1161,9 +1170,9 @@ static int
 get_misc_vmcb(struct vmctx *ctx, int vcpu)
 {
 	uint64_t ctl, addr;
-	int error;
+	int error = 0;
 
-	if (get_vmcb_intercept || get_all) {
+	if (!error && (get_vmcb_intercept || get_all)) {
 		error = vm_get_vmcb_field(ctx, vcpu, VMCB_OFF_CR_INTERCEPT, 4,
 		    &ctl);
 		if (error == 0)
@@ -1405,6 +1414,8 @@ setup_options(bool cpu_intel)
 				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "get-vmcs-exit-qualification",
 				NO_ARG,	&get_vmcs_exit_qualification, 1 },
+		{ "get-vmcs-exit-inst-length",
+				NO_ARG,	&get_vmcs_exit_inst_length, 1 },
 		{ "get-vmcs-interruptibility",
 				NO_ARG, &get_vmcs_interruptibility, 1 },
 		{ "get-vmcs-exit-interruption-error",

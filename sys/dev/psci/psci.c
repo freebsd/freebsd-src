@@ -102,6 +102,24 @@ EARLY_DRIVER_MODULE(psci, simplebus, psci_driver, psci_devclass, 0, 0,
 EARLY_DRIVER_MODULE(psci, ofwbus, psci_driver, psci_devclass, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);
 
+static psci_callfn_t
+psci_get_callfn(phandle_t node)
+{
+	char method[16];
+
+	if ((OF_getprop(node, "method", method, sizeof(method))) > 0) {
+		if (strcmp(method, "hvc") == 0)
+			return (psci_hvc_despatch);
+		else if (strcmp(method, "smc") == 0)
+			return (psci_smc_despatch);
+		else
+			printf("psci: PSCI conduit \"%s\" invalid\n", method);
+	} else
+		printf("psci: PSCI conduit not supplied in the device tree\n");
+
+	return (NULL);
+}
+
 static int
 psci_probe(device_t dev)
 {
@@ -126,7 +144,6 @@ psci_attach(device_t dev)
 	const struct ofw_compat_data *ocd;
 	psci_initfn_t psci_init;
 	phandle_t node;
-	char method[16];
 
 	if (psci_softc != NULL)
 		return (ENXIO);
@@ -136,22 +153,9 @@ psci_attach(device_t dev)
 	KASSERT(psci_init != NULL, ("PSCI init function cannot be NULL"));
 
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "method", method, sizeof(method))) > 0) {
-		if (strcmp(method, "hvc") == 0)
-			sc->psci_call = psci_hvc_despatch;
-		else if (strcmp(method, "smc") == 0)
-			sc->psci_call = psci_smc_despatch;
-		else {
-			device_printf(dev,
-			   "psci_attach: PSCI conduit \"%s\" invalid\n",
-			    method);
-			return (ENXIO);
-		}
-	} else {
-		device_printf(dev,
-		    "psci_attach: PSCI conduit not supplied in the DT\n");
+	sc->psci_call = psci_get_callfn(node);
+	if (sc->psci_call == NULL)
 		return (ENXIO);
-	}
 
 	if (psci_init(dev))
 		return (ENXIO);
@@ -177,10 +181,27 @@ psci_get_version(struct psci_softc *sc)
 int
 psci_cpu_on(unsigned long cpu, unsigned long entry, unsigned long context_id)
 {
+	psci_callfn_t callfn;
+	phandle_t node;
+	uint32_t fnid;
+
+	if (psci_softc == NULL) {
+		node = ofw_bus_find_compatible(OF_peer(0), "arm,psci-0.2");
+		if (node == 0)
+			/* TODO: Handle psci 0.1 */
+			return (PSCI_RETVAL_INTERNAL_FAILURE);
+
+		fnid = PSCI_FNID_CPU_ON;
+		callfn = psci_get_callfn(node);
+		if (callfn == NULL)
+			return (PSCI_RETVAL_INTERNAL_FAILURE);
+	} else {
+		callfn = psci_softc->psci_call;
+		fnid = psci_softc->psci_fnids[PSCI_FN_CPU_ON];
+	}
 
 	/* PSCI v0.1 and v0.2 both support cpu_on. */
-	return(psci_softc->psci_call(psci_softc->psci_fnids[PSCI_FN_CPU_ON], cpu,
-	    entry, context_id));
+	return (callfn(fnid, cpu, entry, context_id));
 }
 
 static void

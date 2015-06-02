@@ -88,41 +88,42 @@ vfp_save_state(struct thread *td)
 	uint64_t fpcr, fpsr;
 	uint32_t cpacr;
 
+	critical_enter();
 	/*
 	 * Only store the registers if the VFP is enabled,
 	 * i.e. return if we are trapping on FP access.
 	 */
 	cpacr = READ_SPECIALREG(cpacr_el1);
-	if ((cpacr & CPACR_FPEN_MASK) != CPACR_FPEN_TRAP_NONE)
-		return;
+	if ((cpacr & CPACR_FPEN_MASK) == CPACR_FPEN_TRAP_NONE) {
+		vfp_state = td->td_pcb->pcb_vfp;
+		__asm __volatile(
+		    "mrs	%0, fpcr		\n"
+		    "mrs	%1, fpsr		\n"
+		    "stp	q0,  q1,  [%2, #16 *  0]\n"
+		    "stp	q2,  q3,  [%2, #16 *  2]\n"
+		    "stp	q4,  q5,  [%2, #16 *  4]\n"
+		    "stp	q6,  q7,  [%2, #16 *  6]\n"
+		    "stp	q8,  q9,  [%2, #16 *  8]\n"
+		    "stp	q10, q11, [%2, #16 * 10]\n"
+		    "stp	q12, q13, [%2, #16 * 12]\n"
+		    "stp	q14, q15, [%2, #16 * 14]\n"
+		    "stp	q16, q17, [%2, #16 * 16]\n"
+		    "stp	q18, q19, [%2, #16 * 18]\n"
+		    "stp	q20, q21, [%2, #16 * 20]\n"
+		    "stp	q22, q23, [%2, #16 * 22]\n"
+		    "stp	q24, q25, [%2, #16 * 24]\n"
+		    "stp	q26, q27, [%2, #16 * 26]\n"
+		    "stp	q28, q29, [%2, #16 * 28]\n"
+		    "stp	q30, q31, [%2, #16 * 30]\n"
+		    : "=&r"(fpcr), "=&r"(fpsr) : "r"(vfp_state));
 
-	vfp_state = td->td_pcb->pcb_vfp;
-	__asm __volatile(
-	    "mrs	%0, fpcr		\n"
-	    "mrs	%1, fpsr		\n"
-	    "stp	q0,  q1,  [%2, #16 *  0]\n"
-	    "stp	q2,  q3,  [%2, #16 *  2]\n"
-	    "stp	q4,  q5,  [%2, #16 *  4]\n"
-	    "stp	q6,  q7,  [%2, #16 *  6]\n"
-	    "stp	q8,  q9,  [%2, #16 *  8]\n"
-	    "stp	q10, q11, [%2, #16 * 10]\n"
-	    "stp	q12, q13, [%2, #16 * 12]\n"
-	    "stp	q14, q15, [%2, #16 * 14]\n"
-	    "stp	q16, q17, [%2, #16 * 16]\n"
-	    "stp	q18, q19, [%2, #16 * 18]\n"
-	    "stp	q20, q21, [%2, #16 * 20]\n"
-	    "stp	q22, q23, [%2, #16 * 22]\n"
-	    "stp	q24, q25, [%2, #16 * 24]\n"
-	    "stp	q26, q27, [%2, #16 * 26]\n"
-	    "stp	q28, q29, [%2, #16 * 28]\n"
-	    "stp	q30, q31, [%2, #16 * 30]\n"
-	    : "=&r"(fpcr), "=&r"(fpsr) : "r"(vfp_state));
+		td->td_pcb->pcb_fpcr = fpcr;
+		td->td_pcb->pcb_fpsr = fpsr;
 
-	td->td_pcb->pcb_fpcr = fpcr;
-	td->td_pcb->pcb_fpsr = fpsr;
-
-	dsb();
-	vfp_disable();
+		dsb();
+		vfp_disable();
+	}
+	critical_exit();
 }
 
 void

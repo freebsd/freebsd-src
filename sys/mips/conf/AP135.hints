@@ -117,11 +117,11 @@ hint.ath.0.eepromsize=16384
 # to find it.
 
 # ath1 hint - pcie slot 0
-hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
-hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
+# hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
+# hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
 
 # ath0 - eeprom comes from here
-hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+# hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
 
 # flash layout:
 #

@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-
 #include <sys/socket.h>
+
+#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -81,7 +82,7 @@ const int ieee80211_opcap[IEEE80211_OPMODE_MAX] = {
 #endif
 };
 
-static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
+const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
@@ -94,6 +95,7 @@ static	void ieee80211com_media_status(struct ifnet *, struct ifmediareq *);
 static	int ieee80211com_media_change(struct ifnet *);
 static	int media_status(enum ieee80211_opmode,
 		const struct ieee80211_channel *);
+static uint64_t ieee80211_get_counter(struct ifnet *, ift_counter);
 
 MALLOC_DEFINE(M_80211_VAP, "80211vap", "802.11 vap state");
 
@@ -223,15 +225,17 @@ ieee80211_chan_init(struct ieee80211com *ic)
 }
 
 static void
-null_update_mcast(struct ifnet *ifp)
+null_update_mcast(struct ieee80211com *ic)
 {
-	if_printf(ifp, "need multicast update callback\n");
+
+	ic_printf(ic, "need multicast update callback\n");
 }
 
 static void
-null_update_promisc(struct ifnet *ifp)
+null_update_promisc(struct ieee80211com *ic)
 {
-	if_printf(ifp, "need promiscuous mode update callback\n");
+
+	ic_printf(ic, "need promiscuous mode update callback\n");
 }
 
 static int
@@ -242,15 +246,9 @@ null_transmit(struct ifnet *ifp, struct mbuf *m)
 	return EACCES;		/* XXX EIO/EPERM? */
 }
 
-#if __FreeBSD_version >= 1000031
 static int
 null_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
-#else
-static int
-null_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
-#endif
 {
 	if_printf(ifp, "discard raw packet\n");
 	return null_transmit(ifp, m);
@@ -267,7 +265,20 @@ static void
 null_update_chw(struct ieee80211com *ic)
 {
 
-	if_printf(ic->ic_ifp, "%s: need callback\n", __func__);
+	ic_printf(ic, "%s: need callback\n", __func__);
+}
+
+int
+ic_printf(struct ieee80211com *ic, const char * fmt, ...)
+{ 
+	va_list ap;
+	int retval;
+
+	retval = printf("%s: ", ic->ic_name);
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);  
+	return (retval);
 }
 
 /*
@@ -284,15 +295,17 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	KASSERT(ifp->if_type == IFT_IEEE80211, ("if_type %d", ifp->if_type));
 
-	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
-	IEEE80211_TX_LOCK_INIT(ic, ifp->if_xname);
+	IEEE80211_LOCK_INIT(ic, ic->ic_name);
+	IEEE80211_TX_LOCK_INIT(ic, ic->ic_name);
 	TAILQ_INIT(&ic->ic_vaps);
 
 	/* Create a taskqueue for all state changes */
 	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
 	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
-	    ifp->if_xname);
+	    ic->ic_name);
+	ic->ic_ierrors = counter_u64_alloc(M_WAITOK);
+	ic->ic_oerrors = counter_u64_alloc(M_WAITOK);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
@@ -391,6 +404,8 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 
 	/* XXX VNET needed? */
 	ifmedia_removeall(&ic->ic_media);
+	counter_u64_free(ic->ic_ierrors);
+	counter_u64_free(ic->ic_oerrors);
 
 	taskqueue_free(ic->ic_tq);
 	IEEE80211_TX_LOCK_DESTROY(ic);
@@ -413,6 +428,31 @@ default_reset(struct ieee80211vap *vap, u_long cmd)
 }
 
 /*
+ * Add underlying device errors to vap errors.
+ */
+static uint64_t
+ieee80211_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211com *ic = vap->iv_ic;
+	uint64_t rv;
+
+	rv = if_get_counter_default(ifp, cnt);
+	switch (cnt) {
+	case IFCOUNTER_OERRORS:
+		rv += counter_u64_fetch(ic->ic_oerrors);
+		break;
+	case IFCOUNTER_IERRORS:
+		rv += counter_u64_fetch(ic->ic_ierrors);
+		break;
+	default:
+		break;
+	}
+
+	return (rv);
+}
+
+/*
  * Prepare a vap for use.  Drivers use this call to
  * setup net80211 state in new vap's prior attaching
  * them with ieee80211_vap_attach (below).
@@ -427,7 +467,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		if_printf(ic->ic_ifp, "%s: unable to allocate ifnet\n",
+		ic_printf(ic, "%s: unable to allocate ifnet\n",
 		    __func__);
 		return ENOMEM;
 	}
@@ -438,6 +478,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp->if_qflush = ieee80211_vap_qflush;
 	ifp->if_ioctl = ieee80211_ioctl;
 	ifp->if_init = ieee80211_init;
+	ifp->if_get_counter = ieee80211_get_counter;
 
 	vap->iv_ifp = ifp;
 	vap->iv_ic = ic;
@@ -551,7 +592,7 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
 	    "%s: %s parent %s flags 0x%x flags_ext 0x%x\n",
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
-	    ic->ic_ifp->if_xname, vap->iv_flags, vap->iv_flags_ext);
+	    ic->ic_name, vap->iv_flags, vap->iv_flags_ext);
 
 	/*
 	 * Do late attach work that cannot happen until after
@@ -607,8 +648,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	CURVNET_SET(ifp->if_vnet);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s parent %s\n",
-	    __func__, ieee80211_opmode_name[vap->iv_opmode],
-	    ic->ic_ifp->if_xname);
+	    __func__, ieee80211_opmode_name[vap->iv_opmode], ic->ic_name);
 
 	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
 	ether_ifdetach(ifp);
@@ -900,7 +940,7 @@ int
 ieee80211_chan2ieee(struct ieee80211com *ic, const struct ieee80211_channel *c)
 {
 	if (c == NULL) {
-		if_printf(ic->ic_ifp, "invalid channel (NULL)\n");
+		ic_printf(ic, "invalid channel (NULL)\n");
 		return 0;		/* XXX */
 	}
 	return (c == IEEE80211_CHAN_ANYC ?  IEEE80211_CHAN_ANY : c->ic_ieee);
@@ -989,6 +1029,75 @@ ieee80211_find_channel_byieee(struct ieee80211com *ic, int ieee, int flags)
 			return c;
 	}
 	return NULL;
+}
+
+/*
+ * Lookup a channel suitable for the given rx status.
+ *
+ * This is used to find a channel for a frame (eg beacon, probe
+ * response) based purely on the received PHY information.
+ *
+ * For now it tries to do it based on R_FREQ / R_IEEE.
+ * This is enough for 11bg and 11a (and thus 11ng/11na)
+ * but it will not be enough for GSM, PSB channels and the
+ * like.  It also doesn't know about legacy-turbog and
+ * legacy-turbo modes, which some offload NICs actually
+ * support in weird ways.
+ *
+ * Takes the ic and rxstatus; returns the channel or NULL
+ * if not found.
+ *
+ * XXX TODO: Add support for that when the need arises.
+ */
+struct ieee80211_channel *
+ieee80211_lookup_channel_rxstatus(struct ieee80211vap *vap,
+    const struct ieee80211_rx_stats *rxs)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	uint32_t flags;
+	struct ieee80211_channel *c;
+
+	if (rxs == NULL)
+		return (NULL);
+
+	/*
+	 * Strictly speaking we only use freq for now,
+	 * however later on we may wish to just store
+	 * the ieee for verification.
+	 */
+	if ((rxs->r_flags & IEEE80211_R_FREQ) == 0)
+		return (NULL);
+	if ((rxs->r_flags & IEEE80211_R_IEEE) == 0)
+		return (NULL);
+
+	/*
+	 * If the rx status contains a valid ieee/freq, then
+	 * ensure we populate the correct channel information
+	 * in rxchan before passing it up to the scan infrastructure.
+	 * Offload NICs will pass up beacons from all channels
+	 * during background scans.
+	 */
+
+	/* Determine a band */
+	/* XXX should be done by the driver? */
+	if (rxs->c_freq < 3000) {
+		flags = IEEE80211_CHAN_B;
+	} else {
+		flags = IEEE80211_CHAN_A;
+	}
+
+	/* Channel lookup */
+	c = ieee80211_find_channel(ic, rxs->c_freq, flags);
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_INPUT,
+	    "%s: freq=%d, ieee=%d, flags=0x%08x; c=%p\n",
+	    __func__,
+	    (int) rxs->c_freq,
+	    (int) rxs->c_ieee,
+	    flags,
+	    c);
+
+	return (c);
 }
 
 static void
@@ -1169,7 +1278,6 @@ ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *
 void
 ieee80211_announce(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	int i, rate, mword;
 	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
@@ -1178,7 +1286,7 @@ ieee80211_announce(struct ieee80211com *ic)
 	for (mode = IEEE80211_MODE_AUTO+1; mode < IEEE80211_MODE_11NA; mode++) {
 		if (isclr(ic->ic_modecaps, mode))
 			continue;
-		if_printf(ifp, "%s rates: ", ieee80211_phymode_name[mode]);
+		ic_printf(ic, "%s rates: ", ieee80211_phymode_name[mode]);
 		rs = &ic->ic_sup_rates[mode];
 		for (i = 0; i < rs->rs_nrates; i++) {
 			mword = ieee80211_rate2media(ic, rs->rs_rates[i], mode);

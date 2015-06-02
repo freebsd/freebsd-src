@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2014
+.Dd May 7, 2015
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl jRu
-.Op Fl r Ar seconds
+.Op Fl r Ar seconds | Ar filename
 .Oo
 .Fl v
 .Sm off
@@ -150,6 +150,9 @@ is the number of seconds since the Epoch
 see
 .Xr time 3 ) ,
 and can be specified in decimal, octal, or hex.
+.It Fl r Ar filename
+Print the date and time of the last modification of
+.Ar filename .
 .It Fl t Ar minutes_west
 Set the system's value for minutes west of
 .Tn GMT .

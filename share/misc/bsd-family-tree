@@ -321,8 +321,15 @@ FreeBSD 5.2           |      |                 |                       |
  |  FreeBSD           |      |                 |                       |
  |   10.1             |      |                 |               DragonFly 4.0.1
  |                    |      |                 |                       |
+ |                    |      |                 |               DragonFly 4.0.2
  |                    |      |                 |                       |
+ |                    |      |                 |               DragonFly 4.0.3
  |                    |      |                 |                       |
+ |                    |      |                 |               DragonFly 4.0.4
+ |                    |      |                 |                       |
+ |                    |      |                 |               DragonFly 4.0.5
+ |                    |      |                 |                       |
+ |                    |      |            OpenBSD 5.7                  |
  |                    |      |                 |                       |
  |                    |      |                 |                       |
 FreeBSD 11 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
@@ -655,11 +662,16 @@ DragonFly 3.8.1		2014-06-16 [DFB]
 DragonFly 3.6.3		2014-06-17 [DFB]
 FreeBSD 9.3		2014-07-05 [FBD]
 DragonFly 3.8.2		2014-08-08 [DFB]
-NetBSD 6.1.5		2014-09-22 [NDB]
+NetBSD 6.1.5		2014-09-22 [NBD]
 Mac OS X 10.10		2014-10-16 [APL]
 OpenBSD 5.6		2014-11-01 [OBD]
 FreeBSD 10.1		2014-11-14 [FBD]
 DragonFly 4.0.1		2014-11-25 [DFB]
+DragonFly 4.0.2		2015-01-07 [DFB]
+DragonFly 4.0.3		2015-01-21 [DFB]
+DragonFly 4.0.4		2015-03-09 [DFB]
+DragonFly 4.0.5		2015-03-23 [DFB]
+OpenBSD 5.7		2015-05-01 [OBD]
 
 Bibliography
 ------------------------
@@ -678,6 +690,10 @@ System. Reading, Mass. Addison-Wesley, 1996. ISBN 0-201-54979-4
 McKusick, Marshall Kirk, George Neville-Neil. The Design and
 Implementation of the FreeBSD Operating System.
 Addison-Wesley Professional, Published: Aug 2, 2004. ISBN 0-201-70245-2
+
+McKusick, Marshall Kirk, George Neville-Neil, Robert Watson. The
+Design and Implementation of the FreeBSD Operating System, 2nd Edition.
+Pearson Education, Inc., 2014. ISBN 0-321-96897-2
 
 Doug McIlroy. Research Unix Reader.
 

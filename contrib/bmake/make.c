@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $	*/
+/*	$NetBSD: make.c,v 1.91 2014/10/18 08:33:30 snj Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.91 2014/10/18 08:33:30 snj Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $");
+__RCSID("$NetBSD: make.c,v 1.91 2014/10/18 08:33:30 snj Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -563,7 +563,7 @@ MakeHandleUse(void *cgnp, void *pgnp)
  *	in the comments below.
  *
  * Results:
- *	returns 0 if the gnode does not exist, or it's filesystem
+ *	returns 0 if the gnode does not exist, or its filesystem
  *	time if it does.
  *
  * Side Effects:

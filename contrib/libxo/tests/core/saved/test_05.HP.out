@@ -11,6 +11,55 @@
   <div class="data" data-tag="v2">Unicode-ის მეათე საერთაშორისო</div>
 </div>
 <div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">63</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala">෴ණ්ණ෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">7</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala">෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">3</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala">෴ණ්ණ</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="not-sinhala">1234</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="tag">ර්‍ඝ</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">5</div>
+</div>
+<div class="line">
   <div class="title">First Name               </div>
   <div class="title">Last Name     </div>
   <div class="title">Department  </div>
@@ -74,4 +123,14 @@
   <div class="data" data-tag="last-name">საერთაშორისო  </div>
   <div class="data" data-tag="department">     123</div>
   <div class="data" data-tag="percent-time">      90</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">෴ණ්ණ෴෴ණ්ණ෴</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"Mick"</div>
+  <div class="text">)</div>
+  <div class="padding">      </div>
+  <div class="data" data-tag="last-name">෴ණ්ණ෴෴ණ්ණ෴෴ණ්ණ</div>
+  <div class="data" data-tag="department">     110</div>
+  <div class="data" data-tag="percent-time">      20</div>
 </div>

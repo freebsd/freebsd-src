@@ -3,7 +3,7 @@
 #
 # $FreeBSD$
 
-machine		arm64
+machine		arm64 aarch64
 
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices

@@ -236,7 +236,7 @@ pr_rthdr(int af1)
 		xo_emit("{T:/%-8.8s} ","Address");
 	if (Wflag) {
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
-		    "{T:/%*.*s} {T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
+		    "{T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
 			wid_dst,	wid_dst,	"Destination",
 			wid_gw,		wid_gw,		"Gateway",
 			wid_flags,	wid_flags,	"Flags",
@@ -245,7 +245,7 @@ pr_rthdr(int af1)
 			wid_if,		wid_if,		"Netif",
 			wid_expire,			"Expire");
 	} else {
-		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s}  {T:/%*.*s} "
+		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
 		    "{T:/%*s}\n",
 			wid_dst,	wid_dst,	"Destination",
 			wid_gw,		wid_gw,		"Gateway",
@@ -389,7 +389,7 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	p_sockaddr("destination", &addr.u_sa, &mask.u_sa, rtm->rtm_flags,
 	    wid_dst);
 	p_sockaddr("gateway", &gw.u_sa, NULL, RTF_HOST, wid_gw);
-	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:}",
+	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:} ",
 	    wid_flags);
 	p_flags(rtm->rtm_flags, buffer);
 	if (Wflag) {

@@ -62,7 +62,7 @@ struct ktr_entry {
 };
 
 extern cpuset_t ktr_cpumask;
-extern int ktr_mask;
+extern uint64_t ktr_mask;
 extern int ktr_entries;
 extern int ktr_verbose;
 
@@ -71,7 +71,7 @@ extern struct ktr_entry *ktr_buf;
 
 #ifdef KTR
 
-void	ktr_tracepoint(u_int mask, const char *file, int line,
+void	ktr_tracepoint(uint64_t mask, const char *file, int line,
 	    const char *format, u_long arg1, u_long arg2, u_long arg3,
 	    u_long arg4, u_long arg5, u_long arg6);
 

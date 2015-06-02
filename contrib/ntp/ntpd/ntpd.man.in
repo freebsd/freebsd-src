@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpd @NTPD_MS@ "04 Feb 2015" "4.2.8p1" "User Commands"
+.TH ntpd @NTPD_MS@ "07 Apr 2015" "4.2.8p2" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-YYaqWo/ag-.YaiVo)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-TQays3/ag-5Qaqr3)
 .\"
-.\" It has been AutoGen-ed February 4, 2015 at 02:41:54 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed April 7, 2015 at 04:25:45 AM by AutoGen 5.18.5pre4
 .\" From the definitions ntpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -175,7 +175,7 @@ The name and path of the frequency file,
 by default.
 This is the same operation as the
 \fBdriftfile\fP \fIdriftfile\fP
-configuration specification in the 
+configuration specification in the
 \fI/etc/ntp.conf\fP
 file.
 .TP
@@ -195,6 +195,20 @@ options.
 See the
 \fBtinker\fP
 configuration file directive for other options.
+.TP
+.NOP \f\*[B-Font]\-G\f[], \f\*[B-Font]\-\-force\-step\-once\f[]
+Step any initial offset correction..
+.sp
+Normally,
+\fBntpd\fP
+steps the time if the time offset exceeds the step threshold,
+which is 128 ms by default, and otherwise slews the time.
+This option forces the initial offset correction to be stepped,
+so the highest time accuracy can be achieved quickly.
+However, this may also cause the time to be stepped back
+so this option must not be used if
+applications requiring monotonic time are running.
+See the \fBtinker\fP configuration file directive for other options.
 .TP
 .NOP \f\*[B-Font]\-i\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-jaildir\f[]=\f\*[I-Font]string\f[]
 Jail directory.
@@ -220,7 +234,7 @@ Open the network address given, or all the addresses associated with the
 given interface name.  This option may appear multiple times.  This option
 also implies not opening other addresses, except wildcard and localhost.
 This option is deprecated. Please consider using the configuration file
-\fBinterface\fP command, which is more versatile. 
+\fBinterface\fP command, which is more versatile.
 .TP
 .NOP \f\*[B-Font]\-k\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-keyfile\f[]=\f\*[I-Font]string\f[]
 path to symmetric keys.

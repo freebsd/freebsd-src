@@ -206,6 +206,7 @@ dwarf2_evaluate_loc_desc (struct symbol *var, struct frame_info *frame,
 			  struct objfile *objfile)
 {
   CORE_ADDR result;
+  struct gdbarch *arch = get_frame_arch (frame);
   struct value *retval;
   struct dwarf_expr_baton baton;
   struct dwarf_expr_context *ctx;
@@ -230,7 +231,32 @@ dwarf2_evaluate_loc_desc (struct symbol *var, struct frame_info *frame,
   dwarf_expr_eval (ctx, data, size);
   result = dwarf_expr_fetch (ctx, 0);
 
-  if (ctx->in_reg)
+  if (ctx->num_pieces > 0)
+    {
+      int i;
+      long offset = 0;
+      bfd_byte *contents;
+
+      retval = allocate_value (SYMBOL_TYPE (var));
+      contents = VALUE_CONTENTS_RAW (retval);
+      for (i = 0; i < ctx->num_pieces; i++)
+       {
+         struct dwarf_expr_piece *p = &ctx->pieces[i];
+         if (p->in_reg)
+           {
+             bfd_byte regval[MAX_REGISTER_SIZE];
+             int gdb_regnum = DWARF2_REG_TO_REGNUM (p->value);
+             get_frame_register (frame, gdb_regnum, regval);
+             memcpy (contents + offset, regval, p->size);
+           }
+         else /* In memory?  */
+           {
+             read_memory (p->value, contents + offset, p->size);
+           }
+         offset += p->size;
+       }
+     }
+  else if (ctx->in_reg)
     {
       int regnum = DWARF2_REG_TO_REGNUM (result);
       retval = value_from_register (SYMBOL_TYPE (var), regnum, frame);
@@ -244,6 +270,8 @@ dwarf2_evaluate_loc_desc (struct symbol *var, struct frame_info *frame,
       VALUE_LAZY (retval) = 1;
       VALUE_ADDRESS (retval) = result;
     }
+
+  set_value_initialized (retval, ctx->initialized);
 
   free_dwarf_expr_context (ctx);
 
@@ -321,6 +349,17 @@ dwarf2_loc_desc_needs_frame (unsigned char *data, unsigned short size)
   dwarf_expr_eval (ctx, data, size);
 
   in_reg = ctx->in_reg;
+
+  if (ctx->num_pieces > 0)
+    {
+      int i;
+
+      /* If the location has several pieces, and any of them are in
+         registers, then we will need a frame to fetch them from.  */
+      for (i = 0; i < ctx->num_pieces; i++)
+        if (ctx->pieces[i].in_reg)
+          in_reg = 1;
+    }
 
   free_dwarf_expr_context (ctx);
 

@@ -55,30 +55,30 @@ __FBSDID("$FreeBSD$");
 static	char *tbuf;
 static	char *filename;
 static	int hopcount;	/* detect infinite loops in termcap, init 0 */
-char	*tskip();
-char	*tgetstr();
-char	*tdecode();
-char	*getenv();
+
+static int	tnchktc(void);
+static int	tnamatch(char *);
+static char	*tskip(register char *);
+static char	*tdecode(register char *, char **);
 
 /*
  * Get an entry for terminal name in buffer bp,
  * from the termcap file.  Parse is very rudimentary;
  * we just notice escaped newlines.
  */
-tgetent(bp, name, file)
-	char *bp, *name, *file;
+int
+tgetent(char *bp, char *name, char *file)
 {
 	register char *cp;
 	register int c;
 	register int i = 0, cnt = 0;
 	char ibuf[BUFSIZ];
-	char *cp2;
 	int tf;
 
 	tbuf = bp;
 	tf = 0;
 	filename = file;
-	tf = open(filename, 0);
+	tf = open(filename, O_RDONLY);
 	if (tf < 0)
 		return (-1);
 	for (;;) {
@@ -125,7 +125,8 @@ tgetent(bp, name, file)
  * entries to say "like an HP2621 but doesn't turn on the labels".
  * Note that this works because of the left to right scan.
  */
-tnchktc()
+static int
+tnchktc(void)
 {
 	register char *p, *q;
 	char tcname[16];	/* name of similar terminal */
@@ -143,7 +144,7 @@ tnchktc()
 	/* p now points to beginning of last field */
 	if (p[0] != 't' || p[1] != 'c')
 		return(1);
-	strcpy(tcname,p+3);
+	strlcpy(tcname, p+3, 16);
 	q = tcname;
 	while (q && *q != ':')
 		q++;
@@ -161,7 +162,7 @@ tnchktc()
 		write(STDERR_FILENO, "Vgrind entry too long\n", 23);
 		q[BUFSIZ - (p-tbuf)] = 0;
 	}
-	strcpy(p, q+1);
+	strlcpy(p, q+1, BUFSIZ - (p - holdtbuf));
 	tbuf = holdtbuf;
 	return(1);
 }
@@ -172,8 +173,8 @@ tnchktc()
  * against each such name.  The normal : terminator after the last
  * name (before the first field) stops us.
  */
-tnamatch(np)
-	char *np;
+static int
+tnamatch(char *np)
 {
 	register char *Np, *Bp;
 
@@ -199,8 +200,7 @@ tnamatch(np)
  * into the termcap file in octal.
  */
 static char *
-tskip(bp)
-	register char *bp;
+tskip(register char *bp)
 {
 
 	while (*bp && *bp != ':')
@@ -218,8 +218,8 @@ tskip(bp)
  * a # character.  If the option is not found we return -1.
  * Note that we handle octal numbers beginning with 0.
  */
-tgetnum(id)
-	char *id;
+int
+tgetnum(char *id)
 {
 	register int i, base;
 	register char *bp = tbuf;
@@ -251,8 +251,8 @@ tgetnum(id)
  * of the buffer.  Return 1 if we find the option, or 0 if it is
  * not given.
  */
-tgetflag(id)
-	char *id;
+int
+tgetflag(char *id)
 {
 	register char *bp = tbuf;
 
@@ -278,8 +278,7 @@ tgetflag(id)
  * No checking on area overflow.
  */
 char *
-tgetstr(id, area)
-	char *id, **area;
+tgetstr(char *id, char **area)
 {
 	register char *bp = tbuf;
 
@@ -303,13 +302,10 @@ tgetstr(id, area)
  * string capability escapes.
  */
 static char *
-tdecode(str, area)
-	register char *str;
-	char **area;
+tdecode(register char *str, char **area)
 {
 	register char *cp;
 	register int c;
-	int i;
 
 	cp = *area;
 	while (c = *str++) {

@@ -83,13 +83,15 @@ extern systime_func_ptr ntpcal_set_timefunc(systime_func_ptr);
 #define	SECSPERMIN	(60)			/* seconds per minute */
 #define	MINSPERHR	(60)			/* minutes per hour */
 #define	HRSPERDAY	(24)			/* hours per day */
+#define	DAYSPERWEEK	(7)			/* days per week */
 #define	DAYSPERYEAR	(365)			/* days per year */
 
 #define	SECSPERHR	(SECSPERMIN * MINSPERHR)
 #define	SECSPERDAY	(SECSPERHR * HRSPERDAY)
+#define	SECSPERWEEK	(DAYSPERWEEK * SECSPERDAY)
 #define	SECSPERYEAR	(365 * SECSPERDAY)	/* regular year */
 #define	SECSPERLEAPYEAR	(366 * SECSPERDAY)	/* leap year */
-#define SECSPERAVGYEAR	31556952		/* mean year length over 400yrs */
+#define	SECSPERAVGYEAR	31556952		/* mean year length over 400yrs */
 
 /*
  * Gross hacks.	 I have illicit knowlege that there won't be overflows
@@ -113,7 +115,7 @@ extern	uint32_t caltontp	(const struct calendar *);
  * Convert between 'time_t' and 'vint64'
  */
 extern vint64 time_to_vint64(const time_t *);
-extern time_t vint64_to_time(const vint64 *); 
+extern time_t vint64_to_time(const vint64 *);
 
 /*
  * Get the build date & time. ATTENTION: The time zone is not specified!

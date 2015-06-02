@@ -175,7 +175,7 @@ static void eap_gtc_process(struct eap_sm *sm, void *priv,
 	}
 
 	if (rlen != sm->user->password_len ||
-	    os_memcmp(pos, sm->user->password, rlen) != 0) {
+	    os_memcmp_const(pos, sm->user->password, rlen) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-GTC: Done - Failure");
 		data->state = FAILURE;
 	} else {

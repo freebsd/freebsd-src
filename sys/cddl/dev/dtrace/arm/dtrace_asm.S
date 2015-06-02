@@ -170,24 +170,6 @@ ENTRY(dtrace_copystr)
 END(dtrace_copystr)
 
 /*
-void
-vpanic(const char *format, va_list alist)
-*/
-ENTRY(vpanic)				/* Initial stack layout: */
-vpanic_common:
-	RET
-END(vpanic)
-	
-/*
-void
-dtrace_vpanic(const char *format, va_list alist)
-*/
-ENTRY(dtrace_vpanic)			/* Initial stack layout: */
-	b	vpanic	
-	RET
-END(dtrace_vpanic)			/* Initial stack layout: */
-
-/*
 uintptr_t
 dtrace_caller(int aframes)
 */

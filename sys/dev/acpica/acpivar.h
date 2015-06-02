@@ -467,6 +467,8 @@ int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
 		    int *rid, struct resource **dst, u_int flags);
+int		acpi_PkgFFH_IntelCpu(ACPI_OBJECT *res, int idx, int *vendor,
+		    int *class, uint64_t *address, int *accsize);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /*
@@ -500,8 +502,8 @@ SYSCTL_DECL(_debug_acpi);
 #if MAXMEMDOM > 1
 extern	int acpi_map_pxm_to_vm_domainid(int pxm);
 #endif
-
 extern	int acpi_get_domain(device_t dev, device_t child, int *domain);
+extern	int acpi_parse_pxm(device_t dev, int *domain);
 
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

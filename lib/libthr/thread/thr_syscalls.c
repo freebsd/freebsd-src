@@ -95,10 +95,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "thr_private.h"
 
-#ifdef SYSCALL_COMPAT
-extern int __fcntl_compat(int, int, ...);
-#endif
-
 static int
 __thr_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
@@ -203,18 +199,10 @@ __thr_fcntl(int fd, int cmd, ...)
 	va_start(ap, cmd);
 	if (cmd == F_OSETLKW || cmd == F_SETLKW) {
 		_thr_cancel_enter(curthread);
-#ifdef SYSCALL_COMPAT
-		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
-#else
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
-#endif
 		_thr_cancel_leave(curthread, ret == -1);
 	} else {
-#ifdef SYSCALL_COMPAT
-		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
-#else
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
-#endif
 	}
 	va_end(ap);
 
@@ -316,6 +304,26 @@ __thr_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
 	ret = __sys_poll(fds, nfds, timeout);
+	_thr_cancel_leave(curthread, ret == -1);
+
+	return (ret);
+}
+
+/*
+ * Cancellation behavior:
+ *   Thread may be canceled at start, but if the system call returns something,
+ *   the thread is not canceled.
+ */
+static int
+__thr_ppoll(struct pollfd pfd[], nfds_t nfds, const struct timespec *
+    timeout, const sigset_t *newsigmask)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_ppoll(pfd, nfds, timeout, newsigmask);
 	_thr_cancel_leave(curthread, ret == -1);
 
 	return (ret);
@@ -545,6 +553,25 @@ __thr_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
 
 /*
  * Cancellation behavior:
+ *   Thread may be canceled at start, but if the system call returns
+ *   a child pid, the thread is not canceled.
+ */
+static pid_t
+__thr_wait6(idtype_t idtype, id_t id, int *status, int options,
+    struct __wrusage *ru, siginfo_t *infop)
+{
+	struct pthread *curthread;
+	pid_t ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_wait6(idtype, id, status, options, ru, infop);
+	_thr_cancel_leave(curthread, ret <= 0);
+	return (ret);
+}
+
+/*
+ * Cancellation behavior:
  *   Thread may be canceled at start, but if the thread wrote some data,
  *   it is not canceled.
  */
@@ -623,6 +650,8 @@ __thr_interpose_libc(void)
 	SLOT(spinlock);
 	SLOT(spinunlock);
 	SLOT(kevent);
+	SLOT(wait6);
+	SLOT(ppoll);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =

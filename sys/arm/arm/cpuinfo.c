@@ -48,7 +48,7 @@ void
 cpuinfo_init(void)
 {
 
-	cpuinfo.midr = cp15_midr_get();	
+	cpuinfo.midr = cp15_midr_get();
 	/* Test old version id schemes first */
 	if ((cpuinfo.midr & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD) {
 		if (CPU_ID_ISOLD(cpuinfo.midr)) {
@@ -74,7 +74,7 @@ cpuinfo_init(void)
 		/* non ARM -> must be new id scheme */
 		cpuinfo.architecture = (cpuinfo.midr >> 16) & 0x0F;
 		cpuinfo.revision = (cpuinfo.midr >> 20) & 0x0F;
-	}	
+	}
 	/* Parse rest of MIDR  */
 	cpuinfo.implementer = (cpuinfo.midr >> 24) & 0xFF;
 	cpuinfo.part_number = (cpuinfo.midr >> 4) & 0xFFF;
@@ -86,11 +86,11 @@ cpuinfo_init(void)
 	cpuinfo.tlbtr = cp15_tlbtr_get();
 	cpuinfo.mpidr = cp15_mpidr_get();
 	cpuinfo.revidr = cp15_revidr_get();
-		
+
 	/* if CPU is not v7 cpu id scheme */
 	if (cpuinfo.architecture != 0xF)
 		return;
-		
+
 	cpuinfo.id_pfr0 = cp15_id_pfr0_get();
 	cpuinfo.id_pfr1 = cp15_id_pfr1_get();
 	cpuinfo.id_dfr0 = cp15_id_dfr0_get();
@@ -131,8 +131,17 @@ cpuinfo_init(void)
 	cpuinfo.security_ext = (cpuinfo.id_pfr1 >> 4) & 0xF;
 
 	/* L1 Cache sizes */
-	cpuinfo.dcache_line_size = 1 << (CPU_CT_DMINLINE(cpuinfo.ctr ) + 2);
+	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
+		cpuinfo.dcache_line_size =
+		    1 << (CPU_CT_DMINLINE(cpuinfo.ctr) + 2);
+		cpuinfo.icache_line_size =
+		    1 << (CPU_CT_IMINLINE(cpuinfo.ctr) + 2);
+	} else {
+		cpuinfo.dcache_line_size =
+		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_DSIZE(cpuinfo.ctr)) + 3);
+		cpuinfo.icache_line_size =
+		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_ISIZE(cpuinfo.ctr)) + 3);
+	}
 	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
-	cpuinfo.icache_line_size= 1 << (CPU_CT_IMINLINE(cpuinfo.ctr ) + 2);
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
 }

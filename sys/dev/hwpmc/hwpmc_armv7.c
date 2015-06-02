@@ -201,7 +201,7 @@ armv7_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_armv7.pm_armv7_evsel = config;
 
-	PMCDBG(MDP,ALL,2,"armv7-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP,ALL,2,"armv7-allocate ri=%d -> config=0x%x", ri, config);
 
 	return 0;
 }
@@ -225,7 +225,7 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		tmp = armv7_pmcn_read(ri);
 
-	PMCDBG(MDP,REA,2,"armv7-read id=%d -> %jd", ri, tmp);
+	PMCDBG2(MDP,REA,2,"armv7-read id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = ARMV7_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
 	else
@@ -249,7 +249,7 @@ armv7_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = ARMV7_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 	
-	PMCDBG(MDP,WRI,1,"armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1,"armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	if (pm->pm_md.pm_armv7.pm_armv7_evsel == 0xFF)
 		cp15_pmccntr_set(v);
@@ -264,7 +264,7 @@ armv7_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] illegal CPU value %d", __LINE__, cpu));
@@ -462,7 +462,7 @@ armv7_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] wrong cpu number %d", __LINE__, cpu));
-	PMCDBG(MDP,INI,1,"armv7-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"armv7-init cpu=%d", cpu);
 
 	armv7_pcpu[cpu] = pac = malloc(sizeof(struct armv7_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
@@ -516,7 +516,7 @@ pmc_armv7_initialize()
 	armv7_npmcs = (reg >> ARMV7_PMNC_N_SHIFT) & \
 				ARMV7_PMNC_N_MASK;
 
-	PMCDBG(MDP,INI,1,"armv7-init npmcs=%d", armv7_npmcs);
+	PMCDBG1(MDP,INI,1,"armv7-init npmcs=%d", armv7_npmcs);
 	
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for

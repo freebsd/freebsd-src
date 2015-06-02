@@ -39,7 +39,14 @@
 
 typedef uint64_t pci_addr_t;
 
-struct nvlist;
+/* Config registers for PCI-PCI and PCI-Cardbus bridges. */
+struct pcicfg_bridge {
+    uint8_t	br_seclat;
+    uint8_t	br_subbus;
+    uint8_t	br_secbus;
+    uint8_t	br_pribus;
+    uint16_t	br_control;
+};
 
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
@@ -190,6 +197,7 @@ typedef struct pcicfg {
     uint32_t	flags;		/* flags defined above */
     size_t	devinfo_size;	/* Size of devinfo for this bus type. */
 
+    struct pcicfg_bridge bridge; /* Bridges */
     struct pcicfg_pp pp;	/* Power management */
     struct pcicfg_vpd vpd;	/* Vital product data */
     struct pcicfg_msi msi;	/* PCI MSI */
@@ -524,19 +532,6 @@ pci_child_added(device_t dev)
 {
 
     return (PCI_CHILD_ADDED(device_get_parent(dev), dev));
-}
-
-static __inline int
-pci_iov_attach(device_t dev, struct nvlist *pf_schema, struct nvlist *vf_schema)
-{
-	return (PCI_IOV_ATTACH(device_get_parent(dev), dev, pf_schema,
-	    vf_schema));
-}
-
-static __inline int
-pci_iov_detach(device_t dev)
-{
-	return (PCI_IOV_DETACH(device_get_parent(dev), dev));
 }
 
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);

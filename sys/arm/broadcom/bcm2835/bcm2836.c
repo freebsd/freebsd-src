@@ -52,7 +52,9 @@ __FBSDID("$FreeBSD$");
 #define	ARM_LOCAL_INT_TIMER(n)		(0x40 + (n) * 4)
 #define	ARM_LOCAL_INT_MAILBOX(n)	(0x50 + (n) * 4)
 #define	ARM_LOCAL_INT_PENDING(n)	(0x60 + (n) * 4)
-#define	 INT_PENDING_MASK		0x0f
+#define	 INT_PENDING_MASK		0x01f
+#define	MAILBOX0_IRQ			4
+#define	MAILBOX0_IRQEN			(1 << 0)
 
 /*
  * A driver for features of the bcm2836.
@@ -141,12 +143,27 @@ void
 bcm2836_mask_irq(uintptr_t irq)
 {
 	uint32_t reg;
+#ifdef SMP
+	int cpu;
+#endif
 	int i;
 
-	for (i = 0; i < 4; i++) {
-		reg = bus_read_4(softc->sc_mem, ARM_LOCAL_INT_TIMER(i));
-		reg &= ~(1 << irq);
-		bus_write_4(softc->sc_mem, ARM_LOCAL_INT_TIMER(i), reg);
+	if (irq < MAILBOX0_IRQ) {
+		for (i = 0; i < 4; i++) {
+			reg = bus_read_4(softc->sc_mem,
+			    ARM_LOCAL_INT_TIMER(i));
+			reg &= ~(1 << irq);
+			bus_write_4(softc->sc_mem,
+			    ARM_LOCAL_INT_TIMER(i), reg);
+		}
+#ifdef SMP
+	} else if (irq == MAILBOX0_IRQ) {
+		/* Mailbox 0 for IPI */
+		cpu = PCPU_GET(cpuid);
+		reg = bus_read_4(softc->sc_mem, ARM_LOCAL_INT_MAILBOX(cpu));
+		reg &= ~MAILBOX0_IRQEN;
+		bus_write_4(softc->sc_mem, ARM_LOCAL_INT_MAILBOX(cpu), reg);
+#endif
 	}
 }
 
@@ -154,12 +171,27 @@ void
 bcm2836_unmask_irq(uintptr_t irq)
 {
 	uint32_t reg;
+#ifdef SMP
+	int cpu;
+#endif
 	int i;
 
-	for (i = 0; i < 4; i++) {
-		reg = bus_read_4(softc->sc_mem, ARM_LOCAL_INT_TIMER(i));
-		reg |= (1 << irq);
-		bus_write_4(softc->sc_mem, ARM_LOCAL_INT_TIMER(i), reg);
+	if (irq < MAILBOX0_IRQ) {
+		for (i = 0; i < 4; i++) {
+			reg = bus_read_4(softc->sc_mem,
+			    ARM_LOCAL_INT_TIMER(i));
+			reg |= (1 << irq);
+			bus_write_4(softc->sc_mem,
+			    ARM_LOCAL_INT_TIMER(i), reg);
+		}
+#ifdef SMP
+	} else if (irq == MAILBOX0_IRQ) {
+		/* Mailbox 0 for IPI */
+		cpu = PCPU_GET(cpuid);
+		reg = bus_read_4(softc->sc_mem, ARM_LOCAL_INT_MAILBOX(cpu));
+		reg |= MAILBOX0_IRQEN;
+		bus_write_4(softc->sc_mem, ARM_LOCAL_INT_MAILBOX(cpu), reg);
+#endif
 	}
 }
 

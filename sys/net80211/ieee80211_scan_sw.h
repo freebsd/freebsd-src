@@ -53,6 +53,7 @@ extern	void ieee80211_swscan_scan_done(struct ieee80211vap *vap);
 extern	void ieee80211_swscan_probe_curchan(struct ieee80211vap *vap,
 	    int force);
 extern	void ieee80211_swscan_add_scan(struct ieee80211vap *vap,
+	    struct ieee80211_channel *curchan,
 	    const struct ieee80211_scanparams *sp,
 	    const struct ieee80211_frame *wh,
 	    int subtype, int rssi, int noise);

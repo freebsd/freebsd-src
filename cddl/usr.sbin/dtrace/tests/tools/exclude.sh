@@ -38,7 +38,6 @@ exclude EXFAIL common/ip/tst.ipv4localudp.ksh
 exclude EXFAIL common/mdb/tst.dtracedcmd.ksh
 exclude EXFAIL common/misc/tst.dofmax.ksh
 exclude EXFAIL common/misc/tst.include.ksh
-exclude EXFAIL common/pragma/tst.libchain.ksh
 exclude EXFAIL common/safety/tst.copyin2.d
 exclude EXFAIL common/safety/tst.msgdsize.d
 exclude EXFAIL common/safety/tst.msgsize.d

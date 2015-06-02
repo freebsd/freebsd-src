@@ -1190,7 +1190,6 @@ hook_tsc_freq(void *arg __unused)
 
 SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
-#ifndef XEN
 static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
@@ -1281,7 +1280,6 @@ identify_hypervisor(void)
 		freeenv(p);
 	}
 }
-#endif
 
 /*
  * Final stage of CPU identification.
@@ -1314,9 +1312,7 @@ identify_cpu(void)
 	cpu_feature2 = regs[2];
 #endif
 
-#ifndef XEN
 	identify_hypervisor();
-#endif
 	cpu_vendor_id = find_cpu_vendor_id();
 
 	/*

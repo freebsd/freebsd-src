@@ -96,7 +96,7 @@
 
 #define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
 #define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
-#define	SIOCGI2C	_IOWR('i', 61, struct ifstat)	/* get I2C data  */
+#define	SIOCGI2C	_IOWR('i', 61, struct ifreq)	/* get I2C data  */
 
 #define	SIOCSIFPHYADDR	 _IOW('i', 70, struct ifaliasreq) /* set gif addres */
 #define	SIOCGIFPSRCADDR	_IOWR('i', 71, struct ifreq)	/* get gif psrc addr */
@@ -113,6 +113,9 @@
 
 #define	SIOCGIFFIB	_IOWR('i', 92, struct ifreq)	/* get IF fib */
 #define	SIOCSIFFIB	 _IOW('i', 93, struct ifreq)	/* set IF fib */
+
+#define	SIOCGTUNFIB	_IOWR('i', 94, struct ifreq)	/* get tunnel fib */
+#define	SIOCSTUNFIB	 _IOW('i', 95, struct ifreq)	/* set tunnel fib */
 
 #define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
 								  parameters */

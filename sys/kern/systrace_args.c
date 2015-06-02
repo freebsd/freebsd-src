@@ -914,28 +914,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* freebsd6_pread */
-	case 173: {
-		struct freebsd6_pread_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->buf; /* void * */
-		uarg[2] = p->nbyte; /* size_t */
-		iarg[3] = p->pad; /* int */
-		iarg[4] = p->offset; /* off_t */
-		*n_args = 5;
-		break;
-	}
-	/* freebsd6_pwrite */
-	case 174: {
-		struct freebsd6_pwrite_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->buf; /* const void * */
-		uarg[2] = p->nbyte; /* size_t */
-		iarg[3] = p->pad; /* int */
-		iarg[4] = p->offset; /* off_t */
-		*n_args = 5;
-		break;
-	}
 	/* setfib */
 	case 175: {
 		struct setfib_args *p = params;
@@ -1037,50 +1015,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* freebsd6_mmap */
-	case 197: {
-		struct freebsd6_mmap_args *p = params;
-		uarg[0] = (intptr_t) p->addr; /* caddr_t */
-		uarg[1] = p->len; /* size_t */
-		iarg[2] = p->prot; /* int */
-		iarg[3] = p->flags; /* int */
-		iarg[4] = p->fd; /* int */
-		iarg[5] = p->pad; /* int */
-		iarg[6] = p->pos; /* off_t */
-		*n_args = 7;
-		break;
-	}
 	/* nosys */
 	case 198: {
 		*n_args = 0;
-		break;
-	}
-	/* freebsd6_lseek */
-	case 199: {
-		struct freebsd6_lseek_args *p = params;
-		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
-		iarg[2] = p->offset; /* off_t */
-		iarg[3] = p->whence; /* int */
-		*n_args = 4;
-		break;
-	}
-	/* freebsd6_truncate */
-	case 200: {
-		struct freebsd6_truncate_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->pad; /* int */
-		iarg[2] = p->length; /* off_t */
-		*n_args = 3;
-		break;
-	}
-	/* freebsd6_ftruncate */
-	case 201: {
-		struct freebsd6_ftruncate_args *p = params;
-		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
-		iarg[2] = p->length; /* off_t */
-		*n_args = 3;
 		break;
 	}
 	/* __sysctl */
@@ -4873,50 +4810,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd6_pread */
-	case 173:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "void *";
-			break;
-		case 2:
-			p = "size_t";
-			break;
-		case 3:
-			p = "int";
-			break;
-		case 4:
-			p = "off_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd6_pwrite */
-	case 174:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "const void *";
-			break;
-		case 2:
-			p = "size_t";
-			break;
-		case 3:
-			p = "int";
-			break;
-		case 4:
-			p = "off_t";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* setfib */
 	case 175:
 		switch(ndx) {
@@ -5077,87 +4970,8 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd6_mmap */
-	case 197:
-		switch(ndx) {
-		case 0:
-			p = "caddr_t";
-			break;
-		case 1:
-			p = "size_t";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "int";
-			break;
-		case 4:
-			p = "int";
-			break;
-		case 5:
-			p = "int";
-			break;
-		case 6:
-			p = "off_t";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* nosys */
 	case 198:
-		break;
-	/* freebsd6_lseek */
-	case 199:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "off_t";
-			break;
-		case 3:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd6_truncate */
-	case 200:
-		switch(ndx) {
-		case 0:
-			p = "char *";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "off_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd6_ftruncate */
-	case 201:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "off_t";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* __sysctl */
 	case 202:
@@ -9598,16 +9412,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd6_pread */
-	case 173:
-		if (ndx == 0 || ndx == 1)
-			p = "ssize_t";
-		break;
-	/* freebsd6_pwrite */
-	case 174:
-		if (ndx == 0 || ndx == 1)
-			p = "ssize_t";
-		break;
 	/* setfib */
 	case 175:
 		if (ndx == 0 || ndx == 1)
@@ -9673,28 +9477,8 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd6_mmap */
-	case 197:
-		if (ndx == 0 || ndx == 1)
-			p = "caddr_t";
-		break;
 	/* nosys */
 	case 198:
-	/* freebsd6_lseek */
-	case 199:
-		if (ndx == 0 || ndx == 1)
-			p = "off_t";
-		break;
-	/* freebsd6_truncate */
-	case 200:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* freebsd6_ftruncate */
-	case 201:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* __sysctl */
 	case 202:
 		if (ndx == 0 || ndx == 1)

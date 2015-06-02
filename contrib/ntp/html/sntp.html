@@ -11,7 +11,7 @@
 <img src="pic/dogsnake.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
 <p>S is for snakeoil.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->7-Dec-2014  11:09<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->1-Apr-2015  11:05<!-- #EndDate -->
   UTC</p>
 <br clear="left">
 <hr>
@@ -20,8 +20,8 @@
 <h4>Description</h4>
 <p>This program is a Simple Network Time Protocol (SNTP) client that can be used to query a Network Time Protocol (NTP) server and display the time offset of the system clock relative to the server clock. Run as root it can correct the system clock to this offset as well. It can be run as an interactive command or from a script by a <tt>cron</tt> job. The program implements the SNTP client protocol defined in RFC 5905, including the full on-wire protocol but does not provide the sanity checks, access controls, security functions and mitigation algorithms as in the full NTP version 4 specification, also defined in RFC 5905.</p>
 <p>By default, <tt>sntp</tt> writes the local date and time (i.e., not UTC) to the standard output in the format</p>
-<p><tt>2011-08-04 00:40:36.642222 (+0000) +0.006611 +/- 0.041061  psp-os1 149.20.68.26</tt></p>
-<p>where the <tt>+0.006611 +/- 0.041061</tt> indicates the time offset and error bound of the system clock relative to the server clock, in seconds.</p>
+<p><tt>2011-08-04 00:40:36.642222 (+0000) +0.006611 +/- 0.041061  psp-os1 149.20.68.26 s3 no-leap</tt></p>
+<p>where the <tt>+0.006611 +/- 0.041061</tt> indicates the time offset and error bound of the system clock relative to the server clock, in seconds.  The hostname and/or the IP is displayed, as is the stratum of the server.  Finally, the leap indicator status is displayed.</p>
 <p>If -b <i>bcaddress</i> is not specified, the program sends a single message to each address and waits up to <i>uctimeout</i> (default 5) seconds for a unicast server response. Otherwise, it sends no message and waits up to <i>bctimeout</i> (default 68) seconds for a broadcast NTP message.</p>
 <h4>Options</h4>
 <p><tt>sntp</tt> recognizes the following options:</p>

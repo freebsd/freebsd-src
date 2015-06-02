@@ -24,7 +24,7 @@
 
   typedef MD5_CTX			EVP_MD_CTX;
 # define EVP_get_digestbynid(t)		NULL
-# define EVP_md5(v)			NULL
+# define EVP_md5()			NULL
 # define EVP_MD_CTX_init(c)
 # define EVP_MD_CTX_set_flags(c, f)
 # define EVP_DigestInit(c, dt)		(MD5Init(c), 1)

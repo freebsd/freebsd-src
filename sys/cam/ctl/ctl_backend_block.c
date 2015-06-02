@@ -521,7 +521,7 @@ ctl_be_block_biodone(struct bio *bio)
 	if (beio->num_errors > 0) {
 		if (error == EOPNOTSUPP) {
 			ctl_set_invalid_opcode(&io->scsiio);
-		} else if (error == ENOSPC) {
+		} else if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
 		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
@@ -738,7 +738,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		ctl_scsi_path_string(io, path_str, sizeof(path_str));
 		printf("%s%s command returned errno %d\n", path_str,
 		       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE", error);
-		if (error == ENOSPC) {
+		if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
 		} else
 			ctl_set_medium_error(&io->scsiio);
@@ -895,7 +895,7 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	 * return the I/O to the user.
 	 */
 	if (error != 0) {
-		if (error == ENOSPC) {
+		if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
 		} else
 			ctl_set_medium_error(&io->scsiio);

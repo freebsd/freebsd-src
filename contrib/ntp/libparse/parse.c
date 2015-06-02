@@ -1,6 +1,6 @@
 /*
  * /src/NTP/ntp4-dev/libparse/parse.c,v 4.20 2005/08/06 17:39:40 kardel RELEASE_20050806_A
- *  
+ *
  * parse.c,v 4.20 2005/08/06 17:39:40 kardel RELEASE_20050806_A
  *
  * Parser module for reference clock
@@ -12,7 +12,7 @@
  * when PARSEKERNEL is not defined NTP time stamps will be used.
  *
  * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -106,7 +106,7 @@ Strcmp(
 
 	while (!(c = *s++ - *t++) && *s && *t)
 	    /* empty loop */;
-  
+
 	return c;
 }
 
@@ -154,10 +154,10 @@ parse_ioinit(
 	)
 {
 	parseprintf(DD_PARSE, ("parse_iostart\n"));
-  
+
 	parseio->parse_plen = 0;
 	parseio->parse_pdata = (void *)0;
-  
+
 	parseio->parse_data = 0;
 	parseio->parse_ldata = 0;
 	parseio->parse_dsize = 0;
@@ -166,7 +166,7 @@ parse_ioinit(
 	parseio->parse_ioflags   = PARSE_IO_CS7;	/* usual unix default */
 	parseio->parse_index     = 0;
 	parseio->parse_ldsize    = 0;
-  
+
 	return 1;
 }
 
@@ -188,15 +188,15 @@ parse_ioend(
 unsigned int
 parse_restart(
 	      parse_t *parseio,
-	      unsigned int ch
+	      char ch
 	      )
 {
 	unsigned int updated = PARSE_INP_SKIP;
-	
+
 	/*
 	 * re-start packet - timeout - overflow - start symbol
 	 */
-	
+
 	if (parseio->parse_index)
 	{
 		/*
@@ -208,17 +208,17 @@ parse_restart(
 		parseio->parse_ldsize = parseio->parse_index;
 		updated = PARSE_INP_TIME;
 	}
-		
+
 	parseio->parse_index = 1;
 	parseio->parse_data[0] = ch;
 	parseprintf(DD_PARSE, ("parse: parse_restart: buffer start (updated = %x)\n", updated));
 	return updated;
 }
-	
+
 unsigned int
 parse_addchar(
 	      parse_t *parseio,
-	      unsigned int ch
+	      char ch
 	      )
 {
 	/*
@@ -239,7 +239,7 @@ parse_addchar(
 		 */
 		return parse_restart(parseio, ch);
 }
-	
+
 unsigned int
 parse_end(
 	  parse_t *parseio
@@ -260,11 +260,11 @@ parse_end(
 int
 parse_ioread(
 	register parse_t *parseio,
-	register unsigned int ch,
+	register char ch,
 	register timestamp_t *tstamp
 	)
 {
-	register unsigned updated = CVT_NONE;
+	register u_int updated = CVT_NONE;
 	/*
 	 * within STREAMS CSx (x < 8) chars still have the upper bits set
 	 * so we normalize the characters by masking unecessary bits off.
@@ -282,9 +282,9 @@ parse_ioread(
 	    case PARSE_IO_CS7:
 		ch &= 0x7F;
 		break;
-      
+
 	    case PARSE_IO_CS8:
-		ch &= 0xFF;
+		ch &= (char) 0xFFU;
 		break;
 	}
 
@@ -306,18 +306,18 @@ parse_ioread(
 		{
 			updated = CVT_OK;
 		}
-		
+
 		if (input_status & PARSE_INP_TIME)	/* time sample is available */
 		{
-			updated = timepacket(parseio);
+			updated = (u_int) timepacket(parseio);
 		}
-		  
+
 		if (input_status & PARSE_INP_DATA) /* got additional data */
 		{
 			updated |= CVT_ADDITIONAL;
 		}
 	}
-	
+
 
 	/*
 	 * remember last character time
@@ -353,7 +353,7 @@ parse_iopps(
 	register timestamp_t *ptime
 	)
 {
-	register unsigned updated = CVT_NONE;
+	register u_int updated = CVT_NONE;
 
 	/*
 	 * PPS pulse information will only be delivered to ONE clock format
@@ -364,7 +364,7 @@ parse_iopps(
 
 	if (clockformats[parseio->parse_lformat]->syncpps)
 	{
-		updated = clockformats[parseio->parse_lformat]->syncpps(parseio, status == SYNC_ONE, ptime);
+		updated = (u_int) clockformats[parseio->parse_lformat]->syncpps(parseio, status == SYNC_ONE, ptime);
 		parseprintf(DD_PARSE, ("parse_iopps: updated = 0x%x\n", updated));
 	}
 
@@ -403,13 +403,13 @@ parse_to_unixtime(
 	)
 {
 #define SETRTC(_X_)	{ if (cvtrtc) *cvtrtc = (_X_); }
-	static int days_of_month[] = 
+	static int days_of_month[] =
 	{
 		0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 	};
 	register int i;
 	time_t t;
-  
+
 	if (clock_time->utctime)
 	    return clock_time->utctime;	/* if the conversion routine gets it right away - why not */
 
@@ -423,12 +423,12 @@ parse_to_unixtime(
 		SETRTC(CVT_FAIL|CVT_BADDATE);
 		return -1;
 	}
-  
+
 	/*
 	 * sorry, slow section here - but it's not time critical anyway
 	 */
 	t = julian0(clock_time->year) - julian0(1970);		/* Y2kFixes */
-  				/* month */
+				/* month */
 	if (clock_time->month <= 0 || clock_time->month > 12)
 	{
 		SETRTC(CVT_FAIL|CVT_BADDATE);
@@ -466,7 +466,7 @@ parse_to_unixtime(
 
 	t = TIMES24(t) + clock_time->hour;
 
-  				/* min */
+				/* min */
 	if (clock_time->minute < 0 || clock_time->minute > 59)
 	{
 		SETRTC(CVT_FAIL|CVT_BADTIME);
@@ -475,7 +475,7 @@ parse_to_unixtime(
 
 	t = TIMES60(t) + clock_time->minute;
 				/* sec */
-  
+
 	if (clock_time->second < 0 || clock_time->second > 60)	/* allow for LEAPs */
 	{
 		SETRTC(CVT_FAIL|CVT_BADTIME);
@@ -510,7 +510,7 @@ Stoi(
 
 	while(*s == ' ')
 	    s++;
-  
+
 	if (*s == '-')
 	{
 		s++;
@@ -519,7 +519,7 @@ Stoi(
 	else
 	    if (*s == '+')
 		s++;
-  
+
 	for(;;)
 	{
 		c = *s++;
@@ -573,16 +573,16 @@ updatetimeinfo(
 	{
 		int s = splhigh();
 #endif
-  
+
 		parseio->parse_lstate          = parseio->parse_dtime.parse_state | flags | PARSEB_TIMECODE;
-    
+
 		parseio->parse_dtime.parse_state = parseio->parse_lstate;
 
 #ifdef PARSEKERNEL
 		(void)splx((unsigned int)s);
 	}
 #endif
-  
+
 
 #ifdef PARSEKERNEL
 	parseprintf(DD_PARSE, ("updatetimeinfo status=0x%x, time=%x\n", parseio->parse_dtime.parse_state,
@@ -591,7 +591,7 @@ updatetimeinfo(
 	parseprintf(DD_PARSE, ("updatetimeinfo status=0x%lx, time=%x\n", (long)parseio->parse_dtime.parse_state,
 	                       parseio->parse_dtime.parse_time.fp.l_ui));
 #endif
-	
+
 	return CVT_OK;		/* everything fine and dandy... */
 }
 
@@ -614,7 +614,7 @@ syn_simple(
 }
 
 /*
- * pps_simple
+ * parse_pps_fnc_t pps_simple
  *
  * handle a pps time stamp
  */
@@ -628,12 +628,12 @@ pps_simple(
 {
 	parseio->parse_dtime.parse_ptime  = *ptime;
 	parseio->parse_dtime.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
-  
+
 	return CVT_NONE;
 }
 
 /*
- * pps_one
+ * parse_pps_fnc_t pps_one
  *
  * handle a pps time stamp in ONE edge
  */
@@ -647,12 +647,12 @@ pps_one(
 {
 	if (status)
 		return pps_simple(parseio, status, ptime);
-	
+
 	return CVT_NONE;
 }
 
 /*
- * pps_zero
+ * parse_pps_fnc_t pps_zero
  *
  * handle a pps time stamp in ZERO edge
  */
@@ -666,7 +666,7 @@ pps_zero(
 {
 	if (!status)
 		return pps_simple(parseio, status, ptime);
-	
+
 	return CVT_NONE;
 }
 
@@ -684,13 +684,13 @@ timepacket(
 	register time_t t;
 	u_long cvtrtc;		/* current conversion result */
 	clocktime_t clock_time;
-  
+
 	memset((char *)&clock_time, 0, sizeof clock_time);
 	format = parseio->parse_lformat;
 
 	if (format == (unsigned short)~0)
 		return CVT_NONE;
-	
+
 	switch ((cvtrtc = clockformats[format]->convert ?
 		 clockformats[format]->convert((unsigned char *)parseio->parse_ldata, parseio->parse_ldsize, (struct format *)(clockformats[format]->data), &clock_time, parseio->parse_pdata) :
 		 CVT_NONE) & CVT_MASK)
@@ -698,17 +698,17 @@ timepacket(
 	case CVT_FAIL:
 		parseio->parse_badformat++;
 		break;
-		
+
 	case CVT_NONE:
 		/*
 		 * too bad - pretend bad format
 		 */
 		parseio->parse_badformat++;
 		break;
-		
+
 	case CVT_OK:
 		break;
-		
+
 	case CVT_SKIP:
 		return CVT_NONE;
 
@@ -716,7 +716,7 @@ timepacket(
 		/* shouldn't happen */
 #ifndef PARSEKERNEL
 		msyslog(LOG_WARNING, "parse: INTERNAL error: bad return code of convert routine \"%s\"", clockformats[format]->name);
-#endif	  
+#endif
 		return CVT_FAIL|cvtrtc;
 	}
 
@@ -724,7 +724,7 @@ timepacket(
 	{
 		return CVT_FAIL|cvtrtc;
 	}
-  
+
 	/*
 	 * time stamp
 	 */
@@ -732,7 +732,7 @@ timepacket(
 	parseio->parse_dtime.parse_time.tv.tv_sec  = t;
 	parseio->parse_dtime.parse_time.tv.tv_usec = clock_time.usecond;
 #else
-	parseio->parse_dtime.parse_time.fp.l_ui = t + JAN_1970;
+	parseio->parse_dtime.parse_time.fp.l_ui = (uint32_t) (t + JAN_1970);
 	TVUTOTSF(clock_time.usecond, parseio->parse_dtime.parse_time.fp.l_uf);
 #endif
 
@@ -758,7 +758,7 @@ parse_timecode(
 	 */
 	dct->parsegettc.parse_badformat = parse->parse_badformat;
 	parse->parse_badformat = 0;
-		  
+
 	if (parse->parse_ldsize <= PARSE_TCMAX)
 	{
 		dct->parsegettc.parse_count = parse->parse_ldsize;
@@ -771,7 +771,7 @@ parse_timecode(
 	}
 }
 
-		  
+
 /*ARGSUSED*/
 int
 parse_setfmt(
@@ -792,7 +792,7 @@ parse_setfmt(
 					if (parse->parse_pdata)
 						FREE(parse->parse_pdata, parse->parse_plen);
 					parse->parse_pdata = 0;
-					
+
 					parse->parse_plen = clockformats[i]->plen;
 
 					if (parse->parse_plen)
@@ -809,9 +809,9 @@ parse_setfmt(
 					if (parse->parse_data)
 						FREE(parse->parse_data, (unsigned)(parse->parse_dsize * 2 + 2));
 					parse->parse_ldata = parse->parse_data = 0;
-					
+
 					parse->parse_dsize = clockformats[i]->length;
-					
+
 					if (parse->parse_dsize)
 					{
 						parse->parse_data = (char*)MALLOC((unsigned)(parse->parse_dsize * 2 + 2));
@@ -820,20 +820,20 @@ parse_setfmt(
 							if (parse->parse_pdata)
 								FREE(parse->parse_pdata, parse->parse_plen);
 							parse->parse_pdata = 0;
-							
+
 							parseprintf(DD_PARSE, ("init failed: malloc for data area failed\n"));
 							return 0;
 						}
 					}
-					
+
 
 					/*
 					 * leave room for '\0'
 					 */
 					parse->parse_ldata     = parse->parse_data + parse->parse_dsize + 1;
-					
+
 					parse->parse_lformat  = i;
-					
+
 					return 1;
 				}
 			}
@@ -852,7 +852,7 @@ parse_getfmt(
 	if (dct->parseformat.parse_format < nformats &&
 	    Strlen(clockformats[dct->parseformat.parse_format]->name) <= PARSE_TCMAX)
 	{
-		dct->parseformat.parse_count = Strlen(clockformats[dct->parseformat.parse_format]->name)+1;
+		dct->parseformat.parse_count = (unsigned short) (Strlen(clockformats[dct->parseformat.parse_format]->name) + 1);
 		memcpy(dct->parseformat.parse_buffer, clockformats[dct->parseformat.parse_format]->name, dct->parseformat.parse_count);
 		return 1;
 	}
@@ -870,7 +870,7 @@ parse_setcs(
 	)
 {
 	parse->parse_ioflags &= ~PARSE_IO_CSIZE;
-	parse->parse_ioflags |= dct->parsesetcs.parse_cs & PARSE_IO_CSIZE;
+	parse->parse_ioflags |= (int) (dct->parsesetcs.parse_cs & PARSE_IO_CSIZE);
 	return 1;
 }
 

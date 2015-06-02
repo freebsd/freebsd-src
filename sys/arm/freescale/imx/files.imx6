@@ -10,7 +10,6 @@ kern/kern_clocksource.c			standard
 #
 # Standard imx6 devices and support.
 #
-arm/arm/gic.c				standard
 arm/arm/pl310.c				standard
 arm/arm/bus_space_base.c		standard
 arm/arm/mpcore_timer.c			standard

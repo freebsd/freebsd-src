@@ -160,25 +160,33 @@ static const struct mii_phy_funcs brgphy_funcs = {
 	brgphy_reset
 };
 
-#define HS21_PRODUCT_ID	"IBM eServer BladeCenter HS21"
-#define HS21_BCM_CHIPID	0x57081021
+static const struct hs21_type {
+	const uint32_t id;
+	const char *prod;
+} hs21_type_lists[] = {
+	{ 0x57081021, "IBM eServer BladeCenter HS21" },
+	{ 0x57081011, "IBM eServer BladeCenter HS21 -[8853PAU]-" },
+};
 
 static int
 detect_hs21(struct bce_softc *bce_sc)
 {
 	char *sysenv;
-	int found;
+	int found, i;
 
 	found = 0;
-	if (bce_sc->bce_chipid == HS21_BCM_CHIPID) {
-		sysenv = kern_getenv("smbios.system.product");
-		if (sysenv != NULL) {
-			if (strncmp(sysenv, HS21_PRODUCT_ID,
-			    strlen(HS21_PRODUCT_ID)) == 0)
-				found = 1;
-			freeenv(sysenv);
+	sysenv = kern_getenv("smbios.system.product");
+	if (sysenv == NULL)
+		return (found);
+	for (i = 0; i < nitems(hs21_type_lists); i++) {
+		if (bce_sc->bce_chipid == hs21_type_lists[i].id &&
+		    strncmp(sysenv, hs21_type_lists[i].prod,
+		    strlen(hs21_type_lists[i].prod)) == 0) {
+			found++;
+			break;
 		}
 	}
+	freeenv(sysenv);
 	return (found);
 }
 
@@ -266,20 +274,25 @@ brgphy_attach(device_t dev)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
-
 	/* Add the supported media types */
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
 		mii_phy_add_media(sc);
 		printf("\n");
 	} else {
 		sc->mii_anegticks = MII_ANEGTICKS_GIGE;
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
-			BRGPHY_S1000 | BRGPHY_BMCR_FDX);
+		ifmedia_add(&sc->mii_pdata->mii_media,
+		    IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
+		    0, NULL);
 		printf("1000baseSX-FDX, ");
-		/* 2.5G support is a software enabled feature on the 5708S and 5709S. */
-		if (bce_sc && (bce_sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)) {
-			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX, sc->mii_inst), 0);
+		/*
+		 * 2.5G support is a software enabled feature
+		 * on the 5708S and 5709S.
+		 */
+		if (bce_sc && (bce_sc->bce_phy_flags &
+		    BCE_PHY_2_5G_CAPABLE_FLAG)) {
+			ifmedia_add(&sc->mii_pdata->mii_media,
+			    IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX,
+			    sc->mii_inst), 0, NULL);
 			printf("2500baseSX-FDX, ");
 		} else if ((bsc->serdes_flags & BRGPHY_5708S) && bce_sc &&
 		    (detect_hs21(bce_sc) != 0)) {
@@ -295,11 +308,11 @@ brgphy_attach(device_t dev)
 			printf("auto-neg workaround, ");
 			bsc->serdes_flags |= BRGPHY_NOANWAIT;
 		}
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
+		ifmedia_add(&sc->mii_pdata->mii_media, IFM_MAKEWORD(IFM_ETHER,
+		    IFM_AUTO, 0, sc->mii_inst), 0, NULL);
 		printf("auto\n");
 	}
 
-#undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
 }

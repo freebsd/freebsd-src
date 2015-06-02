@@ -58,12 +58,10 @@ hostapd configuration
 
 WPS is an optional component that needs to be enabled in hostapd build
 configuration (.config). Here is an example configuration that
-includes WPS support and uses madwifi driver interface:
+includes WPS support and uses nl80211 driver interface:
 
-CONFIG_DRIVER_MADWIFI=y
-CFLAGS += -I/usr/src/madwifi-0.9.3
+CONFIG_DRIVER_NL80211=y
 CONFIG_WPS=y
-CONFIG_WPS2=y
 CONFIG_WPS_UPNP=y
 
 Following parameter can be used to enable support for NFC config method:
@@ -75,8 +73,8 @@ Following section shows an example runtime configuration
 (hostapd.conf) that enables WPS:
 
 # Configure the driver and network interface
-driver=madwifi
-interface=ath0
+driver=nl80211
+interface=wlan0
 
 # WPA2-Personal configuration for the AP
 ssid=wps-test
@@ -338,3 +336,17 @@ If the NFC tag contains a password token, the token is added to the
 internal Registrar. This allows station Enrollee from which the password
 token was received to run through WPS protocol to provision the
 credential.
+
+"nfc_get_handover_sel <NDEF> <WPS>" command can be used to build the
+contents of a Handover Select Message for connection handover when this
+does not depend on the contents of the Handover Request Message. The
+first argument selects the format of the output data and the second
+argument selects which type of connection handover is requested (WPS =
+Wi-Fi handover as specified in WSC 2.0).
+
+"nfc_report_handover <INIT/RESP> WPS <carrier from handover request>
+<carrier from handover select>" is used to report completed NFC
+connection handover. The first parameter indicates whether the local
+device initiated or responded to the connection handover and the carrier
+records are the selected carrier from the handover request and select
+messages as a hexdump.

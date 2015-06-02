@@ -299,6 +299,8 @@ usage(void)
 {
 	(void) fprintf(stderr,
 	    "Usage: lockstat [options] command [args]\n"
+	    "\nGeneral options:\n\n"
+	    "  -V              print the corresponding D program\n"
 	    "\nEvent selection options:\n\n"
 	    "  -C              watch contention events [on by default]\n"
 	    "  -E              watch error events [off by default]\n"

@@ -35,10 +35,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
 
 #include "pwupd.h"
@@ -120,9 +116,6 @@ chggrent(char const * login, struct group * grp)
 int
 delgrent(struct group * grp)
 {
-	char group[MAXLOGNAME];
 
-	strlcpy(group, grp->gr_name, MAXLOGNAME);
-
-	return gr_update(NULL, group);
+	return (gr_update(NULL, grp->gr_name));
 }

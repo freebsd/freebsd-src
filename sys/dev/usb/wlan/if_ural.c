@@ -177,7 +177,7 @@ static void		ural_set_basicrates(struct ural_softc *,
 			    const struct ieee80211_channel *);
 static void		ural_set_bssid(struct ural_softc *, const uint8_t *);
 static void		ural_set_macaddr(struct ural_softc *, uint8_t *);
-static void		ural_update_promisc(struct ifnet *);
+static void		ural_update_promisc(struct ieee80211com *);
 static void		ural_setpromisc(struct ural_softc *);
 static const char	*ural_get_rf(int);
 static void		ural_read_eeprom(struct ural_softc *);
@@ -473,6 +473,8 @@ ural_attach(device_t self)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
 
 	/* set device capabilities */
@@ -1926,11 +1928,11 @@ ural_setpromisc(struct ural_softc *sc)
 }
 
 static void
-ural_update_promisc(struct ifnet *ifp)
+ural_update_promisc(struct ieee80211com *ic)
 {
-	struct ural_softc *sc = ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	RAL_LOCK(sc);

@@ -240,6 +240,7 @@ np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
+oshogbo [label="Mariusz Zaborski\noshogbo@FreeBSD.org\n2015/04/15"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n1995/07/04"]
 peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
@@ -633,6 +634,7 @@ phk -> mux
 
 pjd -> kib
 pjd -> lulf
+pjd -> oshogbo
 pjd -> smh
 pjd -> trociny
 
