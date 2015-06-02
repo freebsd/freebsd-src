@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2014
+.Dd May 6, 2015
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -263,12 +263,6 @@ function appeared in
 function appeared in
 .Fx 10.0 .
 .Sh BUGS
-The invalidation of
-.Fn telldir
-tokens when calling
-.Fn seekdir
-is non-standard. This is a compile time option.
-.Pp
 The behaviour of
 .Fn telldir
 and
