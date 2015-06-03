@@ -40,7 +40,7 @@ This paper contains the road-map for a stackable "BIO" system in
 FreeBSD, which will support these facilities.
 .AE
 .NH
-The miseducation of \f(CW.)struct buf\fP.
+The miseducation of \f(CWstruct buf\fP.
 .PP
 To fully appreciate the topic, I include a little historic overview
 of struct buf, it is a most enlightening case of not exactly bit-rot
@@ -215,7 +215,7 @@ and Vinum.  They all basically do the same: they map I/O requests from
 a logical space to a physical space, and the mappings they perform
 can be 1:1 or 1:N.  \**
 .FS
-It is interesting to note that Lions in his comments to the \f(CW.)rkaddr\fP
+It is interesting to note that Lions in his comments to the \f(CWrkaddr\fP
 routine (p. 16-2) writes \fIThe code in this procedure incorporates
 a special feature for files which extend over more than one disk
 drive.  This feature is described in the UPM Section "RK(IV)".  Its
@@ -258,7 +258,7 @@ limited extent diskslice/label, which
 need only the I/O aspect, not the vnode, caching or VM linkage.
 .IP
 .I
-The I/O aspect of struct buf should be put in a separate \f(CW.)struct bio\fP.
+The I/O aspect of struct buf should be put in a separate \f(CWstruct bio\fP.
 .R
 .NH 1
 Implications for future struct buf improvements
@@ -296,7 +296,7 @@ Anything that could be added to or done with
 the I/O aspect of struct buf can also be added to or done 
 with the I/O aspect if it lives in a new "struct bio".
 .NH 1
-Implementing a \f(CW.)struct bio\fP
+Implementing a \f(CWstruct bio\fP
 .PP
 The first decision to be made was who got to use the name "struct buf",
 and considering the fact that it is the I/O aspect which gets separated
