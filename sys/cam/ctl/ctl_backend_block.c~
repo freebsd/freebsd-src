@@ -2237,7 +2237,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 //	else
 //		be_lun->ctl_be_lun.lun_type = T_DIRECT;
 
-	if (be_lun->ctl_be_lun.lun_type == T_DIRECT || be_lun->ctl_be_lun.lun_type == T_CDROM) { // T_CDROM added
+	if (be_lun->ctl_be_lun.lun_type == T_DIRECT || be_lun->ctl_be_lun.lun_type == T_CDROM) {
 		value = ctl_get_opt(&be_lun->ctl_be_lun.options, "file");
 		if (value == NULL) {
 			snprintf(req->error_str, sizeof(req->error_str),

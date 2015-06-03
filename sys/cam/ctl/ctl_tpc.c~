@@ -1848,7 +1848,7 @@ tpc_create_token(struct ctl_lun *lun, struct ctl_port *port, off_t len,
 	if (idd != NULL) {
 		cscd = (struct scsi_ec_cscd_id *)&token->body[8];
 		cscd->type_code = EC_CSCD_ID;
-		cscd->luidt_pdt = lun->be_lun->lun_type;  //T_DIRECT // modified CDROM
+		cscd->luidt_pdt = lun->be_lun->lun_type;
 		memcpy(&cscd->codeset, idd, 4 + idd->length);
 		scsi_ulto3b(lun->be_lun->blocksize, cscd->dtsp.block_length);
 	}

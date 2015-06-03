@@ -551,14 +551,12 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	ctl_init_opts(&be_lun->ctl_be_lun.options,
 	    req->num_be_args, req->kern_be_args);
 
-
-// modifeied CD_ROM
-//	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
+	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
 		be_lun->ctl_be_lun.lun_type = params->device_type;
-//	else
-//		be_lun->ctl_be_lun.lun_type = T_DIRECT;
+	else
+		be_lun->ctl_be_lun.lun_type = T_DIRECT;
 
-	if (be_lun->ctl_be_lun.lun_type == T_DIRECT || be_lun->ctl_be_lun.lun_type == T_CDROM) { // T_CDROM added
+	if (be_lun->ctl_be_lun.lun_type == T_DIRECT) {
 
 		if (params->lun_size_bytes < blocksize) {
 			snprintf(req->error_str, sizeof(req->error_str),
