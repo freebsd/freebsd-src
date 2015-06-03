@@ -201,8 +201,8 @@ retry:
 		 * bo_dirty list. Recheck and resync as needed.
 		 */
 		BO_LOCK(bo);
-		if (vp->v_type == VREG && (bo->bo_numoutput > 0 ||
-		    bo->bo_dirty.bv_cnt > 0)) {
+		if ((vp->v_type == VREG || vp->v_type == VDIR) &&
+		    (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)) {
 			BO_UNLOCK(bo);
 			goto retry;
 		}
