@@ -56,7 +56,7 @@ static const char *Combo2[] = {
 
 struct pwf PWF =
 {
-	0,
+	PWF_REGULAR,
 	setpwent,
 	endpwent,
 	getpwent,
@@ -71,7 +71,7 @@ struct pwf PWF =
 };
 struct pwf VPWF =
 {
-	1,
+	PWF_ALT,
 	vsetpwent,
 	vendpwent,
 	vgetpwent,
@@ -99,24 +99,27 @@ main(int argc, char *argv[])
 	char		*config = NULL;
 	struct userconf *cnf;
 	struct stat	st;
+	char		arg;
+	struct carg	*carg;
+	char		*etcpath = NULL;
 
 	static const char *opts[W_NUM][M_NUM] =
 	{
 		{ /* user */
-			"V:C:qn:u:c:d:e:p:g:G:mM:k:s:oL:i:w:h:H:Db:NPy:Y",
-			"V:C:qn:u:rY",
-			"V:C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:FNPY",
-			"V:C:qn:u:FPa7",
-			"V:C:q",
-			"V:C:q",
-			"V:C:q"
+			"R:V:C:qn:u:c:d:e:p:g:G:mM:k:s:oL:i:w:h:H:Db:NPy:Y",
+			"R:V:C:qn:u:rY",
+			"R:V:C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:FNPY",
+			"R:V:C:qn:u:FPa7",
+			"R:V:C:q",
+			"R:V:C:q",
+			"R:V:C:q"
 		},
 		{ /* grp  */
-			"V:C:qn:g:h:H:M:opNPY",
-			"V:C:qn:g:Y",
-			"V:C:qn:d:g:l:h:H:FM:m:NPY",
-			"V:C:qn:g:FPa",
-			"V:C:q"
+			"R:V:C:qn:g:h:H:M:opNPY",
+			"R:V:C:qn:g:Y",
+			"R:V:C:qn:d:g:l:h:H:FM:m:NPY",
+			"R:V:C:qn:g:FPa",
+			"R:V:C:q"
 		 }
 	};
 
@@ -141,7 +144,8 @@ main(int argc, char *argv[])
 			/*
 			 * Special case, allow pw -V<dir> <operation> [args] for scripts etc.
 			 */
-			if (argv[1][1] == 'V') {
+			arg = argv[1][1];
+			if (arg == 'V' || arg == 'R') {
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
 					if (stat(argv[2], &st) != 0)
@@ -155,7 +159,7 @@ main(int argc, char *argv[])
 					++argv;
 					--argc;
 				}
-				addarg(&arglist, 'V', optarg);
+				addarg(&arglist, arg, optarg);
 			} else
 				break;
 		}
@@ -217,19 +221,29 @@ main(int argc, char *argv[])
 
 	config = getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL;
 
-	if (getarg(&arglist, 'V') != NULL) {
-		char * etcpath = getarg(&arglist, 'V')->val;
-		if (*etcpath) {
-			if (config == NULL) {	/* Only override config location if -C not specified */
-				asprintf(&config, "%s/pw.conf", etcpath);
-				if (config == NULL)
-					 errx(EX_OSERR, "out of memory");
-			}
-			memcpy(&PWF, &VPWF, sizeof PWF);
-			setpwdir(etcpath);
-			setgrdir(etcpath);
-		}
+	if ((carg = getarg(&arglist, 'R')) != NULL) {
+		asprintf(&etcpath, "%s/etc", carg->val);
+		if (etcpath == NULL)
+			errx(EX_OSERR, "out of memory");
 	}
+	if (etcpath == NULL && (carg = getarg(&arglist, 'V')) != NULL) {
+		etcpath = strdup(carg->val);
+		if (etcpath == NULL)
+			errx(EX_OSERR, "out of memory");
+	}
+	if (etcpath && *etcpath) {
+		if (config == NULL) {	/* Only override config location if -C not specified */
+			asprintf(&config, "%s/pw.conf", etcpath);
+			if (config == NULL)
+				 errx(EX_OSERR, "out of memory");
+		}
+		setpwdir(etcpath);
+		setgrdir(etcpath);
+		memcpy(&PWF, &VPWF, sizeof PWF);
+		if (getarg(&arglist, 'R'))
+			PWF._altdir = PWF_ROOTDIR;
+	}
+	free(etcpath);
 
 	/*
 	 * Now, let's do the common initialisation
@@ -303,6 +317,7 @@ cmdhelp(int mode, int which)
 			{
 				"usage: pw useradd [name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
@@ -325,6 +340,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 			        "\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
 				"\t-e period      default expiry period\n"
@@ -341,12 +357,14 @@ cmdhelp(int mode, int which)
 				"\t-y path        set NIS passwd file path\n",
 				"usage: pw userdel [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-Y             update NIS maps\n"
 				"\t-r             remove home & contents\n",
 				"usage: pw usermod [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if no user\n"
@@ -370,6 +388,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw usershow [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
@@ -378,6 +397,7 @@ cmdhelp(int mode, int which)
 				"\t-7             print in v7 format\n",
 				"usage: pw usernext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n",
 				"usage pw: lock [switches]\n"
@@ -392,6 +412,7 @@ cmdhelp(int mode, int which)
 			{
 				"usage: pw groupadd [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-n group       group name\n"
@@ -402,11 +423,13 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw groupdel [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-Y             update NIS maps\n",
 				"usage: pw groupmod [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if not exists\n"
@@ -420,6 +443,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw groupshow [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-F             force print\n"
@@ -427,6 +451,7 @@ cmdhelp(int mode, int which)
 				"\t-a             print all accounting groups\n",
 				"usage: pw groupnext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 			}

@@ -63,6 +63,28 @@ static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
 static void     rmopie(char const * name);
 
+static void
+create_and_populate_homedir(int mode, struct cargs *args, struct passwd *pwd,
+    struct userconf *cnf)
+{
+	char *homedir, *dotdir;
+	struct carg	*arg;
+
+	homedir = dotdir = NULL;
+
+	if ((arg = getarg(args, 'R'))) {
+		asprintf(&homedir, "%s/%s", arg->val, pwd->pw_dir);
+		if (homedir == NULL)
+			errx(EX_OSERR, "out of memory");
+		asprintf(&dotdir, "%s/%s", arg->val, cnf->dotdir);
+	}
+
+	copymkdir(homedir ? homedir : pwd->pw_dir, dotdir ? dotdir: cnf->dotdir,
+	    cnf->homemode, pwd->pw_uid, pwd->pw_gid);
+	pw_log(cnf, mode, W_USER, "%s(%u) home %s made", pwd->pw_name,
+	    pwd->pw_uid, pwd->pw_dir);
+}
+
 /*-
  * -C config      configuration file
  * -q             quiet operation
@@ -108,6 +130,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	struct group   *grp;
 	struct stat     st;
 	char            line[_PASSWORD_LEN+1];
+	char		path[MAXPATHLEN];
 	FILE	       *fp;
 	char *dmode_c;
 	void *set = NULL;
@@ -451,7 +474,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			pw_log(cnf, mode, W_USER, "%s(%u) account removed", a_name->val, uid);
 
-			if (!PWALTDIR()) {
+			if (PWALTDIR()) {
 				/*
 				 * Remove mail file
 				 */
@@ -800,11 +823,13 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * doesn't hurt anything to create the empty mailfile
 	 */
 	if (mode == M_ADD) {
-		if (!PWALTDIR()) {
-			snprintf(line, sizeof(line), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
-			close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
+		if (PWALTDIR() != PWF_ALT) {
+			arg = getarg(args, 'R');
+			snprintf(path, sizeof(path), "%s%s/%s",
+			    arg ? arg->val : "", _PATH_MAILDIR, pwd->pw_name);
+			close(open(path, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
 									 * mtime */
-			chown(line, pwd->pw_uid, pwd->pw_gid);
+			chown(path, pwd->pw_uid, pwd->pw_gid);
 		}
 	}
 
@@ -813,12 +838,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * that this also `works' for editing users if -m is used, but
 	 * existing files will *not* be overwritten.
 	 */
-	if (!PWALTDIR() && getarg(args, 'm') != NULL && pwd->pw_dir && *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
-		copymkdir(pwd->pw_dir, cnf->dotdir, cnf->homemode, pwd->pw_uid, pwd->pw_gid);
-		pw_log(cnf, mode, W_USER, "%s(%u) home %s made",
-		       pwd->pw_name, pwd->pw_uid, pwd->pw_dir);
-	}
-
+	if (PWALTDIR() != PWF_ALT && getarg(args, 'm') != NULL && pwd->pw_dir &&
+	    *pwd->pw_dir == '/' && pwd->pw_dir[1])
+		create_and_populate_homedir(mode, args, pwd, cnf);
 
 	/*
 	 * Finally, send mail to the new user as well, if we are asked to

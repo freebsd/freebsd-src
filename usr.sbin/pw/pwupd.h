@@ -71,6 +71,10 @@ extern struct pwf VPWF;
 #define GETGRGID(gid)	PWF._getgrgid(gid)
 #define GETGRNAM(nam)	PWF._getgrnam(nam)
 
+#define PWF_REGULAR 0
+#define PWF_ALT 1
+#define PWF_ROOTDIR 2
+
 #define PWALTDIR()	PWF._altdir
 #ifndef _PATH_PWD
 #define _PATH_PWD	"/etc"
