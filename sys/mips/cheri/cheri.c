@@ -150,7 +150,7 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 	 * instruction once it is more consistently available.
 	 */
 	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
-#if !defined(CPU_CHERI128)
+#if !defined(CPU_CHERI128) && !defined(CPU_CHERI_CSETBOUNDS)
 	SOFT_CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 	    (register_t)length);
 #else
