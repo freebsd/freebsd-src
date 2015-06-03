@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -35,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "mandoc.h"
 #include "mandoc_aux.h"
@@ -792,6 +794,27 @@ mparse_readfd(struct mparse *curp, int fd, const char *file)
 	return(curp->file_status);
 }
 
+/*
+ * hack to avoid depending on gnuzip(1) waiting for upstream proper
+ * support
+ */
+static int
+gunzip(const char *file)
+{
+	gzFile		  gz;
+	char		  buf[8192];
+	int		  r;
+
+	gz = gzopen(file, "r");
+	if (gz == NULL)
+		err(EXIT_FAILURE, "cannot open %s", file);
+
+	while ((r = gzread(gz, buf, sizeof(buf))) > 0)
+		fwrite(buf, 1, r, stdout);
+
+	gzclose(gz);
+	return (EXIT_SUCCESS);
+}
 enum mandoclevel
 mparse_open(struct mparse *curp, int *fd, const char *file)
 {
@@ -846,9 +869,7 @@ mparse_open(struct mparse *curp, int *fd, const char *file)
 			perror("dup");
 			exit((int)MANDOCLEVEL_SYSERR);
 		}
-		execlp("gunzip", "gunzip", "-c", file, NULL);
-		perror("exec");
-		exit((int)MANDOCLEVEL_SYSERR);
+		exit(gunzip(file));
 	default:
 		close(pfd[1]);
 		*fd = pfd[0];
