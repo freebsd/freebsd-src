@@ -4553,7 +4553,12 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		break;
 	case T_PROCESSOR:
 		break;
-	case T_SEQUENTIAL:
+	case T_CDROM:       //added for cd
+		break;
+	case T_WORM:	   // added for cd	
+		break;		
+	case T_SEQUENTIAL:   // added for tape  
+		break;
 	case T_CHANGER:
 	default:
 		be_lun->lun_config_status(be_lun->be_lun,
@@ -4755,7 +4760,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	/* Setup statistics gathering */
 	lun->stats.device_type = be_lun->lun_type;
 	lun->stats.lun_number = lun_number;
-	if (lun->stats.device_type == T_DIRECT)
+	if (lun->stats.device_type == T_DIRECT || lun->stats.device_type == T_CDROM || lun->stats.device_type == T_WORM)  // added CD here
 		lun->stats.blocksize = be_lun->blocksize;
 	else
 		lun->stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
@@ -6323,10 +6328,16 @@ ctl_do_mode_select(union ctl_io *io)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	if (lun->be_lun->lun_type != T_DIRECT)
+	/*if (lun->be_lun->lun_type != T_DIRECT)
 		control_dev = 1;
 	else
+		control_dev = 0;*/
+		
+	if (lun->be_lun->lun_type == T_DIRECT || lun->be_lun->lun_type == T_CDROM)
 		control_dev = 0;
+	else
+		control_dev = 1;
+	
 
 	modepage_info = (union ctl_modepage_info *)
 		ctsio->io_hdr.ctl_private[CTL_PRIV_MODEPAGE].bytes;
@@ -6556,11 +6567,18 @@ ctl_mode_select(struct ctl_scsiio *ctsio)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
+	/*
 	if (lun->be_lun->lun_type != T_DIRECT)
 		control_dev = 1;
 	else
 		control_dev = 0;
-
+	*/
+	
+	if (lun->be_lun->lun_type == T_DIRECT || lun->be_lun->lun_type == T_CDROM)
+		control_dev = 0;
+	else
+		control_dev = 1;
+		
 	switch (ctsio->cdb[0]) {
 	case MODE_SELECT_6: {
 		struct scsi_mode_select_6 *cdb;
@@ -6703,10 +6721,17 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
+	/*
 	if (lun->be_lun->lun_type != T_DIRECT)
 		control_dev = 1;
 	else
 		control_dev = 0;
+	*/
+	
+	if (lun->be_lun->lun_type == T_DIRECT || lun->be_lun->lun_type == T_CDROM)    // added here CD
+		control_dev = 0;
+	else
+		control_dev = 1;
 
 	switch (ctsio->cdb[0]) {
 	case MODE_SENSE_6: {
@@ -9844,7 +9869,7 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	pages->page_list[p++] = SVPD_SCSI_PORTS;
 	/* Third-party Copy */
 	pages->page_list[p++] = SVPD_SCSI_TPC;
-	if (lun != NULL && lun->be_lun->lun_type == T_DIRECT) {
+	if (lun != NULL && (lun->be_lun->lun_type == T_DIRECT || lun->be_lun->lun_type == T_CDROM )) {
 		/* Block limits */
 		pages->page_list[p++] = SVPD_BLOCK_LIMITS;
 		/* Block Device Characteristics */
@@ -10498,17 +10523,17 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 		retval = ctl_inquiry_evpd_tpc(ctsio, alloc_len);
 		break;
 	case SVPD_BLOCK_LIMITS:
-		if (lun == NULL || lun->be_lun->lun_type != T_DIRECT)
+		if (lun == NULL || (lun->be_lun->lun_type != T_DIRECT && lun->be_lun->lun_type != T_CDROM))
 			goto err;
 		retval = ctl_inquiry_evpd_block_limits(ctsio, alloc_len);
 		break;
 	case SVPD_BDC:
-		if (lun == NULL || lun->be_lun->lun_type != T_DIRECT)
+		if (lun == NULL || (lun->be_lun->lun_type != T_DIRECT && lun->be_lun->lun_type != T_CDROM))
 			goto err;
 		retval = ctl_inquiry_evpd_bdc(ctsio, alloc_len);
 		break;
 	case SVPD_LBP:
-		if (lun == NULL || lun->be_lun->lun_type != T_DIRECT)
+		if (lun == NULL || (lun->be_lun->lun_type != T_DIRECT && lun->be_lun->lun_type != T_CDROM))
 			goto err;
 		retval = ctl_inquiry_evpd_lbp(ctsio, alloc_len);
 		break;
@@ -10702,6 +10727,11 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 			strncpy(inq_ptr->product, CTL_PROCESSOR_PRODUCT,
 			    sizeof(inq_ptr->product));
 			break;
+			
+		case T_CDROM:		// added for CDROM
+			strncpy(inq_ptr->product, CTL_CDROM_PRODUCT,   // added in ctl_private.h also
+			    sizeof(inq_ptr->product));
+			break;	
 		default:
 			strncpy(inq_ptr->product, CTL_UNKNOWN_PRODUCT,
 			    sizeof(inq_ptr->product));
@@ -10763,6 +10793,12 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 			/* SBC-4 (no version claimed) */
 			scsi_ulto2b(0x0600, inq_ptr->version4);
 			break;
+		
+		case T_CDROM:
+			/* SBC-4 (no version claimed) */
+			scsi_ulto2b(0x0600, inq_ptr->version4);
+			break;
+			
 		case T_PROCESSOR:
 		default:
 			break;
@@ -12032,6 +12068,7 @@ ctl_cmd_applicable(uint8_t lun_type, const struct ctl_cmd_entry *entry)
 			return (0);
 		break;
 	case T_DIRECT:
+	case T_CDROM:
 		if (((entry->flags & CTL_CMD_FLAG_OK_ON_SLUN) == 0) &&
 		    ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS) == 0))
 			return (0);

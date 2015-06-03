@@ -45,6 +45,7 @@
 #define	CTL_VENDOR		"FREEBSD "
 #define	CTL_DIRECT_PRODUCT	"CTLDISK         "
 #define	CTL_PROCESSOR_PRODUCT	"CTLPROCESSOR    "
+#define	CTL_CDROM_PRODUCT	"CTLCDROM        "
 #define	CTL_UNKNOWN_PRODUCT	"CTLDEVICE       "
 
 struct ctl_fe_ioctl_startstop_info {
