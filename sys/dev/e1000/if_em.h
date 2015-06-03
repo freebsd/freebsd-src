@@ -53,7 +53,11 @@
  */
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD		4096
+#ifdef EM_MULTIQUEUE
+#define EM_DEFAULT_TXD		4096
+#else
 #define EM_DEFAULT_TXD		1024
+#endif
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -70,7 +74,11 @@
  */
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD		4096
+#ifdef EM_MULTIQUEUE
+#define EM_DEFAULT_RXD		4096
+#else
 #define EM_DEFAULT_RXD		1024
+#endif
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -117,7 +125,11 @@
  *            restoring the network connection. To eliminate the potential
  *            for the hang ensure that EM_RDTR is set to 0.
  */
+#ifdef EM_MULTIQUEUE
+#define EM_RDTR                         64
+#else
 #define EM_RDTR                         0
+#endif
 
 /*
  * Receive Interrupt Absolute Delay Timer (Not valid for 82542/82543/82544)
@@ -130,7 +142,11 @@
  *   along with EM_RDTR, may improve traffic throughput in specific network
  *   conditions.
  */
+#ifdef EM_MULTIQUEUE
+#define EM_RADV                         128
+#else
 #define EM_RADV                         64
+#endif
 
 /*
  * This parameter controls the max duration of transmit watchdog.
@@ -209,7 +225,15 @@
  */
 #define EM_DBA_ALIGN			128
 
-#define SPEED_MODE_BIT (1<<21)		/* On PCI-E MACs only */
+/*
+ * See Intel 82574 Driver Programming Interface Manual, Section 10.2.6.9
+ */
+#define TARC_COMPENSATION_MODE	(1 << 7)	/* Compensation Mode */
+#define TARC_SPEED_MODE_BIT 	(1 << 21)	/* On PCI-E MACs only */
+#define TARC_MQ_FIX		(1 << 23) | \
+				(1 << 24) | \
+				(1 << 25)	/* Handle errata in MQ mode */
+#define TARC_ERRATA_BIT 	(1 << 26)	/* Note from errata on 82574 */
 
 /* PCI Config defines */
 #define EM_BAR_TYPE(v)		((v) & EM_BAR_TYPE_MASK)
@@ -259,6 +283,14 @@
  * solve it just using this define.
  */
 #define EM_EIAC 0x000DC
+/*
+ * 82574 only reports 3 MSI-X vectors by default;
+ * defines assisting with making it report 5 are
+ * located here.
+ */
+#define EM_NVM_PCIE_CTRL	0x1B
+#define EM_NVM_MSIX_N_MASK	(0x7 << EM_NVM_MSIX_N_SHIFT)
+#define EM_NVM_MSIX_N_SHIFT	7
 
 /*
  * Bus dma allocation structure used by
@@ -391,7 +423,7 @@ struct adapter {
 	eventhandler_tag vlan_detach;
 
 	u16	num_vlans;
-	u16	num_queues;
+	u8	num_queues;
 
         /*
          * Transmit rings:

@@ -45,6 +45,14 @@ kernel configuration file:
 .Cd "device em"
 .Ed
 .Pp
+Optional multiqueue support is available via the following kernel
+compile options:
+.Bd -ragged -offset indent
+.Cd "options EM_MULTIQUEUE"
+.Ed
+.Pp
+Note:  Activating EM_MULTIQUEUE support is not supported by Intel.
+.Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
@@ -197,6 +205,18 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
+.It Va hw.em.eee_setting
+Disable or enable Energy Efficient Ethernet.
+Default 1 (disabled).
+.It Va hw.em.msix
+Enable or disable MSI-X style interrupts.
+Default 1 (enabled).
+.It Va hw.em.smart_pwr_down
+Enable or disable smart power down features on newer adapters.
+Default 0 (disabled).
+.It Va hw.em.sbp
+Show bad packets when in promiscuous mode.
+Default 0 (off).
 .It Va hw.em.rxd
 Number of receive descriptors allocated by the driver.
 The default value is 1024 for adapters newer than 82547,
@@ -228,6 +248,11 @@ If
 .Va hw.em.tx_int_delay
 is non-zero, this tunable limits the maximum delay in which a transmit
 interrupt is generated.
+.It Va hw.em.num_queues
+Number of hardware queues that will be configured on this adapter (maximum of 2)
+Defaults to 1.
+Only valid with kernel configuration
+.Cd "options EM_MULTIQUEUE".
 .El
 .Sh FILES
 .Bl -tag -width /dev/led/em*
@@ -287,3 +312,5 @@ You can enable it on an
 .Nm
 interface using
 .Xr ifconfig 8 .
+.Pp
+Activating EM_MULTIQUEUE support requires MSI-X features.
