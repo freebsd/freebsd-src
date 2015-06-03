@@ -562,6 +562,20 @@ feeder_build_mixer(struct pcm_channel *c, struct feeder_chain_desc *cdesc)
 	((c)->mode == FEEDER_CHAIN_LEAN &&				\
 	!((c)->current.afmt & (AFMT_S16_NE | AFMT_S32_NE)))))
 
+static void
+feeder_default_matrix(struct pcmchan_matrix *m, uint32_t fmt, int id)
+{
+	int x;
+
+	memset(m, 0, sizeof(*m));
+
+	m->id = id;
+	m->channels = AFMT_CHANNEL(fmt);
+	m->ext = AFMT_EXTCHANNEL(fmt);
+	for (x = 0; x != SND_CHN_T_MAX; x++)
+		m->offset[x] = -1;
+}
+
 int
 feeder_chain(struct pcm_channel *c)
 {
@@ -642,10 +656,10 @@ feeder_chain(struct pcm_channel *c)
 	 */
 	hwmatrix = CHANNEL_GETMATRIX(c->methods, c->devinfo, hwfmt);
 	if (hwmatrix == NULL) {
-		device_printf(c->dev,
-		    "%s(): failed to acquire hw matrix [0x%08x]\n",
-		    __func__, hwfmt);
-		return (ENODEV);
+		/* setup a default matrix */
+		hwmatrix = &c->matrix_scratch;
+		feeder_default_matrix(hwmatrix, hwfmt,
+		    SND_CHN_MATRIX_UNKNOWN);
 	}
 	/* ..... and rebuild hwfmt. */
 	hwfmt = SND_FORMAT(hwfmt, hwmatrix->channels, hwmatrix->ext);
@@ -657,13 +671,14 @@ feeder_chain(struct pcm_channel *c)
 	    softmatrix->ext != AFMT_EXTCHANNEL(softfmt)) {
 		softmatrix = feeder_matrix_format_map(softfmt);
 		if (softmatrix == NULL) {
-			device_printf(c->dev,
-			    "%s(): failed to acquire soft matrix [0x%08x]\n",
-			    __func__, softfmt);
-			return (ENODEV);
+			/* setup a default matrix */
+		  	softmatrix = &c->matrix;
+			feeder_default_matrix(softmatrix, softfmt,
+			    SND_CHN_MATRIX_PCMCHANNEL);
+		} else {
+			c->matrix = *softmatrix;
+			c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;
 		}
-		c->matrix = *softmatrix;
-		c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;
 	}
 	softfmt = SND_FORMAT(softfmt, softmatrix->channels, softmatrix->ext);
 	if (softfmt != c->format)
