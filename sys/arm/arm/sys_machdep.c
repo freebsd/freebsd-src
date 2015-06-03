@@ -41,8 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
 
+#include <machine/cpu-v6.h>
 #include <machine/sysarch.h>
+#include <machine/vmparam.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -55,16 +59,89 @@ struct sysarch_args {
 static int arm32_sync_icache (struct thread *, void *);
 static int arm32_drain_writebuf(struct thread *, void *);
 
+#if __ARM_ARCH >= 6
+static int
+sync_icache(uintptr_t addr, size_t len)
+{
+	size_t size;
+	vm_offset_t rv;
+
+	/*
+	 * Align starting address to even number because value of "1"
+	 * is used as return value for success.
+	 */
+	len += addr & 1;
+	addr &= ~1;
+
+	/* Break whole range to pages. */
+	do {
+		size = PAGE_SIZE - (addr & PAGE_MASK);
+		size = min(size, len);
+		rv = dcache_wb_pou_checked(addr, size);
+		if (rv == 1) /* see dcache_wb_pou_checked() */
+			rv = icache_inv_pou_checked(addr, size);
+		if (rv != 1) {
+			if (!useracc((void *)addr, size, VM_PROT_READ)) {
+				/* Invalid access */
+				return (rv);
+			}
+			/* Valid but unmapped page - skip it. */
+		}
+		len -= size;
+		addr += size;
+	} while (len > 0);
+
+	/* Invalidate branch predictor buffer. */
+	bpb_inv_all();
+	return (1);
+}
+#endif
+
 static int
 arm32_sync_icache(struct thread *td, void *args)
 {
 	struct arm_sync_icache_args ua;
 	int error;
+	ksiginfo_t ksi;
+#if __ARM_ARCH >= 6
+	vm_offset_t rv;
+#endif
 
 	if ((error = copyin(args, &ua, sizeof(ua))) != 0)
 		return (error);
 
+	if  (ua.len == 0) {
+		td->td_retval[0] = 0;
+		return (0);
+	}
+
+	/*
+	 * Validate arguments. Address and length are unsigned,
+	 * so we can use wrapped overflow check.
+	 */
+	if (((ua.addr + ua.len) < ua.addr) ||
+	    ((ua.addr + ua.len) > VM_MAXUSER_ADDRESS)) {
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGSEGV;
+		ksi.ksi_code = SEGV_ACCERR;
+		ksi.ksi_addr = (void *)max(ua.addr, VM_MAXUSER_ADDRESS);
+		trapsignal(td, &ksi);
+		return (EINVAL);
+	}
+
+#if __ARM_ARCH >= 6
+	rv = sync_icache(ua.addr, ua.len);
+	if (rv != 1) {
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGSEGV;
+		ksi.ksi_code = SEGV_MAPERR;
+		ksi.ksi_addr = (void *)rv;
+		trapsignal(td, &ksi);
+		return (EINVAL);
+	}
+#else
 	cpu_icache_sync_range(ua.addr, ua.len);
+#endif
 
 	td->td_retval[0] = 0;
 	return (0);
