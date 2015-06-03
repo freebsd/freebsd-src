@@ -745,7 +745,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 
 	DWC_ASSERT_LOCKED(sc);
 
-	fp = sc->ifp;
+	ifp = sc->ifp;
 	while (sc->tx_idx_tail != sc->tx_idx_head) {
 		desc = &sc->txdesc_ring[sc->tx_idx_tail];
 		if ((desc->tdes0 & DDESC_TDES0_OWN) != 0)
