@@ -230,9 +230,9 @@
  */
 #define TARC_COMPENSATION_MODE	(1 << 7)	/* Compensation Mode */
 #define TARC_SPEED_MODE_BIT 	(1 << 21)	/* On PCI-E MACs only */
-#define TARC_MQ_FIX	(1 << 23) | \
-			(1 << 24) | \
-			(1 << 25)		/* Handle errata in MQ mode */
+#define TARC_MQ_FIX		(1 << 23) | \
+				(1 << 24) | \
+				(1 << 25)	/* Handle errata in MQ mode */
 #define TARC_ERRATA_BIT 	(1 << 26)	/* Note from errata on 82574 */
 
 /* PCI Config defines */
