@@ -2226,7 +2226,7 @@ key_spddelete2(struct socket *so, struct mbuf *m,
 }
 
 /*
- * SADB_X_GET processing
+ * SADB_X_SPDGET processing
  * receive
  *   <base, policy(*)>
  * from the user(?),
@@ -2264,7 +2264,8 @@ key_spdget(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		return key_senderror(so, m, ENOENT);
 	}
 
-	n = key_setdumpsp(sp, SADB_X_SPDGET, 0, mhp->msg->sadb_msg_pid);
+	n = key_setdumpsp(sp, SADB_X_SPDGET, mhp->msg->sadb_msg_seq,
+	    mhp->msg->sadb_msg_pid);
 	KEY_FREESP(&sp);
 	if (n != NULL) {
 		m_freem(m);
