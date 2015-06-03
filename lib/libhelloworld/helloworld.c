@@ -41,7 +41,7 @@
 
 struct cheri_object	 __helloworld;
 struct sandbox_class	*__helloworld_classp;
-struct sandbox_object	*__helloworld_objectp;
+static struct sandbox_object	*__helloworld_objectp;
 
 __attribute__ ((constructor)) static void
 cheri_helloworld_init(void)
