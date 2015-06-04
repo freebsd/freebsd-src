@@ -112,21 +112,24 @@ main(int argc, char *argv[])
 	char sbuf2[MAXPATHLEN];
 	char *username;
 	u_int method, methoduid;
-	int Cflag, dflag, iflag;
+	int Cflag, dflag, iflag, lflag;
 	int nblock = 0;
 
-	iflag = dflag = Cflag = 0;
+	iflag = dflag = Cflag = lflag = 0;
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
 	oldfp = NULL;
-	while ((ch = getopt(argc, argv, "BCLNd:ips:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "BCLlNd:ips:u:v")) != -1)
 		switch(ch) {
 		case 'B':			/* big-endian output */
 			openinfo.lorder = BIG_ENDIAN;
 			break;
 		case 'C':                       /* verify only */
 			Cflag = 1;
+			break;
+		case 'l':			/* generate legacy entries */
+			lflag = 1;
 			break;
 		case 'L':			/* little-endian output */
 			openinfo.lorder = LITTLE_ENDIAN;
@@ -465,6 +468,7 @@ main(int argc, char *argv[])
 					error("put");
 			}
 
+			if (lflag) {
 			/* Create insecure data. (legacy version) */
 			p = buf;
 			COMPACT(pwd.pw_name);
@@ -555,6 +559,7 @@ main(int argc, char *argv[])
 					error("put");
 			}
 		}
+		}
 		/* Create original format password file entry */
 		if (is_comment && makeold){	/* copy comments */
 			if (fprintf(oldfp, "%s\n", line) < 0)
@@ -583,12 +588,14 @@ main(int argc, char *argv[])
 			error("put");
 		if ((sdp->put)(sdp, &key, &data, method) == -1)
 			error("put");
+		if (lflag) {
 		tbuf[0] = LEGACY_VERSION(_PW_KEYYPENABLED);
 		key.size = 1;
 		if ((dp->put)(dp, &key, &data, method) == -1)
 			error("put");
 		if ((sdp->put)(sdp, &key, &data, method) == -1)
 			error("put");
+	}
 	}
 
 	if ((dp->close)(dp) == -1)
