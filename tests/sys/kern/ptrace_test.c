@@ -34,9 +34,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <atf-c.h>
+
+/*
+ * A variant of ATF_REQUIRE that is suitable for use in child
+ * processes.  This only works if the parent process is tripped up by
+ * the early exit and fails some requirement itself.
+ */
+#define	CHILD_REQUIRE(exp) do {						\
+		if (!(exp))						\
+			child_fail_require(__FILE__, __LINE__,		\
+			    #exp " not met");				\
+	} while (0)
+
+static void __dead2
+child_fail_require(const char *file, int line, const char *str)
+{
+	char buf[128];
+
+	snprintf(buf, sizeof(buf), "%s:%d: %s\n", file, line, str);
+	write(2, buf, strlen(buf));
+	_exit(32);
+}
 
 /*
  * Verify that a parent debugger process "sees" the exit of a debugged
@@ -51,7 +73,7 @@ ATF_TC_BODY(ptrace__parent_wait_after_trace_me, tc)
 	ATF_REQUIRE((child = fork()) != -1);
 	if (child == 0) {
 		/* Child process. */
-		ATF_REQUIRE(ptrace(PT_TRACE_ME, 0, NULL, 0) != -1);
+		CHILD_REQUIRE(ptrace(PT_TRACE_ME, 0, NULL, 0) != -1);
 
 		/* Trigger a stop. */
 		raise(SIGSTOP);
@@ -100,7 +122,7 @@ ATF_TC_BODY(ptrace__parent_wait_after_attach, tc)
 		close(cpipe[0]);
 
 		/* Wait for the parent to attach. */
-		ATF_REQUIRE(read(cpipe[1], &c, sizeof(c)) == 0);
+		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == 0);
 
 		exit(1);
 	}
@@ -154,7 +176,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		close(cpipe[0]);
 
 		/* Wait for parent to be ready. */
-		ATF_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
+		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		exit(1);
 	}
@@ -167,25 +189,25 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		/* Debugger process. */
 		close(dpipe[0]);
 
-		ATF_REQUIRE(ptrace(PT_ATTACH, child, NULL, 0) != -1);
+		CHILD_REQUIRE(ptrace(PT_ATTACH, child, NULL, 0) != -1);
 
 		wpid = waitpid(child, &status, 0);
-		ATF_REQUIRE(wpid == child);
-		ATF_REQUIRE(WIFSTOPPED(status));
-		ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+		CHILD_REQUIRE(wpid == child);
+		CHILD_REQUIRE(WIFSTOPPED(status));
+		CHILD_REQUIRE(WSTOPSIG(status) == SIGSTOP);
 
-		ATF_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
+		CHILD_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
 
 		/* Signal parent that debugger is attached. */
-		ATF_REQUIRE(write(dpipe[1], &c, sizeof(c)) == sizeof(c));
+		CHILD_REQUIRE(write(dpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		/* Wait for parent's failed wait. */
-		ATF_REQUIRE(read(dpipe[1], &c, sizeof(c)) == 0);
+		CHILD_REQUIRE(read(dpipe[1], &c, sizeof(c)) == 0);
 
 		wpid = waitpid(child, &status, 0);
-		ATF_REQUIRE(wpid == child);
-		ATF_REQUIRE(WIFEXITED(status));
-		ATF_REQUIRE(WEXITSTATUS(status) == 1);
+		CHILD_REQUIRE(wpid == child);
+		CHILD_REQUIRE(WIFEXITED(status));
+		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
 
 		exit(0);
 	}
@@ -268,7 +290,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		close(cpipe[0]);
 
 		/* Wait for parent to be ready. */
-		ATF_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
+		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		exit(1);
 	}
@@ -284,32 +306,32 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		 * Fork again and drop the debugger parent so that the
 		 * debugger is not a child of the main parent.
 		 */
-		ATF_REQUIRE((fpid = fork()) != -1);
+		CHILD_REQUIRE((fpid = fork()) != -1);
 		if (fpid != 0)
 			exit(2);
 
 		/* Debugger process. */
 		close(dpipe[0]);
 
-		ATF_REQUIRE(ptrace(PT_ATTACH, child, NULL, 0) != -1);
+		CHILD_REQUIRE(ptrace(PT_ATTACH, child, NULL, 0) != -1);
 
 		wpid = waitpid(child, &status, 0);
-		ATF_REQUIRE(wpid == child);
-		ATF_REQUIRE(WIFSTOPPED(status));
-		ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+		CHILD_REQUIRE(wpid == child);
+		CHILD_REQUIRE(WIFSTOPPED(status));
+		CHILD_REQUIRE(WSTOPSIG(status) == SIGSTOP);
 
-		ATF_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
+		CHILD_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
 
 		/* Signal parent that debugger is attached. */
-		ATF_REQUIRE(write(dpipe[1], &c, sizeof(c)) == sizeof(c));
+		CHILD_REQUIRE(write(dpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		/* Wait for parent's failed wait. */
-		ATF_REQUIRE(read(dpipe[1], &c, sizeof(c)) == sizeof(c));
+		CHILD_REQUIRE(read(dpipe[1], &c, sizeof(c)) == sizeof(c));
 
 		wpid = waitpid(child, &status, 0);
-		ATF_REQUIRE(wpid == child);
-		ATF_REQUIRE(WIFEXITED(status));
-		ATF_REQUIRE(WEXITSTATUS(status) == 1);
+		CHILD_REQUIRE(wpid == child);
+		CHILD_REQUIRE(WIFEXITED(status));
+		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
 
 		exit(0);
 	}
