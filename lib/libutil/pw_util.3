@@ -37,7 +37,6 @@
 .Nm pw_make ,
 .Nm pw_make_v7 ,
 .Nm pw_mkdb ,
-.Nm pw_mkdb2 ,
 .Nm pw_lock ,
 .Nm pw_scan ,
 .Nm pw_tempname ,
@@ -66,8 +65,6 @@
 .Fn pw_make_v7 "const struct passwd *pw"
 .Ft int
 .Fn pw_mkdb "const char *user"
-.Ft int
-.Fn pw_mkdb "const char *user" "int endian"
 .Ft int
 .Fn pw_lock "void"
 .Ft "struct passwd *"
@@ -228,29 +225,10 @@ function regenerates the password database by running
 .Xr pwd_mkdb 8 .
 If
 .Fa user
-is set, only the record corresponding to that user will be updated.
+only the record corresponding to that user will be updated.
 The
 .Fn pw_mkdb
 function returns 0 in case of success and -1 in case of failure.
-.Pp
-.Fn pw_mkdb2
-function regenerates the password database by running
-.Xr pwd_mkdb 8 .
-If
-.Fa user
-is set, only the record corresponding to that user will be updated.
-.Pp
-The
-.Fa endian
-variable can take the following values
-.Bl -tag -width PWDB_NATIVE
-.It Dv PWDB_NATIVE
-The database will be generated in host native endianness.
-.It Dv PWDB_LE
-The database will be generated in Little-endian.
-.It Dv PWDB_BE
-The database will be generated in Big-endian.
-.El
 .Pp
 The
 .Fn pw_lock
