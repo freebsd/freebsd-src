@@ -78,7 +78,6 @@ MLINKS+=pw_util.3 pw_copy.3 \
 	pw_util.3 pw_make.3 \
 	pw_util.3 pw_make_v7.3 \
 	pw_util.3 pw_mkdb.3 \
-	pw_util.3 pw_mkdb2.3 \
 	pw_util.3 pw_lock.3 \
 	pw_util.3 pw_scan.3 \
 	pw_util.3 pw_tempname.3 \
