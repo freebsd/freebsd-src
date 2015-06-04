@@ -102,8 +102,8 @@ static MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
 /* Per-CPU context area. */
 extern struct pcpu __pcpu[];
 
-static uint32_t svm_feature;	/* AMD SVM features. */
-SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, features, CTLFLAG_RD, &svm_feature, 0,
+static uint32_t svm_feature = ~0U;	/* AMD SVM features. */
+SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, features, CTLFLAG_RDTUN, &svm_feature, 0,
     "SVM features advertised by CPUID.8000000AH:EDX");
 
 static int disable_npf_assist;
@@ -112,7 +112,7 @@ SYSCTL_INT(_hw_vmm_svm, OID_AUTO, disable_npf_assist, CTLFLAG_RWTUN,
 
 /* Maximum ASIDs supported by the processor */
 static uint32_t nasid;
-SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, num_asids, CTLFLAG_RD, &nasid, 0,
+SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, num_asids, CTLFLAG_RDTUN, &nasid, 0,
     "Number of ASIDs supported by this processor");
 
 /* Current ASID generation for each host cpu */
@@ -174,9 +174,14 @@ check_svm_features(void)
 
 	/* CPUID Fn8000_000A is for SVM */
 	do_cpuid(0x8000000A, regs);
-	svm_feature = regs[3];
+	svm_feature &= regs[3];
 
-	nasid = regs[1];
+	/*
+	 * The number of ASIDs can be configured to be less than what is
+	 * supported by the hardware but not more.
+	 */
+	if (nasid == 0 || nasid > regs[1])
+		nasid = regs[1];
 	KASSERT(nasid > 1, ("Insufficient ASIDs for guests: %#x", nasid));
 
 	/* bhyve requires the Nested Paging feature */
