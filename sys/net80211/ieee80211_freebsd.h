@@ -610,6 +610,7 @@ struct ieee80211_bpf_params {
 	uint8_t		ibp_rate3;	/* series 4 IEEE tx rate */
 };
 
+#ifdef _KERNEL
 struct ieee80211_tx_params {
 	struct ieee80211_bpf_params params;
 };
@@ -617,6 +618,7 @@ int	ieee80211_add_xmit_params(struct mbuf *m,
 	    const struct ieee80211_bpf_params *);
 int	ieee80211_get_xmit_params(struct mbuf *m,
 	    struct ieee80211_bpf_params *);
+#endif /* _KERNEL */
 
 /*
  * Malloc API.  Other BSD operating systems have slightly
