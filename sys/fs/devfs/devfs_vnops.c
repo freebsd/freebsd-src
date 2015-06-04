@@ -51,6 +51,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
@@ -70,6 +71,10 @@ static struct fileops devfs_ops_f;
 #include <fs/devfs/devfs_int.h>
 
 #include <security/mac/mac_framework.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 
 static MALLOC_DEFINE(M_CDEVPDATA, "DEVFSP", "Metainfo for cdev-fp data");
 
@@ -1738,6 +1743,65 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
 	return (error);
 }
 
+static int
+devfs_mmap_f(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
+    vm_prot_t prot, vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
+    struct thread *td)
+{
+	struct cdev *dev;
+	struct cdevsw *dsw;
+	struct mount *mp;
+	struct vnode *vp;
+	struct file *fpop;
+	vm_object_t object;
+	vm_prot_t maxprot;
+	int error, ref;
+
+	vp = fp->f_vnode;
+
+	/*
+	 * Ensure that file and memory protections are
+	 * compatible.
+	 */
+	mp = vp->v_mount;
+	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0)
+		maxprot = VM_PROT_NONE;
+	else
+		maxprot = VM_PROT_EXECUTE;
+	if ((fp->f_flag & FREAD) != 0)
+		maxprot |= VM_PROT_READ;
+	else if ((prot & VM_PROT_READ) != 0)
+		return (EACCES);
+
+	/*
+	 * Character devices always share mappings, so
+	 * require a writable fd for writable mappings.
+	 */
+	if ((fp->f_flag & FWRITE) != 0)
+		maxprot |= VM_PROT_WRITE;
+	else if ((prot & VM_PROT_WRITE) != 0)
+		return (EACCES);
+	maxprot &= cap_maxprot;
+
+	fpop = td->td_fpop;
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
+	if (error != 0)
+		return (error);
+
+	error = vm_mmap_cdev(td, size, prot, &maxprot, &flags, dev, dsw, &foff,
+	    &object);
+	td->td_fpop = fpop;
+	dev_relthread(dev, ref);
+	if (error != 0)
+		return (error);
+
+	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
+	    foff, FALSE, td);
+	if (error != 0)
+		vm_object_deallocate(object);
+	return (error);
+}
+
 dev_t
 dev2udev(struct cdev *x)
 {
@@ -1760,6 +1824,7 @@ static struct fileops devfs_ops_f = {
 	.fo_sendfile =	vn_sendfile,
 	.fo_seek =	vn_seek,
 	.fo_fill_kinfo = vn_fill_kinfo,
+	.fo_mmap =	devfs_mmap_f,
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

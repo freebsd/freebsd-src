@@ -127,6 +127,7 @@ static fo_chmod_t	shm_chmod;
 static fo_chown_t	shm_chown;
 static fo_seek_t	shm_seek;
 static fo_fill_kinfo_t	shm_fill_kinfo;
+static fo_mmap_t	shm_mmap;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
@@ -143,6 +144,7 @@ static struct fileops shm_ops = {
 	.fo_sendfile = vn_sendfile,
 	.fo_seek = shm_seek,
 	.fo_fill_kinfo = shm_fill_kinfo,
+	.fo_mmap = shm_mmap,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -851,15 +853,37 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 	return (error);
 }
 
-/*
- * mmap() helper to validate mmap() requests against shm object state
- * and give mmap() the vm_object to use for the mapping.
- */
 int
-shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
-    vm_object_t *obj)
+shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
+    vm_prot_t prot, vm_prot_t cap_maxprot, int flags,
+    vm_ooffset_t foff, struct thread *td)
 {
+	struct shmfd *shmfd;
+	vm_prot_t maxprot;
+	int error;
 
+	shmfd = fp->f_data;
+	maxprot = VM_PROT_NONE;
+
+	/* FREAD should always be set. */
+	if ((fp->f_flag & FREAD) != 0)
+		maxprot |= VM_PROT_EXECUTE | VM_PROT_READ;
+	if ((fp->f_flag & FWRITE) != 0)
+		maxprot |= VM_PROT_WRITE;
+
+	/* Don't permit shared writable mappings on read-only descriptors. */
+	if ((flags & MAP_SHARED) != 0 &&
+	    (maxprot & VM_PROT_WRITE) == 0 &&
+	    (prot & VM_PROT_WRITE) != 0)
+		return (EACCES);
+	maxprot &= cap_maxprot;
+
+#ifdef MAC
+	error = mac_posixshm_check_mmap(td->td_ucred, shmfd, prot, flags);
+	if (error != 0)
+		return (error);
+#endif
+	
 	/*
 	 * XXXRW: This validation is probably insufficient, and subject to
 	 * sign errors.  It should be fixed.
@@ -872,7 +896,11 @@ shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	vfs_timestamp(&shmfd->shm_atime);
 	mtx_unlock(&shm_timestamp_lock);
 	vm_object_reference(shmfd->shm_object);
-	*obj = shmfd->shm_object;
+
+	error = vm_mmap_object(map, addr, objsize, prot, maxprot, flags,
+	    shmfd->shm_object, foff, FALSE, td);
+	if (error != 0)
+		vm_object_deallocate(shmfd->shm_object);
 	return (0);
 }
 
