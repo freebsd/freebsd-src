@@ -525,7 +525,8 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * they'll have to be added - so fail the transmit if
 	 * they can't be.
 	 */
-	(void) ieee80211_add_xmit_params(m, params);
+	if (params)
+		(void) ieee80211_add_xmit_params(m, params);
 
 	return (ic->ic_raw_xmit(ni, m, params));
 }
