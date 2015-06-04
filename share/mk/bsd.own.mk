@@ -143,6 +143,10 @@ KMODDIR?=	/boot/kernel
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
+DTBDIR?=	/boot/dtb
+DTBOWN?=	root
+DTBGRP?=	wheel
+DTBMODE?=	444
 
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
@@ -683,7 +687,7 @@ _uid!=	id -u
 USER!=	id -un
 .endif
 _gid!=	id -gn
-.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+.for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
 $xOWN=	${USER}
 $xGRP=	${_gid}
 .endfor
