@@ -242,36 +242,14 @@ pw_tmp(int mfd)
 	return (tfd);
 }
 
-int
-pw_mkdb(const char *user)
-{
-
-	return (pw_mkdb2(user, PWDB_NATIVE));
-}
-
 /*
  * Regenerate the password database.
  */
 int
-pw_mkdb2(const char *user, int endian)
+pw_mkdb(const char *user)
 {
 	int pstat;
 	pid_t pid;
-	const char *arg;
-
-	switch (endian) {
-	case PWDB_NATIVE:
-		arg = "-p";
-		break;
-	case PWDB_LE:
-		arg = "-pL";
-		break;
-	case PWDB_BE:
-		arg = "-pB";
-		break;
-	default:
-		return (-1);
-	}
 
 	(void)fflush(stderr);
 	switch ((pid = fork())) {
@@ -280,10 +258,10 @@ pw_mkdb2(const char *user, int endian)
 	case 0:
 		/* child */
 		if (user == NULL)
-			execl(_PATH_PWD_MKDB, "pwd_mkdb", arg,
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
 			    "-d", passwd_dir, tempname, (char *)NULL);
 		else
-			execl(_PATH_PWD_MKDB, "pwd_mkdb", arg,
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
 			    "-d", passwd_dir, "-u", user, tempname,
 			    (char *)NULL);
 		_exit(1);
