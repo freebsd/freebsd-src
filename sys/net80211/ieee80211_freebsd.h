@@ -327,6 +327,9 @@ int	ieee80211_add_callback(struct mbuf *m,
 		void (*func)(struct ieee80211_node *, void *, int), void *arg);
 void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
 
+#define	NET80211_TAG_XMIT_PARAMS	1
+/* See below; this is after the bpf_params definition */
+
 struct ieee80211com;
 int	ieee80211_parent_xmitpkt(struct ieee80211com *, struct mbuf *);
 int	ieee80211_vap_xmitpkt(struct ieee80211vap *, struct mbuf *);
@@ -606,6 +609,14 @@ struct ieee80211_bpf_params {
 	uint8_t		ibp_try3;	/* series 4 try count */
 	uint8_t		ibp_rate3;	/* series 4 IEEE tx rate */
 };
+
+struct ieee80211_tx_params {
+	struct ieee80211_bpf_params params;
+};
+int	ieee80211_add_xmit_params(struct mbuf *m,
+	    const struct ieee80211_bpf_params *);
+int	ieee80211_get_xmit_params(struct mbuf *m,
+	    struct ieee80211_bpf_params *);
 
 /*
  * Malloc API.  Other BSD operating systems have slightly
