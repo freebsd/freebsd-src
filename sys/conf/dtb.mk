@@ -45,7 +45,6 @@ SYSDIR=	${_dir}
 
 .PATH: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/boot/fdt/dts/${MACHINE}
 
-DTBDIR?=/boot/dtb
 DTB=${DTS:R:S/$/.dtb/}
 
 all: ${DTB}
@@ -64,6 +63,10 @@ CLEANFILES+=${_dts:R:S/$/.dtb/}
 realinstall: _dtbinstall
 .ORDER: beforeinstall _kmodinstall
 _dtbinstall:
+# Need to create this because installkernel doesn't invoke mtree with BSD.root.mtree
+# to make sure the tree is setup properly. This may break ownership of ${DTBDIR}
+# for no-root build.
+	mkdir -p ${DESTDIR}${DTBDIR}
 .for _dtb in ${DTB}
 	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
 	    ${_INSTALLFLAGS} ${_dtb} ${DESTDIR}${DTBDIR}
