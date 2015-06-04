@@ -127,7 +127,7 @@ _manpages: ${MAN}
 ZEXT=		${MCOMPRESS_EXT}
 
 .if defined(MAN) && !empty(MAN)
-.if ${MK_STAGING}
+.if ${MK_STAGING_MAN} == "yes"
 staging: stage_files
 _mansets:= ${MAN:E:O:u:@s@man$s@}
 STAGE_SETS+= ${_mansets}
@@ -136,10 +136,10 @@ stage_files.man${_page:T:E}: ${_page}
 STAGE_DIR.man${_page:T:E}?= ${STAGE_OBJTOP}${MANDIR}${_page:T:E}${MANSUBDIR}
 .endfor
 .if !empty(MLINKS)
+STAGE_SETS+= mlinks
 staging: stage_links
-.for __section in ${MLINKS:E:O:u}
-STAGE_LINKS.man${__section}:= ${MLINKS:M*.${__section}:S,^,${MANDIR}${__section}${MANSUBDIR}/,}
-.endfor
+STAGE_LINKS.mlinks:= ${MLINKS:@f@${f:S,^,${MANDIR}${f:E}${MANSUBDIR}/,}@}
+stage_links.mlinks: ${_mansets:@s@stage_files.$s@}
 .endif
 .endif
 
