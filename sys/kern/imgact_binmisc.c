@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013, Stacey D. Son
+ * Copyright (c) 2013-15, Stacey D. Son
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
+
+#include <machine/atomic.h>
 
 /**
  * Miscellaneous binary interpreter image activator.
@@ -95,11 +98,68 @@ static SLIST_HEAD(, imgact_binmisc_entry) interpreter_list =
 	SLIST_HEAD_INITIALIZER(interpreter_list);
 
 static int interp_list_entry_count = 0;
-
+static int interp_list_rcount = 0;
 static struct mtx interp_list_mtx;
 
 int imgact_binmisc_exec(struct image_params *imgp);
 
+static inline void
+interp_list_rlock()
+{
+
+    /* Don't use atomic_add() here.  We must block if the mutex is held. */
+    mtx_lock(&interp_list_mtx);
+    interp_list_rcount++;
+    mtx_unlock(&interp_list_mtx);
+}
+
+static inline void
+interp_list_runlock()
+{
+
+    /* Decrement the reader count and wake up one writer, if any. */
+    atomic_subtract_int(&interp_list_rcount, 1);
+    if (interp_list_rcount == 0)
+        wakeup_one(&interp_list_rcount);
+}
+
+static inline void
+interp_list_wlock()
+{
+
+    /* Wait until there are no readers. */
+    mtx_lock(&interp_list_mtx);
+    while (interp_list_rcount)
+        mtx_sleep(&interp_list_rcount, &interp_list_mtx, 0, "IABM", 0);
+}
+
+static inline void
+interp_list_wunlock()
+{
+
+    mtx_unlock(&interp_list_mtx);
+}
+
+#define interp_list_assert_rlocked()					  \
+	KASSERT(interp_list_rcount > 0, ("%s: interp_list lock not held " \
+					"for read", __func__))
+
+#define	interp_list_assert_wlocked() mtx_assert(&interp_list_mtx, MA_OWNED)
+
+#ifdef INVARIANTS
+#define	interp_list_assert_locked()	do {				\
+	if (interp_list_rcount == 0) 					\
+		mtx_assert(&interp_list_mtx, MA_OWNED);			\
+	else 								\
+		KASSERT(interp_list_rcount > 0,				\
+			("%s: interp_list lock not held", __func__));	\
+} while(0)
+
+#else /* ! INVARIANTS */
+
+#define	interp_list_assert_locked()	do {				\
+} while(0)
+#endif /* ! INVARIANTS */
 
 /*
  * Populate the entry with the information about the interpreter.
@@ -111,7 +171,7 @@ imgact_binmisc_populate_interp(char *str, imgact_binmisc_entry_t *ibe)
 	char t[IBE_INTERP_LEN_MAX];
 	char *sp, *tp;
 
-	bzero(t, sizeof(t));
+	memset(t, 0, sizeof(t));
 
 	/*
 	 * Normalize interpreter string. Replace white space between args with
@@ -151,8 +211,6 @@ imgact_binmisc_new_entry(ximgact_binmisc_entry_t *xbe)
 {
 	imgact_binmisc_entry_t *ibe = NULL;
 	size_t namesz = min(strlen(xbe->xbe_name) + 1, IBE_NAME_MAX);
-
-	mtx_assert(&interp_list_mtx, MA_NOTOWNED);
 
 	ibe = malloc(sizeof(*ibe), M_BINMISC, M_WAITOK|M_ZERO);
 
@@ -203,7 +261,7 @@ imgact_binmisc_find_entry(char *name)
 {
 	imgact_binmisc_entry_t *ibe;
 
-	mtx_assert(&interp_list_mtx, MA_OWNED);
+	interp_list_assert_locked();
 
 	SLIST_FOREACH(ibe, &interpreter_list, link) {
 		if (strncmp(name, ibe->ibe_name, IBE_NAME_MAX) == 0)
@@ -260,21 +318,21 @@ imgact_binmisc_add_entry(ximgact_binmisc_entry_t *xbe)
 		}
 	}
 
-	mtx_lock(&interp_list_mtx);
-	if (imgact_binmisc_find_entry(xbe->xbe_name) != NULL) {
-		mtx_unlock(&interp_list_mtx);
-		return (EEXIST);
-	}
-	mtx_unlock(&interp_list_mtx);
-
+	/* Preallocate a new entry. */
 	ibe = imgact_binmisc_new_entry(xbe);
 	if (!ibe)
 		return (ENOMEM);
 
-	mtx_lock(&interp_list_mtx);
+	interp_list_wlock();
+	if (imgact_binmisc_find_entry(xbe->xbe_name) != NULL) {
+		interp_list_wunlock();
+		imgact_binmisc_destroy_entry(ibe);
+		return (EEXIST);
+	}
+
 	SLIST_INSERT_HEAD(&interpreter_list, ibe, link);
 	interp_list_entry_count++;
-	mtx_unlock(&interp_list_mtx);
+	interp_list_wunlock();
 
 	return (0);
 }
@@ -288,14 +346,14 @@ imgact_binmisc_remove_entry(char *name)
 {
 	imgact_binmisc_entry_t *ibe;
 
-	mtx_lock(&interp_list_mtx);
+	interp_list_wlock();
 	if ((ibe = imgact_binmisc_find_entry(name)) == NULL) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_wunlock();
 		return (ENOENT);
 	}
 	SLIST_REMOVE(&interpreter_list, ibe, imgact_binmisc_entry, link);
 	interp_list_entry_count--;
-	mtx_unlock(&interp_list_mtx);
+	interp_list_wunlock();
 
 	imgact_binmisc_destroy_entry(ibe);
 
@@ -311,14 +369,14 @@ imgact_binmisc_disable_entry(char *name)
 {
 	imgact_binmisc_entry_t *ibe;
 
-	mtx_lock(&interp_list_mtx);
+	interp_list_rlock();
 	if ((ibe = imgact_binmisc_find_entry(name)) == NULL) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		return (ENOENT);
 	}
 
-	ibe->ibe_flags &= ~IBF_ENABLED;
-	mtx_unlock(&interp_list_mtx);
+	atomic_clear_32(&ibe->ibe_flags, IBF_ENABLED);
+	interp_list_runlock();
 
 	return (0);
 }
@@ -332,14 +390,14 @@ imgact_binmisc_enable_entry(char *name)
 {
 	imgact_binmisc_entry_t *ibe;
 
-	mtx_lock(&interp_list_mtx);
+	interp_list_rlock();
 	if ((ibe = imgact_binmisc_find_entry(name)) == NULL) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		return (ENOENT);
 	}
 
-	ibe->ibe_flags |= IBF_ENABLED;
-	mtx_unlock(&interp_list_mtx);
+	atomic_set_32(&ibe->ibe_flags, IBF_ENABLED);
+	interp_list_runlock();
 
 	return (0);
 }
@@ -350,9 +408,9 @@ imgact_binmisc_populate_xbe(ximgact_binmisc_entry_t *xbe,
 {
 	uint32_t i;
 
-	mtx_assert(&interp_list_mtx, MA_OWNED);
+	interp_list_assert_rlocked();
 
-	bzero(xbe, sizeof(*xbe));
+	memset(xbe, 0, sizeof(*xbe));
 	strlcpy(xbe->xbe_name, ibe->ibe_name, IBE_NAME_MAX);
 
 	/* Copy interpreter string.  Replace NULL breaks with space. */
@@ -382,14 +440,14 @@ imgact_binmisc_lookup_entry(char *name, ximgact_binmisc_entry_t *xbe)
 	imgact_binmisc_entry_t *ibe;
 	int error = 0;
 
-	mtx_lock(&interp_list_mtx);
+	interp_list_rlock();
 	if ((ibe = imgact_binmisc_find_entry(name)) == NULL) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		return (ENOENT);
 	}
 
 	error = imgact_binmisc_populate_xbe(xbe, ibe);
-	mtx_unlock(&interp_list_mtx);
+	interp_list_runlock();
 
 	return (error);
 }
@@ -404,12 +462,12 @@ imgact_binmisc_get_all_entries(struct sysctl_req *req)
 	imgact_binmisc_entry_t *ibe;
 	int error = 0, count;
 
-	mtx_lock(&interp_list_mtx);
+	interp_list_rlock();
 	count = interp_list_entry_count;
 	/* Don't block in malloc() while holding lock. */
 	xbe = malloc(sizeof(*xbe) * count, M_BINMISC, M_NOWAIT|M_ZERO);
 	if (!xbe) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		return (ENOMEM);
 	}
 
@@ -419,7 +477,7 @@ imgact_binmisc_get_all_entries(struct sysctl_req *req)
 		if (error)
 			break;
 	}
-	mtx_unlock(&interp_list_mtx);
+	interp_list_runlock();
 
 	if (!error)
 		error = SYSCTL_OUT(req, xbe, sizeof(*xbe) * count);
@@ -556,7 +614,7 @@ imgact_binmisc_find_interpreter(const char *image_header)
 	int i;
 	size_t sz;
 
-	mtx_assert(&interp_list_mtx, MA_OWNED);
+	interp_list_assert_rlocked();
 
 	SLIST_FOREACH(ibe, &interpreter_list, link) {
 		if (!(IBF_ENABLED & ibe->ibe_flags))
@@ -593,15 +651,15 @@ imgact_binmisc_exec(struct image_params *imgp)
 	char *s, *d;
 
 	/* Do we have an interpreter for the given image header? */
-	mtx_lock(&interp_list_mtx);
+	interp_list_rlock();
 	if ((ibe = imgact_binmisc_find_interpreter(image_header)) == NULL) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		return (-1);
 	}
 
 	/* No interpreter nesting allowed. */
 	if (imgp->interpreted & IMGACT_BINMISC) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		return (ENOEXEC);
 	}
 
@@ -649,7 +707,7 @@ imgact_binmisc_exec(struct image_params *imgp)
 
 		default:
 			/* Hmm... This shouldn't happen. */
-			mtx_unlock(&interp_list_mtx);
+			interp_list_runlock();
 			printf("%s: Unknown macro #%c sequence in "
 			    "interpreter string\n", KMOD_NAME, *(s + 1));
 			error = EINVAL;
@@ -660,12 +718,15 @@ imgact_binmisc_exec(struct image_params *imgp)
 
 	/* Check to make sure we won't overrun the stringspace. */
 	if (offset > imgp->args->stringspace) {
-		mtx_unlock(&interp_list_mtx);
+		interp_list_runlock();
 		error = E2BIG;
 		goto done;
 	}
 
-	/* Make room for the interpreter */
+	/*
+	 * Make room for the interpreter. Doing an overlapping copy so
+	 * bcopy() must be used.
+	 */
 	bcopy(imgp->args->begin_argv, imgp->args->begin_argv + offset,
 	    imgp->args->endp - imgp->args->begin_argv);
 
@@ -720,7 +781,7 @@ imgact_binmisc_exec(struct image_params *imgp)
 		s++;
 	}
 	*d = '\0';
-	mtx_unlock(&interp_list_mtx);
+	interp_list_runlock();
 
 	if (!error)
 		imgp->interpreter_name = imgp->args->begin_argv;
@@ -745,13 +806,13 @@ imgact_binmisc_fini(void *arg)
 	imgact_binmisc_entry_t *ibe, *ibe_tmp;
 
 	/* Free all the interpreters. */
-	mtx_lock(&interp_list_mtx);
+	interp_list_wlock();
 	SLIST_FOREACH_SAFE(ibe, &interpreter_list, link, ibe_tmp) {
 		SLIST_REMOVE(&interpreter_list, ibe, imgact_binmisc_entry,
 		    link);
 		imgact_binmisc_destroy_entry(ibe);
 	}
-	mtx_unlock(&interp_list_mtx);
+	interp_list_wunlock();
 
 	mtx_destroy(&interp_list_mtx);
 }
