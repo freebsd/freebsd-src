@@ -1657,16 +1657,24 @@ ctlfe_onoffline(void *arg, int online)
 			 * down to the SIM.  Otherwise, record what the SIM
 			 * has reported.
 			 */
-			if ((bus_softc->port.wwnn != 0)
-			 && (bus_softc->port.wwpn != 0)) {
+			if (bus_softc->port.wwnn != 0 && bus_softc->port.wwnn
+			    != ccb->knob.xport_specific.fc.wwnn) {
 				ccb->knob.xport_specific.fc.wwnn =
-					bus_softc->port.wwnn;
-				ccb->knob.xport_specific.fc.wwpn =
-					bus_softc->port.wwpn;
+				    bus_softc->port.wwnn;
 				set_wwnn = 1;
 			} else {
 				ctl_port_set_wwns(&bus_softc->port,
 				    true, ccb->knob.xport_specific.fc.wwnn,
+				    false, 0);
+			}
+			if (bus_softc->port.wwpn != 0 && bus_softc->port.wwpn
+			     != ccb->knob.xport_specific.fc.wwpn) {
+				ccb->knob.xport_specific.fc.wwpn =
+				    bus_softc->port.wwpn;
+				set_wwnn = 1;
+			} else {
+				ctl_port_set_wwns(&bus_softc->port,
+				    false, 0,
 				    true, ccb->knob.xport_specific.fc.wwpn);
 			}
 #endif /* RANDOM_WWNN */
