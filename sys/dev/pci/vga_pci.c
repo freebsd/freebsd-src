@@ -126,6 +126,13 @@ vga_pci_is_boot_display(device_t dev)
 	if ((config & (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN)) == 0)
 		return (0);
 
+	/*
+	 * Disable interrupts until a chipset driver is loaded for
+	 * this PCI device. Else unhandled display adapter interrupts
+	 * might freeze the CPU.
+	 */
+	pci_write_config(dev, PCIR_COMMAND, config | PCIM_CMD_INTxDIS, 2);
+
 	/* This video card is the boot display: record its unit number. */
 	vga_pci_default_unit = unit;
 	device_set_flags(dev, 1);
