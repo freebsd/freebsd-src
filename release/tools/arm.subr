@@ -82,7 +82,7 @@ arm_create_user() {
 	# and set the default password for the 'root' user to 'root'.
 	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		groupadd freebsd -g 1001
-	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/home
+	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/home/freebsd
 	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		useradd freebsd \
 		-m -M 0755 -w yes -n freebsd -u 1001 -g 1001 -G 0 \
