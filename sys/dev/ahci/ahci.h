@@ -576,7 +576,7 @@ enum ahci_err_type {
 #define AHCI_Q_1MSI		0x00020000
 
 #define AHCI_Q_BIT_STRING	\
-	"\021"			\
+	"\020"			\
 	"\001NOFORCE"		\
 	"\002NOPMP"		\
 	"\003NONCQ"		\
