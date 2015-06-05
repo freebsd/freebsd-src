@@ -1081,7 +1081,7 @@ ieee80211_lookup_channel_rxstatus(struct ieee80211vap *vap,
 	/* Determine a band */
 	/* XXX should be done by the driver? */
 	if (rxs->c_freq < 3000) {
-		flags = IEEE80211_CHAN_B;
+		flags = IEEE80211_CHAN_G;
 	} else {
 		flags = IEEE80211_CHAN_A;
 	}
