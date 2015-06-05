@@ -2367,7 +2367,7 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	uint16_t status;
-	int result, oldstate, highest, delay;
+	int oldstate, highest, delay;
 
 	if (cfg->pp.pp_cap == 0)
 		return (EOPNOTSUPP);
@@ -2402,7 +2402,6 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	    delay = 0;
 	status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_status, 2)
 	    & ~PCIM_PSTAT_DMASK;
-	result = 0;
 	switch (state) {
 	case PCI_POWERSTATE_D0:
 		status |= PCIM_PSTAT_D0;
@@ -2962,7 +2961,6 @@ static void
 pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
     uint32_t prefetchmask)
 {
-	struct resource *r;
 	int rid, type, progif;
 #if 0
 	/* if this device supports PCI native addressing use it */
@@ -2985,11 +2983,11 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x1f0,
+		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x1f0,
 		    0x1f7, 8, 0);
 		rid = PCIR_BAR(1);
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x3f6,
+		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x3f6,
 		    0x3f6, 1, 0);
 	}
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
@@ -3000,11 +2998,11 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x170,
+		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x170,
 		    0x177, 8, 0);
 		rid = PCIR_BAR(3);
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x376,
+		(void)resource_list_reserve(rl, bus, dev, type, &rid, 0x376,
 		    0x376, 1, 0);
 	}
 	pci_add_map(bus, dev, PCIR_BAR(4), rl, force,
@@ -3650,7 +3648,6 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
     int state)
 {
 	device_t child, pcib;
-	struct pci_devinfo *dinfo;
 	int dstate, i;
 
 	/*
@@ -3663,7 +3660,6 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 	pcib = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
 		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)

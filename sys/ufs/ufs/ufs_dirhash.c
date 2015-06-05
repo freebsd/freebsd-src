@@ -189,9 +189,7 @@ ufsdirhash_create(struct inode *ip)
 	struct dirhash *ndh;
 	struct dirhash *dh;
 	struct vnode *vp;
-	int error;
 
-	error = 0;
 	ndh = dh = NULL;
 	vp = ip->i_vnode;
 	for (;;) {
@@ -273,11 +271,9 @@ static struct dirhash *
 ufsdirhash_acquire(struct inode *ip)
 {
 	struct dirhash *dh;
-	struct vnode *vp;
 
 	ASSERT_VOP_ELOCKED(ip->i_vnode, __FUNCTION__);
 
-	vp = ip->i_vnode;
 	dh = ip->i_dirhash;
 	if (dh == NULL)
 		return (NULL);
