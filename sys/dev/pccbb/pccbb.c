@@ -996,8 +996,6 @@ cbb_cardbus_reset_power(device_t brdev, device_t child, int on)
 	 * a cardbus bus, so that's the only register we check here.
 	 */
 	if (on && CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
-		/*
-		 */
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		b = pcib_get_bus(child);
@@ -1566,57 +1564,6 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 		return (EINVAL);
 	}
 	return (ENOENT);
-}
-
-int
-cbb_suspend(device_t self)
-{
-	int			error = 0;
-	struct cbb_softc	*sc = device_get_softc(self);
-
-	error = bus_generic_suspend(self);
-	if (error != 0)
-		return (error);
-	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
-	sc->cardok = 0;				/* Card is bogus now */
-	return (0);
-}
-
-int
-cbb_resume(device_t self)
-{
-	int	error = 0;
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
-	uint32_t tmp;
-
-	/*
-	 * Some BIOSes will not save the BARs for the pci chips, so we
-	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
-	 * device, it will read back as 0x1, so no explicit test for
-	 * memory devices are needed.
-	 *
-	 * Note: The PCI bus code should do this automatically for us on
-	 * suspend/resume, but until it does, we have to cope.
-	 */
-	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
-	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
-	    rman_get_start(sc->base_res)));
-
-	sc->chipinit(sc);
-
-	/* reset interrupt -- Do we really need to do this? */
-	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
-	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
-
-	/* CSC Interrupt: Card detect interrupt on */
-	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-
-	/* Signal the thread to wakeup. */
-	wakeup(&sc->intrhand);
-
-	error = bus_generic_resume(self);
-
-	return (error);
 }
 
 int
