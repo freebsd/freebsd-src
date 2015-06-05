@@ -4692,12 +4692,10 @@ softdep_setup_dotdot_link(dp, ip)
 	struct inodedep *inodedep;
 	struct jaddref *jaddref;
 	struct vnode *dvp;
-	struct vnode *vp;
 
 	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
 	    ("softdep_setup_dotdot_link called on non-softdep filesystem"));
 	dvp = ITOV(dp);
-	vp = ITOV(ip);
 	jaddref = NULL;
 	/*
 	 * We don't set MKDIR_PARENT as this is not tied to a mkdir and
@@ -7066,7 +7064,6 @@ trunc_dependencies(ip, freeblks, lastlbn, lastoff, flags)
 	struct bufobj *bo;
 	struct vnode *vp;
 	struct buf *bp;
-	struct fs *fs;
 	int blkoff;
 
 	/*
@@ -7075,7 +7072,6 @@ trunc_dependencies(ip, freeblks, lastlbn, lastoff, flags)
 	 * Once they are all there, walk the list and get rid of
 	 * any dependencies.
 	 */
-	fs = ip->i_fs;
 	vp = ITOV(ip);
 	bo = &vp->v_bufobj;
 	BO_LOCK(bo);
@@ -9511,12 +9507,10 @@ handle_written_sbdep(sbdep, bp)
 	struct buf *bp;
 {
 	struct inodedep *inodedep;
-	struct mount *mp;
 	struct fs *fs;
 
 	LOCK_OWNED(sbdep->sb_ump);
 	fs = sbdep->sb_fs;
-	mp = UFSTOVFS(sbdep->sb_ump);
 	/*
 	 * If the superblock doesn't match the in-memory list start over.
 	 */

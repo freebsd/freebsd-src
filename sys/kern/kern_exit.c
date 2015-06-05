@@ -951,12 +951,10 @@ static int
 proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
     int *status, int options, struct __wrusage *wrusage, siginfo_t *siginfo)
 {
-	struct proc *q;
 	struct rusage *rup;
 
 	sx_assert(&proctree_lock, SA_XLOCKED);
 
-	q = td->td_proc;
 	PROC_LOCK(p);
 
 	switch (idtype) {
