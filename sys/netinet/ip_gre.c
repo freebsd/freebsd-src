@@ -318,18 +318,18 @@ gre_lookup(struct mbuf *m, u_int8_t proto)
 	struct ip *ip = mtod(m, struct ip *);
 	struct gre_softc *sc;
 
-	mtx_lock(&gre_mtx);
-	for (sc = LIST_FIRST(&gre_softc_list); sc != NULL;
+	GRE_LIST_LOCK();
+	for (sc = LIST_FIRST(&V_gre_softc_list); sc != NULL;
 	     sc = LIST_NEXT(sc, sc_list)) {
 		if ((sc->g_dst.s_addr == ip->ip_src.s_addr) &&
 		    (sc->g_src.s_addr == ip->ip_dst.s_addr) &&
 		    (sc->g_proto == proto) &&
 		    ((GRE2IFP(sc)->if_flags & IFF_UP) != 0)) {
-			mtx_unlock(&gre_mtx);
+			GRE_LIST_UNLOCK();
 			return (sc);
 		}
 	}
-	mtx_unlock(&gre_mtx);
+	GRE_LIST_UNLOCK();
 
 	return (NULL);
 }
