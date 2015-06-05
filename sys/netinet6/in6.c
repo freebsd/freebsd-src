@@ -155,29 +155,28 @@ in6_ifaddloop(struct ifaddr *ifa)
 
 	ia = ifa2ia6(ifa);
 	ifp = ifa->ifa_ifp;
-	if (nd6_need_cache(ifp) == 0)
-		return;
-	IF_AFDATA_LOCK(ifp);
-	ifa->ifa_rtrequest = nd6_rtrequest;
-	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
-	    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
-	if (ln != NULL) {
-		ln->la_expire = 0;  /* for IPv6 this means permanent */
-		ln->ln_state = ND6_LLINFO_REACHABLE;
-		/*
-		 * initialize for rtmsg generation
-		 */
-		bzero(&gateway, sizeof(gateway));
-		gateway.sdl_len = sizeof(gateway);
-		gateway.sdl_family = AF_LINK;
-		gateway.sdl_nlen = 0;
-		gateway.sdl_alen = 6;
-		memcpy(gateway.sdl_data, &ln->ll_addr.mac_aligned,
-		    sizeof(ln->ll_addr));
-		LLE_WUNLOCK(ln);
-	}
+	/*
+	 * initialize for rtmsg generation
+	 */
+	bzero(&gateway, sizeof(gateway));
+	gateway.sdl_len = sizeof(gateway);
+	gateway.sdl_family = AF_LINK;
+	if (nd6_need_cache(ifp) != 0) {
+		IF_AFDATA_LOCK(ifp);
+		ifa->ifa_rtrequest = nd6_rtrequest;
+		ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
+		    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
+		IF_AFDATA_UNLOCK(ifp);
+		if (ln != NULL) {
+			ln->la_expire = 0;  /* for IPv6 this means permanent */
+			ln->ln_state = ND6_LLINFO_REACHABLE;
 
+			gateway.sdl_alen = 6;
+			memcpy(gateway.sdl_data, &ln->ll_addr.mac_aligned,
+			    sizeof(ln->ll_addr));
+			LLE_WUNLOCK(ln);
+		}
+	}
 	bzero(&rt, sizeof(rt));
 	rt.rt_gateway = (struct sockaddr *)&gateway;
 	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
