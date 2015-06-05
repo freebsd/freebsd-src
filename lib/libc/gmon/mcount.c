@@ -270,10 +270,16 @@ overflow:
 }
 
 /*
+ * XXXBD: clang is currently missing .cprestore on MIPS
+ * https://llvm.org/bugs/show_bug.cgi?id=23660
+ */
+#if !__has_feature(capabilities)
+/*
  * Actual definition of mcount function.  Defined in <machine/profile.h>,
  * which is included by <sys/gmon.h>.
  */
 MCOUNT
+#endif
 
 #ifdef GUPROF
 void
