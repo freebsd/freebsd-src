@@ -33,4 +33,17 @@ _drti=		drti
 _libdtrace=	libdtrace
 .endif
 
+.if defined(LIBCHERI)
+.if ${MK_LIBCHERI_ALL} == "no"
+SUBDIR:=
+.else
+.if ${MK_LIBCHERI_BROKEN} == "no"
+# CHERI-Clang #27
+SUBDIR:=	${SUBDIR:Ndrti}
+# CHERI=-Clang #28
+SUBDIR:=	${SUBDIR:Nlibdtrace}
+.endif
+.endif
+.endif
+
 .include <bsd.subdir.mk>

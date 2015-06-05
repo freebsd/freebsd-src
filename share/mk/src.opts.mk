@@ -182,6 +182,8 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     FMAKE \
     HESIOD \
+    LIBCHERI_ALL \
+    LIBCHERI_BROKEN \
     LLDB \
     NAND \
     OFED \

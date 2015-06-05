@@ -18,4 +18,22 @@ SUBDIR+= tests
 SUBDIR+= libstdc++ libsupc++
 .endif
 
+.if defined(LIBCHERI)
+.if ${MK_LIBCHERI_ALL} == "no"
+SUBDIR:=
+.else
+# No C++ support
+SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
+
+.if ${MK_LIBCHERI_BROKEN} == "no"
+# CHERI-Clang #19
+SUBDIR:=	${SUBDIR:Nlibgcc}
+# Broken and heading for the dustbin of history
+SUBDIR:=	${SUBDIR:Nlibgomp}
+# Include issue
+SUBDIR:=	${SUBDIR:Nlibreadline}
+.endif
+.endif
+.endif
+
 .include <bsd.subdir.mk>

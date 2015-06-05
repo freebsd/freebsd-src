@@ -15,7 +15,14 @@ SUBDIR+=tests
 .endif
 
 .if defined(LIBCHERI)
+.if ${MK_LIBCHERI_ALL} == "no"
 SUBDIR:=
+.else
+.if ${MK_LIBCHERI_BROKEN} == "no"
+# >90 minutes to compile wb_block.c
+SUBDIR:=	${SUBDIR:Nlibcrypto}
+.endif
+.endif
 .endif
 
 .include <bsd.subdir.mk>
