@@ -2342,7 +2342,7 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		 * instruction
 		 */
 		if (vie->base_register == VM_REG_GUEST_RIP)
-			base += vie->num_valid;
+			base += vie->num_processed;
 	}
 
 	idx = 0;
