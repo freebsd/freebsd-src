@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #define MAXHOP	32	/* max number of tc= indirections */
 
 #include <ctype.h>
+#include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 
 /*
@@ -308,7 +310,7 @@ tdecode(register char *str, char **area)
 	register int c;
 
 	cp = *area;
-	while (c = *str++) {
+	while ((c = *str++)) {
 	    if (c == ':' && *(cp-1) != '\\')
 		break;
 	    *cp++ = c;
