@@ -117,6 +117,7 @@ struct ixlv_sc {
 	struct ifmedia		media;
 	struct callout		timer;
 	int			msix;
+	int			pf_version;
 	int			if_flags;
 
 	bool			link_up;
