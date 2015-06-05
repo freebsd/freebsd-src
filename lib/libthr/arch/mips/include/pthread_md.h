@@ -84,7 +84,7 @@ _tcb_get(void)
 	    ".set\tmips64r2\n\t"
 	    "rdhwr\t%0, $29\n\t"
 	    ".set\tpop"
-	    : "=v" (_rv));
+	    : "=r" (_rv));
 
 	/*
 	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
@@ -106,7 +106,7 @@ _tcb_get(void)
 	    ".set\tmips32r2\n\t"
 	    "rdhwr\t%0, $29\n\t"
 	    ".set\tpop"
-	    : "=v" (_rv));
+	    : "=r" (_rv));
 
 	/*
 	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
