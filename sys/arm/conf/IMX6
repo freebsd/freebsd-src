@@ -153,6 +153,7 @@ device		u3g			# USB modems
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
+makeoptions	MODULES_EXTRA=dtb/imx6
 
 # SoC-specific devices
 device		ffec			# Freescale Fast Ethernet Controller
