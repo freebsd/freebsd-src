@@ -87,6 +87,7 @@ proto_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	proto_add_resource(sc, PROTO_RES_PCICFG, 0, NULL);
+	proto_add_resource(sc, PROTO_RES_BUSDMA, 0, NULL);
 
 	for (bar = 0; bar < PCIR_MAX_BAR_0; bar++) {
 		rid = PCIR_BAR(bar);

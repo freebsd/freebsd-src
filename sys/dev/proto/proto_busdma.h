@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, 2015 Marcel Moolenaar
+ * Copyright (c) 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,41 +26,25 @@
  * $FreeBSD$
  */
 
-#ifndef _DEV_PROTO_DEV_H_
-#define _DEV_PROTO_DEV_H_
+#ifndef _DEV_PROTO_BUSDMA_H_
+#define _DEV_PROTO_BUSDMA_H_
 
-#include <sys/ioccom.h>
-
-#define	PROTO_IOC_CLASS	'h'
-
-struct proto_ioc_region {
-	unsigned long	address;
-	unsigned long	size;
+struct proto_tag {
+	LIST_ENTRY(proto_tag)	link;
+	struct proto_tag	*parent;
+	bus_dma_tag_t		busdma_tag;
 };
 
-#define PROTO_IOC_REGION _IOWR(PROTO_IOC_CLASS, 1, struct proto_ioc_region)
-
-struct proto_ioc_busdma {
-	unsigned int	request;
-#define	PROTO_IOC_BUSDMA_TAG_CREATE	1
-#define	PROTO_IOC_BUSDMA_TAG_DERIVE	2
-#define	PROTO_IOC_BUSDMA_TAG_DESTROY	3
-	unsigned long	key;
-	union {
-		struct {
-			unsigned long	align;
-			unsigned long	bndry;
-			unsigned long	maxaddr;
-			unsigned long	maxsz;
-			unsigned long	maxsegsz;
-			unsigned int	nsegs;
-			unsigned int	datarate;
-			unsigned int	flags;
-		} tag;
-	} u;
-	unsigned long	result;
+struct proto_busdma {
+	LIST_HEAD(,proto_tag)	tags;
 };
 
-#define PROTO_IOC_BUSDMA _IOWR(PROTO_IOC_CLASS, 2, struct proto_ioc_busdma)
+struct proto_busdma *proto_busdma_attach(struct proto_softc *);
+int proto_busdma_detach(struct proto_softc *, struct proto_busdma *);
 
-#endif /* _DEV_PROTO_H_ */
+int proto_busdma_cleanup(struct proto_softc *, struct proto_busdma *);
+
+int proto_busdma_ioctl(struct proto_softc *, struct proto_busdma *,
+    struct proto_ioc_busdma *);
+
+#endif /* _DEV_PROTO_BUSDMA_H_ */
