@@ -25,7 +25,7 @@ ident		BEAGLEBONE
 
 include		"../ti/am335x/std.am335x"
 
-makeoptions	WITHOUT_MODULES="ahc"
+makeoptions	MODULES_EXTRA="dtb/am335x"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -158,5 +158,3 @@ device		usfs
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=beaglebone.dts
