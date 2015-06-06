@@ -68,6 +68,7 @@ bf [label="Brendan Fabeny\nbf@FreeBSD.org\n2010/06/02"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/23"]
 bofh [label="Muhammad Moinur Rahman\nbofh@FreeBSD.org\n2014/12/23"]
+brnrd [label="Bernard Spil\nbrnrd@FreeBSD.org\n2015/05/24"]
 brix [label="Henrik Brix Andersen\nbrix@FreeBSD.org\n2007/10/31"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 bsam [label="Boris Samorodov\nbsam@FreeBSD.org\n2006/07/20"]
@@ -224,6 +225,7 @@ trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2013/10/17"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
+vsevolod [label="Vsevolod Stakhov\nvsevolod@FreeBSD.org\n2005/07/22"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
@@ -404,6 +406,7 @@ knu -> maho
 knu -> nobutaka
 knu -> nork
 
+koobs -> brnrd
 koobs -> kami
 koobs -> xmj
 
@@ -575,6 +578,8 @@ thierry -> riggs
 
 tmclaugh -> itetcu
 tmclaugh -> xride
+
+vsevolod -> brnrd
 
 wen -> cs
 wen -> culot
