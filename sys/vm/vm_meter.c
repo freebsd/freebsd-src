@@ -110,14 +110,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		if (!VM_OBJECT_TRYLOCK(object)) {
-			/*
-			 * Avoid a lock-order reversal.  Consequently,
-			 * the reported number of active pages may be
-			 * greater than the actual number.
-			 */
-			continue;
-		}
+		VM_OBJECT_LOCK(object);
 		vm_object_clear_flag(object, OBJ_ACTIVE);
 		VM_OBJECT_UNLOCK(object);
 	}
@@ -195,10 +188,9 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		/*
-		 * Perform unsynchronized reads on the object to avoid
-		 * a lock-order reversal.  In this case, the lack of
-		 * synchronization should not impair the accuracy of
-		 * the reported statistics. 
+		 * Perform unsynchronized reads on the object.  In
+		 * this case, the lack of synchronization should not
+		 * impair the accuracy of the reported statistics.
 		 */
 		if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
 			/*

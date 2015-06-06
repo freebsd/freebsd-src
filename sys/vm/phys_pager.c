@@ -129,6 +129,8 @@ phys_pager_dealloc(vm_object_t object)
 		mtx_unlock(&phys_pager_mtx);
 		VM_OBJECT_LOCK(object);
 	}
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 /*
