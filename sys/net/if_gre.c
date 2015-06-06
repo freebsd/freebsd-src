@@ -1,8 +1,6 @@
-/*	$NetBSD: if_gre.c,v 1.49 2003/12/11 00:22:29 itojun Exp $ */
-/*	 $FreeBSD$ */
-
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * Copyright (c) 2014 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -30,24 +28,20 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $NetBSD: if_gre.c,v 1.49 2003/12/11 00:22:29 itojun Exp $
  */
 
-/*
- * Encapsulate L3 protocols into IP
- * See RFC 2784 (successor of RFC 1701 and 1702) for more details.
- * If_gre is compatible with Cisco GRE tunnels, so you can
- * have a NetBSD box as the other end of a tunnel interface of a Cisco
- * router. See gre(4) for more details.
- * Also supported:  IP in IP encaps (proto 55) as of RFC 2004
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -55,94 +49,84 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_clone.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
-#include <net/route.h>
+#include <net/netisr.h>
 #include <net/vnet.h>
 
-#ifdef INET
 #include <netinet/in.h>
+#ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_gre.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip_encap.h>
-#else
-#error "Huh? if_gre without inet?"
 #endif
 
-#include <net/bpf.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
+#endif
 
+#include <netinet/ip_encap.h>
+#include <net/bpf.h>
 #include <net/if_gre.h>
 
-/*
- * It is not easy to calculate the right value for a GRE MTU.
- * We leave this task to the admin and use the same default that
- * other vendors use.
- */
-#define GREMTU	1476
+#include <machine/in_cksum.h>
 
-#define	MTAG_COOKIE_GRE		1307983903
-#define	MTAG_GRE_NESTING	1
-struct mtag_gre_nesting {
-	uint16_t	count;
-	uint16_t	max;
-	struct ifnet	*ifp[];
-};
-
-/*
- * gre_mtx protects all global variables in if_gre.c.
- * XXX: gre_softc data not protected yet.
- */
-VNET_DEFINE(struct mtx, gre_mtx);
-VNET_DEFINE(struct gre_softc_head, gre_softc_list);
-
+#include <security/mac/mac_framework.h>
+#define	GREMTU			1500
 static const char grename[] = "gre";
 static MALLOC_DEFINE(M_GRE, grename, "Generic Routing Encapsulation");
+static VNET_DEFINE(struct mtx, gre_mtx);
+#define	V_gre_mtx	VNET(gre_mtx)
+#define	GRE_LIST_LOCK_INIT(x)		mtx_init(&V_gre_mtx, "gre_mtx", NULL, \
+					    MTX_DEF)
+#define	GRE_LIST_LOCK_DESTROY(x)	mtx_destroy(&V_gre_mtx)
+#define	GRE_LIST_LOCK(x)		mtx_lock(&V_gre_mtx)
+#define	GRE_LIST_UNLOCK(x)		mtx_unlock(&V_gre_mtx)
+
+static VNET_DEFINE(LIST_HEAD(, gre_softc), gre_softc_list);
+#define	V_gre_softc_list	VNET(gre_softc_list)
+static struct sx gre_ioctl_sx;
+SX_SYSINIT(gre_ioctl_sx, &gre_ioctl_sx, "gre_ioctl");
 
 static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
 static VNET_DEFINE(struct if_clone *, gre_cloner);
 #define	V_gre_cloner	VNET(gre_cloner)
 
+static void	gre_qflush(struct ifnet *);
+static int	gre_transmit(struct ifnet *, struct mbuf *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
 
-static int gre_compute_route(struct gre_softc *sc);
+static void	gre_updatehdr(struct gre_softc *);
+static int	gre_set_tunnel(struct ifnet *, struct sockaddr *,
+    struct sockaddr *);
+static void	gre_delete_tunnel(struct ifnet *);
 
+int		gre_input(struct mbuf **, int *, int);
 #ifdef INET
-extern struct domain inetdomain;
-static const struct protosw in_gre_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_GRE,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		gre_input,
-	.pr_output =		(pr_output_t *)rip_output,
-	.pr_ctlinput =		rip_ctlinput,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
-static const struct protosw in_mobile_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_MOBILE,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		gre_mobile_input,
-	.pr_output =		(pr_output_t *)rip_output,
-	.pr_ctlinput =		rip_ctlinput,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
+extern int	in_gre_attach(struct gre_softc *);
+extern int	in_gre_output(struct mbuf *, int, int);
+#endif
+#ifdef INET6
+extern int	in6_gre_attach(struct gre_softc *);
+extern int	in6_gre_output(struct mbuf *, int, int);
 #endif
 
 SYSCTL_DECL(_net_link);
@@ -159,6 +143,7 @@ static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
  */
 #define MAX_GRE_NEST 1
 #endif
+
 static VNET_DEFINE(int, max_gre_nesting) = MAX_GRE_NEST;
 #define	V_max_gre_nesting	VNET(max_gre_nesting)
 SYSCTL_INT(_net_link_gre, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
@@ -191,34 +176,22 @@ gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct gre_softc *sc;
 
 	sc = malloc(sizeof(struct gre_softc), M_GRE, M_WAITOK | M_ZERO);
-
+	sc->gre_fibnum = curthread->td_proc->p_fibnum;
 	GRE2IFP(sc) = if_alloc(IFT_TUNNEL);
-	if (GRE2IFP(sc) == NULL) {
-		free(sc, M_GRE);
-		return (ENOSPC);
-	}
-
+	GRE_LOCK_INIT(sc);
 	GRE2IFP(sc)->if_softc = sc;
 	if_initname(GRE2IFP(sc), grename, unit);
 
-	GRE2IFP(sc)->if_snd.ifq_maxlen = ifqmaxlen;
-	GRE2IFP(sc)->if_addrlen = 0;
-	GRE2IFP(sc)->if_hdrlen = 24; /* IP + GRE */
-	GRE2IFP(sc)->if_mtu = GREMTU;
+	GRE2IFP(sc)->if_mtu = sc->gre_mtu = GREMTU;
 	GRE2IFP(sc)->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
 	GRE2IFP(sc)->if_output = gre_output;
 	GRE2IFP(sc)->if_ioctl = gre_ioctl;
-	sc->g_dst.s_addr = sc->g_src.s_addr = INADDR_ANY;
-	sc->g_proto = IPPROTO_GRE;
-	GRE2IFP(sc)->if_flags |= IFF_LINK0;
-	sc->encap = NULL;
-	sc->gre_fibnum = curthread->td_proc->p_fibnum;
-	sc->wccp_ver = WCCP_V1;
-	sc->key = 0;
+	GRE2IFP(sc)->if_transmit = gre_transmit;
+	GRE2IFP(sc)->if_qflush = gre_qflush;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	GRE_LIST_LOCK();
-	LIST_INSERT_HEAD(&V_gre_softc_list, sc, sc_list);
+	LIST_INSERT_HEAD(&V_gre_softc_list, sc, gre_list);
 	GRE_LIST_UNLOCK();
 	return (0);
 }
@@ -226,734 +199,752 @@ gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 static void
 gre_clone_destroy(struct ifnet *ifp)
 {
-	struct gre_softc *sc = ifp->if_softc;
+	struct gre_softc *sc;
 
+	sx_xlock(&gre_ioctl_sx);
+	sc = ifp->if_softc;
+	gre_delete_tunnel(ifp);
 	GRE_LIST_LOCK();
-	LIST_REMOVE(sc, sc_list);
+	LIST_REMOVE(sc, gre_list);
 	GRE_LIST_UNLOCK();
-
-#ifdef INET
-	if (sc->encap != NULL)
-		encap_detach(sc->encap);
-#endif
 	bpfdetach(ifp);
 	if_detach(ifp);
+	ifp->if_softc = NULL;
+	sx_xunlock(&gre_ioctl_sx);
+
 	if_free(ifp);
+	GRE_LOCK_DESTROY(sc);
 	free(sc, M_GRE);
-}
-
-/*
- * The output routine. Takes a packet and encapsulates it in the protocol
- * given by sc->g_proto. See also RFC 1701 and RFC 2004
- */
-static int
-gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	   struct route *ro)
-{
-	int error = 0;
-	struct gre_softc *sc = ifp->if_softc;
-	struct greip *gh;
-	struct ip *ip;
-	struct m_tag *mtag;
-	struct mtag_gre_nesting *gt;
-	size_t len;
-	u_short gre_ip_id = 0;
-	uint8_t gre_ip_tos = 0;
-	u_int16_t etype = 0;
-	struct mobile_h mob_h;
-	u_int32_t af;
-	int extra = 0, max;
-
-	/*
-	 * gre may cause infinite recursion calls when misconfigured.  High
-	 * nesting level may cause stack exhaustion.  We'll prevent this by
-	 * detecting loops and by introducing upper limit.
-	 */
-	mtag = m_tag_locate(m, MTAG_COOKIE_GRE, MTAG_GRE_NESTING, NULL);
-	if (mtag != NULL) {
-		struct ifnet **ifp2;
-
-		gt = (struct mtag_gre_nesting *)(mtag + 1);
-		gt->count++;
-		if (gt->count > min(gt->max, V_max_gre_nesting)) {
-			printf("%s: hit maximum recursion limit %u on %s\n",
-				__func__, gt->count - 1, ifp->if_xname);
-			m_freem(m);
-			error = EIO;	/* is there better errno? */
-			goto end;
-		}
-
-		ifp2 = gt->ifp;
-		for (max = gt->count - 1; max > 0; max--) {
-			if (*ifp2 == ifp)
-				break;
-			ifp2++;
-		}
-		if (*ifp2 == ifp) {
-			printf("%s: detected loop with nexting %u on %s\n",
-				__func__, gt->count-1, ifp->if_xname);
-			m_freem(m);
-			error = EIO;	/* is there better errno? */
-			goto end;
-		}
-		*ifp2 = ifp;
-
-	} else {
-		/*
-		 * Given that people should NOT increase max_gre_nesting beyond
-		 * their real needs, we allocate once per packet rather than
-		 * allocating an mtag once per passing through gre.
-		 *
-		 * Note: the sysctl does not actually check for saneness, so we
-		 * limit the maximum numbers of possible recursions here.
-		 */
-		max = imin(V_max_gre_nesting, 256);
-		/* If someone sets the sysctl <= 0, we want at least 1. */
-		max = imax(max, 1);
-		len = sizeof(struct mtag_gre_nesting) +
-		    max * sizeof(struct ifnet *);
-		mtag = m_tag_alloc(MTAG_COOKIE_GRE, MTAG_GRE_NESTING, len,
-		    M_NOWAIT);
-		if (mtag == NULL) {
-			m_freem(m);
-			error = ENOMEM;
-			goto end;
-		}
-		gt = (struct mtag_gre_nesting *)(mtag + 1);
-		bzero(gt, len);
-		gt->count = 1;
-		gt->max = max;
-		*gt->ifp = ifp;
-		m_tag_prepend(m, mtag);
-	}
-
-	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
-	    sc->g_src.s_addr == INADDR_ANY || sc->g_dst.s_addr == INADDR_ANY) {
-		m_freem(m);
-		error = ENETDOWN;
-		goto end;
-	}
-
-	gh = NULL;
-	ip = NULL;
-
-	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC)
-		bcopy(dst->sa_data, &af, sizeof(af));
-	else
-		af = dst->sa_family;
-
-	if (bpf_peers_present(ifp->if_bpf))
-		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-
-	if ((ifp->if_flags & IFF_MONITOR) != 0) {
-		m_freem(m);
-		error = ENETDOWN;
-		goto end;
-	}
-
-	m->m_flags &= ~(M_BCAST|M_MCAST);
-
-	if (sc->g_proto == IPPROTO_MOBILE) {
-		if (af == AF_INET) {
-			struct mbuf *m0;
-			int msiz;
-
-			ip = mtod(m, struct ip *);
-
-			/*
-			 * RFC2004 specifies that fragmented diagrams shouldn't
-			 * be encapsulated.
-			 */
-			if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
-				_IF_DROP(&ifp->if_snd);
-				m_freem(m);
-				error = EINVAL;    /* is there better errno? */
-				goto end;
-			}
-			memset(&mob_h, 0, MOB_H_SIZ_L);
-			mob_h.proto = (ip->ip_p) << 8;
-			mob_h.odst = ip->ip_dst.s_addr;
-			ip->ip_dst.s_addr = sc->g_dst.s_addr;
-
-			/*
-			 * If the packet comes from our host, we only change
-			 * the destination address in the IP header.
-			 * Else we also need to save and change the source
-			 */
-			if (in_hosteq(ip->ip_src, sc->g_src)) {
-				msiz = MOB_H_SIZ_S;
-			} else {
-				mob_h.proto |= MOB_H_SBIT;
-				mob_h.osrc = ip->ip_src.s_addr;
-				ip->ip_src.s_addr = sc->g_src.s_addr;
-				msiz = MOB_H_SIZ_L;
-			}
-			mob_h.proto = htons(mob_h.proto);
-			mob_h.hcrc = gre_in_cksum((u_int16_t *)&mob_h, msiz);
-
-			if ((m->m_data - msiz) < m->m_pktdat) {
-				m0 = m_gethdr(M_NOWAIT, MT_DATA);
-				if (m0 == NULL) {
-					_IF_DROP(&ifp->if_snd);
-					m_freem(m);
-					error = ENOBUFS;
-					goto end;
-				}
-				m0->m_next = m;
-				m->m_data += sizeof(struct ip);
-				m->m_len -= sizeof(struct ip);
-				m0->m_pkthdr.len = m->m_pkthdr.len + msiz;
-				m0->m_len = msiz + sizeof(struct ip);
-				m0->m_data += max_linkhdr;
-				memcpy(mtod(m0, caddr_t), (caddr_t)ip,
-				       sizeof(struct ip));
-				m = m0;
-			} else {  /* we have some space left in the old one */
-				m->m_data -= msiz;
-				m->m_len += msiz;
-				m->m_pkthdr.len += msiz;
-				bcopy(ip, mtod(m, caddr_t),
-					sizeof(struct ip));
-			}
-			ip = mtod(m, struct ip *);
-			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
-			ip->ip_len = htons(ntohs(ip->ip_len) + msiz);
-		} else {  /* AF_INET */
-			_IF_DROP(&ifp->if_snd);
-			m_freem(m);
-			error = EINVAL;
-			goto end;
-		}
-	} else if (sc->g_proto == IPPROTO_GRE) {
-		switch (af) {
-		case AF_INET:
-			ip = mtod(m, struct ip *);
-			gre_ip_tos = ip->ip_tos;
-			gre_ip_id = ip->ip_id;
-			if (sc->wccp_ver == WCCP_V2) {
-				extra = sizeof(uint32_t);
-				etype =  WCCP_PROTOCOL_TYPE;
-			} else {
-				etype = ETHERTYPE_IP;
-			}
-			break;
-#ifdef INET6
-		case AF_INET6:
-			gre_ip_id = ip_newid();
-			etype = ETHERTYPE_IPV6;
-			break;
-#endif
-#ifdef NETATALK
-		case AF_APPLETALK:
-			etype = ETHERTYPE_ATALK;
-			break;
-#endif
-		default:
-			_IF_DROP(&ifp->if_snd);
-			m_freem(m);
-			error = EAFNOSUPPORT;
-			goto end;
-		}
-			
-		/* Reserve space for GRE header + optional GRE key */
-		int hdrlen = sizeof(struct greip) + extra;
-		if (sc->key)
-			hdrlen += sizeof(uint32_t);
-		M_PREPEND(m, hdrlen, M_NOWAIT);
-	} else {
-		_IF_DROP(&ifp->if_snd);
-		m_freem(m);
-		error = EINVAL;
-		goto end;
-	}
-
-	if (m == NULL) {	/* mbuf allocation failed */
-		_IF_DROP(&ifp->if_snd);
-		error = ENOBUFS;
-		goto end;
-	}
-
-	M_SETFIB(m, sc->gre_fibnum); /* The envelope may use a different FIB */
-
-	gh = mtod(m, struct greip *);
-	if (sc->g_proto == IPPROTO_GRE) {
-		uint32_t *options = gh->gi_options;
-
-		memset((void *)gh, 0, sizeof(struct greip) + extra);
-		gh->gi_ptype = htons(etype);
-		gh->gi_flags = 0;
-
-		/* Add key option */
-		if (sc->key)
-		{
-			gh->gi_flags |= htons(GRE_KP);
-			*(options++) = htonl(sc->key);
-		}
-	}
-
-	gh->gi_pr = sc->g_proto;
-	if (sc->g_proto != IPPROTO_MOBILE) {
-		gh->gi_src = sc->g_src;
-		gh->gi_dst = sc->g_dst;
-		((struct ip*)gh)->ip_v = IPPROTO_IPV4;
-		((struct ip*)gh)->ip_hl = (sizeof(struct ip)) >> 2;
-		((struct ip*)gh)->ip_ttl = GRE_TTL;
-		((struct ip*)gh)->ip_tos = gre_ip_tos;
-		((struct ip*)gh)->ip_id = gre_ip_id;
-		gh->gi_len = htons(m->m_pkthdr.len);
-	}
-
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
-	/*
-	 * Send it off and with IP_FORWARD flag to prevent it from
-	 * overwriting the ip_id again.  ip_id is already set to the
-	 * ip_id of the encapsulated packet.
-	 */
-	error = ip_output(m, NULL, &sc->route, IP_FORWARDING,
-	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
-  end:
-	if (error)
-		ifp->if_oerrors++;
-	return (error);
 }
 
 static int
 gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
+	GRE_RLOCK_TRACKER;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct if_laddrreq *lifr = (struct if_laddrreq *)data;
-	struct in_aliasreq *aifr = (struct in_aliasreq *)data;
-	struct gre_softc *sc = ifp->if_softc;
-	struct sockaddr_in si;
-	struct sockaddr *sa = NULL;
-	int error, adj;
-	struct sockaddr_in sp, sm, dp, dm;
-	uint32_t key;
-
-	error = 0;
-	adj = 0;
+	struct sockaddr *src, *dst;
+	struct gre_softc *sc;
+#ifdef INET
+	struct sockaddr_in *sin = NULL;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6 = NULL;
+#endif
+	uint32_t opt;
+	int error;
 
 	switch (cmd) {
+	case SIOCSIFMTU:
+		 /* XXX: */
+		if (ifr->ifr_mtu < 576)
+			return (EINVAL);
+		break;
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
-		break;
 	case SIOCSIFFLAGS:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_SETIFFLAGS)) != 0)
-			break;
-		if ((ifr->ifr_flags & IFF_LINK0) != 0)
-			sc->g_proto = IPPROTO_GRE;
-		else
-			sc->g_proto = IPPROTO_MOBILE;
-		if ((ifr->ifr_flags & IFF_LINK2) != 0)
-			sc->wccp_ver = WCCP_V2;
-		else
-			sc->wccp_ver = WCCP_V1;
-		goto recompute;
-	case SIOCSIFMTU:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_SETIFMTU)) != 0)
-			break;
-		if (ifr->ifr_mtu < 576) {
-			error = EINVAL;
-			break;
-		}
-		ifp->if_mtu = ifr->ifr_mtu;
-		break;
-	case SIOCGIFMTU:
-		ifr->ifr_mtu = GRE2IFP(sc)->if_mtu;
-		break;
 	case SIOCADDMULTI:
-		/*
-		 * XXXRW: Isn't this priv_checkr() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_ADDMULTI)) != 0)
-			break;
-		if (ifr == 0) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-		switch (ifr->ifr_addr.sa_family) {
-#ifdef INET
-		case AF_INET:
-			break;
-#endif
-#ifdef INET6
-		case AF_INET6:
-			break;
-#endif
-		default:
-			error = EAFNOSUPPORT;
-			break;
-		}
-		break;
 	case SIOCDELMULTI:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_DELIFGROUP)) != 0)
-			break;
-		if (ifr == 0) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-		switch (ifr->ifr_addr.sa_family) {
-#ifdef INET
-		case AF_INET:
-			break;
-#endif
-#ifdef INET6
-		case AF_INET6:
-			break;
-#endif
-		default:
-			error = EAFNOSUPPORT;
-			break;
-		}
-		break;
-	case GRESPROTO:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
-			break;
-		sc->g_proto = ifr->ifr_flags;
-		switch (sc->g_proto) {
-		case IPPROTO_GRE:
-			ifp->if_flags |= IFF_LINK0;
-			break;
-		case IPPROTO_MOBILE:
-			ifp->if_flags &= ~IFF_LINK0;
-			break;
-		default:
-			error = EPROTONOSUPPORT;
-			break;
-		}
-		goto recompute;
-	case GREGPROTO:
-		ifr->ifr_flags = sc->g_proto;
-		break;
+		return (0);
 	case GRESADDRS:
 	case GRESADDRD:
-		error = priv_check(curthread, PRIV_NET_GRE);
-		if (error)
-			return (error);
-		/*
-		 * set tunnel endpoints, compute a less specific route
-		 * to the remote end and mark if as up
-		 */
-		sa = &ifr->ifr_addr;
-		if (cmd == GRESADDRS)
-			sc->g_src = (satosin(sa))->sin_addr;
-		if (cmd == GRESADDRD)
-			sc->g_dst = (satosin(sa))->sin_addr;
-	recompute:
-#ifdef INET
-		if (sc->encap != NULL) {
-			encap_detach(sc->encap);
-			sc->encap = NULL;
-		}
-#endif
-		if ((sc->g_src.s_addr != INADDR_ANY) &&
-		    (sc->g_dst.s_addr != INADDR_ANY)) {
-			bzero(&sp, sizeof(sp));
-			bzero(&sm, sizeof(sm));
-			bzero(&dp, sizeof(dp));
-			bzero(&dm, sizeof(dm));
-			sp.sin_len = sm.sin_len = dp.sin_len = dm.sin_len =
-			    sizeof(struct sockaddr_in);
-			sp.sin_family = sm.sin_family = dp.sin_family =
-			    dm.sin_family = AF_INET;
-			sp.sin_addr = sc->g_src;
-			dp.sin_addr = sc->g_dst;
-			sm.sin_addr.s_addr = dm.sin_addr.s_addr =
-			    INADDR_BROADCAST;
-#ifdef INET
-			sc->encap = encap_attach(AF_INET, sc->g_proto,
-			    sintosa(&sp), sintosa(&sm), sintosa(&dp),
-			    sintosa(&dm), (sc->g_proto == IPPROTO_GRE) ?
-				&in_gre_protosw : &in_mobile_protosw, sc);
-			if (sc->encap == NULL)
-				printf("%s: unable to attach encap\n",
-				    if_name(GRE2IFP(sc)));
-#endif
-			if (sc->route.ro_rt != 0) /* free old route */
-				RTFREE(sc->route.ro_rt);
-			if (gre_compute_route(sc) == 0)
-				ifp->if_drv_flags |= IFF_DRV_RUNNING;
-			else
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		}
-		break;
 	case GREGADDRS:
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_len = sizeof(struct sockaddr_in);
-		si.sin_addr.s_addr = sc->g_src.s_addr;
-		sa = sintosa(&si);
-		error = prison_if(curthread->td_ucred, sa);
-		if (error != 0)
-			break;
-		ifr->ifr_addr = *sa;
-		break;
 	case GREGADDRD:
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_len = sizeof(struct sockaddr_in);
-		si.sin_addr.s_addr = sc->g_dst.s_addr;
-		sa = sintosa(&si);
-		error = prison_if(curthread->td_ucred, sa);
-		if (error != 0)
-			break;
-		ifr->ifr_addr = *sa;
-		break;
+	case GRESPROTO:
+	case GREGPROTO:
+		return (EOPNOTSUPP);
+	}
+	src = dst = NULL;
+	sx_xlock(&gre_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc == NULL) {
+		error = ENXIO;
+		goto end;
+	}
+	error = 0;
+	switch (cmd) {
+	case SIOCSIFMTU:
+		GRE_WLOCK(sc);
+		sc->gre_mtu = ifr->ifr_mtu;
+		gre_updatehdr(sc);
+		GRE_WUNLOCK(sc);
+		goto end;
 	case SIOCSIFPHYADDR:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
+#ifdef INET6
+	case SIOCSIFPHYADDR_IN6:
+#endif
+		error = EINVAL;
+		switch (cmd) {
+#ifdef INET
+		case SIOCSIFPHYADDR:
+			src = (struct sockaddr *)
+				&(((struct in_aliasreq *)data)->ifra_addr);
+			dst = (struct sockaddr *)
+				&(((struct in_aliasreq *)data)->ifra_dstaddr);
 			break;
-		if (aifr->ifra_addr.sin_family != AF_INET ||
-		    aifr->ifra_dstaddr.sin_family != AF_INET) {
+#endif
+#ifdef INET6
+		case SIOCSIFPHYADDR_IN6:
+			src = (struct sockaddr *)
+				&(((struct in6_aliasreq *)data)->ifra_addr);
+			dst = (struct sockaddr *)
+				&(((struct in6_aliasreq *)data)->ifra_dstaddr);
+			break;
+#endif
+		default:
 			error = EAFNOSUPPORT;
-			break;
+			goto end;
 		}
-		if (aifr->ifra_addr.sin_len != sizeof(si) ||
-		    aifr->ifra_dstaddr.sin_len != sizeof(si)) {
-			error = EINVAL;
+		/* sa_family must be equal */
+		if (src->sa_family != dst->sa_family ||
+		    src->sa_len != dst->sa_len)
+			goto end;
+
+		/* validate sa_len */
+		switch (src->sa_family) {
+#ifdef INET
+		case AF_INET:
+			if (src->sa_len != sizeof(struct sockaddr_in))
+				goto end;
 			break;
-		}
-		sc->g_src = aifr->ifra_addr.sin_addr;
-		sc->g_dst = aifr->ifra_dstaddr.sin_addr;
-		goto recompute;
-	case SIOCSLIFPHYADDR:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
+#endif
+#ifdef INET6
+		case AF_INET6:
+			if (src->sa_len != sizeof(struct sockaddr_in6))
+				goto end;
 			break;
-		if (lifr->addr.ss_family != AF_INET ||
-		    lifr->dstaddr.ss_family != AF_INET) {
+#endif
+		default:
 			error = EAFNOSUPPORT;
-			break;
+			goto end;
 		}
-		if (lifr->addr.ss_len != sizeof(si) ||
-		    lifr->dstaddr.ss_len != sizeof(si)) {
-			error = EINVAL;
-			break;
+		/* check sa_family looks sane for the cmd */
+		error = EAFNOSUPPORT;
+		switch (cmd) {
+#ifdef INET
+		case SIOCSIFPHYADDR:
+			if (src->sa_family == AF_INET)
+				break;
+			goto end;
+#endif
+#ifdef INET6
+		case SIOCSIFPHYADDR_IN6:
+			if (src->sa_family == AF_INET6)
+				break;
+			goto end;
+#endif
 		}
-		sc->g_src = (satosin(&lifr->addr))->sin_addr;
-		sc->g_dst =
-		    (satosin(&lifr->dstaddr))->sin_addr;
-		goto recompute;
+		error = EADDRNOTAVAIL;
+		switch (src->sa_family) {
+#ifdef INET
+		case AF_INET:
+			if (satosin(src)->sin_addr.s_addr == INADDR_ANY ||
+			    satosin(dst)->sin_addr.s_addr == INADDR_ANY)
+				goto end;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			if (IN6_IS_ADDR_UNSPECIFIED(&satosin6(src)->sin6_addr)
+			    ||
+			    IN6_IS_ADDR_UNSPECIFIED(&satosin6(dst)->sin6_addr))
+				goto end;
+			/*
+			 * Check validity of the scope zone ID of the
+			 * addresses, and convert it into the kernel
+			 * internal form if necessary.
+			 */
+			error = sa6_embedscope(satosin6(src), 0);
+			if (error != 0)
+				goto end;
+			error = sa6_embedscope(satosin6(dst), 0);
+			if (error != 0)
+				goto end;
+#endif
+		};
+		error = gre_set_tunnel(ifp, src, dst);
+		break;
 	case SIOCDIFPHYADDR:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
-			break;
-		sc->g_src.s_addr = INADDR_ANY;
-		sc->g_dst.s_addr = INADDR_ANY;
-		goto recompute;
-	case SIOCGLIFPHYADDR:
-		if (sc->g_src.s_addr == INADDR_ANY ||
-		    sc->g_dst.s_addr == INADDR_ANY) {
-			error = EADDRNOTAVAIL;
-			break;
-		}
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_len = sizeof(struct sockaddr_in);
-		si.sin_addr.s_addr = sc->g_src.s_addr;
-		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
-		if (error != 0)
-			break;
-		memcpy(&lifr->addr, &si, sizeof(si));
-		si.sin_addr.s_addr = sc->g_dst.s_addr;
-		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
-		if (error != 0)
-			break;
-		memcpy(&lifr->dstaddr, &si, sizeof(si));
+		gre_delete_tunnel(ifp);
 		break;
 	case SIOCGIFPSRCADDR:
-#ifdef INET6
-	case SIOCGIFPSRCADDR_IN6:
-#endif
-		if (sc->g_src.s_addr == INADDR_ANY) {
-			error = EADDRNOTAVAIL;
-			break;
-		}
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_len = sizeof(struct sockaddr_in);
-		si.sin_addr.s_addr = sc->g_src.s_addr;
-		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
-		if (error != 0)
-			break;
-		bcopy(&si, &ifr->ifr_addr, sizeof(ifr->ifr_addr));
-		break;
 	case SIOCGIFPDSTADDR:
 #ifdef INET6
+	case SIOCGIFPSRCADDR_IN6:
 	case SIOCGIFPDSTADDR_IN6:
 #endif
-		if (sc->g_dst.s_addr == INADDR_ANY) {
+		if (sc->gre_family == 0) {
 			error = EADDRNOTAVAIL;
 			break;
 		}
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_len = sizeof(struct sockaddr_in);
-		si.sin_addr.s_addr = sc->g_dst.s_addr;
-		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
+		GRE_RLOCK(sc);
+		switch (cmd) {
+#ifdef INET
+		case SIOCGIFPSRCADDR:
+		case SIOCGIFPDSTADDR:
+			if (sc->gre_family != AF_INET) {
+				error = EADDRNOTAVAIL;
+				break;
+			}
+			sin = (struct sockaddr_in *)&ifr->ifr_addr;
+			memset(sin, 0, sizeof(*sin));
+			sin->sin_family = AF_INET;
+			sin->sin_len = sizeof(*sin);
+			break;
+#endif
+#ifdef INET6
+		case SIOCGIFPSRCADDR_IN6:
+		case SIOCGIFPDSTADDR_IN6:
+			if (sc->gre_family != AF_INET6) {
+				error = EADDRNOTAVAIL;
+				break;
+			}
+			sin6 = (struct sockaddr_in6 *)
+				&(((struct in6_ifreq *)data)->ifr_addr);
+			memset(sin6, 0, sizeof(*sin6));
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_len = sizeof(*sin6);
+			break;
+#endif
+		}
+		if (error == 0) {
+			switch (cmd) {
+#ifdef INET
+			case SIOCGIFPSRCADDR:
+				sin->sin_addr = sc->gre_oip.ip_src;
+				break;
+			case SIOCGIFPDSTADDR:
+				sin->sin_addr = sc->gre_oip.ip_dst;
+				break;
+#endif
+#ifdef INET6
+			case SIOCGIFPSRCADDR_IN6:
+				sin6->sin6_addr = sc->gre_oip6.ip6_src;
+				break;
+			case SIOCGIFPDSTADDR_IN6:
+				sin6->sin6_addr = sc->gre_oip6.ip6_dst;
+				break;
+#endif
+			}
+		}
+		GRE_RUNLOCK(sc);
 		if (error != 0)
 			break;
-		bcopy(&si, &ifr->ifr_addr, sizeof(ifr->ifr_addr));
+		switch (cmd) {
+#ifdef INET
+		case SIOCGIFPSRCADDR:
+		case SIOCGIFPDSTADDR:
+			error = prison_if(curthread->td_ucred,
+			    (struct sockaddr *)sin);
+			if (error != 0)
+				memset(sin, 0, sizeof(*sin));
+			break;
+#endif
+#ifdef INET6
+		case SIOCGIFPSRCADDR_IN6:
+		case SIOCGIFPDSTADDR_IN6:
+			error = prison_if(curthread->td_ucred,
+			    (struct sockaddr *)sin6);
+			if (error == 0)
+				error = sa6_recoverscope(sin6);
+			if (error != 0)
+				memset(sin6, 0, sizeof(*sin6));
+#endif
+		}
 		break;
 	case GRESKEY:
-		error = priv_check(curthread, PRIV_NET_GRE);
-		if (error)
+		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
-		error = copyin(ifr->ifr_data, &key, sizeof(key));
-		if (error)
+		if ((error = copyin(ifr->ifr_data, &opt, sizeof(opt))) != 0)
 			break;
-		/* adjust MTU for option header */
-		if (key == 0 && sc->key != 0)		/* clear */
-			adj += sizeof(key);
-		else if (key != 0 && sc->key == 0)	/* set */
-			adj -= sizeof(key);
-
-		if (ifp->if_mtu + adj < 576) {
-			error = EINVAL;
-			break;
+		if (sc->gre_key != opt) {
+			GRE_WLOCK(sc);
+			sc->gre_key = opt;
+			gre_updatehdr(sc);
+			GRE_WUNLOCK(sc);
 		}
-		ifp->if_mtu += adj;
-		sc->key = key;
 		break;
 	case GREGKEY:
-		error = copyout(&sc->key, ifr->ifr_data, sizeof(sc->key));
+		error = copyout(&sc->gre_key, ifr->ifr_data, sizeof(sc->gre_key));
+		break;
+	case GRESOPTS:
+		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
+			break;
+		if ((error = copyin(ifr->ifr_data, &opt, sizeof(opt))) != 0)
+			break;
+		if (opt & ~GRE_OPTMASK)
+			error = EINVAL;
+		else {
+			if (sc->gre_options != opt) {
+				GRE_WLOCK(sc);
+				sc->gre_options = opt;
+				gre_updatehdr(sc);
+				GRE_WUNLOCK(sc);
+			}
+		}
 		break;
 
+	case GREGOPTS:
+		error = copyout(&sc->gre_options, ifr->ifr_data,
+		    sizeof(sc->gre_options));
+		break;
 	default:
 		error = EINVAL;
 		break;
 	}
-
+end:
+	sx_xunlock(&gre_ioctl_sx);
 	return (error);
 }
 
-/*
- * computes a route to our destination that is not the one
- * which would be taken by ip_output(), as this one will loop back to
- * us. If the interface is p2p as  a--->b, then a routing entry exists
- * If we now send a packet to b (e.g. ping b), this will come down here
- * gets src=a, dst=b tacked on and would from ip_output() sent back to
- * if_gre.
- * Goal here is to compute a route to b that is less specific than
- * a-->b. We know that this one exists as in normal operation we have
- * at least a default route which matches.
- */
-static int
-gre_compute_route(struct gre_softc *sc)
+static void
+gre_updatehdr(struct gre_softc *sc)
 {
-	struct route *ro;
+	struct grehdr *gh = NULL;
+	uint32_t *opts;
+	uint16_t flags;
 
-	ro = &sc->route;
-
-	memset(ro, 0, sizeof(struct route));
-	((struct sockaddr_in *)&ro->ro_dst)->sin_addr = sc->g_dst;
-	ro->ro_dst.sa_family = AF_INET;
-	ro->ro_dst.sa_len = sizeof(ro->ro_dst);
-
-	/*
-	 * toggle last bit, so our interface is not found, but a less
-	 * specific route. I'd rather like to specify a shorter mask,
-	 * but this is not possible. Should work though. XXX
-	 * XXX MRT Use a different FIB for the tunnel to solve this problem.
-	 */
-	if ((GRE2IFP(sc)->if_flags & IFF_LINK1) == 0) {
-		((struct sockaddr_in *)&ro->ro_dst)->sin_addr.s_addr ^=
-		    htonl(0x01);
+	GRE_WLOCK_ASSERT(sc);
+	switch (sc->gre_family) {
+#ifdef INET
+	case AF_INET:
+		sc->gre_hlen = sizeof(struct greip);
+		sc->gre_oip.ip_v = IPPROTO_IPV4;
+		sc->gre_oip.ip_hl = sizeof(struct ip) >> 2;
+		sc->gre_oip.ip_p = IPPROTO_GRE;
+		gh = &sc->gre_gihdr->gi_gre;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		sc->gre_hlen = sizeof(struct greip6);
+		sc->gre_oip6.ip6_vfc = IPV6_VERSION;
+		sc->gre_oip6.ip6_nxt = IPPROTO_GRE;
+		gh = &sc->gre_gi6hdr->gi6_gre;
+		break;
+#endif
+	default:
+		return;
 	}
-
-#ifdef DIAGNOSTIC
-	printf("%s: searching for a route to %s", if_name(GRE2IFP(sc)),
-	    inet_ntoa(((struct sockaddr_in *)&ro->ro_dst)->sin_addr));
-#endif
-
-	rtalloc_fib(ro, sc->gre_fibnum);
-
-	/*
-	 * check if this returned a route at all and this route is no
-	 * recursion to ourself
-	 */
-	if (ro->ro_rt == NULL || ro->ro_rt->rt_ifp->if_softc == sc) {
-#ifdef DIAGNOSTIC
-		if (ro->ro_rt == NULL)
-			printf(" - no route found!\n");
-		else
-			printf(" - route loops back to ourself!\n");
-#endif
-		return EADDRNOTAVAIL;
+	flags = 0;
+	opts = gh->gre_opts;
+	if (sc->gre_options & GRE_ENABLE_CSUM) {
+		flags |= GRE_FLAGS_CP;
+		sc->gre_hlen += 2 * sizeof(uint16_t);
+		*opts++ = 0;
 	}
-
-	/*
-	 * now change it back - else ip_output will just drop
-	 * the route and search one to this interface ...
-	 */
-	if ((GRE2IFP(sc)->if_flags & IFF_LINK1) == 0)
-		((struct sockaddr_in *)&ro->ro_dst)->sin_addr = sc->g_dst;
-
-#ifdef DIAGNOSTIC
-	printf(", choosing %s with gateway %s", if_name(ro->ro_rt->rt_ifp),
-	    inet_ntoa(((struct sockaddr_in *)(ro->ro_rt->rt_gateway))->sin_addr));
-	printf("\n");
-#endif
-
-	return 0;
+	if (sc->gre_key != 0) {
+		flags |= GRE_FLAGS_KP;
+		sc->gre_hlen += sizeof(uint32_t);
+		*opts++ = htonl(sc->gre_key);
+	}
+	if (sc->gre_options & GRE_ENABLE_SEQ) {
+		flags |= GRE_FLAGS_SP;
+		sc->gre_hlen += sizeof(uint32_t);
+		*opts++ = 0;
+	} else
+		sc->gre_oseq = 0;
+	gh->gre_flags = htons(flags);
+	GRE2IFP(sc)->if_mtu = sc->gre_mtu - sc->gre_hlen;
 }
 
-/*
- * do a checksum of a buffer - much like in_cksum, which operates on
- * mbufs.
- */
-u_int16_t
-gre_in_cksum(u_int16_t *p, u_int len)
+static void
+gre_detach(struct gre_softc *sc)
 {
-	u_int32_t sum = 0;
-	int nwords = len >> 1;
 
-	while (nwords-- != 0)
-		sum += *p++;
+	sx_assert(&gre_ioctl_sx, SA_XLOCKED);
+	if (sc->gre_ecookie != NULL)
+		encap_detach(sc->gre_ecookie);
+	sc->gre_ecookie = NULL;
+}
 
-	if (len & 1) {
-		union {
-			u_short w;
-			u_char c[2];
-		} u;
-		u.c[0] = *(u_char *)p;
-		u.c[1] = 0;
-		sum += u.w;
+static int
+gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
+    struct sockaddr *dst)
+{
+	struct gre_softc *sc, *tsc;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+#endif
+#ifdef INET
+	struct ip *ip;
+#endif
+	void *hdr;
+	int error;
+
+	sx_assert(&gre_ioctl_sx, SA_XLOCKED);
+	GRE_LIST_LOCK();
+	sc = ifp->if_softc;
+	LIST_FOREACH(tsc, &V_gre_softc_list, gre_list) {
+		if (tsc == sc || tsc->gre_family != src->sa_family)
+			continue;
+#ifdef INET
+		if (tsc->gre_family == AF_INET &&
+		    tsc->gre_oip.ip_src.s_addr ==
+		    satosin(src)->sin_addr.s_addr &&
+		    tsc->gre_oip.ip_dst.s_addr ==
+		    satosin(dst)->sin_addr.s_addr) {
+			GRE_LIST_UNLOCK();
+			return (EADDRNOTAVAIL);
+		}
+#endif
+#ifdef INET6
+		if (tsc->gre_family == AF_INET6 &&
+		    IN6_ARE_ADDR_EQUAL(&tsc->gre_oip6.ip6_src,
+		    &satosin6(src)->sin6_addr) &&
+		    IN6_ARE_ADDR_EQUAL(&tsc->gre_oip6.ip6_dst,
+			&satosin6(dst)->sin6_addr)) {
+			GRE_LIST_UNLOCK();
+			return (EADDRNOTAVAIL);
+		}
+#endif
+	}
+	GRE_LIST_UNLOCK();
+
+	error = 0;
+	switch (src->sa_family) {
+#ifdef INET
+	case AF_INET:
+		hdr = ip = malloc(sizeof(struct greip) +
+		    3 * sizeof(uint32_t), M_GRE, M_WAITOK | M_ZERO);
+		ip->ip_src = satosin(src)->sin_addr;
+		ip->ip_dst = satosin(dst)->sin_addr;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		hdr = ip6 = malloc(sizeof(struct greip6) +
+		    3 * sizeof(uint32_t), M_GRE, M_WAITOK | M_ZERO);
+		ip6->ip6_src = satosin6(src)->sin6_addr;
+		ip6->ip6_dst = satosin6(dst)->sin6_addr;
+		break;
+#endif
+	default:
+		return (EAFNOSUPPORT);
+	}
+	if (sc->gre_family != src->sa_family)
+		gre_detach(sc);
+	GRE_WLOCK(sc);
+	if (sc->gre_family != 0)
+		free(sc->gre_hdr, M_GRE);
+	sc->gre_family = src->sa_family;
+	sc->gre_hdr = hdr;
+	sc->gre_oseq = 0;
+	sc->gre_iseq = UINT32_MAX;
+	gre_updatehdr(sc);
+	GRE_WUNLOCK(sc);
+
+	switch (src->sa_family) {
+#ifdef INET
+	case AF_INET:
+		error = in_gre_attach(sc);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		error = in6_gre_attach(sc);
+		break;
+#endif
+	}
+	if (error == 0)
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	return (error);
+}
+
+static void
+gre_delete_tunnel(struct ifnet *ifp)
+{
+	struct gre_softc *sc = ifp->if_softc;
+	int family;
+
+	GRE_WLOCK(sc);
+	family = sc->gre_family;
+	sc->gre_family = 0;
+	GRE_WUNLOCK(sc);
+	if (family != 0) {
+		gre_detach(sc);
+		free(sc->gre_hdr, M_GRE);
+	}
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+int
+gre_input(struct mbuf **mp, int *offp, int proto)
+{
+	struct gre_softc *sc;
+	struct grehdr *gh;
+	struct ifnet *ifp;
+	struct mbuf *m;
+	uint32_t *opts, key;
+	uint16_t flags;
+	int hlen, isr, af;
+
+	m = *mp;
+	sc = encap_getarg(m);
+	KASSERT(sc != NULL, ("encap_getarg returned NULL"));
+
+	ifp = GRE2IFP(sc);
+	gh = (struct grehdr *)mtodo(m, *offp);
+	flags = ntohs(gh->gre_flags);
+	if (flags & ~GRE_FLAGS_MASK)
+		goto drop;
+	opts = gh->gre_opts;
+	hlen = 2 * sizeof(uint16_t);
+	if (flags & GRE_FLAGS_CP) {
+		/* reserved1 field must be zero */
+		if (((uint16_t *)opts)[1] != 0)
+			goto drop;
+		if (in_cksum_skip(m, m->m_pkthdr.len, *offp) != 0)
+			goto drop;
+		hlen += 2 * sizeof(uint16_t);
+		opts++;
+	}
+	if (flags & GRE_FLAGS_KP) {
+		key = ntohl(*opts);
+		hlen += sizeof(uint32_t);
+		opts++;
+	} else
+		key = 0;
+	/*
+	if (sc->gre_key != 0 && (key != sc->gre_key || key != 0))
+		goto drop;
+	*/
+	if (flags & GRE_FLAGS_SP) {
+		/* seq = ntohl(*opts); */
+		hlen += sizeof(uint32_t);
+	}
+	switch (ntohs(gh->gre_proto)) {
+	case ETHERTYPE_WCCP:
+		/*
+		 * For WCCP skip an additional 4 bytes if after GRE header
+		 * doesn't follow an IP header.
+		 */
+		if (flags == 0 && (*(uint8_t *)gh->gre_opts & 0xF0) != 0x40)
+			hlen += sizeof(uint32_t);
+		/* FALLTHROUGH */
+	case ETHERTYPE_IP:
+		isr = NETISR_IP;
+		af = AF_INET;
+		break;
+	case ETHERTYPE_IPV6:
+		isr = NETISR_IPV6;
+		af = AF_INET6;
+		break;
+	default:
+		goto drop;
+	}
+	m_adj(m, *offp + hlen);
+	m_clrprotoflags(m);
+	m->m_pkthdr.rcvif = ifp;
+	M_SETFIB(m, sc->gre_fibnum);
+#ifdef MAC
+	mac_ifnet_create_mbuf(ifp, m);
+#endif
+	BPF_MTAP2(ifp, &af, sizeof(af), m);
+	ifp->if_ipackets++;
+	ifp->if_ibytes += m->m_pkthdr.len;
+	if ((ifp->if_flags & IFF_MONITOR) != 0)
+		m_freem(m);
+	else
+		netisr_dispatch(isr, m);
+	return (IPPROTO_DONE);
+drop:
+	ifp->if_ierrors++;
+	m_freem(m);
+	return (IPPROTO_DONE);
+}
+
+#define	MTAG_GRE	1307983903
+static int
+gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
+{
+	struct m_tag *mtag;
+	int count;
+
+	count = 1;
+	mtag = NULL;
+	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, mtag)) != NULL) {
+		if (*(struct ifnet **)(mtag + 1) == ifp) {
+			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
+			return (EIO);
+		}
+		count++;
+	}
+	if (count > V_max_gre_nesting) {
+		log(LOG_NOTICE,
+		    "%s: if_output recursively called too many times(%d)\n",
+		    ifp->if_xname, count);
+		return (EIO);
+	}
+	mtag = m_tag_alloc(MTAG_GRE, 0, sizeof(struct ifnet *), M_NOWAIT);
+	if (mtag == NULL)
+		return (ENOMEM);
+	*(struct ifnet **)(mtag + 1) = ifp;
+	m_tag_prepend(m, mtag);
+	return (0);
+}
+
+static int
+gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+   struct route *ro)
+{
+	uint32_t af;
+	int error;
+
+#ifdef MAC
+	error = mac_ifnet_check_transmit(ifp, m);
+	if (error != 0)
+		goto drop;
+#endif
+	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
+	    (ifp->if_flags & IFF_UP) == 0) {
+		error = ENETDOWN;
+		goto drop;
 	}
 
-	/* end-around-carry */
-	sum = (sum >> 16) + (sum & 0xffff);
-	sum += (sum >> 16);
-	return (~sum);
+	error = gre_check_nesting(ifp, m);
+	if (error != 0)
+		goto drop;
+
+	m->m_flags &= ~(M_BCAST|M_MCAST);
+	if (dst->sa_family == AF_UNSPEC)
+		bcopy(dst->sa_data, &af, sizeof(af));
+	else
+		af = dst->sa_family;
+	BPF_MTAP2(ifp, &af, sizeof(af), m);
+	m->m_pkthdr.csum_data = af;	/* save af for if_transmit */
+	return (ifp->if_transmit(ifp, m));
+drop:
+	m_freem(m);
+	ifp->if_oerrors++;
+	return (error);
+}
+
+static void
+gre_setseqn(struct grehdr *gh, uint32_t seq)
+{
+	uint32_t *opts;
+	uint16_t flags;
+
+	opts = gh->gre_opts;
+	flags = ntohs(gh->gre_flags);
+	KASSERT((flags & GRE_FLAGS_SP) != 0,
+	    ("gre_setseqn called, but GRE_FLAGS_SP isn't set "));
+	if (flags & GRE_FLAGS_CP)
+		opts++;
+	if (flags & GRE_FLAGS_KP)
+		opts++;
+	*opts = htonl(seq);
+}
+
+static int
+gre_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	GRE_RLOCK_TRACKER;
+	struct gre_softc *sc;
+	struct grehdr *gh;
+	uint32_t iaf, oaf, oseq;
+	int error, hlen, olen, plen;
+	int want_seq, want_csum;
+
+	plen = 0;
+	sc = ifp->if_softc;
+	if (sc == NULL) {
+		error = ENETDOWN;
+		m_freem(m);
+		goto drop;
+	}
+	GRE_RLOCK(sc);
+	if (sc->gre_family == 0) {
+		GRE_RUNLOCK(sc);
+		error = ENETDOWN;
+		m_freem(m);
+		goto drop;
+	}
+	iaf = m->m_pkthdr.csum_data;
+	oaf = sc->gre_family;
+	hlen = sc->gre_hlen;
+	want_seq = (sc->gre_options & GRE_ENABLE_SEQ) != 0;
+	if (want_seq)
+		oseq = sc->gre_oseq++;
+	else
+		oseq = 0;	/* Make compiler happy. */
+	want_csum = (sc->gre_options & GRE_ENABLE_CSUM) != 0;
+	M_SETFIB(m, sc->gre_fibnum);
+	M_PREPEND(m, hlen, M_NOWAIT);
+	if (m == NULL) {
+		GRE_RUNLOCK(sc);
+		error = ENOBUFS;
+		goto drop;
+	}
+	bcopy(sc->gre_hdr, mtod(m, void *), hlen);
+	GRE_RUNLOCK(sc);
+	switch (oaf) {
+#ifdef INET
+	case AF_INET:
+		olen = sizeof(struct ip);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		olen = sizeof(struct ip6_hdr);
+		break;
+#endif
+	default:
+		error = ENETDOWN;
+		goto drop;
+	}
+	gh = (struct grehdr *)mtodo(m, olen);
+	switch (iaf) {
+#ifdef INET
+	case AF_INET:
+		gh->gre_proto = htons(ETHERTYPE_IP);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		gh->gre_proto = htons(ETHERTYPE_IPV6);
+		break;
+#endif
+	default:
+		error = ENETDOWN;
+		goto drop;
+	}
+	if (want_seq)
+		gre_setseqn(gh, oseq);
+	if (want_csum) {
+		*(uint16_t *)gh->gre_opts = in_cksum_skip(m,
+		    m->m_pkthdr.len, olen);
+	}
+	plen = m->m_pkthdr.len - hlen;
+	switch (oaf) {
+#ifdef INET
+	case AF_INET:
+		error = in_gre_output(m, iaf, hlen);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		error = in6_gre_output(m, iaf, hlen);
+		break;
+#endif
+	default:
+		m_freem(m);
+		error = ENETDOWN;
+	};
+drop:
+	if (error)
+		ifp->if_oerrors++;
+	else {
+		ifp->if_opackets++;
+		ifp->if_obytes += plen;
+	}
+	return (error);
+}
+
+static void
+gre_qflush(struct ifnet *ifp __unused)
+{
+
 }
 
 static int

@@ -3224,11 +3224,12 @@ net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
 net/if_gif.c			optional gif inet | gif inet6 | \
 					 netgraph_gif inet | netgraph_gif inet6
-net/if_gre.c			optional gre inet
+net/if_gre.c			optional gre inet | gre inet6
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
 net/if_loop.c			optional loop
 net/if_llatbl.c			standard
+net/if_me.c			optional me inet
 net/if_media.c			standard
 net/if_mib.c			standard
 net/if_spppfr.c			optional sppp | netgraph_sppp
@@ -3469,6 +3470,7 @@ netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
 netinet6/in6_src.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
+netinet6/ip6_gre.c		optional gre inet6
 netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
 netinet6/ip6_mroute.c		optional mrouting inet6

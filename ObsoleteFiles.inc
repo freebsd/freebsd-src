@@ -44,6 +44,8 @@ OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
 OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
 OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
+# 20141107: overhaul if_gre(4)
+OLD_FILES+=usr/include/netinet/ip_gre.h
 # 20141028: debug files accidentally installed as directory name
 OLD_FILES+=usr/lib/debug/usr/lib/i18n
 OLD_FILES+=usr/lib/debug/usr/lib/private

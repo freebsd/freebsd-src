@@ -19,7 +19,7 @@ opt_inet6.h:
 opt_mrouting.h:
 	echo "#define MROUTING 1" > ${.TARGET}
 .else
-OPT_INET6!= cat ${KERNBUILDDIR}/opt_inet6.h
+OPT_INET6!= cat ${KERNBUILDDIR}/opt_inet6.h; echo
 .if empty(OPT_INET6)
 MK_INET6_SUPPORT= no
 .endif
