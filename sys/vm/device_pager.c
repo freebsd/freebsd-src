@@ -249,6 +249,8 @@ dev_pager_dealloc(object)
 		    != NULL)
 			dev_pager_free_page(object, m);
 	}
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 static int

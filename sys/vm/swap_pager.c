@@ -685,6 +685,8 @@ swap_pager_dealloc(vm_object_t object)
 	 * if paging is still in progress on some objects.
 	 */
 	swp_pager_meta_free_all(object);
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 /************************************************************************
