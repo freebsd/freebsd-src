@@ -623,7 +623,6 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-_ix=		ix
 _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
