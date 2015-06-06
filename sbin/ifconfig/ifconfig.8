@@ -321,6 +321,14 @@ using the
 kernel configuration option, or the
 .Va net.fibs
 tunable.
+.It Cm tunnelfib Ar fib_number
+Specify tunnel FIB.
+A FIB
+.Ar fib_number
+is assigned to all packets encapsulated by tunnel interface, e.g.,
+.Xr gif 4
+and
+.Xr gre 4 .
 .It Cm ipdst
 This is used to specify an Internet host who is willing to receive
 IP packets encapsulating IPX packets bound for a remote network.
