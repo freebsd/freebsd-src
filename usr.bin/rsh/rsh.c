@@ -77,10 +77,10 @@ __FBSDID("$FreeBSD$");
 /*
  * rsh - remote shell
  */
-int	rfd2;
+static int	rfd2;
 
-int family = PF_UNSPEC;
-char rlogin[] = "rlogin";
+static int family = PF_UNSPEC;
+static char rlogin[] = "rlogin";
 
 void	connect_timeout(int);
 char   *copyargs(char * const *);
