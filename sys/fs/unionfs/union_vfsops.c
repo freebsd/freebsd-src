@@ -291,18 +291,11 @@ unionfs_domount(struct mount *mp)
 	}
 
 	MNT_ILOCK(mp);
-	/*
-	 * Check mnt_flag
-	 */
 	if ((ump->um_lowervp->v_mount->mnt_flag & MNT_LOCAL) &&
 	    (ump->um_uppervp->v_mount->mnt_flag & MNT_LOCAL))
 		mp->mnt_flag |= MNT_LOCAL;
 
-	/*
-	 * Check mnt_kern_flag
-	 */
-	if ((ump->um_lowervp->v_mount->mnt_flag & MNTK_SUSPENDABLE) ||
-	    (ump->um_uppervp->v_mount->mnt_flag & MNTK_SUSPENDABLE))
+	if ((ump->um_uppervp->v_mount->mnt_kern_flag & MNTK_SUSPENDABLE) != 0)
 		mp->mnt_kern_flag |= MNTK_SUSPENDABLE;
 	MNT_IUNLOCK(mp);
 
