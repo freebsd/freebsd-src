@@ -100,7 +100,7 @@ eisab_probe(device_t dev)
     
     if (matched) {
 	device_set_desc(dev, "PCI-EISA bridge");
-	return (BUS_PROBE_GENERIC);
+	return(-10000);
     }
     return(ENXIO);
 }

@@ -63,7 +63,7 @@ pci_hostb_probe(device_t dev)
 	    pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
 		device_set_desc(dev, "Host to PCI bridge");
 		device_quiet(dev);
-		return (BUS_PROBE_GENERIC);
+		return (-10000);
 	}
 	return (ENXIO);
 }
