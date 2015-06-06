@@ -523,7 +523,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 		goto done;
 	}
 
-	KASSERT(sc->flags & TOM_INIT_DONE,
+	KASSERT(uld_active(sc, ULD_TOM),
 	    ("%s: TOM not initialized", __func__));
 #endif
 
