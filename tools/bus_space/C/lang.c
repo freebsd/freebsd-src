@@ -31,9 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 
 #include "bus_space.h"
+#include "busdma.h"
 #include "libbus_space.h"
 
-int
+int16_t
 bus_space_read_1(int rid, long ofs)
 {
 	uint8_t val;
@@ -41,7 +42,7 @@ bus_space_read_1(int rid, long ofs)
 	return ((!bs_read(rid, ofs, &val, sizeof(val))) ? -1 : (int)val);
 }
 
-int
+int32_t
 bus_space_read_2(int rid, long ofs)
 {
 	uint16_t val;
@@ -98,3 +99,41 @@ bus_space_subregion(int rid, long ofs, long sz)
 
 	return (bs_subregion(rid, ofs, sz));
 }
+
+int
+busdma_tag_create(const char *dev, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+    u_int datarate, u_int flags, busdma_tag_t *out_p)
+{
+	int res;
+
+	res = bd_tag_create(dev, align, bndry, maxaddr, maxsz, nsegs, maxsegsz,
+	    datarate, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_tag_derive(busdma_tag_t tag, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz, 
+    u_int datarate, u_int flags, busdma_tag_t *out_p)
+{
+	int res;
+
+	res = bd_tag_derive(tag, align, bndry, maxaddr, maxsz, nsegs, maxsegsz,
+	    datarate, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_tag_destroy(busdma_tag_t tag)
+{
+
+	return (bd_tag_destroy(tag));
+}
+
