@@ -2,8 +2,7 @@
 
 PROG=	rup
 
-WARNS?=	1
-
+WARNS?=	3
 LIBADD=	rpcsvc
 
 .include <bsd.prog.mk>
