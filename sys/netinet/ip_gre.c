@@ -73,11 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 extern struct domain inetdomain;
-extern int gre_input(struct mbuf **, int *, int);
-
-int in_gre_attach(struct gre_softc *);
-int in_gre_output(struct mbuf *, int, int);
-
 static void gre_input10(struct mbuf *, int);
 static const struct protosw in_gre_protosw = {
 	.pr_type =		SOCK_RAW,

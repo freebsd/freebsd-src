@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/in_gif.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_ecn.h>
@@ -70,10 +69,11 @@ __FBSDID("$FreeBSD$");
 
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
+static int in_gif_input(struct mbuf **, int *, int);
 
 static void in_gif_input10(struct mbuf *, int);
 extern  struct domain inetdomain;
-struct protosw in_gif_protosw = {
+static struct protosw in_gif_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		0/* IPPROTO_IPV[46] */,
@@ -84,7 +84,8 @@ struct protosw in_gif_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 
-VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+#define GIF_TTL		30
+static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&VNET_NAME(ip_gif_ttl), 0, "");
@@ -143,7 +144,7 @@ in_gif_input10(struct mbuf *m, int off)
 	in_gif_input(&m, &off, proto);
 }
 
-int
+static int
 in_gif_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;

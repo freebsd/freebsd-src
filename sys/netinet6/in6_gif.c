@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
 #endif
 #include <netinet6/ip6protosw.h>
@@ -75,7 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
+#define GIF_HLIM	30
+static VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
@@ -84,9 +84,10 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
 
 static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 			 struct ifnet *);
+static int in6_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inet6domain;
-struct ip6protosw in6_gif_protosw = {
+static struct ip6protosw in6_gif_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inet6domain,
 	.pr_protocol =	0,			/* IPPROTO_IPV[46] */
@@ -145,7 +146,7 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	return (ip6_output(m, 0, NULL, IPV6_MINMTU, 0, NULL, NULL));
 }
 
-int
+static int
 in6_gif_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
