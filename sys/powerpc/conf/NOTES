@@ -57,6 +57,7 @@ device		windtunnel	# Apple G4 MDD fan controller
 # Devices we don't want to deal with
 
 nodevice	bktr
+nodevice	cxgbe		# XXX: builds on powerpc64 only.
 nodevice	fdc
 nodevice	ppc
 nodevice	splash
