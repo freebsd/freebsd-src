@@ -867,12 +867,15 @@ device		tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
-#  The `gre' device implements two types of IP4 over IP4 tunneling:
-#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
+#  The `gre' device implements GRE (Generic Routing Encapsulation) tunneling,
+#  as specified in the RFC 2784 and RFC 2890.
+#  The `me' device implements Minimal Encapsulation within IPv4 as
+#  specified in the RFC 2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
 device		gif
 device		gre
+device		me
 options 	XBONEHACK
 
 #  The `faith' device captures packets sent to it and diverts them

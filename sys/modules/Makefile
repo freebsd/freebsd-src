@@ -141,8 +141,9 @@ SUBDIR=	\
 	if_ef \
 	if_epair \
 	if_faith \
-	if_gif \
+	${_if_gif} \
 	${_if_gre} \
+	${_if_me} \
 	if_lagg \
 	${_if_ndis} \
 	if_stf \
@@ -425,10 +426,12 @@ _random=	random
 	defined(ALL_MODULES)
 _carp=	carp
 _toecore=	toecore
+_if_gif=	if_gif
+_if_gre=	if_gre
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
-_if_gre=	if_gre
+_if_me=		if_me
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
