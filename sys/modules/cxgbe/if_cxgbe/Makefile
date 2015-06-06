@@ -17,6 +17,7 @@ SRCS+=	pci_if.h
 SRCS+=	t4_hw.c
 SRCS+=	t4_l2t.c
 SRCS+=	t4_main.c
+SRCS+=	t4_mp_ring.c
 SRCS+=	t4_netmap.c
 SRCS+=	t4_sge.c
 SRCS+=	t4_tracer.c
@@ -40,3 +41,4 @@ opt_inet6.h:
 .endif
 
 .include <bsd.kmod.mk>
+CFLAGS+= ${GCC_MS_EXTENSIONS}
