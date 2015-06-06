@@ -154,7 +154,7 @@ isab_pci_probe(device_t dev)
 
     if (matched) {
 	device_set_desc(dev, "PCI-ISA bridge");
-	return (BUS_PROBE_GENERIC);
+	return(-10000);
     }
     return(ENXIO);
 }
