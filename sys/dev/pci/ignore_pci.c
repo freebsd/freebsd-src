@@ -66,7 +66,7 @@ ignore_pci_probe(device_t dev)
     case 0x10001042ul:	/* SMC 37C665 */
 	device_set_desc(dev, "ignored");
 	device_quiet(dev);
-	return(-10000);
+	return (BUS_PROBE_GENERIC);
     }
     return(ENXIO);
 }
