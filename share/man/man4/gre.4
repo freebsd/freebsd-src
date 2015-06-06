@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2014
+.Dd June 2, 2015
 .Dt GRE 4
 .Os
 .Sh NAME
@@ -118,6 +118,44 @@ ifconfig greN inet 192.168.2.1 192.168.1.1
 ifconfig greN inet tunnel B A
 route add -net 192.168.1 -netmask 255.255.255.0 192.168.1.1
 .Ed
+.Pp
+In case when internal and external IP addresses are the same,
+different routing tables (FIB) should be used.
+The default FIB will be applied to IP packets before GRE encapsulation.
+After encapsulation GRE interface should set different FIB number to
+outgoing packet.
+Then different FIB will be applied to such encapsulated packets.
+According to this FIB packet should be routed to tunnel endpoint.
+.Bd -literal
+Host X -- Host A (198.51.100.1) ---tunnel--- Cisco D (203.0.113.1) -- Host E
+                   \\                                   /
+                    \\                                 /
+	             +----- Host B ----- Host C -----+
+                       (198.51.100.254)
+.Ed
+.Pp
+On Host A (FreeBSD):
+.Pp
+First of multiple FIBs should be configured via loader.conf:
+.Bd -literal -offset indent
+net.fibs=2
+net.add_addr_allfibs=0
+.Ed
+.Pp
+Then routes to the gateway and remote tunnel endpoint via this gateway
+should be added to the second FIB:
+.Bd -literal -offset indent
+route add -net 198.51.100.0 -netmask 255.255.255.0 -fib 1 -iface em0
+route add -host 203.0.113.1 -fib 1 198.51.100.254
+.Ed
+.Pp
+And GRE tunnel should be configured to change FIB for encapsulated packets:
+.Bd -literal -offset indent
+ifconfig greN create
+ifconfig greN inet 198.51.100.1 203.0.113.1
+ifconfig greN inet tunnel 198.51.100.1 203.0.113.1 tunnelfib 1
+.Ed
+.Pp
 .Sh NOTES
 The MTU of
 .Nm
