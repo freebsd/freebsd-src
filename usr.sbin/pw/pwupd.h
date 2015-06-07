@@ -35,6 +35,7 @@
 
 #include <pwd.h>
 #include <grp.h>
+#include <stdbool.h>
 
 #if defined(__FreeBSD__)
 #define	RET_SETGRENT	int
@@ -82,6 +83,7 @@ struct userconf {
 struct pwconf {
 	char		 rootdir[MAXPATHLEN];
 	char		 etcpath[MAXPATHLEN];
+	bool		 dryrun;
 	struct userconf	*userconf;
 };
 
