@@ -44,7 +44,7 @@ static const char rcsid[] =
 static struct passwd *lookup_pwent(const char *user);
 static void	delete_members(char ***members, int *grmembers, int *i,
     struct carg *arg, struct group *grp);
-static int      print_group(struct group * grp, int pretty);
+static int	print_group(struct group * grp);
 static gid_t    gr_gidpolicy(struct userconf * cnf, struct cargs * args);
 
 int
@@ -89,11 +89,9 @@ pw_group(int mode, struct cargs * args)
 	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
-		int             pretty = getarg(args, 'P') != NULL;
-
 		SETGRENT();
 		while ((grp = GETGRENT()) != NULL)
-			print_group(grp, pretty);
+			print_group(grp);
 		ENDGRENT();
 		return EXIT_SUCCESS;
 	}
@@ -119,7 +117,7 @@ pw_group(int mode, struct cargs * args)
 				fakegroup.gr_name = a_name ? a_name->val : "nogroup";
 				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : (gid_t)-1;
 				fakegroup.gr_mem = fmems;
-				return print_group(&fakegroup, getarg(args, 'P') != NULL);
+				return print_group(&fakegroup);
 			}
 			errx(EX_DATAERR, "unknown group `%s'", a_name ? a_name->val : a_gid->val);
 		}
@@ -141,7 +139,7 @@ pw_group(int mode, struct cargs * args)
 			pw_log(cnf, mode, W_GROUP, "%s(%u) removed", a_name->val, gid);
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
-			return print_group(grp, getarg(args, 'P') != NULL);
+			return print_group(grp);
 
 		if (a_gid)
 			grp->gr_gid = (gid_t) atoi(a_gid->val);
@@ -259,7 +257,7 @@ pw_group(int mode, struct cargs * args)
 	}
 
 	if (conf.dryrun)
-		return print_group(grp, getarg(args, 'P') != NULL);
+		return print_group(grp);
 
 	if (mode == M_ADD && (rc = addgrent(grp)) != 0) {
 		if (rc == -1)
@@ -412,9 +410,9 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 
 
 static int
-print_group(struct group * grp, int pretty)
+print_group(struct group * grp)
 {
-	if (!pretty) {
+	if (!conf.pretty) {
 		char           *buf = NULL;
 
 		buf = gr_make(grp);

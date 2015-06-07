@@ -53,7 +53,7 @@ static		char locked_str[] = "*LOCKED*";
 
 static int	delete_user(struct userconf *cnf, struct passwd *pwd,
 		    struct carg *a_name, int delete, int mode);
-static int      print_user(struct passwd * pwd, int pretty, int v7);
+static int	print_user(struct passwd * pwd, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
 static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
@@ -316,11 +316,10 @@ pw_user(int mode, struct cargs * args)
 	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
-		int             pretty = getarg(args, 'P') != NULL;
 		int		v7 = getarg(args, '7') != NULL;
 		SETPWENT();
 		while ((pwd = GETPWENT()) != NULL)
-			print_user(pwd, pretty, v7);
+			print_user(pwd, v7);
 		ENDPWENT();
 		return EXIT_SUCCESS;
 	}
@@ -363,7 +362,6 @@ pw_user(int mode, struct cargs * args)
 				fakeuser.pw_name = a_name ? a_name->val : "nouser";
 				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : (uid_t) -1;
 				return print_user(&fakeuser,
-						  getarg(args, 'P') != NULL,
 						  getarg(args, '7') != NULL);
 			}
 			if (a_name == NULL)
@@ -401,9 +399,7 @@ pw_user(int mode, struct cargs * args)
 			return (delete_user(cnf, pwd, a_name,
 				    getarg(args, 'r') != NULL, mode));
 		else if (mode == M_PRINT)
-			return print_user(pwd,
-					  getarg(args, 'P') != NULL,
-					  getarg(args, '7') != NULL);
+			return print_user(pwd, getarg(args, '7') != NULL);
 
 		/*
 		 * The rest is edit code
@@ -621,9 +617,7 @@ pw_user(int mode, struct cargs * args)
 	 * Special case: -N only displays & exits
 	 */
 	if (conf.dryrun)
-		return print_user(pwd,
-				  getarg(args, 'P') != NULL,
-				  getarg(args, '7') != NULL);
+		return print_user(pwd, getarg(args, '7') != NULL);
 
 	if (mode == M_ADD) {
 		edited = 1;	/* Always */
@@ -1167,9 +1161,9 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 }
 
 static int
-print_user(struct passwd * pwd, int pretty, int v7)
+print_user(struct passwd * pwd, int v7)
 {
-	if (!pretty) {
+	if (!conf.pretty) {
 		char            *buf;
 
 		if (!v7)

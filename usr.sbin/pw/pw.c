@@ -133,6 +133,7 @@ main(int argc, char *argv[])
 	relocated = nis = false;
 	conf.rootdir[0] = '\0';
 	conf.dryrun = false;
+	conf.pretty = false;
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 
 	LIST_INIT(&arglist);
@@ -221,6 +222,9 @@ main(int argc, char *argv[])
 			break;
 		case 'N':
 			conf.dryrun = true;
+			break;
+		case 'P':
+			conf.pretty = true;
 			break;
 		case 'Y':
 			nis = true;
