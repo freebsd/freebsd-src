@@ -108,7 +108,7 @@ struct carg *getarg(struct cargs * _args, int ch);
 
 int pw_user(struct userconf * cnf, int mode, struct cargs * _args);
 int pw_group(struct userconf * cnf, int mode, struct cargs * _args);
-char    *pw_checkname(u_char *name, int gecos);
+char *pw_checkname(char *name, int gecos);
 
 int addnispwent(const char *path, struct passwd *pwd);
 int delnispwent(const char *path, const char *login);
