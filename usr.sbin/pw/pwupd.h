@@ -29,6 +29,7 @@
 #ifndef _PWUPD_H_
 #define _PWUPD_H_
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
@@ -41,8 +42,7 @@
 #define	RET_SETGRENT	void
 #endif
 
-struct pwf
-{
+struct pwf {
 	int		    _altdir;
 	void		  (*_setpwent)(void);
 	void		  (*_endpwent)(void);
@@ -56,8 +56,38 @@ struct pwf
 	struct group  * (*_getgrnam)(const char * nam);
 };
 
+struct userconf {
+	int	default_password;	/* Default password for new users? */
+	int	reuse_uids;		/* Reuse uids? */
+	int	reuse_gids;		/* Reuse gids? */
+	char	*nispasswd;		/* Path to NIS version of the passwd file */
+	char	*dotdir;		/* Where to obtain skeleton files */
+	char	*newmail;		/* Mail to send to new accounts */
+	char	*logfile;		/* Where to log changes */
+	char	*home;			/* Where to create home directory */
+	mode_t	homemode;		/* Home directory permissions */
+	char	*shelldir;		/* Where shells are located */
+	char	**shells;		/* List of shells */
+	char	*shell_default;		/* Default shell */
+	char	*default_group;		/* Default group number */
+	char	**groups;		/* Default (additional) groups */
+	char	*default_class;		/* Default user class */
+	uid_t	min_uid, max_uid;	/* Allowed range of uids */
+	gid_t	min_gid, max_gid;	/* Allowed range of gids */
+	int	expire_days;		/* Days to expiry */
+	int	password_days;		/* Days to password expiry */
+	int	numgroups;		/* (internal) size of default_group array */
+};
+
+struct pwconf {
+	char		 rootdir[MAXPATHLEN];
+	char		 etcpath[MAXPATHLEN];
+	struct userconf	*userconf;
+};
+
 extern struct pwf PWF;
 extern struct pwf VPWF;
+extern struct pwconf conf;
 
 #define SETPWENT()	PWF._setpwent()
 #define ENDPWENT()	PWF._endpwent()
@@ -91,14 +121,12 @@ int addpwent(struct passwd * pwd);
 int delpwent(struct passwd * pwd);
 int chgpwent(char const * login, struct passwd * pwd);
 
-int setpwdir(const char * dir);
 char * getpwpath(char const * file);
 
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);
 int chggrent(char const * name, struct group * grp);
 
-int setgrdir(const char * dir);
 char * getgrpath(const char *file);
 
 void vsetpwent(void);
