@@ -132,6 +132,7 @@ main(int argc, char *argv[])
 
 	relocated = nis = false;
 	conf.rootdir[0] = '\0';
+	conf.dryrun = false;
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 
 	LIST_INIT(&arglist);
@@ -218,6 +219,9 @@ main(int argc, char *argv[])
 		case 'C':
 			config = optarg;
 			break;
+		case 'N':
+			conf.dryrun = true;
+			break;
 		case 'Y':
 			nis = true;
 			break;
@@ -231,7 +235,7 @@ main(int argc, char *argv[])
 	/*
 	 * Must be root to attempt an update
 	 */
-	if (geteuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
+	if (geteuid() != 0 && mode != M_PRINT && mode != M_NEXT && !conf.dryrun)
 		errx(EX_NOPERM, "you must be root to run this program");
 
 	/*
