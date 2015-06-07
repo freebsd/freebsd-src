@@ -258,7 +258,7 @@ pw_group(int mode, struct cargs * args)
 		grp->gr_mem = members;
 	}
 
-	if (getarg(args, 'N') != NULL)
+	if (conf.dryrun)
 		return print_group(grp, getarg(args, 'P') != NULL);
 
 	if (mode == M_ADD && (rc = addgrent(grp)) != 0) {
