@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <locale.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <sys/wait.h>
 #include "pw.h"
 
@@ -84,6 +85,8 @@ struct pwf VPWF =
 	vgetgrnam,
 };
 
+struct pwconf conf;
+
 static struct cargs arglist;
 
 static int      getindex(const char *words[], const char *word);
@@ -97,11 +100,9 @@ main(int argc, char *argv[])
 	int             mode = -1;
 	int             which = -1;
 	char		*config = NULL;
-	struct userconf *cnf;
 	struct stat	st;
 	char		arg;
-	struct carg	*carg;
-	char		*etcpath = NULL;
+	bool		relocated = false;
 
 	static const char *opts[W_NUM][M_NUM] =
 	{
@@ -123,11 +124,14 @@ main(int argc, char *argv[])
 		 }
 	};
 
-	static int      (*funcs[W_NUM]) (struct userconf * _cnf, int _mode, struct cargs * _args) =
+	static int      (*funcs[W_NUM]) (int _mode, struct cargs * _args) =
 	{			/* Request handlers */
 		pw_user,
 		pw_group
 	};
+
+	conf.rootdir[0] = '\0';
+	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 
 	LIST_INIT(&arglist);
 
@@ -146,6 +150,10 @@ main(int argc, char *argv[])
 			 */
 			arg = argv[1][1];
 			if (arg == 'V' || arg == 'R') {
+				if (relocated)
+					errx(EXIT_FAILURE, "Both '-R' and '-V' "
+					    "specified, only one accepted");
+				relocated = true;
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
 					if (stat(argv[2], &st) != 0)
@@ -159,7 +167,14 @@ main(int argc, char *argv[])
 					++argv;
 					--argc;
 				}
-				addarg(&arglist, arg, optarg);
+				memcpy(&PWF, &VPWF, sizeof PWF);
+				if (arg == 'R') {
+					strlcpy(conf.rootdir, optarg,
+					    sizeof(conf.rootdir));
+					PWF._altdir = PWF_ROOTDIR;
+				}
+				snprintf(conf.etcpath, sizeof(conf.etcpath),
+				    "%s%s", optarg, arg == 'R' ? "/etc" : "");
 			} else
 				break;
 		}
@@ -220,37 +235,18 @@ main(int argc, char *argv[])
 	 */
 
 	config = getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL;
-
-	if ((carg = getarg(&arglist, 'R')) != NULL) {
-		asprintf(&etcpath, "%s/etc", carg->val);
-		if (etcpath == NULL)
+	if (config == NULL) {	/* Only override config location if -C not specified */
+		asprintf(&config, "%s/pw.conf", conf.etcpath);
+		if (config == NULL)
 			errx(EX_OSERR, "out of memory");
 	}
-	if (etcpath == NULL && (carg = getarg(&arglist, 'V')) != NULL) {
-		etcpath = strdup(carg->val);
-		if (etcpath == NULL)
-			errx(EX_OSERR, "out of memory");
-	}
-	if (etcpath && *etcpath) {
-		if (config == NULL) {	/* Only override config location if -C not specified */
-			asprintf(&config, "%s/pw.conf", etcpath);
-			if (config == NULL)
-				 errx(EX_OSERR, "out of memory");
-		}
-		setpwdir(etcpath);
-		setgrdir(etcpath);
-		memcpy(&PWF, &VPWF, sizeof PWF);
-		if (getarg(&arglist, 'R'))
-			PWF._altdir = PWF_ROOTDIR;
-	}
-	free(etcpath);
 
 	/*
 	 * Now, let's do the common initialisation
 	 */
-	cnf = read_userconfig(config);
+	conf.userconf = read_userconfig(config);
 
-	ch = funcs[which] (cnf, mode, &arglist);
+	ch = funcs[which] (mode, &arglist);
 
 	/*
 	 * If everything went ok, and we've been asked to update
@@ -274,7 +270,7 @@ main(int argc, char *argv[])
 			if ((i = WEXITSTATUS(i)) != 0)
 				errx(ch, "make exited with status %d", i);
 			else
-				pw_log(cnf, mode, which, "NIS maps updated");
+				pw_log(conf.userconf, mode, which, "NIS maps updated");
 		}
 	}
 	return ch;

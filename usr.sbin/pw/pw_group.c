@@ -48,7 +48,7 @@ static int      print_group(struct group * grp, int pretty);
 static gid_t    gr_gidpolicy(struct userconf * cnf, struct cargs * args);
 
 int
-pw_group(struct userconf * cnf, int mode, struct cargs * args)
+pw_group(int mode, struct cargs * args)
 {
 	int		rc;
 	struct carg    *a_newname = getarg(args, 'l');
@@ -58,6 +58,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	struct group   *grp = NULL;
 	int	        grmembers = 0;
 	char           **members = NULL;
+	struct userconf	*cnf = conf.userconf;
 
 	static struct group fakegroup =
 	{
