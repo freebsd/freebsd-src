@@ -55,7 +55,7 @@ static int	delete_user(struct userconf *cnf, struct passwd *pwd,
 		    struct carg *a_name, int delete, int mode);
 static int      print_user(struct passwd * pwd, int pretty, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
-static uid_t    pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer);
+static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
 static time_t   pw_exppolicy(struct userconf * cnf, struct cargs * args);
 static char    *pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user);
@@ -66,19 +66,18 @@ static void     rmat(uid_t uid);
 static void     rmopie(char const * name);
 
 static void
-create_and_populate_homedir(int mode, struct cargs *args, struct passwd *pwd,
-    struct userconf *cnf)
+create_and_populate_homedir(int mode, struct passwd *pwd)
 {
 	char *homedir, *dotdir;
-	struct carg	*arg;
+	struct userconf *cnf = conf.userconf;
 
 	homedir = dotdir = NULL;
 
-	if ((arg = getarg(args, 'R'))) {
-		asprintf(&homedir, "%s/%s", arg->val, pwd->pw_dir);
+	if (conf.rootdir[0] != '\0') {
+		asprintf(&homedir, "%s/%s", conf.rootdir, pwd->pw_dir);
 		if (homedir == NULL)
 			errx(EX_OSERR, "out of memory");
-		asprintf(&dotdir, "%s/%s", arg->val, cnf->dotdir);
+		asprintf(&dotdir, "%s/%s", conf.rootdir, cnf->dotdir);
 	}
 
 	copymkdir(homedir ? homedir : pwd->pw_dir, dotdir ? dotdir: cnf->dotdir,
@@ -120,7 +119,7 @@ create_and_populate_homedir(int mode, struct cargs *args, struct passwd *pwd,
  */
 
 int
-pw_user(struct userconf * cnf, int mode, struct cargs * args)
+pw_user(int mode, struct cargs * args)
 {
 	int	        rc, edited = 0;
 	char           *p = NULL;
@@ -131,6 +130,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	struct passwd  *pwd = NULL;
 	struct group   *grp;
 	struct stat     st;
+	struct userconf	*cnf;
 	char            line[_PASSWORD_LEN+1];
 	char		path[MAXPATHLEN];
 	FILE	       *fp;
@@ -154,6 +154,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 #endif
 	};
 
+	cnf = conf.userconf;
 
 	/*
 	 * With M_NEXT, we only need to return the
@@ -165,7 +166,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if (getarg(args, 'q'))
 			return next;
 		printf("%u:", next);
-		pw_group(cnf, mode, args);
+		pw_group(mode, args);
 		return EXIT_SUCCESS;
 	}
 
@@ -528,7 +529,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pwd->pw_name = a_name->val;
 		pwd->pw_class = cnf->default_class ? cnf->default_class : "";
 		pwd->pw_uid = pw_uidpolicy(cnf, args);
-		pwd->pw_gid = pw_gidpolicy(cnf, args, pwd->pw_name, (gid_t) pwd->pw_uid);
+		pwd->pw_gid = pw_gidpolicy(args, pwd->pw_name, (gid_t) pwd->pw_uid);
 		pwd->pw_change = pw_pwdpolicy(cnf, args);
 		pwd->pw_expire = pw_exppolicy(cnf, args);
 		pwd->pw_dir = pw_homepolicy(cnf, args, pwd->pw_name);
@@ -740,7 +741,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 	if (PWALTDIR() != PWF_ALT && getarg(args, 'm') != NULL && pwd->pw_dir &&
 	    *pwd->pw_dir == '/' && pwd->pw_dir[1])
-		create_and_populate_homedir(mode, args, pwd, cnf);
+		create_and_populate_homedir(mode, pwd);
 
 	/*
 	 * Finally, send mail to the new user as well, if we are asked to
@@ -824,11 +825,12 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 
 
 static          uid_t
-pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer)
+pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 {
 	struct group   *grp;
 	gid_t           gid = (uid_t) - 1;
 	struct carg    *a_gid = getarg(args, 'g');
+	struct userconf	*cnf = conf.userconf;
 
 	/*
 	 * If no arg given, see if default can help out
@@ -874,11 +876,11 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		{
 			addarg(&grpargs, 'N', NULL);
 			addarg(&grpargs, 'q', NULL);
-			gid = pw_group(cnf, M_NEXT, &grpargs);
+			gid = pw_group(M_NEXT, &grpargs);
 		}
 		else
 		{
-			pw_group(cnf, M_ADD, &grpargs);
+			pw_group(M_ADD, &grpargs);
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
 		}
