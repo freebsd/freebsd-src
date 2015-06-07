@@ -99,9 +99,11 @@ main(int argc, char *argv[])
 	int             ch;
 	int             mode = -1;
 	int             which = -1;
+	long		id = -1;
 	char		*config = NULL;
 	struct stat	st;
-	char		arg;
+	const char	*errstr;
+	char		arg, *name;
 	bool		relocated, nis;
 
 	static const char *opts[W_NUM][M_NUM] =
@@ -124,12 +126,14 @@ main(int argc, char *argv[])
 		 }
 	};
 
-	static int      (*funcs[W_NUM]) (int _mode, struct cargs * _args) =
+	static int      (*funcs[W_NUM]) (int _mode, char *_name, long _id,
+	    struct cargs * _args) =
 	{			/* Request handlers */
 		pw_user,
 		pw_group
 	};
 
+	name = NULL;
 	relocated = nis = false;
 	memset(&conf, 0, sizeof(conf));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
@@ -190,9 +194,15 @@ main(int argc, char *argv[])
 			mode = tmp % M_NUM;
 		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
 			cmdhelp(mode, which);
-		else if (which != -1 && mode != -1)
-			addarg(&arglist, 'n', argv[1]);
-		else
+		else if (which != -1 && mode != -1) {
+			if (strspn(argv[1], "0123456789") == strlen(argv[1])) {
+				id = strtonum(argv[1], 0, LONG_MAX, &errstr);
+				if (errstr != NULL)
+					errx(EX_USAGE, "Bad id '%s': %s",
+					    argv[1], errstr);
+			} else
+				name = argv[1];
+		} else
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
 		++argv;
 		--argc;
@@ -230,12 +240,39 @@ main(int argc, char *argv[])
 		case 'Y':
 			nis = true;
 			break;
+		case 'g':
+			if (which == 0) { /* for user* */
+				addarg(&arglist, 'g', optarg);
+				break;
+			}
+			/* FALLTHROUGH */
+		case 'u':
+			if (strspn(optarg, "0123456789") != strlen(optarg))
+				errx(EX_USAGE, "%s expects a number",
+				    which == 1 ? "-g" : "-u" );
+			id = strtonum(optarg, 0, LONG_MAX, &errstr);
+			if (errstr != NULL)
+				errx(EX_USAGE, "Bad id '%s': %s", optarg,
+				    errstr);
+			break;
+		case 'n':
+			if (strspn(optarg, "0123456789") != strlen(optarg)) {
+				name = optarg;
+				break;
+			}
+			id = strtonum(optarg, 0, LONG_MAX, &errstr);
+			if (errstr != NULL)
+				errx(EX_USAGE, "Bad id '%s': %s", optarg,
+				    errstr);
 		default:
 			addarg(&arglist, ch, optarg);
 			break;
 		}
 		optarg = NULL;
 	}
+
+	if (name != NULL && strlen(name) >= MAXLOGNAME)
+		errx(EX_USAGE, "name too long: %s", name);
 
 	/*
 	 * Must be root to attempt an update
@@ -265,7 +302,7 @@ main(int argc, char *argv[])
 	 */
 	conf.userconf = read_userconfig(config);
 
-	ch = funcs[which] (mode, &arglist);
+	ch = funcs[which] (mode, name, id, &arglist);
 
 	/*
 	 * If everything went ok, and we've been asked to update

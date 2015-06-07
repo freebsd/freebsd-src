@@ -82,8 +82,8 @@ int write_userconfig(char const * file);
 struct carg *addarg(struct cargs * _args, int ch, char *argstr);
 struct carg *getarg(struct cargs * _args, int ch);
 
-int pw_user(int mode, struct cargs * _args);
-int pw_group(int mode, struct cargs * _args);
+int pw_user(int mode, char *name, long id, struct cargs * _args);
+int pw_group(int mode, char *name, long id,  struct cargs * _args);
 char *pw_checkname(char *name, int gecos);
 
 int addnispwent(const char *path, struct passwd *pwd);

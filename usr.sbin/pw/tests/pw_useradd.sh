@@ -169,12 +169,19 @@ user_add_password_expiration_date_relative_body() {
 		atf_fail "Expiration time($TIME) was not within $EPOCH - $BUF seconds."
 }
 
+atf_test_case user_add_name_too_long
+user_add_name_too_long_body() {
+	populate_etc_skel
+	atf_check -e match:"too long" -s exit:64 \
+		${PW} useradd name_very_vert_very_very_very_long
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
 	atf_add_test_case user_add_comments
 	atf_add_test_case user_add_comments_noupdate
-	atf_add_test_case user_add_comments_invalid 
+	atf_add_test_case user_add_comments_invalid
 	atf_add_test_case user_add_comments_invalid_noupdate
 	atf_add_test_case user_add_homedir
 	atf_add_test_case user_add_account_expiration_epoch
@@ -185,4 +192,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_password_expiration_date_numeric
 	atf_add_test_case user_add_password_expiration_date_month
 	atf_add_test_case user_add_password_expiration_date_relative
+	atf_add_test_case user_add_name_too_long
 }
