@@ -48,12 +48,10 @@ static int	print_group(struct group * grp);
 static gid_t    gr_gidpolicy(struct userconf * cnf, struct cargs * args);
 
 int
-pw_group(int mode, struct cargs * args)
+pw_group(int mode, char *name, long id, struct cargs * args)
 {
 	int		rc;
 	struct carg    *a_newname = getarg(args, 'l');
-	struct carg    *a_name = getarg(args, 'n');
-	struct carg    *a_gid = getarg(args, 'g');
 	struct carg    *arg;
 	struct group   *grp = NULL;
 	int	        grmembers = 0;
@@ -67,11 +65,6 @@ pw_group(int mode, struct cargs * args)
 		-1,
 		NULL
 	};
-
-	if (a_gid != NULL) {
-		if (strspn(a_gid->val, "0123456789") != strlen(a_gid->val))
-			errx(EX_USAGE, "-g expects a number");
-	}
 
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
@@ -95,67 +88,63 @@ pw_group(int mode, struct cargs * args)
 		ENDGRENT();
 		return EXIT_SUCCESS;
 	}
-	if (a_gid == NULL) {
-		if (a_name == NULL)
-			errx(EX_DATAERR, "group name or id required");
+	if (id < 0 && name == NULL)
+		errx(EX_DATAERR, "group name or id required");
 
-		if (mode != M_ADD && grp == NULL && isdigit((unsigned char)*a_name->val)) {
-			(a_gid = a_name)->ch = 'g';
-			a_name = NULL;
-		}
-	}
-	grp = (a_name != NULL) ? GETGRNAM(a_name->val) : GETGRGID((gid_t) atoi(a_gid->val));
+	grp = (name != NULL) ? GETGRNAM(name) : GETGRGID(id);
 
 	if (mode == M_UPDATE || mode == M_DELETE || mode == M_PRINT) {
-		if (a_name == NULL && grp == NULL)	/* Try harder */
-			grp = GETGRGID(atoi(a_gid->val));
+		if (name == NULL && grp == NULL)	/* Try harder */
+			grp = GETGRGID(id);
 
 		if (grp == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
 				char	*fmems[1];
 				fmems[0] = NULL;
-				fakegroup.gr_name = a_name ? a_name->val : "nogroup";
-				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : (gid_t)-1;
+				fakegroup.gr_name = name ? name : "nogroup";
+				fakegroup.gr_gid = (gid_t) id;
 				fakegroup.gr_mem = fmems;
 				return print_group(&fakegroup);
 			}
-			errx(EX_DATAERR, "unknown group `%s'", a_name ? a_name->val : a_gid->val);
+			if (name == NULL)
+				errx(EX_DATAERR, "unknown group `%s'", name);
+			else
+				errx(EX_DATAERR, "unknown group `%ld'", id);
 		}
-		if (a_name == NULL)	/* Needed later */
-			a_name = addarg(args, 'n', grp->gr_name);
+		if (name == NULL)	/* Needed later */
+			name = grp->gr_name;
 
 		/*
 		 * Handle deletions now
 		 */
 		if (mode == M_DELETE) {
-			gid_t           gid = grp->gr_gid;
-
 			rc = delgrent(grp);
 			if (rc == -1)
-				err(EX_IOERR, "group '%s' not available (NIS?)", grp->gr_name);
+				err(EX_IOERR, "group '%s' not available (NIS?)",
+				    name);
 			else if (rc != 0) {
 				err(EX_IOERR, "group update");
 			}
-			pw_log(cnf, mode, W_GROUP, "%s(%u) removed", a_name->val, gid);
+			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", name, id);
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
 			return print_group(grp);
 
-		if (a_gid)
-			grp->gr_gid = (gid_t) atoi(a_gid->val);
+		if (id > 0)
+			grp->gr_gid = (gid_t) id;
 
 		if (a_newname != NULL)
 			grp->gr_name = pw_checkname(a_newname->val, 0);
 	} else {
-		if (a_name == NULL)	/* Required */
+		if (name == NULL)	/* Required */
 			errx(EX_DATAERR, "group name required");
 		else if (grp != NULL)	/* Exists */
-			errx(EX_DATAERR, "group name `%s' already exists", a_name->val);
+			errx(EX_DATAERR, "group name `%s' already exists", name);
 
 		extendarray(&members, &grmembers, 200);
 		members[0] = NULL;
 		grp = &fakegroup;
-		grp->gr_name = pw_checkname(a_name->val, 0);
+		grp->gr_name = pw_checkname(name, 0);
 		grp->gr_passwd = "*";
 		grp->gr_gid = gr_gidpolicy(cnf, args);
 		grp->gr_mem = members;
@@ -265,7 +254,7 @@ pw_group(int mode, struct cargs * args)
 			    grp->gr_name);
 		else
 			err(EX_IOERR, "group update");
-	} else if (mode == M_UPDATE && (rc = chggrent(a_name->val, grp)) != 0) {
+	} else if (mode == M_UPDATE && (rc = chggrent(name, grp)) != 0) {
 		if (rc == -1)
 			errx(EX_IOERR, "group '%s' not available (NIS?)",
 			    grp->gr_name);
@@ -273,9 +262,10 @@ pw_group(int mode, struct cargs * args)
 			err(EX_IOERR, "group update");
 	}
 
-	arg = a_newname != NULL ? a_newname : a_name;
+	if (a_newname != NULL)
+		name = a_newname->val;
 	/* grp may have been invalidated */
-	if ((grp = GETGRNAM(arg->val)) == NULL)
+	if ((grp = GETGRNAM(name)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%u)", grp->gr_name, grp->gr_gid);
