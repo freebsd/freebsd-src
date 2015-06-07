@@ -1139,7 +1139,7 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 
 	pw_log(cnf, mode, W_USER, "%s(%u) account removed", a_name->val, uid);
 
-	if (PWALTDIR()) {
+	if (!PWALTDIR()) {
 		/*
 		 * Remove mail file
 		 */
