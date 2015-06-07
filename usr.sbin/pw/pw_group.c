@@ -146,7 +146,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			grp->gr_gid = (gid_t) atoi(a_gid->val);
 
 		if (a_newname != NULL)
-			grp->gr_name = pw_checkname((u_char *)a_newname->val, 0);
+			grp->gr_name = pw_checkname(a_newname->val, 0);
 	} else {
 		if (a_name == NULL)	/* Required */
 			errx(EX_DATAERR, "group name required");
@@ -156,7 +156,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		extendarray(&members, &grmembers, 200);
 		members[0] = NULL;
 		grp = &fakegroup;
-		grp->gr_name = pw_checkname((u_char *)a_name->val, 0);
+		grp->gr_name = pw_checkname(a_name->val, 0);
 		grp->gr_passwd = "*";
 		grp->gr_gid = gr_gidpolicy(cnf, args);
 		grp->gr_mem = members;
