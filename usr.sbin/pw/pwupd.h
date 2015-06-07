@@ -87,6 +87,7 @@ struct pwconf {
 	bool		 dryrun;
 	bool		 pretty;
 	bool		 v7;
+	bool		 checkduplicate;
 	struct userconf	*userconf;
 };
 
