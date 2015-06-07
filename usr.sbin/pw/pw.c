@@ -131,9 +131,7 @@ main(int argc, char *argv[])
 	};
 
 	relocated = nis = false;
-	conf.rootdir[0] = '\0';
-	conf.dryrun = false;
-	conf.pretty = false;
+	memset(&conf, 0, sizeof(conf));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 
 	LIST_INIT(&arglist);
