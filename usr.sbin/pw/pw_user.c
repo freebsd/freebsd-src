@@ -52,7 +52,7 @@ static const char rcsid[] =
 static		char locked_str[] = "*LOCKED*";
 
 static int	delete_user(struct userconf *cnf, struct passwd *pwd,
-		    struct carg *a_name, int delete, int mode);
+		    char *name, int delete, int mode);
 static int	print_user(struct passwd * pwd);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
 static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
@@ -119,13 +119,11 @@ create_and_populate_homedir(int mode, struct passwd *pwd)
  */
 
 int
-pw_user(int mode, struct cargs * args)
+pw_user(int mode, char *name, long id, struct cargs * args)
 {
 	int	        rc, edited = 0;
 	char           *p = NULL;
 	char					 *passtmp;
-	struct carg    *a_name;
-	struct carg    *a_uid;
 	struct carg    *arg;
 	struct passwd  *pwd = NULL;
 	struct group   *grp;
@@ -166,7 +164,7 @@ pw_user(int mode, struct cargs * args)
 		if (getarg(args, 'q'))
 			return next;
 		printf("%u:", next);
-		pw_group(mode, args);
+		pw_group(mode, name, -1, args);
 		return EXIT_SUCCESS;
 	}
 
@@ -323,29 +321,11 @@ pw_user(int mode, struct cargs * args)
 		return EXIT_SUCCESS;
 	}
 
-	if ((a_name = getarg(args, 'n')) != NULL)
-		pwd = GETPWNAM(pw_checkname(a_name->val, 0));
-	a_uid = getarg(args, 'u');
+	if (name != NULL)
+		pwd = GETPWNAM(pw_checkname(name, 0));
 
-	if (a_uid == NULL) {
-		if (a_name == NULL)
-			errx(EX_DATAERR, "user name or id required");
-
-		/*
-		 * Determine whether 'n' switch is name or uid - we don't
-		 * really don't really care which we have, but we need to
-		 * know.
-		 */
-		if (mode != M_ADD && pwd == NULL
-		    && strspn(a_name->val, "0123456789") == strlen(a_name->val)
-		    && *a_name->val) {
-			(a_uid = a_name)->ch = 'u';
-			a_name = NULL;
-		}
-	} else {
-		if (strspn(a_uid->val, "0123456789") != strlen(a_uid->val))
-			errx(EX_USAGE, "-u expects a number");
-	}
+	if (id < 0 && name == NULL)
+		errx(EX_DATAERR, "user name or id required");
 
 	/*
 	 * Update, delete & print require that the user exists
@@ -353,22 +333,22 @@ pw_user(int mode, struct cargs * args)
 	if (mode == M_UPDATE || mode == M_DELETE ||
 	    mode == M_PRINT  || mode == M_LOCK   || mode == M_UNLOCK) {
 
-		if (a_name == NULL && pwd == NULL)	/* Try harder */
-			pwd = GETPWUID(atoi(a_uid->val));
+		if (name == NULL && pwd == NULL)	/* Try harder */
+			pwd = GETPWUID(id);
 
 		if (pwd == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
-				fakeuser.pw_name = a_name ? a_name->val : "nouser";
-				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : (uid_t) -1;
+				fakeuser.pw_name = name ? name : "nouser";
+				fakeuser.pw_uid = (uid_t) id;
 				return print_user(&fakeuser);
 			}
-			if (a_name == NULL)
-				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
-			errx(EX_NOUSER, "no such user `%s'", a_name->val);
+			if (name == NULL)
+				errx(EX_NOUSER, "no such uid `%ld'", id);
+			errx(EX_NOUSER, "no such user `%s'", name);
 		}
 
-		if (a_name == NULL)	/* May be needed later */
-			a_name = addarg(args, 'n', newstr(pwd->pw_name));
+		if (name == NULL)
+			name = pwd->pw_name;
 
 		/*
 		 * The M_LOCK and M_UNLOCK functions simply add or remove
@@ -394,7 +374,7 @@ pw_user(int mode, struct cargs * args)
 			pwd->pw_passwd += sizeof(locked_str)-1;
 			edited = 1;
 		} else if (mode == M_DELETE)
-			return (delete_user(cnf, pwd, a_name,
+			return (delete_user(cnf, pwd, name,
 				    getarg(args, 'r') != NULL, mode));
 		else if (mode == M_PRINT)
 			return print_user(pwd);
@@ -511,16 +491,16 @@ pw_user(int mode, struct cargs * args)
 		 * Add code
 		 */
 
-		if (a_name == NULL)	/* Required */
+		if (name == NULL)	/* Required */
 			errx(EX_DATAERR, "login name required");
-		else if ((pwd = GETPWNAM(a_name->val)) != NULL)	/* Exists */
-			errx(EX_DATAERR, "login name `%s' already exists", a_name->val);
+		else if ((pwd = GETPWNAM(name)) != NULL)	/* Exists */
+			errx(EX_DATAERR, "login name `%s' already exists", name);
 
 		/*
 		 * Now, set up defaults for a new user
 		 */
 		pwd = &fakeuser;
-		pwd->pw_name = a_name->val;
+		pwd->pw_name = name;
 		pwd->pw_class = cnf->default_class ? cnf->default_class : "";
 		pwd->pw_uid = pw_uidpolicy(cnf, args);
 		pwd->pw_gid = pw_gidpolicy(args, pwd->pw_name, (gid_t) pwd->pw_uid);
@@ -635,13 +615,13 @@ pw_user(int mode, struct cargs * args)
 		}
 	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
 		if (edited) {	/* Only updated this if required */
-			rc = chgpwent(a_name->val, pwd);
+			rc = chgpwent(name, pwd);
 			if (rc == -1)
 				errx(EX_IOERR, "user '%s' does not exist (NIS?)", pwd->pw_name);
 			else if (rc != 0)
 				err(EX_IOERR, "passwd file update");
 			if ( cnf->nispasswd && *cnf->nispasswd=='/') {
-				rc = chgnispwent(cnf->nispasswd, a_name->val, pwd);
+				rc = chgnispwent(cnf->nispasswd, name, pwd);
 				if (rc == -1)
 					warn("User '%s' not found in NIS passwd", pwd->pw_name);
 				else
@@ -693,16 +673,16 @@ pw_user(int mode, struct cargs * args)
 
 
 	/* go get a current version of pwd */
-	pwd = GETPWNAM(a_name->val);
+	pwd = GETPWNAM(name);
 	if (pwd == NULL) {
 		/* This will fail when we rename, so special case that */
 		if (mode == M_UPDATE && (arg = getarg(args, 'l')) != NULL) {
-			a_name->val = arg->val;		/* update new name */
-			pwd = GETPWNAM(a_name->val);	/* refetch renamed rec */
+			name = arg->val;		/* update new name */
+			pwd = GETPWNAM(name);	/* refetch renamed rec */
 		}
 	}
 	if (pwd == NULL)	/* can't go on without this */
-		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
+		errx(EX_NOUSER, "user '%s' disappeared during update", name);
 
 	grp = GETGRGID(pwd->pw_gid);
 	pw_log(cnf, mode, W_USER, "%s(%u):%s(%u):%s:%s:%s",
@@ -849,7 +829,6 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 		char            tmp[32];
 
 		LIST_INIT(&grpargs);
-		addarg(&grpargs, 'n', nam);
 
 		/*
 		 * We need to auto-create a group with the user's name. We
@@ -866,11 +845,11 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 		}
 		if (conf.dryrun) {
 			addarg(&grpargs, 'q', NULL);
-			gid = pw_group(M_NEXT, &grpargs);
+			gid = pw_group(M_NEXT, nam, -1, &grpargs);
 		}
 		else
 		{
-			pw_group(M_ADD, &grpargs);
+			pw_group(M_ADD, nam, -1, &grpargs);
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
 		}
@@ -1048,7 +1027,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 }
 
 static int
-delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
+delete_user(struct userconf *cnf, struct passwd *pwd, char *name,
     int delete, int mode)
 {
 	char		 file[MAXPATHLEN];
@@ -1097,7 +1076,7 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 		err(EX_IOERR, "passwd update");
 
 	if (cnf->nispasswd && *cnf->nispasswd=='/') {
-		rc = delnispwent(cnf->nispasswd, a_name->val);
+		rc = delnispwent(cnf->nispasswd, name);
 		if (rc == -1)
 			warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
 		else if (rc != 0)
@@ -1105,11 +1084,11 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 		/* non-fatal */
 	}
 
-	grp = GETGRNAM(a_name->val);
+	grp = GETGRNAM(name);
 	if (grp != NULL &&
 	    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
-	    strcmp(a_name->val, grname) == 0)
-		delgrent(GETGRNAM(a_name->val));
+	    strcmp(name, grname) == 0)
+		delgrent(GETGRNAM(name));
 	SETGRENT();
 	while ((grp = GETGRENT()) != NULL) {
 		int i, j;
@@ -1118,7 +1097,7 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 			continue;
 
 		for (i = 0; grp->gr_mem[i] != NULL; i++) {
-			if (strcmp(grp->gr_mem[i], a_name->val) != 0)
+			if (strcmp(grp->gr_mem[i], name) != 0)
 				continue;
 
 			for (j = i; grp->gr_mem[j] != NULL; j++)
@@ -1129,7 +1108,7 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 	}
 	ENDGRENT();
 
-	pw_log(cnf, mode, W_USER, "%s(%u) account removed", a_name->val, uid);
+	pw_log(cnf, mode, W_USER, "%s(%u) account removed", name, uid);
 
 	if (!PWALTDIR()) {
 		/*
@@ -1150,7 +1129,7 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 		    stat(home, &st) != -1) {
 			rm_r(home, uid);
 			pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
-			       a_name->val, uid, home,
+			       name, uid, home,
 			       stat(home, &st) == -1 ? "" : "not completely ");
 		}
 	}
