@@ -229,7 +229,8 @@ main(int argc, char *argv[])
 			conf.v7 = true;
 			break;
 		case 'C':
-			config = optarg;
+			conf.config = optarg;
+			config = conf.config;
 			break;
 		case 'N':
 			conf.dryrun = true;

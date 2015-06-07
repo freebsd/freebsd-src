@@ -292,7 +292,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	if ((arg = getarg(args, 'w')) != NULL)
 		cnf->default_password = boolean_val(arg->val, cnf->default_password);
 	if (mode == M_ADD && getarg(args, 'D')) {
-		if (getarg(args, 'n') != NULL)
+		if (name != NULL)
 			errx(EX_DATAERR, "can't combine `-D' with `-n name'");
 		if ((arg = getarg(args, 'u')) != NULL && (p = strtok(arg->val, ", \t")) != NULL) {
 			if ((cnf->min_uid = (uid_t) atoi(p)) == 0)
@@ -307,9 +307,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 				cnf->max_gid = 32000;
 		}
 
-		arg = getarg(args, 'C');
-		if (write_userconfig(arg ? arg->val : NULL))
-			return EXIT_SUCCESS;
+		if (write_userconfig(conf.config))
+			return (EXIT_SUCCESS);
 		err(EX_IOERR, "config udpate");
 	}
 
