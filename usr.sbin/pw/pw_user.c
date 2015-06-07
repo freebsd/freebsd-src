@@ -1143,9 +1143,6 @@ print_user(struct passwd * pwd)
 	if (!conf.pretty) {
 		char            *buf;
 
-		if (!conf.v7)
-			pwd->pw_passwd = (pwd->pw_passwd == NULL) ? "" : "*";
-
 		buf = conf.v7 ? pw_make_v7(pwd) : pw_make(pwd);
 		printf("%s\n", buf);
 		free(buf);
