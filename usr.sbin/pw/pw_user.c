@@ -1152,13 +1152,12 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 		/*
 		 * Remove home directory and contents
 		 */
-		if (delete && *home == '/' && getpwuid(uid) == NULL) {
-			if (stat(home, &st) != -1) {
-				rm_r(home, uid);
-				pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
-				       a_name->val, uid, home,
-				       stat(home, &st) == -1 ? "" : "not completely ");
-			}
+		if (delete && *home == '/' && getpwuid(uid) == NULL &&
+		    stat(home, &st) != -1) {
+			rm_r(home, uid);
+			pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
+			       a_name->val, uid, home,
+			       stat(home, &st) == -1 ? "" : "not completely ");
 		}
 	}
 
