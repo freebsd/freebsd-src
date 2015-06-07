@@ -45,7 +45,7 @@ static struct passwd *lookup_pwent(const char *user);
 static void	delete_members(char ***members, int *grmembers, int *i,
     struct carg *arg, struct group *grp);
 static int	print_group(struct group * grp);
-static gid_t    gr_gidpolicy(struct userconf * cnf, struct cargs * args);
+static gid_t    gr_gidpolicy(struct userconf * cnf, long id);
 
 int
 pw_group(int mode, char *name, long id, struct cargs * args)
@@ -73,7 +73,7 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	 * next gid to stdout
 	 */
 	if (mode == M_NEXT) {
-		gid_t next = gr_gidpolicy(cnf, args);
+		gid_t next = gr_gidpolicy(cnf, id);
 		if (getarg(args, 'q'))
 			return next;
 		printf("%u\n", next);
@@ -145,7 +145,7 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		grp = &fakegroup;
 		grp->gr_name = pw_checkname(name, 0);
 		grp->gr_passwd = "*";
-		grp->gr_gid = gr_gidpolicy(cnf, args);
+		grp->gr_gid = gr_gidpolicy(cnf, id);
 		grp->gr_mem = members;
 	}
 
@@ -336,19 +336,18 @@ delete_members(char ***members, int *grmembers, int *i, struct carg *arg,
 
 
 static          gid_t
-gr_gidpolicy(struct userconf * cnf, struct cargs * args)
+gr_gidpolicy(struct userconf * cnf, long id)
 {
 	struct group   *grp;
 	gid_t           gid = (gid_t) - 1;
-	struct carg    *a_gid = getarg(args, 'g');
 
 	/*
 	 * Check the given gid, if any
 	 */
-	if (a_gid != NULL) {
-		gid = (gid_t) atol(a_gid->val);
+	if (id > 0) {
+		gid = (gid_t) id;
 
-		if ((grp = GETGRGID(gid)) != NULL && getarg(args, 'o') == NULL)
+		if ((grp = GETGRGID(gid)) != NULL && conf.checkduplicate)
 			errx(EX_DATAERR, "gid `%u' has already been allocated", grp->gr_gid);
 	} else {
 		struct bitmap   bm;

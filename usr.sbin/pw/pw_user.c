@@ -54,7 +54,7 @@ static		char locked_str[] = "*LOCKED*";
 static int	delete_user(struct userconf *cnf, struct passwd *pwd,
 		    char *name, int delete, int mode);
 static int	print_user(struct passwd * pwd);
-static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
+static uid_t    pw_uidpolicy(struct userconf * cnf, long id);
 static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
 static time_t   pw_exppolicy(struct userconf * cnf, struct cargs * args);
@@ -160,7 +160,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	 */
 	if (mode == M_NEXT)
 	{
-		uid_t next = pw_uidpolicy(cnf, args);
+		uid_t next = pw_uidpolicy(cnf, id);
 		if (getarg(args, 'q'))
 			return next;
 		printf("%u:", next);
@@ -389,8 +389,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 			edited = 1;
 		}
 
-		if ((arg = getarg(args, 'u')) != NULL && isdigit((unsigned char)*arg->val)) {
-			pwd->pw_uid = (uid_t) atol(arg->val);
+		if (id > 0 && isdigit((unsigned char)*arg->val)) {
+			pwd->pw_uid = (uid_t)id;
 			edited = 1;
 			if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't change uid of `root' account");
@@ -502,7 +502,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		pwd = &fakeuser;
 		pwd->pw_name = name;
 		pwd->pw_class = cnf->default_class ? cnf->default_class : "";
-		pwd->pw_uid = pw_uidpolicy(cnf, args);
+		pwd->pw_uid = pw_uidpolicy(cnf, id);
 		pwd->pw_gid = pw_gidpolicy(args, pwd->pw_name, (gid_t) pwd->pw_uid);
 		pwd->pw_change = pw_pwdpolicy(cnf, args);
 		pwd->pw_expire = pw_exppolicy(cnf, args);
@@ -741,19 +741,18 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 
 
 static          uid_t
-pw_uidpolicy(struct userconf * cnf, struct cargs * args)
+pw_uidpolicy(struct userconf * cnf, long id)
 {
 	struct passwd  *pwd;
 	uid_t           uid = (uid_t) - 1;
-	struct carg    *a_uid = getarg(args, 'u');
 
 	/*
 	 * Check the given uid, if any
 	 */
-	if (a_uid != NULL) {
-		uid = (uid_t) atol(a_uid->val);
+	if (id > 0) {
+		uid = (uid_t) id;
 
-		if ((pwd = GETPWUID(uid)) != NULL && getarg(args, 'o') == NULL)
+		if ((pwd = GETPWUID(uid)) != NULL && conf.checkduplicate)
 			errx(EX_DATAERR, "uid `%u' has already been allocated", pwd->pw_uid);
 	} else {
 		struct bitmap   bm;
