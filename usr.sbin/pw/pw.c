@@ -269,6 +269,10 @@ main(int argc, char *argv[])
 			if (errstr != NULL)
 				errx(EX_USAGE, "Bad id '%s': %s", optarg,
 				    errstr);
+			break;
+		case 'o':
+			conf.checkduplicate = true;
+			break;
 		default:
 			addarg(&arglist, ch, optarg);
 			break;
