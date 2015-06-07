@@ -100,13 +100,34 @@ user_mod_name_noupdate_body() {
 		grep "^foo:.*" $HOME/master.passwd
 }
 
+atf_test_case user_mod_rename
+user_mod_rename_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -l bar
+	atf_check -s exit:0 -o match:"^bar:.*" \
+		grep "^bar:.*" ${HOME}/master.passwd
+}
+
+atf_test_case user_mod_rename_too_long
+user_mod_rename_too_long_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:64 -e match:"too long" ${PW} usermod foo \
+		-l name_very_very_very_very_very_long
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_mod
 	atf_add_test_case user_mod_noupdate
 	atf_add_test_case user_mod_comments
 	atf_add_test_case user_mod_comments_noupdate
-	atf_add_test_case user_mod_comments_invalid 
-	atf_add_test_case user_mod_comments_invalid_noupdate 
-	atf_add_test_case user_mod_name
+	atf_add_test_case user_mod_comments_invalid
+	atf_add_test_case user_mod_comments_invalid_noupdate
+	atf_add_test_case user_mod_rename
 	atf_add_test_case user_mod_name_noupdate
+	atf_add_test_case user_mod_rename
+	atf_add_test_case user_mod_rename_too_long
 }

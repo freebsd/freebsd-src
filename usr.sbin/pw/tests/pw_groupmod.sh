@@ -71,10 +71,21 @@ do_not_duplicate_group_on_gid_change_body() {
 	atf_check -o inline:"testgroup:*:12345:\n" -s exit:0 -x grep "^testgroup" ${HOME}/group
 }
 
+atf_test_case groupmod_rename
+groupmod_rename_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} groupadd foo
+	atf_check -s exit:0 ${PW} groupmod foo -l bar
+	atf_check -s exit:0 -o match:"^bar:.*" \
+		grep "^bar:.*" ${HOME}/group
+}
+
 atf_init_test_cases() {
 	atf_add_test_case groupmod_user
 	atf_add_test_case groupmod_invalid_user
 	atf_add_test_case groupmod_bug_193704
 	atf_add_test_case usermod_bug_185666
 	atf_add_test_case do_not_duplicate_group_on_gid_change
+	atf_add_test_case groupmod_rename
 }

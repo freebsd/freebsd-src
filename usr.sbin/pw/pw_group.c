@@ -51,7 +51,6 @@ int
 pw_group(int mode, char *name, long id, struct cargs * args)
 {
 	int		rc;
-	struct carg    *a_newname = getarg(args, 'l');
 	struct carg    *arg;
 	struct group   *grp = NULL;
 	int	        grmembers = 0;
@@ -133,8 +132,8 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		if (id > 0)
 			grp->gr_gid = (gid_t) id;
 
-		if (a_newname != NULL)
-			grp->gr_name = pw_checkname(a_newname->val, 0);
+		if (conf.newname != NULL)
+			grp->gr_name = pw_checkname(conf.newname, 0);
 	} else {
 		if (name == NULL)	/* Required */
 			errx(EX_DATAERR, "group name required");
@@ -262,8 +261,8 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 			err(EX_IOERR, "group update");
 	}
 
-	if (a_newname != NULL)
-		name = a_newname->val;
+	if (conf.newname != NULL)
+		name = conf.newname;
 	/* grp may have been invalidated */
 	if ((grp = GETGRNAM(name)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
