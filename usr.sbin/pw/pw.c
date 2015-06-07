@@ -234,6 +234,11 @@ main(int argc, char *argv[])
 		case 'N':
 			conf.dryrun = true;
 			break;
+		case 'l':
+			if (strlen(optarg) >= MAXLOGNAME)
+				errx(EX_USAGE, "new name too long: %s", optarg);
+			conf.newname = optarg;
+			break;
 		case 'P':
 			conf.pretty = true;
 			break;
