@@ -382,10 +382,10 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		/*
 		 * The rest is edit code
 		 */
-		if ((arg = getarg(args, 'l')) != NULL) {
+		if (conf.newname != NULL) {
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't rename `root' account");
-			pwd->pw_name = pw_checkname(arg->val, 0);
+			pwd->pw_name = pw_checkname(conf.newname, 0);
 			edited = 1;
 		}
 
@@ -676,8 +676,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	pwd = GETPWNAM(name);
 	if (pwd == NULL) {
 		/* This will fail when we rename, so special case that */
-		if (mode == M_UPDATE && (arg = getarg(args, 'l')) != NULL) {
-			name = arg->val;		/* update new name */
+		if (mode == M_UPDATE && conf.newname != NULL) {
+			name = conf.newname;		/* update new name */
 			pwd = GETPWNAM(name);	/* refetch renamed rec */
 		}
 	}
