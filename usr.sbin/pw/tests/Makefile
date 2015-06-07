@@ -19,7 +19,8 @@ ATF_TESTS_SH=	pw_etcdir \
 TEST_METADATA.${tp}+=	required_user="root"
 .endfor
 
-FILES=		group helper_functions.shin master.passwd pw.conf
+FILES=		group helper_functions.shin master.passwd pw.conf \
+		pw-modified.conf
 FILESDIR=       ${TESTSDIR}
 
 ATF_TESTS_SH+=	pw_test
