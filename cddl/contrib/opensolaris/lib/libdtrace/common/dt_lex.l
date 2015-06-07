@@ -743,6 +743,7 @@ yyinit(dt_pcb_t *pcb)
 #if defined(sun)
 	yysptr = yysbuf;
 #endif
+	YY_FLUSH_BUFFER;
 }
 
 /*
