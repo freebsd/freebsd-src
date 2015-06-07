@@ -53,7 +53,7 @@ static		char locked_str[] = "*LOCKED*";
 
 static int	delete_user(struct userconf *cnf, struct passwd *pwd,
 		    struct carg *a_name, int delete, int mode);
-static int	print_user(struct passwd * pwd, int v7);
+static int	print_user(struct passwd * pwd);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
 static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
@@ -316,10 +316,9 @@ pw_user(int mode, struct cargs * args)
 	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
-		int		v7 = getarg(args, '7') != NULL;
 		SETPWENT();
 		while ((pwd = GETPWENT()) != NULL)
-			print_user(pwd, v7);
+			print_user(pwd);
 		ENDPWENT();
 		return EXIT_SUCCESS;
 	}
@@ -1161,15 +1160,15 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 }
 
 static int
-print_user(struct passwd * pwd, int v7)
+print_user(struct passwd * pwd)
 {
 	if (!conf.pretty) {
 		char            *buf;
 
-		if (!v7)
+		if (!conf.v7)
 			pwd->pw_passwd = (pwd->pw_passwd == NULL) ? "" : "*";
 
-		buf = v7 ? pw_make_v7(pwd) : pw_make(pwd);
+		buf = conf.v7 ? pw_make_v7(pwd) : pw_make(pwd);
 		printf("%s\n", buf);
 		free(buf);
 	} else {
