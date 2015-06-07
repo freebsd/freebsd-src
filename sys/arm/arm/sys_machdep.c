@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#include <machine/acle-compat.h>
 #include <machine/cpu-v6.h>
 #include <machine/sysarch.h>
 #include <machine/vmparam.h>
@@ -162,7 +163,7 @@ arm32_set_tp(struct thread *td, void *args)
 {
 
 	td->td_md.md_tp = (register_t)args;
-#ifndef ARM_TP_ADDRESS
+#if __ARM_ARCH >= 6
 	set_tls(args);
 #else
 	*(register_t *)ARM_TP_ADDRESS = (register_t)args;
@@ -174,7 +175,7 @@ static int
 arm32_get_tp(struct thread *td, void *args)
 {
 
-#ifndef ARM_TP_ADDRESS
+#if __ARM_ARCH >= 6
 	td->td_retval[0] = td->td_md.md_tp;
 #else
 	td->td_retval[0] = *(register_t *)ARM_TP_ADDRESS;
