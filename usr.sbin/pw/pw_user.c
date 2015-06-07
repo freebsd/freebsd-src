@@ -51,6 +51,8 @@ static const char rcsid[] =
 
 static		char locked_str[] = "*LOCKED*";
 
+static int	delete_user(struct userconf *cnf, struct passwd *pwd,
+		    struct carg *a_name, int delete, int mode);
 static int      print_user(struct passwd * pwd, int pretty, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
 static uid_t    pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer);
@@ -394,112 +396,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
 			pwd->pw_passwd += sizeof(locked_str)-1;
 			edited = 1;
-		} else if (mode == M_DELETE) {
-			/*
-			 * Handle deletions now
-			 */
-			char            file[MAXPATHLEN];
-			char            home[MAXPATHLEN];
-			uid_t           uid = pwd->pw_uid;
-			struct group    *gr;
-			char            grname[LOGNAMESIZE];
-
-			if (strcmp(pwd->pw_name, "root") == 0)
-				errx(EX_DATAERR, "cannot remove user 'root'");
-
-			if (!PWALTDIR()) {
-				/*
-				 * Remove opie record from /etc/opiekeys
-		        	 */
-
-				rmopie(pwd->pw_name);
-
-				/*
-				 * Remove crontabs
-				 */
-				snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
-				if (access(file, F_OK) == 0) {
-					snprintf(file, sizeof(file), "crontab -u %s -r", pwd->pw_name);
-					system(file);
-				}
-			}
-			/*
-			 * Save these for later, since contents of pwd may be
-			 * invalidated by deletion
-			 */
-			snprintf(file, sizeof(file), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
-			strlcpy(home, pwd->pw_dir, sizeof(home));
-			gr = GETGRGID(pwd->pw_gid);
-			if (gr != NULL)
-				strlcpy(grname, gr->gr_name, LOGNAMESIZE);
-			else
-				grname[0] = '\0';
-
-			rc = delpwent(pwd);
-			if (rc == -1)
-				err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
-			else if (rc != 0)
-				err(EX_IOERR, "passwd update");
-
-			if (cnf->nispasswd && *cnf->nispasswd=='/') {
-				rc = delnispwent(cnf->nispasswd, a_name->val);
-				if (rc == -1)
-					warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
-				else if (rc != 0)
-					warn("WARNING: NIS passwd update");
-				/* non-fatal */
-			}
-
-			grp = GETGRNAM(a_name->val);
-			if (grp != NULL &&
-			    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
-			    strcmp(a_name->val, grname) == 0)
-				delgrent(GETGRNAM(a_name->val));
-			SETGRENT();
-			while ((grp = GETGRENT()) != NULL) {
-				int i, j;
-				char group[MAXLOGNAME];
-				if (grp->gr_mem != NULL) {
-					for (i = 0; grp->gr_mem[i] != NULL; i++) {
-						if (!strcmp(grp->gr_mem[i], a_name->val)) {
-							for (j = i; grp->gr_mem[j] != NULL; j++)
-								grp->gr_mem[j] = grp->gr_mem[j+1];
-							strlcpy(group, grp->gr_name, MAXLOGNAME);
-							chggrent(group, grp);
-						}
-					}
-				}
-			}
-			ENDGRENT();
-
-			pw_log(cnf, mode, W_USER, "%s(%u) account removed", a_name->val, uid);
-
-			if (PWALTDIR()) {
-				/*
-				 * Remove mail file
-				 */
-				remove(file);
-
-				/*
-				 * Remove at jobs
-				 */
-				if (getpwuid(uid) == NULL)
-					rmat(uid);
-
-				/*
-				 * Remove home directory and contents
-				 */
-				if (getarg(args, 'r') != NULL && *home == '/' && getpwuid(uid) == NULL) {
-					if (stat(home, &st) != -1) {
-						rm_r(home, uid);
-						pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
-						       a_name->val, uid, home,
-						       stat(home, &st) == -1 ? "" : "not completely ");
-					}
-				}
-			}
-			return EXIT_SUCCESS;
-		} else if (mode == M_PRINT)
+		} else if (mode == M_DELETE)
+			return (delete_user(cnf, pwd, a_name,
+				    getarg(args, 'r') != NULL, mode));
+		else if (mode == M_PRINT)
 			return print_user(pwd,
 					  getarg(args, 'P') != NULL,
 					  getarg(args, '7') != NULL);
@@ -1155,6 +1055,115 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 	return pw_pwcrypt(pwbuf);
 }
 
+static int
+delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
+    int delete, int mode)
+{
+	char		 file[MAXPATHLEN];
+	char		 home[MAXPATHLEN];
+	uid_t		 uid = pwd->pw_uid;
+	struct group	*gr, *grp;
+	char		 grname[LOGNAMESIZE];
+	int		 rc;
+	struct stat	 st;
+
+	if (strcmp(pwd->pw_name, "root") == 0)
+		errx(EX_DATAERR, "cannot remove user 'root'");
+
+	if (!PWALTDIR()) {
+		/*
+		 * Remove opie record from /etc/opiekeys
+		*/
+
+		rmopie(pwd->pw_name);
+
+		/*
+		 * Remove crontabs
+		 */
+		snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
+		if (access(file, F_OK) == 0) {
+			snprintf(file, sizeof(file), "crontab -u %s -r", pwd->pw_name);
+			system(file);
+		}
+	}
+	/*
+	 * Save these for later, since contents of pwd may be
+	 * invalidated by deletion
+	 */
+	snprintf(file, sizeof(file), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+	strlcpy(home, pwd->pw_dir, sizeof(home));
+	gr = GETGRGID(pwd->pw_gid);
+	if (gr != NULL)
+		strlcpy(grname, gr->gr_name, LOGNAMESIZE);
+	else
+		grname[0] = '\0';
+
+	rc = delpwent(pwd);
+	if (rc == -1)
+		err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
+	else if (rc != 0)
+		err(EX_IOERR, "passwd update");
+
+	if (cnf->nispasswd && *cnf->nispasswd=='/') {
+		rc = delnispwent(cnf->nispasswd, a_name->val);
+		if (rc == -1)
+			warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
+		else if (rc != 0)
+			warn("WARNING: NIS passwd update");
+		/* non-fatal */
+	}
+
+	grp = GETGRNAM(a_name->val);
+	if (grp != NULL &&
+	    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
+	    strcmp(a_name->val, grname) == 0)
+		delgrent(GETGRNAM(a_name->val));
+	SETGRENT();
+	while ((grp = GETGRENT()) != NULL) {
+		int i, j;
+		char group[MAXLOGNAME];
+		if (grp->gr_mem != NULL) {
+			for (i = 0; grp->gr_mem[i] != NULL; i++) {
+				if (!strcmp(grp->gr_mem[i], a_name->val)) {
+					for (j = i; grp->gr_mem[j] != NULL; j++)
+						grp->gr_mem[j] = grp->gr_mem[j+1];
+					strlcpy(group, grp->gr_name, MAXLOGNAME);
+					chggrent(group, grp);
+				}
+			}
+		}
+	}
+	ENDGRENT();
+
+	pw_log(cnf, mode, W_USER, "%s(%u) account removed", a_name->val, uid);
+
+	if (PWALTDIR()) {
+		/*
+		 * Remove mail file
+		 */
+		remove(file);
+
+		/*
+		 * Remove at jobs
+		 */
+		if (getpwuid(uid) == NULL)
+			rmat(uid);
+
+		/*
+		 * Remove home directory and contents
+		 */
+		if (delete && *home == '/' && getpwuid(uid) == NULL) {
+			if (stat(home, &st) != -1) {
+				rm_r(home, uid);
+				pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
+				       a_name->val, uid, home,
+				       stat(home, &st) == -1 ? "" : "not completely ");
+			}
+		}
+	}
+
+	return (EXIT_SUCCESS);
+}
 
 static int
 print_user(struct passwd * pwd, int pretty, int v7)
