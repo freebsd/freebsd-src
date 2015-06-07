@@ -83,7 +83,7 @@ static char emptystring[] = "";
 
 PATH_T to = { to.p_path, emptystring, "" };
 
-int fflag, iflag, lflag, nflag, pflag, vflag;
+int fflag, iflag, lflag, nflag, pflag, sflag, vflag;
 static int Rflag, rflag;
 volatile sig_atomic_t info;
 
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	Hflag = Lflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRafilnprvx")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRafilnprsvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -145,6 +145,9 @@ main(int argc, char *argv[])
 			rflag = Lflag = 1;
 			Hflag = 0;
 			break;
+		case 's':
+			sflag = 1;
+			break;
 		case 'v':
 			vflag = 1;
 			break;
@@ -163,6 +166,8 @@ main(int argc, char *argv[])
 
 	if (Rflag && rflag)
 		errx(1, "the -R and -r options may not be specified together");
+	if (lflag && sflag)
+		errx(1, "the -l and -s options may not be specified together");
 	if (rflag)
 		Rflag = 1;
 	if (Rflag) {
@@ -452,7 +457,7 @@ copy(char *argv[], enum op type, int fts_options)
 			break;
 		case S_IFBLK:
 		case S_IFCHR:
-			if (Rflag) {
+			if (Rflag && !sflag) {
 				if (copy_special(curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
@@ -465,7 +470,7 @@ copy(char *argv[], enum op type, int fts_options)
 				    curr->fts_path);
 			break;
 		case S_IFIFO:
-			if (Rflag) {
+			if (Rflag && !sflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {

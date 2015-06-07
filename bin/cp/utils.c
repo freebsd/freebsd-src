@@ -77,13 +77,15 @@ copy_file(const FTSENT *entp, int dne)
 	ssize_t wcount;
 	size_t wresid;
 	off_t wtotal;
-	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
+	int ch, checkch, from_fd, rcount, rval, to_fd;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
 #endif
 
-	if ((from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
+	from_fd = to_fd = -1;
+	if (!lflag && !sflag &&
+	    (from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
 		warn("%s", entp->fts_path);
 		return (1);
 	}
@@ -103,8 +105,8 @@ copy_file(const FTSENT *entp, int dne)
 		if (nflag) {
 			if (vflag)
 				printf("%s not overwritten\n", to.p_path);
-			(void)close(from_fd);
-			return (1);
+			rval = 1;
+			goto done;
 		} else if (iflag) {
 			(void)fprintf(stderr, "overwrite %s? %s", 
 					to.p_path, YESNO);
@@ -112,9 +114,9 @@ copy_file(const FTSENT *entp, int dne)
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
 			if (checkch != 'y' && checkch != 'Y') {
-				(void)close(from_fd);
 				(void)fprintf(stderr, "not overwritten\n");
-				return (1);
+				rval = 1;
+				goto done;
 			}
 		}
 		
@@ -122,28 +124,28 @@ copy_file(const FTSENT *entp, int dne)
 		    /* remove existing destination file name, 
 		     * create a new file  */
 		    (void)unlink(to.p_path);
-		    if (!lflag) {
+		    if (!lflag && !sflag) {
 		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 				  fs->st_mode & ~(S_ISUID | S_ISGID));
 		    }
-		} else if (!lflag) {
+		} else if (!lflag && !sflag) {
 			/* overwrite existing destination file name */
 			to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
 		}
-	} else if (!lflag) {
+	} else if (!lflag && !sflag) {
 		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 	}
 	
-	if (to_fd == -1) {
+	if (!lflag && !sflag && to_fd == -1) {
 		warn("%s", to.p_path);
-		(void)close(from_fd);
-		return (1);
+		rval = 1;
+		goto done;
 	}
 
 	rval = 0;
 
-	if (!lflag) {
+	if (!lflag && !sflag) {
 		/*
 		 * Mmap and write if less than 8M (the limit is so we don't totally
 		 * trash memory on big files.  This is really a minor hack, but it
@@ -229,8 +231,13 @@ copy_file(const FTSENT *entp, int dne)
 				rval = 1;
 			}
 		}
-	} else {
+	} else if (lflag) {
 		if (link(entp->fts_path, to.p_path)) {
+			warn("%s", to.p_path);
+			rval = 1;
+		}
+	} else if (sflag) {
+		if (symlink(entp->fts_path, to.p_path)) {
 			warn("%s", to.p_path);
 			rval = 1;
 		}
@@ -243,7 +250,7 @@ copy_file(const FTSENT *entp, int dne)
 	 * to remove it if we created it and its length is 0.
 	 */
 
-	if (!lflag) {
+	if (!lflag && !sflag) {
 		if (pflag && setfile(fs, to_fd))
 			rval = 1;
 		if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
@@ -254,8 +261,9 @@ copy_file(const FTSENT *entp, int dne)
 		}
 	}
 
-	(void)close(from_fd);
-
+done:
+	if (from_fd != -1)
+		(void)close(from_fd);
 	return (rval);
 }
 
@@ -535,8 +543,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpvx] source_file target_file",
-"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpvx] source_file ... "
+"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpsvx] source_file target_file",
+"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpsvx] source_file ... "
 "target_directory");
 	exit(EX_USAGE);
 }
