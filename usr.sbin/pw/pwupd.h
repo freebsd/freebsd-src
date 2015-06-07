@@ -29,12 +29,12 @@
 #ifndef _PWUPD_H_
 #define _PWUPD_H_
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
+
 #include <pwd.h>
 #include <grp.h>
-
-#include <sys/cdefs.h>
 
 #if defined(__FreeBSD__)
 #define	RET_SETGRENT	int
