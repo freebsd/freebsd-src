@@ -46,6 +46,7 @@
 #include "bootstrap.h"
 #include <string.h>
 #include "ficl.h"
+#include "../i386/libi386/libi386.h"
 
 /*		FreeBSD's loader interaction words and extras
  *
