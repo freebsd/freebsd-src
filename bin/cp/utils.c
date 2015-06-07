@@ -122,18 +122,17 @@ copy_file(const FTSENT *entp, int dne)
 		    /* remove existing destination file name, 
 		     * create a new file  */
 		    (void)unlink(to.p_path);
-				if (!lflag)
+		    if (!lflag) {
 		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 				  fs->st_mode & ~(S_ISUID | S_ISGID));
-		} else {
-				if (!lflag)
-		    	/* overwrite existing destination file name */
-		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+		    }
+		} else if (!lflag) {
+			/* overwrite existing destination file name */
+			to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
 		}
-	} else {
-		if (!lflag)
-			to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
-		  fs->st_mode & ~(S_ISUID | S_ISGID));
+	} else if (!lflag) {
+		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+		    fs->st_mode & ~(S_ISUID | S_ISGID));
 	}
 	
 	if (to_fd == -1) {
