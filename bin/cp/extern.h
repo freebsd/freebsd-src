@@ -37,7 +37,7 @@ typedef struct {
 } PATH_T;
 
 extern PATH_T to;
-extern int fflag, iflag, lflag, nflag, pflag, vflag;
+extern int fflag, iflag, lflag, nflag, pflag, sflag, vflag;
 extern volatile sig_atomic_t info;
 
 __BEGIN_DECLS
