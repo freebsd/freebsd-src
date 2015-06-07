@@ -158,14 +158,10 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	 * With M_NEXT, we only need to return the
 	 * next uid to stdout
 	 */
-	if (mode == M_NEXT)
-	{
-		uid_t next = pw_uidpolicy(cnf, id);
-		if (getarg(args, 'q'))
-			return next;
-		printf("%u:", next);
+	if (mode == M_NEXT) {
+		printf("%u:", pw_uidpolicy(cnf, id));
 		pw_group(mode, name, -1, args);
-		return EXIT_SUCCESS;
+		return (EXIT_SUCCESS);
 	}
 
 	/*

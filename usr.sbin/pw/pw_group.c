@@ -73,11 +73,8 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	 * next gid to stdout
 	 */
 	if (mode == M_NEXT) {
-		gid_t next = gr_gidpolicy(cnf, id);
-		if (getarg(args, 'q'))
-			return next;
-		printf("%u\n", next);
-		return EXIT_SUCCESS;
+		printf("%u\n", gr_gidpolicy(cnd, id));
+		return (EXIT_SUCCESS);
 	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
