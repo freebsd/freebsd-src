@@ -360,8 +360,7 @@ pw_user(int mode, struct cargs * args)
 			if (mode == M_PRINT && getarg(args, 'F')) {
 				fakeuser.pw_name = a_name ? a_name->val : "nouser";
 				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : (uid_t) -1;
-				return print_user(&fakeuser,
-						  getarg(args, '7') != NULL);
+				return print_user(&fakeuser);
 			}
 			if (a_name == NULL)
 				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
@@ -398,7 +397,7 @@ pw_user(int mode, struct cargs * args)
 			return (delete_user(cnf, pwd, a_name,
 				    getarg(args, 'r') != NULL, mode));
 		else if (mode == M_PRINT)
-			return print_user(pwd, getarg(args, '7') != NULL);
+			return print_user(pwd);
 
 		/*
 		 * The rest is edit code
@@ -616,7 +615,7 @@ pw_user(int mode, struct cargs * args)
 	 * Special case: -N only displays & exits
 	 */
 	if (conf.dryrun)
-		return print_user(pwd, getarg(args, '7') != NULL);
+		return print_user(pwd);
 
 	if (mode == M_ADD) {
 		edited = 1;	/* Always */
