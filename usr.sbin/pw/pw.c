@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 	char		*config = NULL;
 	struct stat	st;
 	char		arg;
-	bool		relocated = false;
+	bool		relocated, nis;
 
 	static const char *opts[W_NUM][M_NUM] =
 	{
@@ -130,6 +130,7 @@ main(int argc, char *argv[])
 		pw_group
 	};
 
+	relocated = nis = false;
 	conf.rootdir[0] = '\0';
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 
@@ -210,10 +211,20 @@ main(int argc, char *argv[])
 	optarg = NULL;
 
 	while ((ch = getopt(argc, argv, opts[which][mode])) != -1) {
-		if (ch == '?')
+		switch (ch) {
+		case '?':
 			errx(EX_USAGE, "unknown switch");
-		else
+			break;
+		case 'C':
+			config = optarg;
+			break;
+		case 'Y':
+			nis = true;
+			break;
+		default:
 			addarg(&arglist, ch, optarg);
+			break;
+		}
 		optarg = NULL;
 	}
 
@@ -234,7 +245,6 @@ main(int argc, char *argv[])
 	 * Set our base working path if not overridden
 	 */
 
-	config = getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL;
 	if (config == NULL) {	/* Only override config location if -C not specified */
 		asprintf(&config, "%s/pw.conf", conf.etcpath);
 		if (config == NULL)
@@ -252,7 +262,7 @@ main(int argc, char *argv[])
 	 * If everything went ok, and we've been asked to update
 	 * the NIS maps, then do it now
 	 */
-	if (ch == EXIT_SUCCESS && getarg(&arglist, 'Y') != NULL) {
+	if (ch == EXIT_SUCCESS && nis) {
 		pid_t	pid;
 
 		fflush(NULL);
