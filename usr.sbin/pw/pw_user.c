@@ -1122,15 +1122,17 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 	while ((grp = GETGRENT()) != NULL) {
 		int i, j;
 		char group[MAXLOGNAME];
-		if (grp->gr_mem != NULL) {
-			for (i = 0; grp->gr_mem[i] != NULL; i++) {
-				if (!strcmp(grp->gr_mem[i], a_name->val)) {
-					for (j = i; grp->gr_mem[j] != NULL; j++)
-						grp->gr_mem[j] = grp->gr_mem[j+1];
-					strlcpy(group, grp->gr_name, MAXLOGNAME);
-					chggrent(group, grp);
-				}
-			}
+		if (grp->gr_mem == NULL)
+			continue;
+
+		for (i = 0; grp->gr_mem[i] != NULL; i++) {
+			if (strcmp(grp->gr_mem[i], a_name->val))
+				continue;
+
+			for (j = i; grp->gr_mem[j] != NULL; j++)
+				grp->gr_mem[j] = grp->gr_mem[j+1];
+			strlcpy(group, grp->gr_name, MAXLOGNAME);
+			chggrent(group, grp);
 		}
 	}
 	ENDGRENT();
