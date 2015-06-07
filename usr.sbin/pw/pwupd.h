@@ -85,6 +85,7 @@ struct pwconf {
 	char		 etcpath[MAXPATHLEN];
 	bool		 dryrun;
 	bool		 pretty;
+	bool		 v7;
 	struct userconf	*userconf;
 };
 

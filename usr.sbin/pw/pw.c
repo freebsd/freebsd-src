@@ -215,6 +215,9 @@ main(int argc, char *argv[])
 		case '?':
 			errx(EX_USAGE, "unknown switch");
 			break;
+		case '7':
+			conf.v7 = true;
+			break;
 		case 'C':
 			config = optarg;
 			break;
