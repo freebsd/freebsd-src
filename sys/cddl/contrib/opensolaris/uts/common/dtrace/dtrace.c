@@ -14178,7 +14178,7 @@ dtrace_state_create(struct cdev *dev)
 	if (dev != NULL) {
 		cr = dev->si_cred;
 		m = dev2unit(dev);
-		}
+	}
 
 	/* Allocate memory for the state. */
 	state = kmem_zalloc(sizeof(dtrace_state_t), KM_SLEEP);
@@ -16845,23 +16845,29 @@ dtrace_dtr(void *data)
 	mutex_enter(&cpu_lock);
 	mutex_enter(&dtrace_lock);
 
-	if (state != NULL) {
-		if (state->dts_anon) {
-			/*
-			 * There is anonymous state. Destroy that first.
-			 */
-			ASSERT(dtrace_anon.dta_state == NULL);
-			dtrace_state_destroy(state->dts_anon);
-		}
-
-		dtrace_state_destroy(state);
-
-#if !defined(sun)
-		kmem_free(state, 0);
+#ifdef illumos
+	if (state->dts_anon)
+#else
+	if (state != NULL && state->dts_anon)
 #endif
+	{
+		/*
+		 * There is anonymous state. Destroy that first.
+		 */
+		ASSERT(dtrace_anon.dta_state == NULL);
+		dtrace_state_destroy(state->dts_anon);
 	}
 
+#ifdef illumos
+	dtrace_state_destroy(state);
+#else
+	if (state != NULL) {
+		dtrace_state_destroy(state);
+		kmem_free(state, 0);
+	}
+#endif
 	ASSERT(dtrace_opens > 0);
+
 #if defined(sun)
 	/*
 	 * Only relinquish control of the kernel debugger interface when there
