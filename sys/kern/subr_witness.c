@@ -1170,19 +1170,25 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	
 	/*
 	 * Try to perform most checks without a lock.  If this succeeds we
-	 * can skip acquiring the lock and return success.
+	 * can skip acquiring the lock and return success.  Otherwise we redo
+	 * the check with the lock held to handle races with concurrent updates.
 	 */
 	w1 = plock->li_lock->lo_witness;
 	if (witness_lock_order_check(w1, w))
 		return;
+
+	mtx_lock_spin(&w_mtx);
+	if (witness_lock_order_check(w1, w)) {
+		mtx_unlock_spin(&w_mtx);
+		return;
+	}
+	witness_lock_order_add(w1, w);
 
 	/*
 	 * Check for duplicate locks of the same type.  Note that we only
 	 * have to check for this on the last lock we just acquired.  Any
 	 * other cases will be caught as lock order violations.
 	 */
-	mtx_lock_spin(&w_mtx);
-	witness_lock_order_add(w1, w);
 	if (w1 == w) {
 		i = w->w_index;
 		if (!(lock->lo_flags & LO_DUPOK) && !(flags & LOP_DUPOK) &&
@@ -1996,7 +2002,10 @@ _isitmyx(struct witness *w1, struct witness *w2, int rmask, const char *fname)
 
 	/* The flags on one better be the inverse of the flags on the other */
 	if (!((WITNESS_ATOD(r1) == r2 && WITNESS_DTOA(r2) == r1) ||
-		(WITNESS_DTOA(r1) == r2 && WITNESS_ATOD(r2) == r1))) {
+	    (WITNESS_DTOA(r1) == r2 && WITNESS_ATOD(r2) == r1))) {
+		/* Don't squawk if we're potentially racing with an update. */
+		if (!mtx_owned(&w_mtx))
+			return (0);
 		printf("%s: rmatrix mismatch between %s (index %d) and %s "
 		    "(index %d): w_rmatrix[%d][%d] == %hhx but "
 		    "w_rmatrix[%d][%d] == %hhx\n",
