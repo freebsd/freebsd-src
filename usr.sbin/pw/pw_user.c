@@ -263,7 +263,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 	}
 	if ((arg = getarg(args, 'L')) != NULL)
-		cnf->default_class = pw_checkname((u_char *)arg->val, 0);
+		cnf->default_class = pw_checkname(arg->val, 0);
 
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
 		int i = 0;
@@ -323,7 +323,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	}
 
 	if ((a_name = getarg(args, 'n')) != NULL)
-		pwd = GETPWNAM(pw_checkname((u_char *)a_name->val, 0));
+		pwd = GETPWNAM(pw_checkname(a_name->val, 0));
 	a_uid = getarg(args, 'u');
 
 	if (a_uid == NULL) {
@@ -510,7 +510,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if ((arg = getarg(args, 'l')) != NULL) {
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't rename `root' account");
-			pwd->pw_name = pw_checkname((u_char *)arg->val, 0);
+			pwd->pw_name = pw_checkname(arg->val, 0);
 			edited = 1;
 		}
 
@@ -648,7 +648,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Shared add/edit code
 	 */
 	if ((arg = getarg(args, 'c')) != NULL) {
-		char	*gecos = pw_checkname((u_char *)arg->val, 1);
+		char	*gecos = pw_checkname(arg->val, 1);
 		if (strcmp(pwd->pw_gecos, gecos) != 0) {
 			pwd->pw_gecos = gecos;
 			edited = 1;
@@ -1239,11 +1239,11 @@ print_user(struct passwd * pwd, int pretty, int v7)
 	return EXIT_SUCCESS;
 }
 
-char    *
-pw_checkname(u_char *name, int gecos)
+char *
+pw_checkname(char *name, int gecos)
 {
 	char showch[8];
-	u_char const *badchars, *ch, *showtype;
+	const char *badchars, *ch, *showtype;
 	int reject;
 
 	ch = name;
@@ -1294,7 +1294,8 @@ pw_checkname(u_char *name, int gecos)
 	if (!gecos && (ch - name) > LOGNAMESIZE)
 		errx(EX_DATAERR, "name too long `%s' (max is %d)", name,
 		    LOGNAMESIZE);
-	return (char *)name;
+
+	return (name);
 }
 
 
