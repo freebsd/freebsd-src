@@ -251,11 +251,20 @@ main(int argc, char *argv[])
 				addarg(&arglist, 'g', optarg);
 				break;
 			}
-			/* FALLTHROUGH */
-		case 'u':
 			if (strspn(optarg, "0123456789") != strlen(optarg))
-				errx(EX_USAGE, "%s expects a number",
-				    which == 1 ? "-g" : "-u" );
+				errx(EX_USAGE, "-g expects a number");
+			id = strtonum(optarg, 0, LONG_MAX, &errstr);
+			if (errstr != NULL)
+				errx(EX_USAGE, "Bad id '%s': %s", optarg,
+				    errstr);
+			break;
+		case 'u':
+			if (strspn(optarg, "0123456789,") != strlen(optarg))
+				errx(EX_USAGE, "-u expects a number");
+			if (strchr(optarg, ',') != NULL) {
+				addarg(&arglist, 'u', optarg);
+				break;
+			}
 			id = strtonum(optarg, 0, LONG_MAX, &errstr);
 			if (errstr != NULL)
 				errx(EX_USAGE, "Bad id '%s': %s", optarg,
