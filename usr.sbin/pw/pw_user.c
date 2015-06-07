@@ -1126,7 +1126,7 @@ delete_user(struct userconf *cnf, struct passwd *pwd, struct carg *a_name,
 			continue;
 
 		for (i = 0; grp->gr_mem[i] != NULL; i++) {
-			if (strcmp(grp->gr_mem[i], a_name->val))
+			if (strcmp(grp->gr_mem[i], a_name->val) != 0)
 				continue;
 
 			for (j = i; grp->gr_mem[j] != NULL; j++)
