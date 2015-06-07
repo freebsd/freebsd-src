@@ -42,12 +42,11 @@ struct vmspace;
 
 #ifdef VFP
 #define PCPU_MD_FIELDS							\
-	unsigned int pc_cpu;						\
 	unsigned int pc_vfpsid;						\
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
 	struct pmap *pc_curpmap;					\
-	char __pad[137]
+	char __pad[141]
 #else
 #define PCPU_MD_FIELDS							\
 	char __pad[157]
