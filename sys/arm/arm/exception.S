@@ -49,6 +49,7 @@
 #include "assym.s"
 
 #include "opt_kdtrace.h"
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
@@ -80,7 +81,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PUSHFRAME							   \
 	sub	sp, sp, #4;		/* Align the stack */		   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
@@ -114,7 +115,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * Since the current mode is used, the SVC lr field is ignored.
  */
 
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PULLFRAME							   \
 	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;						   \
@@ -145,7 +146,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PUSHFRAMEINSVC							   \
 	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
 	mov	r0, lr;			/* Save xxx32 r14 */		   \
@@ -218,7 +219,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * exit.
  */
 
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PULLFRAMEFROMSVCANDEXIT						   \
 	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;		/* restore SPSR */		   \

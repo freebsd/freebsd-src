@@ -198,20 +198,20 @@ ENTRY(cpu_throw)
 	str	r7, [r6, #PC_CURPCB]
 	/* We have a new curthread now so make a note it */
 	str	r5, [r6, #PC_CURTHREAD]
-#ifndef ARM_TP_ADDRESS
+#if __ARM_ARCH >= 6
 	mcr	p15, 0, r5, c13, c0, 4
 #endif
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH >= 6
+	mcr p15, 0, r6, c13, c0, 3
+#else
 	ldr	r4, =ARM_TP_ADDRESS
 	str	r6, [r4]
 	ldr	r6, [r5, #(TD_MD + MD_RAS_START)]
 	str	r6, [r4, #4] /* ARM_RAS_START */
 	ldr	r6, [r5, #(TD_MD + MD_RAS_END)]
 	str	r6, [r4, #8] /* ARM_RAS_END */
-#else
-	mcr p15, 0, r6, c13, c0, 3
 #endif
 	/* Restore all the saved registers and exit */
 	add	r3, r7, #PCB_R4
@@ -245,7 +245,7 @@ ENTRY(cpu_switch)
 	/* We have a new curthread now so make a note it */
 	GET_PCPU(r7, r2)
 	str	r1, [r7, #PC_CURTHREAD]
-#ifndef ARM_TP_ADDRESS
+#if __ARM_ARCH >= 6
 	mcr	p15, 0, r1, c13, c0, 4
 #endif
 
@@ -259,7 +259,14 @@ ENTRY(cpu_switch)
 	ldr	r2, [r0, #(TD_PCB)]
 	mov	r4, r0 /* Save the old thread. */
 
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH >= 6
+	/*
+	 * Set new tp.  No need to store the old one first, userland can't
+	 * change it directly on armv6.
+	 */
+	ldr	r9, [r1, #(TD_MD + MD_TP)]
+	mcr p15, 0, r9, c13, c0, 3
+#else
 	/* Store the old tp; userland can change it on armv4. */
 	ldr	r3, =ARM_TP_ADDRESS
 	ldr	r9, [r3]
@@ -276,13 +283,6 @@ ENTRY(cpu_switch)
 	str	r9, [r3, #4]
 	ldr	r9, [r1, #(TD_MD + MD_RAS_END)]
 	str	r9, [r3, #8]
-#else
-	/*
-	 * Set new tp.  No need to store the old one first, userland can't
-	 * change it directly on armv6.
-	 */
-	ldr	r9, [r1, #(TD_MD + MD_TP)]
-	mcr p15, 0, r9, c13, c0, 3
 #endif
 
 	/* Get the user structure for the new process in r9 */
