@@ -620,7 +620,7 @@ pw_user(int mode, struct cargs * args)
 	/*
 	 * Special case: -N only displays & exits
 	 */
-	if (getarg(args, 'N') != NULL)
+	if (conf.dryrun)
 		return print_user(pwd,
 				  getarg(args, 'P') != NULL,
 				  getarg(args, '7') != NULL);
@@ -872,9 +872,7 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 			snprintf(tmp, sizeof(tmp), "%u", prefer);
 			addarg(&grpargs, 'g', tmp);
 		}
-		if (getarg(args, 'N'))
-		{
-			addarg(&grpargs, 'N', NULL);
+		if (conf.dryrun) {
 			addarg(&grpargs, 'q', NULL);
 			gid = pw_group(M_NEXT, &grpargs);
 		}
@@ -1035,7 +1033,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		 * We give this information back to the user
 		 */
 		if (getarg(args, 'h') == NULL && getarg(args, 'H') == NULL &&
-		    getarg(args, 'N') == NULL) {
+		    !conf.dryrun) {
 			if (isatty(STDOUT_FILENO))
 				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
