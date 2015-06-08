@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 			"R:V:C:qn:u:rY",
 			"R:V:C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:FNPY",
 			"R:V:C:qn:u:FPa7",
-			"R:V:C:",
+			"R:V:C:q",
 			"R:V:C:q",
 			"R:V:C:q"
 		},
@@ -122,7 +122,7 @@ main(int argc, char *argv[])
 			"R:V:C:qn:g:Y",
 			"R:V:C:qn:d:g:l:h:H:FM:m:NPY",
 			"R:V:C:qn:g:FPa",
-			"R:V:C:"
+			"R:V:C:q"
 		 }
 	};
 
@@ -469,7 +469,8 @@ cmdhelp(int mode, int which)
 				"usage: pw usernext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-R rootir      alternate root directory\n"
-				"\t-C config      configuration file\n",
+				"\t-C config      configuration file\n"
+				"\t-q             quiet operation\n",
 				"usage pw: lock [switches]\n"
 				"\t-V etcdir      alternate /etc locations\n"
 				"\t-C config      configuration file\n"
@@ -523,6 +524,7 @@ cmdhelp(int mode, int which)
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
+				"\t-q             quiet operation\n"
 			}
 		};
 
