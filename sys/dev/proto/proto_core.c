@@ -402,19 +402,29 @@ proto_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 {
 	struct proto_res *r;
 
-	r = cdev->si_drv2;
-
-	if (r->r_type != SYS_RES_MEMORY)
-		return (ENXIO);
 	if (offset & PAGE_MASK)
 		return (EINVAL);
 	if (prot & PROT_EXEC)
 		return (EACCES);
-	if (offset >= r->r_size)
-		return (EINVAL);
-	*paddr = rman_get_start(r->r_d.res) + offset;
+
+	r = cdev->si_drv2;
+
+	switch (r->r_type) {
+	case SYS_RES_MEMORY:
+		if (offset >= r->r_size)
+			return (EINVAL);
+		*paddr = rman_get_start(r->r_d.res) + offset;
 #ifndef __sparc64__
-	*memattr = VM_MEMATTR_UNCACHEABLE;
+		*memattr = VM_MEMATTR_UNCACHEABLE;
 #endif
+		break;
+	case PROTO_RES_BUSDMA:
+		if (!proto_busdma_mmap_allowed(r->r_d.busdma, offset))
+			return (EINVAL);
+		*paddr = offset;
+		break;
+	default:
+		return (ENXIO);
+	}
 	return (0);
 }

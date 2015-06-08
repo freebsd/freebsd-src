@@ -146,16 +146,17 @@ proto_busdma_mem_alloc(struct proto_busdma *busdma, struct proto_tag *tag,
 		free(md, M_PROTO_BUSDMA);
 		return (error);
 	}
-	error = bus_dmamem_alloc(md->bd_tag, &md->kva, 0, &md->bd_map);
+	error = bus_dmamem_alloc(md->bd_tag, &md->virtaddr, 0, &md->bd_map);
 	if (error) {
 		bus_dma_tag_destroy(md->bd_tag);
 		free(md, M_PROTO_BUSDMA);
 		return (error);
 	}
+	md->physaddr = pmap_kextract((uintptr_t)(md->virtaddr));
 	LIST_INSERT_HEAD(&tag->mds, md, peers);
 	LIST_INSERT_HEAD(&busdma->mds, md, mds);
 	ioc->u.mem.nsegs = 1;
-	ioc->u.mem.physaddr = pmap_kextract((uintptr_t)(md->kva));
+	ioc->u.mem.physaddr = md->physaddr;
 	ioc->result = (uintptr_t)(void *)md;
 	return (0);
 }
@@ -166,7 +167,7 @@ proto_busdma_mem_free(struct proto_busdma *busdma, struct proto_md *md)
 
 	LIST_REMOVE(md, mds);
 	LIST_REMOVE(md, peers);
-	bus_dmamem_free(md->bd_tag, md->kva, md->bd_map);
+	bus_dmamem_free(md->bd_tag, md->virtaddr, md->bd_map);
 	bus_dma_tag_destroy(md->bd_tag);
 	free(md, M_PROTO_BUSDMA);
 	return (0);
@@ -266,4 +267,17 @@ proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
 		break;
 	}
 	return (error);
+}
+
+int
+proto_busdma_mmap_allowed(struct proto_busdma *busdma, vm_paddr_t physaddr)
+{
+	struct proto_md *md;
+
+	LIST_FOREACH(md, &busdma->mds, mds) {
+		if (physaddr >= trunc_page(md->physaddr) &&
+		    physaddr <= trunc_page(md->physaddr + md->tag->maxsz))
+			return (1);
+	}
+	return (0);
 }
