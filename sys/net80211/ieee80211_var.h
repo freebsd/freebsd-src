@@ -197,6 +197,7 @@ struct ieee80211com {
 	struct ieee80211_dfs_state ic_dfs;	/* DFS state */
 
 	struct ieee80211_scan_state *ic_scan;	/* scan state */
+	struct ieee80211_scan_methods *ic_scan_methods;	/* scan methods */
 	int			ic_lastdata;	/* time of last data frame */
 	int			ic_lastscan;	/* time last scan completed */
 
