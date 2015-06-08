@@ -198,17 +198,6 @@ ieee80211_swscan_set_scan_duration(struct ieee80211vap *vap, u_int duration)
 	SCAN_PRIVATE(ss)->ss_duration = duration;
 }
 
-void
-ieee80211_swscan_run_scan_task(struct ieee80211vap *vap)
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_scan_state *ss = ic->ic_scan;
-
-	IEEE80211_LOCK_ASSERT(ic);
-
-	ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
-}
-
 /*
  * Start a scan unless one is already going.
  */
@@ -272,7 +261,7 @@ ieee80211_swscan_start_scan_locked(const struct ieee80211_scanner *scan,
 			ic->ic_flags |= IEEE80211_F_SCAN;
 
 			/* Start scan task */
-			ieee80211_swscan_run_scan_task(vap);
+			ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
 		}
 		return 1;
 	} else {
