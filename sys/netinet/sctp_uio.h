@@ -1166,7 +1166,12 @@ struct xsctp_inpcb {
 	uint16_t local_port;
 	uint16_t qlen;
 	uint16_t maxqlen;
-	uint32_t extra_padding[31];	/* future */
+	void *socket;
+#if defined(__LP64__)
+	uint32_t extra_padding[29];	/* future */
+#else
+	uint32_t extra_padding[30];	/* future */
+#endif
 };
 
 struct xsctp_tcb {
