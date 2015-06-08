@@ -61,7 +61,9 @@ struct obj {
 			unsigned long	datarate;
 		} tag;
 		struct {
-		} md;
+			unsigned long	physaddr;
+			void		*virtaddr;
+		} mem;
 	} u;
 };
 
@@ -260,6 +262,10 @@ bd_mem_alloc(int tid, u_int flags)
 	md->parent = tag;
 	tag->refcnt++;
 	md->key = ioc.result;
+	md->u.mem.physaddr = ioc.u.mem.physaddr;
+	md->u.mem.virtaddr = mmap(NULL, tag->u.tag.maxsz,
+	    PROT_READ | PROT_WRITE, MAP_NOCORE | MAP_SHARED, md->fd,
+	    md->u.mem.physaddr);
 	return (md->oid);
 }
 
@@ -273,6 +279,8 @@ bd_mem_free(int mdid)
 	if (md == NULL)
 		return (errno);
 
+	if (md->u.mem.virtaddr != MAP_FAILED)
+		munmap(md->u.mem.virtaddr, md->parent->u.tag.maxsz);
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
 	ioc.key = md->key;
