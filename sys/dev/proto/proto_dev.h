@@ -45,6 +45,8 @@ struct proto_ioc_busdma {
 #define	PROTO_IOC_BUSDMA_TAG_CREATE	1
 #define	PROTO_IOC_BUSDMA_TAG_DERIVE	2
 #define	PROTO_IOC_BUSDMA_TAG_DESTROY	3
+#define	PROTO_IOC_BUSDMA_MEM_ALLOC	10
+#define	PROTO_IOC_BUSDMA_MEM_FREE	11
 	unsigned long	key;
 	union {
 		struct {
@@ -57,6 +59,12 @@ struct proto_ioc_busdma {
 			unsigned int	datarate;
 			unsigned int	flags;
 		} tag;
+		struct {
+			unsigned long	tag;
+			unsigned int	flags;
+			unsigned int	nsegs;
+			unsigned long	physaddr;
+		} mem;
 	} u;
 	unsigned long	result;
 };
