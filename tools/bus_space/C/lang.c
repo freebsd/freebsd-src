@@ -137,3 +137,21 @@ busdma_tag_destroy(busdma_tag_t tag)
 	return (bd_tag_destroy(tag));
 }
 
+int
+busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *out_p)
+{
+	int res;
+
+	res = bd_mem_alloc(tag, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_mem_free(busdma_md_t md)
+{
+
+	return (bd_mem_free(md));
+}
