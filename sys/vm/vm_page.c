@@ -2708,7 +2708,6 @@ vm_page_cache(vm_page_t m)
 #else
 	if (TRUE) {
 #endif
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, m, 0);
 		vm_phys_free_pages(m, 0);
 	}
 	vm_page_free_wakeup();
