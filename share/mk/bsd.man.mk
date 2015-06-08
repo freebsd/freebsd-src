@@ -129,7 +129,7 @@ ZEXT=		${MCOMPRESS_EXT}
 .if defined(MAN) && !empty(MAN)
 .if ${MK_STAGING_MAN} == "yes"
 staging: stage_files
-_mansets:= ${MAN:E:O:u:@s@man$s@}
+_mansets:= ${MAN:E:O:u:M*[1-9]:@s@man$s@}
 STAGE_SETS+= ${_mansets}
 .for _page in ${MAN}
 stage_files.man${_page:T:E}: ${_page}
