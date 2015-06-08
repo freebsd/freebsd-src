@@ -137,6 +137,8 @@ static int	linker_file_add_dependency(linker_file_t file,
 		    linker_file_t dep);
 static caddr_t	linker_file_lookup_symbol_internal(linker_file_t file,
 		    const char* name, int deps);
+static int	linker_file_lookup_set_locked(linker_file_t file,
+		    const char *name, void *firstp, void *lastp, int *countp);
 static int	linker_load_module(const char *kldname,
 		    const char *modname, struct linker_file *parent,
 		    const struct mod_depend *verinfo, struct linker_file **lfpp);
@@ -189,7 +191,8 @@ linker_file_sysinit(linker_file_t lf)
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 
-	if (linker_file_lookup_set(lf, "sysinit_set", &start, &stop, NULL) != 0)
+	if (linker_file_lookup_set_locked(lf, "sysinit_set", &start, &stop,
+	    NULL) != 0)
 		return;
 	/*
 	 * Perform a bubble sort of the system initialization objects by
@@ -237,7 +240,7 @@ linker_file_sysuninit(linker_file_t lf)
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 
-	if (linker_file_lookup_set(lf, "sysuninit_set", &start, &stop,
+	if (linker_file_lookup_set_locked(lf, "sysuninit_set", &start, &stop,
 	    NULL) != 0)
 		return;
 
@@ -288,7 +291,8 @@ linker_file_register_sysctls(linker_file_t lf)
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 
-	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
+	if (linker_file_lookup_set_locked(lf, "sysctl_set", &start, &stop,
+	    NULL) != 0)
 		return;
 
 	sx_xunlock(&kld_sx);
@@ -309,7 +313,8 @@ linker_file_unregister_sysctls(linker_file_t lf)
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 
-	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
+	if (linker_file_lookup_set_locked(lf, "sysctl_set", &start, &stop,
+	    NULL) != 0)
 		return;
 
 	sx_xunlock(&kld_sx);
@@ -332,7 +337,7 @@ linker_file_register_modules(linker_file_t lf)
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 
-	if (linker_file_lookup_set(lf, "modmetadata_set", &start,
+	if (linker_file_lookup_set_locked(lf, "modmetadata_set", &start,
 	    &stop, NULL) != 0) {
 		/*
 		 * This fallback should be unnecessary, but if we get booted
@@ -742,13 +747,26 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
  * This function is used in this file so we can avoid having lots of (void **)
  * casts.
  */
-int
-linker_file_lookup_set(linker_file_t file, const char *name,
+static int
+linker_file_lookup_set_locked(linker_file_t file, const char *name,
     void *firstp, void *lastp, int *countp)
 {
 
 	sx_assert(&kld_sx, SA_LOCKED);
 	return (LINKER_LOOKUP_SET(file, name, firstp, lastp, countp));
+}
+
+int
+linker_file_lookup_set(linker_file_t file, const char *name,
+    void *firstp, void *lastp, int *countp)
+{
+	int error;
+
+	sx_slock(&kld_sx);
+	error = linker_file_lookup_set_locked(file, name, firstp, lastp,
+	    countp);
+	sx_sunlock(&kld_sx);
+	return (error);
 }
 
 /*
@@ -1469,8 +1487,8 @@ linker_preload(void *arg)
 	/*
 	 * First get a list of stuff in the kernel.
 	 */
-	if (linker_file_lookup_set(linker_kernel_file, MDT_SETNAME, &start,
-	    &stop, NULL) == 0)
+	if (linker_file_lookup_set_locked(linker_kernel_file, MDT_SETNAME,
+	    &start, &stop, NULL) == 0)
 		linker_addmodules(linker_kernel_file, start, stop, 1);
 
 	/*
@@ -1479,7 +1497,7 @@ linker_preload(void *arg)
 	 */
 restart:
 	TAILQ_FOREACH(lf, &loaded_files, loaded) {
-		error = linker_file_lookup_set(lf, MDT_SETNAME, &start,
+		error = linker_file_lookup_set_locked(lf, MDT_SETNAME, &start,
 		    &stop, NULL);
 		/*
 		 * First, look to see if we would successfully link with this
@@ -1573,7 +1591,7 @@ restart:
 				panic("cannot add dependency");
 		}
 		lf->userrefs++;	/* so we can (try to) kldunload it */
-		error = linker_file_lookup_set(lf, MDT_SETNAME, &start,
+		error = linker_file_lookup_set_locked(lf, MDT_SETNAME, &start,
 		    &stop, NULL);
 		if (!error) {
 			for (mdp = start; mdp < stop; mdp++) {
@@ -1610,7 +1628,7 @@ restart:
 			goto fail;
 		}
 		linker_file_register_modules(lf);
-		if (linker_file_lookup_set(lf, "sysinit_set", &si_start,
+		if (linker_file_lookup_set_locked(lf, "sysinit_set", &si_start,
 		    &si_stop, NULL) == 0)
 			sysinit_add(si_start, si_stop);
 		linker_file_register_sysctls(lf);
@@ -2042,7 +2060,7 @@ linker_load_dependencies(linker_file_t lf)
 		if (error)
 			return (error);
 	}
-	if (linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop,
+	if (linker_file_lookup_set_locked(lf, MDT_SETNAME, &start, &stop,
 	    &count) != 0)
 		return (0);
 	for (mdp = start; mdp < stop; mdp++) {
