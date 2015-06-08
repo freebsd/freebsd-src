@@ -413,9 +413,14 @@ main(int argc, char *argv[])
 
 	/*
 	 * If not -F, -P, -d or -l options, follow any symbolic links listed on
-	 * the command line.
+	 * the command line, unless in color mode in which case we need to
+	 * distinguish file type for a symbolic link itself and its target.
 	 */
-	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash))
+	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash)
+#ifdef COLORLS
+	    && !f_color
+#endif
+	    )
 		fts_options |= FTS_COMFOLLOW;
 
 	/*
