@@ -486,37 +486,36 @@ main(int argc, char *argv[])
 	for(arg = 0; arg < argc; arg++)
 	  {
 	    size = strtol(argv[arg], &endp, 0);
-	    if(func)
+	    if(do_socket)
 	      {
-		benchmark(do_memcpy, dataout_cap, datain_cap, size, "func", reps, samples, 0);
+		benchmark(socket_memcpy, dataout_cap, datain_cap, size,  "0-socket", reps, samples, & socket_pair[0]);
+	      }
+	    if(do_pipe)
+	      {
+		benchmark(socket_memcpy, dataout_cap, datain_cap, size, "1-pipe", reps, samples, & pipe_pair[0]);
+	      }
+	    if(shared)
+	      {
+		benchmark(shmem_memcpy, dataout_cap, datain_cap, size, "2-shmem+pipe", reps, samples, & shmem_socket_pair[0]);
+	      }
+	    if(mutex)
+	      {
+		benchmark(semaphore_memcpy, dataout_cap, datain_cap, size, "3-shmem+sem", reps, samples, mutex_shared);
+	      }
+	    if(threads)
+	      {
+		benchmark(semaphore_memcpy, dataout_cap, datain_cap, size, "4-pthread+sem", reps, samples, pthread_shared);
 	      }
 #ifdef CAP
 	    if (invoke)
 	      {
-		benchmark(invoke_memcpy, dataout_cap, datain_cap, size, "invoke", reps, samples, 0);
+		benchmark(invoke_memcpy, dataout_cap, datain_cap, size, "5-invoke", reps, samples, 0);
 	      }
 #endif
-	    if(shared)
+	    if(func)
 	      {
-		benchmark(shmem_memcpy, dataout_cap, datain_cap, size, "shmem", reps, samples, & shmem_socket_pair[0]);
+		benchmark(do_memcpy, dataout_cap, datain_cap, size, "6-func", reps, samples, 0);
 	      }
-	    if(do_socket)
-	      {
-		benchmark(socket_memcpy, dataout_cap, datain_cap, size,  "socket", reps, samples, & socket_pair[0]);
-	      }
-	    if(do_pipe)
-	      {
-		benchmark(socket_memcpy, dataout_cap, datain_cap, size, "pipe", reps, samples, & pipe_pair[0]);
-	      }
-	    if(threads)
-	      {
-		benchmark(semaphore_memcpy, dataout_cap, datain_cap, size, "pthread", reps, samples, pthread_shared);
-	      }
-	    if(mutex)
-	      {
-		benchmark(semaphore_memcpy, dataout_cap, datain_cap, size, "mutex", reps, samples, mutex_shared);
-	      }
-
 	  }
 	if (samples != NULL)
 	  free(samples);
