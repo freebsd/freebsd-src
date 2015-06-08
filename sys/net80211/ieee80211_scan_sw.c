@@ -102,33 +102,7 @@ static	void scan_task(void *, int);
 
 MALLOC_DEFINE(M_80211_SCAN, "80211scan", "802.11 scan state");
 
-void
-ieee80211_swscan_attach(struct ieee80211com *ic)
-{
-	struct scan_state *ss;
-
-	ss = (struct scan_state *) IEEE80211_MALLOC(sizeof(struct scan_state),
-		M_80211_SCAN, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
-	if (ss == NULL) {
-		ic->ic_scan = NULL;
-		return;
-	}
-	callout_init_mtx(&ss->ss_scan_timer, IEEE80211_LOCK_OBJ(ic), 0);
-	cv_init(&ss->ss_scan_cv, "scan");
-	TASK_INIT(&ss->ss_scan_task, 0, scan_task, ss);
-
-	ic->ic_scan = &ss->base;
-	ss->base.ss_ic = ic;
-
-	ic->ic_scan_curchan = scan_curchan;
-	ic->ic_scan_mindwell = scan_mindwell;
-
-	/*
-	 * TODO: all of the non-vap scan calls should be methods!
-	 */
-}
-
-void
+static void
 ieee80211_swscan_detach(struct ieee80211com *ic)
 {
 	struct ieee80211_scan_state *ss = ic->ic_scan;
@@ -159,7 +133,7 @@ ieee80211_swscan_detach(struct ieee80211com *ic)
 	}
 }
 
-void
+static void
 ieee80211_swscan_vattach(struct ieee80211vap *vap)
 {
 	/* nothing to do for now */
@@ -169,7 +143,7 @@ ieee80211_swscan_vattach(struct ieee80211vap *vap)
 
 }
 
-void
+static void
 ieee80211_swscan_vdetach(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -185,7 +159,7 @@ ieee80211_swscan_vdetach(struct ieee80211vap *vap)
 	}
 }
 
-void
+static void
 ieee80211_swscan_set_scan_duration(struct ieee80211vap *vap, u_int duration)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -278,7 +252,7 @@ ieee80211_swscan_start_scan_locked(const struct ieee80211_scanner *scan,
  *
  * Called without the comlock held; grab the comlock as appropriate.
  */
-int
+static int
 ieee80211_swscan_start_scan(const struct ieee80211_scanner *scan,
     struct ieee80211vap *vap, int flags,
     u_int duration, u_int mindwell, u_int maxdwell,
@@ -305,7 +279,7 @@ ieee80211_swscan_start_scan(const struct ieee80211_scanner *scan,
  *
  * XXX TODO: split out!
  */
-int
+static int
 ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
     struct ieee80211vap *vap, int flags,
     u_int duration, u_int mindwell, u_int maxdwell,
@@ -363,7 +337,7 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
  * Restart a previous scan.  If the previous scan completed
  * then we start again using the existing channel list.
  */
-int
+static int
 ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
     struct ieee80211vap *vap, int flags)
 {
@@ -454,7 +428,7 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 /*
  * Cancel any scan currently going on for the specified vap.
  */
-void
+static void
 ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -488,7 +462,7 @@ ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
 /*
  * Cancel any scan currently going on.
  */
-void
+static void
 ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -522,7 +496,7 @@ ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
  * Public access to scan_next for drivers that manage
  * scanning themselves (e.g. for firmware-based devices).
  */
-void
+static void
 ieee80211_swscan_scan_next(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -540,7 +514,7 @@ ieee80211_swscan_scan_next(struct ieee80211vap *vap)
  * Public access to scan_next for drivers that are not able to scan single
  * channels (e.g. for firmware-based devices).
  */
-void
+static void
 ieee80211_swscan_scan_done(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -559,7 +533,7 @@ ieee80211_swscan_scan_done(struct ieee80211vap *vap)
  * listen for beacons on the channel; if we receive something
  * then we'll transmit a probe request.
  */
-void
+static void
 ieee80211_swscan_probe_curchan(struct ieee80211vap *vap, int force)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -887,7 +861,7 @@ done:
 /*
  * Process a beacon or probe response frame.
  */
-void
+static void
 ieee80211_swscan_add_scan(struct ieee80211vap *vap,
 	struct ieee80211_channel *curchan,
 	const struct ieee80211_scanparams *sp,
@@ -935,3 +909,50 @@ ieee80211_swscan_add_scan(struct ieee80211vap *vap,
 	}
 }
 
+static struct ieee80211_scan_methods swscan_methods = {
+	.sc_attach = ieee80211_swscan_attach,
+	.sc_detach = ieee80211_swscan_detach,
+	.sc_vattach = ieee80211_swscan_vattach,
+	.sc_vdetach = ieee80211_swscan_vdetach,
+	.sc_set_scan_duration = ieee80211_swscan_set_scan_duration,
+	.sc_start_scan = ieee80211_swscan_start_scan,
+	.sc_check_scan = ieee80211_swscan_check_scan,
+	.sc_bg_scan = ieee80211_swscan_bg_scan,
+	.sc_cancel_scan = ieee80211_swscan_cancel_scan,
+	.sc_cancel_anyscan = ieee80211_swscan_cancel_anyscan,
+	.sc_scan_next = ieee80211_swscan_scan_next,
+	.sc_scan_done = ieee80211_swscan_scan_done,
+	.sc_scan_probe_curchan = ieee80211_swscan_probe_curchan,
+	.sc_add_scan = ieee80211_swscan_add_scan
+};
+
+/*
+ * Default scan attach method.
+ */
+void
+ieee80211_swscan_attach(struct ieee80211com *ic)
+{
+	struct scan_state *ss;
+
+	/*
+	 * Setup the default methods
+	 */
+	ic->ic_scan_methods = &swscan_methods;
+
+	/* Allocate initial scan state */
+	ss = (struct scan_state *) IEEE80211_MALLOC(sizeof(struct scan_state),
+		M_80211_SCAN, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
+	if (ss == NULL) {
+		ic->ic_scan = NULL;
+		return;
+	}
+	callout_init_mtx(&ss->ss_scan_timer, IEEE80211_LOCK_OBJ(ic), 0);
+	cv_init(&ss->ss_scan_cv, "scan");
+	TASK_INIT(&ss->ss_scan_task, 0, scan_task, ss);
+
+	ic->ic_scan = &ss->base;
+	ss->base.ss_ic = ic;
+
+	ic->ic_scan_curchan = scan_curchan;
+	ic->ic_scan_mindwell = scan_mindwell;
+}
