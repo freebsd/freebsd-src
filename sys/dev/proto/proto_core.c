@@ -370,6 +370,10 @@ proto_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	error = 0;
 	switch (cmd) {
 	case PROTO_IOC_REGION:
+		if (r->r_type == PROTO_RES_BUSDMA) {
+			error = EINVAL;
+			break;
+		}
 		region = (struct proto_ioc_region *)data;
 		region->size = r->r_size;
 		if (r->r_type == PROTO_RES_PCICFG)
@@ -378,6 +382,10 @@ proto_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			region->address = rman_get_start(r->r_d.res);
 		break;
 	case PROTO_IOC_BUSDMA:
+		if (r->r_type != PROTO_RES_BUSDMA) {
+			error = EINVAL;
+			break;
+		}
 		busdma = (struct proto_ioc_busdma *)data;
 		error = proto_busdma_ioctl(sc, r->r_d.busdma, busdma);
 		break;
