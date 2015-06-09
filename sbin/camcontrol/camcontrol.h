@@ -66,6 +66,9 @@ int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 int scsipersist(struct cam_device *device, int argc, char **argv,
 		char *combinedopt, int retry_count, int timeout, int verbose,
 		int err_recover);
+int scsiattrib(struct cam_device *device, int argc, char **argv,
+	       char *combinedopt, int retry_count, int timeout, int verbose,
+	       int err_recover);
 char *cget(void *hook, char *name);
 int iget(void *hook, char *name);
 void arg_put(void *hook, int letter, void *arg, int count, char *name);
