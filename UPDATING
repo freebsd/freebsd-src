@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150609:	p15	FreeBSD-EN-15:06.file
+
+	Updated base system file(1) to 5.22 to address multiple denial
+	of service issues.
+
 20150513:	p14	FreeBSD-EN-15:04.freebsd-update
 
 	Fix bug with freebsd-update(8) that does not ensure the previous
