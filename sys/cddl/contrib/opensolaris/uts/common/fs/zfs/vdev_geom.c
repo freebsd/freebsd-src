@@ -832,6 +832,11 @@ vdev_geom_io_start(zio_t *zio)
 		return (ZIO_PIPELINE_STOP);
 	}
 sendreq:
+	ASSERT(zio->io_type == ZIO_TYPE_READ ||
+	    zio->io_type == ZIO_TYPE_WRITE ||
+	    zio->io_type == ZIO_TYPE_FREE ||
+	    zio->io_type == ZIO_TYPE_IOCTL);
+
 	cp = vd->vdev_tsd;
 	if (cp == NULL) {
 		zio->io_error = SET_ERROR(ENXIO);

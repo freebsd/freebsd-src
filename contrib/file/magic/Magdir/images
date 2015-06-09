@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.91 2014/04/30 21:41:02 christos Exp $
+# $File: images,v 1.102 2015/01/02 02:36:35 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -115,8 +115,153 @@
 # never changed.  The TIFF specification recommends testing for it.
 0	string		MM\x00\x2a	TIFF image data, big-endian
 !:mime	image/tiff
+>(4.L)	use		\^tiff_ifd
 0	string		II\x2a\x00	TIFF image data, little-endian
 !:mime	image/tiff
+>(4.l)	use		tiff_ifd
+
+0	name		tiff_ifd
+>0	leshort		x		\b, direntries=%d
+>2	use		tiff_entry
+
+0	name		tiff_entry
+# NewSubFileType
+>0	leshort		0xfe
+>>12	use		tiff_entry
+>0	leshort		0x100
+>>4	lelong		1
+>>>12	use		tiff_entry
+>>>8	leshort		x		\b, width=%d
+>0	leshort		0x101
+>>4	lelong		1
+>>>8	leshort		x		\b, height=%d
+>>>12	use		tiff_entry
+>0	leshort		0x102
+>>8	leshort		x		\b, bps=%d
+>>12	use		tiff_entry
+>0	leshort		0x103
+>>4	lelong		1		\b, compression=
+>>>8	leshort		1		\bnone
+>>>8	leshort		2		\bhuffman
+>>>8	leshort		3		\bbi-level group 3
+>>>8	leshort		4		\bbi-level group 4
+>>>8	leshort		5		\bLZW
+>>>8	leshort		6		\bJPEG (old)
+>>>8	leshort		7		\bJPEG
+>>>8	leshort		8		\bdeflate
+>>>8	leshort		9		\bJBIG, ITU-T T.85
+>>>8	leshort		0xa		\bJBIG, ITU-T T.43
+>>>8	leshort		0x7ffe		\bNeXT RLE 2-bit
+>>>8	leshort		0x8005		\bPackBits (Macintosh RLE)
+>>>8	leshort		0x8029		\bThunderscan RLE
+>>>8	leshort		0x807f		\bRasterPadding (CT or MP)
+>>>8	leshort		0x8080		\bRLE (Line Work)
+>>>8	leshort		0x8081		\bRLE (High-Res Cont-Tone)
+>>>8	leshort		0x8082		\bRLE (Binary Line Work)
+>>>8	leshort		0x80b2		\bDeflate (PKZIP)
+>>>8	leshort		0x80b3		\bKodak DCS
+>>>8	leshort		0x8765		\bJBIG
+>>>8	leshort		0x8798		\bJPEG2000
+>>>8	leshort		0x8799		\bNikon NEF Compressed
+>>>8	default		x	
+>>>>8	leshort		x		\b(unknown 0x%x)
+>>>12	use		tiff_entry
+>0	leshort		0x106		\b, PhotometricIntepretation=
+>>8	leshort		0		\bWhiteIsZero
+>>8	leshort		1		\bBlackIsZero
+>>8	leshort		2		\bRGB
+>>8	leshort		3		\bRGB Palette
+>>8	leshort		4		\bTransparency Mask
+>>8	leshort		5		\bCMYK
+>>8	leshort		6		\bYCbCr
+>>8	leshort		8		\bCIELab
+>>>8	leshort		x		\b(unknown=0x%x)
+>>12	use		tiff_entry
+# FillOrder
+>0	leshort		0x10a
+>>4	lelong		1
+>>>12	use		tiff_entry
+# DocumentName
+>0	leshort		0x10d
+>>(8.l)	string		x		\b, name=%s
+>>>12	use		tiff_entry
+# ImageDescription
+>0	leshort		0x10e
+>>(8.l)	string		x		\b, description=%s
+>>>12	use		tiff_entry
+# Make
+>0	leshort		0x10f
+>>(8.l)	string		x		\b, manufacturer=%s
+>>>12	use		tiff_entry
+# Model
+>0	leshort		0x110
+>>(8.l)	string		x		\b, model=%s
+>>>12	use		tiff_entry
+# StripOffsets
+>0	leshort		0x111
+>>12	use		tiff_entry
+# Orientation
+>0	leshort		0x112		\b, orientation=
+>>8	leshort		1		\bupper-left
+>>8	leshort		3		\blower-right
+>>8	leshort		6		\bupper-right
+>>8	leshort		8		\blower-left
+>>8	leshort		9		\bundefined
+>>8	default		x
+>>>8	leshort		x		\b[*%d*]
+>>12	use		tiff_entry
+# XResolution
+>0	leshort		0x11a
+>>8	lelong		x		\b, xresolution=%d
+>>12	use		tiff_entry
+# YResolution
+>0	leshort		0x11b
+>>8	lelong		x		\b, yresolution=%d
+>>12	use		tiff_entry
+# ResolutionUnit
+>0	leshort		0x128
+>>8	leshort		x		\b, resolutionunit=%d
+>>12	use		tiff_entry
+# Software
+>0	leshort		0x131
+>>(8.l)	string		x		\b, software=%s
+>>12	use		tiff_entry
+# Datetime
+>0	leshort		0x132
+>>(8.l)	string		x		\b, datetime=%s
+>>12	use		tiff_entry
+# HostComputer
+>0	leshort		0x13c
+>>(8.l)	string		x		\b, hostcomputer=%s
+>>12	use		tiff_entry
+# WhitePoint
+>0	leshort		0x13e
+>>12	use		tiff_entry
+# PrimaryChromaticities
+>0	leshort		0x13f
+>>12	use		tiff_entry
+# YCbCrCoefficients
+>0	leshort		0x211
+>>12	use		tiff_entry
+# YCbCrPositioning
+>0	leshort		0x213
+>>12	use		tiff_entry
+# ReferenceBlackWhite
+>0	leshort		0x214
+>>12	use		tiff_entry
+# Copyright
+>0	leshort		0x8298
+>>(8.l)	string		x		\b, copyright=%s
+>>12	use		tiff_entry
+# ExifOffset
+>0	leshort		0x8769
+>>12	use		tiff_entry
+# GPS IFD
+>0	leshort		0x8825		\b, GPS-Data
+>>12	use		tiff_entry
+
+#>0	leshort		x		\b, unknown=0x%x
+#>>12	use		tiff_entry
 
 0	string		MM\x00\x2b	Big TIFF image data, big-endian
 !:mime	image/tiff
@@ -892,6 +1037,65 @@
 0	string	\x46\x4d\x52\x00	ISO/IEC 19794-2 Format Minutiae Record (FMR)
 
 # WEBP https://developers.google.com/speed/webp/docs/riff_container
-0	string	RIFF
->8	string	WEBP	Web/P image data
->>4	lelong	x	\b, %d bytes
+#0	string	RIFF
+#>8	string	WEBP	Web/P image data
+#>>4	lelong	x	\b, %d bytes
+
+# doc: http://www.shikino.co.jp/eng/products/images/FLOWER.jpg.zip
+# example: http://www.shikino.co.jp/eng/products/images/FLOWER.wdp.zip
+90	bequad		0x574D50484F544F00	JPEG-XR Image
+>98	byte&0x08	=0x08			\b, hard tiling
+>99	byte&0x80	=0x80			\b, tiling present
+>99	byte&0x40	=0x40			\b, codestream present
+>99	byte&0x38	x			\b, spatial xform=
+>99	byte&0x38	0x00			\bTL
+>99	byte&0x38	0x08			\bBL
+>99	byte&0x38	0x10			\bTR
+>99	byte&0x38	0x18			\bBR
+>99	byte&0x38	0x20			\bBT
+>99	byte&0x38	0x28			\bRB
+>99	byte&0x38	0x30			\bLT
+>99	byte&0x38	0x38			\bLB
+>100	byte&0x80	=0x80			\b, short header
+>>102	beshort+1	x			\b, %d
+>>104	beshort+1	x			\bx%d
+>100	byte&0x80	=0x00			\b, long header
+>>102	belong+1	x			\b, %x
+>>106	belong+1	x			\bx%x
+>101	beshort&0xf	x			\b, bitdepth=
+>>101	beshort&0xf	0x0			\b1-WHITE=1
+>>101	beshort&0xf	0x1			\b8
+>>101	beshort&0xf	0x2			\b16
+>>101	beshort&0xf	0x3			\b16-SIGNED
+>>101	beshort&0xf	0x4			\b16-FLOAT
+>>101	beshort&0xf	0x5			\b(reserved 5)
+>>101	beshort&0xf	0x6			\b32-SIGNED
+>>101	beshort&0xf	0x7			\b32-FLOAT
+>>101	beshort&0xf	0x8			\b5
+>>101	beshort&0xf	0x9			\b10
+>>101	beshort&0xf	0xa			\b5-6-5
+>>101	beshort&0xf	0xb			\b(reserved %d)
+>>101	beshort&0xf	0xc			\b(reserved %d)
+>>101	beshort&0xf	0xd			\b(reserved %d)
+>>101	beshort&0xf	0xe			\b(reserved %d)
+>>101	beshort&0xf	0xf			\b1-BLACK=1
+>101	beshort&0xf0	x			\b, colorfmt=
+>>101	beshort&0xf0	0x00			\bYONLY
+>>101	beshort&0xf0	0x10			\bYUV240
+>>101	beshort&0xf0	0x20			\bYWV422
+>>101	beshort&0xf0	0x30			\bYWV444
+>>101	beshort&0xf0	0x40			\bCMYK
+>>101	beshort&0xf0	0x50			\bCMYKDIRECT
+>>101	beshort&0xf0	0x60			\bNCOMPONENT
+>>101	beshort&0xf0	0x70			\bRGB
+>>101	beshort&0xf0	0x80			\bRGBE
+>>101	beshort&0xf0	>0x80			\b(reserved 0x%x)
+
+# From: Johan van der Knijff <johan.vanderknijff@kb.nl>
+#
+# BPG (Better Portable Graphics) format
+# http://bellard.org/bpg/
+# http://fileformats.archiveteam.org/wiki/BPG
+#
+0	string	\x42\x50\x47\xFB	BPG (Better Portable Graphics)
+!:mime  image/bpg

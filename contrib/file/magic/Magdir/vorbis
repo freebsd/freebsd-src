@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: vorbis,v 1.18 2014/04/30 21:41:02 christos Exp $
+# $File: vorbis,v 1.20 2014/09/23 16:35:08 christos Exp $
 # vorbis:  file(1) magic for Ogg/Vorbis files
 #
 # From Felix von Leitner <leitner@fefe.de>
@@ -23,7 +23,6 @@
 # --- Ogg Framing ---
 #0		search/1000	OggS		Ogg data
 0		string	OggS		Ogg data
-!:mime		application/ogg
 >4		byte		!0		UNKNOWN REVISION %u
 ##>4		byte		0		revision 0
 >4		byte		0
@@ -31,9 +30,12 @@
 # non-Vorbis content: FLAC (Free Lossless Audio Codec, http://flac.sourceforge.net)
 >>28		string		\x7fFLAC	\b, FLAC audio
 # non-Vorbis content: Theora
+!:mime		audio/ogg
 >>28		string		\x80theora	\b, Theora video
+!:mime		video/ogg
 # non-Vorbis content: Kate
->>28		string		\x80kate\0\0\0\0	\b, Kate
+>>28		string		\x80kate\0\0\0\0	\b, Kate (Karaoke and Text)
+!:mime		application/ogg
 >>>37		ubyte		x		v%u
 >>>38		ubyte		x		\b.%u,
 >>>40		byte		0		utf8 encoding,
@@ -44,18 +46,22 @@
 >>>76		string		\0		no category set
 # non-Vorbis content: Skeleton
 >>28		string		fishead\0	\b, Skeleton
+!:mime		video/ogg
 >>>36		short		x		v%u
 >>>40		short		x		\b.%u
 # non-Vorbis content: Speex
 >>28		string		Speex\ \ \ 	\b, Speex audio
+!:mime		audio/ogg
 # non-Vorbis content: OGM
 >>28		string		\x01video\0\0\0	\b, OGM video
+!:mime		video/ogg
 >>>37		string/c	div3		(DivX 3)
 >>>37		string/c	divx		(DivX 4)
 >>>37		string/c	dx50		(DivX 5)
 >>>37		string/c	xvid		(XviD)
 # --- First vorbis packet - general header ---
 >>28		string		\x01vorbis	\b, Vorbis audio,
+!:mime		audio/ogg
 >>>35		lelong		!0		UNKNOWN VERSION %u,
 ##>>>35		lelong		0		version 0,
 >>>35		lelong		0

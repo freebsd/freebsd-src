@@ -129,6 +129,8 @@ skip_open:
 		return (error);
 	}
 
+	vd->vdev_notrim = B_TRUE;
+
 	*max_psize = *psize = vattr.va_size;
 	*logical_ashift = SPA_MINBLOCKSHIFT;
 	*physical_ashift = SPA_MINBLOCKSHIFT;
@@ -184,6 +186,8 @@ vdev_file_io_start(zio_t *zio)
 		zio_interrupt(zio);
 		return (ZIO_PIPELINE_STOP);
 	}
+
+	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
 
 	zio->io_error = vn_rdwr(zio->io_type == ZIO_TYPE_READ ?
 	    UIO_READ : UIO_WRITE, vp, zio->io_data, zio->io_size,

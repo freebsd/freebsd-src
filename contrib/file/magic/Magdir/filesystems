@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.95 2014/06/03 19:17:27 christos Exp $
+# $File: filesystems,v 1.108 2015/01/01 17:43:47 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid  
@@ -254,19 +254,20 @@
 30		search/481	\x55\xAA	
 # to display DOS/MBR boot sector (40) before old one (strength=50+21),Syslinux bootloader (71),SYSLINUX MBR (37+36),NetBSD mbr (110),AdvanceMAME mbr (111)
 # DOS BPB information (70) and after DOS floppy (120) like in previous file version
-!:strength +72
+!:strength +65
 # for sector sizes < 512 Bytes
 >11		uleshort	<512		
 >>(11.s-2)	uleshort	0xAA55		DOS/MBR boot sector
 # for sector sizes with 512 or more Bytes
 >0x1FE		leshort		0xAA55		DOS/MBR boot sector
+
 # keep old DOS/MBR boot sector as dummy for mbr and bootloader displaying
 # only for sector sizes with 512 or more Bytes
-0x1FE		leshort		0xAA55		
+0x1FE          leshort         0xAA55         	DOS/MBR boot sector
 #
 # to display information (50) before DOS BPB (strength=70) and after DOS floppy (120) like in old file version
-!:strength +21
->2	string	OSBS			\b, OS/BS MBR
+!:strength +65
+>2		string		OSBS		OS/BS MBR
 # added by Joerg Jenderek at Feb 2013 according to http://thestarman.pcministry.com/asm/mbr/
 # and http://en.wikipedia.org/wiki/Master_Boot_Record
 # test for nearly all MS-DOS Master Boot Record initial program loader (IPL) is now done by 
@@ -538,6 +539,8 @@
 >>>514		string		!HdrS			
 # not BeOS
 >>>>422		string		!Be\ Boot\ Loader	
+>>>>>32769	string    CD001
+>>>>>>0	use cdrom
 # jump over BPB instruction implies DOS bootsector or AdvanceMAME mbr 
 >>>>>0		ubelong&0xFD000000	=0xE9000000	
 # AdvanceMAME mbr
@@ -1043,7 +1046,7 @@
 >>>>>>466	ubyte	<0x10			
 >>>>>>>466	ubyte	0x05			\b, extended partition table
 >>>>>>>466	ubyte	0x0F			\b, extended partition table (LBA)
->>>>>>>466	ubyte	0x0			\b, extended partition table (last)	
+>>>>>>>466	ubyte	0x0			\b, extended partition table (last)
 
 # DOS x86 sector separated and moved from "DOS/MBR boot sector" by Joerg Jenderek at May 2011
 
@@ -1236,6 +1239,7 @@
 >>>>>181	search/166		Error\ \0			
 # "a: disk" , "Fn: diskn" or "NetBSD MBR boot"
 >>>>>>&3	string			x				\b,"%s"
+>>>446	use		partition-table
 # Andrea Mazzoleni AdvanceCD mbr loader of http://advancemame.sourceforge.net/boot-readme.html
 # added by Joerg Jenderek at Nov 2012 for versions 1.3 - 1.4
 # assembler instructions: jmp short 0x58;nop;ASCII
@@ -1353,18 +1357,19 @@
 # minimal short forward jump found 0x29 for bootloaders or 0x0
 # maximal short forward jump is 0x7f
 # OEM-ID is empty or contain readable bytes
-0		ulelong&0x804000E9	0x000000E9	
+0		ulelong&0x804000E9	0x000000E9
+!:strength	+60
 # mtools-3.9.8/msdos.h
 # usual values are marked with comments to get only informations of strange FAT systems
 # valid sectorsize must be a power of 2 from 32 to 32768
->11		uleshort&0xf001f	0	
+>11		uleshort&0x001f	0	
 >>11		uleshort	<32769		
 >>>11		uleshort	>31		
 >>>>21		ubyte&0xf0	0xF0		
->>>>>0		ubyte		0xEB		
+>>>>>0		ubyte		0xEB		DOS/MBR boot sector
 >>>>>>1		ubyte		x		\b, code offset 0x%x+2
 >>>>>0		ubyte		0xE9		
->>>>>>1		uleshort	x		\b, code offset 0x%x+2
+>>>>>>1		uleshort	x		\b, code offset 0x%x+3
 >>>>>3		string		>\0		\b, OEM-ID "%-.8s"
 #http://mirror.href.com/thestarman/asm/debug/debug2.htm#IHC
 >>>>>>8		string		IHC		\b cached by Windows 9M
@@ -1373,10 +1378,11 @@
 >>>>>11		uleshort	<512		\b, Bytes/sector %u
 >>>>>13		ubyte		>1		\b, sectors/cluster %u
 #>>>>>13	ubyte		=1		\b, sectors/cluster %u (usual on Floppies)
->>>>>82		string		FAT32		
+# for lazy FAT32 implementation like Transcend digital photo frame PF830
+>>>>>82		string/c	fat32		
 >>>>>>14	uleshort	!32		\b, reserved sectors %u
 #>>>>>>14	uleshort	=32		\b, reserved sectors %u (usual Fat32)
->>>>>82		string		!FAT32		
+>>>>>82		string/c	!fat32		
 >>>>>>14	uleshort	>1		\b, reserved sectors %u
 #>>>>>>14	uleshort	=1		\b, reserved sectors %u (usual FAT12,FAT16)
 #>>>>>>14	uleshort	0		\b, reserved sectors %u (usual NTFS)
@@ -1399,24 +1405,29 @@
 >>>>>26		ubyte		=1		\b, heads %u
 # valid only for sector sizes with more then 32 Bytes
 >>>>>11		uleshort	>32		
-# skip for Digital Research DOS (version 3.41) 1440 kB Bootdisk
->>>>>>38	ubyte		!0x70		
+# http://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block
+# skip for values 2,2Ah,70h,73h,DFh
+# and continue for extended boot signature values 0,28h,29h,80h
+>>>>>>38	ubyte&0x56	=0		
 >>>>>>>28	ulelong		>0		\b, hidden sectors %u
 #>>>>>>>28	ulelong		=0		\b, hidden sectors %u (usual floppy)
 >>>>>>>32	ulelong		>0		\b, sectors %u (volumes > 32 MB) 
 #>>>>>>>32	ulelong		=0		\b, sectors %u (volumes > 32 MB)
 # FAT<32 bit specific 
->>>>>>>82	string		!FAT32
+>>>>>>>82	string/c	!fat32		
 #>>>>>>>>36	ubyte		0x80		\b, physical drive 0x%x=0x80 (usual harddisk)
 #>>>>>>>>36	ubyte		0		\b, physical drive 0x%x=0 (usual floppy)
 >>>>>>>>36	ubyte		!0x80		
 >>>>>>>>>36	ubyte		!0		\b, physical drive 0x%x
+# VGA-copy CRC or
+# in Windows NT bit 0 is a dirty flag to request chkdsk at boot time. bit 1 requests surface scan too
 >>>>>>>>37	ubyte		>0		\b, reserved 0x%x
 #>>>>>>>>37	ubyte		=0		\b, reserved 0x%x
-# value is 0x80 for NTFS
+# extended boot signatur value is 0x80 for NTFS, 0x28 or 0x29 for others
 >>>>>>>>38	ubyte		!0x29		\b, dos < 4.0 BootSector (0x%x)
->>>>>>>>38	ubyte		=0x29
+>>>>>>>>38	ubyte&0xFE	=0x28
 >>>>>>>>>39	ulelong		x		\b, serial number 0x%x
+>>>>>>>>38	ubyte		=0x29
 >>>>>>>>>43	string		<NO\ NAME	\b, label: "%11.11s"
 >>>>>>>>>43	string		>NO\ NAME	\b, label: "%11.11s"
 >>>>>>>>>43	string		=NO\ NAME	\b, unlabeled
@@ -1426,11 +1437,35 @@
 # if it is small enough FAT is 12 bit, if it is too big enough FAT is 32 bit,
 # otherwise FAT is 16 bit.
 # http://homepage.ntlworld.com/jonathan.deboynepollard/FGA/determining-fat-widths.html
->>>>>>54	string		FAT		\b, FAT
->>>>>>>54	string		FAT12		\b (12 bit)
->>>>>>>54	string		FAT16		\b (16 bit)
+>>>>>82		string/c	!fat32		
+>>>>>>54	string		FAT12		\b, FAT (12 bit)
+>>>>>>54	string		FAT16		\b, FAT (16 bit)
+>>>>>>54	default		x		
+# determinate FAT bit size by media descriptor
+# small floppies implies FAT12
+>>>>>>>21	ubyte		<0xF0		\b, FAT (12 bit by descriptor)
+# with media descriptor F0h floppy or maybe superfloppy with FAT16
+>>>>>>>21	ubyte		=0xF0		
+# superfloppy (many sectors) implies FAT16
+>>>>>>>>32	ulelong		>0xFFFF		\b, FAT (16 bit by descriptor+sectors)
+# no superfloppy with media descriptor F0h implies FAT12
+>>>>>>>>32	default		x		\b, FAT (12 bit by descriptor+sectors)
+# with media descriptor F8h floppy or hard disc with FAT12 or FAT16
+>>>>>>>21	ubyte		=0xF8		
+# 360 KiB with media descriptor F8h, 9 sectors per track ,single sided floppy implies FAT12
+>>>>>>>>19	ubequad	0xd002f80300090001	\b, FAT (12 bit by descriptor+geometry)
+# hard disc with FAT12 or FAT16
+>>>>>>>>19	default		x		\b, FAT (1Y bit by descriptor)
+# with media descriptor FAh floppy, RAM disc with FAT12 or FAT16 or Tandy hard disc
+>>>>>>>21	ubyte		=0xFA		
+# 320 KiB with media descriptor FAh, 8 sectors per track ,single sided floppy implies FAT12
+>>>>>>>>19	ubequad	0x8002fa0200080001	\b, FAT (12 bit by descriptor+geometry)
+# RAM disc with FAT12 or FAT16 or Tandy hard disc
+>>>>>>>>19	default		x		\b, FAT (1Y bit by descriptor)
+# others are floppy
+>>>>>>>21	default		x		\b, FAT (12 bit by descriptor)
 # FAT32 bit specific
->>>>>82		string		FAT32		\b, FAT (32 bit)
+>>>>>82		string/c	fat32		\b, FAT (32 bit)
 >>>>>>36	ulelong		x		\b, sectors/FAT %u
 # http://technet.microsoft.com/en-us/library/cc977221.aspx
 >>>>>>40	uleshort	>0		\b, extension flags 0x%x
@@ -1443,9 +1478,12 @@
 >>>>>>48	uleshort	>1		\b, infoSector %u
 #>>>>>>48	uleshort	=1		\b, infoSector %u (usual)
 >>>>>>48	uleshort	<1		\b, infoSector %u
->>>>>>50	uleshort	>6		\b, Backup boot sector %u
+# 0 or 0xFFFF instead of usual 6 means no backup sector
+>>>>>>50	uleshort	=0xFFFF		\b, no Backup boot sector
+>>>>>>50	uleshort	=0		\b, no Backup boot sector
 #>>>>>>50	uleshort	=6		\b, Backup boot sector %u (usual) 
->>>>>>50	uleshort	<6		\b, Backup boot sector %u
+>>>>>>50	default		x		
+>>>>>>>50	uleshort	x		\b, Backup boot sector %u
 # corrected by Joerg Jenderek at Feb 2011 according to http://thestarman.pcministry.com/asm/mbr/MSWIN41.htm#FSINFO
 >>>>>>52	ulelong		>0		\b, reserved1 0x%x
 >>>>>>56	ulelong		>0		\b, reserved2 0x%x
@@ -1880,12 +1918,11 @@
 # defect IO.SYS+MSDOS.SYS ?
 #>>>>>0x162	use			2xDOS-filename
 
-# CDROM Filesystems
-# Modified for UDF by gerardo.cacciari@gmail.com
-32769	string    CD001     #
-!:mime	application/x-iso9660-image
+0	name				cdrom
 >38913	string   !NSR0      ISO 9660 CD-ROM filesystem data
+!:mime	application/x-iso9660-image
 >38913	string    NSR0      UDF filesystem data
+!:mime	application/x-iso9660-image
 >>38917	string    1         (version 1.0)
 >>38917	string    2         (version 1.5)
 >>38917	string    3         (version 2.0)
@@ -1897,6 +1934,18 @@
 37633	string    CD001     ISO 9660 CD-ROM filesystem data (raw 2352 byte sectors)
 !:mime	application/x-iso9660-image
 32777	string    CDROM     High Sierra CD-ROM filesystem data
+
+# CDROM Filesystems
+# https://en.wikipedia.org/wiki/ISO_9660
+# Modified for UDF by gerardo.cacciari@gmail.com
+32769	string    CD001
+# mime line at that position does not work
+# to display CD-ROM (70=81-11) after MBR (113=40+72+1), partition-table (71=50+21) and before Apple Driver Map (51)
+!:strength -11
+# to display CD-ROM (114=81+33) before MBR (113=40+72+1), partition-table (71=50+21) and Apple Driver Map (51)
+# does not work
+#!:strength +33
+>0	use cdrom
 
 # .cso files
 0    string    CISO	Compressed ISO CD image
@@ -2080,6 +2129,7 @@
 #----------------------------------------------------------
 #delta ISO    Daniel Novotny (dnovotny@redhat.com)
 0	string  DISO	Delta ISO data
+!:strength +50
 >4	belong  x	version %d
 
 # VMS backup savesets - gerardo.cacciari@gmail.com
@@ -2131,7 +2181,6 @@
 # which is mapped to VBN 2 of [000000]INDEXF.SYS;1 - gerardo.cacciari@gmail.com
 #
 1008    string          DECFILE11       Files-11 On-Disk Structure
->525    byte            x               Level %d
 >525    byte            x               (ODS-%d);
 >1017   string          A               RSX-11, VAX/VMS or OpenVMS VAX file system;
 >1017   string          B
@@ -2266,14 +2315,31 @@
 
 # UBIfs
 # Linux kernel sources: fs/ubifs/ubifs-media.h
-0       belong  0x31181006
->0x16   short   0               UBIfs image
->0x08   lequad  x               \b, sequence number %llu
->0x10   leshort x               \b, length %u
->0x04   lelong  x               \b, CRC 0x%08x
+0	lelong	0x06101831
+>0x16	leshort	0		UBIfs image
+>0x08	lequad	x		\b, sequence number %llu
+>0x10	leshort x		\b, length %u
+>0x04	lelong	x		\b, CRC 0x%08x
 
-0       belong  0x55424923
->0x04   short   <2
->0x05   string  \0\0\0
->0x1c   string  \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
->0x04   short   x       UBI image, version %u
+0	lelong	0x23494255
+>0x04	leshort	<2
+>0x05	string	\0\0\0
+>0x1c	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>0x04	leshort	x		UBI image, version %u
+
+# NEC PC-88 2D disk image
+# From Fabio R. Schmidlin <sd-snatcher@users.sourceforge.net>
+0x20		ulelong&0xFFFFFEFF	0x2A0
+>0x10		string			\0\0\0\0\0\0\0\0\0\0
+>>0x280		string			\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>>>0x1A		ubyte&0xEF		0
+>>>>0x1B	ubyte&0x8F		0
+>>>>>0x1B	ubyte&70		<0x40
+>>>>>>0x1C	ulelong			>0x21
+>>>>>>>0	regex	[[:print:]]*	NEC PC-88 disk image, name=%s
+>>>>>>>>0x1B	ubyte	0		\b, media=2D
+>>>>>>>>0x1B	ubyte	0x10		\b, media=2DD
+>>>>>>>>0x1B	ubyte	0x20		\b, media=2HD
+>>>>>>>>0x1B	ubyte	0x30		\b, media=1D
+>>>>>>>>0x1B	ubyte	0x40		\b, media=1DD
+>>>>>>>>0x1A	ubyte	0x10		\b, write-protected
