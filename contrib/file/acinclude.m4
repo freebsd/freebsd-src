@@ -10,15 +10,16 @@ if test "$ac_cv_struct_tm_zone" = yes; then
   AC_DEFINE(HAVE_TM_ZONE,1,[HAVE_TM_ZONE])
 fi
 
+# On SGI, apparently tzname is a #define, but that's ok, AC_CHECK_DECL will
+# consider it declared and we won't give our own extern.
+AC_CHECK_DECLS([tzname], , , [#include <time.h>])
 AC_CACHE_CHECK(for tzname, ac_cv_var_tzname,
 [AC_TRY_LINK(
-changequote(<<, >>)dnl
-<<#include <time.h>
-#ifndef tzname /* For SGI.  */
-extern char *tzname[]; /* RS6000 and others reject char **tzname.  */
-#endif>>,
-changequote([, ])dnl
-[atoi(*tzname);], ac_cv_var_tzname=yes, ac_cv_var_tzname=no)])
+[#include <time.h>
+#if !HAVE_DECL_TZNAME
+extern char *tzname[];
+#endif],
+[return tzname[0][0];], [ac_cv_var_tzname=yes], [ac_cv_var_tzname=no])])
   if test $ac_cv_var_tzname = yes; then
     AC_DEFINE(HAVE_TZNAME,1,[HAVE_TZNAME])
   fi
@@ -31,11 +32,13 @@ if test "$ac_cv_struct_tm_isdst" = yes; then
   AC_DEFINE(HAVE_TM_ISDST,1,[HAVE_TM_ISDST])
 fi
 
+
+AC_CHECK_DECLS([daylight], , , [#include <time.h>])
 AC_CACHE_CHECK(for daylight, ac_cv_var_daylight,
 [AC_TRY_LINK(
 changequote(<<, >>)dnl
 <<#include <time.h>
-#ifndef daylight /* In case IRIX #defines this, too  */
+#if !HAVE_DECL_DAYLIGHT
 extern int daylight;
 #endif>>,
 changequote([, ])dnl
