@@ -70,7 +70,7 @@ em_netmap_unblock_tasks(struct adapter *adapter)
 		struct rx_ring *rxr = adapter->rx_rings;
 		int i;
 
-		for (i = 0; i < adapter->num_queues; i++) {
+		for (i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
 			taskqueue_unblock(txr->tq);
 			taskqueue_unblock(rxr->tq);
 		}

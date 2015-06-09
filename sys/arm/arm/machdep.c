@@ -741,10 +741,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	struct trapframe *tf = td->td_frame;
 	__greg_t *gr = mcp->__gregs;
 
-	if (clear_ret & GET_MC_CLEAR_RET)
+	if (clear_ret & GET_MC_CLEAR_RET) {
 		gr[_REG_R0] = 0;
-	else
+		gr[_REG_CPSR] = tf->tf_spsr & ~PSR_C;
+	} else {
 		gr[_REG_R0]   = tf->tf_r0;
+		gr[_REG_CPSR] = tf->tf_spsr;
+	}
 	gr[_REG_R1]   = tf->tf_r1;
 	gr[_REG_R2]   = tf->tf_r2;
 	gr[_REG_R3]   = tf->tf_r3;
@@ -760,7 +763,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	gr[_REG_SP]   = tf->tf_usr_sp;
 	gr[_REG_LR]   = tf->tf_usr_lr;
 	gr[_REG_PC]   = tf->tf_pc;
-	gr[_REG_CPSR] = tf->tf_spsr;
 
 	return (0);
 }
@@ -914,9 +916,6 @@ pcpu0_init(void)
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
-#ifdef VFP
-	PCPU_SET(cpu, 0);
-#endif
 }
 
 #if defined(LINUX_BOOT_ABI)

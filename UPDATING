@@ -36,6 +36,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	20141231 entry below for information about prerequisites and upgrading,
 	if you are not already using 3.5.0 or higher.
 
+20150604:
+	Generation of legacy formatted entries have been disabled by default
+	in pwd_mkdb(8), as all base system consumers of the legacy formatted
+	entries were converted to use the new format by default when the new,
+	machine independent format have been added and supported since FreeBSD
+	5.x.
+
+	Please see the pwd_mkdb(8) manual page for further details.
+
 20150525:
 	Clang and llvm have been upgraded to 3.6.1 release.  Please see the
 	20141231 entry below for information about prerequisites and upgrading,
