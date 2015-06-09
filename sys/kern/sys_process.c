@@ -402,7 +402,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
-		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
+		vp = vm_object_vnode(lobj);
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
@@ -963,6 +963,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				CTR1(KTR_PTRACE, "PT_DETACH: pid %d", p->p_pid);
 			p->p_oppid = 0;
 			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
+			p->p_stops = 0;
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */

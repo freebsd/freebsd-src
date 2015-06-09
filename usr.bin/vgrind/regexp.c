@@ -91,7 +91,7 @@ STRNCMP(register char *s1, register char *s2, register int len)
  *	internal format.
  *
  *	Either meta symbols (\a \d or \p) or character strings or
- *	operations ( alternation or perenthesizing ) can be
+ *	operations ( alternation or parenthesizing ) can be
  *	specified.  Each starts with a descriptor byte.  The descriptor
  *	byte has STR set for strings, META set for meta symbols
  *	and OPER set for operations.
@@ -110,7 +110,7 @@ STRNCMP(register char *s1, register char *s2, register int len)
  *				character count
  *				the string
  *
- *		operatins :=	descriptor
+ *		operations :=	descriptor
  *				symbol
  *				character count
  */
