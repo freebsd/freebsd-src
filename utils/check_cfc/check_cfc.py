@@ -213,16 +213,18 @@ def set_input_file(args, input_file):
 
 def is_normal_compile(args):
     """Check if this is a normal compile which will output an object file rather
-    than a preprocess or link."""
+    than a preprocess or link. args is a list of command line arguments."""
     compile_step = '-c' in args
     # Bitcode cannot be disassembled in the same way
     bitcode = '-flto' in args or '-emit-llvm' in args
     # Version and help are queries of the compiler and override -c if specified
     query = '--version' in args or '--help' in args
+    # Options to output dependency files for make
+    dependency = '-M' in args or '-MM' in args
     # Check if the input is recognised as a source file (this may be too
     # strong a restriction)
     input_is_valid = bool(get_input_file(args))
-    return compile_step and not bitcode and not query and input_is_valid
+    return compile_step and not bitcode and not query and not dependency and input_is_valid
 
 def run_step(command, my_env, error_on_failure):
     """Runs a step of the compilation. Reports failure as exception."""
@@ -282,12 +284,24 @@ class dash_s_no_change(WrapperCheck):
         run_step(alternate_command, my_env,
                  "Error compiling with -via-file-asm")
 
-        # Compare disassembly (returns first diff if differs)
-        difference = obj_diff.compare_object_files(self._output_file_a,
-                                                   output_file_b)
-        if difference:
-            raise WrapperCheckException(
-                "Code difference detected with -S\n{}".format(difference))
+        # Compare if object files are exactly the same
+        exactly_equal = obj_diff.compare_exact(self._output_file_a, output_file_b)
+        if not exactly_equal:
+            # Compare disassembly (returns first diff if differs)
+            difference = obj_diff.compare_object_files(self._output_file_a,
+                                                       output_file_b)
+            if difference:
+                raise WrapperCheckException(
+                    "Code difference detected with -S\n{}".format(difference))
+
+            # Code is identical, compare debug info
+            dbgdifference = obj_diff.compare_debug_info(self._output_file_a,
+                                                        output_file_b)
+            if dbgdifference:
+                raise WrapperCheckException(
+                    "Debug info difference detected with -S\n{}".format(dbgdifference))
+
+            raise WrapperCheckException("Object files not identical with -S\n")
 
         # Clean up temp file if comparison okay
         os.remove(output_file_b)
@@ -367,7 +381,7 @@ if __name__ == '__main__':
                 checker.perform_check(arguments_a, my_env)
             except WrapperCheckException as e:
                 # Check failure
-                print(e.msg, file=sys.stderr)
+                print("{} {}".format(get_input_file(arguments_a), e.msg), file=sys.stderr)
 
                 # Remove file to comply with build system expectations (no
                 # output file if failed)
