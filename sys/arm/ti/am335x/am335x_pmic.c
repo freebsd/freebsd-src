@@ -131,7 +131,7 @@ am335x_pmic_intr(void *arg)
 		shutdown_nice(RB_POWEROFF);
 	if (int_reg.aci) {
 		snprintf(notify_buf, sizeof(notify_buf), "notify=0x%02x",
-		    status_reg.acpwr ? 1 : 0);
+		    status_reg.acpwr);
 		devctl_notify_f("ACPI", "ACAD", "power", notify_buf, M_NOWAIT);
 	}
 }
