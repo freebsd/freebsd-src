@@ -2793,6 +2793,12 @@
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=i386-netbsd6 -target-feature +sse2 < /dev/null | FileCheck -check-prefix I386-NETBSD6-SSE %s
 // I386-NETBSD6-SSE:#define __FLT_EVAL_METHOD__ 1
 
+// RUN: %clang_cc1 -E -dM -triple=i686-pc-mingw32 < /dev/null | FileCheck -check-prefix I386-DECLSPEC %s
+// RUN: %clang_cc1 -E -dM -fms-extensions -triple=i686-pc-mingw32 < /dev/null | FileCheck -check-prefix I386-DECLSPEC %s
+// RUN: %clang_cc1 -E -dM -triple=i686-unknown-cygwin < /dev/null | FileCheck -check-prefix I386-DECLSPEC %s
+// RUN: %clang_cc1 -E -dM -fms-extensions -triple=i686-unknown-cygwin < /dev/null | FileCheck -check-prefix I386-DECLSPEC %s
+// I386-DECLSPEC: #define __declspec
+
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=mips-none-none < /dev/null | FileCheck -check-prefix MIPS32BE %s
 //
@@ -6845,10 +6851,10 @@
 // SPARC:#define __INTMAX_MAX__ 9223372036854775807LL
 // SPARC:#define __INTMAX_TYPE__ long long int
 // SPARC:#define __INTMAX_WIDTH__ 64
-// SPARC:#define __INTPTR_FMTd__ "ld"
-// SPARC:#define __INTPTR_FMTi__ "li"
-// SPARC:#define __INTPTR_MAX__ 2147483647L
-// SPARC:#define __INTPTR_TYPE__ long int
+// SPARC:#define __INTPTR_FMTd__ "d"
+// SPARC:#define __INTPTR_FMTi__ "i"
+// SPARC:#define __INTPTR_MAX__ 2147483647
+// SPARC:#define __INTPTR_TYPE__ int
 // SPARC:#define __INTPTR_WIDTH__ 32
 // SPARC:#define __INT_FAST16_FMTd__ "hd"
 // SPARC:#define __INT_FAST16_FMTi__ "hi"
@@ -6900,7 +6906,7 @@
 // SPARC:#define __LONG_MAX__ 2147483647L
 // SPARC-NOT:#define __LP64__
 // SPARC:#define __POINTER_WIDTH__ 32
-// SPARC:#define __PTRDIFF_TYPE__ long int
+// SPARC:#define __PTRDIFF_TYPE__ int
 // SPARC:#define __PTRDIFF_WIDTH__ 32
 // SPARC:#define __REGISTER_PREFIX__
 // SPARC:#define __SCHAR_MAX__ 127
@@ -6920,7 +6926,7 @@
 // SPARC:#define __SIZEOF_WCHAR_T__ 4
 // SPARC:#define __SIZEOF_WINT_T__ 4
 // SPARC:#define __SIZE_MAX__ 4294967295U
-// SPARC:#define __SIZE_TYPE__ long unsigned int
+// SPARC:#define __SIZE_TYPE__ unsigned int
 // SPARC:#define __SIZE_WIDTH__ 32
 // SPARC:#define __UINT16_C_SUFFIX__ {{$}}
 // SPARC:#define __UINT16_MAX__ 65535
@@ -6939,7 +6945,7 @@
 // SPARC:#define __UINTMAX_TYPE__ long long unsigned int
 // SPARC:#define __UINTMAX_WIDTH__ 64
 // SPARC:#define __UINTPTR_MAX__ 4294967295U
-// SPARC:#define __UINTPTR_TYPE__ long unsigned int
+// SPARC:#define __UINTPTR_TYPE__ unsigned int
 // SPARC:#define __UINTPTR_WIDTH__ 32
 // SPARC:#define __UINT_FAST16_MAX__ 65535
 // SPARC:#define __UINT_FAST16_TYPE__ unsigned short
@@ -6969,6 +6975,15 @@
 // SPARC:#define __sparcv8 1
 // SPARC:#define sparc 1
 // 
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=sparc-none-netbsd < /dev/null | FileCheck -check-prefix SPARC-NETBSD %s
+// SPARC-NETBSD:#define __INTPTR_FMTd__ "ld"
+// SPARC-NETBSD:#define __INTPTR_FMTi__ "li"
+// SPARC-NETBSD:#define __INTPTR_MAX__ 2147483647L
+// SPARC-NETBSD:#define __INTPTR_TYPE__ long int
+// SPARC-NETBSD:#define __PTRDIFF_TYPE__ long int
+// SPARC-NETBSD:#define __SIZE_TYPE__ long unsigned int
+// SPARC-NETBSD:#define __UINTPTR_TYPE__ long unsigned int
+
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=tce-none-none < /dev/null | FileCheck -check-prefix TCE %s
 //
 // TCE-NOT:#define _LP64
@@ -8345,6 +8360,10 @@
 // PS4:#define __unix__ 1
 // PS4:#define __x86_64 1
 // PS4:#define __x86_64__ 1
+//
+// RUN: %clang_cc1 -E -dM -triple=x86_64-pc-mingw32 < /dev/null | FileCheck -check-prefix X86-64-DECLSPEC %s
+// RUN: %clang_cc1 -E -dM -fms-extensions -triple=x86_64-unknown-mingw32 < /dev/null | FileCheck -check-prefix X86-64-DECLSPEC %s
+// X86-64-DECLSPEC: #define __declspec
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=sparc64-none-none < /dev/null | FileCheck -check-prefix SPARCV9 %s
 // SPARCV9:#define __INT64_TYPE__ long int

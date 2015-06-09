@@ -2842,14 +2842,14 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       if ((T.getCVRQualifiers() || T->isAtomicType()) &&
           !(S.getLangOpts().CPlusPlus &&
             (T->isDependentType() || T->isRecordType()))) {
-	if (T->isVoidType() && !S.getLangOpts().CPlusPlus &&
-	    D.getFunctionDefinitionKind() == FDK_Definition) {
-	  // [6.9.1/3] qualified void return is invalid on a C
-	  // function definition.  Apparently ok on declarations and
-	  // in C++ though (!)
-	  S.Diag(DeclType.Loc, diag::err_func_returning_qualified_void) << T;
-	} else
-	  diagnoseRedundantReturnTypeQualifiers(S, T, D, chunkIndex);
+        if (T->isVoidType() && !S.getLangOpts().CPlusPlus &&
+            D.getFunctionDefinitionKind() == FDK_Definition) {
+          // [6.9.1/3] qualified void return is invalid on a C
+          // function definition.  Apparently ok on declarations and
+          // in C++ though (!)
+          S.Diag(DeclType.Loc, diag::err_func_returning_qualified_void) << T;
+        } else
+          diagnoseRedundantReturnTypeQualifiers(S, T, D, chunkIndex);
       }
 
       // Objective-C ARC ownership qualifiers are ignored on the function
@@ -3500,15 +3500,26 @@ static AttributeList::Kind getAttrListKind(AttributedType::Kind kind) {
 }
 
 static void fillAttributedTypeLoc(AttributedTypeLoc TL,
-                                  const AttributeList *attrs) {
-  AttributedType::Kind kind = TL.getAttrKind();
+                                  const AttributeList *attrs,
+                                  const AttributeList *DeclAttrs = nullptr) {
+  // DeclAttrs and attrs cannot be both empty.
+  assert((attrs || DeclAttrs) &&
+         "no type attributes in the expected location!");
 
-  assert(attrs && "no type attributes in the expected location!");
-  AttributeList::Kind parsedKind = getAttrListKind(kind);
-  while (attrs->getKind() != parsedKind) {
+  AttributeList::Kind parsedKind = getAttrListKind(TL.getAttrKind());
+  // Try to search for an attribute of matching kind in attrs list.
+  while (attrs && attrs->getKind() != parsedKind)
     attrs = attrs->getNext();
-    assert(attrs && "no matching attribute in expected location!");
+  if (!attrs) {
+    // No matching type attribute in attrs list found.
+    // Try searching through C++11 attributes in the declarator attribute list.
+    while (DeclAttrs && (!DeclAttrs->isCXX11Attribute() ||
+                         DeclAttrs->getKind() != parsedKind))
+      DeclAttrs = DeclAttrs->getNext();
+    attrs = DeclAttrs;
   }
+
+  assert(attrs && "no matching type attribute in expected location!");
 
   TL.setAttrNameLoc(attrs->getLoc());
   if (TL.hasAttrExprOperand()) {
@@ -3863,6 +3874,7 @@ Sema::GetTypeSourceInfoForDeclarator(Declarator &D, QualType T,
                                      TypeSourceInfo *ReturnTypeInfo) {
   TypeSourceInfo *TInfo = Context.CreateTypeSourceInfo(T);
   UnqualTypeLoc CurrTL = TInfo->getTypeLoc().getUnqualifiedLoc();
+  const AttributeList *DeclAttrs = D.getAttributes();
 
   // Handle parameter packs whose type is a pack expansion.
   if (isa<PackExpansionType>(T)) {
@@ -3879,7 +3891,7 @@ Sema::GetTypeSourceInfoForDeclarator(Declarator &D, QualType T,
     }
 
     while (AttributedTypeLoc TL = CurrTL.getAs<AttributedTypeLoc>()) {
-      fillAttributedTypeLoc(TL, D.getTypeObject(i).getAttrs());
+      fillAttributedTypeLoc(TL, D.getTypeObject(i).getAttrs(), DeclAttrs);
       CurrTL = TL.getNextTypeLoc().getUnqualifiedLoc();
     }
 

@@ -182,6 +182,9 @@ set(GCC_INSTALL_PREFIX "" CACHE PATH "Directory where gcc is installed." )
 set(DEFAULT_SYSROOT "" CACHE PATH
   "Default <path> to all compiler invocations for --sysroot=<path>." )
 
+set(CLANG_DEFAULT_OPENMP_RUNTIME "libgomp" CACHE STRING
+  "Default OpenMP runtime used by -fopenmp.")
+
 set(CLANG_VENDOR "" CACHE STRING
   "Vendor-specific text for showing with version information.")
 
@@ -362,6 +365,7 @@ macro(add_clang_library name)
 
     if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY OR ${name} STREQUAL "libclang")
       install(TARGETS ${name}
+        EXPORT ClangTargets
         LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
         ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX}
         RUNTIME DESTINATION bin)
@@ -439,11 +443,6 @@ if(CLANG_ENABLE_ARCMT)
 endif()
 if(CLANG_ENABLE_STATIC_ANALYZER)
   add_definitions(-DCLANG_ENABLE_STATIC_ANALYZER)
-endif()
-
-set(OPENMP_DEFAULT_LIB "" CACHE STRING "OpenMP library used by default for -fopenmp.")
-if(OPENMP_DEFAULT_LIB)
-  add_definitions(-DOPENMP_DEFAULT_LIB=${OPENMP_DEFAULT_LIB})
 endif()
 
 # Clang version information
@@ -526,9 +525,10 @@ if (CLANG_BUILT_STANDALONE)
 
   # Install a <prefix>/share/clang/cmake/ClangConfig.cmake file so that
   # find_package(Clang) works. Install the target list with it.
+  install(EXPORT ClangTargets DESTINATION ${CLANG_INSTALL_PACKAGE_DIR})
+
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/ClangConfig.cmake
-    ${CLANG_BINARY_DIR}/share/clang/cmake/ClangTargets.cmake
     DESTINATION share/clang/cmake)
 
   # Also copy ClangConfig.cmake to the build directory so that dependent projects
