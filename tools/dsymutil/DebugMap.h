@@ -28,6 +28,8 @@
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/YAMLTraits.h"
 #include <vector>
 
 namespace llvm {
@@ -66,6 +68,12 @@ class DebugMap {
   typedef std::vector<std::unique_ptr<DebugMapObject>> ObjectContainer;
   ObjectContainer Objects;
 
+  /// For YAML IO support.
+  ///@{
+  friend yaml::MappingTraits<std::unique_ptr<DebugMap>>;
+  friend yaml::MappingTraits<DebugMap>;
+  DebugMap() = default;
+  ///@}
 public:
   DebugMap(const Triple &BinaryTriple) : BinaryTriple(BinaryTriple) {}
 
@@ -90,6 +98,10 @@ public:
 #ifndef NDEBUG
   void dump() const;
 #endif
+
+  /// Read a debug map for \a InputFile.
+  static ErrorOr<std::unique_ptr<DebugMap>>
+  parseYAMLDebugMap(StringRef InputFile, StringRef PrependPath, bool Verbose);
 };
 
 /// \brief The DebugMapObject represents one object file described by
@@ -99,12 +111,14 @@ public:
 class DebugMapObject {
 public:
   struct SymbolMapping {
-    uint64_t ObjectAddress;
-    uint64_t BinaryAddress;
-    uint32_t Size;
+    yaml::Hex64 ObjectAddress;
+    yaml::Hex64 BinaryAddress;
+    yaml::Hex32 Size;
     SymbolMapping(uint64_t ObjectAddress, uint64_t BinaryAddress, uint32_t Size)
         : ObjectAddress(ObjectAddress), BinaryAddress(BinaryAddress),
           Size(Size) {}
+    /// For YAML IO support
+    SymbolMapping() = default;
   };
 
   typedef StringMapEntry<SymbolMapping> DebugMapEntry;
@@ -141,6 +155,72 @@ private:
   std::string Filename;
   StringMap<SymbolMapping> Symbols;
   DenseMap<uint64_t, DebugMapEntry *> AddressToMapping;
+
+  /// For YAMLIO support.
+  ///@{
+  typedef std::pair<std::string, SymbolMapping> YAMLSymbolMapping;
+  friend yaml::MappingTraits<dsymutil::DebugMapObject>;
+  friend yaml::SequenceTraits<std::vector<std::unique_ptr<DebugMapObject>>>;
+  friend yaml::SequenceTraits<std::vector<YAMLSymbolMapping>>;
+  DebugMapObject() = default;
+
+public:
+  DebugMapObject &operator=(DebugMapObject RHS) {
+    std::swap(Filename, RHS.Filename);
+    std::swap(Symbols, RHS.Symbols);
+    std::swap(AddressToMapping, RHS.AddressToMapping);
+    return *this;
+  }
+  DebugMapObject(DebugMapObject &&RHS) {
+    Filename = std::move(RHS.Filename);
+    Symbols = std::move(RHS.Symbols);
+    AddressToMapping = std::move(RHS.AddressToMapping);
+  }
+  ///@}
+};
+}
+}
+
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::dsymutil::DebugMapObject::YAMLSymbolMapping)
+
+namespace llvm {
+namespace yaml {
+
+using namespace llvm::dsymutil;
+
+template <>
+struct MappingTraits<std::pair<std::string, DebugMapObject::SymbolMapping>> {
+  static void mapping(IO &io,
+                      std::pair<std::string, DebugMapObject::SymbolMapping> &s);
+  static const bool flow = true;
+};
+
+template <> struct MappingTraits<dsymutil::DebugMapObject> {
+  struct YamlDMO;
+  static void mapping(IO &io, dsymutil::DebugMapObject &DMO);
+};
+
+template <> struct ScalarTraits<Triple> {
+  static void output(const Triple &val, void *, llvm::raw_ostream &out);
+  static StringRef input(StringRef scalar, void *, Triple &value);
+  static bool mustQuote(StringRef) { return true; }
+};
+
+template <>
+struct SequenceTraits<std::vector<std::unique_ptr<dsymutil::DebugMapObject>>> {
+  static size_t
+  size(IO &io, std::vector<std::unique_ptr<dsymutil::DebugMapObject>> &seq);
+  static dsymutil::DebugMapObject &
+  element(IO &, std::vector<std::unique_ptr<dsymutil::DebugMapObject>> &seq,
+          size_t index);
+};
+
+template <> struct MappingTraits<dsymutil::DebugMap> {
+  static void mapping(IO &io, dsymutil::DebugMap &DM);
+};
+
+template <> struct MappingTraits<std::unique_ptr<dsymutil::DebugMap>> {
+  static void mapping(IO &io, std::unique_ptr<dsymutil::DebugMap> &DM);
 };
 }
 }

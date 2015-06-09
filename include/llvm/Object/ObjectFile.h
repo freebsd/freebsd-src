@@ -66,11 +66,6 @@ public:
   /// This is for display purposes only.
   std::error_code getTypeName(SmallVectorImpl<char> &Result) const;
 
-  /// @brief Get a string that represents the calculation of the value of this
-  ///        relocation.
-  ///
-  /// This is for display purposes only.
-  std::error_code getValueString(SmallVectorImpl<char> &Result) const;
 
   DataRefImpl getRawDataRefImpl() const;
   const ObjectFile *getObjectFile() const;
@@ -146,8 +141,8 @@ public:
   /// mapped).
   std::error_code getAddress(uint64_t &Result) const;
   /// @brief Get the alignment of this symbol as the actual value (not log 2).
-  std::error_code getAlignment(uint32_t &Result) const;
-  std::error_code getSize(uint64_t &Result) const;
+  uint32_t getAlignment() const;
+  uint64_t getSize() const;
   std::error_code getType(SymbolRef::Type &Result) const;
   std::error_code getOther(uint8_t &Result) const;
 
@@ -206,10 +201,8 @@ protected:
                                   DataRefImpl Symb) const override;
   virtual std::error_code getSymbolAddress(DataRefImpl Symb,
                                            uint64_t &Res) const = 0;
-  virtual std::error_code getSymbolAlignment(DataRefImpl Symb,
-                                             uint32_t &Res) const;
-  virtual std::error_code getSymbolSize(DataRefImpl Symb,
-                                        uint64_t &Res) const = 0;
+  virtual uint32_t getSymbolAlignment(DataRefImpl Symb) const;
+  virtual uint64_t getSymbolSize(DataRefImpl Symb) const = 0;
   virtual std::error_code getSymbolType(DataRefImpl Symb,
                                         SymbolRef::Type &Res) const = 0;
   virtual std::error_code getSymbolSection(DataRefImpl Symb,
@@ -254,13 +247,10 @@ protected:
   virtual std::error_code
   getRelocationTypeName(DataRefImpl Rel,
                         SmallVectorImpl<char> &Result) const = 0;
-  virtual std::error_code
-  getRelocationValueString(DataRefImpl Rel,
-                           SmallVectorImpl<char> &Result) const = 0;
   virtual std::error_code getRelocationHidden(DataRefImpl Rel,
                                               bool &Result) const {
     Result = false;
-    return object_error::success;
+    return std::error_code();
   }
 
 public:
@@ -334,12 +324,12 @@ inline std::error_code SymbolRef::getAddress(uint64_t &Result) const {
   return getObject()->getSymbolAddress(getRawDataRefImpl(), Result);
 }
 
-inline std::error_code SymbolRef::getAlignment(uint32_t &Result) const {
-  return getObject()->getSymbolAlignment(getRawDataRefImpl(), Result);
+inline uint32_t SymbolRef::getAlignment() const {
+  return getObject()->getSymbolAlignment(getRawDataRefImpl());
 }
 
-inline std::error_code SymbolRef::getSize(uint64_t &Result) const {
-  return getObject()->getSymbolSize(getRawDataRefImpl(), Result);
+inline uint64_t SymbolRef::getSize() const {
+  return getObject()->getSymbolSize(getRawDataRefImpl());
 }
 
 inline std::error_code SymbolRef::getSection(section_iterator &Result) const {
@@ -480,11 +470,6 @@ inline std::error_code RelocationRef::getType(uint64_t &Result) const {
 inline std::error_code
 RelocationRef::getTypeName(SmallVectorImpl<char> &Result) const {
   return OwningObject->getRelocationTypeName(RelocationPimpl, Result);
-}
-
-inline std::error_code
-RelocationRef::getValueString(SmallVectorImpl<char> &Result) const {
-  return OwningObject->getRelocationValueString(RelocationPimpl, Result);
 }
 
 inline std::error_code RelocationRef::getHidden(bool &Result) const {

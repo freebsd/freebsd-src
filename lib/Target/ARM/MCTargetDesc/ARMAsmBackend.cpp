@@ -260,9 +260,9 @@ bool ARMAsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
         hasNOP() ? Thumb2_16bitNopEncoding : Thumb1_16bitNopEncoding;
     uint64_t NumNops = Count / 2;
     for (uint64_t i = 0; i != NumNops; ++i)
-      OW->Write16(nopEncoding);
+      OW->write16(nopEncoding);
     if (Count & 1)
-      OW->Write8(0);
+      OW->write8(0);
     return true;
   }
   // ARM mode
@@ -270,21 +270,21 @@ bool ARMAsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
       hasNOP() ? ARMv6T2_NopEncoding : ARMv4_NopEncoding;
   uint64_t NumNops = Count / 4;
   for (uint64_t i = 0; i != NumNops; ++i)
-    OW->Write32(nopEncoding);
+    OW->write32(nopEncoding);
   // FIXME: should this function return false when unable to write exactly
   // 'Count' bytes with NOP encodings?
   switch (Count % 4) {
   default:
     break; // No leftover bytes to write
   case 1:
-    OW->Write8(0);
+    OW->write8(0);
     break;
   case 2:
-    OW->Write16(0);
+    OW->write16(0);
     break;
   case 3:
-    OW->Write16(0);
-    OW->Write8(0xa0);
+    OW->write16(0);
+    OW->write8(0xa0);
     break;
   }
 
@@ -601,8 +601,7 @@ void ARMAsmBackend::processFixupValue(const MCAssembler &Asm,
   // the offset when the destination has the same MCFragment.
   if (A && (unsigned)Fixup.getKind() == ARM::fixup_arm_thumb_bl) {
     const MCSymbol &Sym = A->getSymbol();
-    const MCSymbolData &SymData = Asm.getSymbolData(Sym);
-    IsResolved = (SymData.getFragment() == DF);
+    IsResolved = (Sym.getFragment() == DF);
   }
   // We must always generate a relocation for BL/BLX instructions if we have
   // a symbol to reference, as the linker relies on knowing the destination

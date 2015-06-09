@@ -456,7 +456,8 @@ public:
   /// Used to guide target specific optimizations, like loop strength
   /// reduction (LoopStrengthReduce.cpp) and memory optimization for
   /// address mode (CodeGenPrepare.cpp)
-  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
+  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
 
   /// getFunctionAlignment - Return the Log2 alignment of this function.
   unsigned getFunctionAlignment(const Function *F) const;
@@ -496,12 +497,6 @@ public:
   void LowerAsmOperandForConstraint(SDValue Op, std::string &Constraint,
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
-
-  unsigned getInlineAsmMemConstraint(
-      const std::string &ConstraintCode) const override {
-    // FIXME: Map different constraints differently.
-    return InlineAsm::Constraint_m;
-  }
 
   const NVPTXTargetMachine *nvTM;
 

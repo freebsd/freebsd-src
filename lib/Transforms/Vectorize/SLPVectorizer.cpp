@@ -317,9 +317,9 @@ static bool InTreeUserNeedToExtract(Value *Scalar, Instruction *UserInst,
 /// \returns the AA location that is being access by the instruction.
 static AliasAnalysis::Location getLocation(Instruction *I, AliasAnalysis *AA) {
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
-    return AA->getLocation(SI);
+    return MemoryLocation::get(SI);
   if (LoadInst *LI = dyn_cast<LoadInst>(I))
-    return AA->getLocation(LI);
+    return MemoryLocation::get(LI);
   return AliasAnalysis::Location();
 }
 
@@ -472,7 +472,7 @@ private:
 
   /// Create a new VectorizableTree entry.
   TreeEntry *newTreeEntry(ArrayRef<Value *> VL, bool Vectorized) {
-    VectorizableTree.push_back(TreeEntry());
+    VectorizableTree.emplace_back();
     int idx = VectorizableTree.size() - 1;
     TreeEntry *Last = &VectorizableTree[idx];
     Last->Scalars.insert(Last->Scalars.begin(), VL.begin(), VL.end());

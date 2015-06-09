@@ -24,15 +24,6 @@
 // CHECK-NOT: }
 // CHECK: Section: .group (0x7)
 
-// CHECK: Name: .foo
-// CHECK-NOT: }
-// CHECK: Section: .foo (0x6)
-
-// CHECK: Name: .foo
-// CHECK-NOT: }
-// CHECK: Section: .foo (0x8)
-
-
 	.section	.foo,"axG",@progbits,f1,comdat
         nop
 

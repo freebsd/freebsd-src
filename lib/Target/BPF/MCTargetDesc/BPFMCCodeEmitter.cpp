@@ -30,9 +30,11 @@ class BPFMCCodeEmitter : public MCCodeEmitter {
   BPFMCCodeEmitter(const BPFMCCodeEmitter &) = delete;
   void operator=(const BPFMCCodeEmitter &) = delete;
   const MCRegisterInfo &MRI;
+  bool IsLittleEndian;
 
 public:
-  BPFMCCodeEmitter(const MCRegisterInfo &mri) : MRI(mri) {}
+  BPFMCCodeEmitter(const MCRegisterInfo &mri, bool IsLittleEndian)
+    : MRI(mri), IsLittleEndian(IsLittleEndian) {}
 
   ~BPFMCCodeEmitter() {}
 
@@ -61,7 +63,13 @@ public:
 MCCodeEmitter *llvm::createBPFMCCodeEmitter(const MCInstrInfo &MCII,
                                             const MCRegisterInfo &MRI,
                                             MCContext &Ctx) {
-  return new BPFMCCodeEmitter(MRI);
+  return new BPFMCCodeEmitter(MRI, true);
+}
+
+MCCodeEmitter *llvm::createBPFbeMCCodeEmitter(const MCInstrInfo &MCII,
+                                              const MCRegisterInfo &MRI,
+                                              MCContext &Ctx) {
+  return new BPFMCCodeEmitter(MRI, false);
 }
 
 unsigned BPFMCCodeEmitter::getMachineOpValue(const MCInst &MI,
@@ -91,59 +99,53 @@ unsigned BPFMCCodeEmitter::getMachineOpValue(const MCInst &MI,
   return 0;
 }
 
-// Emit one byte through output stream
-void EmitByte(unsigned char C, unsigned &CurByte, raw_ostream &OS) {
-  OS << (char)C;
-  ++CurByte;
-}
-
-// Emit a series of bytes (little endian)
-void EmitLEConstant(uint64_t Val, unsigned Size, unsigned &CurByte,
-                    raw_ostream &OS) {
-  assert(Size <= 8 && "size too big in emit constant");
-
-  for (unsigned i = 0; i != Size; ++i) {
-    EmitByte(Val & 255, CurByte, OS);
-    Val >>= 8;
-  }
-}
-
-// Emit a series of bytes (big endian)
-void EmitBEConstant(uint64_t Val, unsigned Size, unsigned &CurByte,
-                    raw_ostream &OS) {
-  assert(Size <= 8 && "size too big in emit constant");
-
-  for (int i = (Size - 1) * 8; i >= 0; i -= 8)
-    EmitByte((Val >> i) & 255, CurByte, OS);
+static uint8_t SwapBits(uint8_t Val)
+{
+  return (Val & 0x0F) << 4 | (Val & 0xF0) >> 4;
 }
 
 void BPFMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
                                          SmallVectorImpl<MCFixup> &Fixups,
                                          const MCSubtargetInfo &STI) const {
   unsigned Opcode = MI.getOpcode();
-  // Keep track of the current byte being emitted
-  unsigned CurByte = 0;
+  support::endian::Writer<support::little> LE(OS);
+  support::endian::Writer<support::big> BE(OS);
 
   if (Opcode == BPF::LD_imm64 || Opcode == BPF::LD_pseudo) {
     uint64_t Value = getBinaryCodeForInstr(MI, Fixups, STI);
-    EmitByte(Value >> 56, CurByte, OS);
-    EmitByte(((Value >> 48) & 0xff), CurByte, OS);
-    EmitLEConstant(0, 2, CurByte, OS);
-    EmitLEConstant(Value & 0xffffFFFF, 4, CurByte, OS);
+    LE.write<uint8_t>(Value >> 56);
+    if (IsLittleEndian)
+      LE.write<uint8_t>((Value >> 48) & 0xff);
+    else
+      LE.write<uint8_t>(SwapBits((Value >> 48) & 0xff));
+    LE.write<uint16_t>(0);
+    if (IsLittleEndian)
+      LE.write<uint32_t>(Value & 0xffffFFFF);
+    else
+      BE.write<uint32_t>(Value & 0xffffFFFF);
 
     const MCOperand &MO = MI.getOperand(1);
     uint64_t Imm = MO.isImm() ? MO.getImm() : 0;
-    EmitByte(0, CurByte, OS);
-    EmitByte(0, CurByte, OS);
-    EmitLEConstant(0, 2, CurByte, OS);
-    EmitLEConstant(Imm >> 32, 4, CurByte, OS);
+    LE.write<uint8_t>(0);
+    LE.write<uint8_t>(0);
+    LE.write<uint16_t>(0);
+    if (IsLittleEndian)
+      LE.write<uint32_t>(Imm >> 32);
+    else
+      BE.write<uint32_t>(Imm >> 32);
   } else {
     // Get instruction encoding and emit it
     uint64_t Value = getBinaryCodeForInstr(MI, Fixups, STI);
-    EmitByte(Value >> 56, CurByte, OS);
-    EmitByte((Value >> 48) & 0xff, CurByte, OS);
-    EmitLEConstant((Value >> 32) & 0xffff, 2, CurByte, OS);
-    EmitLEConstant(Value & 0xffffFFFF, 4, CurByte, OS);
+    LE.write<uint8_t>(Value >> 56);
+    if (IsLittleEndian) {
+      LE.write<uint8_t>((Value >> 48) & 0xff);
+      LE.write<uint16_t>((Value >> 32) & 0xffff);
+      LE.write<uint32_t>(Value & 0xffffFFFF);
+    } else {
+      LE.write<uint8_t>(SwapBits((Value >> 48) & 0xff));
+      BE.write<uint16_t>((Value >> 32) & 0xffff);
+      BE.write<uint32_t>(Value & 0xffffFFFF);
+    }
   }
 }
 

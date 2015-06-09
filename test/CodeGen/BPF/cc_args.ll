@@ -1,5 +1,4 @@
-; RUN: llc < %s -march=bpf -show-mc-encoding | FileCheck %s
-; test little endian only for now
+; RUN: llc < %s -march=bpfel -show-mc-encoding | FileCheck %s
 
 define void @test() #0 {
 entry:

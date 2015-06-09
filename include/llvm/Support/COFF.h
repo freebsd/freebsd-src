@@ -155,16 +155,6 @@ namespace COFF {
     uint8_t  NumberOfAuxSymbols;
   };
 
-  enum SymbolFlags {
-    SF_TypeMask = 0x0000FFFF,
-    SF_TypeShift = 0,
-
-    SF_ClassMask = 0x00FF0000,
-    SF_ClassShift = 16,
-
-    SF_WeakExternal = 0x01000000
-  };
-
   enum SymbolSectionNumber : int32_t {
     IMAGE_SYM_DEBUG     = -2,
     IMAGE_SYM_ABSOLUTE  = -1,

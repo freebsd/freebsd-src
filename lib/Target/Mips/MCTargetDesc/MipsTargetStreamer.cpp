@@ -17,10 +17,9 @@
 #include "MipsTargetObjectFile.h"
 #include "MipsTargetStreamer.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCELF.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -81,6 +80,12 @@ void MipsTargetStreamer::emitDirectiveSetMips64R5() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetMips64R6() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetPop() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetPush() { forbidModuleDirective(); }
+void MipsTargetStreamer::emitDirectiveSetSoftFloat() {
+  forbidModuleDirective();
+}
+void MipsTargetStreamer::emitDirectiveSetHardFloat() {
+  forbidModuleDirective();
+}
 void MipsTargetStreamer::emitDirectiveSetDsp() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetNoDsp() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveCpLoad(unsigned RegNo) {}
@@ -308,6 +313,16 @@ void MipsTargetAsmStreamer::emitDirectiveSetPush() {
  MipsTargetStreamer::emitDirectiveSetPush();
 }
 
+void MipsTargetAsmStreamer::emitDirectiveSetSoftFloat() {
+  OS << "\t.set\tsoftfloat\n";
+  MipsTargetStreamer::emitDirectiveSetSoftFloat();
+}
+
+void MipsTargetAsmStreamer::emitDirectiveSetHardFloat() {
+  OS << "\t.set\thardfloat\n";
+  MipsTargetStreamer::emitDirectiveSetHardFloat();
+}
+
 // Print a 32 bit hex number with all numbers.
 static void printHex32(unsigned Value, raw_ostream &OS) {
   OS << "0x";
@@ -358,7 +373,6 @@ void MipsTargetAsmStreamer::emitDirectiveModuleFP(
     MipsABIFlagsSection::FpABIKind Value, bool Is32BitABI) {
   MipsTargetStreamer::emitDirectiveModuleFP(Value, Is32BitABI);
 
-  StringRef ModuleValue;
   OS << "\t.module\tfp=";
   OS << ABIFlagsSection.getFpABIString(Value) << "\n";
 }
@@ -367,7 +381,6 @@ void MipsTargetAsmStreamer::emitDirectiveSetFp(
     MipsABIFlagsSection::FpABIKind Value) {
   MipsTargetStreamer::emitDirectiveSetFp(Value);
 
-  StringRef ModuleValue;
   OS << "\t.set\tfp=";
   OS << ABIFlagsSection.getFpABIString(Value) << "\n";
 }
@@ -440,18 +453,16 @@ MipsTargetELFStreamer::MipsTargetELFStreamer(MCStreamer &S,
   MCA.setELFHeaderEFlags(EFlags);
 }
 
-void MipsTargetELFStreamer::emitLabel(MCSymbol *Symbol) {
+void MipsTargetELFStreamer::emitLabel(MCSymbol *S) {
+  auto *Symbol = cast<MCSymbolELF>(S);
   if (!isMicroMipsEnabled())
     return;
-  MCSymbolData &Data = getStreamer().getOrCreateSymbolData(Symbol);
-  uint8_t Type = MCELF::GetType(Data);
+  getStreamer().getAssembler().registerSymbol(*Symbol);
+  uint8_t Type = Symbol->getType();
   if (Type != ELF::STT_FUNC)
     return;
 
-  // The "other" values are stored in the last 6 bits of the second byte
-  // The traditional defines for STO values assume the full byte and thus
-  // the shift to pack it.
-  MCELF::setOther(Data, ELF::STO_MIPS_MICROMIPS >> 2);
+  Symbol->setOther(ELF::STO_MIPS_MICROMIPS);
 }
 
 void MipsTargetELFStreamer::finish() {
@@ -505,23 +516,18 @@ void MipsTargetELFStreamer::finish() {
   emitMipsAbiFlags();
 }
 
-void MipsTargetELFStreamer::emitAssignment(MCSymbol *Symbol,
-                                           const MCExpr *Value) {
+void MipsTargetELFStreamer::emitAssignment(MCSymbol *S, const MCExpr *Value) {
+  auto *Symbol = cast<MCSymbolELF>(S);
   // If on rhs is micromips symbol then mark Symbol as microMips.
   if (Value->getKind() != MCExpr::SymbolRef)
     return;
-  const MCSymbol &RhsSym =
-      static_cast<const MCSymbolRefExpr *>(Value)->getSymbol();
-  MCSymbolData &Data = getStreamer().getOrCreateSymbolData(&RhsSym);
+  const auto &RhsSym = cast<MCSymbolELF>(
+      static_cast<const MCSymbolRefExpr *>(Value)->getSymbol());
 
-  if (!(MCELF::getOther(Data) & (ELF::STO_MIPS_MICROMIPS >> 2)))
+  if (!(RhsSym.getOther() & ELF::STO_MIPS_MICROMIPS))
     return;
 
-  MCSymbolData &SymbolData = getStreamer().getOrCreateSymbolData(Symbol);
-  // The "other" values are stored in the last 6 bits of the second byte.
-  // The traditional defines for STO values assume the full byte and thus
-  // the shift to pack it.
-  MCELF::setOther(SymbolData, ELF::STO_MIPS_MICROMIPS >> 2);
+  Symbol->setOther(ELF::STO_MIPS_MICROMIPS);
 }
 
 MCELFStreamer &MipsTargetELFStreamer::getStreamer() {
@@ -568,7 +574,7 @@ void MipsTargetELFStreamer::emitDirectiveEnd(StringRef Name) {
                                             ELF::SHF_ALLOC | ELF::SHT_REL);
 
   const MCSymbolRefExpr *ExprRef =
-      MCSymbolRefExpr::Create(Name, MCSymbolRefExpr::VK_None, Context);
+      MCSymbolRefExpr::create(Name, MCSymbolRefExpr::VK_None, Context);
 
   MCA.registerSection(*Sec);
   Sec->setAlignment(4);
@@ -693,12 +699,12 @@ void MipsTargetELFStreamer::emitDirectiveCpLoad(unsigned RegNo) {
   StringRef SymName("_gp_disp");
   MCAssembler &MCA = getStreamer().getAssembler();
   MCSymbol *GP_Disp = MCA.getContext().getOrCreateSymbol(SymName);
-  MCA.getOrCreateSymbolData(*GP_Disp);
+  MCA.registerSymbol(*GP_Disp);
 
   MCInst TmpInst;
   TmpInst.setOpcode(Mips::LUi);
   TmpInst.addOperand(MCOperand::createReg(Mips::GP));
-  const MCSymbolRefExpr *HiSym = MCSymbolRefExpr::Create(
+  const MCSymbolRefExpr *HiSym = MCSymbolRefExpr::create(
       "_gp_disp", MCSymbolRefExpr::VK_Mips_ABS_HI, MCA.getContext());
   TmpInst.addOperand(MCOperand::createExpr(HiSym));
   getStreamer().EmitInstruction(TmpInst, STI);
@@ -708,7 +714,7 @@ void MipsTargetELFStreamer::emitDirectiveCpLoad(unsigned RegNo) {
   TmpInst.setOpcode(Mips::ADDiu);
   TmpInst.addOperand(MCOperand::createReg(Mips::GP));
   TmpInst.addOperand(MCOperand::createReg(Mips::GP));
-  const MCSymbolRefExpr *LoSym = MCSymbolRefExpr::Create(
+  const MCSymbolRefExpr *LoSym = MCSymbolRefExpr::create(
       "_gp_disp", MCSymbolRefExpr::VK_Mips_ABS_LO, MCA.getContext());
   TmpInst.addOperand(MCOperand::createExpr(LoSym));
   getStreamer().EmitInstruction(TmpInst, STI);
@@ -752,9 +758,9 @@ void MipsTargetELFStreamer::emitDirectiveCpsetup(unsigned RegNo,
   getStreamer().EmitInstruction(Inst, STI);
   Inst.clear();
 
-  const MCSymbolRefExpr *HiExpr = MCSymbolRefExpr::Create(
+  const MCSymbolRefExpr *HiExpr = MCSymbolRefExpr::create(
       &Sym, MCSymbolRefExpr::VK_Mips_GPOFF_HI, MCA.getContext());
-  const MCSymbolRefExpr *LoExpr = MCSymbolRefExpr::Create(
+  const MCSymbolRefExpr *LoExpr = MCSymbolRefExpr::create(
       &Sym, MCSymbolRefExpr::VK_Mips_GPOFF_LO, MCA.getContext());
 
   // lui $gp, %hi(%neg(%gp_rel(funcSym)))

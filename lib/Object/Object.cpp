@@ -187,10 +187,7 @@ uint64_t LLVMGetSymbolAddress(LLVMSymbolIteratorRef SI) {
 }
 
 uint64_t LLVMGetSymbolSize(LLVMSymbolIteratorRef SI) {
-  uint64_t ret;
-  if (std::error_code ec = (*unwrap(SI))->getSize(ret))
-    report_fatal_error(ec.message());
-  return ret;
+  return (*unwrap(SI))->getSize();
 }
 
 // RelocationRef accessors
@@ -233,12 +230,6 @@ const char *LLVMGetRelocationTypeName(LLVMRelocationIteratorRef RI) {
 
 // NOTE: Caller takes ownership of returned string.
 const char *LLVMGetRelocationValueString(LLVMRelocationIteratorRef RI) {
-  SmallVector<char, 0> ret;
-  if (std::error_code ec = (*unwrap(RI))->getValueString(ret))
-    report_fatal_error(ec.message());
-
-  char *str = static_cast<char*>(malloc(ret.size()));
-  std::copy(ret.begin(), ret.end(), str);
-  return str;
+  return strdup("");
 }
 
