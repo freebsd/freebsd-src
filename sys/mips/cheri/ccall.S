@@ -414,13 +414,32 @@ ccall_clear_regs:
 	li		sp, 0
 	li		s8, 0
 	li		ra, 0
+#else /* CPU_CHERI_HW_RCLEAR */
+	CHERI_CLEAR_GPLO16( \
+		CHERI_CLEAR_GPLO_AT | \
+		CHERI_CLEAR_GPLO_V1 | \
+		CHERI_CLEAR_GPLO_T0 | \
+		CHERI_CLEAR_GPLO_T1 | \
+		CHERI_CLEAR_GPLO_T2 | \
+		CHERI_CLEAR_GPLO_T3 )
+	CHERI_CLEAR_GPHI16( \
+		CHERI_CLEAR_GPHI_S0 | \
+		CHERI_CLEAR_GPHI_S1 | \
+		CHERI_CLEAR_GPHI_S2 | \
+		CHERI_CLEAR_GPHI_S3 | \
+		CHERI_CLEAR_GPHI_S4 | \
+		CHERI_CLEAR_GPHI_S5 | \
+		CHERI_CLEAR_GPHI_S6 | \
+		CHERI_CLEAR_GPHI_S7 | \
+		CHERI_CLEAR_GPHI_T8 | \
+		CHERI_CLEAR_GPHI_T9 | \
+		CHERI_CLEAR_GPHI_GP | \
+		CHERI_CLEAR_GPHI_SP | \
+		CHERI_CLEAR_GPHI_S8 | \
+		CHERI_CLEAR_GPHI_RA )
+#endif /* CPU_CHERI_HW_RCLEAR */
 	mtlo		zero
 	mthi		zero
-#else /* CPU_CHERI_HW_RCLEAR */
-	/* Hypothesise that clearregs would take two instructions. */
-	nop
-	nop
-#endif /* CPU_CHERI_HW_RCLEAR */
 
 ccall_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
@@ -459,9 +478,24 @@ ccall_clear_caps:
 #endif
 
 #else /* CPU_CHERI_HW_CCLEAR */
-	/* Hypothesise that cclearregs would take two instructions. */
-	nop
-	nop
+	CHERI_CLEAR_CAPLO16( \
+		CHERI_CLEAR_CAPLO_C0  | \
+		CHERI_CLEAR_CAPLO_C11 | \
+		CHERI_CLEAR_CAPLO_C12 | \
+		CHERI_CLEAR_CAPLO_C13 | \
+		CHERI_CLEAR_CAPLO_C14 | \
+		CHERI_CLEAR_CAPLO_C15 )
+	CHERI_CLEAR_CAPHI16( \
+		CHERI_CLEAR_CAPHI_C16 | \
+		CHERI_CLEAR_CAPHI_C17 | \
+		CHERI_CLEAR_CAPHI_C18 | \
+		CHERI_CLEAR_CAPHI_C19 | \
+		CHERI_CLEAR_CAPHI_C20 | \
+		CHERI_CLEAR_CAPHI_C21 | \
+		CHERI_CLEAR_CAPHI_C22 | \
+		CHERI_CLEAR_CAPHI_C23 | \
+		CHERI_CLEAR_CAPHI_RCC | \
+		CHERI_CLEAR_CAPHI_C25 )
 #endif /* CPU_CHERI_HW_CCLEAR */
 ccall_exception_return:
 	CHERI_EXCEPTION_RETURN(k0)
@@ -651,13 +685,40 @@ creturn_clear_regs:
 	li		sp, 0
 	li		s8, 0
 	li		ra, 0
-	mtlo		zero
-	mthi		zero
 #else /* CPU_CHERI_HW_CCALL_CHECKS */
 	/* Hypothesise that clearregs would take two instructions. */
-	nop
-	nop
+	CHERI_CLEAR_GPLO16( \
+		CHERI_CLEAR_GPLO_AT | \
+		CHERI_CLEAR_GPLO_A0 | \
+		CHERI_CLEAR_GPLO_A1 | \
+		CHERI_CLEAR_GPLO_A2 | \
+		CHERI_CLEAR_GPLO_A3 | \
+		CHERI_CLEAR_GPLO_A4 | \
+		CHERI_CLEAR_GPLO_A5 | \
+		CHERI_CLEAR_GPLO_A6 | \
+		CHERI_CLEAR_GPLO_A7 | \
+		CHERI_CLEAR_GPLO_T0 | \
+		CHERI_CLEAR_GPLO_T1 | \
+		CHERI_CLEAR_GPLO_T2 | \
+		CHERI_CLEAR_GPLO_T3 )
+	CHERI_CLEAR_GPHI16( \
+		CHERI_CLEAR_GPHI_S0 | \
+		CHERI_CLEAR_GPHI_S1 | \
+		CHERI_CLEAR_GPHI_S2 | \
+		CHERI_CLEAR_GPHI_S3 | \
+		CHERI_CLEAR_GPHI_S4 | \
+		CHERI_CLEAR_GPHI_S5 | \
+		CHERI_CLEAR_GPHI_S6 | \
+		CHERI_CLEAR_GPHI_S7 | \
+		CHERI_CLEAR_GPHI_T8 | \
+		CHERI_CLEAR_GPHI_T9 | \
+		CHERI_CLEAR_GPHI_GP | \
+		CHERI_CLEAR_GPHI_SP | \
+		CHERI_CLEAR_GPHI_S8 | \
+		CHERI_CLEAR_GPHI_RA )
 #endif /* CPU_CHERI_HW_CCALL_CHECKS */
+	mtlo		zero
+	mthi		zero
 
 creturn_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
@@ -699,9 +760,33 @@ creturn_clear_caps:
 	cfromptr	$c25, $c25, zero
 #endif
 #else
-	/* Hypothesise that cclearregs would take two instructions. */
-	nop
-	nop
+	CHERI_CLEAR_CAPLO16( \
+		CHERI_CLEAR_CAPLO_C0  | \
+		CHERI_CLEAR_CAPLO_C1  | \
+		CHERI_CLEAR_CAPLO_C2  | \
+		CHERI_CLEAR_CAPLO_C4  | \
+		CHERI_CLEAR_CAPLO_C5  | \
+		CHERI_CLEAR_CAPLO_C6  | \
+		CHERI_CLEAR_CAPLO_C7  | \
+		CHERI_CLEAR_CAPLO_C8  | \
+		CHERI_CLEAR_CAPLO_C9  | \
+		CHERI_CLEAR_CAPLO_C10 | \
+		CHERI_CLEAR_CAPLO_C11 | \
+		CHERI_CLEAR_CAPLO_C12 | \
+		CHERI_CLEAR_CAPLO_C13 | \
+		CHERI_CLEAR_CAPLO_C14 | \
+		CHERI_CLEAR_CAPLO_C15 )
+	CHERI_CLEAR_CAPHI16( \
+		CHERI_CLEAR_CAPHI_C16 | \
+		CHERI_CLEAR_CAPHI_C17 | \
+		CHERI_CLEAR_CAPHI_C18 | \
+		CHERI_CLEAR_CAPHI_C19 | \
+		CHERI_CLEAR_CAPHI_C20 | \
+		CHERI_CLEAR_CAPHI_C21 | \
+		CHERI_CLEAR_CAPHI_C22 | \
+		CHERI_CLEAR_CAPHI_C23 | \
+		CHERI_CLEAR_CAPHI_RCC | \
+		CHERI_CLEAR_CAPHI_C25 )
 #endif
 creturn_exception_return:
 	CHERI_EXCEPTION_RETURN(k0)
