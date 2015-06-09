@@ -78,47 +78,11 @@ global1:
 @ CHECK-NEXT:     Section: .text
 @ CHECK-NEXT:   }
 @ CHECK-NEXT:   Symbol {
-@ CHECK-NEXT:     Name: .text (0)
+@ CHECK-NEXT:     Name: (0)
 @ CHECK-NEXT:     Value: 0x0
 @ CHECK-NEXT:     Size: 0
 @ CHECK-NEXT:     Binding: Local (0x0)
 @ CHECK-NEXT:     Type: Section (0x3)
-@ CHECK-NEXT:     Other: 0
-@ CHECK-NEXT:     Section: .text
-@ CHECK-NEXT:   }
-@ CHECK-NEXT:   Symbol {
-@ CHECK-NEXT:     Name: .data (0)
-@ CHECK-NEXT:     Value: 0x0
-@ CHECK-NEXT:     Size: 0
-@ CHECK-NEXT:     Binding: Local (0x0)
-@ CHECK-NEXT:     Type: Section (0x3)
-@ CHECK-NEXT:     Other: 0
-@ CHECK-NEXT:     Section: .data
-@ CHECK-NEXT:   }
-@ CHECK-NEXT:   Symbol {
-@ CHECK-NEXT:     Name: .bss (0)
-@ CHECK-NEXT:     Value: 0x0
-@ CHECK-NEXT:     Size: 0
-@ CHECK-NEXT:     Binding: Local (0x0)
-@ CHECK-NEXT:     Type: Section (0x3)
-@ CHECK-NEXT:     Other: 0
-@ CHECK-NEXT:     Section: .bss
-@ CHECK-NEXT:   }
-@ CHECK-NEXT:   Symbol {
-@ CHECK-NEXT:     Name: g1@@zed
-@ CHECK-NEXT:     Value: 0x14
-@ CHECK-NEXT:     Size: 0
-@ CHECK-NEXT:     Binding: Global (0x1)
-@ CHECK-NEXT:     Type: None (0x0)
-@ CHECK-NEXT:     Other: 0
-@ CHECK-NEXT:     Section: .text
-@ CHECK-NEXT:   }
-@ CHECK-NEXT:   Symbol {
-@ CHECK-NEXT:     Name: global1
-@ CHECK-NEXT:     Value: 0x14
-@ CHECK-NEXT:     Size: 0
-@ CHECK-NEXT:     Binding: Global (0x1)
-@ CHECK-NEXT:     Type: None (0x0)
 @ CHECK-NEXT:     Other: 0
 @ CHECK-NEXT:     Section: .text
 @ CHECK-NEXT:   }
@@ -139,5 +103,23 @@ global1:
 @ CHECK-NEXT:     Type: None (0x0)
 @ CHECK-NEXT:     Other: 0
 @ CHECK-NEXT:     Section: Undefined (0x0)
+@ CHECK-NEXT:   }
+@ CHECK-NEXT:   Symbol {
+@ CHECK-NEXT:     Name: g1@@zed
+@ CHECK-NEXT:     Value: 0x14
+@ CHECK-NEXT:     Size: 0
+@ CHECK-NEXT:     Binding: Global (0x1)
+@ CHECK-NEXT:     Type: None (0x0)
+@ CHECK-NEXT:     Other: 0
+@ CHECK-NEXT:     Section: .text
+@ CHECK-NEXT:   }
+@ CHECK-NEXT:   Symbol {
+@ CHECK-NEXT:     Name: global1
+@ CHECK-NEXT:     Value: 0x14
+@ CHECK-NEXT:     Size: 0
+@ CHECK-NEXT:     Binding: Global (0x1)
+@ CHECK-NEXT:     Type: None (0x0)
+@ CHECK-NEXT:     Other: 0
+@ CHECK-NEXT:     Section: .text
 @ CHECK-NEXT:   }
 @ CHECK-NEXT: ]

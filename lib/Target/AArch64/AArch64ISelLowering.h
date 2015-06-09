@@ -58,6 +58,11 @@ enum NodeType : unsigned {
   SBCS,
   ANDS,
 
+  // Conditional compares. Operands: left,right,falsecc,cc,flags
+  CCMP,
+  CCMN,
+  FCCMP,
+
   // Floating point comparison
   FCMP,
 
@@ -314,14 +319,16 @@ public:
 
   /// isLegalAddressingMode - Return true if the addressing mode represented
   /// by AM is legal for this target, for a load/store of the specified type.
-  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
+  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
 
   /// \brief Return the cost of the scaling factor used in the addressing
   /// mode represented by AM for this target, for a load/store
   /// of the specified type.
   /// If the AM is supported, the return value must be >= 0.
   /// If the AM is not supported, it returns a negative value.
-  int getScalingFactorCost(const AddrMode &AM, Type *Ty) const override;
+  int getScalingFactorCost(const AddrMode &AM, Type *Ty,
+                           unsigned AS) const override;
 
   /// isFMAFasterThanFMulAndFAdd - Return true if an FMA operation is faster
   /// than a pair of fmul and fadd instructions. fmuladd intrinsics will be
@@ -506,6 +513,8 @@ private:
   bool functionArgumentNeedsConsecutiveRegisters(Type *Ty,
                                                  CallingConv::ID CallConv,
                                                  bool isVarArg) const override;
+
+  bool shouldNormalizeToSelectSequence(LLVMContext &, EVT) const override;
 };
 
 namespace AArch64 {

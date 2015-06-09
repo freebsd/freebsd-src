@@ -168,6 +168,8 @@ def FeaturePRFCHW  : SubtargetFeature<"prfchw", "HasPRFCHW", "true",
                                       "Support PRFCHW instructions">;
 def FeatureRDSEED  : SubtargetFeature<"rdseed", "HasRDSEED", "true",
                                       "Support RDSEED instruction">;
+def FeatureMPX     : SubtargetFeature<"mpx", "HasMPX", "true",
+                                      "Support MPX instructions">;
 def FeatureLeaForSP : SubtargetFeature<"lea-sp", "UseLeaForSP", "true",
                                      "Use LEA for adjusting the stack pointer">;
 def FeatureSlowDivide32 : SubtargetFeature<"idivl-to-divb",
@@ -188,10 +190,6 @@ def FeatureSlowLEA : SubtargetFeature<"slow-lea", "SlowLEA", "true",
                                    "LEA instruction with certain arguments is slow">;
 def FeatureSlowIncDec : SubtargetFeature<"slow-incdec", "SlowIncDec", "true",
                                    "INC and DEC instructions are slower than ADD and SUB">;
-def FeatureUseSqrtEst : SubtargetFeature<"use-sqrt-est", "UseSqrtEst", "true",
-                            "Use RSQRT* to optimize square root calculations">;
-def FeatureUseRecipEst : SubtargetFeature<"use-recip-est", "UseReciprocalEst",
-                          "true", "Use RCP* to optimize division calculations">;
 def FeatureSoftFloat
     : SubtargetFeature<"soft-float", "UseSoftFloat", "true",
                        "Use software floating point features.">;
@@ -380,7 +378,7 @@ class KnightsLandingProc<string Name> : ProcessorModel<Name, HaswellModel,
                       FeatureAES, FeaturePCLMUL, FeatureRDRAND, FeatureF16C,
                       FeatureFSGSBase, FeatureMOVBE, FeatureLZCNT, FeatureBMI,
                       FeatureBMI2, FeatureFMA, FeatureRTM, FeatureHLE,
-                      FeatureSlowIncDec]>;
+                      FeatureSlowIncDec, FeatureMPX]>;
 def : KnightsLandingProc<"knl">;
 
 // FIXME: define SKX model
@@ -391,7 +389,7 @@ class SkylakeProc<string Name> : ProcessorModel<Name, HaswellModel,
                       FeatureAES, FeaturePCLMUL, FeatureRDRAND, FeatureF16C,
                       FeatureFSGSBase, FeatureMOVBE, FeatureLZCNT, FeatureBMI,
                       FeatureBMI2, FeatureFMA, FeatureRTM, FeatureHLE,
-                      FeatureSlowIncDec]>;
+                      FeatureSlowIncDec, FeatureMPX]>;
 def : SkylakeProc<"skylake">;
 def : SkylakeProc<"skx">; // Legacy alias.
 
@@ -444,7 +442,7 @@ def : ProcessorModel<"btver2", BtVer2Model,
                       FeaturePRFCHW, FeatureAES, FeaturePCLMUL,
                       FeatureBMI, FeatureF16C, FeatureMOVBE,
                       FeatureLZCNT, FeaturePOPCNT, FeatureFastUAMem,
-                      FeatureSlowSHLD, FeatureUseSqrtEst, FeatureUseRecipEst]>;
+                      FeatureSlowSHLD]>;
 
 // TODO: We should probably add 'FeatureFastUAMem' to all of the AMD chips.
 

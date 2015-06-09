@@ -190,6 +190,8 @@ public:
     const char *Ptr;      // Where in memory the load command is.
     MachO::load_command C; // The command itself.
   };
+  typedef SmallVector<LoadCommandInfo, 4> LoadCommandList;
+  typedef LoadCommandList::const_iterator load_command_iterator;
 
   MachOObjectFile(MemoryBufferRef Object, bool IsLittleEndian, bool Is64Bits,
                   std::error_code &EC);
@@ -204,9 +206,8 @@ public:
 
   std::error_code getSymbolAddress(DataRefImpl Symb,
                                    uint64_t &Res) const override;
-  std::error_code getSymbolAlignment(DataRefImpl Symb,
-                                     uint32_t &Res) const override;
-  std::error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const override;
+  uint32_t getSymbolAlignment(DataRefImpl Symb) const override;
+  uint64_t getSymbolSize(DataRefImpl Symb) const override;
   std::error_code getSymbolType(DataRefImpl Symb,
                                 SymbolRef::Type &Res) const override;
   uint32_t getSymbolFlags(DataRefImpl Symb) const override;
@@ -241,11 +242,9 @@ public:
   std::error_code
   getRelocationTypeName(DataRefImpl Rel,
                         SmallVectorImpl<char> &Result) const override;
-  std::error_code
-  getRelocationValueString(DataRefImpl Rel,
-                           SmallVectorImpl<char> &Result) const override;
   std::error_code getRelocationHidden(DataRefImpl Rel,
                                       bool &Result) const override;
+  uint8_t getRelocationLength(DataRefImpl Rel) const;
 
   // MachO specific.
   std::error_code getLibraryShortNameByIndex(unsigned Index, StringRef &) const;
@@ -273,10 +272,14 @@ public:
 
   dice_iterator begin_dices() const;
   dice_iterator end_dices() const;
-  
+
+  load_command_iterator begin_load_commands() const;
+  load_command_iterator end_load_commands() const;
+  iterator_range<load_command_iterator> load_commands() const;
+
   /// For use iterating over all exported symbols.
   iterator_range<export_iterator> exports() const;
-  
+
   /// For use examining a trie not in a MachOObjectFile.
   static iterator_range<export_iterator> exports(ArrayRef<uint8_t> Trie);
 
@@ -328,10 +331,6 @@ public:
   unsigned getAnyRelocationLength(const MachO::any_relocation_info &RE) const;
   unsigned getAnyRelocationType(const MachO::any_relocation_info &RE) const;
   SectionRef getAnyRelocationSection(const MachO::any_relocation_info &RE) const;
-
-  // Walk load commands.
-  LoadCommandInfo getFirstLoadCommandInfo() const;
-  LoadCommandInfo getNextLoadCommandInfo(const LoadCommandInfo &L) const;
 
   // MachO specific structures.
   MachO::section getSection(DataRefImpl DRI) const;
@@ -386,8 +385,8 @@ public:
 
   MachO::any_relocation_info getRelocation(DataRefImpl Rel) const;
   MachO::data_in_code_entry getDice(DataRefImpl Rel) const;
-  MachO::mach_header getHeader() const;
-  MachO::mach_header_64 getHeader64() const;
+  const MachO::mach_header &getHeader() const;
+  const MachO::mach_header_64 &getHeader64() const;
   uint32_t
   getIndirectSymbolTableEntry(const MachO::dysymtab_command &DLC,
                               unsigned Index) const;
@@ -430,10 +429,15 @@ public:
   }
 
 private:
+  union {
+    MachO::mach_header_64 Header64;
+    MachO::mach_header Header;
+  };
   typedef SmallVector<const char*, 1> SectionList;
   SectionList Sections;
   typedef SmallVector<const char*, 1> LibraryList;
   LibraryList Libraries;
+  LoadCommandList LoadCommands;
   typedef SmallVector<StringRef, 1> LibraryShortName;
   mutable LibraryShortName LibrariesShortNames;
   const char *SymtabLoadCmd;
@@ -472,7 +476,7 @@ inline std::error_code DiceRef::getOffset(uint32_t &Result) const {
     static_cast<const MachOObjectFile *>(OwningObject);
   MachO::data_in_code_entry Dice = MachOOF->getDice(DicePimpl);
   Result = Dice.offset;
-  return object_error::success;
+  return std::error_code();
 }
 
 inline std::error_code DiceRef::getLength(uint16_t &Result) const {
@@ -480,7 +484,7 @@ inline std::error_code DiceRef::getLength(uint16_t &Result) const {
     static_cast<const MachOObjectFile *>(OwningObject);
   MachO::data_in_code_entry Dice = MachOOF->getDice(DicePimpl);
   Result = Dice.length;
-  return object_error::success;
+  return std::error_code();
 }
 
 inline std::error_code DiceRef::getKind(uint16_t &Result) const {
@@ -488,7 +492,7 @@ inline std::error_code DiceRef::getKind(uint16_t &Result) const {
     static_cast<const MachOObjectFile *>(OwningObject);
   MachO::data_in_code_entry Dice = MachOOF->getDice(DicePimpl);
   Result = Dice.kind;
-  return object_error::success;
+  return std::error_code();
 }
 
 inline DataRefImpl DiceRef::getRawDataRefImpl() const {

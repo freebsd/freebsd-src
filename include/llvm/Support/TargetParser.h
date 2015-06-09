@@ -15,6 +15,10 @@
 #ifndef LLVM_SUPPORT_TARGETPARSER_H
 #define LLVM_SUPPORT_TARGETPARSER_H
 
+// FIXME: vector is used because that's what clang uses for subtarget feature
+// lists, but SmallVector would probably be better
+#include <vector>
+
 namespace llvm {
   class StringRef;
 
@@ -28,13 +32,16 @@ namespace ARM {
   // FPU names.
   enum FPUKind {
     FK_INVALID = 0,
+    FK_NONE,
     FK_VFP,
     FK_VFPV2,
     FK_VFPV3,
     FK_VFPV3_D16,
     FK_VFPV4,
     FK_VFPV4_D16,
+    FK_FPV4_SP_D16,
     FK_FPV5_D16,
+    FK_FPV5_SP_D16,
     FK_FP_ARMV8,
     FK_NEON,
     FK_NEON_VFPV4,
@@ -42,6 +49,20 @@ namespace ARM {
     FK_CRYPTO_NEON_FP_ARMV8,
     FK_SOFTVFP,
     FK_LAST
+  };
+
+  // An FPU name implies one of three levels of Neon support:
+  enum NeonSupportLevel {
+    NS_None = 0, ///< No Neon
+    NS_Neon,     ///< Neon
+    NS_Crypto    ///< Neon with Crypto
+  };
+
+  // An FPU name restricts the FPU in one of three ways:
+  enum FPURestriction {
+    FR_None = 0, ///< No restriction
+    FR_D16,      ///< Only 16 D registers
+    FR_SP_D16    ///< Only single-precision instructions, with 16 D registers
   };
 
   // Arch names.
@@ -53,34 +74,34 @@ namespace ARM {
     AK_ARMV3M,
     AK_ARMV4,
     AK_ARMV4T,
-    AK_ARMV5,
     AK_ARMV5T,
     AK_ARMV5TE,
+    AK_ARMV5TEJ,
     AK_ARMV6,
-    AK_ARMV6J,
     AK_ARMV6K,
     AK_ARMV6T2,
     AK_ARMV6Z,
     AK_ARMV6ZK,
     AK_ARMV6M,
-    AK_ARMV7,
+    AK_ARMV6SM,
     AK_ARMV7A,
     AK_ARMV7R,
     AK_ARMV7M,
+    AK_ARMV7EM,
     AK_ARMV8A,
     AK_ARMV8_1A,
     // Non-standard Arch names.
     AK_IWMMXT,
     AK_IWMMXT2,
     AK_XSCALE,
+    AK_ARMV5,
     AK_ARMV5E,
-    AK_ARMV5TEJ,
-    AK_ARMV6SM,
+    AK_ARMV6J,
     AK_ARMV6HL,
+    AK_ARMV7,
     AK_ARMV7L,
     AK_ARMV7HL,
     AK_ARMV7S,
-    AK_ARMV7EM,
     AK_LAST
   };
 
@@ -92,8 +113,15 @@ namespace ARM {
     AEK_FP,
     AEK_HWDIV,
     AEK_MP,
+    AEK_SIMD,
     AEK_SEC,
     AEK_VIRT,
+    // Unsupported extensions.
+    AEK_OS,
+    AEK_IWMMXT,
+    AEK_IWMMXT2,
+    AEK_MAVERICK,
+    AEK_XSCALE,
     AEK_LAST
   };
 
@@ -132,9 +160,16 @@ public:
 
   // Information by ID
   static const char * getFPUName(unsigned FPUKind);
+  static     unsigned getFPUVersion(unsigned FPUKind);
+  static     unsigned getFPUNeonSupportLevel(unsigned FPUKind);
+  static     unsigned getFPURestriction(unsigned FPUKind);
+  // FIXME: This should be moved to TargetTuple once it exists
+  static       bool   getFPUFeatures(unsigned FPUKind,
+                                     std::vector<const char*> &Features);
   static const char * getArchName(unsigned ArchKind);
-  static unsigned getArchDefaultCPUArch(unsigned ArchKind);
-  static const char * getArchDefaultCPUName(unsigned ArchKind);
+  static   unsigned   getArchAttr(unsigned ArchKind);
+  static const char * getCPUAttr(unsigned ArchKind);
+  static const char * getSubArch(unsigned ArchKind);
   static const char * getArchExtName(unsigned ArchExtKind);
   static const char * getDefaultCPU(StringRef Arch);
 

@@ -125,7 +125,8 @@ enum Flag {
   ExtraDefRegAllocReq,
   RegSequence,
   ExtractSubreg,
-  InsertSubreg
+  InsertSubreg,
+  Convergent
 };
 }
 
@@ -138,10 +139,10 @@ class MCInstrDesc {
 public:
   unsigned short Opcode;        // The opcode number
   unsigned short NumOperands;   // Num of args (may be more if variable_ops)
-  unsigned short NumDefs;       // Num of args that are definitions
+  unsigned char NumDefs;        // Num of args that are definitions
+  unsigned char Size;           // Number of bytes in encoding.
   unsigned short SchedClass;    // enum identifying instr sched class
-  unsigned short Size;          // Number of bytes in encoding.
-  unsigned Flags;               // Flags identifying machine instr class
+  uint64_t Flags;               // Flags identifying machine instr class
   uint64_t TSFlags;             // Target Specific Flag values
   const uint16_t *ImplicitUses; // Registers implicitly read by this instr
   const uint16_t *ImplicitDefs; // Registers implicitly defined by this instr
@@ -330,6 +331,13 @@ public:
   /// this property, TargetInstrInfo::getInsertSubregLikeInputs has to be
   /// override accordingly.
   bool isInsertSubregLike() const { return Flags & (1 << MCID::InsertSubreg); }
+
+
+  /// \brief Return true if this instruction is convergent.
+  ///
+  /// Convergent instructions may only be moved to locations that are
+  /// control-equivalent to their original positions.
+  bool isConvergent() const { return Flags & (1 << MCID::Convergent); }
 
   //===--------------------------------------------------------------------===//
   // Side Effect Analysis

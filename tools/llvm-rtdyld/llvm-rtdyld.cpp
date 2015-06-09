@@ -47,6 +47,7 @@ InputFileList(cl::Positional, cl::ZeroOrMore,
 
 enum ActionType {
   AC_Execute,
+  AC_PrintObjectLineInfo,
   AC_PrintLineInfo,
   AC_PrintDebugLineInfo,
   AC_Verify
@@ -61,6 +62,8 @@ Action(cl::desc("Action to perform:"),
                              "Load, link, and print line information for each function."),
                   clEnumValN(AC_PrintDebugLineInfo, "printdebugline",
                              "Load, link, and print line information for each function using the debug object"),
+                  clEnumValN(AC_PrintObjectLineInfo, "printobjline",
+                             "Like -printlineinfo but does not load the object first"),
                   clEnumValN(AC_Verify, "verify",
                              "Load, link and verify the resulting memory image."),
                   clEnumValEnd));
@@ -136,6 +139,11 @@ public:
   // explicit cache flush, otherwise JIT code manipulations (like resolved
   // relocations) will get to the data cache but not to the instruction cache.
   virtual void invalidateInstructionCache();
+
+  void registerEHFrames(uint8_t *Addr, uint64_t LoadAddr,
+                        size_t Size) override {}
+  void deregisterEHFrames(uint8_t *Addr, uint64_t LoadAddr,
+                          size_t Size) override {}
 };
 
 uint8_t *TrivialMemoryManager::allocateCodeSection(uintptr_t Size,
@@ -244,26 +252,69 @@ static int printLineInfoForInput(bool LoadObjects, bool UseDebugObj) {
     std::unique_ptr<DIContext> Context(
       new DWARFContextInMemory(*SymbolObj,LoadedObjInfo.get()));
 
+    // FIXME: This is generally useful. Figure out a place in lib/Object to
+    // put utility functions.
+    std::map<object::SectionRef, std::vector<uint64_t>> FuncAddresses;
+    if (!isa<ELFObjectFileBase>(SymbolObj)) {
+      for (object::SymbolRef Sym : SymbolObj->symbols()) {
+        object::SymbolRef::Type SymType;
+        if (Sym.getType(SymType))
+          continue;
+        if (SymType != object::SymbolRef::ST_Function)
+          continue;
+        uint64_t Addr;
+        if (Sym.getAddress(Addr))
+          continue;
+        object::section_iterator Sec = SymbolObj->section_end();
+        if (Sym.getSection(Sec))
+          continue;
+        std::vector<uint64_t> &Addrs = FuncAddresses[*Sec];
+        if (Addrs.empty()) {
+          uint64_t SecAddr = Sec->getAddress();
+          uint64_t SecSize = Sec->getSize();
+          Addrs.push_back(SecAddr + SecSize);
+        }
+        Addrs.push_back(Addr);
+      }
+      for (auto &Pair : FuncAddresses) {
+        std::vector<uint64_t> &Addrs = Pair.second;
+        array_pod_sort(Addrs.begin(), Addrs.end());
+      }
+    }
+
     // Use symbol info to iterate functions in the object.
-    for (object::symbol_iterator I = SymbolObj->symbol_begin(),
-                                 E = SymbolObj->symbol_end();
-         I != E; ++I) {
+    for (object::SymbolRef Sym : SymbolObj->symbols()) {
       object::SymbolRef::Type SymType;
-      if (I->getType(SymType)) continue;
+      if (Sym.getType(SymType))
+        continue;
       if (SymType == object::SymbolRef::ST_Function) {
         StringRef  Name;
         uint64_t   Addr;
-        uint64_t   Size;
-        if (I->getName(Name)) continue;
-        if (I->getAddress(Addr)) continue;
-        if (I->getSize(Size)) continue;
+        if (Sym.getName(Name))
+          continue;
+        if (Sym.getAddress(Addr))
+          continue;
+
+        uint64_t Size;
+        if (isa<ELFObjectFileBase>(SymbolObj)) {
+          Size = Sym.getSize();
+        } else {
+          object::section_iterator Sec = SymbolObj->section_end();
+          if (Sym.getSection(Sec))
+            continue;
+          const std::vector<uint64_t> &Addrs = FuncAddresses[*Sec];
+          auto AddrI = std::find(Addrs.begin(), Addrs.end(), Addr);
+          assert(AddrI != Addrs.end() && (AddrI + 1) != Addrs.end());
+          assert(*AddrI == Addr);
+          Size = *(AddrI + 1) - Addr;
+        }
 
         // If we're not using the debug object, compute the address of the
         // symbol in memory (rather than that in the unrelocated object file)
         // and use that to query the DWARFContext.
         if (!UseDebugObj && LoadObjects) {
           object::section_iterator Sec(SymbolObj->section_end());
-          I->getSection(Sec);
+          Sym.getSection(Sec);
           StringRef SecName;
           Sec->getName(SecName);
           uint64_t SectionLoadAddress =
@@ -622,9 +673,11 @@ int main(int argc, char **argv) {
   case AC_Execute:
     return executeInput();
   case AC_PrintDebugLineInfo:
-    return printLineInfoForInput(true,true);
+    return printLineInfoForInput(/* LoadObjects */ true,/* UseDebugObj */ true);
   case AC_PrintLineInfo:
-    return printLineInfoForInput(true,false);
+    return printLineInfoForInput(/* LoadObjects */ true,/* UseDebugObj */false);
+  case AC_PrintObjectLineInfo:
+    return printLineInfoForInput(/* LoadObjects */false,/* UseDebugObj */false);
   case AC_Verify:
     return linkAndVerify();
   }

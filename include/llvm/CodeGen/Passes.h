@@ -17,11 +17,11 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetMachine.h"
+#include <functional>
 #include <string>
 
 namespace llvm {
 
-class FunctionPass;
 class MachineFunctionPass;
 class PassConfigImpl;
 class PassInfo;
@@ -374,6 +374,10 @@ namespace llvm {
   createMachineFunctionPrinterPass(raw_ostream &OS,
                                    const std::string &Banner ="");
 
+  /// MIRPrinting pass - this pass prints out the LLVM IR into the given stream
+  /// using the MIR serialization format.
+  MachineFunctionPass *createPrintMIRPass(raw_ostream &OS);
+
   /// createCodeGenPreparePass - Transform the code to expose more pattern
   /// matching during instruction selection.
   FunctionPass *createCodeGenPreparePass(const TargetMachine *TM = nullptr);
@@ -488,6 +492,10 @@ namespace llvm {
   /// MachineFunctionPrinterPass - This pass prints out MachineInstr's.
   extern char &MachineFunctionPrinterPassID;
 
+  /// MIRPrintingPass - this pass prints out the LLVM IR using the MIR
+  /// serialization format.
+  extern char &MIRPrintingPassID;
+
   /// TailDuplicate - Duplicate blocks with unconditional branches
   /// into tails of their predecessors.
   extern char &TailDuplicateID;
@@ -510,6 +518,8 @@ namespace llvm {
 
   /// IfConverter - This pass performs machine code if conversion.
   extern char &IfConverterID;
+
+  FunctionPass *createIfConverter(std::function<bool(const Function &)> Ftor);
 
   /// MachineBlockPlacement - This pass places basic blocks based on branch
   /// probabilities.
@@ -604,6 +614,9 @@ namespace llvm {
 
   /// UnpackMachineBundles - This pass unpack machine instruction bundles.
   extern char &UnpackMachineBundlesID;
+
+  FunctionPass *
+  createUnpackMachineBundles(std::function<bool(const Function &)> Ftor);
 
   /// FinalizeMachineBundles - This pass finalize machine instruction
   /// bundles (created earlier, e.g. during pre-RA scheduling).

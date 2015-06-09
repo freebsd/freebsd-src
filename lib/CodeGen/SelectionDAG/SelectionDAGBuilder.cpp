@@ -1002,7 +1002,16 @@ bool SelectionDAGBuilder::findValue(const Value *V) const {
 SDValue SelectionDAGBuilder::getNonRegisterValue(const Value *V) {
   // If we already have an SDValue for this value, use it.
   SDValue &N = NodeMap[V];
-  if (N.getNode()) return N;
+  if (N.getNode()) {
+    if (isa<ConstantSDNode>(N) || isa<ConstantFPSDNode>(N)) {
+      // Remove the debug location from the node as the node is about to be used
+      // in a location which may differ from the original debug location.  This
+      // is relevant to Constant and ConstantFP nodes because they can appear
+      // as constant expressions inside PHI nodes.
+      N->setDebugLoc(DebugLoc());
+    }
+    return N;
+  }
 
   // Otherwise create a new SDValue and remember it.
   SDValue Val = getValueImpl(V);
@@ -2282,7 +2291,11 @@ void SelectionDAGBuilder::visitSelect(const User &I) {
     while (TLI.getTypeAction(Ctx, VT) == TargetLoweringBase::TypeSplitVector)
       VT = TLI.getTypeToTransformTo(Ctx, VT);
 
-    if (Opc != ISD::DELETED_NODE && TLI.isOperationLegalOrCustom(Opc, VT)) {
+    if (Opc != ISD::DELETED_NODE && TLI.isOperationLegalOrCustom(Opc, VT) &&
+        // If the underlying comparison instruction is used by any other instruction,
+        // the consumed instructions won't be destroyed, so it is not profitable
+        // to convert to a min/max.
+        cast<SelectInst>(&I)->getCondition()->hasOneUse()) {
       OpCode = Opc;
       LHSVal = getValue(LHS);
       RHSVal = getValue(RHS);
@@ -2848,7 +2861,17 @@ void SelectionDAGBuilder::visitLoad(const LoadInst &I) {
 
   bool isVolatile = I.isVolatile();
   bool isNonTemporal = I.getMetadata(LLVMContext::MD_nontemporal) != nullptr;
-  bool isInvariant = I.getMetadata(LLVMContext::MD_invariant_load) != nullptr;
+
+  // The IR notion of invariant_load only guarantees that all *non-faulting*
+  // invariant loads result in the same value.  The MI notion of invariant load
+  // guarantees that the load can be legally moved to any location within its
+  // containing function.  The MI notion of invariant_load is stronger than the
+  // IR notion of invariant_load -- an MI invariant_load is an IR invariant_load
+  // with a guarantee that the location being loaded from is dereferenceable
+  // throughout the function's lifetime.
+
+  bool isInvariant = I.getMetadata(LLVMContext::MD_invariant_load) != nullptr &&
+    isDereferenceablePointer(SV, *DAG.getTarget().getDataLayout());
   unsigned Alignment = I.getAlignment();
 
   AAMDNodes AAInfo;
@@ -7437,7 +7460,7 @@ bool SelectionDAGBuilder::buildJumpTable(CaseClusterVector &Clusters,
   JumpTableHeader JTH(Clusters[First].Low->getValue(),
                       Clusters[Last].High->getValue(), SI->getCondition(),
                       nullptr, false);
-  JTCases.push_back(JumpTableBlock(JTH, JT));
+  JTCases.emplace_back(std::move(JTH), std::move(JT));
 
   JTCluster = CaseCluster::jumpTable(Clusters[First].Low, Clusters[Last].High,
                                      JTCases.size() - 1, Weight);
@@ -7600,7 +7623,7 @@ bool SelectionDAGBuilder::buildBitTests(CaseClusterVector &Clusters,
 
   const int BitWidth =
       DAG.getTargetLoweringInfo().getPointerTy().getSizeInBits();
-  assert((High - Low + 1).sle(BitWidth) && "Case range must fit in bit mask!");
+  assert(rangeFitsInWord(Low, High) && "Case range must fit in bit mask!");
 
   if (Low.isNonNegative() && High.slt(BitWidth)) {
     // Optimize the case where all the case values fit in a
@@ -7628,10 +7651,9 @@ bool SelectionDAGBuilder::buildBitTests(CaseClusterVector &Clusters,
     // Update Mask, Bits and ExtraWeight.
     uint64_t Lo = (Clusters[i].Low->getValue() - LowBound).getZExtValue();
     uint64_t Hi = (Clusters[i].High->getValue() - LowBound).getZExtValue();
-    for (uint64_t j = Lo; j <= Hi; ++j) {
-      CB->Mask |= 1ULL << j;
-      CB->Bits++;
-    }
+    assert(Hi >= Lo && Hi < 64 && "Invalid bit case!");
+    CB->Mask |= (-1ULL >> (63 - (Hi - Lo))) << Lo;
+    CB->Bits += Hi - Lo + 1;
     CB->ExtraWeight += Clusters[i].Weight;
     TotalWeight += Clusters[i].Weight;
     assert(TotalWeight >= Clusters[i].Weight && "Weight overflow!");
@@ -7650,9 +7672,9 @@ bool SelectionDAGBuilder::buildBitTests(CaseClusterVector &Clusters,
         FuncInfo.MF->CreateMachineBasicBlock(SI->getParent());
     BTI.push_back(BitTestCase(CB.Mask, BitTestBB, CB.BB, CB.ExtraWeight));
   }
-  BitTestCases.push_back(BitTestBlock(LowBound, CmpRange, SI->getCondition(),
-                                      -1U, MVT::Other, false, nullptr,
-                                      nullptr, std::move(BTI)));
+  BitTestCases.emplace_back(std::move(LowBound), std::move(CmpRange),
+                            SI->getCondition(), -1U, MVT::Other, false, nullptr,
+                            nullptr, std::move(BTI));
 
   BTCluster = CaseCluster::bitTests(Clusters[First].Low, Clusters[Last].High,
                                     BitTestCases.size() - 1, TotalWeight);
@@ -7746,8 +7768,10 @@ void SelectionDAGBuilder::findBitTestClusters(CaseClusterVector &Clusters,
     if (buildBitTests(Clusters, First, Last, SI, BitTestCluster)) {
       Clusters[DstIndex++] = BitTestCluster;
     } else {
-      for (unsigned I = First; I <= Last; ++I)
-        std::memmove(&Clusters[DstIndex++], &Clusters[I], sizeof(Clusters[I]));
+      size_t NumClusters = Last - First + 1;
+      std::memmove(&Clusters[DstIndex], &Clusters[First],
+                   sizeof(Clusters[0]) * NumClusters);
+      DstIndex += NumClusters;
     }
   }
   Clusters.resize(DstIndex);
@@ -7783,22 +7807,17 @@ void SelectionDAGBuilder::lowerWorkItem(SwitchWorkListItem W, Value *Cond,
       const APInt &BigValue = Big.Low->getValue();
 
       // Check that there is only one bit different.
-      if (BigValue.countPopulation() == SmallValue.countPopulation() + 1 &&
-          (SmallValue | BigValue) == BigValue) {
-        // Isolate the common bit.
-        APInt CommonBit = BigValue & ~SmallValue;
-        assert((SmallValue | CommonBit) == BigValue &&
-               CommonBit.countPopulation() == 1 && "Not a common bit?");
-
+      APInt CommonBit = BigValue ^ SmallValue;
+      if (CommonBit.isPowerOf2()) {
         SDValue CondLHS = getValue(Cond);
         EVT VT = CondLHS.getValueType();
         SDLoc DL = getCurSDLoc();
 
         SDValue Or = DAG.getNode(ISD::OR, DL, VT, CondLHS,
                                  DAG.getConstant(CommonBit, DL, VT));
-        SDValue Cond = DAG.getSetCC(DL, MVT::i1, Or,
-                                    DAG.getConstant(BigValue, DL, VT),
-                                    ISD::SETEQ);
+        SDValue Cond = DAG.getSetCC(
+            DL, MVT::i1, Or, DAG.getConstant(BigValue | SmallValue, DL, VT),
+            ISD::SETEQ);
 
         // Update successor info.
         // Both Small and Big will jump to Small.BB, so we sum up the weights.

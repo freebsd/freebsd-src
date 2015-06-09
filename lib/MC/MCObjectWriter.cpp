@@ -17,7 +17,7 @@ using namespace llvm;
 MCObjectWriter::~MCObjectWriter() {
 }
 
-bool MCObjectWriter::IsSymbolRefDifferenceFullyResolved(
+bool MCObjectWriter::isSymbolRefDifferenceFullyResolved(
     const MCAssembler &Asm, const MCSymbolRefExpr *A, const MCSymbolRefExpr *B,
     bool InSet) const {
   // Modified symbol references cannot be resolved.
@@ -30,16 +30,14 @@ bool MCObjectWriter::IsSymbolRefDifferenceFullyResolved(
   if (SA.isUndefined() || SB.isUndefined())
     return false;
 
-  const MCSymbolData &DataA = Asm.getSymbolData(SA);
-  const MCSymbolData &DataB = Asm.getSymbolData(SB);
-  if(!DataA.getFragment() || !DataB.getFragment())
+  if (!SA.getFragment() || !SB.getFragment())
     return false;
 
-  return IsSymbolRefDifferenceFullyResolvedImpl(Asm, SA, *DataB.getFragment(),
+  return isSymbolRefDifferenceFullyResolvedImpl(Asm, SA, *SB.getFragment(),
                                                 InSet, false);
 }
 
-bool MCObjectWriter::IsSymbolRefDifferenceFullyResolvedImpl(
+bool MCObjectWriter::isSymbolRefDifferenceFullyResolvedImpl(
     const MCAssembler &Asm, const MCSymbol &SymA, const MCFragment &FB,
     bool InSet, bool IsPCRel) const {
   const MCSection &SecA = SymA.getSection();

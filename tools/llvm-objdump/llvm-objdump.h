@@ -51,11 +51,11 @@ extern cl::opt<bool> SectionHeaders;
 extern cl::opt<bool> SectionContents;
 extern cl::opt<bool> SymbolTable;
 extern cl::opt<bool> UnwindInfo;
+extern cl::opt<bool> PrintImmHex;
 
 // Various helper functions.
 bool error(std::error_code ec);
 bool RelocAddressLess(object::RelocationRef a, object::RelocationRef b);
-void DumpBytes(ArrayRef<uint8_t> bytes);
 void ParseInputMachO(StringRef Filename);
 void printCOFFUnwindInfo(const object::COFFObjectFile* o);
 void printMachOUnwindInfo(const object::MachOObjectFile* o);

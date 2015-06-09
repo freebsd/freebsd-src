@@ -668,7 +668,7 @@ declare <4 x float> @llvm.x86.avx512.mask.compress.ps.128(<4 x float> %data, <4 
 
 ; CHECK-LABEL: compr7
 ; CHECK-NOT: vcompress
-; CHECK: vmovapd
+; CHECK: vmovupd
 define void @compr7(i8* %addr, <8 x double> %data) {
   call void @llvm.x86.avx512.mask.compress.store.pd.512(i8* %addr, <8 x double> %data, i8 -1)
   ret void
@@ -757,7 +757,7 @@ declare <4 x float> @llvm.x86.avx512.mask.expand.ps.128(<4 x float> %data, <4 x 
 
 ; CHECK-LABEL: expand7
 ; CHECK-NOT: vexpand
-; CHECK: vmovapd
+; CHECK: vmovupd
 define <8 x double> @expand7(i8* %addr, <8 x double> %data) {
   %res = call <8 x double> @llvm.x86.avx512.mask.expand.load.pd.512(i8* %addr, <8 x double> %data, i8 -1)
   ret <8 x double> %res
@@ -2553,3 +2553,37 @@ define <4 x float> @test_mm512_min_ps_128(<4 x float> %a0, <4 x float> %a1, i8 %
   ret <4 x float> %res
 }
 declare <4 x float> @llvm.x86.avx512.mask.min.ps.128(<4 x float>, <4 x float>, <4 x float>, i8)
+
+define <4 x double> @test_sqrt_pd_256(<4 x double> %a0, i8 %mask) {
+  ; CHECK-LABEL: test_sqrt_pd_256
+  ; CHECK: vsqrtpd
+  %res = call <4 x double> @llvm.x86.avx512.mask.sqrt.pd.256(<4 x double> %a0,  <4 x double> zeroinitializer, i8 %mask)
+  ret <4 x double> %res
+}
+declare <4 x double> @llvm.x86.avx512.mask.sqrt.pd.256(<4 x double>, <4 x double>, i8) nounwind readnone
+
+define <8 x float> @test_sqrt_ps_256(<8 x float> %a0, i8 %mask) {
+  ; CHECK-LABEL: test_sqrt_ps_256
+  ; CHECK: vsqrtps
+  %res = call <8 x float> @llvm.x86.avx512.mask.sqrt.ps.256(<8 x float> %a0, <8 x float> zeroinitializer, i8 %mask)
+  ret <8 x float> %res
+}
+
+declare <8 x float> @llvm.x86.avx512.mask.sqrt.ps.256(<8 x float>, <8 x float>, i8) nounwind readnone
+
+define <4 x double> @test_getexp_pd_256(<4 x double> %a0) {
+  ; CHECK-LABEL: test_getexp_pd_256
+  ; CHECK: vgetexppd
+  %res = call <4 x double> @llvm.x86.avx512.mask.getexp.pd.256(<4 x double> %a0,  <4 x double> zeroinitializer, i8 -1)
+  ret <4 x double> %res
+}
+
+declare <4 x double> @llvm.x86.avx512.mask.getexp.pd.256(<4 x double>, <4 x double>, i8) nounwind readnone
+
+define <8 x float> @test_getexp_ps_256(<8 x float> %a0) {
+  ; CHECK-LABEL: test_getexp_ps_256
+  ; CHECK: vgetexpps
+  %res = call <8 x float> @llvm.x86.avx512.mask.getexp.ps.256(<8 x float> %a0, <8 x float> zeroinitializer, i8 -1)
+  ret <8 x float> %res
+}
+declare <8 x float> @llvm.x86.avx512.mask.getexp.ps.256(<8 x float>, <8 x float>, i8) nounwind readnone

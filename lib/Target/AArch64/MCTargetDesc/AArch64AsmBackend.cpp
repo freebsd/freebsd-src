@@ -252,7 +252,7 @@ bool AArch64AsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
   // We are properly aligned, so write NOPs as requested.
   Count /= 4;
   for (uint64_t i = 0; i != Count; ++i)
-    OW->Write32(0xd503201f);
+    OW->write32(0xd503201f);
   return true;
 }
 
@@ -496,7 +496,7 @@ void ELFAArch64AsmBackend::processFixupValue(
 // FIXME: Should be replaced with something more principled.
 static bool isByteSwappedFixup(const MCExpr *E) {
   MCValue Val;
-  if (!E->EvaluateAsRelocatable(Val, nullptr, nullptr))
+  if (!E->evaluateAsRelocatable(Val, nullptr, nullptr))
     return false;
 
   if (!Val.getSymA() || Val.getSymA()->getSymbol().isUndefined())

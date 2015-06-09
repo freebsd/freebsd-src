@@ -18,12 +18,11 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCLinkerOptimizationHint.h"
-#include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectStreamer.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSectionMachO.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolMachO.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -93,9 +92,6 @@ public:
   void EndCOFFSymbolDef() override {
     llvm_unreachable("macho doesn't support this directive");
   }
-  void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) override {
-    llvm_unreachable("macho doesn't support this directive");
-  }
   void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                              unsigned ByteAlignment) override;
   void EmitZerofill(MCSection *Section, MCSymbol *Symbol = nullptr,
@@ -162,22 +158,22 @@ void MCMachOStreamer::ChangeSection(MCSection *Section,
 
   // Output a linker-local symbol so we don't need section-relative local
   // relocations. The linker hates us when we do that.
-  if (LabelSections && !HasSectionLabel[Section]) {
+  if (LabelSections && !HasSectionLabel[Section] &&
+      !Section->getBeginSymbol()) {
     MCSymbol *Label = getContext().createLinkerPrivateTempSymbol();
-    EmitLabel(Label);
+    Section->setBeginSymbol(Label);
     HasSectionLabel[Section] = true;
   }
 }
 
 void MCMachOStreamer::EmitEHSymAttributes(const MCSymbol *Symbol,
                                           MCSymbol *EHSymbol) {
-  MCSymbolData &SD =
-    getAssembler().getOrCreateSymbolData(*Symbol);
-  if (SD.isExternal())
+  getAssembler().registerSymbol(*Symbol);
+  if (Symbol->isExternal())
     EmitSymbolAttribute(EHSymbol, MCSA_Global);
-  if (SD.getFlags() & SF_WeakDefinition)
+  if (cast<MCSymbolMachO>(Symbol)->isWeakDefinition())
     EmitSymbolAttribute(EHSymbol, MCSA_WeakDefinition);
-  if (SD.isPrivateExtern())
+  if (Symbol->isPrivateExtern())
     EmitSymbolAttribute(EHSymbol, MCSA_PrivateExtern);
 }
 
@@ -193,7 +189,6 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
 
   MCObjectStreamer::EmitLabel(Symbol);
 
-  MCSymbolData &SD = getAssembler().getSymbolData(*Symbol);
   // This causes the reference type flag to be cleared. Darwin 'as' was "trying"
   // to clear the weak reference and weak definition bits too, but the
   // implementation was buggy. For now we just try to match 'as', for
@@ -201,7 +196,7 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
   //
   // FIXME: Cleanup this code, these bits should be emitted based on semantic
   // properties, not on the order of definition, etc.
-  SD.setFlags(SD.getFlags() & ~SF_ReferenceTypeMask);
+  cast<MCSymbolMachO>(Symbol)->clearReferenceType();
 }
 
 void MCMachOStreamer::EmitDataRegion(DataRegionData::KindTy Kind) {
@@ -276,10 +271,13 @@ void MCMachOStreamer::EmitThumbFunc(MCSymbol *Symbol) {
   // Remember that the function is a thumb function. Fixup and relocation
   // values will need adjusted.
   getAssembler().setIsThumbFunc(Symbol);
+  cast<MCSymbolMachO>(Symbol)->setThumbFunc();
 }
 
-bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
+bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Sym,
                                           MCSymbolAttr Attribute) {
+  MCSymbolMachO *Symbol = cast<MCSymbolMachO>(Sym);
+
   // Indirect symbols are handled differently, to match how 'as' handles
   // them. This makes writing matching .o files easier.
   if (Attribute == MCSA_IndirectSymbol) {
@@ -287,15 +285,15 @@ bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
     // important for matching the string table that 'as' generates.
     IndirectSymbolData ISD;
     ISD.Symbol = Symbol;
-    ISD.Section = getCurrentSectionData();
+    ISD.Section = getCurrentSectionOnly();
     getAssembler().getIndirectSymbols().push_back(ISD);
     return true;
   }
 
   // Adding a symbol attribute always introduces the symbol, note that an
-  // important side effect of calling getOrCreateSymbolData here is to register
+  // important side effect of calling registerSymbol here is to register
   // the symbol with the assembler.
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+  getAssembler().registerSymbol(*Symbol);
 
   // The implementation of symbol attributes is designed to match 'as', but it
   // leaves much to desired. It doesn't really make sense to arbitrarily add and
@@ -321,53 +319,54 @@ bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
     return false;
 
   case MCSA_Global:
-    SD.setExternal(true);
+    Symbol->setExternal(true);
     // This effectively clears the undefined lazy bit, in Darwin 'as', although
     // it isn't very consistent because it implements this as part of symbol
     // lookup.
     //
     // FIXME: Cleanup this code, these bits should be emitted based on semantic
     // properties, not on the order of definition, etc.
-    SD.setFlags(SD.getFlags() & ~SF_ReferenceTypeUndefinedLazy);
+    Symbol->setReferenceTypeUndefinedLazy(false);
     break;
 
   case MCSA_LazyReference:
     // FIXME: This requires -dynamic.
-    SD.setFlags(SD.getFlags() | SF_NoDeadStrip);
+    Symbol->setNoDeadStrip();
     if (Symbol->isUndefined())
-      SD.setFlags(SD.getFlags() | SF_ReferenceTypeUndefinedLazy);
+      Symbol->setReferenceTypeUndefinedLazy(true);
     break;
 
     // Since .reference sets the no dead strip bit, it is equivalent to
     // .no_dead_strip in practice.
   case MCSA_Reference:
   case MCSA_NoDeadStrip:
-    SD.setFlags(SD.getFlags() | SF_NoDeadStrip);
+    Symbol->setNoDeadStrip();
     break;
 
   case MCSA_SymbolResolver:
-    SD.setFlags(SD.getFlags() | SF_SymbolResolver);
+    Symbol->setSymbolResolver();
     break;
 
   case MCSA_PrivateExtern:
-    SD.setExternal(true);
-    SD.setPrivateExtern(true);
+    Symbol->setExternal(true);
+    Symbol->setPrivateExtern(true);
     break;
 
   case MCSA_WeakReference:
     // FIXME: This requires -dynamic.
     if (Symbol->isUndefined())
-      SD.setFlags(SD.getFlags() | SF_WeakReference);
+      Symbol->setWeakReference();
     break;
 
   case MCSA_WeakDefinition:
     // FIXME: 'as' enforces that this is defined and global. The manual claims
     // it has to be in a coalesced section, but this isn't enforced.
-    SD.setFlags(SD.getFlags() | SF_WeakDefinition);
+    Symbol->setWeakDefinition();
     break;
 
   case MCSA_WeakDefAutoPrivate:
-    SD.setFlags(SD.getFlags() | SF_WeakDefinition | SF_WeakReference);
+    Symbol->setWeakDefinition();
+    Symbol->setWeakReference();
     break;
   }
 
@@ -376,10 +375,8 @@ bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
 
 void MCMachOStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
   // Encode the 'desc' value into the lowest implementation defined bits.
-  assert(DescValue == (DescValue & SF_DescFlagsMask) &&
-         "Invalid .desc value!");
-  getAssembler().getOrCreateSymbolData(*Symbol).setFlags(
-    DescValue & SF_DescFlagsMask);
+  getAssembler().registerSymbol(*Symbol);
+  cast<MCSymbolMachO>(Symbol)->setDesc(DescValue);
 }
 
 void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
@@ -389,9 +386,9 @@ void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 
   AssignSection(Symbol, nullptr);
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
-  SD.setExternal(true);
-  SD.setCommon(Size, ByteAlignment);
+  getAssembler().registerSymbol(*Symbol);
+  Symbol->setExternal(true);
+  Symbol->setCommon(Size, ByteAlignment);
 }
 
 void MCMachOStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
@@ -414,16 +411,16 @@ void MCMachOStreamer::EmitZerofill(MCSection *Section, MCSymbol *Symbol,
 
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+  getAssembler().registerSymbol(*Symbol);
 
   // Emit an align fragment if necessary.
   if (ByteAlignment != 1)
     new MCAlignFragment(ByteAlignment, 0, 0, ByteAlignment, Section);
 
-  MCFragment *F = new MCFillFragment(0, 0, Size, Section);
-  SD.setFragment(F);
-
   AssignSection(Symbol, Section);
+
+  MCFragment *F = new MCFillFragment(0, 0, Size, Section);
+  Symbol->setFragment(F);
 
   // Update the maximum alignment on the zero fill section if necessary.
   if (ByteAlignment > Section->getAlignment())
@@ -466,11 +463,11 @@ void MCMachOStreamer::FinishImpl() {
   // defining symbols.
   DenseMap<const MCFragment *, const MCSymbol *> DefiningSymbolMap;
   for (const MCSymbol &Symbol : getAssembler().symbols()) {
-    MCSymbolData &SD = Symbol.getData();
-    if (getAssembler().isSymbolLinkerVisible(Symbol) && SD.getFragment()) {
+    if (getAssembler().isSymbolLinkerVisible(Symbol) && Symbol.getFragment()) {
       // An atom defining symbol should never be internal to a fragment.
-      assert(SD.getOffset() == 0 && "Invalid offset in atom defining symbol!");
-      DefiningSymbolMap[SD.getFragment()] = &Symbol;
+      assert(Symbol.getOffset() == 0 &&
+             "Invalid offset in atom defining symbol!");
+      DefiningSymbolMap[Symbol.getFragment()] = &Symbol;
     }
   }
 

@@ -11,8 +11,18 @@
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
-Target llvm::TheBPFTarget;
+namespace llvm {
+Target TheBPFleTarget;
+Target TheBPFbeTarget;
+Target TheBPFTarget;
+}
 
 extern "C" void LLVMInitializeBPFTargetInfo() {
-  RegisterTarget<Triple::bpf, /*HasJIT=*/true> X(TheBPFTarget, "bpf", "BPF");
+  TargetRegistry::RegisterTarget(TheBPFTarget, "bpf",
+                                 "BPF (host endian)",
+                                 [](Triple::ArchType) { return false; }, true);
+  RegisterTarget<Triple::bpfel, /*HasJIT=*/true> X(
+      TheBPFleTarget, "bpfel", "BPF (little endian)");
+  RegisterTarget<Triple::bpfeb, /*HasJIT=*/true> Y(
+      TheBPFbeTarget, "bpfeb", "BPF (big endian)");
 }

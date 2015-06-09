@@ -788,6 +788,7 @@ def HasRDSEED    : Predicate<"Subtarget->hasRDSEED()">;
 def HasPrefetchW : Predicate<"Subtarget->hasPRFCHW()">;
 def FPStackf32   : Predicate<"!Subtarget->hasSSE1()">;
 def FPStackf64   : Predicate<"!Subtarget->hasSSE2()">;
+def HasMPX       : Predicate<"Subtarget->hasMPX()">;
 def HasCmpxchg16b: Predicate<"Subtarget->hasCmpxchg16b()">;
 def Not64BitMode : Predicate<"!Subtarget->is64Bit()">,
                              AssemblerPredicate<"!Mode64Bit", "Not 64-bit mode">;
@@ -2455,6 +2456,9 @@ include "X86InstrSSE.td"
 include "X86InstrAVX512.td"
 include "X86InstrMMX.td"
 include "X86Instr3DNow.td"
+
+// MPX instructions
+include "X86InstrMPX.td"
 
 include "X86InstrVMX.td"
 include "X86InstrSVM.td"

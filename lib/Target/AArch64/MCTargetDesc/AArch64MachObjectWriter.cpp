@@ -31,10 +31,9 @@ class AArch64MachObjectWriter : public MCMachObjectTargetWriter {
 
 public:
   AArch64MachObjectWriter(uint32_t CPUType, uint32_t CPUSubtype)
-      : MCMachObjectTargetWriter(true /* is64Bit */, CPUType, CPUSubtype,
-                                 /*UseAggressiveSymbolFolding=*/true) {}
+      : MCMachObjectTargetWriter(true /* is64Bit */, CPUType, CPUSubtype) {}
 
-  void RecordRelocation(MachObjectWriter *Writer, MCAssembler &Asm,
+  void recordRelocation(MachObjectWriter *Writer, MCAssembler &Asm,
                         const MCAsmLayout &Layout, const MCFragment *Fragment,
                         const MCFixup &Fixup, MCValue Target,
                         uint64_t &FixedValue) override;
@@ -140,7 +139,7 @@ static bool canUseLocalRelocation(const MCSectionMachO &Section,
   return false;
 }
 
-void AArch64MachObjectWriter::RecordRelocation(
+void AArch64MachObjectWriter::recordRelocation(
     MachObjectWriter *Writer, MCAssembler &Asm, const MCAsmLayout &Layout,
     const MCFragment *Fragment, const MCFixup &Fixup, MCValue Target,
     uint64_t &FixedValue) {
@@ -209,11 +208,9 @@ void AArch64MachObjectWriter::RecordRelocation(
     }
   } else if (Target.getSymB()) { // A - B + constant
     const MCSymbol *A = &Target.getSymA()->getSymbol();
-    const MCSymbolData &A_SD = Asm.getSymbolData(*A);
     const MCSymbol *A_Base = Asm.getAtom(*A);
 
     const MCSymbol *B = &Target.getSymB()->getSymbol();
-    const MCSymbolData &B_SD = Asm.getSymbolData(*B);
     const MCSymbol *B_Base = Asm.getAtom(*B);
 
     // Check for "_foo@got - .", which comes through here as:
@@ -264,14 +261,12 @@ void AArch64MachObjectWriter::RecordRelocation(
       Asm.getContext().reportFatalError(Fixup.getLoc(),
                                   "unsupported relocation with identical base");
 
-    Value += (!A_SD.getFragment() ? 0 : Writer->getSymbolAddress(*A, Layout)) -
-             (!A_Base || !A_Base->getData().getFragment()
-                  ? 0
-                  : Writer->getSymbolAddress(*A_Base, Layout));
-    Value -= (!B_SD.getFragment() ? 0 : Writer->getSymbolAddress(*B, Layout)) -
-             (!B_Base || !B_Base->getData().getFragment()
-                  ? 0
-                  : Writer->getSymbolAddress(*B_Base, Layout));
+    Value += (!A->getFragment() ? 0 : Writer->getSymbolAddress(*A, Layout)) -
+             (!A_Base || !A_Base->getFragment() ? 0 : Writer->getSymbolAddress(
+                                                          *A_Base, Layout));
+    Value -= (!B->getFragment() ? 0 : Writer->getSymbolAddress(*B, Layout)) -
+             (!B_Base || !B_Base->getFragment() ? 0 : Writer->getSymbolAddress(
+                                                          *B_Base, Layout));
 
     Type = MachO::ARM64_RELOC_UNSIGNED;
 
@@ -304,7 +299,7 @@ void AArch64MachObjectWriter::RecordRelocation(
       // If the evaluation is an absolute value, just use that directly
       // to keep things easy.
       int64_t Res;
-      if (Symbol->getVariableValue()->EvaluateAsAbsolute(
+      if (Symbol->getVariableValue()->evaluateAsAbsolute(
               Res, Layout, Writer->getSectionAddressMap())) {
         FixedValue = Res;
         return;
@@ -313,12 +308,12 @@ void AArch64MachObjectWriter::RecordRelocation(
       // FIXME: Will the Target we already have ever have any data in it
       // we need to preserve and merge with the new Target? How about
       // the FixedValue?
-      if (!Symbol->getVariableValue()->EvaluateAsRelocatable(Target, &Layout,
+      if (!Symbol->getVariableValue()->evaluateAsRelocatable(Target, &Layout,
                                                              &Fixup))
         Asm.getContext().reportFatalError(Fixup.getLoc(),
                                     "unable to resolve variable '" +
                                         Symbol->getName() + "'");
-      return RecordRelocation(Writer, Asm, Layout, Fragment, Fixup, Target,
+      return recordRelocation(Writer, Asm, Layout, Fragment, Fixup, Target,
                               FixedValue);
     }
 
@@ -360,7 +355,7 @@ void AArch64MachObjectWriter::RecordRelocation(
       // Resolve constant variables.
       if (Symbol->isVariable()) {
         int64_t Res;
-        if (Symbol->getVariableValue()->EvaluateAsAbsolute(
+        if (Symbol->getVariableValue()->evaluateAsAbsolute(
                 Res, Layout, Writer->getSectionAddressMap())) {
           FixedValue = Res;
           return;

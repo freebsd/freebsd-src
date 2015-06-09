@@ -2140,27 +2140,20 @@ void AssemblyWriter::printModule(const Module *M) {
     Out << "target triple = \"" << M->getTargetTriple() << "\"\n";
 
   if (!M->getModuleInlineAsm().empty()) {
-    // Split the string into lines, to make it easier to read the .ll file.
-    std::string Asm = M->getModuleInlineAsm();
-    size_t CurPos = 0;
-    size_t NewLine = Asm.find_first_of('\n', CurPos);
     Out << '\n';
-    while (NewLine != std::string::npos) {
+
+    // Split the string into lines, to make it easier to read the .ll file.
+    StringRef Asm = M->getModuleInlineAsm();
+    do {
+      StringRef Front;
+      std::tie(Front, Asm) = Asm.split('\n');
+
       // We found a newline, print the portion of the asm string from the
       // last newline up to this newline.
       Out << "module asm \"";
-      PrintEscapedString(std::string(Asm.begin()+CurPos, Asm.begin()+NewLine),
-                         Out);
+      PrintEscapedString(Front, Out);
       Out << "\"\n";
-      CurPos = NewLine+1;
-      NewLine = Asm.find_first_of('\n', CurPos);
-    }
-    std::string rest(Asm.begin()+CurPos, Asm.end());
-    if (!rest.empty()) {
-      Out << "module asm \"";
-      PrintEscapedString(rest, Out);
-      Out << "\"\n";
-    }
+    } while (!Asm.empty());
   }
 
   printTypeIdentities();
@@ -2215,15 +2208,13 @@ void AssemblyWriter::printModule(const Module *M) {
   }
 }
 
-void AssemblyWriter::printNamedMDNode(const NamedMDNode *NMD) {
-  Out << '!';
-  StringRef Name = NMD->getName();
+static void printMetadataIdentifier(StringRef Name,
+                                    formatted_raw_ostream &Out) {
   if (Name.empty()) {
     Out << "<empty name> ";
   } else {
-    if (isalpha(static_cast<unsigned char>(Name[0])) ||
-        Name[0] == '-' || Name[0] == '$' ||
-        Name[0] == '.' || Name[0] == '_')
+    if (isalpha(static_cast<unsigned char>(Name[0])) || Name[0] == '-' ||
+        Name[0] == '$' || Name[0] == '.' || Name[0] == '_')
       Out << Name[0];
     else
       Out << '\\' << hexdigit(Name[0] >> 4) << hexdigit(Name[0] & 0x0F);
@@ -2236,9 +2227,15 @@ void AssemblyWriter::printNamedMDNode(const NamedMDNode *NMD) {
         Out << '\\' << hexdigit(C >> 4) << hexdigit(C & 0x0F);
     }
   }
+}
+
+void AssemblyWriter::printNamedMDNode(const NamedMDNode *NMD) {
+  Out << '!';
+  printMetadataIdentifier(NMD->getName(), Out);
   Out << " = !{";
   for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
-    if (i) Out << ", ";
+    if (i)
+      Out << ", ";
     int Slot = Machine.getMetadataSlot(NMD->getOperand(i));
     if (Slot == -1)
       Out << "<badref>";
@@ -2247,7 +2244,6 @@ void AssemblyWriter::printNamedMDNode(const NamedMDNode *NMD) {
   }
   Out << "}\n";
 }
-
 
 static void PrintLinkage(GlobalValue::LinkageTypes LT,
                          formatted_raw_ostream &Out) {
@@ -2267,7 +2263,6 @@ static void PrintLinkage(GlobalValue::LinkageTypes LT,
     break;
   }
 }
-
 
 static void PrintVisibility(GlobalValue::VisibilityTypes Vis,
                             formatted_raw_ostream &Out) {
@@ -3008,9 +3003,10 @@ void AssemblyWriter::printMetadataAttachments(
   for (const auto &I : MDs) {
     unsigned Kind = I.first;
     Out << Separator;
-    if (Kind < MDNames.size())
-      Out << "!" << MDNames[Kind];
-    else
+    if (Kind < MDNames.size()) {
+      Out << "!";
+      printMetadataIdentifier(MDNames[Kind], Out);
+    } else
       Out << "!<unknown kind #" << Kind << ">";
     Out << ' ';
     WriteAsOperandInternal(Out, I.second, &TypePrinter, &Machine, TheModule);

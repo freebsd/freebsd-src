@@ -189,7 +189,7 @@ bool LLParser::ParseTopLevelEntities() {
     // The Global variable production with no name can have many different
     // optional leading prefixes, the production is:
     // GlobalVar ::= OptionalLinkage OptionalVisibility OptionalDLLStorageClass
-    //               OptionalThreadLocal OptionalAddrSpace OptionalUnNammedAddr
+    //               OptionalThreadLocal OptionalAddrSpace OptionalUnnamedAddr
     //               ('constant'|'global') ...
     case lltok::kw_private:             // OptionalLinkage
     case lltok::kw_internal:            // OptionalLinkage
@@ -615,12 +615,12 @@ static bool isValidVisibilityForLinkage(unsigned V, unsigned L) {
 /// ParseAlias:
 ///   ::= GlobalVar '=' OptionalLinkage OptionalVisibility
 ///                     OptionalDLLStorageClass OptionalThreadLocal
-///                     OptionalUnNammedAddr 'alias' Aliasee
+///                     OptionalUnnamedAddr 'alias' Aliasee
 ///
 /// Aliasee
 ///   ::= TypeAndValue
 ///
-/// Everything through OptionalUnNammedAddr has already been parsed.
+/// Everything through OptionalUnnamedAddr has already been parsed.
 ///
 bool LLParser::ParseAlias(const std::string &Name, LocTy NameLoc, unsigned L,
                           unsigned Visibility, unsigned DLLStorageClass,
@@ -705,13 +705,13 @@ bool LLParser::ParseAlias(const std::string &Name, LocTy NameLoc, unsigned L,
 
 /// ParseGlobal
 ///   ::= GlobalVar '=' OptionalLinkage OptionalVisibility OptionalDLLStorageClass
-///       OptionalThreadLocal OptionalUnNammedAddr OptionalAddrSpace
+///       OptionalThreadLocal OptionalUnnamedAddr OptionalAddrSpace
 ///       OptionalExternallyInitialized GlobalType Type Const
 ///   ::= OptionalLinkage OptionalVisibility OptionalDLLStorageClass
-///       OptionalThreadLocal OptionalUnNammedAddr OptionalAddrSpace
+///       OptionalThreadLocal OptionalUnnamedAddr OptionalAddrSpace
 ///       OptionalExternallyInitialized GlobalType Type Const
 ///
-/// Everything up to and including OptionalUnNammedAddr has been parsed
+/// Everything up to and including OptionalUnnamedAddr has been parsed
 /// already.
 ///
 bool LLParser::ParseGlobal(const std::string &Name, LocTy NameLoc,
@@ -1902,9 +1902,9 @@ bool LLParser::ParseArgumentList(SmallVectorImpl<ArgInfo> &ArgList,
       return Error(TypeLoc, "invalid type for function argument");
 
     unsigned AttrIndex = 1;
-    ArgList.push_back(ArgInfo(TypeLoc, ArgTy,
-                              AttributeSet::get(ArgTy->getContext(),
-                                                AttrIndex++, Attrs), Name));
+    ArgList.emplace_back(TypeLoc, ArgTy, AttributeSet::get(ArgTy->getContext(),
+                                                           AttrIndex++, Attrs),
+                         std::move(Name));
 
     while (EatIfPresent(lltok::comma)) {
       // Handle ... at end of arg list.
@@ -1930,10 +1930,10 @@ bool LLParser::ParseArgumentList(SmallVectorImpl<ArgInfo> &ArgList,
       if (!ArgTy->isFirstClassType())
         return Error(TypeLoc, "invalid type for function argument");
 
-      ArgList.push_back(ArgInfo(TypeLoc, ArgTy,
-                                AttributeSet::get(ArgTy->getContext(),
-                                                  AttrIndex++, Attrs),
-                                Name));
+      ArgList.emplace_back(
+          TypeLoc, ArgTy,
+          AttributeSet::get(ArgTy->getContext(), AttrIndex++, Attrs),
+          std::move(Name));
     }
   }
 
@@ -3730,7 +3730,7 @@ bool LLParser::ParseDILocalVariable(MDNode *&Result, bool IsDistinct) {
   OPTIONAL(file, MDField, );                                                   \
   OPTIONAL(line, LineField, );                                                 \
   OPTIONAL(type, MDField, );                                                   \
-  OPTIONAL(arg, MDUnsignedField, (0, UINT8_MAX));                              \
+  OPTIONAL(arg, MDUnsignedField, (0, UINT16_MAX));                             \
   OPTIONAL(flags, DIFlagField, );
   PARSE_MD_FIELDS();
 #undef VISIT_MD_FIELDS

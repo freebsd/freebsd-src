@@ -16,7 +16,7 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = AsmPrinter SelectionDAG
+subdirectories = AsmPrinter SelectionDAG MIRParser
 
 [component_0]
 type = Library

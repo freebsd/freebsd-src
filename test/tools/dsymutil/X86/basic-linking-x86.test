@@ -6,6 +6,8 @@ RUN: llvm-dsymutil -o %t2 -oso-prepend-path=%p/.. %p/../Inputs/basic.macho.x86_6
 RUN: llvm-dwarfdump %t2 | FileCheck %s
 RUN: llvm-dsymutil -o - -oso-prepend-path=%p/.. %p/../Inputs/basic.macho.x86_64 | llvm-dwarfdump - | FileCheck %s --check-prefix=CHECK --check-prefix=BASIC
 RUN: llvm-dsymutil -o - -oso-prepend-path=%p/.. %p/../Inputs/basic-archive.macho.x86_64 | llvm-dwarfdump - | FileCheck %s --check-prefix=CHECK --check-prefix=ARCHIVE
+RUN: llvm-dsymutil -dump-debug-map -oso-prepend-path=%p/.. %p/../Inputs/basic.macho.x86_64 | llvm-dsymutil -y -o - - | llvm-dwarfdump - | FileCheck %s --check-prefix=CHECK --check-prefix=BASIC
+RUN: llvm-dsymutil -dump-debug-map -oso-prepend-path=%p/.. %p/../Inputs/basic-archive.macho.x86_64 | llvm-dsymutil -o - -y - | llvm-dwarfdump - | FileCheck %s --check-prefix=CHECK --check-prefix=ARCHIVE
 
 CHECK: file format Mach-O 64-bit x86-64
 
@@ -118,7 +120,7 @@ ARCHIVE:    DW_AT_location [DW_FORM_block1] (<0x09> 03 08 10 00 00 01 00 00 00 )
 CHECK:    DW_TAG_volatile_type [10]
 CHECK:      DW_AT_type [DW_FORM_ref4]       (cu + 0x0041 => {0x00000167})
 CHECK:    DW_TAG_base_type [4]
-CHACK:      DW_AT_name [DW_FORM_strp]       ( .debug_str[0x00000060] = "int")
+CHECK:      DW_AT_name [DW_FORM_strp]       ( .debug_str[0x00000060] = "int")
 CHECK:    DW_TAG_subprogram [2] *
 CHECK:      DW_AT_name [DW_FORM_strp]       ( .debug_str[0x0000009b] = "bar")
 CHECK:      DW_AT_type [DW_FORM_ref4]       (cu + 0x0041 => {0x00000167})

@@ -1051,7 +1051,7 @@ public:
     if (!CE) return false;
     int64_t Value = CE->getValue();
     return (ARM_AM::getSOImmVal(Value) != -1 ||
-            ARM_AM::getSOImmVal(-Value) != -1);;
+            ARM_AM::getSOImmVal(-Value) != -1);
   }
   bool isT2SOImm() const {
     if (!isImm()) return false;
@@ -4252,7 +4252,7 @@ ARMAsmParser::parseSetEndImm(OperandVector &Operands) {
     Error(S, "'be' or 'le' operand expected");
     return MatchOperand_ParseFail;
   }
-  Operands.push_back(ARMOperand::CreateImm(MCConstantExpr::Create(Val,
+  Operands.push_back(ARMOperand::CreateImm(MCConstantExpr::create(Val,
                                                                   getContext()),
                                            S, Tok.getEndLoc()));
   return MatchOperand_Success;
@@ -4656,7 +4656,7 @@ ARMAsmParser::parseAM3Offset(OperandVector &Operands) {
       Val = INT32_MIN;
 
     Operands.push_back(
-      ARMOperand::CreateImm(MCConstantExpr::Create(Val, getContext()), S, E));
+      ARMOperand::CreateImm(MCConstantExpr::create(Val, getContext()), S, E));
 
     return MatchOperand_Success;
   }
@@ -4886,7 +4886,7 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands) {
     // If the constant was #-0, represent it as INT32_MIN.
     int32_t Val = CE->getValue();
     if (isNegative && Val == 0)
-      CE = MCConstantExpr::Create(INT32_MIN, getContext());
+      CE = MCConstantExpr::create(INT32_MIN, getContext());
 
     // Now we should have the closing ']'
     if (Parser.getTok().isNot(AsmToken::RBrac))
@@ -5073,7 +5073,7 @@ ARMAsmParser::parseFPImm(OperandVector &Operands) {
     IntVal ^= (uint64_t)isNegative << 31;
     Parser.Lex(); // Eat the token.
     Operands.push_back(ARMOperand::CreateImm(
-          MCConstantExpr::Create(IntVal, getContext()),
+          MCConstantExpr::create(IntVal, getContext()),
           S, Parser.getTok().getLoc()));
     return MatchOperand_Success;
   }
@@ -5090,7 +5090,7 @@ ARMAsmParser::parseFPImm(OperandVector &Operands) {
     Val = APFloat(RealVal).bitcastToAPInt().getZExtValue();
 
     Operands.push_back(ARMOperand::CreateImm(
-        MCConstantExpr::Create(Val, getContext()), S,
+        MCConstantExpr::create(Val, getContext()), S,
         Parser.getTok().getLoc()));
     return MatchOperand_Success;
   }
@@ -5179,7 +5179,7 @@ bool ARMAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
       if (CE) {
         int32_t Val = CE->getValue();
         if (isNegative && Val == 0)
-          ImmVal = MCConstantExpr::Create(INT32_MIN, getContext());
+          ImmVal = MCConstantExpr::create(INT32_MIN, getContext());
       }
       E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
       Operands.push_back(ARMOperand::CreateImm(ImmVal, S, E));
@@ -5209,7 +5209,7 @@ bool ARMAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     if (getParser().parseExpression(SubExprVal))
       return true;
 
-    const MCExpr *ExprVal = ARMMCExpr::Create(RefKind, SubExprVal,
+    const MCExpr *ExprVal = ARMMCExpr::create(RefKind, SubExprVal,
                                               getContext());
     E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
     Operands.push_back(ARMOperand::CreateImm(ExprVal, S, E));
@@ -5765,7 +5765,7 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // Add the processor imod operand, if necessary.
   if (ProcessorIMod) {
     Operands.push_back(ARMOperand::CreateImm(
-          MCConstantExpr::Create(ProcessorIMod, getContext()),
+          MCConstantExpr::create(ProcessorIMod, getContext()),
                                  NameLoc, NameLoc));
   } else if (Mnemonic == "cps" && isMClass()) {
     return Error(NameLoc, "instruction 'cps' requires effect for M-class");
@@ -6752,13 +6752,13 @@ bool ARMAsmParser::processInstruction(MCInst &Inst,
       MCSymbol *Dot = getContext().createTempSymbol();
       Out.EmitLabel(Dot);
       const MCExpr *OpExpr = Inst.getOperand(2).getExpr();
-      const MCExpr *InstPC = MCSymbolRefExpr::Create(Dot,
+      const MCExpr *InstPC = MCSymbolRefExpr::create(Dot,
                                                      MCSymbolRefExpr::VK_None,
                                                      getContext());
-      const MCExpr *Const8 = MCConstantExpr::Create(8, getContext());
-      const MCExpr *ReadPC = MCBinaryExpr::CreateAdd(InstPC, Const8,
+      const MCExpr *Const8 = MCConstantExpr::create(8, getContext());
+      const MCExpr *ReadPC = MCBinaryExpr::createAdd(InstPC, Const8,
                                                      getContext());
-      const MCExpr *FixupAddr = MCBinaryExpr::CreateAdd(ReadPC, OpExpr,
+      const MCExpr *FixupAddr = MCBinaryExpr::createAdd(ReadPC, OpExpr,
                                                         getContext());
       TmpInst.addOperand(MCOperand::createExpr(FixupAddr));
     }
@@ -9168,74 +9168,19 @@ bool ARMAsmParser::parseDirectiveCPU(SMLoc L) {
   StringRef CPU = getParser().parseStringToEndOfStatement().trim();
   getTargetStreamer().emitTextAttribute(ARMBuildAttrs::CPU_name, CPU);
 
+  // FIXME: This is using table-gen data, but should be moved to
+  // ARMTargetParser once that is table-gen'd.
   if (!STI.isCPUStringValid(CPU)) {
     Error(L, "Unknown CPU name");
     return false;
   }
 
-  // FIXME: This switches the CPU features globally, therefore it might
-  // happen that code you would not expect to assemble will. For details
-  // see: http://llvm.org/bugs/show_bug.cgi?id=20757
   STI.InitMCProcessorInfo(CPU, "");
   STI.InitCPUSchedModel(CPU);
   setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
 
   return false;
 }
-
-// FIXME: This is duplicated in getARMFPUFeatures() in
-// tools/clang/lib/Driver/Tools.cpp
-static const struct {
-  const unsigned ID;
-  const FeatureBitset Enabled;
-  const FeatureBitset Disabled;
-} FPUs[] = {
-    {/* ID */ ARM::FK_VFP, 
-     /* Enabled */ {ARM::FeatureVFP2}, 
-     /* Disabled */ {ARM::FeatureNEON}},
-    {/* ID */ ARM::FK_VFPV2, 
-     /* Enabled */ {ARM::FeatureVFP2}, 
-     /* Disabled */ {ARM::FeatureNEON}},
-    {/* ID */ ARM::FK_VFPV3, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3},  
-     /* Disabled */ {ARM::FeatureNEON, ARM::FeatureD16}},
-    {/* ID */ ARM::FK_VFPV3_D16, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureD16},
-     /* Disabled */ {ARM::FeatureNEON}},
-    {/* ID */ ARM::FK_VFPV4, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4},
-     /* Disabled */ {ARM::FeatureNEON, ARM::FeatureD16}},
-    {/* ID */ ARM::FK_VFPV4_D16, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4,
-                    ARM::FeatureD16},
-     /* Disabled */ {ARM::FeatureNEON}},
-    {/* ID */ ARM::FK_FPV5_D16, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4,
-                    ARM::FeatureFPARMv8, ARM::FeatureD16},
-     /* Disabled */ {ARM::FeatureNEON, ARM::FeatureCrypto}},
-    {/* ID */ ARM::FK_FP_ARMV8, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4,
-                    ARM::FeatureFPARMv8},
-     /* Disabled */ {ARM::FeatureNEON, ARM::FeatureCrypto, ARM::FeatureD16}},
-    {/* ID */ ARM::FK_NEON, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureNEON}, 
-     /* Disabled */ {ARM::FeatureD16}},
-    {/* ID */ ARM::FK_NEON_VFPV4, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4,
-                    ARM::FeatureNEON}, 
-     /* Disabled */ {ARM::FeatureD16}},
-    {/* ID */ ARM::FK_NEON_FP_ARMV8, 
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4,
-                    ARM::FeatureFPARMv8, ARM::FeatureNEON},
-     /* Disabled */ {ARM::FeatureCrypto, ARM::FeatureD16}},
-    {/* ID */ ARM::FK_CRYPTO_NEON_FP_ARMV8,
-     /* Enabled */ {ARM::FeatureVFP2, ARM::FeatureVFP3, ARM::FeatureVFP4,
-                    ARM::FeatureFPARMv8, ARM::FeatureNEON, 
-                    ARM::FeatureCrypto},
-     /* Disabled */ {ARM::FeatureD16}},
-    {ARM::FK_SOFTVFP, {}, {}},
-};
-
 /// parseDirectiveFPU
 ///  ::= .fpu str
 bool ARMAsmParser::parseDirectiveFPU(SMLoc L) {
@@ -9243,23 +9188,15 @@ bool ARMAsmParser::parseDirectiveFPU(SMLoc L) {
   StringRef FPU = getParser().parseStringToEndOfStatement().trim();
 
   unsigned ID = ARMTargetParser::parseFPU(FPU);
-
-  if (ID == ARM::FK_INVALID) {
+  std::vector<const char *> Features;
+  if (!ARMTargetParser::getFPUFeatures(ID, Features)) {
     Error(FPUNameLoc, "Unknown FPU name");
     return false;
   }
 
-  for (const auto &Entry : FPUs) {
-    if (Entry.ID != ID)
-      continue;
-
-    // Need to toggle features that should be on but are off and that
-    // should off but are on.
-    FeatureBitset Toggle = (Entry.Enabled & ~STI.getFeatureBits()) |
-                           (Entry.Disabled & STI.getFeatureBits());
-    setAvailableFeatures(ComputeAvailableFeatures(STI.ToggleFeature(Toggle)));
-    break;
-  }
+  for (auto Feature : Features)
+    STI.ApplyFeatureFlag(Feature);
+  setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
 
   getTargetStreamer().emitFPU(ID);
   return false;
@@ -9804,7 +9741,7 @@ bool ARMAsmParser::parseDirectiveTLSDescSeq(SMLoc L) {
   }
 
   const MCSymbolRefExpr *SRE =
-    MCSymbolRefExpr::Create(Parser.getTok().getIdentifier(),
+    MCSymbolRefExpr::create(Parser.getTok().getIdentifier(),
                             MCSymbolRefExpr::VK_ARM_TLSDESCSEQ, getContext());
   Lex();
 
@@ -9982,33 +9919,32 @@ extern "C" void LLVMInitializeARMAsmParser() {
 #define GET_MATCHER_IMPLEMENTATION
 #include "ARMGenAsmMatcher.inc"
 
+// FIXME: This structure should be moved inside ARMTargetParser
+// when we start to table-generate them, and we can use the ARM
+// flags below, that were generated by table-gen.
 static const struct {
-  const char *Name;
+  const ARM::ArchExtKind Kind;
   const unsigned ArchCheck;
   const FeatureBitset Features;
 } Extensions[] = {
-  { "crc", Feature_HasV8, {ARM::FeatureCRC} },
-  { "crypto",  Feature_HasV8,
+  { ARM::AEK_CRC, Feature_HasV8, {ARM::FeatureCRC} },
+  { ARM::AEK_CRYPTO,  Feature_HasV8,
     {ARM::FeatureCrypto, ARM::FeatureNEON, ARM::FeatureFPARMv8} },
-  { "fp", Feature_HasV8, {ARM::FeatureFPARMv8} },
-  { "idiv", Feature_HasV7 | Feature_IsNotMClass,
+  { ARM::AEK_FP, Feature_HasV8, {ARM::FeatureFPARMv8} },
+  { ARM::AEK_HWDIV, Feature_HasV7 | Feature_IsNotMClass,
     {ARM::FeatureHWDiv, ARM::FeatureHWDivARM} },
-  // FIXME: iWMMXT not supported
-  { "iwmmxt", Feature_None, {} },
-  // FIXME: iWMMXT2 not supported
-  { "iwmmxt2", Feature_None, {} },
-  // FIXME: Maverick not supported
-  { "maverick", Feature_None, {} },
-  { "mp", Feature_HasV7 | Feature_IsNotMClass, {ARM::FeatureMP} },
-  // FIXME: ARMv6-m OS Extensions feature not checked
-  { "os", Feature_None, {} },
+  { ARM::AEK_MP, Feature_HasV7 | Feature_IsNotMClass, {ARM::FeatureMP} },
+  { ARM::AEK_SIMD, Feature_HasV8, {ARM::FeatureNEON, ARM::FeatureFPARMv8} },
   // FIXME: Also available in ARMv6-K
-  { "sec", Feature_HasV7, {ARM::FeatureTrustZone} },
-  { "simd", Feature_HasV8, {ARM::FeatureNEON, ARM::FeatureFPARMv8} },
+  { ARM::AEK_SEC, Feature_HasV7, {ARM::FeatureTrustZone} },
   // FIXME: Only available in A-class, isel not predicated
-  { "virt", Feature_HasV7, {ARM::FeatureVirtualization} },
-  // FIXME: xscale not supported
-  { "xscale", Feature_None, {} },
+  { ARM::AEK_VIRT, Feature_HasV7, {ARM::FeatureVirtualization} },
+  // FIXME: Unsupported extensions.
+  { ARM::AEK_OS, Feature_None, {} },
+  { ARM::AEK_IWMMXT, Feature_None, {} },
+  { ARM::AEK_IWMMXT2, Feature_None, {} },
+  { ARM::AEK_MAVERICK, Feature_None, {} },
+  { ARM::AEK_XSCALE, Feature_None, {} },
 };
 
 /// parseDirectiveArchExtension
@@ -10031,9 +9967,12 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L) {
     EnableFeature = false;
     Name = Name.substr(2);
   }
+  unsigned FeatureKind = ARMTargetParser::parseArchExt(Name);
+  if (FeatureKind == ARM::AEK_INVALID)
+    Error(ExtLoc, "unknown architectural extension: " + Name);
 
   for (const auto &Extension : Extensions) {
-    if (Extension.Name != Name)
+    if (Extension.Kind != FeatureKind)
       continue;
 
     if (Extension.Features.none())
@@ -10080,7 +10019,7 @@ unsigned ARMAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
     if (Op.isImm()) {
       const MCExpr *SOExpr = Op.getImm();
       int64_t Value;
-      if (!SOExpr->EvaluateAsAbsolute(Value))
+      if (!SOExpr->evaluateAsAbsolute(Value))
         return Match_Success;
       assert((Value >= INT32_MIN && Value <= UINT32_MAX) &&
              "expression value must be representable in 32 bits");

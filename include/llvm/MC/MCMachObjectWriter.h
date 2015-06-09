@@ -27,15 +27,11 @@ class MCMachObjectTargetWriter {
   const unsigned Is64Bit : 1;
   const uint32_t CPUType;
   const uint32_t CPUSubtype;
-  // FIXME: Remove this, we should just always use it once we no longer care
-  // about Darwin 'as' compatibility.
-  const unsigned UseAggressiveSymbolFolding : 1;
   unsigned LocalDifference_RIT;
 
 protected:
   MCMachObjectTargetWriter(bool Is64Bit_, uint32_t CPUType_,
-                           uint32_t CPUSubtype_,
-                           bool UseAggressiveSymbolFolding_ = false);
+                           uint32_t CPUSubtype_);
 
   void setLocalDifferenceRelocationType(unsigned Type) {
     LocalDifference_RIT = Type;
@@ -47,7 +43,7 @@ public:
   /// \name Lifetime Management
   /// @{
 
-  virtual void reset() {};
+  virtual void reset() {}
 
   /// @}
 
@@ -55,7 +51,6 @@ public:
   /// @{
 
   bool is64Bit() const { return Is64Bit; }
-  bool useAggressiveSymbolFolding() const { return UseAggressiveSymbolFolding; }
   uint32_t getCPUType() const { return CPUType; }
   uint32_t getCPUSubtype() const { return CPUSubtype; }
   unsigned getLocalDifferenceRelocationType() const {
@@ -67,7 +62,7 @@ public:
   /// \name API
   /// @{
 
-  virtual void RecordRelocation(MachObjectWriter *Writer, MCAssembler &Asm,
+  virtual void recordRelocation(MachObjectWriter *Writer, MCAssembler &Asm,
                                 const MCAsmLayout &Layout,
                                 const MCFragment *Fragment,
                                 const MCFixup &Fixup, MCValue Target,
@@ -77,8 +72,7 @@ public:
 };
 
 class MachObjectWriter : public MCObjectWriter {
-  /// MachSymbolData - Helper struct for containing some precomputed information
-  /// on symbols.
+  /// Helper struct for containing some precomputed information on symbols.
   struct MachSymbolData {
     const MCSymbol *Symbol;
     uint64_t StringIndex;
@@ -103,6 +97,8 @@ class MachObjectWriter : public MCObjectWriter {
 
   llvm::DenseMap<const MCSection *, std::vector<RelAndSymbol>> Relocations;
   llvm::DenseMap<const MCSection *, unsigned> IndirectSymBase;
+
+  SectionAddrMap SectionAddress;
 
   /// @}
   /// \name Symbol Table Data
@@ -136,8 +132,6 @@ public:
 
   bool isFixupKindPCRel(const MCAssembler &Asm, unsigned Kind);
 
-  SectionAddrMap SectionAddress;
-
   SectionAddrMap &getSectionAddressMap() { return SectionAddress; }
 
   uint64_t getSectionAddress(const MCSection *Sec) const {
@@ -165,41 +159,37 @@ public:
 
   /// @}
 
-  void WriteHeader(unsigned NumLoadCommands, unsigned LoadCommandsSize,
+  void writeHeader(unsigned NumLoadCommands, unsigned LoadCommandsSize,
                    bool SubsectionsViaSymbols);
 
-  /// WriteSegmentLoadCommand - Write a segment load command.
+  /// Write a segment load command.
   ///
   /// \param NumSections The number of sections in this segment.
   /// \param SectionDataSize The total size of the sections.
-  void WriteSegmentLoadCommand(unsigned NumSections,
-                               uint64_t VMSize,
+  void writeSegmentLoadCommand(unsigned NumSections, uint64_t VMSize,
                                uint64_t SectionDataStartOffset,
                                uint64_t SectionDataSize);
 
-  void WriteSection(const MCAssembler &Asm, const MCAsmLayout &Layout,
+  void writeSection(const MCAssembler &Asm, const MCAsmLayout &Layout,
                     const MCSection &Sec, uint64_t FileOffset,
                     uint64_t RelocationsStart, unsigned NumRelocations);
 
-  void WriteSymtabLoadCommand(uint32_t SymbolOffset, uint32_t NumSymbols,
+  void writeSymtabLoadCommand(uint32_t SymbolOffset, uint32_t NumSymbols,
                               uint32_t StringTableOffset,
                               uint32_t StringTableSize);
 
-  void WriteDysymtabLoadCommand(uint32_t FirstLocalSymbol,
-                                uint32_t NumLocalSymbols,
-                                uint32_t FirstExternalSymbol,
-                                uint32_t NumExternalSymbols,
-                                uint32_t FirstUndefinedSymbol,
-                                uint32_t NumUndefinedSymbols,
-                                uint32_t IndirectSymbolOffset,
-                                uint32_t NumIndirectSymbols);
+  void writeDysymtabLoadCommand(
+      uint32_t FirstLocalSymbol, uint32_t NumLocalSymbols,
+      uint32_t FirstExternalSymbol, uint32_t NumExternalSymbols,
+      uint32_t FirstUndefinedSymbol, uint32_t NumUndefinedSymbols,
+      uint32_t IndirectSymbolOffset, uint32_t NumIndirectSymbols);
 
-  void WriteNlist(MachSymbolData &MSD, const MCAsmLayout &Layout);
+  void writeNlist(MachSymbolData &MSD, const MCAsmLayout &Layout);
 
-  void WriteLinkeditLoadCommand(uint32_t Type, uint32_t DataOffset,
+  void writeLinkeditLoadCommand(uint32_t Type, uint32_t DataOffset,
                                 uint32_t DataSize);
 
-  void WriteLinkerOptionsLoadCommand(const std::vector<std::string> &Options);
+  void writeLinkerOptionsLoadCommand(const std::vector<std::string> &Options);
 
   // FIXME: We really need to improve the relocation validation. Basically, we
   // want to implement a separate computation which evaluates the relocation
@@ -226,29 +216,25 @@ public:
     Relocations[Sec].push_back(P);
   }
 
-  void RecordScatteredRelocation(const MCAssembler &Asm,
+  void recordScatteredRelocation(const MCAssembler &Asm,
                                  const MCAsmLayout &Layout,
                                  const MCFragment *Fragment,
                                  const MCFixup &Fixup, MCValue Target,
-                                 unsigned Log2Size,
-                                 uint64_t &FixedValue);
+                                 unsigned Log2Size, uint64_t &FixedValue);
 
-  void RecordTLVPRelocation(const MCAssembler &Asm,
-                            const MCAsmLayout &Layout,
-                            const MCFragment *Fragment,
-                            const MCFixup &Fixup, MCValue Target,
-                            uint64_t &FixedValue);
+  void recordTLVPRelocation(const MCAssembler &Asm, const MCAsmLayout &Layout,
+                            const MCFragment *Fragment, const MCFixup &Fixup,
+                            MCValue Target, uint64_t &FixedValue);
 
-  void RecordRelocation(MCAssembler &Asm, const MCAsmLayout &Layout,
+  void recordRelocation(MCAssembler &Asm, const MCAsmLayout &Layout,
                         const MCFragment *Fragment, const MCFixup &Fixup,
                         MCValue Target, bool &IsPCRel,
                         uint64_t &FixedValue) override;
 
-  void BindIndirectSymbols(MCAssembler &Asm);
+  void bindIndirectSymbols(MCAssembler &Asm);
 
-  /// ComputeSymbolTable - Compute the symbol table data
-  ///
-  void ComputeSymbolTable(MCAssembler &Asm,
+  /// Compute the symbol table data.
+  void computeSymbolTable(MCAssembler &Asm,
                           std::vector<MachSymbolData> &LocalSymbolData,
                           std::vector<MachSymbolData> &ExternalSymbolData,
                           std::vector<MachSymbolData> &UndefinedSymbolData);
@@ -256,19 +242,18 @@ public:
   void computeSectionAddresses(const MCAssembler &Asm,
                                const MCAsmLayout &Layout);
 
-  void ExecutePostLayoutBinding(MCAssembler &Asm,
+  void executePostLayoutBinding(MCAssembler &Asm,
                                 const MCAsmLayout &Layout) override;
 
-  bool IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
+  bool isSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
                                               const MCSymbol &SymA,
                                               const MCFragment &FB, bool InSet,
                                               bool IsPCRel) const override;
 
-  void WriteObject(MCAssembler &Asm, const MCAsmLayout &Layout) override;
+  void writeObject(MCAssembler &Asm, const MCAsmLayout &Layout) override;
 };
 
-
-/// \brief Construct a new Mach-O writer instance.
+/// Construct a new Mach-O writer instance.
 ///
 /// This routine takes ownership of the target writer subclass.
 ///

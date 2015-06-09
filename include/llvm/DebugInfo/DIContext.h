@@ -141,8 +141,7 @@ private:
 /// on the fly.
 class LoadedObjectInfo {
 public:
-  LoadedObjectInfo() {}
-  virtual ~LoadedObjectInfo() {}
+  virtual ~LoadedObjectInfo() = default;
 
   /// Obtain the Load Address of a section by Name.
   ///
@@ -170,7 +169,7 @@ public:
   /// Obtain a copy of this LoadedObjectInfo.
   ///
   /// The caller is responsible for deallocation once the copy is no longer required.
-  virtual LoadedObjectInfo *clone() const = 0;
+  virtual std::unique_ptr<LoadedObjectInfo> clone() const = 0;
 };
 
 }

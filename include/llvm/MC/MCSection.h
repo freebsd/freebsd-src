@@ -73,10 +73,12 @@ private:
 
   /// \brief We've seen a bundle_lock directive but not its first instruction
   /// yet.
-  bool BundleGroupBeforeFirstInst = false;
+  unsigned BundleGroupBeforeFirstInst : 1;
 
   /// Whether this section has had instructions emitted into it.
   unsigned HasInstructions : 1;
+
+  unsigned IsRegistered : 1;
 
   FragmentListType Fragments;
 
@@ -129,6 +131,9 @@ public:
 
   bool hasInstructions() const { return HasInstructions; }
   void setHasInstructions(bool Value) { HasInstructions = Value; }
+
+  bool isRegistered() const { return IsRegistered; }
+  void setIsRegistered(bool Value) { IsRegistered = Value; }
 
   MCSection::FragmentListType &getFragmentList() { return Fragments; }
   const MCSection::FragmentListType &getFragmentList() const {

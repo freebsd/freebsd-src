@@ -38,12 +38,12 @@ public:
 
     // The size in bytes of the statement information for this compilation unit
     // (not including the total_length field itself).
-    uint32_t TotalLength;
+    uint64_t TotalLength;
     // Version identifier for the statement information format.
     uint16_t Version;
     // The number of bytes following the prologue_length field to the beginning
     // of the first byte of the statement program itself.
-    uint32_t PrologueLength;
+    uint64_t PrologueLength;
     // The size in bytes of the smallest target machine instruction. Statement
     // program opcodes that alter the address register first multiply their
     // operands by this value.
@@ -63,14 +63,22 @@ public:
     std::vector<const char*> IncludeDirectories;
     std::vector<FileNameEntry> FileNames;
 
+    bool IsDWARF64;
+    uint32_t sizeofTotalLength() const {
+      return IsDWARF64 ? 12 : 4;
+    }
+    uint32_t sizeofPrologueLength() const {
+      return IsDWARF64 ? 8 : 4;
+    }
+
     // Length of the prologue in bytes.
     uint32_t getLength() const {
-      return PrologueLength + sizeof(TotalLength) + sizeof(Version) +
-             sizeof(PrologueLength);
+      return PrologueLength + sizeofTotalLength() + sizeof(Version) +
+             sizeofPrologueLength();
     }
     // Length of the line table data in bytes (not including the prologue).
     uint32_t getStatementTableLength() const {
-      return TotalLength + sizeof(TotalLength) - getLength();
+      return TotalLength + sizeofTotalLength() - getLength();
     }
     int32_t getMaxLineIncrementForSpecialOpcode() const {
       return LineBase + (int8_t)LineRange - 1;
@@ -163,6 +171,9 @@ public:
   struct LineTable {
     LineTable();
 
+    // Represents an invalid row
+    const uint32_t UnknownRowIndex = UINT32_MAX;
+
     void appendRow(const DWARFDebugLine::Row &R) {
       Rows.push_back(R);
     }
@@ -171,7 +182,7 @@ public:
     }
 
     // Returns the index of the row with file/line info for a given address,
-    // or -1 if there is no such row.
+    // or UnknownRowIndex if there is no such row.
     uint32_t lookupAddress(uint64_t address) const;
 
     bool lookupAddressRange(uint64_t address, uint64_t size,
@@ -203,6 +214,10 @@ public:
     typedef SequenceVector::const_iterator SequenceIter;
     RowVector Rows;
     SequenceVector Sequences;
+
+  private:
+    uint32_t findRowInSeq(const DWARFDebugLine::Sequence &seq,
+                          uint64_t address) const;
   };
 
   const LineTable *getLineTable(uint32_t offset) const;

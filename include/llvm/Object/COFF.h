@@ -613,7 +613,7 @@ protected:
                                 StringRef &Res) const override;
   std::error_code getSymbolAddress(DataRefImpl Symb,
                                    uint64_t &Res) const override;
-  std::error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const override;
+  uint64_t getSymbolSize(DataRefImpl Symb) const override;
   uint32_t getSymbolFlags(DataRefImpl Symb) const override;
   std::error_code getSymbolType(DataRefImpl Symb,
                                 SymbolRef::Type &Res) const override;
@@ -647,10 +647,6 @@ protected:
   std::error_code
   getRelocationTypeName(DataRefImpl Rel,
                         SmallVectorImpl<char> &Result) const override;
-  std::error_code
-  getRelocationValueString(DataRefImpl Rel,
-                           SmallVectorImpl<char> &Result) const override;
-
 public:
   COFFObjectFile(MemoryBufferRef Object, std::error_code &EC);
   basic_symbol_iterator symbol_begin_impl() const override;
@@ -699,7 +695,7 @@ public:
       return object_error::parse_failed;
 
     Res = reinterpret_cast<coff_symbol_type *>(getSymbolTable()) + Index;
-    return object_error::success;
+    return std::error_code();
   }
   ErrorOr<COFFSymbolRef> getSymbol(uint32_t index) const {
     if (SymbolTable16) {
@@ -722,7 +718,7 @@ public:
     if (std::error_code EC = s.getError())
       return EC;
     Res = reinterpret_cast<const T *>(s->getRawPtr());
-    return object_error::success;
+    return std::error_code();
   }
   std::error_code getSymbolName(COFFSymbolRef Symbol, StringRef &Res) const;
 

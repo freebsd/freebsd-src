@@ -16,14 +16,14 @@
 #include "PPCMCAsmInfo.h"
 #include "PPCTargetStreamer.h"
 #include "llvm/MC/MCCodeGenInfo.h"
-#include "llvm/MC/MCELF.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELFStreamer.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/MC/MachineLocation.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -70,8 +70,8 @@ static MCSubtargetInfo *createPPCMCSubtargetInfo(StringRef TT, StringRef CPU,
   return X;
 }
 
-static MCAsmInfo *createPPCMCAsmInfo(const MCRegisterInfo &MRI, StringRef TT) {
-  Triple TheTriple(TT);
+static MCAsmInfo *createPPCMCAsmInfo(const MCRegisterInfo &MRI,
+                                     const Triple &TheTriple) {
   bool isPPC64 = (TheTriple.getArch() == Triple::ppc64 ||
                   TheTriple.getArch() == Triple::ppc64le);
 
@@ -132,8 +132,14 @@ public:
   void emitAbiVersion(int AbiVersion) override {
     OS << "\t.abiversion " << AbiVersion << '\n';
   }
-  void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) override {
-    OS << "\t.localentry\t" << *S << ", " << *LocalOffset << '\n';
+  void emitLocalEntry(MCSymbolELF *S, const MCExpr *LocalOffset) override {
+    const MCAsmInfo *MAI = Streamer.getContext().getAsmInfo();
+
+    OS << "\t.localentry\t";
+    S->print(OS, MAI);
+    OS << ", ";
+    LocalOffset->print(OS, MAI);
+    OS << '\n';
   }
 };
 
@@ -159,25 +165,21 @@ public:
     Flags |= (AbiVersion & ELF::EF_PPC64_ABI);
     MCA.setELFHeaderEFlags(Flags);
   }
-  void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) override {
+  void emitLocalEntry(MCSymbolELF *S, const MCExpr *LocalOffset) override {
     MCAssembler &MCA = getStreamer().getAssembler();
-    MCSymbolData &Data = getStreamer().getOrCreateSymbolData(S);
 
     int64_t Res;
-    if (!LocalOffset->EvaluateAsAbsolute(Res, MCA))
+    if (!LocalOffset->evaluateAsAbsolute(Res, MCA))
       report_fatal_error(".localentry expression must be absolute.");
 
     unsigned Encoded = ELF::encodePPC64LocalEntryOffset(Res);
     if (Res != ELF::decodePPC64LocalEntryOffset(Encoded))
       report_fatal_error(".localentry expression cannot be encoded.");
 
-    // The "other" values are stored in the last 6 bits of the second byte.
-    // The traditional defines for STO values assume the full byte and thus
-    // the shift to pack it.
-    unsigned Other = MCELF::getOther(Data) << 2;
+    unsigned Other = S->getOther();
     Other &= ~ELF::STO_PPC64_LOCAL_MASK;
     Other |= Encoded;
-    MCELF::setOther(Data, Other >> 2);
+    S->setOther(Other);
 
     // For GAS compatibility, unless we already saw a .abiversion directive,
     // set e_flags to indicate ELFv2 ABI.
@@ -185,22 +187,18 @@ public:
     if ((Flags & ELF::EF_PPC64_ABI) == 0)
       MCA.setELFHeaderEFlags(Flags | 2);
   }
-  void emitAssignment(MCSymbol *Symbol, const MCExpr *Value) override {
+  void emitAssignment(MCSymbol *S, const MCExpr *Value) override {
+    auto *Symbol = cast<MCSymbolELF>(S);
     // When encoding an assignment to set symbol A to symbol B, also copy
     // the st_other bits encoding the local entry point offset.
     if (Value->getKind() != MCExpr::SymbolRef)
       return;
-    const MCSymbol &RhsSym =
-        static_cast<const MCSymbolRefExpr *>(Value)->getSymbol();
-    MCSymbolData &Data = getStreamer().getOrCreateSymbolData(&RhsSym);
-    MCSymbolData &SymbolData = getStreamer().getOrCreateSymbolData(Symbol);
-    // The "other" values are stored in the last 6 bits of the second byte.
-    // The traditional defines for STO values assume the full byte and thus
-    // the shift to pack it.
-    unsigned Other = MCELF::getOther(SymbolData) << 2;
+    const auto &RhsSym = cast<MCSymbolELF>(
+        static_cast<const MCSymbolRefExpr *>(Value)->getSymbol());
+    unsigned Other = Symbol->getOther();
     Other &= ~ELF::STO_PPC64_LOCAL_MASK;
-    Other |= (MCELF::getOther(Data) << 2) & ELF::STO_PPC64_LOCAL_MASK;
-    MCELF::setOther(SymbolData, Other >> 2);
+    Other |= RhsSym.getOther() & ELF::STO_PPC64_LOCAL_MASK;
+    Symbol->setOther(Other);
   }
 };
 
@@ -217,7 +215,7 @@ public:
   void emitAbiVersion(int AbiVersion) override {
     llvm_unreachable("Unknown pseudo-op: .abiversion");
   }
-  void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) override {
+  void emitLocalEntry(MCSymbolELF *S, const MCExpr *LocalOffset) override {
     llvm_unreachable("Unknown pseudo-op: .localentry");
   }
 };

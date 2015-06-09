@@ -304,10 +304,6 @@ public:
     return getTM<ARMBaseTargetMachine>();
   }
 
-  const ARMSubtarget &getARMSubtarget() const {
-    return *getARMTargetMachine().getSubtargetImpl();
-  }
-
   void addIRPasses() override;
   bool addPreISel() override;
   bool addInstSelector() override;
@@ -330,24 +326,28 @@ void ARMPassConfig::addIRPasses() {
   // Cmpxchg instructions are often used with a subsequent comparison to
   // determine whether it succeeded. We can exploit existing control-flow in
   // ldrex/strex loops to simplify this, but it needs tidying up.
-  const ARMSubtarget *Subtarget = &getARMSubtarget();
-  if (Subtarget->hasAnyDataBarrier() && !Subtarget->isThumb1Only())
-    if (TM->getOptLevel() != CodeGenOpt::None && EnableAtomicTidy)
-      addPass(createCFGSimplificationPass());
+  if (TM->getOptLevel() != CodeGenOpt::None && EnableAtomicTidy)
+    addPass(createCFGSimplificationPass(-1, [this](const Function &F) {
+      const auto &ST = this->TM->getSubtarget<ARMSubtarget>(F);
+      return ST.hasAnyDataBarrier() && !ST.isThumb1Only();
+    }));
 
   TargetPassConfig::addIRPasses();
 }
 
 bool ARMPassConfig::addPreISel() {
-  if ((TM->getOptLevel() == CodeGenOpt::Aggressive &&
+  if ((TM->getOptLevel() != CodeGenOpt::None &&
        EnableGlobalMerge == cl::BOU_UNSET) ||
-      EnableGlobalMerge == cl::BOU_TRUE)
+      EnableGlobalMerge == cl::BOU_TRUE) {
     // FIXME: This is using the thumb1 only constant value for
     // maximal global offset for merging globals. We may want
     // to look into using the old value for non-thumb1 code of
     // 4095 based on the TargetMachine, but this starts to become
     // tricky when doing code gen per function.
-    addPass(createGlobalMergePass(TM, 127));
+    bool OnlyOptimizeForSize = (TM->getOptLevel() < CodeGenOpt::Aggressive) &&
+                               (EnableGlobalMerge == cl::BOU_UNSET);
+    addPass(createGlobalMergePass(TM, 127, OnlyOptimizeForSize));
+  }
 
   return false;
 }
@@ -387,10 +387,13 @@ void ARMPassConfig::addPreSched2() {
 
   if (getOptLevel() != CodeGenOpt::None) {
     // in v8, IfConversion depends on Thumb instruction widths
-    if (getARMSubtarget().restrictIT())
-      addPass(createThumb2SizeReductionPass());
-    if (!getARMSubtarget().isThumb1Only())
-      addPass(&IfConverterID);
+    addPass(createThumb2SizeReductionPass([this](const Function &F) {
+      return this->TM->getSubtarget<ARMSubtarget>(F).restrictIT();
+    }));
+
+    addPass(createIfConverter([this](const Function &F) {
+      return !this->TM->getSubtarget<ARMSubtarget>(F).isThumb1Only();
+    }));
   }
   addPass(createThumb2ITBlockPass());
 }
@@ -399,8 +402,9 @@ void ARMPassConfig::addPreEmitPass() {
   addPass(createThumb2SizeReductionPass());
 
   // Constant island pass work on unbundled instructions.
-  if (getARMSubtarget().isThumb2())
-    addPass(&UnpackMachineBundlesID);
+  addPass(createUnpackMachineBundles([this](const Function &F) {
+    return this->TM->getSubtarget<ARMSubtarget>(F).isThumb2();
+  }));
 
   // Don't optimize barriers at -O0.
   if (getOptLevel() != CodeGenOpt::None)

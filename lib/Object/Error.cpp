@@ -33,7 +33,6 @@ const char *_object_error_category::name() const LLVM_NOEXCEPT {
 std::string _object_error_category::message(int EV) const {
   object_error E = static_cast<object_error>(EV);
   switch (E) {
-  case object_error::success: return "Success";
   case object_error::arch_not_found:
     return "No object file for requested architecture";
   case object_error::invalid_file_type:
@@ -44,6 +43,12 @@ std::string _object_error_category::message(int EV) const {
     return "The end of the file was unexpectedly encountered";
   case object_error::bitcode_section_not_found:
     return "Bitcode section not found in object file";
+  case object_error::macho_small_load_command:
+    return "Mach-O load command with size < 8 bytes";
+  case object_error::macho_load_segment_too_many_sections:
+    return "Mach-O segment load command contains too many sections";
+  case object_error::macho_load_segment_too_small:
+    return "Mach-O segment load command size is too small";
   }
   llvm_unreachable("An enumerator of object_error does not have a message "
                    "defined.");

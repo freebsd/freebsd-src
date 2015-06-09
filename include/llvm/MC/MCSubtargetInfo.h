@@ -73,7 +73,9 @@ public:
 
   /// setFeatureBits - Set the feature bits.
   ///
-  void setFeatureBits(FeatureBitset& FeatureBits_) { FeatureBits = FeatureBits_; }
+  void setFeatureBits(const FeatureBitset &FeatureBits_) {
+    FeatureBits = FeatureBits_;
+  }
 
   /// InitMCProcessorInfo - Set or change the CPU (optionally supplemented with
   /// feature string). Recompute feature bits and scheduling model.
@@ -93,6 +95,10 @@ public:
   /// ToggleFeature - Toggle a set of features and returns the re-computed
   /// feature bits. This version will also change all implied bits.
   FeatureBitset ToggleFeature(StringRef FS);
+
+  /// Apply a feature flag and return the re-computed feature bits, including
+  /// all feature bits implied by the flag.
+  FeatureBitset ApplyFeatureFlag(StringRef FS);
 
   /// getSchedModelForCPU - Get the machine model of a CPU.
   ///

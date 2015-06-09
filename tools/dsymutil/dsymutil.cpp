@@ -30,26 +30,32 @@ using namespace llvm::cl;
 static opt<std::string> InputFile(Positional, desc("<input file>"),
                                   init("a.out"));
 
-static opt<std::string> OutputFileOpt("o", desc("Specify the output file."
-                                                " default: <input file>.dwarf"),
-                                      value_desc("filename"));
+static opt<std::string>
+    OutputFileOpt("o",
+                  desc("Specify the output file. default: <input file>.dwarf"),
+                  value_desc("filename"));
 
-static opt<std::string> OsoPrependPath("oso-prepend-path",
-                                       desc("Specify a directory to prepend "
-                                            "to the paths of object files."),
-                                       value_desc("path"));
+static opt<std::string> OsoPrependPath(
+    "oso-prepend-path",
+    desc("Specify a directory to prepend to the paths of object files."),
+    value_desc("path"));
 
 static opt<bool> Verbose("v", desc("Verbosity level"), init(false));
 
-static opt<bool> NoOutput("no-output", desc("Do the link in memory, but do "
-                                            "not emit the result file."),
-                          init(false));
-
 static opt<bool>
-    ParseOnly("parse-only",
-              desc("Only parse the debug map, do not actaully link "
-                   "the DWARF."),
-              init(false));
+    NoOutput("no-output",
+             desc("Do the link in memory, but do not emit the result file."),
+             init(false));
+
+static opt<bool> DumpDebugMap(
+    "dump-debug-map",
+    desc("Parse and dump the debug map to standard output. Not DWARF link "
+         "will take place."),
+    init(false));
+
+static opt<bool> InputIsYAMLDebugMap(
+    "y", desc("Treat the input file is a YAML debug map rather than a binary."),
+    init(false));
 }
 
 int main(int argc, char **argv) {
@@ -59,7 +65,9 @@ int main(int argc, char **argv) {
   LinkOptions Options;
 
   llvm::cl::ParseCommandLineOptions(argc, argv, "llvm dsymutil\n");
-  auto DebugMapPtrOrErr = parseDebugMap(InputFile, OsoPrependPath, Verbose);
+
+  auto DebugMapPtrOrErr =
+      parseDebugMap(InputFile, OsoPrependPath, Verbose, InputIsYAMLDebugMap);
 
   Options.Verbose = Verbose;
   Options.NoOutput = NoOutput;
@@ -75,10 +83,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (Verbose)
+  if (Verbose || DumpDebugMap)
     (*DebugMapPtrOrErr)->print(llvm::outs());
 
-  if (ParseOnly)
+  if (DumpDebugMap)
     return 0;
 
   std::string OutputFile;
