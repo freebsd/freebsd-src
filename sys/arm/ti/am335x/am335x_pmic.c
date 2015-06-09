@@ -165,7 +165,7 @@ am335x_pmic_dump_chgconfig(device_t dev)
 	const char *d_e[] = {"disabled", "enabled"};
 	const char *i_a[] = {"inactive", "active"};
 	const char *f_t[] = {"false", "true"};
-        const char *timer_c[] = {"4h", "5h", "6h", "8h"};
+	const char *timer_c[] = {"4h", "5h", "6h", "8h"};
 	const char *ntc_type_c[] = {"100k", "10k"};
 	const char *vprechg_c[] = {"2.9V", "2.5V"};
 	const char *trange_c[] = {"0-45 C", "0-60 C"};
