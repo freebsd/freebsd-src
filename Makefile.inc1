@@ -1361,7 +1361,6 @@ _kerberos5_bootstrap_tools= \
 	usr.bin/compile_et
 
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
-
 .endif
 
 # Rebuild up-to-date libmd for xinstall

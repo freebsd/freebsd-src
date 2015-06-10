@@ -12,5 +12,4 @@ SCRIPTS=	${DTRACETOOLKIT}/execsnoop \
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace/toolkit
 
-
 .include <bsd.prog.mk>
