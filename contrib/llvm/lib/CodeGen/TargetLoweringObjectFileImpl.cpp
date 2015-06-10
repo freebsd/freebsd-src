@@ -30,7 +30,7 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ELF.h"
@@ -63,7 +63,8 @@ void TargetLoweringObjectFileELF::emitPersonalityValue(MCStreamer &Streamer,
                                                        const MCSymbol *Sym) const {
   SmallString<64> NameData("DW.ref.");
   NameData += Sym->getName();
-  MCSymbol *Label = getContext().getOrCreateSymbol(NameData);
+  MCSymbolELF *Label =
+      cast<MCSymbolELF>(getContext().getOrCreateSymbol(NameData));
   Streamer.EmitSymbolAttribute(Label, MCSA_Hidden);
   Streamer.EmitSymbolAttribute(Label, MCSA_Weak);
   StringRef Prefix = ".data.";
@@ -75,8 +76,8 @@ void TargetLoweringObjectFileELF::emitPersonalityValue(MCStreamer &Streamer,
   Streamer.SwitchSection(Sec);
   Streamer.EmitValueToAlignment(TM.getDataLayout()->getPointerABIAlignment());
   Streamer.EmitSymbolAttribute(Label, MCSA_ELF_TypeObject);
-  const MCExpr *E = MCConstantExpr::Create(Size, getContext());
-  Streamer.EmitELFSize(Label, E);
+  const MCExpr *E = MCConstantExpr::create(Size, getContext());
+  Streamer.emitELFSize(Label, E);
   Streamer.EmitLabel(Label);
 
   Streamer.EmitSymbolValue(Sym, Size);
@@ -101,7 +102,7 @@ const MCExpr *TargetLoweringObjectFileELF::getTTypeGlobalReference(
     }
 
     return TargetLoweringObjectFile::
-      getTTypeReference(MCSymbolRefExpr::Create(SSym, getContext()),
+      getTTypeReference(MCSymbolRefExpr::create(SSym, getContext()),
                         Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
   }
 
@@ -684,7 +685,7 @@ const MCExpr *TargetLoweringObjectFileMachO::getTTypeGlobalReference(
     }
 
     return TargetLoweringObjectFile::
-      getTTypeReference(MCSymbolRefExpr::Create(SSym, getContext()),
+      getTTypeReference(MCSymbolRefExpr::create(SSym, getContext()),
                         Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
   }
 
@@ -760,16 +761,16 @@ const MCExpr *TargetLoweringObjectFileMachO::getIndirectSymViaGOTPCRel(
       StubValueTy(const_cast<MCSymbol *>(Sym), true /* access indirectly */);
 
   const MCExpr *BSymExpr =
-    MCSymbolRefExpr::Create(BaseSym, MCSymbolRefExpr::VK_None, Ctx);
+    MCSymbolRefExpr::create(BaseSym, MCSymbolRefExpr::VK_None, Ctx);
   const MCExpr *LHS =
-    MCSymbolRefExpr::Create(Stub, MCSymbolRefExpr::VK_None, Ctx);
+    MCSymbolRefExpr::create(Stub, MCSymbolRefExpr::VK_None, Ctx);
 
   if (!Offset)
-    return MCBinaryExpr::CreateSub(LHS, BSymExpr, Ctx);
+    return MCBinaryExpr::createSub(LHS, BSymExpr, Ctx);
 
   const MCExpr *RHS =
-    MCBinaryExpr::CreateAdd(BSymExpr, MCConstantExpr::Create(Offset, Ctx), Ctx);
-  return MCBinaryExpr::CreateSub(LHS, RHS, Ctx);
+    MCBinaryExpr::createAdd(BSymExpr, MCConstantExpr::create(Offset, Ctx), Ctx);
+  return MCBinaryExpr::createSub(LHS, RHS, Ctx);
 }
 
 //===----------------------------------------------------------------------===//

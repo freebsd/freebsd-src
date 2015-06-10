@@ -1712,7 +1712,7 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
     // would confuse the logic below that expects proper IVs.
     if (Value *V = SimplifyInstruction(Phi, DL, SE.TLI, SE.DT, SE.AC)) {
       Phi->replaceAllUsesWith(V);
-      DeadInsts.push_back(Phi);
+      DeadInsts.emplace_back(Phi);
       ++NumElim;
       DEBUG_WITH_TYPE(DebugType, dbgs()
                       << "INDVARS: Eliminated constant iv: " << *Phi << '\n');
@@ -1787,7 +1787,7 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
             CreateTruncOrBitCast(OrigInc, IsomorphicInc->getType(), IVName);
         }
         IsomorphicInc->replaceAllUsesWith(NewInc);
-        DeadInsts.push_back(IsomorphicInc);
+        DeadInsts.emplace_back(IsomorphicInc);
       }
     }
     DEBUG_WITH_TYPE(DebugType, dbgs()
@@ -1800,13 +1800,30 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
       NewIV = Builder.CreateTruncOrBitCast(OrigPhiRef, Phi->getType(), IVName);
     }
     Phi->replaceAllUsesWith(NewIV);
-    DeadInsts.push_back(Phi);
+    DeadInsts.emplace_back(Phi);
   }
   return NumElim;
 }
 
 bool SCEVExpander::isHighCostExpansionHelper(
     const SCEV *S, Loop *L, SmallPtrSetImpl<const SCEV *> &Processed) {
+
+  // Zero/One operand expressions
+  switch (S->getSCEVType()) {
+  case scUnknown:
+  case scConstant:
+    return false;
+  case scTruncate:
+    return isHighCostExpansionHelper(cast<SCEVTruncateExpr>(S)->getOperand(), L,
+                                     Processed);
+  case scZeroExtend:
+    return isHighCostExpansionHelper(cast<SCEVZeroExtendExpr>(S)->getOperand(),
+                                     L, Processed);
+  case scSignExtend:
+    return isHighCostExpansionHelper(cast<SCEVSignExtendExpr>(S)->getOperand(),
+                                     L, Processed);
+  }
+
   if (!Processed.insert(S).second)
     return false;
 
@@ -1849,22 +1866,21 @@ bool SCEVExpander::isHighCostExpansionHelper(
     }
   }
 
-  // Recurse past add expressions, which commonly occur in the
-  // BackedgeTakenCount. They may already exist in program code, and if not,
-  // they are not too expensive rematerialize.
-  if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
-    for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
-         I != E; ++I) {
-      if (isHighCostExpansionHelper(*I, L, Processed))
-        return true;
-    }
-    return false;
-  }
-
   // HowManyLessThans uses a Max expression whenever the loop is not guarded by
   // the exit condition.
   if (isa<SCEVSMaxExpr>(S) || isa<SCEVUMaxExpr>(S))
     return true;
+
+  // Recurse past nary expressions, which commonly occur in the
+  // BackedgeTakenCount. They may already exist in program code, and if not,
+  // they are not too expensive rematerialize.
+  if (const SCEVNAryExpr *NAry = dyn_cast<SCEVNAryExpr>(S)) {
+    for (SCEVNAryExpr::op_iterator I = NAry->op_begin(), E = NAry->op_end();
+         I != E; ++I) {
+      if (isHighCostExpansionHelper(*I, L, Processed))
+        return true;
+    }
+  }
 
   // If we haven't recognized an expensive SCEV pattern, assume it's an
   // expression produced by program code.

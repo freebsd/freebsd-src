@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
@@ -23,7 +22,7 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolCOFF.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/MC/MCWinCOFFStreamer.h"
 #include "llvm/Support/COFF.h"
@@ -97,17 +96,17 @@ bool MCWinCOFFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
           Symbol->getSection().getVariant() == MCSection::SV_COFF) &&
          "Got non-COFF section in the COFF backend!");
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+  getAssembler().registerSymbol(*Symbol);
 
   switch (Attribute) {
   default: return false;
   case MCSA_WeakReference:
   case MCSA_Weak:
-    SD.modifyFlags(COFF::SF_WeakExternal, COFF::SF_WeakExternal);
-    SD.setExternal(true);
+    cast<MCSymbolCOFF>(Symbol)->setIsWeakExternal();
+    Symbol->setExternal(true);
     break;
   case MCSA_Global:
-    SD.setExternal(true);
+    Symbol->setExternal(true);
     break;
   }
 
@@ -134,11 +133,11 @@ void MCWinCOFFStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {
     FatalError("storage class specified outside of symbol definition");
 
   if (StorageClass & ~COFF::SSC_Invalid)
-    FatalError(Twine("storage class value '") + itostr(StorageClass) +
+    FatalError("storage class value '" + Twine(StorageClass) +
                "' out of range");
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*CurSymbol);
-  SD.modifyFlags(StorageClass << COFF::SF_ClassShift, COFF::SF_ClassMask);
+  getAssembler().registerSymbol(*CurSymbol);
+  cast<MCSymbolCOFF>(CurSymbol)->setClass((uint16_t)StorageClass);
 }
 
 void MCWinCOFFStreamer::EmitCOFFSymbolType(int Type) {
@@ -146,10 +145,10 @@ void MCWinCOFFStreamer::EmitCOFFSymbolType(int Type) {
     FatalError("symbol type specified outside of a symbol definition");
 
   if (Type & ~0xffff)
-    FatalError(Twine("type value '") + itostr(Type) + "' out of range");
+    FatalError("type value '" + Twine(Type) + "' out of range");
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*CurSymbol);
-  SD.modifyFlags(Type << COFF::SF_TypeShift, COFF::SF_TypeMask);
+  getAssembler().registerSymbol(*CurSymbol);
+  cast<MCSymbolCOFF>(CurSymbol)->setType((uint16_t)Type);
 }
 
 void MCWinCOFFStreamer::EndCOFFSymbolDef() {
@@ -158,9 +157,30 @@ void MCWinCOFFStreamer::EndCOFFSymbolDef() {
   CurSymbol = nullptr;
 }
 
+void MCWinCOFFStreamer::EmitCOFFSafeSEH(MCSymbol const *Symbol) {
+  // SafeSEH is a feature specific to 32-bit x86.  It does not exist (and is
+  // unnecessary) on all platforms which use table-based exception dispatch.
+  if (getContext().getObjectFileInfo()->getTargetTriple().getArch() !=
+      Triple::x86)
+    return;
+
+  if (cast<MCSymbolCOFF>(Symbol)->isSafeSEH())
+    return;
+
+  MCSection *SXData = getContext().getObjectFileInfo()->getSXDataSection();
+  getAssembler().registerSection(*SXData);
+  if (SXData->getAlignment() < 4)
+    SXData->setAlignment(4);
+
+  new MCSafeSEHFragment(Symbol, SXData);
+
+  getAssembler().registerSymbol(*Symbol);
+  cast<MCSymbolCOFF>(Symbol)->setIsSafeSEH();
+}
+
 void MCWinCOFFStreamer::EmitCOFFSectionIndex(MCSymbol const *Symbol) {
   MCDataFragment *DF = getOrCreateDataFragment();
-  const MCSymbolRefExpr *SRE = MCSymbolRefExpr::Create(Symbol, getContext());
+  const MCSymbolRefExpr *SRE = MCSymbolRefExpr::create(Symbol, getContext());
   MCFixup Fixup = MCFixup::create(DF->getContents().size(), SRE, FK_SecRel_2);
   DF->getFixups().push_back(Fixup);
   DF->getContents().resize(DF->getContents().size() + 2, 0);
@@ -168,14 +188,10 @@ void MCWinCOFFStreamer::EmitCOFFSectionIndex(MCSymbol const *Symbol) {
 
 void MCWinCOFFStreamer::EmitCOFFSecRel32(MCSymbol const *Symbol) {
   MCDataFragment *DF = getOrCreateDataFragment();
-  const MCSymbolRefExpr *SRE = MCSymbolRefExpr::Create(Symbol, getContext());
+  const MCSymbolRefExpr *SRE = MCSymbolRefExpr::create(Symbol, getContext());
   MCFixup Fixup = MCFixup::create(DF->getContents().size(), SRE, FK_SecRel_4);
   DF->getFixups().push_back(Fixup);
   DF->getContents().resize(DF->getContents().size() + 4, 0);
-}
-
-void MCWinCOFFStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
-  llvm_unreachable("not supported");
 }
 
 void MCWinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
@@ -195,9 +211,9 @@ void MCWinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 
   AssignSection(Symbol, nullptr);
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
-  SD.setExternal(true);
-  SD.setCommon(Size, ByteAlignment);
+  getAssembler().registerSymbol(*Symbol);
+  Symbol->setExternal(true);
+  Symbol->setCommon(Size, ByteAlignment);
 
   if (!T.isKnownWindowsMSVCEnvironment() && ByteAlignment > 1) {
     SmallString<128> Directive;
@@ -224,8 +240,8 @@ void MCWinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   if (Section->getAlignment() < ByteAlignment)
     Section->setAlignment(ByteAlignment);
 
-  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
-  SD.setExternal(false);
+  getAssembler().registerSymbol(*Symbol);
+  Symbol->setExternal(false);
 
   AssignSection(Symbol, Section);
 
@@ -235,7 +251,7 @@ void MCWinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 
   MCFillFragment *Fragment = new MCFillFragment(
       /*Value=*/0, /*ValueSize=*/0, Size, Section);
-  SD.setFragment(Fragment);
+  Symbol->setFragment(Fragment);
 }
 
 void MCWinCOFFStreamer::EmitZerofill(MCSection *Section, MCSymbol *Symbol,

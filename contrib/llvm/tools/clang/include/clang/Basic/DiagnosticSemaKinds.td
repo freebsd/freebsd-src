@@ -908,10 +908,6 @@ def warn_dealloc_in_category : Warning<
 InGroup<DeallocInCategory>;
 def err_gc_weak_property_strong_type : Error<
   "weak attribute declared on a __strong type property in GC mode">;
-def warn_receiver_is_weak : Warning <
-  "weak %select{receiver|property|implicit property}0 may be "
-  "unpredictably set to nil">,
-  InGroup<DiagGroup<"receiver-is-weak">>, DefaultIgnore;
 def warn_arc_repeated_use_of_weak : Warning <
   "weak %select{variable|property|implicit property|instance variable}0 %1 is "
   "accessed multiple times in this %select{function|method|block|lambda}2 "
@@ -2262,8 +2258,7 @@ def err_attribute_dll_member_of_dll_class : Error<
   "attribute %q0 cannot be applied to member of %q1 class">;
 def warn_attribute_dll_instantiated_base_class : Warning<
   "propagating dll attribute to %select{already instantiated|explicitly specialized}0 "
-  "base class template "
-  "%select{without dll attribute|with different dll attribute}1 is not supported">,
+  "base class template without dll attribute is not supported">,
   InGroup<DiagGroup<"unsupported-dll-base-class-template">>, DefaultIgnore;
 def err_attribute_weakref_not_static : Error<
   "weakref declaration must have internal linkage">;
@@ -5390,6 +5385,10 @@ def err_bad_const_cast_dest : Error<
   "which is not a reference, pointer-to-object, or pointer-to-data-member">;
 def ext_cast_fn_obj : Extension<
   "cast between pointer-to-function and pointer-to-object is an extension">;
+def ext_ms_cast_fn_obj : ExtWarn<
+  "static_cast between pointer-to-function and pointer-to-object is a "
+  "Microsoft extension">,
+  InGroup<Microsoft>;
 def warn_cxx98_compat_cast_fn_obj : Warning<
   "cast between pointer-to-function and pointer-to-object is incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
@@ -6334,6 +6333,9 @@ let CategoryName = "Inline Assembly Issue" in {
     "remove the cast or build with -fheinous-gnu-extensions">;
   def err_invalid_asm_value_for_constraint
       : Error <"value '%0' out of range for constraint '%1'">;
+  def err_asm_bitfield_in_memory_constraint
+      : Error <"reference to a bit-field in asm "
+      "%select{input|output}0 with a memory constraint '%1'">;
 
   def warn_asm_label_on_auto_decl : Warning<
     "ignored asm label '%0' on automatic variable">;
@@ -7404,8 +7406,6 @@ def err_omp_unexpected_clause_value : Error<
   "expected %0 in OpenMP clause '%1'">;
 def err_omp_expected_var_name : Error<
   "expected variable name">;
-def err_omp_required_method : Error<
-  "%0 variable must have an accessible, unambiguous %select{default constructor|copy constructor|copy assignment operator|'%2'|destructor}1">;
 def note_omp_task_predetermined_firstprivate_here : Note<
   "predetermined as a firstprivate in a task construct here">;
 def err_omp_clause_ref_type_arg : Error<

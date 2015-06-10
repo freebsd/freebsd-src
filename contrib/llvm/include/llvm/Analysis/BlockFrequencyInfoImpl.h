@@ -191,8 +191,8 @@ public:
 
   /// \brief Data about a loop.
   ///
-  /// Contains the data necessary to represent represent a loop as a
-  /// pseudo-node once it's packaged.
+  /// Contains the data necessary to represent a loop as a pseudo-node once it's
+  /// packaged.
   struct LoopData {
     typedef SmallVector<std::pair<BlockNode, BlockMass>, 4> ExitMap;
     typedef SmallVector<BlockNode, 4> NodeList;
@@ -930,7 +930,7 @@ void BlockFrequencyInfoImpl<BT>::doFunction(const FunctionT *F,
   initializeRPOT();
   initializeLoops();
 
-  // Visit loops in post-order to find thelocal mass distribution, and then do
+  // Visit loops in post-order to find the local mass distribution, and then do
   // the full function.
   computeMassInLoops();
   computeMassInFunction();

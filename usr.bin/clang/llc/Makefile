@@ -7,7 +7,8 @@ PROG_CXX=llc
 SRCDIR=	tools/llc
 SRCS=	llc.cpp
 
-LIBDEPS=llvmirreader \
+LIBDEPS=llvmmirparser \
+	llvmirreader \
 	llvmasmparser \
 	llvmaarch64disassembler \
 	llvmaarch64codegen \

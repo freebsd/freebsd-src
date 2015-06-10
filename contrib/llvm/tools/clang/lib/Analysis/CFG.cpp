@@ -1095,6 +1095,19 @@ CFGBlock *CFGBuilder::addInitializer(CXXCtorInitializer *I) {
       // generating destructors for the second time.
       return Visit(cast<ExprWithCleanups>(Init)->getSubExpr());
     }
+    if (BuildOpts.AddCXXDefaultInitExprInCtors) {
+      if (CXXDefaultInitExpr *Default = dyn_cast<CXXDefaultInitExpr>(Init)) {
+        // In general, appending the expression wrapped by a CXXDefaultInitExpr
+        // may cause the same Expr to appear more than once in the CFG. Doing it
+        // here is safe because there's only one initializer per field.
+        autoCreateBlock();
+        appendStmt(Block, Default);
+        if (Stmt *Child = Default->getExpr())
+          if (CFGBlock *R = Visit(Child))
+            Block = R;
+        return Block;
+      }
+    }
     return Visit(Init);
   }
 
@@ -1179,8 +1192,7 @@ void CFGBuilder::addAutomaticObjDtors(LocalScope::const_iterator B,
     }
     Ty = Context->getBaseElementType(Ty);
 
-    const CXXDestructorDecl *Dtor = Ty->getAsCXXRecordDecl()->getDestructor();
-    if (Dtor->isNoReturn())
+    if (Ty->getAsCXXRecordDecl()->isAnyDestructorNoReturn())
       Block = createNoReturnBlock();
     else
       autoCreateBlock();
@@ -3682,7 +3694,7 @@ CFGBlock *CFGBuilder::VisitCXXBindTemporaryExprForTemporaryDtors(
 
     const CXXDestructorDecl *Dtor = E->getTemporary()->getDestructor();
 
-    if (Dtor->isNoReturn()) {
+    if (Dtor->getParent()->isAnyDestructorNoReturn()) {
       // If the destructor is marked as a no-return destructor, we need to
       // create a new block for the destructor which does not have as a
       // successor anything built thus far. Control won't flow out of this

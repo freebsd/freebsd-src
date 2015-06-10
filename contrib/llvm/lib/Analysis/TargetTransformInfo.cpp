@@ -100,9 +100,10 @@ bool TargetTransformInfo::isLegalICmpImmediate(int64_t Imm) const {
 bool TargetTransformInfo::isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV,
                                                 int64_t BaseOffset,
                                                 bool HasBaseReg,
-                                                int64_t Scale) const {
+                                                int64_t Scale,
+                                                unsigned AddrSpace) const {
   return TTIImpl->isLegalAddressingMode(Ty, BaseGV, BaseOffset, HasBaseReg,
-                                        Scale);
+                                        Scale, AddrSpace);
 }
 
 bool TargetTransformInfo::isLegalMaskedStore(Type *DataType,
@@ -118,9 +119,10 @@ bool TargetTransformInfo::isLegalMaskedLoad(Type *DataType,
 int TargetTransformInfo::getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
                                               int64_t BaseOffset,
                                               bool HasBaseReg,
-                                              int64_t Scale) const {
+                                              int64_t Scale,
+                                              unsigned AddrSpace) const {
   return TTIImpl->getScalingFactorCost(Ty, BaseGV, BaseOffset, HasBaseReg,
-                                       Scale);
+                                       Scale, AddrSpace);
 }
 
 bool TargetTransformInfo::isTruncateFree(Type *Ty1, Type *Ty2) const {
@@ -233,6 +235,13 @@ TargetTransformInfo::getMaskedMemoryOpCost(unsigned Opcode, Type *Src,
                                            unsigned Alignment,
                                            unsigned AddressSpace) const {
   return TTIImpl->getMaskedMemoryOpCost(Opcode, Src, Alignment, AddressSpace);
+}
+
+unsigned TargetTransformInfo::getInterleavedMemoryOpCost(
+    unsigned Opcode, Type *VecTy, unsigned Factor, ArrayRef<unsigned> Indices,
+    unsigned Alignment, unsigned AddressSpace) const {
+  return TTIImpl->getInterleavedMemoryOpCost(Opcode, VecTy, Factor, Indices,
+                                             Alignment, AddressSpace);
 }
 
 unsigned

@@ -107,6 +107,7 @@ private:
   OperandMatchResultTy tryParseAddSubImm(OperandVector &Operands);
   OperandMatchResultTy tryParseGPR64sp0Operand(OperandVector &Operands);
   bool tryParseVectorRegister(OperandVector &Operands);
+  OperandMatchResultTy tryParseGPRSeqPair(OperandVector &Operands);
 
 public:
   enum AArch64MatchResultTy {
@@ -874,6 +875,16 @@ public:
   bool isGPR32as64() const {
     return Kind == k_Register && !Reg.isVector &&
       AArch64MCRegisterClasses[AArch64::GPR64RegClassID].contains(Reg.RegNum);
+  }
+  bool isWSeqPair() const {
+    return Kind == k_Register && !Reg.isVector &&
+           AArch64MCRegisterClasses[AArch64::WSeqPairsClassRegClassID].contains(
+               Reg.RegNum);
+  }
+  bool isXSeqPair() const {
+    return Kind == k_Register && !Reg.isVector &&
+           AArch64MCRegisterClasses[AArch64::XSeqPairsClassRegClassID].contains(
+               Reg.RegNum);
   }
 
   bool isGPR64sp0() const {
@@ -1753,7 +1764,7 @@ static unsigned MatchRegisterName(StringRef Name);
 /// }
 
 static unsigned matchVectorRegName(StringRef Name) {
-  return StringSwitch<unsigned>(Name)
+  return StringSwitch<unsigned>(Name.lower())
       .Case("v0", AArch64::Q0)
       .Case("v1", AArch64::Q1)
       .Case("v2", AArch64::Q2)
@@ -2024,7 +2035,7 @@ AArch64AsmParser::tryParseAdrpLabel(OperandVector &Operands) {
       // No modifier was specified at all; this is the syntax for an ELF basic
       // ADRP relocation (unfortunately).
       Expr =
-          AArch64MCExpr::Create(Expr, AArch64MCExpr::VK_ABS_PAGE, getContext());
+          AArch64MCExpr::create(Expr, AArch64MCExpr::VK_ABS_PAGE, getContext());
     } else if ((DarwinRefKind == MCSymbolRefExpr::VK_GOTPAGE ||
                 DarwinRefKind == MCSymbolRefExpr::VK_TLVPPAGE) &&
                Addend != 0) {
@@ -2157,7 +2168,7 @@ AArch64AsmParser::tryParseAddSubImm(OperandVector &Operands) {
     if (MCE) {
       int64_t Val = MCE->getValue();
       if (Val > 0xfff && (Val & 0xfff) == 0) {
-        Imm = MCConstantExpr::Create(Val >> 12, getContext());
+        Imm = MCConstantExpr::create(Val >> 12, getContext());
         ShiftAmount = 12;
       }
     }
@@ -2347,14 +2358,14 @@ bool AArch64AsmParser::parseSysAlias(StringRef Name, SMLoc NameLoc,
 
 #define SYS_ALIAS(op1, Cn, Cm, op2)                                            \
   do {                                                                         \
-    Expr = MCConstantExpr::Create(op1, getContext());                          \
+    Expr = MCConstantExpr::create(op1, getContext());                          \
     Operands.push_back(                                                        \
         AArch64Operand::CreateImm(Expr, S, getLoc(), getContext()));           \
     Operands.push_back(                                                        \
         AArch64Operand::CreateSysCR(Cn, S, getLoc(), getContext()));           \
     Operands.push_back(                                                        \
         AArch64Operand::CreateSysCR(Cm, S, getLoc(), getContext()));           \
-    Expr = MCConstantExpr::Create(op2, getContext());                          \
+    Expr = MCConstantExpr::create(op2, getContext());                          \
     Operands.push_back(                                                        \
         AArch64Operand::CreateImm(Expr, S, getLoc(), getContext()));           \
   } while (0)
@@ -2835,7 +2846,7 @@ bool AArch64AsmParser::parseSymbolicImmVal(const MCExpr *&ImmVal) {
     return true;
 
   if (HasELFModifier)
-    ImmVal = AArch64MCExpr::Create(ImmVal, RefKind, getContext());
+    ImmVal = AArch64MCExpr::create(ImmVal, RefKind, getContext());
 
   return false;
 }
@@ -3128,7 +3139,7 @@ bool AArch64AsmParser::parseOperand(OperandVector &Operands, bool isCondCode,
       if (ShiftAmt <= MaxShiftAmt && Imm <= 0xFFFF) {
           Operands[0] = AArch64Operand::CreateToken("movz", false, Loc, Ctx);
           Operands.push_back(AArch64Operand::CreateImm(
-                     MCConstantExpr::Create(Imm, Ctx), S, E, Ctx));
+                     MCConstantExpr::create(Imm, Ctx), S, E, Ctx));
         if (ShiftAmt)
           Operands.push_back(AArch64Operand::CreateShiftExtend(AArch64_AM::LSL,
                      ShiftAmt, true, S, E, Ctx));
@@ -3634,8 +3645,8 @@ bool AArch64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
           NewOp4Val = 63 - Op3Val;
         }
 
-        const MCExpr *NewOp3 = MCConstantExpr::Create(NewOp3Val, getContext());
-        const MCExpr *NewOp4 = MCConstantExpr::Create(NewOp4Val, getContext());
+        const MCExpr *NewOp3 = MCConstantExpr::create(NewOp3Val, getContext());
+        const MCExpr *NewOp4 = MCConstantExpr::create(NewOp4Val, getContext());
 
         Operands[0] = AArch64Operand::CreateToken(
             "ubfm", false, Op.getStartLoc(), getContext());
@@ -3685,8 +3696,8 @@ bool AArch64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
           return Error(WidthOp.getStartLoc(),
                        "requested insert overflows register");
 
-        const MCExpr *ImmRExpr = MCConstantExpr::Create(ImmR, getContext());
-        const MCExpr *ImmSExpr = MCConstantExpr::Create(ImmS, getContext());
+        const MCExpr *ImmRExpr = MCConstantExpr::create(ImmR, getContext());
+        const MCExpr *ImmSExpr = MCConstantExpr::create(ImmS, getContext());
         Operands[0] = AArch64Operand::CreateToken(
               "bfm", false, Op.getStartLoc(), getContext());
         Operands[2] = AArch64Operand::CreateReg(
@@ -3742,9 +3753,9 @@ bool AArch64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                          "requested insert overflows register");
 
           const MCExpr *NewOp3 =
-              MCConstantExpr::Create(NewOp3Val, getContext());
+              MCConstantExpr::create(NewOp3Val, getContext());
           const MCExpr *NewOp4 =
-              MCConstantExpr::Create(NewOp4Val, getContext());
+              MCConstantExpr::create(NewOp4Val, getContext());
           Operands[3] = AArch64Operand::CreateImm(
               NewOp3, Op3.getStartLoc(), Op3.getEndLoc(), getContext());
           Operands[4] = AArch64Operand::CreateImm(
@@ -3800,7 +3811,7 @@ bool AArch64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                          "requested extract overflows register");
 
           const MCExpr *NewOp4 =
-              MCConstantExpr::Create(NewOp4Val, getContext());
+              MCConstantExpr::create(NewOp4Val, getContext());
           Operands[4] = AArch64Operand::CreateImm(
               NewOp4, Op4.getStartLoc(), Op4.getEndLoc(), getContext());
           if (Tok == "bfxil")
@@ -4021,7 +4032,7 @@ bool AArch64AsmParser::ParseDirective(AsmToken DirectiveID) {
   if (IDVal == ".ltorg" || IDVal == ".pool")
     return parseDirectiveLtorg(Loc);
   if (IDVal == ".unreq")
-    return parseDirectiveUnreq(DirectiveID.getLoc());
+    return parseDirectiveUnreq(Loc);
 
   if (!IsMachO && !IsCOFF) {
     if (IDVal == ".inst")
@@ -4106,8 +4117,8 @@ bool AArch64AsmParser::parseDirectiveTLSDescCall(SMLoc L) {
     return Error(L, "expected symbol after directive");
 
   MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
-  const MCExpr *Expr = MCSymbolRefExpr::Create(Sym, getContext());
-  Expr = AArch64MCExpr::Create(Expr, AArch64MCExpr::VK_TLSDESC, getContext());
+  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, getContext());
+  Expr = AArch64MCExpr::create(Expr, AArch64MCExpr::VK_TLSDESC, getContext());
 
   MCInst Inst;
   Inst.setOpcode(AArch64::TLSDESCCALL);
@@ -4353,4 +4364,78 @@ unsigned AArch64AsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
   if (CE->getValue() == ExpectedVal)
     return Match_Success;
   return Match_InvalidOperand;
+}
+
+
+AArch64AsmParser::OperandMatchResultTy
+AArch64AsmParser::tryParseGPRSeqPair(OperandVector &Operands) {
+
+  SMLoc S = getLoc();
+
+  if (getParser().getTok().isNot(AsmToken::Identifier)) {
+    Error(S, "expected register");
+    return MatchOperand_ParseFail;
+  }
+
+  int FirstReg = tryParseRegister();
+  if (FirstReg == -1) {
+    return MatchOperand_ParseFail;
+  }
+  const MCRegisterClass &WRegClass =
+      AArch64MCRegisterClasses[AArch64::GPR32RegClassID];
+  const MCRegisterClass &XRegClass =
+      AArch64MCRegisterClasses[AArch64::GPR64RegClassID];
+
+  bool isXReg = XRegClass.contains(FirstReg),
+       isWReg = WRegClass.contains(FirstReg);
+  if (!isXReg && !isWReg) {
+    Error(S, "expected first even register of a "
+             "consecutive same-size even/odd register pair");
+    return MatchOperand_ParseFail;
+  }
+
+  const MCRegisterInfo *RI = getContext().getRegisterInfo();
+  unsigned FirstEncoding = RI->getEncodingValue(FirstReg);
+
+  if (FirstEncoding & 0x1) {
+    Error(S, "expected first even register of a "
+             "consecutive same-size even/odd register pair");
+    return MatchOperand_ParseFail;
+  }
+
+  SMLoc M = getLoc();
+  if (getParser().getTok().isNot(AsmToken::Comma)) {
+    Error(M, "expected comma");
+    return MatchOperand_ParseFail;
+  }
+  // Eat the comma
+  getParser().Lex();
+
+  SMLoc E = getLoc();
+  int SecondReg = tryParseRegister();
+  if (SecondReg ==-1) {
+    return MatchOperand_ParseFail;
+  }
+
+ if (RI->getEncodingValue(SecondReg) != FirstEncoding + 1 ||
+      (isXReg && !XRegClass.contains(SecondReg)) ||
+      (isWReg && !WRegClass.contains(SecondReg))) {
+    Error(E,"expected second odd register of a "
+             "consecutive same-size even/odd register pair");
+    return MatchOperand_ParseFail;
+  }
+  
+  unsigned Pair = 0;
+  if(isXReg) {
+    Pair = RI->getMatchingSuperReg(FirstReg, AArch64::sube64,
+           &AArch64MCRegisterClasses[AArch64::XSeqPairsClassRegClassID]);
+  } else {
+    Pair = RI->getMatchingSuperReg(FirstReg, AArch64::sube32,
+           &AArch64MCRegisterClasses[AArch64::WSeqPairsClassRegClassID]);
+  }
+
+  Operands.push_back(AArch64Operand::CreateReg(Pair, false, S, getLoc(),
+      getContext()));
+
+  return MatchOperand_Success;
 }

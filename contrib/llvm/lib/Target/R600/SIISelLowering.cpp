@@ -155,7 +155,6 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   for (MVT VT : MVT::fp_valuetypes())
     setLoadExtAction(ISD::EXTLOAD, VT, MVT::f32, Expand);
 
-  setTruncStoreAction(MVT::f64, MVT::f32, Expand);
   setTruncStoreAction(MVT::i64, MVT::i32, Expand);
   setTruncStoreAction(MVT::v8i32, MVT::v8i16, Expand);
   setTruncStoreAction(MVT::v16i32, MVT::v16i16, Expand);
@@ -211,6 +210,10 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   setTargetDAGCombine(ISD::FSUB);
   setTargetDAGCombine(ISD::FMINNUM);
   setTargetDAGCombine(ISD::FMAXNUM);
+  setTargetDAGCombine(ISD::SMIN);
+  setTargetDAGCombine(ISD::SMAX);
+  setTargetDAGCombine(ISD::UMIN);
+  setTargetDAGCombine(ISD::UMAX);
   setTargetDAGCombine(ISD::SELECT_CC);
   setTargetDAGCombine(ISD::SETCC);
   setTargetDAGCombine(ISD::AND);
@@ -251,47 +254,83 @@ bool SITargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &,
   return false;
 }
 
-// FIXME: This really needs an address space argument. The immediate offset
-// size is different for different sets of memory instruction sets.
-
-// The single offset DS instructions have a 16-bit unsigned byte offset.
-//
-// MUBUF / MTBUF have a 12-bit unsigned byte offset, and additionally can do r +
-// r + i with addr64. 32-bit has more addressing mode options. Depending on the
-// resource constant, it can also do (i64 r0) + (i32 r1) * (i14 i).
-//
-// SMRD instructions have an 8-bit, dword offset.
-//
 bool SITargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                             Type *Ty) const {
+                                             Type *Ty, unsigned AS) const {
   // No global is ever allowed as a base.
   if (AM.BaseGV)
     return false;
 
-  // Allow a 16-bit unsigned immediate field, since this is what DS instructions
-  // use.
-  if (!isUInt<16>(AM.BaseOffs))
-    return false;
+  switch (AS) {
+  case AMDGPUAS::GLOBAL_ADDRESS:
+  case AMDGPUAS::CONSTANT_ADDRESS: // XXX - Should we assume SMRD instructions?
+  case AMDGPUAS::PRIVATE_ADDRESS:
+  case AMDGPUAS::UNKNOWN_ADDRESS_SPACE: {
+    // MUBUF / MTBUF instructions have a 12-bit unsigned byte offset, and
+    // additionally can do r + r + i with addr64. 32-bit has more addressing
+    // mode options. Depending on the resource constant, it can also do
+    // (i64 r0) + (i32 r1) * (i14 i).
+    //
+    // SMRD instructions have an 8-bit, dword offset.
+    //
+    // Assume nonunifom access, since the address space isn't enough to know
+    // what instruction we will use, and since we don't know if this is a load
+    // or store and scalar stores are only available on VI.
+    //
+    // We also know if we are doing an extload, we can't do a scalar load.
+    //
+    // Private arrays end up using a scratch buffer most of the time, so also
+    // assume those use MUBUF instructions. Scratch loads / stores are currently
+    // implemented as mubuf instructions with offen bit set, so slightly
+    // different than the normal addr64.
+    if (!isUInt<12>(AM.BaseOffs))
+      return false;
 
-  // Only support r+r,
-  switch (AM.Scale) {
-  case 0:  // "r+i" or just "i", depending on HasBaseReg.
-    break;
-  case 1:
-    if (AM.HasBaseReg && AM.BaseOffs)  // "r+r+i" is not allowed.
+    // FIXME: Since we can split immediate into soffset and immediate offset,
+    // would it make sense to allow any immediate?
+
+    switch (AM.Scale) {
+    case 0: // r + i or just i, depending on HasBaseReg.
+      return true;
+    case 1:
+      return true; // We have r + r or r + i.
+    case 2:
+      if (AM.HasBaseReg) {
+        // Reject 2 * r + r.
+        return false;
+      }
+
+      // Allow 2 * r as r + r
+      // Or  2 * r + i is allowed as r + r + i.
+      return true;
+    default: // Don't allow n * r
       return false;
-    // Otherwise we have r+r or r+i.
-    break;
-  case 2:
-    if (AM.HasBaseReg || AM.BaseOffs)  // 2*r+r  or  2*r+i is not allowed.
+    }
+  }
+  case AMDGPUAS::LOCAL_ADDRESS:
+  case AMDGPUAS::REGION_ADDRESS: {
+    // Basic, single offset DS instructions allow a 16-bit unsigned immediate
+    // field.
+    // XXX - If doing a 4-byte aligned 8-byte type access, we effectively have
+    // an 8-bit dword offset but we don't know the alignment here.
+    if (!isUInt<16>(AM.BaseOffs))
       return false;
-    // Allow 2*r as r+r.
-    break;
-  default: // Don't allow n * r
+
+    if (AM.Scale == 0) // r + i or just i, depending on HasBaseReg.
+      return true;
+
+    if (AM.Scale == 1 && AM.HasBaseReg)
+      return true;
+
     return false;
   }
-
-  return true;
+  case AMDGPUAS::FLAT_ADDRESS: {
+    // Flat instructions do not have offsets, and only have the register
+    // address.
+    return AM.BaseOffs == 0 && (AM.Scale == 0 || AM.Scale == 1);
+  }
+  default:
+    llvm_unreachable("unhandled address space");
+  }
 }
 
 bool SITargetLowering::allowsMisalignedMemoryAccesses(EVT VT,
@@ -368,6 +407,12 @@ bool SITargetLowering::shouldConvertConstantLoadToIntImm(const APInt &Imm,
   return TII->isInlineConstant(Imm);
 }
 
+static EVT toIntegerVT(EVT VT) {
+  if (VT.isVector())
+    return VT.changeVectorElementTypeToInteger();
+  return MVT::getIntegerVT(VT.getSizeInBits());
+}
+
 SDValue SITargetLowering::LowerParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
                                          SDLoc SL, SDValue Chain,
                                          unsigned Offset, bool Signed) const {
@@ -380,20 +425,42 @@ SDValue SITargetLowering::LowerParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
   Type *Ty = VT.getTypeForEVT(*DAG.getContext());
 
   MachineRegisterInfo &MRI = DAG.getMachineFunction().getRegInfo();
+  MVT PtrVT = getPointerTy(AMDGPUAS::CONSTANT_ADDRESS);
   PointerType *PtrTy = PointerType::get(Ty, AMDGPUAS::CONSTANT_ADDRESS);
-  SDValue BasePtr =  DAG.getCopyFromReg(Chain, SL,
-                           MRI.getLiveInVirtReg(InputPtrReg), MVT::i64);
-  SDValue Ptr = DAG.getNode(ISD::ADD, SL, MVT::i64, BasePtr,
-                            DAG.getConstant(Offset, SL, MVT::i64));
+  SDValue BasePtr = DAG.getCopyFromReg(Chain, SL,
+                                       MRI.getLiveInVirtReg(InputPtrReg), PtrVT);
+  SDValue Ptr = DAG.getNode(ISD::ADD, SL, PtrVT, BasePtr,
+                            DAG.getConstant(Offset, SL, PtrVT));
   SDValue PtrOffset = DAG.getUNDEF(getPointerTy(AMDGPUAS::CONSTANT_ADDRESS));
   MachinePointerInfo PtrInfo(UndefValue::get(PtrTy));
 
-  return DAG.getLoad(ISD::UNINDEXED, Signed ? ISD::SEXTLOAD : ISD::ZEXTLOAD,
+  unsigned Align = DL->getABITypeAlignment(Ty);
+
+  if (VT != MemVT && VT.isFloatingPoint()) {
+    // Do an integer load and convert.
+    // FIXME: This is mostly because load legalization after type legalization
+    // doesn't handle FP extloads.
+    assert(VT.getScalarType() == MVT::f32 &&
+           MemVT.getScalarType() == MVT::f16);
+
+    EVT IVT = toIntegerVT(VT);
+    EVT MemIVT = toIntegerVT(MemVT);
+    SDValue Load = DAG.getLoad(ISD::UNINDEXED, ISD::ZEXTLOAD,
+                               IVT, SL, Chain, Ptr, PtrOffset, PtrInfo, MemIVT,
+                               false, // isVolatile
+                               true, // isNonTemporal
+                               true, // isInvariant
+                               Align); // Alignment
+    return DAG.getNode(ISD::FP16_TO_FP, SL, VT, Load);
+  }
+
+  ISD::LoadExtType ExtTy = Signed ? ISD::SEXTLOAD : ISD::ZEXTLOAD;
+  return DAG.getLoad(ISD::UNINDEXED, ExtTy,
                      VT, SL, Chain, Ptr, PtrOffset, PtrInfo, MemVT,
                      false, // isVolatile
                      true, // isNonTemporal
                      true, // isInvariant
-                     DL->getABITypeAlignment(Ty)); // Alignment
+                     Align); // Alignment
 }
 
 SDValue SITargetLowering::LowerFormalArguments(
@@ -1570,15 +1637,15 @@ static unsigned minMaxOpcToMin3Max3Opc(unsigned Opc) {
   switch (Opc) {
   case ISD::FMAXNUM:
     return AMDGPUISD::FMAX3;
-  case AMDGPUISD::SMAX:
+  case ISD::SMAX:
     return AMDGPUISD::SMAX3;
-  case AMDGPUISD::UMAX:
+  case ISD::UMAX:
     return AMDGPUISD::UMAX3;
   case ISD::FMINNUM:
     return AMDGPUISD::FMIN3;
-  case AMDGPUISD::SMIN:
+  case ISD::SMIN:
     return AMDGPUISD::SMIN3;
-  case AMDGPUISD::UMIN:
+  case ISD::UMIN:
     return AMDGPUISD::UMIN3;
   default:
     llvm_unreachable("Not a min/max opcode");
@@ -1664,10 +1731,10 @@ SDValue SITargetLowering::PerformDAGCombine(SDNode *N,
     return performSetCCCombine(N, DCI);
   case ISD::FMAXNUM: // TODO: What about fmax_legacy?
   case ISD::FMINNUM:
-  case AMDGPUISD::SMAX:
-  case AMDGPUISD::SMIN:
-  case AMDGPUISD::UMAX:
-  case AMDGPUISD::UMIN: {
+  case ISD::SMAX:
+  case ISD::SMIN:
+  case ISD::UMAX:
+  case ISD::UMIN: {
     if (DCI.getDAGCombineLevel() >= AfterLegalizeDAG &&
         N->getValueType(0) != MVT::f64 &&
         getTargetMachine().getOptLevel() > CodeGenOpt::None)

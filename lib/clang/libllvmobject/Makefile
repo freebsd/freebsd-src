@@ -6,6 +6,7 @@ LIB=	llvmobject
 
 SRCDIR=	lib/Object
 SRCS=	Archive.cpp \
+	ArchiveWriter.cpp \
 	Binary.cpp \
 	COFFObjectFile.cpp \
 	COFFYAML.cpp \

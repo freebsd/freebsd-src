@@ -79,9 +79,8 @@ protected:
                                 StringRef &Res) const override;
   std::error_code getSymbolAddress(DataRefImpl Symb,
                                    uint64_t &Res) const override;
-  std::error_code getSymbolAlignment(DataRefImpl Symb,
-                                     uint32_t &Res) const override;
-  std::error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const override;
+  uint32_t getSymbolAlignment(DataRefImpl Symb) const override;
+  uint64_t getSymbolSize(DataRefImpl Symb) const override;
   uint32_t getSymbolFlags(DataRefImpl Symb) const override;
   std::error_code getSymbolOther(DataRefImpl Symb, uint8_t &Res) const override;
   std::error_code getSymbolType(DataRefImpl Symb,
@@ -119,9 +118,6 @@ protected:
   std::error_code
   getRelocationTypeName(DataRefImpl Rel,
                         SmallVectorImpl<char> &Result) const override;
-  std::error_code
-  getRelocationValueString(DataRefImpl Rel,
-                           SmallVectorImpl<char> &Result) const override;
 
   uint64_t getROffset(DataRefImpl Rel) const;
   StringRef getRelocationTypeName(uint32_t Type) const;
@@ -227,7 +223,7 @@ public:
 
   std::error_code getPlatformFlags(unsigned &Result) const override {
     Result = EF.getHeader()->e_flags;
-    return object_error::success;
+    return std::error_code();
   }
 
   const ELFFile<ELFT> *getELFFile() const { return &EF; }
@@ -244,12 +240,10 @@ public:
   bool isRelocatableObject() const override;
 };
 
-// Use an alignment of 2 for the typedefs since that is the worst case for
-// ELF files in archives.
-typedef ELFObjectFile<ELFType<support::little, 2, false> > ELF32LEObjectFile;
-typedef ELFObjectFile<ELFType<support::little, 2, true> > ELF64LEObjectFile;
-typedef ELFObjectFile<ELFType<support::big, 2, false> > ELF32BEObjectFile;
-typedef ELFObjectFile<ELFType<support::big, 2, true> > ELF64BEObjectFile;
+typedef ELFObjectFile<ELFType<support::little, false>> ELF32LEObjectFile;
+typedef ELFObjectFile<ELFType<support::little, true>> ELF64LEObjectFile;
+typedef ELFObjectFile<ELFType<support::big, false>> ELF32BEObjectFile;
+typedef ELFObjectFile<ELFType<support::big, true>> ELF64BEObjectFile;
 
 template <class ELFT>
 void ELFObjectFile<ELFT>::moveSymbolNext(DataRefImpl &Symb) const {
@@ -263,7 +257,7 @@ std::error_code ELFObjectFile<ELFT>::getSymbolName(DataRefImpl Symb,
   if (!Name)
     return Name.getError();
   Result = *Name;
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -277,7 +271,7 @@ std::error_code ELFObjectFile<ELFT>::getSymbolVersion(SymbolRef SymRef,
   if (!Ver)
     return Ver.getError();
   Version = *Ver;
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -300,10 +294,10 @@ std::error_code ELFObjectFile<ELFT>::getSymbolAddress(DataRefImpl Symb,
   case ELF::SHN_COMMON:
   case ELF::SHN_UNDEF:
     Result = UnknownAddressOrSize;
-    return object_error::success;
+    return std::error_code();
   case ELF::SHN_ABS:
     Result = ESym->st_value;
-    return object_error::success;
+    return std::error_code();
   default:
     break;
   }
@@ -322,32 +316,27 @@ std::error_code ELFObjectFile<ELFT>::getSymbolAddress(DataRefImpl Symb,
       Result += Section->sh_addr;
   }
 
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
-std::error_code ELFObjectFile<ELFT>::getSymbolAlignment(DataRefImpl Symb,
-                                                        uint32_t &Res) const {
+uint32_t ELFObjectFile<ELFT>::getSymbolAlignment(DataRefImpl Symb) const {
   Elf_Sym_Iter Sym = toELFSymIter(Symb);
   if (Sym->st_shndx == ELF::SHN_COMMON)
-    Res = Sym->st_value;
-  else
-    Res = 0;
-  return object_error::success;
+    return Sym->st_value;
+  return 0;
 }
 
 template <class ELFT>
-std::error_code ELFObjectFile<ELFT>::getSymbolSize(DataRefImpl Symb,
-                                                   uint64_t &Result) const {
-  Result = toELFSymIter(Symb)->st_size;
-  return object_error::success;
+uint64_t ELFObjectFile<ELFT>::getSymbolSize(DataRefImpl Symb) const {
+  return toELFSymIter(Symb)->st_size;
 }
 
 template <class ELFT>
 std::error_code ELFObjectFile<ELFT>::getSymbolOther(DataRefImpl Symb,
                                                     uint8_t &Result) const {
   Result = toELFSymIter(Symb)->st_other;
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -378,7 +367,7 @@ ELFObjectFile<ELFT>::getSymbolType(DataRefImpl Symb,
     Result = SymbolRef::ST_Other;
     break;
   }
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -435,7 +424,7 @@ std::error_code
 ELFObjectFile<ELFT>::getSymbolSection(DataRefImpl Symb,
                                       section_iterator &Res) const {
   Res = getSymbolSection(getSymbol(Symb));
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -450,7 +439,7 @@ std::error_code ELFObjectFile<ELFT>::getSectionName(DataRefImpl Sec,
   if (!Name)
     return Name.getError();
   Result = *Name;
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -469,7 +458,7 @@ ELFObjectFile<ELFT>::getSectionContents(DataRefImpl Sec,
                                         StringRef &Result) const {
   Elf_Shdr_Iter EShdr = toELFShdrIter(Sec);
   Result = StringRef((const char *)base() + EShdr->sh_offset, EShdr->sh_size);
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -624,7 +613,7 @@ ELFObjectFile<ELFT>::getRelocationAddress(DataRefImpl Rel,
     Result = ROffset;
   }
 
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -634,7 +623,7 @@ ELFObjectFile<ELFT>::getRelocationOffset(DataRefImpl Rel,
   assert(EF.getHeader()->e_type == ELF::ET_REL &&
          "Only relocatable object files have relocation offsets");
   Result = getROffset(Rel);
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -666,7 +655,7 @@ std::error_code ELFObjectFile<ELFT>::getRelocationType(DataRefImpl Rel,
     break;
   }
   }
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -693,7 +682,7 @@ std::error_code ELFObjectFile<ELFT>::getRelocationTypeName(
   }
 
   EF.getRelocationTypeName(type, Result);
-  return object_error::success;
+  return std::error_code();
 }
 
 template <class ELFT>
@@ -706,94 +695,13 @@ ELFObjectFile<ELFT>::getRelocationAddend(DataRefImpl Rel,
     report_fatal_error("Invalid section type in Rel!");
   case ELF::SHT_REL: {
     Result = 0;
-    return object_error::success;
+    return std::error_code();
   }
   case ELF::SHT_RELA: {
     Result = getRela(Rel)->r_addend;
-    return object_error::success;
+    return std::error_code();
   }
   }
-}
-
-template <class ELFT>
-std::error_code ELFObjectFile<ELFT>::getRelocationValueString(
-    DataRefImpl Rel, SmallVectorImpl<char> &Result) const {
-  const Elf_Shdr *sec = getRelSection(Rel);
-  uint8_t type;
-  StringRef res;
-  int64_t addend = 0;
-  uint16_t symbol_index = 0;
-  switch (sec->sh_type) {
-  default:
-    return object_error::parse_failed;
-  case ELF::SHT_REL: {
-    type = getRel(Rel)->getType(EF.isMips64EL());
-    symbol_index = getRel(Rel)->getSymbol(EF.isMips64EL());
-    // TODO: Read implicit addend from section data.
-    break;
-  }
-  case ELF::SHT_RELA: {
-    type = getRela(Rel)->getType(EF.isMips64EL());
-    symbol_index = getRela(Rel)->getSymbol(EF.isMips64EL());
-    addend = getRela(Rel)->r_addend;
-    break;
-  }
-  }
-  const Elf_Sym *symb =
-      EF.template getEntry<Elf_Sym>(sec->sh_link, symbol_index);
-  ErrorOr<StringRef> SymName =
-      EF.getSymbolName(EF.getSection(sec->sh_link), symb);
-  if (!SymName)
-    return SymName.getError();
-  switch (EF.getHeader()->e_machine) {
-  case ELF::EM_X86_64:
-    switch (type) {
-    case ELF::R_X86_64_PC8:
-    case ELF::R_X86_64_PC16:
-    case ELF::R_X86_64_PC32: {
-      std::string fmtbuf;
-      raw_string_ostream fmt(fmtbuf);
-      fmt << *SymName << (addend < 0 ? "" : "+") << addend << "-P";
-      fmt.flush();
-      Result.append(fmtbuf.begin(), fmtbuf.end());
-    } break;
-    case ELF::R_X86_64_8:
-    case ELF::R_X86_64_16:
-    case ELF::R_X86_64_32:
-    case ELF::R_X86_64_32S:
-    case ELF::R_X86_64_64: {
-      std::string fmtbuf;
-      raw_string_ostream fmt(fmtbuf);
-      fmt << *SymName << (addend < 0 ? "" : "+") << addend;
-      fmt.flush();
-      Result.append(fmtbuf.begin(), fmtbuf.end());
-    } break;
-    default:
-      res = "Unknown";
-    }
-    break;
-  case ELF::EM_AARCH64: {
-    std::string fmtbuf;
-    raw_string_ostream fmt(fmtbuf);
-    fmt << *SymName;
-    if (addend != 0)
-      fmt << (addend < 0 ? "" : "+") << addend;
-    fmt.flush();
-    Result.append(fmtbuf.begin(), fmtbuf.end());
-    break;
-  }
-  case ELF::EM_386:
-  case ELF::EM_ARM:
-  case ELF::EM_HEXAGON:
-  case ELF::EM_MIPS:
-    res = *SymName;
-    break;
-  default:
-    res = "Unknown";
-  }
-  if (Result.empty())
-    Result.append(res.begin(), res.end());
-  return object_error::success;
 }
 
 template <class ELFT>

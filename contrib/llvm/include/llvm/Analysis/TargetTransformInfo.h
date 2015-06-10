@@ -221,19 +221,21 @@ public:
 
   /// Parameters that control the generic loop unrolling transformation.
   struct UnrollingPreferences {
-    /// The cost threshold for the unrolled loop, compared to
-    /// CodeMetrics.NumInsts aggregated over all basic blocks in the loop body.
-    /// The unrolling factor is set such that the unrolled loop body does not
-    /// exceed this cost. Set this to UINT_MAX to disable the loop body cost
+    /// The cost threshold for the unrolled loop. Should be relative to the
+    /// getUserCost values returned by this API, and the expectation is that
+    /// the unrolled loop's instructions when run through that interface should
+    /// not exceed this cost. However, this is only an estimate. Also, specific
+    /// loops may be unrolled even with a cost above this threshold if deemed
+    /// profitable. Set this to UINT_MAX to disable the loop body cost
     /// restriction.
     unsigned Threshold;
-    /// If complete unrolling could help other optimizations (e.g. InstSimplify)
-    /// to remove N% of instructions, then we can go beyond unroll threshold.
-    /// This value set the minimal percent for allowing that.
-    unsigned MinPercentOfOptimized;
-    /// The absolute cost threshold. We won't go beyond this even if complete
-    /// unrolling could result in optimizing out 90% of instructions.
-    unsigned AbsoluteThreshold;
+    /// If complete unrolling will reduce the cost of the loop below its
+    /// expected dynamic cost while rolled by this percentage, apply a discount
+    /// (below) to its unrolled cost.
+    unsigned PercentDynamicCostSavedThreshold;
+    /// The discount applied to the unrolled cost when the *dynamic* cost
+    /// savings of unrolling exceed the \c PercentDynamicCostSavedThreshold.
+    unsigned DynamicCostSavingsDiscount;
     /// The cost threshold for the unrolled loop when optimizing for size (set
     /// to UINT_MAX to disable).
     unsigned OptSizeThreshold;
@@ -303,7 +305,8 @@ public:
   /// mode is legal for a load/store of any legal type.
   /// TODO: Handle pre/postinc as well.
   bool isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV, int64_t BaseOffset,
-                             bool HasBaseReg, int64_t Scale) const;
+                             bool HasBaseReg, int64_t Scale,
+                             unsigned AddrSpace = 0) const;
 
   /// \brief Return true if the target works with masked instruction
   /// AVX2 allows masks for consecutive load and store for i32 and i64 elements.
@@ -319,7 +322,8 @@ public:
   /// If the AM is not supported, it returns a negative value.
   /// TODO: Handle pre/postinc as well.
   int getScalingFactorCost(Type *Ty, GlobalValue *BaseGV, int64_t BaseOffset,
-                           bool HasBaseReg, int64_t Scale) const;
+                           bool HasBaseReg, int64_t Scale,
+                           unsigned AddrSpace = 0) const;
 
   /// \brief Return true if it's free to truncate a value of type Ty1 to type
   /// Ty2. e.g. On x86 it's free to truncate a i32 value in register EAX to i16
@@ -444,6 +448,20 @@ public:
   unsigned getMaskedMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                                  unsigned AddressSpace) const;
 
+  /// \return The cost of the interleaved memory operation.
+  /// \p Opcode is the memory operation code
+  /// \p VecTy is the vector type of the interleaved access.
+  /// \p Factor is the interleave factor
+  /// \p Indices is the indices for interleaved load members (as interleaved
+  ///    load allows gaps)
+  /// \p Alignment is the alignment of the memory operation
+  /// \p AddressSpace is address space of the pointer.
+  unsigned getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
+                                      unsigned Factor,
+                                      ArrayRef<unsigned> Indices,
+                                      unsigned Alignment,
+                                      unsigned AddressSpace) const;
+
   /// \brief Calculate the cost of performing a vector reduction.
   ///
   /// This is the cost of reducing the vector value of type \p Ty to a scalar
@@ -539,12 +557,13 @@ public:
   virtual bool isLegalICmpImmediate(int64_t Imm) = 0;
   virtual bool isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV,
                                      int64_t BaseOffset, bool HasBaseReg,
-                                     int64_t Scale) = 0;
+                                     int64_t Scale,
+                                     unsigned AddrSpace) = 0;
   virtual bool isLegalMaskedStore(Type *DataType, int Consecutive) = 0;
   virtual bool isLegalMaskedLoad(Type *DataType, int Consecutive) = 0;
   virtual int getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
                                    int64_t BaseOffset, bool HasBaseReg,
-                                   int64_t Scale) = 0;
+                                   int64_t Scale, unsigned AddrSpace) = 0;
   virtual bool isTruncateFree(Type *Ty1, Type *Ty2) = 0;
   virtual bool isProfitableToHoist(Instruction *I) = 0;
   virtual bool isTypeLegal(Type *Ty) = 0;
@@ -582,6 +601,11 @@ public:
   virtual unsigned getMaskedMemoryOpCost(unsigned Opcode, Type *Src,
                                          unsigned Alignment,
                                          unsigned AddressSpace) = 0;
+  virtual unsigned getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
+                                              unsigned Factor,
+                                              ArrayRef<unsigned> Indices,
+                                              unsigned Alignment,
+                                              unsigned AddressSpace) = 0;
   virtual unsigned getReductionCost(unsigned Opcode, Type *Ty,
                                     bool IsPairwiseForm) = 0;
   virtual unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
@@ -648,9 +672,10 @@ public:
     return Impl.isLegalICmpImmediate(Imm);
   }
   bool isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV, int64_t BaseOffset,
-                             bool HasBaseReg, int64_t Scale) override {
+                             bool HasBaseReg, int64_t Scale,
+                             unsigned AddrSpace) override {
     return Impl.isLegalAddressingMode(Ty, BaseGV, BaseOffset, HasBaseReg,
-                                      Scale);
+                                      Scale, AddrSpace);
   }
   bool isLegalMaskedStore(Type *DataType, int Consecutive) override {
     return Impl.isLegalMaskedStore(DataType, Consecutive);
@@ -659,8 +684,10 @@ public:
     return Impl.isLegalMaskedLoad(DataType, Consecutive);
   }
   int getScalingFactorCost(Type *Ty, GlobalValue *BaseGV, int64_t BaseOffset,
-                           bool HasBaseReg, int64_t Scale) override {
-    return Impl.getScalingFactorCost(Ty, BaseGV, BaseOffset, HasBaseReg, Scale);
+                           bool HasBaseReg, int64_t Scale,
+                           unsigned AddrSpace) override {
+    return Impl.getScalingFactorCost(Ty, BaseGV, BaseOffset, HasBaseReg,
+                                     Scale, AddrSpace);
   }
   bool isTruncateFree(Type *Ty1, Type *Ty2) override {
     return Impl.isTruncateFree(Ty1, Ty2);
@@ -739,6 +766,14 @@ public:
   unsigned getMaskedMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                                  unsigned AddressSpace) override {
     return Impl.getMaskedMemoryOpCost(Opcode, Src, Alignment, AddressSpace);
+  }
+  unsigned getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
+                                      unsigned Factor,
+                                      ArrayRef<unsigned> Indices,
+                                      unsigned Alignment,
+                                      unsigned AddressSpace) override {
+    return Impl.getInterleavedMemoryOpCost(Opcode, VecTy, Factor, Indices,
+                                           Alignment, AddressSpace);
   }
   unsigned getReductionCost(unsigned Opcode, Type *Ty,
                             bool IsPairwiseForm) override {

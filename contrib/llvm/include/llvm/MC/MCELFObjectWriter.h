@@ -21,17 +21,17 @@ class MCFixup;
 class MCFragment;
 class MCObjectWriter;
 class MCSymbol;
-class MCSymbolData;
+class MCSymbolELF;
 class MCValue;
 class raw_pwrite_stream;
 
 struct ELFRelocationEntry {
   uint64_t Offset; // Where is the relocation.
-  const MCSymbol *Symbol;       // The symbol to relocate with.
+  const MCSymbolELF *Symbol; // The symbol to relocate with.
   unsigned Type;   // The type of the relocation.
   uint64_t Addend; // The addend to use.
 
-  ELFRelocationEntry(uint64_t Offset, const MCSymbol *Symbol, unsigned Type,
+  ELFRelocationEntry(uint64_t Offset, const MCSymbolELF *Symbol, unsigned Type,
                      uint64_t Addend)
       : Offset(Offset), Symbol(Symbol), Type(Type), Addend(Addend) {}
 };
@@ -69,7 +69,7 @@ public:
   virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                                 bool IsPCRel) const = 0;
 
-  virtual bool needsRelocateWithSymbol(const MCSymbolData &SD,
+  virtual bool needsRelocateWithSymbol(const MCSymbol &Sym,
                                        unsigned Type) const;
 
   virtual void sortRelocs(const MCAssembler &Asm,

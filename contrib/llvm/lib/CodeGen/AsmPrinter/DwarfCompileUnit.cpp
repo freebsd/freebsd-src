@@ -42,8 +42,7 @@ void DwarfCompileUnit::addLabelAddress(DIE &Die, dwarf::Attribute Attribute,
     DD->addArangeLabel(SymbolCU(this, Label));
 
   unsigned idx = DD->getAddressPool().getIndex(Label);
-  DIEValue *Value = new (DIEValueAllocator) DIEInteger(idx);
-  Die.addValue(Attribute, dwarf::DW_FORM_GNU_addr_index, Value);
+  Die.addValue(Attribute, dwarf::DW_FORM_GNU_addr_index, DIEInteger(idx));
 }
 
 void DwarfCompileUnit::addLocalLabelAddress(DIE &Die,
@@ -52,9 +51,10 @@ void DwarfCompileUnit::addLocalLabelAddress(DIE &Die,
   if (Label)
     DD->addArangeLabel(SymbolCU(this, Label));
 
-  Die.addValue(Attribute, dwarf::DW_FORM_addr,
-               Label ? (DIEValue *)new (DIEValueAllocator) DIELabel(Label)
-                     : new (DIEValueAllocator) DIEInteger(0));
+  if (Label)
+    Die.addValue(Attribute, dwarf::DW_FORM_addr, DIELabel(Label));
+  else
+    Die.addValue(Attribute, dwarf::DW_FORM_addr, DIEInteger(0));
 }
 
 unsigned DwarfCompileUnit::getOrCreateSourceID(StringRef FileName,
@@ -145,7 +145,7 @@ DIE *DwarfCompileUnit::getOrCreateGlobalVariableDIE(
   bool addToAccelTable = false;
   if (auto *Global = dyn_cast_or_null<GlobalVariable>(GV->getVariable())) {
     addToAccelTable = true;
-    DIELoc *Loc = new (DIEValueAllocator) DIELoc();
+    DIELoc *Loc = new (DIEValueAllocator) DIELoc;
     const MCSymbol *Sym = Asm->getSymbol(Global);
     if (Global->isThreadLocal()) {
       // FIXME: Make this work with -gsplit-dwarf.
@@ -183,7 +183,7 @@ DIE *DwarfCompileUnit::getOrCreateGlobalVariableDIE(
   } else if (const ConstantExpr *CE = getMergedGlobalExpr(GV->getVariable())) {
     addToAccelTable = true;
     // GV is a merged global.
-    DIELoc *Loc = new (DIEValueAllocator) DIELoc();
+    DIELoc *Loc = new (DIEValueAllocator) DIELoc;
     Value *Ptr = CE->getOperand(0);
     MCSymbol *Sym = Asm->getSymbol(cast<GlobalValue>(Ptr));
     DD->addArangeLabel(SymbolCU(this, Sym));
@@ -242,7 +242,7 @@ void DwarfCompileUnit::initStmtList() {
   MCSymbol *LineTableStartSym =
       Asm->OutStreamer->getDwarfLineTableSymbol(getUniqueID());
 
-  stmtListIndex = UnitDie.getValues().size();
+  stmtListIndex = std::distance(UnitDie.values_begin(), UnitDie.values_end());
 
   // DW_AT_stmt_list is a offset of line number information for this
   // compile unit in debug_line section. For split dwarf this is
@@ -255,9 +255,7 @@ void DwarfCompileUnit::initStmtList() {
 }
 
 void DwarfCompileUnit::applyStmtList(DIE &D) {
-  D.addValue(dwarf::DW_AT_stmt_list,
-             UnitDie.getAbbrev().getData()[stmtListIndex].getForm(),
-             UnitDie.getValues()[stmtListIndex]);
+  D.addValue(UnitDie.values_begin()[stmtListIndex]);
 }
 
 void DwarfCompileUnit::attachLowHighPC(DIE &D, const MCSymbol *Begin,
@@ -365,10 +363,9 @@ void DwarfCompileUnit::constructScopeDIE(
 
 void DwarfCompileUnit::addSectionDelta(DIE &Die, dwarf::Attribute Attribute,
                                        const MCSymbol *Hi, const MCSymbol *Lo) {
-  DIEValue *Value = new (DIEValueAllocator) DIEDelta(Hi, Lo);
   Die.addValue(Attribute, DD->getDwarfVersion() >= 4 ? dwarf::DW_FORM_sec_offset
                                                      : dwarf::DW_FORM_data4,
-               Value);
+               new (DIEValueAllocator) DIEDelta(Hi, Lo));
 }
 
 void DwarfCompileUnit::addScopeRangeList(DIE &ScopeDIE,
@@ -515,7 +512,7 @@ DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
     return VariableDie;
 
   auto Expr = DV.getExpression().begin();
-  DIELoc *Loc = new (DIEValueAllocator) DIELoc();
+  DIELoc *Loc = new (DIEValueAllocator) DIELoc;
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
   for (auto FI : DV.getFrameIndex()) {
     unsigned FrameReg = 0;
@@ -739,7 +736,7 @@ void DwarfCompileUnit::addVariableAddress(const DbgVariable &DV, DIE &Die,
 /// Add an address attribute to a die based on the location provided.
 void DwarfCompileUnit::addAddress(DIE &Die, dwarf::Attribute Attribute,
                                   const MachineLocation &Location) {
-  DIELoc *Loc = new (DIEValueAllocator) DIELoc();
+  DIELoc *Loc = new (DIEValueAllocator) DIELoc;
 
   bool validReg;
   if (Location.isReg())
@@ -761,7 +758,7 @@ void DwarfCompileUnit::addAddress(DIE &Die, dwarf::Attribute Attribute,
 void DwarfCompileUnit::addComplexAddress(const DbgVariable &DV, DIE &Die,
                                          dwarf::Attribute Attribute,
                                          const MachineLocation &Location) {
-  DIELoc *Loc = new (DIEValueAllocator) DIELoc();
+  DIELoc *Loc = new (DIEValueAllocator) DIELoc;
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
   assert(DV.getExpression().size() == 1);
   const DIExpression *Expr = DV.getExpression().back();
@@ -782,10 +779,9 @@ void DwarfCompileUnit::addComplexAddress(const DbgVariable &DV, DIE &Die,
 /// Add a Dwarf loclistptr attribute data and value.
 void DwarfCompileUnit::addLocationList(DIE &Die, dwarf::Attribute Attribute,
                                        unsigned Index) {
-  DIEValue *Value = new (DIEValueAllocator) DIELocList(Index);
   dwarf::Form Form = DD->getDwarfVersion() >= 4 ? dwarf::DW_FORM_sec_offset
                                                 : dwarf::DW_FORM_data4;
-  Die.addValue(Attribute, Form, Value);
+  Die.addValue(Attribute, Form, DIELocList(Index));
 }
 
 void DwarfCompileUnit::applyVariableAttributes(const DbgVariable &Var,
@@ -802,8 +798,7 @@ void DwarfCompileUnit::applyVariableAttributes(const DbgVariable &Var,
 /// Add a Dwarf expression attribute data and value.
 void DwarfCompileUnit::addExpr(DIELoc &Die, dwarf::Form Form,
                                const MCExpr *Expr) {
-  DIEValue *Value = new (DIEValueAllocator) DIEExpr(Expr);
-  Die.addValue((dwarf::Attribute)0, Form, Value);
+  Die.addValue((dwarf::Attribute)0, Form, DIEExpr(Expr));
 }
 
 void DwarfCompileUnit::applySubprogramAttributesToDefinition(

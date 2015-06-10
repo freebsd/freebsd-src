@@ -45,6 +45,7 @@ SUBDIR=	libclanganalysis \
 	libllvmmc \
 	libllvmmcdisassembler \
 	libllvmmcparser \
+	libllvmmirparser \
 	libllvmobjcarcopts \
 	libllvmobject \
 	libllvmoption \

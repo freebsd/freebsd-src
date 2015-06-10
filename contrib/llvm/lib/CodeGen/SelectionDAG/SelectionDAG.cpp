@@ -1810,6 +1810,13 @@ SDValue SelectionDAG::getMDNode(const MDNode *MD) {
   return SDValue(N, 0);
 }
 
+SDValue SelectionDAG::getBitcast(EVT VT, SDValue V) {
+  if (VT == V.getValueType())
+    return V;
+
+  return getNode(ISD::BITCAST, SDLoc(V), VT, V);
+}
+
 /// getAddrSpaceCast - Return an AddrSpaceCastSDNode.
 SDValue SelectionDAG::getAddrSpaceCast(SDLoc dl, EVT VT, SDValue Ptr,
                                        unsigned SrcAS, unsigned DestAS) {
@@ -2425,6 +2432,19 @@ void SelectionDAG::computeKnownBits(SDValue Op, APInt &KnownZero,
     KnownOne = KnownOne.trunc(BitWidth);
     break;
   }
+  case ISD::SMIN:
+  case ISD::SMAX:
+  case ISD::UMIN:
+  case ISD::UMAX: {
+    APInt Op0Zero, Op0One;
+    APInt Op1Zero, Op1One;
+    computeKnownBits(Op.getOperand(0), Op0Zero, Op0One, Depth);
+    computeKnownBits(Op.getOperand(1), Op1Zero, Op1One, Depth);
+
+    KnownZero = Op0Zero & Op1Zero;
+    KnownOne = Op0One & Op1One;
+    break;
+  }
   case ISD::FrameIndex:
   case ISD::TargetFrameIndex:
     if (unsigned Align = InferPtrAlignment(Op)) {
@@ -2528,7 +2548,15 @@ unsigned SelectionDAG::ComputeNumSignBits(SDValue Op, unsigned Depth) const{
     if (Tmp == 1) return 1;  // Early out.
     Tmp2 = ComputeNumSignBits(Op.getOperand(2), Depth+1);
     return std::min(Tmp, Tmp2);
-
+  case ISD::SMIN:
+  case ISD::SMAX:
+  case ISD::UMIN:
+  case ISD::UMAX:
+    Tmp = ComputeNumSignBits(Op.getOperand(0), Depth + 1);
+    if (Tmp == 1)
+      return 1;  // Early out.
+    Tmp2 = ComputeNumSignBits(Op.getOperand(1), Depth + 1);
+    return std::min(Tmp, Tmp2);
   case ISD::SADDO:
   case ISD::UADDO:
   case ISD::SSUBO:
@@ -2903,7 +2931,12 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
       case ISD::FP_TO_UINT:
       case ISD::TRUNCATE:
       case ISD::UINT_TO_FP:
-      case ISD::SINT_TO_FP: {
+      case ISD::SINT_TO_FP:
+      case ISD::CTLZ:
+      case ISD::CTLZ_ZERO_UNDEF:
+      case ISD::CTTZ:
+      case ISD::CTTZ_ZERO_UNDEF:
+      case ISD::CTPOP: {
         EVT SVT = VT.getScalarType();
         EVT InVT = BV->getValueType(0);
         EVT InSVT = InVT.getScalarType();

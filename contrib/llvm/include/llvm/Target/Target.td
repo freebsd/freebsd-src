@@ -381,6 +381,7 @@ class Instruction {
   bit hasPostISelHook = 0;  // To be *adjusted* after isel by target hook.
   bit hasCtrlDep   = 0;     // Does this instruction r/w ctrl-flow chains?
   bit isNotDuplicable = 0;  // Is it unsafe to duplicate this instruction?
+  bit isConvergent = 0;     // Is this instruction convergent?
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
   bit hasExtraSrcRegAllocReq = 0; // Sources have special regalloc requirement?
   bit hasExtraDefRegAllocReq = 0; // Defs have special regalloc requirement?
@@ -506,7 +507,7 @@ class Requires<list<Predicate> preds> {
 
 /// ops definition - This is just a simple marker used to identify the operand
 /// list for an instruction. outs and ins are identical both syntactically and
-/// semanticallyr; they are used to define def operands and use operands to
+/// semantically; they are used to define def operands and use operands to
 /// improve readibility. This should be used like this:
 ///     (outs R32:$dst), (ins R32:$src1, R32:$src2) or something similar.
 def ops;

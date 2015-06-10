@@ -105,6 +105,13 @@ X86TargetMachine::X86TargetMachine(const Target &T, StringRef TT, StringRef CPU,
   if (Subtarget.isTargetWin64())
     this->Options.TrapUnreachable = true;
 
+  // TODO: By default, all reciprocal estimate operations are off because
+  // that matches the behavior before TargetRecip was added (except for btver2
+  // which used subtarget features to enable this type of codegen).
+  // We should change this to match GCC behavior where everything but
+  // scalar division estimates are turned on by default with -ffast-math.
+  this->Options.Reciprocals.setDefaults("all", false, 1);
+
   initAsmInfo();
 }
 
@@ -221,9 +228,9 @@ bool X86PassConfig::addILPOpts() {
 }
 
 bool X86PassConfig::addPreISel() {
-  // Only add this pass for 32-bit x86.
+  // Only add this pass for 32-bit x86 Windows.
   Triple TT(TM->getTargetTriple());
-  if (TT.getArch() == Triple::x86)
+  if (TT.isOSWindows() && TT.getArch() == Triple::x86)
     addPass(createX86WinEHStatePass());
   return true;
 }

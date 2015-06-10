@@ -553,7 +553,7 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg,
     LoadInst *Load = Loads[i];
     BasicBlock *BB = Load->getParent();
 
-    AliasAnalysis::Location Loc = AA.getLocation(Load);
+    AliasAnalysis::Location Loc = MemoryLocation::get(Load);
     if (AA.canInstructionRangeModRef(BB->front(), *Load, Loc,
         AliasAnalysis::Mod))
       return false;  // Pointer is invalidated!
@@ -774,7 +774,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
         for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
           Idxs[1] = ConstantInt::get(Type::getInt32Ty(F->getContext()), i);
           Value *Idx = GetElementPtrInst::Create(
-              STy, *AI, Idxs, (*AI)->getName() + "." + utostr(i), Call);
+              STy, *AI, Idxs, (*AI)->getName() + "." + Twine(i), Call);
           // TODO: Tell AA about the new values?
           Args.push_back(new LoadInst(Idx, Idx->getName()+".val", Call));
         }

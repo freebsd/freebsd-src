@@ -120,7 +120,7 @@ static std::error_code getOffset(const SymbolRef &Sym, uint64_t &Result) {
 
   if (Address == UnknownAddressOrSize) {
     Result = UnknownAddressOrSize;
-    return object_error::success;
+    return std::error_code();
   }
 
   const ObjectFile *Obj = Sym.getObject();
@@ -130,12 +130,12 @@ static std::error_code getOffset(const SymbolRef &Sym, uint64_t &Result) {
 
   if (SecI == Obj->section_end()) {
     Result = UnknownAddressOrSize;
-    return object_error::success;
+    return std::error_code();
   }
 
   uint64_t SectionAddress = SecI->getAddress();
   Result = Address - SectionAddress;
-  return object_error::success;
+  return std::error_code();
 }
 
 std::pair<unsigned, unsigned>
@@ -149,6 +149,7 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
   // Save information about our target
   Arch = (Triple::ArchType)Obj.getArch();
   IsTargetLittleEndian = Obj.isLittleEndian();
+  setMipsABI(Obj);
 
   // Compute the memory size required to load all sections to be loaded
   // and pass this information to the memory manager
@@ -386,8 +387,7 @@ void RuntimeDyldImpl::computeTotalAllocSize(const ObjectFile &Obj,
     uint32_t Flags = I->getFlags();
     if (Flags & SymbolRef::SF_Common) {
       // Add the common symbols to a list.  We'll allocate them all below.
-      uint64_t Size = 0;
-      Check(I->getSize(Size));
+      uint64_t Size = I->getSize();
       CommonSize += Size;
     }
   }
@@ -493,10 +493,8 @@ void RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,
       continue;
     }
 
-    uint32_t Align = 0;
-    uint64_t Size = 0;
-    Check(Sym.getAlignment(Align));
-    Check(Sym.getSize(Size));
+    uint32_t Align = Sym.getAlignment();
+    uint64_t Size = Sym.getSize();
 
     CommonSize += Align + Size;
     SymbolsToAllocate.push_back(Sym);
@@ -517,11 +515,9 @@ void RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,
 
   // Assign the address of each symbol
   for (auto &Sym : SymbolsToAllocate) {
-    uint32_t Align;
-    uint64_t Size;
+    uint32_t Align = Sym.getAlignment();
     StringRef Name;
-    Check(Sym.getAlignment(Align));
-    Check(Sym.getSize(Size));
+    uint64_t Size = Sym.getSize();
     Check(Sym.getName(Name));
     if (Align) {
       // This symbol has an alignment requirement.
@@ -689,7 +685,7 @@ uint8_t *RuntimeDyldImpl::createStubFunction(uint8_t *Addr,
     // and stubs for branches Thumb - ARM and ARM - Thumb.
     writeBytesUnaligned(0xe51ff004, Addr, 4); // ldr pc,<label>
     return Addr + 4;
-  } else if (Arch == Triple::mipsel || Arch == Triple::mips) {
+  } else if (IsMipsO32ABI) {
     // 0:   3c190000        lui     t9,%hi(addr).
     // 4:   27390000        addiu   t9,t9,%lo(addr).
     // 8:   03200008        jr      t9.

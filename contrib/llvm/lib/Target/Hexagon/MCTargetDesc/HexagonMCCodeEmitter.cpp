@@ -22,6 +22,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/EndianStream.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define DEBUG_TYPE "mccodeemitter"
@@ -31,38 +32,206 @@ using namespace Hexagon;
 
 STATISTIC(MCNumEmitted, "Number of MC instructions emitted");
 
-namespace {
-/// \brief 10.6 Instruction Packets
-/// Possible values for instruction packet parse field.
-enum class ParseField { duplex = 0x0, last0 = 0x1, last1 = 0x2, end = 0x3 };
-/// \brief Returns the packet bits based on instruction position.
-uint32_t getPacketBits(MCInst const &HMI) {
-  unsigned const ParseFieldOffset = 14;
-  ParseField Field = HexagonMCInstrInfo::isPacketEnd(HMI) ? ParseField::end
-                                                          : ParseField::last0;
-  return static_cast<uint32_t>(Field) << ParseFieldOffset;
-}
-void emitLittleEndian(uint64_t Binary, raw_ostream &OS) {
-  OS << static_cast<uint8_t>((Binary >> 0x00) & 0xff);
-  OS << static_cast<uint8_t>((Binary >> 0x08) & 0xff);
-  OS << static_cast<uint8_t>((Binary >> 0x10) & 0xff);
-  OS << static_cast<uint8_t>((Binary >> 0x18) & 0xff);
-}
-}
-
 HexagonMCCodeEmitter::HexagonMCCodeEmitter(MCInstrInfo const &aMII,
                                            MCContext &aMCT)
     : MCT(aMCT), MCII(aMII), Addend(new unsigned(0)),
-      Extended(new bool(false)) {}
+      Extended(new bool(false)), CurrentBundle(new MCInst const *) {}
+
+uint32_t HexagonMCCodeEmitter::parseBits(size_t Instruction, size_t Last,
+                                         MCInst const &MCB,
+                                         MCInst const &MCI) const {
+  bool Duplex = HexagonMCInstrInfo::isDuplex(MCII, MCI);
+  if (Instruction == 0) {
+    if (HexagonMCInstrInfo::isInnerLoop(MCB)) {
+      assert(!Duplex);
+      assert(Instruction != Last);
+      return HexagonII::INST_PARSE_LOOP_END;
+    }
+  }
+  if (Instruction == 1) {
+    if (HexagonMCInstrInfo::isOuterLoop(MCB)) {
+      assert(!Duplex);
+      assert(Instruction != Last);
+      return HexagonII::INST_PARSE_LOOP_END;
+    }
+  }
+  if (Duplex) {
+    assert(Instruction == Last);
+    return HexagonII::INST_PARSE_DUPLEX;
+  }
+  if(Instruction == Last)
+    return HexagonII::INST_PARSE_PACKET_END;
+  return HexagonII::INST_PARSE_NOT_END;
+}
 
 void HexagonMCCodeEmitter::encodeInstruction(MCInst const &MI, raw_ostream &OS,
                                              SmallVectorImpl<MCFixup> &Fixups,
                                              MCSubtargetInfo const &STI) const {
-  uint64_t Binary = getBinaryCodeForInstr(MI, Fixups, STI) | getPacketBits(MI);
-  assert(HexagonMCInstrInfo::getDesc(MCII, MI).getSize() == 4 &&
-         "All instructions should be 32bit");
-  (void)&MCII;
-  emitLittleEndian(Binary, OS);
+  MCInst &HMB = const_cast<MCInst &>(MI);
+
+  assert(HexagonMCInstrInfo::isBundle(HMB));
+  DEBUG(dbgs() << "Encoding bundle\n";);
+  *Addend = 0;
+  *Extended = false;
+  *CurrentBundle = &MI;
+  size_t Instruction = 0;
+  size_t Last = HexagonMCInstrInfo::bundleSize(HMB) - 1;
+  for (auto &I : HexagonMCInstrInfo::bundleInstructions(HMB)) {
+    MCInst &HMI = const_cast<MCInst &>(*I.getInst());
+    EncodeSingleInstruction(HMI, OS, Fixups, STI,
+                            parseBits(Instruction, Last, HMB, HMI),
+                            Instruction);
+    *Extended = HexagonMCInstrInfo::isImmext(HMI);
+    *Addend += HEXAGON_INSTR_SIZE;
+    ++Instruction;
+  }
+  return;
+}
+
+/// EncodeSingleInstruction - Emit a single
+void HexagonMCCodeEmitter::EncodeSingleInstruction(
+    const MCInst &MI, raw_ostream &OS, SmallVectorImpl<MCFixup> &Fixups,
+    const MCSubtargetInfo &STI, uint32_t Parse, size_t Index) const {
+  MCInst HMB = MI;
+  assert(!HexagonMCInstrInfo::isBundle(HMB));
+  uint64_t Binary;
+
+  // Pseudo instructions don't get encoded and shouldn't be here
+  // in the first place!
+  assert(!HexagonMCInstrInfo::getDesc(MCII, HMB).isPseudo() &&
+         "pseudo-instruction found");
+  DEBUG(dbgs() << "Encoding insn"
+                  " `" << HexagonMCInstrInfo::getName(MCII, HMB) << "'"
+                                                                    "\n");
+
+  if (HexagonMCInstrInfo::isNewValue(MCII, HMB)) {
+    // Calculate the new value distance to the associated producer
+    MCOperand &MCO =
+        HMB.getOperand(HexagonMCInstrInfo::getNewValueOp(MCII, HMB));
+    unsigned SOffset = 0;
+    unsigned Register = MCO.getReg();
+    unsigned Register1;
+    auto Instructions = HexagonMCInstrInfo::bundleInstructions(**CurrentBundle);
+    auto i = Instructions.begin() + Index - 1;
+    for (;; --i) {
+      assert(i != Instructions.begin() - 1 && "Couldn't find producer");
+      MCInst const &Inst = *i->getInst();
+      if (HexagonMCInstrInfo::isImmext(Inst))
+        continue;
+      ++SOffset;
+      Register1 =
+          HexagonMCInstrInfo::hasNewValue(MCII, Inst)
+              ? HexagonMCInstrInfo::getNewValueOperand(MCII, Inst).getReg()
+              : static_cast<unsigned>(Hexagon::NoRegister);
+      if (Register != Register1)
+        // This isn't the register we're looking for
+        continue;
+      if (!HexagonMCInstrInfo::isPredicated(MCII, Inst))
+        // Producer is unpredicated
+        break;
+      assert(HexagonMCInstrInfo::isPredicated(MCII, HMB) &&
+             "Unpredicated consumer depending on predicated producer");
+      if (HexagonMCInstrInfo::isPredicatedTrue(MCII, Inst) ==
+          HexagonMCInstrInfo::isPredicatedTrue(MCII, HMB))
+        // Producer predicate sense matched ours
+        break;
+    }
+    // Hexagon PRM 10.11 Construct Nt from distance
+    unsigned Offset = SOffset;
+    Offset <<= 1;
+    MCO.setReg(Offset + Hexagon::R0);
+  }
+
+  Binary = getBinaryCodeForInstr(HMB, Fixups, STI);
+  // Check for unimplemented instructions. Immediate extenders
+  // are encoded as zero, so they need to be accounted for.
+  if ((!Binary) &&
+      ((HMB.getOpcode() != DuplexIClass0) && (HMB.getOpcode() != A4_ext) &&
+       (HMB.getOpcode() != A4_ext_b) && (HMB.getOpcode() != A4_ext_c) &&
+       (HMB.getOpcode() != A4_ext_g))) {
+    // Use a A2_nop for unimplemented instructions.
+    DEBUG(dbgs() << "Unimplemented inst: "
+                    " `" << HexagonMCInstrInfo::getName(MCII, HMB) << "'"
+                                                                      "\n");
+    llvm_unreachable("Unimplemented Instruction");
+  }
+  Binary |= Parse;
+
+  // if we need to emit a duplexed instruction
+  if (HMB.getOpcode() >= Hexagon::DuplexIClass0 &&
+      HMB.getOpcode() <= Hexagon::DuplexIClassF) {
+    assert(Parse == HexagonII::INST_PARSE_DUPLEX &&
+           "Emitting duplex without duplex parse bits");
+    unsigned dupIClass;
+    switch (HMB.getOpcode()) {
+    case Hexagon::DuplexIClass0:
+      dupIClass = 0;
+      break;
+    case Hexagon::DuplexIClass1:
+      dupIClass = 1;
+      break;
+    case Hexagon::DuplexIClass2:
+      dupIClass = 2;
+      break;
+    case Hexagon::DuplexIClass3:
+      dupIClass = 3;
+      break;
+    case Hexagon::DuplexIClass4:
+      dupIClass = 4;
+      break;
+    case Hexagon::DuplexIClass5:
+      dupIClass = 5;
+      break;
+    case Hexagon::DuplexIClass6:
+      dupIClass = 6;
+      break;
+    case Hexagon::DuplexIClass7:
+      dupIClass = 7;
+      break;
+    case Hexagon::DuplexIClass8:
+      dupIClass = 8;
+      break;
+    case Hexagon::DuplexIClass9:
+      dupIClass = 9;
+      break;
+    case Hexagon::DuplexIClassA:
+      dupIClass = 10;
+      break;
+    case Hexagon::DuplexIClassB:
+      dupIClass = 11;
+      break;
+    case Hexagon::DuplexIClassC:
+      dupIClass = 12;
+      break;
+    case Hexagon::DuplexIClassD:
+      dupIClass = 13;
+      break;
+    case Hexagon::DuplexIClassE:
+      dupIClass = 14;
+      break;
+    case Hexagon::DuplexIClassF:
+      dupIClass = 15;
+      break;
+    default:
+      llvm_unreachable("Unimplemented DuplexIClass");
+      break;
+    }
+    // 29 is the bit position.
+    // 0b1110 =0xE bits are masked off and down shifted by 1 bit.
+    // Last bit is moved to bit position 13
+    Binary = ((dupIClass & 0xE) << (29 - 1)) | ((dupIClass & 0x1) << 13);
+
+    const MCInst *subInst0 = HMB.getOperand(0).getInst();
+    const MCInst *subInst1 = HMB.getOperand(1).getInst();
+
+    // get subinstruction slot 0
+    unsigned subInstSlot0Bits = getBinaryCodeForInstr(*subInst0, Fixups, STI);
+    // get subinstruction slot 1
+    unsigned subInstSlot1Bits = getBinaryCodeForInstr(*subInst1, Fixups, STI);
+
+    Binary |= subInstSlot0Bits | (subInstSlot1Bits << 16);
+  }
+  support::endian::Writer<support::little>(OS).write<uint32_t>(Binary);
   ++MCNumEmitted;
 }
 
@@ -182,7 +351,7 @@ unsigned HexagonMCCodeEmitter::getExprOpValue(const MCInst &MI,
 {
   int64_t Res;
 
-  if (ME->EvaluateAsAbsolute(Res))
+  if (ME->evaluateAsAbsolute(Res))
     return Res;
 
   MCExpr::ExprKind MK = ME->getKind();

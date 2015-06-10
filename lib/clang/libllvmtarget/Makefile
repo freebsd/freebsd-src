@@ -10,6 +10,7 @@ SRCS=	Target.cpp \
 	TargetLoweringObjectFile.cpp \
 	TargetMachine.cpp \
 	TargetMachineC.cpp \
+	TargetRecip.cpp \
 	TargetSubtargetInfo.cpp
 
 TGHDRS=	Intrinsics

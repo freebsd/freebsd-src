@@ -78,7 +78,7 @@ static void printSymbolOperand(X86AsmPrinter &P, const MachineOperand &MO,
   switch (MO.getType()) {
   default: llvm_unreachable("unknown symbol type!");
   case MachineOperand::MO_ConstantPoolIndex:
-    O << *P.GetCPISymbol(MO.getIndex());
+    P.GetCPISymbol(MO.getIndex())->print(O, P.MAI);
     P.printOffset(MO.getOffset(), O);
     break;
   case MachineOperand::MO_GlobalAddress: {
@@ -127,9 +127,12 @@ static void printSymbolOperand(X86AsmPrinter &P, const MachineOperand &MO,
     // If the name begins with a dollar-sign, enclose it in parens.  We do this
     // to avoid having it look like an integer immediate to the assembler.
     if (GVSym->getName()[0] != '$')
-      O << *GVSym;
-    else
-      O << '(' << *GVSym << ')';
+      GVSym->print(O, P.MAI);
+    else {
+      O << '(';
+      GVSym->print(O, P.MAI);
+      O << ')';
+    }
     P.printOffset(MO.getOffset(), O);
     break;
   }
@@ -146,12 +149,15 @@ static void printSymbolOperand(X86AsmPrinter &P, const MachineOperand &MO,
     // These affect the name of the symbol, not any suffix.
     break;
   case X86II::MO_GOT_ABSOLUTE_ADDRESS:
-    O << " + [.-" << *P.MF->getPICBaseSymbol() << ']';
+    O << " + [.-";
+    P.MF->getPICBaseSymbol()->print(O, P.MAI);
+    O << ']';
     break;
   case X86II::MO_PIC_BASE_OFFSET:
   case X86II::MO_DARWIN_NONLAZY_PIC_BASE:
   case X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE:
-    O << '-' << *P.MF->getPICBaseSymbol();
+    O << '-';
+    P.MF->getPICBaseSymbol()->print(O, P.MAI);
     break;
   case X86II::MO_TLSGD:     O << "@TLSGD";     break;
   case X86II::MO_TLSLD:     O << "@TLSLD";     break;
@@ -168,7 +174,8 @@ static void printSymbolOperand(X86AsmPrinter &P, const MachineOperand &MO,
   case X86II::MO_PLT:       O << "@PLT";       break;
   case X86II::MO_TLVP:      O << "@TLVP";      break;
   case X86II::MO_TLVP_PIC_BASE:
-    O << "@TLVP" << '-' << *P.MF->getPICBaseSymbol();
+    O << "@TLVP" << '-';
+    P.MF->getPICBaseSymbol()->print(O, P.MAI);
     break;
   case X86II::MO_SECREL:    O << "@SECREL32";  break;
   }
@@ -525,7 +532,7 @@ void X86AsmPrinter::EmitStartOfAsmFile(Module &M) {
       // register any SEH handlers, so its object files should be safe.
       OutStreamer->EmitSymbolAttribute(S, MCSA_Global);
       OutStreamer->EmitAssignment(
-          S, MCConstantExpr::Create(int64_t(1), MMI->getContext()));
+          S, MCConstantExpr::create(int64_t(1), MMI->getContext()));
     }
   }
 }
@@ -549,7 +556,7 @@ emitNonLazySymbolPointer(MCStreamer &OutStreamer, MCSymbol *StubLabel,
     // using NLPs; however, sometimes the types are local to the file.
     // We need to fill in the value for the NLP in those cases.
     OutStreamer.EmitValue(
-        MCSymbolRefExpr::Create(MCSym.getPointer(), OutStreamer.getContext()),
+        MCSymbolRefExpr::create(MCSym.getPointer(), OutStreamer.getContext()),
         4 /*size*/);
 }
 

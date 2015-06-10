@@ -12,7 +12,6 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/ilist.h"
@@ -24,7 +23,6 @@
 #include "llvm/MC/MCLinkerOptimizationHint.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
 #include <algorithm>
@@ -60,7 +58,8 @@ public:
     FT_Org,
     FT_Dwarf,
     FT_DwarfFrame,
-    FT_LEB
+    FT_LEB,
+    FT_SafeSEH
   };
 
 private:
@@ -531,6 +530,28 @@ public:
   }
 };
 
+class MCSafeSEHFragment : public MCFragment {
+  virtual void anchor();
+
+  const MCSymbol *Sym;
+
+public:
+  MCSafeSEHFragment(const MCSymbol *Sym, MCSection *Sec = nullptr)
+      : MCFragment(FT_SafeSEH, Sec), Sym(Sym) {}
+
+  /// \name Accessors
+  /// @{
+
+  const MCSymbol *getSymbol() { return Sym; }
+  const MCSymbol *getSymbol() const { return Sym; }
+
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_SafeSEH;
+  }
+};
+
 // FIXME: This really doesn't belong here. See comments below.
 struct IndirectSymbolData {
   MCSymbol *Symbol;
@@ -551,7 +572,7 @@ class MCAssembler {
   friend class MCAsmLayout;
 
 public:
-  typedef SetVector<MCSection *> SectionListType;
+  typedef std::vector<MCSection *> SectionListType;
   typedef std::vector<const MCSymbol *> SymbolDataListType;
 
   typedef pointee_iterator<SectionListType::const_iterator> const_iterator;
@@ -563,9 +584,6 @@ public:
 
   typedef iterator_range<symbol_iterator> symbol_range;
   typedef iterator_range<const_symbol_iterator> const_symbol_range;
-
-  typedef std::vector<std::string> FileNameVectorType;
-  typedef FileNameVectorType::const_iterator const_file_name_iterator;
 
   typedef std::vector<IndirectSymbolData>::const_iterator
       const_indirect_symbol_iterator;
@@ -613,7 +631,7 @@ private:
   std::vector<std::vector<std::string>> LinkerOptions;
 
   /// List of declared file names
-  FileNameVectorType FileNames;
+  std::vector<std::string> FileNames;
 
   /// The set of function symbols for which a .thumb_func directive has
   /// been seen.
@@ -883,39 +901,21 @@ public:
   /// \name Backend Data Access
   /// @{
 
-  bool registerSection(MCSection &Section) { return Sections.insert(&Section); }
-
-  bool hasSymbolData(const MCSymbol &Symbol) const { return Symbol.hasData(); }
-
-  MCSymbolData &getSymbolData(const MCSymbol &Symbol) {
-    return const_cast<MCSymbolData &>(
-        static_cast<const MCAssembler &>(*this).getSymbolData(Symbol));
+  bool registerSection(MCSection &Section) {
+    if (Section.isRegistered())
+      return false;
+    Sections.push_back(&Section);
+    Section.setIsRegistered(true);
+    return true;
   }
 
-  const MCSymbolData &getSymbolData(const MCSymbol &Symbol) const {
-    return Symbol.getData();
-  }
+  void registerSymbol(const MCSymbol &Symbol, bool *Created = nullptr);
 
-  MCSymbolData &getOrCreateSymbolData(const MCSymbol &Symbol,
-                                      bool *Created = nullptr) {
-    if (Created)
-      *Created = !hasSymbolData(Symbol);
-    if (!hasSymbolData(Symbol)) {
-      Symbol.initializeData();
-      Symbols.push_back(&Symbol);
-    }
-    return Symbol.getData();
-  }
-
-  const_file_name_iterator file_names_begin() const {
-    return FileNames.begin();
-  }
-
-  const_file_name_iterator file_names_end() const { return FileNames.end(); }
+  ArrayRef<std::string> getFileNames() { return FileNames; }
 
   void addFileName(StringRef FileName) {
-    if (std::find(file_names_begin(), file_names_end(), FileName) ==
-        file_names_end())
+    if (std::find(FileNames.begin(), FileNames.end(), FileName) ==
+        FileNames.end())
       FileNames.push_back(FileName);
   }
 
