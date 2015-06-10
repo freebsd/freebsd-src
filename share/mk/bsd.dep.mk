@@ -147,7 +147,6 @@ beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
 .endif
 
-.if defined(.PARSEDIR)
 .if ${MK_META_MODE} == "yes"
 .include <meta.autodep.mk>
 # this depend: bypasses that below
@@ -155,7 +154,6 @@ beforebuild: ${DHDRS}
 depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
 beforedepend:
 afterdepend: beforedepend
-.endif
 .endif
 
 .if !target(depend)

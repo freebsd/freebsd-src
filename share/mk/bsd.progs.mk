@@ -22,13 +22,9 @@ PROGS += ${PROGS_CXX}
 
 # In meta mode, we can capture dependenices for _one_ of the progs.
 # if makefile doesn't nominate one, we use the first.
-.if defined(.PARSEDIR)
 .ifndef UPDATE_DEPENDFILE_PROG
 UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 .export UPDATE_DEPENDFILE_PROG
-.endif
-.else
-UPDATE_DEPENDFILE_PROG?= no
 .endif
 
 .ifndef PROG

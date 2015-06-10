@@ -16,11 +16,9 @@ __<bsd.init.mk>__:
 .include <bsd.own.mk>
 .MAIN: all
 
-.if defined(.PARSEDIR)
 .if ${.MAKE.LEVEL:U1} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*)
 # this tells lib.mk and prog.mk to not actually build anything
 _SKIP_BUILD = not building at level 0
-.endif
 .endif
 
 .endif	# !target(__<bsd.init.mk>__)
