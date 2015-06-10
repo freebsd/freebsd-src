@@ -42,21 +42,17 @@
 __<bsd.obj.mk>__:
 .include <bsd.own.mk>
 
-.if defined(MAKEOBJDIRPREFIX)
+.if ${MK_AUTO_OBJ} == "yes"
+# it is done by now
+objwarn:
+obj:
+CANONICALOBJDIR= ${.OBJDIR}
+.elif defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
 CANONICALOBJDIR:=${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
-.endif
-
-.if defined(.PARSEDIR) && !defined(NO_OBJ) && !defined(NO_AUTO_OBJ)
-.if ${MK_AUTO_OBJ} == "yes"
-__objdir?= ${CANONICALOBJDIR}
-# this is what auto.obj.mk wants to see
-MKOBJDIRS=auto
-.include "auto.obj.mk"
-.endif
 .endif
 
 #
