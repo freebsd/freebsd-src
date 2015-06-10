@@ -10,7 +10,7 @@ LIBADD=	util
 .if !defined(RELEASE_CRUNCH) && \
 	${MK_LS_COLORS} != no
 CFLAGS+= -DCOLORLS
-LIBADD+=	termcapw
+LIBADD+=	termcapw xo
 .endif
 
 .include <bsd.prog.mk>
