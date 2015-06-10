@@ -1128,12 +1128,7 @@ struct unmount_args {
 #endif
 /* ARGSUSED */
 int
-sys_unmount(td, uap)
-	struct thread *td;
-	register struct unmount_args /* {
-		char *path;
-		int flags;
-	} */ *uap;
+sys_unmount(struct thread *td, struct unmount_args *uap)
 {
 	struct nameidata nd;
 	struct mount *mp;
@@ -1164,8 +1159,10 @@ sys_unmount(td, uap)
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (mp->mnt_stat.f_fsid.val[0] == id0 &&
-			    mp->mnt_stat.f_fsid.val[1] == id1)
+			    mp->mnt_stat.f_fsid.val[1] == id1) {
+				vfs_ref(mp);
 				break;
+			}
 		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
@@ -1183,8 +1180,10 @@ sys_unmount(td, uap)
 		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
-			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
+			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0) {
+				vfs_ref(mp);
 				break;
+			}
 		}
 		mtx_unlock(&mountlist_mtx);
 	}
@@ -1202,8 +1201,10 @@ sys_unmount(td, uap)
 	/*
 	 * Don't allow unmounting the root filesystem.
 	 */
-	if (mp->mnt_flag & MNT_ROOTFS)
+	if (mp->mnt_flag & MNT_ROOTFS) {
+		vfs_rel(mp);
 		return (EINVAL);
+	}
 	error = dounmount(mp, uap->flags, td);
 	return (error);
 }
@@ -1212,10 +1213,7 @@ sys_unmount(td, uap)
  * Do the actual filesystem unmount.
  */
 int
-dounmount(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
+dounmount(struct mount *mp, int flags, struct thread *td)
 {
 	struct vnode *coveredvp, *fsrootvp;
 	int error;
@@ -1235,6 +1233,7 @@ dounmount(mp, flags, td)
 		if (coveredvp->v_mountedhere != mp ||
 		    coveredvp->v_mountedhere->mnt_gen != mnt_gen_r) {
 			VOP_UNLOCK(coveredvp, 0);
+			vfs_rel(mp);
 			return (EBUSY);
 		}
 	}
@@ -1243,13 +1242,14 @@ dounmount(mp, flags, td)
 	 * original mount is permitted to unmount this filesystem.
 	 */
 	error = vfs_suser(mp, td);
-	if (error) {
+	if (error != 0) {
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);
+		vfs_rel(mp);
 		return (error);
 	}
 
-	vn_start_write(NULL, &mp, V_WAIT);
+	vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
