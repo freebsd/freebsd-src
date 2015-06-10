@@ -13,7 +13,7 @@ YFLAGS=
 WARNS?=	2
 WFORMAT=0
 
-LIBADD=	util crypt
+LIBADD=	util crypt xo
 
 # XXX Kluge! Conversation mechanism needs to be fixed.
 LIBADD+=	opie md
