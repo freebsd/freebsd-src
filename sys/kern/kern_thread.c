@@ -389,6 +389,7 @@ thread_cow_get_proc(struct thread *newtd, struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	newtd->td_ucred = crhold(p->p_ucred);
+	newtd->td_limit = lim_hold(p->p_limit);
 	newtd->td_cowgen = p->p_cowgen;
 }
 
@@ -397,6 +398,7 @@ thread_cow_get(struct thread *newtd, struct thread *td)
 {
 
 	newtd->td_ucred = crhold(td->td_ucred);
+	newtd->td_limit = lim_hold(td->td_limit);
 	newtd->td_cowgen = td->td_cowgen;
 }
 
@@ -406,6 +408,8 @@ thread_cow_free(struct thread *td)
 
 	if (td->td_ucred)
 		crfree(td->td_ucred);
+	if (td->td_limit)
+		lim_free(td->td_limit);
 }
 
 void
@@ -417,6 +421,8 @@ thread_cow_update(struct thread *td)
 	PROC_LOCK(p);
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
+	if (td->td_limit != p->p_limit)
+		lim_update_thread(td);
 	td->td_cowgen = p->p_cowgen;
 	PROC_UNLOCK(p);
 }

@@ -109,7 +109,7 @@ static void	fdgrowtable(struct filedesc *fdp, int nfd);
 static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
-static int	getmaxfd(struct proc *p);
+static int	getmaxfd(struct thread *td);
 
 /* Flags for do_dup() */
 #define	DUP_FIXED	0x1	/* Force fixed allocation. */
@@ -328,16 +328,19 @@ struct getdtablesize_args {
 int
 sys_getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 {
-	struct proc *p = td->td_proc;
+#ifdef	RACCT
 	uint64_t lim;
+#endif
 
-	PROC_LOCK(p);
 	td->td_retval[0] =
-	    min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	    min((int)lim_cur(td, RLIMIT_NOFILE), maxfilesperproc);
+#ifdef	RACCT
+	PROC_LOCK(p);
 	lim = racct_get_limit(td->td_proc, RACCT_NOFILE);
 	PROC_UNLOCK(p);
 	if (lim < td->td_retval[0])
 		td->td_retval[0] = lim;
+#endif
 	return (0);
 }
 
@@ -780,15 +783,10 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 }
 
 static int
-getmaxfd(struct proc *p)
+getmaxfd(struct thread *td)
 {
-	int maxfd;
 
-	PROC_LOCK(p);
-	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
-
-	return (maxfd);
+	return (min((int)lim_cur(td, RLIMIT_NOFILE), maxfilesperproc));
 }
 
 /*
@@ -816,7 +814,7 @@ do_dup(struct thread *td, int flags, int old, int new)
 		return (EBADF);
 	if (new < 0)
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
-	maxfd = getmaxfd(p);
+	maxfd = getmaxfd(td);
 	if (new >= maxfd)
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
@@ -1616,7 +1614,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	if (fdp->fd_freefile > minfd)
 		minfd = fdp->fd_freefile;
 
-	maxfd = getmaxfd(p);
+	maxfd = getmaxfd(td);
 
 	/*
 	 * Search the bitmap for a free descriptor starting at minfd.

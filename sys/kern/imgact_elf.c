@@ -908,11 +908,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * not actually fault in all the segments pages.
 	 */
 	PROC_LOCK(imgp->proc);
-	if (data_size > lim_cur(imgp->proc, RLIMIT_DATA))
+	if (data_size > lim_cur_proc(imgp->proc, RLIMIT_DATA))
 		err_str = "Data segment size exceeds process limit";
 	else if (text_size > maxtsiz)
 		err_str = "Text segment size exceeds system limit";
-	else if (total_size > lim_cur(imgp->proc, RLIMIT_VMEM))
+	else if (total_size > lim_cur_proc(imgp->proc, RLIMIT_VMEM))
 		err_str = "Total segment size exceeds process limit";
 	else if (racct_set(imgp->proc, RACCT_DATA, data_size) != 0)
 		err_str = "Data segment size exceeds resource limit";
@@ -936,7 +936,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * calculation is that it leaves room for the heap to grow to
 	 * its maximum allowed size.
 	 */
-	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(imgp->proc,
+	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(curthread,
 	    RLIMIT_DATA));
 	PROC_UNLOCK(imgp->proc);
 
@@ -1983,7 +1983,7 @@ note_procstat_rlimit(void *arg, struct sbuf *sb, size_t *sizep)
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
 		for (i = 0; i < RLIM_NLIMITS; i++)
-			lim_rlimit(p, i, &rlim[i]);
+			lim_rlimit_proc(p, i, &rlim[i]);
 		PROC_UNLOCK(p);
 		sbuf_bcat(sb, rlim, sizeof(rlim));
 	}
