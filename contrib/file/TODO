@@ -17,3 +17,6 @@ hard-wired routines). In this regard, note that hplip, which is
 BSD-licensed, has a magic reimplementation in Python.
 
 Read the kerberos magic entry for more ideas.
+
+Write a string merger to make magic entry sizes dynamic.
+Strings will be converted to offsets from the string table.
