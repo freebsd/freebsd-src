@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-
 FILESGROUPS=	CONF LICENSE
 CONF=		exclude-from-upgrade pc-sysinstall.conf avail-langs
 CONFDIR=	${SHAREDIR}/pc-sysinstall/conf

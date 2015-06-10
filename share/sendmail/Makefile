@@ -9,7 +9,6 @@ CFFILES!=	(cd ${SENDMAIL_DIR}; find -L ${CFDIR} \( \( -name CVS -o -name .svn \)
 
 DDIR=	${DESTDIR}/usr/share/sendmail
 
-
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'')
 SHARED?=	copies
