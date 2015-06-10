@@ -52,5 +52,4 @@ FILES=	INDEX.keymaps \
 
 FILESDIR= ${SHAREDIR}/syscons/keymaps
 
-
 .include <bsd.prog.mk>
