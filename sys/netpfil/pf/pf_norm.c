@@ -823,6 +823,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		(*frag)->fr_max = 0;
 		(*frag)->fr_src.v4 = h->ip_src;
 		(*frag)->fr_dst.v4 = h->ip_dst;
+		(*frag)->fr_af = AF_INET;
 		(*frag)->fr_id = h->ip_id;
 		(*frag)->fr_timeout = time_uptime;
 
