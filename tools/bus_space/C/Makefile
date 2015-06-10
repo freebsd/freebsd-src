@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-LIB=		bus_space
+LIB=		bus
 SHLIB_MAJOR=	0
 SRCS=		lang.c
-INCS=		libbus_space.h
+INCS=		libbus.h
 
 CFLAGS+= -I${.CURDIR}/..
 

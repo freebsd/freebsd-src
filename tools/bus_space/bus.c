@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "bus_space.h"
+#include "bus.h"
 
 #include "../../sys/dev/proto/proto_dev.h"
 

@@ -30,12 +30,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <errno.h>
 
-#include "bus_space.h"
+#include "bus.h"
 #include "busdma.h"
-#include "libbus_space.h"
+#include "libbus.h"
 
 int16_t
-bus_space_read_1(int rid, long ofs)
+bus_read_1(int rid, long ofs)
 {
 	uint8_t val;
 
@@ -43,7 +43,7 @@ bus_space_read_1(int rid, long ofs)
 }
 
 int32_t
-bus_space_read_2(int rid, long ofs)
+bus_read_2(int rid, long ofs)
 {
 	uint16_t val;
 
@@ -51,7 +51,7 @@ bus_space_read_2(int rid, long ofs)
 }
 
 int64_t
-bus_space_read_4(int rid, long ofs)
+bus_read_4(int rid, long ofs)
 {
 	uint32_t val;
 
@@ -59,42 +59,42 @@ bus_space_read_4(int rid, long ofs)
 }
 
 int
-bus_space_write_1(int rid, long ofs, uint8_t val)
+bus_write_1(int rid, long ofs, uint8_t val)
 {
 
 	return ((!bs_write(rid, ofs, &val, sizeof(val))) ? errno : 0);
 }
 
 int
-bus_space_write_2(int rid, long ofs, uint16_t val)
+bus_write_2(int rid, long ofs, uint16_t val)
 {
 
 	return ((!bs_write(rid, ofs, &val, sizeof(val))) ? errno : 0);
 }
 
 int
-bus_space_write_4(int rid, long ofs, uint32_t val)
+bus_write_4(int rid, long ofs, uint32_t val)
 {
 
 	return ((!bs_write(rid, ofs, &val, sizeof(val))) ? errno : 0);
 }
 
 int
-bus_space_map(const char *dev)
+bus_map(const char *dev)
 {
 
 	return (bs_map(dev));
 }
 
 int
-bus_space_unmap(int rid)
+bus_unmap(int rid)
 {
 
 	return ((!bs_unmap(rid)) ? errno : 0);
 }
 
 int
-bus_space_subregion(int rid, long ofs, long sz)
+bus_subregion(int rid, long ofs, long sz)
 {
 
 	return (bs_subregion(rid, ofs, sz));

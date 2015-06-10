@@ -29,15 +29,15 @@
 #ifndef _LIBBUS_SPACE_H_
 #define	_LIBBUS_SPACE_H_
 
-int	bus_space_map(const char *dev);
-int16_t	bus_space_read_1(int rid, long ofs);
-int32_t	bus_space_read_2(int rid, long ofs);
-int64_t bus_space_read_4(int rid, long ofs);
-int	bus_space_subregion(int rid, long ofs, long sz);
-int	bus_space_unmap(int rid);
-int	bus_space_write_1(int rid, long ofs, uint8_t val);
-int	bus_space_write_2(int rid, long ofs, uint16_t val);
-int	bus_space_write_4(int rid, long ofs, uint32_t val);
+int	bus_map(const char *dev);
+int16_t	bus_read_1(int rid, long ofs);
+int32_t	bus_read_2(int rid, long ofs);
+int64_t bus_read_4(int rid, long ofs);
+int	bus_subregion(int rid, long ofs, long sz);
+int	bus_unmap(int rid);
+int	bus_write_1(int rid, long ofs, uint8_t val);
+int	bus_write_2(int rid, long ofs, uint16_t val);
+int	bus_write_4(int rid, long ofs, uint32_t val);
 
 typedef unsigned long bus_addr_t;
 typedef unsigned long bus_size_t;

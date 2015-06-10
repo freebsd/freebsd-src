@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/..
-SRCS+=	bus_space.c busdma.c
+SRCS+=	bus.c busdma.c
