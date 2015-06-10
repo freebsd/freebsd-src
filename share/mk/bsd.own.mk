@@ -128,10 +128,8 @@ __<bsd.own.mk>__:
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif defined(.PARSEDIR) || (defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300)
-CTFCONVERT_CMD=
 .else
-CTFCONVERT_CMD=	@:
+CTFCONVERT_CMD=
 .endif 
 
 .if ${MK_INSTALL_AS_USER} != "no"

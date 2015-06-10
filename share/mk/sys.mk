@@ -97,17 +97,9 @@ ECHODIR		?=	true
 .endif
 .endif
 
-.if defined(.PARSEDIR)
 # _+_ appears to be a workaround for the special src .MAKE not working.
 # setting it to + interferes with -N
 _+_		?=
-.elif !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
-# the check above matches only a single -n, so -n -n will result
-# in _+_ = +
-_+_		?=
-.else
-_+_		?=	+
-.endif
 
 .if defined(%POSIX)
 FC		?=	fort77
@@ -369,16 +361,6 @@ SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
 
-.if !defined(.PARSEDIR)
-# We are not bmake, which is more aggressive about searching .PATH
-# It is sometime necessary to curb its enthusiasm with .NOPATH
-# The following allows us to quietly ignore .NOPATH when not using bmake.
-.NOTMAIN: .NOPATH
-.NOPATH:
-
-# Toggle on warnings
-.WARN: dirsyntax
-.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
@@ -395,7 +377,6 @@ SHELL=	${__MAKE_SHELL}
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL:U/bin/sh}
 .endif
-.endif # bmake
 
 .include <bsd.cpu.mk>
 
