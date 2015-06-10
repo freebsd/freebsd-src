@@ -16,7 +16,7 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-20150609:	p29	FreeBSD-EN-15:06.file
+20150609:	p11	FreeBSD-EN-15:06.file
 			FreeBSD-EN-15:07.zfs
 
 	Updated base system file(1) to 5.22 to address multiple denial
