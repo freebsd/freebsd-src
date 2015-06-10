@@ -272,7 +272,7 @@ struct ib_umem *ib_umem_get_ex(struct ib_ucontext *context, unsigned long addr,
 	PROC_LOCK(proc);
 	if (ptoa(npages +
 	    pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))) >
-	    lim_cur(proc, RLIMIT_MEMLOCK)) {
+	    lim_cur_proc(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		kfree(umem);
 		return ERR_PTR(-ENOMEM);
