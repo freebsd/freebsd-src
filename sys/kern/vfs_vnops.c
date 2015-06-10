@@ -1619,13 +1619,13 @@ unlock:
 }
 
 int
-vn_start_write(vp, mpp, flags)
-	struct vnode *vp;
-	struct mount **mpp;
-	int flags;
+vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
 	int error;
+
+	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
+	    ("V_MNTREF requires mp"));
 
 	error = 0;
 	/*
@@ -1651,7 +1651,7 @@ vn_start_write(vp, mpp, flags)
 	 * emulate a vfs_ref().
 	 */
 	MNT_ILOCK(mp);
-	if (vp == NULL)
+	if (vp == NULL && (flags & V_MNTREF) == 0)
 		MNT_REF(mp);
 
 	return (vn_start_write_locked(mp, flags));
@@ -1665,13 +1665,13 @@ vn_start_write(vp, mpp, flags)
  * time, these operations are halted until the suspension is over.
  */
 int
-vn_start_secondary_write(vp, mpp, flags)
-	struct vnode *vp;
-	struct mount **mpp;
-	int flags;
+vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
 	int error;
+
+	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
+	    ("V_MNTREF requires mp"));
 
  retry:
 	if (vp != NULL) {
@@ -1697,7 +1697,7 @@ vn_start_secondary_write(vp, mpp, flags)
 	 * emulate a vfs_ref().
 	 */
 	MNT_ILOCK(mp);
-	if (vp == NULL)
+	if (vp == NULL && (flags & V_MNTREF) == 0)
 		MNT_REF(mp);
 	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
