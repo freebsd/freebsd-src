@@ -178,9 +178,6 @@ volatile int openfiles;			/* actual number of open files */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 void (*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 
-/* A mutex to protect the association between a proc and filedesc. */
-static struct mtx fdesc_mtx;
-
 /*
  * If low >= size, just return low. Otherwise find the first zero bit in the
  * given bitmap, starting at low and not exceeding size - 1. Return size if
@@ -3642,7 +3639,6 @@ filelistinit(void *dummy)
 	filedesc0_zone = uma_zcreate("filedesc0", sizeof(struct filedesc0),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
-	mtx_init(&fdesc_mtx, "fdesc", NULL, MTX_DEF);
 }
 SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL);
 
