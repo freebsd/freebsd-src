@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <Python.h>
 
-#include "bus_space.h"
+#include "bus.h"
 #include "busdma.h"
 
 static PyObject *
@@ -259,7 +259,7 @@ busdma_mem_free(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
-static PyMethodDef bus_space_methods[] = {
+static PyMethodDef bus_methods[] = {
     { "read_1", bus_read_1, METH_VARARGS, "Read a 1-byte data item." },
     { "read_2", bus_read_2, METH_VARARGS, "Read a 2-byte data item." },
     { "read_4", bus_read_4, METH_VARARGS, "Read a 4-byte data item." },
@@ -293,9 +293,9 @@ static PyMethodDef busdma_methods[] = {
 };
 
 PyMODINIT_FUNC
-initbus_space(void)
+initbus(void)
 {
 
-	Py_InitModule("bus_space", bus_space_methods);
+	Py_InitModule("bus", bus_methods);
 	Py_InitModule("busdma", busdma_methods);
 }
