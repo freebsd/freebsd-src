@@ -40,7 +40,10 @@ MKOBJDIRS= auto
 .if !defined(NOOBJ) && !defined(NO_OBJ) && ${MKOBJDIRS:Uno} == auto
 # Use __objdir here so it is easier to tweak without impacting
 # the logic.
-__objdir?= ${MAKEOBJDIR}
+.if !empty(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
+__objdir?= ${MAKEOBJDIRPREFIX}${.CURDIR}
+.endif
+__objdir?= ${MAKEOBJDIR:Uobj}
 __objdir:= ${__objdir:tA}
 .if ${.OBJDIR} != ${__objdir}
 # We need to chdir, make the directory if needed
