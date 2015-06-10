@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.30 2013/12/21 14:27:24 christos Exp $
+# $File: sgml,v 1.31 2015/03/11 19:38:04 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version="
@@ -44,24 +44,44 @@
 0	search/4096/cWt	\<!doctype\ html	HTML document text
 !:mime	text/html
 !:strength + 5
-0	search/4096/cwt	\<head			HTML document text
+
+0	search/4096/cwt	\<head\>		HTML document text
 !:mime	text/html
 !:strength + 5
-0	search/4096/cwt	\<title			HTML document text
+0	search/4096/cWt	\<head\ 		HTML document text
 !:mime	text/html
 !:strength + 5
-0	search/4096/cwt	\<html			HTML document text
+0	search/4096/cwt	\<title\>		HTML document text
 !:mime	text/html
 !:strength + 5
-0	search/4096/cwt	\<script 		HTML document text
+0	search/4096/cWt	\<title\ 		HTML document text
 !:mime	text/html
 !:strength + 5
-0	search/4096/cwt	\<style 		HTML document text
+0	search/4096/cwt	\<html\>		HTML document text
 !:mime	text/html
 !:strength + 5
-0	search/4096/cwt	\<table			HTML document text
+0	search/4096/cWt	\<html\ 		HTML document text
 !:mime	text/html
 !:strength + 5
+0	search/4096/cwt	\<script\> 		HTML document text
+!:mime	text/html
+!:strength + 5
+0	search/4096/cWt	\<script\ 		HTML document text
+!:mime	text/html
+!:strength + 5
+0	search/4096/cwt	\<style\> 		HTML document text
+!:mime	text/html
+!:strength + 5
+0	search/4096/cWt	\<style\  		HTML document text
+!:mime	text/html
+!:strength + 5
+0	search/4096/cwt	\<table\>		HTML document text
+!:mime	text/html
+!:strength + 5
+0	search/4096/cWt	\<table\ 		HTML document text
+!:mime	text/html
+!:strength + 5
+
 0	search/4096/cwt	\<a\ href=		HTML document text
 !:mime	text/html
 !:strength + 5

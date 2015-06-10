@@ -1,13 +1,22 @@
 
 #-----------------------------------------------------------------------------
-# $File: misctools,v 1.14 2014/03/06 16:08:58 christos Exp $
+# $File: misctools,v 1.15 2015/04/15 18:29:30 christos Exp $
 # misctools:  file(1) magic for miscellaneous UNIX tools.
 #
 0	search/1	%%!!			X-Post-It-Note text
 0	string/c	BEGIN:VCALENDAR		vCalendar calendar file
 !:mime	text/calendar
+# updated by Joerg Jenderek at Apr 2015
+# Extension: .vcf
+# http://en.wikipedia.org/wiki/VCard
 0	string/c	BEGIN:VCARD		vCard visiting card
-!:mime	text/x-vcard
+# deprecated
+#!:mime	text/x-vcard
+!:mime	text/vcard
+# VERSION must come right after BEGIN for 3.0 or 4.0 except in 2.1 , where it can be anywhere
+>12	search/14000/c	VERSION:		
+# VERSION 2.1 , 3.0 or 4.0
+>>&0	string		x			\b, version %-.3s
 
 # Summary: Libtool library file
 # Extension: .la

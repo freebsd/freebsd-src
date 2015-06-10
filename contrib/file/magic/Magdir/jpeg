@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.25 2015/01/02 16:56:50 christos Exp $
+# $File: jpeg,v 1.29 2015/04/10 15:36:02 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -12,7 +12,8 @@
 0	beshort		0xffd8		JPEG image data
 !:mime	image/jpeg
 !:apple	8BIMJPEG
-!:strength +2
+!:strength *3
+!:ext jpeg/jpg/jpe/jfif
 >6	string		JFIF		\b, JFIF standard
 # The following added by Erik Rossen <rossen@freesurf.ch> 1999-09-06
 # in a vain attempt to add image size reporting for JFIF.  Note that these
@@ -41,7 +42,8 @@
 # This uses recursion...
 0		name		jpeg_segment
 >0	beshort		0xFFFE
->>(2.S+2)	use			jpeg_segment
+# Recursion handled by FFE0
+#>>(2.S+2)	use			jpeg_segment
 >>2	pstring/HJ	x		\b, comment: "%s"
 
 >0	beshort		0xFFC0
@@ -70,6 +72,7 @@
 >>(2.S+2)	use			jpeg_segment
 
 >0	beshort		0xFFE1		
+# Recursion handled by FFE0
 #>>(2.S+2)	use			jpeg_segment
 >>4	string		Exif		\b, Exif Standard: [
 >>>10	indirect/r	x		
@@ -85,7 +88,8 @@
 # D9: End of image
 # Dn: Restart
 >0	beshort&0xFFD0	=0xFFD0
->>(2.S+2)	use			jpeg_segment
+>>0	beshort&0xFFE0	!0xFFE0
+>>>(2.S+2)	use			jpeg_segment
 
 #>0	beshort		x		unknown 0x%x
 #>>(2.S+2)	use			jpeg_segment
