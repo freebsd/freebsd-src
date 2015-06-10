@@ -1809,8 +1809,8 @@ fdinit(struct filedesc *fdp, bool prepfiles)
 
 	/* Create the file descriptor table. */
 	FILEDESC_LOCK_INIT(newfdp);
-	newfdp->fd_refcnt = 1;
-	newfdp->fd_holdcnt = 1;
+	refcount_init(&newfdp->fd_refcnt, 1);
+	refcount_init(&newfdp->fd_holdcnt, 1);
 	newfdp->fd_cmask = CMASK;
 	newfdp->fd_map = newfdp0->fd_dmap;
 	newfdp->fd_lastfile = -1;
@@ -1852,24 +1852,19 @@ fdhold(struct proc *p)
 {
 	struct filedesc *fdp;
 
-	mtx_lock(&fdesc_mtx);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	fdp = p->p_fd;
 	if (fdp != NULL)
-		fdp->fd_holdcnt++;
-	mtx_unlock(&fdesc_mtx);
+		refcount_acquire(&fdp->fd_holdcnt);
 	return (fdp);
 }
 
 static void
 fddrop(struct filedesc *fdp)
 {
-	int i;
 
 	if (fdp->fd_holdcnt > 1) {
-		mtx_lock(&fdesc_mtx);
-		i = --fdp->fd_holdcnt;
-		mtx_unlock(&fdesc_mtx);
-		if (i > 0)
+		if (refcount_release(&fdp->fd_holdcnt) == 0)
 			return;
 	}
 
@@ -1884,9 +1879,7 @@ struct filedesc *
 fdshare(struct filedesc *fdp)
 {
 
-	FILEDESC_XLOCK(fdp);
-	fdp->fd_refcnt++;
-	FILEDESC_XUNLOCK(fdp);
+	refcount_acquire(&fdp->fd_refcnt);
 	return (fdp);
 }
 
@@ -2032,6 +2025,7 @@ retry:
 void
 fdescfree(struct thread *td)
 {
+	struct proc *p;
 	struct filedesc0 *fdp0;
 	struct filedesc *fdp;
 	struct freetable *ft, *tft;
@@ -2040,31 +2034,29 @@ fdescfree(struct thread *td)
 	struct vnode *cdir, *jdir, *rdir;
 	int i;
 
-	fdp = td->td_proc->p_fd;
+	p = td->td_proc;
+	fdp = p->p_fd;
 	MPASS(fdp != NULL);
 
 #ifdef RACCT
 	if (racct_enable) {
-		PROC_LOCK(td->td_proc);
-		racct_set(td->td_proc, RACCT_NOFILE, 0);
-		PROC_UNLOCK(td->td_proc);
+		PROC_LOCK(p);
+		racct_set(p, RACCT_NOFILE, 0);
+		PROC_UNLOCK(p);
 	}
 #endif
 
 	if (td->td_proc->p_fdtol != NULL)
 		fdclearlocks(td);
 
-	mtx_lock(&fdesc_mtx);
-	td->td_proc->p_fd = NULL;
-	mtx_unlock(&fdesc_mtx);
+	PROC_LOCK(p);
+	p->p_fd = NULL;
+	PROC_UNLOCK(p);
+
+	if (refcount_release(&fdp->fd_refcnt) == 0)
+		return;
 
 	FILEDESC_XLOCK(fdp);
-	i = --fdp->fd_refcnt;
-	if (i > 0) {
-		FILEDESC_XUNLOCK(fdp);
-		return;
-	}
-
 	cdir = fdp->fd_cdir;
 	fdp->fd_cdir = NULL;
 	rdir = fdp->fd_rdir;
@@ -2884,7 +2876,9 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	nrele = 0;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
 		fdp = fdhold(p);
+		PROC_UNLOCK(p);
 		if (fdp == NULL)
 			continue;
 		FILEDESC_XLOCK(fdp);
@@ -2979,9 +2973,13 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		n = 0;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
-			if (p->p_state == PRS_NEW)
+			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
 				continue;
+			}
 			fdp = fdhold(p);
+			PROC_UNLOCK(p);
 			if (fdp == NULL)
 				continue;
 			/* overestimates sparse tables. */
@@ -3008,8 +3006,8 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		}
 		xf.xf_pid = p->p_pid;
 		xf.xf_uid = p->p_ucred->cr_uid;
-		PROC_UNLOCK(p);
 		fdp = fdhold(p);
+		PROC_UNLOCK(p);
 		if (fdp == NULL)
 			continue;
 		FILEDESC_SLOCK(fdp);
