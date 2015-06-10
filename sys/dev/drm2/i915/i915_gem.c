@@ -1874,7 +1874,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	map = &p->p_vmspace->vm_map;
 	size = round_page(args->size);
 	PROC_LOCK(p);
-	if (map->size + size > lim_cur(p, RLIMIT_VMEM)) {
+	if (map->size + size > lim_cur_proc(p, RLIMIT_VMEM)) {
 		PROC_UNLOCK(p);
 		error = -ENOMEM;
 		goto out;

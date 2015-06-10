@@ -2106,19 +2106,18 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 
 int
 vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
-    const struct thread *td)
+    struct thread *td)
 {
 
 	if (vp->v_type != VREG || td == NULL)
 		return (0);
-	PROC_LOCK(td->td_proc);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid >
-	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+	    lim_cur(td, RLIMIT_FSIZE)) {
+		PROC_LOCK(td->td_proc);
 		kern_psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
-	PROC_UNLOCK(td->td_proc);
 	return (0);
 }
 

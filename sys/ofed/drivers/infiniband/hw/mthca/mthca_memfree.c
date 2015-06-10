@@ -553,7 +553,8 @@ out:
 	proc = curproc;
 	pmap = vm_map_pmap(&proc->p_vmspace->vm_map);
 	PROC_LOCK(proc);
-	if (ptoa(pmap_wired_count(pmap) + 1) > lim_cur(proc, RLIMIT_MEMLOCK)) {
+	if (ptoa(pmap_wired_count(pmap) + 1) >
+	    lim_cur_proc(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		ret = -ENOMEM;
 		goto out;

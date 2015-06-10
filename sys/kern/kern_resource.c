@@ -560,15 +560,11 @@ ogetrlimit(struct thread *td, register struct ogetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit rl;
-	struct proc *p;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	p = td->td_proc;
-	PROC_LOCK(p);
-	lim_rlimit(p, uap->which, &rl);
-	PROC_UNLOCK(p);
+	lim_rlimit(td, uap->which, &rl);
 
 	/*
 	 * XXX would be more correct to convert only RLIM_INFINITY to the
@@ -625,7 +621,7 @@ lim_cb(void *arg)
 	}
 	PROC_STATUNLOCK(p);
 	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
-		lim_rlimit(p, RLIMIT_CPU, &rlim);
+		lim_rlimit_proc(p, RLIMIT_CPU, &rlim);
 		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
 			killproc(p, "exceeded maximum CPU limit");
 		} else {
@@ -667,29 +663,21 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	newlim = NULL;
+	newlim = lim_alloc();
 	PROC_LOCK(p);
-	if (lim_shared(p->p_limit)) {
-		PROC_UNLOCK(p);
-		newlim = lim_alloc();
-		PROC_LOCK(p);
-	}
 	oldlim = p->p_limit;
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = priv_check(td, PRIV_PROC_SETRLIMIT))) {
 			PROC_UNLOCK(p);
-			if (newlim != NULL)
-				lim_free(newlim);
+			lim_free(newlim);
 			return (error);
 		}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	if (newlim != NULL) {
-		lim_copy(newlim, oldlim);
-		alimp = &newlim->pl_rlimit[which];
-	}
+	lim_copy(newlim, oldlim);
+	alimp = &newlim->pl_rlimit[which];
 
 	switch (which) {
 
@@ -739,11 +727,10 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (p->p_sysent->sv_fixlimit != NULL)
 		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
-	if (newlim != NULL)
-		p->p_limit = newlim;
+	p->p_limit = newlim;
+	PROC_UPDATE_COW(p);
 	PROC_UNLOCK(p);
-	if (newlim != NULL)
-		lim_free(oldlim);
+	lim_free(oldlim);
 
 	if (which == RLIMIT_STACK &&
 	    /*
@@ -793,15 +780,11 @@ int
 sys_getrlimit(struct thread *td, register struct __getrlimit_args *uap)
 {
 	struct rlimit rlim;
-	struct proc *p;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	p = td->td_proc;
-	PROC_LOCK(p);
-	lim_rlimit(p, uap->which, &rlim);
-	PROC_UNLOCK(p);
+	lim_rlimit(td, uap->which, &rlim);
 	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
 	return (error);
 }
@@ -1172,11 +1155,20 @@ lim_copy(struct plimit *dst, struct plimit *src)
  * which parameter specifies the index into the rlimit array.
  */
 rlim_t
-lim_max(struct proc *p, int which)
+lim_max(struct thread *td, int which)
 {
 	struct rlimit rl;
 
-	lim_rlimit(p, which, &rl);
+	lim_rlimit(td, which, &rl);
+	return (rl.rlim_max);
+}
+
+rlim_t
+lim_max_proc(struct proc *p, int which)
+{
+	struct rlimit rl;
+
+	lim_rlimit_proc(p, which, &rl);
 	return (rl.rlim_max);
 }
 
@@ -1185,11 +1177,20 @@ lim_max(struct proc *p, int which)
  * The which parameter which specifies the index into the rlimit array
  */
 rlim_t
-lim_cur(struct proc *p, int which)
+lim_cur(struct thread *td, int which)
 {
 	struct rlimit rl;
 
-	lim_rlimit(p, which, &rl);
+	lim_rlimit(td, which, &rl);
+	return (rl.rlim_cur);
+}
+
+rlim_t
+lim_cur_proc(struct proc *p, int which)
+{
+	struct rlimit rl;
+
+	lim_rlimit_proc(p, which, &rl);
 	return (rl.rlim_cur);
 }
 
@@ -1198,7 +1199,20 @@ lim_cur(struct proc *p, int which)
  * specified by 'which' in the rlimit structure pointed to by 'rlp'.
  */
 void
-lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
+lim_rlimit(struct thread *td, int which, struct rlimit *rlp)
+{
+	struct proc *p = td->td_proc;
+
+	MPASS(td == curthread);
+	KASSERT(which >= 0 && which < RLIM_NLIMITS,
+	    ("request for invalid resource limit"));
+	*rlp = td->td_limit->pl_rlimit[which];
+	if (p->p_sysent->sv_fixlimit != NULL)
+		p->p_sysent->sv_fixlimit(rlp, which);
+}
+
+void
+lim_rlimit_proc(struct proc *p, int which, struct rlimit *rlp)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -1440,4 +1454,18 @@ chgkqcnt(struct uidinfo *uip, int diff, rlim_t max)
 			printf("negative kqcnt for uid = %d\n", uip->ui_uid);
 	}
 	return (1);
+}
+
+void
+lim_update_thread(struct thread *td)
+{
+	struct proc *p;
+	struct plimit *lim;
+
+	p = td->td_proc;
+	lim = td->td_limit;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	td->td_limit = lim_hold(p->p_limit);
+	if (lim != NULL)
+		lim_free(lim);
 }

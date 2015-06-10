@@ -382,7 +382,7 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		 */
 		PROC_LOCK(p);
 		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
-		    lim_max(p, RLIMIT_DATA));
+		    lim_max_proc(p, RLIMIT_DATA));
 		PROC_UNLOCK(p);
 	}
 
