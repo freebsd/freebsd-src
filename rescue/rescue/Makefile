@@ -223,4 +223,3 @@ CRUNCH_LIBS+= -lm
 
 .include <bsd.crunchgen.mk>
 .include <bsd.prog.mk>
-
