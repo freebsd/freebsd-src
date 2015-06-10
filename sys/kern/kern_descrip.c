@@ -335,9 +335,9 @@ sys_getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 	td->td_retval[0] =
 	    min((int)lim_cur(td, RLIMIT_NOFILE), maxfilesperproc);
 #ifdef	RACCT
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 	lim = racct_get_limit(td->td_proc, RACCT_NOFILE);
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 	if (lim < td->td_retval[0])
 		td->td_retval[0] = lim;
 #endif
