@@ -2231,11 +2231,11 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		goto bailout_error;
 	}
 
-//modified CDROM
-//	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
+
+	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
 		be_lun->ctl_be_lun.lun_type = params->device_type;
-//	else
-//		be_lun->ctl_be_lun.lun_type = T_DIRECT;
+	else
+		be_lun->ctl_be_lun.lun_type = T_DIRECT;
 
 	if (be_lun->ctl_be_lun.lun_type == T_DIRECT || be_lun->ctl_be_lun.lun_type == T_CDROM) { // T_CDROM added
 		value = ctl_get_opt(&be_lun->ctl_be_lun.options, "file");
