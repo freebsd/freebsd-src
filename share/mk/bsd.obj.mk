@@ -160,6 +160,7 @@ cleandir: cleanobj
 _OBJDIR?= ${.OBJDIR}
 _CURDIR?= ${.CURDIR}
 
+# destroy (rm -rf objdir) is much more efficient than clean
 # destroy almost everything
 destroy: destroy-all
 destroy-all:
