@@ -26,6 +26,8 @@
 __<bsd.compiler.mk>__:
 
 .if ${MACHINE} == "common"
+# common is a pseudo machine for architecture independent
+# generated files - thus there is no compiler.
 COMPILER_TYPE= none
 COMPILER_VERSION= 0
 .elif !defined(COMPILER_TYPE) || !defined(COMPILER_VERSION)
