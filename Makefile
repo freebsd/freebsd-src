@@ -521,26 +521,22 @@ universe_epilogue:
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
-.if defined(.PARSEDIR)
 # This makefile does not run in meta mode
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
-# Using -DWITH_META_FILES -DWITHOUT_STAGING
+# Using -DWITH_META_FILES
 # we can buildworld with meta files created which are useful 
 # for debugging, but without any of the rest of a meta mode build.
-.ifndef WITH_META_FILES
-WITHOUT_META_MODE=
-.export WITHOUT_META_MODE
-.else
-WITHOUT_STAGING=
-UPDATE_DEPENDFILE=NO
-.export UPDATE_DEPENDFILE WITHOUT_STAGING
-.endif
+MK_META_MODE= no
+MK_STAGING= no
+# tell meta.autodep.mk to not even think about updating anything.
+UPDATE_DEPENDFILE= NO
+.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
 
 .if make(universe)
 # we do not want a failure of one branch abort all.
 MAKE_JOB_ERROR_TOKEN= no
 .export MAKE_JOB_ERROR_TOKEN
 .endif
-.endif
-.endif
+
+.endif				# META_MODE
