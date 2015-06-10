@@ -62,8 +62,10 @@ struct proto_ioc_busdma {
 		struct {
 			unsigned long	tag;
 			unsigned int	flags;
-			unsigned int	nsegs;
-			unsigned long	physaddr;
+			unsigned int	phys_nsegs;
+			unsigned long	phys_addr;
+			unsigned long	bus_addr;
+			unsigned int	bus_nsegs;
 		} mem;
 	} u;
 	unsigned long	result;

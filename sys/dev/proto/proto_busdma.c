@@ -129,6 +129,16 @@ proto_busdma_tag_lookup(struct proto_busdma *busdma, u_long key)
 	return (NULL);
 }
 
+static void
+proto_busdma_mem_alloc_callback(void *arg, bus_dma_segment_t *segs, int	nseg,
+    int error)
+{
+	struct proto_ioc_busdma *ioc = arg;
+
+	ioc->u.mem.bus_nsegs = nseg;
+	ioc->u.mem.bus_addr = segs[0].ds_addr;
+}
+
 static int
 proto_busdma_mem_alloc(struct proto_busdma *busdma, struct proto_tag *tag,
     struct proto_ioc_busdma *ioc)
@@ -153,10 +163,18 @@ proto_busdma_mem_alloc(struct proto_busdma *busdma, struct proto_tag *tag,
 		return (error);
 	}
 	md->physaddr = pmap_kextract((uintptr_t)(md->virtaddr));
+	error = bus_dmamap_load(md->bd_tag, md->bd_map, md->virtaddr,
+	    tag->maxsz, proto_busdma_mem_alloc_callback, ioc, BUS_DMA_NOWAIT);
+	if (error) {
+		bus_dmamem_free(md->bd_tag, md->virtaddr, md->bd_map);
+		bus_dma_tag_destroy(md->bd_tag);
+		free(md, M_PROTO_BUSDMA);
+		return (error);
+	}
 	LIST_INSERT_HEAD(&tag->mds, md, peers);
 	LIST_INSERT_HEAD(&busdma->mds, md, mds);
-	ioc->u.mem.nsegs = 1;
-	ioc->u.mem.physaddr = md->physaddr;
+	ioc->u.mem.phys_nsegs = 1;
+	ioc->u.mem.phys_addr = md->physaddr;
 	ioc->result = (uintptr_t)(void *)md;
 	return (0);
 }
