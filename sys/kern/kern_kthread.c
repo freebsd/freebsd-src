@@ -289,7 +289,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	cpu_set_fork_handler(newtd, func, arg);
 
 	newtd->td_pflags |= TDP_KTHREAD;
-	newtd->td_ucred = crhold(p->p_ucred);
+	thread_cow_get_proc(newtd, p);
 
 	/* this code almost the same as create_thread() in kern_thr.c */
 	p->p_flag |= P_HADTHREADS;

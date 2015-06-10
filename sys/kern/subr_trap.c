@@ -220,8 +220,8 @@ ast(struct trapframe *framep)
 	thread_unlock(td);
 	PCPU_INC(cnt.v_trap);
 
-	if (td->td_ucred != p->p_ucred) 
-		cred_update_thread(td);
+	if (td->td_cowgen != p->p_cowgen)
+		thread_cow_update(td);
 	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {
 		addupc_task(td, td->td_profil_addr, td->td_profil_ticks);
 		td->td_profil_ticks = 0;

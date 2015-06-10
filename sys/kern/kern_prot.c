@@ -1946,9 +1946,8 @@ cred_update_thread(struct thread *td)
 
 	p = td->td_proc;
 	cred = td->td_ucred;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);
 	if (cred != NULL)
 		crfree(cred);
 }
@@ -1987,6 +1986,8 @@ proc_set_cred(struct proc *p, struct ucred *newcred)
 
 	oldcred = p->p_ucred;
 	p->p_ucred = newcred;
+	if (newcred != NULL)
+		PROC_UPDATE_COW(p);
 	return (oldcred);
 }
 
