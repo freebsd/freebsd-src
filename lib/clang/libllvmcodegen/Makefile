@@ -49,6 +49,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
 	LocalStackSlotAllocation.cpp \
+	MIRPrintingPass.cpp \
 	MachineBasicBlock.cpp \
 	MachineBlockFrequencyInfo.cpp \
 	MachineBlockPlacement.cpp \

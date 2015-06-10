@@ -150,7 +150,8 @@ Value *PHITransAddr::PHITranslateSubExpr(Value *V, BasicBlock *CurBB,
   if (!Inst) return V;
 
   // Determine whether 'Inst' is an input to our PHI translatable expression.
-  bool isInput = std::count(InstInputs.begin(), InstInputs.end(), Inst);
+  bool isInput =
+      std::find(InstInputs.begin(), InstInputs.end(), Inst) != InstInputs.end();
 
   // Handle inputs instructions if needed.
   if (isInput) {
@@ -276,7 +277,8 @@ Value *PHITransAddr::PHITranslateSubExpr(Value *V, BasicBlock *CurBB,
           isNSW = isNUW = false;
 
           // If the old 'LHS' was an input, add the new 'LHS' as an input.
-          if (std::count(InstInputs.begin(), InstInputs.end(), BOp)) {
+          if (std::find(InstInputs.begin(), InstInputs.end(), BOp) !=
+              InstInputs.end()) {
             RemoveInstInputs(BOp, InstInputs);
             AddAsInput(LHS);
           }
@@ -313,21 +315,26 @@ Value *PHITransAddr::PHITranslateSubExpr(Value *V, BasicBlock *CurBB,
 
 
 /// PHITranslateValue - PHI translate the current address up the CFG from
-/// CurBB to Pred, updating our state to reflect any needed changes.  If the
-/// dominator tree DT is non-null, the translated value must dominate
+/// CurBB to Pred, updating our state to reflect any needed changes.  If
+/// 'MustDominate' is true, the translated value must dominate
 /// PredBB.  This returns true on failure and sets Addr to null.
 bool PHITransAddr::PHITranslateValue(BasicBlock *CurBB, BasicBlock *PredBB,
-                                     const DominatorTree *DT) {
+                                     const DominatorTree *DT,
+                                     bool MustDominate) {
+  assert(DT || !MustDominate);
   assert(Verify() && "Invalid PHITransAddr!");
-  Addr = PHITranslateSubExpr(Addr, CurBB, PredBB, DT);
+  if (DT && DT->isReachableFromEntry(PredBB))
+    Addr =
+        PHITranslateSubExpr(Addr, CurBB, PredBB, MustDominate ? DT : nullptr);
+  else
+    Addr = nullptr;
   assert(Verify() && "Invalid PHITransAddr!");
 
-  if (DT) {
+  if (MustDominate)
     // Make sure the value is live in the predecessor.
     if (Instruction *Inst = dyn_cast_or_null<Instruction>(Addr))
       if (!DT->dominates(Inst->getParent(), PredBB))
         Addr = nullptr;
-  }
 
   return Addr == nullptr;
 }
@@ -370,7 +377,7 @@ InsertPHITranslatedSubExpr(Value *InVal, BasicBlock *CurBB,
   // See if we have a version of this value already available and dominating
   // PredBB.  If so, there is no need to insert a new instance of it.
   PHITransAddr Tmp(InVal, DL, AC);
-  if (!Tmp.PHITranslateValue(CurBB, PredBB, &DT))
+  if (!Tmp.PHITranslateValue(CurBB, PredBB, &DT, /*MustDominate=*/true))
     return Tmp.getAddr();
 
   // If we don't have an available version of this value, it must be an

@@ -20,8 +20,7 @@ using namespace llvm;
 
 void SparcELFMCAsmInfo::anchor() {}
 
-SparcELFMCAsmInfo::SparcELFMCAsmInfo(StringRef TT) {
-  Triple TheTriple(TT);
+SparcELFMCAsmInfo::SparcELFMCAsmInfo(const Triple &TheTriple) {
   bool isV9 = (TheTriple.getArch() == Triple::sparcv9);
   IsLittleEndian = (TheTriple.getArch() == Triple::sparcel);
 
@@ -51,8 +50,8 @@ SparcELFMCAsmInfo::getExprForPersonalitySymbol(const MCSymbol *Sym,
                                                MCStreamer &Streamer) const {
   if (Encoding & dwarf::DW_EH_PE_pcrel) {
     MCContext &Ctx = Streamer.getContext();
-    return SparcMCExpr::Create(SparcMCExpr::VK_Sparc_R_DISP32,
-                               MCSymbolRefExpr::Create(Sym, Ctx), Ctx);
+    return SparcMCExpr::create(SparcMCExpr::VK_Sparc_R_DISP32,
+                               MCSymbolRefExpr::create(Sym, Ctx), Ctx);
   }
 
   return MCAsmInfo::getExprForPersonalitySymbol(Sym, Encoding, Streamer);
@@ -64,8 +63,8 @@ SparcELFMCAsmInfo::getExprForFDESymbol(const MCSymbol *Sym,
                                        MCStreamer &Streamer) const {
   if (Encoding & dwarf::DW_EH_PE_pcrel) {
     MCContext &Ctx = Streamer.getContext();
-    return SparcMCExpr::Create(SparcMCExpr::VK_Sparc_R_DISP32,
-                               MCSymbolRefExpr::Create(Sym, Ctx), Ctx);
+    return SparcMCExpr::create(SparcMCExpr::VK_Sparc_R_DISP32,
+                               MCSymbolRefExpr::create(Sym, Ctx), Ctx);
   }
   return MCAsmInfo::getExprForFDESymbol(Sym, Encoding, Streamer);
 }

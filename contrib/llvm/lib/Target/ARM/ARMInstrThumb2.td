@@ -3531,20 +3531,20 @@ def t2B   : T2I<(outs), (ins uncondbrtarget:$target), IIC_Br,
   let AsmMatchConverter = "cvtThumbBranches";
 }
 
-let isNotDuplicable = 1, isIndirectBranch = 1 in {
+let Size = 4, isNotDuplicable = 1, isIndirectBranch = 1 in {
 def t2BR_JT : t2PseudoInst<(outs),
           (ins GPR:$target, GPR:$index, i32imm:$jt),
            0, IIC_Br,
           [(ARMbr2jt GPR:$target, GPR:$index, tjumptable:$jt)]>,
           Sched<[WriteBr]>;
 
-// FIXME: Add a non-pc based case that can be predicated.
+// FIXME: Add a case that can be predicated.
 def t2TBB_JT : t2PseudoInst<(outs),
-        (ins GPR:$index, i32imm:$jt), 0, IIC_Br, []>,
+        (ins GPR:$base, GPR:$index, i32imm:$jt, i32imm:$pclbl), 0, IIC_Br, []>,
         Sched<[WriteBr]>;
 
 def t2TBH_JT : t2PseudoInst<(outs),
-        (ins GPR:$index, i32imm:$jt), 0, IIC_Br, []>,
+        (ins GPR:$base, GPR:$index, i32imm:$jt, i32imm:$pclbl), 0, IIC_Br, []>,
         Sched<[WriteBr]>;
 
 def t2TBB : T2I<(outs), (ins addrmode_tbb:$addr), IIC_Br,
@@ -4141,11 +4141,9 @@ class t2MovRCopro<bits<4> Op, string opc, bit direction, dag oops, dag iops,
   let Inst{19-16} = CRn;
 }
 
-class t2MovRRCopro<bits<4> Op, string opc, bit direction,
+class t2MovRRCopro<bits<4> Op, string opc, bit direction, dag oops, dag iops,
                    list<dag> pattern = []>
-  : T2Cop<Op, (outs),
-          (ins p_imm:$cop, imm0_15:$opc1, GPR:$Rt, GPR:$Rt2, c_imm:$CRm),
-          opc, "\t$cop, $opc1, $Rt, $Rt2, $CRm", pattern> {
+  : T2Cop<Op, oops, iops, opc, "\t$cop, $opc1, $Rt, $Rt2, $CRm", pattern> {
   let Inst{27-24} = 0b1100;
   let Inst{23-21} = 0b010;
   let Inst{20} = direction;
@@ -4210,19 +4208,25 @@ def : T2v6Pat<(int_arm_mrc2 imm:$cop, imm:$opc1, imm:$CRn, imm:$CRm, imm:$opc2),
 
 
 /* from ARM core register to coprocessor */
-def t2MCRR : t2MovRRCopro<0b1110, "mcrr", 0,
+def t2MCRR : t2MovRRCopro<0b1110, "mcrr", 0, (outs),
+                         (ins p_imm:$cop, imm0_15:$opc1, GPR:$Rt, GPR:$Rt2,
+                         c_imm:$CRm),
                         [(int_arm_mcrr imm:$cop, imm:$opc1, GPR:$Rt, GPR:$Rt2,
                                        imm:$CRm)]>;
-def t2MCRR2 : t2MovRRCopro<0b1111, "mcrr2", 0,
-                           [(int_arm_mcrr2 imm:$cop, imm:$opc1, GPR:$Rt,
-                                           GPR:$Rt2, imm:$CRm)]> {
+def t2MCRR2 : t2MovRRCopro<0b1111, "mcrr2", 0, (outs),
+                          (ins p_imm:$cop, imm0_15:$opc1, GPR:$Rt, GPR:$Rt2,
+                           c_imm:$CRm),
+                          [(int_arm_mcrr2 imm:$cop, imm:$opc1, GPR:$Rt,
+                                          GPR:$Rt2, imm:$CRm)]> {
   let Predicates = [IsThumb2, PreV8];
 }
 
 /* from coprocessor to ARM core register */
-def t2MRRC : t2MovRRCopro<0b1110, "mrrc", 1>;
+def t2MRRC : t2MovRRCopro<0b1110, "mrrc", 1, (outs GPR:$Rt, GPR:$Rt2),
+                          (ins p_imm:$cop, imm0_15:$opc1, c_imm:$CRm)>;
 
-def t2MRRC2 : t2MovRRCopro<0b1111, "mrrc2", 1> {
+def t2MRRC2 : t2MovRRCopro<0b1111, "mrrc2", 1, (outs GPR:$Rt, GPR:$Rt2),
+                           (ins p_imm:$cop, imm0_15:$opc1, c_imm:$CRm)> {
   let Predicates = [IsThumb2, PreV8];
 }
 

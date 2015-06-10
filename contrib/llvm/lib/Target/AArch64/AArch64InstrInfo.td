@@ -66,6 +66,20 @@ def SDT_AArch64CSel  : SDTypeProfile<1, 4,
                                     SDTCisSameAs<0, 2>,
                                     SDTCisInt<3>,
                                     SDTCisVT<4, i32>]>;
+def SDT_AArch64CCMP : SDTypeProfile<1, 5,
+                                    [SDTCisVT<0, i32>,
+                                     SDTCisInt<1>,
+                                     SDTCisSameAs<1, 2>,
+                                     SDTCisInt<3>,
+                                     SDTCisInt<4>,
+                                     SDTCisVT<5, i32>]>;
+def SDT_AArch64FCCMP : SDTypeProfile<1, 5,
+                                     [SDTCisVT<0, i32>,
+                                      SDTCisFP<1>,
+                                      SDTCisSameAs<1, 2>,
+                                      SDTCisInt<3>,
+                                      SDTCisInt<4>,
+                                      SDTCisVT<5, i32>]>;
 def SDT_AArch64FCmp   : SDTypeProfile<0, 2,
                                    [SDTCisFP<0>,
                                     SDTCisSameAs<0, 1>]>;
@@ -159,6 +173,10 @@ def AArch64and_flag  : SDNode<"AArch64ISD::ANDS",  SDTBinaryArithWithFlagsOut,
                             [SDNPCommutative]>;
 def AArch64adc_flag  : SDNode<"AArch64ISD::ADCS",  SDTBinaryArithWithFlagsInOut>;
 def AArch64sbc_flag  : SDNode<"AArch64ISD::SBCS",  SDTBinaryArithWithFlagsInOut>;
+
+def AArch64ccmp      : SDNode<"AArch64ISD::CCMP",  SDT_AArch64CCMP>;
+def AArch64ccmn      : SDNode<"AArch64ISD::CCMN",  SDT_AArch64CCMP>;
+def AArch64fccmp     : SDNode<"AArch64ISD::FCCMP", SDT_AArch64FCCMP>;
 
 def AArch64threadpointer : SDNode<"AArch64ISD::THREAD_POINTER", SDTPtrLeaf>;
 
@@ -727,6 +745,74 @@ def CRC32CHrr : BaseCRC32<0, 0b01, 1, GPR32, int_aarch64_crc32ch, "crc32ch">;
 def CRC32CWrr : BaseCRC32<0, 0b10, 1, GPR32, int_aarch64_crc32cw, "crc32cw">;
 def CRC32CXrr : BaseCRC32<1, 0b11, 1, GPR64, int_aarch64_crc32cx, "crc32cx">;
 
+// v8.1 atomic CAS
+defm CAS   : CompareAndSwap<0, 0, "">;
+defm CASA  : CompareAndSwap<1, 0, "a">;
+defm CASL  : CompareAndSwap<0, 1, "l">;
+defm CASAL : CompareAndSwap<1, 1, "al">;
+
+// v8.1 atomic CASP
+defm CASP   : CompareAndSwapPair<0, 0, "">;
+defm CASPA  : CompareAndSwapPair<1, 0, "a">;
+defm CASPL  : CompareAndSwapPair<0, 1, "l">;
+defm CASPAL : CompareAndSwapPair<1, 1, "al">;
+
+// v8.1 atomic SWP
+defm SWP   : Swap<0, 0, "">;
+defm SWPA  : Swap<1, 0, "a">;
+defm SWPL  : Swap<0, 1, "l">;
+defm SWPAL : Swap<1, 1, "al">;
+
+// v8.1 atomic LD<OP>(register). Performs load and then ST<OP>(register)
+defm LDADD   : LDOPregister<0b000, "add", 0, 0, "">;
+defm LDADDA  : LDOPregister<0b000, "add", 1, 0, "a">;
+defm LDADDL  : LDOPregister<0b000, "add", 0, 1, "l">;
+defm LDADDAL : LDOPregister<0b000, "add", 1, 1, "al">;
+
+defm LDCLR   : LDOPregister<0b001, "clr", 0, 0, "">;
+defm LDCLRA  : LDOPregister<0b001, "clr", 1, 0, "a">;
+defm LDCLRL  : LDOPregister<0b001, "clr", 0, 1, "l">;
+defm LDCLRAL : LDOPregister<0b001, "clr", 1, 1, "al">;
+
+defm LDEOR   : LDOPregister<0b010, "eor", 0, 0, "">;
+defm LDEORA  : LDOPregister<0b010, "eor", 1, 0, "a">;
+defm LDEORL  : LDOPregister<0b010, "eor", 0, 1, "l">;
+defm LDEORAL : LDOPregister<0b010, "eor", 1, 1, "al">;
+
+defm LDSET   : LDOPregister<0b011, "set", 0, 0, "">;
+defm LDSETA  : LDOPregister<0b011, "set", 1, 0, "a">;
+defm LDSETL  : LDOPregister<0b011, "set", 0, 1, "l">;
+defm LDSETAL : LDOPregister<0b011, "set", 1, 1, "al">;
+
+defm LDSMAX   : LDOPregister<0b100, "smax", 0, 0, "">;
+defm LDSMAXA  : LDOPregister<0b100, "smax", 1, 0, "a">;
+defm LDSMAXL  : LDOPregister<0b100, "smax", 0, 1, "l">;
+defm LDSMAXAL : LDOPregister<0b100, "smax", 1, 1, "al">;
+
+defm LDSMIN   : LDOPregister<0b101, "smin", 0, 0, "">;
+defm LDSMINA  : LDOPregister<0b101, "smin", 1, 0, "a">;
+defm LDSMINL  : LDOPregister<0b101, "smin", 0, 1, "l">;
+defm LDSMINAL : LDOPregister<0b101, "smin", 1, 1, "al">;
+
+defm LDUMAX   : LDOPregister<0b110, "umax", 0, 0, "">;
+defm LDUMAXA  : LDOPregister<0b110, "umax", 1, 0, "a">;
+defm LDUMAXL  : LDOPregister<0b110, "umax", 0, 1, "l">;
+defm LDUMAXAL : LDOPregister<0b110, "umax", 1, 1, "al">;
+
+defm LDUMIN   : LDOPregister<0b111, "umin", 0, 0, "">;
+defm LDUMINA  : LDOPregister<0b111, "umin", 1, 0, "a">;
+defm LDUMINL  : LDOPregister<0b111, "umin", 0, 1, "l">;
+defm LDUMINAL : LDOPregister<0b111, "umin", 1, 1, "al">;
+
+// v8.1 atomic ST<OP>(register) as aliases to "LD<OP>(register) when Rt=xZR"
+defm : STOPregister<"stadd","LDADD">; // STADDx
+defm : STOPregister<"stclr","LDCLR">; // STCLRx
+defm : STOPregister<"steor","LDEOR">; // STEORx
+defm : STOPregister<"stset","LDSET">; // STSETx
+defm : STOPregister<"stsmax","LDSMAX">;// STSMAXx
+defm : STOPregister<"stsmin","LDSMIN">;// STSMINx
+defm : STOPregister<"stumax","LDUMAX">;// STUMAXx
+defm : STOPregister<"stumin","LDUMIN">;// STUMINx
 
 //===----------------------------------------------------------------------===//
 // Logical instructions.
@@ -950,13 +1036,10 @@ def : InstAlias<"uxth $dst, $src", (UBFMXri GPR64:$dst, GPR64:$src, 0, 15)>;
 def : InstAlias<"uxtw $dst, $src", (UBFMXri GPR64:$dst, GPR64:$src, 0, 31)>;
 
 //===----------------------------------------------------------------------===//
-// Conditionally set flags instructions.
+// Conditional comparison instructions.
 //===----------------------------------------------------------------------===//
-defm CCMN : CondSetFlagsImm<0, "ccmn">;
-defm CCMP : CondSetFlagsImm<1, "ccmp">;
-
-defm CCMN : CondSetFlagsReg<0, "ccmn">;
-defm CCMP : CondSetFlagsReg<1, "ccmp">;
+defm CCMN : CondComparison<0, "ccmn", AArch64ccmn>;
+defm CCMP : CondComparison<1, "ccmp", AArch64ccmp>;
 
 //===----------------------------------------------------------------------===//
 // Conditional select instructions.
@@ -2486,7 +2569,7 @@ defm FCMP  : FPComparison<0, "fcmp", AArch64fcmp>;
 //===----------------------------------------------------------------------===//
 
 defm FCCMPE : FPCondComparison<1, "fccmpe">;
-defm FCCMP  : FPCondComparison<0, "fccmp">;
+defm FCCMP  : FPCondComparison<0, "fccmp", AArch64fccmp>;
 
 //===----------------------------------------------------------------------===//
 // Floating point conditional select instruction.

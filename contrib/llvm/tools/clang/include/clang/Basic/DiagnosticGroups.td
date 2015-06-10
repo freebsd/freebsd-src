@@ -239,6 +239,7 @@ def MultiChar : DiagGroup<"multichar">;
 def : DiagGroup<"nested-externs">;
 def CXX11LongLong : DiagGroup<"c++11-long-long">;
 def LongLong : DiagGroup<"long-long", [CXX11LongLong]>;
+def ImplicitlyUnsignedLiteral : DiagGroup<"implicitly-unsigned-literal">;
 def MethodSignatures : DiagGroup<"method-signatures">;
 def MismatchedParameterTypes : DiagGroup<"mismatched-parameter-types">;
 def MismatchedReturnTypes : DiagGroup<"mismatched-return-types">;
@@ -264,6 +265,8 @@ def : DiagGroup<"overflow">;
 def ForwardClassReceiver : DiagGroup<"receiver-forward-class">;
 def MethodAccess : DiagGroup<"objc-method-access">;
 def ObjCReceiver : DiagGroup<"receiver-expr">;
+// FIXME: Remove this when Xcode removes the warning setting.
+def : DiagGroup<"receiver-is-weak">;
 def OperatorNewReturnsNull : DiagGroup<"new-returns-null">;
 def OverlengthStrings : DiagGroup<"overlength-strings">;
 def OverloadedVirtual : DiagGroup<"overloaded-virtual">;

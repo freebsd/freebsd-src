@@ -254,40 +254,34 @@ void AsmPrinter::emitCFIInstruction(const MCCFIInstruction &Inst) const {
 }
 
 void AsmPrinter::emitDwarfDIE(const DIE &Die) const {
-  // Get the abbreviation for this DIE.
-  const DIEAbbrev &Abbrev = Die.getAbbrev();
-
   // Emit the code (index) for the abbreviation.
   if (isVerbose())
-    OutStreamer->AddComment("Abbrev [" + Twine(Abbrev.getNumber()) +
-                            "] 0x" + Twine::utohexstr(Die.getOffset()) +
-                            ":0x" + Twine::utohexstr(Die.getSize()) + " " +
-                            dwarf::TagString(Abbrev.getTag()));
-  EmitULEB128(Abbrev.getNumber());
-
-  const SmallVectorImpl<DIEValue *> &Values = Die.getValues();
-  const SmallVectorImpl<DIEAbbrevData> &AbbrevData = Abbrev.getData();
+    OutStreamer->AddComment("Abbrev [" + Twine(Die.getAbbrevNumber()) + "] 0x" +
+                            Twine::utohexstr(Die.getOffset()) + ":0x" +
+                            Twine::utohexstr(Die.getSize()) + " " +
+                            dwarf::TagString(Die.getTag()));
+  EmitULEB128(Die.getAbbrevNumber());
 
   // Emit the DIE attribute values.
-  for (unsigned i = 0, N = Values.size(); i < N; ++i) {
-    dwarf::Attribute Attr = AbbrevData[i].getAttribute();
-    dwarf::Form Form = AbbrevData[i].getForm();
+  for (const auto &V : Die.values()) {
+    dwarf::Attribute Attr = V.getAttribute();
+    dwarf::Form Form = V.getForm();
     assert(Form && "Too many attributes for DIE (check abbreviation)");
 
     if (isVerbose()) {
       OutStreamer->AddComment(dwarf::AttributeString(Attr));
       if (Attr == dwarf::DW_AT_accessibility)
-        OutStreamer->AddComment(dwarf::AccessibilityString(
-            cast<DIEInteger>(Values[i])->getValue()));
+        OutStreamer->AddComment(
+            dwarf::AccessibilityString(V.getDIEInteger().getValue()));
     }
 
     // Emit an attribute using the defined form.
-    Values[i]->EmitValue(this, Form);
+    V.EmitValue(this, Form);
   }
 
   // Emit the DIE children if any.
-  if (Abbrev.hasChildren()) {
-    for (auto &Child : Die.getChildren())
+  if (Die.hasChildren()) {
+    for (auto &Child : Die.children())
       emitDwarfDIE(*Child);
 
     OutStreamer->AddComment("End Of Children Mark");

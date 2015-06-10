@@ -34,14 +34,10 @@ std::error_code ObjectFile::printSymbolName(raw_ostream &OS,
   if (std::error_code EC = getSymbolName(Symb, Name))
     return EC;
   OS << Name;
-  return object_error::success;
+  return std::error_code();
 }
 
-std::error_code ObjectFile::getSymbolAlignment(DataRefImpl DRI,
-                                               uint32_t &Result) const {
-  Result = 0;
-  return object_error::success;
-}
+uint32_t ObjectFile::getSymbolAlignment(DataRefImpl DRI) const { return 0; }
 
 section_iterator ObjectFile::getRelocatedSection(DataRefImpl Sec) const {
   return section_iterator(SectionRef(Sec, this));

@@ -63,9 +63,7 @@ public:
   // vector compatibility methods
   unsigned size() const { return ValuePtrs.size(); }
   void resize(unsigned N) { ValuePtrs.resize(N); }
-  void push_back(Value *V) {
-    ValuePtrs.push_back(V);
-  }
+  void push_back(Value *V) { ValuePtrs.emplace_back(V); }
 
   void clear() {
     assert(ResolveConstants.empty() && "Constants not resolved?");
@@ -1499,6 +1497,8 @@ std::error_code BitcodeReader::ParseTypeTableBody() {
     case bitc::TYPE_CODE_VECTOR:    // VECTOR: [numelts, eltty]
       if (Record.size() < 2)
         return Error("Invalid record");
+      if (Record[0] == 0)
+        return Error("Invalid vector length");
       ResultTy = getTypeByID(Record[1]);
       if (!ResultTy || !StructType::isValidElementType(ResultTy))
         return Error("Invalid type");
@@ -1636,9 +1636,9 @@ std::error_code BitcodeReader::ParseMetadata() {
       Record.clear();
       Code = Stream.ReadCode();
 
-      // METADATA_NAME is always followed by METADATA_NAMED_NODE.
       unsigned NextBitCode = Stream.readRecord(Code, Record);
-      assert(NextBitCode == bitc::METADATA_NAMED_NODE); (void)NextBitCode;
+      if (NextBitCode != bitc::METADATA_NAMED_NODE)
+        return Error("METADATA_NAME not followed by METADATA_NAMED_NODE");
 
       // Read named metadata elements.
       unsigned Size = Record.size();
@@ -2065,10 +2065,13 @@ std::error_code BitcodeReader::ResolveGlobalAndAliasInits() {
     if (ValID >= ValueList.size()) {
       AliasInits.push_back(AliasInitWorklist.back());
     } else {
-      if (Constant *C = dyn_cast_or_null<Constant>(ValueList[ValID]))
-        AliasInitWorklist.back().first->setAliasee(C);
-      else
+      Constant *C = dyn_cast_or_null<Constant>(ValueList[ValID]);
+      if (!C)
         return Error("Expected a constant");
+      GlobalAlias *Alias = AliasInitWorklist.back().first;
+      if (C->getType() != Alias->getType())
+        return Error("Alias and aliasee types don't match");
+      Alias->setAliasee(C);
     }
     AliasInitWorklist.pop_back();
   }

@@ -43,7 +43,7 @@ class MCInstrInfo;
 namespace {
 class MipsAssemblerOptions {
 public:
-  MipsAssemblerOptions(uint64_t Features_) : 
+  MipsAssemblerOptions(const FeatureBitset &Features_) :
     ATReg(1), Reorder(true), Macro(true), Features(Features_) {}
 
   MipsAssemblerOptions(const MipsAssemblerOptions *Opts) {
@@ -70,8 +70,8 @@ public:
   void setMacro() { Macro = true; }
   void setNoMacro() { Macro = false; }
 
-  uint64_t getFeatures() const { return Features; }
-  void setFeatures(uint64_t Features_) { Features = Features_; }
+  const FeatureBitset &getFeatures() const { return Features; }
+  void setFeatures(const FeatureBitset &Features_) { Features = Features_; }
 
   // Set of features that are either architecture features or referenced
   // by them (e.g.: FeatureNaN2008 implied by FeatureMips32r6).
@@ -84,7 +84,7 @@ private:
   unsigned ATReg;
   bool Reorder;
   bool Macro;
-  uint64_t Features;
+  FeatureBitset Features;
 };
 }
 
@@ -247,6 +247,8 @@ class MipsAsmParser : public MCTargetAsmParser {
   bool parseSetFpDirective();
   bool parseSetPopDirective();
   bool parseSetPushDirective();
+  bool parseSetSoftFloatDirective();
+  bool parseSetHardFloatDirective();
 
   bool parseSetAssignment();
 
@@ -325,23 +327,23 @@ class MipsAsmParser : public MCTargetAsmParser {
     STI.setFeatureBits(FeatureBits);
     setAvailableFeatures(
         ComputeAvailableFeatures(STI.ToggleFeature(ArchFeature)));
-    AssemblerOptions.back()->setFeatures(getAvailableFeatures());
+    AssemblerOptions.back()->setFeatures(STI.getFeatureBits());
   }
 
   void setFeatureBits(uint64_t Feature, StringRef FeatureString) {
     if (!(STI.getFeatureBits()[Feature])) {
       setAvailableFeatures(
           ComputeAvailableFeatures(STI.ToggleFeature(FeatureString)));
+      AssemblerOptions.back()->setFeatures(STI.getFeatureBits());
     }
-    AssemblerOptions.back()->setFeatures(getAvailableFeatures());
   }
 
   void clearFeatureBits(uint64_t Feature, StringRef FeatureString) {
     if (STI.getFeatureBits()[Feature]) {
       setAvailableFeatures(
           ComputeAvailableFeatures(STI.ToggleFeature(FeatureString)));
+      AssemblerOptions.back()->setFeatures(STI.getFeatureBits());
     }
-    AssemblerOptions.back()->setFeatures(getAvailableFeatures());
   }
 
 public:
@@ -367,11 +369,11 @@ public:
     
     // Remember the initial assembler options. The user can not modify these.
     AssemblerOptions.push_back(
-                     make_unique<MipsAssemblerOptions>(getAvailableFeatures()));
+        llvm::make_unique<MipsAssemblerOptions>(STI.getFeatureBits()));
     
     // Create an assembler options environment for the user to modify.
     AssemblerOptions.push_back(
-                     make_unique<MipsAssemblerOptions>(getAvailableFeatures()));
+        llvm::make_unique<MipsAssemblerOptions>(STI.getFeatureBits()));
 
     getTargetStreamer().updateABIInfo(*this);
 
@@ -1946,10 +1948,10 @@ void MipsAsmParser::expandLoadAddressSym(
   unsigned RegNo = DstRegOp.getReg();
   const MCSymbolRefExpr *Symbol = cast<MCSymbolRefExpr>(SymOp.getExpr());
   const MCSymbolRefExpr *HiExpr =
-      MCSymbolRefExpr::Create(Symbol->getSymbol().getName(),
+      MCSymbolRefExpr::create(Symbol->getSymbol().getName(),
                               MCSymbolRefExpr::VK_Mips_ABS_HI, getContext());
   const MCSymbolRefExpr *LoExpr =
-      MCSymbolRefExpr::Create(Symbol->getSymbol().getName(),
+      MCSymbolRefExpr::create(Symbol->getSymbol().getName(),
                               MCSymbolRefExpr::VK_Mips_ABS_LO, getContext());
   if (!Is32BitSym) {
     // If it's a 64-bit architecture, expand to:
@@ -1960,10 +1962,10 @@ void MipsAsmParser::expandLoadAddressSym(
     //             dsll d,d,16
     //             ori  d,d,lo16(sym)
     const MCSymbolRefExpr *HighestExpr =
-        MCSymbolRefExpr::Create(Symbol->getSymbol().getName(),
+        MCSymbolRefExpr::create(Symbol->getSymbol().getName(),
                                 MCSymbolRefExpr::VK_Mips_HIGHEST, getContext());
     const MCSymbolRefExpr *HigherExpr =
-        MCSymbolRefExpr::Create(Symbol->getSymbol().getName(),
+        MCSymbolRefExpr::create(Symbol->getSymbol().getName(),
                                 MCSymbolRefExpr::VK_Mips_HIGHER, getContext());
 
     tmpInst.setOpcode(Mips::LUi);
@@ -2102,7 +2104,7 @@ void MipsAsmParser::expandMemInst(MCInst &Inst, SMLoc IDLoc,
   else {
     if (ExprOffset->getKind() == MCExpr::SymbolRef) {
       SR = static_cast<const MCSymbolRefExpr *>(ExprOffset);
-      const MCSymbolRefExpr *HiExpr = MCSymbolRefExpr::Create(
+      const MCSymbolRefExpr *HiExpr = MCSymbolRefExpr::create(
           SR->getSymbol().getName(), MCSymbolRefExpr::VK_Mips_ABS_HI,
           getContext());
       TempInst.addOperand(MCOperand::createExpr(HiExpr));
@@ -2133,7 +2135,7 @@ void MipsAsmParser::expandMemInst(MCInst &Inst, SMLoc IDLoc,
     TempInst.addOperand(MCOperand::createImm(LoOffset));
   else {
     if (ExprOffset->getKind() == MCExpr::SymbolRef) {
-      const MCSymbolRefExpr *LoExpr = MCSymbolRefExpr::Create(
+      const MCSymbolRefExpr *LoExpr = MCSymbolRefExpr::create(
           SR->getSymbol().getName(), MCSymbolRefExpr::VK_Mips_ABS_LO,
           getContext());
       TempInst.addOperand(MCOperand::createExpr(LoExpr));
@@ -2505,7 +2507,7 @@ bool MipsAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     MCSymbol *Sym = getContext().getOrCreateSymbol("$" + Identifier);
     // Otherwise create a symbol reference.
     const MCExpr *Res =
-        MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_None, getContext());
+        MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
 
     Operands.push_back(MipsOperand::CreateImm(Res, S, E, *this));
     return false;
@@ -2565,14 +2567,14 @@ const MCExpr *MipsAsmParser::evaluateRelocExpr(const MCExpr *Expr,
     default:
       report_fatal_error("unsupported reloc value");
     }
-    return MCConstantExpr::Create(Val, getContext());
+    return MCConstantExpr::create(Val, getContext());
   }
 
   if (const MCSymbolRefExpr *MSRE = dyn_cast<MCSymbolRefExpr>(Expr)) {
     // It's a symbol, create a symbolic expression from the symbol.
     StringRef Symbol = MSRE->getSymbol().getName();
     MCSymbolRefExpr::VariantKind VK = getVariantKind(RelocStr);
-    Res = MCSymbolRefExpr::Create(Symbol, VK, getContext());
+    Res = MCSymbolRefExpr::create(Symbol, VK, getContext());
     return Res;
   }
 
@@ -2581,17 +2583,17 @@ const MCExpr *MipsAsmParser::evaluateRelocExpr(const MCExpr *Expr,
 
     // Try to create target expression.
     if (MipsMCExpr::isSupportedBinaryExpr(VK, BE))
-      return MipsMCExpr::Create(VK, Expr, getContext());
+      return MipsMCExpr::create(VK, Expr, getContext());
 
     const MCExpr *LExp = evaluateRelocExpr(BE->getLHS(), RelocStr);
     const MCExpr *RExp = evaluateRelocExpr(BE->getRHS(), RelocStr);
-    Res = MCBinaryExpr::Create(BE->getOpcode(), LExp, RExp, getContext());
+    Res = MCBinaryExpr::create(BE->getOpcode(), LExp, RExp, getContext());
     return Res;
   }
 
   if (const MCUnaryExpr *UN = dyn_cast<MCUnaryExpr>(Expr)) {
     const MCExpr *UnExp = evaluateRelocExpr(UN->getSubExpr(), RelocStr);
-    Res = MCUnaryExpr::Create(UN->getOpcode(), UnExp, getContext());
+    Res = MCUnaryExpr::create(UN->getOpcode(), UnExp, getContext());
     return Res;
   }
   // Just return the original expression.
@@ -2779,7 +2781,7 @@ MipsAsmParser::parseMemOperand(OperandVector &Operands) {
   Parser.Lex(); // Eat the ')' token.
 
   if (!IdVal)
-    IdVal = MCConstantExpr::Create(0, getContext());
+    IdVal = MCConstantExpr::create(0, getContext());
 
   // Replace the register operand with the memory operand.
   std::unique_ptr<MipsOperand> op(
@@ -2790,10 +2792,10 @@ MipsAsmParser::parseMemOperand(OperandVector &Operands) {
   // Add the memory operand.
   if (const MCBinaryExpr *BE = dyn_cast<MCBinaryExpr>(IdVal)) {
     int64_t Imm;
-    if (IdVal->EvaluateAsAbsolute(Imm))
-      IdVal = MCConstantExpr::Create(Imm, getContext());
+    if (IdVal->evaluateAsAbsolute(Imm))
+      IdVal = MCConstantExpr::create(Imm, getContext());
     else if (BE->getLHS()->getKind() != MCExpr::SymbolRef)
-      IdVal = MCBinaryExpr::Create(BE->getOpcode(), BE->getRHS(), BE->getLHS(),
+      IdVal = MCBinaryExpr::create(BE->getOpcode(), BE->getRHS(), BE->getLHS(),
                                    getContext());
   }
 
@@ -3010,7 +3012,7 @@ MipsAsmParser::parseInvNum(OperandVector &Operands) {
   int64_t Val = MCE->getValue();
   SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
   Operands.push_back(MipsOperand::CreateImm(
-      MCConstantExpr::Create(0 - Val, getContext()), S, E, *this));
+      MCConstantExpr::create(0 - Val, getContext()), S, E, *this));
   return MatchOperand_Success;
 }
 
@@ -3034,7 +3036,7 @@ MipsAsmParser::parseLSAImm(OperandVector &Operands) {
     return MatchOperand_ParseFail;
 
   int64_t Val;
-  if (!Expr->EvaluateAsAbsolute(Val)) {
+  if (!Expr->evaluateAsAbsolute(Val)) {
     Error(S, "expected immediate value");
     return MatchOperand_ParseFail;
   }
@@ -3601,7 +3603,9 @@ bool MipsAsmParser::parseSetPopDirective() {
     return reportParseError(Loc, ".set pop with no .set push");
 
   AssemblerOptions.pop_back();
-  setAvailableFeatures(AssemblerOptions.back()->getFeatures());
+  setAvailableFeatures(
+      ComputeAvailableFeatures(AssemblerOptions.back()->getFeatures()));
+  STI.setFeatureBits(AssemblerOptions.back()->getFeatures());
 
   getTargetStreamer().emitDirectiveSetPop();
   return false;
@@ -3618,6 +3622,28 @@ bool MipsAsmParser::parseSetPushDirective() {
               make_unique<MipsAssemblerOptions>(AssemblerOptions.back().get()));
 
   getTargetStreamer().emitDirectiveSetPush();
+  return false;
+}
+
+bool MipsAsmParser::parseSetSoftFloatDirective() {
+  MCAsmParser &Parser = getParser();
+  Parser.Lex();
+  if (getLexer().isNot(AsmToken::EndOfStatement))
+    return reportParseError("unexpected token, expected end of statement");
+
+  setFeatureBits(Mips::FeatureSoftFloat, "soft-float");
+  getTargetStreamer().emitDirectiveSetSoftFloat();
+  return false;
+}
+
+bool MipsAsmParser::parseSetHardFloatDirective() {
+  MCAsmParser &Parser = getParser();
+  Parser.Lex();
+  if (getLexer().isNot(AsmToken::EndOfStatement))
+    return reportParseError("unexpected token, expected end of statement");
+
+  clearFeatureBits(Mips::FeatureSoftFloat, "soft-float");
+  getTargetStreamer().emitDirectiveSetHardFloat();
   return false;
 }
 
@@ -3649,7 +3675,9 @@ bool MipsAsmParser::parseSetMips0Directive() {
     return reportParseError("unexpected token, expected end of statement");
 
   // Reset assembler options to their initial values.
-  setAvailableFeatures(AssemblerOptions.front()->getFeatures());
+  setAvailableFeatures(
+      ComputeAvailableFeatures(AssemblerOptions.front()->getFeatures()));
+  STI.setFeatureBits(AssemblerOptions.front()->getFeatures());
   AssemblerOptions.back()->setFeatures(AssemblerOptions.front()->getFeatures());
 
   getTargetStreamer().emitDirectiveSetMips0();
@@ -3985,6 +4013,10 @@ bool MipsAsmParser::parseDirectiveSet() {
     return parseSetMsaDirective();
   } else if (Tok.getString() == "nomsa") {
     return parseSetNoMsaDirective();
+  } else if (Tok.getString() == "softfloat") {
+    return parseSetSoftFloatDirective();
+  } else if (Tok.getString() == "hardfloat") {
+    return parseSetHardFloatDirective();
   } else {
     // It is just an identifier, look for an assignment.
     parseSetAssignment();
@@ -4286,7 +4318,7 @@ bool MipsAsmParser::ParseDirective(AsmToken DirectiveID) {
         reportParseError("expected number after comma");
         return false;
       }
-      if (!DummyNumber->EvaluateAsAbsolute(DummyNumberVal)) {
+      if (!DummyNumber->evaluateAsAbsolute(DummyNumberVal)) {
         reportParseError("expected an absolute expression after comma");
         return false;
       }
@@ -4366,7 +4398,7 @@ bool MipsAsmParser::ParseDirective(AsmToken DirectiveID) {
       return false;
     }
 
-    if (!FrameSize->EvaluateAsAbsolute(FrameSizeVal)) {
+    if (!FrameSize->evaluateAsAbsolute(FrameSizeVal)) {
       reportParseError("frame size not an absolute expression");
       return false;
     }
@@ -4427,7 +4459,7 @@ bool MipsAsmParser::ParseDirective(AsmToken DirectiveID) {
       return false;
     }
 
-    if (!BitMask->EvaluateAsAbsolute(BitMaskVal)) {
+    if (!BitMask->evaluateAsAbsolute(BitMaskVal)) {
       reportParseError("bitmask not an absolute expression");
       return false;
     }
@@ -4448,7 +4480,7 @@ bool MipsAsmParser::ParseDirective(AsmToken DirectiveID) {
       return false;
     }
 
-    if (!FrameOffset->EvaluateAsAbsolute(FrameOffsetVal)) {
+    if (!FrameOffset->evaluateAsAbsolute(FrameOffsetVal)) {
       reportParseError("frame offset not an absolute expression");
       return false;
     }

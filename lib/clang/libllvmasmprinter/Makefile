@@ -24,8 +24,8 @@ SRCS=	ARMException.cpp \
 	EHStreamer.cpp \
 	ErlangGCPrinter.cpp \
 	OcamlGCPrinter.cpp \
-	Win64Exception.cpp \
-	WinCodeViewLineTables.cpp
+	WinCodeViewLineTables.cpp \
+	WinException.cpp
 
 TGHDRS=	Intrinsics
 

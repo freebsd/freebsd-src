@@ -23,8 +23,6 @@ class MCAssembler;
 class MCCodeEmitter;
 class MCExpr;
 class MCInst;
-class MCSymbol;
-class MCSymbolData;
 class raw_ostream;
 
 class MCELFStreamer : public MCObjectStreamer {
@@ -39,7 +37,6 @@ public:
   void reset() override {
     SeenIdent = false;
     LocalCommons.clear();
-    BindingExplicitlySet.clear();
     BundleGroups.clear();
     MCObjectStreamer::reset();
   }
@@ -62,7 +59,7 @@ public:
   void EmitCOFFSymbolType(int Type) override;
   void EndCOFFSymbolDef() override;
 
-  void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) override;
+  void emitELFSize(MCSymbolELF *Symbol, const MCExpr *Value) override;
 
   void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                              unsigned ByteAlignment) override;
@@ -107,8 +104,6 @@ private:
   };
 
   std::vector<LocalCommon> LocalCommons;
-
-  SmallPtrSet<MCSymbol *, 16> BindingExplicitlySet;
 
   /// BundleGroups - The stack of fragments holding the bundle-locked
   /// instructions.

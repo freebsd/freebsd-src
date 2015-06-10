@@ -50,7 +50,8 @@ public:
     armeb,      // ARM (big endian): armeb
     aarch64,    // AArch64 (little endian): aarch64
     aarch64_be, // AArch64 (big endian): aarch64_be
-    bpf,        // eBPF or extended BPF or 64-bit BPF (little endian)
+    bpfel,      // eBPF or extended BPF or 64-bit BPF (little endian)
+    bpfeb,      // eBPF or extended BPF or 64-bit BPF (big endian)
     hexagon,    // Hexagon: hexagon
     mips,       // MIPS: mips, mipsallegrex
     mipsel,     // MIPSEL: mipsel, mipsallegrexel
@@ -254,6 +255,15 @@ public:
 
   /// getEnvironment - Get the parsed environment type of this triple.
   EnvironmentType getEnvironment() const { return Environment; }
+
+  /// \brief Parse the version number from the OS name component of the
+  /// triple, if present.
+  ///
+  /// For example, "fooos1.2.3" would return (1, 2, 3).
+  ///
+  /// If an entry is not defined, it will be returned as 0.
+  void getEnvironmentVersion(unsigned &Major, unsigned &Minor,
+                             unsigned &Micro) const;
 
   /// getFormat - Get the object format for this triple.
   ObjectFormatType getObjectFormat() const { return ObjectFormat; }

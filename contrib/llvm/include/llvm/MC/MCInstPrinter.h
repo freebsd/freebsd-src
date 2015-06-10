@@ -10,6 +10,7 @@
 #ifndef LLVM_MC_MCINSTPRINTER_H
 #define LLVM_MC_MCINSTPRINTER_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Format.h"
 
@@ -22,11 +23,14 @@ class MCRegisterInfo;
 class MCSubtargetInfo;
 class StringRef;
 
+/// Convert `Bytes' to a hex string and output to `OS'
+void dumpBytes(ArrayRef<uint8_t> Bytes, raw_ostream &OS);
+
 namespace HexStyle {
-    enum Style {
-        C,          ///< 0xff
-        Asm         ///< 0ffh
-    };
+enum Style {
+  C,  ///< 0xff
+  Asm ///< 0ffh
+};
 }
 
 /// \brief This is an instance of a target assembly language printer that
@@ -52,12 +56,12 @@ protected:
 
   /// Utility function for printing annotations.
   void printAnnotation(raw_ostream &OS, StringRef Annot);
+
 public:
   MCInstPrinter(const MCAsmInfo &mai, const MCInstrInfo &mii,
                 const MCRegisterInfo &mri)
-    : CommentStream(nullptr), MAI(mai), MII(mii), MRI(mri),
-      UseMarkup(0), PrintImmHex(0),
-      PrintHexStyle(HexStyle::C) {}
+      : CommentStream(nullptr), MAI(mai), MII(mii), MRI(mri), UseMarkup(0),
+        PrintImmHex(0), PrintHexStyle(HexStyle::C) {}
 
   virtual ~MCInstPrinter();
 
@@ -65,8 +69,8 @@ public:
   void setCommentStream(raw_ostream &OS) { CommentStream = &OS; }
 
   /// \brief Print the specified MCInst to the specified raw_ostream.
-  virtual void printInst(const MCInst *MI, raw_ostream &OS,
-                         StringRef Annot, const MCSubtargetInfo &STI) = 0;
+  virtual void printInst(const MCInst *MI, raw_ostream &OS, StringRef Annot,
+                         const MCSubtargetInfo &STI) = 0;
 
   /// \brief Return the name of the specified opcode enum (e.g. "MOV32ri") or
   /// empty if we can't resolve it.
@@ -85,8 +89,8 @@ public:
   bool getPrintImmHex() const { return PrintImmHex; }
   void setPrintImmHex(bool Value) { PrintImmHex = Value; }
 
-  HexStyle::Style getPrintHexStyleHex() const { return PrintHexStyle; }
-  void setPrintImmHex(HexStyle::Style Value) { PrintHexStyle = Value; }
+  HexStyle::Style getPrintHexStyle() const { return PrintHexStyle; }
+  void setPrintHexStyle(HexStyle::Style Value) { PrintHexStyle = Value; }
 
   /// Utility function to print immediates in decimal or hex.
   format_object<int64_t> formatImm(int64_t Value) const {

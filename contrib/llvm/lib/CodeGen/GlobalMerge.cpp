@@ -124,6 +124,12 @@ namespace {
     // for more information.
     unsigned MaxOffset;
 
+    /// Whether we should try to optimize for size only.
+    /// Currently, this applies a dead simple heuristic: only consider globals
+    /// used in minsize functions for merging.
+    /// FIXME: This could learn about optsize, and be used in the cost model.
+    bool OnlyOptimizeForSize;
+
     bool doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
                  Module &M, bool isConst, unsigned AddrSpace) const;
     /// \brief Merge everything in \p Globals for which the corresponding bit
@@ -152,9 +158,10 @@ namespace {
   public:
     static char ID;             // Pass identification, replacement for typeid.
     explicit GlobalMerge(const TargetMachine *TM = nullptr,
-                         unsigned MaximalOffset = 0)
+                         unsigned MaximalOffset = 0,
+                         bool OnlyOptimizeForSize = false)
         : FunctionPass(ID), TM(TM), DL(TM->getDataLayout()),
-          MaxOffset(MaximalOffset) {
+          MaxOffset(MaximalOffset), OnlyOptimizeForSize(OnlyOptimizeForSize) {
       initializeGlobalMergePass(*PassRegistry::getPassRegistry());
     }
 
@@ -273,6 +280,8 @@ bool GlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
       // users, so look through ConstantExpr...
       Use *UI, *UE;
       if (ConstantExpr *CE = dyn_cast<ConstantExpr>(U.getUser())) {
+        if (CE->use_empty())
+          continue;
         UI = &*CE->use_begin();
         UE = nullptr;
       } else if (isa<Instruction>(U.getUser())) {
@@ -290,6 +299,12 @@ bool GlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
           continue;
 
         Function *ParentFn = I->getParent()->getParent();
+
+        // If we're only optimizing for size, ignore non-minsize functions.
+        if (OnlyOptimizeForSize &&
+            !ParentFn->hasFnAttribute(Attribute::MinSize))
+          continue;
+
         size_t UGSIdx = GlobalUsesByFunction[ParentFn];
 
         // If this is the first global the basic block uses, map it to the set
@@ -585,6 +600,7 @@ bool GlobalMerge::doFinalization(Module &M) {
   return false;
 }
 
-Pass *llvm::createGlobalMergePass(const TargetMachine *TM, unsigned Offset) {
-  return new GlobalMerge(TM, Offset);
+Pass *llvm::createGlobalMergePass(const TargetMachine *TM, unsigned Offset,
+                                  bool OnlyOptimizeForSize) {
+  return new GlobalMerge(TM, Offset, OnlyOptimizeForSize);
 }

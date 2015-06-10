@@ -9,8 +9,8 @@
 
 #include "MipsELFStreamer.h"
 #include "MipsTargetStreamer.h"
-#include "llvm/MC/MCELF.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Support/ELF.h"
 
 using namespace llvm;
@@ -41,12 +41,10 @@ void MipsELFStreamer::createPendingLabelRelocs() {
 
   // FIXME: Also mark labels when in MIPS16 mode.
   if (ELFTargetStreamer->isMicroMipsEnabled()) {
-    for (auto Label : Labels) {
-      MCSymbolData &Data = getOrCreateSymbolData(Label);
-      // The "other" values are stored in the last 6 bits of the second byte.
-      // The traditional defines for STO values assume the full byte and thus
-      // the shift to pack it.
-      MCELF::setOther(Data, ELF::STO_MIPS_MICROMIPS >> 2);
+    for (auto *L : Labels) {
+      auto *Label = cast<MCSymbolELF>(L);
+      getAssembler().registerSymbol(*Label);
+      Label->setOther(ELF::STO_MIPS_MICROMIPS);
     }
   }
 

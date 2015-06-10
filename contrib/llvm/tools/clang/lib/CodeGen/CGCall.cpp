@@ -2719,27 +2719,28 @@ void CallArgList::freeArgumentMemory(CodeGenFunction &CGF) const {
   }
 }
 
-static void emitNonNullArgCheck(CodeGenFunction &CGF, RValue RV,
-                                QualType ArgType, SourceLocation ArgLoc,
-                                const FunctionDecl *FD, unsigned ParmNum) {
-  if (!CGF.SanOpts.has(SanitizerKind::NonnullAttribute) || !FD)
+void CodeGenFunction::EmitNonNullArgCheck(RValue RV, QualType ArgType,
+                                          SourceLocation ArgLoc,
+                                          const FunctionDecl *FD,
+                                          unsigned ParmNum) {
+  if (!SanOpts.has(SanitizerKind::NonnullAttribute) || !FD)
     return;
   auto PVD = ParmNum < FD->getNumParams() ? FD->getParamDecl(ParmNum) : nullptr;
   unsigned ArgNo = PVD ? PVD->getFunctionScopeIndex() : ParmNum;
   auto NNAttr = getNonNullAttr(FD, PVD, ArgType, ArgNo);
   if (!NNAttr)
     return;
-  CodeGenFunction::SanitizerScope SanScope(&CGF);
+  SanitizerScope SanScope(this);
   assert(RV.isScalar());
   llvm::Value *V = RV.getScalarVal();
   llvm::Value *Cond =
-      CGF.Builder.CreateICmpNE(V, llvm::Constant::getNullValue(V->getType()));
+      Builder.CreateICmpNE(V, llvm::Constant::getNullValue(V->getType()));
   llvm::Constant *StaticData[] = {
-      CGF.EmitCheckSourceLocation(ArgLoc),
-      CGF.EmitCheckSourceLocation(NNAttr->getLocation()),
-      llvm::ConstantInt::get(CGF.Int32Ty, ArgNo + 1),
+      EmitCheckSourceLocation(ArgLoc),
+      EmitCheckSourceLocation(NNAttr->getLocation()),
+      llvm::ConstantInt::get(Int32Ty, ArgNo + 1),
   };
-  CGF.EmitCheck(std::make_pair(Cond, SanitizerKind::NonnullAttribute),
+  EmitCheck(std::make_pair(Cond, SanitizerKind::NonnullAttribute),
                 "nonnull_arg", StaticData, None);
 }
 
@@ -2767,7 +2768,7 @@ void CodeGenFunction::EmitCallArgs(CallArgList &Args,
     for (int I = ArgTypes.size() - 1; I >= 0; --I) {
       CallExpr::const_arg_iterator Arg = ArgBeg + I;
       EmitCallArg(Args, *Arg, ArgTypes[I]);
-      emitNonNullArgCheck(*this, Args.back().RV, ArgTypes[I], Arg->getExprLoc(),
+      EmitNonNullArgCheck(Args.back().RV, ArgTypes[I], Arg->getExprLoc(),
                           CalleeDecl, ParamsToSkip + I);
     }
 
@@ -2781,7 +2782,7 @@ void CodeGenFunction::EmitCallArgs(CallArgList &Args,
     CallExpr::const_arg_iterator Arg = ArgBeg + I;
     assert(Arg != ArgEnd);
     EmitCallArg(Args, *Arg, ArgTypes[I]);
-    emitNonNullArgCheck(*this, Args.back().RV, ArgTypes[I], Arg->getExprLoc(),
+    EmitNonNullArgCheck(Args.back().RV, ArgTypes[I], Arg->getExprLoc(),
                         CalleeDecl, ParamsToSkip + I);
   }
 }
@@ -3081,10 +3082,18 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   // If the call returns a temporary with struct return, create a temporary
   // alloca to hold the result, unless one is given to us.
   llvm::Value *SRetPtr = nullptr;
+  size_t UnusedReturnSize = 0;
   if (RetAI.isIndirect() || RetAI.isInAlloca()) {
     SRetPtr = ReturnValue.getValue();
-    if (!SRetPtr)
+    if (!SRetPtr) {
       SRetPtr = CreateMemTemp(RetTy);
+      if (HaveInsertPoint() && ReturnValue.isUnused()) {
+        uint64_t size =
+            CGM.getDataLayout().getTypeAllocSize(ConvertTypeForMem(RetTy));
+        if (EmitLifetimeStart(size, SRetPtr))
+          UnusedReturnSize = size;
+      }
+    }
     if (IRFunctionArgs.hasSRetArg()) {
       IRCallArgs[IRFunctionArgs.getSRetArgNo()] = SRetPtr;
     } else {
@@ -3416,6 +3425,10 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   // insertion point; this allows the rest of IRgen to discard
   // unreachable code.
   if (CS.doesNotReturn()) {
+    if (UnusedReturnSize)
+      EmitLifetimeEnd(llvm::ConstantInt::get(Int64Ty, UnusedReturnSize),
+                      SRetPtr);
+
     Builder.CreateUnreachable();
     Builder.ClearInsertionPoint();
 
@@ -3444,8 +3457,13 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   RValue Ret = [&] {
     switch (RetAI.getKind()) {
     case ABIArgInfo::InAlloca:
-    case ABIArgInfo::Indirect:
-      return convertTempToRValue(SRetPtr, RetTy, SourceLocation());
+    case ABIArgInfo::Indirect: {
+      RValue ret = convertTempToRValue(SRetPtr, RetTy, SourceLocation());
+      if (UnusedReturnSize)
+        EmitLifetimeEnd(llvm::ConstantInt::get(Int64Ty, UnusedReturnSize),
+                        SRetPtr);
+      return ret;
+    }
 
     case ABIArgInfo::Ignore:
       // If we are ignoring an argument that had a result, make sure to

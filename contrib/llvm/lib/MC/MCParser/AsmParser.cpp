@@ -630,13 +630,15 @@ bool AsmParser::Run(bool NoInitialTextSection, bool NoFinalize) {
   // If we are generating dwarf for assembly source files save the initial text
   // section and generate a .file directive.
   if (getContext().getGenDwarfForAssembly()) {
-    MCSymbol *SectionStartSym = getContext().createTempSymbol();
-    getStreamer().EmitLabel(SectionStartSym);
     MCSection *Sec = getStreamer().getCurrentSection().first;
+    if (!Sec->getBeginSymbol()) {
+      MCSymbol *SectionStartSym = getContext().createTempSymbol();
+      getStreamer().EmitLabel(SectionStartSym);
+      Sec->setBeginSymbol(SectionStartSym);
+    }
     bool InsertResult = getContext().addGenDwarfSection(Sec);
     assert(InsertResult && ".text section should not have debug info yet");
     (void)InsertResult;
-    Sec->setBeginSymbol(SectionStartSym);
     getContext().setGenDwarfFileNumber(getStreamer().EmitDwarfFileDirective(
         0, StringRef(), getContext().getMainFileName()));
   }
@@ -787,7 +789,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
     Lex(); // Eat the operator.
     if (parsePrimaryExpr(Res, EndLoc))
       return true;
-    Res = MCUnaryExpr::CreateLNot(Res, getContext());
+    Res = MCUnaryExpr::createLNot(Res, getContext());
     return false;
   case AsmToken::Dollar:
   case AsmToken::At:
@@ -801,7 +803,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
           // temporary label to the streamer and refer to it.
           MCSymbol *Sym = Ctx.createTempSymbol();
           Out.EmitLabel(Sym);
-          Res = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_None,
+          Res = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None,
                                         getContext());
           EndLoc = FirstTokenLoc;
           return false;
@@ -869,7 +871,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
     }
 
     // Otherwise create a symbol ref.
-    Res = MCSymbolRefExpr::Create(Sym, Variant, getContext());
+    Res = MCSymbolRefExpr::create(Sym, Variant, getContext());
     return false;
   }
   case AsmToken::BigNum:
@@ -877,7 +879,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
   case AsmToken::Integer: {
     SMLoc Loc = getTok().getLoc();
     int64_t IntVal = getTok().getIntVal();
-    Res = MCConstantExpr::Create(IntVal, getContext());
+    Res = MCConstantExpr::create(IntVal, getContext());
     EndLoc = Lexer.getTok().getEndLoc();
     Lex(); // Eat token.
     // Look for 'b' or 'f' following an Integer as a directional label
@@ -895,7 +897,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
       if (IDVal == "f" || IDVal == "b") {
         MCSymbol *Sym =
             Ctx.getDirectionalLocalSymbol(IntVal, IDVal == "b");
-        Res = MCSymbolRefExpr::Create(Sym, Variant, getContext());
+        Res = MCSymbolRefExpr::create(Sym, Variant, getContext());
         if (IDVal == "b" && Sym->isUndefined())
           return Error(Loc, "invalid reference to undefined symbol");
         EndLoc = Lexer.getTok().getEndLoc();
@@ -907,7 +909,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
   case AsmToken::Real: {
     APFloat RealVal(APFloat::IEEEdouble, getTok().getString());
     uint64_t IntVal = RealVal.bitcastToAPInt().getZExtValue();
-    Res = MCConstantExpr::Create(IntVal, getContext());
+    Res = MCConstantExpr::create(IntVal, getContext());
     EndLoc = Lexer.getTok().getEndLoc();
     Lex(); // Eat token.
     return false;
@@ -917,7 +919,7 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
     // temporary label to the streamer and refer to it.
     MCSymbol *Sym = Ctx.createTempSymbol();
     Out.EmitLabel(Sym);
-    Res = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_None, getContext());
+    Res = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
     EndLoc = Lexer.getTok().getEndLoc();
     Lex(); // Eat identifier.
     return false;
@@ -934,19 +936,19 @@ bool AsmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
     Lex(); // Eat the operator.
     if (parsePrimaryExpr(Res, EndLoc))
       return true;
-    Res = MCUnaryExpr::CreateMinus(Res, getContext());
+    Res = MCUnaryExpr::createMinus(Res, getContext());
     return false;
   case AsmToken::Plus:
     Lex(); // Eat the operator.
     if (parsePrimaryExpr(Res, EndLoc))
       return true;
-    Res = MCUnaryExpr::CreatePlus(Res, getContext());
+    Res = MCUnaryExpr::createPlus(Res, getContext());
     return false;
   case AsmToken::Tilde:
     Lex(); // Eat the operator.
     if (parsePrimaryExpr(Res, EndLoc))
       return true;
-    Res = MCUnaryExpr::CreateNot(Res, getContext());
+    Res = MCUnaryExpr::createNot(Res, getContext());
     return false;
   }
 }
@@ -979,7 +981,7 @@ AsmParser::applyModifierToExpr(const MCExpr *E,
       return E;
     }
 
-    return MCSymbolRefExpr::Create(&SRE->getSymbol(), Variant, getContext());
+    return MCSymbolRefExpr::create(&SRE->getSymbol(), Variant, getContext());
   }
 
   case MCExpr::Unary: {
@@ -987,7 +989,7 @@ AsmParser::applyModifierToExpr(const MCExpr *E,
     const MCExpr *Sub = applyModifierToExpr(UE->getSubExpr(), Variant);
     if (!Sub)
       return nullptr;
-    return MCUnaryExpr::Create(UE->getOpcode(), Sub, getContext());
+    return MCUnaryExpr::create(UE->getOpcode(), Sub, getContext());
   }
 
   case MCExpr::Binary: {
@@ -1003,7 +1005,7 @@ AsmParser::applyModifierToExpr(const MCExpr *E,
     if (!RHS)
       RHS = BE->getRHS();
 
-    return MCBinaryExpr::Create(BE->getOpcode(), LHS, RHS, getContext());
+    return MCBinaryExpr::create(BE->getOpcode(), LHS, RHS, getContext());
   }
   }
 
@@ -1052,8 +1054,8 @@ bool AsmParser::parseExpression(const MCExpr *&Res, SMLoc &EndLoc) {
 
   // Try to constant fold it up front, if possible.
   int64_t Value;
-  if (Res->EvaluateAsAbsolute(Value))
-    Res = MCConstantExpr::Create(Value, getContext());
+  if (Res->evaluateAsAbsolute(Value))
+    Res = MCConstantExpr::create(Value, getContext());
 
   return false;
 }
@@ -1070,7 +1072,7 @@ bool AsmParser::parseAbsoluteExpression(int64_t &Res) {
   if (parseExpression(Expr))
     return true;
 
-  if (!Expr->EvaluateAsAbsolute(Res))
+  if (!Expr->evaluateAsAbsolute(Res))
     return Error(StartLoc, "expected absolute expression");
 
   return false;
@@ -1181,7 +1183,7 @@ bool AsmParser::parseBinOpRHS(unsigned Precedence, const MCExpr *&Res,
       return true;
 
     // Merge LHS and RHS according to operator.
-    Res = MCBinaryExpr::Create(Kind, Res, RHS, getContext());
+    Res = MCBinaryExpr::create(Kind, Res, RHS, getContext());
   }
 }
 
@@ -1947,7 +1949,7 @@ bool AsmParser::parseMacroArgument(MCAsmMacroArgument &MA, bool Vararg) {
   if (Vararg) {
     if (Lexer.isNot(AsmToken::EndOfStatement)) {
       StringRef Str = parseStringToEndOfStatement();
-      MA.push_back(AsmToken(AsmToken::String, Str));
+      MA.emplace_back(AsmToken::String, Str);
     }
     return false;
   }
@@ -4344,8 +4346,7 @@ MCAsmMacro *AsmParser::parseMacroLikeBody(SMLoc DirectiveLoc) {
   StringRef Body = StringRef(BodyStart, BodyEnd - BodyStart);
 
   // We Are Anonymous.
-  MacroLikeBodies.push_back(
-      MCAsmMacro(StringRef(), Body, MCAsmMacroParameters()));
+  MacroLikeBodies.emplace_back(StringRef(), Body, MCAsmMacroParameters());
   return &MacroLikeBodies.back();
 }
 
@@ -4377,7 +4378,7 @@ bool AsmParser::parseDirectiveRept(SMLoc DirectiveLoc, StringRef Dir) {
     return true;
 
   int64_t Count;
-  if (!CountExpr->EvaluateAsAbsolute(Count)) {
+  if (!CountExpr->evaluateAsAbsolute(Count)) {
     eatToEndOfStatement();
     return Error(CountLoc, "unexpected token in '" + Dir + "' directive");
   }
@@ -4488,7 +4489,7 @@ bool AsmParser::parseDirectiveIrpc(SMLoc DirectiveLoc) {
   StringRef Values = A.front().front().getString();
   for (std::size_t I = 0, End = Values.size(); I != End; ++I) {
     MCAsmMacroArgument Arg;
-    Arg.push_back(AsmToken(AsmToken::Identifier, Values.slice(I, I + 1)));
+    Arg.emplace_back(AsmToken::Identifier, Values.slice(I, I + 1));
 
     // Note that the AtPseudoVariable is enabled for instantiations of .irpc.
     // This is undocumented, but GAS seems to support it.

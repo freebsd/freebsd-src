@@ -48,6 +48,7 @@ SRCS=	AliasAnalysis.cpp \
 	MemDerefPrinter.cpp \
 	MemoryBuiltins.cpp \
 	MemoryDependenceAnalysis.cpp \
+	MemoryLocation.cpp \
 	ModuleDebugInfoPrinter.cpp \
 	NoAliasAnalysis.cpp \
 	PHITransAddr.cpp \

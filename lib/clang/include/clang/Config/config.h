@@ -10,6 +10,9 @@
 /* Bug report URL. */
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
+/* Default OpenMP runtime used by -fopenmp. */
+#define CLANG_DEFAULT_OPENMP_RUNTIME "libgomp"
+
 /* Multilib suffix for libdir. */
 #define CLANG_LIBDIR_SUFFIX ""
 

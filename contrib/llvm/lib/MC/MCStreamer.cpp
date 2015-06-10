@@ -117,7 +117,7 @@ void MCStreamer::EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
          "SectionRelative value requires 4-bytes");
 
   if (!IsSectionRelative)
-    EmitValueImpl(MCSymbolRefExpr::Create(Sym, getContext()), Size);
+    EmitValueImpl(MCSymbolRefExpr::create(Sym, getContext()), Size);
   else
     EmitCOFFSecRel32(Sym);
 }
@@ -133,7 +133,7 @@ void MCStreamer::EmitGPRel32Value(const MCExpr *Value) {
 /// EmitFill - Emit NumBytes bytes worth of the value specified by
 /// FillValue.  This implements directives such as '.space'.
 void MCStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue) {
-  const MCExpr *E = MCConstantExpr::Create(FillValue, getContext());
+  const MCExpr *E = MCConstantExpr::create(FillValue, getContext());
   for (uint64_t i = 0, e = NumBytes; i != e; ++i)
     EmitValue(E, 1);
 }
@@ -391,11 +391,17 @@ void MCStreamer::EmitCFIWindowSave() {
 }
 
 void MCStreamer::EnsureValidWinFrameInfo() {
+  const MCAsmInfo *MAI = Context.getAsmInfo();
+  if (!MAI->usesWindowsCFI())
+    report_fatal_error(".seh_* directives are not supported on this target");
   if (!CurrentWinFrameInfo || CurrentWinFrameInfo->End)
     report_fatal_error("No open Win64 EH frame function!");
 }
 
 void MCStreamer::EmitWinCFIStartProc(const MCSymbol *Symbol) {
+  const MCAsmInfo *MAI = Context.getAsmInfo();
+  if (!MAI->usesWindowsCFI())
+    report_fatal_error(".seh_* directives are not supported on this target");
   if (CurrentWinFrameInfo && !CurrentWinFrameInfo->End)
     report_fatal_error("Starting a function before ending the previous one!");
 
@@ -549,6 +555,9 @@ void MCStreamer::EmitWinCFIEndProlog() {
   CurrentWinFrameInfo->PrologEnd = Label;
 }
 
+void MCStreamer::EmitCOFFSafeSEH(MCSymbol const *Symbol) {
+}
+
 void MCStreamer::EmitCOFFSectionIndex(MCSymbol const *Symbol) {
 }
 
@@ -637,7 +646,7 @@ void MCStreamer::EndCOFFSymbolDef() {}
 void MCStreamer::EmitFileDirective(StringRef Filename) {}
 void MCStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {}
 void MCStreamer::EmitCOFFSymbolType(int Type) {}
-void MCStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
+void MCStreamer::emitELFSize(MCSymbolELF *Symbol, const MCExpr *Value) {}
 void MCStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                        unsigned ByteAlignment) {}
 void MCStreamer::EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,
@@ -669,9 +678,9 @@ void MCStreamer::SwitchSection(MCSection *Section, const MCExpr *Subsection) {
   MCSectionSubPair curSection = SectionStack.back().first;
   SectionStack.back().second = curSection;
   if (MCSectionSubPair(Section, Subsection) != curSection) {
+    ChangeSection(Section, Subsection);
     SectionStack.back().first = MCSectionSubPair(Section, Subsection);
     assert(!Section->hasEnded() && "Section already ended");
-    ChangeSection(Section, Subsection);
     MCSymbol *Sym = Section->getBeginSymbol();
     if (Sym && !Sym->isInSection())
       EmitLabel(Sym);

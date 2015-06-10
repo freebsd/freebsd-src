@@ -18,7 +18,6 @@ SRCS=	ConstantPools.cpp \
 	MCCodeGenInfo.cpp \
 	MCContext.cpp \
 	MCDwarf.cpp \
-	MCELF.cpp \
 	MCELFObjectTargetWriter.cpp \
 	MCELFStreamer.cpp \
 	MCExpr.cpp \
@@ -42,6 +41,7 @@ SRCS=	ConstantPools.cpp \
 	MCStreamer.cpp \
 	MCSubtargetInfo.cpp \
 	MCSymbol.cpp \
+	MCSymbolELF.cpp \
 	MCSymbolizer.cpp \
 	MCTargetOptions.cpp \
 	MCValue.cpp \
