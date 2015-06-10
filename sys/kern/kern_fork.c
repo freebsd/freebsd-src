@@ -496,7 +496,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-	td2->td_ucred = crhold(p2->p_ucred);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
@@ -525,6 +524,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	lim_fork(p1, p2);
+
+	thread_cow_get_proc(td2, p2);
 
 	pstats_fork(p1->p_stats, p2->p_stats);
 
