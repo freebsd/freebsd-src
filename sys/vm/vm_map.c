@@ -3424,10 +3424,8 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	growsize = sgrowsiz;
 	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 	vm_map_lock(map);
-	PROC_LOCK(curproc);
-	lmemlim = lim_cur(curproc, RLIMIT_MEMLOCK);
-	vmemlim = lim_cur(curproc, RLIMIT_VMEM);
-	PROC_UNLOCK(curproc);
+	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
+	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
 			rv = KERN_NO_SPACE;
@@ -3556,12 +3554,10 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	int error;
 #endif
 
+	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
+	stacklim = lim_cur(curthread, RLIMIT_STACK);
+	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
 Retry:
-	PROC_LOCK(p);
-	lmemlim = lim_cur(p, RLIMIT_MEMLOCK);
-	stacklim = lim_cur(p, RLIMIT_STACK);
-	vmemlim = lim_cur(p, RLIMIT_VMEM);
-	PROC_UNLOCK(p);
 
 	vm_map_lock_read(map);
 

@@ -409,10 +409,8 @@ copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 	/*
 	 * Map somewhere after heap in process memory.
 	 */
-	PROC_LOCK(td->td_proc);
 	*addr = round_page((vm_offset_t)vms->vm_daddr +
-	    lim_max(td->td_proc, RLIMIT_DATA));
-	PROC_UNLOCK(td->td_proc);
+	    lim_max(td, RLIMIT_DATA));
 
 	/* round size up to page boundry */
 	size = (vm_size_t)round_page(sz);
