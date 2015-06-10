@@ -297,6 +297,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	svc_freereq(rqst);
 
 out:
+	if (softdep_ast_cleanup != NULL)
+		softdep_ast_cleanup();
 	NFSEXITCODE(0);
 }
 
@@ -467,6 +469,7 @@ int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
 	char principal[MAXHOSTNAMELEN + 5];
+	struct proc *p;
 	int error = 0;
 	bool_t ret2, ret3, ret4;
 
@@ -484,6 +487,10 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 */
 	NFSD_LOCK();
 	if (newnfs_numnfsd == 0) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		p->p_flag2 |= P2_AST_SU;
+		PROC_UNLOCK(p);
 		newnfs_numnfsd++;
 
 		NFSD_UNLOCK();
@@ -515,6 +522,9 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		NFSD_LOCK();
 		newnfs_numnfsd--;
 		nfsrvd_init(1);
+		PROC_LOCK(p);
+		p->p_flag2 &= ~P2_AST_SU;
+		PROC_UNLOCK(p);
 	}
 	NFSD_UNLOCK();
 

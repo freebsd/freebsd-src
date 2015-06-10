@@ -319,6 +319,7 @@ struct thread {
 	struct proc	*td_rfppwait_p;	/* (k) The vforked child */
 	struct vm_page	**td_ma;	/* (k) uio pages held */
 	int		td_ma_cnt;	/* (k) size of *td_ma */
+	void		*td_su;		/* (k) FFS SU private */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -653,6 +654,7 @@ struct proc {
 #define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
 #define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
 #define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
+#define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
