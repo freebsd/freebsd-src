@@ -60,6 +60,8 @@
 				    __DECONST(__capability void *, (x)), (y))
 #define	cheri_cleartag(x)	__builtin_cheri_clear_cap_tag(		\
 				    __DECONST(__capability void *, (x)))
+#define	cheri_csetbounds(x, y)	__builtin_memcap_bounds_set(		\
+				    __DECONST(__capability void *, (x)))
 #define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base(		\
 				    __DECONST(__capability void *, (x)), (y))
 #define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment(	\
@@ -99,15 +101,26 @@ static __inline __capability void *
 cheri_ptr(const void *ptr, size_t len)
 {
 
-	return (cheri_setlen((const __capability void *)ptr, len));
+#if CSETBOUNDS_AND_NEW_CFROMPTR || (defined(_MIPS_SZCAP) && ( _MIPS_SZCAP == 128))
+	/* Assume CFromPtr without base set, availability of CSetBounds. */
+	return (cheri_csetbounds((const __capability void *)ptr, len));
+#else
+	/* Assume CFromPtr is unsafe, no CSetBounds yet. */
+	__capability void *c;
+
+	if (ptr == (void *)0)
+		return ((__capability void *)0);
+	c = cheri_incbase(cheri_getdefault(), (uintptr_t)ptr);
+	c = cheri_setlen(c, len);
+	return (c);
+#endif
 }
 
 static __inline __capability void *
 cheri_ptrperm(const void *ptr, size_t len, register_t perm)
 {
 
-	return (cheri_andperm(cheri_setlen((const __capability void *)ptr, len),
-	    perm | CHERI_PERM_GLOBAL));
+	return (cheri_andperm(cheri_ptr(ptr, len), perm | CHERI_PERM_GLOBAL));
 }
 
 static __inline __capability void *
