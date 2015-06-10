@@ -12,7 +12,7 @@ SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8
 # CFLAGS+= -DPATH_HELP='".:/usr/share/doc/atm:/usr/local/share/doc/atm"'
 
-CFLAGS+= -I.
+CFLAGS+= -I${.OBJDIR}
 
 .if !defined(RESCUE) && ${MK_BSNMP} != "no"
 CFLAGS+=	-DWITH_BSNMP
