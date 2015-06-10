@@ -214,8 +214,8 @@ abort_handler(struct trapframe *tf, int type)
 	if (user) {
 		td->td_pticks = 0;
 		td->td_frame = tf;
-		if (td->td_ucred != td->td_proc->p_ucred)
-			cred_update_thread(td);
+		if (td->td_cowgen != td->td_proc->p_cowgen)
+			thread_cow_update(td);
 
 	}
 	/* Grab the current pcb */
@@ -644,8 +644,8 @@ prefetch_abort_handler(struct trapframe *tf)
 
 	if (TRAP_USERMODE(tf)) {
 		td->td_frame = tf;
-		if (td->td_ucred != td->td_proc->p_ucred)
-			cred_update_thread(td);
+		if (td->td_cowgen != td->td_proc->p_cowgen)
+			thread_cow_update(td);
 	}
 	fault_pc = tf->tf_pc;
 	if (td->td_md.md_spinlock_count == 0) {

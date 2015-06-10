@@ -327,8 +327,7 @@ thread_reap(void)
 		mtx_unlock_spin(&zombie_lock);
 		while (td_first) {
 			td_next = TAILQ_NEXT(td_first, td_slpq);
-			if (td_first->td_ucred)
-				crfree(td_first->td_ucred);
+			thread_cow_free(td_first);
 			thread_free(td_first);
 			td_first = td_next;
 		}
@@ -382,6 +381,44 @@ thread_free(struct thread *td)
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
 	uma_zfree(thread_zone, td);
+}
+
+void
+thread_cow_get_proc(struct thread *newtd, struct proc *p)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	newtd->td_ucred = crhold(p->p_ucred);
+	newtd->td_cowgen = p->p_cowgen;
+}
+
+void
+thread_cow_get(struct thread *newtd, struct thread *td)
+{
+
+	newtd->td_ucred = crhold(td->td_ucred);
+	newtd->td_cowgen = td->td_cowgen;
+}
+
+void
+thread_cow_free(struct thread *td)
+{
+
+	if (td->td_ucred)
+		crfree(td->td_ucred);
+}
+
+void
+thread_cow_update(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	PROC_LOCK(p);
+	if (td->td_ucred != p->p_ucred)
+		cred_update_thread(td);
+	td->td_cowgen = p->p_cowgen;
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -521,7 +558,7 @@ thread_wait(struct proc *p)
 	cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
 	cpu_thread_clean(td);
-	crfree(td->td_ucred);
+	thread_cow_free(td);
 	thread_reap();	/* check for zombie threads etc. */
 }
 
