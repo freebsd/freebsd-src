@@ -154,13 +154,12 @@ cleandir: cleanobj
 .include <bsd.subdir.mk>
 
 .if make(destroy*) && defined(OBJROOT)
-# this is much faster and more reliable than cleaning.
+# this (rm -rf objdir) is much faster and more reliable than cleaning.
 
 # just in case we are playing games with these...
 _OBJDIR?= ${.OBJDIR}
 _CURDIR?= ${.CURDIR}
 
-# destroy (rm -rf objdir) is much more efficient than clean
 # destroy almost everything
 destroy: destroy-all
 destroy-all:
