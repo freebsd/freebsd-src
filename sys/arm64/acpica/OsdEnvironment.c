@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 2000,2001 Michael Smith
+ * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,54 +23,54 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: FreeBSD: src/sys/i386/include/globaldata.h,v 1.27 2001/04/27
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCPU_H_
-#define	_MACHINE_PCPU_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
+#include <sys/types.h>
+#include <sys/bus.h>
+#include <sys/sysctl.h>
 
-#define	ALT_STACK_SIZE	128
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
 
-#define	PCPU_MD_FIELDS							\
-	u_int	pc_acpi_id;	/* ACPI CPU id */			\
-	char __pad[125]
+static u_long acpi_root_phys;
 
-#ifdef _KERNEL
+SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &acpi_root_phys, 0,
+    "The physical address of the RSDP");
 
-struct pcb;
-struct pcpu;
-
-static inline struct pcpu *
-get_pcpu(void)
+ACPI_STATUS
+AcpiOsInitialize(void)
 {
-	struct pcpu *pcpu;
 
-	__asm __volatile("mov	%0, x18" : "=&r"(pcpu));
-	return (pcpu);
+	return (AE_OK);
 }
 
-static inline struct thread *
-get_curthread(void)
+ACPI_STATUS
+AcpiOsTerminate(void)
 {
-	struct thread *td;
 
-	__asm __volatile("ldr	%0, [x18]" : "=&r"(td));
-	return (td);
+	return (AE_OK);
 }
 
-#define	curthread get_curthread()
+static u_long
+acpi_get_root_from_loader(void)
+{
+	long acpi_root;
 
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
+	if (resource_long_value("acpi", 0, "rsdp", &acpi_root) == 0)
+		return (acpi_root);
 
-#endif	/* _KERNEL */
+	return (0);
+}
 
-#endif	/* !_MACHINE_PCPU_H_ */
+ACPI_PHYSICAL_ADDRESS
+AcpiOsGetRootPointer(void)
+{
+
+	if (acpi_root_phys == 0)
+		acpi_root_phys = acpi_get_root_from_loader();
+
+	return (acpi_root_phys);
+}

@@ -183,7 +183,9 @@ static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_startup(void *arg);
 static void	acpi_cpu_startup_cx(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_cx_list(struct acpi_cpu_softc *sc);
+#if defined(__i386__) || defined(__amd64__)
 static void	acpi_cpu_idle(sbintime_t sbt);
+#endif
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static void	acpi_cpu_quirks(void);
 static void	acpi_cpu_quirks_piix4(void);
@@ -475,12 +477,14 @@ enable_idle(struct acpi_cpu_softc *sc)
     sc->cpu_disable_idle = FALSE;
 }
 
+#if defined(__i386__) || defined(__amd64__)
 static int
 is_idle_disabled(struct acpi_cpu_softc *sc)
 {
 
     return (sc->cpu_disable_idle);
 }
+#endif
 
 /*
  * Disable any entry to the idle function during suspend and re-enable it
@@ -999,7 +1003,9 @@ acpi_cpu_startup(void *arg)
 	sc = device_get_softc(cpu_devices[i]);
 	enable_idle(sc);
     }
+#if defined(__i386__) || defined(__amd64__)
     cpu_idle_hook = acpi_cpu_idle;
+#endif
 }
 
 static void
@@ -1061,6 +1067,7 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
     }
 }
 
+#if defined(__i386__) || defined(__amd64__)
 /*
  * Idle the CPU in the lowest state possible.  This function is called with
  * interrupts disabled.  Note that once it re-enables interrupts, a task
@@ -1208,6 +1215,7 @@ acpi_cpu_idle(sbintime_t sbt)
 
     sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + PM_USEC(end_time)) / 4;
 }
+#endif
 
 /*
  * Re-evaluate the _CST object when we are notified that it changed.
