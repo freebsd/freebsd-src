@@ -35,6 +35,8 @@ CFLAGS+=	-I${.CURDIR}/ld80
 CFLAGS+=	-I${.CURDIR}/ld128
 .endif
 
+CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
+
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/src
 .PATH:	${.CURDIR}/man
