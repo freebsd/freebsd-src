@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.51 2015/05/06 06:07:30 sjg Exp $
+# $Id: dirdeps.mk,v 1.54 2015/06/08 20:55:11 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -383,6 +383,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	DIRDEPS="${DIRDEPS}" \
 	MAKEFLAGS= ${.MAKE} -C ${_CURDIR} -f ${BUILD_DIRDEPS_MAKEFILE} \
 	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
+	.MAKE.DEPENDFILE=.none \
 	3>&1 1>&2 | sed 's,${SRCTOP},$${SRCTOP},g' >> ${.TARGET}.new && \
 	mv ${.TARGET}.new ${.TARGET}
 
@@ -587,6 +588,11 @@ _qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes:ts:}}
 _DEP_TARGET_SPEC := ${d:E}
 # some makefiles may still look at this
 _DEP_MACHINE := ${d:E:C/,.*//}
+# set this "just in case" 
+# we can skip :tA since we computed the path above
+DEP_RELDIR := ${_m:H:S,${SRCTOP}/,,}
+# and reset this
+DIRDEPS =
 .if ${_debug_reldir} && ${_qm} != ${_m}
 .info loading ${_m} for ${d:E}
 .endif
@@ -602,13 +608,15 @@ _DEP_MACHINE := ${d:E:C/,.*//}
 .elif ${.MAKE.LEVEL} > 42
 .error You should have stopped recursing by now.
 .else
-_DEP_RELDIR := ${DEP_RELDIR}
+# we are building something
+DEP_RELDIR := ${RELDIR}
+_DEP_RELDIR := ${RELDIR}
 # pickup local dependencies
 .-include <.depend>
 .endif
 
 # bootstrapping new dependencies made easy?
-.if make(bootstrap*) && !target(bootstrap)
+.if (make(bootstrap) || make(bootstrap-recurse)) && !target(bootstrap)
 
 .if exists(${.CURDIR}/${.MAKE.DEPENDFILE:T})
 # stop here
