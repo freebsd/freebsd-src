@@ -10,6 +10,5 @@ FILES=	functions-bsdlabel.sh functions-cleanup.sh functions-disk.sh \
 	functions.sh parseconfig.sh startautoinstall.sh installimage.sh
 FILESMODE=	${BINMODE}
 FILESDIR=${SHAREDIR}/pc-sysinstall/backend
-NO_OBJ=
 
 .include <bsd.prog.mk>
