@@ -7714,14 +7714,6 @@ key_sa_chgstate(struct secasvar *sav, u_int8_t state)
 	}
 }
 
-void
-key_sa_stir_iv(struct secasvar *sav)
-{
-
-	IPSEC_ASSERT(sav->iv != NULL, ("null IV"));
-	key_randomfill(sav->iv, sav->ivlen);
-}
-
 /*
  * Take one of the kernel's security keys and convert it into a PF_KEY
  * structure within an mbuf, suitable for sending up to a waiting
