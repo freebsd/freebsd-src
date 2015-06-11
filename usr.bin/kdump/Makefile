@@ -32,14 +32,14 @@ CLEANFILES+=	linux32_syscalls.c
 
 ioctl.c: mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
-	    sh ${.CURDIR}/mkioctls print ${DESTDIR}/usr/include > ${.TARGET}
+	    sh ${.CURDIR}/mkioctls print ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 kdump_subr.h: mksubr
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include | \
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} | \
 	    sed -n 's/^\([a-z].*)\)$$/void \1;/p' >${.TARGET}
 
 kdump_subr.c: mksubr kdump_subr.h
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include >${.TARGET}
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} >${.TARGET}
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
 	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
 	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux/syscalls.master ${.CURDIR}/linux_syscalls.conf
