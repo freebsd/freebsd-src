@@ -11,7 +11,6 @@ FILES=	ascii birthtoken bsd-family-tree committers-doc.dot committers-ports.dot 
 	scsi_modes \
 	organization.dot
 
-NO_OBJ=
 FILESDIR=	${BINDIR}/misc
 
 .if ${MK_USB} != "no"
