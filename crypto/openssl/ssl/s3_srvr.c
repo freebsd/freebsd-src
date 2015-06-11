@@ -779,6 +779,16 @@ int ssl3_get_client_hello(SSL *s)
     d = p = (unsigned char *)s->init_msg;
 
     /*
+     * 2 bytes for client version, SSL3_RANDOM_SIZE bytes for random, 1 byte
+     * for session id length
+     */
+    if (n < 2 + SSL3_RANDOM_SIZE + 1) {
+        al = SSL_AD_DECODE_ERROR;
+        SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_TOO_SHORT);
+        goto f_err;
+    }
+
+    /*
      * use version from inside client hello, not from record header (may
      * differ: see RFC 2246, Appendix E, second paragraph)
      */
@@ -808,6 +818,12 @@ int ssl3_get_client_hello(SSL *s)
         unsigned int session_length, cookie_length;
 
         session_length = *(p + SSL3_RANDOM_SIZE);
+
+        if (p + SSL3_RANDOM_SIZE + session_length + 1 >= d + n) {
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_TOO_SHORT);
+            goto f_err;
+        }
         cookie_length = *(p + SSL3_RANDOM_SIZE + session_length + 1);
 
         if (cookie_length == 0)
@@ -820,6 +836,12 @@ int ssl3_get_client_hello(SSL *s)
 
     /* get the session-id */
     j = *(p++);
+
+    if (p + j > d + n) {
+        al = SSL_AD_DECODE_ERROR;
+        SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_TOO_SHORT);
+        goto f_err;
+    }
 
     s->hit = 0;
     /*
@@ -852,7 +874,18 @@ int ssl3_get_client_hello(SSL *s)
 
     if (s->version == DTLS1_VERSION || s->version == DTLS1_BAD_VER) {
         /* cookie stuff */
+        if (p + 1 > d + n) {
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_TOO_SHORT);
+            goto f_err;
+        }
         cookie_len = *(p++);
+
+        if (p + cookie_len > d + n) {
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_TOO_SHORT);
+            goto f_err;
+        }
 
         /*
          * The ClientHello may contain a cookie even if the
@@ -894,6 +927,11 @@ int ssl3_get_client_hello(SSL *s)
         p += cookie_len;
     }
 
+    if (p + 2 > d + n) {
+        al = SSL_AD_DECODE_ERROR;
+        SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_TOO_SHORT);
+        goto f_err;
+    }
     n2s(p, i);
     if ((i == 0) && (j != 0)) {
         /* we need a cipher if we are not resuming a session */
@@ -901,7 +939,9 @@ int ssl3_get_client_hello(SSL *s)
         SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_NO_CIPHERS_SPECIFIED);
         goto f_err;
     }
-    if ((p + i) >= (d + n)) {
+
+    /* i bytes of cipher data + 1 byte for compression length later */
+    if ((p + i + 1) > (d + n)) {
         /* not enough data */
         al = SSL_AD_DECODE_ERROR;
         SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_LENGTH_MISMATCH);
@@ -1969,6 +2009,7 @@ int ssl3_get_client_key_exchange(SSL *s)
         int padl, outl;
         krb5_timestamp authtime = 0;
         krb5_ticket_times ttimes;
+        int kerr = 0;
 
         EVP_CIPHER_CTX_init(&ciph_ctx);
 
@@ -2071,23 +2112,27 @@ int ssl3_get_client_key_exchange(SSL *s)
         {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
                    SSL_R_DECRYPTION_FAILED);
-            goto err;
+            kerr = 1;
+            goto kclean;
         }
         if (outl > SSL_MAX_MASTER_KEY_LENGTH) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
                    SSL_R_DATA_LENGTH_TOO_LONG);
-            goto err;
+            kerr = 1;
+            goto kclean;
         }
         if (!EVP_DecryptFinal_ex(&ciph_ctx, &(pms[outl]), &padl)) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
                    SSL_R_DECRYPTION_FAILED);
-            goto err;
+            kerr = 1;
+            goto kclean;
         }
         outl += padl;
         if (outl > SSL_MAX_MASTER_KEY_LENGTH) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
                    SSL_R_DATA_LENGTH_TOO_LONG);
-            goto err;
+            kerr = 1;
+            goto kclean;
         }
         if (!((pms[0] == (s->client_version >> 8))
               && (pms[1] == (s->client_version & 0xff)))) {
@@ -2104,7 +2149,8 @@ int ssl3_get_client_key_exchange(SSL *s)
             if (!(s->options & SSL_OP_TLS_ROLLBACK_BUG)) {
                 SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
                        SSL_AD_DECODE_ERROR);
-                goto err;
+                kerr = 1;
+                goto kclean;
             }
         }
 
@@ -2130,6 +2176,11 @@ int ssl3_get_client_key_exchange(SSL *s)
          *  kssl_ctx = kssl_ctx_free(kssl_ctx);
          *  if (s->kssl_ctx)  s->kssl_ctx = NULL;
          */
+
+ kclean:
+        OPENSSL_cleanse(pms, sizeof(pms));
+        if (kerr)
+            goto err;
     } else
 #endif                          /* OPENSSL_NO_KRB5 */
 
