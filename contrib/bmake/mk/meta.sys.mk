@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.20 2014/08/04 05:12:27 sjg Exp $
+# $Id: meta.sys.mk,v 1.21 2015/06/01 22:43:49 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -108,10 +108,15 @@ _metaError: .NOMETA .NOTMAIN
 .if ${.MAKE.MODE:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
 
-# if we think we are updating dependencies, 
-# then filemon had better be present
-.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !exists(/dev/filemon)
+.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no"
+.if ${.MAKEFLAGS:Uno:M-k} != ""
+# make this more obvious
+.warning Setting UPDATE_DEPENDFILE=NO due to -k
+UPDATE_DEPENDFILE= NO
+.export UPDATE_DEPENDFILE
+.elif !exists(/dev/filemon)
 .error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
+.endif
 .endif
 
 .if ${.MAKE.LEVEL} == 0
