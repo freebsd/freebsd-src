@@ -171,6 +171,9 @@ struct lun {
 	int64_t				l_size;
 
 	int				l_ctl_lun;
+	bool 				l_da_lun;
+	bool 				l_cd_lun;
+	bool 				l_tape_lun;
 };
 
 struct target {
