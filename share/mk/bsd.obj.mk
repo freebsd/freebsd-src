@@ -47,6 +47,10 @@ __<bsd.obj.mk>__:
 objwarn:
 obj:
 CANONICALOBJDIR= ${.OBJDIR}
+.if defined(NO_OBJ)
+# but this makefile does not want it!
+.OBJDIR: ${.CURDIR}
+.endif
 .elif defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
