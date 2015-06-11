@@ -89,10 +89,15 @@ private int 		/* Global command-line options 		*/
 
 private const char *separator = ":";	/* Default field separator	*/
 private const struct option long_options[] = {
+#define OPT_HELP		1
+#define OPT_APPLE		2
+#define OPT_EXTENSIONS		3
+#define OPT_MIME_TYPE		4
+#define OPT_MIME_ENCODING	5
 #define OPT(shortname, longname, opt, doc)      \
     {longname, opt, NULL, shortname},
-#define OPT_LONGONLY(longname, opt, doc)        \
-    {longname, opt, NULL, 0},
+#define OPT_LONGONLY(longname, opt, doc, id)        \
+    {longname, opt, NULL, id},
 #include "file_opts.h"
 #undef OPT
 #undef OPT_LONGONLY
@@ -182,24 +187,20 @@ main(int argc, char *argv[])
 	while ((c = getopt_long(argc, argv, OPTSTRING, long_options,
 	    &longindex)) != -1)
 		switch (c) {
-		case 0 :
-			switch (longindex) {
-			case 0:
-				help();
-				break;
-			case 10:
-				flags |= MAGIC_APPLE;
-				break;
-			case 11:
-				flags |= MAGIC_EXTENSION;
-				break;
-			case 12:
-				flags |= MAGIC_MIME_TYPE;
-				break;
-			case 13:
-				flags |= MAGIC_MIME_ENCODING;
-				break;
-			}
+		case OPT_HELP:
+			help();
+			break;
+		case OPT_APPLE:
+			flags |= MAGIC_APPLE;
+			break;
+		case OPT_EXTENSIONS:
+			flags |= MAGIC_EXTENSION;
+			break;
+		case OPT_MIME_TYPE:
+			flags |= MAGIC_MIME_TYPE;
+			break;
+		case OPT_MIME_ENCODING:
+			flags |= MAGIC_MIME_ENCODING;
 			break;
 		case '0':
 			nulsep = 1;
@@ -595,7 +596,7 @@ help(void)
 #define OPT(shortname, longname, opt, doc)      \
 	fprintf(stdout, "  -%c, --" longname, shortname), \
 	docprint(doc);
-#define OPT_LONGONLY(longname, opt, doc)        \
+#define OPT_LONGONLY(longname, opt, doc, id)        \
 	fprintf(stdout, "      --" longname),	\
 	docprint(doc);
 #include "file_opts.h"

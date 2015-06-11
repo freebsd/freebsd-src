@@ -12,7 +12,7 @@
  * switch statement!
  */
 
-OPT_LONGONLY("help", 0, "                 display this help and exit\n")
+OPT_LONGONLY("help", 0, "                 display this help and exit\n", OPT_HELP)
 OPT('v', "version", 0, "              output version information and exit\n")
 OPT('m', "magic-file", 1, " LIST      use LIST as a colon-separated list of magic\n"
     "                               number files\n")
@@ -29,10 +29,10 @@ OPT('f', "files-from", 1, " FILE      read the filenames to be examined from FIL
 OPT('F', "separator", 1, " STRING     use string as separator instead of `:'\n")
 OPT('i', "mime", 0, "                 output MIME type strings (--mime-type and\n"
     "                               --mime-encoding)\n")
-OPT_LONGONLY("apple", 0, "                output the Apple CREATOR/TYPE\n")
-OPT_LONGONLY("extension", 0, "            output a slash-separated list of extnsions\n")
-OPT_LONGONLY("mime-type", 0, "            output the MIME type\n")
-OPT_LONGONLY("mime-encoding", 0, "        output the MIME encoding\n")
+OPT_LONGONLY("apple", 0, "                output the Apple CREATOR/TYPE\n", OPT_APPLE)
+OPT_LONGONLY("extension", 0, "            output a slash-separated list of extensions\n", OPT_EXTENSIONS)
+OPT_LONGONLY("mime-type", 0, "            output the MIME type\n", OPT_MIME_TYPE)
+OPT_LONGONLY("mime-encoding", 0, "        output the MIME encoding\n", OPT_MIME_ENCODING)
 OPT('k', "keep-going", 0, "           don't stop at the first match\n")
 OPT('l', "list", 0, "                 list magic strength\n")
 #ifdef S_IFLNK
