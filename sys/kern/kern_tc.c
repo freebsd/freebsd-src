@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/timex.h>
 #include <sys/vdso.h>
-#include <machine/atomic.h>
 
 /*
  * A large step happens on boot.  This constant detects such steps.
@@ -190,7 +189,7 @@ tc_delta(struct timehands *th)
 	    tc->tc_counter_mask);
 }
 
-static u_int
+static inline u_int
 tc_getgen(struct timehands *th)
 {
 
@@ -205,7 +204,7 @@ tc_getgen(struct timehands *th)
 #endif
 }
 
-static void
+static inline void
 tc_setgen(struct timehands *th, u_int newgen)
 {
 
