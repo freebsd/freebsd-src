@@ -43,6 +43,7 @@ typedef unsigned long bus_addr_t;
 typedef unsigned long bus_size_t;
 typedef int busdma_tag_t;
 typedef int busdma_md_t;
+typedef int busdma_seg_t;
 
 int	busdma_tag_create(const char *dev, bus_addr_t align, bus_addr_t bndry,
 	    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs,
@@ -56,5 +57,15 @@ int	busdma_tag_destroy(busdma_tag_t tag);
 
 int	busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *out_p);
 int	busdma_mem_free(busdma_md_t md);
+
+#define	BUSDMA_MD_BUS_SPACE	0
+#define	BUSDMA_MD_PHYS_SPACE	1
+#define	BUSDMA_MD_VIRT_SPACE	2
+
+int	busdma_md_first_seg(busdma_md_t, int space);
+int	busdma_md_next_seg(busdma_md_t, busdma_seg_t seg);
+
+bus_addr_t	busdma_seg_get_addr(busdma_seg_t seg);
+bus_size_t	busdma_seg_get_size(busdma_seg_t seg);
 
 #endif /* _LIBBUS_SPACE_H_ */
