@@ -2,6 +2,7 @@
 arm/arm/devmap.c		standard
 arm/arm/generic_timer.c		standard
 arm/arm/pmu.c			standard
+arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks
 arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/bus_machdep.c	standard
