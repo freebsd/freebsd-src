@@ -40,4 +40,10 @@ int	bd_tag_destroy(int tid);
 int	bd_mem_alloc(int tid, u_int flags);
 int	bd_mem_free(int mdid);
 
+int	bd_md_first_seg(int mdid, int what);
+int	bd_md_next_seg(int mdid, int sid);
+
+int	bd_seg_get_addr(int sid, u_long *);
+int	bd_seg_get_size(int sid, u_long *);
+
 #endif /* _TOOLS_BUS_DMA_H_ */
