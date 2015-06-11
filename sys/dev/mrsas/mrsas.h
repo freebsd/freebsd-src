@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Authors: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Authors: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES, 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -101,7 +102,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	BYTE_ALIGNMENT					1
 #define	MRSAS_MAX_NAME_LENGTH			32
-#define	MRSAS_VERSION					"06.705.10.02-fbsd"
+#define	MRSAS_VERSION					"06.707.04.03-fbsd"
 #define	MRSAS_ULONG_MAX					0xFFFFFFFFFFFFFFFF
 #define	MRSAS_DEFAULT_TIMEOUT			0x14	/* Temporarily set */
 #define	DONE							0
@@ -813,9 +814,8 @@ typedef struct _MR_DRV_RAID_MAP_ALL {
 typedef struct _LD_LOAD_BALANCE_INFO {
 	u_int8_t loadBalanceFlag;
 	u_int8_t reserved1;
-	u_int16_t raid1DevHandle[2];
-	mrsas_atomic_t scsi_pending_cmds[2];
-	u_int64_t last_accessed_block[2];
+	mrsas_atomic_t scsi_pending_cmds[MAX_PHYSICAL_DEVICES];
+	u_int64_t last_accessed_block[MAX_PHYSICAL_DEVICES];
 }	LD_LOAD_BALANCE_INFO, *PLD_LOAD_BALANCE_INFO;
 
 /* SPAN_SET is info caclulated from span info from Raid map per ld */
@@ -858,6 +858,9 @@ struct IO_REQUEST_INFO {
 	u_int8_t start_span;
 	u_int8_t reserved;
 	u_int64_t start_row;
+	/* span[7:5], arm[4:0] */
+	u_int8_t span_arm;
+	u_int8_t pd_after_lb;
 };
 
 typedef struct _MR_LD_TARGET_SYNC {
@@ -1315,6 +1318,13 @@ typedef enum _REGION_TYPE {
 #define	MRSAS_REQ_STATE_TRAN			2
 #define	MRSAS_REQ_STATE_COMPLETE		3
 
+typedef enum _MR_SCSI_CMD_TYPE {
+	READ_WRITE_LDIO = 0,
+	NON_READ_WRITE_LDIO = 1,
+	READ_WRITE_SYSPDIO = 2,
+	NON_READ_WRITE_SYSPDIO = 3,
+}	MR_SCSI_CMD_TYPE;
+
 enum mrsas_req_flags {
 	MRSAS_DIR_UNKNOWN = 0x1,
 	MRSAS_DIR_IN = 0x2,
@@ -1350,6 +1360,7 @@ struct mrsas_mpt_cmd {
 	u_int32_t sync_cmd_idx;
 	u_int32_t index;
 	u_int8_t flags;
+	u_int8_t pd_r1_lb;
 	u_int8_t load_balance;
 	bus_size_t length;
 	u_int32_t error_code;
@@ -1897,9 +1908,26 @@ struct mrsas_ctrl_info {
 	char	reserved6[4];		/* 0x7E4 RESERVED FOR IOV */
 
 	struct {			/* 0x7E8 */
-		u_int32_t resrved:5;
+		u_int32_t supportPersonalityChange:2;
+		u_int32_t supportThermalPollInterval:1;
+		u_int32_t supportDisableImmediateIO:1;
+		u_int32_t supportT10RebuildAssist:1;
 		u_int32_t supportMaxExtLDs:1;
-		u_int32_t reserved1:26;
+		u_int32_t supportCrashDump:1;
+		u_int32_t supportSwZone:1;
+		u_int32_t supportDebugQueue:1;
+		u_int32_t supportNVCacheErase:1;
+		u_int32_t supportForceTo512e:1;
+		u_int32_t supportHOQRebuild:1;
+		u_int32_t supportAllowedOpsforDrvRemoval:1;
+		u_int32_t supportDrvActivityLEDSetting:1;
+		u_int32_t supportNVDRAM:1;
+		u_int32_t supportForceFlash:1;
+		u_int32_t supportDisableSESMonitoring:1;
+		u_int32_t supportCacheBypassModes:1;
+		u_int32_t supportSecurityonJBOD:1;
+		u_int32_t discardCacheDuringLDDelete:1;
+		u_int32_t reserved:12;
 	}	adapterOperations3;
 
 	u_int8_t pad[0x800 - 0x7EC];	/* 0x7EC */
@@ -1970,7 +1998,10 @@ typedef union _MFI_CAPABILITIES {
 		u_int32_t support_additional_msix:1;
 		u_int32_t support_fastpath_wb:1;
 		u_int32_t support_max_255lds:1;
-		u_int32_t reserved:28;
+		u_int32_t support_ndrive_r1_lb:1;
+		u_int32_t support_core_affinity:1;
+		u_int32_t security_protocol_cmds_fw:1;
+		u_int32_t reserved:25;
 	}	mfi_capabilities;
 	u_int32_t reg;
 }	MFI_CAPABILITIES;
@@ -2413,6 +2444,167 @@ struct mrsas_mgmt_info {
 	int	max_index;
 };
 
+#define	PCI_TYPE0_ADDRESSES             6
+#define	PCI_TYPE1_ADDRESSES             2
+#define	PCI_TYPE2_ADDRESSES             5
+
+typedef struct _MRSAS_DRV_PCI_COMMON_HEADER {
+	u_int16_t vendorID;
+	      //(ro)
+	u_int16_t deviceID;
+	      //(ro)
+	u_int16_t command;
+	      //Device control
+	u_int16_t status;
+	u_int8_t revisionID;
+	      //(ro)
+	u_int8_t progIf;
+	      //(ro)
+	u_int8_t subClass;
+	      //(ro)
+	u_int8_t baseClass;
+	      //(ro)
+	u_int8_t cacheLineSize;
+	      //(ro +)
+	u_int8_t latencyTimer;
+	      //(ro +)
+	u_int8_t headerType;
+	      //(ro)
+	u_int8_t bist;
+	      //Built in self test
+
+	union {
+		struct _MRSAS_DRV_PCI_HEADER_TYPE_0 {
+			u_int32_t baseAddresses[PCI_TYPE0_ADDRESSES];
+			u_int32_t cis;
+			u_int16_t subVendorID;
+			u_int16_t subSystemID;
+			u_int32_t romBaseAddress;
+			u_int8_t capabilitiesPtr;
+			u_int8_t reserved1[3];
+			u_int32_t reserved2;
+			u_int8_t interruptLine;
+			u_int8_t interruptPin;
+			      //(ro)
+			u_int8_t minimumGrant;
+			      //(ro)
+			u_int8_t maximumLatency;
+			      //(ro)
+		}	type0;
+
+		/*
+	         * PCI to PCI Bridge
+	         */
+
+		struct _MRSAS_DRV_PCI_HEADER_TYPE_1 {
+			u_int32_t baseAddresses[PCI_TYPE1_ADDRESSES];
+			u_int8_t primaryBus;
+			u_int8_t secondaryBus;
+			u_int8_t subordinateBus;
+			u_int8_t secondaryLatency;
+			u_int8_t ioBase;
+			u_int8_t ioLimit;
+			u_int16_t secondaryStatus;
+			u_int16_t memoryBase;
+			u_int16_t memoryLimit;
+			u_int16_t prefetchBase;
+			u_int16_t prefetchLimit;
+			u_int32_t prefetchBaseUpper32;
+			u_int32_t prefetchLimitUpper32;
+			u_int16_t ioBaseUpper16;
+			u_int16_t ioLimitUpper16;
+			u_int8_t capabilitiesPtr;
+			u_int8_t reserved1[3];
+			u_int32_t romBaseAddress;
+			u_int8_t interruptLine;
+			u_int8_t interruptPin;
+			u_int16_t bridgeControl;
+		}	type1;
+
+		/*
+	         * PCI to CARDBUS Bridge
+	         */
+
+		struct _MRSAS_DRV_PCI_HEADER_TYPE_2 {
+			u_int32_t socketRegistersBaseAddress;
+			u_int8_t capabilitiesPtr;
+			u_int8_t reserved;
+			u_int16_t secondaryStatus;
+			u_int8_t primaryBus;
+			u_int8_t secondaryBus;
+			u_int8_t subordinateBus;
+			u_int8_t secondaryLatency;
+			struct {
+				u_int32_t base;
+				u_int32_t limit;
+			}	range [PCI_TYPE2_ADDRESSES - 1];
+			u_int8_t interruptLine;
+			u_int8_t interruptPin;
+			u_int16_t bridgeControl;
+		}	type2;
+	}	u;
+
+}	MRSAS_DRV_PCI_COMMON_HEADER, *PMRSAS_DRV_PCI_COMMON_HEADER;
+
+#define	MRSAS_DRV_PCI_COMMON_HEADER_SIZE sizeof(MRSAS_DRV_PCI_COMMON_HEADER)   //64 bytes
+
+typedef struct _MRSAS_DRV_PCI_LINK_CAPABILITY {
+	union {
+		struct {
+			u_int32_t linkSpeed:4;
+			u_int32_t linkWidth:6;
+			u_int32_t aspmSupport:2;
+			u_int32_t losExitLatency:3;
+			u_int32_t l1ExitLatency:3;
+			u_int32_t rsvdp:6;
+			u_int32_t portNumber:8;
+		}	bits;
+
+		u_int32_t asUlong;
+	}	u;
+}	MRSAS_DRV_PCI_LINK_CAPABILITY, *PMRSAS_DRV_PCI_LINK_CAPABILITY;
+
+#define	MRSAS_DRV_PCI_LINK_CAPABILITY_SIZE sizeof(MRSAS_DRV_PCI_LINK_CAPABILITY)
+
+typedef struct _MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY {
+	union {
+		struct {
+			u_int16_t linkSpeed:4;
+			u_int16_t negotiatedLinkWidth:6;
+			u_int16_t linkTrainingError:1;
+			u_int16_t linkTraning:1;
+			u_int16_t slotClockConfig:1;
+			u_int16_t rsvdZ:3;
+		}	bits;
+
+		u_int16_t asUshort;
+	}	u;
+	u_int16_t reserved;
+}	MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY, *PMRSAS_DRV_PCI_LINK_STATUS_CAPABILITY;
+
+#define	MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY_SIZE sizeof(MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY)
+
+
+typedef struct _MRSAS_DRV_PCI_CAPABILITIES {
+	MRSAS_DRV_PCI_LINK_CAPABILITY linkCapability;
+	MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY linkStatusCapability;
+}	MRSAS_DRV_PCI_CAPABILITIES, *PMRSAS_DRV_PCI_CAPABILITIES;
+
+#define	MRSAS_DRV_PCI_CAPABILITIES_SIZE sizeof(MRSAS_DRV_PCI_CAPABILITIES)
+
+/* PCI information */
+typedef struct _MRSAS_DRV_PCI_INFORMATION {
+	u_int32_t busNumber;
+	u_int8_t deviceNumber;
+	u_int8_t functionNumber;
+	u_int8_t interruptVector;
+	u_int8_t reserved1;
+	MRSAS_DRV_PCI_COMMON_HEADER pciHeaderInfo;
+	MRSAS_DRV_PCI_CAPABILITIES capability;
+	u_int32_t domainID;
+	u_int8_t reserved2[28];
+}	MRSAS_DRV_PCI_INFORMATION, *PMRSAS_DRV_PCI_INFORMATION;
+
 /*******************************************************************
  * per-instance data
  ********************************************************************/
@@ -2476,6 +2668,7 @@ struct mrsas_softc {
 	int	msix_vectors;
 	int	msix_enable;
 	uint32_t msix_reg_offset[16];
+	uint8_t	mask_interrupts;
 	struct mrsas_mpt_cmd **mpt_cmd_list;
 	struct mrsas_mfi_cmd **mfi_cmd_list;
 	TAILQ_HEAD(, mrsas_mpt_cmd) mrsas_mpt_cmd_list_head;
@@ -2519,6 +2712,7 @@ struct mrsas_softc {
 	bus_dmamap_t evt_detail_dmamap;
 	struct mrsas_evt_detail *evt_detail_mem;
 	bus_addr_t evt_detail_phys_addr;
+	struct mrsas_ctrl_info *ctrl_info;
 	bus_dma_tag_t ctlr_info_tag;
 	bus_dmamap_t ctlr_info_dmamap;
 	void   *ctlr_info_mem;
@@ -2546,9 +2740,11 @@ struct mrsas_softc {
 	struct task ev_task;
 	u_int32_t CurLdCount;
 	u_int64_t reset_flags;
+	int	lb_pending_cmds;
 	LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 
+	u_int8_t secure_jbod_support;
 	u_int8_t max256vdSupport;
 	u_int16_t fw_supported_vd_count;
 	u_int16_t fw_supported_pd_count;
