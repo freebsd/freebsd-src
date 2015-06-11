@@ -4,7 +4,7 @@
 # XXX some of this should be in meta.sys.mk
 # we assume that MK_META_MODE=yes
 
-.if ${.MAKE.LEVEL} == 0
+.if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
 .if !empty(SB)
 SB_OBJROOT ?= ${SB}/obj/
 # this is what we use below
