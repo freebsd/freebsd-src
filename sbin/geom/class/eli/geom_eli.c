@@ -423,7 +423,7 @@ eli_genkey_passphrase_prompt(struct gctl_req *req, bool new, char *passbuf,
 
 	for (;;) {
 		p = readpassphrase(
-		    new ? "Enter new passphrase:" : "Enter passphrase:",
+		    new ? "Enter new passphrase: " : "Enter passphrase: ",
 		    passbuf, passbufsize, RPP_ECHO_OFF | RPP_REQUIRE_TTY);
 		if (p == NULL) {
 			bzero(passbuf, passbufsize);
