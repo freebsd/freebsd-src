@@ -76,7 +76,6 @@ struct pf_fragment_cmp {
 	uint32_t	frc_id;
 	sa_family_t	frc_af;
 	uint8_t		frc_proto;
-	uint8_t		frc_direction;
 };
 
 struct pf_fragment {
@@ -86,7 +85,6 @@ struct pf_fragment {
 #define fr_id	fr_key.frc_id
 #define fr_af	fr_key.frc_af
 #define fr_proto	fr_key.frc_proto
-#define fr_direction	fr_key.frc_direction
 
 	RB_ENTRY(pf_fragment) fr_entry;
 	TAILQ_ENTRY(pf_fragment) frag_next;
@@ -157,7 +155,7 @@ static struct mbuf *pf_fragcache(struct mbuf **, struct ip*,
 #endif	/* INET */
 #ifdef INET6
 static int	pf_reassemble6(struct mbuf **, struct ip6_hdr *,
-		    struct ip6_frag *, uint16_t, uint16_t, int, u_short *);
+		    struct ip6_frag *, uint16_t, uint16_t, u_short *);
 static void	pf_scrub_ip6(struct mbuf **, uint8_t);
 #endif	/* INET6 */
 
@@ -178,7 +176,6 @@ pf_ip2key(struct ip *ip, int dir, struct pf_fragment_cmp *key)
 	key->frc_af = AF_INET;
 	key->frc_proto = ip->ip_p;
 	key->frc_id = ip->ip_id;
-	key->frc_direction = dir;
 }
 #endif	/* INET */
 
@@ -663,7 +660,7 @@ pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
 #ifdef INET6
 static int
 pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
-    uint16_t hdrlen, uint16_t extoff, int dir, u_short *reason)
+    uint16_t hdrlen, uint16_t extoff, u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct pf_frent		*frent;
@@ -697,7 +694,6 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	/* Only the first fragment's protocol is relevant. */
 	key.frc_proto = 0;
 	key.frc_id = fraghdr->ip6f_ident;
-	key.frc_direction = dir;
 
 	if ((frag = pf_fillup_fragment(&key, frent, reason)) == NULL) {
 		PF_FRAG_UNLOCK();
@@ -1555,7 +1551,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	off += sizeof(frag);
 
 	/* Returns PF_DROP or *m0 is NULL or completely reassembled mbuf. */
-	if (pf_reassemble6(m0, h, &frag, off, extoff, dir, reason) != PF_PASS)
+	if (pf_reassemble6(m0, h, &frag, off, extoff, reason) != PF_PASS)
 		return (PF_DROP);
 	m = *m0;
 	if (m == NULL)
