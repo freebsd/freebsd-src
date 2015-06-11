@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,17 +120,19 @@ vhd_geometry(uint64_t image_size, struct vhd_geom *geom)
 	lba_t imgsz;
 	long cth;
 
+	imgsz = image_size / VHD_SECTOR_SIZE;
+
 	/* Respect command line options if possible. */
 	if (nheads > 1 && nheads < 256 &&
 	    nsecs > 1 && nsecs < 256 &&
 	    ncyls < 65536) {
-		geom->cylinders = ncyls;
+		geom->cylinders = (ncyls != 0) ? ncyls :
+		    imgsz / (nheads * nsecs);
 		geom->heads = nheads;
 		geom->sectors = nsecs;
 		return;
 	}
 
-	imgsz = image_size / VHD_SECTOR_SIZE;
 	if (imgsz > 65536 * 16 * 255)
 		imgsz = 65536 * 16 * 255;
 	if (imgsz >= 65535 * 16 * 63) {
