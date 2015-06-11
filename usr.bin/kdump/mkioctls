@@ -39,7 +39,7 @@ case "${MACHINE}" in
 esac
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
-	$CPP -I$1 -dM -DCOMPAT_43TTY - |
+	$CPP -nostdinc -I$1 -dM -DCOMPAT_43TTY - |
 	awk -v ioctl_includes="$ioctl_includes" -v style="$style" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
