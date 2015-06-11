@@ -2,6 +2,9 @@
 arm/arm/devmap.c		standard
 arm/arm/generic_timer.c		standard
 arm/arm/pmu.c			standard
+arm64/acpica/acpi_machdep.c	optional	acpi
+arm64/acpica/OsdEnvironment.c	optional	acpi
+arm64/acpica/acpi_wakeup.c	optional	acpi
 arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/bus_machdep.c	standard
@@ -20,6 +23,8 @@ arm64/arm64/dump_machdep.c	standard
 arm64/arm64/elf_machdep.c	standard
 arm64/arm64/exception.S		standard
 arm64/arm64/gic.c		standard
+arm64/arm64/gic_acpi.c		optional	acpi
+arm64/arm64/gic_fdt.c		optional	fdt
 arm64/arm64/gic_v3.c		standard
 arm64/arm64/gic_v3_fdt.c	optional	fdt
 arm64/arm64/identcpu.c		standard
@@ -41,6 +46,7 @@ arm64/arm64/uio_machdep.c	standard
 arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks
 arm64/arm64/vfp.c		standard
 arm64/arm64/vm_machdep.c	standard
+dev/acpica/acpi_if.m		optional	acpi
 dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc

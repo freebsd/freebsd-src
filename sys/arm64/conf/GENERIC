@@ -95,3 +95,4 @@ device		psci		# Support for ARM PSCI
 device		bpf		# Berkeley packet filter
 
 options 	FDT
+device		acpi

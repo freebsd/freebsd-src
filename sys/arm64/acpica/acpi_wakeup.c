@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Andrew Turner under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,54 +25,37 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: FreeBSD: src/sys/i386/include/globaldata.h,v 1.27 2001/04/27
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCPU_H_
-#define	_MACHINE_PCPU_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 
-#define	ALT_STACK_SIZE	128
+#include <contrib/dev/acpica/include/acpi.h>
 
-#define	PCPU_MD_FIELDS							\
-	u_int	pc_acpi_id;	/* ACPI CPU id */			\
-	char __pad[125]
+#include <dev/acpica/acpivar.h>
 
-#ifdef _KERNEL
-
-struct pcb;
-struct pcpu;
-
-static inline struct pcpu *
-get_pcpu(void)
+/*
+ * ARM64TODO: Implement this.
+ */
+int
+acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-	struct pcpu *pcpu;
 
-	__asm __volatile("mov	%0, x18" : "=&r"(pcpu));
-	return (pcpu);
+	return (-1);
 }
 
-static inline struct thread *
-get_curthread(void)
+int
+acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
+    int intr_enabled)
 {
-	struct thread *td;
 
-	__asm __volatile("ldr	%0, [x18]" : "=&r"(td));
-	return (td);
+	/* ARM64TODO: We will need this with acpi_sleep_machdep */
+	KASSERT(sleep_result == -1,
+	    ("acpi_wakeup_machdep: Invalid sleep result"));
+
+	return (sleep_result);
 }
-
-#define	curthread get_curthread()
-
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
-
-#endif	/* _KERNEL */
-
-#endif	/* !_MACHINE_PCPU_H_ */

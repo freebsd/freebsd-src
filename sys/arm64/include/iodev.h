@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Andrew Turner under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,53 +26,40 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: FreeBSD: src/sys/i386/include/globaldata.h,v 1.27 2001/04/27
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCPU_H_
-#define	_MACHINE_PCPU_H_
+#ifndef _MACHINE_IODEV_H_
+#define	_MACHINE_IODEV_H_
 
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
+#define	iodev_read_1(a)							\
+({									\
+	uint8_t val;							\
+	__asm __volatile("ldrb	%w0, [%1]" : "=&r" (val) : "r"(a));	\
+	val;								\
+})
 
-#define	ALT_STACK_SIZE	128
+#define	iodev_read_2(a)							\
+({									\
+	uint16_t val;							\
+	__asm __volatile("ldrh	%w0, [%1]" : "=&r" (val) : "r"(a));	\
+	val;								\
+})
 
-#define	PCPU_MD_FIELDS							\
-	u_int	pc_acpi_id;	/* ACPI CPU id */			\
-	char __pad[125]
+#define	iodev_read_4(a)							\
+({									\
+	uint32_t val;							\
+	__asm __volatile("ldr	%w0, [%1]" : "=&r" (val) : "r"(a));	\
+	val;								\
+})
 
-#ifdef _KERNEL
+#define	iodev_write_1(a, v)						\
+	__asm __volatile("strb	%w0, [%1]" :: "r" (v), "r"(a))
 
-struct pcb;
-struct pcpu;
+#define	iodev_write_2(a, v)						\
+	__asm __volatile("strh	%w0, [%1]" :: "r" (v), "r"(a))
 
-static inline struct pcpu *
-get_pcpu(void)
-{
-	struct pcpu *pcpu;
+#define	iodev_write_4(a, v)						\
+	__asm __volatile("str	%w0, [%1]" :: "r" (v), "r"(a))
 
-	__asm __volatile("mov	%0, x18" : "=&r"(pcpu));
-	return (pcpu);
-}
-
-static inline struct thread *
-get_curthread(void)
-{
-	struct thread *td;
-
-	__asm __volatile("ldr	%0, [x18]" : "=&r"(td));
-	return (td);
-}
-
-#define	curthread get_curthread()
-
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
-
-#endif	/* _KERNEL */
-
-#endif	/* !_MACHINE_PCPU_H_ */
+#endif /* _MACHINE_IODEV_H_ */
