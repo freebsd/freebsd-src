@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.34 2014/11/20 22:40:08 sjg Exp $
+# $Id: meta.stage.mk,v 1.35 2015/05/20 06:40:33 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -218,7 +218,7 @@ STAGE_AS.$s ?= ${.ALLSRC:N.dirdep}
 
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:T}:U${f:T}}@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
 	@touch $@
 
 .endfor
@@ -238,7 +238,9 @@ staging:
 # generally we want staging to wait until everything else is done
 STAGING_WAIT ?= .WAIT
 
+.if ${.MAKE.LEVEL} > 0
 all: ${STAGING_WAIT} staging
+.endif
 
 .if exists(${.PARSEDIR}/stage-install.sh) && !defined(STAGE_INSTALL)
 # this will run install(1) and then followup with .dirdep files.
