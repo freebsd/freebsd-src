@@ -155,3 +155,40 @@ busdma_mem_free(busdma_md_t md)
 
 	return (bd_mem_free(md));
 }
+
+busdma_seg_t
+busdma_md_first_seg(busdma_md_t md, int space)
+{
+	busdma_seg_t seg;
+
+	seg = bd_md_first_seg(md, space);
+	return (seg);
+}
+
+busdma_seg_t
+busdma_md_next_seg(busdma_md_t md, busdma_seg_t seg)
+{
+ 
+	seg = bd_md_next_seg(md, seg);
+	return (seg);
+}
+
+bus_addr_t
+busdma_seg_get_addr(busdma_seg_t seg)
+{
+	u_long addr;
+	int error;
+
+	error = bd_seg_get_addr(seg, &addr);
+	return ((error) ? ~0UL : addr);
+}
+
+bus_size_t
+busdma_seg_get_size(busdma_seg_t seg)
+{
+	u_long size;
+	int error;
+
+	error = bd_seg_get_size(seg, &size);
+	return ((error) ? ~0UL : size);
+}
