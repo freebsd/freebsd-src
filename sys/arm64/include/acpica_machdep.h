@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 2002 Mitsuru IWASAKI
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,53 +23,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: FreeBSD: src/sys/i386/include/globaldata.h,v 1.27 2001/04/27
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCPU_H_
-#define	_MACHINE_PCPU_H_
+/******************************************************************************
+ *
+ * Name: acpica_machdep.h - arch-specific defines, etc.
+ *       $Revision$
+ *
+ *****************************************************************************/
 
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
+#ifndef __ACPICA_MACHDEP_H__
+#define	__ACPICA_MACHDEP_H__
 
-#define	ALT_STACK_SIZE	128
-
-#define	PCPU_MD_FIELDS							\
-	u_int	pc_acpi_id;	/* ACPI CPU id */			\
-	char __pad[125]
 
 #ifdef _KERNEL
 
-struct pcb;
-struct pcpu;
+/* Only use the reduced hardware model */
+#define	ACPI_REDUCED_HARDWARE	1
 
-static inline struct pcpu *
-get_pcpu(void)
-{
-	struct pcpu *pcpu;
+/* Section 5.2.10.1: global lock acquire/release functions */
+int	acpi_acquire_global_lock(volatile uint32_t *);
+int	acpi_release_global_lock(volatile uint32_t *);
 
-	__asm __volatile("mov	%0, x18" : "=&r"(pcpu));
-	return (pcpu);
-}
+void	*acpi_map_table(vm_paddr_t pa, const char *sig);
+void	acpi_unmap_table(void *table);
+vm_paddr_t acpi_find_table(const char *sig);
 
-static inline struct thread *
-get_curthread(void)
-{
-	struct thread *td;
+#endif /* _KERNEL */
 
-	__asm __volatile("ldr	%0, [x18]" : "=&r"(td));
-	return (td);
-}
-
-#define	curthread get_curthread()
-
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
-
-#endif	/* _KERNEL */
-
-#endif	/* !_MACHINE_PCPU_H_ */
+#endif /* __ACPICA_MACHDEP_H__ */
