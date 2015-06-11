@@ -288,7 +288,6 @@ printcol(const DISPLAY *dp)
 	if (dp->entries > lastentries) {
 		if ((narray =
 		    realloc(array, dp->entries * sizeof(FTSENT *))) == NULL) {
-			xo_warn(NULL);
 			printscol(dp);
 			return;
 		}
