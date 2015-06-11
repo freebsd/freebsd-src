@@ -911,7 +911,7 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 void
 pcpu0_init(void)
 {
-#if ARM_ARCH_6 || ARM_ARCH_7A || defined(CPU_MV_PJ4B)
+#if __ARM_ARCH >= 6
 	set_curthread(&thread0);
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
