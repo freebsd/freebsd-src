@@ -90,10 +90,10 @@ uint8_t dump_opt[256];
 typedef void object_viewer_t(objset_t *, uint64_t, void *data, size_t size);
 
 extern void dump_intent_log(zilog_t *);
-uint64_t *zopt_object = NULL;
-int zopt_objects = 0;
-libzfs_handle_t *g_zfs;
-uint64_t max_inflight = 1000;
+static uint64_t *zopt_object = NULL;
+static int zopt_objects = 0;
+static libzfs_handle_t *g_zfs;
+static uint64_t max_inflight = 1000;
 
 /*
  * These libumem hooks provide a reasonable set of defaults for the allocator's
@@ -1488,16 +1488,14 @@ dump_deadlist(dsl_deadlist_t *dl)
 	    dle = AVL_NEXT(&dl->dl_tree, dle)) {
 		if (dump_opt['d'] >= 5) {
 			char buf[128];
-			(void) snprintf(buf, sizeof (buf), "mintxg %llu -> ",
-			    (longlong_t)dle->dle_mintxg,
+			(void) snprintf(buf, sizeof (buf), "mintxg %llu -> "
+			    "obj %llu", (longlong_t)dle->dle_mintxg,
 			    (longlong_t)dle->dle_bpobj.bpo_object);
-
 			dump_bpobj(&dle->dle_bpobj, buf, 0);
 		} else {
 			(void) printf("mintxg %llu -> obj %llu\n",
 			    (longlong_t)dle->dle_mintxg,
 			    (longlong_t)dle->dle_bpobj.bpo_object);
-
 		}
 	}
 }
