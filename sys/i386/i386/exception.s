@@ -157,9 +157,12 @@ IDTVEC(xmm)
 	.type	alltraps,@function
 alltraps:
 	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	pushl	$0
+	movl	%ds,(%esp)
+	pushl	$0
+	movl	%es,(%esp)
+	pushl	$0
+	movl	%fs,(%esp)
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
 	cld
@@ -233,9 +236,12 @@ IDTVEC(lcall_syscall)
 	pushl	$7			/* sizeof "lcall 7,0" */
 	subl	$4,%esp			/* skip over tf_trapno */
 	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	pushl	$0
+	movl	%ds,(%esp)
+	pushl	$0
+	movl	%es,(%esp)
+	pushl	$0
+	movl	%fs,(%esp)
 	SET_KERNEL_SREGS
 	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
@@ -259,9 +265,12 @@ IDTVEC(int0x80_syscall)
 	pushl	$2			/* sizeof "int 0x80" */
 	subl	$4,%esp			/* skip over tf_trapno */
 	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	pushl	$0
+	movl	%ds,(%esp)
+	pushl	$0
+	movl	%es,(%esp)
+	pushl	$0
+	movl	%fs,(%esp)
 	SET_KERNEL_SREGS
 	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
@@ -416,13 +425,16 @@ doreti_iret:
 doreti_iret_fault:
 	subl	$8,%esp
 	pushal
-	pushl	%ds
+	pushl	$0
+	movl	%ds,(%esp)
 	.globl	doreti_popl_ds_fault
 doreti_popl_ds_fault:
-	pushl	%es
+	pushl	$0
+	movl	%es,(%esp)
 	.globl	doreti_popl_es_fault
 doreti_popl_es_fault:
-	pushl	%fs
+	pushl	$0
+	movl	%fs,(%esp)
 	.globl	doreti_popl_fs_fault
 doreti_popl_fs_fault:
 	sti
