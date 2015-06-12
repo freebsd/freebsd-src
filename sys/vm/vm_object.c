@@ -2046,7 +2046,7 @@ vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 boolean_t
 vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t pindex;
 	int rv;
 
@@ -2054,11 +2054,7 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	for (pindex = start; pindex < end; pindex++) {
 		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 		if (m->valid != VM_PAGE_BITS_ALL) {
-			ma[0] = m;
-			rv = vm_pager_get_pages(object, ma, 1, 0);
-			m = vm_page_lookup(object, pindex);
-			if (m == NULL)
-				break;
+			rv = vm_pager_get_pages(object, &m, 1, 0);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);
 				vm_page_free(m);
