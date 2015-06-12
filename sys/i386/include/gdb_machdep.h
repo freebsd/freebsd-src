@@ -30,7 +30,7 @@
 #define	_MACHINE_GDB_MACHDEP_H_
 
 #define	GDB_BUFSZ	400
-#define	GDB_NREGS	14
+#define	GDB_NREGS	16
 #define	GDB_REG_PC	8
 
 static __inline size_t
