@@ -5,6 +5,7 @@
 KMOD=	proto
 SRCS=	\
 	proto_bus_pci.c \
+	proto_busdma.c \
 	proto_core.c
 
 SRCS+=	\

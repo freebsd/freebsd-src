@@ -220,13 +220,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
-	newtd->td_ucred = crhold(td->td_ucred);
+	thread_cow_get(newtd, td);
 
 	if (ctx != NULL) { /* old way to set user context */
 		error = set_mcontext(newtd, ctx);
 		if (error != 0) {
+			thread_cow_free(newtd);
 			thread_free(newtd);
-			crfree(td->td_ucred);
 			goto fail;
 		}
 	} else {
@@ -238,8 +238,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		/* Setup user TLS address and TLS pointer register. */
 		error = cpu_set_user_tls(newtd, tls_base);
 		if (error != 0) {
+			thread_cow_free(newtd);
 			thread_free(newtd);
-			crfree(td->td_ucred);
 			goto fail;
 		}
 	}

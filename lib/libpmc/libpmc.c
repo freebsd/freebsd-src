@@ -268,6 +268,16 @@ static const struct pmc_event_descr westmereuc_event_table[] =
 	__PMC_EV_ALIAS_WESTMEREUC()
 };
 
+static const struct pmc_event_descr cortex_a8_event_table[] = 
+{
+	__PMC_EV_ALIAS_ARMV7_CORTEX_A8()
+};
+
+static const struct pmc_event_descr cortex_a9_event_table[] = 
+{
+	__PMC_EV_ALIAS_ARMV7_CORTEX_A9()
+};
+
 static const struct pmc_event_descr cortex_a53_event_table[] = 
 {
 	__PMC_EV_ALIAS_ARMV8_CORTEX_A53()
@@ -308,7 +318,8 @@ PMC_MDEP_TABLE(p4, P4, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p5, P5, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_SOFT, PMC_CLASS_XSCALE);
-PMC_MDEP_TABLE(armv7, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
+PMC_MDEP_TABLE(cortex_a8, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
+PMC_MDEP_TABLE(cortex_a9, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
 PMC_MDEP_TABLE(cortex_a53, ARMV8, PMC_CLASS_SOFT, PMC_CLASS_ARMV8);
 PMC_MDEP_TABLE(cortex_a57, ARMV8, PMC_CLASS_SOFT, PMC_CLASS_ARMV8);
 PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_SOFT, PMC_CLASS_MIPS24K);
@@ -377,7 +388,8 @@ PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #if	defined(__XSCALE__)
 PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
-PMC_CLASS_TABLE_DESC(armv7, ARMV7, armv7, armv7);
+PMC_CLASS_TABLE_DESC(cortex_a8, ARMV7, cortex_a9, armv7);
+PMC_CLASS_TABLE_DESC(cortex_a9, ARMV7, cortex_a9, armv7);
 #endif
 #if	defined(__aarch64__)
 PMC_CLASS_TABLE_DESC(cortex_a53, ARMV8, cortex_a53, arm64);
@@ -2436,12 +2448,20 @@ xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 }
 #endif
 
-static struct pmc_event_alias armv7_aliases[] = {
+static struct pmc_event_alias cortex_a8_aliases[] = {
 	EV_ALIAS("dc-misses",		"L1_DCACHE_REFILL"),
 	EV_ALIAS("ic-misses",		"L1_ICACHE_REFILL"),
 	EV_ALIAS("instructions",	"INSTR_EXECUTED"),
 	EV_ALIAS(NULL, NULL)
 };
+
+static struct pmc_event_alias cortex_a9_aliases[] = {
+	EV_ALIAS("dc-misses",		"L1_DCACHE_REFILL"),
+	EV_ALIAS("ic-misses",		"L1_ICACHE_REFILL"),
+	EV_ALIAS("instructions",	"INSTR_EXECUTED"),
+	EV_ALIAS(NULL, NULL)
+};
+
 static int
 armv7_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
     struct pmc_op_pmcallocate *pmc_config __unused)
@@ -2981,8 +3001,17 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		count = PMC_EVENT_TABLE_SIZE(xscale);
 		break;
 	case PMC_CLASS_ARMV7:
-		ev = armv7_event_table;
-		count = PMC_EVENT_TABLE_SIZE(armv7);
+		switch (cpu_info.pm_cputype) {
+		default:
+		case PMC_CPU_ARMV7_CORTEX_A8:
+			ev = cortex_a8_event_table;
+			count = PMC_EVENT_TABLE_SIZE(cortex_a8);
+			break;
+		case PMC_CPU_ARMV7_CORTEX_A9:
+			ev = cortex_a9_event_table;
+			count = PMC_EVENT_TABLE_SIZE(cortex_a9);
+			break;
+		}
 		break;
 	case PMC_CLASS_ARMV8:
 		switch (cpu_info.pm_cputype) {
@@ -3289,9 +3318,13 @@ pmc_init(void)
 		pmc_class_table[n] = &xscale_class_table_descr;
 		break;
 #endif
-	case PMC_CPU_ARMV7:
-		PMC_MDEP_INIT(armv7);
-		pmc_class_table[n] = &armv7_class_table_descr;
+	case PMC_CPU_ARMV7_CORTEX_A8:
+		PMC_MDEP_INIT(cortex_a8);
+		pmc_class_table[n] = &cortex_a8_class_table_descr;
+		break;
+	case PMC_CPU_ARMV7_CORTEX_A9:
+		PMC_MDEP_INIT(cortex_a9);
+		pmc_class_table[n] = &cortex_a9_class_table_descr;
 		break;
 #endif
 #if defined(__aarch64__)
@@ -3515,8 +3548,18 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		ev = xscale_event_table;
 		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
 	} else if (pe >= PMC_EV_ARMV7_FIRST && pe <= PMC_EV_ARMV7_LAST) {
-		ev = armv7_event_table;
-		evfence = armv7_event_table + PMC_EVENT_TABLE_SIZE(armv7);
+		switch (cpu) {
+		case PMC_CPU_ARMV7_CORTEX_A8:
+			ev = cortex_a8_event_table;
+			evfence = cortex_a8_event_table + PMC_EVENT_TABLE_SIZE(cortex_a8);
+			break;
+		case PMC_CPU_ARMV7_CORTEX_A9:
+			ev = cortex_a9_event_table;
+			evfence = cortex_a9_event_table + PMC_EVENT_TABLE_SIZE(cortex_a9);
+			break;
+		default:	/* Unknown CPU type. */
+			break;
+		}
 	} else if (pe >= PMC_EV_ARMV8_FIRST && pe <= PMC_EV_ARMV8_LAST) {
 		switch (cpu) {
 		case PMC_CPU_ARMV8_CORTEX_A53:

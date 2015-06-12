@@ -219,9 +219,9 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 # On x86 and arm64, clang is enabled, and will be installed as the default cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-.elif ${__TT} == "arm" && ${__T:Marm*eb*} == ""
-# On little-endian arm, clang is enabled, and it is installed as the default
-# cc, but since gcc is unable to build the full clang, disable it by default.
+.elif ${__TT} == "arm"
+# On arm, clang is enabled, and it is installed as the default cc, but
+# since gcc is unable to build the full clang, disable it by default.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC
 __DEFAULT_NO_OPTIONS+=CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
 .elif ${__T:Mpowerpc*}
