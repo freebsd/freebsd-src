@@ -46,26 +46,31 @@ NFSSTATESPINLOCK;
 
 SYSCTL_DECL(_vfs_nfsd);
 int	nfsrv_statehashsize = NFSSTATEHASHSIZE;
+TUNABLE_INT("vfs.nfsd.statehashsize", &nfsrv_statehashsize);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, statehashsize, CTLFLAG_RDTUN,
     &nfsrv_statehashsize, 0,
     "Size of state hash table set via loader.conf");
 
 int	nfsrv_clienthashsize = NFSCLIENTHASHSIZE;
+TUNABLE_INT("vfs.nfsd.clienthashsize", &nfsrv_clienthashsize);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, clienthashsize, CTLFLAG_RDTUN,
     &nfsrv_clienthashsize, 0,
     "Size of client hash table set via loader.conf");
 
 int	nfsrv_lockhashsize = NFSLOCKHASHSIZE;
+TUNABLE_INT("vfs.nfsd.fhhashsize", &nfsrv_lockhashsize);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, fhhashsize, CTLFLAG_RDTUN,
     &nfsrv_lockhashsize, 0,
     "Size of file handle hash table set via loader.conf");
 
 int	nfsrv_sessionhashsize = NFSSESSIONHASHSIZE;
+TUNABLE_INT("vfs.nfsd.sessionhashsize", &nfsrv_sessionhashsize);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, sessionhashsize, CTLFLAG_RDTUN,
     &nfsrv_sessionhashsize, 0,
     "Size of session hash table set via loader.conf");
 
 static int	nfsrv_v4statelimit = NFSRV_V4STATELIMIT;
+TUNABLE_INT("vfs.nfsd.v4statelimit", &nfsrv_v4statelimit);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, v4statelimit, CTLFLAG_RWTUN,
     &nfsrv_v4statelimit, 0,
     "High water limit for NFSv4 opens+locks+delegations");
