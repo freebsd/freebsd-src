@@ -2026,10 +2026,7 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 		if (vm_pager_has_page(obj, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(obj, &m, 1, 0);
 			SFSTAT_INC(sf_iocnt);
-			m = vm_page_lookup(obj, pindex);
-			if (m == NULL)
-				error = EIO;
-			else if (rv != VM_PAGER_OK) {
+			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);
 				vm_page_free(m);
 				vm_page_unlock(m);

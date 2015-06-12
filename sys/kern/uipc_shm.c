@@ -189,14 +189,6 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
 			rv = vm_pager_get_pages(obj, &m, 1, 0);
-			m = vm_page_lookup(obj, idx);
-			if (m == NULL) {
-				printf(
-		    "uiomove_object: vm_obj %p idx %jd null lookup rv %d\n",
-				    obj, idx, rv);
-				VM_OBJECT_WUNLOCK(obj);
-				return (EIO);
-			}
 			if (rv != VM_PAGER_OK) {
 				printf(
 	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
@@ -423,7 +415,7 @@ static int
 shm_dotruncate(struct shmfd *shmfd, off_t length)
 {
 	vm_object_t object;
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t idx, nobjsize;
 	vm_ooffset_t delta;
 	int base, rv;
@@ -465,12 +457,10 @@ retry:
 					VM_WAIT;
 					VM_OBJECT_WLOCK(object);
 					goto retry;
-				} else if (m->valid != VM_PAGE_BITS_ALL) {
-					ma[0] = m;
-					rv = vm_pager_get_pages(object, ma, 1,
+				} else if (m->valid != VM_PAGE_BITS_ALL)
+					rv = vm_pager_get_pages(object, &m, 1,
 					    0);
-					m = vm_page_lookup(object, idx);
-				} else
+				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;
 				vm_page_lock(m);
