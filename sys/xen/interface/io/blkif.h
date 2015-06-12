@@ -457,21 +457,9 @@
 #define BLKIF_OP_DISCARD           5
 
 /*
- * Maximum scatter/gather segments associated with a request header block.
- * This is carefully chosen so that sizeof(blkif_ring_t) <= PAGE_SIZE.
- * NB. This could be 12 if the ring indexes weren't stored in the same page.
- */
-#define BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK  11
-
-/*
- * Maximum scatter/gather segments associated with a segment block.
- */
-#define BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK 14
-
-/*
  * Maximum scatter/gather segments per request (header + segment blocks).
  */
-#define BLKIF_MAX_SEGMENTS_PER_REQUEST 255
+#define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
 /*
  * NB. first_sect and last_sect in blkif_request_segment, as well as
@@ -512,20 +500,9 @@ struct blkif_request {
     blkif_vdev_t   handle;       /* only for read/write requests         */
     uint64_t       id;           /* private guest value, echoed in resp  */
     blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-    blkif_request_segment_t seg[BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK];
+    blkif_request_segment_t seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 typedef struct blkif_request blkif_request_t;
-
-/*
- * A segment block is a ring request structure that contains only
- * segment data.
- *
- * sizeof(struct blkif_segment_block) <= sizeof(struct blkif_request)
- */
-struct blkif_segment_block {
-    blkif_request_segment_t seg[BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK];
-};
-typedef struct blkif_segment_block blkif_segment_block_t;
 
 /*
  * Cast to this structure when blkif_request.operation == BLKIF_OP_DISCARD
@@ -563,21 +540,6 @@ typedef struct blkif_response blkif_response_t;
  * Generate blkif ring structures and types.
  */
 DEFINE_RING_TYPES(blkif, struct blkif_request, struct blkif_response);
-
-/*
- * Index to, and treat as a segment block, an entry in the ring.
- */
-#define BLKRING_GET_SEG_BLOCK(_r, _idx)                                 \
-    (((blkif_segment_block_t *)RING_GET_REQUEST(_r, _idx))->seg)
-
-/*
- * The number of ring request blocks required to handle an I/O
- * request containing _segs segments.
- */
-#define BLKIF_SEGS_TO_BLOCKS(_segs)                                     \
-    ((((_segs - BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK)                    \
-     + (BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK - 1))                      \
-    / BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK) + /*header_block*/1)
 
 #define VDISK_CDROM        0x1
 #define VDISK_REMOVABLE    0x2
