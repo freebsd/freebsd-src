@@ -504,6 +504,12 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 	        goto err;
 		}
 
+    /* Detached content must be supplied via in_bio instead. */
+    if (data_body == NULL && in_bio == NULL) {
+        PKCS7err(PKCS7_F_PKCS7_DATADECODE, PKCS7_R_NO_CONTENT);
+        goto err;
+    }
+
 	/* We will be checking the signature */
 	if (md_sk != NULL)
 		{
@@ -660,7 +666,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		}
 
 #if 1
-	if (PKCS7_is_detached(p7) || (in_bio != NULL))
+	if (in_bio != NULL)
 		{
 		bio=in_bio;
 		}
