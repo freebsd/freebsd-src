@@ -462,7 +462,8 @@ static int	tame_mouse(struct psm_softc *, packetbuf_t *, mousestatus_t *,
 		    u_char *);
 
 /* vendor specific features */
-typedef int	probefunc_t(KBDC, struct psm_softc *);
+enum probearg { PROBE, REINIT };
+typedef int	probefunc_t(struct psm_softc *, enum probearg);
 
 static int	mouse_id_proc1(KBDC, int, int, int *);
 static int	mouse_ext_command(KBDC, int);
@@ -882,7 +883,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 	/* Re-enable the mouse. */
 	for (i = 0; vendortype[i].probefunc != NULL; ++i)
 		if (vendortype[i].model == sc->hw.model)
-			(*vendortype[i].probefunc)(sc->kbdc, NULL);
+			(*vendortype[i].probefunc)(sc, REINIT);
 
 	/* set mouse parameters */
 	if (mode != (mousemode_t *)NULL) {
@@ -893,13 +894,6 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 			    set_mouse_resolution(kbdc, mode->resolution);
 		set_mouse_scaling(kbdc, 1);
 		set_mouse_mode(kbdc);
-
-		/*
-		 * Trackpoint settings are lost on resume.
-		 * Restore them here.
-		 */
-		if (sc->tphw > 0)
-			set_trackpoint_parameters(sc);
 	}
 
 	/* Record sync on the next data packet we see. */
@@ -1388,7 +1382,7 @@ psmprobe(device_t dev)
 
 		/* other parameters */
 		for (i = 0; vendortype[i].probefunc != NULL; ++i)
-			if ((*vendortype[i].probefunc)(sc->kbdc, sc)) {
+			if ((*vendortype[i].probefunc)(sc, PROBE)) {
 				if (verbose >= 2)
 					printf("psm%d: found %s\n", unit,
 					    model_name(vendortype[i].model));
@@ -3731,8 +3725,9 @@ mouse_ext_command(KBDC kbdc, int command)
 #ifdef notyet
 /* Logitech MouseMan Cordless II */
 static int
-enable_lcordless(KDBC kbdc, struct psm_softc *sc)
+enable_lcordless(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int status[3];
 	int ch;
 
@@ -3753,8 +3748,9 @@ enable_lcordless(KDBC kbdc, struct psm_softc *sc)
 
 /* Genius NetScroll Mouse, MouseSystems SmartScroll Mouse */
 static int
-enable_groller(KBDC kbdc, struct psm_softc *sc)
+enable_groller(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int status[3];
 
 	/*
@@ -3783,15 +3779,16 @@ enable_groller(KBDC kbdc, struct psm_softc *sc)
 	if ((status[1] != '3') || (status[2] != 'D'))
 		return (FALSE);
 	/* FIXME: SmartScroll Mouse has 5 buttons! XXX */
-	if (sc != NULL)
+	if (arg == PROBE)
 		sc->hw.buttons = 4;
 	return (TRUE);
 }
 
 /* Genius NetMouse/NetMouse Pro, ASCII Mie Mouse, NetScroll Optical */
 static int
-enable_gmouse(KBDC kbdc, struct psm_softc *sc)
+enable_gmouse(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int status[3];
 
 	/*
@@ -3813,8 +3810,9 @@ enable_gmouse(KBDC kbdc, struct psm_softc *sc)
 
 /* ALPS GlidePoint */
 static int
-enable_aglide(KBDC kbdc, struct psm_softc *sc)
+enable_aglide(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int status[3];
 
 	/*
@@ -3835,9 +3833,10 @@ enable_aglide(KBDC kbdc, struct psm_softc *sc)
 
 /* Kensington ThinkingMouse/Trackball */
 static int
-enable_kmouse(KBDC kbdc, struct psm_softc *sc)
+enable_kmouse(struct psm_softc *sc, enum probearg arg)
 {
 	static u_char rate[] = { 20, 60, 40, 20, 20, 60, 40, 20, 20 };
+	KBDC kbdc = sc->kbdc;
 	int status[3];
 	int id1;
 	int id2;
@@ -3888,8 +3887,9 @@ enable_kmouse(KBDC kbdc, struct psm_softc *sc)
 
 /* Logitech MouseMan+/FirstMouse+, IBM ScrollPoint Mouse */
 static int
-enable_mmanplus(KBDC kbdc, struct psm_softc *sc)
+enable_mmanplus(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int data[3];
 
 	/* the special sequence to enable the fourth button and the roller. */
@@ -3930,7 +3930,7 @@ enable_mmanplus(KBDC kbdc, struct psm_softc *sc)
 	if (MOUSE_PS2PLUS_PACKET_TYPE(data) != 0)
 		return (FALSE);
 
-	if (sc != NULL) {
+	if (arg == PROBE) {
 		sc->hw.hwid &= 0x00ff;
 		sc->hw.hwid |= data[2] << 8;	/* save model ID */
 	}
@@ -3946,8 +3946,9 @@ enable_mmanplus(KBDC kbdc, struct psm_softc *sc)
 
 /* MS IntelliMouse Explorer */
 static int
-enable_msexplorer(KBDC kbdc, struct psm_softc *sc)
+enable_msexplorer(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	static u_char rate0[] = { 200, 100, 80, };
 	static u_char rate1[] = { 200, 200, 80, };
 	int id;
@@ -3958,7 +3959,7 @@ enable_msexplorer(KBDC kbdc, struct psm_softc *sc)
 	 * straight to Explorer mode, but need to be set to Intelli mode
 	 * first.
 	 */
-	enable_msintelli(kbdc, sc);
+	enable_msintelli(sc, arg);
 
 	/* the special sequence to enable the extra buttons and the roller. */
 	for (i = 0; i < sizeof(rate1)/sizeof(rate1[0]); ++i)
@@ -3969,7 +3970,7 @@ enable_msexplorer(KBDC kbdc, struct psm_softc *sc)
 	if (id != PSM_EXPLORER_ID)
 		return (FALSE);
 
-	if (sc != NULL) {
+	if (arg == PROBE) {
 		sc->hw.buttons = 5;	/* IntelliMouse Explorer XXX */
 		sc->hw.hwid = id;
 	}
@@ -3992,15 +3993,15 @@ enable_msexplorer(KBDC kbdc, struct psm_softc *sc)
 	return (TRUE);
 }
 
-/* MS IntelliMouse */
+/*
+ * MS IntelliMouse
+ * Logitech MouseMan+ and FirstMouse+ will also respond to this
+ * probe routine and act like IntelliMouse.
+ */
 static int
-enable_msintelli(KBDC kbdc, struct psm_softc *sc)
+enable_msintelli(struct psm_softc *sc, enum probearg arg)
 {
-	/*
-	 * Logitech MouseMan+ and FirstMouse+ will also respond to this
-	 * probe routine and act like IntelliMouse.
-	 */
-
+	KBDC kbdc = sc->kbdc;
 	static u_char rate[] = { 200, 100, 80, };
 	int id;
 	int i;
@@ -4014,7 +4015,7 @@ enable_msintelli(KBDC kbdc, struct psm_softc *sc)
 	if (id != PSM_INTELLI_ID)
 		return (FALSE);
 
-	if (sc != NULL) {
+	if (arg == PROBE) {
 		sc->hw.buttons = 3;
 		sc->hw.hwid = id;
 	}
@@ -4022,15 +4023,15 @@ enable_msintelli(KBDC kbdc, struct psm_softc *sc)
 	return (TRUE);
 }
 
-/* A4 Tech 4D Mouse */
+/*
+ * A4 Tech 4D Mouse
+ * Newer wheel mice from A4 Tech may use the 4D+ protocol.
+ */
 static int
-enable_4dmouse(KBDC kbdc, struct psm_softc *sc)
+enable_4dmouse(struct psm_softc *sc, enum probearg arg)
 {
-	/*
-	 * Newer wheel mice from A4 Tech may use the 4D+ protocol.
-	 */
-
 	static u_char rate[] = { 200, 100, 80, 60, 40, 20 };
+	KBDC kbdc = sc->kbdc;
 	int id;
 	int i;
 
@@ -4046,7 +4047,7 @@ enable_4dmouse(KBDC kbdc, struct psm_softc *sc)
 	if (id != PSM_4DMOUSE_ID)
 		return (FALSE);
 
-	if (sc != NULL) {
+	if (arg == PROBE) {
 		sc->hw.buttons = 3;	/* XXX some 4D mice have 4? */
 		sc->hw.hwid = id;
 	}
@@ -4054,14 +4055,15 @@ enable_4dmouse(KBDC kbdc, struct psm_softc *sc)
 	return (TRUE);
 }
 
-/* A4 Tech 4D+ Mouse */
+/*
+ * A4 Tech 4D+ Mouse
+ * Newer wheel mice from A4 Tech seem to use this protocol.
+ * Older models are recognized as either 4D Mouse or IntelliMouse.
+ */
 static int
-enable_4dplus(KBDC kbdc, struct psm_softc *sc)
+enable_4dplus(struct psm_softc *sc, enum probearg arg)
 {
-	/*
-	 * Newer wheel mice from A4 Tech seem to use this protocol.
-	 * Older models are recognized as either 4D Mouse or IntelliMouse.
-	 */
+	KBDC kbdc = sc->kbdc;
 	int id;
 
 	/*
@@ -4084,7 +4086,7 @@ enable_4dplus(KBDC kbdc, struct psm_softc *sc)
 		return (FALSE);
 	}
 
-	if (sc != NULL) {
+	if (arg == PROBE) {
 		sc->hw.buttons = (id == PSM_4DPLUS_ID) ? 4 : 3;
 		sc->hw.hwid = id;
 	}
@@ -4543,8 +4545,9 @@ synaptics_set_mode(struct psm_softc *sc, int mode_byte) {
 }
 
 static int
-enable_synaptics(KBDC kbdc, struct psm_softc *sc)
+enable_synaptics(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	synapticshw_t synhw;
 	int status[3];
 	int buttons;
@@ -4828,20 +4831,22 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		return (FALSE);
 	}
 
-	if (sc != NULL)
+	if (arg == PROBE)
 		sc->synhw = synhw;
 	if (!synaptics_support)
 		return (FALSE);
 
+	synaptics_set_mode(sc, synaptics_preferred_mode(sc));
+
+	if (trackpoint_support && synhw.capPassthrough) {
+		synaptics_passthrough_on(sc);
+		enable_trackpoint(sc, arg);
+		synaptics_passthrough_off(sc);
+	}
+
 	VLOG(3, (LOG_DEBUG, "synaptics: END init (%d buttons)\n", buttons));
 
-	if (sc != NULL) {
-		synaptics_set_mode(sc, synaptics_preferred_mode(sc));
-		if (trackpoint_support && synhw.capPassthrough) {
-			synaptics_passthrough_on(sc);
-			enable_trackpoint(kbdc, sc);
-			synaptics_passthrough_off(sc);
-		}
+	if (arg == PROBE) {
 		/* Create sysctl tree. */
 		synaptics_sysctl_create_tree(sc);
 		sc->hw.buttons = buttons;
@@ -5086,8 +5091,9 @@ set_trackpoint_parameters(struct psm_softc *sc)
 }
 
 static int
-enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
+enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int id;
 
 	if (send_aux_command(kbdc, 0xe1) != PSM_ACK ||
@@ -5101,10 +5107,8 @@ enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
 	if (!trackpoint_support)
 		return (FALSE);
 
-	if (sc != NULL) {
-		/* Create sysctl tree. */
+	if (arg == PROBE) {
 		trackpoint_sysctl_create_tree(sc);
-
 		/*
 		 * Don't overwrite hwid and buttons when we are
 		 * a guest device.
@@ -5115,13 +5119,16 @@ enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
 		}
 	}
 
+	set_trackpoint_parameters(sc);
+
 	return (TRUE);
 }
 
 /* Interlink electronics VersaPad */
 static int
-enable_versapad(KBDC kbdc, struct psm_softc *sc)
+enable_versapad(struct psm_softc *sc, enum probearg arg)
 {
+	KBDC kbdc = sc->kbdc;
 	int data[3];
 
 	set_mouse_resolution(kbdc, PSMD_RES_MEDIUM_HIGH); /* set res. 2 */
