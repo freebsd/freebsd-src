@@ -1040,7 +1040,15 @@ int EC_POINT_is_at_infinity(const EC_GROUP *group, const EC_POINT *point)
 	}
 
 
-int EC_POINT_is_on_curve(const EC_GROUP *group, const EC_POINT *point, BN_CTX *ctx)
+/*
+ * Check whether an EC_POINT is on the curve or not. Note that the return
+ * value for this function should NOT be treated as a boolean. Return values:
+ *  1: The point is on the curve
+ *  0: The point is not on the curve
+ * -1: An error occurred
+ */
+int EC_POINT_is_on_curve(const EC_GROUP *group, const EC_POINT *point,
+                         BN_CTX *ctx)
 	{
 	if (group->meth->is_on_curve == 0)
 		{
