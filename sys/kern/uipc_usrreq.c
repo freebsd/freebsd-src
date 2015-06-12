@@ -1787,7 +1787,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			if (fdallocn(td, 0, fdp, newfds) != 0) {
-				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(fdesc);
 				error = EMSGSIZE;
 				unp_freerights(fdep, newfds);
 				m_freem(*controlp);
