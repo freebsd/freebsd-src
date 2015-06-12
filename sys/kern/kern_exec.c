@@ -966,13 +966,10 @@ exec_map_first_page(imgp)
 		}
 		initial_pagein = i;
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
-		ma[0] = vm_page_lookup(object, 0);
-		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
-			if (ma[0] != NULL) {
-				vm_page_lock(ma[0]);
-				vm_page_free(ma[0]);
-				vm_page_unlock(ma[0]);
-			}
+		if (rv != VM_PAGER_OK) {
+			vm_page_lock(ma[0]);
+			vm_page_free(ma[0]);
+			vm_page_unlock(ma[0]);
 			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
 		}
