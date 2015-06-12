@@ -26,7 +26,7 @@ SUBDIR:=
 SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
 
 .if ${MK_LIBCHERI_BROKEN} == "no"
-# CHERI-Clang #19
+# CHERI-Clang #38
 SUBDIR:=	${SUBDIR:Nlibgcc}
 # Broken and heading for the dustbin of history
 SUBDIR:=	${SUBDIR:Nlibgomp}

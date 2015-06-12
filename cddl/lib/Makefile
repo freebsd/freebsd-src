@@ -38,9 +38,7 @@ _libdtrace=	libdtrace
 SUBDIR:=
 .else
 .if ${MK_LIBCHERI_BROKEN} == "no"
-# CHERI-Clang #27
-SUBDIR:=	${SUBDIR:Ndrti}
-# CHERI=-Clang #28
+# dt_options.c stores pointers in ints (should store ints in pointers)
 SUBDIR:=	${SUBDIR:Nlibdtrace}
 .endif
 .endif

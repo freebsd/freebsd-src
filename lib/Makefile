@@ -366,11 +366,6 @@ SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt}
 .if ${MK_LIBCHERI_BROKEN} == "no"
 # CHERI-Clang #22
 SUBDIR:=	${SUBDIR:Nlibpmc}
-# CHERI-Clang #27
-SUBDIR:=	${SUBDIR:Nncurses:Nlibdpv:Nlibedit:Nlibreadline}
-# Takes FOREVER to build
-SUBDIR:=	${SUBDIR:Nlibsqlite3}
-SUBDIR:=	${SUBDIR:Nlibpcap}
 .endif
 .endif
 .endif
