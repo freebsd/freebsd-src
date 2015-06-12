@@ -2464,9 +2464,9 @@ flags_out:
 					}
 					/* get flags for PMTU */
 					if (net->dest_state & SCTP_ADDR_NO_PMTUD) {
-						paddrp->spp_flags |= SPP_PMTUD_ENABLE;
-					} else {
 						paddrp->spp_flags |= SPP_PMTUD_DISABLE;
+					} else {
+						paddrp->spp_flags |= SPP_PMTUD_ENABLE;
 					}
 					if (net->dscp & 0x01) {
 						paddrp->spp_dscp = net->dscp & 0xfc;
