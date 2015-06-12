@@ -57,7 +57,7 @@ extern void	yyrestart(FILE *);
 %}
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
-%token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
+%token CLOSING_BRACKET DEBUG DEVICE_ID DEVICE_TYPE DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
 %token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
@@ -829,6 +829,8 @@ lun_entry:
 	|
 	lun_device_id
 	|
+	lun_device_type
+	|
 	lun_option
 	|
 	lun_path
@@ -886,6 +888,14 @@ lun_device_id:	DEVICE_ID STR
 	}
 	;
 
+// Code added to parse type of device of lun
+lun_device_type: DEVICE_TYPE STR
+	{
+		lun_set_device_type(lun,$2);
+	}
+	;
+//
+		
 lun_option:	OPTION STR STR
 	{
 		struct lun_option *clo;

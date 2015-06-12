@@ -1460,6 +1460,26 @@ lun_set_device_id(struct lun *lun, const char *value)
 	lun->l_device_id = checked_strdup(value);
 }
 
+// Code added here, lun_set_device_type is defined here
+void
+lun_set_device_type(struct lun *lun, const char *value)
+{
+	lun->l_da_lun=false;
+	lun->l_cd_lun=false;
+	lun->l_tape_lun=false;
+
+	if ( strcmp ("disk",value) == 0 )    //if lun device-type is of disk then l_da_lun is set
+		lun->l_da_lun=true;
+	
+	if ( strcmp ("cd",value) == 0 )	     //if lun device-type is of cd then l_cd_lun is set
+	        lun->l_cd_lun=true;
+	
+	if ( strcmp ("tape",value) == 0 )    //if lun device-type is of tape then l_tape_lun is set
+                lun->l_tape_lun=true;
+}
+//
+
+
 void
 lun_set_path(struct lun *lun, const char *value)
 {

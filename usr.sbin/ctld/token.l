@@ -56,6 +56,7 @@ chap			{ return CHAP; }
 chap-mutual		{ return CHAP_MUTUAL; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
+device-type		{ return DEVICE_TYPE; } // code added here to recognize device type in token file
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
 discovery-filter	{ return DISCOVERY_FILTER; }
 initiator-name		{ return INITIATOR_NAME; }

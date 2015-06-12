@@ -171,6 +171,8 @@ struct lun {
 	int64_t				l_size;
 
 	int				l_ctl_lun;
+
+	/*Code added here, bool type variable added below which will be set according to the type of device set for the lun */
 	bool 				l_da_lun;
 	bool 				l_cd_lun;
 	bool 				l_tape_lun;
@@ -378,6 +380,9 @@ struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
+// Code added here, Prototype of lun_set_device_type
+void 			lun_set_device_type(struct lun *lun, const char *value);
+//
 void			lun_set_path(struct lun *lun, const char *value);
 void			lun_set_scsiname(struct lun *lun, const char *value);
 void			lun_set_serial(struct lun *lun, const char *value);

@@ -641,7 +641,22 @@ kernel_lun_add(struct lun *lun)
 		req.reqdata.create.lun_size_bytes = lun->l_size;
 
 	req.reqdata.create.flags |= CTL_LUN_FLAG_DEV_TYPE;
-	req.reqdata.create.device_type = T_DIRECT;
+
+	//code added here, device type for the lun will be set here.
+	
+	if(lun->l_da_lun)
+		req.reqdata.create.device_type = T_DIRECT;
+
+	else if(lun->l_cd_lun)
+                req.reqdata.create.device_type = T_CDROM;
+
+	else if(lun->l_tape_lun)
+                req.reqdata.create.device_type = T_SEQUENTIAL;
+
+	else
+		req.reqdata.create.device_type = T_DIRECT;   //if no device type is mentioned, then by default it is direct access lun
+	
+	//
 
 	if (lun->l_serial != NULL) {
 		strncpy(req.reqdata.create.serial_num, lun->l_serial,
