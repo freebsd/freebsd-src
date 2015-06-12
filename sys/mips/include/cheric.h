@@ -61,7 +61,7 @@
 #define	cheri_cleartag(x)	__builtin_cheri_clear_cap_tag(		\
 				    __DECONST(__capability void *, (x)))
 #define	cheri_csetbounds(x, y)	__builtin_memcap_bounds_set(		\
-				    __DECONST(__capability void *, (x)))
+				    __DECONST(__capability void *, (x)), (y))
 #define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base(		\
 				    __DECONST(__capability void *, (x)), (y))
 #define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment(	\
