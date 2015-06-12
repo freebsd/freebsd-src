@@ -273,17 +273,15 @@ bd_mem_alloc(int tid, u_int flags)
 	tag->refcnt++;
 	md->key = ioc.result;
 
+	/* XXX we need to support multiple segments */
 	assert(ioc.u.mem.phys_nsegs == 1);
-	pseg = obj_alloc(OBJ_TYPE_SEG);
-	pseg->refcnt = 1;
-	pseg->parent = md;
-	pseg->u.seg.address = ioc.u.mem.phys_addr;
-	pseg->u.seg.size = tag->u.tag.maxsz;
-	md->u.md.seg[BUSDMA_MD_PHYS] = pseg;
-	md->u.md.nsegs[BUSDMA_MD_PHYS] = ioc.u.mem.phys_nsegs;
-
 	assert(ioc.u.mem.bus_nsegs == 1);
+
+	bseg = pseg = vseg = NULL;
+
 	bseg = obj_alloc(OBJ_TYPE_SEG);
+	if (bseg == NULL)
+		goto fail;
 	bseg->refcnt = 1;
 	bseg->parent = md;
 	bseg->u.seg.address = ioc.u.mem.bus_addr;
@@ -291,33 +289,71 @@ bd_mem_alloc(int tid, u_int flags)
 	md->u.md.seg[BUSDMA_MD_BUS] = bseg;
 	md->u.md.nsegs[BUSDMA_MD_BUS] = ioc.u.mem.bus_nsegs;
 
+	pseg = obj_alloc(OBJ_TYPE_SEG);
+	if (pseg == NULL)
+		goto fail;
+	pseg->refcnt = 1;
+	pseg->parent = md;
+	pseg->u.seg.address = ioc.u.mem.phys_addr;
+	pseg->u.seg.size = tag->u.tag.maxsz;
+	md->u.md.seg[BUSDMA_MD_PHYS] = pseg;
+	md->u.md.nsegs[BUSDMA_MD_PHYS] = ioc.u.mem.phys_nsegs;
+
 	vseg = obj_alloc(OBJ_TYPE_SEG);
+	if (vseg == NULL)
+		goto fail;
 	vseg->refcnt = 1;
 	vseg->parent = md;
 	vseg->u.seg.address = (uintptr_t)mmap(NULL, pseg->u.seg.size,
 	    PROT_READ | PROT_WRITE, MAP_NOCORE | MAP_SHARED, md->fd,
 	    pseg->u.seg.address);
+	if (vseg->u.seg.address == (uintptr_t)MAP_FAILED)
+		goto fail;
 	vseg->u.seg.size = pseg->u.seg.size;
 	md->u.md.seg[BUSDMA_MD_VIRT] = vseg;
 	md->u.md.nsegs[BUSDMA_MD_VIRT] = 1;
 
 	return (md->oid);
+
+ fail:
+	if (vseg != NULL)
+		obj_free(vseg);
+	if (pseg != NULL)
+		obj_free(pseg);
+	if (bseg != NULL)
+		obj_free(bseg);
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
+	ioc.key = md->key;
+	ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc);
+	md->parent->refcnt--;
+	obj_free(md);
+	return (-1);
 }
 
 int
 bd_mem_free(int mdid)
 {
 	struct proto_ioc_busdma ioc;
-	struct obj *md, *seg;
+	struct obj *md, *seg, *seg0;
 
 	md = obj_lookup(mdid, OBJ_TYPE_MD);
 	if (md == NULL)
 		return (errno);
 
-	for (seg = md->u.md.seg[BUSDMA_MD_VIRT];
-	    seg != NULL;
-	    seg = seg->u.seg.next)
+	for (seg = md->u.md.seg[BUSDMA_MD_VIRT]; seg != NULL; seg = seg0) {
 		munmap((void *)seg->u.seg.address, seg->u.seg.size);
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
+	for (seg = md->u.md.seg[BUSDMA_MD_PHYS]; seg != NULL; seg = seg0) {
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
+	for (seg = md->u.md.seg[BUSDMA_MD_BUS]; seg != NULL; seg = seg0) {
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
 	ioc.key = md->key;
