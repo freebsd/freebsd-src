@@ -4,6 +4,9 @@
 # XXX some of this should be in meta.sys.mk
 # we assume that MK_META_MODE=yes
 
+# we need this until there is an alternative
+MK_INSTALL_AS_USER= yes
+
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
 .if !empty(SB)
 SB_OBJROOT ?= ${SB}/obj/
@@ -30,7 +33,6 @@ TARGET_ARCHES_powerpc?= powerpc powerpc64
 TARGET_ARCHES_pc98?=    i386
 
 # some corner cases
-CSU_DIR.i386 = csu/i386-elf
 BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
