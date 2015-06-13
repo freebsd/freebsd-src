@@ -34,7 +34,7 @@ ETSRCS=	\
 .for ET in ${ETSRCS}
 .for _ET in ${ET:T:R}
 .if ${SRCS:M${_ET}.[ch]} != ""
-.ORDER: ${_ET}.c ${_ET}.h
+.ORDER: ${_ET}.h ${_ET}.c
 ${_ET}.c ${_ET}.h: ${ET}
 	compile_et ${.ALLSRC}
 CLEANFILES+=	${_ET}.h ${_ET}.c

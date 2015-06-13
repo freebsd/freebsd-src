@@ -180,6 +180,22 @@ dwc_otg_get_hw_ep_profile(struct usb_device *udev,
 		*ppf = NULL;
 }
 
+static void
+dwc_otg_tx_fifo_reset(struct dwc_otg_softc *sc, uint32_t value)
+{
+	uint32_t temp;
+
+  	/* reset FIFO */
+	DWC_OTG_WRITE_4(sc, DOTG_GRSTCTL, value);
+
+	/* wait for reset to complete */
+	for (temp = 0; temp != 16; temp++) {
+		value = DWC_OTG_READ_4(sc, DOTG_GRSTCTL);
+		if (!(value & (GRSTCTL_TXFFLSH | GRSTCTL_RXFFLSH)))
+			break;
+	}
+}
+
 static int
 dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 {
@@ -331,12 +347,11 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 	}
 
 	/* reset RX FIFO */
-	DWC_OTG_WRITE_4(sc, DOTG_GRSTCTL,
-	    GRSTCTL_RXFFLSH);
+	dwc_otg_tx_fifo_reset(sc, GRSTCTL_RXFFLSH);
 
 	if (mode != DWC_MODE_OTG) {
 		/* reset all TX FIFOs */
-		DWC_OTG_WRITE_4(sc, DOTG_GRSTCTL,
+		dwc_otg_tx_fifo_reset(sc,
 		    GRSTCTL_TXFIFO(0x10) |
 		    GRSTCTL_TXFFLSH);
 	} else {
@@ -947,15 +962,21 @@ dwc_otg_setup_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 	if (GRXSTSRD_CHNUM_GET(sc->sc_last_rx_status) != 0)
 		goto not_complete;
 
-	if ((sc->sc_last_rx_status & GRXSTSRD_DPID_MASK) !=
-	    GRXSTSRD_DPID_DATA0) {
-		/* release FIFO */
-		dwc_otg_common_rx_ack(sc);
-		goto not_complete;
-	}
-
 	if ((sc->sc_last_rx_status & GRXSTSRD_PKTSTS_MASK) !=
 	    GRXSTSRD_STP_DATA) {
+		if ((sc->sc_last_rx_status & GRXSTSRD_PKTSTS_MASK) !=
+		    GRXSTSRD_STP_COMPLETE || td->remainder != 0) {
+			/* release FIFO */
+			dwc_otg_common_rx_ack(sc);
+			goto not_complete;
+		}
+		/* release FIFO */
+		dwc_otg_common_rx_ack(sc);
+		return (0);     /* complete */
+	}
+
+	if ((sc->sc_last_rx_status & GRXSTSRD_DPID_MASK) !=
+	    GRXSTSRD_DPID_DATA0) {
 		/* release FIFO */
 		dwc_otg_common_rx_ack(sc);
 		goto not_complete;
@@ -969,14 +990,6 @@ dwc_otg_setup_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 	/* get the packet byte count */
 	count = GRXSTSRD_BCNT_GET(sc->sc_last_rx_status);
 
-	/* verify data length */
-	if (count != td->remainder) {
-		DPRINTFN(0, "Invalid SETUP packet "
-		    "length, %d bytes\n", count);
-		/* release FIFO */
-		dwc_otg_common_rx_ack(sc);
-		goto not_complete;
-	}
 	if (count != sizeof(req)) {
 		DPRINTFN(0, "Unsupported SETUP packet "
 		    "length, %d bytes\n", count);
@@ -1002,42 +1015,26 @@ dwc_otg_setup_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 	}
 
 	/* don't send any data by default */
-	DWC_OTG_WRITE_4(sc, DOTG_DIEPTSIZ(0),
-	    DXEPTSIZ_SET_NPKT(0) | 
-	    DXEPTSIZ_SET_NBYTES(0));
-
-	temp = sc->sc_in_ctl[0];
-
-	/* enable IN endpoint */
-	DWC_OTG_WRITE_4(sc, DOTG_DIEPCTL(0),
-	    temp | DIEPCTL_EPENA);
-	DWC_OTG_WRITE_4(sc, DOTG_DIEPCTL(0),
-	    temp | DIEPCTL_SNAK);
+	DWC_OTG_WRITE_4(sc, DOTG_DIEPTSIZ(0), DIEPCTL_EPDIS);
+	DWC_OTG_WRITE_4(sc, DOTG_DOEPTSIZ(0), DOEPCTL_EPDIS);
 
 	/* reset IN endpoint buffer */
-	DWC_OTG_WRITE_4(sc, DOTG_GRSTCTL,
+	dwc_otg_tx_fifo_reset(sc,
 	    GRSTCTL_TXFIFO(0) |
 	    GRSTCTL_TXFFLSH);
 
 	/* acknowledge RX status */
 	dwc_otg_common_rx_ack(sc);
-	return (0);			/* complete */
+	td->did_stall = 1;
 
 not_complete:
 	/* abort any ongoing transfer, before enabling again */
-
-	temp = sc->sc_out_ctl[0];
-
-	temp |= DOEPCTL_EPENA |
-	    DOEPCTL_SNAK;
-
-	/* enable OUT endpoint */
-	DWC_OTG_WRITE_4(sc, DOTG_DOEPCTL(0), temp);
-
 	if (!td->did_stall) {
 		td->did_stall = 1;
 
 		DPRINTFN(5, "stalling IN and OUT direction\n");
+
+		temp = sc->sc_out_ctl[0];
 
 		/* set stall after enabling endpoint */
 		DWC_OTG_WRITE_4(sc, DOTG_DOEPCTL(0),
@@ -1049,13 +1046,6 @@ not_complete:
 		DWC_OTG_WRITE_4(sc, DOTG_DIEPCTL(0),
 		    temp | DIEPCTL_STALL);
 	}
-
-	/* setup number of buffers to receive */
-	DWC_OTG_WRITE_4(sc, DOTG_DOEPTSIZ(0),
-	    DXEPTSIZ_SET_MULTI(3) |
-	    DXEPTSIZ_SET_NPKT(1) | 
-	    DXEPTSIZ_SET_NBYTES(sizeof(req)));
-
 	return (1);			/* not complete */
 }
 
@@ -1499,7 +1489,9 @@ dwc_otg_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 
 	/* check for SETUP packet */
 	if ((sc->sc_last_rx_status & GRXSTSRD_PKTSTS_MASK) ==
-	    GRXSTSRD_STP_DATA) {
+	    GRXSTSRD_STP_DATA ||
+	    (sc->sc_last_rx_status & GRXSTSRD_PKTSTS_MASK) ==
+	    GRXSTSRD_STP_COMPLETE) {
 		if (td->remainder == 0) {
 			/*
 			 * We are actually complete and have
@@ -1584,15 +1576,10 @@ dwc_otg_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 
 not_complete:
 
-	temp = sc->sc_out_ctl[td->ep_no];
-
-	temp |= DOEPCTL_EPENA | DOEPCTL_CNAK;
-
-	DWC_OTG_WRITE_4(sc, DOTG_DOEPCTL(td->ep_no), temp);
-
 	/* enable SETUP and transfer complete interrupt */
 	if (td->ep_no == 0) {
 		DWC_OTG_WRITE_4(sc, DOTG_DOEPTSIZ(0),
+		    DXEPTSIZ_SET_MULTI(3) |
 		    DXEPTSIZ_SET_NPKT(1) | 
 		    DXEPTSIZ_SET_NBYTES(td->max_packet_size));
 	} else {
@@ -1601,8 +1588,12 @@ not_complete:
 		    DXEPTSIZ_SET_MULTI(1) |
 		    DXEPTSIZ_SET_NPKT(4) | 
 		    DXEPTSIZ_SET_NBYTES(4 *
-		    ((td->max_packet_size + 3) & ~3)));
+		        ((td->max_packet_size + 3) & ~3)));
 	}
+	temp = sc->sc_out_ctl[td->ep_no];
+	DWC_OTG_WRITE_4(sc, DOTG_DOEPCTL(td->ep_no), temp |
+	    DOEPCTL_EPENA | DOEPCTL_CNAK);
+
 	return (1);			/* not complete */
 }
 
@@ -2004,7 +1995,9 @@ repeat:
 	    (GRXSTSRD_CHNUM_GET(temp) == 0)) {
 
 		if ((temp & GRXSTSRD_PKTSTS_MASK) !=
-		    GRXSTSRD_STP_DATA) {
+		    GRXSTSRD_STP_DATA &&
+		    (temp & GRXSTSRD_PKTSTS_MASK) !=
+		    GRXSTSRD_STP_COMPLETE) {
 
 			/* dump data - wrong direction */
 			dwc_otg_common_rx_ack(sc);
@@ -2209,7 +2202,9 @@ not_complete:
 	    (GRXSTSRD_CHNUM_GET(temp) == 0)) {
 
 		if ((temp & GRXSTSRD_PKTSTS_MASK) ==
-		    GRXSTSRD_STP_DATA) {
+		    GRXSTSRD_STP_DATA ||
+		    (temp & GRXSTSRD_PKTSTS_MASK) ==
+		    GRXSTSRD_STP_COMPLETE) {
 			DPRINTFN(5, "faking complete\n");
 			/*
 			 * Race condition: We are complete!
@@ -2634,6 +2629,7 @@ repeat:
 
 			/* non-data messages we simply skip */
 			if (temp != GRXSTSRD_STP_DATA &&
+			    temp != GRXSTSRD_STP_COMPLETE &&
 			    temp != GRXSTSRD_OUT_DATA) {
 				dwc_otg_common_rx_ack(sc);
 				goto repeat;
@@ -3669,7 +3665,7 @@ dwc_otg_clear_stall_sub_locked(struct dwc_otg_softc *sc, uint32_t mps,
 
 	/* we only reset the transmit FIFO */
 	if (ep_dir) {
-		DWC_OTG_WRITE_4(sc, DOTG_GRSTCTL,
+		dwc_otg_tx_fifo_reset(sc,
 		    GRSTCTL_TXFIFO(ep_no) |
 		    GRSTCTL_TXFFLSH);
 

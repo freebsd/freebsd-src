@@ -2,7 +2,6 @@
 
 SCRIPTS=generic.sh
 SCRIPTSNAME=alias
-NO_OBJ=
 
 LINKS=	${BINDIR}/alias ${BINDIR}/bg \
 	${BINDIR}/alias ${BINDIR}/cd \

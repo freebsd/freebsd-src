@@ -82,23 +82,27 @@ proto_pci_attach(device_t dev)
 {
 	struct proto_softc *sc;
 	struct resource *res;
+	uint32_t val;
 	int bar, rid, type;
 
 	sc = device_get_softc(dev);
 
 	proto_add_resource(sc, PROTO_RES_PCICFG, 0, NULL);
+	proto_add_resource(sc, PROTO_RES_BUSDMA, 0, NULL);
 
 	for (bar = 0; bar < PCIR_MAX_BAR_0; bar++) {
 		rid = PCIR_BAR(bar);
-		type = SYS_RES_MEMORY;
+		val = pci_read_config(dev, rid, 4);
+		type = (PCI_BAR_IO(val)) ? SYS_RES_IOPORT : SYS_RES_MEMORY;
 		res = bus_alloc_resource_any(dev, type, &rid, RF_ACTIVE);
-		if (res == NULL) {
-			type = SYS_RES_IOPORT;
-			res = bus_alloc_resource_any(dev, type, &rid,
-			    RF_ACTIVE);
-		}
-		if (res != NULL)
-			proto_add_resource(sc, type, rid, res);
+		if (res == NULL)
+			continue;
+		proto_add_resource(sc, type, rid, res);
+		if (type == SYS_RES_IOPORT)
+			continue;
+		/* Skip over adjacent BAR for 64-bit memory BARs. */
+		if ((val & PCIM_BAR_MEM_TYPE) == PCIM_BAR_MEM_64)
+			bar++;
 	}
 
 	rid = 0;

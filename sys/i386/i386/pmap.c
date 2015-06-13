@@ -4035,6 +4035,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				    ~PG_W;
 				dst_pmap->pm_stats.resident_count +=
 				    NBPDR / PAGE_SIZE;
+				pmap_pde_mappings++;
 			}
 			continue;
 		}

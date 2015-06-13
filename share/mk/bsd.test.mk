@@ -90,9 +90,30 @@ regress: beforeregress realregress afterregress
 .include <bsd.subdir.mk>
 .endif
 
+.ifdef PROG
+# we came here via bsd.progs.mk below
+# parent will do staging.
+MK_STAGING= no
+.endif
+
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
 .endif
 .include <bsd.files.mk>
 
+.if !defined(PROG) && ${MK_STAGING} != "no"
+.if !defined(_SKIP_BUILD)
+# this will handle staging if needed
+_SKIP_STAGING= no
+# but we don't want it to build anything
+_SKIP_BUILD=
+.endif
+.if !empty(PROGS)
+stage_files.prog: ${PROGS}
+.endif
+.include <bsd.prog.mk>
+.endif
+
+.if !target(objwarn)
 .include <bsd.obj.mk>
+.endif

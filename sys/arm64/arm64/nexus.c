@@ -60,11 +60,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include "ofw_bus_if.h"
+#endif
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
 #endif
 
 extern struct bus_space memmap_bus;
@@ -78,9 +83,19 @@ struct nexus_device {
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 
 static struct rman mem_rman;
+static struct rman irq_rman;
 
-static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
+
+#ifdef FDT
+static device_probe_t	nexus_fdt_probe;
+static device_attach_t	nexus_fdt_attach;
+#endif
+#ifdef DEV_ACPI
+static device_probe_t	nexus_acpi_probe;
+static device_attach_t	nexus_acpi_attach;
+#endif
+
 static	int nexus_print_child(device_t, device_t);
 static	device_t nexus_add_child(device_t, u_int, const char *, int);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
@@ -89,6 +104,8 @@ static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol);
+static struct resource_list *nexus_get_reslist(device_t, device_t);
+static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
 
@@ -102,21 +119,18 @@ static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
 #endif
 
 static device_method_t nexus_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		nexus_probe),
-	DEVMETHOD(device_attach,	nexus_attach),
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
+	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
-#ifdef FDT
-	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
-#endif
+
 	{ 0, 0 }
 };
 
@@ -129,15 +143,6 @@ static driver_t nexus_driver = {
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
 static int
-nexus_probe(device_t dev)
-{
-
-	device_quiet(dev);	/* suppress attach message for neatness */
-
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
 nexus_attach(device_t dev)
 {
 
@@ -146,15 +151,14 @@ nexus_attach(device_t dev)
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
 	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
-		panic("nexus_probe mem_rman");
+		panic("nexus_attach mem_rman");
+	irq_rman.rm_start = 0;
+	irq_rman.rm_end = ~0ul;
+	irq_rman.rm_type = RMAN_ARRAY;
+	irq_rman.rm_descr = "Interrupts";
+	if (rman_init(&irq_rman) || rman_manage_region(&irq_rman, 0, ~0))
+		panic("nexus_attach irq_rman");
 
-	/* Add the ofwbus device */
-	/* ARM64TODO: Alternatively add acpi */
-	nexus_add_child(dev, 10, "ofwbus", 0);
-
-	/*
-	 * First, deal with the children we know about already
-	 */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
@@ -201,11 +205,34 @@ static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct nexus_device *ndev = DEVTONX(child);
 	struct resource *rv;
+	struct resource_list_entry *rle;
 	struct rman *rm;
 	int needactivate = flags & RF_ACTIVE;
 
+	/*
+	 * If this is an allocation of the "default" range for a given
+	 * RID, and we know what the resources for this device are
+	 * (ie. they aren't maintained by a child bus), then work out
+	 * the start/end values.
+	 */
+	if ((start == 0UL) && (end == ~0UL) && (count == 1)) {
+		if (device_get_parent(child) != bus || ndev == NULL)
+			return(NULL);
+		rle = resource_list_find(&ndev->nx_resources, type, *rid);
+		if (rle == NULL)
+			return(NULL);
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	}
+
 	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &irq_rman;
+		break;
+
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		rm = &mem_rman;
@@ -297,6 +324,28 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	return (0);
 }
 
+static struct resource_list *
+nexus_get_reslist(device_t dev, device_t child)
+{
+	struct nexus_device *ndev = DEVTONX(child);
+
+	return (&ndev->nx_resources);
+}
+
+static int
+nexus_set_resource(device_t dev, device_t child, int type, int rid,
+    u_long start, u_long count)
+{
+	struct nexus_device	*ndev = DEVTONX(child);
+	struct resource_list	*rl = &ndev->nx_resources;
+
+	/* XXX this should return a success/failure indicator */
+	resource_list_add(rl, type, rid, start, start + count - 1, count);
+
+	return(0);
+}
+
+
 static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
@@ -317,6 +366,41 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 #ifdef FDT
+static device_method_t nexus_fdt_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nexus_fdt_probe),
+	DEVMETHOD(device_attach,	nexus_fdt_attach),
+
+	/* OFW interface */
+	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+};
+
+#define nexus_baseclasses nexus_fdt_baseclasses
+DEFINE_CLASS_1(nexus, nexus_fdt_driver, nexus_fdt_methods, 1, nexus_driver);
+#undef nexus_baseclasses
+static devclass_t nexus_fdt_devclass;
+
+DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, nexus_fdt_devclass, 0, 0);
+
+static int
+nexus_fdt_probe(device_t dev)
+{
+
+	if (OF_peer(0) == 0)
+		return (ENXIO);
+
+	device_quiet(dev);
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+nexus_fdt_attach(device_t dev)
+{
+
+	nexus_add_child(dev, 10, "ofwbus", 0);
+	return (nexus_attach(dev));
+}
+
 static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
@@ -336,3 +420,37 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 }
 #endif
 
+#ifdef DEV_ACPI
+static device_method_t nexus_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nexus_acpi_probe),
+	DEVMETHOD(device_attach,	nexus_acpi_attach),
+};
+
+#define nexus_baseclasses nexus_acpi_baseclasses
+DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1,
+    nexus_driver);
+#undef nexus_baseclasses
+static devclass_t nexus_acpi_devclass;
+
+DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, nexus_acpi_devclass, 0, 0);
+
+static int
+nexus_acpi_probe(device_t dev)
+{
+
+	if (acpi_identify() != 0)
+		return (ENXIO);
+
+	device_quiet(dev);
+	return (BUS_PROBE_LOW_PRIORITY);
+}
+
+static int
+nexus_acpi_attach(device_t dev)
+{
+
+	nexus_add_child(dev, 10, "acpi", 0);
+	return (nexus_attach(dev));
+}
+#endif

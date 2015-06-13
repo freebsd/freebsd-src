@@ -162,14 +162,16 @@ done:	argv += optind;
 			atflag = AT_SYMLINK_NOFOLLOW;
 
 		switch (p->fts_info) {
-		case FTS_D:			/* Change it at FTS_DP. */
+		case FTS_D:
 			if (!Rflag)
 				fts_set(ftsp, p, FTS_SKIP);
-			continue;
+			break;
 		case FTS_DNR:			/* Warn, chmod. */
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
+		case FTS_DP:			/* Already changed at FTS_D. */
+			continue;
 		case FTS_ERR:			/* Warn, continue. */
 		case FTS_NS:
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));

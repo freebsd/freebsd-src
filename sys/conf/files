@@ -104,11 +104,12 @@ cam/scsi/scsi_targ_bh.c		optional targbh
 cam/scsi/scsi_target.c		optional targ
 cam/scsi/smp_all.c		optional scbus
 # shared between zfs and dtrace
-cddl/compat/opensolaris/kern/opensolaris.c				optional zfs compile-with "${ZFS_C}"
-cddl/compat/opensolaris/kern/opensolaris_cmn_err.c			optional zfs compile-with "${ZFS_C}"
-cddl/compat/opensolaris/kern/opensolaris_kmem.c				optional zfs compile-with "${ZFS_C}"
-cddl/compat/opensolaris/kern/opensolaris_misc.c				optional zfs compile-with "${ZFS_C}"
-cddl/compat/opensolaris/kern/opensolaris_sunddi.c			optional zfs compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris.c		optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/compat/opensolaris/kern/opensolaris_cmn_err.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/compat/opensolaris/kern/opensolaris_kmem.c		optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/compat/opensolaris/kern/opensolaris_misc.c		optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/compat/opensolaris/kern/opensolaris_sunddi.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/compat/opensolaris/kern/opensolaris_taskq.c	optional zfs | dtrace compile-with "${CDDL_C}"
 # zfs specific
 cddl/compat/opensolaris/kern/opensolaris_acl.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_dtrace.c			optional zfs compile-with "${ZFS_C}"
@@ -118,7 +119,6 @@ cddl/compat/opensolaris/kern/opensolaris_lookup.c			optional zfs compile-with "$
 cddl/compat/opensolaris/kern/opensolaris_policy.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_string.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_sysevent.c			optional zfs compile-with "${ZFS_C}"
-cddl/compat/opensolaris/kern/opensolaris_taskq.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_uio.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_vfs.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_vm.c				optional zfs compile-with "${ZFS_C}"
@@ -242,6 +242,17 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
+# dtrace specific
+cddl/contrib/opensolaris/uts/common/dtrace/dtrace.c	optional dtrace compile-with "${DTRACE_C}" \
+							warning "kernel contains CDDL licensed DTRACE"
+cddl/dev/dtmalloc/dtmalloc.c		optional dtmalloc        | dtraceall compile-with "${CDDL_C}"
+cddl/dev/lockstat/lockstat.c		optional dtrace_lockstat | dtraceall compile-with "${CDDL_C}"
+cddl/dev/profile/profile.c		optional dtrace_profile  | dtraceall compile-with "${CDDL_C}"
+cddl/dev/sdt/sdt.c			optional dtrace_sdt      | dtraceall compile-with "${CDDL_C}"
+cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}"
+cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with "${CDDL_C}"
+cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
+fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
 compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
@@ -2561,6 +2572,7 @@ dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
 dev/usb/template/usb_template_phone.c	optional usb_template
 dev/usb/template/usb_template_serialnet.c	optional usb_template
+dev/usb/template/usb_template_midi.c	optional usb_template
 #
 # USB video drivers
 #

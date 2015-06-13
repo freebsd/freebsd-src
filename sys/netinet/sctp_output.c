@@ -7985,6 +7985,7 @@ again_one_more_time:
 		} else {
 			r_mtu = mtu;
 		}
+		error = 0;
 		/************************/
 		/* ASCONF transmission */
 		/************************/
@@ -8108,6 +8109,12 @@ again_one_more_time:
 					 * it is used to do appropriate
 					 * source address selection.
 					 */
+					if (*now_filled == 0) {
+						(void)SCTP_GETTIME_TIMEVAL(now);
+						*now_filled = 1;
+					}
+					net->last_sent_time = *now;
+					hbflag = 0;
 					if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 					    (struct sockaddr *)&net->ro._l_addr,
 					    outchain, auth_offset, auth,
@@ -8118,21 +8125,18 @@ again_one_more_time:
 					    net->port, NULL,
 					    0, 0,
 					    so_locked))) {
+						/*
+						 * error, we could not
+						 * output
+						 */
+						SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
+						if (from_where == 0) {
+							SCTP_STAT_INCR(sctps_lowlevelerrusr);
+						}
 						if (error == ENOBUFS) {
 							asoc->ifp_had_enobuf = 1;
 							SCTP_STAT_INCR(sctps_lowlevelerr);
 						}
-						if (from_where == 0) {
-							SCTP_STAT_INCR(sctps_lowlevelerrusr);
-						}
-						if (*now_filled == 0) {
-							(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-							*now_filled = 1;
-							*now = net->last_sent_time;
-						} else {
-							net->last_sent_time = *now;
-						}
-						hbflag = 0;
 						/* error, could not output */
 						if (error == EHOSTUNREACH) {
 							/*
@@ -8143,17 +8147,10 @@ again_one_more_time:
 							sctp_move_chunks_from_net(stcb, net);
 						}
 						*reason_code = 7;
-						continue;
-					} else
-						asoc->ifp_had_enobuf = 0;
-					if (*now_filled == 0) {
-						(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-						*now_filled = 1;
-						*now = net->last_sent_time;
+						break;
 					} else {
-						net->last_sent_time = *now;
+						asoc->ifp_had_enobuf = 0;
 					}
-					hbflag = 0;
 					/*
 					 * increase the number we sent, if a
 					 * cookie is sent we don't tell them
@@ -8185,6 +8182,10 @@ again_one_more_time:
 					no_fragmentflg = 1;
 				}
 			}
+		}
+		if (error != 0) {
+			/* try next net */
+			continue;
 		}
 		/************************/
 		/* Control transmission */
@@ -8382,6 +8383,15 @@ again_one_more_time:
 						sctp_timer_start(SCTP_TIMER_TYPE_COOKIE, inp, stcb, net);
 						cookie = 0;
 					}
+					/* Only HB or ASCONF advances time */
+					if (hbflag) {
+						if (*now_filled == 0) {
+							(void)SCTP_GETTIME_TIMEVAL(now);
+							*now_filled = 1;
+						}
+						net->last_sent_time = *now;
+						hbflag = 0;
+					}
 					if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 					    (struct sockaddr *)&net->ro._l_addr,
 					    outchain,
@@ -8393,23 +8403,17 @@ again_one_more_time:
 					    net->port, NULL,
 					    0, 0,
 					    so_locked))) {
-						if (error == ENOBUFS) {
-							asoc->ifp_had_enobuf = 1;
-							SCTP_STAT_INCR(sctps_lowlevelerr);
-						}
+						/*
+						 * error, we could not
+						 * output
+						 */
+						SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
 						if (from_where == 0) {
 							SCTP_STAT_INCR(sctps_lowlevelerrusr);
 						}
-						/* error, could not output */
-						if (hbflag) {
-							if (*now_filled == 0) {
-								(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-								*now_filled = 1;
-								*now = net->last_sent_time;
-							} else {
-								net->last_sent_time = *now;
-							}
-							hbflag = 0;
+						if (error == ENOBUFS) {
+							asoc->ifp_had_enobuf = 1;
+							SCTP_STAT_INCR(sctps_lowlevelerr);
 						}
 						if (error == EHOSTUNREACH) {
 							/*
@@ -8420,19 +8424,9 @@ again_one_more_time:
 							sctp_move_chunks_from_net(stcb, net);
 						}
 						*reason_code = 7;
-						continue;
-					} else
+						break;
+					} else {
 						asoc->ifp_had_enobuf = 0;
-					/* Only HB or ASCONF advances time */
-					if (hbflag) {
-						if (*now_filled == 0) {
-							(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-							*now_filled = 1;
-							*now = net->last_sent_time;
-						} else {
-							net->last_sent_time = *now;
-						}
-						hbflag = 0;
 					}
 					/*
 					 * increase the number we sent, if a
@@ -8465,6 +8459,10 @@ again_one_more_time:
 					no_fragmentflg = 1;
 				}
 			}
+		}
+		if (error != 0) {
+			/* try next net */
+			continue;
 		}
 		/* JRI: if dest is in PF state, do not send data to it */
 		if ((asoc->sctp_cmt_on_off > 0) &&
@@ -8720,6 +8718,14 @@ no_data_fill:
 				 */
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND, inp, stcb, net);
 			}
+			if (bundle_at || hbflag) {
+				/* For data/asconf and hb set time */
+				if (*now_filled == 0) {
+					(void)SCTP_GETTIME_TIMEVAL(now);
+					*now_filled = 1;
+				}
+				net->last_sent_time = *now;
+			}
 			/* Now send it, if there is anything to send :> */
 			if ((error = sctp_lowlevel_chunk_output(inp,
 			    stcb,
@@ -8738,23 +8744,13 @@ no_data_fill:
 			    0, 0,
 			    so_locked))) {
 				/* error, we could not output */
-				if (error == ENOBUFS) {
-					SCTP_STAT_INCR(sctps_lowlevelerr);
-					asoc->ifp_had_enobuf = 1;
-				}
+				SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
 				if (from_where == 0) {
 					SCTP_STAT_INCR(sctps_lowlevelerrusr);
 				}
-				SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
-				if (hbflag) {
-					if (*now_filled == 0) {
-						(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-						*now_filled = 1;
-						*now = net->last_sent_time;
-					} else {
-						net->last_sent_time = *now;
-					}
-					hbflag = 0;
+				if (error == ENOBUFS) {
+					SCTP_STAT_INCR(sctps_lowlevelerr);
+					asoc->ifp_had_enobuf = 1;
 				}
 				if (error == EHOSTUNREACH) {
 					/*
@@ -8779,16 +8775,6 @@ no_data_fill:
 			endoutchain = NULL;
 			auth = NULL;
 			auth_offset = 0;
-			if (bundle_at || hbflag) {
-				/* For data/asconf and hb set time */
-				if (*now_filled == 0) {
-					(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-					*now_filled = 1;
-					*now = net->last_sent_time;
-				} else {
-					net->last_sent_time = *now;
-				}
-			}
 			if (!no_out_cnt) {
 				*num_out += (ctl_cnt + bundle_at);
 			}

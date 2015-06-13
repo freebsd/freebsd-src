@@ -183,7 +183,9 @@ static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_startup(void *arg);
 static void	acpi_cpu_startup_cx(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_cx_list(struct acpi_cpu_softc *sc);
+#if defined(__i386__) || defined(__amd64__)
 static void	acpi_cpu_idle(sbintime_t sbt);
+#endif
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static void	acpi_cpu_quirks(void);
 static void	acpi_cpu_quirks_piix4(void);
@@ -475,12 +477,14 @@ enable_idle(struct acpi_cpu_softc *sc)
     sc->cpu_disable_idle = FALSE;
 }
 
+#if defined(__i386__) || defined(__amd64__)
 static int
 is_idle_disabled(struct acpi_cpu_softc *sc)
 {
 
     return (sc->cpu_disable_idle);
 }
+#endif
 
 /*
  * Disable any entry to the idle function during suspend and re-enable it
@@ -999,7 +1003,9 @@ acpi_cpu_startup(void *arg)
 	sc = device_get_softc(cpu_devices[i]);
 	enable_idle(sc);
     }
+#if defined(__i386__) || defined(__amd64__)
     cpu_idle_hook = acpi_cpu_idle;
+#endif
 }
 
 static void
@@ -1061,6 +1067,7 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
     }
 }
 
+#if defined(__i386__) || defined(__amd64__)
 /*
  * Idle the CPU in the lowest state possible.  This function is called with
  * interrupts disabled.  Note that once it re-enables interrupts, a task
@@ -1074,6 +1081,7 @@ acpi_cpu_idle(sbintime_t sbt)
     struct	acpi_cx *cx_next;
     uint64_t	cputicks;
     uint32_t	start_time, end_time;
+    ACPI_STATUS	status;
     int		bm_active, cx_next_idx, i, us;
 
     /*
@@ -1119,8 +1127,8 @@ acpi_cpu_idle(sbintime_t sbt)
      */
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0 &&
 	cx_next_idx > sc->cpu_non_c3) {
-	AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
-	if (bm_active != 0) {
+	status = AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
+	if (ACPI_SUCCESS(status) && bm_active != 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	    cx_next_idx = sc->cpu_non_c3;
 	}
@@ -1207,6 +1215,7 @@ acpi_cpu_idle(sbintime_t sbt)
 
     sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + PM_USEC(end_time)) / 4;
 }
+#endif
 
 /*
  * Re-evaluate the _CST object when we are notified that it changed.
@@ -1285,6 +1294,7 @@ acpi_cpu_quirks_piix4(void)
 #ifdef __i386__
     device_t acpi_dev;
     uint32_t val;
+    ACPI_STATUS status;
 
     acpi_dev = pci_find_device(PCI_VENDOR_INTEL, PCI_DEVICE_82371AB_3);
     if (acpi_dev != NULL) {
@@ -1323,8 +1333,8 @@ acpi_cpu_quirks_piix4(void)
 	    	val |= PIIX4_STOP_BREAK_MASK;
 		pci_write_config(acpi_dev, PIIX4_DEVACTB_REG, val, 4);
 	    }
-	    AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_RLD, &val);
-	    if (val) {
+	    status = AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_RLD, &val);
+	    if (ACPI_SUCCESS(status) && val != 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		    "acpi_cpu: PIIX4: reset BRLD_EN_BM\n"));
 		AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);

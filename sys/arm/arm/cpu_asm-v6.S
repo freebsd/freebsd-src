@@ -26,12 +26,24 @@
  *
  * $FreeBSD$
  */
+#include "assym.s"
 
 #include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
+
+#if __ARM_ARCH >= 6
+#define GET_PCB(tmp) \
+	mrc CP15_TPIDRPRW(tmp); \
+	add   tmp, tmp, #(TD_PCB)
+#else
+.Lcurpcb:
+	.word _C_LABEL(__pcpu) + PC_CURPCB
+#define GET_PCB(tmp) \
+	ldr   tmp, .Lcurpcb
+#endif
 
 /*
  * Define cache functions used by startup code, which counts on the fact that
@@ -208,3 +220,59 @@ ASENTRY_NP(dcache_wbinv_poc_all)
 	bx	lr
 #endif /* __ARM_ARCH == 6 */
 END(dcache_wbinv_poc_all)
+
+ASENTRY_NP(dcache_wb_pou_checked)
+	ldr	ip, .Lcpuinfo
+	ldr	ip, [ip, #DCACHE_LINE_SIZE]
+
+	GET_PCB(r2)
+	ldr	r2, [r2]
+
+	adr	r3, _C_LABEL(cachebailout)
+	str	r3, [r2, #PCB_ONFAULT]
+1:
+	mcr	CP15_DCCMVAC(r0)
+	add	r0, r0, ip
+	subs	r1, r1, ip
+	bhi	1b
+	DSB
+	mov	r0, #0
+	str	r0, [r2, #PCB_ONFAULT]
+	mov	r0, #1			/* cannot be faulting address */
+	RET
+
+.Lcpuinfo:
+	.word	cpuinfo
+END(dcache_wb_pou_checked)
+
+ASENTRY_NP(icache_inv_pou_checked)
+	ldr	ip, .Lcpuinfo
+	ldr	ip, [ip, #ICACHE_LINE_SIZE]
+
+	GET_PCB(r2)
+	ldr	r2, [r2]
+
+	adr	r3, _C_LABEL(cachebailout)
+	str	r3, [r2, #PCB_ONFAULT]
+
+1:
+	mcr	CP15_ICIMVAU(r0)
+	add	r0, r0, ip
+	subs	r1, r1, ip
+	bhi	1b
+	DSB
+	ISB
+	mov	r0, #0
+	str	r0, [r2, #PCB_ONFAULT]
+	mov	r0, #1			/* cannot be faulting address */
+	RET
+END(icache_inv_pou_checked)
+
+/* label must be global as trap-v6.c references it */
+	.global	_C_LABEL(cachebailout)
+_C_LABEL(cachebailout):
+	DSB
+	ISB
+	mov	r1, #0
+	str	r1, [r2, #PCB_ONFAULT]
+	RET

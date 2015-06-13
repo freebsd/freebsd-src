@@ -44,28 +44,12 @@ static const char rcsid[] =
 
 #include "pwupd.h"
 
-static char pathpwd[] = _PATH_PWD;
-static char * pwpath = pathpwd;
- 
-int
-setpwdir(const char * dir)
-{
-	if (dir == NULL)
-		return (-1);
-	else
-		pwpath = strdup(dir);
-	if (pwpath == NULL)
-		return (-1);
-
-	return (0);
-}
-
 char *
 getpwpath(char const * file)
 {
 	static char pathbuf[MAXPATHLEN];
 
-	snprintf(pathbuf, sizeof pathbuf, "%s/%s", pwpath, file);
+	snprintf(pathbuf, sizeof pathbuf, "%s/%s", conf.etcpath, file);
 
 	return (pathbuf);
 }
@@ -80,9 +64,9 @@ pwdb_check(void)
 	args[i++] = _PATH_PWD_MKDB;
 	args[i++] = "-C";
 
-	if (pwpath != pathpwd) {
+	if (strcmp(conf.etcpath, _PATH_PWD) != 0) {
 		args[i++] = "-d";
-		args[i++] = pwpath;
+		args[i++] = conf.etcpath;
 	}
 	args[i++] = getpwpath(_MASTERPASSWD);
 	args[i] = NULL;
@@ -117,7 +101,7 @@ pw_update(struct passwd * pwd, char const * user)
 	if (user != NULL)
 		old_pw = GETPWNAM(user);
 
-	if (pw_init(pwpath, NULL))
+	if (pw_init(conf.etcpath, NULL))
 		err(1, "pw_init()");
 	if ((pfd = pw_lock()) == -1) {
 		pw_fini();
@@ -162,9 +146,6 @@ chgpwent(char const * login, struct passwd * pwd)
 int
 delpwent(struct passwd * pwd)
 {
-	char login[MAXLOGNAME];
-	
-	strlcpy(login, pwd->pw_name, MAXLOGNAME);
 
-	return (pw_update(NULL, login));
+	return (pw_update(NULL, pwd->pw_name));
 }

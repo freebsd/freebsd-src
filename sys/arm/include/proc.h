@@ -61,11 +61,7 @@ struct mdproc {
 	void	*md_sigtramp;
 };
 
-#ifdef __ARM_EABI__
 #define	KINFO_PROC_SIZE 816
-#else
-#define	KINFO_PROC_SIZE 792
-#endif
 
 #define MAXARGS	8
 /*

@@ -801,9 +801,6 @@ vm_reserv_free_page(vm_page_t m)
 	rv = vm_reserv_from_page(m);
 	if (rv->object == NULL)
 		return (FALSE);
-	if ((m->flags & PG_CACHED) != 0 && m->pool != VM_FREEPOOL_CACHE)
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, rv->pages,
-		    VM_LEVEL_0_ORDER);
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }
