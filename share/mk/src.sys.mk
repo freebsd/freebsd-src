@@ -24,3 +24,5 @@ _srcconf_included_:	.NOTMAIN
 MAKESYSPATH:= ${MAKESYSPATH:S,.../share/mk,${.PARSEDIR:tA},}
 .export MAKESYSPATH
 .endif
+# tempting, but bsd.compiler.mk causes problems this early
+#.include "src.opts.mk"

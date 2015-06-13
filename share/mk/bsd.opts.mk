@@ -70,23 +70,14 @@ __DEFAULT_NO_OPTIONS = \
     CHERI256 \
     CTF \
     DEBUG_FILES \
-    INSTALL_AS_USER
+    INSTALL_AS_USER \
+    STALE_STAGED
 
-#
-# Default behaviour of some options depends on the architecture.  Unfortunately
-# this means that we have to test TARGET_ARCH (the buildworld case) as well
-# as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
-# used at all in bsd.*.mk, but we have to make an exception here if we want
-# to allow defaults for some things like clang to vary by target architecture.
-# Additional, per-target behavior should be rarely added only after much
-# gnashing of teeth and grinding of gears.
-#
-.if defined(TARGET_ARCH)
-__T=${TARGET_ARCH}
-.else
-__T=${MACHINE_ARCH}
-.endif
-
+# meta mode related
+__DEFAULT_DEPENDENT_OPTIONS = \
+    STAGING_MAN/STAGING \
+    STAGING_PROG/STAGING \
+    
 .if defined(WITH_CHERI)
 .warning WITH_CHERI should not be set directly.
 .warning Use WITH_CHERI128 or WITH_CHERI256 instead.
@@ -126,6 +117,10 @@ MK_CHERI:=	no
 MK_${var}:=no
 .endif
 .endfor
+
+.if ${MK_STAGING} == "no"
+MK_STALE_STAGED= no
+.endif
 
 .endif # !_WITHOUT_SRCCONF
 

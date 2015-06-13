@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.MAIN: all
+
 .include <src.opts.mk>
 MK_SSP=		no
 
@@ -73,5 +75,12 @@ realinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${file} ${DESTDIR}${LIBDIR}/${file}
 .endfor
+
+.if ${MK_STAGING} == "yes"
+STAGE_DIR= ${STAGE_LIBDIR}
+STAGE_FILES= ${OBJS} ${SOBJS} ${TGTOBJS}
+staging: stage_files
+.endif
+.NOPATH: ${CLEANFILES}
 
 .include <bsd.lib.mk>

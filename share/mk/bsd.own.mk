@@ -140,7 +140,7 @@ _uid!=	id -u
 .if !defined(USER)
 USER!=	id -un
 .endif
-_gid!=	id -gn
+_gid!=	id -g
 .for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
 $xOWN=	${USER}
 $xGRP=	${_gid}

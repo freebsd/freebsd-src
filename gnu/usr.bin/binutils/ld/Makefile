@@ -70,4 +70,6 @@ afterinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${LDSCRIPTS:S|^|ldscripts/|} ${DESTDIR}${SCRIPTDIR}
 
+GENDIRDEPS_FILTER.host+= Nusr.bin/yacc
+
 .include <bsd.prog.mk>

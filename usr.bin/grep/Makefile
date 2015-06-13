@@ -39,6 +39,7 @@ LIBADD=	z
 .if ${MK_LZMA_SUPPORT} != "no"
 LIBADD+=	lzma
 
+.if ${MK_BSD_GREP} == "yes"
 LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
@@ -52,6 +53,7 @@ MLINKS+= grep.1 xzgrep.1 \
 	 grep.1 lzgrep.1 \
 	 grep.1 lzegrep.1 \
 	 grep.1 lzfgrep.1
+.endif
 .else
 CFLAGS+= -DWITHOUT_LZMA
 .endif
