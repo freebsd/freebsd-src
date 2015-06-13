@@ -485,7 +485,7 @@ acpi_ibm_attach(device_t dev)
 	/* Enable per-model events. */
 	maker = kern_getenv("smbios.system.maker");
 	product = kern_getenv("smbios.system.product");
-	if (maker != NULL && product != NULL)
+	if (maker == NULL && product == NULL)
 		goto nosmbios;
 
 	for (i = 0; i < nitems(acpi_ibm_models); i++) {
