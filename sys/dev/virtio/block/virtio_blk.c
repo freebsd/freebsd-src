@@ -76,9 +76,8 @@ struct vtblk_softc {
 #define VTBLK_FLAG_READONLY	0x0002
 #define VTBLK_FLAG_DETACH	0x0004
 #define VTBLK_FLAG_SUSPEND	0x0008
-#define VTBLK_FLAG_DUMPING	0x0010
-#define VTBLK_FLAG_BARRIER	0x0020
-#define VTBLK_FLAG_WC_CONFIG	0x0040
+#define VTBLK_FLAG_BARRIER	0x0010
+#define VTBLK_FLAG_WC_CONFIG	0x0020
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
@@ -95,6 +94,7 @@ struct vtblk_softc {
 	int			 vtblk_request_count;
 	enum vtblk_cache_mode	 vtblk_write_cache;
 
+	struct bio_queue	 vtblk_dump_queue;
 	struct vtblk_request	 vtblk_dump_request;
 };
 
@@ -162,7 +162,7 @@ static void	vtblk_queue_completed(struct vtblk_softc *,
 		    struct bio_queue *);
 static void	vtblk_done_completed(struct vtblk_softc *,
 		    struct bio_queue *);
-static void	vtblk_drain_vq(struct vtblk_softc *, int);
+static void	vtblk_drain_vq(struct vtblk_softc *);
 static void	vtblk_drain(struct vtblk_softc *);
 
 static void	vtblk_startio(struct vtblk_softc *);
@@ -177,9 +177,10 @@ static int	vtblk_quiesce(struct vtblk_softc *);
 static void	vtblk_vq_intr(void *);
 static void	vtblk_stop(struct vtblk_softc *);
 
-static void	vtblk_dump_prepare(struct vtblk_softc *);
+static void	vtblk_dump_quiesce(struct vtblk_softc *);
 static int	vtblk_dump_write(struct vtblk_softc *, void *, off_t, size_t);
 static int	vtblk_dump_flush(struct vtblk_softc *);
+static void	vtblk_dump_complete(struct vtblk_softc *);
 
 static void	vtblk_set_write_cache(struct vtblk_softc *, int);
 static int	vtblk_write_cache_enabled(struct vtblk_softc *sc,
@@ -301,6 +302,7 @@ vtblk_attach(device_t dev)
 	sc->vtblk_dev = dev;
 	VTBLK_LOCK_INIT(sc, device_get_nameunit(dev));
 	bioq_init(&sc->vtblk_bioq);
+	TAILQ_INIT(&sc->vtblk_dump_queue);
 	TAILQ_INIT(&sc->vtblk_req_free);
 	TAILQ_INIT(&sc->vtblk_req_ready);
 
@@ -505,25 +507,19 @@ vtblk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	int error;
 
 	dp = arg;
+	error = 0;
 
 	if ((sc = dp->d_drv1) == NULL)
 		return (ENXIO);
 
 	VTBLK_LOCK(sc);
 
-	if ((sc->vtblk_flags & VTBLK_FLAG_DUMPING) == 0) {
-		vtblk_dump_prepare(sc);
-		sc->vtblk_flags |= VTBLK_FLAG_DUMPING;
-	}
+	vtblk_dump_quiesce(sc);
 
 	if (length > 0)
 		error = vtblk_dump_write(sc, virtual, offset, length);
-	else if (virtual == NULL && offset == 0)
-		error = vtblk_dump_flush(sc);
-	else {
-		error = EINVAL;
-		sc->vtblk_flags &= ~VTBLK_FLAG_DUMPING;
-	}
+	if (error || (virtual == NULL && offset == 0))
+		vtblk_dump_complete(sc);
 
 	VTBLK_UNLOCK(sc);
 
@@ -996,7 +992,7 @@ vtblk_done_completed(struct vtblk_softc *sc, struct bio_queue *queue)
 }
 
 static void
-vtblk_drain_vq(struct vtblk_softc *sc, int skip_done)
+vtblk_drain_vq(struct vtblk_softc *sc)
 {
 	struct virtqueue *vq;
 	struct vtblk_request *req;
@@ -1006,9 +1002,7 @@ vtblk_drain_vq(struct vtblk_softc *sc, int skip_done)
 	last = 0;
 
 	while ((req = virtqueue_drain(vq, &last)) != NULL) {
-		if (!skip_done)
-			vtblk_bio_done(sc, req->vbr_bp, ENXIO);
-
+		vtblk_bio_done(sc, req->vbr_bp, ENXIO);
 		vtblk_request_enqueue(sc, req);
 	}
 
@@ -1031,7 +1025,7 @@ vtblk_drain(struct vtblk_softc *sc)
 		vtblk_queue_completed(sc, &queue);
 		vtblk_done_completed(sc, &queue);
 
-		vtblk_drain_vq(sc, 0);
+		vtblk_drain_vq(sc);
 	}
 
 	while ((req = vtblk_request_next_ready(sc)) != NULL) {
@@ -1256,31 +1250,16 @@ vtblk_stop(struct vtblk_softc *sc)
 }
 
 static void
-vtblk_dump_prepare(struct vtblk_softc *sc)
+vtblk_dump_quiesce(struct vtblk_softc *sc)
 {
-	device_t dev;
-	struct virtqueue *vq;
-
-	dev = sc->vtblk_dev;
-	vq = sc->vtblk_vq;
-
-	vtblk_stop(sc);
 
 	/*
-	 * Drain all requests caught in-flight in the virtqueue,
-	 * skipping biodone(). When dumping, only one request is
-	 * outstanding at a time, and we just poll the virtqueue
-	 * for the response.
+	 * Spin here until all the requests in-flight at the time of the
+	 * dump are completed and queued. The queued requests will be
+	 * biodone'd once the dump is finished.
 	 */
-	vtblk_drain_vq(sc, 1);
-
-	if (virtio_reinit(dev, sc->vtblk_features) != 0) {
-		panic("%s: cannot reinit VirtIO block device during dump",
-		    device_get_nameunit(dev));
-	}
-
-	virtqueue_disable_intr(vq);
-	virtio_reinit_complete(dev);
+	while (!virtqueue_empty(sc->vtblk_vq))
+		vtblk_queue_completed(sc, &sc->vtblk_dump_queue);
 }
 
 static int
@@ -1324,6 +1303,17 @@ vtblk_dump_flush(struct vtblk_softc *sc)
 	buf.bio_cmd = BIO_FLUSH;
 
 	return (vtblk_poll_request(sc, req));
+}
+
+static void
+vtblk_dump_complete(struct vtblk_softc *sc)
+{
+
+	vtblk_dump_flush(sc);
+
+	VTBLK_UNLOCK(sc);
+	vtblk_done_completed(sc, &sc->vtblk_dump_queue);
+	VTBLK_LOCK(sc);
 }
 
 static void
