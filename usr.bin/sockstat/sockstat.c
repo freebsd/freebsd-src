@@ -669,29 +669,28 @@ display(void)
 		if (opt_j >= 0 && opt_j != getprocjid(xf->xf_pid))
 			continue;
 		hash = (int)((uintptr_t)xf->xf_data % HASHSIZE);
-		for (s = sockhash[hash]; s != NULL; s = s->next)
-			if ((void *)s->socket == xf->xf_data)
-				break;
-		if (s == NULL)
-			continue;
-		if (!check_ports(s))
-			continue;
-		s->shown = 1;
-		pos = 0;
-		if ((pwd = getpwuid(xf->xf_uid)) == NULL)
-			pos += xprintf("%lu ", (u_long)xf->xf_uid);
-		else
-			pos += xprintf("%s ", pwd->pw_name);
-		while (pos < 9)
-			pos += xprintf(" ");
-		pos += xprintf("%.10s", getprocname(xf->xf_pid));
-		while (pos < 20)
-			pos += xprintf(" ");
-		pos += xprintf("%lu ", (u_long)xf->xf_pid);
-		while (pos < 26)
-			pos += xprintf(" ");
-		pos += xprintf("%d ", xf->xf_fd);
-		displaysock(s, pos);
+		for (s = sockhash[hash]; s != NULL; s = s->next) {
+			if ((void *)s->socket != xf->xf_data)
+				continue;
+			if (!check_ports(s))
+				continue;
+			s->shown = 1;
+			pos = 0;
+			if ((pwd = getpwuid(xf->xf_uid)) == NULL)
+				pos += xprintf("%lu ", (u_long)xf->xf_uid);
+			else
+				pos += xprintf("%s ", pwd->pw_name);
+			while (pos < 9)
+				pos += xprintf(" ");
+			pos += xprintf("%.10s", getprocname(xf->xf_pid));
+			while (pos < 20)
+				pos += xprintf(" ");
+			pos += xprintf("%lu ", (u_long)xf->xf_pid);
+			while (pos < 26)
+				pos += xprintf(" ");
+			pos += xprintf("%d ", xf->xf_fd);
+			displaysock(s, pos);
+		}
 	}
 	if (opt_j >= 0)
 		return;
