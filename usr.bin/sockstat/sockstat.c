@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/sctp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
@@ -71,7 +72,7 @@ static int	 opt_v;		/* Verbose mode */
 /*
  * Default protocols to use if no -P was defined.
  */
-static const char *default_protos[] = {"tcp", "udp", "divert" };
+static const char *default_protos[] = {"sctp", "tcp", "udp", "divert" };
 static size_t	   default_numprotos =
     sizeof(default_protos) / sizeof(default_protos[0]);
 
@@ -251,6 +252,241 @@ sockaddr(struct sockaddr_storage *sa, int af, void *addr, int port)
 	default:
 		abort();
 	}
+}
+
+static void
+gather_sctp(void)
+{
+	struct sock *sock;
+	struct addr *laddr, *prev_laddr, *faddr, *prev_faddr;
+	struct xsctp_inpcb *xinpcb;
+	struct xsctp_tcb *xstcb;
+	struct xsctp_raddr *xraddr;
+	struct xsctp_laddr *xladdr;
+	const char *varname;
+	size_t len, offset;
+	char *buf;
+	int hash, vflag;
+	int no_stcb, local_all_loopback, foreign_all_loopback;
+
+	vflag = 0;
+	if (opt_4)
+		vflag |= INP_IPV4;
+	if (opt_6)
+		vflag |= INP_IPV6;
+
+	varname = "net.inet.sctp.assoclist";
+	if (sysctlbyname(varname, 0, &len, 0, 0) < 0) {
+		if (errno != ENOENT)
+			err(1, "sysctlbyname()");
+		return;
+	}
+	if ((buf = (char *)malloc(len)) == NULL) {
+		err(1, "malloc()");
+		return;
+	}
+	if (sysctlbyname(varname, buf, &len, 0, 0) < 0) {
+		err(1, "sysctlbyname()");
+		free(buf);
+		return;
+	}
+	xinpcb = (struct xsctp_inpcb *)(void *)buf;
+	offset = sizeof(struct xsctp_inpcb);
+	while ((offset < len) && (xinpcb->last == 0)) {
+		if ((sock = calloc(1, sizeof *sock)) == NULL)
+			err(1, "malloc()");
+		sock->socket = xinpcb->socket;
+		sock->proto = IPPROTO_SCTP;
+		sock->protoname = "sctp";
+		if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
+			sock->family = AF_INET6;
+			sock->vflag = INP_IPV6;
+		} else {
+			sock->family = AF_INET;
+			sock->vflag = INP_IPV4;
+		}
+		prev_laddr = NULL;
+		local_all_loopback = 1;
+		while (offset < len) {
+			xladdr = (struct xsctp_laddr *)(void *)(buf + offset);
+			offset += sizeof(struct xsctp_laddr);
+			if (xladdr->last == 1)
+				break;
+			if ((laddr = calloc(1, sizeof(struct addr))) == NULL)
+				err(1, "malloc()");
+			switch (xladdr->address.sa.sa_family) {
+			case AF_INET:
+#define __IN_IS_ADDR_LOOPBACK(pina) \
+	((ntohl((pina)->s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+				if (!__IN_IS_ADDR_LOOPBACK(&xladdr->address.sin.sin_addr))
+					local_all_loopback = 0;
+#undef __IN_IS_ADDR_LOOPBACK
+				sockaddr(&laddr->address,
+				         AF_INET,
+				         &xladdr->address.sin.sin_addr,
+				         htons(xinpcb->local_port));
+				break;
+			case AF_INET6:
+				if (!IN6_IS_ADDR_LOOPBACK(&xladdr->address.sin6.sin6_addr))
+					local_all_loopback = 0;
+				sockaddr(&laddr->address,
+				         AF_INET6,
+				         &xladdr->address.sin6.sin6_addr,
+				         htons(xinpcb->local_port));
+				break;
+			default:
+				errx(1, "adress family %d not supported",
+				     xladdr->address.sa.sa_family);
+			}
+			laddr->next = NULL;
+			if (prev_laddr == NULL)
+				sock->laddr = laddr;
+			else
+				prev_laddr->next = laddr;
+			prev_laddr = laddr;
+		}
+		if (sock->laddr == NULL) {
+			if ((sock->laddr = calloc(1, sizeof(struct addr))) == NULL)
+				err(1, "malloc()");
+			sock->laddr->address.ss_family = sock->family;
+			if (sock->family == AF_INET)
+				sock->laddr->address.ss_len = sizeof(struct sockaddr_in);
+			else
+				sock->laddr->address.ss_len = sizeof(struct sockaddr_in);
+			local_all_loopback = 0;
+		}
+		if ((sock->faddr = calloc(1, sizeof(struct addr))) == NULL)
+			err(1, "malloc()");
+		sock->faddr->address.ss_family = sock->family;
+		if (sock->family == AF_INET)
+			sock->faddr->address.ss_len = sizeof(struct sockaddr_in);
+		else
+			sock->faddr->address.ss_len = sizeof(struct sockaddr_in);
+		no_stcb = 1;
+		while (offset < len) {
+			xstcb = (struct xsctp_tcb *)(void *)(buf + offset);
+			offset += sizeof(struct xsctp_tcb);
+			if (no_stcb &&
+			    opt_l &&
+			    (!opt_L || !local_all_loopback) &&
+			    ((xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE) ||
+			     (xstcb->last == 1))) {
+				hash = (int)((uintptr_t)sock->socket % HASHSIZE);
+				sock->next = sockhash[hash];
+				sockhash[hash] = sock;
+			}
+			if (xstcb->last == 1)
+				break;
+			no_stcb = 0;
+			if (opt_c) {
+				if ((sock = calloc(1, sizeof *sock)) == NULL)
+					err(1, "malloc()");
+				sock->socket = xinpcb->socket;
+				sock->proto = IPPROTO_SCTP;
+				sock->protoname = "sctp";
+				if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
+					sock->family = AF_INET6;
+					sock->vflag = INP_IPV6;
+				} else {
+					sock->family = AF_INET;
+					sock->vflag = INP_IPV4;
+				}
+			}
+			prev_laddr = NULL;
+			local_all_loopback = 1;
+			while (offset < len) {
+				xladdr = (struct xsctp_laddr *)(void *)(buf + offset);
+				offset += sizeof(struct xsctp_laddr);
+				if (xladdr->last == 1)
+					break;
+				if (!opt_c)
+					continue;
+				if ((laddr = calloc(1, sizeof(struct addr))) == NULL)
+					err(1, "malloc()");
+				switch (xladdr->address.sa.sa_family) {
+				case AF_INET:
+#define __IN_IS_ADDR_LOOPBACK(pina) \
+	((ntohl((pina)->s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+					if (!__IN_IS_ADDR_LOOPBACK(&xladdr->address.sin.sin_addr))
+						local_all_loopback = 0;
+#undef __IN_IS_ADDR_LOOPBACK
+					sockaddr(&laddr->address,
+						 AF_INET,
+						 &xladdr->address.sin.sin_addr,
+						 htons(xstcb->local_port));
+					break;
+				case AF_INET6:
+					if (!IN6_IS_ADDR_LOOPBACK(&xladdr->address.sin6.sin6_addr))
+						local_all_loopback = 0;
+					sockaddr(&laddr->address,
+						 AF_INET6,
+						 &xladdr->address.sin6.sin6_addr,
+						 htons(xstcb->local_port));
+					break;
+				default:
+					errx(1, "adress family %d not supported",
+					     xladdr->address.sa.sa_family);
+				}
+				laddr->next = NULL;
+				if (prev_laddr == NULL)
+					sock->laddr = laddr;
+				else
+					prev_laddr->next = laddr;
+				prev_laddr = laddr;
+			}
+			prev_faddr = NULL;
+			foreign_all_loopback = 1;
+			while (offset < len) {
+				xraddr = (struct xsctp_raddr *)(void *)(buf + offset);
+				offset += sizeof(struct xsctp_raddr);
+				if (xraddr->last == 1)
+					break;
+				if (!opt_c)
+					continue;
+				if ((faddr = calloc(1, sizeof(struct addr))) == NULL)
+					err(1, "malloc()");
+				switch (xraddr->address.sa.sa_family) {
+				case AF_INET:
+#define __IN_IS_ADDR_LOOPBACK(pina) \
+	((ntohl((pina)->s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+					if (!__IN_IS_ADDR_LOOPBACK(&xraddr->address.sin.sin_addr))
+						foreign_all_loopback = 0;
+#undef __IN_IS_ADDR_LOOPBACK
+					sockaddr(&faddr->address,
+						 AF_INET,
+						 &xraddr->address.sin.sin_addr,
+						 htons(xstcb->remote_port));
+					break;
+				case AF_INET6:
+					if (!IN6_IS_ADDR_LOOPBACK(&xraddr->address.sin6.sin6_addr))
+						foreign_all_loopback = 0;
+					sockaddr(&faddr->address,
+						 AF_INET6,
+						 &xraddr->address.sin6.sin6_addr,
+						 htons(xstcb->remote_port));
+					break;
+				default:
+					errx(1, "adress family %d not supported",
+					     xraddr->address.sa.sa_family);
+				}
+				faddr->next = NULL;
+				if (prev_faddr == NULL)
+					sock->faddr = faddr;
+				else
+					prev_faddr->next = faddr;
+				prev_faddr = faddr;
+			}
+			if (opt_c &&
+			    (!opt_L || !(local_all_loopback || foreign_all_loopback))) {
+				hash = (int)((uintptr_t)sock->socket % HASHSIZE);
+				sock->next = sockhash[hash];
+				sockhash[hash] = sock;
+			}
+		}
+		xinpcb = (struct xsctp_inpcb *)(void *)(buf + offset);
+		offset += sizeof(struct xsctp_inpcb);
+	}
+	free(buf);
 }
 
 static void
@@ -845,7 +1081,10 @@ main(int argc, char *argv[])
 
 	if (opt_4 || opt_6) {
 		for (i = 0; i < protos_defined; i++)
-			gather_inet(protos[i]);
+			if (protos[i] == IPPROTO_SCTP)
+				gather_sctp();
+			else
+				gather_inet(protos[i]);
 	}
 
 	if (opt_u || (protos_defined == -1 && !opt_4 && !opt_6)) {
