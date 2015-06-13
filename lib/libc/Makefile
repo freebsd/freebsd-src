@@ -163,6 +163,24 @@ SUBDIR+=	tests
 
 .include <bsd.lib.mk>
 
+.if !defined(_SKIP_BUILD)
+# We need libutil.h, get it directly to avoid
+# recording a build dependency
+CFLAGS+= -I${.CURDIR:H}/libutil
+# Same issue with libm
+MSUN_ARCH_SUBDIR != ${MAKE} -B -C ${.CURDIR:H}/msun -V ARCH_SUBDIR
+# unfortunately msun/src contains both private and public headers
+CFLAGS+= -I${.CURDIR:H}/msun/${MSUN_ARCH_SUBDIR} 
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+= -I${.CURDIR:H}/msun/x86
+.endif
+CFLAGS+= -I${.CURDIR:H}/msun/src
+# and we do not want to record a dependency on msun
+.if ${.MAKE.LEVEL} > 0
+GENDIRDEPS_FILTER+= N${RELDIR:H}/msun
+.endif
+.endif
+
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}
 # XXX For now, we don't allow libc to be compiled with
