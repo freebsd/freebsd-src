@@ -338,7 +338,7 @@ LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
 
 LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
-LIBTELNET?=	${LIBIPFDIR}/libtelnet.a
+LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
 LIBCRONDIR=	${ROOTOBJDIR}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron.a
