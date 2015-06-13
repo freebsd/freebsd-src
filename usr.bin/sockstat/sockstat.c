@@ -84,6 +84,11 @@ static int	*ports;
 #define SET_PORT(p) do { ports[p / INT_BIT] |= 1 << (p % INT_BIT); } while (0)
 #define CHK_PORT(p) (ports[p / INT_BIT] & (1 << (p % INT_BIT)))
 
+struct addr {
+	struct sockaddr_storage address;
+	struct addr *next;
+};
+
 struct sock {
 	void *socket;
 	void *pcb;
@@ -92,8 +97,8 @@ struct sock {
 	int family;
 	int proto;
 	const char *protoname;
-	struct sockaddr_storage laddr;
-	struct sockaddr_storage faddr;
+	struct addr *laddr;
+	struct addr *faddr;
 	struct sock *next;
 };
 
@@ -257,6 +262,7 @@ gather_inet(int proto)
 	struct inpcb *inp;
 	struct xsocket *so;
 	struct sock *sock;
+	struct addr *laddr, *faddr;
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
@@ -368,21 +374,29 @@ gather_inet(int proto)
 		}
 		if ((sock = calloc(1, sizeof *sock)) == NULL)
 			err(1, "malloc()");
+		if ((laddr = calloc(1, sizeof *laddr)) == NULL)
+			err(1, "malloc()");
+		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
+			err(1, "malloc()");
 		sock->socket = so->xso_so;
 		sock->proto = proto;
 		if (inp->inp_vflag & INP_IPV4) {
 			sock->family = AF_INET;
-			sockaddr(&sock->laddr, sock->family,
+			sockaddr(&laddr->address, sock->family,
 			    &inp->inp_laddr, inp->inp_lport);
-			sockaddr(&sock->faddr, sock->family,
+			sockaddr(&faddr->address, sock->family,
 			    &inp->inp_faddr, inp->inp_fport);
 		} else if (inp->inp_vflag & INP_IPV6) {
 			sock->family = AF_INET6;
-			sockaddr(&sock->laddr, sock->family,
+			sockaddr(&laddr->address, sock->family,
 			    &inp->in6p_laddr, inp->inp_lport);
-			sockaddr(&sock->faddr, sock->family,
+			sockaddr(&faddr->address, sock->family,
 			    &inp->in6p_faddr, inp->inp_fport);
 		}
+		laddr->next = NULL;
+		faddr->next = NULL;
+		sock->laddr = laddr;
+		sock->faddr = faddr;
 		sock->vflag = inp->inp_vflag;
 		sock->protoname = protoname;
 		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
@@ -399,6 +413,7 @@ gather_unix(int proto)
 	struct xunpgen *xug, *exug;
 	struct xunpcb *xup;
 	struct sock *sock;
+	struct addr *laddr, *faddr;
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
@@ -457,16 +472,24 @@ gather_unix(int proto)
 			continue;
 		if ((sock = calloc(1, sizeof *sock)) == NULL)
 			err(1, "malloc()");
+		if ((laddr = calloc(1, sizeof *laddr)) == NULL)
+			err(1, "malloc()");
+		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
+			err(1, "malloc()");
 		sock->socket = xup->xu_socket.xso_so;
 		sock->pcb = xup->xu_unpp;
 		sock->proto = proto;
 		sock->family = AF_UNIX;
 		sock->protoname = protoname;
 		if (xup->xu_unp.unp_addr != NULL)
-			sock->laddr =
+			laddr->address =
 			    *(struct sockaddr_storage *)(void *)&xup->xu_addr;
 		else if (xup->xu_unp.unp_conn != NULL)
-			*(void **)&sock->faddr = xup->xu_unp.unp_conn;
+			*(void **)&(faddr->address) = xup->xu_unp.unp_conn;
+		laddr->next = NULL;
+		faddr->next = NULL;
+		sock->laddr = laddr;
+		sock->faddr = faddr;
 		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
 		sock->next = sockhash[hash];
 		sockhash[hash] = sock;
@@ -575,23 +598,28 @@ static int
 check_ports(struct sock *s)
 {
 	int port;
+	struct addr *addr;
 
 	if (ports == NULL)
 		return (1);
 	if ((s->family != AF_INET) && (s->family != AF_INET6))
 		return (1);
-	if (s->family == AF_INET)
-		port = ntohs(((struct sockaddr_in *)(&s->laddr))->sin_port);
-	else
-		port = ntohs(((struct sockaddr_in6 *)(&s->laddr))->sin6_port);
-	if (CHK_PORT(port))
-		return (1);
-	if (s->family == AF_INET)
-		port = ntohs(((struct sockaddr_in *)(&s->faddr))->sin_port);
-	else
-		port = ntohs(((struct sockaddr_in6 *)(&s->faddr))->sin6_port);
-	if (CHK_PORT(port))
-		return (1);
+	for (addr = s->laddr; addr != NULL; addr = addr->next) {
+		if (addr->address.ss_family == AF_INET)
+			port = ntohs(((struct sockaddr_in *)(&addr->address))->sin_port);
+		else
+			port = ntohs(((struct sockaddr_in6 *)(&addr->address))->sin6_port);
+		if (CHK_PORT(port))
+			return (1);
+	}
+	for (addr = s->faddr; addr != NULL; addr = addr->next) {
+		if (addr->address.ss_family == AF_INET)
+			port = ntohs(((struct sockaddr_in *)&(addr->address))->sin_port);
+		else
+			port = ntohs(((struct sockaddr_in6 *)&(addr->address))->sin6_port);
+		if (CHK_PORT(port))
+			return (1);
+	}
 	return (0);
 }
 
@@ -600,6 +628,7 @@ displaysock(struct sock *s, int pos)
 {
 	void *p;
 	int hash;
+	struct addr *laddr, *faddr;
 
 	while (pos < 29)
 		pos += xprintf(" ");
@@ -608,45 +637,65 @@ displaysock(struct sock *s, int pos)
 		pos += xprintf("4 ");
 	if (s->vflag & INP_IPV6)
 		pos += xprintf("6 ");
-	while (pos < 36)
-		pos += xprintf(" ");
-	switch (s->family) {
-	case AF_INET:
-	case AF_INET6:
-		pos += printaddr(&s->laddr);
-		if (s->family == AF_INET6 && pos >= 58)
+	laddr = s->laddr;
+	faddr = s->faddr;
+	while (laddr != NULL || faddr != NULL) {
+		while (pos < 36)
 			pos += xprintf(" ");
-		while (pos < 58)
-			pos += xprintf(" ");
-		pos += printaddr(&s->faddr);
-		break;
-	case AF_UNIX:
-		/* server */
-		if (s->laddr.ss_len > 0) {
-			pos += printaddr(&s->laddr);
+		switch (s->family) {
+		case AF_INET:
+		case AF_INET6:
+			if (laddr != NULL) {
+				pos += printaddr(&laddr->address);
+				if (s->family == AF_INET6 && pos >= 58)
+					pos += xprintf(" ");
+			}
+			while (pos < 58)
+				pos += xprintf(" ");
+			if (faddr != NULL)
+				pos += printaddr(&faddr->address);
 			break;
-		}
-		/* client */
-		p = *(void **)&s->faddr;
-		if (p == NULL) {
-			pos += xprintf("(not connected)");
-			break;
-		}
-		pos += xprintf("-> ");
-		for (hash = 0; hash < HASHSIZE; ++hash) {
-			for (s = sockhash[hash]; s != NULL; s = s->next)
-				if (s->pcb == p)
-					break;
-			if (s != NULL)
+		case AF_UNIX:
+			if ((laddr == NULL) || (faddr == NULL))
+				errx(1, "laddr = %p or faddr = %p is NULL",
+				     (void *)laddr, (void *)faddr);
+			/* server */
+			if (laddr->address.ss_len > 0) {
+				pos += printaddr(&laddr->address);
 				break;
+			}
+			/* client */
+			p = *(void **)&(faddr->address);
+			if (p == NULL) {
+				pos += xprintf("(not connected)");
+				break;
+			}
+			pos += xprintf("-> ");
+			for (hash = 0; hash < HASHSIZE; ++hash) {
+				for (s = sockhash[hash]; s != NULL; s = s->next)
+					if (s->pcb == p)
+						break;
+				if (s != NULL)
+					break;
+			}
+			if (s == NULL ||
+			    s->laddr == NULL ||
+			    s->laddr->address.ss_len == 0)
+				pos += xprintf("??");
+			else
+				pos += printaddr(&s->laddr->address);
+			break;
+		default:
+			abort();
 		}
-		if (s == NULL || s->laddr.ss_len == 0)
-			pos += xprintf("??");
-		else
-			pos += printaddr(&s->laddr);
-		break;
-	default:
-		abort();
+		if (laddr != NULL)
+			laddr = laddr->next;
+		if (faddr != NULL)
+			faddr = faddr->next;
+		if ((laddr != NULL) || (faddr != NULL)) {
+			xprintf("\n");
+			pos = 0;
+		}
 	}
 	xprintf("\n");
 }
