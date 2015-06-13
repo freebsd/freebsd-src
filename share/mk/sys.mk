@@ -16,6 +16,41 @@ unix		?=	We run FreeBSD, not UNIX.
 MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .endif
 
+
+# Some options we need now
+__DEFAULT_NO_OPTIONS= \
+	DIRDEPS_CACHE \
+	META_MODE \
+	META_FILES \
+
+
+__DEFAULT_DEPENDENT_OPTIONS= \
+	AUTO_OBJ/META_MODE \
+	STAGING/META_MODE \
+	SYSROOT/META_MODE
+
+.include <bsd.mkopt.mk>
+
+# Pull in global settings.
+__MAKE_CONF?=/etc/make.conf
+.if exists(${__MAKE_CONF})
+.include "${__MAKE_CONF}"
+.endif
+
+# Set any local definitions first. Place this early, but it needs
+# MACHINE_CPUARCH to be defined.
+.-include <local.sys.mk>
+
+.if ${MK_META_MODE} == "yes"
+.-include <meta.sys.mk>
+.elif ${MK_META_FILES} == "yes" && ${.MAKEFLAGS:U:M-B} == ""
+.MAKE.MODE= meta verbose
+.endif
+.if ${MK_AUTO_OBJ} == "yes"
+# This needs to be done early - before .PATH is computed
+.-include <auto.obj.mk>
+.endif
+
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
 # process the makefile as specified by the Posix 1003.2 specification.
@@ -325,36 +360,12 @@ YFLAGS		?=	-d
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
 
-# Pull in global settings.
-__MAKE_CONF?=/etc/make.conf
-.if exists(${__MAKE_CONF})
-.include "${__MAKE_CONF}"
-.endif
-
-# Setup anything for the FreeBSD source build, if we're building
-# inside the source tree. Needs to be after make.conf, but before
-# local stuff.
-.sinclude <src.sys.mk>
-
-# Set any local definitions first. Place this early, but it needs
-# MACHINE_CPUARCH to be defined.
-.sinclude <local.sys.mk>
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
 
-.if !defined(.PARSEDIR)
-# We are not bmake, which is more aggressive about searching .PATH
-# It is sometime necessary to curb its enthusiasm with .NOPATH
-# The following allows us to quietly ignore .NOPATH when not using bmake.
-.NOTMAIN: .NOPATH
-.NOPATH:
-
-# Toggle on warnings
-.WARN: dirsyntax
-.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
@@ -371,7 +382,6 @@ SHELL=	${__MAKE_SHELL}
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL:U/bin/sh}
 .endif
-.endif # bmake
 
 .include <bsd.cpu.mk>
 
