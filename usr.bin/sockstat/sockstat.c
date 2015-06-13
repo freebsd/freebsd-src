@@ -496,14 +496,14 @@ getfiles(void)
 }
 
 static int
-printaddr(int af, struct sockaddr_storage *ss)
+printaddr(struct sockaddr_storage *ss)
 {
 	char addrstr[INET6_ADDRSTRLEN] = { '\0', '\0' };
 	struct sockaddr_un *sun;
 	void *addr = NULL; /* Keep compiler happy. */
 	int off, port = 0;
 
-	switch (af) {
+	switch (ss->ss_family) {
 	case AF_INET:
 		addr = &((struct sockaddr_in *)ss)->sin_addr;
 		if (inet_lnaof(*(struct in_addr *)addr) == INADDR_ANY)
@@ -522,7 +522,7 @@ printaddr(int af, struct sockaddr_storage *ss)
 		return (xprintf("%.*s", sun->sun_len - off, sun->sun_path));
 	}
 	if (addrstr[0] == '\0')
-		inet_ntop(af, addr, addrstr, sizeof addrstr);
+		inet_ntop(ss->ss_family, addr, addrstr, sizeof addrstr);
 	if (port == 0)
 		return xprintf("%s:*", addrstr);
 	else
@@ -613,17 +613,17 @@ displaysock(struct sock *s, int pos)
 	switch (s->family) {
 	case AF_INET:
 	case AF_INET6:
-		pos += printaddr(s->family, &s->laddr);
+		pos += printaddr(&s->laddr);
 		if (s->family == AF_INET6 && pos >= 58)
 			pos += xprintf(" ");
 		while (pos < 58)
 			pos += xprintf(" ");
-		pos += printaddr(s->family, &s->faddr);
+		pos += printaddr(&s->faddr);
 		break;
 	case AF_UNIX:
 		/* server */
 		if (s->laddr.ss_len > 0) {
-			pos += printaddr(s->family, &s->laddr);
+			pos += printaddr(&s->laddr);
 			break;
 		}
 		/* client */
@@ -643,7 +643,7 @@ displaysock(struct sock *s, int pos)
 		if (s == NULL || s->laddr.ss_len == 0)
 			pos += xprintf("??");
 		else
-			pos += printaddr(s->family, &s->laddr);
+			pos += printaddr(&s->laddr);
 		break;
 	default:
 		abort();
