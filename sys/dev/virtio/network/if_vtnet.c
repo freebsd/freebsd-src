@@ -443,7 +443,7 @@ vtnet_detach(device_t dev)
 		sc->vtnet_vlan_attach = NULL;
 	}
 	if (sc->vtnet_vlan_detach != NULL) {
-		EVENTHANDLER_DEREGISTER(vlan_unconfg, sc->vtnet_vlan_detach);
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vtnet_vlan_detach);
 		sc->vtnet_vlan_detach = NULL;
 	}
 
