@@ -330,6 +330,16 @@ distribution:
 
 MTREE_CMD?=	mtree
 
+.if ${MK_INSTALL_AS_USER} == "yes" && ${_uid} != 0
+MTREE_FILTER= sed -e 's,\([gu]\)name=,\1id=,g' \
+	-e 's,\(uid=\)[^ ]* ,\1${_uid} ,' \
+	-e 's,\(gid=\)[^ ]* ,\1${_gid} ,' \
+	-e 's,\(uid=\)[^ ]*$$,\1${_uid},' \
+	-e 's,\(gid=\)[^ ]*$$,\1${_gid},' 
+.else
+MTREE_FILTER= cat
+.endif
+
 MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
@@ -358,7 +368,8 @@ distrib-dirs: ${MTREES:N/*}
 		test -d $$d || mkdir -p $$d; \
 		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
 		    -f $$m -p $$d; \
-		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
+		${MTREE_FILTER} $$m | \
+		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -p $$d; \
 	done; true
 .if defined(NO_ROOT)
 	@set ${MTREES}; \
@@ -372,7 +383,8 @@ distrib-dirs: ${MTREES:N/*}
 		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
-		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \
+		${MTREE_FILTER} $$m | \
+		${MTREE_CMD:N-W} -C -K uname,gname | sed s#^\.#.$$d# | \
 		    ${METALOG.add} ; \
 	done; true
 .endif
