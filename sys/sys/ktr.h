@@ -75,7 +75,8 @@
 #define	KTR_INET6	0x10000000		/* IPv6 stack */
 #define	KTR_SCHED	0x20000000		/* Machine parsed sched info. */
 #define	KTR_BUF		0x40000000		/* Buffer cache */
-#define	KTR_ALL		0x7fffffff
+#define	KTR_PTRACE	0x80000000		/* Process debugging. */
+#define	KTR_ALL		0xffffffff
 
 /* Trace classes to compile in */
 #ifdef KTR
