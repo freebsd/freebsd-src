@@ -99,6 +99,11 @@
 #
 # For more information, see the build(7) manual page.
 #
+.ifdef .PARSEDIR
+MK_META_MODE?=	yes
+.else
+MK_META_MODE=	no
+.endif
 .if ${MK_META_MODE} == "yes"
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
@@ -521,6 +526,7 @@ universe_epilogue:
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
+.ifdef .PARSEDIR
 # This makefile does not run in meta mode
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
@@ -532,6 +538,7 @@ MK_STAGING= no
 # tell meta.autodep.mk to not even think about updating anything.
 UPDATE_DEPENDFILE= NO
 .export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+.endif
 
 .if make(universe)
 # we do not want a failure of one branch abort all.
