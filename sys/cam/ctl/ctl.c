@@ -39,6 +39,8 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
+// CDROM emulation is added 
+
 #define _CTL_C
 
 #include <sys/cdefs.h>
