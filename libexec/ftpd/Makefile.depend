@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libopie \
 	lib/libpam/libpam \
 	lib/libutil \
+	lib/libxo \
 	lib/msun \
 	usr.bin/yacc.host \
 
