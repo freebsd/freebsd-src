@@ -1736,7 +1736,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 	int i;
 	int *fdp;
 	struct filedesc *fdesc = td->td_proc->p_fd;
-	struct filedescent *fde, **fdep;
+	struct filedescent **fdep;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
@@ -1795,13 +1795,10 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				goto next;
 			}
 			for (i = 0; i < newfds; i++, fdp++) {
-				fde = &fdesc->fd_ofiles[*fdp];
-				fde->fde_file = fdep[i]->fde_file;
-				filecaps_move(&fdep[i]->fde_caps,
-				    &fde->fde_caps);
-				if ((flags & MSG_CMSG_CLOEXEC) != 0)
-					fde->fde_flags |= UF_EXCLOSE;
-				unp_externalize_fp(fde->fde_file);
+				_finstall(fdesc, fdep[i]->fde_file, *fdp,
+				    (flags & MSG_CMSG_CLOEXEC) != 0 ? UF_EXCLOSE : 0,
+				    &fdep[i]->fde_caps);
+				unp_externalize_fp(fdep[i]->fde_file);
 			}
 			FILEDESC_XUNLOCK(fdesc);
 			free(fdep[0], M_FILECAPS);
