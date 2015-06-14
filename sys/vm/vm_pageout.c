@@ -1233,10 +1233,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			--page_shortage;
 		} else if (m->dirty == 0) {
 			/*
-			 * Clean pages can be placed onto the cache queue.
-			 * This effectively frees them.
+			 * Clean pages can be freed.
 			 */
-			vm_page_cache(m);
+			vm_page_free(m);
+			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass < 2) {
 			/*
