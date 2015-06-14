@@ -20,7 +20,7 @@ __<bsd.init.mk>__:
 # this tells lib.mk and prog.mk to not actually build anything
 _SKIP_BUILD = not building at level 0
 .endif
-.if !empty(_SKIP_BUILD)
+.if ${.MAKE.LEVEL} > 0 && !empty(_SKIP_BUILD)
 .warning ${_SKIP_BUILD}
 .endif
 
