@@ -103,4 +103,7 @@ elf32-target.h: elfxx-target.h
 elf64-target.h: elfxx-target.h
 	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
 
+# avoid cicular dependency
+GENDIRDEPS_FILTER+= N*/nm
+
 .include <bsd.lib.mk>
