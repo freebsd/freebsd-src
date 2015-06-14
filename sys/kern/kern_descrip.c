@@ -1750,26 +1750,18 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 /*
  * Install a file in a file descriptor table.
  */
-int
-finstall(struct thread *td, struct file *fp, int *fd, int flags,
+void
+_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
     struct filecaps *fcaps)
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
 	struct filedescent *fde;
-	int error;
 
-	KASSERT(fd != NULL, ("%s: fd == NULL", __func__));
-	KASSERT(fp != NULL, ("%s: fp == NULL", __func__));
+	MPASS(fp != NULL);
 	if (fcaps != NULL)
 		filecaps_validate(fcaps, __func__);
+	FILEDESC_XLOCK_ASSERT(fdp);
 
-	FILEDESC_XLOCK(fdp);
-	if ((error = fdalloc(td, 0, fd))) {
-		FILEDESC_XUNLOCK(fdp);
-		return (error);
-	}
-	fhold(fp);
-	fde = &fdp->fd_ofiles[*fd];
+	fde = &fdp->fd_ofiles[fd];
 #ifdef CAPABILITIES
 	seq_write_begin(&fde->fde_seq);
 #endif
@@ -1783,6 +1775,24 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 #ifdef CAPABILITIES
 	seq_write_end(&fde->fde_seq);
 #endif
+}
+
+int
+finstall(struct thread *td, struct file *fp, int *fd, int flags,
+    struct filecaps *fcaps)
+{
+	struct filedesc *fdp = td->td_proc->p_fd;
+	int error;
+
+	MPASS(fd != NULL);
+
+	FILEDESC_XLOCK(fdp);
+	if ((error = fdalloc(td, 0, fd))) {
+		FILEDESC_XUNLOCK(fdp);
+		return (error);
+	}
+	fhold(fp);
+	_finstall(fdp, fp, *fd, flags, fcaps);
 	FILEDESC_XUNLOCK(fdp);
 	return (0);
 }
