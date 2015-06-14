@@ -50,6 +50,7 @@ DIRDEPS_FILTER.host = \
 
 
 DIRDEPS_FILTER+= \
+	Nbin/cat.host \
 	${DIRDEPS_FILTER.xtras:U}
 .endif
 
