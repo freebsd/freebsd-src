@@ -99,7 +99,7 @@
 #
 # For more information, see the build(7) manual page.
 #
-.if ${MK_META_MODE} == "yes"
+.if ${MK_META_MODE:Uno} == "yes"
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
