@@ -99,9 +99,11 @@
 #
 # For more information, see the build(7) manual page.
 #
+
 .ifdef .PARSEDIR
 MK_META_MODE?=	yes
 .else
+# Allow bootstrapping with fmake from earlier versions of FreeBSD
 MK_META_MODE=	no
 .endif
 .if ${MK_META_MODE} == "yes"
