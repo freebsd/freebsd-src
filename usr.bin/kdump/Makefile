@@ -25,9 +25,17 @@ CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h
 
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
 CLEANFILES+=	linux_syscalls.c
+kdump.o: linux_syscalls.c
+linux_syscalls.c:	linux_syscalls.conf
+	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
+	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux/syscalls.master ${.CURDIR}/linux_syscalls.conf
 .endif
 .if (${MACHINE_ARCH} == "amd64")
 CLEANFILES+=	linux32_syscalls.c
+kdump.o: linux32_syscalls.c
+linux32_syscalls.c: linux32_syscalls.conf
+	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
+	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux32/syscalls.master ${.CURDIR}/linux32_syscalls.conf
 .endif
 
 ioctl.c: mkioctls
@@ -40,13 +48,5 @@ kdump_subr.h: mksubr
 
 kdump_subr.c: mksubr kdump_subr.h
 	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} >${.TARGET}
-.if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
-	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
-	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux/syscalls.master ${.CURDIR}/linux_syscalls.conf
-.endif
-.if (${MACHINE_ARCH} == "amd64")
-	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
-	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux32/syscalls.master ${.CURDIR}/linux32_syscalls.conf
-.endif
 
 .include <bsd.prog.mk>
