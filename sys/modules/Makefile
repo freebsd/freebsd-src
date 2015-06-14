@@ -150,6 +150,7 @@ SUBDIR=	\
 	if_tap \
 	if_tun \
 	if_vlan \
+	if_vxlan \
 	${_igb} \
 	${_iir} \
 	${_imgact_binmisc} \
