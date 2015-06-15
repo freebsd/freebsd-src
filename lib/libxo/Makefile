@@ -7,7 +7,7 @@ LIBXO=	${.CURDIR:H:H}/contrib/libxo
 LIB=	xo
 SHLIB_MAJOR=0
 
-SHLIBDIR=      /lib
+SHLIBDIR?=      /lib
 
 SRCS=	libxo.c
 
