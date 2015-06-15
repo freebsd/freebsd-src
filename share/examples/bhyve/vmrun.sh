@@ -96,7 +96,10 @@ while getopts ac:C:d:e:g:hH:iI:m:t: c ; do
 		console=${OPTARG}
 		;;
 	d)
-		eval "disk_dev${disk_total}=\"${OPTARG}\""
+		disk_dev=${OPTARG%%,*}
+		disk_opts=${OPTARG#${disk_dev}}
+		eval "disk_dev${disk_total}=\"${disk_dev}\""
+		eval "disk_opts${disk_total}=\"${disk_opts}\""
 		disk_total=$(($disk_total + 1))
 		;;
 	e)
@@ -225,8 +228,9 @@ while [ 1 ]; do
 	i=0
 	while [ $i -lt $disk_total ] ; do
 	    eval "disk=\$disk_dev${i}"
+	    eval "opts=\$disk_opts${i}"
 	    make_and_check_diskdev "${disk}"
-	    devargs="$devargs -s $nextslot:0,virtio-blk,${disk} "
+	    devargs="$devargs -s $nextslot:0,virtio-blk,${disk}${opts} "
 	    nextslot=$(($nextslot + 1))
 	    i=$(($i + 1))
 	done
