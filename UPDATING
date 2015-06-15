@@ -31,6 +31,30 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150614:
+	The import of openssl to address the FreeBSD-SA-15:10.openssl
+	security advisory includes a change which rejects handshakes
+	with DH parameters below 768 bits.  sendmail releases prior
+	to 8.15.2 (not yet released), defaulted to a 512 bit
+	DH parameter setting for client connections.  To work around
+	this interoperability, sendmail can be configured to use a
+	2048 bit DH parameter by:
+
+	1. Edit /etc/mail/`hostname`.mc 
+	2. If a setting for confDH_PARAMETERS does not exist or
+	   exists and is set to a string beginning with '5',
+	   replace it with '2'.
+	3. If a setting for confDH_PARAMETERS exists and is set to
+	   a file path, create a new file with:
+		openssl dhparam -out /path/to/file 2048
+	4. Rebuild the .cf file:
+		cd /etc/mail/; make; make install
+	5. Restart sendmail:
+		cd /etc/mail/; make restart
+
+	A sendmail patch is coming, at which time this file will be
+	updated.
+
 20150604:
 	Generation of legacy formatted entries have been disabled by default
 	in pwd_mkdb(8), as all base system consumers of the legacy formatted
