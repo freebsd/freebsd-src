@@ -38,6 +38,7 @@
 #define IB_SMI_H
 
 #include <rdma/ib_mad.h>
+#include <asm/byteorder.h>
 
 #define IB_SMP_DATA_SIZE			64
 #define IB_SMP_MAX_PATH_HOPS			64

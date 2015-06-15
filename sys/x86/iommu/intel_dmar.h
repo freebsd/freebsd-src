@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013-2015 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -185,6 +185,13 @@ struct dmar_unit {
 	u_int inv_seq_waiters;	/* count of waiters for seq */
 	u_int inv_queue_full;	/* informational counter */
 
+	/* IR */
+	int ir_enabled;
+	vm_paddr_t irt_phys;
+	dmar_irte_t *irt;
+	u_int irte_cnt;
+	vmem_t *irtids;
+
 	/* Delayed freeing of map entries queue processing */
 	struct dmar_map_entries_tailq tlb_flush_entries;
 	struct task qi_task;
@@ -194,6 +201,8 @@ struct dmar_unit {
 	struct task dmamap_load_task;
 	TAILQ_HEAD(, bus_dmamap_dmar) delayed_maps;
 	struct taskqueue *delayed_taskqueue;
+
+	int dma_enabled;
 };
 
 #define	DMAR_LOCK(dmar)		mtx_lock(&(dmar)->lock)
@@ -206,12 +215,16 @@ struct dmar_unit {
 
 #define	DMAR_IS_COHERENT(dmar)	(((dmar)->hw_ecap & DMAR_ECAP_C) != 0)
 #define	DMAR_HAS_QI(dmar)	(((dmar)->hw_ecap & DMAR_ECAP_QI) != 0)
+#define	DMAR_X2APIC(dmar) \
+	(x2apic_mode && ((dmar)->hw_ecap & DMAR_ECAP_EIM) != 0)
 
 /* Barrier ids */
 #define	DMAR_BARRIER_RMRR	0
 #define	DMAR_BARRIER_USEQ	1
 
 struct dmar_unit *dmar_find(device_t dev);
+struct dmar_unit *dmar_find_hpet(device_t dev, uint16_t *rid);
+struct dmar_unit *dmar_find_ioapic(u_int apic_id, uint16_t *rid);
 
 u_int dmar_nd2mask(u_int nd);
 bool dmar_pglvl_supported(struct dmar_unit *unit, int pglvl);
@@ -228,13 +241,19 @@ struct vm_page *dmar_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags);
 void dmar_pgfree(vm_object_t obj, vm_pindex_t idx, int flags);
 void *dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
     struct sf_buf **sf);
-void dmar_unmap_pgtbl(struct sf_buf *sf, bool coherent);
+void dmar_unmap_pgtbl(struct sf_buf *sf);
 int dmar_load_root_entry_ptr(struct dmar_unit *unit);
 int dmar_inv_ctx_glob(struct dmar_unit *unit);
 int dmar_inv_iotlb_glob(struct dmar_unit *unit);
 int dmar_flush_write_bufs(struct dmar_unit *unit);
+void dmar_flush_pte_to_ram(struct dmar_unit *unit, dmar_pte_t *dst);
+void dmar_flush_ctx_to_ram(struct dmar_unit *unit, dmar_ctx_entry_t *dst);
+void dmar_flush_root_to_ram(struct dmar_unit *unit, dmar_root_entry_t *dst);
 int dmar_enable_translation(struct dmar_unit *unit);
 int dmar_disable_translation(struct dmar_unit *unit);
+int dmar_load_irt_ptr(struct dmar_unit *unit);
+int dmar_enable_ir(struct dmar_unit *unit);
+int dmar_disable_ir(struct dmar_unit *unit);
 bool dmar_barrier_enter(struct dmar_unit *dmar, u_int barrier_id);
 void dmar_barrier_exit(struct dmar_unit *dmar, u_int barrier_id);
 
@@ -253,6 +272,8 @@ void dmar_qi_invalidate_locked(struct dmar_ctx *ctx, dmar_gaddr_t start,
     dmar_gaddr_t size, struct dmar_qi_genseq *pseq);
 void dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit);
 void dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit);
+void dmar_qi_invalidate_iec_glob(struct dmar_unit *unit);
+void dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt);
 
 vm_object_t ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr);
 void put_idmap_pgtbl(vm_object_t obj);
@@ -279,6 +300,7 @@ void dmar_ctx_free_entry(struct dmar_map_entry *entry, bool free);
 
 int dmar_init_busdma(struct dmar_unit *unit);
 void dmar_fini_busdma(struct dmar_unit *unit);
+device_t dmar_get_requester(device_t dev, uint16_t *rid);
 
 void dmar_gas_init_ctx(struct dmar_ctx *ctx);
 void dmar_gas_fini_ctx(struct dmar_ctx *ctx);
@@ -286,7 +308,7 @@ struct dmar_map_entry *dmar_gas_alloc_entry(struct dmar_ctx *ctx, u_int flags);
 void dmar_gas_free_entry(struct dmar_ctx *ctx, struct dmar_map_entry *entry);
 void dmar_gas_free_space(struct dmar_ctx *ctx, struct dmar_map_entry *entry);
 int dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
-    dmar_gaddr_t size, u_int eflags, u_int flags, vm_page_t *ma,
+    dmar_gaddr_t size, int offset, u_int eflags, u_int flags, vm_page_t *ma,
     struct dmar_map_entry **res);
 void dmar_gas_free_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry);
 int dmar_gas_map_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry,
@@ -300,6 +322,9 @@ int dmar_instantiate_rmrr_ctxs(struct dmar_unit *dmar);
 
 void dmar_quirks_post_ident(struct dmar_unit *dmar);
 void dmar_quirks_pre_use(struct dmar_unit *dmar);
+
+int dmar_init_irt(struct dmar_unit *unit);
+void dmar_fini_irt(struct dmar_unit *unit);
 
 #define	DMAR_GM_CANWAIT	0x0001
 #define	DMAR_GM_CANSPLIT 0x0002
@@ -371,13 +396,16 @@ dmar_write8(const struct dmar_unit *unit, int reg, uint64_t val)
  * containing the P or R and W bits, is set only after the high word
  * is written.  For clear, the P bit is cleared first, then the high
  * word is cleared.
+ *
+ * dmar_pte_update updates the pte.  For amd64, the update is atomic.
+ * For i386, it first disables the entry by clearing the word
+ * containing the P bit, and then defer to dmar_pte_store.  The locked
+ * cmpxchg8b is probably available on any machine having DMAR support,
+ * but interrupt translation table may be mapped uncached.
  */
 static inline void
-dmar_pte_store(volatile uint64_t *dst, uint64_t val)
+dmar_pte_store1(volatile uint64_t *dst, uint64_t val)
 {
-
-	KASSERT(*dst == 0, ("used pte %p oldval %jx newval %jx",
-	    dst, (uintmax_t)*dst, (uintmax_t)val));
 #ifdef __i386__
 	volatile uint32_t *p;
 	uint32_t hi, lo;
@@ -390,6 +418,28 @@ dmar_pte_store(volatile uint64_t *dst, uint64_t val)
 #else
 	*dst = val;
 #endif
+}
+
+static inline void
+dmar_pte_store(volatile uint64_t *dst, uint64_t val)
+{
+
+	KASSERT(*dst == 0, ("used pte %p oldval %jx newval %jx",
+	    dst, (uintmax_t)*dst, (uintmax_t)val));
+	dmar_pte_store1(dst, val);
+}
+
+static inline void
+dmar_pte_update(volatile uint64_t *dst, uint64_t val)
+{
+
+#ifdef __i386__
+	volatile uint32_t *p;
+
+	p = (volatile uint32_t *)dst;
+	*p = 0;
+#endif
+	dmar_pte_store1(dst, val);
 }
 
 static inline void

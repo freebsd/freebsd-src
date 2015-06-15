@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_RUNTIME_DYLD_ELF_H
-#define LLVM_RUNTIME_DYLD_ELF_H
+#ifndef LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_RUNTIMEDYLDELF_H
+#define LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_RUNTIMEDYLDELF_H
 
 #include "RuntimeDyldImpl.h"
 #include "llvm/ADT/DenseMap.h"
@@ -20,70 +20,47 @@
 using namespace llvm;
 
 namespace llvm {
-
 namespace {
-  // Helper for extensive error checking in debug builds.
-  error_code Check(error_code Err) {
-    if (Err) {
-      report_fatal_error(Err.message());
-    }
-    return Err;
+// Helper for extensive error checking in debug builds.
+std::error_code Check(std::error_code Err) {
+  if (Err) {
+    report_fatal_error(Err.message());
   }
+  return Err;
+}
+
 } // end anonymous namespace
 
 class RuntimeDyldELF : public RuntimeDyldImpl {
-  void resolveRelocation(const SectionEntry &Section,
-                         uint64_t Offset,
-                         uint64_t Value,
-                         uint32_t Type,
-                         int64_t Addend,
-                         uint64_t SymOffset=0);
 
-  void resolveX86_64Relocation(const SectionEntry &Section,
-                               uint64_t Offset,
-                               uint64_t Value,
-                               uint32_t Type,
-                               int64_t  Addend,
+  void resolveRelocation(const SectionEntry &Section, uint64_t Offset,
+                         uint64_t Value, uint32_t Type, int64_t Addend,
+                         uint64_t SymOffset = 0);
+
+  void resolveX86_64Relocation(const SectionEntry &Section, uint64_t Offset,
+                               uint64_t Value, uint32_t Type, int64_t Addend,
                                uint64_t SymOffset);
 
-  void resolveX86Relocation(const SectionEntry &Section,
-                            uint64_t Offset,
-                            uint32_t Value,
-                            uint32_t Type,
-                            int32_t Addend);
+  void resolveX86Relocation(const SectionEntry &Section, uint64_t Offset,
+                            uint32_t Value, uint32_t Type, int32_t Addend);
 
-  void resolveAArch64Relocation(const SectionEntry &Section,
-                                uint64_t Offset,
-                                uint64_t Value,
-                                uint32_t Type,
-                                int64_t Addend);
+  void resolveAArch64Relocation(const SectionEntry &Section, uint64_t Offset,
+                                uint64_t Value, uint32_t Type, int64_t Addend);
 
-  void resolveARMRelocation(const SectionEntry &Section,
-                            uint64_t Offset,
-                            uint32_t Value,
-                            uint32_t Type,
-                            int32_t Addend);
+  void resolveARMRelocation(const SectionEntry &Section, uint64_t Offset,
+                            uint32_t Value, uint32_t Type, int32_t Addend);
 
-  void resolveMIPSRelocation(const SectionEntry &Section,
-                             uint64_t Offset,
-                             uint32_t Value,
-                             uint32_t Type,
-                             int32_t Addend);
+  void resolveMIPSRelocation(const SectionEntry &Section, uint64_t Offset,
+                             uint32_t Value, uint32_t Type, int32_t Addend);
 
-  void resolvePPC64Relocation(const SectionEntry &Section,
-                              uint64_t Offset,
-                              uint64_t Value,
-                              uint32_t Type,
-                              int64_t Addend);
+  void resolvePPC64Relocation(const SectionEntry &Section, uint64_t Offset,
+                              uint64_t Value, uint32_t Type, int64_t Addend);
 
-  void resolveSystemZRelocation(const SectionEntry &Section,
-                                uint64_t Offset,
-                                uint64_t Value,
-                                uint32_t Type,
-                                int64_t Addend);
+  void resolveSystemZRelocation(const SectionEntry &Section, uint64_t Offset,
+                                uint64_t Value, uint32_t Type, int64_t Addend);
 
-  unsigned getMaxStubSize() {
-    if (Arch == Triple::aarch64)
+  unsigned getMaxStubSize() override {
+    if (Arch == Triple::aarch64 || Arch == Triple::aarch64_be)
       return 20; // movz; movk; movk; movk; br
     if (Arch == Triple::arm || Arch == Triple::thumb)
       return 8; // 32-bit instruction and 32-bit address
@@ -99,24 +76,26 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
       return 0;
   }
 
-  unsigned getStubAlignment() {
+  unsigned getStubAlignment() override {
     if (Arch == Triple::systemz)
       return 8;
     else
       return 1;
   }
 
-  uint64_t findPPC64TOC() const;
-  void findOPDEntrySection(ObjectImage &Obj,
+  void findPPC64TOCSection(const ObjectFile &Obj,
+                           ObjSectionToIDMap &LocalSections,
+                           RelocationValueRef &Rel);
+  void findOPDEntrySection(const ObjectFile &Obj,
                            ObjSectionToIDMap &LocalSections,
                            RelocationValueRef &Rel);
 
   uint64_t findGOTEntry(uint64_t LoadAddr, uint64_t Offset);
   size_t getGOTEntrySize();
 
-  virtual void updateGOTEntries(StringRef Name, uint64_t Addr);
+  void updateGOTEntries(StringRef Name, uint64_t Addr) override;
 
-  // Relocation entries for symbols whose position-independant offset is
+  // Relocation entries for symbols whose position-independent offset is
   // updated in a global offset table.
   typedef SmallVector<RelocationValueRef, 2> GOTRelocations;
   GOTRelocations GOTEntries; // List of entries requiring finalization.
@@ -129,22 +108,23 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
   SmallVector<SID, 2> RegisteredEHFrameSections;
 
 public:
-  RuntimeDyldELF(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm)
-                                          {}
-
-  virtual void resolveRelocation(const RelocationEntry &RE, uint64_t Value);
-  virtual void processRelocationRef(unsigned SectionID,
-                                    RelocationRef RelI,
-                                    ObjectImage &Obj,
-                                    ObjSectionToIDMap &ObjSectionToID,
-                                    const SymbolTableMap &Symbols,
-                                    StubMap &Stubs);
-  virtual bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
-  virtual ObjectImage *createObjectImage(ObjectBuffer *InputBuffer);
-  virtual void registerEHFrames();
-  virtual void deregisterEHFrames();
-  virtual void finalizeLoad(ObjSectionToIDMap &SectionMap);
+  RuntimeDyldELF(RTDyldMemoryManager *mm);
   virtual ~RuntimeDyldELF();
+
+  std::unique_ptr<RuntimeDyld::LoadedObjectInfo>
+  loadObject(const object::ObjectFile &O) override;
+
+  void resolveRelocation(const RelocationEntry &RE, uint64_t Value) override;
+  relocation_iterator
+  processRelocationRef(unsigned SectionID, relocation_iterator RelI,
+                       const ObjectFile &Obj,
+                       ObjSectionToIDMap &ObjSectionToID,
+                       StubMap &Stubs) override;
+  bool isCompatibleFile(const object::ObjectFile &Obj) const override;
+  void registerEHFrames() override;
+  void deregisterEHFrames() override;
+  void finalizeLoad(const ObjectFile &Obj,
+                    ObjSectionToIDMap &SectionMap) override;
 };
 
 } // end namespace llvm

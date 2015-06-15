@@ -167,15 +167,22 @@ svr4_sys_execv(td, uap)
 	struct svr4_sys_execv_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -185,16 +192,23 @@ svr4_sys_execve(td, uap)
 	struct svr4_sys_execve_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
 	    uap->envp);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -653,10 +667,13 @@ svr4_mknod(td, retval, path, mode, dev)
 
 	CHECKALTEXIST(td, path, &newpath);
 
-	if (S_ISFIFO(mode))
-		error = kern_mkfifo(td, newpath, UIO_SYSSPACE, mode);
-	else
-		error = kern_mknod(td, newpath, UIO_SYSSPACE, mode, dev);
+	if (S_ISFIFO(mode)) {
+		error = kern_mkfifoat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+		    mode);
+	} else {
+		error = kern_mknodat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+		    mode, dev);
+	}
 	free(newpath, M_TEMP);
 	return (error);
 }
@@ -861,9 +878,9 @@ svr4_sys_times(td, uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	calcru(p, &utime, &stime);
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 	calccru(p, &cutime, &cstime);
 	PROC_UNLOCK(p);
 
@@ -893,9 +910,7 @@ svr4_sys_ulimit(td, uap)
 
 	switch (uap->cmd) {
 	case SVR4_GFILLIM:
-		PROC_LOCK(td->td_proc);
-		*retval = lim_cur(td->td_proc, RLIMIT_FSIZE) / 512;
-		PROC_UNLOCK(td->td_proc);
+		*retval = lim_cur(td, RLIMIT_FSIZE) / 512;
 		if (*retval == -1)
 			*retval = 0x7fffffff;
 		return 0;
@@ -905,17 +920,13 @@ svr4_sys_ulimit(td, uap)
 			struct rlimit krl;
 
 			krl.rlim_cur = uap->newlimit * 512;
-			PROC_LOCK(td->td_proc);
-			krl.rlim_max = lim_max(td->td_proc, RLIMIT_FSIZE);
-			PROC_UNLOCK(td->td_proc);
+			krl.rlim_max = lim_max(td, RLIMIT_FSIZE);
 
 			error = kern_setrlimit(td, RLIMIT_FSIZE, &krl);
 			if (error)
 				return error;
 
-			PROC_LOCK(td->td_proc);
-			*retval = lim_cur(td->td_proc, RLIMIT_FSIZE);
-			PROC_UNLOCK(td->td_proc);
+			*retval = lim_cur(td, RLIMIT_FSIZE);
 			if (*retval == -1)
 				*retval = 0x7fffffff;
 			return 0;
@@ -926,9 +937,7 @@ svr4_sys_ulimit(td, uap)
 			struct vmspace *vm = td->td_proc->p_vmspace;
 			register_t r;
 
-			PROC_LOCK(td->td_proc);
-			r = lim_cur(td->td_proc, RLIMIT_DATA);
-			PROC_UNLOCK(td->td_proc);
+			r = lim_cur(td, RLIMIT_DATA);
 
 			if (r == -1)
 				r = 0x7fffffff;
@@ -940,9 +949,7 @@ svr4_sys_ulimit(td, uap)
 		}
 
 	case SVR4_GDESLIM:
-		PROC_LOCK(td->td_proc);
-		*retval = lim_cur(td->td_proc, RLIMIT_NOFILE);
-		PROC_UNLOCK(td->td_proc);
+		*retval = lim_cur(td, RLIMIT_NOFILE);
 		if (*retval == -1)
 			*retval = 0x7fffffff;
 		return 0;
@@ -1274,9 +1281,9 @@ loop:
 			pid = p->p_pid;
 			status = p->p_xstat;
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 
@@ -1301,9 +1308,9 @@ loop:
 			pid = p->p_pid;
 			status = W_STOPCODE(p->p_xstat);
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
@@ -1325,9 +1332,9 @@ loop:
 			pid = p->p_pid;
 			ru = p->p_ru;
 			status = SIGCONT;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {

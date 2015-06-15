@@ -6,8 +6,7 @@ PROG=	grp
 
 SRCS=	grp.c
 
-DPADD=	${LIBCAPSICUM} ${LIBCASPER} ${LIBNV} ${LIBPJDLOG} ${LIBUTIL}
-LDADD=	-lcapsicum -lcasper -lnv -lpjdlog -lutil
+LIBADD=	casper nv pjdlog
 
 BINDIR=	/libexec/casper
 

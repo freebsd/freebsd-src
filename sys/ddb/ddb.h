@@ -77,6 +77,13 @@ int	DB_CALL(db_expr_t, db_expr_t *, int, db_expr_t[]);
 #endif
 
 /*
+ * Extern variables to set the address and size of the symtab and strtab.
+ * Most users should use db_fetch_symtab in order to set them from the
+ * boot loader provided values.
+ */
+extern vm_offset_t ksymtab, kstrtab, ksymtab_size;
+
+/*
  * There are three "command tables":
  * - One for simple commands; a list of these is displayed
  *   by typing 'help' at the debugger prompt.
@@ -94,7 +101,7 @@ extern struct command_table db_show_all_table;
 /*
  * Type signature for a function implementing a ddb command.
  */
-typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+typedef void db_cmdfcn_t(db_expr_t addr, bool have_addr, db_expr_t count,
 	    char *modif);
 
 /*
@@ -149,7 +156,7 @@ SYSUNINIT(__CONCAT(_name,_suffix), SI_SUB_KLD, SI_ORDER_ANY,	\
 static db_cmdfcn_t _func;					\
 _DB_SET(_suffix, _name, _func, list, _flag, _more);		\
 static void							\
-_func(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
+_func(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 
 /* common idom provided for backwards compatibility */
 #define	DB_FUNC(_name, _func, list, _flag, _more)		\
@@ -184,17 +191,17 @@ struct vm_map;
 
 void		db_check_interrupt(void);
 void		db_clear_watchpoints(void);
-db_addr_t	db_disasm(db_addr_t loc, boolean_t altfmt);
+db_addr_t	db_disasm(db_addr_t loc, bool altfmt);
 				/* instruction disassembler */
 void		db_error(const char *s);
 int		db_expression(db_expr_t *valuep);
 int		db_get_variable(db_expr_t *valuep);
 void		db_iprintf(const char *,...) __printflike(1, 2);
 struct proc	*db_lookup_proc(db_expr_t addr);
-struct thread	*db_lookup_thread(db_expr_t addr, boolean_t check_pid);
+struct thread	*db_lookup_thread(db_expr_t addr, bool check_pid);
 struct vm_map	*db_map_addr(vm_offset_t);
-boolean_t	db_map_current(struct vm_map *);
-boolean_t	db_map_equal(struct vm_map *, struct vm_map *);
+bool		db_map_current(struct vm_map *);
+bool		db_map_equal(struct vm_map *, struct vm_map *);
 int		db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
 int		db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void		db_md_list_watchpoints(void);
@@ -204,20 +211,21 @@ int		db_printf(const char *fmt, ...) __printflike(1, 2);
 int		db_read_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
 int		db_readline(char *lstart, int lsize);
-void		db_restart_at_pc(boolean_t watchpt);
+void		db_restart_at_pc(bool watchpt);
 int		db_set_variable(db_expr_t value);
 void		db_set_watchpoints(void);
 void		db_skip_to_eol(void);
-boolean_t	db_stop_at_pc(boolean_t *is_breakpoint);
+bool		db_stop_at_pc(bool *is_breakpoint);
 #define		db_strcpy	strcpy
 void		db_trace_self(void);
 int		db_trace_thread(struct thread *, int);
-int		db_value_of_name(const char *name, db_expr_t *valuep);
-int		db_value_of_name_pcpu(const char *name, db_expr_t *valuep);
-int		db_value_of_name_vnet(const char *name, db_expr_t *valuep);
+bool		db_value_of_name(const char *name, db_expr_t *valuep);
+bool		db_value_of_name_pcpu(const char *name, db_expr_t *valuep);
+bool		db_value_of_name_vnet(const char *name, db_expr_t *valuep);
 int		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 void		db_command_register(struct command_table *, struct command *);
 void		db_command_unregister(struct command_table *, struct command *);
+int		db_fetch_ksymtab(vm_offset_t ksym_start, vm_offset_t ksym_end);
 
 db_cmdfcn_t	db_breakpoint_cmd;
 db_cmdfcn_t	db_capture_cmd;

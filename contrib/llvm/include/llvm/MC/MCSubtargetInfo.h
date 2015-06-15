@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_MCSUBTARGET_H
-#define LLVM_MC_MCSUBTARGET_H
+#ifndef LLVM_MC_MCSUBTARGETINFO_H
+#define LLVM_MC_MCSUBTARGETINFO_H
 
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/MC/SubtargetFeature.h"
@@ -28,34 +28,31 @@ class StringRef;
 ///
 class MCSubtargetInfo {
   std::string TargetTriple;            // Target triple
-  const SubtargetFeatureKV *ProcFeatures;  // Processor feature list
-  const SubtargetFeatureKV *ProcDesc;  // Processor descriptions
+  ArrayRef<SubtargetFeatureKV> ProcFeatures;  // Processor feature list
+  ArrayRef<SubtargetFeatureKV> ProcDesc;  // Processor descriptions
 
   // Scheduler machine model
   const SubtargetInfoKV *ProcSchedModels;
   const MCWriteProcResEntry *WriteProcResTable;
   const MCWriteLatencyEntry *WriteLatencyTable;
   const MCReadAdvanceEntry *ReadAdvanceTable;
-  const MCSchedModel *CPUSchedModel;
+  MCSchedModel CPUSchedModel;
 
   const InstrStage *Stages;            // Instruction itinerary stages
   const unsigned *OperandCycles;       // Itinerary operand cycles
   const unsigned *ForwardingPaths;     // Forwarding paths
-  unsigned NumFeatures;                // Number of processor features
-  unsigned NumProcs;                   // Number of processors
   uint64_t FeatureBits;                // Feature bits for current CPU + FS
 
 public:
   void InitMCSubtargetInfo(StringRef TT, StringRef CPU, StringRef FS,
-                           const SubtargetFeatureKV *PF,
-                           const SubtargetFeatureKV *PD,
+                           ArrayRef<SubtargetFeatureKV> PF,
+                           ArrayRef<SubtargetFeatureKV> PD,
                            const SubtargetInfoKV *ProcSched,
                            const MCWriteProcResEntry *WPR,
                            const MCWriteLatencyEntry *WL,
                            const MCReadAdvanceEntry *RA,
                            const InstrStage *IS,
-                           const unsigned *OC, const unsigned *FP,
-                           unsigned NF, unsigned NP);
+                           const unsigned *OC, const unsigned *FP);
 
   /// getTargetTriple - Return the target triple string.
   StringRef getTargetTriple() const {
@@ -67,6 +64,10 @@ public:
   uint64_t getFeatureBits() const {
     return FeatureBits;
   }
+
+  /// setFeatureBits - Set the feature bits.
+  ///
+  void setFeatureBits(uint64_t FeatureBits_) { FeatureBits = FeatureBits_; }
 
   /// InitMCProcessorInfo - Set or change the CPU (optionally supplemented with
   /// feature string). Recompute feature bits and scheduling model.
@@ -85,11 +86,11 @@ public:
 
   /// getSchedModelForCPU - Get the machine model of a CPU.
   ///
-  const MCSchedModel *getSchedModelForCPU(StringRef CPU) const;
+  MCSchedModel getSchedModelForCPU(StringRef CPU) const;
 
   /// getSchedModel - Get the machine model for this subtarget's CPU.
   ///
-  const MCSchedModel *getSchedModel() const { return CPUSchedModel; }
+  const MCSchedModel &getSchedModel() const { return CPUSchedModel; }
 
   /// Return an iterator at the first process resource consumed by the given
   /// scheduling class.
@@ -135,6 +136,15 @@ public:
 
   /// Initialize an InstrItineraryData instance.
   void initInstrItins(InstrItineraryData &InstrItins) const;
+
+  /// Check whether the CPU string is valid.
+  bool isCPUStringValid(StringRef CPU) {
+    auto Found = std::find_if(ProcDesc.begin(), ProcDesc.end(),
+                              [=](const SubtargetFeatureKV &KV) {
+                                return CPU == KV.Key; 
+                              });
+    return Found != ProcDesc.end();
+  }
 };
 
 } // End llvm namespace

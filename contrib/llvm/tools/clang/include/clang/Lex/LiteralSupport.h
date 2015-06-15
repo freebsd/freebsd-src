@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_LITERALSUPPORT_H
-#define CLANG_LITERALSUPPORT_H
+#ifndef LLVM_CLANG_LEX_LITERALSUPPORT_H
+#define LLVM_CLANG_LEX_LITERALSUPPORT_H
 
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LLVM.h"
@@ -33,6 +33,9 @@ class TargetInfo;
 class SourceManager;
 class LangOptions;
 
+/// Copy characters from Input to Buf, expanding any UCNs.
+void expandUCNs(SmallVectorImpl<char> &Buf, StringRef Input);
+
 /// NumericLiteralParser - This performs strict semantic analysis of the content
 /// of a ppnumber, classifying it as either integer, floating, or erroneous,
 /// determines the radix of the value and can convert it to a useful value.
@@ -48,6 +51,8 @@ class NumericLiteralParser {
 
   bool saw_exponent, saw_period, saw_ud_suffix;
 
+  SmallString<32> UDSuffixBuf;
+
 public:
   NumericLiteralParser(StringRef TokSpelling,
                        SourceLocation TokLoc,
@@ -58,7 +63,7 @@ public:
   bool isLongLong;
   bool isFloat;       // 1.0f
   bool isImaginary;   // 1.0i
-  bool isMicrosoftInteger;  // Microsoft suffix extension i8, i16, i32, or i64.
+  uint8_t MicrosoftInteger;  // Microsoft suffix extension i8, i16, i32, or i64.
 
   bool isIntegerLiteral() const {
     return !saw_period && !saw_exponent;
@@ -72,7 +77,7 @@ public:
   }
   StringRef getUDSuffix() const {
     assert(saw_ud_suffix);
-    return StringRef(SuffixBegin, ThisTokEnd - SuffixBegin);
+    return UDSuffixBuf;
   }
   unsigned getUDSuffixOffset() const {
     assert(saw_ud_suffix);
@@ -191,15 +196,16 @@ class StringLiteralParser {
   unsigned UDSuffixToken;
   unsigned UDSuffixOffset;
 public:
-  StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
+  StringLiteralParser(ArrayRef<Token> StringToks,
                       Preprocessor &PP, bool Complain = true);
-  StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
+  StringLiteralParser(ArrayRef<Token> StringToks,
                       const SourceManager &sm, const LangOptions &features,
-                      const TargetInfo &target, DiagnosticsEngine *diags = 0)
+                      const TargetInfo &target,
+                      DiagnosticsEngine *diags = nullptr)
     : SM(sm), Features(features), Target(target), Diags(diags),
       MaxTokenLength(0), SizeBound(0), CharByteWidth(0), Kind(tok::unknown),
       ResultPtr(ResultBuf.data()), hadError(false), Pascal(false) {
-    init(StringToks, NumStringToks);
+    init(StringToks);
   }
     
 
@@ -243,7 +249,7 @@ public:
   }
 
 private:
-  void init(const Token *StringToks, unsigned NumStringToks);
+  void init(ArrayRef<Token> StringToks);
   bool CopyStringFragment(const Token &Tok, const char *TokBegin,
                           StringRef Fragment);
   void DiagnoseLexingError(SourceLocation Loc);

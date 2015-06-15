@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/freescale/imx/imx51_ccmvar.h>
 #include <arm/freescale/imx/imx51_ccmreg.h>
@@ -579,4 +578,11 @@ imx_ccm_uart_hz(void)
 {
 
 	return (imx51_get_clock(IMX51CLK_UART_CLK_ROOT));
+}
+
+uint32_t
+imx_ccm_ahb_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_AHB_CLK_ROOT));
 }

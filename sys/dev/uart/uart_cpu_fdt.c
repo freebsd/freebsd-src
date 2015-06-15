@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#ifndef __aarch64__
 #include <machine/fdt.h>
+#endif
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -50,44 +52,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
+
+#ifdef __aarch64__
+extern bus_space_tag_t fdtbus_bs_tag;
+#endif
 
 /*
  * UART console routines.
  */
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
-
-static int
-uart_fdt_get_clock(phandle_t node, pcell_t *cell)
-{
-	pcell_t clock;
-
-	/* clock-frequency is a FreeBSD-only extention. */
-	if ((OF_getprop(node, "clock-frequency", &clock,
-	    sizeof(clock))) <= 0)
-		clock = 0;
-
-	if (clock == 0)
-		/* Try to retrieve parent 'bus-frequency' */
-		/* XXX this should go to simple-bus fixup or so */
-		if ((OF_getprop(OF_parent(node), "bus-frequency", &clock,
-		    sizeof(clock))) <= 0)
-			clock = 0;
-
-	*cell = fdt32_to_cpu(clock);
-	return (0);
-}
-
-static int
-uart_fdt_get_shift(phandle_t node, pcell_t *cell)
-{
-	pcell_t shift;
-
-	if ((OF_getprop(node, "reg-shift", &shift, sizeof(shift))) <= 0)
-		shift = 0;
-	*cell = fdt32_to_cpu(shift);
-	return (0);
-}
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
@@ -115,13 +90,46 @@ phandle_chosen_propdev(phandle_t chosen, const char *name, phandle_t *node)
 	return (0);
 }
 
+static const struct ofw_compat_data *
+uart_fdt_find_compatible(phandle_t node, const struct ofw_compat_data *cd)
+{
+	const struct ofw_compat_data *ocd;
+
+	for (ocd = cd; ocd->ocd_str != NULL; ocd++) {
+		if (fdt_is_compatible(node, ocd->ocd_str))
+			return (ocd);
+	}
+	return (NULL);
+}
+
+static uintptr_t
+uart_fdt_find_by_node(phandle_t node, int class_list)
+{
+	struct ofw_compat_data **cd;
+	const struct ofw_compat_data *ocd;
+
+	if (class_list) {
+		SET_FOREACH(cd, uart_fdt_class_set) {
+			ocd = uart_fdt_find_compatible(node, *cd);
+			if ((ocd != NULL) && (ocd->ocd_data != 0))
+				return (ocd->ocd_data);
+		}
+	} else {
+		SET_FOREACH(cd, uart_fdt_class_and_device_set) {
+			ocd = uart_fdt_find_compatible(node, *cd);
+			if ((ocd != NULL) && (ocd->ocd_data != 0))
+				return (ocd->ocd_data);
+		}
+	}
+	return (0);
+}
+
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	const char *propnames[] = {"stdout-path", "linux,stdout-path", "stdout",
 	    "stdin-path", "stdin", NULL};
 	const char **name;
-	const struct ofw_compat_data *cd;
 	struct uart_class *class;
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
@@ -157,27 +165,37 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 
 	/*
+	 * Check old style of UART definition first. Unfortunately, the common
+	 * FDT processing is not possible if we have clock, power domains and
+	 * pinmux stuff.
+	 */
+	class = (struct uart_class *)uart_fdt_find_by_node(node, 0);
+	if (class != NULL) {
+		if ((err = uart_fdt_get_clock(node, &rclk)) != 0)
+			return (err);
+	} else {
+		/* Check class only linker set */
+		class =
+		    (struct uart_class *)uart_fdt_find_by_node(node, 1);
+		if (class == NULL)
+			return (ENXIO);
+		rclk = 0;
+	}
+
+	/*
 	 * Retrieve serial attributes.
 	 */
-	uart_fdt_get_shift(node, &shift);
+	if (uart_fdt_get_shift(node, &shift) != 0)
+		shift = uart_getregshift(class);
 
 	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
 		br = 0;
-	br = fdt32_to_cpu(br);
+	else
+		br = fdt32_to_cpu(br);
 
-	if ((err = uart_fdt_get_clock(node, &rclk)) != 0)
-		return (err);
 	/*
 	 * Finalize configuration.
 	 */
-	for (cd = uart_fdt_compat_data; cd->ocd_str != NULL; ++cd) {
-		if (fdt_is_compatible(node, cd->ocd_str))
-			break;
-	}
-	if (cd->ocd_str == NULL)
-		return (ENXIO);
-	class = (struct uart_class *)cd->ocd_data;
-
 	di->bas.chan = 0;
 	di->bas.regshft = (u_int)shift;
 	di->baudrate = br;

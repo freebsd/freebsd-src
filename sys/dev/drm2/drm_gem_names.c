@@ -127,13 +127,31 @@ drm_gem_find_name(struct drm_gem_names *names, void *ptr)
 	return (arg.res);
 }
 
+void *
+drm_gem_find_ptr(struct drm_gem_names *names, uint32_t name)
+{
+	struct drm_gem_name *n;
+	void *res;
+
+	mtx_lock(&names->lock);
+	LIST_FOREACH(n, gem_name_hash_index(names, name), link) {
+		if (n->name == name) {
+			res = n->ptr;
+			mtx_unlock(&names->lock);
+			return (res);
+		}
+	}
+	mtx_unlock(&names->lock);
+	return (NULL);
+}
+
 int
 drm_gem_name_create(struct drm_gem_names *names, void *p, uint32_t *name)
 {
 	struct drm_gem_name *np;
 
 	if (*name != 0) {
-		return (EALREADY);
+		return (-EALREADY);
 	}
 
 	np = malloc(sizeof(struct drm_gem_name), M_GEM_NAMES, M_WAITOK);
@@ -142,7 +160,7 @@ drm_gem_name_create(struct drm_gem_names *names, void *p, uint32_t *name)
 	if (np->name == -1) {
 		mtx_unlock(&names->lock);
 		free(np, M_GEM_NAMES);
-		return (ENOMEM);
+		return (-ENOMEM);
 	}
 	*name = np->name;
 	np->ptr = p;

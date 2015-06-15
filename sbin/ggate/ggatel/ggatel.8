@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2011
+.Dd April 9, 2015
 .Dt GGATEL 8
 .Os
 .Sh NAME
@@ -40,12 +40,6 @@
 .Op Fl u Ar unit
 .Ar path
 .Nm
-.Cm attach
-.Op Fl v
-.Op Fl o Cm ro | wo | rw
-.Fl u Ar unit
-.Ar path
-.Nm
 .Cm destroy
 .Op Fl f
 .Fl u Ar unit
@@ -53,6 +47,12 @@
 .Cm list
 .Op Fl v
 .Op Fl u Ar unit
+.Nm
+.Cm rescue
+.Op Fl v
+.Op Fl o Cm ro | wo | rw
+.Fl u Ar unit
+.Ar path
 .Sh DESCRIPTION
 The
 .Nm
@@ -70,10 +70,6 @@ Available commands:
 Create a
 .Nm ggate
 provider related to the given regular file or device.
-.It Cm attach
-Attach a worker process to an existing
-.Nm ggate
-provider.
 .It Cm destroy
 Destroy the given
 .Nm ggate
@@ -82,6 +78,12 @@ provider.
 List
 .Nm ggate
 providers.
+.It Cm rescue
+Take over a previously created provider and handle pending and future
+requests. This is useful if the initial
+.Nm
+process died. To prevent data loss, the given path must lead to the
+regular file or device that was used to create the provider.
 .El
 .Pp
 Available options:
@@ -111,7 +113,7 @@ Default is 30.
 .It Fl u Ar unit
 Unit number to use.
 .It Fl v
-Do not fork, run in foreground and print debug informations on standard
+Do not fork, run in foreground and print debug information on standard
 output.
 .It Ar path
 Path to a regular file or device.

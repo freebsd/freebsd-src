@@ -7,7 +7,6 @@ SRCS=	tftp-file.c tftp-io.c tftp-options.c tftp-transfer.c tftp-utils.c
 SRCS+=	tftpd.c
 WFORMAT=0
 
-DPADD=	${LIBWRAP}
-LDADD=	-lwrap
+LIBADD=	wrap
 
 .include <bsd.prog.mk>

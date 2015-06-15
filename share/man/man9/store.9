@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2009
+.Dd October 29, 2014
 .Dt STORE 9
 .Os
 .Sh NAME
@@ -48,15 +48,15 @@
 .In sys/time.h
 .In sys/systm.h
 .Ft int
-.Fn subyte "void *base" "int byte"
+.Fn subyte "volatile void *base" "int byte"
 .Ft int
-.Fn suword "void *base" "long word"
+.Fn suword "volatile void *base" "long word"
 .Ft int
-.Fn suword16 "void *base" "int word"
+.Fn suword16 "volatile void *base" "int word"
 .Ft int
-.Fn suword32 "void *base" "int32_t word"
+.Fn suword32 "volatile void *base" "int32_t word"
 .Ft int
-.Fn suword64 "void *base" "int64_t word"
+.Fn suword64 "volatile void *base" "int64_t word"
 .In sys/resourcevar.h
 .Ft int
 .Fn suswintr "void *base" "int word"
@@ -64,6 +64,8 @@
 The
 .Nm
 functions are designed to copy small amounts of data to user-space.
+If write is successful, it is performed atomically.
+The data written must be naturally aligned.
 .Pp
 The
 .Nm

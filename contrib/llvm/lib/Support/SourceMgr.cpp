@@ -14,20 +14,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Locale.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 using namespace llvm;
 
 static const size_t TabStop = 8;
 
 namespace {
   struct LineNoCacheTy {
-    int LastQueryBufferID;
+    unsigned LastQueryBufferID;
     const char *LastQuery;
     unsigned LineNoOfQuery;
   };
@@ -42,55 +42,46 @@ SourceMgr::~SourceMgr() {
   // Delete the line # cache if allocated.
   if (LineNoCacheTy *Cache = getCache(LineNoCache))
     delete Cache;
-
-  while (!Buffers.empty()) {
-    delete Buffers.back().Buffer;
-    Buffers.pop_back();
-  }
 }
 
-/// AddIncludeFile - Search for a file with the specified name in the current
-/// directory or in one of the IncludeDirs.  If no file is found, this returns
-/// ~0, otherwise it returns the buffer ID of the stacked file.
-size_t SourceMgr::AddIncludeFile(const std::string &Filename,
-                                 SMLoc IncludeLoc,
-                                 std::string &IncludedFile) {
-  OwningPtr<MemoryBuffer> NewBuf;
+unsigned SourceMgr::AddIncludeFile(const std::string &Filename,
+                                   SMLoc IncludeLoc,
+                                   std::string &IncludedFile) {
   IncludedFile = Filename;
-  MemoryBuffer::getFile(IncludedFile.c_str(), NewBuf);
+  ErrorOr<std::unique_ptr<MemoryBuffer>> NewBufOrErr =
+    MemoryBuffer::getFile(IncludedFile);
 
   // If the file didn't exist directly, see if it's in an include path.
-  for (unsigned i = 0, e = IncludeDirectories.size(); i != e && !NewBuf; ++i) {
-    IncludedFile = IncludeDirectories[i] + "/" + Filename;
-    MemoryBuffer::getFile(IncludedFile.c_str(), NewBuf);
+  for (unsigned i = 0, e = IncludeDirectories.size(); i != e && !NewBufOrErr;
+       ++i) {
+    IncludedFile =
+        IncludeDirectories[i] + sys::path::get_separator().data() + Filename;
+    NewBufOrErr = MemoryBuffer::getFile(IncludedFile);
   }
 
-  if (!NewBuf) return ~0U;
+  if (!NewBufOrErr)
+    return 0;
 
-  return AddNewSourceBuffer(NewBuf.take(), IncludeLoc);
+  return AddNewSourceBuffer(std::move(*NewBufOrErr), IncludeLoc);
 }
 
-
-/// FindBufferContainingLoc - Return the ID of the buffer containing the
-/// specified location, returning -1 if not found.
-int SourceMgr::FindBufferContainingLoc(SMLoc Loc) const {
+unsigned SourceMgr::FindBufferContainingLoc(SMLoc Loc) const {
   for (unsigned i = 0, e = Buffers.size(); i != e; ++i)
     if (Loc.getPointer() >= Buffers[i].Buffer->getBufferStart() &&
         // Use <= here so that a pointer to the null at the end of the buffer
         // is included as part of the buffer.
         Loc.getPointer() <= Buffers[i].Buffer->getBufferEnd())
-      return i;
-  return -1;
+      return i + 1;
+  return 0;
 }
 
-/// getLineAndColumn - Find the line and column number for the specified
-/// location in the specified file.  This is not a fast method.
 std::pair<unsigned, unsigned>
-SourceMgr::getLineAndColumn(SMLoc Loc, int BufferID) const {
-  if (BufferID == -1) BufferID = FindBufferContainingLoc(Loc);
-  assert(BufferID != -1 && "Invalid Location!");
+SourceMgr::getLineAndColumn(SMLoc Loc, unsigned BufferID) const {
+  if (!BufferID)
+    BufferID = FindBufferContainingLoc(Loc);
+  assert(BufferID && "Invalid Location!");
 
-  MemoryBuffer *Buff = getBufferInfo(BufferID).Buffer;
+  const MemoryBuffer *Buff = getMemoryBuffer(BufferID);
 
   // Count the number of \n's between the start of the file and the specified
   // location.
@@ -115,7 +106,7 @@ SourceMgr::getLineAndColumn(SMLoc Loc, int BufferID) const {
     if (*Ptr == '\n') ++LineNo;
 
   // Allocate the line number cache if it doesn't exist.
-  if (LineNoCache == 0)
+  if (!LineNoCache)
     LineNoCache = new LineNoCacheTy();
 
   // Update the line # cache.
@@ -132,8 +123,8 @@ SourceMgr::getLineAndColumn(SMLoc Loc, int BufferID) const {
 void SourceMgr::PrintIncludeStack(SMLoc IncludeLoc, raw_ostream &OS) const {
   if (IncludeLoc == SMLoc()) return;  // Top of stack.
 
-  int CurBuf = FindBufferContainingLoc(IncludeLoc);
-  assert(CurBuf != -1 && "Invalid or unspecified location!");
+  unsigned CurBuf = FindBufferContainingLoc(IncludeLoc);
+  assert(CurBuf && "Invalid or unspecified location!");
 
   PrintIncludeStack(getBufferInfo(CurBuf).IncludeLoc, OS);
 
@@ -143,11 +134,6 @@ void SourceMgr::PrintIncludeStack(SMLoc IncludeLoc, raw_ostream &OS) const {
 }
 
 
-/// GetMessage - Return an SMDiagnostic at the specified location with the
-/// specified string.
-///
-/// @param Type - If non-null, the kind of message (e.g., "error") which is
-/// prefixed to the message.
 SMDiagnostic SourceMgr::GetMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
                                    const Twine &Msg,
                                    ArrayRef<SMRange> Ranges,
@@ -161,10 +147,10 @@ SMDiagnostic SourceMgr::GetMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
   std::string LineStr;
   
   if (Loc.isValid()) {
-    int CurBuf = FindBufferContainingLoc(Loc);
-    assert(CurBuf != -1 && "Invalid or unspecified location!");
+    unsigned CurBuf = FindBufferContainingLoc(Loc);
+    assert(CurBuf && "Invalid or unspecified location!");
 
-    MemoryBuffer *CurMB = getBufferInfo(CurBuf).Buffer;
+    const MemoryBuffer *CurMB = getMemoryBuffer(CurBuf);
     BufferID = CurMB->getBufferIdentifier();
     
     // Scan backward to find the start of the line.
@@ -211,25 +197,28 @@ SMDiagnostic SourceMgr::GetMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
                       LineStr, ColRanges, FixIts);
 }
 
-void SourceMgr::PrintMessage(raw_ostream &OS, SMLoc Loc,
-                             SourceMgr::DiagKind Kind,
-                             const Twine &Msg, ArrayRef<SMRange> Ranges,
-                             ArrayRef<SMFixIt> FixIts, bool ShowColors) const {
-  SMDiagnostic Diagnostic = GetMessage(Loc, Kind, Msg, Ranges, FixIts);
-  
+void SourceMgr::PrintMessage(raw_ostream &OS, const SMDiagnostic &Diagnostic,
+                             bool ShowColors) const {
   // Report the message with the diagnostic handler if present.
   if (DiagHandler) {
     DiagHandler(Diagnostic, DiagContext);
     return;
   }
 
-  if (Loc != SMLoc()) {
-    int CurBuf = FindBufferContainingLoc(Loc);
-    assert(CurBuf != -1 && "Invalid or unspecified location!");
+  if (Diagnostic.getLoc().isValid()) {
+    unsigned CurBuf = FindBufferContainingLoc(Diagnostic.getLoc());
+    assert(CurBuf && "Invalid or unspecified location!");
     PrintIncludeStack(getBufferInfo(CurBuf).IncludeLoc, OS);
   }
 
-  Diagnostic.print(0, OS, ShowColors);
+  Diagnostic.print(nullptr, OS, ShowColors);
+}
+
+void SourceMgr::PrintMessage(raw_ostream &OS, SMLoc Loc,
+                             SourceMgr::DiagKind Kind,
+                             const Twine &Msg, ArrayRef<SMRange> Ranges,
+                             ArrayRef<SMFixIt> FixIts, bool ShowColors) const {
+  PrintMessage(OS, GetMessage(Loc, Kind, Msg, Ranges, FixIts), ShowColors);
 }
 
 void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,

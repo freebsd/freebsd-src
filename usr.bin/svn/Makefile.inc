@@ -13,7 +13,6 @@ SVNLITE?=	lite
 SVNDIR=		${.CURDIR}/../../../contrib/subversion/subversion
 APRU=		${.CURDIR}/../../../contrib/apr-util
 APR=		${.CURDIR}/../../../contrib/apr
-SQLITE=		${.CURDIR}/../../../contrib/sqlite3
 WARNS?=		0	# defintely not warns friendly
 
 .if exists(${.CURDIR}/../../Makefile.inc)
@@ -22,7 +21,6 @@ WARNS?=		0	# defintely not warns friendly
 
 LIBAPRDIR=		${.OBJDIR}/../lib/libapr
 LIBAPR_UTILDIR=		${.OBJDIR}/../lib/libapr_util
-LIBSQLITEDIR=		${.OBJDIR}/../lib/libsqlite3
 LIBSERFDIR=		${.OBJDIR}/../lib/libserf
 
 LIBSVN_CLIENTDIR=	${.OBJDIR}/../lib/libsvn_client
@@ -41,7 +39,6 @@ LIBSVN_WCDIR=		${.OBJDIR}/../lib/libsvn_wc
 
 LIBAPR=			${LIBAPRDIR}/libapr.a
 LIBAPR_UTIL=		${LIBAPR_UTILDIR}/libapr-util.a
-LIBSQLITE=		${LIBSQLITEDIR}/libsqlite3.a
 LIBSERF=		${LIBSERFDIR}/libserf.a
 
 LIBSVN_CLIENT=		${LIBSVN_CLIENTDIR}/libsvn_client.a

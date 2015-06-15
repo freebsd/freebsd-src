@@ -71,7 +71,7 @@ static struct vfbid_tbl nlm_vfbid[] = {
 	{43, 1011}, {42, 1010}, {41, 1009}, {40, 1008},
 	{39, 1007}, {38, 1006}, {37, 1005}, {36, 1004},
 	{35, 1003}, {34, 1002}, {33, 1001}, {32, 1000},
-	/* NAE <-> CPU mappings, freeback got to vc 3 of each thread */ 
+	/* NAE <-> CPU mappings, freeback got to vc 3 of each thread */
 	{31,  127}, {30,  123}, {29,  119}, {28,  115},
 	{27,  111}, {26,  107}, {25,  103}, {24,   99},
 	{23,   95}, {22,   91}, {21,   87}, {20,   83},
@@ -87,7 +87,7 @@ static struct vfbid_tbl nlm3xx_vfbid[] = {
 	{127,   0}, /* NAE <-> NAE mappings */
 	{39,  503}, {38,  502}, {37,  501}, {36,  500},
 	{35,  499}, {34,  498}, {33,  497}, {32,  496},
-	/* NAE <-> CPU mappings, freeback got to vc 3 of each thread */ 
+	/* NAE <-> CPU mappings, freeback got to vc 3 of each thread */
 	{31,  127}, {30,  123}, {29,  119}, {28,  115},
 	{27,  111}, {26,  107}, {25,  103}, {24,   99},
 	{23,   95}, {22,   91}, {21,   87}, {20,   83},
@@ -240,7 +240,7 @@ nlm_setup_port_defaults(struct xlp_port_ivars *p)
 /* XLP 8XX evaluation boards have the following phy-addr
  * assignment. There are two external mdio buses in XLP --
  * bus 0 and bus 1. The management ports (16 and 17) are
- * on mdio bus 0 while blocks/complexes[0 to 3] are all 
+ * on mdio bus 0 while blocks/complexes[0 to 3] are all
  * on mdio bus 1. The phy_addr on bus 0 (mgmt ports 16
  * and 17) match the port numbers.
  * These are the details:
@@ -263,7 +263,7 @@ nlm_setup_port_defaults(struct xlp_port_ivars *p)
  * 3         2     14         1
  * 3         3     13         1
  *
- * 4         0     16         0 
+ * 4         0     16         0
  * 4         1     17         0
  *
  * The XLP 3XX evaluation boards have the following phy-addr
@@ -366,7 +366,7 @@ nlm_print_processor_info(void)
 }
 
 /*
- * All our knowledge of chip and board that cannot be detected by probing 
+ * All our knowledge of chip and board that cannot be detected by probing
  * at run-time goes here
  */
 static int

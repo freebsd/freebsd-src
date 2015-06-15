@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -50,7 +54,7 @@ sfxge_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	addr = arg;
 
-	if (error) {
+	if (error != 0) {
 		*addr = 0;
 		return;
 	}
@@ -60,7 +64,8 @@ sfxge_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 int
 sfxge_dma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf **mp, bus_dma_segment_t *segs, int *nsegs, int maxsegs)
+			  struct mbuf **mp, bus_dma_segment_t *segs,
+			  int *nsegs, int maxsegs)
 {
 	bus_dma_segment_t *psegs;
 	struct mbuf *m;
@@ -82,7 +87,7 @@ retry:
 		return (0);
 	}
 #if defined(__i386__) || defined(__amd64__)
-	while (m && seg_count < maxsegs) {
+	while (m != NULL && seg_count < maxsegs) {
 		/*
 		 * firmware doesn't like empty segments
 		 */
@@ -141,7 +146,7 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	    MIN(0x3FFFFFFFFFFFUL, BUS_SPACE_MAXADDR), BUS_SPACE_MAXADDR, NULL,
 	    NULL, len, 1, len, 0, NULL, NULL, &esmp->esm_tag) != 0) {
 		device_printf(sc->dev, "Couldn't allocate txq DMA tag\n");
-		return (ENOMEM);
+		goto fail_tag_create;
 	}
 
 	/* Allocate kernel memory. */
@@ -149,30 +154,35 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
 	    &esmp->esm_map) != 0) {
 		device_printf(sc->dev, "Couldn't allocate DMA memory\n");
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
+		goto fail_alloc;
 	}
 
 	/* Load map into device memory. */
 	if (bus_dmamap_load(esmp->esm_tag, esmp->esm_map, vaddr, len,
 	    sfxge_dma_cb, &esmp->esm_addr, 0) != 0) {
 		device_printf(sc->dev, "Couldn't load DMA mapping\n");
-		bus_dmamem_free(esmp->esm_tag, esmp->esm_base, esmp->esm_map);
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
+		goto fail_load;
 	}
 
 	/*
 	 * The callback gets error information about the mapping
-	 * and will have set our vaddr to NULL if something went
+	 * and will have set esm_addr to 0 if something went
 	 * wrong.
 	 */
-	if (vaddr == NULL)
-		return (ENOMEM);
+	if (esmp->esm_addr == 0)
+		goto fail_load_check;
 
 	esmp->esm_base = vaddr;
 
 	return (0);
+
+fail_load_check:
+fail_load:
+	bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
+fail_alloc:
+	bus_dma_tag_destroy(esmp->esm_tag);
+fail_tag_create:
+	return (ENOMEM);
 }
 
 void
@@ -197,7 +207,7 @@ sfxge_dma_init(struct sfxge_softc *sc)
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lock, lockarg */
-	    &sc->parent_dma_tag)) {
+	    &sc->parent_dma_tag) != 0) {
 		device_printf(sc->dev, "Cannot allocate parent DMA tag\n");
 		return (ENOMEM);
 	}

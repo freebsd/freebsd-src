@@ -40,8 +40,8 @@ enum UnwindOpcodes {
 /// or part thereof.
 union UnwindCode {
   struct {
-    support::ulittle8_t CodeOffset;
-    support::ulittle8_t UnwindOpAndOpInfo;
+    uint8_t CodeOffset;
+    uint8_t UnwindOpAndOpInfo;
   } u;
   support::ulittle16_t FrameOffset;
 
@@ -74,10 +74,10 @@ struct RuntimeFunction {
 
 /// UnwindInfo - An entry in the exception table.
 struct UnwindInfo {
-  support::ulittle8_t VersionAndFlags;
-  support::ulittle8_t PrologSize;
-  support::ulittle8_t NumCodes;
-  support::ulittle8_t FrameRegisterAndOffset;
+  uint8_t VersionAndFlags;
+  uint8_t PrologSize;
+  uint8_t NumCodes;
+  uint8_t FrameRegisterAndOffset;
   UnwindCode UnwindCodes[1];
 
   uint8_t getVersion() const {
@@ -108,17 +108,19 @@ struct UnwindInfo {
 
   /// \brief Return pointer to language specific data part of UnwindInfo.
   const void *getLanguageSpecificData() const {
-    return reinterpret_cast<const void *>(&UnwindCodes[(NumCodes+1) & ~1]);
+    return reinterpret_cast<const void *>(&UnwindCodes[(NumCodes + 1) & ~1]);
   }
 
   /// \brief Return image-relative offset of language-specific exception handler.
   uint32_t getLanguageSpecificHandlerOffset() const {
-    return *reinterpret_cast<const uint32_t *>(getLanguageSpecificData());
+    return *reinterpret_cast<const support::ulittle32_t *>(
+               getLanguageSpecificData());
   }
 
   /// \brief Set image-relative offset of language-specific exception handler.
   void setLanguageSpecificHandlerOffset(uint32_t offset) {
-    *reinterpret_cast<uint32_t *>(getLanguageSpecificData()) = offset;
+    *reinterpret_cast<support::ulittle32_t *>(getLanguageSpecificData()) =
+        offset;
   }
 
   /// \brief Return pointer to exception-specific data.

@@ -34,7 +34,6 @@ public:
   static void *getTag() { static int Tag; return &Tag; }
 
   void checkPostStmt(const CallExpr *CE, CheckerContext &C) const;
-  void checkPostStmt(const DeclRefExpr *DRE, CheckerContext &C) const;
 
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
 
@@ -43,10 +42,10 @@ private:
   /// Denotes the return vale.
   static const unsigned ReturnValueIndex = UINT_MAX - 1;
 
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
   inline void initBugType() const {
     if (!BT)
-      BT.reset(new BugType("Use of Untrusted Data", "Untrusted Data"));
+      BT.reset(new BugType(this, "Use of Untrusted Data", "Untrusted Data"));
   }
 
   /// \brief Catch taint related bugs. Check if tainted data is passed to a
@@ -292,7 +291,7 @@ void GenericTaintChecker::checkPostStmt(const CallExpr *CE,
 
 void GenericTaintChecker::addSourcesPre(const CallExpr *CE,
                                         CheckerContext &C) const {
-  ProgramStateRef State = 0;
+  ProgramStateRef State = nullptr;
   const FunctionDecl *FDecl = C.getCalleeDecl(CE);
   if (!FDecl || FDecl->getKind() != Decl::Function)
     return;
@@ -315,7 +314,7 @@ void GenericTaintChecker::addSourcesPre(const CallExpr *CE,
   // Otherwise, check if we have custom pre-processing implemented.
   FnCheck evalFunction = llvm::StringSwitch<FnCheck>(Name)
     .Case("fscanf", &GenericTaintChecker::preFscanf)
-    .Default(0);
+    .Default(nullptr);
   // Check and evaluate the call.
   if (evalFunction)
     State = (this->*evalFunction)(CE, C);
@@ -389,11 +388,11 @@ void GenericTaintChecker::addSourcesPost(const CallExpr *CE,
     .Case("getch", &GenericTaintChecker::postRetTaint)
     .Case("wgetch", &GenericTaintChecker::postRetTaint)
     .Case("socket", &GenericTaintChecker::postSocket)
-    .Default(0);
+    .Default(nullptr);
 
   // If the callee isn't defined, it is not of security concern.
   // Check and evaluate the call.
-  ProgramStateRef State = 0;
+  ProgramStateRef State = nullptr;
   if (evalFunction)
     State = (this->*evalFunction)(CE, C);
   if (!State)
@@ -429,11 +428,11 @@ SymbolRef GenericTaintChecker::getPointedToSymbol(CheckerContext &C,
   ProgramStateRef State = C.getState();
   SVal AddrVal = State->getSVal(Arg->IgnoreParens(), C.getLocationContext());
   if (AddrVal.isUnknownOrUndef())
-    return 0;
+    return nullptr;
 
   Optional<Loc> AddrLoc = AddrVal.getAs<Loc>();
   if (!AddrLoc)
-    return 0;
+    return nullptr;
 
   const PointerType *ArgTy =
     dyn_cast<PointerType>(Arg->getType().getCanonicalType().getTypePtr());
@@ -527,7 +526,7 @@ ProgramStateRef GenericTaintChecker::preFscanf(const CallExpr *CE,
     return State;
   }
 
-  return 0;
+  return nullptr;
 }
 
 
@@ -613,11 +612,7 @@ static bool getPrintfFormatArgumentNum(const CallExpr *CE,
   const FunctionDecl *FDecl = C.getCalleeDecl(CE);
   if (!FDecl)
     return false;
-  for (specific_attr_iterator<FormatAttr>
-         i = FDecl->specific_attr_begin<FormatAttr>(),
-         e = FDecl->specific_attr_end<FormatAttr>(); i != e ; ++i) {
-
-    const FormatAttr *Format = *i;
+  for (const auto *Format : FDecl->specific_attrs<FormatAttr>()) {
     ArgNum = Format->getFormatIdx() - 1;
     if ((Format->getType()->getName() == "printf") &&
          CE->getNumArgs() > ArgNum)

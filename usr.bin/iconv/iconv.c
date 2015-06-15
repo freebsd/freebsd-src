@@ -71,9 +71,8 @@ do_conv(FILE *fp, const char *from, const char *to, bool silent,
     bool hide_invalid)
 {
 	iconv_t cd;
-	char inbuf[INBUFSIZE], outbuf[OUTBUFSIZE], *out;
+	char inbuf[INBUFSIZE], outbuf[OUTBUFSIZE], *in, *out;
 	unsigned long long invalids;
-	const char *in;
 	size_t inbytes, outbytes, ret;
 
 	if ((cd = iconv_open(to, from)) == (iconv_t)-1)

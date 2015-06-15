@@ -1161,7 +1161,7 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			count -= 1;
 	}
 
-	ifp->if_ipackets += rx_npkts;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, rx_npkts);
 
 	return (rx_npkts);
 }
@@ -1236,9 +1236,9 @@ mge_intr_tx_locked(struct mge_softc *sc)
 		/* Update collision statistics */
 		if (status & MGE_ERR_SUMMARY) {
 			if ((status & MGE_ERR_MASK) == MGE_TX_ERROR_LC)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if ((status & MGE_ERR_MASK) == MGE_TX_ERROR_RL)
-				ifp->if_collisions += 16;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 16);
 		}
 
 		bus_dmamap_sync(sc->mge_tx_dtag, dw->buffer_dmap,
@@ -1248,7 +1248,7 @@ mge_intr_tx_locked(struct mge_softc *sc)
 		dw->buffer = (struct mbuf*)NULL;
 		send++;
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	if (send) {
@@ -1516,7 +1516,7 @@ mge_watchdog(struct mge_softc *sc)
 		return;
 	}
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	mge_stop(sc);

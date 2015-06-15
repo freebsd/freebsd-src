@@ -48,7 +48,6 @@ void writeARCDiagsToPlist(const std::string &outPath,
 class TransformActions {
   DiagnosticsEngine &Diags;
   CapturedDiagList &CapturedDiags;
-  bool ReportedErrors;
   void *Impl; // TransformActionsImpl.
 
 public:
@@ -74,7 +73,7 @@ public:
 
   bool clearDiagnostic(ArrayRef<unsigned> IDs, SourceRange range);
   bool clearAllDiagnostics(SourceRange range) {
-    return clearDiagnostic(ArrayRef<unsigned>(), range);
+    return clearDiagnostic(None, range);
   }
   bool clearDiagnostic(unsigned ID1, unsigned ID2, SourceRange range) {
     unsigned IDs[] = { ID1, ID2 };
@@ -95,6 +94,8 @@ public:
     return CapturedDiags.hasDiagnostic(IDs, range);
   }
 
+  DiagnosticBuilder report(SourceLocation loc, unsigned diagId,
+                           SourceRange range = SourceRange());
   void reportError(StringRef error, SourceLocation loc,
                    SourceRange range = SourceRange());
   void reportWarning(StringRef warning, SourceLocation loc,
@@ -102,7 +103,9 @@ public:
   void reportNote(StringRef note, SourceLocation loc,
                   SourceRange range = SourceRange());
 
-  bool hasReportedErrors() const { return ReportedErrors; }
+  bool hasReportedErrors() const {
+    return Diags.hasUnrecoverableErrorOccurred();
+  }
 
   class RewriteReceiver {
   public:
@@ -161,8 +164,6 @@ public:
   const CapturedDiagList &getDiags() const { return CapturedDiags; }
 
   bool isGCMigration() const { return OrigGCMode != LangOptions::NonGC; }
-  bool noNSAllocReallocError() const { return MigOptions.NoNSAllocReallocError; }
-  void setNSAllocReallocError(bool val) { MigOptions.NoNSAllocReallocError = val; }
   bool noFinalizeRemoval() const { return MigOptions.NoFinalizeRemoval; }
   void setNoFinalizeRemoval(bool val) {MigOptions.NoFinalizeRemoval = val; }
 

@@ -324,8 +324,10 @@ DoInteractive(void)
 		history(hist, &hev, H_ENTER, buf);
 		pthread_kill(monitor, SIGUSR1);
 		pthread_mutex_lock(&mutex);
-		if (DoParseCommand(buf) == CMDRTN_QUIT)
+		if (DoParseCommand(buf) == CMDRTN_QUIT) {
+			pthread_mutex_unlock(&mutex);
 			break;
+		}
 		pthread_cond_signal(&cond);
 		pthread_mutex_unlock(&mutex);
 	}

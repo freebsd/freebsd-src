@@ -20,6 +20,7 @@
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/PluginInterface.h"
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Target/QueueList.h"
 #include "lldb/Target/QueueItem.h"
 #include "lldb/lldb-private.h"
@@ -222,7 +223,7 @@ public:
     /// get the queue name and return it.
     ///
     /// @param [in] dispatch_qaddr
-    ///     The address of the dispatch_queue_t structure for this thread.
+    ///     The address of the dispatch_qaddr pointer for this thread.
     ///
     /// @return
     ///     The string of this queue's name.  An empty string is returned if the
@@ -244,7 +245,7 @@ public:
     /// get the queue ID and return it.
     /// 
     /// @param [in] dispatch_qaddr
-    ///     The address of the dispatch_queue_t structure for this thread.
+    ///     The address of the dispatch_qaddr pointer for this thread.
     ///
     /// @return
     ///     The queue ID, or if it could not be retrieved, LLDB_INVALID_QUEUE_ID.
@@ -253,6 +254,26 @@ public:
     GetQueueIDFromThreadQAddress (lldb::addr_t dispatch_qaddr)
     {
         return LLDB_INVALID_QUEUE_ID;
+    }
+
+    //------------------------------------------------------------------
+    /// Get the libdispatch_queue_t address for the queue given the thread's dispatch_qaddr.
+    ///
+    /// On systems using libdispatch queues, a thread may be associated with a queue.
+    /// There will be a call to get the thread's dispatch_qaddr.  
+    /// Given the thread's dispatch_qaddr, find the libdispatch_queue_t address and
+    /// return it.
+    /// 
+    /// @param [in] dispatch_qaddr
+    ///     The address of the dispatch_qaddr pointer for this thread.
+    ///
+    /// @return
+    ///     The libdispatch_queue_t address, or LLDB_INVALID_ADDRESS if unavailable/not found.
+    //------------------------------------------------------------------
+    virtual lldb::addr_t
+    GetLibdispatchQueueAddressFromThreadQAddress (lldb::addr_t dispatch_qaddr)
+    {
+        return LLDB_INVALID_ADDRESS;
     }
 
     //------------------------------------------------------------------
@@ -268,6 +289,60 @@ public:
     virtual void
     PopulatePendingItemsForQueue (lldb_private::Queue *queue)
     {
+    }
+
+    //------------------------------------------------------------------
+    /// Complete the fields in a QueueItem
+    ///
+    /// PopulatePendingItemsForQueue() may not fill in all of the QueueItem
+    /// details; when the remaining fields are needed, they will be
+    /// fetched by call this method.
+    ///
+    /// @param [in] queue_item
+    ///   The QueueItem that we will be completing.
+    ///
+    /// @param [in] item_ref
+    ///     The item_ref token that is needed to retrieve the rest of the
+    ///     information about the QueueItem.
+    //------------------------------------------------------------------
+    virtual void
+    CompleteQueueItem (lldb_private::QueueItem *queue_item, lldb::addr_t item_ref)
+    {
+    }
+
+    //------------------------------------------------------------------
+    /// Add key-value pairs to the StructuredData dictionary object with
+    /// information debugserver  may need when constructing the jThreadExtendedInfo 
+    /// packet.
+    ///
+    /// @param [out] dict
+    ///     Dictionary to which key-value pairs should be added; they will
+    ///     be sent to the remote gdb server stub as arguments in the 
+    ///     jThreadExtendedInfo request.
+    //------------------------------------------------------------------
+    virtual void
+    AddThreadExtendedInfoPacketHints (lldb_private::StructuredData::ObjectSP dict)
+    {
+    }
+
+    /// Determine whether it is safe to run an expression on a given thread
+    ///
+    /// If a system must not run functions on a thread in some particular state,
+    /// this method gives a way for it to flag that the expression should not be
+    /// run.
+    ///
+    /// @param [in] thread_sp
+    ///     The thread we want to run the expression on.
+    ///
+    /// @return
+    ///     True will be returned if there are no known problems with running an
+    ///     expression on this thread.  False means that the inferior function
+    ///     call should not be made on this thread.
+    //------------------------------------------------------------------
+    virtual bool
+    SafeToCallFunctionsOnThisThread (lldb::ThreadSP thread_sp)
+    {
+        return true;
     }
 
 protected:

@@ -33,6 +33,7 @@
 
 #include <sys/queue.h>
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -236,7 +237,9 @@ client_socket(bdaddr_p bdaddr, uint16_t psm)
 	l2addr.l2cap_family = AF_BLUETOOTH;
 	memset(&l2addr.l2cap_bdaddr, 0, sizeof(l2addr.l2cap_bdaddr));
 	l2addr.l2cap_psm = 0;
-
+	l2addr.l2cap_bdaddr_type = BDADDR_BREDR;
+	l2addr.l2cap_cid = 0;
+	
 	if (bind(s, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
 		close(s);
 		return (-1);

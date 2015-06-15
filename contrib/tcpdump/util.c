@@ -19,11 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.109 2007-01-29 09:59:42 hannes Exp $ (LBL)";
-#endif
-
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -32,11 +28,9 @@ static const char rcsid[] _U_ =
 
 #include <sys/stat.h>
 
-#include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#include <pcap.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -44,15 +38,14 @@ static const char rcsid[] _U_ =
 
 #include "interface.h"
 
-char * ts_format(register int, register int);
-
 /*
  * Print out a null-terminated filename (or other ascii string).
  * If ep is NULL, assume no truncation check is needed.
  * Return true if truncated.
  */
 int
-fn_print(register const u_char *s, register const u_char *ep)
+fn_print(netdissect_options *ndo,
+         register const u_char *s, register const u_char *ep)
 {
 	register int ret;
 	register u_char c;
@@ -64,16 +57,15 @@ fn_print(register const u_char *s, register const u_char *ep)
 			ret = 0;
 			break;
 		}
-		if (!isascii(c)) {
-			c = toascii(c);
-			putchar('M');
-			putchar('-');
+		if (!ND_ISASCII(c)) {
+			c = ND_TOASCII(c);
+			ND_PRINT((ndo, "M-"));
 		}
-		if (!isprint(c)) {
+		if (!ND_ISPRINT(c)) {
 			c ^= 0x40;	/* DEL to ?, others to alpha */
-			putchar('^');
+			ND_PRINT((ndo, "^"));
 		}
-		putchar(c);
+		ND_PRINT((ndo, "%c", c));
 	}
 	return(ret);
 }
@@ -84,24 +76,23 @@ fn_print(register const u_char *s, register const u_char *ep)
  * Return true if truncated.
  */
 int
-fn_printn(register const u_char *s, register u_int n,
-	  register const u_char *ep)
+fn_printn(netdissect_options *ndo,
+          register const u_char *s, register u_int n, register const u_char *ep)
 {
 	register u_char c;
 
 	while (n > 0 && (ep == NULL || s < ep)) {
 		n--;
 		c = *s++;
-		if (!isascii(c)) {
-			c = toascii(c);
-			putchar('M');
-			putchar('-');
+		if (!ND_ISASCII(c)) {
+			c = ND_TOASCII(c);
+			ND_PRINT((ndo, "M-"));
 		}
-		if (!isprint(c)) {
+		if (!ND_ISPRINT(c)) {
 			c ^= 0x40;	/* DEL to ?, others to alpha */
-			putchar('^');
+			ND_PRINT((ndo, "^"));
 		}
-		putchar(c);
+		ND_PRINT((ndo, "%c", c));
 	}
 	return (n == 0) ? 0 : 1;
 }
@@ -112,8 +103,9 @@ fn_printn(register const u_char *s, register u_int n,
  * Return true if truncated.
  */
 int
-fn_printzp(register const u_char *s, register u_int n,
-	  register const u_char *ep)
+fn_printzp(netdissect_options *ndo,
+           register const u_char *s, register u_int n,
+           register const u_char *ep)
 {
 	register int ret;
 	register u_char c;
@@ -126,16 +118,15 @@ fn_printzp(register const u_char *s, register u_int n,
 			ret = 0;
 			break;
 		}
-		if (!isascii(c)) {
-			c = toascii(c);
-			putchar('M');
-			putchar('-');
+		if (!ND_ISASCII(c)) {
+			c = ND_TOASCII(c);
+			ND_PRINT((ndo, "M-"));
 		}
-		if (!isprint(c)) {
+		if (!ND_ISPRINT(c)) {
 			c ^= 0x40;	/* DEL to ?, others to alpha */
-			putchar('^');
+			ND_PRINT((ndo, "^"));
 		}
-		putchar(c);
+		ND_PRINT((ndo, "%c", c));
 	}
 	return (n == 0) ? 0 : ret;
 }
@@ -143,12 +134,33 @@ fn_printzp(register const u_char *s, register u_int n,
 /*
  * Format the timestamp
  */
-char *
-ts_format(register int sec, register int usec)
+static char *
+ts_format(netdissect_options *ndo, int sec, int usec)
 {
-        static char buf[sizeof("00:00:00.000000")];
-        (void)snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%06u",
-               sec / 3600, (sec % 3600) / 60, sec % 60, usec);
+	static char buf[sizeof("00:00:00.000000000")];
+	const char *format;
+
+#ifdef HAVE_PCAP_SET_TSTAMP_PRECISION
+	switch (ndo->ndo_tstamp_precision) {
+
+	case PCAP_TSTAMP_PRECISION_MICRO:
+		format = "%02d:%02d:%02d.%06u";
+		break;
+
+	case PCAP_TSTAMP_PRECISION_NANO:
+		format = "%02d:%02d:%02d.%09u";
+		break;
+
+	default:
+		format = "%02d:%02d:%02d.{unknown precision}";
+		break;
+	}
+#else
+	format = "%02d:%02d:%02d.%06u";
+#endif
+
+	snprintf(buf, sizeof(buf), format,
+                 sec / 3600, (sec % 3600) / 60, sec % 60, usec);
 
         return buf;
 }
@@ -157,7 +169,8 @@ ts_format(register int sec, register int usec)
  * Print the timestamp
  */
 void
-ts_print(register const struct timeval *tvp)
+ts_print(netdissect_options *ndo,
+         register const struct timeval *tvp)
 {
 	register int s;
 	struct tm *tm;
@@ -167,20 +180,20 @@ ts_print(register const struct timeval *tvp)
 	int d_usec;
 	int d_sec;
 
-	switch (tflag) {
+	switch (ndo->ndo_tflag) {
 
 	case 0: /* Default */
 		s = (tvp->tv_sec + thiszone) % 86400;
-                (void)printf("%s ", ts_format(s, tvp->tv_usec));
+		ND_PRINT((ndo, "%s ", ts_format(ndo, s, tvp->tv_usec)));
 		break;
 
 	case 1: /* No time stamp */
 		break;
 
 	case 2: /* Unix timeval style */
-		(void)printf("%u.%06u ",
+		ND_PRINT((ndo, "%u.%06u ",
 			     (unsigned)tvp->tv_sec,
-			     (unsigned)tvp->tv_usec);
+			     (unsigned)tvp->tv_usec));
 		break;
 
 	case 3: /* Microseconds since previous packet */
@@ -188,20 +201,20 @@ ts_print(register const struct timeval *tvp)
 		if (b_sec == 0) {
                         /* init timestamp for first packet */
                         b_usec = tvp->tv_usec;
-                        b_sec = tvp->tv_sec;                        
+                        b_sec = tvp->tv_sec;
                 }
 
                 d_usec = tvp->tv_usec - b_usec;
                 d_sec = tvp->tv_sec - b_sec;
-                
+
                 while (d_usec < 0) {
                     d_usec += 1000000;
                     d_sec--;
                 }
 
-                (void)printf("%s ", ts_format(d_sec, d_usec));
+                ND_PRINT((ndo, "%s ", ts_format(ndo, d_sec, d_usec)));
 
-                if (tflag == 3) { /* set timestamp for last packet */
+                if (ndo->ndo_tflag == 3) { /* set timestamp for last packet */
                     b_sec = tvp->tv_sec;
                     b_usec = tvp->tv_usec;
                 }
@@ -212,11 +225,11 @@ ts_print(register const struct timeval *tvp)
 		Time = (tvp->tv_sec + thiszone) - s;
 		tm = gmtime (&Time);
 		if (!tm)
-			printf("Date fail  ");
+			ND_PRINT((ndo, "Date fail  "));
 		else
-			printf("%04d-%02d-%02d %s ",
+			ND_PRINT((ndo, "%04d-%02d-%02d %s ",
                                tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-                               ts_format(s, tvp->tv_usec));
+                               ts_format(ndo, s, tvp->tv_usec)));
 		break;
 	}
 }
@@ -227,7 +240,8 @@ ts_print(register const struct timeval *tvp)
  * is represented as 1y1w1d1h1m1s.
  */
 void
-relts_print(int secs)
+relts_print(netdissect_options *ndo,
+            int secs)
 {
 	static const char *lengths[] = {"y", "w", "d", "h", "m", "s"};
 	static const int seconds[] = {31536000, 604800, 86400, 3600, 60, 1};
@@ -235,16 +249,16 @@ relts_print(int secs)
 	const int *s = seconds;
 
 	if (secs == 0) {
-		(void)printf("0s");
+		ND_PRINT((ndo, "0s"));
 		return;
 	}
 	if (secs < 0) {
-		(void)printf("-");
+		ND_PRINT((ndo, "-"));
 		secs = -secs;
 	}
 	while (secs > 0) {
 		if (secs >= *s) {
-			(void)printf("%d%s", secs / *s, *l);
+			ND_PRINT((ndo, "%d%s", secs / *s, *l));
 			secs -= (secs / *s) * *s;
 		}
 		s++;
@@ -259,21 +273,21 @@ relts_print(int secs)
  */
 
 int
-print_unknown_data(const u_char *cp,const char *ident,int len)
+print_unknown_data(netdissect_options *ndo, const u_char *cp,const char *ident,int len)
 {
 	if (len < 0) {
-		printf("%sDissector error: print_unknown_data called with negative length",
-		    ident);
+          ND_PRINT((ndo,"%sDissector error: print_unknown_data called with negative length",
+		    ident));
 		return(0);
 	}
-	if (snapend - cp < len)
-		len = snapend - cp;
+	if (ndo->ndo_snapend - cp < len)
+		len = ndo->ndo_snapend - cp;
 	if (len < 0) {
-		printf("%sDissector error: print_unknown_data called with pointer past end of packet",
-		    ident);
+          ND_PRINT((ndo,"%sDissector error: print_unknown_data called with pointer past end of packet",
+		    ident));
 		return(0);
 	}
-        hex_print(ident,cp,len);
+        hex_print(ndo, ident,cp,len);
 	return(1); /* everything is ok */
 }
 
@@ -282,7 +296,7 @@ print_unknown_data(const u_char *cp,const char *ident,int len)
  */
 const char *
 tok2strbuf(register const struct tok *lp, register const char *fmt,
-	   register int v, char *buf, size_t bufsize)
+	   register u_int v, char *buf, size_t bufsize)
 {
 	if (lp != NULL) {
 		while (lp->s != NULL) {
@@ -327,6 +341,7 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
         int buflen=0;
         register int rotbit; /* this is the bit we rotate through all bitpositions */
         register int tokval;
+        const char * sepstr = "";
 
 	while (lp != NULL && lp->s != NULL) {
             tokval=lp->v;   /* load our first value */
@@ -339,7 +354,8 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
 		if (tokval == (v&rotbit)) {
                     /* ok we have found something */
                     buflen+=snprintf(buf+buflen, sizeof(buf)-buflen, "%s%s",
-                                     lp->s, sep ? ", " : "");
+                                     sepstr, lp->s);
+                    sepstr = sep ? ", " : "";
                     break;
                 }
                 rotbit=rotbit<<1; /* no match - lets shift and try again */
@@ -347,23 +363,10 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
             lp++;
 	}
 
-        /* user didn't want string seperation - no need to cut off trailing seperators */
-        if (!sep) {
-            return (buf);
-        }
-
-        if (buflen != 0) { /* did we find anything */
-            /* yep, set the the trailing zero 2 bytes before to eliminate the last comma & whitespace */
-            buf[buflen-2] = '\0';
-            return (buf);
-        }
-        else {
+        if (buflen == 0)
             /* bummer - lets print the "unknown" message as advised in the fmt string if we got one */
-            if (fmt == NULL)
-		fmt = "#%d";
-            (void)snprintf(buf, sizeof(buf), fmt, v);
-            return (buf);
-        }
+            (void)snprintf(buf, sizeof(buf), fmt == NULL ? "#%d" : fmt, v);
+        return (buf);
 }
 
 /*
@@ -415,9 +418,9 @@ tok2strary_internal(register const char **lp, int n, register const char *fmt,
  */
 
 int
-mask2plen(u_int32_t mask)
+mask2plen(uint32_t mask)
 {
-	u_int32_t bitmasks[33] = {
+	uint32_t bitmasks[33] = {
 		0x00000000,
 		0x80000000, 0xc0000000, 0xe0000000, 0xf0000000,
 		0xf8000000, 0xfc000000, 0xfe000000, 0xff000000,
@@ -584,25 +587,41 @@ read_infile(char *fname)
 }
 
 void
-safeputs(const char *s, int maxlen)
+safeputs(netdissect_options *ndo,
+         const u_char *s, const u_int maxlen)
 {
-	int idx = 0;
+	u_int idx = 0;
 
 	while (*s && idx < maxlen) {
-		safeputchar(*s);
-                idx++;
+		safeputchar(ndo, *s);
+		idx++;
 		s++;
 	}
 }
 
 void
-safeputchar(int c)
+safeputchar(netdissect_options *ndo,
+            const u_char c)
 {
-	unsigned char ch;
-
-	ch = (unsigned char)(c & 0xff);
-	if (ch < 0x80 && isprint(ch))
-		printf("%c", ch);
-	else
-		printf("\\0x%02x", ch);
+	ND_PRINT((ndo, (c < 0x80 && ND_ISPRINT(c)) ? "%c" : "\\0x%02x", c));
 }
+
+#ifdef LBL_ALIGN
+/*
+ * Some compilers try to optimize memcpy(), using the alignment constraint
+ * on the argument pointer type.  by using this function, we try to avoid the
+ * optimization.
+ */
+void
+unaligned_memcpy(void *p, const void *q, size_t l)
+{
+	memcpy(p, q, l);
+}
+
+/* As with memcpy(), so with memcmp(). */
+int
+unaligned_memcmp(const void *p, const void *q, size_t l)
+{
+	return (memcmp(p, q, l));
+}
+#endif

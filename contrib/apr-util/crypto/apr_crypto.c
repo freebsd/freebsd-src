@@ -204,7 +204,7 @@ APU_DECLARE(apr_status_t) apr_crypto_get_driver(
         if (err && buffer) {
             apr_dso_error(dso, buffer, ERROR_SIZE - 1);
             err->msg = buffer;
-            err->reason = modname;
+            err->reason = apr_pstrdup(pool, modname);
             *result = err;
         }
     }

@@ -458,7 +458,7 @@ aha_init(struct aha_softc* aha)
 				/* highaddr	*/ BUS_SPACE_MAXADDR,
 				/* filter	*/ NULL,
 				/* filterarg	*/ NULL,
-				/* maxsize	*/ MAXBSIZE,
+				/* maxsize	*/ DFLTPHYS,
 				/* nsegments	*/ AHA_NSEG,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
@@ -1047,8 +1047,8 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&aha->pending_ccbs, &ccb->ccb_h, sim_links.le);
 
-	callout_reset(&accb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    ahatimeout, accb);
+	callout_reset_sbt(&accb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    ahatimeout, accb, 0);
 
 	/* Tell the adapter about this command */
 	if (aha->cur_outbox->action_code != AMBO_FREE) {
@@ -1181,9 +1181,9 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 				ahadone(aha, pending_accb, AMBI_ERROR);
 			} else {
-				callout_reset(&pending_accb->timer,
-				    (ccb_h->timeout * hz) / 1000,
-				    ahatimeout, pending_accb);
+				callout_reset_sbt(&pending_accb->timer,
+				    SBT_1MS * ccb_h->timeout, 0, ahatimeout,
+				    pending_accb, 0);
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 			}
 		}

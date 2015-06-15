@@ -3,8 +3,7 @@
 LIB=	hx509
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/hx509/version-script.map
-LDADD=	-lasn1 -lcom_err -lcrypto -lroken -lwind
-DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBCRYPTO} ${LIBROKEN} ${LIBWIND}
+LIBADD=	asn1 com_err crypto roken wind
 
 MAN=	hx509.3 \
 	hx509_ca.3 \
@@ -286,10 +285,15 @@ ${GEN_CRMF}: crmf.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
+
+# This makefile generates a lot of its headers
+# so tell bsd.sys.mk not to try and stage them before they are built.
+# Note: this is rare
+NO_BEFOREBUILD_INCLUDES=
 
 .include <bsd.lib.mk>
 

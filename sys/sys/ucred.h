@@ -37,6 +37,8 @@
 
 struct loginclass;
 
+#define	XU_NGROUPS	16
+
 /*
  * Credentials.
  *
@@ -64,12 +66,11 @@ struct ucred {
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 	gid_t	*cr_groups;		/* groups */
 	int	cr_agroups;		/* Available groups */
+	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
-
-#define	XU_NGROUPS	16
 
 /*
  * Flags for cr_flags.
@@ -105,10 +106,11 @@ void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
 void	cred_update_thread(struct thread *td);
+void	proc_set_cred_init(struct proc *p, struct ucred *cr);
+struct ucred	*proc_set_cred(struct proc *p, struct ucred *cr);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);
-int	crshared(struct ucred *cr);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
 int	groupmember(gid_t gid, struct ucred *cred);

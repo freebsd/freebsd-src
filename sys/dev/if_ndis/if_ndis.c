@@ -159,8 +159,8 @@ static void ndis_tick		(void *);
 static void ndis_ticktask	(device_object *, void *);
 static int ndis_raw_xmit	(struct ieee80211_node *, struct mbuf *,
 	const struct ieee80211_bpf_params *);
-static void ndis_update_mcast	(struct ifnet *ifp);
-static void ndis_update_promisc	(struct ifnet *ifp);
+static void ndis_update_mcast	(struct ieee80211com *);
+static void ndis_update_promisc	(struct ieee80211com *);
 static void ndis_start		(struct ifnet *);
 static void ndis_starttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
@@ -558,7 +558,7 @@ ndis_attach(dev)
 	InitializeListHead(&sc->ndis_shlist);
 	InitializeListHead(&sc->ndisusb_tasklist);
 	InitializeListHead(&sc->ndisusb_xferdonelist);
-	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->ndis_stat_callout, 1);
 
 	if (sc->ndis_iftype == PCMCIABus) {
 		error = ndis_alloc_amem(sc);
@@ -734,10 +734,12 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
-		callout_init(&sc->ndis_scan_callout, CALLOUT_MPSAFE);
+		callout_init(&sc->ndis_scan_callout, 1);
 
 		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;
+		ic->ic_softc = sc;
+		ic->ic_name = device_get_nameunit(dev);
 		ic->ic_opmode = IEEE80211_M_STA;
 	        ic->ic_phytype = IEEE80211_T_DS;
 		ic->ic_caps = IEEE80211_C_8023ENCAP |
@@ -1431,7 +1433,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_refcnt++;
 				m_freem(m0);
 				if (m == NULL)
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				else
 					m0 = m;
 			} else
@@ -1444,7 +1446,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m_freem(m0);
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				continue;
 			}
 			m0 = m;
@@ -1554,9 +1556,9 @@ ndis_txeof(adapter, packet, status)
 	sc->ndis_txpending++;
 
 	if (status == NDIS_STATUS_SUCCESS)
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	else
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	sc->ndis_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1659,7 +1661,7 @@ ndis_tick(xsc)
 	}
 
 	if (sc->ndis_tx_timer && --sc->ndis_tx_timer == 0) {
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		device_printf(sc->ndis_dev, "watchdog timeout\n");
 
 		IoQueueWorkItem(sc->ndis_resetitem,
@@ -1710,23 +1712,26 @@ ndis_ticktask(d, xsc)
 	if (sc->ndis_link == 0 &&
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_CONNECT) {
 		sc->ndis_link = 1;
-		NDIS_UNLOCK(sc);
 		if ((sc->ndis_80211 != 0) && (vap != NULL)) {
+			NDIS_UNLOCK(sc);
 			ndis_getstate_80211(sc);
 			ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
-		}
-		NDIS_LOCK(sc);
-		if_link_state_change(sc->ifp, LINK_STATE_UP);
+			NDIS_LOCK(sc);
+			if_link_state_change(vap->iv_ifp, LINK_STATE_UP);
+		} else
+			if_link_state_change(sc->ifp, LINK_STATE_UP);
 	}
 
 	if (sc->ndis_link == 1 &&
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_DISCONNECT) {
 		sc->ndis_link = 0;
-		NDIS_UNLOCK(sc);
-		if ((sc->ndis_80211 != 0) && (vap != NULL))
+		if ((sc->ndis_80211 != 0) && (vap != NULL)) {
+			NDIS_UNLOCK(sc);
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, 0);
-		NDIS_LOCK(sc);
-		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+			NDIS_LOCK(sc);
+			if_link_state_change(vap->iv_ifp, LINK_STATE_DOWN);
+		} else
+			if_link_state_change(sc->ifp, LINK_STATE_DOWN);
 	}
 
 	NDIS_UNLOCK(sc);
@@ -1768,15 +1773,15 @@ ndis_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
-ndis_update_mcast(struct ifnet *ifp)
+ndis_update_mcast(struct ieee80211com *ic)
 {
-       struct ndis_softc       *sc = ifp->if_softc;
+       struct ndis_softc *sc = ic->ic_softc;
 
        ndis_setmulti(sc);
 }
 
 static void
-ndis_update_promisc(struct ifnet *ifp)
+ndis_update_promisc(struct ieee80211com *ic)
 {
        /* not supported */
 }
@@ -3313,7 +3318,7 @@ done:
 		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
 		    ether_sprintf(wb->nwbx_macaddr), freq, sp.bchan, chanflag,
 		    rssi));
-		ieee80211_add_scan(vap, &sp, &wh, 0, rssi, noise);
+		ieee80211_add_scan(vap, ic->ic_curchan, &sp, &wh, 0, rssi, noise);
 		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 	}
 	free(bl, M_DEVBUF);

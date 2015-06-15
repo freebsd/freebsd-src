@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.87 2014/06/03 19:15:58 christos Exp $
+# $File: archive,v 1.90 2015/04/24 15:44:12 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -714,7 +714,7 @@
 >>>4	byte		0x0a		\b, at least v1.0 to extract
 >>>4	byte		0x0b		\b, at least v1.1 to extract
 >>>4	byte		0x14		\b, at least v2.0 to extract
->>>4	byte		0x2d		\b, at least v3.0 to extract
+>>>4	byte		0x2d		\b, at least v4.5 to extract
 >>>0x161	string		WINZIP		\b, WinZIP self-extracting
 
 # StarView Metafile
@@ -911,6 +911,9 @@
 # ZPAQ: http://mattmahoney.net/dc/zpaq.html
 0	string	zPQ	ZPAQ stream
 >3	byte	x	\b, level %d
+# From: Barry Carter <carter.barry@gmail.com>
+# http://encode.ru/threads/456-zpaq-updates/page32
+0	string	7kSt	ZPAQ file
 
 # BBeB ebook, unencrypted (LRF format)
 # URL: http://www.sven.de/librie/Librie/LrfFormat
@@ -954,34 +957,3 @@
 >0xE08	search/7776		\x55\xAA	
 >>&-512	indirect		x		\b; contains 
 
-# Symantec GHOST image by Joerg Jenderek at May 2014
-# http://us.norton.com/ghost/
-# http://www.garykessler.net/library/file_sigs.html
-0		ubelong&0xFFFFf7f0	0xFEEF0100	Norton GHost image
-# *.GHO
->2		ubyte&0x08		0x00		\b, first file
-# *.GHS or *.[0-9] with cns program option
->2		ubyte&0x08		0x08		\b, split file
-# part of split index interesting for *.ghs
->>4		ubyte			x		id=0x%x
-# compression tag minus one equals numeric compression command line switch z[1-9]
->3		ubyte			0		\b, no compression
->3		ubyte			2		\b, fast compression (Z1)
->3		ubyte			3		\b, medium compression (Z2)
->3		ubyte			>3		
->>3		ubyte			<11		\b, compression (Z%d-1)
->2		ubyte&0x08		0x00		
-# ~ 30 byte password field only for *.gho
->>12		ubequad			!0		\b, password protected
->>44		ubyte			!1		
-# 1~Image All, sector-by-sector only for *.gho
->>>10		ubyte			1		\b, sector copy
-# 1~Image Boot track only for *.gho
->>>43		ubyte			1		\b, boot track
-# 1~Image Disc only for *.gho implies Image Boot track and sector copy
->>44		ubyte			1		\b, disc sector copy
-# optional image description only *.gho
->>0xff		string			>\0		"%-.254s"
-# look for DOS sector end sequence
->0xE08	search/7776		\x55\xAA	
->>&-512	indirect		x		\b; contains 

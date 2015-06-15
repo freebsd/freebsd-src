@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +102,12 @@ static void *elf_note_fpregset(void *, size_t *);
 static void *elf_note_prpsinfo(void *, size_t *);
 static void *elf_note_prstatus(void *, size_t *);
 static void *elf_note_thrmisc(void *, size_t *);
+#if defined(__i386__) || defined(__amd64__)
+static void *elf_note_x86_xstate(void *, size_t *);
+#endif
+#if defined(__powerpc__)
+static void *elf_note_powerpc_vmx(void *, size_t *);
+#endif
 static void *elf_note_procstat_auxv(void *, size_t *);
 static void *elf_note_procstat_files(void *, size_t *);
 static void *elf_note_procstat_groups(void *, size_t *);
@@ -341,6 +348,12 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putnote(NT_PRSTATUS, elf_note_prstatus, tids + i, sb);
 		elf_putnote(NT_FPREGSET, elf_note_fpregset, tids + i, sb);
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
+#if defined(__i386__) || defined(__amd64__)
+		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);
+#endif
+#if defined(__powerpc__)
+		elf_putnote(NT_PPC_VMX, elf_note_powerpc_vmx, tids + i, sb);
+#endif
 	}
 
 #ifndef ELFCORE_COMPAT_32
@@ -498,7 +511,8 @@ readmap(pid_t pid)
 		    ((pflags & PFLAGS_FULL) == 0 &&
 		    kve->kve_type != KVME_TYPE_DEFAULT &&
 		    kve->kve_type != KVME_TYPE_VNODE &&
-		    kve->kve_type != KVME_TYPE_SWAP))
+		    kve->kve_type != KVME_TYPE_SWAP &&
+		    kve->kve_type != KVME_TYPE_PHYS))
 			continue;
 
 		ent = calloc(1, sizeof(*ent));
@@ -614,6 +628,60 @@ elf_note_thrmisc(void *arg, size_t *sizep)
 	*sizep = sizeof(*thrmisc);
 	return (thrmisc);
 }
+
+#if defined(__i386__) || defined(__amd64__)
+static void *
+elf_note_x86_xstate(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	char *xstate;
+	static bool xsave_checked = false;
+	static struct ptrace_xstate_info info;
+
+	tid = *(lwpid_t *)arg;
+	if (!xsave_checked) {
+		if (ptrace(PT_GETXSTATE_INFO, tid, (void *)&info,
+		    sizeof(info)) != 0)
+			info.xsave_len = 0;
+		xsave_checked = true;
+	}
+	if (info.xsave_len == 0) {
+		*sizep = 0;
+		return (NULL);
+	}
+	xstate = calloc(1, info.xsave_len);
+	ptrace(PT_GETXSTATE, tid, xstate, 0);
+	*(uint64_t *)(xstate + X86_XSTATE_XCR0_OFFSET) = info.xsave_mask;
+	*sizep = info.xsave_len;
+	return (xstate);
+}
+#endif
+
+#if defined(__powerpc__)
+static void *
+elf_note_powerpc_vmx(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	struct vmxreg *vmx;
+	static bool has_vmx = true;
+	struct vmxreg info;
+
+	tid = *(lwpid_t *)arg;
+	if (has_vmx) {
+		if (ptrace(PT_GETVRREGS, tid, (void *)&info,
+		    sizeof(info)) != 0)
+			has_vmx = false;
+	}
+	if (!has_vmx) {
+		*sizep = 0;
+		return (NULL);
+	}
+	vmx = calloc(1, sizeof(*vmx));
+	memcpy(vmx, &info, sizeof(*vmx));
+	*sizep = sizeof(*vmx);
+	return (vmx);
+}
+#endif
 
 static void *
 procstat_sysctl(void *arg, int what, size_t structsz, size_t *sizep)

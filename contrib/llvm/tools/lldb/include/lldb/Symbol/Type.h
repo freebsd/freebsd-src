@@ -17,6 +17,8 @@
 #include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Symbol/Declaration.h"
 
+#include "llvm/ADT/APSInt.h"
+
 #include <set>
 
 namespace lldb_private {
@@ -103,6 +105,11 @@ public:
     void
     DumpTypeName(Stream *s);
 
+    // Since Type instances only keep a "SymbolFile *" internally, other classes
+    // like TypeImpl need make sure the module is still around before playing with
+    // Type instances. They can store a weak pointer to the Module;
+    lldb::ModuleSP
+    GetModule();
 
     void
     GetDescription (Stream *s, lldb::DescriptionLevel level, bool show_name);
@@ -306,16 +313,18 @@ protected:
 
 // these classes are used to back the SBType* objects
 
-class TypePair {
-private:
-    ClangASTType clang_type;
-    lldb::TypeSP type_sp;
-    
+class TypePair
+{
 public:
-    TypePair () : clang_type(), type_sp() {}
+    TypePair () :
+        clang_type(),
+        type_sp()
+    {
+    }
+
     TypePair (ClangASTType type) :
-    clang_type(type),
-    type_sp()
+        clang_type(type),
+        type_sp()
     {
     }
     
@@ -366,6 +375,16 @@ public:
         if (clang_type)
             return clang_type.GetTypeName();
         return ConstString ();
+    }
+    
+    ConstString
+    GetDisplayTypeName () const
+    {
+        if (type_sp)
+            return type_sp->GetClangForwardType().GetDisplayTypeName();
+        if (clang_type)
+            return clang_type.GetDisplayTypeName();
+        return ConstString();
     }
     
     void
@@ -455,6 +474,17 @@ public:
     {
         return clang_type.GetASTContext();
     }
+    
+    lldb::ModuleSP
+    GetModule () const
+    {
+        if (type_sp)
+            return type_sp->GetModule();
+        return lldb::ModuleSP();
+    }
+protected:
+    ClangASTType clang_type;
+    lldb::TypeSP type_sp;
 };
     
 class TypeImpl
@@ -467,30 +497,30 @@ public:
     
     TypeImpl(const TypeImpl& rhs);
     
-    TypeImpl (lldb::TypeSP type_sp);
+    TypeImpl (const lldb::TypeSP &type_sp);
     
-    TypeImpl (ClangASTType clang_type);
+    TypeImpl (const ClangASTType &clang_type);
     
-    TypeImpl (lldb::TypeSP type_sp, ClangASTType dynamic);
+    TypeImpl (const lldb::TypeSP &type_sp, const ClangASTType &dynamic);
     
-    TypeImpl (ClangASTType clang_type, ClangASTType dynamic);
+    TypeImpl (const ClangASTType &clang_type, const ClangASTType &dynamic);
     
-    TypeImpl (TypePair pair, ClangASTType dynamic);
+    TypeImpl (const TypePair &pair, const ClangASTType &dynamic);
 
     void
-    SetType (lldb::TypeSP type_sp);
+    SetType (const lldb::TypeSP &type_sp);
     
     void
-    SetType (ClangASTType clang_type);
+    SetType (const ClangASTType &clang_type);
     
     void
-    SetType (lldb::TypeSP type_sp, ClangASTType dynamic);
+    SetType (const lldb::TypeSP &type_sp, const ClangASTType &dynamic);
     
     void
-    SetType (ClangASTType clang_type, ClangASTType dynamic);
+    SetType (const ClangASTType &clang_type, const ClangASTType &dynamic);
     
     void
-    SetType (TypePair pair, ClangASTType dynamic);
+    SetType (const TypePair &pair, const ClangASTType &dynamic);
     
     TypeImpl&
     operator = (const TypeImpl& rhs);
@@ -510,6 +540,9 @@ public:
     
     ConstString
     GetName ()  const;
+    
+    ConstString
+    GetDisplayTypeName ()  const;
     
     TypeImpl
     GetPointerType () const;
@@ -543,6 +576,11 @@ public:
                     lldb::DescriptionLevel description_level);
     
 private:
+    
+    bool
+    CheckModule (lldb::ModuleSP &module_sp) const;
+
+    lldb::ModuleWP m_module_wp;
     TypePair m_static_type;
     ClangASTType m_dynamic_type;
 };
@@ -773,6 +811,181 @@ private:
     ConstString m_type_name;
 };
     
+class TypeMemberFunctionImpl
+{
+public:
+    TypeMemberFunctionImpl() :
+        m_type(),
+        m_objc_method_decl(nullptr),
+        m_name(),
+        m_kind(lldb::eMemberFunctionKindUnknown)
+    {
+    }
+    
+    TypeMemberFunctionImpl (const ClangASTType& type,
+                            const std::string& name,
+                            const lldb::MemberFunctionKind& kind) :
+        m_type(type),
+        m_objc_method_decl(nullptr),
+        m_name(name),
+        m_kind(kind)
+    {
+    }
+    
+    TypeMemberFunctionImpl (clang::ObjCMethodDecl *method,
+                            const std::string& name,
+                            const lldb::MemberFunctionKind& kind) :
+    m_type(),
+    m_objc_method_decl(method),
+    m_name(name),
+    m_kind(kind)
+    {
+    }
+    
+    TypeMemberFunctionImpl (const TypeMemberFunctionImpl& rhs) :
+        m_type(rhs.m_type),
+        m_objc_method_decl(rhs.m_objc_method_decl),
+        m_name(rhs.m_name),
+        m_kind(rhs.m_kind)
+    {
+    }
+    
+    TypeMemberFunctionImpl&
+    operator = (const TypeMemberFunctionImpl& rhs);
+    
+    bool
+    IsValid ();
+    
+    ConstString
+    GetName () const;
+    
+    ClangASTType
+    GetType () const;
+    
+    ClangASTType
+    GetReturnType () const;
+    
+    size_t
+    GetNumArguments () const;
+    
+    ClangASTType
+    GetArgumentAtIndex (size_t idx) const;
+    
+    lldb::MemberFunctionKind
+    GetKind () const;
+    
+    bool
+    GetDescription (Stream& stream);
+    
+protected:
+    std::string
+    GetPrintableTypeName ();
+
+private:
+    ClangASTType m_type;
+    clang::ObjCMethodDecl *m_objc_method_decl;
+    ConstString m_name;
+    lldb::MemberFunctionKind m_kind;
+};
+
+class TypeEnumMemberImpl
+{
+public:
+    TypeEnumMemberImpl () :
+        m_integer_type_sp(),
+        m_name("<invalid>"),
+        m_value(),
+        m_valid(false)
+    {
+    }
+
+    TypeEnumMemberImpl (const clang::EnumConstantDecl* enum_member_decl,
+                        const lldb_private::ClangASTType& integer_type);
+
+    TypeEnumMemberImpl (const TypeEnumMemberImpl& rhs) :
+        m_integer_type_sp(rhs.m_integer_type_sp),
+        m_name(rhs.m_name),
+        m_value(rhs.m_value),
+        m_valid(rhs.m_valid)
+    {
+    }
+
+    TypeEnumMemberImpl&
+    operator = (const TypeEnumMemberImpl& rhs);
+
+    bool
+    IsValid ()
+    {
+        return m_valid;
+    }
+
+    const ConstString &
+    GetName () const
+    {
+        return m_name;
+    }
+
+    const lldb::TypeImplSP &
+    GetIntegerType () const
+    {
+        return m_integer_type_sp;
+    }
+
+    uint64_t
+    GetValueAsUnsigned () const
+    {
+        return *m_value.getRawData();
+    }
+
+    int64_t
+    GetValueAsSigned () const
+    {
+        return (int64_t) *m_value.getRawData();
+    }
+
+protected:
+    lldb::TypeImplSP m_integer_type_sp;
+    ConstString m_name;
+    llvm::APSInt m_value;
+    bool m_valid;
+};
+
+class TypeEnumMemberListImpl
+{
+public:
+    TypeEnumMemberListImpl() :
+        m_content()
+    {
+    }
+
+    void
+    Append (const lldb::TypeEnumMemberImplSP& type)
+    {
+        m_content.push_back(type);
+    }
+
+    void
+    Append (const lldb_private::TypeEnumMemberListImpl& type_list);
+
+    lldb::TypeEnumMemberImplSP
+    GetTypeEnumMemberAtIndex(size_t idx)
+    {
+        lldb::TypeEnumMemberImplSP enum_member;
+        if (idx < GetSize())
+            enum_member = m_content[idx];
+        return enum_member;
+    }
+
+    size_t
+    GetSize()
+    {
+        return m_content.size();
+    }
+
+private:
+    std::vector<lldb::TypeEnumMemberImplSP> m_content;
+};
+
 } // namespace lldb_private
 
 #endif  // liblldb_Type_h_

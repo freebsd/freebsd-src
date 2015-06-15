@@ -44,9 +44,10 @@ public:
     CommandObjectBreakpointCommandAdd (CommandInterpreter &interpreter) :
         CommandObjectParsed (interpreter,
                              "add",
-                             "Add a set of commands to a breakpoint, to be executed whenever the breakpoint is hit.",
+                             "Add a set of commands to a breakpoint, to be executed whenever the breakpoint is hit."
+                             "  If no breakpoint is specified, adds the commands to the last created breakpoint.",
                              NULL),
-    IOHandlerDelegateMultiline ("DONE", IOHandlerDelegate::Completion::LLDBCommand),
+        IOHandlerDelegateMultiline ("DONE", IOHandlerDelegate::Completion::LLDBCommand),
         m_options (interpreter)
     {
         SetHelpLong (
@@ -193,7 +194,7 @@ one command per line.\n" );
 
         // Define the first (and only) variant of this arg.
         bp_id_arg.arg_type = eArgTypeBreakpointID;
-        bp_id_arg.arg_repetition = eArgRepeatPlain;
+        bp_id_arg.arg_repetition = eArgRepeatOptional;
 
         // There is only one variant this argument could be; put it into the argument entry.
         arg.push_back (bp_id_arg);
@@ -228,9 +229,12 @@ one command per line.\n" );
     {
         io_handler.SetIsDone(true);
         
-        BreakpointOptions *bp_options = (BreakpointOptions *) io_handler.GetUserData();
-        if (bp_options)
+        std::vector<BreakpointOptions *> *bp_options_vec = (std::vector<BreakpointOptions *> *)io_handler.GetUserData();
+        for (BreakpointOptions *bp_options : *bp_options_vec)
         {
+            if (!bp_options)
+                continue;
+                    
             std::unique_ptr<BreakpointOptions::CommandData> data_ap(new BreakpointOptions::CommandData());
             if (data_ap.get())
             {
@@ -239,36 +243,37 @@ one command per line.\n" );
                 bp_options->SetCallback (BreakpointOptionsCallbackFunction, baton_sp);
             }
         }
-
     }
     
     void
-    CollectDataForBreakpointCommandCallback (BreakpointOptions *bp_options, 
+    CollectDataForBreakpointCommandCallback (std::vector<BreakpointOptions *> &bp_options_vec,
                                              CommandReturnObject &result)
     {
         m_interpreter.GetLLDBCommandsFromIOHandler ("> ",           // Prompt
                                                     *this,          // IOHandlerDelegate
                                                     true,           // Run IOHandler in async mode
-                                                    bp_options);    // Baton for the "io_handler" that will be passed back into our IOHandlerDelegate functions
+                                                    &bp_options_vec);    // Baton for the "io_handler" that will be passed back into our IOHandlerDelegate functions
     }
     
     /// Set a one-liner as the callback for the breakpoint.
     void 
-    SetBreakpointCommandCallback (BreakpointOptions *bp_options,
+    SetBreakpointCommandCallback (std::vector<BreakpointOptions *> &bp_options_vec,
                                   const char *oneliner)
     {
-        std::unique_ptr<BreakpointOptions::CommandData> data_ap(new BreakpointOptions::CommandData());
+        for (auto bp_options : bp_options_vec)
+        {
+            std::unique_ptr<BreakpointOptions::CommandData> data_ap(new BreakpointOptions::CommandData());
 
-        // It's necessary to set both user_source and script_source to the oneliner.
-        // The former is used to generate callback description (as in breakpoint command list)
-        // while the latter is used for Python to interpret during the actual callback.
-        data_ap->user_source.AppendString (oneliner);
-        data_ap->script_source.assign (oneliner);
-        data_ap->stop_on_error = m_options.m_stop_on_error;
+            // It's necessary to set both user_source and script_source to the oneliner.
+            // The former is used to generate callback description (as in breakpoint command list)
+            // while the latter is used for Python to interpret during the actual callback.
+            data_ap->user_source.AppendString (oneliner);
+            data_ap->script_source.assign (oneliner);
+            data_ap->stop_on_error = m_options.m_stop_on_error;
 
-        BatonSP baton_sp (new BreakpointOptions::CommandBaton (data_ap.release()));
-        bp_options->SetCallback (BreakpointOptionsCallbackFunction, baton_sp);
-
+            BatonSP baton_sp (new BreakpointOptions::CommandBaton (data_ap.release()));
+            bp_options->SetCallback (BreakpointOptionsCallbackFunction, baton_sp);
+        }
         return;
     }
     
@@ -302,17 +307,16 @@ one command per line.\n" );
                 result.SetImmediateOutputStream (output_stream);
                 result.SetImmediateErrorStream (error_stream);
         
-                bool stop_on_continue = true;
-                bool echo_commands    = false;
-                bool print_results    = true;
+                CommandInterpreterRunOptions options;
+                options.SetStopOnContinue(true);
+                options.SetStopOnError (data->stop_on_error);
+                options.SetEchoCommands (true);
+                options.SetPrintResults (true);
+                options.SetAddToHistory (false);
 
-                debugger.GetCommandInterpreter().HandleCommands (commands, 
+                debugger.GetCommandInterpreter().HandleCommands (commands,
                                                                  &exe_ctx,
-                                                                 stop_on_continue, 
-                                                                 data->stop_on_error, 
-                                                                 echo_commands, 
-                                                                 print_results,
-                                                                 eLazyBoolNo,
+                                                                 options,
                                                                  result);
                 result.GetImmediateOutputStream()->Flush();
                 result.GetImmediateErrorStream()->Flush();
@@ -385,6 +389,10 @@ one command per line.\n" );
                 }
                 break;
 
+            case 'D':
+                m_use_dummy = true;
+                break;
+
             default:
                 break;
             }
@@ -401,6 +409,7 @@ one command per line.\n" );
             m_stop_on_error = true;
             m_one_liner.clear();
             m_function_name.clear();
+            m_use_dummy = false;
         }
 
         const OptionDefinition*
@@ -424,13 +433,14 @@ one command per line.\n" );
         std::string m_one_liner;
         bool m_stop_on_error;
         std::string m_function_name;
+        bool m_use_dummy;
     };
 
 protected:
     virtual bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+        Target *target = GetSelectedOrDummyTarget(m_options.m_use_dummy);
 
         if (target == NULL)
         {
@@ -457,17 +467,13 @@ protected:
         }
         
         BreakpointIDList valid_bp_ids;
-        CommandObjectMultiwordBreakpoint::VerifyBreakpointIDs (command, target, result, &valid_bp_ids);
+        CommandObjectMultiwordBreakpoint::VerifyBreakpointOrLocationIDs (command, target, result, &valid_bp_ids);
 
+        m_bp_options_vec.clear();
+        
         if (result.Succeeded())
         {
             const size_t count = valid_bp_ids.GetSize();
-            if (count > 1)
-            {
-                result.AppendError ("can only add commands to one breakpoint at a time.");
-                result.SetStatus (eReturnStatusFailed);
-                return false;
-            }
             
             for (size_t i = 0; i < count; ++i)
             {
@@ -489,50 +495,45 @@ protected:
                         if (bp_loc_sp)
                             bp_options = bp_loc_sp->GetLocationOptions();
                     }
-
-                    // Skip this breakpoint if bp_options is not good.
-                    if (bp_options == NULL) continue;
-
-                    // If we are using script language, get the script interpreter
-                    // in order to set or collect command callback.  Otherwise, call
-                    // the methods associated with this object.
-                    if (m_options.m_use_script_language)
-                    {
-                        // Special handling for one-liner specified inline.
-                        if (m_options.m_use_one_liner)
-                        {
-                            m_interpreter.GetScriptInterpreter()->SetBreakpointCommandCallback (bp_options,
-                                                                                                m_options.m_one_liner.c_str());
-                        }
-                        // Special handling for using a Python function by name
-                        // instead of extending the breakpoint callback data structures, we just automatize
-                        // what the user would do manually: make their breakpoint command be a function call
-                        else if (m_options.m_function_name.size())
-                        {
-                            std::string oneliner("return ");
-                            oneliner += m_options.m_function_name;
-                            oneliner += "(frame, bp_loc, internal_dict)";
-                            m_interpreter.GetScriptInterpreter()->SetBreakpointCommandCallback (bp_options,
-                                                                                                oneliner.c_str());
-                        }
-                        else
-                        {
-                            m_interpreter.GetScriptInterpreter()->CollectDataForBreakpointCommandCallback (bp_options,
-                                                                                                           result);
-                        }
-                    }
-                    else
-                    {
-                        // Special handling for one-liner specified inline.
-                        if (m_options.m_use_one_liner)
-                            SetBreakpointCommandCallback (bp_options,
-                                                          m_options.m_one_liner.c_str());
-                        else
-                            CollectDataForBreakpointCommandCallback (bp_options, 
-                                                                     result);
-                    }
+                    if (bp_options)
+                        m_bp_options_vec.push_back (bp_options);
                 }
             }
+
+            // If we are using script language, get the script interpreter
+            // in order to set or collect command callback.  Otherwise, call
+            // the methods associated with this object.
+            if (m_options.m_use_script_language)
+            {
+                ScriptInterpreter *script_interp = m_interpreter.GetScriptInterpreter();
+                // Special handling for one-liner specified inline.
+                if (m_options.m_use_one_liner)
+                {
+                    script_interp->SetBreakpointCommandCallback (m_bp_options_vec,
+                                                                 m_options.m_one_liner.c_str());
+                }
+                else if (m_options.m_function_name.size())
+                {
+                    script_interp->SetBreakpointCommandCallbackFunction (m_bp_options_vec,
+                                                                         m_options.m_function_name.c_str());
+                }
+                else
+                {
+                    script_interp->CollectDataForBreakpointCommandCallback (m_bp_options_vec,
+                                                                            result);
+                }
+            }
+            else
+            {
+                // Special handling for one-liner specified inline.
+                if (m_options.m_use_one_liner)
+                    SetBreakpointCommandCallback (m_bp_options_vec,
+                                                  m_options.m_one_liner.c_str());
+                else
+                    CollectDataForBreakpointCommandCallback (m_bp_options_vec,
+                                                             result);
+            }
+
         }
 
         return result.Succeeded();
@@ -540,6 +541,17 @@ protected:
 
 private:
     CommandOptions m_options;
+    std::vector<BreakpointOptions *> m_bp_options_vec;  // This stores the breakpoint options that we are currently
+                                                        // collecting commands for.  In the CollectData... calls we need
+                                                        // to hand this off to the IOHandler, which may run asynchronously.
+                                                        // So we have to have some way to keep it alive, and not leak it.
+                                                        // Making it an ivar of the command object, which never goes away
+                                                        // achieves this.  Note that if we were able to run
+                                                        // the same command concurrently in one interpreter we'd have to
+                                                        // make this "per invocation".  But there are many more reasons
+                                                        // why it is not in general safe to do that in lldb at present,
+                                                        // so it isn't worthwhile to come up with a more complex mechanism
+                                                        // to address this particular weakness right now.
     static const char *g_reader_instructions;
 
 };
@@ -562,19 +574,22 @@ g_script_option_enumeration[4] =
 OptionDefinition
 CommandObjectBreakpointCommandAdd::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "one-liner", 'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOneLiner,
+    { LLDB_OPT_SET_1, false, "one-liner", 'o', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeOneLiner,
         "Specify a one-line breakpoint command inline. Be sure to surround it with quotes." },
 
-    { LLDB_OPT_SET_ALL, false, "stop-on-error", 'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean,
+    { LLDB_OPT_SET_ALL, false, "stop-on-error", 'e', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean,
         "Specify whether breakpoint command execution should terminate on error." },
 
-    { LLDB_OPT_SET_ALL,   false, "script-type",     's', OptionParser::eRequiredArgument, g_script_option_enumeration, 0, eArgTypeNone,
+    { LLDB_OPT_SET_ALL,   false, "script-type",     's', OptionParser::eRequiredArgument, NULL, g_script_option_enumeration, 0, eArgTypeNone,
         "Specify the language for the commands - if none is specified, the lldb command interpreter will be used."},
 
-    { LLDB_OPT_SET_2,   false, "python-function",     'F', OptionParser::eRequiredArgument, NULL, 0, eArgTypePythonFunction,
+    { LLDB_OPT_SET_2,   false, "python-function",     'F', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePythonFunction,
         "Give the name of a Python function to run as command for this breakpoint. Be sure to give a module name if appropriate."},
     
-    { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+    { LLDB_OPT_SET_ALL, false, "dummy-breakpoints", 'D', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone,
+        "Sets Dummy breakpoints - i.e. breakpoints set before a file is provided, which prime new targets."},
+
+    { 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -588,7 +603,8 @@ public:
         CommandObjectParsed (interpreter, 
                              "delete",
                              "Delete the set of commands from a breakpoint.",
-                             NULL)
+                             NULL),
+        m_options (interpreter)
     {
         CommandArgumentEntry arg;
         CommandArgumentData bp_id_arg;
@@ -608,11 +624,70 @@ public:
     virtual
     ~CommandObjectBreakpointCommandDelete () {}
 
+    virtual Options *
+    GetOptions ()
+    {
+        return &m_options;
+    }
+
+    class CommandOptions : public Options
+    {
+    public:
+
+        CommandOptions (CommandInterpreter &interpreter) :
+            Options (interpreter),
+            m_use_dummy (false)
+        {
+        }
+
+        virtual
+        ~CommandOptions () {}
+
+        virtual Error
+        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        {
+            Error error;
+            const int short_option = m_getopt_table[option_idx].val;
+
+            switch (short_option)
+            {
+                case 'D':
+                    m_use_dummy = true;
+                    break;
+
+                default:
+                    error.SetErrorStringWithFormat ("unrecognized option '%c'", short_option);
+                    break;
+            }
+
+            return error;
+        }
+
+        void
+        OptionParsingStarting ()
+        {
+            m_use_dummy = false;
+        }
+
+        const OptionDefinition*
+        GetDefinitions ()
+        {
+            return g_option_table;
+        }
+
+        // Options table: Required for subclasses of Options.
+
+        static OptionDefinition g_option_table[];
+
+        // Instance variables to hold the values for command options.
+        bool m_use_dummy;
+    };
+
 protected:
     virtual bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+        Target *target = GetSelectedOrDummyTarget(m_options.m_use_dummy);
 
         if (target == NULL)
         {
@@ -639,7 +714,7 @@ protected:
         }
 
         BreakpointIDList valid_bp_ids;
-        CommandObjectMultiwordBreakpoint::VerifyBreakpointIDs (command, target, result, &valid_bp_ids);
+        CommandObjectMultiwordBreakpoint::VerifyBreakpointOrLocationIDs (command, target, result, &valid_bp_ids);
 
         if (result.Succeeded())
         {
@@ -673,7 +748,19 @@ protected:
         }
         return result.Succeeded();
     }
+private:
+    CommandOptions m_options;
 };
+
+OptionDefinition
+CommandObjectBreakpointCommandDelete::CommandOptions::g_option_table[] =
+{
+    { LLDB_OPT_SET_1, false, "dummy-breakpoints", 'D', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone,
+        "Delete commands from Dummy breakpoints - i.e. breakpoints set before a file is provided, which prime new targets."},
+
+    { 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
+};
+
 
 //-------------------------------------------------------------------------
 // CommandObjectBreakpointCommandList
@@ -737,7 +824,7 @@ protected:
         }
 
         BreakpointIDList valid_bp_ids;
-        CommandObjectMultiwordBreakpoint::VerifyBreakpointIDs (command, target, result, &valid_bp_ids);
+        CommandObjectMultiwordBreakpoint::VerifyBreakpointOrLocationIDs (command, target, result, &valid_bp_ids);
 
         if (result.Succeeded())
         {
@@ -814,7 +901,7 @@ protected:
 CommandObjectBreakpointCommand::CommandObjectBreakpointCommand (CommandInterpreter &interpreter) :
     CommandObjectMultiword (interpreter,
                             "command",
-                            "A set of commands for adding, removing and examining bits of code to be executed when the breakpoint is hit (breakpoint 'commmands').",
+                            "A set of commands for adding, removing and examining bits of code to be executed when the breakpoint is hit (breakpoint 'commands').",
                             "command <sub-command> [<sub-command-options>] <breakpoint-id>")
 {
     CommandObjectSP add_command_object (new CommandObjectBreakpointCommandAdd (interpreter));

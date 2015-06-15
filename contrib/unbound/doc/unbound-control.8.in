@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
+.TH "unbound-control" "8" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -8,7 +8,6 @@
 .\"
 .\"
 .SH "NAME"
-.LP
 .B unbound\-control,
 .B unbound\-control\-setup
 \- Unbound remote server control utility.
@@ -133,6 +132,12 @@ This needs to walk and inspect the entire cache, and is a slow operation.
 .B flush_bogus
 Remove all bogus data from the cache.
 .TP
+.B flush_negative
+Remove all negative data from the cache.  This is nxdomain answers,
+nodata answers and servfail answers.  Also removes bad key entries
+(which could be due to failed lookups) from the dnssec key cache, and
+iterator last-resort lookup failures from the rrset cache.
+.TP
 .B flush_stats
 Reset statistics to zero.
 .TP
@@ -147,6 +152,8 @@ such as a higher verbosity level.
 Show what is worked on.  Prints all queries that the server is currently
 working on.  Prints the time that users have been waiting.  For internal
 requests, no time is printed.  And then prints out the module status.
+This prints the queries from the first thread, and not queries that are
+being serviced from other threads.
 .TP
 .B flush_infra \fIall|IP
 If all then entire infra cache is emptied.  If a specific IP address, the
@@ -401,6 +408,10 @@ Also printed for other opcodes, UPDATE, ...
 .I num.query.tcp
 Number of queries that were made using TCP towards the unbound server.
 .TP
+.I num.query.tcpout
+Number of queries that the unbound server made using TCP outgoing towards
+other servers.
+.TP
 .I num.query.ipv6
 Number of queries that were made using IPv6 towards the unbound server.
 .TP
@@ -451,6 +462,21 @@ Replies that were unwanted or unsolicited.  Could have been random traffic,
 delayed duplicates, very late answers, or could be spoofing attempts.
 Some low level of late answers and delayed duplicates are to be expected
 with the UDP protocol.  Very high values could indicate a threat (spoofing).
+.TP
+.I msg.cache.count
+The number of items (DNS replies) in the message cache.
+.TP
+.I rrset.cache.count
+The number of RRsets in the rrset cache.  This includes rrsets used by
+the messages in the message cache, but also delegation information.
+.TP
+.I infra.cache.count
+The number of items in the infra cache.  These are IP addresses with their
+timing and protocol support information.
+.TP
+.I key.cache.count
+The number of items in the key cache.  These are DNSSEC keys, one item
+per delegation point, and their validation status.
 .SH "FILES"
 .TP
 .I @ub_conf_file@

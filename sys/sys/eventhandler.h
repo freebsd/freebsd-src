@@ -182,6 +182,7 @@ EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 typedef void (*power_change_fn)(void *);
 EVENTHANDLER_DECLARE(power_resume, power_change_fn);
 EVENTHANDLER_DECLARE(power_suspend, power_change_fn);
+EVENTHANDLER_DECLARE(power_suspend_early, power_change_fn);
 
 /* Low memory event */
 typedef void (*vm_lowmem_handler_t)(void *, int);

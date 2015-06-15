@@ -14,7 +14,8 @@
 #ifndef LLVM_OBJECT_COFFYAML_H
 #define LLVM_OBJECT_COFFYAML_H
 
-#include "llvm/Object/YAML.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/MC/YAML.h"
 #include "llvm/Support/COFF.h"
 
 namespace llvm {
@@ -30,11 +31,21 @@ inline SectionCharacteristics operator|(SectionCharacteristics a,
   uint32_t Ret = static_cast<uint32_t>(a) | static_cast<uint32_t>(b);
   return static_cast<SectionCharacteristics>(Ret);
 }
+
+inline DLLCharacteristics operator|(DLLCharacteristics a,
+                                    DLLCharacteristics b) {
+  uint16_t Ret = static_cast<uint16_t>(a) | static_cast<uint16_t>(b);
+  return static_cast<DLLCharacteristics>(Ret);
+}
 }
 
 // The structure of the yaml files is not an exact 1:1 match to COFF. In order
 // to use yaml::IO, we use these structures which are closer to the source.
 namespace COFFYAML {
+  LLVM_YAML_STRONG_TYPEDEF(uint8_t, COMDATType)
+  LLVM_YAML_STRONG_TYPEDEF(uint32_t, WeakExternalCharacteristics)
+  LLVM_YAML_STRONG_TYPEDEF(uint8_t, AuxSymbolType)
+
   struct Relocation {
     uint32_t VirtualAddress;
     uint16_t Type;
@@ -44,7 +55,7 @@ namespace COFFYAML {
   struct Section {
     COFF::section Header;
     unsigned Alignment;
-    object::yaml::BinaryRef SectionData;
+    yaml::BinaryRef SectionData;
     std::vector<Relocation> Relocations;
     StringRef Name;
     Section();
@@ -54,12 +65,23 @@ namespace COFFYAML {
     COFF::symbol Header;
     COFF::SymbolBaseType SimpleType;
     COFF::SymbolComplexType ComplexType;
-    object::yaml::BinaryRef AuxiliaryData;
+    Optional<COFF::AuxiliaryFunctionDefinition> FunctionDefinition;
+    Optional<COFF::AuxiliarybfAndefSymbol> bfAndefSymbol;
+    Optional<COFF::AuxiliaryWeakExternal> WeakExternal;
+    StringRef File;
+    Optional<COFF::AuxiliarySectionDefinition> SectionDefinition;
+    Optional<COFF::AuxiliaryCLRToken> CLRToken;
     StringRef Name;
     Symbol();
   };
 
+  struct PEHeader {
+    COFF::PE32Header Header;
+    Optional<COFF::DataDirectory> DataDirectories[COFF::NUM_DATA_DIRECTORIES];
+  };
+
   struct Object {
+    Optional<PEHeader> OptionalHeader;
     COFF::header Header;
     std::vector<Section> Sections;
     std::vector<Symbol> Symbols;
@@ -74,6 +96,21 @@ LLVM_YAML_IS_SEQUENCE_VECTOR(COFFYAML::Relocation)
 
 namespace llvm {
 namespace yaml {
+
+template <>
+struct ScalarEnumerationTraits<COFFYAML::WeakExternalCharacteristics> {
+  static void enumeration(IO &IO, COFFYAML::WeakExternalCharacteristics &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<COFFYAML::AuxSymbolType> {
+  static void enumeration(IO &IO, COFFYAML::AuxSymbolType &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<COFFYAML::COMDATType> {
+  static void enumeration(IO &IO, COFFYAML::COMDATType &Value);
+};
 
 template <>
 struct ScalarEnumerationTraits<COFF::MachineTypes> {
@@ -96,8 +133,18 @@ struct ScalarEnumerationTraits<COFF::SymbolComplexType> {
 };
 
 template <>
-struct ScalarEnumerationTraits<COFF::RelocationTypeX86> {
-  static void enumeration(IO &IO, COFF::RelocationTypeX86 &Value);
+struct ScalarEnumerationTraits<COFF::RelocationTypeI386> {
+  static void enumeration(IO &IO, COFF::RelocationTypeI386 &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<COFF::RelocationTypeAMD64> {
+  static void enumeration(IO &IO, COFF::RelocationTypeAMD64 &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<COFF::WindowsSubsystem> {
+  static void enumeration(IO &IO, COFF::WindowsSubsystem &Value);
 };
 
 template <>
@@ -111,13 +158,48 @@ struct ScalarBitSetTraits<COFF::SectionCharacteristics> {
 };
 
 template <>
+struct ScalarBitSetTraits<COFF::DLLCharacteristics> {
+  static void bitset(IO &IO, COFF::DLLCharacteristics &Value);
+};
+
+template <>
 struct MappingTraits<COFFYAML::Relocation> {
   static void mapping(IO &IO, COFFYAML::Relocation &Rel);
 };
 
 template <>
+struct MappingTraits<COFFYAML::PEHeader> {
+  static void mapping(IO &IO, COFFYAML::PEHeader &PH);
+};
+
+template <>
+struct MappingTraits<COFF::DataDirectory> {
+  static void mapping(IO &IO, COFF::DataDirectory &DD);
+};
+
+template <>
 struct MappingTraits<COFF::header> {
   static void mapping(IO &IO, COFF::header &H);
+};
+
+template <> struct MappingTraits<COFF::AuxiliaryFunctionDefinition> {
+  static void mapping(IO &IO, COFF::AuxiliaryFunctionDefinition &AFD);
+};
+
+template <> struct MappingTraits<COFF::AuxiliarybfAndefSymbol> {
+  static void mapping(IO &IO, COFF::AuxiliarybfAndefSymbol &AAS);
+};
+
+template <> struct MappingTraits<COFF::AuxiliaryWeakExternal> {
+  static void mapping(IO &IO, COFF::AuxiliaryWeakExternal &AWE);
+};
+
+template <> struct MappingTraits<COFF::AuxiliarySectionDefinition> {
+  static void mapping(IO &IO, COFF::AuxiliarySectionDefinition &ASD);
+};
+
+template <> struct MappingTraits<COFF::AuxiliaryCLRToken> {
+  static void mapping(IO &IO, COFF::AuxiliaryCLRToken &ACT);
 };
 
 template <>

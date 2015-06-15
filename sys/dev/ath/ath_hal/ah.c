@@ -55,7 +55,9 @@ ath_hal_probe(uint16_t vendorid, uint16_t devid)
  */
 struct ath_hal*
 ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *error)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_OPS_CONFIG *ah_config,
+	HAL_STATUS *error)
 {
 	struct ath_hal_chip * const *pchip;
 
@@ -66,7 +68,8 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 		/* XXX don't have vendorid, assume atheros one works */
 		if (chip->probe(ATHEROS_VENDOR_ID, devid) == AH_NULL)
 			continue;
-		ah = chip->attach(devid, sc, st, sh, eepromdata, error);
+		ah = chip->attach(devid, sc, st, sh, eepromdata, ah_config,
+		    error);
 		if (ah != AH_NULL) {
 			/* copy back private state to public area */
 			ah->ah_devid = AH_PRIVATE(ah)->ah_devid;
@@ -878,6 +881,7 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 	const void *args, uint32_t argsize,
 	void **result, uint32_t *resultsize)
 {
+
 	switch (request) {
 	case HAL_DIAG_REVS:
 		*result = &AH_PRIVATE(ah)->ah_devid;
@@ -934,6 +938,10 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 			AH_PRIVATE(ah)->ah_11nCompat = *(const uint32_t *)args;
 		} else
 			return AH_FALSE;
+		return AH_TRUE;
+	case HAL_DIAG_CHANSURVEY:
+		*result = &AH_PRIVATE(ah)->ah_chansurvey;
+		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
 		return AH_TRUE;
 	}
 	return AH_FALSE;
@@ -1429,4 +1437,33 @@ ath_hal_mhz2ieee_2ghz(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
 		return ((int) ichan->channel - 2407) / 5;
 	else
 		return 15 + ((ichan->channel - 2512) / 20);
+}
+
+/*
+ * Clear the current survey data.
+ *
+ * This should be done during a channel change.
+ */
+void
+ath_hal_survey_clear(struct ath_hal *ah)
+{
+
+	OS_MEMZERO(&AH_PRIVATE(ah)->ah_chansurvey,
+	    sizeof(AH_PRIVATE(ah)->ah_chansurvey));
+}
+
+/*
+ * Add a sample to the channel survey.
+ */
+void
+ath_hal_survey_add_sample(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hs)
+{
+	HAL_CHANNEL_SURVEY *cs;
+
+	cs = &AH_PRIVATE(ah)->ah_chansurvey;
+
+	OS_MEMCPY(&cs->samples[cs->cur_sample], hs, sizeof(*hs));
+	cs->samples[cs->cur_sample].seq_num = cs->cur_seq;
+	cs->cur_sample = (cs->cur_sample + 1) % CHANNEL_SURVEY_SAMPLE_COUNT;
+	cs->cur_seq++;
 }

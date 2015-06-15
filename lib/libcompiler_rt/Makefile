@@ -7,6 +7,7 @@ NO_PIC=
 WARNS?=	2
 
 CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
+CFLAGS+=-I${.CURDIR}/../../contrib/libcxxrt
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CRTARCH=x86_64
@@ -14,7 +15,7 @@ CRTARCH=x86_64
 CRTARCH=${MACHINE_CPUARCH}
 .endif
 
-CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib
+CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib/builtins
 
 .PATH: ${CRTSRC}/${CRTARCH} ${CRTSRC}
 
@@ -24,6 +25,7 @@ SRCF=	absvdi2 \
 	addvdi3 \
 	addvsi3 \
 	addvti3 \
+	apple_versioning \
 	ashldi3 \
 	ashlti3 \
 	ashrdi3 \
@@ -34,8 +36,6 @@ SRCF=	absvdi2 \
 	clzti2 \
 	cmpdi2 \
 	cmpti2 \
-	comparedf2 \
-	comparesf2 \
 	ctzdi2 \
 	ctzsi2 \
 	ctzti2 \
@@ -67,18 +67,22 @@ SRCF=	absvdi2 \
 	fixxfti \
 	floatdidf \
 	floatdisf \
+	floatditf \
 	floatdixf \
+	floatsitf \
 	floattidf \
 	floattisf \
 	floattixf \
 	floatundidf \
 	floatundisf \
+	floatunditf \
 	floatundixf \
 	floatunsidf \
 	floatunsisf \
 	floatuntidf \
 	floatuntisf \
 	floatuntixf \
+	gcc_personality_v0 \
 	int_util \
 	lshrdi3 \
 	lshrti3 \
@@ -94,6 +98,7 @@ SRCF=	absvdi2 \
 	mulvdi3 \
 	mulvsi3 \
 	mulvti3 \
+	multc3 \
 	mulxc3 \
 	negdf2 \
 	negdi2 \
@@ -126,6 +131,26 @@ SRCF=	absvdi2 \
 	umoddi3 \
 	umodti3
 
+# 128-bit quad precision long double support, only used on arm64
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCF+=	addtf3 \
+	comparetf2 \
+	divtf3 \
+	extenddftf2 \
+	extendsftf2 \
+	fixtfdi \
+	fixtfsi \
+	fixtfti \
+	fixunstfdi \
+	fixunstfsi \
+	fixunstfti \
+	floatunsitf \
+	multf3 \
+	subtf3 \
+	trunctfdf2 \
+	trunctfsf2
+.endif
+
 # These are already shipped by libc.a on arm and mips
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 SRCF+=	adddf3 \
@@ -144,8 +169,12 @@ SRCF+=	adddf3 \
 	truncdfsf2
 .endif
 
-.if ${MACHINE_CPUARCH} != "mips" && \
-    (${MACHINE_CPUARCH} != "arm" || ${MK_ARM_EABI} != "no")
+.if ${MACHINE_CPUARCH} != "arm"
+SRCF+=	comparedf2 \
+	comparesf2
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips"
 SRCF+=	divsi3 \
 	modsi3 \
 	udivsi3 \
@@ -165,24 +194,32 @@ SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}
-. if ${MACHINE_ARCH} == "armv6hf" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
+. if ${MACHINE_ARCH:Marm*hf*} != "" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
 SRCS+= ${file}vfp.S
-. elif (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH} == "armv6hf") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
+. elif !(${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH:Marm*hf*} == "") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
 SRCS+=	${file}.S
 . else
 SRCS+=	${file}.c
 . endif
 .endfor
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
-SRCS+=	aeabi_idivmod.S \
+.if ${MACHINE_CPUARCH} == "arm"
+SRCS+=	aeabi_div0.c \
+	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_memcmp.S \
 	aeabi_memcpy.S \
 	aeabi_memmove.S \
 	aeabi_memset.S \
 	aeabi_uidivmod.S \
-	aeabi_uldivmod.S
+	aeabi_uldivmod.S \
+	bswapdi2.S \
+	bswapsi2.S \
+	switch16.S \
+	switch32.S \
+	switch8.S \
+	switchu8.S \
+	sync_synchronize.S
 .endif
 
 .if ${MK_INSTALLLIB} != "no"

@@ -33,6 +33,7 @@
 #ifndef	_MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
+extern long Maxmem;
 extern char sigcode[];
 extern int szsigcode;
 extern uint32_t *vm_page_dump;
@@ -68,6 +69,6 @@ extern int busdma_swi_pending;
 void busdma_swi(void);
 void dump_add_page(vm_paddr_t);
 void dump_drop_page(vm_paddr_t);
-void minidumpsys(struct dumperinfo *);
+int minidumpsys(struct dumperinfo *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -12,6 +12,22 @@
 
 #include "lldb/lldb-types.h"
 
+#if defined (_WIN32)
+    #if defined(EXPORT_LIBLLDB)
+        #define  LLDB_API __declspec(dllexport)
+    #elif defined(IMPORT_LIBLLDB)
+        #define  LLDB_API __declspec(dllimport)
+    #else
+        #define LLDB_API
+    #endif
+#else // defined (_MSC_VER)
+    #define LLDB_API
+#endif
+
+#if !defined(INT32_MAX)
+    #define INT32_MAX 2147483647
+#endif
+
 #if !defined(UINT32_MAX)
     #define UINT32_MAX 4294967295U
 #endif
@@ -33,7 +49,6 @@
 // LLDB defines
 //----------------------------------------------------------------------
 #define LLDB_GENERIC_ERROR              UINT32_MAX
-#define LLDB_DEFAULT_SHELL              "/bin/sh"
 
 //----------------------------------------------------------------------
 // Breakpoints
@@ -75,6 +90,7 @@
 #define LLDB_INVALID_INDEX32            UINT32_MAX
 #define LLDB_INVALID_IVAR_OFFSET        UINT32_MAX
 #define LLDB_INVALID_IMAGE_TOKEN        UINT32_MAX
+#define LLDB_INVALID_MODULE_VERSION     UINT32_MAX
 #define LLDB_INVALID_REGNUM             UINT32_MAX
 #define LLDB_INVALID_UID                UINT64_MAX
 #define LLDB_INVALID_PROCESS_ID         0
@@ -86,7 +102,7 @@
 #define LLDB_INVALID_QUEUE_ID           0
 
 //----------------------------------------------------------------------
-/// CPU Type defintions
+/// CPU Type definitions
 //----------------------------------------------------------------------
 #define LLDB_ARCH_DEFAULT               "systemArch"
 #define LLDB_ARCH_DEFAULT_32BIT         "systemArch32"
@@ -94,7 +110,7 @@
 #define LLDB_INVALID_CPUTYPE            (0xFFFFFFFEu)
 
 //----------------------------------------------------------------------
-/// Option Set defintions
+/// Option Set definitions
 //----------------------------------------------------------------------
 // FIXME: I'm sure there's some #define magic that can create all 32 sets on the
 // fly.  That would have the added benefit of making this unreadable.
@@ -112,7 +128,7 @@
 #define LLDB_OPT_SET_10                 (1U << 9)
 #define LLDB_OPT_SET_FROM_TO(A, B)      (((1U << (B)) - 1) ^ (((1U << (A))-1) >> 1))
 
-#ifdef _WIN32
+#if defined (_WIN32) && !defined (MAX_PATH)
 #define MAX_PATH 260
 #endif
 

@@ -81,6 +81,7 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
             else
             {
                 Clear();
+                printf("error: register sets must have valid names\n");
                 return 0;
             }
         }
@@ -115,12 +116,14 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
                 RegisterInfo reg_info;
                 std::vector<uint32_t> value_regs;
                 std::vector<uint32_t> invalidate_regs;
-                bzero (&reg_info, sizeof(reg_info));
+                memset(&reg_info, 0, sizeof(reg_info));
                 
                 reg_info.name = ConstString (reg_info_dict.GetItemForKeyAsString(name_pystr)).GetCString();
                 if (reg_info.name == NULL)
                 {
                     Clear();
+                    printf("error: registers must have valid names\n");
+                    reg_info_dict.Dump();
                     return 0;
                 }
                     
@@ -290,6 +293,7 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
                     if (!success)
                     {
                         Clear();
+                        reg_info_dict.Dump();
                         return 0;
                     }
                 }
@@ -297,6 +301,8 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
                 if (bitsize == 0)
                 {
                     Clear();
+                    printf("error: invalid or missing 'bitsize' key/value pair in register dictionary\n");
+                    reg_info_dict.Dump();
                     return 0;
                 }
 
@@ -308,6 +314,8 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
                     if (Args::StringToFormat(format_cstr, reg_info.format, NULL).Fail())
                     {
                         Clear();
+                        printf("error: invalid 'format' value in register dictionary\n");
+                        reg_info_dict.Dump();
                         return 0;
                     }
                 }
@@ -323,9 +331,11 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
                     reg_info.encoding = (Encoding)reg_info_dict.GetItemForKeyAsInteger (encoding_pystr, eEncodingUint);
 
                 const int64_t set = reg_info_dict.GetItemForKeyAsInteger(set_pystr, -1);
-                if (set >= m_sets.size())
+                if (static_cast<size_t>(set) >= m_sets.size())
                 {
                     Clear();
+                    printf("error: invalid 'set' value in register dictionary, valid values are 0 - %i\n", (int)set);
+                    reg_info_dict.Dump();
                     return 0;
                 }
 
@@ -379,7 +389,7 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
                                 if (invalidate_reg_num)
                                 {
                                     const int64_t r = invalidate_reg_num.GetInteger();
-                                    if (r != UINT64_MAX)
+                                    if (r != static_cast<int64_t>(UINT64_MAX))
                                         m_invalidate_regs_map[i].push_back(r);
                                     else
                                         printf("error: 'invalidate-regs' list value wasn't a valid integer\n");
@@ -409,6 +419,8 @@ DynamicRegisterInfo::SetRegisterInfo (const lldb_private::PythonDictionary &dict
             else
             {
                 Clear();
+                printf("error: items in the 'registers' array must be dictionaries\n");
+                regs.Dump();
                 return 0;
             }
         }
@@ -632,10 +644,11 @@ DynamicRegisterInfo::Dump () const
 {
     StreamFile s(stdout, false);
     const size_t num_regs = m_regs.size();
-    s.Printf("%p: DynamicRegisterInfo contains %zu registers:\n", this, num_regs);
+    s.Printf("%p: DynamicRegisterInfo contains %" PRIu64 " registers:\n",
+             static_cast<const void*>(this), static_cast<uint64_t>(num_regs));
     for (size_t i=0; i<num_regs; ++i)
     {
-        s.Printf("[%3zu] name = %-10s", i, m_regs[i].name);
+        s.Printf("[%3" PRIu64 "] name = %-10s", (uint64_t)i, m_regs[i].name);
         s.Printf(", size = %2u, offset = %4u, encoding = %u, format = %-10s",
                  m_regs[i].byte_size,
                  m_regs[i].byte_offset,
@@ -671,12 +684,13 @@ DynamicRegisterInfo::Dump () const
         }
         s.EOL();
     }
-    
+
     const size_t num_sets = m_sets.size();
-    s.Printf("%p: DynamicRegisterInfo contains %zu register sets:\n", this, num_sets);
+    s.Printf("%p: DynamicRegisterInfo contains %" PRIu64 " register sets:\n",
+             static_cast<const void*>(this), static_cast<uint64_t>(num_sets));
     for (size_t i=0; i<num_sets; ++i)
     {
-        s.Printf("set[%zu] name = %s, regs = [", i, m_sets[i].name);
+        s.Printf("set[%" PRIu64 "] name = %s, regs = [", (uint64_t)i, m_sets[i].name);
         for (size_t idx=0; idx<m_sets[i].num_registers; ++idx)
         {
             s.Printf("%s ", m_regs[m_sets[i].registers[idx]].name);

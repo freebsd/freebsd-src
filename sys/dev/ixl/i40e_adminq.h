@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -36,6 +36,7 @@
 #define _I40E_ADMINQ_H_
 
 #include "i40e_osdep.h"
+#include "i40e_status.h"
 #include "i40e_adminq_cmd.h"
 
 #define I40E_ADMINQ_DESC(R, i)   \
@@ -76,6 +77,7 @@ struct i40e_asq_cmd_details {
 	u16 flags_dis;
 	bool async;
 	bool postpone;
+	struct i40e_aq_desc *wb_desc;
 };
 
 #define I40E_ADMINQ_DETAILS(R, i)   \
@@ -100,9 +102,9 @@ struct i40e_adminq_info {
 	u16 asq_buf_size;               /* send queue buffer size */
 	u16 fw_maj_ver;                 /* firmware major version */
 	u16 fw_min_ver;                 /* firmware minor version */
+	u32 fw_build;                   /* firmware build number */
 	u16 api_maj_ver;                /* api major version */
 	u16 api_min_ver;                /* api minor version */
-	bool nvm_busy;
 	bool nvm_release_on_done;
 
 	struct i40e_spinlock asq_spinlock; /* Send queue spinlock */
@@ -115,7 +117,7 @@ struct i40e_adminq_info {
 
 /* general information */
 #define I40E_AQ_LARGE_BUF		512
-#define I40E_ASQ_CMD_TIMEOUT		100  /* msecs */
+#define I40E_ASQ_CMD_TIMEOUT		250  /* msecs */
 
 void i40e_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
 				       u16 opcode);

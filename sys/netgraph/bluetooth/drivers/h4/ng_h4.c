@@ -798,7 +798,6 @@ ng_h4_rcvdata(hook_p hook, item_p item)
 			NG_NODE_NAME(sc->node), m->m_pkthdr.len);
 
 		NG_H4_STAT_OERROR(sc->stat);
-		_IF_DROP(&sc->outq);
 
 		NG_H4_UNLOCK(sc);
 

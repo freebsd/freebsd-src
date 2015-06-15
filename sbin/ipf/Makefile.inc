@@ -18,9 +18,7 @@ CFLAGS+=	-DUSE_INET6
 CFLAGS+=	-DNOINET6
 .endif
 
-LIBIPF=		${.OBJDIR}/../libipf/libipf.a
-DPADD+=		${LIBIPF} ${LIBKVM}
-LDADD+=		${LIBIPF} -lkvm
+LIBADD+=	ipf
 
 CLEANFILES+=	y.tab.c y.tab.h
 

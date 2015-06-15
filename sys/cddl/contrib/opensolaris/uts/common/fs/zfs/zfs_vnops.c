@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  */
 
@@ -266,16 +266,19 @@ zfs_holey(vnode_t *vp, u_long cmd, offset_t *off)
 
 	error = dmu_offset_next(zp->z_zfsvfs->z_os, zp->z_id, hole, &noff);
 
-	/* end of file? */
-	if ((error == ESRCH) || (noff > file_sz)) {
-		/*
-		 * Handle the virtual hole at the end of file.
-		 */
-		if (hole) {
-			*off = file_sz;
-			return (0);
-		}
+	if (error == ESRCH)
 		return (SET_ERROR(ENXIO));
+
+	/*
+	 * We could find a hole that begins after the logical end-of-file,
+	 * because dmu_offset_next() only works on whole blocks.  If the
+	 * EOF falls mid-block, then indicate that the "virtual hole"
+	 * at the end of the file begins at the logical EOF, rather than
+	 * at the end of the last block.
+	 */
+	if (noff > file_sz) {
+		ASSERT(hole);
+		noff = file_sz;
 	}
 
 	if (noff < *off)
@@ -308,7 +311,7 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 
 	case _FIO_SEEK_DATA:
 	case _FIO_SEEK_HOLE:
-#ifdef sun
+#ifdef illumos
 		if (ddi_copyin((void *)data, &off, sizeof (off), flag))
 			return (SET_ERROR(EFAULT));
 #else
@@ -324,7 +327,7 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 		ZFS_EXIT(zfsvfs);
 		if (error)
 			return (error);
-#ifdef sun
+#ifdef illumos
 		if (ddi_copyout(&off, (void *)data, sizeof (off), flag))
 			return (SET_ERROR(EFAULT));
 #else
@@ -579,7 +582,6 @@ static int
 mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 {
 	znode_t *zp = VTOZ(vp);
-	objset_t *os = zp->z_zfsvfs->z_os;
 	vm_object_t obj;
 	int64_t start;
 	caddr_t va;
@@ -610,7 +612,8 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 			page_unhold(pp);
 		} else {
 			zfs_vmobject_wunlock(obj);
-			error = dmu_read_uio(os, zp->z_id, uio, bytes);
+			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
+			    uio, bytes);
 			zfs_vmobject_wlock(obj);
 		}
 		len -= bytes;
@@ -647,7 +650,6 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 {
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
-	objset_t	*os;
 	ssize_t		n, nbytes;
 	int		error = 0;
 	rl_t		*rl;
@@ -655,7 +657,6 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
-	os = zfsvfs->z_os;
 
 	if (zp->z_pflags & ZFS_AV_QUARANTINED) {
 		ZFS_EXIT(zfsvfs);
@@ -713,7 +714,7 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	ASSERT(uio->uio_loffset < zp->z_size);
 	n = MIN(uio->uio_resid, zp->z_size - uio->uio_loffset);
 
-#ifdef sun
+#ifdef illumos
 	if ((uio->uio_extflg == UIO_XUIO) &&
 	    (((xuio_t *)uio)->xu_type == UIOTYPE_ZEROCOPY)) {
 		int nblk;
@@ -742,7 +743,7 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 			}
 		}
 	}
-#endif	/* sun */
+#endif	/* illumos */
 
 	while (n > 0) {
 		nbytes = MIN(n, zfs_read_chunk_size -
@@ -753,10 +754,12 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 			error = mappedread_sf(vp, nbytes, uio);
 		else
 #endif /* __FreeBSD__ */
-		if (vn_has_cached_data(vp))
+		if (vn_has_cached_data(vp)) {
 			error = mappedread(vp, nbytes, uio);
-		else
-			error = dmu_read_uio(os, zp->z_id, uio, nbytes);
+		} else {
+			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
+			    uio, nbytes);
+		}
 		if (error) {
 			/* convert checksum errors into IO errors */
 			if (error == ECKSUM)
@@ -882,7 +885,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		return (error);
 	}
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Pre-fault the pages to ensure slow (eg NFS) pages
 	 * don't hold up txg.
@@ -893,7 +896,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		xuio = (xuio_t *)uio;
 	else
 		uio_prefaultpages(MIN(n, max_blksz), uio);
-#endif	/* sun */
+#endif
 
 	/*
 	 * If in append mode, set the io offset pointer to eof.
@@ -1020,8 +1023,14 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 			uint64_t new_blksz;
 
 			if (zp->z_blksz > max_blksz) {
+				/*
+				 * File's blocksize is already larger than the
+				 * "recordsize" property.  Only let it grow to
+				 * the next power of 2.
+				 */
 				ASSERT(!ISP2(zp->z_blksz));
-				new_blksz = MIN(end_size, SPA_MAXBLOCKSIZE);
+				new_blksz = MIN(end_size,
+				    1 << highbit64(zp->z_blksz));
 			} else {
 				new_blksz = MIN(end_size, max_blksz);
 			}
@@ -1139,10 +1148,10 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		ASSERT(tx_bytes == nbytes);
 		n -= nbytes;
 
-#ifdef sun
+#ifdef illumos
 		if (!xuio && n > 0)
 			uio_prefaultpages(MIN(n, max_blksz), uio);
-#endif	/* sun */
+#endif
 	}
 
 	zfs_range_unlock(rl);
@@ -1539,7 +1548,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
-	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 	/*
 	 * Insert name into cache if appropriate.
@@ -2814,7 +2823,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	mutex_enter(&zp->z_lock);
 	vap->va_type = IFTOVT(zp->z_mode);
 	vap->va_mode = zp->z_mode & ~S_IFMT;
-#ifdef sun
+#ifdef illumos
 	vap->va_fsid = zp->z_zfsvfs->z_vfs->vfs_dev;
 #else
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
@@ -2826,7 +2835,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 		links = zp->z_links;
 	vap->va_nlink = MIN(links, LINK_MAX);	/* nlink_t limit! */
 	vap->va_size = zp->z_size;
-#ifdef sun
+#ifdef illumos
 	vap->va_rdev = vp->v_rdev;
 #else
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
@@ -2834,6 +2843,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 #endif
 	vap->va_seq = zp->z_seq;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
+     	vap->va_filerev = zp->z_seq;
 
 	/*
 	 * Add in any requested optional attributes and the create time.
@@ -4452,7 +4462,7 @@ top:
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * zfs_null_putapage() is used when the file system has been force
  * unmounted. It just drops the pages.
@@ -4680,7 +4690,7 @@ out:
 	ZFS_EXIT(zfsvfs);
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*ARGSUSED*/
 void
@@ -4733,7 +4743,7 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Bounds-check the seek operation.
  *
@@ -5159,7 +5169,7 @@ zfs_space(vnode_t *vp, int cmd, flock64_t *bfp, int flag,
 	ZFS_EXIT(zfsvfs);
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 CTASSERT(sizeof(struct zfid_short) <= sizeof(struct fid));
 CTASSERT(sizeof(struct zfid_long) <= sizeof(struct fid));
@@ -5247,7 +5257,7 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 	case _PC_FILESIZEBITS:
 		*valp = 64;
 		return (0);
-#ifdef sun
+#ifdef illumos
 	case _PC_XATTR_EXISTS:
 		zp = VTOZ(vp);
 		zfsvfs = zp->z_zfsvfs;
@@ -5285,16 +5295,16 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 	case _PC_ACL_ENABLED:
 		*valp = _ACL_ACE_ENABLED;
 		return (0);
-#endif	/* sun */
+#endif	/* illumos */
 	case _PC_MIN_HOLE_SIZE:
 		*valp = (int)SPA_MINBLOCKSIZE;
 		return (0);
-#ifdef sun
+#ifdef illumos
 	case _PC_TIMESTAMP_RESOLUTION:
 		/* nanosecond timestamp resolution */
 		*valp = 1L;
 		return (0);
-#endif	/* sun */
+#endif
 	case _PC_ACL_EXTENDED:
 		*valp = 0;
 		return (0);
@@ -5353,7 +5363,7 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * The smallest read we may consider to loan out an arcbuf.
  * This must be a power of 2.
@@ -5684,7 +5694,7 @@ const fs_operation_def_t zfs_evnodeops_template[] = {
 	VOPNAME_PATHCONF,	{ .vop_pathconf = zfs_pathconf },
 	NULL,			NULL
 };
-#endif	/* sun */
+#endif	/* illumos */
 
 static int
 ioflags(int ioflags)
@@ -5829,7 +5839,6 @@ zfs_freebsd_getpages(ap)
 		vm_page_t *a_m;
 		int a_count;
 		int a_reqpage;
-		vm_ooffset_t a_offset;
 	} */ *ap;
 {
 
@@ -5960,6 +5969,7 @@ top:
 		    &zp->z_pflags, 8);
 		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime,
 		    B_TRUE);
+		(void)sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 		zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp, off, len, 0);
 
 		zfs_vmobject_wlock(object);
@@ -5990,7 +6000,6 @@ zfs_freebsd_putpages(ap)
 		int a_count;
 		int a_sync;
 		int *a_rtvals;
-		vm_ooffset_t a_offset;
 	} */ *ap;
 {
 
@@ -6171,15 +6180,20 @@ zfs_freebsd_create(ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 	vattr_t *vap = ap->a_vap;
-	int mode;
+	int error, mode;
 
 	ASSERT(cnp->cn_flags & SAVENAME);
 
 	vattr_init_mask(vap);
 	mode = vap->va_mode & ALLPERMS;
 
-	return (zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
-	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread));
+	error = zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
+	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread);
+#ifdef FREEBSD_NAMECACHE
+	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(ap->a_dvp, *ap->a_vpp, cnp);
+#endif
+	return (error);
 }
 
 static int

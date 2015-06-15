@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
- * Copyright (c) 2012 NetApp Inc.
- * Copyright (c) 2012 Citrix Inc.
+ * Copyright (c) 2014 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,13 +22,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _KVP_H
 #define _KVP_H
 
 /*
- * An implementation of HyperV key value pair (KVP) functionality for FreeBSD 
+ * An implementation of HyperV key value pair (KVP) functionality for FreeBSD
  *
  */
 
@@ -53,15 +53,15 @@
 /*
  * bytes, including any null terminators
  */
-#define HV_KVP_EXCHANGE_MAX_VALUE_SIZE          (2048)
+#define HV_KVP_EXCHANGE_MAX_VALUE_SIZE    (2048)
 
 
 /*
  * Maximum key size - the registry limit for the length of an entry name
  * is 256 characters, including the null terminator
  */
+#define HV_KVP_EXCHANGE_MAX_KEY_SIZE    (512)
 
-#define HV_KVP_EXCHANGE_MAX_KEY_SIZE            (512)
 
 /*
  * In FreeBSD, we implement the KVP functionality in two components:
@@ -111,30 +111,20 @@
  * (not supported), a NULL key string is returned.
  */
 
-
+ 
 /*
  * Registry value types.
  */
+#define HV_REG_SZ     1
+#define HV_REG_U32    4
+#define HV_REG_U64    8
 
-#define HV_REG_SZ  1
-#define HV_REG_U32 4
-#define HV_REG_U64 8
-
-
-/*
- * Daemon code not supporting IP injection (legacy daemon).
- */
-
-#define HV_KVP_OP_REGISTER	4
 
 /*
  * Daemon code supporting IP injection.
- * The KVP opcode field is used to communicate the
- * registration information; so define a namespace that
- * will be distinct from the host defined KVP opcode.
  */
+#define HV_KVP_OP_REGISTER    4
 
-#define KVP_OP_REGISTER1 100
 
 enum hv_kvp_exchg_op {
 	HV_KVP_OP_GET = 0,
@@ -155,41 +145,41 @@ enum hv_kvp_exchg_pool {
 	HV_KVP_POOL_COUNT /* Number of pools, must be last. */
 };
 
+
 /*
  * Some Hyper-V status codes.
  */
-#define HV_KVP_S_OK				0x00000000
-#define HV_KVP_E_FAIL			0x80004005
-#define HV_KVP_S_CONT			0x80070103
-#define HV_ERROR_NOT_SUPPORTED		0x80070032
-#define HV_ERROR_MACHINE_LOCKED		0x800704F7
-#define HV_ERROR_DEVICE_NOT_CONNECTED	0x8007048F
-#define HV_INVALIDARG			0x80070057
-#define HV_KVP_GUID_NOTFOUND		0x80041002
+#define HV_KVP_S_OK                      0x00000000
+#define HV_KVP_E_FAIL                    0x80004005
+#define HV_KVP_S_CONT                    0x80070103
+#define HV_ERROR_NOT_SUPPORTED           0x80070032
+#define HV_ERROR_MACHINE_LOCKED          0x800704F7
+#define HV_ERROR_DEVICE_NOT_CONNECTED    0x8007048F
+#define HV_INVALIDARG                    0x80070057
+#define HV_KVP_GUID_NOTFOUND             0x80041002
 
-#define ADDR_FAMILY_NONE	0x00
-#define ADDR_FAMILY_IPV4	0x01
-#define ADDR_FAMILY_IPV6	0x02
+#define ADDR_FAMILY_NONE                 0x00
+#define ADDR_FAMILY_IPV4                 0x01
+#define ADDR_FAMILY_IPV6                 0x02
 
-#define MAX_ADAPTER_ID_SIZE	128
-#define MAX_IP_ADDR_SIZE	1024
-#define MAX_GATEWAY_SIZE	512
+#define MAX_ADAPTER_ID_SIZE              128
+#define MAX_IP_ADDR_SIZE                 1024
+#define MAX_GATEWAY_SIZE                 512
 
 
 struct hv_kvp_ipaddr_value {
-	uint16_t	adapter_id[MAX_ADAPTER_ID_SIZE];
-	uint8_t	addr_family;
-	uint8_t	dhcp_enabled;
-	uint16_t	ip_addr[MAX_IP_ADDR_SIZE];
-	uint16_t	sub_net[MAX_IP_ADDR_SIZE];
-	uint16_t	gate_way[MAX_GATEWAY_SIZE];
-	uint16_t	dns_addr[MAX_IP_ADDR_SIZE];
-} __attribute__((packed));
-
+	uint16_t adapter_id[MAX_ADAPTER_ID_SIZE];
+	uint8_t  addr_family;
+	uint8_t  dhcp_enabled;
+	uint16_t ip_addr[MAX_IP_ADDR_SIZE];
+	uint16_t sub_net[MAX_IP_ADDR_SIZE];
+	uint16_t gate_way[MAX_GATEWAY_SIZE];
+	uint16_t dns_addr[MAX_IP_ADDR_SIZE];
+}__attribute__((packed));
 
 struct hv_kvp_hdr {
-	uint8_t operation;
-	uint8_t pool;
+	uint8_t  operation;
+	uint8_t  pool;
 	uint16_t pad;
 } __attribute__((packed));
 
@@ -197,9 +187,9 @@ struct hv_kvp_exchg_msg_value {
 	uint32_t value_type;
 	uint32_t key_size;
 	uint32_t value_size;
-	uint8_t key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+	uint8_t  key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
 	union {
-		uint8_t value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
+		uint8_t  value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
 		uint32_t value_u32;
 		uint64_t value_u64;
 	} msg_value;
@@ -229,16 +219,16 @@ struct hv_kvp_register {
 
 struct hv_kvp_msg {
 	union {
-		struct hv_kvp_hdr	kvp_hdr;
-		int error;
+		struct hv_kvp_hdr kvp_hdr;
+		uint32_t error;
 	} hdr;
 	union {
-		struct hv_kvp_msg_get	kvp_get;
-		struct hv_kvp_msg_set	kvp_set;
+		struct hv_kvp_msg_get		kvp_get;
+		struct hv_kvp_msg_set		kvp_set;
 		struct hv_kvp_msg_delete	kvp_delete;
 		struct hv_kvp_msg_enumerate	kvp_enum_data;
-		struct hv_kvp_ipaddr_value  kvp_ip_val;
-		struct hv_kvp_register	kvp_register;
+		struct hv_kvp_ipaddr_value	kvp_ip_val;
+		struct hv_kvp_register		kvp_register;
 	} body;
 } __attribute__((packed));
 
@@ -248,38 +238,17 @@ struct hv_kvp_ip_msg {
 	struct hv_kvp_ipaddr_value      kvp_ip_val;
 } __attribute__((packed));
 
-#define BSD_SOC_PATH "/etc/hyperv/socket" 
 
-#define HV_SHUT_DOWN		0
-#define HV_TIME_SYNCH	 	1
-#define HV_HEART_BEAT	 	2
-#define HV_KVP		 	3
-#define HV_MAX_UTIL_SERVICES 	4
+#define HV_SHUT_DOWN                0
+#define HV_TIME_SYNCH               1
+#define HV_HEART_BEAT               2
+#define HV_KVP                      3
+#define HV_MAX_UTIL_SERVICES        4
 
-#define HV_WLTIMEDELTA			116444736000000000L /* in 100ns unit */
-#define HV_ICTIMESYNCFLAG_PROBE		0
-#define HV_ICTIMESYNCFLAG_SYNC		1
-#define HV_ICTIMESYNCFLAG_SAMPLE	2
-#define HV_NANO_SEC_PER_SEC 		1000000000
-
-typedef struct hv_vmbus_service {
-	hv_guid		guid;		/* Hyper-V GUID */
-       char*			name;		/* name of service */
-       boolean_t		enabled;	/* service enabled */
-       hv_work_queue*	work_queue;	/* background work queue */
-	
-	//
-	// function to initialize service
-	//
-       int (*init)(struct hv_vmbus_service *);
-	
-	//
-	// function to process Hyper-V messages 
-	//
-       void (*callback)(void *);
-} hv_vmbus_service;
-
-extern uint8_t* receive_buffer[];
-extern hv_vmbus_service service_table[];
+#define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
+#define HV_ICTIMESYNCFLAG_PROBE     0
+#define HV_ICTIMESYNCFLAG_SYNC      1
+#define HV_ICTIMESYNCFLAG_SAMPLE    2
+#define HV_NANO_SEC_PER_SEC         1000000000
 
 #endif /* _KVP_H */

@@ -5,8 +5,7 @@ SHLIB_MAJOR= 1
 SRCS+=	rpcsec_gss.c rpcsec_gss_prot.c rpcsec_gss_conf.c rpcsec_gss_misc.c \
 	svc_rpcsec_gss.c
 
-DPADD+=	${LIBGSSAPI}
-LDADD+=	-lgssapi
+LIBADD=	gssapi
 
 VERSION_DEF=	${.CURDIR}/../libc/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map

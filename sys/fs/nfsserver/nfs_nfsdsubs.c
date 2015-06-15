@@ -44,9 +44,12 @@ __FBSDID("$FreeBSD$");
 
 extern u_int32_t newnfs_true, newnfs_false;
 extern int nfs_pubfhset;
-extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
-extern struct nfslockhashhead nfslockhash[NFSLOCKHASHSIZE];
-extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
+extern struct nfsclienthashhead *nfsclienthash;
+extern int nfsrv_clienthashsize;
+extern struct nfslockhashhead *nfslockhash;
+extern int nfsrv_lockhashsize;
+extern struct nfssessionhash *nfssessionhash;
+extern int nfsrv_sessionhashsize;
 extern int nfsrv_useacl;
 extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
@@ -61,10 +64,20 @@ static u_int32_t nfsrv_isannfserr(u_int32_t);
 
 SYSCTL_DECL(_vfs_nfsd);
 
-static int	disable_checkutf8 = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
-    &disable_checkutf8, 0,
-    "Disable the NFSv4 check for a UTF8 compliant name");
+static int	enable_checkutf8 = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_checkutf8, CTLFLAG_RW,
+    &enable_checkutf8, 0,
+    "Enable the NFSv4 check for the UTF8 compliant name required by rfc3530");
+
+static int    enable_nobodycheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nobodycheck, CTLFLAG_RW,
+    &enable_nobodycheck, 0,
+    "Enable the NFSv4 check when setting user nobody as owner");
+
+static int    enable_nogroupcheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nogroupcheck, CTLFLAG_RW,
+    &enable_nogroupcheck, 0,
+    "Enable the NFSv4 check when setting group nogroup as owner");
 
 static char nfsrv_hexdigit(char, int *);
 
@@ -1543,8 +1556,10 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	 */
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
 		goto out;
-	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid)) {
+	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid &&
+           enable_nobodycheck == 1)
+	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
+           enable_nogroupcheck == 1)) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
@@ -1993,7 +2008,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		    error = 0;
 		    goto nfsmout;
 		}
-		if (disable_checkutf8 == 0 &&
+		if (enable_checkutf8 == 1 &&
 		    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
 		    nd->nd_repstat = NFSERR_INVAL;
 		    error = 0;
@@ -2024,12 +2039,20 @@ nfsd_init(void)
 	 * Initialize client queues. Don't free/reinitialize
 	 * them when nfsds are restarted.
 	 */
-	for (i = 0; i < NFSCLIENTHASHSIZE; i++)
+	nfsclienthash = malloc(sizeof(struct nfsclienthashhead) *
+	    nfsrv_clienthashsize, M_NFSDCLIENT, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_clienthashsize; i++)
 		LIST_INIT(&nfsclienthash[i]);
-	for (i = 0; i < NFSLOCKHASHSIZE; i++)
+	nfslockhash = malloc(sizeof(struct nfslockhashhead) *
+	    nfsrv_lockhashsize, M_NFSDLOCKFILE, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_lockhashsize; i++)
 		LIST_INIT(&nfslockhash[i]);
-	for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+	nfssessionhash = malloc(sizeof(struct nfssessionhash) *
+	    nfsrv_sessionhashsize, M_NFSDSESSION, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_sessionhashsize; i++) {
+		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
+	}
 
 	/* and the v2 pubfh should be all zeros */
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);

@@ -46,10 +46,9 @@
 #include <signal.h>
 #include <assert.h>
 
-#if defined(sun)
+#ifdef illumos
 #define	GETOPT_EOF	EOF
 #else
-/* FreeBSD */ 
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -57,7 +56,7 @@
 #define	GETOPT_EOF		(-1)
 
 typedef	uintptr_t	pc_t;
-#endif /* defined(sun) */
+#endif
 
 #define	LOCKSTAT_OPTSTR	"x:bths:n:d:i:l:f:e:ckwWgCHEATID:RpPo:V"
 
@@ -158,14 +157,22 @@ static ls_event_info_t g_event_info[LS_MAX_EVENTS] = {
 	    "lockstat:::rw-block", "arg2 != 0 && arg3 == 1" },
 	{ 'C',	"Lock",	"R/W reader blocked by write wanted",	"nsec",
 	    "lockstat:::rw-block", "arg2 != 0 && arg3 == 0 && arg4" },
-	{ 'C',	"Lock",	"Unknown event (type 8)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 9)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 10)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 11)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 12)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 13)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 14)",		"units"	},
-	{ 'C',	"Lock",	"Unknown event (type 15)",		"units"	},
+	{ 'C',	"Lock",	"R/W writer spin on writer",		"nsec",
+	    "lockstat:::rw-spin", "arg2 == 0 && arg3 == 1" },
+	{ 'C',	"Lock",	"R/W writer spin on readers",		"nsec",
+	    "lockstat:::rw-spin", "arg2 == 0 && arg3 == 0 && arg4" },
+	{ 'C',	"Lock",	"R/W reader spin on writer",		"nsec",
+	    "lockstat:::rw-spin", "arg2 != 0 && arg3 == 1" },
+	{ 'C',	"Lock",	"R/W reader spin on write wanted",	"nsec",
+	    "lockstat:::rw-spin", "arg2 != 0 && arg3 == 0 && arg4" },
+	{ 'C',	"Lock",	"SX exclusive block",			"nsec",
+	    "lockstat:::sx-block", "arg2 == 0" },
+	{ 'C',	"Lock",	"SX shared block",			"nsec",
+	    "lockstat:::sx-block", "arg2 != 0" },
+	{ 'C',	"Lock",	"SX exclusive spin",			"nsec",
+	    "lockstat:::sx-spin", "arg2 == 0" },
+	{ 'C',	"Lock",	"SX shared spin",			"nsec",
+	    "lockstat:::sx-spin", "arg2 != 0" },
 	{ 'C',	"Lock",	"Unknown event (type 16)",		"units"	},
 	{ 'C',	"Lock",	"Unknown event (type 17)",		"units"	},
 	{ 'C',	"Lock",	"Unknown event (type 18)",		"units"	},
@@ -189,13 +196,17 @@ static ls_event_info_t g_event_info[LS_MAX_EVENTS] = {
 	    "lockstat:::spin-release", NULL,
 	    "lockstat:::spin-acquire" },
 	{ 'H',	"Lock",	"R/W writer hold",			"nsec",
-	    "lockstat:::rw-release", "arg1 == 0",
-	    "lockstat:::rw-acquire" },
+	    "lockstat::rw_wunlock:rw-release", NULL,
+	    "lockstat::rw_wlock:rw-acquire" },
 	{ 'H',	"Lock",	"R/W reader hold",			"nsec",
-	    "lockstat:::rw-release", "arg1 != 0",
-	    "lockstat:::rw-acquire" },
-	{ 'H',	"Lock",	"Unknown event (type 36)",		"units"	},
-	{ 'H',	"Lock",	"Unknown event (type 37)",		"units"	},
+	    "lockstat::rw_runlock:rw-release", NULL,
+	    "lockstat::rw_rlock:rw-acquire" },
+	{ 'H',	"Lock",	"SX shared hold",			"nsec",
+	    "lockstat::sx_sunlock:sx-release", NULL,
+	    "lockstat::sx_slock:sx-acquire" },
+	{ 'H',	"Lock",	"SX exclusive hold",			"nsec",
+	    "lockstat::sx_xunlock:sx-release", NULL,
+	    "lockstat::sx_xlock:sx-acquire" },
 	{ 'H',	"Lock",	"Unknown event (type 38)",		"units"	},
 	{ 'H',	"Lock",	"Unknown event (type 39)",		"units"	},
 	{ 'H',	"Lock",	"Unknown event (type 40)",		"units"	},
@@ -214,10 +225,9 @@ static ls_event_info_t g_event_info[LS_MAX_EVENTS] = {
 	{ 'H',	"Lock",	"Unknown event (type 53)",		"units"	},
 	{ 'H',	"Lock",	"Unknown event (type 54)",		"units"	},
 	{ 'H',	"Lock",	"Unknown event (type 55)",		"units"	},
-#if defined(sun)
+#ifdef illumos
 	{ 'I',	"CPU+PIL", "Profiling interrupt",		"nsec",
 #else
-	/* FreeBSD */
 	{ 'I',	"CPU+Pri_Class", "Profiling interrupt",		"nsec",
 #endif
 	    "profile:::profile-97", NULL },
@@ -231,7 +241,7 @@ static ls_event_info_t g_event_info[LS_MAX_EVENTS] = {
 	{ 'E',	"Lock",	"Lockstat record failure",		"(N/A)"	},
 };
 
-#if !defined(sun)
+#ifndef illumos
 static char *g_pri_class[] = {
 	"",
 	"Intr",
@@ -301,6 +311,8 @@ usage(void)
 {
 	(void) fprintf(stderr,
 	    "Usage: lockstat [options] command [args]\n"
+	    "\nGeneral options:\n\n"
+	    "  -V              print the corresponding D program\n"
 	    "\nEvent selection options:\n\n"
 	    "  -C              watch contention events [on by default]\n"
 	    "  -E              watch error events [off by default]\n"
@@ -598,7 +610,7 @@ filter_add(char **filt, char *what, uintptr_t base, uintptr_t size)
 		*filt[0] = '\0';
 	}
 
-#if defined(sun)
+#ifdef illumos
 	(void) sprintf(c, "%s(%s >= 0x%p && %s < 0x%p)", *filt[0] != '\0' ?
 	    " || " : "", what, (void *)base, what, (void *)(base + size));
 #else
@@ -676,7 +688,7 @@ dprog_addevent(int event)
 		 * the number of nanoseconds) is the number of nanoseconds
 		 * late -- and it's stored in arg2.
 		 */
-#if defined(sun)
+#ifdef illumos
 		arg0 = "(uintptr_t)curthread->t_cpu + \n"
 		    "\t    curthread->t_cpu->cpu_profile_pil";
 #else
@@ -824,7 +836,7 @@ dprog_compile()
 }
 
 static void
-#if defined(sun)
+#ifdef illumos
 status_fire(void)
 #else
 status_fire(int i)
@@ -1423,7 +1435,7 @@ main(int argc, char **argv)
 		exit(127);
 	}
 
-#if defined(sun)
+#ifdef illumos
 	while (waitpid(child, &status, WEXITED) != child)
 #else
 	while (waitpid(child, &status, 0) != child)
@@ -1468,7 +1480,7 @@ main(int argc, char **argv)
 			dfail("failed to walk aggregate");
 	}
 
-#if defined(sun)
+#ifdef illumos
 	if ((data_buf = memalign(sizeof (uint64_t),
 	    (g_nrecs + 1) * g_recsize)) == NULL)
 #else
@@ -1500,7 +1512,7 @@ main(int argc, char **argv)
 	if (g_gflag) {
 		lsrec_t *newlsp, *oldlsp;
 
-#if defined(sun)
+#ifdef illumos
 		newlsp = memalign(sizeof (uint64_t),
 		    g_nrecs_used * LS_TIME * (g_stkdepth + 1));
 #else
@@ -1664,7 +1676,7 @@ format_symbol(char *buf, uintptr_t addr, int show_size)
 	else if (symoff == 0)
 		(void) sprintf(buf, "%s", symname);
 	else if (symoff < 16 && bcmp(symname, "cpu[", 4) == 0)	/* CPU+PIL */
-#if defined(sun)
+#ifdef illumos
 		(void) sprintf(buf, "%s+%ld", symname, (long)symoff);
 #else
 		(void) sprintf(buf, "%s+%s", symname, g_pri_class[(int)symoff]);

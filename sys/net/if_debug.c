@@ -79,7 +79,6 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%p", if_snd.ifq_tail);
 	IF_DB_PRINTF("%d", if_snd.ifq_len);
 	IF_DB_PRINTF("%d", if_snd.ifq_maxlen);
-	IF_DB_PRINTF("%d", if_snd.ifq_drops);
 	IF_DB_PRINTF("%p", if_snd.ifq_drv_head);
 	IF_DB_PRINTF("%p", if_snd.ifq_drv_tail);
 	IF_DB_PRINTF("%d", if_snd.ifq_drv_len);

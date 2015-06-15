@@ -26,19 +26,20 @@
 // TODO: ObjCARCContract could insert PHI nodes when uses aren't
 // dominated by single calls.
 
-#define DEBUG_TYPE "objc-arc-contract"
 #include "ObjCARC.h"
 #include "ARCRuntimeEntryPoints.h"
 #include "DependencyAnalysis.h"
 #include "ProvenanceAnalysis.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
 using namespace llvm::objcarc;
+
+#define DEBUG_TYPE "objc-arc-contract"
 
 STATISTIC(NumPeeps,       "Number of calls peephole-optimized");
 STATISTIC(NumStoreStrongs, "Number objc_storeStrong calls formed");
@@ -71,17 +72,17 @@ namespace {
 
     bool ContractAutorelease(Function &F, Instruction *Autorelease,
                              InstructionClass Class,
-                             SmallPtrSet<Instruction *, 4>
+                             SmallPtrSetImpl<Instruction *>
                                &DependingInstructions,
-                             SmallPtrSet<const BasicBlock *, 4>
+                             SmallPtrSetImpl<const BasicBlock *>
                                &Visited);
 
     void ContractRelease(Instruction *Release,
                          inst_iterator &Iter);
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-    virtual bool doInitialization(Module &M);
-    virtual bool runOnFunction(Function &F);
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    bool doInitialization(Module &M) override;
+    bool runOnFunction(Function &F) override;
 
   public:
     static char ID;
@@ -95,7 +96,7 @@ char ObjCARCContract::ID = 0;
 INITIALIZE_PASS_BEGIN(ObjCARCContract,
                       "objc-arc-contract", "ObjC ARC contraction", false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(ObjCARCContract,
                     "objc-arc-contract", "ObjC ARC contraction", false, false)
 
@@ -105,7 +106,7 @@ Pass *llvm::createObjCARCContractPass() {
 
 void ObjCARCContract::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<AliasAnalysis>();
-  AU.addRequired<DominatorTree>();
+  AU.addRequired<DominatorTreeWrapperPass>();
   AU.setPreservesCFG();
 }
 
@@ -149,15 +150,15 @@ ObjCARCContract::OptimizeRetainCall(Function &F, Instruction *Retain) {
 bool
 ObjCARCContract::ContractAutorelease(Function &F, Instruction *Autorelease,
                                      InstructionClass Class,
-                                     SmallPtrSet<Instruction *, 4>
+                                     SmallPtrSetImpl<Instruction *>
                                        &DependingInstructions,
-                                     SmallPtrSet<const BasicBlock *, 4>
+                                     SmallPtrSetImpl<const BasicBlock *>
                                        &Visited) {
   const Value *Arg = GetObjCArg(Autorelease);
 
   // Check that there are no instructions between the retain and the autorelease
   // (such as an autorelease_pop) which may change the count.
-  CallInst *Retain = 0;
+  CallInst *Retain = nullptr;
   if (Class == IC_AutoreleaseRV)
     FindDependencies(RetainAutoreleaseRVDep, Arg,
                      Autorelease->getParent(), Autorelease,
@@ -218,7 +219,7 @@ void ObjCARCContract::ContractRelease(Instruction *Release,
   BasicBlock::iterator I = Load, End = BB->end();
   ++I;
   AliasAnalysis::Location Loc = AA->getLocation(Load);
-  StoreInst *Store = 0;
+  StoreInst *Store = nullptr;
   bool SawRelease = false;
   for (; !Store || !SawRelease; ++I) {
     if (I == End)
@@ -300,7 +301,7 @@ bool ObjCARCContract::doInitialization(Module &M) {
   EP.Initialize(&M);
 
   // Initialize RetainRVMarker.
-  RetainRVMarker = 0;
+  RetainRVMarker = nullptr;
   if (NamedMDNode *NMD =
         M.getNamedMetadata("clang.arc.retainAutoreleasedReturnValueMarker"))
     if (NMD->getNumOperands() == 1) {
@@ -323,7 +324,7 @@ bool ObjCARCContract::runOnFunction(Function &F) {
 
   Changed = false;
   AA = &getAnalysis<AliasAnalysis>();
-  DT = &getAnalysis<DominatorTree>();
+  DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
   PA.setAA(&getAnalysis<AliasAnalysis>());
 
@@ -440,17 +441,17 @@ bool ObjCARCContract::runOnFunction(Function &F) {
 
     // Don't use GetObjCArg because we don't want to look through bitcasts
     // and such; to do the replacement, the argument must have type i8*.
-    const Value *Arg = cast<CallInst>(Inst)->getArgOperand(0);
+    Value *Arg = cast<CallInst>(Inst)->getArgOperand(0);
     for (;;) {
       // If we're compiling bugpointed code, don't get in trouble.
       if (!isa<Instruction>(Arg) && !isa<Argument>(Arg))
         break;
       // Look through the uses of the pointer.
-      for (Value::const_use_iterator UI = Arg->use_begin(), UE = Arg->use_end();
+      for (Value::use_iterator UI = Arg->use_begin(), UE = Arg->use_end();
            UI != UE; ) {
-        Use &U = UI.getUse();
-        unsigned OperandNo = UI.getOperandNo();
-        ++UI; // Increment UI now, because we may unlink its element.
+        // Increment UI now, because we may unlink its element.
+        Use &U = *UI++;
+        unsigned OperandNo = U.getOperandNo();
 
         // If the call's return value dominates a use of the call's argument
         // value, rewrite the use to use the return value. We check for
@@ -475,9 +476,9 @@ bool ObjCARCContract::runOnFunction(Function &F) {
             for (unsigned i = 0, e = PHI->getNumIncomingValues(); i != e; ++i)
               if (PHI->getIncomingBlock(i) == BB) {
                 // Keep the UI iterator valid.
-                if (&PHI->getOperandUse(
-                      PHINode::getOperandNumForIncomingValue(i)) ==
-                    &UI.getUse())
+                if (UI != UE &&
+                    &PHI->getOperandUse(
+                        PHINode::getOperandNumForIncomingValue(i)) == &*UI)
                   ++UI;
                 PHI->setIncomingValue(i, Replacement);
               }
@@ -507,9 +508,8 @@ bool ObjCARCContract::runOnFunction(Function &F) {
   // If this function has no escaping allocas or suspicious vararg usage,
   // objc_storeStrong calls can be marked with the "tail" keyword.
   if (TailOkForStoreStrongs)
-    for (SmallPtrSet<CallInst *, 8>::iterator I = StoreStrongCalls.begin(),
-         E = StoreStrongCalls.end(); I != E; ++I)
-      (*I)->setTailCall();
+    for (CallInst *CI : StoreStrongCalls)
+      CI->setTailCall();
   StoreStrongCalls.clear();
 
   return Changed;

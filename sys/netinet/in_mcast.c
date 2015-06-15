@@ -523,12 +523,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm->inm_ifma = ifma;
 	inm->inm_refcount = 1;
 	inm->inm_state = IGMP_NOT_MEMBER;
-
-	/*
-	 * Pending state-changes per group are subject to a bounds check.
-	 */
-	IFQ_SET_MAXLEN(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
-
+	mbufq_init(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
 	inm->inm_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
 	RB_INIT(&inm->inm_srcs);
@@ -2928,7 +2923,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 	return (retval);
 }
 
-#ifdef KTR
+#if defined(KTR) && (KTR_COMPILE & KTR_IGMPV3)
 
 static const char *inm_modestrs[] = { "un", "in", "ex" };
 
@@ -2983,7 +2978,7 @@ inm_print(const struct in_multi *inm)
 	    inm->inm_timer,
 	    inm_state_str(inm->inm_state),
 	    inm->inm_refcount,
-	    inm->inm_scq.ifq_len);
+	    inm->inm_scq.mq_len);
 	printf("igi %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->inm_igi,
 	    inm->inm_nsrc,
@@ -3000,7 +2995,7 @@ inm_print(const struct in_multi *inm)
 	printf("%s: --- end inm %p ---\n", __func__, inm);
 }
 
-#else /* !KTR */
+#else /* !KTR || !(KTR_COMPILE & KTR_IGMPV3) */
 
 void
 inm_print(const struct in_multi *inm)
@@ -3008,6 +3003,6 @@ inm_print(const struct in_multi *inm)
 
 }
 
-#endif /* KTR */
+#endif /* KTR && (KTR_COMPILE & KTR_IGMPV3) */
 
 RB_GENERATE(ip_msource_tree, ip_msource, ims_link, ip_msource_cmp);

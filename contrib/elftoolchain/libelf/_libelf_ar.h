@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf_ar.h 2032 2011-10-23 09:07:00Z jkoshy $
+ * $Id: _libelf_ar.h 3013 2014-03-23 06:16:59Z jkoshy $
  */
 
 #ifndef	__LIBELF_AR_H_
@@ -42,15 +42,16 @@
 	(sizeof(LIBELF_AR_BSD_EXTENDED_NAME_PREFIX) - 1)
 
 #define	IS_EXTENDED_BSD_NAME(NAME)				\
-	(strncmp((NAME), LIBELF_AR_BSD_EXTENDED_NAME_PREFIX,	\
+	(strncmp((const char *) (NAME),				\
+	 LIBELF_AR_BSD_EXTENDED_NAME_PREFIX,			\
 	 LIBELF_AR_BSD_EXTENDED_NAME_PREFIX_SIZE) == 0)
 
 
-char	*_libelf_ar_get_string(const char *_buf, size_t _sz, int _rawname,
-    int _svr4names);
+unsigned char *_libelf_ar_get_string(const char *_buf, size_t _sz,
+    unsigned int _rawname, int _svr4names);
 char	*_libelf_ar_get_raw_name(const struct ar_hdr *_arh);
 char	*_libelf_ar_get_translated_name(const struct ar_hdr *_arh, Elf *_ar);
-int	_libelf_ar_get_number(const char *_buf, size_t _sz, int _base,
-    size_t *_ret);
+int	_libelf_ar_get_number(const char *_buf, size_t _sz,
+    unsigned int _base, size_t *_ret);
 
 #endif	/* __LIBELF_AR_H_ */

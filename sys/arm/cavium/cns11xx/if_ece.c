@@ -1379,7 +1379,7 @@ ece_intr_rx_locked(struct ece_softc *sc, int count)
 		if (desc->length < ETHER_MIN_LEN - ETHER_CRC_LEN ||
 		    desc->length > ETHER_MAX_LEN - ETHER_CRC_LEN +
 		    ETHER_VLAN_ENCAP_LEN) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			desc->cown = 0;
 			desc->length = MCLBYTES - 2;
 			/* Invalid packet, skip and process next
@@ -1389,7 +1389,7 @@ ece_intr_rx_locked(struct ece_softc *sc, int count)
 		}
 
 		if (ece_new_rxbuf(sc, rxdesc) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			desc->cown = 0;
 			desc->length = MCLBYTES - 2;
 			break;
@@ -1478,7 +1478,7 @@ ece_intr_status(void *xsc)
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		if ((stat & ERROR_MASK) != 0)
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 	}
 }
 

@@ -364,6 +364,8 @@ apb_filter(void *arg)
 			case AR71XX_SOC_AR9341:
 			case AR71XX_SOC_AR9342:
 			case AR71XX_SOC_AR9344:
+			case AR71XX_SOC_QCA9556:
+			case AR71XX_SOC_QCA9558:
 				/* ACK/clear the given interrupt */
 				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
 				    (1 << irq));

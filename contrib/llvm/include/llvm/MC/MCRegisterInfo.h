@@ -32,9 +32,9 @@ public:
   typedef const MCPhysReg* iterator;
   typedef const MCPhysReg* const_iterator;
 
-  const char *Name;
   const iterator RegsBegin;
   const uint8_t *const RegSet;
+  const uint32_t NameIdx;
   const uint16_t RegsSize;
   const uint16_t RegSetSize;
   const uint16_t ID;
@@ -45,10 +45,6 @@ public:
   /// getID() - Return the register class ID number.
   ///
   unsigned getID() const { return ID; }
-
-  /// getName() - Return the register class name for debugging.
-  ///
-  const char *getName() const { return Name; }
 
   /// begin/end - Return all of the registers in this class.
   ///
@@ -118,6 +114,10 @@ struct MCRegisterDesc {
   // RegUnits - Points to the list of register units. The low 4 bits holds the
   // Scale, the high bits hold an offset into DiffLists. See MCRegUnitIterator.
   uint32_t RegUnits;
+
+  /// Index into list with lane mask sequences. The sequence contains a lanemask
+  /// for every register unit.
+  uint16_t RegUnitLaneMasks;
 };
 
 /// MCRegisterInfo base class - We assume that the target defines a static
@@ -159,9 +159,12 @@ private:
   const MCRegisterClass *Classes;             // Pointer to the regclass array
   unsigned NumClasses;                        // Number of entries in the array
   unsigned NumRegUnits;                       // Number of regunits.
-  const uint16_t (*RegUnitRoots)[2];          // Pointer to regunit root table.
+  const MCPhysReg (*RegUnitRoots)[2];         // Pointer to regunit root table.
   const MCPhysReg *DiffLists;                 // Pointer to the difflists array
+  const unsigned *RegUnitMaskSequences;       // Pointer to lane mask sequences
+                                              // for register units.
   const char *RegStrings;                     // Pointer to the string table.
+  const char *RegClassStrings;                // Pointer to the class strings.
   const uint16_t *SubRegIndices;              // Pointer to the subreg lookup
                                               // array.
   const SubRegCoveredBits *SubRegIdxRanges;   // Pointer to the subreg covered
@@ -191,7 +194,7 @@ public:
 
   protected:
     /// Create an invalid iterator. Call init() to point to something useful.
-    DiffListIterator() : Val(0), List(0) {}
+    DiffListIterator() : Val(0), List(nullptr) {}
 
     /// init - Point the iterator to InitVal, decoding subsequent values from
     /// DiffList. The iterator will initially point to InitVal, sub-classes are
@@ -223,15 +226,17 @@ public:
     void operator++() {
       // The end of the list is encoded as a 0 differential.
       if (!advance())
-        List = 0;
+        List = nullptr;
     }
   };
 
   // These iterators are allowed to sub-class DiffListIterator and access
   // internal list pointers.
   friend class MCSubRegIterator;
+  friend class MCSubRegIndexIterator;
   friend class MCSuperRegIterator;
   friend class MCRegUnitIterator;
+  friend class MCRegUnitMaskIterator;
   friend class MCRegUnitRootIterator;
 
   /// \brief Initialize MCRegisterInfo, called by TableGen
@@ -239,10 +244,12 @@ public:
   void InitMCRegisterInfo(const MCRegisterDesc *D, unsigned NR, unsigned RA,
                           unsigned PC,
                           const MCRegisterClass *C, unsigned NC,
-                          const uint16_t (*RURoots)[2],
+                          const MCPhysReg (*RURoots)[2],
                           unsigned NRU,
                           const MCPhysReg *DL,
+                          const unsigned *RUMS,
                           const char *Strings,
+                          const char *ClassStrings,
                           const uint16_t *SubIndices,
                           unsigned NumIndices,
                           const SubRegCoveredBits *SubIdxRanges,
@@ -253,7 +260,9 @@ public:
     PCReg = PC;
     Classes = C;
     DiffLists = DL;
+    RegUnitMaskSequences = RUMS;
     RegStrings = Strings;
+    RegClassStrings = ClassStrings;
     NumClasses = NC;
     RegUnitRoots = RURoots;
     NumRegUnits = NRU;
@@ -401,6 +410,10 @@ public:
     return Classes[i];
   }
 
+  const char *getRegClassName(const MCRegisterClass *Class) const {
+    return RegClassStrings + Class->NameIdx;
+  }
+
    /// \brief Returns the encoding for RegNo
   uint16_t getEncodingValue(unsigned RegNo) const {
     assert(RegNo < NumRegs &&
@@ -446,6 +459,38 @@ public:
     // Initially, the iterator points to Reg itself.
     if (!IncludeSelf)
       ++*this;
+  }
+};
+
+/// Iterator that enumerates the sub-registers of a Reg and the associated
+/// sub-register indices.
+class MCSubRegIndexIterator {
+  MCSubRegIterator SRIter;
+  const uint16_t *SRIndex;
+public:
+  /// Constructs an iterator that traverses subregisters and their
+  /// associated subregister indices.
+  MCSubRegIndexIterator(unsigned Reg, const MCRegisterInfo *MCRI)
+    : SRIter(Reg, MCRI) {
+    SRIndex = MCRI->SubRegIndices + MCRI->get(Reg).SubRegIndices;
+  }
+
+  /// Returns current sub-register.
+  unsigned getSubReg() const {
+    return *SRIter;
+  }
+  /// Returns sub-register index of the current sub-register.
+  unsigned getSubRegIndex() const {
+    return *SRIndex;
+  }
+
+  /// Returns true if this iterator is not yet at the end.
+  bool isValid() const { return SRIter.isValid(); }
+
+  /// Moves to the next position.
+  void operator++() {
+    ++SRIter;
+    ++SRIndex;
   }
 };
 
@@ -507,6 +552,36 @@ public:
     // terminate the list, but since we know every register has at least one
     // unit, we can allow a 0 differential here.
     advance();
+  }
+};
+
+/// MCRegUnitIterator enumerates a list of register units and their associated
+/// lane masks for Reg. The register units are in ascending numerical order.
+class MCRegUnitMaskIterator {
+  MCRegUnitIterator RUIter;
+  const unsigned *MaskListIter;
+public:
+  MCRegUnitMaskIterator() {}
+  /// Constructs an iterator that traverses the register units and their
+  /// associated LaneMasks in Reg.
+  MCRegUnitMaskIterator(unsigned Reg, const MCRegisterInfo *MCRI)
+    : RUIter(Reg, MCRI) {
+      uint16_t Idx = MCRI->get(Reg).RegUnitLaneMasks;
+      MaskListIter = &MCRI->RegUnitMaskSequences[Idx];
+  }
+
+  /// Returns a (RegUnit, LaneMask) pair.
+  std::pair<unsigned,unsigned> operator*() const {
+    return std::make_pair(*RUIter, *MaskListIter);
+  }
+
+  /// Returns true if this iterator is not yet at the end.
+  bool isValid() const { return RUIter.isValid(); }
+
+  /// Moves to the next position.
+  void operator++() {
+    ++MaskListIter;
+    ++RUIter;
   }
 };
 

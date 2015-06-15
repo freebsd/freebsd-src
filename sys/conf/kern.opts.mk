@@ -23,14 +23,18 @@
 # src tree.
 
 __DEFAULT_YES_OPTIONS = \
-    ARM_EABI \
+    AUTOFS \
+    BHYVE \
     BLUETOOTH \
+    CCD \
     CDDL \
     CRYPT \
+    CUSE \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
     IPFILTER \
+    ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \
     PF \
@@ -44,6 +48,37 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED
 
+# Some options are totally broken on some architectures. We disable
+# them. If you need to enable them on an experimental basis, you
+# must change this code.
+# Note: These only apply to the list of modules we build by default
+# and sometimes what is in the opt_*.h files by default.
+# Kernel config files are unaffected, though some targets can be
+# affected by KERNEL_SYMBOLS, FORMAT_EXTENSIONS, CTF and SSP.
+
+# Things that don't work based on the CPU
+.if ${MACHINE_CPUARCH} == "arm"
+BROKEN_OPTIONS+= CDDL ZFS
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+BROKEN_OPTIONS+= CDDL ZFS
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} == "powerpc"
+BROKEN_OPTIONS+= ZFS
+.endif
+
+# Things that don't work because the kernel doesn't have the support
+# for them.
+.if ${MACHINE} != "i386"
+BROKEN_OPTIONS+= EISA
+.endif
+
+.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
+BROKEN_OPTIONS+= OFED
+.endif
+
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
 
 # Those that default to yes
@@ -54,7 +89,11 @@ MK_${var}:=	no
 .else
 MK_${var}:=	yes
 .endif
+.else
+.if ${MK_${var}} != "yes" && ${MK_${var}} != "no"
+.error "Illegal value for MK_${var}: ${MK_${var}}"
 .endif
+.endif # !defined(MK_${var})
 .endfor
 .undef __DEFAULT_YES_OPTIONS
 
@@ -66,9 +105,23 @@ MK_${var}:=	yes
 .else
 MK_${var}:=	no
 .endif
+.else
+.if ${MK_${var}} != "yes" && ${MK_${var}} != "no"
+.error "Illegal value for MK_${var}: ${MK_${var}}"
 .endif
+.endif # !defined(MK_${var})
 .endfor
 .undef __DEFAULT_NO_OPTIONS
+
+#
+# MK_* options which are always no, usually because they are
+# unsupported/badly broken on this architecture.
+#
+.for var in ${BROKEN_OPTIONS}
+MK_${var}:=	no
+.endfor
+.undef BROKEN_OPTIONS
+#end of bsd.mkopt.mk expanded inline.
 
 #
 # MK_*_SUPPORT options which default to "yes" unless their corresponding
@@ -80,6 +133,15 @@ MK_${var}:=	no
 .if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
 MK_${var}_SUPPORT:= no
 .else
+.if defined(KERNBUILDDIR)	# See if there's an opt_foo.h
+OPT_${var}!= cat ${KERNBUILDDIR}/opt_${var:tl}.h; echo
+.if ${OPT_${var}} == ""		# nothing -> no
+MK_${var}_SUPPORT:= no
+.else
 MK_${var}_SUPPORT:= yes
+.endif
+.else				# otherwise, yes
+MK_${var}_SUPPORT:= yes
+.endif
 .endif
 .endfor

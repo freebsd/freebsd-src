@@ -1,6 +1,7 @@
 /*
  * hextolfp - convert an ascii hex string to an l_fp number
  */
+#include <config.h>
 #include <stdio.h>
 #include <ctype.h>
 
@@ -29,7 +30,7 @@ hextolfp(
 	 *
 	 * [spaces]8_hex_digits[.]8_hex_digits[spaces|\n|\0]
 	 */
-	while (isspace((int)*cp))
+	while (isspace((unsigned char)*cp))
 	    cp++;
 	
 	cpstart = cp;
@@ -58,7 +59,7 @@ hextolfp(
 	if ((cp - cpstart) < 8 || ind == NULL)
 	    return 0;
 	
-	if (*cp != '\0' && !isspace((int)*cp))
+	if (*cp != '\0' && !isspace((unsigned char)*cp))
 	    return 0;
 
 	lfp->l_ui = dec_i;

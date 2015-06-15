@@ -69,7 +69,7 @@ SENDMAIL_MC!=           hostname
 SENDMAIL_MC:=           ${SENDMAIL_MC}.mc
 
 ${SENDMAIL_MC}:
-	cp freebsd.mc ${SENDMAIL_MC}
+	${CP} freebsd.mc ${SENDMAIL_MC}
 .endif
 
 .ifndef SENDMAIL_SUBMIT_MC
@@ -77,7 +77,7 @@ SENDMAIL_SUBMIT_MC!=	hostname
 SENDMAIL_SUBMIT_MC:=	${SENDMAIL_SUBMIT_MC}.submit.mc
 
 ${SENDMAIL_SUBMIT_MC}:
-	cp freebsd.submit.mc ${SENDMAIL_SUBMIT_MC}
+	${CP} freebsd.submit.mc ${SENDMAIL_SUBMIT_MC}
 .endif
 
 INSTALL_CF=		${SENDMAIL_MC:R}.cf

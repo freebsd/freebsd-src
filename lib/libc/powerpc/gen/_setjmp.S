@@ -56,11 +56,54 @@ ENTRY(_setjmp)
 	mr	%r10,%r1
 	mr	%r9,%r2
 	stmw	%r9,20(%r3)
+
+	/* FPRs */
+	stfd	%f14,112+0*8(%r3)
+	stfd	%f15,112+1*8(%r3)
+	stfd	%f16,112+2*8(%r3)
+	stfd	%f17,112+3*8(%r3)
+	stfd	%f18,112+4*8(%r3)
+	stfd	%f19,112+5*8(%r3)
+	stfd	%f20,112+6*8(%r3)
+	stfd	%f21,112+7*8(%r3)
+	stfd	%f22,112+8*8(%r3)
+	stfd	%f23,112+9*8(%r3)
+	stfd	%f24,112+10*8(%r3)
+	stfd	%f25,112+11*8(%r3)
+	stfd	%f26,112+12*8(%r3)
+	stfd	%f27,112+13*8(%r3)
+	stfd	%f28,112+14*8(%r3)
+	stfd	%f29,112+15*8(%r3)
+	stfd	%f30,112+16*8(%r3)
+	stfd	%f31,112+17*8(%r3)
+
 	li	%r3,0
 	blr
+END(_setjmp)
 
 ENTRY(_longjmp)
 	lmw	%r9,20(%r3)
+
+	/* FPRs */
+	lfd	%f14,112+0*8(%r3)
+	lfd	%f15,112+1*8(%r3)
+	lfd	%f16,112+2*8(%r3)
+	lfd	%f17,112+3*8(%r3)
+	lfd	%f18,112+4*8(%r3)
+	lfd	%f19,112+5*8(%r3)
+	lfd	%f20,112+6*8(%r3)
+	lfd	%f21,112+7*8(%r3)
+	lfd	%f22,112+8*8(%r3)
+	lfd	%f23,112+9*8(%r3)
+	lfd	%f24,112+10*8(%r3)
+	lfd	%f25,112+11*8(%r3)
+	lfd	%f26,112+12*8(%r3)
+	lfd	%f27,112+13*8(%r3)
+	lfd	%f28,112+14*8(%r3)
+	lfd	%f29,112+15*8(%r3)
+	lfd	%f30,112+16*8(%r3)
+	lfd	%f31,112+17*8(%r3)
+
 	mtlr	%r11
 	mtcr	%r12
 	mr	%r1,%r10
@@ -68,5 +111,6 @@ ENTRY(_longjmp)
 	bnelr
 	li	%r3,1
 	blr
+END(_longjmp)
 
 	.section .note.GNU-stack,"",%progbits

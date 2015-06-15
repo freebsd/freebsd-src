@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# $Id: autogen.sh 709 2013-08-18 14:47:20Z des $
+# $Id: autogen.sh 815 2014-09-12 07:47:27Z des $
 #
 
 aclocal -I m4
 libtoolize --copy --force
 autoheader
-automake -a -c --foreign
+automake --add-missing --copy --foreign
 autoconf

@@ -366,6 +366,78 @@ intel_set_vol_curr_migr_unit(struct intel_raid_vol *vol, off_t curr_migr_unit)
 	vol->curr_migr_unit_hi = curr_migr_unit >> 32;
 }
 
+static char *
+intel_status2str(int status)
+{
+
+	switch (status) {
+	case INTEL_S_READY:
+		return ("READY");
+	case INTEL_S_UNINITIALIZED:
+		return ("UNINITIALIZED");
+	case INTEL_S_DEGRADED:
+		return ("DEGRADED");
+	case INTEL_S_FAILURE:
+		return ("FAILURE");
+	default:
+		return ("UNKNOWN");
+	}
+}
+
+static char *
+intel_type2str(int type)
+{
+
+	switch (type) {
+	case INTEL_T_RAID0:
+		return ("RAID0");
+	case INTEL_T_RAID1:
+		return ("RAID1");
+	case INTEL_T_RAID5:
+		return ("RAID5");
+	default:
+		return ("UNKNOWN");
+	}
+}
+
+static char *
+intel_cngst2str(int cng_state)
+{
+
+	switch (cng_state) {
+	case INTEL_CNGST_UPDATED:
+		return ("UPDATED");
+	case INTEL_CNGST_NEEDS_UPDATE:
+		return ("NEEDS_UPDATE");
+	case INTEL_CNGST_MASTER_MISSING:
+		return ("MASTER_MISSING");
+	default:
+		return ("UNKNOWN");
+	}
+}
+
+static char *
+intel_mt2str(int type)
+{
+
+	switch (type) {
+	case INTEL_MT_INIT:
+		return ("INIT");
+	case INTEL_MT_REBUILD:
+		return ("REBUILD");
+	case INTEL_MT_VERIFY:
+		return ("VERIFY");
+	case INTEL_MT_GEN_MIGR:
+		return ("GEN_MIGR");
+	case INTEL_MT_STATE_CHANGE:
+		return ("STATE_CHANGE");
+	case INTEL_MT_REPAIR:
+		return ("REPAIR");
+	default:
+		return ("UNKNOWN");
+	}
+}
+
 static void
 g_raid_md_intel_print(struct intel_raid_conf *meta)
 {
@@ -384,7 +456,22 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 	printf("config_id           0x%08x\n", meta->config_id);
 	printf("generation          0x%08x\n", meta->generation);
 	printf("error_log_size      %d\n", meta->error_log_size);
-	printf("attributes          0x%08x\n", meta->attributes);
+	printf("attributes          0x%b\n", meta->attributes,
+		"\020"
+		"\001RAID0"
+		"\002RAID1"
+		"\003RAID10"
+		"\004RAID1E"
+		"\005RAID15"
+		"\006RAIDCNG"
+		"\007EXT_STRIP"
+		"\032NVM_CACHE"
+		"\0332TB_DISK"
+		"\034BBM"
+		"\035NVM_CACHE"
+		"\0362TB"
+		"\037PM"
+		"\040CHECKSUM");
 	printf("total_disks         %u\n", meta->total_disks);
 	printf("total_volumes       %u\n", meta->total_volumes);
 	printf("error_log_pos       %u\n", meta->error_log_pos);
@@ -392,32 +479,50 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 	printf("orig_config_id      0x%08x\n", meta->orig_config_id);
 	printf("pwr_cycle_count     %u\n", meta->pwr_cycle_count);
 	printf("bbm_log_size        %u\n", meta->bbm_log_size);
+	printf("Flags: S - Spare, A - Assigned, F - Failed, O - Online, D - Disabled\n");
 	printf("DISK#   serial disk_sectors disk_sectors_hi disk_id flags owner\n");
 	for (i = 0; i < meta->total_disks; i++ ) {
-		printf("    %d   <%.16s> %u %u 0x%08x 0x%08x %08x\n", i,
+		printf("    %d   <%.16s> %u %u 0x%08x 0x%b %08x\n", i,
 		    meta->disk[i].serial, meta->disk[i].sectors,
 		    meta->disk[i].sectors_hi, meta->disk[i].id,
-		    meta->disk[i].flags, meta->disk[i].owner_cfg_num);
+		    meta->disk[i].flags, "\20\01S\02A\03F\04O\05D",
+		    meta->disk[i].owner_cfg_num);
 	}
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
 		printf(" ****** Volume %d ******\n", i);
 		printf(" name               %.16s\n", mvol->name);
 		printf(" total_sectors      %ju\n", mvol->total_sectors);
-		printf(" state              0x%08x\n", mvol->state);
+		printf(" state              0x%b\n", mvol->state,
+			"\020"
+			"\001BOOTABLE"
+			"\002BOOT_DEVICE"
+			"\003READ_COALESCING"
+			"\004WRITE_COALESCING"
+			"\005LAST_SHUTDOWN_DIRTY"
+			"\006HIDDEN_AT_BOOT"
+			"\007CURRENTLY_HIDDEN"
+			"\010VERIFY_AND_FIX"
+			"\011MAP_STATE_UNINIT"
+			"\012NO_AUTO_RECOVERY"
+			"\013CLONE_N_GO"
+			"\014CLONE_MAN_SYNC"
+			"\015CNG_MASTER_DISK_NUM");
 		printf(" reserved           %u\n", mvol->reserved);
 		printf(" migr_priority      %u\n", mvol->migr_priority);
 		printf(" num_sub_vols       %u\n", mvol->num_sub_vols);
 		printf(" tid                %u\n", mvol->tid);
 		printf(" cng_master_disk    %u\n", mvol->cng_master_disk);
 		printf(" cache_policy       %u\n", mvol->cache_policy);
-		printf(" cng_state          %u\n", mvol->cng_state);
+		printf(" cng_state          %u (%s)\n", mvol->cng_state,
+			intel_cngst2str(mvol->cng_state));
 		printf(" cng_sub_state      %u\n", mvol->cng_sub_state);
 		printf(" curr_migr_unit     %u\n", mvol->curr_migr_unit);
 		printf(" curr_migr_unit_hi  %u\n", mvol->curr_migr_unit_hi);
 		printf(" checkpoint_id      %u\n", mvol->checkpoint_id);
 		printf(" migr_state         %u\n", mvol->migr_state);
-		printf(" migr_type          %u\n", mvol->migr_type);
+		printf(" migr_type          %u (%s)\n", mvol->migr_type,
+			intel_mt2str(mvol->migr_type));
 		printf(" dirty              %u\n", mvol->dirty);
 		printf(" fs_state           %u\n", mvol->fs_state);
 		printf(" verify_errors      %u\n", mvol->verify_errors);
@@ -433,8 +538,10 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 			printf("  stripe_count      %u\n", mmap->stripe_count);
 			printf("  stripe_count_hi   %u\n", mmap->stripe_count_hi);
 			printf("  strip_sectors     %u\n", mmap->strip_sectors);
-			printf("  status            %u\n", mmap->status);
-			printf("  type              %u\n", mmap->type);
+			printf("  status            %u (%s)\n", mmap->status,
+				intel_status2str(mmap->status));
+			printf("  type              %u (%s)\n", mmap->type,
+				intel_type2str(mmap->type));
 			printf("  total_disks       %u\n", mmap->total_disks);
 			printf("  total_domains     %u\n", mmap->total_domains);
 			printf("  failed_disk_num   %u\n", mmap->failed_disk_num);
@@ -1380,7 +1487,6 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	vendor = 0xffff;
 	disk_pos = 0;
 	g_topology_unlock();
 	error = g_raid_md_get_label(cp, serial, sizeof(serial));
@@ -1389,7 +1495,8 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		    pp->name, error);
 		goto fail2;
 	}
-	len = 2;
+	vendor = 0xffff;
+	len = sizeof(vendor);
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = intel_meta_read(cp);

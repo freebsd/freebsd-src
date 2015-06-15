@@ -16,11 +16,10 @@
 #define LLVM_SUPPORT_ARRAYRECYCLER_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/MathExtras.h"
 
 namespace llvm {
-
-class BumpPtrAllocator;
 
 /// Recycle small arrays allocated from a BumpPtrAllocator.
 ///
@@ -35,6 +34,9 @@ class ArrayRecycler {
     FreeList *Next;
   };
 
+  static_assert(Align >= AlignOf<FreeList>::Alignment, "Object underaligned");
+  static_assert(sizeof(T) >= sizeof(FreeList), "Objects are too small");
+
   // Keep a free list for each array size.
   SmallVector<FreeList*, 8> Bucket;
 
@@ -42,10 +44,10 @@ class ArrayRecycler {
   // Return NULL if no entries are available.
   T *pop(unsigned Idx) {
     if (Idx >= Bucket.size())
-      return 0;
+      return nullptr;
     FreeList *Entry = Bucket[Idx];
     if (!Entry)
-      return 0;
+      return nullptr;
     Bucket[Idx] = Entry->Next;
     return reinterpret_cast<T*>(Entry);
   }
@@ -53,8 +55,6 @@ class ArrayRecycler {
   // Add an entry to the free list at Bucket[Idx].
   void push(unsigned Idx, T *Ptr) {
     assert(Ptr && "Cannot recycle NULL pointer");
-    assert(sizeof(T) >= sizeof(FreeList) && "Objects are too small");
-    assert(Align >= AlignOf<FreeList>::Alignment && "Object underaligned");
     FreeList *Entry = reinterpret_cast<FreeList*>(Ptr);
     if (Idx >= Bucket.size())
       Bucket.resize(size_t(Idx) + 1);

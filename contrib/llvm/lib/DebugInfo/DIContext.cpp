@@ -8,11 +8,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/DIContext.h"
-#include "DWARFContext.h"
+#include "llvm/DebugInfo/DWARFContext.h"
 using namespace llvm;
 
 DIContext::~DIContext() {}
 
-DIContext *DIContext::getDWARFContext(object::ObjectFile *Obj) {
+DIContext *DIContext::getDWARFContext(const object::ObjectFile &Obj) {
   return new DWARFContextInMemory(Obj);
 }

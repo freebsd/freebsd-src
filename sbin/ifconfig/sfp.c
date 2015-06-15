@@ -48,24 +48,18 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-struct i2c_info;
-typedef int (read_i2c)(struct i2c_info *ii, uint8_t addr, uint8_t off,
-    uint8_t len, caddr_t buf);
-
 struct i2c_info {
-	int s;
-	int error;
-	int bshift;
-	int qsfp;
-	int do_diag;
-	struct ifreq *ifr;
-	read_i2c *f;
-	char *textbuf;
-	size_t bufsize;
-	int cfd;
-	int port_id;
-	int chip_id;
+	int fd;			/* fd to issue SIOCGI2C */
+	int error;		/* Store first error */
+	int qsfp;		/* True if transceiver is QSFP */
+	int do_diag;		/* True if we need to request DDM */
+	struct ifreq *ifr;	/* Pointer to pre-filled ifreq */
 };
+
+static int read_i2c(struct i2c_info *ii, uint8_t addr, uint8_t off,
+    uint8_t len, uint8_t *buf);
+static void dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off,
+    uint8_t len);
 
 struct _nv {
 	int v;
@@ -188,6 +182,18 @@ static struct _nv eth_1040g[] = {
 	{ 0, NULL }
 };
 
+/* SFF-8636 Rev. 2.5 table 6.3: Revision compliance */
+static struct _nv rev_compl[] = {
+	{ 0x1, "SFF-8436 rev <=4.8" },
+	{ 0x2, "SFF-8436 rev <=4.8" },
+	{ 0x3, "SFF-8636 rev <=1.3" },
+	{ 0x4, "SFF-8636 rev <=1.4" },
+	{ 0x5, "SFF-8636 rev <=1.5" },
+	{ 0x6, "SFF-8636 rev <=2.0" },
+	{ 0x7, "SFF-8636 rev <=2.5" },
+	{ 0x0, "Unspecified" }
+};
+
 const char *
 find_value(struct _nv *x, int value)
 {
@@ -252,11 +258,24 @@ convert_sff_connector(char *buf, size_t size, uint8_t value)
 }
 
 static void
+convert_sff_rev_compliance(char *buf, size_t size, uint8_t value)
+{
+	const char *x;
+
+	if (value > 0x07)
+		x = "Unallocated";
+	else
+		x = find_value(rev_compl, value);
+
+	snprintf(buf, size, "%s", x);
+}
+
+static void
 get_sfp_identifier(struct i2c_info *ii, char *buf, size_t size)
 {
 	uint8_t data;
 
-	ii->f(ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&data);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_ID, 1, &data);
 	convert_sff_identifier(buf, size, data);
 }
 
@@ -265,7 +284,7 @@ get_sfp_connector(struct i2c_info *ii, char *buf, size_t size)
 {
 	uint8_t data;
 
-	ii->f(ii, SFF_8472_BASE, SFF_8472_CONNECTOR, 1, (caddr_t)&data);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_CONNECTOR, 1, &data);
 	convert_sff_connector(buf, size, data);
 }
 
@@ -274,7 +293,7 @@ get_qsfp_identifier(struct i2c_info *ii, char *buf, size_t size)
 {
 	uint8_t data;
 
-	ii->f(ii, SFF_8436_BASE, SFF_8436_ID, 1, (caddr_t)&data);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_ID, 1, &data);
 	convert_sff_identifier(buf, size, data);
 }
 
@@ -283,7 +302,7 @@ get_qsfp_connector(struct i2c_info *ii, char *buf, size_t size)
 {
 	uint8_t data;
 
-	ii->f(ii, SFF_8436_BASE, SFF_8436_CONNECTOR, 1, (caddr_t)&data);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_CONNECTOR, 1, &data);
 	convert_sff_connector(buf, size, data);
 }
 
@@ -300,7 +319,7 @@ printf_sfp_transceiver_descr(struct i2c_info *ii, char *buf, size_t size)
 	tech_speed = NULL;
 
 	/* Read bytes 3-10 at once */
-	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, &xbuf[3]);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, &xbuf[3]);
 
 	/* Check 10G ethernet first */
 	tech_class = find_zero_bit(eth_10g, xbuf[3], 1);
@@ -327,12 +346,15 @@ get_sfp_transceiver_class(struct i2c_info *ii, char *buf, size_t size)
 	const char *tech_class;
 	uint8_t code;
 
+	unsigned char qbuf[8];
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, (uint8_t *)qbuf);
+
 	/* Check 10G Ethernet/IB first */
-	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 1, (caddr_t)&code);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 1, &code);
 	tech_class = find_zero_bit(eth_10g, code, 1);
 	if (tech_class == NULL) {
 		/* No match. Try Ethernet 1G */
-		ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START + 3,
+		read_i2c(ii, SFF_8472_BASE, SFF_8472_TRANS_START + 3,
 		    1, (caddr_t)&code);
 		tech_class = find_zero_bit(eth_compat, code, 1);
 	}
@@ -350,7 +372,7 @@ get_qsfp_transceiver_class(struct i2c_info *ii, char *buf, size_t size)
 	uint8_t code;
 
 	/* Check 10/40G Ethernet class only */
-	ii->f(ii, SFF_8436_BASE, SFF_8436_CODE_E1040G, 1, (caddr_t)&code);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_CODE_E1040G, 1, &code);
 	tech_class = find_zero_bit(eth_1040g, code, 1);
 	if (tech_class == NULL)
 		tech_class = "Unknown";
@@ -387,7 +409,7 @@ get_sfp_vendor_name(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[17];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_BASE, SFF_8472_VENDOR_START, 16, xbuf);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_VENDOR_START, 16, (uint8_t *)xbuf);
 	convert_sff_name(buf, size, xbuf);
 }
 
@@ -397,7 +419,7 @@ get_sfp_vendor_pn(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[17];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_BASE, SFF_8472_PN_START, 16, xbuf);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_PN_START, 16, (uint8_t *)xbuf);
 	convert_sff_name(buf, size, xbuf);
 }
 
@@ -407,7 +429,7 @@ get_sfp_vendor_sn(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[17];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_BASE, SFF_8472_SN_START, 16, xbuf);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_SN_START, 16, (uint8_t *)xbuf);
 	convert_sff_name(buf, size, xbuf);
 }
 
@@ -418,7 +440,7 @@ get_sfp_vendor_date(struct i2c_info *ii, char *buf, size_t size)
 
 	memset(xbuf, 0, sizeof(xbuf));
 	/* Date code, see Table 3.8 for description */
-	ii->f(ii, SFF_8472_BASE, SFF_8472_DATE_START, 6, xbuf);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_DATE_START, 6, (uint8_t *)xbuf);
 	convert_sff_date(buf, size, xbuf);
 }
 
@@ -428,7 +450,7 @@ get_qsfp_vendor_name(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[17];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_VENDOR_START, 16, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_VENDOR_START, 16, (uint8_t *)xbuf);
 	convert_sff_name(buf, size, xbuf);
 }
 
@@ -438,7 +460,7 @@ get_qsfp_vendor_pn(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[17];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_PN_START, 16, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_PN_START, 16, (uint8_t *)xbuf);
 	convert_sff_name(buf, size, xbuf);
 }
 
@@ -448,7 +470,7 @@ get_qsfp_vendor_sn(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[17];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_SN_START, 16, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_SN_START, 16, (uint8_t *)xbuf);
 	convert_sff_name(buf, size, xbuf);
 }
 
@@ -458,7 +480,7 @@ get_qsfp_vendor_date(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[6];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_DATE_START, 6, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_DATE_START, 6, (uint8_t *)xbuf);
 	convert_sff_date(buf, size, xbuf);
 }
 
@@ -495,12 +517,12 @@ print_sfp_vendor(struct i2c_info *ii, char *buf, size_t size)
  *
  */
 static void
-convert_sff_temp(char *buf, size_t size, char *xbuf)
+convert_sff_temp(char *buf, size_t size, uint8_t *xbuf)
 {
 	double d;
 
-	d = (double)(int8_t)xbuf[0];
-	d += (double)(uint8_t)xbuf[1] / 256;
+	d = (double)xbuf[0];
+	d += (double)xbuf[1] / 256;
 
 	snprintf(buf, size, "%.2f C", d);
 }
@@ -510,11 +532,11 @@ convert_sff_temp(char *buf, size_t size, char *xbuf)
  * 16-bit usigned value, treated as range 0..+6.55 Volts
  */
 static void
-convert_sff_voltage(char *buf, size_t size, char *xbuf)
+convert_sff_voltage(char *buf, size_t size, uint8_t *xbuf)
 {
 	double d;
 
-	d = (double)(((uint8_t)xbuf[0] << 8) | (uint8_t)xbuf[1]);
+	d = (double)((xbuf[0] << 8) | xbuf[1]);
 	snprintf(buf, size, "%.2f Volts", d / 10000);
 }
 
@@ -523,12 +545,12 @@ convert_sff_voltage(char *buf, size_t size, char *xbuf)
  * human representation.
  */
 static void
-convert_sff_power(struct i2c_info *ii, char *buf, size_t size, char *xbuf)
+convert_sff_power(struct i2c_info *ii, char *buf, size_t size, uint8_t *xbuf)
 {
 	uint16_t mW;
 	double dbm;
 
-	mW = ((uint8_t)xbuf[0] << 8) + (uint8_t)xbuf[1];
+	mW = (xbuf[0] << 8) + xbuf[1];
 
 	/* Convert mw to dbm */
 	dbm = 10.0 * log10(1.0 * mW / 10000);
@@ -547,130 +569,171 @@ convert_sff_power(struct i2c_info *ii, char *buf, size_t size, char *xbuf)
 static void
 get_sfp_temp(struct i2c_info *ii, char *buf, size_t size)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_DIAG, SFF_8472_TEMP, 2, xbuf);
+	read_i2c(ii, SFF_8472_DIAG, SFF_8472_TEMP, 2, xbuf);
 	convert_sff_temp(buf, size, xbuf);
 }
 
 static void
 get_sfp_voltage(struct i2c_info *ii, char *buf, size_t size)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_DIAG, SFF_8472_VCC, 2, xbuf);
+	read_i2c(ii, SFF_8472_DIAG, SFF_8472_VCC, 2, xbuf);
 	convert_sff_voltage(buf, size, xbuf);
 }
 
 static void
 get_qsfp_temp(struct i2c_info *ii, char *buf, size_t size)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_TEMP, 2, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_TEMP, 2, xbuf);
 	convert_sff_temp(buf, size, xbuf);
 }
 
 static void
 get_qsfp_voltage(struct i2c_info *ii, char *buf, size_t size)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_VCC, 2, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_VCC, 2, xbuf);
 	convert_sff_voltage(buf, size, xbuf);
 }
 
 static void
 get_sfp_rx_power(struct i2c_info *ii, char *buf, size_t size)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_DIAG, SFF_8472_RX_POWER, 2, xbuf);
+	read_i2c(ii, SFF_8472_DIAG, SFF_8472_RX_POWER, 2, xbuf);
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
 static void
 get_sfp_tx_power(struct i2c_info *ii, char *buf, size_t size)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8472_DIAG, SFF_8472_TX_POWER, 2, xbuf);
+	read_i2c(ii, SFF_8472_DIAG, SFF_8472_TX_POWER, 2, xbuf);
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
 static void
 get_qsfp_rx_power(struct i2c_info *ii, char *buf, size_t size, int chan)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_RX_CH1_MSB + (chan - 1) * 2, 2, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_RX_CH1_MSB + (chan-1)*2, 2, xbuf);
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
 static void
 get_qsfp_tx_power(struct i2c_info *ii, char *buf, size_t size, int chan)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFF_8436_BASE, SFF_8436_TX_CH1_MSB + (chan -1) * 2, 2, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_TX_CH1_MSB + (chan-1)*2, 2, xbuf);
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
-/* Intel ixgbe-specific structures and handlers */
-struct ixgbe_i2c_req {
-	uint8_t dev_addr;
-	uint8_t	offset;
-	uint8_t len;
-	uint8_t data[8];
-};
-#define	SIOCGI2C	SIOCGIFGENERIC
-
-static int
-read_i2c_ixgbe(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
-    caddr_t buf)
+static void
+get_qsfp_rev_compliance(struct i2c_info *ii, char *buf, size_t size)
 {
-	struct ixgbe_i2c_req ixreq;
-	int i;
+	uint8_t xbuf;
+
+	xbuf = 0;
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_STATUS, 1, &xbuf);
+	convert_sff_rev_compliance(buf, size, xbuf);
+}
+
+static uint32_t 
+get_qsfp_br(struct i2c_info *ii)
+{
+	uint8_t xbuf;
+	uint32_t rate;
+
+	xbuf = 0;
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_BITRATE, 1, &xbuf);
+	rate = xbuf * 100;
+	if (xbuf == 0xFF) {
+		read_i2c(ii, SFF_8436_BASE, SFF_8636_BITRATE, 1, &xbuf);
+		rate = xbuf * 250;
+	}
+
+	return (rate);
+}
+
+/*
+ * Reads i2c data from opened kernel socket.
+ */
+static int
+read_i2c(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
+    uint8_t *buf)
+{
+	struct ifi2creq req;
+	int i, l;
 
 	if (ii->error != 0)
 		return (ii->error);
 
-	ii->ifr->ifr_data = (caddr_t)&ixreq;
+	ii->ifr->ifr_data = (caddr_t)&req;
 
-	memset(&ixreq, 0, sizeof(ixreq));
-	ixreq.dev_addr = addr;
+	i = 0;
+	l = 0;
+	memset(&req, 0, sizeof(req));
+	req.dev_addr = addr;
+	req.offset = off;
+	req.len = len;
 
-	for (i = 0; i < len; i += 1) {
-		ixreq.offset = off + i;
-		ixreq.len = 1;
-		ixreq.data[0] = '\0';
-
-		if (ioctl(ii->s, SIOCGI2C, ii->ifr) != 0) {
+	while (len > 0) {
+		l = (len > sizeof(req.data)) ? sizeof(req.data) : len;
+		req.len = l;
+		if (ioctl(ii->fd, SIOCGI2C, ii->ifr) != 0) {
 			ii->error = errno;
 			return (errno);
 		}
-		memcpy(&buf[i], ixreq.data, 1);
+
+		memcpy(&buf[i], req.data, l);
+		len -= l;
+		i += l;
+		req.offset += l;
 	}
 
 	return (0);
 }
 
-/* Generic handler */
-static int
-read_i2c_generic(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
-    caddr_t buf)
+static void
+dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len)
 {
+	unsigned char buf[16];
+	int i, read;
 
-	ii->error = EINVAL;
-	return (-1);
+	while (len > 0) {
+		memset(buf, 0, sizeof(buf));
+		read = (len > sizeof(buf)) ? sizeof(buf) : len;
+		read_i2c(ii, addr, off, read, buf);
+		if (ii->error != 0) {
+			fprintf(stderr, "Error reading i2c info\n");
+			return;
+		}
+
+		printf("\t");
+		for (i = 0; i < read; i++)
+			printf("%02X ", buf[i]);
+		printf("\n");
+		len -= read;
+		off += read;
+	}
 }
 
 static void
@@ -678,10 +741,11 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 {
 	char buf[80], buf2[40], buf3[40];
 	uint8_t diag_type;
+	uint32_t bitrate;
 	int i;
 
 	/* Read diagnostic monitoring type */
-	ii->f(ii, SFF_8436_BASE, SFF_8436_DIAG_TYPE, 1, (caddr_t)&diag_type);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_DIAG_TYPE, 1, (caddr_t)&diag_type);
 	if (ii->error != 0)
 		return;
 
@@ -704,6 +768,16 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 	if (ii->error == 0)
 		printf("\t%s\n", buf);
 
+	if (verbose > 1) {
+		get_qsfp_rev_compliance(ii, buf, sizeof(buf));
+		if (ii->error == 0)
+			printf("\tcompliance level: %s\n", buf);
+
+		bitrate = get_qsfp_br(ii);
+		if (ii->error == 0 && bitrate > 0)
+			printf("\tnominal bitrate: %u Mbps\n", bitrate);
+	}
+
 	/* Request current measurements if they are provided: */
 	if (ii->do_diag != 0) {
 		get_qsfp_temp(ii, buf, sizeof(buf));
@@ -715,6 +789,13 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 			printf("\tlane %d: RX: %s TX: %s\n", i, buf, buf2);
 		}
 	}
+
+	if (verbose > 2) {
+		printf("\n\tSFF8436 DUMP (0xA0 128..255 range):\n");
+		dump_i2c_data(ii, SFF_8436_BASE, 128, 128);
+		printf("\n\tSFF8436 DUMP (0xA0 0..81 range):\n");
+		dump_i2c_data(ii, SFF_8436_BASE, 0, 82);
+	}
 }
 
 static void
@@ -724,7 +805,7 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 	uint8_t diag_type, flags;
 
 	/* Read diagnostic monitoring type */
-	ii->f(ii, SFF_8472_BASE, SFF_8472_DIAG_TYPE, 1, (caddr_t)&diag_type);
+	read_i2c(ii, SFF_8472_BASE, SFF_8472_DIAG_TYPE, 1, (caddr_t)&diag_type);
 	if (ii->error != 0)
 		return;
 
@@ -742,12 +823,12 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 	get_sfp_connector(ii, buf3, sizeof(buf3));
 	if (ii->error == 0)
 		printf("\tplugged: %s %s (%s)\n", buf, buf2, buf3);
-	if (verbose > 2)
-		printf_sfp_transceiver_descr(ii, buf, sizeof(buf));
 	print_sfp_vendor(ii, buf, sizeof(buf));
 	if (ii->error == 0)
 		printf("\t%s\n", buf);
 
+	if (verbose > 5)
+		printf_sfp_transceiver_descr(ii, buf, sizeof(buf));
 	/*
 	 * Request current measurements iff they are provided:
 	 */
@@ -759,31 +840,43 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 		get_sfp_tx_power(ii, buf2, sizeof(buf2));
 		printf("\tRX: %s TX: %s\n", buf, buf2);
 	}
+
+	if (verbose > 2) {
+		printf("\n\tSFF8472 DUMP (0xA0 0..127 range):\n");
+		dump_i2c_data(ii, SFF_8472_BASE, 0, 128);
+	}
 }
 
 void
 sfp_status(int s, struct ifreq *ifr, int verbose)
 {
 	struct i2c_info ii;
+	uint8_t id_byte;
 
-	/* Prepare necessary into to pass to NIC handler */
-	ii.s = s;
+	/* Prepare necessary into pass to i2c reader */
+	memset(&ii, 0, sizeof(ii));
+	ii.fd = s;
 	ii.ifr = ifr;
 
 	/*
-	 * Check if we have i2c support for particular driver.
-	 * TODO: Determine driver by original name.
+	 * Try to read byte 0 from i2c:
+	 * Both SFF-8472 and SFF-8436 use it as
+	 * 'identification byte'.
+	 * Stop reading status on zero as value - 
+	 * this might happen in case of empty transceiver slot.
 	 */
-	memset(&ii, 0, sizeof(ii));
-	if (strncmp(ifr->ifr_name, "ix", 2) == 0) {
-		ii.f = read_i2c_ixgbe;
-		print_sfp_status(&ii, verbose);
-	} else if (strncmp(ifr->ifr_name, "cxl", 3) == 0) {
-		ii.port_id = atoi(&ifr->ifr_name[3]);
-		ii.f = read_i2c_generic;
-		ii.cfd = -1;
-		print_qsfp_status(&ii, verbose);
-	} else
+	id_byte = 0;
+	read_i2c(&ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&id_byte);
+	if (ii.error != 0 || id_byte == 0)
 		return;
+
+	switch (id_byte) {
+	case SFF_8024_ID_QSFP:
+	case SFF_8024_ID_QSFPPLUS:
+		print_qsfp_status(&ii, verbose);
+		break;
+	default:
+		print_sfp_status(&ii, verbose);
+	};
 }
 

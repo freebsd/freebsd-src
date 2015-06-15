@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,10 @@
 #include <contrib/dev/acpica/include/acdisasm.h>
 
 
+#define ASL_FIELD_CACHE_SIZE            512
+#define ASL_SUBTABLE_CACHE_SIZE         128
+
+
 #undef DT_EXTERN
 
 #ifdef _DECLARE_DT_GLOBALS
@@ -81,15 +85,16 @@
  */
 typedef struct dt_field
 {
-    char                    *Name;      /* Field name (from name : value) */
-    char                    *Value;     /* Field value (from name : value) */
-    struct dt_field         *Next;      /* Next field */
-    struct dt_field         *NextLabel; /* If field is a label, next label */
-    UINT32                  Line;       /* Line number for this field */
-    UINT32                  ByteOffset; /* Offset in source file for field */
-    UINT32                  NameColumn; /* Start column for field name */
-    UINT32                  Column;     /* Start column for field value */
-    UINT32                  TableOffset;/* Binary offset within ACPI table */
+    char                    *Name;       /* Field name (from name : value) */
+    char                    *Value;      /* Field value (from name : value) */
+    UINT32                  StringLength;/* Length of Value */
+    struct dt_field         *Next;       /* Next field */
+    struct dt_field         *NextLabel;  /* If field is a label, next label */
+    UINT32                  Line;        /* Line number for this field */
+    UINT32                  ByteOffset;  /* Offset in source file for field */
+    UINT32                  NameColumn;  /* Start column for field name */
+    UINT32                  Column;      /* Start column for field value */
+    UINT32                  TableOffset; /* Binary offset within ACPI table */
     UINT8                   Flags;
 
 } DT_FIELD;
@@ -110,6 +115,7 @@ typedef struct dt_subtable
     struct dt_subtable      *StackTop;
     UINT8                   *Buffer;
     UINT8                   *LengthField;
+    char                    *Name;
     UINT32                  Length;
     UINT32                  TotalLength;
     UINT32                  SizeOfLengthField;
@@ -143,6 +149,18 @@ DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_LabelList, NULL);
 
 DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_CurrentTableOffset, 0);
 
+/* Local caches */
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_SubtableCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_SubtableCacheList, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheNext, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheLast, NULL);
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_FieldCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_FieldCacheList, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheNext, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheLast, NULL);
+
 
 /* dtcompiler - main module */
 
@@ -152,6 +170,11 @@ DtCompileTable (
     ACPI_DMTABLE_INFO       *Info,
     DT_SUBTABLE             **RetSubtable,
     BOOLEAN                 Required);
+
+ACPI_STATUS
+DtCompilePadding (
+    UINT32                  Length,
+    DT_SUBTABLE             **RetSubtable);
 
 
 /* dtio - binary and text input/output */
@@ -321,20 +344,20 @@ DtWalkTableTree (
 void
 DtError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
 void
 DtNameError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
 void
 DtFatal (
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
@@ -342,10 +365,6 @@ ACPI_STATUS
 DtStrtoul64 (
     char                    *String,
     UINT64                  *ReturnInteger);
-
-UINT32
-DtGetFileSize (
-    FILE                    *Handle);
 
 char*
 DtGetFieldValue (
@@ -372,8 +391,16 @@ void
 DtSetTableLength(
     void);
 
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void);
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void);
+
 void
-DtFreeFieldList (
+DtDeleteCaches (
     void);
 
 
@@ -400,7 +427,15 @@ DtCompileCsrt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileDbg2 (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileDmar (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileDrtm (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -420,11 +455,23 @@ DtCompileFpdt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileGtdt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileHest (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileIort (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileIvrs (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileLpit (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -448,7 +495,15 @@ DtCompileMtmr (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileNfit (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompilePmtt (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompilePcct (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -472,6 +527,10 @@ DtCompileSrat (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileStao (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileUefi (
     void                    **PFieldList);
 
@@ -484,12 +543,18 @@ DtCompileWdat (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileWpbt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileXsdt (
     void                    **PFieldList);
 
 ACPI_STATUS
 DtCompileGeneric (
-    void                    **PFieldList);
+    void                    **PFieldList,
+    char                    *TermFieldName,
+    UINT32                  *PFieldLength);
 
 ACPI_DMTABLE_INFO *
 DtGetGenericTableInfo (
@@ -503,8 +568,10 @@ extern const unsigned char  TemplateBert[];
 extern const unsigned char  TemplateBgrt[];
 extern const unsigned char  TemplateCpep[];
 extern const unsigned char  TemplateCsrt[];
+extern const unsigned char  TemplateDbg2[];
 extern const unsigned char  TemplateDbgp[];
 extern const unsigned char  TemplateDmar[];
+extern const unsigned char  TemplateDrtm[];
 extern const unsigned char  TemplateEcdt[];
 extern const unsigned char  TemplateEinj[];
 extern const unsigned char  TemplateErst[];
@@ -513,13 +580,18 @@ extern const unsigned char  TemplateFpdt[];
 extern const unsigned char  TemplateGtdt[];
 extern const unsigned char  TemplateHest[];
 extern const unsigned char  TemplateHpet[];
+extern const unsigned char  TemplateIort[];
 extern const unsigned char  TemplateIvrs[];
+extern const unsigned char  TemplateLpit[];
 extern const unsigned char  TemplateMadt[];
 extern const unsigned char  TemplateMcfg[];
 extern const unsigned char  TemplateMchi[];
 extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
+extern const unsigned char  TemplateMsdm[];
 extern const unsigned char  TemplateMtmr[];
+extern const unsigned char  TemplateNfit[];
+extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePmtt[];
 extern const unsigned char  TemplateRsdt[];
 extern const unsigned char  TemplateS3pt[];
@@ -529,6 +601,7 @@ extern const unsigned char  TemplateSlit[];
 extern const unsigned char  TemplateSpcr[];
 extern const unsigned char  TemplateSpmi[];
 extern const unsigned char  TemplateSrat[];
+extern const unsigned char  TemplateStao[];
 extern const unsigned char  TemplateTcpa[];
 extern const unsigned char  TemplateTpm2[];
 extern const unsigned char  TemplateUefi[];
@@ -537,6 +610,8 @@ extern const unsigned char  TemplateWaet[];
 extern const unsigned char  TemplateWdat[];
 extern const unsigned char  TemplateWddt[];
 extern const unsigned char  TemplateWdrt[];
+extern const unsigned char  TemplateWpbt[];
+extern const unsigned char  TemplateXenv[];
 extern const unsigned char  TemplateXsdt[];
 
 #endif

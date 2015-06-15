@@ -14,12 +14,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2014
+.Dd October 24, 2014
 .Dt URTWN 4
 .Os
 .Sh NAME
 .Nm urtwn
-.Nd Realtek RTL8188CU/RTL8188EU/RTL8192CU USB IEEE 802.11b/g/n wireless network device
+.Nd Realtek RTL8188CU/RTL8188RU/RTL8188EU/RTL8192CU USB IEEE 802.11b/g/n wireless network device
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,7 +52,7 @@ The
 driver supports USB 2.0 wireless network devices based on Realtek
 RTL8188CUS, RTL8188CE-VAU, RTL8188EUS, RTL8188RU and RTL8192CU chipsets.
 .Pp
-The RTL8188CUS and RTL8188EUS are highly integrated 802.11n adapter that
+The RTL8188CUS and RTL8188EUS are highly integrated 802.11n adapters that
 combine a MAC, a 1T1R capable baseband and an RF in a single chip.
 They operate in the 2GHz spectrum only.
 The RTL8188RU is a high-power variant of the RTL8188CUS.
@@ -82,15 +82,18 @@ firmware license
 .Sh HARDWARE
 The
 .Nm
-driver supports Realtek RTL8188CU/RTL8188EU/RTL8192CU based USB
+driver supports Realtek RTL8188CU/RTL8188RU/RTL8188EU/RTL8192CU based USB
 IEEE 802.11b/g/n wireless network adapters, including:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
+.It Alfa AWUS036NHR v2
 .It ASUS USB-N10 NANO
 .It Belkin F7D1102 Surf Wireless Micro
+.It D-Link DWA-123 rev D1
 .It D-Link DWA-125 rev D1
 .It D-Link DWA-131
 .It Edimax EW-7811Un
+.It Elecom WDC-150SU2M
 .It Netgear WNA1000M
 .It Realtek RTL8192CU
 .It Realtek RTL8188CUS

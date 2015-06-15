@@ -37,7 +37,7 @@
 /*
  * $FreeBSD$
  */
- 
+
 #include <machine/asm.h>
 
 	.arch	armv6
@@ -61,29 +61,6 @@ END(armv6_setttb)
  * Cache operations.
  */
 
-/* LINTSTUB: void armv6_icache_sync_range(vaddr_t, vsize_t); */
-ENTRY_NP(armv6_icache_sync_range)
-	add	r1, r1, r0
-	sub	r1, r1, #1
-	mcrr	p15, 0, r1, r0, c5	/* invalidate I cache range */
-	mcrr	p15, 0, r1, r0, c12	/* clean D cache range */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-END(armv6_icache_sync_range)
-
-/* LINTSTUB: void armv6_icache_sync_all(void); */
-ENTRY_NP(armv6_icache_sync_all)
-	/*
-	 * We assume that the code here can never be out of sync with the
-	 * dcache, so that we can safely flush the Icache and fall through
-	 * into the Dcache cleaning code.
-	 */
-	mcr	p15, 0, r0, c7, c5, 0	/* Flush I cache */
-	mcr	p15, 0, r0, c7, c10, 0	/* Clean D cache */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-END(armv6_icache_sync_all)
-
 /* LINTSTUB: void armv6_dcache_wb_range(vaddr_t, vsize_t); */
 ENTRY(armv6_dcache_wb_range)
 	add	r1, r1, r0
@@ -92,7 +69,7 @@ ENTRY(armv6_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv6_dcache_wb_range)
-	
+
 /* LINTSTUB: void armv6_dcache_wbinv_range(vaddr_t, vsize_t); */
 ENTRY(armv6_dcache_wbinv_range)
 	add	r1, r1, r0
@@ -101,7 +78,7 @@ ENTRY(armv6_dcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv6_dcache_wbinv_range)
-	
+
 /*
  * Note, we must not invalidate everything.  If the range is too big we
  * must use wb-inv of the entire cache.
@@ -116,16 +93,6 @@ ENTRY(armv6_dcache_inv_range)
 	RET
 END(armv6_dcache_inv_range)
 
-/* LINTSTUB: void armv6_idcache_wbinv_range(vaddr_t, vsize_t); */
-ENTRY(armv6_idcache_wbinv_range)
-	add	r1, r1, r0
-	sub	r1, r1, #1
-	mcrr	p15, 0, r1, r0, c5	/* invaliate I cache range */
-	mcrr	p15, 0, r1, r0, c14	/* clean & invaliate D cache range */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-END(armv6_idcache_wbinv_range)
-
 /* LINTSTUB: void armv6_idcache_wbinv_all(void); */
 ENTRY_NP(armv6_idcache_wbinv_all)
 	/*
@@ -134,14 +101,11 @@ ENTRY_NP(armv6_idcache_wbinv_all)
 	 * into the Dcache purging code.
 	 */
 	mcr	p15, 0, r0, c7, c5, 0	/* Flush I cache */
-	/* Fall through to purge Dcache. */
 
-/* LINTSTUB: void armv6_dcache_wbinv_all(void); */
-EENTRY(armv6_dcache_wbinv_all)
+	/* Purge Dcache. */
 	mcr	p15, 0, r0, c7, c14, 0	/* clean & invalidate D cache */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
-EEND(armv6_dcache_wbinv_all)
 END(armv6_idcache_wbinv_all)
 
 ENTRY(armv6_idcache_inv_all)

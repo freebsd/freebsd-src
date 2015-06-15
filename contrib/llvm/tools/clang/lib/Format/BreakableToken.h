@@ -14,8 +14,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_BREAKABLETOKEN_H
-#define LLVM_CLANG_FORMAT_BREAKABLETOKEN_H
+#ifndef LLVM_CLANG_LIB_FORMAT_BREAKABLETOKEN_H
+#define LLVM_CLANG_LIB_FORMAT_BREAKABLETOKEN_H
 
 #include "Encoding.h"
 #include "TokenAnnotator.h"
@@ -90,10 +90,9 @@ protected:
 /// \c getSplit() needs to be implemented by child classes.
 class BreakableSingleLineToken : public BreakableToken {
 public:
-  virtual unsigned getLineCount() const;
-  virtual unsigned getLineLengthAfterSplit(unsigned LineIndex,
-                                           unsigned TailOffset,
-                                           StringRef::size_type Length) const;
+  unsigned getLineCount() const override;
+  unsigned getLineLengthAfterSplit(unsigned LineIndex, unsigned TailOffset,
+                                   StringRef::size_type Length) const override;
 
 protected:
   BreakableSingleLineToken(const FormatToken &Tok, unsigned IndentLevel,
@@ -123,13 +122,12 @@ public:
                          StringRef Postfix, bool InPPDirective,
                          encoding::Encoding Encoding, const FormatStyle &Style);
 
-  virtual Split getSplit(unsigned LineIndex, unsigned TailOffset,
-                         unsigned ColumnLimit) const;
-  virtual void insertBreak(unsigned LineIndex, unsigned TailOffset, Split Split,
-                           WhitespaceManager &Whitespaces);
-  virtual void replaceWhitespace(unsigned LineIndex, unsigned TailOffset,
-                                 Split Split,
-                                 WhitespaceManager &Whitespaces) {}
+  Split getSplit(unsigned LineIndex, unsigned TailOffset,
+                 unsigned ColumnLimit) const override;
+  void insertBreak(unsigned LineIndex, unsigned TailOffset, Split Split,
+                   WhitespaceManager &Whitespaces) override;
+  void replaceWhitespace(unsigned LineIndex, unsigned TailOffset, Split Split,
+                         WhitespaceManager &Whitespaces) override {}
 };
 
 class BreakableLineComment : public BreakableSingleLineToken {
@@ -142,15 +140,14 @@ public:
                        unsigned StartColumn, bool InPPDirective,
                        encoding::Encoding Encoding, const FormatStyle &Style);
 
-  virtual Split getSplit(unsigned LineIndex, unsigned TailOffset,
-                         unsigned ColumnLimit) const;
-  virtual void insertBreak(unsigned LineIndex, unsigned TailOffset, Split Split,
-                           WhitespaceManager &Whitespaces);
-  virtual void replaceWhitespace(unsigned LineIndex, unsigned TailOffset,
-                                 Split Split,
-                                 WhitespaceManager &Whitespaces);
-  virtual void replaceWhitespaceBefore(unsigned LineIndex,
-                                       WhitespaceManager &Whitespaces);
+  Split getSplit(unsigned LineIndex, unsigned TailOffset,
+                 unsigned ColumnLimit) const override;
+  void insertBreak(unsigned LineIndex, unsigned TailOffset, Split Split,
+                   WhitespaceManager &Whitespaces) override;
+  void replaceWhitespace(unsigned LineIndex, unsigned TailOffset, Split Split,
+                         WhitespaceManager &Whitespaces) override;
+  void replaceWhitespaceBefore(unsigned LineIndex,
+                               WhitespaceManager &Whitespaces) override;
 
 private:
   // The prefix without an additional space if one was added.
@@ -170,19 +167,17 @@ public:
                         bool FirstInLine, bool InPPDirective,
                         encoding::Encoding Encoding, const FormatStyle &Style);
 
-  virtual unsigned getLineCount() const;
-  virtual unsigned getLineLengthAfterSplit(unsigned LineIndex,
-                                           unsigned TailOffset,
-                                           StringRef::size_type Length) const;
-  virtual Split getSplit(unsigned LineIndex, unsigned TailOffset,
-                         unsigned ColumnLimit) const;
-  virtual void insertBreak(unsigned LineIndex, unsigned TailOffset, Split Split,
-                           WhitespaceManager &Whitespaces);
-  virtual void replaceWhitespace(unsigned LineIndex, unsigned TailOffset,
-                                 Split Split,
-                                 WhitespaceManager &Whitespaces);
-  virtual void replaceWhitespaceBefore(unsigned LineIndex,
-                                       WhitespaceManager &Whitespaces);
+  unsigned getLineCount() const override;
+  unsigned getLineLengthAfterSplit(unsigned LineIndex, unsigned TailOffset,
+                                   StringRef::size_type Length) const override;
+  Split getSplit(unsigned LineIndex, unsigned TailOffset,
+                 unsigned ColumnLimit) const override;
+  void insertBreak(unsigned LineIndex, unsigned TailOffset, Split Split,
+                   WhitespaceManager &Whitespaces) override;
+  void replaceWhitespace(unsigned LineIndex, unsigned TailOffset, Split Split,
+                         WhitespaceManager &Whitespaces) override;
+  void replaceWhitespaceBefore(unsigned LineIndex,
+                               WhitespaceManager &Whitespaces) override;
 
 private:
   // Rearranges the whitespace between Lines[LineIndex-1] and Lines[LineIndex],
@@ -217,7 +212,12 @@ private:
   // StartOfLineColumn[i] is the target column at which Line[i] should be.
   // Note that this excludes a leading "* " or "*" in case all lines have
   // a "*" prefix.
-  SmallVector<unsigned, 16> StartOfLineColumn;
+  // The first line's target column is always positive. The remaining lines'
+  // target columns are relative to the first line to allow correct indentation
+  // of comments in \c WhitespaceManager. Thus they can be negative as well (in
+  // case the first line needs to be unindented more than there's actual
+  // whitespace in another line).
+  SmallVector<int, 16> StartOfLineColumn;
 
   // The column at which the text of a broken line should start.
   // Note that an optional decoration would go before that column.
@@ -242,4 +242,4 @@ private:
 } // namespace format
 } // namespace clang
 
-#endif // LLVM_CLANG_FORMAT_BREAKABLETOKEN_H
+#endif

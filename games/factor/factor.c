@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -227,7 +228,7 @@ pr_fact(BIGNUM *val)
 
 		/* Divide factor out until none are left. */
 		do {
-			printf(hflag ? " 0x%lx" : " %lu", *fact);
+			printf(hflag ? " 0x%" PRIx64 "" : " %" PRIu64 "", *fact);
 			BN_div_word(val, (BN_ULONG)*fact);
 		} while (BN_mod_word(val, (BN_ULONG)*fact) == 0);
 

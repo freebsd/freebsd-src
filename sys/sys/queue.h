@@ -116,7 +116,7 @@ struct qm_trace {
 };
 
 #define	TRACEBUF	struct qm_trace trace;
-#define	TRACEBUF_INITIALIZER	{ __FILE__, __LINE__, NULL, 0 } ,
+#define	TRACEBUF_INITIALIZER	{ __LINE__, 0, __FILE__, NULL } ,
 #define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
 #define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 
@@ -612,7 +612,7 @@ struct {								\
 	TAILQ_NEXT((listelm), field) = (elm);				\
 	(elm)->field.tqe_prev = &TAILQ_NEXT((listelm), field);		\
 	QMD_TRACE_ELEM(&(elm)->field);					\
-	QMD_TRACE_ELEM(&listelm->field);				\
+	QMD_TRACE_ELEM(&(listelm)->field);				\
 } while (0)
 
 #define	TAILQ_INSERT_BEFORE(listelm, elm, field) do {			\
@@ -622,7 +622,7 @@ struct {								\
 	*(listelm)->field.tqe_prev = (elm);				\
 	(listelm)->field.tqe_prev = &TAILQ_NEXT((elm), field);		\
 	QMD_TRACE_ELEM(&(elm)->field);					\
-	QMD_TRACE_ELEM(&listelm->field);				\
+	QMD_TRACE_ELEM(&(listelm)->field);				\
 } while (0)
 
 #define	TAILQ_INSERT_HEAD(head, elm, field) do {			\

@@ -59,7 +59,6 @@ $FreeBSD$
 #include <dev/pci/pcivar.h>
 
 #include <cxgb_osdep.h>
-#include <sys/mbufq.h>
 
 struct adapter;
 struct sge_qset;
@@ -97,6 +96,7 @@ struct port_info {
 	const struct port_type_info *port_type;
 	struct cphy	phy;
 	struct cmac	mac;
+	struct timeval	last_refreshed;
 	struct link_config link_config;
 	struct ifmedia	media;
 	struct mtx	lock;
@@ -250,7 +250,7 @@ struct sge_txq {
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
-	struct mbuf_head sendq;
+	struct mbufq	sendq;
 
 	struct buf_ring *txq_mr;
 	struct ifaltq	*txq_ifq;
@@ -575,4 +575,5 @@ void cxgb_tx_watchdog(void *arg);
 int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_qflush(struct ifnet *ifp);
 void t3_iterate(void (*)(struct adapter *, void *), void *);
+void cxgb_refresh_stats(struct port_info *);
 #endif

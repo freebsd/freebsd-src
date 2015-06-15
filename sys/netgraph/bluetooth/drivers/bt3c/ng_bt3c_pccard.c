@@ -560,7 +560,6 @@ ng_bt3c_rcvdata(hook_p hook, item_p item)
 		NG_BT3C_ERR(sc->dev,
 "Outgoing queue is full. Dropping mbuf, len=%d\n", m->m_pkthdr.len);
 
-		_IF_DROP(&sc->outq);
 		NG_BT3C_STAT_OERROR(sc->stat);
 
 		NG_FREE_M(m);
@@ -815,8 +814,7 @@ bt3c_receive(bt3c_softc_p sc)
 				break; /* XXX lost of sync */
 			}
 
-			MCLGET(sc->m, M_NOWAIT);
-			if (!(sc->m->m_flags & M_EXT)) {
+			if (!(MCLGET(sc->m, M_NOWAIT))) {
 				NG_FREE_M(sc->m);
 
 				NG_BT3C_ERR(sc->dev, "Could not get cluster\n");
@@ -939,7 +937,6 @@ bt3c_receive(bt3c_softc_p sc)
 				NG_BT3C_ERR(sc->dev,
 "Incoming queue is full. Dropping mbuf, len=%d\n", sc->m->m_pkthdr.len);
 
-				_IF_DROP(&sc->inq);
 				NG_BT3C_STAT_IERROR(sc->stat);
 
 				NG_FREE_M(sc->m);

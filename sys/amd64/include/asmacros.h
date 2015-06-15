@@ -132,6 +132,16 @@
 #define MEXITCOUNT
 #endif /* GPROF */
 
+/*
+ * Convenience for adding frame pointers to hand-coded ASM.  Useful for
+ * DTrace, HWPMC, and KDB.
+ */
+#define PUSH_FRAME_POINTER	\
+	pushq	%rbp ;		\
+	movq	%rsp, %rbp ;
+#define POP_FRAME_POINTER	\
+	popq	%rbp
+
 #ifdef LOCORE
 /*
  * Convenience macro for declaring interrupt entry points.

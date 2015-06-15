@@ -157,7 +157,7 @@ qla_add_sysctls(qla_host_t *ha)
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		OID_AUTO, "fw_version", CTLFLAG_RD,
-		&ha->fw_ver_str, 0, "firmware version");
+		ha->fw_ver_str, 0, "firmware version");
 
 	dbg_level = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -378,7 +378,7 @@ qla_pci_attach(device_t dev)
 	ha->flags.qla_watchdog_active = 1;
 	ha->flags.qla_watchdog_pause = 1;
 	
-	callout_init(&ha->tx_callout, TRUE);
+	callout_init(&ha->tx_callout, 1);
 
 	/* create ioctl device interface */
 	if (qla_make_cdev(ha)) {
@@ -699,7 +699,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_capenable = ifp->if_capabilities;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifmedia_init(&ha->media, IFM_IMASK, qla_media_change, qla_media_status);
 

@@ -65,8 +65,8 @@
 /// ultimately led to the creation of an illegal COPY.
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "sgpr-copies"
 #include "AMDGPU.h"
+#include "AMDGPUSubtarget.h"
 #include "SIInstrInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -76,6 +76,8 @@
 #include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "sgpr-copies"
 
 namespace {
 
@@ -97,9 +99,9 @@ private:
 public:
   SIFixSGPRCopies(TargetMachine &tm) : MachineFunctionPass(ID) { }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  const char *getPassName() const {
+  const char *getPassName() const override {
     return "SI Fix SGPR copies";
   }
 
@@ -134,15 +136,15 @@ const TargetRegisterClass *SIFixSGPRCopies::inferRegClassFromUses(
                                                  const MachineRegisterInfo &MRI,
                                                  unsigned Reg,
                                                  unsigned SubReg) const {
-  // The Reg parameter to the function must always be defined by either a PHI
-  // or a COPY, therefore it cannot be a physical register.
-  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
-         "Reg cannot be a physical register");
 
-  const TargetRegisterClass *RC = MRI.getRegClass(Reg);
+  const TargetRegisterClass *RC
+    = TargetRegisterInfo::isVirtualRegister(Reg) ?
+    MRI.getRegClass(Reg) :
+    TRI->getRegClass(Reg);
+
   RC = TRI->getSubRegClass(RC, SubReg);
-  for (MachineRegisterInfo::use_iterator I = MRI.use_begin(Reg),
-                                         E = MRI.use_end(); I != E; ++I) {
+  for (MachineRegisterInfo::use_instr_iterator
+       I = MRI.use_instr_begin(Reg), E = MRI.use_instr_end(); I != E; ++I) {
     switch (I->getOpcode()) {
     case AMDGPU::COPY:
       RC = TRI->getCommonSubClass(RC, inferRegClassFromUses(TRI, MRI,
@@ -180,11 +182,17 @@ bool SIFixSGPRCopies::isVGPRToSGPRCopy(const MachineInstr &Copy,
   unsigned DstReg = Copy.getOperand(0).getReg();
   unsigned SrcReg = Copy.getOperand(1).getReg();
   unsigned SrcSubReg = Copy.getOperand(1).getSubReg();
-  const TargetRegisterClass *DstRC = MRI.getRegClass(DstReg);
+
+  const TargetRegisterClass *DstRC
+    = TargetRegisterInfo::isVirtualRegister(DstReg) ?
+    MRI.getRegClass(DstReg) :
+    TRI->getRegClass(DstReg);
+
   const TargetRegisterClass *SrcRC;
 
   if (!TargetRegisterInfo::isVirtualRegister(SrcReg) ||
-      DstRC == &AMDGPU::M0RegRegClass)
+      DstRC == &AMDGPU::M0RegRegClass ||
+      MRI.getRegClass(SrcReg) == &AMDGPU::VReg_1RegClass)
     return false;
 
   SrcRC = TRI->getSubRegClass(MRI.getRegClass(SrcReg), SrcSubReg);
@@ -193,10 +201,10 @@ bool SIFixSGPRCopies::isVGPRToSGPRCopy(const MachineInstr &Copy,
 
 bool SIFixSGPRCopies::runOnMachineFunction(MachineFunction &MF) {
   MachineRegisterInfo &MRI = MF.getRegInfo();
-  const SIRegisterInfo *TRI = static_cast<const SIRegisterInfo *>(
-      MF.getTarget().getRegisterInfo());
-  const SIInstrInfo *TII = static_cast<const SIInstrInfo *>(
-      MF.getTarget().getInstrInfo());
+  const SIRegisterInfo *TRI =
+      static_cast<const SIRegisterInfo *>(MF.getSubtarget().getRegisterInfo());
+  const SIInstrInfo *TII =
+      static_cast<const SIInstrInfo *>(MF.getSubtarget().getInstrInfo());
   for (MachineFunction::iterator BI = MF.begin(), BE = MF.end();
                                                   BI != BE; ++BI) {
 
@@ -214,20 +222,21 @@ bool SIFixSGPRCopies::runOnMachineFunction(MachineFunction &MF) {
       switch (MI.getOpcode()) {
       default: continue;
       case AMDGPU::PHI: {
-        DEBUG(dbgs() << " Fixing PHI:\n");
-        DEBUG(MI.print(dbgs()));
+        DEBUG(dbgs() << "Fixing PHI: " << MI);
 
-        for (unsigned i = 1; i < MI.getNumOperands(); i+=2) {
-          unsigned Reg = MI.getOperand(i).getReg();
-          const TargetRegisterClass *RC = inferRegClassFromDef(TRI, MRI, Reg,
-                                                  MI.getOperand(0).getSubReg());
-          MRI.constrainRegClass(Reg, RC);
+        for (unsigned i = 1; i < MI.getNumOperands(); i += 2) {
+          const MachineOperand &Op = MI.getOperand(i);
+          unsigned Reg = Op.getReg();
+          const TargetRegisterClass *RC
+            = inferRegClassFromDef(TRI, MRI, Reg, Op.getSubReg());
+
+          MRI.constrainRegClass(Op.getReg(), RC);
         }
         unsigned Reg = MI.getOperand(0).getReg();
         const TargetRegisterClass *RC = inferRegClassFromUses(TRI, MRI, Reg,
                                                   MI.getOperand(0).getSubReg());
-        if (TRI->getCommonSubClass(RC, &AMDGPU::VReg_32RegClass)) {
-          MRI.constrainRegClass(Reg, &AMDGPU::VReg_32RegClass);
+        if (TRI->getCommonSubClass(RC, &AMDGPU::VGPR_32RegClass)) {
+          MRI.constrainRegClass(Reg, &AMDGPU::VGPR_32RegClass);
         }
 
         if (!TRI->isSGPRClass(MRI.getRegClass(Reg)))
@@ -235,14 +244,66 @@ bool SIFixSGPRCopies::runOnMachineFunction(MachineFunction &MF) {
 
         // If a PHI node defines an SGPR and any of its operands are VGPRs,
         // then we need to move it to the VALU.
+        //
+        // Also, if a PHI node defines an SGPR and has all SGPR operands
+        // we must move it to the VALU, because the SGPR operands will
+        // all end up being assigned the same register, which means
+        // there is a potential for a conflict if different threads take
+        // different control flow paths.
+        //
+        // For Example:
+        //
+        // sgpr0 = def;
+        // ...
+        // sgpr1 = def;
+        // ...
+        // sgpr2 = PHI sgpr0, sgpr1
+        // use sgpr2;
+        //
+        // Will Become:
+        //
+        // sgpr2 = def;
+        // ...
+        // sgpr2 = def;
+        // ...
+        // use sgpr2
+        //
+        // FIXME: This is OK if the branching decision is made based on an
+        // SGPR value.
+        bool SGPRBranch = false;
+
+        // The one exception to this rule is when one of the operands
+        // is defined by a SI_BREAK, SI_IF_BREAK, or SI_ELSE_BREAK
+        // instruction.  In this case, there we know the program will
+        // never enter the second block (the loop) without entering
+        // the first block (where the condition is computed), so there
+        // is no chance for values to be over-written.
+
+        bool HasBreakDef = false;
         for (unsigned i = 1; i < MI.getNumOperands(); i+=2) {
           unsigned Reg = MI.getOperand(i).getReg();
           if (TRI->hasVGPRs(MRI.getRegClass(Reg))) {
             TII->moveToVALU(MI);
             break;
           }
+          MachineInstr *DefInstr = MRI.getUniqueVRegDef(Reg);
+          assert(DefInstr);
+          switch(DefInstr->getOpcode()) {
+
+          case AMDGPU::SI_BREAK:
+          case AMDGPU::SI_IF_BREAK:
+          case AMDGPU::SI_ELSE_BREAK:
+          // If we see a PHI instruction that defines an SGPR, then that PHI
+          // instruction has already been considered and should have
+          // a *_BREAK as an operand.
+          case AMDGPU::PHI:
+            HasBreakDef = true;
+            break;
+          }
         }
 
+        if (!SGPRBranch && !HasBreakDef)
+          TII->moveToVALU(MI);
         break;
       }
       case AMDGPU::REG_SEQUENCE: {
@@ -250,14 +311,26 @@ bool SIFixSGPRCopies::runOnMachineFunction(MachineFunction &MF) {
             !hasVGPROperands(MI, TRI))
           continue;
 
-        DEBUG(dbgs() << "Fixing REG_SEQUENCE:\n");
-        DEBUG(MI.print(dbgs()));
+        DEBUG(dbgs() << "Fixing REG_SEQUENCE: " << MI);
 
         TII->moveToVALU(MI);
+        break;
+      }
+      case AMDGPU::INSERT_SUBREG: {
+        const TargetRegisterClass *DstRC, *Src0RC, *Src1RC;
+        DstRC = MRI.getRegClass(MI.getOperand(0).getReg());
+        Src0RC = MRI.getRegClass(MI.getOperand(1).getReg());
+        Src1RC = MRI.getRegClass(MI.getOperand(2).getReg());
+        if (TRI->isSGPRClass(DstRC) &&
+            (TRI->hasVGPRs(Src0RC) || TRI->hasVGPRs(Src1RC))) {
+          DEBUG(dbgs() << " Fixing INSERT_SUBREG: " << MI);
+          TII->moveToVALU(MI);
+        }
         break;
       }
       }
     }
   }
-  return false;
+
+  return true;
 }

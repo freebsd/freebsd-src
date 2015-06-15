@@ -28,7 +28,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd June 6, 2015
 .Dt LAST 1
 .Os
 .Sh NAME
@@ -198,14 +198,19 @@ login data base
 .El
 .Sh SEE ALSO
 .Xr lastcomm 1 ,
-.Xr lastlogin 8 ,
 .Xr getutxent 3 ,
-.Xr ac 8
+.Xr ac 8 ,
+.Xr lastlogin 8
 .Sh HISTORY
-A
 .Nm
-utility appeared in
-.Bx 3.0 .
+utility first appeared in
+.Bx 1 .
+.Sh AUTHORS
+.An -nosplit
+The original version was written by
+.An Howard P. Katseff ;
+.An Keith Bostic
+rewrote it in 1986/87 to add functionality and to improve code quality.
 .Sh BUGS
 If a login shell should terminate abnormally for some reason, it is likely
 that a logout record will not be written to the

@@ -45,4 +45,9 @@ void tlsv1_server_set_session_ticket_cb(struct tlsv1_server *conn,
 					tlsv1_server_session_ticket_cb cb,
 					void *ctx);
 
+void tlsv1_server_set_log_cb(struct tlsv1_server *conn,
+			     void (*cb)(void *ctx, const char *msg), void *ctx);
+
+void tlsv1_server_set_test_flags(struct tlsv1_server *conn, u32 flags);
+
 #endif /* TLSV1_SERVER_H */

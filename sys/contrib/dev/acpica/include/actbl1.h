@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,7 @@
 #define ACPI_SIG_SBST           "SBST"      /* Smart Battery Specification Table */
 #define ACPI_SIG_SLIT           "SLIT"      /* System Locality Distance Information Table */
 #define ACPI_SIG_SRAT           "SRAT"      /* System Resource Affinity Table */
+#define ACPI_SIG_NFIT           "NFIT"      /* NVDIMM Firmware Interface Table */
 
 
 /*
@@ -524,7 +525,7 @@ typedef struct acpi_hest_aer_common
     UINT8                   Enabled;
     UINT32                  RecordsToPreallocate;
     UINT32                  MaxSectionsPerRecord;
-    UINT32                  Bus;
+    UINT32                  Bus;                    /* Bus and Segment numbers */
     UINT16                  Device;
     UINT16                  Function;
     UINT16                  DeviceControl;
@@ -540,6 +541,14 @@ typedef struct acpi_hest_aer_common
 
 #define ACPI_HEST_FIRMWARE_FIRST        (1)
 #define ACPI_HEST_GLOBAL                (1<<1)
+
+/*
+ * Macros to access the bus/segment numbers in Bus field above:
+ *  Bus number is encoded in bits 7:0
+ *  Segment number is encoded in bits 23:8
+ */
+#define ACPI_HEST_BUS(Bus)              ((Bus) & 0xFF)
+#define ACPI_HEST_SEGMENT(Bus)          (((Bus) >> 8) & 0xFFFF)
 
 
 /* Hardware Error Notification */
@@ -754,25 +763,28 @@ typedef struct acpi_table_madt
 
 enum AcpiMadtType
 {
-    ACPI_MADT_TYPE_LOCAL_APIC           = 0,
-    ACPI_MADT_TYPE_IO_APIC              = 1,
-    ACPI_MADT_TYPE_INTERRUPT_OVERRIDE   = 2,
-    ACPI_MADT_TYPE_NMI_SOURCE           = 3,
-    ACPI_MADT_TYPE_LOCAL_APIC_NMI       = 4,
-    ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE  = 5,
-    ACPI_MADT_TYPE_IO_SAPIC             = 6,
-    ACPI_MADT_TYPE_LOCAL_SAPIC          = 7,
-    ACPI_MADT_TYPE_INTERRUPT_SOURCE     = 8,
-    ACPI_MADT_TYPE_LOCAL_X2APIC         = 9,
-    ACPI_MADT_TYPE_LOCAL_X2APIC_NMI     = 10,
-    ACPI_MADT_TYPE_GENERIC_INTERRUPT    = 11,
-    ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR  = 12,
-    ACPI_MADT_TYPE_RESERVED             = 13    /* 13 and greater are reserved */
+    ACPI_MADT_TYPE_LOCAL_APIC               = 0,
+    ACPI_MADT_TYPE_IO_APIC                  = 1,
+    ACPI_MADT_TYPE_INTERRUPT_OVERRIDE       = 2,
+    ACPI_MADT_TYPE_NMI_SOURCE               = 3,
+    ACPI_MADT_TYPE_LOCAL_APIC_NMI           = 4,
+    ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE      = 5,
+    ACPI_MADT_TYPE_IO_SAPIC                 = 6,
+    ACPI_MADT_TYPE_LOCAL_SAPIC              = 7,
+    ACPI_MADT_TYPE_INTERRUPT_SOURCE         = 8,
+    ACPI_MADT_TYPE_LOCAL_X2APIC             = 9,
+    ACPI_MADT_TYPE_LOCAL_X2APIC_NMI         = 10,
+    ACPI_MADT_TYPE_GENERIC_INTERRUPT        = 11,
+    ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR      = 12,
+    ACPI_MADT_TYPE_GENERIC_MSI_FRAME        = 13,
+    ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR    = 14,
+    ACPI_MADT_TYPE_GENERIC_TRANSLATOR       = 15,
+    ACPI_MADT_TYPE_RESERVED                 = 16    /* 16 and greater are reserved */
 };
 
 
 /*
- * MADT Sub-tables, correspond to Type in ACPI_SUBTABLE_HEADER
+ * MADT Subtables, correspond to Type in ACPI_SUBTABLE_HEADER
  */
 
 /* 0: Processor Local APIC */
@@ -922,24 +934,37 @@ typedef struct acpi_madt_local_x2apic_nmi
 } ACPI_MADT_LOCAL_X2APIC_NMI;
 
 
-/* 11: Generic Interrupt (ACPI 5.0) */
+/* 11: Generic Interrupt (ACPI 5.0 + ACPI 6.0 changes) */
 
 typedef struct acpi_madt_generic_interrupt
 {
     ACPI_SUBTABLE_HEADER    Header;
     UINT16                  Reserved;           /* Reserved - must be zero */
-    UINT32                  GicId;
+    UINT32                  CpuInterfaceNumber;
     UINT32                  Uid;
     UINT32                  Flags;
     UINT32                  ParkingVersion;
     UINT32                  PerformanceInterrupt;
     UINT64                  ParkedAddress;
     UINT64                  BaseAddress;
+    UINT64                  GicvBaseAddress;
+    UINT64                  GichBaseAddress;
+    UINT32                  VgicInterrupt;
+    UINT64                  GicrBaseAddress;
+    UINT64                  ArmMpidr;
+    UINT8                   EfficiencyClass;
+    UINT8                   Reserved2[3];
 
 } ACPI_MADT_GENERIC_INTERRUPT;
 
+/* Masks for Flags field above */
 
-/* 12: Generic Distributor (ACPI 5.0) */
+/* ACPI_MADT_ENABLED                    (1)      Processor is usable if set */
+#define ACPI_MADT_PERFORMANCE_IRQ_MODE  (1<<1)  /* 01: Performance Interrupt Mode */
+#define ACPI_MADT_VGIC_IRQ_MODE         (1<<2)  /* 02: VGIC Maintenance Interrupt mode */
+
+
+/* 12: Generic Distributor (ACPI 5.0 + ACPI 6.0 changes) */
 
 typedef struct acpi_madt_generic_distributor
 {
@@ -948,16 +973,61 @@ typedef struct acpi_madt_generic_distributor
     UINT32                  GicId;
     UINT64                  BaseAddress;
     UINT32                  GlobalIrqBase;
-    UINT32                  Reserved2;          /* Reserved - must be zero */
+    UINT8                   Version;
+    UINT8                   Reserved2[3];          /* Reserved - must be zero */
 
 } ACPI_MADT_GENERIC_DISTRIBUTOR;
+
+
+/* 13: Generic MSI Frame (ACPI 5.1) */
+
+typedef struct acpi_madt_generic_msi_frame
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;           /* Reserved - must be zero */
+    UINT32                  MsiFrameId;
+    UINT64                  BaseAddress;
+    UINT32                  Flags;
+    UINT16                  SpiCount;
+    UINT16                  SpiBase;
+
+} ACPI_MADT_GENERIC_MSI_FRAME;
+
+/* Masks for Flags field above */
+
+#define ACPI_MADT_OVERRIDE_SPI_VALUES   (1)
+
+
+/* 14: Generic Redistributor (ACPI 5.1) */
+
+typedef struct acpi_madt_generic_redistributor
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;           /* reserved - must be zero */
+    UINT64                  BaseAddress;
+    UINT32                  Length;
+
+} ACPI_MADT_GENERIC_REDISTRIBUTOR;
+
+
+/* 15: Generic Translator (ACPI 6.0) */
+
+typedef struct acpi_madt_generic_translator
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;           /* reserved - must be zero */
+    UINT32                  TranslationId;
+    UINT64                  BaseAddress;
+    UINT32                  Reserved2;
+
+} ACPI_MADT_GENERIC_TRANSLATOR;
 
 
 /*
  * Common flags fields for MADT subtables
  */
 
-/* MADT Local APIC flags (LapicFlags) and GIC flags */
+/* MADT Local APIC flags */
 
 #define ACPI_MADT_ENABLED           (1)         /* 00: Processor is usable if set */
 
@@ -1009,6 +1079,186 @@ typedef struct acpi_msct_proximity
     UINT64                  MemoryCapacity;     /* In bytes */
 
 } ACPI_MSCT_PROXIMITY;
+
+
+/*******************************************************************************
+ *
+ * NFIT - NVDIMM Interface Table (ACPI 6.0)
+ *        Version 1
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_nfit
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT32                  Reserved;           /* Reserved, must be zero */
+
+} ACPI_TABLE_NFIT;
+
+/* Subtable header for NFIT */
+
+typedef struct acpi_nfit_header
+{
+    UINT16                   Type;
+    UINT16                   Length;
+
+} ACPI_NFIT_HEADER;
+
+
+/* Values for subtable type in ACPI_NFIT_HEADER */
+
+enum AcpiNfitType
+{
+    ACPI_NFIT_TYPE_SYSTEM_ADDRESS       = 0,
+    ACPI_NFIT_TYPE_MEMORY_MAP           = 1,
+    ACPI_NFIT_TYPE_INTERLEAVE           = 2,
+    ACPI_NFIT_TYPE_SMBIOS               = 3,
+    ACPI_NFIT_TYPE_CONTROL_REGION       = 4,
+    ACPI_NFIT_TYPE_DATA_REGION          = 5,
+    ACPI_NFIT_TYPE_FLUSH_ADDRESS        = 6,
+    ACPI_NFIT_TYPE_RESERVED             = 7     /* 7 and greater are reserved */
+};
+
+/*
+ * NFIT Subtables
+ */
+
+/* 0: System Physical Address Range Structure */
+
+typedef struct acpi_nfit_system_address
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT16                  RangeIndex;
+    UINT16                  Flags;
+    UINT32                  Reserved;           /* Reseved, must be zero */
+    UINT32                  ProximityDomain;
+    UINT8                   RangeGuid[16];
+    UINT64                  Address;
+    UINT64                  Length;
+    UINT64                  MemoryMapping;
+
+} ACPI_NFIT_SYSTEM_ADDRESS;
+
+/* Flags */
+
+#define ACPI_NFIT_ADD_ONLINE_ONLY       (1)     /* 00: Add/Online Operation Only */
+#define ACPI_NFIT_PROXIMITY_VALID       (1<<1)  /* 01: Proximity Domain Valid */
+
+/* Range Type GUIDs appear in the include/acuuid.h file */
+
+
+/* 1: Memory Device to System Address Range Map Structure */
+
+typedef struct acpi_nfit_memory_map
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT32                  DeviceHandle;
+    UINT16                  PhysicalId;
+    UINT16                  RegionId;
+    UINT16                  RangeIndex;
+    UINT16                  RegionIndex;
+    UINT64                  RegionSize;
+    UINT64                  RegionOffset;
+    UINT64                  Address;
+    UINT16                  InterleaveIndex;
+    UINT16                  InterleaveWays;
+    UINT16                  Flags;
+    UINT16                  Reserved;           /* Reserved, must be zero */
+
+} ACPI_NFIT_MEMORY_MAP;
+
+/* Flags */
+
+#define ACPI_NFIT_MEM_SAVE_FAILED       (1)     /* 00: Last SAVE to Memory Device failed */
+#define ACPI_NFIT_MEM_RESTORE_FAILED    (1<<1)  /* 01: Last RESTORE from Memory Device failed */
+#define ACPI_NFIT_MEM_FLUSH_FAILED      (1<<2)  /* 02: Platform flush failed */
+#define ACPI_NFIT_MEM_ARMED             (1<<3)  /* 03: Memory Device observed to be not armed */
+#define ACPI_NFIT_MEM_HEALTH_OBSERVED   (1<<4)  /* 04: Memory Device observed SMART/health events */
+#define ACPI_NFIT_MEM_HEALTH_ENABLED    (1<<5)  /* 05: SMART/health events enabled */
+
+
+/* 2: Interleave Structure */
+
+typedef struct acpi_nfit_interleave
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT16                  InterleaveIndex;
+    UINT16                  Reserved;           /* Reserved, must be zero */
+    UINT32                  LineCount;
+    UINT32                  LineSize;
+    UINT32                  LineOffset[1];      /* Variable length */
+
+} ACPI_NFIT_INTERLEAVE;
+
+
+/* 3: SMBIOS Management Information Structure */
+
+typedef struct acpi_nfit_smbios
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT32                  Reserved;           /* Reserved, must be zero */
+    UINT8                   Data[1];            /* Variable length */
+
+} ACPI_NFIT_SMBIOS;
+
+
+/* 4: NVDIMM Control Region Structure */
+
+typedef struct acpi_nfit_control_region
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT16                  RegionIndex;
+    UINT16                  VendorId;
+    UINT16                  DeviceId;
+    UINT16                  RevisionId;
+    UINT16                  SubsystemVendorId;
+    UINT16                  SubsystemDeviceId;
+    UINT16                  SubsystemRevisionId;
+    UINT8                   Reserved[6];        /* Reserved, must be zero */
+    UINT32                  SerialNumber;
+    UINT16                  Code;
+    UINT16                  Windows;
+    UINT64                  WindowSize;
+    UINT64                  CommandOffset;
+    UINT64                  CommandSize;
+    UINT64                  StatusOffset;
+    UINT64                  StatusSize;
+    UINT16                  Flags;
+    UINT8                   Reserved1[6];       /* Reserved, must be zero */
+
+} ACPI_NFIT_CONTROL_REGION;
+
+/* Flags */
+
+#define ACPI_NFIT_CONTROL_BUFFERED      (1)     /* Block Data Windows implementation is buffered */
+
+
+/* 5: NVDIMM Block Data Window Region Structure */
+
+typedef struct acpi_nfit_data_region
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT16                  RegionIndex;
+    UINT16                  Windows;
+    UINT64                  Offset;
+    UINT64                  Size;
+    UINT64                  Capacity;
+    UINT64                  StartAddress;
+
+} ACPI_NFIT_DATA_REGION;
+
+
+/* 6: Flush Hint Address Structure */
+
+typedef struct acpi_nfit_flush_address
+{
+    ACPI_NFIT_HEADER        Header;
+    UINT32                  DeviceHandle;
+    UINT16                  HintCount;
+    UINT8                   Reserved[6];        /* Reserved, must be zero */
+    UINT64                  HintAddress[1];     /* Variable length */
+
+} ACPI_NFIT_FLUSH_ADDRESS;
 
 
 /*******************************************************************************
@@ -1066,11 +1316,12 @@ enum AcpiSratType
     ACPI_SRAT_TYPE_CPU_AFFINITY         = 0,
     ACPI_SRAT_TYPE_MEMORY_AFFINITY      = 1,
     ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY  = 2,
-    ACPI_SRAT_TYPE_RESERVED             = 3     /* 3 and greater are reserved */
+    ACPI_SRAT_TYPE_GICC_AFFINITY        = 3,
+    ACPI_SRAT_TYPE_RESERVED             = 4     /* 4 and greater are reserved */
 };
 
 /*
- * SRAT Sub-tables, correspond to Type in ACPI_SUBTABLE_HEADER
+ * SRAT Subtables, correspond to Type in ACPI_SUBTABLE_HEADER
  */
 
 /* 0: Processor Local APIC/SAPIC Affinity */
@@ -1083,7 +1334,7 @@ typedef struct acpi_srat_cpu_affinity
     UINT32                  Flags;
     UINT8                   LocalSapicEid;
     UINT8                   ProximityDomainHi[3];
-    UINT32                  Reserved;           /* Reserved, must be zero */
+    UINT32                  ClockDomain;
 
 } ACPI_SRAT_CPU_AFFINITY;
 
@@ -1131,6 +1382,23 @@ typedef struct acpi_srat_x2apic_cpu_affinity
 /* Flags for ACPI_SRAT_CPU_AFFINITY and ACPI_SRAT_X2APIC_CPU_AFFINITY */
 
 #define ACPI_SRAT_CPU_ENABLED       (1)         /* 00: Use affinity structure */
+
+
+/* 3: GICC Affinity (ACPI 5.1) */
+
+typedef struct acpi_srat_gicc_affinity
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT32                  ProximityDomain;
+    UINT32                  AcpiProcessorUid;
+    UINT32                  Flags;
+    UINT32                  ClockDomain;
+
+} ACPI_SRAT_GICC_AFFINITY;
+
+/* Flags for ACPI_SRAT_GICC_AFFINITY */
+
+#define ACPI_SRAT_GICC_ENABLED     (1)         /* 00: Use affinity structure */
 
 
 /* Reset to default packing */

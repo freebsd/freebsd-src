@@ -12,16 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Assembly/PrintModulePass.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Regex.h"
@@ -100,10 +101,9 @@ int main(int argc, char **argv) {
 
   // Use lazy loading, since we only care about selected global values.
   SMDiagnostic Err;
-  OwningPtr<Module> M;
-  M.reset(getLazyIRFileModule(InputFilename, Err, Context));
+  std::unique_ptr<Module> M = getLazyIRFileModule(InputFilename, Err, Context);
 
-  if (M.get() == 0) {
+  if (!M.get()) {
     Err.print(argv[0], errs());
     return 1;
   }
@@ -165,10 +165,9 @@ int main(int argc, char **argv) {
         "invalid regex: " << Error;
     }
     bool match = false;
-    for (Module::global_iterator GV = M->global_begin(),
-           E = M->global_end(); GV != E; GV++) {
-      if (RegEx.match(GV->getName())) {
-        GVs.insert(&*GV);
+    for (auto &GV : M->globals()) {
+      if (RegEx.match(GV.getName())) {
+        GVs.insert(&GV);
         match = true;
       }
     }
@@ -217,34 +216,28 @@ int main(int argc, char **argv) {
   if (!DeleteFn)
     for (size_t i = 0, e = GVs.size(); i != e; ++i) {
       GlobalValue *GV = GVs[i];
-      if (GV->isMaterializable()) {
-        std::string ErrInfo;
-        if (GV->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
-          return 1;
-        }
+      if (std::error_code EC = GV->materialize()) {
+        errs() << argv[0] << ": error reading input: " << EC.message() << "\n";
+        return 1;
       }
     }
   else {
     // Deleting. Materialize every GV that's *not* in GVs.
     SmallPtrSet<GlobalValue *, 8> GVSet(GVs.begin(), GVs.end());
-    for (Module::global_iterator I = M->global_begin(), E = M->global_end();
-         I != E; ++I) {
-      GlobalVariable *G = I;
-      if (!GVSet.count(G) && G->isMaterializable()) {
-        std::string ErrInfo;
-        if (G->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
+    for (auto &G : M->globals()) {
+      if (!GVSet.count(&G)) {
+        if (std::error_code EC = G.materialize()) {
+          errs() << argv[0] << ": error reading input: " << EC.message()
+                 << "\n";
           return 1;
         }
       }
     }
-    for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I) {
-      Function *F = I;
-      if (!GVSet.count(F) && F->isMaterializable()) {
-        std::string ErrInfo;
-        if (F->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
+    for (auto &F : *M) {
+      if (!GVSet.count(&F)) {
+        if (std::error_code EC = F.materialize()) {
+          errs() << argv[0] << ": error reading input: " << EC.message()
+                 << "\n";
           return 1;
         }
       }
@@ -254,7 +247,7 @@ int main(int argc, char **argv) {
   // In addition to deleting all other functions, we also want to spiff it
   // up a little bit.  Do this now.
   PassManager Passes;
-  Passes.add(new DataLayout(M.get())); // Use correct DataLayout
+  Passes.add(new DataLayoutPass()); // Use correct DataLayout
 
   std::vector<GlobalValue*> Gvs(GVs.begin(), GVs.end());
 
@@ -264,15 +257,15 @@ int main(int argc, char **argv) {
   Passes.add(createStripDeadDebugInfoPass());    // Remove dead debug info
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
-  std::string ErrorInfo;
-  tool_output_file Out(OutputFilename.c_str(), ErrorInfo, sys::fs::F_Binary);
-  if (!ErrorInfo.empty()) {
-    errs() << ErrorInfo << '\n';
+  std::error_code EC;
+  tool_output_file Out(OutputFilename, EC, sys::fs::F_None);
+  if (EC) {
+    errs() << EC.message() << '\n';
     return 1;
   }
 
   if (OutputAssembly)
-    Passes.add(createPrintModulePass(&Out.os()));
+    Passes.add(createPrintModulePass(Out.os()));
   else if (Force || !CheckBitcodeOutputToConsole(Out.os(), true))
     Passes.add(createBitcodeWriterPass(Out.os()));
 

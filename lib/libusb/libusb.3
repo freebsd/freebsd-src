@@ -42,9 +42,9 @@ The
 .Nm
 library contains interfaces for directly managing a usb device.
 The current implementation supports v1.0 of the libusb API.
-.Sh LIBRARY INITIALISATION / DEINITIALISATION
+.Sh LIBRARY INITIALISATION AND DEINITIALISATION
 .Ft int
-.Fn libusb_init libusb_context **ctx
+.Fn libusb_init "libusb_context **ctx"
 This function initialises libusb.
 It must be called at the beginning
 of the program, before other libusb routines are used.

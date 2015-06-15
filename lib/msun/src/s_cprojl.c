@@ -39,5 +39,5 @@ cprojl(long double complex z)
 	if (!isinf(creall(z)) && !isinf(cimagl(z)))
 		return (z);
 	else
-		return (cpackl(INFINITY, copysignl(0.0, cimagl(z))));
+		return (CMPLXL(INFINITY, copysignl(0.0, cimagl(z))));
 }

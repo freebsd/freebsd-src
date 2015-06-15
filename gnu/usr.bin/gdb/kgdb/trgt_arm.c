@@ -72,20 +72,12 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		warnx("kvm_read: %s", kvm_geterr(kvm));
 		memset(&pcb, 0, sizeof(pcb));
 	}
-	for (i = ARM_A1_REGNUM + 8; i <= ARM_SP_REGNUM; i++) {
-		supply_register(i, (char *)&pcb.un_32.pcb32_r8 +
-		    (i - (ARM_A1_REGNUM + 8 )) * 4);
+	for (i = ARM_A1_REGNUM + 4; i <= ARM_SP_REGNUM; i++) {
+		supply_register(i, (char *)&pcb.pcb_regs.sf_r4 +
+		    (i - (ARM_A1_REGNUM + 4 )) * 4);
 	}
-	if (pcb.un_32.pcb32_sp != 0) {
-		for (i = 0; i < 4; i++) {
-			if (kvm_read(kvm, pcb.un_32.pcb32_sp + (i) * 4,
-			    &reg, 4) != 4) {
-				warnx("kvm_read: %s", kvm_geterr(kvm));
-				break;
-			}
-			supply_register(ARM_A1_REGNUM + 4 + i, (char *)&reg);
-		}
-		if (kvm_read(kvm, pcb.un_32.pcb32_sp + 4 * 4, &reg, 4) != 4)
+	if (pcb.pcb_regs.sf_sp != 0) {
+		if (kvm_read(kvm, pcb.pcb_regs.sf_sp + 4 * 4, &reg, 4) != 4)
 			warnx("kvm_read :%s", kvm_geterr(kvm));
 		else
 			supply_register(ARM_PC_REGNUM, (char *)&reg);

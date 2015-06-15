@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2007 The NetBSD Foundation, Inc.
+/* Copyright (c) 2007 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +21,9 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+
+#include "atf-c/detail/fs.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -39,9 +37,8 @@
 
 #include <atf-c.h>
 
-#include "fs.h"
-#include "test_helpers.h"
-#include "user.h"
+#include "atf-c/detail/test_helpers.h"
+#include "atf-c/detail/user.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions.

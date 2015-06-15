@@ -44,7 +44,7 @@ BEGIN
 	i = 0;
 }
 
-syscall::*lwp*:entry
+syscall::*wait*:entry
 {
 	exit(0);
 }

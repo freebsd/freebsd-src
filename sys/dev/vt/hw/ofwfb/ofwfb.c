@@ -53,7 +53,8 @@ struct ofwfb_softc {
 
 	phandle_t	sc_node;
 	ihandle_t	sc_handle;
-	bus_space_tag_t	sc_memt; 
+	bus_space_tag_t	sc_memt;
+	int		iso_palette;
 };
 
 static vd_probe_t	ofwfb_probe;
@@ -71,6 +72,12 @@ static const struct vt_driver vt_ofwfb_driver = {
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
+};
+
+static unsigned char ofw_colors[16] = {
+	/* See "16-color Text Extension" Open Firmware document, page 4 */
+	0, 4, 2, 6, 1, 5, 3, 7,
+	8, 12, 10, 14, 9, 13, 11, 15
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;
@@ -110,7 +117,7 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	struct fb_info *sc = vd->vd_softc;
 	u_long line;
 	uint32_t fgc, bgc;
-	int c;
+	int c, l;
 	uint8_t b, m;
 	union {
 		uint32_t l;
@@ -121,13 +128,18 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	bgc = sc->fb_cmap[bg];
 	b = m = 0;
 
-	/* Don't try to put off screen pixels */
-	if (((x + width) > vd->vd_width) || ((y + height) >
-	    vd->vd_height))
-		return;
+	if (((struct ofwfb_softc *)vd->vd_softc)->iso_palette) {
+		fg = ofw_colors[fg];
+		bg = ofw_colors[bg];
+	}
 
 	line = (sc->fb_stride * y) + x * sc->fb_bpp/8;
 	if (mask == NULL && sc->fb_bpp == 8 && (width % 8 == 0)) {
+		/* Don't try to put off screen pixels */
+		if (((x + width) > vd->vd_width) || ((y + height) >
+		    vd->vd_height))
+			return;
+
 		for (; height > 0; height--) {
 			for (c = 0; c < width; c += 8) {
 				b = *pattern++;
@@ -160,8 +172,12 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 			line += sc->fb_stride;
 		}
 	} else {
-		for (; height > 0; height--) {
-			for (c = 0; c < width; c++) {
+		for (l = 0;
+		    l < height && y + l < vw->vw_draw_area.tr_end.tp_row;
+		    l++) {
+			for (c = 0;
+			    c < width && x + c < vw->vw_draw_area.tr_end.tp_col;
+			    c++) {
 				if (c % 8 == 0)
 					b = *pattern++;
 				else
@@ -231,20 +247,17 @@ ofwfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 
 	term_rect_t drawn_area;
 
-	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width +
-	    vw->vw_draw_area.tr_begin.tp_col;
-	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height +
-	    vw->vw_draw_area.tr_begin.tp_row;
-	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width +
-	    vw->vw_draw_area.tr_begin.tp_col;
-	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height +
-	    vw->vw_draw_area.tr_begin.tp_row;
+	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width;
+	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height;
+	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width;
+	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height;
 
 	if (vt_is_cursor_in_area(vd, &drawn_area)) {
 		ofwfb_bitblt_bitmap(vd, vw,
 		    vd->vd_mcursor->map, vd->vd_mcursor->mask,
 		    vd->vd_mcursor->width, vd->vd_mcursor->height,
-		    vd->vd_mx_drawn, vd->vd_my_drawn,
+		    vd->vd_mx_drawn + vw->vw_draw_area.tr_begin.tp_col,
+		    vd->vd_my_drawn + vw->vw_draw_area.tr_begin.tp_row,
 		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
 	}
 #endif
@@ -254,7 +267,7 @@ static void
 ofwfb_initialize(struct vt_device *vd)
 {
 	struct ofwfb_softc *sc = vd->vd_softc;
-	int i;
+	int i, err;
 	cell_t retval;
 	uint32_t oldpix;
 
@@ -262,18 +275,24 @@ ofwfb_initialize(struct vt_device *vd)
 	 * Set up the color map
 	 */
 
+	sc->iso_palette = 0;
 	switch (sc->fb.fb_bpp) {
 	case 8:
 		vt_generate_cons_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
 		    16, 255, 8, 255, 0);
 
 		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", sc->sc_handle, 4, 1,
+			err = OF_call_method("color!", sc->sc_handle, 4, 1,
 			    (cell_t)((sc->fb.fb_cmap[i] >> 16) & 0xff),
 			    (cell_t)((sc->fb.fb_cmap[i] >> 8) & 0xff),
 			    (cell_t)((sc->fb.fb_cmap[i] >> 0) & 0xff),
 			    (cell_t)i, &retval);
+			if (err)
+				break;
 		}
+		if (i != 16)
+			sc->iso_palette = 1;
+				
 		break;
 
 	case 32:

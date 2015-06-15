@@ -42,14 +42,13 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 int report_soft_formats = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
-	&report_soft_formats, 1, "report software-emulated formats");
+	&report_soft_formats, 0, "report software-emulated formats");
 
 int report_soft_matrix = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_matrix, CTLFLAG_RW,
-	&report_soft_matrix, 1, "report software-emulated channel matrixing");
+	&report_soft_matrix, 0, "report software-emulated channel matrixing");
 
 int chn_latency = CHN_LATENCY_DEFAULT;
-TUNABLE_INT("hw.snd.latency", &chn_latency);
 
 static int
 sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
@@ -67,12 +66,11 @@ sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, latency, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, latency, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_latency, "I",
 	"buffering latency (0=low ... 10=high)");
 
 int chn_latency_profile = CHN_LATENCY_PROFILE_DEFAULT;
-TUNABLE_INT("hw.snd.latency_profile", &chn_latency_profile);
 
 static int
 sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
@@ -90,13 +88,12 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_latency_profile, "I",
-	"buffering latency profile (0=aggresive 1=safe)");
+	"buffering latency profile (0=aggressive 1=safe)");
 
 static int chn_timeout = CHN_TIMEOUT;
-TUNABLE_INT("hw.snd.timeout", &chn_timeout);
-#ifdef SND_DEBUG
+
 static int
 sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 {
@@ -113,17 +110,15 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_timeout, "I",
 	"interrupt timeout (1 - 10) seconds");
-#endif
 
 static int chn_vpc_autoreset = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RWTUN,
 	&chn_vpc_autoreset, 0, "automatically reset channels volume to 0db");
 
 static int chn_vol_0db_pcm = SND_VOL_0DB_PCM;
-TUNABLE_INT("hw.snd.vpc_0db", &chn_vol_0db_pcm);
 
 static void
 chn_vpc_proc(int reset, int db)
@@ -169,7 +164,7 @@ sysctl_hw_snd_vpc_0db(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_vpc_0db, "I",
 	"0db relative level");
 
@@ -193,16 +188,13 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset, CTLTYPE_INT | CTLFLAG_RW,
 	"reset volume on all channels");
 
 static int chn_usefrags = 0;
-TUNABLE_INT("hw.snd.usefrags", &chn_usefrags);
 static int chn_syncdelay = -1;
-TUNABLE_INT("hw.snd.syncdelay", &chn_syncdelay);
-#ifdef SND_DEBUG
-SYSCTL_INT(_hw_snd, OID_AUTO, usefrags, CTLFLAG_RW,
-	&chn_usefrags, 1, "prefer setfragments() over setblocksize()");
-SYSCTL_INT(_hw_snd, OID_AUTO, syncdelay, CTLFLAG_RW,
-	&chn_syncdelay, 1,
+
+SYSCTL_INT(_hw_snd, OID_AUTO, usefrags, CTLFLAG_RWTUN,
+	&chn_usefrags, 0, "prefer setfragments() over setblocksize()");
+SYSCTL_INT(_hw_snd, OID_AUTO, syncdelay, CTLFLAG_RWTUN,
+	&chn_syncdelay, 0,
 	"append (0-1000) millisecond trailing buffer delay on each sync");
-#endif
 
 /**
  * @brief Channel sync group lock
@@ -1028,32 +1020,17 @@ static const struct {
 	{    NULL,  NULL, NULL, 0           }
 };
 
-static const struct {
-	char *name, *alias1, *alias2;
-	int matrix_id;
-} matrix_id_tab[] = {
-	{ "1.0",  "1",   "mono", SND_CHN_MATRIX_1_0     },
-	{ "2.0",  "2", "stereo", SND_CHN_MATRIX_2_0     },
-	{ "2.1", NULL,     NULL, SND_CHN_MATRIX_2_1     },
-	{ "3.0",  "3",     NULL, SND_CHN_MATRIX_3_0     },
-	{ "3.1", NULL,     NULL, SND_CHN_MATRIX_3_1     },
-	{ "4.0",  "4",   "quad", SND_CHN_MATRIX_4_0     },
-	{ "4.1", NULL,     NULL, SND_CHN_MATRIX_4_1     },
-	{ "5.0",  "5",     NULL, SND_CHN_MATRIX_5_0     },
-	{ "5.1",  "6",     NULL, SND_CHN_MATRIX_5_1     },
-	{ "6.0", NULL,     NULL, SND_CHN_MATRIX_6_0     },
-	{ "6.1",  "7",     NULL, SND_CHN_MATRIX_6_1     },
-	{ "7.0", NULL,     NULL, SND_CHN_MATRIX_7_0     },
-	{ "7.1",  "8",     NULL, SND_CHN_MATRIX_7_1     },
-	{  NULL, NULL,     NULL, SND_CHN_MATRIX_UNKNOWN }
-};
-
 uint32_t
 snd_str2afmt(const char *req)
 {
-	uint32_t i, afmt;
-	int matrix_id;
-	char b1[8], b2[8];
+	int ext;
+	int ch;
+	int i;
+	char b1[8];
+	char b2[8];
+
+	memset(b1, 0, sizeof(b1));
+	memset(b2, 0, sizeof(b2));
 
 	i = sscanf(req, "%5[^:]:%6s", b1, b2);
 
@@ -1067,88 +1044,78 @@ snd_str2afmt(const char *req)
 	} else
 		return (0);
 
-	afmt = 0;
-	matrix_id = SND_CHN_MATRIX_UNKNOWN;
+	i = sscanf(b2, "%d.%d", &ch, &ext);
 
-	for (i = 0; afmt == 0 && afmt_tab[i].name != NULL; i++) {
-		if (strcasecmp(afmt_tab[i].name, b1) == 0 ||
-		    (afmt_tab[i].alias1 != NULL &&
-		    strcasecmp(afmt_tab[i].alias1, b1) == 0) ||
-		    (afmt_tab[i].alias2 != NULL &&
-		    strcasecmp(afmt_tab[i].alias2, b1) == 0)) {
-			afmt = afmt_tab[i].afmt;
-			strlcpy(b1, afmt_tab[i].name, sizeof(b1));
-		}
-	}
-
-	if (afmt == 0)
+	if (i == 0) {
+		if (strcasecmp(b2, "mono") == 0) {
+			ch = 1;
+			ext = 0;
+		} else if (strcasecmp(b2, "stereo") == 0) {
+			ch = 2;
+			ext = 0;
+		} else if (strcasecmp(b2, "quad") == 0) {
+			ch = 4;
+			ext = 0;
+		} else
+			return (0);
+	} else if (i == 1) {
+		if (ch < 1 || ch > AFMT_CHANNEL_MAX)
+			return (0);
+		ext = 0;
+	} else if (i == 2) {
+		if (ext < 0 || ext > AFMT_EXTCHANNEL_MAX)
+			return (0);
+		if (ch < 1 || (ch + ext) > AFMT_CHANNEL_MAX)
+			return (0);
+	} else
 		return (0);
 
-	for (i = 0; matrix_id == SND_CHN_MATRIX_UNKNOWN &&
-	    matrix_id_tab[i].name != NULL; i++) {
-		if (strcmp(matrix_id_tab[i].name, b2) == 0 ||
-		    (matrix_id_tab[i].alias1 != NULL &&
-		    strcmp(matrix_id_tab[i].alias1, b2) == 0) ||
-		    (matrix_id_tab[i].alias2 != NULL &&
-		    strcasecmp(matrix_id_tab[i].alias2, b2) == 0)) {
-			matrix_id = matrix_id_tab[i].matrix_id;
-			strlcpy(b2, matrix_id_tab[i].name, sizeof(b2));
+	for (i = 0; afmt_tab[i].name != NULL; i++) {
+		if (strcasecmp(afmt_tab[i].name, b1) != 0) {
+			if (afmt_tab[i].alias1 == NULL)
+				continue;
+			if (strcasecmp(afmt_tab[i].alias1, b1) != 0) {
+				if (afmt_tab[i].alias2 == NULL)
+					continue;
+				if (strcasecmp(afmt_tab[i].alias2, b1) != 0)
+					continue;
+			}
 		}
+		/* found a match */
+		return (SND_FORMAT(afmt_tab[i].afmt, ch + ext, ext));	
 	}
-
-	if (matrix_id == SND_CHN_MATRIX_UNKNOWN)
-		return (0);
-
-#ifndef _KERNEL
-	printf("Parse OK: '%s' -> '%s:%s' %d\n", req, b1, b2,
-	    (int)(b2[0]) - '0' + (int)(b2[2]) - '0');
-#endif
-
-	return (SND_FORMAT(afmt, b2[0] - '0' + b2[2] - '0', b2[2] - '0'));
+	/* not a valid format */
+	return (0);
 }
 
 uint32_t
 snd_afmt2str(uint32_t afmt, char *buf, size_t len)
 {
-	uint32_t i, enc, ch, ext;
-	char tmp[AFMTSTR_LEN];
+	uint32_t enc;
+	uint32_t ext;
+	uint32_t ch;
+	int i;
 
 	if (buf == NULL || len < AFMTSTR_LEN)
 		return (0);
 
-	
-	bzero(tmp, sizeof(tmp));
+	memset(buf, 0, len);
 
 	enc = AFMT_ENCODING(afmt);
 	ch = AFMT_CHANNEL(afmt);
 	ext = AFMT_EXTCHANNEL(afmt);
-
+	/* check there is at least one channel */
+	if (ch <= ext)
+		return (0);
 	for (i = 0; afmt_tab[i].name != NULL; i++) {
-		if (enc == afmt_tab[i].afmt) {
-			strlcpy(tmp, afmt_tab[i].name, sizeof(tmp));
-			strlcat(tmp, ":", sizeof(tmp));
-			break;
-		}
+		if (enc != afmt_tab[i].afmt)
+			continue;
+		/* found a match */
+		snprintf(buf, len, "%s:%d.%d",
+		    afmt_tab[i].name, ch - ext, ext);
+		return (SND_FORMAT(enc, ch, ext));
 	}
-
-	if (strlen(tmp) == 0)
-		return (0);
-	
-	for (i = 0; matrix_id_tab[i].name != NULL; i++) {
-		if (ch == (matrix_id_tab[i].name[0] - '0' +
-		    matrix_id_tab[i].name[2] - '0') &&
-		    ext == (matrix_id_tab[i].name[2] - '0')) {
-			strlcat(tmp, matrix_id_tab[i].name, sizeof(tmp));
-			break;
-		}
-	}
-
-	if (strlen(tmp) == 0)
-		return (0);
-
-	strlcpy(buf, tmp, len);
-
-	return (snd_str2afmt(buf));
+	return (0);
 }
 
 int

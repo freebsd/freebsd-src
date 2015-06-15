@@ -76,7 +76,7 @@ static void	in_purgemaddrs(struct ifnet *);
 
 static VNET_DEFINE(int, nosameprefix);
 #define	V_nosameprefix			VNET(nosameprefix)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(nosameprefix), 0,
 	"Refuse to create same prefixes on different interfaces");
 
@@ -124,6 +124,30 @@ in_localip(struct in_addr in)
 		}
 	}
 	IN_IFADDR_RUNLOCK();
+	return (0);
+}
+
+/*
+ * Return 1 if an internet address is configured on an interface.
+ */
+int
+in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
+{
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+		ia = (struct in_ifaddr *)ifa;
+		if (ia->ia_addr.sin_addr.s_addr == in.s_addr) {
+			IF_ADDR_RUNLOCK(ifp);
+			return (1);
+		}
+	}
+	IF_ADDR_RUNLOCK(ifp);
+
 	return (0);
 }
 
@@ -674,7 +698,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 			} else {
 				int fibnum;
 
-				fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+				fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
 					target->ia_ifp->if_fib;
 				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
 				IN_IFADDR_RUNLOCK();
@@ -745,7 +769,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
 		int fibnum;
 		
-		fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+		fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
 			target->ia_ifp->if_fib;
 		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
 		return (0);
@@ -962,8 +986,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init_rw(&lle->base.la_timer, &lle->base.lle_lock,
-	    CALLOUT_RETURNUNLOCKED);
+	callout_init(&lle->base.la_timer, 1);
 
 	return (&lle->base);
 }

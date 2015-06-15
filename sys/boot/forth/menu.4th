@@ -1,6 +1,6 @@
-\ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
+\ Copyright (c) 2003 Scott Long <scottl@FreeBSD.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,12 @@ marker task-menu.4th
 \ Frame drawing
 include /boot/frames.4th
 
+vocabulary menu-infrastructure
+vocabulary menu-namespace
+vocabulary menu-command-helpers
+
+only forth also menu-infrastructure definitions
+
 f_double        \ Set frames to double (see frames.4th). Replace with
                 \ f_single if you want single frames.
 46 constant dot \ ASCII definition of a period (in decimal)
@@ -57,20 +63,8 @@ variable menubllt  \ Menu item bullet
 variable menuX     \ Menu X offset (columns)
 variable menuY     \ Menu Y offset (rows)
 
-\ Menu-item key association/detection
-variable menukey1
-variable menukey2
-variable menukey3
-variable menukey4
-variable menukey5
-variable menukey6
-variable menukey7
-variable menukey8
-variable menureboot
+\ Menu-item elements
 variable menurebootadded
-variable menuacpi
-variable menuoptions
-variable menukernel
 
 \ Parsing of kernels into menu-items
 variable kernidx
@@ -83,6 +77,27 @@ variable menu_time            \ variable for tracking the passage of time
 variable menu_timeout         \ determined configurable delay duration
 variable menu_timeout_x       \ column position of timeout message
 variable menu_timeout_y       \ row position of timeout message
+
+\ Containers for parsing kernels into menu-items
+create kerncapbuf 64 allot
+create kerndefault 64 allot
+create kernelsbuf 256 allot
+
+only forth also menu-namespace definitions
+
+\ Menu-item key association/detection
+variable menukey1
+variable menukey2
+variable menukey3
+variable menukey4
+variable menukey5
+variable menukey6
+variable menukey7
+variable menukey8
+variable menureboot
+variable menuacpi
+variable menuoptions
+variable menukernel
 
 \ Menu initialization status variables
 variable init_state1
@@ -124,261 +139,12 @@ create init_text6 64 allot
 create init_text7 64 allot
 create init_text8 64 allot
 
-\ Containers for parsing kernels into menu-items
-create kerncapbuf 64 allot
-create kerndefault 64 allot
-create kernelsbuf 256 allot
-
-: +c! ( N C-ADDR/U K -- C-ADDR/U )
-	3 pick 3 pick	( n c-addr/u k -- n c-addr/u k n c-addr )
-	rot + c!	( n c-addr/u k n c-addr -- n c-addr/u )
-	rot drop	( n c-addr/u -- c-addr/u )
-;
-
-: delim? ( C -- BOOL )
-	dup  32 =		( c -- c bool )		\ [sp] space
-	over  9 = or		( c bool -- c bool )	\ [ht] horizontal tab
-	over 10 = or		( c bool -- c bool )	\ [nl] newline
-	over 13 = or		( c bool -- c bool )	\ [cr] carriage return
-	over [char] , =	or	( c bool -- c bool )	\ comma
-	swap drop		( c bool -- bool )	\ return boolean
-;
-
-: menukeyN      ( N -- ADDR )   s" menukeyN"       7 +c! evaluate ;
-: init_stateN   ( N -- ADDR )   s" init_stateN"   10 +c! evaluate ;
-: toggle_stateN ( N -- ADDR )   s" toggle_stateN" 12 +c! evaluate ;
-: cycle_stateN  ( N -- ADDR )   s" cycle_stateN"  11 +c! evaluate ;
-: init_textN    ( N -- C-ADDR ) s" init_textN"     9 +c! evaluate ;
-
-: kernel[x]          ( N -- C-ADDR/U )   s" kernel[x]"           7 +c! ;
-: menu_init[x]       ( N -- C-ADDR/U )   s" menu_init[x]"       10 +c! ;
-: menu_command[x]    ( N -- C-ADDR/U )   s" menu_command[x]"    13 +c! ;
-: menu_caption[x]    ( N -- C-ADDR/U )   s" menu_caption[x]"    13 +c! ;
-: ansi_caption[x]    ( N -- C-ADDR/U )   s" ansi_caption[x]"    13 +c! ;
-: menu_keycode[x]    ( N -- C-ADDR/U )   s" menu_keycode[x]"    13 +c! ;
-: toggled_text[x]    ( N -- C-ADDR/U )   s" toggled_text[x]"    13 +c! ;
-: toggled_ansi[x]    ( N -- C-ADDR/U )   s" toggled_ansi[x]"    13 +c! ;
-: menu_caption[x][y] ( N M -- C-ADDR/U ) s" menu_caption[x][y]" 16 +c! 13 +c! ;
-: ansi_caption[x][y] ( N M -- C-ADDR/U ) s" ansi_caption[x][y]" 16 +c! 13 +c! ;
+only forth definitions
 
 : arch-i386? ( -- BOOL ) \ Returns TRUE (-1) on i386, FALSE (0) otherwise.
 	s" arch-i386" environment? dup if
 		drop
 	then
-;
-
-\ This function prints a menu item at menuX (row) and menuY (column), returns
-\ the incremental decimal ASCII value associated with the menu item, and
-\ increments the cursor position to the next row for the creation of the next
-\ menu item. This function is called by the menu-create function. You need not
-\ call it directly.
-\ 
-: printmenuitem ( menu_item_str -- ascii_keycode )
-
-	menurow dup @ 1+ swap ! ( increment menurow )
-	menuidx dup @ 1+ swap ! ( increment menuidx )
-
-	\ Calculate the menuitem row position
-	menurow @ menuY @ +
-
-	\ Position the cursor at the menuitem position
-	dup menuX @ swap at-xy
-
-	\ Print the value of menuidx
-	loader_color? if
-		." [1m" ( [22m )
-	then
-	menuidx @ .
-	loader_color? if
-		." [37m" ( [39m )
-	then
-
-	\ Move the cursor forward 1 column
-	dup menuX @ 1+ swap at-xy
-
-	menubllt @ emit	\ Print the menu bullet using the emit function
-
-	\ Move the cursor to the 3rd column from the current position
-	\ to allow for a space between the numerical prefix and the
-	\ text caption
-	menuX @ 3 + swap at-xy
-
-	\ Print the menu caption (we expect a string to be on the stack
-	\ prior to invoking this function)
-	type
-
-	\ Here we will add the ASCII decimal of the numerical prefix
-	\ to the stack (decimal ASCII for `1' is 49) as a "return value"
-	menuidx @ 48 +
-;
-
-: toggle_menuitem ( N -- N ) \ toggles caption text and internal menuitem state
-
-	\ ASCII numeral equal to user-selected menu item must be on the stack.
-	\ We do not modify the stack, so the ASCII numeral is left on top.
-
-	dup init_textN c@ 0= if
-		\ NOTE: no need to check toggle_stateN since the first time we
-		\ are called, we will populate init_textN. Further, we don't
-		\ need to test whether menu_caption[x] (ansi_caption[x] when
-		\ loader_color?=1) is available since we would not have been
-		\ called if the caption was NULL.
-
-		\ base name of environment variable
-		dup ( n -- n n ) \ key pressed
-		loader_color? if
-			ansi_caption[x]
-		else
-			menu_caption[x]
-		then	
-		getenv dup -1 <> if
-
-			2 pick ( n c-addr/u -- n c-addr/u n )
-			init_textN ( n c-addr/u n -- n c-addr/u c-addr )
-
-			\ now we have the buffer c-addr on top
-			\ ( followed by c-addr/u of current caption )
-
-			\ Copy the current caption into our buffer
-			2dup c! -rot \ store strlen at first byte
-			begin
-				rot 1+    \ bring alt addr to top and increment
-				-rot -rot \ bring buffer addr to top
-				2dup c@ swap c! \ copy current character
-				1+     \ increment buffer addr
-				rot 1- \ bring buffer len to top and decrement
-				dup 0= \ exit loop if buffer len is zero
-			until
-			2drop \ buffer len/addr
-			drop  \ alt addr
-
-		else
-			drop
-		then
-	then
-
-	\ Now we are certain to have init_textN populated with the initial
-	\ value of menu_caption[x] (ansi_caption[x] with loader_color enabled).
-	\ We can now use init_textN as the untoggled caption and
-	\ toggled_text[x] (toggled_ansi[x] with loader_color enabled) as the
-	\ toggled caption and store the appropriate value into menu_caption[x]
-	\ (again, ansi_caption[x] with loader_color enabled). Last, we'll
-	\ negate the toggled state so that we reverse the flow on subsequent
-	\ calls.
-
-	dup toggle_stateN @ 0= if
-		\ state is OFF, toggle to ON
-
-		dup ( n -- n n ) \ key pressed
-		loader_color? if
-			toggled_ansi[x]
-		else
-			toggled_text[x]
-		then
-		getenv dup -1 <> if
-			\ Assign toggled text to menu caption
-			2 pick ( n c-addr/u -- n c-addr/u n ) \ key pressed
-			loader_color? if
-				ansi_caption[x]
-			else
-				menu_caption[x]
-			then
-			setenv
-		else
-			\ No toggled text, keep the same caption
-			drop ( n -1 -- n ) \ getenv cruft
-		then
-
-		true \ new value of toggle state var (to be stored later)
-	else
-		\ state is ON, toggle to OFF
-
-		dup init_textN count ( n -- n c-addr/u )
-
-		\ Assign init_textN text to menu caption
-		2 pick ( n c-addr/u -- n c-addr/u n ) \ key pressed
-		loader_color? if
-			ansi_caption[x]
-		else
-			menu_caption[x]
-		then
-		setenv
-
-		false \ new value of toggle state var (to be stored below)
-	then
-
-	\ now we'll store the new toggle state (on top of stack)
-	over toggle_stateN !
-;
-
-: cycle_menuitem ( N -- N ) \ cycles through array of choices for a menuitem
-
-	\ ASCII numeral equal to user-selected menu item must be on the stack.
-	\ We do not modify the stack, so the ASCII numeral is left on top.
-
-	dup cycle_stateN dup @ 1+ \ get value and increment
-
-	\ Before assigning the (incremented) value back to the pointer,
-	\ let's test for the existence of this particular array element.
-	\ If the element exists, we'll store index value and move on.
-	\ Otherwise, we'll loop around to zero and store that.
-
-	dup 48 + ( n addr k -- n addr k k' )
-	         \ duplicate array index and convert to ASCII numeral
-
-	3 pick swap ( n addr k k' -- n addr k n k' ) \ (n,k') as (x,y)
-	loader_color? if
-		ansi_caption[x][y]
-	else
-		menu_caption[x][y]
-	then
-	( n addr k n k' -- n addr k c-addr/u )
-
-	\ Now test for the existence of our incremented array index in the
-	\ form of $menu_caption[x][y] ($ansi_caption[x][y] with loader_color
-	\ enabled) as set in loader.rc(5), et. al.
-
-	getenv dup -1 = if
-		\ No caption set for this array index. Loop back to zero.
-
-		drop ( n addr k -1 -- n addr k ) \ getenv cruft
-		drop 0 ( n addr k -- n addr 0 )  \ new value to store later
-
-		2 pick [char] 0 ( n addr 0 -- n addr 0 n 48 ) \ (n,48) as (x,y)
-		loader_color? if
-			ansi_caption[x][y]
-		else
-			menu_caption[x][y]
-		then
-		( n addr 0 n 48 -- n addr 0 c-addr/u )
-		getenv dup -1 = if
-			\ Highly unlikely to occur, but to ensure things move
-			\ along smoothly, allocate a temporary NULL string
-			drop ( cruft ) s" "
-		then
-	then
-
-	\ At this point, we should have the following on the stack (in order,
-	\ from bottom to top):
-	\ 
-	\    n        - Ascii numeral representing the menu choice (inherited)
-	\    addr     - address of our internal cycle_stateN variable
-	\    k        - zero-based number we intend to store to the above
-	\    c-addr/u - string value we intend to store to menu_caption[x]
-	\               (or ansi_caption[x] with loader_color enabled)
-	\ 
-	\ Let's perform what we need to with the above.
-
-	\ Assign array value text to menu caption
-	4 pick ( n addr k c-addr/u -- n addr k c-addr/u n )
-	loader_color? if
-		ansi_caption[x]
-	else
-		menu_caption[x]
-	then
-	setenv
-
-	swap ! ( n addr k -- n ) \ update array state variable
 ;
 
 : acpipresent? ( -- flag ) \ Returns TRUE if ACPI is present, FALSE otherwise
@@ -400,6 +166,80 @@ create kernelsbuf 256 allot
 		drop
 	then
 	true
+;
+
+: +c! ( N C-ADDR/U K -- C-ADDR/U )
+	3 pick 3 pick	( n c-addr/u k -- n c-addr/u k n c-addr )
+	rot + c!	( n c-addr/u k n c-addr -- n c-addr/u )
+	rot drop	( n c-addr/u -- c-addr/u )
+;
+
+only forth also menu-namespace definitions
+
+\ Forth variables
+: namespace     ( C-ADDR/U N -- ) also menu-namespace +c! evaluate previous ;
+: menukeyN      ( N -- ADDR )   s" menukeyN"       7 namespace ;
+: init_stateN   ( N -- ADDR )   s" init_stateN"   10 namespace ;
+: toggle_stateN ( N -- ADDR )   s" toggle_stateN" 12 namespace ;
+: cycle_stateN  ( N -- ADDR )   s" cycle_stateN"  11 namespace ;
+: init_textN    ( N -- C-ADDR ) s" init_textN"     9 namespace ;
+
+\ Environment variables
+: kernel[x]          ( N -- C-ADDR/U )   s" kernel[x]"           7 +c! ;
+: menu_init[x]       ( N -- C-ADDR/U )   s" menu_init[x]"       10 +c! ;
+: menu_command[x]    ( N -- C-ADDR/U )   s" menu_command[x]"    13 +c! ;
+: menu_caption[x]    ( N -- C-ADDR/U )   s" menu_caption[x]"    13 +c! ;
+: ansi_caption[x]    ( N -- C-ADDR/U )   s" ansi_caption[x]"    13 +c! ;
+: menu_keycode[x]    ( N -- C-ADDR/U )   s" menu_keycode[x]"    13 +c! ;
+: toggled_text[x]    ( N -- C-ADDR/U )   s" toggled_text[x]"    13 +c! ;
+: toggled_ansi[x]    ( N -- C-ADDR/U )   s" toggled_ansi[x]"    13 +c! ;
+: menu_caption[x][y] ( N M -- C-ADDR/U ) s" menu_caption[x][y]" 16 +c! 13 +c! ;
+: ansi_caption[x][y] ( N M -- C-ADDR/U ) s" ansi_caption[x][y]" 16 +c! 13 +c! ;
+
+also menu-infrastructure definitions
+
+\ This function prints a menu item at menuX (row) and menuY (column), returns
+\ the incremental decimal ASCII value associated with the menu item, and
+\ increments the cursor position to the next row for the creation of the next
+\ menu item. This function is called by the menu-create function. You need not
+\ call it directly.
+\ 
+: printmenuitem ( menu_item_str -- ascii_keycode )
+
+	loader_color? if [char] ^ escc! then
+
+	menurow dup @ 1+ swap ! ( increment menurow )
+	menuidx dup @ 1+ swap ! ( increment menuidx )
+
+	\ Calculate the menuitem row position
+	menurow @ menuY @ +
+
+	\ Position the cursor at the menuitem position
+	dup menuX @ swap at-xy
+
+	\ Print the value of menuidx
+	loader_color? dup ( -- bool bool )
+	if b then
+	menuidx @ .
+	if me then
+
+	\ Move the cursor forward 1 column
+	dup menuX @ 1+ swap at-xy
+
+	menubllt @ emit	\ Print the menu bullet using the emit function
+
+	\ Move the cursor to the 3rd column from the current position
+	\ to allow for a space between the numerical prefix and the
+	\ text caption
+	menuX @ 3 + swap at-xy
+
+	\ Print the menu caption (we expect a string to be on the stack
+	\ prior to invoking this function)
+	type
+
+	\ Here we will add the ASCII decimal of the numerical prefix
+	\ to the stack (decimal ASCII for `1' is 49) as a "return value"
+	menuidx @ 48 +
 ;
 
 \ This function prints the appropriate menuitem basename to the stack if an
@@ -430,6 +270,15 @@ create kernelsbuf 256 allot
 	else
 		-1
 	then
+;
+
+: delim? ( C -- BOOL )
+	dup  32 =		( c -- c bool )		\ [sp] space
+	over  9 = or		( c bool -- c bool )	\ [ht] horizontal tab
+	over 10 = or		( c bool -- c bool )	\ [nl] newline
+	over 13 = or		( c bool -- c bool )	\ [cr] carriage return
+	over [char] , =	or	( c bool -- c bool )	\ comma
+	swap drop		( c bool -- bool )	\ return boolean
 ;
 
 \ This function parses $kernels into variables that are used by the menu to
@@ -548,14 +397,15 @@ create kernelsbuf 256 allot
 		setenv
 
 		\ Assign third to ansi_caption[x][y]
-		kerncapbuf 0 s" [1mK[37mernel: " strcat
+		kerncapbuf 0 s" @[1mK@[37mernel: " [char] @ escc! strcat
 		kernmenuidx @ [char] 0 = if
-			s" default/[32m"
+			s" default/@[32m"
 		else
-			s" [34;1m"
-		then strcat
+			s" @[34;1m"
+		then
+		[char] @ escc! strcat
 		2over strcat
-		s" [37m" strcat
+		s" @[37m" [char] @ escc! strcat
 		kernidx @ kernmenuidx @ ansi_caption[x][y]
 		setenv
 
@@ -614,7 +464,7 @@ create kernelsbuf 256 allot
 ;
 
 \ This function creates the list of menu items. This function is called by the
-\ menu-display function. You need not be call it directly.
+\ menu-display function. You need not call it directly.
 \ 
 : menu-create ( -- )
 
@@ -957,6 +807,182 @@ create kernelsbuf 256 allot
 	0 menurow !
 ;
 
+only forth
+also menu-infrastructure
+also menu-namespace
+also menu-command-helpers definitions
+
+: toggle_menuitem ( N -- N ) \ toggles caption text and internal menuitem state
+
+	\ ASCII numeral equal to user-selected menu item must be on the stack.
+	\ We do not modify the stack, so the ASCII numeral is left on top.
+
+	dup init_textN c@ 0= if
+		\ NOTE: no need to check toggle_stateN since the first time we
+		\ are called, we will populate init_textN. Further, we don't
+		\ need to test whether menu_caption[x] (ansi_caption[x] when
+		\ loader_color?=1) is available since we would not have been
+		\ called if the caption was NULL.
+
+		\ base name of environment variable
+		dup ( n -- n n ) \ key pressed
+		loader_color? if
+			ansi_caption[x]
+		else
+			menu_caption[x]
+		then	
+		getenv dup -1 <> if
+
+			2 pick ( n c-addr/u -- n c-addr/u n )
+			init_textN ( n c-addr/u n -- n c-addr/u c-addr )
+
+			\ now we have the buffer c-addr on top
+			\ ( followed by c-addr/u of current caption )
+
+			\ Copy the current caption into our buffer
+			2dup c! -rot \ store strlen at first byte
+			begin
+				rot 1+    \ bring alt addr to top and increment
+				-rot -rot \ bring buffer addr to top
+				2dup c@ swap c! \ copy current character
+				1+     \ increment buffer addr
+				rot 1- \ bring buffer len to top and decrement
+				dup 0= \ exit loop if buffer len is zero
+			until
+			2drop \ buffer len/addr
+			drop  \ alt addr
+
+		else
+			drop
+		then
+	then
+
+	\ Now we are certain to have init_textN populated with the initial
+	\ value of menu_caption[x] (ansi_caption[x] with loader_color enabled).
+	\ We can now use init_textN as the untoggled caption and
+	\ toggled_text[x] (toggled_ansi[x] with loader_color enabled) as the
+	\ toggled caption and store the appropriate value into menu_caption[x]
+	\ (again, ansi_caption[x] with loader_color enabled). Last, we'll
+	\ negate the toggled state so that we reverse the flow on subsequent
+	\ calls.
+
+	dup toggle_stateN @ 0= if
+		\ state is OFF, toggle to ON
+
+		dup ( n -- n n ) \ key pressed
+		loader_color? if
+			toggled_ansi[x]
+		else
+			toggled_text[x]
+		then
+		getenv dup -1 <> if
+			\ Assign toggled text to menu caption
+			2 pick ( n c-addr/u -- n c-addr/u n ) \ key pressed
+			loader_color? if
+				ansi_caption[x]
+			else
+				menu_caption[x]
+			then
+			setenv
+		else
+			\ No toggled text, keep the same caption
+			drop ( n -1 -- n ) \ getenv cruft
+		then
+
+		true \ new value of toggle state var (to be stored later)
+	else
+		\ state is ON, toggle to OFF
+
+		dup init_textN count ( n -- n c-addr/u )
+
+		\ Assign init_textN text to menu caption
+		2 pick ( n c-addr/u -- n c-addr/u n ) \ key pressed
+		loader_color? if
+			ansi_caption[x]
+		else
+			menu_caption[x]
+		then
+		setenv
+
+		false \ new value of toggle state var (to be stored below)
+	then
+
+	\ now we'll store the new toggle state (on top of stack)
+	over toggle_stateN !
+;
+
+: cycle_menuitem ( N -- N ) \ cycles through array of choices for a menuitem
+
+	\ ASCII numeral equal to user-selected menu item must be on the stack.
+	\ We do not modify the stack, so the ASCII numeral is left on top.
+
+	dup cycle_stateN dup @ 1+ \ get value and increment
+
+	\ Before assigning the (incremented) value back to the pointer,
+	\ let's test for the existence of this particular array element.
+	\ If the element exists, we'll store index value and move on.
+	\ Otherwise, we'll loop around to zero and store that.
+
+	dup 48 + ( n addr k -- n addr k k' )
+	         \ duplicate array index and convert to ASCII numeral
+
+	3 pick swap ( n addr k k' -- n addr k n k' ) \ (n,k') as (x,y)
+	loader_color? if
+		ansi_caption[x][y]
+	else
+		menu_caption[x][y]
+	then
+	( n addr k n k' -- n addr k c-addr/u )
+
+	\ Now test for the existence of our incremented array index in the
+	\ form of $menu_caption[x][y] ($ansi_caption[x][y] with loader_color
+	\ enabled) as set in loader.rc(5), et. al.
+
+	getenv dup -1 = if
+		\ No caption set for this array index. Loop back to zero.
+
+		drop ( n addr k -1 -- n addr k ) \ getenv cruft
+		drop 0 ( n addr k -- n addr 0 )  \ new value to store later
+
+		2 pick [char] 0 ( n addr 0 -- n addr 0 n 48 ) \ (n,48) as (x,y)
+		loader_color? if
+			ansi_caption[x][y]
+		else
+			menu_caption[x][y]
+		then
+		( n addr 0 n 48 -- n addr 0 c-addr/u )
+		getenv dup -1 = if
+			\ Highly unlikely to occur, but to ensure things move
+			\ along smoothly, allocate a temporary NULL string
+			drop ( cruft ) s" "
+		then
+	then
+
+	\ At this point, we should have the following on the stack (in order,
+	\ from bottom to top):
+	\ 
+	\    n        - Ascii numeral representing the menu choice (inherited)
+	\    addr     - address of our internal cycle_stateN variable
+	\    k        - zero-based number we intend to store to the above
+	\    c-addr/u - string value we intend to store to menu_caption[x]
+	\               (or ansi_caption[x] with loader_color enabled)
+	\ 
+	\ Let's perform what we need to with the above.
+
+	\ Assign array value text to menu caption
+	4 pick ( n addr k c-addr/u -- n addr k c-addr/u n )
+	loader_color? if
+		ansi_caption[x]
+	else
+		menu_caption[x]
+	then
+	setenv
+
+	swap ! ( n addr k -- n ) \ update array state variable
+;
+
+only forth definitions also menu-infrastructure
+
 \ Erase and redraw the menu. Useful if you change a caption and want to
 \ update the menu to reflect the new value.
 \ 
@@ -1012,6 +1038,8 @@ create kernelsbuf 256 allot
 
 	0 25 at-xy \ Move cursor to the bottom for output
 ;
+
+also menu-namespace
 
 \ Main function. Call this from your `loader.rc' file.
 \ 
@@ -1234,6 +1262,8 @@ create kernelsbuf 256 allot
 	0 menuoptions !
 ;
 
+only forth definitions also menu-infrastructure
+
 \ This function both unsets menu variables and visually erases the menu area
 \ in-preparation for another menu.
 \ 
@@ -1243,6 +1273,8 @@ create kernelsbuf 256 allot
 ;
 
 bullet menubllt !
+
+also menu-namespace
 
 \ Initialize our menu initialization state variables
 0 init_state1 !
@@ -1283,3 +1315,5 @@ bullet menubllt !
 0 init_text6 c!
 0 init_text7 c!
 0 init_text8 c!
+
+only forth definitions

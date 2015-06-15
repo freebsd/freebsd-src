@@ -3,6 +3,8 @@
 SYSDIR?=${.CURDIR}/../..
 .include "${SYSDIR}/conf/kern.opts.mk"
 
+SUBDIR_PARALLEL=
+
 .if ${MACHINE_CPUARCH} == "amd64"
 _i915kms=	i915kms
 _radeonkms=	radeonkms
@@ -18,6 +20,13 @@ _radeonkms=	radeonkms
 .  if ${MK_SOURCELESS_UCODE} != "no"
 _radeonkmsfw=	radeonkmsfw
 .  endif
+. endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc"
+_radeonkms=	radeonkms
+. if ${MK_SOURCELESS_UCODE} != "no"
+_radeonkmsfw=	radeonkmsfw
 . endif
 .endif
 

@@ -2,8 +2,7 @@
 
 LIB=	heimipcc
 PRIVATELIB=
-LDADD=	-lheimbase -lroken -lpthread
-DPADD=	${LIBHEIMBASE} ${LIBROKEN} ${LIBPTHREAD}
+LIBADD=	heimbase roken pthread
 
 SRCS=	\
 	client.c \
@@ -11,7 +10,8 @@ SRCS=	\
 
 CFLAGS+=	-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/base \
-		-I${KRB5DIR}/lib/ipc
+		-I${KRB5DIR}/lib/ipc \
+		-I${KRB5DIR}/include
 
 .include <bsd.lib.mk>
 

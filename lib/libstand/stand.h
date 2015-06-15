@@ -242,7 +242,8 @@ extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
 extern int	snprintf(char *buf, size_t size, const char *cfmt, ...) __printflike(3, 4);
 extern void	vsprintf(char *buf, const char *cfmt, __va_list);
 
-extern void	twiddle(void);
+extern void	twiddle(u_int callerdiv);
+extern void	twiddle_divisor(u_int globaldiv);
 
 extern void	ngets(char *, int);
 #define gets(x)	ngets((x), 0)

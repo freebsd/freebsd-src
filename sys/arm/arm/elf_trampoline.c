@@ -59,18 +59,15 @@ extern void do_call(void *, void *, void *, int);
 #if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 extern void arm9_idcache_wbinv_all(void);
-#elif defined(CPU_FA526) || defined(CPU_FA626TE)
+#elif defined(CPU_FA526)
 #define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
 extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
-#elif defined(CPU_ARM10)
-#define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
-extern void arm10_idcache_wbinv_all(void);
-#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#elif defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
+#elif defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
@@ -96,7 +93,7 @@ extern void sheeva_l2cache_wbinv_all(void);
 #define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
 #define cpu_l2cache_wbinv_all()
 #else
-#define cpu_l2cache_wbinv_all()	
+#define cpu_l2cache_wbinv_all()
 #endif
 
 static void armadaxp_idcache_wbinv_all(void);
@@ -114,6 +111,10 @@ int     arm_pcache_unified;
 
 int     arm_dcache_align;
 int     arm_dcache_align_mask;
+
+int     arm_dcache_min_line_size = 32;
+int     arm_icache_min_line_size = 32;
+int     arm_idcache_min_line_size = 32;
 
 u_int	arm_cache_level;
 u_int	arm_cache_type[14];
@@ -215,7 +216,7 @@ _startC(void)
 		    "mov sp, %1\n"
 		    "mov pc, %0\n"
 		    : : "r" (target_addr), "r" (tmp_sp));
-		
+
 	}
 #endif
 #ifdef KZIP
@@ -224,7 +225,7 @@ _startC(void)
 	sp += 2 * L1_TABLE_SIZE;
 #endif
 	sp += 1024 * 1024; /* Should be enough for a stack */
-	
+
 	__asm __volatile("adr %0, 2f\n"
 	    		 "bic %0, %0, #0xff000000\n"
 			 "and %1, %1, #0xff000000\n"
@@ -277,6 +278,13 @@ get_cachetype_cp15()
 		goto out;
 
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
+		/* Resolve minimal cache line sizes */
+		arm_dcache_min_line_size = 1 << (CPU_CT_DMINLINE(ctype) + 2);
+		arm_icache_min_line_size = 1 << (CPU_CT_IMINLINE(ctype) + 2);
+		arm_idcache_min_line_size =
+		    (arm_dcache_min_line_size > arm_icache_min_line_size ?
+		    arm_icache_min_line_size : arm_dcache_min_line_size);
+
 		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
 		    : "=r" (clevel));
 		arm_cache_level = clevel;
@@ -358,7 +366,7 @@ get_cachetype_cp15()
 static void
 arm9_setup(void)
 {
-	
+
 	get_cachetype_cp15();
 	arm9_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
 	arm9_dcache_sets_max = (1U << (arm_dcache_l2_linesize +
@@ -482,7 +490,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	vm_offset_t lastaddr = 0;
 	Elf_Addr ssym = 0;
 	Elf_Dyn *dp;
-	
+
 	eh = (Elf32_Ehdr *)kstart;
 	ssym = 0;
 	entry_point = (void*)eh->e_entry;
@@ -496,7 +504,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 			lastaddr = phdr[i].p_vaddr - KERNVIRTADDR +
 			    curaddr + phdr[i].p_memsz;
 	}
-	
+
 	/* Save the symbol tables, as there're about to be scratched. */
 	memcpy(shdr, (void *)(kstart + eh->e_shoff),
 	    sizeof(*shdr) * eh->e_shnum);
@@ -544,12 +552,12 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 				lastaddr = roundup(lastaddr,
 				    sizeof(shdr[symstrindex].sh_size));
 			}
-			
+
 		}
 	}
 	if (!d)
 		return ((void *)lastaddr);
-	
+
 	j = eh->e_phnum;
 	for (i = 0; i < j; i++) {
 		volatile char c;
@@ -602,7 +610,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
 	__asm __volatile(".globl func_end\n"
 	    "func_end:");
-	
+
 	/* NOTREACHED */
 	return NULL;
 }
@@ -645,7 +653,7 @@ setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend,
 			 "mov r0, r0\n"
 			 "sub pc, pc, #4\n" :
 			 "=r" (tmp) : "r" (pd), "r" (domain));
-	
+
 	/*
 	 * XXX: This is the most stupid workaround I've ever wrote.
 	 * For some reason, the KB9202 won't boot the kernel unless
@@ -672,7 +680,7 @@ __start(void)
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
 		pt_addr = (((int)&_end + KERNSIZE + 0x100) &
 		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
-		
+
 #ifdef CPU_ARM9
 		/* So that idcache_wbinv works; */
 		if ((cpufunc_id() & 0x0000f000) == 0x00009000)
@@ -707,7 +715,7 @@ __start(void)
 	dst = (void *)(((vm_offset_t)dst & ~3));
 	pt_addr = ((unsigned int)dst &~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
 	setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
-	    (vm_paddr_t)curaddr + 0x10000000, 0);	
+	    (vm_paddr_t)curaddr + 0x10000000, 0);
 	sp = pt_addr + L1_TABLE_SIZE + 8192;
 	sp = sp &~3;
 	dst = (void *)(sp + 4);
@@ -717,7 +725,6 @@ __start(void)
 	    (unsigned int)(&load_kernel) + 800, sp);
 }
 
-#ifdef __ARM_EABI__
 /* We need to provide these functions but never call them */
 void __aeabi_unwind_cpp_pr0(void);
 void __aeabi_unwind_cpp_pr1(void);
@@ -729,5 +736,3 @@ void
 __aeabi_unwind_cpp_pr0(void)
 {
 }
-#endif
-

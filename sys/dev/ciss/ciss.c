@@ -833,7 +833,7 @@ setup:
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -851,7 +851,8 @@ setup:
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, CISS_MAX_SG_ELEMENTS,	/* maxsize, nsegments */
+			   (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE, /* maxsize */
+			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex, &sc->ciss_mtx,	/* lockfunc, lockarg */
@@ -2414,7 +2415,8 @@ ciss_wait_request(struct ciss_request *cr, int timeout)
 	return(error);
 
     while ((cr->cr_flags & CISS_REQ_SLEEP) && (error != EWOULDBLOCK)) {
-	error = msleep(cr, &cr->cr_sc->ciss_mtx, PRIBIO, "cissREQ", (timeout * hz) / 1000);
+	error = msleep_sbt(cr, &cr->cr_sc->ciss_mtx, PRIBIO, "cissREQ",
+	    SBT_1MS * timeout, 0, 0);
     }
     return(error);
 }
@@ -3436,11 +3438,9 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
 			     target, 0);
 
     if (status == CAM_REQ_CMP) {
-	mtx_lock(&sc->ciss_mtx);
 	xpt_path_lock(path);
 	periph = cam_periph_find(path, NULL);
 	xpt_path_unlock(path);
-	mtx_unlock(&sc->ciss_mtx);
 	xpt_free_path(path);
 	if (periph != NULL) {
 		sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
@@ -4163,9 +4163,7 @@ ciss_notify_thread(void *arg)
     struct ciss_notify		*cn;
 
     sc = (struct ciss_softc *)arg;
-#if __FreeBSD_version >= 500000
     mtx_lock(&sc->ciss_mtx);
-#endif
 
     for (;;) {
 	if (STAILQ_EMPTY(&sc->ciss_notify) != 0 &&
@@ -4200,9 +4198,7 @@ ciss_notify_thread(void *arg)
     sc->ciss_notify_thread = NULL;
     wakeup(&sc->ciss_notify_thread);
 
-#if __FreeBSD_version >= 500000
     mtx_unlock(&sc->ciss_mtx);
-#endif
     kproc_exit(0);
 }
 
@@ -4213,15 +4209,9 @@ static void
 ciss_spawn_notify_thread(struct ciss_softc *sc)
 {
 
-#if __FreeBSD_version > 500005
     if (kproc_create((void(*)(void *))ciss_notify_thread, sc,
 		       &sc->ciss_notify_thread, 0, 0, "ciss_notify%d",
 		       device_get_unit(sc->ciss_dev)))
-#else
-    if (kproc_create((void(*)(void *))ciss_notify_thread, sc,
-		       &sc->ciss_notify_thread, "ciss_notify%d",
-		       device_get_unit(sc->ciss_dev)))
-#endif
 	panic("Could not create notify thread\n");
 }
 

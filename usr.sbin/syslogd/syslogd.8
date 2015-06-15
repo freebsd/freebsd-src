@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2008
+.Dd March 3, 2015
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468ACcdkNnosTuv
+.Op Fl 468ACcdFkNnosTuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -213,6 +213,17 @@ This is probably only of use to developers working on
 Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
+.It Fl F
+Run
+.Nm
+in the foreground, rather than going into daemon mode. This is useful if
+some other process uses
+.Xr fork 2
+and
+.Xr exec 3
+to run
+.Nm ,
+and wants to monitor when and how it exits.
 .It Fl k
 Disable the translation of
 messages received with facility

@@ -487,6 +487,7 @@ FBSDprivate_1.0 {
 	_rtld_atfork_post;
 	_rtld_error;		/* for private use */
 	_rtld_get_stack_prot;
+	_rtld_is_dlopened;
 	_rtld_thread_init;	/* for private use */
 	__elf_phdr_match_addr;
 	_err;
@@ -531,6 +532,8 @@ FBSDprivate_1.0 {
 	_libc_sem_timedwait_compat;
 	_libc_sem_post_compat;
 	_libc_sem_getvalue_compat;
+
+	__libc_tcdrain;
 
 	__elf_aux_vector;
 	__pthread_map_stacks_exec;

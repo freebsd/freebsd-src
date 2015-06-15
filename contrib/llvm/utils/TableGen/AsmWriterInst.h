@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ASMWRITER_INST_H
-#define ASMWRITER_INST_H
+#ifndef LLVM_UTILS_TABLEGEN_ASMWRITERINST_H
+#define LLVM_UTILS_TABLEGEN_ASMWRITERINST_H
 
 #include <string>
 #include <vector>
@@ -88,9 +88,7 @@ namespace llvm {
     const CodeGenInstruction *CGI;
 
     AsmWriterInst(const CodeGenInstruction &CGI,
-                  unsigned Variant,
-                  int FirstOperandColumn,
-                  int OperandSpacing);
+                  unsigned Variant);
 
     /// MatchesAllButOneOp - If this instruction is exactly identical to the
     /// specified instruction except for one differing operand, return the

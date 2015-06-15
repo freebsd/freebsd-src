@@ -19,9 +19,11 @@
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Flags.h"
+#include "lldb/Core/Stream.h"
 #include "lldb/Core/StringList.h"
 #include "lldb/Core/ValueObjectList.h"
 #include "lldb/Host/Mutex.h"
+#include "lldb/Host/Predicate.h"
 
 namespace curses
 {
@@ -34,9 +36,23 @@ namespace lldb_private {
     class IOHandler
     {
     public:
-        IOHandler (Debugger &debugger);
+        enum class Type {
+            CommandInterpreter,
+            CommandList,
+            Confirm,
+            Curses,
+            Expression,
+            ProcessIO,
+            PythonInterpreter,
+            PythonCode,
+            Other
+        };
 
         IOHandler (Debugger &debugger,
+                   IOHandler::Type type);
+
+        IOHandler (Debugger &debugger,
+                   IOHandler::Type type,
                    const lldb::StreamFileSP &input_sp,
                    const lldb::StreamFileSP &output_sp,
                    const lldb::StreamFileSP &error_sp,
@@ -73,7 +89,7 @@ namespace lldb_private {
         // Called when CTRL+C is pressed which usually causes
         // Debugger::DispatchInputInterrupt to be called.
         
-        virtual void
+        virtual bool
         Interrupt () = 0;
         
         virtual void
@@ -95,6 +111,12 @@ namespace lldb_private {
         GetIsDone ()
         {
             return m_done;
+        }
+
+        Type
+        GetType () const
+        {
+            return m_type;
         }
 
         virtual void
@@ -128,7 +150,19 @@ namespace lldb_private {
         {
             return ConstString();
         }
+
+        virtual const char *
+        GetCommandPrefix ()
+        {
+            return NULL;
+        }
         
+        virtual const char *
+        GetHelpPrologue()
+        {
+            return NULL;
+        }
+
         int
         GetInputFD();
         
@@ -191,7 +225,7 @@ namespace lldb_private {
         ///
         /// This will return true if the input stream is a terminal (tty or
         /// pty) and can cause IO handlers to do different things (like
-        /// for a comfirmation when deleting all breakpoints).
+        /// for a confirmation when deleting all breakpoints).
         //------------------------------------------------------------------
         bool
         GetIsInteractive ();
@@ -200,19 +234,27 @@ namespace lldb_private {
         /// Check if the input is coming from a real terminal.
         ///
         /// A real terminal has a valid size with a certain number of rows
-        /// and colums. If this function returns true, then terminal escape
+        /// and columns. If this function returns true, then terminal escape
         /// sequences are expected to work (cursor movement escape sequences,
-        /// clearning lines, etc).
+        /// clearing lines, etc).
         //------------------------------------------------------------------
         bool
         GetIsRealTerminal ();
-
+        
+        void
+        SetPopped (bool b);
+        
+        void
+        WaitForPop ();
+        
     protected:
         Debugger &m_debugger;
         lldb::StreamFileSP m_input_sp;
         lldb::StreamFileSP m_output_sp;
         lldb::StreamFileSP m_error_sp;
+        Predicate<bool> m_popped;
         Flags m_flags;
+        Type m_type;
         void *m_user_data;
         bool m_done;
         bool m_active;
@@ -254,7 +296,12 @@ namespace lldb_private {
         IOHandlerActivated (IOHandler &io_handler)
         {
         }
-        
+
+        virtual void
+        IOHandlerDeactivated (IOHandler &io_handler)
+        {
+        }
+
         virtual int
         IOHandlerComplete (IOHandler &io_handler,
                            const char *current_line,
@@ -264,10 +311,48 @@ namespace lldb_private {
                            int max_matches,
                            StringList &matches);
         
+        virtual const char *
+        IOHandlerGetFixIndentationCharacters ()
+        {
+            return NULL;
+        }
+        
+        //------------------------------------------------------------------
+        /// Called when a new line is created or one of an identifed set of
+        /// indentation characters is typed.
+        ///
+        /// This function determines how much indentation should be added
+        /// or removed to match the recommended amount for the final line.
+        ///
+        /// @param[in] io_handler
+        ///     The IOHandler that responsible for input.
+        ///
+        /// @param[in] lines
+        ///     The current input up to the line to be corrected.  Lines
+        ///     following the line containing the cursor are not included.
+        ///
+        /// @param[in] cursor_position
+        ///     The number of characters preceeding the cursor on the final
+        ///     line at the time.
+        ///
+        /// @return
+        ///     Returns an integer describing the number of spaces needed
+        ///     to correct the indentation level.  Positive values indicate
+        ///     that spaces should be added, while negative values represent
+        ///     spaces that should be removed.
+        //------------------------------------------------------------------
+        virtual int
+        IOHandlerFixIndentation (IOHandler &io_handler,
+                                 const StringList &lines,
+                                 int cursor_position)
+        {
+            return 0;
+        }
+                        
         //------------------------------------------------------------------
         /// Called when a line or lines have been retrieved.
         ///
-        /// This funtion can handle the current line and possibly call
+        /// This function can handle the current line and possibly call
         /// IOHandler::SetIsDone(true) when the IO handler is done like when
         /// "quit" is entered as a command, of when an empty line is
         /// received. It is up to the delegate to determine when a line
@@ -275,40 +360,66 @@ namespace lldb_private {
         //------------------------------------------------------------------
         virtual void
         IOHandlerInputComplete (IOHandler &io_handler, std::string &data) = 0;
-        
+
+        virtual void
+        IOHandlerInputInterrupted (IOHandler &io_handler, std::string &data)
+        {
+        }
+
         //------------------------------------------------------------------
-        /// Called when a line in \a lines has been updated when doing
-        /// multi-line input.
+        /// Called to determine whether typing enter after the last line in
+        /// \a lines should end input.  This function will not be called on
+        /// IOHandler objects that are getting single lines.
+        /// @param[in] io_handler
+        ///     The IOHandler that responsible for updating the lines.
+        ///
+        /// @param[in] lines
+        ///     The current multi-line content.  May be altered to provide
+        ///     alternative input when complete.
         ///
         /// @return
-        ///     Return an enumeration to indicate the status of the current
-        ///     line:
-        ///         Success - The line is good and should be added to the
-        ///                   multiple lines
-        ///         Error - There is an error with the current line and it
-        ///                 need to be re-edited before it is acceptable
-        ///         Done - The lines collection is complete and ready to be
-        ///                returned.
+        ///     Return an boolean to indicate whether input is complete,
+        ///     true indicates that no additional input is necessary, while
+        ///     false indicates that more input is required.
         //------------------------------------------------------------------
-        virtual LineStatus
-        IOHandlerLinesUpdated (IOHandler &io_handler,
-                               StringList &lines,
-                               uint32_t line_idx,
-                               Error &error)
+        virtual bool
+        IOHandlerIsInputComplete (IOHandler &io_handler,
+                                  StringList &lines)
         {
-            return LineStatus::Done; // Stop getting lines on the first line that is updated
-            // subclasses should do something more intelligent here.
-            // This function will not be called on IOHandler objects
-            // that are getting single lines.
+            // Impose no requirements for input to be considered
+            // complete.  subclasses should do something more intelligent.
+            return true;
         }
         
-        
         virtual ConstString
-        GetControlSequence (char ch)
+        IOHandlerGetControlSequence (char ch)
         {
             return ConstString();
         }
         
+        virtual const char *
+        IOHandlerGetCommandPrefix ()
+        {
+            return NULL;
+        }
+
+        virtual const char *
+        IOHandlerGetHelpPrologue ()
+        {
+            return NULL;
+        }
+
+        //------------------------------------------------------------------
+        // Intercept the IOHandler::Interrupt() calls and do something.
+        //
+        // Return true if the interrupt was handled, false if the IOHandler
+        // should continue to try handle the interrupt itself.
+        //------------------------------------------------------------------
+        virtual bool
+        IOHandlerInterrupt (IOHandler &io_handler)
+        {
+            return false;
+        }
     protected:
         Completion m_completion; // Support for common builtin completions
         bool m_io_handler_done;
@@ -338,35 +449,28 @@ namespace lldb_private {
         }
         
         virtual ConstString
-        GetControlSequence (char ch)
+        IOHandlerGetControlSequence (char ch)
         {
             if (ch == 'd')
                 return ConstString (m_end_line + "\n");
             return ConstString();
         }
 
-        virtual LineStatus
-        IOHandlerLinesUpdated (IOHandler &io_handler,
-                               StringList &lines,
-                               uint32_t line_idx,
-                               Error &error)
+        virtual bool
+        IOHandlerIsInputComplete (IOHandler &io_handler,
+                                  StringList &lines)
         {
-            if (line_idx == UINT32_MAX)
+            // Determine whether the end of input signal has been entered
+            const size_t num_lines = lines.GetSize();
+            if (num_lines > 0 && lines[num_lines - 1] == m_end_line)
             {
-                // Remove the last empty line from "lines" so it doesn't appear
-                // in our final expression and return true to indicate we are done
+                // Remove the terminal line from "lines" so it doesn't appear in
+                // the resulting input and return true to indicate we are done
                 // getting lines
                 lines.PopBack();
-                return LineStatus::Done;
+                return true;
             }
-            else if (line_idx + 1 == lines.GetSize())
-            {
-                // The last line was edited, if this line is empty, then we are done
-                // getting our multiple lines.
-                if (lines[line_idx] == m_end_line)
-                    return LineStatus::Done;
-            }
-            return LineStatus::Success;
+            return false;
         }
     protected:
         const std::string m_end_line;
@@ -377,19 +481,27 @@ namespace lldb_private {
     {
     public:
         IOHandlerEditline (Debugger &debugger,
+                           IOHandler::Type type,
                            const char *editline_name, // Used for saving history files
                            const char *prompt,
+                           const char *continuation_prompt,
                            bool multi_line,
+                           bool color_prompts,
+                           uint32_t line_number_start, // If non-zero show line numbers starting at 'line_number_start'
                            IOHandlerDelegate &delegate);
 
         IOHandlerEditline (Debugger &debugger,
+                           IOHandler::Type type,
                            const lldb::StreamFileSP &input_sp,
                            const lldb::StreamFileSP &output_sp,
                            const lldb::StreamFileSP &error_sp,
                            uint32_t flags,
                            const char *editline_name, // Used for saving history files
                            const char *prompt,
+                           const char *continuation_prompt,
                            bool multi_line,
+                           bool color_prompts,
+                           uint32_t line_number_start, // If non-zero show line numbers starting at 'line_number_start'
                            IOHandlerDelegate &delegate);
         
         virtual
@@ -407,23 +519,34 @@ namespace lldb_private {
         virtual void
         Cancel ();
 
-        virtual void
+        virtual bool
         Interrupt ();
         
         virtual void
         GotEOF();
         
         virtual void
-        Activate ()
-        {
-            IOHandler::Activate();
-            m_delegate.IOHandlerActivated(*this);
-        }
+        Activate ();
+
+        virtual void
+        Deactivate ();
 
         virtual ConstString
         GetControlSequence (char ch)
         {
-            return m_delegate.GetControlSequence (ch);
+            return m_delegate.IOHandlerGetControlSequence (ch);
+        }
+
+        virtual const char *
+        GetCommandPrefix ()
+        {
+            return m_delegate.IOHandlerGetCommandPrefix ();
+        }
+
+        virtual const char *
+        GetHelpPrologue ()
+        {
+            return m_delegate.IOHandlerGetHelpPrologue ();
         }
 
         virtual const char *
@@ -431,21 +554,56 @@ namespace lldb_private {
         
         virtual bool
         SetPrompt (const char *prompt);
-
-        bool
-        GetLine (std::string &line);
+        
+        const char *
+        GetContinuationPrompt ();
+        
+        void
+        SetContinuationPrompt (const char *prompt);
         
         bool
-        GetLines (StringList &lines);
+        GetLine (std::string &line, bool &interrupted);
+        
+        bool
+        GetLines (StringList &lines, bool &interrupted);
+        
+        void
+        SetBaseLineNumber (uint32_t line);
+        
+        bool
+        GetInterruptExits ()
+        {
+            return m_interrupt_exits;
+        }
+
+        void
+        SetInterruptExits (bool b)
+        {
+            m_interrupt_exits = b;
+        }
+        
+        const StringList *
+        GetCurrentLines () const
+        {
+            return m_current_lines_ptr;
+        }
+        
+        uint32_t
+        GetCurrentLineIndex () const;
 
     private:
-        static LineStatus
-        LineCompletedCallback (Editline *editline,
-                               StringList &lines,
-                               uint32_t line_idx,
-                               Error &error,
-                               void *baton);
-
+#ifndef LLDB_DISABLE_LIBEDIT
+        static bool
+        IsInputCompleteCallback (Editline *editline,
+                                 StringList &lines,
+                                 void *baton);
+        
+        static int
+        FixIndentationCallback (Editline *editline,
+                                const StringList &lines,
+                                int cursor_position,
+                                void *baton);
+        
         static int AutoCompleteCallback (const char *current_line,
                                          const char *cursor,
                                          const char *last_char,
@@ -453,17 +611,28 @@ namespace lldb_private {
                                          int max_matches,
                                          StringList &matches,
                                          void *baton);
+#endif
 
     protected:
+#ifndef LLDB_DISABLE_LIBEDIT
         std::unique_ptr<Editline> m_editline_ap;
+#endif
         IOHandlerDelegate &m_delegate;
         std::string m_prompt;
-        bool m_multi_line;        
+        std::string m_continuation_prompt;
+        StringList *m_current_lines_ptr;
+        uint32_t m_base_line_number; // If non-zero, then show line numbers in prompt
+        uint32_t m_curr_line_idx;
+        bool m_multi_line;
+        bool m_color_prompts;
+        bool m_interrupt_exits;
     };
     
+    // The order of base classes is important. Look at the constructor of IOHandlerConfirm
+    // to see how.
     class IOHandlerConfirm :
-        public IOHandlerEditline,
-        public IOHandlerDelegate
+        public IOHandlerDelegate,
+        public IOHandlerEditline
     {
     public:
         IOHandlerConfirm (Debugger &debugger,
@@ -517,7 +686,7 @@ namespace lldb_private {
         virtual void
         Cancel ();
 
-        virtual void
+        virtual bool
         Interrupt ();
         
         virtual void
@@ -551,8 +720,8 @@ namespace lldb_private {
         virtual void
         Refresh ();
         
-        virtual void
-        Interrupt ();
+        virtual bool
+        HandleInterrupt ();
         
         virtual void
         GotEOF();
@@ -588,7 +757,8 @@ namespace lldb_private {
             if (sp)
             {
                 Mutex::Locker locker (m_mutex);
-                m_stack.push (sp);
+                sp->SetPopped (false);
+                m_stack.push_back (sp);
                 // Set m_top the non-locking IsTop() call
                 m_top = sp.get();
             }
@@ -608,7 +778,7 @@ namespace lldb_private {
             {
                 Mutex::Locker locker (m_mutex);
                 if (!m_stack.empty())
-                    sp = m_stack.top();
+                    sp = m_stack.back();
             }
             return sp;
         }
@@ -618,12 +788,16 @@ namespace lldb_private {
         {
             Mutex::Locker locker (m_mutex);
             if (!m_stack.empty())
-                m_stack.pop();
+            {
+                lldb::IOHandlerSP sp (m_stack.back());
+                m_stack.pop_back();
+                sp->SetPopped (true);
+            }
             // Set m_top the non-locking IsTop() call
             if (m_stack.empty())
                 m_top = NULL;
             else
-                m_top = m_stack.top().get();
+                m_top = m_stack.back().get();
         }
 
         Mutex &
@@ -638,6 +812,19 @@ namespace lldb_private {
             return m_top == io_handler_sp.get();
         }
 
+        bool
+        CheckTopIOHandlerTypes (IOHandler::Type top_type, IOHandler::Type second_top_type)
+        {
+            Mutex::Locker locker (m_mutex);
+            const size_t num_io_handlers = m_stack.size();
+            if (num_io_handlers >= 2 &&
+                m_stack[num_io_handlers-1]->GetType() == top_type &&
+                m_stack[num_io_handlers-2]->GetType() == second_top_type)
+            {
+                return true;
+            }
+            return false;
+        }
         ConstString
         GetTopIOHandlerControlSequence (char ch)
         {
@@ -646,9 +833,26 @@ namespace lldb_private {
             return ConstString();
         }
 
-    protected:
+        const char *
+        GetTopIOHandlerCommandPrefix()
+        {
+            if (m_top)
+                return m_top->GetCommandPrefix();
+            return NULL;
+        }
         
-        std::stack<lldb::IOHandlerSP> m_stack;
+        const char *
+        GetTopIOHandlerHelpPrologue()
+        {
+            if (m_top)
+                return m_top->GetHelpPrologue();
+            return NULL;
+        }
+
+    protected:        
+        
+        typedef std::vector<lldb::IOHandlerSP> collection;
+        collection m_stack;
         mutable Mutex m_mutex;
         IOHandler *m_top;
         

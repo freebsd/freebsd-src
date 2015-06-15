@@ -52,6 +52,19 @@
 /* device configuration flags */
 #define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
 
+typedef caddr_t		KBDC;
+
+typedef struct pckbd_state {
+	KBDC		kbdc;		/* keyboard controller */
+	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
+	int		ks_flags;	/* flags */
+#define COMPOSE		(1 << 0)
+	int		ks_state;	/* shift/lock key state */
+	int		ks_accents;	/* accent key index (> 0) */
+	u_int		ks_composed_char; /* composed char code (> 0) */
+	struct callout	ks_timer;
+} pckbd_state_t;
+
 static devclass_t	pckbd_devclass;
 
 static int		pckbdprobe(device_t dev);
@@ -186,6 +199,7 @@ static int
 pckbd_attach_unit(device_t dev, keyboard_t **kbd, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
+	pckbd_state_t *state;
 	int args[2];
 	int error;
 	int unit;
@@ -218,6 +232,8 @@ pckbd_attach_unit(device_t dev, keyboard_t **kbd, int port, int irq, int flags)
 	 * This is a kludge to compensate for lost keyboard interrupts.
 	 * A similar code used to be in syscons. See below. XXX
 	 */
+	state = (pckbd_state_t *)(*kbd)->kb_data;
+	callout_init(&state->ks_timer, 0);
 	pckbd_timeout(*kbd);
 
 	if (bootverbose)
@@ -229,6 +245,7 @@ pckbd_attach_unit(device_t dev, keyboard_t **kbd, int port, int irq, int flags)
 static void
 pckbd_timeout(void *arg)
 {
+	pckbd_state_t *state;
 	keyboard_t *kbd;
 	int s;
 
@@ -259,7 +276,8 @@ pckbd_timeout(void *arg)
 			kbdd_intr(kbd, NULL);
 	}
 	splx(s);
-	timeout(pckbd_timeout, arg, hz/10);
+	state = (pckbd_state_t *)kbd->kb_data;
+	callout_reset(&state->ks_timer, hz / 10, pckbd_timeout, arg);
 }
 
 /* LOW-LEVEL */
@@ -267,18 +285,6 @@ pckbd_timeout(void *arg)
 #include <sys/limits.h>
 
 #define PC98KBD_DEFAULT	0
-
-typedef caddr_t		KBDC;
-
-typedef struct pckbd_state {
-	KBDC		kbdc;		/* keyboard controller */
-	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
-	int		ks_flags;	/* flags */
-#define COMPOSE		(1 << 0)
-	int		ks_state;	/* shift/lock key state */
-	int		ks_accents;	/* accent key index (> 0) */
-	u_int		ks_composed_char; /* composed char code (> 0) */
-} pckbd_state_t;
 
 /* keyboard driver declaration */
 static int		pckbd_configure(int flags);
@@ -486,7 +492,10 @@ pckbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 static int
 pckbd_term(keyboard_t *kbd)
 {
+	pckbd_state_t *state = (pckbd_state_t *)kbd->kb_data;
+
 	kbd_unregister(kbd);
+	callout_drain(&state->ks_timer);
 	return 0;
 }
 

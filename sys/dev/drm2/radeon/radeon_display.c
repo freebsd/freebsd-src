@@ -363,7 +363,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	u64 base;
 	int r;
 
-	work = malloc(sizeof *work, DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	work = malloc(sizeof *work, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (work == NULL)
 		return -ENOMEM;
 
@@ -511,7 +511,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	struct radeon_crtc *radeon_crtc;
 	int i;
 
-	radeon_crtc = malloc(sizeof(struct radeon_crtc) + (RADEONFB_CONN_LIMIT * sizeof(struct drm_connector *)), DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	radeon_crtc = malloc(sizeof(struct radeon_crtc) + (RADEONFB_CONN_LIMIT * sizeof(struct drm_connector *)), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (radeon_crtc == NULL)
 		return;
 
@@ -1112,12 +1112,12 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
-		dev_err(dev->device, "No GEM object associated to handle 0x%08X, "
+		dev_err(dev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return -ENOENT;
 	}
 
-	radeon_fb = malloc(sizeof(*radeon_fb), DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	radeon_fb = malloc(sizeof(*radeon_fb), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (radeon_fb == NULL) {
 		drm_gem_object_unreference_unlocked(obj);
 		return (-ENOMEM);
@@ -1179,7 +1179,7 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 	}
 
 	if (!ASIC_IS_AVIVO(rdev)) {
-		sz = DRM_ARRAY_SIZE(radeon_tmds_pll_enum_list);
+		sz = ARRAY_SIZE(radeon_tmds_pll_enum_list);
 		rdev->mode_info.tmds_pll_property =
 			drm_property_create_enum(rdev->ddev, 0,
 					    "tmds_pll",
@@ -1193,13 +1193,13 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 
 	drm_mode_create_scaling_mode_property(rdev->ddev);
 
-	sz = DRM_ARRAY_SIZE(radeon_tv_std_enum_list);
+	sz = ARRAY_SIZE(radeon_tv_std_enum_list);
 	rdev->mode_info.tv_std_property =
 		drm_property_create_enum(rdev->ddev, 0,
 				    "tv standard",
 				    radeon_tv_std_enum_list, sz);
 
-	sz = DRM_ARRAY_SIZE(radeon_underscan_enum_list);
+	sz = ARRAY_SIZE(radeon_underscan_enum_list);
 	rdev->mode_info.underscan_property =
 		drm_property_create_enum(rdev->ddev, 0,
 				    "underscan",
@@ -1256,38 +1256,38 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 		/* DCE4/5 has 6 audio blocks tied to DIG encoders */
 		/* DCE4.1 has 2 audio blocks tied to DIG encoders */
 		rdev->mode_info.afmt[0] = malloc(sizeof(struct radeon_afmt),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (rdev->mode_info.afmt[0]) {
 			rdev->mode_info.afmt[0]->offset = EVERGREEN_CRTC0_REGISTER_OFFSET;
 			rdev->mode_info.afmt[0]->id = 0;
 		}
 		rdev->mode_info.afmt[1] = malloc(sizeof(struct radeon_afmt),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (rdev->mode_info.afmt[1]) {
 			rdev->mode_info.afmt[1]->offset = EVERGREEN_CRTC1_REGISTER_OFFSET;
 			rdev->mode_info.afmt[1]->id = 1;
 		}
 		if (!ASIC_IS_DCE41(rdev)) {
 			rdev->mode_info.afmt[2] = malloc(sizeof(struct radeon_afmt),
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 			if (rdev->mode_info.afmt[2]) {
 				rdev->mode_info.afmt[2]->offset = EVERGREEN_CRTC2_REGISTER_OFFSET;
 				rdev->mode_info.afmt[2]->id = 2;
 			}
 			rdev->mode_info.afmt[3] = malloc(sizeof(struct radeon_afmt),
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 			if (rdev->mode_info.afmt[3]) {
 				rdev->mode_info.afmt[3]->offset = EVERGREEN_CRTC3_REGISTER_OFFSET;
 				rdev->mode_info.afmt[3]->id = 3;
 			}
 			rdev->mode_info.afmt[4] = malloc(sizeof(struct radeon_afmt),
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 			if (rdev->mode_info.afmt[4]) {
 				rdev->mode_info.afmt[4]->offset = EVERGREEN_CRTC4_REGISTER_OFFSET;
 				rdev->mode_info.afmt[4]->id = 4;
 			}
 			rdev->mode_info.afmt[5] = malloc(sizeof(struct radeon_afmt),
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 			if (rdev->mode_info.afmt[5]) {
 				rdev->mode_info.afmt[5]->offset = EVERGREEN_CRTC5_REGISTER_OFFSET;
 				rdev->mode_info.afmt[5]->id = 5;
@@ -1296,13 +1296,13 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 	} else if (ASIC_IS_DCE3(rdev)) {
 		/* DCE3.x has 2 audio blocks tied to DIG encoders */
 		rdev->mode_info.afmt[0] = malloc(sizeof(struct radeon_afmt),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (rdev->mode_info.afmt[0]) {
 			rdev->mode_info.afmt[0]->offset = DCE3_HDMI_OFFSET0;
 			rdev->mode_info.afmt[0]->id = 0;
 		}
 		rdev->mode_info.afmt[1] = malloc(sizeof(struct radeon_afmt),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (rdev->mode_info.afmt[1]) {
 			rdev->mode_info.afmt[1]->offset = DCE3_HDMI_OFFSET1;
 			rdev->mode_info.afmt[1]->id = 1;
@@ -1310,7 +1310,7 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 	} else if (ASIC_IS_DCE2(rdev)) {
 		/* DCE2 has at least 1 routable audio block */
 		rdev->mode_info.afmt[0] = malloc(sizeof(struct radeon_afmt),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (rdev->mode_info.afmt[0]) {
 			rdev->mode_info.afmt[0]->offset = DCE2_HDMI_OFFSET0;
 			rdev->mode_info.afmt[0]->id = 0;
@@ -1318,7 +1318,7 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 		/* r6xx has 2 routable audio blocks */
 		if (rdev->family >= CHIP_R600) {
 			rdev->mode_info.afmt[1] = malloc(sizeof(struct radeon_afmt),
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 			if (rdev->mode_info.afmt[1]) {
 				rdev->mode_info.afmt[1]->offset = DCE2_HDMI_OFFSET1;
 				rdev->mode_info.afmt[1]->id = 1;
@@ -1419,9 +1419,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		radeon_afmt_fini(rdev);
 		drm_kms_helper_poll_fini(rdev->ddev);
 		radeon_hpd_fini(rdev);
-		DRM_UNLOCK(rdev->ddev); /* Work around lock recursion. dumbbell@ */
 		drm_mode_config_cleanup(rdev->ddev);
-		DRM_LOCK(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}
 	/* free i2c buses */

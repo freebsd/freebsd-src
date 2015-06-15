@@ -1,0 +1,55 @@
+<top>
+  <data>
+    <mbuf-current>10</mbuf-current>
+    <mbuf-cache>20</mbuf-cache>
+    <mbuf-total>30</mbuf-total>
+    <distance units="miles">50</distance>
+    <location>Boston</location>
+    <memory units="k">64</memory>
+    <total units="kb">640</total>
+    <memory units="k">64</memory>
+    <total units="kilobytes">640</total>
+    <ten>10</ten>
+    <eleven>11</eleven>
+    <unknown>1010</unknown>
+    <min>15</min>
+    <cur>20</cur>
+    <max>30</max>
+    <min>15</min>
+    <cur>20</cur>
+    <max>125</max>
+    <min>15</min>
+    <cur>20</cur>
+    <max>125</max>
+    <min>15</min>
+    <cur>20</cur>
+    <max>125</max>
+    <flag>one</flag>
+    <flag>two</flag>
+    <flag>three</flag>
+    <empty-tag></empty-tag>
+    <t1>1000</t1>
+    <t2>test5000</t2>
+    <t3>ten-longx</t3>
+    <t4>xtest</t4>
+    <error>
+      <message>this is an error</message>
+    </error>
+    <error>
+      <message>two more errors</message>
+    </error>
+    <warning>
+      <message>this is an warning</message>
+    </warning>
+    <warning>
+      <message>two more warnings</message>
+    </warning>
+    <count>10</count>
+    <test>4</test>
+  <message>improper use of profanity; ten yard penalty; first down</message>
+    <error>
+      <message>Shut 'er down, Clancey!  She's a-pumpin' mud!  &lt;&gt;!,"!&lt;&gt;
+</message>
+    </error>
+  </data>
+</top>

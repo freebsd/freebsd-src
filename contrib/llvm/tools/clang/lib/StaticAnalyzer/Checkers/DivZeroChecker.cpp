@@ -23,7 +23,7 @@ using namespace ento;
 
 namespace {
 class DivZeroChecker : public Checker< check::PreStmt<BinaryOperator> > {
-  mutable OwningPtr<BuiltinBug> BT;
+  mutable std::unique_ptr<BuiltinBug> BT;
   void reportBug(const char *Msg,
                  ProgramStateRef StateZero,
                  CheckerContext &C) const ;
@@ -37,7 +37,7 @@ void DivZeroChecker::reportBug(const char *Msg,
                                CheckerContext &C) const {
   if (ExplodedNode *N = C.generateSink(StateZero)) {
     if (!BT)
-      BT.reset(new BuiltinBug("Division by zero"));
+      BT.reset(new BuiltinBug(this, "Division by zero"));
 
     BugReport *R = new BugReport(*BT, Msg, N);
     bugreporter::trackNullOrUndefValue(N, bugreporter::GetDenomExpr(N), *R);
@@ -68,7 +68,7 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
   // Check for divide by zero.
   ConstraintManager &CM = C.getConstraintManager();
   ProgramStateRef stateNotZero, stateZero;
-  llvm::tie(stateNotZero, stateZero) = CM.assumeDual(C.getState(), *DV);
+  std::tie(stateNotZero, stateZero) = CM.assumeDual(C.getState(), *DV);
 
   if (!stateNotZero) {
     assert(stateZero);

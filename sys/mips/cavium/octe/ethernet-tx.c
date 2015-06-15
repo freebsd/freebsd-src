@@ -158,7 +158,7 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
 		if (work == NULL) {
 			m_freem(m);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return 1;
 		}
 
@@ -231,7 +231,7 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	if (__predict_false(dropped)) {
 		m_freem(m);
 		cvmx_fau_atomic_add32(priv->fau+qos*4, -1);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	} else {
 		/* Put this packet on the queue to be freed later */
 		_IF_ENQUEUE(&priv->tx_free_queue[qos], m);
@@ -239,8 +239,8 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		/* Pass it to any BPF listeners.  */
 		ETHER_BPF_MTAP(ifp, m);
 
-		ifp->if_opackets++;
-		ifp->if_obytes += m->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	}
 
 	/* Free mbufs not in use by the hardware */

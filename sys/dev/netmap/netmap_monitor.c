@@ -179,7 +179,7 @@ netmap_monitor_parent_sync(struct netmap_kring *kring, int flags, u_int* ringptr
 		i = nm_next(i, mlim);
 
 	}
-	wmb();
+	mb();
 	mkring->nr_hwtail = i;
 
 	mtx_unlock(&mkring->q_lock);
@@ -225,7 +225,7 @@ netmap_monitor_rxsync(struct netmap_kring *kring, int flags)
 {
         ND("%s %x", kring->name, flags);
 	kring->nr_hwcur = kring->rcur;
-	rmb();
+	mb();
 	nm_rxsync_finalize(kring);
         return 0;
 }

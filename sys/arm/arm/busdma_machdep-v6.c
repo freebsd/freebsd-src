@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ian Lepore
+ * Copyright (c) 2012-2014 Ian Lepore
  * Copyright (c) 2010 Mark Tinguely
  * Copyright (c) 2004 Olivier Houchard
  * Copyright (c) 2002 Peter Grehan
@@ -160,7 +160,7 @@ SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_dmamem, CTLFLAG_RD, &maps_dmamem, 0,
    "Number of active maps for bus_dmamem_alloc buffers");
 SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_coherent, CTLFLAG_RD, &maps_coherent, 0,
    "Number of active maps with BUS_DMA_COHERENT flag set");
-SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD, 
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD,
     &maploads_total, "Number of load operations performed");
 SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_bounced, CTLFLAG_RD,
     &maploads_bounced, "Number of load operations that used bounce buffers");
@@ -230,14 +230,14 @@ busdma_init(void *dummy)
 	uma_flags = 0;
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
-	standard_allocator = busdma_bufalloc_create("buffer", 
+	standard_allocator = busdma_bufalloc_create("buffer",
 	    arm_dcache_align,	/* minimum_alignment */
-	    NULL,		/* uma_alloc func */ 
+	    NULL,		/* uma_alloc func */
 	    NULL,		/* uma_free func */
 	    uma_flags);		/* uma_zcreate_flags */
 
 #ifdef INVARIANTS
-	/* 
+	/*
 	 * Force UMA zone to allocate service structures like
 	 * slabs using own allocator. uma_debug code performs
 	 * atomic ops on uma_slab_t fields and safety of this
@@ -251,8 +251,8 @@ busdma_init(void *dummy)
 	 */
 	coherent_allocator = busdma_bufalloc_create("coherent",
 	    arm_dcache_align,	/* minimum_alignment */
-	    busdma_bufalloc_alloc_uncacheable, 
-	    busdma_bufalloc_free_uncacheable, 
+	    busdma_bufalloc_alloc_uncacheable,
+	    busdma_bufalloc_free_uncacheable,
 	    uma_flags);	/* uma_zcreate_flags */
 }
 
@@ -343,9 +343,10 @@ cacheline_bounce(bus_dmamap_t map, bus_addr_t addr, bus_size_t size)
  * address spaces.
  */
 static __inline int
-might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr, 
+might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
     bus_size_t size)
 {
+
 	return ((dmat->flags & BUS_DMA_EXCL_BOUNCE) ||
 	    alignment_bounce(dmat, addr) ||
 	    cacheline_bounce(map, addr, size));
@@ -363,7 +364,7 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
  * the DMA needs to bounce, otherwise any DMA within the zone bounces.
  */
 static int
-must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr, 
+must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
     bus_size_t size)
 {
 
@@ -386,11 +387,11 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	 */
 	while (dmat != NULL && exclusion_bounce(dmat)) {
 		if ((paddr >= dmat->lowaddr && paddr <= dmat->highaddr) &&
-		    (dmat->filter == NULL || 
+		    (dmat->filter == NULL ||
 		    dmat->filter(dmat->filterarg, paddr) != 0))
 			return (1);
 		dmat = dmat->parent;
-	} 
+	}
 
 	return (0);
 }
@@ -444,6 +445,7 @@ busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
 static void
 dflt_lock(void *arg, bus_dma_lock_op_t op)
 {
+
 	panic("driver error: busdma dflt_lock called");
 }
 
@@ -466,16 +468,17 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		parent = arm_root_dma_tag;
 #endif
 
-	/* Basic sanity checking */
-	if (boundary != 0 && boundary < maxsegsz)
-		maxsegsz = boundary;
+	/* Basic sanity checking. */
+	KASSERT(boundary == 0 || powerof2(boundary),
+	    ("dma tag boundary %lu, must be a power of 2", boundary));
+	KASSERT(boundary == 0 || boundary >= maxsegsz,
+	    ("dma tag boundary %lu is < maxsegsz %lu\n", boundary, maxsegsz));
+	KASSERT(alignment != 0 && powerof2(alignment),
+	    ("dma tag alignment %lu, must be non-zero power of 2", alignment));
+	KASSERT(maxsegsz != 0, ("dma tag maxsegsz must not be zero"));
 
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
-
-	if (maxsegsz == 0) {
-		return (EINVAL);
-	}
 
 	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF,
 	    M_ZERO | M_NOWAIT);
@@ -551,7 +554,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		 * number of pages in a transfer.
 		 */
 		maxsize = roundup2(maxsize, PAGE_SIZE) + PAGE_SIZE;
-		
+
 		if ((error = alloc_bounce_zone(newtag)) != 0) {
 			free(newtag, M_DEVBUF);
 			return (error);
@@ -624,10 +627,10 @@ out:
 
 static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 {
-        struct bounce_zone *bz;
+	struct bounce_zone *bz;
 	int maxpages;
 	int error;
-		
+
 	if (dmat->bounce_zone == NULL)
 		if ((error = alloc_bounce_zone(dmat)) != 0)
 			return (error);
@@ -648,13 +651,13 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 	if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0 ||
 	    (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 		int pages;
-		
+
 		pages = atop(roundup2(dmat->maxsize, PAGE_SIZE)) + 1;
 		pages = MIN(maxpages - bz->total_bpages, pages);
 		pages = MAX(pages, 2);
 		if (alloc_bounce_pages(dmat, pages) < pages)
 			return (ENOMEM);
-		
+
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0)
 			dmat->flags |= BUS_DMA_MIN_ALLOC_COMP;
 	}
@@ -673,7 +676,7 @@ allocate_map(bus_dma_tag_t dmat, int mflags)
 	 * variable-sized array of sync_list structures.  Following that
 	 * we allocate enough extra space to hold the array of bus_dma_segments.
 	 */
-	KASSERT(dmat->nsegments <= MAX_DMA_SEGMENTS, 
+	KASSERT(dmat->nsegments <= MAX_DMA_SEGMENTS,
 	   ("cannot allocate %u dma segments (max is %u)",
 	    dmat->nsegments, MAX_DMA_SEGMENTS));
 	segsize = sizeof(struct bus_dma_segment) * dmat->nsegments;
@@ -719,6 +722,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	if (map->flags & DMAMAP_COHERENT)
 		atomic_add_32(&maps_coherent, 1);
 	atomic_add_32(&maps_total, 1);
+	dmat->map_count++;
+
 	return (0);
 }
 
@@ -853,8 +858,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else
 		ba = standard_allocator;
 
-	/* Be careful not to access map from here on. */
-
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
 
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
@@ -928,7 +931,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 			else
 				paddr = pmap_extract(map->pmap, vaddr);
 			if (must_bounce(dmat, map, paddr,
-			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr & 
+			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr &
 			    PAGE_MASK)))) != 0) {
 				map->pagesneeded++;
 			}
@@ -1249,13 +1252,13 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 #ifdef notyetbounceuser
-	/* If busdma uses user pages, then the interrupt handler could
-	 * be use the kernel vm mapping. Both bounce pages and sync list
-	 * do not cross page boundaries.
-	 * Below is a rough sequence that a person would do to fix the
-	 * user page reference in the kernel vmspace. This would be
-	 * done in the dma post routine.
-	 */
+/* If busdma uses user pages, then the interrupt handler could
+ * be use the kernel vm mapping. Both bounce pages and sync list
+ * do not cross page boundaries.
+ * Below is a rough sequence that a person would do to fix the
+ * user page reference in the kernel vmspace. This would be
+ * done in the dma post routine.
+ */
 void
 _bus_dmamap_fix_user(vm_offset_t buf, bus_size_t len,
 			pmap_t pmap, int op)
@@ -1264,10 +1267,10 @@ _bus_dmamap_fix_user(vm_offset_t buf, bus_size_t len,
 	bus_addr_t curaddr;
 	vm_offset_t va;
 
-		/* each synclist entry is contained within a single page.
-		 *
-		 * this would be needed if BUS_DMASYNC_POSTxxxx was implemented
-		*/
+	/*
+	 * each synclist entry is contained within a single page.
+	 * this would be needed if BUS_DMASYNC_POSTxxxx was implemented
+	 */
 	curaddr = pmap_extract(pmap, buf);
 	va = pmap_dma_map(curaddr);
 	switch (op) {
@@ -1309,17 +1312,20 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	/*
 	 * If the buffer was from user space, it is possible that this is not
 	 * the same vm map, especially on a POST operation.  It's not clear that
-	 * dma on userland buffers can work at all right now, certainly not if a
-	 * partial cacheline flush has to be handled.  To be safe, until we're
-	 * able to test direct userland dma, panic on a map mismatch.
+	 * dma on userland buffers can work at all right now.  To be safe, until
+	 * we're able to test direct userland dma, panic on a map mismatch.
 	 */
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		if (!pmap_dmap_iscurrent(map->pmap))
 			panic("_bus_dmamap_sync: wrong user map for bounce sync.");
-		/* Handle data bouncing. */
+
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
 		    "performing bounce", __func__, dmat, dmat->flags, op);
 
+		/*
+		 * For PREWRITE do a writeback.  Clean the caches from the
+		 * innermost to the outermost levels.
+		 */
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
 				if (bpage->datavaddr != 0)
@@ -1331,16 +1337,27 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					    (void *)bpage->vaddr,
 					    bpage->datacount);
 				cpu_dcache_wb_range((vm_offset_t)bpage->vaddr,
-					bpage->datacount);
+				    bpage->datacount);
 				l2cache_wb_range((vm_offset_t)bpage->vaddr,
-				    (vm_offset_t)bpage->busaddr, 
+				    (vm_offset_t)bpage->busaddr,
 				    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
 			dmat->bounce_zone->total_bounced++;
 		}
 
-		if (op & BUS_DMASYNC_PREREAD) {
+		/*
+		 * Do an invalidate for PREREAD unless a writeback was already
+		 * done above due to PREWRITE also being set.  The reason for a
+		 * PREREAD invalidate is to prevent dirty lines currently in the
+		 * cache from being evicted during the DMA.  If a writeback was
+		 * done due to PREWRITE also being set there will be no dirty
+		 * lines and the POSTREAD invalidate handles the rest. The
+		 * invalidate is done from the innermost to outermost level. If
+		 * L2 were done first, a dirty cacheline could be automatically
+		 * evicted from L1 before we invalidated it, re-dirtying the L2.
+		 */
+		if ((op & BUS_DMASYNC_PREREAD) && !(op & BUS_DMASYNC_PREWRITE)) {
 			bpage = STAILQ_FIRST(&map->bpages);
 			while (bpage != NULL) {
 				cpu_dcache_inv_range((vm_offset_t)bpage->vaddr,
@@ -1351,6 +1368,16 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				bpage = STAILQ_NEXT(bpage, links);
 			}
 		}
+
+		/*
+		 * Re-invalidate the caches on a POSTREAD, even though they were
+		 * already invalidated at PREREAD time.  Aggressive prefetching
+		 * due to accesses to other data near the dma buffer could have
+		 * brought buffer data into the caches which is now stale.  The
+		 * caches are invalidated from the outermost to innermost; the
+		 * prefetches could be happening right now, and if L1 were
+		 * invalidated first, stale L2 data could be prefetched into L1.
+		 */
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
 				vm_offset_t startv;
@@ -1360,15 +1387,15 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				startv = bpage->vaddr &~ arm_dcache_align_mask;
 				startp = bpage->busaddr &~ arm_dcache_align_mask;
 				len = bpage->datacount;
-				
+
 				if (startv != bpage->vaddr)
 					len += bpage->vaddr & arm_dcache_align_mask;
-				if (len & arm_dcache_align_mask) 
+				if (len & arm_dcache_align_mask)
 					len = (len -
 					    (len & arm_dcache_align_mask)) +
 					    arm_dcache_align;
-				cpu_dcache_inv_range(startv, len);
 				l2cache_inv_range(startv, startp, len);
+				cpu_dcache_inv_range(startv, len);
 				if (bpage->datavaddr != 0)
 					bcopy((void *)bpage->vaddr,
 					    (void *)bpage->datavaddr,
@@ -1382,13 +1409,33 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
-	if (map->flags & DMAMAP_COHERENT)
-		return;
 
+	/*
+	 * For COHERENT memory no cache maintenance is necessary, but ensure all
+	 * writes have reached memory for the PREWRITE case.  No action is
+	 * needed for a PREREAD without PREWRITE also set, because that would
+	 * imply that the cpu had written to the COHERENT buffer and expected
+	 * the dma device to see that change, and by definition a PREWRITE sync
+	 * is required to make that happen.
+	 */
+	if (map->flags & DMAMAP_COHERENT) {
+		if (op & BUS_DMASYNC_PREWRITE) {
+			dsb();
+			cpu_l2cache_drain_writebuf();
+		}
+		return;
+	}
+
+	/*
+	 * Cache maintenance for normal (non-COHERENT non-bounce) buffers.  All
+	 * the comments about the sequences for flushing cache levels in the
+	 * bounce buffer code above apply here as well.  In particular, the fact
+	 * that the sequence is inner-to-outer for PREREAD invalidation and
+	 * outer-to-inner for POSTREAD invalidation is not a mistake.
+	 */
 	if (map->sync_count != 0) {
 		if (!pmap_dmap_iscurrent(map->pmap))
 			panic("_bus_dmamap_sync: wrong user map for sync.");
-		/* ARM caches are not self-snooping for dma */
 
 		sl = &map->slist[0];
 		end = &map->slist[map->sync_count];
@@ -1397,36 +1444,54 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 		switch (op) {
 		case BUS_DMASYNC_PREWRITE:
+		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
 			while (sl != end) {
-			    cpu_dcache_wb_range(sl->vaddr, sl->datacount);
-			    l2cache_wb_range(sl->vaddr, sl->busaddr,
-				sl->datacount);
-			    sl++;
-			}
-			break;
-
-		case BUS_DMASYNC_PREREAD:
-			while (sl != end) {
-				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
-				l2cache_inv_range(sl->vaddr, sl->busaddr, 
+				cpu_dcache_wb_range(sl->vaddr, sl->datacount);
+				l2cache_wb_range(sl->vaddr, sl->busaddr,
 				    sl->datacount);
 				sl++;
 			}
 			break;
 
-		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
+		case BUS_DMASYNC_PREREAD:
+			/*
+			 * An mbuf may start in the middle of a cacheline. There
+			 * will be no cpu writes to the beginning of that line
+			 * (which contains the mbuf header) while dma is in
+			 * progress.  Handle that case by doing a writeback of
+			 * just the first cacheline before invalidating the
+			 * overall buffer.  Any mbuf in a chain may have this
+			 * misalignment.  Buffers which are not mbufs bounce if
+			 * they are not aligned to a cacheline.
+			 */
 			while (sl != end) {
-				cpu_dcache_wbinv_range(sl->vaddr, sl->datacount);
-				l2cache_wbinv_range(sl->vaddr,
-				    sl->busaddr, sl->datacount);
+				if (sl->vaddr & arm_dcache_align_mask) {
+					KASSERT(map->flags & DMAMAP_MBUF,
+					    ("unaligned buffer is not an mbuf"));
+					cpu_dcache_wb_range(sl->vaddr, 1);
+					l2cache_wb_range(sl->vaddr,
+					    sl->busaddr, 1);
+				}
+				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
+				l2cache_inv_range(sl->vaddr, sl->busaddr,
+				    sl->datacount);
 				sl++;
 			}
 			break;
 
-		case BUS_DMASYNC_POSTREAD:
 		case BUS_DMASYNC_POSTWRITE:
-		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
 			break;
+
+		case BUS_DMASYNC_POSTREAD:
+		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
+			while (sl != end) {
+				l2cache_inv_range(sl->vaddr, sl->busaddr,
+				    sl->datacount);
+				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
+				sl++;
+			}
+			break;
+
 		default:
 			panic("unsupported combination of sync operations: 0x%08x\n", op);
 			break;
@@ -1449,12 +1514,14 @@ SYSINIT(bpages, SI_SUB_LOCK, SI_ORDER_ANY, init_bounce_pages, NULL);
 static struct sysctl_ctx_list *
 busdma_sysctl_tree(struct bounce_zone *bz)
 {
+
 	return (&bz->sysctl_tree);
 }
 
 static struct sysctl_oid *
 busdma_sysctl_tree_top(struct bounce_zone *bz)
 {
+
 	return (bz->sysctl_tree_top);
 }
 
@@ -1525,9 +1592,9 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_ULONG(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
+	    "alignment", CTLFLAG_RD, &bz->alignment, "");
 
 	return (0);
 }
@@ -1618,8 +1685,8 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 
 	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
 		/* Page offset needs to be preserved. */
-		bpage->vaddr |= vaddr & PAGE_MASK;
-		bpage->busaddr |= vaddr & PAGE_MASK;
+		bpage->vaddr |= addr & PAGE_MASK;
+		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
 	bpage->dataaddr = addr;

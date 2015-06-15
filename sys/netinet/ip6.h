@@ -277,12 +277,6 @@ do {									\
 	    (((m) = m_pullup((m), (off) + (hlen))) == NULL)) {		\
 		IP6STAT_INC(ip6s_exthdrtoolong);				\
 		return ret;						\
-	} else if ((m)->m_flags & M_EXT) {				\
-		if ((m)->m_len < (off) + (hlen)) {			\
-			IP6STAT_INC(ip6s_exthdrtoolong);			\
-			m_freem(m);					\
-			return ret;					\
-		}							\
 	} else {							\
 		if ((m)->m_len < (off) + (hlen)) {			\
 			IP6STAT_INC(ip6s_exthdrtoolong);			\

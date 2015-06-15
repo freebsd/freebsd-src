@@ -1,6 +1,7 @@
 # $FreeBSD$
 machine		arm	armv6
 cpu 		CPU_CORTEXA
+makeoptions	CONF_CFLAGS="-march=armv7a"
 makeoptions	ARM_LITTLE_ENDIAN
 options		ARM_L2_PIPT
 
@@ -10,5 +11,6 @@ options		KERNPHYSADDR=0x90100000
 makeoptions	KERNPHYSADDR=0x90100000
 options		PHYSADDR=0x90000000
 
-files "../freescale/imx/files.imx51"
+device  	fdt_pinctrl
 
+files "../freescale/imx/files.imx5"

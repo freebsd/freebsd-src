@@ -149,8 +149,10 @@ done:
 	DPRINTF(dev, "chipname=%s, id=%08x\n", chipname, id);
 	if (chipname != NULL) {
 		snprintf(desc, sizeof(desc),
-		    "Atheros %s Ethernet Switch",
-		    chipname);
+		    "Atheros %s Ethernet Switch (ver %d rev %d)",
+		    chipname,
+		    sc->chip_ver,
+		    sc->chip_rev);
 		device_set_desc_copy(dev, desc);
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -177,9 +179,11 @@ arswitch_attach_phys(struct arswitch_softc *sc)
 		err = mii_attach(sc->sc_dev, &sc->miibus[phy], sc->ifp[phy],
 		    arswitch_ifmedia_upd, arswitch_ifmedia_sts, \
 		    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+#if 0
 		DPRINTF(sc->sc_dev, "%s attached to pseudo interface %s\n",
 		    device_get_nameunit(sc->miibus[phy]),
 		    sc->ifp[phy]->if_xname);
+#endif
 		if (err != 0) {
 			device_printf(sc->sc_dev,
 			    "attaching PHY %d failed\n",
@@ -299,11 +303,25 @@ arswitch_attach(device_t dev)
 	sc->hal.arswitch_port_vlan_setup = ar8xxx_port_vlan_setup;
 	sc->hal.arswitch_port_vlan_get = ar8xxx_port_vlan_get;
 	sc->hal.arswitch_vlan_init_hw = ar8xxx_reset_vlans;
+
 	sc->hal.arswitch_vlan_getvgroup = ar8xxx_getvgroup;
 	sc->hal.arswitch_vlan_setvgroup = ar8xxx_setvgroup;
+
 	sc->hal.arswitch_vlan_get_pvid = ar8xxx_get_pvid;
 	sc->hal.arswitch_vlan_set_pvid = ar8xxx_set_pvid;
+
+	sc->hal.arswitch_get_dot1q_vlan = ar8xxx_get_dot1q_vlan;
+	sc->hal.arswitch_set_dot1q_vlan = ar8xxx_set_dot1q_vlan;
+	sc->hal.arswitch_flush_dot1q_vlan = ar8xxx_flush_dot1q_vlan;
+	sc->hal.arswitch_purge_dot1q_vlan = ar8xxx_purge_dot1q_vlan;
+	sc->hal.arswitch_get_port_vlan = ar8xxx_get_port_vlan;
+	sc->hal.arswitch_set_port_vlan = ar8xxx_set_port_vlan;
+
 	sc->hal.arswitch_atu_flush = ar8xxx_atu_flush;
+
+	sc->hal.arswitch_phy_read = arswitch_readphy_internal;
+	sc->hal.arswitch_phy_write = arswitch_writephy_internal;
+
 
 	/*
 	 * Attach switch related functions
@@ -320,8 +338,10 @@ arswitch_attach(device_t dev)
 		ar8316_attach(sc);
 	else if (AR8X16_IS_SWITCH(sc, AR8327))
 		ar8327_attach(sc);
-	else
+	else {
+		DPRINTF(dev, "%s: unknown switch (%d)?\n", __func__, sc->sc_switchtype);
 		return (ENXIO);
+	}
 
 	/* Common defaults. */
 	sc->info.es_nports = 5; /* XXX technically 6, but 6th not used */
@@ -348,14 +368,18 @@ arswitch_attach(device_t dev)
 		sc->numphys = AR8X16_NUM_PHYS;
 
 	/* Reset the switch. */
-	if (arswitch_reset(dev))
+	if (arswitch_reset(dev)) {
+		DPRINTF(dev, "%s: arswitch_reset: failed\n", __func__);
 		return (ENXIO);
+	}
 
 	err = sc->hal.arswitch_hw_setup(sc);
+	DPRINTF(dev, "%s: hw_setup: err=%d\n", __func__, err);
 	if (err != 0)
 		return (err);
 
 	err = sc->hal.arswitch_hw_global_setup(sc);
+	DPRINTF(dev, "%s: hw_global_setup: err=%d\n", __func__, err);
 	if (err != 0)
 		return (err);
 
@@ -368,17 +392,20 @@ arswitch_attach(device_t dev)
 	 * Attach the PHYs and complete the bus enumeration.
 	 */
 	err = arswitch_attach_phys(sc);
+	DPRINTF(dev, "%s: attach_phys: err=%d\n", __func__, err);
 	if (err != 0)
 		return (err);
 
 	/* Default to ingress filters off. */
 	err = arswitch_set_vlan_mode(sc, 0);
+	DPRINTF(dev, "%s: set_vlan_mode: err=%d\n", __func__, err);
 	if (err != 0)
 		return (err);
 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 	err = bus_generic_attach(dev);
+	DPRINTF(dev, "%s: bus_generic_attach: err=%d\n", __func__, err);
 	if (err != 0)
 		return (err);
 	
@@ -612,6 +639,15 @@ ar8xxx_port_vlan_get(struct arswitch_softc *sc, etherswitch_port_t *p)
 }
 
 static int
+arswitch_is_cpuport(struct arswitch_softc *sc, int port)
+{
+
+	return ((port == AR8X16_PORT_CPU) ||
+	    ((AR8X16_IS_SWITCH(sc, AR8327) &&
+	      port == AR8327_PORT_GMAC6)));
+}
+
+static int
 arswitch_getport(device_t dev, etherswitch_port_t *p)
 {
 	struct arswitch_softc *sc;
@@ -620,7 +656,8 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 	int err;
 
 	sc = device_get_softc(dev);
-	if (p->es_port < 0 || p->es_port > sc->numphys)
+	/* XXX +1 is for AR8327; should make this configurable! */
+	if (p->es_port < 0 || p->es_port > sc->info.es_nports)
 		return (ENXIO);
 
 	err = sc->hal.arswitch_port_vlan_get(sc, p);
@@ -628,7 +665,7 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 		return (err);
 
 	mii = arswitch_miiforport(sc, p->es_port);
-	if (p->es_port == AR8X16_PORT_CPU) {
+	if (arswitch_is_cpuport(sc, p->es_port)) {
 		/* fill in fixed values for CPU port */
 		/* XXX is this valid in all cases? */
 		p->es_flags |= ETHERSWITCH_PORT_CPU;
@@ -697,7 +734,7 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	if (p->es_port < 0 || p->es_port > sc->numphys)
+	if (p->es_port < 0 || p->es_port > sc->info.es_nports)
 		return (ENXIO);
 
 	/* Port flags. */
@@ -708,7 +745,7 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 	}
 
 	/* Do not allow media changes on CPU port. */
-	if (p->es_port == AR8X16_PORT_CPU)
+	if (arswitch_is_cpuport(sc, p->es_port))
 		return (0);
 
 	mii = arswitch_miiforport(sc, p->es_port);
@@ -801,6 +838,22 @@ arswitch_setvgroup(device_t dev, etherswitch_vlangroup_t *e)
 	struct arswitch_softc *sc = device_get_softc(dev);
 
 	return (sc->hal.arswitch_vlan_setvgroup(sc, e));
+}
+
+static int
+arswitch_readphy(device_t dev, int phy, int reg)
+{
+	struct arswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.arswitch_phy_read(dev, phy, reg));
+}
+
+static int
+arswitch_writephy(device_t dev, int phy, int reg, int val)
+{
+	struct arswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.arswitch_phy_write(dev, phy, reg, val));
 }
 
 static device_method_t arswitch_methods[] = {

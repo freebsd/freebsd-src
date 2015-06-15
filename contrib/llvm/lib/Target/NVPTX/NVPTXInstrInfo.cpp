@@ -14,22 +14,23 @@
 #include "NVPTX.h"
 #include "NVPTXInstrInfo.h"
 #include "NVPTXTargetMachine.h"
-#define GET_INSTRINFO_CTOR_DTOR
-#include "NVPTXGenInstrInfo.inc"
-#include "llvm/IR/Function.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/Function.h"
 
 using namespace llvm;
+
+#define GET_INSTRINFO_CTOR_DTOR
+#include "NVPTXGenInstrInfo.inc"
 
 // Pin the vtable to this file.
 void NVPTXInstrInfo::anchor() {}
 
 // FIXME: Add the subtarget support on this constructor.
-NVPTXInstrInfo::NVPTXInstrInfo(NVPTXTargetMachine &tm)
-    : NVPTXGenInstrInfo(), TM(tm), RegInfo(*TM.getSubtargetImpl()) {}
+NVPTXInstrInfo::NVPTXInstrInfo(NVPTXSubtarget &STI)
+    : NVPTXGenInstrInfo(), RegInfo(STI) {}
 
 void NVPTXInstrInfo::copyPhysReg(
     MachineBasicBlock &MBB, MachineBasicBlock::iterator I, DebugLoc DL,
@@ -256,7 +257,7 @@ unsigned NVPTXInstrInfo::InsertBranch(
          "NVPTX branch conditions have two components!");
 
   // One-way branch.
-  if (FBB == 0) {
+  if (!FBB) {
     if (Cond.empty()) // Unconditional branch
       BuildMI(&MBB, DL, get(NVPTX::GOTO)).addMBB(TBB);
     else // Conditional branch

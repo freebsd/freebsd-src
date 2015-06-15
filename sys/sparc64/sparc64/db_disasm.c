@@ -803,7 +803,7 @@ static const struct sparc_insn sparc_i[] = {
 };
 
 db_addr_t
-db_disasm(db_addr_t loc, boolean_t altfmt)
+db_disasm(db_addr_t loc, bool altfmt)
 {
 	const struct sparc_insn* i_ptr = (struct sparc_insn *)&sparc_i;
 	unsigned int insn, you_lose, bitmask;

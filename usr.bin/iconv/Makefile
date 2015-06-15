@@ -7,7 +7,4 @@ PROG=	iconv
 #SRCS=	iconv.c
 MAN=	iconv.1
 
-LDADD+=	-lcrypt
-DPADD+=	${LIBCRYPT}
-
 .include <bsd.prog.mk>

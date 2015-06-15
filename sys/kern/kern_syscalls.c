@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
@@ -105,9 +108,12 @@ syscall_thread_exit(struct thread *td, struct sysent *se)
 
 int
 syscall_register(int *offset, struct sysent *new_sysent,
-    struct sysent *old_sysent)
+    struct sysent *old_sysent, int flags)
 {
 	int i;
+
+	if ((flags & ~SY_THR_STATIC) != 0)
+		return (EINVAL);
 
 	if (*offset == NO_SYSCALL) {
 		for (i = 1; i < SYS_MAXSYSCALL; ++i)
@@ -127,18 +133,23 @@ syscall_register(int *offset, struct sysent *new_sysent,
 	*old_sysent = sysent[*offset];
 	new_sysent->sy_thrcnt = SY_THR_ABSENT;
 	sysent[*offset] = *new_sysent;
-	atomic_store_rel_32(&sysent[*offset].sy_thrcnt, 0);
+	atomic_store_rel_32(&sysent[*offset].sy_thrcnt, flags);
 	return (0);
 }
 
 int
 syscall_deregister(int *offset, struct sysent *old_sysent)
 {
+	struct sysent *se;
 
-	if (*offset) {
-		syscall_thread_drain(&sysent[*offset]);
-		sysent[*offset] = *old_sysent;
-	}
+	if (*offset == 0)
+		return (0); /* XXX? */
+
+	se = &sysent[*offset];
+	if ((se->sy_thrcnt & SY_THR_STATIC) != 0)
+		return (EINVAL);
+	syscall_thread_drain(se);
+	sysent[*offset] = *old_sysent;
 	return (0);
 }
 
@@ -152,7 +163,7 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		error = syscall_register(data->offset, data->new_sysent,
-		    &data->old_sysent);
+		    &data->old_sysent, data->flags);
 		if (error) {
 			/* Leave a mark so we know to safely unload below. */
 			data->offset = NULL;
@@ -190,14 +201,14 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 }
 
 int
-syscall_helper_register(struct syscall_helper_data *sd)
+syscall_helper_register(struct syscall_helper_data *sd, int flags)
 {
 	struct syscall_helper_data *sd1;
 	int error;
 
 	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
 		error = syscall_register(&sd1->syscall_no, &sd1->new_sysent,
-		    &sd1->old_sysent);
+		    &sd1->old_sysent, flags);
 		if (error != 0) {
 			syscall_helper_unregister(sd);
 			return (error);

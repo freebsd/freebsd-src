@@ -16,8 +16,7 @@ ATF_TESTS_SH+=	tp_test
 
 integration_test: Makefile
 ATF_TESTS_SH_SED_integration_test= \
-    -e 's,atf_check,PATH=/usr/libexec:$${PATH} atf_check,g' \
-    -e 's,/usr/bin/env *atf-sh,/usr/libexec/atf-sh,g'
+    -e 's,__ATF_SH__,/usr/libexec/atf-sh,g'
 
 SCRIPTS+=		misc_helpers
 SCRIPTSDIR_misc_helpers=${TESTSDIR}

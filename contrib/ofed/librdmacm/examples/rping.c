@@ -40,7 +40,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <byteswap.h>
 #include <semaphore.h>
 #include <arpa/inet.h>
 #include <pthread.h>
@@ -280,10 +279,10 @@ static int rping_cq_event_handler(struct rping_cb *cb)
 		ret = 0;
 
 		if (wc.status) {
-			fprintf(stderr, "cq completion failed status %d\n",
-				wc.status);
 			if (wc.status != IBV_WC_WR_FLUSH_ERR)
-				ret = -1;
+				fprintf(stderr, "cq completion failed status %d\n",
+					wc.status);
+			ret = -1;
 			goto error;
 		}
 
@@ -800,10 +799,9 @@ static void *rping_persistent_server_thread(void *arg)
 
 	rping_test_server(cb);
 	rdma_disconnect(cb->child_cm_id);
+	pthread_join(cb->cqthread, NULL);
 	rping_free_buffers(cb);
 	rping_free_qp(cb);
-	pthread_cancel(cb->cqthread);
-	pthread_join(cb->cqthread, NULL);
 	rdma_destroy_id(cb->child_cm_id);
 	free_cb(cb);
 	return NULL;
@@ -888,6 +886,7 @@ static int rping_run_server(struct rping_cb *cb)
 
 	rping_test_server(cb);
 	rdma_disconnect(cb->child_cm_id);
+	pthread_join(cb->cqthread, NULL);
 	rdma_destroy_id(cb->child_cm_id);
 err2:
 	rping_free_buffers(cb);
@@ -1050,11 +1049,19 @@ static int rping_run_client(struct rping_cb *cb)
 	ret = rping_connect_client(cb);
 	if (ret) {
 		fprintf(stderr, "connect error %d\n", ret);
-		goto err2;
+		goto err3;
 	}
 
-	rping_test_client(cb);
+	ret = rping_test_client(cb);
+	if (ret) {
+		fprintf(stderr, "rping client failed: %d\n", ret);
+		goto err4;
+	}
+	ret = 0;
+err4:
 	rdma_disconnect(cb->cm_id);
+err3:
+	pthread_join(cb->cqthread, NULL);
 err2:
 	rping_free_buffers(cb);
 err1:
@@ -1148,8 +1155,9 @@ int main(int argc, char *argv[])
 			if ((cb->size < RPING_MIN_BUFSIZE) ||
 			    (cb->size > (RPING_BUFSIZE - 1))) {
 				fprintf(stderr, "Invalid size %d "
-				       "(valid range is %Zd to %d)\n",
-				       cb->size, RPING_MIN_BUFSIZE, RPING_BUFSIZE);
+				       "(valid range is %d to %d)\n",
+				       (int)cb->size, (int)(RPING_MIN_BUFSIZE),
+				       (int)(RPING_BUFSIZE));
 				ret = EINVAL;
 			} else
 				DEBUG_LOG("size %d\n", (int) atoi(optarg));

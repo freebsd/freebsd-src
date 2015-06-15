@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/time.h>
 
@@ -744,7 +745,7 @@ imx_sdhci_attach(device_t dev)
 		sc->force_card_present = true;
 	}
 
-	callout_init(&sc->r1bfix_callout, true);
+	callout_init(&sc->r1bfix_callout, 1);
 	sdhci_init_slot(dev, &sc->slot, 0);
 
 	bus_generic_probe(dev);

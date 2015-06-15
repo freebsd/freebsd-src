@@ -784,7 +784,7 @@ vr_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -1325,7 +1325,7 @@ vr_rxeof(struct vr_softc *sc)
 		if ((rxstat & VR_RXSTAT_RX_OK) == 0 ||
 		    (rxstat & (VR_RXSTAT_FIRSTFRAG | VR_RXSTAT_LASTFRAG)) !=
 		    (VR_RXSTAT_FIRSTFRAG | VR_RXSTAT_LASTFRAG)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			sc->vr_stat.rx_errors++;
 			if (rxstat & VR_RXSTAT_CRCERR)
 				sc->vr_stat.rx_crc_errors++;
@@ -1348,7 +1348,7 @@ vr_rxeof(struct vr_softc *sc)
 		}
 
 		if (vr_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			sc->vr_stat.rx_errors++;
 			sc->vr_stat.rx_no_mbufs++;
 			vr_discard_rxbuf(rxd);
@@ -1376,7 +1376,7 @@ vr_rxeof(struct vr_softc *sc)
 		vr_fixup_rx(m);
 #endif
 		m->m_pkthdr.rcvif = ifp;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		sc->vr_stat.rx_ok++;
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
 		    (rxstat & VR_RXSTAT_FRAG) == 0 &&
@@ -1466,7 +1466,7 @@ vr_txeof(struct vr_softc *sc)
 		    __func__));
 
 		if ((txstat & VR_TXSTAT_ERRSUM) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			sc->vr_stat.tx_errors++;
 			if ((txstat & VR_TXSTAT_ABRT) != 0) {
 				/* Give up and restart Tx. */
@@ -1504,28 +1504,28 @@ vr_txeof(struct vr_softc *sc)
 				return;
 			}
 			if ((txstat & VR_TXSTAT_DEFER) != 0) {
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 				sc->vr_stat.tx_collisions++;
 			}
 			if ((txstat & VR_TXSTAT_LATECOLL) != 0) {
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 				sc->vr_stat.tx_late_collisions++;
 			}
 		} else {
 			sc->vr_stat.tx_ok++;
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 
 		bus_dmamap_sync(sc->vr_cdata.vr_tx_tag, txd->tx_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->vr_cdata.vr_tx_tag, txd->tx_dmamap);
 		if (sc->vr_revid < REV_ID_VT3071_A) {
-			ifp->if_collisions +=
-			    (txstat & VR_TXSTAT_COLLCNT) >> 3;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+			    (txstat & VR_TXSTAT_COLLCNT) >> 3);
 			sc->vr_stat.tx_collisions +=
 			    (txstat & VR_TXSTAT_COLLCNT) >> 3;
 		} else {
-			ifp->if_collisions += (txstat & 0x0f);
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & 0x0f));
 			sc->vr_stat.tx_collisions += (txstat & 0x0f);
 		}
 		m_freem(txd->tx_m);
@@ -2318,13 +2318,13 @@ vr_watchdog(struct vr_softc *sc)
 		if (bootverbose)
 			if_printf(sc->vr_ifp, "watchdog timeout "
 			   "(missed link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vr_init_locked(sc);
 		return;
 	}
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

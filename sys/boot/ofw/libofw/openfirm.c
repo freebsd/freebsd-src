@@ -729,6 +729,20 @@ OF_exit()
 		;
 }
 
+void
+OF_quiesce()
+{
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+	} args = {
+		(cell_t)"quiesce",
+	};
+
+	openfirmware(&args);
+}
+
 /* Free <size> bytes starting at <virt>, then call <entry> with <arg>. */
 #if 0
 void

@@ -82,7 +82,7 @@
 #define	LINUX_IPC_64	0x0100	/* New version (support 32-bit UIDs, bigger
 				   message sizes, etc. */
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 struct linux_msgctl_args 
 {
@@ -177,6 +177,6 @@ int linux_shmctl(struct thread *, struct linux_shmctl_args *);
 int linux_shmdt(struct thread *, struct linux_shmdt_args *);
 int linux_shmget(struct thread *, struct linux_shmget_args *);
 
-#endif	/* __i386__ || __amd64__ */
+#endif	/* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #endif /* _LINUX_IPC_H_ */

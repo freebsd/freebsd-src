@@ -1,0 +1,249 @@
+.\"	$Id: mandoc_html.3,v 1.1 2014/07/23 18:13:09 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 23 2014 $
+.Dt MANDOC_HTML 3
+.Os
+.Sh NAME
+.Nm mandoc_html
+.Nd internals of the mandoc HTML formatter
+.Sh SYNOPSIS
+.In "html.h"
+.Ft void
+.Fn print_gen_decls "struct html *h"
+.Ft void
+.Fn print_gen_head "struct html *h"
+.Ft struct tag *
+.Fo print_otag
+.Fa "struct html *h"
+.Fa "enum htmltag tag"
+.Fa "int sz"
+.Fa "const struct htmlpair *p"
+.Fc
+.Ft void
+.Fo print_tagq
+.Fa "struct html *h"
+.Fa "const struct tag *until"
+.Fc
+.Ft void
+.Fo print_stagq
+.Fa "struct html *h"
+.Fa "const struct tag *suntil"
+.Fc
+.Ft void
+.Fo print_text
+.Fa "struct html *h"
+.Fa "const char *word"
+.Fc
+.Sh DESCRIPTION
+The mandoc HTML formatter is not a formal library.
+However, as it is compiled into more than one program, in particular
+.Xr mandoc 1
+and
+.Xr man.cgi 8 ,
+and because it may be security-critical in some contexts,
+some documentation is useful to help to use it correctly and
+to prevent XSS vulnerabilities.
+.Pp
+The formatter produces HTML output on the standard output.
+Since proper escaping is usually required and best taken care of
+at one central place, the language-specific formatters
+.Po
+.Pa *_html.c ,
+see
+.Sx FILES
+.Pc
+are not supposed to print directly to
+.Dv stdout
+using functions like
+.Xr printf 3 ,
+.Xr putc 3 ,
+.Xr puts 3 ,
+or
+.Xr write 2 .
+Instead, they are expected to use the output functions declared in
+.Pa html.h
+and implemented as part of the main HTML formatting engine in
+.Pa html.c .
+.Ss Data structures
+These structures are declared in
+.Pa html.h .
+.Bl -tag -width Ds
+.It Vt struct html
+Internal state of the HTML formatter.
+.It Vt struct htmlpair
+Holds one HTML attribute.
+Members are
+.Fa "enum htmlattr key"
+and
+.Fa "const char *val" .
+Helper macros
+.Fn PAIR_*
+are provided to support initialization of such structures.
+.It Vt struct tag
+One entry for the LIFO stack of HTML elements.
+Members are
+.Fa "enum htmltag tag"
+and
+.Fa "struct tag *next" .
+.El
+.Ss Private interface functions
+The function
+.Fn print_gen_decls
+prints the opening
+.Ao Pf \&? Ic xml ? Ac
+and
+.Aq Pf \&! Ic DOCTYPE
+declarations required for the current document type.
+.Pp
+The function
+.Fn print_gen_head
+prints the opening
+.Aq Ic META
+and
+.Aq Ic LINK
+elements for the document
+.Aq Ic HEAD ,
+using the
+.Fa style
+member of
+.Fa h
+unless that is
+.Dv NULL .
+It uses
+.Fn print_otag
+which takes care of properly encoding attributes,
+which is relevant for the
+.Fa style
+link in particular.
+.Pp
+The function
+.Fn print_otag
+prints the start tag of an HTML element with the name
+.Fa tag ,
+including the
+.Fa sz
+attributes that can optionally be provided in the
+.Fa p
+array.
+It uses the private function
+.Fn print_attr
+which in turn uses the private function
+.Fn print_encode
+to take care of HTML encoding.
+If required by the element type, it remembers in
+.Fa h
+that the element is open.
+The function
+.Fn print_tagq
+is used to close out all open elements up to and including
+.Fa until ;
+.Fn print_stagq
+is a variant to close out all open elements up to but excluding
+.Fa suntil .
+.Pp
+The function
+.Fn print_text
+prints HTML element content.
+It uses the private function
+.Fn print_encode
+to take care of HTML encoding.
+If the document has requested a non-standard font, for example using a
+.Xr roff 7
+.Ic \ef
+font escape sequence,
+.Fn print_text
+wraps
+.Fa word
+in an HTML font selection element using the
+.Fn print_otag
+and
+.Fn print_tagq
+functions.
+.Pp
+The functions
+.Fn bufinit ,
+.Fn bufcat* ,
+and
+.Fn buffmt*
+do not directly produce output but buffer text in the
+.Fa buf
+member of
+.Fa h .
+They are not used internally by
+.Pa html.c
+but intended for use by the language-specific formatters
+to ease preparation of strings for the
+.Fa p
+argument of
+.Fn print_otag
+and for the
+.Fa word
+argument of
+.Fn print_text .
+Consequently, these functions do not do any HTML encoding.
+.Pp
+The functions
+.Fn html_strlen ,
+.Fn print_eqn ,
+.Fn print_tbl ,
+and
+.Fn print_tblclose
+are not yet documented.
+.Sh FILES
+.Bl -tag -width mandoc_aux.c -compact
+.It Pa main.h
+declarations of public functions for use by the main program,
+not yet documented
+.It Pa html.h
+declarations of data types and private functions
+for use by language-specific HTML formatters
+.It Pa html.c
+main HTML formatting engine and utility functions
+.It Pa mdoc_html.c
+.Xr mdoc 7
+HTML formatter
+.It Pa man_html.c
+.Xr man 7
+HTML formatter
+.It Pa tbl_html.c
+.Xr tbl 7
+HTML formatter
+.It Pa eqn_html.c
+.Xr eqn 7
+HTML formatter
+.It Pa out.h
+declarations of data types and private functions
+for shared use by all mandoc formatters,
+not yet documented
+.It Pa out.c
+private functions for shared use by all mandoc formatters
+.It Pa mandoc_aux.h
+declarations of common mandoc utility functions, see
+.Xr mandoc 3
+.It Pa mandoc_aux.c
+implementation of common mandoc utility functions
+.El
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr mandoc 3 ,
+.Xr man.cgi 8
+.Sh AUTHORS
+.An -nosplit
+The mandoc HTML formatter was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
+This manual was written by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

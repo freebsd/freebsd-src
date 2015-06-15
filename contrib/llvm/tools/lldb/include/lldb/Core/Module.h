@@ -68,7 +68,7 @@ public:
     /// use ModuleList::GetSharedModule().
     ///
     /// @param[in] file_spec
-    ///     The file specification for the on disk repesentation of
+    ///     The file specification for the on disk representation of
     ///     this executable image.
     ///
     /// @param[in] arch
@@ -88,10 +88,14 @@ public:
     Module (const FileSpec& file_spec,
             const ArchSpec& arch,
             const ConstString *object_name = NULL,
-            off_t object_offset = 0,
+            lldb::offset_t object_offset = 0,
             const TimeValue *object_mod_time_ptr = NULL);
 
     Module (const ModuleSpec &module_spec);
+    
+    static lldb::ModuleSP
+    CreateJITModule (const lldb::ObjectFileJITDelegateSP &delegate_sp);
+    
     //------------------------------------------------------------------
     /// Destructor.
     //------------------------------------------------------------------
@@ -193,7 +197,7 @@ public:
     /// in a module.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     //------------------------------------------------------------------
     void
     Dump (Stream *s);
@@ -415,7 +419,7 @@ public:
                          VariableList& variable_list);
 
     //------------------------------------------------------------------
-    /// Find global and static variables by regular exression.
+    /// Find global and static variables by regular expression.
     ///
     /// @param[in] regex
     ///     A regular expression to use when matching the name.
@@ -468,11 +472,11 @@ public:
     ///
     /// @param[in] type_name
     ///     The name of the type we are looking for that is a fully
-    ///     or partially qualfieid type name.
+    ///     or partially qualified type name.
     ///
     /// @param[in] exact_match
-    ///     If \b true, \a type_name is fully qualifed and must match
-    ///     exactly. If \b false, \a type_name is a partially qualfied
+    ///     If \b true, \a type_name is fully qualified and must match
+    ///     exactly. If \b false, \a type_name is a partially qualified
     ///     name where the leading namespaces or classes can be
     ///     omitted to make finding types that a user may type
     ///     easier.
@@ -700,14 +704,40 @@ public:
     virtual SectionList *
     GetSectionList ();
 
+    //------------------------------------------------------------------
+    /// Notify the module that the file addresses for the Sections have
+    /// been updated.
+    ///
+    /// If the Section file addresses for a module are updated, this
+    /// method should be called.  Any parts of the module, object file,
+    /// or symbol file that has cached those file addresses must invalidate
+    /// or update its cache.
+    //------------------------------------------------------------------
+    virtual void
+    SectionFileAddressesChanged ();
+
     uint32_t
     GetVersion (uint32_t *versions, uint32_t num_versions);
 
-    // Load an object file from memory.
+    //------------------------------------------------------------------
+    /// Load an object file from memory. 
+    ///
+    /// If available, the size of the object file in memory may be 
+    /// passed to avoid additional round trips to process memory. 
+    /// If the size is not provided, a default value is used. This
+    /// value should be large enough to enable the ObjectFile plugins
+    /// to read the header of the object file without going back to the
+    /// process. 
+    ///
+    /// @return 
+    ///     The object file loaded from memory or NULL, if the operation 
+    ///     failed (see the `error` for more information in that case).
+    //------------------------------------------------------------------
     ObjectFile *
     GetMemoryObjectFile (const lldb::ProcessSP &process_sp, 
                          lldb::addr_t header_addr,
-                         Error &error);
+                         Error &error,
+                         size_t size_to_read = 512);
     //------------------------------------------------------------------
     /// Get the symbol vendor interface for the current architecture.
     ///
@@ -755,12 +785,12 @@ public:
     /// A debugging function that will cause everything in a module to
     /// be parsed.
     ///
-    /// All compile units will be pasred, along with all globals and
+    /// All compile units will be parsed, along with all globals and
     /// static variables and all functions for those compile units.
     /// All types, scopes, local variables, static variables, global
     /// variables, and line tables will be parsed. This can be used
     /// prior to dumping a module to see a complete list of the
-    /// resuling debug information that gets parsed, or as a debug
+    /// resulting debug information that gets parsed, or as a debug
     /// function to ensure that the module can consume all of the
     /// debug data the symbol vendor provides.
     //------------------------------------------------------------------
@@ -948,7 +978,7 @@ public:
 
     //------------------------------------------------------------------
     // Return true if the file backing this module has changed since the
-    // module was originally created  since we saved the intial file
+    // module was originally created  since we saved the initial file
     // modification time when the module first gets created.
     //------------------------------------------------------------------
     bool
@@ -1156,7 +1186,9 @@ protected:
     friend class SymbolFile;
 
 private:
-
+    
+    Module (); // Only used internally by CreateJITModule ()
+    
     size_t
     FindTypes_Impl (const SymbolContext& sc, 
                     const ConstString &name,

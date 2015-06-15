@@ -66,7 +66,7 @@ struct kerneldumpheader {
 	uint32_t	version;
 #define	KERNELDUMPVERSION	1
 	uint32_t	architectureversion;
-#define	KERNELDUMP_ALPHA_VERSION	1
+#define	KERNELDUMP_AARCH64_VERSION	1
 #define	KERNELDUMP_AMD64_VERSION	2
 #define	KERNELDUMP_ARM_VERSION		1
 #define	KERNELDUMP_I386_VERSION		2
@@ -100,8 +100,31 @@ kerneldump_parity(struct kerneldumpheader *kdhp)
 }
 
 #ifdef _KERNEL
+struct dump_pa {
+	vm_paddr_t pa_start;
+	vm_paddr_t pa_size;
+};
+
 void mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
     uint64_t dumplen, uint32_t blksz);
+
+int dumpsys_generic(struct dumperinfo *);
+
+void dumpsys_map_chunk(vm_paddr_t, size_t, void **);
+typedef int dumpsys_callback_t(struct dump_pa *, int, void *);
+int dumpsys_foreach_chunk(dumpsys_callback_t, void *);
+int dumpsys_cb_dumpdata(struct dump_pa *, int, void *);
+int dumpsys_buf_write(struct dumperinfo *, char *, size_t);
+int dumpsys_buf_flush(struct dumperinfo *);
+
+void dumpsys_gen_pa_init(void);
+struct dump_pa *dumpsys_gen_pa_next(struct dump_pa *);
+void dumpsys_gen_wbinv_all(void);
+void dumpsys_gen_unmap_chunk(vm_paddr_t, size_t, void *);
+int dumpsys_gen_write_aux_headers(struct dumperinfo *);
+
+extern int do_minidump;
+
 #endif
 
 #endif /* _SYS_KERNELDUMP_H */

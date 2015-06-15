@@ -55,14 +55,9 @@ public:
   void view() const;
 
 private:
-  virtual bool runOnMachineFunction(MachineFunction&);
-  virtual void getAnalysisUsage(AnalysisUsage&) const;
+  bool runOnMachineFunction(MachineFunction&) override;
+  void getAnalysisUsage(AnalysisUsage&) const override;
 };
-
-/// Specialize WriteGraph, the standard implementation won't work.
-raw_ostream &WriteGraph(raw_ostream &O, const EdgeBundles &G,
-                        bool ShortNames = false,
-                        const Twine &Title = "");
 
 } // end namespace llvm
 

@@ -612,7 +612,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 		} else if ((frame_ok = skip_tail(sc, framelen, crc)) != 0) {
 			sc->wait_frameno = 0;
 			sc->inppos = 0;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 			/* now skip all frames until is_first != 0 */
 		}
 	} else
@@ -624,7 +624,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 		 * is_first already... Drop entire packet.
 		 */
 		sc->wait_frameno = 0;
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	return (frame_ok);
@@ -638,7 +638,7 @@ send_complete(struct sbni_softc *sc)
 {
 	m_freem(sc->tx_buf_p);
 	sc->tx_buf_p = NULL;
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 }
 
 
@@ -689,7 +689,7 @@ append_frame_to_pkt(struct sbni_softc *sc, u_int framelen, u_int32_t crc)
 	sc->inppos += framelen - 4;
 	if (--sc->wait_frameno == 0) {		/* last frame received */
 		indicate_pkt(sc);
-		sc->ifp->if_ipackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 	}
 
 	return (1);
@@ -755,7 +755,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 	if (sc->tx_buf_p) {
 		m_freem(sc->tx_buf_p);
 		sc->tx_buf_p = NULL;
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	for (;;) {
@@ -763,7 +763,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 		if (m == NULL)
 			break;
 		m_freem(m);
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	sc->tx_frameno	= 0;
@@ -878,8 +878,7 @@ get_rx_buf(struct sbni_softc *sc)
 	 */
 	if (ETHER_MAX_LEN + 2 > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			return (0);
 		}

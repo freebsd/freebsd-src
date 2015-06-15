@@ -54,6 +54,9 @@ CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
 .if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
 CWARNFLAGS.clang+=	-Wmissing-variable-declarations
 .endif
+.if !defined(NO_WTHREAD_SAFETY)
+CWARNFLAGS.clang+=	-Wthread-safety
+.endif
 .endif # WARNS >= 6
 .if ${WARNS} >= 2 && ${WARNS} <= 4
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
@@ -65,13 +68,16 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # is set to low values, these have to be disabled explicitly.
 .if ${WARNS} <= 6
 CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} > 30300
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30400
 CWARNFLAGS.clang+= -Wno-unused-const-variable
 .endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
 		-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+CWARNFLAGS.clang+=	-Wno-unused-local-typedef
+.endif
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS.clang+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
@@ -103,17 +109,31 @@ CWARNFLAGS+=	-Werror
 CWARNFLAGS+=	-Wno-format
 .endif # NO_WFORMAT || NO_WFORMAT.${COMPILER_TYPE}
 
+# How to handle FreeBSD custom printf format specifiers.
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
+.else
+FORMAT_EXTENSIONS=	-fformat-extensions
+.endif
+
 .if defined(IGNORE_PRAGMA)
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
+# We need this conditional because many places that use it
+# only enable it for some files with CLFAGS.$FILE+=${CLANG_NO_IAS}.
+# unconditionally, and can't easily use the CFLAGS.clang=
+# mechanism.
 .if ${COMPILER_TYPE} == "clang"
-# Would love to do this unconditionally, but can't due to its use in
-# kernel build coupled with CFLAGS.${TARGET} feature
 CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
-		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
+		 -mllvm -simplifycfg-dup-ret
+.if ${COMPILER_VERSION} >= 30500
+CLANG_OPT_SMALL+= -mllvm -enable-gvn=false
+.else
+CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false
+.endif
 CFLAGS.clang+=	 -Qunused-arguments
 .if ${MACHINE_CPUARCH} == "sparc64"
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.
@@ -153,5 +173,113 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		realinstall regress subdir-all subdir-depend subdir-install \
 		tags whereobj
 
-.PHONY: ${PHONY_NOTMAIN}
-.NOTMAIN: ${PHONY_NOTMAIN}
+# we don't want ${PROG} to be PHONY
+.PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
+.NOTMAIN: ${PHONY_NOTMAIN:Nall}
+
+.if ${MK_STAGING} != "no"
+.if defined(_SKIP_BUILD) || (!make(all) && !make(clean*))
+_SKIP_STAGING?= yes
+.endif
+.if ${_SKIP_STAGING:Uno} == "yes"
+staging stage_libs stage_files stage_as stage_links stage_symlinks:
+.else
+# allow targets like beforeinstall to be leveraged
+DESTDIR= ${STAGE_OBJTOP}
+_SHLIBDIRPREFIX= ${STAGE_OBJTOP}
+
+.if commands(beforeinstall)
+.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+staging: beforeinstall
+.endif
+.endif
+
+# normally only libs and includes are staged
+.if ${MK_STAGING_PROG} != "no"
+STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
+
+.if !empty(PROG) || !empty(PROGS)
+.if defined(PROGNAME)
+STAGE_AS_SETS+= prog
+STAGE_AS_${PROG}= ${PROGNAME}
+stage_as.prog: ${PROG}
+.else
+STAGE_SETS+= prog
+stage_files.prog: ${PROG}
+staging: stage_files
+.endif
+.endif
+.endif
+
+.if !empty(_LIBS) && !defined(INTERNALLIB)
+.if defined(SHLIBDIR) && ${SHLIBDIR} != ${LIBDIR} && ${_LIBS:Uno:M*.so.*} != ""
+STAGE_SETS+= shlib
+STAGE_DIR.shlib= ${STAGE_OBJTOP}${SHLIBDIR}
+STAGE_FILES.shlib+= ${_LIBS:M*.so.*}
+stage_files.shlib: ${_LIBS:M*.so.*}
+.endif
+
+.if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
+_LDSCRIPTROOT?= ${STAGE_OBJTOP}
+STAGE_AS_SETS+= ldscript
+STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
+stage_as.ldscript: ${SHLIB_LINK:R}.ld
+STAGE_DIR.ldscript = ${STAGE_LIBDIR}
+STAGE_AS_${SHLIB_LINK:R}.ld:= ${SHLIB_LINK}
+NO_SHLIB_LINKS=
+.endif
+
+.if target(stage_files.shlib)
+stage_libs: ${_LIBS}
+.if defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
+stage_files.shlib: ${SHLIB_NAME}.symbols
+.endif
+.else
+stage_libs: ${_LIBS}
+.endif
+.if defined(SHLIB_NAME) && defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
+stage_libs: ${SHLIB_NAME}.symbols
+.endif
+
+.endif
+
+.if !empty(INCS) || !empty(INCSGROUPS) && target(buildincludes)
+.if !defined(NO_BEFOREBUILD_INCLUDES)
+stage_includes: buildincludes
+beforebuild: stage_includes
+.endif
+.endif
+
+.for t in stage_libs stage_files stage_as
+.if target($t)
+staging: $t
+.endif
+.endfor
+
+.if !empty(STAGE_AS_SETS)
+staging: stage_as
+.endif
+
+.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+
+.if !empty(LINKS)
+staging: stage_links
+.if ${MAKE_VERSION} < 20131001
+stage_links.links: ${_LIBS} ${PROG}
+.endif
+STAGE_SETS+= links
+STAGE_LINKS.links= ${LINKS}
+.endif
+
+.if !empty(SYMLINKS)
+staging: stage_symlinks
+STAGE_SETS+= links
+STAGE_SYMLINKS.links= ${SYMLINKS}
+.endif
+
+.endif
+
+.include <meta.stage.mk>
+.endif
+.endif
+

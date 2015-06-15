@@ -15,16 +15,22 @@
 #ifndef LLVM_MC_MCDWARF_H
 #define LLVM_MC_MCDWARF_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace llvm {
 class MCAsmBackend;
 class MCContext;
+class MCObjectStreamer;
 class MCSection;
 class MCStreamer;
 class MCSymbol;
@@ -36,40 +42,14 @@ class SMLoc;
 /// and MCDwarfFile's are created and unique'd by the MCContext class where
 /// the file number for each is its index into the vector of DwarfFiles (note
 /// index 0 is not used and not a valid dwarf file number).
-class MCDwarfFile {
+struct MCDwarfFile {
   // Name - the base name of the file without its directory path.
   // The StringRef references memory allocated in the MCContext.
-  StringRef Name;
+  std::string Name;
 
   // DirIndex - the index into the list of directory names for this file name.
   unsigned DirIndex;
-
-private: // MCContext creates and uniques these.
-  friend class MCContext;
-  MCDwarfFile(StringRef name, unsigned dirIndex)
-      : Name(name), DirIndex(dirIndex) {}
-
-  MCDwarfFile(const MCDwarfFile &) LLVM_DELETED_FUNCTION;
-  void operator=(const MCDwarfFile &) LLVM_DELETED_FUNCTION;
-
-public:
-  /// getName - Get the base name of this MCDwarfFile.
-  StringRef getName() const { return Name; }
-
-  /// getDirIndex - Get the dirIndex of this MCDwarfFile.
-  unsigned getDirIndex() const { return DirIndex; }
-
-  /// print - Print the value to the stream \p OS.
-  void print(raw_ostream &OS) const;
-
-  /// dump - Print the value to stderr.
-  void dump() const;
 };
-
-inline raw_ostream &operator<<(raw_ostream &OS, const MCDwarfFile &DwarfFile) {
-  DwarfFile.print(OS);
-  return OS;
-}
 
 /// MCDwarfLoc - Instances of this class represent the information from a
 /// dwarf .loc directive.
@@ -168,62 +148,111 @@ public:
   // This is called when an instruction is assembled into the specified
   // section and if there is information from the last .loc directive that
   // has yet to have a line entry made for it is made.
-  static void Make(MCStreamer *MCOS, const MCSection *Section);
+  static void Make(MCObjectStreamer *MCOS, const MCSection *Section);
 };
 
 /// MCLineSection - Instances of this class represent the line information
-/// for a section where machine instructions have been assembled after seeing
+/// for a compile unit where machine instructions have been assembled after seeing
 /// .loc directives.  This is the information used to build the dwarf line
 /// table for a section.
 class MCLineSection {
-
-private:
-  MCLineSection(const MCLineSection &) LLVM_DELETED_FUNCTION;
-  void operator=(const MCLineSection &) LLVM_DELETED_FUNCTION;
-
 public:
-  // Constructor to create an MCLineSection with an empty MCLineEntries
-  // vector.
-  MCLineSection() {}
-
   // addLineEntry - adds an entry to this MCLineSection's line entries
-  void addLineEntry(const MCLineEntry &LineEntry, unsigned CUID) {
-    MCLineDivisions[CUID].push_back(LineEntry);
+  void addLineEntry(const MCLineEntry &LineEntry, const MCSection *Sec) {
+    MCLineDivisions[Sec].push_back(LineEntry);
   }
 
   typedef std::vector<MCLineEntry> MCLineEntryCollection;
   typedef MCLineEntryCollection::iterator iterator;
   typedef MCLineEntryCollection::const_iterator const_iterator;
-  typedef std::map<unsigned, MCLineEntryCollection> MCLineDivisionMap;
+  typedef MapVector<const MCSection *, MCLineEntryCollection> MCLineDivisionMap;
 
 private:
-  // A collection of MCLineEntry for each Compile Unit ID.
+  // A collection of MCLineEntry for each section.
   MCLineDivisionMap MCLineDivisions;
 
 public:
-  // Returns whether MCLineSection contains entries for a given Compile
-  // Unit ID.
-  bool containEntriesForID(unsigned CUID) const {
-    return MCLineDivisions.count(CUID);
-  }
   // Returns the collection of MCLineEntry for a given Compile Unit ID.
-  const MCLineEntryCollection &getMCLineEntries(unsigned CUID) const {
-    MCLineDivisionMap::const_iterator CIter = MCLineDivisions.find(CUID);
-    assert(CIter != MCLineDivisions.end());
-    return CIter->second;
+  const MCLineDivisionMap &getMCLineEntries() const {
+    return MCLineDivisions;
   }
 };
 
-class MCDwarfFileTable {
+struct MCDwarfLineTableHeader {
+  MCSymbol *Label;
+  SmallVector<std::string, 3> MCDwarfDirs;
+  SmallVector<MCDwarfFile, 3> MCDwarfFiles;
+  StringMap<unsigned> SourceIdMap;
+  StringRef CompilationDir;
+
+  MCDwarfLineTableHeader() : Label(nullptr) {}
+  unsigned getFile(StringRef &Directory, StringRef &FileName,
+                   unsigned FileNumber = 0);
+  std::pair<MCSymbol *, MCSymbol *> Emit(MCStreamer *MCOS) const;
+  std::pair<MCSymbol *, MCSymbol *>
+  Emit(MCStreamer *MCOS, ArrayRef<char> SpecialOpcodeLengths) const;
+};
+
+class MCDwarfDwoLineTable {
+  MCDwarfLineTableHeader Header;
 public:
-  //
+  void setCompilationDir(StringRef CompilationDir) {
+    Header.CompilationDir = CompilationDir;
+  }
+  unsigned getFile(StringRef Directory, StringRef FileName) {
+    return Header.getFile(Directory, FileName);
+  }
+  void Emit(MCStreamer &MCOS) const;
+};
+
+class MCDwarfLineTable {
+  MCDwarfLineTableHeader Header;
+  MCLineSection MCLineSections;
+
+public:
   // This emits the Dwarf file and the line tables for all Compile Units.
-  //
-  static const MCSymbol *Emit(MCStreamer *MCOS);
-  //
+  static void Emit(MCObjectStreamer *MCOS);
+
   // This emits the Dwarf file and the line tables for a given Compile Unit.
-  //
-  static const MCSymbol *EmitCU(MCStreamer *MCOS, unsigned ID);
+  void EmitCU(MCObjectStreamer *MCOS) const;
+
+  unsigned getFile(StringRef &Directory, StringRef &FileName,
+                   unsigned FileNumber = 0);
+
+  MCSymbol *getLabel() const {
+    return Header.Label;
+  }
+
+  void setLabel(MCSymbol *Label) {
+    Header.Label = Label;
+  }
+
+  void setCompilationDir(StringRef CompilationDir) {
+    Header.CompilationDir = CompilationDir;
+  }
+
+  const SmallVectorImpl<std::string> &getMCDwarfDirs() const {
+    return Header.MCDwarfDirs;
+  }
+
+  SmallVectorImpl<std::string> &getMCDwarfDirs() {
+    return Header.MCDwarfDirs;
+  }
+
+  const SmallVectorImpl<MCDwarfFile> &getMCDwarfFiles() const {
+    return Header.MCDwarfFiles;
+  }
+
+  SmallVectorImpl<MCDwarfFile> &getMCDwarfFiles() {
+    return Header.MCDwarfFiles;
+  }
+
+  const MCLineSection &getMCLineSections() const {
+    return MCLineSections;
+  }
+  MCLineSection &getMCLineSections() {
+    return MCLineSections;
+  }
 };
 
 class MCDwarfLineAddr {
@@ -242,7 +271,7 @@ public:
   // When generating dwarf for assembly source files this emits the Dwarf
   // sections.
   //
-  static void Emit(MCStreamer *MCOS, const MCSymbol *LineSectionSymbol);
+  static void Emit(MCStreamer *MCOS);
 };
 
 // When generating dwarf for assembly source files this is the info that is
@@ -428,7 +457,7 @@ public:
     return Offset;
   }
 
-  const StringRef getValues() const {
+  StringRef getValues() const {
     assert(Operation == OpEscape);
     return StringRef(&Values[0], Values.size());
   }
@@ -436,19 +465,21 @@ public:
 
 struct MCDwarfFrameInfo {
   MCDwarfFrameInfo()
-      : Begin(0), End(0), Personality(0), Lsda(0), Function(0), Instructions(),
-        PersonalityEncoding(), LsdaEncoding(0), CompactUnwindEncoding(0),
-        IsSignalFrame(false) {}
+      : Begin(nullptr), End(nullptr), Personality(nullptr), Lsda(nullptr),
+        Instructions(), CurrentCfaRegister(0), PersonalityEncoding(),
+        LsdaEncoding(0), CompactUnwindEncoding(0), IsSignalFrame(false),
+        IsSimple(false) {}
   MCSymbol *Begin;
   MCSymbol *End;
   const MCSymbol *Personality;
   const MCSymbol *Lsda;
-  const MCSymbol *Function;
   std::vector<MCCFIInstruction> Instructions;
+  unsigned CurrentCfaRegister;
   unsigned PersonalityEncoding;
   unsigned LsdaEncoding;
   uint32_t CompactUnwindEncoding;
   bool IsSignalFrame;
+  bool IsSimple;
 };
 
 class MCDwarfFrameEmitter {
@@ -456,9 +487,8 @@ public:
   //
   // This emits the frame info section.
   //
-  static void Emit(MCStreamer &streamer, MCAsmBackend *MAB,
-                   bool usingCFI, bool isEH);
-  static void EmitAdvanceLoc(MCStreamer &Streamer, uint64_t AddrDelta);
+  static void Emit(MCObjectStreamer &streamer, MCAsmBackend *MAB, bool isEH);
+  static void EmitAdvanceLoc(MCObjectStreamer &Streamer, uint64_t AddrDelta);
   static void EncodeAdvanceLoc(MCContext &Context, uint64_t AddrDelta,
                                raw_ostream &OS);
 };

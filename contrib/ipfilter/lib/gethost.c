@@ -19,16 +19,17 @@ int gethost(family, name, hostp)
 	struct netent *n;
 	u_32_t addr;
 
+	bzero(hostp, sizeof(*hostp));
 	if (!strcmp(name, "test.host.dots")) {
 		if (family == AF_INET) {
 			hostp->in4.s_addr = htonl(0xfedcba98);
 		}
 #ifdef USE_INET6
 		if (family == AF_INET6) {
-			hostp->i6[0] = 0xfe80aa55;
-			hostp->i6[1] = 0x12345678;
-			hostp->i6[2] = 0x5a5aa5a5;
-			hostp->i6[3] = 0xfedcba98;
+			hostp->i6[0] = htonl(0xfe80aa55);
+			hostp->i6[1] = htonl(0x12345678);
+			hostp->i6[2] = htonl(0x5a5aa5a5);
+			hostp->i6[3] = htonl(0xfedcba98);
 		}
 #endif
 		return 0;

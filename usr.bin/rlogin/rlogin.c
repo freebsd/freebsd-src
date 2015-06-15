@@ -131,7 +131,7 @@ main(int argc, char *argv[])
 	long omask;
 	int argoff, ch, dflag, Dflag, one;
 	uid_t uid;
-	char *host, *localname, *p, *user, term[1024];
+	char *host, *localname, *p, *user, term[1024] = "network";
 	speed_t ospeed;
 	struct sockaddr_storage ss;
 	socklen_t sslen;

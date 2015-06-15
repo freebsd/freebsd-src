@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.72 2014/05/14 23:15:42 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.82 2015/06/03 18:01:20 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -44,9 +44,6 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.72 2014/05/14 23:15:42 christos Exp $")
 #endif
 #if defined(HAVE_LIMITS_H)
 #include <limits.h>
-#endif
-#if defined(HAVE_LOCALE_H)
-#include <locale.h>
 #endif
 
 #ifndef SIZE_MAX
@@ -162,8 +159,20 @@ file_badread(struct magic_set *ms)
 }
 
 #ifndef COMPILE_ONLY
+
+static int
+checkdone(struct magic_set *ms, int *rv)
+{
+	if ((ms->flags & MAGIC_CONTINUE) == 0)
+		return 1;
+	if (file_printf(ms, "\n- ") == -1)
+		*rv = -1;
+	return 0;
+}
+
+/*ARGSUSED*/
 protected int
-file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unused)),
+file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__unused__)),
     const void *buf, size_t nb)
 {
 	int m = 0, rv = 0, looks_text = 0;
@@ -217,7 +226,8 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 		if ((m = file_is_tar(ms, ubuf, nb)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "tar %d\n", m);
-			goto done;
+			if (checkdone(ms, &rv))
+				goto done;
 		}
 
 	/* Check if we have a CDF file */
@@ -225,12 +235,13 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 		if ((m = file_trycdf(ms, fd, ubuf, nb)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "cdf %d\n", m);
-			goto done;
+			if (checkdone(ms, &rv))
+				goto done;
 		}
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0)
-		if ((m = file_softmagic(ms, ubuf, nb, 0, BINTEST,
+		if ((m = file_softmagic(ms, ubuf, nb, 0, NULL, BINTEST,
 		    looks_text)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "softmagic %d\n", m);
@@ -252,7 +263,8 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 						    "elf %d\n", m);
 			}
 #endif
-			goto done;
+			if (checkdone(ms, &rv))
+				goto done;
 		}
 
 	/* try text properties */
@@ -261,7 +273,8 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 		if ((m = file_ascmagic(ms, ubuf, nb, looks_text)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "ascmagic %d\n", m);
-			goto done;
+			if (checkdone(ms, &rv))
+				goto done;
 		}
 	}
 
@@ -403,7 +416,7 @@ file_check_mem(struct magic_set *ms, unsigned int level)
 	size_t len;
 
 	if (level >= ms->c.len) {
-		len = (ms->c.len += 20) * sizeof(*ms->c.li);
+		len = (ms->c.len = 20 + level) * sizeof(*ms->c.li);
 		ms->c.li = CAST(struct level_info *, (ms->c.li == NULL) ?
 		    malloc(len) :
 		    realloc(ms->c.li, len));
@@ -455,13 +468,14 @@ out:
 protected int
 file_regcomp(file_regex_t *rx, const char *pat, int flags)
 {
-	rx->old_lc_ctype = setlocale(LC_CTYPE, NULL);
+#ifdef USE_C_LOCALE
+	rx->c_lc_ctype = newlocale(LC_CTYPE_MASK, "C", 0);
+	assert(rx->c_lc_ctype != NULL);
+	rx->old_lc_ctype = uselocale(rx->c_lc_ctype);
 	assert(rx->old_lc_ctype != NULL);
-	rx->old_lc_ctype = strdup(rx->old_lc_ctype);
-	assert(rx->old_lc_ctype != NULL);
+#endif
 	rx->pat = pat;
 
-	(void)setlocale(LC_CTYPE, "C");
 	return rx->rc = regcomp(&rx->rx, pat, flags);
 }
 
@@ -478,8 +492,10 @@ file_regfree(file_regex_t *rx)
 {
 	if (rx->rc == 0)
 		regfree(&rx->rx);
-	(void)setlocale(LC_CTYPE, rx->old_lc_ctype);
-	free(rx->old_lc_ctype);
+#ifdef USE_C_LOCALE
+	(void)uselocale(rx->old_lc_ctype);
+	freelocale(rx->c_lc_ctype);
+#endif
 }
 
 protected void
@@ -490,4 +506,69 @@ file_regerror(file_regex_t *rx, int rc, struct magic_set *ms)
 	(void)regerror(rc, &rx->rx, errmsg, sizeof(errmsg));
 	file_magerror(ms, "regex error %d for `%s', (%s)", rc, rx->pat,
 	    errmsg);
+}
+
+protected file_pushbuf_t *
+file_push_buffer(struct magic_set *ms)
+{
+	file_pushbuf_t *pb;
+
+	if (ms->event_flags & EVENT_HAD_ERR)
+		return NULL;
+
+	if ((pb = (CAST(file_pushbuf_t *, malloc(sizeof(*pb))))) == NULL)
+		return NULL;
+
+	pb->buf = ms->o.buf;
+	pb->offset = ms->offset;
+
+	ms->o.buf = NULL;
+	ms->offset = 0;
+
+	return pb;
+}
+
+protected char *
+file_pop_buffer(struct magic_set *ms, file_pushbuf_t *pb)
+{
+	char *rbuf;
+
+	if (ms->event_flags & EVENT_HAD_ERR) {
+		free(pb->buf);
+		free(pb);
+		return NULL;
+	}
+
+	rbuf = ms->o.buf;
+
+	ms->o.buf = pb->buf;
+	ms->offset = pb->offset;
+
+	free(pb);
+	return rbuf;
+}
+
+/*
+ * convert string to ascii printable format.
+ */
+protected char *
+file_printable(char *buf, size_t bufsiz, const char *str)
+{
+	char *ptr, *eptr;
+	const unsigned char *s = (const unsigned char *)str;
+
+	for (ptr = buf, eptr = ptr + bufsiz - 1; ptr < eptr && *s; s++) {
+		if (isprint(*s)) {
+			*ptr++ = *s;
+			continue;
+		}
+		if (ptr >= eptr - 3)
+			break;
+		*ptr++ = '\\';
+		*ptr++ = ((CAST(unsigned int, *s) >> 6) & 7) + '0';
+		*ptr++ = ((CAST(unsigned int, *s) >> 3) & 7) + '0';
+		*ptr++ = ((CAST(unsigned int, *s) >> 0) & 7) + '0';
+	}
+	*ptr = '\0';
+	return buf;
 }

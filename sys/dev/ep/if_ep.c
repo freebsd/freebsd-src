@@ -512,7 +512,7 @@ startagain:
 	 */
 	if (len + pad > ETHER_MAX_LEN) {
 		/* packet is obviously too large: toss it */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m0);
 		goto readcheck;
 	}
@@ -564,7 +564,7 @@ startagain:
 	BPF_MTAP(ifp, m0);
 
 	sc->tx_timer = 2;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	m_freem(m0);
 
 	/*
@@ -640,7 +640,8 @@ rescan:
 			    CSR_READ_2(sc, EP_W4_FIFO_DIAG));
 			printf("\tStat: %x\n", sc->stat);
 			printf("\tIpackets=%d, Opackets=%d\n",
-			    ifp->if_ipackets, ifp->if_opackets);
+			    ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS),
+			    ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS));
 			printf("\tNOF=%d, NOMB=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
 			    sc->rx_no_first, sc->rx_no_mbuf, sc->rx_overrunf,
 			    sc->rx_overrunl, sc->tx_underrun);
@@ -650,7 +651,7 @@ rescan:
 			device_printf(sc->dev,
 			    "Status: %x (input buffer overflow)\n", status);
 #else
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 #endif
 
 #endif
@@ -683,9 +684,9 @@ rescan:
 						 * TXS_MAX_COLLISION we
 						 * shouldn't get here
 						 */
-						++ifp->if_collisions;
+						if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 					}
-					++ifp->if_oerrors;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 					/*
 				         * To have a tx_avail_int but giving
@@ -731,7 +732,7 @@ epread(struct ep_softc *sc)
 read_again:
 
 	if (status & ERR_RX) {
-		++ifp->if_ierrors;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		if (status & ERR_RX_OVERRUN) {
 			/*
 		         * We can think the rx latency is actually
@@ -829,7 +830,7 @@ read_again:
 		return;
 	}
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
-	++ifp->if_ipackets;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	EP_FSET(sc, F_RX_FIRST);
 	top->m_pkthdr.rcvif = sc->ifp;
 	top->m_pkthdr.len = sc->cur_len;

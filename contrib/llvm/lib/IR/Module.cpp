@@ -17,12 +17,15 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/GVMaterializer.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GVMaterializer.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Support/LeakDetector.h"
+#include "llvm/IR/TypeFinder.h"
+#include "llvm/Support/Dwarf.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/RandomNumberGenerator.h"
 #include <algorithm>
 #include <cstdarg>
 #include <cstdlib>
@@ -42,8 +45,8 @@ template class llvm::SymbolTableListTraits<GlobalAlias, Module>;
 // Primitive Module methods.
 //
 
-Module::Module(StringRef MID, LLVMContext& C)
-  : Context(C), Materializer(NULL), ModuleID(MID) {
+Module::Module(StringRef MID, LLVMContext &C)
+    : Context(C), Materializer(), ModuleID(MID), DL("") {
   ValSymTab = new ValueSymbolTable();
   NamedMDSymTab = new StringMap<NamedMDNode *>();
   Context.addModule(this);
@@ -60,50 +63,24 @@ Module::~Module() {
   delete static_cast<StringMap<NamedMDNode *> *>(NamedMDSymTab);
 }
 
-/// Target endian information.
-Module::Endianness Module::getEndianness() const {
-  StringRef temp = DataLayout;
-  Module::Endianness ret = AnyEndianness;
+RandomNumberGenerator *Module::createRNG(const Pass* P) const {
+  SmallString<32> Salt(P->getPassName());
 
-  while (!temp.empty()) {
-    std::pair<StringRef, StringRef> P = getToken(temp, "-");
+  // This RNG is guaranteed to produce the same random stream only
+  // when the Module ID and thus the input filename is the same. This
+  // might be problematic if the input filename extension changes
+  // (e.g. from .c to .bc or .ll).
+  //
+  // We could store this salt in NamedMetadata, but this would make
+  // the parameter non-const. This would unfortunately make this
+  // interface unusable by any Machine passes, since they only have a
+  // const reference to their IR Module. Alternatively we can always
+  // store salt metadata from the Module constructor.
+  Salt += sys::path::filename(getModuleIdentifier());
 
-    StringRef token = P.first;
-    temp = P.second;
-
-    if (token[0] == 'e') {
-      ret = LittleEndian;
-    } else if (token[0] == 'E') {
-      ret = BigEndian;
-    }
-  }
-
-  return ret;
+  return new RandomNumberGenerator(Salt);
 }
 
-/// Target Pointer Size information.
-Module::PointerSize Module::getPointerSize() const {
-  StringRef temp = DataLayout;
-  Module::PointerSize ret = AnyPointerSize;
-
-  while (!temp.empty()) {
-    std::pair<StringRef, StringRef> TmpP = getToken(temp, "-");
-    temp = TmpP.second;
-    TmpP = getToken(TmpP.first, ":");
-    StringRef token = TmpP.second, signalToken = TmpP.first;
-
-    if (signalToken[0] == 'p') {
-      int size = 0;
-      getToken(token, ":").first.getAsInteger(10, size);
-      if (size == 32)
-        ret = Pointer32;
-      else if (size == 64)
-        ret = Pointer64;
-    }
-  }
-
-  return ret;
-}
 
 /// getNamedValue - Return the first global value in the module with
 /// the specified name, of arbitrary type.  This method returns null
@@ -140,23 +117,13 @@ Constant *Module::getOrInsertFunction(StringRef Name,
                                       AttributeSet AttributeList) {
   // See if we have a definition for the specified function already.
   GlobalValue *F = getNamedValue(Name);
-  if (F == 0) {
+  if (!F) {
     // Nope, add it
     Function *New = Function::Create(Ty, GlobalVariable::ExternalLinkage, Name);
     if (!New->isIntrinsic())       // Intrinsics get attrs set on construction
       New->setAttributes(AttributeList);
     FunctionList.push_back(New);
     return New;                    // Return the new prototype.
-  }
-
-  // Okay, the function exists.  Does it have externally visible linkage?
-  if (F->hasLocalLinkage()) {
-    // Clear the function's name.
-    F->setName("");
-    // Retry, now there won't be a conflict.
-    Constant *NewF = getOrInsertFunction(Name, Ty);
-    F->setName(Name);
-    return NewF;
   }
 
   // If the function exists but has the wrong type, return a bitcast to the
@@ -238,7 +205,7 @@ GlobalVariable *Module::getGlobalVariable(StringRef Name, bool AllowLocal) {
       dyn_cast_or_null<GlobalVariable>(getNamedValue(Name)))
     if (AllowLocal || !Result->hasLocalLinkage())
       return Result;
-  return 0;
+  return nullptr;
 }
 
 /// getOrInsertGlobal - Look up the specified global in the module symbol table.
@@ -250,11 +217,11 @@ GlobalVariable *Module::getGlobalVariable(StringRef Name, bool AllowLocal) {
 Constant *Module::getOrInsertGlobal(StringRef Name, Type *Ty) {
   // See if we have a definition for the specified global already.
   GlobalVariable *GV = dyn_cast_or_null<GlobalVariable>(getNamedValue(Name));
-  if (GV == 0) {
+  if (!GV) {
     // Nope, add it
     GlobalVariable *New =
       new GlobalVariable(*this, Ty, false, GlobalVariable::ExternalLinkage,
-                         0, Name);
+                         nullptr, Name);
      return New;                    // Return the new declaration.
   }
 
@@ -310,38 +277,47 @@ void Module::eraseNamedMetadata(NamedMDNode *NMD) {
   NamedMDList.erase(NMD);
 }
 
+bool Module::isValidModFlagBehavior(Metadata *MD, ModFlagBehavior &MFB) {
+  if (ConstantInt *Behavior = mdconst::dyn_extract<ConstantInt>(MD)) {
+    uint64_t Val = Behavior->getLimitedValue();
+    if (Val >= ModFlagBehaviorFirstVal && Val <= ModFlagBehaviorLastVal) {
+      MFB = static_cast<ModFlagBehavior>(Val);
+      return true;
+    }
+  }
+  return false;
+}
+
 /// getModuleFlagsMetadata - Returns the module flags in the provided vector.
 void Module::
 getModuleFlagsMetadata(SmallVectorImpl<ModuleFlagEntry> &Flags) const {
   const NamedMDNode *ModFlags = getModuleFlagsMetadata();
   if (!ModFlags) return;
 
-  for (unsigned i = 0, e = ModFlags->getNumOperands(); i != e; ++i) {
-    MDNode *Flag = ModFlags->getOperand(i);
-    if (Flag->getNumOperands() >= 3 && isa<ConstantInt>(Flag->getOperand(0)) &&
+  for (const MDNode *Flag : ModFlags->operands()) {
+    ModFlagBehavior MFB;
+    if (Flag->getNumOperands() >= 3 &&
+        isValidModFlagBehavior(Flag->getOperand(0), MFB) &&
         isa<MDString>(Flag->getOperand(1))) {
       // Check the operands of the MDNode before accessing the operands.
       // The verifier will actually catch these failures.
-      ConstantInt *Behavior = cast<ConstantInt>(Flag->getOperand(0));
       MDString *Key = cast<MDString>(Flag->getOperand(1));
-      Value *Val = Flag->getOperand(2);
-      Flags.push_back(ModuleFlagEntry(ModFlagBehavior(Behavior->getZExtValue()),
-                                      Key, Val));
+      Metadata *Val = Flag->getOperand(2);
+      Flags.push_back(ModuleFlagEntry(MFB, Key, Val));
     }
   }
 }
 
 /// Return the corresponding value if Key appears in module flags, otherwise
 /// return null.
-Value *Module::getModuleFlag(StringRef Key) const {
+Metadata *Module::getModuleFlag(StringRef Key) const {
   SmallVector<Module::ModuleFlagEntry, 8> ModuleFlags;
   getModuleFlagsMetadata(ModuleFlags);
-  for (unsigned I = 0, E = ModuleFlags.size(); I < E; ++I) {
-    const ModuleFlagEntry &MFE = ModuleFlags[I];
+  for (const ModuleFlagEntry &MFE : ModuleFlags) {
     if (Key == MFE.Key->getString())
       return MFE.Val;
   }
-  return 0;
+  return nullptr;
 }
 
 /// getModuleFlagsMetadata - Returns the NamedMDNode in the module that
@@ -362,12 +338,16 @@ NamedMDNode *Module::getOrInsertModuleFlagsMetadata() {
 /// metadata. It will create the module-level flags named metadata if it doesn't
 /// already exist.
 void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
-                           Value *Val) {
+                           Metadata *Val) {
   Type *Int32Ty = Type::getInt32Ty(Context);
-  Value *Ops[3] = {
-    ConstantInt::get(Int32Ty, Behavior), MDString::get(Context, Key), Val
-  };
+  Metadata *Ops[3] = {
+      ConstantAsMetadata::get(ConstantInt::get(Int32Ty, Behavior)),
+      MDString::get(Context, Key), Val};
   getOrInsertModuleFlagsMetadata()->addOperand(MDNode::get(Context, Ops));
+}
+void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
+                           Constant *Val) {
+  addModuleFlag(Behavior, Key, ConstantAsMetadata::get(Val));
 }
 void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
                            uint32_t Val) {
@@ -377,10 +357,38 @@ void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
 void Module::addModuleFlag(MDNode *Node) {
   assert(Node->getNumOperands() == 3 &&
          "Invalid number of operands for module flag!");
-  assert(isa<ConstantInt>(Node->getOperand(0)) &&
+  assert(mdconst::hasa<ConstantInt>(Node->getOperand(0)) &&
          isa<MDString>(Node->getOperand(1)) &&
          "Invalid operand types for module flag!");
   getOrInsertModuleFlagsMetadata()->addOperand(Node);
+}
+
+void Module::setDataLayout(StringRef Desc) {
+  DL.reset(Desc);
+
+  if (Desc.empty()) {
+    DataLayoutStr = "";
+  } else {
+    DataLayoutStr = DL.getStringRepresentation();
+    // DataLayoutStr is now equivalent to Desc, but since the representation
+    // is not unique, they may not be identical.
+  }
+}
+
+void Module::setDataLayout(const DataLayout *Other) {
+  if (!Other) {
+    DataLayoutStr = "";
+    DL.reset("");
+  } else {
+    DL = *Other;
+    DataLayoutStr = DL.getStringRepresentation();
+  }
+}
+
+const DataLayout *Module::getDataLayout() const {
+  if (DataLayoutStr.empty())
+    return nullptr;
+  return &DL;
 }
 
 //===----------------------------------------------------------------------===//
@@ -393,28 +401,17 @@ void Module::setMaterializer(GVMaterializer *GVM) {
   Materializer.reset(GVM);
 }
 
-bool Module::isMaterializable(const GlobalValue *GV) const {
-  if (Materializer)
-    return Materializer->isMaterializable(GV);
-  return false;
-}
-
 bool Module::isDematerializable(const GlobalValue *GV) const {
   if (Materializer)
     return Materializer->isDematerializable(GV);
   return false;
 }
 
-bool Module::Materialize(GlobalValue *GV, std::string *ErrInfo) {
+std::error_code Module::materialize(GlobalValue *GV) {
   if (!Materializer)
-    return false;
+    return std::error_code();
 
-  error_code EC = Materializer->Materialize(GV);
-  if (!EC)
-    return false;
-  if (ErrInfo)
-    *ErrInfo = EC.message();
-  return true;
+  return Materializer->materialize(GV);
 }
 
 void Module::Dematerialize(GlobalValue *GV) {
@@ -422,28 +419,37 @@ void Module::Dematerialize(GlobalValue *GV) {
     return Materializer->Dematerialize(GV);
 }
 
-bool Module::MaterializeAll(std::string *ErrInfo) {
+std::error_code Module::materializeAll() {
   if (!Materializer)
-    return false;
-  error_code EC = Materializer->MaterializeModule(this);
-  if (!EC)
-    return false;
-  if (ErrInfo)
-    *ErrInfo = EC.message();
-  return true;
+    return std::error_code();
+  return Materializer->MaterializeModule(this);
 }
 
-bool Module::MaterializeAllPermanently(std::string *ErrInfo) {
-  if (MaterializeAll(ErrInfo))
-    return true;
+std::error_code Module::materializeAllPermanently() {
+  if (std::error_code EC = materializeAll())
+    return EC;
+
   Materializer.reset();
-  return false;
+  return std::error_code();
 }
 
 //===----------------------------------------------------------------------===//
 // Other module related stuff.
 //
 
+std::vector<StructType *> Module::getIdentifiedStructTypes() const {
+  // If we have a materializer, it is possible that some unread function
+  // uses a type that is currently not visible to a TypeFinder, so ask
+  // the materializer which types it created.
+  if (Materializer)
+    return Materializer->getIdentifiedStructTypes();
+
+  std::vector<StructType *> Ret;
+  TypeFinder SrcStructTypes;
+  SrcStructTypes.run(*this, true);
+  Ret.assign(SrcStructTypes.begin(), SrcStructTypes.end());
+  return Ret;
+}
 
 // dropAllReferences() - This function causes all the subelements to "let go"
 // of all references that they are maintaining.  This allows one to 'delete' a
@@ -453,12 +459,39 @@ bool Module::MaterializeAllPermanently(std::string *ErrInfo) {
 // has "dropped all references", except operator delete.
 //
 void Module::dropAllReferences() {
-  for(Module::iterator I = begin(), E = end(); I != E; ++I)
-    I->dropAllReferences();
+  for (Function &F : *this)
+    F.dropAllReferences();
 
-  for(Module::global_iterator I = global_begin(), E = global_end(); I != E; ++I)
-    I->dropAllReferences();
+  for (GlobalVariable &GV : globals())
+    GV.dropAllReferences();
 
-  for(Module::alias_iterator I = alias_begin(), E = alias_end(); I != E; ++I)
-    I->dropAllReferences();
+  for (GlobalAlias &GA : aliases())
+    GA.dropAllReferences();
+}
+
+unsigned Module::getDwarfVersion() const {
+  auto *Val = cast_or_null<ConstantAsMetadata>(getModuleFlag("Dwarf Version"));
+  if (!Val)
+    return dwarf::DWARF_VERSION;
+  return cast<ConstantInt>(Val->getValue())->getZExtValue();
+}
+
+Comdat *Module::getOrInsertComdat(StringRef Name) {
+  auto &Entry = *ComdatSymTab.insert(std::make_pair(Name, Comdat())).first;
+  Entry.second.Name = &Entry;
+  return &Entry.second;
+}
+
+PICLevel::Level Module::getPICLevel() const {
+  auto *Val = cast_or_null<ConstantAsMetadata>(getModuleFlag("PIC Level"));
+
+  if (Val == NULL)
+    return PICLevel::Default;
+
+  return static_cast<PICLevel::Level>(
+      cast<ConstantInt>(Val->getValue())->getZExtValue());
+}
+
+void Module::setPICLevel(PICLevel::Level PL) {
+  addModuleFlag(ModFlagBehavior::Error, "PIC Level", PL);
 }

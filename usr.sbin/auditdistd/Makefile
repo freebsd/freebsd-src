@@ -21,13 +21,14 @@ SRCS+=	sandbox.c sender.c subr.c
 SRCS+=	token.l trail.c
 MAN=	auditdistd.8 auditdistd.conf.5
 
-DPADD=	${LIBL} ${LIBPTHREAD} ${LIBUTIL}
-LDADD=	-ll -lpthread -lutil
-DPADD+=	${LIBCRYPTO} ${LIBSSL}
-LDADD+=	-lcrypto -lssl
+LIBADD+=	l pthread util crypto ssl
 
 YFLAGS+=-v
 
 CLEANFILES=parse.c parse.h parse.output
+
+# auditdistd cannot use FreeBSD specific lock annotation macros. Disable
+# thread safety analysis completely.
+NO_WTHREAD_SAFETY=
 
 .include <bsd.prog.mk>

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,39 +42,10 @@
  */
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfileio")
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AslAbort
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Dump the error log and abort the compiler. Used for serious
- *              I/O errors.
- *
- ******************************************************************************/
-
-void
-AslAbort (
-    void)
-{
-
-    AePrintErrorLog (ASL_FILE_STDERR);
-    if (Gbl_DebugFlag)
-    {
-        /* Print error summary to stdout also */
-
-        AePrintErrorLog (ASL_FILE_STDOUT);
-    }
-
-    exit (1);
-}
 
 
 /*******************************************************************************
@@ -97,8 +68,8 @@ FlFileError (
     UINT8                   ErrorId)
 {
 
-    sprintf (MsgBuffer, "\"%s\" (%s)", Gbl_Files[FileId].Filename,
-        strerror (errno));
+    sprintf (MsgBuffer, "\"%s\" (%s) - %s", Gbl_Files[FileId].Filename,
+        Gbl_Files[FileId].Description, strerror (errno));
     AslCommonError (ASL_ERROR, ErrorId, 0, 0, 0, 0, NULL, MsgBuffer);
 }
 
@@ -127,6 +98,9 @@ FlOpenFile (
     FILE                    *File;
 
 
+    Gbl_Files[FileId].Filename = Filename;
+    Gbl_Files[FileId].Handle = NULL;
+
     File = fopen (Filename, Mode);
     if (!File)
     {
@@ -134,8 +108,7 @@ FlOpenFile (
         AslAbort ();
     }
 
-    Gbl_Files[FileId].Filename = Filename;
-    Gbl_Files[FileId].Handle   = File;
+    Gbl_Files[FileId].Handle = File;
 }
 
 
@@ -147,7 +120,8 @@ FlOpenFile (
  *
  * RETURN:      File Size
  *
- * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
+ * DESCRIPTION: Get current file size. Uses common seek-to-EOF function.
+ *              File must be open. Aborts compiler on error.
  *
  ******************************************************************************/
 
@@ -155,20 +129,15 @@ UINT32
 FlGetFileSize (
     UINT32                  FileId)
 {
-    FILE                    *fp;
     UINT32                  FileSize;
-    long                    Offset;
 
 
-    fp = Gbl_Files[FileId].Handle;
-    Offset = ftell (fp);
+    FileSize = CmGetFileSize (Gbl_Files[FileId].Handle);
+    if (FileSize == ACPI_UINT32_MAX)
+    {
+        AslAbort();
+    }
 
-    fseek (fp, 0, SEEK_END);
-    FileSize = (UINT32) ftell (fp);
-
-    /* Restore file pointer */
-
-    fseek (fp, Offset, SEEK_SET);
     return (FileSize);
 }
 
@@ -351,6 +320,8 @@ FlCloseFile (
         FlFileError (FileId, ASL_MSG_CLOSE);
         AslAbort ();
     }
+
+    /* Do not clear/free the filename string */
 
     Gbl_Files[FileId].Handle = NULL;
     return;

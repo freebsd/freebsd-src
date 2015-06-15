@@ -14,15 +14,12 @@
 #ifndef LLVM_SUPPORT_FILEOUTPUTBUFFER_H
 #define LLVM_SUPPORT_FILEOUTPUTBUFFER_H
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/FileSystem.h"
 
 namespace llvm {
-class error_code;
-
 /// FileOutputBuffer - This interface provides simple way to create an in-memory
 /// buffer which will be written to a file. During the lifetime of these
 /// objects, the content or existence of the specified file is undefined. That
@@ -40,9 +37,9 @@ public:
   /// Factory method to create an OutputBuffer object which manages a read/write
   /// buffer of the specified size. When committed, the buffer will be written
   /// to the file at the specified path.
-  static error_code create(StringRef FilePath, size_t Size,
-                           OwningPtr<FileOutputBuffer> &Result,
-                           unsigned Flags = 0);
+  static std::error_code create(StringRef FilePath, size_t Size,
+                                std::unique_ptr<FileOutputBuffer> &Result,
+                                unsigned Flags = 0);
 
   /// Returns a pointer to the start of the buffer.
   uint8_t *getBufferStart() {
@@ -69,7 +66,7 @@ public:
   /// is called, the file is deleted in the destructor. The optional parameter
   /// is used if it turns out you want the file size to be smaller than
   /// initially requested.
-  error_code commit(int64_t NewSmallerSize = -1);
+  std::error_code commit();
 
   /// If this object was previously committed, the destructor just deletes
   /// this object.  If this object was not committed, the destructor
@@ -80,10 +77,10 @@ private:
   FileOutputBuffer(const FileOutputBuffer &) LLVM_DELETED_FUNCTION;
   FileOutputBuffer &operator=(const FileOutputBuffer &) LLVM_DELETED_FUNCTION;
 
-  FileOutputBuffer(llvm::sys::fs::mapped_file_region *R,
+  FileOutputBuffer(std::unique_ptr<llvm::sys::fs::mapped_file_region> R,
                    StringRef Path, StringRef TempPath);
 
-  OwningPtr<llvm::sys::fs::mapped_file_region> Region;
+  std::unique_ptr<llvm::sys::fs::mapped_file_region> Region;
   SmallString<128>    FinalPath;
   SmallString<128>    TempPath;
 };

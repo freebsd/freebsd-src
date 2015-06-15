@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: ex_z.c,v 10.12 2001/06/25 15:19:22 skimo Exp 
  * ex_z -- :[line] z [^-.+=] [count] [flags]
  *	Adjust window.
  *
- * PUBLIC: int ex_z __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_z(SCR *, EXCMD *);
  */
 int
 ex_z(SCR *sp, EXCMD *cmdp)
@@ -54,11 +54,7 @@ ex_z(SCR *sp, EXCMD *cmdp)
 	if (FL_ISSET(cmdp->iflags, E_C_COUNT))
 		cnt = cmdp->count;
 	else
-#ifdef HISTORICAL_PRACTICE
-		cnt = O_VAL(sp, O_SCROLL) * 2;
-#else
 		cnt = O_VAL(sp, O_WINDOW) - 1;
-#endif
 
 	equals = 0;
 	eofcheck = 0;

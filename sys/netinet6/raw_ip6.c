@@ -169,12 +169,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	RIP6STAT_INC(rip6s_ipackets);
 
-	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
-		/* XXX Send icmp6 host/port unreach? */
-		m_freem(m);
-		return (IPPROTO_DONE);
-	}
-
 	init_sin6(&fromsa, m); /* general init */
 
 	ifp = m->m_pkthdr.rcvif;
@@ -270,7 +264,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			if (n && ipsec6_in_reject(n, last)) {
 				m_freem(n);
-				IPSEC6STAT_INC(ips_in_polvio);
 				/* Do not inject data into pcb. */
 			} else
 #endif /* IPSEC */
@@ -302,7 +295,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	if ((last != NULL) && ipsec6_in_reject(m, last)) {
 		m_freem(m);
-		IPSEC6STAT_INC(ips_in_polvio);
 		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */
 		INP_RUNLOCK(last);

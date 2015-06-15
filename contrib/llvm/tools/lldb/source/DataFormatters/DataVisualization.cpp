@@ -101,6 +101,18 @@ DataVisualization::GetSyntheticForType (lldb::TypeNameSpecifierImplSP type_sp)
 }
 #endif
 
+lldb::TypeValidatorImplSP
+DataVisualization::GetValidator (ValueObject& valobj, lldb::DynamicValueType use_dynamic)
+{
+    return GetFormatManager().GetValidator(valobj, use_dynamic);
+}
+
+lldb::TypeValidatorImplSP
+DataVisualization::GetValidatorForType (lldb::TypeNameSpecifierImplSP type_sp)
+{
+    return GetFormatManager().GetValidatorForType(type_sp);
+}
+
 bool
 DataVisualization::AnyMatches (ConstString type_name,
                                TypeCategoryImpl::FormatCategoryItems items,
@@ -181,6 +193,18 @@ DataVisualization::Categories::Disable (const lldb::TypeCategoryImplSP& category
 {
     if (category.get() && category->IsEnabled() == true)
         GetFormatManager().DisableCategory(category);
+}
+
+void
+DataVisualization::Categories::EnableStar ()
+{
+    GetFormatManager().EnableAllCategories ();
+}
+
+void
+DataVisualization::Categories::DisableStar ()
+{
+    GetFormatManager().DisableAllCategories();
 }
 
 void

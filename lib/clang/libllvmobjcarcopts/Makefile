@@ -13,7 +13,8 @@ SRCS=	ObjCARC.cpp \
 	ObjCARCUtil.cpp \
 	ObjCARCContract.cpp \
 	DependencyAnalysis.cpp \
-	ProvenanceAnalysis.cpp
+	ProvenanceAnalysis.cpp \
+	ProvenanceAnalysisEvaluator.cpp
 
 TGHDRS=	Intrinsics
 

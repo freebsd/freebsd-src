@@ -54,9 +54,28 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 /*
- * Media to register setting conversion table.  Order matters.
+ *
+ * An array of structures to map MII media types to BMCR/ANAR settings.
  */
-static const struct mii_media mii_media_table[MII_NMEDIA] = {
+enum { 
+	MII_MEDIA_NONE = 0,
+	MII_MEDIA_10_T,
+	MII_MEDIA_10_T_FDX,
+	MII_MEDIA_100_T4,
+	MII_MEDIA_100_TX,
+	MII_MEDIA_100_TX_FDX,
+	MII_MEDIA_1000_X,
+	MII_MEDIA_1000_X_FDX,
+	MII_MEDIA_1000_T,
+	MII_MEDIA_1000_T_FDX,
+	MII_NMEDIA,
+};
+
+static const struct mii_media {
+	u_int	mm_bmcr;		/* BMCR settings for this media */
+	u_int	mm_anar;		/* ANAR settings for this media */
+	u_int	mm_gtcr;		/* 100base-T2 or 1000base-T CR */
+} mii_media_table[MII_NMEDIA] = {
 	/* None */
 	{ BMCR_ISO,		ANAR_CSMA,
 	  0, },
@@ -104,8 +123,10 @@ mii_phy_setmedia(struct mii_softc *sc)
 	struct mii_data *mii = sc->mii_pdata;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmcr, anar, gtcr;
+	int index = -1;
 
-	if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
+	switch (IFM_SUBTYPE(ife->ifm_media)) {
+	case IFM_AUTO:
 		/*
 		 * Force renegotiation if MIIF_DOPAUSE or MIIF_FORCEANEG.
 		 * The former is necessary as we might switch from flow-
@@ -115,19 +136,78 @@ mii_phy_setmedia(struct mii_softc *sc)
 		    (sc->mii_flags & (MIIF_DOPAUSE | MIIF_FORCEANEG)) != 0)
 			(void)mii_phy_auto(sc);
 		return;
+
+	case IFM_NONE:
+		index = MII_MEDIA_NONE;
+		break;
+
+	case IFM_HPNA_1:
+		index = MII_MEDIA_10_T;
+		break;
+
+	case IFM_10_T:
+		switch (IFM_OPTIONS(ife->ifm_media)) {
+		case 0:
+			index = MII_MEDIA_10_T;
+			break;
+		case IFM_FDX:
+		case (IFM_FDX | IFM_FLOW):
+			index = MII_MEDIA_10_T_FDX;
+			break;
+		};
+		break;
+
+	case IFM_100_TX:
+	case IFM_100_FX:
+		switch (IFM_OPTIONS(ife->ifm_media)) {
+		case 0:
+			index = MII_MEDIA_100_TX;
+			break;
+		case IFM_FDX:
+		case (IFM_FDX | IFM_FLOW):
+			index = MII_MEDIA_100_TX_FDX;
+			break;
+		}
+		break;
+
+	case IFM_100_T4:
+		index = MII_MEDIA_100_T4;
+		break;
+
+	case IFM_1000_SX:
+		switch (IFM_OPTIONS(ife->ifm_media)) {
+		case 0:
+			index = MII_MEDIA_1000_X;
+			break;
+		case IFM_FDX:
+		case (IFM_FDX | IFM_FLOW):
+			index = MII_MEDIA_1000_X_FDX;
+			break;
+		}
+		break;
+
+	case IFM_1000_T:
+		switch (IFM_OPTIONS(ife->ifm_media)) {
+		case 0:
+		case IFM_ETH_MASTER:
+			index = MII_MEDIA_1000_T;
+			break;
+		case IFM_FDX:
+		case (IFM_FDX | IFM_ETH_MASTER):
+		case (IFM_FDX | IFM_FLOW):
+		case (IFM_FDX | IFM_FLOW | IFM_ETH_MASTER):
+			index = MII_MEDIA_1000_T_FDX;
+			break;
+		}
+		break;
 	}
 
-	/*
-	 * Table index is stored in the media entry.
-	 */
+	KASSERT(index != -1, ("%s: failed to map media word %d",
+	    __func__, ife->ifm_media));
 
-	KASSERT(ife->ifm_data >=0 && ife->ifm_data < MII_NMEDIA,
-	    ("invalid ife->ifm_data (0x%x) in mii_phy_setmedia",
-	    ife->ifm_data));
-
-	anar = mii_media_table[ife->ifm_data].mm_anar;
-	bmcr = mii_media_table[ife->ifm_data].mm_bmcr;
-	gtcr = mii_media_table[ife->ifm_data].mm_gtcr;
+	anar = mii_media_table[index].mm_anar;
+	bmcr = mii_media_table[index].mm_bmcr;
+	gtcr = mii_media_table[index].mm_gtcr;
 
 	if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
 		gtcr |= GTCR_MAN_MS;
@@ -279,12 +359,6 @@ mii_phy_reset(struct mii_softc *sc)
 }
 
 void
-mii_phy_down(struct mii_softc *sc)
-{
-
-}
-
-void
 mii_phy_update(struct mii_softc *sc, int cmd)
 {
 	struct mii_data *mii = sc->mii_pdata;
@@ -324,12 +398,11 @@ mii_phy_add_media(struct mii_softc *sc)
 	 */
 	sc->mii_anegticks = MII_ANEGTICKS;
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+#define	ADD(m)		ifmedia_add(&mii->mii_media, (m), 0, NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
 	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-		    MII_MEDIA_NONE);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst));
 		PRINT("none");
 	}
 
@@ -341,51 +414,44 @@ mii_phy_add_media(struct mii_softc *sc)
 	if ((sc->mii_flags & MIIF_IS_HPNA) != 0) {
 		if ((sc->mii_capabilities & BMSR_10THDX) != 0) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_HPNA_1, 0,
-			    sc->mii_inst), MII_MEDIA_10_T);
+			    sc->mii_inst));
 			PRINT("HomePNA1");
 		}
 		return;
 	}
 
 	if ((sc->mii_capabilities & BMSR_10THDX) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst),
-		    MII_MEDIA_10_T);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst));
 		PRINT("10baseT");
 	}
 	if ((sc->mii_capabilities & BMSR_10TFDX) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
-		    MII_MEDIA_10_T_FDX);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst));
 		PRINT("10baseT-FDX");
 		if ((sc->mii_flags & MIIF_DOPAUSE) != 0 &&
 		    (sc->mii_flags & MIIF_NOMANPAUSE) == 0) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T,
-			    IFM_FDX | IFM_FLOW, sc->mii_inst),
-			    MII_MEDIA_10_T_FDX);
+			    IFM_FDX | IFM_FLOW, sc->mii_inst));
 			PRINT("10baseT-FDX-flow");
 		}
 		fdx = 1;
 	}
 	if ((sc->mii_capabilities & BMSR_100TXHDX) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
-		    MII_MEDIA_100_TX);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst));
 		PRINT("100baseTX");
 	}
 	if ((sc->mii_capabilities & BMSR_100TXFDX) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
-		    MII_MEDIA_100_TX_FDX);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst));
 		PRINT("100baseTX-FDX");
 		if ((sc->mii_flags & MIIF_DOPAUSE) != 0 &&
 		    (sc->mii_flags & MIIF_NOMANPAUSE) == 0) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX,
-			    IFM_FDX | IFM_FLOW, sc->mii_inst),
-			    MII_MEDIA_100_TX_FDX);
+			    IFM_FDX | IFM_FLOW, sc->mii_inst));
 			PRINT("100baseTX-FDX-flow");
 		}
 		fdx = 1;
 	}
 	if ((sc->mii_capabilities & BMSR_100T4) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_T4, 0, sc->mii_inst),
-		    MII_MEDIA_100_T4);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_T4, 0, sc->mii_inst));
 		PRINT("100baseT4");
 	}
 
@@ -398,20 +464,19 @@ mii_phy_add_media(struct mii_softc *sc)
 			sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 			sc->mii_flags |= MIIF_IS_1000X;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0,
-			    sc->mii_inst), MII_MEDIA_1000_X);
+			    sc->mii_inst));
 			PRINT("1000baseSX");
 		}
 		if ((sc->mii_extcapabilities & EXTSR_1000XFDX) != 0) {
 			sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 			sc->mii_flags |= MIIF_IS_1000X;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX,
-			    sc->mii_inst), MII_MEDIA_1000_X_FDX);
+			    sc->mii_inst));
 			PRINT("1000baseSX-FDX");
 			if ((sc->mii_flags & MIIF_DOPAUSE) != 0 &&
 			    (sc->mii_flags & MIIF_NOMANPAUSE) == 0) {
 				ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX,
-				    IFM_FDX | IFM_FLOW, sc->mii_inst),
-				    MII_MEDIA_1000_X_FDX);
+				    IFM_FDX | IFM_FLOW, sc->mii_inst));
 				PRINT("1000baseSX-FDX-flow");
 			}
 			fdx = 1;
@@ -427,31 +492,29 @@ mii_phy_add_media(struct mii_softc *sc)
 			sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 			sc->mii_flags |= MIIF_HAVE_GTCR;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0,
-			    sc->mii_inst), MII_MEDIA_1000_T);
+			    sc->mii_inst));
 			PRINT("1000baseT");
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
-			    IFM_ETH_MASTER, sc->mii_inst), MII_MEDIA_1000_T);
+			    IFM_ETH_MASTER, sc->mii_inst));
 			PRINT("1000baseT-master");
 		}
 		if ((sc->mii_extcapabilities & EXTSR_1000TFDX) != 0) {
 			sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 			sc->mii_flags |= MIIF_HAVE_GTCR;
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX,
-			    sc->mii_inst), MII_MEDIA_1000_T_FDX);
+			    sc->mii_inst));
 			PRINT("1000baseT-FDX");
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
-			    IFM_FDX | IFM_ETH_MASTER, sc->mii_inst),
-			    MII_MEDIA_1000_T_FDX);
+			    IFM_FDX | IFM_ETH_MASTER, sc->mii_inst));
 			PRINT("1000baseT-FDX-master");
 			if ((sc->mii_flags & MIIF_DOPAUSE) != 0 &&
 			    (sc->mii_flags & MIIF_NOMANPAUSE) == 0) {
 				ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
-				    IFM_FDX | IFM_FLOW, sc->mii_inst),
-				    MII_MEDIA_1000_T_FDX);
+				    IFM_FDX | IFM_FLOW, sc->mii_inst));
 				PRINT("1000baseT-FDX-flow");
 				ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
 				    IFM_FDX | IFM_FLOW | IFM_ETH_MASTER,
-				    sc->mii_inst), MII_MEDIA_1000_T_FDX);
+				    sc->mii_inst));
 				PRINT("1000baseT-FDX-flow-master");
 			}
 			fdx = 1;
@@ -460,12 +523,11 @@ mii_phy_add_media(struct mii_softc *sc)
 
 	if ((sc->mii_capabilities & BMSR_ANEG) != 0) {
 		/* intentionally invalid index */
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst),
-		    MII_NMEDIA);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst));
 		PRINT("auto");
 		if (fdx != 0 && (sc->mii_flags & MIIF_DOPAUSE) != 0) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, IFM_FLOW,
-			    sc->mii_inst), MII_NMEDIA);
+			    sc->mii_inst));
 			PRINT("auto-flow");
 		}
 	}
@@ -479,7 +541,6 @@ mii_phy_detach(device_t dev)
 	struct mii_softc *sc;
 
 	sc = device_get_softc(dev);
-	mii_phy_down(sc);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
 	return (0);

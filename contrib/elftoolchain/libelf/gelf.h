@@ -23,13 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gelf.h 1168 2010-09-04 01:03:25Z jkoshy $
+ * $Id: gelf.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #ifndef	_GELF_H_
 #define	_GELF_H_
-
-#include <sys/cdefs.h>
 
 #include <libelf.h>
 
@@ -69,7 +67,9 @@ typedef Elf64_Syminfo	GElf_Syminfo;	/* Symbol information */
 #define	GELF_ST_TYPE			ELF64_ST_TYPE
 #define	GELF_ST_VISIBILITY		ELF64_ST_VISIBILITY
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 long		gelf_checksum(Elf *_elf);
 size_t		gelf_fsize(Elf *_elf, Elf_Type _type, size_t _count,
 			unsigned int _version);
@@ -103,6 +103,8 @@ GElf_Syminfo	*gelf_getsyminfo(Elf_Data *_src, int _index, GElf_Syminfo *_dst);
 int		gelf_update_cap(Elf_Data *_dst, int _index, GElf_Cap *_src);
 int		gelf_update_move(Elf_Data *_dst, int _index, GElf_Move *_src);
 int		gelf_update_syminfo(Elf_Data *_dst, int _index, GElf_Syminfo *_src);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* _GELF_H_ */

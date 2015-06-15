@@ -60,7 +60,7 @@ typedef u_long	fptrdiff_t;
 
 #define	MCOUNT								\
 	__asm__(".text");						\
-	__asm__(".align	0");						\
+	__asm__(".align	2");						\
 	__asm__(".type	__mcount ,%function");				\
 	__asm__(".global	__mcount");				\
 	__asm__("__mcount:");						\
@@ -86,7 +86,12 @@ typedef u_long	fptrdiff_t;
 	/*								\
 	 * Restore registers that were trashed during mcount		\
 	 */								\
-	__asm__("ldmfd	sp!, {r0-r3, lr, pc}");
+	__asm__("ldmfd	sp!, {r0-r3, lr}");				\
+	/*								\
+	 * Return to the caller. Loading lr and pc in one instruction	\
+	 * is deprecated on ARMv7 so we need this on it's own.		\
+	 */								\
+	__asm__("ldmfd	sp!, {pc}");
 void bintr(void);
 void btrap(void);
 void eintr(void);

@@ -421,20 +421,16 @@ gusc_release_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 gusc_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
 		driver_filter_t *filter,
-#endif
 		driver_intr_t *intr, void *arg, void **cookiep)
 {
 	sc_p scp = (sc_p)device_get_softc(dev);
 	devclass_t devclass;
 
-#if __FreeBSD_version >= 700031
 	if (filter != NULL) {
 		printf("gusc.c: we cannot use a filter here\n");
 		return (EINVAL);
 	}
-#endif
 	devclass = device_get_devclass(child);
 	if (strcmp(devclass_get_name(devclass), "midi") == 0) {
 		scp->midi_intr.intr = intr;
@@ -446,9 +442,7 @@ gusc_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 		return 0;
 	}
 	return bus_generic_setup_intr(dev, child, irq, flags,
-#if __FreeBSD_version >= 700031
 				filter,
-#endif
 				intr, arg, cookiep);
 }
 

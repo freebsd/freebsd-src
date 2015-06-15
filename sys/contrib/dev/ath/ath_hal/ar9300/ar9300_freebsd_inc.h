@@ -35,6 +35,7 @@
 #define ATH_SUPPORT_PAPRD       1
 #define ATH_SUPPORT_TxBF        0
 #define AH_PRIVATE_DIAG         1
+#define ATH_SUPPORT_KEYPLUMB_WAR 0
 
 /* XXX need to reverify these; they came in with qcamain */
 #define ATH_SUPPORT_FAST_CC 0
@@ -57,7 +58,9 @@
 #ifdef	AH_SUPPORT_AR9340
 #define AH_SUPPORT_WASP			1
 #endif	/* AH_SUPPORT_AR9340 */
-//#define AH_SUPPORT_SCORPION             1
+#ifdef	AH_SUPPORT_QCA9550
+#define AH_SUPPORT_SCORPION             1
+#endif	/* AH_SUPPORT_QCA9550 */
 #define FIX_NOISE_FLOOR                 1
 
 /* XXX this needs to be removed! No atomics in the HAL! */

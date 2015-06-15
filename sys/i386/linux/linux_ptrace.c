@@ -91,8 +91,7 @@ static __inline int
 map_signum(int signum)
 {
 
-	if (signum > 0 && signum <= LINUX_SIGTBLSZ)
-		signum = linux_to_bsd_signal[_SIG_IDX(signum)];
+	signum = linux_to_bsd_signal(signum);
 	return ((signum == SIGSTOP)? 0 : signum);
 }
 
@@ -225,7 +224,7 @@ linux_proc_read_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	if (cpu_fxsr == 0 || (td->td_proc->p_flag & P_INMEM) == 0)
 		return (EIO);
-	bcopy(&td->td_pcb->pcb_user_save.sv_xmm, fpxregs, sizeof(*fpxregs));
+	bcopy(&get_pcb_user_save_td(td)->sv_xmm, fpxregs, sizeof(*fpxregs));
 	return (0);
 }
 
@@ -236,7 +235,7 @@ linux_proc_write_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	if (cpu_fxsr == 0 || (td->td_proc->p_flag & P_INMEM) == 0)
 		return (EIO);
-	bcopy(fpxregs, &td->td_pcb->pcb_user_save.sv_xmm, sizeof(*fpxregs));
+	bcopy(fpxregs, &get_pcb_user_save_td(td)->sv_xmm, sizeof(*fpxregs));
 	return (0);
 }
 #endif

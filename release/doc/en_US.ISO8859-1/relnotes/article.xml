@@ -7,174 +7,886 @@
  %sponsor;
 <!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
  %vendor;
+<!ENTITY security SYSTEM "../../share/xml/security.xml">
+<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
-<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
-  <info><title>&os; &release.current; Release Notes</title>
+<article xmlns="http://docbook.org/ns/docbook"
+  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
 
-  <author><orgname>The &os; Project</orgname></author>
+  <info>
+    <title>&os; &release.current; Release Notes</title>
 
-  <pubdate>$FreeBSD$</pubdate>
+    <author>
+      <orgname>The &os; Project</orgname>
+    </author>
 
-  <copyright>
-    <year>2014</year>
-    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
-      Project</holder>
-  </copyright>
+    <pubdate>$FreeBSD$</pubdate>
 
-  <legalnotice xml:id="trademarks" role="trademarks">
-    &tm-attrib.freebsd;
-    &tm-attrib.ibm;
-    &tm-attrib.ieee;
-    &tm-attrib.intel;
-    &tm-attrib.sparc;
-    &tm-attrib.general;
-  </legalnotice>
+    <!-- Last rev: 282482 -->
 
-  <abstract>
-    <para>The release notes for &os; &release.current; contain
-      a summary of the changes made to the &os; base system on the
-      &release.branch; development line.  This document lists
-      applicable security advisories that were issued since the last
-      release, as well as significant changes to the &os; kernel and
-      userland.  Some brief remarks on upgrading are also
-      presented.</para>
-  </abstract>
-</info>
+    <copyright>
+      <year>2015</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
+	Project</holder>
+    </copyright>
 
-<sect1 xml:id="intro">
-  <title>Introduction</title>
+    <legalnotice xml:id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.ibm;
+      &tm-attrib.ieee;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
 
-  <para>This document contains the release notes for &os;
-    &release.current;.  It describes recently added, changed, or
-    deleted features of &os;.  It also provides some notes on
-    upgrading from previous versions of &os;.</para>
+    <abstract>
+      <para>The release notes for &os; &release.current; contain
+	a summary of the changes made to the &os; base system on the
+	&release.branch; development line.  This document lists
+	applicable security advisories that were issued since the last
+	release, as well as significant changes to the &os; kernel and
+	userland.  Some brief remarks on upgrading are also
+	presented.</para>
+    </abstract>
+  </info>
 
-  <para releasetype="current">The &release.type; distribution to which
-    these release notes apply represents the latest point along the
-    &release.branch; development branch since &release.branch; was
-    created.  Information regarding pre-built, binary &release.type;
-    distributions along this branch can be found at <uri
-      xlink:href="&release.url;">&release.url;</uri>.</para>
+  <sect1 xml:id="intro">
+    <title>Introduction</title>
 
-  <para releasetype="snapshot">The &release.type; distribution to
-    which these release notes apply represents a point along the
-    &release.branch; development branch between &release.prev; and the
-    future &release.next;.  Information regarding pre-built, binary
-    &release.type; distributions along this branch can be found at
-    <uri xlink:href="&release.url;">&release.url;</uri>.</para>
+    <para>This document contains the release notes for &os;
+      &release.current;.  It describes recently added, changed, or
+      deleted features of &os;.  It also provides some notes on
+      upgrading from previous versions of &os;.</para>
 
-  <para releasetype="release">This distribution of &os;
-    &release.current; is a &release.type; distribution.  It can be
-    found at <uri xlink:href="&release.url;">&release.url;</uri> or
-    any of its mirrors.  More information on obtaining this (or other)
-    &release.type; distributions of &os; can be found in the <link
-      xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
-	&os;</quote> appendix</link> to the <link
-      xlink:href="&url.books.handbook;/">&os; Handbook</link>.</para>
+    <para releasetype="current">The &release.type; distribution to
+      which these release notes apply represents the latest point
+      along the &release.branch; development branch since
+      &release.branch; was created.  Information regarding pre-built,
+      binary &release.type; distributions along this branch can be
+      found at <uri
+	xlink:href="&release.url;">&release.url;</uri>.</para>
 
-  <para>All users are encouraged to consult the release errata before
-    installing &os;.  The errata document is updated with
-    <quote>late-breaking</quote> information discovered late in the
-    release cycle or after the release.  Typically, it contains
-    information on known bugs, security advisories, and corrections to
-    documentation.  An up-to-date copy of the errata for &os;
-    &release.current; can be found on the &os; Web site.</para>
-</sect1>
+    <para releasetype="snapshot">The &release.type; distribution to
+      which these release notes apply represents a point along the
+      &release.branch; development branch between &release.prev; and
+      the future &release.next;.  Information regarding pre-built,
+      binary &release.type; distributions along this branch can be
+      found at <uri
+	xlink:href="&release.url;">&release.url;</uri>.</para>
 
-<sect1 xml:id="new">
-  <title>What's New</title>
+    <para releasetype="release">This distribution of &os;
+      &release.current; is a &release.type; distribution.  It can be
+      found at <uri xlink:href="&release.url;">&release.url;</uri> or
+      any of its mirrors.  More information on obtaining this (or
+      other) &release.type; distributions of &os; can be found in the
+      <link
+	xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+	  &os;</quote> appendix</link> to the <link
+	xlink:href="&url.books.handbook;/">&os;
+	Handbook</link>.</para>
 
-  <para>This section describes the most user-visible new or changed
-    features in &os; since &release.prev;.  In general, changes
-    described here are unique to the &release.branch; branch unless
-    specifically marked as &merged; features.</para>
+    <para>All users are encouraged to consult the release errata
+      before installing &os;.  The errata document is updated with
+      <quote>late-breaking</quote> information discovered late in the
+      release cycle or after the release.  Typically, it contains
+      information on known bugs, security advisories, and corrections
+      to documentation.  An up-to-date copy of the errata for &os;
+      &release.current; can be found on the &os; Web site.</para>
 
-  <para>Typical release note items document recent security advisories
-    issued after &release.prev;, new drivers or hardware support, new
-    commands or options, major bug fixes, or contributed software
-    upgrades.  They may also list changes to major ports/packages or
-    release engineering practices.  Clearly the release notes cannot
-    list every single change made to &os; between releases; this
-    document focuses primarily on security advisories, user-visible
-    changes, and major architectural improvements.</para>
+    <para>This document describes the most user-visible new or changed
+      features in &os; since &release.prev;.  In general, changes
+      described here are unique to the &release.branch; branch unless
+      specifically marked as &merged; features.</para>
 
-  <sect2 xml:id="security">
-    <title>Security Advisories</title>
+    <para>Typical release note items document recent security
+      advisories issued after &release.prev;, new drivers or hardware
+      support, new commands or options, major bug fixes, or
+      contributed software upgrades.  They may also list changes to
+      major ports/packages or release engineering practices.  Clearly
+      the release notes cannot list every single change made to &os;
+      between releases; this document focuses primarily on security
+      advisories, user-visible changes, and major architectural
+      improvements.</para>
+  </sect1>
 
-    <para>No advisories.</para>
+  <sect1 xml:id="upgrade">
+    <title>Upgrading from Previous Releases of &os;</title>
 
-  </sect2>
+    <para arch="amd64,i386">Binary upgrades between RELEASE versions
+      (and snapshots of the various security branches) are supported
+      using the &man.freebsd-update.8; utility.  The binary upgrade
+      procedure will update unmodified userland utilities, as well as
+      unmodified GENERIC kernels distributed as a part of an official
+      &os; release.  The &man.freebsd-update.8; utility requires that
+      the host being upgraded have Internet connectivity.</para>
 
-  <sect2 xml:id="kernel">
-    <title>Kernel Changes</title>
+    <para>Source-based upgrades (those based on recompiling the &os;
+      base system from source code) from previous versions are
+      supported, according to the instructions in
+      <filename>/usr/src/UPDATING</filename>.</para>
 
-    <para revision="260903">Support for GPS ports has been added to
-      &man.uhso.4;.</para>
+    <important>
+      <para>Upgrading &os; should only be attempted after backing up
+	<emphasis>all</emphasis> data and configuration files.</para>
+    </important>
+  </sect1>
 
-    <para revision="264601" contrib="sponsor"
-      sponsor="&darpa_afrl;">The <literal>if_nf10bmac(4)</literal>
-      device has been added, providing support for NetFPGA-10G
-      Embedded CPU Ethernet Core.</para>
+  <sect1 xml:id="security-errata">
+    <title>Security and Errata</title>
 
-    <note>
-      <para>The <literal>if_nf10bmac(4)</literal> driver operates on
-	the FPGA, and is not suited for the PCI host interface.</para>
-    </note>
+    <para>This section lists the various Security Advisories and
+      Errata Notices since &release.prev;.</para>
 
-    <para revision="265132">The &man.full.4; device has been added,
-      and the <literal>lindev(4)</literal> device has been removed.
-      Prior to this change, <literal>lindev(4)</literal> provided only
-      the <filename>/dev/full</filename> character device, returning
-      <literal>ENOSPC</literal> on write attempts.  As this device is
-      not specific to &linux;, a native &os; version has been
-      added.</para>
+    <sect2 xml:id="security">
+      <title>Security Advisories</title>
 
-    <para revision="265236" contrib="sponsor"
-      sponsor="&lsi;, &spectralogic;" sponsorurl="">The &man.mpr.4;
-      device has been added, providing support for LSI Fusion-MPT
-      3 12Gb SCSI/SATA controllers.</para>
+      &security;
+    </sect2>
 
-    <para revision="265555" contrib="sponsor"
-      sponsor="&lsi;">The &man.mrsas.4; driver has been added,
-      providing support for LSI MegaRAID SAS controllers.  The
-      &man.mfi.4; driver will attach to the controller, by default.
-      To enable &man.mrsas.4; add
-      <literal>hw.mfi.mrsas_enable=1</literal> to
-      <filename>/boot/loader.conf</filename>, which turns off
-      &man.mfi.4; device probing.</para>
+    <sect2 xml:id="errata">
+      <title>Errata Notices</title>
 
-    <note>
-      <para>At this time, the &man.mfiutil.8; utility and
-	the &os; version of
-	<application>MegaCLI</application> and
-	<application>StorCli</application> do not work with
-	&man.mrsas.4;.</para>
-    </note>
+      &errata;
+    </sect2>
+  </sect1>
 
-    <para revision="265876">A kernel bug that inhibited proper
-      functionality of the <literal>dev.cpu.0.freq</literal>
-      &man.sysctl.8; on &intel; processors with Turbo
-      Boost&nbsp;&trade; enabled has been fixed.</para>
+  <sect1 xml:id="userland">
+    <title>Userland</title>
 
-    <para revision="266531">The <literal>IMAGACT_BINMISC</literal>
-      kernel configuration option has been enabled by default,
-      which enables application execution through emulators, such
-      as <application>Qemu</application>.</para>
+    <para>This section covers changes and additions to userland
+      applications, contributed software, and system utilities.</para>
 
-    <para revision="266757" contrib="sponsor"
-	sponsor="&chelsio;">Support for the &man.cxgbe.4; Terminator 5
-      (T5) 10G/40G cards has been added to &man.netmap.4;.</para>
+    <sect2 xml:id="userland-config">
+      <title>Userland Configuration Changes</title>
 
-    <para revision="268045">The <literal>VT</literal> kernel
-      configuration file has been removed, and the &man.vt.4;
-      driver is included in the <literal>GENERIC</literal> kernel.
-      To enable &man.vt.4;, enter <literal>set kern.vty=vt</literal>
-      at the &man.loader.8; prompt during boot, or add
-      <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
-      reboot the system.</para>
+      <para revision="266463">The default &man.newsyslog.conf.5; now
+	includes files in the
+	<filename>/etc/newsyslog.conf.d/</filename> and
+	<filename>/usr/local/etc/newsyslog.conf.d/</filename>
+	directories by default for &man.newsyslog.8;.</para>
 
-    <sect3 xml:id="kernel-virtualization">
-      <title>Virtualization support</title>
+      <para revision="270675">The &man.mailwrapper.8; utility has been
+	updated to use &man.mailer.conf.5; from the
+	<literal>LOCALBASE</literal> environment variable, which
+	defaults to <filename class="directory">/usr/local</filename>
+	if unset.</para>
+
+      <para revision="272350">The <literal>MK_ARM_EABI</literal>
+	&man.src.conf.5; option has been removed.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-programs">
+      <title>Userland Application Changes</title>
+
+      <para revision="258838" contrib="sponsor" sponsor="&ff;,
+	&google;" sponsorurl="">The &man.casperd.8; daemon has been
+	added, which provides access to functionality that is not
+	available in the <quote>capability mode</quote>
+	sandbox.</para>
+
+      <para revision="260594">When unable to load a kernel module with
+	&man.kldload.8;, a message informing to view output of
+	&man.dmesg.8; is now printed, opposed to the previous output
+	<quote>Exec format error.</quote>.</para>
+
+      <para revision="260910">Allow &man.pciconf.8; to identify PCI
+	devices that are attached to a driver to be identified by
+	their device name instead of just the selector.  Additionally,
+	an optional device argument to the <literal>-l</literal> flag
+	to restrict the output to only listing details about a single
+	device.</para>
+
+      <para revision="260913">A new flag, <quote>onifconsole</quote>
+	has been added to <filename>/etc/ttys</filename>.  This allows
+	the system to provide a login prompt via serial console if the
+	device is an active kernel console, otherwise it is equivalent
+	to <literal>off</literal>.</para>
+
+      <para revision="260926">Support for displaying VPD for PCI
+	devices via &man.pciconf.8; has been added.</para>
+
+      <para revision="261498">&man.ping.8; protects against malicious
+	network packets using the Capsicum framework to drop
+	privileges.</para>
+
+      <para revision="265229">The &man.ps.1; utility has been
+	updated to include the <literal>-J</literal> flag, used to
+	filter output by matching &man.jail.8; IDs and names.
+	Additionally, argument <literal>0</literal> can be used to
+	<literal>-J</literal> to only list processes running on the
+	host system.</para>
+
+      <para revision="265249">The &man.top.1; utility has been updated
+	to filter by &man.jail.8; ID or name, in followup to the
+	&man.ps.1; change in <literal>r265229</literal>.</para>
+
+      <para revision="265995">The Blowfish &man.crypt.3; default
+	format has been changed to
+	<literal>&dollar;2b&dollar;</literal>.</para>
+
+      <para revision="266209">The &man.pmcstat.8; utility has been
+	updated to include a new flag, <literal>-l</literal>, which
+	ends event collection after the specified number of
+	seconds.</para>
+
+      <para revision="270745">The &man.ps.1; utility has been updated
+	to include a new keyword, <quote>tracer</quote>, which
+	displays the <acronym>PID</acronym> of the tracing
+	process.</para>
+
+      <para revision="271482">Support for adding empty partitions has
+	been added to the &man.mkimg.1; utility.</para>
+
+      <para revision="272166">The &man.primes.6; utility has been
+	updated to correctly enumerate prime numbers between
+	<literal>4295098369</literal> and
+	<literal>3825123056546413050</literal>, which prior to this
+	change, it would be possible for returned values to be
+	incorrectly identified as prime numbers.</para>
+
+      <para revision="272198">The &man.mkimg.1; utility has been
+	updated to include three options used to print information
+	about &man.mkimg.1; itself:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Option</entry>
+	      <entry>Output</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>--version</literal></entry>
+	      <entry>The current version of the &man.mkimg.1;
+		utility</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>--formats</literal></entry>
+	      <entry>The disk image file formats supported by
+		&man.mkimg.1;</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>--schemes</literal></entry>
+	      <entry>The partition schemes supported by
+		&man.mkimg.1;</entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
+      <para revision="272488">Userland &man.ctf.5; support in
+	&man.dtrace.1; has been added.  With this change,
+	&man.dtrace.1; is able to resolve type info for function and
+	<acronym>USDT</acronym> probe arguments, and function return
+	values.</para>
+
+      <para revision="274960">The &man.elfdump.1; utility has been
+	updated to support capability mode provided by
+	&man.capsicum.4;.</para>
+
+      <para revision="275680" contrib="sponsor" sponsor="&ff;">The
+	&man.fstyp.8; utility has been added, which is used to
+	determine the filesystem on a specified device.</para>
+
+      <para revision="276881">The <literal>libedit</literal> library
+	has been updated to support <acronym>UTF</acronym>-8, which
+	additionally provides unicode support to &man.sh.1;.</para>
+
+      <para revision="277166" arch="powerpc">The &man.ptrace.2; system
+	call has been updated include support for Altivec registers on
+	&os;/&arch.powerpc;.</para>
+
+      <para revision="278320">A new device control utility,
+	&man.devctl.8; has been added, which allows making
+	administrative changes to individual devices, such as
+	attaching and detaching drivers, and enabling and disabling
+	devices.  The &man.devctl.8; utility uses the new
+	&man.devctl.3; library.</para>
+
+      <para revision="279315" contrib="sponsor" sponsor="&ff;">The
+	&man.uefisign.8; utility has been added.</para>
+
+      <para revision="279571" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
+	been updated to prevent fetching updated binary patches when
+	a previous upgrade has not been thoroughly completed.</para>
+
+      <para revision="279122" contrib="sponsor"
+	sponsor="&juniper;">The &man.netstat.1; utility has been
+	updated to link against the &man.libxo.3; shared
+	library.</para>
+
+      <para revision="280870">A regression in the &man.libarchive.3;
+	library that would prevent a directory from being included in
+	the archive when <literal>--one-file-system</literal> is used
+	has been fixed.</para>
+
+      <para revision="281311" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility has been updated to set
+	<literal>ARCHIVE_EXTRACT_SECURE_SYMLINKS</literal> and
+	<literal>ARCHIVE_EXTRACT_SECURE_NODOTDOT</literal> to disallow
+	directory traversal when extracting an archive, similar to
+	&man.tar.1;.</para>
+
+      <para revision="282208" contrib="sponsor"
+	sponsor="&multiplay;">The &man.chflags.1;, &man.chgrp.1;,
+	&man.chmod.1;, and &man.chown.8; utilities now affect symbolic
+	links when the <literal>-R</literal> flag is specified, as
+	documented in &man.symlink.7;.</para>
+
+      <para revision="281617">A race condition in &man.wc.1; that
+	would cause final results to be sent to &man.stderr.4; when
+	receiving the <literal>SIGINFO</literal> signal has been
+	fixed.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-contrib">
+      <title>Contributed Software</title>
+
+      <para revision="258884" contrib="sponsor"
+	sponsor="&darpa_afrl;">&man.lldb.1; has been updated to
+	upstream snapshot version r196259.</para>
+
+      <para revision="259626">Timezone data files have been updated to
+	version 2013i.</para>
+
+      <para revision="260445">&man.byacc.1; has been updated to
+	version 20140101.</para>
+
+      <para revision="261071">&man.jemalloc.3; has been updated to
+	version 3.5.0.</para>
+
+      <para revision="261283"><application>libc++</application> has
+	been updated to version 3.4.</para>
+
+      <para revision="261320"><application>OpenSSH</application> has
+	been updated to 6.5p1.</para>
+
+      <para revision="261344"><application>mdocml</application> has
+	been updated to version 1.12.3.</para>
+
+      <para revision="261991"><application>LLVM</application> and
+	<application>Clang</application> have been updated to
+	version 3.4.</para>
+
+      <para revision="266527"
+	role="merged"><application>Sendmail</application> has been
+	updated from 8.14.7 to 8.14.9.</para>
+
+      <para revision="276577"><application>file</application> has been
+	updated to version 5.22.</para>
+
+      <para revision="275718">The <application>binutils</application>
+	suite of utilities has been updated to include upstream
+	patches that add new relocations for &arch.powerpc;
+	support.</para>
+
+      <para revision="276398" contrib="sponsor" sponsor="&ff;">The
+	<application>ELF Tool Chain</application> has been updated to
+	upstream revision r3136.</para>
+
+      <para revision="276551">The <application>texinfo</application>
+	utility and <literal>info</literal> pages were removed from
+	the base system.  The <filename
+	  role="package">print/texinfo</filename> port should be
+	installed on systems where <literal>info</literal> pages are
+	needed.</para>
+
+      <para revision="276796" contrib="sponsor" sponsor="&ff;">The ELF
+	object manipulation tools
+	<application>addr2line</application>,
+	<application>elfcopy (strip)</application>,
+	<application>nm</application>,
+	<application>readelf</application>,
+	<application>size</application>, and
+	<application>strings</application> were switched to the
+	versions from the ELF Tool Chain project.</para>
+
+      <para revision="276881">The <literal>libedit</literal> library
+	has been updated to include <acronym>UTF-8</acronym> support,
+	adding <acronym>UTF-8</acronym> support to the &man.sh.1;
+	shell.</para>
+
+      <para revision="278433">The &man.xz.1; utility has been updated
+	to support multi-threaded compression.</para>
+
+      <para revision="280297"><application>OpenSSL</application> has
+	been updated to version 1.0.1m.</para>
+
+      <para revision="280932" contrib="sponsor" sponsor="&ff;">The
+	<application>elftoolchain</application> utilities have been
+	updated to version 3179.</para>
+
+      <para revision="281316">The &man.xz.1; utility has been updated
+	to version 5.2.1.</para>
+
+      <para revision="281373">The &man.nvi.1; utility has been updated
+	to version 2.1.3.</para>
+
+      <para revision="281396">The &man.acpi.4; subsystem has been
+	updated to version 20150410.</para>
+
+      <para revision="281806">The &man.wpa.supplicant.8; and
+	&man.hostapd.8; utilities have been updated to version
+	2.4.</para>
+
+      <para revision="281812"><application>bmake</application> has
+	been updated to version 20150418.</para>
+
+      <para revision="282089">The &man.unbound.8; utility has been
+	updated to version 1.5.3.</para>
+
+      <para revision="282434" contrib="sponsor" sponsor="&ff;">The
+	&man.resolvconf.8; utility has been updated to version
+	3.7.0.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-installer">
+      <title>Installation and Configuration Tools</title>
+
+      <para revision="271539">The &man.bsdinstall.8; partition editor
+	and &man.sade.8; utility have been updated to include native
+	<acronym>ZFS</acronym> support.</para>
+
+      <para revision="272274">The &os; installation utility,
+	&man.bsdinstall.8;, has been updated to set the
+	<literal>canmount</literal> &man.zfs.8; property to
+	<literal>off</literal> for the <filename
+	  class="directory">/var</filename> dataset, preventing the
+	contents of directories within <filename
+	  class="directory">/var</filename> from conflicting when
+	using multiple boot environments, such as that provided by
+	<filename role="package">sysutils/beadm</filename>.</para>
+
+      <para revision="274394">The &man.bsdconfig.8; utility has been
+	updated to skip the initial &man.tzsetup.8;
+	<acronym>UTC</acronym> versus wall-clock time prompt when run
+	in a virtual machine, determined when the
+	<literal>kern.vm_guest</literal> &man.sysctl.8; is set to
+	<literal>1</literal>.</para>
+
+      <para revision="275874">The &man.bsdinstall.8; utility has been
+	updated to use the new &man.dpv.3; library to display progress
+	when extracting the &os; distributions.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-rc">
+      <title><filename class="directory">/etc/rc.d</filename>
+	Scripts</title>
+
+      <para revision="270676">The &man.rc.8; subsystem has been
+	updated to allow configuring services in <filename
+	  class="directory">&dollar;{LOCALBASE}/etc/rc.conf.d/</filename>.
+	If <literal>LOCALBASE</literal> is unset, it defaults to
+	<filename class="directory">/usr/local</filename>.</para>
+
+      <para revision="275299">The <filename>mrouted</filename>
+	&man.rc.8; script has been removed from the base system.  An
+	equivalent script is available from the <filename
+	  role="package">net/mrouted</filename> port.</para>
+
+      <para revision="279463" contrib="sponsor"
+	sponsor="&sandvine;">A new &man.rc.8; script,
+	<filename>iovctl</filename>, has been added, which allows
+	automatically starting the &man.iovctl.8; utility at
+	boot.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-periodic">
+      <title><filename class="directory">/etc/periodic</filename>
+	Scripts</title>
+
+      <para revision="271321">The daily &man.periodic.8; script
+	<filename>110.clean-tmps</filename> has been updated to avoid
+	crossing filesystem mount boundaries when cleaning files in
+	<filename class="directory">/tmp</filename>.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-libraries">
+      <title>Runtime Libraries and API</title>
+
+      <para revision="268461">The &man.readline.3; library is now
+	statically linked in software within the base system, and the
+	shared library is no longer installed, allowing the Ports
+	Collection to use a modern version of the library.</para>
+
+      <para revision="272273">The &man.strptime.3; library has been
+	updated to add support for <acronym>POSIX</acronym>-2001
+	features <literal>%U</literal> and
+	<literal>%W</literal>.</para>
+
+      <para revision="272842,272848" contrib="sponsor"
+	sponsor="&ff;">The &man.dl.iterate.phdr.3; library has been
+	changed to always return the path name of the
+	<acronym>ELF</acronym> object in the
+	<literal>dlpi_name</literal> structure member.</para>
+
+      <para revision="273562" contrib="sponsor"
+	sponsor="&juniper;">The &man.libxo.3; library has been
+	imported to the base system.</para>
+
+      <para revision="273806" contrib="sponsor" sponsor="&chelsio;">A
+	userland library for Chelsio Terminator 5 based iWARP cards
+	has been added, allowing userland <acronym>RDMA</acronym>
+	applications to work over compatible
+	<acronym>NIC</acronym>s.</para>
+
+      <para revision="274987">The &man.gpio.3; library has been added,
+	providing a wrapper around the &man.gpio.4; kernel
+	interface.</para>
+
+      <para revision="277610">The <literal>futimens()</literal> and
+	<literal>utimensat()</literal> system calls have been
+	added.  See &man.utimensat.2; for more information.</para>
+
+      <para revision="278934">The &man.elf.3; compile-time dependency
+	has been removed from <filename>dtri.o</filename>, which
+	allows adding <application>DTrace</application> probes to
+	userland applications and libraries without also linking
+	against &man.elf.3;.</para>
+
+      <para revision="279186">The &man.setmode.3; function has been
+	updated to consistently set <literal>errno</literal> on
+	failure.</para>
+
+      <para revision="279663">The &man.qsort.3; functions have been
+	updated to be able to handle 32-bit aligned data on 64-bit
+	platforms, also providing a significant improvement in 32-bit
+	workloads.</para>
+
+      <para revision="281130">Several standard include headers have
+	been updated to use of <application>gcc</application>
+	attributes, such as <literal>__result_use_check()</literal>,
+	<literal>__alloc_size()</literal>, and
+	<literal>__nonnull()</literal>.</para>
+
+      <para revision="281845">Support for file verification in
+	<acronym>MAC</acronym> has been added.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-abi">
+      <title>ABI Compatibility</title>
+
+      <para revision="271982">The &linux; compatibility version has
+	been updated to <literal>2.6.18</literal>.  The
+	<literal>compat.linux.osrelease</literal> &man.sysctl.8; is
+	evaluated when building the <filename
+	  role="package">emulators/linux-c6</filename> and related
+	ports.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="kernel">
+    <title>Kernel</title>
+
+    <para>This section covers changes to kernel configurations, system
+      tuning, and system control parameters that are not otherwise
+      categorized.</para>
+
+    <sect2 xml:id="kernel-bugfix">
+      <title>Kernel Bug Fixes</title>
+
+      <para revision="265876">A kernel bug that inhibited proper
+	functionality of the <literal>dev.cpu.0.freq</literal>
+	&man.sysctl.8; on &intel; processors with Turbo
+	Boost&nbsp;&trade; enabled has been fixed.</para>
+
+      <para revision="271697" arch="powerpc">Support for
+	&man.dtrace.1; stack tracing has been fixed for
+	&os;/&arch.powerpc;, using the <literal>trapexit()</literal>
+	and <literal>asttrapexit()</literal> functions instead of
+	checking within addressed kernel space.</para>
+
+      <para revision="272089">A bug in &man.ipfw.4; that could
+	potentially lead to a kernel panic when using &man.dummynet.4;
+	at layer 2 has been fixed.</para>
+
+      <para revision="280930" contrib="sponsor" sponsor="&mitail;">The
+	kernel <acronym>RPC</acronym> has been updated to include
+	several enhancements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The 45 MiB limit on requests queued for
+	    &man.nfsd.8; threads has been removed.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Avoids unnecessary throttling by not deferring
+	    accounting for completed requests.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fixes an integer overflow and signedness bugs.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para revision="281261" arch="powerpc">Support for
+	&man.dtrace.1; has been added for the
+	Book-E&nbsp;&trade;.</para>
+    </sect2>
+
+    <sect2 xml:id="kernel-config">
+      <title>Kernel Configuration</title>
+
+      <para revision="266531">The <literal>IMAGACT_BINMISC</literal>
+	kernel configuration option has been enabled by default,
+	which enables application execution through emulators, such
+	as <application>Qemu</application>.</para>
+
+      <para revision="268045">The <literal>VT</literal> kernel
+	configuration file has been removed, and the &man.vt.4;
+	driver is included in the <literal>GENERIC</literal> kernel.
+	To enable &man.vt.4;, enter <literal>set kern.vty=vt</literal>
+	at the &man.loader.8; prompt during boot, or add
+	<literal>kern.vty=vt</literal> to &man.loader.conf.5; and
+	reboot the system.</para>
+
+      <para revision="277904">The &man.config.8; utility has been
+	updated to allow using a non-standard <filename
+	  class="directory">src/</filename> tree, specified as an
+	argument to the <literal>-s</literal> flag.</para>
+
+      <para revision="277990" arch="powerpc64">The
+	&os;/&arch.powerpc64; kernel now builds as
+	a position-independent executable, allowing the kernel to be
+	loaded into and run from any physical or virtual
+	address.</para>
+
+      <important>
+	<para>This change requires an update to &man.loader.8;.
+	  The userland and kernel must be updated before rebooting the
+	  system.</para>
+      </important>
+
+      <para revision="279189" contrib="sponsor" sponsor="&ff;"
+	arch="powerpc">Kernel support for Vector-Scalar eXtension
+	(<acronym>VSX</acronym>) found on POWER7 and POWER8 hardware
+	has been added.</para>
+
+      <para revision="279252" contrib="sponsor" sponsor="&ff;"
+	arch="powerpc">The &man.pmap.9; implementation for 64-bit
+	&powerpc; processors has been overhaulded to improve
+	concurrency.</para>
+    </sect2>
+
+    <sect2 xml:id="kernel-sysctl">
+      <title>System Tuning and Controls</title>
+
+      <para revision="275140" contrib="sponsor" sponsor="&ff;">The
+	&man.hwpmc.4; default and maximum callchain depths have been
+	increased.  The default has been increased from 16 to 32, and
+	the maximum increased from 32 to 128.</para>
+
+      <para revision="279361">The <literal>kern.osrelease</literal>
+	and <literal>kern.osreldate</literal> are now configurable
+	&man.jail.8; parameters.</para>
+
+      <para revision="280308,280949" contrib="sponsor"
+	sponsor="&ix;, &ff;">The &man.devfs.5; device filesystem has
+	been changed to update timestamps for read/write operations
+	using seconds precision.  A new &man.sysctl.8;,
+	<literal>vfs.devfs.dotimes</literal> has been added, which
+	when set to a non-zero value, enables default precision
+	timestamps for these operations.</para>
+
+      <para revision="282213" contrib="sponsor" sponsor="&ff;">A new
+	&man.sysctl.8;, <literal>kern.racct.enable</literal>, has been
+	added, which when set to a non-zero value allows using
+	&man.rctl.8; with the <literal>GENERIC</literal> kernel.
+	A new kernel configuration option,
+	<literal>RACCT_DISABLED</literal> has also been added.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="drivers">
+    <title>Devices and Drivers</title>
+
+    <para>This section covers changes and additions to devices and
+      device drivers since &release.prev;.</para>
+
+    <sect2 xml:id="drivers-device">
+      <title>Device Drivers</title>
+
+      <para revision="260903">Support for GPS ports has been added to
+	&man.uhso.4;.</para>
+
+      <para revision="265132">The &man.full.4; device has been added,
+	and the <literal>lindev(4)</literal> device has been removed.
+	Prior to this change, <literal>lindev(4)</literal> provided
+	only the <filename>/dev/full</filename> character device,
+	returning <literal>ENOSPC</literal> on write attempts.  As
+	this device is not specific to &linux;, a native &os; version
+	has been added.</para>
+
+      <para revision="271705">Hardware context support has been
+	added to the <literal>drm/i915</literal> driver, adding
+	support for <application>Mesa</application> 9.2 and
+	later.</para>
+
+      <para revision="273178">The &man.vt.4; driver has been updated,
+	replacing the bitmapped <literal>kern.vt.spclkeys</literal>
+	&man.sysctl.8; with individual
+	<literal>kern.vt.kbd_*</literal> variants.</para>
+
+      <para revision="273598">The &man.hpet.4; driver has been updated
+	to create a
+	<filename>/dev/hpet<replaceable>N</replaceable></filename>
+	device, providing access to <acronym>HPET</acronym> from
+	userspace.</para>
+
+      <para revision="280183">The <literal>drm</literal> code has
+	been updated to match &linux; version 3.8.13.</para>
+    </sect2>
+
+    <sect2 xml:id="drivers-storage">
+      <title>Storage Drivers</title>
+
+      <para revision="265236" contrib="sponsor"
+	sponsor="&lsi;, &spectralogic;" sponsorurl="">The &man.mpr.4;
+	device has been added, providing support for LSI Fusion-MPT
+	3 12Gb SCSI/SATA controllers.</para>
+
+      <para revision="265555" contrib="sponsor"
+	  sponsor="&lsi;">The &man.mrsas.4; driver has been added,
+	providing support for LSI MegaRAID SAS controllers.  The
+	&man.mfi.4; driver will attach to the controller, by default.
+	To enable &man.mrsas.4; add
+	<literal>hw.mfi.mrsas_enable=1</literal> to
+	<filename>/boot/loader.conf</filename>, which turns off
+	&man.mfi.4; device probing.</para>
+
+      <note>
+	<para>At this time, the &man.mfiutil.8; utility and the &os;
+	  version of <application>MegaCLI</application> and
+	  <application>StorCli</application> do not work with
+	  &man.mrsas.4;.</para>
+      </note>
+
+      <para revision="275461" contrib="sponsor" sponsor="&ix;">The
+	&man.ctl.4; subsystem has been updated, increasing the ports
+	limit from <literal>128</literal> to <literal>256</literal>,
+	and <acronym>LUN</acronym> limit from <literal>256</literal>
+	to <literal>1024</literal>.</para>
+
+      <para revision="276526">The <literal>asr(4)</literal> driver has
+	been removed, and is no longer supported.</para>
+
+      <para revision="281387">The &man.hptnr.4; driver has been
+	updated to version 1.1.1.</para>
+    </sect2>
+
+    <sect2 xml:id="drivers-network">
+      <title>Network Drivers</title>
+
+      <para revision="258830">Support for Broadcom chipsets BCM57764,
+	BCM57767, BCM57782, BCM57786 and BCM57787 has been added to
+	&man.bge.4;.</para>
+
+      <para revision="260448">Support for the &intel; Centrino&trade;
+	Wireless-N 135 chipset has been added.</para>
+
+      <para revision="260552">Firmware for &intel; Centrino&trade;
+	Wireless-N 105 devices has been added to the base
+	system.</para>
+
+      <para revision="261975">The deprecated nve(4) driver has been
+	removed.  Users of NVIDIA nForce MCP network adapters are
+	advised to use the &man.nfe.4; driver instead, which has been
+	the default driver for this hardware since
+	&os;&nbsp;7.0.</para>
+
+      <para revision="264601" contrib="sponsor"
+	sponsor="&darpa_afrl;">The <literal>if_nf10bmac(4)</literal>
+	device has been added, providing support for NetFPGA-10G
+	Embedded CPU Ethernet Core.</para>
+
+      <note>
+	<para>The <literal>if_nf10bmac(4)</literal> driver operates on
+	  the FPGA, and is not suited for the PCI host
+	  interface.</para>
+      </note>
+
+      <para revision="265348" contrib="sponsor"
+	sponsor="&netgate;">The &man.ath.hal.4; driver has been
+	updated to support the Atheros AR1111 chipset.</para>
+
+      <para revision="266770">Support for the &intel; Centrino&trade;
+	Wireless-N 105 chipset has been added.</para>
+
+      <para revision="266757" contrib="sponsor"
+	sponsor="&chelsio;">Support for the &man.cxgbe.4; Terminator
+	5 (T5) 10G/40G cards has been added to &man.netmap.4;.</para>
+
+      <para revision="272730">The &man.alc.4; driver has been updated
+	to support AR816x and AR817x ethernet controllers.</para>
+
+      <para revision="273331">The &man.vxlan.4; driver has been added,
+	which creates a virtual Layer 2 (Ethernet) network overlaid in
+	a Layer 3 (IP/UDP) network.  The &man.vxlan.4; driver is
+	analogous to &man.vlan.4;, but is designed to be better suited
+	for large, multiple-tenant datacenter environments.</para>
+
+      <para revision="274246" contrib="sponsor" sponsor="&yandex;">The
+	&man.gre.4; driver has been significantly overhauled, and has
+	been split into two separate modules, &man.gre.4; and
+	&man.me.4;.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="hardware">
+    <title>Hardware Support</title>
+
+    <para>This section covers general hardware support for physical
+      machines, hypervisors, and virtualization environments, as well
+      as hardware changes and updates that do not otherwise fit in
+      other sections of this document.</para>
+
+    <sect2 xml:id="hardware-support">
+      <title>Hardware Support</title>
+
+      <para revision="268303">The &man.asmc.4; driver has been
+	updated to support the &apple;&nbsp;MacMini 3,1.</para>
+
+      <para revision="268351">Support for &os;/ia64 has been dropped
+	as of &os;&nbsp;11.</para>
+
+      <para revision="274386">An issue that could cause a system to
+	hang when entering <acronym>ACPI</acronym>
+	<literal>S3</literal> state (suspend to
+	<acronym>RAM</acronym>) has been corrected in the &man.acpi.4;
+	and &man.pci.4; drivers.</para>
+
+      <para revision="274733" arch="powerpc">The power management unit
+	subsystem has been updated to support power button events on
+	certain &arch.powerpc; hardware, such as aluminum
+	PowerBook&nbsp;&reg;.</para>
+
+      <para revision="275171,275190" arch="powerpc">The &man.hwpmc.4;
+	driver has been updated to correct performance counter
+	sampling on G4 (MPC74xxx) and G5 class processors.</para>
+
+      <para revision="281713" arch="powerpc">The &man.hwpmc.4;
+	driver has been updated to support the Freescale e500
+	core.</para>
+
+      <para revision="275732" contrib="sponsor"
+	sponsor="&ff;,&netgate;">The
+	<application>OpenCrypto</application> framework has been
+	updated to include <literal>AES-ICM</literal> and
+	<literal>AES-GCM</literal> modes, both of which have also been
+	added to the &man.aesni.4; driver.</para>
+    </sect2>
+
+    <sect2 xml:id="hardware-virtualization">
+      <title>Virtualization Support</title>
 
       <para revision="260410">Support for the <quote>Virtual Interrupt
 	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
@@ -201,257 +913,319 @@
       <para revision="260847">The &man.virtio_random.4; driver has
 	been added to harvest entropy from the host system.</para>
 
+      <para revision="261504">&os;/&arch.i386; guests can be run under
+	bhyve.</para>
+
       <para revision="267536" contrib="sponsor"
 	sponsor="&citrix.rd;">Support for running a &os;/&arch.amd64;
 	<application>Xen</application> guest instance as
 	<acronym>PVH</acronym> guest has been added.
 	<acronym>PVH</acronym> mode, short for <quote>Para-Virtualized
-	  Hardware</quote>, uses para-virtualized drivers for boot
-	and I/O, and uses hardware virtualization extensions for all
-	other tasks, without the need for emulation.</para>
-    </sect3>
+	  Hardware</quote>, uses para-virtualized drivers for boot and
+	I/O, and uses hardware virtualization extensions for all other
+	tasks, without the need for emulation.</para>
 
-    <sect3 xml:id="kernel-arm">
-      <title>ARM support</title>
+      <para revision="273515">The &man.virtio.console.4; driver has
+	been added, which provides an interface to VirtIO console
+	devices through a &man.tty.4; device.</para>
+
+      <para revision="279957">The &man.bhyve.8; hypervisor has been
+	updated to support <literal>DSM TRIM</literal> commands for
+	virtual <acronym>AHCI</acronym> disks.</para>
+
+      <para revision="281439" arch="arm">Support for the
+	<application>QEMU</application> <literal>virt</literal> system
+	has been added.</para>
+
+      <para revision="282212" contrib="sponsor" sponsor="&msostc;">The
+	HyperV&trade; drivers have been updated with several
+	enhancements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The &man.hv.vmbus.4; driver now has multi-channel
+	    support.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &man.hv.storvsc.4; driver now has scatter/gather
+	    support, in addition to performance improvements.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &man.hv.kvp.4; driver has received several bug
+	    fixes.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para revision="282274">Support for &man.xen.4; para-virtualized
+	<literal>domU</literal> kernels has been removed.</para>
+    </sect2>
+
+    <sect2 xml:id="hardware-arm">
+      <title>ARM Support</title>
 
       <para revision="260921">The &man.nand.4; device is enabled for
 	ARM devices by default.</para>
-    </sect3>
 
-    <sect3 xml:id="boot">
-      <title>Boot Loader Changes</title>
+      <para revision="273264" arch="armv6">An issue that could cause
+	instability when detecting <acronym>SD</acronym> cards on the
+	Raspberry Pi <acronym>SOC</acronym> has been fixed.</para>
 
-      <para>&nbsp;</para>
-    </sect3>
+      <para revision="275963">The <literal>bcm2835_cpufreq</literal>
+	driver has been added, which supports <acronym>CPU</acronym>
+	frequency and voltage control on the Raspberry Pi
+	<acronym>SOC</acronym>.</para>
 
-    <sect3 xml:id="proc">
-      <title>Hardware Support</title>
+      <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
+	support for the ARM AArch64 architecture has been
+	added.</para>
+    </sect2>
+  </sect1>
 
-      <para revision="268303">The &man.asmc.4; driver has been updated
-	to support the &apple;&nbsp;MacMini 3,1.</para>
+  <sect1 xml:id="storage">
+    <title>Storage</title>
 
-      <para revision="268351">Support for &os;/ia64 has been dropped
-	as of &os;&nbsp;11.</para>
+    <para>This section covers changes and additions to file systems
+      and other storage subsystems, both local and networked.</para>
 
-      <sect4 xml:id="mm">
-	<title>Multimedia Support</title>
+    <sect2 xml:id="storage-general">
+      <title>General Storage</title>
 
-	<para>&nbsp;</para>
-      </sect4>
+      <para revision="278037" contrib="sponsor" sponsor="&ix;">The
+	&man.ctl.4; <acronym>LUN</acronym> mapping has been rewritten,
+	replacing <acronym>iSCSI</acronym>-specific mapping mechanisms
+	with a new mechanism that works for any port.</para>
 
-      <sect4 xml:id="net-if">
-	<title>Network Interface Support</title>
+      <para revision="278354" contrib="sponsor" sponsor="&ix;">The
+	&man.ctld.8; utility has been updated to allow controlling
+	non-<acronym>iSCSI</acronym> &man.ctl.4; ports.</para>
+    </sect2>
 
-	<para revision="258830">Support for Broadcom chipsets
-	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
-	  been added to &man.bge.4;.</para>
+    <sect2 xml:id="storage-net">
+      <title>Networked Storage</title>
 
-	<para revision="260448">Support for the &intel;
-	  Centrino&trade; Wireless-N 135 chipset has been
-	  added.</para>
+      <para revision="270096" contrib="sponsor" sponsor="&ff;">The new
+	filesystem automount facility, &man.autofs.5;, has been added.
+	The new &man.autofs.5; facility is similar to that found in
+	other &unix;-like operating systems, such as OS&nbsp;X&trade;
+	and Solaris&trade;.  The &man.autofs.5; facility uses
+	a &sun;-compatible &man.auto.master.5; configuration file, and
+	is administered with the &man.automount.8; userland utility,
+	and the &man.automountd.8; and &man.autounmountd.8;
+	daemons.</para>
+    </sect2>
 
-	<para revision="260552">Firmware for &intel;
-	  Centrino&trade; Wireless-N 105 devices has been added
-	  to the base system.</para>
+    <sect2 xml:id="storage-zfs">
+      <title>ZFS</title>
 
-	<para revision="261975">The deprecated nve(4) driver has been
-	  removed.  Users of NVIDIA nForce MCP network adapters are
-	  advised to use the &man.nfe.4; driver instead, which has been
-	  the default driver for this hardware since &os; 7.0.</para>
+      <para revision="275748">The <literal>arc_meta_limit</literal>
+	statistics are now visible through the
+	<literal>kstat</literal> &man.sysctl.8;.  As a result of this
+	change, the <literal>vfs.zfs.arc_meta_used</literal>
+	&man.sysctl.8; has been removed, and replaced with the
+	<literal>kstat.zfs.misc.arcstats.arc_meta_used</literal>
+	&man.sysctl.8;.</para>
+    </sect2>
 
-	<para revision="265348" contrib="sponsor"
-	  sponsor="&netgate;">The &man.ath.hal.4; driver has been
-	  updated to support the Atheros AR1111 chipset.</para>
-
-	<para revision="266770">Support for the &intel;
-	  Centrino&trade; Wireless-N 105 chipset has been
-	  added.</para>
-      </sect4>
-    </sect3>
-
-    <sect3 xml:id="net-proto">
-      <title>Network Protocols</title>
-
-      <para revision="263140">Support for the IPX network transport
-	protocol has been removed, and will not be supported in
-	&os;&nbsp;11 and later releases.</para>
-    </sect3>
-
-    <sect3 xml:id="disks">
-      <title>Disks and Storage</title>
+    <sect2 xml:id="storage-geom">
+      <title>&man.geom.4;</title>
 
       <para revision="267359">Support for the
 	<literal>disklabel64</literal> partitioning scheme has been
 	added to &man.gpart.8;.</para>
-    </sect3>
+    </sect2>
+  </sect1>
 
-    <sect3 xml:id="fs">
-      <title>File Systems</title>
+  <sect1 xml:id="boot">
+    <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
+    <para>This section covers the boot loader, boot menu, and other
+      boot-related changes.</para>
 
-      <sect4 xml:id="fs-zfs">
-	<title>ZFS</title>
+    <sect2 xml:id="boot-loader">
+      <title>Boot Loader Changes</title>
 
-	<para>&nbsp;</para>
-      </sect4>
-    </sect3>
-  </sect2>
+      <para revision="274085">The &man.vt.4; driver has been made the
+	default system console driver.  The &man.syscons.4; driver is
+	still available, and can be enabled by adding
+	<literal>kern.vty=sc</literal> in &man.loader.conf.5;.
+	Alternatively, &man.syscons.4; can be enabled at boot time by
+	entering <literal>set kern.vty=sc</literal> at the
+	&man.loader.8; prompt.</para>
 
-  <sect2 xml:id="userland">
-    <title>Userland Changes</title>
+      <para revision="281616">The boot loader has been updated to
+	support entering the <acronym>GELI</acronym> passphrase before
+	loading the kernel.  To enable this behavior, add
+	<literal>geom_eli_passphrase_prompt="YES"</literal> to
+	&man.loader.conf.5;.</para>
+    </sect2>
 
-    <para revision="258838" contrib="sponsor" sponsor="&ff;, &google;"
-      sponsorurl="">The &man.casperd.8; daemon has been added,
-      which provides access to functionality that is not available in
-      the <quote>capability mode</quote> sandbox.</para>
-
-    <para revision="260594">When unable to load a kernel module with
-      &man.kldload.8;, a message informing to view output of
-      &man.dmesg.8; is now printed, opposed to the previous output
-      <quote>Exec format error.</quote>.</para>
-
-    <para revision="260910">Allow &man.pciconf.8; to identify PCI
-      devices that are attached to a driver to be identified by their
-      device name instead of just the selector.  Additionally, an
-      optional device argument to the <literal>-l</literal> flag
-      to restrict the output to only listing details about a single
-      device.</para>
-
-    <para revision="260913">A new flag, <quote>onifconsole</quote> has
-      been added to <filename>/etc/ttys</filename>.  This allows the
-      system to provide a login prompt via serial console if the
-      device is an active kernel console, otherwise it is equivalent
-      to <literal>off</literal>.</para>
-
-    <para revision="260926">Support for displaying VPD for PCI devices
-      via &man.pciconf.8; has been added.</para>
-
-    <para revision="261498">&man.ping.8; protects against malicious
-      network packets using the Capsicum framework to drop
-      privileges.</para>
-
-    <para revision="261504">&os;/&arch.i386; guests can be run under
-      bhyve.</para>
-
-    <para revision="265229">The &man.ps.1; utility has been
-      updated to include the <literal>-J</literal> flag, used to
-      filter output by matching &man.jail.8; IDs and names.
-      Additionally, argument <literal>0</literal> can be used to
-      <literal>-J</literal> to only list processes running on the
-      host system.</para>
-
-    <para revision="265249">The &man.top.1; utility has been updated
-      to filter by &man.jail.8; ID or name, in followup to the
-      &man.ps.1; change in <literal>r265229</literal>.</para>
-
-    <para revision="265995">The Blowfish &man.crypt.3; default format
-      has been changed to
-      <literal>&dollar;2b&dollar;</literal>.</para>
-
-    <para revision="266209">The &man.pmcstat.8; utility has been
-      updated to include a new flag, <literal>-l</literal>, which
-      ends event collection after the specified number of
-      seconds.</para>
-
-    <para revision="266463">The default &man.newsyslog.conf.5; now
-      includes files in the
-      <filename>/etc/newsyslog.conf.d/</filename> and
-      <filename>/usr/local/etc/newsyslog.conf.d/</filename>
-      directories by default for &man.newsyslog.8;.</para>
-
-    <para revision="268461">The &man.readline.3; library is now
-      statically linked in software within the base system, and the
-      shared library is no longer installed, allowing the Ports
-      Collection to use a modern version of the library.</para>
-
-    <sect3 xml:id="rc-scripts">
-      <title><filename>/etc/rc.d</filename> Scripts</title>
+    <sect2 xml:id="boot-menu">
+      <title>Boot Menu Changes</title>
 
       <para>&nbsp;</para>
-    </sect3>
-  </sect2>
+    </sect2>
+  </sect1>
 
-  <sect2 xml:id="contrib">
-    <title>Contributed Software</title>
+  <sect1 xml:id="network">
+    <title>Networking</title>
 
-    <para revision="258884" contrib="sponsor"
-      sponsor="&darpa_afrl;">&man.lldb.1; has been updated to upstream
-      snapshot version r196259.</para>
+    <para>This section describes changes that affect networking in
+      &os;.</para>
 
-    <para revision="259626">Timezone data files have been updated to
-      version 2013i.</para>
+    <sect2 xml:id="network-protocols">
+      <title>Network Procols</title>
 
-    <para revision="260445">&man.byacc.1; has been updated to version
-      20140101.</para>
+      <para revision="263140">Support for the IPX network transport
+	protocol has been removed, and will not be supported in
+	&os;&nbsp;11 and later releases.</para>
 
-    <para revision="261037"><application>OpenSSL</application> has
-      been updated to version 1.0.1.f.</para>
+      <para revision="272720" contrib="sponsor"
+	sponsor="&limelight;">Support for <acronym>PLPMTUD</acronym>
+	blackhole detection (<acronym>RFC</acronym> 4821) has been
+	added to the &man.tcp.4; stack, disabled by default.  New
+	control tunables have been added:</para>
 
-    <para revision="261071">&man.jemalloc.3; has been updated to
-      version 3.5.0.</para>
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Tunable</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
 
-    <para revision="261212"><application>bmake</application> has been
-      updated to version 20140101.</para>
+	  <tbody>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_detection</literal></entry>
+	      <entry>Enables or disables <acronym>PLPMTUD</acronym>
+		blackhole detection</entry>
+	    </row>
 
-    <para revision="261283"><application>libc++</application> has been
-      updated to version 3.4.</para>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_mss</literal></entry>
+	      <entry><acronym>MSS</acronym> to try for IPv4</entry>
+	    </row>
 
-    <para revision="261320"><application>OpenSSH</application> has
-      been updated to 6.5p1.</para>
+	    <row>
+	      <entry><literal>net.inet.tcp.v6pmtud_blackhole_mss</literal></entry>
+	      <entry><acronym>MSS to try for IPv6</acronym></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
 
-    <para revision="261344"><application>mdocml</application> has been
-      updated to version 1.12.3.</para>
+      <para>New monitoring &man.sysctl.8;s haven been added:</para>
 
-    <para revision="261991"><application>LLVM</application> and
-      <application>Clang</application> have been updated to
-      version 3.4.</para>
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Tunable</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
 
-    <para revision="266527" role="merged"><application>Sendmail</application>
-      has been updated from 8.14.7 to 8.14.9.</para>
+	  <tbody>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_activated</literal></entry>
+	      <entry>Number of times the code was activated to attempt
+		downshifting the <acronym>MSS</acronym></entry>
+	    </row>
 
-    <para revision="267256"><application>OpenSSL</application> has
-      been updated to version 1.0.1h.</para>
-  </sect2>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_min_activated</literal></entry>
+	      <entry>Number of times the blackhole
+		<acronym>MSS</acronym> was used in an attempt to
+		downshift</entry>
+	    </row>
 
-  <sect2 xml:id="ports">
-    <title>Ports/Packages Collection Infrastructure</title>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_failed</literal></entry>
+	      <entry>Number of times that the blackhole failed to
+		connect after downshifting the
+		<acronym>MSS</acronym></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
 
-    <para>&nbsp;</para>
-  </sect2>
+      <para revision="280971" contrib="sponsor"
+	sponsor="&netflix;, &nginx;">Support for <acronym>IP</acronym>
+	identification for atomic datagrams (<acronym>RFC</acronym>
+	6864) has been added.  Support for this feature can be toggled
+	with the <literal>net.inet.ip.rfc6864</literal>
+	&man.sysctl.8;, which is enabled by default.</para>
+    </sect2>
+  </sect1>
 
-  <sect2 xml:id="releng">
-    <title>Release Engineering and Integration</title>
+  <sect1 xml:id="ports">
+    <title>Ports Collection and Package Infrastructure</title>
 
-    <para>&nbsp;</para>
-  </sect2>
+    <para>This section covers changes to the &os;&nbsp;Ports
+      Collection, package infrastructure, and package maintenance and
+      installation tools.</para>
 
-  <sect2 xml:id="doc">
+    <sect2 xml:id="ports-infrastructure">
+      <title>Infrastructure Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="ports-packages ">
+      <title>Packaging Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="doc">
     <title>Documentation</title>
 
-    <para>&nbsp;</para>
-  </sect2>
-</sect1>
+    <para>This section covers changes to the &os;&nbsp;Documentation
+      Project sources and toolchain.</para>
 
-<sect1 xml:id="upgrade">
-  <title>Upgrading from previous releases of &os;</title>
+    <sect2 xml:id="doc-sources">
+      <title>Documentation Source Changes</title>
 
-  <para arch="amd64,i386">Binary upgrades between RELEASE versions
-    (and snapshots of the various security branches) are supported
-    using the &man.freebsd-update.8; utility.  The binary upgrade
-    procedure will update unmodified userland utilities, as well as
-    unmodified GENERIC kernels distributed as a part of an official
-    &os; release.  The &man.freebsd-update.8; utility requires that
-    the host being upgraded have Internet connectivity.</para>
+      <para>&nbsp;</para>
+    </sect2>
 
-  <para>Source-based upgrades (those based on recompiling the &os;
-    base system from source code) from previous versions are
-    supported, according to the instructions in
-    <filename>/usr/src/UPDATING</filename>.</para>
+    <sect2 xml:id="doc-toolchain">
+      <title>Documentation Toolchain Changes</title>
 
-  <important>
-    <para>Upgrading &os; should only be attempted after backing up
-      <emphasis>all</emphasis> data and configuration files.</para>
-  </important>
-</sect1>
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="releng">
+    <title>Release Engineering and Integration</title>
+
+    <para>This section convers changes that are specific to the
+      &os;&nbsp;Release Engineering processes.</para>
+
+    <sect2 xml:id="releng-changes">
+      <title>Integration Changes</title>
+
+      <para revision="277458" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to include
+	support for producing virtual machine disk images for various
+	cloud hosting providers.</para>
+
+      <para revision="278926">The Release Engineering build tools have
+	been updated to use multi-threaded &man.xz.1;.  By default,
+	the number of &man.xz.1; threads is set to the number of cores
+	available.</para>
+
+      <para revision="281802" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to include
+	support for building &os;/&arch.arm64; virtual machine and
+	memory stick installation images.</para>
+    </sect2>
+  </sect1>
 </article>

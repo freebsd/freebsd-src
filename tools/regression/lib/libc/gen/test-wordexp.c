@@ -240,6 +240,21 @@ main(int argc, char *argv[])
 	r = unsetenv("IFS");
 	assert(r == 0);
 
+	/*
+	 * With IFS set to a non-default value, and using it.
+	 */
+	r = setenv("IFS", ":", 1);
+	assert(r == 0);
+	r = wordexp("${IFS+hello:world}", &we, 0);
+	assert(r == 0);
+	assert(we.we_wordc == 2);
+	assert(strcmp(we.we_wordv[0], "hello") == 0);
+	assert(strcmp(we.we_wordv[1], "world") == 0);
+	assert(we.we_wordv[2] == NULL);
+	wordfree(&we);
+	r = unsetenv("IFS");
+	assert(r == 0);
+
 	printf("PASS wordexp()\n");
 	printf("PASS wordfree()\n");
 

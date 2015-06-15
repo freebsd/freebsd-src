@@ -12,11 +12,11 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY Netlogic Microsystems ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE 
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -54,14 +58,49 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/xlp.h>
 
 struct xlp_intrsrc {
-	void (*busack)(int);		/* Additional ack */
+	void (*bus_ack)(int, void *);	/* Additional ack */
+	void *bus_ack_arg;		/* arg for additional ack */
 	struct intr_event *ie;		/* event corresponding to intr */
 	int irq;
+	int irt;
 };
-	
+
 static struct xlp_intrsrc xlp_interrupts[XLR_MAX_INTR];
 static mips_intrcnt_t mips_intr_counters[XLR_MAX_INTR];
 static int intrcnt_index;
+
+int
+xlp_irq_to_irt(int irq)
+{
+	uint32_t offset;
+
+	switch (irq) {
+	case PIC_UART_0_IRQ:
+	case PIC_UART_1_IRQ:
+		offset =  XLP_IO_UART_OFFSET(0, irq - PIC_UART_0_IRQ);
+		return (xlp_socdev_irt(offset));
+	case PIC_PCIE_0_IRQ:
+	case PIC_PCIE_1_IRQ:
+	case PIC_PCIE_2_IRQ:
+	case PIC_PCIE_3_IRQ:
+		offset = XLP_IO_PCIE_OFFSET(0, irq - PIC_PCIE_0_IRQ);
+		return (xlp_socdev_irt(offset));
+	case PIC_USB_0_IRQ:
+	case PIC_USB_1_IRQ:
+	case PIC_USB_2_IRQ:
+	case PIC_USB_3_IRQ:
+	case PIC_USB_4_IRQ:
+		offset = XLP_IO_USB_OFFSET(0, irq - PIC_USB_0_IRQ);
+		return (xlp_socdev_irt(offset));
+	case PIC_I2C_0_IRQ:
+	case PIC_I2C_1_IRQ:
+		offset = XLP_IO_I2C0_OFFSET(0);
+		return (xlp_socdev_irt(offset) + irq - PIC_I2C_0_IRQ);
+	default:
+		printf("ERROR: %s: unknown irq %d\n", __func__, irq);
+		return (-1);
+	}
+}
 
 void
 xlp_enable_irq(int irq)
@@ -81,24 +120,14 @@ cpu_establish_softintr(const char *name, driver_filter_t * filt,
 	panic("Soft interrupts unsupported!\n");
 }
 
-void
-cpu_establish_hardintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags,
-    void **cookiep)
-{
-
-	xlp_establish_intr(name, filt, handler, arg, irq, flags,
-	    cookiep, NULL);
-}
-
 static void
 xlp_post_filter(void *source)
 {
 	struct xlp_intrsrc *src = source;
-	
-	if (src->busack)
-		src->busack(src->irq);
-	nlm_pic_ack(xlp_pic_base, xlp_irq_to_irt(src->irq));
+
+	if (src->bus_ack)
+		src->bus_ack(src->irq, src->bus_ack_arg);
+	nlm_pic_ack(xlp_pic_base, src->irt);
 }
 
 static void
@@ -106,8 +135,8 @@ xlp_pre_ithread(void *source)
 {
 	struct xlp_intrsrc *src = source;
 
-	if (src->busack)
-		src->busack(src->irq);
+	if (src->bus_ack)
+		src->bus_ack(src->irq, src->bus_ack_arg);
 }
 
 static void
@@ -115,23 +144,39 @@ xlp_post_ithread(void *source)
 {
 	struct xlp_intrsrc *src = source;
 
-	nlm_pic_ack(xlp_pic_base, xlp_irq_to_irt(src->irq));
+	nlm_pic_ack(xlp_pic_base, src->irt);
 }
 
 void
-xlp_establish_intr(const char *name, driver_filter_t filt,
-    driver_intr_t handler, void *arg, int irq, int flags,
-    void **cookiep, void (*busack)(int))
+xlp_set_bus_ack(int irq, void (*ack)(int, void *), void *arg)
+{
+	struct xlp_intrsrc *src;
+
+	KASSERT(irq > 0 && irq <= XLR_MAX_INTR,
+	    ("%s called for bad hard intr %d", __func__, irq));
+
+	/* no locking needed - this will called early in boot */
+	src = &xlp_interrupts[irq];
+	KASSERT(src->ie != NULL,
+	    ("%s called after IRQ enable for %d.", __func__, irq));
+	src->bus_ack_arg = arg;
+	src->bus_ack = ack;
+}
+
+void
+cpu_establish_hardintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags,
+    void **cookiep)
 {
 	struct intr_event *ie;	/* descriptor for the IRQ */
 	struct xlp_intrsrc *src = NULL;
 	int errcode;
 
-	if (irq < 0 || irq > XLR_MAX_INTR)
-		panic("%s called for unknown hard intr %d", __func__, irq);
+	KASSERT(irq > 0 && irq <= XLR_MAX_INTR ,
+	    ("%s called for bad hard intr %d", __func__, irq));
 
 	/*
-	 * FIXME locking - not needed now, because we do this only on
+	 * Locking - not needed now, because we do this only on
 	 * startup from CPU0
 	 */
 	src = &xlp_interrupts[irq];
@@ -156,9 +201,15 @@ xlp_establish_intr(const char *name, driver_filter_t filt,
 			return;
 		}
 		src->irq = irq;
-		src->busack = busack;
 		src->ie = ie;
 	}
+	if (XLP_IRQ_IS_PICINTR(irq)) {
+		/* Set all irqs to CPU 0 for now */
+		src->irt = xlp_irq_to_irt(irq);
+		nlm_pic_write_irt_direct(xlp_pic_base, src->irt, 1, 0,
+		    PIC_LOCAL_SCHEDULING, irq, 0);
+	}
+
 	intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	xlp_enable_irq(irq);
@@ -177,8 +228,8 @@ cpu_intr(struct trapframe *tf)
 	eirr = nlm_read_c0_eirr();
 	eimr = nlm_read_c0_eimr();
 	eirr &= eimr;
-	
-	if (eirr == 0) { 
+
+	if (eirr == 0) {
 		critical_exit();
 		return;
 	}
@@ -191,7 +242,7 @@ cpu_intr(struct trapframe *tf)
 		critical_exit();
 		return;
 	}
-	
+
 	/* FIXME sched pin >? LOCK>? */
 	for (i = sizeof(eirr) * 8 - 1; i >= 0; i--) {
 		if ((eirr & (1ULL << i)) == 0)
@@ -244,10 +295,46 @@ cpu_init_interrupts()
 
 	/*
 	 * Initialize all available vectors so spare IRQ
-	 * would show up in systat output 
+	 * would show up in systat output
 	 */
 	for (i = 0; i < XLR_MAX_INTR; i++) {
 		snprintf(name, MAXCOMLEN + 1, "int%d:", i);
 		mips_intr_counters[i] = mips_intrcnt_create(name);
 	}
 }
+
+static int	xlp_pic_probe(device_t);
+static int	xlp_pic_attach(device_t);
+
+static int
+xlp_pic_probe(device_t dev)
+{
+
+	if (!ofw_bus_is_compatible(dev, "netlogic,xlp-pic"))
+		return (ENXIO);
+	device_set_desc(dev, "XLP PIC");
+	return (0);
+}
+
+static int
+xlp_pic_attach(device_t dev)
+{
+
+	return (0);
+}
+
+static device_method_t xlp_pic_methods[] = {
+	DEVMETHOD(device_probe,		xlp_pic_probe),
+	DEVMETHOD(device_attach,	xlp_pic_attach),
+
+	DEVMETHOD_END
+};
+
+static driver_t xlp_pic_driver = {
+	"xlp_pic",
+	xlp_pic_methods,
+	1,		/* no softc */
+};
+
+static devclass_t xlp_pic_devclass;
+DRIVER_MODULE(xlp_pic, simplebus, xlp_pic_driver, xlp_pic_devclass, 0, 0);

@@ -1521,8 +1521,10 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		u = (Awkfloat) system(getsval(x)) / 256;   /* 256 is unix-dep */
 		break;
 	case FRAND:
-		/* in principle, rand() returns something in 0..RAND_MAX */
-		u = (Awkfloat) (rand() % RAND_MAX) / RAND_MAX;
+		/* random() returns numbers in [0..2^31-1]
+		 * in order to get a number in [0, 1), divide it by 2^31
+		 */
+		u = (Awkfloat) random() / (0x7fffffffL + 0x1UL);
 		break;
 	case FSRAND:
 		if (isrec(x))	/* no argument provided */
@@ -1530,7 +1532,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		else
 			u = getfval(x);
 		tmp = u;
-		srand((unsigned int) u);
+		srandom((unsigned long) u);
 		u = srand_seed;
 		srand_seed = tmp;
 		break;

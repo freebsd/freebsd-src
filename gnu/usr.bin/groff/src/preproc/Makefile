@@ -1,5 +1,7 @@
 # $FreeBSD$
 
-SUBDIR=		eqn grn html pic refer soelim tbl
+SUBDIR=		eqn grn html pic refer tbl
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

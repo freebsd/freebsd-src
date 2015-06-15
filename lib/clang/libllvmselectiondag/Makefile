@@ -26,6 +26,7 @@ SRCS=	DAGCombiner.cpp \
 	SelectionDAGDumper.cpp \
 	SelectionDAGISel.cpp \
 	SelectionDAGPrinter.cpp \
+	StatepointLowering.cpp \
 	TargetLowering.cpp \
 	TargetSelectionDAGInfo.cpp
 

@@ -2169,7 +2169,7 @@ ip_dn_init(void)
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
-	callout_init(&dn_timeout, CALLOUT_MPSAFE);
+	callout_init(&dn_timeout, 1);
 	dn_reschedule();
 
 	/* Initialize curr_time adjustment mechanics. */
@@ -2294,7 +2294,7 @@ static moduledata_t dummynet_mod = {
 #define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
 #define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
 DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
-MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
+MODULE_DEPEND(dummynet, ipfw, 3, 3, 3);
 MODULE_VERSION(dummynet, 3);
 
 /*

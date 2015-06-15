@@ -370,7 +370,6 @@ public:
             if (dumped_something)
                 strm.PutCString(", ");
             strm.Printf("object_mod_time = 0x%" PRIx64, m_object_mod_time.GetAsSecondsSinceJan1_1970());
-            dumped_something = true;
         }
     }
 
@@ -387,14 +386,15 @@ public:
             if (!FileSpec::Equal(fspec, GetFileSpec(), fspec.GetDirectory().IsEmpty() == false))
                 return false;
         }
-        if (match_module_spec.GetPlatformFileSpecPtr())
+        if (GetPlatformFileSpec() && match_module_spec.GetPlatformFileSpecPtr())
         {
             const FileSpec &fspec = match_module_spec.GetPlatformFileSpec();
             if (!FileSpec::Equal(fspec, GetPlatformFileSpec(), fspec.GetDirectory().IsEmpty() == false))
                 return false;
             
         }
-        if (match_module_spec.GetSymbolFileSpecPtr())
+        // Only match the symbol file spec if there is one in this ModuleSpec
+        if (GetSymbolFileSpec() && match_module_spec.GetSymbolFileSpecPtr())
         {
             const FileSpec &fspec = match_module_spec.GetSymbolFileSpec();
             if (!FileSpec::Equal(fspec, GetSymbolFileSpec(), fspec.GetDirectory().IsEmpty() == false))

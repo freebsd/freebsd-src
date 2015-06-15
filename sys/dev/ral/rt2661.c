@@ -147,9 +147,9 @@ static void		rt2661_set_bssid(struct rt2661_softc *,
 			    const uint8_t *);
 static void		rt2661_set_macaddr(struct rt2661_softc *,
 			   const uint8_t *);
-static void		rt2661_update_promisc(struct ifnet *);
+static void		rt2661_update_promisc(struct ieee80211com *);
 static int		rt2661_wme_update(struct ieee80211com *) __unused;
-static void		rt2661_update_slot(struct ifnet *);
+static void		rt2661_update_slot(struct ieee80211com *);
 static const char	*rt2661_get_rf(int);
 static void		rt2661_read_eeprom(struct rt2661_softc *,
 			    uint8_t macaddr[IEEE80211_ADDR_LEN]);
@@ -274,6 +274,8 @@ rt2661_attach(device_t dev, int id)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
 
@@ -909,7 +911,7 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 				ieee80211_ratectl_tx_complete(vap, ni,
 				    IEEE80211_RATECTL_TX_SUCCESS,
 				    &retrycnt, NULL);
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			break;
 
 		case RT2661_TX_RETRY_FAIL:
@@ -921,14 +923,14 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 				ieee80211_ratectl_tx_complete(vap, ni,
 				    IEEE80211_RATECTL_TX_FAILURE,
 				    &retrycnt, NULL);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 
 		default:
 			/* other failure */
 			device_printf(sc->sc_dev,
 			    "sending data frame failed 0x%08x\n", val);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 
 		DPRINTFN(sc, 15, "tx done q=%d idx=%u\n", qid, txq->stat);
@@ -1015,12 +1017,12 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 			 */
 			DPRINTFN(sc, 5, "PHY or CRC error flags 0x%08x\n",
 			    le32toh(desc->flags));
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
 		if ((le32toh(desc->flags) & RT2661_RX_CIPHER_MASK) != 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1033,7 +1035,7 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		 */
 		mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (mnew == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1056,7 +1058,7 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 				panic("%s: could not load old rx mbuf",
 				    device_get_name(sc->sc_dev));
 			}
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1631,7 +1633,7 @@ rt2661_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (rt2661_tx_data(sc, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 
@@ -1674,7 +1676,7 @@ rt2661_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return ENOBUFS;		/* XXX */
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	/*
 	 * Legacy path; interpret frame contents to decide
@@ -1689,7 +1691,7 @@ rt2661_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ieee80211_free_node(ni);
 	RAL_UNLOCK(sc);
 	return EIO;		/* XXX */
@@ -1711,7 +1713,7 @@ rt2661_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0 && --sc->sc_tx_timer == 0) {
 		if_printf(ifp, "device timeout\n");
 		rt2661_init_locked(sc);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		/* NB: callout is reset in rt2661_init() */
 		return;
 	}
@@ -1734,7 +1736,7 @@ rt2661_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				rt2661_init_locked(sc);
 				startall = 1;
 			} else
-				rt2661_update_promisc(ifp);
+				rt2661_update_promisc(ic);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rt2661_stop_locked(sc);
@@ -2078,21 +2080,21 @@ rt2661_set_macaddr(struct rt2661_softc *sc, const uint8_t *addr)
 }
 
 static void
-rt2661_update_promisc(struct ifnet *ifp)
+rt2661_update_promisc(struct ieee80211com *ic)
 {
-	struct rt2661_softc *sc = ifp->if_softc;
+	struct rt2661_softc *sc = ic->ic_softc;
 	uint32_t tmp;
 
 	tmp = RAL_READ(sc, RT2661_TXRX_CSR0);
 
 	tmp &= ~RT2661_DROP_NOT_TO_ME;
-	if (!(ifp->if_flags & IFF_PROMISC))
+	if (!(ic->ic_ifp->if_flags & IFF_PROMISC))
 		tmp |= RT2661_DROP_NOT_TO_ME;
 
 	RAL_WRITE(sc, RT2661_TXRX_CSR0, tmp);
 
-	DPRINTF(sc, "%s promiscuous mode\n", (ifp->if_flags & IFF_PROMISC) ?
-	    "entering" : "leaving");
+	DPRINTF(sc, "%s promiscuous mode\n",
+	    (ic->ic_ifp->if_flags & IFF_PROMISC) ?  "entering" : "leaving");
 }
 
 /*
@@ -2142,10 +2144,9 @@ rt2661_wme_update(struct ieee80211com *ic)
 }
 
 static void
-rt2661_update_slot(struct ifnet *ifp)
+rt2661_update_slot(struct ieee80211com *ic)
 {
-	struct rt2661_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct rt2661_softc *sc = ic->ic_softc;
 	uint8_t slottime;
 	uint32_t tmp;
 

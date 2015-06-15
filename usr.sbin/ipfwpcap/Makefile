@@ -6,8 +6,7 @@
 
 PROG=	ipfwpcap
 
-LDADD=	-lpcap
-DPADD=	${LIBPCAP}
+LIBADD=	pcap
 
 MAN=	ipfwpcap.8
 

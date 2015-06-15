@@ -39,6 +39,7 @@ fi
 die()
 {
 	echo "${1}" > /dev/stderr
+	echo "Bail out!"
 	exit 1
 }
 
@@ -166,8 +167,8 @@ create_memdisk()
 		if [ -n "${devname}" ]; then
 			devparam="-u ${devname}"
 		fi
-		cmd="mdconfig -a -t swap -s ${size} ${devparam} 2>/dev/null"
-		DISKNAME=`${cmd}` || die "failed: ${cmd}"
+		cmd="mdconfig -a -t swap -s ${size} ${devparam}"
+		DISKNAME=`$cmd 2>/dev/null` || die "failed: ${cmd}"
 		if [ -n "${devname}" ]; then
 			DISKNAME="${devname}"
 		fi
@@ -363,7 +364,7 @@ files_destroy()
 
 name_create()
 {
-	echo "zfstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5 | cut -b -8`"
+	echo "zfstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5 | awk '{ print $NF }'`"
 }
 
 names_create()

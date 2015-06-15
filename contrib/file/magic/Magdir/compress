@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.58 2014/05/07 19:36:59 christos Exp $
+# $File: compress,v 1.63 2015/03/11 19:27:35 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -201,6 +201,7 @@
 
 # http://tukaani.org/xz/xz-file-format.txt
 0	ustring		\xFD7zXZ\x00		XZ compressed data
+!:strength * 2
 !:mime	application/x-xz
 
 # https://github.com/ckolivas/lrzip/blob/master/doc/magic.header.txt
@@ -251,3 +252,13 @@
 # http://code.google.com/p/snappy/source/browse/trunk/framing_format.txt
 0	string	\377\006\0\0sNaPpY	snappy framed data
 !:mime	application/x-snappy-framed
+
+# qpress, http://www.quicklz.com/
+0	string	qpress10	qpress compressed data
+!:mime	application/x-qpress
+
+# Zlib https://www.ietf.org/rfc/rfc6713.txt
+0	beshort%31	=0	
+>0	byte&0xf	=8
+>>0	byte&0x80 	=0	zlib compressed data
+!:mime	application/zlib

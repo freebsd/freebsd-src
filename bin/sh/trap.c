@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 
 static char sigmode[NSIG];	/* current value of signal */
 volatile sig_atomic_t pendingsig;	/* indicates some signal received */
-volatile sig_atomic_t pendingsig_waitcmd;	/* indicates SIGINT/SIGQUIT received */
-int in_dotrap;			/* do we execute in a trap handler? */
+volatile sig_atomic_t pendingsig_waitcmd;	/* indicates wait builtin should be interrupted */
+static int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
@@ -183,7 +183,7 @@ trapcmd(int argc __unused, char **argv)
 		return 0;
 	}
 	action = NULL;
-	if (*argv && sigstring_to_signum(*argv) == -1) {
+	if (*argv && !is_number(*argv)) {
 		if (strcmp(*argv, "-") == 0)
 			argv++;
 		else {
@@ -380,7 +380,15 @@ onsig(int signo)
 {
 
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
-		onint();
+		/*
+		 * The !in_dotrap here is safe.  The only way we can arrive
+		 * here with in_dotrap set is that a trap handler set SIGINT to
+		 * SIG_DFL and killed itself.
+		 */
+		if (suppressint && !in_dotrap)
+			SET_PENDING_INT;
+		else
+			onint();
 		return;
 	}
 
@@ -392,6 +400,7 @@ onsig(int signo)
 	    (signo != SIGCHLD || !ignore_sigchld)) {
 		gotsig[signo] = 1;
 		pendingsig = signo;
+		pendingsig_waitcmd = signo;
 	}
 }
 
@@ -510,28 +519,25 @@ exitshell_savedstatus(void)
 			exiting_exitstatus = oexitstatus;
 	}
 	exitstatus = oexitstatus = exiting_exitstatus;
-	if (setjmp(loc1.loc)) {
-		goto l1;
+	if (!setjmp(loc1.loc)) {
+		handler = &loc1;
+		if ((p = trap[0]) != NULL && *p != '\0') {
+			/*
+			 * Reset evalskip, or the trap on EXIT could be
+			 * interrupted if the last command was a "return".
+			 */
+			evalskip = 0;
+			trap[0] = NULL;
+			evalstring(p, 0);
+		}
 	}
-	if (setjmp(loc2.loc)) {
-		goto l2;
-	}
-	handler = &loc1;
-	if ((p = trap[0]) != NULL && *p != '\0') {
-		/*
-		 * Reset evalskip, or the trap on EXIT could be
-		 * interrupted if the last command was a "return".
-		 */
-		evalskip = 0;
-		trap[0] = NULL;
-		evalstring(p, 0);
-	}
-l1:   handler = &loc2;			/* probably unnecessary */
-	flushall();
+	if (!setjmp(loc2.loc)) {
+		handler = &loc2;		/* probably unnecessary */
+		flushall();
 #if JOBS
-	setjobctl(0);
+		setjobctl(0);
 #endif
-l2:
+	}
 	if (sig != 0 && sig != SIGSTOP && sig != SIGTSTP && sig != SIGTTIN &&
 	    sig != SIGTTOU) {
 		signal(sig, SIG_DFL);

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define CM_PER				0
 #define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x000)
@@ -117,6 +116,10 @@ __FBSDID("$FreeBSD$");
 #define CLKSEL_TIMER5_CLK		(CM_DPLL + 0x018)
 #define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x01C)
 #define	CLKSEL_PRUSS_OCP_CLK		(CM_DPLL + 0x030)
+
+#define	CM_RTC				0x800
+#define	CM_RTC_RTC_CLKCTRL		(CM_RTC + 0x000)
+#define	CM_RTC_CLKSTCTRL		(CM_RTC + 0x004)
 
 #define	PRM_PER				0xC00
 #define	PRM_PER_RSTCTRL			(PRM_PER + 0x00)
@@ -234,32 +237,32 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_get_source_freq = am335x_clk_get_arm_disp_freq,
 	},
 
-        /* UART.  Uart0 clock cannot be controlled. */
-	AM335X_NOOP_CLOCK_DEV(UART0_CLK),
-	AM335X_GENERIC_CLOCK_DEV(UART1_CLK),
+        /* UART */
+	AM335X_NOOP_CLOCK_DEV(UART1_CLK),
 	AM335X_GENERIC_CLOCK_DEV(UART2_CLK),
 	AM335X_GENERIC_CLOCK_DEV(UART3_CLK),
 	AM335X_GENERIC_CLOCK_DEV(UART4_CLK),
 	AM335X_GENERIC_CLOCK_DEV(UART5_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART6_CLK),
 
 	/* DMTimer */
-	AM335X_GENERIC_CLOCK_DEV(DMTIMER2_CLK),
-	AM335X_GENERIC_CLOCK_DEV(DMTIMER3_CLK),
-	AM335X_GENERIC_CLOCK_DEV(DMTIMER4_CLK),
-	AM335X_GENERIC_CLOCK_DEV(DMTIMER5_CLK),
-	AM335X_GENERIC_CLOCK_DEV(DMTIMER6_CLK),
-	AM335X_GENERIC_CLOCK_DEV(DMTIMER7_CLK),
+	AM335X_GENERIC_CLOCK_DEV(TIMER2_CLK),
+	AM335X_GENERIC_CLOCK_DEV(TIMER3_CLK),
+	AM335X_GENERIC_CLOCK_DEV(TIMER4_CLK),
+	AM335X_GENERIC_CLOCK_DEV(TIMER5_CLK),
+	AM335X_GENERIC_CLOCK_DEV(TIMER6_CLK),
+	AM335X_GENERIC_CLOCK_DEV(TIMER7_CLK),
 
-	/* GPIO */
-	AM335X_GPIO_CLOCK_DEV(GPIO0_CLK),
+	/* GPIO, we use hwmods as reference, not units in spec */
 	AM335X_GPIO_CLOCK_DEV(GPIO1_CLK),
 	AM335X_GPIO_CLOCK_DEV(GPIO2_CLK),
 	AM335X_GPIO_CLOCK_DEV(GPIO3_CLK),
+	AM335X_GPIO_CLOCK_DEV(GPIO4_CLK),
 
-	/* I2C */
-	AM335X_GENERIC_CLOCK_DEV(I2C0_CLK),
+	/* I2C we use hwmods as reference, not units in spec */
 	AM335X_GENERIC_CLOCK_DEV(I2C1_CLK),
 	AM335X_GENERIC_CLOCK_DEV(I2C2_CLK),
+	AM335X_GENERIC_CLOCK_DEV(I2C3_CLK),
 
 	/* TSC_ADC */
 	AM335X_GENERIC_CLOCK_DEV(TSC_ADC_CLK),
@@ -271,9 +274,9 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 	AM335X_GENERIC_CLOCK_DEV(EDMA_TPTC2_CLK),
 
 	/* MMCHS */
-	AM335X_MMCHS_CLOCK_DEV(MMC0_CLK),
 	AM335X_MMCHS_CLOCK_DEV(MMC1_CLK),
 	AM335X_MMCHS_CLOCK_DEV(MMC2_CLK),
+	AM335X_MMCHS_CLOCK_DEV(MMC3_CLK),
 
 	/* PWMSS */
 	AM335X_GENERIC_CLOCK_DEV(PWMSS0_CLK),
@@ -295,7 +298,8 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_get_source_freq = NULL,
 	},
 
-
+	/* RTC */
+	AM335X_GENERIC_CLOCK_DEV(RTC_CLK),
 
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
@@ -315,31 +319,31 @@ struct am335x_clk_details {
 static struct am335x_clk_details g_am335x_clk_details[] = {
 
         /* UART. UART0 clock not controllable. */
-	_CLK_DETAIL(UART0_CLK, 0, 0),
-	_CLK_DETAIL(UART1_CLK, CM_PER_UART1_CLKCTRL, 0),
-	_CLK_DETAIL(UART2_CLK, CM_PER_UART2_CLKCTRL, 0),
-	_CLK_DETAIL(UART3_CLK, CM_PER_UART3_CLKCTRL, 0),
-	_CLK_DETAIL(UART4_CLK, CM_PER_UART4_CLKCTRL, 0),
-	_CLK_DETAIL(UART5_CLK, CM_PER_UART5_CLKCTRL, 0),
+	_CLK_DETAIL(UART1_CLK, 0, 0),
+	_CLK_DETAIL(UART2_CLK, CM_PER_UART1_CLKCTRL, 0),
+	_CLK_DETAIL(UART3_CLK, CM_PER_UART2_CLKCTRL, 0),
+	_CLK_DETAIL(UART4_CLK, CM_PER_UART3_CLKCTRL, 0),
+	_CLK_DETAIL(UART5_CLK, CM_PER_UART4_CLKCTRL, 0),
+	_CLK_DETAIL(UART6_CLK, CM_PER_UART5_CLKCTRL, 0),
 
 	/* DMTimer modules */
-	_CLK_DETAIL(DMTIMER2_CLK, CM_PER_TIMER2_CLKCTRL, CLKSEL_TIMER2_CLK),
-	_CLK_DETAIL(DMTIMER3_CLK, CM_PER_TIMER3_CLKCTRL, CLKSEL_TIMER3_CLK),
-	_CLK_DETAIL(DMTIMER4_CLK, CM_PER_TIMER4_CLKCTRL, CLKSEL_TIMER4_CLK),
-	_CLK_DETAIL(DMTIMER5_CLK, CM_PER_TIMER5_CLKCTRL, CLKSEL_TIMER5_CLK),
-	_CLK_DETAIL(DMTIMER6_CLK, CM_PER_TIMER6_CLKCTRL, CLKSEL_TIMER6_CLK),
-	_CLK_DETAIL(DMTIMER7_CLK, CM_PER_TIMER7_CLKCTRL, CLKSEL_TIMER7_CLK),
+	_CLK_DETAIL(TIMER2_CLK, CM_PER_TIMER2_CLKCTRL, CLKSEL_TIMER2_CLK),
+	_CLK_DETAIL(TIMER3_CLK, CM_PER_TIMER3_CLKCTRL, CLKSEL_TIMER3_CLK),
+	_CLK_DETAIL(TIMER4_CLK, CM_PER_TIMER4_CLKCTRL, CLKSEL_TIMER4_CLK),
+	_CLK_DETAIL(TIMER5_CLK, CM_PER_TIMER5_CLKCTRL, CLKSEL_TIMER5_CLK),
+	_CLK_DETAIL(TIMER6_CLK, CM_PER_TIMER6_CLKCTRL, CLKSEL_TIMER6_CLK),
+	_CLK_DETAIL(TIMER7_CLK, CM_PER_TIMER7_CLKCTRL, CLKSEL_TIMER7_CLK),
 
-	/* GPIO modules */
-	_CLK_DETAIL(GPIO0_CLK, CM_WKUP_GPIO0_CLKCTRL, 0),
-	_CLK_DETAIL(GPIO1_CLK, CM_PER_GPIO1_CLKCTRL, 0),
-	_CLK_DETAIL(GPIO2_CLK, CM_PER_GPIO2_CLKCTRL, 0),
-	_CLK_DETAIL(GPIO3_CLK, CM_PER_GPIO3_CLKCTRL, 0),
+	/* GPIO modules, hwmods start with gpio1 */
+	_CLK_DETAIL(GPIO1_CLK, CM_WKUP_GPIO0_CLKCTRL, 0),
+	_CLK_DETAIL(GPIO2_CLK, CM_PER_GPIO1_CLKCTRL, 0),
+	_CLK_DETAIL(GPIO3_CLK, CM_PER_GPIO2_CLKCTRL, 0),
+	_CLK_DETAIL(GPIO4_CLK, CM_PER_GPIO3_CLKCTRL, 0),
 
-	/* I2C modules */
-	_CLK_DETAIL(I2C0_CLK, CM_WKUP_I2C0_CLKCTRL, 0),
-	_CLK_DETAIL(I2C1_CLK, CM_PER_I2C1_CLKCTRL, 0),
-	_CLK_DETAIL(I2C2_CLK, CM_PER_I2C2_CLKCTRL, 0),
+	/* I2C modules, hwmods start with i2c1 */
+	_CLK_DETAIL(I2C1_CLK, CM_WKUP_I2C0_CLKCTRL, 0),
+	_CLK_DETAIL(I2C2_CLK, CM_PER_I2C1_CLKCTRL, 0),
+	_CLK_DETAIL(I2C3_CLK, CM_PER_I2C2_CLKCTRL, 0),
 
 	/* TSC_ADC module */
 	_CLK_DETAIL(TSC_ADC_CLK, CM_WKUP_ADC_TSC_CLKCTRL, 0),
@@ -350,10 +354,10 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 	_CLK_DETAIL(EDMA_TPTC1_CLK, CM_PER_TPTC1_CLKCTRL, 0),
 	_CLK_DETAIL(EDMA_TPTC2_CLK, CM_PER_TPTC2_CLKCTRL, 0),
 
-	/* MMCHS modules*/
-	_CLK_DETAIL(MMC0_CLK, CM_PER_MMC0_CLKCTRL, 0),
-	_CLK_DETAIL(MMC1_CLK, CM_PER_MMC1_CLKCTRL, 0),
+	/* MMCHS modules, hwmods start with mmc1*/
+	_CLK_DETAIL(MMC1_CLK, CM_PER_MMC0_CLKCTRL, 0),
 	_CLK_DETAIL(MMC2_CLK, CM_PER_MMC1_CLKCTRL, 0),
+	_CLK_DETAIL(MMC3_CLK, CM_PER_MMC1_CLKCTRL, 0),
 
 	/* PWMSS modules */
 	_CLK_DETAIL(PWMSS0_CLK, CM_PER_EPWMSS0_CLKCTRL, 0),
@@ -362,6 +366,9 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 
 	_CLK_DETAIL(MAILBOX0_CLK, CM_PER_MAILBOX0_CLKCTRL, 0),
 	_CLK_DETAIL(SPINLOCK0_CLK, CM_PER_SPINLOCK0_CLKCTRL, 0),
+
+	/* RTC module */
+	_CLK_DETAIL(RTC_CLK, CM_RTC_RTC_CLKCTRL, 0),
 
 	{ INVALID_CLK_IDENT, 0},
 };
@@ -381,7 +388,7 @@ am335x_prcm_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "am335x,prcm")) {
+	if (ofw_bus_is_compatible(dev, "ti,am3-prcm")) {
 		device_set_desc(dev, "AM335x Power and Clock Management");
 		return(BUS_PROBE_DEFAULT);
 	}
@@ -409,10 +416,15 @@ am335x_prcm_attach(device_t dev)
 	am335x_prcm_sc = sc;
 	ti_cpu_reset = am335x_prcm_reset;
 
-	am335x_clk_get_sysclk_freq(NULL, &sysclk);
-	am335x_clk_get_arm_fclk_freq(NULL, &fclk);
-	device_printf(dev, "Clocks: System %u.%01u MHz, CPU %u MHz\n",
-		sysclk/1000000, (sysclk % 1000000)/100000, fclk/1000000);
+	if (am335x_clk_get_sysclk_freq(NULL, &sysclk) != 0)
+		sysclk = 0;
+	if (am335x_clk_get_arm_fclk_freq(NULL, &fclk) != 0)
+		fclk = 0;
+	if (sysclk && fclk)
+		device_printf(dev, "Clocks: System %u.%01u MHz, CPU %u MHz\n",
+		    sysclk/1000000, (sysclk % 1000000)/100000, fclk/1000000);
+	else
+		device_printf(dev, "can't read frequencies yet (SCM device not ready?)\n");
 
 	return (0);
 }
@@ -494,7 +506,7 @@ am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
 	/* set *_CLKCTRL register MODULEMODE[1:0] to enable(2) */
 	/* set *_CLKCTRL register OPTFCLKEN_GPIO_1_G DBCLK[18] to FCLK_EN(1) */
 	prcm_write_4(clk_details->clkctrl_reg, 2 | (1 << 18));
-	while ((prcm_read_4(clk_details->clkctrl_reg) & 
+	while ((prcm_read_4(clk_details->clkctrl_reg) &
 	    (3 | (1 << 18) )) != (2 | (1 << 18)))
 		DELAY(10);
 
@@ -716,21 +728,21 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x4);
 
 	/* Make sure it's in bypass mode */
-	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
 	    & (1 << 8)))
 		DELAY(10);
 
-	/* 
-	 * For now set frequency to  5xSYSFREQ 
-	 * More flexible control might be required
+	/*
+	 * For now set frequency to  99*SYSFREQ/8 which is twice as
+	 * HDMI 1080p pixel clock (minimum LCDC freq divisor is 2)
 	 */
-	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (5 << 8) | 0);
+	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (99 << 8) | 8);
 
 	/* Locked mode */
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);
 
 	int timeout = 10000;
-	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
 	    & (1 << 0))) && timeout--)
 		DELAY(10);
 
@@ -778,9 +790,9 @@ am335x_clk_pruss_activate(struct ti_clock_dev *clkdev)
 	while ((prcm_read_4(CM_PER_PRUSS_CLKSTCTRL) & (1<<6)) == 0)
 		DELAY(10);
 
-	/* Select DISP DPLL as OCP clock */
-	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 1);
-	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 1)
+	/* Select L3F as OCP clock */
+	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 0);
+	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 0)
 		DELAY(10);
 
 	/* Clear the RESET bit */

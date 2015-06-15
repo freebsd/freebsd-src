@@ -133,8 +133,6 @@ extern "C" {
 #define	ZFS_SHARES_DIR		"SHARES"
 #define	ZFS_SA_ATTRS		"SA_ATTRS"
 
-#define	ZFS_MAX_BLOCKSIZE	(SPA_MAXBLOCKSIZE)
-
 /*
  * Path component length
  *
@@ -262,10 +260,6 @@ VTOZ(vnode_t *vp)
 			return (EIO); \
 		} \
 	}
-
-/* Called on entry to each ZFS vnode and vfs operation that can not return EIO */
-#define	ZFS_ENTER_NOERROR(zfsvfs) \
-	rrm_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG)
 
 /* Must be called before exiting the vop */
 #define	ZFS_EXIT(zfsvfs) rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG)

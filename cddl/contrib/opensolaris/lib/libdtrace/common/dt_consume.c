@@ -35,12 +35,12 @@
 #include <limits.h>
 #include <assert.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <dt_impl.h>
 #include <dt_pq.h>
-#if !defined(sun)
+#ifndef illumos
 #include <libproc_compat.h>
 #endif
 
@@ -381,6 +381,9 @@ dt_stddev(uint64_t *data, uint64_t normal)
 	uint64_t square_of_avg[2];
 	int64_t norm_avg;
 	uint64_t diff[2];
+
+	if (data[0] == 0)
+		return (0);
 
 	/*
 	 * The standard approximation for standard deviation is
@@ -724,8 +727,8 @@ dt_print_packed(dtrace_hdl_t *dtp, FILE *fp,
 			utf8 = B_TRUE;
 		} else if ((term = getenv("TERM")) != NULL &&
 		    (strcmp(term, "sun") == 0 ||
-		    strcmp(term, "sun-color") == 0) ||
-		    strcmp(term, "dumb") == 0) {
+		    strcmp(term, "sun-color") == 0 ||
+		    strcmp(term, "dumb") == 0)) {
 			utf8 = B_FALSE;
 		} else {
 			utf8 = B_TRUE;
@@ -2958,7 +2961,7 @@ dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
 	buf->dtbd_size = size;
 	buf->dtbd_cpu = cpu;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {

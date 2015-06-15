@@ -1691,8 +1691,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			flags |= HAL_TXDESC_NOACK;
 		break;
 	default:
-		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
-			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
+		device_printf(sc->sc_dev, "bogus frame type 0x%x (%s)\n",
+		    wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
 		/* XXX free tx dmamap */
 		ath_freetx(m0);
@@ -2424,7 +2424,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		}
 	}
 	sc->sc_wd_timer = 5;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->sc_stats.ast_tx_raw++;
 
 	/*
@@ -2473,7 +2473,7 @@ bad:
 badbad:
 	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
 	    m, params);
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
 

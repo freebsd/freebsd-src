@@ -431,6 +431,24 @@ nopgrp:
 				strlcpy(kp->ki_tdname, mtd.td_name, sizeof(kp->ki_tdname));
 			kp->ki_pctcpu = 0;
 			kp->ki_rqindex = 0;
+
+			/*
+			 * Note: legacy fields; wraps at NO_CPU_OLD or the
+			 * old max CPU value as appropriate
+			 */
+			if (mtd.td_lastcpu == NOCPU)
+				kp->ki_lastcpu_old = NOCPU_OLD;
+			else if (mtd.td_lastcpu > MAXCPU_OLD)
+				kp->ki_lastcpu_old = MAXCPU_OLD;
+			else
+				kp->ki_lastcpu_old = mtd.td_lastcpu;
+
+			if (mtd.td_oncpu == NOCPU)
+				kp->ki_oncpu_old = NOCPU_OLD;
+			else if (mtd.td_oncpu > MAXCPU_OLD)
+				kp->ki_oncpu_old = MAXCPU_OLD;
+			else
+				kp->ki_oncpu_old = mtd.td_oncpu;
 		} else {
 			kp->ki_stat = SZOMB;
 		}

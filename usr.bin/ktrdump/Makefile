@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	ktrdump
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+LIBADD=	kvm
 MAN=	ktrdump.8
 
 WARNS?=	2

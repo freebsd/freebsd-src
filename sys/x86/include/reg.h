@@ -91,6 +91,7 @@
 #define	__fpreg64	fpreg
 #define	__dbreg32	dbreg32
 #define	__dbreg64	dbreg
+#define	__HAVE_REG32
 #endif
 
 /*

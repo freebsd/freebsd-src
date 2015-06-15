@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -87,8 +88,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xenvar.h>
 
-#include <dev/xen/netfront/mbufq.h>
-
 #include "xenbus_if.h"
 
 /* Features supported by all backends.  TSO and LRO can be negotiated */
@@ -134,7 +133,6 @@ static const int MODPARM_rx_flip = 0;
  * to mirror the Linux MAX_SKB_FRAGS constant.
  */
 #define	MAX_TX_REQ_FRAGS (65536 / PAGE_SIZE + 2)
-#define	NF_TSO_MAXBURST ((IP_MAXPACKET / PAGE_SIZE) * MCLBYTES)
 
 #define RX_COPY_THRESHOLD 256
 
@@ -278,7 +276,7 @@ struct netfront_info {
 	int			rx_ring_ref;
 	uint8_t			mac[ETHER_ADDR_LEN];
 	struct xn_chain_data	xn_cdata;	/* mbufs */
-	struct mbuf_head	xn_rx_batch;	/* head of the batch queue */
+	struct mbufq		xn_rx_batch;	/* batch queue */
 
 	int			xn_if_flags;
 	struct callout	        xn_stat_ch;
@@ -471,7 +469,7 @@ netfront_attach(device_t dev)
 #if __FreeBSD_version >= 700000
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "enable_lro", CTLTYPE_INT|CTLFLAG_RW,
+	    OID_AUTO, "enable_lro", CTLFLAG_RW,
 	    &xn_enable_lro, 0, "Large Receive Offload");
 #endif
 
@@ -684,7 +682,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	switch (newstate) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateConnected:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 	case XenbusStateReconfigured:
@@ -696,12 +693,14 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef INET
-		netfront_send_fake_arp(dev, sc);
-#endif
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
+		break;
+	case XenbusStateConnected:
+#ifdef INET
+		netfront_send_fake_arp(dev, sc);
+#endif
 		break;
 	}
 }
@@ -817,18 +816,8 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	 */
 	batch_target = sc->rx_target - (req_prod - sc->rx.rsp_cons);
 	for (i = mbufq_len(&sc->xn_rx_batch); i < batch_target; i++) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (m_new == NULL) {
-			printf("%s: MGETHDR failed\n", __func__);
-			goto no_mbuf;
-		}
-
-		m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE);
-		if ((m_new->m_flags & M_EXT) == 0) {
-			printf("%s: m_cljget failed\n", __func__);
-			m_freem(m_new);
-
-no_mbuf:
 			if (i != 0)
 				goto refill;
 			/*
@@ -839,7 +828,7 @@ no_mbuf:
 		m_new->m_len = m_new->m_pkthdr.len = MJUMPAGESIZE;
 		
 		/* queue the mbufs allocated */
-		mbufq_tail(&sc->xn_rx_batch, m_new);
+		(void )mbufq_enqueue(&sc->xn_rx_batch, m_new);
 	}
 	
 	/*
@@ -891,12 +880,11 @@ refill:
 		if (sc->copying_receiver == 0) {
 			gnttab_grant_foreign_transfer_ref(ref,
 			    otherend_id, pfn);
-			sc->rx_pfn_array[nr_flips] = PFNTOMFN(pfn);
+			sc->rx_pfn_array[nr_flips] = pfn;
 			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 				/* Remove this page before passing
 				 * back to Xen.
 				 */
-				set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 				MULTI_update_va_mapping(&sc->rx_mcl[i],
 				    vaddr, 0, 0);
 			}
@@ -904,7 +892,7 @@ refill:
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    otherend_id,
-			    PFNTOMFN(pfn), 0);
+			    pfn, 0);
 		}
 		req->id = id;
 		req->gref = ref;
@@ -919,7 +907,6 @@ refill:
 	 * We may have allocated buffers which have entries outstanding
 	 * in the page * update queue -- make sure we flush those first!
 	 */
-	PT_UPDATES_FLUSH();
 	if (nr_flips != 0) {
 #ifdef notyet
 		/* Tell the ballon driver what is going on. */
@@ -975,7 +962,7 @@ xn_rxeof(struct netfront_info *np)
 	RING_IDX i, rp;
 	multicall_entry_t *mcl;
 	struct mbuf *m;
-	struct mbuf_head rxq, errq;
+	struct mbufq rxq, errq;
 	int err, pages_flipped = 0, work_to_do;
 
 	do {
@@ -983,8 +970,9 @@ xn_rxeof(struct netfront_info *np)
 		if (!netfront_carrier_ok(np))
 			return;
 
-		mbufq_init(&errq);
-		mbufq_init(&rxq);
+		/* XXX: there should be some sane limit. */
+		mbufq_init(&errq, INT_MAX);
+		mbufq_init(&rxq, INT_MAX);
 
 		ifp = np->xn_ifp;
 	
@@ -1002,7 +990,7 @@ xn_rxeof(struct netfront_info *np)
 
 			if (__predict_false(err)) {
 				if (m)
-					mbufq_tail(&errq, m);
+					(void )mbufq_enqueue(&errq, m);
 				np->stats.rx_errors++;
 				continue;
 			}
@@ -1024,7 +1012,7 @@ xn_rxeof(struct netfront_info *np)
 			np->stats.rx_packets++;
 			np->stats.rx_bytes += m->m_pkthdr.len;
 
-			mbufq_tail(&rxq, m);
+			(void )mbufq_enqueue(&rxq, m);
 			np->rx.rsp_cons = i;
 		}
 
@@ -1048,15 +1036,14 @@ xn_rxeof(struct netfront_info *np)
 			}
 		}
 	
-		while ((m = mbufq_dequeue(&errq)))
-			m_freem(m);
+		mbufq_drain(&errq);
 
 		/* 
 		 * Process all the mbufs after the remapping is complete.
 		 * Break the mbuf chain first though.
 		 */
 		while ((m = mbufq_dequeue(&rxq)) != NULL) {
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			
 			/*
 			 * Do we really need to drop the rx lock?
@@ -1147,7 +1134,7 @@ xn_txeof(struct netfront_info *np)
 			 * mbuf of the chain.
 			 */
 			if (!m->m_next)
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if (__predict_false(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
 				panic("%s: grant id %u still in use by the "
@@ -1373,8 +1360,6 @@ xennet_get_responses(struct netfront_info *np,
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
 				    MMU_MACHPHYS_UPDATE;
 				mmu->val = pfn;
-
-				set_phys_to_machine(pfn, mfn);
 			}
 			pages_flipped++;
 		} else {
@@ -1484,7 +1469,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	u_int nfrags;
-	netif_extra_info_t *extra;
 	int otherend_id;
 
 	ifp = sc->xn_ifp;
@@ -1558,7 +1542,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * of fragments or hit the end of the mbuf chain.
 	 */
 	m = m_head;
-	extra = NULL;
 	otherend_id = xenbus_get_otherend_id(sc->xbdev);
 	for (m = m_head; m; m = m->m_next) {
 		netif_tx_request_t *tx;
@@ -1743,7 +1726,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int mask, error = 0;
 	switch(cmd) {
 	case SIOCSIFADDR:
-	case SIOCGIFADDR:
 #ifdef INET
 		XN_LOCK(sc);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -1942,7 +1924,7 @@ network_connect(struct netfront_info *np)
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    PFNTOMFN(pfn), 0);
+			    pfn, 0);
 		}
 		req->gref = ref;
 		req->id   = requeue_idx;
@@ -2066,6 +2048,9 @@ create_netdev(device_t dev)
 		np->rx_mbufs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
+
+	mbufq_init(&np->xn_rx_batch, INT_MAX);
+
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
 					  &np->gref_tx_head) != 0) {
@@ -2102,10 +2087,12 @@ create_netdev(device_t dev)
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
-	ifp->if_hw_tsomax = NF_TSO_MAXBURST;
+	ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = MAX_TX_REQ_FRAGS;
+	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	
     	ether_ifattach(ifp, np->mac);
-    	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
+    	callout_init(&np->xn_stat_ch, 1);
 	netfront_carrier_off(np);
 
 	return (0);

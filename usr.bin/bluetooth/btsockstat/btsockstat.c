@@ -38,8 +38,8 @@
 #include <sys/socketvar.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <err.h>
 #include <fcntl.h>
@@ -255,8 +255,8 @@ hcirawpr(kvm_t *kvmd, u_long addr)
 			(unsigned long) pcb.so,
 			(unsigned long) this,
 			pcb.flags,
-			so.so_rcv.sb_cc,
-			so.so_snd.sb_cc,
+			so.so_rcv.sb_ccc,
+			so.so_snd.sb_ccc,
 			pcb.addr.hci_node);
 	}
 } /* hcirawpr */
@@ -303,8 +303,8 @@ l2caprawpr(kvm_t *kvmd, u_long addr)
 "%-8lx %-8lx %6d %6d %-17.17s\n",
 			(unsigned long) pcb.so,
 			(unsigned long) this,
-			so.so_rcv.sb_cc,
-			so.so_snd.sb_cc,
+			so.so_rcv.sb_ccc,
+			so.so_snd.sb_ccc,
 			bdaddrpr(&pcb.src, NULL, 0));
 	}
 } /* l2caprawpr */
@@ -361,8 +361,8 @@ l2cappr(kvm_t *kvmd, u_long addr)
 		fprintf(stdout,
 "%-8lx %6d %6d %-17.17s/%-5d %-17.17s %-5d %s\n",
 			(unsigned long) this,
-			so.so_rcv.sb_cc,
-			so.so_snd.sb_cc,
+			so.so_rcv.sb_ccc,
+			so.so_snd.sb_ccc,
 			bdaddrpr(&pcb.src, local, sizeof(local)),
 			pcb.psm,
 			bdaddrpr(&pcb.dst, remote, sizeof(remote)),
@@ -467,8 +467,8 @@ rfcommpr(kvm_t *kvmd, u_long addr)
 		fprintf(stdout,
 "%-8lx %6d %6d %-17.17s %-17.17s %-4d %-4d %s\n",
 			(unsigned long) this,
-			so.so_rcv.sb_cc,
-			so.so_snd.sb_cc,
+			so.so_rcv.sb_ccc,
+			so.so_snd.sb_ccc,
 			bdaddrpr(&pcb.src, local, sizeof(local)),
 			bdaddrpr(&pcb.dst, remote, sizeof(remote)),
 			pcb.channel,

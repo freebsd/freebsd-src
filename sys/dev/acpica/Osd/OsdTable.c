@@ -91,8 +91,8 @@ AcpiOsTableOverride(ACPI_TABLE_HEADER *ExistingTable,
 	if (hdr == NULL || sz == 0)
 		return (AE_ERROR);
 #ifndef notyet
-	/* Assume SSDT is loaded with DSDT. */
-	AcpiGbl_DisableSsdtTableLoad = TRUE;
+	/* Assume SSDT is installed with DSDT. */
+	AcpiGbl_DisableSsdtTableInstall = TRUE;
 #endif
 	*NewTable = hdr;
 	return (AE_OK);

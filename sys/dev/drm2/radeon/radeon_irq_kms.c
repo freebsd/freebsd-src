@@ -171,18 +171,14 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
  * Returns true if MSIs should be enabled, false if MSIs
  * should not be enabled.
  */
-int radeon_msi_ok(struct drm_device *dev, unsigned long flags)
+static bool radeon_msi_ok(struct radeon_device *rdev)
 {
-	int family;
-
-	family = flags & RADEON_FAMILY_MASK;
-
 	/* RV370/RV380 was first asic with MSI support */
-	if (family < CHIP_RV380)
+	if (rdev->family < CHIP_RV380)
 		return false;
 
 	/* MSIs don't work on AGP */
-	if (drm_device_is_agp(dev))
+	if (rdev->flags & RADEON_IS_AGP)
 		return false;
 
 	/* force MSI on */
@@ -193,42 +189,42 @@ int radeon_msi_ok(struct drm_device *dev, unsigned long flags)
 
 	/* Quirks */
 	/* HP RS690 only seems to work with MSIs. */
-	if ((dev->pci_device == 0x791f) &&
-	    (dev->pci_subvendor == 0x103c) &&
-	    (dev->pci_subdevice == 0x30c2))
+	if ((rdev->ddev->pci_device == 0x791f) &&
+	    (rdev->ddev->pci_subvendor == 0x103c) &&
+	    (rdev->ddev->pci_subdevice == 0x30c2))
 		return true;
 
 	/* Dell RS690 only seems to work with MSIs. */
-	if ((dev->pci_device == 0x791f) &&
-	    (dev->pci_subvendor == 0x1028) &&
-	    (dev->pci_subdevice == 0x01fc))
+	if ((rdev->ddev->pci_device == 0x791f) &&
+	    (rdev->ddev->pci_subvendor == 0x1028) &&
+	    (rdev->ddev->pci_subdevice == 0x01fc))
 		return true;
 
 	/* Dell RS690 only seems to work with MSIs. */
-	if ((dev->pci_device == 0x791f) &&
-	    (dev->pci_subvendor == 0x1028) &&
-	    (dev->pci_subdevice == 0x01fd))
+	if ((rdev->ddev->pci_device == 0x791f) &&
+	    (rdev->ddev->pci_subvendor == 0x1028) &&
+	    (rdev->ddev->pci_subdevice == 0x01fd))
 		return true;
 
 	/* Gateway RS690 only seems to work with MSIs. */
-	if ((dev->pci_device == 0x791f) &&
-	    (dev->pci_subvendor == 0x107b) &&
-	    (dev->pci_subdevice == 0x0185))
+	if ((rdev->ddev->pci_device == 0x791f) &&
+	    (rdev->ddev->pci_subvendor == 0x107b) &&
+	    (rdev->ddev->pci_subdevice == 0x0185))
 		return true;
 
 	/* try and enable MSIs by default on all RS690s */
-	if (family == CHIP_RS690)
+	if (rdev->family == CHIP_RS690)
 		return true;
 
 	/* RV515 seems to have MSI issues where it loses
 	 * MSI rearms occasionally. This leads to lockups and freezes.
 	 * disable it by default.
 	 */
-	if (family == CHIP_RV515)
+	if (rdev->family == CHIP_RV515)
 		return false;
-	if (flags & RADEON_IS_IGP) {
+	if (rdev->flags & RADEON_IS_IGP) {
 		/* APUs work fine with MSIs */
-		if (family >= CHIP_PALM)
+		if (rdev->family >= CHIP_PALM)
 			return true;
 		/* lots of IGPs have problems with MSIs */
 		return false;
@@ -258,12 +254,17 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 		return r;
 	}
 	/* enable msi */
-	rdev->msi_enabled = rdev->ddev->msi_enabled;
+	rdev->msi_enabled = 0;
 
+	if (radeon_msi_ok(rdev)) {
+		int ret = drm_pci_enable_msi(rdev->ddev);
+		if (!ret) {
+			rdev->msi_enabled = 1;
+			dev_info(rdev->dev, "radeon: using MSI.\n");
+		}
+	}
 	rdev->irq.installed = true;
-	DRM_UNLOCK(rdev->ddev);
 	r = drm_irq_install(rdev->ddev);
-	DRM_LOCK(rdev->ddev);
 	if (r) {
 		rdev->irq.installed = false;
 		return r;
@@ -285,6 +286,8 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 	if (rdev->irq.installed) {
 		drm_irq_uninstall(rdev->ddev);
 		rdev->irq.installed = false;
+		if (rdev->msi_enabled)
+			drm_pci_disable_msi(rdev->ddev);
 	}
 	taskqueue_drain(rdev->tq, &rdev->hotplug_work);
 }
@@ -401,6 +404,9 @@ void radeon_irq_kms_enable_afmt(struct radeon_device *rdev, int block)
 {
 	unsigned long irqflags;
 
+	if (!rdev->ddev->irq_enabled)
+		return;
+
 	DRM_SPINLOCK_IRQSAVE(&rdev->irq.lock, irqflags);
 	rdev->irq.afmt[block] = true;
 	radeon_irq_set(rdev);
@@ -419,6 +425,9 @@ void radeon_irq_kms_enable_afmt(struct radeon_device *rdev, int block)
 void radeon_irq_kms_disable_afmt(struct radeon_device *rdev, int block)
 {
 	unsigned long irqflags;
+
+	if (!rdev->ddev->irq_enabled)
+		return;
 
 	DRM_SPINLOCK_IRQSAVE(&rdev->irq.lock, irqflags);
 	rdev->irq.afmt[block] = false;
@@ -439,6 +448,9 @@ void radeon_irq_kms_enable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
 	unsigned long irqflags;
 	int i;
 
+	if (!rdev->ddev->irq_enabled)
+		return;
+
 	DRM_SPINLOCK_IRQSAVE(&rdev->irq.lock, irqflags);
 	for (i = 0; i < RADEON_MAX_HPD_PINS; ++i)
 		rdev->irq.hpd[i] |= !!(hpd_mask & (1 << i));
@@ -458,6 +470,9 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
 {
 	unsigned long irqflags;
 	int i;
+
+	if (!rdev->ddev->irq_enabled)
+		return;
 
 	DRM_SPINLOCK_IRQSAVE(&rdev->irq.lock, irqflags);
 	for (i = 0; i < RADEON_MAX_HPD_PINS; ++i)

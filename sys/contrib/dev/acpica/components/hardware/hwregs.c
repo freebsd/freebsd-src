@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __HWREGS_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -310,17 +308,19 @@ AcpiHwClearAcpiStatus (
 
     Status = AcpiHwRegisterWrite (ACPI_REGISTER_PM1_STATUS,
                 ACPI_BITMASK_ALL_FIXED_STATUS);
+
+    AcpiOsReleaseLock (AcpiGbl_HardwareLock, LockFlags);
+
     if (ACPI_FAILURE (Status))
     {
-        goto UnlockAndExit;
+        goto Exit;
     }
 
     /* Clear the GPE Bits in all GPE registers in all GPE blocks */
 
     Status = AcpiEvWalkGpeList (AcpiHwClearGpeBlock, NULL);
 
-UnlockAndExit:
-    AcpiOsReleaseLock (AcpiGbl_HardwareLock, LockFlags);
+Exit:
     return_ACPI_STATUS (Status);
 }
 

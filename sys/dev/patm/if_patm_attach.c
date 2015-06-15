@@ -208,7 +208,7 @@ patm_attach(device_t dev)
 	mtx_init(&sc->tst_lock, "tst lock", NULL, MTX_DEF);
 	cv_init(&sc->vcc_cv, "vcc_close");
 
-	callout_init(&sc->tst_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->tst_callout, 1);
 
 	sysctl_ctx_init(&sc->sysctl_ctx);
 
@@ -579,7 +579,7 @@ patm_env_getuint(struct patm_softc *sc, u_int *var, const char *name)
 	snprintf(full, sizeof(full), "hw.%s.%s",
 	    device_get_nameunit(sc->dev), name);
 
-	if ((val = getenv(full)) != NULL) {
+	if ((val = kern_getenv(full)) != NULL) {
 		u = strtoul(val, &end, 0);
 		if (end > val && *end == '\0') {
 			if (bootverbose)

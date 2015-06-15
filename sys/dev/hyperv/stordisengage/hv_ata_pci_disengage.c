@@ -116,7 +116,7 @@ hv_ata_pci_probe(device_t dev)
 
 	device_set_desc(dev, "Hyper-V ATA storage disengage driver");
 
-	return (BUS_PROBE_VENDOR);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

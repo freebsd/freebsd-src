@@ -991,6 +991,7 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size += sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
+	tmpfs_update(vp);
 }
 
 /*
@@ -1036,6 +1037,7 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size -= sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
+	tmpfs_update(vp);
 }
 
 void
@@ -1318,7 +1320,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
 	vm_object_t uobj;
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t idx, newpages, oldpages;
 	off_t oldsize;
 	int base, rv;
@@ -1365,11 +1367,9 @@ retry:
 					VM_WAIT;
 					VM_OBJECT_WLOCK(uobj);
 					goto retry;
-				} else if (m->valid != VM_PAGE_BITS_ALL) {
-					ma[0] = m;
-					rv = vm_pager_get_pages(uobj, ma, 1, 0);
-					m = vm_page_lookup(uobj, idx);
-				} else
+				} else if (m->valid != VM_PAGE_BITS_ALL)
+					rv = vm_pager_get_pages(uobj, &m, 1, 0);
+				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;
 				vm_page_lock(m);
@@ -1413,6 +1413,31 @@ retry:
 
 	node->tn_size = newsize;
 	return (0);
+}
+
+void
+tmpfs_check_mtime(struct vnode *vp)
+{
+	struct tmpfs_node *node;
+	struct vm_object *obj;
+
+	ASSERT_VOP_ELOCKED(vp, "check_mtime");
+	if (vp->v_type != VREG)
+		return;
+	obj = vp->v_object;
+	KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
+	    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
+	/* unlocked read */
+	if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+		VM_OBJECT_WLOCK(obj);
+		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+			obj->flags &= ~OBJ_TMPFS_DIRTY;
+			node = VP_TO_TMPFS_NODE(vp);
+			node->tn_status |= TMPFS_NODE_MODIFIED |
+			    TMPFS_NODE_CHANGED;
+		}
+		VM_OBJECT_WUNLOCK(obj);
+	}
 }
 
 /*

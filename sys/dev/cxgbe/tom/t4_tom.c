@@ -98,6 +98,7 @@ static void t4_clip_task(void *, int);
 static void update_clip_table(struct adapter *, struct tom_data *);
 static void destroy_clip_table(struct adapter *, struct tom_data *);
 static void free_tom_data(struct adapter *, struct tom_data *);
+static void reclaim_wr_resources(void *, int);
 
 static int in6_ifaddr_gen;
 static eventhandler_tag ifaddr_evhandler;
@@ -745,7 +746,7 @@ update_clip(struct adapter *sc, void *arg __unused)
 	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomuc"))
 		return;
 
-	if (sc->flags & TOM_INIT_DONE)
+	if (uld_active(sc, ULD_TOM))
 		update_clip_table(sc, sc->tom_softc);
 
 	end_synchronized_op(sc, LOCK_HELD);
@@ -903,6 +904,8 @@ free_tom_data(struct adapter *sc, struct tom_data *td)
 	if (td->listen_mask != 0)
 		hashdestroy(td->listen_hash, M_CXGBE, td->listen_mask);
 
+	if (mtx_initialized(&td->unsent_wr_lock))
+		mtx_destroy(&td->unsent_wr_lock);
 	if (mtx_initialized(&td->lctx_hash_lock))
 		mtx_destroy(&td->lctx_hash_lock);
 	if (mtx_initialized(&td->toep_list_lock))
@@ -910,6 +913,44 @@ free_tom_data(struct adapter *sc, struct tom_data *td)
 
 	free_tid_tabs(&sc->tids);
 	free(td, M_CXGBE);
+}
+
+static void
+reclaim_wr_resources(void *arg, int count)
+{
+	struct tom_data *td = arg;
+	STAILQ_HEAD(, wrqe) twr_list = STAILQ_HEAD_INITIALIZER(twr_list);
+	struct cpl_act_open_req *cpl;
+	u_int opcode, atid;
+	struct wrqe *wr;
+	struct adapter *sc;
+
+	mtx_lock(&td->unsent_wr_lock);
+	STAILQ_SWAP(&td->unsent_wr_list, &twr_list, wrqe);
+	mtx_unlock(&td->unsent_wr_lock);
+
+	while ((wr = STAILQ_FIRST(&twr_list)) != NULL) {
+		STAILQ_REMOVE_HEAD(&twr_list, link);
+
+		cpl = wrtod(wr);
+		opcode = GET_OPCODE(cpl);
+
+		switch (opcode) {
+		case CPL_ACT_OPEN_REQ:
+		case CPL_ACT_OPEN_REQ6:
+			atid = G_TID_TID(be32toh(OPCODE_TID(cpl)));
+			sc = td_adapter(td);
+
+			CTR2(KTR_CXGBE, "%s: atid %u ", __func__, atid);
+			act_open_failure_cleanup(sc, atid, EHOSTUNREACH);
+			free(wr, M_CXGBE);
+			break;
+		default:
+			log(LOG_ERR, "%s: leaked work request %p, wr_len %d, "
+			    "opcode %x\n", __func__, wr, wr->wr_len, opcode);
+			/* WR not freed here; go look at it with a debugger.  */
+		}
+	}
 }
 
 /*
@@ -938,6 +979,11 @@ t4_tom_activate(struct adapter *sc)
 	mtx_init(&td->lctx_hash_lock, "lctx hash lock", NULL, MTX_DEF);
 	td->listen_hash = hashinit_flags(LISTEN_HASH_SIZE, M_CXGBE,
 	    &td->listen_mask, HASH_NOWAIT);
+
+	/* List of WRs for which L2 resolution failed */
+	mtx_init(&td->unsent_wr_lock, "Unsent WR list lock", NULL, MTX_DEF);
+	STAILQ_INIT(&td->unsent_wr_list);
+	TASK_INIT(&td->reclaim_wr_resources, 0, reclaim_wr_resources, td);
 
 	/* TID tables */
 	rc = alloc_tid_tabs(&sc->tids);
@@ -979,7 +1025,6 @@ t4_tom_activate(struct adapter *sc)
 		TOEDEV(sc->port[i]->ifp) = &td->tod;
 
 	sc->tom_softc = td;
-	sc->flags |= TOM_INIT_DONE;
 	register_toedev(sc->tom_softc);
 
 done:
@@ -1002,6 +1047,9 @@ t4_tom_deactivate(struct adapter *sc)
 	if (sc->offload_map != 0)
 		return (EBUSY);	/* at least one port has IFCAP_TOE enabled */
 
+	if (uld_active(sc, ULD_IWARP) || uld_active(sc, ULD_ISCSI))
+		return (EBUSY);	/* both iWARP and iSCSI rely on the TOE. */
+
 	mtx_lock(&td->toep_list_lock);
 	if (!TAILQ_EMPTY(&td->toep_list))
 		rc = EBUSY;
@@ -1012,11 +1060,16 @@ t4_tom_deactivate(struct adapter *sc)
 		rc = EBUSY;
 	mtx_unlock(&td->lctx_hash_lock);
 
+	taskqueue_drain(taskqueue_thread, &td->reclaim_wr_resources);
+	mtx_lock(&td->unsent_wr_lock);
+	if (!STAILQ_EMPTY(&td->unsent_wr_list))
+		rc = EBUSY;
+	mtx_unlock(&td->unsent_wr_lock);
+
 	if (rc == 0) {
 		unregister_toedev(sc->tom_softc);
 		free_tom_data(sc, td);
 		sc->tom_softc = NULL;
-		sc->flags &= ~TOM_INIT_DONE;
 	}
 
 	return (rc);
@@ -1070,7 +1123,7 @@ tom_uninit(struct adapter *sc, void *arg __unused)
 		return;
 
 	/* Try to free resources (works only if no port has IFCAP_TOE) */
-	if (sc->flags & TOM_INIT_DONE)
+	if (uld_active(sc, ULD_TOM))
 		t4_deactivate_uld(sc, ULD_TOM);
 
 	end_synchronized_op(sc, 0);

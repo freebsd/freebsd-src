@@ -24,15 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <ar.h>
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_next.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: elf_next.c 3174 2015-03-27 17:13:41Z emaste $");
 
 Elf_Cmd
 elf_next(Elf *e)
@@ -48,13 +46,17 @@ elf_next(Elf *e)
 		 return (ELF_C_NULL);
 	 }
 
-	assert (parent->e_kind == ELF_K_AR);
-	assert (parent->e_cmd == ELF_C_READ);
+	assert(parent->e_kind == ELF_K_AR);
+	assert(parent->e_cmd == ELF_C_READ);
 	assert(e->e_rawfile > parent->e_rawfile);
 
-	next = e->e_rawfile - parent->e_rawfile + e->e_rawsize;
+	next = e->e_rawfile - parent->e_rawfile + (off_t) e->e_rawsize;
 	next = (next + 1) & ~1;	/* round up to an even boundary */
 
+	/*
+	 * Setup the 'e_next' field of the archive descriptor for the
+	 * next call to 'elf_begin()'.
+	 */
 	parent->e_u.e_ar.e_next = (next >= (off_t) parent->e_rawsize) ?
 	    (off_t) 0 : next;
 

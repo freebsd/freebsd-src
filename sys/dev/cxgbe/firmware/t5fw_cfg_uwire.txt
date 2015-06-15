@@ -153,7 +153,7 @@
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
-	tp_pmrx = 30
+	tp_pmrx = 30, 512
 
 	# TP RX payload page size
 	tp_pmrx_pagesize = 64K
@@ -163,7 +163,7 @@
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP TX payload
-	tp_pmtx = 50
+	tp_pmtx = 50, 512
 
 	# TP TX payload page size
 	tp_pmtx_pagesize = 64K
@@ -587,7 +587,7 @@
 
 [fini]
 	version = 0x14250016
-	checksum = 0x5d740273
+	checksum = 0xafaf8723
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

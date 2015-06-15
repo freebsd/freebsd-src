@@ -59,8 +59,6 @@ struct bufarea asblk;
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
 static void badsb(int listerr, const char *s);
-static int calcsb(char *dev, int devfd, struct fs *fs);
-static struct disklabel *getdisklabel(char *s, int fd);
 
 /*
  * Read in a superblock finding an alternate if necessary.
@@ -178,7 +176,7 @@ setup(char *dev)
 	 */
 	if (readsb(1) == 0) {
 		skipclean = 0;
-		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
+		if (bflag || preen)
 			return(0);
 		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
 			return (0);
@@ -437,7 +435,6 @@ badsb(int listerr, const char *s)
 void
 sblock_init(void)
 {
-	struct disklabel *lp;
 
 	fswritefd = -1;
 	fsmodified = 0;
@@ -448,89 +445,5 @@ sblock_init(void)
 	asblk.b_un.b_buf = Malloc(SBLOCKSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
-	if ((lp = getdisklabel(NULL, fsreadfd)))
-		real_dev_bsize = dev_bsize = secsize = lp->d_secsize;
-	else
-		dev_bsize = secsize = DEV_BSIZE;
-}
-
-/*
- * Calculate a prototype superblock based on information in the disk label.
- * When done the cgsblock macro can be calculated and the fs_ncg field
- * can be used. Do NOT attempt to use other macros without verifying that
- * their needed information is available!
- */
-static int
-calcsb(char *dev, int devfd, struct fs *fs)
-{
-	struct disklabel *lp;
-	struct partition *pp;
-	char *cp;
-	int i, nspf;
-
-	cp = strchr(dev, '\0') - 1;
-	if (cp == (char *)-1 || ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))) {
-		pfatal("%s: CANNOT FIGURE OUT FILE SYSTEM PARTITION\n", dev);
-		return (0);
-	}
-	lp = getdisklabel(dev, devfd);
-	if (isdigit(*cp))
-		pp = &lp->d_partitions[0];
-	else
-		pp = &lp->d_partitions[*cp - 'a'];
-	if (pp->p_fstype != FS_BSDFFS) {
-		pfatal("%s: NOT LABELED AS A BSD FILE SYSTEM (%s)\n",
-			dev, pp->p_fstype < FSMAXTYPES ?
-			fstypenames[pp->p_fstype] : "unknown");
-		return (0);
-	}
-	if (pp->p_fsize == 0 || pp->p_frag == 0 ||
-	    pp->p_cpg == 0 || pp->p_size == 0) {
-		pfatal("%s: %s: type %s fsize %d, frag %d, cpg %d, size %d\n",
-		    dev, "INCOMPLETE LABEL", fstypenames[pp->p_fstype],
-		    pp->p_fsize, pp->p_frag, pp->p_cpg, pp->p_size);
-		return (0);
-	}
-	memset(fs, 0, sizeof(struct fs));
-	fs->fs_fsize = pp->p_fsize;
-	fs->fs_frag = pp->p_frag;
-	fs->fs_size = pp->p_size;
-	fs->fs_sblkno = roundup(
-		howmany(lp->d_bbsize + lp->d_sbsize, fs->fs_fsize),
-		fs->fs_frag);
-	nspf = fs->fs_fsize / lp->d_secsize;
-	for (fs->fs_fsbtodb = 0, i = nspf; i > 1; i >>= 1)
-		fs->fs_fsbtodb++;
-	dev_bsize = lp->d_secsize;
-	if (fs->fs_magic == FS_UFS2_MAGIC) {
-		fs->fs_fpg = pp->p_cpg;
-		fs->fs_ncg = howmany(fs->fs_size, fs->fs_fpg);
-	} else /* if (fs->fs_magic == FS_UFS1_MAGIC) */ {
-		fs->fs_old_cpg = pp->p_cpg;
-		fs->fs_old_cgmask = 0xffffffff;
-		for (i = lp->d_ntracks; i > 1; i >>= 1)
-			fs->fs_old_cgmask <<= 1;
-		if (!POWEROF2(lp->d_ntracks))
-			fs->fs_old_cgmask <<= 1;
-		fs->fs_old_cgoffset = roundup(howmany(lp->d_nsectors, nspf),
-		    fs->fs_frag);
-		fs->fs_fpg = (fs->fs_old_cpg * lp->d_secpercyl) / nspf;
-		fs->fs_ncg = howmany(fs->fs_size / lp->d_secpercyl,
-		    fs->fs_old_cpg);
-	}
-	return (1);
-}
-
-static struct disklabel *
-getdisklabel(char *s, int fd)
-{
-	static struct disklabel lab;
-
-	if (ioctl(fd, DIOCGDINFO, (char *)&lab) < 0) {
-		if (s == NULL)
-			return ((struct disklabel *)NULL);
-		pwarn("ioctl (GCINFO): %s\n", strerror(errno));
-		errx(EEXIT, "%s: can't read disk label", s);
-	}
-	return (&lab);
+	dev_bsize = secsize = DEV_BSIZE;
 }

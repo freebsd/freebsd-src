@@ -1046,7 +1046,7 @@ ng_bridge_nodename(node_p node)
 {
 	static char name[NG_NODESIZ];
 
-	if (NG_NODE_NAME(node) != NULL)
+	if (NG_NODE_HAS_NAME(node))
 		snprintf(name, sizeof(name), "%s", NG_NODE_NAME(node));
 	else
 		snprintf(name, sizeof(name), "[%x]", ng_node2ID(node));

@@ -89,9 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#ifdef XEN
-#include <xen/hypervisor.h>
-#endif
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
@@ -106,6 +103,10 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+
 _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
     "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
@@ -118,8 +119,54 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
-extern int	_ucodesel, _udatasel;
+union savefpu *
+get_pcb_user_save_td(struct thread *td)
+{
+	vm_offset_t p;
 
+	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	    cpu_max_ext_state_size;
+	KASSERT((p % 64) == 0, ("Unaligned pcb_user_save area"));
+	return ((union savefpu *)p);
+}
+
+union savefpu *
+get_pcb_user_save_pcb(struct pcb *pcb)
+{
+	vm_offset_t p;
+
+	p = (vm_offset_t)(pcb + 1);
+	return ((union savefpu *)p);
+}
+
+struct pcb *
+get_pcb_td(struct thread *td)
+{
+	vm_offset_t p;
+
+	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	    cpu_max_ext_state_size - sizeof(struct pcb);
+	return ((struct pcb *)p);
+}
+
+void *
+alloc_fpusave(int flags)
+{
+	void *res;
+#ifdef CPU_ENABLE_SSE
+	struct savefpu_ymm *sf;
+#endif
+
+	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);
+#ifdef CPU_ENABLE_SSE
+	if (use_xsave) {
+		sf = (struct savefpu_ymm *)res;
+		bzero(&sf->sv_xstate.sx_hd, sizeof(sf->sv_xstate.sx_hd));
+		sf->sv_xstate.sx_hd.xstate_bv = xsave_mask;
+	}
+#endif
+	return (res);
+}
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -169,15 +216,16 @@ cpu_fork(td1, p2, td2, flags)
 #endif
 
 	/* Point the pcb to the top of the stack */
-	pcb2 = (struct pcb *)(td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE) - 1;
+	pcb2 = get_pcb_td(td2);
 	td2->td_pcb = pcb2;
 
 	/* Copy td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	/* Properly initialize pcb_save */
-	pcb2->pcb_save = &pcb2->pcb_user_save;
+	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
+	bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
+	    cpu_max_ext_state_size);
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
@@ -211,7 +259,7 @@ cpu_fork(td1, p2, td2, flags)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	pcb2->pcb_cr3 = vtophys(vmspace_pmap(p2->p_vmspace)->pm_pdpt);
 #else
 	pcb2->pcb_cr3 = vtophys(vmspace_pmap(p2->p_vmspace)->pm_pdir);
@@ -253,10 +301,8 @@ cpu_fork(td1, p2, td2, flags)
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	/*
-	 * XXX XEN need to check on PSL_USER is handled
-	 */
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
@@ -354,12 +400,22 @@ cpu_thread_swapout(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
+	struct pcb *pcb;
+#ifdef CPU_ENABLE_SSE
+	struct xstate_hdr *xhdr;
+#endif
 
-	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
-	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb - 16) - 1;
-	td->td_pcb->pcb_ext = NULL; 
-	td->td_pcb->pcb_save = &td->td_pcb->pcb_user_save;
+	td->td_pcb = pcb = get_pcb_td(td);
+	td->td_frame = (struct trapframe *)((caddr_t)pcb - 16) - 1;
+	pcb->pcb_ext = NULL; 
+	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
+#ifdef CPU_ENABLE_SSE
+	if (use_xsave) {
+		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
+		bzero(xhdr, sizeof(*xhdr));
+		xhdr->xstate_bv = xsave_mask;
+	}
+#endif
 }
 
 void
@@ -427,7 +483,9 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
 	    PCB_KERNNPX);
-	pcb2->pcb_save = &pcb2->pcb_user_save;
+	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
+	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
+	    cpu_max_ext_state_size);
 
 	/*
 	 * Create a new fresh stack for the new thread.
@@ -635,12 +693,6 @@ cpu_reset_real()
 #endif
 
 	disable_intr();
-#ifdef XEN
-	if (smp_processor_id() == 0)
-		HYPERVISOR_shutdown(SHUTDOWN_reboot);
-	else
-		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-#endif 
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)
 		elan_mmcr->RESCFG = 1;
@@ -734,13 +786,8 @@ sf_buf_map(struct sf_buf *sf, int flags)
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
-#ifdef XEN
-       PT_SET_MA(sf->kva, xpmap_ptom(VM_PAGE_TO_PHYS(sf->m)) | pgeflag
-	   | PG_RW | PG_V | pmap_cache_bits(sf->m->md.pat_mode, 0));
-#else
 	*ptep = VM_PAGE_TO_PHYS(sf->m) | pgeflag | PG_RW | PG_V |
 	    pmap_cache_bits(sf->m->md.pat_mode, 0);
-#endif
 
 	/*
 	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
@@ -791,15 +838,8 @@ sf_buf_shootdown(struct sf_buf *sf, int flags)
 int
 sf_buf_unmap(struct sf_buf *sf)
 {
-#ifdef XEN
-	/*
-	 * Xen doesn't like having dangling R/W mappings
-	 */
-	pmap_qremove(sf->kva, 1);
-	return (1);
-#else
+
 	return (0);
-#endif
 }
 
 static void
@@ -813,7 +853,7 @@ sf_buf_invalidate(struct sf_buf *sf)
 	 * settings are recalculated.
 	 */
 	pmap_qenter(sf->kva, &m, 1);
-	pmap_invalidate_cache_range(sf->kva, sf->kva + PAGE_SIZE);
+	pmap_invalidate_cache_range(sf->kva, sf->kva + PAGE_SIZE, FALSE);
 }
 
 /*

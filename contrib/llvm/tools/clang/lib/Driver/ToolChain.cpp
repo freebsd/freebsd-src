@@ -15,6 +15,7 @@
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/ToolChain.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
@@ -26,8 +27,13 @@ using namespace clang;
 using namespace llvm::opt;
 
 ToolChain::ToolChain(const Driver &D, const llvm::Triple &T,
-                     const ArgList &A)
-  : D(D), Triple(T), Args(A) {
+                     const ArgList &Args)
+  : D(D), Triple(T), Args(Args) {
+  if (Arg *A = Args.getLastArg(options::OPT_mthread_model))
+    if (!isThreadModelSupported(A->getValue()))
+      D.Diag(diag::err_drv_invalid_thread_model_for_target)
+          << A->getValue()
+          << A->getAsString(Args);
 }
 
 ToolChain::~ToolChain() {
@@ -38,8 +44,8 @@ const Driver &ToolChain::getDriver() const {
 }
 
 bool ToolChain::useIntegratedAs() const {
-  return Args.hasFlag(options::OPT_integrated_as,
-                      options::OPT_no_integrated_as,
+  return Args.hasFlag(options::OPT_fintegrated_as,
+                      options::OPT_fno_integrated_as,
                       IsIntegratedAssemblerDefault());
 }
 
@@ -49,7 +55,7 @@ const SanitizerArgs& ToolChain::getSanitizerArgs() const {
   return *SanitizerArguments.get();
 }
 
-std::string ToolChain::getDefaultUniversalArchName() const {
+StringRef ToolChain::getDefaultUniversalArchName() const {
   // In universal driver terms, the arch name accepted by -arch isn't exactly
   // the same as the ones that appear in the triple. Roughly speaking, this is
   // an inverse of the darwin::getArchTypeForDarwinArchName() function, but the
@@ -114,7 +120,7 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::BindArchClass:
   case Action::LipoJobClass:
   case Action::DsymutilJobClass:
-  case Action::VerifyJobClass:
+  case Action::VerifyDebugInfoJobClass:
     llvm_unreachable("Invalid tool kind.");
 
   case Action::CompileJobClass:
@@ -122,6 +128,8 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::PreprocessJobClass:
   case Action::AnalyzeJobClass:
   case Action::MigrateJobClass:
+  case Action::VerifyPCHJobClass:
+  case Action::BackendJobClass:
     return getClang();
   }
 
@@ -146,6 +154,30 @@ std::string ToolChain::GetProgramPath(const char *Name) const {
   return D.GetProgramPath(Name, *this);
 }
 
+std::string ToolChain::GetLinkerPath() const {
+  if (Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
+    StringRef Suffix = A->getValue();
+
+    // If we're passed -fuse-ld= with no argument, or with the argument ld,
+    // then use whatever the default system linker is.
+    if (Suffix.empty() || Suffix == "ld")
+      return GetProgramPath("ld");
+
+    llvm::SmallString<8> LinkerName("ld.");
+    LinkerName.append(Suffix);
+
+    std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
+    if (llvm::sys::fs::exists(LinkerPath))
+      return LinkerPath;
+
+    getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
+    return "";
+  }
+
+  return GetProgramPath("ld");
+}
+
+
 types::ID ToolChain::LookupTypeForExtension(const char *Ext) const {
   return types::lookupTypeForExtension(Ext);
 }
@@ -154,108 +186,38 @@ bool ToolChain::HasNativeLLVMSupport() const {
   return false;
 }
 
+bool ToolChain::isCrossCompiling() const {
+  llvm::Triple HostTriple(LLVM_HOST_TRIPLE);
+  switch (HostTriple.getArch()) {
+  // The A32/T32/T16 instruction sets are not separate architectures in this
+  // context.
+  case llvm::Triple::arm:
+  case llvm::Triple::armeb:
+  case llvm::Triple::thumb:
+  case llvm::Triple::thumbeb:
+    return getArch() != llvm::Triple::arm && getArch() != llvm::Triple::thumb &&
+           getArch() != llvm::Triple::armeb && getArch() != llvm::Triple::thumbeb;
+  default:
+    return HostTriple.getArch() != getArch();
+  }
+}
+
 ObjCRuntime ToolChain::getDefaultObjCRuntime(bool isNonFragile) const {
   return ObjCRuntime(isNonFragile ? ObjCRuntime::GNUstep : ObjCRuntime::GCC,
                      VersionTuple());
 }
 
-/// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targeting.
-//
-// FIXME: tblgen this.
-static const char *getARMTargetCPU(const ArgList &Args,
-                                   const llvm::Triple &Triple) {
-  // For Darwin targets, the -arch option (which is translated to a
-  // corresponding -march option) should determine the architecture
-  // (and the Mach-O slice) regardless of any -mcpu options.
-  if (!Triple.isOSDarwin()) {
-    // FIXME: Warn on inconsistent use of -mcpu and -march.
-    // If we have -mcpu=, use that.
-    if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
-      return A->getValue();
-  }
+bool ToolChain::isThreadModelSupported(const StringRef Model) const {
+  if (Model == "single") {
+    // FIXME: 'single' is only supported on ARM so far.
+    return Triple.getArch() == llvm::Triple::arm ||
+           Triple.getArch() == llvm::Triple::armeb ||
+           Triple.getArch() == llvm::Triple::thumb ||
+           Triple.getArch() == llvm::Triple::thumbeb;
+  } else if (Model == "posix")
+    return true;
 
-  StringRef MArch;
-  if (Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-    // Otherwise, if we have -march= choose the base CPU for that arch.
-    MArch = A->getValue();
-  } else {
-    // Otherwise, use the Arch from the triple.
-    MArch = Triple.getArchName();
-  }
-
-  if (Triple.getOS() == llvm::Triple::NetBSD ||
-      Triple.getOS() == llvm::Triple::FreeBSD) {
-    if (MArch == "armv6")
-      return "arm1176jzf-s";
-  }
-
-  const char *result = llvm::StringSwitch<const char *>(MArch)
-    .Cases("armv2", "armv2a","arm2")
-    .Case("armv3", "arm6")
-    .Case("armv3m", "arm7m")
-    .Case("armv4", "strongarm")
-    .Case("armv4t", "arm7tdmi")
-    .Cases("armv5", "armv5t", "arm10tdmi")
-    .Cases("armv5e", "armv5te", "arm1026ejs")
-    .Case("armv5tej", "arm926ej-s")
-    .Cases("armv6", "armv6k", "arm1136jf-s")
-    .Case("armv6j", "arm1136j-s")
-    .Cases("armv6z", "armv6zk", "arm1176jzf-s")
-    .Case("armv6t2", "arm1156t2-s")
-    .Cases("armv6m", "armv6-m", "cortex-m0")
-    .Cases("armv7", "armv7a", "armv7-a", "cortex-a8")
-    .Cases("armv7l", "armv7-l", "cortex-a8")
-    .Cases("armv7f", "armv7-f", "cortex-a9-mp")
-    .Cases("armv7s", "armv7-s", "swift")
-    .Cases("armv7r", "armv7-r", "cortex-r4")
-    .Cases("armv7m", "armv7-m", "cortex-m3")
-    .Cases("armv7em", "armv7e-m", "cortex-m4")
-    .Cases("armv8", "armv8a", "armv8-a", "cortex-a53")
-    .Case("ep9312", "ep9312")
-    .Case("iwmmxt", "iwmmxt")
-    .Case("xscale", "xscale")
-    // If all else failed, return the most base CPU with thumb interworking
-    // supported by LLVM.
-    .Default(0);
-
-  if (result)
-    return result;
-
-  return
-    Triple.getEnvironment() == llvm::Triple::GNUEABIHF
-      ? "arm1176jzf-s"
-      : "arm7tdmi";
-}
-
-/// getLLVMArchSuffixForARM - Get the LLVM arch name to use for a particular
-/// CPU.
-//
-// FIXME: This is redundant with -mcpu, why does LLVM use this.
-// FIXME: tblgen this, or kill it!
-static const char *getLLVMArchSuffixForARM(StringRef CPU) {
-  return llvm::StringSwitch<const char *>(CPU)
-    .Case("strongarm", "v4")
-    .Cases("arm7tdmi", "arm7tdmi-s", "arm710t", "v4t")
-    .Cases("arm720t", "arm9", "arm9tdmi", "v4t")
-    .Cases("arm920", "arm920t", "arm922t", "v4t")
-    .Cases("arm940t", "ep9312","v4t")
-    .Cases("arm10tdmi",  "arm1020t", "v5")
-    .Cases("arm9e",  "arm926ej-s",  "arm946e-s", "v5e")
-    .Cases("arm966e-s",  "arm968e-s",  "arm10e", "v5e")
-    .Cases("arm1020e",  "arm1022e",  "xscale", "iwmmxt", "v5e")
-    .Cases("arm1136j-s",  "arm1136jf-s",  "arm1176jz-s", "v6")
-    .Cases("arm1176jzf-s",  "mpcorenovfp",  "mpcore", "v6")
-    .Cases("arm1156t2-s",  "arm1156t2f-s", "v6t2")
-    .Cases("cortex-a5", "cortex-a7", "cortex-a8", "v7")
-    .Cases("cortex-a9", "cortex-a12", "cortex-a15", "v7")
-    .Cases("cortex-r4", "cortex-r5", "v7r")
-    .Case("cortex-m0", "v6m")
-    .Case("cortex-m3", "v7m")
-    .Case("cortex-m4", "v7em")
-    .Case("cortex-a9-mp", "v7f")
-    .Case("swift", "v7s")
-    .Cases("cortex-a53", "cortex-a57", "v8")
-    .Default("");
+  return false;
 }
 
 std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
@@ -266,7 +228,7 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
 
   case llvm::Triple::x86_64: {
     llvm::Triple Triple = getTriple();
-    if (!Triple.isOSDarwin())
+    if (!Triple.isOSBinFormatMachO())
       return getTripleString();
 
     if (Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
@@ -278,24 +240,63 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
     }
     return Triple.getTriple();
   }
+  case llvm::Triple::aarch64: {
+    llvm::Triple Triple = getTriple();
+    if (!Triple.isOSBinFormatMachO())
+      return getTripleString();
+
+    // FIXME: older versions of ld64 expect the "arm64" component in the actual
+    // triple string and query it to determine whether an LTO file can be
+    // handled. Remove this when we don't care any more.
+    Triple.setArchName("arm64");
+    return Triple.getTriple();
+  }
   case llvm::Triple::arm:
-  case llvm::Triple::thumb: {
+  case llvm::Triple::armeb:
+  case llvm::Triple::thumb:
+  case llvm::Triple::thumbeb: {
     // FIXME: Factor into subclasses.
     llvm::Triple Triple = getTriple();
+    bool IsBigEndian = getTriple().getArch() == llvm::Triple::armeb ||
+                       getTriple().getArch() == llvm::Triple::thumbeb;
+
+    // Handle pseudo-target flags '-mlittle-endian'/'-EL' and
+    // '-mbig-endian'/'-EB'.
+    if (Arg *A = Args.getLastArg(options::OPT_mlittle_endian,
+                                 options::OPT_mbig_endian)) {
+      if (A->getOption().matches(options::OPT_mlittle_endian))
+        IsBigEndian = false;
+      else
+        IsBigEndian = true;
+    }
 
     // Thumb2 is the default for V7 on Darwin.
     //
     // FIXME: Thumb should just be another -target-feaure, not in the triple.
-    StringRef Suffix =
-      getLLVMArchSuffixForARM(getARMTargetCPU(Args, Triple));
-    bool ThumbDefault = Suffix.startswith("v6m") ||
-      (Suffix.startswith("v7") && getTriple().isOSDarwin());
-    std::string ArchName = "arm";
+    StringRef Suffix = Triple.isOSBinFormatMachO()
+      ? tools::arm::getLLVMArchSuffixForARM(tools::arm::getARMCPUForMArch(Args, Triple))
+      : tools::arm::getLLVMArchSuffixForARM(tools::arm::getARMTargetCPU(Args, Triple));
+    bool ThumbDefault = Suffix.startswith("v6m") || Suffix.startswith("v7m") ||
+      Suffix.startswith("v7em") ||
+      (Suffix.startswith("v7") && getTriple().isOSBinFormatMachO());
+    // FIXME: this is invalid for WindowsCE
+    if (getTriple().isOSWindows())
+      ThumbDefault = true;
+    std::string ArchName;
+    if (IsBigEndian)
+      ArchName = "armeb";
+    else
+      ArchName = "arm";
 
     // Assembly files should start in ARM mode.
     if (InputType != types::TY_PP_Asm &&
         Args.hasFlag(options::OPT_mthumb, options::OPT_mno_thumb, ThumbDefault))
-      ArchName = "thumb";
+    {
+      if (IsBigEndian)
+        ArchName = "thumbeb";
+      else
+        ArchName = "thumb";
+    }
     Triple.setArchName(ArchName + Suffix.str());
 
     return Triple.getTriple();
@@ -305,13 +306,6 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
 
 std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args, 
                                                    types::ID InputType) const {
-  // Diagnose use of Darwin OS deployment target arguments on non-Darwin.
-  if (Arg *A = Args.getLastArg(options::OPT_mmacosx_version_min_EQ,
-                               options::OPT_miphoneos_version_min_EQ,
-                               options::OPT_mios_simulator_version_min_EQ))
-    getDriver().Diag(diag::err_drv_clang_unsupported)
-      << A->getAsString(Args);
-
   return ComputeLLVMTriple(Args, InputType);
 }
 
@@ -323,6 +317,8 @@ void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
 void ToolChain::addClangTargetOptions(const ArgList &DriverArgs,
                                       ArgStringList &CC1Args) const {
 }
+
+void ToolChain::addClangWarningOptions(ArgStringList &CC1Args) const {}
 
 ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
   const ArgList &Args) const

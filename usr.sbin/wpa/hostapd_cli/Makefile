@@ -10,8 +10,7 @@ SRCS=	common.c edit.c eloop.c hostapd_cli.c os_unix.c wpa_ctrl.c wpa_debug.c
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 
-DPADD+=	${LIBUTIL}
-LDADD+=	-lutil
+LIBADD+=	util
 
 MAN=	hostapd_cli.8
 

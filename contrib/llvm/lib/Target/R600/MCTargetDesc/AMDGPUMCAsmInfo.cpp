@@ -11,25 +11,15 @@
 #include "AMDGPUMCAsmInfo.h"
 
 using namespace llvm;
-AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(StringRef &TT) : MCAsmInfo() {
+AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(StringRef &TT) : MCAsmInfoELF() {
   HasSingleParameterDotFile = false;
   //===------------------------------------------------------------------===//
-  HasSubsectionsViaSymbols = true;
-  HasMachoZeroFillDirective = false;
-  HasMachoTBSSDirective = false;
-  HasStaticCtorDtorReferenceInStaticMode = false;
-  LinkerRequiresNonEmptyDwarfLines = true;
   MaxInstLength = 16;
   SeparatorString = "\n";
-  CommentColumn = 40;
   CommentString = ";";
-  LabelSuffix = ":";
-  GlobalPrefix = "@";
-  PrivateGlobalPrefix = ";.";
-  LinkerPrivateGlobalPrefix = "!";
+  PrivateLabelPrefix = "";
   InlineAsmStart = ";#ASMSTART";
   InlineAsmEnd = ";#ASMEND";
-  AssemblerDialect = 0;
 
   //===--- Data Emission Directives -------------------------------------===//
   ZeroDirective = ".zero";
@@ -39,30 +29,15 @@ AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(StringRef &TT) : MCAsmInfo() {
   Data16bitsDirective = ".short\t";
   Data32bitsDirective = ".long\t";
   Data64bitsDirective = ".quad\t";
-  GPRel32Directive = 0;
   SunStyleELFSectionSwitchSyntax = true;
   UsesELFSectionDirectiveForBSS = true;
-  HasMicrosoftFastStdCallMangling = false;
-
-  //===--- Alignment Information ----------------------------------------===//
-  AlignDirective = ".align\t";
-  AlignmentIsInBytes = true;
-  TextAlignFillValue = 0;
 
   //===--- Global Variable Emission Directives --------------------------===//
-  GlobalDirective = ".global";
-  HasSetDirective = false;
   HasAggressiveSymbolFolding = true;
   COMMDirectiveAlignmentIsInBytes = false;
   HasDotTypeDotSizeDirective = false;
   HasNoDeadStrip = true;
   WeakRefDirective = ".weakref\t";
   //===--- Dwarf Emission Directives -----------------------------------===//
-  HasLEB128 = true;
   SupportsDebugInformation = true;
-}
-
-const MCSection*
-AMDGPUMCAsmInfo::getNonexecutableStackSection(MCContext &CTX) const {
-  return 0;
 }

@@ -68,7 +68,9 @@
  * The line between user space and kernel space
  * Mappings >= KERNEL_BASE are constant across all processes
  */
+#ifndef KERNBASE
 #define	KERNBASE		0xc0000000
+#endif
 
 /*
  * max number of non-contig chunks of physical RAM you can have
@@ -82,13 +84,12 @@
 #define	VM_PHYSSEG_SPARSE
 
 /*
- * Create two free page pools.  Since the ARM kernel virtual address
+ * Create one free page pool.  Since the ARM kernel virtual address
  * space does not include a mapping onto the machine's entire physical
  * memory, VM_FREEPOOL_DIRECT is defined as an alias for the default
  * pool, VM_FREEPOOL_DEFAULT.
  */
-#define	VM_NFREEPOOL		2
-#define	VM_FREEPOOL_CACHE	1
+#define	VM_NFREEPOOL		1
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	0
 
@@ -117,13 +118,10 @@
 #define	VM_LEVEL_0_ORDER	8
 #endif
 
-#define UPT_MAX_ADDRESS		VADDR(UPTPTDI + 3, 0)
-#define UPT_MIN_ADDRESS		VADDR(UPTPTDI, 0)
-
 #define VM_MIN_ADDRESS          (0x00001000)
 #ifndef VM_MAXUSER_ADDRESS
-#define VM_MAXUSER_ADDRESS      KERNBASE
-#endif /* VM_MAXUSER_ADDRESS */
+#define VM_MAXUSER_ADDRESS      (KERNBASE - 0x00400000) /* !!! PT2MAP_SIZE */
+#endif
 #define VM_MAX_ADDRESS          VM_MAXUSER_ADDRESS
 
 #define USRSTACK        VM_MAXUSER_ADDRESS

@@ -18,28 +18,36 @@
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/Interpreter/ScriptInterpreterPython.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/TargetSelect.h"
 
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
+#include "Plugins/ABI/SysV-ppc/ABISysV_ppc.h"
+#include "Plugins/ABI/SysV-ppc64/ABISysV_ppc64.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
+#include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
 #include "Plugins/Instruction/ARM/EmulateInstructionARM.h"
-#include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
+#include "Plugins/Instruction/ARM64/EmulateInstructionARM64.h"
+#include "Plugins/JITLoader/GDB/JITLoaderGDB.h"
+#include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
+#include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
+#include "Plugins/Platform/POSIX/PlatformPOSIX.h"
+#include "Plugins/Process/elf-core/ProcessElfCore.h"
+#include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARFDebugMap.h"
 #include "Plugins/SymbolFile/Symtab/SymbolFileSymtab.h"
 #include "Plugins/UnwindAssembly/x86/UnwindAssembly-x86.h"
 #include "Plugins/UnwindAssembly/InstEmulation/UnwindAssemblyInstEmulation.h"
-#include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
-#include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
-#include "Plugins/Platform/POSIX/PlatformPOSIX.h"
-#include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
+
 #ifndef LLDB_DISABLE_PYTHON
 #include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
 #endif
@@ -58,12 +66,15 @@
 #include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__)
-#include "Plugins/Process/elf-core/ProcessElfCore.h"
-#endif
 
 #if defined (__linux__)
 #include "Plugins/Process/Linux/ProcessLinux.h"
+#endif
+
+#if defined (_WIN32)
+#include "lldb/Host/windows/windows.h"
+#include "Plugins/Process/Windows/DynamicLoaderWindows.h"
+#include "Plugins/Process/Windows/ProcessWindows.h"
 #endif
 
 #if defined (__FreeBSD__)
@@ -74,9 +85,17 @@
 #include "Plugins/Platform/gdb-server/PlatformRemoteGDBServer.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemote.h"
 #include "Plugins/DynamicLoader/Static/DynamicLoaderStatic.h"
+#include "Plugins/MemoryHistory/asan/MemoryHistoryASan.h"
+#include "Plugins/InstrumentationRuntime/AddressSanitizer/AddressSanitizerRuntime.h"
 
 using namespace lldb;
 using namespace lldb_private;
+
+static void fatal_error_handler(void *user_data, const std::string& reason,
+                                bool gen_crash_diag) {
+    Host::SetCrashDescription(reason.c_str());
+    ::abort();
+}
 
 void
 lldb_private::Initialize ()
@@ -89,11 +108,41 @@ lldb_private::Initialize ()
     if (!g_inited)
     {
         g_inited = true;
+
+#if defined(_MSC_VER)
+        const char *disable_crash_dialog_var = getenv("LLDB_DISABLE_CRASH_DIALOG");
+        if (disable_crash_dialog_var && llvm::StringRef(disable_crash_dialog_var).equals_lower("true"))
+        {
+            // This will prevent Windows from displaying a dialog box requiring user interaction when
+            // LLDB crashes.  This is mostly useful when automating LLDB, for example via the test
+            // suite, so that a crash in LLDB does not prevent completion of the test suite.
+            ::SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+
+            _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+            _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+            _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+            _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+            _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+            _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+        }
+#endif
+
         Log::Initialize();
+        HostInfo::Initialize();
         Timer::Initialize ();
         Timer scoped_timer (__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
-        
+
+        // Initialize LLVM and Clang
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllAsmPrinters();
+        llvm::InitializeAllTargetMCs();
+        llvm::InitializeAllDisassemblers();
+        llvm::install_fatal_error_handler(fatal_error_handler, 0);
+
+        // Initialize plug-ins
         ABISysV_x86_64::Initialize();
+        ABISysV_ppc::Initialize();
+        ABISysV_ppc64::Initialize();
         DisassemblerLLVMC::Initialize();
         ObjectContainerBSDArchive::Initialize();
         ObjectFileELF::Initialize();
@@ -103,6 +152,7 @@ lldb_private::Initialize ()
         UnwindAssemblyInstEmulation::Initialize();
         UnwindAssembly_x86::Initialize();
         EmulateInstructionARM::Initialize ();
+        EmulateInstructionARM64::Initialize ();
         DynamicLoaderPOSIXDYLD::Initialize ();
         PlatformFreeBSD::Initialize();
         SymbolFileDWARFDebugMap::Initialize();
@@ -111,7 +161,11 @@ lldb_private::Initialize ()
         ScriptInterpreterPython::InitializePrivate();
         OperatingSystemPython::Initialize();
 #endif
-
+        JITLoaderGDB::Initialize();
+        ProcessElfCore::Initialize();
+        MemoryHistoryASan::Initialize();
+        AddressSanitizerRuntime::Initialize();
+        
 #if defined (__APPLE__)
         //----------------------------------------------------------------------
         // Apple/Darwin hosted plugins
@@ -135,13 +189,14 @@ lldb_private::Initialize ()
         //----------------------------------------------------------------------
         ProcessLinux::Initialize();
 #endif
+#if defined(_WIN32)
+        DynamicLoaderWindows::Initialize();
+        ProcessWindows::Initialize();
+#endif
 #if defined (__FreeBSD__)
         ProcessFreeBSD::Initialize();
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__)
-        ProcessElfCore::Initialize();
-#endif
         //----------------------------------------------------------------------
         // Platform agnostic plugins
         //----------------------------------------------------------------------
@@ -173,6 +228,8 @@ lldb_private::Terminate ()
     // Terminate and unload and loaded system or user LLDB plug-ins
     PluginManager::Terminate();
     ABISysV_x86_64::Terminate();
+    ABISysV_ppc::Terminate();
+    ABISysV_ppc64::Terminate();
     DisassemblerLLVMC::Terminate();
     ObjectContainerBSDArchive::Terminate();
     ObjectFileELF::Terminate();
@@ -182,6 +239,7 @@ lldb_private::Terminate ()
     UnwindAssembly_x86::Terminate();
     UnwindAssemblyInstEmulation::Terminate();
     EmulateInstructionARM::Terminate ();
+    EmulateInstructionARM64::Terminate ();
     DynamicLoaderPOSIXDYLD::Terminate ();
     PlatformFreeBSD::Terminate();
     SymbolFileDWARFDebugMap::Terminate();
@@ -189,7 +247,11 @@ lldb_private::Terminate ()
 #ifndef LLDB_DISABLE_PYTHON
     OperatingSystemPython::Terminate();
 #endif
-
+    JITLoaderGDB::Terminate();
+    ProcessElfCore::Terminate();
+    MemoryHistoryASan::Terminate();
+    AddressSanitizerRuntime::Terminate();
+    
 #if defined (__APPLE__)
     DynamicLoaderMacOSXDYLD::Terminate();
     DynamicLoaderDarwinKernel::Terminate();
@@ -207,6 +269,10 @@ lldb_private::Terminate ()
 
     Debugger::SettingsTerminate ();
 
+#if defined (_WIN32)
+    DynamicLoaderWindows::Terminate();
+#endif
+
 #if defined (__linux__)
     ProcessLinux::Terminate();
 #endif
@@ -215,9 +281,6 @@ lldb_private::Terminate ()
     ProcessFreeBSD::Terminate();
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__)
-    ProcessElfCore::Terminate();
-#endif
     ProcessGDBRemote::Terminate();
     DynamicLoaderStatic::Terminate();
 
@@ -270,7 +333,8 @@ lldb_private::GetVersion ()
         
         size_t version_len = sizeof(g_version_string);
         
-        if (newline_loc && (newline_loc - version_string < version_len))
+        if (newline_loc &&
+            (newline_loc - version_string < static_cast<ptrdiff_t>(version_len)))
             version_len = newline_loc - version_string;
         
         ::strncpy(g_version_string, version_string, version_len);
@@ -370,6 +434,7 @@ lldb_private::GetSectionTypeAsCString (SectionType sect_type)
     case eSectionTypeDWARFAppleNamespaces: return "apple-namespaces";
     case eSectionTypeDWARFAppleObjC: return "apple-objc";
     case eSectionTypeEHFrame: return "eh-frame";
+    case eSectionTypeCompactUnwind: return "compact-unwind";
     case eSectionTypeOther: return "regular";
     }
     return "unknown";

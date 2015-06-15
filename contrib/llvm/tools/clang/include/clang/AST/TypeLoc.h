@@ -81,7 +81,7 @@ public:
     Qualified
   };
 
-  TypeLoc() : Ty(0), Data(0) { }
+  TypeLoc() : Ty(nullptr), Data(nullptr) { }
   TypeLoc(QualType ty, void *opaqueData)
     : Ty(ty.getAsOpaquePtr()), Data(opaqueData) { }
   TypeLoc(const Type *ty, void *opaqueData)
@@ -631,7 +631,7 @@ public:
   bool isDefinition() const {
     TagDecl *D = getDecl();
     return D->isCompleteDefinition() &&
-         (D->getIdentifier() == 0 || D->getLocation() == getNameLoc());
+           (D->getIdentifier() == nullptr || D->getLocation() == getNameLoc());
   }
 };
 
@@ -786,7 +786,7 @@ public:
     setAttrNameLoc(loc);
     if (hasAttrExprOperand()) {
       setAttrOperandParensRange(SourceRange(loc));
-      setAttrExprOperand(0);
+      setAttrExprOperand(nullptr);
     } else if (hasAttrEnumOperand()) {
       setAttrOperandParensRange(SourceRange(loc));
       setAttrEnumOperandLoc(loc);
@@ -978,12 +978,10 @@ inline TypeLoc TypeLoc::IgnoreParens() const {
 }
 
 
-struct DecayedLocInfo { }; // Nothing.
+struct AdjustedLocInfo { }; // Nothing.
 
-/// \brief Wrapper for source info for pointers decayed from arrays and
-/// functions.
-class DecayedTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, DecayedTypeLoc,
-                                              DecayedType, DecayedLocInfo> {
+class AdjustedTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, AdjustedTypeLoc,
+                                               AdjustedType, AdjustedLocInfo> {
 public:
   TypeLoc getOriginalLoc() const {
     return getInnerTypeLoc();
@@ -1004,12 +1002,17 @@ public:
   }
 
   unsigned getLocalDataSize() const {
-    // sizeof(DecayedLocInfo) is 1, but we don't need its address to be unique
+    // sizeof(AdjustedLocInfo) is 1, but we don't need its address to be unique
     // anyway.  TypeLocBuilder can't handle data sizes of 1.
     return 0;  // No data.
   }
 };
 
+/// \brief Wrapper for source info for pointers decayed from arrays and
+/// functions.
+class DecayedTypeLoc : public InheritingConcreteTypeLoc<
+                           AdjustedTypeLoc, DecayedTypeLoc, DecayedType> {
+};
 
 struct PointerLikeLocInfo {
   SourceLocation StarLoc;
@@ -1098,7 +1101,7 @@ public:
 
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
     setSigilLoc(Loc);
-    setClassTInfo(0);
+    setClassTInfo(nullptr);
   }
 
   SourceRange getLocalSourceRange() const {
@@ -1205,23 +1208,23 @@ public:
   }
 
   ArrayRef<ParmVarDecl *> getParams() const {
-    return ArrayRef<ParmVarDecl *>(getParmArray(), getNumArgs());
+    return llvm::makeArrayRef(getParmArray(), getNumParams());
   }
 
-  // ParmVarDecls* are stored after Info, one for each argument.
+  // ParmVarDecls* are stored after Info, one for each parameter.
   ParmVarDecl **getParmArray() const {
     return (ParmVarDecl**) getExtraLocalData();
   }
 
-  unsigned getNumArgs() const {
+  unsigned getNumParams() const {
     if (isa<FunctionNoProtoType>(getTypePtr()))
       return 0;
-    return cast<FunctionProtoType>(getTypePtr())->getNumArgs();
+    return cast<FunctionProtoType>(getTypePtr())->getNumParams();
   }
-  ParmVarDecl *getArg(unsigned i) const { return getParmArray()[i]; }
-  void setArg(unsigned i, ParmVarDecl *VD) { getParmArray()[i] = VD; }
+  ParmVarDecl *getParam(unsigned i) const { return getParmArray()[i]; }
+  void setParam(unsigned i, ParmVarDecl *VD) { getParmArray()[i] = VD; }
 
-  TypeLoc getResultLoc() const {
+  TypeLoc getReturnLoc() const {
     return getInnerTypeLoc();
   }
 
@@ -1234,21 +1237,21 @@ public:
     setLParenLoc(Loc);
     setRParenLoc(Loc);
     setLocalRangeEnd(Loc);
-    for (unsigned i = 0, e = getNumArgs(); i != e; ++i)
-      setArg(i, NULL);
+    for (unsigned i = 0, e = getNumParams(); i != e; ++i)
+      setParam(i, nullptr);
   }
 
   /// \brief Returns the size of the type source info data block that is
   /// specific to this type.
   unsigned getExtraLocalDataSize() const {
-    return getNumArgs() * sizeof(ParmVarDecl*);
+    return getNumParams() * sizeof(ParmVarDecl *);
   }
 
   unsigned getExtraLocalDataAlignment() const {
     return llvm::alignOf<ParmVarDecl*>();
   }
 
-  QualType getInnerType() const { return getTypePtr()->getResultType(); }
+  QualType getInnerType() const { return getTypePtr()->getReturnType(); }
 };
 
 class FunctionProtoTypeLoc :
@@ -1311,7 +1314,7 @@ public:
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
     setLBracketLoc(Loc);
     setRBracketLoc(Loc);
-    setSizeExpr(NULL);
+    setSizeExpr(nullptr);
   }
 
   QualType getInnerType() const { return getTypePtr()->getElementType(); }
@@ -1564,6 +1567,8 @@ public:
   void setUnderlyingTInfo(TypeSourceInfo* TI) const {
     this->getLocalData()->UnderlyingTInfo = TI;
   }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc);
 };
 
 // FIXME: location of the 'decltype' and parens.
@@ -1771,7 +1776,7 @@ public:
       // template specialization type, we won't record the nested-name-specifier
       // location information when this type-source location information is
       // part of a nested-name-specifier.
-      getLocalData()->QualifierData = 0;
+      getLocalData()->QualifierData = nullptr;
       return;
     }
 

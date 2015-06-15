@@ -17,8 +17,9 @@
 #define LLVM_OBJECT_RELOCVISITOR_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/COFF.h"
 #include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/raw_ostream.h"
@@ -33,7 +34,6 @@ struct RelocToApply {
   // The width of the value; how many bytes to touch when applying the
   // relocation.
   char Width;
-  RelocToApply(const RelocToApply &In) : Value(In.Value), Width(In.Width) {}
   RelocToApply(int64_t Value, char Width) : Value(Value), Width(Width) {}
   RelocToApply() : Value(0), Width(0) {}
 };
@@ -41,89 +41,18 @@ struct RelocToApply {
 /// @brief Base class for object file relocation visitors.
 class RelocVisitor {
 public:
-  explicit RelocVisitor(StringRef FileFormat)
-    : FileFormat(FileFormat), HasError(false) {}
+  explicit RelocVisitor(const ObjectFile &Obj)
+    : ObjToVisit(Obj), HasError(false) {}
 
   // TODO: Should handle multiple applied relocations via either passing in the
   // previously computed value or just count paired relocations as a single
   // visit.
-  RelocToApply visit(uint32_t RelocType, RelocationRef R, uint64_t SecAddr = 0,
-                     uint64_t Value = 0) {
-    if (FileFormat == "ELF64-x86-64") {
-      switch (RelocType) {
-        case llvm::ELF::R_X86_64_NONE:
-          return visitELF_X86_64_NONE(R);
-        case llvm::ELF::R_X86_64_64:
-          return visitELF_X86_64_64(R, Value);
-        case llvm::ELF::R_X86_64_PC32:
-          return visitELF_X86_64_PC32(R, Value, SecAddr);
-        case llvm::ELF::R_X86_64_32:
-          return visitELF_X86_64_32(R, Value);
-        case llvm::ELF::R_X86_64_32S:
-          return visitELF_X86_64_32S(R, Value);
-        default:
-          HasError = true;
-          return RelocToApply();
-      }
-    } else if (FileFormat == "ELF32-i386") {
-      switch (RelocType) {
-      case llvm::ELF::R_386_NONE:
-        return visitELF_386_NONE(R);
-      case llvm::ELF::R_386_32:
-        return visitELF_386_32(R, Value);
-      case llvm::ELF::R_386_PC32:
-        return visitELF_386_PC32(R, Value, SecAddr);
-      default:
-        HasError = true;
-        return RelocToApply();
-      }
-    } else if (FileFormat == "ELF64-ppc64") {
-      switch (RelocType) {
-      case llvm::ELF::R_PPC64_ADDR32:
-        return visitELF_PPC64_ADDR32(R, Value);
-      case llvm::ELF::R_PPC64_ADDR64:
-        return visitELF_PPC64_ADDR64(R, Value);
-      default:
-        HasError = true;
-        return RelocToApply();
-      }
-    } else if (FileFormat == "ELF32-ppc") {
-      switch (RelocType) {
-      case llvm::ELF::R_PPC_ADDR32:
-        return visitELF_PPC_ADDR32(R, Value);
-      default:
-        HasError = true;
-        return RelocToApply();
-      }
-    } else if (FileFormat == "ELF32-mips") {
-      switch (RelocType) {
-      case llvm::ELF::R_MIPS_32:
-        return visitELF_MIPS_32(R, Value);
-      default:
-        HasError = true;
-        return RelocToApply();
-      }
-    } else if (FileFormat == "ELF64-aarch64") {
-      switch (RelocType) {
-      case llvm::ELF::R_AARCH64_ABS32:
-        return visitELF_AARCH64_ABS32(R, Value);
-      case llvm::ELF::R_AARCH64_ABS64:
-        return visitELF_AARCH64_ABS64(R, Value);
-      default:
-        HasError = true;
-        return RelocToApply();
-      }
-    } else if (FileFormat == "ELF64-s390") {
-      switch (RelocType) {
-      case llvm::ELF::R_390_32:
-        return visitELF_390_32(R, Value);
-      case llvm::ELF::R_390_64:
-        return visitELF_390_64(R, Value);
-      default:
-        HasError = true;
-        return RelocToApply();
-      }
-    }
+  RelocToApply visit(uint32_t RelocType, RelocationRef R, uint64_t Value = 0) {
+    if (isa<ELFObjectFileBase>(ObjToVisit))
+      return visitELF(RelocType, R, Value);
+    if (isa<COFFObjectFile>(ObjToVisit))
+      return visitCOFF(RelocType, R, Value);
+
     HasError = true;
     return RelocToApply();
   }
@@ -131,10 +60,168 @@ public:
   bool error() { return HasError; }
 
 private:
-  StringRef FileFormat;
+  const ObjectFile &ObjToVisit;
   bool HasError;
 
-  int64_t getAddend32LE(RelocationRef R) {
+  RelocToApply visitELF(uint32_t RelocType, RelocationRef R, uint64_t Value) {
+    if (ObjToVisit.getBytesInAddress() == 8) { // 64-bit object file
+      switch (ObjToVisit.getArch()) {
+      case Triple::x86_64:
+        switch (RelocType) {
+        case llvm::ELF::R_X86_64_NONE:
+          return visitELF_X86_64_NONE(R);
+        case llvm::ELF::R_X86_64_64:
+          return visitELF_X86_64_64(R, Value);
+        case llvm::ELF::R_X86_64_PC32:
+          return visitELF_X86_64_PC32(R, Value);
+        case llvm::ELF::R_X86_64_32:
+          return visitELF_X86_64_32(R, Value);
+        case llvm::ELF::R_X86_64_32S:
+          return visitELF_X86_64_32S(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::aarch64:
+        switch (RelocType) {
+        case llvm::ELF::R_AARCH64_ABS32:
+          return visitELF_AARCH64_ABS32(R, Value);
+        case llvm::ELF::R_AARCH64_ABS64:
+          return visitELF_AARCH64_ABS64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::mips64el:
+      case Triple::mips64:
+        switch (RelocType) {
+        case llvm::ELF::R_MIPS_32:
+          return visitELF_MIPS_32(R, Value);
+        case llvm::ELF::R_MIPS_64:
+          return visitELF_MIPS_64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::ppc64le:
+      case Triple::ppc64:
+        switch (RelocType) {
+        case llvm::ELF::R_PPC64_ADDR32:
+          return visitELF_PPC64_ADDR32(R, Value);
+        case llvm::ELF::R_PPC64_ADDR64:
+          return visitELF_PPC64_ADDR64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::systemz:
+        switch (RelocType) {
+        case llvm::ELF::R_390_32:
+          return visitELF_390_32(R, Value);
+        case llvm::ELF::R_390_64:
+          return visitELF_390_64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::sparcv9:
+        switch (RelocType) {
+        case llvm::ELF::R_SPARC_32:
+        case llvm::ELF::R_SPARC_UA32:
+          return visitELF_SPARCV9_32(R, Value);
+        case llvm::ELF::R_SPARC_64:
+        case llvm::ELF::R_SPARC_UA64:
+          return visitELF_SPARCV9_64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      default:
+        HasError = true;
+        return RelocToApply();
+      }
+    } else if (ObjToVisit.getBytesInAddress() == 4) { // 32-bit object file
+      switch (ObjToVisit.getArch()) {
+      case Triple::x86:
+        switch (RelocType) {
+        case llvm::ELF::R_386_NONE:
+          return visitELF_386_NONE(R);
+        case llvm::ELF::R_386_32:
+          return visitELF_386_32(R, Value);
+        case llvm::ELF::R_386_PC32:
+          return visitELF_386_PC32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::ppc:
+        switch (RelocType) {
+        case llvm::ELF::R_PPC_ADDR32:
+          return visitELF_PPC_ADDR32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::arm:
+      case Triple::armeb:
+        switch (RelocType) {
+        default:
+          HasError = true;
+          return RelocToApply();
+        case llvm::ELF::R_ARM_ABS32:
+          return visitELF_ARM_ABS32(R, Value);
+        }
+      case Triple::mipsel:
+      case Triple::mips:
+        switch (RelocType) {
+        case llvm::ELF::R_MIPS_32:
+          return visitELF_MIPS_32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::sparc:
+        switch (RelocType) {
+        case llvm::ELF::R_SPARC_32:
+        case llvm::ELF::R_SPARC_UA32:
+          return visitELF_SPARC_32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      default:
+        HasError = true;
+        return RelocToApply();
+      }
+    } else {
+      report_fatal_error("Invalid word size in object file");
+    }
+  }
+
+  RelocToApply visitCOFF(uint32_t RelocType, RelocationRef R, uint64_t Value) {
+    switch (ObjToVisit.getArch()) {
+    case Triple::x86:
+      switch (RelocType) {
+      case COFF::IMAGE_REL_I386_SECREL:
+        return visitCOFF_I386_SECREL(R, Value);
+      case COFF::IMAGE_REL_I386_DIR32:
+        return visitCOFF_I386_DIR32(R, Value);
+      }
+      break;
+    case Triple::x86_64:
+      switch (RelocType) {
+      case COFF::IMAGE_REL_AMD64_SECREL:
+        return visitCOFF_AMD64_SECREL(R, Value);
+      case COFF::IMAGE_REL_AMD64_ADDR64:
+        return visitCOFF_AMD64_ADDR64(R, Value);
+      }
+      break;
+    }
+    HasError = true;
+    return RelocToApply();
+  }
+
+  int64_t getELFAddend32LE(RelocationRef R) {
     const ELF32LEObjectFile *Obj = cast<ELF32LEObjectFile>(R.getObjectFile());
     DataRefImpl DRI = R.getRawDataRefImpl();
     int64_t Addend;
@@ -142,7 +229,7 @@ private:
     return Addend;
   }
 
-  int64_t getAddend64LE(RelocationRef R) {
+  int64_t getELFAddend64LE(RelocationRef R) {
     const ELF64LEObjectFile *Obj = cast<ELF64LEObjectFile>(R.getObjectFile());
     DataRefImpl DRI = R.getRawDataRefImpl();
     int64_t Addend;
@@ -150,7 +237,7 @@ private:
     return Addend;
   }
 
-  int64_t getAddend32BE(RelocationRef R) {
+  int64_t getELFAddend32BE(RelocationRef R) {
     const ELF32BEObjectFile *Obj = cast<ELF32BEObjectFile>(R.getObjectFile());
     DataRefImpl DRI = R.getRawDataRefImpl();
     int64_t Addend;
@@ -158,7 +245,7 @@ private:
     return Addend;
   }
 
-  int64_t getAddend64BE(RelocationRef R) {
+  int64_t getELFAddend64BE(RelocationRef R) {
     const ELF64BEObjectFile *Obj = cast<ELF64BEObjectFile>(R.getObjectFile());
     DataRefImpl DRI = R.getRawDataRefImpl();
     int64_t Addend;
@@ -175,13 +262,12 @@ private:
   // Ideally the Addend here will be the addend in the data for
   // the relocation. It's not actually the case for Rel relocations.
   RelocToApply visitELF_386_32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend32LE(R);
+    int64_t Addend = getELFAddend32LE(R);
     return RelocToApply(Value + Addend, 4);
   }
 
-  RelocToApply visitELF_386_PC32(RelocationRef R, uint64_t Value,
-                                 uint64_t SecAddr) {
-    int64_t Addend = getAddend32LE(R);
+  RelocToApply visitELF_386_PC32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend32LE(R);
     uint64_t Address;
     R.getOffset(Address);
     return RelocToApply(Value + Addend - Address, 4);
@@ -192,41 +278,42 @@ private:
     return RelocToApply(0, 0);
   }
   RelocToApply visitELF_X86_64_64(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64LE(R);
+    int64_t Addend = getELFAddend64LE(R);
     return RelocToApply(Value + Addend, 8);
   }
-  RelocToApply visitELF_X86_64_PC32(RelocationRef R, uint64_t Value,
-                                    uint64_t SecAddr) {
-    int64_t Addend = getAddend64LE(R);
+  RelocToApply visitELF_X86_64_PC32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend64LE(R);
     uint64_t Address;
     R.getOffset(Address);
     return RelocToApply(Value + Addend - Address, 4);
   }
   RelocToApply visitELF_X86_64_32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64LE(R);
+    int64_t Addend = getELFAddend64LE(R);
     uint32_t Res = (Value + Addend) & 0xFFFFFFFF;
     return RelocToApply(Res, 4);
   }
   RelocToApply visitELF_X86_64_32S(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64LE(R);
+    int64_t Addend = getELFAddend64LE(R);
     int32_t Res = (Value + Addend) & 0xFFFFFFFF;
     return RelocToApply(Res, 4);
   }
 
   /// PPC64 ELF
   RelocToApply visitELF_PPC64_ADDR32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64BE(R);
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
     uint32_t Res = (Value + Addend) & 0xFFFFFFFF;
     return RelocToApply(Res, 4);
   }
   RelocToApply visitELF_PPC64_ADDR64(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64BE(R);
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
     return RelocToApply(Value + Addend, 8);
   }
 
   /// PPC32 ELF
   RelocToApply visitELF_PPC_ADDR32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend32BE(R);
+    int64_t Addend = getELFAddend32BE(R);
     uint32_t Res = (Value + Addend) & 0xFFFFFFFF;
     return RelocToApply(Res, 4);
   }
@@ -239,9 +326,17 @@ private:
     return RelocToApply(Res, 4);
   }
 
+  RelocToApply visitELF_MIPS_64(RelocationRef R, uint64_t Value) {
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
+    uint64_t Res = (Value + Addend);
+    return RelocToApply(Res, 8);
+  }
+
   // AArch64 ELF
   RelocToApply visitELF_AARCH64_ABS32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64LE(R);
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
     int64_t Res =  Value + Addend;
 
     // Overflow check allows for both signed and unsigned interpretation.
@@ -252,13 +347,14 @@ private:
   }
 
   RelocToApply visitELF_AARCH64_ABS64(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64LE(R);
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
     return RelocToApply(Value + Addend, 8);
   }
 
   // SystemZ ELF
   RelocToApply visitELF_390_32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64BE(R);
+    int64_t Addend = getELFAddend64BE(R);
     int64_t Res = Value + Addend;
 
     // Overflow check allows for both signed and unsigned interpretation.
@@ -269,8 +365,53 @@ private:
   }
 
   RelocToApply visitELF_390_64(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64BE(R);
+    int64_t Addend = getELFAddend64BE(R);
     return RelocToApply(Value + Addend, 8);
+  }
+
+  RelocToApply visitELF_SPARC_32(RelocationRef R, uint32_t Value) {
+    int32_t Addend = getELFAddend32BE(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
+  RelocToApply visitELF_SPARCV9_32(RelocationRef R, uint64_t Value) {
+    int32_t Addend = getELFAddend64BE(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
+  RelocToApply visitELF_SPARCV9_64(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend64BE(R);
+    return RelocToApply(Value + Addend, 8);
+  }
+
+  RelocToApply visitELF_ARM_ABS32(RelocationRef R, uint64_t Value) {
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
+    int64_t Res = Value + Addend;
+
+    // Overflow check allows for both signed and unsigned interpretation.
+    if (Res < INT32_MIN || Res > UINT32_MAX)
+      HasError = true;
+
+    return RelocToApply(static_cast<uint32_t>(Res), 4);
+  }
+
+  /// I386 COFF
+  RelocToApply visitCOFF_I386_SECREL(RelocationRef R, uint64_t Value) {
+    return RelocToApply(static_cast<uint32_t>(Value), /*Width=*/4);
+  }
+
+  RelocToApply visitCOFF_I386_DIR32(RelocationRef R, uint64_t Value) {
+    return RelocToApply(static_cast<uint32_t>(Value), /*Width=*/4);
+  }
+
+  /// AMD64 COFF
+  RelocToApply visitCOFF_AMD64_SECREL(RelocationRef R, uint64_t Value) {
+    return RelocToApply(static_cast<uint32_t>(Value), /*Width=*/4);
+  }
+
+  RelocToApply visitCOFF_AMD64_ADDR64(RelocationRef R, uint64_t Value) {
+    return RelocToApply(Value, /*Width=*/8);
   }
 };
 

@@ -3203,7 +3203,7 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 
 	/* Scan associations skipping as=0. */
 	cnt = 0;
-	for (j = 1; j < 16; j++) {
+	for (j = 1; j < 16 && cnt < max; j++) {
 		first = 16;
 		hpredir = 0;
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
@@ -6592,7 +6592,7 @@ hdaa_attach(device_t dev)
 	devinfo->newquirks = -1;
 	devinfo->newgpio = -1;
 	devinfo->newgpo = -1;
-	callout_init(&devinfo->poll_jack, CALLOUT_MPSAFE);
+	callout_init(&devinfo->poll_jack, 1);
 	devinfo->poll_ival = hz;
 
 	hdaa_lock(devinfo);
@@ -7092,7 +7092,7 @@ hdaa_pcm_attach(device_t dev)
 		    "rec.autosrc", &pdevinfo->autorecsrc);
 		SYSCTL_ADD_INT(&d->rec_sysctl_ctx,
 		    SYSCTL_CHILDREN(d->rec_sysctl_tree), OID_AUTO,
-		    "autosrc", CTLTYPE_INT | CTLFLAG_RW,
+		    "autosrc", CTLFLAG_RW,
 		    &pdevinfo->autorecsrc, 0,
 		    "Automatic recording source selection");
 	}

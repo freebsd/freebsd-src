@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -57,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
+#include <x86/include/apicvar.h>
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
@@ -354,20 +357,46 @@ dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
 }
 
 void
-dmar_unmap_pgtbl(struct sf_buf *sf, bool coherent)
+dmar_unmap_pgtbl(struct sf_buf *sf)
 {
-	vm_page_t m;
 
-	m = sf_buf_page(sf);
 	sf_buf_free(sf);
 	sched_unpin();
+}
 
+static void
+dmar_flush_transl_to_ram(struct dmar_unit *unit, void *dst, size_t sz)
+{
+
+	if (DMAR_IS_COHERENT(unit))
+		return;
 	/*
 	 * If DMAR does not snoop paging structures accesses, flush
 	 * CPU cache to memory.
 	 */
-	if (!coherent)
-		pmap_invalidate_cache_pages(&m, 1);
+	pmap_invalidate_cache_range((uintptr_t)dst, (uintptr_t)dst + sz,
+	    TRUE);
+}
+
+void
+dmar_flush_pte_to_ram(struct dmar_unit *unit, dmar_pte_t *dst)
+{
+
+	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
+}
+
+void
+dmar_flush_ctx_to_ram(struct dmar_unit *unit, dmar_ctx_entry_t *dst)
+{
+
+	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
+}
+
+void
+dmar_flush_root_to_ram(struct dmar_unit *unit, dmar_root_entry_t *dst)
+{
+
+	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
 }
 
 /*
@@ -385,11 +414,9 @@ dmar_load_root_entry_ptr(struct dmar_unit *unit)
 	 */
 	DMAR_ASSERT_LOCKED(unit);
 
-	/* VM_OBJECT_RLOCK(unit->ctx_obj); */
-	VM_OBJECT_WLOCK(unit->ctx_obj);
+	VM_OBJECT_RLOCK(unit->ctx_obj);
 	root_entry = vm_page_lookup(unit->ctx_obj, 0);
-	/* VM_OBJECT_RUNLOCK(unit->ctx_obj); */
-	VM_OBJECT_WUNLOCK(unit->ctx_obj);
+	VM_OBJECT_RUNLOCK(unit->ctx_obj);
 	dmar_write8(unit, DMAR_RTADDR_REG, VM_PAGE_TO_PHYS(root_entry));
 	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd | DMAR_GCMD_SRTP);
 	/* XXXKIB should have a timeout */
@@ -493,6 +520,55 @@ dmar_disable_translation(struct dmar_unit *unit)
 	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd);
 	/* XXXKIB should have a timeout */
 	while ((dmar_read4(unit, DMAR_GSTS_REG) & DMAR_GSTS_TES) != 0)
+		cpu_spinwait();
+	return (0);
+}
+
+int
+dmar_load_irt_ptr(struct dmar_unit *unit)
+{
+	uint64_t irta, s;
+
+	DMAR_ASSERT_LOCKED(unit);
+	irta = unit->irt_phys;
+	if (DMAR_X2APIC(unit))
+		irta |= DMAR_IRTA_EIME;
+	s = fls(unit->irte_cnt) - 2;
+	KASSERT(unit->irte_cnt >= 2 && s <= DMAR_IRTA_S_MASK &&
+	    powerof2(unit->irte_cnt),
+	    ("IRTA_REG_S overflow %x", unit->irte_cnt));
+	irta |= s;
+	dmar_write8(unit, DMAR_IRTA_REG, irta);
+	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd | DMAR_GCMD_SIRTP);
+	/* XXXKIB should have a timeout */
+	while ((dmar_read4(unit, DMAR_GSTS_REG) & DMAR_GSTS_IRTPS) == 0)
+		cpu_spinwait();
+	return (0);
+}
+
+int
+dmar_enable_ir(struct dmar_unit *unit)
+{
+
+	DMAR_ASSERT_LOCKED(unit);
+	unit->hw_gcmd |= DMAR_GCMD_IRE;
+	unit->hw_gcmd &= ~DMAR_GCMD_CFI;
+	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd);
+	/* XXXKIB should have a timeout */
+	while ((dmar_read4(unit, DMAR_GSTS_REG) & DMAR_GSTS_IRES) == 0)
+		cpu_spinwait();
+	return (0);
+}
+
+int
+dmar_disable_ir(struct dmar_unit *unit)
+{
+
+	DMAR_ASSERT_LOCKED(unit);
+	unit->hw_gcmd &= ~DMAR_GCMD_IRE;
+	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd);
+	/* XXXKIB should have a timeout */
+	while ((dmar_read4(unit, DMAR_GSTS_REG) & DMAR_GSTS_IRES) != 0)
 		cpu_spinwait();
 	return (0);
 }

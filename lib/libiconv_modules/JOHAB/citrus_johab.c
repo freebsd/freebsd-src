@@ -145,10 +145,10 @@ ishanja(int l, int t)
 static int
 /*ARGSUSED*/
 _citrus_JOHAB_mbrtowc_priv(_JOHABEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
     _JOHABState * __restrict psenc, size_t * __restrict nresult)
 {
-	const char *s0;
+	char *s0;
 	int l, t;
 
 	if (*s == NULL) {

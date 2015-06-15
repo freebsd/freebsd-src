@@ -31,6 +31,7 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Thread.h"
+#include "llvm/ADT/STLExtras.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -202,7 +203,7 @@ protected:
                     }
                     else
                     {
-                        result.AppendErrorWithFormat ("invalid register set index: %zu\n", set_idx);
+                        result.AppendErrorWithFormat("invalid register set index: %" PRIu64 "\n", (uint64_t)set_idx);
                         result.SetStatus (eReturnStatusFailed);
                         break;
                     }
@@ -352,15 +353,15 @@ protected:
 const OptionDefinition
 CommandObjectRegisterRead::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, false, "alternate", 'A', OptionParser::eNoArgument      , NULL, 0, eArgTypeNone      , "Display register names using the alternate register name if there is one."},
-    { LLDB_OPT_SET_1  , false, "set"      , 's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeIndex     , "Specify which register sets to dump by index."},
-    { LLDB_OPT_SET_2  , false, "all"      , 'a', OptionParser::eNoArgument      , NULL, 0, eArgTypeNone      , "Show all register sets."},
+    { LLDB_OPT_SET_ALL, false, "alternate", 'A', OptionParser::eNoArgument      , NULL, NULL, 0, eArgTypeNone      , "Display register names using the alternate register name if there is one."},
+    { LLDB_OPT_SET_1  , false, "set"      , 's', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeIndex     , "Specify which register sets to dump by index."},
+    { LLDB_OPT_SET_2  , false, "all"      , 'a', OptionParser::eNoArgument      , NULL, NULL, 0, eArgTypeNone      , "Show all register sets."},
 };
 
 uint32_t
 CommandObjectRegisterRead::CommandOptions::GetNumDefinitions ()
 {
-    return sizeof(g_option_table)/sizeof(OptionDefinition);
+    return llvm::array_lengthof(g_option_table);
 }
 
 

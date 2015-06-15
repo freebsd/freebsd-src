@@ -28,7 +28,7 @@
 .\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2014
+.Dd September 29, 2014
 .Dt CONNECT 2
 .Os
 .Sh NAME
@@ -160,6 +160,8 @@ Search permission is denied for a component of the path prefix.
 Write access to the named socket is denied.
 .It Bq Er ELOOP
 Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+Write access to the named socket is denied.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,

@@ -59,10 +59,10 @@ static void lpc_intc_eoi(void *);
 
 static struct lpc_intc_softc *intc_softc = NULL;
 
-#define	intc_read_4(reg)		\
-    bus_space_read_4(intc_softc->li_bst, intc_softc->li_bsh, reg)
-#define	intc_write_4(reg, val)		\
-    bus_space_write_4(intc_softc->li_bst, intc_softc->li_bsh, reg, val)
+#define	intc_read_4(_sc, _reg)		\
+    bus_space_read_4((_sc)->li_bst, (_sc)->li_bsh, (_reg))
+#define	intc_write_4(_sc, _reg, _val)		\
+    bus_space_write_4((_sc)->li_bst, (_sc)->li_bsh, (_reg), (_val))
 
 static int
 lpc_intc_probe(device_t dev)
@@ -100,12 +100,12 @@ lpc_intc_attach(device_t dev)
 	arm_post_filter = lpc_intc_eoi;
 
 	/* Clear interrupt status registers and disable all interrupts */
-	intc_write_4(LPC_INTC_MIC_ER, 0);
-	intc_write_4(LPC_INTC_SIC1_ER, 0);
-	intc_write_4(LPC_INTC_SIC2_ER, 0);
-	intc_write_4(LPC_INTC_MIC_RSR, ~0);
-	intc_write_4(LPC_INTC_SIC1_RSR, ~0);
-	intc_write_4(LPC_INTC_SIC2_RSR, ~0);
+	intc_write_4(sc, LPC_INTC_MIC_ER, 0);
+	intc_write_4(sc, LPC_INTC_SIC1_ER, 0);
+	intc_write_4(sc, LPC_INTC_SIC2_ER, 0);
+	intc_write_4(sc, LPC_INTC_MIC_RSR, ~0);
+	intc_write_4(sc, LPC_INTC_SIC1_RSR, ~0);
+	intc_write_4(sc, LPC_INTC_SIC2_RSR, ~0);
 	return (0);
 }
 
@@ -128,25 +128,26 @@ DRIVER_MODULE(pic, simplebus, lpc_intc_driver, lpc_intc_devclass, 0, 0);
 int
 arm_get_next_irq(int last)
 {
+	struct lpc_intc_softc *sc = intc_softc;
 	uint32_t value;
 	int i;
 
 	/* IRQs 0-31 are mapped to LPC_INTC_MIC_SR */
-	value = intc_read_4(LPC_INTC_MIC_SR);
+	value = intc_read_4(sc, LPC_INTC_MIC_SR);
 	for (i = 0; i < 32; i++) {
 		if (value & (1 << i))
 			return (i);
 	}
 
 	/* IRQs 32-63 are mapped to LPC_INTC_SIC1_SR */
-	value = intc_read_4(LPC_INTC_SIC1_SR);
+	value = intc_read_4(sc, LPC_INTC_SIC1_SR);
 	for (i = 0; i < 32; i++) {
 		if (value & (1 << i))
 			return (i + 32);
 	}
 
 	/* IRQs 64-95 are mapped to LPC_INTC_SIC2_SR */
-	value = intc_read_4(LPC_INTC_SIC2_SR);
+	value = intc_read_4(sc, LPC_INTC_SIC2_SR);
 	for (i = 0; i < 32; i++) {
 		if (value & (1 << i))
 			return (i + 64);
@@ -158,6 +159,7 @@ arm_get_next_irq(int last)
 void
 arm_mask_irq(uintptr_t nb)
 {
+	struct lpc_intc_softc *sc = intc_softc;
 	int reg;
 	uint32_t value;
 
@@ -174,14 +176,15 @@ arm_mask_irq(uintptr_t nb)
 		reg = LPC_INTC_MIC_ER;
 
 	/* Clear bit in ER register */
-	value = intc_read_4(reg);
+	value = intc_read_4(sc, reg);
 	value &= ~(1 << nb);
-	intc_write_4(reg, value);
+	intc_write_4(sc, reg, value);
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
+	struct lpc_intc_softc *sc = intc_softc;
 	int reg;
 	uint32_t value;
 
@@ -195,14 +198,15 @@ arm_unmask_irq(uintptr_t nb)
 		reg = LPC_INTC_MIC_ER;
 
 	/* Set bit in ER register */
-	value = intc_read_4(reg);
+	value = intc_read_4(sc, reg);
 	value |= (1 << nb);
-	intc_write_4(reg, value);
+	intc_write_4(sc, reg, value);
 }
 
 static void
 lpc_intc_eoi(void *data)
 {
+	struct lpc_intc_softc *sc = intc_softc;
 	int reg;
 	int nb = (int)data;
 	uint32_t value;
@@ -217,9 +221,9 @@ lpc_intc_eoi(void *data)
 		reg = LPC_INTC_MIC_RSR;
 
 	/* Set bit in RSR register */
-	value = intc_read_4(reg);
+	value = intc_read_4(sc, reg);
 	value |= (1 << nb);
-	intc_write_4(reg, value);
+	intc_write_4(sc, reg, value);
 
 }
 

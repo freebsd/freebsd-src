@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.MAIN: all
+
 .include <src.opts.mk>
 MK_SSP=		no
 
@@ -24,7 +26,7 @@ CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 MKDEP=		-DCRT_BEGIN
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
@@ -73,5 +75,12 @@ realinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${file} ${DESTDIR}${LIBDIR}/${file}
 .endfor
+
+.if ${MK_STAGING} == "yes"
+STAGE_DIR= ${STAGE_LIBDIR}
+STAGE_FILES= ${OBJS} ${SOBJS} ${TGTOBJS}
+staging: stage_files
+.endif
+.NOPATH: ${CLEANFILES}
 
 .include <bsd.lib.mk>

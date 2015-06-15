@@ -60,14 +60,14 @@ spinny &
 child=$!
 
 #
-# This is gutsy -- we're assuming that mutex_enter(9F) will show up in the
+# This is gutsy -- we're assuming that mtx_lock(9) will show up in the
 # output.  This is most likely _not_ to show up in the output if the 
 # platform does not support arbitrary resolution interval timers -- but
 # the above script was stress-tested down to 100 hertz and still ran
 # successfully on all platforms, so one is hopeful that this test will pass
 # even in that case.
 #
-script | tee /dev/fd/2 | grep mutex_enter > /dev/null
+script | tee /dev/fd/2 | grep mtx_lock > /dev/null
 status=$?
 
 kill $child

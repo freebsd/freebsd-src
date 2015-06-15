@@ -88,7 +88,7 @@ static uint32_t urndis_ctrl_init(struct urndis_softc *);
 #ifdef USB_DEBUG
 static int urndis_debug = 0;
 static	SYSCTL_NODE(_hw_usb, OID_AUTO, urndis, CTLFLAG_RW, 0, "USB RNDIS-Ethernet");
-SYSCTL_INT(_hw_usb_urndis, OID_AUTO, debug, CTLFLAG_RW, &urndis_debug, 0,
+SYSCTL_INT(_hw_usb_urndis, OID_AUTO, debug, CTLFLAG_RWTUN, &urndis_debug, 0,
     "Debug level");
 #endif
 
@@ -170,15 +170,15 @@ static const struct usb_ether_methods urndis_ue_methods = {
 };
 
 static const STRUCT_USB_HOST_ID urndis_host_devs[] = {
-#if 0
-	/* XXX this entry has a conflict an entry the umodem driver XXX */
-	{USB_IFACE_CLASS(UICLASS_CDC), USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
-	USB_IFACE_PROTOCOL(0xff)},
-#endif
+	/* Generic RNDIS class match */
 	{USB_IFACE_CLASS(UICLASS_WIRELESS), USB_IFACE_SUBCLASS(UISUBCLASS_RF),
-	USB_IFACE_PROTOCOL(UIPROTO_RNDIS)},
+		USB_IFACE_PROTOCOL(UIPROTO_RNDIS)},
 	{USB_IFACE_CLASS(UICLASS_IAD), USB_IFACE_SUBCLASS(UISUBCLASS_SYNC),
-	USB_IFACE_PROTOCOL(UIPROTO_ACTIVESYNC)},
+		USB_IFACE_PROTOCOL(UIPROTO_ACTIVESYNC)},
+	/* HP-WebOS */
+	{USB_VENDOR(USB_VENDOR_PALM), USB_IFACE_CLASS(UICLASS_CDC),
+		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
+		USB_IFACE_PROTOCOL(0xff)},
 };
 
 static int
@@ -844,12 +844,12 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				    rm_dataoffset), actlen);
 				goto tr_setup;
 			} else if (msg.rm_datalen < (uint32_t)sizeof(struct ether_header)) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				DPRINTF("invalid ethernet size "
 				    "%u < %u\n", msg.rm_datalen, (unsigned)sizeof(struct ether_header));
 				goto tr_setup;
 			} else if (msg.rm_datalen > (uint32_t)MCLBYTES) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				DPRINTF("invalid ethernet size "
 				    "%u > %u\n",
 				    msg.rm_datalen, (unsigned)MCLBYTES);
@@ -871,7 +871,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				/* enqueue */
 				uether_rxmbuf(&sc->sc_ue, m, msg.rm_datalen);
 			} else {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			}
 			offset += msg.rm_len;
 			actlen -= msg.rm_len;
@@ -917,7 +917,7 @@ urndis_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "%u bytes in %u frames\n", actlen, aframes);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -937,7 +937,7 @@ tr_setup:
 
 			if ((m->m_pkthdr.len + sizeof(msg)) > RNDIS_TX_MAXLEN) {
 				DPRINTF("Too big packet\n");
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 				/* Free buffer */
 				m_freem(m);
@@ -973,7 +973,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n", usbd_errstr(error));
 
 		/* count output errors */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */

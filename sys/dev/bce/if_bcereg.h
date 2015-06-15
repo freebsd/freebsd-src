@@ -419,7 +419,7 @@
 /* Returns FALSE in "defects" per 2^31 - 1 calls, otherwise returns TRUE. */
 #define DB_RANDOMFALSE(defects)        (random() > defects)
 #define DB_OR_RANDOMFALSE(defects)  || (random() > defects)
-#define DB_AND_RANDOMFALSE(defects) && (random() > ddfects)
+#define DB_AND_RANDOMFALSE(defects) && (random() > defects)
 
 /* Returns TRUE in "defects" per 2^31 - 1 calls, otherwise returns FALSE. */
 #define DB_RANDOMTRUE(defects)         (random() < defects)
@@ -6692,6 +6692,7 @@ struct bce_softc
 	u32			l2fhdr_error_count;
 	u32			dma_map_addr_tx_failed_count;
 	u32			dma_map_addr_rx_failed_count;
+	u32			watchdog_timeouts;
 
 	/* Host coalescing block command register */
 	u32			hc_command;

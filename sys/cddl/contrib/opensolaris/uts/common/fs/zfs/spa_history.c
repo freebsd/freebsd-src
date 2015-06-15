@@ -90,7 +90,7 @@ spa_history_create_obj(spa_t *spa, dmu_tx_t *tx)
 
 	ASSERT(spa->spa_history == 0);
 	spa->spa_history = dmu_object_alloc(mos, DMU_OT_SPA_HISTORY,
-	    SPA_MAXBLOCKSIZE, DMU_OT_SPA_HISTORY_OFFSETS,
+	    SPA_OLD_MAXBLOCKSIZE, DMU_OT_SPA_HISTORY_OFFSETS,
 	    sizeof (spa_history_phys_t), tx);
 
 	VERIFY(zap_add(mos, DMU_POOL_DIRECTORY_OBJECT,
@@ -527,7 +527,7 @@ spa_history_log_internal_dd(dsl_dir_t *dd, const char *operation,
 	dsl_dir_name(dd, namebuf);
 	fnvlist_add_string(nvl, ZPOOL_HIST_DSNAME, namebuf);
 	fnvlist_add_uint64(nvl, ZPOOL_HIST_DSID,
-	    dd->dd_phys->dd_head_dataset_obj);
+	    dsl_dir_phys(dd)->dd_head_dataset_obj);
 
 	va_start(adx, fmt);
 	log_internal(nvl, operation, dd->dd_pool->dp_spa, tx, fmt, adx);

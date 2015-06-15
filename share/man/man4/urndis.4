@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2014
+.Dd October 2, 2014
 .Dt URNDIS 4
 .Os
 .Sh NAME
@@ -68,8 +68,16 @@ such as those commonly found on Android devices.
 It does not support different media types or options.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the
+.Qq tethering
+functionality of many Android devices.
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr cdce 4 ,
+.Xr ipheth 4 ,
 .Xr netintro 4 ,
 .Xr usb 4 ,
 .Xr ifconfig 8

@@ -12,74 +12,93 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "aarch64mcexpr"
 #include "AArch64MCExpr.h"
-#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELF.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
-const AArch64MCExpr*
-AArch64MCExpr::Create(VariantKind Kind, const MCExpr *Expr,
-                      MCContext &Ctx) {
-  return new (Ctx) AArch64MCExpr(Kind, Expr);
+#define DEBUG_TYPE "aarch64symbolrefexpr"
+
+const AArch64MCExpr *AArch64MCExpr::Create(const MCExpr *Expr, VariantKind Kind,
+                                       MCContext &Ctx) {
+  return new (Ctx) AArch64MCExpr(Expr, Kind);
+}
+
+StringRef AArch64MCExpr::getVariantKindName() const {
+  switch (static_cast<uint32_t>(getKind())) {
+  case VK_CALL:                return "";
+  case VK_LO12:                return ":lo12:";
+  case VK_ABS_G3:              return ":abs_g3:";
+  case VK_ABS_G2:              return ":abs_g2:";
+  case VK_ABS_G2_S:            return ":abs_g2_s:";
+  case VK_ABS_G2_NC:           return ":abs_g2_nc:";
+  case VK_ABS_G1:              return ":abs_g1:";
+  case VK_ABS_G1_S:            return ":abs_g1_s:";
+  case VK_ABS_G1_NC:           return ":abs_g1_nc:";
+  case VK_ABS_G0:              return ":abs_g0:";
+  case VK_ABS_G0_S:            return ":abs_g0_s:";
+  case VK_ABS_G0_NC:           return ":abs_g0_nc:";
+  case VK_DTPREL_G2:           return ":dtprel_g2:";
+  case VK_DTPREL_G1:           return ":dtprel_g1:";
+  case VK_DTPREL_G1_NC:        return ":dtprel_g1_nc:";
+  case VK_DTPREL_G0:           return ":dtprel_g0:";
+  case VK_DTPREL_G0_NC:        return ":dtprel_g0_nc:";
+  case VK_DTPREL_HI12:         return ":dtprel_hi12:";
+  case VK_DTPREL_LO12:         return ":dtprel_lo12:";
+  case VK_DTPREL_LO12_NC:      return ":dtprel_lo12_nc:";
+  case VK_TPREL_G2:            return ":tprel_g2:";
+  case VK_TPREL_G1:            return ":tprel_g1:";
+  case VK_TPREL_G1_NC:         return ":tprel_g1_nc:";
+  case VK_TPREL_G0:            return ":tprel_g0:";
+  case VK_TPREL_G0_NC:         return ":tprel_g0_nc:";
+  case VK_TPREL_HI12:          return ":tprel_hi12:";
+  case VK_TPREL_LO12:          return ":tprel_lo12:";
+  case VK_TPREL_LO12_NC:       return ":tprel_lo12_nc:";
+  case VK_TLSDESC_LO12:        return ":tlsdesc_lo12:";
+  case VK_ABS_PAGE:            return "";
+  case VK_GOT_PAGE:            return ":got:";
+  case VK_GOT_LO12:            return ":got_lo12:";
+  case VK_GOTTPREL_PAGE:       return ":gottprel:";
+  case VK_GOTTPREL_LO12_NC:    return ":gottprel_lo12:";
+  case VK_GOTTPREL_G1:         return ":gottprel_g1:";
+  case VK_GOTTPREL_G0_NC:      return ":gottprel_g0_nc:";
+  case VK_TLSDESC:             return "";
+  case VK_TLSDESC_PAGE:        return ":tlsdesc:";
+  default:
+    llvm_unreachable("Invalid ELF symbol kind");
+  }
 }
 
 void AArch64MCExpr::PrintImpl(raw_ostream &OS) const {
-  switch (Kind) {
-  default: llvm_unreachable("Invalid kind!");
-  case VK_AARCH64_GOT:              OS << ":got:"; break;
-  case VK_AARCH64_GOT_LO12:         OS << ":got_lo12:"; break;
-  case VK_AARCH64_LO12:             OS << ":lo12:"; break;
-  case VK_AARCH64_ABS_G0:           OS << ":abs_g0:"; break;
-  case VK_AARCH64_ABS_G0_NC:        OS << ":abs_g0_nc:"; break;
-  case VK_AARCH64_ABS_G1:           OS << ":abs_g1:"; break;
-  case VK_AARCH64_ABS_G1_NC:        OS << ":abs_g1_nc:"; break;
-  case VK_AARCH64_ABS_G2:           OS << ":abs_g2:"; break;
-  case VK_AARCH64_ABS_G2_NC:        OS << ":abs_g2_nc:"; break;
-  case VK_AARCH64_ABS_G3:           OS << ":abs_g3:"; break;
-  case VK_AARCH64_SABS_G0:          OS << ":abs_g0_s:"; break;
-  case VK_AARCH64_SABS_G1:          OS << ":abs_g1_s:"; break;
-  case VK_AARCH64_SABS_G2:          OS << ":abs_g2_s:"; break;
-  case VK_AARCH64_DTPREL_G2:        OS << ":dtprel_g2:"; break;
-  case VK_AARCH64_DTPREL_G1:        OS << ":dtprel_g1:"; break;
-  case VK_AARCH64_DTPREL_G1_NC:     OS << ":dtprel_g1_nc:"; break;
-  case VK_AARCH64_DTPREL_G0:        OS << ":dtprel_g0:"; break;
-  case VK_AARCH64_DTPREL_G0_NC:     OS << ":dtprel_g0_nc:"; break;
-  case VK_AARCH64_DTPREL_HI12:      OS << ":dtprel_hi12:"; break;
-  case VK_AARCH64_DTPREL_LO12:      OS << ":dtprel_lo12:"; break;
-  case VK_AARCH64_DTPREL_LO12_NC:   OS << ":dtprel_lo12_nc:"; break;
-  case VK_AARCH64_GOTTPREL_G1:      OS << ":gottprel_g1:"; break;
-  case VK_AARCH64_GOTTPREL_G0_NC:   OS << ":gottprel_g0_nc:"; break;
-  case VK_AARCH64_GOTTPREL:         OS << ":gottprel:"; break;
-  case VK_AARCH64_GOTTPREL_LO12:    OS << ":gottprel_lo12:"; break;
-  case VK_AARCH64_TPREL_G2:         OS << ":tprel_g2:"; break;
-  case VK_AARCH64_TPREL_G1:         OS << ":tprel_g1:"; break;
-  case VK_AARCH64_TPREL_G1_NC:      OS << ":tprel_g1_nc:"; break;
-  case VK_AARCH64_TPREL_G0:         OS << ":tprel_g0:"; break;
-  case VK_AARCH64_TPREL_G0_NC:      OS << ":tprel_g0_nc:"; break;
-  case VK_AARCH64_TPREL_HI12:       OS << ":tprel_hi12:"; break;
-  case VK_AARCH64_TPREL_LO12:       OS << ":tprel_lo12:"; break;
-  case VK_AARCH64_TPREL_LO12_NC:    OS << ":tprel_lo12_nc:"; break;
-  case VK_AARCH64_TLSDESC:          OS << ":tlsdesc:"; break;
-  case VK_AARCH64_TLSDESC_LO12:     OS << ":tlsdesc_lo12:"; break;
-
-  }
-
-  const MCExpr *Expr = getSubExpr();
-  if (Expr->getKind() != MCExpr::SymbolRef)
-    OS << '(';
-  Expr->print(OS);
-  if (Expr->getKind() != MCExpr::SymbolRef)
-    OS << ')';
+  if (getKind() != VK_NONE)
+    OS << getVariantKindName();
+  OS << *Expr;
 }
 
-bool
-AArch64MCExpr::EvaluateAsRelocatableImpl(MCValue &Res,
-                                         const MCAsmLayout *Layout) const {
-  return getSubExpr()->EvaluateAsRelocatable(Res, *Layout);
+void AArch64MCExpr::visitUsedExpr(MCStreamer &Streamer) const {
+  Streamer.visitUsedExpr(*getSubExpr());
+}
+
+const MCSection *AArch64MCExpr::FindAssociatedSection() const {
+  llvm_unreachable("FIXME: what goes here?");
+}
+
+bool AArch64MCExpr::EvaluateAsRelocatableImpl(MCValue &Res,
+                                            const MCAsmLayout *Layout,
+					    const MCFixup *Fixup) const {
+  if (!getSubExpr()->EvaluateAsRelocatable(Res, Layout, Fixup))
+    return false;
+
+  Res =
+      MCValue::get(Res.getSymA(), Res.getSymB(), Res.getConstant(), getKind());
+
+  return true;
 }
 
 static void fixELFSymbolsInTLSFixupsImpl(const MCExpr *Expr, MCAssembler &Asm) {
@@ -113,66 +132,15 @@ static void fixELFSymbolsInTLSFixupsImpl(const MCExpr *Expr, MCAssembler &Asm) {
 }
 
 void AArch64MCExpr::fixELFSymbolsInTLSFixups(MCAssembler &Asm) const {
-  switch (getKind()) {
+  switch (getSymbolLoc(Kind)) {
   default:
     return;
-  case VK_AARCH64_DTPREL_G2:
-  case VK_AARCH64_DTPREL_G1:
-  case VK_AARCH64_DTPREL_G1_NC:
-  case VK_AARCH64_DTPREL_G0:
-  case VK_AARCH64_DTPREL_G0_NC:
-  case VK_AARCH64_DTPREL_HI12:
-  case VK_AARCH64_DTPREL_LO12:
-  case VK_AARCH64_DTPREL_LO12_NC:
-  case VK_AARCH64_GOTTPREL_G1:
-  case VK_AARCH64_GOTTPREL_G0_NC:
-  case VK_AARCH64_GOTTPREL:
-  case VK_AARCH64_GOTTPREL_LO12:
-  case VK_AARCH64_TPREL_G2:
-  case VK_AARCH64_TPREL_G1:
-  case VK_AARCH64_TPREL_G1_NC:
-  case VK_AARCH64_TPREL_G0:
-  case VK_AARCH64_TPREL_G0_NC:
-  case VK_AARCH64_TPREL_HI12:
-  case VK_AARCH64_TPREL_LO12:
-  case VK_AARCH64_TPREL_LO12_NC:
-  case VK_AARCH64_TLSDESC:
-  case VK_AARCH64_TLSDESC_LO12:
+  case VK_DTPREL:
+  case VK_GOTTPREL:
+  case VK_TPREL:
+  case VK_TLSDESC:
     break;
   }
 
   fixELFSymbolsInTLSFixupsImpl(getSubExpr(), Asm);
-}
-
-// FIXME: This basically copies MCObjectStreamer::AddValueSymbols. Perhaps
-// that method should be made public?
-// FIXME: really do above: now that two backends are using it.
-static void AddValueSymbolsImpl(const MCExpr *Value, MCAssembler *Asm) {
-  switch (Value->getKind()) {
-  case MCExpr::Target:
-    llvm_unreachable("Can't handle nested target expr!");
-    break;
-
-  case MCExpr::Constant:
-    break;
-
-  case MCExpr::Binary: {
-    const MCBinaryExpr *BE = cast<MCBinaryExpr>(Value);
-    AddValueSymbolsImpl(BE->getLHS(), Asm);
-    AddValueSymbolsImpl(BE->getRHS(), Asm);
-    break;
-  }
-
-  case MCExpr::SymbolRef:
-    Asm->getOrCreateSymbolData(cast<MCSymbolRefExpr>(Value)->getSymbol());
-    break;
-
-  case MCExpr::Unary:
-    AddValueSymbolsImpl(cast<MCUnaryExpr>(Value)->getSubExpr(), Asm);
-    break;
-  }
-}
-
-void AArch64MCExpr::AddValueSymbols(MCAssembler *Asm) const {
-  AddValueSymbolsImpl(getSubExpr(), Asm);
 }

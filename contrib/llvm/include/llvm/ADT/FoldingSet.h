@@ -18,12 +18,12 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
   class APFloat;
   class APInt;
-  class BumpPtrAllocator;
 
 /// This folding set used for two purposes:
 ///   1. Given information about a node we want to create, look up the unique
@@ -137,7 +137,7 @@ public:
 
   public:
 
-    Node() : NextInFoldingSetBucket(0) {}
+    Node() : NextInFoldingSetBucket(nullptr) {}
 
     // Accessors
     void *getNextInBucket() const { return NextInFoldingSetBucket; }
@@ -269,7 +269,7 @@ class FoldingSetNodeIDRef {
   const unsigned *Data;
   size_t Size;
 public:
-  FoldingSetNodeIDRef() : Data(0), Size(0) {}
+  FoldingSetNodeIDRef() : Data(nullptr), Size(0) {}
   FoldingSetNodeIDRef(const unsigned *D, size_t S) : Data(D), Size(S) {}
 
   /// ComputeHash - Compute a strong hash value for this FoldingSetNodeIDRef,
@@ -277,6 +277,8 @@ public:
   unsigned ComputeHash() const;
 
   bool operator==(FoldingSetNodeIDRef) const;
+
+  bool operator!=(FoldingSetNodeIDRef RHS) const { return !(*this == RHS); }
 
   /// Used to compare the "ordering" of two nodes as defined by the
   /// profiled bits and their ordering defined by memcmp().
@@ -330,6 +332,9 @@ public:
   ///
   bool operator==(const FoldingSetNodeID &RHS) const;
   bool operator==(const FoldingSetNodeIDRef RHS) const;
+
+  bool operator!=(const FoldingSetNodeID &RHS) const { return !(*this == RHS); }
+  bool operator!=(const FoldingSetNodeIDRef RHS) const { return !(*this ==RHS);}
 
   /// Used to compare the "ordering" of two nodes as defined by the
   /// profiled bits and their ordering defined by memcmp().
@@ -391,20 +396,20 @@ template<class T> class FoldingSet : public FoldingSetImpl {
 private:
   /// GetNodeProfile - Each instantiatation of the FoldingSet needs to provide a
   /// way to convert nodes into a unique specifier.
-  virtual void GetNodeProfile(Node *N, FoldingSetNodeID &ID) const {
+  void GetNodeProfile(Node *N, FoldingSetNodeID &ID) const override {
     T *TN = static_cast<T *>(N);
     FoldingSetTrait<T>::Profile(*TN, ID);
   }
   /// NodeEquals - Instantiations may optionally provide a way to compare a
   /// node with a specified ID.
-  virtual bool NodeEquals(Node *N, const FoldingSetNodeID &ID, unsigned IDHash,
-                          FoldingSetNodeID &TempID) const {
+  bool NodeEquals(Node *N, const FoldingSetNodeID &ID, unsigned IDHash,
+                  FoldingSetNodeID &TempID) const override {
     T *TN = static_cast<T *>(N);
     return FoldingSetTrait<T>::Equals(*TN, ID, IDHash, TempID);
   }
   /// ComputeNodeHash - Instantiations may optionally provide a way to compute a
   /// hash value directly from a node.
-  virtual unsigned ComputeNodeHash(Node *N, FoldingSetNodeID &TempID) const {
+  unsigned ComputeNodeHash(Node *N, FoldingSetNodeID &TempID) const override {
     T *TN = static_cast<T *>(N);
     return FoldingSetTrait<T>::ComputeHash(*TN, TempID);
   }
@@ -468,20 +473,19 @@ private:
 
   /// GetNodeProfile - Each instantiatation of the FoldingSet needs to provide a
   /// way to convert nodes into a unique specifier.
-  virtual void GetNodeProfile(FoldingSetImpl::Node *N,
-                              FoldingSetNodeID &ID) const {
+  void GetNodeProfile(FoldingSetImpl::Node *N,
+                      FoldingSetNodeID &ID) const override {
     T *TN = static_cast<T *>(N);
     ContextualFoldingSetTrait<T, Ctx>::Profile(*TN, ID, Context);
   }
-  virtual bool NodeEquals(FoldingSetImpl::Node *N,
-                          const FoldingSetNodeID &ID, unsigned IDHash,
-                          FoldingSetNodeID &TempID) const {
+  bool NodeEquals(FoldingSetImpl::Node *N, const FoldingSetNodeID &ID,
+                  unsigned IDHash, FoldingSetNodeID &TempID) const override {
     T *TN = static_cast<T *>(N);
     return ContextualFoldingSetTrait<T, Ctx>::Equals(*TN, ID, IDHash, TempID,
                                                      Context);
   }
-  virtual unsigned ComputeNodeHash(FoldingSetImpl::Node *N,
-                                   FoldingSetNodeID &TempID) const {
+  unsigned ComputeNodeHash(FoldingSetImpl::Node *N,
+                           FoldingSetNodeID &TempID) const override {
     T *TN = static_cast<T *>(N);
     return ContextualFoldingSetTrait<T, Ctx>::ComputeHash(*TN, TempID, Context);
   }
@@ -788,6 +792,14 @@ public:
 template<typename T> struct FoldingSetTrait<T*> {
   static inline void Profile(T *X, FoldingSetNodeID &ID) {
     ID.AddPointer(X);
+  }
+};
+template <typename T1, typename T2>
+struct FoldingSetTrait<std::pair<T1, T2>> {
+  static inline void Profile(const std::pair<T1, T2> &P,
+                             llvm::FoldingSetNodeID &ID) {
+    ID.Add(P.first);
+    ID.Add(P.second);
   }
 };
 } // End of namespace llvm.

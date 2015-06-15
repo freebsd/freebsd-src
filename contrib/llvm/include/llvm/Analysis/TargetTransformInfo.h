@@ -28,6 +28,7 @@
 
 namespace llvm {
 
+class Function;
 class GlobalValue;
 class Loop;
 class Type;
@@ -58,11 +59,6 @@ protected:
   /// TTI instance in the analysis group's stack, and the top of the analysis
   /// group's stack.
   void pushTTIStack(Pass *P);
-
-  /// All pass subclasses must in their finalizePass routine call popTTIStack
-  /// to update the pointers tracking the previous TTI instance in the analysis
-  /// group's stack, and the top of the analysis group's stack.
-  void popTTIStack();
 
   /// All pass subclasses must call TargetTransformInfo::getAnalysisUsage.
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -110,7 +106,7 @@ public:
   /// The returned cost is defined in terms of \c TargetCostConstants, see its
   /// comments for a detailed explanation of the cost values.
   virtual unsigned getOperationCost(unsigned Opcode, Type *Ty,
-                                    Type *OpTy = 0) const;
+                                    Type *OpTy = nullptr) const;
 
   /// \brief Estimate the cost of a GEP operation when lowered.
   ///
@@ -188,7 +184,7 @@ public:
   /// should probably move to simpler cost metrics using the above.
   /// Alternatively, we could split the cost interface into distinct code-size
   /// and execution-speed costs. This would allow modelling the core of this
-  /// query more accurately as the a call is a single small instruction, but
+  /// query more accurately as a call is a single small instruction, but
   /// incurs significant execution cost.
   virtual bool isLoweredToCall(const Function *F) const;
 
@@ -203,11 +199,23 @@ public:
     /// The cost threshold for the unrolled loop when optimizing for size (set
     /// to UINT_MAX to disable).
     unsigned OptSizeThreshold;
+    /// The cost threshold for the unrolled loop, like Threshold, but used
+    /// for partial/runtime unrolling (set to UINT_MAX to disable).
+    unsigned PartialThreshold;
+    /// The cost threshold for the unrolled loop when optimizing for size, like
+    /// OptSizeThreshold, but used for partial/runtime unrolling (set to UINT_MAX
+    /// to disable).
+    unsigned PartialOptSizeThreshold;
     /// A forced unrolling factor (the number of concatenated bodies of the
     /// original loop in the unrolled loop body). When set to 0, the unrolling
     /// transformation will select an unrolling factor based on the current cost
     /// threshold and other factors.
     unsigned Count;
+    // Set the maximum unrolling factor. The unrolling factor may be selected
+    // using the appropriate cost threshold, but may not exceed this number
+    // (set to UINT_MAX to disable). This does not apply in cases where the
+    // loop is being fully unrolled.
+    unsigned MaxCount;
     /// Allow partial unrolling (unrolling of loops to expand the size of the
     /// loop body, not only to eliminate small constant-trip-count loops).
     bool     Partial;
@@ -220,7 +228,8 @@ public:
   /// \brief Get target-customized preferences for the generic loop unrolling
   /// transformation. The caller will initialize UP with the current
   /// target-independent defaults.
-  virtual void getUnrollingPreferences(Loop *L, UnrollingPreferences &UP) const;
+  virtual void getUnrollingPreferences(const Function *F, Loop *L,
+                                       UnrollingPreferences &UP) const;
 
   /// @}
 
@@ -241,26 +250,32 @@ public:
     PSK_FastHardware
   };
 
-  /// isLegalAddImmediate - Return true if the specified immediate is legal
-  /// add immediate, that is the target has add instructions which can add
-  /// a register with the immediate without having to materialize the
-  /// immediate into a register.
+  /// \brief Return true if the specified immediate is legal add immediate, that
+  /// is the target has add instructions which can add a register with the
+  /// immediate without having to materialize the immediate into a register.
   virtual bool isLegalAddImmediate(int64_t Imm) const;
 
-  /// isLegalICmpImmediate - Return true if the specified immediate is legal
-  /// icmp immediate, that is the target has icmp instructions which can compare
-  /// a register against the immediate without having to materialize the
-  /// immediate into a register.
+  /// \brief Return true if the specified immediate is legal icmp immediate,
+  /// that is the target has icmp instructions which can compare a register
+  /// against the immediate without having to materialize the immediate into a
+  /// register.
   virtual bool isLegalICmpImmediate(int64_t Imm) const;
 
-  /// isLegalAddressingMode - Return true if the addressing mode represented by
-  /// AM is legal for this target, for a load/store of the specified type.
+  /// \brief Return true if the addressing mode represented by AM is legal for
+  /// this target, for a load/store of the specified type.
   /// The type may be VoidTy, in which case only return true if the addressing
   /// mode is legal for a load/store of any legal type.
   /// TODO: Handle pre/postinc as well.
   virtual bool isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV,
                                      int64_t BaseOffset, bool HasBaseReg,
                                      int64_t Scale) const;
+
+  /// \brief Return true if the target works with masked instruction
+  /// AVX2 allows masks for consecutive load and store for i32 and i64 elements.
+  /// AVX-512 architecture will also allow masks for non-consecutive memory
+  /// accesses.
+  virtual bool isLegalMaskedStore(Type *DataType, int Consecutive) const;
+  virtual bool isLegalMaskedLoad (Type *DataType, int Consecutive) const;
 
   /// \brief Return the cost of the scaling factor used in the addressing
   /// mode represented by AM for this target, for a load/store
@@ -272,35 +287,41 @@ public:
                                    int64_t BaseOffset, bool HasBaseReg,
                                    int64_t Scale) const;
 
-  /// isTruncateFree - Return true if it's free to truncate a value of
-  /// type Ty1 to type Ty2. e.g. On x86 it's free to truncate a i32 value in
-  /// register EAX to i16 by referencing its sub-register AX.
+  /// \brief Return true if it's free to truncate a value of type Ty1 to type
+  /// Ty2. e.g. On x86 it's free to truncate a i32 value in register EAX to i16
+  /// by referencing its sub-register AX.
   virtual bool isTruncateFree(Type *Ty1, Type *Ty2) const;
 
-  /// Is this type legal.
+  /// \brief Return true if this type is legal.
   virtual bool isTypeLegal(Type *Ty) const;
 
-  /// getJumpBufAlignment - returns the target's jmp_buf alignment in bytes
+  /// \brief Returns the target's jmp_buf alignment in bytes.
   virtual unsigned getJumpBufAlignment() const;
 
-  /// getJumpBufSize - returns the target's jmp_buf size in bytes.
+  /// \brief Returns the target's jmp_buf size in bytes.
   virtual unsigned getJumpBufSize() const;
 
-  /// shouldBuildLookupTables - Return true if switches should be turned into
-  /// lookup tables for the target.
+  /// \brief Return true if switches should be turned into lookup tables for the
+  /// target.
   virtual bool shouldBuildLookupTables() const;
 
-  /// getPopcntSupport - Return hardware support for population count.
+  /// \brief Return hardware support for population count.
   virtual PopcntSupportKind getPopcntSupport(unsigned IntTyWidthInBit) const;
 
-  /// haveFastSqrt -- Return true if the hardware has a fast square-root
-  /// instruction.
+  /// \brief Return true if the hardware has a fast square-root instruction.
   virtual bool haveFastSqrt(Type *Ty) const;
 
-  /// getIntImmCost - Return the expected cost of materializing the given
-  /// integer immediate of the specified type.
+  /// \brief Return the expected cost of materializing for the given integer
+  /// immediate of the specified type.
   virtual unsigned getIntImmCost(const APInt &Imm, Type *Ty) const;
 
+  /// \brief Return the expected cost of materialization for the given integer
+  /// immediate of the specified type for a given instruction. The cost can be
+  /// zero if the immediate can be folded into the specified instruction.
+  virtual unsigned getIntImmCost(unsigned Opc, unsigned Idx, const APInt &Imm,
+                                 Type *Ty) const;
+  virtual unsigned getIntImmCost(Intrinsic::ID IID, unsigned Idx,
+                                 const APInt &Imm, Type *Ty) const;
   /// @}
 
   /// \name Vector Target Information
@@ -310,16 +331,21 @@ public:
   enum ShuffleKind {
     SK_Broadcast,       ///< Broadcast element 0 to all other elements.
     SK_Reverse,         ///< Reverse the order of the vector.
+    SK_Alternate,       ///< Choose alternate elements from vector.
     SK_InsertSubvector, ///< InsertSubvector. Index indicates start offset.
     SK_ExtractSubvector ///< ExtractSubvector Index indicates start offset.
   };
 
   /// \brief Additional information about an operand's possible values.
   enum OperandValueKind {
-    OK_AnyValue,            // Operand can have any value.
-    OK_UniformValue,        // Operand is uniform (splat of a value).
-    OK_UniformConstantValue // Operand is uniform constant.
+    OK_AnyValue,                 // Operand can have any value.
+    OK_UniformValue,             // Operand is uniform (splat of a value).
+    OK_UniformConstantValue,     // Operand is uniform constant.
+    OK_NonUniformConstantValue   // Operand is a non uniform constant value.
   };
+
+  /// \brief Additional properties of an operand's values.
+  enum OperandValueProperties { OP_None = 0, OP_PowerOf2 = 1 };
 
   /// \return The number of scalar or vector registers that the target has.
   /// If 'Vectors' is true, it returns the number of vector registers. If it is
@@ -329,21 +355,24 @@ public:
   /// \return The width of the largest scalar or vector register type.
   virtual unsigned getRegisterBitWidth(bool Vector) const;
 
-  /// \return The maximum unroll factor that the vectorizer should try to
+  /// \return The maximum interleave factor that any transform should try to
   /// perform for this target. This number depends on the level of parallelism
   /// and the number of execution units in the CPU.
-  virtual unsigned getMaximumUnrollFactor() const;
+  virtual unsigned getMaxInterleaveFactor() const;
 
   /// \return The expected cost of arithmetic ops, such as mul, xor, fsub, etc.
-  virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                  OperandValueKind Opd1Info = OK_AnyValue,
-                                  OperandValueKind Opd2Info = OK_AnyValue) const;
+  virtual unsigned
+  getArithmeticInstrCost(unsigned Opcode, Type *Ty,
+                         OperandValueKind Opd1Info = OK_AnyValue,
+                         OperandValueKind Opd2Info = OK_AnyValue,
+                         OperandValueProperties Opd1PropInfo = OP_None,
+                         OperandValueProperties Opd2PropInfo = OP_None) const;
 
   /// \return The cost of a shuffle instruction of kind Kind and of type Tp.
   /// The index and subtype parameters are used by the subvector insertion and
   /// extraction shuffle kinds.
   virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index = 0,
-                                  Type *SubTp = 0) const;
+                                  Type *SubTp = nullptr) const;
 
   /// \return The expected cost of cast instructions, such as bitcast, trunc,
   /// zext, etc.
@@ -356,7 +385,7 @@ public:
 
   /// \returns The expected cost of compare and select instructions.
   virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-                                      Type *CondTy = 0) const;
+                                      Type *CondTy = nullptr) const;
 
   /// \return The expected cost of vector Insert and Extract.
   /// Use -1 to indicate that there is no information on the index value.
@@ -401,6 +430,13 @@ public:
   /// the address indexing mode.
   virtual unsigned getAddressComputationCost(Type *Ty,
                                              bool IsComplex = false) const;
+
+  /// \returns The cost, if any, of keeping values of the given types alive
+  /// over a callsite.
+  ///
+  /// Some types may require the use of register classes that do not have
+  /// any callee-saved registers, so would require a spill and fill.
+  virtual unsigned getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys) const;
 
   /// @}
 

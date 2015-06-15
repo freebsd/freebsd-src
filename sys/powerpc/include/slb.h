@@ -62,6 +62,9 @@
 #define	SLBE_ESID_MASK	0xfffffffff0000000UL /* Effective segment ID mask */
 #define	SLBE_ESID_SHIFT	28
 
+/* Virtual real-mode VSID in LPARs */
+#define VSID_VRMA	0x1ffffff
+
 /*
  * User segment for copyin/out
  */

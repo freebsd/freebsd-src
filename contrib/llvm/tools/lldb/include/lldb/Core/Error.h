@@ -209,6 +209,13 @@ public:
     void
     SetMachError (uint32_t err);
 
+
+    void
+    SetExpressionError (lldb::ExpressionResults, const char *mssg);
+    
+    int
+    SetExpressionErrorWithFormat (lldb::ExpressionResults, const char *format, ...) __attribute__ ((format (printf, 3,4)));
+    
     //------------------------------------------------------------------
     /// Set accesssor with an error value and type.
     ///
@@ -301,7 +308,7 @@ protected:
     /// Member variables
     //------------------------------------------------------------------
     ValueType m_code;               ///< Error code as an integer value.
-    lldb::ErrorType m_type;            ///< The type of the above error code.
+    lldb::ErrorType m_type;         ///< The type of the above error code.
     mutable std::string m_string;   ///< A string representation of the error code.
 };
 

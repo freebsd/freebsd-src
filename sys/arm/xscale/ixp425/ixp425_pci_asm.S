@@ -58,6 +58,7 @@ ENTRY(ixp425_pci_mem_bs_r_1)
 	ldrb	r0, [r1, r2]
 #endif /* __ARMEB__ */
 	mov	pc, lr
+END(ixp425_pci_mem_bs_r_1)
 
 ENTRY(ixp425_pci_mem_bs_r_2)
 #ifdef __ARMEB__
@@ -68,10 +69,12 @@ ENTRY(ixp425_pci_mem_bs_r_2)
 	ldrh	r0, [r1, r2]
 #endif /* __ARMEB__ */
 	mov	pc, lr
+END(ixp425_pci_mem_bs_r_2)
 
 ENTRY(ixp425_pci_mem_bs_r_4)
 	ldr	r0, [r1, r2]
 	mov	pc, lr
+END(ixp425_pci_mem_bs_r_4)
 
 /*
  * write single
@@ -86,6 +89,7 @@ ENTRY(ixp425_pci_mem_bs_w_1)
 	strb	r3, [r1, r2]
 #endif /* __ARMEB__ */
 	mov	pc, lr
+END(ixp425_pci_mem_bs_w_1)
 
 ENTRY(ixp425_pci_mem_bs_w_2)
 #ifdef __ARMEB__
@@ -96,7 +100,9 @@ ENTRY(ixp425_pci_mem_bs_w_2)
 	strh	r3, [r1, r2]
 #endif /* __ARMEB__ */
 	mov	pc, lr
+END(ixp425_pci_mem_bs_w_2)
 
 ENTRY(ixp425_pci_mem_bs_w_4)
 	str	r3, [r1, r2]
 	mov	pc, lr
+END(ixp425_pci_mem_bs_w_4)

@@ -61,6 +61,8 @@ static struct vt_driver vt_fb_early_driver = {
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
 	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
+	.vd_drawrect = vt_fb_drawrect,
+	.vd_setpixel = vt_fb_setpixel,
 	.vd_priority = VD_PRIORITY_GENERIC,
 };
 

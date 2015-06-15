@@ -1,0 +1,23 @@
+This patch adds "CC" and "clang-CC" to the list of program name aliases which
+invoke the C++ compiler.
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/257109
+
+Index: tools/clang/tools/driver/driver.cpp
+===================================================================
+--- tools/clang/tools/driver/driver.cpp
++++ tools/clang/tools/driver/driver.cpp
+@@ -213,11 +213,13 @@ static const DriverSuffix *FindDriverSuffix(String
+       {"clang", nullptr},
+       {"clang++", "--driver-mode=g++"},
+       {"clang-c++", "--driver-mode=g++"},
++      {"clang-CC", "--driver-mode=g++"},
+       {"clang-cc", nullptr},
+       {"clang-cpp", "--driver-mode=cpp"},
+       {"clang-g++", "--driver-mode=g++"},
+       {"clang-gcc", nullptr},
+       {"clang-cl", "--driver-mode=cl"},
++      {"CC", "--driver-mode=g++"},
+       {"cc", nullptr},
+       {"cpp", "--driver-mode=cpp"},
+       {"cl", "--driver-mode=cl"},

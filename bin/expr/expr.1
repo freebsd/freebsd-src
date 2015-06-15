@@ -90,17 +90,17 @@ Return the evaluation of
 .Ar expr1
 if neither expression evaluates to an empty string or zero;
 otherwise, returns zero.
-.It Ar expr1 Li "{=, >, >=, <, <=, !=}" Ar expr2
+.It Ar expr1 Bro =, >, >=, <, <=, != Brc Ar expr2
 Return the results of integer comparison if both arguments are integers;
 otherwise, returns the results of string comparison using the locale-specific
 collation sequence.
 The result of each comparison is 1 if the specified relation is true,
 or 0 if the relation is false.
-.It Ar expr1 Li "{+, -}" Ar expr2
+.It Ar expr1 Bro +, - Brc Ar expr2
 Return the results of addition or subtraction of integer-valued arguments.
-.It Ar expr1 Li "{*, /, %}" Ar expr2
+.It Ar expr1 Bro *, /, % Brc Ar expr2
 Return the results of multiplication, integer division, or remainder of integer-valued arguments.
-.It Ar expr1 Li : Ar expr2
+.It Ar expr1 Li \&: Ar expr2
 The
 .Dq Li \&:
 operator matches

@@ -110,7 +110,7 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	struct proc *p;
 	struct trapframe *frame;
 	caddr_t params;
-	u_int32_t args[8];
+	u_int32_t args[8], tmp;
 	int error, i;
 
 	p = td->td_proc;
@@ -126,7 +126,10 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		/*
 		 * Code is first argument, followed by actual args.
 		 */
-		sa->code = fuword32(params);
+		error = fueword32(params, &tmp);
+		if (error == -1)
+			return (EFAULT);
+		sa->code = tmp;
 		params += sizeof(int);
 	} else if (sa->code == SYS___syscall) {
 		/*
@@ -135,7 +138,10 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		 * We use a 32-bit fetch in case params is not
 		 * aligned.
 		 */
-		sa->code = fuword32(params);
+		error = fueword32(params, &tmp);
+		if (error == -1)
+			return (EFAULT);
+		sa->code = tmp;
 		params += sizeof(quad_t);
 	}
  	if (p->p_sysent->sv_mask)
@@ -217,38 +223,27 @@ int
 setup_lcall_gate(void)
 {
 	struct i386_ldt_args uap;
-	struct user_segment_descriptor descs[2];
-	struct gate_descriptor *ssd;
+	struct user_segment_descriptor desc;
 	uint32_t lcall_addr;
 	int error;
 
 	bzero(&uap, sizeof(uap));
 	uap.start = 0;
-	uap.num = 2;
-
-	/*
-	 * This is the easiest way to cut the space for system
-	 * descriptor in ldt.  Manually adjust the descriptor type to
-	 * the call gate later.
-	 */
-	bzero(&descs[0], sizeof(descs));
-	descs[0].sd_type = SDT_SYSNULL;
-	descs[1].sd_type = SDT_SYSNULL;
-	error = amd64_set_ldt(curthread, &uap, descs);
+	uap.num = 1;
+	lcall_addr = curproc->p_sysent->sv_psstrings - sz_lcall_tramp;
+	bzero(&desc, sizeof(desc));
+	desc.sd_type = SDT_MEMERA;
+	desc.sd_dpl = SEL_UPL;
+	desc.sd_p = 1;
+	desc.sd_def32 = 1;
+	desc.sd_gran = 1;
+	desc.sd_lolimit = 0xffff;
+	desc.sd_hilimit = 0xf;
+	desc.sd_lobase = lcall_addr;
+	desc.sd_hibase = lcall_addr >> 24;
+	error = amd64_set_ldt(curthread, &uap, &desc);
 	if (error != 0)
 		return (error);
-
-	lcall_addr = curproc->p_sysent->sv_psstrings - sz_lcall_tramp;
-	mtx_lock(&dt_lock);
-	ssd = (struct gate_descriptor *)(curproc->p_md.md_ldt->ldt_base);
-	bzero(ssd, sizeof(*ssd));
-	ssd->gd_looffset = lcall_addr;
-	ssd->gd_hioffset = lcall_addr >> 16;
-	ssd->gd_selector = _ucodesel;
-	ssd->gd_type = SDT_SYSCGT;
-	ssd->gd_dpl = SEL_UPL;
-	ssd->gd_p = 1;
-	mtx_unlock(&dt_lock);
 
 	return (0);
 }

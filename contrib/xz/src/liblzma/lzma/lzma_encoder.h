@@ -18,7 +18,8 @@
 
 
 extern lzma_ret lzma_lzma_encoder_init(lzma_next_coder *next,
-		lzma_allocator *allocator, const lzma_filter_info *filters);
+		const lzma_allocator *allocator,
+		const lzma_filter_info *filters);
 
 
 extern uint64_t lzma_lzma_encoder_memusage(const void *options);
@@ -35,7 +36,7 @@ extern bool lzma_lzma_lclppb_encode(
 
 /// Initializes raw LZMA encoder; this is used by LZMA2.
 extern lzma_ret lzma_lzma_encoder_create(
-		lzma_coder **coder_ptr, lzma_allocator *allocator,
+		lzma_coder **coder_ptr, const lzma_allocator *allocator,
 		const lzma_options_lzma *options, lzma_lz_options *lz_options);
 
 

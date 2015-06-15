@@ -30,16 +30,15 @@ SRCS+=	ifmac.c			# MAC support
 SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	iffib.c			# non-default FIB support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
+SRCS+=	ifvxlan.c		# VXLAN support
 SRCS+=	ifgre.c			# GRE keys etc
 SRCS+=	ifgif.c			# GIF reversed header workaround
 
 SRCS+=	sfp.c			# SFP/SFP+ information
-DPADD+=	${LIBM}
-LDADD+=	-lm
+LIBADD+=	m
 
 SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
-DPADD+=	${LIBBSDXML} ${LIBSBUF}
-LDADD+=	-lbsdxml -lsbuf
+LIBADD+=	bsdxml sbuf
 
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
@@ -58,13 +57,16 @@ CFLAGS+= -DINET
 .endif
 .if ${MK_JAIL} != "no" && !defined(RELEASE_CRUNCH) && !defined(RESCUE)
 CFLAGS+= -DJAIL
-DPADD+= ${LIBJAIL}
-LDADD+= -ljail
+LIBADD+=	jail
 .endif
 
 MAN=	ifconfig.8
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
 WARNS?=	2
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

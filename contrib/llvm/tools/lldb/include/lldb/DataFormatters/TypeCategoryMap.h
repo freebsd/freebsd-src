@@ -63,6 +63,12 @@ namespace lldb_private {
         
         bool
         Disable (ValueSP category);
+
+        void
+        EnableAllCategories ();
+        
+        void
+        DisableAllCategories ();
         
         void
         Clear ();
@@ -107,6 +113,10 @@ namespace lldb_private {
         GetSyntheticChildren (ValueObject& valobj,
                               lldb::DynamicValueType use_dynamic);
 #endif
+        
+    lldb::TypeValidatorImplSP
+    GetValidator (ValueObject& valobj,
+                  lldb::DynamicValueType use_dynamic);
         
     private:
         

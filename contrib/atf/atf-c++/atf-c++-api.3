@@ -26,7 +26,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 15, 2013
+.Dd March 2, 2014
 .Dt ATF-C++-API 3
 .Os
 .Sh NAME
@@ -330,9 +330,8 @@ If
 .Va exitcode
 is not
 .Sq -1 ,
-.Xr atf-run 1
-will validate that the exit code of the test case matches the one provided
-in this call.
+the runtime engine will validate that the exit code of the test case
+matches the one provided in this call.
 Otherwise, the exact value will be ignored.
 .It Fn expect_fail "reason"
 Any failure (be it fatal or non-fatal) raised in this mode is recorded.
@@ -368,9 +367,8 @@ If
 .Va signo
 is not
 .Sq -1 ,
-.Xr atf-run 1
-will validate that the signal that terminated the test case matches the one
-provided in this call.
+the runtime engine will validate that the signal that terminated the test
+case matches the one provided in this call.
 Otherwise, the exact value will be ignored.
 .It Fn expect_timeout "reason"
 Expects the test case to execute for longer than its timeout.
@@ -631,5 +629,4 @@ ATF_INIT_TEST_CASES(tcs)
 .Ed
 .Sh SEE ALSO
 .Xr atf-test-program 1 ,
-.Xr atf-test-case 4 ,
-.Xr atf 7
+.Xr atf-test-case 4

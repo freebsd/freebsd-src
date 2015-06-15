@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2014
+.Dd April 18, 2015
 .Dt SH 1
 .Os
 .Sh NAME
@@ -259,6 +259,12 @@ from input when in interactive mode.
 Force the shell to behave interactively.
 .It Fl m Li monitor
 Turn on job control (set automatically when interactive).
+A new process group is created for each pipeline (called a job).
+It is possible to suspend jobs or to have them run in the foreground or
+in the background.
+In a non-interactive shell,
+this option can be set even if no terminal is available
+and is useful to place processes in separate process groups.
 .It Fl n Li noexec
 If not interactive, read commands but do not
 execute them.
@@ -584,7 +590,8 @@ the following actions:
 Leading words of the form
 .Dq Li name=value
 are stripped off and assigned to the environment of
-the simple command.
+the simple command
+(they do not affect expansions).
 Redirection operators and
 their arguments (as described below) are stripped
 off and saved for processing.
@@ -788,10 +795,13 @@ should indicate the various exit codes and what they mean.
 Additionally, the built-in commands return exit codes, as does
 an executed shell function.
 .Pp
-If a command is terminated by a signal, its exit status is 128 plus
-the signal number.
-Signal numbers are defined in the header file
-.In sys/signal.h .
+If a command is terminated by a signal, its exit status is greater than 128.
+The signal name can be found by passing the exit status to
+.Li kill -l .
+.Pp
+If there is no command word,
+the exit status is the exit status of the last command substitution executed,
+or zero if the command does not contain any command substitutions.
 .Ss Complex Commands
 Complex commands are combinations of simple commands
 with control operators or keywords, together creating a larger complex
@@ -811,7 +821,8 @@ function definition
 .El
 .Pp
 Unless otherwise stated, the exit status of a command is
-that of the last simple command executed by the command.
+that of the last simple command executed by the command,
+or zero if no simple command was executed.
 .Ss Pipelines
 A pipeline is a sequence of one or more commands separated
 by the control operator
@@ -895,6 +906,8 @@ The format for running a command in background is:
 If the shell is not interactive, the standard input of an
 asynchronous command is set to
 .Pa /dev/null .
+.Pp
+The exit status is zero.
 .Ss Lists (Generally Speaking)
 A list is a sequence of zero or more commands separated by
 newlines, semicolons, or ampersands,
@@ -933,6 +946,13 @@ command is:
 .Ic fi
 .Ed
 .Pp
+The exit status is that of selected
+.Ic then
+or
+.Ic else
+list,
+or zero if no list was selected.
+.Pp
 The syntax of the
 .Ic while
 command is:
@@ -952,6 +972,9 @@ in place of
 .Ic while ,
 which causes it to
 repeat until the exit status of the first list is zero.
+.Pp
+The exit status is that of the last execution of the second list,
+or zero if it was never executed.
 .Pp
 The syntax of the
 .Ic for
@@ -1033,10 +1056,6 @@ continuing until a list terminated with
 or the end of the
 .Ic case
 command.
-The exit code of the
-.Ic case
-command is the exit code of the last command executed in the list or
-zero if no patterns were matched.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Pp
@@ -1124,6 +1143,8 @@ and the syntax is:
 The
 .Ic local
 command is implemented as a built-in command.
+The exit status is zero
+unless the command is not in a function or a variable name is invalid.
 .Pp
 When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
@@ -1175,17 +1196,18 @@ command is implemented as a special built-in command.
 .Ss Variables and Parameters
 The shell maintains a set of parameters.
 A parameter
-denoted by a name is called a variable.
+denoted by a name
+(consisting solely
+of alphabetics, numerics, and underscores,
+and starting with an alphabetic or an underscore)
+is called a variable.
 When starting up,
-the shell turns all the environment variables into shell
+the shell turns all environment variables with valid names into shell
 variables.
 New variables can be set using the form
 .Pp
 .D1 Ar name Ns = Ns Ar value
 .Pp
-Variables set by the user must have a name consisting solely
-of alphabetics, numerics, and underscores.
-The first letter of a variable name must not be numeric.
 A parameter can also be denoted by a number
 or a special character as explained below.
 .Pp
@@ -1348,6 +1370,10 @@ This variable overrides the
 .Va MAIL
 setting.
 There is a maximum of 10 mailboxes that can be monitored at once.
+.It Va OPTIND
+The index of the next argument to be processed by
+.Ic getopts .
+This is initialized to 1 at startup.
 .It Va PATH
 The default search path for executables.
 See the
@@ -2276,6 +2302,8 @@ If an invalid option is encountered,
 is set to
 .Ql \&? .
 It returns a false value (1) when it encounters the end of the options.
+A new set of arguments may be parsed by assigning
+.Li OPTIND=1 .
 .It Ic hash Oo Fl rv Oc Op Ar command ...
 The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the
@@ -2515,7 +2543,8 @@ and so on,
 decreasing the value of
 .Li $#
 by one.
-If there are zero positional parameters, shifting does not do anything.
+For portability, shifting if there are zero positional parameters
+should be avoided, since the shell may abort.
 .It Ic test
 A built-in equivalent of
 .Xr test 1 .
@@ -2545,8 +2574,7 @@ the former causes the specified signal to be ignored
 and the latter causes the default action to be taken.
 Omitting the
 .Ar action
-is another way to request the default action, for compatibility reasons this
-usage is not recommended though.
+and using only signal numbers is another way to request the default action.
 In a subshell or utility environment,
 the shell resets trapped (but not ignored) signals to the default action.
 The
@@ -2749,7 +2777,7 @@ This is inherited by children of the shell, and is used in the history
 editing modes.
 .El
 .Pp
-Additionally, all environment variables are turned into shell variables
+Additionally, environment variables are turned into shell variables
 at startup,
 which may affect the shell as described under
 .Sx Special Variables .

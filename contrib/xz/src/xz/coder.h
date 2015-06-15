@@ -41,6 +41,16 @@ extern enum format_type opt_format;
 /// they exceed the memory usage limit.
 extern bool opt_auto_adjust;
 
+/// If true, stop after decoding the first stream.
+extern bool opt_single_stream;
+
+/// If non-zero, start a new .xz Block after every opt_block_size bytes
+/// of input. This has an effect only when compressing to the .xz format.
+extern uint64_t opt_block_size;
+
+/// This is non-NULL if --block-list was used. This contains the Block sizes
+/// as an array that is terminated with 0.
+extern uint64_t *opt_block_list;
 
 /// Set the integrity check type used when compressing
 extern void coder_set_check(lzma_check check);
@@ -59,3 +69,8 @@ extern void coder_set_compression_settings(void);
 
 /// Compress or decompress the given file
 extern void coder_run(const char *filename);
+
+#ifndef NDEBUG
+/// Free the memory allocated for the coder and kill the worker threads.
+extern void coder_free(void);
+#endif

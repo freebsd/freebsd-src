@@ -49,8 +49,7 @@ private:
   const LangOptions &LangOpts;
   const PPConditionalDirectiveRecord *PPRec;
   EditedSource *Editor;
-  
-  const bool ForceCommitInSystemHeader;
+
   bool IsCommitable;
   SmallVector<Edit, 8> CachedEdits;
   
@@ -59,9 +58,9 @@ private:
 public:
   explicit Commit(EditedSource &Editor);
   Commit(const SourceManager &SM, const LangOptions &LangOpts,
-         const PPConditionalDirectiveRecord *PPRec = 0)
-    : SourceMgr(SM), LangOpts(LangOpts), PPRec(PPRec), Editor(0),
-      ForceCommitInSystemHeader(true), IsCommitable(true) { }
+         const PPConditionalDirectiveRecord *PPRec = nullptr)
+    : SourceMgr(SM), LangOpts(LangOpts), PPRec(PPRec), Editor(nullptr),
+      IsCommitable(true) { }
 
   bool isCommitable() const { return IsCommitable; }
 
@@ -132,9 +131,9 @@ private:
   void commitRemove(FileOffset offset, unsigned length);
 
   bool isAtStartOfMacroExpansion(SourceLocation loc,
-                                 SourceLocation *MacroBegin = 0) const;
+                                 SourceLocation *MacroBegin = nullptr) const;
   bool isAtEndOfMacroExpansion(SourceLocation loc,
-                               SourceLocation *MacroEnd = 0) const;
+                               SourceLocation *MacroEnd = nullptr) const;
 
   StringRef copyString(StringRef str) {
     char *buf = StrAlloc.Allocate<char>(str.size());

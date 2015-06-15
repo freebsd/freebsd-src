@@ -92,28 +92,23 @@ struct scsi_reassign_blocks
 
 struct scsi_read_defect_data_10
 {
-	u_int8_t opcode;
-
-	/* 
-	 * The most significant 3 bits are the LUN, the other 5 are
-	 * reserved.
-	 */
-#define SRDD10_LUN_MASK 0xE0
-	u_int8_t byte2;
+	uint8_t opcode;
+	uint8_t byte2;
 #define SRDD10_GLIST 0x08
 #define SRDD10_PLIST 0x10
 #define SRDD10_DLIST_FORMAT_MASK 0x07
 #define SRDD10_BLOCK_FORMAT            0x00
+#define SRDD10_EXT_BFI_FORMAT 	       0x01
+#define SRDD10_EXT_PHYS_FORMAT 	       0x02
+#define SRDD10_LONG_BLOCK_FORMAT       0x03
 #define SRDD10_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDD10_PHYSICAL_SECTOR_FORMAT  0x05
-	u_int8_t format;
-
-	u_int8_t reserved[4];
-
-	u_int8_t alloc_length[2];
+#define SRDD10_VENDOR_FORMAT	       0x06
+	uint8_t format;
+	uint8_t reserved[4];
+	uint8_t alloc_length[2];
 #define	SRDD10_MAX_LENGTH		0xffff
-
-	u_int8_t control;
+	uint8_t control;
 };
 
 struct scsi_sanitize
@@ -143,29 +138,19 @@ struct scsi_sanitize_parameter_list
 
 struct scsi_read_defect_data_12
 {
-	u_int8_t opcode;
-
-	/* 
-	 * The most significant 3 bits are the LUN, the other 5 are
-	 * reserved.
-	 */
-#define SRDD12_LUN_MASK 0xE0
-	u_int8_t byte2;
-
+	uint8_t opcode;
 #define SRDD12_GLIST 0x08
 #define SRDD12_PLIST 0x10
 #define SRDD12_DLIST_FORMAT_MASK 0x07
-#define SRDD12_BLOCK_FORMAT            0x00
-#define SRDD12_BYTES_FROM_INDEX_FORMAT 0x04
-#define SRDD12_PHYSICAL_SECTOR_FORMAT  0x05
-	u_int8_t format;
-
-	u_int8_t reserved[4];
-
-	u_int8_t alloc_length[4];
-
-	u_int8_t control;
-	
+#define SRDD12_BLOCK_FORMAT            SRDD10_BLOCK_FORMAT
+#define SRDD12_BYTES_FROM_INDEX_FORMAT SRDD10_BYTES_FROM_INDEX_FORMAT
+#define SRDD12_PHYSICAL_SECTOR_FORMAT  SRDD10_PHYSICAL_SECTOR_FORMAT
+	uint8_t format;
+	uint8_t address_descriptor_index[4];
+	uint8_t alloc_length[4];
+#define	SRDD12_MAX_LENGTH		0xffffffff
+	uint8_t reserved;
+	uint8_t control;
 };
 
 
@@ -345,6 +330,8 @@ struct scsi_read_defect_data_hdr_10
 #define SRDDH10_PHYSICAL_SECTOR_FORMAT  0x05
 	u_int8_t format;
 	u_int8_t length[2];
+#define	SRDDH10_MAX_LENGTH	SRDD10_MAX_LENGTH -			     \
+				sizeof(struct scsi_read_defect_data_hdr_10) 
 };
 
 struct scsi_defect_desc_block
@@ -352,10 +339,18 @@ struct scsi_defect_desc_block
 	u_int8_t address[4];
 };
 
+struct scsi_defect_desc_long_block
+{
+	u_int8_t address[8];
+};
+
 struct scsi_defect_desc_bytes_from_index
 {
 	u_int8_t cylinder[3];
 	u_int8_t head;
+#define	SDD_EXT_BFI_MADS		0x80000000
+#define	SDD_EXT_BFI_FLAG_MASK		0xf0000000
+#define	SDD_EXT_BFI_ENTIRE_TRACK	0x0fffffff
 	u_int8_t bytes_from_index[4];
 };
 
@@ -363,6 +358,9 @@ struct scsi_defect_desc_phys_sector
 {
 	u_int8_t cylinder[3];
 	u_int8_t head;
+#define	SDD_EXT_PHYS_MADS		0x80000000
+#define	SDD_EXT_PHYS_FLAG_MASK		0xf0000000
+#define	SDD_EXT_PHYS_ENTIRE_TRACK	0x0fffffff
 	u_int8_t sector[4];
 };
 
@@ -376,7 +374,10 @@ struct scsi_read_defect_data_hdr_12
 #define SRDDH12_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDDH12_PHYSICAL_SECTOR_FORMAT  0x05
 	u_int8_t format;
+	u_int8_t generation[2];
 	u_int8_t length[4];
+#define	SRDDH12_MAX_LENGTH	SRDD12_MAX_LENGTH -			    \
+				sizeof(struct scsi_read_defect_data_hdr_12)
 };
 
 union	disk_pages /* this is the structure copied from osf */
@@ -546,7 +547,8 @@ struct scsi_da_rw_recovery_page {
 	u_int8_t correction_span;
 	u_int8_t head_offset_count;
 	u_int8_t data_strobe_offset_cnt;
-	u_int8_t reserved;
+	u_int8_t byte8;
+#define SMS_RWER_LBPERE			0x80
 	u_int8_t write_retry_count;
 	u_int8_t reserved2;
 	u_int8_t recovery_time_limit[2];
@@ -554,9 +556,9 @@ struct scsi_da_rw_recovery_page {
 
 __BEGIN_DECLS
 /*
- * XXX This is only left out of the kernel build to silence warnings.  If,
- * for some reason this function is used in the kernel, the ifdefs should
- * be moved so it is included both in the kernel and userland.
+ * XXX These are only left out of the kernel build to silence warnings.  If,
+ * for some reason these functions are used in the kernel, the ifdefs should
+ * be moved so they are included both in the kernel and userland.
  */
 #ifndef _KERNEL
 void scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
@@ -564,6 +566,13 @@ void scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
 		      u_int8_t tag_action, u_int8_t byte2, u_int16_t ileave,
 		      u_int8_t *data_ptr, u_int32_t dxfer_len,
 		      u_int8_t sense_len, u_int32_t timeout);
+
+void scsi_read_defects(struct ccb_scsiio *csio, uint32_t retries,
+		       void (*cbfcnp)(struct cam_periph *, union ccb *),
+		       uint8_t tag_action, uint8_t list_format,
+		       uint32_t addr_desc_index, uint8_t *data_ptr,
+		       uint32_t dxfer_len, int minimum_cmd_size, 
+		       uint8_t sense_len, uint32_t timeout);
 
 void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),

@@ -380,9 +380,7 @@ struct sctp_nets {
 	uint8_t lan_type;
 	uint8_t rto_needed;
 	uint32_t flowid;
-#ifdef INVARIANTS
-	uint8_t flowidset;
-#endif
+	uint8_t flowtype;
 };
 
 
@@ -418,8 +416,8 @@ TAILQ_HEAD(sctpchunk_listhead, sctp_tmit_chunk);
 #define CHUNK_FLAGS_FRAGMENT_OK	        0x0100
 
 struct chk_id {
-	uint16_t id;
-	uint16_t can_take_data;
+	uint8_t id;
+	uint8_t can_take_data;
 };
 
 
@@ -1176,7 +1174,6 @@ struct sctp_association {
 
 	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
-	uint8_t used_alt_onsack;
 	uint8_t used_alt_asconfack;
 	uint8_t fast_retran_loss_recovery;
 	uint8_t sat_t3_loss_recovery;
@@ -1201,6 +1198,7 @@ struct sctp_association {
 	uint8_t sctp_cmt_pf;
 	uint8_t use_precise_time;
 	uint64_t sctp_features;
+	uint32_t max_cwnd;
 	uint16_t port;		/* remote UDP encapsulation port */
 	/*
 	 * The mapping array is used to track out of order sequences above

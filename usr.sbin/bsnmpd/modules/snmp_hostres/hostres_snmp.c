@@ -201,8 +201,8 @@ make_date_time(u_char *str, const struct tm *tm, u_int decisecs)
 	else
 		str[8] = '+';
 
-	str[9] = (u_char)(abs(tm->tm_gmtoff) / 3600);
-	str[10] = (u_char)((abs(tm->tm_gmtoff) % 3600) / 60);
+	str[9] = (u_char)(labs(tm->tm_gmtoff) / 3600);
+	str[10] = (u_char)((labs(tm->tm_gmtoff) % 3600) / 60);
 
 	return (11);
 }

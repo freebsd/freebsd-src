@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,4 +35,6 @@ struct lock_class_key {
 
 #define lockdep_set_class(lock, key)
 
-#endif	/* _LINUX_LOCKDEP_H_ */
+#define lockdep_set_class_and_name(lock, key, name)
+
+#endif  /* _LINUX_LOCKDEP_H_ */

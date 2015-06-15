@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012,2013 Bjoern A. Zeeb
+ * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -103,12 +104,20 @@ static poll_handler_t atse_poll;
 static int atse_ethernet_option_bits_flag = ATSE_ETHERNET_OPTION_BITS_UNDEF;
 static uint8_t atse_ethernet_option_bits[ALTERA_ETHERNET_OPTION_BITS_LEN];
 
+static int	atse_intr_debug_enable = 0;
+SYSCTL_INT(_debug, OID_AUTO, atse_intr_debug_enable, CTLFLAG_RW,
+    &atse_intr_debug_enable, 0,
+   "Extra debugging output for atse interrupts");
+
 /*
  * Softc and critical resource locking.
  */
 #define	ATSE_LOCK(_sc)		mtx_lock(&(_sc)->atse_mtx)
 #define	ATSE_UNLOCK(_sc)	mtx_unlock(&(_sc)->atse_mtx)
 #define	ATSE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->atse_mtx, MA_OWNED)
+
+#define	ATSE_TX_PENDING(sc)	(sc->atse_tx_m != NULL ||		\
+				    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 
 #ifdef DEBUG
 #define	DPRINTF(format, ...)	printf(format, __VA_ARGS__)
@@ -169,6 +178,16 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 	    A_ONCHIP_FIFO_MEM_CORE_METADATA,				\
 	    "RXM", __func__, __LINE__)
 
+#define	ATSE_RX_STATUS_READ(sc)						\
+	a_onchip_fifo_mem_core_read((sc)->atse_rxc_mem_res,		\
+	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_I_STATUS,			\
+	    "RX_EVENT", __func__, __LINE__)
+
+#define	ATSE_TX_STATUS_READ(sc)						\
+	a_onchip_fifo_mem_core_read((sc)->atse_txc_mem_res,		\
+	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_I_STATUS,			\
+	    "TX_EVENT", __func__, __LINE__)
+
 #define	ATSE_RX_EVENT_READ(sc)						\
 	a_onchip_fifo_mem_core_read((sc)->atse_rxc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_EVENT,			\
@@ -208,24 +227,41 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 			    val4, "TX_EVENT", __func__, __LINE__);	\
 	} while(0)
 
+#define	ATSE_RX_EVENTS	(A_ONCHIP_FIFO_MEM_CORE_INTR_FULL |	\
+			    A_ONCHIP_FIFO_MEM_CORE_INTR_OVERFLOW |	\
+			    A_ONCHIP_FIFO_MEM_CORE_INTR_UNDERFLOW)
 #define	ATSE_RX_INTR_ENABLE(sc)						\
 	a_onchip_fifo_mem_core_write((sc)->atse_rxc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE,		\
-	    A_ONCHIP_FIFO_MEM_CORE_INTR_ALL,				\
+	    ATSE_RX_EVENTS,						\
 	    "RX_INTR", __func__, __LINE__)	/* XXX-BZ review later. */
 #define	ATSE_RX_INTR_DISABLE(sc)					\
 	a_onchip_fifo_mem_core_write((sc)->atse_rxc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE, 0,		\
 	    "RX_INTR", __func__, __LINE__)
+#define	ATSE_RX_INTR_READ(sc)						\
+	a_onchip_fifo_mem_core_read((sc)->atse_rxc_mem_res,		\
+	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE,		\
+	    "RX_INTR", __func__, __LINE__)
+
+#define	ATSE_TX_EVENTS	(A_ONCHIP_FIFO_MEM_CORE_INTR_EMPTY |		\
+			    A_ONCHIP_FIFO_MEM_CORE_INTR_OVERFLOW |	\
+			    A_ONCHIP_FIFO_MEM_CORE_INTR_UNDERFLOW)
 #define	ATSE_TX_INTR_ENABLE(sc)						\
 	a_onchip_fifo_mem_core_write((sc)->atse_txc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE,		\
-	    A_ONCHIP_FIFO_MEM_CORE_INTR_ALL,				\
+	    ATSE_TX_EVENTS,						\
 	    "TX_INTR", __func__, __LINE__)	/* XXX-BZ review later. */
 #define	ATSE_TX_INTR_DISABLE(sc)					\
 	a_onchip_fifo_mem_core_write((sc)->atse_txc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE, 0,		\
 	    "TX_INTR", __func__, __LINE__)
+#define	ATSE_TX_INTR_READ(sc)						\
+	a_onchip_fifo_mem_core_read((sc)->atse_txc_mem_res,		\
+	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE,		\
+	    "TX_INTR", __func__, __LINE__)
+
+static int	atse_rx_locked(struct atse_softc *sc);
 
 /*
  * Register space access macros.
@@ -985,6 +1021,11 @@ atse_init(void *xsc)
 {
 	struct atse_softc *sc;
 
+	/*
+	 * XXXRW: There is some argument that we should immediately do RX
+	 * processing after enabling interrupts, or one may not fire if there
+	 * are buffered packets.
+	 */
 	sc = (struct atse_softc *)xsc;
 	ATSE_LOCK(sc);
 	atse_init_locked(sc);
@@ -1082,6 +1123,33 @@ atse_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
+atse_intr_debug(struct atse_softc *sc, const char *intrname)
+{
+	uint32_t rxs, rxe, rxi, rxf, txs, txe, txi, txf;
+
+	if (!atse_intr_debug_enable)
+		return;
+
+	rxs = ATSE_RX_STATUS_READ(sc);
+	rxe = ATSE_RX_EVENT_READ(sc);
+	rxi = ATSE_RX_INTR_READ(sc);
+	rxf = ATSE_RX_READ_FILL_LEVEL(sc);
+
+	txs = ATSE_TX_STATUS_READ(sc);
+	txe = ATSE_TX_EVENT_READ(sc);
+	txi = ATSE_TX_INTR_READ(sc);
+	txf = ATSE_TX_READ_FILL_LEVEL(sc);
+
+	printf(
+	    "%s - %s: "
+	    "rxs 0x%x rxe 0x%x rxi 0x%x rxf 0x%x "
+	    "txs 0x%x txe 0x%x txi 0x%x txf 0x%x\n",
+	    __func__, intrname,
+	    rxs, rxe, rxi, rxf,
+	    txs, txe, txi, txf);
+}
+
+static void
 atse_watchdog(struct atse_softc *sc)
 {
 
@@ -1091,11 +1159,14 @@ atse_watchdog(struct atse_softc *sc)
 		return;
 
 	device_printf(sc->atse_dev, "watchdog timeout\n");
-	sc->atse_ifp->if_oerrors++;
+	if_inc_counter(sc->atse_ifp, IFCOUNTER_OERRORS, 1);
+
+	atse_intr_debug(sc, "poll");
 
 	sc->atse_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	atse_init_locked(sc);
 
+	atse_rx_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&sc->atse_ifp->if_snd))
 		atse_start_locked(sc->atse_ifp);
 }
@@ -1169,10 +1240,6 @@ atse_rx_locked(struct atse_softc *sc)
 	meta = 0;
 	do {
 outer:
-		if (sc->atse_rx_cycles <= 0)
-			return (rx_npkts);
-		sc->atse_rx_cycles--;
-
 		if (sc->atse_rx_m == NULL) {
 			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (m == NULL)
@@ -1196,7 +1263,7 @@ outer:
 				atse_update_rx_err(sc, ((meta &
 				    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
 				    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				sc->atse_rx_buf_len = 0;
 				/*
 				 * Should still read till EOP or next SOP.
@@ -1225,7 +1292,7 @@ outer:
 					    "without empty buffer: %u\n",
 					    __func__, sc->atse_rx_buf_len);
 					/* XXX-BZ any better counter? */
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				}
 				
 				if ((sc->atse_flags & ATSE_FLAGS_SOP_SEEN) == 0)
@@ -1238,12 +1305,13 @@ outer:
 			data = ATSE_RX_DATA_READ(sc);
 #endif
 			/* Make sure to not overflow the mbuf data size. */
-			if (sc->atse_rx_buf_len >= sc->atse_rx_m->m_len - 4) {
+			if (sc->atse_rx_buf_len >= sc->atse_rx_m->m_len -
+			    sizeof(data)) {
 				/*
 				 * XXX-BZ Error.  We need more mbufs and are
 				 * not setup for this yet.
 				 */
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				sc->atse_flags |= ATSE_FLAGS_ERROR;
 			}
 			if ((sc->atse_flags & ATSE_FLAGS_ERROR) == 0)
@@ -1262,7 +1330,7 @@ outer:
 				    A_ONCHIP_FIFO_MEM_CORE_EMPTY_SHIFT;
 				sc->atse_rx_buf_len += (4 - empty);
 
-				ifp->if_ipackets++;
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 				rx_npkts++;
 
 				m = sc->atse_rx_m;
@@ -1275,15 +1343,19 @@ outer:
 				if (sc->atse_flags & ATSE_FLAGS_ERROR) {
 					sc->atse_flags &= ~ATSE_FLAGS_ERROR;
 					m_freem(m);
-					/* Need to start with a new packet. */
-					goto outer;
+				} else {
+					m->m_pkthdr.rcvif = ifp;
+					ATSE_UNLOCK(sc);
+					(*ifp->if_input)(ifp, m);
+					ATSE_LOCK(sc);
 				}
-
-				m->m_pkthdr.rcvif = ifp;
-
-				ATSE_UNLOCK(sc);
-				(*ifp->if_input)(ifp, m);
-				ATSE_LOCK(sc);
+#ifdef DEVICE_POLLING
+				if (ifp->if_capenable & IFCAP_POLLING) {
+					if (sc->atse_rx_cycles <= 0)
+						return (rx_npkts);
+					sc->atse_rx_cycles--;
+				}
+#endif
 				goto outer;	/* Need a new mbuf. */
 			} else {
 				sc->atse_rx_buf_len += sizeof(data);
@@ -1291,7 +1363,7 @@ outer:
 		} /* for */
 
 	/* XXX-BZ could optimize in case of another packet waiting. */
-	} while ((meta & A_ONCHIP_FIFO_MEM_CORE_EOP) == 0 || fill > 0);
+	} while (fill > 0);
 
 	return (rx_npkts);
 }
@@ -1317,11 +1389,11 @@ atse_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-atse_intr(void *arg)
+atse_rx_intr(void *arg)
 {
 	struct atse_softc *sc;
 	struct ifnet *ifp;
-	uint32_t rx, tx;
+	uint32_t rxe;
 
 	sc = (struct atse_softc *)arg;
 	ifp = sc->atse_ifp;
@@ -1334,54 +1406,94 @@ atse_intr(void *arg)
 	}  
 #endif
 
-	ATSE_RX_INTR_DISABLE(sc);
-	ATSE_TX_INTR_DISABLE(sc);
-
-	rx = ATSE_RX_EVENT_READ(sc);
-	tx = ATSE_TX_EVENT_READ(sc);
-	if (rx != 0) {
-		if (rx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
-		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
-			/* XXX-BZ ERROR HANDLING. */
-			atse_update_rx_err(sc, ((rx &
-			    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
-			    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-			ifp->if_ierrors++;
-		}
-		if ((rx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY) != 0) {
-			sc->atse_rx_cycles = RX_CYCLES_IN_INTR;
-			atse_rx_locked(sc);
-		}
+	atse_intr_debug(sc, "rx");
+	rxe = ATSE_RX_EVENT_READ(sc);
+	if (rxe & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
+	    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
+		/* XXX-BZ ERROR HANDLING. */
+		atse_update_rx_err(sc, ((rxe &
+		    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
+		    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	}
-	if (tx != 0) {
-		/* XXX-BZ build histogram. */
-		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
-		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
-			/* XXX-BZ ERROR HANDLING. */
-			ifp->if_oerrors++;
-		}
-		if (tx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY)
-			sc->atse_watchdog_timer = 0;
+
+	/*
+	 * There is considerable subtlety in the race-free handling of rx
+	 * interrupts: we must disable interrupts whenever we manipulate the
+	 * FIFO to prevent further interrupts from firing before we are done;
+	 * we must clear the event after processing to prevent the event from
+	 * being immediately reposted due to data remaining; we must clear the
+	 * event mask before reenabling interrupts or risk missing a positive
+	 * edge; and we must recheck everything after completing in case the
+	 * event posted between clearing events and reenabling interrupts.  If
+	 * a race is experienced, we must restart the whole mechanism.
+	 */
+	do {
+		ATSE_RX_INTR_DISABLE(sc);
 #if 0
-		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY|
-		    A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTEMPTY))
-			atse_start_locked(ifp);
+		sc->atse_rx_cycles = RX_CYCLES_IN_INTR;
 #endif
+		atse_rx_locked(sc);
+		ATSE_RX_EVENT_CLEAR(sc);
+
+		/* Disable interrupts if interface is down. */
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			ATSE_RX_INTR_ENABLE(sc);
+	} while (!(ATSE_RX_STATUS_READ(sc) &
+	    A_ONCHIP_FIFO_MEM_CORE_STATUS_EMPTY));
+	ATSE_UNLOCK(sc);
+
+}
+
+static void
+atse_tx_intr(void *arg)
+{
+	struct atse_softc *sc;
+	struct ifnet *ifp;
+	uint32_t txe;
+
+	sc = (struct atse_softc *)arg;
+	ifp = sc->atse_ifp;
+
+	ATSE_LOCK(sc);
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		ATSE_UNLOCK(sc);
+		return;
+	}  
+#endif
+
+	/* XXX-BZ build histogram. */
+	atse_intr_debug(sc, "tx");
+	txe = ATSE_TX_EVENT_READ(sc);
+	if (txe & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
+	    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
+		/* XXX-BZ ERROR HANDLING. */
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 
-	/* Clear events before re-enabling intrs. */
-	ATSE_TX_EVENT_CLEAR(sc);
-	ATSE_RX_EVENT_CLEAR(sc);
+	/*
+	 * There is also considerable subtlety in the race-free handling of
+	 * tx interrupts: all processing occurs with interrupts disabled to
+	 * prevent spurious refiring while transmit is in progress (which
+	 * could occur if the FIFO drains while sending -- quite likely); we
+	 * must not clear the event mask until after we've sent, also to
+	 * prevent spurious refiring; once we've cleared the event mask we can
+	 * reenable interrupts, but there is a possible race between clear and
+	 * enable, so we must recheck and potentially repeat the whole process
+	 * if it is detected.
+	 */
+	do {
+		ATSE_TX_INTR_DISABLE(sc);
+		sc->atse_watchdog_timer = 0;
+		atse_start_locked(ifp);
+		ATSE_TX_EVENT_CLEAR(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		/* Re-enable interrupts. */
-		ATSE_RX_INTR_ENABLE(sc);
-		ATSE_TX_INTR_ENABLE(sc);
-
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			atse_start_locked(ifp);
-	}
-
+		/* Disable interrupts if interface is down. */
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			ATSE_TX_INTR_ENABLE(sc);
+	} while (ATSE_TX_PENDING(sc) &&
+	    !(ATSE_TX_STATUS_READ(sc) & A_ONCHIP_FIFO_MEM_CORE_STATUS_FULL));
 	ATSE_UNLOCK(sc);
 }
 
@@ -1415,14 +1527,14 @@ atse_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			atse_update_rx_err(sc, ((rx &
 			    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
 			    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
 		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
 			/* XXX-BZ ERROR HANDLING. */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
-		if (tx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY)
+		if (ATSE_TX_READ_FILL_LEVEL(sc) == 0)
 			sc->atse_watchdog_timer = 0;
 
 #if 0
@@ -1708,7 +1820,7 @@ atse_attach(device_t dev)
 	ether_ifattach(ifp, sc->atse_eth_addr);
 
 	/* Tell the upper layer(s) about vlan mtu support. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -1719,7 +1831,7 @@ atse_attach(device_t dev)
 	/* Hook up interrupts. */
 	if (sc->atse_rx_irq_res != NULL) {
 		error = bus_setup_intr(dev, sc->atse_rx_irq_res, INTR_TYPE_NET |
-		    INTR_MPSAFE, NULL, atse_intr, sc, &sc->atse_rx_intrhand);
+		    INTR_MPSAFE, NULL, atse_rx_intr, sc, &sc->atse_rx_intrhand);
 		if (error != 0) {
 			device_printf(dev, "enabling RX IRQ failed\n");
 			ether_ifdetach(ifp);
@@ -1729,7 +1841,7 @@ atse_attach(device_t dev)
 
 	if (sc->atse_tx_irq_res != NULL) {
 		error = bus_setup_intr(dev, sc->atse_tx_irq_res, INTR_TYPE_NET |
-		    INTR_MPSAFE, NULL, atse_intr, sc, &sc->atse_tx_intrhand);
+		    INTR_MPSAFE, NULL, atse_tx_intr, sc, &sc->atse_tx_intrhand);
 		if (error != 0) {
 			bus_teardown_intr(dev, sc->atse_rx_irq_res,
 			    sc->atse_rx_intrhand);

@@ -21,7 +21,9 @@ SUBDIR = \
 .if ${MK_SOURCELESS_UCODE} != "no"
 _mga=		mga
 _r128=		r128
+.if ${MACHINE_CPUARCH} != "powerpc"
 _radeon=	radeon
+.endif
 .endif
 
 .include <bsd.subdir.mk>

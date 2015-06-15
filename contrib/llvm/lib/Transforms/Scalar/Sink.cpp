@@ -12,19 +12,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "sink"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Assembly/Writer.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "sink"
 
 STATISTIC(NumSunk, "Number of instructions sunk");
 STATISTIC(NumSinkIter, "Number of sinking iterations");
@@ -34,6 +35,7 @@ namespace {
     DominatorTree *DT;
     LoopInfo *LI;
     AliasAnalysis *AA;
+    const DataLayout *DL;
 
   public:
     static char ID; // Pass identification
@@ -41,20 +43,20 @@ namespace {
       initializeSinkingPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnFunction(Function &F);
+    bool runOnFunction(Function &F) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       FunctionPass::getAnalysisUsage(AU);
       AU.addRequired<AliasAnalysis>();
-      AU.addRequired<DominatorTree>();
+      AU.addRequired<DominatorTreeWrapperPass>();
       AU.addRequired<LoopInfo>();
-      AU.addPreserved<DominatorTree>();
+      AU.addPreserved<DominatorTreeWrapperPass>();
       AU.addPreserved<LoopInfo>();
     }
   private:
     bool ProcessBlock(BasicBlock &BB);
-    bool SinkInstruction(Instruction *I, SmallPtrSet<Instruction *, 8> &Stores);
+    bool SinkInstruction(Instruction *I, SmallPtrSetImpl<Instruction*> &Stores);
     bool AllUsesDominatedByBlock(Instruction *Inst, BasicBlock *BB) const;
     bool IsAcceptableTarget(Instruction *Inst, BasicBlock *SuccToSinkTo) const;
   };
@@ -63,7 +65,7 @@ namespace {
 char Sinking::ID = 0;
 INITIALIZE_PASS_BEGIN(Sinking, "sink", "Code sinking", false, false)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(Sinking, "sink", "Code sinking", false, false)
 
@@ -77,15 +79,14 @@ bool Sinking::AllUsesDominatedByBlock(Instruction *Inst,
   // This may leave a referencing dbg_value in the original block, before
   // the definition of the vreg.  Dwarf generator handles this although the
   // user might not get the right info at runtime.
-  for (Value::use_iterator I = Inst->use_begin(),
-       E = Inst->use_end(); I != E; ++I) {
+  for (Use &U : Inst->uses()) {
     // Determine the block of the use.
-    Instruction *UseInst = cast<Instruction>(*I);
+    Instruction *UseInst = cast<Instruction>(U.getUser());
     BasicBlock *UseBlock = UseInst->getParent();
     if (PHINode *PN = dyn_cast<PHINode>(UseInst)) {
       // PHI nodes use the operand in the predecessor block, not the block with
       // the PHI.
-      unsigned Num = PHINode::getIncomingValueNumForOperand(I.getOperandNo());
+      unsigned Num = PHINode::getIncomingValueNumForOperand(U.getOperandNo());
       UseBlock = PN->getIncomingBlock(Num);
     }
     // Check that it dominates.
@@ -96,9 +97,11 @@ bool Sinking::AllUsesDominatedByBlock(Instruction *Inst,
 }
 
 bool Sinking::runOnFunction(Function &F) {
-  DT = &getAnalysis<DominatorTree>();
+  DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   LI = &getAnalysis<LoopInfo>();
   AA = &getAnalysis<AliasAnalysis>();
+  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+  DL = DLP ? &DLP->getDataLayout() : nullptr;
 
   bool MadeChange, EverMadeChange = false;
 
@@ -154,7 +157,7 @@ bool Sinking::ProcessBlock(BasicBlock &BB) {
 }
 
 static bool isSafeToMove(Instruction *Inst, AliasAnalysis *AA,
-                         SmallPtrSet<Instruction *, 8> &Stores) {
+                         SmallPtrSetImpl<Instruction *> &Stores) {
 
   if (Inst->mayWriteToMemory()) {
     Stores.insert(Inst);
@@ -163,9 +166,8 @@ static bool isSafeToMove(Instruction *Inst, AliasAnalysis *AA,
 
   if (LoadInst *L = dyn_cast<LoadInst>(Inst)) {
     AliasAnalysis::Location Loc = AA->getLocation(L);
-    for (SmallPtrSet<Instruction *, 8>::iterator I = Stores.begin(),
-         E = Stores.end(); I != E; ++I)
-      if (AA->getModRefInfo(*I, Loc) & AliasAnalysis::Mod)
+    for (Instruction *S : Stores)
+      if (AA->getModRefInfo(S, Loc) & AliasAnalysis::Mod)
         return false;
   }
 
@@ -194,7 +196,7 @@ bool Sinking::IsAcceptableTarget(Instruction *Inst,
   if (SuccToSinkTo->getUniquePredecessor() != Inst->getParent()) {
     // We cannot sink a load across a critical edge - there may be stores in
     // other code paths.
-    if (!isSafeToSpeculativelyExecute(Inst))
+    if (!isSafeToSpeculativelyExecute(Inst, DL))
       return false;
 
     // We don't want to sink across a critical edge if we don't dominate the
@@ -205,7 +207,7 @@ bool Sinking::IsAcceptableTarget(Instruction *Inst,
     // Don't sink instructions into a loop.
     Loop *succ = LI->getLoopFor(SuccToSinkTo);
     Loop *cur = LI->getLoopFor(Inst->getParent());
-    if (succ != 0 && succ != cur)
+    if (succ != nullptr && succ != cur)
       return false;
   }
 
@@ -217,7 +219,14 @@ bool Sinking::IsAcceptableTarget(Instruction *Inst,
 /// SinkInstruction - Determine whether it is safe to sink the specified machine
 /// instruction out of its current block into a successor.
 bool Sinking::SinkInstruction(Instruction *Inst,
-                              SmallPtrSet<Instruction *, 8> &Stores) {
+                              SmallPtrSetImpl<Instruction *> &Stores) {
+
+  // Don't sink static alloca instructions.  CodeGen assumes allocas outside the
+  // entry block are dynamically sized stack objects.
+  if (AllocaInst *AI = dyn_cast<AllocaInst>(Inst))
+    if (AI->isStaticAlloca())
+      return false;
+
   // Check if it's safe to move the instruction.
   if (!isSafeToMove(Inst, AA, Stores))
     return false;
@@ -232,14 +241,14 @@ bool Sinking::SinkInstruction(Instruction *Inst,
 
   // SuccToSinkTo - This is the successor to sink this instruction to, once we
   // decide.
-  BasicBlock *SuccToSinkTo = 0;
+  BasicBlock *SuccToSinkTo = nullptr;
 
   // Instructions can only be sunk if all their uses are in blocks
   // dominated by one of the successors.
   // Look at all the postdominators and see if we can sink it in one.
   DomTreeNode *DTN = DT->getNode(Inst->getParent());
   for (DomTreeNode::iterator I = DTN->begin(), E = DTN->end();
-      I != E && SuccToSinkTo == 0; ++I) {
+      I != E && SuccToSinkTo == nullptr; ++I) {
     BasicBlock *Candidate = (*I)->getBlock();
     if ((*I)->getIDom()->getBlock() == Inst->getParent() &&
         IsAcceptableTarget(Inst, Candidate))
@@ -249,19 +258,19 @@ bool Sinking::SinkInstruction(Instruction *Inst,
   // If no suitable postdominator was found, look at all the successors and
   // decide which one we should sink to, if any.
   for (succ_iterator I = succ_begin(Inst->getParent()),
-      E = succ_end(Inst->getParent()); I != E && SuccToSinkTo == 0; ++I) {
+      E = succ_end(Inst->getParent()); I != E && !SuccToSinkTo; ++I) {
     if (IsAcceptableTarget(Inst, *I))
       SuccToSinkTo = *I;
   }
 
   // If we couldn't find a block to sink to, ignore this instruction.
-  if (SuccToSinkTo == 0)
+  if (!SuccToSinkTo)
     return false;
 
   DEBUG(dbgs() << "Sink" << *Inst << " (";
-        WriteAsOperand(dbgs(), Inst->getParent(), false);
+        Inst->getParent()->printAsOperand(dbgs(), false);
         dbgs() << " -> ";
-        WriteAsOperand(dbgs(), SuccToSinkTo, false);
+        SuccToSinkTo->printAsOperand(dbgs(), false);
         dbgs() << ")\n");
 
   // Move the instruction.

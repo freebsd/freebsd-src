@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_MSP430REGISTERINFO_H
-#define LLVM_TARGET_MSP430REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430REGISTERINFO_H
+#define LLVM_LIB_TARGET_MSP430_MSP430REGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
 
@@ -21,34 +21,27 @@
 
 namespace llvm {
 
-class TargetInstrInfo;
-class MSP430TargetMachine;
-
 struct MSP430RegisterInfo : public MSP430GenRegisterInfo {
-private:
-  MSP430TargetMachine &TM;
-
-  /// StackAlign - Default stack alignment.
-  ///
-  unsigned StackAlign;
 public:
-  MSP430RegisterInfo(MSP430TargetMachine &tm);
+  MSP430RegisterInfo();
 
   /// Code Generation virtual methods...
-  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+  const MCPhysReg *
+  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
 
-  BitVector getReservedRegs(const MachineFunction &MF) const;
+  BitVector getReservedRegs(const MachineFunction &MF) const override;
   const TargetRegisterClass*
-  getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
+  getPointerRegClass(const MachineFunction &MF,
+                     unsigned Kind = 0) const override;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, unsigned FIOperandNum,
-                           RegScavenger *RS = NULL) const;
+                           RegScavenger *RS = nullptr) const override;
 
   // Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const;
+  unsigned getFrameRegister(const MachineFunction &MF) const override;
 };
 
 } // end namespace llvm
 
-#endif // LLVM_TARGET_MSP430REGISTERINFO_H
+#endif

@@ -241,7 +241,7 @@ ida_init(struct ida_softc *ida)
 		/* highaddr	*/ BUS_SPACE_MAXADDR,
 		/* filter	*/ NULL,
 		/* filterarg	*/ NULL,
-		/* maxsize	*/ MAXBSIZE,
+		/* maxsize	*/ DFLTPHYS,
 		/* nsegments	*/ IDA_NSEG,
 		/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 		/* flags	*/ 0,

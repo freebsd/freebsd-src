@@ -43,7 +43,7 @@ typedef SmallVector<Attr*, 2> AttrVec;
 typedef SmallVector<const Attr*, 2> ConstAttrVec;
 
 /// specific_attr_iterator - Iterates over a subrange of an AttrVec, only
-/// providing attributes that are of a specifc type.
+/// providing attributes that are of a specific type.
 template <typename SpecificAttr, typename Container = AttrVec>
 class specific_attr_iterator {
   typedef typename Container::const_iterator Iterator;
@@ -53,7 +53,7 @@ class specific_attr_iterator {
   /// specifically requested, we don't necessarily advance this all the
   /// way. Instead, we advance it when an operation is requested; if the
   /// operation is acting on what should be a past-the-end iterator,
-  /// then we offer no guarantees, but this way we do not dererence a
+  /// then we offer no guarantees, but this way we do not dereference a
   /// past-the-end iterator when we move to a past-the-end position.
   mutable Iterator Current;
 
@@ -98,7 +98,7 @@ public:
 
   friend bool operator==(specific_attr_iterator Left,
                          specific_attr_iterator Right) {
-    assert((Left.Current == 0) == (Right.Current == 0));
+    assert((Left.Current == nullptr) == (Right.Current == nullptr));
     if (Left.Current < Right.Current)
       Left.AdvanceToNext(Right.Current); 
     else
@@ -134,7 +134,7 @@ inline SpecificAttr *getSpecificAttr(const Container& container) {
   if (i != specific_attr_end<SpecificAttr>(container))
     return *i;
   else
-    return 0;
+    return nullptr;
 }
 
 }  // end namespace clang

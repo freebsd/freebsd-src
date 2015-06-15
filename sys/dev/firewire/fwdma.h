@@ -1,7 +1,7 @@
 /*-
  * Copyright (C) 2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,20 +30,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
 struct fwdma_alloc {
 	bus_dma_tag_t	dma_tag;
 	bus_dmamap_t	dma_map;
-	void *		v_addr;
+	void 		*v_addr;
 	bus_addr_t	bus_addr;
 };
 
 struct fwdma_seg {
 	bus_dmamap_t	dma_map;
-	void *		v_addr;
+	void 		*v_addr;
 	bus_addr_t	bus_addr;
 };
 
@@ -74,20 +74,20 @@ fwdma_bus_addr(struct fwdma_alloc_multi *am, int index)
 }
 
 static __inline void
-fwdma_sync(struct fwdma_alloc *dma, bus_dmasync_op_t op)  
+fwdma_sync(struct fwdma_alloc *dma, bus_dmasync_op_t op)
 {
 	bus_dmamap_sync(dma->dma_tag, dma->dma_map, op);
 }
 
 static __inline void
 fwdma_sync_multiseg(struct fwdma_alloc_multi *am,
-			int start, int end, bus_dmasync_op_t op)
+    int start, int end, bus_dmasync_op_t op)
 {
 	struct fwdma_seg *seg, *eseg;
 
 	seg = &am->seg[am->esize * start / am->ssize];
 	eseg = &am->seg[am->esize * end / am->ssize];
-	for (; seg <= eseg; seg ++)
+	for (; seg <= eseg; seg++)
 		bus_dmamap_sync(am->dma_tag, seg->dma_map, op);
 }
 

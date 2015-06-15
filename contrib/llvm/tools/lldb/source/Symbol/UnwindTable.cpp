@@ -17,7 +17,7 @@
 #include "lldb/Symbol/FuncUnwinders.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/DWARFCallFrameInfo.h"
-#include "lldb/Target/UnwindAssembly.h"
+#include "lldb/Symbol/CompactUnwindInfo.h"
 
 // There is one UnwindTable object per ObjectFile.
 // It contains a list of Unwind objects -- one per function, populated lazily -- for the ObjectFile.
@@ -30,8 +30,9 @@ UnwindTable::UnwindTable (ObjectFile& objfile) :
     m_object_file (objfile), 
     m_unwinds (),
     m_initialized (false),
-    m_assembly_profiler (NULL),
-    m_eh_frame (NULL)
+    m_mutex (),
+    m_eh_frame (nullptr),
+    m_compact_unwind (nullptr)
 {
 }
 
@@ -44,6 +45,11 @@ UnwindTable::Initialize ()
     if (m_initialized)
         return;
 
+    Mutex::Locker locker(m_mutex);
+
+    if (m_initialized) // check again once we've acquired the lock
+        return;
+
     SectionList* sl = m_object_file.GetSectionList ();
     if (sl)
     {
@@ -52,14 +58,14 @@ UnwindTable::Initialize ()
         {
             m_eh_frame = new DWARFCallFrameInfo(m_object_file, sect, eRegisterKindGCC, true);
         }
+        sect = sl->FindSectionByType (eSectionTypeCompactUnwind, true);
+        if (sect.get())
+        {
+            m_compact_unwind = new CompactUnwindInfo(m_object_file, sect);
+        }
     }
     
-    ArchSpec arch;
-    if (m_object_file.GetArchitecture (arch))
-    {
-        m_assembly_profiler = UnwindAssembly::FindPlugin (arch);
-        m_initialized = true;
-    }
+    m_initialized = true;
 }
 
 UnwindTable::~UnwindTable ()
@@ -74,6 +80,8 @@ UnwindTable::GetFuncUnwindersContainingAddress (const Address& addr, SymbolConte
     FuncUnwindersSP no_unwind_found;
 
     Initialize();
+
+    Mutex::Locker locker(m_mutex);
 
     // There is an UnwindTable per object file, so we can safely use file handles
     addr_t file_addr = addr.GetFileAddress();
@@ -94,13 +102,13 @@ UnwindTable::GetFuncUnwindersContainingAddress (const Address& addr, SymbolConte
     if (!sc.GetAddressRange(eSymbolContextFunction | eSymbolContextSymbol, 0, false, range) || !range.GetBaseAddress().IsValid())
     {
         // Does the eh_frame unwind info has a function bounds for this addr?
-        if (m_eh_frame == NULL || !m_eh_frame->GetAddressRange (addr, range))
+        if (m_eh_frame == nullptr || !m_eh_frame->GetAddressRange (addr, range))
         {
             return no_unwind_found;
         }
     }
 
-    FuncUnwindersSP func_unwinder_sp(new FuncUnwinders(*this, m_assembly_profiler, range));
+    FuncUnwindersSP func_unwinder_sp(new FuncUnwinders(*this, range));
     m_unwinds.insert (insert_pos, std::make_pair(range.GetBaseAddress().GetFileAddress(), func_unwinder_sp));
 //    StreamFile s(stdout, false);
 //    Dump (s);
@@ -121,13 +129,13 @@ UnwindTable::GetUncachedFuncUnwindersContainingAddress (const Address& addr, Sym
     if (!sc.GetAddressRange(eSymbolContextFunction | eSymbolContextSymbol, 0, false, range) || !range.GetBaseAddress().IsValid())
     {
         // Does the eh_frame unwind info has a function bounds for this addr?
-        if (m_eh_frame == NULL || !m_eh_frame->GetAddressRange (addr, range))
+        if (m_eh_frame == nullptr || !m_eh_frame->GetAddressRange (addr, range))
         {
             return no_unwind_found;
         }
     }
 
-    FuncUnwindersSP func_unwinder_sp(new FuncUnwinders(*this, m_assembly_profiler, range));
+    FuncUnwindersSP func_unwinder_sp(new FuncUnwinders(*this, range));
     return func_unwinder_sp;
 }
 
@@ -135,6 +143,7 @@ UnwindTable::GetUncachedFuncUnwindersContainingAddress (const Address& addr, Sym
 void
 UnwindTable::Dump (Stream &s)
 {
+    Mutex::Locker locker(m_mutex);
     s.Printf("UnwindTable for '%s':\n", m_object_file.GetFileSpec().GetPath().c_str());
     const_iterator begin = m_unwinds.begin();
     const_iterator end = m_unwinds.end();
@@ -150,4 +159,17 @@ UnwindTable::GetEHFrameInfo ()
 {
     Initialize();
     return m_eh_frame;
+}
+
+CompactUnwindInfo *
+UnwindTable::GetCompactUnwindInfo ()
+{
+    Initialize();
+    return m_compact_unwind;
+}
+
+bool
+UnwindTable::GetArchitecture (lldb_private::ArchSpec &arch)
+{
+    return m_object_file.GetArchitecture (arch);
 }

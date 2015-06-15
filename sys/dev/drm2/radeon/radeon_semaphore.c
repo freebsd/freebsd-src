@@ -41,7 +41,7 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 	int r;
 
 	*semaphore = malloc(sizeof(struct radeon_semaphore),
-	    DRM_MEM_DRIVER, M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT);
 	if (*semaphore == NULL) {
 		return -ENOMEM;
 	}

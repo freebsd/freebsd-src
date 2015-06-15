@@ -42,7 +42,7 @@ if_ral_load="YES"
 The
 .Nm
 driver supports PCI/PCIe/CardBus wireless adapters based on the Ralink RT2500,
-RT2501, RT2600, RT2700, RT2800 and RT3090 chipsets.
+RT2501, RT2600, RT2700, RT2800, RT3090 and RT3900E chipsets.
 .Pp
 The RT2500 chipset is the first generation of 802.11b/g adapters from Ralink.
 It consists of two integrated chips, an RT2560 MAC/BBP and an RT2525 radio
@@ -104,6 +104,13 @@ interfaces may be operated together with a
 .Cm hostap
 interface to construct a wireless repeater device.
 .Pp
+The RT3900E chipset is a single-chip 802.11n adapters from Ralink.
+The MAC/Baseband Processor can be an RT5390 or RT5392.
+The RT5390 chip operates in the 2GHz spectrum and supports 1 transmit path
+and 1 receiver path (1T1R).
+The RT5392 chip operates in the 2GHz spectrum and supports up to 2 transmit
+paths and 2 receiver paths (2T2R).
+.Pp
 The transmit speed is user-selectable or can be adapted automatically by the
 driver depending on the number of hardware transmission retries.
 For more information on configuring this device, see
@@ -142,6 +149,7 @@ chipsets, including:
 .It "Compex WLP54G" Ta RT2560 Ta PCI
 .It "Conceptronic C54RC" Ta RT2560 Ta CardBus
 .It "Conceptronic C54Ri" Ta RT2560 Ta PCI
+.It "D-Link DWA-525 rev A2" Ta RT5392 Ta PCI
 .It "Digitus DN-7001G-RA" Ta RT2560 Ta CardBus
 .It "Digitus DN-7006G-RA" Ta RT2560 Ta PCI
 .It "E-Tech WGPC02" Ta RT2560 Ta CardBus
@@ -240,8 +248,8 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr intro 4 ,
 .Xr cardbus 4 ,
+.Xr intro 4 ,
 .Xr wlan 4 ,
 .Xr wlan_ccmp 4 ,
 .Xr wlan_tkip 4 ,

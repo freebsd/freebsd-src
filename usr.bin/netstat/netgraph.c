@@ -53,9 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <err.h>
+#include <libxo/xo.h>
 #include "netstat.h"
 
 static	int first = 1;
@@ -73,8 +75,7 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 	/* If symbol not found, try looking in the KLD module */
 	if (off == 0) {
 		if (debug)
-			fprintf(stderr,
-			    "Error reading symbols from ng_socket.ko");
+			xo_warnx("Error reading symbols from ng_socket.ko");
 		return;
 	}
 
@@ -106,20 +107,22 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 
 		/* Do headline */
 		if (first) {
-			printf("Netgraph sockets\n");
+			xo_emit("{T:Netgraph sockets}\n");
 			if (Aflag)
-				printf("%-8.8s ", "PCB");
-			printf("%-5.5s %-6.6s %-6.6s %-14.14s %s\n",
-			    "Type", "Recv-Q", "Send-Q",
-			    "Node Address", "#Hooks");
+				xo_emit("{T:/%-8.8s} ", "PCB");
+			xo_emit("{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} "
+			    "{T:/%-14.14s} {T:/%s}\n",
+			    "Type", "Recv-Q", "Send-Q", "Node Address",
+			    "#Hooks");
 			first = 0;
 		}
 
 		/* Show socket */
 		if (Aflag)
-			printf("%8lx ", (u_long) this);
-		printf("%-5.5s %6u %6u ",
-		    name, sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
+			xo_emit("{:address/%8lx} ", (u_long) this);
+		xo_emit("{t:name/%-5.5s} {:receive-bytes-waiting/%6u} "
+		    "{:send-byte-waiting/%6u} ",
+		    name, sockb.so_rcv.sb_ccc, sockb.so_snd.sb_ccc);
 
 		/* Get info on associated node */
 		if (ngpcb.node_id == 0 || csock == -1)
@@ -134,9 +137,9 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 		/* Display associated node info */
 		if (*ni->name != '\0')
 			snprintf(path, sizeof(path), "%s:", ni->name);
-		printf("%-14.14s %4d", path, ni->hooks);
+		xo_emit("{t:path/%-14.14s} {:hooks/%4d}", path, ni->hooks);
 finish:
-		putchar('\n');
+		xo_emit("\n");
 	}
 }
 

@@ -14,32 +14,35 @@ LIBDEPS=llvmx86disassembler \
 	llvmx86asmparser \
 	llvmirreader \
 	llvmasmparser \
-	llvmbitreader \
 	llvmx86codegen \
 	llvmx86desc \
 	llvmx86info \
+	llvmmcdisassembler \
 	llvmx86instprinter \
 	llvmx86utils \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvminterpreter \
-	llvminstrumentation \
-	llvmmcjit \
-	llvmjit \
 	llvmcodegen \
-	llvmobjcarcopts \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmmcjit \
+	llvmtarget \
 	llvmruntimedyld \
 	llvmexecutionengine \
-	llvmtarget \
-	llvmmc \
 	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmmc \
 	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

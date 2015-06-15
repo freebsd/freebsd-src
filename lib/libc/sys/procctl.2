@@ -1,6 +1,10 @@
-.\" Copyright (c) 2013 Advanced Computing Technologies LLC
+.\" Copyright (c) 2013 Hudson River Trading LLC
 .\" Written by: John H. Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
+.\"
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" Portions of this documentation were written by Konstantin Belousov
+.\" under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2013
+.Dd December 29, 2014
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -67,7 +71,7 @@ The control request to perform is specified by the
 .Fa cmd
 argument.
 The following commands are supported:
-.Bl -tag -width "Dv PROC_SPROTECT"
+.Bl -tag -width "Dv PROC_REAP_GETPIDS"
 .It Dv PROC_SPROTECT
 Set process protection state.
 This is used to mark a process as protected from being killed if the system
@@ -95,7 +99,237 @@ When used with
 mark all future child processes of each selected process as protected.
 Future child processes will also mark all of their future child processes.
 .El
+.It Dv PROC_REAP_ACQUIRE
+Acquires the reaper status for the current process.
+The status means that children orphaned by the reaper's descendants
+that were forked after the acquisition of the status are reparented to the
+reaper.
+After the system initialization,
+.Xr init 8
+is the default reaper.
+.It Dv PROC_REAP_RELEASE
+Releases the reaper state for the current process.
+The reaper of the current process becomes the new reaper of the
+current process's descendants.
+.It Dv PROC_REAP_STATUS
+Provides the information about the reaper of the specified process,
+or the process itself when it is a reaper.
+The
+.Fa data
+argument must point to a
+.Vt procctl_reaper_status
+structure which is filled in by the syscall on successful return.
+.Bd -literal
+struct procctl_reaper_status {
+	u_int	rs_flags;
+	u_int	rs_children;
+	u_int	rs_descendants;
+	pid_t	rs_reaper;
+	pid_t	rs_pid;
+};
+.Ed
+The
+.Fa rs_flags
+may have the following flags returned:
+.Bl -tag -width "Dv REAPER_STATUS_REALINIT"
+.It Dv REAPER_STATUS_OWNED
+The specified process has acquired the reaper status and has not
+released it.
+When the flag is returned, the specified process
+.Fa id ,
+pid, identifies the reaper, otherwise the
+.Fa rs_reaper
+field of the structure is set to the pid of the reaper
+for the specified process id.
+.It Dv REAPER_STATUS_REALINIT
+The specified process is the root of the reaper tree, i.e.
+.Xr init 8 .
 .El
+.Pp
+The
+.Fa rs_children
+field returns the number of children of the reaper.
+The
+.Fa rs_descendants
+field returns the total number of descendants of the reaper(s),
+not counting descendants of the reaper in the subtree.
+The
+.Fa rs_reaper
+field returns the reaper pid.
+The
+.Fa rs_pid
+returns the pid of one reaper child if there are any descendants.
+.It Dv PROC_REAP_GETPIDS
+Queries the list of descendants of the reaper of the specified process.
+The request takes a pointer to a
+.Vt procctl_reaper_pids
+structure in the
+.Fa data
+parameter.
+.Bd -literal
+struct procctl_reaper_pids {
+	u_int	rp_count;
+	struct procctl_reaper_pidinfo *rp_pids;
+};
+.Ed
+When called, the
+.Fa rp_pids
+field must point to an array of
+.Vt procctl_reaper_pidinfo
+structures, to be filled in on return,
+and the
+.Fa rp_count
+field must specify the size of the array,
+into which no more than
+.Fa rp_count
+elements will be filled in by the kernel.
+.Pp
+The
+.Vt "struct procctl_reaper_pidinfo"
+structure provides some information about one of the reaper's descendants.
+Note that for a descendant that is not a child, it may be incorrectly
+identified because of a race in which the original child process exited
+and the exited process's pid was reused for an unrelated process.
+.Bd -literal
+struct procctl_reaper_pidinfo {
+	pid_t	pi_pid;
+	pid_t	pi_subtree;
+	u_int	pi_flags;
+};
+.Ed
+The
+.Fa pi_pid
+field is the process id of the descendant.
+The
+.Fa pi_subtree
+field provides the pid of the child of the reaper, which is the (grand-)parent
+of the process.
+The
+.Fa pi_flags
+field returns the following flags, further describing the descendant:
+.Bl -tag -width "Dv REAPER_PIDINFO_VALID"
+.It Dv REAPER_PIDINFO_VALID
+Set to indicate that the
+.Vt procctl_reaper_pidinfo
+structure was filled in by the kernel.
+Zero-filling the
+.Fa rp_pids
+array and testing the
+.Dv REAPER_PIDINFO_VALID
+flag allows the caller to detect the end
+of the returned array.
+.It Dv REAPER_PIDINFO_CHILD
+The
+.Fa pi_pid
+field identifies the direct child of the reaper.
+.El
+.It Dv PROC_REAP_KILL
+Request to deliver a signal to some subset of the descendants of the reaper.
+The
+.Fa data
+parameter must point to a
+.Vt procctl_reaper_kill
+structure, which is used both for parameters and status return.
+.Bd -literal
+struct procctl_reaper_kill {
+	int	rk_sig;
+	u_int	rk_flags;
+	pid_t	rk_subtree;
+	u_int	rk_killed;
+	pid_t	rk_fpid;
+};
+.Ed
+The
+.Fa rk_sig
+field specifies the signal to be delivered.
+Zero is not a valid signal number, unlike
+.Xr kill 2 .
+The
+.Fa rk_flags
+field further directs the operation.
+It is or-ed from the following flags:
+.Bl -tag -width "Dv REAPER_KILL_CHILDREN"
+.It Dv REAPER_KILL_CHILDREN
+Deliver the specified signal only to direct children of the reaper.
+.It Dv REAPER_KILL_SUBTREE
+Deliver the specified signal only to descendants that were forked by
+the direct child with pid specified in the
+.Fa rk_subtree
+field.
+.El
+If neither the
+.Dv REAPER_KILL_CHILDREN
+nor the
+.Dv REAPER_KILL_SUBTREE
+flags are specified, all current descendants of the reaper are signalled.
+.Pp
+If a signal was delivered to any process, the return value from the request
+is zero.
+In this case, the
+.Fa rk_killed
+field identifies the number of processes signalled.
+The
+.Fa rk_fpid
+field is set to the pid of the first process for which signal
+delivery failed, e.g. due to the permission problems.
+If no such process exist, the
+.Fa rk_fpid
+field is set to -1.
+.It Dv PROC_TRACE_CTL
+Enable or disable tracing of the specified process(es), according to the
+value of the integer argument.
+Tracing includes attachment to the process using
+.Xr ptrace 2
+and
+.Xr ktrace 2 ,
+debugging sysctls,
+.Xr hwpmc 4 ,
+.Xr dtrace 1
+and core dumping.
+Possible values for the
+.Fa data
+argument are:
+.Bl -tag -width "Dv PROC_TRACE_CTL_DISABLE_EXEC"
+.It Dv PROC_TRACE_CTL_ENABLE
+Enable tracing, after it was disabled by
+.Dv PROC_TRACE_CTL_DISABLE .
+Only allowed for self.
+.It Dv PROC_TRACE_CTL_DISABLE
+Disable tracing for the specified process.
+Tracing is re-enabled when the process changes the executing
+program with
+.Xr execve 2
+syscall.
+A child inherits the trace settings from the parent on
+.Xr fork 2 .
+.It Dv PROC_TRACE_CTL_DISABLE_EXEC
+Same as
+.Dv PROC_TRACE_CTL_DISABLE ,
+but the setting persist for the process even after
+.Xr execve 2 .
+.El
+.It Dv PROC_TRACE_STATUS
+Returns the current tracing status for the specified process in
+the integer variable pointed to by
+.Fa data .
+If tracing is disabled,
+.Fa data
+is set to -1.
+If tracing is enabled, but no debugger is attached by
+.Xr ptrace 2
+syscall,
+.Fa data
+is set to 0.
+If a debugger is attached,
+.Fa data
+is set to the pid of the debugger process.
+.El
+.Sh NOTES
+Disabling tracing on a process should not be considered a security
+feature, as it is bypassable both by the kernel and privileged processes,
+and via other system mechanisms.
+As such, it should not be relied on to reliably protect cryptographic
+keying material or other confidential data.
 .Sh RETURN VALUES
 If an error occurs, a value of -1 is returned and
 .Va errno
@@ -109,7 +343,7 @@ will fail if:
 .It Bq Er EFAULT
 The
 .Fa arg
-points outside the process's allocated address space.
+parameter points outside the process's allocated address space.
 .It Bq Er EINVAL
 The
 .Fa cmd
@@ -132,11 +366,71 @@ An invalid operation or flag was passed in
 for a
 .Dv PROC_SPROTECT
 command.
+.It Bq Er EPERM
+The
+.Fa idtype
+argument is not equal to
+.Dv P_PID ,
+or
+.Fa id
+is not equal to the pid of the calling process, for
+.Dv PROC_REAP_ACQUIRE
+or
+.Dv PROC_REAP_RELEASE
+requests.
+.It Bq Er EINVAL
+Invalid or undefined flags were passed to a
+.Dv PROC_REAP_KILL
+request.
+.It Bq Er EINVAL
+An invalid or zero signal number was requested for a
+.Dv PROC_REAP_KILL
+request.
+.It Bq Er EINVAL
+The
+.Dv PROC_REAP_RELEASE
+request was issued by the
+.Xr init 8
+process.
+.It Bq Er EBUSY
+The
+.Dv PROC_REAP_ACQUIRE
+request was issued by a process that had already acquired reaper status
+and has not yet released it.
+.It Bq Er EBUSY
+The
+.Dv PROC_TRACE_CTL
+request was issued for a process already being traced.
+.It Bq Er EPERM
+The
+.Dv PROC_TRACE_CTL
+request to re-enable tracing of the process (
+.Dv PROC_TRACE_CTL_ENABLE ) ,
+or to disable persistence of the
+.Dv PROC_TRACE_CTL_DISABLE
+on
+.Xr execve 2
+was issued for a non-current process.
+.It Bq Er EINVAL
+The value of the integer
+.Fa data
+parameter for the
+.Dv PROC_TRACE_CTL
+request is invalid.
 .El
 .Sh SEE ALSO
-.Xr ptrace 2
+.Xr dtrace 1 ,
+.Xr kill 2 ,
+.Xr ktrace 2 ,
+.Xr ptrace 2 ,
+.Xr wait 2 ,
+.Xr hwpmc 4 ,
+.Xr init 8
 .Sh HISTORY
 The
 .Fn procctl
 function appeared in
 .Fx 10.0 .
+The reaper facility is based on a similar feature of Linux and
+DragonflyBSD, and first appeared in
+.Fx 10.2 .

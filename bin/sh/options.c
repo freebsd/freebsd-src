@@ -325,6 +325,7 @@ setparam(char **argv)
 	shellparam.malloc = 1;
 	shellparam.nparam = nparam;
 	shellparam.p = newparam;
+	shellparam.optp = NULL;
 	shellparam.reset = 1;
 	shellparam.optnext = NULL;
 }
@@ -343,6 +344,11 @@ freeparam(struct shparam *param)
 		for (ap = param->p ; *ap ; ap++)
 			ckfree(*ap);
 		ckfree(param->p);
+	}
+	if (param->optp) {
+		for (ap = param->optp ; *ap ; ap++)
+			ckfree(*ap);
+		ckfree(param->optp);
 	}
 }
 
@@ -417,20 +423,33 @@ getoptsreset(const char *value)
 int
 getoptscmd(int argc, char **argv)
 {
-	char **optbase = NULL;
+	char **optbase = NULL, **ap;
+	int i;
 
 	if (argc < 3)
 		error("usage: getopts optstring var [arg]");
-	else if (argc == 3)
-		optbase = shellparam.p;
-	else
-		optbase = &argv[3];
 
 	if (shellparam.reset == 1) {
+		INTOFF;
+		if (shellparam.optp) {
+			for (ap = shellparam.optp ; *ap ; ap++)
+				ckfree(*ap);
+			ckfree(shellparam.optp);
+			shellparam.optp = NULL;
+		}
+		if (argc > 3) {
+			shellparam.optp = ckmalloc((argc - 2) * sizeof *ap);
+			memset(shellparam.optp, '\0', (argc - 2) * sizeof *ap);
+			for (i = 0; i < argc - 3; i++)
+				shellparam.optp[i] = savestr(argv[i + 3]);
+		}
+		INTON;
+		optbase = argc == 3 ? shellparam.p : shellparam.optp;
 		shellparam.optnext = optbase;
 		shellparam.optptr = NULL;
 		shellparam.reset = 0;
-	}
+	} else
+		optbase = shellparam.optp ? shellparam.optp : shellparam.p;
 
 	return getopts(argv[1], argv[2], optbase, &shellparam.optnext,
 		       &shellparam.optptr);
@@ -446,7 +465,7 @@ getopts(char *optstr, char *optvar, char **optfirst, char ***optnext,
 	int ind = 0;
 	int err = 0;
 	char s[10];
-	const char *optarg = NULL;
+	const char *newoptarg = NULL;
 
 	if ((p = *optptr) == NULL || *p == '\0') {
 		/* Current word is done, advance */
@@ -472,7 +491,7 @@ atend:
 			if (optstr[0] == ':') {
 				s[0] = c;
 				s[1] = '\0';
-				optarg = s;
+				newoptarg = s;
 			}
 			else
 				out2fmt_flush("Illegal option -%c\n", c);
@@ -488,7 +507,7 @@ atend:
 			if (optstr[0] == ':') {
 				s[0] = c;
 				s[1] = '\0';
-				optarg = s;
+				newoptarg = s;
 				c = ':';
 			}
 			else {
@@ -500,7 +519,7 @@ atend:
 
 		if (p == **optnext)
 			(*optnext)++;
-		optarg = p;
+		newoptarg = p;
 		p = NULL;
 	}
 
@@ -508,8 +527,8 @@ out:
 	if (*optnext != NULL)
 		ind = *optnext - optfirst + 1;
 	*optptr = p;
-	if (optarg != NULL)
-		err |= setvarsafe("OPTARG", optarg, 0);
+	if (newoptarg != NULL)
+		err |= setvarsafe("OPTARG", newoptarg, 0);
 	else {
 		INTOFF;
 		err |= unsetvar("OPTARG");

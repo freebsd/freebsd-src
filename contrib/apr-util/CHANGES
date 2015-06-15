@@ -1,4 +1,30 @@
                                                      -*- coding: utf-8 -*-
+Changes with APR-util 1.5.4
+
+  *) MySQL driver: Fix incorrect handling of bad parameter in the
+     driver support for apr_dbd_transaction_end().  PR 56330.
+     [Weiqiang Li <weiqiang_li hotmail.com>]
+
+  *) apr_crypto_get_driver(): Fix invalid storage reference on error path.
+     [Philip Martin <philip.martin wandisco.com>]
+
+  *) Fix compile failure for Android.  PR 56627.  [Fredrik Fornwall 
+     <fredrik fornwall.net>, Jeff Trawick]
+
+  *) Fix to let ODBC driver build with MSVC6, which does not have intptr_t
+     [Tom Donovan]
+
+  *) Windows cmake build: Fix incompatiblities with Visual Studio
+     generators with all cmake versions, and the NMake Makefile generator
+     with cmake 2.8.12 and later.  PR 56616 and other bugs.  [Jeff Trawick,
+     Bert Huijben]
+
+  *) Fix detection of Berkeley DB 6.0. PR 55277.
+     [Lars Wendler <polynomial-c gentoo.org>]
+
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
+
 Changes with APR-util 1.5.3
 
   *) Cygwin: Use correct file extension when loading APR DSOs.  PR 55587.

@@ -1,4 +1,4 @@
-.\"	$NetBSD: editrc.5,v 1.24 2009/04/11 22:17:52 wiz Exp $
+.\"	$NetBSD: editrc.5,v 1.29 2014/12/25 13:39:41 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2003
+.Dd December 25, 2014
 .Dt EDITRC 5
 .Os
 .Sh NAME
@@ -44,7 +44,8 @@ file defines various settings to be used by the
 library.
 .Pp
 The format of each line is:
-.Dl [prog:]command [arg [...]]
+.Pp
+.Dl [prog:]command [arg ...]
 .Pp
 .Ar command
 is one of the
@@ -105,16 +106,12 @@ to
 .Ar key .
 Options include:
 .Bl -tag -width 4n
-.It Fl e
-Bind all keys to the standard GNU Emacs-like bindings.
-.It Fl v
-Bind all keys to the standard
-.Xr vi 1 Ns -like
-bindings.
 .It Fl a
 List or change key bindings in the
 .Xr vi 1
 mode alternate (command mode) key map.
+.It Fl e
+Bind all keys to the standard GNU Emacs-like bindings.
 .It Fl k
 .Ar key
 is interpreted as a symbolic arrow key name, which may be one of
@@ -136,6 +133,10 @@ Bound keys in
 .Ar command
 are themselves reinterpreted, and this continues for ten levels of
 interpretation.
+.It Fl v
+Bind all keys to the standard
+.Xr vi 1 Ns -like
+bindings.
 .El
 .Pp
 .Ar command
@@ -150,8 +151,10 @@ can contain control characters of the form
 .Sm off
 .Sq No ^ Ar character
 .Sm on
-(e.g.\&
-.Sq ^A ) ,
+.Po
+e.g.\&
+.Sq ^A
+.Pc ,
 and the following backslashed escape sequences:
 .Pp
 .Bl -tag -compact -offset indent -width 4n
@@ -186,7 +189,7 @@ and
 .Sq ^ .
 .It Ic echotc Oo Fl sv Oc Ar arg Ar ...
 Exercise terminal capabilities given in
-.Ar arg Ar ... .
+.Ar arg ... .
 If
 .Ar arg
 is
@@ -194,7 +197,8 @@ is
 .Sq cols ,
 .Sq lines ,
 .Sq rows ,
-.Sq meta or
+.Sq meta ,
+or
 .Sq tabs ,
 the value of that capability is printed, with
 .Dq yes
@@ -207,7 +211,7 @@ returns an empty string for non-existent capabilities, rather than
 causing an error.
 .Fl v
 causes messages to be verbose.
-.It Ic edit Op Cm on | off
+.It Ic edit Op Li on | Li off
 Enable or disable the
 .Nm editline
 functionality in a program.
@@ -229,9 +233,6 @@ is non zero, only keep unique history entries.
 If
 .Dv n
 is zero, then keep all entries (the default).
-.It Ic telltc
-List the values of all the terminal capabilities (see
-.Xr termcap 5 ) .
 .It Ic settc Ar cap Ar val
 Set the terminal capability
 .Ar cap
@@ -262,9 +263,13 @@ set of tty modes respectively; defaulting to
 Without other arguments,
 .Ic setty
 lists the modes in the chosen set which are fixed on
-.Pq Sq +mode
+.Po
+.Sq +mode
+.Pc
 or off
-.Pq Sq -mode .
+.Po
+.Sq -mode
+.Pc .
 .Fl a
 lists all tty modes in the chosen set regardless of the setting.
 With
@@ -286,6 +291,9 @@ If
 is empty
 then the character is set to
 .Dv _POSIX_VDISABLE .
+.It Ic telltc
+List the values of all the terminal capabilities (see
+.Xr termcap 5 ) .
 .El
 .Sh EDITOR COMMANDS
 The following editor commands are available for use in key bindings:
@@ -295,11 +303,11 @@ The following editor commands are available for use in key bindings:
 Vi paste previous deletion to the right of the cursor.
 .It Ic vi-paste-prev
 Vi paste previous deletion to the left of the cursor.
-.It Ic vi-prev-space-word
+.It Ic vi-prev-big-word
 Vi move to the previous space delimited word.
 .It Ic vi-prev-word
 Vi move to the previous word.
-.It Ic vi-next-space-word
+.It Ic vi-next-big-word
 Vi move to the next space delimited word.
 .It Ic vi-next-word
 Vi move to the next word.
@@ -327,9 +335,9 @@ Vi enter insert mode after the cursor.
 Vi enter insert mode at end of line.
 .It Ic vi-delete-meta
 Vi delete prefix command.
-.It Ic vi-end-word
+.It Ic vi-end-big-word
 Vi move to the end of the current space delimited word.
-.It Ic vi-to-end-word
+.It Ic vi-end-word
 Vi move to the end of the current word.
 .It Ic vi-undo
 Vi undo last change.
@@ -363,6 +371,28 @@ Vi move up to the character specified previous.
 Vi repeat current character search in the same search direction.
 .It Ic vi-repeat-prev-char
 Vi repeat current character search in the opposite search direction.
+.It Ic vi-match
+Vi go to matching () {} or [].
+.It Ic vi-undo-line
+Vi undo all changes to line.
+.It Ic vi-to-column
+Vi go to specified column.
+.It Ic vi-yank-end
+Vi yank to end of line.
+.It Ic vi-yank
+Vi yank.
+.It Ic vi-comment-out
+Vi comment out current command.
+.It Ic vi-alias
+Vi include shell alias.
+.It Ic vi-to-history-line
+Vi go to specified history file line..
+.It Ic vi-histedit
+Vi edit history line with vi.
+.It Ic vi-history-word
+Vi append word from previous input line.
+.It Ic vi-redo
+Vi redo last non-motion command.
 .It Ic em-delete-or-list
 Delete character under cursor or list completions if at end of line.
 .It Ic em-delete-next-word

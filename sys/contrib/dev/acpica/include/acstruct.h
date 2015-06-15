@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,11 +68,6 @@
 #define ACPI_WALK_NON_METHOD        0
 #define ACPI_WALK_METHOD            0x01
 #define ACPI_WALK_METHOD_RESTART    0x02
-
-/* Flags for iASL compiler only */
-
-#define ACPI_WALK_CONST_REQUIRED    0x10
-#define ACPI_WALK_CONST_OPTIONAL    0x20
 
 
 typedef struct acpi_walk_state
@@ -139,6 +134,9 @@ typedef struct acpi_init_walk_info
     UINT32                          TableIndex;
     UINT32                          ObjectCount;
     UINT32                          MethodCount;
+    UINT32                          SerialMethodCount;
+    UINT32                          NonSerialMethodCount;
+    UINT32                          SerializedMethodCount;
     UINT32                          DeviceCount;
     UINT32                          OpRegionCount;
     UINT32                          FieldCount;

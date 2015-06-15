@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/ChainedIncludesSource.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -25,18 +24,66 @@
 
 using namespace clang;
 
-static ASTReader *createASTReader(CompilerInstance &CI,
-                             StringRef pchFile,
-                             SmallVectorImpl<llvm::MemoryBuffer *> &memBufs,
-                             SmallVectorImpl<std::string> &bufNames,
-                             ASTDeserializationListener *deserialListener = 0) {
+namespace {
+class ChainedIncludesSource : public ExternalSemaSource {
+public:
+  virtual ~ChainedIncludesSource();
+
+  ExternalSemaSource &getFinalReader() const { return *FinalReader; }
+
+  std::vector<CompilerInstance *> CIs;
+  IntrusiveRefCntPtr<ExternalSemaSource> FinalReader;
+
+protected:
+  //===----------------------------------------------------------------------===//
+  // ExternalASTSource interface.
+  //===----------------------------------------------------------------------===//
+
+  Decl *GetExternalDecl(uint32_t ID) override;
+  Selector GetExternalSelector(uint32_t ID) override;
+  uint32_t GetNumExternalSelectors() override;
+  Stmt *GetExternalDeclStmt(uint64_t Offset) override;
+  CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset) override;
+  bool FindExternalVisibleDeclsByName(const DeclContext *DC,
+                                      DeclarationName Name) override;
+  ExternalLoadResult
+  FindExternalLexicalDecls(const DeclContext *DC,
+                           bool (*isKindWeWant)(Decl::Kind),
+                           SmallVectorImpl<Decl *> &Result) override;
+  void CompleteType(TagDecl *Tag) override;
+  void CompleteType(ObjCInterfaceDecl *Class) override;
+  void StartedDeserializing() override;
+  void FinishedDeserializing() override;
+  void StartTranslationUnit(ASTConsumer *Consumer) override;
+  void PrintStats() override;
+
+  /// Return the amount of memory used by memory buffers, breaking down
+  /// by heap-backed versus mmap'ed memory.
+  void getMemoryBufferSizes(MemoryBufferSizes &sizes) const override;
+
+  //===----------------------------------------------------------------------===//
+  // ExternalSemaSource interface.
+  //===----------------------------------------------------------------------===//
+
+  void InitializeSema(Sema &S) override;
+  void ForgetSema() override;
+  void ReadMethodPool(Selector Sel) override;
+  bool LookupUnqualified(LookupResult &R, Scope *S) override;
+};
+}
+
+static ASTReader *
+createASTReader(CompilerInstance &CI, StringRef pchFile,
+                SmallVectorImpl<std::unique_ptr<llvm::MemoryBuffer>> &MemBufs,
+                SmallVectorImpl<std::string> &bufNames,
+                ASTDeserializationListener *deserialListener = nullptr) {
   Preprocessor &PP = CI.getPreprocessor();
-  OwningPtr<ASTReader> Reader;
+  std::unique_ptr<ASTReader> Reader;
   Reader.reset(new ASTReader(PP, CI.getASTContext(), /*isysroot=*/"",
                              /*DisableValidation=*/true));
   for (unsigned ti = 0; ti < bufNames.size(); ++ti) {
     StringRef sr(bufNames[ti]);
-    Reader->addInMemoryBuffer(sr, memBufs[ti]);
+    Reader->addInMemoryBuffer(sr, std::move(MemBufs[ti]));
   }
   Reader->setDeserializationListener(deserialListener);
   switch (Reader->ReadAST(pchFile, serialization::MK_PCH, SourceLocation(),
@@ -44,7 +91,7 @@ static ASTReader *createASTReader(CompilerInstance &CI,
   case ASTReader::Success:
     // Set the predefines buffer as suggested by the PCH reader.
     PP.setPredefines(Reader->getSuggestedPredefines());
-    return Reader.take();
+    return Reader.release();
 
   case ASTReader::Failure:
   case ASTReader::Missing:
@@ -54,7 +101,7 @@ static ASTReader *createASTReader(CompilerInstance &CI,
   case ASTReader::HadErrors:
     break;
   }
-  return 0;
+  return nullptr;
 }
 
 ChainedIncludesSource::~ChainedIncludesSource() {
@@ -62,20 +109,21 @@ ChainedIncludesSource::~ChainedIncludesSource() {
     delete CIs[i];
 }
 
-ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
+IntrusiveRefCntPtr<ExternalSemaSource> clang::createChainedIncludesSource(
+    CompilerInstance &CI, IntrusiveRefCntPtr<ExternalSemaSource> &Reader) {
 
   std::vector<std::string> &includes = CI.getPreprocessorOpts().ChainedIncludes;
   assert(!includes.empty() && "No '-chain-include' in options!");
 
-  OwningPtr<ChainedIncludesSource> source(new ChainedIncludesSource());
+  IntrusiveRefCntPtr<ChainedIncludesSource> source(new ChainedIncludesSource());
   InputKind IK = CI.getFrontendOpts().Inputs[0].getKind();
 
-  SmallVector<llvm::MemoryBuffer *, 4> serialBufs;
+  SmallVector<std::unique_ptr<llvm::MemoryBuffer>, 4> SerialBufs;
   SmallVector<std::string, 4> serialBufNames;
 
   for (unsigned i = 0, e = includes.size(); i != e; ++i) {
     bool firstInclude = (i == 0);
-    OwningPtr<CompilerInvocation> CInvok;
+    std::unique_ptr<CompilerInvocation> CInvok;
     CInvok.reset(new CompilerInvocation(CI.getInvocation()));
     
     CInvok->getPreprocessorOpts().ChainedIncludes.clear();
@@ -96,79 +144,72 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
         new DiagnosticsEngine(DiagID, &CI.getDiagnosticOpts(), DiagClient));
 
-    OwningPtr<CompilerInstance> Clang(new CompilerInstance());
-    Clang->setInvocation(CInvok.take());
-    Clang->setDiagnostics(Diags.getPtr());
-    Clang->setTarget(TargetInfo::CreateTargetInfo(Clang->getDiagnostics(),
-                                                  &Clang->getTargetOpts()));
+    std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
+    Clang->setInvocation(CInvok.release());
+    Clang->setDiagnostics(Diags.get());
+    Clang->setTarget(TargetInfo::CreateTargetInfo(
+        Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
     Clang->createFileManager();
     Clang->createSourceManager(Clang->getFileManager());
-    Clang->createPreprocessor();
+    Clang->createPreprocessor(TU_Prefix);
     Clang->getDiagnosticClient().BeginSourceFile(Clang->getLangOpts(),
                                                  &Clang->getPreprocessor());
     Clang->createASTContext();
 
     SmallVector<char, 256> serialAST;
     llvm::raw_svector_ostream OS(serialAST);
-    OwningPtr<ASTConsumer> consumer;
-    consumer.reset(new PCHGenerator(Clang->getPreprocessor(), "-", 0,
-                                    /*isysroot=*/"", &OS));
+    auto consumer =
+        llvm::make_unique<PCHGenerator>(Clang->getPreprocessor(), "-", nullptr,
+                                        /*isysroot=*/"", &OS);
     Clang->getASTContext().setASTMutationListener(
                                             consumer->GetASTMutationListener());
-    Clang->setASTConsumer(consumer.take());
-    Clang->createSema(TU_Prefix, 0);
+    Clang->setASTConsumer(std::move(consumer));
+    Clang->createSema(TU_Prefix, nullptr);
 
     if (firstInclude) {
       Preprocessor &PP = Clang->getPreprocessor();
       PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
                                              PP.getLangOpts());
     } else {
-      assert(!serialBufs.empty());
-      SmallVector<llvm::MemoryBuffer *, 4> bufs;
-      for (unsigned si = 0, se = serialBufs.size(); si != se; ++si) {
-        bufs.push_back(llvm::MemoryBuffer::getMemBufferCopy(
-                             StringRef(serialBufs[si]->getBufferStart(),
-                                             serialBufs[si]->getBufferSize())));
-      }
+      assert(!SerialBufs.empty());
+      SmallVector<std::unique_ptr<llvm::MemoryBuffer>, 4> Bufs;
+      // TODO: Pass through the existing MemoryBuffer instances instead of
+      // allocating new ones.
+      for (auto &SB : SerialBufs)
+        Bufs.push_back(llvm::MemoryBuffer::getMemBuffer(SB->getBuffer()));
       std::string pchName = includes[i-1];
       llvm::raw_string_ostream os(pchName);
       os << ".pch" << i-1;
-      os.flush();
-      
-      serialBufNames.push_back(pchName);
+      serialBufNames.push_back(os.str());
 
-      OwningPtr<ExternalASTSource> Reader;
-
-      Reader.reset(createASTReader(*Clang, pchName, bufs, serialBufNames, 
-        Clang->getASTConsumer().GetASTDeserializationListener()));
+      IntrusiveRefCntPtr<ASTReader> Reader;
+      Reader = createASTReader(
+          *Clang, pchName, Bufs, serialBufNames,
+          Clang->getASTConsumer().GetASTDeserializationListener());
       if (!Reader)
-        return 0;
-      Clang->setModuleManager(static_cast<ASTReader*>(Reader.get()));
+        return nullptr;
+      Clang->setModuleManager(Reader);
       Clang->getASTContext().setExternalSource(Reader);
     }
     
     if (!Clang->InitializeSourceManager(InputFile))
-      return 0;
+      return nullptr;
 
     ParseAST(Clang->getSema());
-    OS.flush();
     Clang->getDiagnosticClient().EndSourceFile();
-    serialBufs.push_back(
-      llvm::MemoryBuffer::getMemBufferCopy(StringRef(serialAST.data(),
-                                                           serialAST.size())));
-    source->CIs.push_back(Clang.take());
+    SerialBufs.push_back(llvm::MemoryBuffer::getMemBufferCopy(OS.str()));
+    source->CIs.push_back(Clang.release());
   }
 
-  assert(!serialBufs.empty());
+  assert(!SerialBufs.empty());
   std::string pchName = includes.back() + ".pch-final";
   serialBufNames.push_back(pchName);
-  OwningPtr<ASTReader> Reader;
-  Reader.reset(createASTReader(CI, pchName, serialBufs, serialBufNames));
+  Reader = createASTReader(CI, pchName, SerialBufs, serialBufNames);
   if (!Reader)
-    return 0;
+    return nullptr;
 
-  source->FinalReader.reset(Reader.take());
-  return source.take();
+  source->FinalReader = Reader;
+  return source;
 }
 
 //===----------------------------------------------------------------------===//

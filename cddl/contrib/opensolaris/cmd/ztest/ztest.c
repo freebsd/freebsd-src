@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -969,27 +969,18 @@ ztest_random_spa_version(uint64_t initial_version)
 	return (version);
 }
 
-/*
- * Find the largest ashift used
- */
-static uint64_t
-ztest_spa_get_ashift() {
-	uint64_t i;
-	uint64_t ashift = SPA_MINBLOCKSHIFT;
-	vdev_t *rvd = ztest_spa->spa_root_vdev;
-
-	for (i = 0; i < rvd->vdev_children; i++) {
-		ashift = MAX(ashift, rvd->vdev_child[i]->vdev_ashift);
-	}
-	return (ashift);
-}
-
 static int
 ztest_random_blocksize(void)
 {
-	// Choose a block size >= the ashift.
-	uint64_t block_shift =
-	    ztest_random(SPA_MAXBLOCKSHIFT - ztest_spa_get_ashift() + 1);
+	uint64_t block_shift;
+	/*
+	 * Choose a block size >= the ashift.
+	 * If the SPA supports new MAXBLOCKSIZE, test up to 1MB blocks.
+	 */
+	int maxbs = SPA_OLD_MAXBLOCKSHIFT;
+	if (spa_maxblocksize(ztest_spa) == SPA_MAXBLOCKSIZE)
+		maxbs = 20;
+	block_shift = ztest_random(maxbs - ztest_spa->spa_max_ashift + 1);
 	return (1 << (SPA_MINBLOCKSHIFT + block_shift));
 }
 
@@ -4789,7 +4780,7 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	char path0[MAXPATHLEN];
 	char pathrand[MAXPATHLEN];
 	size_t fsize;
-	int bshift = SPA_MAXBLOCKSHIFT + 2;	/* don't scrog all labels */
+	int bshift = SPA_OLD_MAXBLOCKSHIFT + 2;	/* don't scrog all labels */
 	int iters = 1000;
 	int maxfaults;
 	int mirror_save;

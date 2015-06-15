@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2012
+.Dd June 11, 2015
 .Dt GMULTIPATH 8
 .Os
 .Sh NAME
@@ -253,13 +253,13 @@ This I/O continues until an I/O is returned with
 a generic I/O error or a "Nonexistent Device" error.
 When this occurs, that path is marked FAIL, the next path
 in a list is selected as active and the failed I/O reissued.
-In Active/Active mode all paths not marked FAIL may handle I/O same time.
+In Active/Active mode all paths not marked FAIL may handle I/O at the same time.
 Requests are distributed between paths to equalize load.
-For capable devices it allows to utilize bandwidth of all paths.
-In Active/Read mode all paths not marked FAIL may handle reads same time,
-but unlike Active/Active only one path handles write requests at any
+For capable devices it allows to utilize the bandwidth of all paths.
+In Active/Read mode all paths not marked FAIL may handle reads at the same time,
+but unlike in Active/Active mode only one path handles write requests at any
 point in time.
-It allows to closer follow original write request order if above layer
+It allows to closer follow the original write request order if the layer above
 needs it for data consistency (not waiting for requisite write completion
 before sending dependent write).
 .Pp
@@ -269,9 +269,9 @@ GEOM class is given an opportunity to taste these new devices.
 If a new
 device has a
 .Nm MULTIPATH
-on-disk metadata label, the device is used to either create a new
+on-disk metadata label, the device is either used to create a new
 .Nm MULTIPATH
-GEOM, or been added the list of paths for an existing
+GEOM, or added to the list of paths for an existing
 .Nm MULTIPATH
 GEOM.
 .Pp
@@ -281,7 +281,7 @@ and
 .Xr mpt 4
 based Fibre Channel disk devices.
 For these devices, when a device disappears
-(due e.g., to a cable pull or power failure to a switch), the device is
+(due to e.g., a cable pull or power failure to a switch), the device is
 proactively marked as gone and I/O to it failed.
 This causes the
 .Nm MULTIPATH

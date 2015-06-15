@@ -99,6 +99,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/rwlock.h>
+#include <sys/endian.h>
 
 #include <sys/kdb.h>
 
@@ -179,29 +181,25 @@ TLBIE(uint64_t vpn) {
 /*
  * PTEG data.
  */
-static struct	lpteg *moea64_pteg_table;
+static volatile struct lpte *moea64_pteg_table;
+static struct rwlock moea64_eviction_lock;
 
 /*
  * PTE calls.
  */
-static int	moea64_pte_insert_native(mmu_t, u_int, struct lpte *);
-static uintptr_t moea64_pvo_to_pte_native(mmu_t, const struct pvo_entry *);
-static void	moea64_pte_synch_native(mmu_t, uintptr_t pt,
-		    struct lpte *pvo_pt);
-static void	moea64_pte_clear_native(mmu_t, uintptr_t pt,
-		    struct lpte *pvo_pt, uint64_t vpn, uint64_t ptebit);
-static void	moea64_pte_change_native(mmu_t, uintptr_t pt,
-		    struct lpte *pvo_pt, uint64_t vpn);
-static void	moea64_pte_unset_native(mmu_t mmu, uintptr_t pt,
-		    struct lpte *pvo_pt, uint64_t vpn);
+static int	moea64_pte_insert_native(mmu_t, struct pvo_entry *);
+static int64_t	moea64_pte_synch_native(mmu_t, struct pvo_entry *);
+static int64_t	moea64_pte_clear_native(mmu_t, struct pvo_entry *, uint64_t);
+static int64_t	moea64_pte_replace_native(mmu_t, struct pvo_entry *, int);
+static int64_t	moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *);
 
 /*
  * Utility routines.
  */
-static void		moea64_bootstrap_native(mmu_t mmup, 
-			    vm_offset_t kernelstart, vm_offset_t kernelend);
-static void		moea64_cpu_bootstrap_native(mmu_t, int ap);
-static void		tlbia(void);
+static void	moea64_bootstrap_native(mmu_t mmup, 
+		    vm_offset_t kernelstart, vm_offset_t kernelend);
+static void	moea64_cpu_bootstrap_native(mmu_t, int ap);
+static void	tlbia(void);
 
 static mmu_method_t moea64_native_methods[] = {
 	/* Internal interfaces */
@@ -211,9 +209,8 @@ static mmu_method_t moea64_native_methods[] = {
 	MMUMETHOD(moea64_pte_synch,	moea64_pte_synch_native),
 	MMUMETHOD(moea64_pte_clear,	moea64_pte_clear_native),	
 	MMUMETHOD(moea64_pte_unset,	moea64_pte_unset_native),	
-	MMUMETHOD(moea64_pte_change,	moea64_pte_change_native),	
+	MMUMETHOD(moea64_pte_replace,	moea64_pte_replace_native),	
 	MMUMETHOD(moea64_pte_insert,	moea64_pte_insert_native),	
-	MMUMETHOD(moea64_pvo_to_pte,	moea64_pvo_to_pte_native),	
 
 	{ 0, 0 }
 };
@@ -221,99 +218,140 @@ static mmu_method_t moea64_native_methods[] = {
 MMU_DEF_INHERIT(oea64_mmu_native, MMU_TYPE_G5, moea64_native_methods,
     0, oea64_mmu);
 
-static __inline u_int
-va_to_pteg(uint64_t vsid, vm_offset_t addr, int large)
+static int64_t
+moea64_pte_synch_native(mmu_t mmu, struct pvo_entry *pvo)
 {
-	uint64_t hash;
-	int shift;
+	volatile struct lpte *pt = moea64_pteg_table + pvo->pvo_pte.slot;
+	struct lpte properpt;
+	uint64_t ptelo;
 
-	shift = large ? moea64_large_page_shift : ADDR_PIDX_SHFT;
-	hash = (vsid & VSID_HASH_MASK) ^ (((uint64_t)addr & ADDR_PIDX) >>
-	    shift);
-	return (hash & moea64_pteg_mask);
-}
+	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
 
-static void
-moea64_pte_synch_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt)
-{
-	struct lpte *pt = (struct lpte *)pt_cookie;
+	moea64_pte_from_pvo(pvo, &properpt);
 
-	pvo_pt->pte_lo |= pt->pte_lo & (LPTE_REF | LPTE_CHG);
-}
-
-static void
-moea64_pte_clear_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
-    uint64_t vpn, uint64_t ptebit)
-{
-	struct lpte *pt = (struct lpte *)pt_cookie;
-
-	/*
-	 * As shown in Section 7.6.3.2.3
-	 */
-	pt->pte_lo &= ~ptebit;
-	critical_enter();
-	TLBIE(vpn);
-	critical_exit();
-}
-
-static void
-moea64_pte_set_native(struct lpte *pt, struct lpte *pvo_pt)
-{
-
-	pvo_pt->pte_hi |= LPTE_VALID;
-
-	/*
-	 * Update the PTE as defined in section 7.6.3.1.
-	 * Note that the REF/CHG bits are from pvo_pt and thus should have
-	 * been saved so this routine can restore them (if desired).
-	 */
-	pt->pte_lo = pvo_pt->pte_lo;
-	EIEIO();
-	pt->pte_hi = pvo_pt->pte_hi;
+	rw_rlock(&moea64_eviction_lock);
+	if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
+		/* Evicted */
+		rw_runlock(&moea64_eviction_lock);
+		return (-1);
+	}
+		
 	PTESYNC();
+	ptelo = be64toh(pt->pte_lo);
 
-	/* Keep statistics for unlocked pages */
-	if (!(pvo_pt->pte_hi & LPTE_LOCKED))
-		moea64_pte_valid++;
+	rw_runlock(&moea64_eviction_lock);
+	
+	return (ptelo & (LPTE_REF | LPTE_CHG));
 }
 
-static void
-moea64_pte_unset_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
-    uint64_t vpn)
+static int64_t 
+moea64_pte_clear_native(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 {
-	struct lpte *pt = (struct lpte *)pt_cookie;
+	volatile struct lpte *pt = moea64_pteg_table + pvo->pvo_pte.slot;
+	struct lpte properpt;
+	uint64_t ptelo;
+
+	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
+
+	moea64_pte_from_pvo(pvo, &properpt);
+
+	rw_rlock(&moea64_eviction_lock);
+	if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
+		/* Evicted */
+		rw_runlock(&moea64_eviction_lock);
+		return (-1);
+	}
+
+	if (ptebit == LPTE_REF) {
+		/* See "Resetting the Reference Bit" in arch manual */
+		PTESYNC();
+		/* 2-step here safe: precision is not guaranteed */
+		ptelo = pt->pte_lo;
+
+		/* One-byte store to avoid touching the C bit */
+		((volatile uint8_t *)(&pt->pte_lo))[6] =
+		    ((uint8_t *)(&properpt.pte_lo))[6];
+		rw_runlock(&moea64_eviction_lock);
+
+		critical_enter();
+		TLBIE(pvo->pvo_vpn);
+		critical_exit();
+	} else {
+		rw_runlock(&moea64_eviction_lock);
+		ptelo = moea64_pte_unset_native(mmu, pvo);
+		moea64_pte_insert_native(mmu, pvo);
+	}
+
+	return (ptelo & (LPTE_REF | LPTE_CHG));
+}
+
+static int64_t
+moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *pvo)
+{
+	volatile struct lpte *pt = moea64_pteg_table + pvo->pvo_pte.slot;
+	struct lpte properpt;
+	uint64_t ptelo;
+
+	moea64_pte_from_pvo(pvo, &properpt);
+
+	rw_rlock(&moea64_eviction_lock);
+	if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
+		/* Evicted */
+		moea64_pte_overflow--;
+		rw_runlock(&moea64_eviction_lock);
+		return (-1);
+	}
 
 	/*
-	 * Invalidate the pte.
+	 * Invalidate the pte, briefly locking it to collect RC bits. No
+	 * atomics needed since this is protected against eviction by the lock.
 	 */
 	isync();
 	critical_enter();
-	pvo_pt->pte_hi &= ~LPTE_VALID;
-	pt->pte_hi &= ~LPTE_VALID;
+	pt->pte_hi = (pt->pte_hi & ~LPTE_VALID) | LPTE_LOCKED;
 	PTESYNC();
-	TLBIE(vpn);
+	TLBIE(pvo->pvo_vpn);
+	ptelo = be64toh(pt->pte_lo);
+	*((volatile int32_t *)(&pt->pte_hi) + 1) = 0; /* Release lock */
 	critical_exit();
+	rw_runlock(&moea64_eviction_lock);
 
-	/*
-	 * Save the reg & chg bits.
-	 */
-	moea64_pte_synch_native(mmu, pt_cookie, pvo_pt);
+	/* Keep statistics */
+	moea64_pte_valid--;
 
-	/* Keep statistics for unlocked pages */
-	if (!(pvo_pt->pte_hi & LPTE_LOCKED))
-		moea64_pte_valid--;
+	return (ptelo & (LPTE_CHG | LPTE_REF));
 }
 
-static void
-moea64_pte_change_native(mmu_t mmu, uintptr_t pt, struct lpte *pvo_pt,
-    uint64_t vpn)
+static int64_t
+moea64_pte_replace_native(mmu_t mmu, struct pvo_entry *pvo, int flags)
 {
+	volatile struct lpte *pt = moea64_pteg_table + pvo->pvo_pte.slot;
+	struct lpte properpt;
+	int64_t ptelo;
 
-	/*
-	 * Invalidate the PTE
-	 */
-	moea64_pte_unset_native(mmu, pt, pvo_pt, vpn);
-	moea64_pte_set_native((struct lpte *)pt, pvo_pt);
+	if (flags == 0) {
+		/* Just some software bits changing. */
+		moea64_pte_from_pvo(pvo, &properpt);
+
+		rw_rlock(&moea64_eviction_lock);
+		if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+		    (properpt.pte_hi & LPTE_AVPN_MASK)) {
+			rw_runlock(&moea64_eviction_lock);
+			return (-1);
+		}
+		pt->pte_hi = properpt.pte_hi;
+		ptelo = pt->pte_lo;
+		rw_runlock(&moea64_eviction_lock);
+	} else {
+		/* Otherwise, need reinsertion and deletion */
+		ptelo = moea64_pte_unset_native(mmu, pvo);
+		moea64_pte_insert_native(mmu, pvo);
+	}
+
+	return (ptelo);
 }
 
 static void
@@ -380,6 +418,7 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	size = moea64_pteg_count * sizeof(struct lpteg);
 	CTR2(KTR_PMAP, "moea64_bootstrap: %d PTEGs, %d bytes", 
 	    moea64_pteg_count, size);
+	rw_init(&moea64_eviction_lock, "pte eviction");
 
 	/*
 	 * We now need to allocate memory. This memory, to be allocated,
@@ -388,9 +427,10 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 * as a measure of last resort. We do this a couple times.
 	 */
 
-	moea64_pteg_table = (struct lpteg *)moea64_bootstrap_alloc(size, size);
+	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, size);
 	DISABLE_TRANS(msr);
-	bzero((void *)moea64_pteg_table, moea64_pteg_count * sizeof(struct lpteg));
+	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *
+	    sizeof(struct lpteg));
 	ENABLE_TRANS(msr);
 
 	CTR1(KTR_PMAP, "moea64_bootstrap: PTEG table at %p", moea64_pteg_table);
@@ -446,181 +486,173 @@ tlbia(void)
 	TLBSYNC();
 }
 
-static uintptr_t
-moea64_pvo_to_pte_native(mmu_t mmu, const struct pvo_entry *pvo)
+static int
+atomic_pte_lock(volatile struct lpte *pte, uint64_t bitmask, uint64_t *oldhi)
 {
-	struct lpte 	*pt;
-	int		pteidx, ptegidx;
-	uint64_t	vsid;
-
-	/* If the PTEG index is not set, then there is no page table entry */
-	if (!PVO_PTEGIDX_ISSET(pvo))
-		return (-1);
+	int	ret;
+	uint32_t oldhihalf;
 
 	/*
-	 * Calculate the ptegidx
+	 * Note: in principle, if just the locked bit were set here, we
+	 * could avoid needing the eviction lock. However, eviction occurs
+	 * so rarely that it isn't worth bothering about in practice.
 	 */
-	vsid = PVO_VSID(pvo);
-	ptegidx = va_to_pteg(vsid, PVO_VADDR(pvo),
-	    pvo->pvo_vaddr & PVO_LARGE);
 
-	/*
-	 * We can find the actual pte entry without searching by grabbing
-	 * the PTEG index from 3 unused bits in pvo_vaddr and by
-	 * noticing the HID bit.
-	 */
-	if (pvo->pvo_pte.lpte.pte_hi & LPTE_HID)
-		ptegidx ^= moea64_pteg_mask;
+	__asm __volatile (
+		"1:\tlwarx %1, 0, %3\n\t"	/* load old value */
+		"and. %0,%1,%4\n\t"		/* check if any bits set */
+		"bne 2f\n\t"			/* exit if any set */
+		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"stwcx. %1, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=&r"(oldhihalf), "=m" (pte->pte_hi)
+		: "r" ((volatile char *)&pte->pte_hi + 4),
+		  "r" ((uint32_t)bitmask), "r" ((uint32_t)LPTE_LOCKED),
+		  "m" (pte->pte_hi)
+		: "cr0", "cr1", "cr2", "memory");
 
-	pteidx = (ptegidx << 3) | PVO_PTEGIDX_GET(pvo);
+	*oldhi = (pte->pte_hi & 0xffffffff00000000ULL) | oldhihalf;
 
-	if ((pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) && 
-	    !PVO_PTEGIDX_ISSET(pvo)) {
-		panic("moea64_pvo_to_pte: pvo %p has valid pte in pvo but no "
-		    "valid pte index", pvo);
-	}
-
-	if ((pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) == 0 && 
-	    PVO_PTEGIDX_ISSET(pvo)) {
-		panic("moea64_pvo_to_pte: pvo %p has valid pte index in pvo "
-		    "pvo but no valid pte", pvo);
-	}
-
-	pt = &moea64_pteg_table[pteidx >> 3].pt[pteidx & 7];
-	if ((pt->pte_hi ^ (pvo->pvo_pte.lpte.pte_hi & ~LPTE_VALID)) == 
-	    LPTE_VALID) {
-		if ((pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) == 0) {
-			panic("moea64_pvo_to_pte: pvo %p has valid pte in "
-			    "moea64_pteg_table %p but invalid in pvo", pvo, pt);
-		}
-
-		if (((pt->pte_lo ^ pvo->pvo_pte.lpte.pte_lo) & 
-		    ~(LPTE_M|LPTE_CHG|LPTE_REF)) != 0) {
-			panic("moea64_pvo_to_pte: pvo %p pte does not match "
-			    "pte %p in moea64_pteg_table difference is %#x", 
-			    pvo, pt,
-			    (uint32_t)(pt->pte_lo ^ pvo->pvo_pte.lpte.pte_lo));
-		}
-
-		return ((uintptr_t)pt);
-	}
-
-	if (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) {
-		panic("moea64_pvo_to_pte: pvo %p has invalid pte %p in "
-		    "moea64_pteg_table but valid in pvo", pvo, pt);
-	}
-
-	return (-1);
+	return (ret);
 }
 
-static __inline int
-moea64_pte_spillable_ident(u_int ptegidx)
+static uintptr_t
+moea64_insert_to_pteg_native(struct lpte *pvo_pt, uintptr_t slotbase,
+    uint64_t mask)
 {
-	struct	lpte *pt;
-	int	i, j, k;
+	volatile struct lpte *pt;
+	uint64_t oldptehi, va;
+	uintptr_t k;
+	int i, j;
 
 	/* Start at a random slot */
 	i = mftb() % 8;
-	k = -1;
 	for (j = 0; j < 8; j++) {
-		pt = &moea64_pteg_table[ptegidx].pt[(i + j) % 8];
-		if (pt->pte_hi & (LPTE_LOCKED | LPTE_WIRED))
-			continue;
-
-		/* This is a candidate, so remember it */
-		k = (i + j) % 8;
-
-		/* Try to get a page that has not been used lately */
-		if (!(pt->pte_lo & LPTE_REF))
-			return (k);
+		k = slotbase + (i + j) % 8;
+		pt = &moea64_pteg_table[k];
+		/* Invalidate and seize lock only if no bits in mask set */
+		if (atomic_pte_lock(pt, mask, &oldptehi)) /* Lock obtained */
+			break;
 	}
-	
+
+	if (j == 8)
+		return (-1);
+
+	if (oldptehi & LPTE_VALID) {
+		KASSERT(!(oldptehi & LPTE_WIRED), ("Unmapped wired entry"));
+		/*
+		 * Need to invalidate old entry completely: see
+		 * "Modifying a Page Table Entry". Need to reconstruct
+		 * the virtual address for the outgoing entry to do that.
+		 */
+		if (oldptehi & LPTE_BIG)
+			va = oldptehi >> moea64_large_page_shift;
+		else
+			va = oldptehi >> ADDR_PIDX_SHFT;
+		if (oldptehi & LPTE_HID)
+			va = (((k >> 3) ^ moea64_pteg_mask) ^ va) &
+			    VSID_HASH_MASK;
+		else
+			va = ((k >> 3) ^ va) & VSID_HASH_MASK;
+		va |= (oldptehi & LPTE_AVPN_MASK) <<
+		    (ADDR_API_SHFT64 - ADDR_PIDX_SHFT);
+		PTESYNC();
+		TLBIE(va);
+		moea64_pte_valid--;
+		moea64_pte_overflow++;
+	}
+
+	/*
+	 * Update the PTE as per "Adding a Page Table Entry". Lock is released
+	 * by setting the high doubleworld.
+	 */
+	pt->pte_lo = pvo_pt->pte_lo;
+	EIEIO();
+	pt->pte_hi = pvo_pt->pte_hi;
+	PTESYNC();
+
+	/* Keep statistics */
+	moea64_pte_valid++;
+
 	return (k);
 }
 
 static int
-moea64_pte_insert_native(mmu_t mmu, u_int ptegidx, struct lpte *pvo_pt)
+moea64_pte_insert_native(mmu_t mmu, struct pvo_entry *pvo)
 {
-	struct	lpte *pt;
-	struct	pvo_entry *pvo;
-	u_int	pteg_bktidx;
-	int	i;
+	struct lpte insertpt;
+	uintptr_t slot;
+
+	/* Initialize PTE */
+	moea64_pte_from_pvo(pvo, &insertpt);
+
+	/* Make sure further insertion is locked out during evictions */
+	rw_rlock(&moea64_eviction_lock);
 
 	/*
 	 * First try primary hash.
 	 */
-	pteg_bktidx = ptegidx;
-	for (pt = moea64_pteg_table[pteg_bktidx].pt, i = 0; i < 8; i++, pt++) {
-		if ((pt->pte_hi & (LPTE_VALID | LPTE_LOCKED)) == 0) {
-			pvo_pt->pte_hi &= ~LPTE_HID;
-			moea64_pte_set_native(pt, pvo_pt);
-			return (i);
-		}
+	pvo->pvo_pte.slot &= ~7ULL; /* Base slot address */
+	slot = moea64_insert_to_pteg_native(&insertpt, pvo->pvo_pte.slot,
+	    LPTE_VALID | LPTE_WIRED | LPTE_LOCKED);
+	if (slot != -1) {
+		rw_runlock(&moea64_eviction_lock);
+		pvo->pvo_pte.slot = slot;
+		return (0);
 	}
 
 	/*
 	 * Now try secondary hash.
 	 */
-	pteg_bktidx ^= moea64_pteg_mask;
-	for (pt = moea64_pteg_table[pteg_bktidx].pt, i = 0; i < 8; i++, pt++) {
-		if ((pt->pte_hi & (LPTE_VALID | LPTE_LOCKED)) == 0) {
-			pvo_pt->pte_hi |= LPTE_HID;
-			moea64_pte_set_native(pt, pvo_pt);
-			return (i);
-		}
+	pvo->pvo_vaddr ^= PVO_HID;
+	insertpt.pte_hi ^= LPTE_HID;
+	pvo->pvo_pte.slot ^= (moea64_pteg_mask << 3);
+	slot = moea64_insert_to_pteg_native(&insertpt, pvo->pvo_pte.slot,
+	    LPTE_VALID | LPTE_WIRED | LPTE_LOCKED);
+	if (slot != -1) {
+		rw_runlock(&moea64_eviction_lock);
+		pvo->pvo_pte.slot = slot;
+		return (0);
 	}
 
 	/*
 	 * Out of luck. Find a PTE to sacrifice.
 	 */
-	pteg_bktidx = ptegidx;
-	i = moea64_pte_spillable_ident(pteg_bktidx);
-	if (i < 0) {
-		pteg_bktidx ^= moea64_pteg_mask;
-		i = moea64_pte_spillable_ident(pteg_bktidx);
+
+	/* Lock out all insertions for a bit */
+	if (!rw_try_upgrade(&moea64_eviction_lock)) {
+		rw_runlock(&moea64_eviction_lock);
+		rw_wlock(&moea64_eviction_lock);
 	}
 
-	if (i < 0) {
-		/* No freeable slots in either PTEG? We're hosed. */
-		panic("moea64_pte_insert: overflow");
-		return (-1);
+	slot = moea64_insert_to_pteg_native(&insertpt, pvo->pvo_pte.slot,
+	    LPTE_WIRED | LPTE_LOCKED);
+	if (slot != -1) {
+		rw_wunlock(&moea64_eviction_lock);
+		pvo->pvo_pte.slot = slot;
+		return (0);
 	}
 
-	if (pteg_bktidx == ptegidx)
-		pvo_pt->pte_hi &= ~LPTE_HID;
-	else
-		pvo_pt->pte_hi |= LPTE_HID;
-
-	/*
-	 * Synchronize the sacrifice PTE with its PVO, then mark both
-	 * invalid. The PVO will be reused when/if the VM system comes
-	 * here after a fault.
-	 */
-	pt = &moea64_pteg_table[pteg_bktidx].pt[i];
-
-	if (pt->pte_hi & LPTE_HID)
-		pteg_bktidx ^= moea64_pteg_mask; /* PTEs indexed by primary */
-
-	LIST_FOREACH(pvo, &moea64_pvo_table[pteg_bktidx], pvo_olink) {
-		if (pvo->pvo_pte.lpte.pte_hi == pt->pte_hi) {
-			KASSERT(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID, 
-			    ("Invalid PVO for valid PTE!"));
-			moea64_pte_unset_native(mmu, (uintptr_t)pt,
-			    &pvo->pvo_pte.lpte, pvo->pvo_vpn);
-			PVO_PTEGIDX_CLR(pvo);
-			moea64_pte_overflow++;
-			break;
-		}
+	/* Try other hash table. Now we're getting desperate... */
+	pvo->pvo_vaddr ^= PVO_HID;
+	insertpt.pte_hi ^= LPTE_HID;
+	pvo->pvo_pte.slot ^= (moea64_pteg_mask << 3);
+	slot = moea64_insert_to_pteg_native(&insertpt, pvo->pvo_pte.slot,
+	    LPTE_WIRED | LPTE_LOCKED);
+	if (slot != -1) {
+		rw_wunlock(&moea64_eviction_lock);
+		pvo->pvo_pte.slot = slot;
+		return (0);
 	}
 
-	KASSERT(pvo->pvo_pte.lpte.pte_hi == pt->pte_hi,
-	   ("Unable to find PVO for spilled PTE"));
-
-	/*
-	 * Set the new PTE.
-	 */
-	moea64_pte_set_native(pt, pvo_pt);
-
-	return (i);
+	/* No freeable slots in either PTEG? We're hosed. */
+	rw_wunlock(&moea64_eviction_lock);
+	panic("moea64_pte_insert: overflow");
+	return (-1);
 }
 

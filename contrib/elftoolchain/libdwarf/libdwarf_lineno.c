@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_lineno.c 2972 2013-12-23 06:46:04Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_lineno.c 3164 2015-02-19 01:20:12Z kaiwang27 $");
 
 static int
 _dwarf_lineno_add_file(Dwarf_LineInfo li, uint8_t **p, const char *compdir,
@@ -87,9 +87,8 @@ _dwarf_lineno_run_program(Dwarf_CU cu, Dwarf_LineInfo li, uint8_t *p,
 {
 	Dwarf_Debug dbg;
 	Dwarf_Line ln, tln;
-	uint64_t address, file, line, column, isa, opsize;
+	uint64_t address, file, line, column, opsize;
 	int is_stmt, basic_block, end_sequence;
-	int prologue_end, epilogue_begin;
 	int ret;
 
 #define	RESET_REGISTERS						\
@@ -101,8 +100,6 @@ _dwarf_lineno_run_program(Dwarf_CU cu, Dwarf_LineInfo li, uint8_t *p,
 		is_stmt	       = li->li_defstmt;		\
 		basic_block    = 0;				\
 		end_sequence   = 0;				\
-		prologue_end   = 0;				\
-		epilogue_begin = 0;				\
 	} while(0)
 
 #define	APPEND_ROW						\
@@ -181,8 +178,6 @@ _dwarf_lineno_run_program(Dwarf_CU cu, Dwarf_LineInfo li, uint8_t *p,
 			case DW_LNS_copy:
 				APPEND_ROW;
 				basic_block = 0;
-				prologue_end = 0;
-				epilogue_begin = 0;
 				break;
 			case DW_LNS_advance_pc:
 				address += _dwarf_decode_uleb128(&p) *
@@ -210,13 +205,11 @@ _dwarf_lineno_run_program(Dwarf_CU cu, Dwarf_LineInfo li, uint8_t *p,
 				address += dbg->decode(&p, 2);
 				break;
 			case DW_LNS_set_prologue_end:
-				prologue_end = 1;
 				break;
 			case DW_LNS_set_epilogue_begin:
-				epilogue_begin = 1;
 				break;
 			case DW_LNS_set_isa:
-				isa = _dwarf_decode_uleb128(&p);
+				(void) _dwarf_decode_uleb128(&p);
 				break;
 			default:
 				/* Unrecognized extened opcodes. What to do? */
@@ -233,8 +226,6 @@ _dwarf_lineno_run_program(Dwarf_CU cu, Dwarf_LineInfo li, uint8_t *p,
 			address += ADDRESS(*p);
 			APPEND_ROW;
 			basic_block = 0;
-			prologue_end = 0;
-			epilogue_begin = 0;
 			p++;
 		}
 	}
@@ -324,6 +315,8 @@ _dwarf_lineno_init(Dwarf_Die die, uint64_t offset, Dwarf_Error *error)
 	li->li_hdrlen = dbg->read(ds->ds_data, &offset, dwarf_size);
 	hdroff = offset;
 	li->li_minlen = dbg->read(ds->ds_data, &offset, 1);
+	if (li->li_version == 4)
+		li->li_maxop = dbg->read(ds->ds_data, &offset, 1);
 	li->li_defstmt = dbg->read(ds->ds_data, &offset, 1);
 	li->li_lbase = dbg->read(ds->ds_data, &offset, 1);
 	li->li_lrange = dbg->read(ds->ds_data, &offset, 1);
@@ -482,7 +475,7 @@ _dwarf_lineno_gen_program(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 	Dwarf_Unsigned address, file, line, spc;
 	Dwarf_Unsigned addr0, maddr;
 	Dwarf_Signed line0, column;
-	int is_stmt, basic_block, end_sequence;
+	int is_stmt, basic_block;
 	int need_copy;
 	int ret;
 
@@ -494,7 +487,6 @@ _dwarf_lineno_gen_program(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 		column	       = 0;				\
 		is_stmt	       = li->li_defstmt;		\
 		basic_block    = 0;				\
-		end_sequence   = 0;				\
 	} while(0)
 
 	li = dbg->dbgp_lineinfo;

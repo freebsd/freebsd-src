@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86RECOGNIZABLEINSTR_H
-#define X86RECOGNIZABLEINSTR_H
+#ifndef LLVM_UTILS_TABLEGEN_X86RECOGNIZABLEINSTR_H
+#define LLVM_UTILS_TABLEGEN_X86RECOGNIZABLEINSTR_H
 
 #include "CodeGenTarget.h"
 #include "X86DisassemblerTables.h"
@@ -37,27 +37,27 @@ private:
   InstrUID UID;
   /// The record from the .td files corresponding to this instruction
   const Record* Rec;
-  /// The prefix field from the record
-  uint8_t Prefix;
+  /// The OpPrefix field from the record
+  uint8_t OpPrefix;
+  /// The OpMap field from the record
+  uint8_t OpMap;
   /// The opcode field from the record; this is the opcode used in the Intel
   /// encoding and therefore distinct from the UID
   uint8_t Opcode;
   /// The form field from the record
   uint8_t Form;
-  /// The segment override field from the record
-  uint8_t SegOvr;
-  /// The hasOpSizePrefix field from the record
-  bool HasOpSizePrefix;
-  /// The hasAdSizePrefix field from the record
-  bool HasAdSizePrefix;
+  // The encoding field from the record
+  uint8_t Encoding;
+  /// The OpSize field from the record
+  uint8_t OpSize;
+  /// The AdSize field from the record
+  uint8_t AdSize;
   /// The hasREX_WPrefix field from the record
   bool HasREX_WPrefix;
-  /// The hasVEXPrefix field from the record
-  bool HasVEXPrefix;
-  /// The hasVEX_4VPrefix field from the record
-  bool HasVEX_4VPrefix;
-  /// The hasVEX_4VOp3Prefix field from the record
-  bool HasVEX_4VOp3Prefix;
+  /// The hasVEX_4V field from the record
+  bool HasVEX_4V;
+  /// The hasVEX_4VOp3 field from the record
+  bool HasVEX_4VOp3;
   /// The hasVEX_WPrefix field from the record
   bool HasVEX_WPrefix;
   /// Inferred from the operands; indicates whether the L bit in the VEX prefix is set
@@ -66,8 +66,6 @@ private:
   bool HasMemOp4Prefix;
   /// The ignoreVEX_L field from the record
   bool IgnoresVEX_L;
-  /// The hasEVEXPrefix field from the record
-  bool HasEVEXPrefix;
   /// The hasEVEX_L2Prefix field from the record
   bool HasEVEX_L2Prefix;
   /// The hasEVEX_K field from the record
@@ -76,10 +74,12 @@ private:
   bool HasEVEX_KZ;
   /// The hasEVEX_B field from the record
   bool HasEVEX_B;
-  /// The hasLockPrefix field from the record
-  bool HasLockPrefix;
-  /// The isCodeGenOnly filed from the record
+  /// The isCodeGenOnly field from the record
   bool IsCodeGenOnly;
+  /// The ForceDisassemble field from the record
+  bool ForceDisassemble;
+  // The CD8_Scale field from the record
+  uint8_t CD8_Scale;
   // Whether the instruction has the predicate "In64BitMode"
   bool Is64Bit;
   // Whether the instruction has the predicate "In32BitMode"
@@ -89,12 +89,7 @@ private:
   std::string Name;
   /// The AT&T AsmString for the instruction
   std::string AsmString;
-  
-  /// Indicates whether the instruction is SSE
-  bool IsSSE;
-  /// Indicates whether the instruction has FR operands - MOVs with FR operands
-  /// are typically ignored
-  bool HasFROperands;
+
   /// Indicates whether the instruction should be emitted into the decode
   /// tables; regardless, it will be emitted into the instruction info table
   bool ShouldBeEmitted;
@@ -113,82 +108,56 @@ private:
   ///
   /// @return - The context in which the instruction is valid.
   InstructionContext insnContext() const;
-  
-  enum filter_ret {
-    FILTER_STRONG,    // instruction has no place in the instruction tables
-    FILTER_WEAK,      // instruction may conflict, and should be eliminated if
-                      // it does
-    FILTER_NORMAL     // instruction should have high priority and generate an
-                      // error if it conflcits with any other FILTER_NORMAL
-                      // instruction
-  };
-      
-  /// filter - Determines whether the instruction should be decodable.  Some 
-  ///   instructions are pure intrinsics and use unencodable operands; many
-  ///   synthetic instructions are duplicates of other instructions; other
-  ///   instructions only differ in the logical way in which they are used, and
-  ///   have the same decoding.  Because these would cause decode conflicts,
-  ///   they must be filtered out.
-  ///
-  /// @return - The degree of filtering to be applied (see filter_ret).
-  filter_ret filter() const;
-
-  /// hasFROperands - Returns true if any operand is a FR operand.
-  bool hasFROperands() const;
 
   /// typeFromString - Translates an operand type from the string provided in
   ///   the LLVM tables to an OperandType for use in the operand specifier.
   ///
   /// @param s              - The string, as extracted by calling Rec->getName()
   ///                         on a CodeGenInstruction::OperandInfo.
-  /// @param isSSE          - Indicates whether the instruction is an SSE 
-  ///                         instruction.  For SSE instructions, immediates are 
-  ///                         fixed-size rather than being affected by the
-  ///                         mandatory OpSize prefix.
   /// @param hasREX_WPrefix - Indicates whether the instruction has a REX.W
   ///                         prefix.  If it does, 32-bit register operands stay
   ///                         32-bit regardless of the operand size.
-  /// @param hasOpSizePrefix  Indicates whether the instruction has an OpSize
-  ///                         prefix.  If it does not, then 16-bit register
-  ///                         operands stay 16-bit.
+  /// @param OpSize           Indicates the operand size of the instruction.
+  ///                         If register size does not match OpSize, then
+  ///                         register sizes keep their size.
   /// @return               - The operand's type.
-  static OperandType typeFromString(const std::string& s, 
-                                    bool isSSE,
-                                    bool hasREX_WPrefix,
-                                    bool hasOpSizePrefix);
-  
+  static OperandType typeFromString(const std::string& s,
+                                    bool hasREX_WPrefix, uint8_t OpSize);
+
   /// immediateEncodingFromString - Translates an immediate encoding from the
   ///   string provided in the LLVM tables to an OperandEncoding for use in
   ///   the operand specifier.
   ///
-  /// @param s                - See typeFromString().
-  /// @param hasOpSizePrefix  - Indicates whether the instruction has an OpSize
-  ///                           prefix.  If it does not, then 16-bit immediate
-  ///                           operands stay 16-bit.
-  /// @return                 - The operand's encoding.
+  /// @param s       - See typeFromString().
+  /// @param OpSize  - Indicates whether this is an OpSize16 instruction.
+  ///                  If it is not, then 16-bit immediate operands stay 16-bit.
+  /// @return        - The operand's encoding.
   static OperandEncoding immediateEncodingFromString(const std::string &s,
-                                                     bool hasOpSizePrefix);
-  
+                                                     uint8_t OpSize);
+
   /// rmRegisterEncodingFromString - Like immediateEncodingFromString, but
   ///   handles operands that are in the REG field of the ModR/M byte.
   static OperandEncoding rmRegisterEncodingFromString(const std::string &s,
-                                                      bool hasOpSizePrefix);
-  
+                                                      uint8_t OpSize);
+
   /// rmRegisterEncodingFromString - Like immediateEncodingFromString, but
   ///   handles operands that are in the REG field of the ModR/M byte.
   static OperandEncoding roRegisterEncodingFromString(const std::string &s,
-                                                      bool hasOpSizePrefix);
+                                                      uint8_t OpSize);
   static OperandEncoding memoryEncodingFromString(const std::string &s,
-                                                  bool hasOpSizePrefix);
+                                                  uint8_t OpSize);
   static OperandEncoding relocationEncodingFromString(const std::string &s,
-                                                      bool hasOpSizePrefix);
+                                                      uint8_t OpSize);
   static OperandEncoding opcodeModifierEncodingFromString(const std::string &s,
-                                                          bool hasOpSizePrefix);
+                                                          uint8_t OpSize);
   static OperandEncoding vvvvRegisterEncodingFromString(const std::string &s,
-                                                        bool HasOpSizePrefix);
+                                                        uint8_t OpSize);
   static OperandEncoding writemaskRegisterEncodingFromString(const std::string &s,
-                                                             bool HasOpSizePrefix);
-  
+                                                             uint8_t OpSize);
+
+  /// \brief Adjust the encoding type for an operand based on the instruction.
+  void adjustOperandEncoding(OperandEncoding &encoding);
+
   /// handleOperand - Converts a single operand from the LLVM table format to
   ///   the emitted table format, handling any duplicate operands it encounters
   ///   and then one non-duplicate.
@@ -214,8 +183,8 @@ private:
                      const unsigned *operandMapping,
                      OperandEncoding (*encodingFromString)
                        (const std::string&,
-                        bool hasOpSizePrefix));
-  
+                        uint8_t OpSize));
+
   /// shouldBeEmitted - Returns the shouldBeEmitted field.  Although filter()
   ///   filters out many instructions, at various points in decoding we
   ///   determine that the instruction should not actually be decodable.  In
@@ -232,9 +201,7 @@ private:
   /// emitInstructionSpecifier - Loads the instruction specifier for the current
   ///   instruction into a DisassemblerTables.
   ///
-  /// \param tables The DisassemblerTables to populate with the specifier for
-  ///               the current instruction.
-  void emitInstructionSpecifier(DisassemblerTables &tables);
+  void emitInstructionSpecifier();
   
   /// emitDecodePath - Populates the proper fields in the decode tables
   ///   corresponding to the decode paths for this instruction.

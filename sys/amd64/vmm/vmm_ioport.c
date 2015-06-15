@@ -28,19 +28,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/systm.h>
-
-#include <vm/vm.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
-#include <x86/psl.h>
 
 #include "vatpic.h"
 #include "vatpit.h"
+#include "vpmtmr.h"
+#include "vrtc.h"
 #include "vmm_ioport.h"
 #include "vmm_ktr.h"
 
@@ -58,6 +54,9 @@ ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
 	[IO_ICU2 + ICU_IMR_OFFSET] = vatpic_slave_handler,
 	[IO_ELCR1] = vatpic_elc_handler,
 	[IO_ELCR2] = vatpic_elc_handler,
+	[IO_PMTMR] = vpmtmr_handler,
+	[IO_RTC] = vrtc_addr_handler,
+	[IO_RTC + 1] = vrtc_data_handler,
 };
 
 #ifdef KTR
@@ -69,7 +68,7 @@ inout_instruction(struct vm_exit *vmexit)
 	static const char *iodesc[] = {
 		"outb", "outw", "outl",
 		"inb", "inw", "inl",
-		"outsb", "outsw", "outsd"
+		"outsb", "outsw", "outsd",
 		"insb", "insw", "insd",
 	};
 
@@ -106,15 +105,14 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 	uint32_t mask, val;
 	int error;
 
-	error = 0;
-	*retu = true;
-
-	if (vmexit->u.inout.port >= MAX_IOPORTS)
-		goto done;
-
-	handler = ioport_handler[vmexit->u.inout.port];
-	if (handler == NULL)
-		goto done;
+	/*
+	 * If there is no handler for the I/O port then punt to userspace.
+	 */
+	if (vmexit->u.inout.port >= MAX_IOPORTS ||
+	    (handler = ioport_handler[vmexit->u.inout.port]) == NULL) {
+		*retu = true;
+		return (0);
+	}
 
 	mask = vie_size2mask(vmexit->u.inout.bytes);
 
@@ -124,20 +122,27 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 
 	error = (*handler)(vm, vcpuid, vmexit->u.inout.in,
 	    vmexit->u.inout.port, vmexit->u.inout.bytes, &val);
-
-	if (!error) {
-		*retu = false;
-		if (vmexit->u.inout.in) {
-			vmexit->u.inout.eax &= ~mask;
-			vmexit->u.inout.eax |= val & mask;
-			error = vm_set_register(vm, vcpuid,
-			    VM_REG_GUEST_RAX, vmexit->u.inout.eax);
-			KASSERT(error == 0, ("emulate_ioport: error %d "
-			    "setting guest rax register", error));
-		}
+	if (error) {
+		/*
+		 * The value returned by this function is also the return value
+		 * of vm_run(). This needs to be a positive number otherwise it
+		 * can be interpreted as a "pseudo-error" like ERESTART.
+		 *
+		 * Enforce this by mapping all errors to EIO.
+		 */
+		return (EIO);
 	}
-done:
-	return (error);
+
+	if (vmexit->u.inout.in) {
+		vmexit->u.inout.eax &= ~mask;
+		vmexit->u.inout.eax |= val & mask;
+		error = vm_set_register(vm, vcpuid, VM_REG_GUEST_RAX,
+		    vmexit->u.inout.eax);
+		KASSERT(error == 0, ("emulate_ioport: error %d setting guest "
+		    "rax register", error));
+	}
+	*retu = false;
+	return (0);
 }
 
 static int

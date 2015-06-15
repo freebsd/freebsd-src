@@ -146,6 +146,8 @@ static struct g_part_scheme g_part_gpt_scheme = {
 G_PART_SCHEME_DECLARE(g_part_gpt);
 
 static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;
+static struct uuid gpt_uuid_apple_core_storage =
+    GPT_ENT_TYPE_APPLE_CORE_STORAGE;
 static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
 static struct uuid gpt_uuid_apple_label = GPT_ENT_TYPE_APPLE_LABEL;
 static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
@@ -198,6 +200,7 @@ static struct g_part_uuid_alias {
 	int mbrtype;
 } gpt_uuid_alias_match[] = {
 	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT,	 0xab },
+	{ &gpt_uuid_apple_core_storage,	G_PART_ALIAS_APPLE_CORE_STORAGE, 0 },
 	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS,		 0xaf },
 	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL,	 0 },
 	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID,	 0 },
@@ -757,7 +760,7 @@ g_part_gpt_resize(struct g_part_table *basetable,
 	struct g_part_gpt_entry *entry;
 
 	if (baseentry == NULL)
-		return (EOPNOTSUPP);
+		return (g_part_gpt_recover(basetable));
 
 	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;

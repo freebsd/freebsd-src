@@ -421,13 +421,13 @@ wtap_start(struct ifnet *ifp)
 #endif
 		if ((m->m_flags & M_FRAG)){
 			printf("dont support frags\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if(wtap_raw_xmit(ni, m, NULL) < 0){
 			printf("error raw_xmiting\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 	}
@@ -594,7 +594,7 @@ wtap_rx_deliver(struct wtap_softc *sc, struct mbuf *m)
 		if_printf(ifp, "%s: no mbuf!\n", __func__);
 	}
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 
@@ -649,7 +649,7 @@ wtap_rx_proc(void *arg, int npending)
 			return;
 		}
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 #if 0
 		ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 #endif
@@ -702,14 +702,14 @@ wtap_wme_update(struct ieee80211com *ic)
 }
 
 static void
-wtap_update_mcast(struct ifnet *ifp)
+wtap_update_mcast(struct ieee80211com *ic)
 {
 
 	DWTAP_PRINTF("%s\n", __func__);
 }
 
 static void
-wtap_update_promisc(struct ifnet *ifp)
+wtap_update_promisc(struct ieee80211com *ic)
 {
 
 	DWTAP_PRINTF("%s\n", __func__);
@@ -797,6 +797,8 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_MBSS;
 	ic->ic_caps = IEEE80211_C_MBSS;
@@ -827,9 +829,6 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 
 	/* override default methods */
 	ic->ic_newassoc = wtap_newassoc;
-#if 0
-	ic->ic_updateslot = myath_updateslot;
-#endif
 	ic->ic_wme.wme_update = wtap_wme_update;
 	ic->ic_vap_create = wtap_vap_create;
 	ic->ic_vap_delete = wtap_vap_delete;

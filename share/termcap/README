@@ -1,4 +1,6 @@
 #	@(#)README	8.1 (Berkeley) 6/8/93
+#
+#	$FreeBSD$
 
 << 12 May 1983 >>
 To install this directory on your system:
@@ -19,7 +21,7 @@ common and really should go near the front.
 Third, if you are not a super user and cannot create the directory
 /usr/lib/tabset, make a corresponding directory somewhere you can and add
 a line to reorder to globally change all /usr/lib/tabset's to your own
-path name.  This change is better than just changing the termcap.src file
+path name.  This change is better than just changing the termcap file
 because it makes it easier to diff it from newer distributed versions.
 Try to keep the source as is whenever possible, and put mungings into
 reorder.

@@ -35,7 +35,7 @@ __RCSID("$NetBSD: channel.c,v 1.1 2008/08/17 13:20:57 plunky Exp $");
 
 #include <libutil.h>
 #include <unistd.h>
-
+#define L2CAP_SOCKET_CHECKED
 #include "btpand.h"
 
 static struct chlist	channel_list;

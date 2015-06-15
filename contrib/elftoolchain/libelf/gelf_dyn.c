@@ -24,15 +24,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_dyn.c 2272 2011-12-03 17:07:31Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_dyn.c 3177 2015-03-30 18:19:41Z emaste $");
 
 GElf_Dyn *
 gelf_getdyn(Elf_Data *ed, int ndx, GElf_Dyn *dst)
@@ -71,8 +70,9 @@ gelf_getdyn(Elf_Data *ed, int ndx, GElf_Dyn *dst)
 	msz = _libelf_msize(ELF_T_DYN, ec, e->e_version);
 
 	assert(msz > 0);
+	assert(ndx >= 0);
 
-	if (msz * ndx >= d->d_data.d_size) {
+	if (msz * (size_t) ndx >= d->d_data.d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (NULL);
 	}
@@ -128,9 +128,11 @@ gelf_update_dyn(Elf_Data *ed, int ndx, GElf_Dyn *ds)
 	}
 
 	msz = _libelf_msize(ELF_T_DYN, ec, e->e_version);
-	assert(msz > 0);
 
-	if (msz * ndx >= d->d_data.d_size) {
+	assert(msz > 0);
+	assert(ndx >= 0);
+
+	if (msz * (size_t) ndx >= d->d_data.d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (0);
 	}

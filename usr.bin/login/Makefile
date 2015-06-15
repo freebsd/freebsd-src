@@ -6,16 +6,14 @@
 PROG=	login
 SRCS=	login.c login_fbtab.c
 CFLAGS+=-DLOGALL
-DPADD=	${LIBUTIL} ${LIBPAM}
-LDADD=	-lutil ${MINUSLPAM}
+LIBADD=	util pam
 
 WARNS?=	5
 
 .if ${MK_AUDIT} != "no"
 SRCS+=	login_audit.c
 CFLAGS+= -DUSE_BSM_AUDIT
-DPADD+=  ${LIBBSM}
-LDADD+=  -lbsm
+LIBADD+=	bsm
 .endif
 
 .if ${MK_SETUID_LOGIN} != "no"

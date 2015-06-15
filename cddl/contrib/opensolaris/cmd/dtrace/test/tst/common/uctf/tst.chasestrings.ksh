@@ -29,7 +29,7 @@ dtrace=$1
 t="zelda_info_t"
 exe="tst.chasestrings.exe"
 
-elfdump "./$exe" | grep -q '.SUNW_ctf' 
+elfdump -c "./$exe" | grep -Fq 'sh_name: .SUNW_ctf' 
 if [[ $? -ne 0 ]]; then
 	echo "CTF does not exist in $exe, that's a bug" >&2
 	exit 1

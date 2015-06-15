@@ -153,17 +153,15 @@ gpt_tblsz(void)
 	return ((nparts + ents - 1) / ents);
 }
 
-static u_int
-gpt_metadata(u_int where)
+static lba_t
+gpt_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	if (where != SCHEME_META_IMG_START && where != SCHEME_META_IMG_END)
-		return (0);
-
-	secs = gpt_tblsz();
-	secs += (where == SCHEME_META_IMG_START) ? 2 : 1;
-	return (secs);
+	if (where == SCHEME_META_IMG_START || where == SCHEME_META_IMG_END) {
+		blk += gpt_tblsz();
+		blk += (where == SCHEME_META_IMG_START) ? 2 : 1;
+	}
+	return (round_block(blk));
 }
 
 static int

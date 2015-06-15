@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: v_redraw.c,v 10.7 2001/06/25 15:19:34 skimo E
  * v_redraw -- ^L, ^R
  *	Redraw the screen.
  *
- * PUBLIC: int v_redraw __P((SCR *, VICMD *));
+ * PUBLIC: int v_redraw(SCR *, VICMD *);
  */
 int
 v_redraw(SCR *sp, VICMD *vp)

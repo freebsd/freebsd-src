@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
@@ -1618,7 +1618,7 @@ vdev_raidz_physio(vdev_t *vd, caddr_t data, size_t size,
 	/*
 	 * Don't write past the end of the block
 	 */
-	VERIFY3U(offset + size, <=, origoffset + SPA_MAXBLOCKSIZE);
+	VERIFY3U(offset + size, <=, origoffset + SPA_OLD_MAXBLOCKSIZE);
 
 	start = offset;
 	end = start + size;
@@ -1633,8 +1633,8 @@ vdev_raidz_physio(vdev_t *vd, caddr_t data, size_t size,
 	 * KB size.
 	 */
 	rm = vdev_raidz_map_alloc(data - (offset - origoffset),
-	    SPA_MAXBLOCKSIZE, origoffset, B_FALSE, tvd->vdev_ashift, vd->vdev_children,
-	    vd->vdev_nparity);
+	    SPA_OLD_MAXBLOCKSIZE, origoffset, B_FALSE, tvd->vdev_ashift,
+	    vd->vdev_children, vd->vdev_nparity);
 
 	coloffset = origoffset;
 
@@ -1726,7 +1726,7 @@ vdev_raidz_child_done(zio_t *zio)
  *      vdevs have had errors, then create zio read operations to the parity
  *      columns' VDevs as well.
  */
-static int
+static void
 vdev_raidz_io_start(zio_t *zio)
 {
 	vdev_t *vd = zio->io_vd;
@@ -1756,8 +1756,8 @@ vdev_raidz_io_start(zio_t *zio)
 			    vdev_raidz_child_done, rc));
 		}
 
-		zio_interrupt(zio);
-		return (ZIO_PIPELINE_STOP);
+		zio_execute(zio);
+		return;
 	}
 
 	if (zio->io_type == ZIO_TYPE_WRITE) {
@@ -1789,8 +1789,8 @@ vdev_raidz_io_start(zio_t *zio)
 			    ZIO_FLAG_NODATA | ZIO_FLAG_OPTIONAL, NULL, NULL));
 		}
 
-		zio_interrupt(zio);
-		return (ZIO_PIPELINE_STOP);
+		zio_execute(zio);
+		return;
 	}
 
 	ASSERT(zio->io_type == ZIO_TYPE_READ);
@@ -1830,8 +1830,7 @@ vdev_raidz_io_start(zio_t *zio)
 		}
 	}
 
-	zio_interrupt(zio);
-	return (ZIO_PIPELINE_STOP);
+	zio_execute(zio);
 }
 
 

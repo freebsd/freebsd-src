@@ -2,8 +2,7 @@
 
 LIB=	kadm5srv
 LDFLAGS=	-Wl,--no-undefined
-LDADD=	-lcom_err -lhdb -lkrb5 -lroken
-DPADD=	${LIBCOM_ERR} ${LIBHDB} ${LIBKRB5} ${LIBROKEN}
+LIBADD=	com_err hdb krb5 roken
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
 MAN=	kadm5_pwcheck.3
 

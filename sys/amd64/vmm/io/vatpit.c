@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -317,7 +316,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 }
 
 int
-vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpit *vatpit;
@@ -400,7 +399,7 @@ vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpit_nmisc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpit_nmisc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpit *vatpit;
@@ -437,7 +436,7 @@ vatpit_init(struct vm *vm)
 	vatpit->freq_sbt = bttosbt(bt);
 
 	for (i = 0; i < 3; i++) {
-		callout_init(&vatpit->channel[i].callout, true);
+		callout_init(&vatpit->channel[i].callout, 1);
 		arg = &vatpit->channel[i].callout_arg;
 		arg->vatpit = vatpit;
 		arg->channel_num = i;

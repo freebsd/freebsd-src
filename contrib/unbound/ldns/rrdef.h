@@ -191,8 +191,8 @@ enum sldns_enum_rr_type
 	LDNS_RR_TYPE_RKEY = 57,
         /** draft-ietf-dnsop-trust-history */
         LDNS_RR_TYPE_TALINK = 58,
-	/** draft-barwood-dnsop-ds-publis */
-	LDNS_RR_TYPE_CDS = 59,
+	LDNS_RR_TYPE_CDS = 59, /** RFC 7344 */
+	LDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
@@ -419,7 +419,7 @@ enum sldns_enum_edns_option
 	LDNS_EDNS_N3U = 7, /* RFC6975 */
 	LDNS_EDNS_CLIENT_SUBNET = 8 /* draft-vandergaast-edns-client-subnet */
 };
-typedef enum sldns_edns_option sldns_edns_option;
+typedef enum sldns_enum_edns_option sldns_edns_option;
 
 #define LDNS_EDNS_MASK_DO_BIT 0x8000
 

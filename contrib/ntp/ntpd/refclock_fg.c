@@ -33,20 +33,20 @@
 /*
  * Function prototypes
  */
-static	int 	fg_init 		P((int));
-static	int 	fg_start 		P((int, struct peer *));
-static	void	fg_shutdown		P((int, struct peer *));
-static	void	fg_poll		P((int, struct peer *));
-static  void    fg_receive     P((struct recvbuf *));
+static	int 	fg_init 	(int);
+static	int 	fg_start 	(int, struct peer *);
+static	void	fg_shutdown	(int, struct peer *);
+static	void	fg_poll		(int, struct peer *);
+static	void	fg_receive	(struct recvbuf *);
 
 /* 
  * Forum Graphic unit control structure
  */
 
 struct fgunit {
-       int pollnum;	/* Use peer.poll instead? */
-       int status; 	/* Hug to check status information on GPS */
-       int y2kwarn;		/* Y2K bug */
+	int pollnum;	/* Use peer.poll instead? */
+	int status; 	/* Hug to check status information on GPS */
+	int y2kwarn;	/* Y2K bug */
 };
 
 /* 
@@ -61,13 +61,13 @@ static char fgdate[] = { 0x10, 0x44, 0x10, 0x0D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
  * Transfer vector
  */
 struct  refclock refclock_fg = {
-	fg_start,              /* start up driver */
-	fg_shutdown,           /* shut down driver */
-	fg_poll,               /* transmit poll message */
-	noentry,                /* not used */
-	noentry,                /* initialize driver (not used) */
-	noentry,                /* not used */
-	NOFLAGS                 /* not used */
+	fg_start,		/* start up driver */
+	fg_shutdown,		/* shut down driver */
+	fg_poll,		/* transmit poll message */
+	noentry,		/* not used */
+	noentry,		/* initialize driver (not used) */
+	noentry,		/* not used */
+	NOFLAGS			/* not used */
 };
 
 /*
@@ -76,14 +76,13 @@ struct  refclock refclock_fg = {
 
 static int
 fg_init(
-       int fd
-       )
+	int fd
+	)
 {
 	if (write(fd, fginit, LENFG) != LENFG)
-                return 0;
+		return 0;
 
-	return (1);
-
+	return 1;
 }
 
 /*
@@ -91,7 +90,7 @@ fg_init(
  */
 static int
 fg_start(
-     	int unit,
+	int unit,
 	struct peer *peer
 	)
 {
@@ -104,35 +103,31 @@ fg_start(
 	/*
 	 * Open device file for reading.
 	 */
-	(void)sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 
-#ifdef DEBUG
-	if (debug)
-		printf ("starting FG with device %s\n",device);
-#endif
-	 if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
-                return (0);
+	DPRINTF(1, ("starting FG with device %s\n",device));
+
+	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	if (fd <= 0)
+		return (0);
 	
-        /*
-         * Allocate and initialize unit structure
-         */
+	/*
+	 * Allocate and initialize unit structure
+	 */
 
-	if (!(up = (struct fgunit *)
-              emalloc(sizeof(struct fgunit)))) {
-                (void) close(fd);
-                return (0);
-        }
-	memset((char *)up, 0, sizeof(struct fgunit));
+	up = emalloc(sizeof(struct fgunit));
+	memset(up, 0, sizeof(struct fgunit));
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 	pp->io.clock_recv = fg_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
  	if (!io_addclock(&pp->io)) {
-                (void) close(fd);
-                return (0);
-        }
+		close(fd);
+		pp->io.fd = -1;
+		return 0;
+	}
 
 	
 	/*
@@ -140,13 +135,13 @@ fg_start(
 	 */
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
-	memcpy((char *)&pp->refid, REFID, 3);
+	memcpy(&pp->refid, REFID, 3);
 	up->pollnum = 0;
 	
 	/* 
 	 * Setup dating station to use GPS receiver.
 	 * GPS receiver should work before this operation.
-         */
+	 */
 	if(!fg_init(pp->io.fd))
 		refclock_report(peer, CEVNT_FAULT);
 
@@ -167,9 +162,11 @@ fg_shutdown(
 	struct fgunit *up;
 	
 	pp = peer->procptr;
-	up = (struct fgunit *)pp->unitptr;
-        io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (pp->io.fd != -1)
+		io_closeclock(&pp->io);
+	if (up != NULL)
+		free(up);
 }
 
 
@@ -186,30 +183,26 @@ fg_poll(
 	
 	pp = peer->procptr;
 
-	 /*
-         * Time to poll the clock. The FG clock responds to a
-         * "<DLE>D<DLE><CR>" by returning a timecode in the format specified
-         * above. If nothing is heard from the clock for two polls,
-         * declare a timeout and keep going.
-         */
+	/*
+	 * Time to poll the clock. The FG clock responds to a
+	 * "<DLE>D<DLE><CR>" by returning a timecode in the format specified
+	 * above. If nothing is heard from the clock for two polls,
+	 * declare a timeout and keep going.
+	 */
 
 	if (write(pp->io.fd, fgdate, LENFG) != LENFG)
-                refclock_report(peer, CEVNT_FAULT);
-        else
-                pp->polls++;
+		refclock_report(peer, CEVNT_FAULT);
+	else
+		pp->polls++;
 
-        if (peer->burst > 0)
-                return;
 	/*
-        if (pp->coderecv == pp->codeproc) {
-                refclock_report(peer, CEVNT_TIMEOUT);
-                return;
-        }
+	if (pp->coderecv == pp->codeproc) {
+		refclock_report(peer, CEVNT_TIMEOUT);
+		return;
+	}
 	*/
-        peer->burst = NSTAGE;
 
-        record_clock_stats(&peer->srcadr, pp->a_lastcode);
-        
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	
 	return;
 
@@ -220,36 +213,34 @@ fg_poll(
  */
 static void
 fg_receive(
-        struct recvbuf *rbufp
-        )
+	struct recvbuf *rbufp
+	)
 {
-        struct refclockproc *pp;
+	struct refclockproc *pp;
 	struct fgunit *up;
-        struct peer *peer;
+	struct peer *peer;
 	char *bpt;
 
-        /*
-         * Initialize pointers and read the timecode and timestamp
+	/*
+	 * Initialize pointers and read the timecode and timestamp
 	 * We can't use gtlin function because we need bynary data in buf */
 
-        peer = (struct peer *)rbufp->recv_srcclock;
-        pp = peer->procptr;
-        up = (struct fgunit *)pp->unitptr;
+	peer = rbufp->recv_peer;
+	pp = peer->procptr;
+	up = pp->unitptr;
 
 	/*
-         * Below hug to implement receiving of status information
-         */
-	if(!up->pollnum)
-	{
+	 * Below hug to implement receiving of status information
+	 */
+	if(!up->pollnum) {
 		up->pollnum++;
 		return;
 	}
 
 	
-	if (rbufp->recv_length < (LENFG-2))
-	{
+	if (rbufp->recv_length < (LENFG - 2)) {
 		refclock_report(peer, CEVNT_BADREPLY);
-            	return; /* The reply is invalid discard it. */
+		return; /* The reply is invalid discard it. */
 	}
 
 	/* Below I trying to find a correct reply in buffer.
@@ -258,30 +249,29 @@ fg_receive(
 	 */
 
 	bpt = (char *)rbufp->recv_space.X_recv_buffer;
-	while(*bpt != '')
+	while (*bpt != '\x10')
 		bpt++;
 
 #define BP2(x) ( bpt[x] & 15 )
 #define BP1(x) (( bpt[x] & 240 ) >> 4)
 	
-        pp->year = BP1(2)*10 + BP2(2);
+	pp->year = BP1(2) * 10 + BP2(2);
 	
-	if(pp->year == 94)
-	{
+	if (pp->year == 94) {
 		refclock_report(peer, CEVNT_BADREPLY);
-		if(!fg_init(pp->io.fd))
+		if (!fg_init(pp->io.fd))
 			refclock_report(peer, CEVNT_FAULT);
-            	return;
+		return;
 		 /* GPS is just powered up. The date is invalid -
 		 discarding it. Initilize GPS one more time */
 		/* Sorry - this driver will broken in 2094 ;) */
 	}	
 	
 	if (pp->year < 99)
-                pp->year += 100;
+		pp->year += 100;
 
-        pp->year +=  1900;
-        pp->day = 100 * BP2(3) + 10 * BP1(4) + BP2(4);
+	pp->year +=  1900;
+	pp->day = 100 * BP2(3) + 10 * BP1(4) + BP2(4);
 
 /*
    After Jan, 10 2000 Forum Graphic GPS receiver had a very strange
@@ -290,51 +280,51 @@ fg_receive(
    Hope it is a problem of my unit only and not a Y2K problem of FG GPS. 
    Below small code to avoid such situation.
 */
-	if(up->y2kwarn > 10)
-        	pp->hour = BP1(6)*10 + BP2(6);
+	if (up->y2kwarn > 10)
+		pp->hour = BP1(6)*10 + BP2(6);
 	else
-        	pp->hour = BP1(5)*10 + BP2(5);
+		pp->hour = BP1(5)*10 + BP2(5);
 
-	if((up->y2kwarn > 10) && (pp->hour == 10))
-	{
-        	pp->minute = BP1(7)*10 + BP2(7);
-        	pp->second = BP1(8)*10 + BP2(8);
-        	pp->nsec = (BP1(9)*10 + BP2(9)) * 1000000;
-        	pp->nsec += BP1(10) * 1000;
+	if ((up->y2kwarn > 10) && (pp->hour == 10)) {
+		pp->minute = BP1(7)*10 + BP2(7);
+		pp->second = BP1(8)*10 + BP2(8);
+		pp->nsec = (BP1(9)*10 + BP2(9)) * 1000000;
+		pp->nsec += BP1(10) * 1000;
 	} else {
-        	pp->hour = BP1(5)*10 + BP2(5);
-        	pp->minute = BP1(6)*10 + BP2(6);
-        	pp->second = BP1(7)*10 + BP2(7);
-        	pp->nsec = (BP1(8)*10 + BP2(8)) * 1000000;
-        	pp->nsec += BP1(9) * 1000;
+		pp->hour = BP1(5)*10 + BP2(5);
+		pp->minute = BP1(6)*10 + BP2(6);
+		pp->second = BP1(7)*10 + BP2(7);
+		pp->nsec = (BP1(8)*10 + BP2(8)) * 1000000;
+		pp->nsec += BP1(9) * 1000;
 	}
-        
-	if((pp->hour == 10) && (pp->minute == 10))
-	{
+
+	if ((pp->hour == 10) && (pp->minute == 10)) {
 		up->y2kwarn++;
 	}
 
-	sprintf(pp->a_lastcode, "%d %d %d %d %d", pp->year, pp->day, pp->hour, pp->minute, pp->second);
+	snprintf(pp->a_lastcode, sizeof(pp->a_lastcode),
+		 "%d %d %d %d %d", pp->year, pp->day, pp->hour,
+		 pp->minute, pp->second);
 	pp->lencode = strlen(pp->a_lastcode);
-        /*get_systime(&pp->lastrec);*/
+	/*get_systime(&pp->lastrec);*/
 
 #ifdef DEBUG
-        if (debug)
-                printf ("fg: time is %04d/%03d %02d:%02d:%02d UTC\n",
-                         pp->year, pp->day, pp->hour, pp->minute, pp->second);
+	if (debug)
+		printf("fg: time is %04d/%03d %02d:%02d:%02d UTC\n",
+		       pp->year, pp->day, pp->hour, pp->minute, pp->second);
 #endif
-        pp->disp =  (10e-6);
+	pp->disp =  (10e-6);
 	pp->lastrec = rbufp->recv_time; /* Is it better than get_systime()? */
 	/* pp->leap = LEAP_NOWARNING; */
 
-        /*
-         * Process the new sample in the median filter and determine the
-         * timecode timestamp.
-         */
+	/*
+	 * Process the new sample in the median filter and determine the
+	 * timecode timestamp.
+	 */
 
-        if (!refclock_process(pp))
-                refclock_report(peer, CEVNT_BADTIME);
-        pp->lastref = pp->lastrec;
+	if (!refclock_process(pp))
+		refclock_report(peer, CEVNT_BADTIME);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 	return;
 }

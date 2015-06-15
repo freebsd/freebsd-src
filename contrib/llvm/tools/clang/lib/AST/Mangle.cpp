@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/AST/Attr.h"
-#include "clang/AST/Mangle.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/Mangle.h"
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
@@ -49,10 +49,11 @@ static void mangleFunctionBlock(MangleContext &Context,
 
 void MangleContext::anchor() { }
 
-enum StdOrFastCC {
-  SOF_OTHER,
-  SOF_FAST,
-  SOF_STD
+enum CCMangling {
+  CCM_Other,
+  CCM_Fast,
+  CCM_Vector,
+  CCM_Std
 };
 
 static bool isExternC(const NamedDecl *ND) {
@@ -61,20 +62,22 @@ static bool isExternC(const NamedDecl *ND) {
   return cast<VarDecl>(ND)->isExternC();
 }
 
-static StdOrFastCC getStdOrFastCallMangling(const ASTContext &Context,
-                                            const NamedDecl *ND) {
+static CCMangling getCallingConvMangling(const ASTContext &Context,
+                                         const NamedDecl *ND) {
   const TargetInfo &TI = Context.getTargetInfo();
-  llvm::Triple Triple = TI.getTriple();
-  if (!Triple.isOSWindows() || Triple.getArch() != llvm::Triple::x86)
-    return SOF_OTHER;
+  const llvm::Triple &Triple = TI.getTriple();
+  if (!Triple.isOSWindows() ||
+      !(Triple.getArch() == llvm::Triple::x86 ||
+        Triple.getArch() == llvm::Triple::x86_64))
+    return CCM_Other;
 
   if (Context.getLangOpts().CPlusPlus && !isExternC(ND) &&
       TI.getCXXABI() == TargetCXXABI::Microsoft)
-    return SOF_OTHER;
+    return CCM_Other;
 
   const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND);
   if (!FD)
-    return SOF_OTHER;
+    return CCM_Other;
   QualType T = FD->getType();
 
   const FunctionType *FT = T->castAs<FunctionType>();
@@ -82,19 +85,21 @@ static StdOrFastCC getStdOrFastCallMangling(const ASTContext &Context,
   CallingConv CC = FT->getCallConv();
   switch (CC) {
   default:
-    return SOF_OTHER;
+    return CCM_Other;
   case CC_X86FastCall:
-    return SOF_FAST;
+    return CCM_Fast;
   case CC_X86StdCall:
-    return SOF_STD;
+    return CCM_Std;
+  case CC_X86VectorCall:
+    return CCM_Vector;
   }
 }
 
 bool MangleContext::shouldMangleDeclName(const NamedDecl *D) {
   const ASTContext &ASTContext = getASTContext();
 
-  StdOrFastCC CC = getStdOrFastCallMangling(ASTContext, D);
-  if (CC != SOF_OTHER)
+  CCMangling CC = getCallingConvMangling(ASTContext, D);
+  if (CC != CCM_Other)
     return true;
 
   // In C, functions with no attributes never need to be mangled. Fastpath them.
@@ -131,28 +136,35 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
   }
 
   const ASTContext &ASTContext = getASTContext();
-  StdOrFastCC CC = getStdOrFastCallMangling(ASTContext, D);
+  CCMangling CC = getCallingConvMangling(ASTContext, D);
   bool MCXX = shouldMangleCXXName(D);
   const TargetInfo &TI = Context.getTargetInfo();
-  if (CC == SOF_OTHER || (MCXX && TI.getCXXABI() == TargetCXXABI::Microsoft)) {
-    mangleCXXName(D, Out);
+  if (CC == CCM_Other || (MCXX && TI.getCXXABI() == TargetCXXABI::Microsoft)) {
+    if (const ObjCMethodDecl *OMD = dyn_cast<ObjCMethodDecl>(D))
+      mangleObjCMethodName(OMD, Out);
+    else
+      mangleCXXName(D, Out);
     return;
   }
 
   Out << '\01';
-  if (CC == SOF_STD)
+  if (CC == CCM_Std)
     Out << '_';
-  else
+  else if (CC == CCM_Fast)
     Out << '@';
 
   if (!MCXX)
     Out << D->getIdentifier()->getName();
+  else if (const ObjCMethodDecl *OMD = dyn_cast<ObjCMethodDecl>(D))
+    mangleObjCMethodName(OMD, Out);
   else
     mangleCXXName(D, Out);
 
   const FunctionDecl *FD = cast<FunctionDecl>(D);
   const FunctionType *FT = FD->getType()->castAs<FunctionType>();
   const FunctionProtoType *Proto = dyn_cast<FunctionProtoType>(FT);
+  if (CC == CCM_Vector)
+    Out << '@';
   Out << '@';
   if (!Proto) {
     Out << '0';
@@ -163,14 +175,12 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD))
     if (!MD->isStatic())
       ++ArgWords;
-  for (FunctionProtoType::arg_type_iterator Arg = Proto->arg_type_begin(),
-         ArgEnd = Proto->arg_type_end();
-       Arg != ArgEnd; ++Arg) {
-    QualType AT = *Arg;
-    // Size should be aligned to DWORD boundary
-    ArgWords += llvm::RoundUpToAlignment(ASTContext.getTypeSize(AT), 32) / 32;
-  }
-  Out << 4 * ArgWords;
+  for (const auto &AT : Proto->param_types())
+    // Size should be aligned to pointer size.
+    ArgWords += llvm::RoundUpToAlignment(ASTContext.getTypeSize(AT),
+                                         TI.getPointerWidth(0)) /
+                TI.getPointerWidth(0);
+  Out << ((TI.getPointerWidth(0) / 8) * ArgWords);
 }
 
 void MangleContext::mangleGlobalBlock(const BlockDecl *BD,
@@ -219,16 +229,28 @@ void MangleContext::mangleBlock(const DeclContext *DC, const BlockDecl *BD,
   if (const ObjCMethodDecl *Method = dyn_cast<ObjCMethodDecl>(DC)) {
     mangleObjCMethodName(Method, Stream);
   } else {
-    const NamedDecl *ND = cast<NamedDecl>(DC);
-    if (!shouldMangleDeclName(ND) && ND->getIdentifier())
-      Stream << ND->getIdentifier()->getName();
-    else {
-      // FIXME: We were doing a mangleUnqualifiedName() before, but that's
-      // a private member of a class that will soon itself be private to the
-      // Itanium C++ ABI object. What should we do now? Right now, I'm just
-      // calling the mangleName() method on the MangleContext; is there a
-      // better way?
-      mangleName(ND, Stream);
+    assert((isa<NamedDecl>(DC) || isa<BlockDecl>(DC)) &&
+           "expected a NamedDecl or BlockDecl");
+    if (isa<BlockDecl>(DC))
+      for (; DC && isa<BlockDecl>(DC); DC = DC->getParent())
+        (void) getBlockId(cast<BlockDecl>(DC), true);
+    assert((isa<TranslationUnitDecl>(DC) || isa<NamedDecl>(DC)) &&
+           "expected a TranslationUnitDecl or a NamedDecl");
+    if (const auto *CD = dyn_cast<CXXConstructorDecl>(DC))
+      mangleCtorBlock(CD, /*CT*/ Ctor_Complete, BD, Out);
+    else if (const auto *DD = dyn_cast<CXXDestructorDecl>(DC))
+      mangleDtorBlock(DD, /*DT*/ Dtor_Complete, BD, Out);
+    else if (auto ND = dyn_cast<NamedDecl>(DC)) {
+      if (!shouldMangleDeclName(ND) && ND->getIdentifier())
+        Stream << ND->getIdentifier()->getName();
+      else {
+        // FIXME: We were doing a mangleUnqualifiedName() before, but that's
+        // a private member of a class that will soon itself be private to the
+        // Itanium C++ ABI object. What should we do now? Right now, I'm just
+        // calling the mangleName() method on the MangleContext; is there a
+        // better way?
+        mangleName(ND, Stream);
+      }
     }
   }
   Stream.flush();
@@ -246,7 +268,9 @@ void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
   OS << (MD->isInstanceMethod() ? '-' : '+') << '[' << CD->getName();
   if (const ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(CD))
     OS << '(' << *CID << ')';
-  OS << ' ' << MD->getSelector().getAsString() << ']';
+  OS << ' ';
+  MD->getSelector().print(OS);
+  OS << ']';
   
   Out << OS.str().size() << OS.str();
 }

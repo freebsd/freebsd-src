@@ -235,7 +235,7 @@ nlms :: libs $(TARGET_nlm)
 # correct place.  (See $(AP_WORK)\build\NWGNUhead.inc for examples)
 #
 install :: nlms $(INSTDIRS) FORCE
-	copy $(OBJDIR)\*.nlm $(INSTALLBASE)
+	$(call COPY,$(OBJDIR)/*.nlm,$(INSTALLBASE))
 
 #
 # Any specialized rules here

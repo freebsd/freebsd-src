@@ -37,10 +37,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include "opt_ddb.h"
 #include "opt_printf.h"
+#endif  /* _KERNEL */
 
 #include <sys/param.h>
+#ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
@@ -57,7 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/cons.h>
 #include <sys/uio.h>
+#endif
 #include <sys/ctype.h>
+#include <sys/sbuf.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -68,6 +73,8 @@ __FBSDID("$FreeBSD$");
  * ANSI and traditional C compilers.
  */
 #include <machine/stdarg.h>
+
+#ifdef _KERNEL
 
 #define TOCONS	0x01
 #define TOTTY	0x02
@@ -295,7 +302,7 @@ log(int level, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	(void)_vprintf(level, log_open ? TOLOG : TOCONS, fmt, ap);
+	(void)_vprintf(level, log_open ? TOLOG : TOCONS | TOLOG, fmt, ap);
 	va_end(ap);
 
 	msgbuftrigger = 1;
@@ -598,7 +605,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  * the next characters (up to a control character, i.e. a character <= 32),
  * give the name of the register.  Thus:
  *
- *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE\n");
+ *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE");
  *
  * would produce output:
  *
@@ -911,7 +918,7 @@ number:
 			while (percent < fmt)
 				PCHAR(*percent++);
 			/*
-			 * Since we ignore a formatting argument it is no 
+			 * Since we ignore a formatting argument it is no
 			 * longer safe to obey the remaining formatting
 			 * arguments as the arguments will no longer match
 			 * the format specs.
@@ -1009,7 +1016,7 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 		len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq);
 		mtx_unlock(&msgbuf_lock);
 		if (len == 0)
-			return (0);
+			return (SYSCTL_OUT(req, "", 1)); /* add nulterm */
 
 		error = sysctl_handle_opaque(oidp, buf, len, req);
 		if (error)
@@ -1119,3 +1126,59 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 		printf("\n");
 	}
 }
+#endif /* _KERNEL */
+
+void
+sbuf_hexdump(struct sbuf *sb, const void *ptr, int length, const char *hdr,
+	     int flags)
+{
+	int i, j, k;
+	int cols;
+	const unsigned char *cp;
+	char delim;
+
+	if ((flags & HD_DELIM_MASK) != 0)
+		delim = (flags & HD_DELIM_MASK) >> 8;
+	else
+		delim = ' ';
+
+	if ((flags & HD_COLUMN_MASK) != 0)
+		cols = flags & HD_COLUMN_MASK;
+	else
+		cols = 16;
+
+	cp = ptr;
+	for (i = 0; i < length; i+= cols) {
+		if (hdr != NULL)
+			sbuf_printf(sb, "%s", hdr);
+
+		if ((flags & HD_OMIT_COUNT) == 0)
+			sbuf_printf(sb, "%04x  ", i);
+
+		if ((flags & HD_OMIT_HEX) == 0) {
+			for (j = 0; j < cols; j++) {
+				k = i + j;
+				if (k < length)
+					sbuf_printf(sb, "%c%02x", delim, cp[k]);
+				else
+					sbuf_printf(sb, "   ");
+			}
+		}
+
+		if ((flags & HD_OMIT_CHARS) == 0) {
+			sbuf_printf(sb, "  |");
+			for (j = 0; j < cols; j++) {
+				k = i + j;
+				if (k >= length)
+					sbuf_printf(sb, " ");
+				else if (cp[k] >= ' ' && cp[k] <= '~')
+					sbuf_printf(sb, "%c", cp[k]);
+				else
+					sbuf_printf(sb, ".");
+			}
+			sbuf_printf(sb, "|");
+		}
+		sbuf_printf(sb, "\n");
+	}
+}
+

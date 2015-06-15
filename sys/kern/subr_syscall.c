@@ -61,8 +61,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	p = td->td_proc;
 
 	td->td_pticks = 0;
-	if (td->td_ucred != p->p_ucred)
-		cred_update_thread(td);
+	if (td->td_cowgen != p->p_cowgen)
+		thread_cow_update(td);
 	if (p->p_flag & P_TRACED) {
 		traced = 1;
 		PROC_LOCK(p);
@@ -226,9 +226,20 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 		 */
 		td->td_pflags &= ~TDP_RFPPWAIT;
 		p2 = td->td_rfppwait_p;
+again:
 		PROC_LOCK(p2);
-		while (p2->p_flag & P_PPWAIT)
-			cv_wait(&p2->p_pwait, &p2->p_mtx);
+		while (p2->p_flag & P_PPWAIT) {
+			PROC_LOCK(p);
+			if (thread_suspend_check_needed()) {
+				PROC_UNLOCK(p2);
+				thread_suspend_check(0);
+				PROC_UNLOCK(p);
+				goto again;
+			} else {
+				PROC_UNLOCK(p);
+			}
+			cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
+		}
 		PROC_UNLOCK(p2);
 	}
 }

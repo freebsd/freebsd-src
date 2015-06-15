@@ -27,7 +27,7 @@ class CMov_I_I_FT<string opstr, RegisterOperand CRC, RegisterOperand DRC,
 class CMov_I_F_FT<string opstr, RegisterOperand CRC, RegisterOperand DRC,
                   InstrItinClass Itin> :
   InstSE<(outs DRC:$fd), (ins DRC:$fs, CRC:$rt, DRC:$F),
-         !strconcat(opstr, "\t$fd, $fs, $rt"), [], Itin, FrmFR> {
+         !strconcat(opstr, "\t$fd, $fs, $rt"), [], Itin, FrmFR, opstr> {
   let Constraints = "$F = $fd";
 }
 
@@ -47,7 +47,7 @@ class CMov_F_F_FT<string opstr, RegisterOperand RC, InstrItinClass Itin,
   InstSE<(outs RC:$fd), (ins RC:$fs, FCCRegsOpnd:$fcc, RC:$F),
          !strconcat(opstr, "\t$fd, $fs, $fcc"),
          [(set RC:$fd, (OpNode RC:$fs, FCCRegsOpnd:$fcc, RC:$F))],
-         Itin, FrmFR> {
+         Itin, FrmFR, opstr> {
   let Constraints = "$F = $fd";
 }
 
@@ -103,143 +103,200 @@ multiclass MovnPats<RegisterClass CRC, RegisterClass DRC, Instruction MOVNInst,
 }
 
 // Instantiation of instructions.
-def MOVZ_I_I : MMRel, CMov_I_I_FT<"movz", GPR32Opnd, GPR32Opnd, IIArith>,
-               ADD_FM<0, 0xa>;
+def MOVZ_I_I : MMRel, CMov_I_I_FT<"movz", GPR32Opnd, GPR32Opnd, II_MOVZ>,
+               ADD_FM<0, 0xa>, INSN_MIPS4_32_NOT_32R6_64R6;
 
-let Predicates = [HasStdEnc], isCodeGenOnly = 1 in {
-  def MOVZ_I_I64   : CMov_I_I_FT<"movz", GPR32Opnd, GPR64Opnd, IIArith>,
-                     ADD_FM<0, 0xa>;
-  def MOVZ_I64_I   : CMov_I_I_FT<"movz", GPR64Opnd, GPR32Opnd, IIArith>,
-                     ADD_FM<0, 0xa>;
-  def MOVZ_I64_I64 : CMov_I_I_FT<"movz", GPR64Opnd, GPR64Opnd, IIArith>,
-                     ADD_FM<0, 0xa>;
+let isCodeGenOnly = 1 in {
+  def MOVZ_I_I64   : CMov_I_I_FT<"movz", GPR32Opnd, GPR64Opnd, II_MOVZ>,
+                     ADD_FM<0, 0xa>, INSN_MIPS4_32_NOT_32R6_64R6;
+  def MOVZ_I64_I   : CMov_I_I_FT<"movz", GPR64Opnd, GPR32Opnd, II_MOVZ>,
+                     ADD_FM<0, 0xa>, INSN_MIPS4_32_NOT_32R6_64R6;
+  def MOVZ_I64_I64 : CMov_I_I_FT<"movz", GPR64Opnd, GPR64Opnd, II_MOVZ>,
+                     ADD_FM<0, 0xa>, INSN_MIPS4_32_NOT_32R6_64R6;
 }
 
-def MOVN_I_I       : MMRel, CMov_I_I_FT<"movn", GPR32Opnd, GPR32Opnd, IIArith>,
-                     ADD_FM<0, 0xb>;
+def MOVN_I_I       : MMRel, CMov_I_I_FT<"movn", GPR32Opnd, GPR32Opnd, II_MOVN>,
+                     ADD_FM<0, 0xb>, INSN_MIPS4_32_NOT_32R6_64R6;
 
-let Predicates = [HasStdEnc], isCodeGenOnly = 1 in {
-  def MOVN_I_I64   : CMov_I_I_FT<"movn", GPR32Opnd, GPR64Opnd, IIArith>,
-                     ADD_FM<0, 0xb>;
-  def MOVN_I64_I   : CMov_I_I_FT<"movn", GPR64Opnd, GPR32Opnd, IIArith>,
-                     ADD_FM<0, 0xb>;
-  def MOVN_I64_I64 : CMov_I_I_FT<"movn", GPR64Opnd, GPR64Opnd, IIArith>,
-                     ADD_FM<0, 0xb>;
+let isCodeGenOnly = 1 in {
+  def MOVN_I_I64   : CMov_I_I_FT<"movn", GPR32Opnd, GPR64Opnd, II_MOVN>,
+                     ADD_FM<0, 0xb>, INSN_MIPS4_32_NOT_32R6_64R6;
+  def MOVN_I64_I   : CMov_I_I_FT<"movn", GPR64Opnd, GPR32Opnd, II_MOVN>,
+                     ADD_FM<0, 0xb>, INSN_MIPS4_32_NOT_32R6_64R6;
+  def MOVN_I64_I64 : CMov_I_I_FT<"movn", GPR64Opnd, GPR64Opnd, II_MOVN>,
+                     ADD_FM<0, 0xb>, INSN_MIPS4_32_NOT_32R6_64R6;
 }
 
-def MOVZ_I_S : CMov_I_F_FT<"movz.s", GPR32Opnd, FGR32Opnd, IIFmove>,
-               CMov_I_F_FM<18, 16>;
+def MOVZ_I_S : MMRel, CMov_I_F_FT<"movz.s", GPR32Opnd, FGR32Opnd, II_MOVZ_S>,
+               CMov_I_F_FM<18, 16>, INSN_MIPS4_32_NOT_32R6_64R6;
 
 let isCodeGenOnly = 1 in
-def MOVZ_I64_S : CMov_I_F_FT<"movz.s", GPR64Opnd, FGR32Opnd, IIFmove>,
-                 CMov_I_F_FM<18, 16>, Requires<[HasMips64, HasStdEnc]>;
+def MOVZ_I64_S : CMov_I_F_FT<"movz.s", GPR64Opnd, FGR32Opnd, II_MOVZ_S>,
+                 CMov_I_F_FM<18, 16>, INSN_MIPS4_32_NOT_32R6_64R6,
+                 AdditionalRequires<[HasMips64]>;
 
-def MOVN_I_S : CMov_I_F_FT<"movn.s", GPR32Opnd, FGR32Opnd, IIFmove>,
-               CMov_I_F_FM<19, 16>;
+def MOVN_I_S : MMRel, CMov_I_F_FT<"movn.s", GPR32Opnd, FGR32Opnd, II_MOVN_S>,
+               CMov_I_F_FM<19, 16>, INSN_MIPS4_32_NOT_32R6_64R6;
 
 let isCodeGenOnly = 1 in
-def MOVN_I64_S : CMov_I_F_FT<"movn.s", GPR64Opnd, FGR32Opnd, IIFmove>,
-                 CMov_I_F_FM<19, 16>, Requires<[HasMips64, HasStdEnc]>;
+def MOVN_I64_S : CMov_I_F_FT<"movn.s", GPR64Opnd, FGR32Opnd, II_MOVN_S>,
+                 CMov_I_F_FM<19, 16>, INSN_MIPS4_32_NOT_32R6_64R6,
+                 AdditionalRequires<[IsGP64bit]>;
 
-let Predicates = [NotFP64bit, HasStdEnc] in {
-  def MOVZ_I_D32 : CMov_I_F_FT<"movz.d", GPR32Opnd, AFGR64Opnd, IIFmove>,
-                   CMov_I_F_FM<18, 17>;
-  def MOVN_I_D32 : CMov_I_F_FT<"movn.d", GPR32Opnd, AFGR64Opnd, IIFmove>,
-                   CMov_I_F_FM<19, 17>;
-}
+def MOVZ_I_D32 : MMRel, CMov_I_F_FT<"movz.d", GPR32Opnd, AFGR64Opnd,
+                                    II_MOVZ_D>, CMov_I_F_FM<18, 17>,
+                 INSN_MIPS4_32_NOT_32R6_64R6, FGR_32;
+def MOVN_I_D32 : MMRel, CMov_I_F_FT<"movn.d", GPR32Opnd, AFGR64Opnd,
+                                    II_MOVN_D>, CMov_I_F_FM<19, 17>,
+                 INSN_MIPS4_32_NOT_32R6_64R6, FGR_32;
 
-let Predicates = [IsFP64bit, HasStdEnc], DecoderNamespace = "Mips64" in {
-  def MOVZ_I_D64 : CMov_I_F_FT<"movz.d", GPR32Opnd, FGR64Opnd, IIFmove>,
-                   CMov_I_F_FM<18, 17>;
-  def MOVN_I_D64 : CMov_I_F_FT<"movn.d", GPR32Opnd, FGR64Opnd, IIFmove>,
-                   CMov_I_F_FM<19, 17>;
+let DecoderNamespace = "Mips64" in {
+  def MOVZ_I_D64 : CMov_I_F_FT<"movz.d", GPR32Opnd, FGR64Opnd, II_MOVZ_D>,
+                   CMov_I_F_FM<18, 17>, INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
+  def MOVN_I_D64 : CMov_I_F_FT<"movn.d", GPR32Opnd, FGR64Opnd, II_MOVN_D>,
+                   CMov_I_F_FM<19, 17>, INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
   let isCodeGenOnly = 1 in {
-    def MOVZ_I64_D64 : CMov_I_F_FT<"movz.d", GPR64Opnd, FGR64Opnd,
-                                   IIFmove>, CMov_I_F_FM<18, 17>;
-    def MOVN_I64_D64 : CMov_I_F_FT<"movn.d", GPR64Opnd, FGR64Opnd,
-                                   IIFmove>, CMov_I_F_FM<19, 17>;
+    def MOVZ_I64_D64 : CMov_I_F_FT<"movz.d", GPR64Opnd, FGR64Opnd, II_MOVZ_D>,
+                       CMov_I_F_FM<18, 17>, INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
+    def MOVN_I64_D64 : CMov_I_F_FT<"movn.d", GPR64Opnd, FGR64Opnd, II_MOVN_D>,
+                       CMov_I_F_FM<19, 17>, INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
   }
 }
 
-def MOVT_I : MMRel, CMov_F_I_FT<"movt", GPR32Opnd, IIArith, MipsCMovFP_T>,
-             CMov_F_I_FM<1>;
+def MOVT_I : MMRel, CMov_F_I_FT<"movt", GPR32Opnd, II_MOVT, MipsCMovFP_T>,
+             CMov_F_I_FM<1>, INSN_MIPS4_32_NOT_32R6_64R6;
 
 let isCodeGenOnly = 1 in
-def MOVT_I64 : CMov_F_I_FT<"movt", GPR64Opnd, IIArith, MipsCMovFP_T>,
-               CMov_F_I_FM<1>, Requires<[HasMips64, HasStdEnc]>;
+def MOVT_I64 : CMov_F_I_FT<"movt", GPR64Opnd, II_MOVT, MipsCMovFP_T>,
+               CMov_F_I_FM<1>, INSN_MIPS4_32_NOT_32R6_64R6,
+               AdditionalRequires<[IsGP64bit]>;
 
-def MOVF_I : MMRel, CMov_F_I_FT<"movf", GPR32Opnd, IIArith, MipsCMovFP_F>,
-             CMov_F_I_FM<0>;
+def MOVF_I : MMRel, CMov_F_I_FT<"movf", GPR32Opnd, II_MOVF, MipsCMovFP_F>,
+             CMov_F_I_FM<0>, INSN_MIPS4_32_NOT_32R6_64R6;
 
 let isCodeGenOnly = 1 in
-def MOVF_I64 : CMov_F_I_FT<"movf", GPR64Opnd, IIArith, MipsCMovFP_F>,
-               CMov_F_I_FM<0>, Requires<[HasMips64, HasStdEnc]>;
+def MOVF_I64 : CMov_F_I_FT<"movf", GPR64Opnd, II_MOVF, MipsCMovFP_F>,
+               CMov_F_I_FM<0>, INSN_MIPS4_32_NOT_32R6_64R6,
+               AdditionalRequires<[IsGP64bit]>;
 
-def MOVT_S : CMov_F_F_FT<"movt.s", FGR32Opnd, IIFmove, MipsCMovFP_T>,
-             CMov_F_F_FM<16, 1>;
-def MOVF_S : CMov_F_F_FT<"movf.s", FGR32Opnd, IIFmove, MipsCMovFP_F>,
-             CMov_F_F_FM<16, 0>;
+def MOVT_S : MMRel, CMov_F_F_FT<"movt.s", FGR32Opnd, II_MOVT_S, MipsCMovFP_T>,
+             CMov_F_F_FM<16, 1>, INSN_MIPS4_32_NOT_32R6_64R6;
+def MOVF_S : MMRel, CMov_F_F_FT<"movf.s", FGR32Opnd, II_MOVF_S, MipsCMovFP_F>,
+             CMov_F_F_FM<16, 0>, INSN_MIPS4_32_NOT_32R6_64R6;
 
-let Predicates = [NotFP64bit, HasStdEnc] in {
-  def MOVT_D32 : CMov_F_F_FT<"movt.d", AFGR64Opnd, IIFmove, MipsCMovFP_T>,
-                 CMov_F_F_FM<17, 1>;
-  def MOVF_D32 : CMov_F_F_FT<"movf.d", AFGR64Opnd, IIFmove, MipsCMovFP_F>,
-                 CMov_F_F_FM<17, 0>;
-}
+def MOVT_D32 : MMRel, CMov_F_F_FT<"movt.d", AFGR64Opnd, II_MOVT_D,
+                                  MipsCMovFP_T>, CMov_F_F_FM<17, 1>,
+               INSN_MIPS4_32_NOT_32R6_64R6, FGR_32;
+def MOVF_D32 : MMRel, CMov_F_F_FT<"movf.d", AFGR64Opnd, II_MOVF_D,
+                                  MipsCMovFP_F>, CMov_F_F_FM<17, 0>,
+               INSN_MIPS4_32_NOT_32R6_64R6, FGR_32;
 
-let Predicates = [IsFP64bit, HasStdEnc], DecoderNamespace = "Mips64" in {
-  def MOVT_D64 : CMov_F_F_FT<"movt.d", FGR64Opnd, IIFmove, MipsCMovFP_T>,
-                 CMov_F_F_FM<17, 1>;
-  def MOVF_D64 : CMov_F_F_FT<"movf.d", FGR64Opnd, IIFmove, MipsCMovFP_F>,
-                 CMov_F_F_FM<17, 0>;
+let DecoderNamespace = "Mips64" in {
+  def MOVT_D64 : CMov_F_F_FT<"movt.d", FGR64Opnd, II_MOVT_D, MipsCMovFP_T>,
+                 CMov_F_F_FM<17, 1>, INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
+  def MOVF_D64 : CMov_F_F_FT<"movf.d", FGR64Opnd, II_MOVF_D, MipsCMovFP_F>,
+                 CMov_F_F_FM<17, 0>, INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
 }
 
 // Instantiation of conditional move patterns.
-defm : MovzPats0<GPR32, GPR32, MOVZ_I_I, SLT, SLTu, SLTi, SLTiu>;
-defm : MovzPats1<GPR32, GPR32, MOVZ_I_I, XOR>;
-defm : MovzPats2<GPR32, GPR32, MOVZ_I_I, XORi>;
-let Predicates = [HasMips64, HasStdEnc] in {
-  defm : MovzPats0<GPR32, GPR64, MOVZ_I_I64, SLT, SLTu, SLTi, SLTiu>;
-  defm : MovzPats0<GPR64, GPR32, MOVZ_I_I, SLT64, SLTu64, SLTi64,
-                   SLTiu64>;
-  defm : MovzPats0<GPR64, GPR64, MOVZ_I_I64, SLT64, SLTu64, SLTi64,
-                   SLTiu64>;
-  defm : MovzPats1<GPR32, GPR64, MOVZ_I_I64, XOR>;
-  defm : MovzPats1<GPR64, GPR32, MOVZ_I64_I, XOR64>;
-  defm : MovzPats1<GPR64, GPR64, MOVZ_I64_I64, XOR64>;
-  defm : MovzPats2<GPR32, GPR64, MOVZ_I_I64, XORi>;
-  defm : MovzPats2<GPR64, GPR32, MOVZ_I64_I, XORi64>;
-  defm : MovzPats2<GPR64, GPR64, MOVZ_I64_I64, XORi64>;
+defm : MovzPats0<GPR32, GPR32, MOVZ_I_I, SLT, SLTu, SLTi, SLTiu>,
+       INSN_MIPS4_32_NOT_32R6_64R6;
+defm : MovzPats1<GPR32, GPR32, MOVZ_I_I, XOR>, INSN_MIPS4_32_NOT_32R6_64R6;
+defm : MovzPats2<GPR32, GPR32, MOVZ_I_I, XORi>, INSN_MIPS4_32_NOT_32R6_64R6;
+
+defm : MovzPats0<GPR32, GPR64, MOVZ_I_I64, SLT, SLTu, SLTi, SLTiu>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats0<GPR64, GPR32, MOVZ_I_I, SLT64, SLTu64, SLTi64, SLTiu64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats0<GPR64, GPR64, MOVZ_I_I64, SLT64, SLTu64, SLTi64, SLTiu64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats1<GPR32, GPR64, MOVZ_I_I64, XOR>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats1<GPR64, GPR32, MOVZ_I64_I, XOR64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats1<GPR64, GPR64, MOVZ_I64_I64, XOR64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats2<GPR32, GPR64, MOVZ_I_I64, XORi>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats2<GPR64, GPR32, MOVZ_I64_I, XORi64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats2<GPR64, GPR64, MOVZ_I64_I64, XORi64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+
+defm : MovnPats<GPR32, GPR32, MOVN_I_I, XOR>, INSN_MIPS4_32_NOT_32R6_64R6;
+
+defm : MovnPats<GPR32, GPR64, MOVN_I_I64, XOR>, INSN_MIPS4_32_NOT_32R6_64R6,
+       GPR_64;
+defm : MovnPats<GPR64, GPR32, MOVN_I64_I, XOR64>, INSN_MIPS4_32_NOT_32R6_64R6,
+       GPR_64;
+defm : MovnPats<GPR64, GPR64, MOVN_I64_I64, XOR64>, INSN_MIPS4_32_NOT_32R6_64R6,
+       GPR_64;
+
+defm : MovzPats0<GPR32, FGR32, MOVZ_I_S, SLT, SLTu, SLTi, SLTiu>,
+       INSN_MIPS4_32_NOT_32R6_64R6;
+defm : MovzPats1<GPR32, FGR32, MOVZ_I_S, XOR>, INSN_MIPS4_32_NOT_32R6_64R6;
+defm : MovnPats<GPR32, FGR32, MOVN_I_S, XOR>, INSN_MIPS4_32_NOT_32R6_64R6;
+
+defm : MovzPats0<GPR64, FGR32, MOVZ_I_S, SLT64, SLTu64, SLTi64, SLTiu64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, GPR_64;
+defm : MovzPats1<GPR64, FGR32, MOVZ_I64_S, XOR64>, INSN_MIPS4_32_NOT_32R6_64R6,
+       GPR_64;
+defm : MovnPats<GPR64, FGR32, MOVN_I64_S, XOR64>, INSN_MIPS4_32_NOT_32R6_64R6,
+       GPR_64;
+
+defm : MovzPats0<GPR32, AFGR64, MOVZ_I_D32, SLT, SLTu, SLTi, SLTiu>,
+       INSN_MIPS4_32_NOT_32R6_64R6, FGR_32;
+defm : MovzPats1<GPR32, AFGR64, MOVZ_I_D32, XOR>, INSN_MIPS4_32_NOT_32R6_64R6,
+       FGR_32;
+defm : MovnPats<GPR32, AFGR64, MOVN_I_D32, XOR>, INSN_MIPS4_32_NOT_32R6_64R6,
+       FGR_32;
+
+defm : MovzPats0<GPR32, FGR64, MOVZ_I_D64, SLT, SLTu, SLTi, SLTiu>,
+       INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
+defm : MovzPats0<GPR64, FGR64, MOVZ_I_D64, SLT64, SLTu64, SLTi64, SLTiu64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
+defm : MovzPats1<GPR32, FGR64, MOVZ_I_D64, XOR>, INSN_MIPS4_32_NOT_32R6_64R6,
+       FGR_64;
+defm : MovzPats1<GPR64, FGR64, MOVZ_I64_D64, XOR64>,
+       INSN_MIPS4_32_NOT_32R6_64R6, FGR_64;
+defm : MovnPats<GPR32, FGR64, MOVN_I_D64, XOR>, INSN_MIPS4_32_NOT_32R6_64R6,
+       FGR_64;
+defm : MovnPats<GPR64, FGR64, MOVN_I64_D64, XOR64>, INSN_MIPS4_32_NOT_32R6_64R6,
+       FGR_64;
+
+// For targets that don't have conditional-move instructions
+// we have to match SELECT nodes with pseudo instructions.
+let usesCustomInserter = 1 in {
+  class Select_Pseudo<RegisterOperand RC> :
+    PseudoSE<(outs RC:$dst), (ins GPR32Opnd:$cond, RC:$T, RC:$F),
+            [(set RC:$dst, (select GPR32Opnd:$cond, RC:$T, RC:$F))]>,
+    ISA_MIPS1_NOT_4_32;
+
+  class SelectFP_Pseudo_T<RegisterOperand RC> :
+    PseudoSE<(outs RC:$dst), (ins GPR32Opnd:$cond, RC:$T, RC:$F),
+             [(set RC:$dst, (MipsCMovFP_T RC:$T, GPR32Opnd:$cond, RC:$F))]>,
+    ISA_MIPS1_NOT_4_32;
+
+  class SelectFP_Pseudo_F<RegisterOperand RC> :
+    PseudoSE<(outs RC:$dst), (ins GPR32Opnd:$cond, RC:$T, RC:$F),
+             [(set RC:$dst, (MipsCMovFP_F RC:$T, GPR32Opnd:$cond, RC:$F))]>,
+    ISA_MIPS1_NOT_4_32;
 }
 
-defm : MovnPats<GPR32, GPR32, MOVN_I_I, XOR>;
-let Predicates = [HasMips64, HasStdEnc] in {
-  defm : MovnPats<GPR32, GPR64, MOVN_I_I64, XOR>;
-  defm : MovnPats<GPR64, GPR32, MOVN_I64_I, XOR64>;
-  defm : MovnPats<GPR64, GPR64, MOVN_I64_I64, XOR64>;
-}
+def PseudoSELECT_I : Select_Pseudo<GPR32Opnd>;
+def PseudoSELECT_I64 : Select_Pseudo<GPR64Opnd>;
+def PseudoSELECT_S : Select_Pseudo<FGR32Opnd>;
+def PseudoSELECT_D32 : Select_Pseudo<AFGR64Opnd>, FGR_32;
+def PseudoSELECT_D64 : Select_Pseudo<FGR64Opnd>, FGR_64;
 
-defm : MovzPats0<GPR32, FGR32, MOVZ_I_S, SLT, SLTu, SLTi, SLTiu>;
-defm : MovzPats1<GPR32, FGR32, MOVZ_I_S, XOR>;
-defm : MovnPats<GPR32, FGR32, MOVN_I_S, XOR>;
-let Predicates = [HasMips64, HasStdEnc] in {
-  defm : MovzPats0<GPR64, FGR32, MOVZ_I_S, SLT64, SLTu64, SLTi64,
-                   SLTiu64>;
-  defm : MovzPats1<GPR64, FGR32, MOVZ_I64_S, XOR64>;
-  defm : MovnPats<GPR64, FGR32, MOVN_I64_S, XOR64>;
-}
+def PseudoSELECTFP_T_I : SelectFP_Pseudo_T<GPR32Opnd>;
+def PseudoSELECTFP_T_I64 : SelectFP_Pseudo_T<GPR64Opnd>;
+def PseudoSELECTFP_T_S : SelectFP_Pseudo_T<FGR32Opnd>;
+def PseudoSELECTFP_T_D32 : SelectFP_Pseudo_T<AFGR64Opnd>, FGR_32;
+def PseudoSELECTFP_T_D64 : SelectFP_Pseudo_T<FGR64Opnd>, FGR_64;
 
-let Predicates = [NotFP64bit, HasStdEnc] in {
-  defm : MovzPats0<GPR32, AFGR64, MOVZ_I_D32, SLT, SLTu, SLTi, SLTiu>;
-  defm : MovzPats1<GPR32, AFGR64, MOVZ_I_D32, XOR>;
-  defm : MovnPats<GPR32, AFGR64, MOVN_I_D32, XOR>;
-}
-let Predicates = [IsFP64bit, HasStdEnc] in {
-  defm : MovzPats0<GPR32, FGR64, MOVZ_I_D64, SLT, SLTu, SLTi, SLTiu>;
-  defm : MovzPats0<GPR64, FGR64, MOVZ_I_D64, SLT64, SLTu64, SLTi64,
-                   SLTiu64>;
-  defm : MovzPats1<GPR32, FGR64, MOVZ_I_D64, XOR>;
-  defm : MovzPats1<GPR64, FGR64, MOVZ_I64_D64, XOR64>;
-  defm : MovnPats<GPR32, FGR64, MOVN_I_D64, XOR>;
-  defm : MovnPats<GPR64, FGR64, MOVN_I64_D64, XOR64>;
-}
+def PseudoSELECTFP_F_I : SelectFP_Pseudo_F<GPR32Opnd>;
+def PseudoSELECTFP_F_I64 : SelectFP_Pseudo_F<GPR64Opnd>;
+def PseudoSELECTFP_F_S : SelectFP_Pseudo_F<FGR32Opnd>;
+def PseudoSELECTFP_F_D32 : SelectFP_Pseudo_F<AFGR64Opnd>, FGR_32;
+def PseudoSELECTFP_F_D64 : SelectFP_Pseudo_F<FGR64Opnd>, FGR_64;

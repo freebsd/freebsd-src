@@ -2,9 +2,6 @@
 
 PROG=	ipcs
 SRCS=	ipcs.c ipc.c
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
-
-WARNS?=	1
+LIBADD=	kvm
 
 .include <bsd.prog.mk>

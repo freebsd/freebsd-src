@@ -25,6 +25,7 @@
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Utility/PseudoTerminal.h"
@@ -111,7 +112,6 @@ PtraceWrapper(int req, lldb::pid_t pid, void *addr, int data,
             log->Printf("PT_GETREGS: bp=0x%lx", r->r_rbp);
             log->Printf("PT_GETREGS: ax=0x%lx", r->r_rax);
         }
-#endif
         if (req == PT_GETDBREGS || req == PT_SETDBREGS) {
             struct dbreg *r = (struct dbreg *) addr;
             char setget = (req == PT_GETDBREGS) ? 'G' : 'S';
@@ -119,6 +119,7 @@ PtraceWrapper(int req, lldb::pid_t pid, void *addr, int data,
             for (int i = 0; i <= 7; i++)
                 log->Printf("PT_%cETDBREGS: dr[%d]=0x%lx", setget, i, r->dr[i]);
         }
+#endif
     }
      
     return result;
@@ -309,9 +310,14 @@ ReadRegOperation::Execute(ProcessMonitor *monitor)
     if ((rc = PTRACE(PT_GETREGS, m_tid, (caddr_t)&regs, 0)) < 0) {
         m_result = false;
     } else {
-        if (m_size == sizeof(uintptr_t))
-            m_value = *(uintptr_t *)(((caddr_t)&regs) + m_offset);
-        else 
+        // 'struct reg' contains only 32- or 64-bit register values.  Punt on
+        // others.  Also, not all entries may be uintptr_t sized, such as 32-bit
+        // processes on powerpc64 (probably the same for i386 on amd64)
+        if (m_size == sizeof(uint32_t))
+            m_value = *(uint32_t *)(((caddr_t)&regs) + m_offset);
+        else if (m_size == sizeof(uint64_t))
+            m_value = *(uint64_t *)(((caddr_t)&regs) + m_offset);
+        else
             memcpy(&m_value, (((caddr_t)&regs) + m_offset), m_size);
         m_result = true;
     }
@@ -702,7 +708,7 @@ EventMessageOperation::Execute(ProcessMonitor *monitor)
 
 //------------------------------------------------------------------------------
 /// @class KillOperation
-/// @brief Implements ProcessMonitor::BringProcessIntoLimbo.
+/// @brief Implements ProcessMonitor::Kill.
 class KillOperation : public Operation
 {
 public:
@@ -727,7 +733,7 @@ KillOperation::Execute(ProcessMonitor *monitor)
 
 //------------------------------------------------------------------------------
 /// @class DetachOperation
-/// @brief Implements ProcessMonitor::BringProcessIntoLimbo.
+/// @brief Implements ProcessMonitor::Detach.
 class DetachOperation : public Operation
 {
 public:
@@ -807,10 +813,9 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
                                const char *stdout_path,
                                const char *stderr_path,
                                const char *working_dir,
+                               const lldb_private::ProcessLaunchInfo & /* launch_info */,
                                lldb_private::Error &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
-      m_operation_thread(LLDB_INVALID_HOST_THREAD),
-      m_monitor_thread(LLDB_INVALID_HOST_THREAD),
       m_pid(LLDB_INVALID_PROCESS_ID),
       m_terminal_fd(-1),
       m_operation(0)
@@ -851,7 +856,7 @@ WAIT_AGAIN:
     // Finally, start monitoring the child process for change in state.
     m_monitor_thread = Host::StartMonitoringChildProcess(
         ProcessMonitor::MonitorCallback, this, GetPID(), true);
-    if (!IS_VALID_LLDB_HOST_THREAD(m_monitor_thread))
+    if (!m_monitor_thread.IsJoinable())
     {
         error.SetErrorToGenericError();
         error.SetErrorString("Process launch failed.");
@@ -863,8 +868,6 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
                                lldb::pid_t pid,
                                lldb_private::Error &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
-      m_operation_thread(LLDB_INVALID_HOST_THREAD),
-      m_monitor_thread(LLDB_INVALID_HOST_THREAD),
       m_pid(pid),
       m_terminal_fd(-1),
       m_operation(0)
@@ -903,7 +906,7 @@ WAIT_AGAIN:
     // Finally, start monitoring the child process for change in state.
     m_monitor_thread = Host::StartMonitoringChildProcess(
         ProcessMonitor::MonitorCallback, this, GetPID(), true);
-    if (!IS_VALID_LLDB_HOST_THREAD(m_monitor_thread))
+    if (!m_monitor_thread.IsJoinable())
     {
         error.SetErrorToGenericError();
         error.SetErrorString("Process attach failed.");
@@ -923,11 +926,10 @@ ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Error &error)
 {
     static const char *g_thread_name = "lldb.process.freebsd.operation";
 
-    if (IS_VALID_LLDB_HOST_THREAD(m_operation_thread))
+    if (m_operation_thread.IsJoinable())
         return;
 
-    m_operation_thread =
-        Host::ThreadCreate(g_thread_name, LaunchOpThread, args, &error);
+    m_operation_thread = ThreadLauncher::LaunchThread(g_thread_name, LaunchOpThread, args, &error);
 }
 
 void *
@@ -1100,11 +1102,10 @@ ProcessMonitor::StartAttachOpThread(AttachArgs *args, lldb_private::Error &error
 {
     static const char *g_thread_name = "lldb.process.freebsd.operation";
 
-    if (IS_VALID_LLDB_HOST_THREAD(m_operation_thread))
+    if (m_operation_thread.IsJoinable())
         return;
 
-    m_operation_thread =
-        Host::ThreadCreate(g_thread_name, AttachOpThread, args, &error);
+    m_operation_thread = ThreadLauncher::LaunchThread(g_thread_name, AttachOpThread, args, &error);
 }
 
 void *
@@ -1112,14 +1113,13 @@ ProcessMonitor::AttachOpThread(void *arg)
 {
     AttachArgs *args = static_cast<AttachArgs*>(arg);
 
-    if (!Attach(args))
-        return NULL;
+    Attach(args);
 
     ServeOperation(args);
     return NULL;
 }
 
-bool
+void
 ProcessMonitor::Attach(AttachArgs *args)
 {
     lldb::pid_t pid = args->m_pid;
@@ -1131,27 +1131,24 @@ ProcessMonitor::Attach(AttachArgs *args)
     {
         args->m_error.SetErrorToGenericError();
         args->m_error.SetErrorString("Attaching to process 1 is not allowed.");
-        goto FINISH;
+        return;
     }
 
     // Attach to the requested process.
     if (PTRACE(PT_ATTACH, pid, NULL, 0) < 0)
     {
         args->m_error.SetErrorToErrno();
-        goto FINISH;
+        return;
     }
 
     int status;
     if ((status = waitpid(pid, NULL, 0)) < 0)
     {
         args->m_error.SetErrorToErrno();
-        goto FINISH;
+        return;
     }
 
     process.SendMessage(ProcessMessage::Attach(pid));
-
-FINISH:
-    return args->m_error.Success();
 }
 
 size_t
@@ -1628,9 +1625,13 @@ ProcessMonitor::Resume(lldb::tid_t unused, uint32_t signo)
     bool result;
     Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
 
-    if (log)
-        log->Printf ("ProcessMonitor::%s() resuming pid %"  PRIu64 " with signal %s", __FUNCTION__, GetPID(),
-                                 m_process->GetUnixSignals().GetSignalAsCString (signo));
+    if (log) {
+        const char *signame = m_process->GetUnixSignals().GetSignalAsCString (signo);
+        if (signame == nullptr)
+            signame = "<none>";
+        log->Printf("ProcessMonitor::%s() resuming pid %"  PRIu64 " with signal %s",
+                    __FUNCTION__, GetPID(), signame);
+    }
     ResumeOperation op(signo, result);
     DoOperation(&op);
     if (log)
@@ -1648,7 +1649,7 @@ ProcessMonitor::SingleStep(lldb::tid_t unused, uint32_t signo)
 }
 
 bool
-ProcessMonitor::BringProcessIntoLimbo()
+ProcessMonitor::Kill()
 {
     bool result;
     KillOperation op(result);
@@ -1709,13 +1710,11 @@ ProcessMonitor::DupDescriptor(const char *path, int fd, int flags)
 void
 ProcessMonitor::StopMonitoringChildProcess()
 {
-    lldb::thread_result_t thread_result;
-
-    if (IS_VALID_LLDB_HOST_THREAD(m_monitor_thread))
+    if (m_monitor_thread.IsJoinable())
     {
-        Host::ThreadCancel(m_monitor_thread, NULL);
-        Host::ThreadJoin(m_monitor_thread, &thread_result, NULL);
-        m_monitor_thread = LLDB_INVALID_HOST_THREAD;
+        m_monitor_thread.Cancel();
+        m_monitor_thread.Join(nullptr);
+        m_monitor_thread.Reset();
     }
 }
 
@@ -1759,12 +1758,10 @@ ProcessMonitor::WaitForInitialTIDStop(lldb::tid_t tid)
 void
 ProcessMonitor::StopOpThread()
 {
-    lldb::thread_result_t result;
-
-    if (!IS_VALID_LLDB_HOST_THREAD(m_operation_thread))
+    if (!m_operation_thread.IsJoinable())
         return;
 
-    Host::ThreadCancel(m_operation_thread, NULL);
-    Host::ThreadJoin(m_operation_thread, &result, NULL);
-    m_operation_thread = LLDB_INVALID_HOST_THREAD;
+    m_operation_thread.Cancel();
+    m_operation_thread.Join(nullptr);
+    m_operation_thread.Reset();
 }

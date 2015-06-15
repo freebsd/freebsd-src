@@ -36,6 +36,11 @@ KVA_PAGES		opt_global.h
 # Physical address extensions and support for >4G ram.  As above.
 PAE			opt_global.h
 
+# Use PAE page tables, but limit memory support to 4GB.
+# This keeps the i386 non-PAE KBI, in particular, drivers see
+# 32bit vm_paddr_t.
+PAE_TABLES		opt_global.h
+
 TIMER_FREQ			opt_clock.h
 
 CPU_ATHLON_SSE_HACK		opt_cpu.h
@@ -109,7 +114,6 @@ NETGRAPH_CRONYX		opt_ng_cronyx.h
 DEV_APIC		opt_apic.h
 DEV_ATPIC		opt_atpic.h
 DEV_NPX			opt_npx.h
-ASR_COMPAT		opt_asr.h
 
 # Debugging
 NPX_DEBUG		opt_npx.h
@@ -117,9 +121,9 @@ NPX_DEBUG		opt_npx.h
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
 
-NATIVE			opt_global.h
-XEN			opt_global.h
 XENHVM			opt_global.h
+
+HYPERV			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h

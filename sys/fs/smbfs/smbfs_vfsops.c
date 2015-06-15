@@ -401,8 +401,6 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp)
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, td->td_ucred);
 	error = smbfs_smb_statfs(ssp, sbp, scred);
-	if (error == 0)
-		sbp->f_flags = 0;	/* copy of mount exported flags */
 	smbfs_free_scred(scred);
 	return (error);
 }

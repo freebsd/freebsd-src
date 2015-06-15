@@ -43,7 +43,6 @@ extern unsigned long expansion_id;
 
 /* expr.c */
 extern int	expr(const char *);
-extern int32_t end_result;
 
 /* gnum4.c */
 extern void	addtoincludepath(const char *);

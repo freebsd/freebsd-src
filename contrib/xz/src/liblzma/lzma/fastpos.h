@@ -14,15 +14,15 @@
 #ifndef LZMA_FASTPOS_H
 #define LZMA_FASTPOS_H
 
-// LZMA encodes match distances (positions) by storing the highest two
-// bits using a six-bit value [0, 63], and then the missing lower bits.
-// Dictionary size is also stored using this encoding in the new .lzma
+// LZMA encodes match distances by storing the highest two bits using
+// a six-bit value [0, 63], and then the missing lower bits.
+// Dictionary size is also stored using this encoding in the .xz
 // file format header.
 //
 // fastpos.h provides a way to quickly find out the correct six-bit
 // values. The following table gives some examples of this encoding:
 //
-//      pos   return
+//     dist   return
 //       0       0
 //       1       1
 //       2       2
@@ -48,10 +48,10 @@
 // Provided functions or macros
 // ----------------------------
 //
-// get_pos_slot(pos) is the basic version. get_pos_slot_2(pos)
-// assumes that pos >= FULL_DISTANCES, thus the result is at least
-// FULL_DISTANCES_BITS * 2. Using get_pos_slot(pos) instead of
-// get_pos_slot_2(pos) would give the same result, but get_pos_slot_2(pos)
+// get_dist_slot(dist) is the basic version. get_dist_slot_2(dist)
+// assumes that dist >= FULL_DISTANCES, thus the result is at least
+// FULL_DISTANCES_BITS * 2. Using get_dist_slot(dist) instead of
+// get_dist_slot_2(dist) would give the same result, but get_dist_slot_2(dist)
 // should be tiny bit faster due to the assumption being made.
 //
 //
@@ -76,13 +76,14 @@
 // slightly faster, but sometimes it is a lot slower.
 
 #ifdef HAVE_SMALL
-#	define get_pos_slot(pos) ((pos) <= 4 ? (pos) : get_pos_slot_2(pos))
+#	define get_dist_slot(dist) \
+		((dist) <= 4 ? (dist) : get_dist_slot_2(dist))
 
 static inline uint32_t
-get_pos_slot_2(uint32_t pos)
+get_dist_slot_2(uint32_t dist)
 {
-	const uint32_t i = bsr32(pos);
-	return (i + i) + ((pos >> (i - 1)) & 1);
+	const uint32_t i = bsr32(dist);
+	return (i + i) + ((dist >> (i - 1)) & 1);
 }
 
 
@@ -99,39 +100,39 @@ extern const uint8_t lzma_fastpos[1 << FASTPOS_BITS];
 #define fastpos_limit(extra, n) \
 	(UINT32_C(1) << (FASTPOS_BITS + fastpos_shift(extra, n)))
 
-#define fastpos_result(pos, extra, n) \
-	lzma_fastpos[(pos) >> fastpos_shift(extra, n)] \
+#define fastpos_result(dist, extra, n) \
+	lzma_fastpos[(dist) >> fastpos_shift(extra, n)] \
 			+ 2 * fastpos_shift(extra, n)
 
 
 static inline uint32_t
-get_pos_slot(uint32_t pos)
+get_dist_slot(uint32_t dist)
 {
 	// If it is small enough, we can pick the result directly from
 	// the precalculated table.
-	if (pos < fastpos_limit(0, 0))
-		return lzma_fastpos[pos];
+	if (dist < fastpos_limit(0, 0))
+		return lzma_fastpos[dist];
 
-	if (pos < fastpos_limit(0, 1))
-		return fastpos_result(pos, 0, 1);
+	if (dist < fastpos_limit(0, 1))
+		return fastpos_result(dist, 0, 1);
 
-	return fastpos_result(pos, 0, 2);
+	return fastpos_result(dist, 0, 2);
 }
 
 
 #ifdef FULL_DISTANCES_BITS
 static inline uint32_t
-get_pos_slot_2(uint32_t pos)
+get_dist_slot_2(uint32_t dist)
 {
-	assert(pos >= FULL_DISTANCES);
+	assert(dist >= FULL_DISTANCES);
 
-	if (pos < fastpos_limit(FULL_DISTANCES_BITS - 1, 0))
-		return fastpos_result(pos, FULL_DISTANCES_BITS - 1, 0);
+	if (dist < fastpos_limit(FULL_DISTANCES_BITS - 1, 0))
+		return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 0);
 
-	if (pos < fastpos_limit(FULL_DISTANCES_BITS - 1, 1))
-		return fastpos_result(pos, FULL_DISTANCES_BITS - 1, 1);
+	if (dist < fastpos_limit(FULL_DISTANCES_BITS - 1, 1))
+		return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 1);
 
-	return fastpos_result(pos, FULL_DISTANCES_BITS - 1, 2);
+	return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 2);
 }
 #endif
 

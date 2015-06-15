@@ -36,9 +36,12 @@
 #include <sys/_types.h>
 #include <sys/_umtx.h>
 
+#include <machine/_limits.h>
+
 struct _sem {
 	__uint32_t	_magic;
-	struct _usem	_kern;
+	struct _usem2	_kern;
+	__uint32_t	_padding;	/* Preserve structure size */
 };
 
 typedef	struct _sem	sem_t;

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1997 Sandro Sigala, Brescia, Italy.
  * Copyright (c) 1997 Chris Shenton
- * Copyright (c) 1995 S ren Schmidt
+ * Copyright (c) 1995 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

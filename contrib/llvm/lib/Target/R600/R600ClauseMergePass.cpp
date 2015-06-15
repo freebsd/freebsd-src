@@ -13,12 +13,12 @@
 /// It needs to be called after IfCvt for best results.
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "r600mergeclause"
 #include "AMDGPU.h"
 #include "R600Defines.h"
 #include "R600InstrInfo.h"
 #include "R600MachineFunctionInfo.h"
 #include "R600RegisterInfo.h"
+#include "AMDGPUSubtarget.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -26,6 +26,8 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "r600mergeclause"
 
 namespace {
 
@@ -50,7 +52,7 @@ private:
 
   /// IfCvt pass can generate "disabled" ALU clause marker that need to be
   /// removed and their content affected to the previous alu clause.
-  /// This function parse instructions after CFAlu untill it find a disabled
+  /// This function parse instructions after CFAlu until it find a disabled
   /// CFAlu and merge the content, or an enabled CFAlu.
   void cleanPotentialDisabledCFAlu(MachineInstr *CFAlu) const;
 
@@ -62,9 +64,9 @@ private:
 public:
   R600ClauseMergePass(TargetMachine &tm) : MachineFunctionPass(ID) { }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  const char *getPassName() const;
+  const char *getPassName() const override;
 };
 
 char R600ClauseMergePass::ID = 0;
@@ -166,7 +168,7 @@ bool R600ClauseMergePass::mergeIfPossible(MachineInstr *RootCFAlu,
 }
 
 bool R600ClauseMergePass::runOnMachineFunction(MachineFunction &MF) {
-  TII = static_cast<const R600InstrInfo *>(MF.getTarget().getInstrInfo());
+  TII = static_cast<const R600InstrInfo *>(MF.getSubtarget().getInstrInfo());
   for (MachineFunction::iterator BB = MF.begin(), BB_E = MF.end();
                                                   BB != BB_E; ++BB) {
     MachineBasicBlock &MBB = *BB;

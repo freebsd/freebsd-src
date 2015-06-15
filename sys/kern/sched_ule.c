@@ -90,7 +90,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 struct td_sched {	
 	struct runq	*ts_runq;	/* Run-queue we're queued on. */
 	short		ts_flags;	/* TSF_* flags. */
-	u_char		ts_cpu;		/* CPU that we have affinity for. */
+	int		ts_cpu;		/* CPU that we have affinity for. */
 	int		ts_rltick;	/* Real last tick, for affinity. */
 	int		ts_slice;	/* Ticks of slice remaining. */
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
@@ -355,6 +355,26 @@ SDT_PROBE_DEFINE(sched, , , on__cpu);
 SDT_PROBE_DEFINE(sched, , , remain__cpu);
 SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
     "struct proc *");
+
+#ifdef SMP
+/*
+ * We need some randomness. Implement the classic Linear Congruential
+ * generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
+ * m = 2^32, a = 69069 and c = 5. We only return the upper 16 bits
+ * of the random state (in the low bits of our answer) to return
+ * the maximum randomness.
+ */
+static uint32_t
+sched_random(void) 
+{
+	uint32_t *rndptr;
+
+	rndptr = DPCPU_PTR(randomval);
+	*rndptr = *rndptr * 69069 + 5;
+
+	return (*rndptr >> 16);
+} 
+#endif
 
 /*
  * Print the threads waiting on a run-queue.
@@ -651,7 +671,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 	cpuset_t cpumask;
 	struct cpu_group *child;
 	struct tdq *tdq;
-	int cpu, i, hload, lload, load, total, rnd, *rndptr;
+	int cpu, i, hload, lload, load, total, rnd;
 
 	total = 0;
 	cpumask = cg->cg_mask;
@@ -700,8 +720,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 			CPU_CLR(cpu, &cpumask);
 			tdq = TDQ_CPU(cpu);
 			load = tdq->tdq_load * 256;
-			rndptr = DPCPU_PTR(randomval);
-			rnd = (*rndptr = *rndptr * 69069 + 5) >> 26;
+			rnd = sched_random() % 32;
 			if (match & CPU_SEARCH_LOWEST) {
 				if (cpu == low->cs_prefer)
 					load -= 64;
@@ -861,14 +880,11 @@ sched_balance(void)
 {
 	struct tdq *tdq;
 
-	/*
-	 * Select a random time between .5 * balance_interval and
-	 * 1.5 * balance_interval.
-	 */
-	balance_ticks = max(balance_interval / 2, 1);
-	balance_ticks += random() % balance_interval;
 	if (smp_started == 0 || rebalance == 0)
 		return;
+
+	balance_ticks = max(balance_interval / 2, 1) +
+	    (sched_random() % balance_interval);
 	tdq = TDQ_SELF();
 	TDQ_UNLOCK(tdq);
 	sched_balance_group(cpu_top);
@@ -1037,6 +1053,14 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	ctd = pcpu_find(cpu)->pc_curthread;
 	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
 		return;
+
+	/*
+	 * Make sure that our caller's earlier update to tdq_load is
+	 * globally visible before we read tdq_cpu_idle.  Idle thread
+	 * accesses both of them without locks, and the order is important.
+	 */
+	mb();
+
 	if (TD_IS_IDLETHREAD(ctd)) {
 		/*
 		 * If the MD code has an idle wakeup routine try that before
@@ -2640,6 +2664,12 @@ sched_idletd(void *dummy)
 
 		/* Run main MD idle handler. */
 		tdq->tdq_cpu_idle = 1;
+		/*
+		 * Make sure that tdq_cpu_idle update is globally visible
+		 * before cpu_idle() read tdq_load.  The order is important
+		 * to avoid race with tdq_notify.
+		 */
+		mb();
 		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
 		tdq->tdq_cpu_idle = 0;
 
@@ -2821,7 +2851,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 
 	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
 
-	topo = sbuf_new(NULL, NULL, 500, SBUF_AUTOEXTEND);
+	topo = sbuf_new_for_sysctl(NULL, NULL, 512, req);
 	if (topo == NULL)
 		return (ENOMEM);
 
@@ -2830,8 +2860,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(topo, "</groups>\n");
 
 	if (err == 0) {
-		sbuf_finish(topo);
-		err = SYSCTL_OUT(req, sbuf_data(topo), sbuf_len(topo));
+		err = sbuf_finish(topo);
 	}
 	sbuf_delete(topo);
 	return (err);

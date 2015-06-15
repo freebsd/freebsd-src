@@ -3,7 +3,6 @@
 
 PROG=	ul
 
-DPADD=	${LIBTERMCAPW}
-LDADD=	-ltermcapw
+LIBADD=	ncursesw
 
 .include <bsd.prog.mk>

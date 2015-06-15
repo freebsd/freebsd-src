@@ -101,15 +101,15 @@ multiclass CondStores64<Instruction insn, Instruction insninv,
                         SDPatternOperator store, SDPatternOperator load,
                         AddressingMode mode> {
   def : Pat<(store (z_select_ccmask GR64:$new, (load mode:$addr),
-                                    uimm8zx4:$valid, uimm8zx4:$cc),
+                                    imm32zx4:$valid, imm32zx4:$cc),
                    mode:$addr),
             (insn (EXTRACT_SUBREG GR64:$new, subreg_l32), mode:$addr,
-                  uimm8zx4:$valid, uimm8zx4:$cc)>;
+                  imm32zx4:$valid, imm32zx4:$cc)>;
   def : Pat<(store (z_select_ccmask (load mode:$addr), GR64:$new,
-                                    uimm8zx4:$valid, uimm8zx4:$cc),
+                                    imm32zx4:$valid, imm32zx4:$cc),
                    mode:$addr),
             (insninv (EXTRACT_SUBREG GR64:$new, subreg_l32), mode:$addr,
-                     uimm8zx4:$valid, uimm8zx4:$cc)>;
+                     imm32zx4:$valid, imm32zx4:$cc)>;
 }
 
 // Try to use MVC instruction INSN for a load of type LOAD followed by a store
@@ -148,5 +148,8 @@ multiclass BlockLoadStore<SDPatternOperator load, ValueType vt,
 // Record that INSN is a LOAD AND TEST that can be used to compare
 // registers in CLS against zero.  The instruction has separate R1 and R2
 // operands, but they must be the same when the instruction is used like this.
-class CompareZeroFP<Instruction insn, RegisterOperand cls>
-  : Pat<(z_fcmp cls:$reg, (fpimm0)), (insn cls:$reg, cls:$reg)>;
+multiclass CompareZeroFP<Instruction insn, RegisterOperand cls> {
+  def : Pat<(z_fcmp cls:$reg, (fpimm0)), (insn cls:$reg, cls:$reg)>;
+  // The sign of the zero makes no difference.
+  def : Pat<(z_fcmp cls:$reg, (fpimmneg0)), (insn cls:$reg, cls:$reg)>;
+}

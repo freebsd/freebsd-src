@@ -25,7 +25,7 @@
  *
  */
 /*
- * 	Author: David B. Golub, Carnegie Mellon University
+ *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
 
@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 
 void
-db_show_regs(db_expr_t _1, boolean_t _2, db_expr_t _3, char *_4)
+db_show_regs(db_expr_t _1, bool _2, db_expr_t _3, char *_4)
 {
 	struct db_variable *regp;
 	db_expr_t value, offset;

@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.49 2014/04/22 23:34:34 tom Exp $ */
+/* $Id: defs.h,v 1.51 2014/10/02 22:38:13 tom Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -157,6 +157,7 @@
 #define CALLOC(k,n)	(calloc((size_t)(k),(size_t)(n)))
 #define	FREE(x)		(free((char*)(x)))
 #define MALLOC(n)	(malloc((size_t)(n)))
+#define TCMALLOC(t,n)	((t*) calloc((size_t)(n), sizeof(t)))
 #define TMALLOC(t,n)	((t*) malloc((size_t)(n) * sizeof(t)))
 #define	NEW(t)		((t*)allocate(sizeof(t)))
 #define	NEW2(n,t)	((t*)allocate(((size_t)(n)*sizeof(t))))
@@ -366,6 +367,7 @@ extern reductions **reduction_table;
 extern unsigned *LA;
 extern Value_t *LAruleno;
 extern Value_t *lookaheads;
+extern Value_t *goto_base;
 extern Value_t *goto_map;
 extern Value_t *from_state;
 extern Value_t *to_state;

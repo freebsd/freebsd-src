@@ -49,7 +49,7 @@ GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
 .if ${CC} != "cc"
-MKDEPCMD?=	CC='${CC}' mkdep
+MKDEPCMD?=	CC='${CC} ${DEPFLAGS}' mkdep
 .else
 MKDEPCMD?=	mkdep
 .endif
@@ -121,36 +121,39 @@ ${_YC:R}.o: ${_YC}
 .endfor
 
 # DTrace probe definitions
-# libelf is currently needed for drti.o
 .if ${SRCS:M*.d}
-LDFLAGS+=	-lelf
-LDADD+=		${LIBELF}
-CFLAGS+=	-D_DTRACE_VERSION=1 -I${.OBJDIR}
+CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
 DHDRS+=	${_D}.h
 ${_D}.h: ${_DSRC}
-	${DTRACE} -xnolibs -h -s ${.ALLSRC}
-SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
+	${DTRACE} ${DTRACEFLAGS} -h -s ${.ALLSRC}
+SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
-${_D}.o: ${_D}.h ${OBJS:S/${_D}.o//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
-		${OBJS:S/${_D}.o//}
+${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
-${_D}.So: ${_D}.h ${SOBJS:S/${_D}.So//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
-		${SOBJS:S/${_D}.So//}
-${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
-		${POBJS:S/${_D}.po//}
+${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 .endif
 .endfor
 .endfor
 beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
+.endif
+
+.if ${MK_META_MODE} == "yes"
+.include <meta.autodep.mk>
+# this depend: bypasses that below
+# the dependency helps when bootstrapping
+depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
+beforedepend:
+afterdepend: beforedepend
 .endif
 
 .if !target(depend)
@@ -215,8 +218,10 @@ cleandepend:
 .endif
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
-_LDADD_FROM_DPADD=	${DPADD:C;^/usr/lib/lib(.*)\.a$;-l\1;}
-_LDADD_CANONICALIZED=	${LDADD:S/$//}
+_LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}
+# Ignore -Wl,--start-group/-Wl,--end-group as it might be required in the
+# LDADD list due to unresolved symbols
+_LDADD_CANONICALIZED=	${LDADD:N:R:T:C;^lib(.*)$;-l\1;g:N-Wl,--[es]*-group}
 checkdpadd:
 .if ${_LDADD_FROM_DPADD} != ${_LDADD_CANONICALIZED}
 	@echo ${.CURDIR}

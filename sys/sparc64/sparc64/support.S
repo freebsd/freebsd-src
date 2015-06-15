@@ -517,7 +517,7 @@ fs_nofault_end:
 ENTRY(fs_fault)
 	retl
 	 mov	-1, %o0
-END(fsfault)
+END(fs_fault)
 
 	.globl	fas_nofault_begin
 fas_nofault_begin:

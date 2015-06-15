@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.84 2014/06/03 19:01:34 christos Exp $
-.Dd June 3, 2014
+.\" $File: magic.man,v 1.85 2015/01/01 17:07:34 christos Exp $
+.Dd January 1, 2015
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -200,6 +200,11 @@ interpreted as a UNIX-style date, but interpreted as local time rather
 than UTC.
 .It Dv indirect
 Starting at the given offset, consult the magic database again.
+The offset of th
+.Dv indirect
+magic is by default absolute in the file, but one can specify
+.Dv /r
+to indicate that the offset is relative from the beginning of the entry.
 .It Dv name
 Define a
 .Dq named

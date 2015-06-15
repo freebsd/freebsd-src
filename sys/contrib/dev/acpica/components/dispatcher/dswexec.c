@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DSWEXEC_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -541,7 +539,8 @@ AcpiDsExecEndOp (
                 return_ACPI_STATUS (AE_OK);
             }
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Method invocation, Op=%p\n", Op));
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+                "Method invocation, Op=%p\n", Op));
 
             /*
              * (AML_METHODCALL) Op->Asl.Value.Arg->Asl.Node contains

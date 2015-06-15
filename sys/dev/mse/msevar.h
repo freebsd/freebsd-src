@@ -46,7 +46,7 @@
 
 /*
  * Software control structure for mouse. The sc_enablemouse(),
- * sc_disablemouse() and sc_getmouse() routines must be called spl'd().
+ * sc_disablemouse() and sc_getmouse() routines must be called locked.
  */
 typedef struct mse_softc {
 	int		sc_flags;
@@ -54,22 +54,19 @@ typedef struct mse_softc {
 	struct selinfo	sc_selp;
 	struct resource	*sc_port;
 	struct resource	*sc_intr;
-	bus_space_tag_t	sc_iot;
-	bus_space_handle_t sc_ioh;
 	void		*sc_ih;
-	void		(*sc_enablemouse)(bus_space_tag_t t,
-			    bus_space_handle_t h);
-	void		(*sc_disablemouse)(bus_space_tag_t t,
-			    bus_space_handle_t h);
-	void		(*sc_getmouse)(bus_space_tag_t t, bus_space_handle_t h,
-			    int *dx, int *dy, int *but);
+	void		(*sc_enablemouse)(struct resource *port);
+	void		(*sc_disablemouse)(struct resource *port);
+	void		(*sc_getmouse)(struct resource *port, int *dx, int *dy,
+			    int *but);
 	int		sc_deltax;
 	int		sc_deltay;
 	int		sc_obuttons;
 	int		sc_buttons;
 	int		sc_bytesread;
 	u_char		sc_bytes[MOUSE_SYS_PACKETSIZE];
-	struct		callout_handle sc_callout;
+	struct callout	sc_callout;
+	struct mtx	sc_lock;
 	int		sc_watchdog;
 	struct cdev *sc_dev;
 	struct cdev *sc_ndev;
@@ -78,9 +75,14 @@ typedef struct mse_softc {
 	mousestatus_t	status;
 } mse_softc_t;
 
+#define	MSE_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
+#define	MSE_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
+#define	MSE_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
+
 /* Flags */
 #define	MSESC_OPEN	0x1
 #define	MSESC_WANT	0x2
+#define	MSESC_READING	0x4
 
 /* and Mouse Types */
 #define	MSE_NONE	0	/* don't move this! */
@@ -110,12 +112,11 @@ struct mse_types {
 	int	m_type;		/* Type of bus mouse */
 	int	(*m_probe)(device_t dev, mse_softc_t *sc);
 				/* Probe routine to test for it */
-	void	(*m_enable)(bus_space_tag_t t, bus_space_handle_t h);
+	void	(*m_enable)(struct resource *port);
 				/* Start routine */
-	void	(*m_disable)(bus_space_tag_t t, bus_space_handle_t h);
+	void	(*m_disable)(struct resource *port);
 				/* Disable interrupts routine */
-	void	(*m_get)(bus_space_tag_t t, bus_space_handle_t h, int *dx,
-		    int *dy, int *but);
+	void	(*m_get)(struct resource *port, int *dx, int *dy, int *but);
 				/* and get mouse status */
 	mousehw_t   m_hw;	/* buttons iftype type model hwid */
 	mousemode_t m_mode;	/* proto rate res accel level size mask */
@@ -123,3 +124,4 @@ struct mse_types {
 
 extern devclass_t	mse_devclass;
 int mse_common_attach(device_t);
+int mse_detach(device_t);

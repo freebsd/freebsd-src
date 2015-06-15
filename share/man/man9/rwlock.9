@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2013
+.Dd December 13, 2014
 .Dt RWLOCK 9
 .Os
 .Sh NAME
@@ -154,6 +154,15 @@ Do not log any operations for this lock via
 .It Dv RW_RECURSE
 Allow threads to recursively acquire exclusive locks for
 .Fa rw .
+.It Dv RW_NEW
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
+.Fn rw_init_flags
+will assert that the
+.Fa rw
+has not been initialized multiple times without intervening calls to
+.Fn rw_destroy
+unless this option is specified.
 .El
 .It Fn rw_rlock "struct rwlock *rw"
 Lock

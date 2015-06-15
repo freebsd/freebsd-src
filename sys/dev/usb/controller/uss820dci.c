@@ -89,7 +89,7 @@ static int uss820dcidebug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uss820dci, CTLFLAG_RW, 0,
     "USB uss820dci");
-SYSCTL_INT(_hw_usb_uss820dci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uss820dci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uss820dcidebug, 0, "uss820dci debug level");
 #endif
 

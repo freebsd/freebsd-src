@@ -11,6 +11,7 @@
 #define liblldb_Predicate_h_
 #if defined(__cplusplus)
 
+#include "lldb/lldb-defines.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/Host/Condition.h"
 #include <stdint.h>
@@ -78,7 +79,7 @@ public:
     //------------------------------------------------------------------
     /// Destructor.
     ///
-    /// Destrory the condition, mutex, and T objects.
+    /// Destroy the condition, mutex, and T objects.
     //------------------------------------------------------------------
     ~Predicate ()
     {
@@ -112,7 +113,7 @@ public:
     ///     The new value to set.
     ///
     /// @param[in] broadcast_type
-    ///     A value indicating when and if to broadast. See the
+    ///     A value indicating when and if to broadcast. See the
     ///     PredicateBroadcastType enumeration for details.
     ///
     /// @see Predicate::Broadcast()
@@ -140,7 +141,7 @@ public:
     ///     The bits to set in \a m_value.
     ///
     /// @param[in] broadcast_type
-    ///     A value indicating when and if to broadast. See the
+    ///     A value indicating when and if to broadcast. See the
     ///     PredicateBroadcastType enumeration for details.
     ///
     /// @see Predicate::Broadcast()
@@ -168,7 +169,7 @@ public:
     ///     The bits to clear in \a m_value.
     ///
     /// @param[in] broadcast_type
-    ///     A value indicating when and if to broadast. See the
+    ///     A value indicating when and if to broadcast. See the
     ///     PredicateBroadcastType enumeration for details.
     ///
     /// @see Predicate::Broadcast()
@@ -464,7 +465,7 @@ public:
 
 protected:
     //----------------------------------------------------------------------
-    // pthread condition and mutex variable to controll access and allow
+    // pthread condition and mutex variable to control access and allow
     // blocking between the main thread and the spotlight index thread.
     //----------------------------------------------------------------------
     T           m_value;        ///< The templatized value T that we are protecting access to
@@ -477,7 +478,7 @@ private:
     /// Broadcast if needed.
     ///
     /// Check to see if we need to broadcast to our condition variable
-    /// depedning on the \a old_value and on the \a broadcast_type.
+    /// depending on the \a old_value and on the \a broadcast_type.
     ///
     /// If \a broadcast_type is eBroadcastNever, no broadcast will be
     /// sent.

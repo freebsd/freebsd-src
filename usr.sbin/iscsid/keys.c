@@ -117,7 +117,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (keys->keys_names[i] == NULL)
 			break;
- 		/*
+		/*
 		 * +1 for '=', +1 for '\0'.
 		 */
 		len += strlen(keys->keys_names[i]) +
@@ -160,26 +160,6 @@ keys_find(struct keys *keys, const char *name)
 			return (keys->keys_values[i]);
 	}
 	return (NULL);
-}
-
-int
-keys_find_int(struct keys *keys, const char *name)
-{
-	const char *str;
-	char *endptr;
-	int num;
-
-	str = keys_find(keys, name);
-	if (str == NULL)
-		return (-1);
-
-	num = strtoul(str, &endptr, 10);
-	if (*endptr != '\0') {
-		log_debugx("invalid numeric value \"%s\"", str);
-		return (-1);
-	}
-
-	return (num);
 }
 
 void

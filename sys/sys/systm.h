@@ -73,7 +73,7 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  * Keep in sync with vm_guest_sysctl_names[].
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
-		VM_LAST };
+		VM_GUEST_VMWARE, VM_LAST };
 
 #if defined(WITNESS) || defined(INVARIANTS)
 void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
@@ -187,6 +187,7 @@ void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 void	g_waitidle(void);
 
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
+void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);
@@ -205,11 +206,15 @@ int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);
 void	log_console(struct uio *);
+int	asprintf(char **ret, struct malloc_type *mtp, const char *format, 
+	    ...) __printflike(3, 4);
 int	printf(const char *, ...) __printflike(1, 2);
 int	snprintf(char *, size_t, const char *, ...) __printflike(3, 4);
 int	sprintf(char *buf, const char *, ...) __printflike(2, 3);
 int	uprintf(const char *, ...) __printflike(1, 2);
 int	vprintf(const char *, __va_list) __printflike(1, 0);
+int	vasprintf(char **ret, struct malloc_type *mtp, const char *format,
+	    __va_list ap) __printflike(3, 0);
 int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
 int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
@@ -232,6 +237,7 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
 void	bzero(void *buf, size_t len) __nonnull(1);
+void	explicit_bzero(void *, size_t) __nonnull(1);
 
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
@@ -251,18 +257,25 @@ int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
 int	copyout_nofault(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
 
-int	fubyte(const void *base);
-long	fuword(const void *base);
-int	fuword16(void *base);
-int32_t	fuword32(const void *base);
-int64_t	fuword64(const void *base);
-int	subyte(void *base, int byte);
-int	suword(void *base, long word);
-int	suword16(void *base, int word);
-int	suword32(void *base, int32_t word);
-int	suword64(void *base, int64_t word);
+int	fubyte(volatile const void *base);
+long	fuword(volatile const void *base);
+int	fuword16(volatile const void *base);
+int32_t	fuword32(volatile const void *base);
+int64_t	fuword64(volatile const void *base);
+int	fueword(volatile const void *base, long *val);
+int	fueword32(volatile const void *base, int32_t *val);
+int	fueword64(volatile const void *base, int64_t *val);
+int	subyte(volatile void *base, int byte);
+int	suword(volatile void *base, long word);
+int	suword16(volatile void *base, int word);
+int	suword32(volatile void *base, int32_t word);
+int	suword64(volatile void *base, int64_t word);
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
-u_long	 casuword(volatile u_long *p, u_long oldval, u_long newval);
+u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
+int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
+	    uint32_t newval);
+int	casueword(volatile u_long *p, u_long oldval, u_long *oldvalp,
+	    u_long newval);
 
 void	realitexpire(void *);
 
@@ -288,14 +301,15 @@ sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
 void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
-extern int	cpu_can_deep_sleep;
-extern int	cpu_disable_deep_sleep;
+extern int	cpu_deepest_sleep;
+extern int	cpu_disable_c2_sleep;
+extern int	cpu_disable_c3_sleep;
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
 
-char	*getenv(const char *name);
+char	*kern_getenv(const char *name);
 void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
 int	getenv_uint(const char *name, unsigned int *data);
@@ -303,8 +317,8 @@ int	getenv_long(const char *name, long *data);
 int	getenv_ulong(const char *name, unsigned long *data);
 int	getenv_string(const char *name, char *data, int size);
 int	getenv_quad(const char *name, quad_t *data);
-int	setenv(const char *name, const char *value);
-int	unsetenv(const char *name);
+int	kern_setenv(const char *name, const char *value);
+int	kern_unsetenv(const char *name);
 int	testenv(const char *name);
 
 typedef uint64_t (cpu_tick_f)(void);
@@ -348,7 +362,6 @@ static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
-static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }
 
 /*
@@ -416,31 +429,8 @@ int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
-/*
- * Population count algorithm using SWAR approach
- * - "SIMD Within A Register".
- */
-static __inline uint32_t
-bitcount32(uint32_t x)
-{
+void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
-	x = (x & 0x55555555) + ((x & 0xaaaaaaaa) >> 1);
-	x = (x & 0x33333333) + ((x & 0xcccccccc) >> 2);
-	x = (x + (x >> 4)) & 0x0f0f0f0f;
-	x = (x + (x >> 8));
-	x = (x + (x >> 16)) & 0x000000ff;
-	return (x);
-}
-
-static __inline uint16_t
-bitcount16(uint32_t x)
-{
-
-	x = (x & 0x5555) + ((x & 0xaaaa) >> 1);
-	x = (x & 0x3333) + ((x & 0xcccc) >> 2);
-	x = (x + (x >> 4)) & 0x0f0f;
-	x = (x + (x >> 8)) & 0x00ff;
-	return (x);
-}
+extern void (*softdep_ast_cleanup)(void);
 
 #endif /* !_SYS_SYSTM_H_ */

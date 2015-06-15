@@ -39,7 +39,6 @@
 #include <net/if.h>
 #include <net/pfvar.h>	/* XXX */
 #include <net/if_pfsync.h>
-#include <netinet/ip.h>
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
@@ -48,10 +47,12 @@
 #include "interface.h"
 #include "addrtoname.h"
 
-static void	pfsync_print(struct pfsync_header *, const u_char *, u_int);
-static void	print_src_dst(const struct pfsync_state_peer *,
+static void	pfsync_print(netdissect_options *, struct pfsync_header *,
+		    const u_char *, u_int);
+static void	print_src_dst(netdissect_options *,
+		    const struct pfsync_state_peer *,
 		    const struct pfsync_state_peer *, uint8_t);
-static void	print_state(struct pfsync_state *);
+static void	print_state(netdissect_options *, struct pfsync_state *);
 
 #ifdef notyet
 void
@@ -63,7 +64,7 @@ pfsync_if_print(u_char *user, const struct pcap_pkthdr *h,
 	ts_print(&h->ts);
 
 	if (caplen < PFSYNC_HDRLEN) {
-		printf("[|pfsync]");
+		ND_PRINT((ndo, "[|pfsync]"));
 		goto out;
 	}
 
@@ -74,36 +75,36 @@ out:
 	if (xflag) {
 		default_print((const u_char *)p, caplen);
 	}
-	putchar('\n');
+	safeputchar(ndo, '\n');
 }
 #endif /* notyet */
 
 void
-pfsync_ip_print(const u_char *bp, u_int len)
+pfsync_ip_print(netdissect_options *ndo , const u_char *bp, u_int len)
 {
 	struct pfsync_header *hdr = (struct pfsync_header *)bp;
 
 	if (len < PFSYNC_HDRLEN)
-		printf("[|pfsync]");
+		ND_PRINT((ndo, "[|pfsync]"));
 	else
-		pfsync_print(hdr, bp + sizeof(struct pfsync_header),
+		pfsync_print(ndo, hdr, bp + sizeof(struct pfsync_header),
 		    len - sizeof(struct pfsync_header));
 }
 
 struct pfsync_actions {
 	const char *name;
 	size_t len;
-	void (*print)(const void *);
+	void (*print)(netdissect_options *, const void *);
 };
 
-static void	pfsync_print_clr(const void *);
-static void	pfsync_print_state(const void *);
-static void	pfsync_print_ins_ack(const void *);
-static void	pfsync_print_upd_c(const void *);
-static void	pfsync_print_upd_req(const void *);
-static void	pfsync_print_del_c(const void *);
-static void	pfsync_print_bus(const void *);
-static void	pfsync_print_tdb(const void *);
+static void	pfsync_print_clr(netdissect_options *, const void *);
+static void	pfsync_print_state(netdissect_options *, const void *);
+static void	pfsync_print_ins_ack(netdissect_options *, const void *);
+static void	pfsync_print_upd_c(netdissect_options *, const void *);
+static void	pfsync_print_upd_req(netdissect_options *, const void *);
+static void	pfsync_print_del_c(netdissect_options *, const void *);
+static void	pfsync_print_bus(netdissect_options *, const void *);
+static void	pfsync_print_tdb(netdissect_options *, const void *);
 
 struct pfsync_actions actions[] = {
 	{ "clear all", sizeof(struct pfsync_clr),	pfsync_print_clr },
@@ -126,7 +127,8 @@ struct pfsync_actions actions[] = {
 };
 
 static void
-pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
+pfsync_print(netdissect_options *ndo, struct pfsync_header *hdr,
+    const u_char *bp, u_int len)
 {
 	struct pfsync_subheader *subh;
 	int count, plen, i;
@@ -134,7 +136,7 @@ pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 
 	plen = ntohs(hdr->len);
 
-	printf("PFSYNCv%d len %d", hdr->version, plen);
+	ND_PRINT((ndo, "PFSYNCv%d len %d", hdr->version, plen));
 
 	if (hdr->version != PFSYNC_VERSION)
 		return;
@@ -151,19 +153,22 @@ pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 		plen -= sizeof(*subh);
 
 		if (subh->action >= PFSYNC_ACT_MAX) {
-			printf("\n    act UNKNOWN id %d", subh->action);
+			ND_PRINT((ndo, "\n    act UNKNOWN id %d",
+			    subh->action));
 			return;
 		}
 
 		count = ntohs(subh->count);
-		printf("\n    %s count %d", actions[subh->action].name, count);
+		ND_PRINT((ndo, "\n    %s count %d", actions[subh->action].name,
+		    count));
 		alen = actions[subh->action].len;
 
 		if (subh->action == PFSYNC_ACT_EOF)
 			return;
 
 		if (actions[subh->action].print == NULL) {
-			printf("\n    unimplemented action %hhu", subh->action);
+			ND_PRINT((ndo, "\n    unimplemented action %hhu",
+			    subh->action));
 			return;
 		}
 
@@ -174,7 +179,7 @@ pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 			}
 
 			if (vflag)
-				actions[subh->action].print(bp);
+				actions[subh->action].print(ndo, bp);
 
 			bp += alen;
 			len -= alen;
@@ -183,78 +188,78 @@ pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 	}
 
 	if (plen > 0) {
-		printf("\n    ...");
+		ND_PRINT((ndo, "\n    ..."));
 		return;
 	}
 	if (plen < 0) {
-		printf("\n    invalid header length");
+		ND_PRINT((ndo, "\n    invalid header length"));
 		return;
 	}
 	if (len > 0)
-		printf("\n    invalid packet length");
+		ND_PRINT((ndo, "\n    invalid packet length"));
 }
 
 static void
-pfsync_print_clr(const void *bp)
+pfsync_print_clr(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_clr *clr = bp;
 
-	printf("\n\tcreatorid: %08x", htonl(clr->creatorid));
+	ND_PRINT((ndo, "\n\tcreatorid: %08x", htonl(clr->creatorid)));
 	if (clr->ifname[0] != '\0')
-		printf(" interface: %s", clr->ifname);
+		ND_PRINT((ndo, " interface: %s", clr->ifname));
 }
 
 static void
-pfsync_print_state(const void *bp)
+pfsync_print_state(netdissect_options *ndo, const void *bp)
 {
 	struct pfsync_state *st = (struct pfsync_state *)bp;
 
-	putchar('\n');
-	print_state(st);
+	safeputchar(ndo, '\n');
+	print_state(ndo, st);
 }
 
 static void
-pfsync_print_ins_ack(const void *bp)
+pfsync_print_ins_ack(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_ins_ack *iack = bp;
 
-	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(iack->id),
-	    ntohl(iack->creatorid));
+	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(iack->id), ntohl(iack->creatorid)));
 }
 
 static void
-pfsync_print_upd_c(const void *bp)
+pfsync_print_upd_c(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_upd_c *u = bp;
 
-	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(u->id),
-	    ntohl(u->creatorid));
+	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(u->id), ntohl(u->creatorid)));
 	if (vflag > 2) {
-		printf("\n\tTCP? :");
-		print_src_dst(&u->src, &u->dst, IPPROTO_TCP);
+		ND_PRINT((ndo, "\n\tTCP? :"));
+		print_src_dst(ndo, &u->src, &u->dst, IPPROTO_TCP);
 	}
 }
 
 static void
-pfsync_print_upd_req(const void *bp)
+pfsync_print_upd_req(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_upd_req *ur = bp;
 
-	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(ur->id),
-	    ntohl(ur->creatorid));
+	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(ur->id), ntohl(ur->creatorid)));
 }
 
 static void
-pfsync_print_del_c(const void *bp)
+pfsync_print_del_c(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_del_c *d = bp;
 
-	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(d->id),
-	    ntohl(d->creatorid));
+	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(d->id), ntohl(d->creatorid)));
 }
 
 static void
-pfsync_print_bus(const void *bp)
+pfsync_print_bus(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_bus *b = bp;
 	uint32_t endtime;
@@ -279,95 +284,95 @@ pfsync_print_bus(const void *bp)
 		break;
 	}
 
-	printf("\n\tcreatorid: %08x age: %.2u:%.2u:%.2u status: %s",
-	    htonl(b->creatorid), endtime, min, sec, status);
+	ND_PRINT((ndo, "\n\tcreatorid: %08x age: %.2u:%.2u:%.2u status: %s",
+	    htonl(b->creatorid), endtime, min, sec, status));
 }
 
 static void
-pfsync_print_tdb(const void *bp)
+pfsync_print_tdb(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_tdb *t = bp;
 
-	printf("\n\tspi: 0x%08x rpl: %ju cur_bytes: %ju",
+	ND_PRINT((ndo, "\n\tspi: 0x%08x rpl: %ju cur_bytes: %ju",
 	    ntohl(t->spi), (uintmax_t )be64toh(t->rpl),
-	    (uintmax_t )be64toh(t->cur_bytes));
+	    (uintmax_t )be64toh(t->cur_bytes)));
 }
 
 static void
-print_host(struct pf_addr *addr, uint16_t port, sa_family_t af,
-    const char *proto)
+print_host(netdissect_options *ndo, struct pf_addr *addr, uint16_t port,
+    sa_family_t af, const char *proto)
 {
 	char buf[48];
 
 	if (inet_ntop(af, addr, buf, sizeof(buf)) == NULL)
-		printf("?");
+		ND_PRINT((ndo, "?"));
 	else
-		printf("%s", buf);
+		ND_PRINT((ndo, "%s", buf));
 
 	if (port)
-		printf(".%hu", ntohs(port));
+		ND_PRINT((ndo, ".%hu", ntohs(port)));
 }
 
 static void
-print_seq(const struct pfsync_state_peer *p)
+print_seq(netdissect_options *ndo, const struct pfsync_state_peer *p)
 {
 	if (p->seqdiff)
-		printf("[%u + %u](+%u)", ntohl(p->seqlo),
-		    ntohl(p->seqhi) - ntohl(p->seqlo), ntohl(p->seqdiff));
+		ND_PRINT((ndo, "[%u + %u](+%u)", ntohl(p->seqlo),
+		    ntohl(p->seqhi) - ntohl(p->seqlo), ntohl(p->seqdiff)));
 	else
-		printf("[%u + %u]", ntohl(p->seqlo),
-		    ntohl(p->seqhi) - ntohl(p->seqlo));
+		ND_PRINT((ndo, "[%u + %u]", ntohl(p->seqlo),
+		    ntohl(p->seqhi) - ntohl(p->seqlo)));
 }
 
 static void
-print_src_dst(const struct pfsync_state_peer *src,
+print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
     const struct pfsync_state_peer *dst, uint8_t proto)
 {
 
 	if (proto == IPPROTO_TCP) {
 		if (src->state <= TCPS_TIME_WAIT &&
 		    dst->state <= TCPS_TIME_WAIT)
-			printf("   %s:%s", tcpstates[src->state],
-			    tcpstates[dst->state]);
+			ND_PRINT((ndo, "   %s:%s", tcpstates[src->state],
+			    tcpstates[dst->state]));
 		else if (src->state == PF_TCPS_PROXY_SRC ||
 		    dst->state == PF_TCPS_PROXY_SRC)
-			printf("   PROXY:SRC");
+			ND_PRINT((ndo, "   PROXY:SRC"));
 		else if (src->state == PF_TCPS_PROXY_DST ||
 		    dst->state == PF_TCPS_PROXY_DST)
-			printf("   PROXY:DST");
+			ND_PRINT((ndo, "   PROXY:DST"));
 		else
-			printf("   <BAD STATE LEVELS %u:%u>",
-			    src->state, dst->state);
+			ND_PRINT((ndo, "   <BAD STATE LEVELS %u:%u>",
+			    src->state, dst->state));
 		if (vflag > 1) {
-			printf("\n\t");
-			print_seq(src);
+			ND_PRINT((ndo, "\n\t"));
+			print_seq(ndo, src);
 			if (src->wscale && dst->wscale)
-				printf(" wscale %u",
-				    src->wscale & PF_WSCALE_MASK);
-			printf("  ");
-			print_seq(dst);
+				ND_PRINT((ndo, " wscale %u",
+				    src->wscale & PF_WSCALE_MASK));
+			ND_PRINT((ndo, "  "));
+			print_seq(ndo, dst);
 			if (src->wscale && dst->wscale)
-				printf(" wscale %u",
-				    dst->wscale & PF_WSCALE_MASK);
+				ND_PRINT((ndo, " wscale %u",
+				    dst->wscale & PF_WSCALE_MASK));
 		}
 	} else if (proto == IPPROTO_UDP && src->state < PFUDPS_NSTATES &&
 	    dst->state < PFUDPS_NSTATES) {
 		const char *states[] = PFUDPS_NAMES;
 
-		printf("   %s:%s", states[src->state], states[dst->state]);
+		ND_PRINT((ndo, "   %s:%s", states[src->state], states[dst->state]));
 	} else if (proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
 	    dst->state < PFOTHERS_NSTATES) {
 		/* XXX ICMP doesn't really have state levels */
 		const char *states[] = PFOTHERS_NAMES;
 
-		printf("   %s:%s", states[src->state], states[dst->state]);
+		ND_PRINT((ndo, "   %s:%s", states[src->state], states[dst->state]));
 	} else {
-		printf("   %u:%u", src->state, dst->state);
+		ND_PRINT((ndo, "   %u:%u", src->state, dst->state));
 	}
 }
 
 static void
-print_state(struct pfsync_state *s)
+print_state(netdissect_options *ndo, struct pfsync_state *s)
 {
 	struct pfsync_state_peer *src, *dst;
 	struct pfsync_state_key *sk, *nk;
@@ -388,29 +393,29 @@ print_state(struct pfsync_state *s)
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
 			sk->port[1] = nk->port[1];
 	}
-	printf("\t%s ", s->ifname);
-	printf("proto %u ", s->proto);
+	ND_PRINT((ndo, "\t%s ", s->ifname));
+	ND_PRINT((ndo, "proto %u ", s->proto));
 
-	print_host(&nk->addr[1], nk->port[1], s->af, NULL);
+	print_host(ndo, &nk->addr[1], nk->port[1], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
 	    nk->port[1] != sk->port[1]) {
-		printf(" (");
-		print_host(&sk->addr[1], sk->port[1], s->af, NULL);
-		printf(")");
+		ND_PRINT((ndo, " ("));
+		print_host(ndo, &sk->addr[1], sk->port[1], s->af, NULL);
+		ND_PRINT((ndo, ")"));
 	}
 	if (s->direction == PF_OUT)
-		printf(" -> ");
+		ND_PRINT((ndo, " -> "));
 	else
-		printf(" <- ");
-	print_host(&nk->addr[0], nk->port[0], s->af, NULL);
+		ND_PRINT((ndo, " <- "));
+	print_host(ndo, &nk->addr[0], nk->port[0], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
 	    nk->port[0] != sk->port[0]) {
-		printf(" (");
-		print_host(&sk->addr[0], sk->port[0], s->af, NULL);
-		printf(")");
+		ND_PRINT((ndo, " ("));
+		print_host(ndo, &sk->addr[0], sk->port[0], s->af, NULL);
+		ND_PRINT((ndo, ")"));
 	}
 
-	print_src_dst(src, dst, s->proto);
+	print_src_dst(ndo, src, dst, s->proto);
 
 	if (vflag > 1) {
 		uint64_t packets[2];
@@ -422,30 +427,30 @@ print_state(struct pfsync_state *s)
 		creation /= 60;
 		min = creation % 60;
 		creation /= 60;
-		printf("\n\tage %.2u:%.2u:%.2u", creation, min, sec);
+		ND_PRINT((ndo, "\n\tage %.2u:%.2u:%.2u", creation, min, sec));
 		sec = expire % 60;
 		expire /= 60;
 		min = expire % 60;
 		expire /= 60;
-		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
+		ND_PRINT((ndo, ", expires in %.2u:%.2u:%.2u", expire, min, sec));
 
 		bcopy(s->packets[0], &packets[0], sizeof(uint64_t));
 		bcopy(s->packets[1], &packets[1], sizeof(uint64_t));
 		bcopy(s->bytes[0], &bytes[0], sizeof(uint64_t));
 		bcopy(s->bytes[1], &bytes[1], sizeof(uint64_t));
-		printf(", %ju:%ju pkts, %ju:%ju bytes",
+		ND_PRINT((ndo, ", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
-		    be64toh(bytes[0]), be64toh(bytes[1]));
+		    be64toh(bytes[0]), be64toh(bytes[1])));
 		if (s->anchor != ntohl(-1))
-			printf(", anchor %u", ntohl(s->anchor));
+			ND_PRINT((ndo, ", anchor %u", ntohl(s->anchor)));
 		if (s->rule != ntohl(-1))
-			printf(", rule %u", ntohl(s->rule));
+			ND_PRINT((ndo, ", rule %u", ntohl(s->rule)));
 	}
 	if (vflag > 1) {
 		uint64_t id;
 
 		bcopy(&s->id, &id, sizeof(uint64_t));
-		printf("\n\tid: %016jx creatorid: %08x",
-		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
+		ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
+		    (uintmax_t )be64toh(id), ntohl(s->creatorid)));
 	}
 }

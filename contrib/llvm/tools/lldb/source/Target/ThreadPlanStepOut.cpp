@@ -26,9 +26,12 @@
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadPlanStepOverRange.h"
+#include "lldb/Target/ThreadPlanStepThrough.h"
 
 using namespace lldb;
 using namespace lldb_private;
+
+uint32_t ThreadPlanStepOut::s_default_flag_values = 0;
 
 //----------------------------------------------------------------------
 // ThreadPlanStepOut: Step out of the current frame
@@ -41,20 +44,20 @@ ThreadPlanStepOut::ThreadPlanStepOut
     bool stop_others,
     Vote stop_vote,
     Vote run_vote,
-    uint32_t frame_idx
+    uint32_t frame_idx,
+    LazyBool step_out_avoids_code_without_debug_info
 ) :
     ThreadPlan (ThreadPlan::eKindStepOut, "Step out", thread, stop_vote, run_vote),
-    m_step_from_context (context),
+    ThreadPlanShouldStopHere (this),
     m_step_from_insn (LLDB_INVALID_ADDRESS),
     m_return_bp_id (LLDB_INVALID_BREAK_ID),
     m_return_addr (LLDB_INVALID_ADDRESS),
-    m_first_insn (first_insn),
     m_stop_others (stop_others),
-    m_step_through_inline_plan_sp(),
-    m_step_out_plan_sp (),
     m_immediate_step_from_function(NULL)
-
 {
+    SetFlagsToDefault();
+    SetupAvoidNoDebug(step_out_avoids_code_without_debug_info);
+    
     m_step_from_insn = m_thread.GetRegisterContext()->GetPC(0);
 
     StackFrameSP return_frame_sp (m_thread.GetStackFrameAtIndex(frame_idx + 1));
@@ -77,13 +80,16 @@ ThreadPlanStepOut::ThreadPlanStepOut
         {
             // First queue a plan that gets us to this inlined frame, and when we get there we'll queue a second
             // plan that walks us out of this frame.
-            m_step_out_plan_sp.reset (new ThreadPlanStepOut(m_thread, 
+            m_step_out_to_inline_plan_sp.reset (new ThreadPlanStepOut(m_thread,
                                                             NULL, 
                                                             false,
                                                             stop_others, 
                                                             eVoteNoOpinion, 
                                                             eVoteNoOpinion, 
-                                                            frame_idx - 1));
+                                                            frame_idx - 1,
+                                                            eLazyBoolNo));
+            static_cast<ThreadPlanStepOut *>(m_step_out_to_inline_plan_sp.get())->SetShouldStopHereCallbacks(nullptr, nullptr);
+            m_step_out_to_inline_plan_sp->SetPrivate(true);
         }
         else
         {
@@ -123,10 +129,32 @@ ThreadPlanStepOut::ThreadPlanStepOut
 }
 
 void
+ThreadPlanStepOut::SetupAvoidNoDebug(LazyBool step_out_avoids_code_without_debug_info)
+{
+    bool avoid_nodebug = true;
+    switch (step_out_avoids_code_without_debug_info)
+    {
+        case eLazyBoolYes:
+            avoid_nodebug = true;
+            break;
+        case eLazyBoolNo:
+            avoid_nodebug = false;
+            break;
+        case eLazyBoolCalculate:
+            avoid_nodebug = m_thread.GetStepOutAvoidsNoDebug();
+            break;
+    }
+    if (avoid_nodebug)
+        GetFlags().Set (ThreadPlanShouldStopHere::eStepOutAvoidNoDebug);
+    else
+        GetFlags().Clear (ThreadPlanShouldStopHere::eStepOutAvoidNoDebug);
+}
+
+void
 ThreadPlanStepOut::DidPush()
 {
-    if (m_step_out_plan_sp)
-        m_thread.QueueThreadPlan(m_step_out_plan_sp, false);
+    if (m_step_out_to_inline_plan_sp)
+        m_thread.QueueThreadPlan(m_step_out_to_inline_plan_sp, false);
     else if (m_step_through_inline_plan_sp)
         m_thread.QueueThreadPlan(m_step_through_inline_plan_sp, false);
 }
@@ -144,23 +172,47 @@ ThreadPlanStepOut::GetDescription (Stream *s, lldb::DescriptionLevel level)
         s->Printf ("step out");
     else
     {
-        if (m_step_out_plan_sp)
+        if (m_step_out_to_inline_plan_sp)
             s->Printf ("Stepping out to inlined frame so we can walk through it.");
         else if (m_step_through_inline_plan_sp)
             s->Printf ("Stepping out by stepping through inlined function.");
         else
-            s->Printf ("Stepping out from address 0x%" PRIx64 " to return address 0x%" PRIx64 " using breakpoint site %d",
-                       (uint64_t)m_step_from_insn,
-                       (uint64_t)m_return_addr,
-                       m_return_bp_id);
+        {
+            s->Printf ("Stepping out from ");
+            Address tmp_address;
+            if (tmp_address.SetLoadAddress (m_step_from_insn, &GetTarget()))
+            {
+                tmp_address.Dump(s, &GetThread(), Address::DumpStyleResolvedDescription, Address::DumpStyleLoadAddress);
+            }
+            else
+            {
+                s->Printf ("address 0x%" PRIx64 "", (uint64_t)m_step_from_insn);
+            }
+
+            // FIXME: find some useful way to present the m_return_id, since there may be multiple copies of the
+            // same function on the stack.
+
+            s->Printf ("returning to frame at ");
+            if (tmp_address.SetLoadAddress (m_return_addr, &GetTarget()))
+            {
+                tmp_address.Dump(s, &GetThread(), Address::DumpStyleResolvedDescription, Address::DumpStyleLoadAddress);
+            }
+            else
+            {
+                s->Printf ("address 0x%" PRIx64 "", (uint64_t)m_return_addr);
+            }
+
+            if (level == eDescriptionLevelVerbose)
+                s->Printf(" using breakpoint site %d", m_return_bp_id);
+        }
     }
 }
 
 bool
 ThreadPlanStepOut::ValidatePlan (Stream *error)
 {
-    if (m_step_out_plan_sp)
-        return m_step_out_plan_sp->ValidatePlan (error);
+    if (m_step_out_to_inline_plan_sp)
+        return m_step_out_to_inline_plan_sp->ValidatePlan (error);
     else if (m_step_through_inline_plan_sp)
         return m_step_through_inline_plan_sp->ValidatePlan (error);
     else if (m_return_bp_id == LLDB_INVALID_BREAK_ID)
@@ -176,12 +228,18 @@ ThreadPlanStepOut::ValidatePlan (Stream *error)
 bool
 ThreadPlanStepOut::DoPlanExplainsStop (Event *event_ptr)
 {
-    // If one of our child plans just finished, then we do explain the stop.
-    if (m_step_out_plan_sp)
+    // If the step out plan is done, then we just need to step through the inlined frame.
+    if (m_step_out_to_inline_plan_sp)
     {
-        if (m_step_out_plan_sp->MischiefManaged())
+        if (m_step_out_to_inline_plan_sp->MischiefManaged())
+            return true;
+        else
+            return false;
+    }
+    else if (m_step_through_inline_plan_sp)
+    {
+        if (m_step_through_inline_plan_sp->MischiefManaged())
         {
-            // If this one is done, then we are all done.
             CalculateReturnValue();
             SetPlanComplete();
             return true;
@@ -189,9 +247,9 @@ ThreadPlanStepOut::DoPlanExplainsStop (Event *event_ptr)
         else
             return false;
     }
-    else if (m_step_through_inline_plan_sp)
+    else if (m_step_out_further_plan_sp)
     {
-        if (m_step_through_inline_plan_sp->MischiefManaged())
+        if (m_step_out_further_plan_sp->MischiefManaged())
             return true;
         else
             return false;
@@ -234,8 +292,11 @@ ThreadPlanStepOut::DoPlanExplainsStop (Event *event_ptr)
                     
                 if (done)
                 {
-                    CalculateReturnValue();
-                    SetPlanComplete();
+                    if (InvokeShouldStopHereCallback (eFrameCompareOlder))
+                    {
+                        CalculateReturnValue();
+                        SetPlanComplete();
+                    }
                 }
 
                 // If there was only one owner, then we're done.  But if we also hit some
@@ -266,61 +327,70 @@ ThreadPlanStepOut::DoPlanExplainsStop (Event *event_ptr)
 bool
 ThreadPlanStepOut::ShouldStop (Event *event_ptr)
 {
-        if (IsPlanComplete())
-            return true;
-        
-        bool done;
-        
+    if (IsPlanComplete())
+        return true;
+    
+    bool done = false;
+    if (m_step_out_to_inline_plan_sp)
+    {
+        if (m_step_out_to_inline_plan_sp->MischiefManaged())
+        {
+            // Now step through the inlined stack we are in:
+            if (QueueInlinedStepPlan(true))
+            {
+                // If we can't queue a plan to do this, then just call ourselves done.
+                m_step_out_to_inline_plan_sp.reset();
+                SetPlanComplete (false);
+                return true;
+            }
+            else
+                done = true;
+        }
+        else
+            return m_step_out_to_inline_plan_sp->ShouldStop(event_ptr);
+    }
+    else if (m_step_through_inline_plan_sp)
+    {
+        if (m_step_through_inline_plan_sp->MischiefManaged())
+            done = true;
+        else
+            return m_step_through_inline_plan_sp->ShouldStop(event_ptr);
+    }
+    else if (m_step_out_further_plan_sp)
+    {
+        if (m_step_out_further_plan_sp->MischiefManaged())
+            m_step_out_further_plan_sp.reset();
+        else
+            return m_step_out_further_plan_sp->ShouldStop(event_ptr);
+    }
+
+    if (!done)
+    {
         StackID frame_zero_id = m_thread.GetStackFrameAtIndex(0)->GetStackID();
         if (frame_zero_id < m_step_out_to_id)
             done = false;
         else
             done = true;
-            
-        if (done)
+    }
+
+    // The normal step out computations think we are done, so all we need to do is consult the ShouldStopHere,
+    // and we are done.
+    
+    if (done)
+    {
+        if (InvokeShouldStopHereCallback(eFrameCompareOlder))
         {
             CalculateReturnValue();
             SetPlanComplete();
-            return true;
         }
         else
         {
-            if (m_step_out_plan_sp)
-            {
-                if (m_step_out_plan_sp->MischiefManaged())
-                {
-                    // Now step through the inlined stack we are in:
-                    if (QueueInlinedStepPlan(true))
-                    {
-                        return false;
-                    }
-                    else
-                    {
-                        CalculateReturnValue();
-                        SetPlanComplete ();
-                        return true;
-                    }
-                }
-                else
-                    return m_step_out_plan_sp->ShouldStop(event_ptr);
-            }
-            else if (m_step_through_inline_plan_sp)
-            {
-                if (m_step_through_inline_plan_sp->MischiefManaged())
-                {
-                    // We don't calculate the return value here because we don't know how to.
-                    // But in case we had a return value sitting around from our process in
-                    // getting here, let's clear it out.
-                    m_return_valobj_sp.reset();
-                    SetPlanComplete();
-                    return true;
-                }
-                else
-                    return m_step_through_inline_plan_sp->ShouldStop(event_ptr);
-            }
-            else
-                return false;
+            m_step_out_further_plan_sp = QueueStepOutFromHerePlan(m_flags, eFrameCompareOlder);
+            done = false;
         }
+    }
+
+    return done;
 }
 
 bool
@@ -338,7 +408,7 @@ ThreadPlanStepOut::GetPlanRunState ()
 bool
 ThreadPlanStepOut::DoWillResume (StateType resume_state, bool current_plan)
 {
-    if (m_step_out_plan_sp || m_step_through_inline_plan_sp)
+    if (m_step_out_to_inline_plan_sp || m_step_through_inline_plan_sp)
         return true;
         
     if (m_return_bp_id == LLDB_INVALID_BREAK_ID)
@@ -427,10 +497,17 @@ ThreadPlanStepOut::QueueInlinedStepPlan (bool queue_now)
                 inlined_block->CalculateSymbolContext(&inlined_sc);
                 inlined_sc.target_sp = GetTarget().shared_from_this();
                 RunMode run_mode = m_stop_others ? lldb::eOnlyThisThread : lldb::eAllThreads;
-                ThreadPlanStepOverRange *step_through_inline_plan_ptr = new ThreadPlanStepOverRange(m_thread, 
-                                                                                                    inline_range, 
-                                                                                                    inlined_sc, 
-                                                                                                    run_mode);
+                const LazyBool avoid_no_debug = eLazyBoolNo;
+
+                m_step_through_inline_plan_sp.reset (new ThreadPlanStepOverRange(m_thread, 
+                                                                                 inline_range, 
+                                                                                 inlined_sc, 
+                                                                                 run_mode,
+                                                                                 avoid_no_debug));
+                ThreadPlanStepOverRange *step_through_inline_plan_ptr
+                        = static_cast<ThreadPlanStepOverRange *>(m_step_through_inline_plan_sp.get());
+                m_step_through_inline_plan_sp->SetPrivate(true);
+                        
                 step_through_inline_plan_ptr->SetOkayToDiscard(true);                                                                                    
                 StreamString errors;
                 if (!step_through_inline_plan_ptr->ValidatePlan(&errors))
@@ -445,7 +522,7 @@ ThreadPlanStepOut::QueueInlinedStepPlan (bool queue_now)
                     if (inlined_block->GetRangeAtIndex (i, inline_range))
                         step_through_inline_plan_ptr->AddRange (inline_range);
                 }
-                m_step_through_inline_plan_sp.reset (step_through_inline_plan_ptr);
+
                 if (queue_now)
                     m_thread.QueueThreadPlan (m_step_through_inline_plan_sp, false);
                 return true;
@@ -486,4 +563,3 @@ ThreadPlanStepOut::IsPlanStale()
     else
         return true;
 }
-

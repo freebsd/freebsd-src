@@ -94,6 +94,7 @@ struct var vps4;
 static struct var voptind;
 struct var vdisvfork;
 
+struct localvar *localvars;
 int forcelocal;
 
 static const struct varinit varinit[] = {
@@ -141,6 +142,7 @@ static const int locale_categories[7] = {
 static int varequal(const char *, const char *);
 static struct var *find_var(const char *, struct var ***, int *);
 static int localevar(const char *);
+static void setvareq_const(const char *s, int flags);
 
 extern char **environ;
 
@@ -183,7 +185,7 @@ initvar(void)
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
 		}
 	}
-	setvareq("OPTIND=1", VTEXTFIXED);
+	setvareq_const("OPTIND=1", 0);
 }
 
 /*
@@ -388,6 +390,12 @@ setvareq(char *s, int flags)
 	INTON;
 }
 
+
+static void
+setvareq_const(const char *s, int flags)
+{
+	setvareq(__DECONST(char *, s), flags | VTEXTFIXED);
+}
 
 
 /*
@@ -872,7 +880,7 @@ unsetvar(const char *s)
 	if (vp->flags & VREADONLY)
 		return (1);
 	if (vp->text[vp->name_len + 1] != '\0')
-		setvar(s, nullstr, 0);
+		setvar(s, "", 0);
 	if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 		change_env(s, 0);
 		setlocale(LC_ALL, "");

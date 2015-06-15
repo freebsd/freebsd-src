@@ -11,14 +11,36 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HEXAGONMCTARGETDESC_H
-#define HEXAGONMCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_MCTARGETDESC_HEXAGONMCTARGETDESC_H
+#define LLVM_LIB_TARGET_HEXAGON_MCTARGETDESC_HEXAGONMCTARGETDESC_H
+
+#include <cstdint>
 
 namespace llvm {
+class MCAsmBackend;
+class MCCodeEmitter;
+class MCContext;
+class MCInstrInfo;
+class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class Target;
+class StringRef;
+class raw_ostream;
 
 extern Target TheHexagonTarget;
+
+MCCodeEmitter *createHexagonMCCodeEmitter(MCInstrInfo const &MCII,
+                                          MCRegisterInfo const &MRI,
+                                          MCSubtargetInfo const &MST,
+                                          MCContext &MCT);
+
+MCAsmBackend *createHexagonAsmBackend(Target const &T,
+                                      MCRegisterInfo const &MRI, StringRef TT,
+                                      StringRef CPU);
+
+MCObjectWriter *createHexagonELFObjectWriter(raw_ostream &OS, uint8_t OSABI,
+                                             StringRef CPU);
 
 } // End llvm namespace
 

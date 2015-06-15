@@ -45,6 +45,7 @@ struct SparseBitVectorElement
   : public ilist_node<SparseBitVectorElement<ElementSize> > {
 public:
   typedef unsigned long BitWord;
+  typedef unsigned size_type;
   enum {
     BITWORD_SIZE = sizeof(BitWord) * CHAR_BIT,
     BITWORDS_PER_ELEMENT = (ElementSize + BITWORD_SIZE - 1) / BITWORD_SIZE,
@@ -120,7 +121,7 @@ public:
     return Bits[Idx / BITWORD_SIZE] & (1L << (Idx % BITWORD_SIZE));
   }
 
-  unsigned count() const {
+  size_type count() const {
     unsigned NumBits = 0;
     for (unsigned i = 0; i < BITWORDS_PER_ELEMENT; ++i)
       if (sizeof(BitWord) == 4)
@@ -382,7 +383,7 @@ class SparseBitVector {
             AtEnd = true;
             return;
           }
-          // Set up for next non zero word in bitmap.
+          // Set up for next non-zero word in bitmap.
           BitNumber = Iter->index() * ElementSize;
           NextSetBitNumber = Iter->find_first();
           BitNumber += NextSetBitNumber;

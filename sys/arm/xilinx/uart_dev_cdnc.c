@@ -38,8 +38,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_global.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -50,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 
 #include "uart_if.h"
@@ -700,10 +699,16 @@ cdnc_uart_bus_ungrab(struct uart_softc *sc)
 	    CDNC_UART_INT_DMSI);
 }
 
-struct uart_class uart_cdnc_class = {
+static struct uart_class uart_cdnc_class = {
 	"cdnc_uart",
 	cdnc_uart_bus_methods,
 	sizeof(struct uart_softc),
 	.uc_ops = &cdnc_uart_ops,
 	.uc_range = 8
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"cadence,uart",	(uintptr_t)&uart_cdnc_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);

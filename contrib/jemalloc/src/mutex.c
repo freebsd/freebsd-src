@@ -67,15 +67,15 @@ pthread_create(pthread_t *__restrict thread,
 JEMALLOC_EXPORT int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t));
 
-__weak_reference(_pthread_mutex_init_calloc_cb_stub,
-    _pthread_mutex_init_calloc_cb);
-
+#pragma weak _pthread_mutex_init_calloc_cb
 int
-_pthread_mutex_init_calloc_cb_stub(pthread_mutex_t *mutex,
+_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t))
 {
 
-	return (0);
+	return (((int (*)(pthread_mutex_t *, void *(*)(size_t, size_t)))
+	    __libc_interposing[INTERPOS__pthread_mutex_init_calloc_cb])(
+	   mutex, calloc_cb));
 }
 #endif
 
@@ -144,7 +144,7 @@ malloc_mutex_postfork_child(malloc_mutex_t *mutex)
 }
 
 bool
-mutex_boot(void)
+malloc_mutex_first_thread(void)
 {
 
 #ifdef JEMALLOC_MUTEX_INIT_CB
@@ -157,4 +157,15 @@ mutex_boot(void)
 	}
 #endif
 	return (false);
+}
+
+bool
+mutex_boot(void)
+{
+
+#ifndef JEMALLOC_MUTEX_INIT_CB
+	return (malloc_mutex_first_thread());
+#else
+	return (false);
+#endif
 }

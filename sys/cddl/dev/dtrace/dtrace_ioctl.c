@@ -32,9 +32,9 @@ static int
 dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     struct thread *td)
 {
-	int rval;
 	dof_helper_t *dhp = NULL;
 	dof_hdr_t *dof = NULL;
+	int rval;
 
 	switch (cmd) {
 	case DTRACEHIOC_ADDDOF:
@@ -51,7 +51,7 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		mutex_enter(&dtrace_lock);
 		if ((rval = dtrace_helper_slurp((dof_hdr_t *)dof, dhp)) != -1) {
 			if (dhp) {
-				dhp->gen = rval;
+				dhp->dofhp_gen = rval;
 				copyout(dhp, addr, sizeof(*dhp));
 			}
 			rval = 0;
@@ -59,10 +59,11 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			rval = EINVAL;
 		}
 		mutex_exit(&dtrace_lock);
+
 		return (rval);
 	case DTRACEHIOC_REMOVE:
 		mutex_enter(&dtrace_lock);
-		rval = dtrace_helper_destroygen((int)*addr);
+		rval = dtrace_helper_destroygen(NULL, (int)*addr);
 		mutex_exit(&dtrace_lock);
 
 		return (rval);
@@ -578,14 +579,14 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			return (EINVAL);
 
 		mutex_enter(&dtrace_provider_lock);
-#if defined(sun)
+#ifdef illumos
 		mutex_enter(&mod_lock);
 #endif
 		mutex_enter(&dtrace_lock);
 
 		if (desc->dtargd_id > dtrace_nprobes) {
 			mutex_exit(&dtrace_lock);
-#if defined(sun)
+#ifdef illumos
 			mutex_exit(&mod_lock);
 #endif
 			mutex_exit(&dtrace_provider_lock);
@@ -594,7 +595,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 
 		if ((probe = dtrace_probes[desc->dtargd_id - 1]) == NULL) {
 			mutex_exit(&dtrace_lock);
-#if defined(sun)
+#ifdef illumos
 			mutex_exit(&mod_lock);
 #endif
 			mutex_exit(&dtrace_provider_lock);
@@ -620,7 +621,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			    probe->dtpr_id, probe->dtpr_arg, desc);
 		}
 
-#if defined(sun)
+#ifdef illumos
 		mutex_exit(&mod_lock);
 #endif
 		mutex_exit(&dtrace_provider_lock);
@@ -779,7 +780,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		dstate = &state->dts_vstate.dtvs_dynvars;
 
 		for (i = 0; i < NCPU; i++) {
-#if !defined(sun)
+#ifndef illumos
 			if (pcpu_find(i) == NULL)
 				continue;
 #endif

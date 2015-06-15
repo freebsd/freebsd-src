@@ -69,16 +69,10 @@
  * %rsi = newtd
  */
 ENTRY(cpu_throw)
-	movl	PCPU(CPUID),%eax
-	testq	%rdi,%rdi
-	jz	1f
-	/* release bit from old pm_active */
-	movq	PCPU(CURPMAP),%rdx
-	LK btrl	%eax,PM_ACTIVE(%rdx)		/* clear old */
-1:
-	movq	TD_PCB(%rsi),%r8		/* newtd->td_pcb */
-	movq	PCB_CR3(%r8),%rcx		/* new address space */
-	jmp	swact
+	movq	%rsi,%r12
+	movq	%rsi,%rdi
+	call	pmap_activate_sw
+	jmp	sw1
 END(cpu_throw)
 
 /*
@@ -132,59 +126,20 @@ ctx_switch_xsave:
 	xorl	%eax,%eax
 	movq	%rax,PCPU(FPCURTHREAD)
 3:
-
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
-	movq	TD_PCB(%rsi),%r8
-
-	/* switch address space */
-	movq	PCB_CR3(%r8),%rcx
-	movq	%cr3,%rax
-	cmpq	%rcx,%rax			/* Same address space? */
-	jne	swinact
-	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
-	jmp	sw1
-swinact:
-	movl	PCPU(CPUID),%eax
-	/* Release bit from old pmap->pm_active */
-	movq	PCPU(CURPMAP),%r12
-	LK btrl	%eax,PM_ACTIVE(%r12)		/* clear old */
-	SETLK	%rdx,TD_LOCK(%rdi)		/* Release the old thread */
-swact:
-	/* Set bit in new pmap->pm_active */
-	movq	TD_PROC(%rsi),%rdx		/* newproc */
-	movq	P_VMSPACE(%rdx), %rdx
-	addq	$VM_PMAP,%rdx
-	cmpl	$-1,PM_PCID(%rdx)
-	je	1f
-	LK btsl	%eax,PM_SAVE(%rdx)
-	jnc	1f
-	btsq	$63,%rcx			/* CR3_PCID_SAVE */
-	incq	PCPU(PM_SAVE_CNT)
-1:
-	movq	%rcx,%cr3			/* new address space */
-	LK btsl	%eax,PM_ACTIVE(%rdx)		/* set new */
-	movq	%rdx,PCPU(CURPMAP)
-
-	/*
-	 * We might lose the race and other CPU might have changed
-	 * the pmap after we set our bit in pmap->pm_save.  Recheck.
-	 * Reload %cr3 with CR3_PCID_SAVE bit cleared if pmap was
-	 * modified, causing TLB flush for this pcid.
-	 */
-	btrq	$63,%rcx
-	jnc	1f
-	LK btsl	%eax,PM_SAVE(%rdx)
-	jc	1f
-	decq	PCPU(PM_SAVE_CNT)
-	movq	%rcx,%cr3
-1:
-
+	movq	%rsi,%r12
+	movq	%rdi,%r13
+	movq	%rdx,%r15
+	movq	%rsi,%rdi
+	callq	pmap_activate_sw
+	SETLK	%r15,TD_LOCK(%r13)		/* Release the old thread */
 sw1:
+	movq	TD_PCB(%r12),%r8
 #if defined(SCHED_ULE) && defined(SMP)
 	/* Wait for the new thread to become unblocked */
 	movq	$blocked_lock, %rdx
 1:
-	movq	TD_LOCK(%rsi),%rcx
+	movq	TD_LOCK(%r12),%rcx
 	cmpq	%rcx, %rdx
 	pause
 	je	1b
@@ -195,13 +150,13 @@ sw1:
 	 */
 
 	/* Skip loading user fsbase/gsbase for kthreads */
-	testl	$TDP_KTHREAD,TD_PFLAGS(%rsi)
+	testl	$TDP_KTHREAD,TD_PFLAGS(%r12)
 	jnz	do_kthread
 
 	/*
 	 * Load ldt register
 	 */
-	movq	TD_PROC(%rsi),%rcx
+	movq	TD_PROC(%r12),%rcx
 	cmpq	$0, P_MD+MD_LDT(%rcx)
 	jne	do_ldt
 	xorl	%eax,%eax
@@ -238,7 +193,7 @@ done_tss:
 	movq	%r8,PCPU(CURPCB)
 	/* Update the TSS_RSP0 pointer for the next interrupt */
 	movq	%r8,COMMON_TSS_RSP0(%rdx)
-	movq	%rsi,PCPU(CURTHREAD)		/* into next thread */
+	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -399,10 +354,6 @@ ENTRY(savectx)
 	rdmsr
 	movl	%eax,PCB_SFMASK(%rdi)
 	movl	%edx,PCB_SFMASK+4(%rdi)
-	movl	xsave_mask,%eax
-	movl	%eax,PCB_XSMASK(%rdi)
-	movl	xsave_mask+4,%eax
-	movl	%eax,PCB_XSMASK+4(%rdi)
 
 	sgdt	PCB_GDT(%rdi)
 	sidt	PCB_IDT(%rdi)
@@ -467,12 +418,9 @@ ENTRY(resumectx)
 	movl	PCB_SFMASK(%rdi),%eax
 	wrmsr
 
-	/* Restore CR0 except for FPU mode. */
+	/* Restore CR0, CR2, CR4 and CR3. */
 	movq	PCB_CR0(%rdi),%rax
-	andq	$~(CR0_EM | CR0_TS),%rax
 	movq	%rax,%cr0
-
-	/* Restore CR2, CR4 and CR3. */
 	movq	PCB_CR2(%rdi),%rax
 	movq	%rax,%cr2
 	movq	PCB_CR4(%rdi),%rax
@@ -509,26 +457,6 @@ ENTRY(resumectx)
 	movq	%rax,%dr6
 	movq	PCB_DR7(%rdi),%rax
 	movq	%rax,%dr7
-
-	/* Restore FPU state. */
-	fninit
-	movq	PCB_FPUSUSPEND(%rdi),%rbx
-	movq	PCB_XSMASK(%rdi),%rax
-	testq	%rax,%rax
-	jz	1f
-	movq	%rax,%rdx
-	shrq	$32,%rdx
-	movl	$XCR0,%ecx
-	xsetbv
-	xrstor	(%rbx)
-	jmp	2f
-1:
-	fxrstor	(%rbx)
-2:
-
-	/* Reload CR0. */
-	movq	PCB_CR0(%rdi),%rax
-	movq	%rax,%cr0
 
 	/* Restore other callee saved registers. */
 	movq	PCB_R15(%rdi),%r15

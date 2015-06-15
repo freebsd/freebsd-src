@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2014
+.Dd February 20, 2015
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1199,6 +1199,19 @@ or
 .Li inet6 2001:db8:1-f::1/64 .
 This notation allows address and prefix length part only,
 not the other address modifiers.
+Note that the maximum number of the generated addresses from a range
+specification is limited to an integer value specified in
+.Va netif_ipexpand_max
+in
+.Xr rc.conf 5
+because a small typo can unexpectedly generate a large number of addresses.
+The default value is
+.Li 2048 .
+It can be increased by adding the following line into
+.Xr rc.conf 5 :
+.Bd -literal
+netif_ipexpand_max="4096"
+.Ed
 .Pp
 In the case of
 .Li 192.0.2.5-23/24 ,
@@ -2281,14 +2294,6 @@ is set to
 these are the flags to pass to the
 .Xr nfscbd 8
 daemon.
-.It Va oldnfs_server_enable
-.Pq Vt bool
-If
-.Va oldnfs_server_enable
-is set to
-.Dq Li YES ,
-force the NFS server daemons to run the old NFS server code
-that does not support NFSv4.
 .It Va mountd_enable
 .Pq Vt bool
 If set to
@@ -2793,16 +2798,8 @@ these are the flags to pass to the routing daemon.
 .Pq Vt str
 The IPv6 equivalent of
 .Va routed_flags .
-.It Va mrouted_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the multicast routing daemon,
-.Xr mrouted 8 .
 .It Va mroute6d_enable
 .Pq Vt bool
-The IPv6 equivalent of
-.Va mrouted_enable .
 If set to
 .Dq Li YES ,
 run the IPv6 multicast routing daemon.
@@ -2816,19 +2813,8 @@ and
 may be installed from the
 .Fx
 Ports Collection.
-.It Va mrouted_flags
-.Pq Vt str
-If
-.Va mrouted_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr mrouted 8
-daemon.
 .It Va mroute6d_flags
 .Pq Vt str
-The IPv6 equivalent of
-.Va mrouted_flags .
 If
 .Va mroute6d_enable
 is set to
@@ -2935,15 +2921,6 @@ This can be set to
 .Pq Vt str
 IPv6 Site Level Aggregator for
 .Xr stf 4 .
-.It Va ipv6_faith_prefix
-.Pq Vt str
-If not set to
-.Dq Li NO ,
-this is the faith prefix to enable a FAITH IPv6-to-IPv4 TCP
-translator.
-You also need
-.Xr faithd 8
-setup.
 .It Va ipv6_ipv4mapping
 .Pq Vt bool
 If set to
@@ -4462,6 +4439,11 @@ This variables contains the
 .Xr rctl.conf 5
 ruleset to load for
 .Xr rctl 8 .
+.It Va iovctl_files
+.Pq Vt str
+A space-separated list of configuration files used by
+.Xr iovctl 8 .
+The default value is an empty string.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4515,6 +4497,7 @@ ruleset to load for
 .Xr hcsecd 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
+.Xr iovctl 8 ,
 .Xr ipf 8 ,
 .Xr ipfw 8 ,
 .Xr ipnat 8 ,
@@ -4526,7 +4509,6 @@ ruleset to load for
 .Xr mixer 8 ,
 .Xr mountd 8 ,
 .Xr moused 8 ,
-.Xr mrouted 8 ,
 .Xr newfs 8 ,
 .Xr newsyslog 8 ,
 .Xr nfsd 8 ,
@@ -4543,9 +4525,9 @@ ruleset to load for
 .Xr rfcomm_pppd 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
-.Xr rpcbind 8 ,
 .Xr rpc.lockd 8 ,
 .Xr rpc.statd 8 ,
+.Xr rpcbind 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
 .Xr sdpd 8 ,

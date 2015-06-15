@@ -45,6 +45,7 @@ OptionValueUUID::SetValueFromCString (const char *value_cstr,
     {
         case eVarSetOperationClear:
             Clear();
+            NotifyValueChanged();
             break;
             
         case eVarSetOperationReplace:
@@ -53,7 +54,10 @@ OptionValueUUID::SetValueFromCString (const char *value_cstr,
                 if (m_uuid.SetFromCString(value_cstr) == 0)
                     error.SetErrorStringWithFormat ("invalid uuid string value '%s'", value_cstr);
                 else
+                {
                     m_value_was_set = true;
+                    NotifyValueChanged();
+                }
             }
             break;
             
@@ -92,7 +96,7 @@ OptionValueUUID::AutoComplete (CommandInterpreter &interpreter,
         if (num_modules > 0)
         {
             UUID::ValueType uuid_bytes;
-            const size_t num_bytes_decoded = UUID::DecodeUUIDBytesFromCString(s, uuid_bytes, NULL);
+            const size_t num_bytes_decoded = UUID::DecodeUUIDBytesFromCString(s, uuid_bytes, nullptr);
             for (size_t i=0; i<num_modules; ++i)
             {
                 ModuleSP module_sp (target->GetImages().GetModuleAtIndex(i));

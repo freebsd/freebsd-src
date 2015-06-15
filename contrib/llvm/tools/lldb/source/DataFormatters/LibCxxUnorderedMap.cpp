@@ -25,6 +25,41 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::formatters;
 
+namespace lldb_private {
+    namespace formatters {
+        class LibcxxStdUnorderedMapSyntheticFrontEnd : public SyntheticChildrenFrontEnd
+        {
+        public:
+            LibcxxStdUnorderedMapSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
+            
+            virtual size_t
+            CalculateNumChildren ();
+            
+            virtual lldb::ValueObjectSP
+            GetChildAtIndex (size_t idx);
+            
+            virtual bool
+            Update();
+            
+            virtual bool
+            MightHaveChildren ();
+            
+            virtual size_t
+            GetIndexOfChildWithName (const ConstString &name);
+            
+            virtual
+            ~LibcxxStdUnorderedMapSyntheticFrontEnd ();
+        private:
+            
+            ValueObject* m_tree;
+            size_t m_num_elements;
+            ValueObject* m_next_element;
+            std::map<size_t,lldb::ValueObjectSP> m_children;
+            std::vector<std::pair<ValueObject*, uint64_t> > m_elements_cache;
+        };
+    }
+}
+
 lldb_private::formatters::LibcxxStdUnorderedMapSyntheticFrontEnd::LibcxxStdUnorderedMapSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp) :
 SyntheticChildrenFrontEnd(*valobj_sp.get()),
 m_tree(NULL),
@@ -81,9 +116,12 @@ lldb_private::formatters::LibcxxStdUnorderedMapSyntheticFrontEnd::GetChildAtInde
     if (!val_hash.first)
         return lldb::ValueObjectSP();
     StreamString stream;
-    stream.Printf("[%zu]",idx);
+    stream.Printf("[%" PRIu64 "]", (uint64_t)idx);
     DataExtractor data;
-    val_hash.first->GetData(data);
+    Error error;
+    val_hash.first->GetData(data, error);
+    if (error.Fail())
+        return lldb::ValueObjectSP();
     const bool thread_and_frame_only_if_stopped = true;
     ExecutionContext exe_ctx = val_hash.first->GetExecutionContextRef().Lock(thread_and_frame_only_if_stopped);
     return val_hash.first->CreateValueObjectFromData(stream.GetData(),

@@ -154,7 +154,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid,
 
 
 /* hmac list handling */
-extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint8_t num_hmacs);
+extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint16_t num_hmacs);
 extern void sctp_free_hmaclist(sctp_hmaclist_t * list);
 extern int sctp_auth_add_hmacid(sctp_hmaclist_t * list, uint16_t hmac_id);
 extern sctp_hmaclist_t *sctp_copy_hmaclist(sctp_hmaclist_t * list);

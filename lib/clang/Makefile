@@ -11,11 +11,6 @@ _libclangstaticanalyzer= \
 _libclangarcmigrate= \
 	libclangarcmigrate
 .endif # MK_CLANG_FULL
-.if ${MK_CLANG_FULL} != "no" || ${MK_LLDB} != "no"
-_libclangrewriter= \
-	libclangrewritecore \
-	libclangrewritefrontend
-.endif # (MK_CLANG_FULL || MK_LLDB)
 
 SUBDIR=	libclanganalysis \
 	${_libclangarcmigrate} \
@@ -28,7 +23,8 @@ SUBDIR=	libclanganalysis \
 	libclangfrontendtool \
 	libclanglex \
 	libclangparse \
-	${_libclangrewriter} \
+	libclangrewritefrontend \
+	libclangrewrite \
 	libclangsema \
 	libclangserialization \
 	${_libclangstaticanalyzer} \
@@ -47,10 +43,12 @@ SUBDIR=	libclanganalysis \
 	libllvmirreader \
 	libllvmlinker \
 	libllvmmc \
+	libllvmmcdisassembler \
 	libllvmmcparser \
 	libllvmobjcarcopts \
 	libllvmobject \
 	libllvmoption \
+	libllvmprofiledata \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
@@ -59,6 +57,13 @@ SUBDIR=	libclanganalysis \
 	libllvmtransformutils \
 	libllvmvectorize \
 	\
+	libllvmaarch64asmparser \
+	libllvmaarch64codegen \
+	libllvmaarch64desc \
+	libllvmaarch64disassembler \
+	libllvmaarch64info \
+	libllvmaarch64instprinter \
+	libllvmaarch64utils \
 	libllvmarmasmparser \
 	libllvmarmcodegen \
 	libllvmarmdesc \
@@ -74,6 +79,7 @@ SUBDIR=	libclanganalysis \
 	libllvmpowerpcasmparser \
 	libllvmpowerpccodegen \
 	libllvmpowerpcdesc \
+	libllvmpowerpcdisassembler \
 	libllvmpowerpcinfo \
 	libllvmpowerpcinstprinter \
 	libllvmsparcasmparser \
@@ -96,8 +102,6 @@ SUBDIR+=libllvmdebuginfo
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=libllvmexecutionengine \
 	libllvminterpreter \
-	libllvmjit \
-	libllvmmcdisassembler \
 	libllvmmcjit \
 	libllvmruntimedyld
 .endif # MK_CLANG_EXTRAS | LLDB
@@ -113,19 +117,27 @@ SUBDIR+=liblldb \
 	liblldbExpression \
 	liblldbHostCommon \
 	liblldbHostFreeBSD \
+	liblldbHostPOSIX \
 	liblldbInterpreter \
 	liblldbSymbol \
 	liblldbTarget \
 	liblldbUtility \
 	\
+	liblldbPluginABISysV_ppc \
+	liblldbPluginABISysV_ppc64 \
 	liblldbPluginABISysV_x86_64 \
 	liblldbPluginCXXItaniumABI \
 	liblldbPluginDisassemblerLLVM \
 	liblldbPluginDynamicLoaderStatic \
 	liblldbPluginDynamicLoaderPosixDYLD \
 	liblldbPluginInstructionARM \
+	liblldbPluginInstructionARM64 \
+	liblldbPluginInstrumentationRuntimeAddressSanitizer \
+	liblldbPluginJITLoaderGDB \
+	liblldbPluginMemoryHistoryASan \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
+	liblldbPluginObjectFileJIT \
 	liblldbPluginPlatformFreeBSD \
 	liblldbPluginPlatformGDB \
 	liblldbPluginProcessElfCore \

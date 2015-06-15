@@ -109,7 +109,7 @@ part_config(char *disk, const char *scheme, char *config)
 
 	/* Create partitions */
 	if (config == NULL) {
-		wizard_makeparts(&mesh, disk, 0);
+		wizard_makeparts(&mesh, disk, "ufs", 0);
 		goto finished;
 	}
 

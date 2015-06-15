@@ -20,6 +20,7 @@
 #include "lldb/lldb-public.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Listener.h"
+#include "lldb/Host/HostThread.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/Host/Predicate.h"
 #include "lldb/Host/TimeValue.h"
@@ -271,7 +272,7 @@ protected:
     
 
     lldb_private::Error
-    StartListenThread (const char *hostname = "localhost",
+    StartListenThread (const char *hostname = "127.0.0.1",
                        uint16_t port = 0);
 
     bool
@@ -281,8 +282,7 @@ protected:
     ListenThread (lldb::thread_arg_t arg);
 
 private:
-    
-    lldb::thread_t m_listen_thread;
+  lldb_private::HostThread m_listen_thread;
     std::string m_listen_url;
     
 

@@ -16,11 +16,12 @@
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/MutexGuard.h"
 #include "llvm/Support/raw_ostream.h"
-
 #include <algorithm>
 
 namespace llvm {
 namespace sys {
+
+#define DEBUG_TYPE "unicode"
 
 /// \brief Represents a closed range of Unicode code points [Lower, Upper].
 struct UnicodeCharRange {
@@ -40,7 +41,7 @@ inline bool operator<(UnicodeCharRange Range, uint32_t Value) {
 /// array.
 class UnicodeCharSet {
 public:
-  typedef llvm::ArrayRef<UnicodeCharRange> CharRanges;
+  typedef ArrayRef<UnicodeCharRange> CharRanges;
 
   /// \brief Constructs a UnicodeCharSet instance from an array of
   /// UnicodeCharRanges.
@@ -67,17 +68,17 @@ private:
     for (CharRanges::const_iterator I = Ranges.begin(), E = Ranges.end();
          I != E; ++I) {
       if (I != Ranges.begin() && Prev >= I->Lower) {
-        DEBUG(llvm::dbgs() << "Upper bound 0x");
-        DEBUG(llvm::dbgs().write_hex(Prev));
-        DEBUG(llvm::dbgs() << " should be less than succeeding lower bound 0x");
-        DEBUG(llvm::dbgs().write_hex(I->Lower) << "\n");
+        DEBUG(dbgs() << "Upper bound 0x");
+        DEBUG(dbgs().write_hex(Prev));
+        DEBUG(dbgs() << " should be less than succeeding lower bound 0x");
+        DEBUG(dbgs().write_hex(I->Lower) << "\n");
         return false;
       }
       if (I->Upper < I->Lower) {
-        DEBUG(llvm::dbgs() << "Upper bound 0x");
-        DEBUG(llvm::dbgs().write_hex(I->Lower));
-        DEBUG(llvm::dbgs() << " should not be less than lower bound 0x");
-        DEBUG(llvm::dbgs().write_hex(I->Upper) << "\n");
+        DEBUG(dbgs() << "Upper bound 0x");
+        DEBUG(dbgs().write_hex(I->Lower));
+        DEBUG(dbgs() << " should not be less than lower bound 0x");
+        DEBUG(dbgs().write_hex(I->Upper) << "\n");
         return false;
       }
       Prev = I->Upper;
@@ -88,6 +89,8 @@ private:
 
   const CharRanges Ranges;
 };
+
+#undef DEBUG_TYPE // "unicode"
 
 } // namespace sys
 } // namespace llvm

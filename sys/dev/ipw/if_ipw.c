@@ -286,6 +286,8 @@ ipw_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_phytype = IEEE80211_T_DS;
 
@@ -751,11 +753,8 @@ ipw_release(struct ipw_softc *sc)
 	}
 
 	if (sc->tbd_dmat != NULL) {
-		if (sc->stbd_list != NULL) {
-			bus_dmamap_unload(sc->tbd_dmat, sc->tbd_map);
-			bus_dmamem_free(sc->tbd_dmat, sc->tbd_list,
-			    sc->tbd_map);
-		}
+		bus_dmamap_unload(sc->tbd_dmat, sc->tbd_map);
+		bus_dmamem_free(sc->tbd_dmat, sc->tbd_list, sc->tbd_map);
 		bus_dma_tag_destroy(sc->tbd_dmat);
 	}
 
@@ -1202,7 +1201,7 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	 */
 	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1223,7 +1222,7 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 			panic("%s: could not load old rx mbuf",
 			    device_get_name(sc->sc_dev));
 		}
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1378,7 +1377,7 @@ ipw_tx_intr(struct ipw_softc *sc)
 		sbd = &sc->stbd_list[i];
 
 		if (sbd->type == IPW_SBD_TYPE_DATA)
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		ipw_release_sbd(sc, sbd);
 		sc->txfree++;
@@ -1768,7 +1767,7 @@ ipw_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (ipw_tx_start(ifp, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 		/* start watchdog timer */
@@ -1788,7 +1787,7 @@ ipw_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			taskqueue_enqueue(taskqueue_swi, &sc->sc_init_task);
 		}
 	}

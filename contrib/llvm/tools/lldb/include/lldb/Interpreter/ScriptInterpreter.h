@@ -98,11 +98,18 @@ public:
                                                           void *session_dictionary,
                                                           const lldb::ValueObjectSP& valobj_sp,
                                                           void** pyfunct_wrapper,
+                                                          const lldb::TypeSummaryOptionsSP& options,
                                                           std::string& retval);
     
     typedef void* (*SWIGPythonCreateSyntheticProvider) (const char *python_class_name,
                                                         const char *session_dictionary_name,
                                                         const lldb::ValueObjectSP& valobj_sp);
+
+    typedef void* (*SWIGPythonCreateScriptedThreadPlan) (const char *python_class_name,
+                                                        const char *session_dictionary_name,
+                                                        const lldb::ThreadPlanSP& thread_plan_sp);
+
+    typedef bool (*SWIGPythonCallThreadPlan) (void *implementor, const char *method_name, Event *event_sp, bool &got_error);
 
     typedef void* (*SWIGPythonCreateOSPlugin) (const char *python_class_name,
                                                const char *session_dictionary_name,
@@ -115,13 +122,14 @@ public:
     typedef lldb::ValueObjectSP  (*SWIGPythonGetValueObjectSPFromSBValue)       (void* data);
     typedef bool            (*SWIGPythonUpdateSynthProviderInstance)            (void* data);
     typedef bool            (*SWIGPythonMightHaveChildrenSynthProviderInstance) (void* data);
-
+    typedef void*           (*SWIGPythonGetValueSynthProviderInstance)          (void *implementor);
     
     typedef bool            (*SWIGPythonCallCommand)            (const char *python_function_name,
                                                                  const char *session_dictionary_name,
                                                                  lldb::DebuggerSP& debugger,
                                                                  const char* args,
-                                                                 lldb_private::CommandReturnObject& cmd_retobj);
+                                                                 lldb_private::CommandReturnObject& cmd_retobj,
+                                                                 lldb::ExecutionContextRefSP exe_ctx_ref_sp);
     
     typedef bool            (*SWIGPythonCallModuleInit)         (const char *python_module_name,
                                                                  const char *session_dictionary_name,
@@ -144,6 +152,11 @@ public:
     typedef bool            (*SWIGPythonScriptKeyword_Frame)    (const char* python_function_name,
                                                                  const char* session_dictionary_name,
                                                                  lldb::StackFrameSP& frame,
+                                                                 std::string& output);
+
+    typedef bool            (*SWIGPythonScriptKeyword_Value)    (const char* python_function_name,
+                                                                 const char* session_dictionary_name,
+                                                                 lldb::ValueObjectSP& value,
                                                                  std::string& output);
     
     typedef void*           (*SWIGPython_GetDynamicSetting)     (void* module,
@@ -254,16 +267,20 @@ public:
         return error;
     }
 
-    virtual bool
+    virtual Error
     ExportFunctionDefinitionToInterpreter (StringList &function_def)
     {
-        return false;
+        Error error;
+        error.SetErrorString("not implemented");
+        return error;
     }
 
-    virtual bool
+    virtual Error
     GenerateBreakpointCommandCallbackData (StringList &input, std::string& output)
     {
-        return false;
+        Error error;
+        error.SetErrorString("not implemented");
+        return error;
     }
     
     virtual bool
@@ -344,6 +361,39 @@ public:
     }
     
     virtual lldb::ScriptInterpreterObjectSP
+    CreateScriptedThreadPlan (const char *class_name,
+                              lldb::ThreadPlanSP thread_plan_sp)
+    {
+        return lldb::ScriptInterpreterObjectSP();
+    }
+
+    virtual bool
+    ScriptedThreadPlanExplainsStop (lldb::ScriptInterpreterObjectSP implementor_sp,
+                                    Event *event,
+                                    bool &script_error)
+    {
+        script_error = true;
+        return true;
+    }
+
+    virtual bool
+    ScriptedThreadPlanShouldStop (lldb::ScriptInterpreterObjectSP implementor_sp,
+                                  Event *event,
+                                  bool &script_error)
+    {
+        script_error = true;
+        return true;
+    }
+
+    virtual lldb::StateType
+    ScriptedThreadPlanGetRunState (lldb::ScriptInterpreterObjectSP implementor_sp,
+                                   bool &script_error)
+    {
+        script_error = true;
+        return lldb::eStateStepping;
+    }
+
+    virtual lldb::ScriptInterpreterObjectSP
     LoadPluginModule (const FileSpec& file_spec,
                      lldb_private::Error& error)
     {
@@ -359,24 +409,44 @@ public:
         return lldb::ScriptInterpreterObjectSP();
     }
 
-    virtual bool
+    virtual Error
     GenerateFunction(const char *signature, const StringList &input)
     {
-        return false;
+        Error error;
+        error.SetErrorString("unimplemented");
+        return error;
     }
 
     virtual void 
-    CollectDataForBreakpointCommandCallback (BreakpointOptions *bp_options,
+    CollectDataForBreakpointCommandCallback (std::vector<BreakpointOptions *> &options,
                                              CommandReturnObject &result);
 
     virtual void 
     CollectDataForWatchpointCommandCallback (WatchpointOptions *wp_options,
                                              CommandReturnObject &result);
 
+    /// Set the specified text as the callback for the breakpoint.
+    Error
+    SetBreakpointCommandCallback (std::vector<BreakpointOptions *> &bp_options_vec,
+                                  const char *callback_text);
+
+    virtual Error
+    SetBreakpointCommandCallback (BreakpointOptions *bp_options,
+                                  const char *callback_text)
+    {
+        Error error;
+        error.SetErrorString("unimplemented");
+        return error;
+    }
+    
+    void
+    SetBreakpointCommandCallbackFunction (std::vector<BreakpointOptions *> &bp_options_vec,
+                                  const char *function_name);
+
     /// Set a one-liner as the callback for the breakpoint.
     virtual void 
-    SetBreakpointCommandCallback (BreakpointOptions *bp_options,
-                                  const char *oneliner)
+    SetBreakpointCommandCallbackFunction (BreakpointOptions *bp_options,
+                                  const char *function_name)
     {
         return;
     }
@@ -393,9 +463,16 @@ public:
     GetScriptedSummary (const char *function_name,
                         lldb::ValueObjectSP valobj,
                         lldb::ScriptInterpreterObjectSP& callee_wrapper_sp,
+                        const TypeSummaryOptions& options,
                         std::string& retval)
     {
         return false;
+    }
+    
+    virtual void
+    Clear ()
+    {
+        // Clean up any ref counts to SBObjects that might be in global variables
     }
     
     virtual size_t
@@ -428,12 +505,19 @@ public:
         return true;
     }
     
+    virtual lldb::ValueObjectSP
+    GetSyntheticValue (const lldb::ScriptInterpreterObjectSP& implementor)
+    {
+        return nullptr;
+    }
+    
     virtual bool
     RunScriptBasedCommand (const char* impl_function,
                            const char* args,
                            ScriptedCommandSynchronicity synchronicity,
                            lldb_private::CommandReturnObject& cmd_retobj,
-                           Error& error)
+                           Error& error,
+                           const lldb_private::ExecutionContext& exe_ctx)
     {
         return false;
     }
@@ -471,6 +555,16 @@ public:
     virtual bool
     RunScriptFormatKeyword (const char* impl_function,
                             StackFrame* frame,
+                            std::string& output,
+                            Error& error)
+    {
+        error.SetErrorString("unimplemented");
+        return false;
+    }
+    
+    virtual bool
+    RunScriptFormatKeyword (const char* impl_function,
+                            ValueObject* value,
                             std::string& output,
                             Error& error)
     {
@@ -536,6 +630,7 @@ public:
                            SWIGPythonGetValueObjectSPFromSBValue swig_get_valobj_sp_from_sbvalue,
                            SWIGPythonUpdateSynthProviderInstance swig_update_provider,
                            SWIGPythonMightHaveChildrenSynthProviderInstance swig_mighthavechildren_provider,
+                           SWIGPythonGetValueSynthProviderInstance swig_getvalue_provider,
                            SWIGPythonCallCommand swig_call_command,
                            SWIGPythonCallModuleInit swig_call_module_init,
                            SWIGPythonCreateOSPlugin swig_create_os_plugin,
@@ -543,10 +638,10 @@ public:
                            SWIGPythonScriptKeyword_Thread swig_run_script_keyword_thread,
                            SWIGPythonScriptKeyword_Target swig_run_script_keyword_target,
                            SWIGPythonScriptKeyword_Frame swig_run_script_keyword_frame,
-                           SWIGPython_GetDynamicSetting swig_plugin_get);
-
-    static void
-    TerminateInterpreter ();
+                           SWIGPythonScriptKeyword_Value swig_run_script_keyword_value,
+                           SWIGPython_GetDynamicSetting swig_plugin_get,
+                           SWIGPythonCreateScriptedThreadPlan swig_thread_plan_script,
+                           SWIGPythonCallThreadPlan swig_call_thread_plan);
 
     virtual void
     ResetOutputFileHandle (FILE *new_fh) { } //By default, do nothing.

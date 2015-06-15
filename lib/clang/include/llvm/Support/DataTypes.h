@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /* include/llvm/Support/DataTypes.h.  Generated from DataTypes.h.in by configure.  */
-/*===-- include/System/DataTypes.h - Define fixed size types -----*- C -*-===*\
+/*===-- include/Support/DataTypes.h - Define fixed size types -----*- C -*-===*\
 |*                                                                            *|
 |*                     The LLVM Compiler Infrastructure                       *|
 |*                                                                            *|
@@ -23,10 +23,11 @@
 
 /* Please leave this file C-compatible. */
 
+/* Please keep this file in sync with DataTypes.h.cmake */
+
 #ifndef SUPPORT_DATATYPES_H
 #define SUPPORT_DATATYPES_H
 
-#define HAVE_SYS_TYPES_H 1
 #define HAVE_INTTYPES_H 1
 #define HAVE_STDINT_H 1
 #define HAVE_UINT64_T 1
@@ -38,31 +39,33 @@
 #include <math.h>
 #endif
 
-/* Note that this header's correct operation depends on __STDC_LIMIT_MACROS
-   being defined.  We would define it here, but in order to prevent Bad Things
-   happening when system headers or C++ STL headers include stdint.h before we
-   define it here, we define it on the g++ command line (in Makefile.rules). */
-#if !defined(__STDC_LIMIT_MACROS)
-# error "Must #define __STDC_LIMIT_MACROS before #including System/DataTypes.h"
-#endif
-
-#if !defined(__STDC_CONSTANT_MACROS)
-# error "Must #define __STDC_CONSTANT_MACROS before " \
-        "#including System/DataTypes.h"
-#endif
-
-/* Note that <inttypes.h> includes <stdint.h>, if this is a C99 system. */
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+#error "Compiler must provide an implementation of stdint.h"
 #endif
+
+#ifndef _MSC_VER
+
+/* Note that this header's correct operation depends on __STDC_LIMIT_MACROS
+   being defined.  We would define it here, but in order to prevent Bad Things
+   happening when system headers or C++ STL headers include stdint.h before we
+   define it here, we define it on the g++ command line (in Makefile.rules). */
+#if !defined(__STDC_LIMIT_MACROS)
+# error "Must #define __STDC_LIMIT_MACROS before #including Support/DataTypes.h"
+#endif
+
+#if !defined(__STDC_CONSTANT_MACROS)
+# error "Must #define __STDC_CONSTANT_MACROS before " \
+        "#including Support/DataTypes.h"
+#endif
+
+/* Note that <inttypes.h> includes <stdint.h>, if this is a C99 system. */
+#include <sys/types.h>
 
 #ifdef _AIX
 #include "llvm/Support/AIXDataTypesFix.h"
@@ -77,17 +80,32 @@ typedef u_int64_t uint64_t;
 #endif
 #endif
 
-#ifdef _OpenBSD_
-#define INT8_MAX 127
-#define INT8_MIN -128
-#define UINT8_MAX 255
-#define INT16_MAX 32767
-#define INT16_MIN -32768
-#define UINT16_MAX 65535
-#define INT32_MAX 2147483647
-#define INT32_MIN -2147483648
-#define UINT32_MAX 4294967295U
+#else /* _MSC_VER */
+#include <stdlib.h>
+#include <stddef.h>
+#include <sys/types.h>
+#ifdef __cplusplus
+#include <cmath>
+#else
+#include <math.h>
 #endif
+
+#if defined(_WIN64)
+typedef signed __int64 ssize_t;
+#else
+typedef signed int ssize_t;
+#endif /* _WIN64 */
+
+#ifndef HAVE_INTTYPES_H
+#define PRId64 "I64d"
+#define PRIi64 "I64i"
+#define PRIo64 "I64o"
+#define PRIu64 "I64u"
+#define PRIx64 "I64x"
+#define PRIX64 "I64X"
+#endif /* HAVE_INTTYPES_H */
+
+#endif /* _MSC_VER */
 
 /* Set defaults for constants which we cannot find. */
 #if !defined(INT64_MAX)
@@ -98,12 +116,6 @@ typedef u_int64_t uint64_t;
 #endif
 #if !defined(UINT64_MAX)
 # define UINT64_MAX 0xffffffffffffffffULL
-#endif
-
-#if __GNUC__ > 3
-#define END_WITH_NULL __attribute__((sentinel))
-#else
-#define END_WITH_NULL
 #endif
 
 #ifndef HUGE_VALF

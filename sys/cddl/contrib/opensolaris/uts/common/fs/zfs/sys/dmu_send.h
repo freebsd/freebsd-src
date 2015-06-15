@@ -36,7 +36,8 @@ struct dsl_dataset;
 struct drr_begin;
 struct avl_tree;
 
-int dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
+int dmu_send(const char *tosnap, const char *fromsnap,
+    boolean_t embedok, boolean_t large_block_ok,
 #ifdef illumos
     int outfd, struct vnode *vp, offset_t *off);
 #else
@@ -45,10 +46,11 @@ int dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 int dmu_send_estimate(struct dsl_dataset *ds, struct dsl_dataset *fromds,
     uint64_t *sizep);
 int dmu_send_obj(const char *pool, uint64_t tosnap, uint64_t fromsnap,
+    boolean_t embedok, boolean_t large_block_ok,
 #ifdef illumos
-    boolean_t embedok, int outfd, vnode_t *vp, offset_t *off);
+    int outfd, struct vnode *vp, offset_t *off);
 #else
-    boolean_t embedok, int outfd, struct file *fp, offset_t *off);
+    int outfd, struct file *fp, offset_t *off);
 #endif
 
 typedef struct dmu_recv_cookie {

@@ -252,7 +252,7 @@ SYM (\name):
 
 #ifdef __thumb__
 #define THUMB_FUNC .thumb_func
-#define THUMB_CODE .force_thumb
+#define THUMB_CODE .thumb
 #else
 #define THUMB_FUNC
 #define THUMB_CODE
@@ -980,8 +980,6 @@ LSYM(Lover12):
 
 	RET
 
-	FUNC_END aeabi_ldiv0
-	FUNC_END aeabi_idiv0
 	FUNC_END div0
 	
 #endif /* L_divmodsi_tools */

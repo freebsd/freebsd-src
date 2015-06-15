@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.35 2014/05/09 00:05:46 sjg Exp $
+# $Id: meta.autodep.mk,v 1.36 2014/08/02 23:10:29 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -254,6 +254,9 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 .endif
 
 .if ${_bootstrap_dirdeps} == "yes"
+.if ${BUILD_AT_LEVEL0:Uno} == "no"
+DIRDEPS+= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
+.endif
 # make sure this is included at least once
 .include <dirdeps.mk>
 .else

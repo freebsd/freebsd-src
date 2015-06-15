@@ -1,9 +1,10 @@
-ixl FreeBSD* Base Driver for the Intel® XL710 Ethernet Controller Family
+	ixl FreeBSD* Base Driver and ixlv VF Driver for the
+	     Intel XL710 Ethernet Controller Family
 
 /*$FreeBSD$*/
 ================================================================
 
-July 21, 2014
+August 26, 2014
 
 
 Contents
@@ -11,6 +12,7 @@ Contents
 
 - Overview
 - Supported Adapters
+- The VF Driver
 - Building and Installation
 - Additional Configurations
 - Known Limitations
@@ -19,15 +21,21 @@ Contents
 Overview
 ========
 
-This file describes the IXL FreeBSD* Base driver for the XL710 Ethernet Family of Adapters. The Driver has been developed for use with FreeBSD 10.0 or later,  but should be compatible with any supported release.
+This file describes the IXL FreeBSD* Base driver and the IXLV VF Driver
+for the XL710 Ethernet Family of Adapters. The Driver has been developed
+for use with FreeBSD 10.0 or later, but should be compatible with any
+supported release.
 
-For questions related to hardware requirements, refer to the documentation      supplied with your Intel XL710 adapter. All hardware requirements listed apply  for use with FreeBSD.
+For questions related to hardware requirements, refer to the documentation
+supplied with your Intel XL710 adapter. All hardware requirements listed
+apply for use with FreeBSD.
 
 
 Supported Adapters
 ==================
 
-The driver in this release is compatible with XL710 and X710-based Intel        Ethernet Network Connections.
+The drivers in this release are compatible with XL710 and X710-based
+Intel Ethernet Network Connections.
 
 
 SFP+ Devices with Pluggable Optics
@@ -49,18 +57,45 @@ QSFP+ Modules
   Intel     TRIPLE RATE 1G/10G/40G QSFP+ LR (bailed)    E40GQSFPLR
     QSFP+ 1G speed is not supported on XL710 based devices.
 
-X710/XL710 Based SFP+ adapters support all passive and active limiting direct   attach cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
+X710/XL710 Based SFP+ adapters support all passive and active limiting direct
+attach cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
               
+The VF Driver
+==================
+The VF driver is normally used in a virtualized environment where a host
+driver manages SRIOV, and provides a VF device to the guest. With this
+first release the only host environment tested was using Linux QEMU/KVM.
+Support is planned for Xen and VMWare hosts at a later time.
 
-Building and Installation
+In the FreeBSD guest the IXLV driver would be loaded and will function
+using the VF device assigned to it.
+
+The VF driver provides most of the same functionality as the CORE driver,
+but is actually a slave to the Host, access to many controls are actually
+accomplished by a request to the Host via what is called the "Admin queue".
+These are startup and initialization events however, once in operation
+the device is self-contained and should achieve near native performance.
+
+Some notable limitations of the VF environment: for security reasons 
+the driver is never permitted to be promiscuous, therefore a tcpdump
+will not behave the same with the interface. Second, media info is not
+available from the PF, so it will always appear as auto.
+
+Tarball Building and Installation
 =========================
 
-NOTE: You must have kernel sources installed to compile the driver module.
+NOTE: You must have kernel sources installed to compile the driver tarball.
+
+These instructions assume a standalone driver tarball, building the driver
+already in the kernel source is simply a matter of adding the device entry
+to the kernel config file, or building in the ixl or ixlv module directory.
 
 In the instructions below, x.x.x is the driver version
-as indicated in thename of the driver tar. 
+as indicated in the name of the driver tarball. The example is
+for ixl, the same procedure applies for ixlv.
 
-1. Move the base driver tar file to the directory of your choice. For example,  use /home/username/ixl or /usr/local/src/ixl.
+1. Move the base driver tar file to the directory of your choice.
+   For example, use /home/username/ixl or /usr/local/src/ixl.
 
 2. Untar/unzip the archive:
      tar xfz ixl-x.x.x.tar.gz
@@ -76,7 +111,9 @@ as indicated in thename of the driver tar.
 5. To assign an IP address to the interface, enter the following:
      ifconfig ixl<interface_num> <IP_address>
 
-6. Verify that the interface works. Enter the following, where <IP_address> is  the IP address for another machine on the same subnet as the interface that is  being tested:
+6. Verify that the interface works. Enter the following, where <IP_address>
+   is the IP address for another machine on the same subnet as the interface
+   that is  being tested:
 
      ping <IP_address>
 
@@ -105,7 +142,7 @@ as indicated in thename of the driver tar.
 Configuration and Tuning
 =========================
 
-The driver supports Transmit/Receive Checksum Offload for IPv4 and IPv6,
+Both drivers supports Transmit/Receive Checksum Offload for IPv4 and IPv6,
 TSO forIPv4 and IPv6, LRO, and Jumbo Frames on all 40 Gigabit adapters. 
 
   Jumbo Frames
@@ -240,7 +277,7 @@ TSO forIPv4 and IPv6, LRO, and Jumbo Frames on all 40 Gigabit adapters.
          ifconfig ixl<interface_num> lro 
 
 
-Flow Control
+Flow Control  (IXL only)
 ------------
 Flow control is disabled by default. To change flow control settings use sysctl.
 
@@ -263,19 +300,25 @@ To disable flow control:
 
 NOTE: You must have a flow control capable link partner.
 
+NOTE: The VF driver does not have access to flow control, it must be
+	managed from the host side.
 
    
   Important system configuration changes:
   =======================================
  
-  
 -Change the file /etc/sysctl.conf, and add the line:  
  
          hw.intr_storm_threshold: 0 (the default is 1000)
 
 -Best throughput results are seen with a large MTU; use 9706 if possible. 
 
--The default number of descriptors per ring is 1024, increasing this may        improve performance depending on the use case.
+-The default number of descriptors per ring is 1024, increasing this may
+improve performance depending on the use case.
+
+-The VF driver uses a relatively large buf ring, this was found to eliminate
+ UDP transmit errors, it is a tuneable, and if no UDP traffic is used it can
+ be reduced. It is memory used per queue.
 
 
 Known Limitations
@@ -283,7 +326,11 @@ Known Limitations
 
 Network Memory Buffer allocation
 --------------------------------
-  FreeBSD may have a low number of network memory buffers (mbufs) by default. Ifyour mbuf value is too low, it may cause the driver to fail to initialize and/orcause the system to become unresponsive. You can check to see if the system is  mbuf-starved by running 'netstat -m'. Increase the number of mbufs by editing   the lines below in /etc/sysctl.conf:
+  FreeBSD may have a low number of network memory buffers (mbufs) by default.
+If your mbuf value is too low, it may cause the driver to fail to initialize
+and/or cause the system to become unresponsive. You can check to see if the
+system is mbuf-starved by running 'netstat -m'. Increase the number of mbufs
+by editing the lines below in /etc/sysctl.conf:
 
          kern.ipc.nmbclusters
          kern.ipc.nmbjumbop    
@@ -291,9 +338,11 @@ Network Memory Buffer allocation
          kern.ipc.nmbjumbo16
          kern.ipc.nmbufs
 
-The amount of memory that you allocate is system specific, and may require some trial and error.
+The amount of memory that you allocate is system specific, and may
+require some trial and error.
 
-Also, increasing the follwing in /etc/sysctl.conf could help increase network   performance:
+Also, increasing the follwing in /etc/sysctl.conf could help increase
+network performance:
          
          kern.ipc.maxsockbuf
          net.inet.tcp.sendspace
@@ -304,7 +353,10 @@ Also, increasing the follwing in /etc/sysctl.conf could help increase network   
 
 UDP Stress Test Dropped Packet Issue
 ------------------------------------
-  Under small packet UDP stress test with the ixl driver, the FreeBSD system   will drop UDP packets due to the fullness of socket buffers. You may want to    change the driver's Flow Control variables to the minimum value for controlling packet reception.
+Under small packet UDP stress test with the ixl driver, the FreeBSD system
+may drop UDP packets due to the fullness of socket buffers. You may want to
+change the driver's Flow Control variables to the minimum value for
+controlling packet reception.
 
 
 Disable LRO when routing/bridging
@@ -314,11 +366,20 @@ LRO must be turned off when forwarding traffic.
 
 Lower than expected performance
 -------------------------------
-  Some PCIe x8 slots are actually configured as x4 slots. These slots have      insufficient bandwidth for full line rate with dual port and quad port devices. In addition, if you put a PCIe Generation 3-capable adapter into a PCIe         Generation 2 slot, you cannot get full bandwidth. The driver detects this       situation and writes the following message in the system log:
+Some PCIe x8 slots are actually configured as x4 slots. These slots have
+insufficient bandwidth for full line rate with dual port and quad port
+devices.
 
-  "PCI-Express bandwidth available for this card is not sufficient for optimal  performance. For optimal performance a x8 PCI-Express slot is required."
+In addition, if you put a PCIe Generation 3-capable adapter into a PCIe
+Generation 2 slot, you cannot get full bandwidth. The driver detects this
+situation and writes the following message in the system log:
 
-If this error occurs, moving your adapter to a true PCIe Generation 3 x8 slot   will resolve the issue.
+  "PCI-Express bandwidth available for this card is not sufficient for
+   optimal  performance. For optimal performance a x8 PCI-Express slot
+   is required."
+
+If this error occurs, moving your adapter to a true PCIe Generation 3 x8
+slot will resolve the issue.
 
 
 Support
@@ -328,14 +389,21 @@ For general information and support, go to the Intel support website at:
 
         http://support.intel.com
 
-If an issue is identified with the released source code on the supported kernel with a supported adapter, email the specific information related to the issue tofreebsdnic@mailbox.intel.com.
+If an issue is identified with the released source code on the supported kernel
+with a supported adapter, email the specific information related to the issue
+to freebsdnic@mailbox.intel.com.
 
 
 License
 =======
 
-This software program is released under the terms of a license agreement betweenyou ('Licensee') and Intel. Do not use or load this software or any associated  materials (collectively, the 'Software') until you have carefully read the full terms and conditions of the LICENSE located in this software package. By loadingor using the Software, you agree to the terms of this Agreement. If you do not 
-agree with the terms of this Agreement, do not install or use the Software.
+This software program is released under the terms of a license agreement
+between you ('Licensee') and Intel. Do not use or load this software or any
+associated  materials (collectively, the 'Software') until you have carefully
+read the full terms and conditions of the LICENSE located in this software
+package. By loadingor using the Software, you agree to the terms of this
+Agreement. If you do not agree with the terms of this Agreement, do not
+install or use the Software.
 
 * Other names and brands may be claimed as the property of others.
 

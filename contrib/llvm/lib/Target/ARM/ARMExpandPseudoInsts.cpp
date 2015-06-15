@@ -14,20 +14,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "arm-pseudo"
 #include "ARM.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMBaseRegisterInfo.h"
+#include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h" // FIXME: for debug only. remove!
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "arm-pseudo"
 
 static cl::opt<bool>
 VerifyARMPseudo("verify-arm-pseudo-expand", cl::Hidden,
@@ -44,9 +48,9 @@ namespace {
     const ARMSubtarget *STI;
     ARMFunctionInfo *AFI;
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "ARM pseudo instruction expansion pass";
     }
 
@@ -343,7 +347,7 @@ static const NEONLdStTableEntry *LookupNEONLdSt(unsigned Opcode) {
     std::lower_bound(NEONLdStTable, NEONLdStTable + NumEntries, Opcode);
   if (I != NEONLdStTable + NumEntries && I->PseudoOpc == Opcode)
     return I;
-  return NULL;
+  return nullptr;
 }
 
 /// GetDSubRegs - Get 4 D subregisters of a Q, QQ, or QQQQ register,
@@ -479,6 +483,8 @@ void ARMExpandPseudo::ExpandVST(MachineBasicBlock::iterator &MBBI) {
 
   if (SrcIsKill && !SrcIsUndef) // Add an implicit kill for the super-reg.
     MIB->addRegisterKilled(SrcReg, TRI, true);
+  else if (!SrcIsUndef)
+    MIB.addReg(SrcReg, RegState::Implicit); // Add implicit uses for src reg.
   TransferImpOps(MI, MIB, MIB);
 
   // Transfer memoperands.
@@ -604,10 +610,43 @@ void ARMExpandPseudo::ExpandVTBL(MachineBasicBlock::iterator &MBBI,
   MIB.addOperand(MI.getOperand(OpIdx++));
   MIB.addOperand(MI.getOperand(OpIdx++));
 
-  if (SrcIsKill)  // Add an implicit kill for the super-reg.
-    MIB->addRegisterKilled(SrcReg, TRI, true);
+  // Add an implicit kill and use for the super-reg.
+  MIB.addReg(SrcReg, RegState::Implicit | getKillRegState(SrcIsKill));
   TransferImpOps(MI, MIB, MIB);
   MI.eraseFromParent();
+}
+
+static bool IsAnAddressOperand(const MachineOperand &MO) {
+  // This check is overly conservative.  Unless we are certain that the machine
+  // operand is not a symbol reference, we return that it is a symbol reference.
+  // This is important as the load pair may not be split up Windows.
+  switch (MO.getType()) {
+  case MachineOperand::MO_Register:
+  case MachineOperand::MO_Immediate:
+  case MachineOperand::MO_CImmediate:
+  case MachineOperand::MO_FPImmediate:
+    return false;
+  case MachineOperand::MO_MachineBasicBlock:
+    return true;
+  case MachineOperand::MO_FrameIndex:
+    return false;
+  case MachineOperand::MO_ConstantPoolIndex:
+  case MachineOperand::MO_TargetIndex:
+  case MachineOperand::MO_JumpTableIndex:
+  case MachineOperand::MO_ExternalSymbol:
+  case MachineOperand::MO_GlobalAddress:
+  case MachineOperand::MO_BlockAddress:
+    return true;
+  case MachineOperand::MO_RegisterMask:
+  case MachineOperand::MO_RegisterLiveOut:
+    return false;
+  case MachineOperand::MO_Metadata:
+  case MachineOperand::MO_MCSymbol:
+    return true;
+  case MachineOperand::MO_CFIIndex:
+    return false;
+  }
+  llvm_unreachable("unhandled machine operand type");
 }
 
 void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
@@ -620,10 +659,14 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
   bool DstIsDead = MI.getOperand(0).isDead();
   bool isCC = Opcode == ARM::MOVCCi32imm || Opcode == ARM::t2MOVCCi32imm;
   const MachineOperand &MO = MI.getOperand(isCC ? 2 : 1);
+  bool RequiresBundling = STI->isTargetWindows() && IsAnAddressOperand(MO);
   MachineInstrBuilder LO16, HI16;
 
   if (!STI->hasV6T2Ops() &&
       (Opcode == ARM::MOVi32imm || Opcode == ARM::MOVCCi32imm)) {
+    // FIXME Windows CE supports older ARM CPUs
+    assert(!STI->isTargetWindows() && "Windows on ARM requires ARMv7+");
+
     // Expand into a movi + orr.
     LO16 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVi), DstReg);
     HI16 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::ORRri))
@@ -660,23 +703,38 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
     .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
     .addReg(DstReg);
 
-  if (MO.isImm()) {
+  switch (MO.getType()) {
+  case MachineOperand::MO_Immediate: {
     unsigned Imm = MO.getImm();
     unsigned Lo16 = Imm & 0xffff;
     unsigned Hi16 = (Imm >> 16) & 0xffff;
     LO16 = LO16.addImm(Lo16);
     HI16 = HI16.addImm(Hi16);
-  } else {
+    break;
+  }
+  case MachineOperand::MO_ExternalSymbol: {
+    const char *ES = MO.getSymbolName();
+    unsigned TF = MO.getTargetFlags();
+    LO16 = LO16.addExternalSymbol(ES, TF | ARMII::MO_LO16);
+    HI16 = HI16.addExternalSymbol(ES, TF | ARMII::MO_HI16);
+    break;
+  }
+  default: {
     const GlobalValue *GV = MO.getGlobal();
     unsigned TF = MO.getTargetFlags();
     LO16 = LO16.addGlobalAddress(GV, MO.getOffset(), TF | ARMII::MO_LO16);
     HI16 = HI16.addGlobalAddress(GV, MO.getOffset(), TF | ARMII::MO_HI16);
+    break;
+  }
   }
 
   LO16->setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
   HI16->setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
   LO16.addImm(Pred).addReg(PredReg);
   HI16.addImm(Pred).addReg(PredReg);
+
+  if (RequiresBundling)
+    finalizeBundle(MBB, &*LO16, &*MBBI);
 
   TransferImpOps(MI, LO16, HI16);
   MI.eraseFromParent();
@@ -809,7 +867,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       if (RI.hasBasePointer(MF)) {
         int32_t NumBytes = AFI->getFramePtrSpillOffset();
         unsigned FramePtr = RI.getFrameRegister(MF);
-        assert(MF.getTarget().getFrameLowering()->hasFP(MF) &&
+        assert(MF.getSubtarget().getFrameLowering()->hasFP(MF) &&
                "base pointer without frame pointer?");
 
         if (AFI->isThumb2Function()) {
@@ -829,6 +887,9 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           unsigned MaxAlign = MFI->getMaxAlignment();
           assert (!AFI->isThumb1OnlyFunction());
           // Emit bic r6, r6, MaxAlign
+          assert(MaxAlign <= 256 && "The BIC instruction cannot encode "
+                                    "immediates larger than 256 with all lower "
+                                    "bits set.");
           unsigned bicOpc = AFI->isThumbFunction() ?
             ARM::t2BICri : ARM::BICri;
           AddDefaultCC(AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
@@ -869,10 +930,16 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     }
     case ARM::tTPsoft:
     case ARM::TPsoft: {
-      MachineInstrBuilder MIB =
-        BuildMI(MBB, MBBI, MI.getDebugLoc(),
-                TII->get(Opcode == ARM::tTPsoft ? ARM::tBL : ARM::BL))
-        .addExternalSymbol("__aeabi_read_tp", 0);
+      MachineInstrBuilder MIB;
+      if (Opcode == ARM::tTPsoft)
+        MIB = BuildMI(MBB, MBBI, MI.getDebugLoc(),
+                      TII->get( ARM::tBL))
+              .addImm((unsigned)ARMCC::AL).addReg(0)
+              .addExternalSymbol("__aeabi_read_tp", 0);
+      else
+        MIB = BuildMI(MBB, MBBI, MI.getDebugLoc(),
+                      TII->get( ARM::BL))
+              .addExternalSymbol("__aeabi_read_tp", 0);
 
       MIB->setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
       TransferImpOps(MI, MIB, MIB);
@@ -900,10 +967,61 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       return true;
     }
 
-    case ARM::MOV_ga_dyn:
+    case ARM::LDRLIT_ga_abs:
+    case ARM::LDRLIT_ga_pcrel:
+    case ARM::LDRLIT_ga_pcrel_ldr:
+    case ARM::tLDRLIT_ga_abs:
+    case ARM::tLDRLIT_ga_pcrel: {
+      unsigned DstReg = MI.getOperand(0).getReg();
+      bool DstIsDead = MI.getOperand(0).isDead();
+      const MachineOperand &MO1 = MI.getOperand(1);
+      const GlobalValue *GV = MO1.getGlobal();
+      bool IsARM =
+          Opcode != ARM::tLDRLIT_ga_pcrel && Opcode != ARM::tLDRLIT_ga_abs;
+      bool IsPIC =
+          Opcode != ARM::LDRLIT_ga_abs && Opcode != ARM::tLDRLIT_ga_abs;
+      unsigned LDRLITOpc = IsARM ? ARM::LDRi12 : ARM::tLDRpci;
+      unsigned PICAddOpc =
+          IsARM
+              ? (Opcode == ARM::LDRLIT_ga_pcrel_ldr ? ARM::PICLDR : ARM::PICADD)
+              : ARM::tPICADD;
+
+      // We need a new const-pool entry to load from.
+      MachineConstantPool *MCP = MBB.getParent()->getConstantPool();
+      unsigned ARMPCLabelIndex = 0;
+      MachineConstantPoolValue *CPV;
+
+      if (IsPIC) {
+        unsigned PCAdj = IsARM ? 8 : 4;
+        ARMPCLabelIndex = AFI->createPICLabelUId();
+        CPV = ARMConstantPoolConstant::Create(GV, ARMPCLabelIndex,
+                                              ARMCP::CPValue, PCAdj);
+      } else
+        CPV = ARMConstantPoolConstant::Create(GV, ARMCP::no_modifier);
+
+      MachineInstrBuilder MIB =
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(LDRLITOpc), DstReg)
+            .addConstantPoolIndex(MCP->getConstantPoolIndex(CPV, 4));
+      if (IsARM)
+        MIB.addImm(0);
+      AddDefaultPred(MIB);
+
+      if (IsPIC) {
+        MachineInstrBuilder MIB =
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(PICAddOpc))
+            .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+            .addReg(DstReg)
+            .addImm(ARMPCLabelIndex);
+
+        if (IsARM)
+          AddDefaultPred(MIB);
+      }
+
+      MI.eraseFromParent();
+      return true;
+    }
     case ARM::MOV_ga_pcrel:
     case ARM::MOV_ga_pcrel_ldr:
-    case ARM::t2MOV_ga_dyn:
     case ARM::t2MOV_ga_pcrel: {
       // Expand into movw + movw. Also "add pc" / ldr [pc] in PIC mode.
       unsigned LabelId = AFI->createPICLabelUId();
@@ -912,14 +1030,11 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       const MachineOperand &MO1 = MI.getOperand(1);
       const GlobalValue *GV = MO1.getGlobal();
       unsigned TF = MO1.getTargetFlags();
-      bool isARM = (Opcode != ARM::t2MOV_ga_pcrel && Opcode!=ARM::t2MOV_ga_dyn);
-      bool isPIC = (Opcode != ARM::MOV_ga_dyn && Opcode != ARM::t2MOV_ga_dyn);
+      bool isARM = Opcode != ARM::t2MOV_ga_pcrel;
       unsigned LO16Opc = isARM ? ARM::MOVi16_ga_pcrel : ARM::t2MOVi16_ga_pcrel;
       unsigned HI16Opc = isARM ? ARM::MOVTi16_ga_pcrel :ARM::t2MOVTi16_ga_pcrel;
-      unsigned LO16TF = isPIC
-        ? ARMII::MO_LO16_NONLAZY_PIC : ARMII::MO_LO16_NONLAZY;
-      unsigned HI16TF = isPIC
-        ? ARMII::MO_HI16_NONLAZY_PIC : ARMII::MO_HI16_NONLAZY;
+      unsigned LO16TF = TF | ARMII::MO_LO16;
+      unsigned HI16TF = TF | ARMII::MO_HI16;
       unsigned PICAddOpc = isARM
         ? (Opcode == ARM::MOV_ga_pcrel_ldr ? ARM::PICLDR : ARM::PICADD)
         : ARM::tPICADD;
@@ -927,16 +1042,11 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
                                          TII->get(LO16Opc), DstReg)
         .addGlobalAddress(GV, MO1.getOffset(), TF | LO16TF)
         .addImm(LabelId);
-      MachineInstrBuilder MIB2 = BuildMI(MBB, MBBI, MI.getDebugLoc(),
-                                         TII->get(HI16Opc), DstReg)
+
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(HI16Opc), DstReg)
         .addReg(DstReg)
         .addGlobalAddress(GV, MO1.getOffset(), TF | HI16TF)
         .addImm(LabelId);
-      if (!isPIC) {
-        TransferImpOps(MI, MIB1, MIB2);
-        MI.eraseFromParent();
-        return true;
-      }
 
       MachineInstrBuilder MIB3 = BuildMI(MBB, MBBI, MI.getDebugLoc(),
                                          TII->get(PICAddOpc))
@@ -1029,33 +1139,6 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
 
       TransferImpOps(MI, MIB, MIB);
       MIB.setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
-      MI.eraseFromParent();
-      return true;
-    }
-    case ARM::VDUPfqf:
-    case ARM::VDUPfdf:{
-      unsigned NewOpc = Opcode == ARM::VDUPfqf ? ARM::VDUPLN32q :
-        ARM::VDUPLN32d;
-      MachineInstrBuilder MIB =
-        BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(NewOpc));
-      unsigned OpIdx = 0;
-      unsigned SrcReg = MI.getOperand(1).getReg();
-      unsigned Lane = TRI->getEncodingValue(SrcReg) & 1;
-      unsigned DReg = TRI->getMatchingSuperReg(SrcReg,
-                            Lane & 1 ? ARM::ssub_1 : ARM::ssub_0,
-                            &ARM::DPR_VFP2RegClass);
-      // The lane is [0,1] for the containing DReg superregister.
-      // Copy the dst/src register operands.
-      MIB.addOperand(MI.getOperand(OpIdx++));
-      MIB.addReg(DReg);
-      ++OpIdx;
-      // Add the lane select operand.
-      MIB.addImm(Lane);
-      // Add the predicate operands.
-      MIB.addOperand(MI.getOperand(OpIdx++));
-      MIB.addOperand(MI.getOperand(OpIdx++));
-
-      TransferImpOps(MI, MIB, MIB);
       MI.eraseFromParent();
       return true;
     }
@@ -1253,7 +1336,7 @@ bool ARMExpandPseudo::ExpandMBB(MachineBasicBlock &MBB) {
 
   MachineBasicBlock::iterator MBBI = MBB.begin(), E = MBB.end();
   while (MBBI != E) {
-    MachineBasicBlock::iterator NMBBI = llvm::next(MBBI);
+    MachineBasicBlock::iterator NMBBI = std::next(MBBI);
     Modified |= ExpandMI(MBB, MBBI);
     MBBI = NMBBI;
   }
@@ -1263,8 +1346,9 @@ bool ARMExpandPseudo::ExpandMBB(MachineBasicBlock &MBB) {
 
 bool ARMExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
   const TargetMachine &TM = MF.getTarget();
-  TII = static_cast<const ARMBaseInstrInfo*>(TM.getInstrInfo());
-  TRI = TM.getRegisterInfo();
+  TII = static_cast<const ARMBaseInstrInfo *>(
+      TM.getSubtargetImpl()->getInstrInfo());
+  TRI = TM.getSubtargetImpl()->getRegisterInfo();
   STI = &TM.getSubtarget<ARMSubtarget>();
   AFI = MF.getInfo<ARMFunctionInfo>();
 

@@ -1,4 +1,4 @@
-//===-- AArch64AsmPrinter.cpp - Print machine code to an AArch64 .s file --===//
+//===-- AArch64AsmPrinter.cpp - AArch64 LLVM assembly writer --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,270 +8,135 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains a printer that converts from our internal representation
-// of machine-dependent LLVM code to GAS-format AArch64 assembly language.
+// of machine-dependent LLVM code to the AArch64 assembly language.
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
-#include "AArch64AsmPrinter.h"
+#include "MCTargetDesc/AArch64AddressingModes.h"
+#include "MCTargetDesc/AArch64MCExpr.h"
+#include "AArch64.h"
+#include "AArch64MCInstLower.h"
+#include "AArch64MachineFunctionInfo.h"
+#include "AArch64RegisterInfo.h"
+#include "AArch64Subtarget.h"
 #include "InstPrinter/AArch64InstPrinter.h"
-#include "llvm/DebugInfo.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
+#include "llvm/CodeGen/StackMaps.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCInstBuilder.h"
+#include "llvm/MC/MCLinkerOptimizationHint.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Target/Mangler.h"
-
 using namespace llvm;
 
-/// Try to print a floating-point register as if it belonged to a specified
-/// register-class. For example the inline asm operand modifier "b" requires its
-/// argument to be printed as "bN".
-static bool printModifiedFPRAsmOperand(const MachineOperand &MO,
-                                       const TargetRegisterInfo *TRI,
-                                       char RegType, raw_ostream &O) {
-  if (!MO.isReg())
-    return true;
+#define DEBUG_TYPE "asm-printer"
 
-  for (MCRegAliasIterator AR(MO.getReg(), TRI, true); AR.isValid(); ++AR) {
-    if (AArch64::FPR8RegClass.contains(*AR)) {
-      O << RegType << TRI->getEncodingValue(MO.getReg());
-      return false;
-    }
+namespace {
+
+class AArch64AsmPrinter : public AsmPrinter {
+  /// Subtarget - Keep a pointer to the AArch64Subtarget around so that we can
+  /// make the right decision when printing asm code for different targets.
+  const AArch64Subtarget *Subtarget;
+
+  AArch64MCInstLower MCInstLowering;
+  StackMaps SM;
+
+public:
+  AArch64AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
+      : AsmPrinter(TM, Streamer),
+        Subtarget(&TM.getSubtarget<AArch64Subtarget>()),
+        MCInstLowering(OutContext, *this), SM(*this), AArch64FI(nullptr),
+        LOHLabelCounter(0) {}
+
+  const char *getPassName() const override {
+    return "AArch64 Assembly Printer";
   }
 
-  // The register doesn't correspond to anything floating-point like.
-  return true;
-}
-
-/// Implements the 'w' and 'x' inline asm operand modifiers, which print a GPR
-/// with the obvious type and an immediate 0 as either wzr or xzr.
-static bool printModifiedGPRAsmOperand(const MachineOperand &MO,
-                                       const TargetRegisterInfo *TRI,
-                                       const TargetRegisterClass &RegClass,
-                                       raw_ostream &O) {
-  char Prefix = &RegClass == &AArch64::GPR32RegClass ? 'w' : 'x';
-
-  if (MO.isImm() && MO.getImm() == 0) {
-    O << Prefix << "zr";
-    return false;
-  } else if (MO.isReg()) {
-    if (MO.getReg() == AArch64::XSP || MO.getReg() == AArch64::WSP) {
-      O << (Prefix == 'x' ? "sp" : "wsp");
-      return false;
-    }
-
-    for (MCRegAliasIterator AR(MO.getReg(), TRI, true); AR.isValid(); ++AR) {
-      if (RegClass.contains(*AR)) {
-        O << AArch64InstPrinter::getRegisterName(*AR);
-        return false;
-      }
-    }
+  /// \brief Wrapper for MCInstLowering.lowerOperand() for the
+  /// tblgen'erated pseudo lowering.
+  bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp) const {
+    return MCInstLowering.lowerOperand(MO, MCOp);
   }
 
-  return true;
-}
+  void LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
+                     const MachineInstr &MI);
+  void LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
+                       const MachineInstr &MI);
+  /// \brief tblgen'erated driver function for lowering simple MI->MC
+  /// pseudo instructions.
+  bool emitPseudoExpansionLowering(MCStreamer &OutStreamer,
+                                   const MachineInstr *MI);
 
-bool AArch64AsmPrinter::printSymbolicAddress(const MachineOperand &MO,
-                                             bool PrintImmediatePrefix,
-                                             StringRef Suffix, raw_ostream &O) {
-  StringRef Name;
-  StringRef Modifier;
-  switch (MO.getType()) {
-  default:
-    return true;
-  case MachineOperand::MO_GlobalAddress:
-    Name = getSymbol(MO.getGlobal())->getName();
+  void EmitInstruction(const MachineInstr *MI) override;
 
-    // Global variables may be accessed either via a GOT or in various fun and
-    // interesting TLS-model specific ways. Set the prefix modifier as
-    // appropriate here.
-    if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(MO.getGlobal())) {
-      Reloc::Model RelocM = TM.getRelocationModel();
-      if (GV->isThreadLocal()) {
-        switch (TM.getTLSModel(GV)) {
-        case TLSModel::GeneralDynamic:
-          Modifier = "tlsdesc";
-          break;
-        case TLSModel::LocalDynamic:
-          Modifier = "dtprel";
-          break;
-        case TLSModel::InitialExec:
-          Modifier = "gottprel";
-          break;
-        case TLSModel::LocalExec:
-          Modifier = "tprel";
-          break;
-        }
-      } else if (Subtarget->GVIsIndirectSymbol(GV, RelocM)) {
-        Modifier = "got";
-      }
-    }
-    break;
-  case MachineOperand::MO_BlockAddress:
-    Name = GetBlockAddressSymbol(MO.getBlockAddress())->getName();
-    break;
-  case MachineOperand::MO_ExternalSymbol:
-    Name = MO.getSymbolName();
-    break;
-  case MachineOperand::MO_ConstantPoolIndex:
-    Name = GetCPISymbol(MO.getIndex())->getName();
-    break;
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AsmPrinter::getAnalysisUsage(AU);
+    AU.setPreservesAll();
   }
 
-  // Some instructions (notably ADRP) don't take the # prefix for
-  // immediates. Only print it if asked to.
-  if (PrintImmediatePrefix)
-    O << '#';
-
-  // Only need the joining "_" if both the prefix and the suffix are
-  // non-null. This little block simply takes care of the four possibly
-  // combinations involved there.
-  if (Modifier == "" && Suffix == "")
-    O << Name;
-  else if (Modifier == "" && Suffix != "")
-    O << ":" << Suffix << ':' << Name;
-  else if (Modifier != "" && Suffix == "")
-    O << ":" << Modifier << ':' << Name;
-  else
-    O << ":" << Modifier << '_' << Suffix << ':' << Name;
-
-  return false;
-}
-
-bool AArch64AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
-                                        unsigned AsmVariant,
-                                        const char *ExtraCode, raw_ostream &O) {
-  const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
-
-  if (!ExtraCode)
-    ExtraCode = "";
-
-  switch(ExtraCode[0]) {
-  default:
-    if (!AsmPrinter::PrintAsmOperand(MI, OpNum, AsmVariant, ExtraCode, O))
-        return false;
-    break;
-  case 'w':
-    // Output 32-bit general register operand, constant zero as wzr, or stack
-    // pointer as wsp. Ignored when used with other operand types.
-    if (!printModifiedGPRAsmOperand(MI->getOperand(OpNum), TRI,
-                                    AArch64::GPR32RegClass, O))
-      return false;
-    break;
-  case 'x':
-    // Output 64-bit general register operand, constant zero as xzr, or stack
-    // pointer as sp. Ignored when used with other operand types.
-    if (!printModifiedGPRAsmOperand(MI->getOperand(OpNum), TRI,
-                                    AArch64::GPR64RegClass, O))
-      return false;
-    break;
-  case 'H':
-    // Output higher numbered of a 64-bit general register pair
-  case 'Q':
-    // Output least significant register of a 64-bit general register pair
-  case 'R':
-    // Output most significant register of a 64-bit general register pair
-
-    // FIXME note: these three operand modifiers will require, to some extent,
-    // adding a paired GPR64 register class. Initial investigation suggests that
-    // assertions are hit unless it has a type and is made legal for that type
-    // in ISelLowering. After that step is made, the number of modifications
-    // needed explodes (operation legality, calling conventions, stores, reg
-    // copies ...).
-    llvm_unreachable("FIXME: Unimplemented register pairs");
-  case 'b':
-  case 'h':
-  case 's':
-  case 'd':
-  case 'q':
-    if (!printModifiedFPRAsmOperand(MI->getOperand(OpNum), TRI,
-                                    ExtraCode[0], O))
-      return false;
-    break;
-  case 'A':
-    // Output symbolic address with appropriate relocation modifier (also
-    // suitable for ADRP).
-    if (!printSymbolicAddress(MI->getOperand(OpNum), false, "", O))
-      return false;
-    break;
-  case 'L':
-    // Output bits 11:0 of symbolic address with appropriate :lo12: relocation
-    // modifier.
-    if (!printSymbolicAddress(MI->getOperand(OpNum), true, "lo12", O))
-      return false;
-    break;
-  case 'G':
-    // Output bits 23:12 of symbolic address with appropriate :hi12: relocation
-    // modifier (currently only for TLS local exec).
-    if (!printSymbolicAddress(MI->getOperand(OpNum), true, "hi12", O))
-      return false;
-    break;
-  case 'a':
-    return PrintAsmMemoryOperand(MI, OpNum, AsmVariant, ExtraCode, O);
+  bool runOnMachineFunction(MachineFunction &F) override {
+    AArch64FI = F.getInfo<AArch64FunctionInfo>();
+    return AsmPrinter::runOnMachineFunction(F);
   }
 
-  // There's actually no operand modifier, which leads to a slightly eclectic
-  // set of behaviour which we have to handle here.
-  const MachineOperand &MO = MI->getOperand(OpNum);
-  switch (MO.getType()) {
-  default:
-    llvm_unreachable("Unexpected operand for inline assembly");
-  case MachineOperand::MO_Register:
-    // GCC prints the unmodified operand of a 'w' constraint as the vector
-    // register. Technically, we could allocate the argument as a VPR128, but
-    // that leads to extremely dodgy copies being generated to get the data
-    // there.
-    if (printModifiedFPRAsmOperand(MO, TRI, 'v', O))
-      O << AArch64InstPrinter::getRegisterName(MO.getReg());
-    break;
-  case MachineOperand::MO_Immediate:
-    O << '#' << MO.getImm();
-    break;
-  case MachineOperand::MO_FPImmediate:
-    assert(MO.getFPImm()->isExactlyValue(0.0) && "Only FP 0.0 expected");
-    O << "#0.0";
-    break;
-  case MachineOperand::MO_BlockAddress:
-  case MachineOperand::MO_ConstantPoolIndex:
-  case MachineOperand::MO_GlobalAddress:
-  case MachineOperand::MO_ExternalSymbol:
-    return printSymbolicAddress(MO, false, "", O);
-  }
+private:
+  MachineLocation getDebugValueLocation(const MachineInstr *MI) const;
+  void printOperand(const MachineInstr *MI, unsigned OpNum, raw_ostream &O);
+  bool printAsmMRegister(const MachineOperand &MO, char Mode, raw_ostream &O);
+  bool printAsmRegInClass(const MachineOperand &MO,
+                          const TargetRegisterClass *RC, bool isVector,
+                          raw_ostream &O);
 
-  return false;
-}
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
+                       unsigned AsmVariant, const char *ExtraCode,
+                       raw_ostream &O) override;
+  bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
+                             unsigned AsmVariant, const char *ExtraCode,
+                             raw_ostream &O) override;
 
-bool AArch64AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
-                                              unsigned OpNum,
-                                              unsigned AsmVariant,
-                                              const char *ExtraCode,
-                                              raw_ostream &O) {
-  // Currently both the memory constraints (m and Q) behave the same and amount
-  // to the address as a single register. In future, we may allow "m" to provide
-  // both a base and an offset.
-  const MachineOperand &MO = MI->getOperand(OpNum);
-  assert(MO.isReg() && "unexpected inline assembly memory operand");
-  O << '[' << AArch64InstPrinter::getRegisterName(MO.getReg()) << ']';
-  return false;
-}
+  void PrintDebugValueComment(const MachineInstr *MI, raw_ostream &OS);
 
-#include "AArch64GenMCPseudoLowering.inc"
+  void EmitFunctionBodyEnd() override;
 
-void AArch64AsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  // Do any auto-generated pseudo lowerings.
-  if (emitPseudoExpansionLowering(OutStreamer, MI))
-    return;
+  MCSymbol *GetCPISymbol(unsigned CPID) const override;
+  void EmitEndOfAsmFile(Module &M) override;
+  AArch64FunctionInfo *AArch64FI;
 
-  MCInst TmpInst;
-  LowerAArch64MachineInstrToMCInst(MI, TmpInst, *this);
-  OutStreamer.EmitInstruction(TmpInst);
-}
+  /// \brief Emit the LOHs contained in AArch64FI.
+  void EmitLOHs();
+
+  typedef std::map<const MachineInstr *, MCSymbol *> MInstToMCSymbol;
+  MInstToMCSymbol LOHInstToLabel;
+  unsigned LOHLabelCounter;
+};
+
+} // end of anonymous namespace
+
+//===----------------------------------------------------------------------===//
 
 void AArch64AsmPrinter::EmitEndOfAsmFile(Module &M) {
+  if (Subtarget->isTargetMachO()) {
+    // Funny Darwin hack: This flag tells the linker that no global symbols
+    // contain code that falls through to other global symbols (e.g. the obvious
+    // implementation of multiple entry points).  If this doesn't occur, the
+    // linker can safely perform dead code stripping.  Since LLVM never
+    // generates code that does this, it is always safe to set.
+    OutStreamer.EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
+    SM.serializeToStackMapSection();
+  }
+
+  // Emit a .data.rel section containing any stubs that were created.
   if (Subtarget->isTargetELF()) {
     const TargetLoweringObjectFileELF &TLOFELF =
       static_cast<const TargetLoweringObjectFileELF &>(getObjFileLowering());
@@ -282,7 +147,7 @@ void AArch64AsmPrinter::EmitEndOfAsmFile(Module &M) {
     MachineModuleInfoELF::SymbolListTy Stubs = MMIELF.GetGVStubList();
     if (!Stubs.empty()) {
       OutStreamer.SwitchSection(TLOFELF.getDataRelSection());
-      const DataLayout *TD = TM.getDataLayout();
+      const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
 
       for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
         OutStreamer.EmitLabel(Stubs[i].first);
@@ -292,14 +157,416 @@ void AArch64AsmPrinter::EmitEndOfAsmFile(Module &M) {
       Stubs.clear();
     }
   }
+
 }
 
-bool AArch64AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
-  return AsmPrinter::runOnMachineFunction(MF);
+MachineLocation
+AArch64AsmPrinter::getDebugValueLocation(const MachineInstr *MI) const {
+  MachineLocation Location;
+  assert(MI->getNumOperands() == 4 && "Invalid no. of machine operands!");
+  // Frame address.  Currently handles register +- offset only.
+  if (MI->getOperand(0).isReg() && MI->getOperand(1).isImm())
+    Location.set(MI->getOperand(0).getReg(), MI->getOperand(1).getImm());
+  else {
+    DEBUG(dbgs() << "DBG_VALUE instruction ignored! " << *MI << "\n");
+  }
+  return Location;
+}
+
+void AArch64AsmPrinter::EmitLOHs() {
+  SmallVector<MCSymbol *, 3> MCArgs;
+
+  for (const auto &D : AArch64FI->getLOHContainer()) {
+    for (const MachineInstr *MI : D.getArgs()) {
+      MInstToMCSymbol::iterator LabelIt = LOHInstToLabel.find(MI);
+      assert(LabelIt != LOHInstToLabel.end() &&
+             "Label hasn't been inserted for LOH related instruction");
+      MCArgs.push_back(LabelIt->second);
+    }
+    OutStreamer.EmitLOHDirective(D.getKind(), MCArgs);
+    MCArgs.clear();
+  }
+}
+
+void AArch64AsmPrinter::EmitFunctionBodyEnd() {
+  if (!AArch64FI->getLOHRelated().empty())
+    EmitLOHs();
+}
+
+/// GetCPISymbol - Return the symbol for the specified constant pool entry.
+MCSymbol *AArch64AsmPrinter::GetCPISymbol(unsigned CPID) const {
+  // Darwin uses a linker-private symbol name for constant-pools (to
+  // avoid addends on the relocation?), ELF has no such concept and
+  // uses a normal private symbol.
+  if (getDataLayout().getLinkerPrivateGlobalPrefix()[0])
+    return OutContext.GetOrCreateSymbol(
+        Twine(getDataLayout().getLinkerPrivateGlobalPrefix()) + "CPI" +
+        Twine(getFunctionNumber()) + "_" + Twine(CPID));
+
+  return OutContext.GetOrCreateSymbol(
+      Twine(getDataLayout().getPrivateGlobalPrefix()) + "CPI" +
+      Twine(getFunctionNumber()) + "_" + Twine(CPID));
+}
+
+void AArch64AsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
+                                     raw_ostream &O) {
+  const MachineOperand &MO = MI->getOperand(OpNum);
+  switch (MO.getType()) {
+  default:
+    llvm_unreachable("<unknown operand type>");
+  case MachineOperand::MO_Register: {
+    unsigned Reg = MO.getReg();
+    assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+    assert(!MO.getSubReg() && "Subregs should be eliminated!");
+    O << AArch64InstPrinter::getRegisterName(Reg);
+    break;
+  }
+  case MachineOperand::MO_Immediate: {
+    int64_t Imm = MO.getImm();
+    O << '#' << Imm;
+    break;
+  }
+  }
+}
+
+bool AArch64AsmPrinter::printAsmMRegister(const MachineOperand &MO, char Mode,
+                                          raw_ostream &O) {
+  unsigned Reg = MO.getReg();
+  switch (Mode) {
+  default:
+    return true; // Unknown mode.
+  case 'w':
+    Reg = getWRegFromXReg(Reg);
+    break;
+  case 'x':
+    Reg = getXRegFromWReg(Reg);
+    break;
+  }
+
+  O << AArch64InstPrinter::getRegisterName(Reg);
+  return false;
+}
+
+// Prints the register in MO using class RC using the offset in the
+// new register class. This should not be used for cross class
+// printing.
+bool AArch64AsmPrinter::printAsmRegInClass(const MachineOperand &MO,
+                                           const TargetRegisterClass *RC,
+                                           bool isVector, raw_ostream &O) {
+  assert(MO.isReg() && "Should only get here with a register!");
+  const AArch64RegisterInfo *RI = static_cast<const AArch64RegisterInfo *>(
+      TM.getSubtargetImpl()->getRegisterInfo());
+  unsigned Reg = MO.getReg();
+  unsigned RegToPrint = RC->getRegister(RI->getEncodingValue(Reg));
+  assert(RI->regsOverlap(RegToPrint, Reg));
+  O << AArch64InstPrinter::getRegisterName(
+           RegToPrint, isVector ? AArch64::vreg : AArch64::NoRegAltName);
+  return false;
+}
+
+bool AArch64AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
+                                        unsigned AsmVariant,
+                                        const char *ExtraCode, raw_ostream &O) {
+  const MachineOperand &MO = MI->getOperand(OpNum);
+
+  // First try the generic code, which knows about modifiers like 'c' and 'n'.
+  if (!AsmPrinter::PrintAsmOperand(MI, OpNum, AsmVariant, ExtraCode, O))
+    return false;
+
+  // Does this asm operand have a single letter operand modifier?
+  if (ExtraCode && ExtraCode[0]) {
+    if (ExtraCode[1] != 0)
+      return true; // Unknown modifier.
+
+    switch (ExtraCode[0]) {
+    default:
+      return true; // Unknown modifier.
+    case 'w':      // Print W register
+    case 'x':      // Print X register
+      if (MO.isReg())
+        return printAsmMRegister(MO, ExtraCode[0], O);
+      if (MO.isImm() && MO.getImm() == 0) {
+        unsigned Reg = ExtraCode[0] == 'w' ? AArch64::WZR : AArch64::XZR;
+        O << AArch64InstPrinter::getRegisterName(Reg);
+        return false;
+      }
+      printOperand(MI, OpNum, O);
+      return false;
+    case 'b': // Print B register.
+    case 'h': // Print H register.
+    case 's': // Print S register.
+    case 'd': // Print D register.
+    case 'q': // Print Q register.
+      if (MO.isReg()) {
+        const TargetRegisterClass *RC;
+        switch (ExtraCode[0]) {
+        case 'b':
+          RC = &AArch64::FPR8RegClass;
+          break;
+        case 'h':
+          RC = &AArch64::FPR16RegClass;
+          break;
+        case 's':
+          RC = &AArch64::FPR32RegClass;
+          break;
+        case 'd':
+          RC = &AArch64::FPR64RegClass;
+          break;
+        case 'q':
+          RC = &AArch64::FPR128RegClass;
+          break;
+        default:
+          return true;
+        }
+        return printAsmRegInClass(MO, RC, false /* vector */, O);
+      }
+      printOperand(MI, OpNum, O);
+      return false;
+    }
+  }
+
+  // According to ARM, we should emit x and v registers unless we have a
+  // modifier.
+  if (MO.isReg()) {
+    unsigned Reg = MO.getReg();
+
+    // If this is a w or x register, print an x register.
+    if (AArch64::GPR32allRegClass.contains(Reg) ||
+        AArch64::GPR64allRegClass.contains(Reg))
+      return printAsmMRegister(MO, 'x', O);
+
+    // If this is a b, h, s, d, or q register, print it as a v register.
+    return printAsmRegInClass(MO, &AArch64::FPR128RegClass, true /* vector */,
+                              O);
+  }
+
+  printOperand(MI, OpNum, O);
+  return false;
+}
+
+bool AArch64AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
+                                              unsigned OpNum,
+                                              unsigned AsmVariant,
+                                              const char *ExtraCode,
+                                              raw_ostream &O) {
+  if (ExtraCode && ExtraCode[0])
+    return true; // Unknown modifier.
+
+  const MachineOperand &MO = MI->getOperand(OpNum);
+  assert(MO.isReg() && "unexpected inline asm memory operand");
+  O << "[" << AArch64InstPrinter::getRegisterName(MO.getReg()) << "]";
+  return false;
+}
+
+void AArch64AsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
+                                               raw_ostream &OS) {
+  unsigned NOps = MI->getNumOperands();
+  assert(NOps == 4);
+  OS << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
+  // cast away const; DIetc do not take const operands for some reason.
+  DIVariable V(const_cast<MDNode *>(MI->getOperand(NOps - 1).getMetadata()));
+  OS << V.getName();
+  OS << " <- ";
+  // Frame address.  Currently handles register +- offset only.
+  assert(MI->getOperand(0).isReg() && MI->getOperand(1).isImm());
+  OS << '[';
+  printOperand(MI, 0, OS);
+  OS << '+';
+  printOperand(MI, 1, OS);
+  OS << ']';
+  OS << "+";
+  printOperand(MI, NOps - 2, OS);
+}
+
+void AArch64AsmPrinter::LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
+                                      const MachineInstr &MI) {
+  unsigned NumNOPBytes = MI.getOperand(1).getImm();
+
+  SM.recordStackMap(MI);
+  assert(NumNOPBytes % 4 == 0 && "Invalid number of NOP bytes requested!");
+
+  // Scan ahead to trim the shadow.
+  const MachineBasicBlock &MBB = *MI.getParent();
+  MachineBasicBlock::const_iterator MII(MI);
+  ++MII;
+  while (NumNOPBytes > 0) {
+    if (MII == MBB.end() || MII->isCall() ||
+        MII->getOpcode() == AArch64::DBG_VALUE ||
+        MII->getOpcode() == TargetOpcode::PATCHPOINT ||
+        MII->getOpcode() == TargetOpcode::STACKMAP)
+      break;
+    ++MII;
+    NumNOPBytes -= 4;
+  }
+
+  // Emit nops.
+  for (unsigned i = 0; i < NumNOPBytes; i += 4)
+    EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::HINT).addImm(0));
+}
+
+// Lower a patchpoint of the form:
+// [<def>], <id>, <numBytes>, <target>, <numArgs>
+void AArch64AsmPrinter::LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
+                                        const MachineInstr &MI) {
+  SM.recordPatchPoint(MI);
+
+  PatchPointOpers Opers(&MI);
+
+  int64_t CallTarget = Opers.getMetaOper(PatchPointOpers::TargetPos).getImm();
+  unsigned EncodedBytes = 0;
+  if (CallTarget) {
+    assert((CallTarget & 0xFFFFFFFFFFFF) == CallTarget &&
+           "High 16 bits of call target should be zero.");
+    unsigned ScratchReg = MI.getOperand(Opers.getNextScratchIdx()).getReg();
+    EncodedBytes = 16;
+    // Materialize the jump address:
+    EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::MOVZWi)
+                                    .addReg(ScratchReg)
+                                    .addImm((CallTarget >> 32) & 0xFFFF)
+                                    .addImm(32));
+    EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::MOVKWi)
+                                    .addReg(ScratchReg)
+                                    .addReg(ScratchReg)
+                                    .addImm((CallTarget >> 16) & 0xFFFF)
+                                    .addImm(16));
+    EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::MOVKWi)
+                                    .addReg(ScratchReg)
+                                    .addReg(ScratchReg)
+                                    .addImm(CallTarget & 0xFFFF)
+                                    .addImm(0));
+    EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::BLR).addReg(ScratchReg));
+  }
+  // Emit padding.
+  unsigned NumBytes = Opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
+  assert(NumBytes >= EncodedBytes &&
+         "Patchpoint can't request size less than the length of a call.");
+  assert((NumBytes - EncodedBytes) % 4 == 0 &&
+         "Invalid number of NOP bytes requested!");
+  for (unsigned i = EncodedBytes; i < NumBytes; i += 4)
+    EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::HINT).addImm(0));
+}
+
+// Simple pseudo-instructions have their lowering (with expansion to real
+// instructions) auto-generated.
+#include "AArch64GenMCPseudoLowering.inc"
+
+void AArch64AsmPrinter::EmitInstruction(const MachineInstr *MI) {
+  // Do any auto-generated pseudo lowerings.
+  if (emitPseudoExpansionLowering(OutStreamer, MI))
+    return;
+
+  if (AArch64FI->getLOHRelated().count(MI)) {
+    // Generate a label for LOH related instruction
+    MCSymbol *LOHLabel = GetTempSymbol("loh", LOHLabelCounter++);
+    // Associate the instruction with the label
+    LOHInstToLabel[MI] = LOHLabel;
+    OutStreamer.EmitLabel(LOHLabel);
+  }
+
+  // Do any manual lowerings.
+  switch (MI->getOpcode()) {
+  default:
+    break;
+  case AArch64::DBG_VALUE: {
+    if (isVerbose() && OutStreamer.hasRawTextSupport()) {
+      SmallString<128> TmpStr;
+      raw_svector_ostream OS(TmpStr);
+      PrintDebugValueComment(MI, OS);
+      OutStreamer.EmitRawText(StringRef(OS.str()));
+    }
+    return;
+  }
+
+  // Tail calls use pseudo instructions so they have the proper code-gen
+  // attributes (isCall, isReturn, etc.). We lower them to the real
+  // instruction here.
+  case AArch64::TCRETURNri: {
+    MCInst TmpInst;
+    TmpInst.setOpcode(AArch64::BR);
+    TmpInst.addOperand(MCOperand::CreateReg(MI->getOperand(0).getReg()));
+    EmitToStreamer(OutStreamer, TmpInst);
+    return;
+  }
+  case AArch64::TCRETURNdi: {
+    MCOperand Dest;
+    MCInstLowering.lowerOperand(MI->getOperand(0), Dest);
+    MCInst TmpInst;
+    TmpInst.setOpcode(AArch64::B);
+    TmpInst.addOperand(Dest);
+    EmitToStreamer(OutStreamer, TmpInst);
+    return;
+  }
+  case AArch64::TLSDESC_CALLSEQ: {
+    /// lower this to:
+    ///    adrp  x0, :tlsdesc:var
+    ///    ldr   x1, [x0, #:tlsdesc_lo12:var]
+    ///    add   x0, x0, #:tlsdesc_lo12:var
+    ///    .tlsdesccall var
+    ///    blr   x1
+    ///    (TPIDR_EL0 offset now in x0)
+    const MachineOperand &MO_Sym = MI->getOperand(0);
+    MachineOperand MO_TLSDESC_LO12(MO_Sym), MO_TLSDESC(MO_Sym);
+    MCOperand Sym, SymTLSDescLo12, SymTLSDesc;
+    MO_TLSDESC_LO12.setTargetFlags(AArch64II::MO_TLS | AArch64II::MO_PAGEOFF |
+                                   AArch64II::MO_NC);
+    MO_TLSDESC.setTargetFlags(AArch64II::MO_TLS | AArch64II::MO_PAGE);
+    MCInstLowering.lowerOperand(MO_Sym, Sym);
+    MCInstLowering.lowerOperand(MO_TLSDESC_LO12, SymTLSDescLo12);
+    MCInstLowering.lowerOperand(MO_TLSDESC, SymTLSDesc);
+
+    MCInst Adrp;
+    Adrp.setOpcode(AArch64::ADRP);
+    Adrp.addOperand(MCOperand::CreateReg(AArch64::X0));
+    Adrp.addOperand(SymTLSDesc);
+    EmitToStreamer(OutStreamer, Adrp);
+
+    MCInst Ldr;
+    Ldr.setOpcode(AArch64::LDRXui);
+    Ldr.addOperand(MCOperand::CreateReg(AArch64::X1));
+    Ldr.addOperand(MCOperand::CreateReg(AArch64::X0));
+    Ldr.addOperand(SymTLSDescLo12);
+    Ldr.addOperand(MCOperand::CreateImm(0));
+    EmitToStreamer(OutStreamer, Ldr);
+
+    MCInst Add;
+    Add.setOpcode(AArch64::ADDXri);
+    Add.addOperand(MCOperand::CreateReg(AArch64::X0));
+    Add.addOperand(MCOperand::CreateReg(AArch64::X0));
+    Add.addOperand(SymTLSDescLo12);
+    Add.addOperand(MCOperand::CreateImm(AArch64_AM::getShiftValue(0)));
+    EmitToStreamer(OutStreamer, Add);
+
+    // Emit a relocation-annotation. This expands to no code, but requests
+    // the following instruction gets an R_AARCH64_TLSDESC_CALL.
+    MCInst TLSDescCall;
+    TLSDescCall.setOpcode(AArch64::TLSDESCCALL);
+    TLSDescCall.addOperand(Sym);
+    EmitToStreamer(OutStreamer, TLSDescCall);
+
+    MCInst Blr;
+    Blr.setOpcode(AArch64::BLR);
+    Blr.addOperand(MCOperand::CreateReg(AArch64::X1));
+    EmitToStreamer(OutStreamer, Blr);
+
+    return;
+  }
+
+  case TargetOpcode::STACKMAP:
+    return LowerSTACKMAP(OutStreamer, SM, *MI);
+
+  case TargetOpcode::PATCHPOINT:
+    return LowerPATCHPOINT(OutStreamer, SM, *MI);
+  }
+
+  // Finally, do the automated lowerings for everything else.
+  MCInst TmpInst;
+  MCInstLowering.Lower(MI, TmpInst);
+  EmitToStreamer(OutStreamer, TmpInst);
 }
 
 // Force static initialization.
 extern "C" void LLVMInitializeAArch64AsmPrinter() {
-    RegisterAsmPrinter<AArch64AsmPrinter> X(TheAArch64Target);
+  RegisterAsmPrinter<AArch64AsmPrinter> X(TheAArch64leTarget);
+  RegisterAsmPrinter<AArch64AsmPrinter> Y(TheAArch64beTarget);
+  RegisterAsmPrinter<AArch64AsmPrinter> Z(TheARM64Target);
 }
-

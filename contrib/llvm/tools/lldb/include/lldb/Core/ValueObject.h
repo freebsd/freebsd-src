@@ -14,9 +14,11 @@
 // C++ Includes
 #include <map>
 #include <vector>
-// Other libraries and framework includes
-// Project includes
 
+// Other libraries and framework includes
+#include "llvm/ADT/SmallVector.h"
+
+// Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Error.h"
@@ -35,7 +37,7 @@ namespace lldb_private {
 /// ValueObject:
 ///
 /// This abstract class provides an interface to a particular value, be it a register, a local or global variable,
-/// that is evaluated in some particular scope.  The ValueObject also has the capibility of being the "child" of
+/// that is evaluated in some particular scope.  The ValueObject also has the capability of being the "child" of
 /// some other variable object, and in turn of having children.  
 /// If a ValueObject is a root variable object - having no parent - then it must be constructed with respect to some
 /// particular ExecutionContextScope.  If it is a child, it inherits the ExecutionContextScope from its parent.
@@ -88,6 +90,7 @@ public:
     {
         eExpressionPathScanEndReasonEndOfString = 1,           // out of data to parse
         eExpressionPathScanEndReasonNoSuchChild,               // child element not found
+        eExpressionPathScanEndReasonNoSuchSyntheticChild,      // (synthetic) child element not found
         eExpressionPathScanEndReasonEmptyRangeNotAllowed,      // [] only allowed for arrays
         eExpressionPathScanEndReasonDotInsteadOfArrow,         // . used when -> should be used
         eExpressionPathScanEndReasonArrowInsteadOfDot,         // -> used when . should be used
@@ -129,6 +132,7 @@ public:
         eClearUserVisibleDataItemsLocation = 1u << 3,
         eClearUserVisibleDataItemsDescription = 1u << 4,
         eClearUserVisibleDataItemsSyntheticChildren = 1u << 5,
+        eClearUserVisibleDataItemsValidator = 1u << 6,
         eClearUserVisibleDataItemsAllStrings = eClearUserVisibleDataItemsValue | eClearUserVisibleDataItemsSummary | eClearUserVisibleDataItemsLocation | eClearUserVisibleDataItemsDescription,
         eClearUserVisibleDataItemsAll = 0xFFFF
     };
@@ -268,12 +272,6 @@ public:
             m_mod_id = new_id;
         }
         
-        bool
-        IsFirstEvaluation () const
-        {
-            return m_first_update;
-        }
-        
         void
         SetNeedsUpdate ()
         {
@@ -322,7 +320,6 @@ public:
         ProcessModID m_mod_id; // This is the stop id when this ValueObject was last evaluated.
         ExecutionContextRef m_exe_ctx_ref;
         bool m_needs_update;
-        bool m_first_update;
     };
 
     const EvaluationPoint &
@@ -378,9 +375,12 @@ public:
     // this vends a TypeImpl that is useful at the SB API layer
     virtual TypeImpl
     GetTypeImpl ();
+    
+    virtual bool
+    CanProvideValue ();
 
     //------------------------------------------------------------------
-    // Sublasses must implement the functions below.
+    // Subclasses must implement the functions below.
     //------------------------------------------------------------------
     virtual uint64_t
     GetByteSize() = 0;
@@ -389,10 +389,13 @@ public:
     GetValueType() const = 0;
 
     //------------------------------------------------------------------
-    // Sublasses can implement the functions below.
+    // Subclasses can implement the functions below.
     //------------------------------------------------------------------
     virtual ConstString
     GetTypeName();
+    
+    virtual ConstString
+    GetDisplayTypeName();
     
     virtual ConstString
     GetQualifiedTypeName();
@@ -426,6 +429,9 @@ public:
     {
         return false;
     }
+    
+    bool
+    IsBaseClass (uint32_t& depth);
     
     virtual bool
     IsDereferenceOfParent ()
@@ -465,7 +471,7 @@ public:
         return true;
     }
 
-    virtual off_t
+    virtual lldb::offset_t
     GetByteOffset()
     {
         return 0;
@@ -528,7 +534,7 @@ public:
     GetDeclaration (Declaration &decl);
 
     //------------------------------------------------------------------
-    // The functions below should NOT be modified by sublasses
+    // The functions below should NOT be modified by subclasses
     //------------------------------------------------------------------
     const Error &
     GetError();
@@ -601,6 +607,18 @@ public:
     GetSummaryAsCString (TypeSummaryImpl* summary_ptr,
                          std::string& destination);
     
+    bool
+    GetSummaryAsCString (std::string& destination,
+                         const TypeSummaryOptions& options);
+    
+    bool
+    GetSummaryAsCString (TypeSummaryImpl* summary_ptr,
+                         std::string& destination,
+                         const TypeSummaryOptions& options);
+    
+    std::pair<TypeValidatorResult, std::string>
+    GetValidationStatus ();
+    
     const char *
     GetObjectDescription ();
     
@@ -671,6 +689,9 @@ public:
     GetSyntheticChildAtOffset(uint32_t offset, const ClangASTType& type, bool can_create);
     
     virtual lldb::ValueObjectSP
+    GetSyntheticBase (uint32_t offset, const ClangASTType& type, bool can_create);
+
+    virtual lldb::ValueObjectSP
     GetDynamicValue (lldb::DynamicValueType valueType);
     
     lldb::DynamicValueType
@@ -690,6 +711,10 @@ public:
     
     virtual bool
     IsSynthetic() { return false; }
+    
+    lldb::ValueObjectSP
+    GetQualifiedRepresentationIfAvailable (lldb::DynamicValueType dynValue,
+                                           bool synthValue);
     
     virtual lldb::ValueObjectSP
     CreateConstantValue (const ConstString &name);
@@ -712,6 +737,10 @@ public:
     {
     }
 
+    // Find the address of the C++ vtable pointer
+    virtual lldb::addr_t
+    GetCPPVTableAddress(AddressType &address_type);
+    
     virtual lldb::ValueObjectSP
     Cast (const ClangASTType &clang_ast_type);
     
@@ -739,6 +768,18 @@ public:
         return false;
     }
     
+    virtual bool
+    DoesProvideSyntheticValue ()
+    {
+        return false;
+    }
+    
+    bool
+    IsSyntheticChildrenGenerated ();
+    
+    void
+    SetSyntheticChildrenGenerated (bool b);
+    
     virtual SymbolContextScope *
     GetSymbolContextScope();
     
@@ -755,14 +796,20 @@ public:
                                      const ExecutionContext& exe_ctx);
     
     static lldb::ValueObjectSP
+    CreateValueObjectFromExpression (const char* name,
+                                     const char* expression,
+                                     const ExecutionContext& exe_ctx,
+                                     const EvaluateExpressionOptions& options);
+    
+    static lldb::ValueObjectSP
     CreateValueObjectFromAddress (const char* name,
                                   uint64_t address,
                                   const ExecutionContext& exe_ctx,
                                   ClangASTType type);
-    
+
     static lldb::ValueObjectSP
     CreateValueObjectFromData (const char* name,
-                               DataExtractor& data,
+                               const DataExtractor& data,
                                const ExecutionContext& exe_ctx,
                                ClangASTType type);
     
@@ -774,6 +821,9 @@ public:
                     const DumpValueObjectOptions& options);
 
 
+    lldb::ValueObjectSP
+    Persist ();
+    
     // returns true if this is a char* or a char[]
     // if it is a char* and check_pointer is true,
     // it also checks that the pointer is valid
@@ -781,7 +831,7 @@ public:
     IsCStringContainer (bool check_pointer = false);
     
     size_t
-    ReadPointedString (Stream& s,
+    ReadPointedString (lldb::DataBufferSP& buffer_sp,
                        Error& error,
                        uint32_t max_length = 0,
                        bool honor_array = true,
@@ -793,7 +843,7 @@ public:
 					uint32_t item_count = 1);
     
     virtual uint64_t
-    GetData (DataExtractor& data);
+    GetData (DataExtractor& data, Error &error);
     
     virtual bool
     SetData (DataExtractor &data, Error &error);
@@ -821,6 +871,10 @@ public:
         m_format = format;
     }
     
+    
+    virtual lldb::LanguageType
+    GetPreferredDisplayLanguage ();
+    
     lldb::TypeSummaryImplSP
     GetSummaryFormat()
     {
@@ -833,6 +887,20 @@ public:
     {
         m_type_summary_sp = format;
         ClearUserVisibleData(eClearUserVisibleDataItemsSummary);
+    }
+    
+    lldb::TypeValidatorImplSP
+    GetValidator()
+    {
+        UpdateFormatsIfNeeded();
+        return m_type_validator_sp;
+    }
+    
+    void
+    SetValidator(lldb::TypeValidatorImplSP format)
+    {
+        m_type_validator_sp = format;
+        ClearUserVisibleData(eClearUserVisibleDataItemsValidator);
     }
     
     void
@@ -961,7 +1029,7 @@ protected:
         void
         SetChildrenCount (size_t count)
         {
-            m_children_count = count;
+            Clear(count);
         }
         
         size_t
@@ -971,10 +1039,10 @@ protected:
         }
         
         void
-        Clear()
+        Clear(size_t new_count = 0)
         {
-            m_children_count = 0;
             Mutex::Locker locker(m_mutex);
+            m_children_count = new_count;
             m_children.clear();
         }
         
@@ -1005,7 +1073,9 @@ protected:
     std::string         m_summary_str;  // Cached summary string that will get cleared if/when the value is updated.
     std::string         m_object_desc_str; // Cached result of the "object printer".  This differs from the summary
                                               // in that the summary is consed up by us, the object_desc_string is builtin.
-
+    
+    llvm::Optional<std::pair<TypeValidatorResult, std::string>> m_validation_result;
+    
     ClangASTType        m_override_type;// If the type of the value object should be overridden, the type to impose.
     
     ValueObjectManager *m_manager;      // This object is managed by the root object (any ValueObject that gets created
@@ -1030,8 +1100,11 @@ protected:
     lldb::TypeSummaryImplSP     m_type_summary_sp;
     lldb::TypeFormatImplSP      m_type_format_sp;
     lldb::SyntheticChildrenSP   m_synthetic_children_sp;
+    lldb::TypeValidatorImplSP   m_type_validator_sp;
     ProcessModID                m_user_id_of_forced_summary;
     AddressType                 m_address_type_of_ptr_or_ref_children;
+    
+    llvm::SmallVector<uint8_t, 16> m_value_checksum;
     
     bool                m_value_is_valid:1,
                         m_value_did_change:1,
@@ -1042,7 +1115,8 @@ protected:
                         m_is_bitfield_for_scalar:1,
                         m_is_child_at_offset:1,
                         m_is_getting_summary:1,
-                        m_did_calculate_complete_objc_class_type:1;
+                        m_did_calculate_complete_objc_class_type:1,
+                        m_is_synthetic_children_generated:1;
     
     friend class ClangExpressionDeclMap;  // For GetValue
     friend class ClangExpressionVariable; // For SetName
@@ -1127,7 +1201,7 @@ protected:
     ClearDynamicTypeInformation ();
     
     //------------------------------------------------------------------
-    // Sublasses must implement the functions below.
+    // Subclasses must implement the functions below.
     //------------------------------------------------------------------
     
     virtual ClangASTType
@@ -1136,6 +1210,9 @@ protected:
     const char *
     GetLocationAsCStringImpl (const Value& value,
                               const DataExtractor& data);
+    
+    bool
+    IsChecksumEmpty ();
     
 private:
     //------------------------------------------------------------------

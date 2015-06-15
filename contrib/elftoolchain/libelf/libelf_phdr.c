@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <libelf.h>
@@ -33,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_phdr.c 2931 2013-03-23 11:41:07Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_phdr.c 3174 2015-03-27 17:13:41Z emaste $");
 
 void *
 _libelf_getphdr(Elf *e, int ec)
@@ -44,7 +42,8 @@ _libelf_getphdr(Elf *e, int ec)
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	void *ehdr, *phdr;
-	int (*xlator)(char *_d, size_t _dsz, char *_s, size_t _c, int _swap);
+	int (*xlator)(unsigned char *_d, size_t _dsz, unsigned char *_s,
+	    size_t _c, int _swap);
 
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
 

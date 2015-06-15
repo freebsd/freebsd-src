@@ -142,6 +142,7 @@ KSRCS+=	usb_template_mouse.c
 KSRCS+=	usb_template_kbd.c
 KSRCS+=	usb_template_audio.c
 KSRCS+=	usb_template_phone.c
+KSRCS+=	usb_template_serialnet.c
 
 #
 # USB mass storage support

@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -78,7 +78,7 @@ oc_rd_cmd(uint8_t cmd)
 	data = oc_read_reg(OC_I2C_DATA_REG);
 	return (data);
 }
- 
+
 static int
 oc_wr_cmd(uint8_t data, uint8_t cmd)
 {
@@ -142,7 +142,7 @@ nlm_board_eeprom_read(int node, int bus, int addr, int offs, uint8_t *buf,
 		err = "No ack after read start";
 		goto err_exit_stop;
 	}
-	
+
 	for (i = 0; i < sz - 1; i++) {
 		if ((rd = oc_rd_cmd(OC_COMMAND_READ)) < 0) {
 			err = "I2C read data byte failed.";

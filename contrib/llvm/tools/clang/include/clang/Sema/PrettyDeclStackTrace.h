@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_PRETTY_DECL_STACK_TRACE_H
-#define LLVM_CLANG_SEMA_PRETTY_DECL_STACK_TRACE_H
+#ifndef LLVM_CLANG_SEMA_PRETTYDECLSTACKTRACE_H
+#define LLVM_CLANG_SEMA_PRETTYDECLSTACKTRACE_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -39,7 +39,7 @@ public:
                             const char *Msg)
     : S(S), TheDecl(D), Loc(Loc), Message(Msg) {}
 
-  virtual void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS) const override;
 };
 
 }

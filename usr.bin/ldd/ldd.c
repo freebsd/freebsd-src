@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
 
-#include <a.out.h>
 #include <dlfcn.h>
 #include <err.h>
 #include <errno.h>
@@ -48,6 +47,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "extern.h"
+
+/* We don't support a.out executables on arm64 */
+#ifndef __aarch64__
+#include <a.out.h>
+#define	AOUT_SUPPORTED
+#endif
 
 /*
  * 32-bit ELF data structures can only be used if the system header[s] declare
@@ -274,7 +279,9 @@ static int
 is_executable(const char *fname, int fd, int *is_shlib, int *type)
 {
 	union {
+#ifdef AOUT_SUPPORTED
 		struct exec aout;
+#endif
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 		Elf32_Ehdr elf32;
 #endif
@@ -290,6 +297,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 		return (0);
 	}
 
+#ifdef AOUT_SUPPORTED
 	if ((size_t)n >= sizeof(hdr.aout) && !N_BADMAG(hdr.aout)) {
 		/* a.out file */
 		if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
@@ -303,6 +311,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 		*type = TYPE_AOUT;
 		return (1);
 	}
+#endif
 
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 	if ((size_t)n >= sizeof(hdr.elf32) && IS_ELF(hdr.elf32) &&

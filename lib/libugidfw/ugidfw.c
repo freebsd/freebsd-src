@@ -64,11 +64,10 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 	struct statfs *mntbuf;
 	char *cur, type[sizeof(rule->mbr_object.mbo_type) * CHAR_BIT + 1];
 	size_t left, len;
-	int anymode, unknownmode, truncated, numfs, i, notdone;
+	int anymode, unknownmode, numfs, i, notdone;
 
 	cur = buf;
 	left = buflen;
-	truncated = 0;
 
 	len = snprintf(cur, left, "subject ");
 	if (len < 0 || len > left)
@@ -1216,7 +1215,7 @@ bsde_delete_rule(int rulenum, size_t buflen, char *errstr)
 {
 	struct mac_bsdextended_rule rule;
 	int name[10];
-	size_t len, size;
+	size_t len;
 	int error;
 
 	if (bsde_check_version(buflen, errstr) != 0)
@@ -1233,8 +1232,7 @@ bsde_delete_rule(int rulenum, size_t buflen, char *errstr)
 	name[len] = rulenum;
 	len++;
 
-	size = sizeof(rule);
-	error = sysctl(name, len, NULL, NULL, &rule, 0);
+	error = sysctl(name, len, NULL, NULL, &rule, sizeof(rule));
 	if (error) {
 		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
 		    rulenum, strerror(errno));
@@ -1249,7 +1247,7 @@ bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
     char *errstr)
 {
 	int name[10];
-	size_t len, size;
+	size_t len;
 	int error;
 
 	if (bsde_check_version(buflen, errstr) != 0)
@@ -1266,8 +1264,7 @@ bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	name[len] = rulenum;
 	len++;
 
-	size = sizeof(*rule);
-	error = sysctl(name, len, NULL, NULL, rule, size);
+	error = sysctl(name, len, NULL, NULL, rule, sizeof(*rule));
 	if (error) {
 		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
 		    rulenum, strerror(errno));
@@ -1283,7 +1280,7 @@ bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 {
 	char charstr[BUFSIZ];
 	int name[10];
-	size_t len, size;
+	size_t len;
 	int error, rule_slots;
 
 	if (bsde_check_version(buflen, errstr) != 0)
@@ -1307,8 +1304,7 @@ bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	name[len] = rule_slots;
 	len++;
 
-	size = sizeof(*rule);
-	error = sysctl(name, len, NULL, NULL, rule, size);
+	error = sysctl(name, len, NULL, NULL, rule, sizeof(*rule));
 	if (error) {
 		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
 		    rule_slots, strerror(errno));

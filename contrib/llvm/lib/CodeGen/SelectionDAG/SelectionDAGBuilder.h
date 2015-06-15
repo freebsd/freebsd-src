@@ -11,17 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SELECTIONDAGBUILDER_H
-#define SELECTIONDAGBUILDER_H
+#ifndef LLVM_LIB_CODEGEN_SELECTIONDAG_SELECTIONDAGBUILDER_H
+#define LLVM_LIB_CODEGEN_SELECTIONDAG_SELECTIONDAGBUILDER_H
 
+#include "StatepointLowering.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetLowering.h"
 #include <vector>
 
 namespace llvm {
@@ -57,6 +58,7 @@ class MachineBasicBlock;
 class MachineInstr;
 class MachineRegisterInfo;
 class MDNode;
+class MVT;
 class PHINode;
 class PtrToIntInst;
 class ReturnInst;
@@ -96,7 +98,7 @@ class SelectionDAGBuilder {
     DebugLoc dl;
     unsigned SDNodeOrder;
   public:
-    DanglingDebugInfo() : DI(0), dl(DebugLoc()), SDNodeOrder(0) { }
+    DanglingDebugInfo() : DI(nullptr), dl(DebugLoc()), SDNodeOrder(0) { }
     DanglingDebugInfo(const DbgValueInst *di, DebugLoc DL, unsigned SDNO) :
       DI(di), dl(DL), SDNodeOrder(SDNO) { }
     const DbgValueInst* getDI() { return DI; }
@@ -114,6 +116,10 @@ public:
   /// get simple disambiguation between loads without worrying about alias
   /// analysis.
   SmallVector<SDValue, 8> PendingLoads;
+
+  /// State used while lowering a statepoint sequence (gc_statepoint,
+  /// gc_relocate, and gc_result).  See StatepointLowering.hpp/cpp for details.
+  StatepointLoweringState StatepointLowering;
 private:
 
   /// PendingExports - CopyToReg nodes that copy values to virtual registers
@@ -135,7 +141,7 @@ private:
     MachineBasicBlock* BB;
     uint32_t ExtraWeight;
 
-    Case() : Low(0), High(0), BB(0), ExtraWeight(0) { }
+    Case() : Low(nullptr), High(nullptr), BB(nullptr), ExtraWeight(0) { }
     Case(const Constant *low, const Constant *high, MachineBasicBlock *bb,
          uint32_t extraweight) : Low(low), High(high), BB(bb),
          ExtraWeight(extraweight) { }
@@ -200,7 +206,7 @@ private:
     }
   };
 
-  size_t Clusterify(CaseVector &Cases, const SwitchInst &SI);
+  void Clusterify(CaseVector &Cases, const SwitchInst &SI);
 
   /// CaseBlock - This structure is used to communicate between
   /// SelectionDAGBuilder and SDISel for the code generation of additional basic
@@ -276,9 +282,9 @@ private:
     BitTestBlock(APInt F, APInt R, const Value* SV,
                  unsigned Rg, MVT RgVT, bool E,
                  MachineBasicBlock* P, MachineBasicBlock* D,
-                 const BitTestInfo& C):
+                 BitTestInfo C):
       First(F), Range(R), SValue(SV), Reg(Rg), RegVT(RgVT), Emitted(E),
-      Parent(P), Default(D), Cases(C) { }
+      Parent(P), Default(D), Cases(std::move(C)) { }
     APInt First;
     APInt Range;
     const Value *SValue;
@@ -320,7 +326,7 @@ private:
   ///   1. Preserve the architecture independence of stack protector generation.
   ///
   ///   2. Preserve the normal IR level stack protector check for platforms like
-  ///      OpenBSD for which we support platform specific stack protector
+  ///      OpenBSD for which we support platform-specific stack protector
   ///      generation.
   ///
   /// The main problem that guided the present solution is that one can not
@@ -338,7 +344,7 @@ private:
   ///      basic block (where the return inst is placed) and then move it back
   ///      later at SelectionDAG/MI time before the stack protector check if the
   ///      tail call optimization failed. The MI level option was nixed
-  ///      immediately since it would require platform specific pattern
+  ///      immediately since it would require platform-specific pattern
   ///      matching. The SelectionDAG level option was nixed because
   ///      SelectionDAG only processes one IR level basic block at a time
   ///      implying one could not create a DAG Combine to move the callinst.
@@ -396,8 +402,9 @@ private:
   ///        the same function, use the same failure basic block).
   class StackProtectorDescriptor {
   public:
-    StackProtectorDescriptor() : ParentMBB(0), SuccessMBB(0), FailureMBB(0),
-                                 Guard(0) { }
+    StackProtectorDescriptor() : ParentMBB(nullptr), SuccessMBB(nullptr),
+                                 FailureMBB(nullptr), Guard(nullptr),
+                                 GuardReg(0) { }
     ~StackProtectorDescriptor() { }
 
     /// Returns true if all fields of the stack protector descriptor are
@@ -415,8 +422,8 @@ private:
       assert(!shouldEmitStackProtector() && "Stack Protector Descriptor is "
              "already initialized!");
       ParentMBB = MBB;
-      SuccessMBB = AddSuccessorMBB(BB, MBB);
-      FailureMBB = AddSuccessorMBB(BB, MBB, FailureMBB);
+      SuccessMBB = AddSuccessorMBB(BB, MBB, /* IsLikely */ true);
+      FailureMBB = AddSuccessorMBB(BB, MBB, /* IsLikely */ false, FailureMBB);
       if (!Guard)
         Guard = StackProtCheckCall.getArgOperand(0);
     }
@@ -432,8 +439,8 @@ private:
     /// parent mbb after we create the stack protector check (SuccessMBB). This
     /// BB is visited only on stack protector check success.
     void resetPerBBState() {
-      ParentMBB = 0;
-      SuccessMBB = 0;
+      ParentMBB = nullptr;
+      SuccessMBB = nullptr;
     }
 
     /// Reset state that only changes when we switch functions.
@@ -446,14 +453,17 @@ private:
     /// 2.The guard variable since the guard variable we are checking against is
     /// always the same.
     void resetPerFunctionState() {
-      FailureMBB = 0;
-      Guard = 0;
+      FailureMBB = nullptr;
+      Guard = nullptr;
     }
 
     MachineBasicBlock *getParentMBB() { return ParentMBB; }
     MachineBasicBlock *getSuccessMBB() { return SuccessMBB; }
     MachineBasicBlock *getFailureMBB() { return FailureMBB; }
     const Value *getGuard() { return Guard; }
+
+    unsigned getGuardReg() const { return GuardReg; }
+    void setGuardReg(unsigned R) { GuardReg = R; }
 
   private:
     /// The basic block for which we are generating the stack protector.
@@ -477,19 +487,27 @@ private:
     /// stack protector stack slot.
     const Value *Guard;
 
+    /// The virtual register holding the stack guard value.
+    unsigned GuardReg;
+
     /// Add a successor machine basic block to ParentMBB. If the successor mbb
     /// has not been created yet (i.e. if SuccMBB = 0), then the machine basic
-    /// block will be created.
+    /// block will be created. Assign a large weight if IsLikely is true.
     MachineBasicBlock *AddSuccessorMBB(const BasicBlock *BB,
                                        MachineBasicBlock *ParentMBB,
-                                       MachineBasicBlock *SuccMBB = 0);
+                                       bool IsLikely,
+                                       MachineBasicBlock *SuccMBB = nullptr);
   };
 
 private:
   const TargetMachine &TM;
 public:
+  /// Lowest valid SDNodeOrder. The special case 0 is reserved for scheduling
+  /// nodes without a corresponding SDNode.
+  static const unsigned LowestSDNodeOrder = 1;
+
   SelectionDAG &DAG;
-  const DataLayout *TD;
+  const DataLayout *DL;
   AliasAnalysis *AA;
   const TargetLibraryInfo *LibInfo;
 
@@ -534,7 +552,7 @@ public:
 
   SelectionDAGBuilder(SelectionDAG &dag, FunctionLoweringInfo &funcinfo,
                       CodeGenOpt::Level ol)
-    : CurInst(NULL), SDNodeOrder(0), TM(dag.getTarget()),
+    : CurInst(nullptr), SDNodeOrder(LowestSDNodeOrder), TM(dag.getTarget()),
       DAG(dag), FuncInfo(funcinfo), OptLevel(ol),
       HasTailCall(false) {
   }
@@ -596,47 +614,63 @@ public:
 
   void setValue(const Value *V, SDValue NewN) {
     SDValue &N = NodeMap[V];
-    assert(N.getNode() == 0 && "Already set a value for this node!");
+    assert(!N.getNode() && "Already set a value for this node!");
     N = NewN;
+  }
+
+  void removeValue(const Value *V) {
+    // This is to support hack in lowerCallFromStatepoint
+    // Should be removed when hack is resolved
+    if (NodeMap.count(V))
+      NodeMap.erase(V);
   }
 
   void setUnusedArgValue(const Value *V, SDValue NewN) {
     SDValue &N = UnusedArgNodeMap[V];
-    assert(N.getNode() == 0 && "Already set a value for this node!");
+    assert(!N.getNode() && "Already set a value for this node!");
     N = NewN;
   }
 
   void FindMergedConditions(const Value *Cond, MachineBasicBlock *TBB,
                             MachineBasicBlock *FBB, MachineBasicBlock *CurBB,
-                            MachineBasicBlock *SwitchBB, unsigned Opc);
+                            MachineBasicBlock *SwitchBB, unsigned Opc,
+                            uint32_t TW, uint32_t FW);
   void EmitBranchForMergedCondition(const Value *Cond, MachineBasicBlock *TBB,
                                     MachineBasicBlock *FBB,
                                     MachineBasicBlock *CurBB,
-                                    MachineBasicBlock *SwitchBB);
+                                    MachineBasicBlock *SwitchBB,
+                                    uint32_t TW, uint32_t FW);
   bool ShouldEmitAsBranches(const std::vector<CaseBlock> &Cases);
   bool isExportableFromCurrentBlock(const Value *V, const BasicBlock *FromBB);
   void CopyToExportRegsIfNeeded(const Value *V);
   void ExportFromCurrentBlock(const Value *V);
   void LowerCallTo(ImmutableCallSite CS, SDValue Callee, bool IsTailCall,
-                   MachineBasicBlock *LandingPad = NULL);
+                   MachineBasicBlock *LandingPad = nullptr);
 
-  std::pair<SDValue, SDValue> LowerCallOperands(const CallInst &CI,
-                                                unsigned ArgIdx,
-                                                unsigned NumArgs,
-                                                SDValue Callee,
-                                                bool useVoidTy = false);
+  std::pair<SDValue, SDValue> lowerCallOperands(
+          ImmutableCallSite CS,
+          unsigned ArgIdx,
+          unsigned NumArgs,
+          SDValue Callee,
+          bool UseVoidTy = false,
+          MachineBasicBlock *LandingPad = nullptr,
+          bool IsPatchPoint = false);
 
   /// UpdateSplitBlock - When an MBB was split during scheduling, update the
-  /// references that ned to refer to the last resulting block.
+  /// references that need to refer to the last resulting block.
   void UpdateSplitBlock(MachineBasicBlock *First, MachineBasicBlock *Last);
 
 private:
+  std::pair<SDValue, SDValue> lowerInvokable(
+          TargetLowering::CallLoweringInfo &CLI,
+          MachineBasicBlock *LandingPad);
+
   // Terminator instructions.
   void visitRet(const ReturnInst &I);
   void visitBr(const BranchInst &I);
   void visitSwitch(const SwitchInst &I);
   void visitIndirectBr(const IndirectBrInst &I);
-  void visitUnreachable(const UnreachableInst &I) { /* noop */ }
+  void visitUnreachable(const UnreachableInst &I);
 
   // Helpers for visitSwitch
   bool handleSmallSwitchRange(CaseRec& CR,
@@ -652,7 +686,6 @@ private:
   bool handleBTSplitSwitchCase(CaseRec& CR,
                                CaseRecVector& WorkList,
                                const Value* SV,
-                               MachineBasicBlock* Default,
                                MachineBasicBlock *SwitchBB);
   bool handleBitTestsSwitchCase(CaseRec& CR,
                                 CaseRecVector& WorkList,
@@ -737,6 +770,8 @@ private:
   void visitAlloca(const AllocaInst &I);
   void visitLoad(const LoadInst &I);
   void visitStore(const StoreInst &I);
+  void visitMaskedLoad(const CallInst &I);
+  void visitMaskedStore(const CallInst &I);
   void visitAtomicCmpXchg(const AtomicCmpXchgInst &I);
   void visitAtomicRMW(const AtomicRMWInst &I);
   void visitFence(const FenceInst &I);
@@ -749,6 +784,7 @@ private:
   bool visitStrLenCall(const CallInst &I);
   bool visitStrNLenCall(const CallInst &I);
   bool visitUnaryFloatCall(const CallInst &I, unsigned Opcode);
+  bool visitBinaryFloatCall(const CallInst &I, unsigned Opcode);
   void visitAtomicLoad(const LoadInst &I);
   void visitAtomicStore(const StoreInst &I);
 
@@ -761,7 +797,13 @@ private:
   void visitVAEnd(const CallInst &I);
   void visitVACopy(const CallInst &I);
   void visitStackmap(const CallInst &I);
-  void visitPatchpoint(const CallInst &I);
+  void visitPatchpoint(ImmutableCallSite CS,
+                       MachineBasicBlock *LandingPad = nullptr);
+
+  // These three are implemented in StatepointLowering.cpp
+  void visitStatepoint(const CallInst &I);
+  void visitGCRelocate(const CallInst &I);
+  void visitGCResult(const CallInst &I);
 
   void visitUserOp1(const Instruction &I) {
     llvm_unreachable("UserOp1 should not exist at instruction selection time!");
@@ -778,8 +820,9 @@ private:
   /// EmitFuncArgumentDbgValue - If V is an function argument then create
   /// corresponding DBG_VALUE machine instruction for it now. At the end of
   /// instruction selection, they will be inserted to the entry BB.
-  bool EmitFuncArgumentDbgValue(const Value *V, MDNode *Variable,
-                                int64_t Offset, const SDValue &N);
+  bool EmitFuncArgumentDbgValue(const Value *V, MDNode *Variable, MDNode *Expr,
+                                int64_t Offset, bool IsIndirect,
+                                const SDValue &N);
 };
 
 } // end namespace llvm

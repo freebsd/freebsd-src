@@ -166,7 +166,9 @@ int wps_er_ssdp_init(struct wps_er *er)
 		return -1;
 	}
 
-	er->multicast_sd = ssdp_open_multicast_sock(er->ip_addr);
+	er->multicast_sd = ssdp_open_multicast_sock(er->ip_addr,
+						    er->forced_ifname ?
+						    er->ifname : NULL);
 	if (er->multicast_sd < 0) {
 		wpa_printf(MSG_INFO, "WPS ER: Failed to open multicast socket "
 			   "for SSDP");

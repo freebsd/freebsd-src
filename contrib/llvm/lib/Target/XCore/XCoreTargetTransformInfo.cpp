@@ -14,16 +14,17 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "xcoretti"
 #include "XCore.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/CostTable.h"
+#include "llvm/Target/TargetLowering.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "xcoretti"
+
 // Declare the pass initialization routine locally as target-specific passes
-// don't havve a target-wide initialization entry point, and so we rely on the
+// don't have a target-wide initialization entry point, and so we rely on the
 // pass constructor initialization.
 namespace llvm {
 void initializeXCoreTTIPass(PassRegistry &);
@@ -31,7 +32,7 @@ void initializeXCoreTTIPass(PassRegistry &);
 
 namespace {
 
-class XCoreTTI : public ImmutablePass, public TargetTransformInfo {
+class XCoreTTI final : public ImmutablePass, public TargetTransformInfo {
 public:
   XCoreTTI() : ImmutablePass(ID) {
     llvm_unreachable("This pass cannot be directly constructed");
@@ -42,27 +43,23 @@ public:
     initializeXCoreTTIPass(*PassRegistry::getPassRegistry());
   }
 
-  virtual void initializePass() {
+  void initializePass() override {
     pushTTIStack(this);
   }
 
-  virtual void finalizePass() {
-    popTTIStack();
-  }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     TargetTransformInfo::getAnalysisUsage(AU);
   }
 
   static char ID;
 
-  virtual void *getAdjustedAnalysisPointer(const void *ID) {
+  void *getAdjustedAnalysisPointer(const void *ID) override {
     if (ID == &TargetTransformInfo::ID)
       return (TargetTransformInfo*)this;
     return this;
   }
 
-  unsigned getNumberOfRegisters(bool Vector) const {
+  unsigned getNumberOfRegisters(bool Vector) const override {
     if (Vector) {
        return 0;
     }

@@ -40,26 +40,26 @@ public:
       delete OutputFile;
   }
 
-  virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
-                           SrcMgr::CharacteristicKind FileType,
-                           FileID PrevFID);
+  void FileChanged(SourceLocation Loc, FileChangeReason Reason,
+                   SrcMgr::CharacteristicKind FileType,
+                   FileID PrevFID) override;
 };
 }
 
 void clang::AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders,
                                    StringRef OutputPath, bool ShowDepth,
                                    bool MSStyle) {
-  raw_ostream *OutputFile = &llvm::errs();
+  raw_ostream *OutputFile = MSStyle ? &llvm::outs() : &llvm::errs();
   bool OwnsOutputFile = false;
 
   // Open the output file, if used.
   if (!OutputPath.empty()) {
-    std::string Error;
+    std::error_code EC;
     llvm::raw_fd_ostream *OS = new llvm::raw_fd_ostream(
-        OutputPath.str().c_str(), Error, llvm::sys::fs::F_Append);
-    if (!Error.empty()) {
-      PP.getDiagnostics().Report(
-        clang::diag::warn_fe_cc_print_header_failure) << Error;
+        OutputPath.str(), EC, llvm::sys::fs::F_Append | llvm::sys::fs::F_Text);
+    if (EC) {
+      PP.getDiagnostics().Report(clang::diag::warn_fe_cc_print_header_failure)
+          << EC.message();
       delete OS;
     } else {
       OS->SetUnbuffered();
@@ -69,9 +69,12 @@ void clang::AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders,
     }
   }
 
-  PP.addPPCallbacks(new HeaderIncludesCallback(&PP, ShowAllHeaders,
-                                               OutputFile, OwnsOutputFile,
-                                               ShowDepth, MSStyle));
+  PP.addPPCallbacks(llvm::make_unique<HeaderIncludesCallback>(&PP,
+                                                              ShowAllHeaders,
+                                                              OutputFile,
+                                                              OwnsOutputFile,
+                                                              ShowDepth,
+                                                              MSStyle));
 }
 
 void HeaderIncludesCallback::FileChanged(SourceLocation Loc,
@@ -130,5 +133,6 @@ void HeaderIncludesCallback::FileChanged(SourceLocation Loc,
     Msg += '\n';
 
     OutputFile->write(Msg.data(), Msg.size());
+    OutputFile->flush();
   }
 }

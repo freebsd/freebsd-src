@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -112,6 +112,9 @@
 
 #define FIELD_SIZEOF(x, y) (sizeof(((x*)0)->y))
 
+#define BIT(a) 		(1UL << (a))
+#define BIT_ULL(a) 	(1ULL << (a))
+
 typedef uint8_t		u8;
 typedef int8_t		s8;
 typedef uint16_t	u16;
@@ -137,17 +140,21 @@ struct i40e_spinlock {
 
 #define le16_to_cpu 
 
+#if defined(__amd64__) || defined(i386)
 static __inline
 void prefetch(void *x)
 {
 	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 }
+#else
+#define	prefetch(x)
+#endif
 
-struct i40e_osdep
-{
+struct i40e_osdep {
 	bus_space_tag_t		mem_bus_space_tag;
 	bus_space_handle_t	mem_bus_space_handle;
 	bus_size_t		mem_bus_space_size;
+	uint32_t		flush_reg;
 	struct device		*dev;
 };
 
@@ -166,9 +173,6 @@ struct i40e_hw; /* forward decl */
 u16	i40e_read_pci_cfg(struct i40e_hw *, u32);
 void	i40e_write_pci_cfg(struct i40e_hw *, u32, u16);
 
-#define i40e_allocate_dma_mem(h, m, unused, s, a) i40e_allocate_dma(h, m, s, a)
-#define i40e_free_dma_mem(h, m) i40e_free_dma(h, m)
-
 #define i40e_debug(h, m, s, ...)  i40e_debug_d(h, m, s, ##__VA_ARGS__)
 extern void i40e_debug_d(void *hw, u32 mask, char *fmt_str, ...);
 
@@ -176,8 +180,6 @@ struct i40e_virt_mem {
 	void *va;
 	u32 size;
 };
-#define i40e_allocate_virt_mem(h, m, s) i40e_allocate_virt(h, m, s)
-#define i40e_free_virt_mem(h, m) i40e_free_virt(h, m)
 
 /*
 ** This hardware supports either 16 or 32 byte rx descriptors
@@ -190,8 +192,8 @@ rd32_osdep(struct i40e_osdep *osdep, uint32_t reg)
 {
 
 	KASSERT(reg < osdep->mem_bus_space_size,
-	    ("ixl: register offset %#jx too large (max is %#jx",
-	    (uintmax_t)a, (uintmax_t)osdep->mem_bus_space_size));
+	    ("ixl: register offset %#jx too large (max is %#jx)",
+	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 
 	return (bus_space_read_4(osdep->mem_bus_space_tag,
 	    osdep->mem_bus_space_handle, reg));
@@ -202,11 +204,17 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
 {
 
 	KASSERT(reg < osdep->mem_bus_space_size,
-	    ("ixl: register offset %#jx too large (max is %#jx",
-	    (uintmax_t)a, (uintmax_t)osdep->mem_bus_space_size));
+	    ("ixl: register offset %#jx too large (max is %#jx)",
+	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 
 	bus_space_write_4(osdep->mem_bus_space_tag,
 	    osdep->mem_bus_space_handle, reg, value);
+}
+
+static __inline void
+ixl_flush_osdep(struct i40e_osdep *osdep)
+{
+	rd32_osdep(osdep, osdep->flush_reg);
 }
 
 #define rd32(a, reg)		rd32_osdep((a)->back, (reg))
@@ -222,9 +230,6 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
                      ((struct i40e_osdep *)(a)->back)->mem_bus_space_handle, \
                      reg, value))
 
-#define ixl_flush(a) (\
-   bus_space_read_4( ((struct i40e_osdep *)(a)->back)->mem_bus_space_tag, \
-                     ((struct i40e_osdep *)(a)->back)->mem_bus_space_handle, \
-                     I40E_GLGEN_STAT))
+#define ixl_flush(a)		ixl_flush_osdep((a)->back)
 
 #endif /* _I40E_OSDEP_H_ */

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
 #include <stdio.h>
@@ -47,6 +48,19 @@ __FBSDID("$FreeBSD$");
 #include "format.h"
 #include "mkimg.h"
 #include "scheme.h"
+
+#define	LONGOPT_FORMATS	0x01000001
+#define	LONGOPT_SCHEMES	0x01000002
+#define	LONGOPT_VERSION	0x01000003
+
+static struct option longopts[] = {
+	{ "formats", no_argument, NULL, LONGOPT_FORMATS },
+	{ "schemes", no_argument, NULL, LONGOPT_SCHEMES },
+	{ "version", no_argument, NULL, LONGOPT_VERSION },
+	{ NULL, 0, NULL, 0 }
+};
+
+static uint64_t capacity;
 
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
@@ -61,16 +75,81 @@ u_int secsz = 512;
 u_int blksz = 0;
 
 static void
-usage(const char *why)
+print_formats(int usage)
 {
 	struct mkimg_format *f, **f_iter;
+	const char *sep;
+
+	if (usage) {
+		fprintf(stderr, "    formats:\n");
+		SET_FOREACH(f_iter, formats) {
+			f = *f_iter;
+			fprintf(stderr, "\t%s\t-  %s\n", f->name,
+			    f->description);
+		}
+	} else {
+		sep = "";
+		SET_FOREACH(f_iter, formats) {
+			f = *f_iter;
+			printf("%s%s", sep, f->name);
+			sep = " ";
+		}
+		putchar('\n');
+	}
+}
+
+static void
+print_schemes(int usage)
+{
 	struct mkimg_scheme *s, **s_iter;
+	const char *sep;
+
+	if (usage) {
+		fprintf(stderr, "    schemes:\n");
+		SET_FOREACH(s_iter, schemes) {
+			s = *s_iter;
+			fprintf(stderr, "\t%s\t-  %s\n", s->name,
+			    s->description);
+		}
+	} else {
+		sep = "";
+		SET_FOREACH(s_iter, schemes) {
+			s = *s_iter;
+			printf("%s%s", sep, s->name);
+			sep = " ";
+		}
+		putchar('\n');
+	}
+}
+
+static void
+print_version(void)
+{
+	u_int width;
+
+#ifdef __LP64__
+	width = 64;
+#else
+	width = 32;
+#endif
+	printf("mkimg %u (%u-bit)\n", MKIMG_VERSION, width);
+}
+
+static void
+usage(const char *why)
+{
 
 	warnx("error: %s", why);
-	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
+	fputc('\n', stderr);
+	fprintf(stderr, "usage: %s <options>\n", getprogname());
 
 	fprintf(stderr, "    options:\n");
+	fprintf(stderr, "\t--formats\t-  list image formats\n");
+	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
+	fprintf(stderr, "\t--version\t-  show version information\n");
+	fputc('\n', stderr);
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
+	fprintf(stderr, "\t-c <num>\t-  capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
@@ -81,26 +160,19 @@ usage(const char *why)
 	fprintf(stderr, "\t-P <num>\t-  physical sector size\n");
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
 	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
-
-	fprintf(stderr, "\n    formats:\n");
-	SET_FOREACH(f_iter, formats) {
-		f = *f_iter;
-		fprintf(stderr, "\t%s\t-  %s\n", f->name, f->description);
-	}
-
-	fprintf(stderr, "\n    schemes:\n");
-	SET_FOREACH(s_iter, schemes) {
-		s = *s_iter;
-		fprintf(stderr, "\t%s\t-  %s\n", s->name, s->description);
-	}
-
-	fprintf(stderr, "\n    partition specification:\n");
+	fputc('\n', stderr);
+	print_formats(1);
+	fputc('\n', stderr);
+	print_schemes(1);
+	fputc('\n', stderr);
+	fprintf(stderr, "    partition specification:\n");
 	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
 	    "size\n");
 	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
 	    "are determined\n\t\t\t\t   by the named file\n");
 	fprintf(stderr, "\t<t>[/<l>]:-<cmd>\t-  partition content and size "
 	    "are taken from\n\t\t\t\t   the output of the command to run\n");
+	fprintf(stderr, "\t-\t\t\t-  unused partition entry\n");
 	fprintf(stderr, "\t    where:\n");
 	fprintf(stderr, "\t\t<t>\t-  scheme neutral partition type\n");
 	fprintf(stderr, "\t\t<l>\t-  optional scheme-dependent partition "
@@ -110,7 +182,7 @@ usage(const char *why)
 }
 
 static int
-parse_number(u_int *valp, u_int min, u_int max, const char *arg)
+parse_uint32(uint32_t *valp, uint32_t min, uint32_t max, const char *arg)
 {
 	uint64_t val;
 
@@ -118,7 +190,20 @@ parse_number(u_int *valp, u_int min, u_int max, const char *arg)
 		return (errno);
 	if (val > UINT_MAX || val < (uint64_t)min || val > (uint64_t)max)
 		return (EINVAL);
-	*valp = (u_int)val;
+	*valp = (uint32_t)val;
+	return (0);
+}
+
+static int
+parse_uint64(uint64_t *valp, uint64_t min, uint64_t max, const char *arg)
+{
+	uint64_t val;
+
+	if (expand_number(arg, &val) == -1)
+		return (errno);
+	if (val < min || val > max)
+		return (EINVAL);
+	*valp = val;
 	return (0);
 }
 
@@ -140,6 +225,9 @@ pwr_of_two(u_int nr)
  *		  '-'   contents holds a command to run; the output of
  *			which is the contents of the partition.
  *	contents  the specification of a partition's contents
+ *
+ * A specification that is a single dash indicates an unused partition
+ * entry.
  */
 static int
 parse_part(const char *spec)
@@ -148,6 +236,11 @@ parse_part(const char *spec)
 	char *sep;
 	size_t len;
 	int error;
+
+	if (strcmp(spec, "-") == 0) {
+		nparts++;
+		return (0);
+	}
 
 	part = calloc(1, sizeof(struct part));
 	if (part == NULL)
@@ -263,6 +356,27 @@ sparse_write(int fd, const void *ptr, size_t sz)
 #endif /* SPARSE_WRITE */
 
 void
+mkimg_chs(lba_t lba, u_int maxcyl, u_int *cylp, u_int *hdp, u_int *secp)
+{
+	u_int hd, sec;
+
+	*cylp = *hdp = *secp = ~0U;
+	if (nsecs == 1 || nheads == 1)
+		return;
+
+	sec = lba % nsecs + 1;
+	lba /= nsecs;
+	hd = lba % nheads;
+	lba /= nheads;
+	if (lba > maxcyl)
+		return;
+
+	*cylp = lba;
+	*hdp = hd;
+	*secp = sec;
+}
+
+void
 mkimg_uuid(struct uuid *uuid)
 {
 	static uint8_t gen[sizeof(struct uuid)];
@@ -276,6 +390,17 @@ mkimg_uuid(struct uuid *uuid)
 	for (i = 0; i < sizeof(gen); i++)
 		gen[i]++;
 	memcpy(uuid, gen, sizeof(uuid_t));
+}
+
+static int
+capacity_resize(lba_t end)
+{
+	lba_t capsz;
+
+	capsz = (capacity + secsz - 1) / secsz;
+	if (end >= capsz)
+		return (0);
+	return (image_set_size(capsz));
 }
 
 static void
@@ -339,12 +464,14 @@ mkimg(void)
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
 	error = image_set_size(block);
 	if (!error)
+		error = capacity_resize(block);
+	if (!error)
 		error = format_resize(block);
 	if (error)
 		errc(EX_IOERR, error, "image sizing");
 	block = image_get_size();
 	ncyls = block / (nsecs * nheads);
-	error = (scheme_write(block));
+	error = scheme_write(block);
 	if (error)
 		errc(EX_IOERR, error, "writing metadata");
 }
@@ -357,7 +484,8 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt(argc, argv, "b:f:o:p:s:vyH:P:S:T:")) != -1) {
+	while ((c = getopt_long(argc, argv, "b:c:f:o:p:s:vyH:P:S:T:",
+	    longopts, NULL)) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -365,6 +493,11 @@ main(int argc, char *argv[])
 			bcfd = open(optarg, O_RDONLY, 0);
 			if (bcfd == -1)
 				err(EX_UNAVAILABLE, "%s", optarg);
+			break;
+		case 'c':	/* CAPACITY */
+			error = parse_uint64(&capacity, 1, OFF_MAX, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "capacity in bytes");
 			break;
 		case 'f':	/* OUTPUT FORMAT */
 			if (format_selected() != NULL)
@@ -400,29 +533,41 @@ main(int argc, char *argv[])
 			verbose++;
 			break;
 		case 'H':	/* GEOMETRY: HEADS */
-			error = parse_number(&nheads, 1, 255, optarg);
+			error = parse_uint32(&nheads, 1, 255, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "number of heads");
 			break;
 		case 'P':	/* GEOMETRY: PHYSICAL SECTOR SIZE */
-			error = parse_number(&blksz, 512, INT_MAX+1U, optarg);
+			error = parse_uint32(&blksz, 512, INT_MAX+1U, optarg);
 			if (error == 0 && !pwr_of_two(blksz))
 				error = EINVAL;
 			if (error)
 				errc(EX_DATAERR, error, "physical sector size");
 			break;
 		case 'S':	/* GEOMETRY: LOGICAL SECTOR SIZE */
-			error = parse_number(&secsz, 512, INT_MAX+1U, optarg);
+			error = parse_uint32(&secsz, 512, INT_MAX+1U, optarg);
 			if (error == 0 && !pwr_of_two(secsz))
 				error = EINVAL;
 			if (error)
 				errc(EX_DATAERR, error, "logical sector size");
 			break;
 		case 'T':	/* GEOMETRY: TRACK SIZE */
-			error = parse_number(&nsecs, 1, 63, optarg);
+			error = parse_uint32(&nsecs, 1, 63, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "track size");
 			break;
+		case LONGOPT_FORMATS:
+			print_formats(0);
+			exit(EX_OK);
+			/*NOTREACHED*/
+		case LONGOPT_SCHEMES:
+			print_schemes(0);
+			exit(EX_OK);
+			/*NOTREACHED*/
+		case LONGOPT_VERSION:
+			print_version();
+			exit(EX_OK);
+			/*NOTREACHED*/
 		default:
 			usage("unknown option");
 		}
@@ -430,9 +575,9 @@ main(int argc, char *argv[])
 
 	if (argc > optind)
 		usage("trailing arguments");
-	if (scheme_selected() == NULL)
+	if (scheme_selected() == NULL && nparts > 0)
 		usage("no scheme");
-	if (nparts == 0)
+	if (nparts == 0 && capacity == 0)
 		usage("no partitions");
 
 	if (secsz > blksz) {
@@ -466,8 +611,9 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Sectors per track:   %u\n", nsecs);
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
 		fputc('\n', stderr);
-		fprintf(stderr, "Partitioning scheme: %s\n",
-		    scheme_selected()->name);
+		if (scheme_selected())
+			fprintf(stderr, "Partitioning scheme: %s\n",
+			    scheme_selected()->name);
 		fprintf(stderr, "Output file format:  %s\n",
 		    format_selected()->name);
 		fputc('\n', stderr);

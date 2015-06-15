@@ -16,9 +16,9 @@
 #define LLVM_TRANSFORMS_UTILS_LOCAL_H
 
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Operator.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
 
 namespace llvm {
 
@@ -34,12 +34,14 @@ class Value;
 class Pass;
 class PHINode;
 class AllocaInst;
+class AssumptionCache;
 class ConstantExpr;
 class DataLayout;
 class TargetLibraryInfo;
 class TargetTransformInfo;
 class DIBuilder;
 class AliasAnalysis;
+class DominatorTree;
 
 template<typename T> class SmallVectorImpl;
 
@@ -55,7 +57,7 @@ template<typename T> class SmallVectorImpl;
 /// conditions and indirectbr addresses this might make dead if
 /// DeleteDeadConditions is true.
 bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false,
-                            const TargetLibraryInfo *TLI = 0);
+                            const TargetLibraryInfo *TLI = nullptr);
 
 //===----------------------------------------------------------------------===//
 //  Local dead code elimination.
@@ -64,30 +66,31 @@ bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false,
 /// isInstructionTriviallyDead - Return true if the result produced by the
 /// instruction is not used, and the instruction has no side effects.
 ///
-bool isInstructionTriviallyDead(Instruction *I, const TargetLibraryInfo *TLI=0);
+bool isInstructionTriviallyDead(Instruction *I,
+                                const TargetLibraryInfo *TLI = nullptr);
 
 /// RecursivelyDeleteTriviallyDeadInstructions - If the specified value is a
 /// trivially dead instruction, delete it.  If that makes any of its operands
 /// trivially dead, delete them too, recursively.  Return true if any
 /// instructions were deleted.
 bool RecursivelyDeleteTriviallyDeadInstructions(Value *V,
-                                                const TargetLibraryInfo *TLI=0);
+                                        const TargetLibraryInfo *TLI = nullptr);
 
 /// RecursivelyDeleteDeadPHINode - If the specified value is an effectively
 /// dead PHI node, due to being a def-use chain of single-use nodes that
 /// either forms a cycle or is terminated by a trivially dead instruction,
 /// delete it.  If that makes any of its operands trivially dead, delete them
 /// too, recursively.  Return true if a change was made.
-bool RecursivelyDeleteDeadPHINode(PHINode *PN, const TargetLibraryInfo *TLI=0);
-
+bool RecursivelyDeleteDeadPHINode(PHINode *PN,
+                                  const TargetLibraryInfo *TLI = nullptr);
 
 /// SimplifyInstructionsInBlock - Scan the specified basic block and try to
 /// simplify any instructions in it and recursively delete dead instructions.
 ///
 /// This returns true if it changed the code, note that it can delete
 /// instructions in other blocks as well in this block.
-bool SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD = 0,
-                                 const TargetLibraryInfo *TLI = 0);
+bool SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD = nullptr,
+                                 const TargetLibraryInfo *TLI = nullptr);
 
 //===----------------------------------------------------------------------===//
 //  Control Flow Graph Restructuring.
@@ -105,16 +108,14 @@ bool SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD = 0,
 /// .. and delete the predecessor corresponding to the '1', this will attempt to
 /// recursively fold the 'and' to 0.
 void RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred,
-                                  DataLayout *TD = 0);
-
+                                  DataLayout *TD = nullptr);
 
 /// MergeBasicBlockIntoOnlyPred - BB is a block with one predecessor and its
 /// predecessor is known to have one successor (BB!).  Eliminate the edge
 /// between them, moving the instructions in the predecessor into BB.  This
 /// deletes the predecessor block.
 ///
-void MergeBasicBlockIntoOnlyPred(BasicBlock *BB, Pass *P = 0);
-
+void MergeBasicBlockIntoOnlyPred(BasicBlock *BB, Pass *P = nullptr);
 
 /// TryToSimplifyUncondBranchFromEmptyBlock - BB is known to contain an
 /// unconditional branch, and contains no instructions other than PHI nodes,
@@ -137,19 +138,21 @@ bool EliminateDuplicatePHINodes(BasicBlock *BB);
 /// the basic block that was pointed to.
 ///
 bool SimplifyCFG(BasicBlock *BB, const TargetTransformInfo &TTI,
-                 const DataLayout *TD = 0);
+                 unsigned BonusInstThreshold, const DataLayout *TD = nullptr,
+                 AssumptionCache *AC = nullptr);
 
 /// FlatternCFG - This function is used to flatten a CFG.  For
 /// example, it uses parallel-and and parallel-or mode to collapse
 //  if-conditions and merge if-regions with identical statements.
 ///
-bool FlattenCFG(BasicBlock *BB, AliasAnalysis *AA = 0);
+bool FlattenCFG(BasicBlock *BB, AliasAnalysis *AA = nullptr);
 
 /// FoldBranchToCommonDest - If this basic block is ONLY a setcc and a branch,
 /// and if a predecessor branches to us and one of our successors, fold the
 /// setcc into the predecessor and use logical operations to pick the right
 /// destination.
-bool FoldBranchToCommonDest(BranchInst *BI);
+bool FoldBranchToCommonDest(BranchInst *BI, const DataLayout *DL = nullptr,
+                            unsigned BonusInstThreshold = 1);
 
 /// DemoteRegToStack - This function takes a virtual register computed by an
 /// Instruction and replaces it with a slot in the stack frame, allocated via
@@ -159,23 +162,30 @@ bool FoldBranchToCommonDest(BranchInst *BI);
 ///
 AllocaInst *DemoteRegToStack(Instruction &X,
                              bool VolatileLoads = false,
-                             Instruction *AllocaPoint = 0);
+                             Instruction *AllocaPoint = nullptr);
 
 /// DemotePHIToStack - This function takes a virtual register computed by a phi
 /// node and replaces it with a slot in the stack frame, allocated via alloca.
 /// The phi node is deleted and it returns the pointer to the alloca inserted.
-AllocaInst *DemotePHIToStack(PHINode *P, Instruction *AllocaPoint = 0);
+AllocaInst *DemotePHIToStack(PHINode *P, Instruction *AllocaPoint = nullptr);
 
 /// getOrEnforceKnownAlignment - If the specified pointer has an alignment that
 /// we can determine, return it, otherwise return 0.  If PrefAlign is specified,
 /// and it is more than the alignment of the ultimate object, see if we can
 /// increase the alignment of the ultimate object, making this check succeed.
 unsigned getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
-                                    const DataLayout *TD = 0);
+                                    const DataLayout *TD = nullptr,
+                                    AssumptionCache *AC = nullptr,
+                                    const Instruction *CxtI = nullptr,
+                                    const DominatorTree *DT = nullptr);
 
 /// getKnownAlignment - Try to infer an alignment for the specified pointer.
-static inline unsigned getKnownAlignment(Value *V, const DataLayout *TD = 0) {
-  return getOrEnforceKnownAlignment(V, 0, TD);
+static inline unsigned getKnownAlignment(Value *V,
+                                         const DataLayout *TD = nullptr,
+                                         AssumptionCache *AC = nullptr,
+                                         const Instruction *CxtI = nullptr,
+                                         const DominatorTree *DT = nullptr) {
+  return getOrEnforceKnownAlignment(V, 0, TD, AC, CxtI, DT);
 }
 
 /// EmitGEPOffset - Given a getelementptr instruction/constantexpr, emit the
@@ -274,6 +284,11 @@ bool replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
 ///
 /// Returns true if any basic block was removed.
 bool removeUnreachableBlocks(Function &F);
+
+/// \brief Combine the metadata of two instructions so that K can replace J
+///
+/// Metadata not listed as known via KnownIDs is removed
+void combineMetadata(Instruction *K, const Instruction *J, ArrayRef<unsigned> KnownIDs);
 
 } // End llvm namespace
 

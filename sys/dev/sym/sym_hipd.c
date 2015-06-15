@@ -2329,8 +2329,8 @@ static void sym_enqueue_cam_ccb(ccb_p cp)
 	assert(!(ccb->ccb_h.status & CAM_SIM_QUEUED));
 	ccb->ccb_h.status = CAM_REQ_INPROG;
 
-	callout_reset(&cp->ch, ccb->ccb_h.timeout * hz / 1000, sym_callout,
-			(caddr_t) ccb);
+	callout_reset_sbt(&cp->ch, SBT_1MS * ccb->ccb_h.timeout, 0, sym_callout,
+	    (caddr_t)ccb, 0);
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	ccb->ccb_h.sym_hcb_ptr = np;
 

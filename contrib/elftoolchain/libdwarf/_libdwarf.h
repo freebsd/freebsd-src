@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 John Birrell (jb@freebsd.org)
- * Copyright (c) 2009-2011 Kai Wang
+ * Copyright (c) 2009-2014 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libdwarf.h 2075 2011-10-27 03:47:28Z jkoshy $
+ * $Id: _libdwarf.h 3164 2015-02-19 01:20:12Z kaiwang27 $
  */
 
 #ifndef	__LIBDWARF_H_
@@ -49,7 +49,7 @@
 struct _libdwarf_globals {
 	Dwarf_Handler	errhand;
 	Dwarf_Ptr	errarg;
-	int		applyrela;
+	int		applyreloc;
 };
 
 extern struct _libdwarf_globals _libdwarf;
@@ -89,6 +89,7 @@ extern struct _libdwarf_globals _libdwarf;
 			goto gen_fail;					\
 	} while(0)
 
+typedef struct _Dwarf_CU *Dwarf_CU;
 
 struct _Dwarf_AttrDef {
 	uint64_t	ad_attrib;		/* DW_AT_XXX */
@@ -147,14 +148,6 @@ struct _Dwarf_Die {
 	STAILQ_ENTRY(_Dwarf_Die) die_pro_next; /* Next die in pro-die list. */
 };
 
-struct _Dwarf_Loclist {
-	Dwarf_Locdesc 	**ll_ldlist;	/* Array of Locdesc pointer. */
-	int 		ll_ldlen;	/* Number of Locdesc. */
-	Dwarf_Unsigned	ll_offset;	/* Offset in .debug_loc section. */
-	Dwarf_Unsigned	ll_length;	/* Length (in bytes) of the loclist. */
-	TAILQ_ENTRY(_Dwarf_Loclist) ll_next; /* Next loclist in list. */
-};
-
 struct _Dwarf_P_Expr_Entry {
 	Dwarf_Loc	ee_loc;		/* Location expression. */
 	Dwarf_Unsigned	ee_sym;		/* Optional related reloc sym index. */
@@ -197,6 +190,7 @@ struct _Dwarf_LineInfo {
 	Dwarf_Half	li_version;	/* Version of line info. */
 	Dwarf_Unsigned	li_hdrlen;	/* Length of line info header. */
 	Dwarf_Small	li_minlen;	/* Minimum instrutction length. */
+	Dwarf_Small	li_maxop;	/* Maximum operations per inst. */
 	Dwarf_Small	li_defstmt;	/* Default value of is_stmt. */
 	int8_t		li_lbase;    	/* Line base for special opcode. */
 	Dwarf_Small	li_lrange;    	/* Line range for special opcode. */
@@ -265,6 +259,8 @@ struct _Dwarf_Cie {
 	Dwarf_Half	cie_version;	/* CIE version. */
 	uint8_t		*cie_augment;	/* CIE augmentation (UTF-8). */
 	Dwarf_Unsigned	cie_ehdata;	/* Optional EH Data. */
+	uint8_t		cie_addrsize;	/* Address size. (DWARF4) */
+	uint8_t		cie_segmentsize; /* Segment size. (DWARF4) */
 	Dwarf_Unsigned	cie_caf;	/* Code alignment factor. */
 	Dwarf_Signed	cie_daf;	/* Data alignment factor. */
 	Dwarf_Unsigned	cie_ra;		/* Return address register. */
@@ -333,11 +329,14 @@ struct _Dwarf_CU {
 	uint64_t	cu_lineno_offset; /* Offset into .debug_lineno. */
 	uint8_t		cu_pointer_size;/* Number of bytes in pointer. */
 	uint8_t		cu_dwarf_size;	/* CU section dwarf size. */
+	Dwarf_Sig8	cu_type_sig;	/* Type unit's signature. */
+	uint64_t	cu_type_offset; /* Type unit's type offset. */
 	Dwarf_Off	cu_next_offset; /* Offset to the next CU. */
 	uint64_t	cu_1st_offset;	/* First DIE offset. */
 	int		cu_pass2;	/* Two pass DIE traverse. */
 	Dwarf_LineInfo	cu_lineinfo;	/* Ptr to Dwarf_LineInfo. */
 	Dwarf_Abbrev	cu_abbrev_hash; /* Abbrev hash table. */
+	Dwarf_Bool	cu_is_info;	/* Compilation/type unit flag. */
 	STAILQ_ENTRY(_Dwarf_CU) cu_next; /* Next compilation unit. */
 };
 
@@ -399,17 +398,21 @@ struct _Dwarf_Debug {
 	Dwarf_Section	*dbg_section;	/* Dwarf section list. */
 	Dwarf_Section	*dbg_info_sec;	/* Pointer to info section. */
 	Dwarf_Off	dbg_info_off;	/* Current info section offset. */
+	Dwarf_Section	*dbg_types_sec; /* Pointer to type section. */
+	Dwarf_Off	dbg_types_off;	/* Current types section offset. */
 	Dwarf_Unsigned	dbg_seccnt;	/* Total number of dwarf sections. */
 	int		dbg_mode;	/* Access mode. */
 	int		dbg_pointer_size; /* Object address size. */
 	int		dbg_offset_size;  /* DWARF offset size. */
 	int		dbg_info_loaded; /* Flag indicating all CU loaded. */
+	int		dbg_types_loaded; /* Flag indicating all TU loaded. */
 	Dwarf_Half	dbg_machine;	/* ELF machine architecture. */
 	Dwarf_Handler	dbg_errhand;	/* Error handler. */
 	Dwarf_Ptr	dbg_errarg;	/* Argument to the error handler. */
 	STAILQ_HEAD(, _Dwarf_CU) dbg_cu;/* List of compilation units. */
+	STAILQ_HEAD(, _Dwarf_CU) dbg_tu;/* List of type units. */
 	Dwarf_CU	dbg_cu_current; /* Ptr to the current CU. */
-	TAILQ_HEAD(, _Dwarf_Loclist) dbg_loclist; /* List of location list. */
+	Dwarf_CU	dbg_tu_current; /* Ptr to the current TU. */
 	Dwarf_NameSec	dbg_globals;	/* Ptr to pubnames lookup section. */
 	Dwarf_NameSec	dbg_pubtypes;	/* Ptr to pubtypes lookup section. */
 	Dwarf_NameSec	dbg_weaks;	/* Ptr to weaknames lookup section. */
@@ -532,13 +535,15 @@ int		_dwarf_elf_get_section_info(void *, Dwarf_Half,
 		    Dwarf_Obj_Access_Section *, int *);
 void		_dwarf_expr_cleanup(Dwarf_P_Debug);
 int		_dwarf_expr_into_block(Dwarf_P_Expr, Dwarf_Error *);
+Dwarf_Section	*_dwarf_find_next_types_section(Dwarf_Debug, Dwarf_Section *);
 Dwarf_Section	*_dwarf_find_section(Dwarf_Debug, const char *);
 void		_dwarf_frame_cleanup(Dwarf_Debug);
 int		_dwarf_frame_fde_add_inst(Dwarf_P_Fde, Dwarf_Small,
 		    Dwarf_Unsigned, Dwarf_Unsigned, Dwarf_Error *);
 int		_dwarf_frame_gen(Dwarf_P_Debug, Dwarf_Error *);
-int		_dwarf_frame_get_fop(Dwarf_Debug, uint8_t *, Dwarf_Unsigned,
-		    Dwarf_Frame_Op **, Dwarf_Signed *, Dwarf_Error *);
+int		_dwarf_frame_get_fop(Dwarf_Debug, uint8_t, uint8_t *,
+		    Dwarf_Unsigned, Dwarf_Frame_Op **, Dwarf_Signed *,
+		    Dwarf_Error *);
 int		_dwarf_frame_get_internal_table(Dwarf_Fde, Dwarf_Addr,
 		    Dwarf_Regtable3 **, Dwarf_Addr *, Dwarf_Error *);
 int		_dwarf_frame_interal_table_init(Dwarf_Debug, Dwarf_Error *);
@@ -553,9 +558,12 @@ Dwarf_Unsigned	_dwarf_get_reloc_type(Dwarf_P_Debug, int);
 int		_dwarf_get_reloc_size(Dwarf_Debug, Dwarf_Unsigned);
 void		_dwarf_info_cleanup(Dwarf_Debug);
 int		_dwarf_info_first_cu(Dwarf_Debug, Dwarf_Error *);
+int		_dwarf_info_first_tu(Dwarf_Debug, Dwarf_Error *);
 int		_dwarf_info_gen(Dwarf_P_Debug, Dwarf_Error *);
-int		_dwarf_info_load(Dwarf_Debug, int, Dwarf_Error *);
+int		_dwarf_info_load(Dwarf_Debug, Dwarf_Bool, Dwarf_Bool,
+		    Dwarf_Error *);
 int		_dwarf_info_next_cu(Dwarf_Debug, Dwarf_Error *);
+int		_dwarf_info_next_tu(Dwarf_Debug, Dwarf_Error *);
 void		_dwarf_info_pro_cleanup(Dwarf_P_Debug);
 int		_dwarf_init(Dwarf_Debug, Dwarf_Unsigned, Dwarf_Handler,
 		    Dwarf_Ptr, Dwarf_Error *);
@@ -563,20 +571,19 @@ int		_dwarf_lineno_gen(Dwarf_P_Debug, Dwarf_Error *);
 int		_dwarf_lineno_init(Dwarf_Die, uint64_t, Dwarf_Error *);
 void		_dwarf_lineno_cleanup(Dwarf_LineInfo);
 void		_dwarf_lineno_pro_cleanup(Dwarf_P_Debug);
-int		_dwarf_loc_fill_locdesc(Dwarf_Debug, Dwarf_Locdesc *, uint8_t *,
-		    uint64_t, uint8_t, Dwarf_Error *);
+int		_dwarf_loc_fill_locdesc(Dwarf_Debug, Dwarf_Locdesc *,
+		    uint8_t *, uint64_t, uint8_t, uint8_t, uint8_t,
+		    Dwarf_Error *);
 int		_dwarf_loc_fill_locexpr(Dwarf_Debug, Dwarf_Locdesc **,
-		    uint8_t *, uint64_t, uint8_t, Dwarf_Error *);
+		    uint8_t *, uint64_t, uint8_t, uint8_t, uint8_t,
+		    Dwarf_Error *);
 int		_dwarf_loc_add(Dwarf_Die, Dwarf_Attribute, Dwarf_Error *);
 int		_dwarf_loc_expr_add_atom(Dwarf_Debug, uint8_t *, uint8_t *,
 		    Dwarf_Small, Dwarf_Unsigned, Dwarf_Unsigned, int *,
 		    Dwarf_Error *);
 int		_dwarf_loclist_find(Dwarf_Debug, Dwarf_CU, uint64_t,
-		    Dwarf_Loclist *, Dwarf_Error *);
-void		_dwarf_loclist_cleanup(Dwarf_Debug);
-void		_dwarf_loclist_free(Dwarf_Loclist);
-int		_dwarf_loclist_add(Dwarf_Debug, Dwarf_CU, uint64_t,
-		    Dwarf_Loclist *, Dwarf_Error *);
+		    Dwarf_Locdesc ***, Dwarf_Signed *, Dwarf_Unsigned *,
+		    Dwarf_Error *);
 void		_dwarf_macinfo_cleanup(Dwarf_Debug);
 int		_dwarf_macinfo_gen(Dwarf_P_Debug, Dwarf_Error *);
 int		_dwarf_macinfo_init(Dwarf_Debug, Dwarf_Error *);
@@ -633,6 +640,7 @@ void		_dwarf_strtab_cleanup(Dwarf_Debug);
 int		_dwarf_strtab_gen(Dwarf_P_Debug, Dwarf_Error *);
 char		*_dwarf_strtab_get_table(Dwarf_Debug);
 int		_dwarf_strtab_init(Dwarf_Debug, Dwarf_Error *);
+void		_dwarf_type_unit_cleanup(Dwarf_Debug);
 void		_dwarf_write_block(void *, uint64_t *, uint8_t *, uint64_t);
 int		_dwarf_write_block_alloc(uint8_t **, uint64_t *, uint64_t *,
 		    uint8_t *, uint64_t, Dwarf_Error *);

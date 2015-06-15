@@ -18,9 +18,9 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
 
 namespace llvm {
 
@@ -28,9 +28,8 @@ class GetElementPtrInst;
 class BinaryOperator;
 class ConstantExpr;
 
-/// Operator - This is a utility class that provides an abstraction for the
-/// common functionality between Instructions and ConstantExprs.
-///
+/// This is a utility class that provides an abstraction for the common
+/// functionality between Instructions and ConstantExprs.
 class Operator : public User {
 private:
   // The Operator class is intended to be used as a utility, and is never itself
@@ -46,17 +45,15 @@ protected:
   ~Operator();
 
 public:
-  /// getOpcode - Return the opcode for this Instruction or ConstantExpr.
-  ///
+  /// Return the opcode for this Instruction or ConstantExpr.
   unsigned getOpcode() const {
     if (const Instruction *I = dyn_cast<Instruction>(this))
       return I->getOpcode();
     return cast<ConstantExpr>(this)->getOpcode();
   }
 
-  /// getOpcode - If V is an Instruction or ConstantExpr, return its
-  /// opcode. Otherwise return UserOp1.
-  ///
+  /// If V is an Instruction or ConstantExpr, return its opcode.
+  /// Otherwise return UserOp1.
   static unsigned getOpcode(const Value *V) {
     if (const Instruction *I = dyn_cast<Instruction>(V))
       return I->getOpcode();
@@ -72,10 +69,9 @@ public:
   }
 };
 
-/// OverflowingBinaryOperator - Utility class for integer arithmetic operators
-/// which may exhibit overflow - Add, Sub, and Mul. It does not include SDiv,
-/// despite that operator having the potential for overflow.
-///
+/// Utility class for integer arithmetic operators which may exhibit overflow -
+/// Add, Sub, and Mul. It does not include SDiv, despite that operator having
+/// the potential for overflow.
 class OverflowingBinaryOperator : public Operator {
 public:
   enum {
@@ -96,13 +92,13 @@ private:
   }
 
 public:
-  /// hasNoUnsignedWrap - Test whether this operation is known to never
+  /// Test whether this operation is known to never
   /// undergo unsigned overflow, aka the nuw property.
   bool hasNoUnsignedWrap() const {
     return SubclassOptionalData & NoUnsignedWrap;
   }
 
-  /// hasNoSignedWrap - Test whether this operation is known to never
+  /// Test whether this operation is known to never
   /// undergo signed overflow, aka the nsw property.
   bool hasNoSignedWrap() const {
     return (SubclassOptionalData & NoSignedWrap) != 0;
@@ -126,8 +122,8 @@ public:
   }
 };
 
-/// PossiblyExactOperator - A udiv or sdiv instruction, which can be marked as
-/// "exact", indicating that no bits are destroyed.
+/// A udiv or sdiv instruction, which can be marked as "exact",
+/// indicating that no bits are destroyed.
 class PossiblyExactOperator : public Operator {
 public:
   enum {
@@ -142,8 +138,7 @@ private:
   }
 
 public:
-  /// isExact - Test whether this division is known to be exact, with
-  /// zero remainder.
+  /// Test whether this division is known to be exact, with zero remainder.
   bool isExact() const {
     return SubclassOptionalData & IsExact;
   }
@@ -210,10 +205,14 @@ public:
     setNoSignedZeros();
     setAllowReciprocal();
   }
+
+  void operator&=(const FastMathFlags &OtherFlags) {
+    Flags &= OtherFlags.Flags;
+  }
 };
 
 
-/// FPMathOperator - Utility class for floating point operations which can have
+/// Utility class for floating point operations which can have
 /// information about relaxed accuracy requirements attached to them.
 class FPMathOperator : public Operator {
 private:
@@ -253,9 +252,16 @@ private:
       (B * FastMathFlags::AllowReciprocal);
   }
 
-  /// Convenience function for setting all the fast-math flags
+  /// Convenience function for setting multiple fast-math flags.
+  /// FMF is a mask of the bits to set.
   void setFastMathFlags(FastMathFlags FMF) {
     SubclassOptionalData |= FMF.Flags;
+  }
+
+  /// Convenience function for copying all fast-math flags.
+  /// All values in FMF are transferred to this operator.
+  void copyFastMathFlags(FastMathFlags FMF) {
+    SubclassOptionalData = FMF.Flags;
   }
 
 public:
@@ -308,8 +314,7 @@ public:
 };
 
 
-/// ConcreteOperator - A helper template for defining operators for individual
-/// opcodes.
+/// A helper template for defining operators for individual opcodes.
 template<typename SuperClass, unsigned Opc>
 class ConcreteOperator : public SuperClass {
 public:
@@ -353,6 +358,8 @@ class LShrOperator
 };
 
 
+class ZExtOperator : public ConcreteOperator<Operator, Instruction::ZExt> {};
+
 
 class GEPOperator
   : public ConcreteOperator<Operator, Instruction::GetElementPtr> {
@@ -368,8 +375,7 @@ class GEPOperator
   }
 
 public:
-  /// isInBounds - Test whether this is an inbounds GEP, as defined
-  /// by LangRef.html.
+  /// Test whether this is an inbounds GEP, as defined by LangRef.html.
   bool isInBounds() const {
     return SubclassOptionalData & IsInBounds;
   }
@@ -389,16 +395,14 @@ public:
     return 0U;                      // get index for modifying correct operand
   }
 
-  /// getPointerOperandType - Method to return the pointer operand as a
-  /// PointerType.
+  /// Method to return the pointer operand as a PointerType.
   Type *getPointerOperandType() const {
     return getPointerOperand()->getType();
   }
 
-  /// getPointerAddressSpace - Method to return the address space of the
-  /// pointer operand.
+  /// Method to return the address space of the pointer operand.
   unsigned getPointerAddressSpace() const {
-    return cast<PointerType>(getPointerOperandType())->getAddressSpace();
+    return getPointerOperandType()->getPointerAddressSpace();
   }
 
   unsigned getNumIndices() const {  // Note: always non-negative
@@ -409,8 +413,8 @@ public:
     return getNumOperands() > 1;
   }
 
-  /// hasAllZeroIndices - Return true if all of the indices of this GEP are
-  /// zeros.  If so, the result pointer and the first operand have the same
+  /// Return true if all of the indices of this GEP are zeros.
+  /// If so, the result pointer and the first operand have the same
   /// value, just potentially different types.
   bool hasAllZeroIndices() const {
     for (const_op_iterator I = idx_begin(), E = idx_end(); I != E; ++I) {
@@ -422,8 +426,8 @@ public:
     return true;
   }
 
-  /// hasAllConstantIndices - Return true if all of the indices of this GEP are
-  /// constant integers.  If so, the result pointer and the first operand have
+  /// Return true if all of the indices of this GEP are constant integers.
+  /// If so, the result pointer and the first operand have
   /// a constant offset between them.
   bool hasAllConstantIndices() const {
     for (const_op_iterator I = idx_begin(), E = idx_end(); I != E; ++I) {
@@ -472,6 +476,34 @@ public:
   }
 
 };
+
+class PtrToIntOperator
+    : public ConcreteOperator<Operator, Instruction::PtrToInt> {
+  friend class PtrToInt;
+  friend class ConstantExpr;
+
+public:
+  Value *getPointerOperand() {
+    return getOperand(0);
+  }
+  const Value *getPointerOperand() const {
+    return getOperand(0);
+  }
+  static unsigned getPointerOperandIndex() {
+    return 0U;                      // get index for modifying correct operand
+  }
+
+  /// Method to return the pointer operand as a PointerType.
+  Type *getPointerOperandType() const {
+    return getPointerOperand()->getType();
+  }
+
+  /// Method to return the address space of the pointer operand.
+  unsigned getPointerAddressSpace() const {
+    return cast<PointerType>(getPointerOperandType())->getAddressSpace();
+  }
+};
+
 
 } // End llvm namespace
 

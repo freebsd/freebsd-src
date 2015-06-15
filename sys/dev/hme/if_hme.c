@@ -367,7 +367,7 @@ hme_config(struct hme_softc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 	ifp->if_hwassist |= sc->sc_csum_features;
 	ifp->if_capenable |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
@@ -477,11 +477,11 @@ hme_tick(void *arg)
 	/*
 	 * Unload collision counters
 	 */
-	ifp->if_collisions +=
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
 		HME_MAC_READ_4(sc, HME_MACI_NCCNT) +
 		HME_MAC_READ_4(sc, HME_MACI_FCCNT) +
 		HME_MAC_READ_4(sc, HME_MACI_EXCNT) +
-		HME_MAC_READ_4(sc, HME_MACI_LTCNT);
+		HME_MAC_READ_4(sc, HME_MACI_LTCNT));
 
 	/*
 	 * then clear the hardware counters.
@@ -1072,7 +1072,7 @@ hme_read(struct hme_softc *sc, int ix, int len, u_int32_t flags)
 		HME_WHINE(sc->sc_dev, "invalid packet size %d; dropping\n",
 		    len);
 #endif
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		hme_discard_rxbuf(sc, ix);
 		return;
 	}
@@ -1086,12 +1086,12 @@ hme_read(struct hme_softc *sc, int ix, int len, u_int32_t flags)
 		 * it is sure that a new buffer can be mapped. If it can not,
 		 * drop the packet, but leave the interface up.
 		 */
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		hme_discard_rxbuf(sc, ix);
 		return;
 	}
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len + HME_RXOFFS;
@@ -1193,7 +1193,7 @@ hme_tint(struct hme_softc *sc)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->sc_tdmatag, htx->htx_dmamap);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		m_freem(htx->htx_m);
 		htx->htx_m = NULL;
 		STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txbusyq, htx_q);
@@ -1299,7 +1299,7 @@ hme_rint(struct hme_softc *sc)
 		if ((flags & HME_XD_OFL) != 0) {
 			device_printf(sc->sc_dev, "buffer overflow, ri=%d; "
 			    "flags=0x%x\n", ri, flags);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			hme_discard_rxbuf(sc, ri);
 		} else {
 			len = HME_XD_DECODE_RSIZE(flags);
@@ -1374,7 +1374,7 @@ hme_watchdog(struct hme_softc *sc)
 		device_printf(sc->sc_dev, "device timeout\n");
 	else if (bootverbose)
 		device_printf(sc->sc_dev, "device timeout (no link)\n");
-	++ifp->if_oerrors;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	hme_init_locked(sc);

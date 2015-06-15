@@ -268,12 +268,6 @@ netstat -M $VMCORE -N $KERNEL -m
 echo
 
 echo "------------------------------------------------------------------------"
-echo "netstat -anr"
-echo
-netstat -M $VMCORE -N $KERNEL -anr
-echo
-
-echo "------------------------------------------------------------------------"
 echo "netstat -anA"
 echo
 netstat -M $VMCORE -N $KERNEL -anA

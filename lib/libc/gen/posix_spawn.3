@@ -413,6 +413,10 @@ including trying to close a descriptor that is not open.
 .Xr execve 2 ,
 .Xr fcntl 2 ,
 .Xr open 2 ,
+.Xr sched_setparam 2 ,
+.Xr sched_setscheduler 2 ,
+.Xr setpgid 2 ,
+.Xr vfork 2 ,
 .Xr posix_spawn_file_actions_addclose 3 ,
 .Xr posix_spawn_file_actions_adddup2 3 ,
 .Xr posix_spawn_file_actions_addopen 3 ,
@@ -431,11 +435,7 @@ including trying to close a descriptor that is not open.
 .Xr posix_spawnattr_setschedparam 3 ,
 .Xr posix_spawnattr_setschedpolicy 3 ,
 .Xr posix_spawnattr_setsigdefault 3 ,
-.Xr posix_spawnattr_setsigmask 3 ,
-.Xr sched_setparam 2 ,
-.Xr sched_setscheduler 2 ,
-.Xr setpgid 2 ,
-.Xr vfork 2
+.Xr posix_spawnattr_setsigmask 3
 .Sh STANDARDS
 The
 .Fn posix_spawn
@@ -457,4 +457,4 @@ and
 functions first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
-.An Ed Schouten Aq Mt ed@FreeBSD.org
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

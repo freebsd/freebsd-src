@@ -7,6 +7,7 @@ TESTSDIR=	${TESTSBASE}/lib/atf/libatf-c/detail
 ATF=		${.CURDIR:H:H:H:H:H}/contrib/atf
 .PATH:		${ATF}/atf-c/detail
 
+CFLAGS+=	-DATF_INCLUDEDIR='"${INCLUDEDIR}"'
 CFLAGS+=	-I${ATF}
 
 .for _T in	dynstr_test \

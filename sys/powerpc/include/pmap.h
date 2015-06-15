@@ -74,13 +74,6 @@
 #include <machine/slb.h>
 #include <machine/tlb.h>
 
-struct pmap_md {
-	u_int		md_index;
-	vm_paddr_t      md_paddr;
-	vm_offset_t     md_vaddr;
-	vm_size_t       md_size;
-};
-
 #if defined(AIM)
 
 #if !defined(NPMAPS)
@@ -93,11 +86,19 @@ typedef	struct pmap *pmap_t;
 
 struct pvo_entry {
 	LIST_ENTRY(pvo_entry) pvo_vlink;	/* Link to common virt page */
+#ifndef __powerpc64__
 	LIST_ENTRY(pvo_entry) pvo_olink;	/* Link to overflow entry */
+#endif
 	RB_ENTRY(pvo_entry) pvo_plink;	/* Link to pmap entries */
-	union {
-		struct	pte pte;		/* 32 bit PTE */
-		struct	lpte lpte;		/* 64 bit PTE */
+	struct {
+#ifndef __powerpc64__
+		/* 32-bit fields */
+		struct	pte pte;
+#endif
+		/* 64-bit fields */
+		uintptr_t   slot;
+		vm_paddr_t  pa;
+		vm_prot_t   prot;
 	} pvo_pte;
 	pmap_t		pvo_pmap;		/* Owning pmap */
 	vm_offset_t	pvo_vaddr;		/* VA of entry */
@@ -108,12 +109,17 @@ RB_HEAD(pvo_tree, pvo_entry);
 int pvo_vaddr_compare(struct pvo_entry *, struct pvo_entry *);
 RB_PROTOTYPE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 
+/* Used by 32-bit PMAP */
 #define	PVO_PTEGIDX_MASK	0x007UL		/* which PTEG slot */
 #define	PVO_PTEGIDX_VALID	0x008UL		/* slot is valid */
+/* Used by 64-bit PMAP */
+#define	PVO_HID			0x008UL		/* PVO entry in alternate hash*/
+/* Used by both */
 #define	PVO_WIRED		0x010UL		/* PVO entry is wired */
 #define	PVO_MANAGED		0x020UL		/* PVO entry is managed */
 #define	PVO_BOOTSTRAP		0x080UL		/* PVO entry allocated during
 						   bootstrap */
+#define PVO_DEAD		0x100UL		/* waiting to be deleted */
 #define PVO_LARGE		0x200UL		/* large page */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
 #define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
@@ -142,7 +148,7 @@ struct	pmap {
 };
 
 struct	md_page {
-	u_int64_t	 mdpg_attrs;
+	volatile int32_t mdpg_attrs;
 	vm_memattr_t	 mdpg_cache_attrs;
 	struct	pvo_head mdpg_pvoh;
 };
@@ -251,11 +257,6 @@ extern	vm_offset_t virtual_end;
 extern	vm_offset_t msgbuf_phys;
 
 extern	int pmap_bootstrapped;
-
-extern vm_offset_t pmap_dumpsys_map(struct pmap_md *, vm_size_t, vm_size_t *);
-extern void pmap_dumpsys_unmap(struct pmap_md *, vm_size_t, vm_offset_t);
-
-extern struct pmap_md *pmap_scan_md(struct pmap_md *);
 
 vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 

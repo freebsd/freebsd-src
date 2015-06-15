@@ -80,6 +80,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_MISC14	0x1703
 #define	DEVICEID_AMD_MISC15	0x1603
 #define	DEVICEID_AMD_MISC16	0x1533
+#define	DEVICEID_AMD_MISC17	0x141d
 
 static struct amdtemp_product {
 	uint16_t	amdtemp_vendorid;
@@ -92,6 +93,7 @@ static struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC14 },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC15 },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC16 },
+	{ VENDORID_AMD,	DEVICEID_AMD_MISC17 },
 	{ 0, 0 }
 };
 

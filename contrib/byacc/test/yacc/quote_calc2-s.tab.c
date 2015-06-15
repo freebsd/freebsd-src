@@ -156,7 +156,7 @@ extern int YYPARSE_DECL();
 #define LETTER 270
 #define UMINUS 271
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT quote_calc2_lhs[] = {                 -1,
     0,    0,    0,    1,    1,    2,    2,    2,    2,    2,
     2,    2,    2,    2,    2,    2,    3,    3,

@@ -28,6 +28,41 @@ void CGCXXABI::ErrorUnsupportedABI(CodeGenFunction &CGF, StringRef S) {
     << S;
 }
 
+bool CGCXXABI::canCopyArgument(const CXXRecordDecl *RD) const {
+  // If RD has a non-trivial move or copy constructor, we cannot copy the
+  // argument.
+  if (RD->hasNonTrivialCopyConstructor() || RD->hasNonTrivialMoveConstructor())
+    return false;
+
+  // If RD has a non-trivial destructor, we cannot copy the argument.
+  if (RD->hasNonTrivialDestructor())
+    return false;
+
+  // We can only copy the argument if there exists at least one trivial,
+  // non-deleted copy or move constructor.
+  // FIXME: This assumes that all lazily declared copy and move constructors are
+  // not deleted.  This assumption might not be true in some corner cases.
+  bool CopyDeleted = false;
+  bool MoveDeleted = false;
+  for (const CXXConstructorDecl *CD : RD->ctors()) {
+    if (CD->isCopyConstructor() || CD->isMoveConstructor()) {
+      assert(CD->isTrivial());
+      // We had at least one undeleted trivial copy or move ctor.  Return
+      // directly.
+      if (!CD->isDeleted())
+        return true;
+      if (CD->isCopyConstructor())
+        CopyDeleted = true;
+      else
+        MoveDeleted = true;
+    }
+  }
+
+  // If all trivial copy and move constructors are deleted, we cannot copy the
+  // argument.
+  return !(CopyDeleted && MoveDeleted);
+}
+
 llvm::Constant *CGCXXABI::GetBogusMemberPointer(QualType T) {
   return llvm::Constant::getNullValue(CGM.getTypes().ConvertType(T));
 }
@@ -37,10 +72,9 @@ CGCXXABI::ConvertMemberPointerType(const MemberPointerType *MPT) {
   return CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType());
 }
 
-llvm::Value *CGCXXABI::EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
-                                                       llvm::Value *&This,
-                                                       llvm::Value *MemPtr,
-                                                 const MemberPointerType *MPT) {
+llvm::Value *CGCXXABI::EmitLoadOfMemberFunctionPointer(
+    CodeGenFunction &CGF, const Expr *E, llvm::Value *&This,
+    llvm::Value *MemPtr, const MemberPointerType *MPT) {
   ErrorUnsupportedABI(CGF, "calls through member pointers");
 
   const FunctionProtoType *FPT = 
@@ -52,10 +86,10 @@ llvm::Value *CGCXXABI::EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
   return llvm::Constant::getNullValue(FTy->getPointerTo());
 }
 
-llvm::Value *CGCXXABI::EmitMemberDataPointerAddress(CodeGenFunction &CGF,
-                                                    llvm::Value *Base,
-                                                    llvm::Value *MemPtr,
-                                              const MemberPointerType *MPT) {
+llvm::Value *
+CGCXXABI::EmitMemberDataPointerAddress(CodeGenFunction &CGF, const Expr *E,
+                                       llvm::Value *Base, llvm::Value *MemPtr,
+                                       const MemberPointerType *MPT) {
   ErrorUnsupportedABI(CGF, "loads of member pointers");
   llvm::Type *Ty = CGF.ConvertType(MPT->getPointeeType())->getPointerTo();
   return llvm::Constant::getNullValue(Ty);
@@ -116,13 +150,13 @@ bool CGCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return true;
 }
 
-void CGCXXABI::BuildThisParam(CodeGenFunction &CGF, FunctionArgList &params) {
+void CGCXXABI::buildThisParam(CodeGenFunction &CGF, FunctionArgList &params) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(CGF.CurGD.getDecl());
 
   // FIXME: I'm not entirely sure I like using a fake decl just for code
   // generation. Maybe we can come up with a better way?
   ImplicitParamDecl *ThisDecl
-    = ImplicitParamDecl::Create(CGM.getContext(), 0, MD->getLocation(),
+    = ImplicitParamDecl::Create(CGM.getContext(), nullptr, MD->getLocation(),
                                 &CGM.getContext().Idents.get("this"),
                                 MD->getThisType(CGM.getContext()));
   params.push_back(ThisDecl);
@@ -160,7 +194,7 @@ llvm::Value *CGCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
                                              QualType ElementType) {
   // Should never be called.
   ErrorUnsupportedABI(CGF, "array cookie initialization");
-  return 0;
+  return nullptr;
 }
 
 bool CGCXXABI::requiresArrayCookie(const CXXDeleteExpr *expr,
@@ -194,7 +228,7 @@ void CGCXXABI::ReadArrayCookie(CodeGenFunction &CGF, llvm::Value *ptr,
   // If we don't need an array cookie, bail out early.
   if (!requiresArrayCookie(expr, eltTy)) {
     allocPtr = ptr;
-    numElements = 0;
+    numElements = nullptr;
     cookieSize = CharUnits::Zero();
     return;
   }
@@ -210,17 +244,6 @@ llvm::Value *CGCXXABI::readArrayCookieImpl(CodeGenFunction &CGF,
                                            CharUnits cookieSize) {
   ErrorUnsupportedABI(CGF, "reading a new[] cookie");
   return llvm::ConstantInt::get(CGF.SizeTy, 0);
-}
-
-void CGCXXABI::registerGlobalDtor(CodeGenFunction &CGF,
-                                  const VarDecl &D,
-                                  llvm::Constant *dtor,
-                                  llvm::Constant *addr) {
-  if (D.getTLSKind())
-    CGM.ErrorUnsupported(&D, "non-trivial TLS destruction");
-
-  // The default behavior is to use atexit.
-  CGF.registerGlobalDtorWithAtExit(D, dtor, addr);
 }
 
 /// Returns the adjustment, in bytes, required for the given
@@ -273,18 +296,7 @@ CGCXXABI::EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
     llvm_unreachable("shouldn't be called in this ABI");
 
   ErrorUnsupportedABI(CGF, "complete object detection in ctor");
-  return 0;
-}
-
-void CGCXXABI::EmitThreadLocalInitFuncs(
-    llvm::ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *> > Decls,
-    llvm::Function *InitFunc) {
-}
-
-LValue CGCXXABI::EmitThreadLocalDeclRefExpr(CodeGenFunction &CGF,
-                                          const DeclRefExpr *DRE) {
-  ErrorUnsupportedABI(CGF, "odr-use of thread_local global");
-  return LValue();
+  return nullptr;
 }
 
 bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {

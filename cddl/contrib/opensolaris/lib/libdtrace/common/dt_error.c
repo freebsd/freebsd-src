@@ -145,7 +145,7 @@ dtrace_errno(dtrace_hdl_t *dtp)
 	return (dtp->dt_errno);
 }
 
-#if defined(sun)
+#ifdef illumos
 int
 dt_set_errno(dtrace_hdl_t *dtp, int err)
 {

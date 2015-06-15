@@ -56,8 +56,9 @@ CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/thread
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/sys
 CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_CPUARCH}/include
 
-DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ}
-LDADD=		-lmd -lpthread -lz
+DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ} ${LIBNVPAIR} \
+		${LIBAVL} ${LIBUMEM}
+LDADD=		-lmd -lpthread -lz -lnvpair -lavl -lumem
 
 # atomic.S doesn't like profiling.
 MK_PROFILE=	no

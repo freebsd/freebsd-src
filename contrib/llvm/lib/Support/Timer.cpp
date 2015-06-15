@@ -12,13 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Timer.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
+#include "llvm/Support/MutexGuard.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -65,10 +66,10 @@ raw_ostream *llvm::CreateInfoOutputFile() {
   // each time -stats or -time-passes wants to print output to it. To
   // compensate for this, the test-suite Makefiles have code to delete the
   // info output file before running commands which write to it.
-  std::string Error;
-  raw_ostream *Result =
-      new raw_fd_ostream(OutputFilename.c_str(), Error, sys::fs::F_Append);
-  if (Error.empty())
+  std::error_code EC;
+  raw_ostream *Result = new raw_fd_ostream(OutputFilename, EC,
+                                           sys::fs::F_Append | sys::fs::F_Text);
+  if (!EC)
     return Result;
   
   errs() << "Error opening info-output-file '"
@@ -78,20 +79,19 @@ raw_ostream *llvm::CreateInfoOutputFile() {
 }
 
 
-static TimerGroup *DefaultTimerGroup = 0;
+static TimerGroup *DefaultTimerGroup = nullptr;
 static TimerGroup *getDefaultTimerGroup() {
   TimerGroup *tmp = DefaultTimerGroup;
   sys::MemoryFence();
   if (tmp) return tmp;
   
-  llvm_acquire_global_lock();
+  sys::SmartScopedLock<true> Lock(*TimerLock);
   tmp = DefaultTimerGroup;
   if (!tmp) {
     tmp = new TimerGroup("Miscellaneous Ungrouped Timers");
     sys::MemoryFence();
     DefaultTimerGroup = tmp;
   }
-  llvm_release_global_lock();
 
   return tmp;
 }
@@ -101,7 +101,7 @@ static TimerGroup *getDefaultTimerGroup() {
 //===----------------------------------------------------------------------===//
 
 void Timer::init(StringRef N) {
-  assert(TG == 0 && "Timer already initialized");
+  assert(!TG && "Timer already initialized");
   Name.assign(N.begin(), N.end());
   Started = false;
   TG = getDefaultTimerGroup();
@@ -109,7 +109,7 @@ void Timer::init(StringRef N) {
 }
 
 void Timer::init(StringRef N, TimerGroup &tg) {
-  assert(TG == 0 && "Timer already initialized");
+  assert(!TG && "Timer already initialized");
   Name.assign(N.begin(), N.end());
   Started = false;
   TG = &tg;
@@ -236,11 +236,11 @@ static Timer &getNamedRegionTimer(StringRef Name) {
 
 NamedRegionTimer::NamedRegionTimer(StringRef Name,
                                    bool Enabled)
-  : TimeRegion(!Enabled ? 0 : &getNamedRegionTimer(Name)) {}
+  : TimeRegion(!Enabled ? nullptr : &getNamedRegionTimer(Name)) {}
 
 NamedRegionTimer::NamedRegionTimer(StringRef Name, StringRef GroupName,
                                    bool Enabled)
-  : TimeRegion(!Enabled ? 0 : &NamedGroupedTimers->get(Name, GroupName)) {}
+  : TimeRegion(!Enabled ? nullptr : &NamedGroupedTimers->get(Name, GroupName)){}
 
 //===----------------------------------------------------------------------===//
 //   TimerGroup Implementation
@@ -248,10 +248,10 @@ NamedRegionTimer::NamedRegionTimer(StringRef Name, StringRef GroupName,
 
 /// TimerGroupList - This is the global list of TimerGroups, maintained by the
 /// TimerGroup ctor/dtor and is protected by the TimerLock lock.
-static TimerGroup *TimerGroupList = 0;
+static TimerGroup *TimerGroupList = nullptr;
 
 TimerGroup::TimerGroup(StringRef name)
-  : Name(name.begin(), name.end()), FirstTimer(0) {
+  : Name(name.begin(), name.end()), FirstTimer(nullptr) {
     
   // Add the group to TimerGroupList.
   sys::SmartScopedLock<true> L(*TimerLock);
@@ -265,7 +265,7 @@ TimerGroup::TimerGroup(StringRef name)
 TimerGroup::~TimerGroup() {
   // If the timer group is destroyed before the timers it owns, accumulate and
   // print the timing data.
-  while (FirstTimer != 0)
+  while (FirstTimer)
     removeTimer(*FirstTimer);
   
   // Remove the group from the TimerGroupList.
@@ -283,7 +283,7 @@ void TimerGroup::removeTimer(Timer &T) {
   if (T.Started)
     TimersToPrint.push_back(std::make_pair(T.Time, T.Name));
 
-  T.TG = 0;
+  T.TG = nullptr;
   
   // Unlink the timer from our list.
   *T.Prev = T.Next;
@@ -292,7 +292,7 @@ void TimerGroup::removeTimer(Timer &T) {
   
   // Print the report when all timers in this group are destroyed if some of
   // them were started.
-  if (FirstTimer != 0 || TimersToPrint.empty())
+  if (FirstTimer || TimersToPrint.empty())
     return;
   
   raw_ostream *OutStream = CreateInfoOutputFile();

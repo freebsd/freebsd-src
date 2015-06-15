@@ -28,7 +28,7 @@
 .\"     @(#)getgrouplist.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2012
+.Dd October 26, 2014
 .Dt GETGROUPLIST 3
 .Os
 .Sh NAME
@@ -80,13 +80,3 @@ The
 .Fn getgrouplist
 function first appeared in
 .Bx 4.4 .
-.Sh BUGS
-The
-.Fn getgrouplist
-function
-uses the routines based on
-.Xr getgrent 3 .
-If the invoking program uses any of these routines,
-the group structure will
-be overwritten in the call to
-.Fn getgrouplist .

@@ -18,12 +18,17 @@
 
 // Other libraries and framework includes
 // Project includes
+#include "lldb/lldb-private-forward.h"
 #include "lldb/lldb-public.h"
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Host/Mutex.h"
+
+// TODO pull NativeDelegate class out of NativeProcessProtocol so we
+// can just forward ref the NativeDelegate rather than include it here.
+#include "../../../source/Host/common/NativeProcessProtocol.h"
 
 namespace lldb_private {
 
@@ -57,7 +62,7 @@ namespace lldb_private {
         /// or attaching to processes unless another platform is specified.
         //------------------------------------------------------------------
         static lldb::PlatformSP
-        GetDefaultPlatform ();
+        GetHostPlatform ();
 
         static lldb::PlatformSP
         GetPlatformForArchitecture (const ArchSpec &arch,
@@ -67,10 +72,14 @@ namespace lldb_private {
         GetHostPlatformName ();
 
         static void
-        SetDefaultPlatform (const lldb::PlatformSP &platform_sp);
+        SetHostPlatform (const lldb::PlatformSP &platform_sp);
+
+        // Find an existing platform plug-in by name
+        static lldb::PlatformSP
+        Find (const ConstString &name);
 
         static lldb::PlatformSP
-        Create (const char *platform_name, Error &error);
+        Create (const ConstString &name, Error &error);
 
         static lldb::PlatformSP
         Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &error);
@@ -109,8 +118,8 @@ namespace lldb_private {
         ///     An optional name of a specific platform plug-in that
         ///     should be used. If NULL, pick the best plug-in.
         //------------------------------------------------------------------
-        static Platform*
-        FindPlugin (Process *process, const ConstString &plugin_name);
+//        static lldb::PlatformSP
+//        FindPlugin (Process *process, const ConstString &plugin_name);
 
         //------------------------------------------------------------------
         /// Set the target's executable based off of the existing 
@@ -132,8 +141,7 @@ namespace lldb_private {
         ///     a suitable executable, \b false otherwise.
         //------------------------------------------------------------------
         virtual Error
-        ResolveExecutable (const FileSpec &exe_file,
-                           const ArchSpec &arch,
+        ResolveExecutable (const ModuleSpec &module_spec,
                            lldb::ModuleSP &module_sp,
                            const FileSpecList *module_search_paths_ptr);
 
@@ -174,13 +182,13 @@ namespace lldb_private {
         ///     m_arch - The architecture we are looking for when resolving
         ///              the symbol file.
         ///     m_uuid - The UUID of the executable and symbol file. This
-        ///              can often be used to match up an exectuable with
+        ///              can often be used to match up an executable with
         ///              a symbol file, or resolve an symbol file in a
         ///              symbol file bundle.
         ///
         /// @param[out] sym_file
         ///     The resolved symbol file spec if the returned error
-        ///     indicates succes.
+        ///     indicates success.
         ///
         /// @return
         ///     Returns an error that describes success or failure.
@@ -215,7 +223,7 @@ namespace lldb_private {
         bool
         GetOSKernelDescription (std::string &s);
 
-        // Returns the the name of the platform
+        // Returns the name of the platform
         ConstString
         GetName ();
 
@@ -241,7 +249,7 @@ namespace lldb_private {
         //
         // Remote classes must be connected for this to succeed. Local 
         // subclasses don't need to override this function as it will just
-        // call the Host::GetOSVersion().
+        // call the HostInfo::GetOSVersion().
         //------------------------------------------------------------------
         virtual bool
         GetRemoteOSVersion ()
@@ -326,7 +334,8 @@ namespace lldb_private {
         //----------------------------------------------------------------------
         virtual FileSpecList
         LocateExecutableScriptingResources (Target *target,
-                                            Module &module);
+                                            Module &module,
+                                            Stream* feedback_stream);
         
         virtual Error
         GetSharedModule (const ModuleSpec &module_spec, 
@@ -349,7 +358,7 @@ namespace lldb_private {
         ///     A zero based architecture index
         ///
         /// @param[out] arch
-        ///     A copy of the archgitecture at index if the return value is
+        ///     A copy of the architecture at index if the return value is
         ///     \b true.
         ///
         /// @return
@@ -403,7 +412,6 @@ namespace lldb_private {
         DebugProcess (ProcessLaunchInfo &launch_info,
                       Debugger &debugger,
                       Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                      Listener &listener,
                       Error &error);
 
         //------------------------------------------------------------------
@@ -413,7 +421,7 @@ namespace lldb_private {
         /// attempt to attach to the process with the process ID of \a pid.
         /// The platform subclass should return an appropriate ProcessSP 
         /// subclass that is attached to the process, or an empty shared 
-        /// pointer with an appriopriate error.
+        /// pointer with an appropriate error.
         ///
         /// @param[in] pid
         ///     The process ID that we should attempt to attach to.
@@ -422,13 +430,12 @@ namespace lldb_private {
         ///     An appropriate ProcessSP containing a valid shared pointer
         ///     to the default Process subclass for the platform that is 
         ///     attached to the process, or an empty shared pointer with an
-        ///     appriopriate error fill into the \a error object.
+        ///     appropriate error fill into the \a error object.
         //------------------------------------------------------------------
         virtual lldb::ProcessSP
         Attach (ProcessAttachInfo &attach_info,
                 Debugger &debugger,
                 Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                Listener &listener,
                 Error &error) = 0;
 
         //------------------------------------------------------------------
@@ -553,7 +560,16 @@ namespace lldb_private {
         SetSDKBuild (const ConstString &sdk_build)
         {
             m_sdk_build = sdk_build;
-        }    
+        }
+        
+        // Override this to return true if your platform supports Clang modules.
+        // You may also need to override AddClangModuleCompilationOptions to pass the right Clang flags for your platform.
+        virtual bool
+        SupportsModules () { return false; }
+        
+        // Appends the platform-specific options required to find the modules for the current platform.
+        virtual void
+        AddClangModuleCompilationOptions (std::vector<std::string> &options);
 
         ConstString
         GetWorkingDirectory ();
@@ -565,7 +581,7 @@ namespace lldb_private {
         // The platform will return "true" from this call if the passed in module happens to be one of these.
         
         virtual bool
-        ModuleIsExcludedForNonModuleSpecificSearches (Target &target, const lldb::ModuleSP &module_sp)
+        ModuleIsExcludedForUnconstrainedSearches (Target &target, const lldb::ModuleSP &module_sp)
         {
             return false;
         }
@@ -858,13 +874,72 @@ namespace lldb_private {
         virtual const std::vector<ConstString> &
         GetTrapHandlerSymbolNames ();
 
+        //------------------------------------------------------------------
+        /// Launch a process for debugging.
+        ///
+        /// This differs from Launch in that it returns a NativeProcessProtocol.
+        /// Currently used by lldb-gdbserver.
+        ///
+        /// @param[in] launch_info
+        ///     Information required to launch the process.
+        ///
+        /// @param[in] native_delegate
+        ///     The delegate that will receive messages regarding the
+        ///     inferior.  Must outlive the NativeProcessProtocol
+        ///     instance.
+        ///
+        /// @param[out] process_sp
+        ///     On successful return from the method, this parameter
+        ///     contains the shared pointer to the
+        ///     NativeProcessProtocol that can be used to manipulate
+        ///     the native process.
+        ///
+        /// @return
+        ///     An error object indicating if the operation succeeded,
+        ///     and if not, what error occurred.
+        //------------------------------------------------------------------
+        virtual Error
+        LaunchNativeProcess (
+            ProcessLaunchInfo &launch_info,
+            lldb_private::NativeProcessProtocol::NativeDelegate &native_delegate,
+            NativeProcessProtocolSP &process_sp);
+
+        //------------------------------------------------------------------
+        /// Attach to an existing process on the given platform.
+        ///
+        /// This method differs from Attach() in that it returns a
+        /// NativeProcessProtocol.  Currently this is used by lldb-gdbserver.
+        ///
+        /// @param[in] pid
+        ///     pid of the process locatable by the platform.
+        ///
+        /// @param[in] native_delegate
+        ///     The delegate that will receive messages regarding the
+        ///     inferior.  Must outlive the NativeProcessProtocol
+        ///     instance.
+        ///
+        /// @param[out] process_sp
+        ///     On successful return from the method, this parameter
+        ///     contains the shared pointer to the
+        ///     NativeProcessProtocol that can be used to manipulate
+        ///     the native process.
+        ///
+        /// @return
+        ///     An error object indicating if the operation succeeded,
+        ///     and if not, what error occurred.
+        //------------------------------------------------------------------
+        virtual Error
+        AttachNativeProcess (lldb::pid_t pid,
+                             lldb_private::NativeProcessProtocol::NativeDelegate &native_delegate,
+                             NativeProcessProtocolSP &process_sp);
+
     protected:
         bool m_is_host;
         // Set to true when we are able to actually set the OS version while 
         // being connected. For remote platforms, we might set the version ahead
         // of time before we actually connect and this version might change when
         // we actually connect to a remote platform. For the host platform this
-        // will be set to the once we call Host::GetOSVersion().
+        // will be set to the once we call HostInfo::GetOSVersion().
         bool m_os_version_set_while_connected;
         bool m_system_arch_set_while_connected;
         ConstString m_sdk_sysroot; // the root location of where the SDK files are all located
@@ -892,6 +967,7 @@ namespace lldb_private {
         std::string m_local_cache_directory;
         std::vector<ConstString> m_trap_handlers;
         bool m_calculated_trap_handlers;
+        Mutex m_trap_handler_mutex;
 
         //------------------------------------------------------------------
         /// Ask the Platform subclass to fill in the list of trap handler names

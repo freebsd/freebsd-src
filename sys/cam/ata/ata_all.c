@@ -108,6 +108,9 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
+	case 0x63: return ("NCQ_NON_DATA");
+	case 0x64: return ("SEND_FPDMA_QUEUED");
+	case 0x65: return ("RECEIVE_FPDMA_QUEUED");
 	case 0x67:
 		if (cmd->features == 0xec)
 			return ("SEP_ATTN IDENTIFY");
@@ -272,28 +275,38 @@ ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 void
 ata_print_ident(struct ata_params *ident_data)
 {
-	char product[48], revision[16];
+	const char *proto;
+	char product[48], revision[16], ata[12], sata[12];
 
 	cam_strvis(product, ident_data->model, sizeof(ident_data->model),
 		   sizeof(product));
 	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
 		   sizeof(revision));
-	printf("<%s %s> %s-%d",
-	    product, revision,
-	    (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
-	    (ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA",
-	    ata_version(ident_data->version_major));
+	proto = (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
+		(ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA";
+	if (ata_version(ident_data->version_major) == 0) {
+		snprintf(ata, sizeof(ata), "%s", proto);
+	} else if (ata_version(ident_data->version_major) <= 7) {
+		snprintf(ata, sizeof(ata), "%s-%d", proto,
+		    ata_version(ident_data->version_major));
+	} else if (ata_version(ident_data->version_major) == 8) {
+		snprintf(ata, sizeof(ata), "%s8-ACS", proto);
+	} else {
+		snprintf(ata, sizeof(ata), "ACS-%d %s",
+		    ata_version(ident_data->version_major) - 7, proto);
+	}
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
 		if (ident_data->satacapabilities & ATA_SATA_GEN3)
-			printf(" SATA 3.x");
+			snprintf(sata, sizeof(sata), " SATA 3.x");
 		else if (ident_data->satacapabilities & ATA_SATA_GEN2)
-			printf(" SATA 2.x");
+			snprintf(sata, sizeof(sata), " SATA 2.x");
 		else if (ident_data->satacapabilities & ATA_SATA_GEN1)
-			printf(" SATA 1.x");
+			snprintf(sata, sizeof(sata), " SATA 1.x");
 		else
-			printf(" SATA");
-	}
-	printf(" device\n");
+			snprintf(sata, sizeof(sata), " SATA");
+	} else
+		sata[0] = 0;
+	printf("<%s %s> %s%s device\n", product, revision, ata, sata);
 }
 
 void

@@ -31,7 +31,7 @@ static const char sccsid[] = "$Id: ex_usage.c,v 10.16 2011/12/21 19:26:48 zy Exp
  * ex_help -- :help
  *	Display help message.
  *
- * PUBLIC: int ex_help __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_help(SCR *, EXCMD *);
  */
 int
 ex_help(SCR *sp, EXCMD *cmdp)
@@ -52,7 +52,7 @@ ex_help(SCR *sp, EXCMD *cmdp)
  * ex_usage -- :exusage [cmd]
  *	Display ex usage strings.
  *
- * PUBLIC: int ex_usage __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_usage(SCR *, EXCMD *);
  */
 int
 ex_usage(SCR *sp, EXCMD *cmdp)
@@ -133,7 +133,7 @@ ex_usage(SCR *sp, EXCMD *cmdp)
  * ex_viusage -- :viusage [key]
  *	Display vi usage strings.
  *
- * PUBLIC: int ex_viusage __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_viusage(SCR *, EXCMD *);
  */
 int
 ex_viusage(SCR *sp, EXCMD *cmdp)

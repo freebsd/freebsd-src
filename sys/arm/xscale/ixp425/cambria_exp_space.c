@@ -83,9 +83,9 @@ disable_16(struct ixp425_softc *sc, bus_size_t cs)
 }
 
 static uint8_t
-cambria_bs_r_1(void *t, bus_space_handle_t h, bus_size_t o)
+cambria_bs_r_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 	uint8_t v;
 
@@ -96,9 +96,9 @@ cambria_bs_r_1(void *t, bus_space_handle_t h, bus_size_t o)
 }
 
 static void
-cambria_bs_w_1(void *t, bus_space_handle_t h, bus_size_t o, u_int8_t v)
+cambria_bs_w_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, u_int8_t v)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 
 	EXP_LOCK(exp);
@@ -107,9 +107,9 @@ cambria_bs_w_1(void *t, bus_space_handle_t h, bus_size_t o, u_int8_t v)
 }
 
 static uint16_t
-cambria_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
+cambria_bs_r_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 	uint16_t v;
 
@@ -122,9 +122,9 @@ cambria_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
 }
 
 static void
-cambria_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
+cambria_bs_w_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, uint16_t v)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 
 	EXP_LOCK(exp);
@@ -135,10 +135,10 @@ cambria_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
 }
 
 static void
-cambria_bs_rm_2(void *t, bus_space_handle_t h, bus_size_t o,
+cambria_bs_rm_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	u_int16_t *d, bus_size_t c)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 
 	EXP_LOCK(exp);
@@ -149,10 +149,10 @@ cambria_bs_rm_2(void *t, bus_space_handle_t h, bus_size_t o,
 }
 
 static void
-cambria_bs_wm_2(void *t, bus_space_handle_t h, bus_size_t o,
+cambria_bs_wm_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	const u_int16_t *d, bus_size_t c)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 
 	EXP_LOCK(exp);
@@ -165,10 +165,10 @@ cambria_bs_wm_2(void *t, bus_space_handle_t h, bus_size_t o,
 /* XXX workaround ata driver by (incorrectly) byte swapping stream cases */
 
 static void
-cambria_bs_rm_2_s(void *t, bus_space_handle_t h, bus_size_t o,
+cambria_bs_rm_2_s(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	u_int16_t *d, bus_size_t c)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 	uint16_t v;
 	bus_size_t i;
@@ -188,10 +188,10 @@ cambria_bs_rm_2_s(void *t, bus_space_handle_t h, bus_size_t o,
 }
 
 static void
-cambria_bs_wm_2_s(void *t, bus_space_handle_t h, bus_size_t o,
+cambria_bs_wm_2_s(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	const u_int16_t *d, bus_size_t c)
 {
-	struct expbus_softc *exp = t;
+	struct expbus_softc *exp = tag->bs_privdata;
 	struct ixp425_softc *sc = exp->sc;
 	bus_size_t i;
 
@@ -244,7 +244,7 @@ cambria_exp_bus_init(struct ixp425_softc *sc)
 	c3.sc = sc;
 	c3.csoff = EXP_TIMING_CS3_OFFSET;
 	EXP_LOCK_INIT(&c3);
-	cambria_exp_bs_tag.bs_cookie = &c3;
+	cambria_exp_bs_tag.bs_privdata = &c3;
 
 	cs3 = EXP_BUS_READ_4(sc, EXP_TIMING_CS3_OFFSET);
 	/* XXX force slowest possible timings and byte mode */

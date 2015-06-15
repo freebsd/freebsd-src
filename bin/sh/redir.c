@@ -173,21 +173,12 @@ openredirect(union node *redir, char memory[10])
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_RDONLY)) < 0)
 			error("cannot open %s: %s", fname, strerror(errno));
-movefd:
-		if (f != fd) {
-			if (dup2(f, fd) == -1) {
-				e = errno;
-				close(f);
-				error("%d: %s", fd, strerror(e));
-			}
-			close(f);
-		}
 		break;
 	case NFROMTO:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_RDWR|O_CREAT, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		break;
 	case NTO:
 		if (Cflag) {
 			fname = redir->nfile.expfname;
@@ -205,19 +196,19 @@ movefd:
 			} else
 				error("cannot create %s: %s", fname,
 				    strerror(EEXIST));
-			goto movefd;
+			break;
 		}
 		/* FALLTHROUGH */
 	case NCLOBBER:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		break;
 	case NAPPEND:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		break;
 	case NTOFD:
 	case NFROMFD:
 		if (redir->ndup.dupfd >= 0) {	/* if not ">&-" */
@@ -231,13 +222,21 @@ movefd:
 		} else {
 			close(fd);
 		}
-		break;
+		return;
 	case NHERE:
 	case NXHERE:
 		f = openhere(redir);
-		goto movefd;
+		break;
 	default:
 		abort();
+	}
+	if (f != fd) {
+		if (dup2(f, fd) == -1) {
+			e = errno;
+			close(f);
+			error("%d: %s", fd, strerror(e));
+		}
+		close(f);
 	}
 }
 

@@ -53,8 +53,9 @@ Value *IRBuilderBase::getCastedInt8PtrValue(Value *Ptr) {
 }
 
 static CallInst *createCallHelper(Value *Callee, ArrayRef<Value *> Ops,
-                                  IRBuilderBase *Builder) {
-  CallInst *CI = CallInst::Create(Callee, Ops, "");
+                                  IRBuilderBase *Builder,
+                                  const Twine& Name="") {
+  CallInst *CI = CallInst::Create(Callee, Ops, Name);
   Builder->GetInsertBlock()->getInstList().insert(Builder->GetInsertPoint(),CI);
   Builder->SetInstDebugLocation(CI);
   return CI;  
@@ -62,7 +63,8 @@ static CallInst *createCallHelper(Value *Callee, ArrayRef<Value *> Ops,
 
 CallInst *IRBuilderBase::
 CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
-             bool isVolatile, MDNode *TBAATag) {
+             bool isVolatile, MDNode *TBAATag, MDNode *ScopeTag,
+             MDNode *NoAliasTag) {
   Ptr = getCastedInt8PtrValue(Ptr);
   Value *Ops[] = { Ptr, Val, Size, getInt32(Align), getInt1(isVolatile) };
   Type *Tys[] = { Ptr->getType(), Size->getType() };
@@ -74,13 +76,20 @@ CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
   // Set the TBAA info if present.
   if (TBAATag)
     CI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
-  
+
+  if (ScopeTag)
+    CI->setMetadata(LLVMContext::MD_alias_scope, ScopeTag);
+ 
+  if (NoAliasTag)
+    CI->setMetadata(LLVMContext::MD_noalias, NoAliasTag);
+ 
   return CI;
 }
 
 CallInst *IRBuilderBase::
 CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
-             bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
+             bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag,
+             MDNode *ScopeTag, MDNode *NoAliasTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
 
@@ -98,13 +107,20 @@ CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
   // Set the TBAA Struct info if present.
   if (TBAAStructTag)
     CI->setMetadata(LLVMContext::MD_tbaa_struct, TBAAStructTag);
-  
+ 
+  if (ScopeTag)
+    CI->setMetadata(LLVMContext::MD_alias_scope, ScopeTag);
+ 
+  if (NoAliasTag)
+    CI->setMetadata(LLVMContext::MD_noalias, NoAliasTag);
+ 
   return CI;  
 }
 
 CallInst *IRBuilderBase::
 CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-              bool isVolatile, MDNode *TBAATag) {
+              bool isVolatile, MDNode *TBAATag, MDNode *ScopeTag,
+              MDNode *NoAliasTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
   
@@ -118,7 +134,13 @@ CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
   // Set the TBAA info if present.
   if (TBAATag)
     CI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
-  
+ 
+  if (ScopeTag)
+    CI->setMetadata(LLVMContext::MD_alias_scope, ScopeTag);
+ 
+  if (NoAliasTag)
+    CI->setMetadata(LLVMContext::MD_noalias, NoAliasTag);
+ 
   return CI;  
 }
 
@@ -150,4 +172,127 @@ CallInst *IRBuilderBase::CreateLifetimeEnd(Value *Ptr, ConstantInt *Size) {
   Module *M = BB->getParent()->getParent();
   Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end);
   return createCallHelper(TheFn, Ops, this);
+}
+
+CallInst *IRBuilderBase::CreateAssumption(Value *Cond) {
+  assert(Cond->getType() == getInt1Ty() &&
+         "an assumption condition must be of type i1");
+
+  Value *Ops[] = { Cond };
+  Module *M = BB->getParent()->getParent();
+  Value *FnAssume = Intrinsic::getDeclaration(M, Intrinsic::assume);
+  return createCallHelper(FnAssume, Ops, this);
+}
+
+/// Create a call to a Masked Load intrinsic.
+/// Ptr      - the base pointer for the load
+/// Align    - alignment of the source location
+/// Mask     - an vector of booleans which indicates what vector lanes should
+///            be accessed in memory
+/// PassThru - a pass-through value that is used to fill the masked-off lanes
+///            of the result
+/// Name     - name of the result variable
+CallInst *IRBuilderBase::CreateMaskedLoad(Value *Ptr, unsigned Align,
+                                          Value *Mask, Value *PassThru,
+                                          const Twine &Name) {
+  assert(Ptr->getType()->isPointerTy() && "Ptr must be of pointer type");
+  // DataTy is the overloaded type
+  Type *DataTy = cast<PointerType>(Ptr->getType())->getElementType();
+  assert(DataTy->isVectorTy() && "Ptr should point to a vector");
+  if (!PassThru)
+    PassThru = UndefValue::get(DataTy);
+  Value *Ops[] = { Ptr, getInt32(Align), Mask,  PassThru};
+  return CreateMaskedIntrinsic(Intrinsic::masked_load, Ops, DataTy, Name);
+}
+
+/// Create a call to a Masked Store intrinsic.
+/// Val   - the data to be stored,
+/// Ptr   - the base pointer for the store
+/// Align - alignment of the destination location
+/// Mask  - an vector of booleans which indicates what vector lanes should
+///         be accessed in memory
+CallInst *IRBuilderBase::CreateMaskedStore(Value *Val, Value *Ptr,
+                                           unsigned Align, Value *Mask) {
+  Value *Ops[] = { Val, Ptr, getInt32(Align), Mask };
+  // Type of the data to be stored - the only one overloaded type
+  return CreateMaskedIntrinsic(Intrinsic::masked_store, Ops, Val->getType());
+}
+
+/// Create a call to a Masked intrinsic, with given intrinsic Id,
+/// an array of operands - Ops, and one overloaded type - DataTy
+CallInst *IRBuilderBase::CreateMaskedIntrinsic(unsigned Id,
+                                               ArrayRef<Value *> Ops,
+                                               Type *DataTy,
+                                               const Twine &Name) {
+  Module *M = BB->getParent()->getParent();
+  Type *OverloadedTypes[] = { DataTy };
+  Value *TheFn = Intrinsic::getDeclaration(M, (Intrinsic::ID)Id, OverloadedTypes);
+  return createCallHelper(TheFn, Ops, this, Name);
+}
+
+CallInst *IRBuilderBase::CreateGCStatepoint(Value *ActualCallee,
+                                            ArrayRef<Value*> CallArgs,
+                                            ArrayRef<Value*> DeoptArgs,
+                                            ArrayRef<Value*> GCArgs,
+                                            const Twine& Name) {
+ // Extract out the type of the callee.
+ PointerType *FuncPtrType = cast<PointerType>(ActualCallee->getType());
+ assert(isa<FunctionType>(FuncPtrType->getElementType()) &&
+        "actual callee must be a callable value");
+
+ 
+ Module *M = BB->getParent()->getParent();
+ // Fill in the one generic type'd argument (the function is also vararg)
+ Type *ArgTypes[] = { FuncPtrType };
+ Function *FnStatepoint =
+   Intrinsic::getDeclaration(M, Intrinsic::experimental_gc_statepoint,
+                             ArgTypes);
+
+ std::vector<llvm::Value *> args;
+ args.push_back(ActualCallee);
+ args.push_back(getInt32(CallArgs.size()));
+ args.push_back(getInt32(0 /*unused*/));
+ args.insert(args.end(), CallArgs.begin(), CallArgs.end());
+ args.push_back(getInt32(DeoptArgs.size()));
+ args.insert(args.end(), DeoptArgs.begin(), DeoptArgs.end());
+ args.insert(args.end(), GCArgs.begin(), GCArgs.end());
+
+ return createCallHelper(FnStatepoint, args, this, Name);
+}
+
+CallInst *IRBuilderBase::CreateGCResult(Instruction *Statepoint,
+                                       Type *ResultType,
+                                       const Twine &Name) {
+ Intrinsic::ID ID;
+ if (ResultType->isIntegerTy()) {
+   ID = Intrinsic::experimental_gc_result_int;
+ } else if (ResultType->isFloatingPointTy()) {
+   ID = Intrinsic::experimental_gc_result_float;
+ } else if (ResultType->isPointerTy()) {
+   ID = Intrinsic::experimental_gc_result_ptr;
+ } else {
+   llvm_unreachable("unimplemented result type for gc.result");
+ }
+ Module *M = BB->getParent()->getParent();
+ Type *Types[] = {ResultType};
+ Value *FnGCResult = Intrinsic::getDeclaration(M, ID, Types);
+
+ Value *Args[] = {Statepoint};
+ return createCallHelper(FnGCResult, Args, this, Name);
+}
+
+CallInst *IRBuilderBase::CreateGCRelocate(Instruction *Statepoint,
+                                         int BaseOffset,
+                                         int DerivedOffset,
+                                         Type *ResultType,
+                                         const Twine &Name) {
+ Module *M = BB->getParent()->getParent();
+ Type *Types[] = {ResultType};
+ Value *FnGCRelocate =
+   Intrinsic::getDeclaration(M, Intrinsic::experimental_gc_relocate, Types);
+
+ Value *Args[] = {Statepoint,
+                  getInt32(BaseOffset),
+                  getInt32(DerivedOffset)};
+ return createCallHelper(FnGCRelocate, Args, this, Name);
 }

@@ -66,17 +66,21 @@ ASENTRY(ofwcall)
 	/* Record the old MSR */
 	mfmsr	%r6
 
+	/* GOT pointer in r7 */
+	bl	_GLOBAL_OFFSET_TABLE_@local-4
+	mflr	%r7
+
 	/* read client interface handler */
-	lis	%r4,openfirmware_entry@ha
-	lwz	%r4,openfirmware_entry@l(%r4)
+	lwz	%r4,openfirmware_entry@got(%r7)
+	lwz	%r4,0(%r4)
 
 	/*
 	 * Set the MSR to the OF value. This has the side effect of disabling
 	 * exceptions, which prevents preemption later.
 	 */
 
-	lis	%r5,ofmsr@ha
-	lwz	%r5,ofmsr@l(%r5)
+	lwz	%r5,ofmsr@got(%r7)
+	lwz	%r5,0(%r5)
 	mtmsr	%r5
 	isync
 
@@ -87,8 +91,8 @@ ASENTRY(ofwcall)
 	 * later.
 	 */
 	mr	%r5,%r1
-	lis	%r1,(ofwstk+OFWSTKSZ-32)@ha
-	addi	%r1,%r1,(ofwstk+OFWSTKSZ-32)@l
+	lwz	%r1,ofwstk@got(%r7)
+	addi	%r1,%r1,(OFWSTKSZ-32)
 	stw	%r5,20(%r1)	/* Save real stack pointer */
 	stw	%r2,24(%r1)	/* Save curthread */
 	stw	%r6,28(%r1)	/* Save old MSR */
@@ -124,18 +128,22 @@ ASENTRY(rtascall)
 	mflr	%r0
 	stw	%r0,4(%r1)
 
+	/* GOT pointer in r7 */
+	bl	_GLOBAL_OFFSET_TABLE_@local-4
+	mflr	%r7
+
 	/* Record the old MSR to real-mode-accessible area */
 	mfmsr	%r0
-	lis	%r5,rtas_regsave@ha
-	stw	%r0,rtas_regsave@l(%r5)
+	lwz	%r5,rtas_regsave@got(%r7)
+	stw	%r0,0(%r5)
 
 	/* read client interface handler */
-	lis	%r5,rtas_entry@ha
-	lwz	%r5,rtas_entry@l(%r5)
+	lwz	%r5,rtas_entry@got(%r7)
+	lwz	%r5,0(%r5)
 
 	/* Set the MSR to the RTAS value */
-	lis	%r6,rtasmsr@ha
-	lwz	%r6,rtasmsr@l(%r6)
+	lwz	%r6,rtasmsr@got(%r7)
+	lwz	%r6,0(%r6)
 	mtmsr	%r6
 	isync
 
@@ -143,9 +151,13 @@ ASENTRY(rtascall)
 	mtctr	%r5
 	bctrl
 
+	/* GOT pointer in r7 */
+	bl	_GLOBAL_OFFSET_TABLE_@local-4
+	mflr	%r7
+
 	/* Now set the MSR back */
-	lis	%r6,rtas_regsave@ha
-	lwz	%r6,rtas_regsave@l(%r6)
+	lwz	%r6,rtas_regsave@got(%r7)
+	lwz	%r6,0(%r6)
 	mtmsr	%r6
 	isync
 

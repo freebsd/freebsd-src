@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 static VNET_DEFINE(int, ipfastforward_active);
 #define	V_ipfastforward_active		VNET(ipfastforward_active)
 
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipfastforward_active), 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *
@@ -296,9 +296,9 @@ ip_fastforward(struct mbuf *m)
 	 * Only IP packets without options
 	 */
 	if (ip->ip_hl != (sizeof(struct ip) >> 2)) {
-		if (ip_doopts == 1)
+		if (V_ip_doopts == 1)
 			return m;
-		else if (ip_doopts == 2) {
+		else if (V_ip_doopts == 2) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
 				0, 0);
 			return NULL;	/* mbuf already free'd */
@@ -495,18 +495,6 @@ passout:
 		goto consumed;
 	}
 
-#ifndef ALTQ
-	/*
-	 * Check if there is enough space in the interface queue
-	 */
-	if ((ifp->if_snd.ifq_len + ip_len / ifp->if_mtu + 1) >=
-	    ifp->if_snd.ifq_maxlen) {
-		IPSTAT_INC(ips_odropped);
-		/* would send source quench here but that is depreciated */
-		goto drop;
-	}
-#endif
-
 	/*
 	 * Check if media link state of interface is not down
 	 */
@@ -523,8 +511,7 @@ passout:
 	else
 		mtu = ifp->if_mtu;
 
-	if (ip_len <= mtu ||
-	    (ifp->if_hwassist & CSUM_FRAGMENT && (ip_off & IP_DF) == 0)) {
+	if (ip_len <= mtu) {
 		/*
 		 * Avoid confusing lower layers.
 		 */

@@ -145,7 +145,7 @@ bool BugDriver::initializeExecutionEnvironment() {
 
   // Create an instance of the AbstractInterpreter interface as specified on
   // the command line
-  SafeInterpreter = 0;
+  SafeInterpreter = nullptr;
   std::string Message;
 
   switch (InterpreterSel) {
@@ -256,7 +256,7 @@ bool BugDriver::initializeExecutionEnvironment() {
   if (!gcc) { outs() << Message << "\nExiting.\n"; exit(1); }
 
   // If there was an error creating the selected interpreter, quit with error.
-  return Interpreter == 0;
+  return Interpreter == nullptr;
 }
 
 /// compileProgram - Try to compile the specified module, returning false and
@@ -267,7 +267,7 @@ void BugDriver::compileProgram(Module *M, std::string *Error) const {
   // Emit the program to a bitcode file...
   SmallString<128> BitcodeFile;
   int BitcodeFD;
-  error_code EC = sys::fs::createUniqueFile(
+  std::error_code EC = sys::fs::createUniqueFile(
       OutputPrefix + "-test-program-%%%%%%%.bc", BitcodeFD, BitcodeFile);
   if (EC) {
     errs() << ToolName << ": Error making unique filename: " << EC.message()
@@ -298,14 +298,14 @@ std::string BugDriver::executeProgram(const Module *Program,
                                       const std::string &SharedObj,
                                       AbstractInterpreter *AI,
                                       std::string *Error) const {
-  if (AI == 0) AI = Interpreter;
+  if (!AI) AI = Interpreter;
   assert(AI && "Interpreter should have been created already!");
   bool CreatedBitcode = false;
   if (BitcodeFile.empty()) {
     // Emit the program to a bitcode file...
     SmallString<128> UniqueFilename;
     int UniqueFD;
-    error_code EC = sys::fs::createUniqueFile(
+    std::error_code EC = sys::fs::createUniqueFile(
         OutputPrefix + "-test-program-%%%%%%%.bc", UniqueFD, UniqueFilename);
     if (EC) {
       errs() << ToolName << ": Error making unique filename: "
@@ -331,7 +331,7 @@ std::string BugDriver::executeProgram(const Module *Program,
 
   // Check to see if this is a valid output filename...
   SmallString<128> UniqueFile;
-  error_code EC = sys::fs::createUniqueFile(OutputFile, UniqueFile);
+  std::error_code EC = sys::fs::createUniqueFile(OutputFile, UniqueFile);
   if (EC) {
     errs() << ToolName << ": Error making unique filename: "
            << EC.message() << "\n";
@@ -404,7 +404,7 @@ std::string BugDriver::compileSharedObject(const std::string &BitcodeFile,
   // Remove the intermediate C file
   sys::fs::remove(OutputFile);
 
-  return "./" + SharedObjectFile;
+  return SharedObjectFile;
 }
 
 /// createReferenceFile - calls compileProgram and then records the output
@@ -445,7 +445,7 @@ bool BugDriver::diffProgram(const Module *Program,
                             std::string *ErrMsg) const {
   // Execute the program, generating an output file...
   std::string Output(
-      executeProgram(Program, "", BitcodeFile, SharedObject, 0, ErrMsg));
+      executeProgram(Program, "", BitcodeFile, SharedObject, nullptr, ErrMsg));
   if (!ErrMsg->empty())
     return false;
 

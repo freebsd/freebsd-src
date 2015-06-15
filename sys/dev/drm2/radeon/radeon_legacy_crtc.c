@@ -883,7 +883,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			  (unsigned)((pll_fb_post_div &
 				      RADEON_P2PLL_POST0_DIV_MASK) >> 16));
 
-		DRM_MDELAY(50); /* Let the clock to lock */
+		mdelay(50); /* Let the clock to lock */
 
 		WREG32_PLL_P(RADEON_PIXCLKS_CNTL,
 			     RADEON_PIX2CLK_SRC_SEL_P2PLLCLK,
@@ -988,7 +988,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			  pll_fb_post_div & RADEON_PPLL_FB3_DIV_MASK,
 			  (pll_fb_post_div & RADEON_PPLL_POST3_DIV_MASK) >> 16);
 
-		DRM_MDELAY(50); /* Let the clock to lock */
+		mdelay(50); /* Let the clock to lock */
 
 		WREG32_PLL_P(RADEON_VCLK_ECP_CNTL,
 			     RADEON_VCLK_SRC_SEL_PPLLCLK,

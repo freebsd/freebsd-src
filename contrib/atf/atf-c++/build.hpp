@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2009 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_BUILD_HPP_)
-#define _ATF_CXX_BUILD_HPP_
+#if !defined(ATF_CXX_BUILD_HPP)
+#define ATF_CXX_BUILD_HPP
 
 #include <string>
 
@@ -54,4 +50,4 @@ process::argv_array cxx_o(const std::string&, const std::string&,
 } // namespace build
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_BUILD_HPP_)
+#endif // !defined(ATF_CXX_BUILD_HPP)

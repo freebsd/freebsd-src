@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+ARM64		opt_global.h
+SOCDEV_PA	opt_global.h
+SOCDEV_VA	opt_global.h
+VFP		opt_global.h

@@ -14,9 +14,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "packets"
 #include "llvm/Support/Debug.h"
 #include "AMDGPU.h"
+#include "AMDGPUSubtarget.h"
 #include "R600InstrInfo.h"
 #include "llvm/CodeGen/DFAPacketizer.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -28,6 +28,8 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "packets"
+
 namespace {
 
 class R600Packetizer : public MachineFunctionPass {
@@ -36,7 +38,7 @@ public:
   static char ID;
   R600Packetizer(const TargetMachine &TM) : MachineFunctionPass(ID) {}
 
-  void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
     AU.addRequired<MachineDominatorTree>();
     AU.addPreserved<MachineDominatorTree>();
@@ -45,11 +47,11 @@ public:
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
-  const char *getPassName() const {
+  const char *getPassName() const override {
     return "R600 Packetizer";
   }
 
-  bool runOnMachineFunction(MachineFunction &Fn);
+  bool runOnMachineFunction(MachineFunction &Fn) override;
 };
 char R600Packetizer::ID = 0;
 
@@ -66,7 +68,7 @@ private:
   }
 
   /// \returns register to PV chan mapping for bundle/single instructions that
-  /// immediatly precedes I.
+  /// immediately precedes I.
   DenseMap<unsigned, unsigned> getPreviousVector(MachineBasicBlock::iterator I)
       const {
     DenseMap<unsigned, unsigned> Result;
@@ -146,27 +148,28 @@ private:
   }
 public:
   // Ctor.
-  R600PacketizerList(MachineFunction &MF, MachineLoopInfo &MLI,
-                        MachineDominatorTree &MDT)
-  : VLIWPacketizerList(MF, MLI, MDT, true),
-    TII (static_cast<const R600InstrInfo *>(MF.getTarget().getInstrInfo())),
-    TRI(TII->getRegisterInfo()) {
+  R600PacketizerList(MachineFunction &MF, MachineLoopInfo &MLI)
+      : VLIWPacketizerList(MF, MLI, true),
+        TII(static_cast<const R600InstrInfo *>(
+            MF.getSubtarget().getInstrInfo())),
+        TRI(TII->getRegisterInfo()) {
     VLIW5 = !MF.getTarget().getSubtarget<AMDGPUSubtarget>().hasCaymanISA();
   }
 
   // initPacketizerState - initialize some internal flags.
-  void initPacketizerState() {
+  void initPacketizerState() override {
     ConsideredInstUsesAlreadyWrittenVectorElement = false;
   }
 
   // ignorePseudoInstruction - Ignore bundling of pseudo instructions.
-  bool ignorePseudoInstruction(MachineInstr *MI, MachineBasicBlock *MBB) {
+  bool ignorePseudoInstruction(MachineInstr *MI,
+                               MachineBasicBlock *MBB) override {
     return false;
   }
 
   // isSoloInstruction - return true if instruction MI can not be packetized
   // with any other instruction, which means that MI itself is a packet.
-  bool isSoloInstruction(MachineInstr *MI) {
+  bool isSoloInstruction(MachineInstr *MI) override {
     if (TII->isVector(*MI))
       return true;
     if (!TII->isALUInstr(MI->getOpcode()))
@@ -182,7 +185,7 @@ public:
 
   // isLegalToPacketizeTogether - Is it legal to packetize SUI and SUJ
   // together.
-  bool isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
+  bool isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) override {
     MachineInstr *MII = SUI->getInstr(), *MIJ = SUJ->getInstr();
     if (getSlot(MII) == getSlot(MIJ))
       ConsideredInstUsesAlreadyWrittenVectorElement = true;
@@ -219,7 +222,9 @@ public:
 
   // isLegalToPruneDependencies - Is it legal to prune dependece between SUI
   // and SUJ.
-  bool isLegalToPruneDependencies(SUnit *SUI, SUnit *SUJ) {return false;}
+  bool isLegalToPruneDependencies(SUnit *SUI, SUnit *SUJ) override {
+    return false;
+  }
 
   void setIsLastBit(MachineInstr *MI, unsigned Bit) const {
     unsigned LastOp = TII->getOperandIdx(MI->getOpcode(), AMDGPU::OpName::last);
@@ -288,7 +293,7 @@ public:
     return true;
   }
 
-  MachineBasicBlock::iterator addToPacket(MachineInstr *MI) {
+  MachineBasicBlock::iterator addToPacket(MachineInstr *MI) override {
     MachineBasicBlock::iterator FirstInBundle =
         CurrentPacketMIs.empty() ? MI : CurrentPacketMIs.front();
     const DenseMap<unsigned, unsigned> &PV =
@@ -311,7 +316,7 @@ public:
       substitutePV(MI, PV);
       MachineBasicBlock::iterator It = VLIWPacketizerList::addToPacket(MI);
       if (isTransSlot) {
-        endPacket(llvm::next(It)->getParent(), llvm::next(It));
+        endPacket(std::next(It)->getParent(), std::next(It));
       }
       return It;
     }
@@ -323,12 +328,11 @@ public:
 };
 
 bool R600Packetizer::runOnMachineFunction(MachineFunction &Fn) {
-  const TargetInstrInfo *TII = Fn.getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = Fn.getSubtarget().getInstrInfo();
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
-  MachineDominatorTree &MDT = getAnalysis<MachineDominatorTree>();
 
   // Instantiate the packetizer.
-  R600PacketizerList Packetizer(Fn, MLI, MDT);
+  R600PacketizerList Packetizer(Fn, MLI);
 
   // DFA state table should not be empty.
   assert(Packetizer.getResourceTracker() && "Empty DFA table!");
@@ -371,20 +375,20 @@ bool R600Packetizer::runOnMachineFunction(MachineFunction &Fn) {
       // instruction stream until we find the nearest boundary.
       MachineBasicBlock::iterator I = RegionEnd;
       for(;I != MBB->begin(); --I, --RemainingCount) {
-        if (TII->isSchedulingBoundary(llvm::prior(I), MBB, Fn))
+        if (TII->isSchedulingBoundary(std::prev(I), MBB, Fn))
           break;
       }
       I = MBB->begin();
 
       // Skip empty scheduling regions.
       if (I == RegionEnd) {
-        RegionEnd = llvm::prior(RegionEnd);
+        RegionEnd = std::prev(RegionEnd);
         --RemainingCount;
         continue;
       }
       // Skip regions with one instruction.
-      if (I == llvm::prior(RegionEnd)) {
-        RegionEnd = llvm::prior(RegionEnd);
+      if (I == std::prev(RegionEnd)) {
+        RegionEnd = std::prev(RegionEnd);
         continue;
       }
 

@@ -94,7 +94,7 @@ ct_stat_read_1(struct ct_bus_access_handle *chp)
 {
 	u_int8_t regv;
 
-	regv = bus_space_read_1(chp->ch_iot, chp->ch_ioh, stat_port);
+	regv = bus_read_1(chp->ch_io, stat_port);
 	CT_BUS_WEIGHT(chp)
 	return regv;
 }
@@ -102,33 +102,29 @@ ct_stat_read_1(struct ct_bus_access_handle *chp)
 static __inline void
 cthw_set_count(struct ct_bus_access_handle *chp, u_int count)
 {
-	bus_space_tag_t bst = chp->ch_iot;
-	bus_space_handle_t bsh = chp->ch_ioh;
 
-	bus_space_write_1(bst, bsh, addr_port, wd3s_cnt);
+	bus_write_1(chp->ch_io, addr_port, wd3s_cnt);
 	CT_BUS_WEIGHT(chp)
-	bus_space_write_1(bst, bsh, ctrl_port, count >> 16);
+	bus_write_1(chp->ch_io, ctrl_port, count >> 16);
 	CT_BUS_WEIGHT(chp)
-	bus_space_write_1(bst, bsh, ctrl_port, count >> 8);
+	bus_write_1(chp->ch_io, ctrl_port, count >> 8);
 	CT_BUS_WEIGHT(chp)
-	bus_space_write_1(bst, bsh, ctrl_port, count);
+	bus_write_1(chp->ch_io, ctrl_port, count);
 	CT_BUS_WEIGHT(chp)
 }
 
 static __inline u_int
 cthw_get_count(struct ct_bus_access_handle *chp)
 {
-	bus_space_tag_t bst = chp->ch_iot;
-	bus_space_handle_t bsh = chp->ch_ioh;
 	u_int count;
 
-	bus_space_write_1(bst, bsh, addr_port, wd3s_cnt);
+	bus_write_1(chp->ch_io, addr_port, wd3s_cnt);
 	CT_BUS_WEIGHT(chp)
-	count = (((u_int) bus_space_read_1(bst, bsh, ctrl_port)) << 16);
+	count = (((u_int) bus_read_1(chp->ch_io, ctrl_port)) << 16);
 	CT_BUS_WEIGHT(chp)
-	count += (((u_int) bus_space_read_1(bst, bsh, ctrl_port)) << 8);
+	count += (((u_int) bus_read_1(chp->ch_io, ctrl_port)) << 8);
 	CT_BUS_WEIGHT(chp)
-	count += ((u_int) bus_space_read_1(bst, bsh, ctrl_port));
+	count += ((u_int) bus_read_1(chp->ch_io, ctrl_port));
 	CT_BUS_WEIGHT(chp)
 	return count;
 }
@@ -136,15 +132,13 @@ cthw_get_count(struct ct_bus_access_handle *chp)
 static __inline void
 ct_write_cmds(struct ct_bus_access_handle *chp, u_int8_t *cmd, int len)
 {
-	bus_space_tag_t bst = chp->ch_iot;
-	bus_space_handle_t bsh = chp->ch_ioh;
 	int i;
 
-	bus_space_write_1(bst, bsh, addr_port, wd3s_cdb);
+	bus_write_1(chp->ch_io, addr_port, wd3s_cdb);
 	CT_BUS_WEIGHT(chp)
 	for (i = 0; i < len; i ++)
 	{
-		bus_space_write_1(bst, bsh, ctrl_port, cmd[i]);
+		bus_write_1(chp->ch_io, ctrl_port, cmd[i]);
 		CT_BUS_WEIGHT(chp)
 	}
 }	
@@ -152,13 +146,11 @@ ct_write_cmds(struct ct_bus_access_handle *chp, u_int8_t *cmd, int len)
 static __inline u_int8_t
 ct_cr_read_1(struct ct_bus_access_handle *chp, bus_addr_t offs)
 {
-	bus_space_tag_t bst = chp->ch_iot;
-	bus_space_handle_t bsh = chp->ch_ioh;
 	u_int8_t regv;
 
-	bus_space_write_1(bst, bsh, addr_port, offs);
+	bus_write_1(chp->ch_io, addr_port, offs);
 	CT_BUS_WEIGHT(chp)
-	regv = bus_space_read_1(bst, bsh, ctrl_port);
+	regv = bus_read_1(chp->ch_io, ctrl_port);
 	CT_BUS_WEIGHT(chp)
 	return regv;
 }
@@ -166,12 +158,10 @@ ct_cr_read_1(struct ct_bus_access_handle *chp, bus_addr_t offs)
 static __inline void
 ct_cr_write_1(struct ct_bus_access_handle *chp, bus_addr_t offs, u_int8_t val)
 {
-	bus_space_tag_t bst = chp->ch_iot;
-	bus_space_handle_t bsh = chp->ch_ioh;
 
-	bus_space_write_1(bst, bsh, addr_port, offs);
+	bus_write_1(chp->ch_io, addr_port, offs);
 	CT_BUS_WEIGHT(chp)
-	bus_space_write_1(bst, bsh, ctrl_port, val);
+	bus_write_1(chp->ch_io, ctrl_port, val);
 	CT_BUS_WEIGHT(chp)
 }
 
@@ -180,7 +170,7 @@ ct_cmdp_read_1(struct ct_bus_access_handle *chp)
 {
 	u_int8_t regv;
 
-	regv = bus_space_read_1(chp->ch_iot, chp->ch_ioh, cmd_port);
+	regv = bus_read_1(chp->ch_io, cmd_port);
 	CT_BUS_WEIGHT(chp)
 	return regv;
 }
@@ -189,7 +179,7 @@ static __inline void
 ct_cmdp_write_1(struct ct_bus_access_handle *chp, u_int8_t val)
 {
 
-	bus_space_write_1(chp->ch_iot, chp->ch_ioh, cmd_port, val);
+	bus_write_1(chp->ch_io, cmd_port, val);
 	CT_BUS_WEIGHT(chp)
 }
 

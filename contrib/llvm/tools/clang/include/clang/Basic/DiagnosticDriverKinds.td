@@ -17,9 +17,15 @@ def err_drv_unsupported_option_argument : Error<
   "unsupported argument '%1' to option '%0'">;
 def err_drv_unknown_stdin_type : Error<
   "-E or -x required when input is from standard input">;
+def err_drv_unknown_stdin_type_clang_cl : Error<
+  "use /Tc or /Tp to set input type for standard input">;
 def err_drv_unknown_language : Error<"language not recognized: '%0'">;
 def err_drv_invalid_arch_name : Error<
   "invalid arch name '%0'">;
+def err_drv_invalid_thread_model_for_target : Error<
+  "invalid thread model '%0' in '%1' for this target">;
+def err_drv_invalid_linker_name : Error<
+  "invalid linker name in argument '%0'">;
 def err_drv_invalid_rtlib_name : Error<
   "invalid runtime library name in argument '%0'">;
 def err_drv_unsupported_rtlib_for_platform : Error<
@@ -80,6 +86,9 @@ def err_drv_invalid_libcxx_deployment : Error<
 def err_drv_malformed_sanitizer_blacklist : Error<
   "malformed sanitizer blacklist: '%0'">;
 
+def err_target_unsupported_arch
+  : Error<"the target architecture '%0' is not supported by the target '%1'">;
+
 def err_drv_I_dash_not_supported : Error<
   "'%0' not supported, please use -iquote instead">;
 def err_drv_unknown_argument : Error<"unknown argument: '%0'">;
@@ -93,10 +102,6 @@ def err_drv_cc_print_options_failure : Error<
     "unable to open CC_PRINT_OPTIONS file: %0">;
 def err_drv_preamble_format : Error<
     "incorrect format for -preamble-bytes=N,END">;
-def err_drv_conflicting_deployment_targets : Error<
-  "conflicting deployment targets, both '%0' and '%1' are present in environment">;
-def err_drv_invalid_arch_for_deployment_target : Error<
-  "invalid architecture '%0' for deployment target '%1'">;
 def err_drv_objc_gc_arr : Error<
   "cannot specify both '-fobjc-arc' and '%0'">;
 def err_arc_unsupported_on_runtime : Error<
@@ -109,12 +114,15 @@ def err_drv_unknown_objc_runtime : Error<
   "unknown or ill-formed Objective-C runtime '%0'">;
 def err_drv_emit_llvm_link : Error<
    "-emit-llvm cannot be used when linking">;
-def err_drv_unknown_toolchain : Error<
-  "cannot recognize the type of the toolchain">;
+def err_drv_optimization_remark_pattern : Error<
+  "%0 in '%1'">;
+def err_drv_no_neon_modifier : Error<"[no]neon is not accepted as modifier, please use [no]simd instead">;
 
 def warn_O4_is_O3 : Warning<"-O4 is equivalent to -O3">, InGroup<Deprecated>;
-def warn_drv_optimization_value : Warning<"optimization level '%0' is unsupported; using '%1%2' instead">,
+def warn_drv_optimization_value : Warning<"optimization level '%0' is not supported; using '%1%2' instead">,
   InGroup<InvalidCommandLineArgument>;
+def warn_ignored_gcc_optimization : Warning<"optimization flag '%0' is not supported">,
+  InGroup<IgnoredOptimizationArgument>;
 def warn_c_kext : Warning<
   "ignoring -fapple-kext which is valid for C++ and Objective-C++ only">;
 def warn_drv_input_file_unused : Warning<
@@ -132,12 +140,8 @@ def warn_drv_unused_argument : Warning<
 def warn_drv_empty_joined_argument : Warning<
   "joined argument expects additional value: '%0'">,
   InGroup<UnusedCommandLineArgument>;
-def warn_drv_unused_sanitizer : Warning<"'%0' is ignored in absence of '%1'">,
-  InGroup<UnusedSanitizeArgument>;
 def warn_drv_clang_unsupported : Warning<
   "the clang compiler does not support '%0'">;
-def warn_drv_deprecated_arg : Warning<
-  "argument '%0' is deprecated, use '%1' instead">, InGroup<Deprecated>;
 def warn_drv_assuming_mfloat_abi_is : Warning<
   "unknown platform, assuming -mfloat-abi=%0">;
 def warn_ignoring_ftabstop_value : Warning<
@@ -154,14 +158,25 @@ def warn_drv_pch_not_first_include : Warning<
   "precompiled header '%0' was ignored because '%1' is not first '-include'">;
 def warn_missing_sysroot : Warning<"no such sysroot directory: '%0'">,
   InGroup<DiagGroup<"missing-sysroot">>;
+def warn_debug_compression_unavailable : Warning<"cannot compress debug sections (zlib not installed)">,
+  InGroup<DiagGroup<"debug-compression-unavailable">>;
 
 def note_drv_command_failed_diag_msg : Note<
   "diagnostic msg: %0">;
-def note_drv_t_option_is_global :
-  Note<"The last /TC or /TP option takes precedence over earlier instances">;
-  
+def note_drv_t_option_is_global : Note<
+  "The last /TC or /TP option takes precedence over earlier instances">;
+def note_drv_address_sanitizer_debug_runtime : Note<
+  "AddressSanitizer doesn't support linking with debug runtime libraries yet">;
+
 def err_analyzer_config_no_value : Error<
   "analyzer-config option '%0' has a key but no value">;
 def err_analyzer_config_multiple_values : Error<
   "analyzer-config option '%0' should contain only one '='">;
+
+def err_drv_modules_validate_once_requires_timestamp : Error<
+  "option '-fmodules-validate-once-per-build-session' requires "
+  "'-fbuild-session-timestamp=<seconds since Epoch>' or '-fbuild-session-file=<file>'">;
+
+def warn_drv_invoking_fallback : Warning<"falling back to %0">,
+  InGroup<Fallback>;
 }

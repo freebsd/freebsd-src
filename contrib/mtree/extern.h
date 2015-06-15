@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.38 2013/02/03 19:15:17 christos Exp $	*/
+/*	$NetBSD: extern.h,v 1.39 2014/04/24 17:22:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -63,8 +63,8 @@ void	 addtag(slist_t *, char *);
 int	 check_excludes(const char *, const char *);
 int	 compare(NODE *, FTSENT *);
 int	 crc(int, u_int32_t *, u_int32_t *);
-void	 cwalk(void);
-void	 dump_nodes(const char *, NODE *, int);
+void	 cwalk(FILE *);
+void	 dump_nodes(FILE *, const char *, NODE *, int);
 void	 init_excludes(void);
 int	 matchtags(NODE *);
 __dead __printflike(1,2) void	 mtree_err(const char *, ...);

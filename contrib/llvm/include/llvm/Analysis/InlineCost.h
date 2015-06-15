@@ -19,6 +19,7 @@
 #include <climits>
 
 namespace llvm {
+class AssumptionCacheTracker;
 class CallSite;
 class DataLayout;
 class Function;
@@ -99,8 +100,8 @@ public:
 
 /// \brief Cost analyzer used by inliner.
 class InlineCostAnalysis : public CallGraphSCCPass {
-  const DataLayout *TD;
   const TargetTransformInfo *TTI;
+  AssumptionCacheTracker *ACT;
 
 public:
   static char ID;
@@ -109,8 +110,8 @@ public:
   ~InlineCostAnalysis();
 
   // Pass interface implementation.
-  void getAnalysisUsage(AnalysisUsage &AU) const;
-  bool runOnSCC(CallGraphSCC &SCC);
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool runOnSCC(CallGraphSCC &SCC) override;
 
   /// \brief Get an InlineCost object representing the cost of inlining this
   /// callsite.

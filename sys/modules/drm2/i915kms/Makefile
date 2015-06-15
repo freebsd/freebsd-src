@@ -7,14 +7,17 @@ SRCS	= \
 	i915_dma.c \
 	i915_drv.c \
 	i915_gem.c \
+	i915_gem_context.c \
 	i915_gem_execbuffer.c \
 	i915_gem_evict.c \
 	i915_gem_gtt.c \
+	i915_gem_stolen.c \
 	i915_gem_tiling.c \
 	i915_irq.c \
 	i915_suspend.c \
 	intel_bios.c \
 	intel_crt.c \
+	intel_ddi.c \
 	intel_display.c \
 	intel_dp.c \
 	intel_fb.c \
@@ -25,6 +28,7 @@ SRCS	= \
 	intel_opregion.c \
 	intel_overlay.c \
 	intel_panel.c \
+	intel_pm.c \
 	intel_ringbuffer.c \
 	intel_sdvo.c \
 	intel_sprite.c \
@@ -52,4 +56,3 @@ SRCS	+=								\
 CWARNFLAGS.i915_debug.c=	-Wno-unused-function
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_tv.c=		-Wno-unused
-CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

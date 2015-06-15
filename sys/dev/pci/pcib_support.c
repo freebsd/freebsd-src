@@ -66,3 +66,13 @@ pcib_get_rid(device_t pcib, device_t dev)
 	return (PCI_RID(bus, slot, func));
 }
 
+void
+pcib_decode_rid(device_t pcib, uint16_t rid, int *bus, int *slot,
+    int *func)
+{
+
+	*bus = PCI_RID2BUS(rid);
+	*slot = PCI_RID2SLOT(rid);
+	*func = PCI_RID2FUNC(rid);
+}
+

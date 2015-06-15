@@ -758,7 +758,8 @@ sis_rxfilter_ns(struct sis_softc *sc)
 		if_maddr_runlock(ifp);
 	}
 
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter);
+	/* Turn the receive filter on */
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter | SIS_RXFILTCTL_ENABLE);
 	CSR_READ_4(sc, SIS_RXFILT_CTL);
 }
 
@@ -780,7 +781,7 @@ sis_rxfilter_sis(struct sis_softc *sc)
 
 	filter = CSR_READ_4(sc, SIS_RXFILT_CTL);
 	if (filter & SIS_RXFILTCTL_ENABLE) {
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILT_CTL);
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILTCTL_ENABLE);
 		CSR_READ_4(sc, SIS_RXFILT_CTL);
 	}
 	filter &= ~(SIS_RXFILTCTL_ALLPHYS | SIS_RXFILTCTL_BROAD |
@@ -820,7 +821,8 @@ sis_rxfilter_sis(struct sis_softc *sc)
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA, hashes[i]);
 	}
 
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter);
+	/* Turn the receive filter on */
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter | SIS_RXFILTCTL_ENABLE);
 	CSR_READ_4(sc, SIS_RXFILT_CTL);
 }
 
@@ -1089,7 +1091,7 @@ sis_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -1509,9 +1511,9 @@ sis_rxeof(struct sis_softc *sc)
 		    ETHER_CRC_LEN))
 			rxstat &= ~SIS_RXSTAT_GIANT;
 		if (SIS_RXSTAT_ERROR(rxstat) != 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			if (rxstat & SIS_RXSTAT_COLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			sis_discard_rxbuf(rxd);
 			continue;
 		}
@@ -1519,7 +1521,7 @@ sis_rxeof(struct sis_softc *sc)
 		/* Add a new receive buffer to the ring. */
 		m = rxd->rx_m;
 		if (sis_newbuf(sc, rxd) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			sis_discard_rxbuf(rxd);
 			continue;
 		}
@@ -1535,7 +1537,7 @@ sis_rxeof(struct sis_softc *sc)
 		 */
 		sis_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		SIS_UNLOCK(sc);
@@ -1593,15 +1595,15 @@ sis_txeof(struct sis_softc *sc)
 			m_freem(txd->tx_m);
 			txd->tx_m = NULL;
 			if ((txstat & SIS_CMDSTS_PKT_OK) != 0) {
-				ifp->if_opackets++;
-				ifp->if_collisions +=
-				    (txstat & SIS_TXSTAT_COLLCNT) >> 16;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+				    (txstat & SIS_TXSTAT_COLLCNT) >> 16);
 			} else {
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				if (txstat & SIS_TXSTAT_EXCESSCOLLS)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 				if (txstat & SIS_TXSTAT_OUTOFWINCOLL)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			}
 		}
 		sc->sis_tx_cnt--;
@@ -1664,7 +1666,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		status = CSR_READ_4(sc, SIS_ISR);
 
 		if (status & (SIS_ISR_RX_ERR|SIS_ISR_RX_OFLOW))
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 		if (status & (SIS_ISR_RX_IDLE))
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
@@ -1722,7 +1724,7 @@ sis_intr(void *arg)
 			sis_rxeof(sc);
 
 		if (status & SIS_ISR_RX_OFLOW)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 		if (status & (SIS_ISR_RX_IDLE))
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
@@ -2015,8 +2017,6 @@ sis_initl(struct sis_softc *sc)
 	}
 
 	sis_rxfilter(sc);
-	/* Turn the receive filter on */
-	SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ENABLE);
 
 	/*
 	 * Load the address of the RX and TX lists.
@@ -2138,7 +2138,8 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SIS_LOCK(sc);
-		sis_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			sis_rxfilter(sc);
 		SIS_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -2197,7 +2198,7 @@ sis_watchdog(struct sis_softc *sc)
 		return;
 
 	device_printf(sc->sis_dev, "watchdog timeout\n");
-	sc->sis_ifp->if_oerrors++;
+	if_inc_counter(sc->sis_ifp, IFCOUNTER_OERRORS, 1);
 
 	sc->sis_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sis_initl(sc);

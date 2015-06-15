@@ -282,7 +282,8 @@ clean_pipe(td, path)
 	struct stat st;
 	int error;
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 
 	/*
 	 * Make sure we are dealing with a mode 0 named pipe.
@@ -293,7 +294,7 @@ clean_pipe(td, path)
 	if ((st.st_mode & ALLPERMS) != 0)
 		return (0);
 
-	error = kern_unlink(td, path, UIO_SYSSPACE);
+	error = kern_unlinkat(td, AT_FDCWD, path, UIO_SYSSPACE, 0);
 	if (error)
 		DPRINTF(("clean_pipe: unlink failed %d\n", error));
 	return (error);
@@ -812,7 +813,7 @@ ti_bind(fp, fd, ioc, td)
 
 	DPRINTF(("TI_BIND: fileno %d\n", fd));
 
-	if ((error = kern_bind(td, fd, skp)) != 0) {
+	if ((error = kern_bindat(td, AT_FDCWD, fd, skp)) != 0) {
 		DPRINTF(("TI_BIND: bind failed %d\n", error));
 		return error;
 	}
@@ -1586,7 +1587,7 @@ svr4_do_putmsg(td, uap, fp)
 	case SVR4_TI_CONNECT_REQUEST:	/* connect 	*/
 		{
 
-			return (kern_connect(td, uap->fd, sa));
+			return (kern_connectat(td, AT_FDCWD, uap->fd, sa));
 		}
 
 	case SVR4_TI_SENDTO_REQUEST:	/* sendto 	*/
@@ -1828,7 +1829,7 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
-			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdclose(td, afp, st->s_afd);
 			fdrop(afp, td);
 			st->s_afd = -1;
 			mtx_unlock(&Giant);
@@ -1966,7 +1967,7 @@ svr4_do_getmsg(td, uap, fp)
 
 	if (error) {
 		if (afp) {
-			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdclose(td, afp, st->s_afd);
 			fdrop(afp, td);
 			st->s_afd = -1;
 		}

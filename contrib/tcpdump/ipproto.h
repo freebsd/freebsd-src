@@ -30,8 +30,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/ipproto.h,v 1.6 2005-09-20 06:01:22 guy Exp $ (LBL)
- *
  * From:
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
  * $FreeBSD$

@@ -232,29 +232,29 @@ CommandObjectDisassemble::CommandOptions::GetDefinitions ()
 OptionDefinition
 CommandObjectDisassemble::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "bytes"        , 'b', OptionParser::eNoArgument        , NULL, 0, eArgTypeNone,        "Show opcode bytes when disassembling."},
-{ LLDB_OPT_SET_ALL, false, "context"      , 'C', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeNumLines,    "Number of context lines of source to show."},
-{ LLDB_OPT_SET_ALL, false, "mixed"        , 'm', OptionParser::eNoArgument        , NULL, 0, eArgTypeNone,        "Enable mixed source and assembly display."},
-{ LLDB_OPT_SET_ALL, false, "raw"          , 'r', OptionParser::eNoArgument        , NULL, 0, eArgTypeNone,        "Print raw disassembly with no symbol information."},
-{ LLDB_OPT_SET_ALL, false, "plugin"       , 'P', OptionParser::eRequiredArgument  , NULL, 0, eArgTypePlugin,      "Name of the disassembler plugin you want to use."},
-{ LLDB_OPT_SET_ALL, false, "flavor"       , 'F', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeDisassemblyFlavor,        "Name of the disassembly flavor you want to use.  "
-                                                                                                    "Currently the only valid options are default, and for Intel"
-                                                                                                    " architectures, att and intel."},
-{ LLDB_OPT_SET_ALL, false, "arch"         , 'A', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeArchitecture,"Specify the architecture to use from cross disassembly."},
+{ LLDB_OPT_SET_ALL, false, "bytes"        , 'b', OptionParser::eNoArgument        , NULL, NULL, 0, eArgTypeNone,        "Show opcode bytes when disassembling."},
+{ LLDB_OPT_SET_ALL, false, "context"      , 'C', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeNumLines,    "Number of context lines of source to show."},
+{ LLDB_OPT_SET_ALL, false, "mixed"        , 'm', OptionParser::eNoArgument        , NULL, NULL, 0, eArgTypeNone,        "Enable mixed source and assembly display."},
+{ LLDB_OPT_SET_ALL, false, "raw"          , 'r', OptionParser::eNoArgument        , NULL, NULL, 0, eArgTypeNone,        "Print raw disassembly with no symbol information."},
+{ LLDB_OPT_SET_ALL, false, "plugin"       , 'P', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypePlugin,      "Name of the disassembler plugin you want to use."},
+{ LLDB_OPT_SET_ALL, false, "flavor"       , 'F', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeDisassemblyFlavor,        "Name of the disassembly flavor you want to use.  "
+                                                                                                          "Currently the only valid options are default, and for Intel"
+                                                                                                          " architectures, att and intel."},
+{ LLDB_OPT_SET_ALL, false, "arch"         , 'A', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeArchitecture,"Specify the architecture to use from cross disassembly."},
 { LLDB_OPT_SET_1  |
-  LLDB_OPT_SET_2  , true , "start-address", 's', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeAddressOrExpression,"Address at which to start disassembling."},
-{ LLDB_OPT_SET_1  , false, "end-address"  , 'e', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeAddressOrExpression,  "Address at which to end disassembling."},
+  LLDB_OPT_SET_2  , true , "start-address", 's', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeAddressOrExpression,"Address at which to start disassembling."},
+{ LLDB_OPT_SET_1  , false, "end-address"  , 'e', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeAddressOrExpression,  "Address at which to end disassembling."},
 { LLDB_OPT_SET_2  |
   LLDB_OPT_SET_3  |
   LLDB_OPT_SET_4  |
-  LLDB_OPT_SET_5  , false, "count"        , 'c', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeNumLines,    "Number of instructions to display."},
-{ LLDB_OPT_SET_3  , false, "name"         , 'n', OptionParser::eRequiredArgument  , NULL, CommandCompletions::eSymbolCompletion, eArgTypeFunctionName,
-                                                                                                    "Disassemble entire contents of the given function name."},
-{ LLDB_OPT_SET_4  , false, "frame"        , 'f', OptionParser::eNoArgument        , NULL, 0, eArgTypeNone,        "Disassemble from the start of the current frame's function."},
-{ LLDB_OPT_SET_5  , false, "pc"           , 'p', OptionParser::eNoArgument        , NULL, 0, eArgTypeNone,        "Disassemble around the current pc."},
-{ LLDB_OPT_SET_6  , false, "line"         , 'l', OptionParser::eNoArgument        , NULL, 0, eArgTypeNone,        "Disassemble the current frame's current source line instructions if there is debug line table information, else disassemble around the pc."},
-{ LLDB_OPT_SET_7  , false, "address"      , 'a', OptionParser::eRequiredArgument  , NULL, 0, eArgTypeAddressOrExpression, "Disassemble function containing this address."},
-{ 0               , false, NULL           ,   0, 0                  , NULL, 0, eArgTypeNone,        NULL }
+  LLDB_OPT_SET_5  , false, "count"        , 'c', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeNumLines,    "Number of instructions to display."},
+{ LLDB_OPT_SET_3  , false, "name"         , 'n', OptionParser::eRequiredArgument  , NULL, NULL, CommandCompletions::eSymbolCompletion, eArgTypeFunctionName,
+                                                                                                          "Disassemble entire contents of the given function name."},
+{ LLDB_OPT_SET_4  , false, "frame"        , 'f', OptionParser::eNoArgument        , NULL, NULL, 0, eArgTypeNone,        "Disassemble from the start of the current frame's function."},
+{ LLDB_OPT_SET_5  , false, "pc"           , 'p', OptionParser::eNoArgument        , NULL, NULL, 0, eArgTypeNone,        "Disassemble around the current pc."},
+{ LLDB_OPT_SET_6  , false, "line"         , 'l', OptionParser::eNoArgument        , NULL, NULL, 0, eArgTypeNone,        "Disassemble the current frame's current source line instructions if there is debug line table information, else disassemble around the pc."},
+{ LLDB_OPT_SET_7  , false, "address"      , 'a', OptionParser::eRequiredArgument  , NULL, NULL, 0, eArgTypeAddressOrExpression, "Disassemble function containing this address."},
+{ 0               , false, NULL           ,   0, 0                  , NULL, NULL, 0, eArgTypeNone,        NULL }
 };
 
 
@@ -370,6 +370,7 @@ CommandObjectDisassemble::DoExecute (Args& command, CommandReturnObject &result)
     } 
     else
     {
+        std::vector<AddressRange> ranges;
         AddressRange range;
         StackFrame *frame = m_exe_ctx.GetFramePtr();
         if (m_options.frame_line)
@@ -425,6 +426,7 @@ CommandObjectDisassemble::DoExecute (Args& command, CommandReturnObject &result)
                     // Disassembling at the PC always disassembles some number of instructions (not the whole function).
                     m_options.num_instructions = DEFAULT_DISASM_NUM_INS;
                 }
+                ranges.push_back(range);
             }
             else
             {
@@ -441,49 +443,75 @@ CommandObjectDisassemble::DoExecute (Args& command, CommandReturnObject &result)
                         }
                         range.SetByteSize (m_options.end_addr - m_options.start_addr);
                     }
+                    ranges.push_back(range);
                 }
                 else
                 {
                     if (m_options.symbol_containing_addr != LLDB_INVALID_ADDRESS 
-                        && target 
-                        && !target->GetSectionLoadList().IsEmpty())
+                        && target)
                     {
-                        bool failed = false;
-                        Address symbol_containing_address;
-                        if (target->GetSectionLoadList().ResolveLoadAddress (m_options.symbol_containing_addr, symbol_containing_address))
+                        if (!target->GetSectionLoadList().IsEmpty())
                         {
-                            ModuleSP module_sp (symbol_containing_address.GetModule());
-                            SymbolContext sc;
-                            bool resolve_tail_call_address = true; // PC can be one past the address range of the function.
-                            module_sp->ResolveSymbolContextForAddress (symbol_containing_address, eSymbolContextEverything, sc,
-                                                                       resolve_tail_call_address);
-                            if (sc.function || sc.symbol)
+                            bool failed = false;
+                            Address symbol_containing_address;
+                            if (target->GetSectionLoadList().ResolveLoadAddress (m_options.symbol_containing_addr, symbol_containing_address))
                             {
-                                sc.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false, range);
+                                ModuleSP module_sp (symbol_containing_address.GetModule());
+                                SymbolContext sc;
+                                bool resolve_tail_call_address = true; // PC can be one past the address range of the function.
+                                module_sp->ResolveSymbolContextForAddress (symbol_containing_address, eSymbolContextEverything, sc,
+                                                                           resolve_tail_call_address);
+                                if (sc.function || sc.symbol)
+                                {
+                                    sc.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false, range);
+                                }
+                                else
+                                {
+                                    failed = true;
+                                }
                             }
                             else
                             {
                                 failed = true;
                             }
+                            if (failed)
+                            {
+                                result.AppendErrorWithFormat ("Could not find function bounds for address 0x%" PRIx64 "\n", m_options.symbol_containing_addr);
+                                result.SetStatus (eReturnStatusFailed);
+                                return false;
+                            }
+                            ranges.push_back(range);
                         }
                         else
                         {
-                            failed = true;
-                        }
-                        if (failed)
-                        {
-                            result.AppendErrorWithFormat ("Could not find function bounds for address 0x%" PRIx64 "\n", m_options.symbol_containing_addr);
-                            result.SetStatus (eReturnStatusFailed);
-                            return false;
+                            for (lldb::ModuleSP module_sp : target->GetImages().Modules())
+                            {
+                                lldb::addr_t file_addr = m_options.symbol_containing_addr;
+                                Address file_address;
+                                if (module_sp->ResolveFileAddress(file_addr, file_address))
+                                {
+                                    SymbolContext sc;
+                                    bool resolve_tail_call_address = true; // PC can be one past the address range of the function.
+                                    module_sp->ResolveSymbolContextForAddress (file_address, eSymbolContextEverything, sc, resolve_tail_call_address);
+                                    if (sc.function || sc.symbol)
+                                    {
+                                        sc.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false, range);
+                                        ranges.push_back(range);
+                                    }
+                                }
+                            }
+                            
                         }
                     }
                 }
             }
         }
+        else
+            ranges.push_back(range);
 
         if (m_options.num_instructions != 0)
         {
-            if (!range.GetBaseAddress().IsValid())
+            if (ranges.size() == 0)
             {
                 // The default action is to disassemble the current frame function.
                 if (frame)
@@ -504,29 +532,38 @@ CommandObjectDisassemble::DoExecute (Args& command, CommandReturnObject &result)
                     return false;
                 }
             }
-
-            if (Disassembler::Disassemble (m_interpreter.GetDebugger(), 
-                                           m_options.arch,
-                                           plugin_name,
-                                           flavor_string,
-                                           m_exe_ctx,
-                                           range.GetBaseAddress(),
-                                           m_options.num_instructions,
-                                           m_options.show_mixed ? m_options.num_lines_context : 0,
-                                           options,
-                                           result.GetOutputStream()))
+            
+            bool print_sc_header = ranges.size() > 1;
+            for (AddressRange cur_range : ranges)
             {
-                result.SetStatus (eReturnStatusSuccessFinishResult);
+                if (Disassembler::Disassemble (m_interpreter.GetDebugger(),
+                                               m_options.arch,
+                                               plugin_name,
+                                               flavor_string,
+                                               m_exe_ctx,
+                                               cur_range.GetBaseAddress(),
+                                               m_options.num_instructions,
+                                               m_options.show_mixed ? m_options.num_lines_context : 0,
+                                               options,
+                                               result.GetOutputStream()))
+                {
+                    result.SetStatus (eReturnStatusSuccessFinishResult);
+                }
+                else
+                {
+                    if (m_options.start_addr != LLDB_INVALID_ADDRESS)
+                        result.AppendErrorWithFormat ("Failed to disassemble memory at 0x%8.8" PRIx64 ".\n", m_options.start_addr);
+                    else if (m_options.symbol_containing_addr != LLDB_INVALID_ADDRESS)
+                        result.AppendErrorWithFormat ("Failed to disassemble memory in function at 0x%8.8" PRIx64 ".\n", m_options.symbol_containing_addr);
+                    result.SetStatus (eReturnStatusFailed);
+                }
             }
-            else
-            {
-                result.AppendErrorWithFormat ("Failed to disassemble memory at 0x%8.8" PRIx64 ".\n", m_options.start_addr);
-                result.SetStatus (eReturnStatusFailed);            
-            }
+            if (print_sc_header)
+                result.AppendMessage("\n");
         }
         else
         {
-            if (!range.GetBaseAddress().IsValid())
+            if (ranges.size() == 0)
             {
                 // The default action is to disassemble the current frame function.
                 if (frame)
@@ -548,27 +585,35 @@ CommandObjectDisassemble::DoExecute (Args& command, CommandReturnObject &result)
                     result.SetStatus (eReturnStatusFailed);
                     return false;
                 }
+                ranges.push_back(range);
             }
-            if (range.GetByteSize() == 0)
-                range.SetByteSize(DEFAULT_DISASM_BYTE_SIZE);
+            
+            bool print_sc_header = ranges.size() > 1;
+            for (AddressRange cur_range : ranges)
+            {
+                if (cur_range.GetByteSize() == 0)
+                    cur_range.SetByteSize(DEFAULT_DISASM_BYTE_SIZE);
 
-            if (Disassembler::Disassemble (m_interpreter.GetDebugger(), 
-                                           m_options.arch,
-                                           plugin_name,
-                                           flavor_string,
-                                           m_exe_ctx,
-                                           range,
-                                           m_options.num_instructions,
-                                           m_options.show_mixed ? m_options.num_lines_context : 0,
-                                           options,
-                                           result.GetOutputStream()))
-            {
-                result.SetStatus (eReturnStatusSuccessFinishResult);
-            }
-            else
-            {
-                result.AppendErrorWithFormat ("Failed to disassemble memory at 0x%8.8" PRIx64 ".\n", m_options.start_addr);
-                result.SetStatus (eReturnStatusFailed);            
+                if (Disassembler::Disassemble (m_interpreter.GetDebugger(),
+                                               m_options.arch,
+                                               plugin_name,
+                                               flavor_string,
+                                               m_exe_ctx,
+                                               cur_range,
+                                               m_options.num_instructions,
+                                               m_options.show_mixed ? m_options.num_lines_context : 0,
+                                               options,
+                                               result.GetOutputStream()))
+                {
+                    result.SetStatus (eReturnStatusSuccessFinishResult);
+                }
+                else
+                {
+                    result.AppendErrorWithFormat ("Failed to disassemble memory at 0x%8.8" PRIx64 ".\n", m_options.start_addr);
+                    result.SetStatus (eReturnStatusFailed);            
+                }
+                if (print_sc_header)
+                    result.AppendMessage("\n");
             }
         }
     }

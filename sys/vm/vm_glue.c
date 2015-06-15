@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 #include "opt_kstack_pages.h"
 #include "opt_kstack_max_pages.h"
+#include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -97,6 +98,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
+
+#include <machine/cpu.h>
 
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
@@ -227,7 +230,7 @@ vsunlock(void *addr, size_t len)
 static vm_page_t
 vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 {
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t pindex;
 	int rv;
 
@@ -235,11 +238,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	pindex = OFF_TO_IDX(offset);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid != VM_PAGE_BITS_ALL) {
-		ma[0] = m;
-		rv = vm_pager_get_pages(object, ma, 1, 0);
-		m = vm_page_lookup(object, pindex);
-		if (m == NULL)
-			goto out;
+		rv = vm_pager_get_pages(object, &m, 1, 0);
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
 			vm_page_free(m);
@@ -486,6 +485,52 @@ kstack_cache_init(void *nulll)
 
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
+#ifdef KSTACK_USAGE_PROF
+/*
+ * Track maximum stack used by a thread in kernel.
+ */
+static int max_kstack_used;
+
+SYSCTL_INT(_debug, OID_AUTO, max_kstack_used, CTLFLAG_RD,
+    &max_kstack_used, 0,
+    "Maxiumum stack depth used by a thread in kernel");
+
+void
+intr_prof_stack_use(struct thread *td, struct trapframe *frame)
+{
+	vm_offset_t stack_top;
+	vm_offset_t current;
+	int used, prev_used;
+
+	/*
+	 * Testing for interrupted kernel mode isn't strictly
+	 * needed. It optimizes the execution, since interrupts from
+	 * usermode will have only the trap frame on the stack.
+	 */
+	if (TRAPF_USERMODE(frame))
+		return;
+
+	stack_top = td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
+	current = (vm_offset_t)(uintptr_t)&stack_top;
+
+	/*
+	 * Try to detect if interrupt is using kernel thread stack.
+	 * Hardware could use a dedicated stack for interrupt handling.
+	 */
+	if (stack_top <= current || current < td->td_kstack)
+		return;
+
+	used = stack_top - current;
+	for (;;) {
+		prev_used = max_kstack_used;
+		if (prev_used >= used)
+			break;
+		if (atomic_cmpset_int(&max_kstack_used, prev_used, used))
+			break;
+	}
+}
+#endif /* KSTACK_USAGE_PROF */
+
 #ifndef NO_SWAPPING
 /*
  * Allow a thread's kernel stack to be paged out.
@@ -522,7 +567,7 @@ vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
 	vm_page_t ma[KSTACK_MAX_PAGES];
-	int i, j, k, pages, rv;
+	int i, j, pages, rv;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
@@ -544,9 +589,12 @@ vm_thread_swapin(struct thread *td)
 			if (rv != VM_PAGER_OK)
 	panic("vm_thread_swapin: cannot get kstack for proc: %d",
 				    td->td_proc->p_pid);
+			/*
+			 * All pages in the array are in place, due to the
+			 * pager is always the swap pager, which doesn't
+			 * free or remove wired non-req pages from object.
+			 */
 			vm_object_pip_wakeup(ksobj);
-			for (k = i; k < j; k++)
-				ma[k] = vm_page_lookup(ksobj, k);
 			vm_page_xunbusy(ma[i]);
 		} else if (vm_page_xbusied(ma[i]))
 			vm_page_xunbusy(ma[i]);

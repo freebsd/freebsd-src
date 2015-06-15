@@ -100,7 +100,7 @@ static struct vm_exit vmexit[VM_MAXCPU];
 
 struct bhyvestats {
         uint64_t        vmexit_bogus;
-        uint64_t        vmexit_bogus_switch;
+	uint64_t	vmexit_reqidle;
         uint64_t        vmexit_hlt;
         uint64_t        vmexit_pause;
         uint64_t        vmexit_mtrap;
@@ -122,7 +122,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-abehwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+                "Usage: %s [-abehuwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
@@ -137,6 +137,7 @@ usage(int code)
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -u: RTC keeps UTC time\n"
 		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
 		"       -W: force virtio to use single-vector MSI\n"
@@ -185,20 +186,14 @@ vm_inject_fault(void *arg, int vcpu, int vector, int errcode_valid,
     int errcode)
 {
 	struct vmctx *ctx;
-	int error;
+	int error, restart_instruction;
 
 	ctx = arg;
-	if (errcode_valid)
-		error = vm_inject_exception2(ctx, vcpu, vector, errcode);
-	else
-		error = vm_inject_exception(ctx, vcpu, vector);
-	assert(error == 0);
+	restart_instruction = 1;
 
-	/*
-	 * Set the instruction length to 0 to ensure that the instruction is
-	 * restarted when the fault handler returns.
-	 */
-	vmexit[vcpu].inst_length = 0;
+	error = vm_inject_exception(ctx, vcpu, vector, errcode_valid, errcode,
+	    restart_instruction);
+	assert(error == 0);
 }
 
 void *
@@ -329,15 +324,11 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	}
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
-	if (!error && in && !string) {
-		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
-		    vme->u.inout.eax);
-		assert(error == 0);
-	}
-
 	if (error) {
-		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
-		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
+		fprintf(stderr, "Unhandled %s%c 0x%04x at 0x%lx\n",
+		    in ? "in" : "out",
+		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
+		    port, vmexit->rip);
 		return (VMEXIT_ABORT);
 	} else {
 		return (VMEXIT_CONTINUE);
@@ -358,7 +349,7 @@ vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		    vme->u.msr.code, *pvcpu);
 		if (strictmsr) {
 			vm_inject_gp(ctx, *pvcpu);
-			return (VMEXIT_RESTART);
+			return (VMEXIT_CONTINUE);
 		}
 	}
 
@@ -384,7 +375,7 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
 		if (strictmsr) {
 			vm_inject_gp(ctx, *pvcpu);
-			return (VMEXIT_RESTART);
+			return (VMEXIT_CONTINUE);
 		}
 	}
 	return (VMEXIT_CONTINUE);
@@ -445,12 +436,39 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 }
 
 static int
+vmexit_svm(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+
+	fprintf(stderr, "vm exit[%d]\n", *pvcpu);
+	fprintf(stderr, "\treason\t\tSVM\n");
+	fprintf(stderr, "\trip\t\t0x%016lx\n", vmexit->rip);
+	fprintf(stderr, "\tinst_length\t%d\n", vmexit->inst_length);
+	fprintf(stderr, "\texitcode\t%#lx\n", vmexit->u.svm.exitcode);
+	fprintf(stderr, "\texitinfo1\t%#lx\n", vmexit->u.svm.exitinfo1);
+	fprintf(stderr, "\texitinfo2\t%#lx\n", vmexit->u.svm.exitinfo2);
+	return (VMEXIT_ABORT);
+}
+
+static int
 vmexit_bogus(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
+	assert(vmexit->inst_length == 0);
+
 	stats.vmexit_bogus++;
 
-	return (VMEXIT_RESTART);
+	return (VMEXIT_CONTINUE);
+}
+
+static int
+vmexit_reqidle(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+
+	assert(vmexit->inst_length == 0);
+
+	stats.vmexit_reqidle++;
+
+	return (VMEXIT_CONTINUE);
 }
 
 static int
@@ -480,30 +498,37 @@ static int
 vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
+	assert(vmexit->inst_length == 0);
+
 	stats.vmexit_mtrap++;
 
-	return (VMEXIT_RESTART);
+	return (VMEXIT_CONTINUE);
 }
 
 static int
 vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-	int err;
+	int err, i;
+	struct vie *vie;
+
 	stats.vmexit_inst_emul++;
 
+	vie = &vmexit->u.inst_emul.vie;
 	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
-	    &vmexit->u.inst_emul.vie, &vmexit->u.inst_emul.paging);
+	    vie, &vmexit->u.inst_emul.paging);
 
 	if (err) {
-		if (err == EINVAL) {
-			fprintf(stderr,
-			    "Failed to emulate instruction at 0x%lx\n", 
-			    vmexit->rip);
-		} else if (err == ESRCH) {
+		if (err == ESRCH) {
 			fprintf(stderr, "Unhandled memory access to 0x%lx\n",
 			    vmexit->u.inst_emul.gpa);
 		}
 
+		fprintf(stderr, "Failed to emulate instruction [");
+		for (i = 0; i < vie->num_valid; i++) {
+			fprintf(stderr, "0x%02x%s", vie->inst[i],
+			    i != (vie->num_valid - 1) ? " " : "");
+		}
+		fprintf(stderr, "] at 0x%lx\n", vmexit->rip);
 		return (VMEXIT_ABORT);
 	}
 
@@ -555,7 +580,9 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
+	[VM_EXITCODE_SVM]    = vmexit_svm,
 	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
+	[VM_EXITCODE_REQIDLE] = vmexit_reqidle,
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
@@ -566,7 +593,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 };
 
 static void
-vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
+vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 {
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
@@ -581,8 +608,11 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	error = vm_active_cpus(ctx, &active_cpus);
 	assert(CPU_ISSET(vcpu, &active_cpus));
 
+	error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RIP, startrip);
+	assert(error == 0);
+
 	while (1) {
-		error = vm_run(ctx, vcpu, rip, &vmexit[vcpu]);
+		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
 		if (error != 0)
 			break;
 
@@ -599,10 +629,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 
 		switch (rc) {
 		case VMEXIT_CONTINUE:
-                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
-			break;
-		case VMEXIT_RESTART:
-                        rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_ABORT:
 			abort();
@@ -679,6 +705,7 @@ main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
 	int dump_guest_memory, max_vcpus, mptgen;
+	int rtc_localtime;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
@@ -690,8 +717,9 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 	mptgen = 1;
+	rtc_localtime = 1;
 
-	while ((c = getopt(argc, argv, "abehwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
+	while ((c = getopt(argc, argv, "abehuwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -751,6 +779,9 @@ main(int argc, char *argv[])
 		case 'e':
 			strictio = 1;
 			break;
+		case 'u':
+			rtc_localtime = 0;
+			break;
 		case 'U':
 			guest_uuid_str = optarg;
 			break;
@@ -786,6 +817,11 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (guest_ncpus < 1) {
+		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
+		exit(1);
+	}
+
 	max_vcpus = num_vcpus_allowed(ctx);
 	if (guest_ncpus > max_vcpus) {
 		fprintf(stderr, "%d vCPUs requested but only %d available\n",
@@ -803,12 +839,18 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+	error = init_msr();
+	if (error) {
+		fprintf(stderr, "init_msr error %d", error);
+		exit(1);
+	}
+
 	init_mem();
 	init_inout();
 	pci_irq_init(ctx);
 	ioapic_init(ctx);
 
-	rtc_init(ctx);
+	rtc_init(ctx, rtc_localtime);
 	sci_init(ctx);
 
 	/*

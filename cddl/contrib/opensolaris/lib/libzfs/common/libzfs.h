@@ -609,6 +609,9 @@ typedef struct sendflags {
 	/* show progress (ie. -v) */
 	boolean_t progress;
 
+	/* large blocks (>128K) are permitted */
+	boolean_t largeblock;
+
 	/* WRITE_EMBEDDED records of type DATA are permitted */
 	boolean_t embed_data;
 } sendflags_t;
@@ -786,10 +789,10 @@ extern boolean_t libzfs_fru_compare(libzfs_handle_t *, const char *,
 extern boolean_t libzfs_fru_notself(libzfs_handle_t *, const char *);
 extern int zpool_fru_set(zpool_handle_t *, uint64_t, const char *);
 
-#ifndef sun
+#ifndef illumos
 extern int zmount(const char *, const char *, int, char *, char *, int, char *,
     int);
-#endif	/* !sun */
+#endif
 
 #ifdef	__cplusplus
 }

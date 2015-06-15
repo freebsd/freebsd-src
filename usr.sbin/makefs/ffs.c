@@ -191,7 +191,7 @@ ffs_parse_opts(const char *option, fsinfo_t *fsopts)
 					"bytes per inode" },
 		{ "minfree",	&ffs_opts->minfree,	0,	99,
 					"minfree" },
-		{ "maxbpf",	&ffs_opts->maxbpg,	1,	INT_MAX,
+		{ "maxbpg",	&ffs_opts->maxbpg,	1,	INT_MAX,
 					"max blocks per file in a cg" },
 		{ "avgfilesize", &ffs_opts->avgfilesize,1,	INT_MAX,
 					"expected average file size" },
@@ -361,7 +361,8 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	if (ffs_opts->avgfpdir == -1)
 		ffs_opts->avgfpdir = AFPDIR;
 
-	if (roundup(fsopts->minsize, ffs_opts->bsize) > fsopts->maxsize)
+	if (fsopts->maxsize > 0 &&
+	    roundup(fsopts->minsize, ffs_opts->bsize) > fsopts->maxsize)
 		errx(1, "`%s' minsize of %lld rounded up to ffs bsize of %d "
 		    "exceeds maxsize %lld.  Lower bsize, or round the minimum "
 		    "and maximum sizes to bsize.", dir,

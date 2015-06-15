@@ -43,19 +43,26 @@ ThreadPlanStepInstruction::ThreadPlanStepInstruction
     m_stop_other_threads (stop_other_threads),
     m_step_over (step_over)
 {
-    m_instruction_addr = m_thread.GetRegisterContext()->GetPC(0);
-    StackFrameSP m_start_frame_sp(m_thread.GetStackFrameAtIndex(0));
-    m_stack_id = m_start_frame_sp->GetStackID();
-    
-    m_start_has_symbol = m_start_frame_sp->GetSymbolContext(eSymbolContextSymbol).symbol != NULL;
-    
-    StackFrameSP parent_frame_sp = m_thread.GetStackFrameAtIndex(1);
-    if (parent_frame_sp)
-        m_parent_frame_id = parent_frame_sp->GetStackID();
+    m_takes_iteration_count = true;
+    SetUpState();
 }
 
 ThreadPlanStepInstruction::~ThreadPlanStepInstruction ()
 {
+}
+
+void
+ThreadPlanStepInstruction::SetUpState()
+{
+    m_instruction_addr = m_thread.GetRegisterContext()->GetPC(0);
+    StackFrameSP start_frame_sp(m_thread.GetStackFrameAtIndex(0));
+    m_stack_id = start_frame_sp->GetStackID();
+    
+    m_start_has_symbol = start_frame_sp->GetSymbolContext(eSymbolContextSymbol).symbol != NULL;
+    
+    StackFrameSP parent_frame_sp = m_thread.GetStackFrameAtIndex(1);
+    if (parent_frame_sp)
+        m_parent_frame_id = parent_frame_sp->GetStackID();
 }
 
 void
@@ -106,20 +113,70 @@ ThreadPlanStepInstruction::DoPlanExplainsStop (Event *event_ptr)
 }
 
 bool
+ThreadPlanStepInstruction::IsPlanStale ()
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
+    StackID cur_frame_id = m_thread.GetStackFrameAtIndex(0)->GetStackID();
+    if (cur_frame_id == m_stack_id)
+    {
+        if (m_thread.GetRegisterContext()->GetPC(0) != m_instruction_addr)
+            return true;
+        else
+            return false;
+    }
+    else if (cur_frame_id < m_stack_id)
+    {
+        // If the current frame is younger than the start frame and we are stepping over, then we need to continue,
+        // but if we are doing just one step, we're done.
+        if (m_step_over)
+            return false;
+        else
+            return true;
+    }
+    else
+    {
+        if (log)
+        {
+            log->Printf ("ThreadPlanStepInstruction::IsPlanStale - Current frame is older than start frame, plan is stale.");
+        }
+        return true;
+    }
+}
+
+bool
 ThreadPlanStepInstruction::ShouldStop (Event *event_ptr)
 {
     if (m_step_over)
     {
         Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
         
-        StackID cur_frame_zero_id = m_thread.GetStackFrameAtIndex(0)->GetStackID();
+        StackFrameSP cur_frame_sp = m_thread.GetStackFrameAtIndex(0);
+        if (!cur_frame_sp)
+        {
+            if (log)
+                log->Printf ("ThreadPlanStepInstruction couldn't get the 0th frame, stopping.");
+            SetPlanComplete();
+            return true;
+        }
+
+        StackID cur_frame_zero_id = cur_frame_sp->GetStackID();
         
         if (cur_frame_zero_id == m_stack_id || m_stack_id < cur_frame_zero_id)
         {
             if (m_thread.GetRegisterContext()->GetPC(0) != m_instruction_addr)
             {
-                SetPlanComplete();
-                return true;
+                if (--m_iteration_count <= 0)
+                {
+                    SetPlanComplete();
+                    return true;
+                }
+                else
+                {
+                    // We are still stepping, reset the start pc, and in case we've stepped out,
+                    // reset the current stack id.
+                    SetUpState();
+                    return false;
+                }
             }
             else
                 return false;
@@ -132,6 +189,24 @@ ThreadPlanStepInstruction::ShouldStop (Event *event_ptr)
             {
                 if (return_frame->GetStackID() != m_parent_frame_id || m_start_has_symbol)
                 {
+                    // next-instruction shouldn't step out of inlined functions.  But we may have stepped into a
+                    // real function that starts with an inlined function, and we do want to step out of that...
+
+                    if (cur_frame_sp->IsInlined())
+                    {
+                        StackFrameSP parent_frame_sp = m_thread.GetFrameWithStackID(m_stack_id);
+
+                        if(parent_frame_sp && parent_frame_sp->GetConcreteFrameIndex() == cur_frame_sp->GetConcreteFrameIndex())
+                        {
+                            SetPlanComplete();
+                            if (log)
+                            {
+                                log->Printf("Frame we stepped into is inlined into the frame we were stepping from, stopping.");
+                            }
+                            return true;
+                        }
+                    }
+
                     if (log)
                     {
                         StreamString s;
@@ -147,13 +222,13 @@ ThreadPlanStepInstruction::ShouldStop (Event *event_ptr)
                     // StepInstruction should probably have the tri-state RunMode, but for now it is safer to
                     // run others.
                     const bool stop_others = false;
-                    m_thread.QueueThreadPlanForStepOut(false,
-                                                       NULL,
-                                                       true,
-                                                       stop_others,
-                                                       eVoteNo,
-                                                       eVoteNoOpinion,
-                                                       0);
+                    m_thread.QueueThreadPlanForStepOutNoShouldStop(false,
+                                                                   NULL,
+                                                                   true,
+                                                                   stop_others,
+                                                                   eVoteNo,
+                                                                   eVoteNoOpinion,
+                                                                   0);
                     return false;
                 }
                 else
@@ -182,8 +257,18 @@ ThreadPlanStepInstruction::ShouldStop (Event *event_ptr)
     {
         if (m_thread.GetRegisterContext()->GetPC(0) != m_instruction_addr)
         {
-            SetPlanComplete();
-            return true;
+            if (--m_iteration_count <= 0)
+            {
+                SetPlanComplete();
+                return true;
+            }
+            else
+            {
+                // We are still stepping, reset the start pc, and in case we've stepped in or out,
+                // reset the current stack id.
+                SetUpState();
+                return false;
+            }
         }
         else
             return false;

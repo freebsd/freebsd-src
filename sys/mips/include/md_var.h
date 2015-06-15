@@ -79,5 +79,6 @@ void	busdma_swi(void);
 struct	dumperinfo;
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
-void	minidumpsys(struct dumperinfo *);
+int	minidumpsys(struct dumperinfo *);
+
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sbuf.h>
+#include <sys/taskqueue.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
@@ -161,25 +162,17 @@ send_pending(struct adapter *sc, struct l2t_entry *e)
 }
 
 static void
-resolution_failed_for_wr(struct wrqe *wr)
+resolution_failed(struct adapter *sc, struct l2t_entry *e)
 {
-	log(LOG_ERR, "%s: leaked work request %p, wr_len %d\n", __func__, wr,
-	    wr->wr_len);
-
-	/* free(wr, M_CXGBE); */
-}
-
-static void
-resolution_failed(struct l2t_entry *e)
-{
-	struct wrqe *wr;
+	struct tom_data *td = sc->tom_softc;
 
 	mtx_assert(&e->lock, MA_OWNED);
 
-	while ((wr = STAILQ_FIRST(&e->wr_list)) != NULL) {
-		STAILQ_REMOVE_HEAD(&e->wr_list, link);
-		resolution_failed_for_wr(wr);
-	}
+	mtx_lock(&td->unsent_wr_lock);
+	STAILQ_CONCAT(&td->unsent_wr_list, &e->wr_list);
+	mtx_unlock(&td->unsent_wr_lock);
+
+	taskqueue_enqueue(taskqueue_thread, &td->reclaim_wr_resources);
 }
 
 static void
@@ -203,7 +196,7 @@ update_entry(struct adapter *sc, struct l2t_entry *e, uint8_t *lladdr,
 		 * need to wlock the table).
 		 */
 		e->state = L2T_STATE_FAILED;
-		resolution_failed(e);
+		resolution_failed(sc, e);
 		return;
 
 	} else if (lladdr == NULL) {
@@ -305,12 +298,11 @@ again:
 		if (e->state == L2T_STATE_VALID && !STAILQ_EMPTY(&e->wr_list))
 			send_pending(sc, e);
 		if (e->state == L2T_STATE_FAILED)
-			resolution_failed(e);
+			resolution_failed(sc, e);
 		mtx_unlock(&e->lock);
 		break;
 
 	case L2T_STATE_FAILED:
-		resolution_failed_for_wr(wr);
 		return (EHOSTUNREACH);
 	}
 

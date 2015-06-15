@@ -19,6 +19,7 @@ SRCS=	SBAddress.cpp \
 	SBDeclaration.cpp \
 	SBError.cpp \
 	SBEvent.cpp \
+	SBExecutionContext.cpp \
 	SBExpressionOptions.cpp \
 	SBFileSpec.cpp \
 	SBFileSpecList.cpp \
@@ -43,19 +44,25 @@ SRCS=	SBAddress.cpp \
 	SBSymbolContext.cpp \
 	SBSymbolContextList.cpp \
 	SBTarget.cpp \
+	SBThreadCollection.cpp \
+	SBThreadPlan.cpp \
 	SBThread.cpp \
 	SBType.cpp \
 	SBTypeCategory.cpp \
+	SBTypeEnumMember.cpp \
 	SBTypeFilter.cpp \
 	SBTypeFormat.cpp \
 	SBTypeNameSpecifier.cpp \
 	SBTypeSummary.cpp \
 	SBTypeSynthetic.cpp \
+	SBUnixSignals.cpp \
 	SBValue.cpp \
 	SBValueList.cpp \
 	SBWatchpoint.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

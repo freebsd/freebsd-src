@@ -141,8 +141,8 @@ mount_autofs(const char *from, const char *fspath, const char *options,
 }
 
 static void
-mount_if_not_already(const struct node *n, const char *map,
-    const struct statfs *mntbuf, int nitems)
+mount_if_not_already(const struct node *n, const char *map, const char *options,
+    const char *prefix, const struct statfs *mntbuf, int nitems)
 {
 	const struct statfs *sb;
 	char *mountpoint;
@@ -175,7 +175,7 @@ mount_if_not_already(const struct node *n, const char *map,
 		    mountpoint);
 	}
 
-	mount_autofs(from, mountpoint, n->n_options, n->n_key);
+	mount_autofs(from, mountpoint, options, prefix);
 	free(from);
 	free(mountpoint);
 }
@@ -184,7 +184,7 @@ static void
 mount_unmount(struct node *root)
 {
 	struct statfs *mntbuf;
-	struct node *n, *n2, *n3;
+	struct node *n, *n2;
 	int i, nitems;
 
 	nitems = getmntinfo(&mntbuf, MNT_WAIT);
@@ -216,16 +216,66 @@ mount_unmount(struct node *root)
 
 	TAILQ_FOREACH(n, &root->n_children, n_next) {
 		if (!node_is_direct_map(n)) {
-			mount_if_not_already(n, n->n_map, mntbuf, nitems);
+			mount_if_not_already(n, n->n_map, n->n_options,
+			    n->n_key, mntbuf, nitems);
 			continue;
 		}
 
 		TAILQ_FOREACH(n2, &n->n_children, n_next) {
-			TAILQ_FOREACH(n3, &n2->n_children, n_next) {
-				mount_if_not_already(n3, n->n_map,
-				    mntbuf, nitems);
-			}
+			mount_if_not_already(n2, n->n_map, n->n_options,
+			    "/", mntbuf, nitems);
 		}
+	}
+}
+
+static void
+flush_autofs(const char *fspath)
+{
+	struct iovec *iov = NULL;
+	char errmsg[255];
+	int error, iovlen = 0;
+
+	log_debugx("flushing %s", fspath);
+	memset(errmsg, 0, sizeof(errmsg));
+
+	build_iovec(&iov, &iovlen, "fstype",
+	    __DECONST(void *, "autofs"), (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath",
+	    __DECONST(void *, fspath), (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg",
+	    errmsg, sizeof(errmsg));
+
+	error = nmount(iov, iovlen, MNT_UPDATE);
+	if (error != 0) {
+		if (*errmsg != '\0') {
+			log_err(1, "cannot flush %s: %s",
+			    fspath, errmsg);
+		} else {
+			log_err(1, "cannot flush %s", fspath);
+		}
+	}
+}
+
+static void
+flush_caches(void)
+{
+	struct statfs *mntbuf;
+	int i, nitems;
+
+	nitems = getmntinfo(&mntbuf, MNT_WAIT);
+	if (nitems <= 0)
+		log_err(1, "getmntinfo");
+
+	log_debugx("flushing autofs caches");
+
+	for (i = 0; i < nitems; i++) {
+		if (strcmp(mntbuf[i].f_fstypename, "autofs") != 0) {
+			log_debugx("skipping %s, filesystem type is not autofs",
+			    mntbuf[i].f_mntonname);
+			continue;
+		}
+
+		flush_autofs(mntbuf[i].f_mntonname);
 	}
 }
 
@@ -262,7 +312,7 @@ static void
 usage_automount(void)
 {
 
-	fprintf(stderr, "usage: automount [-D name=value][-o opts][-Lfuv]\n");
+	fprintf(stderr, "usage: automount [-D name=value][-o opts][-Lcfuv]\n");
 	exit(1);
 }
 
@@ -272,7 +322,7 @@ main_automount(int argc, char **argv)
 	struct node *root;
 	int ch, debug = 0, show_maps = 0;
 	char *options = NULL;
-	bool do_unmount = false, force_unmount = false;
+	bool do_unmount = false, force_unmount = false, flush = false;
 
 	/*
 	 * Note that in automount(8), the only purpose of variable
@@ -280,7 +330,7 @@ main_automount(int argc, char **argv)
 	 */
 	defined_init();
 
-	while ((ch = getopt(argc, argv, "D:Lfo:uv")) != -1) {
+	while ((ch = getopt(argc, argv, "D:Lfco:uv")) != -1) {
 		switch (ch) {
 		case 'D':
 			defined_parse_and_add(optarg);
@@ -288,16 +338,14 @@ main_automount(int argc, char **argv)
 		case 'L':
 			show_maps++;
 			break;
+		case 'c':
+			flush = true;
+			break;
 		case 'f':
 			force_unmount = true;
 			break;
 		case 'o':
-			if (options == NULL) {
-				options = checked_strdup(optarg);
-			} else {
-				options =
-				    separated_concat(options, optarg, ',');
-			}
+			options = concat(options, ',', optarg);
 			break;
 		case 'u':
 			do_unmount = true;
@@ -319,6 +367,11 @@ main_automount(int argc, char **argv)
 
 	log_init(debug);
 
+	if (flush) {
+		flush_caches();
+		return (0);
+	}
+
 	if (do_unmount) {
 		unmount_automounted(force_unmount);
 		return (0);
@@ -328,16 +381,12 @@ main_automount(int argc, char **argv)
 	parse_master(root, AUTO_MASTER_PATH);
 
 	if (show_maps) {
-		if (options != NULL) {
-			root->n_options = separated_concat(options,
-			    root->n_options, ',');
-		}
 		if (show_maps > 1) {
 			node_expand_indirect_maps(root);
 			node_expand_ampersand(root, NULL);
 		}
 		node_expand_defined(root);
-		node_print(root);
+		node_print(root, options);
 		return (0);
 	}
 

@@ -71,6 +71,7 @@ int cvm_oct_mdio_read(struct ifnet *ifp, int phy_id, int location)
 	cvmx_write_csr(CVMX_SMI_CMD, smi_cmd.u64);
 
 	do {
+		cvmx_wait(1000);
 		smi_rd.u64 = cvmx_read_csr(CVMX_SMI_RD_DAT);
 	} while (smi_rd.s.pending);
 
@@ -108,6 +109,7 @@ void cvm_oct_mdio_write(struct ifnet *ifp, int phy_id, int location, int val)
 	cvmx_write_csr(CVMX_SMI_CMD, smi_cmd.u64);
 
 	do {
+		cvmx_wait(1000);
 		smi_wr.u64 = cvmx_read_csr(CVMX_SMI_WR_DAT);
 	} while (smi_wr.s.pending);
 	MDIO_UNLOCK();

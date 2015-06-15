@@ -17,13 +17,16 @@
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 MCSymbol *MSP430MCInstLower::
@@ -48,8 +51,9 @@ GetExternalSymbolSymbol(const MachineOperand &MO) const {
 
 MCSymbol *MSP430MCInstLower::
 GetJumpTableSymbol(const MachineOperand &MO) const {
+  const DataLayout *DL = Printer.TM.getSubtargetImpl()->getDataLayout();
   SmallString<256> Name;
-  raw_svector_ostream(Name) << Printer.MAI->getPrivateGlobalPrefix() << "JTI"
+  raw_svector_ostream(Name) << DL->getPrivateGlobalPrefix() << "JTI"
                             << Printer.getFunctionNumber() << '_'
                             << MO.getIndex();
 
@@ -64,8 +68,9 @@ GetJumpTableSymbol(const MachineOperand &MO) const {
 
 MCSymbol *MSP430MCInstLower::
 GetConstantPoolIndexSymbol(const MachineOperand &MO) const {
+  const DataLayout *DL = Printer.TM.getSubtargetImpl()->getDataLayout();
   SmallString<256> Name;
-  raw_svector_ostream(Name) << Printer.MAI->getPrivateGlobalPrefix() << "CPI"
+  raw_svector_ostream(Name) << DL->getPrivateGlobalPrefix() << "CPI"
                             << Printer.getFunctionNumber() << '_'
                             << MO.getIndex();
 

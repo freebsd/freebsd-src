@@ -40,6 +40,7 @@
 #define	_MACHINE_ATOMIC_H_
 
 #include <sys/types.h>
+#include <machine/armreg.h>
 
 #ifndef _KERNEL
 #include <machine/sysarch.h>
@@ -67,12 +68,7 @@
 #define wmb()  dmb()
 #define rmb()  dmb()
 
-#ifndef I32_bit
-#define I32_bit (1 << 7)        /* IRQ disable */
-#endif
-#ifndef F32_bit
-#define F32_bit (1 << 6)        /* FIQ disable */
-#endif
+
 
 /*
  * It would be nice to use _HAVE_ARMv6_INSTRUCTIONS from machine/asm.h
@@ -155,10 +151,10 @@ atomic_set_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   orr      %Q[tmp], %Q[val]\n"
 		"   orr      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -208,10 +204,10 @@ atomic_clear_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   bic      %Q[tmp], %Q[val]\n"
 		"   bic      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -267,13 +263,13 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
-		"   teq      %Q[tmp], %Q[cmp]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
+		"   teq      %Q[tmp], %Q[cmpval]\n"
 		"   itee eq  \n"
-		"   teqeq    %R[tmp], %R[cmp]\n"
+		"   teqeq    %R[tmp], %R[cmpval]\n"
 		"   movne    %[ret], #0\n"
 		"   bne      2f\n"
-		"   strexd   %[ret], %[new], [%[ptr]]\n"
+		"   strexd   %[ret], %Q[newval], %R[newval], [%[ptr]]\n"
 		"   teq      %[ret], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -282,8 +278,8 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 		:   [ret]    "=&r"  (ret), 
 		    [tmp]    "=&r"  (tmp)
 		:   [ptr]    "r"    (p), 
-		    [cmp]    "r"    (cmpval), 
-		    [new]    "r"    (newval)
+		    [cmpval] "r"    (cmpval), 
+		    [newval] "r"    (newval)
 		:   "cc", "memory");
 	return (ret);
 }
@@ -385,10 +381,10 @@ atomic_add_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   adds     %Q[tmp], %Q[val]\n"
-		"   adc      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   adc      %R[tmp], %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -437,10 +433,10 @@ atomic_subtract_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   subs     %Q[tmp], %Q[val]\n"
-		"   sbc      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   sbc      %R[tmp], %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -540,10 +536,10 @@ atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   adds     %Q[tmp], %Q[ret], %Q[val]\n"
 		"   adc      %R[tmp], %R[ret], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -564,10 +560,10 @@ atomic_readandclear_64(volatile uint64_t *p)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   ldrexd   %Q[ret], %R[ret], [%[ptr]]\n"
 		"   mov      %Q[tmp], #0\n"
 		"   mov      %R[tmp], #0\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -586,12 +582,12 @@ atomic_load_64(volatile uint64_t *p)
 
 	/*
 	 * The only way to atomically load 64 bits is with LDREXD which puts the
-	 * exclusive monitor into the open state, so reset it with CLREX because
-	 * we don't actually need to store anything.
+	 * exclusive monitor into the exclusive state, so reset it to open state
+	 * with CLREX because we don't actually need to store anything.
 	 */
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   ldrexd   %Q[ret], %R[ret], [%[ptr]]\n"
 		"   clrex    \n"
 		:   [ret]    "=&r"  (ret)
 		:   [ptr]    "r"    (p)
@@ -622,8 +618,8 @@ atomic_store_64(volatile uint64_t *p, uint64_t val)
 	 */
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
-		"   strexd   %[exf], %[val], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -702,7 +698,7 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 			"orr  %1, %0, %2;"		\
 			"msr  cpsr_fsxc, %1;"		\
 			: "=r" (cpsr_save), "=r" (tmp)	\
-			: "I" (I32_bit | F32_bit)		\
+			: "I" (PSR_I | PSR_F)		\
 		        : "cc" );		\
 		(expr);				\
 		 __asm __volatile(		\

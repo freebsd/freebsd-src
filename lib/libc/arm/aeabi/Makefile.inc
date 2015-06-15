@@ -5,8 +5,10 @@
 SRCS+=	aeabi_atexit.c		\
 	aeabi_unwind_cpp.c	\
 	aeabi_unwind_exidx.c
-.if ${MACHINE_ARCH} != "armv6hf"
-SRCS+=	aeabi_double.c		\
+.if ${MACHINE_ARCH:Marm*hf*} == ""
+SRCS+=	aeabi_asm_double.S	\
+	aeabi_asm_float.S	\
+	aeabi_double.c		\
 	aeabi_float.c
 .endif
 .if ${MACHINE_ARCH:Marmv6*}
@@ -18,7 +20,7 @@ SRCS+=	aeabi_vfp_double.S	\
 # libc. This causes issues when other parts of libc call these functions.
 # We work around this by including these functions in libc but mark them as
 # hidden so users of libc will not pick up these versions.
-.PATH: ${LIBC_SRCTOP}/../../contrib/compiler-rt/lib/arm
+.PATH: ${LIBC_SRCTOP}/../../contrib/compiler-rt/lib/builtins/arm
 
 SRCS+=	aeabi_memcmp.S		\
 	aeabi_memcpy.S		\

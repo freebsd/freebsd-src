@@ -282,7 +282,7 @@ vn_rename(char *from, char *to, enum uio_seg seg)
 
 	ASSERT(seg == UIO_SYSSPACE);
 
-	return (kern_rename(curthread, from, to, seg));
+	return (kern_renameat(curthread, AT_FDCWD, from, AT_FDCWD, to, seg));
 }
 
 static __inline int
@@ -292,7 +292,7 @@ vn_remove(char *fnamep, enum uio_seg seg, enum rm dirflag)
 	ASSERT(seg == UIO_SYSSPACE);
 	ASSERT(dirflag == RMFILE);
 
-	return (kern_unlink(curthread, fnamep, seg));
+	return (kern_unlinkat(curthread, AT_FDCWD, fnamep, seg, 0));
 }
 
 #endif	/* _KERNEL */

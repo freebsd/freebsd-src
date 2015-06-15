@@ -14,16 +14,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "NVPTX.h"
-#include "llvm/Pass.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "nvptx-prolog-epilog"
 
 namespace {
 class NVPTXPrologEpilogPass : public MachineFunctionPass {
@@ -31,7 +34,7 @@ public:
   static char ID;
   NVPTXPrologEpilogPass() : MachineFunctionPass(ID) {}
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
 private:
   void calculateFrameObjectOffsets(MachineFunction &Fn);
@@ -46,8 +49,8 @@ char NVPTXPrologEpilogPass::ID = 0;
 
 bool NVPTXPrologEpilogPass::runOnMachineFunction(MachineFunction &MF) {
   const TargetMachine &TM = MF.getTarget();
-  const TargetFrameLowering &TFI = *TM.getFrameLowering();
-  const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
+  const TargetFrameLowering &TFI = *TM.getSubtargetImpl()->getFrameLowering();
+  const TargetRegisterInfo &TRI = *TM.getSubtargetImpl()->getRegisterInfo();
   bool Modified = false;
 
   calculateFrameObjectOffsets(MF);
@@ -58,7 +61,7 @@ bool NVPTXPrologEpilogPass::runOnMachineFunction(MachineFunction &MF) {
       for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
         if (!MI->getOperand(i).isFI())
           continue;
-        TRI.eliminateFrameIndex(MI, 0, i, NULL);
+        TRI.eliminateFrameIndex(MI, 0, i, nullptr);
         Modified = true;
       }
     }
@@ -106,8 +109,8 @@ AdjustStackOffset(MachineFrameInfo *MFI, int FrameIdx,
 
 void
 NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
-  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
-  const TargetRegisterInfo *RegInfo = Fn.getTarget().getRegisterInfo();
+  const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
+  const TargetRegisterInfo *RegInfo = Fn.getSubtarget().getRegisterInfo();
 
   bool StackGrowsDown =
     TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;

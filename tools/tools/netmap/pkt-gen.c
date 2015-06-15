@@ -183,6 +183,8 @@ struct glob_arg {
 #define OPT_DUMP	64	/* dump rx/tx traffic */
 #define OPT_MONITOR_TX  128
 #define OPT_MONITOR_RX  256
+#define OPT_RANDOM_SRC  512
+#define OPT_RANDOM_DST  1024
 	int dev_type;
 #ifndef NO_PCAP
 	pcap_t *p;
@@ -202,6 +204,7 @@ struct glob_arg {
 	int dummy_send;
 	int virt_header;	/* send also the virt_header */
 	int extra_bufs;		/* goes in nr_arg3 */
+	char *packet_file;	/* -P option */
 };
 enum dev_type { DEV_NONE, DEV_NETMAP, DEV_PCAP, DEV_TAP };
 
@@ -224,6 +227,7 @@ struct targ {
 	int affinity;
 
 	struct pkt pkt;
+	void *frame;
 };
 
 
@@ -565,32 +569,44 @@ update_addresses(struct pkt *pkt, struct glob_arg *g)
 	struct udphdr *udp = &pkt->udp;
 
     do {
-	p = ntohs(udp->uh_sport);
-	if (p < g->src_ip.port1) { /* just inc, no wrap */
-		udp->uh_sport = htons(p + 1);
-		break;
-	}
-	udp->uh_sport = htons(g->src_ip.port0);
+    	/* XXX for now it doesn't handle non-random src, random dst */
+	if (g->options & OPT_RANDOM_SRC) {
+		udp->uh_sport = random();
+		ip->ip_src.s_addr = random();
+	} else {
+		p = ntohs(udp->uh_sport);
+		if (p < g->src_ip.port1) { /* just inc, no wrap */
+			udp->uh_sport = htons(p + 1);
+			break;
+		}
+		udp->uh_sport = htons(g->src_ip.port0);
 
-	a = ntohl(ip->ip_src.s_addr);
-	if (a < g->src_ip.end) { /* just inc, no wrap */
-		ip->ip_src.s_addr = htonl(a + 1);
-		break;
-	}
-	ip->ip_src.s_addr = htonl(g->src_ip.start);
+		a = ntohl(ip->ip_src.s_addr);
+		if (a < g->src_ip.end) { /* just inc, no wrap */
+			ip->ip_src.s_addr = htonl(a + 1);
+			break;
+		}
+		ip->ip_src.s_addr = htonl(g->src_ip.start);
 
-	udp->uh_sport = htons(g->src_ip.port0);
-	p = ntohs(udp->uh_dport);
-	if (p < g->dst_ip.port1) { /* just inc, no wrap */
-		udp->uh_dport = htons(p + 1);
-		break;
+		udp->uh_sport = htons(g->src_ip.port0);
 	}
-	udp->uh_dport = htons(g->dst_ip.port0);
 
-	a = ntohl(ip->ip_dst.s_addr);
-	if (a < g->dst_ip.end) { /* just inc, no wrap */
-		ip->ip_dst.s_addr = htonl(a + 1);
-		break;
+	if (g->options & OPT_RANDOM_DST) {
+		udp->uh_dport = random();
+		ip->ip_dst.s_addr = random();
+	} else {
+		p = ntohs(udp->uh_dport);
+		if (p < g->dst_ip.port1) { /* just inc, no wrap */
+			udp->uh_dport = htons(p + 1);
+			break;
+		}
+		udp->uh_dport = htons(g->dst_ip.port0);
+
+		a = ntohl(ip->ip_dst.s_addr);
+		if (a < g->dst_ip.end) { /* just inc, no wrap */
+			ip->ip_dst.s_addr = htonl(a + 1);
+			break;
+		}
 	}
 	ip->ip_dst.s_addr = htonl(g->dst_ip.start);
     } while (0);
@@ -612,6 +628,28 @@ initialize_packet(struct targ *targ)
 	const char *payload = targ->g->options & OPT_INDIRECT ?
 		indirect_payload : default_payload;
 	int i, l0 = strlen(payload);
+
+	char errbuf[PCAP_ERRBUF_SIZE];
+	pcap_t *file;
+	struct pcap_pkthdr *header;
+	const unsigned char *packet;
+	
+	/* Read a packet from a PCAP file if asked. */
+	if (targ->g->packet_file != NULL) {
+		if ((file = pcap_open_offline(targ->g->packet_file,
+			    errbuf)) == NULL)
+			D("failed to open pcap file %s",
+			    targ->g->packet_file);
+		if (pcap_next_ex(file, &header, &packet) < 0)
+			D("failed to read packet from %s",
+			    targ->g->packet_file);
+		if ((targ->frame = malloc(header->caplen)) == NULL)
+			D("out of memory");
+		bcopy(packet, (unsigned char *)targ->frame, header->caplen);
+		targ->g->pkt_size = header->caplen;
+		pcap_close(file);
+		return;
+	}
 
 	/* create a nice NUL-terminated string */
 	for (i = 0; i < paylen; i += l0) {
@@ -782,7 +820,6 @@ pinger_body(void *data)
 	frame = &targ->pkt;
 	frame += sizeof(targ->pkt.vh) - targ->g->virt_header;
 	size = targ->g->pkt_size + targ->g->virt_header;
-
 
 	if (targ->g->nthreads > 1) {
 		D("can only ping with 1 thread");
@@ -1038,10 +1075,15 @@ sender_body(void *data)
 	void *frame;
 	int size;
 
-	frame = pkt;
-	frame += sizeof(pkt->vh) - targ->g->virt_header;
-	size = targ->g->pkt_size + targ->g->virt_header;
-
+	if (targ->frame == NULL) {
+		frame = pkt;
+		frame += sizeof(pkt->vh) - targ->g->virt_header;
+		size = targ->g->pkt_size + targ->g->virt_header;
+	} else {
+		frame = targ->frame;
+		size = targ->g->pkt_size;
+	}
+	
 	D("start, fd %d main_fd %d", targ->fd, targ->g->main_fd);
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
@@ -1366,6 +1408,9 @@ usage(void)
 		"\t-R rate		in packets per second\n"
 		"\t-X			dump payload\n"
 		"\t-H len		add empty virtio-net-header with size 'len'\n"
+	        "\t-P file		load packet from pcap file\n"
+		"\t-z			use random IPv4 src address/port\n"
+		"\t-Z			use random IPv4 dst address/port\n"
 		"",
 		cmd);
 
@@ -1638,7 +1683,7 @@ main(int arc, char **argv)
 	g.virt_header = 0;
 
 	while ( (ch = getopt(arc, argv,
-			"a:f:F:n:i:Il:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:e:m:")) != -1) {
+			"a:f:F:n:i:Il:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:e:m:P:zZ")) != -1) {
 		struct sf *fn;
 
 		switch(ch) {
@@ -1781,10 +1826,19 @@ main(int arc, char **argv)
 				D("unrecognized monitor mode %s", optarg);
 			}
 			break;
+		case 'P':
+			g.packet_file = strdup(optarg);
+			break;
+		case 'z':
+			g.options |= OPT_RANDOM_SRC;
+			break;
+		case 'Z':
+			g.options |= OPT_RANDOM_DST;
+			break;
 		}
 	}
 
-	if (g.ifname == NULL) {
+	if (strlen(g.ifname) <=0 ) {
 		D("missing ifname");
 		usage();
 	}

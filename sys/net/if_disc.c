@@ -50,6 +50,7 @@
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -66,7 +67,6 @@ struct disc_softc {
 
 static int	discoutput(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
-static void	discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	discioctl(struct ifnet *, u_long, caddr_t);
 static int	disc_clone_create(struct if_clone *, int, caddr_t);
 static void	disc_clone_destroy(struct ifnet *);
@@ -74,7 +74,8 @@ static void	disc_clone_destroy(struct ifnet *);
 static const char discname[] = "disc";
 static MALLOC_DEFINE(M_DISC, discname, "Discard interface");
 
-static struct if_clone *disc_cloner;
+static VNET_DEFINE(struct if_clone *, disc_cloner);
+#define	V_disc_cloner	VNET(disc_cloner)
 
 static int
 disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
@@ -129,17 +130,32 @@ disc_clone_destroy(struct ifnet *ifp)
 	free(sc, M_DISC);
 }
 
+static void
+vnet_disc_init(const void *unused __unused)
+{
+
+	V_disc_cloner = if_clone_simple(discname, disc_clone_create,
+	    disc_clone_destroy, 0);
+}
+VNET_SYSINIT(vnet_disc_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_disc_init, NULL);
+
+static void
+vnet_disc_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(V_disc_cloner);
+}
+VNET_SYSUNINIT(vnet_disc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_disc_uninit, NULL);
+
 static int
 disc_modevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
 	case MOD_LOAD:
-		disc_cloner = if_clone_simple(discname, disc_clone_create,
-		    disc_clone_destroy, 0);
-		break;
 	case MOD_UNLOAD:
-		if_clone_detach(disc_cloner);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -174,19 +190,11 @@ discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	m->m_pkthdr.rcvif = ifp;
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	m_freem(m);
 	return (0);
-}
-
-/* ARGSUSED */
-static void
-discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
-{
-	RT_LOCK_ASSERT(rt);
-	rt->rt_mtu = DSMTU;
 }
 
 /*
@@ -195,22 +203,17 @@ discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 static int
 discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ifaddr *ifa;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
 	switch (cmd) {
-
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
-		ifa = (struct ifaddr *)data;
-		if (ifa != 0)
-			ifa->ifa_rtrequest = discrtrequest;
+
 		/*
 		 * Everything else is done at a higher level.
 		 */
 		break;
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (ifr == 0) {
@@ -218,7 +221,6 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		switch (ifr->ifr_addr.sa_family) {
-
 #ifdef INET
 		case AF_INET:
 			break;
@@ -227,17 +229,14 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case AF_INET6:
 			break;
 #endif
-
 		default:
 			error = EAFNOSUPPORT;
 			break;
 		}
 		break;
-
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
 		break;
-
 	default:
 		error = EINVAL;
 	}

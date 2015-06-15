@@ -29,6 +29,7 @@
 #include "lldb/DataFormatters/TypeFormat.h"
 #include "lldb/DataFormatters/TypeSummary.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
+#include "lldb/DataFormatters/TypeValidator.h"
 
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangASTType.h"
@@ -37,6 +38,8 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/TargetList.h"
+
+#include "lldb/Utility/StringLexer.h"
 
 namespace lldb_private {
     
@@ -58,18 +61,6 @@ public:
     
 };
     
-static inline bool
-IsWhitespace (char c)
-{
-    return ( (c == ' ') || (c == '\t') || (c == '\v') || (c == '\f') );
-}
-
-static inline bool
-HasPrefix (const char* str1, const char* str2)
-{
-    return ( ::strstr(str1, str2) == str1 );
-}
-    
 // if the user tries to add formatters for, say, "struct Foo"
 // those will not match any type because of the way we strip qualifiers from typenames
 // this method looks for the case where the user is adding a "class","struct","enum" or "union" Foo
@@ -77,32 +68,23 @@ HasPrefix (const char* str1, const char* str2)
 static inline ConstString
 GetValidTypeName_Impl (const ConstString& type)
 {
-    int strip_len = 0;
-    
-    if ((bool)type == false)
+    if (type.IsEmpty())
         return type;
     
-    const char* type_cstr = type.AsCString();
+    std::string type_cstr(type.AsCString());
+    lldb_utility::StringLexer type_lexer(type_cstr);
     
-    if ( HasPrefix(type_cstr, "class ") )
-        strip_len = 6;
-    else if ( HasPrefix(type_cstr, "enum ") )
-        strip_len = 5;
-    else if ( HasPrefix(type_cstr, "struct ") )
-        strip_len = 7;
-    else if ( HasPrefix(type_cstr, "union ") )
-        strip_len = 6;
+    type_lexer.AdvanceIf("class ");
+    type_lexer.AdvanceIf("enum ");
+    type_lexer.AdvanceIf("struct ");
+    type_lexer.AdvanceIf("union ");
     
-    if (strip_len == 0)
-        return type;
-    
-    type_cstr += strip_len;
-    while (IsWhitespace(*type_cstr) && ++type_cstr)
+    while (type_lexer.NextIf({' ','\t','\v','\f'}).first)
         ;
     
-    return ConstString(type_cstr);
+    return ConstString(type_lexer.GetUnlexed());
 }
-    
+
 template<typename KeyType, typename ValueType>
 class FormattersContainer;
 
@@ -267,8 +249,7 @@ public:
     FormattersContainer(std::string name,
                     IFormatChangeListener* lst) :
     m_format_map(lst),
-    m_name(name),
-    m_id_cs(ConstString("id"))
+    m_name(name)
     {
     }
     
@@ -345,15 +326,11 @@ public:
     }
     
 protected:
-        
     BackEndType m_format_map;
-    
     std::string m_name;
     
     DISALLOW_COPY_AND_ASSIGN(FormattersContainer);
     
-    ConstString m_id_cs;
-                           
     void
     Add_Impl (const MapKeyType &type, const MapValueType& entry, lldb::RegularExpressionSP *dummy)
     {

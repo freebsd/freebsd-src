@@ -44,10 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/fdt.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 
 struct a10_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
@@ -217,6 +218,16 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, struct gpio_pin *pin,
 	A10_GPIO_UNLOCK(sc);
 }
 
+static device_t
+a10_gpio_get_bus(device_t dev)
+{
+	struct a10_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
+}
+
 static int
 a10_gpio_pin_max(device_t dev, int *maxpin)
 {
@@ -300,20 +311,6 @@ a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	}
 
 	if (i >= sc->sc_gpio_npins)
-		return (EINVAL);
-
-	/* Check for unwanted flags. */
-	if ((flags & sc->sc_gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together. */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
-	/* Can't mix pull-up/pull-down together. */
-	if ((flags & (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN)) ==
-	    (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN))
 		return (EINVAL);
 
 	a10_gpio_pin_configure(sc, &sc->sc_gpio_pins[i], flags);
@@ -441,7 +438,7 @@ a10_gpio_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
@@ -451,9 +448,8 @@ a10_gpio_attach(device_t dev)
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Find our node. */
@@ -473,19 +469,20 @@ a10_gpio_attach(device_t dev)
 		sc->sc_gpio_pins[i].gp_flags = a10_gpio_func_flag(func);
 	}
 	sc->sc_gpio_npins = i;
-
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
-
 	a10_gpio_sc = sc;
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
 
-	return (bus_generic_attach(dev));
+	return (0);
 
 fail:
 	if (sc->sc_irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	mtx_destroy(&sc->sc_mtx);
+
 	return (ENXIO);
 }
 
@@ -503,6 +500,7 @@ static device_method_t a10_gpio_methods[] = {
 	DEVMETHOD(device_detach,	a10_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		a10_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		a10_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	a10_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	a10_gpio_pin_getflags),

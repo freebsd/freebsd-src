@@ -93,17 +93,9 @@ __FBSDID("$FreeBSD$");
 #define FREQ_48MHZ    48000000
 #define FREQ_32KHZ    32000
 
-/**
- *	We need three memory regions to cover all the clock configuration registers.
- *	
- *	   PRM Instance -  0x4A30 6000 : 0x4A30 8000
- *	   CM1 Instance -  0x4A00 4000 : 0x4A00 5000
- *	   CM2 Instance -  0x4A00 8000 : 0x4A00 A000
- *
- */
-#define PRM_INSTANCE_MEM_REGION    0
-#define CM1_INSTANCE_MEM_REGION    1
-#define CM2_INSTANCE_MEM_REGION    2
+#define PRM_INSTANCE    1
+#define CM1_INSTANCE    2
+#define CM2_INSTANCE    3
 
 /**
  *	Address offsets from the PRM memory region to the top level clock control
@@ -174,18 +166,18 @@ __FBSDID("$FreeBSD$");
 #define CLKCTRL_IDLEST_IDLE           0x00020000UL
 #define CLKCTRL_IDLEST_DISABLED       0x00030000UL
 
-static struct resource_spec omap4_scm_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Control memory window */
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* Control memory window */
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },	/* Control memory window */
-	{ -1, 0 }
+static struct ofw_compat_data compat_data[] = {
+	{"ti,omap4-cm1",	(uintptr_t)CM1_INSTANCE},
+	{"ti,omap4-cm2",	(uintptr_t)CM2_INSTANCE},
+	{"ti,omap4-prm",	(uintptr_t)PRM_INSTANCE},
+	{NULL,			(uintptr_t)0},
 };
 
 struct omap4_prcm_softc {
-	struct resource	*sc_res[3];
+	struct resource	*sc_res;
+	int		sc_rid;
+	int		sc_instance;
 };
-
-static struct omap4_prcm_softc *omap4_prcm_sc;
 
 static int omap4_clk_generic_activate(struct ti_clock_dev *clkdev);
 static int omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev);
@@ -283,17 +275,17 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 	OMAP4_GENERIC_CLOCK_DEV(UART4_CLK),
 	
 	/* Timer device source clocks */
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER1_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER2_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER3_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER4_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER5_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER6_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER7_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER8_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER9_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER10_CLK),
-	OMAP4_GPTIMER_CLOCK_DEV(GPTIMER11_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER1_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER2_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER3_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER4_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER5_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER6_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER7_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER8_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER9_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER10_CLK),
+	OMAP4_GPTIMER_CLOCK_DEV(TIMER11_CLK),
 	
 	/* MMC device clocks (MMC1 and MMC2 can have different input clocks) */
 	OMAP4_HSMMC_CLOCK_DEV(MMC1_CLK),
@@ -344,7 +336,7 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 struct omap4_clk_details {
 	clk_ident_t id;
 	
-	uint32_t    mem_region;
+	uint32_t    instance;
 	uint32_t    clksel_reg;
 	
 	int32_t     src_freq;
@@ -352,9 +344,9 @@ struct omap4_clk_details {
 	uint32_t    enable_mode;
 };
 
-#define OMAP4_GENERIC_CLOCK_DETAILS(i, f, m, r, e) \
+#define OMAP4_GENERIC_CLOCK_DETAILS(i, f, di, r, e) \
 	{	.id = (i), \
-		.mem_region = (m), \
+		.instance = (di), \
 		.clksel_reg = (r), \
 		.src_freq = (f), \
 		.enable_mode = (e), \
@@ -363,77 +355,77 @@ struct omap4_clk_details {
 static struct omap4_clk_details g_omap4_clk_details[] = {
 
 	/* UART */
-	OMAP4_GENERIC_CLOCK_DETAILS(UART1_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(UART1_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0140), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(UART2_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(UART2_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0148), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(UART3_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(UART3_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0140), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(UART4_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(UART4_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0148), CLKCTRL_MODULEMODE_ENABLE),
 
 	/* General purpose timers */
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER1_CLK,  -1, PRM_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER1_CLK,  -1, PRM_INSTANCE,
 		(WKUP_CM_OFFSET + 0x040), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER2_CLK,  -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER2_CLK,  -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x038), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER3_CLK,  -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER3_CLK,  -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x040), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER4_CLK,  -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER4_CLK,  -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x048), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER5_CLK,  -1, CM1_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER5_CLK,  -1, CM1_INSTANCE,
 		(ABE_CM1_OFFSET + 0x068), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER6_CLK,  -1, CM1_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER6_CLK,  -1, CM1_INSTANCE,
 		(ABE_CM1_OFFSET + 0x070), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER7_CLK,  -1, CM1_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER7_CLK,  -1, CM1_INSTANCE,
 		(ABE_CM1_OFFSET + 0x078), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER8_CLK,  -1, CM1_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER8_CLK,  -1, CM1_INSTANCE,
 		(ABE_CM1_OFFSET + 0x080), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER9_CLK,  -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER9_CLK,  -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x050), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER10_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER10_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x028), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPTIMER11_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER11_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x030), CLKCTRL_MODULEMODE_ENABLE),
 
 	/* HSMMC (MMC1 and MMC2 can have different input clocks) */
-	OMAP4_GENERIC_CLOCK_DETAILS(MMC1_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(MMC1_CLK, -1, CM2_INSTANCE,
 		(L3INIT_CM2_OFFSET + 0x028), /*CLKCTRL_MODULEMODE_ENABLE*/2),
-	OMAP4_GENERIC_CLOCK_DETAILS(MMC2_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(MMC2_CLK, -1, CM2_INSTANCE,
 		(L3INIT_CM2_OFFSET + 0x030), /*CLKCTRL_MODULEMODE_ENABLE*/2),
-	OMAP4_GENERIC_CLOCK_DETAILS(MMC3_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(MMC3_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x120), /*CLKCTRL_MODULEMODE_ENABLE*/2),
-	OMAP4_GENERIC_CLOCK_DETAILS(MMC4_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(MMC4_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x128), /*CLKCTRL_MODULEMODE_ENABLE*/2),
-	OMAP4_GENERIC_CLOCK_DETAILS(MMC5_CLK, FREQ_48MHZ, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(MMC5_CLK, FREQ_48MHZ, CM2_INSTANCE,
 	       (L4PER_CM2_OFFSET + 0x160), /*CLKCTRL_MODULEMODE_ENABLE*/1),
 	
 	/* GPIO modules */
-	OMAP4_GENERIC_CLOCK_DETAILS(GPIO1_CLK, -1, PRM_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(GPIO1_CLK, -1, PRM_INSTANCE,
 		(WKUP_CM_OFFSET + 0x038), CLKCTRL_MODULEMODE_AUTO),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPIO2_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(GPIO2_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x060), CLKCTRL_MODULEMODE_AUTO),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPIO3_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(GPIO3_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x068), CLKCTRL_MODULEMODE_AUTO),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPIO4_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(GPIO4_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x070), CLKCTRL_MODULEMODE_AUTO),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPIO5_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(GPIO5_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x078), CLKCTRL_MODULEMODE_AUTO),
-	OMAP4_GENERIC_CLOCK_DETAILS(GPIO6_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(GPIO6_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x080), CLKCTRL_MODULEMODE_AUTO),
 		
 	/* sDMA block */
-	OMAP4_GENERIC_CLOCK_DETAILS(SDMA_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(SDMA_CLK, -1, CM2_INSTANCE,
 		(CORE_CM2_OFFSET + 0x300), CLKCTRL_MODULEMODE_AUTO),
 
 	/* I2C modules */
-	OMAP4_GENERIC_CLOCK_DETAILS(I2C1_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C1_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0A0), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(I2C2_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C2_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0A8), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(I2C3_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C3_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0B0), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(I2C4_CLK, -1, CM2_INSTANCE_MEM_REGION,
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C4_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0B8), CLKCTRL_MODULEMODE_ENABLE),
 
 	{ INVALID_CLK_IDENT, 0, 0, 0, 0 },
@@ -474,6 +466,27 @@ omap4_clk_details(clk_ident_t id)
 
 	return NULL;
 }
+
+static struct omap4_prcm_softc *
+omap4_prcm_get_instance_softc(int module_instance)
+{
+	int i, maxunit;
+	devclass_t prcm_devclass;
+	device_t dev;
+	struct omap4_prcm_softc *sc;
+
+	prcm_devclass = devclass_find("omap4_prcm");
+	maxunit = devclass_get_maxunit(prcm_devclass);
+
+	for (i = 0; i < maxunit; i++) {
+		dev = devclass_get_device(prcm_devclass, i);
+		sc = device_get_softc(dev);
+		if (sc->sc_instance == module_instance)
+			return (sc);
+	}
+
+	return (NULL);
+}
 	
 /**
  *	omap4_clk_generic_activate - checks if a module is accessible
@@ -492,21 +505,21 @@ omap4_clk_details(clk_ident_t id)
 static int
 omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
 	uint32_t clksel;
 	unsigned int i;
-
-	if (sc == NULL)
-		return ENXIO;
-
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -558,20 +571,21 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 static int
 omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
 	uint32_t clksel;
-
-	if (sc == NULL)
-		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -626,20 +640,21 @@ omap4_clk_generic_set_source(struct ti_clock_dev *clkdev,
 static int
 omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
 	uint32_t clksel;
-
-	if (sc == NULL)
-		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -703,19 +718,20 @@ static int
 omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev,
                              clk_src_t clksrc)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
-
-	if (sc == NULL)
-		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -744,21 +760,22 @@ omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev,
                                   unsigned int *freq
                                   )
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
 	uint32_t clksel;
 	unsigned int src_freq;
-
-	if (sc == NULL)
-		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -793,20 +810,22 @@ static int
 omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
                            clk_src_t clksrc)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
 	uint32_t clksel;
-
-	if (sc == NULL)
-		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -852,21 +871,22 @@ omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
                                 unsigned int *freq
                                 )
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct omap4_clk_details* clk_details;
 	struct resource* clk_mem_res;
 	uint32_t clksel;
 	unsigned int src_freq;
-
-	if (sc == NULL)
-		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
 
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
+	sc = omap4_prcm_get_instance_softc(clk_details->instance);
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_mem_res = sc->sc_res;
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -913,13 +933,14 @@ omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
 {
 	uint32_t clksel;
 	uint32_t sysclk;
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	
+	sc = omap4_prcm_get_instance_softc(PRM_INSTANCE);
 	if (sc == NULL)
 		return ENXIO;
 
 	/* Read the input clock freq from the configuration register (CM_SYS_CLKSEL) */
-	clksel = bus_read_4(sc->sc_res[PRM_INSTANCE_MEM_REGION], CM_SYS_CLKSEL_OFFSET);
+	clksel = bus_read_4(sc->sc_res, CM_SYS_CLKSEL_OFFSET);
 	switch (clksel & 0x7) {
 	case 0x1:
 		/* 12Mhz */
@@ -971,15 +992,16 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 	uint32_t clksel;
 	uint32_t pll_mult, pll_div;
 	uint32_t mpuclk, sysclk;
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 
+	sc = omap4_prcm_get_instance_softc(CM1_INSTANCE);
 	if (sc == NULL)
 		return ENXIO;
 
 	/* Read the clksel register which contains the DPLL multiple and divide
 	 * values.  These are applied to the sysclk.
 	 */
-	clksel = bus_read_4(sc->sc_res[CM1_INSTANCE_MEM_REGION], CM_CLKSEL_DPLL_MPU);
+	clksel = bus_read_4(sc->sc_res, CM_CLKSEL_DPLL_MPU);
 
 	pll_mult = ((clksel >> 8) & 0x7ff);
 	pll_div = (clksel & 0x7f) + 1;
@@ -1050,12 +1072,13 @@ struct dpll_param usb_dpll_param[7] = {
 static int
 omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct resource* clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 	unsigned int i;
 
+	sc = omap4_prcm_get_instance_softc(CM2_INSTANCE);
 	if (sc == NULL)
 		return ENXIO;
 
@@ -1068,7 +1091,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		 */
 
 		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2 register set */
-		clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x68;
 	
 		/* Enable the module and also enable the optional func clocks for
@@ -1103,7 +1126,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		 */
 
 		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
-		clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);	
 		/* Enable the module and also enable the optional func clocks */
@@ -1165,18 +1188,19 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 static int
 omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct resource* clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 
+	sc = omap4_prcm_get_instance_softc(CM2_INSTANCE);
 	if (sc == NULL)
 		return ENXIO;
 
 	switch (clkdev->id) {
 	case USBTLL_CLK:
 		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2 register set */
-		clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x68;
 	
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
@@ -1205,7 +1229,7 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 		 */
 
 		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
-		clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 
@@ -1255,22 +1279,23 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 static int
 omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct resource* clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 
+	sc = omap4_prcm_get_instance_softc(CM2_INSTANCE);
 	if (sc == NULL)
 		return ENXIO;
 
 	if (clkdev->id == USBTLL_CLK) {
 		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2 register set */
-		clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x68;
 	}
 	else if (clkdev->id == USBHSHOST_CLK) {
 		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
-		clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 	}
 	else {
@@ -1304,12 +1329,13 @@ static int
 omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
                                clk_src_t clksrc)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
+	struct omap4_prcm_softc *sc;
 	struct resource* clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 	unsigned int bit;
 
+	sc = omap4_prcm_get_instance_softc(CM2_INSTANCE);
 	if (sc == NULL)
 		return ENXIO;
 
@@ -1321,7 +1347,7 @@ omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
 		return (EINVAL);
 	
 	/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
-	clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];
+	clk_mem_res = sc->sc_res;
 	clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 	clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 	
@@ -1342,10 +1368,15 @@ omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
 static void
 omap4_prcm_reset(void)
 {
-	struct omap4_prcm_softc *sc = omap4_prcm_sc;
-	bus_write_4(sc->sc_res[0], PRM_RSTCTRL,
-	    bus_read_4(sc->sc_res[0], PRM_RSTCTRL) | PRM_RSTCTRL_RESET);
-	bus_read_4(sc->sc_res[0], PRM_RSTCTRL);
+	struct omap4_prcm_softc *sc;
+	
+	sc = omap4_prcm_get_instance_softc(PRM_INSTANCE);
+	if (sc == NULL)
+		return;
+
+	bus_write_4(sc->sc_res, PRM_RSTCTRL,
+	    bus_read_4(sc->sc_res, PRM_RSTCTRL) | PRM_RSTCTRL_RESET);
+	bus_read_4(sc->sc_res, PRM_RSTCTRL);
 }
 
 /**
@@ -1363,15 +1394,31 @@ omap4_prcm_reset(void)
 static int
 omap4_prcm_probe(device_t dev)
 {
+	const struct ofw_compat_data *ocd;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,omap4_prcm"))
+	ocd = ofw_bus_search_compatible(dev, compat_data);
+	if ((int)ocd->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "TI OMAP Power, Reset and Clock Management");
-	return (0);
+	switch ((int)ocd->ocd_data) {
+		case PRM_INSTANCE:
+			device_set_desc(dev, "TI OMAP Power, Reset and Clock Management (PRM)");
+			break;
+		case CM1_INSTANCE:
+			device_set_desc(dev, "TI OMAP Power, Reset and Clock Management (C1)");
+			break;
+		case CM2_INSTANCE:
+			device_set_desc(dev, "TI OMAP Power, Reset and Clock Management (C2)");
+			break;
+		default:
+			device_printf(dev, "unknown instance type: %d\n", (int)ocd->ocd_data);
+			return (ENXIO);
+	}
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 /**
@@ -1393,18 +1440,33 @@ extern uint32_t platform_arm_tmr_freq;
 static int
 omap4_prcm_attach(device_t dev)
 {
-	struct omap4_prcm_softc *sc = device_get_softc(dev);
+	struct omap4_prcm_softc *sc;
 	unsigned int freq;
+	const struct ofw_compat_data *ocd;
 
-	if (bus_alloc_resources(dev, omap4_scm_res_spec, sc->sc_res)) {
+
+	sc = device_get_softc(dev);
+	ocd = ofw_bus_search_compatible(dev, compat_data);
+	sc->sc_instance = (int)ocd->ocd_data;
+
+	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+	    RF_ACTIVE);
+	if (sc->sc_res == NULL) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
 
-	omap4_prcm_sc = sc;
 	ti_cpu_reset = omap4_prcm_reset;
-	omap4_clk_get_arm_fclk_freq(NULL, &freq);
-	arm_tmr_change_frequency(freq / 2);
+
+	/*
+	 * In order to determine ARM frequency we need both RPM and CM1 
+	 * instances up and running. So wait until all CRM devices are
+	 * initialized. Should be replaced with proper clock framework
+	 */
+	if (device_get_unit(dev) == 2) {
+		omap4_clk_get_arm_fclk_freq(NULL, &freq);
+		arm_tmr_change_frequency(freq / 2);
+	}
 
 	return (0);
 }
@@ -1423,5 +1485,6 @@ static driver_t omap4_prcm_driver = {
 
 static devclass_t omap4_prcm_devclass;
 
-DRIVER_MODULE(omap4_prcm, simplebus, omap4_prcm_driver, omap4_prcm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(omap4_prcm, simplebus, omap4_prcm_driver,
+    omap4_prcm_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);
 MODULE_VERSION(omap4_prcm, 1);

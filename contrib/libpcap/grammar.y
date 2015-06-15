@@ -21,10 +21,6 @@
  *
  * $FreeBSD$
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.101 2007-11-18 02:03:52 guy Exp $ (LBL)";
-#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -59,6 +55,7 @@ struct rtentry;
 #include <netpfil/pf/pf.h>
 #include <net/if_pflog.h>
 #endif
+#include "llc.h"
 #include "ieee80211.h"
 #include <pcap/namedb.h>
 
@@ -131,6 +128,23 @@ static const struct tok ieee80211_data_subtypes[] = {
 	{ IEEE80211_FC0_SUBTYPE_QOS|IEEE80211_FC0_SUBTYPE_NODATA, "qos" },
 	{ IEEE80211_FC0_SUBTYPE_QOS|IEEE80211_FC0_SUBTYPE_NODATA_CF_POLL, "qos-cf-poll" },
 	{ IEEE80211_FC0_SUBTYPE_QOS|IEEE80211_FC0_SUBTYPE_NODATA_CF_ACPL, "qos-cf-ack-poll" },
+	{ 0, NULL }
+};
+static const struct tok llc_s_subtypes[] = {
+	{ LLC_RR, "rr" },
+	{ LLC_RNR, "rnr" },
+	{ LLC_REJ, "rej" },
+	{ 0, NULL }
+};
+static const struct tok llc_u_subtypes[] = {
+	{ LLC_UI, "ui" },
+	{ LLC_UA, "ua" },
+	{ LLC_DISC, "disc" },
+	{ LLC_DM, "dm" },
+	{ LLC_SABME, "sabme" },
+	{ LLC_TEST, "test" },
+	{ LLC_XID, "xid" },
+	{ LLC_FRMR, "frmr" },
 	{ 0, NULL }
 };
 struct type2tok {
@@ -262,7 +276,7 @@ pfaction_to_num(const char *action)
 %type	<a>	arth narth
 %type	<i>	byteop pname pnum relop irelop
 %type	<blk>	and or paren not null prog
-%type	<rblk>	other pfvar p80211
+%type	<rblk>	other pfvar p80211 pllc
 %type	<i>	atmtype atmmultitype
 %type	<blk>	atmfield
 %type	<blk>	atmfieldvalue atmvalue atmlistvalue
@@ -295,8 +309,9 @@ pfaction_to_num(const char *action)
 %token	OAM OAMF4 CONNECTMSG METACONNECT
 %token	VPI VCI
 %token	RADIO
-%token	FISU LSSU MSU
-%token	SIO OPC DPC SLS
+%token	FISU LSSU MSU HFISU HLSSU HMSU
+%token	SIO OPC DPC SLS HSIO HOPC HDPC HSLS
+ 
 
 %type	<s> ID
 %type	<e> EID
@@ -507,9 +522,11 @@ other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| MPLS pnum		{ $$ = gen_mpls($2); }
 	| MPLS			{ $$ = gen_mpls(-1); }
 	| PPPOED		{ $$ = gen_pppoed(); }
-	| PPPOES		{ $$ = gen_pppoes(); }
+	| PPPOES pnum		{ $$ = gen_pppoes($2); }
+	| PPPOES		{ $$ = gen_pppoes(-1); }
 	| pfvar			{ $$ = $1; }
 	| pqual p80211		{ $$ = $2; }
+	| pllc			{ $$ = $1; }
 	;
 
 pfvar:	  PF_IFNAME ID		{ $$ = gen_pf_ifname($2); }
@@ -579,6 +596,31 @@ type_subtype:	ID		{ int i;
 				}
 		;
 
+pllc:	LLC			{ $$ = gen_llc(); }
+	| LLC ID		{ if (pcap_strcasecmp($2, "i") == 0)
+					$$ = gen_llc_i();
+				  else if (pcap_strcasecmp($2, "s") == 0)
+					$$ = gen_llc_s();
+				  else if (pcap_strcasecmp($2, "u") == 0)
+					$$ = gen_llc_u();
+				  else {
+				  	u_int subtype;
+
+					subtype = str2tok($2, llc_s_subtypes);
+					if (subtype != -1)
+						$$ = gen_llc_s_subtype(subtype);
+					else {
+						subtype = str2tok($2, llc_u_subtypes);
+						if (subtype == -1)
+					  		bpf_error("unknown LLC type name \"%s\"", $2);
+						$$ = gen_llc_u_subtype(subtype);
+					}
+				  }
+				}
+				/* sigh, "rnr" is already a keyword for PF */
+	| LLC PF_RNR		{ $$ = gen_llc_s_subtype(LLC_RNR); }
+	;
+
 dir:	  NUM
 	| ID			{ if (pcap_strcasecmp($1, "nods") == 0)
 					$$ = IEEE80211_FC1_DIR_NODS;
@@ -617,8 +659,10 @@ narth:	  pname '[' arth ']'		{ $$ = gen_load($1, $3, 1); }
 	| arth '-' arth			{ $$ = gen_arth(BPF_SUB, $1, $3); }
 	| arth '*' arth			{ $$ = gen_arth(BPF_MUL, $1, $3); }
 	| arth '/' arth			{ $$ = gen_arth(BPF_DIV, $1, $3); }
+	| arth '%' arth			{ $$ = gen_arth(BPF_MOD, $1, $3); }
 	| arth '&' arth			{ $$ = gen_arth(BPF_AND, $1, $3); }
 	| arth '|' arth			{ $$ = gen_arth(BPF_OR, $1, $3); }
+	| arth '^' arth			{ $$ = gen_arth(BPF_XOR, $1, $3); }
 	| arth LSH arth			{ $$ = gen_arth(BPF_LSH, $1, $3); }
 	| arth RSH arth			{ $$ = gen_arth(BPF_RSH, $1, $3); }
 	| '-' arth %prec UMINUS		{ $$ = gen_neg($2); }
@@ -635,7 +679,6 @@ pnum:	  NUM
 	| paren pnum ')'	{ $$ = $2; }
 	;
 atmtype: LANE			{ $$ = A_LANE; }
-	| LLC			{ $$ = A_LLC; }
 	| METAC			{ $$ = A_METAC;	}
 	| BCC			{ $$ = A_BCC; }
 	| OAMF4EC		{ $$ = A_OAMF4EC; }
@@ -671,12 +714,19 @@ atmlistvalue: atmfieldvalue
 mtp2type: FISU			{ $$ = M_FISU; }
 	| LSSU			{ $$ = M_LSSU; }
 	| MSU			{ $$ = M_MSU; }
+	| HFISU			{ $$ = MH_FISU; }
+	| HLSSU			{ $$ = MH_LSSU; }
+	| HMSU			{ $$ = MH_MSU; }
 	;
 	/* MTP3 field types quantifier */
 mtp3field: SIO			{ $$.mtp3fieldtype = M_SIO; }
 	| OPC			{ $$.mtp3fieldtype = M_OPC; }
 	| DPC			{ $$.mtp3fieldtype = M_DPC; }
 	| SLS                   { $$.mtp3fieldtype = M_SLS; }
+	| HSIO			{ $$.mtp3fieldtype = MH_SIO; }
+	| HOPC			{ $$.mtp3fieldtype = MH_OPC; }
+	| HDPC			{ $$.mtp3fieldtype = MH_DPC; }
+	| HSLS                  { $$.mtp3fieldtype = MH_SLS; }
 	;
 mtp3value: mtp3fieldvalue
 	| relop NUM		{ $$.b = gen_mtp3field_code($<blk>0.mtp3fieldtype, (u_int)$2, (u_int)$1, 0); }
@@ -688,7 +738,11 @@ mtp3fieldvalue: NUM {
 	if ($$.mtp3fieldtype == M_SIO ||
 	    $$.mtp3fieldtype == M_OPC ||
 	    $$.mtp3fieldtype == M_DPC ||
-	    $$.mtp3fieldtype == M_SLS )
+	    $$.mtp3fieldtype == M_SLS ||
+	    $$.mtp3fieldtype == MH_SIO ||
+	    $$.mtp3fieldtype == MH_OPC ||
+	    $$.mtp3fieldtype == MH_DPC ||
+	    $$.mtp3fieldtype == MH_SLS)
 		$$.b = gen_mtp3field_code($$.mtp3fieldtype, (u_int) $1, BPF_JEQ, 0);
 	}
 	;

@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +33,6 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
-#include <asm/atomic-long.h>
 
 typedef struct {
 	volatile u_int counter;
@@ -90,7 +90,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
         for (;;) {
                 if (unlikely(c == (u)))
                         break;
-                // old = atomic_cmpxchg((v), c, c + (a)); /*Linux*/
                 old = atomic_cmpset_int(&v->counter, c, c + (a));
                 if (likely(old == c))
                         break;

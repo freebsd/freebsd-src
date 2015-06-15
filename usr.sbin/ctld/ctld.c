@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "ctld.h"
+#include "isns.h"
 
 bool proxy_mode = false;
 
@@ -58,6 +59,7 @@ static volatile bool sigterm_received = false;
 static volatile bool sigalrm_received = false;
 
 static int nchildren = 0;
+static uint16_t last_portal_group_tag = 0;
 
 static void
 usage(void)
@@ -86,10 +88,16 @@ conf_new(void)
 	conf = calloc(1, sizeof(*conf));
 	if (conf == NULL)
 		log_err(1, "calloc");
+	TAILQ_INIT(&conf->conf_luns);
 	TAILQ_INIT(&conf->conf_targets);
 	TAILQ_INIT(&conf->conf_auth_groups);
+	TAILQ_INIT(&conf->conf_ports);
 	TAILQ_INIT(&conf->conf_portal_groups);
+	TAILQ_INIT(&conf->conf_pports);
+	TAILQ_INIT(&conf->conf_isns);
 
+	conf->conf_isns_period = 900;
+	conf->conf_isns_timeout = 5;
 	conf->conf_debug = 0;
 	conf->conf_timeout = 60;
 	conf->conf_maxproc = 30;
@@ -100,18 +108,28 @@ conf_new(void)
 void
 conf_delete(struct conf *conf)
 {
+	struct lun *lun, *ltmp;
 	struct target *targ, *tmp;
 	struct auth_group *ag, *cagtmp;
 	struct portal_group *pg, *cpgtmp;
+	struct pport *pp, *pptmp;
+	struct isns *is, *istmp;
 
 	assert(conf->conf_pidfh == NULL);
 
+	TAILQ_FOREACH_SAFE(lun, &conf->conf_luns, l_next, ltmp)
+		lun_delete(lun);
 	TAILQ_FOREACH_SAFE(targ, &conf->conf_targets, t_next, tmp)
 		target_delete(targ);
 	TAILQ_FOREACH_SAFE(ag, &conf->conf_auth_groups, ag_next, cagtmp)
 		auth_group_delete(ag);
 	TAILQ_FOREACH_SAFE(pg, &conf->conf_portal_groups, pg_next, cpgtmp)
 		portal_group_delete(pg);
+	TAILQ_FOREACH_SAFE(pp, &conf->conf_pports, pp_next, pptmp)
+		pport_delete(pp);
+	TAILQ_FOREACH_SAFE(is, &conf->conf_isns, i_next, istmp)
+		isns_delete(is);
+	assert(TAILQ_EMPTY(&conf->conf_ports));
 	free(conf->conf_pidfile_path);
 	free(conf);
 }
@@ -185,7 +203,7 @@ auth_check_secret_length(struct auth *auth)
 	}
 
 	if (auth->a_mutual_secret != NULL) {
-		len = strlen(auth->a_secret);
+		len = strlen(auth->a_mutual_secret);
 		if (len > 16) {
 			if (auth->a_auth_group->ag_name != NULL)
 				log_warnx("mutual secret for user \"%s\", "
@@ -255,7 +273,7 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 		if (ag->ag_name != NULL)
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for auth-group \"%s\"",
-			    ag->ag_name); 
+			    ag->ag_name);
 		else
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for target \"%s\"",
@@ -318,6 +336,18 @@ auth_name_find(const struct auth_group *ag, const char *name)
 	return (NULL);
 }
 
+int
+auth_name_check(const struct auth_group *ag, const char *initiator_name)
+{
+	if (!auth_name_defined(ag))
+		return (0);
+
+	if (auth_name_find(ag, initiator_name) == NULL)
+		return (1);
+
+	return (0);
+}
+
 const struct auth_portal *
 auth_portal_new(struct auth_group *ag, const char *portal)
 {
@@ -370,6 +400,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	return (ap);
 
 error:
+	free(ap);
 	log_errx(1, "Incorrect initiator portal '%s'", portal);
 	return (NULL);
 }
@@ -428,6 +459,19 @@ next:
 	}
 
 	return (NULL);
+}
+
+int
+auth_portal_check(const struct auth_group *ag, const struct sockaddr_storage *sa)
+{
+
+	if (!auth_portal_defined(ag))
+		return (0);
+
+	if (auth_portal_find(ag, sa) == NULL)
+		return (1);
+
+	return (0);
 }
 
 struct auth_group *
@@ -490,25 +534,10 @@ auth_group_find(const struct conf *conf, const char *name)
 	return (NULL);
 }
 
-static int
-auth_group_set_type(struct auth_group *ag, int type)
-{
-
-	if (ag->ag_type == AG_TYPE_UNKNOWN) {
-		ag->ag_type = type;
-		return (0);
-	}
-
-	if (ag->ag_type == type)
-		return (0);
-
-	return (1);
-}
-
 int
-auth_group_set_type_str(struct auth_group *ag, const char *str)
+auth_group_set_type(struct auth_group *ag, const char *str)
 {
-	int error, type;
+	int type;
 
 	if (strcmp(str, "none") == 0) {
 		type = AG_TYPE_NO_AUTHENTICATION;
@@ -528,20 +557,22 @@ auth_group_set_type_str(struct auth_group *ag, const char *str)
 		return (1);
 	}
 
-	error = auth_group_set_type(ag, type);
-	if (error != 0) {
-		if (ag->ag_name != NULL)
+	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
+		if (ag->ag_name != NULL) {
 			log_warnx("cannot set auth-type to \"%s\" for "
 			    "auth-group \"%s\"; already has a different "
 			    "type", str, ag->ag_name);
-		else
+		} else {
 			log_warnx("cannot set auth-type to \"%s\" for target "
 			    "\"%s\"; already has a different type",
 			    str, ag->ag_target->t_name);
+		}
 		return (1);
 	}
 
-	return (error);
+	ag->ag_type = type;
+
+	return (0);
 }
 
 static struct portal *
@@ -561,8 +592,10 @@ portal_new(struct portal_group *pg)
 static void
 portal_delete(struct portal *portal)
 {
+
 	TAILQ_REMOVE(&portal->p_portal_group->pg_portals, portal, p_next);
-	freeaddrinfo(portal->p_ai);
+	if (portal->p_ai != NULL)
+		freeaddrinfo(portal->p_ai);
 	free(portal->p_listen);
 	free(portal);
 }
@@ -583,9 +616,9 @@ portal_group_new(struct conf *conf, const char *name)
 		log_err(1, "calloc");
 	pg->pg_name = checked_strdup(name);
 	TAILQ_INIT(&pg->pg_portals);
+	TAILQ_INIT(&pg->pg_ports);
 	pg->pg_conf = conf;
-	conf->conf_last_portal_group_tag++;
-	pg->pg_tag = conf->conf_last_portal_group_tag;
+	pg->pg_tag = 0;		/* Assigned later in conf_apply(). */
 	TAILQ_INSERT_TAIL(&conf->conf_portal_groups, pg, pg_next);
 
 	return (pg);
@@ -595,12 +628,17 @@ void
 portal_group_delete(struct portal_group *pg)
 {
 	struct portal *portal, *tmp;
+	struct port *port, *tport;
 
+	TAILQ_FOREACH_SAFE(port, &pg->pg_ports, p_pgs, tport)
+		port_delete(port);
 	TAILQ_REMOVE(&pg->pg_conf->conf_portal_groups, pg, pg_next);
 
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
 	free(pg->pg_name);
+	free(pg->pg_offload);
+	free(pg->pg_redirection);
 	free(pg);
 }
 
@@ -617,48 +655,29 @@ portal_group_find(const struct conf *conf, const char *name)
 	return (NULL);
 }
 
-int
-portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
+static int
+parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 {
 	struct addrinfo hints;
-	struct portal *portal;
-	char *addr, *ch, *arg;
+	char *str, *addr, *ch;
 	const char *port;
 	int error, colons = 0;
 
-	portal = portal_new(pg);
-	portal->p_listen = checked_strdup(value);
-	portal->p_iser = iser;
-
-	arg = portal->p_listen;
-	if (arg[0] == '\0') {
-		log_warnx("empty listen address");
-		free(portal->p_listen);
-		free(portal);
-		return (1);
-	}
+	str = arg = strdup(arg);
 	if (arg[0] == '[') {
 		/*
 		 * IPv6 address in square brackets, perhaps with port.
 		 */
 		arg++;
 		addr = strsep(&arg, "]");
-		if (arg == NULL) {
-			log_warnx("invalid listen address %s",
-			    portal->p_listen);
-			free(portal->p_listen);
-			free(portal);
+		if (arg == NULL)
 			return (1);
-		}
 		if (arg[0] == '\0') {
-			port = "3260";
+			port = def_port;
 		} else if (arg[0] == ':') {
 			port = arg + 1;
 		} else {
-			log_warnx("invalid listen address %s",
-			    portal->p_listen);
-			free(portal->p_listen);
-			free(portal);
+			free(str);
 			return (1);
 		}
 	} else {
@@ -672,11 +691,11 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 		}
 		if (colons > 1) {
 			addr = arg;
-			port = "3260";
+			port = def_port;
 		} else {
 			addr = strsep(&arg, ":");
 			if (arg == NULL)
-				port = "3260";
+				port = def_port;
 			else
 				port = arg;
 		}
@@ -686,13 +705,23 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
+	error = getaddrinfo(addr, port, &hints, ai);
+	free(str);
+	return ((error != 0) ? 1 : 0);
+}
 
-	error = getaddrinfo(addr, port, &hints, &portal->p_ai);
-	if (error != 0) {
-		log_warnx("getaddrinfo for %s failed: %s",
-		    portal->p_listen, gai_strerror(error));
-		free(portal->p_listen);
-		free(portal);
+int
+portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
+{
+	struct portal *portal;
+
+	portal = portal_new(pg);
+	portal->p_listen = checked_strdup(value);
+	portal->p_iser = iser;
+
+	if (parse_addr_port(portal->p_listen, "3260", &portal->p_ai)) {
+		log_warnx("invalid listen address %s", portal->p_listen);
+		portal_delete(portal);
 		return (1);
 	}
 
@@ -700,6 +729,328 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	 * XXX: getaddrinfo(3) may return multiple addresses; we should turn
 	 *	those into multiple portals.
 	 */
+
+	return (0);
+}
+
+int
+isns_new(struct conf *conf, const char *addr)
+{
+	struct isns *isns;
+
+	isns = calloc(1, sizeof(*isns));
+	if (isns == NULL)
+		log_err(1, "calloc");
+	isns->i_conf = conf;
+	TAILQ_INSERT_TAIL(&conf->conf_isns, isns, i_next);
+	isns->i_addr = checked_strdup(addr);
+
+	if (parse_addr_port(isns->i_addr, "3205", &isns->i_ai)) {
+		log_warnx("invalid iSNS address %s", isns->i_addr);
+		isns_delete(isns);
+		return (1);
+	}
+
+	/*
+	 * XXX: getaddrinfo(3) may return multiple addresses; we should turn
+	 *	those into multiple servers.
+	 */
+
+	return (0);
+}
+
+void
+isns_delete(struct isns *isns)
+{
+
+	TAILQ_REMOVE(&isns->i_conf->conf_isns, isns, i_next);
+	free(isns->i_addr);
+	if (isns->i_ai != NULL)
+		freeaddrinfo(isns->i_ai);
+	free(isns);
+}
+
+static int
+isns_do_connect(struct isns *isns)
+{
+	int s;
+
+	s = socket(isns->i_ai->ai_family, isns->i_ai->ai_socktype,
+	    isns->i_ai->ai_protocol);
+	if (s < 0) {
+		log_warn("socket(2) failed for %s", isns->i_addr);
+		return (-1);
+	}
+	if (connect(s, isns->i_ai->ai_addr, isns->i_ai->ai_addrlen)) {
+		log_warn("connect(2) failed for %s", isns->i_addr);
+		close(s);
+		return (-1);
+	}
+	return(s);
+}
+
+static int
+isns_do_register(struct isns *isns, int s, const char *hostname)
+{
+	struct conf *conf = isns->i_conf;
+	struct target *target;
+	struct portal *portal;
+	struct portal_group *pg;
+	struct port *port;
+	struct isns_req *req;
+	int res = 0;
+	uint32_t error;
+
+	req = isns_req_create(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT);
+	isns_req_add_str(req, 32, TAILQ_FIRST(&conf->conf_targets)->t_name);
+	isns_req_add_delim(req);
+	isns_req_add_str(req, 1, hostname);
+	isns_req_add_32(req, 2, 2); /* 2 -- iSCSI */
+	isns_req_add_32(req, 6, conf->conf_isns_period);
+	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+		if (pg->pg_unassigned)
+			continue;
+		TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
+			isns_req_add_addr(req, 16, portal->p_ai);
+			isns_req_add_port(req, 17, portal->p_ai);
+		}
+	}
+	TAILQ_FOREACH(target, &conf->conf_targets, t_next) {
+		isns_req_add_str(req, 32, target->t_name);
+		isns_req_add_32(req, 33, 1); /* 1 -- Target*/
+		if (target->t_alias != NULL)
+			isns_req_add_str(req, 34, target->t_alias);
+		TAILQ_FOREACH(port, &target->t_ports, p_ts) {
+			if ((pg = port->p_portal_group) == NULL)
+				continue;
+			isns_req_add_32(req, 51, pg->pg_tag);
+			TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
+				isns_req_add_addr(req, 49, portal->p_ai);
+				isns_req_add_port(req, 50, portal->p_ai);
+			}
+		}
+	}
+	res = isns_req_send(s, req);
+	if (res < 0) {
+		log_warn("send(2) failed for %s", isns->i_addr);
+		goto quit;
+	}
+	res = isns_req_receive(s, req);
+	if (res < 0) {
+		log_warn("receive(2) failed for %s", isns->i_addr);
+		goto quit;
+	}
+	error = isns_req_get_status(req);
+	if (error != 0) {
+		log_warnx("iSNS register error %d for %s", error, isns->i_addr);
+		res = -1;
+	}
+quit:
+	isns_req_free(req);
+	return (res);
+}
+
+static int
+isns_do_check(struct isns *isns, int s, const char *hostname)
+{
+	struct conf *conf = isns->i_conf;
+	struct isns_req *req;
+	int res = 0;
+	uint32_t error;
+
+	req = isns_req_create(ISNS_FUNC_DEVATTRQRY, ISNS_FLAG_CLIENT);
+	isns_req_add_str(req, 32, TAILQ_FIRST(&conf->conf_targets)->t_name);
+	isns_req_add_str(req, 1, hostname);
+	isns_req_add_delim(req);
+	isns_req_add(req, 2, 0, NULL);
+	res = isns_req_send(s, req);
+	if (res < 0) {
+		log_warn("send(2) failed for %s", isns->i_addr);
+		goto quit;
+	}
+	res = isns_req_receive(s, req);
+	if (res < 0) {
+		log_warn("receive(2) failed for %s", isns->i_addr);
+		goto quit;
+	}
+	error = isns_req_get_status(req);
+	if (error != 0) {
+		log_warnx("iSNS check error %d for %s", error, isns->i_addr);
+		res = -1;
+	}
+quit:
+	isns_req_free(req);
+	return (res);
+}
+
+static int
+isns_do_deregister(struct isns *isns, int s, const char *hostname)
+{
+	struct conf *conf = isns->i_conf;
+	struct isns_req *req;
+	int res = 0;
+	uint32_t error;
+
+	req = isns_req_create(ISNS_FUNC_DEVDEREG, ISNS_FLAG_CLIENT);
+	isns_req_add_str(req, 32, TAILQ_FIRST(&conf->conf_targets)->t_name);
+	isns_req_add_delim(req);
+	isns_req_add_str(req, 1, hostname);
+	res = isns_req_send(s, req);
+	if (res < 0) {
+		log_warn("send(2) failed for %s", isns->i_addr);
+		goto quit;
+	}
+	res = isns_req_receive(s, req);
+	if (res < 0) {
+		log_warn("receive(2) failed for %s", isns->i_addr);
+		goto quit;
+	}
+	error = isns_req_get_status(req);
+	if (error != 0) {
+		log_warnx("iSNS deregister error %d for %s", error, isns->i_addr);
+		res = -1;
+	}
+quit:
+	isns_req_free(req);
+	return (res);
+}
+
+void
+isns_register(struct isns *isns, struct isns *oldisns)
+{
+	struct conf *conf = isns->i_conf;
+	int s;
+	char hostname[256];
+
+	if (TAILQ_EMPTY(&conf->conf_targets) ||
+	    TAILQ_EMPTY(&conf->conf_portal_groups))
+		return;
+	set_timeout(conf->conf_isns_timeout, false);
+	s = isns_do_connect(isns);
+	if (s < 0) {
+		set_timeout(0, false);
+		return;
+	}
+	gethostname(hostname, sizeof(hostname));
+
+	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
+		oldisns = isns;
+	isns_do_deregister(oldisns, s, hostname);
+	isns_do_register(isns, s, hostname);
+	close(s);
+	set_timeout(0, false);
+}
+
+void
+isns_check(struct isns *isns)
+{
+	struct conf *conf = isns->i_conf;
+	int s, res;
+	char hostname[256];
+
+	if (TAILQ_EMPTY(&conf->conf_targets) ||
+	    TAILQ_EMPTY(&conf->conf_portal_groups))
+		return;
+	set_timeout(conf->conf_isns_timeout, false);
+	s = isns_do_connect(isns);
+	if (s < 0) {
+		set_timeout(0, false);
+		return;
+	}
+	gethostname(hostname, sizeof(hostname));
+
+	res = isns_do_check(isns, s, hostname);
+	if (res < 0) {
+		isns_do_deregister(isns, s, hostname);
+		isns_do_register(isns, s, hostname);
+	}
+	close(s);
+	set_timeout(0, false);
+}
+
+void
+isns_deregister(struct isns *isns)
+{
+	struct conf *conf = isns->i_conf;
+	int s;
+	char hostname[256];
+
+	if (TAILQ_EMPTY(&conf->conf_targets) ||
+	    TAILQ_EMPTY(&conf->conf_portal_groups))
+		return;
+	set_timeout(conf->conf_isns_timeout, false);
+	s = isns_do_connect(isns);
+	if (s < 0)
+		return;
+	gethostname(hostname, sizeof(hostname));
+
+	isns_do_deregister(isns, s, hostname);
+	close(s);
+	set_timeout(0, false);
+}
+
+int
+portal_group_set_filter(struct portal_group *pg, const char *str)
+{
+	int filter;
+
+	if (strcmp(str, "none") == 0) {
+		filter = PG_FILTER_NONE;
+	} else if (strcmp(str, "portal") == 0) {
+		filter = PG_FILTER_PORTAL;
+	} else if (strcmp(str, "portal-name") == 0) {
+		filter = PG_FILTER_PORTAL_NAME;
+	} else if (strcmp(str, "portal-name-auth") == 0) {
+		filter = PG_FILTER_PORTAL_NAME_AUTH;
+	} else {
+		log_warnx("invalid discovery-filter \"%s\" for portal-group "
+		    "\"%s\"; valid values are \"none\", \"portal\", "
+		    "\"portal-name\", and \"portal-name-auth\"",
+		    str, pg->pg_name);
+		return (1);
+	}
+
+	if (pg->pg_discovery_filter != PG_FILTER_UNKNOWN &&
+	    pg->pg_discovery_filter != filter) {
+		log_warnx("cannot set discovery-filter to \"%s\" for "
+		    "portal-group \"%s\"; already has a different "
+		    "value", str, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_discovery_filter = filter;
+
+	return (0);
+}
+
+int
+portal_group_set_offload(struct portal_group *pg, const char *offload)
+{
+
+	if (pg->pg_offload != NULL) {
+		log_warnx("cannot set offload to \"%s\" for "
+		    "portal-group \"%s\"; already defined",
+		    offload, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_offload = checked_strdup(offload);
+
+	return (0);
+}
+
+int
+portal_group_set_redirection(struct portal_group *pg, const char *addr)
+{
+
+	if (pg->pg_redirection != NULL) {
+		log_warnx("cannot set redirection to \"%s\" for "
+		    "portal-group \"%s\"; already defined",
+		    addr, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_redirection = checked_strdup(addr);
 
 	return (0);
 }
@@ -756,7 +1107,7 @@ valid_iscsi_name(const char *name)
 		for (i = strlen("iqn."); name[i] != '\0'; i++) {
 			/*
 			 * XXX: We should verify UTF-8 normalisation, as defined
-			 * 	by 3.2.6.2: iSCSI Name Encoding.
+			 *      by 3.2.6.2: iSCSI Name Encoding.
 			 */
 			if (isalnum(name[i]))
 				continue;
@@ -804,6 +1155,152 @@ valid_iscsi_name(const char *name)
 	return (true);
 }
 
+struct pport *
+pport_new(struct conf *conf, const char *name, uint32_t ctl_port)
+{
+	struct pport *pp;
+
+	pp = calloc(1, sizeof(*pp));
+	if (pp == NULL)
+		log_err(1, "calloc");
+	pp->pp_conf = conf;
+	pp->pp_name = checked_strdup(name);
+	pp->pp_ctl_port = ctl_port;
+	TAILQ_INIT(&pp->pp_ports);
+	TAILQ_INSERT_TAIL(&conf->conf_pports, pp, pp_next);
+	return (pp);
+}
+
+struct pport *
+pport_find(const struct conf *conf, const char *name)
+{
+	struct pport *pp;
+
+	TAILQ_FOREACH(pp, &conf->conf_pports, pp_next) {
+		if (strcasecmp(pp->pp_name, name) == 0)
+			return (pp);
+	}
+	return (NULL);
+}
+
+struct pport *
+pport_copy(struct pport *pp, struct conf *conf)
+{
+	struct pport *ppnew;
+
+	ppnew = pport_new(conf, pp->pp_name, pp->pp_ctl_port);
+	return (ppnew);
+}
+
+void
+pport_delete(struct pport *pp)
+{
+	struct port *port, *tport;
+
+	TAILQ_FOREACH_SAFE(port, &pp->pp_ports, p_ts, tport)
+		port_delete(port);
+	TAILQ_REMOVE(&pp->pp_conf->conf_pports, pp, pp_next);
+	free(pp->pp_name);
+	free(pp);
+}
+
+struct port *
+port_new(struct conf *conf, struct target *target, struct portal_group *pg)
+{
+	struct port *port;
+	char *name;
+	int ret;
+
+	ret = asprintf(&name, "%s-%s", pg->pg_name, target->t_name);
+	if (ret <= 0)
+		log_err(1, "asprintf");
+	if (port_find(conf, name) != NULL) {
+		log_warnx("duplicate port \"%s\"", name);
+		free(name);
+		return (NULL);
+	}
+	port = calloc(1, sizeof(*port));
+	if (port == NULL)
+		log_err(1, "calloc");
+	port->p_conf = conf;
+	port->p_name = name;
+	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
+	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
+	port->p_target = target;
+	TAILQ_INSERT_TAIL(&pg->pg_ports, port, p_pgs);
+	port->p_portal_group = pg;
+	return (port);
+}
+
+struct port *
+port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
+{
+	struct port *port;
+	char *name;
+	int ret;
+
+	ret = asprintf(&name, "%s-%s", pp->pp_name, target->t_name);
+	if (ret <= 0)
+		log_err(1, "asprintf");
+	if (port_find(conf, name) != NULL) {
+		log_warnx("duplicate port \"%s\"", name);
+		free(name);
+		return (NULL);
+	}
+	port = calloc(1, sizeof(*port));
+	if (port == NULL)
+		log_err(1, "calloc");
+	port->p_conf = conf;
+	port->p_name = name;
+	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
+	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
+	port->p_target = target;
+	TAILQ_INSERT_TAIL(&pp->pp_ports, port, p_pps);
+	port->p_pport = pp;
+	return (port);
+}
+
+struct port *
+port_find(const struct conf *conf, const char *name)
+{
+	struct port *port;
+
+	TAILQ_FOREACH(port, &conf->conf_ports, p_next) {
+		if (strcasecmp(port->p_name, name) == 0)
+			return (port);
+	}
+
+	return (NULL);
+}
+
+struct port *
+port_find_in_pg(const struct portal_group *pg, const char *target)
+{
+	struct port *port;
+
+	TAILQ_FOREACH(port, &pg->pg_ports, p_pgs) {
+		if (strcasecmp(port->p_target->t_name, target) == 0)
+			return (port);
+	}
+
+	return (NULL);
+}
+
+void
+port_delete(struct port *port)
+{
+
+	if (port->p_portal_group)
+		TAILQ_REMOVE(&port->p_portal_group->pg_ports, port, p_pgs);
+	if (port->p_pport)
+		TAILQ_REMOVE(&port->p_pport->pp_ports, port, p_pps);
+	if (port->p_target)
+		TAILQ_REMOVE(&port->p_target->t_ports, port, p_ts);
+	TAILQ_REMOVE(&port->p_conf->conf_ports, port, p_next);
+	free(port->p_name);
+	free(port);
+}
+
 struct target *
 target_new(struct conf *conf, const char *name)
 {
@@ -831,8 +1328,8 @@ target_new(struct conf *conf, const char *name)
 	for (i = 0; i < len; i++)
 		targ->t_name[i] = tolower(targ->t_name[i]);
 
-	TAILQ_INIT(&targ->t_luns);
 	targ->t_conf = conf;
+	TAILQ_INIT(&targ->t_ports);
 	TAILQ_INSERT_TAIL(&conf->conf_targets, targ, t_next);
 
 	return (targ);
@@ -841,13 +1338,14 @@ target_new(struct conf *conf, const char *name)
 void
 target_delete(struct target *targ)
 {
-	struct lun *lun, *tmp;
+	struct port *port, *tport;
 
+	TAILQ_FOREACH_SAFE(port, &targ->t_ports, p_ts, tport)
+		port_delete(port);
 	TAILQ_REMOVE(&targ->t_conf->conf_targets, targ, t_next);
 
-	TAILQ_FOREACH_SAFE(lun, &targ->t_luns, l_next, tmp)
-		lun_delete(lun);
 	free(targ->t_name);
+	free(targ->t_redirection);
 	free(targ);
 }
 
@@ -864,25 +1362,40 @@ target_find(struct conf *conf, const char *name)
 	return (NULL);
 }
 
+int
+target_set_redirection(struct target *target, const char *addr)
+{
+
+	if (target->t_redirection != NULL) {
+		log_warnx("cannot set redirection to \"%s\" for "
+		    "target \"%s\"; already defined",
+		    addr, target->t_name);
+		return (1);
+	}
+
+	target->t_redirection = checked_strdup(addr);
+
+	return (0);
+}
+
 struct lun *
-lun_new(struct target *targ, int lun_id)
+lun_new(struct conf *conf, const char *name)
 {
 	struct lun *lun;
 
-	lun = lun_find(targ, lun_id);
+	lun = lun_find(conf, name);
 	if (lun != NULL) {
-		log_warnx("duplicated lun %d for target \"%s\"",
-		    lun_id, targ->t_name);
+		log_warnx("duplicated lun \"%s\"", name);
 		return (NULL);
 	}
 
 	lun = calloc(1, sizeof(*lun));
 	if (lun == NULL)
 		log_err(1, "calloc");
-	lun->l_lun = lun_id;
+	lun->l_conf = conf;
+	lun->l_name = checked_strdup(name);
 	TAILQ_INIT(&lun->l_options);
-	lun->l_target = targ;
-	TAILQ_INSERT_TAIL(&targ->t_luns, lun, l_next);
+	TAILQ_INSERT_TAIL(&conf->conf_luns, lun, l_next);
 
 	return (lun);
 }
@@ -890,26 +1403,36 @@ lun_new(struct target *targ, int lun_id)
 void
 lun_delete(struct lun *lun)
 {
+	struct target *targ;
 	struct lun_option *lo, *tmp;
+	int i;
 
-	TAILQ_REMOVE(&lun->l_target->t_luns, lun, l_next);
+	TAILQ_FOREACH(targ, &lun->l_conf->conf_targets, t_next) {
+		for (i = 0; i < MAX_LUNS; i++) {
+			if (targ->t_luns[i] == lun)
+				targ->t_luns[i] = NULL;
+		}
+	}
+	TAILQ_REMOVE(&lun->l_conf->conf_luns, lun, l_next);
 
 	TAILQ_FOREACH_SAFE(lo, &lun->l_options, lo_next, tmp)
 		lun_option_delete(lo);
+	free(lun->l_name);
 	free(lun->l_backend);
 	free(lun->l_device_id);
 	free(lun->l_path);
+	free(lun->l_scsiname);
 	free(lun->l_serial);
 	free(lun);
 }
 
 struct lun *
-lun_find(const struct target *targ, int lun_id)
+lun_find(const struct conf *conf, const char *name)
 {
 	struct lun *lun;
 
-	TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
-		if (lun->l_lun == lun_id)
+	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
+		if (strcmp(lun->l_name, name) == 0)
 			return (lun);
 	}
 
@@ -945,6 +1468,13 @@ lun_set_path(struct lun *lun, const char *value)
 }
 
 void
+lun_set_scsiname(struct lun *lun, const char *value)
+{
+	free(lun->l_scsiname);
+	lun->l_scsiname = checked_strdup(value);
+}
+
+void
 lun_set_serial(struct lun *lun, const char *value)
 {
 	free(lun->l_serial);
@@ -972,8 +1502,8 @@ lun_option_new(struct lun *lun, const char *name, const char *value)
 
 	lo = lun_option_find(lun, name);
 	if (lo != NULL) {
-		log_warnx("duplicated lun option %s for lun %d, target \"%s\"",
-		    name, lun->l_lun, lun->l_target->t_name);
+		log_warnx("duplicated lun option \"%s\" for lun \"%s\"",
+		    name, lun->l_name);
 		return (NULL);
 	}
 
@@ -1078,18 +1608,18 @@ conf_print(struct conf *conf)
 			fprintf(stderr, "\t listen %s\n", portal->p_listen);
 		fprintf(stderr, "}\n");
 	}
+	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
+		fprintf(stderr, "\tlun %s {\n", lun->l_name);
+		fprintf(stderr, "\t\tpath %s\n", lun->l_path);
+		TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+			fprintf(stderr, "\t\toption %s %s\n",
+			    lo->lo_name, lo->lo_value);
+		fprintf(stderr, "\t}\n");
+	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		fprintf(stderr, "target %s {\n", targ->t_name);
 		if (targ->t_alias != NULL)
 			fprintf(stderr, "\t alias %s\n", targ->t_alias);
-		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
-			fprintf(stderr, "\tlun %d {\n", lun->l_lun);
-			fprintf(stderr, "\t\tpath %s\n", lun->l_path);
-			TAILQ_FOREACH(lo, &lun->l_options, lo_next)
-				fprintf(stderr, "\t\toption %s %s\n",
-				    lo->lo_name, lo->lo_value);
-			fprintf(stderr, "\t}\n");
-		}
 		fprintf(stderr, "}\n");
 	}
 }
@@ -1099,60 +1629,49 @@ static int
 conf_verify_lun(struct lun *lun)
 {
 	const struct lun *lun2;
-	const struct target *targ2;
 
 	if (lun->l_backend == NULL)
 		lun_set_backend(lun, "block");
 	if (strcmp(lun->l_backend, "block") == 0) {
 		if (lun->l_path == NULL) {
-			log_warnx("missing path for lun %d, target \"%s\"",
-			    lun->l_lun, lun->l_target->t_name);
+			log_warnx("missing path for lun \"%s\"",
+			    lun->l_name);
 			return (1);
 		}
 	} else if (strcmp(lun->l_backend, "ramdisk") == 0) {
 		if (lun->l_size == 0) {
-			log_warnx("missing size for ramdisk-backed lun %d, "
-			    "target \"%s\"", lun->l_lun, lun->l_target->t_name);
+			log_warnx("missing size for ramdisk-backed lun \"%s\"",
+			    lun->l_name);
 			return (1);
 		}
 		if (lun->l_path != NULL) {
 			log_warnx("path must not be specified "
-			    "for ramdisk-backed lun %d, target \"%s\"",
-			    lun->l_lun, lun->l_target->t_name);
+			    "for ramdisk-backed lun \"%s\"",
+			    lun->l_name);
 			return (1);
 		}
-	}
-	if (lun->l_lun < 0 || lun->l_lun > 255) {
-		log_warnx("invalid lun number for lun %d, target \"%s\"; "
-		    "must be between 0 and 255", lun->l_lun,
-		    lun->l_target->t_name);
-		return (1);
 	}
 	if (lun->l_blocksize == 0) {
 		lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
 	} else if (lun->l_blocksize < 0) {
-		log_warnx("invalid blocksize for lun %d, target \"%s\"; "
-		    "must be larger than 0", lun->l_lun, lun->l_target->t_name);
+		log_warnx("invalid blocksize for lun \"%s\"; "
+		    "must be larger than 0", lun->l_name);
 		return (1);
 	}
 	if (lun->l_size != 0 && lun->l_size % lun->l_blocksize != 0) {
-		log_warnx("invalid size for lun %d, target \"%s\"; "
-		    "must be multiple of blocksize", lun->l_lun,
-		    lun->l_target->t_name);
+		log_warnx("invalid size for lun \"%s\"; "
+		    "must be multiple of blocksize", lun->l_name);
 		return (1);
 	}
-	TAILQ_FOREACH(targ2, &lun->l_target->t_conf->conf_targets, t_next) {
-		TAILQ_FOREACH(lun2, &targ2->t_luns, l_next) {
-			if (lun == lun2)
-				continue;
-			if (lun->l_path != NULL && lun2->l_path != NULL &&
-			    strcmp(lun->l_path, lun2->l_path) == 0) {
-				log_debugx("WARNING: path \"%s\" duplicated "
-				    "between lun %d, target \"%s\", and "
-				    "lun %d, target \"%s\"", lun->l_path,
-				    lun->l_lun, lun->l_target->t_name,
-				    lun2->l_lun, lun2->l_target->t_name);
-			}
+	TAILQ_FOREACH(lun2, &lun->l_conf->conf_luns, l_next) {
+		if (lun == lun2)
+			continue;
+		if (lun->l_path != NULL && lun2->l_path != NULL &&
+		    strcmp(lun->l_path, lun2->l_path) == 0) {
+			log_debugx("WARNING: path \"%s\" duplicated "
+			    "between lun \"%s\", and "
+			    "lun \"%s\"", lun->l_path,
+			    lun->l_name, lun2->l_name);
 		}
 	}
 
@@ -1164,34 +1683,43 @@ conf_verify(struct conf *conf)
 {
 	struct auth_group *ag;
 	struct portal_group *pg;
+	struct port *port;
 	struct target *targ;
 	struct lun *lun;
-	bool found_lun;
-	int error;
+	bool found;
+	int error, i;
 
 	if (conf->conf_pidfile_path == NULL)
 		conf->conf_pidfile_path = checked_strdup(DEFAULT_PIDFILE);
 
+	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
+		error = conf_verify_lun(lun);
+		if (error != 0)
+			return (error);
+	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		if (targ->t_auth_group == NULL) {
 			targ->t_auth_group = auth_group_find(conf,
 			    "default");
 			assert(targ->t_auth_group != NULL);
 		}
-		if (targ->t_portal_group == NULL) {
-			targ->t_portal_group = portal_group_find(conf,
-			    "default");
-			assert(targ->t_portal_group != NULL);
+		if (TAILQ_EMPTY(&targ->t_ports)) {
+			pg = portal_group_find(conf, "default");
+			assert(pg != NULL);
+			port_new(conf, targ, pg);
 		}
-		found_lun = false;
-		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
-			error = conf_verify_lun(lun);
-			if (error != 0)
-				return (error);
-			found_lun = true;
+		found = false;
+		for (i = 0; i < MAX_LUNS; i++) {
+			if (targ->t_luns[i] != NULL)
+				found = true;
 		}
-		if (!found_lun) {
+		if (!found && targ->t_redirection == NULL) {
 			log_warnx("no LUNs defined for target \"%s\"",
+			    targ->t_name);
+		}
+		if (found && targ->t_redirection != NULL) {
+			log_debugx("target \"%s\" contains luns, "
+			    " but configured for redirection",
 			    targ->t_name);
 		}
 	}
@@ -1203,17 +1731,23 @@ conf_verify(struct conf *conf)
 			assert(pg->pg_discovery_auth_group != NULL);
 		}
 
-		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-			if (targ->t_portal_group == pg)
-				break;
-		}
-		if (targ == NULL) {
+		if (pg->pg_discovery_filter == PG_FILTER_UNKNOWN)
+			pg->pg_discovery_filter = PG_FILTER_NONE;
+
+		if (!TAILQ_EMPTY(&pg->pg_ports)) {
+			if (pg->pg_redirection != NULL) {
+				log_debugx("portal-group \"%s\" assigned "
+				    "to target, but configured "
+				    "for redirection",
+				    pg->pg_name);
+			}
+			pg->pg_unassigned = false;
+		} else {
 			if (strcmp(pg->pg_name, "default") != 0)
 				log_warnx("portal-group \"%s\" not assigned "
 				    "to any target", pg->pg_name);
 			pg->pg_unassigned = true;
-		} else
-			pg->pg_unassigned = false;
+		}
 	}
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
 		if (ag->ag_name == NULL)
@@ -1221,11 +1755,26 @@ conf_verify(struct conf *conf)
 		else
 			assert(ag->ag_target == NULL);
 
+		found = false;
 		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-			if (targ->t_auth_group == ag)
+			if (targ->t_auth_group == ag) {
+				found = true;
 				break;
+			}
 		}
-		if (targ == NULL && ag->ag_name != NULL &&
+		TAILQ_FOREACH(port, &conf->conf_ports, p_next) {
+			if (port->p_auth_group == ag) {
+				found = true;
+				break;
+			}
+		}
+		TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+			if (pg->pg_discovery_auth_group == ag) {
+				found = true;
+				break;
+			}
+		}
+		if (!found && ag->ag_name != NULL &&
 		    strcmp(ag->ag_name, "default") != 0 &&
 		    strcmp(ag->ag_name, "no-authentication") != 0 &&
 		    strcmp(ag->ag_name, "no-access") != 0) {
@@ -1240,12 +1789,13 @@ conf_verify(struct conf *conf)
 static int
 conf_apply(struct conf *oldconf, struct conf *newconf)
 {
-	struct target *oldtarg, *newtarg, *tmptarg;
 	struct lun *oldlun, *newlun, *tmplun;
 	struct portal_group *oldpg, *newpg;
 	struct portal *oldp, *newp;
+	struct port *oldport, *newport, *tmpport;
+	struct isns *oldns, *newns;
 	pid_t otherpid;
-	int changed, cumulated_error = 0, error;
+	int changed, cumulated_error = 0, error, sockbuf;
 	int one = 1;
 
 	if (oldconf->conf_debug != newconf->conf_debug) {
@@ -1282,173 +1832,183 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	}
 
 	/*
-	 * XXX: If target or lun removal fails, we should somehow "move"
-	 * 	the old lun or target into newconf, so that subsequent
-	 * 	conf_apply() would try to remove them again.  That would
-	 * 	be somewhat hairy, though, and lun deletion failures don't
-	 * 	really happen, so leave it as it is for now.
+	 * Go through the new portal groups, assigning tags or preserving old.
 	 */
-	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
-		/*
-		 * First, remove any targets present in the old configuration
-		 * and missing in the new one.
-		 */
-		newtarg = target_find(newconf, oldtarg->t_name);
-		if (newtarg == NULL) {
-			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
-			    tmplun) {
-				log_debugx("target %s not found in new "
-				    "configuration; removing its lun %d, "
-				    "backed by CTL lun %d",
-				    oldtarg->t_name, oldlun->l_lun,
-				    oldlun->l_ctl_lun);
-				error = kernel_lun_remove(oldlun);
-				if (error != 0) {
-					log_warnx("failed to remove lun %d, "
-					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_name,
-					    oldlun->l_ctl_lun);
-					cumulated_error++;
-				}
-				lun_delete(oldlun);
-			}
-			kernel_port_remove(oldtarg);
-			target_delete(oldtarg);
-			continue;
+	TAILQ_FOREACH(newpg, &newconf->conf_portal_groups, pg_next) {
+		oldpg = portal_group_find(oldconf, newpg->pg_name);
+		if (oldpg != NULL)
+			newpg->pg_tag = oldpg->pg_tag;
+		else
+			newpg->pg_tag = ++last_portal_group_tag;
+	}
+
+	/* Deregister on removed iSNS servers. */
+	TAILQ_FOREACH(oldns, &oldconf->conf_isns, i_next) {
+		TAILQ_FOREACH(newns, &newconf->conf_isns, i_next) {
+			if (strcmp(oldns->i_addr, newns->i_addr) == 0)
+				break;
 		}
+		if (newns == NULL)
+			isns_deregister(oldns);
+	}
 
-		/*
-		 * Second, remove any LUNs present in the old target
-		 * and missing in the new one.
-		 */
-		TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next, tmplun) {
-			newlun = lun_find(newtarg, oldlun->l_lun);
-			if (newlun == NULL) {
-				log_debugx("lun %d, target %s, CTL lun %d "
-				    "not found in new configuration; "
-				    "removing", oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				error = kernel_lun_remove(oldlun);
-				if (error != 0) {
-					log_warnx("failed to remove lun %d, "
-					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_name,
-					    oldlun->l_ctl_lun);
-					cumulated_error++;
-				}
-				lun_delete(oldlun);
-				continue;
-			}
-
+	/*
+	 * XXX: If target or lun removal fails, we should somehow "move"
+	 *      the old lun or target into newconf, so that subsequent
+	 *      conf_apply() would try to remove them again.  That would
+	 *      be somewhat hairy, though, and lun deletion failures don't
+	 *      really happen, so leave it as it is for now.
+	 */
+	/*
+	 * First, remove any ports present in the old configuration
+	 * and missing in the new one.
+	 */
+	TAILQ_FOREACH_SAFE(oldport, &oldconf->conf_ports, p_next, tmpport) {
+		newport = port_find(newconf, oldport->p_name);
+		if (newport != NULL)
+			continue;
+		log_debugx("removing port \"%s\"", oldport->p_name);
+		error = kernel_port_remove(oldport);
+		if (error != 0) {
+			log_warnx("failed to remove port %s",
+			    oldport->p_name);
 			/*
-			 * Also remove the LUNs changed by more than size.
+			 * XXX: Uncomment after fixing the root cause.
+			 *
+			 * cumulated_error++;
 			 */
-			changed = 0;
-			assert(oldlun->l_backend != NULL);
-			assert(newlun->l_backend != NULL);
-			if (strcmp(newlun->l_backend, oldlun->l_backend) != 0) {
-				log_debugx("backend for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (oldlun->l_blocksize != newlun->l_blocksize) {
-				log_debugx("blocksize for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (newlun->l_device_id != NULL &&
-			    (oldlun->l_device_id == NULL ||
-			     strcmp(oldlun->l_device_id, newlun->l_device_id) !=
-			     0)) {
-				log_debugx("device-id for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (newlun->l_path != NULL &&
-			    (oldlun->l_path == NULL ||
-			     strcmp(oldlun->l_path, newlun->l_path) != 0)) {
-				log_debugx("path for lun %d, target %s, "
-				    "CTL lun %d, changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (newlun->l_serial != NULL &&
-			    (oldlun->l_serial == NULL ||
-			     strcmp(oldlun->l_serial, newlun->l_serial) != 0)) {
-				log_debugx("serial for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (changed) {
-				error = kernel_lun_remove(oldlun);
-				if (error != 0) {
-					log_warnx("failed to remove lun %d, "
-					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_name,
-					    oldlun->l_ctl_lun);
-					cumulated_error++;
-				}
-				lun_delete(oldlun);
-				continue;
-			}
-
-			lun_set_ctl_lun(newlun, oldlun->l_ctl_lun);
 		}
 	}
 
 	/*
-	 * Now add new targets or modify existing ones.
+	 * Second, remove any LUNs present in the old configuration
+	 * and missing in the new one.
 	 */
-	TAILQ_FOREACH(newtarg, &newconf->conf_targets, t_next) {
-		oldtarg = target_find(oldconf, newtarg->t_name);
-
-		TAILQ_FOREACH_SAFE(newlun, &newtarg->t_luns, l_next, tmplun) {
-			if (oldtarg != NULL) {
-				oldlun = lun_find(oldtarg, newlun->l_lun);
-				if (oldlun != NULL) {
-					if (newlun->l_size != oldlun->l_size) {
-						log_debugx("resizing lun %d, "
-						    "target %s, CTL lun %d",
-						    newlun->l_lun,
-						    newtarg->t_name,
-						    newlun->l_ctl_lun);
-						error =
-						    kernel_lun_resize(newlun);
-						if (error != 0) {
-							log_warnx("failed to "
-							    "resize lun %d, "
-							    "target %s, "
-							    "CTL lun %d",
-							    newlun->l_lun,
-							    newtarg->t_name,
-							    newlun->l_lun);
-							cumulated_error++;
-						}
-					}
-					continue;
-				}
-			}
-			log_debugx("adding lun %d, target %s",
-			    newlun->l_lun, newtarg->t_name);
-			error = kernel_lun_add(newlun);
+	TAILQ_FOREACH_SAFE(oldlun, &oldconf->conf_luns, l_next, tmplun) {
+		newlun = lun_find(newconf, oldlun->l_name);
+		if (newlun == NULL) {
+			log_debugx("lun \"%s\", CTL lun %d "
+			    "not found in new configuration; "
+			    "removing", oldlun->l_name, oldlun->l_ctl_lun);
+			error = kernel_lun_remove(oldlun);
 			if (error != 0) {
-				log_warnx("failed to add lun %d, target %s",
-				    newlun->l_lun, newtarg->t_name);
-				lun_delete(newlun);
+				log_warnx("failed to remove lun \"%s\", "
+				    "CTL lun %d",
+				    oldlun->l_name, oldlun->l_ctl_lun);
 				cumulated_error++;
 			}
+			continue;
 		}
-		if (oldtarg == NULL)
-			kernel_port_add(newtarg);
+
+		/*
+		 * Also remove the LUNs changed by more than size.
+		 */
+		changed = 0;
+		assert(oldlun->l_backend != NULL);
+		assert(newlun->l_backend != NULL);
+		if (strcmp(newlun->l_backend, oldlun->l_backend) != 0) {
+			log_debugx("backend for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (oldlun->l_blocksize != newlun->l_blocksize) {
+			log_debugx("blocksize for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (newlun->l_device_id != NULL &&
+		    (oldlun->l_device_id == NULL ||
+		     strcmp(oldlun->l_device_id, newlun->l_device_id) !=
+		     0)) {
+			log_debugx("device-id for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (newlun->l_path != NULL &&
+		    (oldlun->l_path == NULL ||
+		     strcmp(oldlun->l_path, newlun->l_path) != 0)) {
+			log_debugx("path for lun \"%s\", "
+			    "CTL lun %d, changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (newlun->l_serial != NULL &&
+		    (oldlun->l_serial == NULL ||
+		     strcmp(oldlun->l_serial, newlun->l_serial) != 0)) {
+			log_debugx("serial for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (changed) {
+			error = kernel_lun_remove(oldlun);
+			if (error != 0) {
+				log_warnx("failed to remove lun \"%s\", "
+				    "CTL lun %d",
+				    oldlun->l_name, oldlun->l_ctl_lun);
+				cumulated_error++;
+			}
+			lun_delete(oldlun);
+			continue;
+		}
+
+		lun_set_ctl_lun(newlun, oldlun->l_ctl_lun);
+	}
+
+	TAILQ_FOREACH_SAFE(newlun, &newconf->conf_luns, l_next, tmplun) {
+		oldlun = lun_find(oldconf, newlun->l_name);
+		if (oldlun != NULL) {
+			if (newlun->l_size != oldlun->l_size ||
+			    newlun->l_size == 0) {
+				log_debugx("resizing lun \"%s\", CTL lun %d",
+				    newlun->l_name, newlun->l_ctl_lun);
+				error = kernel_lun_resize(newlun);
+				if (error != 0) {
+					log_warnx("failed to "
+					    "resize lun \"%s\", CTL lun %d",
+					    newlun->l_name,
+					    newlun->l_ctl_lun);
+					cumulated_error++;
+				}
+			}
+			continue;
+		}
+		log_debugx("adding lun \"%s\"", newlun->l_name);
+		error = kernel_lun_add(newlun);
+		if (error != 0) {
+			log_warnx("failed to add lun \"%s\"", newlun->l_name);
+			lun_delete(newlun);
+			cumulated_error++;
+		}
+	}
+
+	/*
+	 * Now add new ports or modify existing ones.
+	 */
+	TAILQ_FOREACH(newport, &newconf->conf_ports, p_next) {
+		oldport = port_find(oldconf, newport->p_name);
+
+		if (oldport == NULL) {
+			log_debugx("adding port \"%s\"", newport->p_name);
+			error = kernel_port_add(newport);
+		} else {
+			log_debugx("updating port \"%s\"", newport->p_name);
+			newport->p_ctl_port = oldport->p_ctl_port;
+			error = kernel_port_update(newport);
+		}
+		if (error != 0) {
+			log_warnx("failed to %s port %s",
+			    (oldport == NULL) ? "add" : "update",
+			    newport->p_name);
+			/*
+			 * XXX: Uncomment after fixing the root cause.
+			 *
+			 * cumulated_error++;
+			 */
+		}
 	}
 
 	/*
@@ -1515,6 +2075,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 				continue;
 			}
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_RCVBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_RCVBUF) failed "
+				    "for %s", newp->p_listen);
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_SNDBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_SNDBUF) failed "
+				    "for %s", newp->p_listen);
 			error = setsockopt(newp->p_socket, SOL_SOCKET,
 			    SO_REUSEADDR, &one, sizeof(one));
 			if (error != 0) {
@@ -1561,6 +2131,19 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		}
 	}
 
+	/* (Re-)Register on remaining/new iSNS servers. */
+	TAILQ_FOREACH(newns, &newconf->conf_isns, i_next) {
+		TAILQ_FOREACH(oldns, &oldconf->conf_isns, i_next) {
+			if (strcmp(oldns->i_addr, newns->i_addr) == 0)
+				break;
+		}
+		isns_register(newns, oldns);
+	}
+
+	/* Schedule iSNS update */
+	if (!TAILQ_EMPTY(&newconf->conf_isns))
+		set_timeout((newconf->conf_isns_period + 2) / 3, false);
+
 	return (cumulated_error);
 }
 
@@ -1572,7 +2155,7 @@ timed_out(void)
 }
 
 static void
-sigalrm_handler(int dummy __unused)
+sigalrm_handler_fatal(int dummy __unused)
 {
 	/*
 	 * It would be easiest to just log an error and exit.  We can't
@@ -1592,19 +2175,35 @@ sigalrm_handler(int dummy __unused)
 }
 
 static void
-set_timeout(const struct conf *conf)
+sigalrm_handler(int dummy __unused)
+{
+
+	sigalrm_received = true;
+}
+
+void
+set_timeout(int timeout, int fatal)
 {
 	struct sigaction sa;
 	struct itimerval itv;
 	int error;
 
-	if (conf->conf_timeout <= 0) {
+	if (timeout <= 0) {
 		log_debugx("session timeout disabled");
+		bzero(&itv, sizeof(itv));
+		error = setitimer(ITIMER_REAL, &itv, NULL);
+		if (error != 0)
+			log_err(1, "setitimer");
+		sigalrm_received = false;
 		return;
 	}
 
+	sigalrm_received = false;
 	bzero(&sa, sizeof(sa));
-	sa.sa_handler = sigalrm_handler;
+	if (fatal)
+		sa.sa_handler = sigalrm_handler_fatal;
+	else
+		sa.sa_handler = sigalrm_handler;
 	sigfillset(&sa.sa_mask);
 	error = sigaction(SIGALRM, &sa, NULL);
 	if (error != 0)
@@ -1614,12 +2213,10 @@ set_timeout(const struct conf *conf)
 	 * First SIGALRM will arive after conf_timeout seconds.
 	 * If we do nothing, another one will arrive a second later.
 	 */
+	log_debugx("setting session timeout to %d seconds", timeout);
 	bzero(&itv, sizeof(itv));
 	itv.it_interval.tv_sec = 1;
-	itv.it_value.tv_sec = conf->conf_timeout;
-
-	log_debugx("setting session timeout to %d seconds",
-	    conf->conf_timeout);
+	itv.it_value.tv_sec = timeout;
 	error = setitimer(ITIMER_REAL, &itv, NULL);
 	if (error != 0)
 		log_err(1, "setitimer");
@@ -1705,7 +2302,7 @@ handle_connection(struct portal *portal, int fd,
 	setproctitle("%s", host);
 
 	conn = connection_new(portal, fd, host, client_sa);
-	set_timeout(conf);
+	set_timeout(conf->conf_timeout, true);
 	kernel_capsicate();
 	login(conn);
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
@@ -1752,7 +2349,7 @@ main_loop(struct conf *conf, bool dont_fork)
 	pidfile_write(conf->conf_pidfh);
 
 	for (;;) {
-		if (sighup_received || sigterm_received)
+		if (sighup_received || sigterm_received || timed_out())
 			return;
 
 #ifdef ICL_KERNEL_PROXY
@@ -1760,9 +2357,7 @@ main_loop(struct conf *conf, bool dont_fork)
 			client_salen = sizeof(client_sa);
 			kernel_accept(&connection_id, &portal_id,
 			    (struct sockaddr *)&client_sa, &client_salen);
-			if (client_salen < client_sa.ss_len)
-				log_errx(1, "salen %u < %u",
-				    client_salen, client_sa.ss_len);
+			assert(client_salen >= client_sa.ss_len);
 
 			log_debugx("incoming connection, id %d, portal id %d",
 			    connection_id, portal_id);
@@ -1804,12 +2399,13 @@ found:
 					client_fd = accept(portal->p_socket,
 					    (struct sockaddr *)&client_sa,
 					    &client_salen);
-					if (client_fd < 0)
+					if (client_fd < 0) {
+						if (errno == ECONNABORTED)
+							continue;
 						log_err(1, "accept");
-					if (client_salen < client_sa.ss_len)
-						log_errx(1, "salen %u < %u",
-						    client_salen,
-						    client_sa.ss_len);
+					}
+					assert(client_salen >= client_sa.ss_len);
+
 					handle_connection(portal, client_fd,
 					    (struct sockaddr *)&client_sa,
 					    dont_fork);
@@ -1880,6 +2476,7 @@ int
 main(int argc, char **argv)
 {
 	struct conf *oldconf, *newconf, *tmpconf;
+	struct isns *newns;
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
 	bool dont_daemonize = false;
@@ -1913,7 +2510,7 @@ main(int argc, char **argv)
 	kernel_init();
 
 	oldconf = conf_new_from_kernel();
-	newconf = conf_new_from_file(config_path);
+	newconf = conf_new_from_file(config_path, oldconf);
 	if (newconf == NULL)
 		log_errx(1, "configuration error; exiting");
 	if (debug > 0) {
@@ -1939,12 +2536,16 @@ main(int argc, char **argv)
 		}
 	}
 
+	/* Schedule iSNS update */
+	if (!TAILQ_EMPTY(&newconf->conf_isns))
+		set_timeout((newconf->conf_isns_period + 2) / 3, false);
+
 	for (;;) {
 		main_loop(newconf, dont_daemonize);
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
-			tmpconf = conf_new_from_file(config_path);
+			tmpconf = conf_new_from_file(config_path, newconf);
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
@@ -1964,7 +2565,7 @@ main(int argc, char **argv)
 			log_debugx("exiting on signal; "
 			    "reloading empty configuration");
 
-			log_debugx("disabling CTL iSCSI port "
+			log_debugx("removing CTL iSCSI ports "
 			    "and terminating all connections");
 
 			oldconf = newconf;
@@ -1974,12 +2575,25 @@ main(int argc, char **argv)
 			error = conf_apply(oldconf, newconf);
 			if (error != 0)
 				log_warnx("failed to apply configuration");
+			conf_delete(oldconf);
+			oldconf = NULL;
 
 			log_warnx("exiting on signal");
 			exit(0);
 		} else {
 			nchildren -= wait_for_children(false);
 			assert(nchildren >= 0);
+			if (timed_out()) {
+				set_timeout(0, false);
+				TAILQ_FOREACH(newns, &newconf->conf_isns, i_next)
+					isns_check(newns);
+				/* Schedule iSNS update */
+				if (!TAILQ_EMPTY(&newconf->conf_isns)) {
+					set_timeout((newconf->conf_isns_period
+					    + 2) / 3,
+					    false);
+				}
+			}
 		}
 	}
 	/* NOTREACHED */

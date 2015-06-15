@@ -99,6 +99,11 @@
 #
 # For more information, see the build(7) manual page.
 #
+.if ${MK_META_MODE:Uno} == "yes"
+# targets/Makefile plays the role of top-level
+.include "targets/Makefile"
+.else
+
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd clean cleandepend cleandir \
@@ -165,10 +170,10 @@ _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=$
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/}
+_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/arm64/aarch64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/}
+_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/}
 .endif
 .if defined(TARGET) && !defined(_TARGET)
 _TARGET=${TARGET}
@@ -373,8 +378,19 @@ kernel-toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm i386 mips pc98 powerpc sparc64
+# XXX Add arm64 to universe only if we have an external binutils installed.
+# It does not build with the in-tree linker.
+.if exists(/usr/local/aarch64-freebsd/bin/ld)
+UNIVERSE_arm64=arm64
+.elif empty(${TARGETS})
+universe: universe_arm64_skip
+universe_epilogue: universe_arm64_skip
+universe_arm64_skip: universe_prologue
+	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
+.endif
+TARGETS?=amd64 arm ${UNIVERSE_arm64} i386 mips pc98 powerpc sparc64
 TARGET_ARCHES_arm?=	arm armeb armv6 armv6hf
+TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
@@ -505,10 +521,22 @@ universe_epilogue:
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
-.if defined(.PARSEDIR)
+# This makefile does not run in meta mode
+.MAKE.MODE= normal
+# Normally the things we run from here don't either.
+# Using -DWITH_META_FILES
+# we can buildworld with meta files created which are useful 
+# for debugging, but without any of the rest of a meta mode build.
+MK_META_MODE= no
+MK_STAGING= no
+# tell meta.autodep.mk to not even think about updating anything.
+UPDATE_DEPENDFILE= NO
+.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+
 .if make(universe)
 # we do not want a failure of one branch abort all.
 MAKE_JOB_ERROR_TOKEN= no
 .export MAKE_JOB_ERROR_TOKEN
 .endif
-.endif
+
+.endif				# META_MODE

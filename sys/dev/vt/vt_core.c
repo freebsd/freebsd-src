@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/power.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -113,18 +114,29 @@ const struct terminal_class vt_termclass = {
 
 #define	VT_LOCK(vd)	mtx_lock(&(vd)->vd_lock)
 #define	VT_UNLOCK(vd)	mtx_unlock(&(vd)->vd_lock)
+#define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
 
 static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "vt(9) parameters");
 VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
+VT_SYSCTL_INT(enable_bell, 1, "Enable bell");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
-VT_SYSCTL_INT(spclkeys, (VT_DEBUG_KEY_ENABLED|VT_REBOOT_KEY_ENABLED|
-    VT_HALT_KEY_ENABLED|VT_POWEROFF_KEY_ENABLED), "Enabled special keys "
-    "handled by vt(4)");
+
+/* Allow to disable some keyboard combinations. */
+VT_SYSCTL_INT(kbd_halt, 1, "Enable halt keyboard combination.  "
+    "See kbdmap(5) to configure.");
+VT_SYSCTL_INT(kbd_poweroff, 1, "Enable Power Off keyboard combination.  "
+    "See kbdmap(5) to configure.");
+VT_SYSCTL_INT(kbd_reboot, 1, "Enable reboot keyboard combination.  "
+    "See kbdmap(5) to configure (typically Ctrl-Alt-Delete).");
+VT_SYSCTL_INT(kbd_debug, 1, "Enable key combination to enter debugger.  "
+    "See kbdmap(5) to configure (typically Ctrl-Alt-Esc).");
+VT_SYSCTL_INT(kbd_panic, 0, "Enable request to panic.  "
+    "See kbdmap(5) to configure.");
 
 static struct vt_device	vt_consdev;
 static unsigned int vt_unit = 0;
@@ -152,6 +164,11 @@ static int vt_late_window_switch(struct vt_window *);
 static int vt_proc_alive(struct vt_window *);
 static void vt_resize(struct vt_device *);
 static void vt_update_static(void *);
+#ifndef SC_NO_CUTPASTE
+static void vt_mouse_paste(void);
+#endif
+static void vt_suspend_handler(void *priv);
+static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
@@ -163,13 +180,19 @@ static struct vt_window	vt_conswindow;
 static struct vt_device	vt_consdev = {
 	.vd_driver = NULL,
 	.vd_softc = NULL,
+	.vd_prev_driver = NULL,
+	.vd_prev_softc = NULL,
 	.vd_flags = VDF_INVALID,
 	.vd_windows = { [VT_CONSWINDOW] =  &vt_conswindow, },
 	.vd_curwindow = &vt_conswindow,
-	.vd_markedwin = NULL,
 	.vd_kbstate = 0,
 
 #ifndef SC_NO_CUTPASTE
+	.vd_pastebuf = {
+		.vpb_buf = NULL,
+		.vpb_bufsz = 0,
+		.vpb_len = 0
+	},
 	.vd_mcursor = &vt_default_mouse_pointer,
 	.vd_mcursor_fg = TC_WHITE,
 	.vd_mcursor_bg = TC_BLACK,
@@ -265,12 +288,18 @@ vt_resume_flush_timer(struct vt_device *vd, int ms)
 static void
 vt_suspend_flush_timer(struct vt_device *vd)
 {
+	/*
+	 * As long as this function is called locked, callout_stop()
+	 * has the same effect like callout_drain() with regard to
+	 * preventing the callback function from executing.
+	 */
+	VT_LOCK_ASSERT(vd, MA_OWNED);
 
 	if (!(vd->vd_flags & VDF_ASYNC) ||
 	    !atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
 		return;
 
-	callout_drain(&vd->vd_timer);
+	callout_stop(&vd->vd_timer);
 }
 
 static void
@@ -278,6 +307,97 @@ vt_switch_timer(void *arg)
 {
 
 	vt_late_window_switch((struct vt_window *)arg);
+}
+
+static int
+vt_save_kbd_mode(struct vt_window *vw, keyboard_t *kbd)
+{
+	int mode, ret;
+
+	mode = 0;
+	ret = kbdd_ioctl(kbd, KDGKBMODE, (caddr_t)&mode);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+	if (ret != 0)
+		return (ret);
+
+	vw->vw_kbdmode = mode;
+
+	return (0);
+}
+
+static int
+vt_update_kbd_mode(struct vt_window *vw, keyboard_t *kbd)
+{
+	int ret;
+
+	ret = kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+
+	return (ret);
+}
+
+static int
+vt_save_kbd_state(struct vt_window *vw, keyboard_t *kbd)
+{
+	int state, ret;
+
+	state = 0;
+	ret = kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+	if (ret != 0)
+		return (ret);
+
+	vw->vw_kbdstate &= ~LOCK_MASK;
+	vw->vw_kbdstate |= state & LOCK_MASK;
+
+	return (0);
+}
+
+static int
+vt_update_kbd_state(struct vt_window *vw, keyboard_t *kbd)
+{
+	int state, ret;
+
+	state = vw->vw_kbdstate & LOCK_MASK;
+	ret = kbdd_ioctl(kbd, KDSKBSTATE, (caddr_t)&state);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+
+	return (ret);
+}
+
+static int
+vt_save_kbd_leds(struct vt_window *vw, keyboard_t *kbd)
+{
+	int leds, ret;
+
+	leds = 0;
+	ret = kbdd_ioctl(kbd, KDGETLED, (caddr_t)&leds);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+	if (ret != 0)
+		return (ret);
+
+	vw->vw_kbdstate &= ~LED_MASK;
+	vw->vw_kbdstate |= leds & LED_MASK;
+
+	return (0);
+}
+
+static int
+vt_update_kbd_leds(struct vt_window *vw, keyboard_t *kbd)
+{
+	int leds, ret;
+
+	leds = vw->vw_kbdstate & LED_MASK;
+	ret = kbdd_ioctl(kbd, KDSETLED, (caddr_t)&leds);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+
+	return (ret);
 }
 
 static int
@@ -331,13 +451,36 @@ vt_proc_window_switch(struct vt_window *vw)
 	struct vt_device *vd;
 	int ret;
 
+	/* Prevent switching to NULL */
+	if (vw == NULL) {
+		DPRINTF(30, "%s: Cannot switch: vw is NULL.", __func__);
+		return (EINVAL);
+	}
 	vd = vw->vw_device;
 	curvw = vd->vd_curwindow;
 
+	/* Check if virtual terminal is locked */
 	if (curvw->vw_flags & VWF_VTYLOCK)
 		return (EBUSY);
 
-	/* Ask current process permitions to switch away. */
+	/* Check if switch already in progress */
+	if (curvw->vw_flags & VWF_SWWAIT_REL) {
+		/* Check if switching to same window */
+		if (curvw->vw_switch_to == vw) {
+			DPRINTF(30, "%s: Switch in progress to same vw.", __func__);
+			return (0);	/* success */
+		}
+		DPRINTF(30, "%s: Switch in progress to different vw.", __func__);
+		return (EBUSY);
+	}
+
+	/* Avoid switching to already selected window */
+	if (vw == curvw) {
+		DPRINTF(30, "%s: Cannot switch: vw == curvw.", __func__);
+		return (0);	/* success */
+	}
+
+	/* Ask current process permission to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
 		DPRINTF(30, "%s: VT_PROCESS ", __func__);
 		if (vt_proc_alive(curvw) == FALSE) {
@@ -392,7 +535,11 @@ vt_window_switch(struct vt_window *vw)
 	mtx_lock(&Giant);
 	kbd = kbd_get_keyboard(vd->vd_keyboard);
 	if (kbd != NULL) {
-		kbdd_ioctl(kbd, KDSKBMODE, (void *)&vw->vw_kbdmode);
+		if (curvw->vw_kbdmode == K_XLATE)
+			vt_save_kbd_state(curvw, kbd);
+
+		vt_update_kbd_mode(vw, kbd);
+		vt_update_kbd_state(vw, kbd);
 	}
 	mtx_unlock(&Giant);
 	DPRINTF(10, "%s(ttyv%d) done\n", __func__, vw->vw_number);
@@ -430,10 +577,16 @@ vt_compute_drawable_area(struct vt_window *vw)
 	struct vt_device *vd;
 	struct vt_font *vf;
 
-	if (vw->vw_font == NULL)
-		return;
-
 	vd = vw->vw_device;
+
+	if (vw->vw_font == NULL) {
+		vw->vw_draw_area.tr_begin.tp_col = 0;
+		vw->vw_draw_area.tr_begin.tp_row = 0;
+		vw->vw_draw_area.tr_end.tp_col = vd->vd_width;
+		vw->vw_draw_area.tr_end.tp_row = vd->vd_height;
+		return;
+	}
+
 	vf = vw->vw_font;
 
 	/*
@@ -461,18 +614,8 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 	vt_termsize(vw->vw_device, vw->vw_font, &size);
 
 	diff = vthistory_seek(&vw->vw_buf, offset, whence);
-	/*
-	 * Offset changed, please update Nth lines on screen.
-	 * +N - Nth lines at top;
-	 * -N - Nth lines at bottom.
-	 */
-
-	if (diff < -size.tp_row || diff > size.tp_row) {
+	if (diff)
 		vw->vw_device->vd_flags |= VDF_INVALID;
-		vt_resume_flush_timer(vw->vw_device, 0);
-		return;
-	}
-	vw->vw_device->vd_flags |= VDF_INVALID; /*XXX*/
 	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
@@ -481,22 +624,47 @@ vt_machine_kbdevent(int c)
 {
 
 	switch (c) {
-	case SPCLKEY | DBG:
-		if (vt_spclkeys & VT_DEBUG_KEY_ENABLED)
+	case SPCLKEY | DBG: /* kbdmap(5) keyword `debug`. */
+		if (vt_kbd_debug)
 			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
 		return (1);
-	case SPCLKEY | RBT:
-		if (vt_spclkeys & VT_REBOOT_KEY_ENABLED)
-			/* XXX: Make this configurable! */
-			shutdown_nice(0);
-		return (1);
-	case SPCLKEY | HALT:
-		if (vt_spclkeys & VT_HALT_KEY_ENABLED)
+	case SPCLKEY | HALT: /* kbdmap(5) keyword `halt`. */
+		if (vt_kbd_halt)
 			shutdown_nice(RB_HALT);
 		return (1);
-	case SPCLKEY | PDWN:
-		if (vt_spclkeys & VT_POWEROFF_KEY_ENABLED)
+	case SPCLKEY | PASTE: /* kbdmap(5) keyword `paste`. */
+#ifndef SC_NO_CUTPASTE
+		/* Insert text from cut-paste buffer. */
+		vt_mouse_paste();
+#endif
+		break;
+	case SPCLKEY | PDWN: /* kbdmap(5) keyword `pdwn`. */
+		if (vt_kbd_poweroff)
 			shutdown_nice(RB_HALT|RB_POWEROFF);
+		return (1);
+	case SPCLKEY | PNC: /* kbdmap(5) keyword `panic`. */
+		/*
+		 * Request to immediate panic if sysctl
+		 * kern.vt.enable_panic_key allow it.
+		 */
+		if (vt_kbd_panic)
+			panic("Forced by the panic key");
+		return (1);
+	case SPCLKEY | RBT: /* kbdmap(5) keyword `boot`. */
+		if (vt_kbd_reboot)
+			shutdown_nice(RB_AUTOBOOT);
+		return (1);
+	case SPCLKEY | SPSC: /* kbdmap(5) keyword `spsc`. */
+		/* Force activatation/deactivation of the screen saver. */
+		/* TODO */
+		return (1);
+	case SPCLKEY | STBY: /* XXX Not present in kbdcontrol parser. */
+		/* Put machine into Stand-By mode. */
+		power_pm_suspend(POWER_SLEEP_STATE_STANDBY);
+		return (1);
+	case SPCLKEY | SUSP: /* kbdmap(5) keyword `susp`. */
+		/* Suspend machine. */
+		power_pm_suspend(POWER_SLEEP_STATE_SUSPEND);
 		return (1);
 	};
 
@@ -519,8 +687,7 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 	if (console == 0) {
 		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
 			vw = vd->vd_windows[c - F_SCR];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return;
 		}
 		VT_LOCK(vd);
@@ -564,7 +731,6 @@ static int
 vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 {
 	struct vt_window *vw = vd->vd_curwindow;
-	int state = 0;
 
 #if VT_ALT_TO_ESC_HACK
 	if (c & RELKEY) {
@@ -606,17 +772,27 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 
 		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
 			vw = vd->vd_windows[c - F_SCR];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		}
 
 		switch (c) {
+		case NEXT:
+			/* Switch to next VT. */
+			c = (vw->vw_number + 1) % VT_MAXWINDOWS;
+			vw = vd->vd_windows[c];
+			vt_proc_window_switch(vw);
+			return (0);
+		case PREV:
+			/* Switch to previous VT. */
+			c = (vw->vw_number + VT_MAXWINDOWS - 1) % VT_MAXWINDOWS;
+			vw = vd->vd_windows[c];
+			vt_proc_window_switch(vw);
+			return (0);
 		case SLK: {
-
-			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
+			vt_save_kbd_state(vw, kbd);
 			VT_LOCK(vd);
-			if (state & SLKED) {
+			if (vw->vw_kbdstate & SLKED) {
 				/* Turn scrolling on. */
 				vw->vw_flags |= VWF_SCROLL;
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
@@ -679,7 +855,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 				terminal_input_char(vw->vw_terminal, 0x1b);
 			}
 #endif
-
+#if defined(KDB)
+			kdb_alt_break(c, &vd->vd_altbrk);
+#endif
 			terminal_input_char(vw->vw_terminal, KEYCHAR(c));
 		} else
 			terminal_input_raw(vw->vw_terminal, c);
@@ -720,7 +898,6 @@ vt_allocate_keyboard(struct vt_device *vd)
 	keyboard_info_t	 ki;
 
 	idx0 = kbd_allocate("kbdmux", -1, vd, vt_kbdevent, vd);
-	vd->vd_keyboard = idx0;
 	if (idx0 >= 0) {
 		DPRINTF(20, "%s: kbdmux allocated, idx = %d\n", __func__, idx0);
 		k0 = kbd_get_keyboard(idx0);
@@ -734,7 +911,8 @@ vt_allocate_keyboard(struct vt_device *vd)
 				continue;
 
 			bzero(&ki, sizeof(ki));
-			strcpy(ki.kb_name, k->kb_name);
+			strncpy(ki.kb_name, k->kb_name, sizeof(ki.kb_name));
+			ki.kb_name[sizeof(ki.kb_name) - 1] = '\0';
 			ki.kb_unit = k->kb_unit;
 
 			kbdd_ioctl(k0, KBADDKBD, (caddr_t) &ki);
@@ -747,6 +925,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 			return (-1);
 		}
 	}
+	vd->vd_keyboard = idx0;
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
 
 	return (idx0);
@@ -758,6 +937,9 @@ vtterm_bell(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 
+	if (!vt_enable_bell)
+		return;
+
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
@@ -768,6 +950,9 @@ static void
 vtterm_beep(struct terminal *tm, u_int param)
 {
 	u_int freq, period;
+
+	if (!vt_enable_bell)
+		return;
 
 	if ((param == 0) || ((param & 0xffff) == 0)) {
 		vtterm_bell(tm);
@@ -863,7 +1048,7 @@ vt_determine_colors(term_char_t c, int cursor,
 int
 vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 {
-	unsigned int mx, my, x1, y1, x2, y2;
+	unsigned int mx, my;
 
 	/*
 	 * We use the cursor position saved during the current refresh,
@@ -872,18 +1057,12 @@ vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 	mx = vd->vd_mx_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_col;
 	my = vd->vd_my_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_row;
 
-	x1 = area->tr_begin.tp_col;
-	y1 = area->tr_begin.tp_row;
-	x2 = area->tr_end.tp_col;
-	y2 = area->tr_end.tp_row;
-
-	if (((mx >= x1 && x2 - 1 >= mx) ||
-	     (mx < x1 && mx + vd->vd_mcursor->width >= x1)) &&
-	    ((my >= y1 && y2 - 1 >= my) ||
-	     (my < y1 && my + vd->vd_mcursor->height >= y1)))
-		return (1);
-
-	return (0);
+	if (mx >= area->tr_end.tp_col ||
+	    mx + vd->vd_mcursor->width <= area->tr_begin.tp_col ||
+	    my >= area->tr_end.tp_row ||
+	    my + vd->vd_mcursor->height <= area->tr_begin.tp_row)
+		return (0);
+	return (1);
 }
 
 static void
@@ -929,7 +1108,6 @@ vt_flush(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	struct vt_font *vf;
-	struct vt_bufmask tmask;
 	term_rect_t tarea;
 	term_pos_t size;
 #ifndef SC_NO_CUTPASTE
@@ -985,14 +1163,13 @@ vt_flush(struct vt_device *vd)
 		vt_mark_mouse_position_as_dirty(vd);
 #endif
 
-	vtbuf_undirty(&vw->vw_buf, &tarea, &tmask);
+	vtbuf_undirty(&vw->vw_buf, &tarea);
 	vt_termsize(vd, vf, &size);
 
 	/* Force a full redraw when the screen contents are invalid. */
 	if (vd->vd_flags & VDF_INVALID) {
 		tarea.tr_begin.tp_row = tarea.tr_begin.tp_col = 0;
 		tarea.tr_end = size;
-		tmask.vbm_row = tmask.vbm_col = VBM_DIRTY;
 
 		vd->vd_flags &= ~VDF_INVALID;
 	}
@@ -1120,6 +1297,14 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 		vt_compute_drawable_area(vw);
 	}
 
+	/*
+	 * The original screen size was faked (_VTDEFW x _VTDEFH). Now
+	 * that we have the real viewable size, fix it in the static
+	 * buffer.
+	 */
+	if (vd->vd_width != 0 && vd->vd_height != 0)
+		vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
+
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
 	c = (boothowto & RB_MUTE) == 0 ? TERMINAL_KERN_ATTR :
@@ -1143,13 +1328,11 @@ vtterm_cngetc(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	keyboard_t *kbd;
-	int state;
 	u_int c;
 
 	if (vw->vw_kbdsq && *vw->vw_kbdsq)
 		return (*vw->vw_kbdsq++);
 
-	state = 0;
 	/* Make sure the splash screen is not there. */
 	if (vd->vd_flags & VDF_SPLASH) {
 		/* Remove splash */
@@ -1165,8 +1348,8 @@ vtterm_cngetc(struct terminal *tm)
 		return (-1);
 
 	/* Force keyboard input mode to K_XLATE */
-	c = K_XLATE;
-	kbdd_ioctl(kbd, KDSKBMODE, (void *)&c);
+	vw->vw_kbdmode = K_XLATE;
+	vt_update_kbd_mode(vw, kbd);
 
 	/* Switch the keyboard to polling to make it work here. */
 	kbdd_poll(kbd, TRUE);
@@ -1185,8 +1368,8 @@ vtterm_cngetc(struct terminal *tm)
 	if (c & SPCLKEY) {
 		switch (c) {
 		case SPCLKEY | SLK:
-			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
-			if (state & SLKED) {
+			vt_save_kbd_state(vw, kbd);
+			if (vw->vw_kbdstate & SLKED) {
 				/* Turn scrolling on. */
 				vw->vw_flags |= VWF_SCROLL;
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
@@ -1253,7 +1436,7 @@ vtterm_cngrab(struct terminal *tm)
 	/* We shall always use the keyboard in the XLATE mode here. */
 	vw->vw_prev_kbdmode = vw->vw_kbdmode;
 	vw->vw_kbdmode = K_XLATE;
-	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	vt_update_kbd_mode(vw, kbd);
 
 	kbdd_poll(kbd, TRUE);
 }
@@ -1278,7 +1461,7 @@ vtterm_cnungrab(struct terminal *tm)
 	kbdd_poll(kbd, FALSE);
 
 	vw->vw_kbdmode = vw->vw_prev_kbdmode;
-	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	vt_update_kbd_mode(vw, kbd);
 	kbdd_disable(kbd);
 }
 
@@ -1300,30 +1483,40 @@ vtterm_opened(struct terminal *tm, int opened)
 }
 
 static int
-vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
+vt_set_border(struct vt_window *vw, term_color_t c)
 {
 	struct vt_device *vd = vw->vw_device;
-	int x, y, off_x, off_y;
 
 	if (vd->vd_driver->vd_drawrect == NULL)
 		return (ENOTSUP);
 
-	x = vd->vd_width - 1;
-	y = vd->vd_height - 1;
-	off_x = vw->vw_draw_area.tr_begin.tp_col;
-	off_y = vw->vw_draw_area.tr_begin.tp_row;
-
 	/* Top bar. */
-	if (off_y > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
-	/* Left bar. */
-	if (off_x > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
+	if (vw->vw_draw_area.tr_begin.tp_row > 0)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, 0,
+		    vd->vd_width - 1, vw->vw_draw_area.tr_begin.tp_row - 1,
 		    1, c);
-	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
-	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
+
+	/* Left bar. */
+	if (vw->vw_draw_area.tr_begin.tp_col > 0)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, 0,
+		    vw->vw_draw_area.tr_begin.tp_col - 1, vd->vd_height - 1,
+		    1, c);
+
+	/* Right bar. */
+	if (vw->vw_draw_area.tr_end.tp_col < vd->vd_width)
+		vd->vd_driver->vd_drawrect(vd,
+		    vw->vw_draw_area.tr_end.tp_col - 1, 0,
+		    vd->vd_width - 1, vd->vd_height - 1,
+		    1, c);
+
+	/* Bottom bar. */
+	if (vw->vw_draw_area.tr_end.tp_row < vd->vd_height)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, vw->vw_draw_area.tr_end.tp_row - 1,
+		    vd->vd_width - 1, vd->vd_height - 1,
+		    1, c);
 
 	return (0);
 }
@@ -1355,11 +1548,6 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (EBUSY);
 	}
-	if (vd->vd_flags & VDF_TEXTMODE) {
-		/* Our device doesn't need fonts. */
-		VT_UNLOCK(vd);
-		return (ENOTTY);
-	}
 	vw->vw_flags |= VWF_BUSY;
 	VT_UNLOCK(vd);
 
@@ -1370,23 +1558,35 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
 	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
+	terminal_set_cursor(tm, &vw->vw_buf.vb_cursor);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
 	VT_LOCK(vd);
-	if (vw->vw_font != vf) {
+	if (vw->vw_font != vf && vw->vw_font != NULL && vf != NULL) {
 		/*
 		 * In case vt_change_font called to update size we don't need
 		 * to update font link.
 		 */
 		vtfont_unref(vw->vw_font);
 		vw->vw_font = vtfont_ref(vf);
-		vt_compute_drawable_area(vw);
 	}
+
+	/*
+	 * Compute the drawable area and move the mouse cursor inside
+	 * it, in case the new area is smaller than the previous one.
+	 */
+	vt_compute_drawable_area(vw);
+	vd->vd_mx = min(vd->vd_mx,
+	    vw->vw_draw_area.tr_end.tp_col -
+	    vw->vw_draw_area.tr_begin.tp_col - 1);
+	vd->vd_my = min(vd->vd_my,
+	    vw->vw_draw_area.tr_end.tp_row -
+	    vw->vw_draw_area.tr_begin.tp_row - 1);
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
-		vt_set_border(vw, vf, TC_BLACK);
+		vt_set_border(vw, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
 		vt_resume_flush_timer(vw->vw_device, 0);
 	}
@@ -1505,7 +1705,7 @@ vt_mouse_terminput_button(struct vt_device *vd, int button)
 	mouseb[4] = '!' + x;
 	mouseb[5] = '!' + y;
 
-	for (i = 0; i < sizeof(mouseb); i++ )
+	for (i = 0; i < sizeof(mouseb); i++)
 		terminal_input_char(vw->vw_terminal, mouseb[i]);
 }
 
@@ -1543,6 +1743,23 @@ vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int event,
 	}
 }
 
+static void
+vt_mouse_paste()
+{
+	term_char_t *buf;
+	int i, len;
+
+	len = VD_PASTEBUFLEN(main_vd);
+	buf = VD_PASTEBUF(main_vd);
+	len /= sizeof(term_char_t);
+	for (i = 0; i < len; i++) {
+		if (buf[i] == '\0')
+			continue;
+		terminal_input_char(main_vd->vd_curwindow->vw_terminal,
+		    buf[i]);
+	}
+}
+
 void
 vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 {
@@ -1550,8 +1767,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 	struct vt_window *vw;
 	struct vt_font *vf;
 	term_pos_t size;
-	term_char_t *buf;
-	int i, len, mark;
+	int len, mark;
 
 	vd = main_vd;
 	vw = vd->vd_curwindow;
@@ -1594,17 +1810,10 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 
 		vd->vd_mx = x;
 		vd->vd_my = y;
-		if ((vd->vd_mstate & MOUSE_BUTTON1DOWN) &&
-		    (vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
-			vd->vd_mx / vf->vf_width,
-			vd->vd_my / vf->vf_height) == 1)) {
-
-			/*
-			 * We have something marked to copy, so update pointer
-			 * to window with selection.
-			 */
-			vd->vd_markedwin = vw;
-		}
+		if (vd->vd_mstate & MOUSE_BUTTON1DOWN)
+			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
+			    vd->vd_mx / vf->vf_width,
+			    vd->vd_my / vf->vf_height);
 
 		vt_resume_flush_timer(vw->vw_device, 0);
 		return; /* Done */
@@ -1637,27 +1846,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		case 0:	/* up */
 			break;
 		default:
-			if (vd->vd_markedwin == NULL)
-				return;
-			/* Get current selecton size in bytes. */
-			len = vtbuf_get_marked_len(&vd->vd_markedwin->vw_buf);
-			if (len <= 0)
-				return;
-
-			buf = malloc(len, M_VT, M_WAITOK | M_ZERO);
-			/* Request cupy/paste buffer data, no more than `len' */
-			vtbuf_extract_marked(&vd->vd_markedwin->vw_buf, buf,
-			    len);
-
-			len /= sizeof(term_char_t);
-			for (i = 0; i < len; i++ ) {
-				if (buf[i] == '\0')
-					continue;
-				terminal_input_char(vw->vw_terminal, buf[i]);
-			}
-
-			/* Done, so cleanup. */
-			free(buf, M_VT);
+			vt_mouse_paste();
 			break;
 		}
 		return; /* Done */
@@ -1690,8 +1879,38 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		 * We have something marked to copy, so update pointer to
 		 * window with selection.
 		 */
-		vd->vd_markedwin = vw;
 		vt_resume_flush_timer(vw->vw_device, 0);
+
+		switch (mark) {
+		case VTB_MARK_END:
+		case VTB_MARK_WORD:
+		case VTB_MARK_ROW:
+		case VTB_MARK_EXTEND:
+			break;
+		default:
+			/* Other types of mark do not require to copy data. */
+			return;
+		}
+
+		/* Get current selection size in bytes. */
+		len = vtbuf_get_marked_len(&vw->vw_buf);
+		if (len <= 0)
+			return;
+
+		/* Reallocate buffer only if old one is too small. */
+		if (len > VD_PASTEBUFSZ(vd)) {
+			VD_PASTEBUF(vd) = realloc(VD_PASTEBUF(vd), len, M_VT,
+			    M_WAITOK | M_ZERO);
+			/* Update buffer size. */
+			VD_PASTEBUFSZ(vd) = len;
+		}
+		/* Request copy/paste buffer data, no more than `len' */
+		vtbuf_extract_marked(&vw->vw_buf, VD_PASTEBUF(vd),
+		    VD_PASTEBUFSZ(vd));
+
+		VD_PASTEBUFLEN(vd) = len;
+
+		/* XXX VD_PASTEBUF(vd) have to be freed on shutdown/unload. */
 	}
 }
 
@@ -1788,6 +2007,7 @@ skip_thunk:
 	case KDSETRAD:		/* set keyboard repeat & delay rates (old) */
 		if (*(int *)data & ~0x7f)
 			return (EINVAL);
+		/* FALLTHROUGH */
 	case GIO_KEYMAP:
 	case PIO_KEYMAP:
 	case GIO_DEADKEYMAP:
@@ -1796,12 +2016,8 @@ skip_thunk:
 	case SETFKEY:
 	case KDGKBINFO:
 	case KDGKBTYPE:
-	case KDSKBSTATE:	/* set keyboard state (locks) */
-	case KDGKBSTATE:	/* get keyboard state (locks) */
 	case KDGETREPEAT:	/* get keyboard repeat & delay rates */
 	case KDSETREPEAT:	/* set keyboard repeat & delay rates (new) */
-	case KDSETLED:		/* set keyboard LED status */
-	case KDGETLED:		/* get keyboard LED status */
 	case KBADDKBD:		/* add/remove keyboard to/from mux */
 	case KBRELKBD: {
 		error = 0;
@@ -1821,18 +2037,101 @@ skip_thunk:
 		}
 		return (error);
 	}
-	case KDGKBMODE: {
-		int mode = -1;
+	case KDGKBSTATE: {	/* get keyboard state (locks) */
+		error = 0;
 
-		mtx_lock(&Giant);
-		kbd = kbd_get_keyboard(vd->vd_keyboard);
-		if (kbd != NULL) {
-			kbdd_ioctl(kbd, KDGKBMODE, (void *)&mode);
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_save_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
+
+			if (error != 0)
+				return (error);
 		}
-		mtx_unlock(&Giant);
-		DPRINTF(20, "mode %d, vw_kbdmode %d\n", mode, vw->vw_kbdmode);
-		*(int *)data = mode;
-		return (0);
+
+		*(int *)data = vw->vw_kbdstate & LOCK_MASK;
+
+		return (error);
+	}
+	case KDSKBSTATE: {	/* set keyboard state (locks) */
+		int state;
+
+		state = *(int *)data;
+		if (state & ~LOCK_MASK)
+			return (EINVAL);
+
+		vw->vw_kbdstate &= ~LOCK_MASK;
+		vw->vw_kbdstate |= state;
+
+		error = 0;
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_update_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
+		}
+
+		return (error);
+	}
+	case KDGETLED: {	/* get keyboard LED status */
+		error = 0;
+
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_save_kbd_leds(vw, kbd);
+			mtx_unlock(&Giant);
+
+			if (error != 0)
+				return (error);
+		}
+
+		*(int *)data = vw->vw_kbdstate & LED_MASK;
+
+		return (error);
+	}
+	case KDSETLED: {	/* set keyboard LED status */
+		int leds;
+
+		leds = *(int *)data;
+		if (leds & ~LED_MASK)
+			return (EINVAL);
+
+		vw->vw_kbdstate &= ~LED_MASK;
+		vw->vw_kbdstate |= leds;
+
+		error = 0;
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_update_kbd_leds(vw, kbd);
+			mtx_unlock(&Giant);
+		}
+
+		return (error);
+	}
+	case KDGKBMODE: {
+		error = 0;
+
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_save_kbd_mode(vw, kbd);
+			mtx_unlock(&Giant);
+
+			if (error != 0)
+				return (error);
+		}
+
+		*(int *)data = vw->vw_kbdmode;
+
+		return (error);
 	}
 	case KDSKBMODE: {
 		int mode;
@@ -1843,19 +2142,17 @@ skip_thunk:
 		case K_RAW:
 		case K_CODE:
 			vw->vw_kbdmode = mode;
-			if (vw == vd->vd_curwindow) {
-				keyboard_t *kbd;
-				error = 0;
 
+			error = 0;
+			if (vw == vd->vd_curwindow) {
 				mtx_lock(&Giant);
 				kbd = kbd_get_keyboard(vd->vd_keyboard);
-				if (kbd != NULL) {
-					error = kbdd_ioctl(kbd, KDSKBMODE,
-					    (void *)&mode);
-				}
+				if (kbd != NULL)
+					error = vt_update_kbd_mode(vw, kbd);
 				mtx_unlock(&Giant);
 			}
-			return (0);
+
+			return (error);
 		default:
 			return (EINVAL);
 		}
@@ -1883,8 +2180,17 @@ skip_thunk:
 		return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;
+		if (vi->size != sizeof(struct vid_info))
+			return (EINVAL);
+
+		if (vw == vd->vd_curwindow) {
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				vt_save_kbd_state(vw, kbd);
+		}
 
 		vi->m_num = vd->vd_curwindow->vw_number + 1;
+		vi->mk_keylock = vw->vw_kbdstate & LOCK_MASK;
 		/* XXX: other fields! */
 		return (0);
 	}
@@ -1928,12 +2234,20 @@ skip_thunk:
 	case PIO_VFONT: {
 		struct vt_font *vf;
 
+		if (vd->vd_flags & VDF_TEXTMODE)
+			return (ENOTSUP);
+
 		error = vtfont_load((void *)data, &vf);
 		if (error != 0)
 			return (error);
 
 		error = vt_change_font(vw, vf);
 		vtfont_unref(vf);
+		return (error);
+	}
+	case PIO_VFONT_DEFAULT: {
+		/* Reset to default font. */
+		error = vt_change_font(vw, &vt_font_default);
 		return (error);
 	}
 	case GIO_SCRNMAP: {
@@ -1999,13 +2313,14 @@ skip_thunk:
 			    (void *)vd, vt_kbdevent, vd);
 			if (i >= 0) {
 				if (vd->vd_keyboard != -1) {
+					vt_save_kbd_state(vd->vd_curwindow, kbd);
 					kbd_release(kbd, (void *)vd);
 				}
 				kbd = kbd_get_keyboard(i);
 				vd->vd_keyboard = i;
 
-				(void)kbdd_ioctl(kbd, KDSKBMODE,
-				    (caddr_t)&vd->vd_curwindow->vw_kbdmode);
+				vt_update_kbd_mode(vd->vd_curwindow, kbd);
+				vt_update_kbd_state(vd->vd_curwindow, kbd);
 			} else {
 				error = EPERM;	/* XXX */
 			}
@@ -2021,6 +2336,7 @@ skip_thunk:
 				mtx_unlock(&Giant);
 				return (EINVAL);
 			}
+			vt_save_kbd_state(vd->vd_curwindow, kbd);
 			error = kbd_release(kbd, (void *)vd);
 			if (error == 0) {
 				vd->vd_keyboard = -1;
@@ -2033,7 +2349,7 @@ skip_thunk:
 		win = *(int *)data - 1;
 		DPRINTF(5, "%s%d: VT_ACTIVATE ttyv%d ", SC_DRIVER_NAME,
 		    VT_UNIT(vw), win);
-		if ((win > VT_MAXWINDOWS) || (win < 0))
+		if ((win >= VT_MAXWINDOWS) || (win < 0))
 			return (EINVAL);
 		return (vt_proc_window_switch(vd->vd_windows[win]));
 	}
@@ -2066,20 +2382,23 @@ skip_thunk:
 		}
 		VT_UNLOCK(vd);
 		return (EINVAL);
-	case VT_WAITACTIVE:
+	case VT_WAITACTIVE: {
+		unsigned int idx;
+
 		error = 0;
 
-		i = *(unsigned int *)data;
-		if (i > VT_MAXWINDOWS)
+		idx = *(unsigned int *)data;
+		if (idx > VT_MAXWINDOWS)
 			return (EINVAL);
-		if (i != 0)
-			vw = vd->vd_windows[i - 1];
+		if (idx > 0)
+			vw = vd->vd_windows[idx - 1];
 
 		VT_LOCK(vd);
 		while (vd->vd_curwindow != vw && error == 0)
 			error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
 		VT_UNLOCK(vd);
 		return (error);
+	}
 	case VT_SETMODE: {    	/* set screen switcher mode */
 		struct vt_mode *mode;
 		struct proc *p1;
@@ -2214,8 +2533,11 @@ vt_upgrade(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	unsigned int i;
+	int register_handlers;
 
 	if (!vty_enabled(VTY_VT))
+		return;
+	if (main_vd->vd_driver == NULL)
 		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
@@ -2240,6 +2562,7 @@ vt_upgrade(struct vt_device *vd)
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
+	register_handlers = 0;
 	if (!(vd->vd_flags & VDF_ASYNC)) {
 		/* Attach keyboard. */
 		vt_allocate_keyboard(vd);
@@ -2251,12 +2574,21 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
 		vd->vd_timer_armed = 1;
+		register_handlers = 1;
 	}
 
 	VT_UNLOCK(vd);
 
 	/* Refill settings with new sizes. */
 	vt_resize(vd);
+
+	if (register_handlers) {
+		/* Register suspend/resume handlers. */
+		EVENTHANDLER_REGISTER(power_suspend_early, vt_suspend_handler,
+		    vd, EVENTHANDLER_PRI_ANY);
+		EVENTHANDLER_REGISTER(power_resume, vt_resume_handler, vd,
+		    EVENTHANDLER_PRI_ANY);
+	}
 }
 
 static void
@@ -2272,8 +2604,8 @@ vt_resize(struct vt_device *vd)
 		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
 			vw->vw_font = vtfont_ref(&vt_font_default);
 		VT_UNLOCK(vd);
+
 		/* Resize terminal windows */
-		vt_compute_drawable_area(vw);
 		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
 			DPRINTF(100, "%s: vt_change_font() is busy, "
 			    "window %d\n", __func__, i);
@@ -2281,37 +2613,18 @@ vt_resize(struct vt_device *vd)
 	}
 }
 
-void
-vt_allocate(struct vt_driver *drv, void *softc)
+static void
+vt_replace_backend(const struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
 
-	if (!vty_enabled(VTY_VT))
-		return;
-
-	if (main_vd->vd_driver == NULL) {
-		main_vd->vd_driver = drv;
-		printf("VT: initialize with new VT driver \"%s\".\n",
-		    drv->vd_name);
-	} else {
-		/*
-		 * Check if have rights to replace current driver. For example:
-		 * it is bad idea to replace KMS driver with generic VGA one.
-		 */
-		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
-			printf("VT: Driver priority %d too low. Current %d\n ",
-			    drv->vd_priority, main_vd->vd_driver->vd_priority);
-			return;
-		}
-		printf("VT: Replacing driver \"%s\" with new \"%s\".\n",
-		    main_vd->vd_driver->vd_name, drv->vd_name);
-	}
 	vd = main_vd;
-	VT_LOCK(vd);
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
+		VT_LOCK(vd);
 		vt_suspend_flush_timer(vd);
+		VT_UNLOCK(vd);
 		/*
 		 * Mute current terminal until we done. vt_change_font (called
 		 * from vt_resize) will unmute it.
@@ -2323,11 +2636,47 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	 * Reset VDF_TEXTMODE flag, driver who require that flag (vt_vga) will
 	 * set it.
 	 */
+	VT_LOCK(vd);
 	vd->vd_flags &= ~VDF_TEXTMODE;
 
-	vd->vd_driver = drv;
-	vd->vd_softc = softc;
-	vd->vd_driver->vd_init(vd);
+	if (drv != NULL) {
+		/*
+		 * We want to upgrade from the current driver to the
+		 * given driver.
+		 */
+
+		vd->vd_prev_driver = vd->vd_driver;
+		vd->vd_prev_softc = vd->vd_softc;
+		vd->vd_driver = drv;
+		vd->vd_softc = softc;
+
+		vd->vd_driver->vd_init(vd);
+	} else if (vd->vd_prev_driver != NULL && vd->vd_prev_softc != NULL) {
+		/*
+		 * No driver given: we want to downgrade to the previous
+		 * driver.
+		 */
+		const struct vt_driver *old_drv;
+		void *old_softc;
+
+		old_drv = vd->vd_driver;
+		old_softc = vd->vd_softc;
+
+		vd->vd_driver = vd->vd_prev_driver;
+		vd->vd_softc = vd->vd_prev_softc;
+		vd->vd_prev_driver = NULL;
+		vd->vd_prev_softc = NULL;
+
+		vd->vd_flags |= VDF_DOWNGRADE;
+
+		vd->vd_driver->vd_init(vd);
+
+		if (old_drv->vd_fini)
+			old_drv->vd_fini(vd, old_softc);
+
+		vd->vd_flags &= ~VDF_DOWNGRADE;
+	}
+
 	VT_UNLOCK(vd);
 
 	/* Update windows sizes and initialize last items. */
@@ -2352,26 +2701,99 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
 }
 
-void
-vt_suspend()
+static void
+vt_suspend_handler(void *priv)
 {
+	struct vt_device *vd;
+
+	vd = priv;
+	if (vd->vd_driver != NULL && vd->vd_driver->vd_suspend != NULL)
+		vd->vd_driver->vd_suspend(vd);
+}
+
+static void
+vt_resume_handler(void *priv)
+{
+	struct vt_device *vd;
+
+	vd = priv;
+	if (vd->vd_driver != NULL && vd->vd_driver->vd_resume != NULL)
+		vd->vd_driver->vd_resume(vd);
+}
+
+void
+vt_allocate(const struct vt_driver *drv, void *softc)
+{
+
+	if (!vty_enabled(VTY_VT))
+		return;
+
+	if (main_vd->vd_driver == NULL) {
+		main_vd->vd_driver = drv;
+		printf("VT: initialize with new VT driver \"%s\".\n",
+		    drv->vd_name);
+	} else {
+		/*
+		 * Check if have rights to replace current driver. For example:
+		 * it is bad idea to replace KMS driver with generic VGA one.
+		 */
+		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
+			printf("VT: Driver priority %d too low. Current %d\n ",
+			    drv->vd_priority, main_vd->vd_driver->vd_priority);
+			return;
+		}
+		printf("VT: Replacing driver \"%s\" with new \"%s\".\n",
+		    main_vd->vd_driver->vd_name, drv->vd_name);
+	}
+
+	vt_replace_backend(drv, softc);
+}
+
+void
+vt_deallocate(const struct vt_driver *drv, void *softc)
+{
+
+	if (!vty_enabled(VTY_VT))
+		return;
+
+	if (main_vd->vd_prev_driver == NULL ||
+	    main_vd->vd_driver != drv ||
+	    main_vd->vd_softc != softc)
+		return;
+
+	printf("VT: Switching back from \"%s\" to \"%s\".\n",
+	    main_vd->vd_driver->vd_name, main_vd->vd_prev_driver->vd_name);
+
+	vt_replace_backend(NULL, NULL);
+}
+
+void
+vt_suspend(struct vt_device *vd)
+{
+	int error;
 
 	if (vt_suspendswitch == 0)
 		return;
 	/* Save current window. */
-	main_vd->vd_savedwindow = main_vd->vd_curwindow;
+	vd->vd_savedwindow = vd->vd_curwindow;
 	/* Ask holding process to free window and switch to console window */
-	vt_proc_window_switch(main_vd->vd_windows[VT_CONSWINDOW]);
+	vt_proc_window_switch(vd->vd_windows[VT_CONSWINDOW]);
+
+	/* Wait for the window switch to complete. */
+	error = 0;
+	VT_LOCK(vd);
+	while (vd->vd_curwindow != vd->vd_windows[VT_CONSWINDOW] && error == 0)
+		error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
+	VT_UNLOCK(vd);
 }
 
 void
-vt_resume()
+vt_resume(struct vt_device *vd)
 {
 
 	if (vt_suspendswitch == 0)
 		return;
-	/* Switch back to saved window */
-	if (main_vd->vd_savedwindow != NULL)
-		vt_proc_window_switch(main_vd->vd_savedwindow);
-	main_vd->vd_savedwindow = NULL;
+	/* Switch back to saved window, if any */
+	vt_proc_window_switch(vd->vd_savedwindow);
+	vd->vd_savedwindow = NULL;
 }

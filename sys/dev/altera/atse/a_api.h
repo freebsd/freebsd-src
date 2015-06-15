@@ -69,20 +69,20 @@
 #define	A_ONCHIP_FIFO_MEM_CORE_STATUS_UNDERFLOW		(1<<5)
 
 /* Table 16-6. Event Bit Field Descriptions. */
-/* XXX Datasheet has weird bit fields. Validate. */
-#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY		(1<<0)
-#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_FULL		(1<<1)
-#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTEMPTY	(1<<2)
-#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTFULL		(1<<3)
+/* XXX Datasheet has incorrect bit fields. Validate. */
+#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_FULL		(1<<0)
+#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY		(1<<1)
+#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTFULL		(1<<2)
+#define	A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTEMPTY	(1<<3)
 #define	A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW		(1<<4)
 #define	A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW		(1<<5)
 
 /* Table 16-7. InterruptEnable Bit Field Descriptions. */
-/* XXX Datasheet has weird bit fields. Validate. */
-#define	A_ONCHIP_FIFO_MEM_CORE_INTR_EMPTY		(1<<0)
-#define	A_ONCHIP_FIFO_MEM_CORE_INTR_FULL		(1<<1)
-#define	A_ONCHIP_FIFO_MEM_CORE_INTR_ALMOSTEMPTY		(1<<2)
-#define	A_ONCHIP_FIFO_MEM_CORE_INTR_ALMOSTFULL		(1<<3)
+/* XXX Datasheet has incorrect bit fields. Validate. */
+#define	A_ONCHIP_FIFO_MEM_CORE_INTR_FULL		(1<<0)
+#define	A_ONCHIP_FIFO_MEM_CORE_INTR_EMPTY		(1<<1)
+#define	A_ONCHIP_FIFO_MEM_CORE_INTR_ALMOSTFULL		(1<<2)
+#define	A_ONCHIP_FIFO_MEM_CORE_INTR_ALMOSTEMPTY		(1<<3)
 #define	A_ONCHIP_FIFO_MEM_CORE_INTR_OVERFLOW		(1<<4)
 #define	A_ONCHIP_FIFO_MEM_CORE_INTR_UNDERFLOW		(1<<5)
 #define	A_ONCHIP_FIFO_MEM_CORE_INTR_ALL			\

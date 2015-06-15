@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  * the faked up offset will fit
  */
 
-#if ULONG_MAX == UINT64_MAX
+#if BITS_PER_LONG == 64
 #define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFFUL >> PAGE_SHIFT) + 1)
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFFUL >> PAGE_SHIFT) * 16)
 #else
@@ -62,28 +62,40 @@ __FBSDID("$FreeBSD$");
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
 #endif
 
+/**
+ * Initialize the GEM device fields
+ */
+
 int
 drm_gem_init(struct drm_device *dev)
 {
 	struct drm_gem_mm *mm;
 
 	drm_gem_names_init(&dev->object_names);
-	mm = malloc(sizeof(*mm), DRM_MEM_DRIVER, M_WAITOK);
-	dev->mm_private = mm;
-	if (drm_ht_create(&mm->offset_hash, 19) != 0) {
-		free(mm, DRM_MEM_DRIVER);
-		return (ENOMEM);
+
+	mm = malloc(sizeof(*mm), DRM_MEM_DRIVER, M_NOWAIT);
+	if (!mm) {
+		DRM_ERROR("out of memory\n");
+		return -ENOMEM;
 	}
+
+	dev->mm_private = mm;
+
+	if (drm_ht_create(&mm->offset_hash, 19)) {
+		free(mm, DRM_MEM_DRIVER);
+		return -ENOMEM;
+	}
+
 	mm->idxunr = new_unrhdr(0, DRM_GEM_MAX_IDX, NULL);
-	return (0);
+
+	return 0;
 }
 
 void
 drm_gem_destroy(struct drm_device *dev)
 {
-	struct drm_gem_mm *mm;
+	struct drm_gem_mm *mm = dev->mm_private;
 
-	mm = dev->mm_private;
 	dev->mm_private = NULL;
 	drm_ht_remove(&mm->offset_hash);
 	delete_unrhdr(mm->idxunr);
@@ -91,11 +103,9 @@ drm_gem_destroy(struct drm_device *dev)
 	drm_gem_names_fini(&dev->object_names);
 }
 
-int
-drm_gem_object_init(struct drm_device *dev, struct drm_gem_object *obj,
-    size_t size)
+int drm_gem_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size)
 {
-
 	KASSERT((size & (PAGE_SIZE - 1)) == 0,
 	    ("Bad size %ju", (uintmax_t)size));
 
@@ -107,14 +117,18 @@ drm_gem_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 	obj->handle_count = 0;
 	obj->size = size;
 
-	return (0);
+	return 0;
 }
+EXPORT_SYMBOL(drm_gem_object_init);
 
-int
-drm_gem_private_object_init(struct drm_device *dev, struct drm_gem_object *obj,
-    size_t size)
+/**
+ * Initialize an already allocated GEM object of the specified size with
+ * no GEM provided backing store. Instead the caller is responsible for
+ * backing the object and handling it.
+ */
+int drm_gem_private_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size)
 {
-
 	MPASS((size & (PAGE_SIZE - 1)) == 0);
 
 	obj->dev = dev;
@@ -124,159 +138,264 @@ drm_gem_private_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 	atomic_store_rel_int(&obj->handle_count, 0);
 	obj->size = size;
 
-	return (0);
+	return 0;
 }
-
+EXPORT_SYMBOL(drm_gem_private_object_init);
 
 struct drm_gem_object *
 drm_gem_object_alloc(struct drm_device *dev, size_t size)
 {
 	struct drm_gem_object *obj;
 
-	obj = malloc(sizeof(*obj), DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	obj = malloc(sizeof(*obj), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
+	if (!obj)
+		goto free;
+
 	if (drm_gem_object_init(dev, obj, size) != 0)
 		goto free;
 
 	if (dev->driver->gem_init_object != NULL &&
-	    dev->driver->gem_init_object(obj) != 0)
+	    dev->driver->gem_init_object(obj) != 0) {
 		goto dealloc;
-	return (obj);
+	}
+	return obj;
 dealloc:
 	vm_object_deallocate(obj->vm_obj);
 free:
 	free(obj, DRM_MEM_DRIVER);
-	return (NULL);
+	return NULL;
 }
+EXPORT_SYMBOL(drm_gem_object_alloc);
 
-void
-drm_gem_object_free(struct drm_gem_object *obj)
+#if defined(FREEBSD_NOTYET)
+static void
+drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 {
-	struct drm_device *dev;
-
-	dev = obj->dev;
-	DRM_LOCK_ASSERT(dev);
-	if (dev->driver->gem_free_object != NULL)
-		dev->driver->gem_free_object(obj);
-}
-
-void
-drm_gem_object_reference(struct drm_gem_object *obj)
-{
-
-	KASSERT(obj->refcount > 0, ("Dangling obj %p", obj));
-	refcount_acquire(&obj->refcount);
-}
-
-void
-drm_gem_object_unreference(struct drm_gem_object *obj)
-{
-
-	if (obj == NULL)
-		return;
-	if (refcount_release(&obj->refcount))
-		drm_gem_object_free(obj);
-}
-
-void
-drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
-{
-	struct drm_device *dev;
-
-	if (obj == NULL)
-		return;
-	dev = obj->dev;
-	DRM_LOCK(dev);
-	drm_gem_object_unreference(obj);
-	DRM_UNLOCK(dev);
-}
-
-void
-drm_gem_object_handle_reference(struct drm_gem_object *obj)
-{
-
-	drm_gem_object_reference(obj);
-	atomic_add_rel_int(&obj->handle_count, 1);
-}
-
-void
-drm_gem_object_handle_free(struct drm_gem_object *obj)
-{
-	struct drm_device *dev;
-	struct drm_gem_object *obj1;
-
-	dev = obj->dev;
-	if (obj->name != 0) {
-		obj1 = drm_gem_names_remove(&dev->object_names, obj->name);
-		obj->name = 0;
-		drm_gem_object_unreference(obj1);
+	if (obj->import_attach) {
+		drm_prime_remove_buf_handle(&filp->prime,
+				obj->import_attach->dmabuf);
+	}
+	if (obj->export_dma_buf) {
+		drm_prime_remove_buf_handle(&filp->prime,
+				obj->export_dma_buf);
 	}
 }
+#endif
 
-void
-drm_gem_object_handle_unreference(struct drm_gem_object *obj)
-{
-
-	if (obj == NULL ||
-	    atomic_load_acq_int(&obj->handle_count) == 0)
-		return;
-
-	if (atomic_fetchadd_int(&obj->handle_count, -1) == 1)
-		drm_gem_object_handle_free(obj);
-	drm_gem_object_unreference(obj);
-}
-
-void
-drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
-{
-
-	if (obj == NULL ||
-	    atomic_load_acq_int(&obj->handle_count) == 0)
-		return;
-
-	if (atomic_fetchadd_int(&obj->handle_count, -1) == 1)
-		drm_gem_object_handle_free(obj);
-	drm_gem_object_unreference_unlocked(obj);
-}
-
+/**
+ * Removes the mapping from handle to filp for this object.
+ */
 int
-drm_gem_handle_create(struct drm_file *file_priv, struct drm_gem_object *obj,
-    uint32_t *handle)
+drm_gem_handle_delete(struct drm_file *filp, u32 handle)
+{
+	struct drm_device *dev;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_names_remove(&filp->object_names, handle);
+	if (obj == NULL) {
+		return -EINVAL;
+	}
+	dev = obj->dev;
+
+#if defined(FREEBSD_NOTYET)
+	drm_gem_remove_prime_handles(obj, filp);
+#endif
+
+	if (dev->driver->gem_close_object)
+		dev->driver->gem_close_object(obj, filp);
+	drm_gem_object_handle_unreference_unlocked(obj);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_handle_delete);
+
+/**
+ * Create a handle for this object. This adds a handle reference
+ * to the object, which includes a regular reference count. Callers
+ * will likely want to dereference the object afterwards.
+ */
+int
+drm_gem_handle_create(struct drm_file *file_priv,
+		       struct drm_gem_object *obj,
+		       u32 *handlep)
 {
 	struct drm_device *dev = obj->dev;
 	int ret;
 
-	ret = drm_gem_name_create(&file_priv->object_names, obj, handle);
+	*handlep = 0;
+	ret = drm_gem_name_create(&file_priv->object_names, obj, handlep);
 	if (ret != 0)
-		return (ret);
+		return ret;
+
 	drm_gem_object_handle_reference(obj);
 
 	if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
 		if (ret) {
-			drm_gem_handle_delete(file_priv, *handle);
+			drm_gem_handle_delete(file_priv, *handlep);
 			return ret;
 		}
 	}
 
-	return (0);
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_handle_create);
+
+void
+drm_gem_free_mmap_offset(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_gem_mm *mm = dev->mm_private;
+	struct drm_hash_item *list = &obj->map_list;
+
+	if (!obj->on_map)
+		return;
+
+	drm_ht_remove_item(&mm->offset_hash, list);
+	free_unr(mm->idxunr, list->key);
+	obj->on_map = false;
+}
+EXPORT_SYMBOL(drm_gem_free_mmap_offset);
+
+int
+drm_gem_create_mmap_offset(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_gem_mm *mm = dev->mm_private;
+	int ret;
+
+	if (obj->on_map)
+		return 0;
+
+	obj->map_list.key = alloc_unr(mm->idxunr);
+	ret = drm_ht_insert_item(&mm->offset_hash, &obj->map_list);
+	if (ret) {
+		DRM_ERROR("failed to add to map hash\n");
+		free_unr(mm->idxunr, obj->map_list.key);
+		return ret;
+	}
+	obj->on_map = true;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_create_mmap_offset);
+
+/** Returns a reference to the object named by the handle. */
+struct drm_gem_object *
+drm_gem_object_lookup(struct drm_device *dev, struct drm_file *filp,
+		      u32 handle)
+{
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_name_ref(&filp->object_names, handle,
+	    (void (*)(void *))drm_gem_object_reference);
+
+	return obj;
+}
+EXPORT_SYMBOL(drm_gem_object_lookup);
+
+int
+drm_gem_close_ioctl(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv)
+{
+	struct drm_gem_close *args = data;
+	int ret;
+
+	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	ret = drm_gem_handle_delete(file_priv, args->handle);
+
+	return ret;
 }
 
 int
-drm_gem_handle_delete(struct drm_file *file_priv, uint32_t handle)
+drm_gem_flink_ioctl(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv)
 {
-	struct drm_device *dev;
+	struct drm_gem_flink *args = data;
 	struct drm_gem_object *obj;
+	int ret;
 
-	obj = drm_gem_names_remove(&file_priv->object_names, handle);
+	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return (EINVAL);
+		return -ENOENT;
 
-	dev = obj->dev;
+	ret = drm_gem_name_create(&dev->object_names, obj, &obj->name);
+	if (ret != 0) {
+		if (ret == -EALREADY)
+			ret = 0;
+		drm_gem_object_unreference_unlocked(obj);
+	}
+	if (ret == 0)
+		args->name = obj->name;
+	return ret;
+}
+
+int
+drm_gem_open_ioctl(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv)
+{
+	struct drm_gem_open *args = data;
+	struct drm_gem_object *obj;
+	int ret;
+	u32 handle;
+
+	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	obj = drm_gem_name_ref(&dev->object_names, args->name,
+	    (void (*)(void *))drm_gem_object_reference);
+	if (!obj)
+		return -ENOENT;
+
+	ret = drm_gem_handle_create(file_priv, obj, &handle);
+	drm_gem_object_unreference_unlocked(obj);
+	if (ret)
+		return ret;
+
+	args->handle = handle;
+	args->size = obj->size;
+
+	return 0;
+}
+
+void
+drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
+{
+
+	drm_gem_names_init(&file_private->object_names);
+}
+
+static int
+drm_gem_object_release_handle(uint32_t name, void *ptr, void *data)
+{
+	struct drm_file *file_priv = data;
+	struct drm_gem_object *obj = ptr;
+	struct drm_device *dev = obj->dev;
+
+#if defined(FREEBSD_NOTYET)
+	drm_gem_remove_prime_handles(obj, file_priv);
+#endif
+
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
+
 	drm_gem_object_handle_unreference_unlocked(obj);
 
-	return (0);
+	return 0;
+}
+
+void
+drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
+{
+	drm_gem_names_foreach(&file_private->object_names,
+	    drm_gem_object_release_handle, file_private);
+
+	drm_gem_names_fini(&file_private->object_names);
 }
 
 void
@@ -288,119 +407,29 @@ drm_gem_object_release(struct drm_gem_object *obj)
 	 */
 	vm_object_deallocate(obj->vm_obj);
 }
-
-int
-drm_gem_open_ioctl(struct drm_device *dev, void *data,
-    struct drm_file *file_priv)
-{
-	struct drm_gem_open *args;
-	struct drm_gem_object *obj;
-	int ret;
-	uint32_t handle;
-
-	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return (ENODEV);
-	args = data;
-
-	obj = drm_gem_name_ref(&dev->object_names, args->name,
-	    (void (*)(void *))drm_gem_object_reference);
-	if (obj == NULL)
-		return (ENOENT);
-	handle = 0;
-	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	drm_gem_object_unreference_unlocked(obj);
-	if (ret != 0)
-		return (ret);
-	
-	args->handle = handle;
-	args->size = obj->size;
-
-	return (0);
-}
+EXPORT_SYMBOL(drm_gem_object_release);
 
 void
-drm_gem_open(struct drm_device *dev, struct drm_file *file_priv)
+drm_gem_object_free(struct drm_gem_object *obj)
 {
+	struct drm_device *dev = obj->dev;
 
-	drm_gem_names_init(&file_priv->object_names);
+	DRM_LOCK_ASSERT(dev);
+	if (dev->driver->gem_free_object != NULL)
+		dev->driver->gem_free_object(obj);
 }
+EXPORT_SYMBOL(drm_gem_object_free);
 
-static int
-drm_gem_object_release_handle(uint32_t name, void *ptr, void *arg)
+void drm_gem_object_handle_free(struct drm_gem_object *obj)
 {
-	struct drm_file *file_priv;
-	struct drm_gem_object *obj;
-	struct drm_device *dev;
+	struct drm_device *dev = obj->dev;
+	struct drm_gem_object *obj1;
 
-	file_priv = arg;
-	obj = ptr;
-	dev = obj->dev;
-
-	if (dev->driver->gem_close_object)
-		dev->driver->gem_close_object(obj, file_priv);
-
-	drm_gem_object_handle_unreference(obj);
-	return (0);
-}
-
-void
-drm_gem_release(struct drm_device *dev, struct drm_file *file_priv)
-{
-
-	drm_gem_names_foreach(&file_priv->object_names,
-	    drm_gem_object_release_handle, file_priv);
-	drm_gem_names_fini(&file_priv->object_names);
-}
-
-int
-drm_gem_close_ioctl(struct drm_device *dev, void *data,
-    struct drm_file *file_priv)
-{
-	struct drm_gem_close *args;
-
-	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return (ENODEV);
-	args = data;
-
-	return (drm_gem_handle_delete(file_priv, args->handle));
-}
-
-int
-drm_gem_flink_ioctl(struct drm_device *dev, void *data,
-    struct drm_file *file_priv)
-{
-	struct drm_gem_flink *args;
-	struct drm_gem_object *obj;
-	int error;
-
-	if (!drm_core_check_feature(dev, DRIVER_GEM))
-		return (ENODEV);
-	args = data;
-
-	obj = drm_gem_name_ref(&file_priv->object_names, args->handle,
-	    (void (*)(void *))drm_gem_object_reference);
-	if (obj == NULL)
-		return (ENOENT);
-	error = drm_gem_name_create(&dev->object_names, obj, &obj->name);
-	if (error != 0) {
-		if (error == EALREADY)
-			error = 0;
-		drm_gem_object_unreference_unlocked(obj);
+	if (obj->name) {
+		obj1 = drm_gem_names_remove(&dev->object_names, obj->name);
+		obj->name = 0;
+		drm_gem_object_unreference(obj1);
 	}
-	if (error == 0)
-		args->name = obj->name;
-	return (error);
-}
-
-struct drm_gem_object *
-drm_gem_object_lookup(struct drm_device *dev, struct drm_file *file_priv,
-    uint32_t handle)
-{
-	struct drm_gem_object *obj;
-
-	obj = drm_gem_name_ref(&file_priv->object_names, handle,
-	    (void (*)(void *))drm_gem_object_reference);
-	return (obj);
 }
 
 static struct drm_gem_object *
@@ -425,46 +454,6 @@ drm_gem_object_from_offset(struct drm_device *dev, vm_ooffset_t offset)
 }
 
 int
-drm_gem_create_mmap_offset(struct drm_gem_object *obj)
-{
-	struct drm_device *dev;
-	struct drm_gem_mm *mm;
-	int ret;
-
-	if (obj->on_map)
-		return (0);
-	dev = obj->dev;
-	mm = dev->mm_private;
-	ret = 0;
-
-	obj->map_list.key = alloc_unr(mm->idxunr);
-	ret = drm_ht_insert_item(&mm->offset_hash, &obj->map_list);
-	if (ret != 0) {
-		DRM_ERROR("failed to add to map hash\n");
-		free_unr(mm->idxunr, obj->map_list.key);
-		return (ret);
-	}
-	obj->on_map = true;
-	return (0);
-}
-
-void
-drm_gem_free_mmap_offset(struct drm_gem_object *obj)
-{
-	struct drm_hash_item *list;
-	struct drm_gem_mm *mm;
-
-	if (!obj->on_map)
-		return;
-	mm = obj->dev->mm_private;
-	list = &obj->map_list;
-
-	drm_ht_remove_item(&mm->offset_hash, list);
-	free_unr(mm->idxunr, list->key);
-	obj->on_map = false;
-}
-
-int
 drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size,
     struct vm_object **obj_res, int nprot)
 {
@@ -475,7 +464,7 @@ drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size
 	gem_obj = drm_gem_object_from_offset(dev, *offset);
 	if (gem_obj == NULL) {
 		DRM_UNLOCK(dev);
-		return (ENODEV);
+		return (-ENODEV);
 	}
 	drm_gem_object_reference(gem_obj);
 	DRM_UNLOCK(dev);
@@ -484,7 +473,7 @@ drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size
 	    DRM_GEM_MAPPING_MAPOFF(*offset), curthread->td_ucred);
 	if (vm_obj == NULL) {
 		drm_gem_object_unreference_unlocked(gem_obj);
-		return (EINVAL);
+		return (-EINVAL);
 	}
 	*offset = DRM_GEM_MAPPING_MAPOFF(*offset);
 	*obj_res = vm_obj;

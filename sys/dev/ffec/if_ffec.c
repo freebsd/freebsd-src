@@ -499,23 +499,21 @@ ffec_harvest_stats(struct ffec_softc *sc)
 	sc->stats_harvest_count = 0;
 	ifp = sc->ifp;
 
-	ifp->if_ipackets   += RD4(sc, FEC_RMON_R_PACKETS);
-	ifp->if_imcasts    += RD4(sc, FEC_RMON_R_MC_PKT);
-	ifp->if_ierrors    += RD4(sc, FEC_RMON_R_CRC_ALIGN);
-	ifp->if_ierrors    += RD4(sc, FEC_RMON_R_UNDERSIZE);
-	ifp->if_ierrors    += RD4(sc, FEC_RMON_R_OVERSIZE);
-	ifp->if_ierrors    += RD4(sc, FEC_RMON_R_FRAG);
-	ifp->if_ierrors    += RD4(sc, FEC_RMON_R_JAB);
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, RD4(sc, FEC_RMON_R_PACKETS));
+	if_inc_counter(ifp, IFCOUNTER_IMCASTS, RD4(sc, FEC_RMON_R_MC_PKT));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    RD4(sc, FEC_RMON_R_CRC_ALIGN) + RD4(sc, FEC_RMON_R_UNDERSIZE) +
+	    RD4(sc, FEC_RMON_R_OVERSIZE) + RD4(sc, FEC_RMON_R_FRAG) +
+	    RD4(sc, FEC_RMON_R_JAB));
 
-	ifp->if_opackets   += RD4(sc, FEC_RMON_T_PACKETS);
-	ifp->if_omcasts    += RD4(sc, FEC_RMON_T_MC_PKT);
-	ifp->if_oerrors    += RD4(sc, FEC_RMON_T_CRC_ALIGN);
-	ifp->if_oerrors    += RD4(sc, FEC_RMON_T_UNDERSIZE);
-	ifp->if_oerrors    += RD4(sc, FEC_RMON_T_OVERSIZE );
-	ifp->if_oerrors    += RD4(sc, FEC_RMON_T_FRAG);
-	ifp->if_oerrors    += RD4(sc, FEC_RMON_T_JAB);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, RD4(sc, FEC_RMON_T_PACKETS));
+	if_inc_counter(ifp, IFCOUNTER_OMCASTS, RD4(sc, FEC_RMON_T_MC_PKT));
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    RD4(sc, FEC_RMON_T_CRC_ALIGN) + RD4(sc, FEC_RMON_T_UNDERSIZE) +
+	    RD4(sc, FEC_RMON_T_OVERSIZE) + RD4(sc, FEC_RMON_T_FRAG) +
+	    RD4(sc, FEC_RMON_T_JAB));
 
-	ifp->if_collisions += RD4(sc, FEC_RMON_T_COL);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, RD4(sc, FEC_RMON_T_COL));
 
 	ffec_clear_stats(sc);
 }
@@ -654,7 +652,9 @@ ffec_txstart_locked(struct ffec_softc *sc)
 	}
 
 	if (enqueued != 0) {
+		bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_PREWRITE);
 		WR4(sc, FEC_TDAR_REG, FEC_TDAR_TDAR);
+		bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_POSTWRITE);
 		sc->tx_watchdog_count = WATCHDOG_TIMEOUT_SECS;
 	}
 }
@@ -679,6 +679,9 @@ ffec_txfinish_locked(struct ffec_softc *sc)
 
 	FFEC_ASSERT_LOCKED(sc);
 
+	/* XXX Can't set PRE|POST right now, but we need both. */
+	bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_POSTREAD);
 	ifp = sc->ifp;
 	retired_buffer = false;
 	while (sc->tx_idx_tail != sc->tx_idx_head) {
@@ -784,7 +787,7 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 	 *  mbuf, which is still mapped and loaded.
 	 */
 	if ((newmbuf = ffec_alloc_mbufcl(sc)) == NULL) {
-		++sc->ifp->if_iqdrops;
+		if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
 		ffec_setup_rxdesc(sc, sc->rx_idx, 
 		    sc->rxdesc_ring[sc->rx_idx].buf_paddr);
 		return;
@@ -843,6 +846,9 @@ ffec_rxfinish_locked(struct ffec_softc *sc)
 
 	FFEC_ASSERT_LOCKED(sc);
 
+	/* XXX Can't set PRE|POST right now, but we need both. */
+	bus_dmamap_sync(sc->rxdesc_tag, sc->rxdesc_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->rxdesc_tag, sc->rxdesc_map, BUS_DMASYNC_POSTREAD);
 	produced_empty_buffer = false;
 	for (;;) {
 		desc = &sc->rxdesc_ring[sc->rx_idx];
@@ -890,7 +896,9 @@ ffec_rxfinish_locked(struct ffec_softc *sc)
 	}
 
 	if (produced_empty_buffer) {
+		bus_dmamap_sync(sc->rxdesc_tag, sc->txdesc_map, BUS_DMASYNC_PREWRITE);
 		WR4(sc, FEC_RDAR_REG, FEC_RDAR_RDAR);
+		bus_dmamap_sync(sc->rxdesc_tag, sc->txdesc_map, BUS_DMASYNC_POSTWRITE);
 	}
 }
 
@@ -1676,7 +1684,7 @@ ffec_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, TX_DESC_COUNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = TX_DESC_COUNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 #if 0 /* XXX The hardware keeps stats we could use for these. */
 	ifp->if_linkmib = &sc->mibdata;

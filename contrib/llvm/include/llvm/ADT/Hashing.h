@@ -45,7 +45,6 @@
 #ifndef LLVM_ADT_HASHING_H
 #define LLVM_ADT_HASHING_H
 
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/SwapByteOrder.h"
@@ -109,7 +108,8 @@ public:
 /// differing argument types even if they would implicit promote to a common
 /// type without changing the value.
 template <typename T>
-typename enable_if<is_integral_or_enum<T>, hash_code>::type hash_value(T value);
+typename std::enable_if<is_integral_or_enum<T>::value, hash_code>::type
+hash_value(T value);
 
 /// \brief Compute a hash_code for a pointer's address.
 ///
@@ -152,7 +152,7 @@ inline uint64_t fetch64(const char *p) {
   uint64_t result;
   memcpy(&result, p, sizeof(result));
   if (sys::IsBigEndianHost)
-    return sys::SwapByteOrder(result);
+    sys::swapByteOrder(result);
   return result;
 }
 
@@ -160,7 +160,7 @@ inline uint32_t fetch32(const char *p) {
   uint32_t result;
   memcpy(&result, p, sizeof(result));
   if (sys::IsBigEndianHost)
-    return sys::SwapByteOrder(result);
+    sys::swapByteOrder(result);
   return result;
 }
 
@@ -265,7 +265,6 @@ inline uint64_t hash_short(const char *s, size_t length, uint64_t seed) {
 /// keeps 56 bytes of arbitrary state.
 struct hash_state {
   uint64_t h0, h1, h2, h3, h4, h5, h6;
-  uint64_t seed;
 
   /// \brief Create a new hash_state structure and initialize it based on the
   /// seed and the first 64-byte chunk.
@@ -273,7 +272,7 @@ struct hash_state {
   static hash_state create(const char *s, uint64_t seed) {
     hash_state state = {
       0, seed, hash_16_bytes(seed, k1), rotate(seed ^ k1, 49),
-      seed * k1, shift_mix(seed), 0, seed };
+      seed * k1, shift_mix(seed), 0 };
     state.h6 = hash_16_bytes(state.h4, state.h5);
     state.mix(s);
     return state;
@@ -352,24 +351,24 @@ inline size_t get_execution_seed() {
 // and pointers, but there are platforms where it doesn't and we would like to
 // support user-defined types which happen to satisfy this property.
 template <typename T> struct is_hashable_data
-  : integral_constant<bool, ((is_integral_or_enum<T>::value ||
-                              is_pointer<T>::value) &&
-                             64 % sizeof(T) == 0)> {};
+  : std::integral_constant<bool, ((is_integral_or_enum<T>::value ||
+                                   std::is_pointer<T>::value) &&
+                                  64 % sizeof(T) == 0)> {};
 
 // Special case std::pair to detect when both types are viable and when there
 // is no alignment-derived padding in the pair. This is a bit of a lie because
 // std::pair isn't truly POD, but it's close enough in all reasonable
 // implementations for our use case of hashing the underlying data.
 template <typename T, typename U> struct is_hashable_data<std::pair<T, U> >
-  : integral_constant<bool, (is_hashable_data<T>::value &&
-                             is_hashable_data<U>::value &&
-                             (sizeof(T) + sizeof(U)) ==
-                              sizeof(std::pair<T, U>))> {};
+  : std::integral_constant<bool, (is_hashable_data<T>::value &&
+                                  is_hashable_data<U>::value &&
+                                  (sizeof(T) + sizeof(U)) ==
+                                   sizeof(std::pair<T, U>))> {};
 
 /// \brief Helper to get the hashable data representation for a type.
 /// This variant is enabled when the type itself can be used.
 template <typename T>
-typename enable_if<is_hashable_data<T>, T>::type
+typename std::enable_if<is_hashable_data<T>::value, T>::type
 get_hashable_data(const T &value) {
   return value;
 }
@@ -377,7 +376,7 @@ get_hashable_data(const T &value) {
 /// This variant is enabled when we must first call hash_value and use the
 /// result as our data.
 template <typename T>
-typename enable_if_c<!is_hashable_data<T>::value, size_t>::type
+typename std::enable_if<!is_hashable_data<T>::value, size_t>::type
 get_hashable_data(const T &value) {
   using ::llvm::hash_value;
   return hash_value(value);
@@ -411,7 +410,7 @@ template <typename InputIteratorT>
 hash_code hash_combine_range_impl(InputIteratorT first, InputIteratorT last) {
   const size_t seed = get_execution_seed();
   char buffer[64], *buffer_ptr = buffer;
-  char *const buffer_end = buffer_ptr + array_lengthof(buffer);
+  char *const buffer_end = std::end(buffer);
   while (first != last && store_and_advance(buffer_ptr, buffer_end,
                                             get_hashable_data(*first)))
     ++first;
@@ -451,7 +450,7 @@ hash_code hash_combine_range_impl(InputIteratorT first, InputIteratorT last) {
 /// are stored in contiguous memory, this routine avoids copying each value
 /// and directly reads from the underlying memory.
 template <typename ValueT>
-typename enable_if<is_hashable_data<ValueT>, hash_code>::type
+typename std::enable_if<is_hashable_data<ValueT>::value, hash_code>::type
 hash_combine_range_impl(ValueT *first, ValueT *last) {
   const size_t seed = get_execution_seed();
   const char *s_begin = reinterpret_cast<const char *>(first);
@@ -734,7 +733,7 @@ inline hash_code hash_integer_value(uint64_t value) {
 // Declared and documented above, but defined here so that any of the hashing
 // infrastructure is available.
 template <typename T>
-typename enable_if<is_integral_or_enum<T>, hash_code>::type
+typename std::enable_if<is_integral_or_enum<T>::value, hash_code>::type
 hash_value(T value) {
   return ::llvm::hashing::detail::hash_integer_value(value);
 }

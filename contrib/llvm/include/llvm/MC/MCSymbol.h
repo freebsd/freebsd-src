@@ -53,6 +53,9 @@ namespace llvm {
     /// "Lfoo" or ".foo".
     unsigned IsTemporary : 1;
 
+    /// \brief True if this symbol can be redefined.
+    unsigned IsRedefinable : 1;
+
     /// IsUsed - True if this symbol has been used.
     mutable unsigned IsUsed : 1;
 
@@ -60,8 +63,8 @@ namespace llvm {
     friend class MCExpr;
     friend class MCContext;
     MCSymbol(StringRef name, bool isTemporary)
-      : Name(name), Section(0), Value(0),
-        IsTemporary(isTemporary), IsUsed(false) {}
+      : Name(name), Section(nullptr), Value(nullptr),
+        IsTemporary(isTemporary), IsRedefinable(false), IsUsed(false) {}
 
     MCSymbol(const MCSymbol&) LLVM_DELETED_FUNCTION;
     void operator=(const MCSymbol&) LLVM_DELETED_FUNCTION;
@@ -79,6 +82,19 @@ namespace llvm {
     bool isUsed() const { return IsUsed; }
     void setUsed(bool Value) const { IsUsed = Value; }
 
+    /// \brief Check if this symbol is redefinable.
+    bool isRedefinable() const { return IsRedefinable; }
+    /// \brief Mark this symbol as redefinable.
+    void setRedefinable(bool Value) { IsRedefinable = Value; }
+    /// \brief Prepare this symbol to be redefined.
+    void redefineIfPossible() {
+      if (IsRedefinable) {
+        Value = nullptr;
+        Section = nullptr;
+        IsRedefinable = false;
+      }
+    }
+
     /// @}
     /// @name Associated Sections
     /// @{
@@ -87,7 +103,7 @@ namespace llvm {
     ///
     /// Defined symbols are either absolute or in some section.
     bool isDefined() const {
-      return Section != 0;
+      return Section != nullptr;
     }
 
     /// isInSection - Check if this symbol is defined in some section (i.e., it
@@ -118,7 +134,7 @@ namespace llvm {
 
     /// setUndefined - Mark the symbol as undefined.
     void setUndefined() {
-      Section = 0;
+      Section = nullptr;
     }
 
     /// setAbsolute - Mark the symbol as absolute.
@@ -130,7 +146,7 @@ namespace llvm {
 
     /// isVariable - Check if this is a variable symbol.
     bool isVariable() const {
-      return Value != 0;
+      return Value != nullptr;
     }
 
     /// getVariableValue() - Get the value for variable symbols.
@@ -141,7 +157,7 @@ namespace llvm {
     }
 
     // AliasedSymbol() - If this is an alias (a = b), return the symbol
-    // we ultimately point to. For a non alias, this just returns the symbol
+    // we ultimately point to. For a non-alias, this just returns the symbol
     // itself.
     const MCSymbol &AliasedSymbol() const;
 

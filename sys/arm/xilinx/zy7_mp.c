@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -39,11 +42,14 @@ __FBSDID("$FreeBSD$");
 
 #define	ZYNQ7_CPU1_ENTRY	0xfffffff0
 
+#define	SCU_CONTROL_REG		0xf8f00000
+#define	   SCU_CONTROL_ENABLE	(1 << 0)
+
 void
 platform_mp_init_secondary(void)
 {
 
-	gic_init_secondary();
+	arm_init_secondary_ic();
 }
 
 void
@@ -64,7 +70,21 @@ platform_mp_probe(void)
 void    
 platform_mp_start_ap(void)
 {
+	bus_space_handle_t scu_handle;
 	bus_space_handle_t ocm_handle;
+	uint32_t scu_ctrl;
+
+	/* Map in SCU control register. */
+	if (bus_space_map(fdtbus_bs_tag, SCU_CONTROL_REG, 4,
+			  0, &scu_handle) != 0)
+		panic("platform_mp_start_ap: Couldn't map SCU config reg\n");
+
+	/* Set SCU enable bit. */
+	scu_ctrl = bus_space_read_4(fdtbus_bs_tag, scu_handle, 0);
+	scu_ctrl |= SCU_CONTROL_ENABLE;
+	bus_space_write_4(fdtbus_bs_tag, scu_handle, 0, scu_ctrl);
+
+	bus_space_unmap(fdtbus_bs_tag, scu_handle, 4);
 
 	/* Map in magic location to give entry address to CPU1. */
 	if (bus_space_map(fdtbus_bs_tag, ZYNQ7_CPU1_ENTRY, 4,
@@ -75,8 +95,10 @@ platform_mp_start_ap(void)
 	bus_space_write_4(fdtbus_bs_tag, ocm_handle, 0,
 	    pmap_kextract((vm_offset_t)mpentry));
 
+	bus_space_unmap(fdtbus_bs_tag, ocm_handle, 4);
+
 	/*
-	 * The SCU is enabled by the BOOTROM but I think the second CPU doesn't
+	 * The SCU is enabled above but I think the second CPU doesn't
 	 * turn on filtering until after the wake-up below. I think that's why
 	 * things don't work if I don't put these cache ops here.  Also, the
 	 * magic location, 0xfffffff0, isn't in the SCU's filtering range so it
@@ -87,8 +109,6 @@ platform_mp_start_ap(void)
 
 	/* Wake up CPU1. */
 	armv7_sev();
-
-	bus_space_unmap(fdtbus_bs_tag, ocm_handle, 4);
 }
 
 void

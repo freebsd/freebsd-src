@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2014
+.Dd September 11, 2014
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -209,7 +209,7 @@ resource would be
 .Bl -column -offset 3n "pseudoterminals"
 .It Em action
 .It Sy deny Ta deny the allocation; not supported for
-.Sy cpu
+.Sy cputime
 and
 .Sy wallclock
 .It Sy log Ta "log a warning to the console"
@@ -233,6 +233,18 @@ for a list of supported signals
 Not all actions are supported for all resources.
 Attempting to add a rule with an action not supported by a given resource will
 result in error.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt, or
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va kern.racct.enable: No 1
+Enable
+.Nm .
+This defaults to 1, unless
+.Cd "options RACCT_DEFAULT_TO_DISABLED"
+is set in the kernel configuration file.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES

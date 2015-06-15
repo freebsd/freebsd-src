@@ -11,16 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTXSUBTARGET_H
-#define NVPTXSUBTARGET_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXSUBTARGET_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXSUBTARGET_H
 
 #include "NVPTX.h"
+#include "NVPTXFrameLowering.h"
+#include "NVPTXISelLowering.h"
+#include "NVPTXInstrInfo.h"
+#include "NVPTXRegisterInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/Target/TargetSelectionDAGInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
+#include <string>
 
 #define GET_SUBTARGETINFO_HEADER
 #include "NVPTXGenSubtargetInfo.inc"
-
-#include <string>
 
 namespace llvm {
 
@@ -36,12 +41,36 @@ class NVPTXSubtarget : public NVPTXGenSubtargetInfo {
   // SM version x.y is represented as 10*x+y, e.g. 3.1 == 31
   unsigned int SmVersion;
 
+  const DataLayout DL; // Calculates type size & alignment
+  NVPTXInstrInfo InstrInfo;
+  NVPTXTargetLowering TLInfo;
+  TargetSelectionDAGInfo TSInfo;
+
+  // NVPTX does not have any call stack frame, but need a NVPTX specific
+  // FrameLowering class because TargetFrameLowering is abstract.
+  NVPTXFrameLowering FrameLowering;
+
 public:
   /// This constructor initializes the data members to match that
   /// of the specified module.
   ///
   NVPTXSubtarget(const std::string &TT, const std::string &CPU,
-                 const std::string &FS, bool is64Bit);
+                 const std::string &FS, const TargetMachine &TM, bool is64Bit);
+
+  const TargetFrameLowering *getFrameLowering() const override {
+    return &FrameLowering;
+  }
+  const NVPTXInstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const DataLayout *getDataLayout() const override { return &DL; }
+  const NVPTXRegisterInfo *getRegisterInfo() const override {
+    return &InstrInfo.getRegisterInfo();
+  }
+  const NVPTXTargetLowering *getTargetLowering() const override {
+    return &TLInfo;
+  }
+  const TargetSelectionDAGInfo *getSelectionDAGInfo() const override {
+    return &TSInfo;
+  }
 
   bool hasBrkPt() const { return SmVersion >= 11; }
   bool hasAtomRedG32() const { return SmVersion >= 11; }
@@ -58,13 +87,24 @@ public:
   bool hasFMAF32() const { return SmVersion >= 20; }
   bool hasFMAF64() const { return SmVersion >= 13; }
   bool hasLDG() const { return SmVersion >= 32; }
-  bool hasLDU() const { return SmVersion >= 20; }
+  bool hasLDU() const { return ((SmVersion >= 20) && (SmVersion < 30)); }
   bool hasGenericLdSt() const { return SmVersion >= 20; }
-  inline bool hasHWROT32() const { return false; }
-  inline bool hasSWROT32() const { return true; }
+  inline bool hasHWROT32() const { return SmVersion >= 32; }
+  inline bool hasSWROT32() const {
+    return ((SmVersion >= 20) && (SmVersion < 32));
+  }
   inline bool hasROT32() const { return hasHWROT32() || hasSWROT32(); }
   inline bool hasROT64() const { return SmVersion >= 20; }
 
+  bool hasImageHandles() const {
+    // Enable handles for Kepler+, where CUDA supports indirect surfaces and
+    // textures
+    if (getDrvInterface() == NVPTX::CUDA)
+      return (SmVersion >= 30);
+
+    // Disabled, otherwise
+    return false;
+  }
   bool is64Bit() const { return Is64Bit; }
 
   unsigned int getSmVersion() const { return SmVersion; }
@@ -73,24 +113,10 @@ public:
 
   unsigned getPTXVersion() const { return PTXVersion; }
 
+  NVPTXSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
-
-  std::string getDataLayout() const {
-    const char *p;
-    if (is64Bit())
-      p = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-"
-          "f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-"
-          "n16:32:64";
-    else
-      p = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-"
-          "f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-"
-          "n16:32:64";
-
-    return std::string(p);
-  }
-
 };
 
 } // End llvm namespace
 
-#endif // NVPTXSUBTARGET_H
+#endif

@@ -25,10 +25,10 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-t="season_7_lisa_the_vegetrian_t *"
+t="season_7_lisa_the_vegetarian_t *"
 exe="tst.aouttype.exe"
 
-elfdump "./$exe" | grep -q '.SUNW_ctf' 
+elfdump -c "./$exe" | grep -Fq 'sh_name: .SUNW_ctf' 
 if [[ $? -ne 0 ]]; then
 	echo "CTF does not exist in $exe, that's a bug" >&2
 	exit 1
@@ -37,7 +37,8 @@ fi
 ./$exe &
 pid=$!
 
-rc=`$dtrace -n "BEGIN{ trace((pid$pid\`$t)0); exit(0); }"`
+$dtrace -n "BEGIN{ trace((pid$pid\`$t)0); exit(0); }"
+rc=$?
 
 kill -9 $pid
 

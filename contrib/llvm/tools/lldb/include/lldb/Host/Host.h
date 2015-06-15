@@ -17,10 +17,16 @@
 #include <string>
 
 #include "lldb/lldb-private.h"
+#include "lldb/lldb-private-forward.h"
 #include "lldb/Core/StringList.h"
 #include "lldb/Host/File.h"
+#include "lldb/Host/FileSpec.h"
+#include "lldb/Host/HostThread.h"
 
 namespace lldb_private {
+
+class FileAction;
+class ProcessLaunchInfo;
 
 //----------------------------------------------------------------------
 /// @class Host Host.h "lldb/Host/Host.h"
@@ -32,6 +38,7 @@ namespace lldb_private {
 class Host
 {
 public:
+
     typedef bool (*MonitorChildProcessCallback) (void *callback_baton,
                                                  lldb::pid_t pid,
                                                  bool exited,
@@ -48,11 +55,11 @@ public:
     /// thread so the callback function must be thread safe.
     ///
     /// When the callback gets called, the return value indicates if
-    /// minotoring should stop. If \b true is returned from \a callback
+    /// monitoring should stop. If \b true is returned from \a callback
     /// the information will be removed. If \b false is returned then
     /// monitoring will continue. If the child process exits, the
     /// monitoring will automatically stop after the callback returned
-    /// ragardless of the callback return value.
+    /// regardless of the callback return value.
     ///
     /// @param[in] callback
     ///     A function callback to call when a child receives a signal
@@ -77,73 +84,8 @@ public:
     ///
     /// @see static void Host::StopMonitoringChildProcess (uint32_t)
     //------------------------------------------------------------------
-    static lldb::thread_t
-    StartMonitoringChildProcess (MonitorChildProcessCallback callback,
-                                 void *callback_baton,
-                                 lldb::pid_t pid,
-                                 bool monitor_signals);
-
-    //------------------------------------------------------------------
-    /// Get the host page size.
-    ///
-    /// @return
-    ///     The size in bytes of a VM page on the host system.
-    //------------------------------------------------------------------
-    static size_t
-    GetPageSize();
-
-    //------------------------------------------------------------------
-    /// Returns the endianness of the host system.
-    ///
-    /// @return
-    ///     Returns the endianness of the host system as a lldb::ByteOrder
-    ///     enumeration.
-    //------------------------------------------------------------------
-    static lldb::ByteOrder
-    GetByteOrder ();
-
-    //------------------------------------------------------------------
-    /// Returns the number of CPUs on this current host.
-    ///
-    /// @return
-    ///     Number of CPUs on this current host, or zero if the number
-    ///     of CPUs can't be determined on this host.
-    //------------------------------------------------------------------
-    static uint32_t
-    GetNumberCPUS ();
-
-    static bool
-    GetOSVersion (uint32_t &major, 
-                  uint32_t &minor, 
-                  uint32_t &update);
-
-    static bool
-    GetOSBuildString (std::string &s);
-    
-    static bool
-    GetOSKernelDescription (std::string &s);
-
-    static bool
-    GetHostname (std::string &s);
-
-    static const char *
-    GetUserName (uint32_t uid, std::string &user_name);
-    
-    static const char *
-    GetGroupName (uint32_t gid, std::string &group_name);
-    
-    static uint32_t
-    GetUserID ();
-    
-    static uint32_t
-    GetGroupID ();
-
-    static uint32_t
-    GetEffectiveUserID ();
-
-    static uint32_t
-    GetEffectiveGroupID ();
-
+    static HostThread StartMonitoringChildProcess(MonitorChildProcessCallback callback, void *callback_baton, lldb::pid_t pid,
+                                                  bool monitor_signals);
 
     enum SystemLogType
     {
@@ -156,67 +98,6 @@ public:
 
     static void
     SystemLog (SystemLogType type, const char *format, va_list args);
-
-    //------------------------------------------------------------------
-    /// Gets the host architecture.
-    ///
-    /// @return
-    ///     A const architecture object that represents the host
-    ///     architecture.
-    //------------------------------------------------------------------
-    enum SystemDefaultArchitecture
-    {
-        eSystemDefaultArchitecture,     // The overall default architecture that applications will run on this host
-        eSystemDefaultArchitecture32,   // If this host supports 32 bit programs, return the default 32 bit arch
-        eSystemDefaultArchitecture64    // If this host supports 64 bit programs, return the default 64 bit arch
-    };
-
-    static const ArchSpec &
-    GetArchitecture (SystemDefaultArchitecture arch_kind = eSystemDefaultArchitecture);
-
-    //------------------------------------------------------------------
-    /// Gets the host vendor string.
-    ///
-    /// @return
-    ///     A const string object containing the host vendor name.
-    //------------------------------------------------------------------
-    static const ConstString &
-    GetVendorString ();
-
-    //------------------------------------------------------------------
-    /// Gets the host Operating System (OS) string.
-    ///
-    /// @return
-    ///     A const string object containing the host OS name.
-    //------------------------------------------------------------------
-    static const ConstString &
-    GetOSString ();
-
-    //------------------------------------------------------------------
-    /// Gets the host target triple as a const string.
-    ///
-    /// @return
-    ///     A const string object containing the host target triple.
-    //------------------------------------------------------------------
-    static const ConstString &
-    GetTargetTriple ();
-
-    //------------------------------------------------------------------
-    /// Gets the name of the distribution (i.e. distributor id).
-    ///
-    /// On Linux, this will return the equivalent of lsb_release -i.
-    /// Android will return 'android'.  Other systems may return
-    /// nothing.
-    ///
-    /// @return
-    ///     A ConstString reference containing the OS distribution id.
-    ///     The return string will be all lower case, with whitespace
-    ///     replaced with underscores.  The return string will be
-    ///     empty (result.AsCString() will return NULL) if the distribution
-    ///     cannot be obtained.
-    //------------------------------------------------------------------
-    static const ConstString &
-    GetDistributionId ();
 
     //------------------------------------------------------------------
     /// Get the process ID for the calling process.
@@ -254,36 +135,6 @@ public:
 
     static void
     WillTerminate ();
-    //------------------------------------------------------------------
-    /// Host specific thread created function call.
-    ///
-    /// This function call lets the current host OS do any thread
-    /// specific initialization that it needs, including naming the
-    /// thread. No cleanup routine is exptected to be called
-    ///
-    /// @param[in] name
-    ///     The current thread's name in the current process.
-    //------------------------------------------------------------------
-    static void
-    ThreadCreated (const char *name);
-
-    static lldb::thread_t
-    ThreadCreate (const char *name,
-                  lldb::thread_func_t function,
-                  lldb::thread_arg_t thread_arg,
-                  Error *err);
-
-    static bool
-    ThreadCancel (lldb::thread_t thread,
-                  Error *error);
-
-    static bool
-    ThreadDetach (lldb::thread_t thread,
-                  Error *error);
-    static bool
-    ThreadJoin (lldb::thread_t thread,
-                lldb::thread_result_t *thread_result_ptr,
-                Error *error);
 
     typedef void (*ThreadLocalStorageCleanupCallback) (void *p);
 
@@ -296,75 +147,6 @@ public:
     static void
     ThreadLocalStorageSet(lldb::thread_key_t key, void *value);
 
-    //------------------------------------------------------------------
-    /// Gets the name of a thread in a process.
-    ///
-    /// This function will name a thread in a process using it's own
-    /// thread name pool, and also will attempt to set a thread name
-    /// using any supported host OS APIs.
-    ///
-    /// @param[in] pid
-    ///     The process ID in which we are trying to get the name of
-    ///     a thread.
-    ///
-    /// @param[in] tid
-    ///     The thread ID for which we are trying retrieve the name of.
-    ///
-    /// @return
-    ///     A std::string containing the thread name.
-    //------------------------------------------------------------------
-    static std::string
-    GetThreadName (lldb::pid_t pid, lldb::tid_t tid);
-
-    //------------------------------------------------------------------
-    /// Sets the name of a thread in the current process.
-    ///
-    /// @param[in] pid
-    ///     The process ID in which we are trying to name a thread.
-    ///
-    /// @param[in] tid
-    ///     The thread ID which we are trying to name.
-    ///
-    /// @param[in] name
-    ///     The current thread's name in the current process to \a name.
-    ///
-    /// @return
-    ///     \b true if the thread name was able to be set, \b false
-    ///     otherwise.
-    //------------------------------------------------------------------
-    static bool
-    SetThreadName (lldb::pid_t pid, lldb::tid_t tid, const char *name);
-
-    //------------------------------------------------------------------
-    /// Sets a shortened name of a thread in the current process.
-    ///
-    /// @param[in] pid
-    ///     The process ID in which we are trying to name a thread.
-    ///
-    /// @param[in] tid
-    ///     The thread ID which we are trying to name.
-    ///
-    /// @param[in] name
-    ///     The current thread's name in the current process to \a name.
-    ///
-    /// @param[in] len
-    ///     The maximum length for the thread's shortened name.
-    ///
-    /// @return
-    ///     \b true if the thread name was able to be set, \b false
-    ///     otherwise.
-    static bool
-    SetShortThreadName (lldb::pid_t pid, lldb::tid_t tid, const char *name, size_t len);
-
-    //------------------------------------------------------------------
-    /// Gets the FileSpec of the current process (the process that
-    /// that is running the LLDB code).
-    ///
-    /// @return
-    ///     \b A file spec with the program name.
-    //------------------------------------------------------------------
-    static FileSpec
-    GetProgramFileSpec ();
 
     //------------------------------------------------------------------
     /// Given an address in the current process (the process that
@@ -383,8 +165,6 @@ public:
     //------------------------------------------------------------------
     static FileSpec
     GetModuleFileSpecForHostAddress (const void *host_addr);
-
-
     
     //------------------------------------------------------------------
     /// If you have an executable that is in a bundle and want to get
@@ -410,7 +190,7 @@ public:
     //------------------------------------------------------------------
     /// When executable files may live within a directory, where the 
     /// directory represents an executable bundle (like the MacOSX 
-    /// app bundles), the locate the executable within the containing
+    /// app bundles), then locate the executable within the containing
     /// bundle.
     ///
     /// @param[in,out] file
@@ -424,28 +204,6 @@ public:
     //------------------------------------------------------------------
     static bool
     ResolveExecutableInBundle (FileSpec &file);
-
-    //------------------------------------------------------------------
-    /// Find a resource files that are related to LLDB.
-    ///
-    /// Operating systems have different ways of storing shared 
-    /// libraries and related resources. This function abstracts the
-    /// access to these paths.
-    ///
-    /// @param[in] path_type
-    ///     The type of LLDB resource path you are looking for. If the
-    ///     enumeration ends with "Dir", then only the \a file_spec's 
-    ///     directory member gets filled in.
-    ///
-    /// @param[in] file_spec
-    ///     A file spec that gets filled in with the appriopriate path.
-    ///
-    /// @return
-    ///     \b true if \a resource_path was resolved, \a false otherwise.
-    //------------------------------------------------------------------
-    static bool
-    GetLLDBPath (PathType path_type,
-                 FileSpec &file_spec);
 
     //------------------------------------------------------------------
     /// Set a string that can be displayed if host application crashes.
@@ -477,13 +235,16 @@ public:
     static bool
     GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &proc_info);
 
-#if defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__)
-    static short
-    GetPosixspawnFlags (ProcessLaunchInfo &launch_info);
+#if defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__) || defined (__NetBSD__)
+    static short GetPosixspawnFlags(const ProcessLaunchInfo &launch_info);
 
-    static Error
-    LaunchProcessPosixSpawn (const char *exe_path, ProcessLaunchInfo &launch_info, ::pid_t &pid);
+    static Error LaunchProcessPosixSpawn(const char *exe_path, const ProcessLaunchInfo &launch_info, lldb::pid_t &pid);
+
+    static bool AddPosixSpawnFileAction(void *file_actions, const FileAction *info, Log *log, Error &error);
 #endif
+
+    static const lldb_private::UnixSignalsSP&
+    GetUnixSignals ();
 
     static lldb::pid_t
     LaunchApplication (const FileSpec &app_file_spec);
@@ -498,14 +259,14 @@ public:
                      int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
                      std::string *command_output,   // Pass NULL if you don't want the command output
                      uint32_t timeout_sec,
-                     const char *shell = LLDB_DEFAULT_SHELL);
+                     bool run_in_default_shell = true);
     
     static lldb::DataBufferSP
     GetAuxvData (lldb_private::Process *process);
 
-    static lldb::TargetSP
-    GetDummyTarget (Debugger &debugger);
-    
+    static lldb::DataBufferSP
+    GetAuxvData (lldb::pid_t pid);
+
     static bool
     OpenFileInExternalEditor (const FileSpec &file_spec, 
                               uint32_t line_no);
@@ -515,79 +276,6 @@ public:
     
     static size_t
     GetEnvironment (StringList &env);
-
-    enum DynamicLibraryOpenOptions 
-    {
-        eDynamicLibraryOpenOptionLazy           = (1u << 0),  // Lazily resolve symbols in this dynamic library
-        eDynamicLibraryOpenOptionLocal          = (1u << 1),  // Only open a shared library with local access (hide it from the global symbol namespace)
-        eDynamicLibraryOpenOptionLimitGetSymbol = (1u << 2)   // DynamicLibraryGetSymbol calls on this handle will only return matches from this shared library
-    };
-    static void *
-    DynamicLibraryOpen (const FileSpec &file_spec, 
-                        uint32_t options,
-                        Error &error);
-
-    static Error
-    DynamicLibraryClose (void *dynamic_library_handle);
-
-    static void *
-    DynamicLibraryGetSymbol (void *dynamic_library_handle, 
-                             const char *symbol_name, 
-                             Error &error);
-    
-    static Error
-    MakeDirectory (const char* path, uint32_t mode);
-    
-    static Error
-    GetFilePermissions (const char* path, uint32_t &file_permissions);
-
-    static Error
-    SetFilePermissions (const char* path, uint32_t file_permissions);
-    
-    static Error
-    Symlink (const char *src, const char *dst);
-    
-    static Error
-    Readlink (const char *path, char *buf, size_t buf_len);
-
-    static Error
-    Unlink (const char *path);
-
-    static lldb::user_id_t
-    OpenFile (const FileSpec& file_spec,
-              uint32_t flags,
-              uint32_t mode,
-              Error &error);
-    
-    static bool
-    CloseFile (lldb::user_id_t fd,
-               Error &error);
-    
-    static uint64_t
-    WriteFile (lldb::user_id_t fd,
-               uint64_t offset,
-               const void* src,
-               uint64_t src_len,
-               Error &error);
-    
-    static uint64_t
-    ReadFile (lldb::user_id_t fd,
-              uint64_t offset,
-              void* dst,
-              uint64_t dst_len,
-              Error &error);
-
-    static lldb::user_id_t
-    GetFileSize (const FileSpec& file_spec);
-    
-    static bool
-    GetFileExists (const FileSpec& file_spec);
-    
-    static bool
-    CalculateMD5 (const FileSpec& file_spec,
-                  uint64_t &low,
-                  uint64_t &high);
-
 };
 
 } // namespace lldb_private

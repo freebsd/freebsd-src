@@ -376,22 +376,36 @@ extern long first_page;			/* first physical page number */
 
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
-/* page allocation classes: */
+/*
+ * Page allocation parameters for vm_page for the functions
+ * vm_page_alloc(), vm_page_grab(), vm_page_alloc_contig() and
+ * vm_page_alloc_freelist().  Some functions support only a subset
+ * of the flags, and ignore others, see the flags legend.
+ *
+ * Bits 0 - 1 define class.
+ * Bits 2 - 15 dedicated for flags.
+ * Legend:
+ * (a) - vm_page_alloc() supports the flag.
+ * (c) - vm_page_alloc_contig() supports the flag.
+ * (f) - vm_page_alloc_freelist() supports the flag.
+ * (g) - vm_page_grab() supports the flag.
+ * Bits above 15 define the count of additional pages that the caller
+ * intends to allocate.
+ */
 #define VM_ALLOC_NORMAL		0
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
-/* page allocation flags: */
-#define	VM_ALLOC_WIRED		0x0020	/* non pageable */
-#define	VM_ALLOC_ZERO		0x0040	/* Try to obtain a zeroed page */
-#define	VM_ALLOC_NOOBJ		0x0100	/* No associated object */
-#define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
-#define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
-#define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
-#define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
-#define	VM_ALLOC_NODUMP		0x2000	/* don't include in dump */
-#define	VM_ALLOC_SBUSY		0x4000	/* Shared busy the page */
-
+#define	VM_ALLOC_WIRED		0x0020	/* (acfg) Allocate non pageable page */
+#define	VM_ALLOC_ZERO		0x0040	/* (acfg) Try to obtain a zeroed page */
+#define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
+#define	VM_ALLOC_NOBUSY		0x0200	/* (acg) Do not busy the page */
+#define	VM_ALLOC_IFCACHED	0x0400	/* (ag) Fail if page is not cached */
+#define	VM_ALLOC_IFNOTCACHED	0x0800	/* (ag) Fail if page is cached */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* (g) Ignore shared busy flag */
+#define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
+#define	VM_ALLOC_SBUSY		0x4000	/* (acg) Shared busy the page */
+#define	VM_ALLOC_NOWAIT		0x8000	/* (g) Do not sleep, return NULL */
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 

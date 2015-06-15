@@ -126,6 +126,8 @@ device		ar71xx_wdog
 device		uart
 device		uart_ar71xx
 
+device		ar71xx_apb
+
 # Network twiddling
 device		loop
 device		ether

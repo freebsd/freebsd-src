@@ -103,7 +103,7 @@ size_t eap_get_names(char *buf, size_t buflen)
 	for (m = eap_methods; m; m = m->next) {
 		ret = os_snprintf(pos, end - pos, "%s%s",
 				  m == eap_methods ? "" : " ", m->name);
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			break;
 		pos += ret;
 	}
@@ -133,7 +133,7 @@ char ** eap_get_names_as_string_array(size_t *num)
 	for (m = eap_methods; m; m = m->next)
 		array_len++;
 
-	array = os_zalloc(sizeof(char *) * (array_len + 1));
+	array = os_calloc(array_len + 1, sizeof(char *));
 	if (array == NULL)
 		return NULL;
 

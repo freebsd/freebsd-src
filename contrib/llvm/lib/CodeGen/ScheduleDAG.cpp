@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "pre-RA-sched"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
@@ -22,8 +21,11 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <climits>
 using namespace llvm;
+
+#define DEBUG_TYPE "pre-RA-sched"
 
 #ifndef NDEBUG
 static cl::opt<bool> StressSchedOpt(
@@ -34,11 +36,9 @@ static cl::opt<bool> StressSchedOpt(
 void SchedulingPriorityQueue::anchor() { }
 
 ScheduleDAG::ScheduleDAG(MachineFunction &mf)
-  : TM(mf.getTarget()),
-    TII(TM.getInstrInfo()),
-    TRI(TM.getRegisterInfo()),
-    MF(mf), MRI(mf.getRegInfo()),
-    EntrySU(), ExitSU() {
+    : TM(mf.getTarget()), TII(TM.getSubtargetImpl()->getInstrInfo()),
+      TRI(TM.getSubtargetImpl()->getRegisterInfo()), MF(mf),
+      MRI(mf.getRegInfo()), EntrySU(), ExitSU() {
 #ifndef NDEBUG
   StressSched = StressSchedOpt;
 #endif
@@ -55,7 +55,7 @@ void ScheduleDAG::clearDAG() {
 
 /// getInstrDesc helper to handle SDNodes.
 const MCInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
-  if (!Node || !Node->isMachineOpcode()) return NULL;
+  if (!Node || !Node->isMachineOpcode()) return nullptr;
   return &TII->get(Node->getMachineOpcode());
 }
 
@@ -63,7 +63,7 @@ const MCInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
 /// not already.  It also adds the current node as a successor of the
 /// specified node.
 bool SUnit::addPred(const SDep &D, bool Required) {
-  // If this node already has this depenence, don't add a redundant one.
+  // If this node already has this dependence, don't add a redundant one.
   for (SmallVectorImpl<SDep>::iterator I = Preds.begin(), E = Preds.end();
          I != E; ++I) {
     // Zero-latency weak edges may be added purely for heuristic ordering. Don't
@@ -301,8 +301,8 @@ void SUnit::biasCriticalPath() {
 
   SUnit::pred_iterator BestI = Preds.begin();
   unsigned MaxDepth = BestI->getSUnit()->getDepth();
-  for (SUnit::pred_iterator
-         I = llvm::next(BestI), E = Preds.end(); I != E; ++I) {
+  for (SUnit::pred_iterator I = std::next(BestI), E = Preds.end(); I != E;
+       ++I) {
     if (I->getKind() == SDep::Data && I->getSUnit()->getDepth() > MaxDepth)
       BestI = I;
   }

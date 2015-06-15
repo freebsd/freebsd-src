@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -35,7 +36,6 @@ struct mpssas_lun {
 	lun_id_t	lun_id;
 	uint8_t		eedp_formatted;
 	uint32_t	eedp_block_size;
-	uint8_t		stop_at_shutdown;
 };
 
 struct mpssas_target {
@@ -52,11 +52,10 @@ struct mpssas_target {
 #define MPSSAS_TARGET_INREMOVAL	(1 << 3)
 #define MPS_TARGET_FLAGS_RAID_COMPONENT (1 << 4)
 #define MPS_TARGET_FLAGS_VOLUME         (1 << 5)
+#define MPS_TARGET_IS_SATA_SSD	(1 << 6)
 #define MPSSAS_TARGET_INRECOVERY (MPSSAS_TARGET_INABORT | \
     MPSSAS_TARGET_INRESET | MPSSAS_TARGET_INCHIPRESET)
 
-#define MPSSAS_TARGET_ADD       (1 << 29)
-#define MPSSAS_TARGET_REMOVE    (1 << 30)
 	uint16_t	tid;
 	SLIST_HEAD(, mpssas_lun) luns;
 	TAILQ_HEAD(, mps_command) commands;
@@ -78,6 +77,8 @@ struct mpssas_target {
 	unsigned int    aborts;
 	unsigned int    logical_unit_resets;
 	unsigned int    target_resets;
+	uint8_t		stop_at_shutdown;
+	uint8_t		supports_SSU;
 };
 
 struct mpssas_softc {
@@ -95,11 +96,9 @@ struct mpssas_softc {
 	struct cam_path		*path;
 	struct intr_config_hook	sas_ich;
 	struct callout		discovery_callout;
-	u_int			discovery_timeouts;
 	struct mps_event_handle	*mpssas_eh;
 
 	u_int                   startup_refcount;
-	u_int                   tm_count;
 	struct proc             *sysctl_proc;
 
 	struct taskqueue	*ev_tq;
@@ -167,6 +166,8 @@ do {					\
 
 void mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ);
 void mpssas_discovery_end(struct mpssas_softc *sassc);
+void mpssas_prepare_for_tm(struct mps_softc *sc, struct mps_command *tm,
+    struct mpssas_target *target, lun_id_t lun_id);
 void mpssas_startup_increment(struct mpssas_softc *sassc);
 void mpssas_startup_decrement(struct mpssas_softc *sassc);
 

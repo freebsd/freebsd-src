@@ -19,7 +19,7 @@ files	"../mv/discovery/files.db78xxx"
 files	"../mv/kirkwood/files.kirkwood"
 files	"../mv/orion/files.db88f5xxx"
 files	"../mv/orion/files.ts7800"
-files	"../s3c2xx0/files.s3c2xx0"
+files	"../samsung/s3c2xx0/files.s3c2xx0"
 files	"../xscale/i80321/files.ep80219"
 files	"../xscale/i80321/files.i80219"
 files	"../xscale/i80321/files.i80321"
@@ -82,6 +82,30 @@ nodevice	snake_saver
 nodevice	star_saver
 nodevice	warp_saver
 
+nodevice	cxgbe
 nodevice	pcii
 nodevice	snd_cmi
 nodevice	tnt4882
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_lockstat
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall

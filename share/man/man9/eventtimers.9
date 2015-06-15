@@ -179,13 +179,13 @@ methods control timers associated with the current CPU.
 Driver may deregister its functionality by calling
 .Fn et_deregister .
 .Pp
-If the frequency of the clock hardware can change while it is 
+If the frequency of the clock hardware can change while it is
 running (for example, during power-saving modes), the driver must call
 .Fn et_change_frequency
 on each change.
 If the given event timer is the active timer,
 .Fn et_change_frequency
-stops the timer on all CPUs, updates 
+stops the timer on all CPUs, updates
 .Va et->frequency ,
 then restarts the timer on all CPUs so that all
 current events are rescheduled using the new frequency.

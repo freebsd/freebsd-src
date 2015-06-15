@@ -245,7 +245,7 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         def = find_symdef(reloff, obj, &defobj, SYMLOOK_IN_PLT, NULL,
 	    NULL);
         if (def == NULL)
-		_rtld_error("bind failed no symbol");
+		rtld_die();
 
         target = (Elf_Addr)(defobj->relocbase + def->st_value);
         dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
@@ -273,6 +273,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 	/* The relocation for the dynamic loader has already been done. */
 	if (obj == obj_rtld)
+		return (0);
+
+	if ((flags & SYMLOOK_IFUNC) != 0)
+		/* XXX not implemented */
 		return (0);
 
 #ifdef SUPPORT_OLD_BROKEN_LD

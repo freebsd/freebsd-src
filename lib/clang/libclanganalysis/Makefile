@@ -12,6 +12,7 @@ SRCS=	AnalysisDeclContext.cpp \
 	CFGStmtMap.cpp \
 	CallGraph.cpp \
 	CocoaConventions.cpp \
+	CodeInjector.cpp \
 	Consumed.cpp \
 	Dominators.cpp \
 	FormatString.cpp \
@@ -24,9 +25,13 @@ SRCS=	AnalysisDeclContext.cpp \
 	ReachableCode.cpp \
 	ScanfFormatString.cpp \
 	ThreadSafety.cpp \
+	ThreadSafetyCommon.cpp \
+	ThreadSafetyLogical.cpp \
+	ThreadSafetyTIL.cpp \
 	UninitializedValues.cpp
 
 TGHDRS=	AttrList \
+	AttrVisitor \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

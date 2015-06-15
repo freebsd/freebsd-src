@@ -31,7 +31,7 @@ using namespace ento;
 
 namespace {
 class MacOSXAPIChecker : public Checker< check::PreStmt<CallExpr> > {
-  mutable OwningPtr<BugType> BT_dispatchOnce;
+  mutable std::unique_ptr<BugType> BT_dispatchOnce;
 
 public:
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
@@ -67,7 +67,7 @@ void MacOSXAPIChecker::CheckDispatchOnce(CheckerContext &C, const CallExpr *CE,
     return;
 
   if (!BT_dispatchOnce)
-    BT_dispatchOnce.reset(new BugType("Improper use of 'dispatch_once'",
+    BT_dispatchOnce.reset(new BugType(this, "Improper use of 'dispatch_once'",
                                       "API Misuse (Apple)"));
 
   // Handle _dispatch_once.  In some versions of the OS X SDK we have the case
@@ -113,7 +113,7 @@ void MacOSXAPIChecker::checkPreStmt(const CallExpr *CE,
              "_dispatch_once",
              "dispatch_once_f",
              &MacOSXAPIChecker::CheckDispatchOnce)
-      .Default(NULL);
+      .Default(nullptr);
 
   if (SC)
     (this->*SC)(C, CE, Name);

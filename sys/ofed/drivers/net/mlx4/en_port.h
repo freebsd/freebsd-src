@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,39 +36,10 @@
 
 
 #define SET_PORT_GEN_ALL_VALID	0x7
-#define SET_PORT_PROMISC_EN_SHIFT	31
-#define SET_PORT_PROMISC_MODE_SHIFT	30
+#define SET_PORT_PROMISC_SHIFT	31
+#define SET_PORT_MC_PROMISC_SHIFT	30
 
-#if 0 //moved to port.c - shahark
-
-struct mlx4_set_port_general_context {
-	u8 reserved[3];
-	u8 flags;
-	u16 reserved2;
-	__be16 mtu;
-	u8 pptx;
-	u8 pfctx;
-	u16 reserved3;
-	u8 pprx;
-	u8 pfcrx;
-	u16 reserved4;
-};
-
-struct mlx4_set_port_rqp_calc_context {
-	__be32 base_qpn;
-	__be32 flags;
-	u8 reserved[3];
-	u8 mac_miss;
-	u8 intra_no_vlan;
-	u8 no_vlan;
-	u8 intra_vlan_miss;
-	u8 vlan_miss;
-	u8 reserved2[3];
-	u8 no_vlan_prio;
-	__be32 promisc;
-	__be32 mcast;
-};
-#endif
+#define MLX4_EN_NUM_TC		8
 
 #define VLAN_FLTR_SIZE	128
 struct mlx4_set_vlan_fltr_mbox {
@@ -83,29 +54,27 @@ enum {
 };
 
 enum {
-	MLX4_EN_1G_SPEED	= 0x02,
-	MLX4_EN_10G_SPEED_XFI	= 0x01,
 	MLX4_EN_10G_SPEED_XAUI	= 0x00,
+	MLX4_EN_10G_SPEED_XFI	= 0x01,
+	MLX4_EN_1G_SPEED	= 0x02,
+	MLX4_EN_20G_SPEED	= 0x08,
 	MLX4_EN_40G_SPEED	= 0x40,
+	MLX4_EN_56G_SPEED	= 0x20,
 	MLX4_EN_OTHER_SPEED	= 0x0f,
 };
 
 struct mlx4_en_query_port_context {
 	u8 link_up;
 #define MLX4_EN_LINK_UP_MASK	0x80
-	u8 reserved;
+	u8 autoneg;
+#define MLX4_EN_AUTONEG_MASK	0x80
 	__be16 mtu;
 	u8 reserved2;
 	u8 link_speed;
-#define MLX4_EN_SPEED_MASK	0x43
+#define MLX4_EN_SPEED_MASK	0x6b
 	u16 reserved3[5];
 	__be64 mac;
 	u8 transceiver;
-	u8 reserved4[3];
-	__be32 wavelenth;
-	u32 reserved5;
-	__be32 transceiver_code_hi;
-	__be32 transceiver_code_low;
 };
 
 
@@ -590,6 +559,5 @@ struct mlx4_en_stat_out_mbox {
 	__be32 TDROP;
 };
 
-enum mlx4_query_reply mlx4_en_query(void *endev_ptr, void *int_dev);
 
 #endif

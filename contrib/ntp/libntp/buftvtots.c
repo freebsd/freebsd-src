@@ -9,8 +9,9 @@
 #endif
 #include "ntp_fp.h"
 #include "ntp_string.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 
+#ifndef SYS_WINNT
 int
 buftvtots(
 	const char *bufp,
@@ -27,9 +28,11 @@ buftvtots(
 	/*
 	 * and use it
 	 */
-	ts->l_ui = tv.tv_sec + (u_long)JAN_1970;
-	if (tv.tv_usec > 999999)
-	    return 0;
-	TVUTOTSF(tv.tv_usec, ts->l_uf);
-	return 1;
+	if (tv.tv_usec > MICROSECONDS - 1)
+		return FALSE;
+
+	*ts = tval_stamp_to_lfp(tv);
+
+	return TRUE;
 }
+#endif	/* !SYS_WINNT */

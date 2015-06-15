@@ -95,7 +95,7 @@ octeon_rnd_attach(device_t dev)
 	struct octeon_rnd_softc *sc;
 
 	sc = device_get_softc(dev);
-	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_callout, 1);
 	callout_reset(&sc->sc_callout, hz * 5, octeon_rnd_harvest, sc);
 
 	cvmx_rng_enable();

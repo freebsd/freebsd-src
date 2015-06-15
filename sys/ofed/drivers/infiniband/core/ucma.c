@@ -34,10 +34,13 @@
 #include <linux/file.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
 #include <linux/idr.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/miscdevice.h>
+#include <linux/slab.h>
+#include <linux/module.h>
 
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -48,9 +51,7 @@ MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("RDMA Userspace Connection Manager Access");
 MODULE_LICENSE("Dual BSD/GPL");
 
-enum {
-	UCMA_MAX_BACKLOG	= 1024
-};
+static unsigned int max_backlog = 1024;
 
 struct ucma_file {
 	struct mutex		mut;
@@ -253,17 +254,17 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	if (!uevent)
 		return event->event == RDMA_CM_EVENT_CONNECT_REQUEST;
 
+	mutex_lock(&ctx->file->mut);
 	uevent->cm_id = cm_id;
 	ucma_set_event_context(ctx, event, uevent);
 	uevent->resp.event = event->event;
 	uevent->resp.status = event->status;
-	if (cm_id->ps == RDMA_PS_UDP || cm_id->ps == RDMA_PS_IPOIB)
+	if (cm_id->qp_type == IB_QPT_UD)
 		ucma_copy_ud_event(&uevent->resp.param.ud, &event->param.ud);
 	else
 		ucma_copy_conn_event(&uevent->resp.param.conn,
 				     &event->param.conn);
 
-	mutex_lock(&ctx->file->mut);
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!ctx->backlog) {
 			ret = -ENOMEM;
@@ -298,7 +299,6 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 	struct rdma_ucm_get_event cmd;
 	struct ucma_event *uevent;
 	int ret = 0;
-	DEFINE_WAIT(wait);
 
 	if (out_len < sizeof uevent->resp)
 		return -ENOSPC;
@@ -332,6 +332,7 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 		ctx->cm_id = uevent->cm_id;
 		ctx->cm_id->context = ctx;
 		uevent->resp.id = ctx->id;
+		ctx->cm_id->ucontext = ctx;
 	}
 
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
@@ -350,13 +351,31 @@ done:
 	return ret;
 }
 
-static ssize_t ucma_create_id(struct ucma_file *file,
-				const char __user *inbuf,
+static int ucma_get_qp_type(struct rdma_ucm_create_id *cmd, enum ib_qp_type *qp_type)
+{
+	switch (cmd->ps) {
+	case RDMA_PS_TCP:
+		*qp_type = IB_QPT_RC;
+		return 0;
+	case RDMA_PS_UDP:
+	case RDMA_PS_IPOIB:
+		*qp_type = IB_QPT_UD;
+		return 0;
+	case RDMA_PS_IB:
+		*qp_type = cmd->qp_type;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 				int in_len, int out_len)
 {
 	struct rdma_ucm_create_id cmd;
 	struct rdma_ucm_create_id_resp resp;
 	struct ucma_context *ctx;
+	enum ib_qp_type qp_type;
 	int ret;
 
 	if (out_len < sizeof(resp))
@@ -365,6 +384,10 @@ static ssize_t ucma_create_id(struct ucma_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
+	ret = ucma_get_qp_type(&cmd, &qp_type);
+	if (ret)
+		return ret;
+
 	mutex_lock(&file->mut);
 	ctx = ucma_alloc_ctx(file);
 	mutex_unlock(&file->mut);
@@ -372,11 +395,12 @@ static ssize_t ucma_create_id(struct ucma_file *file,
 		return -ENOMEM;
 
 	ctx->uid = cmd.uid;
-	ctx->cm_id = rdma_create_id(ucma_event_handler, ctx, cmd.ps);
+	ctx->cm_id = rdma_create_id(ucma_event_handler, ctx, cmd.ps, qp_type);
 	if (IS_ERR(ctx->cm_id)) {
 		ret = PTR_ERR(ctx->cm_id);
 		goto err1;
 	}
+	ctx->cm_id->ucontext = ctx;
 
 	resp.id = ctx->id;
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
@@ -409,24 +433,6 @@ static void ucma_cleanup_multicast(struct ucma_context *ctx)
 	mutex_unlock(&mut);
 }
 
-static void ucma_cleanup_events(struct ucma_context *ctx)
-{
-	struct ucma_event *uevent, *tmp;
-
-	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
-		if (uevent->ctx != ctx)
-			continue;
-
-		list_del(&uevent->list);
-
-		/* clear incoming connections. */
-		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST)
-			rdma_destroy_id(uevent->cm_id);
-
-		kfree(uevent);
-	}
-}
-
 static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 {
 	struct ucma_event *uevent, *tmp;
@@ -440,9 +446,16 @@ static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 	}
 }
 
+/*
+ * We cannot hold file->mut when calling rdma_destroy_id() or we can
+ * deadlock.  We also acquire file->mut in ucma_event_handler(), and
+ * rdma_destroy_id() will wait until all callbacks have completed.
+ */
 static int ucma_free_ctx(struct ucma_context *ctx)
 {
 	int events_reported;
+	struct ucma_event *uevent, *tmp;
+	LIST_HEAD(list);
 
 	/* No new events will be generated after destroying the id. */
 	rdma_destroy_id(ctx->cm_id);
@@ -451,9 +464,19 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 
 	/* Cleanup events not yet reported to the user. */
 	mutex_lock(&ctx->file->mut);
-	ucma_cleanup_events(ctx);
+	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
+		if (uevent->ctx == ctx)
+			list_move_tail(&uevent->list, &list);
+	}
 	list_del(&ctx->list);
 	mutex_unlock(&ctx->file->mut);
+
+	list_for_each_entry_safe(uevent, tmp, &list, list) {
+		list_del(&uevent->list);
+		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST)
+			rdma_destroy_id(uevent->cm_id);
+		kfree(uevent);
+	}
 
 	events_reported = ctx->events_reported;
 	kfree(ctx);
@@ -586,24 +609,14 @@ static void ucma_copy_ib_route(struct rdma_ucm_query_route_resp *resp,
 static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 				 struct rdma_route *route)
 {
-	struct rdma_dev_addr *dev_addr;
-	struct net_device *dev;
-	u16 vid = 0;
 
 	resp->num_paths = route->num_paths;
 	switch (route->num_paths) {
 	case 0:
-		dev_addr = &route->addr.dev_addr;
-		dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
-			if (dev) {
-				vid = rdma_vlan_dev_vlan_id(dev);
-				dev_put(dev);
-			}
-
-		iboe_mac_vlan_to_ll((union ib_gid *) &resp->ib_route[0].dgid,
-				    dev_addr->dst_dev_addr, vid);
-		iboe_addr_get_sgid(dev_addr,
-				   (union ib_gid *) &resp->ib_route[0].sgid);
+		rdma_ip2gid((struct sockaddr *)&route->addr.dst_addr,
+			    (union ib_gid *)&resp->ib_route[0].dgid);
+		rdma_ip2gid((struct sockaddr *)&route->addr.src_addr,
+			    (union ib_gid *)&resp->ib_route[0].sgid);
 		resp->ib_route[0].pkey = cpu_to_be16(0xffff);
 		break;
 	case 2:
@@ -617,6 +630,16 @@ static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 	default:
 		break;
 	}
+}
+
+static void ucma_copy_iw_route(struct rdma_ucm_query_route_resp *resp,
+			       struct rdma_route *route)
+{
+	struct rdma_dev_addr *dev_addr;
+
+	dev_addr = &route->addr.dev_addr;
+	rdma_addr_get_dgid(dev_addr, (union ib_gid *) &resp->ib_route[0].dgid);
+	rdma_addr_get_sgid(dev_addr, (union ib_gid *) &resp->ib_route[0].sgid);
 }
 
 static ssize_t ucma_query_route(struct ucma_file *file,
@@ -653,8 +676,10 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 
 	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
 	resp.port_num = ctx->cm_id->port_num;
-	if (rdma_node_get_transport(ctx->cm_id->device->node_type) == RDMA_TRANSPORT_IB) {
-		switch (rdma_port_get_link_layer(ctx->cm_id->device, ctx->cm_id->port_num)) {
+	switch (rdma_node_get_transport(ctx->cm_id->device->node_type)) {
+	case RDMA_TRANSPORT_IB:
+		switch (rdma_port_get_link_layer(ctx->cm_id->device,
+			ctx->cm_id->port_num)) {
 		case IB_LINK_LAYER_INFINIBAND:
 			ucma_copy_ib_route(&resp, &ctx->cm_id->route);
 			break;
@@ -664,6 +689,12 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 		default:
 			break;
 		}
+		break;
+	case RDMA_TRANSPORT_IWARP:
+		ucma_copy_iw_route(&resp, &ctx->cm_id->route);
+		break;
+	default:
+		break;
 	}
 
 out:
@@ -727,8 +758,8 @@ static ssize_t ucma_listen(struct ucma_file *file, const char __user *inbuf,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	ctx->backlog = cmd.backlog > 0 && cmd.backlog < UCMA_MAX_BACKLOG ?
-		       cmd.backlog : UCMA_MAX_BACKLOG;
+	ctx->backlog = cmd.backlog > 0 && cmd.backlog < max_backlog ?
+		       cmd.backlog : max_backlog;
 	ret = rdma_listen(ctx->cm_id, ctx->backlog);
 	ucma_put_ctx(ctx);
 	return ret;
@@ -750,9 +781,12 @@ static ssize_t ucma_accept(struct ucma_file *file, const char __user *inbuf,
 		return PTR_ERR(ctx);
 
 	if (cmd.conn_param.valid) {
-		ctx->uid = cmd.uid;
 		ucma_copy_conn_param(&conn_param, &cmd.conn_param);
+		mutex_lock(&file->mut);
 		ret = rdma_accept(ctx->cm_id, &conn_param);
+		if (!ret)
+			ctx->uid = cmd.uid;
+		mutex_unlock(&file->mut);
 	} else
 		ret = rdma_accept(ctx->cm_id, NULL);
 
@@ -848,6 +882,20 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 		}
 		rdma_set_service_type(ctx->cm_id, *((u8 *) optval));
 		break;
+	case RDMA_OPTION_ID_REUSEADDR:
+		if (optlen != sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_reuseaddr(ctx->cm_id, *((int *) optval) ? 1 : 0);
+		break;
+	case RDMA_OPTION_ID_AFONLY:
+		if (optlen != sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_afonly(ctx->cm_id, *((int *) optval) ? 1 : 0);
+		break;
 	default:
 		ret = -ENOSYS;
 	}
@@ -887,12 +935,22 @@ static int ucma_set_ib_path(struct ucma_context *ctx,
 static int ucma_set_option_ib(struct ucma_context *ctx, int optname,
 			      void *optval, size_t optlen)
 {
-	int ret;
+	int ret = 0;
 
 	switch (optname) {
 	case RDMA_OPTION_IB_PATH:
 		ret = ucma_set_ib_path(ctx, optval, optlen);
 		break;
+
+	case RDMA_OPTION_IB_APM:
+		if (optlen != sizeof(u8)) {
+			ret = -EINVAL;
+			break;
+		}
+		if (*(u8 *)optval)
+			ret = rdma_enable_apm(ctx->cm_id, RDMA_ALT_PATH_BEST);
+		break;
+
 	default:
 		ret = -ENOSYS;
 	}
@@ -937,20 +995,21 @@ static ssize_t ucma_set_option(struct ucma_file *file, const char __user *inbuf,
 	optval = kmalloc(cmd.optlen, GFP_KERNEL);
 	if (!optval) {
 		ret = -ENOMEM;
-		goto out1;
+		goto err_ucma_put_ctx;
 	}
 
-	if (copy_from_user(optval, (void __user *) (unsigned long) cmd.optval,
+	if (copy_from_user(optval, (void __user *)(unsigned long)cmd.optval,
 			   cmd.optlen)) {
 		ret = -EFAULT;
-		goto out2;
+		goto err_kfree;
 	}
 
 	ret = ucma_set_option_level(ctx, cmd.level, cmd.optname, optval,
 				    cmd.optlen);
-out2:
+
+err_kfree:
 	kfree(optval);
-out1:
+err_ucma_put_ctx:
 	ucma_put_ctx(ctx);
 	return ret;
 }
@@ -1121,7 +1180,7 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 	struct rdma_ucm_migrate_id cmd;
 	struct rdma_ucm_migrate_resp resp;
 	struct ucma_context *ctx;
-	struct file *filp;
+	struct fd f;
 	struct ucma_file *cur_file;
 	int ret = 0;
 
@@ -1129,12 +1188,12 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 		return -EFAULT;
 
 	/* Get current fd to protect against it being closed */
-	filp = fget(cmd.fd);
-	if (!filp)
+	f = fdget(cmd.fd);
+	if (!f.file)
 		return -ENOENT;
 
 	/* Validate current fd and prevent destruction of id. */
-	ctx = ucma_get_ctx(filp->private_data, cmd.id);
+	ctx = ucma_get_ctx(f.file->private_data, cmd.id);
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
 		goto file_put;
@@ -1168,7 +1227,7 @@ response:
 
 	ucma_put_ctx(ctx);
 file_put:
-	fput(filp);
+	fdput(f);
 	return ret;
 }
 
@@ -1209,7 +1268,7 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
 
-	if (hdr.cmd < 0 || hdr.cmd >= ARRAY_SIZE(ucma_cmd_table))
+	if (hdr.cmd >= ARRAY_SIZE(ucma_cmd_table))
 		return -EINVAL;
 
 	if (hdr.in + sizeof(hdr) > len)
@@ -1261,7 +1320,8 @@ static int ucma_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-	return 0;
+
+	return nonseekable_open(inode, filp);
 }
 
 static int ucma_close(struct inode *inode, struct file *filp)
@@ -1291,11 +1351,14 @@ static const struct file_operations ucma_fops = {
 	.release = ucma_close,
 	.write	 = ucma_write,
 	.poll    = ucma_poll,
+	.llseek	 = no_llseek,
 };
 
 static struct miscdevice ucma_misc = {
 	.minor	= MISC_DYNAMIC_MINOR,
 	.name	= "rdma_cm",
+	.nodename	= "infiniband/rdma_cm",
+	.mode		= 0666,
 	.fops	= &ucma_fops,
 };
 
@@ -1318,10 +1381,11 @@ static int __init ucma_init(void)
 	ret = device_create_file(ucma_misc.this_device, &dev_attr_abi_version);
 	if (ret) {
 		printk(KERN_ERR "rdma_ucm: couldn't create abi_version attr\n");
-		goto err;
+		goto err1;
 	}
+
 	return 0;
-err:
+err1:
 	misc_deregister(&ucma_misc);
 	return ret;
 }

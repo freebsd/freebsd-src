@@ -51,6 +51,13 @@ public:
         eFileTypeOther
     } FileType;
 
+    enum PathSyntax
+    {
+        ePathSyntaxPosix,
+        ePathSyntaxWindows,
+        ePathSyntaxHostNative
+    };
+
     FileSpec();
 
     //------------------------------------------------------------------
@@ -69,7 +76,7 @@ public:
     ///
     /// @see FileSpec::SetFile (const char *path, bool resolve)
     //------------------------------------------------------------------
-    explicit FileSpec (const char *path, bool resolve_path);
+    explicit FileSpec (const char *path, bool resolve_path, PathSyntax syntax = ePathSyntaxHostNative);
 
     //------------------------------------------------------------------
     /// Copy constructor
@@ -239,7 +246,7 @@ public:
     Compare (const FileSpec& lhs, const FileSpec& rhs, bool full);
 
     static bool
-    Equal (const FileSpec& a, const FileSpec& b, bool full);
+    Equal (const FileSpec& a, const FileSpec& b, bool full, bool remove_backups = false);
 
     //------------------------------------------------------------------
     /// Dump this object to a Stream.
@@ -249,7 +256,7 @@ public:
     /// by a directory delimiter, and the filename.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     //------------------------------------------------------------------
     void
     Dump (Stream *s) const;
@@ -263,6 +270,15 @@ public:
     bool
     Exists () const;
 
+    //------------------------------------------------------------------
+    /// Check if a file is readable by the current user
+    ///
+    /// @return
+    ///     \b true if the file exists on disk and is readable, \b false
+    ///     otherwise.
+    //------------------------------------------------------------------
+    bool
+    Readable () const;
      
     //------------------------------------------------------------------
     /// Expanded existence test.
@@ -290,6 +306,9 @@ public:
 
     uint64_t
     GetByteSize() const;
+
+    PathSyntax
+    GetPathSyntax() const;
 
     //------------------------------------------------------------------
     /// Directory string get accessor.
@@ -375,7 +394,7 @@ public:
     ///     still NULL terminated).
     //------------------------------------------------------------------
     size_t
-    GetPath (char *path, size_t max_path_length) const;
+    GetPath (char *path, size_t max_path_length, bool denormalize = true) const;
 
     //------------------------------------------------------------------
     /// Extract the full path to the file.
@@ -387,7 +406,7 @@ public:
     ///     concatenated.
     //------------------------------------------------------------------
     std::string
-    GetPath () const;
+    GetPath (bool denormalize = true) const;
 
     //------------------------------------------------------------------
     /// Extract the extension of the file.
@@ -486,7 +505,7 @@ public:
     /// Returns a shared pointer to a data buffer that contains all or
     /// part of the contents of a file. The data is memory mapped and
     /// will lazily page in data from the file as memory is accessed.
-    /// The data that is mappped will start \a offset bytes into the
+    /// The data that is mapped will start \a offset bytes into the
     /// file, and \a length bytes will be mapped. If \a length is
     /// greater than the number of bytes available in the file starting
     /// at \a offset, the number of bytes will be appropriately
@@ -504,7 +523,7 @@ public:
     ///     as many bytes as possible.
     ///
     /// @return
-    ///     A shared pointer to the memeory mapped data. This shared
+    ///     A shared pointer to the memory mapped data. This shared
     ///     pointer can contain a NULL DataBuffer pointer, so the contained
     ///     pointer must be checked prior to using it.
     //------------------------------------------------------------------
@@ -559,8 +578,26 @@ public:
     //------------------------------------------------------------------
     lldb::DataBufferSP
     ReadFileContentsAsCString(Error *error_ptr = NULL);
+
+    static void Normalize(llvm::SmallVectorImpl<char> &path, PathSyntax syntax = ePathSyntaxHostNative);
+    static void DeNormalize(llvm::SmallVectorImpl<char> &path, PathSyntax syntax = ePathSyntaxHostNative);
+
+
     //------------------------------------------------------------------
-    /// Change the file specificed with a new path.
+    /// Run through the input string, replaying the effect of any ".." and produce
+    /// the resultant path.  The input path is not required to be in the host file system
+    /// format, but it is required to be normalized to that system.
+    ///
+    /// @param[in] input
+    ///     The input path to analyze.
+    ///
+    /// @param[out] result
+    ///     The backup-resolved path will be written here.
+    //------------------------------------------------------------------
+    static void RemoveBackupDots (const ConstString &input_const_str, ConstString &result_const_str);
+
+    //------------------------------------------------------------------
+    /// Change the file specified with a new path.
     ///
     /// Update the contents of this object with a new path. The path will
     /// be split up into a directory and filename and stored as uniqued
@@ -574,7 +611,7 @@ public:
     ///     the static FileSpec::Resolve.
     //------------------------------------------------------------------
     void
-    SetFile (const char *path, bool resolve_path);
+    SetFile (const char *path, bool resolve_path, PathSyntax syntax = ePathSyntaxHostNative);
 
     bool
     IsResolved () const
@@ -617,27 +654,14 @@ public:
     ReadFileLines (STLStringArray &lines);
 
     //------------------------------------------------------------------
-    /// Resolves user name and links in \a src_path, and writes the output
-    /// to \a dst_path.  Note if the path pointed to by \a src_path does not
-    /// exist, the contents of \a src_path will be copied to \a dst_path 
-    /// unchanged.
+    /// Resolves user name and links in \a path, and overwrites the input
+    /// argument with the resolved path.
     ///
-    /// @param[in] src_path
-    ///     Input path to be resolved.
-    ///
-    /// @param[in] dst_path
-    ///     Buffer to store the resolved path.
-    ///
-    /// @param[in] dst_len 
-    ///     Size of the buffer pointed to by dst_path.
-    ///
-    /// @result 
-    ///     The number of characters required to write the resolved path.  If the
-    ///     resolved path doesn't fit in dst_len, dst_len-1 characters will
-    ///     be written to \a dst_path, but the actual required length will still be returned.
+    /// @param[in] path
+    ///     Input path to be resolved, in the form of a llvm::SmallString or similar.
     //------------------------------------------------------------------
-    static size_t
-    Resolve (const char *src_path, char *dst_path, size_t dst_len);
+    static void
+    Resolve (llvm::SmallVectorImpl<char> &path);
 
     FileSpec
     CopyByAppendingPathComponent (const char *new_path) const;
@@ -665,18 +689,9 @@ public:
     ///
     /// @param[in] dst_path
     ///     Buffer to store the resolved path.
-    ///
-    /// @param[in] dst_len 
-    ///     Size of the buffer pointed to by dst_path.
-    ///
-    /// @result 
-    ///     The number of characters required to write the resolved path, or 0 if
-    ///     the user name could not be found.  If the
-    ///     resolved path doesn't fit in dst_len, dst_len-1 characters will
-    ///     be written to \a dst_path, but the actual required length will still be returned.
     //------------------------------------------------------------------
-    static size_t
-    ResolveUsername (const char *src_path, char *dst_path, size_t dst_len);
+    static void
+    ResolveUsername (llvm::SmallVectorImpl<char> &path);
     
     static size_t
     ResolvePartialUsername (const char *partial_name, StringList &matches);
@@ -709,6 +724,7 @@ protected:
     ConstString m_directory;    ///< The uniqued directory path
     ConstString m_filename;     ///< The uniqued filename path
     mutable bool m_is_resolved; ///< True if this path has been resolved.
+    PathSyntax m_syntax;        ///< The syntax that this path uses (e.g. Windows / Posix)
 };
 
 //----------------------------------------------------------------------

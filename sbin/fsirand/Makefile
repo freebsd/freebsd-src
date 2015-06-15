@@ -4,7 +4,5 @@
 PROG=	fsirand
 MAN=	fsirand.8
 WARNS?=	3
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
 
 .include <bsd.prog.mk>

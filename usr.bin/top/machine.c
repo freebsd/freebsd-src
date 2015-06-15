@@ -373,7 +373,7 @@ machine_init(struct statics *statics, char do_unames)
 	size = sizeof(long) * maxcpu * CPUSTATES;
 	times = malloc(size);
 	if (times == NULL)
-		err(1, "malloc %zd bytes", size);
+		err(1, "malloc %zu bytes", size);
 	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
 		err(1, "sysctlbyname kern.cp_times");
 	pcpu_cp_time = calloc(1, size);
@@ -941,7 +941,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	/* generate "STATE" field */
 	switch (state = pp->ki_stat) {
 	case SRUN:
-		if (smpmode && pp->ki_oncpu != 0xff)
+		if (smpmode && pp->ki_oncpu != NOCPU)
 			sprintf(status, "CPU%d", pp->ki_oncpu);
 		else
 			strcpy(status, "RUN");
@@ -1004,7 +1004,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			argbuflen = cmdlen * 4;
 			argbuf = (char *)malloc(argbuflen + 1);
 			if (argbuf == NULL) {
-				warn("malloc(%zd)", argbuflen + 1);
+				warn("malloc(%zu)", argbuflen + 1);
 				free(cmdbuf);
 				return NULL;
 			}
@@ -1100,7 +1100,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 	/* format this entry */
 	if (smpmode) {
-		if (state == SRUN && pp->ki_oncpu != 0xff)
+		if (state == SRUN && pp->ki_oncpu != NOCPU)
 			cpu = pp->ki_oncpu;
 		else
 			cpu = pp->ki_lastcpu;

@@ -218,6 +218,7 @@ struct bxe_eth_stats {
     uint32_t rx_calls;
     uint32_t rx_pkts;
     uint32_t rx_tpa_pkts;
+    uint32_t rx_jumbo_sge_pkts;
     uint32_t rx_soft_errors;
     uint32_t rx_hw_csum_errors;
     uint32_t rx_ofld_frames_csum_ip;
@@ -318,6 +319,7 @@ struct bxe_eth_q_stats {
     uint32_t rx_calls;
     uint32_t rx_pkts;
     uint32_t rx_tpa_pkts;
+    uint32_t rx_jumbo_sge_pkts;
     uint32_t rx_soft_errors;
     uint32_t rx_hw_csum_errors;
     uint32_t rx_ofld_frames_csum_ip;
@@ -411,6 +413,7 @@ struct bxe_eth_q_stats_old {
     uint32_t rx_calls_old;
     uint32_t rx_pkts_old;
     uint32_t rx_tpa_pkts_old;
+    uint32_t rx_jumbo_sge_pkts_old;
     uint32_t rx_soft_errors_old;
     uint32_t rx_hw_csum_errors_old;
     uint32_t rx_ofld_frames_csum_ip_old;
@@ -675,6 +678,7 @@ void bxe_stats_init(struct bxe_softc *sc);
 void bxe_stats_handle(struct bxe_softc *sc, enum bxe_stats_event event);
 void bxe_save_statistics(struct bxe_softc *sc);
 void bxe_afex_collect_stats(struct bxe_softc *sc, void *void_afex_stats, uint32_t stats_type);
+uint64_t bxe_get_counter(if_t, ift_counter);
 
 #endif /* BXE_STATS_H */
 

@@ -233,7 +233,7 @@ miss(NODE *p, char *tail)
 		miss(p->child, tp + 1);
 		*tp = '\0';
 
-		if (!create)
+		if (!create && !uflag)
 			continue;
 		if (chown(path, p->st_uid, p->st_gid) == -1) {
 			serr = errno;

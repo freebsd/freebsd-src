@@ -241,10 +241,12 @@ f_index_read()
 	export msg_packages
 
 	eval "$( debug= f_getvar "$var_to_get" | awk -F'|' '
-	function asorti(src, dest)
+	function _asorti(src, dest)
 	{
+		k = nitems = 0
+
 		# Copy src indices to dest and calculate array length
-		nitems = 0; for (i in src) dest[++nitems] = i
+		for (i in src) dest[++nitems] = i
 
 		# Sort the array of indices (dest) using insertion sort method
 		for (i = 1; i <= nitems; k = i++)
@@ -290,7 +292,7 @@ f_index_read()
 	END {
 		print "_npkgs=" tpkgs # For convenience, total package count
 
-		n = asorti(categories, categories_sorted)
+		n = _asorti(categories, categories_sorted)
 
 		# Produce package counts for each category
 		for (i = 1; i <= n; i++)

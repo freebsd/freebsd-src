@@ -1,4 +1,4 @@
-/*	$NetBSD: externs1.h,v 1.13 2002/01/18 21:01:39 thorpej Exp $	*/
+/*	$NetBSD: externs1.h,v 1.20 2002/11/02 20:09:27 perry Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -29,6 +29,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -50,6 +52,7 @@ extern	int	vflag;
 extern	int	yflag;
 extern	int	wflag;
 extern	int	zflag;
+extern	int	Sflag;
 
 extern	void	norecover(void);
 
@@ -80,6 +83,7 @@ extern	void	clrwflgs(void);
 extern	sym_t	*getsym(sbuf_t *);
 extern	void	cleanup(void);
 extern	sym_t	*pushdown(sym_t *);
+extern	sym_t	*mktempsym(type_t *);
 extern	void	rmsym(sym_t *);
 extern	void	rmsyms(sym_t *);
 extern	void	inssym(int, sym_t *);
@@ -118,8 +122,9 @@ extern	void	error(int, ...);
 extern	void	warning(int, ...);
 extern	void	message(int, ...);
 extern	int	gnuism(int, ...);
-extern	void	lerror(const char *, ...)
-     __attribute__((__noreturn__,__format__(__printf__, 1, 2)));
+extern	int	c99ism(int, ...);
+extern	void	lerror(const char *, int, const char *, ...)
+     __attribute__((__noreturn__,__format__(__printf__, 3, 4)));
 
 /*
  * decl.c
@@ -194,13 +199,14 @@ extern	int	typeok(op_t, int, tnode_t *, tnode_t *);
 extern	tnode_t	*promote(op_t, int, tnode_t *);
 extern	tnode_t	*convert(op_t, int, type_t *, tnode_t *);
 extern	void	cvtcon(op_t, int, type_t *, val_t *, val_t *);
-extern	const	char *tyname(type_t *);
+extern	const	char *tyname(char *, size_t, type_t *);
+extern	const	char *basictyname(tspec_t);
 extern	tnode_t	*bldszof(type_t *);
 extern	tnode_t	*cast(tnode_t *, type_t *);
 extern	tnode_t	*funcarg(tnode_t *, tnode_t *);
 extern	tnode_t	*funccall(tnode_t *, tnode_t *);
-extern	val_t	*constant(tnode_t *);
-extern	void	expr(tnode_t *, int, int);
+extern	val_t	*constant(tnode_t *, int);
+extern	void	expr(tnode_t *, int, int, int);
 extern	void	chkmisc(tnode_t *, int, int, int, int, int, int);
 extern	int	conaddr(tnode_t *, sym_t **, ptrdiff_t *);
 extern	strg_t	*catstrg(strg_t *, strg_t *);
@@ -273,6 +279,7 @@ extern	void	prepinit(void);
 extern	void	initrbr(void);
 extern	void	initlbr(void);
 extern	void	mkinit(tnode_t *);
+extern	void	memberpush(sbuf_t *);
 
 /*
  * emit.c

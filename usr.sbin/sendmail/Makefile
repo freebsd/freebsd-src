@@ -45,17 +45,7 @@ CFLAGS+= -DNETINET6
 
 WARNS?=	1
 
-DPADD=	${LIBUTIL} ${LIBWRAP}
-LDADD=	-lutil -lwrap
-
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
-LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
-
-DPADD+=	${LIBSMUTIL} ${LIBSM}
-LDADD+=	${LIBSMUTIL} ${LIBSM}
+LIBADD=	util wrap sm smutil
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -63,8 +53,7 @@ CLEANFILES+=sm_os.h
 .if ${MK_OPENSSL} != "no"
 # STARTTLS support
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1
-DPADD+=		${LIBSSL} ${LIBCRYPTO}
-LDADD+=		-lssl -lcrypto
+LIBADD+=	ssl crypto
 .endif
 
 # User customizations to the sendmail build environment

@@ -7,7 +7,6 @@
 MAN=	acct.5 \
 	ar.5 \
 	a.out.5 \
-	autofs.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
 	bluetooth.protocols.5 \
@@ -79,6 +78,10 @@ MLINKS+=portindex.5 INDEX.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
+
+.if ${MK_AUTOFS} != "no"
+MAN+=	autofs.5
+.endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 MAN+=	freebsd-update.conf.5

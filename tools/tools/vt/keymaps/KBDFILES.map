@@ -144,6 +144,6 @@ ISO8859-1	us.emacs.kbd			us.emacs.kbd
 ISO8859-1	us.pc-ctrl.kbd			us.ctrl.kbd
 ISO8859-1	us.unix.kbd			us.unix.kbd
 
-ISO8859-5	ua.iso5.kbd			ua.kbd.from-iso5
+#ISO8859-5	ua.iso5.kbd			ua.kbd.from-iso5
 KOI8-U		ua.koi8-u.kbd			ua.kbd
 KOI8-U		ua.koi8-u.shift.alt.kbd		ua.shift.alt.kbd

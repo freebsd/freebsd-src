@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_SPLITKIT_H
-#define LLVM_CODEGEN_SPLITKIT_H
+#ifndef LLVM_LIB_CODEGEN_SPLITKIT_H
+#define LLVM_LIB_CODEGEN_SPLITKIT_H
 
 #include "LiveRangeCalc.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -377,7 +377,7 @@ public:
   SlotIndex enterIntvAfter(SlotIndex Idx);
 
   /// enterIntvAtEnd - Enter the open interval at the end of MBB.
-  /// Use the open interval from he inserted copy to the MBB end.
+  /// Use the open interval from the inserted copy to the MBB end.
   /// Return the beginning of the new live range.
   SlotIndex enterIntvAtEnd(MachineBasicBlock &MBB);
 
@@ -417,7 +417,7 @@ public:
   /// @param LRMap When not null, this vector will map each live range in Edit
   ///              back to the indices returned by openIntv.
   ///              There may be extra indices created by dead code elimination.
-  void finish(SmallVectorImpl<unsigned> *LRMap = 0);
+  void finish(SmallVectorImpl<unsigned> *LRMap = nullptr);
 
   /// dump - print the current interval maping to dbgs().
   void dump() const;

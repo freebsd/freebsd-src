@@ -28,7 +28,7 @@
  */
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 
@@ -36,7 +36,7 @@
 #include <limits.h>
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <unistd.h>
@@ -520,6 +520,8 @@ dt_probe_destroy(dt_probe_t *prp)
 
 	for (pip = prp->pr_inst; pip != NULL; pip = pip_next) {
 		pip_next = pip->pi_next;
+		dt_free(dtp, pip->pi_rname);
+		dt_free(dtp, pip->pi_fname);
 		dt_free(dtp, pip->pi_offs);
 		dt_free(dtp, pip->pi_enoffs);
 		dt_free(dtp, pip);
@@ -543,8 +545,9 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 
 	for (pip = prp->pr_inst; pip != NULL; pip = pip->pi_next) {
 		if (strcmp(pip->pi_fname, fname) == 0 &&
-		    ((rname == NULL && pip->pi_rname[0] == '\0') ||
-		    (rname != NULL && strcmp(pip->pi_rname, rname)) == 0))
+		    ((rname == NULL && pip->pi_rname == NULL) ||
+		    (rname != NULL && pip->pi_rname != NULL &&
+		    strcmp(pip->pi_rname, rname) == 0)))
 			break;
 	}
 
@@ -552,28 +555,18 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 		if ((pip = dt_zalloc(dtp, sizeof (*pip))) == NULL)
 			return (-1);
 
-		if ((pip->pi_offs = dt_zalloc(dtp,
-		    sizeof (uint32_t))) == NULL) {
-			dt_free(dtp, pip);
-			return (-1);
-		}
+		if ((pip->pi_offs = dt_zalloc(dtp, sizeof (uint32_t))) == NULL)
+			goto nomem;
 
 		if ((pip->pi_enoffs = dt_zalloc(dtp,
-		    sizeof (uint32_t))) == NULL) {
-			dt_free(dtp, pip->pi_offs);
-			dt_free(dtp, pip);
-			return (-1);
-		}
+		    sizeof (uint32_t))) == NULL)
+			goto nomem;
 
-		(void) strlcpy(pip->pi_fname, fname, sizeof (pip->pi_fname));
-		if (rname != NULL) {
-			if (strlen(rname) + 1 > sizeof (pip->pi_rname)) {
-				dt_free(dtp, pip->pi_offs);
-				dt_free(dtp, pip);
-				return (dt_set_errno(dtp, EDT_COMPILER));
-			}
-			(void) strcpy(pip->pi_rname, rname);
-		}
+		if ((pip->pi_fname = strdup(fname)) == NULL)
+			goto nomem;
+
+		if (rname != NULL && (pip->pi_rname = strdup(rname)) == NULL)
+			goto nomem;
 
 		pip->pi_noffs = 0;
 		pip->pi_maxoffs = 1;
@@ -618,6 +611,13 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 	(*offs)[(*noffs)++] = offset;
 
 	return (0);
+
+nomem:
+	dt_free(dtp, pip->pi_fname);
+	dt_free(dtp, pip->pi_enoffs);
+	dt_free(dtp, pip->pi_offs);
+	dt_free(dtp, pip);
+	return (dt_set_errno(dtp, EDT_NOMEM));
 }
 
 /*

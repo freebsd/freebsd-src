@@ -525,15 +525,16 @@ ucl_schema_validate_array (const ucl_object_t *schema,
 	ucl_object_iter_t iter = NULL, piter = NULL;
 	bool ret = true, allow_additional = true, need_unique = false;
 	int64_t minmax;
+	unsigned int idx = 0;
 
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
 		if (strcmp (ucl_object_key (elt), "items") == 0) {
 			if (elt->type == UCL_ARRAY) {
-				found = obj->value.av;
+				found = ucl_array_head (obj);
 				while (ret && (it = ucl_iterate_object (elt, &piter, true)) != NULL) {
 					if (found) {
 						ret = ucl_schema_validate (it, found, false, err, root);
-						found = found->next;
+						found = ucl_array_find_index (obj, ++idx);
 					}
 				}
 				if (found != NULL) {
@@ -608,14 +609,14 @@ ucl_schema_validate_array (const ucl_object_t *schema,
 					ret = false;
 				}
 				else if (additional_schema != NULL) {
-					elt = first_unvalidated;
+					elt = ucl_array_find_index (obj, idx);
 					while (elt) {
 						if (!ucl_schema_validate (additional_schema, elt, false,
 								err, root)) {
 							ret = false;
 							break;
 						}
-						elt = elt->next;
+						elt = ucl_array_find_index (obj, idx ++);
 					}
 				}
 			}
@@ -741,7 +742,7 @@ ucl_schema_resolve_ref_component (const ucl_object_t *cur,
 					"reference %s is invalid, invalid item number", refc);
 			return NULL;
 		}
-		res = cur->value.av;
+		res = ucl_array_head (cur);
 		i = 0;
 		while (res != NULL) {
 			if (i == num) {

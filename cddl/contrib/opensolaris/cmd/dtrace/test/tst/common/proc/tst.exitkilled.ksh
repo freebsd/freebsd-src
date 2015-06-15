@@ -48,7 +48,7 @@ sleeper()
 {
 	while true; do
 		$longsleep &
-		/usr/bin/sleep 1
+		sleep 1
 		kill -9 $!
 	done
 }
@@ -59,7 +59,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-longsleep="/usr/bin/sleep 10000"
+longsleep="/bin/sleep 10000"
 
 sleeper &
 child=$!
@@ -67,9 +67,9 @@ child=$!
 script
 status=$?
 
-pstop $child
+kill -STOP $child
 pkill -P $child
 kill $child
-prun $child
+kill -CONT $child
 
 exit $status

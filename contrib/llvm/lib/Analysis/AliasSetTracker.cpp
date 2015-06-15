@@ -13,8 +13,8 @@
 
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
@@ -22,7 +22,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/InstIterator.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -48,18 +47,21 @@ void AliasSet::mergeSetIn(AliasSet &AS, AliasSetTracker &AST) {
     // If the pointers are not a must-alias pair, this set becomes a may alias.
     if (AA.alias(AliasAnalysis::Location(L->getValue(),
                                          L->getSize(),
-                                         L->getTBAAInfo()),
+                                         L->getAAInfo()),
                  AliasAnalysis::Location(R->getValue(),
                                          R->getSize(),
-                                         R->getTBAAInfo()))
+                                         R->getAAInfo()))
         != AliasAnalysis::MustAlias)
       AliasTy = MayAlias;
   }
 
+  bool ASHadUnknownInsts = !AS.UnknownInsts.empty();
   if (UnknownInsts.empty()) {            // Merge call sites...
-    if (!AS.UnknownInsts.empty())
+    if (ASHadUnknownInsts) {
       std::swap(UnknownInsts, AS.UnknownInsts);
-  } else if (!AS.UnknownInsts.empty()) {
+      addRef();
+    }
+  } else if (ASHadUnknownInsts) {
     UnknownInsts.insert(UnknownInsts.end(), AS.UnknownInsts.begin(), AS.UnknownInsts.end());
     AS.UnknownInsts.clear();
   }
@@ -73,16 +75,18 @@ void AliasSet::mergeSetIn(AliasSet &AS, AliasSetTracker &AST) {
     AS.PtrList->setPrevInList(PtrListEnd);
     PtrListEnd = AS.PtrListEnd;
 
-    AS.PtrList = 0;
+    AS.PtrList = nullptr;
     AS.PtrListEnd = &AS.PtrList;
-    assert(*AS.PtrListEnd == 0 && "End of list is not null?");
+    assert(*AS.PtrListEnd == nullptr && "End of list is not null?");
   }
+  if (ASHadUnknownInsts)
+    AS.dropRef(AST);
 }
 
 void AliasSetTracker::removeAliasSet(AliasSet *AS) {
   if (AliasSet *Fwd = AS->Forward) {
     Fwd->dropRef(*this);
-    AS->Forward = 0;
+    AS->Forward = nullptr;
   }
   AliasSets.erase(AS);
 }
@@ -93,7 +97,7 @@ void AliasSet::removeFromTracker(AliasSetTracker &AST) {
 }
 
 void AliasSet::addPointer(AliasSetTracker &AST, PointerRec &Entry,
-                          uint64_t Size, const MDNode *TBAAInfo,
+                          uint64_t Size, const AAMDNodes &AAInfo,
                           bool KnownMustAlias) {
   assert(!Entry.hasAliasSet() && "Entry already in set!");
 
@@ -103,27 +107,29 @@ void AliasSet::addPointer(AliasSetTracker &AST, PointerRec &Entry,
       AliasAnalysis &AA = AST.getAliasAnalysis();
       AliasAnalysis::AliasResult Result =
         AA.alias(AliasAnalysis::Location(P->getValue(), P->getSize(),
-                                         P->getTBAAInfo()),
-                 AliasAnalysis::Location(Entry.getValue(), Size, TBAAInfo));
+                                         P->getAAInfo()),
+                 AliasAnalysis::Location(Entry.getValue(), Size, AAInfo));
       if (Result != AliasAnalysis::MustAlias)
         AliasTy = MayAlias;
       else                  // First entry of must alias must have maximum size!
-        P->updateSizeAndTBAAInfo(Size, TBAAInfo);
+        P->updateSizeAndAAInfo(Size, AAInfo);
       assert(Result != AliasAnalysis::NoAlias && "Cannot be part of must set!");
     }
 
   Entry.setAliasSet(this);
-  Entry.updateSizeAndTBAAInfo(Size, TBAAInfo);
+  Entry.updateSizeAndAAInfo(Size, AAInfo);
 
   // Add it to the end of the list...
-  assert(*PtrListEnd == 0 && "End of list is not null?");
+  assert(*PtrListEnd == nullptr && "End of list is not null?");
   *PtrListEnd = &Entry;
   PtrListEnd = Entry.setPrevInList(PtrListEnd);
-  assert(*PtrListEnd == 0 && "End of list is not null?");
+  assert(*PtrListEnd == nullptr && "End of list is not null?");
   addRef();               // Entry points to alias set.
 }
 
 void AliasSet::addUnknownInst(Instruction *I, AliasAnalysis &AA) {
+  if (UnknownInsts.empty())
+    addRef();
   UnknownInsts.push_back(I);
 
   if (!I->mayWriteToMemory()) {
@@ -141,7 +147,7 @@ void AliasSet::addUnknownInst(Instruction *I, AliasAnalysis &AA) {
 /// alias one of the members in the set.
 ///
 bool AliasSet::aliasesPointer(const Value *Ptr, uint64_t Size,
-                              const MDNode *TBAAInfo,
+                              const AAMDNodes &AAInfo,
                               AliasAnalysis &AA) const {
   if (AliasTy == MustAlias) {
     assert(UnknownInsts.empty() && "Illegal must alias set!");
@@ -152,23 +158,23 @@ bool AliasSet::aliasesPointer(const Value *Ptr, uint64_t Size,
     assert(SomePtr && "Empty must-alias set??");
     return AA.alias(AliasAnalysis::Location(SomePtr->getValue(),
                                             SomePtr->getSize(),
-                                            SomePtr->getTBAAInfo()),
-                    AliasAnalysis::Location(Ptr, Size, TBAAInfo));
+                                            SomePtr->getAAInfo()),
+                    AliasAnalysis::Location(Ptr, Size, AAInfo));
   }
 
   // If this is a may-alias set, we have to check all of the pointers in the set
   // to be sure it doesn't alias the set...
   for (iterator I = begin(), E = end(); I != E; ++I)
-    if (AA.alias(AliasAnalysis::Location(Ptr, Size, TBAAInfo),
+    if (AA.alias(AliasAnalysis::Location(Ptr, Size, AAInfo),
                  AliasAnalysis::Location(I.getPointer(), I.getSize(),
-                                         I.getTBAAInfo())))
+                                         I.getAAInfo())))
       return true;
 
   // Check the unknown instructions...
   if (!UnknownInsts.empty()) {
     for (unsigned i = 0, e = UnknownInsts.size(); i != e; ++i)
       if (AA.getModRefInfo(UnknownInsts[i],
-                           AliasAnalysis::Location(Ptr, Size, TBAAInfo)) !=
+                           AliasAnalysis::Location(Ptr, Size, AAInfo)) !=
             AliasAnalysis::NoModRef)
         return true;
   }
@@ -191,7 +197,7 @@ bool AliasSet::aliasesUnknownInst(Instruction *Inst, AliasAnalysis &AA) const {
   for (iterator I = begin(), E = end(); I != E; ++I)
     if (AA.getModRefInfo(Inst, AliasAnalysis::Location(I.getPointer(),
                                                        I.getSize(),
-                                                       I.getTBAAInfo())) !=
+                                                       I.getAAInfo())) !=
            AliasAnalysis::NoModRef)
       return true;
 
@@ -217,15 +223,16 @@ void AliasSetTracker::clear() {
 ///
 AliasSet *AliasSetTracker::findAliasSetForPointer(const Value *Ptr,
                                                   uint64_t Size,
-                                                  const MDNode *TBAAInfo) {
-  AliasSet *FoundSet = 0;
-  for (iterator I = begin(), E = end(); I != E; ++I) {
-    if (I->Forward || !I->aliasesPointer(Ptr, Size, TBAAInfo, AA)) continue;
+                                                  const AAMDNodes &AAInfo) {
+  AliasSet *FoundSet = nullptr;
+  for (iterator I = begin(), E = end(); I != E;) {
+    iterator Cur = I++;
+    if (Cur->Forward || !Cur->aliasesPointer(Ptr, Size, AAInfo, AA)) continue;
     
-    if (FoundSet == 0) {  // If this is the first alias set ptr can go into.
-      FoundSet = I;       // Remember it.
+    if (!FoundSet) {      // If this is the first alias set ptr can go into.
+      FoundSet = Cur;     // Remember it.
     } else {              // Otherwise, we must merge the sets.
-      FoundSet->mergeSetIn(*I, *this);     // Merge in contents.
+      FoundSet->mergeSetIn(*Cur, *this);     // Merge in contents.
     }
   }
 
@@ -236,25 +243,30 @@ AliasSet *AliasSetTracker::findAliasSetForPointer(const Value *Ptr,
 /// this alias set, false otherwise.  This does not modify the AST object or
 /// alias sets.
 bool AliasSetTracker::containsPointer(Value *Ptr, uint64_t Size,
-                                      const MDNode *TBAAInfo) const {
+                                      const AAMDNodes &AAInfo) const {
   for (const_iterator I = begin(), E = end(); I != E; ++I)
-    if (!I->Forward && I->aliasesPointer(Ptr, Size, TBAAInfo, AA))
+    if (!I->Forward && I->aliasesPointer(Ptr, Size, AAInfo, AA))
       return true;
   return false;
 }
 
-
+bool AliasSetTracker::containsUnknown(Instruction *Inst) const {
+  for (const_iterator I = begin(), E = end(); I != E; ++I)
+    if (!I->Forward && I->aliasesUnknownInst(Inst, AA))
+      return true;
+  return false;
+}
 
 AliasSet *AliasSetTracker::findAliasSetForUnknownInst(Instruction *Inst) {
-  AliasSet *FoundSet = 0;
-  for (iterator I = begin(), E = end(); I != E; ++I) {
-    if (I->Forward || !I->aliasesUnknownInst(Inst, AA))
+  AliasSet *FoundSet = nullptr;
+  for (iterator I = begin(), E = end(); I != E;) {
+    iterator Cur = I++;
+    if (Cur->Forward || !Cur->aliasesUnknownInst(Inst, AA))
       continue;
-    
-    if (FoundSet == 0)        // If this is the first alias set ptr can go into.
-      FoundSet = I;           // Remember it.
-    else if (!I->Forward)     // Otherwise, we must merge the sets.
-      FoundSet->mergeSetIn(*I, *this);     // Merge in contents.
+    if (!FoundSet)            // If this is the first alias set ptr can go into.
+      FoundSet = Cur;         // Remember it.
+    else if (!Cur->Forward)   // Otherwise, we must merge the sets.
+      FoundSet->mergeSetIn(*Cur, *this);     // Merge in contents.
   }
   return FoundSet;
 }
@@ -265,67 +277,75 @@ AliasSet *AliasSetTracker::findAliasSetForUnknownInst(Instruction *Inst) {
 /// getAliasSetForPointer - Return the alias set that the specified pointer
 /// lives in.
 AliasSet &AliasSetTracker::getAliasSetForPointer(Value *Pointer, uint64_t Size,
-                                                 const MDNode *TBAAInfo,
+                                                 const AAMDNodes &AAInfo,
                                                  bool *New) {
   AliasSet::PointerRec &Entry = getEntryFor(Pointer);
 
   // Check to see if the pointer is already known.
   if (Entry.hasAliasSet()) {
-    Entry.updateSizeAndTBAAInfo(Size, TBAAInfo);
+    Entry.updateSizeAndAAInfo(Size, AAInfo);
     // Return the set!
     return *Entry.getAliasSet(*this)->getForwardedTarget(*this);
   }
   
-  if (AliasSet *AS = findAliasSetForPointer(Pointer, Size, TBAAInfo)) {
+  if (AliasSet *AS = findAliasSetForPointer(Pointer, Size, AAInfo)) {
     // Add it to the alias set it aliases.
-    AS->addPointer(*this, Entry, Size, TBAAInfo);
+    AS->addPointer(*this, Entry, Size, AAInfo);
     return *AS;
   }
   
   if (New) *New = true;
   // Otherwise create a new alias set to hold the loaded pointer.
   AliasSets.push_back(new AliasSet());
-  AliasSets.back().addPointer(*this, Entry, Size, TBAAInfo);
+  AliasSets.back().addPointer(*this, Entry, Size, AAInfo);
   return AliasSets.back();
 }
 
-bool AliasSetTracker::add(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo) {
+bool AliasSetTracker::add(Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo) {
   bool NewPtr;
-  addPointer(Ptr, Size, TBAAInfo, AliasSet::NoModRef, NewPtr);
+  addPointer(Ptr, Size, AAInfo, AliasSet::NoModRef, NewPtr);
   return NewPtr;
 }
 
 
 bool AliasSetTracker::add(LoadInst *LI) {
   if (LI->getOrdering() > Monotonic) return addUnknown(LI);
+
+  AAMDNodes AAInfo;
+  LI->getAAMetadata(AAInfo);
+
   AliasSet::AccessType ATy = AliasSet::Refs;
   bool NewPtr;
   AliasSet &AS = addPointer(LI->getOperand(0),
                             AA.getTypeStoreSize(LI->getType()),
-                            LI->getMetadata(LLVMContext::MD_tbaa),
-                            ATy, NewPtr);
+                            AAInfo, ATy, NewPtr);
   if (LI->isVolatile()) AS.setVolatile();
   return NewPtr;
 }
 
 bool AliasSetTracker::add(StoreInst *SI) {
   if (SI->getOrdering() > Monotonic) return addUnknown(SI);
+
+  AAMDNodes AAInfo;
+  SI->getAAMetadata(AAInfo);
+
   AliasSet::AccessType ATy = AliasSet::Mods;
   bool NewPtr;
   Value *Val = SI->getOperand(0);
   AliasSet &AS = addPointer(SI->getOperand(1),
                             AA.getTypeStoreSize(Val->getType()),
-                            SI->getMetadata(LLVMContext::MD_tbaa),
-                            ATy, NewPtr);
+                            AAInfo, ATy, NewPtr);
   if (SI->isVolatile()) AS.setVolatile();
   return NewPtr;
 }
 
 bool AliasSetTracker::add(VAArgInst *VAAI) {
+  AAMDNodes AAInfo;
+  VAAI->getAAMetadata(AAInfo);
+
   bool NewPtr;
   addPointer(VAAI->getOperand(0), AliasAnalysis::UnknownSize, 
-             VAAI->getMetadata(LLVMContext::MD_tbaa),
-             AliasSet::ModRef, NewPtr);
+             AAInfo, AliasSet::ModRef, NewPtr);
   return NewPtr;
 }
 
@@ -383,7 +403,7 @@ void AliasSetTracker::add(const AliasSetTracker &AST) {
     bool X;
     for (AliasSet::iterator ASI = AS.begin(), E = AS.end(); ASI != E; ++ASI) {
       AliasSet &NewAS = addPointer(ASI.getPointer(), ASI.getSize(),
-                                   ASI.getTBAAInfo(),
+                                   ASI.getAAInfo(),
                                    (AliasSet::AccessType)AS.AccessTy, X);
       if (AS.isVolatile()) NewAS.setVolatile();
     }
@@ -394,6 +414,8 @@ void AliasSetTracker::add(const AliasSetTracker &AST) {
 /// tracker.
 void AliasSetTracker::remove(AliasSet &AS) {
   // Drop all call sites.
+  if (!AS.UnknownInsts.empty())
+    AS.dropRef(*this);
   AS.UnknownInsts.clear();
   
   // Clear the alias set.
@@ -420,8 +442,8 @@ void AliasSetTracker::remove(AliasSet &AS) {
 }
 
 bool
-AliasSetTracker::remove(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo) {
-  AliasSet *AS = findAliasSetForPointer(Ptr, Size, TBAAInfo);
+AliasSetTracker::remove(Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo) {
+  AliasSet *AS = findAliasSetForPointer(Ptr, Size, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -429,8 +451,11 @@ AliasSetTracker::remove(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo) {
 
 bool AliasSetTracker::remove(LoadInst *LI) {
   uint64_t Size = AA.getTypeStoreSize(LI->getType());
-  const MDNode *TBAAInfo = LI->getMetadata(LLVMContext::MD_tbaa);
-  AliasSet *AS = findAliasSetForPointer(LI->getOperand(0), Size, TBAAInfo);
+
+  AAMDNodes AAInfo;
+  LI->getAAMetadata(AAInfo);
+
+  AliasSet *AS = findAliasSetForPointer(LI->getOperand(0), Size, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -438,17 +463,22 @@ bool AliasSetTracker::remove(LoadInst *LI) {
 
 bool AliasSetTracker::remove(StoreInst *SI) {
   uint64_t Size = AA.getTypeStoreSize(SI->getOperand(0)->getType());
-  const MDNode *TBAAInfo = SI->getMetadata(LLVMContext::MD_tbaa);
-  AliasSet *AS = findAliasSetForPointer(SI->getOperand(1), Size, TBAAInfo);
+
+  AAMDNodes AAInfo;
+  SI->getAAMetadata(AAInfo);
+
+  AliasSet *AS = findAliasSetForPointer(SI->getOperand(1), Size, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
 }
 
 bool AliasSetTracker::remove(VAArgInst *VAAI) {
+  AAMDNodes AAInfo;
+  VAAI->getAAMetadata(AAInfo);
+
   AliasSet *AS = findAliasSetForPointer(VAAI->getOperand(0),
-                                        AliasAnalysis::UnknownSize,
-                                        VAAI->getMetadata(LLVMContext::MD_tbaa));
+                                        AliasAnalysis::UnknownSize, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -490,10 +520,10 @@ void AliasSetTracker::deleteValue(Value *PtrVal) {
   if (Instruction *Inst = dyn_cast<Instruction>(PtrVal)) {
     if (Inst->mayReadOrWriteMemory()) {
       // Scan all the alias sets to see if this call site is contained.
-      for (iterator I = begin(), E = end(); I != E; ++I) {
-        if (I->Forward) continue;
-        
-        I->removeUnknownInst(Inst);
+      for (iterator I = begin(), E = end(); I != E;) {
+        iterator Cur = I++;
+        if (!Cur->Forward)
+          Cur->removeUnknownInst(*this, Inst);
       }
     }
   }
@@ -537,7 +567,7 @@ void AliasSetTracker::copyValue(Value *From, Value *To) {
   I = PointerMap.find_as(From);
   AliasSet *AS = I->second->getAliasSet(*this);
   AS->addPointer(*this, Entry, I->second->getSize(),
-                 I->second->getTBAAInfo(),
+                 I->second->getAAInfo(),
                  true);
 }
 
@@ -566,7 +596,7 @@ void AliasSet::print(raw_ostream &OS) const {
     OS << "Pointers: ";
     for (iterator I = begin(), E = end(); I != E; ++I) {
       if (I != begin()) OS << ", ";
-      WriteAsOperand(OS << "(", I.getPointer());
+      I.getPointer()->printAsOperand(OS << "(");
       OS << ", " << I.getSize() << ")";
     }
   }
@@ -574,7 +604,7 @@ void AliasSet::print(raw_ostream &OS) const {
     OS << "\n    " << UnknownInsts.size() << " Unknown instructions: ";
     for (unsigned i = 0, e = UnknownInsts.size(); i != e; ++i) {
       if (i) OS << ", ";
-      WriteAsOperand(OS, UnknownInsts[i]);
+      UnknownInsts[i]->printAsOperand(OS);
     }
   }
   OS << "\n";
@@ -628,12 +658,12 @@ namespace {
       initializeAliasSetPrinterPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
       AU.addRequired<AliasAnalysis>();
     }
 
-    virtual bool runOnFunction(Function &F) {
+    bool runOnFunction(Function &F) override {
       Tracker = new AliasSetTracker(getAnalysis<AliasAnalysis>());
 
       for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)

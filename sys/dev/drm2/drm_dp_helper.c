@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
  * blocks, ...
  */
 
+/* Helpers for DP link training */
 static u8 dp_link_status(u8 link_status[DP_LINK_STATUS_SIZE], int r)
 {
 	return link_status[r - DP_LANE0_1_STATUS];
@@ -67,6 +68,7 @@ bool drm_dp_channel_eq_ok(u8 link_status[DP_LINK_STATUS_SIZE],
 	}
 	return true;
 }
+EXPORT_SYMBOL(drm_dp_channel_eq_ok);
 
 bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
 			      int lane_count)
@@ -81,6 +83,7 @@ bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
 	}
 	return true;
 }
+EXPORT_SYMBOL(drm_dp_clock_recovery_ok);
 
 u8 drm_dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
 				     int lane)
@@ -93,6 +96,7 @@ u8 drm_dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
 
 	return ((l >> s) & 0x3) << DP_TRAIN_VOLTAGE_SWING_SHIFT;
 }
+EXPORT_SYMBOL(drm_dp_get_adjust_request_voltage);
 
 u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane)
@@ -105,20 +109,23 @@ u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
 
 	return ((l >> s) & 0x3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
 }
+EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
 void drm_dp_link_train_clock_recovery_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
 	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
-		DRM_UDELAY(100);
+		udelay(100);
 	else
-		DRM_MDELAY(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
 }
+EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 void drm_dp_link_train_channel_eq_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
 	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
-		DRM_UDELAY(400);
+		udelay(400);
 	else
-		DRM_MDELAY(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
 }
+EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate)
 {
@@ -132,6 +139,7 @@ u8 drm_dp_link_rate_to_bw_code(int link_rate)
 		return DP_LINK_BW_5_4;
 	}
 }
+EXPORT_SYMBOL(drm_dp_link_rate_to_bw_code);
 
 int drm_dp_bw_code_to_link_rate(u8 link_bw)
 {
@@ -145,3 +153,4 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw)
 		return 540000;
 	}
 }
+EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);

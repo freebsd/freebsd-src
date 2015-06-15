@@ -176,7 +176,7 @@ iwch_destroy_cq(struct ib_cq *ib_cq)
 }
 
 static struct ib_cq *
-iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
+iwch_create_cq(struct ib_device *ibdev, struct ib_cq_init_attr *attr,
 			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
@@ -187,6 +187,7 @@ iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 	struct iwch_ucontext *ucontext = NULL;
 	static int warned;
 	size_t resplen;
+	int entries = attr->cqe;
 
 	CTR3(KTR_IW_CXGB, "%s ib_dev %p entries %d", __FUNCTION__, ibdev, entries);
 	rhp = to_iwch_dev(ibdev);
@@ -545,16 +546,14 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				      int mr_id)
 {
 	__be64 *pages;
-	int shift, i, n;
+	int shift, n, len;
+	int i, k, entry;
 	int err = 0;
-	struct ib_umem_chunk *chunk;
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
 	struct iwch_mr *mhp;
 	struct iwch_reg_user_mr_resp uresp;
-#ifdef notyet
-	int j, k, len;
-#endif	
+	struct scatterlist *sg;
 	
 	CTR2(KTR_IW_CXGB, "%s ib_pd %p", __FUNCTION__, pd);
 
@@ -575,9 +574,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	shift = ffs(mhp->umem->page_size) - 1;
 
-	n = 0;
-	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
-		n += chunk->nents;
+	n = mhp->umem->nmap;
 
 	err = iwch_alloc_pbl(mhp, n);
 	if (err)
@@ -591,7 +588,21 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	i = n = 0;
 
-#ifdef notyet
+	for_each_sg(mhp->umem->sg_head.sgl, sg, mhp->umem->nmap, entry) {
+		len = sg_dma_len(sg) >> shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] = cpu_to_be64(sg_dma_address(sg) +
+					mhp->umem->page_size * k);
+			if (i == PAGE_SIZE / sizeof *pages) {
+				err = iwch_write_pbl(mhp, pages, i, n);
+				if (err)
+					goto pbl_done;
+				n += i;
+				i = 0;
+			}
+		}
+	}
+#if 0
 	TAILQ_FOREACH(chunk, &mhp->umem->chunk_list, entry)
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
@@ -612,9 +623,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	if (i)
 		err = iwch_write_pbl(mhp, pages, i, n);
-#ifdef notyet
 pbl_done:
-#endif
 	cxfree(pages);
 	if (err)
 		goto err_pbl;
@@ -672,7 +681,7 @@ static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
 	return ibmr;
 }
 
-static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
+static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -897,7 +906,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		insert_mmap(ucontext, mm2);
 	}
 	qhp->ibqp.qp_num = qhp->wq.qpid;
-	callout_init(&(qhp->timer), TRUE);
+	callout_init(&(qhp->timer), 1);
 	CTR6(KTR_IW_CXGB, "sq_num_entries %d, rq_num_entries %d "
 	     "qpid 0x%0x qhp %p dma_addr 0x%llx size %d",
 	     qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,

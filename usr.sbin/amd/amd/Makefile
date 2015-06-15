@@ -27,8 +27,7 @@ SRCS+=	srvr_amfs_auto.c srvr_nfs.c
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amd \
 	 -I${DESTDIR}/usr/include/rpcsvc
 
-DPADD=	${LIBAMU} ${LIBWRAP}
-LDADD=	${LIBAMU} -lwrap
+LIBADD=	amu wrap
 
 CLEANFILES+=	conf_parse.c conf_parse.h conf_tok.c
 

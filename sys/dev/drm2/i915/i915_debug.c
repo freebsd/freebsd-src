@@ -43,17 +43,14 @@ enum {
 	FLUSHING_LIST,
 	INACTIVE_LIST,
 	PINNED_LIST,
-	DEFERRED_FREE_LIST,
 };
 
-static const char *
-yesno(int v)
+static const char *yesno(int v)
 {
-	return (v ? "yes" : "no");
+	return v ? "yes" : "no";
 }
 
-static int
-i915_capabilities(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_capabilities(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	const struct intel_device_info *info = INTEL_INFO(dev);
 
@@ -81,11 +78,10 @@ i915_capabilities(struct drm_device *dev, struct sbuf *m, void *data)
 	B(has_llc);
 #undef B
 
-	return (0);
+	return 0;
 }
 
-static const char *
-get_pin_flag(struct drm_i915_gem_object *obj)
+static const char *get_pin_flag(struct drm_i915_gem_object *obj)
 {
 	if (obj->user_pin_count > 0)
 		return "P";
@@ -95,25 +91,23 @@ get_pin_flag(struct drm_i915_gem_object *obj)
 		return " ";
 }
 
-static const char *
-get_tiling_flag(struct drm_i915_gem_object *obj)
+static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
 {
 	switch (obj->tiling_mode) {
 	default:
-	case I915_TILING_NONE: return (" ");
-	case I915_TILING_X: return ("X");
-	case I915_TILING_Y: return ("Y");
+	case I915_TILING_NONE: return " ";
+	case I915_TILING_X: return "X";
+	case I915_TILING_Y: return "Y";
 	}
 }
 
-static const char *
-cache_level_str(int type)
+static const char *cache_level_str(int type)
 {
 	switch (type) {
 	case I915_CACHE_NONE: return " uncached";
 	case I915_CACHE_LLC: return " snooped (LLC)";
 	case I915_CACHE_LLC_MLC: return " snooped (LLC+MLC)";
-	default: return ("");
+	default: return "";
 	}
 }
 
@@ -135,6 +129,8 @@ describe_obj(struct sbuf *m, struct drm_i915_gem_object *obj)
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		sbuf_printf(m, " (name: %d)", obj->base.name);
+	if (obj->pin_display)
+		sbuf_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		sbuf_printf(m, " (fence: %d)", obj->fence_reg);
 	if (obj->gtt_space != NULL)
@@ -153,8 +149,7 @@ describe_obj(struct sbuf *m, struct drm_i915_gem_object *obj)
 		sbuf_printf(m, " (%s)", obj->ring->name);
 }
 
-static int
-i915_gem_object_list_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_object_list_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	uintptr_t list = (uintptr_t)data;
 	struct list_head *head;
@@ -164,7 +159,7 @@ i915_gem_object_list_info(struct drm_device *dev, struct sbuf *m, void *data)
 	int count;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	switch (list) {
 	case ACTIVE_LIST:
@@ -175,21 +170,13 @@ i915_gem_object_list_info(struct drm_device *dev, struct sbuf *m, void *data)
 		sbuf_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
 		break;
-	case PINNED_LIST:
-		sbuf_printf(m, "Pinned:\n");
-		head = &dev_priv->mm.pinned_list;
-		break;
 	case FLUSHING_LIST:
 		sbuf_printf(m, "Flushing:\n");
 		head = &dev_priv->mm.flushing_list;
 		break;
-	case DEFERRED_FREE_LIST:
-		sbuf_printf(m, "Deferred free:\n");
-		head = &dev_priv->mm.deferred_free_list;
-		break;
 	default:
 		DRM_UNLOCK(dev);
-		return (EINVAL);
+		return -EINVAL;
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
@@ -205,7 +192,7 @@ i915_gem_object_list_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 	sbuf_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
-	return (0);
+	return 0;
 }
 
 #define count_objects(list, member) do { \
@@ -219,8 +206,7 @@ i915_gem_object_list_info(struct drm_device *dev, struct sbuf *m, void *data)
 	} \
 } while (0)
 
-static int
-i915_gem_object_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_object_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 count, mappable_count;
@@ -228,7 +214,7 @@ i915_gem_object_info(struct drm_device *dev, struct sbuf *m, void *data)
 	struct drm_i915_gem_object *obj;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 	sbuf_printf(m, "%u objects, %zu bytes\n",
 		   dev_priv->mm.object_count,
 		   dev_priv->mm.object_memory);
@@ -245,18 +231,8 @@ i915_gem_object_info(struct drm_device *dev, struct sbuf *m, void *data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.pinned_list, mm_list);
-	sbuf_printf(m, "  %u [%u] pinned objects, %zu [%zu] bytes\n",
-		   count, mappable_count, size, mappable_size);
-
-	size = count = mappable_size = mappable_count = 0;
 	count_objects(&dev_priv->mm.inactive_list, mm_list);
 	sbuf_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
-		   count, mappable_count, size, mappable_size);
-
-	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.deferred_free_list, mm_list);
-	sbuf_printf(m, "  %u [%u] freed objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
@@ -277,24 +253,28 @@ i915_gem_object_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 	sbuf_printf(m, "%zu [%zu] gtt total\n",
 		   dev_priv->mm.gtt_total, dev_priv->mm.mappable_gtt_total);
+
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_gem_gtt_info(struct drm_device *dev, struct sbuf *m, void* data)
+static int i915_gem_gtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uintptr_t list = (uintptr_t)data;
 	struct drm_i915_gem_object *obj;
 	size_t total_obj_size, total_gtt_size;
 	int count;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+		if (list == PINNED_LIST && obj->pin_count == 0)
+			continue;
+
 		sbuf_printf(m, "   ");
 		describe_obj(m, obj);
 		sbuf_printf(m, "\n");
@@ -308,11 +288,10 @@ i915_gem_gtt_info(struct drm_device *dev, struct sbuf *m, void* data)
 	sbuf_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	struct intel_crtc *crtc;
 	struct drm_i915_gem_object *obj;
@@ -320,8 +299,6 @@ i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *data)
 	char pipe;
 	char plane;
 
-	if ((dev->driver->driver_features & DRIVER_MODESET) == 0)
-		return (0);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
 		pipe = pipe_name(crtc->pipe);
 		plane = plane_name(crtc->plane);
@@ -359,18 +336,17 @@ i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *data)
 		mtx_unlock(&dev->event_lock);
 	}
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_gem_request_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_request_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_request *gem_request;
 	int count;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	count = 0;
 	if (!list_empty(&dev_priv->rings[RCS].request_list)) {
@@ -414,44 +390,78 @@ i915_gem_request_info(struct drm_device *dev, struct sbuf *m, void *data)
 	return 0;
 }
 
-static void
-i915_ring_seqno_info(struct sbuf *m, struct intel_ring_buffer *ring)
+static void i915_ring_seqno_info(struct sbuf *m, struct intel_ring_buffer *ring)
 {
 	if (ring->get_seqno) {
 		sbuf_printf(m, "Current sequence (%s): %d\n",
 			   ring->name, ring->get_seqno(ring));
-		sbuf_printf(m, "Waiter sequence (%s):  %d\n",
-			   ring->name, ring->waiting_seqno);
-		sbuf_printf(m, "IRQ sequence (%s):     %d\n",
-			   ring->name, ring->irq_seqno);
 	}
 }
 
-static int
-i915_gem_seqno_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_seqno_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	for (i = 0; i < I915_NUM_RINGS; i++)
 		i915_ring_seqno_info(m, &dev_priv->rings[i]);
+
 	DRM_UNLOCK(dev);
-	return (0);
+
+	return 0;
 }
 
 
-static int
-i915_interrupt_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_interrupt_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i, pipe;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
-	if (!HAS_PCH_SPLIT(dev)) {
+	if (IS_VALLEYVIEW(dev)) {
+		sbuf_printf(m, "Display IER:\t%08x\n",
+			   I915_READ(VLV_IER));
+		sbuf_printf(m, "Display IIR:\t%08x\n",
+			   I915_READ(VLV_IIR));
+		sbuf_printf(m, "Display IIR_RW:\t%08x\n",
+			   I915_READ(VLV_IIR_RW));
+		sbuf_printf(m, "Display IMR:\t%08x\n",
+			   I915_READ(VLV_IMR));
+		for_each_pipe(pipe)
+			sbuf_printf(m, "Pipe %c stat:\t%08x\n",
+				   pipe_name(pipe),
+				   I915_READ(PIPESTAT(pipe)));
+
+		sbuf_printf(m, "Master IER:\t%08x\n",
+			   I915_READ(VLV_MASTER_IER));
+
+		sbuf_printf(m, "Render IER:\t%08x\n",
+			   I915_READ(GTIER));
+		sbuf_printf(m, "Render IIR:\t%08x\n",
+			   I915_READ(GTIIR));
+		sbuf_printf(m, "Render IMR:\t%08x\n",
+			   I915_READ(GTIMR));
+
+		sbuf_printf(m, "PM IER:\t\t%08x\n",
+			   I915_READ(GEN6_PMIER));
+		sbuf_printf(m, "PM IIR:\t\t%08x\n",
+			   I915_READ(GEN6_PMIIR));
+		sbuf_printf(m, "PM IMR:\t\t%08x\n",
+			   I915_READ(GEN6_PMIMR));
+
+		sbuf_printf(m, "Port hotplug:\t%08x\n",
+			   I915_READ(PORT_HOTPLUG_EN));
+		sbuf_printf(m, "DPFLIPSTAT:\t%08x\n",
+			   I915_READ(VLV_DPFLIPSTAT));
+		sbuf_printf(m, "DPINVGTT:\t%08x\n",
+			   I915_READ(DPINVGTT));
+
+	} else if (!HAS_PCH_SPLIT(dev)) {
 		sbuf_printf(m, "Interrupt enable:    %08x\n",
 			   I915_READ(IER));
 		sbuf_printf(m, "Interrupt identity:  %08x\n",
@@ -494,17 +504,16 @@ i915_interrupt_info(struct drm_device *dev, struct sbuf *m, void *data)
 	}
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_gem_fence_regs_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_fence_regs_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	sbuf_printf(m, "Reserved fences = %d\n", dev_priv->fence_reg_start);
 	sbuf_printf(m, "Total fences = %d\n", dev_priv->num_fence_regs);
@@ -520,105 +529,47 @@ i915_gem_fence_regs_info(struct drm_device *dev, struct sbuf *m, void *data)
 	}
 
 	DRM_UNLOCK(dev);
-	return (0);
+	return 0;
 }
 
-static int
-i915_hws_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_hws_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	const volatile u32 *hws;
+	const volatile u32 __iomem *hws;
 	int i;
 
 	ring = &dev_priv->rings[(uintptr_t)data];
 	hws = (volatile u32 *)ring->status_page.page_addr;
 	if (hws == NULL)
-		return (0);
+		return 0;
 
 	for (i = 0; i < 4096 / sizeof(u32) / 4; i += 4) {
 		sbuf_printf(m, "0x%08x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			   i * 4,
 			   hws[i], hws[i + 1], hws[i + 2], hws[i + 3]);
 	}
-	return (0);
+	return 0;
 }
 
-static int
-i915_ringbuffer_data(struct drm_device *dev, struct sbuf *m, void *data)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-
-	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
-	ring = &dev_priv->rings[(uintptr_t)data];
-	if (!ring->obj) {
-		sbuf_printf(m, "No ringbuffer setup\n");
-	} else {
-		u8 *virt = ring->virtual_start;
-		uint32_t off;
-
-		for (off = 0; off < ring->size; off += 4) {
-			uint32_t *ptr = (uint32_t *)(virt + off);
-			sbuf_printf(m, "%08x :  %08x\n", off, *ptr);
-		}
-	}
-	DRM_UNLOCK(dev);
-	return (0);
-}
-
-static int
-i915_ringbuffer_info(struct drm_device *dev, struct sbuf *m, void *data)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-
-	ring = &dev_priv->rings[(uintptr_t)data];
-	if (ring->size == 0)
-		return (0);
-
-	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
-
-	sbuf_printf(m, "Ring %s:\n", ring->name);
-	sbuf_printf(m, "  Head :    %08x\n", I915_READ_HEAD(ring) & HEAD_ADDR);
-	sbuf_printf(m, "  Tail :    %08x\n", I915_READ_TAIL(ring) & TAIL_ADDR);
-	sbuf_printf(m, "  Size :    %08x\n", ring->size);
-	sbuf_printf(m, "  Active :  %08x\n", intel_ring_get_active_head(ring));
-	sbuf_printf(m, "  NOPID :   %08x\n", I915_READ_NOPID(ring));
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
-		sbuf_printf(m, "  Sync 0 :   %08x\n", I915_READ_SYNC_0(ring));
-		sbuf_printf(m, "  Sync 1 :   %08x\n", I915_READ_SYNC_1(ring));
-	}
-	sbuf_printf(m, "  Control : %08x\n", I915_READ_CTL(ring));
-	sbuf_printf(m, "  Start :   %08x\n", I915_READ_START(ring));
-
-	DRM_UNLOCK(dev);
-
-	return (0);
-}
-
-static const char *
-ring_str(int ring)
+static const char *ring_str(int ring)
 {
 	switch (ring) {
-	case RCS: return (" render");
-	case VCS: return (" bsd");
-	case BCS: return (" blt");
-	default: return ("");
+	case RCS: return " render";
+	case VCS: return " bsd";
+	case BCS: return " blt";
+	default: return "";
 	}
 }
 
-static const char *
-pin_flag(int pinned)
+static const char *pin_flag(int pinned)
 {
 	if (pinned > 0)
-		return (" P");
+		return " P";
 	else if (pinned < 0)
-		return (" p");
+		return " p";
 	else
-		return ("");
+		return "";
 }
 
 static const char *tiling_flag(int tiling)
@@ -641,8 +592,10 @@ static const char *purgeable_flag(int purgeable)
 	return purgeable ? " purgeable" : "";
 }
 
-static void print_error_buffers(struct sbuf *m, const char *name,
-    struct drm_i915_error_buffer *err, int count)
+static void print_error_buffers(struct sbuf *m,
+				const char *name,
+				struct drm_i915_error_buffer *err,
+				int count)
 {
 
 	sbuf_printf(m, "%s [%d]:\n", name, count);
@@ -672,11 +625,13 @@ static void print_error_buffers(struct sbuf *m, const char *name,
 	}
 }
 
-static void
-i915_ring_error_state(struct sbuf *m, struct drm_device *dev,
-    struct drm_i915_error_state *error, unsigned ring)
+static void i915_ring_error_state(struct sbuf *m,
+				  struct drm_device *dev,
+				  struct drm_i915_error_state *error,
+				  unsigned ring)
 {
 
+	MPASS((ring < I915_NUM_RINGS));	/* shut up confused gcc */
 	sbuf_printf(m, "%s command stream:\n", ring_str(ring));
 	sbuf_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
 	sbuf_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
@@ -691,8 +646,8 @@ i915_ring_error_state(struct sbuf *m, struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 4)
 		sbuf_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
 	sbuf_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
+	sbuf_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	if (INTEL_INFO(dev)->gen >= 6) {
-		sbuf_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 		sbuf_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
 		sbuf_printf(m, "  SYNC_0: 0x%08x\n",
 			   error->semaphore_mboxes[ring][0]);
@@ -700,6 +655,7 @@ i915_ring_error_state(struct sbuf *m, struct drm_device *dev,
 			   error->semaphore_mboxes[ring][1]);
 	}
 	sbuf_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
+	sbuf_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
 	sbuf_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
 	sbuf_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
 }
@@ -709,12 +665,17 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
+	struct intel_ring_buffer *ring;
 	int i, j, page, offset, elt;
 
 	mtx_lock(&dev_priv->error_lock);
-	if (!dev_priv->first_error) {
+	error = dev_priv->first_error;
+	if (error != NULL)
+		refcount_acquire(&error->ref);
+	mtx_unlock(&dev_priv->error_lock);
+	if (!error) {
 		sbuf_printf(m, "no error state collected\n");
-		goto out;
+		return 0;
 	}
 
 	error = dev_priv->first_error;
@@ -723,6 +684,7 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 	    (intmax_t)error->time.tv_usec);
 	sbuf_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
 	sbuf_printf(m, "EIR: 0x%08x\n", error->eir);
+	sbuf_printf(m, "IER: 0x%08x\n", error->ier);
 	sbuf_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
@@ -734,11 +696,8 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 		sbuf_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
-	i915_ring_error_state(m, dev, error, RCS);
-	if (HAS_BLT(dev))
-		i915_ring_error_state(m, dev, error, BCS);
-	if (HAS_BSD(dev))
-		i915_ring_error_state(m, dev, error, VCS);
+	for_each_ring(ring, dev_priv, i)
+		i915_ring_error_state(m, dev, error, i);
 
 	if (error->active_bo)
 		print_error_buffers(m, "Active",
@@ -750,9 +709,9 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 				    error->pinned_bo,
 				    error->pinned_bo_count);
 
-	for (i = 0; i < DRM_ARRAY_SIZE(error->ring); i++) {
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		struct drm_i915_error_object *obj;
- 
+
 		if ((obj = error->ring[i].batchbuffer)) {
 			sbuf_printf(m, "%s --- gtt_offset = 0x%08x\n",
 				   dev_priv->rings[i].name,
@@ -801,9 +760,25 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 	if (error->display)
 		intel_display_print_error_state(m, dev, error->display);
 
-out:
-	mtx_unlock(&dev_priv->error_lock);
+	if (refcount_release(&error->ref))
+		i915_error_state_free(error);
 
+	return 0;
+}
+
+static int
+i915_error_state_w(struct drm_device *dev, const char *str, void *unused)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_error_state *error;
+
+	DRM_DEBUG_DRIVER("Resetting error state\n");
+	mtx_lock(&dev_priv->error_lock);
+	error = dev_priv->first_error;
+	dev_priv->first_error = NULL;
+	mtx_unlock(&dev_priv->error_lock);
+	if (error != NULL && refcount_release(&error->ref))
+		i915_error_state_free(error);
 	return (0);
 }
 
@@ -814,8 +789,10 @@ i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
 	u16 crstanddelay;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	crstanddelay = I915_READ16(CRSTANDVID);
+
 	DRM_UNLOCK(dev);
 
 	sbuf_printf(m, "w/ctx: %d, w/o ctx: %d\n",
@@ -824,8 +801,7 @@ i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
 	return 0;
 }
 
-static int
-i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
@@ -850,7 +826,7 @@ i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unused)
 
 		/* RPSTAT1 is in the GT power well */
 		if (sx_xlock_sig(&dev->dev_struct_lock))
-			return (EINTR);
+			return -EINTR;
 		gen6_gt_force_wake_get(dev_priv);
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
@@ -905,50 +881,51 @@ i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unused)
 	return 0;
 }
 
-static int
-i915_delayfreq_table(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_delayfreq_table(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 delayfreq;
 	int i;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	for (i = 0; i < 16; i++) {
 		delayfreq = I915_READ(PXVFREQ_BASE + i * 4);
 		sbuf_printf(m, "P%02dVIDFREQ: 0x%08x (VID: %d)\n", i, delayfreq,
 			   (delayfreq & PXVFREQ_PX_MASK) >> PXVFREQ_PX_SHIFT);
 	}
+
 	DRM_UNLOCK(dev);
-	return (0);
+
+	return 0;
 }
 
-static inline int
-MAP_TO_MV(int map)
+static inline int MAP_TO_MV(int map)
 {
 	return 1250 - (map * 25);
 }
 
-static int
-i915_inttoext_table(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_inttoext_table(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 inttoext;
 	int i;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	for (i = 1; i <= 32; i++) {
 		inttoext = I915_READ(INTTOEXT_BASE_ILK + i * 4);
 		sbuf_printf(m, "INTTOEXT%02d: 0x%08x\n", i, inttoext);
 	}
+
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
-static int
-ironlake_drpc_info(struct drm_device *dev, struct sbuf *m)
+static int ironlake_drpc_info(struct drm_device *dev, struct sbuf *m)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 rgvmodectl;
@@ -956,10 +933,12 @@ ironlake_drpc_info(struct drm_device *dev, struct sbuf *m)
 	u16 crstandvid;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	rgvmodectl = I915_READ(MEMMODECTL);
 	rstdbyctl = I915_READ(RSTDBYCTL);
 	crstandvid = I915_READ16(CRSTANDVID);
+
 	DRM_UNLOCK(dev);
 
 	sbuf_printf(m, "HD boost: %s\n", (rgvmodectl & MEMMODE_BOOST_EN) ?
@@ -1010,16 +989,16 @@ ironlake_drpc_info(struct drm_device *dev, struct sbuf *m)
 	return 0;
 }
 
-static int
-gen6_drpc_info(struct drm_device *dev, struct sbuf *m)
+static int gen6_drpc_info(struct drm_device *dev, struct sbuf *m)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 rpmodectl1, gt_core_status, rcctl1;
 	unsigned forcewake_count;
 	int count=0;
 
+
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	mtx_lock(&dev_priv->gt_lock);
 	forcewake_count = dev_priv->forcewake_count;
@@ -1031,7 +1010,7 @@ gen6_drpc_info(struct drm_device *dev, struct sbuf *m)
 	} else {
 		/* NB: we cannot use forcewake, else we read the wrong values */
 		while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1))
-			DRM_UDELAY(10);
+			udelay(10);
 		sbuf_printf(m, "RC information accurate: %s\n", yesno(count < 51));
 	}
 
@@ -1081,6 +1060,17 @@ gen6_drpc_info(struct drm_device *dev, struct sbuf *m)
 
 	sbuf_printf(m, "Core Power Down: %s\n",
 		   yesno(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
+
+	/* Not exactly sure what this is */
+	sbuf_printf(m, "RC6 \"Locked to RPn\" residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6_LOCKED));
+	sbuf_printf(m, "RC6 residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6));
+	sbuf_printf(m, "RC6+ residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6p));
+	sbuf_printf(m, "RC6++ residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6pp));
+
 	return 0;
 }
 
@@ -1088,12 +1078,12 @@ static int i915_drpc_info(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 
 	if (IS_GEN6(dev) || IS_GEN7(dev))
-		return (gen6_drpc_info(dev, m));
+		return gen6_drpc_info(dev, m);
 	else
-		return (ironlake_drpc_info(dev, m));
+		return ironlake_drpc_info(dev, m);
 }
-static int
-i915_fbc_status(struct drm_device *dev, struct sbuf *m, void *unused)
+
+static int i915_fbc_status(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
@@ -1135,8 +1125,7 @@ i915_fbc_status(struct drm_device *dev, struct sbuf *m, void *unused)
 	return 0;
 }
 
-static int
-i915_sr_status(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_sr_status(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool sr_enabled = false;
@@ -1153,7 +1142,31 @@ i915_sr_status(struct drm_device *dev, struct sbuf *m, void *unused)
 	sbuf_printf(m, "self-refresh: %s",
 		   sr_enabled ? "enabled" : "disabled");
 
-	return (0);
+	return 0;
+}
+
+static int i915_emon_status(struct drm_device *dev, struct sbuf *m, void *unused)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long temp, chipset, gfx;
+
+	if (!IS_GEN5(dev))
+		return -ENODEV;
+
+	if (sx_xlock_sig(&dev->dev_struct_lock))
+		return -EINTR;
+
+	temp = i915_mch_val(dev_priv);
+	chipset = i915_chipset_val(dev_priv);
+	gfx = i915_gfx_val(dev_priv);
+	DRM_UNLOCK(dev);
+
+	sbuf_printf(m, "GMCH temp: %ld\n", temp);
+	sbuf_printf(m, "Chipset power: %ld\n", chipset);
+	sbuf_printf(m, "GFX power: %ld\n", gfx);
+	sbuf_printf(m, "Total power: %ld\n", chipset + gfx);
+
+	return 0;
 }
 
 static int i915_ring_freq_table(struct drm_device *dev, struct sbuf *m,
@@ -1164,11 +1177,11 @@ static int i915_ring_freq_table(struct drm_device *dev, struct sbuf *m,
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
 		sbuf_printf(m, "unsupported on this chipset");
-		return (0);
+		return 0;
 	}
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	sbuf_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
 
@@ -1189,79 +1202,54 @@ static int i915_ring_freq_table(struct drm_device *dev, struct sbuf *m,
 
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_emon_status(struct drm_device *dev, struct sbuf *m, void *unused)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned long temp, chipset, gfx;
-
-	if (!IS_GEN5(dev)) {
-		sbuf_printf(m, "Not supported\n");
-		return (0);
-	}
-
-	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
-	temp = i915_mch_val(dev_priv);
-	chipset = i915_chipset_val(dev_priv);
-	gfx = i915_gfx_val(dev_priv);
-	DRM_UNLOCK(dev);
-
-	sbuf_printf(m, "GMCH temp: %ld\n", temp);
-	sbuf_printf(m, "Chipset power: %ld\n", chipset);
-	sbuf_printf(m, "GFX power: %ld\n", gfx);
-	sbuf_printf(m, "Total power: %ld\n", chipset + gfx);
-
-	return (0);
-}
-
-static int
-i915_gfxec(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_gfxec(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	sbuf_printf(m, "GFXEC: %ld\n", (unsigned long)I915_READ(0x112f4));
+
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
 #if 0
-static int
-i915_opregion(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_opregion(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
+
 	if (opregion->header)
 		seq_write(m, opregion->header, OPREGION_SIZE);
+
 	DRM_UNLOCK(dev);
 
 	return 0;
 }
 #endif
 
-static int
-i915_gem_framebuffer_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_gem_framebuffer_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_fbdev *ifbdev;
 	struct intel_framebuffer *fb;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
-		return (EINTR);
+		return -EINTR;
 
 	ifbdev = dev_priv->fbdev;
 	if (ifbdev == NULL) {
 		DRM_UNLOCK(dev);
-		return (0);
+		return 0;
 	}
 	fb = to_intel_framebuffer(ifbdev->helper.fb);
 
@@ -1288,22 +1276,18 @@ i915_gem_framebuffer_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_context_status(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_context_status(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv;
 	int ret;
 
-	if ((dev->driver->driver_features & DRIVER_MODESET) == 0)
-		return (0);
-
 	dev_priv = dev->dev_private;
 	ret = sx_xlock_sig(&dev->mode_config.mutex);
 	if (ret != 0)
-		return (EINTR);
+		return -EINTR;
 
 	if (dev_priv->pwrctx != NULL) {
 		sbuf_printf(m, "power context ");
@@ -1319,11 +1303,10 @@ i915_context_status(struct drm_device *dev, struct sbuf *m, void *data)
 
 	sx_xunlock(&dev->mode_config.mutex);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_gen6_forcewake_count_info(struct drm_device *dev, struct sbuf *m,
+static int i915_gen6_forcewake_count_info(struct drm_device *dev, struct sbuf *m,
     void *data)
 {
 	struct drm_i915_private *dev_priv;
@@ -1336,11 +1319,10 @@ i915_gen6_forcewake_count_info(struct drm_device *dev, struct sbuf *m,
 
 	sbuf_printf(m, "forcewake count = %u\n", forcewake_count);
 
-	return (0);
+	return 0;
 }
 
-static const char *
-swizzle_string(unsigned swizzle)
+static const char *swizzle_string(unsigned swizzle)
 {
 
 	switch(swizzle) {
@@ -1365,8 +1347,7 @@ swizzle_string(unsigned swizzle)
 	return "bug";
 }
 
-static int
-i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	struct drm_i915_private *dev_priv;
 	int ret;
@@ -1374,7 +1355,7 @@ i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
 	dev_priv = dev->dev_private;
 	ret = sx_xlock_sig(&dev->dev_struct_lock);
 	if (ret != 0)
-		return (EINTR);
+		return -EINTR;
 
 	sbuf_printf(m, "bit6 swizzle for X-tiling = %s\n",
 		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
@@ -1401,14 +1382,13 @@ i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
 			   I915_READ(ARB_MODE));
 		sbuf_printf(m, "DISP_ARB_CTL = 0x%08x\n",
 			   I915_READ(DISP_ARB_CTL));
- 	}
+	}
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
 }
 
-static int
-i915_ppgtt_info(struct drm_device *dev, struct sbuf *m, void *data)
+static int i915_ppgtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	struct drm_i915_private *dev_priv;
 	struct intel_ring_buffer *ring;
@@ -1418,7 +1398,7 @@ i915_ppgtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 	ret = sx_xlock_sig(&dev->dev_struct_lock);
 	if (ret != 0)
-		return (EINTR);
+		return -EINTR;
 	if (INTEL_INFO(dev)->gen == 6)
 		sbuf_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
 
@@ -1441,7 +1421,53 @@ i915_ppgtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 	sbuf_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
 	DRM_UNLOCK(dev);
 
-	return (0);
+	return 0;
+}
+
+static int i915_dpio_info(struct drm_device *dev, struct sbuf *m, void *data)
+{
+	struct drm_i915_private *dev_priv;
+	int ret;
+
+	if (!IS_VALLEYVIEW(dev)) {
+		sbuf_printf(m, "unsupported\n");
+		return 0;
+	}
+
+	dev_priv = dev->dev_private;
+
+	ret = sx_xlock_sig(&dev->mode_config.mutex);
+	if (ret != 0)
+		return -EINTR;
+
+	sbuf_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
+
+	sbuf_printf(m, "DPIO_DIV_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_DIV_A));
+	sbuf_printf(m, "DPIO_DIV_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_DIV_B));
+
+	sbuf_printf(m, "DPIO_REFSFR_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_REFSFR_A));
+	sbuf_printf(m, "DPIO_REFSFR_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_REFSFR_B));
+
+	sbuf_printf(m, "DPIO_CORE_CLK_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_A));
+	sbuf_printf(m, "DPIO_CORE_CLK_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
+
+	sbuf_printf(m, "DPIO_LFP_COEFF_A: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
+	sbuf_printf(m, "DPIO_LFP_COEFF_B: 0x%08x\n",
+		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
+
+	sbuf_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
+		   intel_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
+
+	sx_xunlock(&dev->mode_config.mutex);
+
+	return 0;
 }
 
 static int
@@ -1520,57 +1546,77 @@ i915_cache_sharing(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+i915_stop_rings(SYSCTL_HANDLER_ARGS)
+{
+	struct drm_device *dev;
+	drm_i915_private_t *dev_priv;
+	int error, val;
+
+	dev = arg1;
+	dev_priv = dev->dev_private;
+	if (dev_priv == NULL)
+		return (EBUSY);
+	DRM_LOCK(dev);
+	val = dev_priv->stop_rings;
+	DRM_UNLOCK(dev);
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	DRM_DEBUG("Stopping rings 0x%08x\n", val);
+
+	DRM_LOCK(dev);
+	dev_priv->stop_rings = val;
+	DRM_UNLOCK(dev);
+	return (0);
+}
+
 static struct i915_info_sysctl_list {
 	const char *name;
 	int (*ptr)(struct drm_device *dev, struct sbuf *m, void *data);
+	int (*ptr_w)(struct drm_device *dev, const char *str, void *data);
 	int flags;
 	void *data;
 } i915_info_sysctl_list[] = {
-	{"i915_capabilities", i915_capabilities, 0},
-	{"i915_gem_objects", i915_gem_object_info, 0},
-	{"i915_gem_gtt", i915_gem_gtt_info, 0},
-	{"i915_gem_active", i915_gem_object_list_info, 0, (void *)ACTIVE_LIST},
-	{"i915_gem_flushing", i915_gem_object_list_info, 0,
+	{"i915_capabilities", i915_capabilities, NULL, 0},
+	{"i915_gem_objects", i915_gem_object_info, NULL, 0},
+	{"i915_gem_gtt", i915_gem_gtt_info, NULL, 0},
+	{"i915_gem_pinned", i915_gem_gtt_info, NULL, 0, (void *)PINNED_LIST},
+	{"i915_gem_active", i915_gem_object_list_info, NULL, 0,
+	    (void *)ACTIVE_LIST},
+	{"i915_gem_flushing", i915_gem_object_list_info, NULL, 0,
 	    (void *)FLUSHING_LIST},
-	{"i915_gem_inactive", i915_gem_object_list_info, 0,
+	{"i915_gem_inactive", i915_gem_object_list_info, NULL, 0,
 	    (void *)INACTIVE_LIST},
-	{"i915_gem_pinned", i915_gem_object_list_info, 0,
-	    (void *)PINNED_LIST},
-	{"i915_gem_deferred_free", i915_gem_object_list_info, 0,
-	    (void *)DEFERRED_FREE_LIST},
-	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
-	{"i915_gem_request", i915_gem_request_info, 0},
-	{"i915_gem_seqno", i915_gem_seqno_info, 0},
-	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
-	{"i915_gem_interrupt", i915_interrupt_info, 0},
-	{"i915_gem_hws", i915_hws_info, 0, (void *)RCS},
-	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BCS},
-	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
-	{"i915_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RCS},
-	{"i915_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RCS},
-	{"i915_bsd_ringbuffer_data", i915_ringbuffer_data, 0, (void *)VCS},
-	{"i915_bsd_ringbuffer_info", i915_ringbuffer_info, 0, (void *)VCS},
-	{"i915_blt_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BCS},
-	{"i915_blt_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BCS},
-	{"i915_error_state", i915_error_state, 0},
-	{"i915_rstdby_delays", i915_rstdby_delays, 0},
-	{"i915_cur_delayinfo", i915_cur_delayinfo, 0},
-	{"i915_delayfreq_table", i915_delayfreq_table, 0},
-	{"i915_inttoext_table", i915_inttoext_table, 0},
-	{"i915_drpc_info", i915_drpc_info, 0},
-	{"i915_emon_status", i915_emon_status, 0},
-	{"i915_ring_freq_table", i915_ring_freq_table, 0},
-	{"i915_gfxec", i915_gfxec, 0},
-	{"i915_fbc_status", i915_fbc_status, 0},
-	{"i915_sr_status", i915_sr_status, 0},
+	{"i915_gem_pageflip", i915_gem_pageflip_info, NULL, 0},
+	{"i915_gem_request", i915_gem_request_info, NULL, 0},
+	{"i915_gem_seqno", i915_gem_seqno_info, NULL, 0},
+	{"i915_gem_fence_regs", i915_gem_fence_regs_info, NULL, 0},
+	{"i915_gem_interrupt", i915_interrupt_info, NULL, 0},
+	{"i915_gem_hws", i915_hws_info, NULL, 0, (void *)RCS},
+	{"i915_gem_hws_blt", i915_hws_info, NULL, 0, (void *)BCS},
+	{"i915_gem_hws_bsd", i915_hws_info, NULL, 0, (void *)VCS},
+	{"i915_error_state", i915_error_state, i915_error_state_w, 0},
+	{"i915_rstdby_delays", i915_rstdby_delays, NULL, 0},
+	{"i915_cur_delayinfo", i915_cur_delayinfo, NULL, 0},
+	{"i915_delayfreq_table", i915_delayfreq_table, NULL, 0},
+	{"i915_inttoext_table", i915_inttoext_table, NULL, 0},
+	{"i915_drpc_info", i915_drpc_info, NULL, 0},
+	{"i915_emon_status", i915_emon_status, NULL, 0},
+	{"i915_ring_freq_table", i915_ring_freq_table, NULL, 0},
+	{"i915_gfxec", i915_gfxec, NULL, 0},
+	{"i915_fbc_status", i915_fbc_status, NULL, 0},
+	{"i915_sr_status", i915_sr_status, NULL, 0},
 #if 0
-	{"i915_opregion", i915_opregion, 0},
+	{"i915_opregion", i915_opregion, NULL, 0},
 #endif
-	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
-	{"i915_context_status", i915_context_status, 0},
-	{"i915_gen6_forcewake_count_info", i915_gen6_forcewake_count_info, 0},
-	{"i915_swizzle_info", i915_swizzle_info, 0},
-	{"i915_ppgtt_info", i915_ppgtt_info, 0},
+	{"i915_gem_framebuffer", i915_gem_framebuffer_info, NULL, 0},
+	{"i915_context_status", i915_context_status, NULL, 0},
+	{"i915_gen6_forcewake_count_info", i915_gen6_forcewake_count_info,
+	    NULL, 0},
+	{"i915_swizzle_info", i915_swizzle_info, NULL, 0},
+	{"i915_ppgtt_info", i915_ppgtt_info, NULL, 0},
+	{"i915_dpio", i915_dpio_info, NULL, 0},
 };
 
 struct i915_info_sysctl_thunk {
@@ -1586,6 +1632,7 @@ i915_info_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	struct i915_info_sysctl_thunk *thunk;
 	struct drm_device *dev;
 	drm_i915_private_t *dev_priv;
+	char *p;
 	int error;
 
 	thunk = arg1;
@@ -1597,11 +1644,24 @@ i915_info_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	sbuf_new_for_sysctl(&m, NULL, 128, req);
-	error = i915_info_sysctl_list[thunk->idx].ptr(dev, &m,
+	error = -i915_info_sysctl_list[thunk->idx].ptr(dev, &m,
 	    thunk->arg);
 	if (error == 0)
 		error = sbuf_finish(&m);
 	sbuf_delete(&m);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (req->newlen > 2048)
+		return (E2BIG);
+	p = malloc(req->newlen + 1, M_TEMP, M_WAITOK);
+	error = SYSCTL_IN(req, p, req->newlen);
+	if (error != 0)
+		goto out;
+	p[req->newlen] = '\0';
+	error = i915_info_sysctl_list[thunk->idx].ptr_w(dev, p,
+	    thunk->arg);
+out:
+	free(p, M_TEMP);
 	return (error);
 }
 
@@ -1618,9 +1678,9 @@ i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
 	struct i915_info_sysctl_thunk *thunks;
 	int i, error;
 
-	thunks = malloc(sizeof(*thunks) * DRM_ARRAY_SIZE(i915_info_sysctl_list),
+	thunks = malloc(sizeof(*thunks) * ARRAY_SIZE(i915_info_sysctl_list),
 	    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
-	for (i = 0; i < DRM_ARRAY_SIZE(i915_info_sysctl_list); i++) {
+	for (i = 0; i < ARRAY_SIZE(i915_info_sysctl_list); i++) {
 		thunks[i].dev = dev;
 		thunks[i].idx = i;
 		thunks[i].arg = i915_info_sysctl_list[i].data;
@@ -1629,13 +1689,15 @@ i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
 	info = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(top), OID_AUTO, "info",
 	    CTLFLAG_RW, NULL, NULL);
 	if (info == NULL)
-		return (ENOMEM);
-	for (i = 0; i < DRM_ARRAY_SIZE(i915_info_sysctl_list); i++) {
+		return (-ENOMEM);
+	for (i = 0; i < ARRAY_SIZE(i915_info_sysctl_list); i++) {
 		oid = SYSCTL_ADD_OID(ctx, SYSCTL_CHILDREN(info), OID_AUTO,
-		    i915_info_sysctl_list[i].name, CTLTYPE_STRING | CTLFLAG_RD,
+		    i915_info_sysctl_list[i].name, CTLTYPE_STRING |
+		    (i915_info_sysctl_list[i].ptr_w != NULL ? CTLFLAG_RW :
+		    CTLFLAG_RD),
 		    &thunks[i], 0, i915_info_sysctl_handler, "A", NULL);
 		if (oid == NULL)
-			return (ENOMEM);
+			return (-ENOMEM);
 	}
 	oid = SYSCTL_ADD_LONG(ctx, SYSCTL_CHILDREN(info), OID_AUTO,
 	    "i915_gem_wired_pages", CTLFLAG_RD, &i915_gem_wired_pages_cnt,
@@ -1644,29 +1706,34 @@ i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, 0,
 	    i915_debug_set_wedged, "I", NULL);
 	if (oid == NULL)
-		return (ENOMEM);
+		return (-ENOMEM);
 	oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(top), OID_AUTO, "max_freq",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, 0, i915_max_freq,
 	    "I", NULL);
 	if (oid == NULL)
-		return (ENOMEM);
+		return (-ENOMEM);
 	oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(top), OID_AUTO,
 	    "cache_sharing", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
 	    0, i915_cache_sharing, "I", NULL);
 	if (oid == NULL)
-		return (ENOMEM);
+		return (-ENOMEM);
+	oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(top), OID_AUTO,
+	    "stop_rings", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
+	    0, i915_stop_rings, "I", NULL);
+	if (oid == NULL)
+		return (-ENOMEM);
 	oid = SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(top), OID_AUTO, "sync_exec",
 	    CTLFLAG_RW, &i915_gem_sync_exec_requests, 0, NULL);
 	if (oid == NULL)
-		return (ENOMEM);
+		return (-ENOMEM);
 	oid = SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(top), OID_AUTO, "fix_mi",
 	    CTLFLAG_RW, &i915_fix_mi_batchbuffer_end, 0, NULL);
 	if (oid == NULL)
-		return (ENOMEM);
+		return (-ENOMEM);
 	oid = SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(top), OID_AUTO, "intr_pf",
 	    CTLFLAG_RW, &i915_intr_pf, 0, NULL);
 	if (oid == NULL)
-		return (ENOMEM);
+		return (-ENOMEM);
 
 	error = drm_add_busid_modesetting(dev, ctx, top);
 	if (error != 0)

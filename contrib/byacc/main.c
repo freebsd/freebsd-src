@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.51 2014/05/28 02:01:55 Tom.Shields Exp $ */
+/* $Id: main.c,v 1.54 2014/10/06 22:40:07 tom Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -491,8 +491,8 @@ close_tmpfiles(void)
     {
 	MY_TMPFILES *next = my_tmpfiles->next;
 
-	chmod(my_tmpfiles->name, 0644);
-	unlink(my_tmpfiles->name);
+	(void)chmod(my_tmpfiles->name, 0644);
+	(void)unlink(my_tmpfiles->name);
 
 	free(my_tmpfiles->name);
 	free(my_tmpfiles);
@@ -574,6 +574,8 @@ open_tmpfile(const char *label)
     result = 0;
     if (name != 0)
     {
+	mode_t save_umask = umask(0177);
+
 	if ((mark = strrchr(label, '_')) == 0)
 	    mark = label + strlen(label);
 
@@ -601,6 +603,7 @@ open_tmpfile(const char *label)
 		my_tmpfiles = item;
 	    }
 	}
+	(void)umask(save_umask);
     }
 #else
     result = tmpfile();

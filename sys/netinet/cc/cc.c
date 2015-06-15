@@ -92,33 +92,33 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 {
 	char default_cc[TCP_CA_NAME_MAX];
 	struct cc_algo *funcs;
-	int err, found;
+	int error;
 
-	err = found = 0;
+	/* Get the current default: */
+	CC_LIST_RLOCK();
+	strlcpy(default_cc, CC_DEFAULT()->name, sizeof(default_cc));
+	CC_LIST_RUNLOCK();
 
-	if (req->newptr == NULL) {
-		/* Just print the current default. */
-		CC_LIST_RLOCK();
-		strlcpy(default_cc, CC_DEFAULT()->name, TCP_CA_NAME_MAX);
-		CC_LIST_RUNLOCK();
-		err = sysctl_handle_string(oidp, default_cc, 0, req);
-	} else {
-		/* Find algo with specified name and set it to default. */
-		CC_LIST_RLOCK();
-		STAILQ_FOREACH(funcs, &cc_list, entries) {
-			if (strncmp((char *)req->newptr, funcs->name,
-			    TCP_CA_NAME_MAX) == 0) {
-				found = 1;
-				V_default_cc_ptr = funcs;
-			}
-		}
-		CC_LIST_RUNLOCK();
+	error = sysctl_handle_string(oidp, default_cc, sizeof(default_cc), req);
 
-		if (!found)
-			err = ESRCH;
+	/* Check for error or no change */
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+
+	error = ESRCH;
+
+	/* Find algo with specified name and set it to default. */
+	CC_LIST_RLOCK();
+	STAILQ_FOREACH(funcs, &cc_list, entries) {
+		if (strncmp(default_cc, funcs->name, sizeof(default_cc)))
+			continue;
+		V_default_cc_ptr = funcs;
+		error = 0;
+		break;
 	}
-
-	return (err);
+	CC_LIST_RUNLOCK();
+done:
+	return (error);
 }
 
 /*
@@ -318,7 +318,8 @@ SYSINIT(cc, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, cc_init, NULL);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, cc, CTLFLAG_RW, NULL,
     "congestion control related settings");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm, CTLTYPE_STRING|CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW,
     NULL, 0, cc_default_algo, "A", "default congestion control algorithm");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, available, CTLTYPE_STRING|CTLFLAG_RD,

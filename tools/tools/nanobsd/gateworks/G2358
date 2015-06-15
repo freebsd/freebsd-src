@@ -41,7 +41,7 @@ options 	FFS			#Berkeley Fast Filesystem
 #options 	SOFTUPDATES		#Enable FFS soft updates support
 #options 	UFS_ACL			#Support for access control lists
 #options 	UFS_DIRHASH		#Improve performance on big directories
-options 	NFSCLIENT		#Network Filesystem Client
+options 	NFSCL			#New Network Filesystem Client
 options 	NFSLOCKD		#Network Lock Manager
 options 	KTRACE			#ktrace(1) support
 #options 	SYSVSHM			#SYSV-style shared memory

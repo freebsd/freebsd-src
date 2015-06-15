@@ -22,25 +22,29 @@
 #include "llvm/IR/Operator.h"
 using namespace llvm;
 
-/// AreEquivalentAddressValues - Test if A and B will obviously have the same
-/// value. This includes recognizing that %t0 and %t1 will have the same
+/// \brief Test if A and B will obviously have the same value.
+///
+/// This includes recognizing that %t0 and %t1 will have the same
 /// value in code like this:
+/// \code
 ///   %t0 = getelementptr \@a, 0, 3
 ///   store i32 0, i32* %t0
 ///   %t1 = getelementptr \@a, 0, 3
 ///   %t2 = load i32* %t1
+/// \endcode
 ///
 static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
   // Test if the values are trivially equivalent.
-  if (A == B) return true;
+  if (A == B)
+    return true;
 
   // Test if the values come from identical arithmetic instructions.
   // Use isIdenticalToWhenDefined instead of isIdenticalTo because
   // this function is only used when one address use dominates the
   // other, which means that they'll always either have the same
   // value or one of them will have an undefined value.
-  if (isa<BinaryOperator>(A) || isa<CastInst>(A) ||
-      isa<PHINode>(A) || isa<GetElementPtrInst>(A))
+  if (isa<BinaryOperator>(A) || isa<CastInst>(A) || isa<PHINode>(A) ||
+      isa<GetElementPtrInst>(A))
     if (const Instruction *BI = dyn_cast<Instruction>(B))
       if (cast<Instruction>(A)->isIdenticalToWhenDefined(BI))
         return true;
@@ -49,46 +53,53 @@ static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
   return false;
 }
 
-/// isSafeToLoadUnconditionally - Return true if we know that executing a load
-/// from this value cannot trap.  If it is not obviously safe to load from the
-/// specified pointer, we do a quick local scan of the basic block containing
-/// ScanFrom, to determine if the address is already accessed.
+/// \brief Check if executing a load of this pointer value cannot trap.
+///
+/// If it is not obviously safe to load from the specified pointer, we do
+/// a quick local scan of the basic block containing \c ScanFrom, to determine
+/// if the address is already accessed.
+///
+/// This uses the pointee type to determine how many bytes need to be safe to
+/// load from the pointer.
 bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
-                                       unsigned Align, const DataLayout *TD) {
+                                       unsigned Align, const DataLayout *DL) {
   int64_t ByteOffset = 0;
   Value *Base = V;
-  Base = GetPointerBaseWithConstantOffset(V, ByteOffset, TD);
+  Base = GetPointerBaseWithConstantOffset(V, ByteOffset, DL);
 
   if (ByteOffset < 0) // out of bounds
     return false;
 
-  Type *BaseType = 0;
+  Type *BaseType = nullptr;
   unsigned BaseAlign = 0;
   if (const AllocaInst *AI = dyn_cast<AllocaInst>(Base)) {
     // An alloca is safe to load from as load as it is suitably aligned.
     BaseType = AI->getAllocatedType();
     BaseAlign = AI->getAlignment();
   } else if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Base)) {
-    // Global variables are safe to load from but their size cannot be
-    // guaranteed if they are overridden.
+    // Global variables are not necessarily safe to load from if they are
+    // overridden. Their size may change or they may be weak and require a test
+    // to determine if they were in fact provided.
     if (!GV->mayBeOverridden()) {
       BaseType = GV->getType()->getElementType();
       BaseAlign = GV->getAlignment();
     }
   }
 
-  if (BaseType && BaseType->isSized()) {
-    if (TD && BaseAlign == 0)
-      BaseAlign = TD->getPrefTypeAlignment(BaseType);
+  PointerType *AddrTy = cast<PointerType>(V->getType());
+  uint64_t LoadSize = DL ? DL->getTypeStoreSize(AddrTy->getElementType()) : 0;
+
+  // If we found a base allocated type from either an alloca or global variable,
+  // try to see if we are definitively within the allocated region. We need to
+  // know the size of the base type and the loaded type to do anything in this
+  // case, so only try this when we have the DataLayout available.
+  if (BaseType && BaseType->isSized() && DL) {
+    if (BaseAlign == 0)
+      BaseAlign = DL->getPrefTypeAlignment(BaseType);
 
     if (Align <= BaseAlign) {
-      if (!TD)
-        return true; // Loading directly from an alloca or global is OK.
-
       // Check if the load is within the bounds of the underlying object.
-      PointerType *AddrTy = cast<PointerType>(V->getType());
-      uint64_t LoadSize = TD->getTypeStoreSize(AddrTy->getElementType());
-      if (ByteOffset + LoadSize <= TD->getTypeAllocSize(BaseType) &&
+      if (ByteOffset + LoadSize <= DL->getTypeAllocSize(BaseType) &&
           (Align == 0 || (ByteOffset % Align) == 0))
         return true;
     }
@@ -101,6 +112,10 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
   // the load entirely).
   BasicBlock::iterator BBI = ScanFrom, E = ScanFrom->getParent()->begin();
 
+  // We can at least always strip pointer casts even though we can't use the
+  // base here.
+  V = V->stripPointerCasts();
+
   while (BBI != E) {
     --BBI;
 
@@ -110,46 +125,67 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
         !isa<DbgInfoIntrinsic>(BBI))
       return false;
 
-    if (LoadInst *LI = dyn_cast<LoadInst>(BBI)) {
-      if (AreEquivalentAddressValues(LI->getOperand(0), V)) return true;
-    } else if (StoreInst *SI = dyn_cast<StoreInst>(BBI)) {
-      if (AreEquivalentAddressValues(SI->getOperand(1), V)) return true;
-    }
+    Value *AccessedPtr;
+    if (LoadInst *LI = dyn_cast<LoadInst>(BBI))
+      AccessedPtr = LI->getPointerOperand();
+    else if (StoreInst *SI = dyn_cast<StoreInst>(BBI))
+      AccessedPtr = SI->getPointerOperand();
+    else
+      continue;
+
+    // Handle trivial cases even w/o DataLayout or other work.
+    if (AccessedPtr == V)
+      return true;
+
+    if (!DL)
+      continue;
+
+    auto *AccessedTy = cast<PointerType>(AccessedPtr->getType());
+    if (AreEquivalentAddressValues(AccessedPtr->stripPointerCasts(), V) &&
+        LoadSize <= DL->getTypeStoreSize(AccessedTy->getElementType()))
+      return true;
   }
   return false;
 }
 
-/// FindAvailableLoadedValue - Scan the ScanBB block backwards (starting at the
-/// instruction before ScanFrom) checking to see if we have the value at the
+/// \brief Scan the ScanBB block backwards to see if we have the value at the
 /// memory address *Ptr locally available within a small number of instructions.
-/// If the value is available, return it.
 ///
-/// If not, return the iterator for the last validated instruction that the 
-/// value would be live through.  If we scanned the entire block and didn't find
-/// something that invalidates *Ptr or provides it, ScanFrom would be left at
-/// begin() and this returns null.  ScanFrom could also be left 
+/// The scan starts from \c ScanFrom. \c MaxInstsToScan specifies the maximum
+/// instructions to scan in the block. If it is set to \c 0, it will scan the whole
+/// block.
 ///
-/// MaxInstsToScan specifies the maximum instructions to scan in the block.  If
-/// it is set to 0, it will scan the whole block. You can also optionally
-/// specify an alias analysis implementation, which makes this more precise.
+/// If the value is available, this function returns it. If not, it returns the
+/// iterator for the last validated instruction that the value would be live
+/// through. If we scanned the entire block and didn't find something that
+/// invalidates \c *Ptr or provides it, \c ScanFrom is left at the last
+/// instruction processed and this returns null.
 ///
-/// If TBAATag is non-null and a load or store is found, the TBAA tag from the
-/// load or store is recorded there.  If there is no TBAA tag or if no access
-/// is found, it is left unmodified.
+/// You can also optionally specify an alias analysis implementation, which
+/// makes this more precise.
+///
+/// If \c AATags is non-null and a load or store is found, the AA tags from the
+/// load or store are recorded there. If there are no AA tags or if no access is
+/// found, it is left unmodified.
 Value *llvm::FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
                                       BasicBlock::iterator &ScanFrom,
                                       unsigned MaxInstsToScan,
-                                      AliasAnalysis *AA,
-                                      MDNode **TBAATag) {
-  if (MaxInstsToScan == 0) MaxInstsToScan = ~0U;
+                                      AliasAnalysis *AA, AAMDNodes *AATags) {
+  if (MaxInstsToScan == 0)
+    MaxInstsToScan = ~0U;
 
-  // If we're using alias analysis to disambiguate get the size of *Ptr.
-  uint64_t AccessSize = 0;
-  if (AA) {
-    Type *AccessTy = cast<PointerType>(Ptr->getType())->getElementType();
-    AccessSize = AA->getTypeStoreSize(AccessTy);
-  }
-  
+  Type *AccessTy = cast<PointerType>(Ptr->getType())->getElementType();
+
+  // Try to get the DataLayout for this module. This may be null, in which case
+  // the optimizations will be limited.
+  const DataLayout *DL = ScanBB->getDataLayout();
+
+  // Try to get the store size for the type.
+  uint64_t AccessSize = DL ? DL->getTypeStoreSize(AccessTy)
+                           : AA ? AA->getTypeStoreSize(AccessTy) : 0;
+
+  Value *StrippedPtr = Ptr->stripPointerCasts();
+
   while (ScanFrom != ScanBB->begin()) {
     // We must ignore debug info directives when counting (otherwise they
     // would affect codegen).
@@ -159,63 +195,73 @@ Value *llvm::FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
 
     // Restore ScanFrom to expected value in case next test succeeds
     ScanFrom++;
-   
+
     // Don't scan huge blocks.
-    if (MaxInstsToScan-- == 0) return 0;
-    
+    if (MaxInstsToScan-- == 0)
+      return nullptr;
+
     --ScanFrom;
     // If this is a load of Ptr, the loaded value is available.
     // (This is true even if the load is volatile or atomic, although
     // those cases are unlikely.)
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst))
-      if (AreEquivalentAddressValues(LI->getOperand(0), Ptr)) {
-        if (TBAATag) *TBAATag = LI->getMetadata(LLVMContext::MD_tbaa);
+      if (AreEquivalentAddressValues(
+              LI->getPointerOperand()->stripPointerCasts(), StrippedPtr) &&
+          CastInst::isBitOrNoopPointerCastable(LI->getType(), AccessTy, DL)) {
+        if (AATags)
+          LI->getAAMetadata(*AATags);
         return LI;
       }
-    
+
     if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
+      Value *StorePtr = SI->getPointerOperand()->stripPointerCasts();
       // If this is a store through Ptr, the value is available!
       // (This is true even if the store is volatile or atomic, although
       // those cases are unlikely.)
-      if (AreEquivalentAddressValues(SI->getOperand(1), Ptr)) {
-        if (TBAATag) *TBAATag = SI->getMetadata(LLVMContext::MD_tbaa);
+      if (AreEquivalentAddressValues(StorePtr, StrippedPtr) &&
+          CastInst::isBitOrNoopPointerCastable(SI->getValueOperand()->getType(),
+                                               AccessTy, DL)) {
+        if (AATags)
+          SI->getAAMetadata(*AATags);
         return SI->getOperand(0);
       }
-      
-      // If Ptr is an alloca and this is a store to a different alloca, ignore
-      // the store.  This is a trivial form of alias analysis that is important
-      // for reg2mem'd code.
-      if ((isa<AllocaInst>(Ptr) || isa<GlobalVariable>(Ptr)) &&
-          (isa<AllocaInst>(SI->getOperand(1)) ||
-           isa<GlobalVariable>(SI->getOperand(1))))
+
+      // If both StrippedPtr and StorePtr reach all the way to an alloca or
+      // global and they are different, ignore the store. This is a trivial form
+      // of alias analysis that is important for reg2mem'd code.
+      if ((isa<AllocaInst>(StrippedPtr) || isa<GlobalVariable>(StrippedPtr)) &&
+          (isa<AllocaInst>(StorePtr) || isa<GlobalVariable>(StorePtr)) &&
+          StrippedPtr != StorePtr)
         continue;
-      
+
       // If we have alias analysis and it says the store won't modify the loaded
       // value, ignore the store.
       if (AA &&
-          (AA->getModRefInfo(SI, Ptr, AccessSize) & AliasAnalysis::Mod) == 0)
+          (AA->getModRefInfo(SI, StrippedPtr, AccessSize) &
+           AliasAnalysis::Mod) == 0)
         continue;
-      
+
       // Otherwise the store that may or may not alias the pointer, bail out.
       ++ScanFrom;
-      return 0;
+      return nullptr;
     }
-    
+
     // If this is some other instruction that may clobber Ptr, bail out.
     if (Inst->mayWriteToMemory()) {
       // If alias analysis claims that it really won't modify the load,
       // ignore it.
       if (AA &&
-          (AA->getModRefInfo(Inst, Ptr, AccessSize) & AliasAnalysis::Mod) == 0)
+          (AA->getModRefInfo(Inst, StrippedPtr, AccessSize) &
+           AliasAnalysis::Mod) == 0)
         continue;
-      
+
       // May modify the pointer, bail out.
       ++ScanFrom;
-      return 0;
+      return nullptr;
     }
   }
-  
+
   // Got to the start of the block, we didn't find it, but are done for this
   // block.
-  return 0;
+  return nullptr;
 }

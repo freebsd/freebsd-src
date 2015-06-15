@@ -29,30 +29,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <stdio.h>
-#include <fcntl.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <errno.h>
-#include <unistd.h>
 
 #include "pwupd.h"
-
-int
-extendline(char **buf, int * buflen, int needed)
-{
-	if (needed > *buflen) {
-		char	*tmp = realloc(*buf, needed);
-		if (tmp == NULL)
-			return -1;
-		*buf = tmp;
-		*buflen = needed;
-	}
-	return *buflen;
-}
 
 int
 extendarray(char ***buf, int * buflen, int needed)

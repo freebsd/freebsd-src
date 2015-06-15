@@ -421,12 +421,12 @@ sys_profil(struct thread *td, struct profil_args *uap)
 	}
 	PROC_LOCK(p);
 	upp = &td->td_proc->p_stats->p_prof;
-	PROC_SLOCK(p);
+	PROC_PROFLOCK(p);
 	upp->pr_off = uap->offset;
 	upp->pr_scale = uap->scale;
 	upp->pr_base = uap->samples;
 	upp->pr_size = uap->size;
-	PROC_SUNLOCK(p);
+	PROC_PROFUNLOCK(p);
 	startprofclock(p);
 	PROC_UNLOCK(p);
 
@@ -466,15 +466,15 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 	if (ticks == 0)
 		return;
 	prof = &td->td_proc->p_stats->p_prof;
-	PROC_SLOCK(td->td_proc);
+	PROC_PROFLOCK(td->td_proc);
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
-		PROC_SUNLOCK(td->td_proc);
+		PROC_PROFUNLOCK(td->td_proc);
 		return;			/* out of range; ignore */
 	}
 
 	addr = prof->pr_base + i;
-	PROC_SUNLOCK(td->td_proc);
+	PROC_PROFUNLOCK(td->td_proc);
 	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
 		td->td_profil_addr = pc;
 		td->td_profil_ticks = ticks;
@@ -509,15 +509,15 @@ addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)
 	}
 	p->p_profthreads++;
 	prof = &p->p_stats->p_prof;
-	PROC_SLOCK(p);
+	PROC_PROFLOCK(p);
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
-		PROC_SUNLOCK(p);
+		PROC_PROFUNLOCK(p);
 		goto out;
 	}
 
 	addr = prof->pr_base + i;
-	PROC_SUNLOCK(p);
+	PROC_PROFUNLOCK(p);
 	PROC_UNLOCK(p);
 	if (copyin(addr, &v, sizeof(v)) == 0) {
 		v += ticks;
@@ -533,6 +533,7 @@ out:
 	if (--p->p_profthreads == 0) {
 		if (p->p_flag & P_STOPPROF) {
 			wakeup(&p->p_profthreads);
+			p->p_flag &= ~P_STOPPROF;
 			stop = 0;
 		}
 	}
@@ -540,50 +541,3 @@ out:
 		stopprofclock(p);
 	PROC_UNLOCK(p);
 }
-
-#if (defined(__amd64__) || defined(__i386__)) && \
-	defined(__GNUCLIKE_CTOR_SECTION_HANDLING)
-/*
- * Support for "--test-coverage --profile-arcs" in GCC.
- *
- * We need to call all the functions in the .ctor section, in order
- * to get all the counter-arrays strung into a list.
- *
- * XXX: the .ctors call __bb_init_func which is located in over in 
- * XXX: i386/i386/support.s for historical reasons.  There is probably
- * XXX: no reason for that to be assembler anymore, but doing it right
- * XXX: in MI C code requires one to reverse-engineer the type-selection
- * XXX: inside GCC.  Have fun.
- *
- * XXX: Worrisome perspective: Calling the .ctors may make C++ in the
- * XXX: kernel feasible.  Don't.
- */
-typedef void (*ctor_t)(void);
-extern ctor_t _start_ctors, _stop_ctors;
-
-static void
-tcov_init(void *foo __unused)
-{
-	ctor_t *p, q;
-
-	for (p = &_start_ctors; p < &_stop_ctors; p++) {
-		q = *p;
-		q();
-	}
-}
-
-SYSINIT(tcov_init, SI_SUB_KPROF, SI_ORDER_SECOND, tcov_init, NULL);
-
-/*
- * GCC contains magic to recognize calls to for instance execve() and
- * puts in calls to this function to preserve the profile counters.
- * XXX: Put zinging punchline here.
- */
-void __bb_fork_func(void);
-void
-__bb_fork_func(void)
-{
-}
-
-#endif
-

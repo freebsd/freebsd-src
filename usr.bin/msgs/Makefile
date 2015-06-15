@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	msgs
-DPADD=	${LIBTERMCAPW}
-LDADD=	-ltermcapw
+
+LIBADD=	ncursesw
 
 .include <bsd.prog.mk>

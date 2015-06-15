@@ -17,7 +17,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "constmerge"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -31,6 +30,8 @@
 #include "llvm/Pass.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "constmerge"
+
 STATISTIC(NumMerged, "Number of global constants merged");
 
 namespace {
@@ -42,7 +43,7 @@ namespace {
 
     // For this pass, process all of the globals in the module, eliminating
     // duplicate constants.
-    bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
     // Return true iff we can determine the alignment of this global variable.
     bool hasKnownAlignment(GlobalVariable *GV) const;
@@ -51,7 +52,7 @@ namespace {
     // alignment to a concrete value.
     unsigned getAlignment(GlobalVariable *GV) const;
 
-    const DataLayout *TD;
+    const DataLayout *DL;
   };
 }
 
@@ -65,8 +66,8 @@ ModulePass *llvm::createConstantMergePass() { return new ConstantMerge(); }
 
 /// Find values that are marked as llvm.used.
 static void FindUsedValues(GlobalVariable *LLVMUsed,
-                           SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
-  if (LLVMUsed == 0) return;
+                           SmallPtrSetImpl<const GlobalValue*> &UsedValues) {
+  if (!LLVMUsed) return;
   ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
 
   for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i) {
@@ -77,8 +78,8 @@ static void FindUsedValues(GlobalVariable *LLVMUsed,
 }
 
 // True if A is better than B.
-static bool IsBetterCannonical(const GlobalVariable &A,
-                               const GlobalVariable &B) {
+static bool IsBetterCanonical(const GlobalVariable &A,
+                              const GlobalVariable &B) {
   if (!A.hasLocalLinkage() && B.hasLocalLinkage())
     return true;
 
@@ -89,20 +90,21 @@ static bool IsBetterCannonical(const GlobalVariable &A,
 }
 
 bool ConstantMerge::hasKnownAlignment(GlobalVariable *GV) const {
-  return TD || GV->getAlignment() != 0;
+  return DL || GV->getAlignment() != 0;
 }
 
 unsigned ConstantMerge::getAlignment(GlobalVariable *GV) const {
   unsigned Align = GV->getAlignment();
   if (Align)
     return Align;
-  if (TD)
-    return TD->getPreferredAlignment(GV);
+  if (DL)
+    return DL->getPreferredAlignment(GV);
   return 0;
 }
 
 bool ConstantMerge::runOnModule(Module &M) {
-  TD = getAnalysisIfAvailable<DataLayout>();
+  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+  DL = DLP ? &DLP->getDataLayout() : nullptr;
 
   // Find all the globals that are marked "used".  These cannot be merged.
   SmallPtrSet<const GlobalValue*, 8> UsedGlobals;
@@ -160,7 +162,7 @@ bool ConstantMerge::runOnModule(Module &M) {
       // If this is the first constant we find or if the old one is local,
       // replace with the current one. If the current is externally visible
       // it cannot be replace, but can be the canonical constant we merge with.
-      if (Slot == 0 || IsBetterCannonical(*GV, *Slot))
+      if (!Slot || IsBetterCanonical(*GV, *Slot))
         Slot = GV;
     }
 

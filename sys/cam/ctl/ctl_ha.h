@@ -38,6 +38,8 @@
 /*
  * CTL High Availability Modes:
  *
+ * CTL_HA_MODE_ACT_STBY:  One side is in Active state and processing commands,
+ *			  the other side is in Standby state, returning errors.
  * CTL_HA_MODE_SER_ONLY:  Commands are serialized to the other side.  Write
  *			  mirroring and read re-direction are assumed to
  * 			  happen in the back end.
@@ -46,6 +48,7 @@
  */
 
 typedef enum {
+	CTL_HA_MODE_ACT_STBY,
 	CTL_HA_MODE_SER_ONLY,
 	CTL_HA_MODE_XFER
 } ctl_ha_mode;

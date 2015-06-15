@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,28 +31,34 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
 
-typedef __u16 __le16;
-typedef __u16 __be16;
-typedef __u32 __le32;
-typedef __u32 __be32;
-typedef __u64 __le64;
-typedef __u64 __be64;
-#ifndef __bool_true_false_are_defined
-typedef _Bool bool;
-#define	true	TRUE
-#define	false	FALSE
+#define	__read_mostly __attribute__((__section__(".data.read_mostly")))
+
+#ifndef __bitwise__
+#ifdef __CHECKER__
+#define __bitwise__ __attribute__((bitwise))
+#else
+#define __bitwise__
+#endif
 #endif
 
-typedef u64 phys_addr_t;
+typedef uint16_t __le16;
+typedef uint16_t __be16;
+typedef uint32_t __le32;
+typedef uint32_t __be32;
+typedef uint64_t __le64;
+typedef uint64_t __be64;
 
-typedef unsigned long kernel_ulong_t;
 typedef unsigned int    uint;
 typedef unsigned gfp_t;
 typedef uint64_t loff_t;
 typedef vm_paddr_t resource_size_t;
+
+typedef u64 phys_addr_t;
 
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]

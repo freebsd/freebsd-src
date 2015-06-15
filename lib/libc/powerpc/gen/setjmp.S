@@ -66,12 +66,55 @@ ENTRY(setjmp)
 	mr	%r10,%r1		/* r10 <- stackptr */
 	mr	%r9,%r2			/*  r9 <- global ptr */
 	stmw	%r9,20(%r6)
+
+	/* FPRs */
+	stfd	%f14,112+0*8(%r6)
+	stfd	%f15,112+1*8(%r6)
+	stfd	%f16,112+2*8(%r6)
+	stfd	%f17,112+3*8(%r6)
+	stfd	%f18,112+4*8(%r6)
+	stfd	%f19,112+5*8(%r6)
+	stfd	%f20,112+6*8(%r6)
+	stfd	%f21,112+7*8(%r6)
+	stfd	%f22,112+8*8(%r6)
+	stfd	%f23,112+9*8(%r6)
+	stfd	%f24,112+10*8(%r6)
+	stfd	%f25,112+11*8(%r6)
+	stfd	%f26,112+12*8(%r6)
+	stfd	%f27,112+13*8(%r6)
+	stfd	%f28,112+14*8(%r6)
+	stfd	%f29,112+15*8(%r6)
+	stfd	%f30,112+16*8(%r6)
+	stfd	%f31,112+17*8(%r6)
+
 	li	%r3,0			/* return (0) */
 	blr
+END(setjmp)
 
 	WEAK_REFERENCE(CNAME(__longjmp), longjmp)
 ENTRY(__longjmp)
 	lmw	%r9,20(%r3)		/* restore regs */
+
+	/* FPRs */
+	lfd	%f14,112+0*8(%r3)
+	lfd	%f15,112+1*8(%r3)
+	lfd	%f16,112+2*8(%r3)
+	lfd	%f17,112+3*8(%r3)
+	lfd	%f18,112+4*8(%r3)
+	lfd	%f19,112+5*8(%r3)
+	lfd	%f20,112+6*8(%r3)
+	lfd	%f21,112+7*8(%r3)
+	lfd	%f22,112+8*8(%r3)
+	lfd	%f23,112+9*8(%r3)
+	lfd	%f24,112+10*8(%r3)
+	lfd	%f25,112+11*8(%r3)
+	lfd	%f26,112+12*8(%r3)
+	lfd	%f27,112+13*8(%r3)
+	lfd	%f28,112+14*8(%r3)
+	lfd	%f29,112+15*8(%r3)
+	lfd	%f30,112+16*8(%r3)
+	lfd	%f31,112+17*8(%r3)
+
 	mr	%r6,%r4			/* save val param */
 	mtlr	%r11			/* r11 -> link reg */
 	mtcr	%r12			/* r12 -> condition reg */
@@ -86,5 +129,6 @@ ENTRY(__longjmp)
 	bnelr
 	li	%r3,1
 	blr
+END(__longjmp)
 
 	.section .note.GNU-stack,"",%progbits

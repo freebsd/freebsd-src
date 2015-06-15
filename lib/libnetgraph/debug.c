@@ -62,12 +62,15 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_atmllc.h>
 #include <netgraph/ng_bpf.h>
 #include <netgraph/ng_bridge.h>
+#include <netgraph/ng_car.h>
 #include <netgraph/ng_cisco.h>
+#include <netgraph/ng_deflate.h>
 #include <netgraph/ng_device.h>
 #include <netgraph/ng_echo.h>
 #include <netgraph/ng_eiface.h>
 #include <netgraph/ng_etf.h>
 #include <netgraph/ng_ether.h>
+#include <netgraph/ng_ether_echo.h>
 #include <netgraph/ng_frame_relay.h>
 #include <netgraph/ng_gif.h>
 #include <netgraph/ng_gif_demux.h>
@@ -81,15 +84,20 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_lmi.h>
 #include <netgraph/ng_mppc.h>
 #include <netgraph/ng_nat.h>
+#include <netgraph/netflow/ng_netflow.h>
 #include <netgraph/ng_one2many.h>
+#include <netgraph/ng_patch.h>
+#include <netgraph/ng_pipe.h>
 #include <netgraph/ng_ppp.h>
 #include <netgraph/ng_pppoe.h>
 #include <netgraph/ng_pptpgre.h>
+#include <netgraph/ng_pred1.h>
 #include <netgraph/ng_rfc1490.h>
 #include <netgraph/ng_socket.h>
 #include <netgraph/ng_source.h>
 #include <netgraph/ng_split.h>
 #include <netgraph/ng_sppp.h>
+#include <netgraph/ng_tag.h>
 #include <netgraph/ng_tcpmss.h>
 #include <netgraph/ng_tee.h>
 #include <netgraph/ng_tty.h>
@@ -129,12 +137,15 @@ static const struct ng_cookie cookies[] = {
 	COOKIE(ATMLLC),
 	COOKIE(BPF),
 	COOKIE(BRIDGE),
+	COOKIE(CAR),
 	COOKIE(CISCO),
+	COOKIE(DEFLATE),
 	COOKIE(DEVICE),
 	COOKIE(ECHO),
 	COOKIE(EIFACE),
 	COOKIE(ETF),
 	COOKIE(ETHER),
+	COOKIE(ETHER_ECHO),
 	COOKIE(FRAMERELAY),
 	COOKIE(GIF),
 	COOKIE(GIF_DEMUX),
@@ -149,15 +160,20 @@ static const struct ng_cookie cookies[] = {
 	COOKIE(LMI),
 	COOKIE(MPPC),
 	COOKIE(NAT),
+	COOKIE(NETFLOW),
 	COOKIE(ONE2MANY),
+	COOKIE(PATCH),
+	COOKIE(PIPE),
 	COOKIE(PPP),
 	COOKIE(PPPOE),
 	COOKIE(PPTPGRE),
+	COOKIE(PRED1),
 	COOKIE(RFC1490),
 	COOKIE(SOCKET),
 	COOKIE(SOURCE),
 	COOKIE(SPLIT),
 	COOKIE(SPPP),
+	COOKIE(TAG),
 	COOKIE(TCPMSS),
 	COOKIE(TEE),
 	COOKIE(TTY),
@@ -181,9 +197,8 @@ NgSetDebug(int level)
 {
 	int old = _gNgDebugLevel;
 
-	if (level < 0)
-		level = old;
-	_gNgDebugLevel = level;
+	if (level >= 0)
+		_gNgDebugLevel = level;
 	return (old);
 }
 
@@ -225,10 +240,10 @@ _NgDebugMsg(const struct ng_mesg *msg, const char *path)
 	/* Display header stuff */
 	NGLOGX("NG_MESG :");
 	NGLOGX("  vers   %d", msg->header.version);
-	NGLOGX("  arglen %d", msg->header.arglen);
-	NGLOGX("  flags  %ld", msg->header.flags);
-	NGLOGX("  token  %lu", (u_long)msg->header.token);
-	NGLOGX("  cookie %s (%d)",
+	NGLOGX("  arglen %u", msg->header.arglen);
+	NGLOGX("  flags  %x", msg->header.flags);
+	NGLOGX("  token  %u", msg->header.token);
+	NGLOGX("  cookie %s (%u)",
 	    NgCookie(msg->header.typecookie), msg->header.typecookie);
 
 	/* At lower debugging levels, skip ASCII translation */

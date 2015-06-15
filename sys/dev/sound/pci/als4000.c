@@ -818,22 +818,12 @@ als_pci_attach(device_t dev)
          * ALS4000 is entirely controlled by the pci powerstate.  We
          * could attempt finer grained control by setting GCR6.31.
 	 */
-#if __FreeBSD_version > 500000
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		/* Reset the power state. */
 		device_printf(dev, "chip is in D%d power mode "
 			      "-- setting to D0\n", pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
-#else
-	data = pci_read_config(dev, ALS_PCI_POWERREG, 2);
-	if ((data & 0x03) != 0) {
-		device_printf(dev, "chip is in D%d power mode "
-			      "-- setting to D0\n", data & 0x03);
-		data &= ~0x03;
-		pci_write_config(dev, ALS_PCI_POWERREG, data, 2);
-	}
-#endif
 
 	if (als_resource_grab(dev, sc)) {
 		device_printf(dev, "failed to allocate resources\n");

@@ -14,8 +14,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/GCs.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
+#include "llvm/CodeGen/GCs.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -28,6 +28,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -35,8 +36,8 @@ namespace {
 
   class ErlangGCPrinter : public GCMetadataPrinter {
   public:
-    void beginAssembly(AsmPrinter &AP);
-    void finishAssembly(AsmPrinter &AP);
+    void finishAssembly(Module &M, GCModuleInfo &Info,
+                        AsmPrinter &AP) override;
   };
 
 }
@@ -46,11 +47,11 @@ X("erlang", "erlang-compatible garbage collector");
 
 void llvm::linkErlangGCPrinter() { }
 
-void ErlangGCPrinter::beginAssembly(AsmPrinter &AP) { }
-
-void ErlangGCPrinter::finishAssembly(AsmPrinter &AP) {
+void ErlangGCPrinter::finishAssembly(Module &M, GCModuleInfo &Info,
+                                     AsmPrinter &AP) {
   MCStreamer &OS = AP.OutStreamer;
-  unsigned IntPtrSize = AP.TM.getDataLayout()->getPointerSize();
+  unsigned IntPtrSize =
+      AP.TM.getSubtargetImpl()->getDataLayout()->getPointerSize();
 
   // Put this in a custom .note section.
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getContext()
@@ -58,9 +59,13 @@ void ErlangGCPrinter::finishAssembly(AsmPrinter &AP) {
                    SectionKind::getDataRel()));
 
   // For each function...
-  for (iterator FI = begin(), FE = end(); FI != FE; ++FI) {
+  for (GCModuleInfo::FuncInfoVec::iterator FI = Info.funcinfo_begin(),
+         IE = Info.funcinfo_end();
+       FI != IE; ++FI) {
     GCFunctionInfo &MD = **FI;
-
+    if (MD.getStrategy().getName() != getStrategy().getName())
+      // this function is managed by some other GC
+      continue;
     /** A compact GC layout. Emit this data structure:
      *
      * struct {

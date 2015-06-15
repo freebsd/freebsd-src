@@ -35,6 +35,7 @@
 #define	MDT_DEPEND	1		/* argument is a module name */
 #define	MDT_MODULE	2		/* module declaration */
 #define	MDT_VERSION	3		/* module version(s) */
+#define	MDT_PNP_INFO	4		/* Plug and play hints record */
 
 #define	MDT_STRUCT_VERSION	1	/* version of metadata structure */
 #define	MDT_SETNAME	"modmetadata_set"
@@ -70,7 +71,7 @@ typedef union modspecific {
 } modspecific_t;
 
 /*
- * Module dependency declarartion
+ * Module dependency declaration
  */
 struct mod_depend {
 	int	md_ver_minimum;
@@ -106,7 +107,8 @@ struct mod_metadata {
 	DATA_SET(modmetadata_set, _mod_metadata##uniquifier)
 
 #define	MODULE_DEPEND(module, mdepend, vmin, vpref, vmax)		\
-	static struct mod_depend _##module##_depend_on_##mdepend = {	\
+	static struct mod_depend _##module##_depend_on_##mdepend	\
+	    __section(".data") = {					\
 		vmin,							\
 		vpref,							\
 		vmax							\
@@ -146,7 +148,8 @@ struct mod_metadata {
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
 
 #define	MODULE_VERSION(module, version)					\
-	static struct mod_version _##module##_version = {		\
+	static struct mod_version _##module##_version			\
+	    __section(".data") = {					\
 		version							\
 	};								\
 	MODULE_METADATA(_##module##_version, MDT_VERSION,		\

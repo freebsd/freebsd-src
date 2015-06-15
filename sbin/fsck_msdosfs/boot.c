@@ -181,7 +181,7 @@ readboot(int dosfs, struct bootblock *boot)
 	    boot->bpbResSectors + boot->bpbFATs * boot->FATsecs -
 	    CLUST_FIRST * boot->bpbSecPerClust;
 
-	if (boot->bpbBytesPerSec % DOSBOOTBLOCKSIZE != 0) {
+	if (boot->bpbBytesPerSec % DOSBOOTBLOCKSIZE_REAL != 0) {
 		pfatal("Invalid sector size: %u", boot->bpbBytesPerSec);
 		return FSFATAL;
 	}

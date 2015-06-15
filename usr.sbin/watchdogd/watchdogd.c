@@ -87,7 +87,7 @@ static int is_dry_run = 0;  /* do not arm the watchdog, only
 static int do_timedog = 0;
 static int do_syslog = 1;
 static int fd = -1;
-static int nap = 1;
+static int nap = 10;
 static int carp_thresh_seconds = -1;
 static char *test_cmd = NULL;
 

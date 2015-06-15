@@ -198,6 +198,14 @@ struct xen_machphys_mapping {
 typedef struct xen_machphys_mapping xen_machphys_mapping_t;
 DEFINE_XEN_GUEST_HANDLE(xen_machphys_mapping_t);
 
+#define XENMAPSPACE_shared_info  0 /* shared info page */
+#define XENMAPSPACE_grant_table  1 /* grant table page */
+#define XENMAPSPACE_gmfn         2 /* GMFN */
+#define XENMAPSPACE_gmfn_range   3 /* GMFN range, XENMEM_add_to_physmap only. */
+#define XENMAPSPACE_gmfn_foreign 4 /* GMFN from another dom,
+                                    * XENMEM_add_to_physmap_range only.
+                                    */
+
 /*
  * Sets the GPFN at which a particular page appears in the specified guest's
  * pseudophysical address space.
@@ -247,6 +255,31 @@ DEFINE_XEN_GUEST_HANDLE(xen_remove_from_physmap_t);
 
 /*** REMOVED ***/
 /*#define XENMEM_translate_gpfn_list  8*/
+
+#define XENMEM_add_to_physmap_range 23
+struct xen_add_to_physmap_range {
+    /* IN */
+    /* Which domain to change the mapping for. */
+    domid_t domid;
+    uint16_t space; /* => enum phys_map_space */
+
+    /* Number of pages to go through */
+    uint16_t size;
+    domid_t foreign_domid; /* IFF gmfn_foreign */
+
+    /* Indexes into space being mapped. */
+    XEN_GUEST_HANDLE(xen_ulong_t) idxs;
+
+    /* GPFN in domid where the source mapping page should appear. */
+    XEN_GUEST_HANDLE(xen_pfn_t) gpfns;
+
+    /* OUT */
+
+    /* Per index error code. */
+    XEN_GUEST_HANDLE(int) errs;
+};
+typedef struct xen_add_to_physmap_range xen_add_to_physmap_range_t;
+DEFINE_XEN_GUEST_HANDLE(xen_add_to_physmap_range_t);
 
 /*
  * Returns the pseudo-physical memory map as it was when the domain

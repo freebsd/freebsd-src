@@ -33,11 +33,36 @@ __FBSDID("$FreeBSD$");
 .fpu	vfp
 .syntax	unified
 
+/* void __aeabi_cfcmpeq(float, float) */
+AEABI_ENTRY(cfcmpeq)
+	LOAD_SREGS(s0, s1, r0, r1)
+	vcmp.f32	s0, s1
+	vmrs     	APSR_nzcv, fpscr
+	RET
+AEABI_END(cfcmpeq)
+
+/* void __aeabi_cfcmple(float, float) */
+AEABI_ENTRY(cfcmple)
+	LOAD_SREGS(s0, s1, r0, r1)
+	vcmpe.f32	s0, s1
+	vmrs     	APSR_nzcv, fpscr
+	RET
+AEABI_END(cfcmple)
+
+/* void __aeabi_cfrcmple(float, float) */
+AEABI_ENTRY(cfrcmple)
+	LOAD_SREGS(s0, s1, r0, r1)
+	vcmpe.f32	s1, s0
+	vmrs     	APSR_nzcv, fpscr
+	RET
+AEABI_END(cfrcmple)
+
 /* int __aeabi_fcmpeq(float, float) */
 AEABI_ENTRY(fcmpeq)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      ne
 	movne    r0, #0
 	moveq    r0, #1
 	RET
@@ -48,8 +73,9 @@ AEABI_ENTRY(fcmplt)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      cs
 	movcs    r0, #0
-	movlt    r0, #1
+	movcc    r0, #1
 	RET
 AEABI_END(fcmplt)
 
@@ -58,6 +84,7 @@ AEABI_ENTRY(fcmple)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      hi
 	movhi    r0, #0
 	movls    r0, #1
 	RET
@@ -68,6 +95,7 @@ AEABI_ENTRY(fcmpge)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      lt
 	movlt    r0, #0
 	movge    r0, #1
 	RET
@@ -78,6 +106,7 @@ AEABI_ENTRY(fcmpgt)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      le
 	movle    r0, #0
 	movgt    r0, #1
 	RET
@@ -88,6 +117,7 @@ AEABI_ENTRY(fcmpun)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      vc
 	movvc    r0, #0
 	movvs    r0, #1
 	RET

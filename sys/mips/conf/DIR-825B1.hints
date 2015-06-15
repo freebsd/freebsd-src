@@ -52,12 +52,12 @@ hint.map.1.readonly=0
 
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x0050000
-hint.map.2.end=0x00150000
+hint.map.2.end="search:0x00050000:0x10000:.!/bin/sh"
 hint.map.2.name="kernel"
 hint.map.2.readonly=1
 
 hint.map.3.at="flash/spi0"
-hint.map.3.start=0x00150000
+hint.map.3.start="search:0x00050000:0x10000:.!/bin/sh"
 hint.map.3.end=0x00660000
 hint.map.3.name="rootfs"
 hint.map.3.readonly=0

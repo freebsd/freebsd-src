@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_DRIVER_COMPILATION_H_
-#define CLANG_DRIVER_COMPILATION_H_
+#ifndef LLVM_CLANG_DRIVER_COMPILATION_H
+#define LLVM_CLANG_DRIVER_COMPILATION_H
 
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Util.h"
@@ -69,6 +69,9 @@ class Compilation {
   /// Redirection for stdout, stderr, etc.
   const StringRef **Redirects;
 
+  /// Whether we're compiling for diagnostic purposes.
+  bool ForDiagnostics;
+
 public:
   Compilation(const Driver &D, const ToolChain &DefaultToolChain,
               llvm::opt::InputArgList *Args,
@@ -91,7 +94,7 @@ public:
   JobList &getJobs() { return Jobs; }
   const JobList &getJobs() const { return Jobs; }
 
-  void addCommand(Command *C) { Jobs.addJob(C); }
+  void addCommand(std::unique_ptr<Command> C) { Jobs.addJob(std::move(C)); }
 
   const llvm::opt::ArgStringList &getTempFiles() const { return TempFiles; }
 
@@ -173,6 +176,9 @@ public:
   /// so compilation can be reexecuted to generate additional diagnostic
   /// information (e.g., preprocessed source(s)).
   void initCompilationForDiagnostics();
+
+  /// Return true if we're compiling for diagnostics.
+  bool isForDiagnostics() { return ForDiagnostics; }
 };
 
 } // end namespace driver

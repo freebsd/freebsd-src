@@ -12,12 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SERIALIZATION_MODULE_MANAGER_H
-#define LLVM_CLANG_SERIALIZATION_MODULE_MANAGER_H
+#ifndef LLVM_CLANG_SERIALIZATION_MODULEMANAGER_H
+#define LLVM_CLANG_SERIALIZATION_MODULEMANAGER_H
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Serialization/Module.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
 
 namespace clang { 
 
@@ -40,7 +41,8 @@ class ModuleManager {
   FileManager &FileMgr;
   
   /// \brief A lookup of in-memory (virtual file) buffers
-  llvm::DenseMap<const FileEntry *, llvm::MemoryBuffer *> InMemoryBuffers;
+  llvm::DenseMap<const FileEntry *, std::unique_ptr<llvm::MemoryBuffer>>
+      InMemoryBuffers;
 
   /// \brief The visitation order.
   SmallVector<ModuleFile *, 4> VisitOrder;
@@ -65,7 +67,7 @@ class ModuleManager {
   /// calls to visit().
   struct VisitState {
     explicit VisitState(unsigned N)
-      : VisitNumber(N, 0), NextVisitNumber(1), NextState(0)
+      : VisitNumber(N, 0), NextVisitNumber(1), NextState(nullptr)
     {
       Stack.reserve(N);
     }
@@ -140,7 +142,7 @@ public:
   ModuleFile *lookup(const FileEntry *File);
 
   /// \brief Returns the in-memory (virtual file) buffer with the given name
-  llvm::MemoryBuffer *lookupBuffer(StringRef Name);
+  std::unique_ptr<llvm::MemoryBuffer> lookupBuffer(StringRef Name);
   
   /// \brief Number of modules loaded
   unsigned size() const { return Chain.size(); }
@@ -177,6 +179,12 @@ public:
   /// \param ExpectedModTime The expected modification time of the module
   /// file, used for validation. This will be zero if unknown.
   ///
+  /// \param ExpectedSignature The expected signature of the module file, used
+  /// for validation. This will be zero if unknown.
+  ///
+  /// \param ReadSignature Reads the signature from an AST file without actually
+  /// loading it.
+  ///
   /// \param Module A pointer to the module file if the module was successfully
   /// loaded.
   ///
@@ -189,15 +197,20 @@ public:
                             SourceLocation ImportLoc,
                             ModuleFile *ImportedBy, unsigned Generation,
                             off_t ExpectedSize, time_t ExpectedModTime,
+                            ASTFileSignature ExpectedSignature,
+                            std::function<ASTFileSignature(llvm::BitstreamReader &)>
+                                ReadSignature,
                             ModuleFile *&Module,
                             std::string &ErrorStr);
 
   /// \brief Remove the given set of modules.
   void removeModules(ModuleIterator first, ModuleIterator last,
+                     llvm::SmallPtrSetImpl<ModuleFile *> &LoadedSuccessfully,
                      ModuleMap *modMap);
 
   /// \brief Add an in-memory buffer the list of known buffers
-  void addInMemoryBuffer(StringRef FileName, llvm::MemoryBuffer *Buffer);
+  void addInMemoryBuffer(StringRef FileName,
+                         std::unique_ptr<llvm::MemoryBuffer> Buffer);
 
   /// \brief Set the global module index.
   void setGlobalIndex(GlobalModuleIndex *Index);
@@ -230,7 +243,7 @@ public:
   /// Any module that is known to both the global module index and the module
   /// manager that is *not* in this set can be skipped.
   void visit(bool (*Visitor)(ModuleFile &M, void *UserData), void *UserData,
-             llvm::SmallPtrSet<ModuleFile *, 4> *ModuleFilesHit = 0);
+             llvm::SmallPtrSetImpl<ModuleFile *> *ModuleFilesHit = nullptr);
   
   /// \brief Visit each of the modules with a depth-first traversal.
   ///

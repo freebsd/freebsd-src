@@ -27,7 +27,8 @@ class MDNode;
 /// specified pointer, we do a quick local scan of the basic block containing
 /// ScanFrom, to determine if the address is already accessed.
 bool isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
-                                 unsigned Align, const DataLayout *TD = 0);
+                                 unsigned Align,
+                                 const DataLayout *TD = nullptr);
 
 /// FindAvailableLoadedValue - Scan the ScanBB block backwards (starting at
 /// the instruction before ScanFrom) checking to see if we have the value at
@@ -43,14 +44,14 @@ bool isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
 /// If it is set to 0, it will scan the whole block. You can also optionally
 /// specify an alias analysis implementation, which makes this more precise.
 ///
-/// If TBAATag is non-null and a load or store is found, the TBAA tag from the
-/// load or store is recorded there.  If there is no TBAA tag or if no access
+/// If AATags is non-null and a load or store is found, the AA tags from the
+/// load or store are recorded there.  If there are no AA tags or if no access
 /// is found, it is left unmodified.
 Value *FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
                                 BasicBlock::iterator &ScanFrom,
                                 unsigned MaxInstsToScan = 6,
-                                AliasAnalysis *AA = 0,
-                                MDNode **TBAATag = 0);
+                                AliasAnalysis *AA = nullptr,
+                                AAMDNodes *AATags = nullptr);
 
 }
 

@@ -11,7 +11,7 @@
 # are exceptions). Recursive makes usually add MK_FOO=no for options that they wish
 # to omit from that make.
 #
-# Makefiles must include bsd.srcpot.mk before they test the value of any MK_FOO
+# Makefiles must include bsd.mkopt.mk before they test the value of any MK_FOO
 # variable.
 #
 # Makefiles may also assume that this file is included by bsd.own.mk should it
@@ -51,6 +51,7 @@ __<bsd.opts.mk>__:
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
     DOCCOMPRESS \
+    INCLUDES \
     INSTALLLIB \
     KERBEROS \
     MAN \
@@ -68,8 +69,13 @@ __DEFAULT_NO_OPTIONS = \
     CTF \
     DEBUG_FILES \
     INSTALL_AS_USER \
-    INFO
+    STALE_STAGED
 
+# meta mode related
+__DEFAULT_DEPENDENT_OPTIONS = \
+    STAGING_MAN/STAGING \
+    STAGING_PROG/STAGING \
+    
 .include <bsd.mkopt.mk>
 
 #
@@ -91,6 +97,10 @@ __DEFAULT_NO_OPTIONS = \
 MK_${var}:=no
 .endif
 .endfor
+
+.if ${MK_STAGING} == "no"
+MK_STALE_STAGED= no
+.endif
 
 .endif # !_WITHOUT_SRCCONF
 

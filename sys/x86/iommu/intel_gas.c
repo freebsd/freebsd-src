@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -293,6 +294,7 @@ dmar_gas_fini_ctx(struct dmar_ctx *ctx)
 struct dmar_gas_match_args {
 	struct dmar_ctx *ctx;
 	dmar_gaddr_t size;
+	int offset;
 	const struct bus_dma_tag_common *common;
 	u_int gas_flags;
 	struct dmar_map_entry *entry;
@@ -309,31 +311,36 @@ dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
 
 	/* DMAR_PAGE_SIZE to create gap after new entry. */
 	if (a->entry->start < prev->end + DMAR_PAGE_SIZE ||
-	    a->entry->start + a->size + DMAR_PAGE_SIZE > prev->end +
-	    prev->free_after)
+	    a->entry->start + a->size + a->offset + DMAR_PAGE_SIZE >
+	    prev->end + prev->free_after)
 		return (false);
 
 	/* No boundary crossing. */
-	if (dmar_test_boundary(a->entry->start, a->size, a->common->boundary))
+	if (dmar_test_boundary(a->entry->start + a->offset, a->size,
+	    a->common->boundary))
 		return (true);
 
 	/*
-	 * The start to start + size region crosses the boundary.
-	 * Check if there is enough space after the next boundary
-	 * after the prev->end.
+	 * The start + offset to start + offset + size region crosses
+	 * the boundary.  Check if there is enough space after the
+	 * next boundary after the prev->end.
 	 */
-	bs = (a->entry->start + a->common->boundary) & ~(a->common->boundary
-	    - 1);
+	bs = (a->entry->start + a->offset + a->common->boundary) &
+	    ~(a->common->boundary - 1);
 	start = roundup2(bs, a->common->alignment);
 	/* DMAR_PAGE_SIZE to create gap after new entry. */
-	if (start + a->size + DMAR_PAGE_SIZE <= prev->end + prev->free_after &&
-	    start + a->size <= end) {
+	if (start + a->offset + a->size + DMAR_PAGE_SIZE <=
+	    prev->end + prev->free_after &&
+	    start + a->offset + a->size <= end &&
+	    dmar_test_boundary(start + a->offset, a->size,
+	    a->common->boundary)) {
 		a->entry->start = start;
 		return (true);
 	}
 
 	/*
-	 * Not enough space to align at boundary, but allowed to split.
+	 * Not enough space to align at the requested boundary, or
+	 * boundary is smaller than the size, but allowed to split.
 	 * We already checked that start + size does not overlap end.
 	 *
 	 * XXXKIB. It is possible that bs is exactly at the start of
@@ -366,7 +373,8 @@ dmar_gas_match_insert(struct dmar_gas_match_args *a,
 
 	next = RB_NEXT(dmar_gas_entries_tree, &a->ctx->rb_root, prev);
 	KASSERT(next->start >= a->entry->end &&
-	    next->start - a->entry->start >= a->size,
+	    next->start - a->entry->start >= a->size &&
+	    prev->end <= a->entry->end,
 	    ("dmar_gas_match_insert hole failed %p prev (%jx, %jx) "
 	    "free_after %jx next (%jx, %jx) entry (%jx, %jx)", a->ctx,
 	    (uintmax_t)prev->start, (uintmax_t)prev->end,
@@ -406,7 +414,7 @@ dmar_gas_lowermatch(struct dmar_gas_match_args *a, struct dmar_map_entry *prev)
 			return (0);
 		}
 	}
-	if (prev->free_down < a->size + DMAR_PAGE_SIZE)
+	if (prev->free_down < a->size + a->offset + DMAR_PAGE_SIZE)
 		return (ENOMEM);
 	l = RB_LEFT(prev, rb_entry);
 	if (l != NULL) {
@@ -462,7 +470,7 @@ dmar_gas_uppermatch(struct dmar_gas_match_args *a)
 static int
 dmar_gas_find_space(struct dmar_ctx *ctx,
     const struct bus_dma_tag_common *common, dmar_gaddr_t size,
-    u_int flags, struct dmar_map_entry *entry)
+    int offset, u_int flags, struct dmar_map_entry *entry)
 {
 	struct dmar_gas_match_args a;
 	int error;
@@ -473,6 +481,7 @@ dmar_gas_find_space(struct dmar_ctx *ctx,
 
 	a.ctx = ctx;
 	a.size = size;
+	a.offset = offset;
 	a.common = common;
 	a.gas_flags = flags;
 	a.entry = entry;
@@ -614,7 +623,7 @@ dmar_gas_free_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry)
 
 int
 dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
-    dmar_gaddr_t size, u_int eflags, u_int flags, vm_page_t *ma,
+    dmar_gaddr_t size, int offset, u_int eflags, u_int flags, vm_page_t *ma,
     struct dmar_map_entry **res)
 {
 	struct dmar_map_entry *entry;
@@ -628,7 +637,7 @@ dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
 	if (entry == NULL)
 		return (ENOMEM);
 	DMAR_CTX_LOCK(ctx);
-	error = dmar_gas_find_space(ctx, common, size, flags, entry);
+	error = dmar_gas_find_space(ctx, common, size, offset, flags, entry);
 	if (error == ENOMEM) {
 		DMAR_CTX_UNLOCK(ctx);
 		dmar_gas_free_entry(ctx, entry);
@@ -645,7 +654,7 @@ dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
 	entry->flags |= eflags;
 	DMAR_CTX_UNLOCK(ctx);
 
-	error = ctx_map_buf(ctx, entry->start, size, ma,
+	error = ctx_map_buf(ctx, entry->start, entry->end - entry->start, ma,
 	    ((eflags & DMAR_MAP_ENTRY_READ) != 0 ? DMAR_PTE_R : 0) |
 	    ((eflags & DMAR_MAP_ENTRY_WRITE) != 0 ? DMAR_PTE_W : 0) |
 	    ((eflags & DMAR_MAP_ENTRY_SNOOP) != 0 ? DMAR_PTE_SNP : 0) |

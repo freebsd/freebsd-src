@@ -19,8 +19,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_SCALAR_ARCRUNTIMEENTRYPOINTS_H
-#define LLVM_TRANSFORMS_SCALAR_ARCRUNTIMEENTRYPOINTS_H
+#ifndef LLVM_LIB_TRANSFORMS_OBJCARC_ARCRUNTIMEENTRYPOINTS_H
+#define LLVM_LIB_TRANSFORMS_OBJCARC_ARCRUNTIMEENTRYPOINTS_H
 
 #include "ObjCARC.h"
 
@@ -43,34 +43,34 @@ public:
     EPT_RetainAutoreleaseRV
   };
 
-  ARCRuntimeEntryPoints() : TheModule(0),
-                            AutoreleaseRV(0),
-                            Release(0),
-                            Retain(0),
-                            RetainBlock(0),
-                            Autorelease(0),
-                            StoreStrong(0),
-                            RetainRV(0),
-                            RetainAutorelease(0),
-                            RetainAutoreleaseRV(0) { }
+  ARCRuntimeEntryPoints() : TheModule(nullptr),
+                            AutoreleaseRV(nullptr),
+                            Release(nullptr),
+                            Retain(nullptr),
+                            RetainBlock(nullptr),
+                            Autorelease(nullptr),
+                            StoreStrong(nullptr),
+                            RetainRV(nullptr),
+                            RetainAutorelease(nullptr),
+                            RetainAutoreleaseRV(nullptr) { }
 
   ~ARCRuntimeEntryPoints() { }
 
   void Initialize(Module *M) {
     TheModule = M;
-    AutoreleaseRV = 0;
-    Release = 0;
-    Retain = 0;
-    RetainBlock = 0;
-    Autorelease = 0;
-    StoreStrong = 0;
-    RetainRV = 0;
-    RetainAutorelease = 0;
-    RetainAutoreleaseRV = 0;
+    AutoreleaseRV = nullptr;
+    Release = nullptr;
+    Retain = nullptr;
+    RetainBlock = nullptr;
+    Autorelease = nullptr;
+    StoreStrong = nullptr;
+    RetainRV = nullptr;
+    RetainAutorelease = nullptr;
+    RetainAutoreleaseRV = nullptr;
   }
 
   Constant *get(const EntryPointType entry) {
-    assert(TheModule != 0 && "Not initialized.");
+    assert(TheModule != nullptr && "Not initialized.");
 
     switch (entry) {
     case EPT_AutoreleaseRV:
@@ -183,4 +183,4 @@ private:
 } // namespace objcarc
 } // namespace llvm
 
-#endif // LLVM_TRANSFORMS_SCALAR_ARCRUNTIMEENTRYPOINTS_H
+#endif

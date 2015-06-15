@@ -1,4 +1,4 @@
-//===- AArch64.td - Describe the AArch64 Target Machine -------*- tblgen -*-==//
+//=- AArch64.td - Describe the AArch64 Target Machine --------*- tablegen -*-=//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This is the top level entry point for the AArch64 target.
 //
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// Target-independent interfaces
+// Target-independent interfaces which we are implementing
 //===----------------------------------------------------------------------===//
 
 include "llvm/Target/Target.td"
@@ -22,7 +21,7 @@ include "llvm/Target/Target.td"
 //
 
 def FeatureFPARMv8 : SubtargetFeature<"fp-armv8", "HasFPARMv8", "true",
-  "Enable ARMv8 FP">;
+                                       "Enable ARMv8 FP">;
 
 def FeatureNEON : SubtargetFeature<"neon", "HasNEON", "true",
   "Enable Advanced SIMD instructions", [FeatureFPARMv8]>;
@@ -30,44 +29,107 @@ def FeatureNEON : SubtargetFeature<"neon", "HasNEON", "true",
 def FeatureCrypto : SubtargetFeature<"crypto", "HasCrypto", "true",
   "Enable cryptographic instructions">;
 
-//===----------------------------------------------------------------------===//
-// AArch64 Processors
-//
+def FeatureCRC : SubtargetFeature<"crc", "HasCRC", "true",
+  "Enable ARMv8 CRC-32 checksum instructions">;
 
-include "AArch64Schedule.td"
+/// Cyclone has register move instructions which are "free".
+def FeatureZCRegMove : SubtargetFeature<"zcm", "HasZeroCycleRegMove", "true",
+                                        "Has zero-cycle register moves">;
 
-def : Processor<"generic", GenericItineraries, [FeatureFPARMv8]>;
+/// Cyclone has instructions which zero registers for "free".
+def FeatureZCZeroing : SubtargetFeature<"zcz", "HasZeroCycleZeroing", "true",
+                                        "Has zero-cycle zeroing instructions">;
 
 //===----------------------------------------------------------------------===//
 // Register File Description
 //===----------------------------------------------------------------------===//
 
 include "AArch64RegisterInfo.td"
-
-include "AArch64CallingConv.td"
+include "AArch64CallingConvention.td"
 
 //===----------------------------------------------------------------------===//
 // Instruction Descriptions
 //===----------------------------------------------------------------------===//
 
+include "AArch64Schedule.td"
 include "AArch64InstrInfo.td"
 
 def AArch64InstrInfo : InstrInfo;
 
 //===----------------------------------------------------------------------===//
-// Assembly printer
+// AArch64 Processors supported.
+//
+include "AArch64SchedA53.td"
+include "AArch64SchedA57.td"
+include "AArch64SchedCyclone.td"
+
+def ProcA53     : SubtargetFeature<"a53", "ARMProcFamily", "CortexA53",
+                                   "Cortex-A53 ARM processors",
+                                   [FeatureFPARMv8,
+                                   FeatureNEON,
+                                   FeatureCrypto,
+                                   FeatureCRC]>;
+
+def ProcA57     : SubtargetFeature<"a57", "ARMProcFamily", "CortexA57",
+                                   "Cortex-A57 ARM processors",
+                                   [FeatureFPARMv8,
+                                   FeatureNEON,
+                                   FeatureCrypto,
+                                   FeatureCRC]>;
+
+def ProcCyclone : SubtargetFeature<"cyclone", "ARMProcFamily", "Cyclone",
+                                   "Cyclone",
+                                   [FeatureFPARMv8,
+                                   FeatureNEON,
+                                   FeatureCrypto,
+                                   FeatureCRC,
+                                   FeatureZCRegMove, FeatureZCZeroing]>;
+
+def : ProcessorModel<"generic", NoSchedModel, [FeatureFPARMv8,
+                                              FeatureNEON,
+                                              FeatureCRC]>;
+
+def : ProcessorModel<"cortex-a53", CortexA53Model, [ProcA53]>;
+def : ProcessorModel<"cortex-a57", CortexA57Model, [ProcA57]>;
+def : ProcessorModel<"cyclone", CycloneModel, [ProcCyclone]>;
+
+//===----------------------------------------------------------------------===//
+// Assembly parser
 //===----------------------------------------------------------------------===//
 
-def A64InstPrinter : AsmWriter {
-  string AsmWriterClassName = "InstPrinter";
-  bit isMCAsmWriter = 1;
+def GenericAsmParserVariant : AsmParserVariant {
+  int Variant = 0;
+  string Name = "generic";
+}
+
+def AppleAsmParserVariant : AsmParserVariant {
+  int Variant = 1;
+  string Name = "apple-neon";
 }
 
 //===----------------------------------------------------------------------===//
-// Declare the target which we are implementing
+// Assembly printer
+//===----------------------------------------------------------------------===//
+// AArch64 Uses the MC printer for asm output, so make sure the TableGen
+// AsmWriter bits get associated with the correct class.
+def GenericAsmWriter : AsmWriter {
+  string AsmWriterClassName  = "InstPrinter";
+  int Variant = 0;
+  bit isMCAsmWriter = 1;
+}
+
+def AppleAsmWriter : AsmWriter {
+  let AsmWriterClassName = "AppleInstPrinter";
+  int Variant = 1;
+  int isMCAsmWriter = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// Target Declaration
 //===----------------------------------------------------------------------===//
 
 def AArch64 : Target {
   let InstructionSet = AArch64InstrInfo;
-  let AssemblyWriters = [A64InstPrinter];
+  let AssemblyParserVariants = [GenericAsmParserVariant, AppleAsmParserVariant];
+  let AssemblyWriters = [GenericAsmWriter, AppleAsmWriter];
 }

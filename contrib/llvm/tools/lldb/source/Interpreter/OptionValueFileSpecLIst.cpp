@@ -51,6 +51,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
     {
         case eVarSetOperationClear:
             Clear ();
+            NotifyValueChanged();
             break;
             
         case eVarSetOperationReplace:
@@ -72,6 +73,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                         else
                             m_current_value.Append(file);
                     }
+                    NotifyValueChanged();
                 }
             }
             else
@@ -94,6 +96,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                     FileSpec file (args.GetArgumentAtIndex(i), false);
                     m_current_value.Append(file);
                 }
+                NotifyValueChanged();
             }
             else
             {
@@ -120,6 +123,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                         FileSpec file (args.GetArgumentAtIndex(i), false);
                         m_current_value.Insert (idx, file);
                     }
+                    NotifyValueChanged();
                 }
             }
             else
@@ -155,6 +159,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                             m_current_value.Remove (j);
                         }
                     }
+                    NotifyValueChanged();
                 }
                 else
                 {
@@ -172,9 +177,6 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
             break;
     }
     return error;
-
-    m_value_was_set = true;
-    return Error();
 }
 
 lldb::OptionValueSP

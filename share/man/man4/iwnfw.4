@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd August 30, 2014
 .Dt IWNFW 4
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@ If you want to pick only the firmware image for your network adapter choose one
 of the following:
 .Bd -ragged -offset indent
 .Cd "device iwn1000fw"
+.Cd "device iwn100fw"
 .Cd "device iwn105fw"
 .Cd "device iwn135fw"
 .Cd "device iwn2000fw"
@@ -61,6 +62,7 @@ module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 iwn1000fw_load="YES"
+iwn100fw_load="YES"
 iwn105fw_load="YES"
 iwn135fw_load="YES"
 iwn2000fw_load="YES"
@@ -75,7 +77,7 @@ iwn6050fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This module provides access to firmware sets for the
-Intel Wireless WiFi Link 105, 135, 1000, 2000, 2030, 4965, 5000 and 6000 series of
+Intel Wireless WiFi Link 100, 105, 135, 1000, 2000, 2030, 4965, 5000 and 6000 series of
 IEEE 802.11n adapters.
 It may be
 statically linked into the kernel, or loaded as a module.

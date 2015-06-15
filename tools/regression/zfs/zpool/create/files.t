@@ -4,6 +4,8 @@
 dir=`dirname $0`
 . ${dir}/../../misc.sh
 
+[ "${os}" = "FreeBSD" ] && die "panics FreeBSD; see bug # 194589"
+
 echo "1..59"
 
 files_create 5

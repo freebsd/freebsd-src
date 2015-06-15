@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ATTRKINDS_H
-#define LLVM_CLANG_ATTRKINDS_H
+#ifndef LLVM_CLANG_BASIC_ATTRKINDS_H
+#define LLVM_CLANG_BASIC_ATTRKINDS_H
 
 namespace clang {
 
@@ -24,7 +24,6 @@ enum Kind {
 #define ATTR(X) X,
 #define LAST_INHERITABLE_ATTR(X) X, LAST_INHERITABLE = X,
 #define LAST_INHERITABLE_PARAM_ATTR(X) X, LAST_INHERITABLE_PARAM = X,
-#define LAST_MS_INHERITANCE_ATTR(X) X, LAST_MS_INHERITANCE = X,
 #include "clang/Basic/AttrList.inc"
   NUM_ATTRS
 };

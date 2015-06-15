@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -419,7 +419,7 @@ xlp_ax_nae_lane_reset_txpll(uint64_t nae_base, int block, int lane_ctrl,
 	    | val );
 
 	while (((val = nlm_read_nae_reg(nae_base,
-	    NAE_REG(block, PHY, lane_ctrl))) & 
+	    NAE_REG(block, PHY, lane_ctrl))) &
 	    PHY_LANE_CTRL_CMD_PENDING));
 
 	val &= 0xFF;
@@ -447,7 +447,7 @@ xlp_ax_nae_lane_reset_txpll(uint64_t nae_base, int block, int lane_ctrl,
 	    | val );
 
 	while (!((val = nlm_read_nae_reg(nae_base,
-	    NAE_REG(block, PHY, (lane_ctrl - PHY_LANE_0_CTRL)))) & 
+	    NAE_REG(block, PHY, (lane_ctrl - PHY_LANE_0_CTRL)))) &
 	    PHY_LANE_STAT_PCR));
 
 	/* Clear the Power Down bit */
@@ -585,8 +585,8 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 			offset = size;
 		if (offset > cfg[hwport].max_stg2_offset)
 			offset = cfg[hwport].max_stg2_offset;
-		data = offset << 23  | 
-		    start << 11 |	
+		data = offset << 23  |
+		    start << 11 |
 		    i << 1      |
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_STG2_PMEM_PROG, data);
@@ -595,7 +595,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 	cur_start[0] = start;
 
 	/* EH FIFO */
-	start  = cur_start[1];	
+	start  = cur_start[1];
 	for (i = start_ctxt; i < limit; i++) {
 		size = cfg[hwport].eh_fifo_size / max_ctxts;
 		if (size)
@@ -604,7 +604,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 			offset = size ;
 		if (offset > cfg[hwport].max_eh_offset)
 		    offset = cfg[hwport].max_eh_offset;
-		data = offset << 23  | 
+		data = offset << 23  |
 		    start << 11 |
 		    i << 1      |
 		    1;
@@ -614,7 +614,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 	cur_start[1] = start;
 
 	/* FROUT FIFO */
-	start  = cur_start[2];	
+	start  = cur_start[2];
 	for (i = start_ctxt; i < limit; i++) {
 		size = cfg[hwport].frout_fifo_size / max_ctxts;
 		if (size)
@@ -623,8 +623,8 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 			offset = size ;
 		if (offset > cfg[hwport].max_frout_offset)
 			offset = cfg[hwport].max_frout_offset;
-		data = offset << 23  | 
-		    start << 11 |	
+		data = offset << 23  |
+		    start << 11 |
 		    i << 1      |
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_FREE_PMEM_PROG, data);
@@ -633,7 +633,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 	cur_start[2] = start;
 
 	/* MS FIFO */
-	start = cur_start[3];	
+	start = cur_start[3];
 	for (i = start_ctxt; i < limit; i++) {
 		size = cfg[hwport].ms_fifo_size / max_ctxts;
 		if (size)
@@ -643,7 +643,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 		if (offset > cfg[hwport].max_ms_offset)
 			offset = cfg[hwport].max_ms_offset;
 		data = offset << 22  |	/* FIXME in PRM */
-		    start << 11 |	
+		    start << 11 |
 		    i << 1      |
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_STR_PMEM_CMD, data);
@@ -652,7 +652,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 	cur_start[3] = start;
 
 	/* PKT FIFO */
-	start  = cur_start[4];	
+	start  = cur_start[4];
 	for (i = start_ctxt; i < limit; i++) {
 		size = cfg[hwport].pkt_fifo_size / max_ctxts;
 		if (size)
@@ -663,7 +663,7 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 			offset = cfg[hwport].max_pmem_offset;
 		nlm_write_nae_reg(nae_base, NAE_TX_PKT_PMEM_CMD1, offset);
 
-		data = start << 11	|	
+		data = start << 11	|
 		    i << 1		|
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_TX_PKT_PMEM_CMD0, data);
@@ -672,15 +672,15 @@ config_egress_fifo_carvings(uint64_t nae_base, int hwport, int start_ctxt,
 	cur_start[4] = start;
 
 	/* PKT LEN FIFO */
-	start  = cur_start[5];	
+	start  = cur_start[5];
 	for (i = start_ctxt; i < limit; i++) {
 		size = cfg[hwport].pktlen_fifo_size / max_ctxts;
 		if (size)
 			offset = size - 1;
 		else
 			offset = size ;
-		data = offset  << 22	|	
-		    start << 11		|	
+		data = offset  << 22	|
+		    start << 11		|
 		    i << 1		|
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_TX_PKTLEN_PMEM_CMD, data);
@@ -703,7 +703,7 @@ config_egress_fifo_credits(uint64_t nae_base, int hwport, int start_ctxt,
 		credit = cfg[hwport].stg1_2_credit / max_ctxts;
 		if (credit > max_credit)
 		    credit = max_credit;
-		data = credit << 16	| 
+		data = credit << 16	|
 		    i << 4		|
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_STG1_STG2CRDT_CMD, data);
@@ -715,7 +715,7 @@ config_egress_fifo_credits(uint64_t nae_base, int hwport, int start_ctxt,
 		credit = cfg[hwport].stg2_eh_credit / max_ctxts;
 		if (credit > max_credit)
 			credit = max_credit;
-		data = credit << 16	| 
+		data = credit << 16	|
 		    i << 4		|
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_STG2_EHCRDT_CMD, data);
@@ -727,7 +727,7 @@ config_egress_fifo_credits(uint64_t nae_base, int hwport, int start_ctxt,
 		credit = cfg[hwport].stg2_frout_credit / max_ctxts;
 		if (credit > max_credit)
 			credit = max_credit;
-		data = credit << 16	| 
+		data = credit << 16	|
 		    i << 4		|
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_EH_FREECRDT_CMD, data);
@@ -739,7 +739,7 @@ config_egress_fifo_credits(uint64_t nae_base, int hwport, int start_ctxt,
 		credit = cfg[hwport].stg2_ms_credit / max_ctxts;
 		if (credit > max_credit)
 			credit = max_credit;
-		data = credit << 16	| 
+		data = credit << 16	|
 		    i << 4		|
 		    1;
 		nlm_write_nae_reg(nae_base, NAE_STG2_STRCRDT_CMD, data);
@@ -970,12 +970,12 @@ nlm_enable_hardware_parser(uint64_t nae_base)
 	val |= (1 << 12); /* hardware parser enable */
 	nlm_write_nae_reg(nae_base, NAE_RX_CONFIG, val);
 
-	/*********************************************** 
+	/***********************************************
 	 * program L3 CAM table
 	 ***********************************************/
 
 	/*
-	 *  entry-0 is ipv4 MPLS type 1 label 
+	 *  entry-0 is ipv4 MPLS type 1 label
 	 */
 	 /* l3hdroff = 4 bytes, ether_type = 0x8847 for MPLS_type1 */
 	nlm_setup_l3ctable_even(nae_base, 0, 4, 1, 9, 1, 0x8847);
@@ -1018,11 +1018,11 @@ nlm_enable_hardware_parser(uint64_t nae_base)
 	nlm_setup_l3ctable_even(nae_base, 4, 0, 0, 9, 1, 0x8906);
 	/* FCoE packet consists of 4 byte start-of-frame,
 	 * and 24 bytes of frame header, followed by
-	 * 64 bytes of optional-header (ESP, network..), 
+	 * 64 bytes of optional-header (ESP, network..),
 	 * 2048 bytes of payload, 36 bytes of optional
 	 * "fill bytes" or ESP trailer, 4 bytes of CRC,
 	 * and 4 bytes of end-of-frame
-	 * We extract the first 4 + 24 = 28 bytes 
+	 * We extract the first 4 + 24 = 28 bytes
 	 */
 	nlm_setup_l3ctable_odd(nae_base, 4, 0, 28, 0, 0, 0, 0);
 
@@ -1116,7 +1116,7 @@ nlm_enable_hardware_parser(uint64_t nae_base)
 	/* We extract 31 bytes from packet start */
 	nlm_setup_l3ctable_odd(nae_base, 15, 0, 31, 0, 0, 0, 0);
 
-	/*********************************************** 
+	/***********************************************
 	 * program L4 CAM table
 	 ***********************************************/
 
@@ -1124,7 +1124,7 @@ nlm_enable_hardware_parser(uint64_t nae_base)
 	 * entry-0 - tcp packets (0x6)
 	 */
 	nlm_setup_l4ctable_even(nae_base, 0, 0, 0, 1, 0, 0, 0x6);
-	/* tcp header is 20 bytes without tcp options 
+	/* tcp header is 20 bytes without tcp options
 	 * We extract 20 bytes from tcp start */
 	nlm_setup_l4ctable_odd(nae_base, 0, 0, 15, 15, 5);
 
@@ -1149,7 +1149,7 @@ nlm_enable_hardware_parser(uint64_t nae_base)
 	 * entry-3 - RDP packets (0x1b)
 	 */
 	nlm_setup_l4ctable_even(nae_base, 3, 0, 0, 1, 0, 0, 0x1b);
-	/* RDP packets have 18 bytes of generic header 
+	/* RDP packets have 18 bytes of generic header
 	 * before variable header starts.
 	 * We extract 18 bytes from rdp start */
 	nlm_setup_l4ctable_odd(nae_base, 3, 0, 15, 15, 3);
@@ -1407,7 +1407,7 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
 
 		/* default to 1G */
 		nlm_write_nae_reg(nae_base,
-		    conf2_reg, 
+		    conf2_reg,
 		    (0x7 << 12)	|	/* interface preamble length */
 		    (0x2 << 8)	|	/* interface mode */
 		    (0x1 << 2)	|	/* pad crc enable */
@@ -1444,7 +1444,7 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
 		mac_cfg1 = nlm_read_nae_reg(nae_base, conf1_reg);
 		nlm_write_nae_reg(nae_base, conf1_reg,
 		    mac_cfg1 | (0x3 << 4));
- 		break;
+		break;
 	}
 
 	nlm_nae_init_ingress(nae_base, desc_size);

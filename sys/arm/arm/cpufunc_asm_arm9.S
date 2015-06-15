@@ -130,7 +130,7 @@ ENTRY(arm9_dcache_wb_range)
 	bhi	.Larm9_wb_next
 	mov	pc, lr
 END(arm9_dcache_wb_range)
-	
+
 ENTRY(arm9_dcache_wbinv_range)
 	ldr	ip, .Larm9_line_size
 	cmp	r1, #0x4000
@@ -147,7 +147,7 @@ ENTRY(arm9_dcache_wbinv_range)
 	bhi	.Larm9_wbinv_next
 	mov	pc, lr
 END(arm9_dcache_wbinv_range)
-	
+
 /*
  * Note, we must not invalidate everything.  If the range is too big we
  * must use wb-inv of the entire cache.
@@ -252,7 +252,7 @@ END(arm9_context_switch)
  * four variables is assumed in the code above.  Hence the reason for
  * declaring them in the assembler file.
  */
-	.align 0
+	.align 2
 C_OBJECT(arm9_dcache_sets_max)
 	.space	4
 C_OBJECT(arm9_dcache_index_max)

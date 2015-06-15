@@ -39,14 +39,17 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <libutil.h>
+#include <openssl/md5.h>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
 #define	DEFAULT_BLOCKSIZE		512
 
+#define	MAX_LUNS			1024
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
+#define	SOCKBUF_SIZE			1048576
 
 struct auth {
 	TAILQ_ENTRY(auth)		a_next;
@@ -102,15 +105,49 @@ struct portal {
 	int				p_socket;
 };
 
+#define	PG_FILTER_UNKNOWN		0
+#define	PG_FILTER_NONE			1
+#define	PG_FILTER_PORTAL		2
+#define	PG_FILTER_PORTAL_NAME		3
+#define	PG_FILTER_PORTAL_NAME_AUTH	4
+
 struct portal_group {
 	TAILQ_ENTRY(portal_group)	pg_next;
 	struct conf			*pg_conf;
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
+	int				pg_discovery_filter;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
+	TAILQ_HEAD(, port)		pg_ports;
+	char				*pg_offload;
+	char				*pg_redirection;
 
 	uint16_t			pg_tag;
+};
+
+struct pport {
+	TAILQ_ENTRY(pport)		pp_next;
+	TAILQ_HEAD(, port)		pp_ports;
+	struct conf			*pp_conf;
+	char				*pp_name;
+
+	uint32_t			pp_ctl_port;
+};
+
+struct port {
+	TAILQ_ENTRY(port)		p_next;
+	TAILQ_ENTRY(port)		p_pgs;
+	TAILQ_ENTRY(port)		p_pps;
+	TAILQ_ENTRY(port)		p_ts;
+	struct conf			*p_conf;
+	char				*p_name;
+	struct auth_group		*p_auth_group;
+	struct portal_group		*p_portal_group;
+	struct pport			*p_pport;
+	struct target			*p_target;
+
+	uint32_t			p_ctl_port;
 };
 
 struct lun_option {
@@ -122,13 +159,14 @@ struct lun_option {
 
 struct lun {
 	TAILQ_ENTRY(lun)		l_next;
+	struct conf			*l_conf;
 	TAILQ_HEAD(, lun_option)	l_options;
-	struct target			*l_target;
-	int				l_lun;
+	char				*l_name;
 	char				*l_backend;
 	int				l_blocksize;
 	char				*l_device_id;
 	char				*l_path;
+	char				*l_scsiname;
 	char				*l_serial;
 	int64_t				l_size;
 
@@ -137,24 +175,37 @@ struct lun {
 
 struct target {
 	TAILQ_ENTRY(target)		t_next;
-	TAILQ_HEAD(, lun)		t_luns;
 	struct conf			*t_conf;
+	struct lun			*t_luns[MAX_LUNS];
 	struct auth_group		*t_auth_group;
-	struct portal_group		*t_portal_group;
+	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
+	char				*t_redirection;
+};
+
+struct isns {
+	TAILQ_ENTRY(isns)		i_next;
+	struct conf			*i_conf;
+	char				*i_addr;
+	struct addrinfo			*i_ai;
 };
 
 struct conf {
 	char				*conf_pidfile_path;
+	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
+	TAILQ_HEAD(, port)		conf_ports;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
+	TAILQ_HEAD(, pport)		conf_pports;
+	TAILQ_HEAD(, isns)		conf_isns;
+	int				conf_isns_period;
+	int				conf_isns_timeout;
 	int				conf_debug;
 	int				conf_timeout;
 	int				conf_maxproc;
 
-	uint16_t			conf_last_portal_group_tag;
 #ifdef ICL_KERNEL_PROXY
 	int				conf_portal_id;
 #endif
@@ -174,6 +225,7 @@ struct conf {
 
 struct connection {
 	struct portal		*conn_portal;
+	struct port		*conn_port;
 	struct target		*conn_target;
 	int			conn_socket;
 	int			conn_session_type;
@@ -184,11 +236,14 @@ struct connection {
 	struct sockaddr_storage	conn_initiator_sa;
 	uint32_t		conn_cmdsn;
 	uint32_t		conn_statsn;
+	size_t			conn_data_segment_limit;
 	size_t			conn_max_data_segment_length;
 	size_t			conn_max_burst_length;
 	int			conn_immediate_data;
 	int			conn_header_digest;
 	int			conn_data_digest;
+	const char		*conn_user;
+	struct chap		*conn_chap;
 };
 
 struct pdu {
@@ -207,8 +262,37 @@ struct keys {
 	size_t		keys_data_len;
 };
 
+#define	CHAP_CHALLENGE_LEN	1024
+
+struct chap {
+	unsigned char	chap_id;
+	char		chap_challenge[CHAP_CHALLENGE_LEN];
+	char		chap_response[MD5_DIGEST_LENGTH];
+};
+
+struct rchap {
+	char		*rchap_secret;
+	unsigned char	rchap_id;
+	void		*rchap_challenge;
+	size_t		rchap_challenge_len;
+};
+
+struct chap		*chap_new(void);
+char			*chap_get_id(const struct chap *chap);
+char			*chap_get_challenge(const struct chap *chap);
+int			chap_receive(struct chap *chap, const char *response);
+int			chap_authenticate(struct chap *chap,
+			    const char *secret);
+void			chap_delete(struct chap *chap);
+
+struct rchap		*rchap_new(const char *secret);
+int			rchap_receive(struct rchap *rchap,
+			    const char *id, const char *challenge);
+char			*rchap_get_response(struct rchap *rchap);
+void			rchap_delete(struct rchap *rchap);
+
 struct conf		*conf_new(void);
-struct conf		*conf_new_from_file(const char *path);
+struct conf		*conf_new_from_file(const char *path, struct conf *old);
 struct conf		*conf_new_from_kernel(void);
 void			conf_delete(struct conf *conf);
 int			conf_verify(struct conf *conf);
@@ -217,7 +301,7 @@ struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
-int			auth_group_set_type_str(struct auth_group *ag,
+int			auth_group_set_type(struct auth_group *ag,
 			    const char *type);
 
 const struct auth	*auth_new_chap(struct auth_group *ag,
@@ -233,11 +317,15 @@ const struct auth_name	*auth_name_new(struct auth_group *ag,
 bool			auth_name_defined(const struct auth_group *ag);
 const struct auth_name	*auth_name_find(const struct auth_group *ag,
 			    const char *initiator_name);
+int			auth_name_check(const struct auth_group *ag,
+			    const char *initiator_name);
 
 const struct auth_portal	*auth_portal_new(struct auth_group *ag,
 				    const char *initiator_portal);
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
+				    const struct sockaddr_storage *sa);
+int				auth_portal_check(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
@@ -246,19 +334,49 @@ struct portal_group	*portal_group_find(const struct conf *conf,
 			    const char *name);
 int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
+int			portal_group_set_filter(struct portal_group *pg,
+			    const char *filter);
+int			portal_group_set_offload(struct portal_group *pg,
+			    const char *offload);
+int			portal_group_set_redirection(struct portal_group *pg,
+			    const char *addr);
+
+int			isns_new(struct conf *conf, const char *addr);
+void			isns_delete(struct isns *is);
+void			isns_register(struct isns *isns, struct isns *oldisns);
+void			isns_check(struct isns *isns);
+void			isns_deregister(struct isns *isns);
+
+struct pport		*pport_new(struct conf *conf, const char *name,
+			    uint32_t ctl_port);
+struct pport		*pport_find(const struct conf *conf, const char *name);
+struct pport		*pport_copy(struct pport *pport, struct conf *conf);
+void			pport_delete(struct pport *pport);
+
+struct port		*port_new(struct conf *conf, struct target *target,
+			    struct portal_group *pg);
+struct port		*port_new_pp(struct conf *conf, struct target *target,
+			    struct pport *pp);
+struct port		*port_find(const struct conf *conf, const char *name);
+struct port		*port_find_in_pg(const struct portal_group *pg,
+			    const char *target);
+void			port_delete(struct port *port);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
+int			target_set_redirection(struct target *target,
+			    const char *addr);
 
-struct lun		*lun_new(struct target *target, int lun_id);
+struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
-struct lun		*lun_find(const struct target *target, int lun_id);
+struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
+void			lun_set_scsiname(struct lun *lun, const char *value);
 void			lun_set_serial(struct lun *lun, const char *value);
 void			lun_set_size(struct lun *lun, size_t value);
 void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
@@ -276,8 +394,11 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_resize(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
-int			kernel_port_add(struct target *targ);
-int			kernel_port_remove(struct target *targ);
+void			kernel_limits(const char *offload,
+			    size_t *max_data_segment_length);
+int			kernel_port_add(struct port *port);
+int			kernel_port_update(struct port *port);
+int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY
@@ -295,7 +416,6 @@ void			keys_delete(struct keys *keys);
 void			keys_load(struct keys *keys, const struct pdu *pdu);
 void			keys_save(struct keys *keys, struct pdu *pdu);
 const char		*keys_find(struct keys *keys, const char *name);
-int			keys_find_int(struct keys *keys, const char *name);
 void			keys_add(struct keys *keys,
 			    const char *name, const char *value);
 void			keys_add_int(struct keys *keys,
@@ -324,6 +444,7 @@ void			log_debugx(const char *, ...) __printflike(1, 2);
 
 char			*checked_strdup(const char *);
 bool			valid_iscsi_name(const char *name);
+void			set_timeout(int timeout, int fatal);
 bool			timed_out(void);
 
 #endif /* !CTLD_H */

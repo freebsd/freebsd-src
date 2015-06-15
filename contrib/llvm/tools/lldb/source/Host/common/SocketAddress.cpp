@@ -11,7 +11,7 @@
 #include <stddef.h>
 
 // C Includes
-#if !defined(_MSC_VER)
+#if !defined(_WIN32)
 #include <arpa/inet.h>
 #endif
 #include <assert.h>
@@ -90,6 +90,7 @@ GetFamilyLength (sa_family_t family)
         case AF_INET6: return sizeof(struct sockaddr_in6);
     }
     assert(0 && "Unsupported address family");
+    return 0;
 }
 
 socklen_t
@@ -213,6 +214,8 @@ SocketAddress::getaddrinfo (const char *host,
                             int ai_protocol,
                             int ai_flags)
 {
+    Clear ();
+
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = ai_family;
@@ -220,15 +223,17 @@ SocketAddress::getaddrinfo (const char *host,
     hints.ai_protocol = ai_protocol;
     hints.ai_flags = ai_flags;
 
+    bool result = false;
     struct addrinfo *service_info_list = NULL;
     int err = ::getaddrinfo (host, service, &hints, &service_info_list);
     if (err == 0 && service_info_list)
+    {
         *this = service_info_list;
-    else
-        Clear();
+        result = IsValid ();
+    }
     
     :: freeaddrinfo (service_info_list);
-    return IsValid();
+    return result;
 }
 
 

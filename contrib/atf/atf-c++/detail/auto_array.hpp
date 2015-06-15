@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_AUTO_ARRAY_HPP_)
-#define _ATF_CXX_AUTO_ARRAY_HPP_
+#if !defined(ATF_CXX_DETAIL_AUTO_ARRAY_HPP)
+#define ATF_CXX_DETAIL_AUTO_ARRAY_HPP
 
 #include <cstddef>
 
@@ -176,4 +172,4 @@ auto_array< T >::operator auto_array_ref< T >(void)
 
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_AUTO_ARRAY_HPP_)
+#endif // !defined(ATF_CXX_DETAIL_AUTO_ARRAY_HPP)

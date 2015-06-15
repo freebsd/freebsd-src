@@ -16,43 +16,6 @@
 // Other libraries and framework includes
 // Project includes
 
-static const uint8_t
-g_hex_ascii_to_hex_integer[256] = {
-    
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
-    0x8, 0x9, 255, 255, 255, 255, 255, 255,
-    255, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255,
-};
-
 static inline int
 xdigit_to_sint (char ch)
 {
@@ -60,17 +23,9 @@ xdigit_to_sint (char ch)
         return 10 + ch - 'a';
     if (ch >= 'A' && ch <= 'F')
         return 10 + ch - 'A';
-    return ch - '0';
-}
-
-static inline unsigned int
-xdigit_to_uint (uint8_t ch)
-{
-    if (ch >= 'a' && ch <= 'f')
-        return 10u + ch - 'a';
-    if (ch >= 'A' && ch <= 'F')
-        return 10u + ch - 'A';
-    return ch - '0';
+    if (ch >= '0' && ch <= '9')
+        return ch - '0';
+    return -1;
 }
 
 //----------------------------------------------------------------------
@@ -139,25 +94,45 @@ StringExtractor::GetChar (char fail_value)
 }
 
 //----------------------------------------------------------------------
+// If a pair of valid hex digits exist at the head of the
+// StringExtractor they are decoded into an unsigned byte and returned
+// by this function
+//
+// If there is not a pair of valid hex digits at the head of the
+// StringExtractor, it is left unchanged and -1 is returned
+//----------------------------------------------------------------------
+int
+StringExtractor::DecodeHexU8()
+{
+    if (GetBytesLeft() < 2)
+    {
+        return -1;
+    }
+    const int hi_nibble = xdigit_to_sint(m_packet[m_index]);
+    const int lo_nibble = xdigit_to_sint(m_packet[m_index+1]);
+    if (hi_nibble == -1 || lo_nibble == -1)
+    {
+        return -1;
+    }
+    m_index += 2;
+    return (uint8_t)((hi_nibble << 4) + lo_nibble);
+}
+
+//----------------------------------------------------------------------
 // Extract an unsigned character from two hex ASCII chars in the packet
 // string
 //----------------------------------------------------------------------
 uint8_t
 StringExtractor::GetHexU8 (uint8_t fail_value, bool set_eof_on_fail)
 {
-    if (GetBytesLeft() >= 2)
+    int byte = DecodeHexU8();
+    if (byte == -1)
     {
-        const uint8_t hi_nibble = g_hex_ascii_to_hex_integer[static_cast<uint8_t>(m_packet[m_index])];
-        const uint8_t lo_nibble = g_hex_ascii_to_hex_integer[static_cast<uint8_t>(m_packet[m_index+1])];
-        if (hi_nibble < 16 && lo_nibble < 16)
-        {
-            m_index += 2;
-            return (hi_nibble << 4) + lo_nibble;
-        }
+        if (set_eof_on_fail || m_index >= m_packet.size())
+            m_index = UINT64_MAX;
+        return fail_value;
     }
-    if (set_eof_on_fail || m_index >= m_packet.size())
-        m_index = UINT64_MAX;
-    return fail_value;
+    return (uint8_t)byte;
 }
 
 uint32_t
@@ -165,7 +140,7 @@ StringExtractor::GetU32 (uint32_t fail_value, int base)
 {
     if (m_index < m_packet.size())
     {
-        char *end = NULL;
+        char *end = nullptr;
         const char *start = m_packet.c_str();
         const char *cstr = start + m_index;
         uint32_t result = ::strtoul (cstr, &end, base);
@@ -184,7 +159,7 @@ StringExtractor::GetS32 (int32_t fail_value, int base)
 {
     if (m_index < m_packet.size())
     {
-        char *end = NULL;
+        char *end = nullptr;
         const char *start = m_packet.c_str();
         const char *cstr = start + m_index;
         int32_t result = ::strtol (cstr, &end, base);
@@ -204,7 +179,7 @@ StringExtractor::GetU64 (uint64_t fail_value, int base)
 {
     if (m_index < m_packet.size())
     {
-        char *end = NULL;
+        char *end = nullptr;
         const char *start = m_packet.c_str();
         const char *cstr = start + m_index;
         uint64_t result = ::strtoull (cstr, &end, base);
@@ -223,7 +198,7 @@ StringExtractor::GetS64 (int64_t fail_value, int base)
 {
     if (m_index < m_packet.size())
     {
-        char *end = NULL;
+        char *end = nullptr;
         const char *start = m_packet.c_str();
         const char *cstr = start + m_index;
         int64_t result = ::strtoll (cstr, &end, base);
@@ -382,6 +357,28 @@ StringExtractor::GetHexBytes (void *dst_void, size_t dst_len, uint8_t fail_fill_
     return bytes_extracted;
 }
 
+//----------------------------------------------------------------------
+// Decodes all valid hex encoded bytes at the head of the
+// StringExtractor, limited by dst_len.
+//
+// Returns the number of bytes successfully decoded
+//----------------------------------------------------------------------
+size_t
+StringExtractor::GetHexBytesAvail (void *dst_void, size_t dst_len)
+{
+    uint8_t *dst = (uint8_t*)dst_void;
+    size_t bytes_extracted = 0;
+    while (bytes_extracted < dst_len)
+    {
+        int decode = DecodeHexU8();
+        if (decode == -1)
+        {
+            break;
+        }
+        dst[bytes_extracted++] = (uint8_t)decode;
+    }
+    return bytes_extracted;
+}
 
 // Consume ASCII hex nibble character pairs until we have decoded byte_size
 // bytes of data.
@@ -429,6 +426,18 @@ StringExtractor::GetHexByteString (std::string &str)
 }
 
 size_t
+StringExtractor::GetHexByteStringFixedLength (std::string &str, uint32_t nibble_length)
+{
+    str.clear();
+
+    uint32_t nibble_count = 0;
+    for (const char *pch = Peek(); (nibble_count < nibble_length) && (pch != nullptr); str.append(1, GetHexU8(0, false)), pch = Peek (), nibble_count += 2)
+    {}
+
+    return str.size();
+}
+
+size_t
 StringExtractor::GetHexByteStringTerminatedBy (std::string &str,
                                                char terminator)
 {
@@ -438,6 +447,7 @@ StringExtractor::GetHexByteStringTerminatedBy (std::string &str,
         str.append(1, ch);
     if (Peek() && *Peek() == terminator)
         return str.size();
+
     str.clear();
     return str.size();
 }

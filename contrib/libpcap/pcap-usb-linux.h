@@ -29,8 +29,6 @@
  *
  * USB sniffing API implementation for Linux platform
  * By Paolo Abeni <paolo.abeni@email.it>
- *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-usb-linux.h,v 1.5 2008-04-04 19:37:45 guy Exp $ (LBL)
  */
 
 /*

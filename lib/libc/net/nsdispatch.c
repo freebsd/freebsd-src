@@ -132,14 +132,17 @@ static	void			*nss_cache_cycle_prevention_func = NULL;
 #endif
 
 /*
- * When this is set to 1, nsdispatch won't use nsswitch.conf
- * but will consult the 'defaults' source list only.
- * NOTE: nested fallbacks (when nsdispatch calls fallback functions,
- *     which in turn calls nsdispatch, which should call fallback
- *     function) are not supported
+ * We keep track of nsdispatch() nesting depth in dispatch_depth.  When a
+ * fallback method is invoked from nsdispatch(), we temporarily set
+ * fallback_depth to the current dispatch depth plus one.  Subsequent
+ * calls at that exact depth will run in fallback mode (restricted to the
+ * same source as the call that was handled by the fallback method), while
+ * calls below that depth will be handled normally, allowing fallback
+ * methods to perform arbitrary lookups.
  */
 struct fb_state {
-	int	fb_dispatch;
+	int	dispatch_depth;
+	int	fallback_depth;
 };
 static	void	fb_endstate(void *);
 NSS_TLS_HANDLING(fb);
@@ -329,7 +332,6 @@ _nsdbtdump(const ns_dbt *dbt)
 static int
 nss_configure(void)
 {
-	static pthread_mutex_t conf_lock = PTHREAD_MUTEX_INITIALIZER;
 	static time_t	 confmod;
 	struct stat	 statbuf;
 	int		 result, isthreaded;
@@ -353,13 +355,14 @@ nss_configure(void)
 	if (statbuf.st_mtime <= confmod)
 		return (0);
 	if (isthreaded) {
-	    result = _pthread_mutex_trylock(&conf_lock);
-	    if (result != 0)
-		    return (0);
 	    (void)_pthread_rwlock_unlock(&nss_lock);
 	    result = _pthread_rwlock_wrlock(&nss_lock);
 	    if (result != 0)
-		    goto fin2;
+		    return (result);
+	    if (stat(path, &statbuf) != 0)
+		    goto fin;
+	    if (statbuf.st_mtime <= confmod)
+		    goto fin;
 	}
 	_nsyyin = fopen(path, "re");
 	if (_nsyyin == NULL)
@@ -390,9 +393,6 @@ fin:
 	    if (result == 0)
 		    result = _pthread_rwlock_rdlock(&nss_lock);
 	}
-fin2:
-	if (isthreaded)
-		(void)_pthread_mutex_unlock(&conf_lock);
 	return (result);
 }
 
@@ -616,6 +616,7 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	void		*mdata;
 	int		 isthreaded, serrno, i, result, srclistsize;
 	struct fb_state	*st;
+	int		 saved_depth;
 
 #ifdef NS_CACHING
 	nss_cache_data	 cache_data;
@@ -647,7 +648,8 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 		result = NS_UNAVAIL;
 		goto fin;
 	}
-	if (st->fb_dispatch == 0) {
+	++st->dispatch_depth;
+	if (st->dispatch_depth > st->fallback_depth) {
 		dbt = vector_search(&database, _nsmap, _nsmapsize, sizeof(*_nsmap),
 		    string_compare);
 		fb_method = nss_method_lookup(NSSRC_FALLBACK, database,
@@ -716,12 +718,13 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 				break;
 		} else {
 			if (fb_method != NULL) {
-				st->fb_dispatch = 1;
+				saved_depth = st->fallback_depth;
+				st->fallback_depth = st->dispatch_depth + 1;
 				va_start(ap, defaults);
 				result = fb_method(retval,
 				    (void *)srclist[i].name, ap);
 				va_end(ap);
-				st->fb_dispatch = 0;
+				st->fallback_depth = saved_depth;
 			} else
 				nss_log(LOG_DEBUG, "%s, %s, %s, not found, "
 				    "and no fallback provided",
@@ -753,6 +756,7 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 
 	if (isthreaded)
 		(void)_pthread_rwlock_unlock(&nss_lock);
+	--st->dispatch_depth;
 fin:
 	errno = serrno;
 	return (result);

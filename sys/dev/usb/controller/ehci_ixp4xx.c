@@ -79,12 +79,12 @@ struct ixp_ehci_softc {
 static device_attach_t ehci_ixp_attach;
 static device_detach_t ehci_ixp_detach;
 
-static uint8_t ehci_bs_r_1(void *, bus_space_handle_t, bus_size_t);
-static void ehci_bs_w_1(void *, bus_space_handle_t, bus_size_t, u_int8_t);
-static uint16_t ehci_bs_r_2(void *, bus_space_handle_t, bus_size_t);
-static void ehci_bs_w_2(void *, bus_space_handle_t, bus_size_t, uint16_t);
-static uint32_t ehci_bs_r_4(void *, bus_space_handle_t, bus_size_t);
-static void ehci_bs_w_4(void *, bus_space_handle_t, bus_size_t, uint32_t);
+static uint8_t ehci_bs_r_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static void ehci_bs_w_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int8_t);
+static uint16_t ehci_bs_r_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static void ehci_bs_w_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, uint16_t);
+static uint32_t ehci_bs_r_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static void ehci_bs_w_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, uint32_t);
 
 static int
 ehci_ixp_probe(device_t self)
@@ -107,6 +107,7 @@ ehci_ixp_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
@@ -131,7 +132,7 @@ ehci_ixp_attach(device_t self)
 	 * done with bus_space_subregion.
 	 */
 	isc->iot = rman_get_bustag(sc->sc_io_res);
-	isc->tag.bs_cookie = isc->iot;
+	isc->tag.bs_privdata = isc->iot;
 	/* read single */
 	isc->tag.bs_r_1	= ehci_bs_r_1,
 	isc->tag.bs_r_2	= ehci_bs_r_2,
@@ -251,41 +252,41 @@ ehci_ixp_detach(device_t self)
  */
 
 static uint8_t
-ehci_bs_r_1(void *t, bus_space_handle_t h, bus_size_t o)
+ehci_bs_r_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	return bus_space_read_1((bus_space_tag_t) t, h,
+	return bus_space_read_1((bus_space_tag_t)tag->bs_privdata, h,
 	    0x100 + (o &~ 3) + (3 - (o & 3)));
 }
 
 static void
-ehci_bs_w_1(void *t, bus_space_handle_t h, bus_size_t o, u_int8_t v)
+ehci_bs_w_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, u_int8_t v)
 {
 	panic("%s", __func__);
 }
 
 static uint16_t
-ehci_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
+ehci_bs_r_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	return bus_space_read_2((bus_space_tag_t) t, h,
+	return bus_space_read_2((bus_space_tag_t)tag->bs_privdata, h,
 	    0x100 + (o &~ 3) + (2 - (o & 3)));
 }
 
 static void
-ehci_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
+ehci_bs_w_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, uint16_t v)
 {
 	panic("%s", __func__);
 }
 
 static uint32_t
-ehci_bs_r_4(void *t, bus_space_handle_t h, bus_size_t o)
+ehci_bs_r_4(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	return bus_space_read_4((bus_space_tag_t) t, h, 0x100 + o);
+	return bus_space_read_4((bus_space_tag_t) tag->bs_privdata, h, 0x100 + o);
 }
 
 static void
-ehci_bs_w_4(void *t, bus_space_handle_t h, bus_size_t o, uint32_t v)
+ehci_bs_w_4(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, uint32_t v)
 {
-	bus_space_write_4((bus_space_tag_t) t, h, 0x100 + o, v);
+	bus_space_write_4((bus_space_tag_t) tag->bs_privdata, h, 0x100 + o, v);
 }
 
 static device_method_t ehci_methods[] = {

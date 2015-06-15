@@ -795,7 +795,7 @@ calldaemon:
 	         * caching...)
 	         */
 #if 0
-		if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE) {
+		if ((cnp->cn_flags & MAKEENTRY) != 0) {
 			FS_DEBUG("inserting NULL into cache\n");
 			cache_enter(dvp, NULL, cnp);
 		}
@@ -1173,6 +1173,11 @@ fuse_vnop_read(struct vop_read_args *ap)
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
+
+	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
+		ioflag |= IO_DIRECT;
+	}
+
 	return fuse_io_dispatch(vp, uio, ioflag, cred);
 }
 
@@ -1712,6 +1717,10 @@ fuse_vnop_write(struct vop_write_args *ap)
 	}
 	fuse_vnode_refreshsize(vp, cred);
 
+	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
+		ioflag |= IO_DIRECT;
+	}
+
 	return fuse_io_dispatch(vp, uio, ioflag, cred);
 }
 
@@ -1721,7 +1730,6 @@ fuse_vnop_write(struct vop_write_args *ap)
         vm_page_t *a_m;
         int a_count;
         int a_reqpage;
-        vm_ooffset_t a_offset;
     };
 */
 static int

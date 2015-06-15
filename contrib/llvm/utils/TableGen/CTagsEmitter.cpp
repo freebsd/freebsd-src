@@ -13,17 +13,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "ctags-emitter"
-
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
-#include "llvm/TableGen/TableGenBackend.h"
 #include <algorithm>
 #include <string>
 #include <vector>
 using namespace llvm;
+
+#define DEBUG_TYPE "ctags-emitter"
 
 namespace llvm { extern SourceMgr SrcMgr; }
 
@@ -38,8 +37,8 @@ public:
       : Id(&Name), Loc(Location) {}
   int operator<(const Tag &B) const { return *Id < *B.Id; }
   void emit(raw_ostream &OS) const {
-    int BufferID = SrcMgr.FindBufferContainingLoc(Loc);
-    MemoryBuffer *CurMB = SrcMgr.getBufferInfo(BufferID).Buffer;
+    const MemoryBuffer *CurMB =
+        SrcMgr.getMemoryBuffer(SrcMgr.FindBufferContainingLoc(Loc));
     const char *BufferName = CurMB->getBufferIdentifier();
     std::pair<unsigned, unsigned> LineAndColumn = SrcMgr.getLineAndColumn(Loc);
     OS << *Id << "\t" << BufferName << "\t" << LineAndColumn.first << "\n";
@@ -70,19 +69,15 @@ SMLoc CTagsEmitter::locate(const Record *R) {
 }
 
 void CTagsEmitter::run(raw_ostream &OS) {
-  const std::map<std::string, Record *> &Classes = Records.getClasses();
-  const std::map<std::string, Record *> &Defs = Records.getDefs();
+  const auto &Classes = Records.getClasses();
+  const auto &Defs = Records.getDefs();
   std::vector<Tag> Tags;
   // Collect tags.
   Tags.reserve(Classes.size() + Defs.size());
-  for (std::map<std::string, Record *>::const_iterator I = Classes.begin(),
-                                                       E = Classes.end();
-       I != E; ++I)
-    Tags.push_back(Tag(I->first, locate(I->second)));
-  for (std::map<std::string, Record *>::const_iterator I = Defs.begin(),
-                                                       E = Defs.end();
-       I != E; ++I)
-    Tags.push_back(Tag(I->first, locate(I->second)));
+  for (const auto &C : Classes)
+    Tags.push_back(Tag(C.first, locate(C.second.get())));
+  for (const auto &D : Defs)
+    Tags.push_back(Tag(D.first, locate(D.second.get())));
   // Emit tags.
   std::sort(Tags.begin(), Tags.end());
   OS << "!_TAG_FILE_FORMAT\t1\t/original ctags format/\n";

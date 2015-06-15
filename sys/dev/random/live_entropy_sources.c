@@ -28,13 +28,16 @@
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -49,87 +52,71 @@ __FBSDID("$FreeBSD$");
 
 #include "live_entropy_sources.h"
 
-LIST_HEAD(les_head, live_entropy_sources);
-static struct les_head sources = LIST_HEAD_INITIALIZER(sources);
-
 /*
- * The live_lock protects the consistency of the "struct les_head sources"
+ * The les_lock protects the consistency of the "struct les_head les_sources"
  */
-static struct sx les_lock; /* need a sleepable lock */
+static struct sx les_lock; /* Need a sleepable lock for the sbuf/sysctl stuff. */
+
+LIST_HEAD(les_head, live_entropy_sources);
+static struct les_head les_sources = LIST_HEAD_INITIALIZER(les_sources);
 
 void
-live_entropy_source_register(struct random_hardware_source *rsource)
+live_entropy_source_register(struct live_entropy_source *rsource)
 {
-	struct live_entropy_sources *les;
+	struct live_entropy_sources *lles;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	les = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
-	les->rsource = rsource;
+	lles = malloc(sizeof(*lles), M_ENTROPY, M_WAITOK);
+	lles->lles_rsource = rsource;
 
 	sx_xlock(&les_lock);
-	LIST_INSERT_HEAD(&sources, les, entries);
+	LIST_INSERT_HEAD(&les_sources, lles, lles_entries);
 	sx_xunlock(&les_lock);
 }
 
 void
-live_entropy_source_deregister(struct random_hardware_source *rsource)
+live_entropy_source_deregister(struct live_entropy_source *rsource)
 {
-	struct live_entropy_sources *les = NULL;
+	struct live_entropy_sources *lles = NULL;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
 	sx_xlock(&les_lock);
-	LIST_FOREACH(les, &sources, entries)
-		if (les->rsource == rsource) {
-			LIST_REMOVE(les, entries);
+	LIST_FOREACH(lles, &les_sources, lles_entries)
+		if (lles->lles_rsource == rsource) {
+			LIST_REMOVE(lles, lles_entries);
 			break;
 		}
 	sx_xunlock(&les_lock);
-	if (les != NULL)
-		free(les, M_ENTROPY);
+	if (lles != NULL)
+		free(lles, M_ENTROPY);
 }
 
 static int
 live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 {
-	struct live_entropy_sources *les;
+	struct live_entropy_sources *lles;
+	struct sbuf sbuf;
 	int error, count;
-
-	count = error = 0;
 
 	sx_slock(&les_lock);
 
-	if (LIST_EMPTY(&sources))
-		error = SYSCTL_OUT(req, "", 0);
-	else {
-		LIST_FOREACH(les, &sources, entries) {
+	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
 
-			error = SYSCTL_OUT(req, ",", count++ ? 1 : 0);
-			if (error)
-				break;
-
-			error = SYSCTL_OUT(req, les->rsource->ident, strlen(les->rsource->ident));
-			if (error)
-				break;
-		}
+	count = 0;
+	LIST_FOREACH(lles, &les_sources, lles_entries) {
+		sbuf_cat(&sbuf, (count++ ? ",'" : "'"));
+		sbuf_cat(&sbuf, lles->lles_rsource->les_ident);
+		sbuf_cat(&sbuf, "'");
 	}
+
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 
 	sx_sunlock(&les_lock);
 
 	return (error);
-}
-
-static void
-live_entropy_sources_init(void *unused)
-{
-
-	SYSCTL_PROC(_kern_random, OID_AUTO, live_entropy_sources,
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, live_entropy_source_handler, "",
-	    "List of Active Live Entropy Sources");
-
-	sx_init(&les_lock, "live_entropy_sources");
 }
 
 /*
@@ -140,15 +127,18 @@ live_entropy_sources_init(void *unused)
  *
  * BEWARE!!!
  * This function runs inside the RNG thread! Don't do anything silly!
- * Remember that we are NOT holding harvest_mtx on entry!
+ */
+/* XXXRW: get_cyclecount() is cheap on most modern hardware, where cycle
+ * counters are built in, but on older hardware it will do a real time clock
+ * read which can be quite expensive.
  */
 void
-live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
+live_entropy_sources_feed(void)
 {
-	static struct harvest event;
-	static uint8_t buf[HARVESTSIZE];
-	struct live_entropy_sources *les;
-	int i, n;
+	static struct harvest_event event;
+	struct live_entropy_sources *lles;
+	int i, read_rate;
+	u_int n;
 
 	sx_slock(&les_lock);
 
@@ -156,25 +146,23 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 	 * Walk over all of live entropy sources, and feed their output
 	 * to the system-wide RNG.
 	 */
-	LIST_FOREACH(les, &sources, entries) {
+	read_rate = random_adaptor_read_rate();
+	LIST_FOREACH(lles, &les_sources, lles_entries) {
 
-		for (i = 0; i < rounds; i++) {
-			/*
-			 * This should be quick, since it's a live entropy
-			 * source.
-			 */
-			/* FIXME: Whine loudly if this didn't work. */
-			n = les->rsource->read(buf, sizeof(buf));
-			n = MIN(n, HARVESTSIZE);
+		for (i = 0; i < harvest_pool_count*read_rate; i++) {
+			/* This *must* be quick, since it's a live entropy source. */
+			n = lles->lles_rsource->les_read(event.he_entropy, HARVESTSIZE);
+			KASSERT((n > 0 && n <= HARVESTSIZE), ("very bad return from les_read (= %d) in %s", n, __func__));
+			memset(event.he_entropy + n, 0, HARVESTSIZE - n);
 
-			event.somecounter = get_cyclecount();
-			event.size = n;
-			event.bits = (n*8)/2;
-			event.source = les->rsource->source;
-			memcpy(event.entropy, buf, n);
+			event.he_somecounter = get_cyclecount();
+			event.he_size = n;
+			event.he_bits = (n*8)/2;
+			event.he_source = lles->lles_rsource->les_source;
+			event.he_destination = harvest_destination[event.he_source]++;
 
 			/* Do the actual entropy insertion */
-			entropy_processor(&event);
+			harvest_process_event(&event);
 		}
 
 	}
@@ -182,14 +170,21 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 	sx_sunlock(&les_lock);
 }
 
-static void
-live_entropy_sources_deinit(void *unused)
+void
+live_entropy_sources_init(void)
+{
+
+	SYSCTL_PROC(_kern_random, OID_AUTO, live_entropy_sources,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    NULL, 0, live_entropy_source_handler, "",
+	    "List of Active Live Entropy Sources");
+
+	sx_init(&les_lock, "live_entropy_sources");
+}
+
+void
+live_entropy_sources_deinit(void)
 {
 
 	sx_destroy(&les_lock);
 }
-
-SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    live_entropy_sources_init, NULL);
-SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    live_entropy_sources_deinit, NULL);

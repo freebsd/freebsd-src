@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #define	_ARM32_BUS_DMA_PRIVATE
+#include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
@@ -55,117 +56,7 @@ unsigned int CPU_clock = 200000000;
 unsigned int AHB_clock;
 unsigned int APB_clock;
 
-bs_protos(generic);
-bs_protos(generic_armv4);
-
-struct bus_space econa_bs_tag = {
-	/* cookie */
-	(void *) 0,
-
-	/* mapping/unmapping */
-	generic_bs_map,
-	generic_bs_unmap,
-	generic_bs_subregion,
-
-	/* allocation/deallocation */
-	generic_bs_alloc,
-	generic_bs_free,
-
-	/* barrier */
-	generic_bs_barrier,
-
-	/* read (single) */
-	generic_bs_r_1,
-	generic_armv4_bs_r_2,
-	generic_bs_r_4,
-	NULL,
-
-	/* read multiple */
-	generic_bs_rm_1,
-	generic_armv4_bs_rm_2,
-	generic_bs_rm_4,
-	NULL,
-
-	/* read region */
-	generic_bs_rr_1,
-	generic_armv4_bs_rr_2,
-	generic_bs_rr_4,
-	NULL,
-
-	/* write (single) */
-	generic_bs_w_1,
-	generic_armv4_bs_w_2,
-	generic_bs_w_4,
-	NULL,
-
-	/* write multiple */
-	generic_bs_wm_1,
-	generic_armv4_bs_wm_2,
-	generic_bs_wm_4,
-	NULL,
-
-	/* write region */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* set multiple */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* set region */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* copy */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* read (single) stream */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* read multiple stream */
-	NULL,
-	generic_armv4_bs_rm_2,
-	NULL,
-	NULL,
-
-	/* read region stream */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* write (single) stream */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* write multiple stream */
-	NULL,
-	generic_armv4_bs_wm_2,
-	NULL,
-	NULL,
-
-	/* write region stream */
-	NULL,
-	NULL,
-	NULL,
-	NULL
-};
-
-bus_space_tag_t obio_tag = &econa_bs_tag;
+bus_space_tag_t obio_tag;
 
 static int
 econa_probe(device_t dev)
@@ -464,8 +355,10 @@ econa_attach(device_t dev)
 	struct econa_softc *sc = device_get_softc(dev);
 	int i;
 
+	obio_tag = arm_base_bs_tag;
+
 	econa_softc = sc;
-	sc->ec_st = &econa_bs_tag;
+	sc->ec_st = arm_base_bs_tag;
 	sc->ec_sh = ECONA_IO_BASE;
 	sc->dev = dev;
 	if (bus_space_subregion(sc->ec_st, sc->ec_sh, ECONA_PIC_BASE,
@@ -508,7 +401,7 @@ econa_attach(device_t dev)
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-	enable_interrupts(I32_bit | F32_bit);
+	enable_interrupts(PSR_I | PSR_F);
 
 	return (0);
 }
@@ -547,7 +440,7 @@ econa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->res = rman_reserve_resource(&sc->ec_mem_rman,
 		    start, end, count, flags, child);
 		if (rle->res != NULL) {
-			rman_set_bustag(rle->res, &econa_bs_tag);
+			rman_set_bustag(rle->res, arm_base_bs_tag);
 			rman_set_bushandle(rle->res, start);
 		}
 		break;

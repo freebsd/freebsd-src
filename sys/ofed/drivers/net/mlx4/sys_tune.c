@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2010, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -38,8 +38,6 @@
 #include "mlx4.h"
 
 #if defined(CONFIG_X86) && defined(CONFIG_APM_MODULE)
-
-
 
 /* Each CPU is put into a group.  In most cases, the group number is
  * equal to the CPU number of one of the CPUs in the group.  The

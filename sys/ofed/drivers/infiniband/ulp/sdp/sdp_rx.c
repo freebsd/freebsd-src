@@ -116,8 +116,7 @@ sdp_post_recv(struct sdp_sock *ssk)
 		return -1;
 	}
 	for (m = mb; m != NULL; m = m->m_next) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-                        ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 	}
 	h = mtod(mb, struct sdp_bsdh *);
@@ -183,7 +182,7 @@ sdp_post_recvs_needed(struct sdp_sock *ssk)
 	 * Compute bytes in the receive queue and socket buffer.
 	 */
 	bytes_in_process = (posted - SDP_MIN_TX_CREDITS) * buffer_size;
-	bytes_in_process += ssk->socket->so_rcv.sb_cc;
+	bytes_in_process += sbused(&ssk->socket->so_rcv);
 
 	return bytes_in_process < max_bytes;
 }
@@ -737,7 +736,7 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	}
 
 	rx_cq = ib_create_cq(device, sdp_rx_irq, sdp_rx_cq_event_handler,
-			  ssk->socket, SDP_RX_SIZE, IB_CQ_VECTOR_LEAST_ATTACHED);
+			  ssk->socket, SDP_RX_SIZE, 0);
 
 	if (IS_ERR(rx_cq)) {
 		rc = PTR_ERR(rx_cq);

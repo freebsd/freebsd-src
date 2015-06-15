@@ -30,6 +30,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if defined(__amd64__)
+#define DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
+#ifdef __i386__
+#include "opt_npx.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
@@ -51,8 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
-#ifdef SMP
+#ifdef DEV_APIC
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#endif
+#ifdef SMP
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
@@ -71,10 +83,10 @@ extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
 
 #ifdef SMP
-extern struct pcb	**susppcbs;
+extern struct susppcb	**susppcbs;
 static cpuset_t		suspcpus;
 #else
-static struct pcb	**susppcbs;
+static struct susppcb	**susppcbs;
 #endif
 
 static void		*acpi_alloc_wakeup_handler(void);
@@ -113,14 +125,15 @@ acpi_stop_beep(void *arg)
 static int
 acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 {
+	struct pcb *pcb;
 	int		vector = (WAKECODE_PADDR(sc) >> 12) & 0xff;
 	int		apic_id = cpu_apic_ids[cpu];
 	int		ms;
 
-	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[cpu]);
-	WAKECODE_FIXUP(wakeup_gdt, uint16_t, susppcbs[cpu]->pcb_gdt.rd_limit);
-	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
-	    susppcbs[cpu]->pcb_gdt.rd_base);
+	pcb = &susppcbs[cpu]->sp_pcb;
+	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
+	WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
+	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
 	ipi_startup(apic_id, vector);
 
@@ -184,6 +197,7 @@ int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS	status;
+	struct pcb	*pcb;
 
 	if (sc->acpi_wakeaddr == 0ul)
 		return (-1);	/* couldn't alloc wake memory */
@@ -200,9 +214,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	intr_suspend();
 
-	if (savectx(susppcbs[0])) {
+	pcb = &susppcbs[0]->sp_pcb;
+	if (savectx(pcb)) {
 #ifdef __amd64__
-		fpususpend(susppcbs[0]->pcb_fpususpend);
+		fpususpend(susppcbs[0]->sp_fpususpend);
+#elif defined(DEV_NPX)
+		npxsuspend(susppcbs[0]->sp_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
@@ -215,13 +232,11 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 #ifndef __amd64__
-		WAKECODE_FIXUP(wakeup_cr4, register_t, susppcbs[0]->pcb_cr4);
+		WAKECODE_FIXUP(wakeup_cr4, register_t, pcb->pcb_cr4);
 #endif
-		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
-		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
-		    susppcbs[0]->pcb_gdt.rd_limit);
-		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
-		    susppcbs[0]->pcb_gdt.rd_base);
+		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
+		WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
+		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
@@ -237,6 +252,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 		for (;;)
 			ia32_pause();
+	} else {
+#ifdef __amd64__
+		fpuresume(susppcbs[0]->sp_fpususpend);
+#elif defined(DEV_NPX)
+		npxresume(susppcbs[0]->sp_fpususpend);
+#endif
 	}
 
 	return (1);	/* wakeup successfully */
@@ -257,6 +278,9 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
+#ifdef DEV_APIC
+			lapic_xapic_mode();
+#endif
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);
@@ -314,9 +338,7 @@ acpi_alloc_wakeup_handler(void)
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
 	for (i = 0; i < mp_ncpus; i++) {
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
-#ifdef __amd64__
-		susppcbs[i]->pcb_fpususpend = alloc_fpusave(M_WAITOK);
-#endif
+		susppcbs[i]->sp_fpususpend = alloc_fpusave(M_WAITOK);
 	}
 
 	return (wakeaddr);
@@ -357,7 +379,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
 #ifndef __amd64__
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
 #else
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));

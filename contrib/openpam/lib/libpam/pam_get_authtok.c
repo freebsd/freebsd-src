@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_authtok.c 670 2013-03-17 19:26:07Z des $
+ * $Id: pam_get_authtok.c 807 2014-09-09 09:41:32Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -48,6 +48,7 @@
 #include <security/openpam.h>
 
 #include "openpam_impl.h"
+#include "openpam_strlset.h"
 
 static const char authtok_prompt[] = "Password:";
 static const char authtok_prompt_remote[] = "Password for %u@%h:";
@@ -140,16 +141,21 @@ pam_get_authtok(pam_handle_t *pamh,
 	if (twice) {
 		r = pam_prompt(pamh, style, &resp2, "Retype %s", prompt);
 		if (r != PAM_SUCCESS) {
+			strlset(resp, 0, PAM_MAX_RESP_SIZE);
 			FREE(resp);
 			RETURNC(r);
 		}
-		if (strcmp(resp, resp2) != 0)
+		if (strcmp(resp, resp2) != 0) {
+			strlset(resp, 0, PAM_MAX_RESP_SIZE);
 			FREE(resp);
+		}
+		strlset(resp2, 0, PAM_MAX_RESP_SIZE);
 		FREE(resp2);
 	}
 	if (resp == NULL)
 		RETURNC(PAM_TRY_AGAIN);
 	r = pam_set_item(pamh, item, resp);
+	strlset(resp, 0, PAM_MAX_RESP_SIZE);
 	FREE(resp);
 	if (r != PAM_SUCCESS)
 		RETURNC(r);

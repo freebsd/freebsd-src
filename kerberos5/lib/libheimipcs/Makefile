@@ -2,9 +2,7 @@
 
 LIB=	heimipcs
 PRIVATELIB=
-LDADD=	-lheimbase -lroken
-LDFLAGS=	-pthread
-DPADD=	${LIBHEIMBASE} ${LIBROKEN}
+LIBADD=	heimbase roken pthread
 
 SRCS=	\
 	server.c \

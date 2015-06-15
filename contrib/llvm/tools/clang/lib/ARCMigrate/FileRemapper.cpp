@@ -36,8 +36,7 @@ void FileRemapper::clear(StringRef outputDir) {
   assert(ToFromMappings.empty());
   if (!outputDir.empty()) {
     std::string infoFile = getRemapInfoFile(outputDir);
-    bool existed;
-    llvm::sys::fs::remove(infoFile, existed);
+    llvm::sys::fs::remove(infoFile);
   }
 }
 
@@ -59,19 +58,18 @@ bool FileRemapper::initFromFile(StringRef filePath, DiagnosticsEngine &Diag,
   assert(FromToMappings.empty() &&
          "initFromDisk should be called before any remap calls");
   std::string infoFile = filePath;
-  bool fileExists = false;
-  llvm::sys::fs::exists(infoFile, fileExists);
-  if (!fileExists)
+  if (!llvm::sys::fs::exists(infoFile))
     return false;
 
   std::vector<std::pair<const FileEntry *, const FileEntry *> > pairs;
-  
-  OwningPtr<llvm::MemoryBuffer> fileBuf;
-  if (llvm::MemoryBuffer::getFile(infoFile.c_str(), fileBuf))
+
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileBuf =
+      llvm::MemoryBuffer::getFile(infoFile.c_str());
+  if (!fileBuf)
     return report("Error opening file: " + infoFile, Diag);
   
   SmallVector<StringRef, 64> lines;
-  fileBuf->getBuffer().split(lines, "\n");
+  fileBuf.get()->getBuffer().split(lines, "\n");
 
   for (unsigned idx = 0; idx+3 <= lines.size(); idx += 3) {
     StringRef fromFilename = lines[idx];
@@ -112,8 +110,7 @@ bool FileRemapper::initFromFile(StringRef filePath, DiagnosticsEngine &Diag,
 bool FileRemapper::flushToDisk(StringRef outputDir, DiagnosticsEngine &Diag) {
   using namespace llvm::sys;
 
-  bool existed;
-  if (fs::create_directory(outputDir, existed) != llvm::errc::success)
+  if (fs::create_directory(outputDir))
     return report("Could not create directory: " + outputDir, Diag);
 
   std::string infoFile = getRemapInfoFile(outputDir);
@@ -123,12 +120,11 @@ bool FileRemapper::flushToDisk(StringRef outputDir, DiagnosticsEngine &Diag) {
 bool FileRemapper::flushToFile(StringRef outputPath, DiagnosticsEngine &Diag) {
   using namespace llvm::sys;
 
-  std::string errMsg;
+  std::error_code EC;
   std::string infoFile = outputPath;
-  llvm::raw_fd_ostream infoOut(infoFile.c_str(), errMsg,
-                               llvm::sys::fs::F_Binary);
-  if (!errMsg.empty())
-    return report(errMsg, Diag);
+  llvm::raw_fd_ostream infoOut(infoFile, EC, llvm::sys::fs::F_None);
+  if (EC)
+    return report(EC.message(), Diag);
 
   for (MappingsTy::iterator
          I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
@@ -175,17 +171,14 @@ bool FileRemapper::overwriteOriginal(DiagnosticsEngine &Diag,
          I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
     const FileEntry *origFE = I->first;
     assert(I->second.is<llvm::MemoryBuffer *>());
-    bool fileExists = false;
-    fs::exists(origFE->getName(), fileExists);
-    if (!fileExists)
+    if (!fs::exists(origFE->getName()))
       return report(StringRef("File does not exist: ") + origFE->getName(),
                     Diag);
 
-    std::string errMsg;
-    llvm::raw_fd_ostream Out(origFE->getName(), errMsg,
-                             llvm::sys::fs::F_Binary);
-    if (!errMsg.empty())
-      return report(errMsg, Diag);
+    std::error_code EC;
+    llvm::raw_fd_ostream Out(origFE->getName(), EC, llvm::sys::fs::F_None);
+    if (EC)
+      return report(EC.message(), Diag);
 
     llvm::MemoryBuffer *mem = I->second.get<llvm::MemoryBuffer *>();
     Out.write(mem->getBufferStart(), mem->getBufferSize());
@@ -210,31 +203,17 @@ void FileRemapper::applyMappings(PreprocessorOptions &PPOpts) const {
   PPOpts.RetainRemappedFileBuffers = true;
 }
 
-void FileRemapper::transferMappingsAndClear(PreprocessorOptions &PPOpts) {
-  for (MappingsTy::iterator
-         I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
-    if (const FileEntry *FE = I->second.dyn_cast<const FileEntry *>()) {
-      PPOpts.addRemappedFile(I->first->getName(), FE->getName());
-    } else {
-      llvm::MemoryBuffer *mem = I->second.get<llvm::MemoryBuffer *>();
-      PPOpts.addRemappedFile(I->first->getName(), mem);
-    }
-    I->second = Target();
-  }
-
-  PPOpts.RetainRemappedFileBuffers = false;
-  clear();
+void FileRemapper::remap(StringRef filePath,
+                         std::unique_ptr<llvm::MemoryBuffer> memBuf) {
+  remap(getOriginalFile(filePath), std::move(memBuf));
 }
 
-void FileRemapper::remap(StringRef filePath, llvm::MemoryBuffer *memBuf) {
-  remap(getOriginalFile(filePath), memBuf);
-}
-
-void FileRemapper::remap(const FileEntry *file, llvm::MemoryBuffer *memBuf) {
+void FileRemapper::remap(const FileEntry *file,
+                         std::unique_ptr<llvm::MemoryBuffer> memBuf) {
   assert(file);
   Target &targ = FromToMappings[file];
   resetTarget(targ);
-  targ = memBuf;
+  targ = memBuf.release();
 }
 
 void FileRemapper::remap(const FileEntry *file, const FileEntry *newfile) {
@@ -272,9 +251,7 @@ void FileRemapper::resetTarget(Target &targ) {
 }
 
 bool FileRemapper::report(const Twine &err, DiagnosticsEngine &Diag) {
-  SmallString<128> buf;
-  unsigned ID = Diag.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Error,
-                                                         err.toStringRef(buf));
-  Diag.Report(ID);
+  Diag.Report(Diag.getCustomDiagID(DiagnosticsEngine::Error, "%0"))
+      << err.str();
   return true;
 }

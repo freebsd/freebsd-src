@@ -26,20 +26,22 @@ std::string TimeValue::str() const {
   struct tm Storage;
   struct tm *LT = ::localtime_r(&OurTime, &Storage);
   assert(LT);
-  char Buffer[25];
-  strftime(Buffer, 25, "%b %e %H:%M %Y", LT);
-  return std::string(Buffer);
+  char Buffer1[sizeof("YYYY-MM-DD HH:MM:SS")];
+  strftime(Buffer1, sizeof(Buffer1), "%Y-%m-%d %H:%M:%S", LT);
+  char Buffer2[sizeof("YYYY-MM-DD HH:MM:SS.MMMUUUNNN")];
+  snprintf(Buffer2, sizeof(Buffer2), "%s.%.9u", Buffer1, this->nanoseconds());
+  return std::string(Buffer2);
 }
 
 TimeValue TimeValue::now() {
   struct timeval the_time;
   timerclear(&the_time);
-  if (0 != ::gettimeofday(&the_time,0)) {
+  if (0 != ::gettimeofday(&the_time,nullptr)) {
     // This is *really* unlikely to occur because the only gettimeofday
     // errors concern the timezone parameter which we're passing in as 0.
     // In the unlikely case it does happen, just return MinTime, no error
     // message needed.
-    return MinTime;
+    return MinTime();
   }
 
   return TimeValue(

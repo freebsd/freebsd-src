@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/vnet.h>
 
 #include <dev/usb/usb_ioctl.h>
 
@@ -95,9 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_sg.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
-
-FEATURE(linuxulator_v4l, "V4L ioctl wrapper support in the linuxulator");
-FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_vfat;
@@ -1699,13 +1695,6 @@ linux_ioctl_vfat(struct thread *td, struct linux_ioctl_args *args)
  * Sound related ioctls
  */
 
-struct linux_mixer_info {
-	char	id[16];
-	char	name[32];
-	int	modify_counter;
-	int	fillers[10];
-};
-
 struct linux_old_mixer_info {
 	char	id[16];
 	char	name[32];
@@ -1793,12 +1782,8 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		/* Key on encoded length */
 		switch ((args->cmd >> 16) & 0x1fff) {
 		case 0x005c: {	/* SOUND_MIXER_INFO */
-			struct linux_mixer_info info;
-			bzero(&info, sizeof(info));
-			strncpy(info.id, "OSS", sizeof(info.id) - 1);
-			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
-			copyout(&info, (void *)args->arg, sizeof(info));
-			return (0);
+			args->cmd = SOUND_MIXER_INFO;
+			return (sys_ioctl(td, (struct ioctl_args *)args));
 		}
 		case 0x0030: {	/* SOUND_OLD_MIXER_INFO */
 			struct linux_old_mixer_info info;
@@ -1992,8 +1977,6 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
  * Console related ioctls
  */
 
-#define ISSIGVALID(sig)		((sig) > 0 && (sig) < NSIG)
-
 static int
 linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 {
@@ -2076,8 +2059,16 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 		struct vt_mode mode;
 		if ((error = copyin((void *)args->arg, &mode, sizeof(mode))))
 			break;
-		if (!ISSIGVALID(mode.frsig) && ISSIGVALID(mode.acqsig))
-			mode.frsig = mode.acqsig;
+		if (LINUX_SIG_VALID(mode.relsig))
+			mode.relsig = linux_to_bsd_signal(mode.relsig);
+		else
+			mode.relsig = 0;
+		if (LINUX_SIG_VALID(mode.acqsig))
+			mode.acqsig = linux_to_bsd_signal(mode.acqsig);
+		else
+			mode.acqsig = 0;
+		/* XXX. Linux ignores frsig and set it to 0. */
+		mode.frsig = 0;
 		if ((error = copyout(&mode, (void *)args->arg, sizeof(mode))))
 			break;
 		args->cmd = VT_SETMODE;
@@ -2118,34 +2109,6 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
  * Criteria for interface name translation
  */
 #define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
-
-/*
- * Interface function used by linprocfs (at the time of writing). It's not
- * used by the Linuxulator itself.
- */
-int
-linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
-{
-	struct ifnet *ifscan;
-	int ethno;
-
-	IFNET_RLOCK_ASSERT();
-
-	/* Short-circuit non ethernet interfaces */
-	if (!IFP_IS_ETH(ifp))
-		return (strlcpy(buffer, ifp->if_xname, buflen));
-
-	/* Determine the (relative) unit number for ethernet interfaces */
-	ethno = 0;
-	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
-		if (ifscan == ifp)
-			return (snprintf(buffer, buflen, "eth%d", ethno));
-		if (IFP_IS_ETH(ifscan))
-			ethno++;
-	}
-
-	return (0);
-}
 
 /*
  * Translate a Linux interface name to a FreeBSD interface name,
@@ -3633,9 +3596,16 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	sx_sunlock(&linux_ioctl_sx);
 	fdrop(fp, td);
 
-	linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
-	    args->fd, (int)(args->cmd & 0xffff),
-	    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
+	switch (args->cmd & 0xffff) {
+	case LINUX_BTRFS_IOC_CLONE:
+		return (ENOTSUP);
+
+	default:
+		linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
+		    args->fd, (int)(args->cmd & 0xffff),
+		    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
+		break;
+	}
 
 	return (EINVAL);
 }

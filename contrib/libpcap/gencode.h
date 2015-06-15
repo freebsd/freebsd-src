@@ -17,8 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.71 2007-11-18 02:03:52 guy Exp $ (LBL)
  */
 
 /*
@@ -186,11 +184,22 @@
 #define M_LSSU		23	/* LSSU */
 #define M_MSU		24	/* MSU */
 
+/* MTP2 HSL types */
+#define MH_FISU		25	/* FISU for HSL */
+#define MH_LSSU		26	/* LSSU */
+#define MH_MSU		27	/* MSU */
+
 /* MTP3 field types */
 #define M_SIO		1
 #define M_OPC		2
 #define M_DPC		3
 #define M_SLS		4
+
+/* MTP3 field types in case of MTP2 HSL */
+#define MH_SIO		5
+#define MH_OPC		6
+#define MH_DPC		7
+#define MH_SLS		8
 
 
 struct slist;
@@ -299,11 +308,18 @@ struct block *gen_broadcast(int);
 struct block *gen_multicast(int);
 struct block *gen_inbound(int);
 
+struct block *gen_llc(void);
+struct block *gen_llc_i(void);
+struct block *gen_llc_s(void);
+struct block *gen_llc_u(void);
+struct block *gen_llc_s_subtype(bpf_u_int32);
+struct block *gen_llc_u_subtype(bpf_u_int32);
+
 struct block *gen_vlan(int);
 struct block *gen_mpls(int);
 
 struct block *gen_pppoed(void);
-struct block *gen_pppoes(void);
+struct block *gen_pppoes(int);
 
 struct block *gen_atmfield_code(int atmfield, bpf_int32 jvalue, bpf_u_int32 jtype, int reverse);
 struct block *gen_atmtype_abbrev(int type);
@@ -325,7 +341,11 @@ struct block *gen_p80211_fcdir(int);
 
 void bpf_optimize(struct block **);
 void bpf_error(const char *, ...)
-    __attribute__((noreturn, format (printf, 1, 2)));
+    __attribute__((noreturn))
+#ifdef __ATTRIBUTE___FORMAT_OK
+    __attribute__((format (printf, 1, 2)))
+#endif /* __ATTRIBUTE___FORMAT_OK */
+    ;
 
 void finish_parse(struct block *);
 char *sdup(const char *);

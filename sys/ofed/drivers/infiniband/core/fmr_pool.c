@@ -33,6 +33,7 @@
 
 #include <linux/errno.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/jhash.h>
 #include <linux/kthread.h>

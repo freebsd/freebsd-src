@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2008 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,25 +22,23 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_PROCESS_HPP_)
-#define _ATF_CXX_PROCESS_HPP_
+#if !defined(ATF_CXX_DETAIL_PROCESS_HPP)
+#define ATF_CXX_DETAIL_PROCESS_HPP
 
 extern "C" {
 #include <sys/types.h>
 
-#include "../../atf-c/error.h"
-
-#include "../../atf-c/detail/process.h"
+#include <atf-c/detail/process.h>
+#include <atf-c/error.h>
 }
 
 #include <string>
 #include <vector>
 
-#include "auto_array.hpp"
-#include "exceptions.hpp"
-#include "fs.hpp"
+#include <atf-c++/detail/auto_array.hpp>
+#include <atf-c++/detail/exceptions.hpp>
+#include <atf-c++/detail/fs.hpp>
 
 namespace atf {
 namespace process {
@@ -276,4 +271,4 @@ exec(const atf::fs::path& prog, const argv_array& argv,
 } // namespace process
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_PROCESS_HPP_)
+#endif // !defined(ATF_CXX_DETAIL_PROCESS_HPP)

@@ -14,9 +14,8 @@ SRCS+=	icmp6.c ip6.c
 CFLAGS+= -DINET6
 .endif
 
-WARNS?=	0
+WARNS?=	1
 
-DPADD=	${LIBNCURSESW} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
-LDADD=	-lncursesw -lm -ldevstat -lkvm
+LIBADD=	ncursesw m devstat kvm
 
 .include <bsd.prog.mk>

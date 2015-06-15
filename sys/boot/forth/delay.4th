@@ -1,4 +1,4 @@
-\ Copyright (c) 2008-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2008-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,9 @@
 
 marker task-delay.4th
 
+vocabulary delay-processing
+only forth also delay-processing definitions
+
 2  constant delay_default \ Default delay (in seconds)
 3  constant etx_key       \ End-of-Text character produced by Ctrl+C
 13 constant enter_key     \ Carriage-Return character produce by ENTER
@@ -35,6 +38,8 @@ variable delay_tstart     \ state variable used for delay timing
 variable delay_delay      \ determined configurable delay duration
 variable delay_cancelled  \ state variable for user cancellation
 variable delay_showdots   \ whether continually print dots while waiting
+
+only forth definitions also delay-processing
 
 : delay_execute ( -- )
 
@@ -110,3 +115,5 @@ variable delay_showdots   \ whether continually print dots while waiting
 		evaluate \ evaluate/execute the command string
  	then
 ;
+
+only forth definitions

@@ -921,7 +921,7 @@ nandfs_bmap_lookup(struct nandfs *fs, struct nandfs_node *node,
 			return (0);
 		}
 
-		twiddle();
+		twiddle(1);
 		NANDFS_DEBUG("calling get_map with %jx\n", ind_block_num);
 		map = nandfs_get_map(fs, node, ind_block_num, phys);
 		if (map == NULL)

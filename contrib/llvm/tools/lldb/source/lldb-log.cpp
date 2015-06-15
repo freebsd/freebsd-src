@@ -11,6 +11,7 @@
 
 // C Includes
 // C++ Includes
+#include <atomic>
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Interpreter/Args.h"
@@ -27,7 +28,7 @@ using namespace lldb_private;
 // that will construct the static g_lob_sp the first time this function is 
 // called.
 
-static bool g_log_enabled = false;
+static std::atomic<bool> g_log_enabled {false};
 static Log * g_log = NULL;
 static Log *
 GetLog ()
@@ -145,6 +146,7 @@ lldb_private::DisableLog (const char **categories, Stream *feedback_strm)
                 else if (0 == ::strncasecmp(arg, "module", 6))  flag_bits &= ~LIBLLDB_LOG_MODULES;
                 else if (0 == ::strncasecmp(arg, "mmap", 4))    flag_bits &= ~LIBLLDB_LOG_MMAP;
                 else if (0 == ::strcasecmp(arg, "os"))          flag_bits &= ~LIBLLDB_LOG_OS;
+                else if (0 == ::strcasecmp(arg, "jit"))         flag_bits &= ~LIBLLDB_LOG_JIT_LOADER;
                 else
                 {
                     feedback_strm->Printf ("error:  unrecognized log category '%s'\n", arg);
@@ -220,6 +222,7 @@ lldb_private::EnableLog (StreamSP &log_stream_sp, uint32_t log_options, const ch
             else if (0 == ::strncasecmp(arg, "unwind", 6))  flag_bits |= LIBLLDB_LOG_UNWIND;
             else if (0 == ::strcasecmp(arg, "verbose"))     flag_bits |= LIBLLDB_LOG_VERBOSE;
             else if (0 == ::strncasecmp(arg, "watch", 5))   flag_bits |= LIBLLDB_LOG_WATCHPOINTS;
+            else if (0 == ::strcasecmp(arg, "jit"))         flag_bits |= LIBLLDB_LOG_JIT_LOADER;
             else
             {
                 feedback_strm->Printf("error: unrecognized log category '%s'\n", arg);
@@ -251,8 +254,9 @@ lldb_private::ListLogCategories (Stream *strm)
                  "  events - log broadcaster, listener and event queue activities\n"
                  "  expr - log expressions\n"
                  "  host - log host activities\n"
+                 "  jit - log JIT events in the target\n"
                  "  mmap - log mmap related activities\n"
-                 "  module - log module activities such as when modules are created, detroyed, replaced, and more\n"
+                 "  module - log module activities such as when modules are created, destroyed, replaced, and more\n"
                  "  object - log object construction/destruction for important objects\n"
                  "  os - log OperatingSystem plugin related activities\n"
                  "  platform - log platform events and activities\n"

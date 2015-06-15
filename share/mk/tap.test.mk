@@ -86,7 +86,11 @@ CLEANFILES+= ${_T} ${_T}.tmp
 TAP_TESTS_SH_SED_${_T}?= # empty
 TAP_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${TAP_TESTS_SH_SRC_${_T}}
+.if empty(TAP_TESTS_SH_SED_${_T})
+	cat ${.ALLSRC} >${.TARGET}.tmp
+.else
 	cat ${.ALLSRC} | sed ${TAP_TESTS_SH_SED_${_T}} >${.TARGET}.tmp
+.endif
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor

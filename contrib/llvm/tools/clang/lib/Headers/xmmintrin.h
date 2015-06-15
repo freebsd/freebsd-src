@@ -34,8 +34,8 @@ typedef int __v4si __attribute__((__vector_size__(16)));
 typedef float __v4sf __attribute__((__vector_size__(16)));
 typedef float __m128 __attribute__((__vector_size__(16)));
 
-// This header should only be included in a hosted environment as it depends on
-// a standard library to provide allocation routines.
+/* This header should only be included in a hosted environment as it depends on
+ * a standard library to provide allocation routines. */
 #if __STDC_HOSTED__
 #include <mm_malloc.h>
 #endif
@@ -182,153 +182,153 @@ _mm_xor_ps(__m128 __a, __m128 __b)
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpeq_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 0);
+  return (__m128)__builtin_ia32_cmpeqss(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpeq_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 0);
+  return (__m128)__builtin_ia32_cmpeqps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmplt_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 1);
+  return (__m128)__builtin_ia32_cmpltss(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmplt_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 1);
+  return (__m128)__builtin_ia32_cmpltps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmple_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 2);
+  return (__m128)__builtin_ia32_cmpless(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmple_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 2);
+  return (__m128)__builtin_ia32_cmpleps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpgt_ss(__m128 __a, __m128 __b)
 {
   return (__m128)__builtin_shufflevector(__a,
-                                         __builtin_ia32_cmpss(__b, __a, 1),
+                                         __builtin_ia32_cmpltss(__b, __a),
                                          4, 1, 2, 3);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpgt_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__b, __a, 1);
+  return (__m128)__builtin_ia32_cmpltps(__b, __a);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpge_ss(__m128 __a, __m128 __b)
 {
   return (__m128)__builtin_shufflevector(__a,
-                                         __builtin_ia32_cmpss(__b, __a, 2),
+                                         __builtin_ia32_cmpless(__b, __a),
                                          4, 1, 2, 3);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpge_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__b, __a, 2);
+  return (__m128)__builtin_ia32_cmpleps(__b, __a);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpneq_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 4);
+  return (__m128)__builtin_ia32_cmpneqss(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpneq_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 4);
+  return (__m128)__builtin_ia32_cmpneqps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpnlt_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 5);
+  return (__m128)__builtin_ia32_cmpnltss(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpnlt_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 5);
+  return (__m128)__builtin_ia32_cmpnltps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpnle_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 6);
+  return (__m128)__builtin_ia32_cmpnless(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpnle_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 6);
+  return (__m128)__builtin_ia32_cmpnleps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpngt_ss(__m128 __a, __m128 __b)
 {
   return (__m128)__builtin_shufflevector(__a,
-                                         __builtin_ia32_cmpss(__b, __a, 5),
+                                         __builtin_ia32_cmpnltss(__b, __a),
                                          4, 1, 2, 3);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpngt_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__b, __a, 5);
+  return (__m128)__builtin_ia32_cmpnltps(__b, __a);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpnge_ss(__m128 __a, __m128 __b)
 {
   return (__m128)__builtin_shufflevector(__a,
-                                         __builtin_ia32_cmpss(__b, __a, 6),
+                                         __builtin_ia32_cmpnless(__b, __a),
                                          4, 1, 2, 3);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpnge_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__b, __a, 6);
+  return (__m128)__builtin_ia32_cmpnleps(__b, __a);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpord_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 7);
+  return (__m128)__builtin_ia32_cmpordss(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpord_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 7);
+  return (__m128)__builtin_ia32_cmpordps(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpunord_ss(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpss(__a, __b, 3);
+  return (__m128)__builtin_ia32_cmpunordss(__a, __b);
 }
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_cmpunord_ps(__m128 __a, __m128 __b)
 {
-  return (__m128)__builtin_ia32_cmpps(__a, __b, 3);
+  return (__m128)__builtin_ia32_cmpunordps(__a, __b);
 }
 
 static __inline__ int __attribute__((__always_inline__, __nodebug__))
@@ -589,7 +589,7 @@ _mm_set1_ps(float __w)
   return (__m128){ __w, __w, __w, __w };
 }
 
-// Microsoft specific.
+/* Microsoft specific. */
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_set_ps1(float __w)
 {
@@ -672,10 +672,12 @@ _mm_storer_ps(float *__p, __m128 __a)
 #define _MM_HINT_T2 1
 #define _MM_HINT_NTA 0
 
+#ifndef _MSC_VER
 /* FIXME: We have to #define this because "sel" must be a constant integer, and
    Sema doesn't do any form of constant propagation yet. */
 
 #define _mm_prefetch(a, sel) (__builtin_prefetch((void *)(a), 0, (sel)))
+#endif
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_stream_pi(__m64 *__p, __m64 __a)

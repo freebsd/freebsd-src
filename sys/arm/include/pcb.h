@@ -39,50 +39,32 @@
 #define	_MACHINE_PCB_H_
 
 #include <machine/fp.h>
+#include <machine/frame.h>
 
-
-struct trapframe;
-
-struct pcb_arm32 {
-	vm_offset_t	pcb32_pagedir;		/* PT hooks */
-	uint32_t *pcb32_pl1vec;		/* PTR to vector_base L1 entry*/
-	uint32_t pcb32_l1vec;			/* Value to stuff on ctx sw */
-	u_int	pcb32_dacr;			/* Domain Access Control Reg */
-	/*
-	 * WARNING!
-	 * cpuswitch.S relies on pcb32_r8 being quad-aligned in struct pcb
-	 * (due to the use of "strd" when compiled for XSCALE)
-	 */
-	u_int	pcb32_r8;			/* used */
-	u_int	pcb32_r9;			/* used */
-	u_int	pcb32_r10;			/* used */
-	u_int	pcb32_r11;			/* used */
-	u_int	pcb32_r12;			/* used */
-	u_int	pcb32_sp;			/* used */
-	u_int	pcb32_lr;
-	u_int	pcb32_pc;
-};
-#define	pcb_pagedir	un_32.pcb32_pagedir
-#define	pcb_pl1vec	un_32.pcb32_pl1vec
-#define	pcb_l1vec	un_32.pcb32_l1vec
-#define	pcb_dacr	un_32.pcb32_dacr
-#define	pcb_cstate	un_32.pcb32_cstate
 
 /*
  * WARNING!
- * See warning for struct pcb_arm32, above, before changing struct pcb!
+ * Keep pcb_regs first for faster access in switch.S
  */
 struct pcb {
+	struct switchframe pcb_regs;		/* CPU state */
 	u_int	pcb_flags;
 #define	PCB_OWNFPU	0x00000001
 #define PCB_NOALIGNFLT	0x00000002
 	caddr_t	pcb_onfault;			/* On fault handler */
-	struct	pcb_arm32 un_32;
+#ifdef  ARM_NEW_PMAP
+	uint32_t	pcb_pagedir;		/* TTB0 value */
+#else
+	vm_offset_t	pcb_pagedir;		/* PT hooks */
+	uint32_t *pcb_pl1vec;			/* PTR to vector_base L1 entry*/
+	uint32_t pcb_l1vec;			/* Value to stuff on ctx sw */
+	u_int	pcb_dacr;			/* Domain Access Control Reg */
+#endif
 	struct vfp_state pcb_vfpstate;          /* VP/NEON state */
 	u_int pcb_vfpcpu;                       /* VP/NEON last cpu */
 } __aligned(8); /* 
 		 * We need the PCB to be aligned on 8 bytes, as we may
-		 * access it using ldrd/strd, and some CPUs require it
+		 * access it using ldrd/strd, and ARM ABI require it
 		 * to by aligned on 8 bytes.
 		 */
 

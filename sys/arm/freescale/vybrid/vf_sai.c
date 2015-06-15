@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -430,7 +429,7 @@ find_edma_controller(struct sc_info *sc)
 	OF_getprop(node, "edma-mux-group", &dts_value, len);
 	edma_mux_group = fdt32_to_cpu(dts_value);
 	OF_getprop(node, "edma-controller", &dts_value, len);
-	edma_node = OF_xref_phandle(fdt32_to_cpu(dts_value));
+	edma_node = OF_node_from_xref(fdt32_to_cpu(dts_value));
 
 	if ((len = OF_getproplen(edma_node, "device-id")) <= 0) {
 		return (ENXIO);

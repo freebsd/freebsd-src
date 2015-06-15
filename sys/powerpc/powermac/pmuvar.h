@@ -99,6 +99,7 @@
 
 /* Bits from PMU_GET_LID_STATE or PMU_INT_ENVIRONMENT on core99 */
 #define PMU_ENV_LID_CLOSED	0x01	/* The lid is closed */
+#define PMU_ENV_POWER		0x08	/* Power Button pressed */
 
 /* PMU PMU_POWER_EVENTS commands */
 enum {

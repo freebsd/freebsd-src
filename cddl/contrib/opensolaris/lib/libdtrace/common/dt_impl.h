@@ -34,7 +34,7 @@
 
 #include <sys/param.h>
 #include <sys/objfs.h>
-#if !defined(sun)
+#ifndef illumos
 #include <sys/bitmap.h>
 #include <sys/utsname.h>
 #include <sys/ioccom.h>
@@ -45,7 +45,7 @@
 #include <libctf.h>
 #include <dtrace.h>
 #include <gelf.h>
-#if defined(sun)
+#ifdef illumos
 #include <synch.h>
 #endif
 
@@ -142,7 +142,7 @@ typedef struct dt_module {
 	GElf_Addr dm_bss_va;	/* virtual address of BSS */
 	GElf_Xword dm_bss_size;	/* size in bytes of BSS */
 	dt_idhash_t *dm_extern;	/* external symbol definitions */
-#if !defined(sun)
+#ifndef illumos
 	caddr_t dm_reloc_offset;	/* Symbol relocation offset. */
 	uintptr_t *dm_sec_offsets;
 #endif
@@ -155,6 +155,21 @@ typedef struct dt_module {
 #define	DT_DM_LOADED	0x1	/* module symbol and type data is loaded */
 #define	DT_DM_KERNEL	0x2	/* module is associated with a kernel object */
 #define	DT_DM_PRIMARY	0x4	/* module is a krtld primary kernel object */
+
+#ifdef __FreeBSD__
+/*
+ * A representation of a FreeBSD kernel module, used when checking module
+ * dependencies.  This differs from dt_module_t, which refers to a KLD in the
+ * case of kernel probes.  Since modules can be identified regardless of whether
+ * they've been compiled into the kernel, we use them to identify DTrace
+ * modules.
+ */
+typedef struct dt_kmodule {
+	struct dt_kmodule *dkm_next;	/* hash table entry */
+	char *dkm_name;			/* string name of module */
+	dt_module_t *dkm_module;	/* corresponding KLD module */
+} dt_kmodule_t;
+#endif
 
 typedef struct dt_provmod {
 	char *dp_name;				/* name of provider module */
@@ -235,6 +250,9 @@ struct dtrace_hdl {
 	dt_idhash_t *dt_tls;	/* hash table of thread-local identifiers */
 	dt_list_t dt_modlist;	/* linked list of dt_module_t's */
 	dt_module_t **dt_mods;	/* hash table of dt_module_t's */
+#ifdef __FreeBSD__
+	dt_kmodule_t **dt_kmods; /* hash table of dt_kmodule_t's */
+#endif
 	uint_t dt_modbuckets;	/* number of module hash buckets */
 	uint_t dt_nmods;	/* number of modules in hash and list */
 	dt_provmod_t *dt_provmod; /* linked list of provider modules */
@@ -275,6 +293,9 @@ struct dtrace_hdl {
 	int dt_cpp_argc;	/* count of initialized cpp(1) arguments */
 	int dt_cpp_args;	/* size of dt_cpp_argv[] array */
 	char *dt_ld_path;	/* pathname of ld(1) to invoke if needed */
+#ifdef __FreeBSD__
+	char *dt_objcopy_path;	/* pathname of objcopy(1) to invoke if needed */
+#endif
 	dt_list_t dt_lib_path;	/* linked-list forming library search path */
 	uint_t dt_lazyload;	/* boolean:  set via -xlazyload */
 	uint_t dt_droptags;	/* boolean:  set via -xdroptags */
@@ -296,7 +317,7 @@ struct dtrace_hdl {
 	int dt_version;		/* library version requested by client */
 	int dt_ctferr;		/* error resulting from last CTF failure */
 	int dt_errno;		/* error resulting from last failed operation */
-#if !defined(sun)
+#ifndef illumos
 	const char *dt_errfile;
 	int dt_errline;
 #endif
@@ -305,7 +326,7 @@ struct dtrace_hdl {
 	int dt_fterr;		/* saved errno from failed open of dt_ftfd */
 	int dt_cdefs_fd;	/* file descriptor for C CTF debugging cache */
 	int dt_ddefs_fd;	/* file descriptor for D CTF debugging cache */
-#if defined(sun)
+#ifdef illumos
 	int dt_stdout_fd;	/* file descriptor for saved stdout */
 #else
 	FILE *dt_freopen_fp;	/* file pointer for freopened stdout */
@@ -596,7 +617,7 @@ extern int dt_version_defined(dt_version_t);
 extern char *dt_cpp_add_arg(dtrace_hdl_t *, const char *);
 extern char *dt_cpp_pop_arg(dtrace_hdl_t *);
 
-#if defined(sun)
+#ifdef illumos
 extern int dt_set_errno(dtrace_hdl_t *, int);
 #else
 int _dt_set_errno(dtrace_hdl_t *, int, const char *, int);
@@ -606,7 +627,7 @@ void dt_get_errloc(dtrace_hdl_t *, const char **, int *);
 extern void dt_set_errmsg(dtrace_hdl_t *, const char *, const char *,
     const char *, int, const char *, va_list);
 
-#if defined(sun)
+#ifdef illumos
 extern int dt_ioctl(dtrace_hdl_t *, int, void *);
 #else
 extern int dt_ioctl(dtrace_hdl_t *, u_long, void *);

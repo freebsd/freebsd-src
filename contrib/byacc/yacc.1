@@ -1,4 +1,4 @@
-.\" $Id: yacc.1,v 1.23 2014/04/09 09:48:50 tom Exp $
+.\" $Id: yacc.1,v 1.24 2014/10/06 00:03:48 tom Exp $
 .\"
 .\" .TH YACC 1 "July\ 15,\ 1990"
 .\" .UC 6
@@ -23,7 +23,7 @@
 .de bP
 .IP \(bu 4
 ..
-.TH YACC 1 "January 1, 2014" "Berkeley Yacc" "User Commands"
+.TH YACC 1 "October 5, 2014" "Berkeley Yacc" "User Commands"
 .SH NAME
 Yacc \- an LALR(1) parser generator
 .SH SYNOPSIS
@@ -339,6 +339,23 @@ relying on directives embedded in the grammar file.
 .bP
 Bison's \*(``\fB\-y\fP\*('' option does not affect bison's lack of support for
 features of AT&T yacc which were deemed obsolescent.
+.bP
+\fBYacc\fP accepts multiple parameters with \fB%lex-param\fP and \fB%parse-param\fP
+in two forms
+.ES
+{type1 name1} {type2 name2} ...
+{type1 name1,  type2 name2 ...}
+.XE
+.IP
+Bison accepts the latter (though undocumented), but depending on the
+release may generate bad code.
+.bP
+Like bison, \fByacc\fP will add parameters specified via \fB%parse-param\fP
+to \fByyparse\fP, \fByyerror\fP and (if configured for back-tracking)
+to the destructor declared using \fB%destructor\fP.
+Bison puts the additional parameters \fIfirst\fP for
+\fByyparse\fP and \fByyerror\fP but \fIlast\fP for destructors.
+\fBYacc\fP matches this behavior.
 .
 .SH DIAGNOSTICS
 If there are rules that are never reduced, the number of such rules is

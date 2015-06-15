@@ -23,6 +23,7 @@
 
 namespace llvm {
 
+class CallInst;
 class LandingPadInst;
 class TerminatorInst;
 class LLVMContext;
@@ -90,7 +91,8 @@ private:
   /// inserted at either the end of the function (if InsertBefore is null), or
   /// before the specified basic block.
   explicit BasicBlock(LLVMContext &C, const Twine &Name = "",
-                      Function *Parent = 0, BasicBlock *InsertBefore = 0);
+                      Function *Parent = nullptr,
+                      BasicBlock *InsertBefore = nullptr);
 public:
   /// \brief Get the context in which this basic block lives.
   LLVMContext &getContext() const;
@@ -107,7 +109,8 @@ public:
   /// inserted at either the end of the function (if InsertBefore is 0), or
   /// before the specified basic block.
   static BasicBlock *Create(LLVMContext &Context, const Twine &Name = "",
-                            Function *Parent = 0,BasicBlock *InsertBefore = 0) {
+                            Function *Parent = nullptr,
+                            BasicBlock *InsertBefore = nullptr) {
     return new BasicBlock(Context, Name, Parent, InsertBefore);
   }
   ~BasicBlock();
@@ -116,10 +119,20 @@ public:
   const Function *getParent() const { return Parent; }
         Function *getParent()       { return Parent; }
 
+  const DataLayout *getDataLayout() const;
+
   /// \brief Returns the terminator instruction if the block is well formed or
   /// null if the block is not well formed.
   TerminatorInst *getTerminator();
   const TerminatorInst *getTerminator() const;
+
+  /// \brief Returns the call instruction marked 'musttail' prior to the
+  /// terminating return instruction of this basic block, if such a call is
+  /// present.  Otherwise, returns null.
+  CallInst *getTerminatingMustTailCall();
+  const CallInst *getTerminatingMustTailCall() const {
+    return const_cast<BasicBlock *>(this)->getTerminatingMustTailCall();
+  }
 
   /// \brief Returns a pointer to the first instruction in this block that is
   /// not a PHINode instruction.
@@ -169,15 +182,23 @@ public:
   /// right after \p MovePos in the function \p MovePos lives in.
   void moveAfter(BasicBlock *MovePos);
 
+  /// \brief Insert unlinked basic block into a function.
+  ///
+  /// Inserts an unlinked basic block into \c Parent.  If \c InsertBefore is
+  /// provided, inserts before that basic block, otherwise inserts at the end.
+  ///
+  /// \pre \a getParent() is \c nullptr.
+  void insertInto(Function *Parent, BasicBlock *InsertBefore = nullptr);
 
-  /// \brief Return this block if it has a single predecessor block. Otherwise
-  /// return a null pointer.
+  /// \brief Return the predecessor of this block if it has a single predecessor
+  /// block. Otherwise return a null pointer.
   BasicBlock *getSinglePredecessor();
   const BasicBlock *getSinglePredecessor() const {
     return const_cast<BasicBlock*>(this)->getSinglePredecessor();
   }
 
-  /// \brief Return this block if it has a unique predecessor block. Otherwise return a null pointer.
+  /// \brief Return the predecessor of this block if it has a unique predecessor
+  /// block. Otherwise return a null pointer.
   ///
   /// Note that unique predecessor doesn't mean single edge, there can be
   /// multiple edges from the unique predecessor to this block (for example a

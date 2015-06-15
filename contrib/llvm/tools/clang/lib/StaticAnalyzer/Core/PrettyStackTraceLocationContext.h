@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_STATICANALYZER_PRETTYSTACKTRACELOCATIONCONTEXT_H
-#define LLVM_CLANG_STATICANALYZER_PRETTYSTACKTRACELOCATIONCONTEXT_H
+#ifndef LLVM_CLANG_LIB_STATICANALYZER_CORE_PRETTYSTACKTRACELOCATIONCONTEXT_H
+#define LLVM_CLANG_LIB_STATICANALYZER_CORE_PRETTYSTACKTRACELOCATIONCONTEXT_H
 
 #include "clang/Analysis/AnalysisContext.h"
 
@@ -33,7 +33,7 @@ public:
     assert(LCtx);
   }
 
-  virtual void print(raw_ostream &OS) const {
+  void print(raw_ostream &OS) const override {
     OS << "While analyzing stack: \n";
     LCtx->dumpStack(OS, "\t");
   }

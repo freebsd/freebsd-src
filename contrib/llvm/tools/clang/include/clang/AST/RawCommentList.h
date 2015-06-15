@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_RAW_COMMENT_LIST_H
-#define LLVM_CLANG_AST_RAW_COMMENT_LIST_H
+#ifndef LLVM_CLANG_AST_RAWCOMMENTLIST_H
+#define LLVM_CLANG_AST_RAWCOMMENTLIST_H
 
 #include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/SourceManager.h"
@@ -193,9 +193,7 @@ private:
   SourceManager &SourceMgr;
   std::vector<RawComment *> Comments;
 
-  void addCommentsToFront(const std::vector<RawComment *> &C) {
-    Comments.insert(Comments.begin(), C.begin(), C.end());
-  }
+  void addDeserializedComments(ArrayRef<RawComment *> DeserializedComments);
 
   friend class ASTReader;
 };

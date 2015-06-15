@@ -34,7 +34,8 @@ __FBSDID("$FreeBSD$");
 
 typedef u_int8_t	BYTE;
 
-int rijndael_makeKey(keyInstance *key, BYTE direction, int keyLen, char *keyMaterial) {
+int rijndael_makeKey(keyInstance *key, BYTE direction, int keyLen,
+	const char *keyMaterial) {
 	u_int8_t cipherKey[RIJNDAEL_MAXKB];
 
 	if (key == NULL) {
@@ -83,7 +84,7 @@ int rijndael_cipherInit(cipherInstance *cipher, BYTE mode, char *IV) {
 }
 
 int rijndael_blockEncrypt(cipherInstance *cipher, keyInstance *key,
-		BYTE *input, int inputLen, BYTE *outBuffer) {
+		const BYTE *input, int inputLen, BYTE *outBuffer) {
 	int i, k, numBlocks;
 	u_int8_t block[16], iv[4][4];
 
@@ -198,7 +199,7 @@ int rijndael_blockEncrypt(cipherInstance *cipher, keyInstance *key,
  * @return	length in octets (not bits) of the encrypted output buffer.
  */
 int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
-		BYTE *input, int inputOctets, BYTE *outBuffer) {
+		const BYTE *input, int inputOctets, BYTE *outBuffer) {
 	int i, numBlocks, padLen;
 	u_int8_t block[16], *iv, *cp;
 
@@ -232,10 +233,10 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 	case MODE_CBC:
 		iv = cipher->IV;
 		for (i = numBlocks; i > 0; i--) {
-			((u_int32_t*)block)[0] = ((u_int32_t*)input)[0] ^ ((u_int32_t*)iv)[0];
-			((u_int32_t*)block)[1] = ((u_int32_t*)input)[1] ^ ((u_int32_t*)iv)[1];
-			((u_int32_t*)block)[2] = ((u_int32_t*)input)[2] ^ ((u_int32_t*)iv)[2];
-			((u_int32_t*)block)[3] = ((u_int32_t*)input)[3] ^ ((u_int32_t*)iv)[3];
+			((u_int32_t*)block)[0] = ((const u_int32_t*)input)[0] ^ ((u_int32_t*)iv)[0];
+			((u_int32_t*)block)[1] = ((const u_int32_t*)input)[1] ^ ((u_int32_t*)iv)[1];
+			((u_int32_t*)block)[2] = ((const u_int32_t*)input)[2] ^ ((u_int32_t*)iv)[2];
+			((u_int32_t*)block)[3] = ((const u_int32_t*)input)[3] ^ ((u_int32_t*)iv)[3];
 			rijndaelEncrypt(key->rk, key->Nr, block, outBuffer);
 			iv = outBuffer;
 			input += 16;
@@ -261,7 +262,7 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 }
 
 int rijndael_blockDecrypt(cipherInstance *cipher, keyInstance *key,
-		BYTE *input, int inputLen, BYTE *outBuffer) {
+		const BYTE *input, int inputLen, BYTE *outBuffer) {
 	int i, k, numBlocks;
 	u_int8_t block[16], iv[4][4];
 
@@ -360,7 +361,7 @@ int rijndael_blockDecrypt(cipherInstance *cipher, keyInstance *key,
 }
 
 int rijndael_padDecrypt(cipherInstance *cipher, keyInstance *key,
-		BYTE *input, int inputOctets, BYTE *outBuffer) {
+		const BYTE *input, int inputOctets, BYTE *outBuffer) {
 	int i, numBlocks, padLen;
 	u_int8_t block[16];
 	u_int32_t iv[4];

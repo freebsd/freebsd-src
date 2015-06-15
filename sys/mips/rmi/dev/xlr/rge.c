@@ -1894,9 +1894,9 @@ rge_attach(device_t dev)
 	if (!gmac_common_init_done) {
 		mac_common_init();
 		gmac_common_init_done = 1;
-		callout_init(&xlr_tx_stop_bkp, CALLOUT_MPSAFE);
+		callout_init(&xlr_tx_stop_bkp, 1);
 		callout_reset(&xlr_tx_stop_bkp, hz, xlr_tx_q_wakeup, NULL);
-		callout_init(&rge_dbg_count, CALLOUT_MPSAFE);
+		callout_init(&rge_dbg_count, 1);
 		//callout_reset(&rge_dbg_count, hz, xlr_debug_count, NULL);
 	}
 	if ((ret = rmi_xlr_mac_open(sc)) == -1) {
@@ -2019,7 +2019,7 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 		printf("\n");
 	}
 #endif
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	(*ifp->if_input) (ifp, m);
 }
 
@@ -2116,7 +2116,7 @@ rge_start_locked(struct ifnet *ifp, int threshold)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			return;
 		} else {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			xlr_rge_tx_done[vcpu]++;
 		}
 	}

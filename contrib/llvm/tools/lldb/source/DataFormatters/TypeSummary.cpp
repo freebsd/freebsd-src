@@ -34,6 +34,50 @@
 using namespace lldb;
 using namespace lldb_private;
 
+TypeSummaryOptions::TypeSummaryOptions () :
+    m_lang(eLanguageTypeUnknown),
+    m_capping(eTypeSummaryCapped)
+{}
+
+TypeSummaryOptions::TypeSummaryOptions (const TypeSummaryOptions& rhs) :
+    m_lang(rhs.m_lang),
+    m_capping(rhs.m_capping)
+{}
+
+TypeSummaryOptions&
+TypeSummaryOptions::operator = (const TypeSummaryOptions& rhs)
+{
+    m_lang = rhs.m_lang;
+    m_capping = rhs.m_capping;
+    return *this;
+}
+
+lldb::LanguageType
+TypeSummaryOptions::GetLanguage () const
+{
+    return m_lang;
+}
+
+lldb::TypeSummaryCapping
+TypeSummaryOptions::GetCapping () const
+{
+    return m_capping;
+}
+
+TypeSummaryOptions&
+TypeSummaryOptions::SetLanguage (lldb::LanguageType lang)
+{
+    m_lang = lang;
+    return *this;
+}
+
+TypeSummaryOptions&
+TypeSummaryOptions::SetCapping (lldb::TypeSummaryCapping cap)
+{
+    m_capping = cap;
+    return *this;
+}
+
 TypeSummaryImpl::TypeSummaryImpl (const TypeSummaryImpl::Flags& flags) :
 m_flags(flags)
 {
@@ -51,7 +95,8 @@ m_format()
 
 bool
 StringSummaryFormat::FormatObject (ValueObject *valobj,
-                                   std::string& retval)
+                                   std::string& retval,
+                                   const TypeSummaryOptions& options)
 {
     if (!valobj)
     {
@@ -69,7 +114,7 @@ StringSummaryFormat::FormatObject (ValueObject *valobj,
     if (IsOneLiner())
     {
         ValueObjectPrinter printer(valobj,&s,DumpValueObjectOptions());
-        printer.PrintChildrenOneLiner(HideNames());
+        printer.PrintChildrenOneLiner(HideNames(valobj));
         retval.assign(s.GetData());
         return true;
     }
@@ -95,12 +140,12 @@ StringSummaryFormat::GetDescription ()
     
     sstr.Printf ("`%s`%s%s%s%s%s%s%s",      m_format.c_str(),
                  Cascades() ? "" : " (not cascading)",
-                 !DoesPrintChildren() ? "" : " (show children)",
-                 !DoesPrintValue() ? " (hide value)" : "",
+                 !DoesPrintChildren(nullptr) ? "" : " (show children)",
+                 !DoesPrintValue(nullptr) ? " (hide value)" : "",
                  IsOneLiner() ? " (one-line printout)" : "",
                  SkipsPointers() ? " (skip pointers)" : "",
                  SkipsReferences() ? " (skip references)" : "",
-                 HideNames() ? " (hide member names)" : "");
+                 HideNames(nullptr) ? " (hide member names)" : "");
     return sstr.GetString();
 }
 
@@ -115,11 +160,12 @@ m_description(description ? description : "")
 
 bool
 CXXFunctionSummaryFormat::FormatObject (ValueObject *valobj,
-                                        std::string& dest)
+                                        std::string& dest,
+                                        const TypeSummaryOptions& options)
 {
     dest.clear();
     StreamString stream;
-    if (!m_impl || m_impl(*valobj,stream) == false)
+    if (!m_impl || m_impl(*valobj,stream,options) == false)
         return false;
     dest.assign(stream.GetData());
     return true;
@@ -129,14 +175,15 @@ std::string
 CXXFunctionSummaryFormat::GetDescription ()
 {
     StreamString sstr;
-    sstr.Printf ("`%s (%p) `%s%s%s%s%s%s%s",      m_description.c_str(),m_impl,
+    sstr.Printf ("`%s (%p) `%s%s%s%s%s%s%s", m_description.c_str(),
+                 static_cast<void*>(&m_impl),
                  Cascades() ? "" : " (not cascading)",
-                 !DoesPrintChildren() ? "" : " (show children)",
-                 !DoesPrintValue() ? " (hide value)" : "",
+                 !DoesPrintChildren(nullptr) ? "" : " (show children)",
+                 !DoesPrintValue(nullptr) ? " (hide value)" : "",
                  IsOneLiner() ? " (one-line printout)" : "",
                  SkipsPointers() ? " (skip pointers)" : "",
                  SkipsReferences() ? " (skip references)" : "",
-                 HideNames() ? " (hide member names)" : "");
+                 HideNames(nullptr) ? " (hide member names)" : "");
     return sstr.GetString();
 }
 
@@ -159,7 +206,8 @@ m_script_function_sp()
 
 bool
 ScriptSummaryFormat::FormatObject (ValueObject *valobj,
-                                   std::string& retval)
+                                   std::string& retval,
+                                   const TypeSummaryOptions& options)
 {
     Timer scoped_timer (__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
     
@@ -189,6 +237,7 @@ ScriptSummaryFormat::FormatObject (ValueObject *valobj,
     return script_interpreter->GetScriptedSummary(m_function_name.c_str(),
                                                   valobj->GetSP(),
                                                   m_script_function_sp,
+                                                  options,
                                                   retval);
     
 }
@@ -198,12 +247,12 @@ ScriptSummaryFormat::GetDescription ()
 {
     StreamString sstr;
     sstr.Printf ("%s%s%s%s%s%s%s\n%s",       Cascades() ? "" : " (not cascading)",
-                 !DoesPrintChildren() ? "" : " (show children)",
-                 !DoesPrintValue() ? " (hide value)" : "",
+                 !DoesPrintChildren(nullptr) ? "" : " (show children)",
+                 !DoesPrintValue(nullptr) ? " (hide value)" : "",
                  IsOneLiner() ? " (one-line printout)" : "",
                  SkipsPointers() ? " (skip pointers)" : "",
                  SkipsReferences() ? " (skip references)" : "",
-                 HideNames() ? " (hide member names)" : "",
+                 HideNames(nullptr) ? " (hide member names)" : "",
                  m_python_script.c_str());
     return sstr.GetString();
     

@@ -465,43 +465,39 @@ static struct {
 	char	*name;
 	char	*description;
 	int	method;
-	int	flags;
+	int	flag_anybody;
 } acpi_asus_sysctls[] = {
 	{
 		.name		= "lcd_backlight",
 		.method		= ACPI_ASUS_METHOD_LCD,
 		.description	= "state of the lcd backlight",
-		.flags 		= CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY
+		.flag_anybody	= 1
 	},
 	{
 		.name		= "lcd_brightness",
 		.method		= ACPI_ASUS_METHOD_BRN,
 		.description	= "brightness of the lcd panel",
-		.flags 		= CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY
+		.flag_anybody	= 1
 	},
 	{
 		.name		= "video_output",
 		.method		= ACPI_ASUS_METHOD_DISP,
 		.description	= "display output state",
-		.flags 		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "camera",
 		.method		= ACPI_ASUS_METHOD_CAMERA,
 		.description	= "internal camera state",  
-		.flags 		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "cardreader",
 		.method		= ACPI_ASUS_METHOD_CARDRD,
 		.description	= "internal card reader state",
-		.flags 		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wlan",
 		.method		= ACPI_ASUS_METHOD_WLAN,
 		.description	= "wireless lan state",
-		.flags		= CTLTYPE_INT | CTLFLAG_RW
 	},
 
 	{ .name = NULL }
@@ -741,12 +737,21 @@ acpi_asus_attach(device_t dev)
 		if (!acpi_asus_sysctl_init(sc, acpi_asus_sysctls[i].method))
 			continue;
 
-		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    acpi_asus_sysctls[i].name,
-		    acpi_asus_sysctls[i].flags,
-		    sc, i, acpi_asus_sysctl, "I",
-		    acpi_asus_sysctls[i].description);
+		if (acpi_asus_sysctls[i].flag_anybody != 0) {
+			SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_asus_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+			    sc, i, acpi_asus_sysctl, "I",
+			    acpi_asus_sysctls[i].description);
+		} else {
+			SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_asus_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RW,
+			    sc, i, acpi_asus_sysctl, "I",
+			    acpi_asus_sysctls[i].description);
+		}
 	}
 
 	/* Attach leds */

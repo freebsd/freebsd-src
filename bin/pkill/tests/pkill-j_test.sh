@@ -1,71 +1,94 @@
 #!/bin/sh
 # $FreeBSD$
 
-base=`basename $0`
+jail_name_to_jid()
+{
+	local check_name="$1"
+	jls -j "$check_name" -s | tr ' ' '\n' | grep jid= | sed -e 's/.*=//g'
+}
+
+base=pkill_j_test
+
+if [ `id -u` -ne 0 ]; then
+	echo "1..0 # skip Test needs uid 0."
+	exit 0
+fi
 
 echo "1..3"
 
+sleep=$(pwd)/sleep.txt
+ln -sf /bin/sleep $sleep
+
 name="pkill -j <jid>"
-if [ `id -u` -eq 0 ]; then
-	sleep=$(pwd)/sleep.txt
-	ln -sf /bin/sleep $sleep
-	jail / $base-1 127.0.0.1 $sleep 5 &
-	chpid=$!
-	jail / $base-2 127.0.0.1 $sleep 5 &
-	chpid2=$!
-	$sleep 5 &
-	chpid3=$!
-	sleep 0.5
-	jid=`jls | awk "/127\\.0\\.0\\.1.*${base}-1/ {print \$1}"`
-	if pkill -f -j $jid $sleep && sleep 0.5 &&
-	    ! kill $chpid && kill $chpid2 $chpid3; then
-		echo "ok 1 - $name"
-	else
-		echo "not ok 1 - $name"
-	fi 2>/dev/null
-	rm -f $sleep
+sleep_amount=5
+jail -c path=/ name=${base}_1_1 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_1_1.pid $sleep $sleep_amount &
+
+jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_1_2.pid $sleep $sleep_amount &
+
+$sleep $sleep_amount &
+
+for i in `seq 1 10`; do
+	jid1=$(jail_name_to_jid ${base}_1_1)
+	jid2=$(jail_name_to_jid ${base}_1_2)
+	jid="${jid1},${jid2}"
+	case "$jid" in
+	[0-9]+,[0-9]+)
+		break
+		;;
+	esac
+	sleep 0.1
+done
+sleep 0.5
+
+if pkill -f -j "$jid" $sleep && sleep 0.5 &&
+    ! -f ${PWD}/${base}_1_1.pid &&
+    ! -f ${PWD}/${base}_1_2.pid ; then
+	echo "ok 1 - $name"
 else
-	echo "ok 1 - $name # skip Test needs uid 0."
-fi
+	echo "not ok 1 - $name"
+fi 2>/dev/null
+[ -f ${PWD}/${base}_1_1.pid ] && kill $(cat ${PWD}/${base}_1_1.pid)
+[ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
+wait
 
 name="pkill -j any"
-if [ `id -u` -eq 0 ]; then
-	sleep=$(pwd)/sleep.txt
-	ln -sf /bin/sleep $sleep
-	jail / $base-1 127.0.0.1 $sleep 5 &
-	chpid=$!
-	jail / $base-2 127.0.0.1 $sleep 5 &
-	chpid2=$!
-	$sleep 5 &
-	chpid3=$!
-	sleep 0.5
-	if pkill -f -j any $sleep && sleep 0.5 &&
-	    ! kill $chpid && ! kill $chpid2 && kill $chpid3; then
-		echo "ok 2 - $name"
-	else
-		echo "not ok 2 - $name"
-	fi 2>/dev/null
-	rm -f $sleep
+sleep_amount=6
+jail -c path=/ name=${base}_2_1 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_2_1.pid $sleep $sleep_amount &
+
+jail -c path=/ name=${base}_2_2 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_2_2.pid $sleep $sleep_amount &
+
+$sleep $sleep_amount &
+chpid3=$!
+sleep 0.5
+if pkill -f -j any $sleep && sleep 0.5 &&
+    [ ! -f ${PWD}/${base}_2_1.pid -a
+      ! -f ${PWD}/${base}_2_2.pid ] && kill $chpid3; then
+	echo "ok 2 - $name"
 else
-	echo "ok 2 - $name # skip Test needs uid 0."
-fi
+	echo "not ok 2 - $name"
+fi 2>/dev/null
+[ -f ${PWD}/${base}_2_1.pid ] && kill $(cat ${PWD}/${base}_2_1.pid)
+[ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
+wait
 
 name="pkill -j none"
-if [ `id -u` -eq 0 ]; then
-	sleep=$(pwd)/sleep.txt
-	ln -sf /bin/sleep $sleep
-	$sleep 5 &
-	chpid=$!
-	jail / $base 127.0.0.1 $sleep 5 &
-	chpid2=$!
-	sleep 0.5
-	if pkill -f -j none $sleep && sleep 0.5 &&
-	    ! kill $chpid && kill $chpid2; then
-		echo "ok 3 - $name"
-	else
-		echo "not ok 3 - $name"
-	fi 2>/dev/null
-	rm -f $sleep
+sleep_amount=7
+daemon -p ${PWD}/${base}_3_1.pid $sleep $sleep_amount
+jail -c path=/ name=${base}_3_2 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_3_2.pid $sleep $sleep_amount &
+sleep 1
+if pkill -f -j none "$sleep $sleep_amount" && sleep 1 &&
+    [ ! -f ${PWD}/${base}_3_1.pid -a -f ${PWD}/${base}_3_2.pid ] ; then
+	echo "ok 3 - $name"
 else
-	echo "ok 3 - $name # skip Test needs uid 0."
-fi
+	ls ${PWD}/*.pid
+	echo "not ok 3 - $name"
+fi 2>/dev/null
+[ -f ${PWD}/${base}_3_1.pid ] && kill $(cat ${base}_3_1.pid)
+[ -f ${PWD}/${base}_3_2.pid ] && kill $(cat ${base}_3_2.pid)
+
+rm -f $sleep

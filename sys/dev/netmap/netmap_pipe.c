@@ -197,10 +197,10 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
         if (m < 0)
                 m += txkring->nkr_num_slots;
         limit = m;
-        m = rxkring->nkr_num_slots - 1; /* max avail space on destination */
+        m = lim_rx; /* max avail space on destination */
         busy = j - rxkring->nr_hwcur; /* busy slots */
 	if (busy < 0)
-		busy += txkring->nkr_num_slots;
+		busy += rxkring->nkr_num_slots;
 	m -= busy; /* subtract busy slots */
         ND(2, "m %d limit %d", m, limit);
         if (m < limit)
@@ -228,7 +228,7 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
                 k = nm_next(k, lim_tx);
         }
 
-        wmb(); /* make sure the slots are updated before publishing them */
+        mb(); /* make sure the slots are updated before publishing them */
         rxkring->nr_hwtail = j;
         txkring->nr_hwcur = k;
         txkring->nr_hwtail = nm_prev(k, lim_tx);
@@ -237,7 +237,7 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
         ND(2, "after: hwcur %d hwtail %d cur %d head %d tail %d j %d", txkring->nr_hwcur, txkring->nr_hwtail,
                 txkring->rcur, txkring->rhead, txkring->rtail, j);
 
-        wmb(); /* make sure rxkring->nr_hwtail is updated before notifying */
+        mb(); /* make sure rxkring->nr_hwtail is updated before notifying */
         rxkring->na->nm_notify(rxkring->na, rxkring->ring_id, NR_RX, 0);
 
 	return 0;
@@ -253,12 +253,12 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
         rxkring->nr_hwcur = rxkring->rhead; /* recover user-relased slots */
         ND(5, "hwcur %d hwtail %d cur %d head %d tail %d", rxkring->nr_hwcur, rxkring->nr_hwtail,
                 rxkring->rcur, rxkring->rhead, rxkring->rtail);
-        rmb(); /* paired with the first wmb() in txsync */
+        mb(); /* paired with the first mb() in txsync */
         nm_rxsync_finalize(rxkring);
 
 	if (oldhwcur != rxkring->nr_hwcur) {
 		/* we have released some slots, notify the other end */
-		wmb(); /* make sure nr_hwcur is updated before notifying */
+		mb(); /* make sure nr_hwcur is updated before notifying */
 		txkring->na->nm_notify(txkring->na, txkring->ring_id, NR_TX, 0);
 	}
         return 0;

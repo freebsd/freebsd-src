@@ -11,12 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MipsMCTargetDesc.h"
 #include "InstPrinter/MipsInstPrinter.h"
+#include "MipsELFStreamer.h"
 #include "MipsMCAsmInfo.h"
+#include "MipsMCNaCl.h"
+#include "MipsMCTargetDesc.h"
 #include "MipsTargetStreamer.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCCodeGenInfo.h"
-#include "llvm/MC/MCELF.h"
 #include "llvm/MC/MCELFStreamer.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -28,6 +30,8 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
 
+using namespace llvm;
+
 #define GET_INSTRINFO_MC_DESC
 #include "MipsGenInstrInfo.inc"
 
@@ -37,38 +41,18 @@
 #define GET_REGINFO_MC_DESC
 #include "MipsGenRegisterInfo.inc"
 
-using namespace llvm;
-
-static std::string ParseMipsTriple(StringRef TT, StringRef CPU) {
-  std::string MipsArchFeature;
-  size_t DashPosition = 0;
-  StringRef TheTriple;
-
-  // Let's see if there is a dash, like mips-unknown-linux.
-  DashPosition = TT.find('-');
-
-  if (DashPosition == StringRef::npos) {
-    // No dash, we check the string size.
-    TheTriple = TT.substr(0);
-  } else {
-    // We are only interested in substring before dash.
-    TheTriple = TT.substr(0,DashPosition);
+/// Select the Mips CPU for the given triple and cpu name.
+/// FIXME: Merge with the copy in MipsSubtarget.cpp
+static inline StringRef selectMipsCPU(StringRef TT, StringRef CPU) {
+  if (CPU.empty() || CPU == "generic") {
+    Triple TheTriple(TT);
+    if (TheTriple.getArch() == Triple::mips ||
+        TheTriple.getArch() == Triple::mipsel)
+      CPU = "mips32";
+    else
+      CPU = "mips64";
   }
-
-  if (TheTriple == "mips" || TheTriple == "mipsel") {
-    if (CPU.empty() || CPU == "mips32") {
-      MipsArchFeature = "+mips32";
-    } else if (CPU == "mips32r2") {
-      MipsArchFeature = "+mips32r2";
-    }
-  } else {
-      if (CPU.empty() || CPU == "mips64") {
-        MipsArchFeature = "+mips64";
-      } else if (CPU == "mips64r2") {
-        MipsArchFeature = "+mips64r2";
-      }
-  }
-  return MipsArchFeature;
+  return CPU;
 }
 
 static MCInstrInfo *createMipsMCInstrInfo() {
@@ -85,15 +69,9 @@ static MCRegisterInfo *createMipsMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *createMipsMCSubtargetInfo(StringRef TT, StringRef CPU,
                                                   StringRef FS) {
-  std::string ArchFS = ParseMipsTriple(TT,CPU);
-  if (!FS.empty()) {
-    if (!ArchFS.empty())
-      ArchFS = ArchFS + "," + FS.str();
-    else
-      ArchFS = FS;
-  }
+  CPU = selectMipsCPU(TT, CPU);
   MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitMipsMCSubtargetInfo(X, TT, CPU, ArchFS);
+  InitMipsMCSubtargetInfo(X, TT, CPU, FS);
   return X;
 }
 
@@ -101,7 +79,7 @@ static MCAsmInfo *createMipsMCAsmInfo(const MCRegisterInfo &MRI, StringRef TT) {
   MCAsmInfo *MAI = new MipsMCAsmInfo(TT);
 
   unsigned SP = MRI.getDwarfRegNum(Mips::SP, true);
-  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, SP, 0);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, SP, 0);
   MAI->addInitialFrameState(Inst);
 
   return MAI;
@@ -131,21 +109,31 @@ static MCInstPrinter *createMipsMCInstPrinter(const Target &T,
 static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
                                     MCContext &Context, MCAsmBackend &MAB,
                                     raw_ostream &OS, MCCodeEmitter *Emitter,
-                                    bool RelaxAll, bool NoExecStack) {
-  MipsTargetELFStreamer *S = new MipsTargetELFStreamer();
-  return createELFStreamer(Context, S, MAB, OS, Emitter, RelaxAll, NoExecStack);
+                                    const MCSubtargetInfo &STI, bool RelaxAll) {
+  MCStreamer *S;
+  if (!Triple(TT).isOSNaCl())
+    S = createMipsELFStreamer(Context, MAB, OS, Emitter, STI, RelaxAll);
+  else
+    S = createMipsNaClELFStreamer(Context, MAB, OS, Emitter, STI, RelaxAll);
+  new MipsTargetELFStreamer(*S, STI);
+  return S;
 }
 
 static MCStreamer *
 createMCAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
-                    bool isVerboseAsm, bool useLoc, bool useCFI,
-                    bool useDwarfDirectory, MCInstPrinter *InstPrint,
-                    MCCodeEmitter *CE, MCAsmBackend *TAB, bool ShowInst) {
-  MipsTargetAsmStreamer *S = new MipsTargetAsmStreamer(OS);
+                    bool isVerboseAsm, bool useDwarfDirectory,
+                    MCInstPrinter *InstPrint, MCCodeEmitter *CE,
+                    MCAsmBackend *TAB, bool ShowInst) {
+  MCStreamer *S = llvm::createAsmStreamer(
+      Ctx, OS, isVerboseAsm, useDwarfDirectory, InstPrint, CE, TAB, ShowInst);
+  new MipsTargetAsmStreamer(*S, OS);
+  return S;
+}
 
-  return llvm::createAsmStreamer(Ctx, S, OS, isVerboseAsm, useLoc, useCFI,
-                                 useDwarfDirectory, InstPrint, CE, TAB,
-                                 ShowInst);
+static MCStreamer *createMipsNullStreamer(MCContext &Ctx) {
+  MCStreamer *S = llvm::createNullStreamer(Ctx);
+  new MipsTargetStreamer(*S);
+  return S;
 }
 
 extern "C" void LLVMInitializeMipsTargetMC() {
@@ -201,6 +189,12 @@ extern "C" void LLVMInitializeMipsTargetMC() {
   TargetRegistry::RegisterAsmStreamer(TheMipselTarget, createMCAsmStreamer);
   TargetRegistry::RegisterAsmStreamer(TheMips64Target, createMCAsmStreamer);
   TargetRegistry::RegisterAsmStreamer(TheMips64elTarget, createMCAsmStreamer);
+
+  TargetRegistry::RegisterNullStreamer(TheMipsTarget, createMipsNullStreamer);
+  TargetRegistry::RegisterNullStreamer(TheMipselTarget, createMipsNullStreamer);
+  TargetRegistry::RegisterNullStreamer(TheMips64Target, createMipsNullStreamer);
+  TargetRegistry::RegisterNullStreamer(TheMips64elTarget,
+                                       createMipsNullStreamer);
 
   // Register the asm backend.
   TargetRegistry::RegisterMCAsmBackend(TheMipsTarget,

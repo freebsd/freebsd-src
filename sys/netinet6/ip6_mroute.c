@@ -126,9 +126,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
-/* XXX: this is a very common idiom; move to <sys/mbuf.h> ? */
-#define M_HASCL(m) ((m)->m_flags & M_EXT)
-
 static int	ip6_mdq(struct mbuf *, struct ifnet *, struct mf6c *);
 static void	phyint_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
 static int	register_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
@@ -199,9 +196,34 @@ static struct mtx mfc6_mtx;
 static u_char n6expire[MF6CTBLSIZ];
 
 static struct mif6 mif6table[MAXMIFS];
-SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mif6table, CTLFLAG_RD,
-    &mif6table, sizeof(mif6table), "S,mif6[MAXMIFS]",
-    "IPv6 Multicast Interfaces (struct mif6[MAXMIFS], netinet6/ip6_mroute.h)");
+static int
+sysctl_mif6table(SYSCTL_HANDLER_ARGS)
+{
+	struct mif6_sctl *out;
+	int error;
+
+	out = malloc(sizeof(struct mif6_sctl) * MAXMIFS, M_TEMP, M_WAITOK);
+	for (int i = 0; i < MAXMIFS; i++) {
+		out[i].m6_flags		= mif6table[i].m6_flags;
+		out[i].m6_rate_limit	= mif6table[i].m6_rate_limit;
+		out[i].m6_lcl_addr	= mif6table[i].m6_lcl_addr;
+		if (mif6table[i].m6_ifp != NULL)
+			out[i].m6_ifp	= mif6table[i].m6_ifp->if_index;
+		else
+			out[i].m6_ifp	= 0;
+		out[i].m6_pkt_in	= mif6table[i].m6_pkt_in;
+		out[i].m6_pkt_out	= mif6table[i].m6_pkt_out;
+		out[i].m6_bytes_in	= mif6table[i].m6_bytes_in;
+		out[i].m6_bytes_out	= mif6table[i].m6_bytes_out;
+	}
+	error = SYSCTL_OUT(req, out, sizeof(struct mif6_sctl) * MAXMIFS);
+	free(out, M_TEMP);
+	return (error);
+}
+SYSCTL_PROC(_net_inet6_ip6, OID_AUTO, mif6table, CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sysctl_mif6table, "S,mif6_sctl[MAXMIFS]",
+    "IPv6 Multicast Interfaces (struct mif6_sctl[MAXMIFS], "
+    "netinet6/ip6_mroute.h)");
 
 static struct mtx mif6_mtx;
 #define	MIF6_LOCK()		mtx_lock(&mif6_mtx)
@@ -1128,7 +1150,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * Pullup packet header if needed before storing it,
 	 * as other references may modify it in the meantime.
 	 */
-	if (mb0 && (M_HASCL(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
+	if (mb0 && (!M_WRITABLE(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
 		mb0 = m_pullup(mb0, sizeof(struct ip6_hdr));
 	if (mb0 == NULL) {
 		free(rte, M_MRTABLE6);
@@ -1397,7 +1419,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 
 				mm = m_copy(m, 0, sizeof(struct ip6_hdr));
 				if (mm &&
-				    (M_HASCL(mm) ||
+				    (!M_WRITABLE(mm) ||
 				     mm->m_len < sizeof(struct ip6_hdr)))
 					mm = m_pullup(mm, sizeof(struct ip6_hdr));
 				if (mm == NULL)
@@ -1527,7 +1549,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 */
 	mb_copy = m_copy(m, 0, M_COPYALL);
 	if (mb_copy &&
-	    (M_HASCL(mb_copy) || mb_copy->m_len < sizeof(struct ip6_hdr)))
+	    (!M_WRITABLE(mb_copy) || mb_copy->m_len < sizeof(struct ip6_hdr)))
 		mb_copy = m_pullup(mb_copy, sizeof(struct ip6_hdr));
 	if (mb_copy == NULL) {
 		return;

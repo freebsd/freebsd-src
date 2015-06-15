@@ -151,9 +151,9 @@
  * 6: USART 1
  * 7: USART 2
  * 8: USART 3
- * 9: Two-wirte interface
- * 10: Two-wirte interface
- * 11: Two-wirte interface
+ * 9: Two-wire interface
+ * 10: Two-wire interface
+ * 11: Two-wire interface
  * 12: HSMCI Interface
  * 13: SPI 0
  * 14: SPI 1

@@ -70,18 +70,45 @@
 #ifdef __arm__
 // ARM ABI - 32-bit guards.
 typedef uint32_t guard_t;
-static const uint32_t LOCKED = ((guard_t)1) << 31;
+typedef uint32_t guard_lock_t;
+static const uint32_t LOCKED = static_cast<guard_t>(1) << 31;
 static const uint32_t INITIALISED = 1;
-#else
+#define LOCK_PART(guard) (guard)
+#define INIT_PART(guard) (guard)
+#elif defined(_LP64)
 typedef uint64_t guard_t;
+typedef uint64_t guard_lock_t;
 #	if defined(__LITTLE_ENDIAN__)
-static const guard_t LOCKED = ((guard_t)1) << 63;
+static const guard_t LOCKED = static_cast<guard_t>(1) << 63;
 static const guard_t INITIALISED = 1;
 #	else
 static const guard_t LOCKED = 1;
-static const guard_t INITIALISED = ((guard_t)1) << 56;
+static const guard_t INITIALISED = static_cast<guard_t>(1) << 56;
 #	endif
+#define LOCK_PART(guard) (guard)
+#define INIT_PART(guard) (guard)
+#else
+typedef uint32_t guard_lock_t;
+#	if defined(__LITTLE_ENDIAN__)
+typedef struct {
+	uint32_t init_half;
+	uint32_t lock_half;
+} guard_t;
+static const uint32_t LOCKED = static_cast<guard_lock_t>(1) << 31;
+static const uint32_t INITIALISED = 1;
+#	else
+typedef struct {
+	uint32_t init_half;
+	uint32_t lock_half;
+} guard_t;
+_Static_assert(sizeof(guard_t) == sizeof(uint64_t), "");
+static const uint32_t LOCKED = 1;
+static const uint32_t INITIALISED = static_cast<guard_lock_t>(1) << 24;
+#	endif
+#define LOCK_PART(guard) (&(guard)->lock_half)
+#define INIT_PART(guard) (&(guard)->init_half)
 #endif
+static const guard_lock_t INITIAL = 0;
 
 /**
  * Acquires a lock on a guard, returning 0 if the object has already been
@@ -90,42 +117,49 @@ static const guard_t INITIALISED = ((guard_t)1) << 56;
  */
 extern "C" int __cxa_guard_acquire(volatile guard_t *guard_object)
 {
+	guard_lock_t old;
 	// Not an atomic read, doesn't establish a happens-before relationship, but
 	// if one is already established and we end up seeing an initialised state
 	// then it's a fast path, otherwise we'll do something more expensive than
 	// this test anyway...
-	if ((INITIALISED == *guard_object)) { return 0; }
+	if (INITIALISED == *INIT_PART(guard_object))
+		return 0;
 	// Spin trying to do the initialisation
-	while (1)
+	for (;;)
 	{
 		// Loop trying to move the value of the guard from 0 (not
 		// locked, not initialised) to the locked-uninitialised
 		// position.
-		switch (__sync_val_compare_and_swap(guard_object, 0, LOCKED))
-		{
-			// If the old value was 0, we succeeded, so continue
-			// initialising
-			case 0:
+		old = __sync_val_compare_and_swap(LOCK_PART(guard_object),
+		    INITIAL, LOCKED);
+		if (old == INITIAL) {
+			// Lock obtained.  If lock and init bit are
+			// in separate words, check for init race.
+			if (INIT_PART(guard_object) == LOCK_PART(guard_object))
 				return 1;
-			// If this was already initialised, return and let the caller skip
-			// initialising it again.
-			case INITIALISED:
-				return 0;
-			// If it is locked by another thread, relinquish the CPU and try
-			// again later.
-			case LOCKED:
-			case LOCKED | INITIALISED:
-				sched_yield();
-				break;
-			// If it is some other value, then something has gone badly wrong.
-			// Give up.
-			default:
-				fprintf(stderr, "Invalid state detected attempting to lock static initialiser.\n");
-				abort();
+			if (INITIALISED != *INIT_PART(guard_object))
+				return 1;
+
+			// No need for a memory barrier here,
+			// see first comment.
+			*LOCK_PART(guard_object) = INITIAL;
+			return 0;
 		}
+		// If lock and init bit are in the same word, check again
+		// if we are done.
+		if (INIT_PART(guard_object) == LOCK_PART(guard_object) &&
+		    old == INITIALISED)
+			return 0;
+
+		assert(old == LOCKED);
+		// Another thread holds the lock.
+		// If lock and init bit are in different words, check
+		// if we are done before yielding and looping.
+		if (INIT_PART(guard_object) != LOCK_PART(guard_object) &&
+		    INITIALISED == *INIT_PART(guard_object))
+			return 0;
+		sched_yield();
 	}
-	//__builtin_unreachable();
-	return 0;
 }
 
 /**
@@ -135,7 +169,8 @@ extern "C" int __cxa_guard_acquire(volatile guard_t *guard_object)
 extern "C" void __cxa_guard_abort(volatile guard_t *guard_object)
 {
 	__attribute__((unused))
-	bool reset = __sync_bool_compare_and_swap(guard_object, LOCKED, 0);
+	bool reset = __sync_bool_compare_and_swap(LOCK_PART(guard_object),
+	    LOCKED, INITIAL);
 	assert(reset);
 }
 /**
@@ -144,9 +179,15 @@ extern "C" void __cxa_guard_abort(volatile guard_t *guard_object)
  */
 extern "C" void __cxa_guard_release(volatile guard_t *guard_object)
 {
+	guard_lock_t old;
+	if (INIT_PART(guard_object) == LOCK_PART(guard_object))
+		old = LOCKED;
+	else
+		old = INITIAL;
 	__attribute__((unused))
-	bool reset = __sync_bool_compare_and_swap(guard_object, LOCKED, INITIALISED);
+	bool reset = __sync_bool_compare_and_swap(INIT_PART(guard_object),
+	    old, INITIALISED);
 	assert(reset);
+	if (INIT_PART(guard_object) != LOCK_PART(guard_object))
+		*LOCK_PART(guard_object) = INITIAL;
 }
-
-

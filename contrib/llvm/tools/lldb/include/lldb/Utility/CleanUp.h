@@ -11,6 +11,7 @@
 #define liblldb_CleanUp_h_
 
 #include "lldb/lldb-public.h"
+#include <functional>
 
 namespace lldb_utility {
 
@@ -27,7 +28,7 @@ namespace lldb_utility {
 // file descriptors, opaque handles, pointers, etc). If more complex 
 // type T objects are desired, we need to probably specialize this class
 // to take "const T&" for all input T parameters. Yet if a type T is 
-// complex already it might be better to build the cleanup funcionality 
+// complex already it might be better to build the cleanup functionality 
 // into T.
 //
 // The cleanup function must take one argument that is of type T. 
@@ -57,7 +58,7 @@ class CleanUp
 {
 public:
     typedef T value_type;
-    typedef R (*CallbackType)(value_type);
+    typedef std::function<R(value_type)> CallbackType;
 
     //----------------------------------------------------------------------
     // Constructor that sets the current value only. No values are 
@@ -163,7 +164,7 @@ public:
     //----------------------------------------------------------------------
     // Cancels the cleanup that would have been called on "m_current_value" 
     // if it was valid. This function can be used to release the value 
-    // contained in this object so ownership can be transfered to the caller.
+    // contained in this object so ownership can be transferred to the caller.
     //----------------------------------------------------------------------
     value_type
     release ()
@@ -188,7 +189,7 @@ class CleanUp2
 {
 public:
     typedef T value_type;
-    typedef R (*CallbackType)(value_type, A0);
+    typedef std::function<R(value_type,A0)> CallbackType;
     
     //----------------------------------------------------------------------
     // Constructor that sets the current value only. No values are 
@@ -296,7 +297,7 @@ public:
     //----------------------------------------------------------------------
     // Cancels the cleanup that would have been called on "m_current_value" 
     // if it was valid. This function can be used to release the value 
-    // contained in this object so ownership can be transfered to the caller.
+    // contained in this object so ownership can be transferred to the caller.
     //----------------------------------------------------------------------
     value_type
     release ()

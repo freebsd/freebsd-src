@@ -102,7 +102,6 @@ enum options
 	OPTION_HTTP_REFERER,
 	OPTION_HTTP_USER_AGENT,
 	OPTION_NO_PROXY,
-	OPTION_SSL_ALLOW_SSL2,
 	OPTION_SSL_CA_CERT_FILE,
 	OPTION_SSL_CA_CERT_PATH,
 	OPTION_SSL_CLIENT_CERT_FILE,
@@ -154,7 +153,6 @@ static struct option longopts[] =
 	{ "referer", required_argument, NULL, OPTION_HTTP_REFERER },
 	{ "user-agent", required_argument, NULL, OPTION_HTTP_USER_AGENT },
 	{ "no-proxy", required_argument, NULL, OPTION_NO_PROXY },
-	{ "allow-sslv2", no_argument, NULL, OPTION_SSL_ALLOW_SSL2 },
 	{ "ca-cert", required_argument, NULL, OPTION_SSL_CA_CERT_FILE },
 	{ "ca-path", required_argument, NULL, OPTION_SSL_CA_CERT_PATH },
 	{ "cert", required_argument, NULL, OPTION_SSL_CLIENT_CERT_FILE },
@@ -845,17 +843,17 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: fetch [-146AadFlMmnPpqRrsUv] [--allow-sslv2] [-B bytes]",
-"       [--bind-address=host] [--ca-cert=file] [--ca-path=dir] [--cert=file]",
-"       [--crl=file] [-i file] [--key=file] [-N file] [--no-passive]",
-"       [--no-proxy=list] [--no-sslv3] [--no-tlsv1] [--no-verify-hostname]",
-"       [--no-verify-peer] [-o file] [--referer=URL] [-S bytes] [-T seconds]",
+"usage: fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
+"       [-i file] [--key=file] [-N file] [--no-passive] [--no-proxy=list]",
+"       [--no-sslv3] [--no-tlsv1] [--no-verify-hostname] [--no-verify-peer]",
+"       [-o file] [--referer=URL] [-S bytes] [-T seconds]",
 "       [--user-agent=agent-string] [-w seconds] URL ...",
-"       fetch [-146AadFlMmnPpqRrsUv] [--allow-sslv2] [-B bytes]",
-"       [--bind-address=host] [--ca-cert=file] [--ca-path=dir] [--cert=file]",
-"       [--crl=file] [-i file] [--key=file] [-N file] [--no-passive]",
-"       [--no-proxy=list] [--no-sslv3] [--no-tlsv1] [--no-verify-hostname]",
-"       [--no-verify-peer] [-o file] [--referer=URL] [-S bytes] [-T seconds]",
+"       fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
+"       [-i file] [--key=file] [-N file] [--no-passive] [--no-proxy=list]",
+"       [--no-sslv3] [--no-tlsv1] [--no-verify-hostname] [--no-verify-peer]",
+"       [-o file] [--referer=URL] [-S bytes] [-T seconds]",
 "       [--user-agent=agent-string] [-w seconds] -h host -f file [-c dir]");
 }
 
@@ -1003,9 +1001,6 @@ main(int argc, char *argv[])
 			break;
 		case OPTION_NO_PROXY:
 			setenv("NO_PROXY", optarg, 1);
-			break;
-		case OPTION_SSL_ALLOW_SSL2:
-			setenv("SSL_ALLOW_SSL2", "", 1);
 			break;
 		case OPTION_SSL_CA_CERT_FILE:
 			setenv("SSL_CA_CERT_FILE", optarg, 1);

@@ -79,10 +79,10 @@ class FixitReceiver : public edit::EditsReceiver {
 public:
   FixitReceiver(SmallVectorImpl<FixItHint> &MergedFixits)
     : MergedFixits(MergedFixits) { }
-  virtual void insert(SourceLocation loc, StringRef text) {
+  void insert(SourceLocation loc, StringRef text) override {
     MergedFixits.push_back(FixItHint::CreateInsertion(loc, text));
   }
-  virtual void replace(CharSourceRange range, StringRef text) {
+  void replace(CharSourceRange range, StringRef text) override {
     MergedFixits.push_back(FixItHint::CreateReplacement(range, text));
   }
 };
@@ -186,8 +186,14 @@ void DiagnosticRenderer::emitStoredDiagnostic(StoredDiagnostic &Diag) {
   emitDiagnostic(Diag.getLocation(), Diag.getLevel(), Diag.getMessage(),
                  Diag.getRanges(), Diag.getFixIts(),
                  Diag.getLocation().isValid() ? &Diag.getLocation().getManager()
-                                              : 0,
+                                              : nullptr,
                  &Diag);
+}
+
+void DiagnosticRenderer::emitBasicNote(StringRef Message) {
+  emitDiagnosticMessage(
+      SourceLocation(), PresumedLoc(), DiagnosticsEngine::Note, Message,
+      None, nullptr, DiagOrStoredDiag());
 }
 
 /// \brief Prints an include stack when appropriate for a particular
@@ -499,12 +505,10 @@ DiagnosticNoteRenderer::emitBuildingModuleLocation(SourceLocation Loc,
   // Generate a note indicating the include location.
   SmallString<200> MessageStorage;
   llvm::raw_svector_ostream Message(MessageStorage);
-  Message << "while building module '" << ModuleName << "' imported from "
-          << PLoc.getFilename() << ':' << PLoc.getLine() << ":";
+  if (PLoc.getFilename())
+    Message << "while building module '" << ModuleName << "' imported from "
+            << PLoc.getFilename() << ':' << PLoc.getLine() << ":";
+  else
+    Message << "while building module '" << ModuleName << "':";
   emitNote(Loc, Message.str(), &SM);
-}
-
-
-void DiagnosticNoteRenderer::emitBasicNote(StringRef Message) {
-  emitNote(SourceLocation(), Message, 0);  
 }

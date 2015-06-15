@@ -839,6 +839,13 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * <URL:http://www.startech.com>
 	 */
 
+	{   0x1415, 0xc11b, 0xffff, 0,
+            "Oxford Semiconductor OXPCIe952 1S1P",
+            DEFAULT_RCLK * 0x22,
+            PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
 	{   0x1415, 0xc138, 0xffff, 0,
 	    "Oxford Semiconductor OXPCIe952 UARTs",
 	    DEFAULT_RCLK * 0x22,
@@ -1026,6 +1033,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_4S1P, -1, -1, -1,
 	    .config_function = puc_config_sunix
+	},
+
+	{   0x5372, 0x6872, 0xffff, 0,
+	    "Feasso PCI FPP-02 2S1P",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S1P, 0x10, 4, 0,
 	},
 
 	{   0x5372, 0x6873, 0xffff, 0,

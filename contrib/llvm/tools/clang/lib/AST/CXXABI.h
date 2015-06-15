@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_CXXABI_H
-#define LLVM_CLANG_AST_CXXABI_H
+#ifndef LLVM_CLANG_LIB_AST_CXXABI_H
+#define LLVM_CLANG_LIB_AST_CXXABI_H
 
 #include "clang/AST/Type.h"
 
@@ -44,7 +44,6 @@ public:
 };
 
 /// Creates an instance of a C++ ABI class.
-CXXABI *CreateARMCXXABI(ASTContext &Ctx);
 CXXABI *CreateItaniumCXXABI(ASTContext &Ctx);
 CXXABI *CreateMicrosoftCXXABI(ASTContext &Ctx);
 }

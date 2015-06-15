@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant/hostapd / Debug prints
- * Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2013, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -375,19 +375,19 @@ static void _wpa_hexdump(int level, const char *title, const u8 *buf,
 #endif /* CONFIG_ANDROID_LOG */
 }
 
-void wpa_hexdump(int level, const char *title, const u8 *buf, size_t len)
+void wpa_hexdump(int level, const char *title, const void *buf, size_t len)
 {
 	_wpa_hexdump(level, title, buf, len, 1);
 }
 
 
-void wpa_hexdump_key(int level, const char *title, const u8 *buf, size_t len)
+void wpa_hexdump_key(int level, const char *title, const void *buf, size_t len)
 {
 	_wpa_hexdump(level, title, buf, len, wpa_debug_show_keys);
 }
 
 
-static void _wpa_hexdump_ascii(int level, const char *title, const u8 *buf,
+static void _wpa_hexdump_ascii(int level, const char *title, const void *buf,
 			       size_t len, int show)
 {
 	size_t i, llen;
@@ -407,7 +407,7 @@ static void _wpa_hexdump_ascii(int level, const char *title, const u8 *buf,
 			/* can do ascii processing in userspace */
 			for (i = 0; i < len; i++)
 				fprintf(wpa_debug_tracing_file,
-					" %02x", buf[i]);
+					" %02x", pos[i]);
 		}
 		fflush(wpa_debug_tracing_file);
 	}
@@ -495,13 +495,14 @@ static void _wpa_hexdump_ascii(int level, const char *title, const u8 *buf,
 }
 
 
-void wpa_hexdump_ascii(int level, const char *title, const u8 *buf, size_t len)
+void wpa_hexdump_ascii(int level, const char *title, const void *buf,
+		       size_t len)
 {
 	_wpa_hexdump_ascii(level, title, buf, len, 1);
 }
 
 
-void wpa_hexdump_ascii_key(int level, const char *title, const u8 *buf,
+void wpa_hexdump_ascii_key(int level, const char *title, const void *buf,
 			   size_t len)
 {
 	_wpa_hexdump_ascii(level, title, buf, len, wpa_debug_show_keys);
@@ -554,6 +555,8 @@ int wpa_debug_open_file(const char *path)
 #ifndef _WIN32
 	setvbuf(out_file, NULL, _IOLBF, 0);
 #endif /* _WIN32 */
+#else /* CONFIG_DEBUG_FILE */
+	(void)path;
 #endif /* CONFIG_DEBUG_FILE */
 	return 0;
 }
@@ -569,6 +572,14 @@ void wpa_debug_close_file(void)
 	os_free(last_path);
 	last_path = NULL;
 #endif /* CONFIG_DEBUG_FILE */
+}
+
+
+void wpa_debug_setup_stdout(void)
+{
+#ifndef _WIN32
+	setvbuf(stdout, NULL, _IOLBF, 0);
+#endif /* _WIN32 */
 }
 
 #endif /* CONFIG_NO_STDOUT_DEBUG */
@@ -595,9 +606,13 @@ void wpa_msg(void *ctx, int level, const char *fmt, ...)
 {
 	va_list ap;
 	char *buf;
-	const int buflen = 2048;
+	int buflen;
 	int len;
 	char prefix[130];
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
 
 	buf = os_malloc(buflen);
 	if (buf == NULL) {
@@ -612,7 +627,7 @@ void wpa_msg(void *ctx, int level, const char *fmt, ...)
 		if (ifname) {
 			int res = os_snprintf(prefix, sizeof(prefix), "%s: ",
 					      ifname);
-			if (res < 0 || res >= (int) sizeof(prefix))
+			if (os_snprintf_error(sizeof(prefix), res))
 				prefix[0] = '\0';
 		}
 	}
@@ -620,7 +635,7 @@ void wpa_msg(void *ctx, int level, const char *fmt, ...)
 	va_end(ap);
 	wpa_printf(level, "%s%s", prefix, buf);
 	if (wpa_msg_cb)
-		wpa_msg_cb(ctx, level, buf, len);
+		wpa_msg_cb(ctx, level, 0, buf, len);
 	os_free(buf);
 }
 
@@ -629,11 +644,15 @@ void wpa_msg_ctrl(void *ctx, int level, const char *fmt, ...)
 {
 	va_list ap;
 	char *buf;
-	const int buflen = 2048;
+	int buflen;
 	int len;
 
 	if (!wpa_msg_cb)
 		return;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
 
 	buf = os_malloc(buflen);
 	if (buf == NULL) {
@@ -644,9 +663,92 @@ void wpa_msg_ctrl(void *ctx, int level, const char *fmt, ...)
 	va_start(ap, fmt);
 	len = vsnprintf(buf, buflen, fmt, ap);
 	va_end(ap);
-	wpa_msg_cb(ctx, level, buf, len);
+	wpa_msg_cb(ctx, level, 0, buf, len);
 	os_free(buf);
 }
+
+
+void wpa_msg_global(void *ctx, int level, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int buflen;
+	int len;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
+
+	buf = os_malloc(buflen);
+	if (buf == NULL) {
+		wpa_printf(MSG_ERROR, "wpa_msg_global: Failed to allocate "
+			   "message buffer");
+		return;
+	}
+	va_start(ap, fmt);
+	len = vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+	wpa_printf(level, "%s", buf);
+	if (wpa_msg_cb)
+		wpa_msg_cb(ctx, level, 1, buf, len);
+	os_free(buf);
+}
+
+
+void wpa_msg_global_ctrl(void *ctx, int level, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int buflen;
+	int len;
+
+	if (!wpa_msg_cb)
+		return;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
+
+	buf = os_malloc(buflen);
+	if (buf == NULL) {
+		wpa_printf(MSG_ERROR,
+			   "wpa_msg_global_ctrl: Failed to allocate message buffer");
+		return;
+	}
+	va_start(ap, fmt);
+	len = vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+	wpa_msg_cb(ctx, level, 1, buf, len);
+	os_free(buf);
+}
+
+
+void wpa_msg_no_global(void *ctx, int level, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int buflen;
+	int len;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
+
+	buf = os_malloc(buflen);
+	if (buf == NULL) {
+		wpa_printf(MSG_ERROR, "wpa_msg_no_global: Failed to allocate "
+			   "message buffer");
+		return;
+	}
+	va_start(ap, fmt);
+	len = vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+	wpa_printf(level, "%s", buf);
+	if (wpa_msg_cb)
+		wpa_msg_cb(ctx, level, 2, buf, len);
+	os_free(buf);
+}
+
 #endif /* CONFIG_NO_WPA_MSG */
 
 
@@ -664,8 +766,12 @@ void hostapd_logger(void *ctx, const u8 *addr, unsigned int module, int level,
 {
 	va_list ap;
 	char *buf;
-	const int buflen = 2048;
+	int buflen;
 	int len;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
 
 	buf = os_malloc(buflen);
 	if (buf == NULL) {

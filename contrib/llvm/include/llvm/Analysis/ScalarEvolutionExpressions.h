@@ -15,6 +15,7 @@
 #define LLVM_ANALYSIS_SCALAREVOLUTIONEXPRESSIONS_H
 
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -151,8 +152,12 @@ namespace llvm {
     }
 
     typedef const SCEV *const *op_iterator;
+    typedef iterator_range<op_iterator> op_range;
     op_iterator op_begin() const { return Operands; }
     op_iterator op_end() const { return Operands + NumOperands; }
+    op_range operands() const {
+      return make_range(op_begin(), op_end());
+    }
 
     Type *getType() const { return getOperand(0)->getType(); }
 
@@ -304,17 +309,17 @@ namespace llvm {
                               getLoop(), FlagAnyWrap);
     }
 
-    /// isAffine - Return true if this is an affine AddRec (i.e., it represents
-    /// an expressions A+B*x where A and B are loop invariant values.
+    /// isAffine - Return true if this represents an expression
+    /// A + B*x where A and B are loop invariant values.
     bool isAffine() const {
       // We know that the start value is invariant.  This expression is thus
       // affine iff the step is also invariant.
       return getNumOperands() == 2;
     }
 
-    /// isQuadratic - Return true if this is an quadratic AddRec (i.e., it
-    /// represents an expressions A+B*x+C*x^2 where A, B and C are loop
-    /// invariant values.  This corresponds to an addrec of the form {L,+,M,+,N}
+    /// isQuadratic - Return true if this represents an expression
+    /// A + B*x + C*x^2 where A, B and C are loop invariant values.
+    /// This corresponds to an addrec of the form {L,+,M,+,N}
     bool isQuadratic() const {
       return getNumOperands() == 3;
     }
@@ -352,12 +357,83 @@ namespace llvm {
       return S->getSCEVType() == scAddRecExpr;
     }
 
-    /// Splits the SCEV into two vectors of SCEVs representing the subscripts
-    /// and sizes of an array access. Returns the remainder of the
-    /// delinearization that is the offset start of the array.
-    const SCEV *delinearize(ScalarEvolution &SE,
-                            SmallVectorImpl<const SCEV *> &Subscripts,
-                            SmallVectorImpl<const SCEV *> &Sizes) const;
+    /// Collect parametric terms occurring in step expressions.
+    void collectParametricTerms(ScalarEvolution &SE,
+                                SmallVectorImpl<const SCEV *> &Terms) const;
+
+    /// Return in Subscripts the access functions for each dimension in Sizes.
+    void computeAccessFunctions(ScalarEvolution &SE,
+                                SmallVectorImpl<const SCEV *> &Subscripts,
+                                SmallVectorImpl<const SCEV *> &Sizes) const;
+
+    /// Split this SCEVAddRecExpr into two vectors of SCEVs representing the
+    /// subscripts and sizes of an array access.
+    ///
+    /// The delinearization is a 3 step process: the first two steps compute the
+    /// sizes of each subscript and the third step computes the access functions
+    /// for the delinearized array:
+    ///
+    /// 1. Find the terms in the step functions
+    /// 2. Compute the array size
+    /// 3. Compute the access function: divide the SCEV by the array size
+    ///    starting with the innermost dimensions found in step 2. The Quotient
+    ///    is the SCEV to be divided in the next step of the recursion. The
+    ///    Remainder is the subscript of the innermost dimension. Loop over all
+    ///    array dimensions computed in step 2.
+    ///
+    /// To compute a uniform array size for several memory accesses to the same
+    /// object, one can collect in step 1 all the step terms for all the memory
+    /// accesses, and compute in step 2 a unique array shape. This guarantees
+    /// that the array shape will be the same across all memory accesses.
+    ///
+    /// FIXME: We could derive the result of steps 1 and 2 from a description of
+    /// the array shape given in metadata.
+    ///
+    /// Example:
+    ///
+    /// A[][n][m]
+    ///
+    /// for i
+    ///   for j
+    ///     for k
+    ///       A[j+k][2i][5i] =
+    ///
+    /// The initial SCEV:
+    ///
+    /// A[{{{0,+,2*m+5}_i, +, n*m}_j, +, n*m}_k]
+    ///
+    /// 1. Find the different terms in the step functions:
+    /// -> [2*m, 5, n*m, n*m]
+    ///
+    /// 2. Compute the array size: sort and unique them
+    /// -> [n*m, 2*m, 5]
+    /// find the GCD of all the terms = 1
+    /// divide by the GCD and erase constant terms
+    /// -> [n*m, 2*m]
+    /// GCD = m
+    /// divide by GCD -> [n, 2]
+    /// remove constant terms
+    /// -> [n]
+    /// size of the array is A[unknown][n][m]
+    ///
+    /// 3. Compute the access function
+    /// a. Divide {{{0,+,2*m+5}_i, +, n*m}_j, +, n*m}_k by the innermost size m
+    /// Quotient: {{{0,+,2}_i, +, n}_j, +, n}_k
+    /// Remainder: {{{0,+,5}_i, +, 0}_j, +, 0}_k
+    /// The remainder is the subscript of the innermost array dimension: [5i].
+    ///
+    /// b. Divide Quotient: {{{0,+,2}_i, +, n}_j, +, n}_k by next outer size n
+    /// Quotient: {{{0,+,0}_i, +, 1}_j, +, 1}_k
+    /// Remainder: {{{0,+,2}_i, +, 0}_j, +, 0}_k
+    /// The Remainder is the subscript of the next array dimension: [2i].
+    ///
+    /// The subscript of the outermost dimension is the Quotient: [j+k].
+    ///
+    /// Overall, we have: A[][n][m], and the access function: A[j+k][2i][5i].
+    void delinearize(ScalarEvolution &SE,
+                     SmallVectorImpl<const SCEV *> &Subscripts,
+                     SmallVectorImpl<const SCEV *> &Sizes,
+                     const SCEV *ElementSize) const;
   };
 
   //===--------------------------------------------------------------------===//
@@ -410,8 +486,8 @@ namespace llvm {
     friend class ScalarEvolution;
 
     // Implement CallbackVH.
-    virtual void deleted();
-    virtual void allUsesReplacedWith(Value *New);
+    void deleted() override;
+    void allUsesReplacedWith(Value *New) override;
 
     /// SE - The parent ScalarEvolution value. This is used to update
     /// the parent's maps when the value associated with a SCEVUnknown
@@ -501,7 +577,7 @@ namespace llvm {
     SmallPtrSet<const SCEV *, 8> Visited;
 
     void push(const SCEV *S) {
-      if (Visited.insert(S) && Visitor.follow(S))
+      if (Visited.insert(S).second && Visitor.follow(S))
         Worklist.push_back(S);
     }
   public:
@@ -548,7 +624,7 @@ namespace llvm {
     }
   };
 
-  /// Use SCEVTraversal to visit all nodes in the givien expression tree.
+  /// Use SCEVTraversal to visit all nodes in the given expression tree.
   template<typename SV>
   void visitAll(const SCEV *Root, SV& Visitor) {
     SCEVTraversal<SV> T(Visitor);
@@ -563,13 +639,14 @@ namespace llvm {
     : public SCEVVisitor<SCEVParameterRewriter, const SCEV*> {
   public:
     static const SCEV *rewrite(const SCEV *Scev, ScalarEvolution &SE,
-                               ValueToValueMap &Map) {
-      SCEVParameterRewriter Rewriter(SE, Map);
+                               ValueToValueMap &Map,
+                               bool InterpretConsts = false) {
+      SCEVParameterRewriter Rewriter(SE, Map, InterpretConsts);
       return Rewriter.visit(Scev);
     }
 
-    SCEVParameterRewriter(ScalarEvolution &S, ValueToValueMap &M)
-      : SE(S), Map(M) {}
+    SCEVParameterRewriter(ScalarEvolution &S, ValueToValueMap &M, bool C)
+      : SE(S), Map(M), InterpretConsts(C) {}
 
     const SCEV *visitConstant(const SCEVConstant *Constant) {
       return Constant;
@@ -632,8 +709,12 @@ namespace llvm {
 
     const SCEV *visitUnknown(const SCEVUnknown *Expr) {
       Value *V = Expr->getValue();
-      if (Map.count(V))
-        return SE.getUnknown(Map[V]);
+      if (Map.count(V)) {
+        Value *NV = Map[V];
+        if (InterpretConsts && isa<ConstantInt>(NV))
+          return SE.getConstant(cast<ConstantInt>(NV));
+        return SE.getUnknown(NV);
+      }
       return Expr;
     }
 
@@ -644,6 +725,7 @@ namespace llvm {
   private:
     ScalarEvolution &SE;
     ValueToValueMap &Map;
+    bool InterpretConsts;
   };
 
   typedef DenseMap<const Loop*, const SCEV*> LoopToScevMapT;

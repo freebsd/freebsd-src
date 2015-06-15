@@ -95,13 +95,13 @@ const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
 
 SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
-    NULL, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
+    SYSCTL_NULL_ULONG_PTR, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
 
 SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
 #if defined(__arm__) || defined(__sparc64__)
     &vm_max_kernel_address, 0,
 #else
-    NULL, VM_MAX_KERNEL_ADDRESS,
+    SYSCTL_NULL_ULONG_PTR, VM_MAX_KERNEL_ADDRESS,
 #endif
     "Max kernel address");
 
@@ -391,8 +391,7 @@ void
 kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
 	vm_page_t m;
-	vm_offset_t offset;
-	int i;
+	vm_offset_t i, offset;
 
 	KASSERT(object == kmem_object || object == kernel_object,
 	    ("kmem_unback: only supports kernel objects."));

@@ -110,7 +110,9 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				net->dest_state |= SCTP_ADDR_PF;
 				net->last_active = sctp_get_tick_count();
 				sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
-				sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
+				sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT,
+				    stcb->sctp_ep, stcb, net,
+				    SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
 				sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net);
 			}
 		}
@@ -152,8 +154,8 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		struct mbuf *op_err;
 
 		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
-		    "Association error couter exceeded");
-		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
+		    "Association error counter exceeded");
+		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_2;
 		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
@@ -337,7 +339,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			return (NULL);
 		}
 	}
-	do {
+	for (;;) {
 		alt = TAILQ_NEXT(mnet, sctp_next);
 		if (alt == NULL) {
 			once++;
@@ -356,7 +358,6 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			}
 			alt->src_addr_selected = 0;
 		}
-		/* sa_ignore NO_NULL_CHK */
 		if (((alt->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE) &&
 		    (alt->ro.ro_rt != NULL) &&
 		    (!(alt->dest_state & SCTP_ADDR_UNCONFIRMED))) {
@@ -364,14 +365,14 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			break;
 		}
 		mnet = alt;
-	} while (alt != NULL);
+	}
 
 	if (alt == NULL) {
 		/* Case where NO insv network exists (dormant state) */
 		/* we rotate destinations */
 		once = 0;
 		mnet = net;
-		do {
+		for (;;) {
 			if (mnet == NULL) {
 				return (TAILQ_FIRST(&stcb->asoc.nets));
 			}
@@ -382,15 +383,17 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 					break;
 				}
 				alt = TAILQ_FIRST(&stcb->asoc.nets);
+				if (alt == NULL) {
+					break;
+				}
 			}
-			/* sa_ignore NO_NULL_CHK */
 			if ((!(alt->dest_state & SCTP_ADDR_UNCONFIRMED)) &&
 			    (alt != net)) {
 				/* Found an alternate address */
 				break;
 			}
 			mnet = alt;
-		} while (alt != NULL);
+		}
 	}
 	if (alt == NULL) {
 		return (net);
@@ -1045,7 +1048,7 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 
 			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
 			    "Cookie timer expired, but no cookie");
-			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
+			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_3;
 			sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		} else {
 #ifdef INVARIANTS

@@ -10,9 +10,13 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Core/RegisterValue.h"
 
-#include "ProcessPOSIX.h"
+#include "Plugins/Process/POSIX/ProcessPOSIX.h"
 #include "RegisterContextPOSIXProcessMonitor_x86.h"
-#include "ProcessMonitor.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
+#include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 
 using namespace lldb_private;
 using namespace lldb;
@@ -48,12 +52,13 @@ size_and_rw_bits(size_t size, bool read, bool write)
         return (0x2 << 2) | rw;
     default:
         assert(0 && "invalid size, must be one of 1, 2, 4, or 8");
+        return 0; // Unreachable. Just to silence compiler.
     }
 }
 
 RegisterContextPOSIXProcessMonitor_x86_64::RegisterContextPOSIXProcessMonitor_x86_64(Thread &thread,
                                                                                      uint32_t concrete_frame_idx,
-                                                                                     RegisterInfoInterface *register_info)
+                                                                                     lldb_private::RegisterInfoInterface *register_info)
     : RegisterContextPOSIX_x86(thread, concrete_frame_idx, register_info)
 {
 }
@@ -347,12 +352,12 @@ RegisterContextPOSIXProcessMonitor_x86_64::ReadAllRegisterValues(DataBufferSP &d
 
         if (success)
         {
-            ::memcpy (dst, &m_gpr_x86_64, GetGPRSize());
-            dst += GetGPRSize();
+          ::memcpy (dst, &m_gpr_x86_64, GetGPRSize());
+          dst += GetGPRSize();
+          if (GetFPRType() == eFXSAVE)
+              ::memcpy (dst, &m_fpr.xstate.fxsave, sizeof(m_fpr.xstate.fxsave));
         }
-        if (GetFPRType() == eFXSAVE)
-            ::memcpy (dst, &m_fpr.xstate.fxsave, sizeof(m_fpr.xstate.fxsave));
-        
+
         if (GetFPRType() == eXSAVE)
         {
             ByteOrder byte_order = GetByteOrder();

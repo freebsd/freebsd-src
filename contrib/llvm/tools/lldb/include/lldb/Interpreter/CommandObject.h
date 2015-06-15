@@ -269,7 +269,7 @@ public:
         //
         // Ensures a valid register context (from the selected frame if there
         // is a frame in m_exe_ctx, or from the selected thread from m_exe_ctx)
-        // is availble from m_exe_ctx prior to executing the command. If a
+        // is available from m_exe_ctx prior to executing the command. If a
         // target doesn't exist or is invalid, the command will fail and
         // CommandObject::GetInvalidRegContextDescription() will be returned as
         // the error. CommandObject subclasses can override the virtual function
@@ -460,23 +460,35 @@ public:
         return NULL;
     }
 
-    CommandOverrideCallback
-    GetOverrideCallback () const
+    bool
+    HasOverrideCallback () const
     {
-        return m_command_override_callback;
+        return m_command_override_callback || m_deprecated_command_override_callback;
     }
     
-    void *
-    GetOverrideCallbackBaton () const
-    {
-        return m_command_override_baton;
-    }
-
     void
-    SetOverrideCallback (CommandOverrideCallback callback, void *baton)
+    SetOverrideCallback (lldb::CommandOverrideCallback callback, void *baton)
+    {
+        m_deprecated_command_override_callback = callback;
+        m_command_override_baton = baton;
+    }
+    
+    void
+    SetOverrideCallback (lldb::CommandOverrideCallbackWithResult callback, void *baton)
     {
         m_command_override_callback = callback;
         m_command_override_baton = baton;
+    }
+    
+    bool
+    InvokeOverrideCallback (const char **argv, CommandReturnObject &result)
+    {
+        if (m_command_override_callback)
+            return m_command_override_callback(m_command_override_baton, argv, result);
+        else if (m_deprecated_command_override_callback)
+            return m_deprecated_command_override_callback(m_command_override_baton, argv);
+        else
+            return false;
     }
     
     virtual bool
@@ -513,6 +525,11 @@ protected:
         return "invalid frame, no registers";
     }
 
+    // This is for use in the command interpreter, when you either want the selected target, or if no target
+    // is present you want to prime the dummy target with entities that will be copied over to new targets.
+    Target *GetSelectedOrDummyTarget(bool prefer_dummy = false);
+    Target *GetDummyTarget();
+
     //------------------------------------------------------------------
     /// Check the command to make sure anything required by this
     /// command is available.
@@ -540,7 +557,8 @@ protected:
     bool m_is_alias;
     Flags m_flags;
     std::vector<CommandArgumentEntry> m_arguments;
-    CommandOverrideCallback m_command_override_callback;
+    lldb::CommandOverrideCallback m_deprecated_command_override_callback;
+    lldb::CommandOverrideCallbackWithResult m_command_override_callback;
     void * m_command_override_baton;
     
     // Helper function to populate IDs or ID ranges as the command argument data
@@ -592,7 +610,7 @@ public:
     
     virtual bool
     Execute (const char *args_string, CommandReturnObject &result);
-    
+
 protected:    
     virtual bool
     DoExecute (const char *command, CommandReturnObject &result) = 0;

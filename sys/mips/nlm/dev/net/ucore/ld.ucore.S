@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -96,7 +96,7 @@ SECTIONS
 
 	/* ----------------------------------------- */
 
-	. = 0x18000 ; 		
+	. = 0x18000 ;
 	shmemstart = . ;
 	.sharedmem : {
 		*(.sharedmem)
@@ -145,10 +145,10 @@ SECTIONS
 
 	PROVIDE(__stackmarker = .) ;
 
-	. = 0xFFA00 ;	
+	. = 0xFFA00 ;
 
 	/* 32 + 4(argc) + 4(argv), aligned to 64 */
-	PROVIDE(__stack =  . - 64); 
+	PROVIDE(__stack =  . - 64);
 
 	/* ----------------------------------------- */
 

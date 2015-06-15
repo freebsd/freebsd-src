@@ -27,11 +27,10 @@ using namespace llvm;
 /// the split module remain valid.
 static void makeVisible(GlobalValue &GV, bool Delete) {
   bool Local = GV.hasLocalLinkage();
-  if (Local)
-    GV.setVisibility(GlobalValue::HiddenVisibility);
-
   if (Local || Delete) {
     GV.setLinkage(GlobalValue::ExternalLinkage);
+    if (Local)
+      GV.setVisibility(GlobalValue::HiddenVisibility);
     return;
   }
 
@@ -68,7 +67,7 @@ namespace {
     explicit GVExtractorPass(std::vector<GlobalValue*>& GVs, bool deleteS = true)
       : ModulePass(ID), Named(GVs.begin(), GVs.end()), deleteStuff(deleteS) {}
 
-    bool runOnModule(Module &M) {
+    bool runOnModule(Module &M) override {
       // Visit the global inline asm.
       if (!deleteStuff)
         M.setModuleInlineAsm("");
@@ -92,10 +91,10 @@ namespace {
             continue;
         }
 
-	makeVisible(*I, Delete);
+        makeVisible(*I, Delete);
 
         if (Delete)
-          I->setInitializer(0);
+          I->setInitializer(nullptr);
       }
 
       // Visit the Functions.
@@ -107,7 +106,7 @@ namespace {
             continue;
         }
 
-	makeVisible(*I, Delete);
+        makeVisible(*I, Delete);
 
         if (Delete)
           I->deleteBody();
@@ -119,8 +118,8 @@ namespace {
         Module::alias_iterator CurI = I;
         ++I;
 
-	bool Delete = deleteStuff == (bool)Named.count(CurI);
-	makeVisible(*CurI, Delete);
+        bool Delete = deleteStuff == (bool)Named.count(CurI);
+        makeVisible(*CurI, Delete);
 
         if (Delete) {
           Type *Ty =  CurI->getType()->getElementType();
@@ -134,7 +133,7 @@ namespace {
           } else {
             Declaration =
               new GlobalVariable(M, Ty, false, GlobalValue::ExternalLinkage,
-                                 0, CurI->getName());
+                                 nullptr, CurI->getName());
 
           }
           CurI->replaceAllUsesWith(Declaration);
@@ -149,7 +148,7 @@ namespace {
   char GVExtractorPass::ID = 0;
 }
 
-ModulePass *llvm::createGVExtractionPass(std::vector<GlobalValue*>& GVs, 
+ModulePass *llvm::createGVExtractionPass(std::vector<GlobalValue *> &GVs,
                                          bool deleteFn) {
   return new GVExtractorPass(GVs, deleteFn);
 }

@@ -13,11 +13,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
-#define LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
+#ifndef LLVM_CLANG_LIB_FORMAT_CONTINUATIONINDENTER_H
+#define LLVM_CLANG_LIB_FORMAT_CONTINUATIONINDENTER_H
 
 #include "Encoding.h"
+#include "FormatToken.h"
 #include "clang/Format/Format.h"
+#include "llvm/Support/Regex.h"
 
 namespace clang {
 class SourceManager;
@@ -34,8 +36,9 @@ class ContinuationIndenter {
 public:
   /// \brief Constructs a \c ContinuationIndenter to format \p Line starting in
   /// column \p FirstIndent.
-  ContinuationIndenter(const FormatStyle &Style, SourceManager &SourceMgr,
-                       WhitespaceManager &Whitespaces,
+  ContinuationIndenter(const FormatStyle &Style,
+                       const AdditionalKeywords &Keywords,
+                       SourceManager &SourceMgr, WhitespaceManager &Whitespaces,
                        encoding::Encoding Encoding,
                        bool BinPackInconclusiveFunctions);
 
@@ -72,6 +75,18 @@ private:
   /// accordingly.
   unsigned moveStateToNextToken(LineState &State, bool DryRun, bool Newline);
 
+  /// \brief Update 'State' according to the next token's fake left parentheses.
+  void moveStatePastFakeLParens(LineState &State, bool Newline);
+  /// \brief Update 'State' according to the next token's fake r_parens.
+  void moveStatePastFakeRParens(LineState &State);
+
+  /// \brief Update 'State' according to the next token being one of "(<{[".
+  void moveStatePastScopeOpener(LineState &State, bool Newline);
+  /// \brief Update 'State' according to the next token being one of ")>}]".
+  void moveStatePastScopeCloser(LineState &State);
+  /// \brief Update 'State' with the next token opening a nested block.
+  void moveStateToNewBlock(LineState &State);
+
   /// \brief If the current token sticks out over the end of the line, break
   /// it if possible.
   ///
@@ -103,6 +118,9 @@ private:
   /// \c Replacement.
   unsigned addTokenOnNewLine(LineState &State, bool DryRun);
 
+  /// \brief Calculate the new column for a line wrap before the next token.
+  unsigned getNewLineColumn(const LineState &State);
+
   /// \brief Adds a multiline token to the \p State.
   ///
   /// \returns Extra penalty for the first line of the literal: last line is
@@ -115,25 +133,30 @@ private:
   ///
   /// This includes implicitly concatenated strings, strings that will be broken
   /// by clang-format and string literals with escaped newlines.
-  bool NextIsMultilineString(const LineState &State);
+  bool nextIsMultilineString(const LineState &State);
 
   FormatStyle Style;
+  const AdditionalKeywords &Keywords;
   SourceManager &SourceMgr;
   WhitespaceManager &Whitespaces;
   encoding::Encoding Encoding;
   bool BinPackInconclusiveFunctions;
+  llvm::Regex CommentPragmasRegex;
 };
 
 struct ParenState {
   ParenState(unsigned Indent, unsigned IndentLevel, unsigned LastSpace,
              bool AvoidBinPacking, bool NoLineBreak)
       : Indent(Indent), IndentLevel(IndentLevel), LastSpace(LastSpace),
-        FirstLessLess(0), BreakBeforeClosingBrace(false), QuestionColumn(0),
+        NestedBlockIndent(Indent), FirstLessLess(0),
+        BreakBeforeClosingBrace(false), QuestionColumn(0),
         AvoidBinPacking(AvoidBinPacking), BreakBeforeParameter(false),
-        NoLineBreak(NoLineBreak), ColonPos(0), StartOfFunctionCall(0),
-        StartOfArraySubscripts(0), NestedNameSpecifierContinuation(0),
-        CallContinuation(0), VariablePos(0), ContainsLineBreak(false),
-        ContainsUnwrappedBuilder(0) {}
+        NoLineBreak(NoLineBreak), LastOperatorWrapped(true), ColonPos(0),
+        StartOfFunctionCall(0), StartOfArraySubscripts(0),
+        NestedNameSpecifierContinuation(0), CallContinuation(0), VariablePos(0),
+        ContainsLineBreak(false), ContainsUnwrappedBuilder(0),
+        AlignColons(true), ObjCSelectorNameFound(false),
+        HasMultipleNestedBlocks(false), NestedBlockInlined(false) {}
 
   /// \brief The position to which a specific parenthesis level needs to be
   /// indented.
@@ -148,6 +171,10 @@ struct ParenState {
   /// functionCall(Parameter, otherCall(
   ///                             OtherParameter));
   unsigned LastSpace;
+
+  /// \brief If a block relative to this parenthesis level gets wrapped, indent
+  /// it this much.
+  unsigned NestedBlockIndent;
 
   /// \brief The position the first "<<" operator encountered on each level.
   ///
@@ -175,6 +202,10 @@ struct ParenState {
 
   /// \brief Line breaking in this context would break a formatting rule.
   bool NoLineBreak;
+
+  /// \brief True if the last binary operator on this level was wrapped to the
+  /// next line.
+  bool LastOperatorWrapped;
 
   /// \brief The position of the colon in an ObjC method declaration/call.
   unsigned ColonPos;
@@ -210,11 +241,37 @@ struct ParenState {
   /// builder-type call on one line.
   bool ContainsUnwrappedBuilder;
 
+  /// \brief \c true if the colons of the curren ObjC method expression should
+  /// be aligned.
+  ///
+  /// Not considered for memoization as it will always have the same value at
+  /// the same token.
+  bool AlignColons;
+
+  /// \brief \c true if at least one selector name was found in the current
+  /// ObjC method expression.
+  ///
+  /// Not considered for memoization as it will always have the same value at
+  /// the same token.
+  bool ObjCSelectorNameFound;
+
+  /// \brief \c true if there are multiple nested blocks inside these parens.
+  ///
+  /// Not considered for memoization as it will always have the same value at
+  /// the same token.
+  bool HasMultipleNestedBlocks;
+
+  // \brief The start of a nested block (e.g. lambda introducer in C++ or
+  // "function" in JavaScript) is not wrapped to a new line.
+  bool NestedBlockInlined;
+
   bool operator<(const ParenState &Other) const {
     if (Indent != Other.Indent)
       return Indent < Other.Indent;
     if (LastSpace != Other.LastSpace)
       return LastSpace < Other.LastSpace;
+    if (NestedBlockIndent != Other.NestedBlockIndent)
+      return NestedBlockIndent < Other.NestedBlockIndent;
     if (FirstLessLess != Other.FirstLessLess)
       return FirstLessLess < Other.FirstLessLess;
     if (BreakBeforeClosingBrace != Other.BreakBeforeClosingBrace)
@@ -227,6 +284,8 @@ struct ParenState {
       return BreakBeforeParameter;
     if (NoLineBreak != Other.NoLineBreak)
       return NoLineBreak;
+    if (LastOperatorWrapped != Other.LastOperatorWrapped)
+      return LastOperatorWrapped;
     if (ColonPos != Other.ColonPos)
       return ColonPos < Other.ColonPos;
     if (StartOfFunctionCall != Other.StartOfFunctionCall)
@@ -241,6 +300,8 @@ struct ParenState {
       return ContainsLineBreak < Other.ContainsLineBreak;
     if (ContainsUnwrappedBuilder != Other.ContainsUnwrappedBuilder)
       return ContainsUnwrappedBuilder < Other.ContainsUnwrappedBuilder;
+    if (NestedBlockInlined != Other.NestedBlockInlined)
+      return NestedBlockInlined < Other.NestedBlockInlined;
     return false;
   }
 };
@@ -258,13 +319,10 @@ struct LineState {
   /// \brief \c true if this line contains a continued for-loop section.
   bool LineContainsContinuedForLoopSection;
 
-  /// \brief The level of nesting inside (), [], <> and {}.
-  unsigned ParenLevel;
-
-  /// \brief The \c ParenLevel at the start of this line.
+  /// \brief The \c NestingLevel at the start of this line.
   unsigned StartOfLineLevel;
 
-  /// \brief The lowest \c ParenLevel on the current line.
+  /// \brief The lowest \c NestingLevel on the current line.
   unsigned LowestLevelOnLine;
 
   /// \brief The start column of the string literal, if we're in a string
@@ -307,8 +365,6 @@ struct LineState {
     if (LineContainsContinuedForLoopSection !=
         Other.LineContainsContinuedForLoopSection)
       return LineContainsContinuedForLoopSection;
-    if (ParenLevel != Other.ParenLevel)
-      return ParenLevel < Other.ParenLevel;
     if (StartOfLineLevel != Other.StartOfLineLevel)
       return StartOfLineLevel < Other.StartOfLineLevel;
     if (LowestLevelOnLine != Other.LowestLevelOnLine)
@@ -324,4 +380,4 @@ struct LineState {
 } // end namespace format
 } // end namespace clang
 
-#endif // LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
+#endif

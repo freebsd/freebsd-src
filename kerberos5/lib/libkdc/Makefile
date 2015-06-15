@@ -3,9 +3,7 @@
 LIB=	kdc
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/kdc/version-script.map
-LDADD=	-lroken -lhdb -lhx509 -lkrb5 -lheimntlm -lasn1 -lcrypt -lcrypto
-DPADD=	${LIBROKEN} ${LIBHDB} ${LIBHX509} ${LIBKRB5} ${LIBHEIMNTLM} \
-	${LIBASN1} ${LIBCRYPT} ${LIBCRYPTO}
+LIBADD=	roken hdb hx509 krb5 heimntlm asn1 crypto
 
 INCS=	kdc.h \
 	kdc-protos.h

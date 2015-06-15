@@ -58,6 +58,7 @@ struct tube;
  * @param flags: host order flags word, with opcode and CD bit.
  * @param dnssec: if set, EDNS record will have DO bit set.
  * @param want_dnssec: signatures needed.
+ * @param nocaps: ignore capsforid(if in config), do not perturb qname.
  * @param addr: where to.
  * @param addrlen: length of addr.
  * @param zone: delegation point name.
@@ -68,8 +69,9 @@ struct tube;
  */
 struct outbound_entry* libworker_send_query(uint8_t* qname, size_t qnamelen,
         uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec,
-	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, struct module_qstate* q);
+	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	struct module_qstate* q);
 
 /** process incoming replies from the network */
 int libworker_handle_reply(struct comm_point* c, void* arg, int error,
@@ -111,6 +113,7 @@ void worker_sighandler(int sig, void* arg);
  * @param flags: host order flags word, with opcode and CD bit.
  * @param dnssec: if set, EDNS record will have DO bit set.
  * @param want_dnssec: signatures needed.
+ * @param nocaps: ignore capsforid(if in config), do not perturb qname.
  * @param addr: where to.
  * @param addrlen: length of addr.
  * @param zone: wireformat dname of the zone.
@@ -121,8 +124,9 @@ void worker_sighandler(int sig, void* arg);
  */
 struct outbound_entry* worker_send_query(uint8_t* qname, size_t qnamelen, 
 	uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec, 
-	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, struct module_qstate* q);
+	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	struct module_qstate* q);
 
 /** 
  * process control messages from the main thread. Frees the control 

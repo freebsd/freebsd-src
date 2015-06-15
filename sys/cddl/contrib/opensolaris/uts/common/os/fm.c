@@ -79,7 +79,7 @@ static const char *fm_url = "http://www.sun.com/msg";
 static const char *fm_msgid = "SUNOS-8000-0G";
 static char *volatile fm_panicstr = NULL;
 
-#ifdef sun
+#ifdef illumos
 errorq_t *ereport_errorq;
 #endif
 void *ereport_dumpbuf;
@@ -112,7 +112,7 @@ static struct erpt_kstat erpt_kstat_data = {
 	{ "payload-set-failed", KSTAT_DATA_UINT64 }
 };
 
-#ifdef sun
+#ifdef illumos
 /*ARGSUSED*/
 static void
 fm_drain(void *private, void *data, errorq_elem_t *eep)
@@ -131,7 +131,7 @@ fm_init(void)
 {
 	kstat_t *ksp;
 
-#ifdef sun
+#ifdef illumos
 	(void) sysevent_evc_bind(FM_ERROR_CHAN,
 	    &ereport_chan, EVCH_CREAT | EVCH_HOLD_PEND);
 
@@ -145,7 +145,7 @@ fm_init(void)
 	if (ereport_size == 0)
 		ereport_size = ERPT_DATA_SZ;
 
-#ifdef sun
+#ifdef illumos
 	ereport_errorq = errorq_nvcreate("fm_ereport_queue",
 	    (errorq_func_t)fm_drain, NULL, ereport_qlen, ereport_size,
 	    FM_ERR_PIL, ERRORQ_VITAL);
@@ -170,7 +170,7 @@ fm_init(void)
 	}
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Formatting utility function for fm_nvprintr.  We attempt to wrap chunks of
  * output so they aren't split across console lines, and return the end column.
@@ -528,7 +528,7 @@ fm_ereport_post(nvlist_t *ereport, int evc_flag)
 		return;
 	}
 
-#ifdef sun
+#ifdef illumos
 	if (sysevent_evc_bind(FM_ERROR_CHAN, &error_chan,
 	    EVCH_CREAT|EVCH_HOLD_PEND) != 0) {
 		atomic_inc_64(&erpt_kstat_data.erpt_dropped.value.ui64);
@@ -1262,7 +1262,7 @@ fm_ena_time_get(uint64_t ena)
 	return (time);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Convert a getpcstack() trace to symbolic name+offset, and add the resulting
  * string array to a Fault Management ereport as FM_EREPORT_PAYLOAD_NAME_STACK.
@@ -1290,7 +1290,7 @@ fm_payload_stack_add(nvlist_t *payload, const pc_t *stack, int depth)
 }
 #endif
 
-#ifdef sun
+#ifdef illumos
 void
 print_msg_hwerr(ctid_t ct_id, proc_t *p)
 {

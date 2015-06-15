@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <errno.h>
@@ -279,6 +279,28 @@ dt_opt_ld_path(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 
 	return (0);
 }
+
+#ifdef __FreeBSD__
+static int
+dt_opt_objcopy_path(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
+{
+	char *objcopy;
+
+	if (arg == NULL)
+		return (dt_set_errno(dtp, EDT_BADOPTVAL));
+
+	if (dtp->dt_pcb != NULL)
+		return (dt_set_errno(dtp, EDT_BADOPTCTX));
+
+	if ((objcopy = strdup(arg)) == NULL)
+		return (dt_set_errno(dtp, EDT_NOMEM));
+
+	free(dtp->dt_objcopy_path);
+	dtp->dt_objcopy_path = objcopy;
+
+	return (0);
+}
+#endif
 
 /*ARGSUSED*/
 static int
@@ -871,7 +893,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	bzero(&hdr, sizeof (dof_hdr_t));
 	hdr.dofh_loadsz = sizeof (dof_hdr_t);
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &hdr) == -1)
 #else
 	dof = &hdr;
@@ -889,7 +911,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	for (i = 0; i < DTRACEOPT_MAX; i++)
 		dtp->dt_options[i] = DTRACEOPT_UNSET;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, dof) == -1)
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)
@@ -960,6 +982,9 @@ static const dt_option_t _dtrace_ctoptions[] = {
 	{ "linkmode", dt_opt_linkmode },
 	{ "linktype", dt_opt_linktype },
 	{ "nolibs", dt_opt_cflags, DTRACE_C_NOLIBS },
+#ifdef __FreeBSD__
+	{ "objcopypath", dt_opt_objcopy_path },
+#endif
 	{ "pgmax", dt_opt_pgmax },
 	{ "pspec", dt_opt_cflags, DTRACE_C_PSPEC },
 	{ "setenv", dt_opt_setenv, 1 },

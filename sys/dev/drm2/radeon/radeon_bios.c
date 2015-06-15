@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 {
-	drm_local_map_t bios_map;
+	struct drm_local_map bios_map;
 	uint8_t __iomem *bios;
 	resource_size_t vram_base;
 	resource_size_t size = 256 * 1024; /* ??? */
@@ -70,11 +70,11 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 	bios_map.flags  = 0;
 	bios_map.mtrr   = 0;
 	drm_core_ioremap(&bios_map, rdev->ddev);
-	if (bios_map.virtual == NULL) {
+	if (bios_map.handle == NULL) {
 		DRM_INFO("%s: failed to ioremap\n", __func__);
 		return false;
 	}
-	bios = bios_map.virtual;
+	bios = bios_map.handle;
 	size = bios_map.size;
 	DRM_INFO("%s: Map address: %p (%ju bytes)\n", __func__, bios, (uintmax_t)size);
 
@@ -88,7 +88,7 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 		drm_core_ioremapfree(&bios_map, rdev->ddev);
 		return false;
 	}
-	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_WAITOK);
+	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_NOWAIT);
 	if (rdev->bios == NULL) {
 		drm_core_ioremapfree(&bios_map, rdev->ddev);
 		return false;
@@ -125,12 +125,17 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 		vga_pci_unmap_bios(vga_dev, bios);
 		return false;
 	}
-	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_WAITOK);
+	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_NOWAIT);
+	if (rdev->bios == NULL) {
+		vga_pci_unmap_bios(vga_dev, bios);
+		return false;
+	}
 	memcpy(rdev->bios, bios, size);
 	vga_pci_unmap_bios(vga_dev, bios);
 	return true;
 }
 
+#ifdef CONFIG_ACPI
 /* ATRM is used to get the BIOS on the discrete cards in
  * dual-gpu systems.
  */
@@ -197,9 +202,9 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 		return false;
 	}
 
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 	if ((dev = pci_find_class(PCIC_DISPLAY, PCIS_DISPLAY_VGA)) != NULL) {
 		DRM_INFO("%s: pci_find_class() found: %d:%d:%d:%d, vendor=%04x, device=%04x\n",
 		    __func__,
@@ -211,10 +216,10 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 		    pci_get_device(dev));
 		DRM_INFO("%s: Get ACPI device handle\n", __func__);
 		dhandle = acpi_get_handle(dev);
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 		if (!dhandle)
 			continue;
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 		if (!dhandle)
 			return false;
 
@@ -222,9 +227,9 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 		status = AcpiGetHandle(dhandle, "ATRM", &atrm_handle);
 		if (!ACPI_FAILURE(status)) {
 			found = true;
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 			break;
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 		} else {
 			DRM_INFO("%s: Failed to get \"ATRM\" handle: %s\n",
 			    __func__, AcpiFormatException(status));
@@ -234,7 +239,7 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 	if (!found)
 		return false;
 
-	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_WAITOK);
+	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_NOWAIT);
 	if (!rdev->bios) {
 		DRM_ERROR("Unable to allocate bios\n");
 		return false;
@@ -262,6 +267,12 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 	}
 	return true;
 }
+#else
+static inline bool radeon_atrm_get_bios(struct radeon_device *rdev)
+{
+	return false;
+}
+#endif
 
 static bool ni_read_disabled_bios(struct radeon_device *rdev)
 {
@@ -620,6 +631,7 @@ static bool radeon_read_disabled_bios(struct radeon_device *rdev)
 		return legacy_read_disabled_bios(rdev);
 }
 
+#ifdef CONFIG_ACPI
 static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 {
 	bool ret = false;
@@ -671,13 +683,20 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 		goto out_unmap;
 	}
 
-	rdev->bios = malloc(vhdr->ImageLength, DRM_MEM_DRIVER, M_WAITOK);
-	memcpy(rdev->bios, &vbios->VbiosContent, vhdr->ImageLength);
+	rdev->bios = malloc(vhdr->ImageLength, DRM_MEM_DRIVER, M_NOWAIT);
+	if (rdev->bios)
+		memcpy(rdev->bios, &vbios->VbiosContent, vhdr->ImageLength);
 	ret = !!rdev->bios;
 
 out_unmap:
 	return ret;
 }
+#else
+static inline bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
+{
+	return false;
+}
+#endif
 
 bool radeon_get_bios(struct radeon_device *rdev)
 {

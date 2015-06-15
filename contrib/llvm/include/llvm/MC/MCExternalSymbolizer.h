@@ -18,6 +18,7 @@
 
 #include "llvm-c/Disassembler.h"
 #include "llvm/MC/MCSymbolizer.h"
+#include <memory>
 
 namespace llvm {
 
@@ -25,7 +26,7 @@ namespace llvm {
 ///
 /// See llvm-c/Disassembler.h.
 class MCExternalSymbolizer : public MCSymbolizer {
-
+protected:
   /// \name Hooks for symbolic disassembly via the public 'C' interface.
   /// @{
   /// The function to get the symbolic information for operands.
@@ -38,19 +39,18 @@ class MCExternalSymbolizer : public MCSymbolizer {
 
 public:
   MCExternalSymbolizer(MCContext &Ctx,
-                       OwningPtr<MCRelocationInfo> &RelInfo,
+                       std::unique_ptr<MCRelocationInfo> RelInfo,
                        LLVMOpInfoCallback getOpInfo,
-                       LLVMSymbolLookupCallback symbolLookUp,
-                       void *disInfo)
-    : MCSymbolizer(Ctx, RelInfo),
-      GetOpInfo(getOpInfo), SymbolLookUp(symbolLookUp), DisInfo(disInfo) {}
+                       LLVMSymbolLookupCallback symbolLookUp, void *disInfo)
+    : MCSymbolizer(Ctx, std::move(RelInfo)), GetOpInfo(getOpInfo),
+      SymbolLookUp(symbolLookUp), DisInfo(disInfo) {}
 
   bool tryAddingSymbolicOperand(MCInst &MI, raw_ostream &CommentStream,
-                                int64_t Value,
-                                uint64_t Address, bool IsBranch,
-                                uint64_t Offset, uint64_t InstSize);
+                                int64_t Value, uint64_t Address, bool IsBranch,
+                                uint64_t Offset, uint64_t InstSize) override;
   void tryAddingPcLoadReferenceComment(raw_ostream &CommentStream,
-                                       int64_t Value, uint64_t Address);
+                                       int64_t Value,
+                                       uint64_t Address) override;
 };
 
 }

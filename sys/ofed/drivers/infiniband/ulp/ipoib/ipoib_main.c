@@ -40,7 +40,6 @@ static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 
 #include <linux/module.h>
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
@@ -666,7 +665,7 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 			} else
 				__path_add(priv, path);
 		} else {
-			++priv->dev->if_oerrors;
+			if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
 			m_freem(mb);
 		}
 
@@ -681,7 +680,7 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 		    path->queue.ifq_len < IPOIB_MAX_PATH_REC_QUEUE) {
 		_IF_ENQUEUE(&path->queue, mb);
 	} else {
-		++priv->dev->if_oerrors;
+		if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
 		m_freem(mb);
 	}
 }
@@ -746,7 +745,7 @@ ipoib_vlan_start(struct ifnet *dev)
 		if (mb == NULL)
 			break;
 		m_freem(mb);
-		dev->if_oerrors++;
+		if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 	}
 }
 
@@ -833,6 +832,7 @@ ipoib_priv_alloc(void)
 
 	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
 	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->drain_lock);
 	mutex_init(&priv->vlan_mutex);
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -1260,13 +1260,15 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	struct llentry *lle = NULL;
 	struct rtentry *rt0 = NULL;
 	struct ipoib_header *eh;
-	int error = 0;
+	int error = 0, is_gw = 0;
 	short type;
 
 	if (ro != NULL) {
 		if (!(m->m_flags & (M_BCAST | M_MCAST)))
 			lle = ro->ro_lle;
 		rt0 = ro->ro_rt;
+		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
 	}
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -1293,7 +1295,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		else if (m->m_flags & M_MCAST)
 			ip_ib_mc_map(((struct sockaddr_in *)dst)->sin_addr.s_addr, ifp->if_broadcastaddr, edst);
 		else
-			error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+			error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -1331,7 +1333,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		else if (m->m_flags & M_MCAST)
 			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
@@ -1453,7 +1455,7 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 	ipoib_demux(ifp, m, ntohs(eh->proto));
@@ -1526,8 +1528,6 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 module_init(ipoib_init_module);
 module_exit(ipoib_cleanup_module);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 ipoib_evhand(module_t mod, int event, void *arg)
 {
@@ -1541,4 +1541,4 @@ static moduledata_t ipoib_mod = {
 
 DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
 MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
-
+MODULE_DEPEND(ipoib, linuxapi, 1, 1, 1);

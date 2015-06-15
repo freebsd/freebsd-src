@@ -92,17 +92,21 @@ public:
 
   /// getDir - Return the directory that this entry refers to.
   ///
-  const DirectoryEntry *getDir() const { return isNormalDir() ? u.Dir : 0; }
+  const DirectoryEntry *getDir() const {
+    return isNormalDir() ? u.Dir : nullptr;
+  }
 
   /// getFrameworkDir - Return the directory that this framework refers to.
   ///
   const DirectoryEntry *getFrameworkDir() const {
-    return isFramework() ? u.Dir : 0;
+    return isFramework() ? u.Dir : nullptr;
   }
 
   /// getHeaderMap - Return the directory that this entry refers to.
   ///
-  const HeaderMap *getHeaderMap() const { return isHeaderMap() ? u.Map : 0; }
+  const HeaderMap *getHeaderMap() const {
+    return isHeaderMap() ? u.Map : nullptr;
+  }
 
   /// isNormalDir - Return true if this is a normal directory, not a header map.
   bool isNormalDir() const { return getLookupType() == LT_NormalDir; }
@@ -161,11 +165,17 @@ public:
   /// \param [out] InUserSpecifiedSystemFramework If the file is found,
   /// set to true if the file is located in a framework that has been
   /// user-specified to be treated as a system framework.
-  const FileEntry *LookupFile(StringRef Filename, HeaderSearch &HS,
+  ///
+  /// \param [out] MappedName if this is a headermap which maps the filename to
+  /// a framework include ("Foo.h" -> "Foo/Foo.h"), set the new name to this
+  /// vector and point Filename to it.
+  const FileEntry *LookupFile(StringRef &Filename, HeaderSearch &HS,
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
                               ModuleMap::KnownHeader *SuggestedModule,
-                              bool &InUserSpecifiedSystemFramework) const;
+                              bool &InUserSpecifiedSystemFramework,
+                              bool &HasBeenMapped,
+                              SmallVectorImpl<char> &MappedName) const;
 
 private:
   const FileEntry *DoFrameworkLookup(

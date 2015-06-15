@@ -71,8 +71,6 @@ ValueObjectDynamicValue::GetTypeName()
     {
         if (m_dynamic_type_info.HasName())
             return m_dynamic_type_info.GetName();
-        if (m_dynamic_type_info.HasType())
-            return GetClangType().GetConstTypeName();
     }
     return m_parent->GetTypeName();
 }
@@ -96,10 +94,22 @@ ValueObjectDynamicValue::GetQualifiedTypeName()
     {
         if (m_dynamic_type_info.HasName())
             return m_dynamic_type_info.GetName();
-        if (m_dynamic_type_info.HasType())
-            return GetClangType().GetConstQualifiedTypeName ();
     }
-    return m_parent->GetTypeName();
+    return m_parent->GetQualifiedTypeName();
+}
+
+ConstString
+ValueObjectDynamicValue::GetDisplayTypeName()
+{
+    const bool success = UpdateValueIfNeeded(false);
+    if (success)
+    {
+        if (m_dynamic_type_info.HasType())
+            return GetClangType().GetDisplayTypeName();
+        if (m_dynamic_type_info.HasName())
+            return m_dynamic_type_info.GetName();
+    }
+    return m_parent->GetDisplayTypeName();
 }
 
 size_t
@@ -175,7 +185,7 @@ ValueObjectDynamicValue::UpdateValue ()
             m_error = m_parent->GetError();
         return false;
     }
-    
+
     // Setting our type_sp to NULL will route everything back through our
     // parent which is equivalent to not using dynamic values.
     if (m_use_dynamic == lldb::eNoDynamicValues)
@@ -183,7 +193,7 @@ ValueObjectDynamicValue::UpdateValue ()
         m_dynamic_type_info.Clear();
         return true;
     }
-    
+
     ExecutionContext exe_ctx (GetExecutionContextRef());
     Target *target = exe_ctx.GetTargetPtr();
     if (target)
@@ -191,16 +201,16 @@ ValueObjectDynamicValue::UpdateValue ()
         m_data.SetByteOrder(target->GetArchitecture().GetByteOrder());
         m_data.SetAddressByteSize(target->GetArchitecture().GetAddressByteSize());
     }
-    
+
     // First make sure our Type and/or Address haven't changed:
     Process *process = exe_ctx.GetProcessPtr();
     if (!process)
         return false;
-    
+
     TypeAndOrName class_type_or_name;
     Address dynamic_address;
     bool found_dynamic_type = false;
-    
+
     lldb::LanguageType known_type = m_parent->GetObjectRuntimeLanguage();
     if (known_type != lldb::eLanguageTypeUnknown && known_type != lldb::eLanguageTypeC)
     {
@@ -213,7 +223,7 @@ ValueObjectDynamicValue::UpdateValue ()
         LanguageRuntime *cpp_runtime = process->GetLanguageRuntime (lldb::eLanguageTypeC_plus_plus);
         if (cpp_runtime)
             found_dynamic_type = cpp_runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address);
-        
+
         if (!found_dynamic_type)
         {
             LanguageRuntime *objc_runtime = process->GetLanguageRuntime (lldb::eLanguageTypeObjC);
@@ -221,26 +231,17 @@ ValueObjectDynamicValue::UpdateValue ()
                 found_dynamic_type = objc_runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address);
         }
     }
-    
+
     // Getting the dynamic value may have run the program a bit, and so marked us as needing updating, but we really
     // don't...
-    
+
     m_update_point.SetUpdated();
 
     if (found_dynamic_type)
     {
         if (class_type_or_name.HasType())
         {
-            // TypeSP are always generated from debug info
-            if (!class_type_or_name.HasTypeSP() && class_type_or_name.GetClangASTType().IsRuntimeGeneratedType())
-            {
-                m_type_impl = TypeImpl(m_parent->GetClangType(),FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
-                class_type_or_name.SetClangASTType(ClangASTType());
-            }
-            else
-            {
-                m_type_impl = TypeImpl(FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
-            }
+            m_type_impl = TypeImpl(m_parent->GetClangType(),FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
         }
         else
         {
@@ -251,7 +252,7 @@ ValueObjectDynamicValue::UpdateValue ()
     {
         m_type_impl.Clear();
     }
-    
+
     // If we don't have a dynamic type, then make ourselves just a echo of our parent.
     // Or we could return false, and make ourselves an echo of our parent?
     if (!found_dynamic_type)
@@ -264,13 +265,13 @@ ValueObjectDynamicValue::UpdateValue ()
         m_error = m_value.GetValueAsData (&exe_ctx, m_data, 0, GetModule().get());
         return m_error.Success();
     }
-    
+
     Value old_value(m_value);
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
-    
+
     bool has_changed_type = false;
-    
+
     if (!m_dynamic_type_info)
     {
         m_dynamic_type_info = class_type_or_name;
@@ -283,37 +284,35 @@ ValueObjectDynamicValue::UpdateValue ()
         SetValueDidChange (true);
         has_changed_type = true;
     }
-    
+
     if (has_changed_type)
         ClearDynamicTypeInformation ();
-    
+
     if (!m_address.IsValid() || m_address != dynamic_address)
     {
         if (m_address.IsValid())
             SetValueDidChange (true);
-            
+
         // We've moved, so we should be fine...
         m_address = dynamic_address;
         lldb::TargetSP target_sp (GetTargetSP());
         lldb::addr_t load_address = m_address.GetLoadAddress(target_sp.get());
         m_value.GetScalar() = load_address;
     }
-    
+
     m_dynamic_type_info = FixupTypeAndOrName(m_dynamic_type_info, *m_parent);
-    
+
     //m_value.SetContext (Value::eContextTypeClangType, corrected_type);
     m_value.SetClangType (m_dynamic_type_info.GetClangASTType());
-    
+
     // Our address is the location of the dynamic type stored in memory.  It isn't a load address,
     // because we aren't pointing to the LOCATION that stores the pointer to us, we're pointing to us...
     m_value.SetValueType(Value::eValueTypeScalar);
 
     if (has_changed_type && log)
-        log->Printf("[%s %p] has a new dynamic type %s",
-                    GetName().GetCString(),
-                    this,
-                    GetTypeName().GetCString());
-    
+        log->Printf("[%s %p] has a new dynamic type %s", GetName().GetCString(),
+                    static_cast<void*>(this), GetTypeName().GetCString());
+
     if (m_address.IsValid() && m_dynamic_type_info)
     {
         // The variable value is in the Scalar value inside the m_value.
@@ -321,7 +320,7 @@ ValueObjectDynamicValue::UpdateValue ()
         m_error = m_value.GetValueAsData (&exe_ctx, m_data, 0, GetModule().get());
         if (m_error.Success())
         {
-            if (GetClangType().IsAggregateType ())
+            if (!CanProvideValue())
             {
                 // this value object represents an aggregate type whose
                 // children have values, but this object does not. So we
@@ -333,7 +332,7 @@ ValueObjectDynamicValue::UpdateValue ()
             return true;
         }
     }
-    
+
     // We get here if we've failed above...
     SetValueIsValid (false);
     return false;

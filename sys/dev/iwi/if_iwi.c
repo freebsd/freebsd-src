@@ -154,7 +154,7 @@ static void	iwi_node_free(struct ieee80211_node *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwi_wme_init(struct iwi_softc *);
-static int	iwi_wme_setparams(struct iwi_softc *, struct ieee80211com *);
+static int	iwi_wme_setparams(struct iwi_softc *);
 static void	iwi_update_wme(void *, int);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
@@ -364,6 +364,8 @@ iwi_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
 
@@ -1057,8 +1059,9 @@ iwi_wme_init(struct iwi_softc *sc)
 }
 
 static int
-iwi_wme_setparams(struct iwi_softc *sc, struct ieee80211com *ic)
+iwi_wme_setparams(struct iwi_softc *sc)
 {
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	const struct wmeParams *wmep;
 	int ac;
 
@@ -1081,12 +1084,11 @@ iwi_wme_setparams(struct iwi_softc *sc, struct ieee80211com *ic)
 static void
 iwi_update_wme(void *arg, int npending)
 {
-	struct ieee80211com *ic = arg;
-	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_softc *sc = arg;
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
-	(void) iwi_wme_setparams(sc, ic);
+	(void) iwi_wme_setparams(sc);
 	IWI_UNLOCK(sc);
 }
 
@@ -1235,7 +1237,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	 */
 	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1256,7 +1258,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 			panic("%s: could not load old rx mbuf",
 			    device_get_name(sc->sc_dev));
 		}
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1651,7 +1653,7 @@ iwi_tx_intr(struct iwi_softc *sc, struct iwi_tx_ring *txq)
 
 		DPRINTFN(15, ("tx done idx=%u\n", txq->next));
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		txq->queued--;
 		txq->next = (txq->next + 1) % IWI_TX_RING_COUNT;
@@ -1852,7 +1854,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 					/* h/w table is full */
 					m_freem(m0);
 					ieee80211_free_node(ni);
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					return 0;
 				}
 				iwi_write_ibssnode(sc,
@@ -2007,7 +2009,7 @@ iwi_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (iwi_tx_start(ifp, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 
@@ -2038,7 +2040,7 @@ iwi_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			ieee80211_runtask(ic, &sc->sc_restarttask);
 		}
 	}
@@ -2945,7 +2947,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 
 	if ((vap->iv_flags & IEEE80211_F_WME) && ni->ni_ies.wme_ie != NULL) {
 		/* NB: don't treat WME setup as failure */
-		if (iwi_wme_setparams(sc, ic) == 0 && iwi_wme_setie(sc) == 0)
+		if (iwi_wme_setparams(sc) == 0 && iwi_wme_setie(sc) == 0)
 			assoc->policy |= htole16(IWI_POLICY_WME);
 		/* XXX complain on failure? */
 	}

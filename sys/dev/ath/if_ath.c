@@ -166,9 +166,9 @@ static void	ath_bmiss_proc(void *, int);
 static void	ath_key_update_begin(struct ieee80211vap *);
 static void	ath_key_update_end(struct ieee80211vap *);
 static void	ath_update_mcast_hw(struct ath_softc *);
-static void	ath_update_mcast(struct ifnet *);
-static void	ath_update_promisc(struct ifnet *);
-static void	ath_updateslot(struct ifnet *);
+static void	ath_update_mcast(struct ieee80211com *);
+static void	ath_update_promisc(struct ieee80211com *);
+static void	ath_updateslot(struct ieee80211com *);
 static void	ath_bstuck_proc(void *, int);
 static void	ath_reset_proc(void *, int);
 static int	ath_desc_alloc(struct ath_softc *);
@@ -435,6 +435,135 @@ _ath_power_restore_power_state(struct ath_softc *sc, const char *file, int line)
 
 }
 
+/*
+ * Configure the initial HAL configuration values based on bus
+ * specific parameters.
+ *
+ * Some PCI IDs and other information may need tweaking.
+ *
+ * XXX TODO: ath9k and the Atheros HAL only program comm2g_switch_enable
+ * if BT antenna diversity isn't enabled.
+ *
+ * So, let's also figure out how to enable BT diversity for AR9485.
+ */
+static void
+ath_setup_hal_config(struct ath_softc *sc, HAL_OPS_CONFIG *ah_config)
+{
+	/* XXX TODO: only for PCI devices? */
+
+	if (sc->sc_pci_devinfo & (ATH_PCI_CUS198 | ATH_PCI_CUS230)) {
+		ah_config->ath_hal_ext_lna_ctl_gpio = 0x200; /* bit 9 */
+		ah_config->ath_hal_ext_atten_margin_cfg = AH_TRUE;
+		ah_config->ath_hal_min_gainidx = AH_TRUE;
+		ah_config->ath_hal_ant_ctrl_comm2g_switch_enable = 0x000bbb88;
+		/* XXX low_rssi_thresh */
+		/* XXX fast_div_bias */
+		device_printf(sc->sc_dev, "configuring for %s\n",
+		    (sc->sc_pci_devinfo & ATH_PCI_CUS198) ?
+		    "CUS198" : "CUS230");
+	}
+
+	if (sc->sc_pci_devinfo & ATH_PCI_CUS217)
+		device_printf(sc->sc_dev, "CUS217 card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_CUS252)
+		device_printf(sc->sc_dev, "CUS252 card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_1ANT)
+		device_printf(sc->sc_dev, "WB335 1-ANT card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_2ANT)
+		device_printf(sc->sc_dev, "WB335 2-ANT card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_KILLER)
+		device_printf(sc->sc_dev, "Killer Wireless card detected\n");
+
+#if 0
+        /*
+         * Some WB335 cards do not support antenna diversity. Since
+         * we use a hardcoded value for AR9565 instead of using the
+         * EEPROM/OTP data, remove the combining feature from
+         * the HW capabilities bitmap.
+         */
+        if (sc->sc_pci_devinfo & (ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_AR9565_2ANT)) {
+                if (!(sc->sc_pci_devinfo & ATH9K_PCI_BT_ANT_DIV))
+                        pCap->hw_caps &= ~ATH9K_HW_CAP_ANT_DIV_COMB;
+        }
+
+        if (sc->sc_pci_devinfo & ATH9K_PCI_BT_ANT_DIV) {
+                pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
+                device_printf(sc->sc_dev, "Set BT/WLAN RX diversity capability\n");
+        }
+#endif
+
+        if (sc->sc_pci_devinfo & ATH_PCI_D3_L1_WAR) {
+                ah_config->ath_hal_pcie_waen = 0x0040473b;
+                device_printf(sc->sc_dev, "Enable WAR for ASPM D3/L1\n");
+        }
+
+#if 0
+        if (sc->sc_pci_devinfo & ATH9K_PCI_NO_PLL_PWRSAVE) {
+                ah->config.no_pll_pwrsave = true;
+                device_printf(sc->sc_dev, "Disable PLL PowerSave\n");
+        }
+#endif
+
+}
+
+/*
+ * Attempt to fetch the MAC address from the kernel environment.
+ *
+ * Returns 0, macaddr in macaddr if successful; -1 otherwise.
+ */
+static int
+ath_fetch_mac_kenv(struct ath_softc *sc, uint8_t *macaddr)
+{
+	char devid_str[32];
+	int local_mac = 0;
+	char *local_macstr;
+
+	/*
+	 * Fetch from the kenv rather than using hints.
+	 *
+	 * Hints would be nice but the transition to dynamic
+	 * hints/kenv doesn't happen early enough for this
+	 * to work reliably (eg on anything embedded.)
+	 */
+	snprintf(devid_str, 32, "hint.%s.%d.macaddr",
+	    device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev));
+
+	if ((local_macstr = kern_getenv(devid_str)) != NULL) {
+		uint32_t tmpmac[ETHER_ADDR_LEN];
+		int count;
+		int i;
+
+		/* Have a MAC address; should use it */
+		device_printf(sc->sc_dev,
+		    "Overriding MAC address from environment: '%s'\n",
+		    local_macstr);
+
+		/* Extract out the MAC address */
+		count = sscanf(local_macstr, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
+		    &tmpmac[0], &tmpmac[1],
+		    &tmpmac[2], &tmpmac[3],
+		    &tmpmac[4], &tmpmac[5]);
+		if (count == 6) {
+			/* Valid! */
+			local_mac = 1;
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				macaddr[i] = tmpmac[i];
+		}
+		/* Done! */
+		freeenv(local_macstr);
+		local_macstr = NULL;
+	}
+
+	if (local_mac)
+		return (0);
+	return (-1);
+}
+
 #define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
 #define	HAL_MODE_HT40 \
 	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
@@ -450,6 +579,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	u_int wmodes;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	int rx_chainmask, tx_chainmask;
+	HAL_OPS_CONFIG ah_config;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
@@ -462,17 +592,27 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad;
 	}
 	ic = ifp->if_l2com;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(sc->sc_dev);
 
-	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 	CURVNET_RESTORE();
 
+	/*
+	 * Configure the initial configuration data.
+	 *
+	 * This is stuff that may be needed early during attach
+	 * rather than done via configuration calls later.
+	 */
+	bzero(&ah_config, sizeof(ah_config));
+	ath_setup_hal_config(sc, &ah_config);
+
 	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
-	    sc->sc_eepromdata, &status);
+	    sc->sc_eepromdata, &ah_config, &status);
 	if (ah == NULL) {
-		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
-			status);
+		device_printf(sc->sc_dev,
+		    "unable to attach hardware; HAL status %u\n", status);
 		error = ENXIO;
 		goto bad;
 	}
@@ -523,8 +663,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_keymax = ath_hal_keycachesize(ah);
 	if (sc->sc_keymax > ATH_KEYMAX) {
-		if_printf(ifp, "Warning, using only %u of %u key cache slots\n",
-			ATH_KEYMAX, sc->sc_keymax);
+		device_printf(sc->sc_dev,
+		    "Warning, using only %u of %u key cache slots\n",
+		    ATH_KEYMAX, sc->sc_keymax);
 		sc->sc_keymax = ATH_KEYMAX;
 	}
 	/*
@@ -563,14 +704,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	error = ath_desc_alloc(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
-		    error);
+		device_printf(sc->sc_dev,
+		    "failed to allocate TX descriptors: %d\n", error);
 		goto bad;
 	}
 	error = ath_txdma_setup(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
-		    error);
+		device_printf(sc->sc_dev,
+		    "failed to allocate TX descriptors: %d\n", error);
 		goto bad;
 	}
 
@@ -579,8 +720,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	error = ath_rxdma_setup(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate RX descriptors: %d\n",
-		    error);
+		device_printf(sc->sc_dev,
+		     "failed to allocate RX descriptors: %d\n", error);
 		goto bad;
 	}
 
@@ -611,20 +752,22 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_bhalq = ath_beaconq_setup(sc);
 	if (sc->sc_bhalq == (u_int) -1) {
-		if_printf(ifp, "unable to setup a beacon xmit queue!\n");
+		device_printf(sc->sc_dev,
+		    "unable to setup a beacon xmit queue!\n");
 		error = EIO;
 		goto bad2;
 	}
 	sc->sc_cabq = ath_txq_setup(sc, HAL_TX_QUEUE_CAB, 0);
 	if (sc->sc_cabq == NULL) {
-		if_printf(ifp, "unable to setup CAB xmit queue!\n");
+		device_printf(sc->sc_dev, "unable to setup CAB xmit queue!\n");
 		error = EIO;
 		goto bad2;
 	}
 	/* NB: insure BK queue is the lowest priority h/w queue */
 	if (!ath_tx_setup(sc, WME_AC_BK, HAL_WME_AC_BK)) {
-		if_printf(ifp, "unable to setup xmit queue for %s traffic!\n",
-			ieee80211_wme_acnames[WME_AC_BK]);
+		device_printf(sc->sc_dev,
+		    "unable to setup xmit queue for %s traffic!\n",
+		    ieee80211_wme_acnames[WME_AC_BK]);
 		error = EIO;
 		goto bad2;
 	}
@@ -708,7 +851,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
 	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
-	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_ledtimer, 1);
 
 	/*
 	 * Don't setup hardware-based blinking.
@@ -1064,8 +1207,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_hasveol = ath_hal_hasveol(ah);
 
-	/* get mac address from hardware */
-	ath_hal_getmac(ah, macaddr);
+	/* get mac address from kenv first, then hardware */
+	if (ath_fetch_mac_kenv(sc, macaddr) == 0) {
+		/* Tell the HAL now about the new MAC */
+		ath_hal_setmac(ah, macaddr);
+	} else {
+		ath_hal_getmac(ah, macaddr);
+	}
+
 	if (sc->sc_hasbmask)
 		ath_hal_getbssidmask(ah, sc->sc_hwbssidmask);
 
@@ -1681,8 +1830,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * be reset if we just destroyed the last vap).
 		 */
 		if (ath_startrecv(sc) != 0)
-			if_printf(ifp, "%s: unable to restart recv logic\n",
-			    __func__);
+			device_printf(sc->sc_dev,
+			    "%s: unable to restart recv logic\n", __func__);
 		if (sc->sc_beacons) {		/* restart beacons */
 #ifdef IEEE80211_SUPPORT_TDMA
 			if (sc->sc_tdma)
@@ -1715,12 +1864,25 @@ ath_suspend(struct ath_softc *sc)
 	 * NB: don't worry about putting the chip in low power
 	 * mode; pci will power off our socket on suspend and
 	 * CardBus detaches the device.
+	 *
+	 * XXX TODO: well, that's great, except for non-cardbus
+	 * devices!
 	 */
 
 	/*
-	 * XXX ensure none of the taskqueues are running
+	 * XXX This doesn't wait until all pending taskqueue
+	 * items and parallel transmit/receive/other threads
+	 * are running!
+	 */
+	ath_hal_intrset(sc->sc_ah, 0);
+	taskqueue_block(sc->sc_tq);
+
+	ATH_LOCK(sc);
+	callout_stop(&sc->sc_cal_ch);
+	ATH_UNLOCK(sc);
+
+	/*
 	 * XXX ensure sc_invalid is 1
-	 * XXX ensure the calibration callout is disabled
 	 */
 
 	/* Disable the PCIe PHY, complete with workarounds */
@@ -1810,6 +1972,11 @@ ath_resume(struct ath_softc *sc)
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
+
+	ATH_RX_LOCK(sc);
+	sc->sc_rx_stopped = 1;
+	sc->sc_rx_resetted = 1;
+	ATH_RX_UNLOCK(sc);
 
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
@@ -2015,44 +2182,46 @@ ath_intr(void *arg)
 		if (status & HAL_INT_RXEOL) {
 			int imask;
 			ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_intr: RXEOL");
-			ATH_PCU_LOCK(sc);
+			if (! sc->sc_isedma) {
+				ATH_PCU_LOCK(sc);
+				/*
+				 * NB: the hardware should re-read the link when
+				 *     RXE bit is written, but it doesn't work at
+				 *     least on older hardware revs.
+				 */
+				sc->sc_stats.ast_rxeol++;
+				/*
+				 * Disable RXEOL/RXORN - prevent an interrupt
+				 * storm until the PCU logic can be reset.
+				 * In case the interface is reset some other
+				 * way before "sc_kickpcu" is called, don't
+				 * modify sc_imask - that way if it is reset
+				 * by a call to ath_reset() somehow, the
+				 * interrupt mask will be correctly reprogrammed.
+				 */
+				imask = sc->sc_imask;
+				imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
+				ath_hal_intrset(ah, imask);
+				/*
+				 * Only blank sc_rxlink if we've not yet kicked
+				 * the PCU.
+				 *
+				 * This isn't entirely correct - the correct solution
+				 * would be to have a PCU lock and engage that for
+				 * the duration of the PCU fiddling; which would include
+				 * running the RX process. Otherwise we could end up
+				 * messing up the RX descriptor chain and making the
+				 * RX desc list much shorter.
+				 */
+				if (! sc->sc_kickpcu)
+					sc->sc_rxlink = NULL;
+				sc->sc_kickpcu = 1;
+				ATH_PCU_UNLOCK(sc);
+			}
 			/*
-			 * NB: the hardware should re-read the link when
-			 *     RXE bit is written, but it doesn't work at
-			 *     least on older hardware revs.
-			 */
-			sc->sc_stats.ast_rxeol++;
-			/*
-			 * Disable RXEOL/RXORN - prevent an interrupt
-			 * storm until the PCU logic can be reset.
-			 * In case the interface is reset some other
-			 * way before "sc_kickpcu" is called, don't
-			 * modify sc_imask - that way if it is reset
-			 * by a call to ath_reset() somehow, the
-			 * interrupt mask will be correctly reprogrammed.
-			 */
-			imask = sc->sc_imask;
-			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
-			ath_hal_intrset(ah, imask);
-			/*
-			 * Only blank sc_rxlink if we've not yet kicked
-			 * the PCU.
-			 *
-			 * This isn't entirely correct - the correct solution
-			 * would be to have a PCU lock and engage that for
-			 * the duration of the PCU fiddling; which would include
-			 * running the RX process. Otherwise we could end up
-			 * messing up the RX descriptor chain and making the
-			 * RX desc list much shorter.
-			 */
-			if (! sc->sc_kickpcu)
-				sc->sc_rxlink = NULL;
-			sc->sc_kickpcu = 1;
-			ATH_PCU_UNLOCK(sc);
-			/*
-			 * Enqueue an RX proc, to handled whatever
+			 * Enqueue an RX proc to handle whatever
 			 * is in the RX queue.
-			 * This will then kick the PCU.
+			 * This will then kick the PCU if required.
 			 */
 			sc->sc_rx.recv_sched(sc, 1);
 		}
@@ -2149,7 +2318,7 @@ ath_fatal_proc(void *arg, int pending)
 	u_int32_t len;
 	void *sp;
 
-	if_printf(ifp, "hardware error; resetting\n");
+	device_printf(sc->sc_dev, "hardware error; resetting\n");
 	/*
 	 * Fatal errors are unrecoverable.  Typically these
 	 * are caused by DMA errors.  Collect h/w state from
@@ -2158,9 +2327,9 @@ ath_fatal_proc(void *arg, int pending)
 	if (ath_hal_getfatalstate(sc->sc_ah, &sp, &len)) {
 		KASSERT(len >= 6*sizeof(u_int32_t), ("len %u bytes", len));
 		state = sp;
-		if_printf(ifp, "0x%08x 0x%08x 0x%08x, 0x%08x 0x%08x 0x%08x\n",
-		    state[0], state[1] , state[2], state[3],
-		    state[4], state[5]);
+		device_printf(sc->sc_dev,
+		    "0x%08x 0x%08x 0x%08x, 0x%08x 0x%08x 0x%08x\n", state[0],
+		    state[1] , state[2], state[3], state[4], state[5]);
 	}
 	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
@@ -2267,7 +2436,8 @@ ath_bmiss_proc(void *arg, int pending)
 	 */
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
 		ath_reset(ifp, ATH_RESET_NOLOSS);
-		if_printf(ifp, "bb hang detected (0x%x), resetting\n", hangs);
+		device_printf(sc->sc_dev,
+		    "bb hang detected (0x%x), resetting\n", hangs);
 	} else {
 		ath_reset(ifp, ATH_RESET_NOLOSS);
 		ieee80211_beacon_miss(ifp->if_l2com);
@@ -2342,12 +2512,19 @@ ath_init(void *arg)
 	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 	    sc->sc_cur_rxchainmask);
 
-	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE, &status)) {
-		if_printf(ifp, "unable to reset hardware; hal status %u\n",
-			status);
+	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE,
+	    &status)) {
+		device_printf(sc->sc_dev,
+		    "unable to reset hardware; hal status %u\n", status);
 		ATH_UNLOCK(sc);
 		return;
 	}
+
+	ATH_RX_LOCK(sc);
+	sc->sc_rx_stopped = 1;
+	sc->sc_rx_resetted = 1;
+	ATH_RX_UNLOCK(sc);
+
 	ath_chan_change(sc, ic->ic_curchan);
 
 	/* Let DFS at it in case it's a DFS channel */
@@ -2375,11 +2552,11 @@ ath_init(void *arg)
 	 * state cached in the driver.
 	 */
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_lastlongcal = 0;
+	sc->sc_lastlongcal = ticks;
 	sc->sc_resetcal = 1;
 	sc->sc_lastcalreset = 0;
-	sc->sc_lastani = 0;
-	sc->sc_lastshortcal = 0;
+	sc->sc_lastani = ticks;
+	sc->sc_lastshortcal = ticks;
 	sc->sc_doresetcal = AH_FALSE;
 	/*
 	 * Beacon timers were cleared here; give ath_newstate()
@@ -2396,7 +2573,7 @@ ath_init(void *arg)
 	 * here except setup the interrupt mask.
 	 */
 	if (ath_startrecv(sc) != 0) {
-		if_printf(ifp, "unable to start recv logic\n");
+		device_printf(sc->sc_dev, "unable to start recv logic\n");
 		ath_power_restore_power_state(sc);
 		ATH_UNLOCK(sc);
 		return;
@@ -2406,8 +2583,7 @@ ath_init(void *arg)
 	 * Enable interrupts.
 	 */
 	sc->sc_imask = HAL_INT_RX | HAL_INT_TX
-		  | HAL_INT_RXEOL | HAL_INT_RXORN
-		  | HAL_INT_TXURN
+		  | HAL_INT_RXORN | HAL_INT_TXURN
 		  | HAL_INT_FATAL | HAL_INT_GLOBAL;
 
 	/*
@@ -2416,6 +2592,14 @@ ath_init(void *arg)
 	 */
 	if (sc->sc_isedma)
 		sc->sc_imask |= (HAL_INT_RXHP | HAL_INT_RXLP);
+
+	/*
+	 * If we're an EDMA NIC, we don't care about RXEOL.
+	 * Writing a new descriptor in will simply restart
+	 * RX DMA.
+	 */
+	if (! sc->sc_isedma)
+		sc->sc_imask |= HAL_INT_RXEOL;
 
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
@@ -2731,9 +2915,15 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 	    sc->sc_cur_rxchainmask);
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
-		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
-			__func__, status);
+		device_printf(sc->sc_dev,
+		    "%s: unable to reset hardware; hal status %u\n",
+		    __func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
+
+	ATH_RX_LOCK(sc);
+	sc->sc_rx_stopped = 1;
+	sc->sc_rx_resetted = 1;
+	ATH_RX_UNLOCK(sc);
 
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
@@ -2756,7 +2946,8 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 		ath_hal_setenforcetxop(sc->sc_ah, 0);
 
 	if (ath_startrecv(sc) != 0)	/* restart recv */
-		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
+		device_printf(sc->sc_dev,
+		    "%s: unable to start recv logic\n", __func__);
 	/*
 	 * We may be doing a reset in response to an ioctl
 	 * that changes the channel so update any state that
@@ -3192,7 +3383,7 @@ ath_transmit(struct ifnet *ifp, struct mbuf *m)
 		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: out of txfrag buffers\n", __func__);
 		sc->sc_stats.ast_tx_nofrag++;
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ath_freetx(m);
 		goto bad;
 	}
@@ -3240,7 +3431,7 @@ ath_transmit(struct ifnet *ifp, struct mbuf *m)
 	 *
 	 * XXX should use atomics?
 	 */
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 nextfrag:
 	/*
 	 * Pass the frame to the h/w for transmission.
@@ -3260,7 +3451,7 @@ nextfrag:
 	next = m->m_nextpkt;
 	if (ath_tx_start(sc, ni, bf, m)) {
 bad:
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 reclaim:
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
@@ -3362,9 +3553,9 @@ ath_key_update_end(struct ieee80211vap *vap)
 }
 
 static void
-ath_update_promisc(struct ifnet *ifp)
+ath_update_promisc(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	u_int32_t rfilt;
 
 	/* configure rx filter */
@@ -3426,9 +3617,9 @@ ath_update_mcast_hw(struct ath_softc *sc)
  * awake before operating.
  */
 static void
-ath_update_mcast(struct ifnet *ifp)
+ath_update_mcast(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -3512,10 +3703,9 @@ ath_setslottime(struct ath_softc *sc)
  * slot time based on the current setting.
  */
 static void
-ath_updateslot(struct ifnet *ifp)
+ath_updateslot(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_softc *sc = ic->ic_softc;
 
 	/*
 	 * When not coordinating the BSS, change the hardware
@@ -3563,7 +3753,7 @@ ath_reset_proc(void *arg, int pending)
 	struct ifnet *ifp = sc->sc_ifp;
 
 #if 0
-	if_printf(ifp, "%s: resetting\n", __func__);
+	device_printf(sc->sc_dev, "%s: resetting\n", __func__);
 #endif
 	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
@@ -3579,15 +3769,15 @@ ath_bstuck_proc(void *arg, int pending)
 	uint32_t hangs = 0;
 
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0)
-		if_printf(ifp, "bb hang detected (0x%x)\n", hangs);
+		device_printf(sc->sc_dev, "bb hang detected (0x%x)\n", hangs);
 
 #ifdef	ATH_DEBUG_ALQ
 	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_STUCK_BEACON))
 		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_STUCK_BEACON, 0, NULL);
 #endif
 
-	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
-		sc->sc_bmisscount);
+	device_printf(sc->sc_dev, "stuck beacon; resetting (bmiss count %u)\n",
+	    sc->sc_bmisscount);
 	sc->sc_stats.ast_bstuck++;
 	/*
 	 * This assumes that there's no simultaneous channel mode change
@@ -3619,7 +3809,6 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
-	struct ifnet *ifp = sc->sc_ifp;
 	int error;
 
 	dd->dd_descsize = ds_size;
@@ -3660,7 +3849,8 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 		       NULL,			/* lockarg */
 		       &dd->dd_dmat);
 	if (error != 0) {
-		if_printf(ifp, "cannot allocate %s DMA tag\n", dd->dd_name);
+		device_printf(sc->sc_dev,
+		    "cannot allocate %s DMA tag\n", dd->dd_name);
 		return error;
 	}
 
@@ -3669,8 +3859,9 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &dd->dd_dmamap);
 	if (error != 0) {
-		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
-			"error %u\n", ndesc, dd->dd_name, error);
+		device_printf(sc->sc_dev,
+		    "unable to alloc memory for %u %s descriptors, error %u\n",
+		    ndesc, dd->dd_name, error);
 		goto fail1;
 	}
 
@@ -3679,8 +3870,9 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 				ath_load_cb, &dd->dd_desc_paddr,
 				BUS_DMA_NOWAIT);
 	if (error != 0) {
-		if_printf(ifp, "unable to map %s descriptors, error %u\n",
-			dd->dd_name, error);
+		device_printf(sc->sc_dev,
+		    "unable to map %s descriptors, error %u\n",
+		    dd->dd_name, error);
 		goto fail2;
 	}
 
@@ -3710,7 +3902,6 @@ ath_descdma_setup(struct ath_softc *sc,
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
-	struct ifnet *ifp = sc->sc_ifp;
 	uint8_t *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
@@ -3730,8 +3921,9 @@ ath_descdma_setup(struct ath_softc *sc,
 	bsize = sizeof(struct ath_buf) * nbuf;
 	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
-		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
-			dd->dd_name, bsize);
+		device_printf(sc->sc_dev,
+		    "malloc of %s buffers failed, size %u\n",
+		    dd->dd_name, bsize);
 		goto fail3;
 	}
 	dd->dd_bufptr = bf;
@@ -3757,8 +3949,9 @@ ath_descdma_setup(struct ath_softc *sc,
 		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
 				&bf->bf_dmamap);
 		if (error != 0) {
-			if_printf(ifp, "unable to create dmamap for %s "
-				"buffer %u, error %u\n", dd->dd_name, i, error);
+			device_printf(sc->sc_dev, "unable to create dmamap "
+			    "for %s buffer %u, error %u\n",
+			    dd->dd_name, i, error);
 			ath_descdma_cleanup(sc, dd, head);
 			return error;
 		}
@@ -3794,7 +3987,6 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
 	const char *name, int nbuf, int rx_status_len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_buf *bf;
 	int i, bsize, error;
 
@@ -3817,8 +4009,9 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	bsize = sizeof(struct ath_buf) * nbuf;
 	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
-		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
-			dd->dd_name, bsize);
+		device_printf(sc->sc_dev,
+		    "malloc of %s buffers failed, size %u\n",
+		    dd->dd_name, bsize);
 		error = ENOMEM;
 		goto fail3;
 	}
@@ -3833,8 +4026,9 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
 				&bf->bf_dmamap);
 		if (error != 0) {
-			if_printf(ifp, "unable to create dmamap for %s "
-				"buffer %u, error %u\n", dd->dd_name, i, error);
+			device_printf(sc->sc_dev, "unable to create dmamap "
+			    "for %s buffer %u, error %u\n",
+			    dd->dd_name, i, error);
 			ath_descdma_cleanup(sc, dd, head);
 			return error;
 		}
@@ -4208,9 +4402,8 @@ ath_txq_update(struct ath_softc *sc, int ac)
 	    qi.tqi_aifs, qi.tqi_cwmin, qi.tqi_cwmax, qi.tqi_burstTime);
 
 	if (!ath_hal_settxqueueprops(ah, txq->axq_qnum, &qi)) {
-		if_printf(ifp, "unable to update hardware queue "
-			"parameters for %s traffic!\n",
-			ieee80211_wme_acnames[ac]);
+		device_printf(sc->sc_dev, "unable to update hardware queue "
+		    "parameters for %s traffic!\n", ieee80211_wme_acnames[ac]);
 		return 0;
 	} else {
 		ath_hal_resettxqueue(ah, txq->axq_qnum); /* push to h/w */
@@ -5333,13 +5526,14 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	ATH_PCU_LOCK(sc);
 
+	/* Disable interrupts */
+	ath_hal_intrset(ah, 0);
+
 	/* Stop new RX/TX/interrupt completion */
 	if (ath_reset_grablock(sc, 1) == 0) {
 		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-
-	ath_hal_intrset(ah, 0);
 
 	/* Stop pending RX/TX completion */
 	ath_txrx_stop_locked(sc);
@@ -5375,7 +5569,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 		    sc->sc_cur_rxchainmask);
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
-			if_printf(ifp, "%s: unable to reset "
+			device_printf(sc->sc_dev, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",
 			    __func__, ieee80211_chan2ieee(ic, chan),
 			    chan->ic_freq, chan->ic_flags, status);
@@ -5383,6 +5577,11 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 			goto finish;
 		}
 		sc->sc_diversity = ath_hal_getdiversity(ah);
+
+		ATH_RX_LOCK(sc);
+		sc->sc_rx_stopped = 1;
+		sc->sc_rx_resetted = 1;
+		ATH_RX_UNLOCK(sc);
 
 		/* Let DFS at it in case it's a DFS channel */
 		ath_dfs_radar_enable(sc, chan);
@@ -5409,8 +5608,8 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * Re-enable rx framework.
 		 */
 		if (ath_startrecv(sc) != 0) {
-			if_printf(ifp, "%s: unable to restart recv logic\n",
-			    __func__);
+			device_printf(sc->sc_dev,
+			    "%s: unable to restart recv logic\n", __func__);
 			ret = EIO;
 			goto finish;
 		}
@@ -5472,6 +5671,8 @@ ath_calibrate(void *arg)
 	HAL_BOOL longCal, isCalDone = AH_TRUE;
 	HAL_BOOL aniCal, shortCal = AH_FALSE;
 	int nextcal;
+
+	ATH_LOCK_ASSERT(sc);
 
 	/*
 	 * Force the hardware awake for ANI work.
@@ -5762,12 +5963,17 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	 * Now, wake the thing up.
 	 */
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+
+	/*
+	 * And stop the calibration callout whilst we have
+	 * ATH_LOCK held.
+	 */
+	callout_stop(&sc->sc_cal_ch);
 	ATH_UNLOCK(sc);
 
 	if (ostate == IEEE80211_S_CSA && nstate == IEEE80211_S_RUN)
 		csa_run_transition = 1;
 
-	callout_drain(&sc->sc_cal_ch);
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
 
 	if (nstate == IEEE80211_S_SCAN) {
@@ -5958,7 +6164,6 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ATH_LOCK(sc);
 		ath_power_setselfgen(sc, HAL_PM_AWAKE);
 		ath_power_setpower(sc, HAL_PM_AWAKE);
-		ATH_UNLOCK(sc);
 
 		/*
 		 * Finally, start any timers and the task q thread
@@ -5971,6 +6176,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 			    "%s: calibration disabled\n", __func__);
 		}
+		ATH_UNLOCK(sc);
 
 		taskqueue_unblock(sc->sc_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
@@ -6178,8 +6384,9 @@ ath_getchannels(struct ath_softc *sc)
 	status = ath_hal_init_channels(ah, ic->ic_channels, IEEE80211_CHAN_MAX,
 	    &ic->ic_nchans, HAL_MODE_ALL, CTRY_DEFAULT, SKU_NONE, AH_TRUE);
 	if (status != HAL_OK) {
-		if_printf(ifp, "%s: unable to collect channel list from hal, "
-		    "status %d\n", __func__, status);
+		device_printf(sc->sc_dev,
+		    "%s: unable to collect channel list from hal, status %d\n",
+		    __func__, status);
 		return EINVAL;
 	}
 	(void) ath_hal_getregdomain(ah, &sc->sc_eerd);
@@ -6331,27 +6538,25 @@ ath_watchdog(void *arg)
 	struct ath_softc *sc = arg;
 	int do_reset = 0;
 
+	ATH_LOCK_ASSERT(sc);
+
 	if (sc->sc_wd_timer != 0 && --sc->sc_wd_timer == 0) {
 		struct ifnet *ifp = sc->sc_ifp;
 		uint32_t hangs;
 
-		ATH_LOCK(sc);
 		ath_power_set_power_state(sc, HAL_PM_AWAKE);
-		ATH_UNLOCK(sc);
 
 		if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) &&
 		    hangs != 0) {
-			if_printf(ifp, "%s hang detected (0x%x)\n",
+			device_printf(sc->sc_dev, "%s hang detected (0x%x)\n",
 			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
-			if_printf(ifp, "device timeout\n");
+			device_printf(sc->sc_dev, "device timeout\n");
 		do_reset = 1;
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->sc_stats.ast_watchdog++;
 
-		ATH_LOCK(sc);
 		ath_power_restore_power_state(sc);
-		ATH_UNLOCK(sc);
 	}
 
 	/*
@@ -6530,8 +6735,10 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCGATHSTATS:
 		/* NB: embed these numbers to get a consistent view */
-		sc->sc_stats.ast_tx_packets = ifp->if_opackets;
-		sc->sc_stats.ast_rx_packets = ifp->if_ipackets;
+		sc->sc_stats.ast_tx_packets = ifp->if_get_counter(ifp,
+		    IFCOUNTER_OPACKETS);
+		sc->sc_stats.ast_rx_packets = ifp->if_get_counter(ifp,
+		    IFCOUNTER_IPACKETS);
 		sc->sc_stats.ast_tx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgtxrssi);
 		sc->sc_stats.ast_rx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgrssi);
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -6589,31 +6796,32 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 ath_announce(struct ath_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 
-	if_printf(ifp, "AR%s mac %d.%d RF%s phy %d.%d\n",
+	device_printf(sc->sc_dev, "AR%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
-	if_printf(ifp, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
+	device_printf(sc->sc_dev, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
 		ah->ah_analog2GhzRev, ah->ah_analog5GhzRev);
 	if (bootverbose) {
 		int i;
 		for (i = 0; i <= WME_AC_VO; i++) {
 			struct ath_txq *txq = sc->sc_ac2q[i];
-			if_printf(ifp, "Use hw queue %u for %s traffic\n",
-				txq->axq_qnum, ieee80211_wme_acnames[i]);
+			device_printf(sc->sc_dev,
+			    "Use hw queue %u for %s traffic\n",
+			    txq->axq_qnum, ieee80211_wme_acnames[i]);
 		}
-		if_printf(ifp, "Use hw queue %u for CAB traffic\n",
-			sc->sc_cabq->axq_qnum);
-		if_printf(ifp, "Use hw queue %u for beacons\n", sc->sc_bhalq);
+		device_printf(sc->sc_dev, "Use hw queue %u for CAB traffic\n",
+		    sc->sc_cabq->axq_qnum);
+		device_printf(sc->sc_dev, "Use hw queue %u for beacons\n",
+		    sc->sc_bhalq);
 	}
 	if (ath_rxbuf != ATH_RXBUF)
-		if_printf(ifp, "using %u rx buffers\n", ath_rxbuf);
+		device_printf(sc->sc_dev, "using %u rx buffers\n", ath_rxbuf);
 	if (ath_txbuf != ATH_TXBUF)
-		if_printf(ifp, "using %u tx buffers\n", ath_txbuf);
+		device_printf(sc->sc_dev, "using %u tx buffers\n", ath_txbuf);
 	if (sc->sc_mcastkey && bootverbose)
-		if_printf(ifp, "using multicast key search\n");
+		device_printf(sc->sc_dev, "using multicast key search\n");
 }
 
 static void
@@ -6888,7 +7096,7 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 		/*
 		 * Don't bother grabbing the lock unless the queue is empty.
 		 */
-		if (&an->an_swq_depth != 0)
+		if (an->an_swq_depth != 0)
 			return;
 
 		if (an->an_is_powersave &&
@@ -7058,6 +7266,6 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
-#if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ)
+#if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ) || defined(ATH_DEBUG_ALQ)
 MODULE_DEPEND(if_ath, alq, 1, 1, 1);
 #endif

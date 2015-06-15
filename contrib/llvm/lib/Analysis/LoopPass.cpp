@@ -14,10 +14,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "loop-pass-manager"
 
 namespace {
 
@@ -33,16 +36,19 @@ public:
   PrintLoopPass(const std::string &B, raw_ostream &o)
       : LoopPass(ID), Banner(B), Out(o) {}
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
   }
 
-  bool runOnLoop(Loop *L, LPPassManager &) {
+  bool runOnLoop(Loop *L, LPPassManager &) override {
     Out << Banner;
     for (Loop::block_iterator b = L->block_begin(), be = L->block_end();
          b != be;
          ++b) {
-      (*b)->print(Out);
+      if (*b)
+        (*b)->print(Out);
+      else
+        Out << "Printing <null> block";
     }
     return false;
   }
@@ -61,14 +67,17 @@ LPPassManager::LPPassManager()
   : FunctionPass(ID), PMDataManager() {
   skipThisLoop = false;
   redoThisLoop = false;
-  LI = NULL;
-  CurrentLoop = NULL;
+  LI = nullptr;
+  CurrentLoop = nullptr;
 }
 
 /// Delete loop from the loop queue and loop hierarchy (LoopInfo).
 void LPPassManager::deleteLoopFromQueue(Loop *L) {
 
   LI->updateUnloop(L);
+
+  // Notify passes that the loop is being deleted.
+  deleteSimpleAnalysisLoop(L);
 
   // If L is current loop then skip rest of the passes and let
   // runOnFunction remove L from LQ. Otherwise, remove L from LQ now
@@ -155,6 +164,14 @@ void LPPassManager::deleteSimpleAnalysisValue(Value *V, Loop *L) {
   for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
     LoopPass *LP = getContainedPass(Index);
     LP->deleteAnalysisValue(V, L);
+  }
+}
+
+/// Invoke deleteAnalysisLoop hook for all passes.
+void LPPassManager::deleteSimpleAnalysisLoop(Loop *L) {
+  for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
+    LoopPass *LP = getContainedPass(Index);
+    LP->deleteAnalysisLoop(L);
   }
 }
 
@@ -251,6 +268,8 @@ bool LPPassManager::runOnFunction(Function &F) {
 
         // Then call the regular verifyAnalysis functions.
         verifyPreservedAnalysis(P);
+
+        F.getContext().yield();
       }
 
       removeNotPreservedAnalysis(P);
@@ -364,4 +383,18 @@ void LoopPass::assignPassManager(PMStack &PMS,
   }
 
   LPPM->add(this);
+}
+
+// Containing function has Attribute::OptimizeNone and transformation
+// passes should skip it.
+bool LoopPass::skipOptnoneFunction(const Loop *L) const {
+  const Function *F = L->getHeader()->getParent();
+  if (F && F->hasFnAttribute(Attribute::OptimizeNone)) {
+    // FIXME: Report this to dbgs() only once per function.
+    DEBUG(dbgs() << "Skipping pass '" << getPassName()
+          << "' in function " << F->getName() << "\n");
+    // FIXME: Delete loop from pass manager's queue?
+    return true;
+  }
+  return false;
 }

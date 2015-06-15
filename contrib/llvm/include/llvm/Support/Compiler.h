@@ -21,6 +21,10 @@
 # define __has_feature(x) 0
 #endif
 
+#ifndef __has_extension
+# define __has_extension(x) 0
+#endif
+
 #ifndef __has_attribute
 # define __has_attribute(x) 0
 #endif
@@ -29,83 +33,63 @@
 # define __has_builtin(x) 0
 #endif
 
-/// \macro __GNUC_PREREQ
-/// \brief Defines __GNUC_PREREQ if glibc's features.h isn't available.
-#ifndef __GNUC_PREREQ
-# if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#  define __GNUC_PREREQ(maj, min) \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+/// \macro LLVM_GNUC_PREREQ
+/// \brief Extend the default __GNUC_PREREQ even if glibc's features.h isn't
+/// available.
+#ifndef LLVM_GNUC_PREREQ
+# if defined(__GNUC__) && defined(__GNUC_MINOR__) && defined(__GNUC_PATCHLEVEL__)
+#  define LLVM_GNUC_PREREQ(maj, min, patch) \
+    ((__GNUC__ << 20) + (__GNUC_MINOR__ << 10) + __GNUC_PATCHLEVEL__ >= \
+     ((maj) << 20) + ((min) << 10) + (patch))
+# elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+#  define LLVM_GNUC_PREREQ(maj, min, patch) \
+    ((__GNUC__ << 20) + (__GNUC_MINOR__ << 10) >= ((maj) << 20) + ((min) << 10))
 # else
-#  define __GNUC_PREREQ(maj, min) 0
+#  define LLVM_GNUC_PREREQ(maj, min, patch) 0
 # endif
 #endif
 
-/// \brief Does the compiler support r-value references?
-/// This implies that <utility> provides the one-argument std::move;  it
-/// does not imply the existence of any other C++ library features.
-#if (__has_feature(cxx_rvalue_references)   \
-     || defined(__GXX_EXPERIMENTAL_CXX0X__) \
-     || (defined(_MSC_VER) && _MSC_VER >= 1600))
-#define LLVM_HAS_RVALUE_REFERENCES 1
+/// \macro LLVM_MSC_PREREQ
+/// \brief Is the compiler MSVC of at least the specified version?
+/// The common \param version values to check for are:
+///  * 1700: Microsoft Visual Studio 2012 / 11.0
+///  * 1800: Microsoft Visual Studio 2013 / 12.0
+#ifdef _MSC_VER
+#define LLVM_MSC_PREREQ(version) (_MSC_VER >= (version))
+
+// We require at least MSVC 2012.
+#if !LLVM_MSC_PREREQ(1700)
+#error LLVM requires at least MSVC 2012.
+#endif
+
 #else
-#define LLVM_HAS_RVALUE_REFERENCES 0
+#define LLVM_MSC_PREREQ(version) 0
+#endif
+
+#if !defined(_MSC_VER) || defined(__clang__) || LLVM_MSC_PREREQ(1900)
+#define LLVM_NOEXCEPT noexcept
+#else
+#define LLVM_NOEXCEPT
 #endif
 
 /// \brief Does the compiler support r-value reference *this?
 ///
 /// Sadly, this is separate from just r-value reference support because GCC
-/// implemented everything but this thus far. No release of GCC yet has support
-/// for this feature so it is enabled with Clang only.
-/// FIXME: This should change to a version check when GCC grows support for it.
-#if __has_feature(cxx_rvalue_references)
+/// implemented this later than everything else.
+#if __has_feature(cxx_rvalue_references) || LLVM_GNUC_PREREQ(4, 8, 1)
 #define LLVM_HAS_RVALUE_REFERENCE_THIS 1
 #else
 #define LLVM_HAS_RVALUE_REFERENCE_THIS 0
-#endif
-
-/// \macro LLVM_HAS_CXX11_TYPETRAITS
-/// \brief Does the compiler have the C++11 type traits.
-///
-/// #include <type_traits>
-///
-/// * enable_if
-/// * {true,false}_type
-/// * is_constructible
-/// * etc...
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) \
-    || (defined(_MSC_VER) && _MSC_VER >= 1700)
-#define LLVM_HAS_CXX11_TYPETRAITS 1
-#else
-#define LLVM_HAS_CXX11_TYPETRAITS 0
-#endif
-
-/// \macro LLVM_HAS_CXX11_STDLIB
-/// \brief Does the compiler have the C++11 standard library.
-///
-/// Implies LLVM_HAS_RVALUE_REFERENCES, LLVM_HAS_CXX11_TYPETRAITS
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) \
-    || (defined(_MSC_VER) && _MSC_VER >= 1700)
-#define LLVM_HAS_CXX11_STDLIB 1
-#else
-#define LLVM_HAS_CXX11_STDLIB 0
 #endif
 
 /// \macro LLVM_HAS_VARIADIC_TEMPLATES
 /// \brief Does this compiler support variadic templates.
 ///
 /// Implies LLVM_HAS_RVALUE_REFERENCES and the existence of std::forward.
-#if __has_feature(cxx_variadic_templates)
+#if __has_feature(cxx_variadic_templates) || LLVM_MSC_PREREQ(1800)
 # define LLVM_HAS_VARIADIC_TEMPLATES 1
 #else
 # define LLVM_HAS_VARIADIC_TEMPLATES 0
-#endif
-
-/// llvm_move - Expands to ::std::move if the compiler supports
-/// r-value references; otherwise, expands to the argument.
-#if LLVM_HAS_RVALUE_REFERENCES
-#define llvm_move(value) (::std::move(value))
-#else
-#define llvm_move(value) (value)
 #endif
 
 /// Expands to '&' if r-value references are supported.
@@ -129,30 +113,11 @@
 /// public:
 ///   ...
 /// };
-#if (__has_feature(cxx_deleted_functions) \
-     || defined(__GXX_EXPERIMENTAL_CXX0X__))
-     // No version of MSVC currently supports this.
+#if __has_feature(cxx_deleted_functions) || \
+    defined(__GXX_EXPERIMENTAL_CXX0X__) || LLVM_MSC_PREREQ(1800)
 #define LLVM_DELETED_FUNCTION = delete
 #else
 #define LLVM_DELETED_FUNCTION
-#endif
-
-/// LLVM_FINAL - Expands to 'final' if the compiler supports it.
-/// Use to mark classes or virtual methods as final.
-#if __has_feature(cxx_override_control) \
-    || (defined(_MSC_VER) && _MSC_VER >= 1700)
-#define LLVM_FINAL final
-#else
-#define LLVM_FINAL
-#endif
-
-/// LLVM_OVERRIDE - Expands to 'override' if the compiler supports it.
-/// Use to mark virtual methods as overriding a base class method.
-#if __has_feature(cxx_override_control) \
-    || (defined(_MSC_VER) && _MSC_VER >= 1700)
-#define LLVM_OVERRIDE override
-#else
-#define LLVM_OVERRIDE
 #endif
 
 #if __has_feature(cxx_constexpr) || defined(__GXX_EXPERIMENTAL_CXX0X__)
@@ -166,20 +131,26 @@
 /// not accessible from outside it.  Can also be used to mark variables and
 /// functions, making them private to any shared library they are linked into.
 /// On PE/COFF targets, library visibility is the default, so this isn't needed.
-#if (__has_attribute(visibility) || __GNUC_PREREQ(4, 0)) &&                    \
+#if (__has_attribute(visibility) || LLVM_GNUC_PREREQ(4, 0, 0)) &&              \
     !defined(__MINGW32__) && !defined(__CYGWIN__) && !defined(LLVM_ON_WIN32)
 #define LLVM_LIBRARY_VISIBILITY __attribute__ ((visibility("hidden")))
 #else
 #define LLVM_LIBRARY_VISIBILITY
 #endif
 
-#if __has_attribute(used) || __GNUC_PREREQ(3, 1)
+#if __has_attribute(sentinel) || LLVM_GNUC_PREREQ(3, 0, 0)
+#define LLVM_END_WITH_NULL __attribute__((sentinel))
+#else
+#define LLVM_END_WITH_NULL
+#endif
+
+#if __has_attribute(used) || LLVM_GNUC_PREREQ(3, 1, 0)
 #define LLVM_ATTRIBUTE_USED __attribute__((__used__))
 #else
 #define LLVM_ATTRIBUTE_USED
 #endif
 
-#if __has_attribute(warn_unused_result) || __GNUC_PREREQ(3, 4)
+#if __has_attribute(warn_unused_result) || LLVM_GNUC_PREREQ(3, 4, 0)
 #define LLVM_ATTRIBUTE_UNUSED_RESULT __attribute__((__warn_unused_result__))
 #else
 #define LLVM_ATTRIBUTE_UNUSED_RESULT
@@ -193,14 +164,14 @@
 // more portable solution:
 //   (void)unused_var_name;
 // Prefer cast-to-void wherever it is sufficient.
-#if __has_attribute(unused) || __GNUC_PREREQ(3, 1)
+#if __has_attribute(unused) || LLVM_GNUC_PREREQ(3, 1, 0)
 #define LLVM_ATTRIBUTE_UNUSED __attribute__((__unused__))
 #else
 #define LLVM_ATTRIBUTE_UNUSED
 #endif
 
 // FIXME: Provide this for PE/COFF targets.
-#if (__has_attribute(weak) || __GNUC_PREREQ(4, 0)) &&                          \
+#if (__has_attribute(weak) || LLVM_GNUC_PREREQ(4, 0, 0)) &&                    \
     (!defined(__MINGW32__) && !defined(__CYGWIN__) && !defined(LLVM_ON_WIN32))
 #define LLVM_ATTRIBUTE_WEAK __attribute__((__weak__))
 #else
@@ -223,7 +194,7 @@
 #define LLVM_READONLY
 #endif
 
-#if __has_builtin(__builtin_expect) || __GNUC_PREREQ(4, 0)
+#if __has_builtin(__builtin_expect) || LLVM_GNUC_PREREQ(4, 0, 0)
 #define LLVM_LIKELY(EXPR) __builtin_expect((bool)(EXPR), true)
 #define LLVM_UNLIKELY(EXPR) __builtin_expect((bool)(EXPR), false)
 #else
@@ -246,7 +217,7 @@
 
 /// LLVM_ATTRIBUTE_NOINLINE - On compilers where we have a directive to do so,
 /// mark a method "not for inlining".
-#if __has_attribute(noinline) || __GNUC_PREREQ(3, 4)
+#if __has_attribute(noinline) || LLVM_GNUC_PREREQ(3, 4, 0)
 #define LLVM_ATTRIBUTE_NOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 #define LLVM_ATTRIBUTE_NOINLINE __declspec(noinline)
@@ -258,7 +229,7 @@
 /// so, mark a method "always inline" because it is performance sensitive. GCC
 /// 3.4 supported this but is buggy in various cases and produces unimplemented
 /// errors, just use it in GCC 4.0 and later.
-#if __has_attribute(always_inline) || __GNUC_PREREQ(4, 0)
+#if __has_attribute(always_inline) || LLVM_GNUC_PREREQ(4, 0, 0)
 #define LLVM_ATTRIBUTE_ALWAYS_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #define LLVM_ATTRIBUTE_ALWAYS_INLINE __forceinline
@@ -272,6 +243,12 @@
 #define LLVM_ATTRIBUTE_NORETURN __declspec(noreturn)
 #else
 #define LLVM_ATTRIBUTE_NORETURN
+#endif
+
+#if __has_attribute(returns_nonnull) || LLVM_GNUC_PREREQ(4, 9, 0)
+#define LLVM_ATTRIBUTE_RETURNS_NONNULL __attribute__((returns_nonnull))
+#else
+#define LLVM_ATTRIBUTE_RETURNS_NONNULL
 #endif
 
 /// LLVM_EXTENSION - Support compilers where we have a keyword to suppress
@@ -300,7 +277,7 @@
 /// LLVM_BUILTIN_UNREACHABLE - On compilers which support it, expands
 /// to an expression which states that it is undefined behavior for the
 /// compiler to reach this point.  Otherwise is not defined.
-#if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ(4, 5)
+#if __has_builtin(__builtin_unreachable) || LLVM_GNUC_PREREQ(4, 5, 0)
 # define LLVM_BUILTIN_UNREACHABLE __builtin_unreachable()
 #elif defined(_MSC_VER)
 # define LLVM_BUILTIN_UNREACHABLE __assume(false)
@@ -308,7 +285,7 @@
 
 /// LLVM_BUILTIN_TRAP - On compilers which support it, expands to an expression
 /// which causes the program to exit abnormally.
-#if __has_builtin(__builtin_trap) || __GNUC_PREREQ(4, 3)
+#if __has_builtin(__builtin_trap) || LLVM_GNUC_PREREQ(4, 3, 0)
 # define LLVM_BUILTIN_TRAP __builtin_trap()
 #else
 # define LLVM_BUILTIN_TRAP *(volatile int*)0x11 = 0
@@ -316,7 +293,7 @@
 
 /// \macro LLVM_ASSUME_ALIGNED
 /// \brief Returns a pointer with an assumed alignment.
-#if __has_builtin(__builtin_assume_aligned) && __GNUC_PREREQ(4, 7)
+#if __has_builtin(__builtin_assume_aligned) || LLVM_GNUC_PREREQ(4, 7, 0)
 # define LLVM_ASSUME_ALIGNED(p, a) __builtin_assume_aligned(p, a)
 #elif defined(LLVM_BUILTIN_UNREACHABLE)
 // As of today, clang does not support __builtin_assume_aligned.
@@ -335,19 +312,15 @@
 # define LLVM_FUNCTION_NAME __func__
 #endif
 
-#if defined(HAVE_SANITIZER_MSAN_INTERFACE_H)
-# include <sanitizer/msan_interface.h>
-#else
-# define __msan_allocated_memory(p, size)
-# define __msan_unpoison(p, size)
-#endif
-
 /// \macro LLVM_MEMORY_SANITIZER_BUILD
 /// \brief Whether LLVM itself is built with MemorySanitizer instrumentation.
 #if __has_feature(memory_sanitizer)
 # define LLVM_MEMORY_SANITIZER_BUILD 1
+# include <sanitizer/msan_interface.h>
 #else
 # define LLVM_MEMORY_SANITIZER_BUILD 0
+# define __msan_allocated_memory(p, size)
+# define __msan_unpoison(p, size)
 #endif
 
 /// \macro LLVM_ADDRESS_SANITIZER_BUILD
@@ -374,41 +347,30 @@
 /// \macro LLVM_EXPLICIT
 /// \brief Expands to explicit on compilers which support explicit conversion
 /// operators. Otherwise expands to nothing.
-#if (__has_feature(cxx_explicit_conversions) \
-     || defined(__GXX_EXPERIMENTAL_CXX0X__))
+#if __has_feature(cxx_explicit_conversions) || \
+    defined(__GXX_EXPERIMENTAL_CXX0X__) || LLVM_MSC_PREREQ(1800)
 #define LLVM_EXPLICIT explicit
 #else
 #define LLVM_EXPLICIT
 #endif
 
-/// \macro LLVM_STATIC_ASSERT
-/// \brief Expands to C/C++'s static_assert on compilers which support it.
-#if __has_feature(cxx_static_assert)
-# define LLVM_STATIC_ASSERT(expr, msg) static_assert(expr, msg)
-#elif __has_feature(c_static_assert)
-# define LLVM_STATIC_ASSERT(expr, msg) _Static_assert(expr, msg)
-#else
-# define LLVM_STATIC_ASSERT(expr, msg)
-#endif
-
-/// \macro LLVM_ENUM_INT_TYPE
-/// \brief Expands to colon followed by the given integral type on compilers
-/// which support C++11 strong enums.  This can be used to make enums unsigned
-/// with MSVC.
-#if __has_feature(cxx_strong_enums)
-# define LLVM_ENUM_INT_TYPE(intty) : intty
-#elif defined(_MSC_VER) && _MSC_VER >= 1600  // Added in MSVC 2010.
-# define LLVM_ENUM_INT_TYPE(intty) : intty
-#else
-# define LLVM_ENUM_INT_TYPE(intty)
-#endif
-
 /// \brief Does the compiler support generalized initializers (using braced
-/// lists and std::initializer_list).
-#if __has_feature(cxx_generalized_initializers)
+/// lists and std::initializer_list).  While clang may claim it supports general
+/// initializers, if we're using MSVC's headers, we might not have a usable
+/// std::initializer list type from the STL.  Disable this for now.
+#if __has_feature(cxx_generalized_initializers) && !defined(_MSC_VER)
 #define LLVM_HAS_INITIALIZER_LISTS 1
 #else
 #define LLVM_HAS_INITIALIZER_LISTS 0
+#endif
+
+/// \brief Mark debug helper function definitions like dump() that should not be
+/// stripped from debug builds.
+// FIXME: Move this to a private config.h as it's not usable in public headers.
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+#define LLVM_DUMP_METHOD LLVM_ATTRIBUTE_NOINLINE LLVM_ATTRIBUTE_USED
+#else
+#define LLVM_DUMP_METHOD LLVM_ATTRIBUTE_NOINLINE
 #endif
 
 #endif

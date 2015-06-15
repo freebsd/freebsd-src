@@ -199,7 +199,7 @@ static RegisterInfo g_register_infos[] =
     { "ymm7"  , NULL,   32,  0, eEncodingVector, eFormatVectorOfUInt8, { LLDB_INVALID_REGNUM , dwarf_ymm7          , LLDB_INVALID_REGNUM       , gdb_ymm7           , LLDB_INVALID_REGNUM },      NULL,              NULL}
 };
 
-static const uint32_t k_num_register_infos = sizeof(g_register_infos)/sizeof(RegisterInfo);
+static const uint32_t k_num_register_infos = llvm::array_lengthof(g_register_infos);
 static bool g_register_info_names_constified = false;
 
 const lldb_private::RegisterInfo *
@@ -600,7 +600,13 @@ ABIMacOSX_i386::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
     if (clang_type.IsIntegerType (is_signed) || clang_type.IsPointerType())
     {
         DataExtractor data;
-        size_t num_bytes = new_value_sp->GetData(data);
+        Error data_error;
+        size_t num_bytes = new_value_sp->GetData(data, data_error);
+        if (data_error.Fail())
+        {
+            error.SetErrorStringWithFormat("Couldn't convert return value to raw data: %s", data_error.AsCString());
+            return error;
+        }
         lldb::offset_t offset = 0;
         if (num_bytes <= 8)
         {

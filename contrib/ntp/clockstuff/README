@@ -1,19 +1,14 @@
 README file for directory ./clockstuff of the NTP Version 4 distribution
 
 This directory contains the sources for utility programs designed to
-support radio clocks. The chutest.c and clktest.c are desgined to
-test the chu_clk and tty_clk line disciplines and STREAMS modules in
-the ../kernel directory.
+support radio clocks.  chutest.c is desgined to test the depredated
+chu_clk line discipline or STREAMS module and can also test a CHU
+modem in raw mode.
 
-These files have been modified to work with either the line disciplines
-or the STREAMS modules. Be sure to define -DSTREAM if appropriate.
-
-These are random bits of things written to help with clocks.  You can
-make things in here by typing one or more of:
+You can make things in here by typing one or more of:
 
 	make propdelay (or `make')
 	make chutest
-	make clktest
 
 Propdelay computes high frequency propagation delays, given the
 longitude and latitude of the transmitter and receiver.  Use
@@ -24,8 +19,3 @@ Chutest can be used to input and process data from a CHU modem
 attached to a serial port.  It will use the CHU line discipline
 (if installed), or raw mode otherwise.  This was used to test
 out the initial reduction algorithms, and may not be up to date.
-
-Clktest can be used to test the clock line discipline (CLKLDISC,
-it must be available), and to take a look at radio clocks attached to a
-serial port.
-

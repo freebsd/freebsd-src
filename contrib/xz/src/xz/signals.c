@@ -41,6 +41,11 @@ signal_handler(int sig)
 {
 	exit_signal = sig;
 	user_abort = true;
+
+#ifndef TUKLIB_DOSLIKE
+	io_write_to_user_abort_pipe();
+#endif
+
 	return;
 }
 
@@ -77,17 +82,19 @@ signals_init(void)
 		sigaddset(&hooked_signals, message_progress_sigs[i]);
 #endif
 
-	struct sigaction sa;
+	// Using "my_sa" because "sa" may conflict with a sockaddr variable
+	// from system headers on Solaris.
+	struct sigaction my_sa;
 
 	// All the signals that we handle we also blocked while the signal
 	// handler runs.
-	sa.sa_mask = hooked_signals;
+	my_sa.sa_mask = hooked_signals;
 
 	// Don't set SA_RESTART, because we want EINTR so that we can check
 	// for user_abort and cleanup before exiting. We block the signals
 	// for which we have established a handler when we don't want EINTR.
-	sa.sa_flags = 0;
-	sa.sa_handler = &signal_handler;
+	my_sa.sa_flags = 0;
+	my_sa.sa_handler = &signal_handler;
 
 	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i) {
 		// If the parent process has left some signals ignored,
@@ -98,7 +105,7 @@ signals_init(void)
 			continue;
 
 		// Establish the signal handler.
-		if (sigaction(sigs[i], &sa, NULL))
+		if (sigaction(sigs[i], &my_sa, NULL))
 			message_signal_handler();
 	}
 

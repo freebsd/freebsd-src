@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: recover.c,v 11.2 2012/10/09 08:06:58 zy Exp $";
+static const char sccsid[] = "$Id: recover.c,v 11.3 2015/04/04 03:50:42 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -102,18 +102,18 @@ static const char sccsid[] = "$Id: recover.c,v 11.2 2012/10/09 08:06:58 zy Exp $
 
 #define	VI_DHEADER	"X-vi-data:"
 
-static int	 rcv_copy __P((SCR *, int, char *));
-static void	 rcv_email __P((SCR *, char *));
-static int	 rcv_mailfile __P((SCR *, int, char *));
-static int	 rcv_mktemp __P((SCR *, char *, char *));
-static int	 rcv_dlnwrite __P((SCR *, const char *, const char *, FILE *));
-static int	 rcv_dlnread __P((SCR *, char **, char **, FILE *));
+static int	 rcv_copy(SCR *, int, char *);
+static void	 rcv_email(SCR *, char *);
+static int	 rcv_mailfile(SCR *, int, char *);
+static int	 rcv_mktemp(SCR *, char *, char *);
+static int	 rcv_dlnwrite(SCR *, const char *, const char *, FILE *);
+static int	 rcv_dlnread(SCR *, char **, char **, FILE *);
 
 /*
  * rcv_tmp --
  *	Build a file name that will be used as the recovery file.
  *
- * PUBLIC: int rcv_tmp __P((SCR *, EXF *, char *));
+ * PUBLIC: int rcv_tmp(SCR *, EXF *, char *);
  */
 int
 rcv_tmp(
@@ -172,7 +172,7 @@ err:		msgq(sp, M_ERR,
  * rcv_init --
  *	Force the file to be snapshotted for recovery.
  *
- * PUBLIC: int rcv_init __P((SCR *));
+ * PUBLIC: int rcv_init(SCR *);
  */
 int
 rcv_init(SCR *sp)
@@ -234,7 +234,7 @@ err:	msgq(sp, M_ERR,
  *		sending email to the user if the file was modified
  *		ending the file session
  *
- * PUBLIC: int rcv_sync __P((SCR *, u_int));
+ * PUBLIC: int rcv_sync(SCR *, u_int);
  */
 int
 rcv_sync(
@@ -252,15 +252,12 @@ rcv_sync(
 
 	/* Sync the file if it's been modified. */
 	if (F_ISSET(ep, F_MODIFIED)) {
-		SIGBLOCK;
 		if (ep->db->sync(ep->db, R_RECNOSYNC)) {
 			F_CLR(ep, F_RCV_ON | F_RCV_NORM);
 			msgq_str(sp, M_SYSERR,
 			    ep->rcv_path, "060|File backup failed: %s");
-			SIGUNBLOCK;
 			return (1);
 		}
-		SIGUNBLOCK;
 
 		/* REQUEST: don't remove backing file on exit. */
 		if (LF_ISSET(RCV_PRESERVE))
@@ -505,7 +502,7 @@ err:	if (!issync)
  * rcv_list --
  *	List the files that can be recovered by this user.
  *
- * PUBLIC: int rcv_list __P((SCR *));
+ * PUBLIC: int rcv_list(SCR *);
  */
 int
 rcv_list(SCR *sp)
@@ -612,7 +609,7 @@ next:		(void)fclose(fp);
  * rcv_read --
  *	Start a recovered file as the file to edit.
  *
- * PUBLIC: int rcv_read __P((SCR *, FREF *));
+ * PUBLIC: int rcv_read(SCR *, FREF *);
  */
 int
 rcv_read(
@@ -635,7 +632,7 @@ rcv_read(
 		return (1);
 	rp = O_STR(sp, O_RECDIR);
 	if ((dirp = opendir(rp)) == NULL) {
-		msgq_str(sp, M_ERR, rp, "%s");
+		msgq_str(sp, M_SYSERR, rp, "%s");
 		return (1);
 	}
 

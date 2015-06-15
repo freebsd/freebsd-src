@@ -1,5 +1,0 @@
-document.write("<ul>\
-<li class='inline'><a href='refclock.html'>Reference Clock Drivers</a><br>\
-<li class='inline'><a href='prefer.html'>Mitigation Rules and the <tt>prefer</tt> Keyword</a><br>\
-<li class='inline'><a href='howto.html'>How to Write a Reference Clock Driver</a><br>\
-</ul>")

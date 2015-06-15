@@ -100,6 +100,10 @@ FBSD_1.3 {
 	wcwidth_l;
 };
 
+FBSD_1.4 {
+	explicit_bzero;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };

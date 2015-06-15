@@ -343,6 +343,15 @@ rdmsr(u_int msr)
 	return (low | ((uint64_t)high << 32));
 }
 
+static __inline uint32_t
+rdmsr32(u_int msr)
+{
+	uint32_t low;
+
+	__asm __volatile("rdmsr" : "=a" (low) : "c" (msr) : "rdx");
+	return (low);
+}
+
 static __inline uint64_t
 rdpmc(u_int pmc)
 {
@@ -531,9 +540,8 @@ static __inline void
 invpcid(struct invpcid_descr *d, int type)
 {
 
-	/* invpcid (%rdx),%rax */
-	__asm __volatile(".byte 0x66,0x0f,0x38,0x82,0x02"
-	    : : "d" (d), "a" ((u_long)type) : "memory");
+	__asm __volatile("invpcid (%0),%1"
+	    : : "r" (d), "r" ((u_long)type) : "memory");
 }
 
 static __inline u_short
@@ -826,6 +834,7 @@ u_long	rcr2(void);
 u_long	rcr3(void);
 u_long	rcr4(void);
 uint64_t rdmsr(u_int msr);
+uint32_t rdmsr32(u_int msr);
 uint64_t rdpmc(u_int pmc);
 uint64_t rdr0(void);
 uint64_t rdr1(void);

@@ -82,6 +82,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_PDPTE1,
 	VM_REG_GUEST_PDPTE2,
 	VM_REG_GUEST_PDPTE3,
+	VM_REG_GUEST_INTR_SHADOW,
 	VM_REG_LAST
 };
 
@@ -119,13 +120,18 @@ struct vm_object;
 struct vm_guest_paging;
 struct pmap;
 
+struct vm_eventinfo {
+	void	*rptr;		/* rendezvous cookie */
+	int	*sptr;		/* suspend cookie */
+	int	*iptr;		/* reqidle cookie */
+};
+
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap, void *rendezvous_cookie,
-				  void *suspend_cookie);
+		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -194,7 +200,6 @@ void vm_nmi_clear(struct vm *vm, int vcpuid);
 int vm_inject_extint(struct vm *vm, int vcpu);
 int vm_extint_pending(struct vm *vm, int vcpuid);
 void vm_extint_clear(struct vm *vm, int vcpuid);
-uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);
@@ -204,13 +209,13 @@ int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
 
+#ifdef _SYS__CPUSET_H_
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
  * The rendezvous 'func(arg)' is not allowed to do anything that will
@@ -228,19 +233,29 @@ void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
 void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
+cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
+#endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
-vcpu_rendezvous_pending(void *rendezvous_cookie)
+vcpu_rendezvous_pending(struct vm_eventinfo *info)
 {
 
-	return (*(uintptr_t *)rendezvous_cookie != 0);
+	return (*((uintptr_t *)(info->rptr)) != 0);
 }
 
 static __inline int
-vcpu_suspended(void *suspend_cookie)
+vcpu_suspended(struct vm_eventinfo *info)
 {
 
-	return (*(int *)suspend_cookie);
+	return (*info->sptr);
+}
+
+static __inline int
+vcpu_reqidle(struct vm_eventinfo *info)
+{
+
+	return (*info->iptr);
 }
 
 /*
@@ -274,7 +289,13 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 static int __inline
 vcpu_should_yield(struct vm *vm, int vcpu)
 {
-	return (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED));
+
+	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
+		return (1);
+	else if (curthread->td_owepreempt)
+		return (1);
+	else
+		return (0);
 }
 #endif
 
@@ -285,9 +306,11 @@ int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
+struct vpmtmr *vm_pmtmr(struct vm *vm);
+struct vrtc *vm_rtc(struct vm *vm);
 
 /*
- * Inject exception 'vme' into the guest vcpu. This function returns 0 on
+ * Inject exception 'vector' into the guest vcpu. This function returns 0 on
  * success and non-zero on failure.
  *
  * Wrapper functions like 'vm_inject_gp()' should be preferred to calling
@@ -297,7 +320,8 @@ struct vatpit *vm_atpit(struct vm *vm);
  * This function should only be called in the context of the thread that is
  * executing this vcpu.
  */
-int vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *vme);
+int vm_inject_exception(struct vm *vm, int vcpuid, int vector, int err_valid,
+    uint32_t errcode, int restart_instruction);
 
 /*
  * This function is called after a VM-exit that occurred during exception or
@@ -340,9 +364,10 @@ struct vm_copyinfo {
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
  * a copyin or PROT_WRITE for a copyout. 
  *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
+ * retval	is_fault	Intepretation
+ *   0		   0		Success
+ *   0		   1		An exception was injected into the guest
+ * EFAULT	  N/A		Unrecoverable error
  *
  * The 'copyinfo[]' can be passed to 'vm_copyin()' or 'vm_copyout()' only if
  * the return value is 0. The 'copyinfo[]' resources should be freed by calling
@@ -350,13 +375,15 @@ struct vm_copyinfo {
  */
 int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
-    int num_copyinfo);
+    int num_copyinfo, int *is_fault);
 void vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     int num_copyinfo);
 void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     void *kaddr, size_t len);
 void vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
     struct vm_copyinfo *copyinfo, size_t len);
+
+int vcpu_trace_exceptions(struct vm *vm, int vcpuid);
 #endif	/* KERNEL */
 
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
@@ -441,8 +468,11 @@ struct vie {
 			rex_x:1,
 			rex_b:1,
 			rex_present:1,
+			repz_present:1,		/* REP/REPE/REPZ prefix */
+			repnz_present:1,	/* REPNE/REPNZ prefix */
 			opsize_override:1,	/* Operand size override */
-			addrsize_override:1;	/* Address size override */
+			addrsize_override:1,	/* Address size override */
+			segment_override:1;	/* Segment override */
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,
@@ -458,6 +488,7 @@ struct vie {
 	uint8_t		scale;
 	int		base_register;		/* VM_REG_GUEST_xyz */
 	int		index_register;		/* VM_REG_GUEST_xyz */
+	int		segment_register;	/* VM_REG_GUEST_xyz */
 
 	int64_t		displacement;		/* optional addr displacement */
 	int64_t		immediate;		/* optional immediate operand */
@@ -485,6 +516,10 @@ enum vm_exitcode {
 	VM_EXITCODE_SUSPENDED,
 	VM_EXITCODE_INOUT_STR,
 	VM_EXITCODE_TASK_SWITCH,
+	VM_EXITCODE_MONITOR,
+	VM_EXITCODE_MWAIT,
+	VM_EXITCODE_SVM,
+	VM_EXITCODE_REQIDLE,
 	VM_EXITCODE_MAX
 };
 
@@ -539,6 +574,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
+			uint64_t	cs_base;
 			int		cs_d;		/* CS.D */
 			struct vm_guest_paging paging;
 			struct vie	vie;
@@ -562,6 +598,14 @@ struct vm_exit {
 			int		inst_type;
 			int		inst_error;
 		} vmx;
+		/*
+		 * SVM specific payload.
+		 */
+		struct {
+			uint64_t	exitcode;
+			uint64_t	exitinfo1;
+			uint64_t	exitinfo2;
+		} svm;
 		struct {
 			uint32_t	code;		/* ecx value */
 			uint64_t	wval;
@@ -612,5 +656,7 @@ vm_inject_ss(void *vm, int vcpuid, int errcode)
 }
 
 void vm_inject_pf(void *vm, int vcpuid, int error_code, uint64_t cr2);
+
+int vm_restart_instruction(void *vm, int vcpuid);
 
 #endif	/* _VMM_H_ */

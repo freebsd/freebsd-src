@@ -1371,6 +1371,12 @@ usb_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 	case USB_TEMP_PHONE:
 		err = usb_temp_setup(udev, &usb_template_phone);
 		break;
+	case USB_TEMP_SERIALNET:
+		err = usb_temp_setup(udev, &usb_template_serialnet);
+		break;
+	case USB_TEMP_MIDI:
+		err = usb_temp_setup(udev, &usb_template_midi);
+		break;
 	default:
 		return (USB_ERR_INVAL);
 	}
