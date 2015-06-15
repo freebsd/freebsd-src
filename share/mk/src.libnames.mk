@@ -132,6 +132,8 @@ _LIBRARIES=	\
 		nv \
 		opie \
 		pam \
+		panel \
+		panelw \
 		parserutils \
 		pcap \
 		pcsclite \
