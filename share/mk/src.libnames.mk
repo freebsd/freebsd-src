@@ -123,6 +123,8 @@ _LIBRARIES=	\
 		nv \
 		opie \
 		pam \
+		panel \
+		panelw \
 		pcap \
 		pcsclite \
 		pjdlog \
