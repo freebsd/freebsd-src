@@ -137,8 +137,10 @@ PO_FLAG=-pg
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
+.if !defined(_SKIP_BUILD)
 all: beforebuild .WAIT
 beforebuild: objwarn
+.endif
 
 _LIBDIR:=${LIBDIR}
 _SHLIBDIR:=${SHLIBDIR}
@@ -180,7 +182,7 @@ _LIBS=		lib${LIB_PRIVATE}${LIB}.a
 lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -194,7 +196,7 @@ NOPATH_FILES+=	${POBJS}
 lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -221,10 +223,40 @@ SOLINKOPTS+=	-Wl,--warn-shared-textrel
 beforelinking: ${SOBJS}
 ${SHLIB_NAME_FULL}: beforelinking
 .endif
+
+.if defined(SHLIB_LINK)
+# ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
+# and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
+# prefix where shared objects will be installed by the install target.
+#
+# ${_LDSCRIPTROOT} is the directory prefix that will be used when generating
+# ld(1) scripts.  The crosstools' ld is configured to lookup libraries in an
+# alternative directory which is called "sysroot", so during buildworld binaries
+# won't be linked against the running system libraries but against the ones of
+# the current source tree.  ${_LDSCRIPTROOT} behavior is twisted because of
+# the location where we store them:
+# - 64 bits libs are located under sysroot, so ${_LDSCRIPTROOT} must be empty
+#   because ld(1) will manage to find them from sysroot;
+# - 32 bits shims are not, so ${_LDSCRIPTROOT} is used to specify their full
+#   path, outside of sysroot.
+# Note that ld(1) scripts are generated both during buildworld and
+# installworld; in the later case ${_LDSCRIPTROOT} must be obviously empty
+# because on the target system, libraries are meant to be looked up from /.
+.if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
+${SHLIB_LINK:R}.ld: ${.CURDIR}/${SHLIB_LDSCRIPT}
+	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${_SHLIBDIR}/${SHLIB_NAME},g' \
+	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${_LIBDIR},g' \
+	    -e 's,/[^ ]*/,,g' \
+	    ${.ALLSRC} > ${.TARGET}
+
+${SHLIB_NAME_FULL}: ${SHLIB_LINK:R}.ld
+.endif
+.endif
+
 ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
-.if defined(SHLIB_LINK)
+.if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
 	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -251,7 +283,7 @@ _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -269,10 +301,14 @@ ${LINTLIB}: ${LINTOBJS}
 
 .endif # !defined(INTERNALLIB)
 
+.if defined(_SKIP_BUILD)
+all:
+.else
 all: ${_LIBS}
 
 .if ${MK_MAN} != "no"
 all: _manpages
+.endif
 .endif
 
 _EXTRADEPEND:
@@ -329,32 +365,10 @@ _libinstall:
 	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
 .endif
 .if defined(SHLIB_LINK)
-# ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
-# and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
-# prefix where shared objects will be installed by the install target.
-#
-# ${_LDSCRIPTROOT} is the directory prefix that will be used when generating
-# ld(1) scripts.  The crosstools' ld is configured to lookup libraries in an
-# alternative directory which is called "sysroot", so during buildworld binaries
-# won't be linked against the running system libraries but against the ones of
-# the current source tree.  ${_LDSCRIPTROOT} behavior is twisted because of
-# the location where we store them:
-# - 64 bits libs are located under sysroot, so ${_LDSCRIPTROOT} must be empty
-#   because ld(1) will manage to find them from sysroot;
-# - 32 bits shims are not, so ${_LDSCRIPTROOT} is used to specify their full
-#   path, outside of sysroot.
-# Note that ld(1) scripts are generated both during buildworld and
-# installworld; in the later case ${_LDSCRIPTROOT} must be obviously empty
-# because on the target system, libraries are meant to be looked up from /.
-.if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
-	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${_SHLIBDIR}/${SHLIB_NAME},g' \
-	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${_LIBDIR},g' \
-	    ${.CURDIR}/${SHLIB_LDSCRIPT} > ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld
+.if commands(${SHLIB_LINK:R}.ld)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld \
+	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
-	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld
-
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
 .if ${SHLIB_LINK:Mlib*}

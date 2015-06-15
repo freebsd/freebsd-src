@@ -754,14 +754,10 @@ kern_kqueue(struct thread *td, int flags)
 	p = td->td_proc;
 	cred = td->td_ucred;
 	crhold(cred);
-	PROC_LOCK(p);
-	if (!chgkqcnt(cred->cr_ruidinfo, 1, lim_cur(td->td_proc,
-	    RLIMIT_KQUEUES))) {
-		PROC_UNLOCK(p);
+	if (!chgkqcnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_KQUEUES))) {
 		crfree(cred);
 		return (ENOMEM);
 	}
-	PROC_UNLOCK(p);
 
 	fdp = p->p_fd;
 	error = falloc(td, &fp, &fd, flags);

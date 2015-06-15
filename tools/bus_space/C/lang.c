@@ -30,19 +30,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <errno.h>
 
-#include "bus_space.h"
-#include "libbus_space.h"
+#include "bus.h"
+#include "busdma.h"
+#include "libbus.h"
 
-int
-bus_space_read_1(int rid, long ofs)
+int16_t
+bus_read_1(int rid, long ofs)
 {
 	uint8_t val;
 
 	return ((!bs_read(rid, ofs, &val, sizeof(val))) ? -1 : (int)val);
 }
 
-int
-bus_space_read_2(int rid, long ofs)
+int32_t
+bus_read_2(int rid, long ofs)
 {
 	uint16_t val;
 
@@ -50,7 +51,7 @@ bus_space_read_2(int rid, long ofs)
 }
 
 int64_t
-bus_space_read_4(int rid, long ofs)
+bus_read_4(int rid, long ofs)
 {
 	uint32_t val;
 
@@ -58,43 +59,136 @@ bus_space_read_4(int rid, long ofs)
 }
 
 int
-bus_space_write_1(int rid, long ofs, uint8_t val)
+bus_write_1(int rid, long ofs, uint8_t val)
 {
 
 	return ((!bs_write(rid, ofs, &val, sizeof(val))) ? errno : 0);
 }
 
 int
-bus_space_write_2(int rid, long ofs, uint16_t val)
+bus_write_2(int rid, long ofs, uint16_t val)
 {
 
 	return ((!bs_write(rid, ofs, &val, sizeof(val))) ? errno : 0);
 }
 
 int
-bus_space_write_4(int rid, long ofs, uint32_t val)
+bus_write_4(int rid, long ofs, uint32_t val)
 {
 
 	return ((!bs_write(rid, ofs, &val, sizeof(val))) ? errno : 0);
 }
 
 int
-bus_space_map(const char *dev)
+bus_map(const char *dev)
 {
 
 	return (bs_map(dev));
 }
 
 int
-bus_space_unmap(int rid)
+bus_unmap(int rid)
 {
 
 	return ((!bs_unmap(rid)) ? errno : 0);
 }
 
 int
-bus_space_subregion(int rid, long ofs, long sz)
+bus_subregion(int rid, long ofs, long sz)
 {
 
 	return (bs_subregion(rid, ofs, sz));
+}
+
+int
+busdma_tag_create(const char *dev, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+    u_int datarate, u_int flags, busdma_tag_t *out_p)
+{
+	int res;
+
+	res = bd_tag_create(dev, align, bndry, maxaddr, maxsz, nsegs, maxsegsz,
+	    datarate, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_tag_derive(busdma_tag_t tag, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz, 
+    u_int datarate, u_int flags, busdma_tag_t *out_p)
+{
+	int res;
+
+	res = bd_tag_derive(tag, align, bndry, maxaddr, maxsz, nsegs, maxsegsz,
+	    datarate, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_tag_destroy(busdma_tag_t tag)
+{
+
+	return (bd_tag_destroy(tag));
+}
+
+int
+busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *out_p)
+{
+	int res;
+
+	res = bd_mem_alloc(tag, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_mem_free(busdma_md_t md)
+{
+
+	return (bd_mem_free(md));
+}
+
+busdma_seg_t
+busdma_md_first_seg(busdma_md_t md, int space)
+{
+	busdma_seg_t seg;
+
+	seg = bd_md_first_seg(md, space);
+	return (seg);
+}
+
+busdma_seg_t
+busdma_md_next_seg(busdma_md_t md, busdma_seg_t seg)
+{
+ 
+	seg = bd_md_next_seg(md, seg);
+	return (seg);
+}
+
+bus_addr_t
+busdma_seg_get_addr(busdma_seg_t seg)
+{
+	u_long addr;
+	int error;
+
+	error = bd_seg_get_addr(seg, &addr);
+	return ((error) ? ~0UL : addr);
+}
+
+bus_size_t
+busdma_seg_get_size(busdma_seg_t seg)
+{
+	u_long size;
+	int error;
+
+	error = bd_seg_get_size(seg, &size);
+	return ((error) ? ~0UL : size);
 }

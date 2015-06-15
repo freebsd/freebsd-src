@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <Python.h>
 
-#include "bus_space.h"
+#include "bus.h"
+#include "busdma.h"
 
 static PyObject *
 bus_read_1(PyObject *self, PyObject *args)
@@ -173,7 +174,154 @@ bus_subregion(PyObject *self, PyObject *args)
 	return (Py_BuildValue("i", rid));
 }
 
-static PyMethodDef bus_space_methods[] = {
+static PyObject *
+busdma_tag_create(PyObject *self, PyObject *args)
+{
+	char *dev;
+	u_long align, bndry, maxaddr, maxsz, maxsegsz;
+	u_int nsegs, datarate, flags;
+	int tid;
+
+	if (!PyArg_ParseTuple(args, "skkkkIkII", &dev, &align, &bndry,
+	    &maxaddr, &maxsz, &nsegs, &maxsegsz, &datarate, &flags))
+		return (NULL);
+	tid = bd_tag_create(dev, align, bndry, maxaddr, maxsz, nsegs,
+	    maxsegsz, datarate, flags);
+	if (tid == -1) {
+		PyErr_SetString(PyExc_IOError, strerror(errno));
+		return (NULL);
+	}
+	return (Py_BuildValue("i", tid));
+}
+
+static PyObject *
+busdma_tag_derive(PyObject *self, PyObject *args)
+{
+	u_long align, bndry, maxaddr, maxsz, maxsegsz;
+	u_int nsegs, datarate, flags;
+	int ptid, tid;
+ 
+	if (!PyArg_ParseTuple(args, "ikkkkIkII", &ptid, &align, &bndry,
+	    &maxaddr, &maxsz, &nsegs, &maxsegsz, &datarate, &flags))
+		return (NULL);
+	tid = bd_tag_derive(ptid, align, bndry, maxaddr, maxsz, nsegs,
+	    maxsegsz, datarate, flags);
+	if (tid == -1) {
+		PyErr_SetString(PyExc_IOError, strerror(errno));
+		return (NULL);
+	}
+	return (Py_BuildValue("i", tid));
+}
+
+static PyObject *
+busdma_tag_destroy(PyObject *self, PyObject *args)
+{
+	int error, tid;
+ 
+	if (!PyArg_ParseTuple(args, "i", &tid))
+		return (NULL);
+	error = bd_tag_destroy(tid);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	Py_RETURN_NONE;
+}
+
+static PyObject *
+busdma_mem_alloc(PyObject *self, PyObject *args)
+{
+	u_int flags;
+	int mdid, tid;
+
+	if (!PyArg_ParseTuple(args, "iI", &tid, &flags))
+		return (NULL);
+	mdid = bd_mem_alloc(tid, flags);
+	if (mdid == -1) {
+		PyErr_SetString(PyExc_IOError, strerror(errno));
+		return (NULL);
+	}
+	return (Py_BuildValue("i", mdid));
+}
+
+static PyObject *
+busdma_mem_free(PyObject *self, PyObject *args)
+{
+	int error, mdid;
+
+	if (!PyArg_ParseTuple(args, "i", &mdid))
+		return (NULL);
+	error = bd_mem_free(mdid);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	Py_RETURN_NONE;
+}
+
+static PyObject *
+busdma_md_first_seg(PyObject *self, PyObject *args)
+{
+	int error, mdid, sid, what;
+
+	if (!PyArg_ParseTuple(args, "ii", &mdid, &what))
+		return (NULL);
+	sid = bd_md_first_seg(mdid, what);
+	if (sid == -1) {
+		PyErr_SetString(PyExc_IOError, strerror(errno));
+		return (NULL);
+	}
+	return (Py_BuildValue("i", sid));
+}
+
+static PyObject *
+busdma_md_next_seg(PyObject *self, PyObject *args)
+{
+	int error, mdid, sid;
+
+	if (!PyArg_ParseTuple(args, "ii", &mdid, &sid))
+		return (NULL);
+	sid = bd_md_next_seg(mdid, sid);
+	if (sid == -1) {
+		PyErr_SetString(PyExc_IOError, strerror(errno));
+		return (NULL);
+	}
+	return (Py_BuildValue("i", sid));
+}
+
+static PyObject *
+busdma_seg_get_addr(PyObject *self, PyObject *args)
+{
+	u_long addr;
+	int error, sid;
+
+	if (!PyArg_ParseTuple(args, "i", &sid))
+		return (NULL);
+	error = bd_seg_get_addr(sid, &addr);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	return (Py_BuildValue("k", addr));
+}
+
+static PyObject *
+busdma_seg_get_size(PyObject *self, PyObject *args)
+{
+	u_long size;
+	int error, sid;
+
+	if (!PyArg_ParseTuple(args, "i", &sid))
+		return (NULL);
+	error = bd_seg_get_size(sid, &size);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	return (Py_BuildValue("k", size));
+}
+
+static PyMethodDef bus_methods[] = {
     { "read_1", bus_read_1, METH_VARARGS, "Read a 1-byte data item." },
     { "read_2", bus_read_2, METH_VARARGS, "Read a 2-byte data item." },
     { "read_4", bus_read_4, METH_VARARGS, "Read a 4-byte data item." },
@@ -192,9 +340,33 @@ static PyMethodDef bus_space_methods[] = {
     { NULL, NULL, 0, NULL }
 };
 
+static PyMethodDef busdma_methods[] = {
+    { "tag_create", busdma_tag_create, METH_VARARGS,
+	"Create a root tag." },
+    { "tag_derive", busdma_tag_derive, METH_VARARGS,
+	"Derive a child tag." },
+    { "tag_destroy", busdma_tag_destroy, METH_VARARGS,
+	"Destroy a tag." },
+    { "mem_alloc", busdma_mem_alloc, METH_VARARGS,
+	"Allocate memory according to the DMA constraints." },
+    { "mem_free", busdma_mem_free, METH_VARARGS,
+	"Free allocated memory." },
+
+    { "md_first_seg", busdma_md_first_seg, METH_VARARGS,
+	"Return first segment in one of the segment lists." },
+    { "md_next_seg", busdma_md_next_seg, METH_VARARGS,
+	"Return next segment in the segment list." },
+    { "seg_get_addr", busdma_seg_get_addr, METH_VARARGS,
+	"Return the address of the segment." },
+    { "seg_get_size", busdma_seg_get_size, METH_VARARGS,
+	"Return the size of the segment." },
+    { NULL, NULL, 0, NULL }
+};
+
 PyMODINIT_FUNC
-initbus_space(void)
+initbus(void)
 {
 
-	Py_InitModule("bus_space", bus_space_methods);
+	Py_InitModule("bus", bus_methods);
+	Py_InitModule("busdma", busdma_methods);
 }

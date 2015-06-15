@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/nand/nand.h>
 #include <dev/nand/nandbus.h>
+
+#include <powerpc/mpc85xx/mpc85xx.h>
+
 #include "nfc_if.h"
 #include "gpio_if.h"
 
@@ -128,6 +131,7 @@ rb_nand_attach(device_t dev)
 	struct rb_nand_softc *sc;
 	phandle_t node;
 	uint32_t ale[2],cle[2],nce[2],rdy[2];
+	u_long size,start;
 	int err;
 
 	sc = device_get_softc(dev);
@@ -165,6 +169,14 @@ rb_nand_attach(device_t dev)
 	    RF_ACTIVE);
 	if (sc->sc_mem == NULL) {
 		device_printf(dev, "could not allocate resources!\n");
+		return (ENXIO);
+	}
+
+	start = rman_get_start(sc->sc_mem);
+	size = rman_get_size(sc->sc_mem);
+	if (law_enable(OCP85XX_TGTIF_LBC, start, size) != 0) {
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->sc_mem);
+		device_printf(dev, "could not allocate local address window.\n");
 		return (ENXIO);
 	}
 

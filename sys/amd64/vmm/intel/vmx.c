@@ -856,10 +856,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
 	 *
-	 * The TSC MSR is exposed read-only. Writes are disallowed as that
-	 * will impact the host TSC.
-	 * XXX Writes would be implemented with a wrmsr trap, and
-	 * then modifying the TSC offset in the VMCS.
+	 * The TSC MSR is exposed read-only. Writes are disallowed as
+	 * that will impact the host TSC.  If the guest does a write
+	 * the "use TSC offsetting" execution control is enabled and the
+	 * difference between the host TSC and the guest TSC is written
+	 * into the TSC offset in the VMCS.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
@@ -1128,6 +1129,22 @@ vmx_clear_nmi_window_exiting(struct vmx *vmx, int vcpu)
 	vmx->cap[vcpu].proc_ctls &= ~PROCBASED_NMI_WINDOW_EXITING;
 	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
 	VCPU_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
+}
+
+int
+vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset)
+{
+	int error;
+
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_TSC_OFFSET) == 0) {
+		vmx->cap[vcpu].proc_ctls |= PROCBASED_TSC_OFFSET;
+		vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling TSC offsetting");
+	}
+
+	error = vmwrite(VMCS_TSC_OFFSET, offset);
+
+	return (error);
 }
 
 #define	NMI_BLOCKING	(VMCS_INTERRUPTIBILITY_NMI_BLOCKING |		\
@@ -2554,7 +2571,7 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 
 static int
 vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
-    void *rendezvous_cookie, void *suspend_cookie)
+    struct vm_eventinfo *evinfo)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
@@ -2623,15 +2640,21 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 * vmx_inject_interrupts() can suspend the vcpu due to a
 		 * triple fault.
 		 */
-		if (vcpu_suspended(suspend_cookie)) {
+		if (vcpu_suspended(evinfo)) {
 			enable_intr();
 			vm_exit_suspended(vmx->vm, vcpu, rip);
 			break;
 		}
 
-		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
+		if (vcpu_rendezvous_pending(evinfo)) {
 			enable_intr();
 			vm_exit_rendezvous(vmx->vm, vcpu, rip);
+			break;
+		}
+
+		if (vcpu_reqidle(evinfo)) {
+			enable_intr();
+			vm_exit_reqidle(vmx->vm, vcpu, rip);
 			break;
 		}
 

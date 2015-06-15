@@ -25,13 +25,14 @@ LIBADD=	ncursesw m kvm jail
 
 CLEANFILES= sigdesc.h
 SIGCONV_AWK= ${.CURDIR}/../../contrib/top/sigconv.awk
-SIGNAL_H= ${DESTDIR}/usr/include/sys/signal.h
+STAGED_INCLUDE_DIR?= ${DESTDIR}/usr/include
+SIGNAL_H= ${STAGED_INCLUDE_DIR}/sys/signal.h
 sigdesc.h: ${SIGCONV_AWK} ${SIGNAL_H}
 	awk -f ${SIGCONV_AWK} < ${SIGNAL_H} > ${.TARGET}
 
 CLEANFILES+= top.local.h top.x
-.SUFFIXES: .X .x .H .h
-.X.x .H.h:
+.SUFFIXES: .xs .x .hs .h
+.xs.x .hs.h:
 	@${ECHO} Making ${.TARGET} from ${.IMPSRC}
 	@sed -e's,%LoadMax%,5.0,g' \
 	-e's,%TableSize%,20011,g' \

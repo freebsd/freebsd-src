@@ -72,7 +72,7 @@ arm_create_disk() {
 	chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
 	chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
 	chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
-	chroot ${CHROOTDIR} tunefs -j enable -N enable /dev/${mddev}s2a
+	chroot ${CHROOTDIR} tunefs -N enable /dev/${mddev}s2a
 
 	return 0
 }
@@ -80,11 +80,15 @@ arm_create_disk() {
 arm_create_user() {
 	# Create a default user account 'freebsd' with the password 'freebsd',
 	# and set the default password for the 'root' user to 'root'.
-	chroot ${CHROOTDIR} /usr/sbin/pw groupadd freebsd -g 1001
-	chroot ${CHROOTDIR} /usr/sbin/pw useradd freebsd \
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
+		groupadd freebsd -g 1001
+	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/home/freebsd
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
+		useradd freebsd \
 		-m -M 0755 -w yes -n freebsd -u 1001 -g 1001 -G 0 \
 		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/csh'
-	chroot ${CHROOTDIR} /usr/sbin/pw usermod root -w yes
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
+		usermod root -w yes
 
 	return 0
 }

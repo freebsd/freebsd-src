@@ -496,7 +496,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-	td2->td_ucred = crhold(p2->p_ucred);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
@@ -525,6 +524,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	lim_fork(p1, p2);
+
+	thread_cow_get_proc(td2, p2);
 
 	pstats_fork(p1->p_stats, p2->p_stats);
 
@@ -911,10 +912,8 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {
-		PROC_LOCK(p1);
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		    lim_cur(p1, RLIMIT_NPROC));
-		PROC_UNLOCK(p1);
+		    lim_cur(td, RLIMIT_NPROC));
 	}
 	if (ok) {
 		do_fork(td, flags, newproc, td2, vm2, pdflags);

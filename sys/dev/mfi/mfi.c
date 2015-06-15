@@ -369,6 +369,7 @@ mfi_attach(struct mfi_softc *sc)
 	int error, commsz, framessz, sensesz;
 	int frames, unit, max_fw_sge, max_fw_cmds;
 	uint32_t tb_mem_size = 0;
+	struct cdev *dev_t;
 
 	if (sc == NULL)
 		return EINVAL;
@@ -763,7 +764,8 @@ mfi_attach(struct mfi_softc *sc)
 	sc->mfi_cdev = make_dev(&mfi_cdevsw, unit, UID_ROOT, GID_OPERATOR,
 	    0640, "mfi%d", unit);
 	if (unit == 0)
-		make_dev_alias(sc->mfi_cdev, "megaraid_sas_ioctl_node");
+		make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &dev_t,
+		    sc->mfi_cdev, "%s", "megaraid_sas_ioctl_node");
 	if (sc->mfi_cdev != NULL)
 		sc->mfi_cdev->si_drv1 = sc;
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->mfi_dev),

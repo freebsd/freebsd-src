@@ -317,7 +317,9 @@ SUBDIR+=	bmake
 
 .if ${MK_MAN_UTILS} != "no"
 SUBDIR+=	catman
+.if ${MK_MANDOCDB} == "no"
 _makewhatis=	makewhatis
+.endif
 _man=		man
 .endif
 

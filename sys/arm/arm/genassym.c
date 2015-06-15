@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+
+#include <machine/acle-compat.h>
 #include <machine/vmparam.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
@@ -124,7 +126,7 @@ ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
 ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
 
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 ASSYM(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 ASSYM(ARM_RAS_START, ARM_RAS_START);
 ASSYM(ARM_RAS_END, ARM_RAS_END);
@@ -132,8 +134,6 @@ ASSYM(ARM_RAS_END, ARM_RAS_END);
 
 #ifdef VFP
 ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
-
-ASSYM(PC_CPU, offsetof(struct pcpu, pc_cpu));
 
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 #endif

@@ -246,6 +246,7 @@ struct thread {
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
+	struct plimit	*td_limit;	/* (k) Resource limits. */
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
@@ -308,6 +309,7 @@ struct thread {
 		off_t		tdu_off;	
 	} td_uretoff;			/* (k) Syscall aux returns. */
 #define td_retval	td_uretoff.tdu_retval
+	u_int		td_cowgen;	/* (k) Generation of COW pointers. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
@@ -498,7 +500,7 @@ struct proc {
 	struct filedesc	*p_fd;		/* (b) Open files. */
 	struct filedesc_to_leader *p_fdtol; /* (b) Tracking node */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
-	struct plimit	*p_limit;	/* (c) Process limits. */
+	struct plimit	*p_limit;	/* (c) Resource limits. */
 	struct callout	p_limco;	/* (c) Limit callout handle */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 
@@ -533,6 +535,7 @@ struct proc {
 	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtick;	/* (c) Tick when swapped in or out. */
+	u_int		p_cowgen;	/* (c) Generation of COW pointers. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
 	struct rusage	p_ru;		/* (a) Exit information. */
 	struct rusage_ext p_rux;	/* (cu) Internal resource usage. */
@@ -833,6 +836,11 @@ extern pid_t pid_max;
 	KASSERT((p)->p_lock == 0, ("process held"));			\
 } while (0)
 
+#define	PROC_UPDATE_COW(p) do {						\
+	PROC_LOCK_ASSERT((p), MA_OWNED);				\
+	(p)->p_cowgen++;						\
+} while (0)
+
 /* Check whether a thread is safe to be swapped out. */
 #define	thread_safetoswapout(td)	((td)->td_flags & TDF_CANSWAP)
 
@@ -977,6 +985,10 @@ void	cpu_thread_swapin(struct thread *);
 void	cpu_thread_swapout(struct thread *);
 struct	thread *thread_alloc(int pages);
 int	thread_alloc_stack(struct thread *, int pages);
+void	thread_cow_get_proc(struct thread *newtd, struct proc *p);
+void	thread_cow_get(struct thread *newtd, struct thread *td);
+void	thread_cow_free(struct thread *td);
+void	thread_cow_update(struct thread *td);
 void	thread_exit(void) __dead2;
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);
