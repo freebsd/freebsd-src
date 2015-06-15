@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 # $FreeBSD$
 
-SHLIBDIR?= /lib
+SHLIBDIR= /lib
 
 .include <src.opts.mk>
 

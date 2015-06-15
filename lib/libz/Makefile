@@ -3,7 +3,7 @@
 #
 
 LIB=		z
-SHLIBDIR?=	/lib
+SHLIBDIR=	/lib
 SHLIB_MAJOR=	6
 MAN=		zlib.3 zopen.3
 

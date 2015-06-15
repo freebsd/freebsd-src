@@ -2,7 +2,7 @@
 
 LIB=	md
 SHLIB_MAJOR= 6
-SHLIBDIR?= /lib
+SHLIBDIR= /lib
 SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 	rmd160c.c rmd160hl.c \
 	sha0c.c sha0hl.c sha1c.c sha1hl.c \
