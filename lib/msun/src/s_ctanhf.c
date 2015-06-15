@@ -60,7 +60,7 @@ ctanhf(float complex z)
 	if (!isfinite(y))
 		return (CMPLXF(y - y, y - y));
 
-	if (ix >= 0x41300000) {	/* x >= 11 */
+	if (ix >= 0x41300000) {	/* |x| >= 11 */
 		float exp_mx = expf(-fabsf(x));
 		return (CMPLXF(copysignf(1, x),
 		    4 * sinf(y) * cosf(y) * exp_mx * exp_mx));
@@ -78,7 +78,7 @@ float complex
 ctanf(float complex z)
 {
 
-	z = ctanhf(CMPLXF(-cimagf(z), crealf(z)));
-	return (CMPLXF(cimagf(z), -crealf(z)));
+	z = ctanhf(CMPLXF(cimagf(z), crealf(z)));
+	return (CMPLXF(cimagf(z), crealf(z)));
 }
 
