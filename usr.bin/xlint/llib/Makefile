@@ -8,8 +8,6 @@ FILESDIR= ${LINTLIBDIR}
 
 CLEANFILES+= ${LIBS}
 
-
-
 llib-lposix.ln: llib-lposix
 	${LINT} ${LINTFLAGS} -Cposix ${.ALLSRC}
 
