@@ -174,16 +174,16 @@ make_and_check_diskdev()
 
 echo "Launching virtual machine \"$vmname\" ..."
 
-virtio_diskdev="$disk_dev0"
+first_diskdev="$disk_dev0"
 
 ${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
 
 while [ 1 ]; do
 
-	file -s ${virtio_diskdev} | grep "boot sector" > /dev/null
+	file -s ${first_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		file -s ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
+		file -s ${first_diskdev} | grep ": Unix Fast File sys" > /dev/null
 		rc=$?
 	fi
 	if [ $rc -ne 0 ]; then
@@ -198,14 +198,22 @@ while [ 1 ]; do
 			echo    "is not readable"
 			exit 1
 		fi
-		BOOTDISK=${isofile}
-		installer_opt="-s 31:0,ahci-cd,${BOOTDISK}"
+		BOOTDISKS="-d ${isofile}"
+		installer_opt="-s 31:0,ahci-cd,${isofile}"
 	else
-		BOOTDISK=${virtio_diskdev}
+		BOOTDISKS=""
+		i=0
+		while [ $i -lt $disk_total ] ; do
+			eval "disk=\$disk_dev${i}"
+			if [ -r ${disk} ] ; then
+				BOOTDISKS="$BOOTDISKS -d ${disk} "
+			fi
+			i=$(($i + 1))
+		done
 		installer_opt=""
 	fi
 
-	${LOADER} -c ${console} -m ${memsize} -d ${BOOTDISK} ${loader_opt} \
+	${LOADER} -c ${console} -m ${memsize} ${BOOTDISKS} ${loader_opt} \
 		${vmname}
 	bhyve_exit=$?
 	if [ $bhyve_exit -ne 0 ]; then
