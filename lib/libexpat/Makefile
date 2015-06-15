@@ -3,7 +3,7 @@
 EXPAT=		${.CURDIR}/../../contrib/expat
 
 LIB=		bsdxml
-SHLIBDIR=	/lib
+SHLIBDIR?=	/lib
 SHLIB_MAJOR=	4
 SRCS=		xmlparse.c xmlrole.c xmltok.c
 INCS=		bsdxml.h bsdxml_external.h

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		sbuf
-SHLIBDIR= 	/lib
+SHLIBDIR?= 	/lib
 SRCS=		subr_prf.c subr_sbuf.c
 
 SHLIB_MAJOR	= 6

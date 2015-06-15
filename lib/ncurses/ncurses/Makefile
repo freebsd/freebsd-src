@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIBDIR=	/lib
+SHLIBDIR?=	/lib
 
 .if !defined(ENABLE_WIDEC)
 # Override any MAN= setting below..

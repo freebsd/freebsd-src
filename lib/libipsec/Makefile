@@ -27,7 +27,7 @@
 #
 # $FreeBSD$
 
-SHLIBDIR= /lib
+SHLIBDIR?= /lib
 
 .include <src.opts.mk>
 

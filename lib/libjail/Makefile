@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	jail
-SHLIBDIR= /lib
+SHLIBDIR?= /lib
 SHLIB_MAJOR= 1
 SRCS=	jail.c jail_getid.c
 INCS=	jail.h

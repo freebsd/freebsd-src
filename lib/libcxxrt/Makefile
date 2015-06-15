@@ -3,7 +3,7 @@
 SRCDIR=		${.CURDIR}/../../contrib/libcxxrt
 
 SHLIB_MAJOR=	1
-SHLIBDIR=	/lib
+SHLIBDIR?=	/lib
 
 .PATH: ${SRCDIR}
 

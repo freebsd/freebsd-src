@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-SHLIBDIR=	/lib
+SHLIBDIR?=	/lib
 
 .include <bsd.own.mk>
 

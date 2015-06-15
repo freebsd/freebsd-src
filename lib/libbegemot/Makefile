@@ -6,7 +6,7 @@ LIBBEGEMOT_DIR=${.CURDIR}/../../contrib/libbegemot
 
 LIB=	begemot
 SHLIB_MAJOR= 4
-SHLIBDIR= /lib
+SHLIBDIR?= /lib
 
 CFLAGS+=	-DUSE_SELECT -DQUADFMT='"ll"'
 SRCS=	rpoll.c
