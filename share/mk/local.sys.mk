@@ -29,6 +29,7 @@ M_whence = ${M_type}:M/*:[1]
 # convert a path to a valid shell variable
 M_P2V = tu:C,[./-],_,g
 
+.if ${MK_META_MODE} == "yes"
 MAKE_PRINT_VAR_ON_ERROR+= \
 	.CURDIR \
 	.MAKE \
@@ -47,6 +48,7 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 
 .if ${.MAKE.LEVEL} > 0
 MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
+.endif
 .endif
 
 # these are handy
