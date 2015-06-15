@@ -1,7 +1,11 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 # $FreeBSD$
 
+.if defined(LIBCHERI)
 SHLIBDIR?= /lib
+.else
+SHLIBDIR= /lib
+.endif
 WANT_DUMP=	yes
 WANT_CHERI=	variables
 

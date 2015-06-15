@@ -4,7 +4,7 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 
 SHLIB_NAME=	libgcc_s.so.1
-SHLIBDIR?=	/lib
+SHLIBDIR=	/lib
 
 .include <src.opts.mk>
 #

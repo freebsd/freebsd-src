@@ -1,7 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 #	$FreeBSD$
 
+.if defined(LIBCHERI)
 SHLIBDIR?= /lib
+.else
+SHLIBDIR= /lib
+.endif
 WANT_DUMP=	yes
 
 .include <src.opts.mk>

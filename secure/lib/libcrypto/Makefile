@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIBDIR?=	/lib
+SHLIBDIR=	/lib
 SUBDIR=		engines
 
 .include <bsd.own.mk>
