@@ -239,7 +239,7 @@ beforedepend: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${.OBJDIR}/${_link}
+${OBJS}: ${_link}
 .endif
 .endfor
 
