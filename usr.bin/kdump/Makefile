@@ -23,7 +23,11 @@ NO_WERROR?=	YES
 
 CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h
 
+beforedepend: ioctl.c
+
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
+beforedepend: linux_syscalls.c
+
 CLEANFILES+=	linux_syscalls.c
 kdump.o: linux_syscalls.c
 linux_syscalls.c:	linux_syscalls.conf
@@ -31,6 +35,8 @@ linux_syscalls.c:	linux_syscalls.conf
 	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux/syscalls.master ${.CURDIR}/linux_syscalls.conf
 .endif
 .if (${MACHINE_ARCH} == "amd64")
+beforedepend: linux32_syscalls.c
+
 CLEANFILES+=	linux32_syscalls.c
 kdump.o: linux32_syscalls.c
 linux32_syscalls.c: linux32_syscalls.conf
