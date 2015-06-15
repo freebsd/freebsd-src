@@ -4,7 +4,7 @@
 
 LIB=	edit
 SHLIB_MAJOR=	7
-SHLIBDIR= /lib
+SHLIBDIR?= /lib
 
 OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
 	hist.c keymacro.c map.c chartype.c \
