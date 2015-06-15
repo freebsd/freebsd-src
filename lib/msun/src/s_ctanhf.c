@@ -51,7 +51,8 @@ ctanhf(float complex z)
 
 	if (ix >= 0x7f800000) {
 		if (ix & 0x7fffff)
-			return (CMPLXF(x, (y == 0 ? y : x * y)));
+			return (CMPLXF((x + 0) * (y + 0),
+			    y == 0 ? y : (x + 0) * (y + 0)));
 		SET_FLOAT_WORD(x, hx - 0x40000000);
 		return (CMPLXF(x,
 		    copysignf(0, isinf(y) ? y : sinf(y) * cosf(y))));
