@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		mt
-SHLIBDIR?=	/lib
+SHLIBDIR=	/lib
 SRCS=		mtlib.c
 INCS=		mtlib.h
 

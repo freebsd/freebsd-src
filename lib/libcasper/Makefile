@@ -3,7 +3,7 @@
 LIB=	casper
 
 SHLIB_MAJOR=	0
-SHLIBDIR?=	/lib
+SHLIBDIR=	/lib
 
 SRCS=	libcasper.c
 INCS=	libcasper.h
