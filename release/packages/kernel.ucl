@@ -11,6 +11,8 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
-post-install = <<EOD
-/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/kernel
+scripts: {
+	post-install = <<EOD
+	/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/kernel
 EOD
+}
