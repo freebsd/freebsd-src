@@ -49,7 +49,11 @@ __FBSDID("$FreeBSD$");
 static void
 usage(void)
 {
+#if 0
 	fprintf(stderr, "usage: yppoll [-h host] [-d domainname] mapname\n");
+#else
+	fprintf(stderr, "usage: yppoll [-d domainname] mapname\n");
+#endif
 	exit(1);
 }
 
@@ -57,7 +61,9 @@ int
 main(int argc, char *argv[])
 {
 	char *domainname;
+#if 0
         char *hostname = "localhost";
+#endif
         char *inmap, *master;
         int order;
 	int c, r;
@@ -71,7 +77,11 @@ main(int argc, char *argv[])
                         domainname = optarg;
 			break;
                 case 'h':
+#if 0
                         hostname = optarg;
+#else
+			/* does nothing */
+#endif
                         break;
                 case '?':
                         usage();

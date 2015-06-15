@@ -334,7 +334,6 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 {
 	int error;
 	size_t dssize;
-	int oldnumdevs;
 	long oldgeneration;
 	int retval = 0;
 	struct devinfo *dinfo;
@@ -348,7 +347,6 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		return(-1);
 	}
 
-	oldnumdevs = dinfo->numdevs;
 	oldgeneration = dinfo->generation;
 
 	if (kd == NULL) {

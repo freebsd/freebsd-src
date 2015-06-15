@@ -23,30 +23,36 @@ NO_WERROR?=	YES
 
 CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h
 
+beforedepend: ioctl.c
+
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
+beforedepend: linux_syscalls.c
+
 CLEANFILES+=	linux_syscalls.c
-.endif
-.if (${MACHINE_ARCH} == "amd64")
-CLEANFILES+=	linux32_syscalls.c
-.endif
-
-ioctl.c: mkioctls
-	env MACHINE=${MACHINE} CPP="${CPP}" \
-	    sh ${.CURDIR}/mkioctls print ${DESTDIR}/usr/include > ${.TARGET}
-
-kdump_subr.h: mksubr
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include | \
-	    sed -n 's/^\([a-z].*)\)$$/void \1;/p' >${.TARGET}
-
-kdump_subr.c: mksubr kdump_subr.h
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include >${.TARGET}
-.if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
+kdump.o: linux_syscalls.c
+linux_syscalls.c:	linux_syscalls.conf
 	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
 	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux/syscalls.master ${.CURDIR}/linux_syscalls.conf
 .endif
 .if (${MACHINE_ARCH} == "amd64")
+beforedepend: linux32_syscalls.c
+
+CLEANFILES+=	linux32_syscalls.c
+kdump.o: linux32_syscalls.c
+linux32_syscalls.c: linux32_syscalls.conf
 	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
 	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux32/syscalls.master ${.CURDIR}/linux32_syscalls.conf
 .endif
+
+ioctl.c: mkioctls
+	env MACHINE=${MACHINE} CPP="${CPP}" \
+	    sh ${.CURDIR}/mkioctls print ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
+
+kdump_subr.h: mksubr
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} | \
+	    sed -n 's/^\([a-z].*)\)$$/void \1;/p' >${.TARGET}
+
+kdump_subr.c: mksubr kdump_subr.h
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} >${.TARGET}
 
 .include <bsd.prog.mk>

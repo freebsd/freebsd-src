@@ -1328,6 +1328,7 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 {
 	uint32_t status;
 	int pending_delete_queued = 0;
+	int last;
 
 	/* see if peer supports ASCONF */
 	if (stcb->asoc.asconf_supported == 0) {
@@ -1337,15 +1338,21 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 	 * if this is deleting the last address from the assoc, mark it as
 	 * pending.
 	 */
-	if ((type == SCTP_DEL_IP_ADDRESS) && !stcb->asoc.asconf_del_pending &&
-	    (sctp_local_addr_count(stcb) < 2)) {
-		/* set the pending delete info only */
-		stcb->asoc.asconf_del_pending = 1;
-		stcb->asoc.asconf_addr_del_pending = ifa;
-		atomic_add_int(&ifa->refcount, 1);
-		SCTPDBG(SCTP_DEBUG_ASCONF2,
-		    "asconf_queue_add: mark delete last address pending\n");
-		return (-1);
+	if ((type == SCTP_DEL_IP_ADDRESS) && !stcb->asoc.asconf_del_pending) {
+		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
+			last = (sctp_local_addr_count(stcb) == 0);
+		} else {
+			last = (sctp_local_addr_count(stcb) == 1);
+		}
+		if (last) {
+			/* set the pending delete info only */
+			stcb->asoc.asconf_del_pending = 1;
+			stcb->asoc.asconf_addr_del_pending = ifa;
+			atomic_add_int(&ifa->refcount, 1);
+			SCTPDBG(SCTP_DEBUG_ASCONF2,
+			    "asconf_queue_add: mark delete last address pending\n");
+			return (-1);
+		}
 	}
 	/* queue an asconf parameter */
 	status = sctp_asconf_queue_mgmt(stcb, ifa, type);
@@ -1977,7 +1984,8 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 * sent when the state goes open.
 			 */
 			if (status == 0 &&
-			    SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
+			    ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
+			    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED))) {
 #ifdef SCTP_TIMER_BASED_ASCONF
 				sctp_timer_start(SCTP_TIMER_TYPE_ASCONF, inp,
 				    stcb, stcb->asoc.primary_destination);
@@ -2225,7 +2233,8 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 * count of queued params.  If in the non-open
 			 * state, these get sent when the assoc goes open.
 			 */
-			if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
+			if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
+			    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 				if (status >= 0) {
 					num_queued++;
 				}
@@ -2285,7 +2294,8 @@ sctp_set_primary_ip_address_sa(struct sctp_tcb *stcb, struct sockaddr *sa)
 		    "set_primary_ip_address_sa: queued on tcb=%p, ",
 		    (void *)stcb);
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, sa);
-		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
+		if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
+		    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 #ifdef SCTP_TIMER_BASED_ASCONF
 			sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
 			    stcb->sctp_ep, stcb,
@@ -2321,7 +2331,8 @@ sctp_set_primary_ip_address(struct sctp_ifa *ifa)
 				SCTPDBG(SCTP_DEBUG_ASCONF1, "set_primary_ip_address: queued on stcb=%p, ",
 				    (void *)stcb);
 				SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &ifa->address.sa);
-				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
+				if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
+				    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 #ifdef SCTP_TIMER_BASED_ASCONF
 					sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
 					    stcb->sctp_ep, stcb,

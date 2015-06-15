@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.2.4";
+char ixlv_driver_version[] = "1.2.6";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1832,7 +1832,7 @@ ixlv_msix_adminq(void *arg)
         mask = rd32(hw, I40E_VFINT_ICR0_ENA1);
 
         reg = rd32(hw, I40E_VFINT_DYN_CTL01);
-        reg |= I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
+        reg |= I40E_VFINT_DYN_CTL01_CLEARPBA_MASK;
         wr32(hw, I40E_VFINT_DYN_CTL01, reg);
 
 	/* schedule task */
@@ -1879,7 +1879,7 @@ ixlv_enable_adminq_irq(struct i40e_hw *hw)
 	wr32(hw, I40E_VFINT_DYN_CTL01,
 	    I40E_VFINT_DYN_CTL01_INTENA_MASK |
 	    I40E_VFINT_DYN_CTL01_ITR_INDX_MASK);
-	wr32(hw, I40E_VFINT_ICR0_ENA1, I40E_VFINT_ICR0_ENA_ADMINQ_MASK);
+	wr32(hw, I40E_VFINT_ICR0_ENA1, I40E_VFINT_ICR0_ENA1_ADMINQ_MASK);
 	/* flush */
 	rd32(hw, I40E_VFGEN_RSTAT);
 	return;
@@ -1891,7 +1891,7 @@ ixlv_enable_queue_irq(struct i40e_hw *hw, int id)
 	u32		reg;
 
 	reg = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-	    I40E_VFINT_DYN_CTLN_CLEARPBA_MASK; 
+	    I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK; 
 	wr32(hw, I40E_VFINT_DYN_CTLN1(id), reg);
 }
 
@@ -2375,8 +2375,8 @@ ixlv_local_timer(void *arg)
 	/*
 	** Check status on the queues for a hang
 	*/
-	mask = (I40E_VFINT_DYN_CTLN_INTENA_MASK |
-	    I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK);
+	mask = (I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+	    I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK);
 
 	for (int i = 0; i < vsi->num_queues; i++,que++) {
 		/* Any queues with outstanding work get a sw irq */
@@ -2742,33 +2742,33 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 
 	/* check for Admin queue errors */
 	oldreg = reg = rd32(hw, hw->aq.arq.len);
-	if (reg & I40E_VF_ARQLEN_ARQVFE_MASK) {
+	if (reg & I40E_VF_ARQLEN1_ARQVFE_MASK) {
 		device_printf(dev, "ARQ VF Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
+		reg &= ~I40E_VF_ARQLEN1_ARQVFE_MASK;
 	}
-	if (reg & I40E_VF_ARQLEN_ARQOVFL_MASK) {
+	if (reg & I40E_VF_ARQLEN1_ARQOVFL_MASK) {
 		device_printf(dev, "ARQ Overflow Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
+		reg &= ~I40E_VF_ARQLEN1_ARQOVFL_MASK;
 	}
-	if (reg & I40E_VF_ARQLEN_ARQCRIT_MASK) {
+	if (reg & I40E_VF_ARQLEN1_ARQCRIT_MASK) {
 		device_printf(dev, "ARQ Critical Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
+		reg &= ~I40E_VF_ARQLEN1_ARQCRIT_MASK;
 	}
 	if (oldreg != reg)
 		wr32(hw, hw->aq.arq.len, reg);
 
 	oldreg = reg = rd32(hw, hw->aq.asq.len);
-	if (reg & I40E_VF_ATQLEN_ATQVFE_MASK) {
+	if (reg & I40E_VF_ATQLEN1_ATQVFE_MASK) {
 		device_printf(dev, "ASQ VF Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
+		reg &= ~I40E_VF_ATQLEN1_ATQVFE_MASK;
 	}
-	if (reg & I40E_VF_ATQLEN_ATQOVFL_MASK) {
+	if (reg & I40E_VF_ATQLEN1_ATQOVFL_MASK) {
 		device_printf(dev, "ASQ Overflow Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
+		reg &= ~I40E_VF_ATQLEN1_ATQOVFL_MASK;
 	}
-	if (reg & I40E_VF_ATQLEN_ATQCRIT_MASK) {
+	if (reg & I40E_VF_ATQLEN1_ATQCRIT_MASK) {
 		device_printf(dev, "ASQ Critical Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
+		reg &= ~I40E_VF_ATQLEN1_ATQCRIT_MASK;
 	}
 	if (oldreg != reg)
 		wr32(hw, hw->aq.asq.len, reg);

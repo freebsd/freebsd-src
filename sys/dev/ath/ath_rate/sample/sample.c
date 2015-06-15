@@ -843,9 +843,11 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 }
 
 static void
-badrate(struct ifnet *ifp, int series, int hwrate, int tries, int status)
+badrate(struct ath_softc *sc, int series, int hwrate, int tries, int status)
 {
-	if_printf(ifp, "bad series%d hwrate 0x%x, tries %u ts_status 0x%x\n",
+
+	device_printf(sc->sc_dev,
+	    "bad series%d hwrate 0x%x, tries %u ts_status 0x%x\n",
 	    series, hwrate, tries, status);
 }
 
@@ -891,9 +893,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
-			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d, final_rix=%d\n",
+			device_printf(sc->sc_dev,
+			    "%s: ts_rate=%d ts_finaltsi=%d, final_rix=%d\n",
 			    __func__, ts->ts_rate, ts->ts_finaltsi, final_rix);
-			badrate(ifp, 0, ts->ts_rate, long_tries, status);
+			badrate(sc, 0, ts->ts_rate, long_tries, status);
 			return;
 		}
 		/*
@@ -945,7 +948,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		for (i = 0; i < 4; i++) {
 			if (rc[i].tries && !IS_RATE_DEFINED(sn, rc[i].rix))
-				badrate(ifp, 0, rc[i].ratecode, rc[i].tries,
+				badrate(sc, 0, rc[i].ratecode, rc[i].tries,
 				    status);
 		}
 

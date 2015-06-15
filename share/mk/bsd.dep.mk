@@ -147,6 +147,15 @@ beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
 .endif
 
+.if ${MK_META_MODE} == "yes"
+.include <meta.autodep.mk>
+# this depend: bypasses that below
+# the dependency helps when bootstrapping
+depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
+beforedepend:
+afterdepend: beforedepend
+.endif
+
 .if !target(depend)
 .if defined(SRCS)
 depend: beforedepend ${DEPENDFILE} afterdepend

@@ -112,21 +112,24 @@ main(int argc, char *argv[])
 	char sbuf2[MAXPATHLEN];
 	char *username;
 	u_int method, methoduid;
-	int Cflag, dflag, iflag;
+	int Cflag, dflag, iflag, lflag;
 	int nblock = 0;
 
-	iflag = dflag = Cflag = 0;
+	iflag = dflag = Cflag = lflag = 0;
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
 	oldfp = NULL;
-	while ((ch = getopt(argc, argv, "BCLNd:ips:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "BCLlNd:ips:u:v")) != -1)
 		switch(ch) {
 		case 'B':			/* big-endian output */
 			openinfo.lorder = BIG_ENDIAN;
 			break;
 		case 'C':                       /* verify only */
 			Cflag = 1;
+			break;
+		case 'l':			/* generate legacy entries */
+			lflag = 1;
 			break;
 		case 'L':			/* little-endian output */
 			openinfo.lorder = LITTLE_ENDIAN;
@@ -465,94 +468,96 @@ main(int argc, char *argv[])
 					error("put");
 			}
 
-			/* Create insecure data. (legacy version) */
-			p = buf;
-			COMPACT(pwd.pw_name);
-			COMPACT("*");
-			LSCALAR(pwd.pw_uid);
-			LSCALAR(pwd.pw_gid);
-			LSCALAR(pwd.pw_change);
-			COMPACT(pwd.pw_class);
-			COMPACT(pwd.pw_gecos);
-			COMPACT(pwd.pw_dir);
-			COMPACT(pwd.pw_shell);
-			LSCALAR(pwd.pw_expire);
-			LSCALAR(pwd.pw_fields);
-			data.size = p - buf;
+			if (lflag) {
+				/* Create insecure data. (legacy version) */
+				p = buf;
+				COMPACT(pwd.pw_name);
+				COMPACT("*");
+				LSCALAR(pwd.pw_uid);
+				LSCALAR(pwd.pw_gid);
+				LSCALAR(pwd.pw_change);
+				COMPACT(pwd.pw_class);
+				COMPACT(pwd.pw_gecos);
+				COMPACT(pwd.pw_dir);
+				COMPACT(pwd.pw_shell);
+				LSCALAR(pwd.pw_expire);
+				LSCALAR(pwd.pw_fields);
+				data.size = p - buf;
 
-			/* Create secure data. (legacy version) */
-			p = sbuf;
-			COMPACT(pwd.pw_name);
-			COMPACT(pwd.pw_passwd);
-			LSCALAR(pwd.pw_uid);
-			LSCALAR(pwd.pw_gid);
-			LSCALAR(pwd.pw_change);
-			COMPACT(pwd.pw_class);
-			COMPACT(pwd.pw_gecos);
-			COMPACT(pwd.pw_dir);
-			COMPACT(pwd.pw_shell);
-			LSCALAR(pwd.pw_expire);
-			LSCALAR(pwd.pw_fields);
-			sdata.size = p - sbuf;
+				/* Create secure data. (legacy version) */
+				p = sbuf;
+				COMPACT(pwd.pw_name);
+				COMPACT(pwd.pw_passwd);
+				LSCALAR(pwd.pw_uid);
+				LSCALAR(pwd.pw_gid);
+				LSCALAR(pwd.pw_change);
+				COMPACT(pwd.pw_class);
+				COMPACT(pwd.pw_gecos);
+				COMPACT(pwd.pw_dir);
+				COMPACT(pwd.pw_shell);
+				LSCALAR(pwd.pw_expire);
+				LSCALAR(pwd.pw_fields);
+				sdata.size = p - sbuf;
 
-			/* Store insecure by name. */
-			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNAME);
-			len = strlen(pwd.pw_name);
-			memmove(tbuf + 1, pwd.pw_name, len);
-			key.size = len + 1;
-			if ((dp->put)(dp, &key, &data, method) == -1)
-				error("put");
+				/* Store insecure by name. */
+				tbuf[0] = LEGACY_VERSION(_PW_KEYBYNAME);
+				len = strlen(pwd.pw_name);
+				memmove(tbuf + 1, pwd.pw_name, len);
+				key.size = len + 1;
+				if ((dp->put)(dp, &key, &data, method) == -1)
+					error("put");
 
-			/* Store insecure by number. */
-			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
-			store = HTOL(cnt);
-			memmove(tbuf + 1, &store, sizeof(store));
-			key.size = sizeof(store) + 1;
-			if ((dp->put)(dp, &key, &data, method) == -1)
-				error("put");
-
-			/* Store insecure by uid. */
-			tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
-			store = HTOL(pwd.pw_uid);
-			memmove(tbuf + 1, &store, sizeof(store));
-			key.size = sizeof(store) + 1;
-			if ((dp->put)(dp, &key, &data, methoduid) == -1)
-				error("put");
-
-			/* Store secure by name. */
-			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNAME);
-			len = strlen(pwd.pw_name);
-			memmove(tbuf + 1, pwd.pw_name, len);
-			key.size = len + 1;
-			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
-				error("put");
-
-			/* Store secure by number. */
-			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
-			store = HTOL(cnt);
-			memmove(tbuf + 1, &store, sizeof(store));
-			key.size = sizeof(store) + 1;
-			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
-				error("put");
-
-			/* Store secure by uid. */
-			tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
-			store = HTOL(pwd.pw_uid);
-			memmove(tbuf + 1, &store, sizeof(store));
-			key.size = sizeof(store) + 1;
-			if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
-				error("put");
-
-			/* Store insecure and secure special plus and special minus */
-			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-				tbuf[0] = LEGACY_VERSION(_PW_KEYYPBYNUM);
-				store = HTOL(ypcnt);
+				/* Store insecure by number. */
+				tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
+				store = HTOL(cnt);
 				memmove(tbuf + 1, &store, sizeof(store));
 				key.size = sizeof(store) + 1;
 				if ((dp->put)(dp, &key, &data, method) == -1)
 					error("put");
+
+				/* Store insecure by uid. */
+				tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
+				store = HTOL(pwd.pw_uid);
+				memmove(tbuf + 1, &store, sizeof(store));
+				key.size = sizeof(store) + 1;
+				if ((dp->put)(dp, &key, &data, methoduid) == -1)
+					error("put");
+
+				/* Store secure by name. */
+				tbuf[0] = LEGACY_VERSION(_PW_KEYBYNAME);
+				len = strlen(pwd.pw_name);
+				memmove(tbuf + 1, pwd.pw_name, len);
+				key.size = len + 1;
 				if ((sdp->put)(sdp, &key, &sdata, method) == -1)
 					error("put");
+
+				/* Store secure by number. */
+				tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
+				store = HTOL(cnt);
+				memmove(tbuf + 1, &store, sizeof(store));
+				key.size = sizeof(store) + 1;
+				if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+					error("put");
+
+				/* Store secure by uid. */
+				tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
+				store = HTOL(pwd.pw_uid);
+				memmove(tbuf + 1, &store, sizeof(store));
+				key.size = sizeof(store) + 1;
+				if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
+					error("put");
+
+				/* Store insecure and secure special plus and special minus */
+				if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
+					tbuf[0] = LEGACY_VERSION(_PW_KEYYPBYNUM);
+					store = HTOL(ypcnt);
+					memmove(tbuf + 1, &store, sizeof(store));
+					key.size = sizeof(store) + 1;
+					if ((dp->put)(dp, &key, &data, method) == -1)
+						error("put");
+					if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+						error("put");
+				}
 			}
 		}
 		/* Create original format password file entry */
@@ -583,12 +588,14 @@ main(int argc, char *argv[])
 			error("put");
 		if ((sdp->put)(sdp, &key, &data, method) == -1)
 			error("put");
-		tbuf[0] = LEGACY_VERSION(_PW_KEYYPENABLED);
-		key.size = 1;
-		if ((dp->put)(dp, &key, &data, method) == -1)
-			error("put");
-		if ((sdp->put)(sdp, &key, &data, method) == -1)
-			error("put");
+		if (lflag) {
+			tbuf[0] = LEGACY_VERSION(_PW_KEYYPENABLED);
+			key.size = 1;
+			if ((dp->put)(dp, &key, &data, method) == -1)
+				error("put");
+			if ((sdp->put)(sdp, &key, &data, method) == -1)
+				error("put");
+		}
 	}
 
 	if ((dp->close)(dp) == -1)

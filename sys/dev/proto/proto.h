@@ -33,11 +33,15 @@
 
 #define	PROTO_RES_UNUSED	0
 #define	PROTO_RES_PCICFG	10
+#define	PROTO_RES_BUSDMA	11
 
 struct proto_res {
 	int		r_type;
 	int		r_rid;
-	struct resource *r_res;
+	union {
+		struct resource *res;
+		void *busdma;
+	} r_d;
 	u_long		r_size;
 	union {
 		void		*cookie;

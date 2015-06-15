@@ -98,7 +98,8 @@ typedef enum {
 	CAM_CMD_SANITIZE	= 0x0000001f,
 	CAM_CMD_PERSIST		= 0x00000020,
 	CAM_CMD_APM		= 0x00000021,
-	CAM_CMD_AAM		= 0x00000022
+	CAM_CMD_AAM		= 0x00000022,
+	CAM_CMD_ATTRIB		= 0x00000023
 } cam_cmdmask;
 
 typedef enum {
@@ -224,6 +225,7 @@ static struct camcontrol_opts option_table[] = {
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
 	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
+	{"attrib", CAM_CMD_ATTRIB, CAM_ARG_NONE, "a:ce:F:p:r:s:T:w:V:"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -2566,12 +2568,11 @@ atahpa(struct cam_device *device, int retry_count, int timeout,
 	struct ata_params *ident_buf;
 	struct ccb_getdev cgd;
 	struct ata_set_max_pwd pwd;
-	int error, confirm, quiet, c, action, actions, setpwd, persist;
+	int error, confirm, quiet, c, action, actions, persist;
 	int security, is48bit, pwdsize;
 	u_int64_t hpasize, maxsize;
 
 	actions = 0;
-	setpwd = 0;
 	confirm = 0;
 	quiet = 0;
 	maxsize = 0;
@@ -8118,6 +8119,9 @@ usage(int printlong)
 "        camcontrol persist    [dev_id][generic args] <-i action|-o action>\n"
 "                              [-a][-I tid][-k key][-K sa_key][-p][-R rtp]\n"
 "                              [-s scope][-S][-T type][-U]\n"
+"        camcontrol attrib     [dev_id][generic args] <-r action|-w attr>\n"
+"                              [-a attr_num][-c][-e elem][-F form1,form1]\n"
+"                              [-p part][-s start][-T type][-V vol]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!printlong)
@@ -8157,6 +8161,7 @@ usage(int printlong)
 "fwdownload  program firmware of the named device with the given image\n"
 "security    report or send ATA security commands to the named device\n"
 "persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
+"attrib      send the SCSI READ or WRITE ATTRIBUTE commands\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -8307,6 +8312,20 @@ usage(int printlong)
 "-T res_type       specify the reservation type: read_shared, wr_ex, rd_ex,\n"
 "                  ex_ac, wr_ex_ro, ex_ac_ro, wr_ex_ar, ex_ac_ar\n"
 "-U                unregister the current initiator for register_move\n"
+"attrib arguments:\n"
+"-r action         specify attr_values, attr_list, lv_list, part_list, or\n"
+"                  supp_attr\n"
+"-w attr           specify an attribute to write, one -w argument per attr\n"
+"-a attr_num       only display this attribute number\n"
+"-c                get cached attributes\n"
+"-e elem_addr      request attributes for the given element in a changer\n"
+"-F form1,form2    output format, comma separated list: text_esc, text_raw,\n"
+"                  nonascii_esc, nonascii_trim, nonascii_raw, field_all,\n"
+"                  field_none, field_desc, field_num, field_size, field_rw\n"
+"-p partition      request attributes for the given partition\n"
+"-s start_attr     request attributes starting at the given number\n"
+"-T elem_type      specify the element type (used with -e)\n"
+"-V logical_vol    specify the logical volume ID\n"
 );
 #endif /* MINIMALISTIC */
 }
@@ -8648,6 +8667,11 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_PERSIST:
 			error = scsipersist(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
+			break;
+		case CAM_CMD_ATTRIB:
+			error = scsiattrib(cam_dev, argc, argv, combinedopt,
 			    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
 			    arglist & CAM_ARG_ERR_RECOVER);
 			break;

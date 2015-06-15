@@ -99,6 +99,11 @@
 #
 # For more information, see the build(7) manual page.
 #
+.if ${MK_META_MODE:Uno} == "yes"
+# targets/Makefile plays the role of top-level
+.include "targets/Makefile"
+.else
+
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd clean cleandepend cleandir \
@@ -517,10 +522,22 @@ universe_epilogue:
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
-.if defined(.PARSEDIR)
+# This makefile does not run in meta mode
+.MAKE.MODE= normal
+# Normally the things we run from here don't either.
+# Using -DWITH_META_FILES
+# we can buildworld with meta files created which are useful 
+# for debugging, but without any of the rest of a meta mode build.
+MK_META_MODE= no
+MK_STAGING= no
+# tell meta.autodep.mk to not even think about updating anything.
+UPDATE_DEPENDFILE= NO
+.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+
 .if make(universe)
 # we do not want a failure of one branch abort all.
 MAKE_JOB_ERROR_TOKEN= no
 .export MAKE_JOB_ERROR_TOKEN
 .endif
-.endif
+
+.endif				# META_MODE

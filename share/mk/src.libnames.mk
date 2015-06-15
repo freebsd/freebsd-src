@@ -9,8 +9,12 @@
 
 .include <src.opts.mk>
 
-ROOTSRCDIR=	${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
-ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${ROOTSRCDIR}
+.if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
+ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
+ROOTOBJDIR=	${OBJTOP}
+.endif
+
 _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
@@ -334,7 +338,7 @@ LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
 
 LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
-LIBTELNET?=	${LIBIPFDIR}/libtelnet.a
+LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
 LIBCRONDIR=	${ROOTOBJDIR}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron.a
