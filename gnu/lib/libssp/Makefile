@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIBDIR=	/lib
+SHLIBDIR?=	/lib
 
 MK_PROFILE=	no
 MK_SSP=		no
