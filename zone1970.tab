@@ -206,6 +206,7 @@ KI	-0308-17105	Pacific/Enderbury	Phoenix Islands
 KI	+0152-15720	Pacific/Kiritimati	Line Islands
 KP	+3901+12545	Asia/Pyongyang
 KR	+3733+12658	Asia/Seoul
+KY	+1918-08123	America/Cayman
 KZ	+4315+07657	Asia/Almaty	most locations
 KZ	+4448+06528	Asia/Qyzylorda	Qyzylorda (Kyzylorda, Kzyl-Orda)
 KZ	+5017+05710	Asia/Aqtobe	Aqtobe (Aktobe)
@@ -259,7 +260,7 @@ NR	-0031+16655	Pacific/Nauru
 NU	-1901-16955	Pacific/Niue
 NZ,AQ	-3652+17446	Pacific/Auckland	New Zealand time
 NZ	-4357-17633	Pacific/Chatham	Chatham Islands
-PA,KY	+0858-07932	America/Panama
+PA	+0858-07932	America/Panama
 PE	-1203-07703	America/Lima
 PF	-1732-14934	Pacific/Tahiti	Society Islands
 PF	-0900-13930	Pacific/Marquesas	Marquesas Islands
