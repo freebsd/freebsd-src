@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "src.opts.mk"
-
 .if ${.MAKE.MODE:Unormal:Mmeta*} != ""
 .if !empty(SUBDIR) && !defined(LIB) && !defined(PROG) && ${.MAKE.MAKEFILES:M*bsd.prog.mk} == ""
 .if ${.MAKE.MODE:Mleaf*} != ""
