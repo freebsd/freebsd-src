@@ -438,9 +438,12 @@ universe_epilogue: universe_${target}
 universe_${target}: universe_${target}_prologue
 universe_${target}_prologue: universe_prologue
 	@echo ">> ${target} started on `LC_ALL=C date`"
+universe_${target}_worlds:
+
 .if !defined(MAKE_JUST_KERNELS)
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}: universe_${target}_${target_arch}
+universe_${target}_worlds: universe_${target}_${target_arch}
 universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
@@ -456,13 +459,8 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 .endif # !MAKE_JUST_KERNELS
 
 .if !defined(MAKE_JUST_WORLDS)
-# If we are building world and kernels wait for the required worlds to finish
-.if !defined(MAKE_JUST_KERNELS)
-.for target_arch in ${TARGET_ARCHES_${target}}
-universe_${target}_kernels: universe_${target}_${target_arch}
-.endfor
-.endif
 universe_${target}: universe_${target}_kernels
+universe_${target}_kernels: universe_${target}_worlds
 universe_${target}_kernels: universe_${target}_prologue .MAKE
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
