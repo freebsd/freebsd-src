@@ -442,7 +442,6 @@ universe_${target}_worlds:
 
 .if !defined(MAKE_JUST_KERNELS)
 .for target_arch in ${TARGET_ARCHES_${target}}
-universe_${target}: universe_${target}_${target_arch}
 universe_${target}_worlds: universe_${target}_${target_arch}
 universe_${target}_done: universe_${target}_worlds
 universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
@@ -460,7 +459,6 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 .endif # !MAKE_JUST_KERNELS
 
 .if !defined(MAKE_JUST_WORLDS)
-universe_${target}: universe_${target}_kernels
 universe_${target}_done: universe_${target}_kernels
 universe_${target}_kernels: universe_${target}_worlds
 universe_${target}_kernels: universe_${target}_prologue .MAKE
