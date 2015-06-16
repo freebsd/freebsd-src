@@ -622,6 +622,7 @@ svr4_sys_fchroot(td, uap)
 	struct thread *td;
 	struct svr4_sys_fchroot_args *uap;
 {
+	cap_rights_t rights;
 	struct filedesc	*fdp = td->td_proc->p_fd;
 	struct vnode	*vp;
 	struct file	*fp;
@@ -630,7 +631,7 @@ svr4_sys_fchroot(td, uap)
 	if ((error = priv_check(td, PRIV_VFS_FCHROOT)) != 0)
 		return error;
 	/* XXX: we have the chroot priv... what cap might we need? all? */
-	if ((error = getvnode(fdp, uap->fd, 0, &fp)) != 0)
+	if ((error = getvnode(fdp, uap->fd, cap_rights_init(&rights), &fp)) != 0)
 		return error;
 	vp = fp->f_vnode;
 	VREF(vp);
