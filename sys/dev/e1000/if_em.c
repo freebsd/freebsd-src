@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -953,11 +953,9 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
                         break;
 	}
 
-	if (enq > 0) {
-                /* Set the watchdog */
-                txr->queue_status = EM_QUEUE_WORKING;
-		txr->watchdog_time = ticks;
-	}
+	/* Mark the queue as having work */
+	if ((enq > 0) && (txr->busy == EM_TX_IDLE))
+		txr->busy = EM_TX_BUSY;
 
 	if (txr->tx_avail < EM_MAX_SCATTER)
 		em_txeof(txr);
@@ -1042,12 +1040,12 @@ em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 			break;
 		}
 
+		/* Mark the queue as having work */
+		if (txr->busy == EM_TX_IDLE)
+			txr->busy = EM_TX_BUSY;
+
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, m_head);
-
-		/* Set timeout in case hardware has problems transmitting. */
-		txr->watchdog_time = ticks;
-                txr->queue_status = EM_QUEUE_WORKING;
 	}
 
 	return;
@@ -2114,8 +2112,6 @@ retry:
 	 */
 	tx_buffer = &txr->tx_buffers[first];
 	tx_buffer->next_eop = last;
-	/* Update the watchdog time early and often */
-	txr->watchdog_time = ticks;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
@@ -2297,15 +2293,16 @@ em_local_timer(void *arg)
 	** and the HUNG state will be static if set.
 	*/
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		if ((txr->queue_status == EM_QUEUE_HUNG) &&
-		    (adapter->pause_frames == 0))
+		/* Last cycle a queue was declared hung */
+		if (txr->busy == EM_TX_HUNG)
 			goto hung;
+		if (txr->busy >= EM_TX_MAXTRIES)
+			txr->busy = EM_TX_HUNG;
 		/* Schedule a TX tasklet if needed */
 		if (txr->tx_avail <= EM_MAX_SCATTER)
 			taskqueue_enqueue(txr->tq, &txr->tx_task);
 	}
 	
-	adapter->pause_frames = 0;
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 #ifndef DEVICE_POLLING
 	/* Trigger an RX interrupt to guarantee mbuf refresh */
@@ -2324,7 +2321,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	adapter->pause_frames = 0;
 	em_init_locked(adapter);
 }
 
@@ -2392,9 +2388,9 @@ em_update_link_status(struct adapter *adapter)
 		if (bootverbose)
 			device_printf(dev, "Link is Down\n");
 		adapter->link_active = 0;
-		/* Link down, disable watchdog */
+		/* Link down, disable hang detection */
 		for (int i = 0; i < adapter->num_queues; i++, txr++)
-			txr->queue_status = EM_QUEUE_IDLE;
+			txr->busy = EM_TX_IDLE;
 		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
@@ -2426,10 +2422,10 @@ em_stop(void *arg)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
-        /* Unarm watchdog timer. */
+        /* Disarm Hang Detection. */
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		EM_TX_LOCK(txr);
-		txr->queue_status = EM_QUEUE_IDLE;
+		txr->busy = EM_TX_IDLE;
 		EM_TX_UNLOCK(txr);
 	}
 
@@ -3405,7 +3401,7 @@ em_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Set number of descriptors available */
 	txr->tx_avail = adapter->num_tx_desc;
-	txr->queue_status = EM_QUEUE_IDLE;
+	txr->busy = EM_TX_IDLE;
 
 	/* Clear checksum offload context. */
 	txr->last_hw_offload = 0;
@@ -3466,7 +3462,7 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		    E1000_READ_REG(&adapter->hw, E1000_TDBAL(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDLEN(i)));
 
-		txr->queue_status = EM_QUEUE_IDLE;
+		txr->busy = EM_TX_IDLE;
 	}
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
@@ -3849,9 +3845,9 @@ em_txeof(struct tx_ring *txr)
 		return;
 #endif /* DEV_NETMAP */
 
-	/* No work, make sure watchdog is off */
+	/* No work, make sure hang detection is disabled */
         if (txr->tx_avail == adapter->num_tx_desc) {
-		txr->queue_status = EM_QUEUE_IDLE;
+		txr->busy = EM_TX_IDLE;
                 return;
 	}
 
@@ -3894,7 +3890,6 @@ em_txeof(struct tx_ring *txr)
                         	tx_buffer->m_head = NULL;
                 	}
 			tx_buffer->next_eop = -1;
-			txr->watchdog_time = ticks;
 
 	                if (++first == adapter->num_tx_desc)
 				first = 0;
@@ -3919,14 +3914,16 @@ em_txeof(struct tx_ring *txr)
         txr->next_to_clean = first;
 
 	/*
-	** Watchdog calculation, we know there's
-	** work outstanding or the first return
-	** would have been taken, so none processed
-	** for too long indicates a hang. local timer
-	** will examine this and do a reset if needed.
+	** Hang detection: we know there's work outstanding
+	** or the entry return would have been taken, so no
+	** descriptor processed here indicates a potential hang.
+	** The local timer will examine this and do a reset if needed.
 	*/
-	if ((!processed) && ((ticks - txr->watchdog_time) > EM_WATCHDOG))
-		txr->queue_status = EM_QUEUE_HUNG;
+	if (processed == 0) {
+		if (txr->busy != EM_TX_HUNG)
+			++txr->busy;
+	} else /* At least one descriptor was cleaned */
+		txr->busy = EM_TX_BUSY; /* note this clears HUNG */
 
         /*
          * If we have a minimum free, clear IFF_DRV_OACTIVE
@@ -3938,10 +3935,9 @@ em_txeof(struct tx_ring *txr)
         if (txr->tx_avail >= EM_MAX_SCATTER)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	/* Disable watchdog if all clean */
-	if (txr->tx_avail == adapter->num_tx_desc) {
-		txr->queue_status = EM_QUEUE_IDLE;
-	} 
+	/* Disable hang detection if all clean */
+	if (txr->tx_avail == adapter->num_tx_desc)
+		txr->busy = EM_TX_IDLE;
 }
 
 
@@ -5176,12 +5172,7 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.rlec += E1000_READ_REG(&adapter->hw, E1000_RLEC);
 	adapter->stats.xonrxc += E1000_READ_REG(&adapter->hw, E1000_XONRXC);
 	adapter->stats.xontxc += E1000_READ_REG(&adapter->hw, E1000_XONTXC);
-	/*
-	** For watchdog management we need to know if we have been
-	** paused during the last interval, so capture that here.
-	*/
-	adapter->pause_frames = E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
-	adapter->stats.xoffrxc += adapter->pause_frames;
+	adapter->stats.xoffrxc += E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
 	adapter->stats.xofftxc += E1000_READ_REG(&adapter->hw, E1000_XOFFTXC);
 	adapter->stats.fcruc += E1000_READ_REG(&adapter->hw, E1000_FCRUC);
 	adapter->stats.prc64 += E1000_READ_REG(&adapter->hw, E1000_PRC64);
@@ -5798,7 +5789,7 @@ em_print_debug_info(struct adapter *adapter)
 	device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
 	    E1000_READ_REG(&adapter->hw, E1000_RDH(0)),
 	    E1000_READ_REG(&adapter->hw, E1000_RDT(0)));
-	device_printf(dev, "Tx Queue Status = %d\n", txr->queue_status);
+	device_printf(dev, "Tx Queue Status = %d\n", txr->busy);
 	device_printf(dev, "TX descriptors avail = %d\n",
 	    txr->tx_avail);
 	device_printf(dev, "Tx Descriptors avail failure = %ld\n",
