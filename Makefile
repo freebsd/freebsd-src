@@ -450,7 +450,8 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	    ${MAKEFAIL}))
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endfor
-.endif
+.endif # !MAKE_JUST_KERNELS
+
 .if !defined(MAKE_JUST_WORLDS)
 # If we are building world and kernels wait for the required worlds to finish
 .if !defined(MAKE_JUST_KERNELS)
@@ -468,7 +469,7 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE
 .endif
 	@cd ${.CURDIR} && ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
-.endif
+.endif # !MAKE_JUST_WORLDS
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe_kernels: universe_kernconfs
