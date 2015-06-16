@@ -587,6 +587,7 @@ main(int argc, char *argv[])
 					finet[(*finet)+i] = finet0[i];
 				}
 				*finet = total - 1;
+				free(finet0);
 			}
 		}
 	}
