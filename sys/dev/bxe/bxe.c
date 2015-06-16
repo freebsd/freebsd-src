@@ -12525,6 +12525,7 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
         BLOGE(sc, "Failed to allocate temp mcast list\n");
         return (-1);
     }
+    bzero(mta, (sizeof(unsigned char) * ETHER_ADDR_LEN * mc_count));
     
     mc_mac = malloc(sizeof(*mc_mac) * mc_count, M_DEVBUF,
                     (M_NOWAIT | M_ZERO));
@@ -12533,12 +12534,13 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
         BLOGE(sc, "Failed to allocate temp mcast list\n");
         return (-1);
     }
+    bzero(mc_mac, (sizeof(*mc_mac) * mc_count));
 
     if_multiaddr_array(ifp, mta, &mcnt, mc_count); /* mta and mcnt not expected 
                                                       to be  different */
     for(i=0; i< mcnt; i++) {
 
-        bcopy((mta + (i * ETHER_ADDR_LEN)), mc_mac->mac, ETHER_ADDR_LEN);
+	mc_mac->mac = (uint8_t *)(mta + (i * ETHER_ADDR_LEN));
         ECORE_LIST_PUSH_TAIL(&mc_mac->link, &p->mcast_list);
 
         BLOGD(sc, DBG_LOAD,
@@ -12583,6 +12585,7 @@ bxe_set_mc_list(struct bxe_softc *sc)
     rc = ecore_config_mcast(sc, &rparam, ECORE_MCAST_CMD_DEL);
     if (rc < 0) {
         BLOGE(sc, "Failed to clear multicast configuration: %d\n", rc);
+        BXE_MCAST_UNLOCK(sc);
         return (rc);
     }
 
