@@ -77,13 +77,11 @@ UtAttachNameseg (
  *
  ******************************************************************************/
 
-#define ACPI_TABLE_HELP_FORMAT  "%8u) %s    %s\n"
-
 void
 UtDisplaySupportedTables (
     void)
 {
-    ACPI_DMTABLE_DATA       *TableData;
+    const AH_TABLE          *TableData;
     UINT32                  i;
 
 
@@ -91,20 +89,14 @@ UtDisplaySupportedTables (
         "  (Compiler, Disassembler, Template Generator)\n\n",
         ACPI_CA_VERSION);
 
-    /* Special tables */
+    /* All ACPI tables with the common table header */
 
-    printf ("  Special tables and AML tables:\n");
-    printf (ACPI_TABLE_HELP_FORMAT, 1, ACPI_RSDP_NAME, "Root System Description Pointer");
-    printf (ACPI_TABLE_HELP_FORMAT, 2, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
-    printf (ACPI_TABLE_HELP_FORMAT, 3, ACPI_SIG_DSDT, "Differentiated System Description Table");
-    printf (ACPI_TABLE_HELP_FORMAT, 4, ACPI_SIG_SSDT, "Secondary System Description Table");
-
-    /* All data tables with common table header */
-
-    printf ("\n  Standard ACPI data tables:\n");
-    for (TableData = AcpiDmTableData, i = 5; TableData->Signature; TableData++, i++)
+    printf ("\n  Supported ACPI tables:\n");
+    for (TableData = AcpiSupportedTables, i = 1;
+         TableData->Signature; TableData++, i++)
     {
-        printf (ACPI_TABLE_HELP_FORMAT, i, TableData->Signature, TableData->Name);
+        printf ("%8u) %s    %s\n", i,
+            TableData->Signature, TableData->Description);
     }
 }
 
