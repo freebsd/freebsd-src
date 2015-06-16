@@ -60,14 +60,23 @@ LN_CP_SCRIPT = LnCp() { \
   ln $$1 $$2 2> /dev/null || \
   cp -p $$1 $$2; }
 
+# a staging conflict should cause an error
+# a warning is handy when bootstapping different options.
+STAGE_CONFLICT?= ERROR
+.if ${STAGE_CONFLICT:tl} == "error"
+STAGE_CONFLICT_ACTION= exit 1;
+.else
+STAGE_CONFLICT_ACTION=
+.endif
+
 # it is an error for more than one src dir to try and stage
 # the same file
 STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   t=$$1; \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
-	echo "ERROR: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
-	exit 1; \
+	echo "${STAGE_CONFLICT}: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
+	${STAGE_CONFLICT_ACTION} \
   fi; \
   LnCp .dirdep $$t.dirdep || exit 1; }
 
