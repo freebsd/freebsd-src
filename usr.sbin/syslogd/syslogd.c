@@ -1603,6 +1603,24 @@ init(int signo)
 	}
 
 	/*
+	 * Load / reload timezone data (in case it changed).
+	 *
+	 * Just calling tzset() again does not work, the timezone code
+	 * caches the result.  However, by setting the TZ variable, one
+	 * can defeat the caching and have the timezone code really
+	 * reload the timezone data.  Respect any initial setting of
+	 * TZ, in case the system is configured specially.
+	 */
+	dprintf("loading timezone data via tzset()\n");
+	if (getenv("TZ")) {
+		tzset();
+	} else {
+		setenv("TZ", ":/etc/localtime", 1);
+		tzset();
+		unsetenv("TZ");
+	}
+
+	/*
 	 *  Close all open log files.
 	 */
 	Initialized = 0;
