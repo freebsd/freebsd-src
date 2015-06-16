@@ -268,7 +268,7 @@ AcpiOsGetTableByAddress (
         goto Exit;
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
+    memcpy (LocalTable, MappedTable, TableLength);
 
 Exit:
     OslUnmapTable (MappedTable);
@@ -624,7 +624,7 @@ OslLoadRsdp (
 
     Gbl_RsdpAddress = RsdpBase + (ACPI_CAST8 (MappedTable) - RsdpAddress);
 
-    ACPI_MEMCPY (&Gbl_Rsdp, MappedTable, sizeof (ACPI_TABLE_RSDP));
+    memcpy (&Gbl_Rsdp, MappedTable, sizeof (ACPI_TABLE_RSDP));
     AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
 
     return (AE_OK);
@@ -686,68 +686,68 @@ OslTableInitialize (
         return (AE_OK);
     }
 
-    /* Get RSDP from memory */
-
-    Status = OslLoadRsdp ();
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
-    /* Get XSDT from memory */
-
-    if (Gbl_Rsdp.Revision && !Gbl_DoNotDumpXsdt)
-    {
-        if (Gbl_Xsdt)
-        {
-            free (Gbl_Xsdt);
-            Gbl_Xsdt = NULL;
-        }
-
-        Gbl_Revision = 2;
-        Status = OslGetBiosTable (ACPI_SIG_XSDT, 0,
-            ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Xsdt), &Address);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-    }
-
-    /* Get RSDT from memory */
-
-    if (Gbl_Rsdp.RsdtPhysicalAddress)
-    {
-        if (Gbl_Rsdt)
-        {
-            free (Gbl_Rsdt);
-            Gbl_Rsdt = NULL;
-        }
-
-        Status = OslGetBiosTable (ACPI_SIG_RSDT, 0,
-            ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Rsdt), &Address);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-    }
-
-    /* Get FADT from memory */
-
-    if (Gbl_Fadt)
-    {
-        free (Gbl_Fadt);
-        Gbl_Fadt = NULL;
-    }
-
-    Status = OslGetBiosTable (ACPI_SIG_FADT, 0,
-        ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Fadt), &Gbl_FadtAddress);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
     if (!Gbl_DumpCustomizedTables)
     {
+        /* Get RSDP from memory */
+
+        Status = OslLoadRsdp ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Get XSDT from memory */
+
+        if (Gbl_Rsdp.Revision && !Gbl_DoNotDumpXsdt)
+        {
+            if (Gbl_Xsdt)
+            {
+                free (Gbl_Xsdt);
+                Gbl_Xsdt = NULL;
+            }
+
+            Gbl_Revision = 2;
+            Status = OslGetBiosTable (ACPI_SIG_XSDT, 0,
+                ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Xsdt), &Address);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
+
+        /* Get RSDT from memory */
+
+        if (Gbl_Rsdp.RsdtPhysicalAddress)
+        {
+            if (Gbl_Rsdt)
+            {
+                free (Gbl_Rsdt);
+                Gbl_Rsdt = NULL;
+            }
+
+            Status = OslGetBiosTable (ACPI_SIG_RSDT, 0,
+                ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Rsdt), &Address);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
+
+        /* Get FADT from memory */
+
+        if (Gbl_Fadt)
+        {
+            free (Gbl_Fadt);
+            Gbl_Fadt = NULL;
+        }
+
+        Status = OslGetBiosTable (ACPI_SIG_FADT, 0,
+            ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Fadt), &Gbl_FadtAddress);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
         /* Add mandatory tables to global table list first */
 
         Status = OslAddTableToList (ACPI_RSDP_NAME, 0);
@@ -1102,7 +1102,7 @@ OslGetBiosTable (
         goto Exit;
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
+    memcpy (LocalTable, MappedTable, TableLength);
     *Address = TableAddress;
     *Table = LocalTable;
 

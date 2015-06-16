@@ -272,8 +272,8 @@ AsMatchValidToken (
                 if ((*SubBuffer == '\n') ||
                     (!(*SubBuffer)))
                 {
-                    AsPrint ("Unbalanced quoted string", 1, Filename);
-                    printf ("    %.32s\n", StringStart);
+                    AsPrint ("Unbalanced quoted string",1, Filename);
+                    printf ("    %.32s (line %u)\n", StringStart, TotalLines);
                     break;
                 }
 

@@ -152,9 +152,9 @@ AeInitializeTableHeader (
     Header->Length = Length;
 
     Header->OemRevision = 0x1001;
-    ACPI_STRNCPY (Header->OemId, "Intel", ACPI_OEM_ID_SIZE);
-    ACPI_STRNCPY (Header->OemTableId, "AcpiExec", ACPI_OEM_TABLE_ID_SIZE);
-    ACPI_STRNCPY (Header->AslCompilerId, "INTL", ACPI_NAME_SIZE);
+    strncpy (Header->OemId, "Intel", ACPI_OEM_ID_SIZE);
+    strncpy (Header->OemTableId, "AcpiExec", ACPI_OEM_TABLE_ID_SIZE);
+    strncpy (Header->AslCompilerId, "INTL", ACPI_NAME_SIZE);
     Header->AslCompilerRevision = 0x20131218;
 }
 
@@ -215,7 +215,7 @@ AeBuildLocalTables (
         return (AE_NO_MEMORY);
     }
 
-    ACPI_MEMSET (LocalXSDT, 0, XsdtSize);
+    memset (LocalXSDT, 0, XsdtSize);
     AeInitializeTableHeader ((void *) LocalXSDT, ACPI_SIG_XSDT, XsdtSize);
 
     LocalXSDT->TableOffsetEntry[0] = ACPI_PTR_TO_PHYSADDR (&LocalFADT);
@@ -297,9 +297,9 @@ AeBuildLocalTables (
 
     /* Build an RSDP. Contains a valid XSDT only, no RSDT */
 
-    ACPI_MEMSET (&LocalRSDP, 0, sizeof (ACPI_TABLE_RSDP));
+    memset (&LocalRSDP, 0, sizeof (ACPI_TABLE_RSDP));
     ACPI_MAKE_RSDP_SIG (LocalRSDP.Signature);
-    ACPI_MEMCPY (LocalRSDP.OemId, "Intel", 6);
+    memcpy (LocalRSDP.OemId, "Intel", 6);
 
     LocalRSDP.Revision = 2;
     LocalRSDP.XsdtPhysicalAddress = ACPI_PTR_TO_PHYSADDR (LocalXSDT);
@@ -361,7 +361,7 @@ AeBuildLocalTables (
     }
     else if (AcpiGbl_UseHwReducedFadt)
     {
-        ACPI_MEMCPY (&LocalFADT, HwReducedFadtCode, sizeof (ACPI_TABLE_FADT));
+        memcpy (&LocalFADT, HwReducedFadtCode, sizeof (ACPI_TABLE_FADT));
         LocalFADT.Dsdt = (UINT32) DsdtAddress;
         LocalFADT.XDsdt = DsdtAddress;
 
@@ -374,7 +374,7 @@ AeBuildLocalTables (
         /*
          * Build a local FADT so we can test the hardware/event init
          */
-        ACPI_MEMSET (&LocalFADT, 0, sizeof (ACPI_TABLE_FADT));
+        memset (&LocalFADT, 0, sizeof (ACPI_TABLE_FADT));
         LocalFADT.Header.Revision = 5;
         AeInitializeTableHeader ((void *) &LocalFADT, ACPI_SIG_FADT, sizeof (ACPI_TABLE_FADT));
 
@@ -423,7 +423,7 @@ AeBuildLocalTables (
 
     /* Build a FACS */
 
-    ACPI_MEMSET (&LocalFACS, 0, sizeof (ACPI_TABLE_FACS));
+    memset (&LocalFACS, 0, sizeof (ACPI_TABLE_FACS));
     ACPI_MOVE_NAME (LocalFACS.Signature, ACPI_SIG_FACS);
 
     LocalFACS.Length = sizeof (ACPI_TABLE_FACS);
@@ -437,7 +437,7 @@ AeBuildLocalTables (
          * Build a fake table [TEST] so that we make sure that the
          * ACPICA core ignores it
          */
-        ACPI_MEMSET (&LocalTEST, 0, sizeof (ACPI_TABLE_HEADER));
+        memset (&LocalTEST, 0, sizeof (ACPI_TABLE_HEADER));
         ACPI_MOVE_NAME (LocalTEST.Signature, "TEST");
 
         LocalTEST.Revision = 1;
@@ -449,7 +449,7 @@ AeBuildLocalTables (
          * Build a fake table with a bad signature [BAD!] so that we make
          * sure that the ACPICA core ignores it
          */
-        ACPI_MEMSET (&LocalBADTABLE, 0, sizeof (ACPI_TABLE_HEADER));
+        memset (&LocalBADTABLE, 0, sizeof (ACPI_TABLE_HEADER));
         ACPI_MOVE_NAME (LocalBADTABLE.Signature, "BAD!");
 
         LocalBADTABLE.Revision = 1;

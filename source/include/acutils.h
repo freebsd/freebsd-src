@@ -251,84 +251,112 @@ AcpiUtSubsystemShutdown (
  */
 #ifndef ACPI_USE_SYSTEM_CLIBRARY
 
+#ifdef memcmp
+#error memcmp defined!
+#endif
+
+#undef strstr
+#undef strchr
+#undef strlen
+#undef strcpy
+#undef strncpy
+#undef strncmp
+#undef strcmp
+#undef strcat
+#undef strncat
+#undef strtoul
+#undef memcmp
+#undef memcpy
+#undef memset
+#undef toupper
+#undef tolower
+#undef isxdigit
+#undef isdigit
+#undef isspace
+#undef isupper
+#undef isprint
+#undef isalpha
+
 ACPI_SIZE
-AcpiUtStrlen (
+strlen (
     const char              *String);
 
 char *
-AcpiUtStrchr (
+strchr (
     const char              *String,
     int                     ch);
 
 char *
-AcpiUtStrcpy (
+strcpy (
     char                    *DstString,
     const char              *SrcString);
 
 char *
-AcpiUtStrncpy (
+strncpy (
     char                    *DstString,
     const char              *SrcString,
     ACPI_SIZE               Count);
 
 int
-AcpiUtMemcmp (
-    const char              *Buffer1,
-    const char              *Buffer2,
-    ACPI_SIZE               Count);
-
-int
-AcpiUtStrncmp (
+strncmp (
     const char              *String1,
     const char              *String2,
     ACPI_SIZE               Count);
 
 int
-AcpiUtStrcmp (
+strcmp (
     const char              *String1,
     const char              *String2);
 
 char *
-AcpiUtStrcat (
+strcat (
     char                    *DstString,
     const char              *SrcString);
 
 char *
-AcpiUtStrncat (
+strncat (
     char                    *DstString,
     const char              *SrcString,
     ACPI_SIZE               Count);
 
 UINT32
-AcpiUtStrtoul (
+strtoul (
     const char              *String,
     char                    **Terminator,
     UINT32                  Base);
 
 char *
-AcpiUtStrstr (
+strstr (
     char                    *String1,
     char                    *String2);
 
+int
+memcmp (
+    void                    *Buffer1,
+    void                    *Buffer2,
+    ACPI_SIZE               Count);
+
 void *
-AcpiUtMemcpy (
+memcpy (
     void                    *Dest,
     const void              *Src,
     ACPI_SIZE               Count);
 
 void *
-AcpiUtMemset (
+memset (
     void                    *Dest,
-    UINT8                   Value,
+    int                     Value,
     ACPI_SIZE               Count);
 
 int
-AcpiUtToUpper (
+toupper (
     int                     c);
 
 int
-AcpiUtToLower (
+tolower (
     int                     c);
+
+
 
 extern const UINT8 _acpi_ctype[];
 
@@ -343,13 +371,31 @@ extern const UINT8 _acpi_ctype[];
 #define _ACPI_UP     0x01    /* 'A'-'Z' */
 #define _ACPI_XD     0x80    /* '0'-'9', 'A'-'F', 'a'-'f' */
 
-#define ACPI_IS_DIGIT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
-#define ACPI_IS_SPACE(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
-#define ACPI_IS_XDIGIT(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
-#define ACPI_IS_UPPER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
-#define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
-#define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
-#define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
+#define isdigit(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
+#define isspace(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
+#define isxdigit(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
+#define isupper(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
+#define islower(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
+#define isprint(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
+#define isalpha(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
+
+#ifndef ACPI_CLIBRARY
+#define strstr(s1,s2)       strstr ((s1), (s2))
+#define strchr(s1,c)        strchr ((s1), (c))
+#define strlen(s)           (ACPI_SIZE) strlen ((s))
+#define strcpy(d,s)         (void) strcpy ((d), (s))
+#define strncpy(d,s,n)      (void) strncpy ((d), (s), (ACPI_SIZE)(n))
+#define strncmp(d,s,n)      strncmp ((d), (s), (ACPI_SIZE)(n))
+#define strcmp(d,s)         strcmp ((d), (s))
+#define strcat(d,s)         (void) strcat ((d), (s))
+#define strncat(d,s,n)      strncat ((d), (s), (ACPI_SIZE)(n))
+#define strtoul(d,s,n)      strtoul ((d), (s), (ACPI_SIZE)(n))
+#define memcmp(s1,s2,n)     memcmp((void *)(s1), (void *)(s2), (ACPI_SIZE)(n))
+#define memcpy(d,s,n)       (void) memcpy ((d), (s), (ACPI_SIZE)(n))
+#define memset(d,v,n)       (void) memset ((d), (v), (ACPI_SIZE)(n))
+#define toupper(c)          toupper ((int) (c))
+#define tolower(c)          tolower ((int) (c))
+#endif /* ACPI_CLIBRARY */
 
 #endif /* !ACPI_USE_SYSTEM_CLIBRARY */
 
@@ -601,6 +647,11 @@ ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
     ACPI_PNP_DEVICE_ID_LIST **ReturnCidList);
+
+ACPI_STATUS
+AcpiUtExecute_CLS (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 
 /*

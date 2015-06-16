@@ -164,7 +164,7 @@ AfInstallGpeBlock (
         return;
     }
 
-    ACPI_MEMSET (&BlockAddress, 0, sizeof (ACPI_GENERIC_ADDRESS));
+    memset (&BlockAddress, 0, sizeof (ACPI_GENERIC_ADDRESS));
     BlockAddress.SpaceId = ACPI_ADR_SPACE_SYSTEM_MEMORY;
     BlockAddress.Address = 0x76540000;
 

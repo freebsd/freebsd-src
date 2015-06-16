@@ -306,7 +306,6 @@ AsConvertFile (
     ACPI_STRING_TABLE       *StringTable;
     ACPI_IDENTIFIER_TABLE   *ConditionalTable;
     ACPI_IDENTIFIER_TABLE   *LineTable;
-    ACPI_IDENTIFIER_TABLE   *MacroTable;
     ACPI_TYPED_IDENTIFIER_TABLE *StructTable;
     ACPI_IDENTIFIER_TABLE   *SpecialMacroTable;
 
@@ -319,7 +318,6 @@ AsConvertFile (
         StringTable         = ConversionTable->SourceStringTable;
         LineTable           = ConversionTable->SourceLineTable;
         ConditionalTable    = ConversionTable->SourceConditionalTable;
-        MacroTable          = ConversionTable->SourceMacroTable;
         StructTable         = ConversionTable->SourceStructTable;
         SpecialMacroTable   = ConversionTable->SourceSpecialMacroTable;
        break;
@@ -330,7 +328,6 @@ AsConvertFile (
         StringTable         = ConversionTable->HeaderStringTable;
         LineTable           = ConversionTable->HeaderLineTable;
         ConditionalTable    = ConversionTable->HeaderConditionalTable;
-        MacroTable          = ConversionTable->HeaderMacroTable;
         StructTable         = ConversionTable->HeaderStructTable;
         SpecialMacroTable   = ConversionTable->HeaderSpecialMacroTable;
         break;
@@ -341,7 +338,6 @@ AsConvertFile (
         StringTable         = ConversionTable->PatchStringTable;
         LineTable           = ConversionTable->PatchLineTable;
         ConditionalTable    = ConversionTable->PatchConditionalTable;
-        MacroTable          = ConversionTable->PatchMacroTable;
         StructTable         = ConversionTable->PatchStructTable;
         SpecialMacroTable   = ConversionTable->PatchSpecialMacroTable;
         break;
@@ -400,6 +396,7 @@ AsConvertFile (
         }
     }
 
+#ifdef _OBSOLETE_FUNCTIONS
     if (MacroTable)
     {
         for (i = 0; MacroTable[i].Identifier; i++)
@@ -407,6 +404,7 @@ AsConvertFile (
             AsRemoveMacro (FileBuffer, MacroTable[i].Identifier);
         }
     }
+#endif
 
     if (StructTable)
     {

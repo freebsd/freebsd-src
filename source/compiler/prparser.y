@@ -48,6 +48,13 @@
 #define _COMPONENT          ASL_PREPROCESSOR
         ACPI_MODULE_NAME    ("prparser")
 
+void *                      AslLocalAllocate (unsigned int Size);
+
+/* Bison/yacc configuration */
+
+#undef alloca
+#define alloca              AslLocalAllocate
+
 int                         PrParserlex (void);
 int                         PrParserparse (void);
 void                        PrParsererror (char const *msg);
@@ -175,11 +182,11 @@ Expression
 
       /* Default base for a non-prefixed integer is 10 */
 
-    | EXPOP_NUMBER                                  { UtStrtoul64 (PrParsertext, 10, &$$);}
+    | EXPOP_NUMBER                                  { stroul64 (PrParsertext, 10, &$$);}
 
       /* Standard hex number (0x1234) */
 
-    | EXPOP_HEX_NUMBER                              { UtStrtoul64 (PrParsertext, 16, &$$);}
+    | EXPOP_HEX_NUMBER                              { stroul64 (PrParsertext, 16, &$$);}
     ;
 %%
 

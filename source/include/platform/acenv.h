@@ -349,27 +349,49 @@
 
 /* We will be linking to the standard Clib functions */
 
-#define ACPI_STRSTR(s1,s2)      strstr((s1), (s2))
-#define ACPI_STRCHR(s1,c)       strchr((s1), (c))
-#define ACPI_STRLEN(s)          (ACPI_SIZE) strlen((s))
-#define ACPI_STRCPY(d,s)        (void) strcpy((d), (s))
-#define ACPI_STRNCPY(d,s,n)     (void) strncpy((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRNCMP(d,s,n)     strncmp((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRCMP(d,s)        strcmp((d), (s))
-#define ACPI_STRCAT(d,s)        (void) strcat((d), (s))
-#define ACPI_STRNCAT(d,s,n)     strncat((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMCMP(s1,s2,n)    memcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (ACPI_SIZE)(n))
-#define ACPI_TOUPPER(i)         toupper((int) (i))
-#define ACPI_TOLOWER(i)         tolower((int) (i))
-#define ACPI_IS_XDIGIT(i)       isxdigit((int) (i))
-#define ACPI_IS_DIGIT(i)        isdigit((int) (i))
-#define ACPI_IS_SPACE(i)        isspace((int) (i))
-#define ACPI_IS_UPPER(i)        isupper((int) (i))
-#define ACPI_IS_PRINT(i)        isprint((int) (i))
-#define ACPI_IS_ALPHA(i)        isalpha((int) (i))
+#undef strstr
+#undef strchr
+#undef strlen
+#undef strcpy
+#undef strncpy
+#undef strncmp
+#undef strcmp
+#undef strcat
+#undef strncat
+#undef strtoul
+#undef memcmp
+#undef memcpy
+#undef memset
+#undef toupper
+#undef tolower
+#undef isxdigit
+#undef isdigit
+#undef isspace
+#undef isupper
+#undef isprint
+#undef isalpha
+
+#define strstr(s1,s2)       strstr((s1), (s2))
+#define strchr(s1,c)        strchr((s1), (c))
+#define strlen(s)           (ACPI_SIZE) strlen((s))
+#define strcpy(d,s)         (void) strcpy((d), (s))
+#define strncpy(d,s,n)      (void) strncpy((d), (s), (ACPI_SIZE)(n))
+#define strncmp(d,s,n)      strncmp((d), (s), (ACPI_SIZE)(n))
+#define strcmp(d,s)         strcmp((d), (s))
+#define strcat(d,s)         (void) strcat((d), (s))
+#define strncat(d,s,n)      strncat((d), (s), (ACPI_SIZE)(n))
+#define strtoul(d,s,n)      strtoul((d), (s), (ACPI_SIZE)(n))
+#define memcmp(s1,s2,n)     memcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
+#define memcpy(d,s,n)       (void) memcpy((d), (s), (ACPI_SIZE)(n))
+#define memset(d,s,n)       (void) memset((d), (s), (ACPI_SIZE)(n))
+#define toupper(i)          toupper((int) (i))
+#define tolower(i)          tolower((int) (i))
+#define isxdigit(i)         isxdigit((int) (i))
+#define isdigit(i)          isdigit((int) (i))
+#define isspace(i)          isspace((int) (i))
+#define isupper(i)          isupper((int) (i))
+#define isprint(i)          isprint((int) (i))
+#define isalpha(i)          isalpha((int) (i))
 
 #else
 
@@ -407,22 +429,6 @@ typedef char *va_list;
 #endif /* va_arg */
 
 /* Use the local (ACPICA) definitions of the clib functions */
-
-#define ACPI_STRSTR(s1,s2)      AcpiUtStrstr ((s1), (s2))
-#define ACPI_STRCHR(s1,c)       AcpiUtStrchr ((s1), (c))
-#define ACPI_STRLEN(s)          (ACPI_SIZE) AcpiUtStrlen ((s))
-#define ACPI_STRCPY(d,s)        (void) AcpiUtStrcpy ((d), (s))
-#define ACPI_STRNCPY(d,s,n)     (void) AcpiUtStrncpy ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRNCMP(d,s,n)     AcpiUtStrncmp ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRCMP(d,s)        AcpiUtStrcmp ((d), (s))
-#define ACPI_STRCAT(d,s)        (void) AcpiUtStrcat ((d), (s))
-#define ACPI_STRNCAT(d,s,n)     AcpiUtStrncat ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRTOUL(d,s,n)     AcpiUtStrtoul ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMCMP(s1,s2,n)    AcpiUtMemcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) AcpiUtMemcpy ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMSET(d,v,n)      (void) AcpiUtMemset ((d), (v), (ACPI_SIZE)(n))
-#define ACPI_TOUPPER(c)         AcpiUtToUpper ((int) (c))
-#define ACPI_TOLOWER(c)         AcpiUtToLower ((int) (c))
 
 #endif /* ACPI_USE_SYSTEM_CLIBRARY */
 

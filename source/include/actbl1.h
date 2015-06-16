@@ -974,9 +974,21 @@ typedef struct acpi_madt_generic_distributor
     UINT64                  BaseAddress;
     UINT32                  GlobalIrqBase;
     UINT8                   Version;
-    UINT8                   Reserved2[3];          /* Reserved - must be zero */
+    UINT8                   Reserved2[3];       /* Reserved - must be zero */
 
 } ACPI_MADT_GENERIC_DISTRIBUTOR;
+
+/* Values for Version field above */
+
+enum AcpiMadtGicVersion
+{
+    ACPI_MADT_GIC_VERSION_NONE          = 0,
+    ACPI_MADT_GIC_VERSION_V1            = 1,
+    ACPI_MADT_GIC_VERSION_V2            = 2,
+    ACPI_MADT_GIC_VERSION_V3            = 3,
+    ACPI_MADT_GIC_VERSION_V4            = 4,
+    ACPI_MADT_GIC_VERSION_RESERVED      = 5     /* 5 and greater are reserved */
+};
 
 
 /* 13: Generic MSI Frame (ACPI 5.1) */

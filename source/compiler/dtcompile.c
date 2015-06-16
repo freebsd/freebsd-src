@@ -302,7 +302,7 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
-    Gbl_Signature = UtStringCacheCalloc (ACPI_STRLEN (Signature) + 1);
+    Gbl_Signature = UtStringCacheCalloc (strlen (Signature) + 1);
     strcpy (Gbl_Signature, Signature);
 
     /*
@@ -358,6 +358,8 @@ DtCompileDataTable (
     TableData = AcpiDmGetTableData (Signature);
     if (!TableData || Gbl_CompileGeneric)
     {
+        /* Unknown table signature and/or force generic compile */
+
         DtCompileGeneric ((void **) FieldList, NULL, NULL);
         goto FinishHeader;
     }
@@ -454,7 +456,7 @@ DtCompileTable (
     /* Ignore optional subtable if name does not match */
 
     if ((Info->Flags & DT_OPTIONAL) &&
-        ACPI_STRCMP ((*Field)->Name, Info->Name))
+        strcmp ((*Field)->Name, Info->Name))
     {
         *RetSubtable = NULL;
         return (AE_OK);
@@ -591,7 +593,7 @@ DtCompileTable (
 
             DtSetSubtableLength (InlineSubtable);
 
-            ACPI_MEMCPY (Buffer, InlineSubtable->Buffer, FieldLength);
+            memcpy (Buffer, InlineSubtable->Buffer, FieldLength);
             LocalField = *Field;
             break;
 

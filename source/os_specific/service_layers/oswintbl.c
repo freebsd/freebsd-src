@@ -238,7 +238,7 @@ AcpiOsGetTableByName (
 
     while (1)
     {
-        ACPI_STRCPY (KeyBuffer, "HARDWARE\\ACPI\\");
+        strcpy (KeyBuffer, "HARDWARE\\ACPI\\");
         if (AcpiUtSafeStrcat (KeyBuffer, sizeof (KeyBuffer), Signature))
         {
             return (AE_BUFFER_OVERFLOW);

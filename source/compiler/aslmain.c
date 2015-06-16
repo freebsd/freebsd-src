@@ -261,7 +261,7 @@ AslSignalHandler (
 
     /* Close all open files */
 
-    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .pre file is same as source file */
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {
