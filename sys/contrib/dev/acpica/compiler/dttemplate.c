@@ -59,7 +59,7 @@ AcpiUtIsSpecialTable (
 static ACPI_STATUS
 DtCreateOneTemplate (
     char                    *Signature,
-    ACPI_DMTABLE_DATA       *TableData);
+    const ACPI_DMTABLE_DATA *TableData);
 
 static ACPI_STATUS
 DtCreateAllTemplates (
@@ -112,7 +112,7 @@ ACPI_STATUS
 DtCreateTemplates (
     char                    *Signature)
 {
-    ACPI_DMTABLE_DATA       *TableData;
+    const ACPI_DMTABLE_DATA *TableData;
     ACPI_STATUS             Status;
 
 
@@ -213,7 +213,7 @@ static ACPI_STATUS
 DtCreateAllTemplates (
     void)
 {
-    ACPI_DMTABLE_DATA       *TableData;
+    const ACPI_DMTABLE_DATA *TableData;
     ACPI_STATUS             Status;
 
 
@@ -292,7 +292,7 @@ DtCreateAllTemplates (
 static ACPI_STATUS
 DtCreateOneTemplate (
     char                    *Signature,
-    ACPI_DMTABLE_DATA       *TableData)
+    const ACPI_DMTABLE_DATA  *TableData)
 {
     char                    *DisasmFilename;
     FILE                    *File;

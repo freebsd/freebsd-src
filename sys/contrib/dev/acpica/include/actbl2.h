@@ -71,6 +71,7 @@
 #define ACPI_SIG_DMAR           "DMAR"      /* DMA Remapping table */
 #define ACPI_SIG_HPET           "HPET"      /* High Precision Event Timer table */
 #define ACPI_SIG_IBFT           "IBFT"      /* iSCSI Boot Firmware Table */
+#define ACPI_SIG_IORT           "IORT"      /* IO Remapping Table */
 #define ACPI_SIG_IVRS           "IVRS"      /* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_LPIT           "LPIT"      /* Low Power Idle Table */
 #define ACPI_SIG_MCFG           "MCFG"      /* PCI Memory Mapped Configuration table */
@@ -752,6 +753,156 @@ typedef struct acpi_ibft_target
 
 /*******************************************************************************
  *
+ * IORT - IO Remapping Table
+ *
+ * Conforms to "IO Remapping Table System Software on ARM Platforms",
+ * Document number: ARM DEN 0049A, 2015
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_iort
+{
+    ACPI_TABLE_HEADER       Header;
+    UINT32                  NodeCount;
+    UINT32                  NodeOffset;
+    UINT32                  Reserved;
+
+} ACPI_TABLE_IORT;
+
+
+/*
+ * IORT subtables
+ */
+typedef struct acpi_iort_node
+{
+    UINT8                   Type;
+    UINT16                  Length;
+    UINT8                   Revision;
+    UINT32                  Reserved;
+    UINT32                  MappingCount;
+    UINT32                  MappingOffset;
+    char                    NodeData[1];
+
+} ACPI_IORT_NODE;
+
+/* Values for subtable Type above */
+
+enum AcpiIortNodeType
+{
+    ACPI_IORT_NODE_ITS_GROUP            = 0x00,
+    ACPI_IORT_NODE_NAMED_COMPONENT      = 0x01,
+    ACPI_IORT_NODE_PCI_ROOT_COMPLEX     = 0x02,
+    ACPI_IORT_NODE_SMMU                 = 0x03
+};
+
+
+typedef struct acpi_iort_id_mapping
+{
+    UINT32                  InputBase;          /* Lowest value in input range */
+    UINT32                  IdCount;            /* Number of IDs */
+    UINT32                  OutputBase;         /* Lowest value in output range */
+    UINT32                  OutputReference;    /* A reference to the output node */
+    UINT32                  Flags;
+
+} ACPI_IORT_ID_MAPPING;
+
+/* Masks for Flags field above for IORT subtable */
+
+#define ACPI_IORT_ID_SINGLE_MAPPING (1)
+
+
+typedef struct acpi_iort_memory_access
+{
+    UINT32                  CacheCoherency;
+    UINT8                   Hints;
+    UINT16                  Reserved;
+    UINT8                   MemoryFlags;
+
+} ACPI_IORT_MEMORY_ACCESS;
+
+/* Values for CacheCoherency field above */
+
+#define ACPI_IORT_NODE_COHERENT         0x00000001  /* The device node is fully coherent */
+#define ACPI_IORT_NODE_NOT_COHERENT     0x00000000  /* The device node is not coherent */
+
+/* Masks for Hints field above */
+
+#define ACPI_IORT_HT_TRANSIENT          (1)
+#define ACPI_IORT_HT_WRITE              (1<<1)
+#define ACPI_IORT_HT_READ               (1<<2)
+#define ACPI_IORT_HT_OVERRIDE           (1<<3)
+
+/* Masks for MemoryFlags field above */
+
+#define ACPI_IORT_MF_COHERENCY          (1)
+#define ACPI_IORT_MF_ATTRIBUTES         (1<<1)
+
+
+/*
+ * IORT node specific subtables
+ */
+typedef struct acpi_iort_its_group
+{
+    UINT32                  ItsCount;
+    UINT32                  Identifiers[1];         /* GIC ITS identifier arrary */
+
+} ACPI_IORT_ITS_GROUP;
+
+
+typedef struct acpi_iort_named_component
+{
+    UINT32                  NodeFlags;
+    UINT64                  MemoryProperties;       /* Memory access properties */
+    UINT8                   MemoryAddressLimit;     /* Memory address size limit */
+    char                    DeviceName[1];          /* Path of namespace object */
+
+} ACPI_IORT_NAMED_COMPONENT;
+
+
+typedef struct acpi_iort_root_complex
+{
+    UINT64                  MemoryProperties;       /* Memory access properties */
+    UINT32                  AtsAttribute;
+    UINT32                  PciSegmentNumber;
+
+} ACPI_IORT_ROOT_COMPLEX;
+
+/* Values for AtsAttribute field above */
+
+#define ACPI_IORT_ATS_SUPPORTED         0x00000001  /* The root complex supports ATS */
+#define ACPI_IORT_ATS_UNSUPPORTED       0x00000000  /* The root complex doesn't support ATS */
+
+
+typedef struct acpi_iort_smmu
+{
+    UINT64                  BaseAddress;            /* SMMU base address */
+    UINT64                  Span;                   /* Length of memory range */
+    UINT32                  Model;
+    UINT32                  Flags;
+    UINT32                  GlobalInterruptOffset;
+    UINT32                  ContextInterruptCount;
+    UINT32                  ContextInterruptOffset;
+    UINT32                  PmuInterruptCount;
+    UINT32                  PmuInterruptOffset;
+    UINT64                  Interrupts[1];          /* Interrupt array */
+
+} ACPI_IORT_SMMU;
+
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V1               0x00000000  /* Generic SMMUv1 */
+#define ACPI_IORT_SMMU_V2               0x00000001  /* Generic SMMUv2 */
+#define ACPI_IORT_SMMU_CORELINK_MMU400  0x00000002  /* ARM Corelink MMU-400 */
+#define ACPI_IORT_SMMU_CORELINK_MMU500  0x00000003  /* ARM Corelink MMU-500 */
+
+/* Masks for Flags field above */
+
+#define ACPI_IORT_SMMU_DVM_SUPPORTED    (1)
+#define ACPI_IORT_SMMU_COHERENT_WALK    (1<<1)
+
+
+/*******************************************************************************
+ *
  * IVRS - I/O Virtualization Reporting Structure
  *        Version 1
  *
@@ -952,7 +1103,7 @@ typedef struct acpi_ivrs_memory
  *
  * LPIT - Low Power Idle Table
  *
- * Conforms to "ACPI Low Power Idle Table (LPIT) and _LPD Proposal (DRAFT)"
+ * Conforms to "ACPI Low Power Idle Table (LPIT)" July 2014.
  *
  ******************************************************************************/
 
@@ -980,8 +1131,7 @@ typedef struct acpi_lpit_header
 enum AcpiLpitType
 {
     ACPI_LPIT_TYPE_NATIVE_CSTATE    = 0x00,
-    ACPI_LPIT_TYPE_SIMPLE_IO        = 0x01,
-    ACPI_LPIT_TYPE_RESERVED         = 0x02      /* 2 and above are reserved */
+    ACPI_LPIT_TYPE_RESERVED         = 0x01      /* 1 and above are reserved */
 };
 
 /* Masks for Flags field above  */
@@ -1005,24 +1155,6 @@ typedef struct acpi_lpit_native
     UINT64                  CounterFrequency;
 
 } ACPI_LPIT_NATIVE;
-
-
-/* 0x01: Simple I/O based LPI structure */
-
-typedef struct acpi_lpit_io
-{
-    ACPI_LPIT_HEADER        Header;
-    ACPI_GENERIC_ADDRESS    EntryTrigger;
-    UINT32                  TriggerAction;
-    UINT64                  TriggerValue;
-    UINT64                  TriggerMask;
-    ACPI_GENERIC_ADDRESS    MinimumIdleState;
-    UINT32                  Residency;
-    UINT32                  Latency;
-    ACPI_GENERIC_ADDRESS    ResidencyCounter;
-    UINT64                  CounterFrequency;
-
-} ACPI_LPIT_IO;
 
 
 /*******************************************************************************
