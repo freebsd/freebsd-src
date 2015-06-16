@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150615:
+	The fix for the issue described in the 20150614 sendmail entry
+	below has been been committed in revision 284436.  The work
+	around described in that entry is no longer needed unless the
+	default setting is overridden by a confDH_PARAMETERS configuration
+	setting of '5' or pointing to a 512 bit DH parameter file.
+
 20150614:
 	ALLOW_DEPRECATED_ATF_TOOLS/ATFFILE support has been removed from
 	atf.test.mk (included from bsd.test.mk). Please upgrade devel/atf
