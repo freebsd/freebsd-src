@@ -261,11 +261,6 @@ AsRemoveLine (
     char                    *Keyword);
 
 void
-AsRemoveMacro (
-    char                    *Buffer,
-    char                    *Keyword);
-
-void
 AsCheckForBraces (
     char                    *Buffer,
     char                    *Filename);

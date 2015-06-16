@@ -129,7 +129,7 @@ DtTrim (
 
     /* Skip lines that start with a space */
 
-    if (!ACPI_STRCMP (String, " "))
+    if (!strcmp (String, " "))
     {
         ReturnString = UtStringCacheCalloc (1);
         return (ReturnString);
@@ -138,7 +138,7 @@ DtTrim (
     /* Setup pointers to start and end of input string */
 
     Start = String;
-    End = String + ACPI_STRLEN (String) - 1;
+    End = String + strlen (String) - 1;
 
     /* Find first non-whitespace character */
 
@@ -180,9 +180,9 @@ DtTrim (
 
     Length = ACPI_PTR_DIFF (End, Start) + 1;
     ReturnString = UtStringCacheCalloc (Length + 1);
-    if (ACPI_STRLEN (Start))
+    if (strlen (Start))
     {
-        ACPI_STRNCPY (ReturnString, Start, Length);
+        strncpy (ReturnString, Start, Length);
     }
 
     ReturnString[Length] = 0;
@@ -313,7 +313,7 @@ DtParseLine (
     Length = ACPI_PTR_DIFF (End, Start);
 
     TmpName = UtLocalCalloc (Length + 1);
-    ACPI_STRNCPY (TmpName, Start, Length);
+    strncpy (TmpName, Start, Length);
     Name = DtTrim (TmpName);
     ACPI_FREE (TmpName);
 
@@ -360,7 +360,7 @@ DtParseLine (
     Length = ACPI_PTR_DIFF (End, Start);
     TmpValue = UtLocalCalloc (Length + 1);
 
-    ACPI_STRNCPY (TmpValue, Start, Length);
+    strncpy (TmpValue, Start, Length);
     Value = DtTrim (TmpValue);
     ACPI_FREE (TmpValue);
 
@@ -415,7 +415,7 @@ DtGetNextLine (
     int                     c;
 
 
-    ACPI_MEMSET (Gbl_CurrentLineBuffer, 0, Gbl_LineBufferSize);
+    memset (Gbl_CurrentLineBuffer, 0, Gbl_LineBufferSize);
     for (i = 0; ;)
     {
         /*
@@ -897,7 +897,7 @@ DtDumpBuffer (
             }
 
             BufChar = Buffer[(ACPI_SIZE) i + j];
-            if (ACPI_IS_PRINT (BufChar))
+            if (isprint (BufChar))
             {
                 FlPrintFile (FileId, "%c", BufChar);
             }

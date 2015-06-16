@@ -720,14 +720,6 @@ ACPI_IDENTIFIER_TABLE       LinuxAddStruct[] = {
 };
 
 
-ACPI_IDENTIFIER_TABLE       LinuxEliminateMacros[] = {
-
-    {"ACPI_GET_ADDRESS"},
-    {"ACPI_VALID_ADDRESS"},
-    {NULL}
-};
-
-
 ACPI_IDENTIFIER_TABLE       LinuxEliminateLines_C[] = {
 
     {"#define __"},
@@ -809,7 +801,7 @@ ACPI_CONVERSION_TABLE       LinuxConversionTable = {
     LinuxDataTypes,
     LinuxEliminateLines_C,
     NULL,
-    LinuxEliminateMacros,
+    NULL,
     AcpiIdentifiers,
     NULL,
     (CVT_COUNT_TABS | CVT_COUNT_NON_ANSI_COMMENTS | CVT_COUNT_LINES |

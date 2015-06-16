@@ -185,7 +185,7 @@ AcpiOsGetTableByAddress (
         goto Exit;
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
+    memcpy (LocalTable, MappedTable, TableLength);
 
 Exit:
     OslUnmapTable (MappedTable);
@@ -456,7 +456,7 @@ OslLoadRsdp (
 
     Gbl_RsdpAddress = RsdpBase + (ACPI_CAST8 (MappedTable) - RsdpAddress);
 
-    ACPI_MEMCPY (&Gbl_Rsdp, MappedTable, sizeof (ACPI_TABLE_RSDP));
+    memcpy (&Gbl_Rsdp, MappedTable, sizeof (ACPI_TABLE_RSDP));
     AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
 
     return (AE_OK);
@@ -911,7 +911,7 @@ OslGetTable (
         goto Exit;
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
+    memcpy (LocalTable, MappedTable, TableLength);
     *Address = TableAddress;
     *Table = LocalTable;
 

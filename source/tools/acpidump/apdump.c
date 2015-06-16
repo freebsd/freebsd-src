@@ -375,7 +375,7 @@ ApDumpTableByName (
     int                     TableStatus;
 
 
-    if (ACPI_STRLEN (Signature) != ACPI_NAME_SIZE)
+    if (strlen (Signature) != ACPI_NAME_SIZE)
     {
         AcpiLogError (
             "Invalid table signature [%s]: must be exactly 4 characters\n",
@@ -385,18 +385,18 @@ ApDumpTableByName (
 
     /* Table signatures are expected to be uppercase */
 
-    ACPI_STRCPY (LocalSignature, Signature);
+    strcpy (LocalSignature, Signature);
     AcpiUtStrupr (LocalSignature);
 
     /* To be friendly, handle tables whose signatures do not match the name */
 
     if (ACPI_COMPARE_NAME (LocalSignature, "FADT"))
     {
-        ACPI_STRCPY (LocalSignature, ACPI_SIG_FADT);
+        strcpy (LocalSignature, ACPI_SIG_FADT);
     }
     else if (ACPI_COMPARE_NAME (LocalSignature, "MADT"))
     {
-        ACPI_STRCPY (LocalSignature, ACPI_SIG_MADT);
+        strcpy (LocalSignature, ACPI_SIG_MADT);
     }
 
     /* Dump all instances of this signature (to handle multiple SSDTs) */

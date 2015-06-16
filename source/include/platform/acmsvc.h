@@ -44,6 +44,7 @@
 #ifndef __ACMSVC_H__
 #define __ACMSVC_H__
 
+/* Note: do not include any C library headers here */
 
 /*
  * Map low I/O functions for MS. This allows us to disable MS language
@@ -152,8 +153,6 @@
 #ifdef _DEBUG
 #define _CRTDBG_MAP_ALLOC /* Enables specific file/lineno for leaks */
 
-#include <stdlib.h>
-#include <malloc.h>
 #include <crtdbg.h>
 
 /*
@@ -183,6 +182,11 @@ Dumping objects ->
 _CrtSetBreakAlloc (937);
 #endif
 
+#endif
+
+#if _MSC_VER > 1200 /* Versions above VC++ 6 */
+#define COMPILER_VA_MACRO               1
+#else
 #endif
 
 #endif /* __ACMSVC_H__ */

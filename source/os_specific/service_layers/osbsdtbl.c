@@ -171,7 +171,7 @@ AcpiOsGetTableByAddress (
         return (AE_NO_MEMORY);
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, MappedTable->Length);
+    memcpy (LocalTable, MappedTable, MappedTable->Length);
     AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
 
     *Table = LocalTable;
@@ -405,7 +405,7 @@ OslTableInitialize (
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     else if (kenv (KENV_GET, SYSTEM_KENV, Buffer, sizeof (Buffer)) > 0)
     {
-        Address = ACPI_STRTOUL (Buffer, NULL, 0);
+        Address = strtoul (Buffer, NULL, 0);
     }
 #endif
     if (!Address)
@@ -443,7 +443,7 @@ OslTableInitialize (
         return (AE_ERROR);
     }
 
-    ACPI_MEMCPY (&Gbl_Rsdp, TableAddress, sizeof (Gbl_Rsdp));
+    memcpy (&Gbl_Rsdp, TableAddress, sizeof (Gbl_Rsdp));
     AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
 
     /* Get XSDT from memory */
@@ -468,7 +468,7 @@ OslTableInitialize (
             return (AE_NO_MEMORY);
         }
 
-        ACPI_MEMCPY (Gbl_Xsdt, MappedTable, MappedTable->Length);
+        memcpy (Gbl_Xsdt, MappedTable, MappedTable->Length);
         AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
     }
 
@@ -493,7 +493,7 @@ OslTableInitialize (
             return (AE_NO_MEMORY);
         }
 
-        ACPI_MEMCPY (Gbl_Rsdt, MappedTable, MappedTable->Length);
+        memcpy (Gbl_Rsdt, MappedTable, MappedTable->Length);
         AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
     }
 
@@ -530,7 +530,7 @@ OslTableInitialize (
         return (AE_NO_MEMORY);
     }
 
-    ACPI_MEMCPY (Gbl_Fadt, MappedTable, MappedTable->Length);
+    memcpy (Gbl_Fadt, MappedTable, MappedTable->Length);
     AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
     Gbl_MainTableObtained = TRUE;
     return (AE_OK);
@@ -692,7 +692,7 @@ OslGetTableViaRoot (
         return (AE_NO_MEMORY);
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, MappedTable->Length);
+    memcpy (LocalTable, MappedTable, MappedTable->Length);
     AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
     *Table = LocalTable;
     *Address = TableAddress;

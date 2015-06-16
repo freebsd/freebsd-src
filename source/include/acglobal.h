@@ -62,6 +62,8 @@ ACPI_GLOBAL (ACPI_TABLE_HEADER,         AcpiGbl_OriginalDsdtHeader);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_FACS);
+ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_Facs32);
+ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_Facs64);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 

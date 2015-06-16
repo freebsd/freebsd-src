@@ -397,7 +397,7 @@ AhDecodeAmlOpcode (
         return;
     }
 
-    Opcode = ACPI_STRTOUL (OpcodeString, NULL, 16);
+    Opcode = strtoul (OpcodeString, NULL, 16);
     if (Opcode > ACPI_UINT16_MAX)
     {
         printf ("Invalid opcode (more than 16 bits)\n");
@@ -1025,7 +1025,7 @@ AhDecodeException (
 
     /* Decode a single user-supplied exception code */
 
-    Status = ACPI_STRTOUL (HexString, NULL, 16);
+    Status = strtoul (HexString, NULL, 16);
     if (!Status)
     {
         printf ("%s: Invalid hexadecimal exception code value\n", HexString);

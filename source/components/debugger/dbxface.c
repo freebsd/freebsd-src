@@ -431,7 +431,7 @@ AcpiDbInitialize (
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
-    ACPI_MEMSET (AcpiGbl_DbBuffer, 0, ACPI_DEBUG_BUFFER_SIZE);
+    memset (AcpiGbl_DbBuffer, 0, ACPI_DEBUG_BUFFER_SIZE);
 
     /* Initial scope is the root */
 

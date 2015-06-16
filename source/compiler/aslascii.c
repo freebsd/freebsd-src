@@ -226,7 +226,7 @@ FlCheckForAscii (
 
         /* Ensure character is either printable or a "space" char */
 
-        else if (!ACPI_IS_PRINT (Byte) && !ACPI_IS_SPACE (Byte))
+        else if (!isprint (Byte) && !isspace (Byte))
         {
             if ((BadBytes < 10) && (DisplayErrors))
             {
