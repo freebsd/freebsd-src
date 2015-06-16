@@ -1,0 +1,14 @@
+name = "FreeBSD-unbound"
+origin = "base"
+version = "%VERSION%"
+comment = "Validating, recursive, and caching DNS resolver"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD4CLAUSE ]
+desc = <<EOD
+Unbound is a recursive-only caching DNS server which can perform DNSSEC
+validation of results
+EOD

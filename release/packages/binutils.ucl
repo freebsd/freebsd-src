@@ -1,0 +1,13 @@
+name = "FreeBSD-binutils"
+origin = "base"
+version = "%VERSION%"
+comment = "GNU binutils"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ GPLv2 ]
+desc = <<EOD
+TODO
+EOD
