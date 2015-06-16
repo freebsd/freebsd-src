@@ -9,6 +9,8 @@ DPADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 LDADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
+PACKAGE=	clang
+
 DPADD+=	${LIBNCURSESW}
 LDADD+=	-lncursesw
 
