@@ -298,6 +298,19 @@
 .Op Fl T Ar res_type
 .Op Fl U
 .Nm
+.Ic attrib
+.Op device id
+.Op generic args
+.Aq Fl r Ar action | Fl w Ar attrib
+.Op Fl a Ar attr_num
+.Op Fl c
+.Op Fl e Ar elem_addr
+.Op Fl F Ar form1,form2
+.Op Fl p Ar part
+.Op Fl s Ar start_addr
+.Op Fl T Ar elem_type
+.Op Fl V Ar lv_num
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -1823,6 +1836,129 @@ Register and Move request.
 This option only applies to the Register and Move service action of the
 Persistent Reserve Out command.
 .El
+.It Ic attrib
+Issue the
+.Tn SCSI
+READ or WRITE ATTRIBUTE commands.
+These commands are used to read and write attributes in Medium Auxiliary
+Memory (MAM).
+The most common place Medium Auxiliary Memory is found is small flash chips
+included tape cartriges.
+For instance,
+.Tn LTO
+tapes have MAM.
+Either the
+.Fl r 
+option or the
+.Fl w 
+option must be specified.
+.Bl -tag -width 14n
+.It Fl r Ar action
+Specify the READ ATTRIBUTE service action.
+.Bl -tag -width 11n
+.It attr_values
+Issue the ATTRIBUTE VALUES service action.
+Read and decode the available attributes and their values.
+.It attr_list
+Issue the ATTRIBUTE LIST service action.
+List the attributes that are available to read and write.
+.It lv_list
+Issue the LOGICAL VOLUME LIST service action.
+List the available logical volumes in the MAM.
+.It part_list
+Issue the PARTITION LIST service action.
+List the available partitions in the MAM.
+.It supp_attr
+Issue the SUPPORTED ATTRIBUTES service action.
+List attributes that are supported for reading or writing.
+These attributes may or may not be currently present in the MAM.
+.El
+.It Fl w Ar attr
+Specify an attribute to write to the MAM.
+This option is not yet implemented.
+.It Fl a Ar num
+Specify the attribute number to display.
+This option only works with the attr_values, attr_list and supp_attr
+arguments to 
+.Fl r .
+.It Fl c
+Display cached attributes.
+If the device supports this flag, it allows displaying attributes for the
+last piece of media loaded in the drive.
+.It Fl e Ar num
+Specify the element address.
+This is used for specifying which element number in a medium changer to
+access when reading attributes.
+The element number could be for a picker, portal, slot or drive.
+.It Fl F Ar form1,form2
+Specify the output format for the attribute values (attr_val) display as a
+comma separated list of options.
+The default output is currently set to field_all,nonascii_trim,text_raw.
+Once this code is ported to FreeBSD 10, any text fields will be converted
+from their codeset to the user's native codeset with 
+.Xr iconv 3 .
+.Pp
+The text options are mutually exclusive; if you specify more than one, you
+will get unpredictable results.
+The nonascii options are also mutually exclusive.
+Most of the field options may be logically ORed together.
+.Bl -tag -width 12n
+.It text_esc
+Print text fields with non-ASCII characters escaped.
+.It text_raw
+Print text fields natively, with no codeset conversion.
+.It nonascii_esc
+If any non-ASCII characters occur in fields that are supposed to be ASCII,
+escape the non-ASCII characters.
+.It nonascii_trim
+If any non-ASCII characters occur in fields that are supposed to be ASCII,
+omit the non-ASCII characters.
+.It nonascii_raw
+If any non-ASCII characters occur in fields that are supposed to be ASCII,
+print them as they are.
+.It field_all
+Print all of the prefix fields: description, attribute number, attribute
+size, and the attribute's readonly status.
+If field_all is specified, specifying any other field options will not have
+an effect.
+.It field_none
+Print none of the prefix fields, and only print out the attribute value.
+If field_none is specified, specifying any other field options will result
+in those fields being printed.
+.It field_desc
+Print out the attribute description.
+.It field_num
+Print out the attribute number.
+.It field_size
+Print out the attribute size.
+.It field_rw
+Print out the attribute's readonly status.
+.El
+.It Fl p Ar part
+Specify the partition.
+When the media has multiple partitions, specifying different partition
+numbers allows seeing the values for each individual partition.
+.It Fl s Ar start_num
+Specify the starting attribute number.
+This requests that the target device return attribute information starting
+at the given number.
+.It Fl T Ar elem_type
+Specify the element type.
+For medium changer devices, this allows specifying the type the element
+referenced in the element address (
+.Fl e ) .
+Valid types are:
+.Dq all ,
+.Dq picker ,
+.Dq slot ,
+.Dq portal ,
+and
+.Dq drive .
+.El
+.It Fl V Ar vol_num
+Specify the number of the logical volume to operate on.
+If the media has multiple logical volumes, this will allow displaying
+or writing attributes on the given logical volume.
 .It Ic help
 Print out verbose usage information.
 .El
@@ -2049,6 +2185,15 @@ current initiator will be unregistered from the target.
 The reservation will be moved to relative target port 2 on the target
 device.
 The registration will persist across power losses.
+.Pp
+.Bd -literal -offset indent
+camcontrol attrib sa0 -v -i attr_values -p 1
+.Ed
+.Pp
+This will read and decode the attribute values from partition 1 on the tape
+in tape drive sa0, and will display any
+.Tn SCSI
+errors that result.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

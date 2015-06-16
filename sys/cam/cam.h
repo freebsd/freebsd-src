@@ -346,6 +346,15 @@ typedef enum {
 	CAM_EAF_PRINT_RESULT	= 0x20
 } cam_error_ata_flags;
 
+typedef enum {
+	CAM_STRVIS_FLAG_NONE		= 0x00,
+	CAM_STRVIS_FLAG_NONASCII_MASK	= 0x03,
+	CAM_STRVIS_FLAG_NONASCII_TRIM	= 0x00,
+	CAM_STRVIS_FLAG_NONASCII_RAW	= 0x01,
+	CAM_STRVIS_FLAG_NONASCII_SPC	= 0x02,
+	CAM_STRVIS_FLAG_NONASCII_ESC	= 0x03
+} cam_strvis_flags;
+
 struct cam_status_entry
 {
 	cam_status  status_code;
@@ -358,6 +367,7 @@ extern const int num_cam_status_entries;
 extern int cam_sort_io_queues;
 #endif
 union ccb;
+struct sbuf;
 
 #ifdef SYSCTL_DECL	/* from sysctl.h */
 SYSCTL_DECL(_kern_cam);
@@ -370,6 +380,8 @@ caddr_t	cam_quirkmatch(caddr_t target, caddr_t quirk_table, int num_entries,
 		       int entry_size, cam_quirkmatch_t *comp_func);
 
 void	cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen);
+void	cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
+			uint32_t flags);
 
 int	cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len);
 const struct cam_status_entry*
