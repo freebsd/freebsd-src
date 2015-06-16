@@ -650,7 +650,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	**  1024	generate 1024 bit parameters
 	**  2048	generate 2048 bit parameters
 	**  /file/name	read parameters from /file/name
-	**  default is: 1024 for server, 512 for client (OK? XXX)
+	**  default is: 1024
 	*/
 
 	if (bitset(TLS_I_TRY_DH, req))
@@ -676,8 +676,8 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		}
 		if (dhparam == NULL)
 		{
-			dhparam = srv ? "1" : "5";
-			req |= (srv ? TLS_I_DH1024 : TLS_I_DH512);
+			dhparam = "1";
+			req |= TLS_I_DH1024;
 		}
 		else if (*dhparam == '/')
 		{
