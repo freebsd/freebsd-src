@@ -338,7 +338,7 @@ libgcc_eh.a:	${EH_OBJS_T}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
-all:	libgcc_eh.a
+_LIBS+= libgcc_eh.a
 
 .if ${MK_PROFILE} != "no"
 libgcc_eh_p.a:	${EH_OBJS_P}
@@ -346,7 +346,8 @@ libgcc_eh_p.a:	${EH_OBJS_P}
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
-all:	libgcc_eh_p.a
+
+_LIBS+= libgcc_eh_p.a
 .endif
 
 _libinstall: _lib-eh-install
