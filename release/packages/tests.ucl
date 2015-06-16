@@ -1,0 +1,13 @@
+name = "FreeBSD-tests"
+origin = "base"
+version = "%VERSION%"
+comment = "%COMMENT%"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+%DESC%
+EOD
