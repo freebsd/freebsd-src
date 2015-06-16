@@ -1,0 +1,13 @@
+name = "FreeBSD-clang"
+origin = "base"
+version = "%VERSION%"
+comment = "Clang compiler tools"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+TODO
+EOD
