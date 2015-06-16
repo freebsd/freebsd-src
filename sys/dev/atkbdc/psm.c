@@ -5102,7 +5102,7 @@ enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 	id = read_aux_data(kbdc);
 	if (id < 0x01)
 		return (FALSE);
-	if (sc != NULL)
+	if (arg == PROBE)
 		sc->tphw = id;
 	if (!trackpoint_support)
 		return (FALSE);
