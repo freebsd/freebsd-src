@@ -444,6 +444,7 @@ universe_${target}_worlds:
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}: universe_${target}_${target_arch}
 universe_${target}_worlds: universe_${target}_${target_arch}
+universe_${target}_done: universe_${target}_worlds
 universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
@@ -460,6 +461,7 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 
 .if !defined(MAKE_JUST_WORLDS)
 universe_${target}: universe_${target}_kernels
+universe_${target}_done: universe_${target}_kernels
 universe_${target}_kernels: universe_${target}_worlds
 universe_${target}_kernels: universe_${target}_prologue .MAKE
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
@@ -471,6 +473,10 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE
 	@cd ${.CURDIR} && ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
 .endif # !MAKE_JUST_WORLDS
+
+# Tell the user the worlds and kernels have completed
+universe_${target}: universe_${target}_done
+universe_${target}_done:
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe_kernels: universe_kernconfs
