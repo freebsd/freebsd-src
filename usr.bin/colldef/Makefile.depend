@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	usr.bin/lex/lib \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

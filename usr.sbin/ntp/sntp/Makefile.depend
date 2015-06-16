@@ -10,11 +10,9 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libmd \
 	lib/libthr \
 	lib/msun \
 	secure/lib/libcrypto \
-	secure/lib/libssl \
 	usr.sbin/ntp/libntp \
 	usr.sbin/ntp/libntpevent \
 	usr.sbin/ntp/libopts \

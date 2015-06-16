@@ -8,6 +8,7 @@ DIRDEPS = \
 	include/rpcsvc \
 	lib/${CSU_DIR} \
 	lib/libcompiler_rt \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

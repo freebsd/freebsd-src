@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libohash \
 	lib/libsqlite3 \
 	lib/libthr \
+	lib/libz \
 
 
 .include <dirdeps.mk>
