@@ -78,10 +78,6 @@
  * Created      : 28/11/94
  */
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-#endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -107,6 +103,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDB
 #include <sys/kdb.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
 #endif
 
 extern char fusubailout[];
