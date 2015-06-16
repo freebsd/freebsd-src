@@ -348,8 +348,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	} else
 		justone = 0;
 
-	error = getvnode(td->td_proc->p_fd, args->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, args->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 

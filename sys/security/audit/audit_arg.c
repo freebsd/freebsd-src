@@ -908,7 +908,7 @@ audit_sysclose(struct thread *td, int fd)
 
 	audit_arg_fd(fd);
 
-	if (getvnode(td->td_proc->p_fd, fd, cap_rights_init(&rights), &fp) != 0)
+	if (getvnode(td, fd, cap_rights_init(&rights), &fp) != 0)
 		return;
 
 	vp = fp->f_vnode;

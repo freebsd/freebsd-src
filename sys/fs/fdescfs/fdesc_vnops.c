@@ -482,7 +482,7 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(td->td_proc->p_fd, fd,
+	error = getvnode(td, fd,
 	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error) {
 		/*

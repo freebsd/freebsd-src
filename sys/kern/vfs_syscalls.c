@@ -365,8 +365,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getvnode(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_FSTATFS), &fp);
+	error = getvnode(td, fd, cap_rights_init(&rights, CAP_FSTATFS), &fp);
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
@@ -737,7 +736,7 @@ sys_fchdir(td, uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
-	error = getvnode(fdp, uap->fd, cap_rights_init(&rights, CAP_FCHDIR),
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_FCHDIR),
 	    &fp);
 	if (error != 0)
 		return (error);
@@ -2671,8 +2670,8 @@ sys_fchflags(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_FFLAGS(uap->flags);
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_FCHFLAGS), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_FCHFLAGS),
+	    &fp);
 	if (error != 0)
 		return (error);
 #ifdef AUDIT
@@ -3239,8 +3238,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	error = getutimes(tptr, tptrseg, ts);
 	if (error != 0)
 		return (error);
-	error = getvnode(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_FUTIMES), &fp);
+	error = getvnode(td, fd, cap_rights_init(&rights, CAP_FUTIMES), &fp);
 	if (error != 0)
 		return (error);
 #ifdef AUDIT
@@ -3275,8 +3273,7 @@ kern_futimens(struct thread *td, int fd, struct timespec *tptr,
 		return (error);
 	if (flags & UTIMENS_EXIT)
 		return (0);
-	error = getvnode(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_FUTIMES), &fp);
+	error = getvnode(td, fd, cap_rights_init(&rights, CAP_FUTIMES), &fp);
 	if (error != 0)
 		return (error);
 #ifdef AUDIT
@@ -3470,8 +3467,7 @@ sys_fsync(td, uap)
 	int error, lock_flags;
 
 	AUDIT_ARG_FD(uap->fd);
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_FSYNC), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_FSYNC), &fp);
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
@@ -3894,8 +3890,7 @@ kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	/* XXX arbitrary sanity limit on `count'. */
 	if (uap->count > 64 * 1024)
 		return (EINVAL);
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
@@ -4058,8 +4053,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	if (count > IOSIZE_MAX)
 		return (EINVAL);
 	auio.uio_resid = count;
-	error = getvnode(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
@@ -4225,12 +4219,12 @@ out:
  * entry is held upon returning.
  */
 int
-getvnode(struct filedesc *fdp, int fd, cap_rights_t *rightsp, struct file **fpp)
+getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(fdp, fd, rightsp, &fp, NULL);
+	error = fget_unlocked(td->td_proc->p_fd, fd, rightsp, &fp, NULL);
 	if (error != 0)
 		return (error);
 
@@ -4247,7 +4241,7 @@ getvnode(struct filedesc *fdp, int fd, cap_rights_t *rightsp, struct file **fpp)
 	 * checking f_ops.
 	 */
 	if (fp->f_vnode == NULL || fp->f_ops == &badfileops) {
-		fdrop(fp, curthread);
+		fdrop(fp, td);
 		return (EINVAL);
 	}
 	*fpp = fp;
