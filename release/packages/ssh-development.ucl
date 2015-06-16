@@ -1,0 +1,13 @@
+name = "FreeBSD-ssh"
+origin = "base"
+version = "%VERSION%"
+comment = "Secure SHell"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ ISCL ]
+desc = <<EOD
+TODO
+EOD
