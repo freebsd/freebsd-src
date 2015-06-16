@@ -99,7 +99,10 @@
 #
 # For more information, see the build(7) manual page.
 #
-.if ${MK_META_MODE:Uno} == "yes"
+
+# Note: we use this awkward construct to be compatible with FreeBSD's
+# old make used in 10.0 and 9.2 and earlier.
+.if defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
@@ -522,6 +525,7 @@ universe_epilogue:
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
+.if defined(.PARSEDIR)
 # This makefile does not run in meta mode
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
@@ -539,5 +543,6 @@ UPDATE_DEPENDFILE= NO
 MAKE_JOB_ERROR_TOKEN= no
 .export MAKE_JOB_ERROR_TOKEN
 .endif
+.endif # bmake
 
 .endif				# META_MODE
