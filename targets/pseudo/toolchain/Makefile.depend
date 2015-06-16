@@ -31,7 +31,7 @@ DIRDEPS+= \
 
 .endif
 
-DIRDEPS= \
+DIRDEPS+= \
 	usr.bin/xinstall \
 	gnu/usr.bin/binutils/ar \
 	gnu/usr.bin/binutils/as \
