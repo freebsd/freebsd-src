@@ -746,7 +746,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd, NULL, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights), &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -2368,11 +2369,9 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		if (needrightsp != NULL) {
-			error = cap_check(&haverights, needrightsp);
-			if (error != 0)
-				return (error);
-		}
+		error = cap_check(&haverights, needrightsp);
+		if (error != 0)
+			return (error);
 #endif
 	retry:
 		count = fp->f_count;
