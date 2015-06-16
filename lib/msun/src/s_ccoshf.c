@@ -25,7 +25,7 @@
  */
 
 /*
- * Hyperbolic cosine of a complex argument.  See s_ccosh.c for details.
+ * Float version of ccosh().  See s_ccosh.c for details.
  */
 
 #include <sys/cdefs.h>
@@ -56,13 +56,13 @@ ccoshf(float complex z)
 	if (ix < 0x7f800000 && iy < 0x7f800000) {
 		if (iy == 0)
 			return (CMPLXF(coshf(x), x * y));
-		if (ix < 0x41100000)	/* small x: normal case */
+		if (ix < 0x41100000)	/* |x| < 9: normal case */
 			return (CMPLXF(coshf(x) * cosf(y), sinhf(x) * sinf(y)));
 
 		/* |x| >= 9, so cosh(x) ~= exp(|x|) */
 		if (ix < 0x42b17218) {
 			/* x < 88.7: expf(|x|) won't overflow */
-			h = expf(fabsf(x)) * 0.5f;
+			h = expf(fabsf(x)) * 0.5F;
 			return (CMPLXF(h * cosf(y), copysignf(h, x) * sinf(y)));
 		} else if (ix < 0x4340b1e7) {
 			/* x < 192.7: scale to avoid overflow */
@@ -75,22 +75,19 @@ ccoshf(float complex z)
 		}
 	}
 
-	if (ix == 0 && iy >= 0x7f800000)
-		return (CMPLXF(y - y, copysignf(0, x * (y - y))));
+	if (ix == 0)			/* && iy >= 0x7f800000 */
+		return (CMPLXF(y - y, x * copysignf(0, y)));
 
-	if (iy == 0 && ix >= 0x7f800000) {
-		if ((hx & 0x7fffff) == 0)
-			return (CMPLXF(x * x, copysignf(0, x) * y));
-		return (CMPLXF(x * x, copysignf(0, (x + x) * y)));
-	}
+	if (iy == 0)			/* && ix >= 0x7f800000 */
+		return (CMPLXF(x * x, copysignf(0, x) * y));
 
-	if (ix < 0x7f800000 && iy >= 0x7f800000)
+	if (ix < 0x7f800000)		/* && iy >= 0x7f800000 */
 		return (CMPLXF(y - y, x * (y - y)));
 
-	if (ix >= 0x7f800000 && (hx & 0x7fffff) == 0) {
+	if (ix == 0x7f800000) {
 		if (iy >= 0x7f800000)
-			return (CMPLXF(x * x, x * (y - y)));
-		return (CMPLXF((x * x) * cosf(y), x * sinf(y)));
+			return (CMPLXF(INFINITY, x * (y - y)));
+		return (CMPLXF(INFINITY * cosf(y), x * sinf(y)));
 	}
 
 	return (CMPLXF((x * x) * (y - y), (x + x) * (y - y)));

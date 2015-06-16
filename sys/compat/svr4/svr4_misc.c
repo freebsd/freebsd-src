@@ -262,8 +262,7 @@ svr4_sys_getdents64(td, uap)
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 
@@ -442,8 +441,7 @@ svr4_sys_getdents(td, uap)
 	if (uap->nbytes < 0)
 		return (EINVAL);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 
@@ -622,7 +620,7 @@ svr4_sys_fchroot(td, uap)
 	struct thread *td;
 	struct svr4_sys_fchroot_args *uap;
 {
-	struct filedesc	*fdp = td->td_proc->p_fd;
+	cap_rights_t rights;
 	struct vnode	*vp;
 	struct file	*fp;
 	int		 error;
@@ -630,7 +628,7 @@ svr4_sys_fchroot(td, uap)
 	if ((error = priv_check(td, PRIV_VFS_FCHROOT)) != 0)
 		return error;
 	/* XXX: we have the chroot priv... what cap might we need? all? */
-	if ((error = getvnode(fdp, uap->fd, 0, &fp)) != 0)
+	if ((error = getvnode(td, uap->fd, cap_rights_init(&rights), &fp)) != 0)
 		return error;
 	vp = fp->f_vnode;
 	VREF(vp);
