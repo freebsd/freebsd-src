@@ -32,6 +32,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20150616:
+	/etc/make.conf now included earlier.
+	sys.mk now includes /etc/make.conf and {local,src}.sys.mk earlier
+	than previously.
+	This makes it simple to interpose external toolchains etc.
+	However it may cause problems for users who have things like::
+
+		INSTALL+= something
+
+	in /etc/make.conf, since INSTALL is not yet defined.
+	A safe fix for that is to have::
+
+		INSTALL?= install
+		INSTALL+= something
+
+	which is equivalent to previous behavior.
+	
+20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
 	available as the devel/fmake port or via pkg install fmake.
 	
