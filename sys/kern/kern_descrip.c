@@ -2433,11 +2433,9 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 
 	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
-	if (needrightsp != NULL)
-		needrights = *needrightsp;
-	else
-		cap_rights_init(&needrights);
-	error = fget_unlocked(fdp, fd, &needrights, &fp, seqp);
+	if (needrightsp == NULL)
+		needrightsp = cap_rights_init(&needrights);
+	error = fget_unlocked(fdp, fd, needrightsp, &fp, seqp);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {
