@@ -117,7 +117,7 @@ void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *, int);
 void 
 sctp_send_shutdown_complete2(struct sockaddr *, struct sockaddr *,
     struct sctphdr *,
-    uint8_t, uint32_t,
+    uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
 void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *, int addr_locked);
@@ -187,13 +187,13 @@ sctp_send_str_reset_req(struct sctp_tcb *, uint16_t, uint16_t *, uint8_t,
 void
 sctp_send_abort(struct mbuf *, int, struct sockaddr *, struct sockaddr *,
     struct sctphdr *, uint32_t, struct mbuf *,
-    uint8_t, uint32_t,
+    uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
 void 
 sctp_send_operr_to(struct sockaddr *, struct sockaddr *,
     struct sctphdr *, uint32_t, struct mbuf *,
-    uint8_t, uint32_t,
+    uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
 #endif				/* _KERNEL || __Userspace__ */
