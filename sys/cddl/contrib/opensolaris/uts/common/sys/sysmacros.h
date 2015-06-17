@@ -32,6 +32,13 @@
 
 #include <sys/param.h>
 #include <sys/isa_defs.h>
+#ifdef __FreeBSD__
+#ifdef _KERNEL
+#include <machine/cpufunc.h>
+#else
+#include <strings.h>
+#endif
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -382,6 +389,9 @@ extern unsigned char bcd_to_byte[256];
 static __inline int
 highbit(ulong_t i)
 {
+#ifdef __FreeBSD__
+	return (flsl(i));
+#else
 	register int h = 1;
 
 	if (i == 0)
@@ -407,6 +417,7 @@ highbit(ulong_t i)
 		h += 1;
 	}
 	return (h);
+#endif
 }
 
 /*
@@ -416,6 +427,9 @@ highbit(ulong_t i)
 static __inline int
 highbit64(uint64_t i)
 {
+#ifdef __FreeBSD__
+	return (flsll(i));
+#else
 	int h = 1;
 
 	if (i == 0)
@@ -439,6 +453,7 @@ highbit64(uint64_t i)
 		h += 1;
 	}
 	return (h);
+#endif
 }
 
 #ifdef	__cplusplus
