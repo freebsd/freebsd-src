@@ -255,7 +255,7 @@
 137	AUE_RMDIR	NOPROTO	{ int rmdir(char *path); }
 138	AUE_UTIMES	NOPROTO	{ int utimes(char *path, \
 				    struct timeval *tptr); }
-139	AUE_NULL	OBSOL	4.2 sigreturn
+139	AUE_NULL	OBSOL	sigreturn
 140	AUE_ADJTIME	NOPROTO	{ int adjtime( \
 				    struct timeval *delta, \
 				    struct timeval *olddelta); }
@@ -342,7 +342,7 @@
 199	AUE_LSEEK	OBSOL	lseek
 200	AUE_TRUNCATE	OBSOL	truncate
 201	AUE_FTRUNCATE	OBSOL	ftruncate
-202	AUE_SYSCTL	NOPROTO	{ int sysctl(int *name, u_int namelen, \
+202	AUE_SYSCTL	NOPROTO	{ int __sysctl(int *name, u_int namelen, \
 				    void *old, void *oldlenp, void *new, \
 				    void newlen); } __sysctl sysctl_args int
 203	AUE_MLOCK	NOPROTO	{ int mlock(const void *addr, \
@@ -695,7 +695,7 @@
 416	AUE_SIGACTION	NOPROTO	{ int sigaction(int sig, \
 				    struct sigaction *act, \
 				    struct sigaction *oact); }
-417	AUE_SIGRETURN	STD	{ int sigreturn( \
+417	AUE_SIGRETURN	NOPROTO	{ int sigreturn( \
 		    const struct ucontext *sigcntxp); }
 418	AUE_NULL	UNIMPL	__xstat
 419	AUE_NULL	UNIMPL	__xfstat
@@ -757,7 +757,7 @@
 				    u_int length); }
 453	AUE_AUDITCTL	NOPROTO	{ int auditctl(char *path); }
 ; XXXBD: do uaddr(2) need special handling?
-454	AUE_NULL	NOPROTO	{ int umtx_op(void *obj, int op,\
+454	AUE_NULL	NOPROTO	{ int _umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
 455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
@@ -784,7 +784,7 @@
 462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
-465	AUE_NULL	NOSTD|NOPROTO	{ int cheriabi_aio_fsync(int op, \
+465	AUE_NULL	NOSTD	{ int cheriabi_aio_fsync(int op, \
 				    struct aiocb_c *aiocbp); }
 466	AUE_RTPRIO	NOPROTO	{ int rtprio_thread(int function, \
 				    lwpid_t lwpid, struct rtprio *rtp); }
@@ -915,7 +915,7 @@
 				    off_t offset, off_t len); }
 531	AUE_NULL	NOPROTO	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
-532	AUE_WAIT6	STD	{ int cheriabi_wait6(int idtype, if_t id, \
+532	AUE_WAIT6	STD	{ int cheriabi_wait6(int idtype, id_t id, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
