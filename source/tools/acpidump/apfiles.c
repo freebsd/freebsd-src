@@ -159,10 +159,10 @@ ApWriteToBinaryFile (
     {
         ACPI_MOVE_NAME (Filename, Table->Signature);
     }
-    Filename[0] = (char) tolower (Filename[0]);
-    Filename[1] = (char) tolower (Filename[1]);
-    Filename[2] = (char) tolower (Filename[2]);
-    Filename[3] = (char) tolower (Filename[3]);
+    Filename[0] = (char) tolower ((int) Filename[0]);
+    Filename[1] = (char) tolower ((int) Filename[1]);
+    Filename[2] = (char) tolower ((int) Filename[2]);
+    Filename[3] = (char) tolower ((int) Filename[3]);
     Filename[ACPI_NAME_SIZE] = 0;
 
     /* Handle multiple SSDTs - create different filenames for each */

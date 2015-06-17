@@ -637,7 +637,7 @@ AcpiNsRepair_HID (
      */
     for (Dest = NewString->String.Pointer; *Source; Dest++, Source++)
     {
-        *Dest = (char) toupper (*Source);
+        *Dest = (char) toupper ((int) *Source);
     }
 
     AcpiUtRemoveReference (ReturnObject);
