@@ -1118,10 +1118,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 
 	mreq = m[reqpage];
 
-	KASSERT(mreq->object == object,
-	    ("swap_pager_getpages: object mismatch %p/%p",
-	    object, mreq->object));
-
 	/*
 	 * Calculate range to retrieve.  The pages have already been assigned
 	 * their swapblks.  We require a *contiguous* range but we know it to

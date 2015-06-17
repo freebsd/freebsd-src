@@ -129,12 +129,6 @@ ncl_getpages(struct vop_getpages_args *ap)
 	npages = btoc(count);
 
 	/*
-	 * Since the caller has busied the requested page, that page's valid
-	 * field will not be changed by other threads.
-	 */
-	vm_page_assert_xbusied(pages[ap->a_reqpage]);
-
-	/*
 	 * If the requested page is partially valid, just return it and
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
