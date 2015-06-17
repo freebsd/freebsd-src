@@ -217,8 +217,6 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
 	    cap_mkdb ${CAP_MKDB_ENDIAN} ${DESTDIR}/etc/login.conf; \
-	    services_mkdb ${CAP_MKDB_ENDIAN} -q -o ${DESTDIR}/var/db/services.db \
-		${DESTDIR}/etc/services; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
