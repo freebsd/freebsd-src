@@ -32,6 +32,8 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+#include "opt_em.h"
+#include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -41,6 +43,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifdef DDB
+#include <sys/types.h>
+#include <ddb/ddb.h>
+#endif
 #if __FreeBSD_version >= 800000
 #include <sys/buf_ring.h>
 #endif
@@ -52,6 +58,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -207,7 +214,7 @@ static int	em_resume(device_t);
 #ifdef EM_MULTIQUEUE
 static int	em_mq_start(struct ifnet *, struct mbuf *);
 static int	em_mq_start_locked(struct ifnet *,
-		    struct tx_ring *, struct mbuf *);
+		    struct tx_ring *);
 static void	em_qflush(struct ifnet *);
 #else
 static void	em_start(struct ifnet *);
@@ -296,6 +303,10 @@ static void	em_msix_link(void *);
 static void	em_handle_tx(void *context, int pending);
 static void	em_handle_rx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
+
+#ifdef EM_MULTIQUEUE
+static void	em_enable_vectors_82574(struct adapter *);
+#endif
 
 static void	em_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
@@ -395,6 +406,20 @@ TUNABLE_INT("hw.em.enable_msix", &em_enable_msix);
 SYSCTL_INT(_hw_em, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &em_enable_msix, 0,
     "Enable MSI-X interrupts");
 
+#ifdef EM_MULTIQUEUE
+static int em_num_queues = 1;
+TUNABLE_INT("hw.em.num_queues", &em_num_queues);
+SYSCTL_INT(_hw_em, OID_AUTO, num_queues, CTLFLAG_RDTUN, &em_num_queues, 0,
+    "82574 only: Number of queues to configure, 0 indicates autoconfigure");
+#endif
+
+/*
+** Global variable to store last used CPU when binding queues
+** to CPUs in igb_allocate_msix.  Starts at CPU_FIRST and increments when a
+** queue is bound to a cpu.
+*/
+static int em_last_bind_cpu = -1;
+
 /* How many packets rxeof tries to clean at a time */
 static int em_rx_process_limit = 100;
 TUNABLE_INT("hw.em.rx_process_limit", &em_rx_process_limit);
@@ -429,10 +454,10 @@ static int
 em_probe(device_t dev)
 {
 	char		adapter_name[60];
-	u16		pci_vendor_id = 0;
-	u16		pci_device_id = 0;
-	u16		pci_subvendor_id = 0;
-	u16		pci_subdevice_id = 0;
+	uint16_t	pci_vendor_id = 0;
+	uint16_t	pci_device_id = 0;
+	uint16_t	pci_subvendor_id = 0;
+	uint16_t	pci_subdevice_id = 0;
 	em_vendor_info_t *ent;
 
 	INIT_DEBUGOUT("em_probe: begin");
@@ -558,6 +583,11 @@ em_attach(device_t dev)
 		error = ENXIO;
 		goto err_pci;
 	}
+
+	/*
+	 * Setup MSI/X or MSI if PCI Express
+	 */
+	adapter->msix = em_setup_msix(adapter);
 
 	e1000_get_bus_info(hw);
 
@@ -890,7 +920,7 @@ em_resume(device_t dev)
 			EM_TX_LOCK(txr);
 #ifdef EM_MULTIQUEUE
 			if (!drbr_empty(ifp, txr->br))
-				em_mq_start_locked(ifp, txr, NULL);
+				em_mq_start_locked(ifp, txr);
 #else
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				em_start_locked(ifp, txr);
@@ -904,105 +934,7 @@ em_resume(device_t dev)
 }
 
 
-#ifdef EM_MULTIQUEUE
-/*********************************************************************
- *  Multiqueue Transmit routines 
- *
- *  em_mq_start is called by the stack to initiate a transmit.
- *  however, if busy the driver can queue the request rather
- *  than do an immediate send. It is this that is an advantage
- *  in this driver, rather than also having multiple tx queues.
- **********************************************************************/
-static int
-em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
-{
-	struct adapter  *adapter = txr->adapter;
-        struct mbuf     *next;
-        int             err = 0, enq = 0;
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || adapter->link_active == 0) {
-		if (m != NULL)
-			err = drbr_enqueue(ifp, txr->br, m);
-		return (err);
-	}
-
-	enq = 0;
-	if (m != NULL) {
-		err = drbr_enqueue(ifp, txr->br, m);
-		if (err)
-			return (err);
-	} 
-
-	/* Process the queue */
-	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
-		if ((err = em_xmit(txr, &next)) != 0) {
-			if (next == NULL)
-				drbr_advance(ifp, txr->br);
-			else 
-				drbr_putback(ifp, txr->br, next);
-			break;
-		}
-		drbr_advance(ifp, txr->br);
-		enq++;
-		ifp->if_obytes += next->m_pkthdr.len;
-		if (next->m_flags & M_MCAST)
-			ifp->if_omcasts++;
-		ETHER_BPF_MTAP(ifp, next);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-                        break;
-	}
-
-	/* Mark the queue as having work */
-	if ((enq > 0) && (txr->busy == EM_TX_IDLE))
-		txr->busy = EM_TX_BUSY;
-
-	if (txr->tx_avail < EM_MAX_SCATTER)
-		em_txeof(txr);
-	if (txr->tx_avail < EM_MAX_SCATTER)
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	return (err);
-}
-
-/*
-** Multiqueue capable stack interface
-*/
-static int
-em_mq_start(struct ifnet *ifp, struct mbuf *m)
-{
-	struct adapter	*adapter = ifp->if_softc;
-	struct tx_ring	*txr = adapter->tx_rings;
-	int 		error;
-
-	if (EM_TX_TRYLOCK(txr)) {
-		error = em_mq_start_locked(ifp, txr, m);
-		EM_TX_UNLOCK(txr);
-	} else 
-		error = drbr_enqueue(ifp, txr->br, m);
-
-	return (error);
-}
-
-/*
-** Flush all ring buffers
-*/
-static void
-em_qflush(struct ifnet *ifp)
-{
-	struct adapter  *adapter = ifp->if_softc;
-	struct tx_ring  *txr = adapter->tx_rings;
-	struct mbuf     *m;
-
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		EM_TX_LOCK(txr);
-		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
-			m_freem(m);
-		EM_TX_UNLOCK(txr);
-	}
-	if_qflush(ifp);
-}
-#else  /* !EM_MULTIQUEUE */
-
+#ifndef EM_MULTIQUEUE
 static void
 em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
@@ -1026,7 +958,7 @@ em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-                IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 		/*
@@ -1046,6 +978,7 @@ em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, m_head);
+
 	}
 
 	return;
@@ -1063,6 +996,113 @@ em_start(struct ifnet *ifp)
 		EM_TX_UNLOCK(txr);
 	}
 	return;
+}
+#else /* EM_MULTIQUEUE */
+/*********************************************************************
+ *  Multiqueue Transmit routines 
+ *
+ *  em_mq_start is called by the stack to initiate a transmit.
+ *  however, if busy the driver can queue the request rather
+ *  than do an immediate send. It is this that is an advantage
+ *  in this driver, rather than also having multiple tx queues.
+ **********************************************************************/
+/*
+** Multiqueue capable stack interface
+*/
+static int
+em_mq_start(struct ifnet *ifp, struct mbuf *m)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	struct tx_ring	*txr = adapter->tx_rings;
+	unsigned int	i, error;
+
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+		i = m->m_pkthdr.flowid % adapter->num_queues;
+	else
+		i = curcpu % adapter->num_queues;
+
+	txr = &adapter->tx_rings[i];
+
+	error = drbr_enqueue(ifp, txr->br, m);
+	if (error)
+		return (error);
+
+	if (EM_TX_TRYLOCK(txr)) {
+		em_mq_start_locked(ifp, txr);
+		EM_TX_UNLOCK(txr);
+	} else 
+		taskqueue_enqueue(txr->tq, &txr->tx_task);
+
+	return (0);
+}
+
+static int
+em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
+{
+	struct adapter  *adapter = txr->adapter;
+        struct mbuf     *next;
+        int             err = 0, enq = 0;
+
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || adapter->link_active == 0) {
+		return (ENETDOWN);
+	}
+
+	/* Process the queue */
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
+		if ((err = em_xmit(txr, &next)) != 0) {
+			if (next == NULL) {
+				/* It was freed, move forward */
+				drbr_advance(ifp, txr->br);
+			} else {
+				/* 
+				 * Still have one left, it may not be
+				 * the same since the transmit function
+				 * may have changed it.
+				 */
+				drbr_putback(ifp, txr->br, next);
+			}
+			break;
+		}
+		drbr_advance(ifp, txr->br);
+		enq++;
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
+		ETHER_BPF_MTAP(ifp, next);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+                        break;
+	}
+
+	/* Mark the queue as having work */
+	if ((enq > 0) && (txr->busy == EM_TX_IDLE))
+		txr->busy = EM_TX_BUSY;
+
+	if (txr->tx_avail < EM_MAX_SCATTER)
+		em_txeof(txr);
+	if (txr->tx_avail < EM_MAX_SCATTER) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	}
+	return (err);
+}
+
+/*
+** Flush all ring buffers
+*/
+static void
+em_qflush(struct ifnet *ifp)
+{
+	struct adapter  *adapter = ifp->if_softc;
+	struct tx_ring  *txr = adapter->tx_rings;
+	struct mbuf     *m;
+
+	for (int i = 0; i < adapter->num_queues; i++, txr++) {
+		EM_TX_LOCK(txr);
+		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
+			m_freem(m);
+		EM_TX_UNLOCK(txr);
+	}
+	if_qflush(ifp);
 }
 #endif /* EM_MULTIQUEUE */
 
@@ -1460,7 +1500,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
-		em_mq_start_locked(ifp, txr, NULL);
+		em_mq_start_locked(ifp, txr);
 #else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp, txr);
@@ -1527,14 +1567,14 @@ em_handle_que(void *context, int pending)
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
 
-
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		bool more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
+
 		EM_TX_LOCK(txr);
 		em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 		if (!drbr_empty(ifp, txr->br))
-			em_mq_start_locked(ifp, txr, NULL);
+			em_mq_start_locked(ifp, txr);
 #else
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			em_start_locked(ifp, txr);
@@ -1568,11 +1608,12 @@ em_msix_tx(void *arg)
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
-		em_mq_start_locked(ifp, txr, NULL);
+		em_mq_start_locked(ifp, txr);
 #else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp, txr);
 #endif
+
 	/* Reenable this interrupt */
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	EM_TX_UNLOCK(txr);
@@ -1598,9 +1639,10 @@ em_msix_rx(void *arg)
 	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
-	else
+	else {
 		/* Reenable this interrupt */
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS, rxr->ims);
+	}
 	return;
 }
 
@@ -1627,6 +1669,16 @@ em_msix_link(void *arg)
 	} else
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS,
 		    EM_MSIX_LINK | E1000_IMS_LSC);
+	/*
+ 	** Because we must read the ICR for this interrupt
+ 	** it may clear other causes using autoclear, for
+ 	** this reason we simply create a soft interrupt
+ 	** for all these vectors.
+ 	*/
+	if (reg_icr) {
+		E1000_WRITE_REG(&adapter->hw,
+			E1000_ICS, adapter->ims);
+	}
 	return;
 }
 
@@ -1640,9 +1692,10 @@ em_handle_rx(void *context, int pending)
 	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
-	else
+	else {
 		/* Reenable this interrupt */
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS, rxr->ims);
+	}
 }
 
 static void
@@ -1656,7 +1709,7 @@ em_handle_tx(void *context, int pending)
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
-		em_mq_start_locked(ifp, txr, NULL);
+		em_mq_start_locked(ifp, txr);
 #else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp, txr);
@@ -1686,7 +1739,7 @@ em_handle_link(void *context, int pending)
 			EM_TX_LOCK(txr);
 #ifdef EM_MULTIQUEUE
 			if (!drbr_empty(ifp, txr->br))
-				em_mq_start_locked(ifp, txr, NULL);
+				em_mq_start_locked(ifp, txr);
 #else
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				em_start_locked(ifp, txr);
@@ -2269,7 +2322,7 @@ em_local_timer(void *arg)
 	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
-	u32		trigger;
+	u32		trigger = 0;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -2282,9 +2335,11 @@ em_local_timer(void *arg)
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	/* Mask to use in the irq trigger */
-	if (adapter->msix_mem)
-		trigger = rxr->ims;
-	else
+	if (adapter->msix_mem) {
+		for (int i = 0; i < adapter->num_queues; i++, rxr++)
+			trigger |= rxr->ims;
+		rxr = adapter->rx_rings;
+	} else
 		trigger = E1000_ICS_RXDMT0;
 
 	/*
@@ -2293,7 +2348,6 @@ em_local_timer(void *arg)
 	** and the HUNG state will be static if set.
 	*/
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		/* Last cycle a queue was declared hung */
 		if (txr->busy == EM_TX_HUNG)
 			goto hung;
 		if (txr->busy >= EM_TX_MAXTRIES)
@@ -2311,14 +2365,9 @@ em_local_timer(void *arg)
 	return;
 hung:
 	/* Looks like we're hung */
-	device_printf(adapter->dev, "Watchdog timeout -- resetting\n");
-	device_printf(adapter->dev,
-	    "Queue(%d) tdh = %d, hw tdt = %d\n", txr->me,
-	    E1000_READ_REG(&adapter->hw, E1000_TDH(txr->me)),
-	    E1000_READ_REG(&adapter->hw, E1000_TDT(txr->me)));
-	device_printf(adapter->dev,"TX(%d) desc avail = %d,"
-	    "Next TX to Clean = %d\n",
-	    txr->me, txr->tx_avail, txr->next_to_clean);
+	device_printf(adapter->dev, "Watchdog timeout Queue[%d]-- resetting\n",
+			txr->me);
+	em_print_debug_info(adapter);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
 	em_init_locked(adapter);
@@ -2370,7 +2419,7 @@ em_update_link_status(struct adapter *adapter)
 		    (hw->mac.type == e1000_82572))) {
 			int tarc0;
 			tarc0 = E1000_READ_REG(hw, E1000_TARC(0));
-			tarc0 &= ~SPEED_MODE_BIT;
+			tarc0 &= ~TARC_SPEED_MODE_BIT;
 			E1000_WRITE_REG(hw, E1000_TARC(0), tarc0);
 		}
 		if (bootverbose)
@@ -2486,14 +2535,6 @@ em_allocate_pci_resources(struct adapter *adapter)
 	    rman_get_bushandle(adapter->memory);
 	adapter->hw.hw_addr = (u8 *)&adapter->osdep.mem_bus_space_handle;
 
-	/* Default to a single queue */
-	adapter->num_queues = 1;
-
-	/*
-	 * Setup MSI/X or MSI if PCI Express
-	 */
-	adapter->msix = em_setup_msix(adapter);
-
 	adapter->hw.back = &adapter->osdep;
 
 	return (0);
@@ -2568,13 +2609,14 @@ em_allocate_msix(struct adapter *adapter)
 	struct		tx_ring *txr = adapter->tx_rings;
 	struct		rx_ring *rxr = adapter->rx_rings;
 	int		error, rid, vector = 0;
+	int		cpu_id = 0;
 
 
 	/* Make sure all interrupts are disabled */
 	E1000_WRITE_REG(&adapter->hw, E1000_IMC, 0xffffffff);
 
 	/* First set up ring resources */
-	for (int i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
+	for (int i = 0; i < adapter->num_queues; i++, rxr++, vector++) {
 
 		/* RX ring */
 		rid = vector + 1;
@@ -2594,14 +2636,20 @@ em_allocate_msix(struct adapter *adapter)
 			return (error);
 		}
 #if __FreeBSD_version >= 800504
-		bus_describe_intr(dev, rxr->res, rxr->tag, "rx %d", i);
+		bus_describe_intr(dev, rxr->res, rxr->tag, "rx%d", i);
 #endif
-		rxr->msix = vector++; /* NOTE increment vector for TX */
+		rxr->msix = vector;
+
+		if (em_last_bind_cpu < 0)
+			em_last_bind_cpu = CPU_FIRST();
+		cpu_id = em_last_bind_cpu;
+		bus_bind_intr(dev, rxr->res, cpu_id);
+
 		TASK_INIT(&rxr->rx_task, 0, em_handle_rx, rxr);
 		rxr->tq = taskqueue_create_fast("em_rxq", M_NOWAIT,
 		    taskqueue_thread_enqueue, &rxr->tq);
-		taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq",
-		    device_get_nameunit(adapter->dev));
+		taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq (cpuid %d)",
+		    device_get_nameunit(adapter->dev), cpu_id);
 		/*
 		** Set the bit to enable interrupt
 		** in E1000_IMS -- bits 20 and 21
@@ -2609,8 +2657,13 @@ em_allocate_msix(struct adapter *adapter)
 		** NOTHING to do with the MSIX vector
 		*/
 		rxr->ims = 1 << (20 + i);
+		adapter->ims |= rxr->ims;
 		adapter->ivars |= (8 | rxr->msix) << (i * 4);
 
+		em_last_bind_cpu = CPU_NEXT(em_last_bind_cpu);
+	}
+
+	for (int i = 0; i < adapter->num_queues; i++, txr++, vector++) {
 		/* TX ring */
 		rid = vector + 1;
 		txr->res = bus_alloc_resource_any(dev,
@@ -2628,14 +2681,20 @@ em_allocate_msix(struct adapter *adapter)
 			return (error);
 		}
 #if __FreeBSD_version >= 800504
-		bus_describe_intr(dev, txr->res, txr->tag, "tx %d", i);
+		bus_describe_intr(dev, txr->res, txr->tag, "tx%d", i);
 #endif
-		txr->msix = vector++; /* Increment vector for next pass */
+		txr->msix = vector;
+
+                if (em_last_bind_cpu < 0)
+                        em_last_bind_cpu = CPU_FIRST();
+                cpu_id = em_last_bind_cpu;
+                bus_bind_intr(dev, txr->res, cpu_id);
+
 		TASK_INIT(&txr->tx_task, 0, em_handle_tx, txr);
 		txr->tq = taskqueue_create_fast("em_txq", M_NOWAIT,
 		    taskqueue_thread_enqueue, &txr->tq);
-		taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s txq",
-		    device_get_nameunit(adapter->dev));
+		taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s txq (cpuid %d)",
+		    device_get_nameunit(adapter->dev), cpu_id);
 		/*
 		** Set the bit to enable interrupt
 		** in E1000_IMS -- bits 22 and 23
@@ -2643,13 +2702,16 @@ em_allocate_msix(struct adapter *adapter)
 		** NOTHING to do with the MSIX vector
 		*/
 		txr->ims = 1 << (22 + i);
+		adapter->ims |= txr->ims;
 		adapter->ivars |= (8 | txr->msix) << (8 + (i * 4));
+
+		em_last_bind_cpu = CPU_NEXT(em_last_bind_cpu);
 	}
 
 	/* Link interrupt */
-	++rid;
+	rid = vector + 1;
 	adapter->res = bus_alloc_resource_any(dev,
-	    SYS_RES_IRQ, &rid, RF_ACTIVE);
+	    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (!adapter->res) {
 		device_printf(dev,"Unable to allocate "
 		    "bus resource: Link interrupt [%d]\n", rid);
@@ -2665,7 +2727,7 @@ em_allocate_msix(struct adapter *adapter)
 		return (error);
 	}
 #if __FreeBSD_version >= 800504
-		bus_describe_intr(dev, adapter->res, adapter->tag, "link");
+	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
 #endif
 	adapter->linkvec = vector;
 	adapter->ivars |=  (8 | vector) << 16;
@@ -2689,9 +2751,8 @@ em_free_pci_resources(struct adapter *adapter)
 	*/
 	for (int i = 0; i < adapter->num_queues; i++) {
 		txr = &adapter->tx_rings[i];
-		rxr = &adapter->rx_rings[i];
 		/* an early abort? */
-		if ((txr == NULL) || (rxr == NULL))
+		if (txr == NULL)
 			break;
 		rid = txr->msix +1;
 		if (txr->tag != NULL) {
@@ -2701,6 +2762,11 @@ em_free_pci_resources(struct adapter *adapter)
 		if (txr->res != NULL)
 			bus_release_resource(dev, SYS_RES_IRQ,
 			    rid, txr->res);
+
+		rxr = &adapter->rx_rings[i];
+		/* an early abort? */
+		if (rxr == NULL)
+			break;
 		rid = rxr->msix +1;
 		if (rxr->tag != NULL) {
 			bus_teardown_intr(dev, rxr->res, rxr->tag);
@@ -2750,14 +2816,19 @@ em_setup_msix(struct adapter *adapter)
 	device_t dev = adapter->dev;
 	int val;
 
+	/* Nearly always going to use one queue */
+	adapter->num_queues = 1;
+
 	/*
-	** Setup MSI/X for Hartwell: tests have shown
-	** use of two queues to be unstable, and to
-	** provide no great gain anyway, so we simply
-	** seperate the interrupts and use a single queue.
+	** Try using MSI-X for Hartwell adapters
 	*/
 	if ((adapter->hw.mac.type == e1000_82574) &&
 	    (em_enable_msix == TRUE)) {
+#ifdef EM_MULTIQUEUE
+		adapter->num_queues = (em_num_queues == 1) ? 1 : 2;
+		if (adapter->num_queues > 1)
+			em_enable_vectors_82574(adapter);
+#endif
 		/* Map the MSIX BAR */
 		int rid = PCIR_BAR(EM_MSIX_BAR);
 		adapter->msix_mem = bus_alloc_resource_any(dev,
@@ -2769,16 +2840,34 @@ em_setup_msix(struct adapter *adapter)
 			goto msi;
        		}
 		val = pci_msix_count(dev); 
-		/* We only need/want 3 vectors */
-		if (val >= 3)
-			val = 3;
-		else {
-               		device_printf(adapter->dev,
-			    "MSIX: insufficient vectors, using MSI\n");
-			goto msi;
-		}
 
-		if ((pci_alloc_msix(dev, &val) == 0) && (val == 3)) {
+#ifdef EM_MULTIQUEUE
+		/* We need 5 vectors in the multiqueue case */
+		if (adapter->num_queues > 1 ) {
+			if (val >= 5)
+				val = 5;
+			else {
+				adapter->num_queues = 1;
+				device_printf(adapter->dev,
+				    "Insufficient MSIX vectors for >1 queue, "
+				    "using single queue...\n");
+				goto msix_one;
+			}
+		} else {
+msix_one:
+#endif
+			if (val >= 3)
+				val = 3;
+			else {
+				device_printf(adapter->dev,
+			    	"Insufficient MSIX vectors, using MSI\n");
+				goto msi;
+			}
+#ifdef EM_MULTIQUEUE
+		}
+#endif
+
+		if ((pci_alloc_msix(dev, &val) == 0)) {
 			device_printf(adapter->dev,
 			    "Using MSIX interrupts "
 			    "with %d vectors\n", val);
@@ -2799,7 +2888,7 @@ msi:
 	}
        	val = 1;
        	if (pci_alloc_msi(dev, &val) == 0) {
-               	device_printf(adapter->dev,"Using an MSI interrupt\n");
+               	device_printf(adapter->dev, "Using an MSI interrupt\n");
 		return (val);
 	} 
 	/* Should only happen due to manual configuration */
@@ -3441,7 +3530,7 @@ em_initialize_transmit_unit(struct adapter *adapter)
 {
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct e1000_hw	*hw = &adapter->hw;
-	u32	tctl, tarc, tipg = 0;
+	u32	tctl, txdctl = 0, tarc, tipg = 0;
 
 	 INIT_DEBUGOUT("em_initialize_transmit_unit: begin");
 
@@ -3463,6 +3552,15 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		    E1000_READ_REG(&adapter->hw, E1000_TDLEN(i)));
 
 		txr->busy = EM_TX_IDLE;
+		txdctl = 0; /* clear txdctl */
+                txdctl |= 0x1f; /* PTHRESH */
+                txdctl |= 1 << 8; /* HTHRESH */
+                txdctl |= 1 << 16;/* WTHRESH */
+		txdctl |= 1 << 22; /* Reserved bit 22 must always be 1 */
+		txdctl |= E1000_TXDCTL_GRAN;
+                txdctl |= 1 << 25; /* LWTHRESH */
+
+                E1000_WRITE_REG(hw, E1000_TXDCTL(i), txdctl);
 	}
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
@@ -3493,15 +3591,25 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_82571) ||
 	    (adapter->hw.mac.type == e1000_82572)) {
 		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
-		tarc |= SPEED_MODE_BIT;
+		tarc |= TARC_SPEED_MODE_BIT;
 		E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
 	} else if (adapter->hw.mac.type == e1000_80003es2lan) {
+		/* errata: program both queues to unweighted RR */
 		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
 		tarc |= 1;
 		E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
 		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(1));
 		tarc |= 1;
 		E1000_WRITE_REG(&adapter->hw, E1000_TARC(1), tarc);
+	} else if (adapter->hw.mac.type == e1000_82574) {
+		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
+		tarc |= TARC_ERRATA_BIT;
+		if ( adapter->num_queues > 1) {
+			tarc |= (TARC_COMPENSATION_MODE | TARC_MQ_FIX);
+			E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
+			E1000_WRITE_REG(&adapter->hw, E1000_TARC(1), tarc);
+		} else
+			E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
 	}
 
 	adapter->txd_cmd = E1000_TXD_CMD_IFCS;
@@ -3932,8 +4040,9 @@ em_txeof(struct tx_ring *txr)
 	 * TX lock which, with a single queue, guarantees 
 	 * sanity.
          */
-        if (txr->tx_avail >= EM_MAX_SCATTER)
+        if (txr->tx_avail >= EM_MAX_SCATTER) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	}
 
 	/* Disable hang detection if all clean */
 	if (txr->tx_avail == adapter->num_tx_desc)
@@ -4305,6 +4414,9 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	E1000_WRITE_REG(&adapter->hw, E1000_RADV,
 	    adapter->rx_abs_int_delay.value);
+
+	E1000_WRITE_REG(&adapter->hw, E1000_RDTR,
+	    adapter->rx_int_delay.value);
 	/*
 	 * Set the interrupt throttling rate. Value is calculated
 	 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
@@ -4316,20 +4428,65 @@ em_initialize_receive_unit(struct adapter *adapter)
 	** using the EITR register (82574 only)
 	*/
 	if (hw->mac.type == e1000_82574) {
+		u32 rfctl;
 		for (int i = 0; i < 4; i++)
 			E1000_WRITE_REG(hw, E1000_EITR_82574(i),
 			    DEFAULT_ITR);
 		/* Disable accelerated acknowledge */
-		E1000_WRITE_REG(hw, E1000_RFCTL, E1000_RFCTL_ACK_DIS);
+		rfctl = E1000_READ_REG(hw, E1000_RFCTL);
+		rfctl |= E1000_RFCTL_ACK_DIS;
+		E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 	}
 
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
-	if (ifp->if_capenable & IFCAP_RXCSUM)
+	if (ifp->if_capenable & IFCAP_RXCSUM) {
+#ifdef EM_MULTIQUEUE
+		rxcsum |= E1000_RXCSUM_TUOFL |
+			  E1000_RXCSUM_IPOFL |
+			  E1000_RXCSUM_PCSD;
+#else
 		rxcsum |= E1000_RXCSUM_TUOFL;
-	else
+#endif
+	} else
 		rxcsum &= ~E1000_RXCSUM_TUOFL;
+
 	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
+#ifdef EM_MULTIQUEUE
+	if (adapter->num_queues > 1) {
+		uint32_t rss_key[10];
+		uint32_t reta;
+		int i;
+
+		/*
+		* Configure RSS key
+		*/
+		arc4rand(rss_key, sizeof(rss_key), 0);
+		for (i = 0; i < 10; ++i)
+			E1000_WRITE_REG_ARRAY(hw,E1000_RSSRK(0), i, rss_key[i]);
+
+		/*
+		* Configure RSS redirect table in following fashion:
+		* (hash & ring_cnt_mask) == rdr_table[(hash & rdr_table_mask)]
+		*/
+		reta = 0;
+		for (i = 0; i < 4; ++i) {
+			uint32_t q;
+			q = (i % adapter->num_queues) << 7;
+			reta |= q << (8 * i);
+		}
+		for (i = 0; i < 32; ++i)
+			E1000_WRITE_REG(hw, E1000_RETA(i), reta);
+
+		E1000_WRITE_REG(hw, E1000_MRQC, E1000_MRQC_RSS_ENABLE_2Q | 
+				E1000_MRQC_RSS_FIELD_IPV4_TCP |
+				E1000_MRQC_RSS_FIELD_IPV4 |
+				E1000_MRQC_RSS_FIELD_IPV6_TCP_EX |
+				E1000_MRQC_RSS_FIELD_IPV6_EX |
+				E1000_MRQC_RSS_FIELD_IPV6 |
+				E1000_MRQC_RSS_FIELD_IPV6_TCP);
+	}
+#endif
 	/*
 	** XXX TEMPORARY WORKAROUND: on some systems with 82573
 	** long latencies are observed, like Lenovo X60. This
@@ -4362,13 +4519,30 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}
 
-	/* Set PTHRESH for improved jumbo performance */
+	/*
+	 * Set PTHRESH for improved jumbo performance
+	 * According to 10.2.5.11 of Intel 82574 Datasheet,
+	 * RXDCTL(1) is written whenever RXDCTL(0) is written.
+	 * Only write to RXDCTL(1) if there is a need for different
+	 * settings.
+	 */
 	if (((adapter->hw.mac.type == e1000_ich9lan) ||
 	    (adapter->hw.mac.type == e1000_pch2lan) ||
 	    (adapter->hw.mac.type == e1000_ich10lan)) &&
 	    (ifp->if_mtu > ETHERMTU)) {
 		u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
+	} else if ((adapter->hw.mac.type == e1000_82574) &&
+		  (ifp->if_mtu > ETHERMTU)) {
+		for (int i = 0; i < adapter->num_queues; i++) {
+			u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+
+                	rxdctl |= 0x20; /* PTHRESH */
+                	rxdctl |= 4 << 8; /* HTHRESH */
+                	rxdctl |= 4 << 16;/* WTHRESH */
+			rxdctl |= 1 << 24; /* Switch to granularity */
+			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
+		}
 	}
 		
 	if (adapter->hw.mac.type >= e1000_pch2lan) {
@@ -4435,6 +4609,11 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 
 	EM_RX_LOCK(rxr);
 
+	/* Sync the ring */
+	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+
 #ifdef DEV_NETMAP
 	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
 		EM_RX_UNLOCK(rxr);
@@ -4446,9 +4625,6 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-
-		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 		cur = &rxr->rx_base[i];
 		status = cur->status;
@@ -4515,6 +4691,10 @@ skip:
 			rxr->fmp = rxr->lmp = NULL;
 		}
 next_desc:
+		/* Sync the ring */
+		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    		BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
 		/* Zero out the receive descriptors status. */
 		cur->status = 0;
 		++rxdone;	/* cumulative for POLL */
@@ -5327,10 +5507,10 @@ em_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->hw.fc.low_water, 0,
 			"Flow Control Low Watermark");
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++, txr++) {
-		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+	for (int i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue_tx_%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
-					    CTLFLAG_RD, NULL, "Queue Name");
+					    CTLFLAG_RD, NULL, "TX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
@@ -5349,7 +5529,12 @@ em_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
 				"Queue No Descriptor Available");
-		
+
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue_rx_%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+					    CTLFLAG_RD, NULL, "RX Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
 				CTLTYPE_UINT | CTLFLAG_RD, adapter,
 				E1000_RDH(rxr->me),
@@ -5783,19 +5968,86 @@ em_print_debug_info(struct adapter *adapter)
 	else
 		printf("and ACTIVE\n");
 
-	device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_TDH(0)),
-	    E1000_READ_REG(&adapter->hw, E1000_TDT(0)));
-	device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_RDH(0)),
-	    E1000_READ_REG(&adapter->hw, E1000_RDT(0)));
-	device_printf(dev, "Tx Queue Status = %d\n", txr->busy);
-	device_printf(dev, "TX descriptors avail = %d\n",
-	    txr->tx_avail);
-	device_printf(dev, "Tx Descriptors avail failure = %ld\n",
-	    txr->no_desc_avail);
-	device_printf(dev, "RX discarded packets = %ld\n",
-	    rxr->rx_discarded);
-	device_printf(dev, "RX Next to Check = %d\n", rxr->next_to_check);
-	device_printf(dev, "RX Next to Refresh = %d\n", rxr->next_to_refresh);
+	for (int i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
+		device_printf(dev, "TX Queue %d ------\n", i);
+		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
+	    		E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
+	    		E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
+		device_printf(dev, "Tx Queue Status = %d\n", txr->busy);
+		device_printf(dev, "TX descriptors avail = %d\n",
+	    		txr->tx_avail);
+		device_printf(dev, "Tx Descriptors avail failure = %ld\n",
+	    		txr->no_desc_avail);
+		device_printf(dev, "RX Queue %d ------\n", i);
+		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
+	    		E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
+	    		E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
+		device_printf(dev, "RX discarded packets = %ld\n",
+	    		rxr->rx_discarded);
+		device_printf(dev, "RX Next to Check = %d\n", rxr->next_to_check);
+		device_printf(dev, "RX Next to Refresh = %d\n", rxr->next_to_refresh);
+	}
 }
+
+#ifdef EM_MULTIQUEUE
+/*
+ * 82574 only:
+ * Write a new value to the EEPROM increasing the number of MSIX
+ * vectors from 3 to 5, for proper multiqueue support.
+ */
+static void
+em_enable_vectors_82574(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	device_t dev = adapter->dev;
+	u16 edata;
+
+	e1000_read_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
+	printf("Current cap: %#06x\n", edata);
+	if (((edata & EM_NVM_MSIX_N_MASK) >> EM_NVM_MSIX_N_SHIFT) != 4) {
+		device_printf(dev, "Writing to eeprom: increasing "
+		    "reported MSIX vectors from 3 to 5...\n");
+		edata &= ~(EM_NVM_MSIX_N_MASK);
+		edata |= 4 << EM_NVM_MSIX_N_SHIFT;
+		e1000_write_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
+		e1000_update_nvm_checksum(hw);
+		device_printf(dev, "Writing to eeprom: done\n");
+	}
+}
+#endif
+
+#ifdef DDB
+DB_COMMAND(em_reset_dev, em_ddb_reset_dev)
+{
+	devclass_t	dc;
+	int max_em;
+
+	dc = devclass_find("em");
+	max_em = devclass_get_maxunit(dc);
+
+	for (int index = 0; index < (max_em - 1); index++) {
+		device_t dev;
+		dev = devclass_get_device(dc, index);
+		if (device_get_driver(dev) == &em_driver) {
+			struct adapter *adapter = device_get_softc(dev);
+			em_init_locked(adapter);
+		}
+	}
+}
+DB_COMMAND(em_dump_queue, em_ddb_dump_queue)
+{
+	devclass_t	dc;
+	int max_em;
+
+	dc = devclass_find("em");
+	max_em = devclass_get_maxunit(dc);
+
+	for (int index = 0; index < (max_em - 1); index++) {
+		device_t dev;
+		dev = devclass_get_device(dc, index);
+		if (device_get_driver(dev) == &em_driver)
+			em_print_debug_info(device_get_softc(dev));
+	}
+
+}
+#endif
