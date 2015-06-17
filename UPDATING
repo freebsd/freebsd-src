@@ -15,6 +15,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150615:
+	The latest version of openssl rejects TLS handshakes with DH
+	parameters below 768 bits.  sendmail releases prior to 8.15.2
+	(not yet released), defaulted to a 512 bit DH parameter setting
+	for client connections.  To improve interoperability, the
+	sendmail default for client connections has been raised to
+	1024 bits.
+
 20140216:
 	The nve(4) driver for NVIDIA nForce MCP Ethernet adapters has
 	been deprecated and will not be part of FreeBSD 11.0 and later
