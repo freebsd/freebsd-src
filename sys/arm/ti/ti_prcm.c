@@ -285,7 +285,7 @@ ti_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
  *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	@freq: pointer to an integer that upon return will contain the src freq
- *	
+ *
  *	This function returns the frequency of the source clock.
  *
  *	The real work done to enable the clock is really done in the callback
@@ -319,6 +319,39 @@ ti_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq)
 		ret = clk_dev->clk_get_source_freq(clk_dev, freq);
 	else
 		ret = EINVAL;
-	
+
+	return (ret);
+}
+
+/**
+ *	ti_prcm_clk_set_source_freq - sets the source clock frequency as close to freq as possible
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
+ *	      of possible modules.
+ *	@freq: requested freq
+ *
+ *	LOCKING:
+ *	Internally locks the driver context.
+ *
+ *	RETURNS:
+ *	Returns 0 on success or positive error code on failure.
+ */
+int
+ti_prcm_clk_set_source_freq(clk_ident_t clk, unsigned int freq)
+{
+	struct ti_clock_dev *clk_dev;
+	int ret;
+
+	clk_dev = ti_prcm_clk_dev(clk);
+
+	/* Sanity check we managed to find the clock */
+	if (clk_dev == NULL)
+		return (EINVAL);
+
+	/* Get the source frequency of the clock */
+	if (clk_dev->clk_set_source_freq)
+		ret = clk_dev->clk_set_source_freq(clk_dev, freq);
+	else
+		ret = EINVAL;
+
 	return (ret);
 }
