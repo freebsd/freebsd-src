@@ -444,7 +444,8 @@ s/\$//g
 			    argalias) > sysarg
 		if (!flag("NOPROTO") && !flag("NODEF")) {
 			if (funcname == "nosys" || funcname == "lkmnosys" ||
-			    funcname == "sysarch" || funcname ~ /^freebsd/ || 
+			    funcname == "sysarch" ||
+			    funcname ~ /^cheriabi/ || funcname ~ /^freebsd/ ||
 			    funcname ~ /^linux/ || funcname ~ /^svr4/ || 
 			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {				
 				printf("%s\t%s(struct thread *, struct %s *)",
@@ -464,7 +465,8 @@ s/\$//g
 			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
 			if (funcname == "nosys" || funcname == "sysarch" || 
-			    funcname == "lkmnosys" || funcname ~ /^freebsd/ ||
+			    funcname == "lkmnosys" ||
+			    funcname ~ /^cheriabi/ || funcname ~ /^freebsd/ ||
 			    funcname ~ /^linux/ || funcname ~ /^svr4/ ||
 			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {
 				printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
