@@ -178,7 +178,7 @@ printlong(const DISPLAY *dp)
 		sp = p->fts_statp;
 		name = getname(p->fts_name);
 		if (name)
-		    xo_emit("{ke:name}", name);
+		    xo_emit("{ke:name/%hs}", name);
 		if (f_inode)
 			xo_emit("{:inode/%*ju} ",
 			    dp->s_inode, (uintmax_t)sp->st_ino);
@@ -214,7 +214,7 @@ printlong(const DISPLAY *dp)
 #endif
 
 		if (name) {
-		    xo_emit("{dk:name}", name);
+		    xo_emit("{dk:name/%hs}", name);
 		    free(name);
 		}
 		
