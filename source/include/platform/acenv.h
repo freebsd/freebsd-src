@@ -349,50 +349,6 @@
 
 /* We will be linking to the standard Clib functions */
 
-#undef strstr
-#undef strchr
-#undef strlen
-#undef strcpy
-#undef strncpy
-#undef strncmp
-#undef strcmp
-#undef strcat
-#undef strncat
-#undef strtoul
-#undef memcmp
-#undef memcpy
-#undef memset
-#undef toupper
-#undef tolower
-#undef isxdigit
-#undef isdigit
-#undef isspace
-#undef isupper
-#undef isprint
-#undef isalpha
-
-#define strstr(s1,s2)       strstr((s1), (s2))
-#define strchr(s1,c)        strchr((s1), (c))
-#define strlen(s)           (ACPI_SIZE) strlen((s))
-#define strcpy(d,s)         (void) strcpy((d), (s))
-#define strncpy(d,s,n)      (void) strncpy((d), (s), (ACPI_SIZE)(n))
-#define strncmp(d,s,n)      strncmp((d), (s), (ACPI_SIZE)(n))
-#define strcmp(d,s)         strcmp((d), (s))
-#define strcat(d,s)         (void) strcat((d), (s))
-#define strncat(d,s,n)      strncat((d), (s), (ACPI_SIZE)(n))
-#define strtoul(d,s,n)      strtoul((d), (s), (ACPI_SIZE)(n))
-#define memcmp(s1,s2,n)     memcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
-#define memcpy(d,s,n)       (void) memcpy((d), (s), (ACPI_SIZE)(n))
-#define memset(d,s,n)       (void) memset((d), (s), (ACPI_SIZE)(n))
-#define toupper(i)          toupper((int) (i))
-#define tolower(i)          tolower((int) (i))
-#define isxdigit(i)         isxdigit((int) (i))
-#define isdigit(i)          isdigit((int) (i))
-#define isspace(i)          isspace((int) (i))
-#define isupper(i)          isupper((int) (i))
-#define isprint(i)          isprint((int) (i))
-#define isalpha(i)          isalpha((int) (i))
-
 #else
 
 /******************************************************************************

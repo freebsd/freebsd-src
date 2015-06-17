@@ -361,7 +361,7 @@ AcpiDbMatchCommandHelp (
 
     while ((*Command) && (*Invocation) && (*Invocation != ' '))
     {
-        if (tolower (*Command) != tolower (*Invocation))
+        if (tolower ((int) *Command) != tolower ((int) *Invocation))
         {
             return (FALSE);
         }

@@ -122,7 +122,7 @@ AcpiNsPrintPathname (
     {
         for (i = 0; i < 4; i++)
         {
-            isprint (Pathname[i]) ?
+            isprint ((int) Pathname[i]) ?
                 AcpiOsPrintf ("%c", Pathname[i]) :
                 AcpiOsPrintf ("?");
         }

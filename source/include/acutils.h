@@ -379,24 +379,6 @@ extern const UINT8 _acpi_ctype[];
 #define isprint(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
 #define isalpha(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
 
-#ifndef ACPI_CLIBRARY
-#define strstr(s1,s2)       strstr ((s1), (s2))
-#define strchr(s1,c)        strchr ((s1), (c))
-#define strlen(s)           (ACPI_SIZE) strlen ((s))
-#define strcpy(d,s)         (void) strcpy ((d), (s))
-#define strncpy(d,s,n)      (void) strncpy ((d), (s), (ACPI_SIZE)(n))
-#define strncmp(d,s,n)      strncmp ((d), (s), (ACPI_SIZE)(n))
-#define strcmp(d,s)         strcmp ((d), (s))
-#define strcat(d,s)         (void) strcat ((d), (s))
-#define strncat(d,s,n)      strncat ((d), (s), (ACPI_SIZE)(n))
-#define strtoul(d,s,n)      strtoul ((d), (s), (ACPI_SIZE)(n))
-#define memcmp(s1,s2,n)     memcmp((void *)(s1), (void *)(s2), (ACPI_SIZE)(n))
-#define memcpy(d,s,n)       (void) memcpy ((d), (s), (ACPI_SIZE)(n))
-#define memset(d,v,n)       (void) memset ((d), (v), (ACPI_SIZE)(n))
-#define toupper(c)          toupper ((int) (c))
-#define tolower(c)          tolower ((int) (c))
-#endif /* ACPI_CLIBRARY */
-
 #endif /* !ACPI_USE_SYSTEM_CLIBRARY */
 
 #define ACPI_IS_ASCII(c)  ((c) < 0x80)

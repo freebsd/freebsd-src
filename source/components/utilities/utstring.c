@@ -89,7 +89,7 @@ AcpiUtStrlwr (
 
     for (String = SrcString; *String; String++)
     {
-        *String = (char) tolower (*String);
+        *String = (char) tolower ((int) *String);
     }
 
     return;
@@ -168,7 +168,7 @@ AcpiUtStrupr (
 
     for (String = SrcString; *String; String++)
     {
-        *String = (char) toupper (*String);
+        *String = (char) toupper ((int) *String);
     }
 
     return;
@@ -234,7 +234,7 @@ AcpiUtStrtoul64 (
 
     /* Skip over any white space in the buffer */
 
-    while ((*String) && (isspace (*String) || *String == '\t'))
+    while ((*String) && (isspace ((int) *String) || *String == '\t'))
     {
         String++;
     }
@@ -245,7 +245,7 @@ AcpiUtStrtoul64 (
          * Base equal to ACPI_ANY_BASE means 'ToInteger operation case'.
          * We need to determine if it is decimal or hexadecimal.
          */
-        if ((*String == '0') && (tolower (*(String + 1)) == 'x'))
+        if ((*String == '0') && (tolower ((int) *(String + 1)) == 'x'))
         {
             SignOf0x = 1;
             Base = 16;
@@ -261,7 +261,7 @@ AcpiUtStrtoul64 (
 
     /* Any string left? Check that '0x' is not followed by white space. */
 
-    if (!(*String) || isspace (*String) || *String == '\t')
+    if (!(*String) || isspace ((int) *String) || *String == '\t')
     {
         if (ToIntegerOp)
         {
@@ -283,7 +283,7 @@ AcpiUtStrtoul64 (
 
     while (*String)
     {
-        if (isdigit (*String))
+        if (isdigit ((int) *String))
         {
             /* Convert ASCII 0-9 to Decimal value */
 
@@ -297,8 +297,8 @@ AcpiUtStrtoul64 (
         }
         else
         {
-            ThisDigit = (UINT8) toupper (*String);
-            if (isxdigit ((char) ThisDigit))
+            ThisDigit = (UINT8) toupper ((int) *String);
+            if (isxdigit ((int) ThisDigit))
             {
                 /* Convert ASCII Hex char to value */
 
@@ -469,7 +469,7 @@ AcpiUtPrintString (
 
             /* Check for printable character or hex escape */
 
-            if (isprint (String[i]))
+            if (isprint ((int) String[i]))
             {
                 /* This is a normal character */
 
