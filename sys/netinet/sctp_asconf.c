@@ -1109,7 +1109,8 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 		 * not be changed.
 		 */
 		SCTP_RTALLOC((sctp_route_t *) & net->ro,
-		    stcb->sctp_ep->def_vrf_id);
+		    stcb->sctp_ep->def_vrf_id,
+		    stcb->sctp_ep->fibnum);
 		if (net->ro.ro_rt == NULL)
 			continue;
 
