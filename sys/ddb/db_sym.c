@@ -160,7 +160,7 @@ db_var_curvnet(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (0);
 
 	default:
-		db_printf("db_var_curcpu: unknown operation\n");
+		db_printf("db_var_curvnet: unknown operation\n");
 		return (0);
 	}
 }
