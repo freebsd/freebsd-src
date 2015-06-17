@@ -5734,8 +5734,6 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	object = mreq->object;
 	error = 0;
 
-	KASSERT(vp->v_object == object, ("mismatching object"));
-
 	if (pcount > 1 && zp->z_blksz > PAGESIZE) {
 		startoff = rounddown(IDX_TO_OFF(mreq->pindex), zp->z_blksz);
 		reqstart = OFF_TO_IDX(round_page(startoff));
