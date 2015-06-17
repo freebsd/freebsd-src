@@ -2990,3 +2990,6 @@ options 	RANDOM_YARROW	# Yarrow RNG
 ##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
 options 	RANDOM_DEBUG	# Debugging messages
 options 	RANDOM_RWFILE	# Read and write entropy cache
+
+# Intel em(4) driver
+options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
