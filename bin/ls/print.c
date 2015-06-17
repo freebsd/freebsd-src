@@ -425,7 +425,7 @@ printtime(const char *field, time_t ftime)
 		format = d_first ? "%e %b  %Y" : "%b %e  %Y";
 	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 
-	snprintf(fmt, sizeof(fmt), "{:%s/%%s} ", field);
+	snprintf(fmt, sizeof(fmt), "{:%s/%%hs} ", field);
 	xo_attr("value", "%ld", (long) ftime);
 	xo_emit(fmt, longstring);
 }
