@@ -418,7 +418,7 @@ restart:
 		 * to be rare.
 		 */
 		if (idx == IDR_SIZE) {
-			starting_id = id + (1 << (layer+1 * IDR_BITS));
+			starting_id = id + (1 << ((layer + 1) * IDR_BITS));
 			goto restart;
 		}
 		if (idx > sidx)
