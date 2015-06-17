@@ -1220,6 +1220,10 @@ dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset, void *buf,
 			ibn = bn >> ((nlevels - i - 1) * ibshift);
 			ibn &= ((1 << ibshift) - 1);
 			bp = indbp[ibn];
+			if (BP_IS_HOLE(&bp)) {
+				memset(dnode_cache_buf, 0, bsize);
+				break;
+			}
 			rc = zio_read(spa, &bp, dnode_cache_buf);
 			if (rc)
 				return (rc);
