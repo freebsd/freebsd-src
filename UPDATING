@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150615:
+	The latest version of openssl rejects TLS handshakes with DH
+	parameters below 768 bits.  sendmail releases prior to 8.15.2
+	(not yet released), defaulted to a 512 bit DH parameter setting
+	for client connections.  To improve interoperability, the
+	sendmail default for client connections has been raised to
+	1024 bits.
+
 20140717:
 	It is no longer necessary to include the dwarf version in your DEBUG
 	options in your kernel config file. The bug that required it to be
