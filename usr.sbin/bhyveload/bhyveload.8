@@ -35,6 +35,7 @@
 guest inside a bhyve virtual machine
 .Sh SYNOPSIS
 .Nm
+.Op Fl S
 .Op Fl c Ar cons-dev
 .Op Fl d Ar disk-path
 .Op Fl e Ar name=value
@@ -111,8 +112,10 @@ respectively.
 The default value of
 .Ar mem-size
 is 256M.
-.El
+.It Fl S
+Wire guest memory.
 .Sh EXAMPLES
+.El
 To create a virtual machine named
 .Ar freebsd-vm
 that boots off the ISO image

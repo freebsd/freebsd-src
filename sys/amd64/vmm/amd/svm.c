@@ -1477,7 +1477,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			VCPU_CTR2(svm_sc->vm, vcpu, "nested page fault with "
 			    "reserved bits set: info1(%#lx) info2(%#lx)",
 			    info1, info2);
-		} else if (vm_mem_allocated(svm_sc->vm, info2)) {
+		} else if (vm_mem_allocated(svm_sc->vm, vcpu, info2)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = npf_fault_type(info1);
