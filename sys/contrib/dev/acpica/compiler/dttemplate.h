@@ -45,7 +45,7 @@
 #define __DTTEMPLATE_H
 
 
-/* Special templates for DSDT and SSDT (AML byte-code tables) */
+/* Special templates for the ASL/AML tables: DSDT, SSDT, and OSDT */
 
 const char TemplateDsdt[] =
     "DefinitionBlock (\"dsdt.aml\", \"DSDT\", 2, \"Intel\", \"Template\", 0x00000001)\n"
@@ -58,6 +58,15 @@ const char TemplateDsdt[] =
 
 const char TemplateSsdt[] =
     "DefinitionBlock (\"ssdt.aml\", \"SSDT\", 2, \"Intel\", \"Template\", 0x00000001)\n"
+    "{\n"
+    "    Method (MAIN, 0, NotSerialized)\n"
+    "    {\n"
+    "        Return (Zero)\n"
+    "    }\n"
+    "}\n\n";
+
+const char TemplateOsdt[] =
+    "DefinitionBlock (\"osdt.aml\", \"OSDT\", 2, \"Intel\", \"Template\", 0x00000001)\n"
     "{\n"
     "    Method (MAIN, 0, NotSerialized)\n"
     "    {\n"
