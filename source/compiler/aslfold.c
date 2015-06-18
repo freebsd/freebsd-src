@@ -236,6 +236,8 @@ OpcAmlCheckForConstant (
      */
     if (WalkState->Opcode == AML_BUFFER_OP)
     {
+        DbgPrint (ASL_PARSE_OUTPUT,
+            "\nBuffer+Buffer->Buffer constant reduction is not supported yet");
         Status = AE_TYPE;
         goto CleanupAndExit;
     }
@@ -496,6 +498,10 @@ TrTransformToStoreOp (
         goto EvalError;
     }
 
+    /* Truncate any subtree expressions, they have been evaluated */
+
+    Child1->Asl.Child = NULL;
+
     /* Folded constant is in ObjDesc, store into Child1 */
 
     TrInstallReducedConstant (Child1, ObjDesc);
@@ -506,11 +512,6 @@ TrTransformToStoreOp (
     Op->Asl.AmlOpcode = AML_STORE_OP;
     UtSetParseOpName (Op);
     Op->Common.Parent = OriginalParent;
-
-    /* Truncate any subtree expressions, they have been evaluated */
-
-    Child1->Asl.Child = NULL;
-    Child2->Asl.Child = NULL;
 
     /* First child is the folded constant */
 

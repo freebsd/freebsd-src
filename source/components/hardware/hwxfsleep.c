@@ -51,11 +51,13 @@
 
 /* Local prototypes */
 
+#if (!ACPI_REDUCED_HARDWARE)
 static ACPI_STATUS
 AcpiHwSetFirmwareWakingVector (
     ACPI_TABLE_FACS         *Facs,
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress64);
+#endif
 
 static ACPI_STATUS
 AcpiHwSleepDispatch (
@@ -171,7 +173,7 @@ AcpiSetFirmwareWakingVector (
 
     if (AcpiGbl_ReducedHardware)
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     if (AcpiGbl_Facs32)

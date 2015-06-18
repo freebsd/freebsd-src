@@ -64,17 +64,17 @@
 #define EFIAPI
 #endif
 
-typedef uint8_t UINT8;
-typedef uint16_t UINT16;
-typedef int16_t INT16;
-typedef uint32_t UINT32;
-typedef int32_t INT32;
-typedef uint64_t UINT64;
-typedef int64_t INT64;
-typedef uint8_t BOOLEAN;
-typedef uint16_t CHAR16;
+typedef uint8_t     UINT8;
+typedef uint16_t    UINT16;
+typedef int16_t     INT16;
+typedef uint32_t    UINT32;
+typedef int32_t     INT32;
+typedef uint64_t    UINT64;
+typedef int64_t     INT64;
+typedef uint8_t     BOOLEAN;
+typedef uint16_t    CHAR16;
 
-#define VOID void
+#define VOID        void
 
 #if defined(__ia64__) || defined(__x86_64__)
 
@@ -89,13 +89,13 @@ typedef uint16_t CHAR16;
 #endif
 
 #ifdef _MSC_EXTENSIONS
-#pragma warning ( disable : 4731 )  // Suppress warnings about modification of EBP
+#pragma warning ( disable : 4731 )  /* Suppress warnings about modification of EBP */
 #endif
 
 #endif
 
-typedef uint64_t UINTN;
-typedef int64_t INTN;
+typedef uint64_t    UINTN;
+typedef int64_t     INTN;
 
 #define EFIERR(a)           (0x8000000000000000 | a)
 
@@ -130,6 +130,7 @@ typedef int32_t INTN;
   prefix ## nargs
 
 /* Prototypes of EFI cdecl -> stdcall trampolines */
+
 UINT64 efi_call0(void *func);
 UINT64 efi_call1(void *func, UINT64 arg1);
 UINT64 efi_call2(void *func, UINT64 arg1, UINT64 arg2);
@@ -153,6 +154,7 @@ UINT64 efi_call10(void *func, UINT64 arg1, UINT64 arg2, UINT64 arg3,
                   UINT64 arg8, UINT64 arg9, UINT64 arg10);
 
 /* Front-ends to efi_callX to avoid compiler warnings */
+
 #define _cast64_efi_call0(f) \
   efi_call0(f)
 #define _cast64_efi_call1(f,a1) \
@@ -185,6 +187,7 @@ UINT64 efi_call10(void *func, UINT64 arg1, UINT64 arg2, UINT64 arg3,
              (UINT64)(a9), (UINT64)(a10))
 
 /* main wrapper (va_num ignored) */
+
 #define uefi_call_wrapper(func,va_num,...)                        \
   __VA_ARG_NSUFFIX__(_cast64_efi_call, __VA_ARGS__) (func , ##__VA_ARGS__)
 

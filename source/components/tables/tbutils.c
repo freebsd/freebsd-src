@@ -76,13 +76,6 @@ AcpiTbInitializeFacs (
     void)
 {
 
-    /* If there is no FACS, just continue. There was already an error msg */
-
-    if (!AcpiGbl_FACS)
-    {
-        return (AE_OK);
-    }
-
     /* If Hardware Reduced flag is set, there is no FACS */
 
     if (AcpiGbl_ReducedHardware)
@@ -95,19 +88,17 @@ AcpiTbInitializeFacs (
                 ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &AcpiGbl_Facs32));
     (void) AcpiGetTableByIndex (ACPI_TABLE_INDEX_X_FACS,
                 ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &AcpiGbl_Facs64));
-    if (!AcpiGbl_Facs32 && !AcpiGbl_Facs64)
+
+    if (AcpiGbl_Facs64 && (!AcpiGbl_Facs32 || !AcpiGbl_Use32BitFacsAddresses))
     {
-        return (AE_NO_MEMORY);
+        AcpiGbl_FACS = AcpiGbl_Facs64;
+    }
+    else if (AcpiGbl_Facs32)
+    {
+        AcpiGbl_FACS = AcpiGbl_Facs32;
     }
 
-    if (AcpiGbl_Use32BitFacsAddresses)
-    {
-        AcpiGbl_FACS = AcpiGbl_Facs32 ? AcpiGbl_Facs32 : AcpiGbl_Facs64;
-    }
-    else
-    {
-        AcpiGbl_FACS = AcpiGbl_Facs64 ? AcpiGbl_Facs64 : AcpiGbl_Facs32;
-    }
+    /* If there is no FACS, just continue. There was already an error msg */
 
     return (AE_OK);
 }

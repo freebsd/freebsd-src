@@ -406,7 +406,8 @@ DtParseLine (
 
 UINT32
 DtGetNextLine (
-    FILE                    *Handle)
+    FILE                    *Handle,
+    UINT32                  Flags)
 {
     BOOLEAN                 LineNotAllBlanks = FALSE;
     UINT32                  State = DT_NORMAL_TEXT;
@@ -550,9 +551,12 @@ DtGetNextLine (
 
             case '\n':
 
-                AcpiOsPrintf ("ERROR at line %u: Unterminated quoted string\n",
-                    Gbl_CurrentLineNumber++);
-                State = DT_NORMAL_TEXT;
+                if (!(Flags & DT_ALLOW_MULTILINE_QUOTES))
+                {
+                    AcpiOsPrintf ("ERROR at line %u: Unterminated quoted string\n",
+                        Gbl_CurrentLineNumber++);
+                    State = DT_NORMAL_TEXT;
+                }
                 break;
 
             default:    /* Get next character */
@@ -746,7 +750,7 @@ DtScanFile (
 
     /* Scan line-by-line */
 
-    while ((Offset = DtGetNextLine (Handle)) != ASL_EOF)
+    while ((Offset = DtGetNextLine (Handle, 0)) != ASL_EOF)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Line %2.2u/%4.4X - %s",
             Gbl_CurrentLineNumber, Offset, Gbl_CurrentLineBuffer));
