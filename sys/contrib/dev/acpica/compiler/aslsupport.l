@@ -113,6 +113,7 @@ AslDoLineDirective (
     char                    *Filename;
     UINT32                  i;
 
+   Gbl_HasIncludeFiles = TRUE;
 
     /* Eat the entire line that contains the #line directive */
 
@@ -713,7 +714,7 @@ DoCharacter:
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
-                Digit = (UINT8) ACPI_STRTOUL (ConvertBuffer, NULL, 8);
+                Digit = (UINT8) strtoul (ConvertBuffer, NULL, 8);
 
                 /* Check for NULL or non-ascii character (ignore if so) */
 
@@ -749,7 +750,7 @@ DoCharacter:
 
             /* Up to two hex digits allowed */
 
-            if (!ACPI_IS_XDIGIT (StringChar) ||
+            if (!isxdigit (StringChar) ||
                 (i > 1))
             {
                 /*
@@ -757,7 +758,7 @@ DoCharacter:
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
-                Digit = (UINT8) ACPI_STRTOUL (ConvertBuffer, NULL, 16);
+                Digit = (UINT8) strtoul (ConvertBuffer, NULL, 16);
 
                 /* Check for NULL or non-ascii character (ignore if so) */
 
@@ -830,7 +831,7 @@ CompletedString:
         return (FALSE);
     }
 
-    ACPI_STRCPY (CleanString, MsgBuffer);
+    strcpy (CleanString, MsgBuffer);
     AslCompilerlval.s = CleanString;
     return (TRUE);
 

@@ -218,6 +218,19 @@ FlWriteFile (
         FlFileError (FileId, ASL_MSG_WRITE);
         AslAbort ();
     }
+
+    if ((FileId == ASL_FILE_PREPROCESSOR) && Gbl_PreprocessorOutputFlag)
+    {
+        /* Duplicate the output to the user preprocessor (.i) file */
+
+        Actual = fwrite ((char *) Buffer, 1, Length,
+            Gbl_Files[ASL_FILE_PREPROCESSOR_USER].Handle);
+        if (Actual != Length)
+        {
+            FlFileError (FileId, ASL_MSG_WRITE);
+            AslAbort ();
+        }
+    }
 }
 
 
@@ -247,7 +260,6 @@ FlPrintFile (
 
 
     va_start (Args, Format);
-
     Actual = vfprintf (Gbl_Files[FileId].Handle, Format, Args);
     va_end (Args);
 
@@ -256,6 +268,30 @@ FlPrintFile (
         FlFileError (FileId, ASL_MSG_WRITE);
         AslAbort ();
     }
+
+    if ((FileId == ASL_FILE_PREPROCESSOR) && Gbl_PreprocessorOutputFlag)
+    {
+        /*
+         * Duplicate the output to the user preprocessor (.i) file,
+         * except: no #line directives.
+         */
+        if (!strncmp (Format, "#line", 5))
+        {
+            return;
+        }
+
+        va_start (Args, Format);
+        Actual = vfprintf (Gbl_Files[ASL_FILE_PREPROCESSOR_USER].Handle,
+            Format, Args);
+        va_end (Args);
+
+        if (Actual == -1)
+        {
+            FlFileError (FileId, ASL_MSG_WRITE);
+            AslAbort ();
+        }
+    }
+
 }
 
 
