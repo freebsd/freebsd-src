@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -34,7 +38,6 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/condvar.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
@@ -44,6 +47,18 @@
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+
+#include "sfxge_ioc.h"
+
+/*
+ * Debugging
+ */
+#if 0
+#define	DBGPRINT(dev, fmt, args...) \
+	device_printf(dev, "%s: " fmt "\n", __func__, ## args)
+#else
+#define	DBGPRINT(dev, fmt, args...)
+#endif
 
 /*
  * Backward-compatibility
@@ -69,6 +84,10 @@
 
 #ifndef IFM_10G_KX4
 #define	IFM_10G_KX4 IFM_10G_CX4
+#endif
+
+#ifndef IFM_40G_CR4
+#define	IFM_40G_CR4 IFM_UNKNOWN
 #endif
 
 #if (__FreeBSD_version >= 800501 && __FreeBSD_version < 900000) || \
@@ -160,7 +179,7 @@ enum sfxge_mcdi_state {
 
 struct sfxge_mcdi {
 	struct mtx		lock;
-	struct cv		cv;
+	efsys_mem_t		mem;
 	enum sfxge_mcdi_state	state;
 	efx_mcdi_transport_t	transport;
 
@@ -190,6 +209,9 @@ struct sfxge_port {
 	struct sfxge_hw_stats	phy_stats;
 	struct sfxge_hw_stats	mac_stats;
 	efx_link_mode_t		link_mode;
+	uint8_t			mcast_addrs[EFX_MAC_MULTICAST_LIST_MAX *
+					    EFX_MAC_ADDR_LEN];
+	unsigned int		mcast_count;
 
 	/* Only used in debugging output */
 	char			lock_name[SFXGE_LOCK_NAME_MAX];
@@ -249,11 +271,15 @@ struct sfxge_softc {
 
 	size_t				rx_prefix_size;
 	size_t				rx_buffer_size;
+	size_t				rx_buffer_align;
 	uma_zone_t			rx_buffer_zone;
 
+	unsigned int			evq_max;
 	unsigned int			evq_count;
 	unsigned int			rxq_count;
 	unsigned int			txq_count;
+
+	int				tso_fw_assisted;
 };
 
 #define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
@@ -276,10 +302,12 @@ extern void sfxge_sram_buf_tbl_alloc(struct sfxge_softc *sc, size_t n,
 extern int sfxge_dma_init(struct sfxge_softc *sc);
 extern void sfxge_dma_fini(struct sfxge_softc *sc);
 extern int sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len,
-    efsys_mem_t *esmp);
+			   efsys_mem_t *esmp);
 extern void sfxge_dma_free(efsys_mem_t *esmp);
 extern int sfxge_dma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf **mp, bus_dma_segment_t *segs, int *nsegs, int maxsegs);
+				     struct mbuf **mp,
+				     bus_dma_segment_t *segs,
+				     int *nsegs, int maxsegs);
 
 /*
  * From sfxge_ev.c.
@@ -303,6 +331,12 @@ extern void sfxge_intr_stop(struct sfxge_softc *sc);
  */
 extern int sfxge_mcdi_init(struct sfxge_softc *sc);
 extern void sfxge_mcdi_fini(struct sfxge_softc *sc);
+extern int sfxge_mcdi_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip);
+
+/*
+ * From sfxge_nvram.c.
+ */
+extern int sfxge_nvram_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip);
 
 /*
  * From sfxge_port.c.
@@ -312,7 +346,7 @@ extern void sfxge_port_fini(struct sfxge_softc *sc);
 extern int sfxge_port_start(struct sfxge_softc *sc);
 extern void sfxge_port_stop(struct sfxge_softc *sc);
 extern void sfxge_mac_link_update(struct sfxge_softc *sc,
-    efx_link_mode_t mode);
+				  efx_link_mode_t mode);
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
 
