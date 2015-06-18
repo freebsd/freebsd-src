@@ -336,7 +336,7 @@ FlOpenIncludeWithPrefix (
      */
     Gbl_CurrentLineNumber--;
     OriginalLineNumber = Gbl_CurrentLineNumber;
-    while (DtGetNextLine (IncludeFile) != ASL_EOF)
+    while (DtGetNextLine (IncludeFile, DT_ALLOW_MULTILINE_QUOTES) != ASL_EOF)
     {
         if (Gbl_CurrentLineBuffer[0] == '#')
         {

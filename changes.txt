@@ -1,4 +1,20 @@
 ----------------------------------------
+19 June 2015. Summary of changes for version 20150619:
+
+Two regressions in version 20150616 have been addressed:
+
+Fixes some problems/issues with the C library macro removal (ACPI_STRLEN, 
+etc.) This update changes ACPICA to only use the standard headers for 
+functions, or the prototypes for the local versions of the C library 
+functions. Across the source code, this required some additional casts 
+for some Clib invocations for portability. Moved all local prototypes to 
+a new file, acclib.h
+
+Fixes several problems with recent changes to the handling of the FACS 
+table that could cause some systems not to boot.
+
+
+----------------------------------------
 16 June 2015. Summary of changes for version 20150616:
 
 

@@ -349,6 +349,11 @@ AcpiNsSearchAndEnter (
              */
             if (Flags & ACPI_NS_OVERRIDE_IF_FOUND)
             {
+                ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
+                    "Namespace override: %4.4s pass %u type %X Owner %X\n",
+                    ACPI_CAST_PTR(char, &TargetName), InterpreterMode,
+                    (*ReturnNode)->Type, WalkState->OwnerId));
+
                 AcpiNsDeleteChildren (*ReturnNode);
                 if (AcpiGbl_RuntimeNamespaceOverride)
                 {
@@ -361,11 +366,6 @@ AcpiNsSearchAndEnter (
                     AcpiNsRemoveNode (*ReturnNode);
                     *ReturnNode = ACPI_ENTRY_NOT_FOUND;
                 }
-
-                ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                    "Namespace override: %4.4s pass %u type %X Owner %X\n",
-                    ACPI_CAST_PTR(char, &TargetName), InterpreterMode,
-                    (*ReturnNode)->Type, WalkState->OwnerId));
             }
 
             /* Return an error if we don't expect to find the object */
