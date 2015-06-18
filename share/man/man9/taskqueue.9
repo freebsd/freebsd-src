@@ -288,11 +288,11 @@ are enqueued on the taskqueue to finish.
 Tasks posted to the taskqueue after
 .Fn taskqueue_drain_all
 begins processing,
-including pending enqueues scheduled by a previous call to 
+including pending enqueues scheduled by a previous call to
 .Fn taskqueue_enqueue_timeout ,
 do not extend the wait time of
 .Fn taskqueue_drain_all
-and may complete after 
+and may complete after
 .Fn taskqueue_drain_all
 returns.
 .Pp
