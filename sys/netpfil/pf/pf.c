@@ -6078,7 +6078,7 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	M_ASSERTPKTHDR(m);
 
-	if (ifp != m->m_pkthdr.rcvif)
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif)
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)
