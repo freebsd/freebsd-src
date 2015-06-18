@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2015 Oleksandr Tymoshenko
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,32 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
+ *
+ *	$FreeBSD$
  */
 
+#ifndef _HDMI_H_
+#define _HDMI_H_
 
-#include "am335x-boneblack.dts"
-#include "beaglebone-common.dtsi"
+#include <sys/eventhandler.h>
 
-&i2c0 {
-	tda998x: hdmi-encoder {
-		compatible = "nxp,tda998x";
-		reg = <0x70>;
+typedef void (*hdmi_event_hook)(void *, int);
+EVENTHANDLER_DECLARE(hdmi_event, hdmi_event_hook);
 
- 		pinctrl-names = "default", "off";
- 		pinctrl-0 = <&nxp_hdmi_bonelt_pins>;
- 		pinctrl-1 = <&nxp_hdmi_bonelt_off_pins>;
-		status = "okay";
- 	};
-};
+#endif	/* !_HDMI_H_ */
 
-&lcdc {
-	hdmi = <&tda998x>;
-};
-
-/ {
-	hdmi {
-		status = "disabled";
-	};
-};
