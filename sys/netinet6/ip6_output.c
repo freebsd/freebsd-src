@@ -208,6 +208,65 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 	*(u_short *)(m->m_data + offset) = csum;
 }
 
+int
+ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
+    int mtu)
+{
+	struct mbuf *m, **mnext, *m_frgpart;
+	struct ip6_hdr *ip6, *mhip6;
+	struct ip6_frag *ip6f;
+	int off;
+	int error;
+	int tlen = m0->m_pkthdr.len;
+	uint32_t id = htonl(ip6_randomid());
+
+	m = m0;
+	ip6 = mtod(m, struct ip6_hdr *);
+	mnext = &m->m_nextpkt;
+
+	for (off = hlen; off < tlen; off += mtu) {
+		m = m_gethdr(M_NOWAIT, MT_DATA);
+		if (!m) {
+			IP6STAT_INC(ip6s_odropped);
+			return (ENOBUFS);
+		}
+		m->m_flags = m0->m_flags & M_COPYFLAGS;
+		*mnext = m;
+		mnext = &m->m_nextpkt;
+		m->m_data += max_linkhdr;
+		mhip6 = mtod(m, struct ip6_hdr *);
+		*mhip6 = *ip6;
+		m->m_len = sizeof(*mhip6);
+		error = ip6_insertfraghdr(m0, m, hlen, &ip6f);
+		if (error) {
+			IP6STAT_INC(ip6s_odropped);
+			return (error);
+		}
+		ip6f->ip6f_offlg = htons((u_short)((off - hlen) & ~7));
+		if (off + mtu >= tlen)
+			mtu = tlen - off;
+		else
+			ip6f->ip6f_offlg |= IP6F_MORE_FRAG;
+		mhip6->ip6_plen = htons((u_short)(mtu + hlen +
+		    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
+		if ((m_frgpart = m_copy(m0, off, mtu)) == 0) {
+			IP6STAT_INC(ip6s_odropped);
+			return (ENOBUFS);
+		}
+		m_cat(m, m_frgpart);
+		m->m_pkthdr.len = mtu + hlen + sizeof(*ip6f);
+		m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
+		m->m_pkthdr.rcvif = NULL;
+		ip6f->ip6f_reserved = 0;
+		ip6f->ip6f_ident = id;
+		ip6f->ip6f_nxt = nextproto;
+		IP6STAT_INC(ip6s_ofragments);
+		in6_ifstat_inc(ifp, ifs6_out_fragcreat);
+	}
+
+	return (0);
+}
+
 /*
  * IP6 output. The packet in mbuf chain m contains a skeletal IP6
  * header (with pri, len, nxt, hlim, src, dst).
@@ -229,11 +288,11 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct route_in6 *ro, int flags, struct ip6_moptions *im6o,
     struct ifnet **ifpp, struct inpcb *inp)
 {
-	struct ip6_hdr *ip6, *mhip6;
+	struct ip6_hdr *ip6;
 	struct ifnet *ifp, *origifp;
 	struct mbuf *m = m0;
 	struct mbuf *mprev = NULL;
-	int hlen, tlen, len, off;
+	int hlen, tlen, len;
 	struct route_in6 ip6route;
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 *dst, src_sa, dst_sa;
@@ -866,9 +925,6 @@ passout:
 		in6_ifstat_inc(ifp, ifs6_out_fragfail);
 		goto bad;
 	} else {
-		struct mbuf **mnext, *m_frgpart;
-		struct ip6_frag *ip6f;
-		u_int32_t id = htonl(ip6_randomid());
 		u_char nextproto;
 
 		int qslots = ifp->if_snd.ifq_maxlen - ifp->if_snd.ifq_len;
@@ -916,8 +972,6 @@ passout:
 			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 		}
 #endif
-		mnext = &m->m_nextpkt;
-
 		/*
 		 * Change the next header field of the last header in the
 		 * unfragmentable part.
@@ -942,47 +996,8 @@ passout:
 		 * chain.
 		 */
 		m0 = m;
-		for (off = hlen; off < tlen; off += len) {
-			m = m_gethdr(M_NOWAIT, MT_DATA);
-			if (!m) {
-				error = ENOBUFS;
-				IP6STAT_INC(ip6s_odropped);
-				goto sendorfree;
-			}
-			m->m_flags = m0->m_flags & M_COPYFLAGS;
-			*mnext = m;
-			mnext = &m->m_nextpkt;
-			m->m_data += max_linkhdr;
-			mhip6 = mtod(m, struct ip6_hdr *);
-			*mhip6 = *ip6;
-			m->m_len = sizeof(*mhip6);
-			error = ip6_insertfraghdr(m0, m, hlen, &ip6f);
-			if (error) {
-				IP6STAT_INC(ip6s_odropped);
-				goto sendorfree;
-			}
-			ip6f->ip6f_offlg = htons((u_short)((off - hlen) & ~7));
-			if (off + len >= tlen)
-				len = tlen - off;
-			else
-				ip6f->ip6f_offlg |= IP6F_MORE_FRAG;
-			mhip6->ip6_plen = htons((u_short)(len + hlen +
-			    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
-			if ((m_frgpart = m_copy(m0, off, len)) == 0) {
-				error = ENOBUFS;
-				IP6STAT_INC(ip6s_odropped);
-				goto sendorfree;
-			}
-			m_cat(m, m_frgpart);
-			m->m_pkthdr.len = len + hlen + sizeof(*ip6f);
-			m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
-			m->m_pkthdr.rcvif = NULL;
-			ip6f->ip6f_reserved = 0;
-			ip6f->ip6f_ident = id;
-			ip6f->ip6f_nxt = nextproto;
-			IP6STAT_INC(ip6s_ofragments);
-			in6_ifstat_inc(ifp, ifs6_out_fragcreat);
-		}
+		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len)))
+			goto sendorfree;
 
 		in6_ifstat_inc(ifp, ifs6_out_fragok);
 	}
