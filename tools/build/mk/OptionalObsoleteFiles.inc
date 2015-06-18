@@ -5102,9 +5102,7 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-.if ${MK_SENDMAIL} == no
 OLD_FILES+=usr/sbin/mailwrapper
-.endif
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
