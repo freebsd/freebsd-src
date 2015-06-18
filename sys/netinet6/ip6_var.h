@@ -425,6 +425,7 @@ int	ip6_setpktopts(struct mbuf *, struct ip6_pktopts *,
 void	ip6_clearpktopts(struct ip6_pktopts *, int);
 struct ip6_pktopts *ip6_copypktopts(struct ip6_pktopts *, int);
 int	ip6_optlen(struct inpcb *);
+int	ip6_deletefraghdr(struct mbuf *, int, int);
 
 int	route6_input(struct mbuf **, int *, int);
 
