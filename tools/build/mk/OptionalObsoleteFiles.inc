@@ -6333,9 +6333,7 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
-.if ${MK_MAILWRAPPER} == no
 OLD_FILES+=bin/rmail
-.endif
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
 OLD_FILES+=usr/include/libmilter/mfdef.h
