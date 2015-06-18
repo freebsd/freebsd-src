@@ -865,6 +865,7 @@ displaysock(struct sock *s, int pos)
 	void *p;
 	int hash;
 	struct addr *laddr, *faddr;
+	struct sock *s_tmp;
 
 	while (pos < 29)
 		pos += xprintf(" ");
@@ -908,18 +909,20 @@ displaysock(struct sock *s, int pos)
 			}
 			pos += xprintf("-> ");
 			for (hash = 0; hash < HASHSIZE; ++hash) {
-				for (s = sockhash[hash]; s != NULL; s = s->next)
-					if (s->pcb == p)
+				for (s_tmp = sockhash[hash];
+				     s_tmp != NULL;
+				     s_tmp = s_tmp->next)
+					if (s_tmp->pcb == p)
 						break;
-				if (s != NULL)
+				if (s_tmp != NULL)
 					break;
 			}
-			if (s == NULL ||
-			    s->laddr == NULL ||
-			    s->laddr->address.ss_len == 0)
+			if (s_tmp == NULL ||
+			    s_tmp->laddr == NULL ||
+			    s_tmp->laddr->address.ss_len == 0)
 				pos += xprintf("??");
 			else
-				pos += printaddr(&s->laddr->address);
+				pos += printaddr(&s_tmp->laddr->address);
 			break;
 		default:
 			abort();
