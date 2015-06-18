@@ -104,6 +104,7 @@ struct pf_fragment_tag {
 	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
 	uint16_t	ft_extoff;	/* last extension header offset or 0 */
 	uint16_t	ft_maxlen;	/* maximum fragment payload length */
+	uint32_t	ft_id;		/* fragment id */
 };
 
 static struct mtx pf_frag_mtx;
@@ -681,6 +682,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	struct m_tag		*mtag;
 	struct pf_fragment_tag	*ftag;
 	int			 off;
+	uint32_t		 frag_id;
 	uint16_t		 total, maxlen;
 	uint8_t			 proto;
 
@@ -723,6 +725,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	/* We have all the data. */
 	extoff = frent->fe_extoff;
 	maxlen = frag->fr_maxlen;
+	frag_id = frag->fr_id;
 	frent = TAILQ_FIRST(&frag->fr_queue);
 	KASSERT(frent != NULL, ("frent != NULL"));
 	total = TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_off +
@@ -759,6 +762,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	ftag->ft_hdrlen = hdrlen;
 	ftag->ft_extoff = extoff;
 	ftag->ft_maxlen = maxlen;
+	ftag->ft_id = frag_id;
 	m_tag_prepend(m, mtag);
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -1100,6 +1104,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	struct mbuf		*m = *m0, *t;
 	struct pf_fragment_tag	*ftag = (struct pf_fragment_tag *)(mtag + 1);
 	struct pf_pdesc		 pd;
+	uint32_t		 frag_id;
 	uint16_t		 hdrlen, extoff, maxlen;
 	uint8_t			 proto;
 	int			 error, action;
@@ -1107,6 +1112,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	hdrlen = ftag->ft_hdrlen;
 	extoff = ftag->ft_extoff;
 	maxlen = ftag->ft_maxlen;
+	frag_id = ftag->ft_id;
 	m_tag_delete(m, mtag);
 	mtag = NULL;
 	ftag = NULL;
@@ -1136,7 +1142,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	 * is less than 8, ip6_fragment() will return EMSGSIZE and
 	 * we drop the packet.
 	 */
-	error = ip6_fragment(ifp, m, hdrlen, proto, maxlen);
+	error = ip6_fragment(ifp, m, hdrlen, proto, maxlen, frag_id);
 	m = (*m0)->m_nextpkt;
 	(*m0)->m_nextpkt = NULL;
 	if (error == 0) {

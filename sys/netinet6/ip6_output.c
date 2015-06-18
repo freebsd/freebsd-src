@@ -210,7 +210,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
-    int mtu)
+    int mtu, uint32_t id)
 {
 	struct mbuf *m, **mnext, *m_frgpart;
 	struct ip6_hdr *ip6, *mhip6;
@@ -218,7 +218,6 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 	int off;
 	int error;
 	int tlen = m0->m_pkthdr.len;
-	uint32_t id = htonl(ip6_randomid());
 
 	m = m0;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -309,6 +308,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int hdrsplit = 0;
 	int sw_csum, tso;
 	struct m_tag *fwd_tag = NULL;
+	uint32_t id;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -996,7 +996,8 @@ passout:
 		 * chain.
 		 */
 		m0 = m;
-		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len)))
+		id = htonl(ip6_randomid());
+		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len, id)))
 			goto sendorfree;
 
 		in6_ifstat_inc(ifp, ifs6_out_fragok);
