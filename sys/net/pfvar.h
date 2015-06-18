@@ -1573,6 +1573,7 @@ int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
+int	pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag);
 #endif /* INET6 */
 
 u_int32_t	pf_new_isn(struct pf_state *);
