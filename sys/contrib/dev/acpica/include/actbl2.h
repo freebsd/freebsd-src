@@ -52,8 +52,8 @@
  * These tables are not consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
- * The tables in this file are defined by third-party specifications, and are
- * not defined directly by the ACPI specification itself.
+ * Generally, the tables in this file are defined by third-party specifications,
+ * and are not defined directly by the ACPI specification itself.
  *
  ******************************************************************************/
 
@@ -82,6 +82,7 @@
 #define ACPI_SIG_SPCR           "SPCR"      /* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"      /* Server Platform Management Interface table */
 #define ACPI_SIG_TCPA           "TCPA"      /* Trusted Computing Platform Alliance table */
+#define ACPI_SIG_TPM2           "TPM2"      /* Trusted Platform Module 2.0 H/W interface table */
 #define ACPI_SIG_UEFI           "UEFI"      /* Uefi Boot Optimization Table */
 #define ACPI_SIG_VRTC           "VRTC"      /* Virtual Real Time Clock Table */
 #define ACPI_SIG_WAET           "WAET"      /* Windows ACPI Emulated devices Table */
@@ -1369,21 +1370,91 @@ enum AcpiSpmiInterfaceTypes
 /*******************************************************************************
  *
  * TCPA - Trusted Computing Platform Alliance table
- *        Version 1
+ *        Version 2
  *
- * Conforms to "TCG PC Specific Implementation Specification",
- * Version 1.1, August 18, 2003
+ * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
+ * December 19, 2014
+ *
+ * NOTE: There are two versions of the table with the same signature --
+ * the client version and the server version.
  *
  ******************************************************************************/
 
-typedef struct acpi_table_tcpa
+typedef struct acpi_table_tcpa_client
 {
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
-    UINT16                  Reserved;
-    UINT32                  MaxLogLength;       /* Maximum length for the event log area */
+    UINT16                  PlatformClass;
+    UINT32                  MinimumLogLength;   /* Minimum length for the event log area */
     UINT64                  LogAddress;         /* Address of the event log area */
 
-} ACPI_TABLE_TCPA;
+} ACPI_TABLE_TCPA_CLIENT;
+
+typedef struct acpi_table_tcpa_server
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT16                  PlatformClass;
+    UINT16                  Reserved;
+    UINT64                  MinimumLogLength;   /* Minimum length for the event log area */
+    UINT64                  LogAddress;         /* Address of the event log area */
+    UINT16                  SpecRevision;
+    UINT8                   DeviceFlags;
+    UINT8                   InterruptFlags;
+    UINT8                   GpeNumber;
+    UINT8                   Reserved2[3];
+    UINT32                  GlobalInterrupt;
+    ACPI_GENERIC_ADDRESS    Address;
+    UINT32                  Reserved3;
+    ACPI_GENERIC_ADDRESS    ConfigAddress;
+    UINT8                   Group;
+    UINT8                   Bus;                /* PCI Bus/Segment/Function numbers */
+    UINT8                   Device;
+    UINT8                   Function;
+
+} ACPI_TABLE_TCPA_SERVER;
+
+/* Values for DeviceFlags above */
+
+#define ACPI_TCPA_PCI_DEVICE            (1)
+#define ACPI_TCPA_BUS_PNP               (1<<1)
+#define ACPI_TCPA_ADDRESS_VALID         (1<<2)
+
+/* Values for InterruptFlags above */
+
+#define ACPI_TCPA_INTERRUPT_MODE        (1)
+#define ACPI_TCPA_INTERRUPT_POLARITY    (1<<1)
+#define ACPI_TCPA_SCI_VIA_GPE           (1<<2)
+#define ACPI_TCPA_GLOBAL_INTERRUPT      (1<<3)
+
+
+/*******************************************************************************
+ *
+ * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
+ *        Version 4
+ *
+ * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
+ * December 19, 2014
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_tpm2
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT16                  PlatformClass;
+    UINT16                  Reserved;
+    UINT64                  ControlAddress;
+    UINT32                  StartMethod;
+
+    /* Platform-specific data follows */
+
+} ACPI_TABLE_TPM2;
+
+/* Values for StartMethod above */
+
+#define ACPI_TPM2_NOT_ALLOWED                       0
+#define ACPI_TPM2_START_METHOD                      2
+#define ACPI_TPM2_MEMORY_MAPPED                     6
+#define ACPI_TPM2_COMMAND_BUFFER                    7
+#define ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD  8
 
 
 /*******************************************************************************

@@ -94,7 +94,7 @@ AcpiTbCompareTables (
      * not just the header.
      */
     IsIdentical = (BOOLEAN)((TableDesc->Length != TableLength ||
-        ACPI_MEMCMP (TableDesc->Pointer, Table, TableLength)) ?
+        memcmp (TableDesc->Pointer, Table, TableLength)) ?
         FALSE : TRUE);
 
     /* Release the acquired table */
@@ -309,7 +309,7 @@ AcpiTbInstallStandardTable (
          */
         if ((NewTableDesc.Signature.Ascii[0] != 0x00) &&
            (!ACPI_COMPARE_NAME (&NewTableDesc.Signature, ACPI_SIG_SSDT)) &&
-           (ACPI_STRNCMP (NewTableDesc.Signature.Ascii, "OEM", 3)))
+           (strncmp (NewTableDesc.Signature.Ascii, "OEM", 3)))
         {
             ACPI_BIOS_ERROR ((AE_INFO,
                 "Table has invalid signature [%4.4s] (0x%8.8X), "

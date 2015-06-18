@@ -249,7 +249,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_RBW",    "Register Bit Width", "Resource Descriptor field"),
     AH_PREDEF ("_RDI",    "Resource Dependencies for Idle", "Returns a list of dependencies for idle states"),
     AH_PREDEF ("_REG",    "Region Availability", "Inform AML code of an operation region availability change"),
-    AH_PREDEF ("_REV",    "Supported ACPI Revision", "Returns the revision of the ACPI specification that is implemented"),
+    AH_PREDEF ("_REV",    "Supported Integer Width", "Returns the supported integer width (<= 1: 32 bits only, >=2: both 32 and 64 bits"),
     AH_PREDEF ("_RMV",    "Removal Status", "Returns a device's removal ability status (docking)"),
     AH_PREDEF ("_RNG",    "Range", "Memory range type, Resource Descriptor field"),
     AH_PREDEF ("_RST",    "Device Reset", "Executes a reset on a device"),
