@@ -760,7 +760,7 @@ g_part_gpt_resize(struct g_part_table *basetable,
 	struct g_part_gpt_entry *entry;
 
 	if (baseentry == NULL)
-		return (EOPNOTSUPP);
+		return (g_part_gpt_recover(basetable));
 
 	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
