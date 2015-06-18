@@ -43,6 +43,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfiles")
@@ -84,7 +85,6 @@ FlSetLineNumber (
          LineNumber, Gbl_LogicalLineNumber);
 
     Gbl_CurrentLineNumber = LineNumber;
-    Gbl_LogicalLineNumber = LineNumber;
 }
 
 
@@ -303,6 +303,7 @@ FlOpenIncludeWithPrefix (
 {
     FILE                    *IncludeFile;
     char                    *Pathname;
+    UINT32                  OriginalLineNumber;
 
 
     /* Build the full pathname to the file */
@@ -322,13 +323,20 @@ FlOpenIncludeWithPrefix (
         return (NULL);
     }
 
-#ifdef _MUST_HANDLE_COMMENTS
     /*
-     * Check entire include file for any # preprocessor directives.
+     * Check the entire include file for any # preprocessor directives.
      * This is because there may be some confusion between the #include
-     * preprocessor directive and the ASL Include statement.
+     * preprocessor directive and the ASL Include statement. A file included
+     * by the ASL include cannot contain preprocessor directives because
+     * the preprocessor has already run by the time the ASL include is
+     * recognized (by the compiler, not the preprocessor.)
+     *
+     * Note: DtGetNextLine strips/ignores comments.
+     * Save current line number since DtGetNextLine modifies it.
      */
-    while (fgets (Gbl_CurrentLineBuffer, Gbl_LineBufferSize, IncludeFile))
+    Gbl_CurrentLineNumber--;
+    OriginalLineNumber = Gbl_CurrentLineNumber;
+    while (DtGetNextLine (IncludeFile, DT_ALLOW_MULTILINE_QUOTES) != ASL_EOF)
     {
         if (Gbl_CurrentLineBuffer[0] == '#')
         {
@@ -336,7 +344,7 @@ FlOpenIncludeWithPrefix (
                 Op, "use #include instead");
         }
     }
-#endif
+    Gbl_CurrentLineNumber = OriginalLineNumber;
 
     /* Must seek back to the start of the file */
 
@@ -579,8 +587,6 @@ FlOpenMiscOutputFiles (
 
         /* Open the debug file as STDERR, text mode */
 
-        /* TBD: hide this behind a FlReopenFile function */
-
         Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Filename = Filename;
         Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
             freopen (Filename, "w+t", stderr);
@@ -588,13 +594,15 @@ FlOpenMiscOutputFiles (
         if (!Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
         {
             /*
-             * A problem with freopen is that on error,
-             * we no longer have stderr.
+             * A problem with freopen is that on error, we no longer
+             * have stderr and cannot emit normal error messages.
+             * Emit error to stdout, close files, and exit.
              */
-            Gbl_DebugFlag = FALSE;
-            memcpy (stderr, stdout, sizeof (FILE));
-            FlFileError (ASL_FILE_DEBUG_OUTPUT, ASL_MSG_DEBUG_FILENAME);
-            AslAbort ();
+            fprintf (stdout,
+                "\nCould not open debug output file: %s\n\n", Filename);
+
+            CmCleanupAndExit ();
+            exit (1);
         }
 
         AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
@@ -621,7 +629,7 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_LISTING_OUTPUT);
     }
 
-    /* Create the preprocessor output file if preprocessor enabled */
+    /* Create the preprocessor output temp file if preprocessor enabled */
 
     if (Gbl_PreprocessFlag)
     {
@@ -634,6 +642,23 @@ FlOpenMiscOutputFiles (
         }
 
         FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+t");
+    }
+
+    /*
+     * Create the "user" preprocessor output file if -li flag set.
+     * Note, this file contains no embedded #line directives.
+     */
+    if (Gbl_PreprocessorOutputFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROC_USER);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_PREPROCESSOR_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        FlOpenFile (ASL_FILE_PREPROCESSOR_USER, Filename, "w+t");
     }
 
     /* All done for data table compiler */

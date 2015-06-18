@@ -181,7 +181,13 @@ DtCompilePadding (
 
 UINT32
 DtGetNextLine (
-    FILE                    *Handle);
+    FILE                    *Handle,
+    UINT32                  Flags);
+
+/* Flags for DtGetNextLine */
+
+#define DT_ALLOW_MULTILINE_QUOTES   0x01
+
 
 DT_FIELD *
 DtScanFile (

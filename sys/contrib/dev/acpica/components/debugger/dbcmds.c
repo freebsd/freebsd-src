@@ -111,7 +111,7 @@ AcpiDbConvertToNode (
     {
         /* Numeric argument, convert */
 
-        Address = ACPI_STRTOUL (InString, NULL, 16);
+        Address = strtoul (InString, NULL, 16);
         Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
@@ -189,7 +189,7 @@ AcpiDbSleep (
 
     /* Convert argument to binary and invoke the sleep state */
 
-    SleepState = (UINT8) ACPI_STRTOUL (ObjectArg, NULL, 0);
+    SleepState = (UINT8) strtoul (ObjectArg, NULL, 0);
     AcpiDbDoOneSleepState (SleepState);
     return_ACPI_STATUS (AE_OK);
 }
@@ -561,7 +561,7 @@ AcpiDbDisplayInterfaces (
 
     /* Install - install an interface */
 
-    SubString = ACPI_STRSTR ("INSTALL", ActionArg);
+    SubString = strstr ("INSTALL", ActionArg);
     if (SubString)
     {
         Status = AcpiInstallInterface (InterfaceNameArg);
@@ -575,7 +575,7 @@ AcpiDbDisplayInterfaces (
 
     /* Remove - remove an interface */
 
-    SubString = ACPI_STRSTR ("REMOVE", ActionArg);
+    SubString = strstr ("REMOVE", ActionArg);
     if (SubString)
     {
         Status = AcpiRemoveInterface (InterfaceNameArg);
@@ -736,7 +736,7 @@ AcpiDmCompareAmlResources (
 
         /* Check for descriptor byte match */
 
-        else if (ACPI_MEMCMP (Aml1, Aml2, Aml1Length))
+        else if (memcmp (Aml1, Aml2, Aml1Length))
         {
             AcpiOsPrintf (
                 "**** Data mismatch in descriptor [%.2X] type %2.2X, Offset %8.8X ****\n",
@@ -1138,7 +1138,7 @@ AcpiDbDisplayResources (
 
     /* Asterisk means "display resources for all devices" */
 
-    if (!ObjectArg || (!ACPI_STRCMP (ObjectArg, "*")))
+    if (!ObjectArg || (!strcmp (ObjectArg, "*")))
     {
         (void) AcpiWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
                     ACPI_UINT32_MAX, AcpiDbDeviceResources, NULL, NULL, NULL);
@@ -1191,7 +1191,7 @@ AcpiDbGenerateGpe (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
-    GpeNumber = ACPI_STRTOUL (GpeArg, NULL, 0);
+    GpeNumber = strtoul (GpeArg, NULL, 0);
 
     /*
      * If no block arg, or block arg == 0 or 1, use the FADT-defined
@@ -1199,7 +1199,7 @@ AcpiDbGenerateGpe (
      */
     if (BlockArg)
     {
-        BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
+        BlockNumber = strtoul (BlockArg, NULL, 0);
         if (BlockNumber == 1)
         {
             BlockNumber = 0;

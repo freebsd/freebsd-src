@@ -359,6 +359,8 @@ AslDoOneFile (
         return (AE_ERROR);
     }
 
+    Gbl_OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
+
     /* Determine input file type */
 
     Gbl_FileType = AslDetectSourceFileType (&Gbl_Files[ASL_FILE_INPUT]);

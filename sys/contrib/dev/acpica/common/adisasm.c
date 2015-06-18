@@ -243,7 +243,7 @@ AdAmlDisassemble (
         while (ExternalFileList)
         {
             ExternalFilename = ExternalFileList->Path;
-            if (!ACPI_STRCMP (ExternalFilename, Filename))
+            if (!strcmp (ExternalFilename, Filename))
             {
                 /* Next external file */
 

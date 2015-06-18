@@ -269,10 +269,10 @@ AcpiDmPredefinedDescription (
      * Note: NameString is guaranteed to be upper case here.
      */
     LastCharIsDigit =
-        (ACPI_IS_DIGIT (NameString[3]));    /* d */
+        (isdigit ((int) NameString[3]));    /* d */
     LastCharsAreHex =
-        (ACPI_IS_XDIGIT (NameString[2]) &&  /* xx */
-         ACPI_IS_XDIGIT (NameString[3]));
+        (isxdigit ((int) NameString[2]) &&  /* xx */
+         isxdigit ((int) NameString[3]));
 
     switch (NameString[1])
     {

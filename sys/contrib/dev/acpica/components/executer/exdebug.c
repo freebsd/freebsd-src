@@ -81,6 +81,8 @@ AcpiExDoDebugObject (
 {
     UINT32                  i;
     UINT32                  Timer;
+    ACPI_OPERAND_OBJECT     *ObjectDesc;
+    UINT32                  Value;
 
 
     ACPI_FUNCTION_TRACE_PTR (ExDoDebugObject, SourceDesc);
@@ -267,8 +269,37 @@ AcpiExDoDebugObject (
             }
             else
             {
-                AcpiExDoDebugObject (SourceDesc->Reference.Object,
-                    Level+4, 0);
+                ObjectDesc = SourceDesc->Reference.Object;
+                Value = SourceDesc->Reference.Value;
+
+                switch (ObjectDesc->Common.Type)
+                {
+                case ACPI_TYPE_BUFFER:
+
+                    AcpiOsPrintf ("Buffer[%u] = 0x%2.2X\n",
+                        Value, *SourceDesc->Reference.IndexPointer);
+                    break;
+
+                case ACPI_TYPE_STRING:
+
+                    AcpiOsPrintf ("String[%u] = \"%c\" (0x%2.2X)\n",
+                        Value, *SourceDesc->Reference.IndexPointer,
+                        *SourceDesc->Reference.IndexPointer);
+                    break;
+
+                case ACPI_TYPE_PACKAGE:
+
+                    AcpiOsPrintf ("Package[%u] = ", Value);
+                    AcpiExDoDebugObject (*SourceDesc->Reference.Where,
+                        Level+4, 0);
+                    break;
+
+                default:
+
+                    AcpiOsPrintf ("Unknown Reference object type %X\n",
+                        ObjectDesc->Common.Type);
+                    break;
+                }
             }
         }
         break;

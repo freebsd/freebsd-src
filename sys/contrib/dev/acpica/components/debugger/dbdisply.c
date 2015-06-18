@@ -141,7 +141,7 @@ AcpiDbGetPointer (
     ACPI_SIZE               Address;
 
 
-    Address = ACPI_STRTOUL (Target, NULL, 16);
+    Address = strtoul (Target, NULL, 16);
     ObjPtr = ACPI_TO_POINTER (Address);
     return (ObjPtr);
 }

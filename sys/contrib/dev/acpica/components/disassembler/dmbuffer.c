@@ -205,7 +205,7 @@ AcpiDmDisasmByteList (
             }
 
             BufChar = ByteData[CurrentIndex];
-            if (ACPI_IS_PRINT (BufChar))
+            if (isprint (BufChar))
             {
                 AcpiOsPrintf ("%c", BufChar);
             }
@@ -554,7 +554,7 @@ AcpiDmIsStringBuffer (
          * they will be handled in the string output routine
          */
 
-        if (!ACPI_IS_PRINT (ByteData[i]))
+        if (!isprint (ByteData[i]))
         {
             return (FALSE);
         }
@@ -836,7 +836,7 @@ AcpiDmUnicode (
         {
             AcpiOsPrintf ("\\%c", OutputValue);
         }
-        else if (!ACPI_IS_PRINT (OutputValue))
+        else if (!isprint (OutputValue))
         {
             AcpiOsPrintf ("\\x%2.2X", OutputValue);
         }
@@ -902,7 +902,7 @@ AcpiDmGetHardwareIdType (
         for (i = 0; i < 3; i++)
         {
             if (!ACPI_IS_ASCII (Prefix[i]) ||
-                !ACPI_IS_ALPHA (Prefix[i]))
+                !isalpha (Prefix[i]))
             {
                 return;
             }

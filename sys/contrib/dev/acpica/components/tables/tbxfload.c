@@ -164,7 +164,7 @@ AcpiTbLoadNamespace (
      * Save the original DSDT header for detection of table corruption
      * and/or replacement of the DSDT from outside the OS.
      */
-    ACPI_MEMCPY (&AcpiGbl_OriginalDsdtHeader, AcpiGbl_DSDT,
+    memcpy (&AcpiGbl_OriginalDsdtHeader, AcpiGbl_DSDT,
         sizeof (ACPI_TABLE_HEADER));
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
@@ -182,10 +182,13 @@ AcpiTbLoadNamespace (
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
     {
-        if ((!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
+        if (!AcpiGbl_RootTableList.Tables[i].Address ||
+            (!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     ACPI_SIG_SSDT) &&
              !ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
-                    ACPI_SIG_PSDT)) ||
+                    ACPI_SIG_PSDT) &&
+             !ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
+                    ACPI_SIG_OSDT)) ||
              ACPI_FAILURE (AcpiTbValidateTable (
                 &AcpiGbl_RootTableList.Tables[i])))
         {
@@ -238,11 +241,11 @@ AcpiInstallTable (
 
     if (Physical)
     {
-        Flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
+        Flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
     }
     else
     {
-        Flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
+        Flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
     }
 
     Status = AcpiTbInstallStandardTable (Address, Flags,

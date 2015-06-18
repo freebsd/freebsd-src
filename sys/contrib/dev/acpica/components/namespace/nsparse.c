@@ -129,6 +129,14 @@ AcpiNsOneCompleteParse (
                     AmlStart, AmlLength, NULL, (UINT8) PassNumber);
     }
 
+    /* Found OSDT table, enable the namespace override feature */
+
+    if (ACPI_COMPARE_NAME(Table->Signature, ACPI_SIG_OSDT) &&
+        PassNumber == ACPI_IMODE_LOAD_PASS1)
+    {
+        WalkState->NamespaceOverride = TRUE;
+    }
+
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);

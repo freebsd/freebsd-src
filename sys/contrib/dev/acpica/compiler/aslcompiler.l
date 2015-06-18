@@ -709,7 +709,7 @@ NamePathTail                [.]{NameSeg}
                                 return (PARSEOP_NAMESTRING); }
 
 .                           { count (1);
-                                if (ACPI_IS_PRINT (*AslCompilertext))
+                                if (isprint ((int) *AslCompilertext))
                                 {
                                     sprintf (MsgBuffer,
                                         "Invalid character (%c), expecting ASL keyword or name",

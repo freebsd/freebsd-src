@@ -79,7 +79,7 @@ AcpiOsAllocateZeroed (
     {
         /* Clear the memory block */
 
-        ACPI_MEMSET (Allocation, 0, Size);
+        memset (Allocation, 0, Size);
     }
 
     return (Allocation);
@@ -189,7 +189,7 @@ AcpiUtDeleteCaches (
 
     if (AcpiGbl_DisplayFinalMemStats)
     {
-        ACPI_STRCPY (Buffer, "MEMORY");
+        strcpy (Buffer, "MEMORY");
         (void) AcpiDbDisplayStatistics (Buffer);
     }
 #endif
@@ -359,6 +359,6 @@ AcpiUtInitializeBuffer (
 
     /* Have a valid buffer, clear it */
 
-    ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
+    memset (Buffer->Pointer, 0, RequiredLength);
     return (AE_OK);
 }
