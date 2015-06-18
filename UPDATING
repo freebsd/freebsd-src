@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150618:	p13	FreeBSD-EN-15:08.sendmail
+	Improvements to sendmail TLS/DH interoperability. [EN-15:08]
+
 20150612:	p12	FreeBSD-SA-15:10.openssl
 	Fix multiple vulnerabilities in OpenSSL.  [SA-15:10]
 
