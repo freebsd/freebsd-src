@@ -67,7 +67,7 @@
 .Fn pci_iov_schema_add_unicast_mac "nvlist_t *schema" "const char *name" \
 "uint32_t flags" "const uint8_t *defaultVal"
 .Sh DESCRIPTION
-The PCI Single-Root I/O Virtualization 
+The PCI Single-Root I/O Virtualization
 .Pq SR-IOV
 configuration schema is a data
 structure that describes the device-specific configuration parameters that a PF
@@ -147,9 +147,9 @@ the VF was allowed to change its MAC address, it would not be appropriate to
 set this parameter as optional.
 The PF driver must either allow the MAC to change or not, so it would be more
 appropriate for the PF driver to document the default behaviour by specifying
-a default value in the schema 
+a default value in the schema
 .Po or potentially force the user to make the choice by setting the parameter
-to be required 
+to be required
 .Pc .
 .Pp
 Configuration parameters that have security implications must default to the
@@ -226,7 +226,7 @@ and having a
 type.
 Values of type
 .Vt uint32_t
-are unsigned integers in the range 0 to 
+are unsigned integers in the range 0 to
 .Po 2**32 - 1 Pc ,
 inclusive.
 .Pp
@@ -240,7 +240,7 @@ and having a
 type.
 Values of type
 .Vt uint64_t
-are unsigned integers in the range 0 to 
+are unsigned integers in the range 0 to
 .Po 2**64 - 1 Pc ,
 inclusive.
 .Pp
