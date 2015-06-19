@@ -68,8 +68,3 @@ CFLAGS+=	-DBOOT_PROMPT_123
 SRCS+=	install.c
 CFLAGS+=-I${.CURDIR}/../../../../lib/libstand
 .endif
-
-MAN+=	loader.8
-.if ${MK_ZFS} != "no"
-MAN+=	zfsloader.8
-.endif

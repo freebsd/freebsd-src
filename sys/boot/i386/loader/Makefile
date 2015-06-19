@@ -5,6 +5,7 @@ MK_SSP=		no
 
 LOADER?=	loader
 PROG=		${LOADER}.sym
+MAN=	
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 
