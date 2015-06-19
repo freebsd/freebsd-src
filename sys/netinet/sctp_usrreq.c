@@ -5678,16 +5678,23 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 
 			if ((stcb != NULL) && (net != NULL)) {
-				if ((net != stcb->asoc.primary_destination) &&
-				    (!(net->dest_state & SCTP_ADDR_UNCONFIRMED))) {
-					/* Ok we need to set it */
-					if (sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net) == 0) {
-						if ((stcb->asoc.alternate) &&
-						    (!(net->dest_state & SCTP_ADDR_PF)) &&
-						    (net->dest_state & SCTP_ADDR_REACHABLE)) {
-							sctp_free_remote_addr(stcb->asoc.alternate);
-							stcb->asoc.alternate = NULL;
+				if (net != stcb->asoc.primary_destination) {
+					if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+						/* Ok we need to set it */
+						if (sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net) == 0) {
+							if ((stcb->asoc.alternate) &&
+							    (!(net->dest_state & SCTP_ADDR_PF)) &&
+							    (net->dest_state & SCTP_ADDR_REACHABLE)) {
+								sctp_free_remote_addr(stcb->asoc.alternate);
+								stcb->asoc.alternate = NULL;
+							}
+						} else {
+							SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+							error = EINVAL;
 						}
+					} else {
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+						error = EINVAL;
 					}
 				}
 			} else {
