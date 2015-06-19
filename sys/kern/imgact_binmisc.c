@@ -407,10 +407,6 @@ imgact_binmisc_get_all_entries(struct sysctl_req *req)
 	sx_slock(&interp_list_sx);
 	count = interp_list_entry_count;
 	xbe = malloc(sizeof(*xbe) * count, M_BINMISC, M_WAITOK|M_ZERO);
-	if (!xbe) {
-		sx_sunlock(&interp_list_sx);
-		return (ENOMEM);
-	}
 
 	xbep = xbe;
 	SLIST_FOREACH(ibe, &interpreter_list, link) {
