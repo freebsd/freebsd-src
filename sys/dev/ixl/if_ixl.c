@@ -2551,7 +2551,7 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = 4000000000;  // ??
+	ifp->if_baudrate = IF_Gbps(40);
 	ifp->if_init = ixl_init;
 	ifp->if_softc = vsi;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
