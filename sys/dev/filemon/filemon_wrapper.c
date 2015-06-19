@@ -90,13 +90,13 @@ filemon_pid_check(struct proc *p)
 	while (p != initproc) {
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
 			if (p->p_pid == filemon->pid) {
-				sx_xunlock(&proctree_lock);
+				sx_sunlock(&proctree_lock);
 				return (filemon);
 			}
 		}
 		p = proc_realparent(p);
 	}
-	sx_xunlock(&proctree_lock);
+	sx_sunlock(&proctree_lock);
 	return (NULL);
 }
 
