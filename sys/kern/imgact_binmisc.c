@@ -317,7 +317,7 @@ imgact_binmisc_disable_entry(char *name)
 		return (ENOENT);
 	}
 
-	ibe->ibe_flags &= ~IBF_ENABLED;
+	atomic_clear_32(&ibe->ibe_flags, IBF_ENABLED);
 	sx_sunlock(&interp_list_sx);
 
 	return (0);
@@ -406,8 +406,7 @@ imgact_binmisc_get_all_entries(struct sysctl_req *req)
 
 	sx_slock(&interp_list_sx);
 	count = interp_list_entry_count;
-	/* Don't block in malloc() while holding lock. */
-	xbe = malloc(sizeof(*xbe) * count, M_BINMISC, M_NOWAIT|M_ZERO);
+	xbe = malloc(sizeof(*xbe) * count, M_BINMISC, M_ZERO);
 	if (!xbe) {
 		sx_sunlock(&interp_list_sx);
 		return (ENOMEM);
