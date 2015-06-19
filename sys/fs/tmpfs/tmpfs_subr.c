@@ -1031,6 +1031,7 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 				tmpfs_free_dirent(tmp, xde);
 			}
 		}
+		de->td_cookie = de->td_hash;
 	} else
 		RB_REMOVE(tmpfs_dir, head, de);
 
