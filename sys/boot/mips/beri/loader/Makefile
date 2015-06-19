@@ -31,6 +31,7 @@
 
 .include <src.opts.mk>
 MK_SSP=		no
+MAN=
 
 PROG?=		loader
 NEWVERSWHAT=	"BERI loader" ${MACHINE_CPUARCH}

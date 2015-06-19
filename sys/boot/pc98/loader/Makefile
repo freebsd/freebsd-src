@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 MK_SSP=		no
+MAN=
 
 LOADER?=	loader
 PROG=		${LOADER}.sym

@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 MK_SSP=		no
+MAN=
 
 PROG=		loader
 NEWVERSWHAT=	"Open Firmware loader" ${MACHINE_ARCH}
