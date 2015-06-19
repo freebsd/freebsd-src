@@ -2645,6 +2645,8 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB temperature meter
+device		ugold
 # USB LED
 device		uled
 # Human Interface Device (anything with buttons and dials)
