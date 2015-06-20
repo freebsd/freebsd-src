@@ -60,6 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#define	sstosin(ss)	((struct sockaddr_in *)(ss))
+#define	sstosin6(ss)	((struct sockaddr_in6 *)(ss))
+#define	sstosun(ss)	((struct sockaddr_un *)(ss))
+#define	sstosa(ss)	((struct sockaddr *)(ss))
+
 static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_c;		/* Show connected sockets */
@@ -73,8 +78,7 @@ static int	 opt_v;		/* Verbose mode */
  * Default protocols to use if no -P was defined.
  */
 static const char *default_protos[] = {"sctp", "tcp", "udp", "divert" };
-static size_t	   default_numprotos =
-    sizeof(default_protos) / sizeof(default_protos[0]);
+static size_t	   default_numprotos = nitems(default_protos);
 
 static int	*protos;	/* protocols to use */
 static size_t	 numprotos;	/* allocated size of protos[] */
@@ -140,7 +144,8 @@ get_proto_type(const char *proto)
 }
 
 
-static void init_protos(int num)
+static void
+init_protos(int num)
 {
 	int proto_count = 0;
 
@@ -163,7 +168,6 @@ static int
 parse_protos(char *protospec)
 {
 	char *prot;
-	char *tmp = protospec;
 	int proto_type, proto_index;
 
 	if (protospec == NULL)
@@ -171,7 +175,7 @@ parse_protos(char *protospec)
 
 	init_protos(0);
 	proto_index = 0;
-	while ((prot = strsep(&tmp, ",")) != NULL) {
+	while ((prot = strsep(&protospec, ",")) != NULL) {
 		if (strlen(prot) == 0)
 			continue;
 		proto_type = get_proto_type(prot);
@@ -228,26 +232,32 @@ parse_ports(const char *portspec)
 }
 
 static void
-sockaddr(struct sockaddr_storage *sa, int af, void *addr, int port)
+sockaddr(struct sockaddr_storage *ss, int af, void *addr, int port)
 {
 	struct sockaddr_in *sin4;
 	struct sockaddr_in6 *sin6;
 
-	bzero(sa, sizeof *sa);
+	bzero(ss, sizeof(*ss));
 	switch (af) {
 	case AF_INET:
-		sin4 = (struct sockaddr_in *)sa;
-		sin4->sin_len = sizeof *sin4;
+		sin4 = sstosin(ss);
+		sin4->sin_len = sizeof(*sin4);
 		sin4->sin_family = af;
 		sin4->sin_port = port;
 		sin4->sin_addr = *(struct in_addr *)addr;
 		break;
 	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)sa;
-		sin6->sin6_len = sizeof *sin6;
+		sin6 = sstosin6(ss);
+		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_family = af;
 		sin6->sin6_port = port;
 		sin6->sin6_addr = *(struct in6_addr *)addr;
+#define	s6_addr16	__u6_addr.__u6_addr16
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+			sin6->sin6_scope_id =
+			    ntohs(sin6->sin6_addr.s6_addr16[1]);
+			sin6->sin6_addr.s6_addr16[1] = 0;
+		}
 		break;
 	default:
 		abort();
@@ -587,7 +597,7 @@ gather_inet(int proto)
 		switch (proto) {
 		case IPPROTO_TCP:
 			xtp = (struct xtcpcb *)xig;
-			if (xtp->xt_len != sizeof *xtp) {
+			if (xtp->xt_len != sizeof(*xtp)) {
 				warnx("struct xtcpcb size mismatch");
 				goto out;
 			}
@@ -598,7 +608,7 @@ gather_inet(int proto)
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
 			xip = (struct xinpcb *)xig;
-			if (xip->xi_len != sizeof *xip) {
+			if (xip->xi_len != sizeof(*xip)) {
 				warnx("struct xinpcb size mismatch");
 				goto out;
 			}
@@ -634,7 +644,7 @@ gather_inet(int proto)
 				warnx("invalid vflag 0x%x", inp->inp_vflag);
 			continue;
 		}
-		if ((sock = calloc(1, sizeof *sock)) == NULL)
+		if ((sock = calloc(1, sizeof(*sock))) == NULL)
 			err(1, "malloc()");
 		if ((laddr = calloc(1, sizeof *laddr)) == NULL)
 			err(1, "malloc()");
@@ -690,6 +700,10 @@ gather_unix(int proto)
 		varname = "net.local.dgram.pcblist";
 		protoname = "dgram";
 		break;
+	case SOCK_SEQPACKET:
+		varname = "net.local.seqpacket.pcblist";
+		protoname = "seqpac";
+		break;
 	default:
 		abort();
 	}
@@ -709,9 +723,9 @@ gather_unix(int proto)
 		}
 		xug = (struct xunpgen *)buf;
 		exug = (struct xunpgen *)(void *)
-		    ((char *)buf + len - sizeof *exug);
-		if (xug->xug_len != sizeof *xug ||
-		    exug->xug_len != sizeof *exug) {
+		    ((char *)buf + len - sizeof(*exug));
+		if (xug->xug_len != sizeof(*xug) ||
+		    exug->xug_len != sizeof(*exug)) {
 			warnx("struct xinpgen size mismatch");
 			goto out;
 		}
@@ -725,14 +739,14 @@ gather_unix(int proto)
 		if (xug >= exug)
 			break;
 		xup = (struct xunpcb *)xug;
-		if (xup->xu_len != sizeof *xup) {
+		if (xup->xu_len != sizeof(*xup)) {
 			warnx("struct xunpcb size mismatch");
 			goto out;
 		}
 		if ((xup->xu_unp.unp_conn == NULL && !opt_l) ||
 		    (xup->xu_unp.unp_conn != NULL && !opt_c))
 			continue;
-		if ((sock = calloc(1, sizeof *sock)) == NULL)
+		if ((sock = calloc(1, sizeof(*sock))) == NULL)
 			err(1, "malloc()");
 		if ((laddr = calloc(1, sizeof *laddr)) == NULL)
 			err(1, "malloc()");
@@ -765,7 +779,7 @@ getfiles(void)
 {
 	size_t len, olen;
 
-	olen = len = sizeof *xfiles;
+	olen = len = sizeof(*xfiles);
 	if ((xfiles = malloc(len)) == NULL)
 		err(1, "malloc()");
 	while (sysctlbyname("kern.file", xfiles, &len, 0, 0) == -1) {
@@ -775,39 +789,40 @@ getfiles(void)
 		if ((xfiles = realloc(xfiles, len)) == NULL)
 			err(1, "realloc()");
 	}
-	if (len > 0 && xfiles->xf_size != sizeof *xfiles)
+	if (len > 0 && xfiles->xf_size != sizeof(*xfiles))
 		errx(1, "struct xfile size mismatch");
-	nxfiles = len / sizeof *xfiles;
+	nxfiles = len / sizeof(*xfiles);
 }
 
 static int
 printaddr(struct sockaddr_storage *ss)
 {
-	char addrstr[INET6_ADDRSTRLEN] = { '\0', '\0' };
 	struct sockaddr_un *sun;
-	void *addr = NULL; /* Keep compiler happy. */
-	int off, port = 0;
+	char addrstr[NI_MAXHOST] = { '\0', '\0' };
+	int error, off, port = 0;
 
 	switch (ss->ss_family) {
 	case AF_INET:
-		addr = &((struct sockaddr_in *)ss)->sin_addr;
-		if (inet_lnaof(*(struct in_addr *)addr) == INADDR_ANY)
+		if (inet_lnaof(sstosin(ss)->sin_addr) == INADDR_ANY)
 			addrstr[0] = '*';
-		port = ntohs(((struct sockaddr_in *)ss)->sin_port);
+		port = ntohs(sstosin(ss)->sin_port);
 		break;
 	case AF_INET6:
-		addr = &((struct sockaddr_in6 *)ss)->sin6_addr;
-		if (IN6_IS_ADDR_UNSPECIFIED((struct in6_addr *)addr))
+		if (IN6_IS_ADDR_UNSPECIFIED(&sstosin6(ss)->sin6_addr))
 			addrstr[0] = '*';
-		port = ntohs(((struct sockaddr_in6 *)ss)->sin6_port);
+		port = ntohs(sstosin6(ss)->sin6_port);
 		break;
 	case AF_UNIX:
-		sun = (struct sockaddr_un *)ss;
+		sun = sstosun(ss);
 		off = (int)((char *)&sun->sun_path - (char *)sun);
 		return (xprintf("%.*s", sun->sun_len - off, sun->sun_path));
 	}
-	if (addrstr[0] == '\0')
-		inet_ntop(ss->ss_family, addr, addrstr, sizeof addrstr);
+	if (addrstr[0] == '\0') {
+		error = getnameinfo(sstosa(ss), ss->ss_len, addrstr,
+		    sizeof(addrstr), NULL, 0, NI_NUMERICHOST);
+		if (error)
+			errx(1, "getnameinfo()");
+	}
 	if (port == 0)
 		return xprintf("%s:*", addrstr);
 	else
@@ -825,8 +840,8 @@ getprocname(pid_t pid)
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PID;
 	mib[3] = (int)pid;
-	len = sizeof proc;
-	if (sysctl(mib, 4, &proc, &len, NULL, 0) == -1) {
+	len = sizeof(proc);
+	if (sysctl(mib, nitems(mib), &proc, &len, NULL, 0) == -1) {
 		/* Do not warn if the process exits before we get its name. */
 		if (errno != ESRCH)
 			warn("sysctl()");
@@ -846,8 +861,8 @@ getprocjid(pid_t pid)
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PID;
 	mib[3] = (int)pid;
-	len = sizeof proc;
-	if (sysctl(mib, 4, &proc, &len, NULL, 0) == -1) {
+	len = sizeof(proc);
+	if (sysctl(mib, nitems(mib), &proc, &len, NULL, 0) == -1) {
 		/* Do not warn if the process exits before we get its jid. */
 		if (errno != ESRCH)
 			warn("sysctl()");
@@ -867,18 +882,18 @@ check_ports(struct sock *s)
 	if ((s->family != AF_INET) && (s->family != AF_INET6))
 		return (1);
 	for (addr = s->laddr; addr != NULL; addr = addr->next) {
-		if (addr->address.ss_family == AF_INET)
-			port = ntohs(((struct sockaddr_in *)(&addr->address))->sin_port);
+		if (s->family == AF_INET)
+			port = ntohs(sstosin(&addr->address)->sin_port);
 		else
-			port = ntohs(((struct sockaddr_in6 *)(&addr->address))->sin6_port);
+			port = ntohs(sstosin6(&addr->address)->sin6_port);
 		if (CHK_PORT(port))
 			return (1);
 	}
 	for (addr = s->faddr; addr != NULL; addr = addr->next) {
-		if (addr->address.ss_family == AF_INET)
-			port = ntohs(((struct sockaddr_in *)&(addr->address))->sin_port);
+		if (s->family == AF_INET)
+			port = ntohs(sstosin(&addr->address)->sin_port);
 		else
-			port = ntohs(((struct sockaddr_in6 *)&(addr->address))->sin6_port);
+			port = ntohs(sstosin6(&addr->address)->sin6_port);
 		if (CHK_PORT(port))
 			return (1);
 	}
@@ -1119,6 +1134,7 @@ main(int argc, char *argv[])
 	if (opt_u || (protos_defined == -1 && !opt_4 && !opt_6)) {
 		gather_unix(SOCK_STREAM);
 		gather_unix(SOCK_DGRAM);
+		gather_unix(SOCK_SEQPACKET);
 	}
 	getfiles();
 	display();
