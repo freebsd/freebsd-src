@@ -120,6 +120,7 @@ OLD_FILES+=usr/lib32/libheimsqlite_p.a
 # 20150506
 OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
+OLD_FILES+=usr/include/bsdstat.h
 OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
 OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
@@ -232,6 +233,9 @@ OLD_FILES+=usr/share/man/man3/nvlist_takev_string.3.gz
 OLD_FILES+=usr/share/docs/papers/hwpmc.ascii.gz
 # 20150427: test/sys/kern/mmap_test moved to test/sys/vm/mmap_test
 OLD_FILES+=usr/tests/sys/kern/mmap_test
+# 20150422: zlib.c moved from net to libkern
+OLD_FILES+=usr/include/net/zlib.h
+OLD_FILES+=usr/include/net/zutil.h
 # 20150418
 OLD_FILES+=sbin/mount_oldnfs
 OLD_FILES+=usr/share/man/man8/mount_oldnfs.8.gz
@@ -321,7 +325,7 @@ OLD_FILES+=usr/bin/ppt
 OLD_FILES+=usr/share/man/man6/bcd.6.gz
 OLD_FILES+=usr/share/man/man6/ppt.6.gz
 # 20150217: Removed remnants of ar(4) driver
-OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
+OLD_FILES+=usr/include/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin
 OLD_FILES+=usr/games/bcd
 OLD_FILES+=usr/games/caesar
@@ -354,6 +358,8 @@ OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
 OLD_FILES+=usr/share/man/man9/spltty.9.gz
 OLD_FILES+=usr/share/man/man9/splvm.9.gz
 OLD_FILES+=usr/share/man/man9/splx.9.gz
+# 20150118: toeplitz.c moved from netinet to net
+OLD_FILES+=usr/include/netinet/toeplitz.h
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h
@@ -516,6 +522,9 @@ OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
 OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
 # 20141126: remove xform_ipip decapsulation fallback
 OLD_FILES+=usr/include/netipsec/ipip_var.h
+# 20141111: SF_KQUEUE code removed
+OLD_FILES+=usr/include/sys/sf_base.h
+OLD_FILES+=usr/include/sys/sf_sync.h
 # 20141109: faith/faithd removal
 OLD_FILES+=etc/rc.d/faith
 OLD_FILES+=usr/share/man/man4/faith.4.gz
@@ -535,6 +544,9 @@ OLD_FILES+=usr/lib/debug/usr/lib32/i18n
 OLD_FILES+=usr/lib/debug/usr/lib32/private
 # 20141015: OpenSSL 1.0.1j import
 OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
+# 20141003: libproc version bump
+OLD_LIBS+=usr/lib/libproc.so.2
+OLD_LIBS+=usr/lib32/libproc.so.2
 # 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
 OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
 OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
@@ -609,6 +621,7 @@ OLD_FILES+=usr/lib/private/libucl_p.a
 OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
 # 20140728: libsbuf restored to old version.
 OLD_LIBS+=lib/libsbuf.so.7
+OLD_LIBS+=usr/lib32/libsbuf.so.7
 # 20140728: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
@@ -635,6 +648,14 @@ OLD_FILES+=usr/lib/libhistory.a
 OLD_FILES+=usr/lib/libhistory_p.a
 OLD_FILES+=usr/lib/libhistory.so
 OLD_LIBS+=usr/lib/libhistory.so.8
+OLD_FILES+=usr/lib32/libhistory.a
+OLD_FILES+=usr/lib32/libhistory.so
+OLD_LIBS+=usr/lib32/libhistory.so.8
+OLD_FILES+=usr/lib32/libhistory_p.a
+OLD_FILES+=usr/lib32/libreadline.a
+OLD_FILES+=usr/lib32/libreadline.so
+OLD_LIBS+=usr/lib32/libreadline.so.8
+OLD_FILES+=usr/lib32/libreadline_p.a
 OLD_FILES+=usr/include/readline/chardefs.h
 OLD_FILES+=usr/include/readline/history.h
 OLD_FILES+=usr/include/readline/keymaps.h
@@ -647,6 +668,7 @@ OLD_FILES+=usr/include/readline/rltypedefs.h
 OLD_DIRS+=usr/include/readline
 OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/man/man3/readline.3.gz
+OLD_FILES+=usr/share/man/man3/rlhistory.3.gz
 # 20140625: csup removal
 OLD_FILES+=usr/bin/csup
 OLD_FILES+=usr/bin/cpasswd
@@ -2025,7 +2047,6 @@ OLD_LIBS+=usr/lib/libpanel.so.4
 OLD_LIBS+=usr/lib/libpanelw.so.4
 OLD_LIBS+=usr/lib/libpmc.so.4
 OLD_LIBS+=usr/lib/libproc.so.1
-OLD_LIBS+=usr/lib/libproc.so.2
 OLD_LIBS+=usr/lib/libradius.so.3
 OLD_LIBS+=usr/lib/librpcsvc.so.4
 OLD_LIBS+=usr/lib/libsdp.so.3
