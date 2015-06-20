@@ -117,9 +117,12 @@ OLD_FILES+=usr/lib32/libheimsqlite.a
 OLD_FILES+=usr/lib32/libheimsqlite.so
 OLD_LIBS+=usr/lib32/libheimsqlite.so.11
 OLD_FILES+=usr/lib32/libheimsqlite_p.a
+# 20150518: tzdata2015c update
+OLD_FILES+=usr/share/zoneinfo/America/Montreal
 # 20150506
 OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
+OLD_FILES+=usr/share/examples/etc/libmap32.conf
 OLD_FILES+=usr/include/bsdstat.h
 OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
@@ -522,6 +525,8 @@ OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
 OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
 # 20141126: remove xform_ipip decapsulation fallback
 OLD_FILES+=usr/include/netipsec/ipip_var.h
+# 20141122: mandoc updated to 1.13.1
+OLD_FILES+=usr/share/mdocml/external.png
 # 20141111: SF_KQUEUE code removed
 OLD_FILES+=usr/include/sys/sf_base.h
 OLD_FILES+=usr/include/sys/sf_sync.h
@@ -556,6 +561,10 @@ OLD_FILES+=etc/rc.d/hv_kvpd
 OLD_LIBS+=usr/lib/libnv.so.0
 # 20140829: rc.d/kerberos removed
 OLD_FILES+=etc/rc.d/kerberos
+# 20140827: tzdata2014f import
+OLD_FILES+=usr/share/zoneinfo/Asia/Chongqing
+OLD_FILES+=usr/share/zoneinfo/Asia/Harbin
+OLD_FILES+=usr/share/zoneinfo/Asia/Kashgar
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7
@@ -628,6 +637,8 @@ OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_DESTROYVOBJECT.9.gz
 # 20140723: renamed to PCBGROUP.9
 OLD_FILES+=usr/share/man/man9/PCBGROUPS.9.gz
+# 20140722: browse_packages_ftp.sh removed
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages_ftp.sh
 # 20140718: Remove obsolete man pages
 OLD_FILES+=usr/share/man/man9/zero_copy.9.gz
 OLD_FILES+=usr/share/man/man9/zero_copy_sockets.9.gz
