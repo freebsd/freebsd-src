@@ -151,6 +151,7 @@ static int am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsign
 static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static int am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static int am335x_clk_get_arm_disp_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int am335x_clk_set_arm_disp_freq(struct ti_clock_dev *clkdev, unsigned int freq);
 static void am335x_prcm_reset(void);
 static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
@@ -163,7 +164,8 @@ static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
 		.clk_deactivate = am335x_clk_noop_deactivate, \
 		.clk_set_source = am335x_clk_noop_set_source, \
 		.clk_accessible = NULL, \
-		.clk_get_source_freq = NULL \
+		.clk_get_source_freq = NULL, \
+		.clk_set_source_freq = NULL \
 	}
 
 #define AM335X_GENERIC_CLOCK_DEV(i) \
@@ -172,7 +174,8 @@ static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
 		.clk_deactivate = am335x_clk_generic_deactivate, \
 		.clk_set_source = am335x_clk_generic_set_source, \
 		.clk_accessible = NULL, \
-		.clk_get_source_freq = NULL \
+		.clk_get_source_freq = NULL, \
+		.clk_set_source_freq = NULL \
 	}
 
 #define AM335X_GPIO_CLOCK_DEV(i) \
@@ -181,7 +184,8 @@ static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
 		.clk_deactivate = am335x_clk_generic_deactivate, \
 		.clk_set_source = am335x_clk_generic_set_source, \
 		.clk_accessible = NULL, \
-		.clk_get_source_freq = NULL \
+		.clk_get_source_freq = NULL, \
+		.clk_set_source_freq = NULL \
 	}
 
 #define AM335X_MMCHS_CLOCK_DEV(i) \
@@ -190,7 +194,8 @@ static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
 		.clk_deactivate = am335x_clk_generic_deactivate, \
 		.clk_set_source = am335x_clk_generic_set_source, \
 		.clk_accessible = NULL, \
-		.clk_get_source_freq = am335x_clk_hsmmc_get_source_freq \
+		.clk_get_source_freq = am335x_clk_hsmmc_get_source_freq, \
+		.clk_set_source_freq = NULL \
 	}
 
 struct ti_clock_dev ti_am335x_clk_devmap[] = {
@@ -201,6 +206,7 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = am335x_clk_get_sysclk_freq,
+		.clk_set_source_freq = NULL,
 	},
 	/* MPU (ARM) core clocks */
 	{	.id                  = MPU_CLK,
@@ -209,6 +215,7 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = am335x_clk_get_arm_fclk_freq,
+		.clk_set_source_freq = NULL,
 	},
 	/* CPSW Ethernet Switch core clocks */
 	{	.id                  = CPSW_CLK,
@@ -217,6 +224,7 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = NULL,
+		.clk_set_source_freq = NULL,
 	},
 
 	/* Mentor USB HS controller core clocks */
@@ -226,6 +234,7 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = NULL,
+		.clk_set_source_freq = NULL,
 	},
 
 	/* LCD controller clocks */
@@ -235,6 +244,7 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = am335x_clk_get_arm_disp_freq,
+		.clk_set_source_freq = am335x_clk_set_arm_disp_freq,
 	},
 
         /* UART */
@@ -296,6 +306,7 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = NULL,
+		.clk_set_source_freq = NULL,
 	},
 
 	/* RTC */
@@ -627,6 +638,8 @@ am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 #define DPLL_BYP_CLKSEL(reg)	((reg>>23) & 1)
 #define DPLL_DIV(reg)		((reg & 0x7f)+1)
 #define DPLL_MULT(reg)		((reg>>8) & 0x7FF)
+#define	DPLL_MAX_MUL		0x800
+#define	DPLL_MAX_DIV		0x80
 
 static int
 am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
@@ -659,6 +672,52 @@ am335x_clk_get_arm_disp_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 
 	am335x_clk_get_sysclk_freq(NULL, &sysclk);
 	*freq = DPLL_MULT(reg) * (sysclk / DPLL_DIV(reg));
+	return(0);
+}
+
+static int
+am335x_clk_set_arm_disp_freq(struct ti_clock_dev *clkdev, unsigned int freq)
+{
+	uint32_t sysclk;
+	uint32_t mul, div;
+	uint32_t i, j;
+	unsigned int delta, min_delta;
+
+	am335x_clk_get_sysclk_freq(NULL, &sysclk);
+
+	/* Bypass mode */
+	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x4);
+
+	/* Make sure it's in bypass mode */
+	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
+	    & (1 << 8)))
+		DELAY(10);
+
+	/* Dumb and non-optimal implementation */
+	min_delta = freq;
+	for (i = 1; i < DPLL_MAX_MUL; i++) {
+		for (j = 1; j < DPLL_MAX_DIV; j++) {
+			delta = abs(freq - i*(sysclk/j));
+			if (delta < min_delta) {
+				mul = i;
+				div = j;
+				min_delta = delta;
+			}
+			if (min_delta == 0)
+				break;
+		}
+	}
+
+	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (mul << 8) | (div - 1));
+
+	/* Locked mode */
+	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);
+
+	int timeout = 10000;
+	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
+	    & (1 << 0))) && timeout--)
+		DELAY(10);
+
 	return(0);
 }
 
@@ -724,27 +783,10 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 	if (sc == NULL)
 		return (ENXIO);
 
-	/* Bypass mode */
-	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x4);
-
-	/* Make sure it's in bypass mode */
-	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
-	    & (1 << 8)))
-		DELAY(10);
-
 	/*
-	 * For now set frequency to  99*SYSFREQ/8 which is twice as
-	 * HDMI 1080p pixel clock (minimum LCDC freq divisor is 2)
+	 * For now set frequency to 2*VGA_PIXEL_CLOCK 
 	 */
-	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (99 << 8) | 8);
-
-	/* Locked mode */
-	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);
-
-	int timeout = 10000;
-	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
-	    & (1 << 0))) && timeout--)
-		DELAY(10);
+	am335x_clk_set_arm_disp_freq(clkdev, 25175000*2);
 
 	/*set MODULEMODE to ENABLE(2) */
 	prcm_write_4(CM_PER_LCDC_CLKCTRL, 2);

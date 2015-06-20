@@ -2615,7 +2615,7 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr != NULL) {
 		PROC_LOCK(p);
-		lim_rlimit(p, which, &rlim);
+		lim_rlimit_proc(p, which, &rlim);
 		PROC_UNLOCK(p);
 	}
 	error = SYSCTL_OUT(req, &rlim, sizeof(rlim));

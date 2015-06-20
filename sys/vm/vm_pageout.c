@@ -1159,6 +1159,17 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		queues_locked = FALSE;
 
 		/*
+		 * Invalid pages can be easily freed. They cannot be
+		 * mapped, vm_page_free() asserts this.
+		 */
+		if (m->valid == 0 && m->hold_count == 0) {
+			vm_page_free(m);
+			PCPU_INC(cnt.v_dfree);
+			--page_shortage;
+			goto drop_page;
+		}
+
+		/*
 		 * We bump the activation count if the page has been
 		 * referenced while in the inactive queue.  This makes
 		 * it less likely that the page will be added back to the
@@ -1192,15 +1203,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
 			}
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_unlock(m);
-			goto relock_queues;
+			goto drop_page;
 		}
 
 		if (m->hold_count != 0) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-
 			/*
 			 * Held pages are essentially stuck in the
 			 * queue.  So, they ought to be discounted
@@ -1209,7 +1215,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * loop over the active queue below.
 			 */
 			addl_page_shortage++;
-			goto relock_queues;
+			goto drop_page;
 		}
 
 		/*
@@ -1224,19 +1230,12 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		if (m->dirty == 0 && object->ref_count != 0)
 			pmap_remove_all(m);
 
-		if (m->valid == 0) {
+		if (m->dirty == 0) {
 			/*
-			 * Invalid pages can be easily freed
+			 * Clean pages can be freed.
 			 */
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
-			--page_shortage;
-		} else if (m->dirty == 0) {
-			/*
-			 * Clean pages can be placed onto the cache queue.
-			 * This effectively frees them.
-			 */
-			vm_page_cache(m);
 			--page_shortage;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass < 2) {
 			/*
@@ -1305,6 +1304,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			vm_page_lock_assert(m, MA_NOTOWNED);
 			goto relock_queues;
 		}
+drop_page:
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
 relock_queues:
@@ -1851,7 +1851,7 @@ again:
 			/*
 			 * get a limit
 			 */
-			lim_rlimit(p, RLIMIT_RSS, &rsslim);
+			lim_rlimit_proc(p, RLIMIT_RSS, &rsslim);
 			limit = OFF_TO_IDX(
 			    qmin(rsslim.rlim_cur, rsslim.rlim_max));
 

@@ -13,6 +13,7 @@ SRCS=	\
 	acpi.c			\
 	bhyverun.c		\
 	block_if.c		\
+	bootrom.c		\
 	consport.c		\
 	dbgport.c		\
 	inout.c			\

@@ -262,8 +262,7 @@ svr4_sys_getdents64(td, uap)
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 
@@ -442,8 +441,7 @@ svr4_sys_getdents(td, uap)
 	if (uap->nbytes < 0)
 		return (EINVAL);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 
@@ -622,7 +620,7 @@ svr4_sys_fchroot(td, uap)
 	struct thread *td;
 	struct svr4_sys_fchroot_args *uap;
 {
-	struct filedesc	*fdp = td->td_proc->p_fd;
+	cap_rights_t rights;
 	struct vnode	*vp;
 	struct file	*fp;
 	int		 error;
@@ -630,7 +628,7 @@ svr4_sys_fchroot(td, uap)
 	if ((error = priv_check(td, PRIV_VFS_FCHROOT)) != 0)
 		return error;
 	/* XXX: we have the chroot priv... what cap might we need? all? */
-	if ((error = getvnode(fdp, uap->fd, 0, &fp)) != 0)
+	if ((error = getvnode(td, uap->fd, cap_rights_init(&rights), &fp)) != 0)
 		return error;
 	vp = fp->f_vnode;
 	VREF(vp);
@@ -910,9 +908,7 @@ svr4_sys_ulimit(td, uap)
 
 	switch (uap->cmd) {
 	case SVR4_GFILLIM:
-		PROC_LOCK(td->td_proc);
-		*retval = lim_cur(td->td_proc, RLIMIT_FSIZE) / 512;
-		PROC_UNLOCK(td->td_proc);
+		*retval = lim_cur(td, RLIMIT_FSIZE) / 512;
 		if (*retval == -1)
 			*retval = 0x7fffffff;
 		return 0;
@@ -922,17 +918,13 @@ svr4_sys_ulimit(td, uap)
 			struct rlimit krl;
 
 			krl.rlim_cur = uap->newlimit * 512;
-			PROC_LOCK(td->td_proc);
-			krl.rlim_max = lim_max(td->td_proc, RLIMIT_FSIZE);
-			PROC_UNLOCK(td->td_proc);
+			krl.rlim_max = lim_max(td, RLIMIT_FSIZE);
 
 			error = kern_setrlimit(td, RLIMIT_FSIZE, &krl);
 			if (error)
 				return error;
 
-			PROC_LOCK(td->td_proc);
-			*retval = lim_cur(td->td_proc, RLIMIT_FSIZE);
-			PROC_UNLOCK(td->td_proc);
+			*retval = lim_cur(td, RLIMIT_FSIZE);
 			if (*retval == -1)
 				*retval = 0x7fffffff;
 			return 0;
@@ -943,9 +935,7 @@ svr4_sys_ulimit(td, uap)
 			struct vmspace *vm = td->td_proc->p_vmspace;
 			register_t r;
 
-			PROC_LOCK(td->td_proc);
-			r = lim_cur(td->td_proc, RLIMIT_DATA);
-			PROC_UNLOCK(td->td_proc);
+			r = lim_cur(td, RLIMIT_DATA);
 
 			if (r == -1)
 				r = 0x7fffffff;
@@ -957,9 +947,7 @@ svr4_sys_ulimit(td, uap)
 		}
 
 	case SVR4_GDESLIM:
-		PROC_LOCK(td->td_proc);
-		*retval = lim_cur(td->td_proc, RLIMIT_NOFILE);
-		PROC_UNLOCK(td->td_proc);
+		*retval = lim_cur(td, RLIMIT_NOFILE);
 		if (*retval == -1)
 			*retval = 0x7fffffff;
 		return 0;

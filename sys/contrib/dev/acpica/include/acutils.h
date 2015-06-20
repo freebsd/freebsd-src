@@ -246,115 +246,7 @@ AcpiUtSubsystemShutdown (
     void);
 
 
-/*
- * utclib - Local implementations of C library functions
- */
-#ifndef ACPI_USE_SYSTEM_CLIBRARY
-
-ACPI_SIZE
-AcpiUtStrlen (
-    const char              *String);
-
-char *
-AcpiUtStrchr (
-    const char              *String,
-    int                     ch);
-
-char *
-AcpiUtStrcpy (
-    char                    *DstString,
-    const char              *SrcString);
-
-char *
-AcpiUtStrncpy (
-    char                    *DstString,
-    const char              *SrcString,
-    ACPI_SIZE               Count);
-
-int
-AcpiUtMemcmp (
-    const char              *Buffer1,
-    const char              *Buffer2,
-    ACPI_SIZE               Count);
-
-int
-AcpiUtStrncmp (
-    const char              *String1,
-    const char              *String2,
-    ACPI_SIZE               Count);
-
-int
-AcpiUtStrcmp (
-    const char              *String1,
-    const char              *String2);
-
-char *
-AcpiUtStrcat (
-    char                    *DstString,
-    const char              *SrcString);
-
-char *
-AcpiUtStrncat (
-    char                    *DstString,
-    const char              *SrcString,
-    ACPI_SIZE               Count);
-
-UINT32
-AcpiUtStrtoul (
-    const char              *String,
-    char                    **Terminator,
-    UINT32                  Base);
-
-char *
-AcpiUtStrstr (
-    char                    *String1,
-    char                    *String2);
-
-void *
-AcpiUtMemcpy (
-    void                    *Dest,
-    const void              *Src,
-    ACPI_SIZE               Count);
-
-void *
-AcpiUtMemset (
-    void                    *Dest,
-    UINT8                   Value,
-    ACPI_SIZE               Count);
-
-int
-AcpiUtToUpper (
-    int                     c);
-
-int
-AcpiUtToLower (
-    int                     c);
-
-extern const UINT8 _acpi_ctype[];
-
-#define _ACPI_XA     0x00    /* extra alphabetic - not supported */
-#define _ACPI_XS     0x40    /* extra space */
-#define _ACPI_BB     0x00    /* BEL, BS, etc. - not supported */
-#define _ACPI_CN     0x20    /* CR, FF, HT, NL, VT */
-#define _ACPI_DI     0x04    /* '0'-'9' */
-#define _ACPI_LO     0x02    /* 'a'-'z' */
-#define _ACPI_PU     0x10    /* punctuation */
-#define _ACPI_SP     0x08    /* space, tab, CR, LF, VT, FF */
-#define _ACPI_UP     0x01    /* 'A'-'Z' */
-#define _ACPI_XD     0x80    /* '0'-'9', 'A'-'F', 'a'-'f' */
-
-#define ACPI_IS_DIGIT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
-#define ACPI_IS_SPACE(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
-#define ACPI_IS_XDIGIT(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
-#define ACPI_IS_UPPER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_UP))
-#define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
-#define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_XS | _ACPI_PU))
-#define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
-
-#endif /* !ACPI_USE_SYSTEM_CLIBRARY */
-
 #define ACPI_IS_ASCII(c)  ((c) < 0x80)
-
 
 /*
  * utcopy - Object construction and conversion interfaces
@@ -601,6 +493,11 @@ ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
     ACPI_PNP_DEVICE_ID_LIST **ReturnCidList);
+
+ACPI_STATUS
+AcpiUtExecute_CLS (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 
 /*

@@ -2464,9 +2464,9 @@ flags_out:
 					}
 					/* get flags for PMTU */
 					if (net->dest_state & SCTP_ADDR_NO_PMTUD) {
-						paddrp->spp_flags |= SPP_PMTUD_ENABLE;
-					} else {
 						paddrp->spp_flags |= SPP_PMTUD_DISABLE;
+					} else {
+						paddrp->spp_flags |= SPP_PMTUD_ENABLE;
 					}
 					if (net->dscp & 0x01) {
 						paddrp->spp_dscp = net->dscp & 0xfc;
@@ -5678,16 +5678,23 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 
 			if ((stcb != NULL) && (net != NULL)) {
-				if ((net != stcb->asoc.primary_destination) &&
-				    (!(net->dest_state & SCTP_ADDR_UNCONFIRMED))) {
-					/* Ok we need to set it */
-					if (sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net) == 0) {
-						if ((stcb->asoc.alternate) &&
-						    (!(net->dest_state & SCTP_ADDR_PF)) &&
-						    (net->dest_state & SCTP_ADDR_REACHABLE)) {
-							sctp_free_remote_addr(stcb->asoc.alternate);
-							stcb->asoc.alternate = NULL;
+				if (net != stcb->asoc.primary_destination) {
+					if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+						/* Ok we need to set it */
+						if (sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net) == 0) {
+							if ((stcb->asoc.alternate) &&
+							    (!(net->dest_state & SCTP_ADDR_PF)) &&
+							    (net->dest_state & SCTP_ADDR_REACHABLE)) {
+								sctp_free_remote_addr(stcb->asoc.alternate);
+								stcb->asoc.alternate = NULL;
+							}
+						} else {
+							SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+							error = EINVAL;
 						}
+					} else {
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+						error = EINVAL;
 					}
 				}
 			} else {
@@ -6712,7 +6719,20 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 	size_t optsize = 0;
 	void *p;
 	int error = 0;
+	struct sctp_inpcb *inp;
 
+	if ((sopt->sopt_level == SOL_SOCKET) &&
+	    (sopt->sopt_name == SO_SETFIB)) {
+		inp = (struct sctp_inpcb *)so->so_pcb;
+		if (inp == NULL) {
+			SCTP_LTRACE_ERR_RET(so->so_pcb, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOBUFS);
+			return (EINVAL);
+		}
+		SCTP_INP_WLOCK(inp);
+		inp->fibnum = so->so_fibnum;
+		SCTP_INP_WUNLOCK(inp);
+		return (0);
+	}
 	if (sopt->sopt_level != IPPROTO_SCTP) {
 		/* wrong proto level... send back up to IP */
 #ifdef INET6

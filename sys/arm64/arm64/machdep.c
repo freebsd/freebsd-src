@@ -392,6 +392,8 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+
+	pcpu->pc_acpi_id = 0xffffffff;
 }
 
 void

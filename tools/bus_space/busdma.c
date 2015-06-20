@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -46,6 +47,7 @@ struct obj {
 #define	OBJ_TYPE_NONE	0
 #define	OBJ_TYPE_TAG	1
 #define	OBJ_TYPE_MD	2
+#define	OBJ_TYPE_SEG	3
 	u_int	refcnt;
 	int	fd;
 	struct obj *parent;
@@ -61,9 +63,17 @@ struct obj {
 			unsigned long	datarate;
 		} tag;
 		struct {
-			unsigned long	physaddr;
-			void		*virtaddr;
-		} mem;
+			struct obj	*seg[3];
+			int		nsegs[3];
+#define	BUSDMA_MD_BUS	0
+#define	BUSDMA_MD_PHYS	1
+#define	BUSDMA_MD_VIRT	2
+		} md;
+		struct {
+			struct obj	*next;
+			unsigned long	address;
+			unsigned long	size;
+		} seg;
 	} u;
 };
 
@@ -76,9 +86,8 @@ obj_alloc(u_int type)
 	struct obj **newtbl, *obj;
 	int oid;
 
-	obj = malloc(sizeof(struct obj));
+	obj = calloc(1, sizeof(struct obj));
 	obj->type = type;
-	obj->refcnt = 0;
 
 	for (oid = 0; oid < noids; oid++) {
 		if (oidtbl[oid] == 0)
@@ -239,6 +248,7 @@ bd_mem_alloc(int tid, u_int flags)
 {
 	struct proto_ioc_busdma ioc;
 	struct obj *md, *tag;
+	struct obj *bseg, *pseg, *vseg;
 
 	tag = obj_lookup(tid, OBJ_TYPE_TAG);
 	if (tag == NULL)
@@ -262,25 +272,88 @@ bd_mem_alloc(int tid, u_int flags)
 	md->parent = tag;
 	tag->refcnt++;
 	md->key = ioc.result;
-	md->u.mem.physaddr = ioc.u.mem.physaddr;
-	md->u.mem.virtaddr = mmap(NULL, tag->u.tag.maxsz,
+
+	/* XXX we need to support multiple segments */
+	assert(ioc.u.mem.phys_nsegs == 1);
+	assert(ioc.u.mem.bus_nsegs == 1);
+
+	bseg = pseg = vseg = NULL;
+
+	bseg = obj_alloc(OBJ_TYPE_SEG);
+	if (bseg == NULL)
+		goto fail;
+	bseg->refcnt = 1;
+	bseg->parent = md;
+	bseg->u.seg.address = ioc.u.mem.bus_addr;
+	bseg->u.seg.size = tag->u.tag.maxsz;
+	md->u.md.seg[BUSDMA_MD_BUS] = bseg;
+	md->u.md.nsegs[BUSDMA_MD_BUS] = ioc.u.mem.bus_nsegs;
+
+	pseg = obj_alloc(OBJ_TYPE_SEG);
+	if (pseg == NULL)
+		goto fail;
+	pseg->refcnt = 1;
+	pseg->parent = md;
+	pseg->u.seg.address = ioc.u.mem.phys_addr;
+	pseg->u.seg.size = tag->u.tag.maxsz;
+	md->u.md.seg[BUSDMA_MD_PHYS] = pseg;
+	md->u.md.nsegs[BUSDMA_MD_PHYS] = ioc.u.mem.phys_nsegs;
+
+	vseg = obj_alloc(OBJ_TYPE_SEG);
+	if (vseg == NULL)
+		goto fail;
+	vseg->refcnt = 1;
+	vseg->parent = md;
+	vseg->u.seg.address = (uintptr_t)mmap(NULL, pseg->u.seg.size,
 	    PROT_READ | PROT_WRITE, MAP_NOCORE | MAP_SHARED, md->fd,
-	    md->u.mem.physaddr);
+	    pseg->u.seg.address);
+	if (vseg->u.seg.address == (uintptr_t)MAP_FAILED)
+		goto fail;
+	vseg->u.seg.size = pseg->u.seg.size;
+	md->u.md.seg[BUSDMA_MD_VIRT] = vseg;
+	md->u.md.nsegs[BUSDMA_MD_VIRT] = 1;
+
 	return (md->oid);
+
+ fail:
+	if (vseg != NULL)
+		obj_free(vseg);
+	if (pseg != NULL)
+		obj_free(pseg);
+	if (bseg != NULL)
+		obj_free(bseg);
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
+	ioc.key = md->key;
+	ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc);
+	md->parent->refcnt--;
+	obj_free(md);
+	return (-1);
 }
 
 int
 bd_mem_free(int mdid)
 {
 	struct proto_ioc_busdma ioc;
-	struct obj *md;
+	struct obj *md, *seg, *seg0;
 
 	md = obj_lookup(mdid, OBJ_TYPE_MD);
 	if (md == NULL)
 		return (errno);
 
-	if (md->u.mem.virtaddr != MAP_FAILED)
-		munmap(md->u.mem.virtaddr, md->parent->u.tag.maxsz);
+	for (seg = md->u.md.seg[BUSDMA_MD_VIRT]; seg != NULL; seg = seg0) {
+		munmap((void *)seg->u.seg.address, seg->u.seg.size);
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
+	for (seg = md->u.md.seg[BUSDMA_MD_PHYS]; seg != NULL; seg = seg0) {
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
+	for (seg = md->u.md.seg[BUSDMA_MD_BUS]; seg != NULL; seg = seg0) {
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
 	ioc.key = md->key;
@@ -289,5 +362,76 @@ bd_mem_free(int mdid)
 
 	md->parent->refcnt--;
 	obj_free(md);
+	return (0);
+}
+
+int
+bd_md_first_seg(int mdid, int space)
+{
+	struct obj *md, *seg;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (-1);
+
+	if (space != BUSDMA_MD_BUS && space != BUSDMA_MD_PHYS &&
+	    space != BUSDMA_MD_VIRT) {
+		errno = EINVAL;
+		return (-1);
+	}
+	seg = md->u.md.seg[space];
+	if (seg == NULL) {
+		errno = ENXIO;
+		return (-1);
+	}
+	return (seg->oid);
+}
+
+int
+bd_md_next_seg(int mdid, int sid)
+{
+	struct obj *seg;
+
+	seg = obj_lookup(sid, OBJ_TYPE_SEG);
+	if (seg == NULL)
+		return (-1);
+
+	seg = seg->u.seg.next;
+	if (seg == NULL) {
+		errno = ENXIO;
+		return (-1);
+	}
+	return (seg->oid);
+}
+
+int
+bd_seg_get_addr(int sid, u_long *addr_p)
+{
+	struct obj *seg;
+
+	if (addr_p == NULL)
+		return (EINVAL);
+
+	seg = obj_lookup(sid, OBJ_TYPE_SEG);
+	if (seg == NULL)
+		return (errno);
+
+	*addr_p = seg->u.seg.address;
+	return (0);
+}
+
+int
+bd_seg_get_size(int sid, u_long *size_p)
+{
+	struct obj *seg;
+
+	if (size_p == NULL)
+		return (EINVAL);
+
+	seg = obj_lookup(sid, OBJ_TYPE_SEG);
+	if (seg == NULL)
+		return (errno);
+
+	*size_p = seg->u.seg.size;
 	return (0);
 }
