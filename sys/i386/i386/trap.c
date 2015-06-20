@@ -1001,12 +1001,8 @@ trap_fatal(frame, eva)
 	if (frame->tf_eflags & PSL_VM)
 		printf("vm86, ");
 	printf("IOPL = %d\n", (frame->tf_eflags & PSL_IOPL) >> 12);
-	printf("current process		= ");
-	if (curproc) {
-		printf("%lu (%s)\n", (u_long)curproc->p_pid, curthread->td_name);
-	} else {
-		printf("Idle\n");
-	}
+	printf("current process		= %d (%s)\n",
+	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active) {
