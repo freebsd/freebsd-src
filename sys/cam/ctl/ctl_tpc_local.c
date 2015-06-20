@@ -69,8 +69,8 @@ static int tpcl_init(void);
 static void tpcl_shutdown(void);
 static void tpcl_online(void *arg);
 static void tpcl_offline(void *arg);
-static int tpcl_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
-static int tpcl_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
+static int tpcl_lun_enable(void *arg, int lun_id);
+static int tpcl_lun_disable(void *arg, int lun_id);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
@@ -152,14 +152,14 @@ tpcl_offline(void *arg)
 }
 
 static int
-tpcl_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
+tpcl_lun_enable(void *arg, int lun_id)
 {
 
 	return (0);
 }
 
 static int
-tpcl_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
+tpcl_lun_disable(void *arg, int lun_id)
 {
 
 	return (0);
