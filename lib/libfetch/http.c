@@ -1604,10 +1604,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			http_auth_params_t aparams;
 			init_http_auth_params(&aparams);
 			if (*purl->user || *purl->pwd) {
-				aparams.user = purl->user ?
-					strdup(purl->user) : strdup("");
-				aparams.password = purl->pwd?
-					strdup(purl->pwd) : strdup("");
+				aparams.user = strdup(purl->user);
+				aparams.password = strdup(purl->pwd);
 			} else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL &&
 				   *p != '\0') {
 				if (http_authfromenv(p, &aparams) < 0) {
@@ -1633,10 +1631,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			http_auth_params_t aparams;
 			init_http_auth_params(&aparams);
 			if (*url->user || *url->pwd) {
-				aparams.user = url->user ?
-					strdup(url->user) : strdup("");
-				aparams.password = url->pwd ?
-					strdup(url->pwd) : strdup("");
+				aparams.user = strdup(url->user);
+				aparams.password = strdup(url->pwd);
 			} else if ((p = getenv("HTTP_AUTH")) != NULL &&
 				   *p != '\0') {
 				if (http_authfromenv(p, &aparams) < 0) {
@@ -1645,10 +1641,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				}
 			} else if (fetchAuthMethod &&
 				   fetchAuthMethod(url) == 0) {
-				aparams.user = url->user ?
-					strdup(url->user) : strdup("");
-				aparams.password = url->pwd ?
-					strdup(url->pwd) : strdup("");
+				aparams.user = strdup(url->user);
+				aparams.password = strdup(url->pwd);
 			} else {
 				http_seterr(HTTP_NEED_AUTH);
 				goto ouch;
