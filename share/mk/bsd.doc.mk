@@ -75,7 +75,7 @@ TRFLAGS+=	-p
 TRFLAGS+=	-R
 .endif
 .if defined(USE_SOELIM)
-TRFLAGS+=	-I${SRCDIR}
+TRFLAGS+=	-I${.CURDIR}
 .endif
 .if defined(USE_TBL)
 TRFLAGS+=	-t
