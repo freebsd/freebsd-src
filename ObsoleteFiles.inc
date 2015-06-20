@@ -100,9 +100,9 @@ OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.6.1/lib
 OLD_DIRS+=usr/lib/clang/3.6.1
 # 20150528: PCI IOV device driver methods moved to a separate kobj interface.
-OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9
-OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9
-OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9
+OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9.gz
+OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9.gz
+OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9.gz
 # 20150525: new clang import which bumps version from 3.6.0 to 3.6.1.
 OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h
@@ -178,9 +178,13 @@ OLD_FILES+=usr/lib32/libheimsqlite.a
 OLD_FILES+=usr/lib32/libheimsqlite.so
 OLD_LIBS+=usr/lib32/libheimsqlite.so.11
 OLD_FILES+=usr/lib32/libheimsqlite_p.a
+# 20150518: tzdata2015c update
+OLD_FILES+=usr/share/zoneinfo/America/Montreal
 # 20150506
 OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
+OLD_FILES+=usr/share/examples/etc/libmap32.conf
+OLD_FILES+=usr/include/bsdstat.h
 OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
 OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
@@ -221,6 +225,7 @@ OLD_FILES+=usr/share/man/man3/nvlist_addv_null.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addv_number.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addv_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsf_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsf_bool.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsf_descriptor.3.gz
@@ -229,6 +234,7 @@ OLD_FILES+=usr/share/man/man3/nvlist_existsf_number.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsf_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsf_string.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsf_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsv_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsv_bool.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsv_descriptor.3.gz
@@ -237,6 +243,7 @@ OLD_FILES+=usr/share/man/man3/nvlist_existsv_number.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsv_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsv_string.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_existsv_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freef_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freef_bool.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freef_descriptor.3.gz
@@ -245,6 +252,7 @@ OLD_FILES+=usr/share/man/man3/nvlist_freef_number.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freef_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freef_string.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freef_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freev_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freev_bool.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_freev_descriptor.3.gz
@@ -265,10 +273,33 @@ OLD_FILES+=usr/share/man/man3/nvlist_getv_descriptor.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_getv_number.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_getv_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_getv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_string.3.gz
 # 20150429:
 OLD_FILES+=usr/share/docs/papers/hwpmc.ascii.gz
 # 20150427: test/sys/kern/mmap_test moved to test/sys/vm/mmap_test
 OLD_FILES+=usr/tests/sys/kern/mmap_test
+# 20150422: zlib.c moved from net to libkern
+OLD_FILES+=usr/include/net/zlib.h
+OLD_FILES+=usr/include/net/zutil.h
 # 20150418
 OLD_FILES+=sbin/mount_oldnfs
 OLD_FILES+=usr/share/man/man8/mount_oldnfs.8.gz
@@ -358,7 +389,7 @@ OLD_FILES+=usr/bin/ppt
 OLD_FILES+=usr/share/man/man6/bcd.6.gz
 OLD_FILES+=usr/share/man/man6/ppt.6.gz
 # 20150217: Removed remnants of ar(4) driver
-OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
+OLD_FILES+=usr/include/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin
 OLD_FILES+=usr/games/bcd
 OLD_FILES+=usr/games/caesar
@@ -378,19 +409,21 @@ OLD_DIRS+=usr/games
 # 20150209: liblzma header
 OLD_FILES+=usr/include/lzma/lzma.h
 # 20150124: spl.9 and friends
-OLD_FILES+=usr/share/man/man9/spl.9
-OLD_FILES+=usr/share/man/man9/spl0.9
-OLD_FILES+=usr/share/man/man9/splbio.9
-OLD_FILES+=usr/share/man/man9/splclock.9
-OLD_FILES+=usr/share/man/man9/splhigh.9
-OLD_FILES+=usr/share/man/man9/splimp.9
-OLD_FILES+=usr/share/man/man9/splnet.9
-OLD_FILES+=usr/share/man/man9/splsoftclock.9
-OLD_FILES+=usr/share/man/man9/splsofttty.9
-OLD_FILES+=usr/share/man/man9/splstatclock.9
-OLD_FILES+=usr/share/man/man9/spltty.9
-OLD_FILES+=usr/share/man/man9/splvm.9
-OLD_FILES+=usr/share/man/man9/splx.9
+OLD_FILES+=usr/share/man/man9/spl.9.gz
+OLD_FILES+=usr/share/man/man9/spl0.9.gz
+OLD_FILES+=usr/share/man/man9/splbio.9.gz
+OLD_FILES+=usr/share/man/man9/splclock.9.gz
+OLD_FILES+=usr/share/man/man9/splhigh.9.gz
+OLD_FILES+=usr/share/man/man9/splimp.9.gz
+OLD_FILES+=usr/share/man/man9/splnet.9.gz
+OLD_FILES+=usr/share/man/man9/splsoftclock.9.gz
+OLD_FILES+=usr/share/man/man9/splsofttty.9.gz
+OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
+OLD_FILES+=usr/share/man/man9/spltty.9.gz
+OLD_FILES+=usr/share/man/man9/splvm.9.gz
+OLD_FILES+=usr/share/man/man9/splx.9.gz
+# 20150118: toeplitz.c moved from netinet to net
+OLD_FILES+=usr/include/netinet/toeplitz.h
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h
@@ -445,6 +478,8 @@ OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.5.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.5.0/lib
 OLD_DIRS+=usr/lib/clang/3.5.0
+# 20150102: removal of asr(4)
+OLD_FILES+=usr/share/man/man4/asr.4.gz
 # 20150102: removal of texinfo
 OLD_FILES+=usr/bin/info
 OLD_FILES+=usr/bin/infokey
@@ -513,7 +548,7 @@ OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
 OLD_DIRS+=usr/include/clang/3.4.1
-# 20141226: Remove gpib/ieee488
+# 20141225: Remove gpib/ieee488
 OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
 OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
 OLD_FILES+=usr/include/dev/ieee488/ugpib.h
@@ -526,16 +561,28 @@ OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib/libgpib.so
 OLD_LIBS+=usr/lib/libgpib.so.3
 OLD_FILES+=usr/lib/libgpib_p.a
-OLD_FILES+=share/man/man4/pcii.4.gz
-OLD_FILES+=share/man/man4/gpib.4.gz
-OLD_FILES+=share/man/man4/tnt4882.4.gz
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libgpib.a
 OLD_FILES+=usr/lib32/libgpib_p.a
 OLD_FILES+=usr/lib32/libgpib.so
 OLD_LIBS+=usr/lib32/libgpib.so.3
-.endif
-
+OLD_FILES+=usr/share/man/man3/gpib.3.gz
+OLD_FILES+=usr/share/man/man3/ibclr.3.gz
+OLD_FILES+=usr/share/man/man3/ibdev.3.gz
+OLD_FILES+=usr/share/man/man3/ibdma.3.gz
+OLD_FILES+=usr/share/man/man3/ibeos.3.gz
+OLD_FILES+=usr/share/man/man3/ibeot.3.gz
+OLD_FILES+=usr/share/man/man3/ibloc.3.gz
+OLD_FILES+=usr/share/man/man3/ibonl.3.gz
+OLD_FILES+=usr/share/man/man3/ibpad.3.gz
+OLD_FILES+=usr/share/man/man3/ibrd.3.gz
+OLD_FILES+=usr/share/man/man3/ibsad.3.gz
+OLD_FILES+=usr/share/man/man3/ibsic.3.gz
+OLD_FILES+=usr/share/man/man3/ibtmo.3.gz
+OLD_FILES+=usr/share/man/man3/ibtrg.3.gz
+OLD_FILES+=usr/share/man/man3/ibwrt.3.gz
+OLD_FILES+=usr/share/man/man4/gpib.4.gz
+OLD_FILES+=usr/share/man/man4/pcii.4.gz
+OLD_FILES+=usr/share/man/man4/tnt4882.4.gz
 # 20141224: libxo moved to /lib
 OLD_LIBS+=usr/lib/libxo.so.0
 # 20141223: remove in6_gif.h, in_gif.h and if_stf.h
@@ -553,6 +600,11 @@ OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
 OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
 # 20141126: remove xform_ipip decapsulation fallback
 OLD_FILES+=usr/include/netipsec/ipip_var.h
+# 20141122: mandoc updated to 1.13.1
+OLD_FILES+=usr/share/mdocml/external.png
+# 20141111: SF_KQUEUE code removed
+OLD_FILES+=usr/include/sys/sf_base.h
+OLD_FILES+=usr/include/sys/sf_sync.h
 # 20141109: faith/faithd removal
 OLD_FILES+=etc/rc.d/faith
 OLD_FILES+=usr/share/man/man4/faith.4.gz
@@ -565,6 +617,8 @@ OLD_FILES+=usr/include/netinet/ip_gre.h
 OLD_FILES+=etc/rc.d/postrandom
 # 20141031: initrandom obsoleted by new /dev/random code
 OLD_FILES+=etc/rc.d/initrandom
+# 20141030: atf 0.21 import
+OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
 # 20141028: debug files accidentally installed as directory name
 OLD_FILES+=usr/lib/debug/usr/lib/i18n
 OLD_FILES+=usr/lib/debug/usr/lib/private
@@ -572,6 +626,9 @@ OLD_FILES+=usr/lib/debug/usr/lib32/i18n
 OLD_FILES+=usr/lib/debug/usr/lib32/private
 # 20141015: OpenSSL 1.0.1j import
 OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
+# 20141003: libproc version bump
+OLD_LIBS+=usr/lib/libproc.so.2
+OLD_LIBS+=usr/lib32/libproc.so.2
 # 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
 OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
 OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
@@ -581,6 +638,10 @@ OLD_FILES+=etc/rc.d/hv_kvpd
 OLD_LIBS+=usr/lib/libnv.so.0
 # 20140829: rc.d/kerberos removed
 OLD_FILES+=etc/rc.d/kerberos
+# 20140827: tzdata2014f import
+OLD_FILES+=usr/share/zoneinfo/Asia/Chongqing
+OLD_FILES+=usr/share/zoneinfo/Asia/Harbin
+OLD_FILES+=usr/share/zoneinfo/Asia/Kashgar
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7
@@ -646,12 +707,15 @@ OLD_FILES+=usr/lib/private/libucl_p.a
 OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
 # 20140728: libsbuf restored to old version.
 OLD_LIBS+=lib/libsbuf.so.7
+OLD_LIBS+=usr/lib32/libsbuf.so.7
 # 20140728: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_DESTROYVOBJECT.9.gz
 # 20140723: renamed to PCBGROUP.9
 OLD_FILES+=usr/share/man/man9/PCBGROUPS.9.gz
+# 20140722: browse_packages_ftp.sh removed
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages_ftp.sh
 # 20140718: Remove obsolete man pages
 OLD_FILES+=usr/share/man/man9/zero_copy.9.gz
 OLD_FILES+=usr/share/man/man9/zero_copy_sockets.9.gz
@@ -672,6 +736,14 @@ OLD_FILES+=usr/lib/libhistory.a
 OLD_FILES+=usr/lib/libhistory_p.a
 OLD_FILES+=usr/lib/libhistory.so
 OLD_LIBS+=usr/lib/libhistory.so.8
+OLD_FILES+=usr/lib32/libhistory.a
+OLD_FILES+=usr/lib32/libhistory.so
+OLD_LIBS+=usr/lib32/libhistory.so.8
+OLD_FILES+=usr/lib32/libhistory_p.a
+OLD_FILES+=usr/lib32/libreadline.a
+OLD_FILES+=usr/lib32/libreadline.so
+OLD_LIBS+=usr/lib32/libreadline.so.8
+OLD_FILES+=usr/lib32/libreadline_p.a
 OLD_FILES+=usr/include/readline/chardefs.h
 OLD_FILES+=usr/include/readline/history.h
 OLD_FILES+=usr/include/readline/keymaps.h
@@ -684,6 +756,7 @@ OLD_FILES+=usr/include/readline/rltypedefs.h
 OLD_DIRS+=usr/include/readline
 OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/man/man3/readline.3.gz
+OLD_FILES+=usr/share/man/man3/rlhistory.3.gz
 # 20140625: csup removal
 OLD_FILES+=usr/bin/csup
 OLD_FILES+=usr/bin/cpasswd
@@ -2062,7 +2135,6 @@ OLD_LIBS+=usr/lib/libpanel.so.4
 OLD_LIBS+=usr/lib/libpanelw.so.4
 OLD_LIBS+=usr/lib/libpmc.so.4
 OLD_LIBS+=usr/lib/libproc.so.1
-OLD_LIBS+=usr/lib/libproc.so.2
 OLD_LIBS+=usr/lib/libradius.so.3
 OLD_LIBS+=usr/lib/librpcsvc.so.4
 OLD_LIBS+=usr/lib/libsdp.so.3

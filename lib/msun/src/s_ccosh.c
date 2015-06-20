@@ -32,6 +32,8 @@
  *
  * Exceptional values are noted in the comments within the source code.
  * These values and the return value were taken from n1124.pdf.
+ * The sign of the result for some exceptional values is unspecified but
+ * must satisfy both cosh(conj(z)) == conj(cosh(z)) and cosh(-z) == cosh(z).
  */
 
 #include <sys/cdefs.h>
@@ -63,7 +65,7 @@ ccosh(double complex z)
 	if (ix < 0x7ff00000 && iy < 0x7ff00000) {
 		if ((iy | ly) == 0)
 			return (CMPLX(cosh(x), x * y));
-		if (ix < 0x40360000)	/* small x: normal case */
+		if (ix < 0x40360000)	/* |x| < 22: normal case */
 			return (CMPLX(cosh(x) * cos(y), sinh(x) * sin(y)));
 
 		/* |x| >= 22, so cosh(x) ~= exp(|x|) */
@@ -83,28 +85,27 @@ ccosh(double complex z)
 	}
 
 	/*
-	 * cosh(+-0 +- I Inf) = dNaN + I sign(d(+-0, dNaN))0.
-	 * The sign of 0 in the result is unspecified.  Choice = normally
-	 * the same as dNaN.  Raise the invalid floating-point exception.
+	 * cosh(+-0 +- I Inf) = dNaN + I (+-)(+-)0.
+	 * The sign of 0 in the result is unspecified.  Choice = product
+	 * of the signs of the argument.  Raise the invalid floating-point
+	 * exception.
 	 *
-	 * cosh(+-0 +- I NaN) = d(NaN) + I sign(d(+-0, NaN))0.
-	 * The sign of 0 in the result is unspecified.  Choice = normally
-	 * the same as d(NaN).
+	 * cosh(+-0 +- I NaN) = d(NaN) + I (+-)(+-)0.
+	 * The sign of 0 in the result is unspecified.  Choice = product
+	 * of the signs of the argument.
 	 */
-	if ((ix | lx) == 0 && iy >= 0x7ff00000)
-		return (CMPLX(y - y, copysign(0, x * (y - y))));
+	if ((ix | lx) == 0)		/* && iy >= 0x7ff00000 */
+		return (CMPLX(y - y, x * copysign(0, y)));
 
 	/*
 	 * cosh(+-Inf +- I 0) = +Inf + I (+-)(+-)0.
 	 *
-	 * cosh(NaN +- I 0)   = d(NaN) + I sign(d(NaN, +-0))0.
-	 * The sign of 0 in the result is unspecified.
+	 * cosh(NaN +- I 0)   = d(NaN) + I (+-)(+-)0.
+	 * The sign of 0 in the result is unspecified.  Choice = product
+	 * of the signs of the argument.
 	 */
-	if ((iy | ly) == 0 && ix >= 0x7ff00000) {
-		if (((hx & 0xfffff) | lx) == 0)
-			return (CMPLX(x * x, copysign(0, x) * y));
-		return (CMPLX(x * x, copysign(0, (x + x) * y)));
-	}
+	if ((iy | ly) == 0)		/* && ix >= 0x7ff00000 */
+		return (CMPLX(x * x, copysign(0, x) * y));
 
 	/*
 	 * cosh(x +- I Inf) = dNaN + I dNaN.
@@ -114,7 +115,7 @@ ccosh(double complex z)
 	 * Optionally raises the invalid floating-point exception for finite
 	 * nonzero x.  Choice = don't raise (except for signaling NaNs).
 	 */
-	if (ix < 0x7ff00000 && iy >= 0x7ff00000)
+	if (ix < 0x7ff00000)		/* && iy >= 0x7ff00000 */
 		return (CMPLX(y - y, x * (y - y)));
 
 	/*
@@ -126,10 +127,10 @@ ccosh(double complex z)
 	 *
 	 * cosh(+-Inf + I y)   = +Inf cos(y) +- I Inf sin(y)
 	 */
-	if (ix >= 0x7ff00000 && ((hx & 0xfffff) | lx) == 0) {
+	if (ix == 0x7ff00000 && lx == 0) {
 		if (iy >= 0x7ff00000)
-			return (CMPLX(x * x, x * (y - y)));
-		return (CMPLX((x * x) * cos(y), x * sin(y)));
+			return (CMPLX(INFINITY, x * (y - y)));
+		return (CMPLX(INFINITY * cos(y), x * sin(y)));
 	}
 
 	/*

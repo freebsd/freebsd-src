@@ -167,6 +167,9 @@ crypt_blowfish(const char *key, const char *salt)
 			 switch (salt[1]) {
 			 case 'a':	/* 'ab' should not yield the same as 'abab' */
 			 case 'b':	/* cap input length at 72 bytes */
+			 case 'y':	/* same as 'b', for compatibility
+					 * with openwall crypt_blowfish
+					 */
 				 minr = salt[1];
 				 salt++;
 				 break;

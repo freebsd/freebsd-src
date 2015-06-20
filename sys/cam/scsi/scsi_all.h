@@ -996,6 +996,216 @@ struct scsi_write_buffer
 	u_int8_t control;
 };
 
+struct scsi_read_attribute
+{
+	u_int8_t opcode;
+	u_int8_t service_action;
+#define	SRA_SA_ATTR_VALUES		0x00
+#define	SRA_SA_ATTR_LIST		0x01
+#define	SRA_SA_LOG_VOL_LIST		0x02
+#define	SRA_SA_PART_LIST		0x03
+#define	SRA_SA_RESTRICTED		0x04
+#define	SRA_SA_SUPPORTED_ATTRS		0x05
+#define	SRA_SA_MASK			0x1f
+	u_int8_t element[2];
+	u_int8_t elem_type;
+	u_int8_t logical_volume;
+	u_int8_t reserved1;
+	u_int8_t partition;
+	u_int8_t first_attribute[2];
+	u_int8_t length[4];
+	u_int8_t cache;
+#define	SRA_CACHE			0x01
+	u_int8_t control;
+};
+
+struct scsi_write_attribute
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+#define	SWA_WTC				0x01
+	u_int8_t element[3];
+	u_int8_t logical_volume;
+	u_int8_t reserved1;
+	u_int8_t partition;
+	u_int8_t reserved2[2];
+	u_int8_t length[4];
+	u_int8_t reserved3;
+	u_int8_t control;
+};
+
+
+struct scsi_read_attribute_values
+{
+	u_int8_t length[4];
+	u_int8_t attribute_0[0];
+};
+
+struct scsi_mam_attribute_header
+{
+	u_int8_t id[2];
+	/*
+	 * Attributes obtained from SPC-4r36g (section 7.4.2.2) and
+	 * SSC-4r03 (section 4.2.21). 
+	 */
+#define	SMA_ATTR_ID_DEVICE_MIN		0x0000
+
+#define	SMA_ATTR_REM_CAP_PARTITION	0x0000
+#define	SMA_ATTR_MAX_CAP_PARTITION	0x0001
+#define	SMA_ATTR_TAPEALERT_FLAGS	0x0002
+#define	SMA_ATTR_LOAD_COUNT		0x0003
+#define	SMA_ATTR_MAM_SPACE_REMAINING	0x0004
+
+#define	SMA_ATTR_DEV_ASSIGNING_ORG	0x0005
+#define	SMA_ATTR_FORMAT_DENSITY_CODE	0x0006
+#define	SMA_ATTR_INITIALIZATION_COUNT	0x0007
+#define	SMA_ATTR_VOLUME_ID		0x0008
+#define	SMA_ATTR_VOLUME_CHANGE_REF	0x0009
+
+#define	SMA_ATTR_DEV_SERIAL_LAST_LOAD	0x020a
+#define	SMA_ATTR_DEV_SERIAL_LAST_LOAD_1	0x020b
+#define	SMA_ATTR_DEV_SERIAL_LAST_LOAD_2	0x020c
+#define	SMA_ATTR_DEV_SERIAL_LAST_LOAD_3	0x020d
+
+#define	SMA_ATTR_TOTAL_MB_WRITTEN_LT	0x0220
+#define	SMA_ATTR_TOTAL_MB_READ_LT	0x0221
+#define	SMA_ATTR_TOTAL_MB_WRITTEN_CUR	0x0222
+#define	SMA_ATTR_TOTAL_MB_READ_CUR	0x0223
+#define	SMA_ATTR_FIRST_ENC_BLOCK	0x0224
+#define	SMA_ATTR_NEXT_UNENC_BLOCK	0x0225
+
+#define	SMA_ATTR_MEDIUM_USAGE_HIST	0x0340
+#define	SMA_ATTR_PART_USAGE_HIST	0x0341
+
+#define	SMA_ATTR_ID_DEVICE_MAX		0x03ff
+
+#define	SMA_ATTR_ID_MEDIUM_MIN		0x0400
+
+#define	SMA_ATTR_MED_MANUF		0x0400
+#define	SMA_ATTR_MED_SERIAL		0x0401
+
+#define	SMA_ATTR_MED_LENGTH		0x0402
+#define	SMA_ATTR_MED_WIDTH		0x0403
+#define	SMA_ATTR_MED_ASSIGNING_ORG	0x0404
+#define	SMA_ATTR_MED_DENSITY_CODE	0x0405
+
+#define	SMA_ATTR_MED_MANUF_DATE		0x0406
+#define	SMA_ATTR_MAM_CAPACITY		0x0407
+#define	SMA_ATTR_MED_TYPE		0x0408
+#define	SMA_ATTR_MED_TYPE_INFO		0x0409
+#define	SMA_ATTR_MED_SERIAL_NUM		0x040a
+
+#define	SMA_ATTR_ID_MEDIUM_MAX		0x07ff
+
+#define	SMA_ATTR_ID_HOST_MIN		0x0800
+
+#define	SMA_ATTR_APP_VENDOR		0x0800
+#define	SMA_ATTR_APP_NAME		0x0801
+#define	SMA_ATTR_APP_VERSION		0x0802
+#define	SMA_ATTR_USER_MED_TEXT_LABEL	0x0803
+#define	SMA_ATTR_LAST_WRITTEN_TIME	0x0804
+#define	SMA_ATTR_TEXT_LOCAL_ID		0x0805
+#define	SMA_ATTR_BARCODE		0x0806
+#define	SMA_ATTR_HOST_OWNER_NAME	0x0807
+#define	SMA_ATTR_MEDIA_POOL		0x0808
+#define	SMA_ATTR_PART_USER_LABEL	0x0809
+#define	SMA_ATTR_LOAD_UNLOAD_AT_PART	0x080a
+#define	SMA_ATTR_APP_FORMAT_VERSION	0x080b
+#define	SMA_ATTR_VOL_COHERENCY_INFO	0x080c
+
+#define	SMA_ATTR_ID_HOST_MAX		0x0bff
+
+#define	SMA_ATTR_VENDOR_DEVICE_MIN	0x0c00
+#define	SMA_ATTR_VENDOR_DEVICE_MAX	0x0fff
+#define	SMA_ATTR_VENDOR_MEDIUM_MIN	0x1000
+#define	SMA_ATTR_VENDOR_MEDIUM_MAX	0x13ff
+#define	SMA_ATTR_VENDOR_HOST_MIN	0x1400
+#define	SMA_ATTR_VENDOR_HOST_MAX	0x17ff
+	u_int8_t byte2;
+#define	SMA_FORMAT_BINARY	0x00
+#define	SMA_FORMAT_ASCII	0x01
+#define	SMA_FORMAT_TEXT		0x02
+#define	SMA_FORMAT_MASK		0x03
+#define	SMA_READ_ONLY		0x80
+	u_int8_t length[2];
+	u_int8_t attribute[0];
+};
+
+struct scsi_attrib_list_header {
+	u_int8_t length[4];
+	u_int8_t first_attr_0[0];
+};
+
+struct scsi_attrib_lv_list {
+	u_int8_t length[2];
+	u_int8_t first_lv_number;
+	u_int8_t num_logical_volumes;
+};
+
+struct scsi_attrib_vendser {
+	uint8_t vendor[8];
+	uint8_t serial_num[32];
+};
+
+/*
+ * These values are used to decode the Volume Coherency Information
+ * Attribute (0x080c) for LTFS-format coherency information.
+ * Although the Application Client Specific lengths are different for
+ * Version 0 and Version 1, the data is in fact the same.  The length
+ * difference was due to a code bug.
+ */
+#define	SCSI_LTFS_VER0_LEN	42
+#define	SCSI_LTFS_VER1_LEN	43
+#define	SCSI_LTFS_UUID_LEN	36
+#define	SCSI_LTFS_STR_NAME	"LTFS"
+#define	SCSI_LTFS_STR_LEN	4
+
+typedef enum {
+	SCSI_ATTR_FLAG_NONE		= 0x00,
+	SCSI_ATTR_FLAG_HEX		= 0x01,
+	SCSI_ATTR_FLAG_FP		= 0x02,
+	SCSI_ATTR_FLAG_DIV_10		= 0x04,
+	SCSI_ATTR_FLAG_FP_1DIGIT	= 0x08
+} scsi_attrib_flags;
+
+typedef enum {
+	SCSI_ATTR_OUTPUT_NONE		= 0x00,
+	SCSI_ATTR_OUTPUT_TEXT_MASK	= 0x03,
+	SCSI_ATTR_OUTPUT_TEXT_RAW	= 0x00,
+	SCSI_ATTR_OUTPUT_TEXT_ESC	= 0x01,
+	SCSI_ATTR_OUTPUT_TEXT_RSV1	= 0x02,
+	SCSI_ATTR_OUTPUT_TEXT_RSV2	= 0x03,
+	SCSI_ATTR_OUTPUT_NONASCII_MASK	= 0x0c,
+	SCSI_ATTR_OUTPUT_NONASCII_TRIM	= 0x00,
+	SCSI_ATTR_OUTPUT_NONASCII_ESC	= 0x04,
+	SCSI_ATTR_OUTPUT_NONASCII_RAW	= 0x08,
+	SCSI_ATTR_OUTPUT_NONASCII_RSV1	= 0x0c,
+	SCSI_ATTR_OUTPUT_FIELD_MASK	= 0xf0,
+	SCSI_ATTR_OUTPUT_FIELD_ALL	= 0xf0,
+	SCSI_ATTR_OUTPUT_FIELD_NONE	= 0x00,
+	SCSI_ATTR_OUTPUT_FIELD_DESC	= 0x10,
+	SCSI_ATTR_OUTPUT_FIELD_NUM	= 0x20,
+	SCSI_ATTR_OUTPUT_FIELD_SIZE	= 0x40,
+	SCSI_ATTR_OUTPUT_FIELD_RW	= 0x80
+} scsi_attrib_output_flags;
+
+struct sbuf;
+
+struct scsi_attrib_table_entry
+{
+	u_int32_t id;
+	u_int32_t flags;
+	const char *desc;
+	const char *suffix;
+	int (*to_str)(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+		      uint32_t valid_len, uint32_t flags,
+		      uint32_t output_flags, char *error_str,
+		      int error_str_len);
+	int (*parse_str)(char *str, struct scsi_mam_attribute_header *hdr,
+			 uint32_t alloc_len, uint32_t flags, char *error_str,
+			 int error_str_len);
+};
+
 struct scsi_rw_6
 {
 	u_int8_t opcode;
@@ -1750,6 +1960,8 @@ struct ata_pass_16 {
 #define	READ_16			0x88
 #define	COMPARE_AND_WRITE	0x89
 #define	WRITE_16		0x8A
+#define	READ_ATTRIBUTE		0x8C
+#define	WRITE_ATTRIBUTE		0x8D
 #define	WRITE_VERIFY_16		0x8E
 #define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
@@ -3272,8 +3484,6 @@ struct cam_device;
 
 extern const char *scsi_sense_key_text[];
 
-struct sbuf;
-
 __BEGIN_DECLS
 void scsi_sense_desc(int sense_key, int asc, int ascq,
 		     struct scsi_inquiry_data *inq_data,
@@ -3464,6 +3674,63 @@ int	scsi_parse_transportid(char *transportid_str,
 			       struct malloc_type *type, int flags,
 #endif
 			       char *error_str, int error_str_len);
+
+
+int scsi_attrib_volcoh_sbuf(struct sbuf *sb,
+			    struct scsi_mam_attribute_header *hdr,
+			    uint32_t valid_len, uint32_t flags,
+			    uint32_t output_flags, char *error_str,
+			    int error_str_len);
+
+int scsi_attrib_vendser_sbuf(struct sbuf *sb,
+			     struct scsi_mam_attribute_header *hdr,
+			     uint32_t valid_len, uint32_t flags,
+			     uint32_t output_flags, char *error_str,
+			     int error_str_len);
+
+int scsi_attrib_hexdump_sbuf(struct sbuf *sb,
+			     struct scsi_mam_attribute_header *hdr,
+			     uint32_t valid_len, uint32_t flags,
+			     uint32_t output_flags, char *error_str,
+			     int error_str_len);
+
+int scsi_attrib_int_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+			 uint32_t valid_len, uint32_t flags,
+			 uint32_t output_flags, char *error_str,
+			 int error_str_len);
+
+int scsi_attrib_ascii_sbuf(struct sbuf *sb,
+			   struct scsi_mam_attribute_header *hdr,
+			   uint32_t valid_len, uint32_t flags,
+			   uint32_t output_flags, char *error_str,
+			   int error_str_len);
+
+int scsi_attrib_text_sbuf(struct sbuf *sb,
+			  struct scsi_mam_attribute_header *hdr,
+			  uint32_t valid_len, uint32_t flags,
+			  uint32_t output_flags, char *error_str,
+			  int error_str_len);
+
+struct scsi_attrib_table_entry *scsi_find_attrib_entry(
+			struct scsi_attrib_table_entry *table,
+			size_t num_table_entries, uint32_t id);
+
+struct scsi_attrib_table_entry *scsi_get_attrib_entry(uint32_t id);
+
+int scsi_attrib_value_sbuf(struct sbuf *sb, uint32_t valid_len,
+			   struct scsi_mam_attribute_header *hdr,
+			   uint32_t output_flags, char *error_str,
+			   size_t error_str_len);
+
+void scsi_attrib_prefix_sbuf(struct sbuf *sb, uint32_t output_flags,
+			     struct scsi_mam_attribute_header *hdr,
+			     uint32_t valid_len, const char *desc);
+
+int scsi_attrib_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+		     uint32_t valid_len,
+		     struct scsi_attrib_table_entry *user_table,
+		     size_t num_user_entries, int prefer_user_table,
+		     uint32_t output_flags, char *error_str, int error_str_len);
 
 void		scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
 				     void (*cbfcnp)(struct cam_periph *, 
@@ -3659,6 +3926,18 @@ void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int start, int load_eject,
 		     int immediate, u_int8_t sense_len, u_int32_t timeout);
+void scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+			 void (*cbfcnp)(struct cam_periph *, union ccb *),
+			 u_int8_t tag_action, u_int8_t service_action,
+			 uint32_t element, u_int8_t elem_type,
+			 int logical_volume, int partition,
+			 u_int32_t first_attribute, int cache, u_int8_t *data_ptr,
+			 u_int32_t length, int sense_len, u_int32_t timeout);
+void scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  u_int8_t tag_action, uint32_t element,
+			  int logical_volume, int partition, int wtc, u_int8_t *data_ptr,
+			  u_int32_t length, int sense_len, u_int32_t timeout);
 
 void scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
 			       void (*cbfcnp)(struct cam_periph *, union ccb *),

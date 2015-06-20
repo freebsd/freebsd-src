@@ -298,7 +298,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
 	newtd->td_proc = p;
-	newtd->td_ucred = crhold(td->td_ucred);
+	thread_cow_get(newtd, td);
 
 	/* create the emuldata */
 	linux_proc_init(td, newtd, args->flags);

@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  *
  * TODO: Fix the ARMv4/v5 case.
  */
-#if (defined(FLASHADDR) || defined(LOADERRAMADDR) || !defined(_ARM_ARCH_6)) && \
-    !defined(PHYSADDR)
+#ifndef PHYSADDR
 #error PHYSADDR must be defined for this configuration
 #endif
 

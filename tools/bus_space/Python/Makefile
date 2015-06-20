@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIB_NAME=	bus_space.so
+SHLIB_NAME=	bus.so
 SRCS=		lang.c
 
 CFLAGS+= -I${.CURDIR}/.. -I/usr/local/include/python2.7

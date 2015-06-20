@@ -525,7 +525,7 @@ vendor DMI		0x0c0b	DMI
 vendor CANYON		0x0c10	Canyon
 vendor ICOM		0x0c26	Icom Inc.
 vendor GNOTOMETRICS	0x0c33	GN Otometrics
-vendor CHICONY2		0x0c45	Chicony
+vendor CHICONY2		0x0c45	Chicony / Microdia / Sonix Technology Co., Ltd.
 vendor REINERSCT	0x0c4b	Reiner-SCT
 vendor SEALEVEL		0x0c52	Sealevel System
 vendor JETI		0x0c6c	Jeti
@@ -3049,6 +3049,11 @@ product MGE UPS2		0xffff	MGE UPS SYSTEMS PROTECTIONCENTER 2
 /* MEI products */
 product MEI CASHFLOW_SC		0x1100	Cashflow-SC Cash Acceptor
 product MEI S2000		0x1101	Series 2000 Combo Acceptor
+
+/* Microdia / Sonix Techonology Co., Ltd. products */
+product CHICONY2 YUREX		0x1010	YUREX
+product CHICONY2 CAM_1		0x62c0	CAM_1
+product CHICONY2 TEMPER		0x7401	TEMPer sensor
 
 /* Micro Star International products */
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle

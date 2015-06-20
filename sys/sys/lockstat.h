@@ -198,6 +198,9 @@ extern uint64_t lockstat_nsecs(void);
 		(*lockstat_probe_func)(id, (uintptr_t)(lp), 0, 0, 0, 0);     \
 } while (0)
 
+#define	LOCKSTAT_WRITER		0
+#define	LOCKSTAT_READER		1
+
 #else	/* !KDTRACE_HOOKS */
 
 #define	LOCKSTAT_RECORD(probe, lp, arg1)

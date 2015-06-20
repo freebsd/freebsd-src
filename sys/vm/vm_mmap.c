@@ -316,9 +316,9 @@ sys_mmap(td, uap)
 		if (addr == 0 ||
 		    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
 		    addr < round_page((vm_offset_t)vms->vm_daddr +
-		    lim_max(td->td_proc, RLIMIT_DATA))))
+		    lim_max_proc(td->td_proc, RLIMIT_DATA))))
 			addr = round_page((vm_offset_t)vms->vm_daddr +
-			    lim_max(td->td_proc, RLIMIT_DATA));
+			    lim_max_proc(td->td_proc, RLIMIT_DATA));
 		PROC_UNLOCK(td->td_proc);
 	}
 	if (size == 0) {
@@ -1028,7 +1028,7 @@ vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
 	map = &proc->p_vmspace->vm_map;
 	PROC_LOCK(proc);
 	nsize = ptoa(npages + pmap_wired_count(map->pmap));
-	if (nsize > lim_cur(proc, RLIMIT_MEMLOCK)) {
+	if (nsize > lim_cur_proc(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
 	}
@@ -1088,7 +1088,7 @@ sys_mlockall(td, uap)
 	 */
 	if (!old_mlock && uap->how & MCL_CURRENT) {
 		PROC_LOCK(td->td_proc);
-		if (map->size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+		if (map->size > lim_cur(td, RLIMIT_MEMLOCK)) {
 			PROC_UNLOCK(td->td_proc);
 			return (ENOMEM);
 		}
@@ -1481,7 +1481,7 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	if (map == &td->td_proc->p_vmspace->vm_map) {
 		PROC_LOCK(td->td_proc);
-		if (map->size + size > lim_cur(td->td_proc, RLIMIT_VMEM)) {
+		if (map->size + size > lim_cur_proc(td->td_proc, RLIMIT_VMEM)) {
 			PROC_UNLOCK(td->td_proc);
 			return (ENOMEM);
 		}
@@ -1491,7 +1491,7 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		}
 		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 			if (ptoa(pmap_wired_count(map->pmap)) + size >
-			    lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+			    lim_cur_proc(td->td_proc, RLIMIT_MEMLOCK)) {
 				racct_set_force(td->td_proc, RACCT_VMEM,
 				    map->size);
 				PROC_UNLOCK(td->td_proc);

@@ -208,7 +208,7 @@ sctp_handle_ootb(struct mbuf *, int, int,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_inpcb *,
     struct mbuf *,
-    uint8_t, uint32_t,
+    uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
 int 

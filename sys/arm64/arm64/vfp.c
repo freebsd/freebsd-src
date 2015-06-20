@@ -120,7 +120,7 @@ vfp_save_state(struct thread *td)
 		td->td_pcb->pcb_fpcr = fpcr;
 		td->td_pcb->pcb_fpsr = fpsr;
 
-		dsb();
+		dsb(ish);
 		vfp_disable();
 	}
 	critical_exit();
