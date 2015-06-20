@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2015
+.Dd June 20, 2015
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -119,7 +119,9 @@ The process ID of the command which holds the socket.
 The file descriptor number of the socket.
 .It Li PROTO
 The transport protocol associated with the socket for Internet
-sockets, or the type of socket (stream or datagram) for
+sockets, or the type of socket
+.Pq stream, datagram, or seqpacket
+for
 .Ux
 sockets.
 .It Li LOCAL ADDRESS
