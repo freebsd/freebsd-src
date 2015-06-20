@@ -11,7 +11,7 @@ SRCS +=	zfs.c
 
 MAN=	fstyp.8
 
-WARNS=	6
+WARNS?=	0
 
 .if ${MK_CDDL} != "no"
 IGNORE_PRAGMA=  YES
