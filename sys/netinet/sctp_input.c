@@ -186,7 +186,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    "No listener");
 			sctp_send_abort(m, iphlen, src, dst, sh, 0, op_err,
-			    mflowtype, mflowid,
+			    mflowtype, mflowid, inp->fibnum,
 			    vrf_id, port);
 		}
 		goto outnow;
@@ -1484,7 +1484,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		sctp_send_shutdown_ack(stcb, stcb->asoc.primary_destination);
 		op_err = sctp_generate_cause(SCTP_CAUSE_COOKIE_IN_SHUTDOWN, "");
 		sctp_send_operr_to(src, dst, sh, cookie->peers_vtag, op_err,
-		    mflowtype, mflowid,
+		    mflowtype, mflowid, inp->fibnum,
 		    vrf_id, net->port);
 		if (how_indx < sizeof(asoc->cookie_how))
 			asoc->cookie_how[how_indx] = 2;
@@ -1694,7 +1694,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 */
 		op_err = sctp_generate_cause(SCTP_CAUSE_NAT_COLLIDING_STATE, "");
 		sctp_send_abort(m, iphlen, src, dst, sh, 0, op_err,
-		    mflowtype, mflowid,
+		    mflowtype, mflowid, inp->fibnum,
 		    vrf_id, port);
 		return (NULL);
 	}
@@ -2572,7 +2572,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			tim = now.tv_usec - cookie->time_entered.tv_usec;
 		scm->time_usec = htonl(tim);
 		sctp_send_operr_to(src, dst, sh, cookie->peers_vtag, op_err,
-		    mflowtype, mflowid,
+		    mflowtype, mflowid, l_inp->fibnum,
 		    vrf_id, port);
 		return (NULL);
 	}
@@ -2794,6 +2794,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->local_strreset_support = (*inp_p)->local_strreset_support;
+			inp->fibnum = (*inp_p)->fibnum;
 			inp->inp_starting_point_for_iterator = NULL;
 			/*
 			 * copy in the authentication parameters from the
@@ -4404,7 +4405,7 @@ __attribute__((noinline))
              struct sockaddr *src, struct sockaddr *dst,
              struct sctphdr *sh, struct sctp_chunkhdr *ch, struct sctp_inpcb *inp,
              struct sctp_tcb *stcb, struct sctp_nets **netp, int *fwd_tsn_seen,
-             uint8_t mflowtype, uint32_t mflowid,
+             uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
              uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_association *asoc;
@@ -4568,7 +4569,7 @@ __attribute__((noinline))
 			    msg);
 			/* no association, so it's out of the blue... */
 			sctp_handle_ootb(m, iphlen, *offset, src, dst, sh, inp, op_err,
-			    mflowtype, mflowid,
+			    mflowtype, mflowid, inp->fibnum,
 			    vrf_id, port);
 			*offset = length;
 			if (locked_tcb) {
@@ -4612,7 +4613,7 @@ __attribute__((noinline))
 				    msg);
 				sctp_handle_ootb(m, iphlen, *offset, src, dst,
 				    sh, inp, op_err,
-				    mflowtype, mflowid,
+				    mflowtype, mflowid, fibnum,
 				    vrf_id, port);
 				return (NULL);
 			}
@@ -5622,7 +5623,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
     uint8_t compute_crc,
 #endif
     uint8_t ecn_bits,
-    uint8_t mflowtype, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
     uint32_t vrf_id, uint16_t port)
 {
 	uint32_t high_tsn;
@@ -5701,7 +5702,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
 			sctp_send_shutdown_complete2(src, dst, sh,
-			    mflowtype, mflowid,
+			    mflowtype, mflowid, fibnum,
 			    vrf_id, port);
 			goto out;
 		}
@@ -5716,7 +5717,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 				    "Out of the blue");
 				sctp_send_abort(m, iphlen, src, dst,
 				    sh, 0, op_err,
-				    mflowtype, mflowid,
+				    mflowtype, mflowid, fibnum,
 				    vrf_id, port);
 			}
 		}
@@ -5777,7 +5778,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			sctp_handle_ootb(m, iphlen, offset, src, dst, sh, inp, op_err,
-			    mflowtype, mflowid,
+			    mflowtype, mflowid, inp->fibnum,
 			    vrf_id, port);
 			goto out;
 		}
@@ -5788,7 +5789,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		stcb = sctp_process_control(m, iphlen, &offset, length,
 		    src, dst, sh, ch,
 		    inp, stcb, &net, &fwd_tsn_seen,
-		    mflowtype, mflowid,
+		    mflowtype, mflowid, fibnum,
 		    vrf_id, port);
 		if (stcb) {
 			/*
@@ -5829,7 +5830,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			sctp_handle_ootb(m, iphlen, offset, src, dst, sh, inp, op_err,
-			    mflowtype, mflowid,
+			    mflowtype, mflowid, fibnum,
 			    vrf_id, port);
 			goto out;
 		}
@@ -5901,7 +5902,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			sctp_handle_ootb(m, iphlen, offset, src, dst, sh, inp, op_err,
-			    mflowtype, mflowid,
+			    mflowtype, mflowid, inp->fibnum,
 			    vrf_id, port);
 			goto out;
 			/* sa_ignore NOTREACHED */
@@ -6038,6 +6039,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 #endif
 	uint32_t mflowid;
 	uint8_t mflowtype;
+	uint16_t fibnum;
 
 	iphlen = off;
 	if (SCTP_GET_PKT_VRFID(i_pak, vrf_id)) {
@@ -6063,6 +6065,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
 	mflowid = m->m_pkthdr.flowid;
 	mflowtype = M_HASHTYPE_GET(m);
+	fibnum = M_GETFIB(m);
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 	/* Get IP, SCTP, and first chunk header together in the first mbuf. */
@@ -6122,7 +6125,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	    compute_crc,
 #endif
 	    ecn_bits,
-	    mflowtype, mflowid,
+	    mflowtype, mflowid, fibnum,
 	    vrf_id, port);
 out:
 	if (m) {
