@@ -16,7 +16,6 @@ DIRDEPS = \
 	gnu/lib/libssp/libssp_nonshared \
 	gnu/lib/libstdc++ \
 	gnu/lib/libsupc++ \
-	gnu/usr.bin/binutils/addr2line \
 	gnu/usr.bin/binutils/ar \
 	gnu/usr.bin/binutils/as \
 	gnu/usr.bin/binutils/doc \
@@ -25,14 +24,9 @@ DIRDEPS = \
 	gnu/usr.bin/binutils/libbinutils \
 	gnu/usr.bin/binutils/libiberty \
 	gnu/usr.bin/binutils/libopcodes \
-	gnu/usr.bin/binutils/nm \
 	gnu/usr.bin/binutils/objcopy \
 	gnu/usr.bin/binutils/objdump \
 	gnu/usr.bin/binutils/ranlib \
-	gnu/usr.bin/binutils/readelf \
-	gnu/usr.bin/binutils/size \
-	gnu/usr.bin/binutils/strings \
-	gnu/usr.bin/binutils/strip \
 	gnu/usr.bin/dialog \
 	gnu/usr.bin/diff/doc \
 	gnu/usr.bin/diff3 \

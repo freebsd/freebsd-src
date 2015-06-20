@@ -5102,9 +5102,7 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-.if ${MK_SENDMAIL} == no
 OLD_FILES+=usr/sbin/mailwrapper
-.endif
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
@@ -6335,9 +6333,7 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
-.if ${MK_MAILWRAPPER} == no
 OLD_FILES+=bin/rmail
-.endif
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
 OLD_FILES+=usr/include/libmilter/mfdef.h

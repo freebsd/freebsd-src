@@ -156,19 +156,57 @@ xbd_free_command(struct xbd_command *cm)
 }
 
 static void
+mksegarray(bus_dma_segment_t *segs, int nsegs,
+    grant_ref_t * gref_head, int otherend_id, int readonly,
+    grant_ref_t * sg_ref, blkif_request_segment_t * sg)
+{
+	struct blkif_request_segment *last_block_sg = sg + nsegs;
+	vm_paddr_t buffer_ma;
+	uint64_t fsect, lsect;
+	int ref;
+
+	while (sg < last_block_sg) {
+		buffer_ma = segs->ds_addr;
+		fsect = (buffer_ma & PAGE_MASK) >> XBD_SECTOR_SHFT;
+		lsect = fsect + (segs->ds_len  >> XBD_SECTOR_SHFT) - 1;
+
+		KASSERT(lsect <= 7, ("XEN disk driver data cannot "
+		    "cross a page boundary"));
+
+		/* install a grant reference. */
+		ref = gnttab_claim_grant_reference(gref_head);
+
+		/*
+		 * GNTTAB_LIST_END == 0xffffffff, but it is private
+		 * to gnttab.c.
+		 */
+		KASSERT(ref != ~0, ("grant_reference failed"));
+
+		gnttab_grant_foreign_access_ref(
+		    ref,
+		    otherend_id,
+		    buffer_ma >> PAGE_SHIFT,
+		    readonly);
+
+		*sg_ref = ref;
+		*sg = (struct blkif_request_segment) {
+			.gref       = ref,
+			.first_sect = fsect, 
+			.last_sect  = lsect
+		};
+		sg++;
+		sg_ref++;
+		segs++;
+	}
+}
+
+static void
 xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	struct xbd_softc *sc;
 	struct xbd_command *cm;
 	blkif_request_t	*ring_req;
-	struct blkif_request_segment *sg;
-	struct blkif_request_segment *last_block_sg;
-	grant_ref_t *sg_ref;
-	vm_paddr_t buffer_ma;
-	uint64_t fsect, lsect;
-	int ref;
 	int op;
-	int block_segs;
 
 	cm = arg;
 	sc = cm->cm_sc;
@@ -180,6 +218,9 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	}
 
+	KASSERT(nsegs <= BLKIF_MAX_SEGMENTS_PER_REQUEST,
+	    ("Too many segments in a blkfront I/O"));
+
 	/* Fill out a communications ring structure. */
 	ring_req = RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
 	sc->xbd_ring.req_prod_pvt++;
@@ -189,46 +230,10 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
 	ring_req->nr_segments = nsegs;
 	cm->cm_nseg = nsegs;
-
-	block_segs    = MIN(nsegs, BLKIF_MAX_SEGMENTS_PER_REQUEST);
-	sg            = ring_req->seg;
-	last_block_sg = sg + block_segs;
-	sg_ref        = cm->cm_sg_refs;
-
-	while (sg < last_block_sg) {
-		buffer_ma = segs->ds_addr;
-		fsect = (buffer_ma & PAGE_MASK) >> XBD_SECTOR_SHFT;
-		lsect = fsect + (segs->ds_len  >> XBD_SECTOR_SHFT) - 1;
-
-		KASSERT(lsect <= 7, ("XEN disk driver data cannot "
-		    "cross a page boundary"));
-
-		/* install a grant reference. */
-		ref = gnttab_claim_grant_reference(&cm->cm_gref_head);
-
-		/*
-		 * GNTTAB_LIST_END == 0xffffffff, but it is private
-		 * to gnttab.c.
-		 */
-		KASSERT(ref != ~0, ("grant_reference failed"));
-
-		gnttab_grant_foreign_access_ref(
-		    ref,
-		    xenbus_get_otherend_id(sc->xbd_dev),
-		    buffer_ma >> PAGE_SHIFT,
-		    ring_req->operation == BLKIF_OP_WRITE);
-
-		*sg_ref = ref;
-		*sg = (struct blkif_request_segment) {
-			.gref       = ref,
-			.first_sect = fsect, 
-			.last_sect  = lsect
-		};
-		sg++;
-		sg_ref++;
-		segs++;
-		nsegs--;
-	}
+	mksegarray(segs, nsegs, &cm->cm_gref_head,
+	    xenbus_get_otherend_id(sc->xbd_dev),
+	    cm->cm_operation == BLKIF_OP_WRITE,
+	    cm->cm_sg_refs, ring_req->seg);
 
 	if (cm->cm_operation == BLKIF_OP_READ)
 		op = BUS_DMASYNC_PREREAD;

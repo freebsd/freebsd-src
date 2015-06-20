@@ -31,15 +31,9 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 
 .include <bsd.mkopt.mk>
 
-# Pull in global settings.
-__MAKE_CONF?=/etc/make.conf
-.if exists(${__MAKE_CONF})
-.include "${__MAKE_CONF}"
-.endif
-
-# Set any local definitions first. Place this early, but it needs
-# MACHINE_CPUARCH to be defined.
-.-include <local.sys.mk>
+# early include for customization
+# see local.sys.mk below
+.-include <local.sys.env.mk>
 
 .if ${MK_META_MODE} == "yes"
 .-include <meta.sys.mk>
@@ -360,6 +354,14 @@ YFLAGS		?=	-d
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
 
+# Pull in global settings.
+__MAKE_CONF?=/etc/make.conf
+.if exists(${__MAKE_CONF})
+.include "${__MAKE_CONF}"
+.endif
+
+# late include for customization
+.-include <local.sys.mk>
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}

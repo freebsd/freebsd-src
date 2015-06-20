@@ -528,7 +528,7 @@ AcpiDmDumpDataTable (
         TableData = AcpiDmGetTableData (Table->Signature);
         if (!TableData)
         {
-            if (!ACPI_STRNCMP (Table->Signature, "OEM", 3))
+            if (!strncmp (Table->Signature, "OEM", 3))
             {
                 AcpiOsPrintf ("\n**** OEM-defined ACPI table [%4.4s], unknown contents\n\n",
                     Table->Signature);
@@ -856,7 +856,7 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_STRING:
 
-            ByteLength = ACPI_STRLEN (ACPI_CAST_PTR (char, Target)) + 1;
+            ByteLength = strlen (ACPI_CAST_PTR (char, Target)) + 1;
             break;
 
         case ACPI_DMT_GAS:
