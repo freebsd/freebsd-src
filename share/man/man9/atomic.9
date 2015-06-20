@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2013
+.Dd June 20, 2015
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -123,7 +123,9 @@ The first form just performs the operation without any explicit barriers.
 The second form uses a read memory barrier, and the third variant uses a write
 memory barrier.
 .Pp
-The second variant of each operation includes a read memory barrier.
+The second variant of each operation includes an
+.Em acquire
+memory barrier.
 This barrier ensures that the effects of this operation are completed before the
 effects of any later data accesses.
 As a result, the operation is said to have acquire semantics as it acquires a
@@ -137,7 +139,9 @@ For example, to subtract two integers ensuring that any later writes will
 happen after the subtraction is performed, use
 .Fn atomic_subtract_acq_int .
 .Pp
-The third variant of each operation includes a write memory barrier.
+The third variant of each operation includes a
+.Em release
+memory barrier.
 This ensures that all effects of all previous data accesses are completed
 before this operation takes place.
 As a result, the operation is said to have release semantics as it releases
