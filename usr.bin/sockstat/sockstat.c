@@ -255,6 +255,26 @@ sockaddr(struct sockaddr_storage *sa, int af, void *addr, int port)
 }
 
 static void
+free_socket(struct sock *sock)
+{
+	struct addr *cur, *next;
+
+	cur = sock->laddr;
+	while (cur != NULL) {
+		next = cur->next;
+		free(cur);
+		cur = next;
+	}
+	cur = sock->faddr;
+	while (cur != NULL) {
+		next = cur->next;
+		free(cur);
+		cur = next;
+	}
+	free(sock);
+}
+
+static void
 gather_sctp(void)
 {
 	struct sock *sock;
@@ -366,14 +386,17 @@ gather_sctp(void)
 		while (offset < len) {
 			xstcb = (struct xsctp_tcb *)(void *)(buf + offset);
 			offset += sizeof(struct xsctp_tcb);
-			if (no_stcb &&
-			    opt_l &&
-			    (!opt_L || !local_all_loopback) &&
-			    ((xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE) ||
-			     (xstcb->last == 1))) {
-				hash = (int)((uintptr_t)sock->socket % HASHSIZE);
-				sock->next = sockhash[hash];
-				sockhash[hash] = sock;
+			if (no_stcb) {
+				if (opt_l &&
+				    (!opt_L || !local_all_loopback) &&
+				    ((xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE) ||
+				     (xstcb->last == 1))) {
+					hash = (int)((uintptr_t)sock->socket % HASHSIZE);
+					sock->next = sockhash[hash];
+					sockhash[hash] = sock;
+				} else {
+					free_socket(sock);
+				}
 			}
 			if (xstcb->last == 1)
 				break;
@@ -476,11 +499,14 @@ gather_sctp(void)
 					prev_faddr->next = faddr;
 				prev_faddr = faddr;
 			}
-			if (opt_c &&
-			    (!opt_L || !(local_all_loopback || foreign_all_loopback))) {
-				hash = (int)((uintptr_t)sock->socket % HASHSIZE);
-				sock->next = sockhash[hash];
-				sockhash[hash] = sock;
+			if (opt_c) {
+				if (!opt_L || !(local_all_loopback || foreign_all_loopback)) {
+					hash = (int)((uintptr_t)sock->socket % HASHSIZE);
+					sock->next = sockhash[hash];
+					sockhash[hash] = sock;
+				} else {
+					free_socket(sock);
+				}
 			}
 		}
 		xinpcb = (struct xsctp_inpcb *)(void *)(buf + offset);
@@ -865,6 +891,7 @@ displaysock(struct sock *s, int pos)
 	void *p;
 	int hash;
 	struct addr *laddr, *faddr;
+	struct sock *s_tmp;
 
 	while (pos < 29)
 		pos += xprintf(" ");
@@ -908,18 +935,20 @@ displaysock(struct sock *s, int pos)
 			}
 			pos += xprintf("-> ");
 			for (hash = 0; hash < HASHSIZE; ++hash) {
-				for (s = sockhash[hash]; s != NULL; s = s->next)
-					if (s->pcb == p)
+				for (s_tmp = sockhash[hash];
+				     s_tmp != NULL;
+				     s_tmp = s_tmp->next)
+					if (s_tmp->pcb == p)
 						break;
-				if (s != NULL)
+				if (s_tmp != NULL)
 					break;
 			}
-			if (s == NULL ||
-			    s->laddr == NULL ||
-			    s->laddr->address.ss_len == 0)
+			if (s_tmp == NULL ||
+			    s_tmp->laddr == NULL ||
+			    s_tmp->laddr->address.ss_len == 0)
 				pos += xprintf("??");
 			else
-				pos += printaddr(&s->laddr->address);
+				pos += printaddr(&s_tmp->laddr->address);
 			break;
 		default:
 			abort();

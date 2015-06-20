@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	secure/lib/libcrypto \
 	secure/lib/libssl \
+	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

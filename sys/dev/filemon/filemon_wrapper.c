@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/sx.h>
+
 #include "opt_compat.h"
 
 #if __FreeBSD_version > 800032
@@ -84,13 +86,17 @@ filemon_pid_check(struct proc *p)
 {
 	struct filemon *filemon;
 
-	while (p->p_pptr) {
+	sx_slock(&proctree_lock);
+	while (p != initproc) {
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
-			if (p->p_pid == filemon->pid)
+			if (p->p_pid == filemon->pid) {
+				sx_sunlock(&proctree_lock);
 				return (filemon);
+			}
 		}
-		p = p->p_pptr;
+		p = proc_realparent(p);
 	}
+	sx_sunlock(&proctree_lock);
 	return (NULL);
 }
 
