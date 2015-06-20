@@ -39,9 +39,9 @@
 # done
 
 # 20150528: PCI IOV device driver methods moved to a separate kobj interface.
-OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9
-OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9
-OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9
+OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9.gz
+OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9.gz
+OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9.gz
 # 20150525: new clang import which bumps version from 3.6.0 to 3.6.1.
 OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h
@@ -317,19 +317,19 @@ OLD_DIRS+=usr/games
 # 20150209: liblzma header
 OLD_FILES+=usr/include/lzma/lzma.h
 # 20150124: spl.9 and friends
-OLD_FILES+=usr/share/man/man9/spl.9
-OLD_FILES+=usr/share/man/man9/spl0.9
-OLD_FILES+=usr/share/man/man9/splbio.9
-OLD_FILES+=usr/share/man/man9/splclock.9
-OLD_FILES+=usr/share/man/man9/splhigh.9
-OLD_FILES+=usr/share/man/man9/splimp.9
-OLD_FILES+=usr/share/man/man9/splnet.9
-OLD_FILES+=usr/share/man/man9/splsoftclock.9
-OLD_FILES+=usr/share/man/man9/splsofttty.9
-OLD_FILES+=usr/share/man/man9/splstatclock.9
-OLD_FILES+=usr/share/man/man9/spltty.9
-OLD_FILES+=usr/share/man/man9/splvm.9
-OLD_FILES+=usr/share/man/man9/splx.9
+OLD_FILES+=usr/share/man/man9/spl.9.gz
+OLD_FILES+=usr/share/man/man9/spl0.9.gz
+OLD_FILES+=usr/share/man/man9/splbio.9.gz
+OLD_FILES+=usr/share/man/man9/splclock.9.gz
+OLD_FILES+=usr/share/man/man9/splhigh.9.gz
+OLD_FILES+=usr/share/man/man9/splimp.9.gz
+OLD_FILES+=usr/share/man/man9/splnet.9.gz
+OLD_FILES+=usr/share/man/man9/splsoftclock.9.gz
+OLD_FILES+=usr/share/man/man9/splsofttty.9.gz
+OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
+OLD_FILES+=usr/share/man/man9/spltty.9.gz
+OLD_FILES+=usr/share/man/man9/splvm.9.gz
+OLD_FILES+=usr/share/man/man9/splx.9.gz
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h
