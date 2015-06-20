@@ -202,10 +202,8 @@ static void		ctlfedone(struct cam_periph *periph,
 static void 		ctlfe_onoffline(void *arg, int online);
 static void 		ctlfe_online(void *arg);
 static void 		ctlfe_offline(void *arg);
-static int 		ctlfe_lun_enable(void *arg, struct ctl_id targ_id,
-					 int lun_id);
-static int 		ctlfe_lun_disable(void *arg, struct ctl_id targ_id,
-					  int lun_id);
+static int 		ctlfe_lun_enable(void *arg, int lun_id);
+static int 		ctlfe_lun_disable(void *arg, int lun_id);
 static void		ctlfe_dump_sim(struct cam_sim *sim);
 static void		ctlfe_dump_queue(struct ctlfe_lun_softc *softc);
 static void 		ctlfe_datamove(union ctl_io *io);
@@ -1800,7 +1798,7 @@ ctlfe_offline(void *arg)
  * CTL.  So we only need to create a path/periph for this particular bus.
  */
 static int
-ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
+ctlfe_lun_enable(void *arg, int lun_id)
 {
 	struct ctlfe_softc *bus_softc;
 	struct ctlfe_lun_softc *softc;
@@ -1811,8 +1809,7 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	bus_softc = (struct ctlfe_softc *)arg;
 
 	status = xpt_create_path(&path, /*periph*/ NULL,
-				  bus_softc->path_id,
-				  targ_id.id, lun_id);
+				  bus_softc->path_id, 0, lun_id);
 	/* XXX KDM need some way to return status to CTL here? */
 	if (status != CAM_REQ_CMP) {
 		printf("%s: could not create path, status %#x\n", __func__,
@@ -1863,7 +1860,7 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
  * on every bus that is attached to CTL.  
  */
 static int
-ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
+ctlfe_lun_disable(void *arg, int lun_id)
 {
 	struct ctlfe_softc *softc;
 	struct ctlfe_lun_softc *lun_softc;
@@ -1876,15 +1873,14 @@ ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
 
 		path = lun_softc->periph->path;
 
-		if ((xpt_path_target_id(path) == targ_id.id)
+		if ((xpt_path_target_id(path) == 0)
 		 && (xpt_path_lun_id(path) == lun_id)) {
 			break;
 		}
 	}
 	if (lun_softc == NULL) {
 		mtx_unlock(&softc->lun_softc_mtx);
-		printf("%s: can't find target %d lun %d\n", __func__,
-		       targ_id.id, lun_id);
+		printf("%s: can't find lun %d\n", __func__, lun_id);
 		return (1);
 	}
 	cam_periph_acquire(lun_softc->periph);
