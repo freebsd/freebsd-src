@@ -2676,8 +2676,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* still no TCB... must be bad cookie-echo */
 		return (NULL);
 	}
-	if ((*netp != NULL) && (mflowtype != M_HASHTYPE_NONE)) {
+	if (*netp != NULL) {
 		(*netp)->flowtype = mflowtype;
+		(*netp)->flowid = mflowid;
 	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
@@ -5662,8 +5663,9 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 				net->port = port;
 			}
 #endif
-			if ((net != NULL) && (mflowtype != M_HASHTYPE_NONE)) {
+			if (net != NULL) {
 				net->flowtype = mflowtype;
+				net->flowid = mflowid;
 			}
 			if ((inp != NULL) && (stcb != NULL)) {
 				sctp_send_packet_dropped(stcb, net, m, length, iphlen, 1);
@@ -5692,8 +5694,9 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		net->port = port;
 	}
 #endif
-	if ((net != NULL) && (mflowtype != M_HASHTYPE_NONE)) {
+	if (net != NULL) {
 		net->flowtype = mflowtype;
+		net->flowid = mflowid;
 	}
 	if (inp == NULL) {
 		SCTP_STAT_INCR(sctps_noport);
