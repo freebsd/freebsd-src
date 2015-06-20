@@ -494,6 +494,7 @@ struct ctl_softc {
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
+	struct mtx tpc_lock;
 };
 
 #ifdef _KERNEL
