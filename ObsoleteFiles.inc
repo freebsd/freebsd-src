@@ -417,6 +417,8 @@ OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.5.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.5.0/lib
 OLD_DIRS+=usr/lib/clang/3.5.0
+# 20150102: removal of asr(4)
+OLD_FILES+=usr/share/man/man4/asr.4.gz
 # 20150102: removal of texinfo
 OLD_FILES+=usr/bin/info
 OLD_FILES+=usr/bin/infokey
@@ -485,7 +487,7 @@ OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
 OLD_DIRS+=usr/include/clang/3.4.1
-# 20141226: Remove gpib/ieee488
+# 20141225: Remove gpib/ieee488
 OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
 OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
 OLD_FILES+=usr/include/dev/ieee488/ugpib.h
@@ -498,16 +500,28 @@ OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib/libgpib.so
 OLD_LIBS+=usr/lib/libgpib.so.3
 OLD_FILES+=usr/lib/libgpib_p.a
-OLD_FILES+=share/man/man4/pcii.4.gz
-OLD_FILES+=share/man/man4/gpib.4.gz
-OLD_FILES+=share/man/man4/tnt4882.4.gz
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libgpib.a
 OLD_FILES+=usr/lib32/libgpib_p.a
 OLD_FILES+=usr/lib32/libgpib.so
 OLD_LIBS+=usr/lib32/libgpib.so.3
-.endif
-
+OLD_FILES+=usr/share/man/man3/gpib.3.gz
+OLD_FILES+=usr/share/man/man3/ibclr.3.gz
+OLD_FILES+=usr/share/man/man3/ibdev.3.gz
+OLD_FILES+=usr/share/man/man3/ibdma.3.gz
+OLD_FILES+=usr/share/man/man3/ibeos.3.gz
+OLD_FILES+=usr/share/man/man3/ibeot.3.gz
+OLD_FILES+=usr/share/man/man3/ibloc.3.gz
+OLD_FILES+=usr/share/man/man3/ibonl.3.gz
+OLD_FILES+=usr/share/man/man3/ibpad.3.gz
+OLD_FILES+=usr/share/man/man3/ibrd.3.gz
+OLD_FILES+=usr/share/man/man3/ibsad.3.gz
+OLD_FILES+=usr/share/man/man3/ibsic.3.gz
+OLD_FILES+=usr/share/man/man3/ibtmo.3.gz
+OLD_FILES+=usr/share/man/man3/ibtrg.3.gz
+OLD_FILES+=usr/share/man/man3/ibwrt.3.gz
+OLD_FILES+=usr/share/man/man4/gpib.4.gz
+OLD_FILES+=usr/share/man/man4/pcii.4.gz
+OLD_FILES+=usr/share/man/man4/tnt4882.4.gz
 # 20141224: libxo moved to /lib
 OLD_LIBS+=usr/lib/libxo.so.0
 # 20141223: remove in6_gif.h, in_gif.h and if_stf.h
@@ -542,6 +556,8 @@ OLD_FILES+=usr/include/netinet/ip_gre.h
 OLD_FILES+=etc/rc.d/postrandom
 # 20141031: initrandom obsoleted by new /dev/random code
 OLD_FILES+=etc/rc.d/initrandom
+# 20141030: atf 0.21 import
+OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
 # 20141028: debug files accidentally installed as directory name
 OLD_FILES+=usr/lib/debug/usr/lib/i18n
 OLD_FILES+=usr/lib/debug/usr/lib/private
