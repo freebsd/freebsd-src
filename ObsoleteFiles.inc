@@ -232,8 +232,8 @@ OLD_FILES+=usr/share/man/man3/nvlist_takev_descriptor.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_takev_number.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_takev_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_takev_string.3.gz
-# 20150429:
-OLD_FILES+=usr/share/docs/papers/hwpmc.ascii.gz
+# 20150429: remove never written documentation
+OLD_FILES+=usr/share/doc/papers/hwpmc.ascii.gz
 # 20150427: test/sys/kern/mmap_test moved to test/sys/vm/mmap_test
 OLD_FILES+=usr/tests/sys/kern/mmap_test
 # 20150422: zlib.c moved from net to libkern
@@ -257,6 +257,42 @@ OLD_FILES+=usr/include/altq/altq_rmclass.h
 OLD_FILES+=usr/include/altq/altq_cbq.h
 OLD_FILES+=usr/include/altq/altq_rio.h
 OLD_DIRS+=usr/include/altq
+# 20150330: ntp 4.2.8p1
+OLD_FILES+=usr/share/doc/ntp/driver1.html
+OLD_FILES+=usr/share/doc/ntp/driver10.html
+OLD_FILES+=usr/share/doc/ntp/driver11.html
+OLD_FILES+=usr/share/doc/ntp/driver12.html
+OLD_FILES+=usr/share/doc/ntp/driver16.html
+OLD_FILES+=usr/share/doc/ntp/driver18.html
+OLD_FILES+=usr/share/doc/ntp/driver19.html
+OLD_FILES+=usr/share/doc/ntp/driver2.html
+OLD_FILES+=usr/share/doc/ntp/driver20.html
+OLD_FILES+=usr/share/doc/ntp/driver22.html
+OLD_FILES+=usr/share/doc/ntp/driver26.html
+OLD_FILES+=usr/share/doc/ntp/driver27.html
+OLD_FILES+=usr/share/doc/ntp/driver28.html
+OLD_FILES+=usr/share/doc/ntp/driver29.html
+OLD_FILES+=usr/share/doc/ntp/driver3.html
+OLD_FILES+=usr/share/doc/ntp/driver30.html
+OLD_FILES+=usr/share/doc/ntp/driver32.html
+OLD_FILES+=usr/share/doc/ntp/driver33.html
+OLD_FILES+=usr/share/doc/ntp/driver34.html
+OLD_FILES+=usr/share/doc/ntp/driver35.html
+OLD_FILES+=usr/share/doc/ntp/driver36.html
+OLD_FILES+=usr/share/doc/ntp/driver37.html
+OLD_FILES+=usr/share/doc/ntp/driver4.html
+OLD_FILES+=usr/share/doc/ntp/driver5.html
+OLD_FILES+=usr/share/doc/ntp/driver6.html
+OLD_FILES+=usr/share/doc/ntp/driver7.html
+OLD_FILES+=usr/share/doc/ntp/driver8.html
+OLD_FILES+=usr/share/doc/ntp/driver9.html
+OLD_FILES+=usr/share/doc/ntp/ldisc.html
+OLD_FILES+=usr/share/doc/ntp/measure.html
+OLD_FILES+=usr/share/doc/ntp/mx4200data.html
+OLD_FILES+=usr/share/doc/ntp/notes.html
+OLD_FILES+=usr/share/doc/ntp/patches.html
+OLD_FILES+=usr/share/doc/ntp/porting.html
+OLD_FILES+=usr/share/man/man1/sntp.1.gz
 # 20150329
 .if ${TARGET_ARCH} == "arm"
 OLD_FILES+=usr/include/bootconfig.h
@@ -361,6 +397,8 @@ OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
 OLD_FILES+=usr/share/man/man9/spltty.9.gz
 OLD_FILES+=usr/share/man/man9/splvm.9.gz
 OLD_FILES+=usr/share/man/man9/splx.9.gz
+# 20150122: callout changes reverted
+OLD_FILES+=usr/share/man/man9/callout_drain_async.9.gz
 # 20150118: toeplitz.c moved from netinet to net
 OLD_FILES+=usr/include/netinet/toeplitz.h
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
@@ -528,6 +566,9 @@ OLD_LIBS+=usr/lib/libxo.so.0
 OLD_FILES+=usr/include/net/if_stf.h
 OLD_FILES+=usr/include/netinet/in_gif.h
 OLD_FILES+=usr/include/netinet6/in6_gif.h
+# 20141209: pw tests broken into a file per command
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_delete
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_modify
 # 20141202: update to mandoc CVS 20141201
 OLD_FILES+=usr.bin/preconv
 OLD_FILES+=share/man/man1/preconv.1.gz
@@ -644,6 +685,8 @@ OLD_FILES+=usr/lib/private/libucl.so
 OLD_FILES+=usr/lib/private/libucl_p.a
 # 20140803: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
+# 20140731
+OLD_FILES+=usr/share/man/man9/SYSCTL_ADD_OID.9.gz
 # 20140728: libsbuf restored to old version.
 OLD_LIBS+=lib/libsbuf.so.7
 OLD_LIBS+=usr/lib32/libsbuf.so.7
@@ -756,6 +799,12 @@ OLD_FILES+=usr/share/mk/src.opts.mk
 OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
 # 20140502: Removal of lindev(4)
 OLD_FILES+=usr/share/man/man4/lindev.4.gz
+# 20140425
+OLD_FILES+=usr/lib/libssp_p.a
+OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/lib32/libc_pic.a
+OLD_FILES+=usr/lib32/libssp_p.a
+OLD_FILES+=usr/lib32/libstand_p.a
 # 20140314: AppleTalk
 OLD_DIRS+=usr/include/netatalk
 OLD_FILES+=usr/include/netatalk/aarp.h
