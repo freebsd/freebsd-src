@@ -365,6 +365,11 @@ vhd_fix_resize(lba_t imgsz)
 	struct vhd_geom geom;
 	int64_t imagesz;
 
+	/*
+	 * Round the image size to the pre-determined geometry that
+	 * matches the image size. This circular dependency implies
+	 * that we need to loop to handle boundary conditions.
+	 */
 	imgsz *= secsz;
 	imagesz = imgsz;
 	while (1) {
@@ -375,6 +380,10 @@ vhd_fix_resize(lba_t imgsz)
 			break;
 		imagesz += geom.heads * geom.sectors * VHD_SECTOR_SIZE;
 	}
+	/*
+	 * Azure demands that images are a whole number of megabytes.
+	 */
+	imagesz = (imagesz + 0xfffffULL) & ~0xfffffULL;
 	return (image_set_size(imagesz / secsz));
 }
 
