@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 11, 2014
+.Dd June 20, 2015
 .Dt ISCSI 4
 .Os
 .Sh NAME
@@ -65,6 +65,13 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va kern.iscsi.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
 .It Va kern.iscsi.ping_timeout
 The number of seconds to wait for the target to respond to a NOP-Out
 PDU.
