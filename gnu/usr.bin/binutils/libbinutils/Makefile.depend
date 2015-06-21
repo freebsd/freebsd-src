@@ -5,6 +5,7 @@ DIRDEPS = \
 	gnu/usr.bin/binutils/libbfd \
 	include \
 	include/xlocale \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

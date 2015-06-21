@@ -7,21 +7,38 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 .if !defined(MK_CLANG)
 .include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
+DIRDEPS=
 
-DIRDEPS= \
-	usr.bin/xinstall \
+.if ${MK_ELFTOOLCHAIN_TOOLS} == "yes"
+DIRDEPS+= \
+	usr.bin/addr2line \
+	usr.bin/cxxflit \
+	usr.bin/elfcopy \
+	usr.bin/nm \
+	usr.bin/readelf \
+	usr.bin/size \
+	usr.bin/strip \
+	usr.bin/strings \
+
+.else
+DIRDEPS+= \
 	gnu/usr.bin/binutils/addr2line \
+	gnu/usr.bin/binutils/nm \
+	gnu/usr.bin/binutils/readelf \
+	gnu/usr.bin/binutils/size \
+	gnu/usr.bin/binutils/strip \
+	gnu/usr.bin/binutils/strings \
+
+.endif
+
+DIRDEPS+= \
+	usr.bin/xinstall \
 	gnu/usr.bin/binutils/ar \
 	gnu/usr.bin/binutils/as \
 	gnu/usr.bin/binutils/ld \
-	gnu/usr.bin/binutils/nm \
 	gnu/usr.bin/binutils/objcopy \
 	gnu/usr.bin/binutils/objdump \
 	gnu/usr.bin/binutils/ranlib \
-	gnu/usr.bin/binutils/readelf \
-	gnu/usr.bin/binutils/size \
-	gnu/usr.bin/binutils/strings \
-	gnu/usr.bin/binutils/strip \
 
 
 .if ${MK_CLANG} == "yes"

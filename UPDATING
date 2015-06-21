@@ -31,6 +31,64 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150616:
+	/etc/make.conf now included earlier.
+	sys.mk now includes /etc/make.conf and {local,src}.sys.mk earlier
+	than previously.
+	This makes it simple to interpose external toolchains etc.
+	However it may cause problems for users who have things like::
+
+		INSTALL+= something
+
+	in /etc/make.conf, since INSTALL is not yet defined.
+	A safe fix for that is to have::
+
+		INSTALL?= install
+		INSTALL+= something
+
+	which is equivalent to previous behavior.
+	
+20150616:
+	FreeBSD's old make (fmake) has been removed from the system. It is
+	available as the devel/fmake port or via pkg install fmake.
+	
+20150615:
+	The fix for the issue described in the 20150614 sendmail entry
+	below has been been committed in revision 284436.  The work
+	around described in that entry is no longer needed unless the
+	default setting is overridden by a confDH_PARAMETERS configuration
+	setting of '5' or pointing to a 512 bit DH parameter file.
+
+20150614:
+	ALLOW_DEPRECATED_ATF_TOOLS/ATFFILE support has been removed from
+	atf.test.mk (included from bsd.test.mk). Please upgrade devel/atf
+	and devel/kyua to version 0.20+ and adjust any calling code to work
+	with Kyuafile and kyua.
+
+20150614:
+	The import of openssl to address the FreeBSD-SA-15:10.openssl
+	security advisory includes a change which rejects handshakes
+	with DH parameters below 768 bits.  sendmail releases prior
+	to 8.15.2 (not yet released), defaulted to a 512 bit
+	DH parameter setting for client connections.  To work around
+	this interoperability, sendmail can be configured to use a
+	2048 bit DH parameter by:
+
+	1. Edit /etc/mail/`hostname`.mc 
+	2. If a setting for confDH_PARAMETERS does not exist or
+	   exists and is set to a string beginning with '5',
+	   replace it with '2'.
+	3. If a setting for confDH_PARAMETERS exists and is set to
+	   a file path, create a new file with:
+		openssl dhparam -out /path/to/file 2048
+	4. Rebuild the .cf file:
+		cd /etc/mail/; make; make install
+	5. Restart sendmail:
+		cd /etc/mail/; make restart
+
+	A sendmail patch is coming, at which time this file will be
+	updated.
+
 20150604:
 	Generation of legacy formatted entries have been disabled by default
 	in pwd_mkdb(8), as all base system consumers of the legacy formatted

@@ -397,7 +397,6 @@ struct ctl_devid {
 struct tpc_list;
 struct ctl_lun {
 	struct mtx			lun_lock;
-	struct ctl_id			target;
 	uint64_t			lun;
 	ctl_lun_flags			flags;
 	ctl_lun_serseq			serseq;
@@ -460,7 +459,6 @@ struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
 	int open_count;
-	struct ctl_id target;
 	int num_disks;
 	int num_luns;
 	ctl_gen_flags flags;
@@ -494,6 +492,7 @@ struct ctl_softc {
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
+	struct mtx tpc_lock;
 };
 
 #ifdef _KERNEL
@@ -507,7 +506,6 @@ int ctl_lun_map_init(struct ctl_port *port);
 int ctl_lun_map_deinit(struct ctl_port *port);
 int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
 int ctl_lun_map_unset(struct ctl_port *port, uint32_t plun);
-int ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun);
 uint32_t ctl_lun_map_from_port(struct ctl_port *port, uint32_t plun);
 uint32_t ctl_lun_map_to_port(struct ctl_port *port, uint32_t glun);
 int ctl_pool_create(struct ctl_softc *ctl_softc, const char *pool_name,

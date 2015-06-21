@@ -118,6 +118,13 @@ uboot_loadaddr(u_int type, void *data, uint64_t addr)
 					this_block = eubldr;
 					this_size = eblock - eubldr;
 				}
+			} else if (subldr < sblock && eubldr < eblock) {
+				/* Loader is below or engulfs the sblock */
+				this_block = (eubldr < sblock) ? sblock : eubldr;
+				this_size = eblock - this_block;
+			} else {
+				this_block = 0;
+				this_size = 0;
 			}
 			if (biggest_size < this_size) {
 				biggest_block = this_block;

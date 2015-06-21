@@ -2766,7 +2766,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(td->td_proc->p_fd, cmd.handle,
+	if ((error = getvnode(td, cmd.handle,
 	    cap_rights_init(&rights, CAP_FSCK), &fp)) != 0)
 		return (error);
 	vp = fp->f_data;
@@ -3080,7 +3080,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    (intmax_t)cmd.value);
 		}
 #endif /* DEBUG */
-		if ((error = getvnode(td->td_proc->p_fd, cmd.value,
+		if ((error = getvnode(td, cmd.value,
 		    cap_rights_init(&rights, CAP_FSCK), &vfp)) != 0)
 			break;
 		if (vfp->f_vnode->v_type != VCHR) {

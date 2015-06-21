@@ -4839,9 +4839,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 	synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 
 	if (trackpoint_support && synhw.capPassthrough) {
-		synaptics_passthrough_on(sc);
 		enable_trackpoint(sc, arg);
-		synaptics_passthrough_off(sc);
 	}
 
 	VLOG(3, (LOG_DEBUG, "synaptics: END init (%d buttons)\n", buttons));
@@ -5096,16 +5094,29 @@ enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 	KBDC kbdc = sc->kbdc;
 	int id;
 
+	/*
+	 * If called from enable_synaptics(), make sure that passthrough
+	 * mode is enabled so we can reach the trackpoint.
+	 * However, passthrough mode must be disabled before setting the
+	 * trackpoint parameters, as rackpoint_command() enables and disables
+	 * passthrough mode on its own.
+	 */
+	if (sc->synhw.capPassthrough)
+		synaptics_passthrough_on(sc);
+
 	if (send_aux_command(kbdc, 0xe1) != PSM_ACK ||
 	    read_aux_data(kbdc) != 0x01)
-		return (FALSE);
+		goto no_trackpoint;
 	id = read_aux_data(kbdc);
 	if (id < 0x01)
-		return (FALSE);
-	if (sc != NULL)
+		goto no_trackpoint;
+	if (arg == PROBE)
 		sc->tphw = id;
 	if (!trackpoint_support)
-		return (FALSE);
+		goto no_trackpoint;
+
+	if (sc->synhw.capPassthrough)
+		synaptics_passthrough_off(sc);
 
 	if (arg == PROBE) {
 		trackpoint_sysctl_create_tree(sc);
@@ -5122,6 +5133,12 @@ enable_trackpoint(struct psm_softc *sc, enum probearg arg)
 	set_trackpoint_parameters(sc);
 
 	return (TRUE);
+
+no_trackpoint:
+	if (sc->synhw.capPassthrough)
+		synaptics_passthrough_off(sc);
+
+	return (FALSE);
 }
 
 /* Interlink electronics VersaPad */

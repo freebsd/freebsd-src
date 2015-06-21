@@ -104,10 +104,10 @@ struct ctlfe_lun_softc {
 	uint64_t ccbs_freed;
 	uint64_t ctios_sent;
 	uint64_t ctios_returned;
-	uint64_t atios_sent;
-	uint64_t atios_returned;
-	uint64_t inots_sent;
-	uint64_t inots_returned;
+	uint64_t atios_alloced;
+	uint64_t atios_freed;
+	uint64_t inots_alloced;
+	uint64_t inots_freed;
 	/* bus_dma_tag_t dma_tag; */
 	TAILQ_HEAD(, ccb_hdr) work_queue;
 	STAILQ_ENTRY(ctlfe_lun_softc) links;
@@ -202,10 +202,8 @@ static void		ctlfedone(struct cam_periph *periph,
 static void 		ctlfe_onoffline(void *arg, int online);
 static void 		ctlfe_online(void *arg);
 static void 		ctlfe_offline(void *arg);
-static int 		ctlfe_lun_enable(void *arg, struct ctl_id targ_id,
-					 int lun_id);
-static int 		ctlfe_lun_disable(void *arg, struct ctl_id targ_id,
-					  int lun_id);
+static int 		ctlfe_lun_enable(void *arg, int lun_id);
+static int 		ctlfe_lun_disable(void *arg, int lun_id);
 static void		ctlfe_dump_sim(struct cam_sim *sim);
 static void		ctlfe_dump_queue(struct ctlfe_lun_softc *softc);
 static void 		ctlfe_datamove(union ctl_io *io);
@@ -546,6 +544,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
+		softc->atios_alloced++;
 		new_ccb->ccb_h.io_ptr = new_io;
 
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
@@ -553,7 +552,6 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
 		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		xpt_action(new_ccb);
-		softc->atios_sent++;
 		status = new_ccb->ccb_h.status;
 		if ((status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 			ctl_free_io(new_io);
@@ -591,6 +589,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
+		softc->inots_alloced++;
 		new_ccb->ccb_h.io_ptr = new_io;
 
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
@@ -598,7 +597,6 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
 		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		xpt_action(new_ccb);
-		softc->inots_sent++;
 		status = new_ccb->ccb_h.status;
 		if ((status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 			/*
@@ -650,10 +648,6 @@ ctlfeoninvalidate(struct cam_periph *periph)
 		 * XXX KDM what do we do now?
 		 */
 	}
-	xpt_print(periph->path, "LUN removed, %ju ATIOs outstanding, %ju "
-		  "INOTs outstanding, %d refs\n", softc->atios_sent -
-		  softc->atios_returned, softc->inots_sent -
-		  softc->inots_returned, periph->refcount);
 
 	bus_softc = softc->parent_softc;
 	mtx_lock(&bus_softc->lun_softc_mtx);
@@ -666,13 +660,20 @@ ctlfecleanup(struct cam_periph *periph)
 {
 	struct ctlfe_lun_softc *softc;
 
-	xpt_print(periph->path, "%s: Called\n", __func__);
-
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
-	/*
-	 * XXX KDM is there anything else that needs to be done here?
-	 */
+	KASSERT(softc->ccbs_freed == softc->ccbs_alloced, ("%s: "
+		"ccbs_freed %ju != ccbs_alloced %ju", __func__,
+		softc->ccbs_freed, softc->ccbs_alloced));
+	KASSERT(softc->ctios_returned == softc->ctios_sent, ("%s: "
+		"ctios_returned %ju != ctios_sent %ju", __func__,
+		softc->ctios_returned, softc->ctios_sent));
+	KASSERT(softc->atios_freed == softc->atios_alloced, ("%s: "
+		"atios_freed %ju != atios_alloced %ju", __func__,
+		softc->atios_freed, softc->atios_alloced));
+	KASSERT(softc->inots_freed == softc->inots_alloced, ("%s: "
+		"inots_freed %ju != inots_alloced %ju", __func__,
+		softc->inots_freed, softc->inots_alloced));
 
 	free(softc, M_CTLFE);
 }
@@ -845,15 +846,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
 			}
 
-			if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(periph->path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-				atio->ccb_h.status &= ~CAM_DEV_QFRZN;
-			}
-
 			if (atio->ccb_h.func_code != XPT_ACCEPT_TARGET_IO) {
 				xpt_print(periph->path, "%s: func_code "
 					  "is %#x\n", __func__,
@@ -871,7 +863,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			 * Send the ATIO back down to the SIM.
 			 */
 			xpt_action((union ccb *)atio);
-			softc->atios_sent++;
 
 			/*
 			 * If we still have work to do, ask for
@@ -964,15 +955,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	xpt_action(start_ccb);
 	cam_periph_lock(periph);
 
-	if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-		cam_release_devq(periph->path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-		atio->ccb_h.status &= ~CAM_DEV_QFRZN;
-	}
-
 	/*
 	 * If we still have work to do, ask for another CCB.
 	 */
@@ -989,11 +971,11 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
-		softc->atios_returned++;
+		softc->atios_freed++;
 		break;
 	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_NOTIFY_ACKNOWLEDGE:
-		softc->inots_returned++;
+		softc->inots_freed++;
 		break;
 	default:
 		break;
@@ -1002,20 +984,20 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 	ctl_free_io(ccb->ccb_h.io_ptr);
 	free(ccb, M_CTLFE);
 
-	KASSERT(softc->atios_returned <= softc->atios_sent, ("%s: "
-		"atios_returned %ju > atios_sent %ju", __func__,
-		softc->atios_returned, softc->atios_sent));
-	KASSERT(softc->inots_returned <= softc->inots_sent, ("%s: "
-		"inots_returned %ju > inots_sent %ju", __func__,
-		softc->inots_returned, softc->inots_sent));
+	KASSERT(softc->atios_freed <= softc->atios_alloced, ("%s: "
+		"atios_freed %ju > atios_alloced %ju", __func__,
+		softc->atios_freed, softc->atios_alloced));
+	KASSERT(softc->inots_freed <= softc->inots_alloced, ("%s: "
+		"inots_freed %ju > inots_alloced %ju", __func__,
+		softc->inots_freed, softc->inots_alloced));
 
 	/*
 	 * If we have received all of our CCBs, we can release our
 	 * reference on the peripheral driver.  It will probably go away
 	 * now.
 	 */
-	if ((softc->atios_returned == softc->atios_sent)
-	 && (softc->inots_returned == softc->inots_sent)) {
+	if ((softc->atios_freed == softc->atios_alloced)
+	 && (softc->inots_freed == softc->inots_alloced)) {
 		cam_periph_release_locked(periph);
 	}
 }
@@ -1105,6 +1087,19 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	       done_ccb->ccb_h.func_code);
 #endif
 
+	/*
+	 * At this point CTL has no known use case for device queue freezes.
+	 * In case some SIM think different -- drop its freeze right here.
+	 */
+	if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+		cam_release_devq(periph->path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+		done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+	}
+
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 	bus_softc = softc->parent_softc;
 	mtx = cam_periph_mtx(periph);
@@ -1134,8 +1129,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	case XPT_ACCEPT_TARGET_IO: {
 
 		atio = &done_ccb->atio;
-
-		softc->atios_returned++;
 
  resubmit:
 		/*
@@ -1291,7 +1284,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			if (periph->flags & CAM_PERIPH_INVALID) {
 				ctlfe_free_ccb(periph, (union ccb *)atio);
 			} else {
-				softc->atios_sent++;
 				mtx_unlock(mtx);
 				xpt_action((union ccb *)atio);
 				return;
@@ -1418,14 +1410,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		union ctl_io *io;
 		struct ccb_immediate_notify *inot;
 		cam_status status;
-		int frozen, send_ctl_io;
+		int send_ctl_io;
 
 		inot = &done_ccb->cin1;
-
-		softc->inots_returned++;
-
-		frozen = (done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0;
-
 		printf("%s: got XPT_IMMEDIATE_NOTIFY status %#x tag %#x "
 		       "seq %#x\n", __func__, inot->ccb_h.status,
 		       inot->tag_id, inot->seq_id);
@@ -1527,14 +1514,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			done_ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
 			xpt_action(done_ccb);
 		}
-
-		if (frozen != 0) {
-			cam_release_devq(periph->path,
-					 /*relsim_flags*/ 0,
-					 /*opening reduction*/ 0,
-					 /*timeout*/ 0,
-					 /*getcount_only*/ 0);
-		}
 		break;
 	}
 	case XPT_NOTIFY_ACKNOWLEDGE:
@@ -1543,7 +1522,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		done_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		xpt_action(done_ccb);
-		softc->inots_sent++;
 		break;
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_SIM_KNOB:
@@ -1820,7 +1798,7 @@ ctlfe_offline(void *arg)
  * CTL.  So we only need to create a path/periph for this particular bus.
  */
 static int
-ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
+ctlfe_lun_enable(void *arg, int lun_id)
 {
 	struct ctlfe_softc *bus_softc;
 	struct ctlfe_lun_softc *softc;
@@ -1831,8 +1809,7 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	bus_softc = (struct ctlfe_softc *)arg;
 
 	status = xpt_create_path(&path, /*periph*/ NULL,
-				  bus_softc->path_id,
-				  targ_id.id, lun_id);
+				  bus_softc->path_id, 0, lun_id);
 	/* XXX KDM need some way to return status to CTL here? */
 	if (status != CAM_REQ_CMP) {
 		printf("%s: could not create path, status %#x\n", __func__,
@@ -1883,7 +1860,7 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
  * on every bus that is attached to CTL.  
  */
 static int
-ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
+ctlfe_lun_disable(void *arg, int lun_id)
 {
 	struct ctlfe_softc *softc;
 	struct ctlfe_lun_softc *lun_softc;
@@ -1896,15 +1873,14 @@ ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
 
 		path = lun_softc->periph->path;
 
-		if ((xpt_path_target_id(path) == targ_id.id)
+		if ((xpt_path_target_id(path) == 0)
 		 && (xpt_path_lun_id(path) == lun_id)) {
 			break;
 		}
 	}
 	if (lun_softc == NULL) {
 		mtx_unlock(&softc->lun_softc_mtx);
-		printf("%s: can't find target %d lun %d\n", __func__,
-		       targ_id.id, lun_id);
+		printf("%s: can't find lun %d\n", __func__, lun_id);
 		return (1);
 	}
 	cam_periph_acquire(lun_softc->periph);
@@ -2043,7 +2019,6 @@ ctlfe_done(union ctl_io *io)
 		if (periph->flags & CAM_PERIPH_INVALID) {
 			ctlfe_free_ccb(periph, ccb);
 		} else {
-			softc->atios_sent++;
 			cam_periph_unlock(periph);
 			xpt_action(ccb);
 			return;

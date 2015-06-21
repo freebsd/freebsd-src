@@ -10,7 +10,7 @@
 
 __<bsd.test.mk>__:
 
-.if !defined(TESTSDIR)
+.ifndef TESTSDIR
 .error "Please define TESTSDIR when including bsd.test.mk"
 .endif
 

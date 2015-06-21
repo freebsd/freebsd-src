@@ -309,7 +309,7 @@ fdfree(struct filedesc *fdp, int fd)
 	seq_write_begin(&fde->fde_seq);
 #endif
 	fdefree_last(fde);
-	bzero(fde, fde_change_size);
+	fde->fde_file = NULL;
 	fdunused(fdp, fd);
 #ifdef CAPABILITIES
 	seq_write_end(&fde->fde_seq);
@@ -746,7 +746,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd, NULL, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights), &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -1651,7 +1652,6 @@ fdalloc(struct thread *td, int minfd, int *result)
 	    ("fd_first_free() returned non-free descriptor"));
 	KASSERT(fdp->fd_ofiles[fd].fde_file == NULL,
 	    ("file descriptor isn't free"));
-	KASSERT(fdp->fd_ofiles[fd].fde_flags == 0, ("file flags are set"));
 	fdused(fdp, fd);
 	*result = fd;
 	return (0);
@@ -1750,32 +1750,23 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 /*
  * Install a file in a file descriptor table.
  */
-int
-finstall(struct thread *td, struct file *fp, int *fd, int flags,
+void
+_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
     struct filecaps *fcaps)
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
 	struct filedescent *fde;
-	int error;
 
-	KASSERT(fd != NULL, ("%s: fd == NULL", __func__));
-	KASSERT(fp != NULL, ("%s: fp == NULL", __func__));
+	MPASS(fp != NULL);
 	if (fcaps != NULL)
 		filecaps_validate(fcaps, __func__);
+	FILEDESC_XLOCK_ASSERT(fdp);
 
-	FILEDESC_XLOCK(fdp);
-	if ((error = fdalloc(td, 0, fd))) {
-		FILEDESC_XUNLOCK(fdp);
-		return (error);
-	}
-	fhold(fp);
-	fde = &fdp->fd_ofiles[*fd];
+	fde = &fdp->fd_ofiles[fd];
 #ifdef CAPABILITIES
 	seq_write_begin(&fde->fde_seq);
 #endif
 	fde->fde_file = fp;
-	if ((flags & O_CLOEXEC) != 0)
-		fde->fde_flags |= UF_EXCLOSE;
+	fde->fde_flags = (flags & O_CLOEXEC) != 0 ? UF_EXCLOSE : 0;
 	if (fcaps != NULL)
 		filecaps_move(fcaps, &fde->fde_caps);
 	else
@@ -1783,6 +1774,24 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 #ifdef CAPABILITIES
 	seq_write_end(&fde->fde_seq);
 #endif
+}
+
+int
+finstall(struct thread *td, struct file *fp, int *fd, int flags,
+    struct filecaps *fcaps)
+{
+	struct filedesc *fdp = td->td_proc->p_fd;
+	int error;
+
+	MPASS(fd != NULL);
+
+	FILEDESC_XLOCK(fdp);
+	if ((error = fdalloc(td, 0, fd))) {
+		FILEDESC_XUNLOCK(fdp);
+		return (error);
+	}
+	fhold(fp);
+	_finstall(fdp, fp, *fd, flags, fcaps);
 	FILEDESC_XUNLOCK(fdp);
 	return (0);
 }
@@ -2360,11 +2369,9 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		if (needrightsp != NULL) {
-			error = cap_check(&haverights, needrightsp);
-			if (error != 0)
-				return (error);
-		}
+		error = cap_check(&haverights, needrightsp);
+		if (error != 0)
+			return (error);
 #endif
 	retry:
 		count = fp->f_count;
@@ -2425,11 +2432,9 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 
 	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
-	if (needrightsp != NULL)
-		needrights = *needrightsp;
-	else
-		cap_rights_init(&needrights);
-	error = fget_unlocked(fdp, fd, &needrights, &fp, seqp);
+	if (needrightsp == NULL)
+		needrightsp = cap_rights_init(&needrights);
+	error = fget_unlocked(fdp, fd, needrightsp, &fp, seqp);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {
@@ -2842,7 +2847,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		seq_write_begin(&newfde->fde_seq);
 #endif
 		memcpy(newfde, oldfde, fde_change_size);
-		bzero(oldfde, fde_change_size);
+		oldfde->fde_file = NULL;
 		fdunused(fdp, dfd);
 #ifdef CAPABILITIES
 		seq_write_end(&newfde->fde_seq);

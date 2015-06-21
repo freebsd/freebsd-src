@@ -1109,7 +1109,8 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 		 * not be changed.
 		 */
 		SCTP_RTALLOC((sctp_route_t *) & net->ro,
-		    stcb->sctp_ep->def_vrf_id);
+		    stcb->sctp_ep->def_vrf_id,
+		    stcb->sctp_ep->fibnum);
 		if (net->ro.ro_rt == NULL)
 			continue;
 
@@ -1328,6 +1329,7 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 {
 	uint32_t status;
 	int pending_delete_queued = 0;
+	int last;
 
 	/* see if peer supports ASCONF */
 	if (stcb->asoc.asconf_supported == 0) {
@@ -1337,15 +1339,21 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 	 * if this is deleting the last address from the assoc, mark it as
 	 * pending.
 	 */
-	if ((type == SCTP_DEL_IP_ADDRESS) && !stcb->asoc.asconf_del_pending &&
-	    (sctp_local_addr_count(stcb) < 2)) {
-		/* set the pending delete info only */
-		stcb->asoc.asconf_del_pending = 1;
-		stcb->asoc.asconf_addr_del_pending = ifa;
-		atomic_add_int(&ifa->refcount, 1);
-		SCTPDBG(SCTP_DEBUG_ASCONF2,
-		    "asconf_queue_add: mark delete last address pending\n");
-		return (-1);
+	if ((type == SCTP_DEL_IP_ADDRESS) && !stcb->asoc.asconf_del_pending) {
+		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
+			last = (sctp_local_addr_count(stcb) == 0);
+		} else {
+			last = (sctp_local_addr_count(stcb) == 1);
+		}
+		if (last) {
+			/* set the pending delete info only */
+			stcb->asoc.asconf_del_pending = 1;
+			stcb->asoc.asconf_addr_del_pending = ifa;
+			atomic_add_int(&ifa->refcount, 1);
+			SCTPDBG(SCTP_DEBUG_ASCONF2,
+			    "asconf_queue_add: mark delete last address pending\n");
+			return (-1);
+		}
 	}
 	/* queue an asconf parameter */
 	status = sctp_asconf_queue_mgmt(stcb, ifa, type);

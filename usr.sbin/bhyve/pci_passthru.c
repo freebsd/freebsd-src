@@ -548,11 +548,17 @@ done:
 static int
 passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
-	int bus, slot, func, error;
+	int bus, slot, func, error, memflags;
 	struct passthru_softc *sc;
 
 	sc = NULL;
 	error = 1;
+
+	memflags = vm_get_memflags(ctx);
+	if (!(memflags & VM_MEM_F_WIRED)) {
+		fprintf(stderr, "passthru requires guest memory to be wired\n");
+		goto done;
+	}
 
 	if (pcifd < 0) {
 		pcifd = open(_PATH_DEVPCI, O_RDWR, 0);

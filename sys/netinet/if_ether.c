@@ -364,6 +364,7 @@ retry:
 	if ((la->la_flags & LLE_VALID) &&
 	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
+		renew = 0;
 		/*
 		 * If entry has an expiry time and it is approaching,
 		 * see if we need to send an ARP request within this
@@ -371,14 +372,22 @@ retry:
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
 		    time_uptime + la->la_preempt > la->la_expire) {
-			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+			renew = 1;
 			la->la_preempt--;
 		}
 
 		if (pflags != NULL)
 			*pflags = la->la_flags;
-		error = 0;
-		goto done;
+
+		if (flags & LLE_EXCLUSIVE)
+			LLE_WUNLOCK(la);
+		else
+			LLE_RUNLOCK(la);
+
+		if (renew == 1)
+			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+
+		return (0);
 	}
 
 	if (la->la_flags & LLE_STATIC) {   /* should not happen! */

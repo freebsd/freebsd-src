@@ -147,7 +147,9 @@ int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 int	falloc(struct thread *td, struct file **resultfp, int *resultfd,
 	    int flags);
 int	falloc_noinstall(struct thread *td, struct file **resultfp);
-int	finstall(struct thread *td, struct file *fp, int *resultfp, int flags,
+void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
+	    struct filecaps *fcaps);
+int	finstall(struct thread *td, struct file *fp, int *resultfd, int flags,
 	    struct filecaps *fcaps);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdallocn(struct thread *td, int minfd, int *fds, int n);
@@ -163,7 +165,7 @@ struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
-int	getvnode(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
+int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 

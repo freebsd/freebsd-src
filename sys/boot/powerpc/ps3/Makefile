@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 MK_SSP=		no
+MAN=
 
 PROG=		loader.ps3
 NEWVERSWHAT=	"Playstation 3 loader" ${MACHINE_ARCH}
