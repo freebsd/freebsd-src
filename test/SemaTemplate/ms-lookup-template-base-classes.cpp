@@ -547,3 +547,29 @@ struct E : D<T>
   XXX x; // expected-error {{unknown type name}}
 };
 }
+
+namespace PR23810 {
+void f(int);
+struct Base {
+  void f(); // expected-note{{must qualify identifier to find this declaration in dependent base class}}
+};
+template <typename T> struct Template : T {
+  void member() {
+    f(); // expected-warning {{found via unqualified lookup into dependent bases}}
+  }
+};
+void test() {
+  Template<Base> x;
+  x.member(); // expected-note{{requested here}}
+};
+}
+
+namespace PR23823 {
+// Don't delay lookup in SFINAE context.
+template <typename T> decltype(g(T())) check(); // expected-note{{candidate template ignored: substitution failure [with T = int]: use of undeclared identifier 'g'}}
+decltype(check<int>()) x; // expected-error{{no matching function for call to 'check'}}
+
+void h();
+template <typename T> decltype(h(T())) check2(); // expected-note{{candidate template ignored: substitution failure [with T = int]: no matching function for call to 'h'}}
+decltype(check2<int>()) y; // expected-error{{no matching function for call to 'check2'}}
+}

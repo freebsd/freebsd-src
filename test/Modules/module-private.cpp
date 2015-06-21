@@ -1,7 +1,7 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodules-cache-path=%t -fmodule-name=module_private_left -emit-module %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodules-cache-path=%t -fmodule-name=module_private_right -emit-module %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodules-cache-path=%t -I %S/Inputs %s -verify
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c++ -fmodules-cache-path=%t -fmodule-name=module_private_left -emit-module %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c++ -fmodules-cache-path=%t -fmodule-name=module_private_right -emit-module %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c++ -fmodules-cache-path=%t -I %S/Inputs %s -verify
 // FIXME: When we have a syntax for modules in C++, use that.
 
 @import module_private_left;
@@ -14,7 +14,7 @@ void test() {
 int test_broken() {
   HiddenStruct hidden; // \
   // expected-error{{must use 'struct' tag to refer to type 'HiddenStruct' in this scope}} \
-  // expected-error{{definition of 'struct HiddenStruct' must be imported}}
+  // expected-error{{definition of 'HiddenStruct' must be imported}}
   // expected-note@Inputs/module_private_left.h:3 {{previous definition is here}}
 
   Integer i; // expected-error{{unknown type name 'Integer'}}

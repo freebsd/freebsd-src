@@ -119,7 +119,7 @@ void (UnspecSingle::*us_f_mp)() = &UnspecSingle::foo;
 // CHECK: @"\01?v_f_mp@Const@@3P8Virtual@@AEXXZQ2@" =
 // CHECK:   global { i8*, i32, i32 } { i8* bitcast ({{.*}} @"\01?foo@Virtual@@QAEXXZ" to i8*), i32 0, i32 0 }, align 4
 // CHECK: @"\01?u_f_mp@Const@@3P8Unspecified@@AEXXZQ2@" =
-// CHECK:   global { i8*, i32, i32, i32 } { i8* bitcast ({{.*}} @"\01?foo@Unspecified@@QAEXXZ" to i8*), i32 0, i32 12, i32 0 }, align 4
+// CHECK:   global { i8*, i32, i32, i32 } { i8* bitcast ({{.*}} @"\01?foo@Unspecified@@QAEXXZ" to i8*), i32 0, i32 0, i32 0 }, align 4
 // CHECK: @"\01?us_f_mp@Const@@3P8UnspecSingle@@AEXXZQ2@" =
 // CHECK:   global { i8*, i32, i32, i32 } { i8* bitcast ({{.*}} @"\01?foo@UnspecSingle@@QAEXXZ" to i8*), i32 0, i32 0, i32 0 }, align 4
 }
@@ -191,11 +191,11 @@ void EmitNonVirtualMemberPointers() {
 // CHECK:     { i8* bitcast (void (%{{.*}}*)* @"\01?foo@Virtual@@QAEXXZ" to i8*), i32 0, i32 0 },
 // CHECK:     { i8*, i32, i32 }* %{{.*}}, align 4
 // CHECK:   store { i8*, i32, i32, i32 }
-// CHECK:     { i8* bitcast (void (%{{.*}}*)* @"\01?foo@Unspecified@@QAEXXZ" to i8*), i32 0, i32 12, i32 0 },
+// CHECK:     { i8* bitcast (void (%{{.*}}*)* @"\01?foo@Unspecified@@QAEXXZ" to i8*), i32 0, i32 0, i32 0 },
 // CHECK:     { i8*, i32, i32, i32 }* %{{.*}}, align 4
 // CHECK:   store { i8*, i32, i32, i32 }
 // CHECK:     { i8* bitcast (void (%{{.*}}*)* @"\01?foo@UnspecWithVBPtr@@QAEXXZ" to i8*),
-// CHECK:       i32 0, i32 4, i32 0 },
+// CHECK:       i32 0, i32 0, i32 0 },
 // CHECK:     { i8*, i32, i32, i32 }* %{{.*}}, align 4
 // CHECK:   ret void
 // CHECK: }
@@ -676,6 +676,17 @@ static_assert(sizeof(int B::*) == 4, "");
 static_assert(sizeof(int A::*) == 12, "");
 #pragma pointers_to_members(best_case)
 // CHECK-LABEL: define void @"\01?test@pr20007_pragma2@@YAXXZ"
+}
+
+namespace pr23823 {
+struct Base { void Method(); };
+struct Child : Base {};
+void use(void (Child::*const &)());
+void f() { use(&Child::Method); }
+#pragma pointers_to_members(full_generality, virtual_inheritance)
+static_assert(sizeof(int Base::*) == 4, "");
+static_assert(sizeof(int Child::*) == 4, "");
+#pragma pointers_to_members(best_case)
 }
 
 namespace pr19987 {

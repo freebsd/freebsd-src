@@ -356,6 +356,19 @@ ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
   assert((VK == VK_RValue || !E->isRValue()) && "can't cast rvalue to lvalue");
 #endif
 
+  // Check whether we're implicitly casting from a nullable type to a nonnull
+  // type.
+  if (auto exprNullability = E->getType()->getNullability(Context)) {
+    if (*exprNullability == NullabilityKind::Nullable) {
+      if (auto typeNullability = Ty->getNullability(Context)) {
+        if (*typeNullability == NullabilityKind::NonNull) {
+          Diag(E->getLocStart(), diag::warn_nullability_lost)
+            << E->getType() << Ty;
+        }
+      }
+    }
+  }
+
   QualType ExprTy = Context.getCanonicalType(E->getType());
   QualType TypeTy = Context.getCanonicalType(Ty);
 
@@ -551,10 +564,10 @@ static bool MethodsAndNestedClassesComplete(const CXXRecordDecl *RD,
     if (const CXXMethodDecl *M = dyn_cast<CXXMethodDecl>(*I))
       Complete = M->isDefined() || (M->isPure() && !isa<CXXDestructorDecl>(M));
     else if (const FunctionTemplateDecl *F = dyn_cast<FunctionTemplateDecl>(*I))
-      // If the template function is marked as late template parsed at this point,
-      // it has not been instantiated and therefore we have not performed semantic
-      // analysis on it yet, so we cannot know if the type can be considered
-      // complete.
+      // If the template function is marked as late template parsed at this
+      // point, it has not been instantiated and therefore we have not
+      // performed semantic analysis on it yet, so we cannot know if the type
+      // can be considered complete.
       Complete = !F->getTemplatedDecl()->isLateTemplateParsed() &&
                   F->getTemplatedDecl()->isDefined();
     else if (const CXXRecordDecl *R = dyn_cast<CXXRecordDecl>(*I)) {
@@ -722,11 +735,7 @@ void Sema::ActOnEndOfTranslationUnit() {
         ModMap.resolveConflicts(Mod, /*Complain=*/false);
 
         // Queue the submodules, so their exports will also be resolved.
-        for (Module::submodule_iterator Sub = Mod->submodule_begin(),
-                                     SubEnd = Mod->submodule_end();
-             Sub != SubEnd; ++Sub) {
-          Stack.push_back(*Sub);
-        }
+        Stack.append(Mod->submodule_begin(), Mod->submodule_end());
       }
     }
 

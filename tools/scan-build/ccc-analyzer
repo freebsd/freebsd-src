@@ -135,8 +135,8 @@ sub ProcessClangFailure {
   my ($PPH, $PPFile) = tempfile( $prefix . "_XXXXXX",
                                  SUFFIX => GetPPExt($Lang),
                                  DIR => $Dir);
-  system $Clang, @$Args, "-E", "-o", $PPFile;
   close ($PPH);
+  system $Clang, @$Args, "-E", "-o", $PPFile;
 
   # Create the info file.
   open (OUT, ">", "$PPFile.info.txt") or die "Cannot open $PPFile.info.txt\n";
@@ -756,5 +756,3 @@ if ($Action eq 'compile' or $Action eq 'link') {
     }
   }
 }
-
-exit($Status >> 8);

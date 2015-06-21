@@ -1,4 +1,4 @@
-//==- BuiltinsR600.def - R600 Builtin function database ----------*- C++ -*-==//
+//==- BuiltinsAMDGPU.def - AMDGPU Builtin function database ------*- C++ -*-==//
 //
 //                     The LLVM Compiler Infrastructure
 //

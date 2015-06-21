@@ -1465,6 +1465,8 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
       FuncAttrs.addAttribute("no-frame-pointer-elim-non-leaf");
     }
 
+    FuncAttrs.addAttribute("disable-tail-calls",
+                           llvm::toStringRef(CodeGenOpts.DisableTailCalls));
     FuncAttrs.addAttribute("less-precise-fpmad",
                            llvm::toStringRef(CodeGenOpts.LessPreciseFPMAD));
     FuncAttrs.addAttribute("no-infs-fp-math",
@@ -1481,24 +1483,62 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
     if (!CodeGenOpts.StackRealignment)
       FuncAttrs.addAttribute("no-realign-stack");
 
-    // Add target-cpu and target-features work if they differ from the defaults.
-    std::string &CPU = getTarget().getTargetOpts().CPU;
-    if (CPU != "")
-      FuncAttrs.addAttribute("target-cpu", CPU);
+    // Add target-cpu and target-features attributes to functions. If
+    // we have a decl for the function and it has a target attribute then
+    // parse that and add it to the feature set.
+    StringRef TargetCPU = getTarget().getTargetOpts().CPU;
 
     // TODO: Features gets us the features on the command line including
     // feature dependencies. For canonicalization purposes we might want to
-    // avoid putting features in the target-features set if we know it'll be one
-    // of the default features in the backend, e.g. corei7-avx and +avx or figure
-    // out non-explicit dependencies.
-    std::vector<std::string> &Features = getTarget().getTargetOpts().Features;
+    // avoid putting features in the target-features set if we know it'll be
+    // one of the default features in the backend, e.g. corei7-avx and +avx or
+    // figure out non-explicit dependencies.
+    std::vector<std::string> Features(getTarget().getTargetOpts().Features);
+
+    // TODO: The target attribute complicates this further by allowing multiple
+    // additional features to be tacked on to the feature string for a
+    // particular function. For now we simply append to the set of features and
+    // let backend resolution fix them up.
+    const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(TargetDecl);
+    if (FD) {
+      if (const TargetAttr *TD = FD->getAttr<TargetAttr>()) {
+        StringRef FeaturesStr = TD->getFeatures();
+        SmallVector<StringRef, 1> AttrFeatures;
+        FeaturesStr.split(AttrFeatures, ",");
+
+        // Grab the various features and prepend a "+" to turn on the feature to
+        // the backend and add them to our existing set of Features.
+        for (auto &Feature : AttrFeatures) {
+          // While we're here iterating check for a different target cpu.
+          if (Feature.startswith("arch="))
+            TargetCPU = Feature.split("=").second;
+	  else if (Feature.startswith("tune="))
+	    // We don't support cpu tuning this way currently.
+	    ;
+	  else if (Feature.startswith("fpmath="))
+	    // TODO: Support the fpmath option this way. It will require checking
+	    // overall feature validity for the function with the rest of the
+	    // attributes on the function.
+	    ;
+	  else if (Feature.startswith("mno-"))
+            Features.push_back("-" + Feature.split("-").second.str());
+          else
+            Features.push_back("+" + Feature.str());
+	}
+      }
+    }
+
+    // Now add the target-cpu and target-features to the function.
+    if (TargetCPU != "")
+      FuncAttrs.addAttribute("target-cpu", TargetCPU);
     if (!Features.empty()) {
-      std::stringstream S;
+      std::stringstream TargetFeatures;
       std::copy(Features.begin(), Features.end(),
-                std::ostream_iterator<std::string>(S, ","));
+                std::ostream_iterator<std::string>(TargetFeatures, ","));
+
       // The drop_back gets rid of the trailing space.
       FuncAttrs.addAttribute("target-features",
-                             StringRef(S.str()).drop_back(1));
+                             StringRef(TargetFeatures.str()).drop_back(1));
     }
   }
 
@@ -2231,11 +2271,10 @@ static llvm::StoreInst *findDominatingStoreToReturnValue(CodeGenFunction &CGF) {
         if (Intrinsic->getIntrinsicID() == llvm::Intrinsic::lifetime_end) {
           const llvm::Value *CastAddr = Intrinsic->getArgOperand(1);
           ++II;
-          if (isa<llvm::BitCastInst>(&*II)) {
-            if (CastAddr == &*II) {
-              continue;
-            }
-          }
+          if (II == IE)
+            break;
+          if (isa<llvm::BitCastInst>(&*II) && (CastAddr == &*II))
+            continue;
         }
       }
       I = &*II;
@@ -2571,7 +2610,7 @@ static void emitWritebackArg(CodeGenFunction &CGF, CallArgList &args,
   LValue srcLV;
 
   // Make an optimistic effort to emit the address as an l-value.
-  // This can fail if the the argument expression is more complicated.
+  // This can fail if the argument expression is more complicated.
   if (const Expr *lvExpr = maybeGetUnaryAddrOfOperand(CRE->getSubExpr())) {
     srcLV = CGF.EmitLValue(lvExpr);
 

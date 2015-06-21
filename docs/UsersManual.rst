@@ -970,16 +970,15 @@ are listed below.
       includes all of the checks listed below other than
       ``unsigned-integer-overflow``.
 
-   -  ``-fsanitize=undefined-trap``: This includes all sanitizers
-      included by ``-fsanitize=undefined``, except those that require
-      runtime support. This group of sanitizers is intended to be
-      used in conjunction with the ``-fsanitize-undefined-trap-on-error``
-      flag. This includes all of the checks listed below other than
-      ``unsigned-integer-overflow`` and ``vptr``.
+   -  ``-fsanitize=undefined-trap``: This is a deprecated alias for
+      ``-fsanitize=undefined``.
+
    -  ``-fsanitize=dataflow``: :doc:`DataFlowSanitizer`, a general data
       flow analysis.
    -  ``-fsanitize=cfi``: :doc:`control flow integrity <ControlFlowIntegrity>`
-      checks. Implies ``-flto``.
+      checks. Requires ``-flto``.
+   -  ``-fsanitize=safe-stack``: :doc:`safe stack <SafeStack>`
+      protection against stack-based memory corruption errors.
 
    The following more fine-grained checks are also available:
 
@@ -992,13 +991,13 @@ are listed below.
    -  ``-fsanitize=cfi-cast-strict``: Enables :ref:`strict cast checks
       <cfi-strictness>`.
    -  ``-fsanitize=cfi-derived-cast``: Base-to-derived cast to the wrong
-      dynamic type. Implies ``-flto``.
+      dynamic type. Requires ``-flto``.
    -  ``-fsanitize=cfi-unrelated-cast``: Cast from ``void*`` or another
-      unrelated type to the wrong dynamic type. Implies ``-flto``.
+      unrelated type to the wrong dynamic type. Requires ``-flto``.
    -  ``-fsanitize=cfi-nvcall``: Non-virtual call via an object whose vptr is of
-      the wrong dynamic type. Implies ``-flto``.
+      the wrong dynamic type. Requires ``-flto``.
    -  ``-fsanitize=cfi-vcall``: Virtual call via an object whose vptr is of the
-      wrong dynamic type. Implies ``-flto``.
+      wrong dynamic type. Requires ``-flto``.
    -  ``-fsanitize=enum``: Load of a value of an enumerated type which
       is not in the range of representable values for that enumerated
       type.
@@ -1067,15 +1066,6 @@ are listed below.
       through. This mode may use extra memory in programs that copy
       uninitialized memory a lot.
 
-   Extra features of UndefinedBehaviorSanitizer:
-
-   -  ``-fsanitize-undefined-trap-on-error``: Causes traps to be emitted
-      rather than calls to runtime libraries when a problem is detected.
-      This option is intended for use in cases where the sanitizer runtime
-      cannot be used (for instance, when building libc or a kernel module).
-      This is only compatible with the sanitizers in the ``undefined-trap``
-      group.
-
    The ``-fsanitize=`` argument must also be provided when linking, in
    order to link to the appropriate runtime library. When using
    ``-fsanitize=vptr`` (or a group that includes it, such as
@@ -1099,10 +1089,40 @@ are listed below.
    sanitizers (e.g. :doc:`AddressSanitizer`) may not support recovery,
    and always crash the program after the issue is detected.
 
+   Note that the ``-fsanitize-trap`` flag has precedence over this flag.
+   This means that if a check has been configured to trap elsewhere on the
+   command line, or if the check traps by default, this flag will not have
+   any effect unless that sanitizer's trapping behavior is disabled with
+   ``-fno-sanitize-trap``.
+
+   For example, if a command line contains the flags ``-fsanitize=undefined
+   -fsanitize-trap=undefined``, the flag ``-fsanitize-recover=alignment``
+   will have no effect on its own; it will need to be accompanied by
+   ``-fno-sanitize-trap=alignment``.
+
+**-f[no-]sanitize-trap=check1,check2,...**
+
+   Controls which checks enabled by the ``-fsanitize=`` flag trap. This
+   option is intended for use in cases where the sanitizer runtime cannot
+   be used (for instance, when building libc or a kernel module), or where
+   the binary size increase caused by the sanitizer runtime is a concern.
+
+   This flag is only compatible with ``local-bounds``,
+   ``unsigned-integer-overflow``, sanitizers in the ``cfi`` group and
+   sanitizers in the ``undefined`` group other than ``vptr``. If this flag
+   is supplied together with ``-fsanitize=undefined``, the ``vptr`` sanitizer
+   will be implicitly disabled.
+
+   This flag is enabled by default for sanitizers in the ``cfi`` group.
+
 **-f[no-]sanitize-coverage=[type,features,...]**
 
    Enable simple code coverage in addition to certain sanitizers.
    See :doc:`SanitizerCoverage` for more details.
+
+.. option:: -fsanitize-undefined-trap-on-error
+
+   Deprecated alias for ``-fsanitize-trap=undefined``.
 
 .. option:: -fno-assume-sane-operator-new
 

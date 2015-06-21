@@ -91,7 +91,7 @@ public:
   /// The path to the compiler resource directory.
   std::string ResourceDir;
 
-  /// A prefix directory used to emulated a limited subset of GCC's '-Bprefix'
+  /// A prefix directory used to emulate a limited subset of GCC's '-Bprefix'
   /// functionality.
   /// FIXME: This type of customization should be removed in favor of the
   /// universal driver when it is ready.
@@ -402,7 +402,7 @@ public:
   /// handle this action.
   bool ShouldUseClangCompiler(const JobAction &JA) const;
 
-  bool IsUsingLTO(const ToolChain &TC, const llvm::opt::ArgList &Args) const;
+  bool IsUsingLTO(const llvm::opt::ArgList &Args) const;
 
 private:
   /// \brief Retrieves a ToolChain for a particular target triple.
