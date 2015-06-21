@@ -925,12 +925,14 @@ sys_semget(struct thread *td, struct semget_args *uap)
 			goto done2;
 		}
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		error = racct_add(td->td_proc, RACCT_NSEM, nsems);
-		PROC_UNLOCK(td->td_proc);
-		if (error != 0) {
-			error = ENOSPC;
-			goto done2;
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			error = racct_add(td->td_proc, RACCT_NSEM, nsems);
+			PROC_UNLOCK(td->td_proc);
+			if (error != 0) {
+				error = ENOSPC;
+				goto done2;
+			}
 		}
 #endif
 		DPRINTF(("semid %d is available\n", semid));
@@ -1019,12 +1021,15 @@ sys_semop(struct thread *td, struct semop_args *uap)
 		return (E2BIG);
 	} else {
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		if (nsops > racct_get_available(td->td_proc, RACCT_NSEMOP)) {
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			if (nsops >
+			    racct_get_available(td->td_proc, RACCT_NSEMOP)) {
+				PROC_UNLOCK(td->td_proc);
+				return (E2BIG);
+			}
 			PROC_UNLOCK(td->td_proc);
-			return (E2BIG);
 		}
-		PROC_UNLOCK(td->td_proc);
 #endif
 
 		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);

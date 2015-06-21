@@ -1787,7 +1787,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	mtx_unlock(&pr->pr_mtx);
 
 #ifdef RACCT
-	if (created)
+	if (racct_enable && created)
 		prison_racct_attach(pr);
 #endif
 
@@ -1871,7 +1871,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 
 #ifdef RACCT
-	if (!created) {
+	if (racct_enable && !created) {
 		if (!(flags & JAIL_ATTACH))
 			sx_sunlock(&allprison_lock);
 		prison_racct_modify(pr);
@@ -2661,7 +2661,8 @@ prison_deref(struct prison *pr, int flags)
 			cpuset_rel(pr->pr_cpuset);
 		osd_jail_exit(pr);
 #ifdef RACCT
-		prison_racct_detach(pr);
+		if (racct_enable)
+			prison_racct_detach(pr);
 #endif
 		free(pr, M_PRISON);
 
@@ -4482,11 +4483,14 @@ SYSCTL_JAIL_PARAM(_allow_mount, tmpfs, CTLTYPE_INT | CTLFLAG_RW,
 SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the zfs file system");
 
+#ifdef RACCT
 void
 prison_racct_foreach(void (*callback)(struct racct *racct,
     void *arg2, void *arg3), void *arg2, void *arg3)
 {
 	struct prison_racct *prr;
+
+	ASSERT_RACCT_ENABLED();
 
 	sx_slock(&allprison_lock);
 	LIST_FOREACH(prr, &allprison_racct, prr_next)
@@ -4499,6 +4503,7 @@ prison_racct_find_locked(const char *name)
 {
 	struct prison_racct *prr;
 
+	ASSERT_RACCT_ENABLED();
 	sx_assert(&allprison_lock, SA_XLOCKED);
 
 	if (name[0] == '\0' || strlen(name) >= MAXHOSTNAMELEN)
@@ -4529,6 +4534,8 @@ prison_racct_find(const char *name)
 {
 	struct prison_racct *prr;
 
+	ASSERT_RACCT_ENABLED();
+
 	sx_xlock(&allprison_lock);
 	prr = prison_racct_find_locked(name);
 	sx_xunlock(&allprison_lock);
@@ -4539,6 +4546,8 @@ void
 prison_racct_hold(struct prison_racct *prr)
 {
 
+	ASSERT_RACCT_ENABLED();
+
 	refcount_acquire(&prr->prr_refcount);
 }
 
@@ -4546,6 +4555,7 @@ static void
 prison_racct_free_locked(struct prison_racct *prr)
 {
 
+	ASSERT_RACCT_ENABLED();
 	sx_assert(&allprison_lock, SA_XLOCKED);
 
 	if (refcount_release(&prr->prr_refcount)) {
@@ -4560,6 +4570,7 @@ prison_racct_free(struct prison_racct *prr)
 {
 	int old;
 
+	ASSERT_RACCT_ENABLED();
 	sx_assert(&allprison_lock, SA_UNLOCKED);
 
 	old = prr->prr_refcount;
@@ -4571,12 +4582,12 @@ prison_racct_free(struct prison_racct *prr)
 	sx_xunlock(&allprison_lock);
 }
 
-#ifdef RACCT
 static void
 prison_racct_attach(struct prison *pr)
 {
 	struct prison_racct *prr;
 
+	ASSERT_RACCT_ENABLED();
 	sx_assert(&allprison_lock, SA_XLOCKED);
 
 	prr = prison_racct_find_locked(pr->pr_name);
@@ -4595,6 +4606,8 @@ prison_racct_modify(struct prison *pr)
 	struct proc *p;
 	struct ucred *cred;
 	struct prison_racct *oldprr;
+
+	ASSERT_RACCT_ENABLED();
 
 	sx_slock(&allproc_lock);
 	sx_xlock(&allprison_lock);
@@ -4635,6 +4648,7 @@ static void
 prison_racct_detach(struct prison *pr)
 {
 
+	ASSERT_RACCT_ENABLED();
 	sx_assert(&allprison_lock, SA_UNLOCKED);
 
 	if (pr->pr_prison_racct == NULL)

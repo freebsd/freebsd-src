@@ -1095,16 +1095,18 @@ vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
 	if (npages + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #ifdef RACCT
-	PROC_LOCK(proc);
-	error = racct_set(proc, RACCT_MEMLOCK, nsize);
-	PROC_UNLOCK(proc);
-	if (error != 0)
-		return (ENOMEM);
+	if (racct_enable) {
+		PROC_LOCK(proc);
+		error = racct_set(proc, RACCT_MEMLOCK, nsize);
+		PROC_UNLOCK(proc);
+		if (error != 0)
+			return (ENOMEM);
+	}
 #endif
 	error = vm_map_wire(map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 #ifdef RACCT
-	if (error != KERN_SUCCESS) {
+	if (racct_enable && error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
 		racct_set(proc, RACCT_MEMLOCK,
 		    ptoa(pmap_wired_count(map->pmap)));
@@ -1152,11 +1154,13 @@ sys_mlockall(td, uap)
 		PROC_UNLOCK(td->td_proc);
 	}
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_set(td->td_proc, RACCT_MEMLOCK, map->size);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0)
-		return (ENOMEM);
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		error = racct_set(td->td_proc, RACCT_MEMLOCK, map->size);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0)
+			return (ENOMEM);
+	}
 #endif
 
 	if (uap->how & MCL_FUTURE) {
@@ -1178,7 +1182,7 @@ sys_mlockall(td, uap)
 		error = (error == KERN_SUCCESS ? 0 : EAGAIN);
 	}
 #ifdef RACCT
-	if (error != KERN_SUCCESS) {
+	if (racct_enable && error != KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK,
 		    ptoa(pmap_wired_count(map->pmap)));
@@ -1220,7 +1224,7 @@ sys_munlockall(td, uap)
 	error = vm_map_unwire(map, vm_map_min(map), vm_map_max(map),
 	    VM_MAP_WIRE_USER|VM_MAP_WIRE_HOLESOK);
 #ifdef RACCT
-	if (error == KERN_SUCCESS) {
+	if (racct_enable && error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK, 0);
 		PROC_UNLOCK(td->td_proc);
@@ -1264,7 +1268,7 @@ sys_munlock(td, uap)
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 #ifdef RACCT
-	if (error == KERN_SUCCESS) {
+	if (racct_enable && error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		map = &td->td_proc->p_vmspace->vm_map;
 		racct_set(td->td_proc, RACCT_MEMLOCK,
