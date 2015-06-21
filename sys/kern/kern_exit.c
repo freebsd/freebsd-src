@@ -921,9 +921,11 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * Destroy resource accounting information associated with the process.
 	 */
 #ifdef RACCT
-	PROC_LOCK(p);
-	racct_sub(p, RACCT_NPROC, 1);
-	PROC_UNLOCK(p);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NPROC, 1);
+		PROC_UNLOCK(p);
+	}
 #endif
 	racct_proc_exit(p);
 

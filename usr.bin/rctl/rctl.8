@@ -233,6 +233,18 @@ for a list of supported signals
 Not all actions are supported for all resources.
 Attempting to add a rule with an action not supported by a given resource will
 result in error.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt, or
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va kern.racct.enable: No 1
+Enable
+.Nm .
+This defaults to 1, unless
+.Cd "options RACCT_DEFAULT_TO_DISABLED"
+is set in the kernel configuration file.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES

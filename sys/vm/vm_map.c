@@ -298,11 +298,11 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	return (vm);
 }
 
+#ifdef RACCT
 static void
 vmspace_container_reset(struct proc *p)
 {
 
-#ifdef RACCT
 	PROC_LOCK(p);
 	racct_set(p, RACCT_DATA, 0);
 	racct_set(p, RACCT_STACK, 0);
@@ -310,8 +310,8 @@ vmspace_container_reset(struct proc *p)
 	racct_set(p, RACCT_MEMLOCK, 0);
 	racct_set(p, RACCT_VMEM, 0);
 	PROC_UNLOCK(p);
-#endif
 }
+#endif
 
 static inline void
 vmspace_dofree(struct vmspace *vm)
@@ -413,7 +413,10 @@ vmspace_exit(struct thread *td)
 		pmap_activate(td);
 		vmspace_dofree(vm);
 	}
-	vmspace_container_reset(p);
+#ifdef RACCT
+	if (racct_enable)
+		vmspace_container_reset(p);
+#endif
 }
 
 /* Acquire reference to vmspace owned by another process. */
@@ -3665,14 +3668,16 @@ Retry:
 		return (KERN_NO_SPACE);
 	}
 #ifdef RACCT
-	PROC_LOCK(p);
-	if (is_procstack &&
-	    racct_set(p, RACCT_STACK, ctob(vm->vm_ssize) + grow_amount)) {
+	if (racct_enable) {
+		PROC_LOCK(p);
+		if (is_procstack && racct_set(p, RACCT_STACK,
+		    ctob(vm->vm_ssize) + grow_amount)) {
+			PROC_UNLOCK(p);
+			vm_map_unlock_read(map);
+			return (KERN_NO_SPACE);
+		}
 		PROC_UNLOCK(p);
-		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
 	}
-	PROC_UNLOCK(p);
 #endif
 
 	/* Round up the grow amount modulo sgrowsiz */
@@ -3698,15 +3703,17 @@ Retry:
 			goto out;
 		}
 #ifdef RACCT
-		PROC_LOCK(p);
-		if (racct_set(p, RACCT_MEMLOCK,
-		    ptoa(pmap_wired_count(map->pmap)) + grow_amount)) {
+		if (racct_enable) {
+			PROC_LOCK(p);
+			if (racct_set(p, RACCT_MEMLOCK,
+			    ptoa(pmap_wired_count(map->pmap)) + grow_amount)) {
+				PROC_UNLOCK(p);
+				vm_map_unlock_read(map);
+				rv = KERN_NO_SPACE;
+				goto out;
+			}
 			PROC_UNLOCK(p);
-			vm_map_unlock_read(map);
-			rv = KERN_NO_SPACE;
-			goto out;
 		}
-		PROC_UNLOCK(p);
 #endif
 	}
 	/* If we would blow our VMEM resource limit, no go */
@@ -3716,14 +3723,16 @@ Retry:
 		goto out;
 	}
 #ifdef RACCT
-	PROC_LOCK(p);
-	if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
+	if (racct_enable) {
+		PROC_LOCK(p);
+		if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
+			PROC_UNLOCK(p);
+			vm_map_unlock_read(map);
+			rv = KERN_NO_SPACE;
+			goto out;
+		}
 		PROC_UNLOCK(p);
-		vm_map_unlock_read(map);
-		rv = KERN_NO_SPACE;
-		goto out;
 	}
-	PROC_UNLOCK(p);
 #endif
 
 	if (vm_map_lock_upgrade(map))
@@ -3825,7 +3834,7 @@ Retry:
 
 out:
 #ifdef RACCT
-	if (rv != KERN_SUCCESS) {
+	if (racct_enable && rv != KERN_SUCCESS) {
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_VMEM, map->size);
 		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
