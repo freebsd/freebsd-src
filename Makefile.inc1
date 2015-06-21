@@ -1356,7 +1356,7 @@ _bt=		_bootstrap-tools
 _strfile=	games/fortune/strfile
 .endif
 
-.if ${MK_CXX} != "no"
+.if ${MK_GCC} != "no" && ${MK_CXX} != "no"
 _gperf=		gnu/usr.bin/gperf
 .endif
 
