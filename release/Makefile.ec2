@@ -6,7 +6,7 @@
 #
 
 .if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE"
-AMINAMESUFFIX!=	date +-%Y-%m-%d
+AMINAMESUFFIX!=	date +-%Y-%m-%d-%H:%M
 .endif
 .if defined(EC2PUBLIC)
 PUBLISH=	--public
