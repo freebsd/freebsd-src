@@ -346,7 +346,9 @@ static void
 parse_optional_32_plus(struct executable *x, off_t off,
     int number_of_sections)
 {
+#if 0
 	uint32_t computed_checksum;
+#endif
 	const struct pe_optional_header_32_plus	*po;
 
 	range_check(x, off, sizeof(*po), "PE Optional Header");
@@ -373,13 +375,13 @@ parse_optional_32_plus(struct executable *x, off_t off,
 #if 0
 	printf("checksum 0x%x at offset %zd, len %zd\n",
 	    po->po_checksum, x->x_checksum_off, x->x_checksum_len);
-#endif
 
 	computed_checksum = compute_checksum(x);
 	if (computed_checksum != po->po_checksum) {
 		warnx("invalid PE+ checksum; is 0x%x, should be 0x%x",
 		    po->po_checksum, computed_checksum);
 	}
+#endif
 
 	if (x->x_len < x->x_headers_len)
 		errx(1, "invalid SizeOfHeaders %d", po->po_size_of_headers);
@@ -393,7 +395,9 @@ parse_optional_32_plus(struct executable *x, off_t off,
 static void
 parse_optional_32(struct executable *x, off_t off, int number_of_sections)
 {
+#if 0
 	uint32_t computed_checksum;
+#endif
 	const struct pe_optional_header_32 *po;
 
 	range_check(x, off, sizeof(*po), "PE Optional Header");
@@ -420,13 +424,13 @@ parse_optional_32(struct executable *x, off_t off, int number_of_sections)
 #if 0
 	printf("checksum at offset %zd, len %zd\n",
 	    x->x_checksum_off, x->x_checksum_len);
-#endif
 
 	computed_checksum = compute_checksum(x);
 	if (computed_checksum != po->po_checksum) {
 		warnx("invalid PE checksum; is 0x%x, should be 0x%x",
 		    po->po_checksum, computed_checksum);
 	}
+#endif
 
 	if (x->x_len < x->x_headers_len)
 		errx(1, "invalid SizeOfHeaders %d", po->po_size_of_headers);
