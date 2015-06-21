@@ -94,6 +94,18 @@
 #define	CHERI_REG_CCALLDATA	$c2
 
 /*
+ * Macro to abstract use of cmove in kernel assembly, used as a temporary
+ * workaround for cmove generating CIncBase instructions on 128-bit CHERI.
+ * This will be removed once all live bitfiles and toolchain have been
+ * updated.
+ */
+#if (defined(CPU_CHERI) && !defined(CPU_CHERI128))
+#define	CHERI_ASM_CMOVE(cd, cb)		cmove cd, cb
+#else
+#define	CHERI_ASM_CMOVE(cd, cb)		cincoffset cd, cb, zero
+#endif
+
+/*
  * Assembly code to be used in CHERI exception handling and context switching.
  *
  * When entering an exception handler from userspace, conditionally save the
@@ -108,8 +120,8 @@
 	beq	reg, $0, 64f;						\
 	nop;								\
 	/* Save user $c0; install kernel $c0. */			\
-	cmove	CHERI_REG_SEC0, CHERI_REG_C0;				\
-	cmove	CHERI_REG_C0, CHERI_REG_KDC;				\
+	CHERI_ASM_CMOVE(CHERI_REG_SEC0, CHERI_REG_C0);			\
+	CHERI_ASM_CMOVE(CHERI_REG_C0, CHERI_REG_KDC);			\
 	/* cgetdefault	CHERI_REG_SEC0; */				\
 	/* csetdefault	CHERI_REG_KDC; */				\
 64:
@@ -134,7 +146,7 @@
 	nop;								\
 	b	66f;							\
 	/* If returning to userspace, restore saved user $c0. */	\
-	cmove	CHERI_REG_C0, CHERI_REG_SEC0;	/* Branch-delay. */	\
+	CHERI_ASM_CMOVE(CHERI_REG_C0, CHERI_REG_SEC0); /* Branch-delay. */ \
 	/* csetdefault	CHERI_REG_SEC0; */	/* Branch-delay. */	\
 65:									\
 	/* If returning to kernelspace, reinstall kernel code PCC. */	\
@@ -143,7 +155,7 @@
 	 * adjust $epcc.offset, which will overwrite an earlier $epc	\
 	 * assignment.							\
 	 */								\
-	cmove	CHERI_REG_EPCC, CHERI_REG_KCC;				\
+	CHERI_ASM_CMOVE(CHERI_REG_EPCC, CHERI_REG_KCC);			\
 	MFC0	reg, MIPS_COP_0_EXC_PC;					\
 	csetoffset	CHERI_REG_EPCC, CHERI_REG_EPCC, reg;		\
 66:

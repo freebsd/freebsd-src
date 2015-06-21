@@ -70,6 +70,10 @@
 #include <machine/cpuregs.h>
 #include <machine/regnum.h>
 
+#if defined(CPU_CHERI)
+#include <machine/cheriasm.h>
+#endif
+
 #include "assym.s"
 
 	.data
@@ -149,8 +153,8 @@ VECTOR(_locore, unknown)
 	 * XXXRW: Do we want to rely on default initialisation of all CP2
 	 * registers here?
 	 */
-	cmove	$c30, $c0		# Preserve $kdc
-	cmove	$c29, $c0		# Preserve $kcc
+	CHERI_ASM_CMOVE(CHERI_REG_KDC, $c0)	# Preserve $kdc
+	CHERI_ASM_CMOVE(CHERI_REG_KCC, $c0)	# Preserve $kcc
 	/* cgetdefault	CHERI_REG_KCC	# Preserve $kcc */
 	/* cgetdefault	CHERI_REG_KDC	# Preserve $kdc */
 #endif

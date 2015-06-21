@@ -436,6 +436,7 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
+#if (defined(CPU_CHERI) && !defined(CPU_CHERI128)) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 256))
 #define	CHERI_CMOVE(cd, cb) do {					\
 	if ((cd) == 0)							\
 		__asm__ __volatile__ ("cmove $c%0, $c%1" : :		\
@@ -444,6 +445,9 @@ struct cheri_stack {
 		__asm__ __volatile__ ("cmove $c%0, $c%1" : :		\
 		    "i" (cd), "i" (cb));				\
 } while (0)
+#else /* 128-bit CHERI */
+#define	CHERI_CMOVE(cd, cb)	CHERI_CINCOFFSET(cd, cb, 0)
+#endif /* 128-bit CHERI */
 
 #define	CHERI_CSETDEFAULT(cb) do {					\
 	__asm__ __volatile__ ("csetdefault %c%0" : : "i" (cb) :		\
