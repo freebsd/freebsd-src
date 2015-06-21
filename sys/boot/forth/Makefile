@@ -8,6 +8,7 @@ MAN+=	beastie.4th.8 \
 	loader.conf.5 \
 	loader.4th.8 \
 	menu.4th.8 \
-	menusets.4th.8
+	menusets.4th.8 \
+	version.4th.8
 
 .include <bsd.prog.mk>
