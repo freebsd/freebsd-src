@@ -154,3 +154,4 @@ cloudware-install:
 .endif
 
 .include "${.CURDIR}/Makefile.ec2"
+.include "${.CURDIR}/Makefile.azure"
