@@ -45,6 +45,11 @@ using namespace llvm;
 
 #define DEBUG_TYPE "xfer"
 
+namespace llvm {
+  FunctionPass *createHexagonSplitConst32AndConst64();
+  void initializeHexagonSplitConst32AndConst64Pass(PassRegistry&);
+}
+
 namespace {
 
 class HexagonSplitConst32AndConst64 : public MachineFunctionPass {
@@ -151,7 +156,7 @@ bool HexagonSplitConst32AndConst64::runOnMachineFunction(MachineFunction &Fn) {
   return true;
 }
 
-}
+} // namespace
 
 //===----------------------------------------------------------------------===//
 //                         Public Constructor Functions

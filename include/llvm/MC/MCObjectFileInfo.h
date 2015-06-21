@@ -20,7 +20,6 @@
 namespace llvm {
 class MCContext;
 class MCSection;
-class StringRef;
 
 class MCObjectFileInfo {
 protected:
@@ -139,6 +138,9 @@ protected:
   /// StackMap section.
   MCSection *StackMapSection;
 
+  /// FaultMap section.
+  MCSection *FaultMapSection;
+
   /// EH frame section.
   ///
   /// It is initialized on demand so it can be overwritten (with uniquing).
@@ -185,8 +187,12 @@ protected:
   MCSection *SXDataSection;
 
 public:
-  void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM, CodeModel::Model CM,
-                            MCContext &ctx);
+  void InitMCObjectFileInfo(const Triple &TT, Reloc::Model RM,
+                            CodeModel::Model CM, MCContext &ctx);
+  LLVM_ATTRIBUTE_DEPRECATED(
+      void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM,
+                                CodeModel::Model CM, MCContext &ctx),
+      "StringRef GNU Triple argument replaced by a llvm::Triple object");
 
   bool getSupportsWeakOmittedEHFrame() const {
     return SupportsWeakOmittedEHFrame;
@@ -262,6 +268,7 @@ public:
   MCSection *getTLSBSSSection() const { return TLSBSSSection; }
 
   MCSection *getStackMapSection() const { return StackMapSection; }
+  MCSection *getFaultMapSection() const { return FaultMapSection; }
 
   // ELF specific sections.
   MCSection *getDataRelSection() const { return DataRelSection; }

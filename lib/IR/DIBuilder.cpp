@@ -55,7 +55,7 @@ public:
     return HeaderBuilder().concat("0x" + Twine::utohexstr(Tag));
   }
 };
-}
+} // namespace
 
 DIBuilder::DIBuilder(Module &m, bool AllowUnresolvedNodes)
     : M(m), VMContext(M.getContext()), TempEnumTypes(nullptr),
@@ -327,7 +327,8 @@ DIBuilder::createObjCProperty(StringRef Name, DIFile *File, unsigned LineNumber,
                               StringRef GetterName, StringRef SetterName,
                               unsigned PropertyAttributes, DIType *Ty) {
   return DIObjCProperty::get(VMContext, Name, File, LineNumber, GetterName,
-                             SetterName, PropertyAttributes, Ty);
+                             SetterName, PropertyAttributes,
+                             DITypeRef::get(Ty));
 }
 
 DITemplateTypeParameter *

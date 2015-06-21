@@ -100,10 +100,15 @@ protected:
   /// This is stored here to save space in User on 64-bit hosts.  Since most
   /// instances of Value have operands, 32-bit hosts aren't significantly
   /// affected.
-  unsigned NumOperands : 30;
+  ///
+  /// Note, this should *NOT* be used directly by any class other than User.
+  /// User uses this value to find the Use list.
+  static const unsigned NumUserOperandsBits = 29;
+  unsigned NumUserOperands : 29;
 
   bool IsUsedByMD : 1;
   bool HasName : 1;
+  bool HasHungOffUses : 1;
 
 private:
   template <typename UseT> // UseT == 'Use' or 'const Use'
@@ -711,6 +716,6 @@ inline LLVMValueRef *wrap(const Value **Vals) {
   return reinterpret_cast<LLVMValueRef*>(const_cast<Value**>(Vals));
 }
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

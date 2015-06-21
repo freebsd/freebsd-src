@@ -52,6 +52,11 @@ namespace Intrinsic {
   /// Returns true if the intrinsic can be overloaded.
   bool isOverloaded(ID id);
 
+  /// Returns true if the intrinsic is a leaf, i.e. it does not make any calls
+  /// itself.  Most intrinsics are leafs, the exceptions being the patchpoint
+  /// and statepoint intrinsics. These call (or invoke) their "target" argument.
+  bool isLeaf(ID id);
+
   /// Return the attributes for an intrinsic.
   AttributeSet getAttributes(LLVMContext &C, ID id);
 
@@ -121,8 +126,8 @@ namespace Intrinsic {
   /// of IITDescriptors.
   void getIntrinsicInfoTableEntries(ID id, SmallVectorImpl<IITDescriptor> &T);
 
-} // End Intrinsic namespace
+} // namespace Intrinsic
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

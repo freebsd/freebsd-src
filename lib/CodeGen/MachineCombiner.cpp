@@ -78,7 +78,7 @@ private:
   void instr2instrSC(SmallVectorImpl<MachineInstr *> &Instrs,
                      SmallVectorImpl<const MCSchedClassDesc *> &InstrsSC);
 };
-}
+} // namespace
 
 char MachineCombiner::ID = 0;
 char &llvm::MachineCombinerID = MachineCombiner::ID;
@@ -223,14 +223,14 @@ bool MachineCombiner::preservesCriticalPathLen(
     DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) {
 
   assert(TSchedModel.hasInstrSchedModel() && "Missing machine model\n");
-  // NewRoot is the last instruction in the \p InsInstrs vector
-  // Get depth and latency of NewRoot
+  // NewRoot is the last instruction in the \p InsInstrs vector.
+  // Get depth and latency of NewRoot.
   unsigned NewRootIdx = InsInstrs.size() - 1;
   MachineInstr *NewRoot = InsInstrs[NewRootIdx];
   unsigned NewRootDepth = getDepth(InsInstrs, InstrIdxForVirtReg, BlockTrace);
   unsigned NewRootLatency = getLatency(Root, NewRoot, BlockTrace);
 
-  // Get depth, latency and slack of Root
+  // Get depth, latency and slack of Root.
   unsigned RootDepth = BlockTrace.getInstrCycles(Root).Depth;
   unsigned RootLatency = TSchedModel.computeInstrLatency(Root);
   unsigned RootSlack = BlockTrace.getInstrSlack(Root);
@@ -245,7 +245,7 @@ bool MachineCombiner::preservesCriticalPathLen(
         dbgs() << " RootDepth + RootLatency + RootSlack "
                << RootDepth + RootLatency + RootSlack << "\n";);
 
-  /// True when the new sequence does not lenghten the critical path.
+  /// True when the new sequence does not lengthen the critical path.
   return ((NewRootDepth + NewRootLatency) <=
           (RootDepth + RootLatency + RootSlack));
 }
@@ -284,7 +284,7 @@ bool MachineCombiner::preservesResourceLen(
   ArrayRef<const MCSchedClassDesc *> MSCInsArr = makeArrayRef(InsInstrsSC);
   ArrayRef<const MCSchedClassDesc *> MSCDelArr = makeArrayRef(DelInstrsSC);
 
-  // Compute new resource length
+  // Compute new resource length.
   unsigned ResLenAfterCombine =
       BlockTrace.getResourceLength(MBBarr, MSCInsArr, MSCDelArr);
 
@@ -322,7 +322,7 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
     auto &MI = *BlockIter++;
 
     DEBUG(dbgs() << "INSTR "; MI.dump(); dbgs() << "\n";);
-    SmallVector<MachineCombinerPattern::MC_PATTERN, 16> Pattern;
+    SmallVector<MachineCombinerPattern::MC_PATTERN, 16> Patterns;
     // The motivating example is:
     //
     //     MUL  Other        MUL_op1 MUL_op2  Other
@@ -345,11 +345,11 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
     //
     // The algorithm does not try to evaluate all patterns and pick the best.
     // This is only an artificial restriction though. In practice there is
-    // mostly one pattern and hasPattern() can order patterns based on an
-    // internal cost heuristic.
+    // mostly one pattern, and getMachineCombinerPatterns() can order patterns
+    // based on an internal cost heuristic.
 
-    if (TII->hasPattern(MI, Pattern)) {
-      for (auto P : Pattern) {
+    if (TII->getMachineCombinerPatterns(MI, Patterns)) {
+      for (auto P : Patterns) {
         SmallVector<MachineInstr *, 16> InsInstrs;
         SmallVector<MachineInstr *, 16> DelInstrs;
         DenseMap<unsigned, unsigned> InstrIdxForVirtReg;
@@ -373,8 +373,7 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
                                       InstrIdxForVirtReg) &&
              preservesResourceLen(MBB, BlockTrace, InsInstrs, DelInstrs))) {
           for (auto *InstrPtr : InsInstrs)
-            MBB->insert((MachineBasicBlock::iterator) & MI,
-                        (MachineInstr *)InstrPtr);
+            MBB->insert((MachineBasicBlock::iterator) &MI, InstrPtr);
           for (auto *InstrPtr : DelInstrs)
             InstrPtr->eraseFromParentAndMarkDBGValuesForRemoval();
 
@@ -383,15 +382,14 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
 
           Traces->invalidate(MBB);
           Traces->verifyAnalysis();
-          // Eagerly stop after the first pattern fired
+          // Eagerly stop after the first pattern fires.
           break;
         } else {
           // Cleanup instructions of the alternative code sequence. There is no
           // use for them.
-          for (auto *InstrPtr : InsInstrs) {
-            MachineFunction *MF = MBB->getParent();
-            MF->DeleteMachineInstr((MachineInstr *)InstrPtr);
-          }
+          MachineFunction *MF = MBB->getParent();
+          for (auto *InstrPtr : InsInstrs)
+            MF->DeleteMachineInstr(InstrPtr);
         }
         InstrIdxForVirtReg.clear();
       }

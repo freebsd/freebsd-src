@@ -26,17 +26,17 @@ using namespace llvm::PatternMatch;
 
 #define DEBUG_TYPE "loop-utils"
 
-bool ReductionDescriptor::areAllUsesIn(Instruction *I,
-                                       SmallPtrSetImpl<Instruction *> &Set) {
+bool RecurrenceDescriptor::areAllUsesIn(Instruction *I,
+                                        SmallPtrSetImpl<Instruction *> &Set) {
   for (User::op_iterator Use = I->op_begin(), E = I->op_end(); Use != E; ++Use)
     if (!Set.count(dyn_cast<Instruction>(*Use)))
       return false;
   return true;
 }
 
-bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
-                                          Loop *TheLoop, bool HasFunNoNaNAttr,
-                                          ReductionDescriptor &RedDes) {
+bool RecurrenceDescriptor::AddReductionVar(PHINode *Phi, RecurrenceKind Kind,
+                                           Loop *TheLoop, bool HasFunNoNaNAttr,
+                                           RecurrenceDescriptor &RedDes) {
   if (Phi->getNumIncomingValues() != 2)
     return false;
 
@@ -66,7 +66,7 @@ bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
   // the number of instruction we saw from the recognized min/max pattern,
   //  to make sure we only see exactly the two instructions.
   unsigned NumCmpSelectPatternInst = 0;
-  ReductionInstDesc ReduxDesc(false, nullptr);
+  InstDesc ReduxDesc(false, nullptr);
 
   SmallPtrSet<Instruction *, 8> VisitedInsts;
   SmallVector<Instruction *, 8> Worklist;
@@ -111,8 +111,8 @@ bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
       return false;
 
     // Any reduction instruction must be of one of the allowed kinds.
-    ReduxDesc = isReductionInstr(Cur, Kind, ReduxDesc, HasFunNoNaNAttr);
-    if (!ReduxDesc.isReduction())
+    ReduxDesc = isRecurrenceInstr(Cur, Kind, ReduxDesc, HasFunNoNaNAttr);
+    if (!ReduxDesc.isRecurrence())
       return false;
 
     // A reduction operation must only have one use of the reduction value.
@@ -164,7 +164,7 @@ bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
       // Process instructions only once (termination). Each reduction cycle
       // value must only be used once, except by phi nodes and min/max
       // reductions which are represented as a cmp followed by a select.
-      ReductionInstDesc IgnoredVal(false, nullptr);
+      InstDesc IgnoredVal(false, nullptr);
       if (VisitedInsts.insert(UI).second) {
         if (isa<PHINode>(UI))
           PHIs.push_back(UI);
@@ -173,7 +173,7 @@ bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
       } else if (!isa<PHINode>(UI) &&
                  ((!isa<FCmpInst>(UI) && !isa<ICmpInst>(UI) &&
                    !isa<SelectInst>(UI)) ||
-                  !isMinMaxSelectCmpPattern(UI, IgnoredVal).isReduction()))
+                  !isMinMaxSelectCmpPattern(UI, IgnoredVal).isRecurrence()))
         return false;
 
       // Remember that we completed the cycle.
@@ -197,11 +197,11 @@ bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
   // only have a single instruction with out-of-loop users.
 
   // The ExitInstruction(Instruction which is allowed to have out-of-loop users)
-  // is saved as part of the ReductionDescriptor.
+  // is saved as part of the RecurrenceDescriptor.
 
   // Save the description of this reduction variable.
-  ReductionDescriptor RD(RdxStart, ExitInstruction, Kind,
-                         ReduxDesc.getMinMaxKind());
+  RecurrenceDescriptor RD(RdxStart, ExitInstruction, Kind,
+                          ReduxDesc.getMinMaxKind());
 
   RedDes = RD;
 
@@ -210,9 +210,8 @@ bool ReductionDescriptor::AddReductionVar(PHINode *Phi, ReductionKind Kind,
 
 /// Returns true if the instruction is a Select(ICmp(X, Y), X, Y) instruction
 /// pattern corresponding to a min(X, Y) or max(X, Y).
-ReductionInstDesc
-ReductionDescriptor::isMinMaxSelectCmpPattern(Instruction *I,
-                                              ReductionInstDesc &Prev) {
+RecurrenceDescriptor::InstDesc
+RecurrenceDescriptor::isMinMaxSelectCmpPattern(Instruction *I, InstDesc &Prev) {
 
   assert((isa<ICmpInst>(I) || isa<FCmpInst>(I) || isa<SelectInst>(I)) &&
          "Expect a select instruction");
@@ -223,84 +222,83 @@ ReductionDescriptor::isMinMaxSelectCmpPattern(Instruction *I,
   // select.
   if ((Cmp = dyn_cast<ICmpInst>(I)) || (Cmp = dyn_cast<FCmpInst>(I))) {
     if (!Cmp->hasOneUse() || !(Select = dyn_cast<SelectInst>(*I->user_begin())))
-      return ReductionInstDesc(false, I);
-    return ReductionInstDesc(Select, Prev.getMinMaxKind());
+      return InstDesc(false, I);
+    return InstDesc(Select, Prev.getMinMaxKind());
   }
 
   // Only handle single use cases for now.
   if (!(Select = dyn_cast<SelectInst>(I)))
-    return ReductionInstDesc(false, I);
+    return InstDesc(false, I);
   if (!(Cmp = dyn_cast<ICmpInst>(I->getOperand(0))) &&
       !(Cmp = dyn_cast<FCmpInst>(I->getOperand(0))))
-    return ReductionInstDesc(false, I);
+    return InstDesc(false, I);
   if (!Cmp->hasOneUse())
-    return ReductionInstDesc(false, I);
+    return InstDesc(false, I);
 
   Value *CmpLeft;
   Value *CmpRight;
 
   // Look for a min/max pattern.
   if (m_UMin(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_UIntMin);
+    return InstDesc(Select, MRK_UIntMin);
   else if (m_UMax(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_UIntMax);
+    return InstDesc(Select, MRK_UIntMax);
   else if (m_SMax(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_SIntMax);
+    return InstDesc(Select, MRK_SIntMax);
   else if (m_SMin(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_SIntMin);
+    return InstDesc(Select, MRK_SIntMin);
   else if (m_OrdFMin(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_FloatMin);
+    return InstDesc(Select, MRK_FloatMin);
   else if (m_OrdFMax(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_FloatMax);
+    return InstDesc(Select, MRK_FloatMax);
   else if (m_UnordFMin(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_FloatMin);
+    return InstDesc(Select, MRK_FloatMin);
   else if (m_UnordFMax(m_Value(CmpLeft), m_Value(CmpRight)).match(Select))
-    return ReductionInstDesc(Select, ReductionInstDesc::MRK_FloatMax);
+    return InstDesc(Select, MRK_FloatMax);
 
-  return ReductionInstDesc(false, I);
+  return InstDesc(false, I);
 }
 
-ReductionInstDesc ReductionDescriptor::isReductionInstr(Instruction *I,
-                                                        ReductionKind Kind,
-                                                        ReductionInstDesc &Prev,
-                                                        bool HasFunNoNaNAttr) {
+RecurrenceDescriptor::InstDesc
+RecurrenceDescriptor::isRecurrenceInstr(Instruction *I, RecurrenceKind Kind,
+                                        InstDesc &Prev, bool HasFunNoNaNAttr) {
   bool FP = I->getType()->isFloatingPointTy();
   bool FastMath = FP && I->hasUnsafeAlgebra();
   switch (I->getOpcode()) {
   default:
-    return ReductionInstDesc(false, I);
+    return InstDesc(false, I);
   case Instruction::PHI:
     if (FP &&
         (Kind != RK_FloatMult && Kind != RK_FloatAdd && Kind != RK_FloatMinMax))
-      return ReductionInstDesc(false, I);
-    return ReductionInstDesc(I, Prev.getMinMaxKind());
+      return InstDesc(false, I);
+    return InstDesc(I, Prev.getMinMaxKind());
   case Instruction::Sub:
   case Instruction::Add:
-    return ReductionInstDesc(Kind == RK_IntegerAdd, I);
+    return InstDesc(Kind == RK_IntegerAdd, I);
   case Instruction::Mul:
-    return ReductionInstDesc(Kind == RK_IntegerMult, I);
+    return InstDesc(Kind == RK_IntegerMult, I);
   case Instruction::And:
-    return ReductionInstDesc(Kind == RK_IntegerAnd, I);
+    return InstDesc(Kind == RK_IntegerAnd, I);
   case Instruction::Or:
-    return ReductionInstDesc(Kind == RK_IntegerOr, I);
+    return InstDesc(Kind == RK_IntegerOr, I);
   case Instruction::Xor:
-    return ReductionInstDesc(Kind == RK_IntegerXor, I);
+    return InstDesc(Kind == RK_IntegerXor, I);
   case Instruction::FMul:
-    return ReductionInstDesc(Kind == RK_FloatMult && FastMath, I);
+    return InstDesc(Kind == RK_FloatMult && FastMath, I);
   case Instruction::FSub:
   case Instruction::FAdd:
-    return ReductionInstDesc(Kind == RK_FloatAdd && FastMath, I);
+    return InstDesc(Kind == RK_FloatAdd && FastMath, I);
   case Instruction::FCmp:
   case Instruction::ICmp:
   case Instruction::Select:
     if (Kind != RK_IntegerMinMax &&
         (!HasFunNoNaNAttr || Kind != RK_FloatMinMax))
-      return ReductionInstDesc(false, I);
+      return InstDesc(false, I);
     return isMinMaxSelectCmpPattern(I, Prev);
   }
 }
 
-bool ReductionDescriptor::hasMultipleUsesOf(
+bool RecurrenceDescriptor::hasMultipleUsesOf(
     Instruction *I, SmallPtrSetImpl<Instruction *> &Insts) {
   unsigned NumUses = 0;
   for (User::op_iterator Use = I->op_begin(), E = I->op_end(); Use != E;
@@ -313,8 +311,8 @@ bool ReductionDescriptor::hasMultipleUsesOf(
 
   return false;
 }
-bool ReductionDescriptor::isReductionPHI(PHINode *Phi, Loop *TheLoop,
-                                         ReductionDescriptor &RedDes) {
+bool RecurrenceDescriptor::isReductionPHI(PHINode *Phi, Loop *TheLoop,
+                                          RecurrenceDescriptor &RedDes) {
 
   bool HasFunNoNaNAttr = false;
   BasicBlock *Header = TheLoop->getHeader();
@@ -366,7 +364,8 @@ bool ReductionDescriptor::isReductionPHI(PHINode *Phi, Loop *TheLoop,
 
 /// This function returns the identity element (or neutral element) for
 /// the operation K.
-Constant *ReductionDescriptor::getReductionIdentity(ReductionKind K, Type *Tp) {
+Constant *RecurrenceDescriptor::getRecurrenceIdentity(RecurrenceKind K,
+                                                      Type *Tp) {
   switch (K) {
   case RK_IntegerXor:
   case RK_IntegerAdd:
@@ -386,12 +385,12 @@ Constant *ReductionDescriptor::getReductionIdentity(ReductionKind K, Type *Tp) {
     // Adding zero to a number does not change it.
     return ConstantFP::get(Tp, 0.0L);
   default:
-    llvm_unreachable("Unknown reduction kind");
+    llvm_unreachable("Unknown recurrence kind");
   }
 }
 
-/// This function translates the reduction kind to an LLVM binary operator.
-unsigned ReductionDescriptor::getReductionBinOp(ReductionKind Kind) {
+/// This function translates the recurrence kind to an LLVM binary operator.
+unsigned RecurrenceDescriptor::getRecurrenceBinOp(RecurrenceKind Kind) {
   switch (Kind) {
   case RK_IntegerAdd:
     return Instruction::Add;
@@ -412,41 +411,39 @@ unsigned ReductionDescriptor::getReductionBinOp(ReductionKind Kind) {
   case RK_FloatMinMax:
     return Instruction::FCmp;
   default:
-    llvm_unreachable("Unknown reduction operation");
+    llvm_unreachable("Unknown recurrence operation");
   }
 }
 
-Value *
-ReductionDescriptor::createMinMaxOp(IRBuilder<> &Builder,
-                                    ReductionInstDesc::MinMaxReductionKind RK,
-                                    Value *Left, Value *Right) {
+Value *RecurrenceDescriptor::createMinMaxOp(IRBuilder<> &Builder,
+                                            MinMaxRecurrenceKind RK,
+                                            Value *Left, Value *Right) {
   CmpInst::Predicate P = CmpInst::ICMP_NE;
   switch (RK) {
   default:
-    llvm_unreachable("Unknown min/max reduction kind");
-  case ReductionInstDesc::MRK_UIntMin:
+    llvm_unreachable("Unknown min/max recurrence kind");
+  case MRK_UIntMin:
     P = CmpInst::ICMP_ULT;
     break;
-  case ReductionInstDesc::MRK_UIntMax:
+  case MRK_UIntMax:
     P = CmpInst::ICMP_UGT;
     break;
-  case ReductionInstDesc::MRK_SIntMin:
+  case MRK_SIntMin:
     P = CmpInst::ICMP_SLT;
     break;
-  case ReductionInstDesc::MRK_SIntMax:
+  case MRK_SIntMax:
     P = CmpInst::ICMP_SGT;
     break;
-  case ReductionInstDesc::MRK_FloatMin:
+  case MRK_FloatMin:
     P = CmpInst::FCMP_OLT;
     break;
-  case ReductionInstDesc::MRK_FloatMax:
+  case MRK_FloatMax:
     P = CmpInst::FCMP_OGT;
     break;
   }
 
   Value *Cmp;
-  if (RK == ReductionInstDesc::MRK_FloatMin ||
-      RK == ReductionInstDesc::MRK_FloatMax)
+  if (RK == MRK_FloatMin || RK == MRK_FloatMax)
     Cmp = Builder.CreateFCmp(P, Left, Right, "rdx.minmax.cmp");
   else
     Cmp = Builder.CreateICmp(P, Left, Right, "rdx.minmax.cmp");

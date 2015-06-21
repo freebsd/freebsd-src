@@ -2633,7 +2633,8 @@ bool RegisterCoalescer::joinVirtRegs(CoalescerPair &CP) {
       // "overflow bit" 32. As a workaround we drop all subregister ranges
       // which means we loose some precision but are back to a well defined
       // state.
-      assert((CP.getNewRC()->getLaneMask() & 0x80000000u)
+      assert(TargetRegisterInfo::isImpreciseLaneMask(
+             CP.getNewRC()->getLaneMask())
              && "SubRange merge should only fail when merging into bit 32.");
       DEBUG(dbgs() << "\tSubrange join aborted!\n");
       LHS.clearSubRanges();
@@ -2696,7 +2697,7 @@ struct MBBPriorityInfo {
   MBBPriorityInfo(MachineBasicBlock *mbb, unsigned depth, bool issplit)
     : MBB(mbb), Depth(depth), IsSplit(issplit) {}
 };
-}
+} // namespace
 
 /// C-style comparator that sorts first based on the loop depth of the basic
 /// block (the unsigned), and then on the MBB number.

@@ -255,7 +255,7 @@ unsigned AArch64InstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 
 void AArch64InstrInfo::instantiateCondBranch(
     MachineBasicBlock &MBB, DebugLoc DL, MachineBasicBlock *TBB,
-    const SmallVectorImpl<MachineOperand> &Cond) const {
+    ArrayRef<MachineOperand> Cond) const {
   if (Cond[0].getImm() != -1) {
     // Regular Bcc
     BuildMI(&MBB, DL, get(AArch64::Bcc)).addImm(Cond[0].getImm()).addMBB(TBB);
@@ -272,7 +272,7 @@ void AArch64InstrInfo::instantiateCondBranch(
 
 unsigned AArch64InstrInfo::InsertBranch(
     MachineBasicBlock &MBB, MachineBasicBlock *TBB, MachineBasicBlock *FBB,
-    const SmallVectorImpl<MachineOperand> &Cond, DebugLoc DL) const {
+    ArrayRef<MachineOperand> Cond, DebugLoc DL) const {
   // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
 
@@ -369,7 +369,7 @@ static unsigned canFoldIntoCSel(const MachineRegisterInfo &MRI, unsigned VReg,
 }
 
 bool AArch64InstrInfo::canInsertSelect(
-    const MachineBasicBlock &MBB, const SmallVectorImpl<MachineOperand> &Cond,
+    const MachineBasicBlock &MBB, ArrayRef<MachineOperand> Cond,
     unsigned TrueReg, unsigned FalseReg, int &CondCycles, int &TrueCycles,
     int &FalseCycles) const {
   // Check register classes.
@@ -412,7 +412,7 @@ bool AArch64InstrInfo::canInsertSelect(
 void AArch64InstrInfo::insertSelect(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator I, DebugLoc DL,
                                     unsigned DstReg,
-                                    const SmallVectorImpl<MachineOperand> &Cond,
+                                    ArrayRef<MachineOperand> Cond,
                                     unsigned TrueReg, unsigned FalseReg) const {
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
 
@@ -629,8 +629,8 @@ AArch64InstrInfo::areMemAccessesTriviallyDisjoint(MachineInstr *MIa,
   // base registers are identical, and the offset of a lower memory access +
   // the width doesn't overlap the offset of a higher memory access,
   // then the memory accesses are different.
-  if (getLdStBaseRegImmOfsWidth(MIa, BaseRegA, OffsetA, WidthA, TRI) &&
-      getLdStBaseRegImmOfsWidth(MIb, BaseRegB, OffsetB, WidthB, TRI)) {
+  if (getMemOpBaseRegImmOfsWidth(MIa, BaseRegA, OffsetA, WidthA, TRI) &&
+      getMemOpBaseRegImmOfsWidth(MIb, BaseRegB, OffsetB, WidthB, TRI)) {
     if (BaseRegA == BaseRegB) {
       int LowOffset = OffsetA < OffsetB ? OffsetA : OffsetB;
       int HighOffset = OffsetA < OffsetB ? OffsetB : OffsetA;
@@ -1310,9 +1310,9 @@ void AArch64InstrInfo::suppressLdStPair(MachineInstr *MI) const {
 }
 
 bool
-AArch64InstrInfo::getLdStBaseRegImmOfs(MachineInstr *LdSt, unsigned &BaseReg,
-                                       unsigned &Offset,
-                                       const TargetRegisterInfo *TRI) const {
+AArch64InstrInfo::getMemOpBaseRegImmOfs(MachineInstr *LdSt, unsigned &BaseReg,
+                                        unsigned &Offset,
+                                        const TargetRegisterInfo *TRI) const {
   switch (LdSt->getOpcode()) {
   default:
     return false;
@@ -1336,7 +1336,7 @@ AArch64InstrInfo::getLdStBaseRegImmOfs(MachineInstr *LdSt, unsigned &BaseReg,
   };
 }
 
-bool AArch64InstrInfo::getLdStBaseRegImmOfsWidth(
+bool AArch64InstrInfo::getMemOpBaseRegImmOfsWidth(
     MachineInstr *LdSt, unsigned &BaseReg, int &Offset, int &Width,
     const TargetRegisterInfo *TRI) const {
   // Handle only loads/stores with base register followed by immediate offset.
@@ -1434,7 +1434,7 @@ bool AArch64InstrInfo::getLdStBaseRegImmOfsWidth(
 
 /// Detect opportunities for ldp/stp formation.
 ///
-/// Only called for LdSt for which getLdStBaseRegImmOfs returns true.
+/// Only called for LdSt for which getMemOpBaseRegImmOfs returns true.
 bool AArch64InstrInfo::shouldClusterLoads(MachineInstr *FirstLdSt,
                                           MachineInstr *SecondLdSt,
                                           unsigned NumLoads) const {
@@ -1443,7 +1443,7 @@ bool AArch64InstrInfo::shouldClusterLoads(MachineInstr *FirstLdSt,
     return false;
   if (FirstLdSt->getOpcode() != SecondLdSt->getOpcode())
     return false;
-  // getLdStBaseRegImmOfs guarantees that oper 2 isImm.
+  // getMemOpBaseRegImmOfs guarantees that oper 2 isImm.
   unsigned Ofs1 = FirstLdSt->getOperand(2).getImm();
   // Allow 6 bits of positive range.
   if (Ofs1 > 64)
@@ -2459,15 +2459,15 @@ static bool canCombineWithMUL(MachineBasicBlock &MBB, MachineOperand &MO,
   return true;
 }
 
-/// hasPattern - return true when there is potentially a faster code sequence
+/// Return true when there is potentially a faster code sequence
 /// for an instruction chain ending in \p Root. All potential patterns are
 /// listed
 /// in the \p Pattern vector. Pattern should be sorted in priority order since
 /// the pattern evaluator stops checking as soon as it finds a faster sequence.
 
-bool AArch64InstrInfo::hasPattern(
+bool AArch64InstrInfo::getMachineCombinerPatterns(
     MachineInstr &Root,
-    SmallVectorImpl<MachineCombinerPattern::MC_PATTERN> &Pattern) const {
+    SmallVectorImpl<MachineCombinerPattern::MC_PATTERN> &Patterns) const {
   unsigned Opc = Root.getOpcode();
   MachineBasicBlock &MBB = *Root.getParent();
   bool Found = false;
@@ -2495,76 +2495,76 @@ bool AArch64InstrInfo::hasPattern(
            "ADDWrr does not have register operands");
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDWrrr,
                           AArch64::WZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULADDW_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULADDW_OP1);
       Found = true;
     }
     if (canCombineWithMUL(MBB, Root.getOperand(2), AArch64::MADDWrrr,
                           AArch64::WZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULADDW_OP2);
+      Patterns.push_back(MachineCombinerPattern::MC_MULADDW_OP2);
       Found = true;
     }
     break;
   case AArch64::ADDXrr:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDXrrr,
                           AArch64::XZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULADDX_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULADDX_OP1);
       Found = true;
     }
     if (canCombineWithMUL(MBB, Root.getOperand(2), AArch64::MADDXrrr,
                           AArch64::XZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULADDX_OP2);
+      Patterns.push_back(MachineCombinerPattern::MC_MULADDX_OP2);
       Found = true;
     }
     break;
   case AArch64::SUBWrr:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDWrrr,
                           AArch64::WZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULSUBW_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULSUBW_OP1);
       Found = true;
     }
     if (canCombineWithMUL(MBB, Root.getOperand(2), AArch64::MADDWrrr,
                           AArch64::WZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULSUBW_OP2);
+      Patterns.push_back(MachineCombinerPattern::MC_MULSUBW_OP2);
       Found = true;
     }
     break;
   case AArch64::SUBXrr:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDXrrr,
                           AArch64::XZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULSUBX_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULSUBX_OP1);
       Found = true;
     }
     if (canCombineWithMUL(MBB, Root.getOperand(2), AArch64::MADDXrrr,
                           AArch64::XZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULSUBX_OP2);
+      Patterns.push_back(MachineCombinerPattern::MC_MULSUBX_OP2);
       Found = true;
     }
     break;
   case AArch64::ADDWri:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDWrrr,
                           AArch64::WZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULADDWI_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULADDWI_OP1);
       Found = true;
     }
     break;
   case AArch64::ADDXri:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDXrrr,
                           AArch64::XZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULADDXI_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULADDXI_OP1);
       Found = true;
     }
     break;
   case AArch64::SUBWri:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDWrrr,
                           AArch64::WZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULSUBWI_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULSUBWI_OP1);
       Found = true;
     }
     break;
   case AArch64::SUBXri:
     if (canCombineWithMUL(MBB, Root.getOperand(1), AArch64::MADDXrrr,
                           AArch64::XZR)) {
-      Pattern.push_back(MachineCombinerPattern::MC_MULSUBXI_OP1);
+      Patterns.push_back(MachineCombinerPattern::MC_MULSUBXI_OP1);
       Found = true;
     }
     break;
@@ -2667,7 +2667,7 @@ static MachineInstr *genMaddR(MachineFunction &MF, MachineRegisterInfo &MRI,
   return MUL;
 }
 
-/// genAlternativeCodeSequence - when hasPattern() finds a pattern
+/// When getMachineCombinerPatterns() finds potential patterns,
 /// this function generates the instructions that could replace the
 /// original code sequence
 void AArch64InstrInfo::genAlternativeCodeSequence(

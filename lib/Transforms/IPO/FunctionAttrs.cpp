@@ -132,7 +132,7 @@ namespace {
     AliasAnalysis *AA;
     TargetLibraryInfo *TLI;
   };
-}
+} // namespace
 
 char FunctionAttrs::ID = 0;
 INITIALIZE_PASS_BEGIN(FunctionAttrs, "functionattrs",
@@ -208,8 +208,7 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
                 AAMDNodes AAInfo;
                 I->getAAMetadata(AAInfo);
 
-                AliasAnalysis::Location Loc(Arg,
-                                            AliasAnalysis::UnknownSize, AAInfo);
+                MemoryLocation Loc(Arg, MemoryLocation::UnknownSize, AAInfo);
                 if (!AA->pointsToConstantMemory(Loc, /*OrLocal=*/true)) {
                   if (MRB & AliasAnalysis::Mod)
                     // Writes non-local memory.  Give up.
@@ -232,20 +231,20 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
       } else if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
         // Ignore non-volatile loads from local memory. (Atomic is okay here.)
         if (!LI->isVolatile()) {
-          AliasAnalysis::Location Loc = MemoryLocation::get(LI);
+          MemoryLocation Loc = MemoryLocation::get(LI);
           if (AA->pointsToConstantMemory(Loc, /*OrLocal=*/true))
             continue;
         }
       } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
         // Ignore non-volatile stores to local memory. (Atomic is okay here.)
         if (!SI->isVolatile()) {
-          AliasAnalysis::Location Loc = MemoryLocation::get(SI);
+          MemoryLocation Loc = MemoryLocation::get(SI);
           if (AA->pointsToConstantMemory(Loc, /*OrLocal=*/true))
             continue;
         }
       } else if (VAArgInst *VI = dyn_cast<VAArgInst>(I)) {
         // Ignore vaargs on local memory.
-        AliasAnalysis::Location Loc = MemoryLocation::get(VI);
+        MemoryLocation Loc = MemoryLocation::get(VI);
         if (AA->pointsToConstantMemory(Loc, /*OrLocal=*/true))
           continue;
       }
@@ -380,7 +379,7 @@ namespace {
 
     const SmallPtrSet<Function*, 8> &SCCNodes;
   };
-}
+} // namespace
 
 namespace llvm {
   template<> struct GraphTraits<ArgumentGraphNode*> {
@@ -407,7 +406,7 @@ namespace llvm {
       return AG->end();
     }
   };
-}
+} // namespace llvm
 
 // Returns Attribute::None, Attribute::ReadOnly or Attribute::ReadNone.
 static Attribute::AttrKind

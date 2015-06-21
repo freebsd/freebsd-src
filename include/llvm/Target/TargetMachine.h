@@ -15,6 +15,7 @@
 #define LLVM_TARGET_TARGETMACHINE_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
@@ -27,6 +28,7 @@ namespace llvm {
 class InstrItineraryData;
 class GlobalValue;
 class Mangler;
+class MachineFunctionInitializer;
 class MCAsmInfo;
 class MCCodeGenInfo;
 class MCContext;
@@ -68,7 +70,7 @@ class TargetMachine {
   void operator=(const TargetMachine &) = delete;
 protected: // Can only create subclasses.
   TargetMachine(const Target &T, StringRef DataLayoutString,
-                StringRef TargetTriple, StringRef CPU, StringRef FS,
+                const Triple &TargetTriple, StringRef CPU, StringRef FS,
                 const TargetOptions &Options);
 
   /// The Target that this machine was created for.
@@ -79,7 +81,7 @@ protected: // Can only create subclasses.
 
   /// Triple string, CPU name, and target feature strings the TargetMachine
   /// instance is created with.
-  std::string TargetTriple;
+  Triple TargetTriple;
   std::string TargetCPU;
   std::string TargetFS;
 
@@ -103,7 +105,7 @@ public:
 
   const Target &getTarget() const { return TheTarget; }
 
-  StringRef getTargetTriple() const { return TargetTriple; }
+  const Triple &getTargetTriple() const { return TargetTriple; }
   StringRef getTargetCPU() const { return TargetCPU; }
   StringRef getTargetFeatureString() const { return TargetFS; }
 
@@ -208,11 +210,11 @@ public:
   /// emitted.  Typically this will involve several steps of code generation.
   /// This method should return true if emission of this file type is not
   /// supported, or false on success.
-  virtual bool addPassesToEmitFile(PassManagerBase &, raw_pwrite_stream &,
-                                   CodeGenFileType,
-                                   bool /*DisableVerify*/ = true,
-                                   AnalysisID /*StartAfter*/ = nullptr,
-                                   AnalysisID /*StopAfter*/ = nullptr) {
+  virtual bool addPassesToEmitFile(
+      PassManagerBase &, raw_pwrite_stream &, CodeGenFileType,
+      bool /*DisableVerify*/ = true, AnalysisID /*StartAfter*/ = nullptr,
+      AnalysisID /*StopAfter*/ = nullptr,
+      MachineFunctionInitializer * /*MFInitializer*/ = nullptr) {
     return true;
   }
 
@@ -238,7 +240,7 @@ public:
 class LLVMTargetMachine : public TargetMachine {
 protected: // Can only create subclasses.
   LLVMTargetMachine(const Target &T, StringRef DataLayoutString,
-                    StringRef TargetTriple, StringRef CPU, StringRef FS,
+                    const Triple &TargetTriple, StringRef CPU, StringRef FS,
                     TargetOptions Options, Reloc::Model RM, CodeModel::Model CM,
                     CodeGenOpt::Level OL);
 
@@ -256,10 +258,11 @@ public:
 
   /// Add passes to the specified pass manager to get the specified file
   /// emitted.  Typically this will involve several steps of code generation.
-  bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
-                           CodeGenFileType FileType, bool DisableVerify = true,
-                           AnalysisID StartAfter = nullptr,
-                           AnalysisID StopAfter = nullptr) override;
+  bool addPassesToEmitFile(
+      PassManagerBase &PM, raw_pwrite_stream &Out, CodeGenFileType FileType,
+      bool DisableVerify = true, AnalysisID StartAfter = nullptr,
+      AnalysisID StopAfter = nullptr,
+      MachineFunctionInitializer *MFInitializer = nullptr) override;
 
   /// Add passes to the specified pass manager to get machine code emitted with
   /// the MCJIT. This method returns true if machine code is not supported. It
@@ -270,6 +273,6 @@ public:
                          bool DisableVerify = true) override;
 };
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

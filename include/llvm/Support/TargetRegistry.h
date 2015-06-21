@@ -69,7 +69,7 @@ MCStreamer *createMachOStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                 bool RelaxAll, bool DWARFMustBeAtTheEnd,
                                 bool LabelSections = false);
 
-MCRelocationInfo *createMCRelocationInfo(StringRef TT, MCContext &Ctx);
+MCRelocationInfo *createMCRelocationInfo(const Triple &TT, MCContext &Ctx);
 
 MCSymbolizer *createMCSymbolizer(StringRef TT, LLVMOpInfoCallback GetOpInfo,
                                  LLVMSymbolLookupCallback SymbolLookUp,
@@ -98,7 +98,7 @@ public:
   typedef MCInstrInfo *(*MCInstrInfoCtorFnTy)(void);
   typedef MCInstrAnalysis *(*MCInstrAnalysisCtorFnTy)(const MCInstrInfo *Info);
   typedef MCRegisterInfo *(*MCRegInfoCtorFnTy)(StringRef TT);
-  typedef MCSubtargetInfo *(*MCSubtargetInfoCtorFnTy)(StringRef TT,
+  typedef MCSubtargetInfo *(*MCSubtargetInfoCtorFnTy)(const Triple &TT,
                                                       StringRef CPU,
                                                       StringRef Features);
   typedef TargetMachine *(*TargetMachineCtorTy)(
@@ -112,7 +112,7 @@ public:
       TargetMachine &TM, std::unique_ptr<MCStreamer> &&Streamer);
   typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T,
                                               const MCRegisterInfo &MRI,
-                                              StringRef TT, StringRef CPU);
+                                              const Triple &TT, StringRef CPU);
   typedef MCTargetAsmParser *(*MCAsmParserCtorTy)(
       MCSubtargetInfo &STI, MCAsmParser &P, const MCInstrInfo &MII,
       const MCTargetOptions &Options);
@@ -147,7 +147,7 @@ public:
       bool IsVerboseAsm);
   typedef MCTargetStreamer *(*ObjectTargetStreamerCtorTy)(
       MCStreamer &S, const MCSubtargetInfo &STI);
-  typedef MCRelocationInfo *(*MCRelocationInfoCtorTy)(StringRef TT,
+  typedef MCRelocationInfo *(*MCRelocationInfoCtorTy)(const Triple &TT,
                                                       MCContext &Ctx);
   typedef MCSymbolizer *(*MCSymbolizerCtorTy)(
       StringRef TT, LLVMOpInfoCallback GetOpInfo,
@@ -334,18 +334,18 @@ public:
 
   /// createMCSubtargetInfo - Create a MCSubtargetInfo implementation.
   ///
-  /// \param Triple This argument is used to determine the target machine
+  /// \param TheTriple This argument is used to determine the target machine
   /// feature set; it should always be provided. Generally this should be
   /// either the target triple from the module, or the target triple of the
   /// host if that does not exist.
   /// \param CPU This specifies the name of the target CPU.
   /// \param Features This specifies the string representation of the
   /// additional target features.
-  MCSubtargetInfo *createMCSubtargetInfo(StringRef Triple, StringRef CPU,
+  MCSubtargetInfo *createMCSubtargetInfo(StringRef TheTriple, StringRef CPU,
                                          StringRef Features) const {
     if (!MCSubtargetInfoCtorFn)
       return nullptr;
-    return MCSubtargetInfoCtorFn(Triple, CPU, Features);
+    return MCSubtargetInfoCtorFn(Triple(TheTriple), CPU, Features);
   }
 
   /// createTargetMachine - Create a target specific machine implementation
@@ -369,12 +369,12 @@ public:
 
   /// createMCAsmBackend - Create a target specific assembly parser.
   ///
-  /// \param Triple The target triple string.
-  MCAsmBackend *createMCAsmBackend(const MCRegisterInfo &MRI, StringRef Triple,
-                                   StringRef CPU) const {
+  /// \param TheTriple The target triple string.
+  MCAsmBackend *createMCAsmBackend(const MCRegisterInfo &MRI,
+                                   StringRef TheTriple, StringRef CPU) const {
     if (!MCAsmBackendCtorFn)
       return nullptr;
-    return MCAsmBackendCtorFn(*this, MRI, Triple, CPU);
+    return MCAsmBackendCtorFn(*this, MRI, Triple(TheTriple), CPU);
   }
 
   /// createMCAsmParser - Create a target specific assembly parser.
@@ -507,7 +507,7 @@ public:
     MCRelocationInfoCtorTy Fn = MCRelocationInfoCtorFn
                                     ? MCRelocationInfoCtorFn
                                     : llvm::createMCRelocationInfo;
-    return Fn(TT, Ctx);
+    return Fn(Triple(TT), Ctx);
   }
 
   /// createMCSymbolizer - Create a target specific MCSymbolizer.
@@ -1056,7 +1056,7 @@ template <class MCSubtargetInfoImpl> struct RegisterMCSubtargetInfo {
   }
 
 private:
-  static MCSubtargetInfo *Allocator(StringRef /*TT*/, StringRef /*CPU*/,
+  static MCSubtargetInfo *Allocator(const Triple & /*TT*/, StringRef /*CPU*/,
                                     StringRef /*FS*/) {
     return new MCSubtargetInfoImpl();
   }
@@ -1094,7 +1094,7 @@ private:
                                   StringRef FS, const TargetOptions &Options,
                                   Reloc::Model RM, CodeModel::Model CM,
                                   CodeGenOpt::Level OL) {
-    return new TargetMachineImpl(T, TT, CPU, FS, Options, RM, CM, OL);
+    return new TargetMachineImpl(T, Triple(TT), CPU, FS, Options, RM, CM, OL);
   }
 };
 
@@ -1112,8 +1112,8 @@ template <class MCAsmBackendImpl> struct RegisterMCAsmBackend {
 
 private:
   static MCAsmBackend *Allocator(const Target &T, const MCRegisterInfo &MRI,
-                                 StringRef Triple, StringRef CPU) {
-    return new MCAsmBackendImpl(T, MRI, Triple, CPU);
+                                 const Triple &TheTriple, StringRef CPU) {
+    return new MCAsmBackendImpl(T, MRI, TheTriple, CPU);
   }
 };
 
@@ -1178,6 +1178,6 @@ private:
     return new MCCodeEmitterImpl();
   }
 };
-}
+} // namespace llvm
 
 #endif

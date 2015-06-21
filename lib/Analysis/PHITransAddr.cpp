@@ -244,13 +244,7 @@ Value *PHITransAddr::PHITranslateSubExpr(Value *V, BasicBlock *CurBB,
             GEPI->getNumOperands() == GEPOps.size() &&
             GEPI->getParent()->getParent() == CurBB->getParent() &&
             (!DT || DT->dominates(GEPI->getParent(), PredBB))) {
-          bool Mismatch = false;
-          for (unsigned i = 0, e = GEPOps.size(); i != e; ++i)
-            if (GEPI->getOperand(i) != GEPOps[i]) {
-              Mismatch = true;
-              break;
-            }
-          if (!Mismatch)
+          if (std::equal(GEPOps.begin(), GEPOps.end(), GEPI->op_begin()))
             return GEPI;
         }
     }
@@ -392,10 +386,10 @@ InsertPHITranslatedSubExpr(Value *InVal, BasicBlock *CurBB,
     if (!OpVal) return nullptr;
 
     // Otherwise insert a cast at the end of PredBB.
-    CastInst *New = CastInst::Create(Cast->getOpcode(),
-                                     OpVal, InVal->getType(),
-                                     InVal->getName()+".phi.trans.insert",
+    CastInst *New = CastInst::Create(Cast->getOpcode(), OpVal, InVal->getType(),
+                                     InVal->getName() + ".phi.trans.insert",
                                      PredBB->getTerminator());
+    New->setDebugLoc(Inst->getDebugLoc());
     NewInsts.push_back(New);
     return New;
   }
@@ -414,6 +408,7 @@ InsertPHITranslatedSubExpr(Value *InVal, BasicBlock *CurBB,
     GetElementPtrInst *Result = GetElementPtrInst::Create(
         GEP->getSourceElementType(), GEPOps[0], makeArrayRef(GEPOps).slice(1),
         InVal->getName() + ".phi.trans.insert", PredBB->getTerminator());
+    Result->setDebugLoc(Inst->getDebugLoc());
     Result->setIsInBounds(GEP->isInBounds());
     NewInsts.push_back(Result);
     return Result;

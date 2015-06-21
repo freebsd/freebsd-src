@@ -57,7 +57,7 @@ public:
     return isThumb(STI) && STI.getFeatureBits()[ARM::FeatureThumb2];
   }
   bool isTargetMachO(const MCSubtargetInfo &STI) const {
-    Triple TT(STI.getTargetTriple());
+    const Triple &TT = STI.getTargetTriple();
     return TT.isOSBinFormatMachO();
   }
 
@@ -1065,7 +1065,7 @@ ARMMCCodeEmitter::getHiLo16ImmOpValue(const MCInst &MI, unsigned OpIdx,
   // it's just a plain immediate expression, previously those evaluated to
   // the lower 16 bits of the expression regardless of whether
   // we have a movt or a movw, but that led to misleadingly results.
-  // This is now disallowed in the the AsmParser in validateInstruction()
+  // This is disallowed in the AsmParser in validateInstruction()
   // so this should never happen.
   llvm_unreachable("expression without :upper16: or :lower16:");
 }

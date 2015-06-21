@@ -97,7 +97,7 @@ public:
   void UpdateForDeletedBlock(BasicBlock *BB);
   void UpdateForRAUWBlock(BasicBlock *Old, BasicBlock *New);
 };
-}
+} // namespace llvm
 
 MCSymbol *MMIAddrLabelMap::getAddrLabelSymbol(BasicBlock *BB) {
   assert(BB->hasAddressTaken() &&
@@ -316,23 +316,6 @@ void MachineModuleInfo::EndFunction() {
   CallsEHReturn = 0;
   CallsUnwindInit = 0;
   VariableDbgInfos.clear();
-}
-
-/// AnalyzeModule - Scan the module for global debug information.
-///
-void MachineModuleInfo::AnalyzeModule(const Module &M) {
-  // Insert functions in the llvm.used array (but not llvm.compiler.used) into
-  // UsedFunctions.
-  const GlobalVariable *GV = M.getGlobalVariable("llvm.used");
-  if (!GV || !GV->hasInitializer()) return;
-
-  // Should be an array of 'i8*'.
-  const ConstantArray *InitList = cast<ConstantArray>(GV->getInitializer());
-
-  for (unsigned i = 0, e = InitList->getNumOperands(); i != e; ++i)
-    if (const Function *F =
-          dyn_cast<Function>(InitList->getOperand(i)->stripPointerCasts()))
-      UsedFunctions.insert(F);
 }
 
 //===- Address of Block Management ----------------------------------------===//

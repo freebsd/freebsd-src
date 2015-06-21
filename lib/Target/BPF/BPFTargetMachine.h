@@ -23,8 +23,8 @@ class BPFTargetMachine : public LLVMTargetMachine {
   BPFSubtarget Subtarget;
 
 public:
-  BPFTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
-                   const TargetOptions &Options, Reloc::Model RM,
+  BPFTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                   StringRef FS, const TargetOptions &Options, Reloc::Model RM,
                    CodeModel::Model CM, CodeGenOpt::Level OL);
 
   const BPFSubtarget *getSubtargetImpl() const { return &Subtarget; }
@@ -38,6 +38,6 @@ public:
     return TLOF.get();
   }
 };
-}
+} // namespace llvm
 
 #endif

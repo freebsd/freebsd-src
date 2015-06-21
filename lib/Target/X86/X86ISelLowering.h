@@ -218,7 +218,8 @@ namespace llvm {
       // Integer add/sub with signed saturation.
       ADDS,
       SUBS,
-
+      // Unsigned Integer average 
+      AVG,
       /// Integer horizontal add.
       HADD,
 
@@ -292,6 +293,9 @@ namespace llvm {
 
       // Vector FP round.
       VFPROUND,
+
+      // Vector signed integer to double.
+      CVTDQ2PD,
 
       // 128-bit vector logical left / right shift
       VSHLDQ, VSRLDQ,
@@ -417,6 +421,10 @@ namespace llvm {
       COMPRESS,
       EXPAND,
 
+      //Convert Unsigned/Integer to Scalar Floating-Point Value
+      //with rounding mode
+      SINT_TO_FP_RND,
+      UINT_TO_FP_RND,
       // Save xmm argument registers to the stack, according to %al. An operator
       // is needed so that this can be expanded with control flow.
       VASTART_SAVE_XMM_REGS,
@@ -508,7 +516,7 @@ namespace llvm {
       // have memop! In fact, starting from ATOMADD64_DAG all opcodes will be
       // thought as target memory ops!
     };
-  }
+  } // namespace X86ISD
 
   /// Define some predicates that are used for node matching.
   namespace X86 {
@@ -575,7 +583,7 @@ namespace llvm {
       TO_ZERO = 3,
       CUR_DIRECTION = 4
     };
-  }
+  } // namespace X86
 
   //===--------------------------------------------------------------------===//
   //  X86 Implementation of the TargetLowering interface
@@ -1112,6 +1120,6 @@ namespace llvm {
     FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
                              const TargetLibraryInfo *libInfo);
   }
-}
+} // namespace llvm
 
 #endif    // X86ISELLOWERING_H

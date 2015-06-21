@@ -153,7 +153,7 @@ struct MemsetRange {
 
   bool isProfitableToUseMemset(const DataLayout &DL) const;
 };
-} // end anon namespace
+} // namespace
 
 bool MemsetRange::isProfitableToUseMemset(const DataLayout &DL) const {
   // If we found more than 4 stores to merge or 16 bytes, use memset.
@@ -237,7 +237,7 @@ public:
 
 };
 
-} // end anon namespace
+} // namespace
 
 
 /// addRange - Add a new store to the MemsetRanges data structure.  This adds a
@@ -337,7 +337,7 @@ namespace {
       AU.addPreserved<MemoryDependenceAnalysis>();
     }
 
-    // Helper fuctions
+    // Helper functions
     bool processStore(StoreInst *SI, BasicBlock::iterator &BBI);
     bool processMemSet(MemSetInst *SI, BasicBlock::iterator &BBI);
     bool processMemCpy(MemCpyInst *M);
@@ -355,7 +355,7 @@ namespace {
   };
 
   char MemCpyOpt::ID = 0;
-}
+} // namespace
 
 // createMemCpyOptPass - The public interface to this file...
 FunctionPass *llvm::createMemCpyOptPass() { return new MemCpyOpt(); }
@@ -510,7 +510,7 @@ bool MemCpyOpt::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
         // Check that nothing touches the dest of the "copy" between
         // the call and the store.
         AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
-        AliasAnalysis::Location StoreLoc = MemoryLocation::get(SI);
+        MemoryLocation StoreLoc = MemoryLocation::get(SI);
         for (BasicBlock::iterator I = --BasicBlock::iterator(SI),
                                   E = C; I != E; --I) {
           if (AA.getModRefInfo(&*I, StoreLoc) != AliasAnalysis::NoModRef) {
@@ -997,7 +997,7 @@ bool MemCpyOpt::processMemCpy(MemCpyInst *M) {
     }
   }
 
-  AliasAnalysis::Location SrcLoc = MemoryLocation::getForSource(M);
+  MemoryLocation SrcLoc = MemoryLocation::getForSource(M);
   MemDepResult SrcDepInfo = MD->getPointerDependencyFrom(SrcLoc, true,
                                                          M, M->getParent());
 
@@ -1075,10 +1075,9 @@ bool MemCpyOpt::processByValArgument(CallSite CS, unsigned ArgNo) {
   Value *ByValArg = CS.getArgument(ArgNo);
   Type *ByValTy = cast<PointerType>(ByValArg->getType())->getElementType();
   uint64_t ByValSize = DL.getTypeAllocSize(ByValTy);
-  MemDepResult DepInfo =
-    MD->getPointerDependencyFrom(AliasAnalysis::Location(ByValArg, ByValSize),
-                                 true, CS.getInstruction(),
-                                 CS.getInstruction()->getParent());
+  MemDepResult DepInfo = MD->getPointerDependencyFrom(
+      MemoryLocation(ByValArg, ByValSize), true, CS.getInstruction(),
+      CS.getInstruction()->getParent());
   if (!DepInfo.isClobber())
     return false;
 

@@ -160,6 +160,8 @@ const (
 	InAllocaAttribute           Attribute = 1 << 43
 	NonNullAttribute            Attribute = 1 << 44
 	JumpTableAttribute          Attribute = 1 << 45
+	ConvergentAttribute         Attribute = 1 << 46
+	SafeStackAttribute          Attribute = 1 << 47
 )
 
 //-------------------------------------------------------------------------
@@ -1726,7 +1728,7 @@ func (b Builder) CreatePtrDiff(lhs, rhs Value, name string) (v Value) {
 func (b Builder) CreateLandingPad(t Type, personality Value, nclauses int, name string) (l Value) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	l.C = C.LLVMBuildLandingPad(b.C, t.C, personality.C, C.unsigned(nclauses), cname)
+	l.C = C.LLVMBuildLandingPad(b.C, t.C, C.unsigned(nclauses), cname)
 	return l
 }
 

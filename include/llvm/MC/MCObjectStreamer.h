@@ -135,8 +135,7 @@ public:
   /// data fragment.  Otherwise, do nothing and return \c false.
   ///
   /// \pre Offset of \c Hi is greater than the offset \c Lo.
-  /// \return true on success.
-  bool emitAbsoluteSymbolDiff(const MCSymbol *Hi, const MCSymbol *Lo,
+  void emitAbsoluteSymbolDiff(const MCSymbol *Hi, const MCSymbol *Lo,
                               unsigned Size) override;
 
   bool mayHaveInstructions(MCSection &Sec) const override;

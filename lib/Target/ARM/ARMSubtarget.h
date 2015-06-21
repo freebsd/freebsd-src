@@ -237,8 +237,8 @@ public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   ///
-  ARMSubtarget(const std::string &TT, const std::string &CPU,
-               const std::string &FS, const ARMBaseTargetMachine &TM, bool IsLittle);
+  ARMSubtarget(const Triple &TT, const std::string &CPU, const std::string &FS,
+               const ARMBaseTargetMachine &TM, bool IsLittle);
 
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
@@ -430,7 +430,7 @@ public:
   bool hasSinCos() const;
 
   /// True for some subtargets at > -O0.
-  bool enablePostMachineScheduler() const override;
+  bool enablePostRAScheduler() const override;
 
   // enableAtomicExpand- True if we need to expand our atomics.
   bool enableAtomicExpand() const override;
@@ -453,6 +453,6 @@ public:
   /// True if fast-isel is used.
   bool useFastISel() const;
 };
-} // End llvm namespace
+} // namespace llvm
 
 #endif  // ARMSUBTARGET_H

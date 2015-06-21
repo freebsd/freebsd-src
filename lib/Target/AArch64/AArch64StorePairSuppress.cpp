@@ -57,7 +57,7 @@ private:
   }
 };
 char AArch64StorePairSuppress::ID = 0;
-} // anonymous
+} // namespace
 
 FunctionPass *llvm::createAArch64StorePairSuppressPass() {
   return new AArch64StorePairSuppress();
@@ -142,7 +142,7 @@ bool AArch64StorePairSuppress::runOnMachineFunction(MachineFunction &MF) {
         continue;
       unsigned BaseReg;
       unsigned Offset;
-      if (TII->getLdStBaseRegImmOfs(&MI, BaseReg, Offset, TRI)) {
+      if (TII->getMemOpBaseRegImmOfs(&MI, BaseReg, Offset, TRI)) {
         if (PrevBaseReg == BaseReg) {
           // If this block can take STPs, skip ahead to the next block.
           if (!SuppressSTP && shouldAddSTPToBlock(MI.getParent()))
