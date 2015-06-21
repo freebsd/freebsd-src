@@ -1226,9 +1226,11 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * then the page may still be modified until the last of those
 		 * mappings are removed.
 		 */
-		vm_page_test_dirty(m);
-		if (m->dirty == 0 && object->ref_count != 0)
-			pmap_remove_all(m);
+		if (object->ref_count != 0) {
+			vm_page_test_dirty(m);
+			if (m->dirty == 0)
+				pmap_remove_all(m);
+		}
 
 		if (m->dirty == 0) {
 			/*
