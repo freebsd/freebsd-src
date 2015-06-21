@@ -38,7 +38,7 @@ public:
                         const MCFixup &Fixup, MCValue Target,
                         uint64_t &FixedValue) override;
 };
-}
+} // namespace
 
 bool AArch64MachObjectWriter::getAArch64FixupKindMachOInfo(
     const MCFixup &Fixup, unsigned &RelocType, const MCSymbolRefExpr *Sym,
@@ -287,7 +287,7 @@ void AArch64MachObjectWriter::recordRelocation(
     if (Symbol->isTemporary() && (Value || !CanUseLocalRelocation)) {
       const MCSection &Sec = Symbol->getSection();
       if (!Asm.getContext().getAsmInfo()->isSectionAtomizableBySymbols(Sec))
-        Asm.addLocalUsedInReloc(*Symbol);
+        Symbol->setUsedInReloc();
     }
 
     const MCSymbol *Base = Asm.getAtom(*Symbol);

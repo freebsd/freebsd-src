@@ -661,7 +661,7 @@ public:
   }
 };
 
-}
+} // namespace
 
 Value *SCEVExpander::visitAddExpr(const SCEVAddExpr *S) {
   Type *Ty = SE.getEffectiveSCEVType(S->getType());
@@ -1702,7 +1702,7 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
 
   unsigned NumElim = 0;
   DenseMap<const SCEV *, PHINode *> ExprToIVMap;
-  // Process phis from wide to narrow. Mapping wide phis to the their truncation
+  // Process phis from wide to narrow. Map wide phis to their truncation
   // so narrow phis can reuse them.
   for (SmallVectorImpl<PHINode*>::const_iterator PIter = Phis.begin(),
          PEnd = Phis.end(); PIter != PEnd; ++PIter) {
@@ -1933,7 +1933,7 @@ struct SCEVFindUnsafe {
   }
   bool isDone() const { return IsUnsafe; }
 };
-}
+} // namespace
 
 namespace llvm {
 bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE) {

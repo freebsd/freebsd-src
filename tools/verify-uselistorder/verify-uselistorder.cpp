@@ -159,14 +159,14 @@ std::unique_ptr<Module> TempFile::readBitcode(LLVMContext &Context) const {
   }
 
   MemoryBuffer *Buffer = BufferOr.get().get();
-  ErrorOr<Module *> ModuleOr =
+  ErrorOr<std::unique_ptr<Module>> ModuleOr =
       parseBitcodeFile(Buffer->getMemBufferRef(), Context);
   if (!ModuleOr) {
     errs() << "verify-uselistorder: error: " << ModuleOr.getError().message()
            << "\n";
     return nullptr;
   }
-  return std::unique_ptr<Module>(ModuleOr.get());
+  return std::move(ModuleOr.get());
 }
 
 std::unique_ptr<Module> TempFile::readAssembly(LLVMContext &Context) const {
@@ -205,6 +205,8 @@ ValueMapping::ValueMapping(const Module &M) {
       map(F.getPrefixData());
     if (F.hasPrologueData())
       map(F.getPrologueData());
+    if (F.hasPersonalityFn())
+      map(F.getPersonalityFn());
   }
 
   // Function bodies.
@@ -474,6 +476,8 @@ static void changeUseLists(Module &M, Changer changeValueUseList) {
       changeValueUseList(F.getPrefixData());
     if (F.hasPrologueData())
       changeValueUseList(F.getPrologueData());
+    if (F.hasPersonalityFn())
+      changeValueUseList(F.getPersonalityFn());
   }
 
   // Function bodies.

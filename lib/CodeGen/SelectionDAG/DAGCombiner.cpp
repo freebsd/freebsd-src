@@ -255,6 +255,7 @@ namespace {
     SDValue visitSRA(SDNode *N);
     SDValue visitSRL(SDNode *N);
     SDValue visitRotate(SDNode *N);
+    SDValue visitBSWAP(SDNode *N);
     SDValue visitCTLZ(SDNode *N);
     SDValue visitCTLZ_ZERO_UNDEF(SDNode *N);
     SDValue visitCTTZ(SDNode *N);
@@ -387,6 +388,13 @@ namespace {
       unsigned SequenceNum;
     };
 
+    /// This is a helper function for MergeStoresOfConstantsOrVecElts. Returns a
+    /// constant build_vector of the stored constant values in Stores.
+    SDValue getMergedConstantVectorStore(SelectionDAG &DAG,
+                                         SDLoc SL,
+                                         ArrayRef<MemOpLink> Stores,
+                                         EVT Ty) const;
+
     /// This is a helper function for MergeConsecutiveStores. When the source
     /// elements of the consecutive stores are all constants or all extracted
     /// vector elements, try to merge them into one larger store.
@@ -395,6 +403,13 @@ namespace {
                                          EVT MemVT, unsigned NumElem,
                                          bool IsConstantSrc, bool UseVector);
 
+    /// This is a helper function for MergeConsecutiveStores.
+    /// Stores that may be merged are placed in StoreNodes.
+    /// Loads that may alias with those stores are placed in AliasLoadNodes.
+    void getStoreMergeAndAliasCandidates(
+        StoreSDNode* St, SmallVectorImpl<MemOpLink> &StoreNodes,
+        SmallVectorImpl<LSBaseSDNode*> &AliasLoadNodes);
+    
     /// Merge consecutive store operations into a wide store.
     /// This optimization uses wide integers or vectors when possible.
     /// \return True if some memory operations were changed.
@@ -444,7 +459,7 @@ namespace {
       return TLI.getSetCCResultType(*DAG.getContext(), VT);
     }
   };
-}
+} // namespace
 
 
 namespace {
@@ -460,7 +475,7 @@ public:
     DC.removeFromWorklist(N);
   }
 };
-}
+} // namespace
 
 //===----------------------------------------------------------------------===//
 //  TargetLowering::DAGCombinerInfo implementation
@@ -1335,6 +1350,7 @@ SDValue DAGCombiner::visit(SDNode *N) {
   case ISD::SRL:                return visitSRL(N);
   case ISD::ROTR:
   case ISD::ROTL:               return visitRotate(N);
+  case ISD::BSWAP:              return visitBSWAP(N);
   case ISD::CTLZ:               return visitCTLZ(N);
   case ISD::CTLZ_ZERO_UNDEF:    return visitCTLZ_ZERO_UNDEF(N);
   case ISD::CTTZ:               return visitCTTZ(N);
@@ -1454,12 +1470,9 @@ SDValue DAGCombiner::combine(SDNode *N) {
     if (isa<ConstantSDNode>(N0) || !isa<ConstantSDNode>(N1)) {
       SDValue Ops[] = {N1, N0};
       SDNode *CSENode;
-      if (const BinaryWithFlagsSDNode *BinNode =
-              dyn_cast<BinaryWithFlagsSDNode>(N)) {
+      if (const auto *BinNode = dyn_cast<BinaryWithFlagsSDNode>(N)) {
         CSENode = DAG.getNodeIfExists(N->getOpcode(), N->getVTList(), Ops,
-                                      BinNode->Flags.hasNoUnsignedWrap(),
-                                      BinNode->Flags.hasNoSignedWrap(),
-                                      BinNode->Flags.hasExact());
+                                      &BinNode->Flags);
       } else {
         CSENode = DAG.getNodeIfExists(N->getOpcode(), N->getVTList(), Ops);
       }
@@ -4764,6 +4777,19 @@ SDValue DAGCombiner::visitSRL(SDNode *N) {
   return SDValue();
 }
 
+SDValue DAGCombiner::visitBSWAP(SDNode *N) {
+  SDValue N0 = N->getOperand(0);
+  EVT VT = N->getValueType(0);
+
+  // fold (bswap c1) -> c2
+  if (isConstantIntBuildVectorOrConstantInt(N0))
+    return DAG.getNode(ISD::BSWAP, SDLoc(N), VT, N0);
+  // fold (bswap (bswap x)) -> x
+  if (N0.getOpcode() == ISD::BSWAP)
+    return N0->getOperand(0);
+  return SDValue();
+}
+
 SDValue DAGCombiner::visitCTLZ(SDNode *N) {
   SDValue N0 = N->getOperand(0);
   EVT VT = N->getValueType(0);
@@ -5141,7 +5167,7 @@ SDValue DAGCombiner::visitMSCATTER(SDNode *N) {
   std::tie(IndexLo, IndexHi) = DAG.SplitVector(MSC->getIndex(), DL);
 
   MachineMemOperand *MMO = DAG.getMachineFunction().
-    getMachineMemOperand(MSC->getPointerInfo(), 
+    getMachineMemOperand(MSC->getPointerInfo(),
                           MachineMemOperand::MOStore,  LoMemVT.getStoreSize(),
                           Alignment, MSC->getAAInfo(), MSC->getRanges());
 
@@ -5280,7 +5306,7 @@ SDValue DAGCombiner::visitMGATHER(SDNode *N) {
   std::tie(IndexLo, IndexHi) = DAG.SplitVector(Index, DL);
 
   MachineMemOperand *MMO = DAG.getMachineFunction().
-    getMachineMemOperand(MGT->getPointerInfo(), 
+    getMachineMemOperand(MGT->getPointerInfo(),
                           MachineMemOperand::MOLoad,  LoMemVT.getStoreSize(),
                           Alignment, MGT->getAAInfo(), MGT->getRanges());
 
@@ -8078,7 +8104,7 @@ SDValue DAGCombiner::visitFMUL(SDNode *N) {
       auto *BV1 = dyn_cast<BuildVectorSDNode>(N1);
       auto *BV00 = dyn_cast<BuildVectorSDNode>(N00);
       auto *BV01 = dyn_cast<BuildVectorSDNode>(N01);
-      
+
       // Check 1: Make sure that the first operand of the inner multiply is NOT
       // a constant. Otherwise, we may induce infinite looping.
       if (!(isConstOrConstSplatFP(N00) || (BV00 && BV00->isConstant()))) {
@@ -9928,7 +9954,7 @@ struct LoadedSlice {
     return true;
   }
 };
-}
+} // namespace
 
 /// \brief Check that all bits set in \p UsedBits form a dense region, i.e.,
 /// \p UsedBits looks like 0..0 1..1 0..0.
@@ -10576,6 +10602,18 @@ struct BaseIndexOffset {
 };
 } // namespace
 
+SDValue DAGCombiner::getMergedConstantVectorStore(SelectionDAG &DAG,
+                                                  SDLoc SL,
+                                                  ArrayRef<MemOpLink> Stores,
+                                                  EVT Ty) const {
+  SmallVector<SDValue, 8> BuildVector;
+
+  for (unsigned I = 0, E = Ty.getVectorNumElements(); I != E; ++I)
+    BuildVector.push_back(cast<StoreSDNode>(Stores[I].MemNode)->getValue());
+
+  return DAG.getNode(ISD::BUILD_VECTOR, SL, Ty, BuildVector);
+}
+
 bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
                   SmallVectorImpl<MemOpLink> &StoreNodes, EVT MemVT,
                   unsigned NumElem, bool IsConstantSrc, bool UseVector) {
@@ -10606,12 +10644,7 @@ bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
     EVT Ty = EVT::getVectorVT(*DAG.getContext(), MemVT, NumElem);
     assert(TLI.isTypeLegal(Ty) && "Illegal vector store");
     if (IsConstantSrc) {
-      // A vector store with a constant source implies that the constant is
-      // zero; we only handle merging stores of constant zeros because the zero
-      // can be materialized without a load.
-      // It may be beneficial to loosen this restriction to allow non-zero
-      // store merging.
-      StoredVal = DAG.getConstant(0, DL, Ty);
+      StoredVal = getMergedConstantVectorStore(DAG, DL, StoreNodes, Ty);
     } else {
       SmallVector<SDValue, 8> Ops;
       for (unsigned i = 0; i < NumElem ; ++i) {
@@ -10631,8 +10664,8 @@ bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
     // elements, so this path implies a store of constants.
     assert(IsConstantSrc && "Merged vector elements should use vector store");
 
-    unsigned StoreBW = NumElem * ElementSizeBytes * 8;
-    APInt StoreInt(StoreBW, 0);
+    unsigned SizeInBits = NumElem * ElementSizeBytes * 8;
+    APInt StoreInt(SizeInBits, 0);
 
     // Construct a single integer constant which is made of the smaller
     // constant inputs.
@@ -10641,18 +10674,18 @@ bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
       unsigned Idx = IsLE ? (NumElem - 1 - i) : i;
       StoreSDNode *St  = cast<StoreSDNode>(StoreNodes[Idx].MemNode);
       SDValue Val = St->getValue();
-      StoreInt <<= ElementSizeBytes*8;
+      StoreInt <<= ElementSizeBytes * 8;
       if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Val)) {
-        StoreInt |= C->getAPIntValue().zext(StoreBW);
+        StoreInt |= C->getAPIntValue().zext(SizeInBits);
       } else if (ConstantFPSDNode *C = dyn_cast<ConstantFPSDNode>(Val)) {
-        StoreInt |= C->getValueAPF().bitcastToAPInt().zext(StoreBW);
+        StoreInt |= C->getValueAPF().bitcastToAPInt().zext(SizeInBits);
       } else {
         llvm_unreachable("Invalid constant element type");
       }
     }
 
     // Create the new Load and Store operations.
-    EVT StoreTy = EVT::getIntegerVT(*DAG.getContext(), StoreBW);
+    EVT StoreTy = EVT::getIntegerVT(*DAG.getContext(), SizeInBits);
     StoredVal = DAG.getConstant(StoreInt, DL, StoreTy);
   }
 
@@ -10698,62 +10731,25 @@ static bool allowableAlignment(const SelectionDAG &DAG,
   return (Align >= ABIAlignment);
 }
 
-bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
-  if (OptLevel == CodeGenOpt::None)
-    return false;
-
-  EVT MemVT = St->getMemoryVT();
-  int64_t ElementSizeBytes = MemVT.getSizeInBits()/8;
-  bool NoVectors = DAG.getMachineFunction().getFunction()->hasFnAttribute(
-      Attribute::NoImplicitFloat);
-
-  // This function cannot currently deal with non-byte-sized memory sizes.
-  if (ElementSizeBytes * 8 != MemVT.getSizeInBits())
-    return false;
-
-  // Don't merge vectors into wider inputs.
-  if (MemVT.isVector() || !MemVT.isSimple())
-    return false;
-
-  // Perform an early exit check. Do not bother looking at stored values that
-  // are not constants, loads, or extracted vector elements.
-  SDValue StoredVal = St->getValue();
-  bool IsLoadSrc = isa<LoadSDNode>(StoredVal);
-  bool IsConstantSrc = isa<ConstantSDNode>(StoredVal) ||
-                       isa<ConstantFPSDNode>(StoredVal);
-  bool IsExtractVecEltSrc = (StoredVal.getOpcode() == ISD::EXTRACT_VECTOR_ELT);
-
-  if (!IsConstantSrc && !IsLoadSrc && !IsExtractVecEltSrc)
-    return false;
-
-  // Only look at ends of store sequences.
-  SDValue Chain = SDValue(St, 0);
-  if (Chain->hasOneUse() && Chain->use_begin()->getOpcode() == ISD::STORE)
-    return false;
-
+void DAGCombiner::getStoreMergeAndAliasCandidates(
+    StoreSDNode* St, SmallVectorImpl<MemOpLink> &StoreNodes,
+    SmallVectorImpl<LSBaseSDNode*> &AliasLoadNodes) {
   // This holds the base pointer, index, and the offset in bytes from the base
   // pointer.
   BaseIndexOffset BasePtr = BaseIndexOffset::match(St->getBasePtr());
 
   // We must have a base and an offset.
   if (!BasePtr.Base.getNode())
-    return false;
+    return;
 
   // Do not handle stores to undef base pointers.
   if (BasePtr.Base.getOpcode() == ISD::UNDEF)
-    return false;
-
-  // Save the LoadSDNodes that we find in the chain.
-  // We need to make sure that these nodes do not interfere with
-  // any of the store nodes.
-  SmallVector<LSBaseSDNode*, 8> AliasLoadNodes;
-
-  // Save the StoreSDNodes that we find in the chain.
-  SmallVector<MemOpLink, 8> StoreNodes;
+    return;
 
   // Walk up the chain and look for nodes with offsets from the same
   // base pointer. Stop when reaching an instruction with a different kind
   // or instruction which has a different base pointer.
+  EVT MemVT = St->getMemoryVT();
   unsigned Seq = 0;
   StoreSDNode *Index = St;
   while (Index) {
@@ -10810,7 +10806,51 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
       }
     }
   }
+}
 
+bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
+  if (OptLevel == CodeGenOpt::None)
+    return false;
+
+  EVT MemVT = St->getMemoryVT();
+  int64_t ElementSizeBytes = MemVT.getSizeInBits() / 8;
+  bool NoVectors = DAG.getMachineFunction().getFunction()->hasFnAttribute(
+      Attribute::NoImplicitFloat);
+
+  // This function cannot currently deal with non-byte-sized memory sizes.
+  if (ElementSizeBytes * 8 != MemVT.getSizeInBits())
+    return false;
+
+  // Don't merge vectors into wider inputs.
+  if (MemVT.isVector() || !MemVT.isSimple())
+    return false;
+
+  // Perform an early exit check. Do not bother looking at stored values that
+  // are not constants, loads, or extracted vector elements.
+  SDValue StoredVal = St->getValue();
+  bool IsLoadSrc = isa<LoadSDNode>(StoredVal);
+  bool IsConstantSrc = isa<ConstantSDNode>(StoredVal) ||
+                       isa<ConstantFPSDNode>(StoredVal);
+  bool IsExtractVecEltSrc = (StoredVal.getOpcode() == ISD::EXTRACT_VECTOR_ELT);
+
+  if (!IsConstantSrc && !IsLoadSrc && !IsExtractVecEltSrc)
+    return false;
+
+  // Only look at ends of store sequences.
+  SDValue Chain = SDValue(St, 0);
+  if (Chain->hasOneUse() && Chain->use_begin()->getOpcode() == ISD::STORE)
+    return false;
+
+  // Save the LoadSDNodes that we find in the chain.
+  // We need to make sure that these nodes do not interfere with
+  // any of the store nodes.
+  SmallVector<LSBaseSDNode*, 8> AliasLoadNodes;
+  
+  // Save the StoreSDNodes that we find in the chain.
+  SmallVector<MemOpLink, 8> StoreNodes;
+
+  getStoreMergeAndAliasCandidates(St, StoreNodes, AliasLoadNodes);
+  
   // Check if there is anything to merge.
   if (StoreNodes.size() < 2)
     return false;
@@ -10876,8 +10916,8 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
       }
 
       // Find a legal type for the constant store.
-      unsigned StoreBW = (i+1) * ElementSizeBytes * 8;
-      EVT StoreTy = EVT::getIntegerVT(*DAG.getContext(), StoreBW);
+      unsigned SizeInBits = (i+1) * ElementSizeBytes * 8;
+      EVT StoreTy = EVT::getIntegerVT(*DAG.getContext(), SizeInBits);
       if (TLI.isTypeLegal(StoreTy) &&
           allowableAlignment(DAG, TLI, StoreTy, FirstStoreAS,
                              FirstStoreAlign)) {
@@ -11039,8 +11079,8 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
     }
 
     // Find a legal type for the integer store.
-    unsigned StoreBW = (i+1) * ElementSizeBytes * 8;
-    StoreTy = EVT::getIntegerVT(*DAG.getContext(), StoreBW);
+    unsigned SizeInBits = (i+1) * ElementSizeBytes * 8;
+    StoreTy = EVT::getIntegerVT(*DAG.getContext(), SizeInBits);
     if (TLI.isTypeLegal(StoreTy) &&
         allowableAlignment(DAG, TLI, StoreTy, FirstStoreAS, FirstStoreAlign) &&
         allowableAlignment(DAG, TLI, StoreTy, FirstLoadAS, FirstLoadAlign))
@@ -11094,8 +11134,8 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
   if (UseVectorTy) {
     JointMemOpVT = EVT::getVectorVT(*DAG.getContext(), MemVT, NumElem);
   } else {
-    unsigned StoreBW = NumElem * ElementSizeBytes * 8;
-    JointMemOpVT = EVT::getIntegerVT(*DAG.getContext(), StoreBW);
+    unsigned SizeInBits = NumElem * ElementSizeBytes * 8;
+    JointMemOpVT = EVT::getIntegerVT(*DAG.getContext(), SizeInBits);
   }
 
   SDLoc LoadDL(LoadNodes[0].MemNode);
@@ -12093,7 +12133,7 @@ static SDValue combineConcatVectorOfScalars(SDNode *N, SelectionDAG &DAG) {
   }
 
   // If any of the operands is a floating point scalar bitcast to a vector,
-  // use floating point types throughout, and bitcast everything.  
+  // use floating point types throughout, and bitcast everything.
   // Replace UNDEFs by another scalar UNDEF node, of the final desired type.
   if (AnyFP) {
     SVT = EVT::getFloatingPointVT(OpVT.getSizeInBits());
@@ -12924,7 +12964,7 @@ SDValue DAGCombiner::XformToShuffleWithZero(SDNode *N) {
   SDValue RHS = N->getOperand(1);
   SDLoc dl(N);
 
-  // Make sure we're not running after operation legalization where it 
+  // Make sure we're not running after operation legalization where it
   // may have custom lowered the vector shuffles.
   if (LegalOperations)
     return SDValue();
@@ -13845,12 +13885,10 @@ bool DAGCombiner::isAlias(LSBaseSDNode *Op0, LSBaseSDNode *Op1) const {
     int64_t Overlap2 = (Op1->getMemoryVT().getSizeInBits() >> 3) +
         Op1->getSrcValueOffset() - MinOffset;
     AliasAnalysis::AliasResult AAResult =
-        AA.alias(AliasAnalysis::Location(Op0->getMemOperand()->getValue(),
-                                         Overlap1,
-                                         UseTBAA ? Op0->getAAInfo() : AAMDNodes()),
-                 AliasAnalysis::Location(Op1->getMemOperand()->getValue(),
-                                         Overlap2,
-                                         UseTBAA ? Op1->getAAInfo() : AAMDNodes()));
+        AA.alias(MemoryLocation(Op0->getMemOperand()->getValue(), Overlap1,
+                                UseTBAA ? Op0->getAAInfo() : AAMDNodes()),
+                 MemoryLocation(Op1->getMemOperand()->getValue(), Overlap2,
+                                UseTBAA ? Op1->getAAInfo() : AAMDNodes()));
     if (AAResult == AliasAnalysis::NoAlias)
       return false;
   }

@@ -1232,6 +1232,7 @@ bool MachOObjectFile::isValidArch(StringRef ArchFlag) {
       .Case("armv5e", true)
       .Case("armv6", true)
       .Case("armv6m", true)
+      .Case("armv7", true)
       .Case("armv7em", true)
       .Case("armv7k", true)
       .Case("armv7m", true)
@@ -2011,9 +2012,11 @@ MachOObjectFile::getAnyRelocationSection(
                                    const MachO::any_relocation_info &RE) const {
   if (isRelocationScattered(RE) || getPlainRelocationExternal(RE))
     return *section_end();
-  unsigned SecNum = getPlainRelocationSymbolNum(RE) - 1;
+  unsigned SecNum = getPlainRelocationSymbolNum(RE);
+  if (SecNum == MachO::R_ABS || SecNum > Sections.size())
+    return *section_end();
   DataRefImpl DRI;
-  DRI.d.a = SecNum;
+  DRI.d.a = SecNum - 1;
   return SectionRef(DRI, this);
 }
 

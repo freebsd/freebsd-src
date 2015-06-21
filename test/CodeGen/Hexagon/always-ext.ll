@@ -1,5 +1,4 @@
-; XFAIL:
-; RUN: llc -march=hexagon -mcpu=hexagonv4 < %s | FileCheck %s
+; RUN: llc -march=hexagon < %s | FileCheck %s
 
 ; Check that we don't generate an invalid packet with too many instructions
 ; due to a store that has a must-extend operand.
@@ -8,7 +7,7 @@
 ; CHECK: {
 ; CHECK-NOT: call abort
 ; CHECK: memw(##0)
-; CHECK: memw(r{{[0-9+]}}<<#2 + ##4)
+; CHECK: memw(r{{[0-9+]}}{{ *}}<<{{ *}}#2{{ *}}+{{ *}}##4)
 ; CHECK: }
 
 %struct.CuTest.1.28.31.37.40.43.52.55.67.85.111 = type { i8*, void (%struct.CuTest.1.28.31.37.40.43.52.55.67.85.111*)*, i32, i32, i8*, [23 x i32]* }

@@ -30,6 +30,7 @@ static cl::opt<unsigned> MaxLoopRange(
     cl::desc("Restrict range of loopN instructions (testing only)"));
 
 namespace llvm {
+  FunctionPass *createHexagonFixupHwLoops();
   void initializeHexagonFixupHwLoopsPass(PassRegistry&);
 }
 
@@ -66,7 +67,7 @@ namespace {
   };
 
   char HexagonFixupHwLoops::ID = 0;
-}
+} // namespace
 
 INITIALIZE_PASS(HexagonFixupHwLoops, "hwloopsfixup",
                 "Hexagon Hardware Loops Fixup", false, false)

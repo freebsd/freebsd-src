@@ -59,7 +59,7 @@ static cl::opt<bool>
 
 void MipsSubtarget::anchor() { }
 
-MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
+MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
                              const std::string &FS, bool little,
                              const MipsTargetMachine &TM)
     : MipsGenSubtargetInfo(TT, CPU, FS), MipsArchVersion(MipsDefault),
@@ -126,7 +126,7 @@ MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
 }
 
 /// This overrides the PostRAScheduler bit in the SchedModel for any CPU.
-bool MipsSubtarget::enablePostMachineScheduler() const { return true; }
+bool MipsSubtarget::enablePostRAScheduler() const { return true; }
 
 void MipsSubtarget::getCriticalPathRCs(RegClassVector &CriticalPathRCs) const {
   CriticalPathRCs.clear();

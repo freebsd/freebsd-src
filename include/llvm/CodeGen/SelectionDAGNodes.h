@@ -89,7 +89,7 @@ namespace ISD {
   /// Return true if the node has at least one operand
   /// and all operands of the specified node are ISD::UNDEF.
   bool allOperandsUndef(const SDNode *N);
-}  // end llvm:ISD namespace
+} // namespace ISD
 
 //===----------------------------------------------------------------------===//
 /// Unlike LLVM values, Selection DAG nodes may return multiple
@@ -1017,6 +1017,11 @@ static bool isBinOpWithFlags(unsigned Opcode) {
   case ISD::ADD:
   case ISD::SUB:
   case ISD::SHL:
+  case ISD::FADD:
+  case ISD::FDIV:
+  case ISD::FMUL:
+  case ISD::FREM:
+  case ISD::FSUB:
     return true;
   default:
     return false;
@@ -1029,8 +1034,8 @@ class BinaryWithFlagsSDNode : public BinarySDNode {
 public:
   SDNodeFlags Flags;
   BinaryWithFlagsSDNode(unsigned Opc, unsigned Order, DebugLoc dl, SDVTList VTs,
-                        SDValue X, SDValue Y)
-      : BinarySDNode(Opc, Order, dl, VTs, X, Y), Flags() {}
+                        SDValue X, SDValue Y, const SDNodeFlags &NodeFlags)
+      : BinarySDNode(Opc, Order, dl, VTs, X, Y), Flags(NodeFlags) {}
   static bool classof(const SDNode *N) {
     return isBinOpWithFlags(N->getOpcode());
   }
@@ -2263,8 +2268,8 @@ namespace ISD {
     return isa<StoreSDNode>(N) &&
       cast<StoreSDNode>(N)->getAddressingMode() == ISD::UNINDEXED;
   }
-}
+} // namespace ISD
 
-} // end llvm namespace
+} // namespace llvm
 
 #endif

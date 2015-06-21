@@ -26,6 +26,7 @@ class LoadInst;
 class StoreInst;
 class MemTransferInst;
 class MemIntrinsic;
+class TargetLibraryInfo;
 
 /// Representation for a specific memory location.
 ///
@@ -87,6 +88,10 @@ public:
   /// transfer.
   static MemoryLocation getForDest(const MemIntrinsic *MI);
 
+  /// Return a location representing a particular argument of a call.
+  static MemoryLocation getForArgument(ImmutableCallSite CS, unsigned ArgIdx,
+                                       const TargetLibraryInfo &TLI);
+
   explicit MemoryLocation(const Value *Ptr = nullptr,
                           uint64_t Size = UnknownSize,
                           const AAMDNodes &AATags = AAMDNodes())
@@ -132,6 +137,6 @@ template <> struct DenseMapInfo<MemoryLocation> {
     return LHS == RHS;
   }
 };
-}
+} // namespace llvm
 
 #endif

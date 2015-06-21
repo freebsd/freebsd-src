@@ -42,12 +42,11 @@ using namespace llvm;
 #define GET_SUBTARGETINFO_MC_DESC
 #include "X86GenSubtargetInfo.inc"
 
-std::string X86_MC::ParseX86Triple(StringRef TT) {
-  Triple TheTriple(TT);
+std::string X86_MC::ParseX86Triple(const Triple &TT) {
   std::string FS;
-  if (TheTriple.getArch() == Triple::x86_64)
+  if (TT.getArch() == Triple::x86_64)
     FS = "+64bit-mode,-32bit-mode,-16bit-mode";
-  else if (TheTriple.getEnvironment() != Triple::CODE16)
+  else if (TT.getEnvironment() != Triple::CODE16)
     FS = "-64bit-mode,+32bit-mode,-16bit-mode";
   else
     FS = "-64bit-mode,-32bit-mode,+16bit-mode";
@@ -55,7 +54,7 @@ std::string X86_MC::ParseX86Triple(StringRef TT) {
   return FS;
 }
 
-unsigned X86_MC::getDwarfRegFlavour(Triple TT, bool isEH) {
+unsigned X86_MC::getDwarfRegFlavour(const Triple &TT, bool isEH) {
   if (TT.getArch() == Triple::x86_64)
     return DWARFFlavour::X86_64;
 
@@ -75,8 +74,8 @@ void X86_MC::InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI) {
   }
 }
 
-MCSubtargetInfo *X86_MC::createX86MCSubtargetInfo(StringRef TT, StringRef CPU,
-                                                  StringRef FS) {
+MCSubtargetInfo *X86_MC::createX86MCSubtargetInfo(const Triple &TT,
+                                                  StringRef CPU, StringRef FS) {
   std::string ArchFS = X86_MC::ParseX86Triple(TT);
   if (!FS.empty()) {
     if (!ArchFS.empty())
@@ -219,15 +218,14 @@ static MCInstPrinter *createX86MCInstPrinter(const Triple &T,
   return nullptr;
 }
 
-static MCRelocationInfo *createX86MCRelocationInfo(StringRef TT,
+static MCRelocationInfo *createX86MCRelocationInfo(const Triple &TheTriple,
                                                    MCContext &Ctx) {
-  Triple TheTriple(TT);
   if (TheTriple.isOSBinFormatMachO() && TheTriple.getArch() == Triple::x86_64)
     return createX86_64MachORelocationInfo(Ctx);
   else if (TheTriple.isOSBinFormatELF())
     return createX86_64ELFRelocationInfo(Ctx);
   // Default to the stock relocation info.
-  return llvm::createMCRelocationInfo(TT, Ctx);
+  return llvm::createMCRelocationInfo(TheTriple, Ctx);
 }
 
 static MCInstrAnalysis *createX86MCInstrAnalysis(const MCInstrInfo *Info) {

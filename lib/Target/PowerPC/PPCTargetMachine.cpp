@@ -98,13 +98,12 @@ static std::string getDataLayoutString(const Triple &T) {
   return Ret;
 }
 
-static std::string computeFSAdditions(StringRef FS, CodeGenOpt::Level OL, StringRef TT) {
+static std::string computeFSAdditions(StringRef FS, CodeGenOpt::Level OL,
+                                      const Triple &TT) {
   std::string FullFS = FS;
-  Triple TargetTriple(TT);
 
   // Make sure 64-bit features are available when CPUname is generic
-  if (TargetTriple.getArch() == Triple::ppc64 ||
-      TargetTriple.getArch() == Triple::ppc64le) {
+  if (TT.getArch() == Triple::ppc64 || TT.getArch() == Triple::ppc64le) {
     if (!FullFS.empty())
       FullFS = "+64bit," + FullFS;
     else
@@ -165,14 +164,15 @@ static PPCTargetMachine::PPCABI computeTargetABI(const Triple &TT,
 // with what are (currently) non-function specific overrides as it goes into the
 // LLVMTargetMachine constructor and then using the stored value in the
 // Subtarget constructor below it.
-PPCTargetMachine::PPCTargetMachine(const Target &T, StringRef TT, StringRef CPU,
-                                   StringRef FS, const TargetOptions &Options,
+PPCTargetMachine::PPCTargetMachine(const Target &T, const Triple &TT,
+                                   StringRef CPU, StringRef FS,
+                                   const TargetOptions &Options,
                                    Reloc::Model RM, CodeModel::Model CM,
                                    CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, getDataLayoutString(Triple(TT)), TT, CPU,
+    : LLVMTargetMachine(T, getDataLayoutString(TT), TT, CPU,
                         computeFSAdditions(FS, OL, TT), Options, RM, CM, OL),
-      TLOF(createTLOF(Triple(getTargetTriple()))),
-      TargetABI(computeTargetABI(Triple(TT), Options)) {
+      TLOF(createTLOF(getTargetTriple())),
+      TargetABI(computeTargetABI(TT, Options)) {
   initAsmInfo();
 }
 
@@ -180,23 +180,21 @@ PPCTargetMachine::~PPCTargetMachine() {}
 
 void PPC32TargetMachine::anchor() { }
 
-PPC32TargetMachine::PPC32TargetMachine(const Target &T, StringRef TT,
+PPC32TargetMachine::PPC32TargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
                                        Reloc::Model RM, CodeModel::Model CM,
                                        CodeGenOpt::Level OL)
-  : PPCTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL) {
-}
+    : PPCTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL) {}
 
 void PPC64TargetMachine::anchor() { }
 
-PPC64TargetMachine::PPC64TargetMachine(const Target &T, StringRef TT,
-                                       StringRef CPU,  StringRef FS,
+PPC64TargetMachine::PPC64TargetMachine(const Target &T, const Triple &TT,
+                                       StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
                                        Reloc::Model RM, CodeModel::Model CM,
                                        CodeGenOpt::Level OL)
-  : PPCTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL) {
-}
+    : PPCTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL) {}
 
 const PPCSubtarget *
 PPCTargetMachine::getSubtargetImpl(const Function &F) const {
@@ -264,9 +262,8 @@ void PPCPassConfig::addIRPasses() {
 
   // For the BG/Q (or if explicitly requested), add explicit data prefetch
   // intrinsics.
-  bool UsePrefetching =
-    Triple(TM->getTargetTriple()).getVendor() == Triple::BGQ &&           
-    getOptLevel() != CodeGenOpt::None;
+  bool UsePrefetching = TM->getTargetTriple().getVendor() == Triple::BGQ &&
+                        getOptLevel() != CodeGenOpt::None;
   if (EnablePrefetch.getNumOccurrences() > 0)
     UsePrefetching = EnablePrefetch;
   if (UsePrefetching)
@@ -320,7 +317,7 @@ void PPCPassConfig::addMachineSSAOptimization() {
   TargetPassConfig::addMachineSSAOptimization();
   // For little endian, remove where possible the vector swap instructions
   // introduced at code generation to normalize vector element order.
-  if (Triple(TM->getTargetTriple()).getArch() == Triple::ppc64le &&
+  if (TM->getTargetTriple().getArch() == Triple::ppc64le &&
       !DisableVSXSwapRemoval)
     addPass(createPPCVSXSwapRemovalPass());
 }

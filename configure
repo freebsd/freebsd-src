@@ -1462,8 +1462,8 @@ Optional Features:
   --enable-targets        Build specific host targets: all or
                           target1,target2,... Valid targets are: host, x86,
                           x86_64, sparc, powerpc, arm64, arm, aarch64, mips,
-                          hexagon, xcore, msp430, nvptx, systemz, r600, and
-                          cpp (default=all)
+                          hexagon, xcore, msp430, nvptx, systemz, r600, bpf,
+                          and cpp (default=all)
   --enable-experimental-targets
                           Build experimental host targets: disable or
                           target1,target2,... (default=disable)
@@ -5628,7 +5628,7 @@ _ACEOF
 
 fi
 
-ALL_TARGETS="X86 Sparc PowerPC ARM AArch64 Mips XCore MSP430 CppBackend NVPTX Hexagon SystemZ R600"
+ALL_TARGETS="X86 Sparc PowerPC ARM AArch64 Mips XCore MSP430 CppBackend NVPTX Hexagon SystemZ AMDGPU BPF"
 ALL_TARGETS=$ALL_TARGETS
 
 
@@ -5654,6 +5654,7 @@ case "$enableval" in
         aarch64)  TARGETS_TO_BUILD="AArch64 $TARGETS_TO_BUILD" ;;
         arm64)    TARGETS_TO_BUILD="AArch64 $TARGETS_TO_BUILD" ;;
         arm)      TARGETS_TO_BUILD="ARM $TARGETS_TO_BUILD" ;;
+        bpf)      TARGETS_TO_BUILD="BPF $TARGETS_TO_BUILD" ;;
         mips)     TARGETS_TO_BUILD="Mips $TARGETS_TO_BUILD" ;;
         mipsel)   TARGETS_TO_BUILD="Mips $TARGETS_TO_BUILD" ;;
         mips64)   TARGETS_TO_BUILD="Mips $TARGETS_TO_BUILD" ;;
@@ -5664,7 +5665,8 @@ case "$enableval" in
         hexagon)  TARGETS_TO_BUILD="Hexagon $TARGETS_TO_BUILD" ;;
         nvptx)    TARGETS_TO_BUILD="NVPTX $TARGETS_TO_BUILD" ;;
         systemz)  TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
-        r600)     TARGETS_TO_BUILD="R600 $TARGETS_TO_BUILD" ;;
+        amdgpu)   TARGETS_TO_BUILD="AMDGPU $TARGETS_TO_BUILD" ;;
+        r600)     TARGETS_TO_BUILD="AMDGPU $TARGETS_TO_BUILD" ;;
         host) case "$llvm_cv_target_arch" in
             x86)         TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
             x86_64)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
@@ -8727,6 +8729,87 @@ if test $ac_cv_lib_imagehlp_main = yes; then
 _ACEOF
 
   LIBS="-limagehlp $LIBS"
+
+fi
+
+
+{ echo "$as_me:$LINENO: checking for main in -lole32" >&5
+echo $ECHO_N "checking for main in -lole32... $ECHO_C" >&6; }
+if test "${ac_cv_lib_ole32_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lole32  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+return main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag" || test ! -s conftest.err'
+  { (case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_try") 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_try") 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_ole32_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_ole32_main=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_ole32_main" >&5
+echo "${ECHO_T}$ac_cv_lib_ole32_main" >&6; }
+if test $ac_cv_lib_ole32_main = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBOLE32 1
+_ACEOF
+
+  LIBS="-lole32 $LIBS"
 
 fi
 

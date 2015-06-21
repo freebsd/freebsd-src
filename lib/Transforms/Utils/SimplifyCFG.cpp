@@ -136,7 +136,7 @@ public:
       : TTI(TTI), DL(DL), BonusInstThreshold(BonusInstThreshold), AC(AC) {}
   bool run(BasicBlock *BB);
 };
-}
+} // namespace
 
 /// SafeToMergeTerminators - Return true if it is safe to merge these two
 /// terminator instructions together.
@@ -502,7 +502,7 @@ private:
   }
 };
 
-}
+} // namespace
 
 static void EraseTerminatorInstAndDCECond(TerminatorInst *TI) {
   Instruction *Cond = nullptr;
@@ -3717,7 +3717,7 @@ namespace {
     // For ArrayKind, this is the array.
     GlobalVariable *Array;
   };
-}
+} // namespace
 
 SwitchLookupTable::SwitchLookupTable(
     Module &M, uint64_t TableSize, ConstantInt *Offset,
@@ -4058,7 +4058,7 @@ static bool SwitchToLookupTable(SwitchInst *SI, IRBuilder<> &Builder,
     return false;
 
   // Figure out the corresponding result for each case value and phi node in the
-  // common destination, as well as the the min and max case values.
+  // common destination, as well as the min and max case values.
   assert(SI->case_begin() != SI->case_end());
   SwitchInst::CaseIt CI = SI->case_begin();
   ConstantInt *MinCaseVal = CI.getCaseValue();

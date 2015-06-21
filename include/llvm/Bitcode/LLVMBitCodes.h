@@ -342,7 +342,7 @@ namespace bitc {
                                      //             align, vol,
                                      //             ordering, synchscope]
     FUNC_CODE_INST_RESUME      = 39, // RESUME:     [opval]
-    FUNC_CODE_INST_LANDINGPAD  = 40, // LANDINGPAD: [ty,val,val,num,id0,val0...]
+    FUNC_CODE_INST_LANDINGPAD_OLD  = 40, // LANDINGPAD: [ty,val,val,num,id0,val0...]
     FUNC_CODE_INST_LOADATOMIC  = 41, // LOAD: [opty, op, align, vol,
                                      //        ordering, synchscope]
     FUNC_CODE_INST_STOREATOMIC_OLD = 42, // STORE: [ptrty,ptr,val, align, vol
@@ -352,6 +352,7 @@ namespace bitc {
     FUNC_CODE_INST_STOREATOMIC = 45, // STORE: [ptrty,ptr,val, align, vol
     FUNC_CODE_INST_CMPXCHG     = 46, // CMPXCHG: [ptrty,ptr,valty,cmp,new, align,
                                      //           vol,ordering,synchscope]
+    FUNC_CODE_INST_LANDINGPAD  = 47, // LANDINGPAD: [ty,val,num,id0,val0...]
   };
 
   enum UseListCodes {
@@ -403,7 +404,8 @@ namespace bitc {
     ATTR_KIND_JUMP_TABLE = 40,
     ATTR_KIND_DEREFERENCEABLE = 41,
     ATTR_KIND_DEREFERENCEABLE_OR_NULL = 42,
-    ATTR_KIND_CONVERGENT = 43
+    ATTR_KIND_CONVERGENT = 43,
+    ATTR_KIND_SAFESTACK = 44,
   };
 
   enum ComdatSelectionKindCodes {
@@ -414,7 +416,7 @@ namespace bitc {
     COMDAT_SELECTION_KIND_SAME_SIZE = 5,
   };
 
-} // End bitc namespace
-} // End llvm namespace
+} // namespace bitc
+} // namespace llvm
 
 #endif

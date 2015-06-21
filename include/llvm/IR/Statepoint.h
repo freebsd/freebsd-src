@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __LLVM_IR_STATEPOINT_H
-#define __LLVM_IR_STATEPOINT_H
+#ifndef LLVM_IR_STATEPOINT_H
+#define LLVM_IR_STATEPOINT_H
 
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/IR/BasicBlock.h"
@@ -198,7 +198,7 @@ public:
   /// May contain several relocations for the same base/derived pair.
   /// For example this could happen due to relocations on unwinding
   /// path of invoke.
-  std::vector<GCRelocateOperands> getRelocates(ImmutableStatepoint &IS);
+  std::vector<GCRelocateOperands> getRelocates();
 
 #ifndef NDEBUG
   /// Asserts if this statepoint is malformed.  Common cases for failure
@@ -315,12 +315,11 @@ public:
 
 template <typename InstructionTy, typename ValueTy, typename CallSiteTy>
 std::vector<GCRelocateOperands>
-StatepointBase<InstructionTy, ValueTy, CallSiteTy>::getRelocates(
-    ImmutableStatepoint &IS) {
+StatepointBase<InstructionTy, ValueTy, CallSiteTy>::getRelocates() {
 
   std::vector<GCRelocateOperands> Result;
 
-  ImmutableCallSite StatepointCS = IS.getCallSite();
+  CallSiteTy StatepointCS = getCallSite();
 
   // Search for relocated pointers.  Note that working backwards from the
   // gc_relocates ensures that we only get pairs which are actually relocated
@@ -349,6 +348,6 @@ StatepointBase<InstructionTy, ValueTy, CallSiteTy>::getRelocates(
   }
   return Result;
 }
-}
+} // namespace llvm
 
 #endif

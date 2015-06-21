@@ -84,16 +84,16 @@ void BPFAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
 MCObjectWriter *BPFAsmBackend::createObjectWriter(raw_pwrite_stream &OS) const {
   return createBPFELFObjectWriter(OS, 0, IsLittleEndian);
 }
-}
+} // namespace
 
 MCAsmBackend *llvm::createBPFAsmBackend(const Target &T,
-                                        const MCRegisterInfo &MRI, StringRef TT,
-                                        StringRef CPU) {
+                                        const MCRegisterInfo &MRI,
+                                        const Triple &TT, StringRef CPU) {
   return new BPFAsmBackend(/*IsLittleEndian=*/true);
 }
 
 MCAsmBackend *llvm::createBPFbeAsmBackend(const Target &T,
-                                          const MCRegisterInfo &MRI, StringRef TT,
-                                          StringRef CPU) {
+                                          const MCRegisterInfo &MRI,
+                                          const Triple &TT, StringRef CPU) {
   return new BPFAsmBackend(/*IsLittleEndian=*/false);
 }

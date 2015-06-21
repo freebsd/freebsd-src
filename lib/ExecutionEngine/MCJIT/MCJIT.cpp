@@ -429,6 +429,19 @@ Function *MCJIT::FindFunctionNamedInModulePtrSet(const char *FnName,
   return nullptr;
 }
 
+GlobalVariable *MCJIT::FindGlobalVariableNamedInModulePtrSet(const char *Name,
+                                                             bool AllowInternal,
+                                                             ModulePtrSet::iterator I,
+                                                             ModulePtrSet::iterator E) {
+  for (; I != E; ++I) {
+    GlobalVariable *GV = (*I)->getGlobalVariable(Name, AllowInternal);
+    if (GV && !GV->isDeclaration())
+      return GV;
+  }
+  return nullptr;
+}
+
+
 Function *MCJIT::FindFunctionNamed(const char *FnName) {
   Function *F = FindFunctionNamedInModulePtrSet(
       FnName, OwnedModules.begin_added(), OwnedModules.end_added());
@@ -441,8 +454,19 @@ Function *MCJIT::FindFunctionNamed(const char *FnName) {
   return F;
 }
 
-GenericValue MCJIT::runFunction(Function *F,
-                                const std::vector<GenericValue> &ArgValues) {
+GlobalVariable *MCJIT::FindGlobalVariableNamed(const char *Name, bool AllowInternal) {
+  GlobalVariable *GV = FindGlobalVariableNamedInModulePtrSet(
+      Name, AllowInternal, OwnedModules.begin_added(), OwnedModules.end_added());
+  if (!GV)
+    GV = FindGlobalVariableNamedInModulePtrSet(Name, AllowInternal, OwnedModules.begin_loaded(),
+                                        OwnedModules.end_loaded());
+  if (!GV)
+    GV = FindGlobalVariableNamedInModulePtrSet(Name, AllowInternal, OwnedModules.begin_finalized(),
+                                        OwnedModules.end_finalized());
+  return GV;
+}
+
+GenericValue MCJIT::runFunction(Function *F, ArrayRef<GenericValue> ArgValues) {
   assert(F && "Function *F was null at entry to run()");
 
   void *FPtr = getPointerToFunction(F);

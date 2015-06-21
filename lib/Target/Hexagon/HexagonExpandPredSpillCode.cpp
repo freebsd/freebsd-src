@@ -41,6 +41,7 @@ using namespace llvm;
 
 
 namespace llvm {
+  FunctionPass *createHexagonExpandPredSpillCode();
   void initializeHexagonExpandPredSpillCodePass(PassRegistry&);
 }
 
@@ -332,7 +333,7 @@ bool HexagonExpandPredSpillCode::runOnMachineFunction(MachineFunction &Fn) {
   return true;
 }
 
-}
+} // namespace
 
 //===----------------------------------------------------------------------===//
 //                         Public Constructor Functions

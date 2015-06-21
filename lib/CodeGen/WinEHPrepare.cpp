@@ -24,6 +24,7 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Analysis/LibCallSemantics.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/WinEHFuncInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -110,7 +111,7 @@ private:
   bool outlineHandler(ActionHandler *Action, Function *SrcFn,
                       LandingPadInst *LPad, BasicBlock *StartBB,
                       FrameVarInfoMap &VarInfo);
-  void addStubInvokeToHandlerIfNeeded(Function *Handler, Value *PersonalityFn);
+  void addStubInvokeToHandlerIfNeeded(Function *Handler);
 
   void mapLandingPadBlocks(LandingPadInst *LPad, LandingPadActions &Actions);
   CatchHandler *findCatchHandler(BasicBlock *BB, BasicBlock *&NextBB,
@@ -124,6 +125,7 @@ private:
 
   // All fields are reset by runOnFunction.
   DominatorTree *DT = nullptr;
+  const TargetLibraryInfo *LibInfo = nullptr;
   EHPersonality Personality = EHPersonality::Unknown;
   CatchHandlerMapTy CatchHandlerMap;
   CleanupHandlerMapTy CleanupHandlerMap;
@@ -377,13 +379,14 @@ bool WinEHPrepare::runOnFunction(Function &Fn) {
     return false;
 
   // Classify the personality to see what kind of preparation we need.
-  Personality = classifyEHPersonality(LPads.back()->getPersonalityFn());
+  Personality = classifyEHPersonality(Fn.getPersonalityFn());
 
   // Do nothing if this is not an MSVC personality.
   if (!isMSVCEHPersonality(Personality))
     return false;
 
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  LibInfo = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
 
   // If there were any landing pads, prepareExceptionHandlers will make changes.
   prepareExceptionHandlers(Fn, LPads);
@@ -394,6 +397,7 @@ bool WinEHPrepare::doFinalization(Module &M) { return false; }
 
 void WinEHPrepare::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<DominatorTreeWrapperPass>();
+  AU.addRequired<TargetLibraryInfoWrapperPass>();
 }
 
 static bool isSelectorDispatch(BasicBlock *BB, BasicBlock *&CatchHandler,
@@ -1016,10 +1020,17 @@ bool WinEHPrepare::prepareExceptionHandlers(
   Builder.CreateCall(FrameEscapeFn, AllocasToEscape);
 
   if (SEHExceptionCodeSlot) {
-    if (SEHExceptionCodeSlot->hasNUses(0))
-      SEHExceptionCodeSlot->eraseFromParent();
-    else if (isAllocaPromotable(SEHExceptionCodeSlot))
+    if (isAllocaPromotable(SEHExceptionCodeSlot)) {
+      SmallPtrSet<BasicBlock *, 4> UserBlocks;
+      for (User *U : SEHExceptionCodeSlot->users()) {
+        if (auto *Inst = dyn_cast<Instruction>(U))
+          UserBlocks.insert(Inst->getParent());
+      }
       PromoteMemToReg(SEHExceptionCodeSlot, *DT);
+      // After the promotion, kill off dead instructions.
+      for (BasicBlock *BB : UserBlocks)
+        SimplifyInstructionsInBlock(BB, LibInfo);
+    }
   }
 
   // Clean up the handler action maps we created for this function
@@ -1029,6 +1040,7 @@ bool WinEHPrepare::prepareExceptionHandlers(
   CleanupHandlerMap.clear();
   HandlerToParentFP.clear();
   DT = nullptr;
+  LibInfo = nullptr;
   SEHExceptionCodeSlot = nullptr;
   EHBlocks.clear();
   NormalBlocks.clear();
@@ -1143,7 +1155,6 @@ void WinEHPrepare::completeNestedLandingPad(Function *ParentFn,
   ++II;
   // The instruction after the landing pad should now be a call to eh.actions.
   const Instruction *Recover = II;
-  assert(match(Recover, m_Intrinsic<Intrinsic::eh_actions>()));
   const IntrinsicInst *EHActions = cast<IntrinsicInst>(Recover);
 
   // Remap the return target in the nested handler.
@@ -1254,8 +1265,7 @@ static bool isCatchBlock(BasicBlock *BB) {
   return false;
 }
 
-static BasicBlock *createStubLandingPad(Function *Handler,
-                                        Value *PersonalityFn) {
+static BasicBlock *createStubLandingPad(Function *Handler) {
   // FIXME: Finish this!
   LLVMContext &Context = Handler->getContext();
   BasicBlock *StubBB = BasicBlock::Create(Context, "stub");
@@ -1264,7 +1274,7 @@ static BasicBlock *createStubLandingPad(Function *Handler,
   LandingPadInst *LPad = Builder.CreateLandingPad(
       llvm::StructType::get(Type::getInt8PtrTy(Context),
                             Type::getInt32Ty(Context), nullptr),
-      PersonalityFn, 0);
+      0);
   // Insert a call to llvm.eh.actions so that we don't try to outline this lpad.
   Function *ActionIntrin =
       Intrinsic::getDeclaration(Handler->getParent(), Intrinsic::eh_actions);
@@ -1279,8 +1289,7 @@ static BasicBlock *createStubLandingPad(Function *Handler,
 // landing pad if none is found.  The code that generates the .xdata tables for
 // the handler needs at least one landing pad to identify the parent function's
 // personality.
-void WinEHPrepare::addStubInvokeToHandlerIfNeeded(Function *Handler,
-                                                  Value *PersonalityFn) {
+void WinEHPrepare::addStubInvokeToHandlerIfNeeded(Function *Handler) {
   ReturnInst *Ret = nullptr;
   UnreachableInst *Unreached = nullptr;
   for (BasicBlock &BB : *Handler) {
@@ -1312,7 +1321,7 @@ void WinEHPrepare::addStubInvokeToHandlerIfNeeded(Function *Handler,
   // parent block.  We want to replace that with an invoke call, so we can
   // erase it now.
   OldRetBB->getTerminator()->eraseFromParent();
-  BasicBlock *StubLandingPad = createStubLandingPad(Handler, PersonalityFn);
+  BasicBlock *StubLandingPad = createStubLandingPad(Handler);
   Function *F =
       Intrinsic::getDeclaration(Handler->getParent(), Intrinsic::donothing);
   InvokeInst::Create(F, NewRetBB, StubLandingPad, None, "", OldRetBB);
@@ -1368,6 +1377,7 @@ bool WinEHPrepare::outlineHandler(ActionHandler *Action, Function *SrcFn,
     Handler = createHandlerFunc(Type::getVoidTy(Context),
                                 SrcFn->getName() + ".cleanup", M, ParentFP);
   }
+  Handler->setPersonalityFn(SrcFn->getPersonalityFn());
   HandlerToParentFP[Handler] = ParentFP;
   Handler->addFnAttr("wineh-parent", SrcFn->getName());
   BasicBlock *Entry = &Handler->getEntryBlock();
@@ -1445,7 +1455,7 @@ bool WinEHPrepare::outlineHandler(ActionHandler *Action, Function *SrcFn,
   ClonedEntryBB->eraseFromParent();
 
   // Make sure we can identify the handler's personality later.
-  addStubInvokeToHandlerIfNeeded(Handler, LPad->getPersonalityFn());
+  addStubInvokeToHandlerIfNeeded(Handler);
 
   if (auto *CatchAction = dyn_cast<CatchHandler>(Action)) {
     WinEHCatchDirector *CatchDirector =
@@ -2286,7 +2296,7 @@ void WinEHPrepare::findCleanupHandlers(LandingPadActions &Actions,
         // value for this block but the value is a nullptr.  This means that
         // we have previously analyzed the block and determined that it did
         // not contain any cleanup code.  Based on the earlier analysis, we
-        // know the the block must end in either an unconditional branch, a
+        // know the block must end in either an unconditional branch, a
         // resume or a conditional branch that is predicated on a comparison
         // with a selector.  Either the resume or the selector dispatch
         // would terminate the search for cleanup code, so the unconditional
@@ -2454,6 +2464,8 @@ void WinEHPrepare::findCleanupHandlers(LandingPadActions &Actions,
 void llvm::parseEHActions(
     const IntrinsicInst *II,
     SmallVectorImpl<std::unique_ptr<ActionHandler>> &Actions) {
+  assert(II->getIntrinsicID() == Intrinsic::eh_actions &&
+         "attempted to parse non eh.actions intrinsic");
   for (unsigned I = 0, E = II->getNumArgOperands(); I != E;) {
     uint64_t ActionKind =
         cast<ConstantInt>(II->getArgOperand(I))->getZExtValue();
@@ -2506,7 +2518,7 @@ struct WinEHNumbering {
   void calculateStateNumbers(const Function &F);
   void findActionRootLPads(const Function &F);
 };
-}
+} // namespace
 
 void WinEHNumbering::createUnwindMapEntry(int ToState, ActionHandler *AH) {
   WinEHUnwindMapEntry UME;
@@ -2766,7 +2778,6 @@ void WinEHNumbering::calculateStateNumbers(const Function &F) {
     auto *ActionsCall = dyn_cast<IntrinsicInst>(LPI->getNextNode());
     if (!ActionsCall)
       continue;
-    assert(ActionsCall->getIntrinsicID() == Intrinsic::eh_actions);
     parseEHActions(ActionsCall, ActionList);
     if (ActionList.empty())
       continue;

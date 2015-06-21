@@ -15,6 +15,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSection.h"
@@ -601,6 +602,11 @@ void MCStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
     TS->emitAssignment(Symbol, Value);
 }
 
+void MCTargetStreamer::prettyPrintAsm(MCInstPrinter &InstPrinter, raw_ostream &OS,
+                              const MCInst &Inst, const MCSubtargetInfo &STI) {
+  InstPrinter.printInst(&Inst, OS, "", STI);
+}
+
 void MCStreamer::visitUsedSymbol(const MCSymbol &Sym) {
 }
 
@@ -636,6 +642,25 @@ void MCStreamer::EmitInstruction(const MCInst &Inst,
   for (unsigned i = Inst.getNumOperands(); i--;)
     if (Inst.getOperand(i).isExpr())
       visitUsedExpr(*Inst.getOperand(i).getExpr());
+}
+
+void MCStreamer::emitAbsoluteSymbolDiff(const MCSymbol *Hi, const MCSymbol *Lo,
+                                        unsigned Size) {
+  // Get the Hi-Lo expression.
+  const MCExpr *Diff =
+      MCBinaryExpr::createSub(MCSymbolRefExpr::create(Hi, Context),
+                              MCSymbolRefExpr::create(Lo, Context), Context);
+
+  const MCAsmInfo *MAI = Context.getAsmInfo();
+  if (!MAI->doesSetDirectiveSuppressesReloc()) {
+    EmitValue(Diff, Size);
+    return;
+  }
+
+  // Otherwise, emit with .set (aka assignment).
+  MCSymbol *SetLabel = Context.createTempSymbol("set", true);
+  EmitAssignment(SetLabel, Diff);
+  EmitSymbolValue(SetLabel, Size);
 }
 
 void MCStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {}

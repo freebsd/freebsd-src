@@ -513,6 +513,7 @@ void CppWriter::printAttributes(const AttributeSet &PAL,
       HANDLE_ATTR(StackProtect);
       HANDLE_ATTR(StackProtectReq);
       HANDLE_ATTR(StackProtectStrong);
+      HANDLE_ATTR(SafeStack);
       HANDLE_ATTR(NoCapture);
       HANDLE_ATTR(NoRedZone);
       HANDLE_ATTR(NoImplicitFloat);
@@ -2148,7 +2149,8 @@ char CppWriter::ID = 0;
 
 bool CPPTargetMachine::addPassesToEmitFile(
     PassManagerBase &PM, raw_pwrite_stream &o, CodeGenFileType FileType,
-    bool DisableVerify, AnalysisID StartAfter, AnalysisID StopAfter) {
+    bool DisableVerify, AnalysisID StartAfter, AnalysisID StopAfter,
+    MachineFunctionInitializer *MFInitializer) {
   if (FileType != TargetMachine::CGFT_AssemblyFile)
     return true;
   auto FOut = llvm::make_unique<formatted_raw_ostream>(o);

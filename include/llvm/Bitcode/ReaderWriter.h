@@ -15,6 +15,7 @@
 #define LLVM_BITCODE_READERWRITER_H
 
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <memory>
@@ -32,7 +33,7 @@ namespace llvm {
   /// deserialization of function bodies. If ShouldLazyLoadMetadata is true,
   /// lazily load metadata as well. If successful, this moves Buffer. On
   /// error, this *does not* move Buffer.
-  ErrorOr<Module *>
+  ErrorOr<std::unique_ptr<Module>>
   getLazyBitcodeModule(std::unique_ptr<MemoryBuffer> &&Buffer,
                        LLVMContext &Context,
                        DiagnosticHandlerFunction DiagnosticHandler = nullptr,
@@ -41,7 +42,8 @@ namespace llvm {
   /// Read the header of the specified stream and prepare for lazy
   /// deserialization and streaming of function bodies.
   ErrorOr<std::unique_ptr<Module>> getStreamedBitcodeModule(
-      StringRef Name, DataStreamer *Streamer, LLVMContext &Context,
+      StringRef Name, std::unique_ptr<DataStreamer> Streamer,
+      LLVMContext &Context,
       DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
   /// Read the header of the specified bitcode buffer and extract just the
@@ -52,7 +54,7 @@ namespace llvm {
                          DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
   /// Read the specified bitcode file, returning the module.
-  ErrorOr<Module *>
+  ErrorOr<std::unique_ptr<Module>>
   parseBitcodeFile(MemoryBufferRef Buffer, LLVMContext &Context,
                    DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
@@ -132,14 +134,8 @@ namespace llvm {
     // Must contain the header!
     if (BufEnd-BufPtr < KnownHeaderSize) return true;
 
-    unsigned Offset = ( BufPtr[OffsetField  ]        |
-                       (BufPtr[OffsetField+1] << 8)  |
-                       (BufPtr[OffsetField+2] << 16) |
-                       (BufPtr[OffsetField+3] << 24));
-    unsigned Size   = ( BufPtr[SizeField    ]        |
-                       (BufPtr[SizeField  +1] << 8)  |
-                       (BufPtr[SizeField  +2] << 16) |
-                       (BufPtr[SizeField  +3] << 24));
+    unsigned Offset = support::endian::read32le(&BufPtr[OffsetField]);
+    unsigned Size = support::endian::read32le(&BufPtr[SizeField]);
 
     // Verify that Offset+Size fits in the file.
     if (VerifyBufferSize && Offset+Size > unsigned(BufEnd-BufPtr))
@@ -170,7 +166,7 @@ namespace llvm {
     }
   };
 
-} // End llvm namespace
+} // namespace llvm
 
 namespace std {
 template <> struct is_error_code_enum<llvm::BitcodeError> : std::true_type {};

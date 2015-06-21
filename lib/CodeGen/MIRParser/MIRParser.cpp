@@ -14,10 +14,17 @@
 
 #include "llvm/CodeGen/MIRParser/MIRParser.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/AsmParser/Parser.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MIRYamlMapping.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
@@ -27,7 +34,7 @@
 
 using namespace llvm;
 
-namespace {
+namespace llvm {
 
 /// This class implements the parsing of LLVM IR that's embedded inside a MIR
 /// file.
@@ -35,29 +42,56 @@ class MIRParserImpl {
   SourceMgr SM;
   StringRef Filename;
   LLVMContext &Context;
+  StringMap<std::unique_ptr<yaml::MachineFunction>> Functions;
 
 public:
   MIRParserImpl(std::unique_ptr<MemoryBuffer> Contents, StringRef Filename,
                 LLVMContext &Context);
 
+  void reportDiagnostic(const SMDiagnostic &Diag);
+
+  /// Report an error with the given message at unknown location.
+  ///
+  /// Always returns true.
+  bool error(const Twine &Message);
+
   /// Try to parse the optional LLVM module and the machine functions in the MIR
   /// file.
   ///
   /// Return null if an error occurred.
-  std::unique_ptr<Module> parse(SMDiagnostic &Error);
+  std::unique_ptr<Module> parse();
 
   /// Parse the machine function in the current YAML document.
   ///
+  /// \param NoLLVMIR - set to true when the MIR file doesn't have LLVM IR.
+  /// A dummy IR function is created and inserted into the given module when
+  /// this parameter is true.
+  ///
   /// Return true if an error occurred.
-  bool parseMachineFunction(yaml::Input &In);
+  bool parseMachineFunction(yaml::Input &In, Module &M, bool NoLLVMIR);
+
+  /// Initialize the machine function to the state that's described in the MIR
+  /// file.
+  ///
+  /// Return true if error occurred.
+  bool initializeMachineFunction(MachineFunction &MF);
+
+  /// Initialize the machine basic block using it's YAML representation.
+  ///
+  /// Return true if an error occurred.
+  bool initializeMachineBasicBlock(MachineBasicBlock &MBB,
+                                   const yaml::MachineBasicBlock &YamlMBB);
 
 private:
   /// Return a MIR diagnostic converted from an LLVM assembly diagnostic.
   SMDiagnostic diagFromLLVMAssemblyDiag(const SMDiagnostic &Error,
                                         SMRange SourceRange);
+
+  /// Create an empty function with the given name.
+  void createDummyFunction(StringRef Name, Module &M);
 };
 
-} // end anonymous namespace
+} // end namespace llvm
 
 MIRParserImpl::MIRParserImpl(std::unique_ptr<MemoryBuffer> Contents,
                              StringRef Filename, LLVMContext &Context)
@@ -65,30 +99,54 @@ MIRParserImpl::MIRParserImpl(std::unique_ptr<MemoryBuffer> Contents,
   SM.AddNewSourceBuffer(std::move(Contents), SMLoc());
 }
 
-static void handleYAMLDiag(const SMDiagnostic &Diag, void *Context) {
-  *reinterpret_cast<SMDiagnostic *>(Context) = Diag;
+bool MIRParserImpl::error(const Twine &Message) {
+  Context.diagnose(DiagnosticInfoMIRParser(
+      DS_Error, SMDiagnostic(Filename, SourceMgr::DK_Error, Message.str())));
+  return true;
 }
 
-std::unique_ptr<Module> MIRParserImpl::parse(SMDiagnostic &Error) {
+void MIRParserImpl::reportDiagnostic(const SMDiagnostic &Diag) {
+  DiagnosticSeverity Kind;
+  switch (Diag.getKind()) {
+  case SourceMgr::DK_Error:
+    Kind = DS_Error;
+    break;
+  case SourceMgr::DK_Warning:
+    Kind = DS_Warning;
+    break;
+  case SourceMgr::DK_Note:
+    Kind = DS_Note;
+    break;
+  }
+  Context.diagnose(DiagnosticInfoMIRParser(Kind, Diag));
+}
+
+static void handleYAMLDiag(const SMDiagnostic &Diag, void *Context) {
+  reinterpret_cast<MIRParserImpl *>(Context)->reportDiagnostic(Diag);
+}
+
+std::unique_ptr<Module> MIRParserImpl::parse() {
   yaml::Input In(SM.getMemoryBuffer(SM.getMainFileID())->getBuffer(),
-                 /*Ctxt=*/nullptr, handleYAMLDiag, &Error);
+                 /*Ctxt=*/nullptr, handleYAMLDiag, this);
 
   if (!In.setCurrentDocument()) {
-    if (!Error.getMessage().empty())
+    if (In.error())
       return nullptr;
     // Create an empty module when the MIR file is empty.
     return llvm::make_unique<Module>(Filename, Context);
   }
 
   std::unique_ptr<Module> M;
+  bool NoLLVMIR = false;
   // Parse the block scalar manually so that we can return unique pointer
   // without having to go trough YAML traits.
   if (const auto *BSN =
           dyn_cast_or_null<yaml::BlockScalarNode>(In.getCurrentNode())) {
+    SMDiagnostic Error;
     M = parseAssembly(MemoryBufferRef(BSN->getValue(), Filename), Error,
                       Context);
     if (!M) {
-      Error = diagFromLLVMAssemblyDiag(Error, BSN->getSourceRange());
+      reportDiagnostic(diagFromLLVMAssemblyDiag(Error, BSN->getSourceRange()));
       return M;
     }
     In.nextDocument();
@@ -97,11 +155,12 @@ std::unique_ptr<Module> MIRParserImpl::parse(SMDiagnostic &Error) {
   } else {
     // Create an new, empty module.
     M = llvm::make_unique<Module>(Filename, Context);
+    NoLLVMIR = true;
   }
 
   // Parse the machine functions.
   do {
-    if (parseMachineFunction(In))
+    if (parseMachineFunction(In, *M, NoLLVMIR))
       return nullptr;
     In.nextDocument();
   } while (In.setCurrentDocument());
@@ -109,13 +168,68 @@ std::unique_ptr<Module> MIRParserImpl::parse(SMDiagnostic &Error) {
   return M;
 }
 
-bool MIRParserImpl::parseMachineFunction(yaml::Input &In) {
-  yaml::MachineFunction MF;
-  yaml::yamlize(In, MF, false);
+bool MIRParserImpl::parseMachineFunction(yaml::Input &In, Module &M,
+                                         bool NoLLVMIR) {
+  auto MF = llvm::make_unique<yaml::MachineFunction>();
+  yaml::yamlize(In, *MF, false);
   if (In.error())
     return true;
-  // TODO: Initialize the real machine function with the state in the yaml
-  // machine function later on.
+  auto FunctionName = MF->Name;
+  if (Functions.find(FunctionName) != Functions.end())
+    return error(Twine("redefinition of machine function '") + FunctionName +
+                 "'");
+  Functions.insert(std::make_pair(FunctionName, std::move(MF)));
+  if (NoLLVMIR)
+    createDummyFunction(FunctionName, M);
+  else if (!M.getFunction(FunctionName))
+    return error(Twine("function '") + FunctionName +
+                 "' isn't defined in the provided LLVM IR");
+  return false;
+}
+
+void MIRParserImpl::createDummyFunction(StringRef Name, Module &M) {
+  auto &Context = M.getContext();
+  Function *F = cast<Function>(M.getOrInsertFunction(
+      Name, FunctionType::get(Type::getVoidTy(Context), false)));
+  BasicBlock *BB = BasicBlock::Create(Context, "entry", F);
+  new UnreachableInst(Context, BB);
+}
+
+bool MIRParserImpl::initializeMachineFunction(MachineFunction &MF) {
+  auto It = Functions.find(MF.getName());
+  if (It == Functions.end())
+    return error(Twine("no machine function information for function '") +
+                 MF.getName() + "' in the MIR file");
+  // TODO: Recreate the machine function.
+  const yaml::MachineFunction &YamlMF = *It->getValue();
+  if (YamlMF.Alignment)
+    MF.setAlignment(YamlMF.Alignment);
+  MF.setExposesReturnsTwice(YamlMF.ExposesReturnsTwice);
+  MF.setHasInlineAsm(YamlMF.HasInlineAsm);
+  const auto &F = *MF.getFunction();
+  for (const auto &YamlMBB : YamlMF.BasicBlocks) {
+    const BasicBlock *BB = nullptr;
+    if (!YamlMBB.Name.empty()) {
+      BB = dyn_cast_or_null<BasicBlock>(
+          F.getValueSymbolTable().lookup(YamlMBB.Name));
+      if (!BB)
+        return error(Twine("basic block '") + YamlMBB.Name +
+                     "' is not defined in the function '" + MF.getName() + "'");
+    }
+    auto *MBB = MF.CreateMachineBasicBlock(BB);
+    MF.insert(MF.end(), MBB);
+    if (initializeMachineBasicBlock(*MBB, YamlMBB))
+      return true;
+  }
+  return false;
+}
+
+bool MIRParserImpl::initializeMachineBasicBlock(
+    MachineBasicBlock &MBB, const yaml::MachineBasicBlock &YamlMBB) {
+  MBB.setAlignment(YamlMBB.Alignment);
+  if (YamlMBB.AddressTaken)
+    MBB.setHasAddressTaken();
+  MBB.setIsLandingPad(YamlMBB.IsLandingPad);
   return false;
 }
 
@@ -150,22 +264,33 @@ SMDiagnostic MIRParserImpl::diagFromLLVMAssemblyDiag(const SMDiagnostic &Error,
                       Error.getFixIts());
 }
 
-std::unique_ptr<Module> llvm::parseMIRFile(StringRef Filename,
-                                           SMDiagnostic &Error,
-                                           LLVMContext &Context) {
+MIRParser::MIRParser(std::unique_ptr<MIRParserImpl> Impl)
+    : Impl(std::move(Impl)) {}
+
+MIRParser::~MIRParser() {}
+
+std::unique_ptr<Module> MIRParser::parseLLVMModule() { return Impl->parse(); }
+
+bool MIRParser::initializeMachineFunction(MachineFunction &MF) {
+  return Impl->initializeMachineFunction(MF);
+}
+
+std::unique_ptr<MIRParser> llvm::createMIRParserFromFile(StringRef Filename,
+                                                         SMDiagnostic &Error,
+                                                         LLVMContext &Context) {
   auto FileOrErr = MemoryBuffer::getFile(Filename);
   if (std::error_code EC = FileOrErr.getError()) {
     Error = SMDiagnostic(Filename, SourceMgr::DK_Error,
                          "Could not open input file: " + EC.message());
-    return std::unique_ptr<Module>();
+    return nullptr;
   }
-  return parseMIR(std::move(FileOrErr.get()), Error, Context);
+  return createMIRParser(std::move(FileOrErr.get()), Context);
 }
 
-std::unique_ptr<Module> llvm::parseMIR(std::unique_ptr<MemoryBuffer> Contents,
-                                       SMDiagnostic &Error,
-                                       LLVMContext &Context) {
+std::unique_ptr<MIRParser>
+llvm::createMIRParser(std::unique_ptr<MemoryBuffer> Contents,
+                      LLVMContext &Context) {
   auto Filename = Contents->getBufferIdentifier();
-  MIRParserImpl Parser(std::move(Contents), Filename, Context);
-  return Parser.parse(Error);
+  return llvm::make_unique<MIRParser>(
+      llvm::make_unique<MIRParserImpl>(std::move(Contents), Filename, Context));
 }

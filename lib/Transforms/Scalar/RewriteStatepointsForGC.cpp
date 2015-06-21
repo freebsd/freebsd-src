@@ -183,7 +183,7 @@ struct PartiallyConstructedSafepointRecord {
   /// Maps rematerialized copy to it's original value.
   RematerializedValueMapTy RematerializedValues;
 };
-}
+} // namespace
 
 /// Compute the live-in set for every basic block in the function
 static void computeLiveInValues(DominatorTree &DT, Function &F,
@@ -646,7 +646,7 @@ private:
     llvm_unreachable("only three states!");
   }
 };
-}
+} // namespace
 /// For a given value or instruction, figure out what base ptr it's derived
 /// from.  For gc objects, this is simply itself.  On success, returns a value
 /// which is the base pointer.  (This is reliable and can be used for
@@ -1659,17 +1659,10 @@ static void relocationViaAlloca(
 /// vector.  Doing so has the effect of changing the output of a couple of
 /// tests in ways which make them less useful in testing fused safepoints.
 template <typename T> static void unique_unsorted(SmallVectorImpl<T> &Vec) {
-  DenseSet<T> Seen;
-  SmallVector<T, 128> TempVec;
-  TempVec.reserve(Vec.size());
-  for (auto Element : Vec)
-    TempVec.push_back(Element);
-  Vec.clear();
-  for (auto V : TempVec) {
-    if (Seen.insert(V).second) {
-      Vec.push_back(V);
-    }
-  }
+  SmallSet<T, 8> Seen;
+  Vec.erase(std::remove_if(Vec.begin(), Vec.end(), [&](const T &V) {
+              return !Seen.insert(V).second;
+            }), Vec.end());
 }
 
 /// Insert holders so that each Value is obviously live through the entire

@@ -129,7 +129,7 @@ class APInt {
 
   /// \brief Clear unused high order bits
   ///
-  /// This method is used internally to clear the to "N" bits in the high order
+  /// This method is used internally to clear the top "N" bits in the high order
   /// word that are not used by the APInt. This is needed after the most
   /// significant word is assigned a value to ensure that those bits are
   /// zero'd out.
@@ -795,7 +795,7 @@ public:
 
   /// \brief Bitwise OR function.
   ///
-  /// Performs a bitwise or on *this and RHS. This is implemented bny simply
+  /// Performs a bitwise or on *this and RHS. This is implemented by simply
   /// calling operator|.
   ///
   /// \returns An APInt value representing the bitwise OR of *this and RHS.
@@ -1896,11 +1896,11 @@ inline APInt Xor(const APInt &LHS, const APInt &RHS) { return LHS ^ RHS; }
 /// Performs a bitwise complement operation on APInt.
 inline APInt Not(const APInt &APIVal) { return ~APIVal; }
 
-} // End of APIntOps namespace
+} // namespace APIntOps
 
 // See friend declaration above. This additional declaration is required in
 // order to compile LLVM with IBM xlC compiler.
 hash_code hash_value(const APInt &Arg);
-} // End of llvm namespace
+} // namespace llvm
 
 #endif

@@ -59,7 +59,7 @@ private:
                                       Type *Ty, Value *BasePtr, int Idx1, int Idx2,
                                       const char *Name);
 };
-}
+} // namespace
 
 INITIALIZE_PASS_BEGIN(ShadowStackGCLowering, "shadow-stack-gc-lowering",
                       "Shadow Stack GC Lowering", false, false)
@@ -144,10 +144,14 @@ public:
       BasicBlock *CleanupBB = BasicBlock::Create(C, CleanupBBName, &F);
       Type *ExnTy =
           StructType::get(Type::getInt8PtrTy(C), Type::getInt32Ty(C), nullptr);
-      Constant *PersFn = F.getParent()->getOrInsertFunction(
-          "__gcc_personality_v0", FunctionType::get(Type::getInt32Ty(C), true));
+      if (!F.hasPersonalityFn()) {
+        Constant *PersFn = F.getParent()->getOrInsertFunction(
+            "__gcc_personality_v0",
+            FunctionType::get(Type::getInt32Ty(C), true));
+        F.setPersonalityFn(PersFn);
+      }
       LandingPadInst *LPad =
-          LandingPadInst::Create(ExnTy, PersFn, 1, "cleanup.lpad", CleanupBB);
+          LandingPadInst::Create(ExnTy, 1, "cleanup.lpad", CleanupBB);
       LPad->setCleanup(true);
       ResumeInst *RI = ResumeInst::Create(LPad, CleanupBB);
 
@@ -185,7 +189,7 @@ public:
     }
   }
 };
-}
+} // namespace
 
 
 Constant *ShadowStackGCLowering::GetFrameMap(Function &F) {

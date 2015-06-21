@@ -61,14 +61,30 @@ SchedCustomRegistry("hexagon", "Run Hexagon's custom scheduler",
 
 namespace llvm {
   FunctionPass *createHexagonExpandCondsets();
-}
+  FunctionPass *createHexagonISelDag(HexagonTargetMachine &TM,
+                                     CodeGenOpt::Level OptLevel);
+  FunctionPass *createHexagonDelaySlotFillerPass(const TargetMachine &TM);
+  FunctionPass *createHexagonFPMoverPass(const TargetMachine &TM);
+  FunctionPass *createHexagonRemoveExtendArgs(const HexagonTargetMachine &TM);
+  FunctionPass *createHexagonCFGOptimizer();
+
+  FunctionPass *createHexagonSplitConst32AndConst64();
+  FunctionPass *createHexagonExpandPredSpillCode();
+  FunctionPass *createHexagonHardwareLoops();
+  FunctionPass *createHexagonPeephole();
+  FunctionPass *createHexagonFixupHwLoops();
+  FunctionPass *createHexagonNewValueJump();
+  FunctionPass *createHexagonCopyToCombine();
+  FunctionPass *createHexagonPacketizer();
+  FunctionPass *createHexagonNewValueJump();
+} // namespace llvm
 
 /// HexagonTargetMachine ctor - Create an ILP32 architecture model.
 ///
 
 /// Hexagon_TODO: Do I need an aggregate alignment?
 ///
-HexagonTargetMachine::HexagonTargetMachine(const Target &T, StringRef TT,
+HexagonTargetMachine::HexagonTargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
                                            Reloc::Model RM, CodeModel::Model CM,

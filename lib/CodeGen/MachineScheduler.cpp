@@ -347,7 +347,7 @@ bool PostMachineScheduler::runOnMachineFunction(MachineFunction &mf) {
   if (skipOptnoneFunction(*mf.getFunction()))
     return false;
 
-  if (!mf.getSubtarget().enablePostMachineScheduler()) {
+  if (!mf.getSubtarget().enablePostRAScheduler()) {
     DEBUG(dbgs() << "Subtarget disables post-MI-sched.\n");
     return false;
   }
@@ -1262,7 +1262,7 @@ public:
 protected:
   void clusterNeighboringLoads(ArrayRef<SUnit*> Loads, ScheduleDAGMI *DAG);
 };
-} // anonymous
+} // namespace
 
 void LoadClusterMutation::clusterNeighboringLoads(ArrayRef<SUnit*> Loads,
                                                   ScheduleDAGMI *DAG) {
@@ -1271,7 +1271,7 @@ void LoadClusterMutation::clusterNeighboringLoads(ArrayRef<SUnit*> Loads,
     SUnit *SU = Loads[Idx];
     unsigned BaseReg;
     unsigned Offset;
-    if (TII->getLdStBaseRegImmOfs(SU->getInstr(), BaseReg, Offset, TRI))
+    if (TII->getMemOpBaseRegImmOfs(SU->getInstr(), BaseReg, Offset, TRI))
       LoadRecords.push_back(LoadInfo(SU, BaseReg, Offset));
   }
   if (LoadRecords.size() < 2)
@@ -1355,7 +1355,7 @@ public:
 
   void apply(ScheduleDAGMI *DAG) override;
 };
-} // anonymous
+} // namespace
 
 /// \brief Callback from DAG postProcessing to create cluster edges to encourage
 /// fused operations.
@@ -1407,7 +1407,7 @@ public:
 protected:
   void constrainLocalCopy(SUnit *CopySU, ScheduleDAGMILive *DAG);
 };
-} // anonymous
+} // namespace
 
 /// constrainLocalCopy handles two possibilities:
 /// 1) Local src:
@@ -2150,7 +2150,7 @@ void GenericSchedulerBase::setPolicy(CandPolicy &Policy,
                                      bool IsPostRA,
                                      SchedBoundary &CurrZone,
                                      SchedBoundary *OtherZone) {
-  // Apply preemptive heuristics based on the the total latency and resources
+  // Apply preemptive heuristics based on the total latency and resources
   // inside and outside this zone. Potential stalls should be considered before
   // following this policy.
 

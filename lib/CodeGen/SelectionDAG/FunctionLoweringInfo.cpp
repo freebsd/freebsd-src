@@ -259,20 +259,27 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
 
   // If this is an MSVC EH personality, we need to do a bit more work.
   EHPersonality Personality = EHPersonality::Unknown;
-  if (!LPads.empty())
-    Personality = classifyEHPersonality(LPads.back()->getPersonalityFn());
+  if (Fn->hasPersonalityFn())
+    Personality = classifyEHPersonality(Fn->getPersonalityFn());
   if (!isMSVCEHPersonality(Personality))
     return;
 
-  if (Personality == EHPersonality::MSVC_Win64SEH) {
+  if (Personality == EHPersonality::MSVC_Win64SEH ||
+      Personality == EHPersonality::MSVC_X86SEH) {
     addSEHHandlersForLPads(LPads);
-  } else if (Personality == EHPersonality::MSVC_CXX) {
-    const Function *WinEHParentFn = MMI.getWinEHParent(&fn);
-    WinEHFuncInfo &EHInfo = MMI.getWinEHFuncInfo(WinEHParentFn);
-    calculateWinCXXEHStateNumbers(WinEHParentFn, EHInfo);
+  }
 
-    // Copy the state numbers to LandingPadInfo for the current function, which
-    // could be a handler or the parent.
+  WinEHFuncInfo &EHInfo = MMI.getWinEHFuncInfo(&fn);
+  if (Personality == EHPersonality::MSVC_CXX) {
+    const Function *WinEHParentFn = MMI.getWinEHParent(&fn);
+    calculateWinCXXEHStateNumbers(WinEHParentFn, EHInfo);
+  }
+
+  // Copy the state numbers to LandingPadInfo for the current function, which
+  // could be a handler or the parent. This should happen for 32-bit SEH and
+  // C++ EH.
+  if (Personality == EHPersonality::MSVC_CXX ||
+      Personality == EHPersonality::MSVC_X86SEH) {
     for (const LandingPadInst *LP : LPads) {
       MachineBasicBlock *LPadMBB = MBBMap[LP->getParent()];
       MMI.addWinEHState(LPadMBB, EHInfo.LandingPadStateMap[LP]);
@@ -539,8 +546,10 @@ void llvm::ComputeUsesVAFloatArgument(const CallInst &I,
 /// landingpad instruction and add them to the specified machine module info.
 void llvm::AddLandingPadInfo(const LandingPadInst &I, MachineModuleInfo &MMI,
                              MachineBasicBlock *MBB) {
-  MMI.addPersonality(MBB,
-                     cast<Function>(I.getPersonalityFn()->stripPointerCasts()));
+  MMI.addPersonality(
+      MBB,
+      cast<Function>(
+          I.getParent()->getParent()->getPersonalityFn()->stripPointerCasts()));
 
   if (I.isCleanup())
     MMI.addCleanup(MBB);

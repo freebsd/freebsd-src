@@ -29,6 +29,7 @@
 namespace llvm {
 class GlobalValue;
 class StringRef;
+class Triple;
 
 class AArch64Subtarget : public AArch64GenSubtargetInfo {
 protected:
@@ -71,7 +72,7 @@ private:
 public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
-  AArch64Subtarget(const std::string &TT, const std::string &CPU,
+  AArch64Subtarget(const Triple &TT, const std::string &CPU,
                    const std::string &FS, const TargetMachine &TM,
                    bool LittleEndian);
 
@@ -90,7 +91,7 @@ public:
   }
   const Triple &getTargetTriple() const { return TargetTriple; }
   bool enableMachineScheduler() const override { return true; }
-  bool enablePostMachineScheduler() const override {
+  bool enablePostRAScheduler() const override {
     return isCortexA53() || isCortexA57();
   }
 
@@ -150,6 +151,6 @@ public:
 
   std::unique_ptr<PBQPRAConstraint> getCustomPBQPConstraints() const override;
 };
-} // End llvm namespace
+} // namespace llvm
 
 #endif

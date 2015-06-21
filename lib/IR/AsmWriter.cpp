@@ -67,7 +67,7 @@ struct OrderMap {
     IDs[V].first = ID;
   }
 };
-}
+} // namespace
 
 static void orderValue(const Value *V, OrderMap &OM) {
   if (OM.lookup(V).first)
@@ -108,6 +108,10 @@ static OrderMap orderModule(const Module *M) {
     if (F.hasPrologueData())
       if (!isa<GlobalValue>(F.getPrologueData()))
         orderValue(F.getPrologueData(), OM);
+
+    if (F.hasPersonalityFn())
+      if (!isa<GlobalValue>(F.getPersonalityFn()))
+        orderValue(F.getPersonalityFn(), OM);
 
     orderValue(&F, OM);
 
@@ -725,33 +729,33 @@ void SlotTracker::processModule() {
   ST_DEBUG("begin processModule!\n");
 
   // Add all of the unnamed global variables to the value table.
-  for (Module::const_global_iterator I = TheModule->global_begin(),
-         E = TheModule->global_end(); I != E; ++I) {
-    if (!I->hasName())
-      CreateModuleSlot(I);
+  for (const GlobalVariable &Var : TheModule->globals()) {
+    if (!Var.hasName())
+      CreateModuleSlot(&Var);
+  }
+
+  for (const GlobalAlias &A : TheModule->aliases()) {
+    if (!A.hasName())
+      CreateModuleSlot(&A);
   }
 
   // Add metadata used by named metadata.
-  for (Module::const_named_metadata_iterator
-         I = TheModule->named_metadata_begin(),
-         E = TheModule->named_metadata_end(); I != E; ++I) {
-    const NamedMDNode *NMD = I;
-    for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
-      CreateMetadataSlot(NMD->getOperand(i));
+  for (const NamedMDNode &NMD : TheModule->named_metadata()) {
+    for (unsigned i = 0, e = NMD.getNumOperands(); i != e; ++i)
+      CreateMetadataSlot(NMD.getOperand(i));
   }
 
-  for (Module::const_iterator I = TheModule->begin(), E = TheModule->end();
-       I != E; ++I) {
-    if (!I->hasName())
+  for (const Function &F : *TheModule) {
+    if (!F.hasName())
       // Add all the unnamed functions to the table.
-      CreateModuleSlot(I);
+      CreateModuleSlot(&F);
 
     if (ShouldInitializeAllMetadata)
-      processFunctionMetadata(*I);
+      processFunctionMetadata(F);
 
     // Add all the function attributes to the table.
     // FIXME: Add attributes of other objects?
-    AttributeSet FnAttrs = I->getAttributes().getFnAttributes();
+    AttributeSet FnAttrs = F.getAttributes().getFnAttributes();
     if (FnAttrs.hasAttributes(AttributeSet::FunctionIndex))
       CreateAttributeSetSlot(FnAttrs);
   }
@@ -2169,23 +2173,21 @@ void AssemblyWriter::printModule(const Module *M) {
 
   // Output all globals.
   if (!M->global_empty()) Out << '\n';
-  for (Module::const_global_iterator I = M->global_begin(), E = M->global_end();
-       I != E; ++I) {
-    printGlobal(I); Out << '\n';
+  for (const GlobalVariable &GV : M->globals()) {
+    printGlobal(&GV); Out << '\n';
   }
 
   // Output all aliases.
   if (!M->alias_empty()) Out << "\n";
-  for (Module::const_alias_iterator I = M->alias_begin(), E = M->alias_end();
-       I != E; ++I)
-    printAlias(I);
+  for (const GlobalAlias &GA : M->aliases())
+    printAlias(&GA);
 
   // Output global use-lists.
   printUseLists(nullptr);
 
   // Output all of the functions.
-  for (Module::const_iterator I = M->begin(), E = M->end(); I != E; ++I)
-    printFunction(I);
+  for (const Function &F : *M)
+    printFunction(&F);
   assert(UseListOrders.empty() && "All use-lists should have been consumed");
 
   // Output all attribute groups.
@@ -2197,9 +2199,8 @@ void AssemblyWriter::printModule(const Module *M) {
   // Output named metadata.
   if (!M->named_metadata_empty()) Out << '\n';
 
-  for (Module::const_named_metadata_iterator I = M->named_metadata_begin(),
-       E = M->named_metadata_end(); I != E; ++I)
-    printNamedMDNode(I);
+  for (const NamedMDNode &Node : M->named_metadata())
+    printNamedMDNode(&Node);
 
   // Output metadata.
   if (!Machine.mdn_empty()) {
@@ -2364,13 +2365,9 @@ void AssemblyWriter::printAlias(const GlobalAlias *GA) {
   if (GA->isMaterializable())
     Out << "; Materializable\n";
 
-  // Don't crash when dumping partially built GA
-  if (!GA->hasName())
-    Out << "<<nameless>> = ";
-  else {
-    PrintLLVMName(Out, GA);
-    Out << " = ";
-  }
+  WriteAsOperandInternal(Out, GA, &TypePrinter, &Machine, GA->getParent());
+  Out << " = ";
+
   PrintLinkage(GA->getLinkage(), Out);
   PrintVisibility(GA->getVisibility(), Out);
   PrintDLLStorageClass(GA->getDLLStorageClass(), Out);
@@ -2546,6 +2543,10 @@ void AssemblyWriter::printFunction(const Function *F) {
   if (F->hasPrologueData()) {
     Out << " prologue ";
     writeOperand(F->getPrologueData(), true);
+  }
+  if (F->hasPersonalityFn()) {
+    Out << " personality ";
+    writeOperand(F->getPersonalityFn(), /*PrintType=*/true);
   }
 
   SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
@@ -2789,8 +2790,8 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
   } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
     Out << ' ';
     TypePrinter.print(I.getType(), Out);
-    Out << " personality ";
-    writeOperand(I.getOperand(0), true); Out << '\n';
+    if (LPI->isCleanup() || LPI->getNumClauses() != 0)
+      Out << '\n';
 
     if (LPI->isCleanup())
       Out << "          cleanup";

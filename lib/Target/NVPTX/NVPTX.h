@@ -70,6 +70,7 @@ MachineFunctionPass *createNVPTXPrologEpilogPass();
 MachineFunctionPass *createNVPTXReplaceImageHandlesPass();
 FunctionPass *createNVPTXImageOptimizerPass();
 FunctionPass *createNVPTXLowerKernelArgsPass(const NVPTXTargetMachine *TM);
+BasicBlockPass *createNVPTXLowerAllocaPass();
 
 bool isImageOrSamplerVal(const Value *, const Module *);
 
@@ -132,7 +133,7 @@ enum VecType {
   V2 = 2,
   V4 = 4
 };
-}
+} // namespace PTXLdStInstCode
 
 /// PTXCvtMode - Conversion code enumeration
 namespace PTXCvtMode {
@@ -151,7 +152,7 @@ enum CvtMode {
   FTZ_FLAG = 0x10,
   SAT_FLAG = 0x20
 };
-}
+} // namespace PTXCvtMode
 
 /// PTXCmpMode - Comparison mode enumeration
 namespace PTXCmpMode {
@@ -179,9 +180,9 @@ enum CmpMode {
   BASE_MASK = 0xFF,
   FTZ_FLAG = 0x100
 };
-}
-}
-} // end namespace llvm;
+} // namespace PTXCmpMode
+} // namespace NVPTX
+} // namespace llvm
 
 // Defines symbolic names for NVPTX registers.  This defines a mapping from
 // register name to register number.

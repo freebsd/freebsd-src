@@ -108,6 +108,7 @@ public:
     StackProtect,          ///< Stack protection.
     StackProtectReq,       ///< Stack protection required.
     StackProtectStrong,    ///< Strong Stack protection.
+    SafeStack,             ///< Safe Stack protection.
     StructRet,             ///< Hidden pointer to structure to return
     SanitizeAddress,       ///< AddressSanitizer is on.
     SanitizeThread,        ///< ThreadSanitizer is on.
@@ -574,6 +575,6 @@ AttrBuilder typeIncompatible(const Type *Ty);
 
 } // end AttributeFuncs namespace
 
-} // end llvm namespace
+} // namespace llvm
 
 #endif

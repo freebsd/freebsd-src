@@ -7,32 +7,24 @@
 //
 //===----------------------------------------------------------------------===//
 
+def s4_0ImmOperand : AsmOperandClass { let Name = "s4_0Imm"; }
+def s4_1ImmOperand : AsmOperandClass { let Name = "s4_1Imm"; }
+def s4_2ImmOperand : AsmOperandClass { let Name = "s4_2Imm"; }
+def s4_3ImmOperand : AsmOperandClass { let Name = "s4_3Imm"; }
+
 // Immediate operands.
 
 let PrintMethod = "printImmOperand" in {
-  // f32Ext type is used to identify constant extended floating point immediates.
-  def f32Ext : Operand<f32>;
   def s32Imm : Operand<i32>;
-  def s26_6Imm : Operand<i32>;
-  def s16Imm : Operand<i32>;
-  def s12Imm : Operand<i32>;
-  def s11Imm : Operand<i32>;
-  def s11_0Imm : Operand<i32>;
-  def s11_1Imm : Operand<i32>;
-  def s11_2Imm : Operand<i32>;
-  def s11_3Imm : Operand<i32>;
-  def s10Imm : Operand<i32>;
-  def s9Imm : Operand<i32>;
-  def m9Imm : Operand<i32>;
   def s8Imm : Operand<i32>;
   def s8Imm64 : Operand<i64>;
   def s6Imm : Operand<i32>;
   def s6_3Imm : Operand<i32>;
   def s4Imm : Operand<i32>;
-  def s4_0Imm : Operand<i32>;
-  def s4_1Imm : Operand<i32>;
-  def s4_2Imm : Operand<i32>;
-  def s4_3Imm : Operand<i32>;
+  def s4_0Imm : Operand<i32> { let DecoderMethod = "s4_0ImmDecoder"; }
+  def s4_1Imm : Operand<i32> { let DecoderMethod = "s4_1ImmDecoder"; }
+  def s4_2Imm : Operand<i32> { let DecoderMethod = "s4_2ImmDecoder"; }
+  def s4_3Imm : Operand<i32> { let DecoderMethod = "s4_3ImmDecoder"; }
   def u64Imm : Operand<i64>;
   def u32Imm : Operand<i32>;
   def u26_6Imm : Operand<i32>;
@@ -446,17 +438,18 @@ def SetClr3ImmPred : PatLeaf<(i32 imm), [{
 // Extendable immediate operands.
 
 let PrintMethod = "printExtOperand" in {
-  def s16Ext : Operand<i32>;
-  def s12Ext : Operand<i32>;
-  def s10Ext : Operand<i32>;
-  def s9Ext : Operand<i32>;
-  def s8Ext : Operand<i32>;
+  def f32Ext : Operand<f32>;
+  def s16Ext : Operand<i32> { let DecoderMethod = "s16ImmDecoder"; }
+  def s12Ext : Operand<i32> { let DecoderMethod = "s12ImmDecoder"; }
+  def s11_0Ext : Operand<i32> { let DecoderMethod = "s11_0ImmDecoder"; }
+  def s11_1Ext : Operand<i32> { let DecoderMethod = "s11_1ImmDecoder"; }
+  def s11_2Ext : Operand<i32> { let DecoderMethod = "s11_2ImmDecoder"; }
+  def s11_3Ext : Operand<i32> { let DecoderMethod = "s11_3ImmDecoder"; }
+  def s10Ext : Operand<i32> { let DecoderMethod = "s10ImmDecoder"; }
+  def s9Ext : Operand<i32> { let DecoderMethod = "s90ImmDecoder"; }
+  def s8Ext : Operand<i32> { let DecoderMethod = "s8ImmDecoder"; }
   def s7Ext : Operand<i32>;
-  def s6Ext : Operand<i32>;
-  def s11_0Ext : Operand<i32>;
-  def s11_1Ext : Operand<i32>;
-  def s11_2Ext : Operand<i32>;
-  def s11_3Ext : Operand<i32>;
+  def s6Ext : Operand<i32> { let DecoderMethod = "s6_0ImmDecoder"; }
   def u6Ext : Operand<i32>;
   def u7Ext : Operand<i32>;
   def u8Ext : Operand<i32>;
@@ -467,6 +460,46 @@ let PrintMethod = "printExtOperand" in {
   def u6_2Ext : Operand<i32>;
   def u6_3Ext : Operand<i32>;
 }
+
+def s10ExtPred  : PatLeaf<(i32 imm), [{
+  int64_t v = (int64_t)N->getSExtValue();
+  if (isInt<10>(v))
+    return true;
+
+  // Return true if extending this immediate is profitable and the value
+  // can fit in a 32-bit signed field.
+  return isConstExtProfitable(Node) && isInt<32>(v);
+}]>;
+
+def s8ExtPred  : PatLeaf<(i32 imm), [{
+  int64_t v = (int64_t)N->getSExtValue();
+  if (isInt<8>(v))
+    return true;
+
+  // Return true if extending this immediate is profitable and the value
+  // can fit in a 32-bit signed field.
+  return isConstExtProfitable(Node) && isInt<32>(v);
+}]>;
+
+def u8ExtPred  : PatLeaf<(i32 imm), [{
+  int64_t v = (int64_t)N->getSExtValue();
+  if (isUInt<8>(v))
+    return true;
+
+  // Return true if extending this immediate is profitable and the value
+  // can fit in a 32-bit unsigned field.
+  return isConstExtProfitable(Node) && isUInt<32>(v);
+}]>;
+
+def u9ExtPred  : PatLeaf<(i32 imm), [{
+  int64_t v = (int64_t)N->getSExtValue();
+  if (isUInt<9>(v))
+    return true;
+
+  // Return true if extending this immediate is profitable and the value
+  // can fit in a 32-bit unsigned field.
+  return isConstExtProfitable(Node) && isUInt<32>(v);
+}]>;
 
 
 // This complex pattern exists only to create a machine instruction operand
