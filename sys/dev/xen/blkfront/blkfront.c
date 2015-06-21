@@ -1135,7 +1135,7 @@ xbd_initialize(struct xbd_softc *sc)
 	    M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
 	if (sc->xbd_shadow == NULL) {
 		bus_dma_tag_destroy(sc->xbd_io_dmat);
-		xenbus_dev_fatal(sc->xbd_dev, error,
+		xenbus_dev_fatal(sc->xbd_dev, ENOMEM,
 		    "Cannot allocate request structures\n");
 		return;
 	}
