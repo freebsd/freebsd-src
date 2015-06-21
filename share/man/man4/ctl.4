@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd May 22, 2015
+.Dd June 20, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -91,12 +91,17 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va kern.cam.ctl.iscsi.debug
+Verbosity level for log messages from the kernel part of iSCSI target.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
 .It Va kern.cam.ctl.iscsi.maxcmdsn_delta
-The number of outstanding commands to advertise to the initiator.
-Technically, it's the difference between ExpCmdSN and MaxCmdSN fields
+The number of outstanding commands to advertise to the iSCSI initiator.
+Technically, it is the difference between ExpCmdSN and MaxCmdSN fields
 in the iSCSI PDU.
 .It Va kern.cam.ctl.iscsi.ping_timeout
-The number of seconds to wait for the initiator to respond to a NOP-In
+The number of seconds to wait for the iSCSI initiator to respond to a NOP-In
 PDU.
 In the event that there is no response within that time the session gets
 forcibly terminated.
