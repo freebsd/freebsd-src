@@ -741,7 +741,7 @@ CGOpenMPRuntime::createRuntimeFunction(OpenMPRTLFunction Function) {
     break;
   }
   case OMPRTL__kmpc_end_ordered: {
-    // Build void __kmpc_ordered(ident_t *loc, kmp_int32 global_tid);
+    // Build void __kmpc_end_ordered(ident_t *loc, kmp_int32 global_tid);
     llvm::Type *TypeParams[] = {getIdentTyPointerTy(), CGM.Int32Ty};
     llvm::FunctionType *FnTy =
         llvm::FunctionType::get(CGM.VoidTy, TypeParams, /*isVarArg=*/false);
@@ -754,6 +754,31 @@ CGOpenMPRuntime::createRuntimeFunction(OpenMPRTLFunction Function) {
     llvm::FunctionType *FnTy =
         llvm::FunctionType::get(CGM.Int32Ty, TypeParams, /*isVarArg=*/false);
     RTLFn = CGM.CreateRuntimeFunction(FnTy, "__kmpc_omp_taskwait");
+    break;
+  }
+  case OMPRTL__kmpc_taskgroup: {
+    // Build void __kmpc_taskgroup(ident_t *loc, kmp_int32 global_tid);
+    llvm::Type *TypeParams[] = {getIdentTyPointerTy(), CGM.Int32Ty};
+    llvm::FunctionType *FnTy =
+        llvm::FunctionType::get(CGM.VoidTy, TypeParams, /*isVarArg=*/false);
+    RTLFn = CGM.CreateRuntimeFunction(FnTy, "__kmpc_taskgroup");
+    break;
+  }
+  case OMPRTL__kmpc_end_taskgroup: {
+    // Build void __kmpc_end_taskgroup(ident_t *loc, kmp_int32 global_tid);
+    llvm::Type *TypeParams[] = {getIdentTyPointerTy(), CGM.Int32Ty};
+    llvm::FunctionType *FnTy =
+        llvm::FunctionType::get(CGM.VoidTy, TypeParams, /*isVarArg=*/false);
+    RTLFn = CGM.CreateRuntimeFunction(FnTy, "__kmpc_end_taskgroup");
+    break;
+  }
+  case OMPRTL__kmpc_push_proc_bind: {
+    // Build void __kmpc_push_proc_bind(ident_t *loc, kmp_int32 global_tid,
+    // int proc_bind)
+    llvm::Type *TypeParams[] = {getIdentTyPointerTy(), CGM.Int32Ty, CGM.IntTy};
+    llvm::FunctionType *FnTy =
+        llvm::FunctionType::get(CGM.VoidTy, TypeParams, /*isVarArg*/ false);
+    RTLFn = CGM.CreateRuntimeFunction(FnTy, "__kmpc_push_proc_bind");
     break;
   }
   }
@@ -1240,6 +1265,25 @@ void CGOpenMPRuntime::emitTaskyieldCall(CodeGenFunction &CGF,
   CGF.EmitRuntimeCall(createRuntimeFunction(OMPRTL__kmpc_omp_taskyield), Args);
 }
 
+void CGOpenMPRuntime::emitTaskgroupRegion(CodeGenFunction &CGF,
+                                          const RegionCodeGenTy &TaskgroupOpGen,
+                                          SourceLocation Loc) {
+  // __kmpc_taskgroup(ident_t *, gtid);
+  // TaskgroupOpGen();
+  // __kmpc_end_taskgroup(ident_t *, gtid);
+  // Prepare arguments and build a call to __kmpc_taskgroup
+  {
+    CodeGenFunction::RunCleanupsScope Scope(CGF);
+    llvm::Value *Args[] = {emitUpdateLocation(CGF, Loc), getThreadID(CGF, Loc)};
+    CGF.EmitRuntimeCall(createRuntimeFunction(OMPRTL__kmpc_taskgroup), Args);
+    // Build a call to __kmpc_end_taskgroup
+    CGF.EHStack.pushCleanup<CallEndCleanup<std::extent<decltype(Args)>::value>>(
+        NormalAndEHCleanup, createRuntimeFunction(OMPRTL__kmpc_end_taskgroup),
+        llvm::makeArrayRef(Args));
+    emitInlinedDirective(CGF, TaskgroupOpGen);
+  }
+}
+
 static llvm::Value *emitCopyprivateCopyFunction(
     CodeGenModule &CGM, llvm::Type *ArgsType,
     ArrayRef<const Expr *> CopyprivateVars, ArrayRef<const Expr *> DestExprs,
@@ -1598,6 +1642,39 @@ void CGOpenMPRuntime::emitNumThreadsClause(CodeGenFunction &CGF,
       CGF.Builder.CreateIntCast(NumThreads, CGF.Int32Ty, /*isSigned*/ true)};
   CGF.EmitRuntimeCall(createRuntimeFunction(OMPRTL__kmpc_push_num_threads),
                       Args);
+}
+
+void CGOpenMPRuntime::emitProcBindClause(CodeGenFunction &CGF,
+                                         OpenMPProcBindClauseKind ProcBind,
+                                         SourceLocation Loc) {
+  // Constants for proc bind value accepted by the runtime.
+  enum ProcBindTy {
+    ProcBindFalse = 0,
+    ProcBindTrue,
+    ProcBindMaster,
+    ProcBindClose,
+    ProcBindSpread,
+    ProcBindIntel,
+    ProcBindDefault
+  } RuntimeProcBind;
+  switch (ProcBind) {
+  case OMPC_PROC_BIND_master:
+    RuntimeProcBind = ProcBindMaster;
+    break;
+  case OMPC_PROC_BIND_close:
+    RuntimeProcBind = ProcBindClose;
+    break;
+  case OMPC_PROC_BIND_spread:
+    RuntimeProcBind = ProcBindSpread;
+    break;
+  case OMPC_PROC_BIND_unknown:
+    llvm_unreachable("Unsupported proc_bind value.");
+  }
+  // Build call __kmpc_push_proc_bind(&loc, global_tid, proc_bind)
+  llvm::Value *Args[] = {
+      emitUpdateLocation(CGF, Loc), getThreadID(CGF, Loc),
+      llvm::ConstantInt::get(CGM.IntTy, RuntimeProcBind, /*isSigned=*/true)};
+  CGF.EmitRuntimeCall(createRuntimeFunction(OMPRTL__kmpc_push_proc_bind), Args);
 }
 
 void CGOpenMPRuntime::emitFlush(CodeGenFunction &CGF, ArrayRef<const Expr *>,
@@ -2242,7 +2319,7 @@ void CGOpenMPRuntime::emitReduction(CodeGenFunction &CGF, SourceLocation Loc,
                                     ArrayRef<const Expr *> LHSExprs,
                                     ArrayRef<const Expr *> RHSExprs,
                                     ArrayRef<const Expr *> ReductionOps,
-                                    bool WithNowait) {
+                                    bool WithNowait, bool SimpleReduction) {
   // Next code should be emitted for reduction:
   //
   // static kmp_critical_name lock = { 0 };
@@ -2272,8 +2349,21 @@ void CGOpenMPRuntime::emitReduction(CodeGenFunction &CGF, SourceLocation Loc,
   // break;
   // default:;
   // }
+  //
+  // if SimpleReduction is true, only the next code is generated:
+  //  ...
+  //  <LHSExprs>[i] = RedOp<i>(*<LHSExprs>[i], *<RHSExprs>[i]);
+  //  ...
 
   auto &C = CGM.getContext();
+
+  if (SimpleReduction) {
+    CodeGenFunction::RunCleanupsScope Scope(CGF);
+    for (auto *E : ReductionOps) {
+      CGF.EmitIgnoredExpr(E);
+    }
+    return;
+  }
 
   // 1. Build a list of reduction variables.
   // void *RedList[<n>] = {<ReductionVars>[0], ..., <ReductionVars>[<n>-1]};

@@ -5386,6 +5386,17 @@ QualType TreeTransform<Derived>::TransformAttributedType(
       = getDerived().TransformType(oldType->getEquivalentType());
     if (equivalentType.isNull())
       return QualType();
+
+    // Check whether we can add nullability; it is only represented as
+    // type sugar, and therefore cannot be diagnosed in any other way.
+    if (auto nullability = oldType->getImmediateNullability()) {
+      if (!modifiedType->canHaveNullability()) {
+        SemaRef.Diag(TL.getAttrNameLoc(), diag::err_nullability_nonpointer)
+          << static_cast<unsigned>(*nullability) << false << modifiedType;
+        return QualType();
+      }
+    }
+
     result = SemaRef.Context.getAttributedType(oldType->getAttrKind(),
                                                modifiedType,
                                                equivalentType);
@@ -6871,6 +6882,17 @@ TreeTransform<Derived>::TransformOMPTaskwaitDirective(OMPTaskwaitDirective *D) {
 }
 
 template <typename Derived>
+StmtResult TreeTransform<Derived>::TransformOMPTaskgroupDirective(
+    OMPTaskgroupDirective *D) {
+  DeclarationNameInfo DirName;
+  getDerived().getSema().StartOpenMPDSABlock(OMPD_taskgroup, DirName, nullptr,
+                                             D->getLocStart());
+  StmtResult Res = getDerived().TransformOMPExecutableDirective(D);
+  getDerived().getSema().EndOpenMPDSABlock(Res.get());
+  return Res;
+}
+
+template <typename Derived>
 StmtResult
 TreeTransform<Derived>::TransformOMPFlushDirective(OMPFlushDirective *D) {
   DeclarationNameInfo DirName;
@@ -7948,6 +7970,25 @@ TreeTransform<Derived>::TransformDesignatedInitExpr(DesignatedInitExpr *E) {
   return getDerived().RebuildDesignatedInitExpr(Desig, ArrayExprs,
                                                 E->getEqualOrColonLoc(),
                                                 E->usesGNUSyntax(), Init.get());
+}
+
+// Seems that if TransformInitListExpr() only works on the syntactic form of an
+// InitListExpr, then a DesignatedInitUpdateExpr is not encountered.
+template<typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformDesignatedInitUpdateExpr(
+    DesignatedInitUpdateExpr *E) {
+  llvm_unreachable("Unexpected DesignatedInitUpdateExpr in syntactic form of "
+                   "initializer");
+  return ExprError();
+}
+
+template<typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformNoInitExpr(
+    NoInitExpr *E) {
+  llvm_unreachable("Unexpected NoInitExpr in syntactic form of initializer");
+  return ExprError();
 }
 
 template<typename Derived>

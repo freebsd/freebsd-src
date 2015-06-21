@@ -774,7 +774,9 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
   RECORD(EXPR_EXT_VECTOR_ELEMENT);
   RECORD(EXPR_INIT_LIST);
   RECORD(EXPR_DESIGNATED_INIT);
+  RECORD(EXPR_DESIGNATED_INIT_UPDATE);
   RECORD(EXPR_IMPLICIT_VALUE_INIT);
+  RECORD(EXPR_NO_INIT);
   RECORD(EXPR_VA_ARG);
   RECORD(EXPR_ADDR_LABEL);
   RECORD(EXPR_STMT);
@@ -5762,8 +5764,5 @@ void ASTWriter::DeclarationMarkedOpenMPThreadPrivate(const Decl *D) {
 void ASTWriter::RedefinedHiddenDefinition(const NamedDecl *D, Module *M) {
   assert(!WritingAST && "Already writing the AST!");
   assert(D->isHidden() && "expected a hidden declaration");
-  if (!D->isFromASTFile())
-    return;
-
   DeclUpdates[D].push_back(DeclUpdate(UPD_DECL_EXPORTED, M));
 }

@@ -336,3 +336,69 @@ uint32_t test_crc32cw(uint32_t a, uint32_t b) {
 uint32_t test_crc32cd(uint32_t a, uint64_t b) {
   return __crc32cd(a, b);
 }
+
+/* 10.1 Special register intrinsics */
+// ARM-LABEL: test_rsr
+// AArch64: call i64 @llvm.read_register.i64(metadata ![[M0:[0-9]]])
+// AArch32: call i32 @llvm.read_register.i32(metadata ![[M2:[0-9]]])
+uint32_t test_rsr() {
+#ifdef __ARM_32BIT_STATE
+  return __arm_rsr("cp1:2:c3:c4:5");
+#else
+  return __arm_rsr("1:2:3:4:5");
+#endif
+}
+
+// ARM-LABEL: test_rsr64
+// AArch64: call i64 @llvm.read_register.i64(metadata ![[M0:[0-9]]])
+// AArch32: call i64 @llvm.read_register.i64(metadata ![[M3:[0-9]]])
+uint64_t test_rsr64() {
+#ifdef __ARM_32BIT_STATE
+  return __arm_rsr64("cp1:2:c3");
+#else
+  return __arm_rsr64("1:2:3:4:5");
+#endif
+}
+
+// ARM-LABEL: test_rsrp
+// AArch64: call i64 @llvm.read_register.i64(metadata ![[M1:[0-9]]])
+// AArch32: call i32 @llvm.read_register.i32(metadata ![[M4:[0-9]]])
+void *test_rsrp() {
+  return __arm_rsrp("sysreg");
+}
+
+// ARM-LABEL: test_wsr
+// AArch64: call void @llvm.write_register.i64(metadata ![[M0:[0-9]]], i64 %{{.*}})
+// AArch32: call void @llvm.write_register.i32(metadata ![[M2:[0-9]]], i32 %{{.*}})
+void test_wsr(uint32_t v) {
+#ifdef __ARM_32BIT_STATE
+  __arm_wsr("cp1:2:c3:c4:5", v);
+#else
+  __arm_wsr("1:2:3:4:5", v);
+#endif
+}
+
+// ARM-LABEL: test_wsr64
+// AArch64: call void @llvm.write_register.i64(metadata ![[M0:[0-9]]], i64 %{{.*}})
+// AArch32: call void @llvm.write_register.i64(metadata ![[M3:[0-9]]], i64 %{{.*}})
+void test_wsr64(uint64_t v) {
+#ifdef __ARM_32BIT_STATE
+  __arm_wsr64("cp1:2:c3", v);
+#else
+  __arm_wsr64("1:2:3:4:5", v);
+#endif
+}
+
+// ARM-LABEL: test_wsrp
+// AArch64: call void @llvm.write_register.i64(metadata ![[M1:[0-9]]], i64 %{{.*}})
+// AArch32: call void @llvm.write_register.i32(metadata ![[M4:[0-9]]], i32 %{{.*}})
+void test_wsrp(void *v) {
+  __arm_wsrp("sysreg", v);
+}
+
+// AArch32: ![[M2]] = !{!"cp1:2:c3:c4:5"}
+// AArch32: ![[M3]] = !{!"cp1:2:c3"}
+// AArch32: ![[M4]] = !{!"sysreg"}
+
+// AArch64: ![[M0]] = !{!"1:2:3:4:5"}
+// AArch64: ![[M1]] = !{!"sysreg"}

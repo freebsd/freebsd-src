@@ -1238,7 +1238,7 @@ unsigned CallExpr::getBuiltinCallee() const {
   return FDecl->getBuiltinID();
 }
 
-bool CallExpr::isUnevaluatedBuiltinCall(ASTContext &Ctx) const {
+bool CallExpr::isUnevaluatedBuiltinCall(const ASTContext &Ctx) const {
   if (unsigned BI = getBuiltinCallee())
     return Ctx.BuiltinInfo.isUnevaluated(BI);
   return false;
@@ -2772,6 +2772,11 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
     const Expr *Exp = cast<CompoundLiteralExpr>(this)->getInitializer();
     return Exp->isConstantInitializer(Ctx, false, Culprit);
   }
+  case DesignatedInitUpdateExprClass: {
+    const DesignatedInitUpdateExpr *DIUE = cast<DesignatedInitUpdateExpr>(this);
+    return DIUE->getBase()->isConstantInitializer(Ctx, false, Culprit) &&
+           DIUE->getUpdater()->isConstantInitializer(Ctx, false, Culprit);
+  }
   case InitListExprClass: {
     const InitListExpr *ILE = cast<InitListExpr>(this);
     if (ILE->getType()->isArrayType()) {
@@ -2818,6 +2823,7 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
     break;
   }
   case ImplicitValueInitExprClass:
+  case NoInitExprClass:
     return true;
   case ParenExprClass:
     return cast<ParenExpr>(this)->getSubExpr()
@@ -2881,6 +2887,28 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
   return false;
 }
 
+namespace {
+  /// \brief Look for any side effects within a Stmt.
+  class SideEffectFinder : public ConstEvaluatedExprVisitor<SideEffectFinder> {
+    typedef ConstEvaluatedExprVisitor<SideEffectFinder> Inherited;
+    const bool IncludePossibleEffects;
+    bool HasSideEffects;
+
+  public:
+    explicit SideEffectFinder(const ASTContext &Context, bool IncludePossible)
+      : Inherited(Context),
+        IncludePossibleEffects(IncludePossible), HasSideEffects(false) { }
+
+    bool hasSideEffects() const { return HasSideEffects; }
+
+    void VisitExpr(const Expr *E) {
+      if (!HasSideEffects &&
+          E->HasSideEffects(Context, IncludePossibleEffects))
+        HasSideEffects = true;
+    }
+  };
+}
+
 bool Expr::HasSideEffects(const ASTContext &Ctx,
                           bool IncludePossibleEffects) const {
   // In circumstances where we care about definite side effects instead of
@@ -2925,6 +2953,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case UnaryExprOrTypeTraitExprClass:
   case AddrLabelExprClass:
   case GNUNullExprClass:
+  case NoInitExprClass:
   case CXXBoolLiteralExprClass:
   case CXXNullPtrLiteralExprClass:
   case CXXThisExprClass:
@@ -2967,13 +2996,19 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case CompoundAssignOperatorClass:
   case VAArgExprClass:
   case AtomicExprClass:
-  case StmtExprClass:
   case CXXThrowExprClass:
   case CXXNewExprClass:
   case CXXDeleteExprClass:
   case ExprWithCleanupsClass:
     // These always have a side-effect.
     return true;
+
+  case StmtExprClass: {
+    // StmtExprs have a side-effect if any substatement does.
+    SideEffectFinder Finder(Ctx, IncludePossibleEffects);
+    Finder.Visit(cast<StmtExpr>(this)->getSubStmt());
+    return Finder.hasSideEffects();
+  }
 
   case ParenExprClass:
   case ArraySubscriptExprClass:
@@ -2983,6 +3018,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case CompoundLiteralExprClass:
   case ExtVectorElementExprClass:
   case DesignatedInitExprClass:
+  case DesignatedInitUpdateExprClass:
   case ParenListExprClass:
   case CXXPseudoDestructorExprClass:
   case CXXStdInitializerListExprClass:
@@ -3128,21 +3164,21 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
 
 namespace {
   /// \brief Look for a call to a non-trivial function within an expression.
-  class NonTrivialCallFinder : public EvaluatedExprVisitor<NonTrivialCallFinder>
+  class NonTrivialCallFinder : public ConstEvaluatedExprVisitor<NonTrivialCallFinder>
   {
-    typedef EvaluatedExprVisitor<NonTrivialCallFinder> Inherited;
-    
+    typedef ConstEvaluatedExprVisitor<NonTrivialCallFinder> Inherited;
+
     bool NonTrivial;
     
   public:
-    explicit NonTrivialCallFinder(ASTContext &Context) 
+    explicit NonTrivialCallFinder(const ASTContext &Context)
       : Inherited(Context), NonTrivial(false) { }
     
     bool hasNonTrivialCall() const { return NonTrivial; }
-    
-    void VisitCallExpr(CallExpr *E) {
-      if (CXXMethodDecl *Method
-          = dyn_cast_or_null<CXXMethodDecl>(E->getCalleeDecl())) {
+
+    void VisitCallExpr(const CallExpr *E) {
+      if (const CXXMethodDecl *Method
+          = dyn_cast_or_null<const CXXMethodDecl>(E->getCalleeDecl())) {
         if (Method->isTrivial()) {
           // Recurse to children of the call.
           Inherited::VisitStmt(E);
@@ -3152,8 +3188,8 @@ namespace {
       
       NonTrivial = true;
     }
-    
-    void VisitCXXConstructExpr(CXXConstructExpr *E) {
+
+    void VisitCXXConstructExpr(const CXXConstructExpr *E) {
       if (E->getConstructor()->isTrivial()) {
         // Recurse to children of the call.
         Inherited::VisitStmt(E);
@@ -3162,8 +3198,8 @@ namespace {
       
       NonTrivial = true;
     }
-    
-    void VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
+
+    void VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *E) {
       if (E->getTemporary()->getDestructor()->isTrivial()) {
         Inherited::VisitStmt(E);
         return;
@@ -3174,7 +3210,7 @@ namespace {
   };
 }
 
-bool Expr::hasNonTrivialCall(ASTContext &Ctx) {
+bool Expr::hasNonTrivialCall(const ASTContext &Ctx) const {
   NonTrivialCallFinder Finder(Ctx);
   Finder.Visit(this);
   return Finder.hasNonTrivialCall();  
@@ -3987,6 +4023,25 @@ void DesignatedInitExpr::ExpandDesignator(const ASTContext &C, unsigned Idx,
             NewDesignators + Idx + NumNewDesignators);
   Designators = NewDesignators;
   NumDesignators = NumDesignators - 1 + NumNewDesignators;
+}
+
+DesignatedInitUpdateExpr::DesignatedInitUpdateExpr(const ASTContext &C,
+    SourceLocation lBraceLoc, Expr *baseExpr, SourceLocation rBraceLoc)
+  : Expr(DesignatedInitUpdateExprClass, baseExpr->getType(), VK_RValue,
+         OK_Ordinary, false, false, false, false) {
+  BaseAndUpdaterExprs[0] = baseExpr;
+
+  InitListExpr *ILE = new (C) InitListExpr(C, lBraceLoc, None, rBraceLoc);
+  ILE->setType(baseExpr->getType());
+  BaseAndUpdaterExprs[1] = ILE;
+}
+
+SourceLocation DesignatedInitUpdateExpr::getLocStart() const {
+  return getBase()->getLocStart();
+}
+
+SourceLocation DesignatedInitUpdateExpr::getLocEnd() const {
+  return getBase()->getLocEnd();
 }
 
 ParenListExpr::ParenListExpr(const ASTContext& C, SourceLocation lparenloc,

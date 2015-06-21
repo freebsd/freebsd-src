@@ -150,12 +150,6 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
       State.Stack.back().BreakBeforeParameter && !Current.isTrailingComment() &&
       !Current.isOneOf(tok::r_paren, tok::r_brace))
     return true;
-  if (Style.AlwaysBreakBeforeMultilineStrings &&
-      State.Column > State.Stack.back().Indent && // Breaking saves columns.
-      !Previous.isOneOf(tok::kw_return, tok::lessless, tok::at) &&
-      !Previous.isOneOf(TT_InlineASMColon, TT_ConditionalExpr) &&
-      nextIsMultilineString(State))
-    return true;
   if (((Previous.is(TT_DictLiteral) && Previous.is(tok::l_brace)) ||
        Previous.is(TT_ArrayInitializerLSquare)) &&
       Style.ColumnLimit > 0 &&
@@ -170,8 +164,17 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
       State.Stack.back().BreakBeforeParameter)
     return true;
 
-  if (State.Column < getNewLineColumn(State))
+  unsigned NewLineColumn = getNewLineColumn(State);
+  if (State.Column < NewLineColumn)
     return false;
+
+  if (Style.AlwaysBreakBeforeMultilineStrings &&
+      (NewLineColumn == State.FirstIndent + Style.ContinuationIndentWidth ||
+       Previous.is(tok::comma) || Current.NestingLevel < 2) &&
+      !Previous.isOneOf(tok::kw_return, tok::lessless, tok::at) &&
+      !Previous.isOneOf(TT_InlineASMColon, TT_ConditionalExpr) &&
+      nextIsMultilineString(State))
+    return true;
 
   // Using CanBreakBefore here and below takes care of the decision whether the
   // current style uses wrapping before or after operators for the given
@@ -416,7 +419,21 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
     Penalty += Style.PenaltyBreakFirstLessLess;
 
   State.Column = getNewLineColumn(State);
-  State.Stack.back().NestedBlockIndent = State.Column;
+
+  // Indent nested blocks relative to this column, unless in a very specific
+  // JavaScript special case where:
+  //
+  //   var loooooong_name =
+  //       function() {
+  //     // code
+  //   }
+  //
+  // is common and should be formatted like a free-standing function.
+  if (Style.Language != FormatStyle::LK_JavaScript ||
+      Current.NestingLevel != 0 || !PreviousNonComment->is(tok::equal) ||
+      !Current.is(Keywords.kw_function))
+    State.Stack.back().NestedBlockIndent = State.Column;
+
   if (NextNonComment->isMemberAccess()) {
     if (State.Stack.back().CallContinuation == 0)
       State.Stack.back().CallContinuation = State.Column;
@@ -688,7 +705,8 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
   //     foo();
   //     bar();
   //   }, a, b, c);
-  if (Current.isNot(tok::comment) && Previous && Previous->is(tok::l_brace) &&
+  if (Current.isNot(tok::comment) && Previous &&
+      Previous->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare) &&
       State.Stack.size() > 1) {
     if (State.Stack[State.Stack.size() - 2].NestedBlockInlined && Newline)
       for (unsigned i = 0, e = State.Stack.size() - 1; i != e; ++i)
@@ -713,7 +731,7 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
   if (Current.is(TT_ObjCStringLiteral) && State.StartOfStringLiteral == 0)
     State.StartOfStringLiteral = State.Column + 1;
   else if (!Current.isOneOf(tok::comment, tok::identifier, tok::hash) &&
-             !Current.isStringLiteral())
+           !Current.isStringLiteral())
     State.StartOfStringLiteral = 0;
 
   State.Column += Current.ColumnWidth;
@@ -891,7 +909,7 @@ void ContinuationIndenter::moveStatePastScopeOpener(LineState &State,
         // be a line break within this call.
         for (const FormatToken *Tok = &Current;
              Tok && Tok != Current.MatchingParen; Tok = Tok->Next) {
-          if (Tok->MustBreakBefore || 
+          if (Tok->MustBreakBefore ||
               (Tok->CanBreakBefore && Tok->NewlinesBefore > 0)) {
             BreakBeforeParameter = true;
             break;

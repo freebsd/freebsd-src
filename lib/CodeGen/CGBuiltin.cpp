@@ -1877,7 +1877,7 @@ Value *CodeGenFunction::EmitTargetBuiltinExpr(unsigned BuiltinID,
     return EmitPPCBuiltinExpr(BuiltinID, E);
   case llvm::Triple::r600:
   case llvm::Triple::amdgcn:
-    return EmitR600BuiltinExpr(BuiltinID, E);
+    return EmitAMDGPUBuiltinExpr(BuiltinID, E);
   case llvm::Triple::systemz:
     return EmitSystemZBuiltinExpr(BuiltinID, E);
   default:
@@ -3279,6 +3279,66 @@ Value *CodeGenFunction::GetValueForARMHint(unsigned BuiltinID) {
   }
 }
 
+// Generates the IR for the read/write special register builtin,
+// ValueType is the type of the value that is to be written or read,
+// RegisterType is the type of the register being written to or read from.
+static Value *EmitSpecialRegisterBuiltin(CodeGenFunction &CGF,
+                                         const CallExpr *E,
+                                         llvm::Type *RegisterType,
+                                         llvm::Type *ValueType, bool IsRead) {
+  // write and register intrinsics only support 32 and 64 bit operations.
+  assert((RegisterType->isIntegerTy(32) || RegisterType->isIntegerTy(64))
+          && "Unsupported size for register.");
+
+  CodeGen::CGBuilderTy &Builder = CGF.Builder;
+  CodeGen::CodeGenModule &CGM = CGF.CGM;
+  LLVMContext &Context = CGM.getLLVMContext();
+
+  const Expr *SysRegStrExpr = E->getArg(0)->IgnoreParenCasts();
+  StringRef SysReg = cast<StringLiteral>(SysRegStrExpr)->getString();
+
+  llvm::Metadata *Ops[] = { llvm::MDString::get(Context, SysReg) };
+  llvm::MDNode *RegName = llvm::MDNode::get(Context, Ops);
+  llvm::Value *Metadata = llvm::MetadataAsValue::get(Context, RegName);
+
+  llvm::Type *Types[] = { RegisterType };
+
+  bool MixedTypes = RegisterType->isIntegerTy(64) && ValueType->isIntegerTy(32);
+  assert(!(RegisterType->isIntegerTy(32) && ValueType->isIntegerTy(64))
+            && "Can't fit 64-bit value in 32-bit register");
+
+  if (IsRead) {
+    llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::read_register, Types);
+    llvm::Value *Call = Builder.CreateCall(F, Metadata);
+
+    if (MixedTypes)
+      // Read into 64 bit register and then truncate result to 32 bit.
+      return Builder.CreateTrunc(Call, ValueType);
+
+    if (ValueType->isPointerTy())
+      // Have i32/i64 result (Call) but want to return a VoidPtrTy (i8*).
+      return Builder.CreateIntToPtr(Call, ValueType);
+
+    return Call;
+  }
+
+  llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::write_register, Types);
+  llvm::Value *ArgValue = CGF.EmitScalarExpr(E->getArg(1));
+  if (MixedTypes) {
+    // Extend 32 bit write value to 64 bit to pass to write.
+    ArgValue = Builder.CreateZExt(ArgValue, RegisterType);
+    return Builder.CreateCall(F, { Metadata, ArgValue });
+  }
+
+  if (ValueType->isPointerTy()) {
+    // Have VoidPtrTy ArgValue but want to return an i32/i64.
+    ArgValue = Builder.CreatePtrToInt(ArgValue, RegisterType);
+    return Builder.CreateCall(F, { Metadata, ArgValue });
+  }
+
+  return Builder.CreateCall(F, { Metadata, ArgValue });
+}
+
 Value *CodeGenFunction::EmitARMBuiltinExpr(unsigned BuiltinID,
                                            const CallExpr *E) {
   if (auto Hint = GetValueForARMHint(BuiltinID))
@@ -3489,6 +3549,37 @@ Value *CodeGenFunction::EmitARMBuiltinExpr(unsigned BuiltinID,
       Function *F = CGM.getIntrinsic(CRCIntrinsicID);
       return Builder.CreateCall(F, {Arg0, Arg1});
     }
+  }
+
+  if (BuiltinID == ARM::BI__builtin_arm_rsr ||
+      BuiltinID == ARM::BI__builtin_arm_rsr64 ||
+      BuiltinID == ARM::BI__builtin_arm_rsrp ||
+      BuiltinID == ARM::BI__builtin_arm_wsr ||
+      BuiltinID == ARM::BI__builtin_arm_wsr64 ||
+      BuiltinID == ARM::BI__builtin_arm_wsrp) {
+
+    bool IsRead = BuiltinID == ARM::BI__builtin_arm_rsr ||
+                  BuiltinID == ARM::BI__builtin_arm_rsr64 ||
+                  BuiltinID == ARM::BI__builtin_arm_rsrp;
+
+    bool IsPointerBuiltin = BuiltinID == ARM::BI__builtin_arm_rsrp ||
+                            BuiltinID == ARM::BI__builtin_arm_wsrp;
+
+    bool Is64Bit = BuiltinID == ARM::BI__builtin_arm_rsr64 ||
+                   BuiltinID == ARM::BI__builtin_arm_wsr64;
+
+    llvm::Type *ValueType;
+    llvm::Type *RegisterType;
+    if (IsPointerBuiltin) {
+      ValueType = VoidPtrTy;
+      RegisterType = Int32Ty;
+    } else if (Is64Bit) {
+      ValueType = RegisterType = Int64Ty;
+    } else {
+      ValueType = RegisterType = Int32Ty;
+    }
+
+    return EmitSpecialRegisterBuiltin(*this, E, RegisterType, ValueType, IsRead);
   }
 
   // Find out if any arguments are required to be integer constant
@@ -4237,6 +4328,36 @@ Value *CodeGenFunction::EmitAArch64BuiltinExpr(unsigned BuiltinID,
     Arg1 = Builder.CreateZExtOrBitCast(Arg1, DataTy);
 
     return Builder.CreateCall(F, {Arg0, Arg1});
+  }
+
+  if (BuiltinID == AArch64::BI__builtin_arm_rsr ||
+      BuiltinID == AArch64::BI__builtin_arm_rsr64 ||
+      BuiltinID == AArch64::BI__builtin_arm_rsrp ||
+      BuiltinID == AArch64::BI__builtin_arm_wsr ||
+      BuiltinID == AArch64::BI__builtin_arm_wsr64 ||
+      BuiltinID == AArch64::BI__builtin_arm_wsrp) {
+
+    bool IsRead = BuiltinID == AArch64::BI__builtin_arm_rsr ||
+                  BuiltinID == AArch64::BI__builtin_arm_rsr64 ||
+                  BuiltinID == AArch64::BI__builtin_arm_rsrp;
+
+    bool IsPointerBuiltin = BuiltinID == AArch64::BI__builtin_arm_rsrp ||
+                            BuiltinID == AArch64::BI__builtin_arm_wsrp;
+
+    bool Is64Bit = BuiltinID != AArch64::BI__builtin_arm_rsr &&
+                   BuiltinID != AArch64::BI__builtin_arm_wsr;
+
+    llvm::Type *ValueType;
+    llvm::Type *RegisterType = Int64Ty;
+    if (IsPointerBuiltin) {
+      ValueType = VoidPtrTy;
+    } else if (Is64Bit) {
+      ValueType = Int64Ty;
+    } else {
+      ValueType = Int32Ty;
+    }
+
+    return EmitSpecialRegisterBuiltin(*this, E, RegisterType, ValueType, IsRead);
   }
 
   // Find out if any arguments are required to be integer constant
@@ -6427,11 +6548,11 @@ static Value *emitFPIntBuiltin(CodeGenFunction &CGF,
   return CGF.Builder.CreateCall(F, {Src0, Src1});
 }
 
-Value *CodeGenFunction::EmitR600BuiltinExpr(unsigned BuiltinID,
-                                            const CallExpr *E) {
+Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
+                                              const CallExpr *E) {
   switch (BuiltinID) {
-  case R600::BI__builtin_amdgpu_div_scale:
-  case R600::BI__builtin_amdgpu_div_scalef: {
+  case AMDGPU::BI__builtin_amdgpu_div_scale:
+  case AMDGPU::BI__builtin_amdgpu_div_scalef: {
     // Translate from the intrinsics's struct return to the builtin's out
     // argument.
 
@@ -6458,8 +6579,8 @@ Value *CodeGenFunction::EmitR600BuiltinExpr(unsigned BuiltinID,
     FlagStore->setAlignment(FlagOutPtr.second);
     return Result;
   }
-  case R600::BI__builtin_amdgpu_div_fmas:
-  case R600::BI__builtin_amdgpu_div_fmasf: {
+  case AMDGPU::BI__builtin_amdgpu_div_fmas:
+  case AMDGPU::BI__builtin_amdgpu_div_fmasf: {
     llvm::Value *Src0 = EmitScalarExpr(E->getArg(0));
     llvm::Value *Src1 = EmitScalarExpr(E->getArg(1));
     llvm::Value *Src2 = EmitScalarExpr(E->getArg(2));
@@ -6470,26 +6591,26 @@ Value *CodeGenFunction::EmitR600BuiltinExpr(unsigned BuiltinID,
     llvm::Value *Src3ToBool = Builder.CreateIsNotNull(Src3);
     return Builder.CreateCall(F, {Src0, Src1, Src2, Src3ToBool});
   }
-  case R600::BI__builtin_amdgpu_div_fixup:
-  case R600::BI__builtin_amdgpu_div_fixupf:
+  case AMDGPU::BI__builtin_amdgpu_div_fixup:
+  case AMDGPU::BI__builtin_amdgpu_div_fixupf:
     return emitTernaryFPBuiltin(*this, E, Intrinsic::AMDGPU_div_fixup);
-  case R600::BI__builtin_amdgpu_trig_preop:
-  case R600::BI__builtin_amdgpu_trig_preopf:
+  case AMDGPU::BI__builtin_amdgpu_trig_preop:
+  case AMDGPU::BI__builtin_amdgpu_trig_preopf:
     return emitFPIntBuiltin(*this, E, Intrinsic::AMDGPU_trig_preop);
-  case R600::BI__builtin_amdgpu_rcp:
-  case R600::BI__builtin_amdgpu_rcpf:
+  case AMDGPU::BI__builtin_amdgpu_rcp:
+  case AMDGPU::BI__builtin_amdgpu_rcpf:
     return emitUnaryFPBuiltin(*this, E, Intrinsic::AMDGPU_rcp);
-  case R600::BI__builtin_amdgpu_rsq:
-  case R600::BI__builtin_amdgpu_rsqf:
+  case AMDGPU::BI__builtin_amdgpu_rsq:
+  case AMDGPU::BI__builtin_amdgpu_rsqf:
     return emitUnaryFPBuiltin(*this, E, Intrinsic::AMDGPU_rsq);
-  case R600::BI__builtin_amdgpu_rsq_clamped:
-  case R600::BI__builtin_amdgpu_rsq_clampedf:
+  case AMDGPU::BI__builtin_amdgpu_rsq_clamped:
+  case AMDGPU::BI__builtin_amdgpu_rsq_clampedf:
     return emitUnaryFPBuiltin(*this, E, Intrinsic::AMDGPU_rsq_clamped);
-  case R600::BI__builtin_amdgpu_ldexp:
-  case R600::BI__builtin_amdgpu_ldexpf:
+  case AMDGPU::BI__builtin_amdgpu_ldexp:
+  case AMDGPU::BI__builtin_amdgpu_ldexpf:
     return emitFPIntBuiltin(*this, E, Intrinsic::AMDGPU_ldexp);
-  case R600::BI__builtin_amdgpu_class:
-  case R600::BI__builtin_amdgpu_classf:
+  case AMDGPU::BI__builtin_amdgpu_class:
+  case AMDGPU::BI__builtin_amdgpu_classf:
     return emitFPIntBuiltin(*this, E, Intrinsic::AMDGPU_class);
    default:
     return nullptr;

@@ -52,6 +52,11 @@ void deprecated_enum_test(void) {
 [returnvalue:SA_Post( attr=1)]
 int foo1([SA_Post(attr=1)] void *param);
 
+[unbalanced(attribute) /* expected-note {{to match this '['}} */
+void f(void); /* expected-error {{expected ']'}} */
+
+[] __interface I {}; /* expected-error {{Microsoft attribute block cannot be empty}} */
+
 void ms_intrinsics(int a) {
   __noop();
   __assume(a);
