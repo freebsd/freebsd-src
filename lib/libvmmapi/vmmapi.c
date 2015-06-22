@@ -415,19 +415,28 @@ vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
 	return (0);
 }
 
+/*
+ * Returns a non-NULL pointer if [gaddr, gaddr+len) is entirely contained in
+ * the lowmem or highmem regions.
+ *
+ * In particular return NULL if [gaddr, gaddr+len) falls in guest MMIO region.
+ * The instruction emulation code depends on this behavior.
+ */
 void *
 vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 {
-	vm_paddr_t start, end, mapend;
 
-	start = gaddr;
-	end = gaddr + len;
-	mapend = ctx->highmem ? 4*GB + ctx->highmem : ctx->lowmem;
+	if (ctx->lowmem > 0) {
+		if (gaddr < ctx->lowmem && gaddr + len <= ctx->lowmem)
+			return (ctx->baseaddr + gaddr);
+	}
 
-	if (start <= end && end <= mapend)
-		return (ctx->baseaddr + start);
-	else
-		return (NULL);
+	if (ctx->highmem > 0) {
+		if (gaddr >= 4*GB && gaddr + len <= 4*GB + ctx->highmem)
+			return (ctx->baseaddr + gaddr);
+	}
+
+	return (NULL);
 }
 
 size_t
