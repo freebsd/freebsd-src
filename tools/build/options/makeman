@@ -46,7 +46,7 @@ show_options()
 				echo ${opt}
 				;;
 			*)
-				echo 'make showconfig broken' >&2
+				echo "make showconfig broken: ${val} is not yes or no" >&2
 				exit 1
 				;;
 			esac
@@ -107,7 +107,7 @@ show()
 			echo ${no_prefix}_${opt}
 			;;
 		*)
-			echo 'make showconfig broken' >&2
+			echo "make showconfig broken: ${val} is not yes or no" >&2
 			exit 1
 			;;
 		esac
