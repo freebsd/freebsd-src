@@ -408,7 +408,7 @@ UNIVERSE_TARGET?=	buildworld
 .endif
 KERNSRCDIR?=		${.CURDIR}/sys
 
-targets:
+targets:	.PHONY
 	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
 .for target in ${TARGETS}
 .for target_arch in ${TARGET_ARCHES_${target}}
