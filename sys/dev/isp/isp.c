@@ -2182,6 +2182,11 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			isp_put_vp_port_info(isp, &pi, pdst);
 			amt += ICB2400_VPOPT_WRITE_SIZE;
 		}
+		if (isp->isp_dblev & ISP_LOGDEBUG1) {
+			isp_print_bytes(isp, "isp_fibre_init_2400",
+			    amt - ICB2400_VPINFO_OFF,
+			    (char *)fcp->isp_scratch + ICB2400_VPINFO_OFF);
+		}
 	}
 
 	/*
