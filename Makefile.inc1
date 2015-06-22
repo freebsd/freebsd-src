@@ -741,29 +741,15 @@ buildcheri:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.2.1: building CHERI libraries"
 	@echo "--------------------------------------------------------------"
-#	cd ${.CURDIR}; \
-#	    ${LIBCHERIWMAKE} -f Makefile.inc1 libraries
-.for _t in obj includes
-	cd ${.CURDIR}/include; ${LIBCHERIWMAKE} DIRPRFX=include/ ${_t}
-	cd ${.CURDIR}/lib; ${LIBCHERIWMAKE} DIRPRFX=lib/ ${_t}
-.if ${MK_CDDL} != "no"
-	cd ${.CURDIR}/cddl/lib; ${LIBCHERIWMAKE} DIRPRFX=cddl/lib/ ${_t}
-.endif
-	cd ${.CURDIR}/gnu/lib; ${LIBCHERIWMAKE} DIRPRFX=gnu/lib/ ${_t}
-.if ${MK_CRYPT} != "no"
-	cd ${.CURDIR}/secure/lib; ${LIBCHERIWMAKE} DIRPRFX=secure/lib/ ${_t}
-.endif
-.if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/kerberos5/lib; ${LIBCHERIWMAKE} DIRPRFX=kerberos5/lib ${_t}
-.endif
-.endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
+.for _t in obj build-tools
 	cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${LIBCHERI_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-	    build-tools
+	    ${_t}
+.endfor
 .endfor
 .for _lib in lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
