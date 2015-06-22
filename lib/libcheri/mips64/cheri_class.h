@@ -28,6 +28,12 @@
  * SUCH DAMAGE.
  */
 
+/* XXXRW: Needed temporarily for CHERI_ASM_CMOVE(). */
+#define	_CHERI_INTERNAL
+#define	zero	$zero
+#include <machine/cheriasm.h>
+#undef _CHERI_INTERNAL
+
 /*
  * Fields to insert at the front of data structures embedded in $idc for CHERI
  * system objects.  Currently, just an ambient $c0 to restore, since we can't
@@ -92,9 +98,9 @@ __cheri_ ## class ## _entry:						\
 	 * data structure referenced by $idc.  For now, also use as     \
 	 * stack capability.						\
 	 */								\
-	clc	$c12, $zero, 0($c26);					\
+	clc	$c12, zero, 0($c26);					\
 	csetdefault	$c12;						\
-	cmove	$c11, $c12;						\
+	CHERI_ASM_CMOVE($c11, $c12);					\
 									\
 	/*								\
 	 * Install global invocation stack.  NB: this means we can't	\
@@ -115,7 +121,7 @@ __cheri_ ## class ## _entry:						\
 	 * valid capability, then load the address at offset $v0	\
 	 * rather than using the "enter" functions.			\
 	 */								\
-	clc	$c12, $zero, CHERICAP_SIZE($c26);			\
+	clc	$c12, zero, CHERICAP_SIZE($c26);			\
 	cld	$t9, $v0, 0($c12);					\
 	jalr	$t9;							\
 	nop;			/* Branch-delay slot */			\

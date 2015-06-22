@@ -31,7 +31,7 @@
 #ifndef _MIPS_INCLUDE_CHERIASM_H_
 #define	_MIPS_INCLUDE_CHERIASM_H_
 
-#ifndef _KERNEL
+#if !defined(_KERNEL) && !defined(_CHERI_INTERNAL)
 #error "no user-serviceable parts inside"
 #endif
 
