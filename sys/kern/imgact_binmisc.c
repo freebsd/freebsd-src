@@ -101,9 +101,6 @@ static int interp_list_entry_count = 0;
 
 static struct sx interp_list_sx;
 
-int imgact_binmisc_exec(struct image_params *imgp);
-
-
 /*
  * Populate the entry with the information about the interpreter.
  */
@@ -576,7 +573,7 @@ imgact_binmisc_find_interpreter(const char *image_header)
 	return (NULL);
 }
 
-int
+static int
 imgact_binmisc_exec(struct image_params *imgp)
 {
 	const char *image_header = imgp->image_header;
