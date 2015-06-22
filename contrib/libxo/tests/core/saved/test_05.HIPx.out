@@ -11,6 +11,55 @@
   <div class="data" data-tag="v2" data-xpath="/employees/v2">Unicode-ის მეათე საერთაშორისო</div>
 </div>
 <div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width" data-xpath="/employees/width">63</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala" data-xpath="/employees/sinhala">෴ණ්ණ෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width" data-xpath="/employees/width">7</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala" data-xpath="/employees/sinhala">෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width" data-xpath="/employees/width">3</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala" data-xpath="/employees/sinhala">෴ණ්ණ</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="not-sinhala" data-xpath="/employees/not-sinhala">1234</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="tag" data-xpath="/employees/tag">ර්‍ඝ</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width" data-xpath="/employees/width">5</div>
+</div>
+<div class="line">
   <div class="title">First Name               </div>
   <div class="title">Last Name     </div>
   <div class="title">Department  </div>
@@ -74,4 +123,14 @@
   <div class="data" data-tag="last-name" data-xpath="/employees/employee/last-name" data-type="string" data-help="Last name of employee">საერთაშორისო  </div>
   <div class="data" data-tag="department" data-xpath="/employees/employee/department">     123</div>
   <div class="data" data-tag="percent-time" data-xpath="/employees/employee/percent-time" data-type="number" data-help="Percentage of full &amp; part time (%)">      90</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name" data-xpath="/employees/employee/first-name" data-type="string" data-help="First name of employee">෴ණ්ණ෴෴ණ්ණ෴</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name" data-xpath="/employees/employee/nic-name">"Mick"</div>
+  <div class="text">)</div>
+  <div class="padding">      </div>
+  <div class="data" data-tag="last-name" data-xpath="/employees/employee/last-name" data-type="string" data-help="Last name of employee">෴ණ්ණ෴෴ණ්ණ෴෴ණ්ණ</div>
+  <div class="data" data-tag="department" data-xpath="/employees/employee/department">     110</div>
+  <div class="data" data-tag="percent-time" data-xpath="/employees/employee/percent-time" data-type="number" data-help="Percentage of full &amp; part time (%)">      20</div>
 </div>

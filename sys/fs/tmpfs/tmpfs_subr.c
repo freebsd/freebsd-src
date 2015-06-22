@@ -1031,6 +1031,7 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 				tmpfs_free_dirent(tmp, xde);
 			}
 		}
+		de->td_cookie = de->td_hash;
 	} else
 		RB_REMOVE(tmpfs_dir, head, de);
 
@@ -1320,7 +1321,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
 	vm_object_t uobj;
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t idx, newpages, oldpages;
 	off_t oldsize;
 	int base, rv;
@@ -1367,11 +1368,9 @@ retry:
 					VM_WAIT;
 					VM_OBJECT_WLOCK(uobj);
 					goto retry;
-				} else if (m->valid != VM_PAGE_BITS_ALL) {
-					ma[0] = m;
-					rv = vm_pager_get_pages(uobj, ma, 1, 0);
-					m = vm_page_lookup(uobj, idx);
-				} else
+				} else if (m->valid != VM_PAGE_BITS_ALL)
+					rv = vm_pager_get_pages(uobj, &m, 1, 0);
+				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;
 				vm_page_lock(m);

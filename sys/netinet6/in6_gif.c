@@ -180,6 +180,7 @@ static int
 gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
     struct ifnet *ifp)
 {
+	int ret;
 
 	GIF_RLOCK_ASSERT(sc);
 	/*
@@ -187,9 +188,14 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 	 * packet.  We should compare the *source* address in our configuration
 	 * and the *destination* address of the packet, and vice versa.
 	 */
-	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst) ||
-	    !IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src))
+	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst))
 		return (0);
+	ret = 128;
+	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src)) {
+		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
+			return (0);
+	} else
+		ret += 128;
 
 	/* martian filters on outer source - done in ip6_input */
 
@@ -214,7 +220,7 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 		RTFREE_LOCKED(rt);
 	}
 
-	return (128 * 2);
+	return (ret);
 }
 
 /*

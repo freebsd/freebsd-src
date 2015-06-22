@@ -19,108 +19,9 @@
 # $FreeBSD$
 
 ident		SOCKIT-BERI
-include 	"../altera/socfpga/std.socfpga"
-
-makeoptions	MODULES_OVERRIDE=""
-
-makeoptions	WERROR="-Werror"
-
-options 	HZ=100
-options 	SCHED_ULE		# ULE scheduler
-options 	PREEMPTION		# Enable kernel thread preemption
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	SCTP			# Stream Control Transmission Protocol
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-options 	QUOTA			# Enable disk quotas for UFS
-options 	NFSCL			# Network Filesystem Client
-options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCL
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	TMPFS			# Efficient memory filesystem
-options 	GEOM_PART_GPT		# GUID Partition Tables
-options 	GEOM_PART_BSD		# BSD partition scheme
-options 	GEOM_PART_MBR		# MBR partition scheme
-options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options 	KTRACE			# ktrace(1) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
-options 	VFP			# Enable floating point hardware support
-options 	SMP			# Enable multiple cores
-
-# Debugging for use in -current
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
-#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options 	KDB			# Enable kernel debugger support
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic
-# For full debugger support use this instead:
-options 	DDB			# Enable the kernel debugger
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
-
-# NFS root from boopt/dhcp
-#options 	BOOTP
-#options 	BOOTP_NFSROOT
-#options 	BOOTP_COMPAT
-#options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=ue0
+include 	"SOCKIT.common"
 
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s4\"
-
-# MMC/SD/SDIO Card slot support
-device		mmc			# mmc/sd bus
-device		mmcsd			# mmc/sd flash cards
-device		dwmmc
-
-# Pseudo devices
-
-device		loop
-device		random
-device		pty
-device		md
-device		gpio
-
-# USB support
-options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
-device		usb
-options 	USB_DEBUG
-#options 	USB_REQ_DEBUG
-#options 	USB_VERBOSE
-#device		musb
-device		dwcotg
-
-device		umass
-device		scbus			# SCSI bus (required for ATA/SCSI)
-device		da			# Direct Access (disks)
-device		pass
-
-# Serial ports
-device		uart
-device		uart_ns8250
-
-# I2C (TWSI)
-device		iic
-device		iicbus
-
-# SPI
-device		spibus
 
 # BERI specific
 device		beri_ring
@@ -129,20 +30,6 @@ device		beri_vtblk
 device		vtbe
 device		altera_pio
 
-# Ethernet
-device		ether
-device		mii
-device		smsc
-device		smscphy
-device		dwc
-device		micphy
-
-# USB ethernet support, requires miibus
-device		miibus
-device		axe			# ASIX Electronics USB Ethernet
-device		bpf			# Berkeley packet filter
-
 # Flattened Device Tree
-options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=socfpga-sockit-beri.dts

@@ -108,7 +108,7 @@ SUBDIR=	\
 	${_et} \
 	${_ex} \
 	${_exca} \
-	${_ext2fs} \
+	ext2fs \
 	${_fatm} \
 	fdc \
 	fdescfs \
@@ -132,7 +132,7 @@ SUBDIR=	\
 	${_hptrr} \
 	hwpmc \
 	${_hyperv} \
-	${_i2c} \
+	i2c \
         ${_ibcore} \
 	${_ibcs2} \
 	${_ichwd} \
@@ -196,6 +196,8 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linux_common} \
+	${_linux64} \
 	${_linuxapi} \
 	lmc \
 	lpt \
@@ -315,11 +317,11 @@ SUBDIR=	\
 	siis \
 	sis \
 	sk \
-	${_smbfs} \
+	smbfs \
 	sn \
 	${_snc} \
 	snp \
-	${_sound} \
+	sound \
 	${_speaker} \
 	${_splash} \
 	${_sppp} \
@@ -456,6 +458,7 @@ _txp=		txp
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_ARCH:C/mips(el)?/mips/} != "mips" && \
 	${MACHINE_ARCH} != "powerpc"
 _cxgbe=		cxgbe
 .endif
@@ -466,7 +469,7 @@ _syscons=	syscons
 _vpo=		vpo
 .endif
 
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "mips"
 # no BUS_SPACE_UNSPECIFIED
 # No barrier instruction support (specific to this driver)
 _sym=		sym
@@ -498,10 +501,8 @@ _em=		em
 _ep=		ep
 _et=		et
 _exca=		exca
-_ext2fs=	ext2fs
 _fe=		fe
 _filemon=	filemon
-_i2c=		i2c
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
 .endif
@@ -511,7 +512,6 @@ _io=		io
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
 .endif
-_ix=		ix
 _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -530,8 +530,6 @@ _rdma=		rdma
 _safe=		safe
 _scsi_low=	scsi_low
 _si=		si
-_smbfs=		smbfs
-_sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
@@ -622,6 +620,8 @@ _x86bios=	x86bios
 .if ${MACHINE_CPUARCH} == "amd64"
 _ixl=		ixl
 _ixlv=		ixlv
+_linux64=	linux64
+_linux_common=	linux_common
 _ntb=		ntb
 _qlxge=		qlxge
 _qlxgb=		qlxgb
@@ -688,7 +688,6 @@ _snc=		snc
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
 _cpsw=		cpsw
-_sound=		sound
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -709,14 +708,11 @@ _nvram=		powermac_nvram
 _opensolaris=	opensolaris
 .endif
 _pccard=	pccard
-_smbfs=		smbfs
-_sound=		sound
 _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 _drm2=		drm2
-_i2c=		i2c
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
@@ -726,13 +722,10 @@ _zfs=		zfs
 _auxio=		auxio
 _em=		em
 _epic=		epic
-_i2c=		i2c
 _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
-_smbfs=		smbfs
-_sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif

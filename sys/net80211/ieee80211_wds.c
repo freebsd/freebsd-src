@@ -64,9 +64,10 @@ __FBSDID("$FreeBSD$");
 
 static void wds_vattach(struct ieee80211vap *);
 static int wds_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static	int wds_input(struct ieee80211_node *ni, struct mbuf *m, int, int);
-static void wds_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	    int subtype, int, int);
+static	int wds_input(struct ieee80211_node *ni, struct mbuf *m,
+	    const struct ieee80211_rx_stats *rxs, int, int);
+static void wds_recv_mgmt(struct ieee80211_node *, struct mbuf *, int subtype,
+	const struct ieee80211_rx_stats *, int, int);
 
 void
 ieee80211_wds_attach(struct ieee80211com *ic)
@@ -301,8 +302,12 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			ieee80211_free_node(ni);
-		} else
+		} else {
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OBYTES,
+			    m->m_pkthdr.len);
+		}
 	}
 }
 
@@ -404,9 +409,9 @@ wds_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
  * by the 802.11 layer.
  */
 static int
-wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
+wds_input(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
-#define	HAS_SEQ(type)	((type & 0x4) == 0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = vap->iv_ifp;
@@ -488,7 +493,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	}
 	IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 	ni->ni_noise = nf;
-	if (HAS_SEQ(type)) {
+	if (IEEE80211_HAS_SEQ(type, subtype)) {
 		uint8_t tid = ieee80211_gettid(wh);
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
 		    TID_TO_WME_AC(tid) >= WME_AC_VI)
@@ -715,7 +720,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		vap->iv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
@@ -741,8 +746,8 @@ out:
 }
 
 static void
-wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int nf)
+wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;

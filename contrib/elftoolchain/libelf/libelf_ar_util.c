@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <libelf.h>
 #include <stdlib.h>
@@ -34,7 +32,7 @@
 #include "_libelf.h"
 #include "_libelf_ar.h"
 
-ELFTC_VCSID("$Id: libelf_ar_util.c 3157 2015-02-15 21:42:02Z emaste $");
+ELFTC_VCSID("$Id: libelf_ar_util.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Convert a string bounded by `start' and `start+sz' (exclusive) to a

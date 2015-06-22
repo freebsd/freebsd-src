@@ -108,6 +108,7 @@ GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
 GEOM_LABEL_GPT	opt_geom.h
 GEOM_LINUX_LVM	opt_geom.h
+GEOM_MAP	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
 GEOM_MULTIPATH	opt_geom.h
@@ -432,6 +433,7 @@ ROUTETABLES		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
@@ -553,6 +555,7 @@ LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 SI_DEBUG		opt_debug_si.h
+IFMEDIA_DEBUG		opt_ifmedia.h
 
 # Fb options
 FB_DEBUG		opt_fb.h
@@ -690,6 +693,7 @@ ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
 ACPI_DMAR		opt_acpi.h
+DEV_ACPI		opt_acpi.h
 
 # ISA support
 DEV_ISA			opt_isa.h
@@ -858,6 +862,7 @@ DCONS_FORCE_CONSOLE	opt_dcons.h
 DCONS_FORCE_GDB		opt_dcons.h
 
 # HWPMC options
+HWPMC_DEBUG		opt_global.h
 HWPMC_HOOKS
 HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
@@ -927,6 +932,7 @@ IPOIB_CM	opt_ofed.h
 
 # Resource Accounting
 RACCT		opt_global.h
+RACCT_DEFAULT_TO_DISABLED	opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
@@ -935,3 +941,6 @@ RCTL		opt_global.h
 RANDOM_YARROW	opt_random.h
 RANDOM_FORTUNA	opt_random.h
 RANDOM_DEBUG	opt_random.h
+
+# Intel em(4) driver
+EM_MULTIQUEUE	opt_em.h

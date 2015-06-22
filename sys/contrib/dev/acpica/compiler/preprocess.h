@@ -267,14 +267,18 @@ PrReplaceData (
     char                    *BufferToAdd,
     UINT32                  LengthToAdd);
 
-void
+FILE *
 PrOpenIncludeFile (
-    char                    *Filename);
+    char                    *Filename,
+    char                    *OpenMode,
+    char                    **FullPathname);
 
 FILE *
 PrOpenIncludeWithPrefix (
     char                    *PrefixDir,
-    char                    *Filename);
+    char                    *Filename,
+    char                    *OpenMode,
+    char                    **FullPathname);
 
 void
 PrPushInputFileStack (

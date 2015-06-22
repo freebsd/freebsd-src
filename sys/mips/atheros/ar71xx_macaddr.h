@@ -30,6 +30,8 @@
 #ifndef	__ATHEROS_AR71XX_MACADDR_H__
 #define	__ATHEROS_AR71XX_MACADDR_H__
 
+extern	uint8_t ar71xx_board_mac_addr[ETHER_ADDR_LEN];
+
 extern	int ar71xx_mac_addr_init(unsigned char *dst, const unsigned char *src,
 	    int offset, int is_local);
 extern	int ar71xx_mac_addr_random_init(unsigned char *dst);

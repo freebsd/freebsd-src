@@ -207,7 +207,7 @@ ct_isa_attach(device_t dev)
 	/* setup DMA map */
 	if (bus_dma_tag_create(NULL, 1, 0,
 			       BUS_SPACE_MAXADDR_24BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, MAXBSIZE, 1,
+			       NULL, NULL, DFLTPHYS, 1,
 			       BUS_SPACE_MAXSIZE_32BIT,
 			       BUS_DMA_ALLOCNOW, NULL, NULL,
 			       &ct->sc_dmat) != 0) {
@@ -223,7 +223,7 @@ ct_isa_attach(device_t dev)
 		return ENXIO;
 	}
 
-	bus_dmamap_load(ct->sc_dmat, ct->sc_dmamapt, vaddr, MAXBSIZE,
+	bus_dmamap_load(ct->sc_dmat, ct->sc_dmamapt, vaddr, DFLTPHYS,
 			ct_dmamap, &addr, BUS_DMA_NOWAIT);
 
 	/* setup machdep softc */
@@ -231,7 +231,7 @@ ct_isa_attach(device_t dev)
 	bs->sc_io_control = 0;
 	bs->sc_bounce_phys = (u_int8_t *)addr;
 	bs->sc_bounce_addr = vaddr;
-	bs->sc_bounce_size = MAXBSIZE;
+	bs->sc_bounce_size = DFLTPHYS;
 	bs->sc_minphys = (1 << 24);
 	bs->sc_dmasync_before = ct_isa_dmasync_before;
 	bs->sc_dmasync_after = ct_isa_dmasync_after;

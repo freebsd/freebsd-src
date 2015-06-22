@@ -305,7 +305,7 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-	cpu_setup("");
+	cpu_setup();
 
 	/*
 	 * Fetch the SDRAM start/size from the i80321 SDRAM configration

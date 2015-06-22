@@ -73,6 +73,9 @@ options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
+options 	RACCT			# Resource accounting framework
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	RCTL			# Resource limits
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -169,6 +172,10 @@ device		mrsas			# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 #XXX pointer/int warnings
 #device		pst			# Promise Supertrak SX6000
 device		twe			# 3ware ATA RAID
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
+device		nvd			# expose NVMe namespaces as disks, depends on nvme
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc			# AT keyboard controller
@@ -340,7 +347,9 @@ device		virtio_blk		# VirtIO Block device
 device		virtio_scsi		# VirtIO SCSI device
 device		virtio_balloon		# VirtIO Memory Balloon device
 
-# HyperV drivers
+# HyperV drivers and enchancement support
+# NOTE: HYPERV depends on hyperv.  They must be added or removed together.
+options 	HYPERV			# Hyper-V kernel infrastructure
 device		hyperv			# HyperV drivers 
 
 # Xen HVM Guest Optimizations

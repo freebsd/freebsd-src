@@ -1055,7 +1055,8 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE;
+	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE |
+	    MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1409,6 +1410,14 @@ ffs_statfs(mp, sbp)
 	return (0);
 }
 
+static bool
+sync_doupdate(struct inode *ip)
+{
+
+	return ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
+	    IN_UPDATE)) != 0);
+}
+
 /*
  * For a lazy sync, we only care about access times, quotas and the
  * superblock.  Other filesystem changes are already converted to
@@ -1442,15 +1451,15 @@ ffs_sync_lazy(mp)
 		 * Test also all the other timestamp flags too, to pick up
 		 * any other cases that could be missed.
 		 */
-		if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
-		    IN_UPDATE)) == 0) {
+		if (!sync_doupdate(ip) && (vp->v_iflag & VI_OWEINACT) == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
 		    td)) != 0)
 			continue;
-		error = ffs_update(vp, 0);
+		if (sync_doupdate(ip))
+			error = ffs_update(vp, 0);
 		if (error != 0)
 			allerror = error;
 		vput(vp);
@@ -1485,7 +1494,7 @@ ffs_sync(mp, waitfor)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
-	int error, count, wait, lockreq, allerror = 0;
+	int error, count, lockreq, allerror = 0;
 	int suspend;
 	int suspended;
 	int secondary_writes;
@@ -1494,7 +1503,6 @@ ffs_sync(mp, waitfor)
 	int softdep_accdeps;
 	struct bufobj *bo;
 
-	wait = 0;
 	suspend = 0;
 	suspended = 0;
 	td = curthread;
@@ -1502,8 +1510,11 @@ ffs_sync(mp, waitfor)
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0 && ump->um_fsckpid == 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
-	if (waitfor == MNT_LAZY)
-		return (ffs_sync_lazy(mp));
+	if (waitfor == MNT_LAZY) {
+		if (!rebooting)
+			return (ffs_sync_lazy(mp));
+		waitfor = MNT_NOWAIT;
+	}
 
 	/*
 	 * Write back each (modified) inode.
@@ -1513,10 +1524,8 @@ ffs_sync(mp, waitfor)
 		suspend = 1;
 		waitfor = MNT_WAIT;
 	}
-	if (waitfor == MNT_WAIT) {
-		wait = 1;
+	if (waitfor == MNT_WAIT)
 		lockreq = LK_EXCLUSIVE;
-	}
 	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
 loop:
 	/* Grab snapshot of secondary write counts */
@@ -1560,7 +1569,7 @@ loop:
 	/*
 	 * Force stale filesystem control information to be flushed.
 	 */
-	if (waitfor == MNT_WAIT) {
+	if (waitfor == MNT_WAIT || rebooting) {
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
@@ -1577,9 +1586,12 @@ loop:
 	if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0) {
 		BO_UNLOCK(bo);
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
-			allerror = error;
+		error = VOP_FSYNC(devvp, waitfor, td);
 		VOP_UNLOCK(devvp, 0);
+		if (MOUNTEDSOFTDEP(mp) && (error == 0 || error == EAGAIN))
+			error = ffs_sbupdate(ump, waitfor, 0);
+		if (error != 0)
+			allerror = error;
 		if (allerror == 0 && waitfor == MNT_WAIT)
 			goto loop;
 	} else if (suspend != 0) {
@@ -1681,6 +1693,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_dev = dev;
 	ip->i_number = ino;
 	ip->i_ea_refs = 0;
+	ip->i_nextclustercg = -1;
 #ifdef QUOTA
 	{
 		int i;
@@ -2016,15 +2029,12 @@ static int
 ffs_bufwrite(struct buf *bp)
 {
 	struct buf *newbp;
-	int oldflags;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
 		return (0);
 	}
-
-	oldflags = bp->b_flags;
 
 	if (!BUF_ISLOCKED(bp))
 		panic("bufwrite: buffer is not busy???");

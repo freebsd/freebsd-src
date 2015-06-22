@@ -93,6 +93,16 @@ main() {
 		. "${VMCONFIG}"
 	fi
 
+	case ${TARGET}:${TARGET_ARCH} in
+		arm64:aarch64)
+			ROOTLABEL="ufs"
+			NOSWAP=1
+			;;
+		*)
+			ROOTLABEL="gpt"
+			;;
+	esac
+
 	vm_create_base
 	vm_install_base
 	vm_extra_install_base
@@ -102,6 +112,7 @@ main() {
 	vm_extra_pre_umount
 	vm_extra_pkg_rmcache
 	cleanup
+	vm_copy_base
 	vm_create_disk || return 0
 	vm_extra_create_disk
 

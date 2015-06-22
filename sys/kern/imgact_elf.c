@@ -732,7 +732,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long addr, baddr, et_dyn_addr, entry = 0, proghdr = 0;
 	int32_t osrel = 0;
 	int error = 0, i, n, interp_name_len = 0;
-	const char *interp = NULL, *newinterp = NULL;
+	const char *err_str = NULL, *interp = NULL, *newinterp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
 	struct sysentvec *sv;
@@ -755,11 +755,14 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if ((hdr->e_phoff > PAGE_SIZE) ||
 	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
 		/* Only support headers in first page for now */
+		uprintf("Program headers not in the first page\n");
 		return (ENOEXEC);
 	}
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
-	if (!aligned(phdr, Elf_Addr))
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff); 
+	if (!aligned(phdr, Elf_Addr)) {
+		uprintf("Unaligned program headers\n");
 		return (ENOEXEC);
+	}
 	n = 0;
 	baddr = 0;
 	for (i = 0; i < hdr->e_phnum; i++) {
@@ -773,8 +776,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
 			    phdr[i].p_offset > PAGE_SIZE ||
-			    phdr[i].p_filesz > PAGE_SIZE - phdr[i].p_offset)
+			    phdr[i].p_filesz > PAGE_SIZE - phdr[i].p_offset) {
+				uprintf("Invalid PT_INTERP\n");
 				return (ENOEXEC);
+			}
 			interp = imgp->image_header + phdr[i].p_offset;
 			interp_name_len = phdr[i].p_filesz;
 			break;
@@ -782,6 +787,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (__elfN(nxstack))
 				imgp->stack_prot =
 				    __elfN(trans_prot)(phdr[i].p_flags);
+			imgp->stack_sz = phdr[i].p_memsz;
 			break;
 		}
 	}
@@ -794,8 +800,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOEXEC);
 	}
 	if (hdr->e_type == ET_DYN) {
-		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0)
+		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
+			uprintf("Cannot execute shared object\n");
 			return (ENOEXEC);
+		}
 		/*
 		 * Honour the base load address from the dso if it is
 		 * non-zero for some reason.
@@ -900,12 +908,19 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * not actually fault in all the segments pages.
 	 */
 	PROC_LOCK(imgp->proc);
-	if (data_size > lim_cur(imgp->proc, RLIMIT_DATA) ||
-	    text_size > maxtsiz ||
-	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM) ||
-	    racct_set(imgp->proc, RACCT_DATA, data_size) != 0 ||
-	    racct_set(imgp->proc, RACCT_VMEM, total_size) != 0) {
+	if (data_size > lim_cur_proc(imgp->proc, RLIMIT_DATA))
+		err_str = "Data segment size exceeds process limit";
+	else if (text_size > maxtsiz)
+		err_str = "Text segment size exceeds system limit";
+	else if (total_size > lim_cur_proc(imgp->proc, RLIMIT_VMEM))
+		err_str = "Total segment size exceeds process limit";
+	else if (racct_set(imgp->proc, RACCT_DATA, data_size) != 0)
+		err_str = "Data segment size exceeds resource limit";
+	else if (racct_set(imgp->proc, RACCT_VMEM, total_size) != 0)
+		err_str = "Total segment size exceeds resource limit";
+	if (err_str != NULL) {
 		PROC_UNLOCK(imgp->proc);
+		uprintf("%s\n", err_str);
 		return (ENOMEM);
 	}
 
@@ -921,7 +936,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * calculation is that it leaves room for the heap to grow to
 	 * its maximum allowed size.
 	 */
-	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(imgp->proc,
+	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(curthread,
 	    RLIMIT_DATA));
 	PROC_UNLOCK(imgp->proc);
 
@@ -971,6 +986,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->base = addr;
 	elf_auxargs->flags = 0;
 	elf_auxargs->entry = entry;
+	elf_auxargs->hdr_eflags = hdr->e_flags;
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
@@ -1001,6 +1017,9 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+#ifdef AT_EHDRFLAGS
+	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
+#endif
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
@@ -1237,12 +1256,14 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	coresize = round_page(hdrsize + notesz) + seginfo.size;
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(td->td_proc, RACCT_CORE, coresize);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0) {
-		error = EFAULT;
-		goto done;
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_CORE, coresize);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = EFAULT;
+			goto done;
+		}
 	}
 #endif
 	if (coresize >= limit) {
@@ -1962,7 +1983,7 @@ note_procstat_rlimit(void *arg, struct sbuf *sb, size_t *sizep)
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
 		for (i = 0; i < RLIM_NLIMITS; i++)
-			lim_rlimit(p, i, &rlim[i]);
+			lim_rlimit_proc(p, i, &rlim[i]);
 		PROC_UNLOCK(p);
 		sbuf_bcat(sb, rlim, sizeof(rlim));
 	}

@@ -185,27 +185,37 @@ out:
 	return (res);
 }
 
-void *
-idr_find(struct idr *idr, int id)
+static inline void *
+idr_find_locked(struct idr *idr, int id)
 {
 	struct idr_layer *il;
 	void *res;
 	int layer;
 
-	res = NULL;
+	mtx_assert(&idr->lock, MA_OWNED);
+
 	id &= MAX_ID_MASK;
-	mtx_lock(&idr->lock);
+	res = NULL;
 	il = idr->top;
 	layer = idr->layers - 1;
 	if (il == NULL || id > idr_max(idr))
-		goto out;
+		return (NULL);
 	while (layer && il) {
 		il = il->ary[idr_pos(id, layer)];
 		layer--;
 	}
 	if (il != NULL)
 		res = il->ary[id & IDR_MASK];
-out:
+	return (res);
+}
+
+void *
+idr_find(struct idr *idr, int id)
+{
+	void *res;
+
+	mtx_lock(&idr->lock);
+	res = idr_find_locked(idr, id);
 	mtx_unlock(&idr->lock);
 	return (res);
 }
@@ -331,13 +341,13 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 	}
 	error = 0;
 out:
-	mtx_unlock(&idr->lock);
 #ifdef INVARIANTS
-	if (error == 0 && idr_find(idr, id) != ptr) {
+	if (error == 0 && idr_find_locked(idr, id) != ptr) {
 		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
 #endif
+	mtx_unlock(&idr->lock);
 	return (error);
 }
 
@@ -438,12 +448,12 @@ restart:
 	}
 	error = 0;
 out:
-	mtx_unlock(&idr->lock);
 #ifdef INVARIANTS
-	if (error == 0 && idr_find(idr, id) != ptr) {
+	if (error == 0 && idr_find_locked(idr, id) != ptr) {
 		panic("idr_get_new_above: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
 #endif
+	mtx_unlock(&idr->lock);
 	return (error);
 }

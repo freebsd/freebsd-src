@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2015
+.Dd May 15, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -316,6 +316,14 @@ using the
 kernel configuration option, or the
 .Va net.fibs
 tunable.
+.It Cm tunnelfib Ar fib_number
+Specify tunnel FIB.
+A FIB
+.Ar fib_number
+is assigned to all packets encapsulated by tunnel interface, e.g.,
+.Xr gif 4
+and
+.Xr gre 4 .
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
@@ -692,15 +700,6 @@ Set a flag to disable Duplicate Address Detection.
 .It Cm -no_dad
 Clear a flag
 .Cm no_dad .
-.It Cm ignoreloop
-Set a flag to disable loopback detection in Enhanced Duplicate Address
-Detection Algorithm.
-When this flag is set,
-Duplicate Address Detection will stop in a finite number of probings
-even if a loopback configuration is detected.
-.It Cm -ignoreloop
-Clear a flag
-.Cm ignoreloop .
 .El
 .Pp
 The following parameters are specific for IPv6 addresses.
@@ -2429,6 +2428,14 @@ This is for backward compatibility with
 .It Cm -accept_rev_ethip_ver
 Clear a flag
 .Cm accept_rev_ethip_ver .
+.It Cm ignore_source
+Set a flag to accept encapsulated packets destined to this host
+independently from source address.
+This may be useful for hosts, that receive encapsulated packets
+from the load balancers.
+.It Cm -ignore_source
+Clear a flag
+.Cm ignore_source .
 .It Cm send_rev_ethip_ver
 Set a flag to send EtherIP packets with reversed version
 field intentionally.

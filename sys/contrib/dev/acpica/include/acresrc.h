@@ -352,8 +352,9 @@ AcpiRsSetResourceLength (
 
 
 /*
- * rsdump
+ * rsdump - Debugger support
  */
+#ifdef ACPI_DEBUGGER
 void
 AcpiRsDumpResourceList (
     ACPI_RESOURCE           *Resource);
@@ -361,6 +362,7 @@ AcpiRsDumpResourceList (
 void
 AcpiRsDumpIrqList (
     UINT8                   *RouteTable);
+#endif
 
 
 /*

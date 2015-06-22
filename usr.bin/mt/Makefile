@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	mt
-DPADD=	${LIBMT} ${LIBSBUF} ${LIBBSDXML}
-LDADD=	-lmt -lsbuf -lbsdxml
+LIBADD=	mt
 
 .include <bsd.prog.mk>

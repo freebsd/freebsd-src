@@ -19,6 +19,7 @@
 # $FreeBSD$
 
 ident		GUMSTIX
+include 	"std.arm"
 cpu		CPU_XSCALE_PXA2X0
 
 # This probably wants to move somewhere else.  Maybe we can create a basic
@@ -30,7 +31,7 @@ options 	PHYSADDR=0xa0000000
 options 	KERNPHYSADDR=0xa0200000	
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 
-include		"../xscale/pxa/std.pxa"
+include 	"../xscale/pxa/std.pxa"
 makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

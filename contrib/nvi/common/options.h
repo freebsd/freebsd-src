@@ -78,7 +78,7 @@ struct _option {
 struct _optlist {
 	CHAR_T	*name;			/* Name. */
 					/* Change function. */
-	int	(*func) __P((SCR *, OPTION *, char *, u_long *));
+	int	(*func)(SCR *, OPTION *, char *, u_long *);
 					/* Type of object. */
 	enum { OPT_0BOOL, OPT_1BOOL, OPT_NUM, OPT_STR } type;
 

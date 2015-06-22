@@ -424,7 +424,8 @@ struct uart_class uart_oct16550_class = {
 	sizeof(struct oct16550_softc),
 	.uc_ops = &uart_oct16550_ops,
 	.uc_range = 8 << 3,
-	.uc_rclk = 0
+	.uc_rclk = 0,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

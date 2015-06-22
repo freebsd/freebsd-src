@@ -77,7 +77,7 @@ typedef struct acpi_db_execute_walk
 
 
 #define PARAM_LIST(pl)                  pl
-#define DBTEST_OUTPUT_LEVEL(lvl)        if (AcpiGbl_DbOpt_verbose)
+#define DBTEST_OUTPUT_LEVEL(lvl)        if (AcpiGbl_DbOpt_Verbose)
 #define VERBOSE_PRINT(fp)               DBTEST_OUTPUT_LEVEL(lvl) {\
                                             AcpiOsPrintf PARAM_LIST(fp);}
 
@@ -375,7 +375,8 @@ AcpiDbLoadAcpiTable (
 ACPI_STATUS
 AcpiDbGetTableFromFile (
     char                    *Filename,
-    ACPI_TABLE_HEADER       **Table);
+    ACPI_TABLE_HEADER       **Table,
+    BOOLEAN                 MustBeAmlTable);
 
 
 /*

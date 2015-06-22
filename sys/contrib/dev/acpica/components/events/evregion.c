@@ -288,7 +288,7 @@ AcpiEvAddressSpaceDispatch (
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
         "Handler %p (@%p) Address %8.8X%8.8X [%s]\n",
         &RegionObj->Region.Handler->AddressSpace, Handler,
-        ACPI_FORMAT_NATIVE_UINT (Address),
+        ACPI_FORMAT_UINT64 (Address),
         AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
 
     if (!(HandlerDesc->AddressSpace.HandlerFlags &

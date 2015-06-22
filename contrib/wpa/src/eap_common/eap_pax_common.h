@@ -74,6 +74,7 @@ enum {
 #define EAP_PAX_MK_LEN 16
 #define EAP_PAX_CK_LEN 16
 #define EAP_PAX_ICK_LEN 16
+#define EAP_PAX_MID_LEN 16
 
 
 int eap_pax_kdf(u8 mac_id, const u8 *key, size_t key_len,
@@ -86,6 +87,6 @@ int eap_pax_mac(u8 mac_id, const u8 *key, size_t key_len,
 		const u8 *data3, size_t data3_len,
 		u8 *mac);
 int eap_pax_initial_key_derivation(u8 mac_id, const u8 *ak, const u8 *e,
-				   u8 *mk, u8 *ck, u8 *ick);
+				   u8 *mk, u8 *ck, u8 *ick, u8 *mid);
 
 #endif /* EAP_PAX_COMMON_H */

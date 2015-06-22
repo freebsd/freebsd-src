@@ -451,11 +451,34 @@ vt_proc_window_switch(struct vt_window *vw)
 	struct vt_device *vd;
 	int ret;
 
+	/* Prevent switching to NULL */
+	if (vw == NULL) {
+		DPRINTF(30, "%s: Cannot switch: vw is NULL.", __func__);
+		return (EINVAL);
+	}
 	vd = vw->vw_device;
 	curvw = vd->vd_curwindow;
 
+	/* Check if virtual terminal is locked */
 	if (curvw->vw_flags & VWF_VTYLOCK)
 		return (EBUSY);
+
+	/* Check if switch already in progress */
+	if (curvw->vw_flags & VWF_SWWAIT_REL) {
+		/* Check if switching to same window */
+		if (curvw->vw_switch_to == vw) {
+			DPRINTF(30, "%s: Switch in progress to same vw.", __func__);
+			return (0);	/* success */
+		}
+		DPRINTF(30, "%s: Switch in progress to different vw.", __func__);
+		return (EBUSY);
+	}
+
+	/* Avoid switching to already selected window */
+	if (vw == curvw) {
+		DPRINTF(30, "%s: Cannot switch: vw == curvw.", __func__);
+		return (0);	/* success */
+	}
 
 	/* Ask current process permission to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
@@ -664,8 +687,7 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 	if (console == 0) {
 		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
 			vw = vd->vd_windows[c - F_SCR];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return;
 		}
 		VT_LOCK(vd);
@@ -750,8 +772,7 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 
 		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
 			vw = vd->vd_windows[c - F_SCR];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		}
 
@@ -760,15 +781,13 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			/* Switch to next VT. */
 			c = (vw->vw_number + 1) % VT_MAXWINDOWS;
 			vw = vd->vd_windows[c];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		case PREV:
 			/* Switch to previous VT. */
-			c = (vw->vw_number - 1) % VT_MAXWINDOWS;
+			c = (vw->vw_number + VT_MAXWINDOWS - 1) % VT_MAXWINDOWS;
 			vw = vd->vd_windows[c];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		case SLK: {
 			vt_save_kbd_state(vw, kbd);
@@ -1029,7 +1048,7 @@ vt_determine_colors(term_char_t c, int cursor,
 int
 vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 {
-	unsigned int mx, my, x1, y1, x2, y2;
+	unsigned int mx, my;
 
 	/*
 	 * We use the cursor position saved during the current refresh,
@@ -1038,18 +1057,12 @@ vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 	mx = vd->vd_mx_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_col;
 	my = vd->vd_my_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_row;
 
-	x1 = area->tr_begin.tp_col;
-	y1 = area->tr_begin.tp_row;
-	x2 = area->tr_end.tp_col;
-	y2 = area->tr_end.tp_row;
-
-	if (((mx >= x1 && x2 - 1 >= mx) ||
-	     (mx < x1 && mx + vd->vd_mcursor->width >= x1)) &&
-	    ((my >= y1 && y2 - 1 >= my) ||
-	     (my < y1 && my + vd->vd_mcursor->height >= y1)))
-		return (1);
-
-	return (0);
+	if (mx >= area->tr_end.tp_col ||
+	    mx + vd->vd_mcursor->width <= area->tr_begin.tp_col ||
+	    my >= area->tr_end.tp_row ||
+	    my + vd->vd_mcursor->height <= area->tr_begin.tp_row)
+		return (0);
+	return (1);
 }
 
 static void
@@ -2780,8 +2793,7 @@ vt_resume(struct vt_device *vd)
 
 	if (vt_suspendswitch == 0)
 		return;
-	/* Switch back to saved window */
-	if (vd->vd_savedwindow != NULL)
-		vt_proc_window_switch(vd->vd_savedwindow);
+	/* Switch back to saved window, if any */
+	vt_proc_window_switch(vd->vd_savedwindow);
 	vd->vd_savedwindow = NULL;
 }

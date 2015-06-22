@@ -33,8 +33,8 @@ ${tcase}_head()
 ${tcase}_body()
 {
     $mod
-    atf_check -s exit:0 -o ignore -e ignore \\
-        "\$(atf_get_srcdir)/../../dtest" -n "\$(atf_get_srcdir)/${tfile}"
+    atf_check -s exit:0 -o empty -e empty \\
+        "\$(atf_get_srcdir)/../../dtest" "\$(atf_get_srcdir)/${tfile}"
 }
 __EOF__
 }

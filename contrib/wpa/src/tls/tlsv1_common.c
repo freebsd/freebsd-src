@@ -1,6 +1,6 @@
 /*
  * TLSv1 common routines
- * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -9,6 +9,7 @@
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/md5.h"
 #include "crypto/sha1.h"
 #include "crypto/sha256.h"
 #include "x509v3.h"
@@ -33,6 +34,10 @@ static const struct tls_cipher_suite tls_cipher_suites[] = {
 	  TLS_HASH_SHA },
 	{ TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_KEY_X_RSA,
 	  TLS_CIPHER_3DES_EDE_CBC, TLS_HASH_SHA },
+	{ TLS_DHE_RSA_WITH_DES_CBC_SHA, TLS_KEY_X_DHE_RSA, TLS_CIPHER_DES_CBC,
+	  TLS_HASH_SHA},
+	{ TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA, TLS_KEY_X_DHE_RSA,
+	  TLS_CIPHER_3DES_EDE_CBC, TLS_HASH_SHA },
  	{ TLS_DH_anon_WITH_RC4_128_MD5, TLS_KEY_X_DH_anon,
 	  TLS_CIPHER_RC4_128, TLS_HASH_MD5 },
  	{ TLS_DH_anon_WITH_DES_CBC_SHA, TLS_KEY_X_DH_anon,
@@ -41,15 +46,23 @@ static const struct tls_cipher_suite tls_cipher_suites[] = {
 	  TLS_CIPHER_3DES_EDE_CBC, TLS_HASH_SHA },
 	{ TLS_RSA_WITH_AES_128_CBC_SHA, TLS_KEY_X_RSA, TLS_CIPHER_AES_128_CBC,
 	  TLS_HASH_SHA },
+	{ TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_KEY_X_DHE_RSA,
+	  TLS_CIPHER_AES_128_CBC, TLS_HASH_SHA },
 	{ TLS_DH_anon_WITH_AES_128_CBC_SHA, TLS_KEY_X_DH_anon,
 	  TLS_CIPHER_AES_128_CBC, TLS_HASH_SHA },
 	{ TLS_RSA_WITH_AES_256_CBC_SHA, TLS_KEY_X_RSA, TLS_CIPHER_AES_256_CBC,
 	  TLS_HASH_SHA },
+	{ TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_KEY_X_DHE_RSA,
+	  TLS_CIPHER_AES_256_CBC, TLS_HASH_SHA },
 	{ TLS_DH_anon_WITH_AES_256_CBC_SHA, TLS_KEY_X_DH_anon,
 	  TLS_CIPHER_AES_256_CBC, TLS_HASH_SHA },
 	{ TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_KEY_X_RSA,
 	  TLS_CIPHER_AES_128_CBC, TLS_HASH_SHA256 },
 	{ TLS_RSA_WITH_AES_256_CBC_SHA256, TLS_KEY_X_RSA,
+	  TLS_CIPHER_AES_256_CBC, TLS_HASH_SHA256 },
+	{ TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_KEY_X_DHE_RSA,
+	  TLS_CIPHER_AES_128_CBC, TLS_HASH_SHA256 },
+	{ TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_KEY_X_DHE_RSA,
 	  TLS_CIPHER_AES_256_CBC, TLS_HASH_SHA256 },
 	{ TLS_DH_anon_WITH_AES_128_CBC_SHA256, TLS_KEY_X_DH_anon,
 	  TLS_CIPHER_AES_128_CBC, TLS_HASH_SHA256 },
@@ -57,8 +70,7 @@ static const struct tls_cipher_suite tls_cipher_suites[] = {
 	  TLS_CIPHER_AES_256_CBC, TLS_HASH_SHA256 }
 };
 
-#define NUM_ELEMS(a) (sizeof(a) / sizeof((a)[0]))
-#define NUM_TLS_CIPHER_SUITES NUM_ELEMS(tls_cipher_suites)
+#define NUM_TLS_CIPHER_SUITES ARRAY_SIZE(tls_cipher_suites)
 
 
 static const struct tls_cipher_data tls_ciphers[] = {
@@ -84,7 +96,7 @@ static const struct tls_cipher_data tls_ciphers[] = {
 	  CRYPTO_CIPHER_ALG_AES }
 };
 
-#define NUM_TLS_CIPHER_DATA NUM_ELEMS(tls_ciphers)
+#define NUM_TLS_CIPHER_DATA ARRAY_SIZE(tls_ciphers)
 
 
 /**
@@ -319,4 +331,162 @@ int tls_prf(u16 ver, const u8 *secret, size_t secret_len, const char *label,
 
 	return tls_prf_sha1_md5(secret, secret_len, label, seed, seed_len, out,
 				outlen);
+}
+
+
+#ifdef CONFIG_TLSV12
+int tlsv12_key_x_server_params_hash(u16 tls_version,
+				    const u8 *client_random,
+				    const u8 *server_random,
+				    const u8 *server_params,
+				    size_t server_params_len, u8 *hash)
+{
+	size_t hlen;
+	struct crypto_hash *ctx;
+
+	ctx = crypto_hash_init(CRYPTO_HASH_ALG_SHA256, NULL, 0);
+	if (ctx == NULL)
+		return -1;
+	crypto_hash_update(ctx, client_random, TLS_RANDOM_LEN);
+	crypto_hash_update(ctx, server_random, TLS_RANDOM_LEN);
+	crypto_hash_update(ctx, server_params, server_params_len);
+	hlen = SHA256_MAC_LEN;
+	if (crypto_hash_finish(ctx, hash, &hlen) < 0)
+		return -1;
+
+	return hlen;
+}
+#endif /* CONFIG_TLSV12 */
+
+
+int tls_key_x_server_params_hash(u16 tls_version, const u8 *client_random,
+				 const u8 *server_random,
+				 const u8 *server_params,
+				 size_t server_params_len, u8 *hash)
+{
+	u8 *hpos;
+	size_t hlen;
+	struct crypto_hash *ctx;
+
+	hpos = hash;
+
+	ctx = crypto_hash_init(CRYPTO_HASH_ALG_MD5, NULL, 0);
+	if (ctx == NULL)
+		return -1;
+	crypto_hash_update(ctx, client_random, TLS_RANDOM_LEN);
+	crypto_hash_update(ctx, server_random, TLS_RANDOM_LEN);
+	crypto_hash_update(ctx, server_params, server_params_len);
+	hlen = MD5_MAC_LEN;
+	if (crypto_hash_finish(ctx, hash, &hlen) < 0)
+		return -1;
+	hpos += hlen;
+
+	ctx = crypto_hash_init(CRYPTO_HASH_ALG_SHA1, NULL, 0);
+	if (ctx == NULL)
+		return -1;
+	crypto_hash_update(ctx, client_random, TLS_RANDOM_LEN);
+	crypto_hash_update(ctx, server_random, TLS_RANDOM_LEN);
+	crypto_hash_update(ctx, server_params, server_params_len);
+	hlen = hash + sizeof(hash) - hpos;
+	if (crypto_hash_finish(ctx, hpos, &hlen) < 0)
+		return -1;
+	hpos += hlen;
+	return hpos - hash;
+}
+
+
+int tls_verify_signature(u16 tls_version, struct crypto_public_key *pk,
+			 const u8 *data, size_t data_len,
+			 const u8 *pos, size_t len, u8 *alert)
+{
+	u8 *buf;
+	const u8 *end = pos + len;
+	const u8 *decrypted;
+	u16 slen;
+	size_t buflen;
+
+	if (end - pos < 2) {
+		*alert = TLS_ALERT_DECODE_ERROR;
+		return -1;
+	}
+	slen = WPA_GET_BE16(pos);
+	pos += 2;
+	if (end - pos < slen) {
+		*alert = TLS_ALERT_DECODE_ERROR;
+		return -1;
+	}
+	if (end - pos > slen) {
+		wpa_hexdump(MSG_MSGDUMP, "Additional data after Signature",
+			    pos + slen, end - pos - slen);
+		end = pos + slen;
+	}
+
+	wpa_hexdump(MSG_MSGDUMP, "TLSv1: Signature", pos, end - pos);
+	if (pk == NULL) {
+		wpa_printf(MSG_DEBUG, "TLSv1: No public key to verify signature");
+		*alert = TLS_ALERT_INTERNAL_ERROR;
+		return -1;
+	}
+
+	buflen = end - pos;
+	buf = os_malloc(end - pos);
+	if (buf == NULL) {
+		*alert = TLS_ALERT_INTERNAL_ERROR;
+		return -1;
+	}
+	if (crypto_public_key_decrypt_pkcs1(pk, pos, end - pos, buf, &buflen) <
+	    0) {
+		wpa_printf(MSG_DEBUG, "TLSv1: Failed to decrypt signature");
+		os_free(buf);
+		*alert = TLS_ALERT_DECRYPT_ERROR;
+		return -1;
+	}
+	decrypted = buf;
+
+	wpa_hexdump_key(MSG_MSGDUMP, "TLSv1: Decrypted Signature",
+			decrypted, buflen);
+
+#ifdef CONFIG_TLSV12
+	if (tls_version >= TLS_VERSION_1_2) {
+		/*
+		 * RFC 3447, A.2.4 RSASSA-PKCS1-v1_5
+		 *
+		 * DigestInfo ::= SEQUENCE {
+		 *   digestAlgorithm DigestAlgorithm,
+		 *   digest OCTET STRING
+		 * }
+		 *
+		 * SHA-256 OID: sha256WithRSAEncryption ::= {pkcs-1 11}
+		 *
+		 * DER encoded DigestInfo for SHA256 per RFC 3447:
+		 * 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20 ||
+		 * H
+		 */
+		if (buflen >= 19 + 32 &&
+		    os_memcmp(buf, "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01"
+			      "\x65\x03\x04\x02\x01\x05\x00\x04\x20", 19) == 0)
+		{
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-256");
+			decrypted = buf + 19;
+			buflen -= 19;
+		} else {
+			wpa_printf(MSG_DEBUG, "TLSv1.2: Unrecognized DigestInfo");
+			os_free(buf);
+			*alert = TLS_ALERT_DECRYPT_ERROR;
+			return -1;
+		}
+	}
+#endif /* CONFIG_TLSV12 */
+
+	if (buflen != data_len ||
+	    os_memcmp_const(decrypted, data, data_len) != 0) {
+		wpa_printf(MSG_DEBUG, "TLSv1: Invalid Signature in CertificateVerify - did not match calculated hash");
+		os_free(buf);
+		*alert = TLS_ALERT_DECRYPT_ERROR;
+		return -1;
+	}
+
+	os_free(buf);
+
+	return 0;
 }

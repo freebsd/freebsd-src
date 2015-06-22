@@ -69,7 +69,7 @@ void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 static int nfs_realign_test;
 static int nfs_realign_count;
 
-SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "New NFS filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
     0, "Number of realign tests done");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
@@ -78,7 +78,7 @@ SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
     "NFSv4 callback addr for server to use");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
-    0, "Debug level for new nfs client");
+    0, "Debug level for NFS client");
 
 /*
  * Defines for malloc
@@ -100,12 +100,12 @@ MALLOC_DEFINE(M_NEWNFSCLDELEG, "NFSCL deleg", "NFSCL Delegation");
 MALLOC_DEFINE(M_NEWNFSCLCLIENT, "NFSCL client", "NFSCL Client");
 MALLOC_DEFINE(M_NEWNFSCLLOCKOWNER, "NFSCL lckown", "NFSCL Lock Owner");
 MALLOC_DEFINE(M_NEWNFSCLLOCK, "NFSCL lck", "NFSCL Lock");
-MALLOC_DEFINE(M_NEWNFSV4NODE, "NEWNFSnode", "New nfs vnode");
-MALLOC_DEFINE(M_NEWNFSDIRECTIO, "NEWdirectio", "New nfs Direct IO buffer");
+MALLOC_DEFINE(M_NEWNFSV4NODE, "NEWNFSnode", "NFS vnode");
+MALLOC_DEFINE(M_NEWNFSDIRECTIO, "NEWdirectio", "NFS Direct IO buffer");
 MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroffdiroff",
-    "New NFS directory offset data");
+    "NFS directory offset data");
 MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
-    "New NFS local lock rollback");
+    "NFS local lock rollback");
 MALLOC_DEFINE(M_NEWNFSLAYOUT, "NFSCL layout", "NFSv4.1 Layout");
 MALLOC_DEFINE(M_NEWNFSFLAYOUT, "NFSCL flayout", "NFSv4.1 File Layout");
 MALLOC_DEFINE(M_NEWNFSDEVINFO, "NFSCL devinfo", "NFSv4.1 Device Info");
@@ -281,11 +281,11 @@ nfsvno_getfs(struct nfsfsinfo *sip, int isdgram)
 	if (isdgram)
 		pref = NFS_MAXDGRAMDATA;
 	else
-		pref = NFS_MAXDATA;
-	sip->fs_rtmax = NFS_MAXDATA;
+		pref = NFS_SRVMAXIO;
+	sip->fs_rtmax = NFS_SRVMAXIO;
 	sip->fs_rtpref = pref;
 	sip->fs_rtmult = NFS_FABLKSIZE;
-	sip->fs_wtmax = NFS_MAXDATA;
+	sip->fs_wtmax = NFS_SRVMAXIO;
 	sip->fs_wtpref = pref;
 	sip->fs_wtmult = NFS_FABLKSIZE;
 	sip->fs_dtpref = pref;
@@ -589,7 +589,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfs_req_mutex, "nfs_req_mutex", NULL, MTX_DEF);
 		mtx_init(&nfsrv_nfsuserdsock.nr_mtx, "nfsuserd", NULL,
 		    MTX_DEF);
-		callout_init(&newnfsd_callout, CALLOUT_MPSAFE);
+		callout_init(&newnfsd_callout, 1);
 		newnfs_init();
 		nfsd_call_nfscommon = nfssvc_nfscommon;
 		loaded = 1;

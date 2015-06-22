@@ -35,14 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <assert.h>
-#include <ctype.h>
-#include <errno.h>
 #include <netdb.h>
-#include <signal.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>

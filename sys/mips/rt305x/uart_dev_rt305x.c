@@ -217,7 +217,8 @@ struct uart_class uart_rt305x_uart_class = {
 	sizeof(struct rt305x_uart_softc),
 	.uc_ops = &uart_rt305x_uart_ops,
 	.uc_range = 1, /* use hinted range */
-	.uc_rclk = SYSTEM_CLOCK
+	.uc_rclk = SYSTEM_CLOCK,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

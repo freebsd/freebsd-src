@@ -31,6 +31,115 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150616:
+	/etc/make.conf now included earlier.
+	sys.mk now includes /etc/make.conf and {local,src}.sys.mk earlier
+	than previously.
+	This makes it simple to interpose external toolchains etc.
+	However it may cause problems for users who have things like::
+
+		INSTALL+= something
+
+	in /etc/make.conf, since INSTALL is not yet defined.
+	A safe fix for that is to have::
+
+		INSTALL?= install
+		INSTALL+= something
+
+	which is equivalent to previous behavior.
+	
+20150616:
+	FreeBSD's old make (fmake) has been removed from the system. It is
+	available as the devel/fmake port or via pkg install fmake.
+	
+20150615:
+	The fix for the issue described in the 20150614 sendmail entry
+	below has been been committed in revision 284436.  The work
+	around described in that entry is no longer needed unless the
+	default setting is overridden by a confDH_PARAMETERS configuration
+	setting of '5' or pointing to a 512 bit DH parameter file.
+
+20150614:
+	ALLOW_DEPRECATED_ATF_TOOLS/ATFFILE support has been removed from
+	atf.test.mk (included from bsd.test.mk). Please upgrade devel/atf
+	and devel/kyua to version 0.20+ and adjust any calling code to work
+	with Kyuafile and kyua.
+
+20150614:
+	The import of openssl to address the FreeBSD-SA-15:10.openssl
+	security advisory includes a change which rejects handshakes
+	with DH parameters below 768 bits.  sendmail releases prior
+	to 8.15.2 (not yet released), defaulted to a 512 bit
+	DH parameter setting for client connections.  To work around
+	this interoperability, sendmail can be configured to use a
+	2048 bit DH parameter by:
+
+	1. Edit /etc/mail/`hostname`.mc 
+	2. If a setting for confDH_PARAMETERS does not exist or
+	   exists and is set to a string beginning with '5',
+	   replace it with '2'.
+	3. If a setting for confDH_PARAMETERS exists and is set to
+	   a file path, create a new file with:
+		openssl dhparam -out /path/to/file 2048
+	4. Rebuild the .cf file:
+		cd /etc/mail/; make; make install
+	5. Restart sendmail:
+		cd /etc/mail/; make restart
+
+	A sendmail patch is coming, at which time this file will be
+	updated.
+
+20150604:
+	Generation of legacy formatted entries have been disabled by default
+	in pwd_mkdb(8), as all base system consumers of the legacy formatted
+	entries were converted to use the new format by default when the new,
+	machine independent format have been added and supported since FreeBSD
+	5.x.
+
+	Please see the pwd_mkdb(8) manual page for further details.
+
+20150525:
+	Clang and llvm have been upgraded to 3.6.1 release.  Please see the
+	20141231 entry below for information about prerequisites and upgrading,
+	if you are not already using 3.5.0 or higher.
+
+20150521:
+	TI platform code switched to using vendor DTS files and this update
+	may break existing systems running on Beaglebone, Beaglebone Black,
+	and Pandaboard:
+
+	- dtb files should be regenerated/reinstalled. Filenames are the
+	  same but content is different now
+	- GPIO addressing was changed, now each GPIO bank (32 pins per bank)
+	  has its own /dev/gpiocX device, e.g. pin 121 on /dev/gpioc0 in old
+	  addressing scheme is now pin 25 on /dev/gpioc3.
+	- Pandaboard: /etc/ttys should be updated, serial console device is
+	  now /dev/ttyu2, not /dev/ttyu0
+
+20150501:
+	soelim(1) from gnu/usr.bin/groff has been replaced by usr.bin/soelim.
+	If you need the GNU extension from groff soelim(1), install groff
+	from package: pkg install groff, or via ports: textproc/groff.
+
+20150423:
+	chmod, chflags, chown and chgrp now affect symlinks in -R mode as
+	defined in symlink(7); previously symlinks were silently ignored.
+
+20150415:
+	The const qualifier has been removed from iconv(3) to comply with
+	POSIX.  The ports tree is aware of this from r384038 onwards.
+
+20150416:
+	Libraries specified by LIBADD in Makefiles must have a corresponding
+	DPADD_<lib> variable to ensure correct dependencies.  This is now
+	enforced in src.libnames.mk.
+
+20150324:
+	From legacy ata(4) driver was removed support for SATA controllers
+	supported by more functional drivers ahci(4), siis(4) and mvs(4).
+	Kernel modules ataahci and ataadaptec were removed completely,
+	replaced by ahci and mvs modules respectively.
+
 20150315:
 	Clang, llvm and lldb have been upgraded to 3.6.0 release.  Please see
 	the 20141231 entry below for information about prerequisites and

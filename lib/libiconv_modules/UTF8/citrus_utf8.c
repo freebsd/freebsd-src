@@ -177,10 +177,10 @@ _citrus_UTF8_unpack_state(_UTF8EncodingInfo *ei __unused, _UTF8State *s,
 #endif
 
 static int
-_citrus_UTF8_mbrtowc_priv(_UTF8EncodingInfo *ei, wchar_t *pwc, const char **s,
+_citrus_UTF8_mbrtowc_priv(_UTF8EncodingInfo *ei, wchar_t *pwc, char **s,
     size_t n, _UTF8State *psenc, size_t *nresult)
 {
-	const char *s0;
+	char *s0;
 	wchar_t wchar;
 	int i;
 	uint8_t c;

@@ -1,12 +1,12 @@
 /*
  * /src/NTP/ntp4-dev/libparse/clk_dcf7000.c,v 4.10 2005/04/16 17:32:10 kardel RELEASE_20050508_A
- *  
+ *
  * clk_dcf7000.c,v 4.10 2005/04/16 17:32:10 kardel RELEASE_20050508_A
  *
  * ELV DCF7000 module
  *
  * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 static struct format dcf7000_fmt =
@@ -63,9 +63,10 @@ static struct format dcf7000_fmt =
 	},
 	(const unsigned char *)"  -  -  -  -  -  -  -  \r",
 	0
-};    
-static u_long cvt_dcf7000 P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_dcf7000 P((parse_t *, unsigned int, timestamp_t *));
+};
+
+static parse_cvt_fnc_t cvt_dcf7000;
+static parse_inp_fnc_t inp_dcf7000;
 
 clockformat_t clock_dcf7000 =
 {
@@ -75,11 +76,11 @@ clockformat_t clock_dcf7000 =
   (void *)&dcf7000_fmt,		/* conversion configuration */
   "ELV DCF7000",		/* ELV clock */
   24,				/* string buffer */
-  0				/* no private data (complete pakets) */
+  0				/* no private data (complete packets) */
 };
 
 /*
- * cvt_dcf7000
+ * parse_cvt_fnc_t cvt_dcf7000
  *
  * convert dcf7000 type format
  */
@@ -117,7 +118,7 @@ cvt_dcf7000(
 		{
 			unsigned char *f = &buffer[format->field_offsets[O_FLAGS].offset];
 			long flags;
-	  
+
 			clock_time->flags = 0;
 			clock_time->usecond = 0;
 
@@ -144,21 +145,21 @@ cvt_dcf7000(
 }
 
 /*
- * inp_dcf700
+ * parse_inp_fnc_t inp_dcf700
  *
- * grep data from input stream
+ * grab data from input stream
  */
 static u_long
 inp_dcf7000(
 	  parse_t      *parseio,
-	  unsigned int  ch,
+	  char         ch,
 	  timestamp_t  *tstamp
 	  )
 {
 	unsigned int rtc;
-	
+
 	parseprintf(DD_PARSE, ("inp_dcf7000(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
-	
+
 	switch (ch)
 	{
 	case '\r':

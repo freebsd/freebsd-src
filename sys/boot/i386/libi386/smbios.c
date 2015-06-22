@@ -31,8 +31,13 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <sys/endian.h>
 
+#ifdef EFI
+/* In EFI, we don't need PTOV(). */
+#define PTOV(x)		(caddr_t)(x)
+#else
 #include "btxv86.h"
-#include "libi386.h"
+#endif
+#include "smbios.h"
 
 /*
  * Detect SMBIOS and export information about the SMBIOS into the
@@ -347,17 +352,18 @@ smbios_find_struct(int type)
 }
 
 static void
-smbios_probe(void)
+smbios_probe(const caddr_t addr)
 {
 	caddr_t		saddr, info;
-	u_int32_t	paddr;
+	uintptr_t	paddr;
 
 	if (smbios.probed)
 		return;
 	smbios.probed = 1;
 
 	/* Search signatures and validate checksums. */
-	saddr = smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
+	saddr = smbios_sigsearch(addr ? addr : PTOV(SMBIOS_START),
+	    SMBIOS_LENGTH);
 	if (saddr == NULL)
 		return;
 
@@ -392,13 +398,13 @@ smbios_probe(void)
 }
 
 void
-smbios_detect(void)
+smbios_detect(const caddr_t addr)
 {
 	char		buf[16];
 	caddr_t		dmi;
 	int		i;
 
-	smbios_probe();
+	smbios_probe(addr);
 	if (smbios.addr == NULL)
 		return;
 
@@ -433,7 +439,8 @@ int
 smbios_match(const char* bios_vendor, const char* maker,
     const char* product)
 {
-	smbios_probe();
+	/* XXXRP currently, only called from non-EFI. */
+	smbios_probe(NULL);
 	return (smbios_match_str(bios_vendor, smbios.bios_vendor) &&
 	    smbios_match_str(maker, smbios.maker) &&
 	    smbios_match_str(product, smbios.product));

@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: cut.c,v 10.12 2012/02/11 15:52:33 zy Exp $";
 
 #include "common.h"
 
-static void	cb_rotate __P((SCR *));
+static void	cb_rotate(SCR *);
 
 /*
  * cut --
@@ -61,7 +61,7 @@ static void	cb_rotate __P((SCR *));
  * replacing the contents.  Hopefully it's not worth getting right, and here
  * we just treat the numeric buffers like any other named buffer.
  *
- * PUBLIC: int cut __P((SCR *, CHAR_T *, MARK *, MARK *, int));
+ * PUBLIC: int cut(SCR *, CHAR_T *, MARK *, MARK *, int);
  */
 int
 cut(
@@ -222,7 +222,7 @@ cb_rotate(SCR *sp)
  * cut_line --
  *	Cut a portion of a single line.
  *
- * PUBLIC: int cut_line __P((SCR *, recno_t, size_t, size_t, CB *));
+ * PUBLIC: int cut_line(SCR *, recno_t, size_t, size_t, CB *);
  */
 int
 cut_line(
@@ -266,7 +266,7 @@ cut_line(
  * cut_close --
  *	Discard all cut buffers.
  *
- * PUBLIC: void cut_close __P((GS *));
+ * PUBLIC: void cut_close(GS *);
  */
 void
 cut_close(GS *gp)
@@ -291,7 +291,7 @@ cut_close(GS *gp)
  * text_init --
  *	Allocate a new TEXT structure.
  *
- * PUBLIC: TEXT *text_init __P((SCR *, const CHAR_T *, size_t, size_t));
+ * PUBLIC: TEXT *text_init(SCR *, const CHAR_T *, size_t, size_t);
  */
 TEXT *
 text_init(
@@ -323,7 +323,7 @@ text_init(
  * text_lfree --
  *	Free a chain of text structures.
  *
- * PUBLIC: void text_lfree __P((TEXTH *));
+ * PUBLIC: void text_lfree(TEXTH *);
  */
 void
 text_lfree(TEXTH *headp)
@@ -340,7 +340,7 @@ text_lfree(TEXTH *headp)
  * text_free --
  *	Free a text structure.
  *
- * PUBLIC: void text_free __P((TEXT *));
+ * PUBLIC: void text_free(TEXT *);
  */
 void
 text_free(TEXT *tp)

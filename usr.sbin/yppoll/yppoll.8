@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 1994
+.Dd May 31, 2015
 .Dt YPPOLL 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd ask version of YP map from YP server
 .Sh SYNOPSIS
 .Nm
-.Op Fl h Ar host
+.\".Op Fl h Ar host
 .Op Fl d Ar domain
 .Ar mapname
 .Sh DESCRIPTION
@@ -48,15 +48,15 @@ server for
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl h Ar host
-Ask the YP server process running on
-.Ar host
-for information about
-.Ar mapname .
-If
-.Ar host
-is not specified, the server polled is the default server returned by
-.Xr ypwhich 1 .
+.\".It Fl h Ar host
+.\"Ask the YP server process running on
+.\".Ar host
+.\"for information about
+.\".Ar mapname .
+.\"If
+.\".Ar host
+.\"is not specified, the server polled is the default server returned by
+.\".Xr ypwhich 1 .
 .It Fl d Ar domain
 Use the YP domain
 .Ar domain

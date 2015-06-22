@@ -152,7 +152,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
 	// the old buf pointer instead of recalculating it with mf_ptr().
 	++buf;
 
-	const uint32_t limit = len_main - 1;
+	const uint32_t limit = my_max(2, len_main - 1);
 
 	for (uint32_t i = 0; i < REPS; ++i) {
 		if (memcmp(buf, buf - coder->reps[i] - 1, limit) == 0) {

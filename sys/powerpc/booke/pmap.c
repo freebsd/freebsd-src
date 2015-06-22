@@ -262,7 +262,9 @@ static vm_offset_t ptbl_buf_pool_vabase;
 /* Pointer to ptbl_buf structures. */
 static struct ptbl_buf *ptbl_bufs;
 
+#ifdef SMP
 void pmap_bootstrap_ap(volatile uint32_t *);
+#endif
 
 /*
  * Kernel MMU interface
@@ -1029,13 +1031,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * Align kernel start and end address (kernel image).
 	 * Note that kernel end does not necessarily relate to kernsize.
 	 * kernsize is the size of the kernel that is actually mapped.
-	 * Also note that "start - 1" is deliberate. With SMP, the
-	 * entry point is exactly a page from the actual load address.
-	 * As such, trunc_page() has no effect and we're off by a page.
-	 * Since we always have the ELF header between the load address
-	 * and the entry point, we can safely subtract 1 to compensate.
 	 */
-	kernstart = trunc_page(start - 1);
+	kernstart = trunc_page(start);
 	data_start = round_page(kernelend);
 	data_end = data_start;
 
@@ -1329,6 +1326,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: exit\n");
 }
 
+#ifdef SMP
 void
 pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 {
@@ -1349,6 +1347,7 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 
 	set_mas4_defaults();
 }
+#endif
 
 /*
  * Get the physical page address for the given pmap/virtual address.

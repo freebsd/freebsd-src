@@ -1532,8 +1532,9 @@ do {								\
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache.xid;
 #endif /* !__FreeBSD__ */
-					} else
+					}
 #endif /* !USERSPACE */
+					else
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -2762,6 +2763,10 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
+	/* Init shared services hash table */
+	ipfw_init_srv(chain);
+
+	ipfw_init_obj_rewriter();
 	ipfw_init_counters();
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
@@ -2860,9 +2865,11 @@ vnet_ipfw_uninit(const void *unused)
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);
+	ipfw_destroy_srv(chain);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
+	ipfw_destroy_obj_rewriter();
 	return (0);
 }
 

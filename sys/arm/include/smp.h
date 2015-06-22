@@ -13,6 +13,7 @@
 #define IPI_STOP_HARD	4
 #define IPI_HARDCLOCK	6
 #define IPI_TLB		7
+#define IPI_CACHE	8
 
 void	init_secondary(int cpu);
 void	mpentry(void);

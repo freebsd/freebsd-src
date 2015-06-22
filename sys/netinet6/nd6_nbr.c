@@ -417,14 +417,9 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 	/* estimate the size of message */
 	maxlen = sizeof(*ip6) + sizeof(*nd_ns);
 	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
-	if (max_linkhdr + maxlen >= MCLBYTES) {
-#ifdef DIAGNOSTIC
-		printf("%s: max_linkhdr + maxlen >= MCLBYTES "
-		    "(%d + %d > %d)\n", __func__, max_linkhdr, maxlen,
-		    MCLBYTES);
-#endif
-		return;
-	}
+	KASSERT(max_linkhdr + maxlen <= MCLBYTES, (
+	    "%s: max_linkhdr + maxlen > MCLBYTES (%d + %d > %d)",
+	    __func__, max_linkhdr, maxlen, MCLBYTES));
 
 	if (max_linkhdr + maxlen > MHLEN)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -747,8 +742,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 */
 	if (ifa
 	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE)) {
-		ifa_free(ifa);
 		nd6_dad_na_input(ifa);
+		ifa_free(ifa);
 		goto freeit;
 	}
 
@@ -992,13 +987,9 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	/* estimate the size of message */
 	maxlen = sizeof(*ip6) + sizeof(*nd_na);
 	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
-	if (max_linkhdr + maxlen >= MCLBYTES) {
-#ifdef DIAGNOSTIC
-		printf("nd6_na_output: max_linkhdr + maxlen >= MCLBYTES "
-		    "(%d + %d > %d)\n", max_linkhdr, maxlen, MCLBYTES);
-#endif
-		return;
-	}
+	KASSERT(max_linkhdr + maxlen <= MCLBYTES, (
+	    "%s: max_linkhdr + maxlen > MCLBYTES (%d + %d > %d)",
+	    __func__, max_linkhdr, maxlen, MCLBYTES));
 
 	if (max_linkhdr + maxlen > MHLEN)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -1158,12 +1149,8 @@ nd6_ifptomac(struct ifnet *ifp)
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_IEEE1394:
-#ifdef IFT_L2VLAN
 	case IFT_L2VLAN:
-#endif
-#ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
-#endif
 	case IFT_INFINIBAND:
 	case IFT_BRIDGE:
 	case IFT_ISO88025:
@@ -1458,10 +1445,9 @@ nd6_dad_timer(struct dadq *dp)
 		    dp->dad_ns_lcount > 0 &&
 		    dp->dad_ns_lcount > dp->dad_loopbackprobe) {
 			/*
-			 * A looped back probe is detected,
-			 * Sec. 4.1 in draft-ietf-6man-enhanced-dad-13
-			 * requires transmission of additional probes until
-			 * the loopback condition becomes clear.
+			 * Sec. 4.1 in RFC 7527 requires transmission of
+			 * additional probes until the loopback condition
+			 * becomes clear when a looped back probe is detected.
 			 */
 			log(LOG_ERR, "%s: a looped back NS message is "
 			    "detected during DAD for %s.  "
@@ -1469,16 +1455,6 @@ nd6_dad_timer(struct dadq *dp)
 			    if_name(ifa->ifa_ifp),
 			    ip6_sprintf(ip6buf, IFA_IN6(ifa)));
 			dp->dad_loopbackprobe = dp->dad_ns_lcount;
-			/*
-			 * An interface with IGNORELOOP is one which a
-			 * loopback is permanently expected while regular
-			 * traffic works.  In that case, stop DAD after
-			 * MAX_MULTICAST_SOLICIT number of NS messages
-			 * regardless of the number of received loopback NS
-			 * by increasing dad_loopbackprobe in advance.
-			 */
-			if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IGNORELOOP)
-				dp->dad_loopbackprobe += V_nd6_mmaxtries;
 			/*
 			 * Send an NS immediately and increase dad_count by
 			 * V_nd6_mmaxtries - 1.
@@ -1558,9 +1534,7 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 		case IFT_FDDI:
 		case IFT_ATM:
 		case IFT_IEEE1394:
-#ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
-#endif
 		case IFT_INFINIBAND:
 			in6 = ia->ia_addr.sin6_addr;
 			if (in6_get_hw_ifid(ifp, &in6) == 0 &&

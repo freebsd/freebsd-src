@@ -78,14 +78,10 @@ format_selected(void)
 int
 format_write(int fd)
 {
-	lba_t size;
 	int error;
 
 	if (format == NULL)
 		return (ENOSYS);
-	size = image_get_size();
-	error = format->resize(size);
-	if (!error)
-		error = format->write(fd);
+	error = format->write(fd);
 	return (error);
 }

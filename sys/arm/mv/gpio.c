@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/timetc.h>
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>

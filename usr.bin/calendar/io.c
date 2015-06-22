@@ -257,9 +257,6 @@ cal_parse(FILE *in, FILE *out)
 		return (1);
 
 	while ((linelen = getline(&line, &linecap, in)) > 0) {
-		if (linelen == 0)
-			continue;
-
 		if (*line == '#') {
 			switch (token(line+1, out, &skip)) {
 			case T_ERR:

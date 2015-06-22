@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.46 2014/06/18 18:52:49 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.47 2015/05/14 10:44:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.46 2014/06/18 18:52:49 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.47 2015/05/14 10:44:15 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -1173,8 +1173,8 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 			break;
 		default:
 			(void) fprintf(el->el_errfile,
-			    "%s: Unknown switch `%c'.\n",
-			    name, argv[0][1]);
+			    "%s: Unknown switch `" FCHAR "'.\n",
+			    name, (Int)argv[0][1]);
 			return -1;
 		}
 

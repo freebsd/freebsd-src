@@ -30,6 +30,7 @@
  */
  
 #include <sys/param.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <stdio.h>
 #include <string.h>
@@ -151,7 +152,12 @@ hci_ver2str(int ver)
 		/* 0x00 */ "Bluetooth HCI Specification 1.0B",
 		/* 0x01 */ "Bluetooth HCI Specification 1.1",
 		/* 0x02 */ "Bluetooth HCI Specification 1.2",
-		/* 0x03 */ "Bluetooth HCI Specification 2.0"
+		/* 0x03 */ "Bluetooth HCI Specification 2.0",
+		/* 0x04 */ "Bluetooth HCI Specification 2.1",
+		/* 0x05 */ "Bluetooth HCI Specification 3.0",
+		/* 0x06 */ "Bluetooth HCI Specification 4.0",
+		/* 0x07 */ "Bluetooth HCI Specification 4.1",
+		/* 0x08 */ "Bluetooth HCI Specification 4.2"		
 	};
 
 	return (ver >= SIZE(t)? "?" : t[ver]);
@@ -164,7 +170,12 @@ hci_lmpver2str(int ver)
 		/* 0x00 */ "Bluetooth LMP 1.0",
 		/* 0x01 */ "Bluetooth LMP 1.1",
 		/* 0x02 */ "Bluetooth LMP 1.2",
-		/* 0x03 */ "Bluetooth LMP 2.0"
+		/* 0x03 */ "Bluetooth LMP 2.0",
+		/* 0x04 */ "Bluetooth LMP 2.1",
+		/* 0x04 */ "Bluetooth LMP 3.0",
+		/* 0x04 */ "Bluetooth LMP 4.0",
+		/* 0x04 */ "Bluetooth LMP 4.1",
+		/* 0x04 */ "Bluetooth LMP 4.2"		
 	};
 
 	return (ver >= SIZE(t)? "?" : t[ver]);

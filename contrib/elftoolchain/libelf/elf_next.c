@@ -24,15 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <ar.h>
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_next.c 2989 2014-03-17 09:56:46Z jkoshy $");
+ELFTC_VCSID("$Id: elf_next.c 3174 2015-03-27 17:13:41Z emaste $");
 
 Elf_Cmd
 elf_next(Elf *e)

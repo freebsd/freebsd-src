@@ -214,7 +214,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
-    int mtu)
+    int mtu, uint32_t id)
 {
 	struct mbuf *m, **mnext, *m_frgpart;
 	struct ip6_hdr *ip6, *mhip6;
@@ -222,7 +222,6 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 	int off;
 	int error;
 	int tlen = m0->m_pkthdr.len;
-	uint32_t id = htonl(ip6_randomid());
 
 	m = m0;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -318,6 +317,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int needfiblookup;
 	uint32_t fibnum;
 	struct m_tag *fwd_tag = NULL;
+	uint32_t id;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -1010,7 +1010,8 @@ passout:
 		 * chain.
 		 */
 		m0 = m;
-		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len)))
+		id = htonl(ip6_randomid());
+		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len, id)))
 			goto sendorfree;
 
 		in6_ifstat_inc(ifp, ifs6_out_fragok);
@@ -2899,14 +2900,6 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 		if (copym == NULL)
 			return;
 	}
-
-#ifdef DIAGNOSTIC
-	if (copym->m_len < sizeof(*ip6)) {
-		m_freem(copym);
-		return;
-	}
-#endif
-
 	ip6 = mtod(copym, struct ip6_hdr *);
 	/*
 	 * clear embedded scope identifiers if necessary.
@@ -2914,7 +2907,11 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
-
+	if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+		copym->m_pkthdr.csum_flags |= CSUM_DATA_VALID_IPV6 |
+		    CSUM_PSEUDO_HDR;
+		copym->m_pkthdr.csum_data = 0xffff;
+	}
 	(void)if_simloop(ifp, copym, dst->sin6_family, 0);
 }
 

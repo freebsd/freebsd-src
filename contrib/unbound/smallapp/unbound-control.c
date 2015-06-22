@@ -204,12 +204,12 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 			fatal_exit("could not parse IP@port: %s", svr);
 #ifdef HAVE_SYS_UN_H
 	} else if(svr[0] == '/') {
-		struct sockaddr_un* sun = (struct sockaddr_un *) &addr;
-		sun->sun_family = AF_LOCAL;
+		struct sockaddr_un* usock = (struct sockaddr_un *) &addr;
+		usock->sun_family = AF_LOCAL;
 #ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
-		sun->sun_len = (sa_family_t)sizeof(sun);
+		usock->sun_len = (socklen_t)sizeof(usock);
 #endif
-		(void)strlcpy(sun->sun_path, svr, sizeof(sun->sun_path));
+		(void)strlcpy(usock->sun_path, svr, sizeof(usock->sun_path));
 		addrlen = (socklen_t)sizeof(struct sockaddr_un);
 		addrfamily = AF_LOCAL;
 #endif

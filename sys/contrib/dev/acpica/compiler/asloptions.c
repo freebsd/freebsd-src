@@ -194,6 +194,7 @@ AslDoOptions (
             DtParserdebug = 1;
             PrParserdebug = 1;
             Gbl_DebugFlag = TRUE;
+            Gbl_KeepPreprocessorTempFile = TRUE;
             break;
 
         case 'p':   /* Prune ASL parse tree */
@@ -272,6 +273,11 @@ AslDoOptions (
 
         case 'c':
 
+            break;
+
+        case 'f':
+
+            AcpiGbl_ForceAmlDisassembly = TRUE;
             break;
 
         case 'l':   /* Use legacy ASL code (not ASL+) for disassembly */

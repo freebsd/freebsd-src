@@ -8,12 +8,18 @@
     bin
     ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
         ..
         clang
-            3.6.0
+            3.6.1
                 include
                 ..
                 lib
@@ -32,15 +38,11 @@
         ..
         i18n
         ..
-        private
-        ..
     ..
     lib32
         dtrace
         ..
         i18n
-        ..
-        private
         ..
     ..
     libdata
@@ -198,6 +200,20 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
             ..
@@ -277,14 +293,6 @@
                 06.bc
                 ..
                 07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
                 ..
                 18.msdiffs
                 ..

@@ -26,6 +26,9 @@ options 	DDB
 options 	KDB
 options 	ALQ
 
+# For small memory footprints
+options 	VM_KMEM_SIZE_SCALE=1
+
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#InterNETworking
@@ -68,7 +71,6 @@ device		ath_ahb		# Atheros host bus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
 option		ATH_ENABLE_11N
-option 		AH_DEBUG_ALQ
 
 # Don't bother compiling the whole HAL - AH_SUPPORT_AR9130 breaks the
 # rest of the 11n chipset support at the moment and the pre-AR5212

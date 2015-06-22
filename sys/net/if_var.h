@@ -83,7 +83,7 @@ struct	netmap_adapter;
 
 #define	IF_DUNIT_NONE	-1
 
-#include <altq/if_altq.h>
+#include <net/altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */

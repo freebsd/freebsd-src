@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <assert.h>
 #include <errno.h>
 #include <grp.h>
 #include <stdlib.h>
@@ -184,6 +185,8 @@ grp_allowed_fields(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 static bool
 grp_pack(const nvlist_t *limits, const struct group *grp, nvlist_t *nvl)
 {
+	char nvlname[64];
+	int n;
 
 	if (grp == NULL)
 		return (true);
@@ -210,8 +213,10 @@ grp_pack(const nvlist_t *limits, const struct group *grp, nvlist_t *nvl)
 		unsigned int ngroups;
 
 		for (ngroups = 0; grp->gr_mem[ngroups] != NULL; ngroups++) {
-			nvlist_addf_string(nvl, grp->gr_mem[ngroups],
-			    "gr_mem[%u]", ngroups);
+			n = snprintf(nvlname, sizeof(nvlname), "gr_mem[%u]",
+			    ngroups);
+			assert(n > 0 && n < sizeof(nvlname));
+			nvlist_add_string(nvl, nvlname, grp->gr_mem[ngroups]);
 		}
 		nvlist_add_number(nvl, "gr_nmem", (uint64_t)ngroups);
 	}

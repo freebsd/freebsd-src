@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.117 2014/12/16 23:29:42 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.119 2015/04/09 20:01:41 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -482,6 +482,7 @@ do_note_freebsd_version(struct magic_set *ms, int swap, void *v)
 }
 
 private int
+/*ARGSUSED*/
 do_bid_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     int swap __attribute__((__unused__)), uint32_t namesz, uint32_t descsz,
     size_t noff, size_t doff, int *flags)
@@ -622,7 +623,7 @@ do_pax_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 			return 1;
 
 		for (i = 0; i < __arraycount(pax); i++) {
-			if (((1 << i) & desc) == 0)
+			if (((1 << (int)i) & desc) == 0)
 				continue;
 			if (file_printf(ms, "%s%s", did++ ? "," : "",
 			    pax[i]) == -1)
@@ -1008,7 +1009,8 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 	}
 
 	/* Read offset of name section to be able to read section names later */
-	if (pread(fd, xsh_addr, xsh_sizeof, off + size * strtab) < (ssize_t)xsh_sizeof) {
+	if (pread(fd, xsh_addr, xsh_sizeof, CAST(off_t, (off + size * strtab)))
+	    < (ssize_t)xsh_sizeof) {
 		file_badread(ms);
 		return -1;
 	}
@@ -1351,7 +1353,7 @@ file_tryelf(struct magic_set *ms, int fd, const unsigned char *buf,
 	Elf64_Ehdr elf64hdr;
 	uint16_t type, phnum, shnum, notecount;
 
-	if (ms->flags & (MAGIC_MIME|MAGIC_APPLE))
+	if (ms->flags & (MAGIC_MIME|MAGIC_APPLE|MAGIC_EXTENSION))
 		return 0;
 	/*
 	 * ELF executables have multiple section headers in arbitrary

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2013
+.Dd March 23, 2015
 .Dt MVS 4
 .Os
 .Sh NAME
@@ -109,13 +109,6 @@ Port Multipliers (including FIS-based switching, when supported),
 hardware command queues (up to 31 command per port),
 Native Command Queuing, SATA interface Power Management, device hot-plug
 and Message Signaled Interrupts.
-.Pp
-The same hardware is also supported by the atamarvell and ataadaptec
-drivers from the
-.Xr ata 4
-subsystem.
-If both drivers are loaded at the same time, this one will be
-given precedence as the more functional of the two.
 .Sh HARDWARE
 The
 .Nm

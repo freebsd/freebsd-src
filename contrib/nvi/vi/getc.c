@@ -40,7 +40,7 @@ static const char sccsid[] = "$Id: getc.c,v 10.13 2011/12/27 00:49:31 zy Exp $";
  * cs_init --
  *	Initialize character stream routines.
  *
- * PUBLIC: int cs_init __P((SCR *, VCS *));
+ * PUBLIC: int cs_init(SCR *, VCS *);
  */
 int
 cs_init(SCR *sp, VCS *csp)
@@ -66,7 +66,7 @@ cs_init(SCR *sp, VCS *csp)
  * cs_next --
  *	Retrieve the next character.
  *
- * PUBLIC: int cs_next __P((SCR *, VCS *));
+ * PUBLIC: int cs_next(SCR *, VCS *);
  */
 int
 cs_next(SCR *sp, VCS *csp)
@@ -116,7 +116,7 @@ cs_next(SCR *sp, VCS *csp)
  * function -- once the other word routines are converted, they may have
  * to change.
  *
- * PUBLIC: int cs_fspace __P((SCR *, VCS *));
+ * PUBLIC: int cs_fspace(SCR *, VCS *);
  */
 int
 cs_fspace(SCR *sp, VCS *csp)
@@ -136,7 +136,7 @@ cs_fspace(SCR *sp, VCS *csp)
  * cs_fblank --
  *	Eat forward to the next non-whitespace character.
  *
- * PUBLIC: int cs_fblank __P((SCR *, VCS *));
+ * PUBLIC: int cs_fblank(SCR *, VCS *);
  */
 int
 cs_fblank(SCR *sp, VCS *csp)
@@ -156,7 +156,7 @@ cs_fblank(SCR *sp, VCS *csp)
  * cs_prev --
  *	Retrieve the previous character.
  *
- * PUBLIC: int cs_prev __P((SCR *, VCS *));
+ * PUBLIC: int cs_prev(SCR *, VCS *);
  */
 int
 cs_prev(SCR *sp, VCS *csp)
@@ -205,7 +205,7 @@ cs_prev(SCR *sp, VCS *csp)
  * cs_bblank --
  *	Eat backward to the next non-whitespace character.
  *
- * PUBLIC: int cs_bblank __P((SCR *, VCS *));
+ * PUBLIC: int cs_bblank(SCR *, VCS *);
  */
 int
 cs_bblank(SCR *sp, VCS *csp)

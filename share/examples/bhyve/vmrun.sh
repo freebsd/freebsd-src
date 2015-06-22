@@ -87,15 +87,15 @@ console=${DEFAULT_CONSOLE}
 cpus=${DEFAULT_CPUS}
 tap_total=0
 disk_total=0
-apic_opt=""
 gdbport=0
 loader_opt=""
+bhyverun_opt="-H -A -P"
 pass_total=0
 
 while getopts ac:C:d:e:g:hH:iI:m:p:t: c ; do
 	case $c in
 	a)
-		apic_opt="-a"
+		bhyverun_opt="${bhyverun_opt} -a"
 		;;
 	c)
 		cpus=${OPTARG}
@@ -104,7 +104,10 @@ while getopts ac:C:d:e:g:hH:iI:m:p:t: c ; do
 		console=${OPTARG}
 		;;
 	d)
-		eval "disk_dev${disk_total}=\"${OPTARG}\""
+		disk_dev=${OPTARG%%,*}
+		disk_opts=${OPTARG#${disk_dev}}
+		eval "disk_dev${disk_total}=\"${disk_dev}\""
+		eval "disk_opts${disk_total}=\"${disk_opts}\""
 		disk_total=$(($disk_total + 1))
 		;;
 	e)
@@ -160,6 +163,12 @@ if [ -n "${host_base}" ]; then
 	loader_opt="${loader_opt} -h ${host_base}"
 fi
 
+# If PCI passthru devices are configured then guest memory must be wired
+if [ ${pass_total} -gt 0 ]; then
+	loader_opt="${loader_opt} -S"
+	bhyverun_opt="${bhyverun_opt} -S"
+fi
+
 make_and_check_diskdev()
 {
     local virtio_diskdev="$1"
@@ -183,16 +192,16 @@ make_and_check_diskdev()
 
 echo "Launching virtual machine \"$vmname\" ..."
 
-virtio_diskdev="$disk_dev0"
+first_diskdev="$disk_dev0"
 
 ${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
 
 while [ 1 ]; do
 
-	file -s ${virtio_diskdev} | grep "boot sector" > /dev/null
+	file -s ${first_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		file -s ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
+		file -s ${first_diskdev} | grep ": Unix Fast File sys" > /dev/null
 		rc=$?
 	fi
 	if [ $rc -ne 0 ]; then
@@ -207,14 +216,22 @@ while [ 1 ]; do
 			echo    "is not readable"
 			exit 1
 		fi
-		BOOTDISK=${isofile}
-		installer_opt="-s 31:0,ahci-cd,${BOOTDISK}"
+		BOOTDISKS="-d ${isofile}"
+		installer_opt="-s 31:0,ahci-cd,${isofile}"
 	else
-		BOOTDISK=${virtio_diskdev}
+		BOOTDISKS=""
+		i=0
+		while [ $i -lt $disk_total ] ; do
+			eval "disk=\$disk_dev${i}"
+			if [ -r ${disk} ] ; then
+				BOOTDISKS="$BOOTDISKS -d ${disk} "
+			fi
+			i=$(($i + 1))
+		done
 		installer_opt=""
 	fi
 
-	${LOADER} -c ${console} -m ${memsize} -d ${BOOTDISK} ${loader_opt} \
+	${LOADER} -c ${console} -m ${memsize} ${BOOTDISKS} ${loader_opt} \
 		${vmname}
 	bhyve_exit=$?
 	if [ $bhyve_exit -ne 0 ]; then
@@ -237,8 +254,9 @@ while [ 1 ]; do
 	i=0
 	while [ $i -lt $disk_total ] ; do
 	    eval "disk=\$disk_dev${i}"
+	    eval "opts=\$disk_opts${i}"
 	    make_and_check_diskdev "${disk}"
-	    devargs="$devargs -s $nextslot:0,virtio-blk,${disk} "
+	    devargs="$devargs -s $nextslot:0,virtio-blk,${disk}${opts} "
 	    nextslot=$(($nextslot + 1))
 	    i=$(($i + 1))
 	done
@@ -251,7 +269,7 @@ while [ 1 ]; do
 	    i=$(($i + 1))
         done
 
-	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -A -H -P	\
+	${FBSDRUN} -c ${cpus} -m ${memsize} ${bhyverun_opt}		\
 		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
 		-s 1:0,lpc						\

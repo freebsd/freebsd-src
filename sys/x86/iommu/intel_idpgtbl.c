@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -107,7 +108,7 @@ static void
 ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
     dmar_gaddr_t addr)
 {
-	vm_page_t m, m1;
+	vm_page_t m1;
 	dmar_pte_t *pte;
 	struct sf_buf *sf;
 	dmar_gaddr_t f, pg_sz;
@@ -117,7 +118,7 @@ ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
 	VM_OBJECT_ASSERT_LOCKED(tbl->pgtbl_obj);
 	if (addr >= tbl->maxaddr)
 		return;
-	m = dmar_pgalloc(tbl->pgtbl_obj, idx, DMAR_PGF_OBJL | DMAR_PGF_WAITOK |
+	(void)dmar_pgalloc(tbl->pgtbl_obj, idx, DMAR_PGF_OBJL | DMAR_PGF_WAITOK |
 	    DMAR_PGF_ZERO);
 	base = idx * DMAR_NPTEPG + 1; /* Index of the first child page of idx */
 	pg_sz = pglvl_page_size(tbl->pglvl, lvl);
@@ -464,6 +465,7 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 		KASSERT(size >= pg_sz,
 		    ("mapping loop overflow %p %jx %jx %jx", ctx,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
+		KASSERT(pg_sz > 0, ("pg_sz 0 lvl %d", lvl));
 		pte = ctx_pgtbl_map_pte(ctx, base, lvl, flags, &idx, &sf);
 		if (pte == NULL) {
 			KASSERT((flags & DMAR_PGF_WAITOK) == 0,
@@ -596,7 +598,7 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 	dmar_pte_t *pte;
 	struct sf_buf *sf;
 	vm_pindex_t idx;
-	dmar_gaddr_t pg_sz, base1, size1;
+	dmar_gaddr_t pg_sz;
 	int lvl;
 
 	DMAR_CTX_ASSERT_PGLOCKED(ctx);
@@ -623,8 +625,6 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 	KASSERT((flags & ~DMAR_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
 	pg_sz = 0; /* silence gcc */
-	base1 = base;
-	size1 = size;
 	flags |= DMAR_PGF_OBJL;
 	TD_PREP_PINNED_ASSERT;
 

@@ -187,6 +187,7 @@ void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 void	g_waitidle(void);
 
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
+void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);
@@ -236,7 +237,7 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
 void	bzero(void *buf, size_t len) __nonnull(1);
-void	explicit_bzero(void *, size_t) __nonnull(1);;
+void	explicit_bzero(void *, size_t) __nonnull(1);
 
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
@@ -428,33 +429,8 @@ int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
-/*
- * Population count algorithm using SWAR approach
- * - "SIMD Within A Register".
- */
-static __inline uint32_t
-bitcount32(uint32_t x)
-{
-
-	x = (x & 0x55555555) + ((x & 0xaaaaaaaa) >> 1);
-	x = (x & 0x33333333) + ((x & 0xcccccccc) >> 2);
-	x = (x + (x >> 4)) & 0x0f0f0f0f;
-	x = (x + (x >> 8));
-	x = (x + (x >> 16)) & 0x000000ff;
-	return (x);
-}
-
-static __inline uint16_t
-bitcount16(uint32_t x)
-{
-
-	x = (x & 0x5555) + ((x & 0xaaaa) >> 1);
-	x = (x & 0x3333) + ((x & 0xcccc) >> 2);
-	x = (x + (x >> 4)) & 0x0f0f;
-	x = (x + (x >> 8)) & 0x00ff;
-	return (x);
-}
-
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
+
+extern void (*softdep_ast_cleanup)(void);
 
 #endif /* !_SYS_SYSTM_H_ */

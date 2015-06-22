@@ -54,7 +54,7 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x81
+#define AML_NUM_OPCODES                 0x82
 
 
 /* Forward declarations */
@@ -238,6 +238,7 @@ typedef struct acpi_table_list
 
 #define ACPI_TABLE_INDEX_DSDT           (0)
 #define ACPI_TABLE_INDEX_FACS           (1)
+#define ACPI_TABLE_INDEX_X_FACS         (2)
 
 
 typedef struct acpi_find_context
@@ -401,12 +402,24 @@ typedef struct acpi_package_info3
 
 } ACPI_PACKAGE_INFO3;
 
+typedef struct acpi_package_info4
+{
+    UINT8                       Type;
+    UINT8                       ObjectType1;
+    UINT8                       Count1;
+    UINT8                       SubObjectTypes;
+    UINT8                       PkgCount;
+    UINT16                      Reserved;
+
+} ACPI_PACKAGE_INFO4;
+
 typedef union acpi_predefined_info
 {
     ACPI_NAME_INFO              Info;
     ACPI_PACKAGE_INFO           RetInfo;
     ACPI_PACKAGE_INFO2          RetInfo2;
     ACPI_PACKAGE_INFO3          RetInfo3;
+    ACPI_PACKAGE_INFO4          RetInfo4;
 
 } ACPI_PREDEFINED_INFO;
 
@@ -1370,5 +1383,12 @@ typedef struct ah_uuid
     char            *String;
 
 } AH_UUID;
+
+typedef struct ah_table
+{
+    char                    *Signature;
+    char                    *Description;
+
+} AH_TABLE;
 
 #endif /* __ACLOCAL_H__ */

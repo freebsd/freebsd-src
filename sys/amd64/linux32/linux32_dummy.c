@@ -61,7 +61,6 @@ DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(query_module);
 DUMMY(nfsservctl);
-DUMMY(rt_sigqueueinfo);
 DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
@@ -69,9 +68,6 @@ DUMMY(pivot_root);
 DUMMY(mincore);
 DUMMY(ptrace);
 DUMMY(lookup_dcookie);
-DUMMY(epoll_create);
-DUMMY(epoll_ctl);
-DUMMY(epoll_wait);
 DUMMY(remap_file_pages);
 DUMMY(fstatfs64);
 DUMMY(mbind);
@@ -84,7 +80,6 @@ DUMMY(mq_timedreceive);
 DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
 DUMMY(kexec_load);
-DUMMY(waitid);
 /* linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);
@@ -97,8 +92,6 @@ DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
 /* linux 2.6.16: */
 DUMMY(migrate_pages);
-DUMMY(pselect6);
-DUMMY(ppoll);
 DUMMY(unshare);
 /* linux 2.6.17: */
 DUMMY(splice);
@@ -109,22 +102,14 @@ DUMMY(vmsplice);
 DUMMY(move_pages);
 /* linux 2.6.19: */
 DUMMY(getcpu);
-DUMMY(epoll_pwait);
 /* linux 2.6.22: */
-DUMMY(utimensat);
 DUMMY(signalfd);
 DUMMY(timerfd_create);
-DUMMY(eventfd);
-/* linux 2.6.23: */
-DUMMY(fallocate);
 /* linux 2.6.25: */
 DUMMY(timerfd_settime);
 DUMMY(timerfd_gettime);
 /* linux 2.6.27: */
 DUMMY(signalfd4);
-DUMMY(eventfd2);
-DUMMY(epoll_create1);
-DUMMY(dup3);
 DUMMY(inotify_init1);
 /* linux 2.6.30: */
 DUMMY(preadv);
@@ -133,17 +118,12 @@ DUMMY(pwritev);
 DUMMY(rt_tsigqueueinfo);
 DUMMY(perf_event_open);
 /* linux 2.6.33: */
-DUMMY(recvmmsg);
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
-/* linux 2.6.36: */
-DUMMY(prlimit64);
 /* later: */
 DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
-DUMMY(syncfs);
-DUMMY(sendmmsg);
 DUMMY(setns);
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);

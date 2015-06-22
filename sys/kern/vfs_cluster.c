@@ -310,7 +310,6 @@ static struct buf *
 cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
     daddr_t blkno, long size, int run, int gbflags, struct buf *fbp)
 {
-	struct bufobj *bo;
 	struct buf *bp, *tbp;
 	daddr_t bn;
 	off_t off;
@@ -376,7 +375,6 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 	bp->b_npages = 0;
 
 	inc = btodb(size);
-	bo = &vp->v_bufobj;
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i == 0) {
 			VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);

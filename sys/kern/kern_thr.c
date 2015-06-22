@@ -162,12 +162,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	p = td->td_proc;
 
-	/* Have race condition but it is cheap. */
-	if (p->p_numthreads >= max_threads_per_proc) {
-		++max_threads_hits;
-		return (EPROCLIM);
-	}
-
 	if (rtp != NULL) {
 		switch(rtp->type) {
 		case RTP_PRIO_REALTIME:
@@ -187,19 +181,19 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0)
-		return (EPROCLIM);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		error = racct_add(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EPROCLIM);
+	}
 #endif
 
 	/* Initialize our td */
-	newtd = thread_alloc(0);
-	if (newtd == NULL) {
-		error = ENOMEM;
+	error = kern_thr_alloc(p, 0, &newtd);
+	if (error)
 		goto fail;
-	}
 
 	cpu_set_upcall(newtd, td);
 
@@ -226,13 +220,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
-	newtd->td_ucred = crhold(td->td_ucred);
+	thread_cow_get(newtd, td);
 
 	if (ctx != NULL) { /* old way to set user context */
 		error = set_mcontext(newtd, ctx);
 		if (error != 0) {
+			thread_cow_free(newtd);
 			thread_free(newtd);
-			crfree(td->td_ucred);
 			goto fail;
 		}
 	} else {
@@ -244,15 +238,15 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		/* Setup user TLS address and TLS pointer register. */
 		error = cpu_set_user_tls(newtd, tls_base);
 		if (error != 0) {
+			thread_cow_free(newtd);
 			thread_free(newtd);
-			crfree(td->td_ucred);
 			goto fail;
 		}
 	}
 
-	PROC_LOCK(td->td_proc);
-	td->td_proc->p_flag |= P_HADTHREADS;
-	thread_link(newtd, p); 
+	PROC_LOCK(p);
+	p->p_flag |= P_HADTHREADS;
+	thread_link(newtd, p);
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
 	/* let the scheduler know about these things. */
@@ -280,9 +274,11 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 fail:
 #ifdef RACCT
-	PROC_LOCK(p);
-	racct_sub(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(p);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+	}
 #endif
 	return (error);
 }
@@ -303,9 +299,6 @@ int
 sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
     /* long *state */
 {
-	struct proc *p;
-
-	p = td->td_proc;
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
@@ -313,8 +306,17 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 		kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
-	rw_wlock(&tidhash_lock);
+	return (kern_thr_exit(td));
+}
 
+int
+kern_thr_exit(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+
+	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
 
 	if (p->p_numthreads != 1) {
@@ -555,4 +557,21 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 #endif
 	PROC_UNLOCK(p);
 	return (error);
+}
+
+int
+kern_thr_alloc(struct proc *p, int pages, struct thread **ntd)
+{
+
+	/* Have race condition but it is cheap. */
+	if (p->p_numthreads >= max_threads_per_proc) {
+		++max_threads_hits;
+		return (EPROCLIM);
+	}
+
+	*ntd = thread_alloc(pages);
+	if (*ntd == NULL)
+		return (ENOMEM);
+
+	return (0);
 }

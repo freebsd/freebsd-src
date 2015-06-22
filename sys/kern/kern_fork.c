@@ -410,9 +410,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
 
-	crhold(td->td_ucred);
-	proc_set_cred(p2, td->td_ucred);
-
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
@@ -499,7 +496,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-	td2->td_ucred = crhold(p2->p_ucred);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
@@ -528,6 +524,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	lim_fork(p1, p2);
+
+	thread_cow_get_proc(td2, p2);
 
 	pstats_fork(p1->p_stats, p2->p_stats);
 
@@ -832,7 +830,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		proc_linkup(newproc, td2);
 	} else {
@@ -841,7 +839,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 				vm_thread_dispose(td2);
 			if (!thread_alloc_stack(td2, pages)) {
 				error = ENOMEM;
-				goto fail1;
+				goto fail2;
 			}
 		}
 	}
@@ -850,7 +848,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		if (!swap_reserve(mem_charged)) {
 			/*
@@ -861,7 +859,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 			 */
 			swap_reserve_force(mem_charged);
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 	} else
 		vm2 = NULL;
@@ -870,7 +868,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	proc_set_cred(newproc, p1->p_ucred);
+	proc_set_cred_init(newproc, crhold(td->td_ucred));
 
 	/*
 	 * Initialize resource accounting for the child process.
@@ -914,10 +912,8 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {
-		PROC_LOCK(p1);
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		    lim_cur(p1, RLIMIT_NPROC));
-		PROC_UNLOCK(p1);
+		    lim_cur(td, RLIMIT_NPROC));
 	}
 	if (ok) {
 		do_fork(td, flags, newproc, td2, vm2, pdflags);
@@ -946,11 +942,14 @@ fail:
 #endif
 	racct_proc_exit(newproc);
 fail1:
+	crfree(newproc->p_ucred);
+	newproc->p_ucred = NULL;
+fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
-		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
+		fdclose(td, fp_procdesc, *procdescp);
 		fdrop(fp_procdesc, td);
 	}
 	pause("fork", hz / 2);
@@ -1035,6 +1034,9 @@ fork_return(struct thread *td, struct trapframe *frame)
 			dbg = p->p_pptr->p_pptr;
 			p->p_flag |= P_TRACED;
 			p->p_oppid = p->p_pptr->p_pid;
+			CTR2(KTR_PTRACE,
+		    "fork_return: attaching to new child pid %d: oppid %d",
+			    p->p_pid, p->p_oppid);
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
 			td->td_dbgflags |= TDB_CHILD;

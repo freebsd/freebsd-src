@@ -69,7 +69,6 @@ static struct resource_spec ti_aintc_spec[] = {
 	{ -1, 0 }
 };
 
-
 static struct ti_aintc_softc *ti_aintc_sc = NULL;
 
 #define	aintc_read_4(_sc, reg)		\
@@ -77,6 +76,12 @@ static struct ti_aintc_softc *ti_aintc_sc = NULL;
 #define	aintc_write_4(_sc, reg, val)		\
     bus_space_write_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg), (val))
 
+/* List of compatible strings for FDT tree */
+static struct ofw_compat_data compat_data[] = {
+	{"ti,am33xx-intc",	1},
+	{"ti,omap2-intc",	1},
+	{NULL,		 	0},
+};
 
 static void
 aintc_post_filter(void *arg)
@@ -92,9 +97,9 @@ ti_aintc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-
-	if (!ofw_bus_is_compatible(dev, "ti,aintc"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
+
 	device_set_desc(dev, "TI AINTC Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
 }

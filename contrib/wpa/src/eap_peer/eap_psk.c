@@ -21,6 +21,7 @@
 struct eap_psk_data {
 	enum { PSK_INIT, PSK_MAC_SENT, PSK_DONE } state;
 	u8 rand_p[EAP_PSK_RAND_LEN];
+	u8 rand_s[EAP_PSK_RAND_LEN];
 	u8 ak[EAP_PSK_AK_LEN], kdk[EAP_PSK_KDK_LEN], tek[EAP_PSK_TEK_LEN];
 	u8 *id_s, *id_p;
 	size_t id_s_len, id_p_len;
@@ -75,7 +76,7 @@ static void eap_psk_deinit(struct eap_sm *sm, void *priv)
 	struct eap_psk_data *data = priv;
 	os_free(data->id_s);
 	os_free(data->id_p);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -112,6 +113,7 @@ static struct wpabuf * eap_psk_process_1(struct eap_psk_data *data,
 	}
 	wpa_hexdump(MSG_DEBUG, "EAP-PSK: RAND_S", hdr1->rand_s,
 		    EAP_PSK_RAND_LEN);
+	os_memcpy(data->rand_s, hdr1->rand_s, EAP_PSK_RAND_LEN);
 	os_free(data->id_s);
 	data->id_s_len = len - sizeof(*hdr1);
 	data->id_s = os_malloc(data->id_s_len);
@@ -235,7 +237,7 @@ static struct wpabuf * eap_psk_process_3(struct eap_psk_data *data,
 		return NULL;
 	}
 	os_free(buf);
-	if (os_memcmp(mac, hdr3->mac_s, EAP_PSK_MAC_LEN) != 0) {
+	if (os_memcmp_const(mac, hdr3->mac_s, EAP_PSK_MAC_LEN) != 0) {
 		wpa_printf(MSG_WARNING, "EAP-PSK: Invalid MAC_S in third "
 			   "message");
 		ret->methodState = METHOD_DONE;
@@ -434,6 +436,28 @@ static u8 * eap_psk_getKey(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
+static u8 * eap_psk_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_psk_data *data = priv;
+	u8 *id;
+
+	if (data->state != PSK_DONE)
+		return NULL;
+
+	*len = 1 + 2 * EAP_PSK_RAND_LEN;
+	id = os_malloc(*len);
+	if (id == NULL)
+		return NULL;
+
+	id[0] = EAP_TYPE_PSK;
+	os_memcpy(id + 1, data->rand_p, EAP_PSK_RAND_LEN);
+	os_memcpy(id + 1 + EAP_PSK_RAND_LEN, data->rand_s, EAP_PSK_RAND_LEN);
+	wpa_hexdump(MSG_DEBUG, "EAP-PSK: Derived Session-Id", id, *len);
+
+	return id;
+}
+
+
 static u8 * eap_psk_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 {
 	struct eap_psk_data *data = priv;
@@ -468,6 +492,7 @@ int eap_peer_psk_register(void)
 	eap->process = eap_psk_process;
 	eap->isKeyAvailable = eap_psk_isKeyAvailable;
 	eap->getKey = eap_psk_getKey;
+	eap->getSessionId = eap_psk_get_session_id;
 	eap->get_emsk = eap_psk_get_emsk;
 
 	ret = eap_peer_method_register(eap);

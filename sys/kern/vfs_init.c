@@ -311,9 +311,7 @@ static int
 vfs_unregister(struct vfsconf *vfc)
 {
 	struct vfsconf *vfsp;
-	int error, i, maxtypenum;
-
-	i = vfc->vfc_typenum;
+	int error, maxtypenum;
 
 	vfsconf_lock();
 	vfsp = vfs_byname_locked(vfc->vfc_name);

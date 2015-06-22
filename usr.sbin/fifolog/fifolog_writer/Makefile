@@ -6,7 +6,7 @@ CFLAGS+= -I${.CURDIR}/../lib
 
 MAN=
 
-LIBADD=	z fifolog
+LIBADD=	fifolog
 
 regress:
 	date | ./${PROG} -z 0 /tmp/fifolog.0

@@ -113,9 +113,9 @@ static int	mwl_key_delete(struct ieee80211vap *,
 static int	mwl_key_set(struct ieee80211vap *, const struct ieee80211_key *,
 			const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	mwl_mode_init(struct mwl_softc *);
-static void	mwl_update_mcast(struct ifnet *);
-static void	mwl_update_promisc(struct ifnet *);
-static void	mwl_updateslot(struct ifnet *);
+static void	mwl_update_mcast(struct ieee80211com *);
+static void	mwl_update_promisc(struct ieee80211com *);
+static void	mwl_updateslot(struct ieee80211com *);
 static int	mwl_beacon_setup(struct ieee80211vap *);
 static void	mwl_beacon_update(struct ieee80211vap *, int);
 #ifdef MWL_HOST_PS_SUPPORT
@@ -363,7 +363,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	if (error != 0)			/* NB: mwl_setupdma prints msg */
 		goto bad1;
 
-	callout_init(&sc->sc_timer, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_timer, 1);
 	callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_tq = taskqueue_create("mwl_taskq", M_NOWAIT,
@@ -413,6 +413,8 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(sc->sc_dev);
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
@@ -1843,9 +1845,9 @@ mwl_mode_init(struct mwl_softc *sc)
  * Callback from the 802.11 layer after a multicast state change.
  */
 static void
-mwl_update_mcast(struct ifnet *ifp)
+mwl_update_mcast(struct ieee80211com *ic)
 {
-	struct mwl_softc *sc = ifp->if_softc;
+	struct mwl_softc *sc = ic->ic_softc;
 
 	mwl_setmcastfilter(sc);
 }
@@ -1858,11 +1860,12 @@ mwl_update_mcast(struct ifnet *ifp)
  * mode when operating in hostap mode to do ACS).
  */
 static void
-mwl_update_promisc(struct ifnet *ifp)
+mwl_update_promisc(struct ieee80211com *ic)
 {
-	struct mwl_softc *sc = ifp->if_softc;
+	struct mwl_softc *sc = ic->ic_softc;
 
-	mwl_hal_setpromisc(sc->sc_mh, (ifp->if_flags & IFF_PROMISC) != 0);
+	mwl_hal_setpromisc(sc->sc_mh,
+	    (ic->ic_ifp->if_flags & IFF_PROMISC) != 0);
 }
 
 /*
@@ -1872,15 +1875,14 @@ mwl_update_promisc(struct ifnet *ifp)
  * like slot time and preamble.
  */
 static void
-mwl_updateslot(struct ifnet *ifp)
+mwl_updateslot(struct ieee80211com *ic)
 {
-	struct mwl_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct mwl_softc *sc = ic->ic_softc;
 	struct mwl_hal *mh = sc->sc_mh;
 	int prot;
 
 	/* NB: can be called early; suppress needless cmds */
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	/*
@@ -1938,7 +1940,7 @@ mwl_beacon_update(struct ieee80211vap *vap, int item)
 	KASSERT(hvap != NULL, ("no beacon"));
 	switch (item) {
 	case IEEE80211_BEACON_ERP:
-		mwl_updateslot(ic->ic_ifp);
+		mwl_updateslot(ic);
 		break;
 	case IEEE80211_BEACON_HTINFO:
 		mwl_hal_setnprotmode(hvap,

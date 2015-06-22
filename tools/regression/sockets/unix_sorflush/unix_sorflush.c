@@ -68,7 +68,7 @@ shutdown_and_exit(int s)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	pid_t pida, pidb;
 	int sv[2];

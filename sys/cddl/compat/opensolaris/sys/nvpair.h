@@ -29,6 +29,8 @@
 #ifndef _OPENSOLARIS_SYS_NVPAIR_H_
 #define _OPENSOLARIS_SYS_NVPAIR_H_
 
+#ifdef _KERNEL
+
 /*
  * Some of the symbols in the Illumos nvpair library conflict with symbols
  * provided by nv(9), so we use this preprocessor hack to avoid the conflict.
@@ -253,6 +255,8 @@
 #define nvpair_type_string illumos_nvpair_type_string
 #define nvpair_unpack illumos_nvpair_unpack
 #define nvpair_unpack_descriptor illumos_nvpair_unpack_descriptor
+
+#endif /* _KERNEL */
 
 #include_next <sys/nvpair.h>
 

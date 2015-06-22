@@ -2,27 +2,24 @@
 
 /* pathfind.c --- find a FILE  MODE along PATH */
 
-/*
- * Author:           Gary V Vaughan <gvaughan@oranda.demon.co.uk>
- * Time-stamp:       "2006-09-23 19:46:16 bkorb"
- * Created:          Tue Jun 24 15:07:31 1997
- * Last Modified:    $Date: 2006/11/27 01:52:23 $
- *            by: bkorb
- *
- * $Id: pathfind.c,v 4.10 2006/11/27 01:52:23 bkorb Exp $
- */
+/* Author: Gary V Vaughan <gvaughan@oranda.demon.co.uk> */
 
 /* Code: */
+
+static char *
+pathfind( char const * path,
+          char const * fname,
+          char const * mode );
 
 #include "compat.h"
 #ifndef HAVE_PATHFIND
 #if defined(__windows__) && !defined(__CYGWIN__)
-char*
-pathfind( char const*  path,
-          char const*  fileName,
-          char const*  mode )
+static char *
+pathfind( char const * path,
+          char const * fname,
+          char const * mode )
 {
-    return NULL;
+    return strdup(fname);
 }
 #else
 
@@ -30,70 +27,22 @@ static char* make_absolute( char const *string, char const *dot_path );
 static char* canonicalize_pathname( char *path );
 static char* extract_colon_unit( char* dir, char const *string, int *p_index );
 
-
-/*=export_func pathfind
- *
- * what: fild a file in a list of directories
- *
- * ifndef: HAVE_PATHFIND
- *
- * arg:  + char const* + path + colon separated list of search directories +
- * arg:  + char const* + file + the name of the file to look for +
- * arg:  + char const* + mode + the mode bits that must be set to match +
- *
- * ret_type:  char*
- * ret_desc:  the path to the located file
- *
- * doc:
- *
- * pathfind looks for a a file with name "FILE" and "MODE" access
- * along colon delimited "PATH", and returns the full pathname as a
- * string, or NULL if not found.  If "FILE" contains a slash, then
- * it is treated as a relative or absolute path and "PATH" is ignored.
- *
- * @strong{NOTE}: this function is compiled into @file{libopts} only if
- * it is not natively supplied.
- *
- * The "MODE" argument is a string of option letters chosen from the
- * list below:
- * @example
- *          Letter    Meaning
- *          r         readable
- *          w         writable
- *          x         executable
- *          f         normal file       (NOT IMPLEMENTED)
- *          b         block special     (NOT IMPLEMENTED)
- *          c         character special (NOT IMPLEMENTED)
- *          d         directory         (NOT IMPLEMENTED)
- *          p         FIFO (pipe)       (NOT IMPLEMENTED)
- *          u         set user ID bit   (NOT IMPLEMENTED)
- *          g         set group ID bit  (NOT IMPLEMENTED)
- *          k         sticky bit        (NOT IMPLEMENTED)
- *          s         size nonzero      (NOT IMPLEMENTED)
- * @end example
- *
- * example:
- * To find the "ls" command using the "PATH" environment variable:
- * @example
- *    #include <stdlib.h>
- *    char* pz_ls = pathfind( getenv("PATH"), "ls", "rx" );
- *    <<do whatever with pz_ls>>
- *    free( pz_ls );
- * @end example
- * The path is allocated with @code{malloc(3C)}, so you must @code{free(3C)}
- * the result.  Also, do not use unimplemented file modes.  :-)
- *
- * err:  returns NULL if the file is not found.
-=*/
-char*
-pathfind( char const*  path,
-          char const*  fileName,
-          char const*  mode )
+/**
+ * local implementation of pathfind.
+ * @param[in] path  colon separated list of directories
+ * @param[in] fname the name we are hunting for
+ * @param[in] mode  the required file mode
+ * @returns an allocated string with the full path, or NULL
+ */
+static char *
+pathfind( char const * path,
+          char const * fname,
+          char const * mode )
 {
-    int   p_index   = 0;
-    int   mode_bits = 0;
-    char* pathName  = NULL;
-    char  zPath[ AG_PATH_MAX + 1 ];
+    int    p_index   = 0;
+    int    mode_bits = 0;
+    char * res_path  = NULL;
+    char   zPath[ AG_PATH_MAX + 1 ];
 
     if (strchr( mode, 'r' )) mode_bits |= R_OK;
     if (strchr( mode, 'w' )) mode_bits |= W_OK;
@@ -106,9 +55,6 @@ pathfind( char const*  path,
         DIR*  dirP;
         char* colon_unit = extract_colon_unit( zPath, path, &p_index );
 
-        /*
-         *  IF no more entries, THEN quit
-         */
         if (colon_unit == NULL)
             break;
 
@@ -120,9 +66,6 @@ pathfind( char const*  path,
         if (dirP == NULL)
             continue;
 
-        /*
-         *  FOR every entry in the given directory, ...
-         */
         for (;;) {
             struct dirent *entP = readdir( dirP );
 
@@ -132,31 +75,31 @@ pathfind( char const*  path,
             /*
              *  IF the file name matches the one we are looking for, ...
              */
-            if (strcmp( entP->d_name, fileName ) == 0) {
-                char* pzFullName = make_absolute( fileName, colon_unit);
+            if (strcmp(entP->d_name, fname) == 0) {
+                char * abs_name = make_absolute(fname, colon_unit);
 
                 /*
                  *  Make sure we can access it in the way we want
                  */
-                if (access( pzFullName, mode_bits ) >= 0) {
+                if (access(abs_name, mode_bits) >= 0) {
                     /*
                      *  We can, so normalize the name and return it below
                      */
-                    pathName = canonicalize_pathname( pzFullName );
+                    res_path = canonicalize_pathname(abs_name);
                 }
 
-                free( (void*)pzFullName );
+                free(abs_name);
                 break;
             }
         }
 
         closedir( dirP );
 
-        if (pathName != NULL)
+        if (res_path != NULL)
             break;
     }
 
-    return pathName;
+    return res_path;
 }
 
 /*
@@ -176,7 +119,7 @@ make_absolute( char const *string, char const *dot_path )
         if (dot_path && dot_path[0]) {
             result = malloc( 2 + strlen( dot_path ) + strlen( string ) );
             strcpy( result, dot_path );
-            result_len = strlen( result );
+            result_len = (int)strlen(result);
             if (result[result_len - 1] != '/') {
                 result[result_len++] = '/';
                 result[result_len] = '\0';
@@ -291,7 +234,7 @@ canonicalize_pathname( char *path )
 static char*
 extract_colon_unit( char* pzDir, char const *string, int *p_index )
 {
-    char*  pzDest = pzDir;
+    char * pzDest = pzDir;
     int    ix     = *p_index;
 
     if (string == NULL)
@@ -301,7 +244,7 @@ extract_colon_unit( char* pzDir, char const *string, int *p_index )
         return NULL;
 
     {
-        char const* pzSrc = string + ix;
+        char const * pzSrc = string + ix;
 
         while (*pzSrc == ':')  pzSrc++;
 
@@ -310,15 +253,16 @@ extract_colon_unit( char* pzDir, char const *string, int *p_index )
             switch (ch) {
             case ':':
                 pzDest[-1] = NUL;
+                /* FALLTHROUGH */
             case NUL:
                 goto copy_done;
             }
 
-            if ((pzDest - pzDir) >= AG_PATH_MAX)
+            if ((unsigned long)(pzDest - pzDir) >= AG_PATH_MAX)
                 break;
         } copy_done:;
 
-        ix = pzSrc - string;
+        ix = (int)(pzSrc - string);
     }
 
     if (*pzDir == NUL)

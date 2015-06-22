@@ -813,7 +813,8 @@ struct uart_class uart_sbbc_class = {
 	sizeof(struct uart_softc),
 	.uc_ops = &sbbc_uart_ops,
 	.uc_range = 1,
-	.uc_rclk = 0x5bbc	/* arbitrary */
+	.uc_rclk = 0x5bbc,	/* arbitrary */
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)						\

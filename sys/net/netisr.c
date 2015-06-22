@@ -156,10 +156,13 @@ SYSCTL_PROC(_net_isr, OID_AUTO, dispatch, CTLTYPE_STRING | CTLFLAG_RWTUN,
 /*
  * Allow the administrator to limit the number of threads (CPUs) to use for
  * netisr.  We don't check netisr_maxthreads before creating the thread for
- * CPU 0, so in practice we ignore values <= 1.  This must be set at boot.
- * We will create at most one thread per CPU.
+ * CPU 0. This must be set at boot. We will create at most one thread per CPU.
+ * By default we initialize this to 1 which would assign just 1 cpu (cpu0) and
+ * therefore only 1 workstream. If set to -1, netisr would use all cpus
+ * (mp_ncpus) and therefore would have those many workstreams. One workstream
+ * per thread (CPU).
  */
-static int	netisr_maxthreads = -1;		/* Max number of threads. */
+static int	netisr_maxthreads = 1;		/* Max number of threads. */
 SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RDTUN,
     &netisr_maxthreads, 0,
     "Use at most this many CPUs for netisr processing");
@@ -1120,8 +1123,10 @@ netisr_init(void *arg)
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
 	NETISR_LOCK_INIT();
-	if (netisr_maxthreads < 1)
-		netisr_maxthreads = 1;
+	if (netisr_maxthreads == 0 || netisr_maxthreads < -1 )
+		netisr_maxthreads = 1;		/* default behavior */
+	else if (netisr_maxthreads == -1)
+		netisr_maxthreads = mp_ncpus;	/* use max cpus */
 	if (netisr_maxthreads > mp_ncpus) {
 		printf("netisr_init: forcing maxthreads from %d to %d\n",
 		    netisr_maxthreads, mp_ncpus);

@@ -20,7 +20,7 @@
 
 #NO_UNIVERSE
 
-include		"RK3188"
+include 	"RK3188"
 ident		RADXA
 
 # Flattened Device Tree

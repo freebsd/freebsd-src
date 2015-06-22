@@ -443,7 +443,7 @@ vtnet_detach(device_t dev)
 		sc->vtnet_vlan_attach = NULL;
 	}
 	if (sc->vtnet_vlan_detach != NULL) {
-		EVENTHANDLER_DEREGISTER(vlan_unconfg, sc->vtnet_vlan_detach);
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vtnet_vlan_detach);
 		sc->vtnet_vlan_detach = NULL;
 	}
 
@@ -1080,8 +1080,12 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    (IFF_PROMISC | IFF_ALLMULTI)) {
 				if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX)
 					vtnet_rx_filter(sc);
-				else
-					error = ENOTSUP;
+				else {
+					ifp->if_flags |= IFF_PROMISC;
+					if ((ifp->if_flags ^ sc->vtnet_if_flags)
+					    & IFF_ALLMULTI)
+						error = ENOTSUP;
+				}
 			}
 		} else
 			vtnet_init_locked(sc);
@@ -2744,6 +2748,11 @@ vtnet_drain_rxtx_queues(struct vtnet_softc *sc)
 	struct vtnet_rxq *rxq;
 	struct vtnet_txq *txq;
 	int i;
+
+#ifdef DEV_NETMAP
+	if (nm_native_on(NA(sc->vtnet_ifp)))
+		return;
+#endif /* DEV_NETMAP */
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];

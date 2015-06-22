@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
+#include <machine/stack.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

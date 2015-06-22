@@ -231,8 +231,8 @@ struct buf {
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26dirty\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14b11\13eintr\12done\11persist\10delwri\7validsuspwrt" \
-	"\6cache\5deferred\4direct\3async\2needcommit\1age"
+	"\15kvaalloc\14unmapped\13eintr\12done\11persist\10delwri" \
+	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
  * These flags are kept in b_xflags.

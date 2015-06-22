@@ -337,6 +337,7 @@ fuse_vfsop_mount(struct mount *mp)
 	MNT_ILOCK(mp);
 	mp->mnt_data = data;
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 	/* We need this here as this slot is used by getnewvnode() */
 	mp->mnt_stat.f_iosize = PAGE_SIZE;

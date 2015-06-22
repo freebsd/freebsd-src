@@ -61,6 +61,7 @@ struct vm_phys_seg {
 };
 
 extern struct mem_affinity *mem_affinity;
+extern int *mem_locality;
 extern int vm_ndomains;
 extern struct vm_phys_seg vm_phys_segs[];
 extern int vm_phys_nsegs;

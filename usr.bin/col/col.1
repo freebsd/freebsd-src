@@ -31,7 +31,7 @@
 .\"     @(#)col.1	8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2004
+.Dd May 10, 2015
 .Dt COL 1
 .Os
 .Sh NAME
@@ -82,18 +82,33 @@ recognized and interpreted by itself, which are listed below.
 Output multiple spaces instead of tabs.
 .El
 .Pp
-The control sequences for carriage motion that
+In the input stream,
 .Nm
-understands and their decimal values are listed in the following
-table:
+understands both the escape sequences of the form escape-digit
+mandated by
+.St -susv2
+and the traditional
+.Bx
+format escape-control-character.
+The control sequences for carriage motion and their ASCII values
+are as follows:
 .Pp
 .Bl -tag -width "carriage return" -compact
+.It ESC\-BELL
+reverse line feed (escape then bell).
 .It ESC\-7
-reverse line feed (escape then 7)
+reverse line feed (escape then 7).
+.It ESC\-BACKSPACE
+half reverse line feed (escape then backspace).
 .It ESC\-8
-half reverse line feed (escape then 8)
+half reverse line feed (escape then 8).
+.It ESC\-TAB
+half forward line feed (escape than tab).
 .It ESC\-9
-half forward line feed (escape then 9)
+half forward line feed (escape then 9).
+In
+.Fl f
+mode, this sequence may also occur in the output stream.
 .It backspace
 moves back one column (8); ignored in the first column
 .It carriage return

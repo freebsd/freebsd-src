@@ -25,12 +25,11 @@
  * All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2014 Xin Li <delphij@FreeBSD.org>. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
- * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
  */
 
 /*
@@ -194,11 +193,6 @@
 #include "zfs_ioctl_compat.h"
 
 CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
-
-static int snapshot_list_prefetch;
-SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, snapshot_list_prefetch, CTLFLAG_RWTUN,
-    &snapshot_list_prefetch, 0, "Prefetch data when listing snapshots");
 
 static struct cdev *zfsdev;
 
@@ -3486,9 +3480,8 @@ zfs_unmount_snap(const char *snapname)
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
-	mtx_lock(&Giant);	/* dounmount() */
+	vfs_ref(vfsp);
 	(void) dounmount(vfsp, MS_FORCE, curthread);
-	mtx_unlock(&Giant);	/* dounmount() */
 #endif
 	return (0);
 }
@@ -4201,7 +4194,11 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		return (error);
 
 	fd = zc->zc_cookie;
-	fp = getf(fd, cap_rights_init(&rights, CAP_PREAD));
+#ifdef illumos
+	fp = getf(fd);
+#else
+	fget_read(curthread, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
+#endif
 	if (fp == NULL) {
 		nvlist_free(props);
 		return (SET_ERROR(EBADF));
@@ -4447,8 +4444,12 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		file_t *fp;
 		cap_rights_t rights;
 
-		fp = getf(zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE));
+#ifdef illumos
+		fp = getf(zc->zc_cookie);
+#else
+		fget_write(curthread, zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
 
@@ -5044,7 +5045,12 @@ zfs_ioc_diff(zfs_cmd_t *zc)
 	offset_t off;
 	int error;
 
-	fp = getf(zc->zc_cookie, cap_rights_init(&rights, CAP_WRITE));
+#ifdef illumos
+	fp = getf(zc->zc_cookie);
+#else
+	fget_write(curthread, zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5233,6 +5239,7 @@ zfs_ioc_smb_acl(zfs_cmd_t *zc)
 static int
 zfs_ioc_hold(const char *pool, nvlist_t *args, nvlist_t *errlist)
 {
+	nvpair_t *pair;
 	nvlist_t *holds;
 	int cleanup_fd = -1;
 	int error;
@@ -5241,6 +5248,19 @@ zfs_ioc_hold(const char *pool, nvlist_t *args, nvlist_t *errlist)
 	error = nvlist_lookup_nvlist(args, "holds", &holds);
 	if (error != 0)
 		return (SET_ERROR(EINVAL));
+
+	/* make sure the user didn't pass us any invalid (empty) tags */
+	for (pair = nvlist_next_nvpair(holds, NULL); pair != NULL;
+	    pair = nvlist_next_nvpair(holds, pair)) {
+		char *htag;
+
+		error = nvpair_value_string(pair, &htag);
+		if (error != 0)
+			return (SET_ERROR(error));
+
+		if (strlen(htag) == 0)
+			return (SET_ERROR(EINVAL));
+	}
 
 	if (nvlist_lookup_int32(args, "cleanup_fd", &cleanup_fd) == 0) {
 		error = zfs_onexit_fd_hold(cleanup_fd, &minor);
@@ -5355,11 +5375,19 @@ zfs_ioc_space_snaps(const char *lastsnap, nvlist_t *innvl, nvlist_t *outnvl)
 		return (error);
 
 	error = dsl_dataset_hold(dp, lastsnap, FTAG, &new);
+	if (error == 0 && !dsl_dataset_is_snapshot(new)) {
+		dsl_dataset_rele(new, FTAG);
+		error = SET_ERROR(EINVAL);
+	}
 	if (error != 0) {
 		dsl_pool_rele(dp, FTAG);
 		return (error);
 	}
 	error = dsl_dataset_hold(dp, firstsnap, FTAG, &old);
+	if (error == 0 && !dsl_dataset_is_snapshot(old)) {
+		dsl_dataset_rele(old, FTAG);
+		error = SET_ERROR(EINVAL);
+	}
 	if (error != 0) {
 		dsl_dataset_rele(new, FTAG);
 		dsl_pool_rele(dp, FTAG);
@@ -5409,6 +5437,7 @@ static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	cap_rights_t rights;
+	file_t *fp;
 	int error;
 	offset_t off;
 	char *fromname = NULL;
@@ -5425,7 +5454,11 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 	largeblockok = nvlist_exists(innvl, "largeblockok");
 	embedok = nvlist_exists(innvl, "embedok");
 
-	file_t *fp = getf(fd, cap_rights_init(&rights, CAP_READ));
+#ifdef illumos
+	file_t *fp = getf(fd);
+#else
+	fget_write(curthread, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 

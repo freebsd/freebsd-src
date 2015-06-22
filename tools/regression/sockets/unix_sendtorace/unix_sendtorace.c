@@ -45,8 +45,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#define	PATH		"/tmp/123"
 #define	ITERATIONS	1000000
+
+static char socket_path[] = "tmp.XXXXXX";
 
 static void
 stream_server(int listenfd)
@@ -75,7 +76,7 @@ stream_client(void)
 	bzero(&sun, sizeof(sun));
 	sun.sun_len = sizeof(sun);
 	sun.sun_family = AF_UNIX;
-	strcpy(sun.sun_path, PATH);
+	strcpy(sun.sun_path, socket_path);
 	for (i = 0; i < ITERATIONS; i++) {
 		fd = socket(PF_UNIX, SOCK_STREAM, 0);
 		if (fd < 0) {
@@ -104,7 +105,7 @@ stream_test(void)
 	bzero(&sun, sizeof(sun));
 	sun.sun_len = sizeof(sun);
 	sun.sun_family = AF_UNIX;
-	strcpy(sun.sun_path, PATH);
+	strcpy(sun.sun_path, socket_path);
 
 	if (bind(listenfd, (struct sockaddr *)&sun, sizeof(sun)) < 0)
 		err(-1, "stream_test: bind");
@@ -124,7 +125,7 @@ stream_test(void)
 	} else
 		stream_server(listenfd);
 
-	(void)unlink(PATH);
+	(void)unlink(socket_path);
 }
 
 static void
@@ -151,7 +152,7 @@ datagram_client(void)
 	bzero(&sun, sizeof(sun));
 	sun.sun_len = sizeof(sun);
 	sun.sun_family = AF_UNIX;
-	strcpy(sun.sun_path, PATH);
+	strcpy(sun.sun_path, socket_path);
 	for (i = 0; i < ITERATIONS; i++) {
 		fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 		if (fd < 0) {
@@ -180,7 +181,7 @@ datagram_test(void)
 	bzero(&sun, sizeof(sun));
 	sun.sun_len = sizeof(sun);
 	sun.sun_family = AF_UNIX;
-	strcpy(sun.sun_path, PATH);
+	strcpy(sun.sun_path, socket_path);
 
 	if (bind(serverfd, (struct sockaddr *)&sun, sizeof(sun)) < 0)
 		err(-1, "datagram_test: bind");
@@ -197,14 +198,16 @@ datagram_test(void)
 	} else
 		datagram_server(serverfd);
 
-	(void)unlink(PATH);
+	(void)unlink(socket_path);
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
-
-	(void)unlink(PATH);
+	
+	if (mkstemp(socket_path) == -1)
+		err(1, "mkstemp failed");
+	(void)unlink(socket_path);
 	datagram_test();
 	if (0)
 		stream_test();

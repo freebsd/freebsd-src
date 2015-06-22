@@ -48,7 +48,6 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #include <netinet/in.h>
-#include <net/if_var.h>		/* for struct ifaddr */
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -487,8 +486,6 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-no_prefer_iface",-ND6_IFF_NO_PREFER_IFACE,setnd6flags),
 	DEF_CMD("no_dad",	ND6_IFF_NO_DAD,		setnd6flags),
 	DEF_CMD("-no_dad",	-ND6_IFF_NO_DAD,	setnd6flags),
-	DEF_CMD("ignoreloop",	ND6_IFF_IGNORELOOP,	setnd6flags),
-	DEF_CMD("-ignoreloop",	-ND6_IFF_IGNORELOOP,	setnd6flags),
 	DEF_CMD_ARG("pltime",        			setip6pltime),
 	DEF_CMD_ARG("vltime",        			setip6vltime),
 	DEF_CMD("eui64",	0,			setip6eui64),

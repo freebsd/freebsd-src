@@ -5,7 +5,6 @@ VOLUME=		usd/11.edit
 SRCS=		edittut.ms
 MACROS=		-ms
 USE_TBL=
-SRCDIR=		${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/edit
 
 # index for versatec is different from the one in edit.tut
 # because the fonts are different and entries reference page

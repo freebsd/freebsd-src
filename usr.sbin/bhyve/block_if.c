@@ -85,6 +85,7 @@ struct blockif_ctxt {
 	int			bc_magic;
 	int			bc_fd;
 	int			bc_ischr;
+	int			bc_isgeom;
 	int			bc_candelete;
 	int			bc_rdonly;
 	off_t			bc_size;
@@ -198,27 +199,93 @@ blockif_complete(struct blockif_ctxt *bc, struct blockif_elem *be)
 }
 
 static void
-blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
+blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
 	struct blockif_req *br;
 	off_t arg[2];
-	int err;
+	ssize_t clen, len, off, boff, voff;
+	int i, err;
 
 	br = be->be_req;
+	if (br->br_iovcnt <= 1)
+		buf = NULL;
 	err = 0;
-
 	switch (be->be_op) {
 	case BOP_READ:
-		if (preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
-			   br->br_offset) < 0)
-			err = errno;
+		if (buf == NULL) {
+			if ((len = preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
+				   br->br_offset)) < 0)
+				err = errno;
+			else
+				br->br_resid -= len;
+			break;
+		}
+		i = 0;
+		off = voff = 0;
+		while (br->br_resid > 0) {
+			len = MIN(br->br_resid, MAXPHYS);
+			if (pread(bc->bc_fd, buf, len, br->br_offset +
+			    off) < 0) {
+				err = errno;
+				break;
+			}
+			boff = 0;
+			do {
+				clen = MIN(len - boff, br->br_iov[i].iov_len -
+				    voff);
+				memcpy(br->br_iov[i].iov_base + voff,
+				    buf + boff, clen);
+				if (clen < br->br_iov[i].iov_len - voff)
+					voff += clen;
+				else {
+					i++;
+					voff = 0;
+				}
+				boff += clen;
+			} while (boff < len);
+			off += len;
+			br->br_resid -= len;
+		}
 		break;
 	case BOP_WRITE:
-		if (bc->bc_rdonly)
+		if (bc->bc_rdonly) {
 			err = EROFS;
-		else if (pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
-			     br->br_offset) < 0)
-			err = errno;
+			break;
+		}
+		if (buf == NULL) {
+			if ((len = pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
+				    br->br_offset)) < 0)
+				err = errno;
+			else
+				br->br_resid -= len;
+			break;
+		}
+		i = 0;
+		off = voff = 0;
+		while (br->br_resid > 0) {
+			len = MIN(br->br_resid, MAXPHYS);
+			boff = 0;
+			do {
+				clen = MIN(len - boff, br->br_iov[i].iov_len -
+				    voff);
+				memcpy(buf + boff,
+				    br->br_iov[i].iov_base + voff, clen);
+				if (clen < br->br_iov[i].iov_len - voff)
+					voff += clen;
+				else {
+					i++;
+					voff = 0;
+				}
+				boff += clen;
+			} while (boff < len);
+			if (pwrite(bc->bc_fd, buf, len, br->br_offset +
+			    off) < 0) {
+				err = errno;
+				break;
+			}
+			off += len;
+			br->br_resid -= len;
+		}
 		break;
 	case BOP_FLUSH:
 		if (bc->bc_ischr) {
@@ -234,9 +301,11 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
 			err = EROFS;
 		else if (bc->bc_ischr) {
 			arg[0] = br->br_offset;
-			arg[1] = br->br_iov[0].iov_len;
+			arg[1] = br->br_resid;
 			if (ioctl(bc->bc_fd, DIOCGDELETE, arg))
 				err = errno;
+			else
+				br->br_resid = 0;
 		} else
 			err = EOPNOTSUPP;
 		break;
@@ -256,15 +325,20 @@ blockif_thr(void *arg)
 	struct blockif_ctxt *bc;
 	struct blockif_elem *be;
 	pthread_t t;
+	uint8_t *buf;
 
 	bc = arg;
+	if (bc->bc_isgeom)
+		buf = malloc(MAXPHYS);
+	else
+		buf = NULL;
 	t = pthread_self();
 
 	pthread_mutex_lock(&bc->bc_mtx);
 	for (;;) {
 		while (blockif_dequeue(bc, t, &be)) {
 			pthread_mutex_unlock(&bc->bc_mtx);
-			blockif_proc(bc, be);
+			blockif_proc(bc, be, buf);
 			pthread_mutex_lock(&bc->bc_mtx);
 			blockif_complete(bc, be);
 		}
@@ -275,6 +349,8 @@ blockif_thr(void *arg)
 	}
 	pthread_mutex_unlock(&bc->bc_mtx);
 
+	if (buf)
+		free(buf);
 	pthread_exit(NULL);
 	return (NULL);
 }
@@ -315,16 +391,19 @@ struct blockif_ctxt *
 blockif_open(const char *optstr, const char *ident)
 {
 	char tname[MAXCOMLEN + 1];
-	char *nopt, *xopts;
+	char name[MAXPATHLEN];
+	char *nopt, *xopts, *cp;
 	struct blockif_ctxt *bc;
 	struct stat sbuf;
 	struct diocgattr_arg arg;
 	off_t size, psectsz, psectoff;
 	int extra, fd, i, sectsz;
-	int nocache, sync, ro, candelete;
+	int nocache, sync, ro, candelete, geom, ssopt, pssopt;
 
 	pthread_once(&blockif_once, blockif_init);
 
+	fd = -1;
+	ssopt = 0;
 	nocache = 0;
 	sync = 0;
 	ro = 0;
@@ -333,16 +412,25 @@ blockif_open(const char *optstr, const char *ident)
 	 * The first element in the optstring is always a pathname.
 	 * Optional elements follow
 	 */
-	nopt = strdup(optstr);
-	for (xopts = strtok(nopt, ",");
-	     xopts != NULL;
-	     xopts = strtok(NULL, ",")) {
-		if (!strcmp(xopts, "nocache"))
+	nopt = xopts = strdup(optstr);
+	while (xopts != NULL) {
+		cp = strsep(&xopts, ",");
+		if (cp == nopt)		/* file or device pathname */
+			continue;
+		else if (!strcmp(cp, "nocache"))
 			nocache = 1;
-		else if (!strcmp(xopts, "sync"))
+		else if (!strcmp(cp, "sync") || !strcmp(cp, "direct"))
 			sync = 1;
-		else if (!strcmp(xopts, "ro"))
+		else if (!strcmp(cp, "ro"))
 			ro = 1;
+		else if (sscanf(cp, "sectorsize=%d/%d", &ssopt, &pssopt) == 2)
+			;
+		else if (sscanf(cp, "sectorsize=%d", &ssopt) == 1)
+			pssopt = ssopt;
+		else {
+			fprintf(stderr, "Invalid device option \"%s\"\n", cp);
+			goto err;
+		}
 	}
 
 	extra = 0;
@@ -360,13 +448,12 @@ blockif_open(const char *optstr, const char *ident)
 
 	if (fd < 0) {
 		perror("Could not open backing file");
-		return (NULL);
+		goto err;
 	}
 
         if (fstat(fd, &sbuf) < 0) {
                 perror("Could not stat backing file");
-                close(fd);
-                return (NULL);
+		goto err;
         }
 
         /*
@@ -375,13 +462,12 @@ blockif_open(const char *optstr, const char *ident)
         size = sbuf.st_size;
 	sectsz = DEV_BSIZE;
 	psectsz = psectoff = 0;
-	candelete = 0;
+	candelete = geom = 0;
 	if (S_ISCHR(sbuf.st_mode)) {
 		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
 		    ioctl(fd, DIOCGSECTORSIZE, &sectsz)) {
 			perror("Could not fetch dev blk/sector size");
-			close(fd);
-			return (NULL);
+			goto err;
 		}
 		assert(size != 0);
 		assert(sectsz != 0);
@@ -391,18 +477,50 @@ blockif_open(const char *optstr, const char *ident)
 		arg.len = sizeof(arg.value.i);
 		if (ioctl(fd, DIOCGATTR, &arg) == 0)
 			candelete = arg.value.i;
+		if (ioctl(fd, DIOCGPROVIDERNAME, name) == 0)
+			geom = 1;
 	} else
 		psectsz = sbuf.st_blksize;
 
+	if (ssopt != 0) {
+		if (!powerof2(ssopt) || !powerof2(pssopt) || ssopt < 512 ||
+		    ssopt > pssopt) {
+			fprintf(stderr, "Invalid sector size %d/%d\n",
+			    ssopt, pssopt);
+			goto err;
+		}
+
+		/*
+		 * Some backend drivers (e.g. cd0, ada0) require that the I/O
+		 * size be a multiple of the device's sector size.
+		 *
+		 * Validate that the emulated sector size complies with this
+		 * requirement.
+		 */
+		if (S_ISCHR(sbuf.st_mode)) {
+			if (ssopt < sectsz || (ssopt % sectsz) != 0) {
+				fprintf(stderr, "Sector size %d incompatible "
+				    "with underlying device sector size %d\n",
+				    ssopt, sectsz);
+				goto err;
+			}
+		}
+
+		sectsz = ssopt;
+		psectsz = pssopt;
+		psectoff = 0;
+	}
+
 	bc = calloc(1, sizeof(struct blockif_ctxt));
 	if (bc == NULL) {
-		close(fd);
-		return (NULL);
+		perror("calloc");
+		goto err;
 	}
 
 	bc->bc_magic = BLOCKIF_SIG;
 	bc->bc_fd = fd;
 	bc->bc_ischr = S_ISCHR(sbuf.st_mode);
+	bc->bc_isgeom = geom;
 	bc->bc_candelete = candelete;
 	bc->bc_rdonly = ro;
 	bc->bc_size = size;
@@ -426,6 +544,10 @@ blockif_open(const char *optstr, const char *ident)
 	}
 
 	return (bc);
+err:
+	if (fd >= 0)
+		close(fd);
+	return (NULL);
 }
 
 static int

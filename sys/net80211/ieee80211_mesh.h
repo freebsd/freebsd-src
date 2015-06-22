@@ -418,7 +418,7 @@ MALLOC_DECLARE(M_80211_MESH_GT_RT);
 struct ieee80211_mesh_route {
 	TAILQ_ENTRY(ieee80211_mesh_route)	rt_next;
 	struct ieee80211vap	*rt_vap;
-	struct mtx		rt_lock;	/* fine grained route lock */
+	ieee80211_rte_lock_t	rt_lock;	/* fine grained route lock */
 	struct callout		rt_discovery;	/* discovery timeout */
 	int			rt_updtime;	/* last update time */
 	uint8_t			rt_dest[IEEE80211_ADDR_LEN];
@@ -515,7 +515,7 @@ struct ieee80211_mesh_state {
 #define IEEE80211_MESHFLAGS_FWD		0x04	/* forward packets */
 #define IEEE80211_MESHFLAGS_ROOT	0x08	/* configured as root */
 	uint8_t				ms_flags;
-	struct mtx			ms_rt_lock;
+	ieee80211_rt_lock_t		ms_rt_lock;
 	struct callout			ms_cleantimer;
 	struct callout			ms_gatetimer;
 	ieee80211_mesh_seq		ms_gateseq;

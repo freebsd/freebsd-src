@@ -47,8 +47,6 @@ struct wps_parse_attr {
 	const u8 *network_idx; /* 1 octet */
 	const u8 *network_key_idx; /* 1 octet */
 	const u8 *mac_addr; /* ETH_ALEN (6) octets */
-	const u8 *key_prov_auto; /* 1 octet (Bool) */
-	const u8 *dot1x_enabled; /* 1 octet (Bool) */
 	const u8 *selected_registrar; /* 1 octet (Bool) */
 	const u8 *request_type; /* 1 octet */
 	const u8 *response_type; /* 1 octet */
@@ -57,6 +55,7 @@ struct wps_parse_attr {
 	const u8 *network_key_shareable; /* 1 octet (Bool) */
 	const u8 *request_to_enroll; /* 1 octet (Bool) */
 	const u8 *ap_channel; /* 2 octets */
+	const u8 *registrar_configuration_methods; /* 2 octets */
 
 	/* variable length fields */
 	const u8 *manufacturer;
@@ -77,10 +76,6 @@ struct wps_parse_attr {
 	size_t ssid_len;
 	const u8 *network_key; /* <= 64 octets */
 	size_t network_key_len;
-	const u8 *eap_type; /* <= 8 octets */
-	size_t eap_type_len;
-	const u8 *eap_identity; /* <= 64 octets */
-	size_t eap_identity_len;
 	const u8 *authorized_macs; /* <= 30 octets */
 	size_t authorized_macs_len;
 	const u8 *sec_dev_type_list; /* <= 128 octets */

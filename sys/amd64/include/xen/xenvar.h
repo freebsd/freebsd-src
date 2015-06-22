@@ -48,68 +48,7 @@ if (xendebug_flags & argflags) XENPRINTF("(file=%s, line=%d) " _f "\n", __FILE__
 #define TRACE_DEBUG(argflags, _f, _a...)
 #endif
 
-#ifdef XENHVM
-
-static inline vm_paddr_t
-phystomach(vm_paddr_t pa)
-{
-
-	return (pa);
-}
-
-static inline vm_paddr_t
-machtophys(vm_paddr_t ma)
-{
-
-	return (ma);
-}
-
 #define vtomach(va)	pmap_kextract((vm_offset_t) (va))
-#define PFNTOMFN(pa)	(pa)
-#define MFNTOPFN(ma)	(ma)
-
-#define set_phys_to_machine(pfn, mfn)	((void)0)
-#define phys_to_machine_mapping_valid(pfn)	(TRUE)
-#define PT_UPDATES_FLUSH()		((void)0)
-
-#else
-
-extern	xen_pfn_t *xen_phys_machine;
-
-
-extern xen_pfn_t *xen_machine_phys;
-/* Xen starts physical pages after the 4MB ISA hole -
- * FreeBSD doesn't
- */
-
-
-#undef ADD_ISA_HOLE /* XXX */
-
-#ifdef ADD_ISA_HOLE
-#define ISA_INDEX_OFFSET 1024 
-#define ISA_PDR_OFFSET 1
-#else
-#define ISA_INDEX_OFFSET 0
-#define ISA_PDR_OFFSET 0
-#endif
-
-
-#define PFNTOMFN(i) (xen_phys_machine[(i)])
-#define MFNTOPFN(i) ((vm_paddr_t)xen_machine_phys[(i)])
-
-#define VTOP(x) ((((uintptr_t)(x))) - KERNBASE)
-#define PTOV(x) (((uintptr_t)(x)) + KERNBASE)
-
-#define VTOPFN(x) (VTOP(x) >> PAGE_SHIFT)
-#define PFNTOV(x) PTOV((vm_paddr_t)(x)  << PAGE_SHIFT)
-
-#define VTOMFN(va) (vtomach(va) >> PAGE_SHIFT)
-#define PFN_UP(x)    (((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
-
-#define phystomach(pa) (((vm_paddr_t)(PFNTOMFN((pa) >> PAGE_SHIFT))) << PAGE_SHIFT)
-#define machtophys(ma) (((vm_paddr_t)(MFNTOPFN((ma) >> PAGE_SHIFT))) << PAGE_SHIFT)
-
-#endif
 
 void xpq_init(void);
 

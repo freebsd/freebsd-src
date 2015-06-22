@@ -35,7 +35,7 @@ static const char sccsid[] = "$Id: vs_line.c,v 10.40 2012/02/13 19:22:25 zy Exp 
  * vs_line --
  *	Update one line on the screen.
  *
- * PUBLIC: int vs_line __P((SCR *, SMAP *, size_t *, size_t *));
+ * PUBLIC: int vs_line(SCR *, SMAP *, size_t *, size_t *);
  */
 int
 vs_line(SCR *sp, SMAP *smp, size_t *yp, size_t *xp)
@@ -482,7 +482,7 @@ ret1:	(void)gp->scr_move(sp, oldy, oldx);
  * vs_number --
  *	Repaint the numbers on all the lines.
  *
- * PUBLIC: int vs_number __P((SCR *));
+ * PUBLIC: int vs_number(SCR *);
  */
 int
 vs_number(SCR *sp)

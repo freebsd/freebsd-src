@@ -801,9 +801,6 @@ vm_reserv_free_page(vm_page_t m)
 	rv = vm_reserv_from_page(m);
 	if (rv->object == NULL)
 		return (FALSE);
-	if ((m->flags & PG_CACHED) != 0 && m->pool != VM_FREEPOOL_CACHE)
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, rv->pages,
-		    VM_LEVEL_0_ORDER);
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }
@@ -983,8 +980,18 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 				break;
 			} else if ((pa & (alignment - 1)) != 0 ||
 			    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0) {
-				/* Continue with this reservation. */
-				hi = lo;
+				/*
+				 * The current page doesn't meet the alignment
+				 * and/or boundary requirements.  Continue
+				 * searching this reservation until the rest
+				 * of its free pages are either excluded or
+				 * exhausted.
+				 */
+				hi = lo + 1;
+				if (hi >= NBPOPMAP) {
+					hi = 0;
+					i++;
+				}
 				continue;
 			}
 			/* Find the next used page. */

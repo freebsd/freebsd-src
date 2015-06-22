@@ -537,7 +537,7 @@ static int key_acquire2(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_register(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
-static int key_expire(struct secasvar *);
+static int key_expire(struct secasvar *, int);
 static int key_flush(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_dump(struct socket *, struct mbuf *,
@@ -2199,7 +2199,7 @@ key_spddelete2(struct socket *so, struct mbuf *m,
 }
 
 /*
- * SADB_X_GET processing
+ * SADB_X_SPDGET processing
  * receive
  *   <base, policy(*)>
  * from the user(?),
@@ -2237,7 +2237,8 @@ key_spdget(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		return key_senderror(so, m, ENOENT);
 	}
 
-	n = key_setdumpsp(sp, SADB_X_SPDGET, 0, mhp->msg->sadb_msg_pid);
+	n = key_setdumpsp(sp, SADB_X_SPDGET, mhp->msg->sadb_msg_seq,
+	    mhp->msg->sadb_msg_pid);
 	KEY_FREESP(&sp);
 	if (n != NULL) {
 		m_freem(m);
@@ -3856,48 +3857,19 @@ key_ismyaddr(struct sockaddr *sa)
  * compare my own address for IPv6.
  * 1: ours
  * 0: other
- * NOTE: derived ip6_input() in KAME. This is necessary to modify more.
  */
-#include <netinet6/in6_var.h>
-
 static int
 key_ismyaddr6(struct sockaddr_in6 *sin6)
 {
-	struct in6_ifaddr *ia;
-#if 0
-	struct in6_multi *in6m;
-#endif
+	struct in6_addr in6;
 
-	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (key_sockaddrcmp((struct sockaddr *)sin6,
-		    (struct sockaddr *)&ia->ia_addr, 0) == 0) {
-			IN6_IFADDR_RUNLOCK();
-			return 1;
-		}
+	if (!IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
+		return (in6_localip(&sin6->sin6_addr));
 
-#if 0
-		/*
-		 * XXX Multicast
-		 * XXX why do we care about multlicast here while we don't care
-		 * about IPv4 multicast??
-		 * XXX scope
-		 */
-		in6m = NULL;
-		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
-		if (in6m) {
-			IN6_IFADDR_RUNLOCK();
-			return 1;
-		}
-#endif
-	}
-	IN6_IFADDR_RUNLOCK();
-
-	/* loopback, just for safety */
-	if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
-		return 1;
-
-	return 0;
+	/* Convert address into kernel-internal form */
+	in6 = sin6->sin6_addr;
+	in6.s6_addr16[1] = htons(sin6->sin6_scope_id & 0xffff);
+	return (in6_localip(&in6));
 }
 #endif /*INET6*/
 
@@ -4271,41 +4243,29 @@ key_flush_sad(time_t now)
 					"time, why?\n", __func__));
 				continue;
 			}
-
-			/* check SOFT lifetime */
-			if (sav->lft_s->addtime != 0 &&
-			    now - sav->created > sav->lft_s->addtime) {
-				key_sa_chgstate(sav, SADB_SASTATE_DYING);
-				/* 
-				 * Actually, only send expire message if
-				 * SA has been used, as it was done before,
-				 * but should we always send such message,
-				 * and let IKE daemon decide if it should be
-				 * renegotiated or not ?
-				 * XXX expire message will actually NOT be
-				 * sent if SA is only used after soft
-				 * lifetime has been reached, see below
-				 * (DYING state)
-				 */
-				if (sav->lft_c->usetime != 0)
-					key_expire(sav);
-			}
-			/* check SOFT lifetime by bytes */
 			/*
-			 * XXX I don't know the way to delete this SA
-			 * when new SA is installed.  Caution when it's
-			 * installed too big lifetime by time.
+			 * RFC 2367:
+			 * HARD lifetimes MUST take precedence over SOFT
+			 * lifetimes, meaning if the HARD and SOFT lifetimes
+			 * are the same, the HARD lifetime will appear on the
+			 * EXPIRE message.
 			 */
-			else if (sav->lft_s->bytes != 0 &&
-			    sav->lft_s->bytes < sav->lft_c->bytes) {
-
+			/* check HARD lifetime */
+			if ((sav->lft_h->addtime != 0 &&
+			    now - sav->created > sav->lft_h->addtime) ||
+			    (sav->lft_h->bytes != 0 &&
+			    sav->lft_h->bytes < sav->lft_c->bytes)) {
+				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
+				key_expire(sav, 1);
+				KEY_FREESAV(&sav);
+			}
+			/* check SOFT lifetime */
+			else if ((sav->lft_s->addtime != 0 &&
+			    now - sav->created > sav->lft_s->addtime) ||
+			    (sav->lft_s->bytes != 0 &&
+			    sav->lft_s->bytes < sav->lft_c->bytes)) {
 				key_sa_chgstate(sav, SADB_SASTATE_DYING);
-				/*
-				 * XXX If we keep to send expire
-				 * message in the status of
-				 * DYING. Do remove below code.
-				 */
-				key_expire(sav);
+				key_expire(sav, 0);
 			}
 		}
 
@@ -4325,6 +4285,7 @@ key_flush_sad(time_t now)
 			if (sav->lft_h->addtime != 0 &&
 			    now - sav->created > sav->lft_h->addtime) {
 				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
+				key_expire(sav, 1);
 				KEY_FREESAV(&sav);
 			}
 #if 0	/* XXX Should we keep to send expire message until HARD lifetime ? */
@@ -4340,13 +4301,14 @@ key_flush_sad(time_t now)
 				 * If there is no SA then sending
 				 * expire message.
 				 */
-				key_expire(sav);
+				key_expire(sav, 0);
 			}
 #endif
 			/* check HARD lifetime by bytes */
 			else if (sav->lft_h->bytes != 0 &&
 			    sav->lft_h->bytes < sav->lft_c->bytes) {
 				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
+				key_expire(sav, 1);
 				KEY_FREESAV(&sav);
 			}
 		}
@@ -6750,7 +6712,7 @@ key_freereg(struct socket *so)
  *	others	: error number
  */
 static int
-key_expire(struct secasvar *sav)
+key_expire(struct secasvar *sav, int hard)
 {
 	int satype;
 	struct mbuf *result = NULL, *m;
@@ -6808,11 +6770,19 @@ key_expire(struct secasvar *sav)
 	lt->sadb_lifetime_usetime = sav->lft_c->usetime;
 	lt = (struct sadb_lifetime *)(mtod(m, caddr_t) + len / 2);
 	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
-	lt->sadb_lifetime_exttype = SADB_EXT_LIFETIME_SOFT;
-	lt->sadb_lifetime_allocations = sav->lft_s->allocations;
-	lt->sadb_lifetime_bytes = sav->lft_s->bytes;
-	lt->sadb_lifetime_addtime = sav->lft_s->addtime;
-	lt->sadb_lifetime_usetime = sav->lft_s->usetime;
+	if (hard) {
+		lt->sadb_lifetime_exttype = SADB_EXT_LIFETIME_HARD;
+		lt->sadb_lifetime_allocations = sav->lft_h->allocations;
+		lt->sadb_lifetime_bytes = sav->lft_h->bytes;
+		lt->sadb_lifetime_addtime = sav->lft_h->addtime;
+		lt->sadb_lifetime_usetime = sav->lft_h->usetime;
+	} else {
+		lt->sadb_lifetime_exttype = SADB_EXT_LIFETIME_SOFT;
+		lt->sadb_lifetime_allocations = sav->lft_s->allocations;
+		lt->sadb_lifetime_bytes = sav->lft_s->bytes;
+		lt->sadb_lifetime_addtime = sav->lft_s->addtime;
+		lt->sadb_lifetime_usetime = sav->lft_s->usetime;
+	}
 	m_cat(result, m);
 
 	/* set sadb_address for source */
@@ -7590,7 +7560,7 @@ key_init(void)
 	SPACQ_LOCK_INIT();
 
 #ifndef IPSEC_DEBUG2
-	callout_init(&key_timer, CALLOUT_MPSAFE);
+	callout_init(&key_timer, 1);
 	callout_reset(&key_timer, hz, key_timehandler, NULL);
 #endif /*IPSEC_DEBUG2*/
 
@@ -7742,14 +7712,6 @@ key_sa_chgstate(struct secasvar *sav, u_int8_t state)
 		sav->state = state;
 		LIST_INSERT_HEAD(&sav->sah->savtree[state], sav, chain);
 	}
-}
-
-void
-key_sa_stir_iv(struct secasvar *sav)
-{
-
-	IPSEC_ASSERT(sav->iv != NULL, ("null IV"));
-	key_randomfill(sav->iv, sav->ivlen);
 }
 
 /*

@@ -128,6 +128,30 @@ in_localip(struct in_addr in)
 }
 
 /*
+ * Return 1 if an internet address is configured on an interface.
+ */
+int
+in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
+{
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+		ia = (struct in_ifaddr *)ifa;
+		if (ia->ia_addr.sin_addr.s_addr == in.s_addr) {
+			IF_ADDR_RUNLOCK(ifp);
+			return (1);
+		}
+	}
+	IF_ADDR_RUNLOCK(ifp);
+
+	return (0);
+}
+
+/*
  * Return a reference to the interface address which is different to
  * the supplied one but with same IP address value.
  */

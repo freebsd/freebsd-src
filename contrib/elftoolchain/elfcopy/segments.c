@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <err.h>
 #include <gelf.h>
@@ -35,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3134 2014-12-23 10:43:59Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3196 2015-05-12 17:33:48Z emaste $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -443,7 +442,7 @@ copy_phdr(struct elfcopy *ecp)
 			s = seg->v_sec[i];
 			seg->msz = s->vma + s->sz - seg->addr;
 			if (s->type != SHT_NOBITS)
-				seg->fsz = seg->msz;
+				seg->fsz = s->off + s->sz - seg->off;
 		}
 	}
 

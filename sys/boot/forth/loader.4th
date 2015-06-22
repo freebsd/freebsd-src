@@ -1,4 +1,5 @@
-\ Copyright (c) 1999 Daniel C. Sobral <dcs@freebsd.org>
+\ Copyright (c) 1999 Daniel C. Sobral <dcs@FreeBSD.org>
+\ Copyright (c) 2011-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \
 \ Redistribution and use in source and binary forms, with or without
@@ -24,6 +25,8 @@
 \
 \ $FreeBSD$
 
+only forth definitions
+
 s" arch-i386" environment? [if] [if]
 	s" loader_version" environment?  [if]
 		11 < [if]
@@ -42,15 +45,16 @@ s" arch-i386" environment? [if] [if]
 include /boot/support.4th
 include /boot/color.4th
 include /boot/delay.4th
+include /boot/check-password.4th
 
-only forth also support-functions also builtins definitions
+only forth definitions
 
 : bootmsg ( -- )
-  loader_color? if
-    ." [37;44mBooting...[0m" cr
-  else
-    ." Booting..." cr
-  then
+  loader_color? dup ( -- bool bool )
+  if 7 fg 4 bg then
+  ." Booting..."
+  if me then
+  cr
 ;
 
 : try-menu-unset
@@ -76,6 +80,8 @@ only forth also support-functions also builtins definitions
     drop
   then
 ;
+
+only forth also support-functions also builtins definitions
 
 : boot
   0= if ( interpreted ) get_arguments then
@@ -120,14 +126,12 @@ only forth also support-functions also builtins definitions
   ?dup 0= if 0 1 autoboot then
 ;
 
-also forth definitions also builtins
+also forth definitions previous
 
 builtin: boot
 builtin: boot-conf
 
 only forth definitions also support-functions
-
-include /boot/check-password.4th
 
 \ ***** start
 \
@@ -245,5 +249,4 @@ include /boot/check-password.4th
   then
 ; immediate \ interpret immediately for access to `source' (aka tib)
 
-only forth also
-
+only forth definitions

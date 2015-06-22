@@ -16,6 +16,6 @@ BOOT_BOOT0_ORG?=	0x0000
 LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N
 
 ${BOOT}: ${BOOT}.out
-	objcopy -S -O binary ${BOOT}.out ${.TARGET}
+	${OBJCOPY} -S -O binary ${BOOT}.out ${.TARGET}
 
 .include <bsd.prog.mk>

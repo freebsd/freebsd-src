@@ -1,26 +1,31 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -141,11 +146,11 @@ fail4:
 	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
-fail2:
-	EFSYS_PROBE(fail2);
 
 	EFSYS_KMEM_FREE(enp->en_esip, size, scfg);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, int, rc);
 
@@ -156,7 +161,7 @@ fail1:
 siena_vpd_init(
 	__in			efx_nic_t *enp)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	caddr_t svpd = NULL;
 	unsigned partn;
 	size_t size = 0;
@@ -201,7 +206,7 @@ siena_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	unsigned int partn;
 	int rc;
 
@@ -236,8 +241,8 @@ siena_vpd_read(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
-	siena_mc_dynamic_config_hdr_t *dcfg;
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	siena_mc_dynamic_config_hdr_t *dcfg = NULL;
 	unsigned int vpd_length;
 	unsigned int vpd_offset;
 	unsigned int dcfg_partn;
@@ -499,8 +504,8 @@ siena_vpd_write(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
-	siena_mc_dynamic_config_hdr_t *dcfg;
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	siena_mc_dynamic_config_hdr_t *dcfg = NULL;
 	unsigned int vpd_offset;
 	unsigned int dcfg_partn;
 	unsigned int hdr_length;
@@ -525,18 +530,18 @@ siena_vpd_write(
 		goto fail2;
 
 	if ((rc = siena_nvram_partn_lock(enp, dcfg_partn)) != 0)
-		goto fail2;
+		goto fail3;
 
 	if ((rc = siena_nvram_get_dynamic_cfg(enp, dcfg_partn,
 	    B_FALSE, &dcfg, &dcfg_size)) != 0)
-		goto fail3;
+		goto fail4;
 
 	hdr_length = EFX_WORD_FIELD(dcfg->length, EFX_WORD_0);
 
 	/* Allocated memory should have room for the new VPD */
 	if (hdr_length + vpd_length > dcfg_size) {
 		rc = ENOSPC;
-		goto fail3;
+		goto fail5;
 	}
 
 	/* Copy in new vpd and update header */
@@ -553,12 +558,12 @@ siena_vpd_write(
 
 	/* Erase and write the new sector */
 	if ((rc = siena_nvram_partn_erase(enp, dcfg_partn, 0, partn_size)) != 0)
-		goto fail4;
+		goto fail6;
 
 	/* Write out the new structure to nvram */
 	if ((rc = siena_nvram_partn_write(enp, dcfg_partn, 0, (caddr_t)dcfg,
 	    vpd_offset + vpd_length)) != 0)
-		goto fail5;
+		goto fail7;
 
 	EFSYS_KMEM_FREE(enp->en_esip, dcfg_size, dcfg);
 
@@ -566,18 +571,22 @@ siena_vpd_write(
 
 	return (0);
 
+fail7:
+	EFSYS_PROBE(fail7);
+fail6:
+	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
-fail4:
-	EFSYS_PROBE(fail4);
-fail3:
-	EFSYS_PROBE(fail3);
 
 	EFSYS_KMEM_FREE(enp->en_esip, dcfg_size, dcfg);
-fail2:
-	EFSYS_PROBE(fail2);
+fail4:
+	EFSYS_PROBE(fail4);
 
 	siena_nvram_partn_unlock(enp, dcfg_partn);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, int, rc);
 

@@ -224,7 +224,7 @@ AcpiDmNormalizeParentPrefix (
         return (NULL);
     }
 
-    Length = (ACPI_STRLEN (ParentPath) + ACPI_STRLEN (Path) + 1);
+    Length = (strlen (ParentPath) + strlen (Path) + 1);
     if (ParentPath[1])
     {
         /*
@@ -253,7 +253,7 @@ AcpiDmNormalizeParentPrefix (
      *
      * Copy the parent path
      */
-    ACPI_STRCPY (Fullpath, &ParentPath[Index]);
+    strcpy (Fullpath, &ParentPath[Index]);
 
     /*
      * Add dot separator
@@ -261,12 +261,12 @@ AcpiDmNormalizeParentPrefix (
      */
     if (ParentPath[1])
     {
-        ACPI_STRCAT (Fullpath, ".");
+        strcat (Fullpath, ".");
     }
 
     /* Copy child path (carat parent prefix(es) were skipped above) */
 
-    ACPI_STRCAT (Fullpath, Path);
+    strcat (Fullpath, Path);
 
 Cleanup:
     ACPI_FREE (ParentPath);
@@ -648,13 +648,13 @@ AcpiDmAddNodeToExternalList (
 
     if ((*ExternalPath == AML_ROOT_PREFIX) && (ExternalPath[1]))
     {
-        Temp = ACPI_ALLOCATE_ZEROED (ACPI_STRLEN (ExternalPath) + 1);
+        Temp = ACPI_ALLOCATE_ZEROED (strlen (ExternalPath) + 1);
         if (!Temp)
         {
             return_VOID;
         }
 
-        ACPI_STRCPY (Temp, &ExternalPath[1]);
+        strcpy (Temp, &ExternalPath[1]);
         ACPI_FREE (ExternalPath);
         ExternalPath = Temp;
     }
@@ -806,7 +806,7 @@ AcpiDmCreateNewExternal (
     NextExternal = AcpiGbl_ExternalList;
     while (NextExternal)
     {
-        if (!ACPI_STRCMP (ExternalPath, NextExternal->Path))
+        if (!strcmp (ExternalPath, NextExternal->Path))
         {
             /* Duplicate method, check that the Value (ArgCount) is the same */
 
@@ -849,7 +849,7 @@ AcpiDmCreateNewExternal (
     NewExternal->Value = Value;
     NewExternal->Path = ExternalPath;
     NewExternal->Type = Type;
-    NewExternal->Length = (UINT16) ACPI_STRLEN (ExternalPath);
+    NewExternal->Length = (UINT16) strlen (ExternalPath);
     NewExternal->InternalPath = InternalPath;
 
     /* Link the new descriptor into the global list, alphabetically ordered */
@@ -1286,7 +1286,9 @@ AcpiDmUnresolvedWarning (
                 "     * compile because the disassembler did not know how many arguments\n"
                 "     * to assign to these methods. To specify the tables needed to resolve\n"
                 "     * external control method references, the -e option can be used to\n"
-                "     * specify the filenames. Example iASL invocations:\n"
+                "     * specify the filenames. Note: SSDTs can be dynamically loaded at\n"
+                "     * runtime and may or may not be available via the host OS.\n"
+                "     * Example iASL invocations:\n"
                 "     *     iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
                 "     *     iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
                 "     *     iasl -e ssdt*.aml -d dsdt.aml\n"
@@ -1314,7 +1316,8 @@ AcpiDmUnresolvedWarning (
                 "     * ACPI tables may be required to properly disassemble the code. This\n"
                 "     * resulting disassembler output file may not compile because the\n"
                 "     * disassembler did not know how many arguments to assign to the\n"
-                "     * unresolved methods.\n"
+                "     * unresolved methods. Note: SSDTs can be dynamically loaded at\n"
+                "     * runtime and may or may not be available via the host OS.\n"
                 "     *\n"
                 "     * If necessary, the -fe option can be used to specify a file containing\n"
                 "     * control method external declarations with the associated method\n"
@@ -1345,7 +1348,9 @@ AcpiDmUnresolvedWarning (
                 "compile because the disassembler did not know how many arguments\n"
                 "to assign to these methods. To specify the tables needed to resolve\n"
                 "external control method references, the -e option can be used to\n"
-                "specify the filenames. Example iASL invocations:\n"
+                "specify the filenames. Note: SSDTs can be dynamically loaded at\n"
+                "runtime and may or may not be available via the host OS.\n"
+                "Example iASL invocations:\n"
                 "    iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
                 "    iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
                 "    iasl -e ssdt*.aml -d dsdt.aml\n"
@@ -1368,7 +1373,8 @@ AcpiDmUnresolvedWarning (
                 "ACPI tables may be required to properly disassemble the code. The\n"
                 "resulting disassembler output file may not compile because the\n"
                 "disassembler did not know how many arguments to assign to the\n"
-                "unresolved methods.\n"
+                "unresolved methods. Note: SSDTs can be dynamically loaded at\n"
+                "runtime and may or may not be available via the host OS.\n"
                 "\n"
                 "If necessary, the -fe option can be used to specify a file containing\n"
                 "control method external declarations with the associated method\n"

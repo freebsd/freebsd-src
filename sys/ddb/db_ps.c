@@ -75,7 +75,7 @@ DB_SHOW_ALL_COMMAND(procs, db_procs_cmd)
  * characters.
  */
 void
-db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
+db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 {
 	volatile struct proc *p, *pp;
 	volatile struct thread *td;
@@ -299,11 +299,11 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 {
 	struct thread *td;
 	struct lock_object *lock;
-	boolean_t comma;
+	bool comma;
 
 	/* Determine which thread to examine. */
 	if (have_addr)
-		td = db_lookup_thread(addr, FALSE);
+		td = db_lookup_thread(addr, false);
 	else
 		td = kdb_thread;
 	lock = (struct lock_object *)td->td_lock;
@@ -332,28 +332,28 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		break;
 	case TDS_INHIBITED:
 		db_printf("INHIBITED: {");
-		comma = FALSE;
+		comma = false;
 		if (TD_IS_SLEEPING(td)) {
 			db_printf("SLEEPING");
-			comma = TRUE;
+			comma = true;
 		}
 		if (TD_IS_SUSPENDED(td)) {
 			if (comma)
 				db_printf(", ");
 			db_printf("SUSPENDED");
-			comma = TRUE;
+			comma = true;
 		}
 		if (TD_IS_SWAPPED(td)) {
 			if (comma)
 				db_printf(", ");
 			db_printf("SWAPPED");
-			comma = TRUE;
+			comma = true;
 		}
 		if (TD_ON_LOCK(td)) {
 			if (comma)
 				db_printf(", ");
 			db_printf("LOCK");
-			comma = TRUE;
+			comma = true;
 		}
 		if (TD_AWAITING_INTR(td)) {
 			if (comma)
@@ -432,8 +432,8 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 }
 
 void
-db_findstack_cmd(db_expr_t addr, boolean_t have_addr,
-    db_expr_t dummy3 __unused, char *dummy4 __unused)
+db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
+    char *dummy4 __unused)
 {
 	struct proc *p;
 	struct thread *td;

@@ -16,6 +16,35 @@ unix		?=	We run FreeBSD, not UNIX.
 MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .endif
 
+
+# Some options we need now
+__DEFAULT_NO_OPTIONS= \
+	DIRDEPS_CACHE \
+	META_MODE \
+	META_FILES \
+
+
+__DEFAULT_DEPENDENT_OPTIONS= \
+	AUTO_OBJ/META_MODE \
+	STAGING/META_MODE \
+	SYSROOT/META_MODE
+
+.include <bsd.mkopt.mk>
+
+# early include for customization
+# see local.sys.mk below
+.-include <local.sys.env.mk>
+
+.if ${MK_META_MODE} == "yes"
+.-include <meta.sys.mk>
+.elif ${MK_META_FILES} == "yes" && ${.MAKEFLAGS:U:M-B} == ""
+.MAKE.MODE= meta verbose
+.endif
+.if ${MK_AUTO_OBJ} == "yes"
+# This needs to be done early - before .PATH is computed
+.-include <auto.obj.mk>
+.endif
+
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
 # process the makefile as specified by the Posix 1003.2 specification.
@@ -62,17 +91,18 @@ CFLAGS		+=	-fno-strict-aliasing
 .endif
 PO_CFLAGS	?=	${CFLAGS}
 
+# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
+# read-only files as non-root by passing -f.
+CP		?=	cp -f
+
+CPP		?=	cpp
+
 # C Type Format data is required for DTrace
 CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
 CTFMERGE	?=	ctfmerge
 
-# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
-# read-only files as non-root by passing -f.
-CP		?=	cp -f
-
-DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
 .endif
@@ -81,7 +111,8 @@ CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
-CPP		?=	cpp
+DTRACE		?=	dtrace
+DTRACEFLAGS	?=	-C -x nolibs
 
 .if empty(.MAKEFLAGS:M-s)
 ECHO		?=	echo
@@ -329,30 +360,14 @@ __MAKE_CONF?=/etc/make.conf
 .include "${__MAKE_CONF}"
 .endif
 
-# Setup anything for the FreeBSD source build, if we're building
-# inside the source tree. Needs to be after make.conf, but before
-# local stuff.
-.sinclude <src.sys.mk>
-
-# Set any local definitions first. Place this early, but it needs
-# MACHINE_CPUARCH to be defined.
-.sinclude <local.sys.mk>
+# late include for customization
+.-include <local.sys.mk>
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
 
-.if !defined(.PARSEDIR)
-# We are not bmake, which is more aggressive about searching .PATH
-# It is sometime necessary to curb its enthusiasm with .NOPATH
-# The following allows us to quietly ignore .NOPATH when not using bmake.
-.NOTMAIN: .NOPATH
-.NOPATH:
-
-# Toggle on warnings
-.WARN: dirsyntax
-.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
@@ -369,7 +384,6 @@ SHELL=	${__MAKE_SHELL}
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL:U/bin/sh}
 .endif
-.endif # bmake
 
 .include <bsd.cpu.mk>
 

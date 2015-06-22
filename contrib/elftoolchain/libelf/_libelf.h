@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf.h 3011 2014-03-23 03:32:42Z jkoshy $
+ * $Id: _libelf.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #ifndef	__LIBELF_H_
@@ -194,7 +194,9 @@ enum {
  * Function Prototypes.
  */
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct _Libelf_Data *_libelf_allocate_data(Elf_Scn *_s);
 Elf	*_libelf_allocate_elf(void);
 Elf_Scn	*_libelf_allocate_scn(Elf *_e, size_t _ndx);
@@ -230,6 +232,8 @@ int	_libelf_setshstrndx(Elf *_e, void *_eh, int _elfclass,
 Elf_Data *_libelf_xlate(Elf_Data *_d, const Elf_Data *_s,
     unsigned int _encoding, int _elfclass, int _direction);
 int	_libelf_xlate_shtype(uint32_t _sht);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* __LIBELF_H_ */
