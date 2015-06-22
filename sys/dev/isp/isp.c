@@ -7344,6 +7344,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 			isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
 			return;
 		}
+		cname = fc_mbcmd_names[opcode];
 		ibits = ISP_FC_IBITS(opcode);
 		obits = ISP_FC_OBITS(opcode);
 	} else {
@@ -7352,9 +7353,15 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 			isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
 			return;
 		}
+		cname = scsi_mbcmd_names[opcode];
 		ibits = ISP_SCSI_IBITS(opcode);
 		obits = ISP_SCSI_OBITS(opcode);
 	}
+	if (cname == NULL) {
+		cname = tname;
+		ISP_SNPRINTF(tname, sizeof tname, "opcode %x", opcode);
+	}
+	isp_prt(isp, ISP_LOGDEBUG3, "Mailbox Command '%s'", cname);
 
 	/*
 	 * Pick up any additional bits that the caller might have set.
@@ -7439,11 +7446,6 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
  out:
 	if (mbp->logval == 0 || opcode == MBOX_EXEC_FIRMWARE) {
 		return;
-	}
-	cname = (IS_FC(isp))? fc_mbcmd_names[opcode] : scsi_mbcmd_names[opcode];
-	if (cname == NULL) {
-		cname = tname;
-		ISP_SNPRINTF(tname, sizeof tname, "opcode %x", opcode);
 	}
 
 	/*
