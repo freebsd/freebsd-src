@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.27 2013/07/18 05:46:24 sjg Exp $
+# $Id: own.mk,v 1.28 2015/04/16 16:59:00 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -89,6 +89,7 @@ OPTIONS_DEFAULT_NO+= DPADD_MK
 
 # process options
 OPTIONS_DEFAULT_NO+= \
+	AUTO_OBJ \
 	INSTALL_AS_USER \
 	GPROF \
 	LIBTOOL \
@@ -98,7 +99,6 @@ OPTIONS_DEFAULT_NO+= \
 OPTIONS_DEFAULT_YES+= \
 	ARCHIVE \
 	AUTODEP \
-	AUTO_OBJ \
 	CRYPTO \
 	DOC \
 	DPADD_MK \

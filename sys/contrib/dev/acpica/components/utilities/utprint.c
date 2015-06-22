@@ -227,7 +227,7 @@ AcpiUtScanNumber (
     UINT64                  Number = 0;
 
 
-    while (ACPI_IS_DIGIT (*String))
+    while (isdigit ((int) *String))
     {
         Number *= 10;
         Number += *(String++) - '0';
@@ -442,11 +442,11 @@ AcpiUtVsnprintf (
     const char              *Format,
     va_list                 Args)
 {
-    UINT8                   Base = 10;
-    UINT8                   Type = 0;
-    INT32                   Width = -1;
-    INT32                   Precision = -1;
-    char                    Qualifier = 0;
+    UINT8                   Base;
+    UINT8                   Type;
+    INT32                   Width;
+    INT32                   Precision;
+    char                    Qualifier;
     UINT64                  Number;
     char                    *Pos;
     char                    *End;
@@ -467,6 +467,9 @@ AcpiUtVsnprintf (
             Pos = AcpiUtBoundStringOutput (Pos, End, *Format);
             continue;
         }
+
+        Type = 0;
+        Base = 10;
 
         /* Process sign */
 
@@ -502,7 +505,7 @@ AcpiUtVsnprintf (
         /* Process width */
 
         Width = -1;
-        if (ACPI_IS_DIGIT (*Format))
+        if (isdigit ((int) *Format))
         {
             Format = AcpiUtScanNumber (Format, &Number);
             Width = (INT32) Number;
@@ -524,7 +527,7 @@ AcpiUtVsnprintf (
         if (*Format == '.')
         {
             ++Format;
-            if (ACPI_IS_DIGIT(*Format))
+            if (isdigit ((int) *Format))
             {
                 Format = AcpiUtScanNumber (Format, &Number);
                 Precision = (INT32) Number;

@@ -12,3 +12,6 @@ EXTRA_DIST = xolint.1 xolint.pl
 
 install-exec-hook:
 	install ${srcdir}/xolint.pl ${DESTDIR}${bindir}/xolint
+
+uninstall-hook:
+	rm -f ${DESTDIR}${bindir}/xolint

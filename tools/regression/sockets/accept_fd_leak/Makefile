@@ -4,8 +4,6 @@
 
 PROG=	accept_fd_leak
 MAN=
-
-regress:
-	./accept_fd_leak
+WARNS?=	6
 
 .include <bsd.prog.mk>

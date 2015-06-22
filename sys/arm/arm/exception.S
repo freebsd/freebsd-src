@@ -49,6 +49,7 @@
 #include "assym.s"
 
 #include "opt_kdtrace.h"
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
@@ -63,7 +64,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	.word 0
 #endif
 
-	.text	
+	.text
 	.align	2
 
 /*
@@ -80,7 +81,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PUSHFRAME							   \
 	sub	sp, sp, #4;		/* Align the stack */		   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
@@ -114,7 +115,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * Since the current mode is used, the SVC lr field is ignored.
  */
 
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PULLFRAME							   \
 	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;						   \
@@ -123,7 +124,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
  	ldr	lr, [sp], #4;		/* Pull the return address */	   \
 	add	sp, sp, #4		/* Align the stack */
-#else 
+#else
 #define PULLFRAME							   \
 	ldr	r0, [sp], #4	;	/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;						   \
@@ -145,7 +146,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PUSHFRAMEINSVC							   \
 	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
 	mov	r0, lr;			/* Save xxx32 r14 */		   \
@@ -218,7 +219,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
  * exit.
  */
 
-#ifdef ARM_TP_ADDRESS
+#if __ARM_ARCH < 6
 #define PULLFRAMEFROMSVCANDEXIT						   \
 	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;		/* restore SPSR */		   \
@@ -226,7 +227,7 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	mov	r0, r0;	  		/* NOP for previous instruction */ \
 	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
-#else 
+#else
 #define PULLFRAMEFROMSVCANDEXIT						   \
 	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;		/* restore SPSR */		   \
@@ -237,7 +238,6 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
 #endif
 
-#if defined(__ARM_EABI__)
 /*
  * Unwind hints so we can unwind past functions that use
  * PULLFRAMEFROMSVCANDEXIT. They are run in reverse order.
@@ -249,9 +249,6 @@ _C_LABEL(dtrace_invop_calltrap_addr):
 	.pad #(2*4);			/* Skip user sp and lr */	   \
 	.save {r0-r12};			/* Restore r0-r12 */		   \
 	.pad #(4)			/* Skip spsr */
-#else
-#define	UNWINDSVCFRAME
-#endif
 
 #define	DO_AST								   \
 	ldr	r0, [sp];		/* Get the SPSR from stack */	   \
@@ -320,7 +317,7 @@ END(exception_exit)
  * Entry point for a Prefetch Abort exception.
  *
  * The hardware switches to the abort mode stack; we switch to svc32 before
- * calling the handler, then return directly to the original mode/stack 
+ * calling the handler, then return directly to the original mode/stack
  * on exit (without transitioning back through the abort mode stack).
  */
 ASENTRY_NP(prefetch_abort_entry)
@@ -340,7 +337,7 @@ END(prefetch_abort_entry)
  * Entry point for a Data Abort exception.
  *
  * The hardware switches to the abort mode stack; we switch to svc32 before
- * calling the handler, then return directly to the original mode/stack 
+ * calling the handler, then return directly to the original mode/stack
  * on exit (without transitioning back through the abort mode stack).
  */
 ASENTRY_NP(data_abort_entry)
@@ -360,11 +357,10 @@ END(data_abort_entry)
  * Entry point for an Undefined Instruction exception.
  *
  * The hardware switches to the undefined mode stack; we switch to svc32 before
- * calling the handler, then return directly to the original mode/stack 
+ * calling the handler, then return directly to the original mode/stack
  * on exit (without transitioning back through the undefined mode stack).
  */
 ASENTRY_NP(undefined_entry)
-	sub	lr, lr, #4		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit      /* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */
@@ -375,7 +371,7 @@ END(undefined_entry)
  * Entry point for a normal IRQ.
  *
  * The hardware switches to the IRQ mode stack; we switch to svc32 before
- * calling the handler, then return directly to the original mode/stack 
+ * calling the handler, then return directly to the original mode/stack
  * on exit (without transitioning back through the IRQ mode stack).
  */
 ASENTRY_NP(irq_entry)
@@ -384,12 +380,12 @@ ASENTRY_NP(irq_entry)
 	adr	lr, exception_exit	/* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */
 	b	_C_LABEL(arm_irq_handler)/* trapframe to the handler. */
-END(irq_entry)                           
+END(irq_entry)
 
 /*
  * Entry point for an FIQ interrupt.
  *
- * We don't currently support FIQ handlers very much.  Something can 
+ * We don't currently support FIQ handlers very much.  Something can
  * install itself in the FIQ vector using code (that may or may not work
  * these days) in fiq.c.  If nobody does that and an FIQ happens, this
  * default handler just disables FIQs and otherwise ignores it.
@@ -417,7 +413,7 @@ Laddr_exception_msg:
 END(addr_exception_entry)
 
 /*
- * Entry point for the system Reset vector.  
+ * Entry point for the system Reset vector.
  * This should never happen, so panic.
  */
 ASENTRY_NP(reset_entry)
@@ -435,8 +431,8 @@ END(reset_entry)
  * the ARM vectors page (high or low) as part of CPU initialization.  The
  * code that does the copy assumes that page0_data holds one 32-bit word
  * of data for each of the predefined ARM vectors.  It also assumes that
- * page0_data follows the vectors in page0, but other stuff can appear 
- * between the two.  We currently leave room between the two for some fiq 
+ * page0_data follows the vectors in page0, but other stuff can appear
+ * between the two.  We currently leave room between the two for some fiq
  * handler code to be copied in.
  */
 	.global	_C_LABEL(page0), _C_LABEL(page0_data)

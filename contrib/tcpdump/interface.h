@@ -148,8 +148,6 @@ extern uint16_t create_osi_cksum(const uint8_t *, int, int);
 
 #include <pcap.h>
 
-extern void pfsync_ip_print(const u_char *, u_int);
-
 extern char *q922_string(const u_char *);
 extern char *smb_errstr(int, int);
 extern const char *nt_errstr(uint32_t);

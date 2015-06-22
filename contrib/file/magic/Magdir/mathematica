@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: mathematica,v 1.7 2009/09/19 16:28:10 christos Exp $
+# $File: mathematica,v 1.8 2015/04/09 20:01:40 christos Exp $
 # mathematica:  file(1) magic for mathematica files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Mathematica a multi-purpose math program
@@ -8,13 +8,16 @@
 
 #mathematica .mb
 0	string	\064\024\012\000\035\000\000\000	Mathematica version 2 notebook
+!:ext mb
 0	string	\064\024\011\000\035\000\000\000	Mathematica version 2 notebook
+!:ext mb
 
 # .ma
 # multiple possibilites:
 
 0	string	(*^\n\n::[\011frontEndVersion\ =\ 	Mathematica notebook
 #>41	string	>\0	%s
+!:ext mb
 
 #0	string	(*^\n\n::[\011palette	Mathematica notebook version 2.x
 
@@ -25,13 +28,21 @@
 
 # generic:
 0	string	(*^\r\r::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\r\n\r\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\015			Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\n\r\n\r::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\r::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\r\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\n\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 
 
 # Mathematica .mx files

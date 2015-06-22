@@ -105,13 +105,6 @@ icl_conn_close(struct icl_conn *ic)
 	ICL_CONN_CLOSE(ic);
 }
 
-static inline bool
-icl_conn_connected(struct icl_conn *ic)
-{
-
-	return (ICL_CONN_CONNECTED(ic));
-}
-
 static inline int
 icl_conn_task_setup(struct icl_conn *ic, struct ccb_scsiio *csio,
     uint32_t *task_tagp, void **prvp)

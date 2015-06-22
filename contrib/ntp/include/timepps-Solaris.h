@@ -1,9 +1,9 @@
 /***********************************************************************
  *								       *
- * Copyright (c) David L. Mills 1999-2000			       *
+ * Copyright (c) David L. Mills 1999-2009			       *
  *								       *
  * Permission to use, copy, modify, and distribute this software and   *
- * its documentation for any purpose and without fee is hereby	       *
+ * its documentation for any purpose and with or without fee is hereby *
  * granted, provided that the above copyright notice appears in all    *
  * copies and that both the copyright notice and this permission       *
  * notice appear in supporting documentation, and that the name        *
@@ -178,25 +178,51 @@ typedef struct pps_params {
 #define assert_offset_ntpfp	assert_off_tu.ntpfp
 #define clear_offset_ntpfp	clear_off_tu.ntpfp
 
+/* addition of NTP fixed-point format */
+
+#define NTPFP_M_ADD(r_i, r_f, a_i, a_f) 	/* r += a */ \
+	do { \
+		register u_int32 lo_tmp; \
+		register u_int32 hi_tmp; \
+		\
+		lo_tmp = ((r_f) & 0xffff) + ((a_f) & 0xffff); \
+		hi_tmp = (((r_f) >> 16) & 0xffff) + (((a_f) >> 16) & 0xffff); \
+		if (lo_tmp & 0x10000) \
+			hi_tmp++; \
+		(r_f) = ((hi_tmp & 0xffff) << 16) | (lo_tmp & 0xffff); \
+		\
+		(r_i) += (a_i); \
+		if (hi_tmp & 0x10000) \
+			(r_i)++; \
+	} while (0)
+
+#define	NTPFP_L_ADDS(r, a)	NTPFP_M_ADD((r)->integral, (r)->fractional, \
+					    (int)(a)->integral, (a)->fractional)
+
 /*
  * The following definitions are architecture-dependent
  */
 
 #define PPS_CAP (PPS_CAPTUREASSERT | PPS_OFFSETASSERT | PPS_TSFMT_TSPEC | PPS_TSFMT_NTPFP)
-#define PPS_RO	(PPS_CANWAIT | PPS_CANPOLL | PPS_TSFMT_TSPEC | PPS_TSFMT_NTPFP)
+#define PPS_RO	(PPS_CANWAIT | PPS_CANPOLL)
 
 typedef struct {
 	int filedes;		/* file descriptor */
 	pps_params_t params;	/* PPS parameters set by user */
 } pps_unit_t;
 
-typedef pps_unit_t* pps_handle_t; /* pps handlebars */
-
 /*
  *------ Here begins the implementation-specific part! ------
  */
 
 #include <errno.h>
+
+/*
+ * pps handlebars, which are required to be an opaque scalar.  This
+ * implementation uses the handle as a pointer so it must be large
+ * enough.  uintptr_t is as large as a pointer.
+ */
+typedef uintptr_t pps_handle_t; 
 
 /*
  * create PPS handle from file descriptor
@@ -208,6 +234,7 @@ time_pps_create(
 	pps_handle_t *handle	/* returned handle */
 	)
 {
+	pps_unit_t *punit;
 	int one = 1;
 
 	/*
@@ -228,16 +255,18 @@ time_pps_create(
 	 * Allocate and initialize default unit structure.
 	 */
 
-	*handle = malloc(sizeof(pps_unit_t));
-	if (!(*handle)) {
-		errno = EBADF;
+	punit = malloc(sizeof(*punit));
+	if (NULL == punit) {
+		errno = ENOMEM;
 		return (-1);	/* what, no memory? */
 	}
 
-	memset(*handle, 0, sizeof(pps_unit_t));
-	(*handle)->filedes = filedes;
-	(*handle)->params.api_version = PPS_API_VERS_1;
-	(*handle)->params.mode = PPS_CAPTUREASSERT | PPS_TSFMT_TSPEC;
+	memset(punit, 0, sizeof(*punit));
+	punit->filedes = filedes;
+	punit->params.api_version = PPS_API_VERS_1;
+	punit->params.mode = PPS_CAPTUREASSERT | PPS_TSFMT_TSPEC;
+
+	*handle = (pps_handle_t)punit;
 	return (0);
 }
 
@@ -250,6 +279,8 @@ time_pps_destroy(
 	pps_handle_t handle
 	)
 {
+	pps_unit_t *punit;
+
 	/*
 	 * Check for valid arguments and detach PPS signal.
 	 */
@@ -258,7 +289,8 @@ time_pps_destroy(
 		errno = EBADF;
 		return (-1);	/* bad handle */
 	}
-	free(handle);
+	punit = (pps_unit_t *)handle;
+	free(punit);
 	return (0);
 }
 
@@ -272,7 +304,8 @@ time_pps_setparams(
 	const pps_params_t *params
 	)
 {
-	int	mode, mode_in;
+	pps_unit_t *	punit;
+	int		mode, mode_in;
 	/*
 	 * Check for valid arguments and set parameters.
 	 */
@@ -302,14 +335,42 @@ time_pps_setparams(
 	 */
 
 	mode_in = params->mode;
+	punit = (pps_unit_t *)handle;
+
+	/*
+	 * Only one of the time formats may be selected
+	 * if a nonzero assert offset is supplied.
+	 */
+	if ((mode_in & (PPS_TSFMT_TSPEC | PPS_TSFMT_NTPFP)) ==
+	    (PPS_TSFMT_TSPEC | PPS_TSFMT_NTPFP)) {
+
+		if (punit->params.assert_offset.tv_sec ||
+			punit->params.assert_offset.tv_nsec) {
+
+			errno = EINVAL;
+			return(-1);
+		}
+
+		/*
+		 * If no offset was specified but both time
+		 * format flags are used consider it harmless
+		 * but turn off PPS_TSFMT_NTPFP so getparams
+		 * will not show both formats lit.
+		 */
+		mode_in &= ~PPS_TSFMT_NTPFP;
+	}
 
 	/* turn off read-only bits */
 
 	mode_in &= ~PPS_RO;
 
-	/* test remaining bits, should only have captureassert and/or offsetassert */
+	/*
+	 * test remaining bits, should only have captureassert, 
+	 * offsetassert, and/or timestamp format bits.
+	 */
 
-	if (mode_in & ~(PPS_CAPTUREASSERT | PPS_OFFSETASSERT)) {
+	if (mode_in & ~(PPS_CAPTUREASSERT | PPS_OFFSETASSERT |
+			PPS_TSFMT_TSPEC | PPS_TSFMT_NTPFP)) {
 		errno = EOPNOTSUPP;
 		return(-1);
 	}
@@ -318,10 +379,10 @@ time_pps_setparams(
 	 * ok, ready to go.
 	 */
 
-	mode = handle->params.mode;
-	memcpy(&handle->params, params, sizeof(pps_params_t));
-	handle->params.api_version = PPS_API_VERS_1;
-	handle->params.mode = mode | mode_in;
+	mode = punit->params.mode;
+	memcpy(&punit->params, params, sizeof(punit->params));
+	punit->params.api_version = PPS_API_VERS_1;
+	punit->params.mode = mode | mode_in;
 	return (0);
 }
 
@@ -335,6 +396,8 @@ time_pps_getparams(
 	pps_params_t *params
 	)
 {
+	pps_unit_t *	punit;
+
 	/*
 	 * Check for valid arguments and get parameters.
 	 */
@@ -349,11 +412,12 @@ time_pps_getparams(
 		return (-1);	/* bad argument */
 	}
 
-	memcpy(params, &handle->params, sizeof(pps_params_t));
+	punit = (pps_unit_t *)handle;
+	memcpy(params, &punit->params, sizeof(*params));
 	return (0);
 }
 
-/* (
+/*
  * get capabilities for handle
  */
 
@@ -397,7 +461,8 @@ time_pps_fetch(
 		u_int serial;
 	} ev;
 
-	pps_info_t infobuf;
+	pps_info_t	infobuf;
+	pps_unit_t *	punit;
 
 	/*
 	 * Check for valid arguments and fetch timestamps
@@ -419,56 +484,58 @@ time_pps_fetch(
 	 */
 
 	memset(&infobuf, 0, sizeof(infobuf));
+	punit = (pps_unit_t *)handle;
 
 	/*
 	 * if not captureassert, nothing to return.
 	 */
 
-	if (!handle->params.mode & PPS_CAPTUREASSERT) {
-		memcpy(ppsinfo, &infobuf, sizeof(pps_info_t));
+	if (!punit->params.mode & PPS_CAPTUREASSERT) {
+		memcpy(ppsinfo, &infobuf, sizeof(*ppsinfo));
 		return (0);
 	}
 
-	if (ioctl(handle->filedes, TIOCGPPSEV, (caddr_t) &ev) < 0) {
+	if (ioctl(punit->filedes, TIOCGPPSEV, (caddr_t) &ev) < 0) {
 		perror("time_pps_fetch:");
 		errno = EOPNOTSUPP;
 		return(-1);
 	}
 
-	/*
-	 * Apply offsets as specified. Note that only assert timestamps
-	 * are captured by this interface.
-	 */
-
 	infobuf.assert_sequence = ev.serial;
 	infobuf.assert_timestamp.tv_sec = ev.tv.tv_sec;
 	infobuf.assert_timestamp.tv_nsec = ev.tv.tv_usec * 1000;
 
-	if (handle->params.mode & PPS_OFFSETASSERT) {
-		infobuf.assert_timestamp.tv_sec  += handle->params.assert_offset.tv_sec;
-		infobuf.assert_timestamp.tv_nsec += handle->params.assert_offset.tv_nsec;
-		PPS_NORMALIZE(infobuf.assert_timestamp);
-	}
-
 	/*
-	 * Translate to specified format
+	 * Translate to specified format then apply offset
 	 */
 
 	switch (tsformat) {
 	case PPS_TSFMT_TSPEC:
-		break;		 /* timespec format requires no translation */
-
-	case PPS_TSFMT_NTPFP:	/* NTP format requires conversion to fraction form */
-		PPS_TSPECTONTP(infobuf.assert_timestamp_ntpfp);
+		/* timespec format requires no conversion */
+		if (punit->params.mode & PPS_OFFSETASSERT) {
+			infobuf.assert_timestamp.tv_sec  += 
+				punit->params.assert_offset.tv_sec;
+			infobuf.assert_timestamp.tv_nsec += 
+				punit->params.assert_offset.tv_nsec;
+			PPS_NORMALIZE(infobuf.assert_timestamp);
+		}
 		break;
+
+	case PPS_TSFMT_NTPFP:
+		/* NTP format requires conversion to fraction form */
+		PPS_TSPECTONTP(infobuf.assert_timestamp_ntpfp);
+		if (punit->params.mode & PPS_OFFSETASSERT)
+			NTPFP_L_ADDS(&infobuf.assert_timestamp_ntpfp, 
+				     &punit->params.assert_offset_ntpfp);
+		break;		
 
 	default:
 		errno = EINVAL;
 		return (-1);
 	}
 
-	infobuf.current_mode = handle->params.mode;
-	memcpy(ppsinfo, &infobuf, sizeof(pps_info_t));
+	infobuf.current_mode = punit->params.mode;
+	memcpy(ppsinfo, &infobuf, sizeof(*ppsinfo));
 	return (0);
 }
 
@@ -480,7 +547,8 @@ static inline int
 time_pps_kcbind(
 	pps_handle_t handle,
 	const int kernel_consumer,
-	const int edge, const int tsformat
+	const int edge,
+	const int tsformat
 	)
 {
 	/*

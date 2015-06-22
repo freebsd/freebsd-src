@@ -24,8 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <assert.h>
 #include <errno.h>
@@ -35,7 +33,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: elftc_demangle.c 3030 2014-05-01 06:30:48Z kaiwang27 $");
+ELFTC_VCSID("$Id: elftc_demangle.c 3174 2015-03-27 17:13:41Z emaste $");
 
 static int
 is_mangled(const char *s, int style)

@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_lineno.c 3100 2014-10-25 20:34:29Z jkoshy $");
+ELFTC_VCSID("$Id: libdwarf_lineno.c 3164 2015-02-19 01:20:12Z kaiwang27 $");
 
 static int
 _dwarf_lineno_add_file(Dwarf_LineInfo li, uint8_t **p, const char *compdir,
@@ -315,6 +315,8 @@ _dwarf_lineno_init(Dwarf_Die die, uint64_t offset, Dwarf_Error *error)
 	li->li_hdrlen = dbg->read(ds->ds_data, &offset, dwarf_size);
 	hdroff = offset;
 	li->li_minlen = dbg->read(ds->ds_data, &offset, 1);
+	if (li->li_version == 4)
+		li->li_maxop = dbg->read(ds->ds_data, &offset, 1);
 	li->li_defstmt = dbg->read(ds->ds_data, &offset, 1);
 	li->li_lbase = dbg->read(ds->ds_data, &offset, 1);
 	li->li_lrange = dbg->read(ds->ds_data, &offset, 1);

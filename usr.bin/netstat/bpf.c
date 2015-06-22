@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #include <arpa/inet.h>

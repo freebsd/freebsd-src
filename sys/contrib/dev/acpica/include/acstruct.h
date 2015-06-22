@@ -69,11 +69,6 @@
 #define ACPI_WALK_METHOD            0x01
 #define ACPI_WALK_METHOD_RESTART    0x02
 
-/* Flags for iASL compiler only */
-
-#define ACPI_WALK_CONST_REQUIRED    0x10
-#define ACPI_WALK_CONST_OPTIONAL    0x20
-
 
 typedef struct acpi_walk_state
 {
@@ -90,6 +85,7 @@ typedef struct acpi_walk_state
     UINT8                           ReturnUsed;
     UINT8                           ScopeDepth;
     UINT8                           PassNumber;         /* Parse pass during table load */
+    BOOLEAN                         NamespaceOverride;  /* Override existing objects */
     UINT8                           ResultSize;         /* Total elements for the result stack */
     UINT8                           ResultCount;        /* Current number of occupied elements of result stack */
     UINT32                          AmlOffset;

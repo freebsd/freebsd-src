@@ -31,9 +31,9 @@ static const struct bgscan_ops * bgscan_modules[] = {
 };
 
 
-int bgscan_init(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
+int bgscan_init(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
+		const char *name)
 {
-	const char *name = ssid->bgscan;
 	const char *params;
 	size_t nlen;
 	int i;
@@ -41,7 +41,7 @@ int bgscan_init(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 
 	bgscan_deinit(wpa_s);
 	if (name == NULL)
-		return 0;
+		return -1;
 
 	params = os_strchr(name, ':');
 	if (params == NULL) {

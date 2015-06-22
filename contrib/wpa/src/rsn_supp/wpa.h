@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant - WPA definitions
- * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -12,10 +12,12 @@
 #include "common/defs.h"
 #include "common/eapol_common.h"
 #include "common/wpa_common.h"
+#include "common/ieee802_11_defs.h"
 
 struct wpa_sm;
 struct eapol_sm;
 struct wpa_config_blob;
+struct hostapd_freq_params;
 
 struct wpa_sm_ctx {
 	void *ctx; /* pointer to arbitrary upper level context */
@@ -50,17 +52,31 @@ struct wpa_sm_ctx {
 	int (*mark_authenticated)(void *ctx, const u8 *target_ap);
 #ifdef CONFIG_TDLS
 	int (*tdls_get_capa)(void *ctx, int *tdls_supported,
-			     int *tdls_ext_setup);
+			     int *tdls_ext_setup, int *tdls_chan_switch);
 	int (*send_tdls_mgmt)(void *ctx, const u8 *dst,
 			      u8 action_code, u8 dialog_token,
-			      u16 status_code, const u8 *buf, size_t len);
+			      u16 status_code, u32 peer_capab,
+			      int initiator, const u8 *buf, size_t len);
 	int (*tdls_oper)(void *ctx, int oper, const u8 *peer);
-	int (*tdls_peer_addset)(void *ctx, const u8 *addr, int add,
+	int (*tdls_peer_addset)(void *ctx, const u8 *addr, int add, u16 aid,
 				u16 capability, const u8 *supp_rates,
-				size_t supp_rates_len);
+				size_t supp_rates_len,
+				const struct ieee80211_ht_capabilities *ht_capab,
+				const struct ieee80211_vht_capabilities *vht_capab,
+				u8 qosinfo, int wmm, const u8 *ext_capab,
+				size_t ext_capab_len, const u8 *supp_channels,
+				size_t supp_channels_len,
+				const u8 *supp_oper_classes,
+				size_t supp_oper_classes_len);
+	int (*tdls_enable_channel_switch)(
+		void *ctx, const u8 *addr, u8 oper_class,
+		const struct hostapd_freq_params *params);
+	int (*tdls_disable_channel_switch)(void *ctx, const u8 *addr);
 #endif /* CONFIG_TDLS */
-	void (*set_rekey_offload)(void *ctx, const u8 *kek, const u8 *kck,
+	void (*set_rekey_offload)(void *ctx, const u8 *kek, size_t kek_len,
+				  const u8 *kck, size_t kck_len,
 				  const u8 *replay_ctr);
+	int (*key_mgmt_set_pmk)(void *ctx, const u8 *pmk, size_t pmk_len);
 };
 
 
@@ -87,6 +103,7 @@ struct rsn_supp_config {
 	const u8 *ssid;
 	size_t ssid_len;
 	int wpa_ptk_rekey;
+	int p2p;
 };
 
 #ifndef CONFIG_NO_WPA
@@ -95,7 +112,8 @@ struct wpa_sm * wpa_sm_init(struct wpa_sm_ctx *ctx);
 void wpa_sm_deinit(struct wpa_sm *sm);
 void wpa_sm_notify_assoc(struct wpa_sm *sm, const u8 *bssid);
 void wpa_sm_notify_disassoc(struct wpa_sm *sm);
-void wpa_sm_set_pmk(struct wpa_sm *sm, const u8 *pmk, size_t pmk_len);
+void wpa_sm_set_pmk(struct wpa_sm *sm, const u8 *pmk, size_t pmk_len,
+		    const u8 *bssid);
 void wpa_sm_set_pmk_from_pmksa(struct wpa_sm *sm);
 void wpa_sm_set_fast_reauth(struct wpa_sm *sm, int fast_reauth);
 void wpa_sm_set_scard_ctx(struct wpa_sm *sm, void *scard_ctx);
@@ -113,11 +131,10 @@ int wpa_sm_get_mib(struct wpa_sm *sm, char *buf, size_t buflen);
 
 int wpa_sm_set_param(struct wpa_sm *sm, enum wpa_sm_conf_params param,
 		     unsigned int value);
-unsigned int wpa_sm_get_param(struct wpa_sm *sm,
-			      enum wpa_sm_conf_params param);
 
 int wpa_sm_get_status(struct wpa_sm *sm, char *buf, size_t buflen,
 		      int verbose);
+int wpa_sm_pmf_enabled(struct wpa_sm *sm);
 
 void wpa_sm_key_request(struct wpa_sm *sm, int error, int pairwise);
 
@@ -135,6 +152,13 @@ int wpa_sm_has_ptk(struct wpa_sm *sm);
 void wpa_sm_update_replay_ctr(struct wpa_sm *sm, const u8 *replay_ctr);
 
 void wpa_sm_pmksa_cache_flush(struct wpa_sm *sm, void *network_ctx);
+
+int wpa_sm_get_p2p_ip_addr(struct wpa_sm *sm, u8 *buf);
+
+void wpa_sm_set_rx_replay_ctr(struct wpa_sm *sm, const u8 *rx_replay_counter);
+void wpa_sm_set_ptk_kck_kek(struct wpa_sm *sm,
+			    const u8 *ptk_kck, size_t ptk_kck_len,
+			    const u8 *ptk_kek, size_t ptk_kek_len);
 
 #else /* CONFIG_NO_WPA */
 
@@ -227,14 +251,13 @@ static inline int wpa_sm_set_param(struct wpa_sm *sm,
 	return -1;
 }
 
-static inline unsigned int wpa_sm_get_param(struct wpa_sm *sm,
-					    enum wpa_sm_conf_params param)
+static inline int wpa_sm_get_status(struct wpa_sm *sm, char *buf,
+				    size_t buflen, int verbose)
 {
 	return 0;
 }
 
-static inline int wpa_sm_get_status(struct wpa_sm *sm, char *buf,
-				    size_t buflen, int verbose)
+static inline int wpa_sm_pmf_enabled(struct wpa_sm *sm)
 {
 	return 0;
 }
@@ -291,14 +314,32 @@ static inline void wpa_sm_pmksa_cache_flush(struct wpa_sm *sm,
 {
 }
 
+static inline void wpa_sm_set_rx_replay_ctr(struct wpa_sm *sm,
+					    const u8 *rx_replay_counter)
+{
+}
+
+static inline void wpa_sm_set_ptk_kck_kek(struct wpa_sm *sm, const u8 *ptk_kck,
+					  const u8 *ptk_kek)
+{
+}
+
 #endif /* CONFIG_NO_WPA */
 
 #ifdef CONFIG_PEERKEY
 int wpa_sm_stkstart(struct wpa_sm *sm, const u8 *peer);
+int wpa_sm_rx_eapol_peerkey(struct wpa_sm *sm, const u8 *src_addr,
+			    const u8 *buf, size_t len);
 #else /* CONFIG_PEERKEY */
 static inline int wpa_sm_stkstart(struct wpa_sm *sm, const u8 *peer)
 {
 	return -1;
+}
+
+static inline int wpa_sm_rx_eapol_peerkey(struct wpa_sm *sm, const u8 *src_addr,
+					  const u8 *buf, size_t len)
+{
+	return 0;
 }
 #endif /* CONFIG_PEERKEY */
 
@@ -310,6 +351,7 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 			    int ft_action, const u8 *target_ap,
 			    const u8 *ric_ies, size_t ric_ies_len);
 int wpa_ft_is_completed(struct wpa_sm *sm);
+void wpa_reset_ft_completed(struct wpa_sm *sm);
 int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 				 size_t ies_len, const u8 *src_addr);
 int wpa_ft_start_over_ds(struct wpa_sm *sm, const u8 *target_ap,
@@ -341,6 +383,10 @@ static inline int wpa_ft_is_completed(struct wpa_sm *sm)
 	return 0;
 }
 
+static inline void wpa_reset_ft_completed(struct wpa_sm *sm)
+{
+}
+
 static inline int
 wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 			     const u8 *src_addr)
@@ -355,15 +401,20 @@ wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 void wpa_tdls_ap_ies(struct wpa_sm *sm, const u8 *ies, size_t len);
 void wpa_tdls_assoc_resp_ies(struct wpa_sm *sm, const u8 *ies, size_t len);
 int wpa_tdls_start(struct wpa_sm *sm, const u8 *addr);
-int wpa_tdls_reneg(struct wpa_sm *sm, const u8 *addr);
-int wpa_tdls_send_teardown(struct wpa_sm *sm, const u8 *addr, u16 reason_code);
+void wpa_tdls_remove(struct wpa_sm *sm, const u8 *addr);
 int wpa_tdls_teardown_link(struct wpa_sm *sm, const u8 *addr, u16 reason_code);
 int wpa_tdls_send_discovery_request(struct wpa_sm *sm, const u8 *addr);
 int wpa_tdls_init(struct wpa_sm *sm);
+void wpa_tdls_teardown_peers(struct wpa_sm *sm);
 void wpa_tdls_deinit(struct wpa_sm *sm);
 void wpa_tdls_enable(struct wpa_sm *sm, int enabled);
-void wpa_tdls_disable_link(struct wpa_sm *sm, const u8 *addr);
+void wpa_tdls_disable_unreachable_link(struct wpa_sm *sm, const u8 *addr);
+const char * wpa_tdls_get_link_status(struct wpa_sm *sm, const u8 *addr);
 int wpa_tdls_is_external_setup(struct wpa_sm *sm);
+int wpa_tdls_enable_chan_switch(struct wpa_sm *sm, const u8 *addr,
+				u8 oper_class,
+				struct hostapd_freq_params *freq_params);
+int wpa_tdls_disable_chan_switch(struct wpa_sm *sm, const u8 *addr);
 
 int wpa_wnmsleep_install_key(struct wpa_sm *sm, u8 subelem_id, u8 *buf);
 

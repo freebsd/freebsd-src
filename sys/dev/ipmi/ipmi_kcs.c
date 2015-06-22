@@ -520,6 +520,7 @@ ipmi_kcs_attach(struct ipmi_softc *sc)
 	sc->ipmi_startup = kcs_startup;
 	sc->ipmi_enqueue_request = ipmi_polled_enqueue_request;
 	sc->ipmi_driver_request = kcs_driver_request;
+	sc->ipmi_driver_requests_polled = 1;
 
 	/* See if we can talk to the controller. */
 	status = INB(sc, KCS_CTL_STS);

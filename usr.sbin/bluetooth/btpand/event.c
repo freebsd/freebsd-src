@@ -45,6 +45,7 @@
 #include <syslog.h>
 
 #include "event.h"
+#define L2CAP_SOCKET_CHECKED
 #include "btpand.h"
 
 #define		__event_link(ev) \

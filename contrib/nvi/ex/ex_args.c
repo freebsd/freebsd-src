@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: ex_args.c,v 10.19 2011/12/16 16:18:10 zy Exp 
 #include "../common/common.h"
 #include "../vi/vi.h"
 
-static int ex_N_next __P((SCR *, EXCMD *));
+static int ex_N_next(SCR *, EXCMD *);
 
 /*
  * ex_next -- :next [+cmd] [files]
@@ -39,7 +39,7 @@ static int ex_N_next __P((SCR *, EXCMD *));
  * idea was that it ignored the force flag if the autowrite flag was
  * set.  This implementation handles them all identically.
  *
- * PUBLIC: int ex_next __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_next(SCR *, EXCMD *);
  */
 int
 ex_next(SCR *sp, EXCMD *cmdp)
@@ -171,7 +171,7 @@ ex_N_next(SCR *sp, EXCMD *cmdp)
  * ex_prev -- :prev
  *	Edit the previous file.
  *
- * PUBLIC: int ex_prev __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_prev(SCR *, EXCMD *);
  */
 int
 ex_prev(SCR *sp, EXCMD *cmdp)
@@ -220,7 +220,7 @@ ex_prev(SCR *sp, EXCMD *cmdp)
  * anyone noticing, but if they do, we'll have to put information into the SCR
  * structure so we can keep track of it.
  *
- * PUBLIC: int ex_rew __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_rew(SCR *, EXCMD *);
  */
 int
 ex_rew(SCR *sp, EXCMD *cmdp)
@@ -258,7 +258,7 @@ ex_rew(SCR *sp, EXCMD *cmdp)
  * ex_args -- :args
  *	Display the list of files.
  *
- * PUBLIC: int ex_args __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_args(SCR *, EXCMD *);
  */
 int
 ex_args(SCR *sp, EXCMD *cmdp)
@@ -299,7 +299,7 @@ ex_args(SCR *sp, EXCMD *cmdp)
  * ex_buildargv --
  *	Build a new file argument list.
  *
- * PUBLIC: char **ex_buildargv __P((SCR *, EXCMD *, char *));
+ * PUBLIC: char **ex_buildargv(SCR *, EXCMD *, char *);
  */
 char **
 ex_buildargv(SCR *sp, EXCMD *cmdp, char *name)

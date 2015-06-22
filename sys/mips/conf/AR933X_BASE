@@ -20,8 +20,7 @@ files		"../atheros/files.ar71xx"
 hints		"AR933X_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-# makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc"
-makeoptions	MODULES_OVERRIDE=""
+makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_vlan if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr hwpmc ipfw"
 
 options 	DDB
 options 	KDB
@@ -63,6 +62,8 @@ options 	FFS                     #Berkeley Fast Filesystem
 #options 	UFS_ACL                 #Support for access control lists
 #options 	UFS_DIRHASH             #Improve performance on big directories
 options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
+
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
 
 # Wireless NIC cards
 options 	IEEE80211_DEBUG

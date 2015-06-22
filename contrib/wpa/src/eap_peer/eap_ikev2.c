@@ -1,6 +1,6 @@
 /*
  * EAP-IKEv2 peer (RFC 5106)
- * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2007-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -60,6 +60,7 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	struct eap_ikev2_data *data;
 	const u8 *identity, *password;
 	size_t identity_len, password_len;
+	int fragment_size;
 
 	identity = eap_get_config_identity(sm, &identity_len);
 	if (identity == NULL) {
@@ -71,7 +72,11 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	if (data == NULL)
 		return NULL;
 	data->state = WAIT_START;
-	data->fragment_size = IKEV2_FRAGMENT_SIZE;
+	fragment_size = eap_get_config_fragment_size(sm);
+	if (fragment_size <= 0)
+		data->fragment_size = IKEV2_FRAGMENT_SIZE;
+	else
+		data->fragment_size = fragment_size;
 	data->ikev2.state = SA_INIT;
 	data->ikev2.peer_auth = PEER_AUTH_SECRET;
 	data->ikev2.key_pad = (u8 *) os_strdup("Key Pad for EAP-IKEv2");
@@ -108,7 +113,7 @@ static void eap_ikev2_deinit(struct eap_sm *sm, void *priv)
 	wpabuf_free(data->in_buf);
 	wpabuf_free(data->out_buf);
 	ikev2_responder_deinit(&data->ikev2);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -149,12 +154,6 @@ static struct wpabuf * eap_ikev2_build_msg(struct eap_ikev2_data *data,
 			send_len -= 4;
 		}
 	}
-#ifdef CCNS_PL
-	/* Some issues figuring out the length of the message if Message Length
-	 * field not included?! */
-	if (!(flags & IKEV2_FLAGS_LENGTH_INCLUDED))
-		flags |= IKEV2_FLAGS_LENGTH_INCLUDED;
-#endif /* CCNS_PL */
 
 	plen = 1 + send_len;
 	if (flags & IKEV2_FLAGS_LENGTH_INCLUDED)
@@ -246,7 +245,8 @@ static struct wpabuf * eap_ikev2_build_msg(struct eap_ikev2_data *data,
 
 static int eap_ikev2_process_icv(struct eap_ikev2_data *data,
 				 const struct wpabuf *reqData,
-				 u8 flags, const u8 *pos, const u8 **end)
+				 u8 flags, const u8 *pos, const u8 **end,
+				 int frag_ack)
 {
 	if (flags & IKEV2_FLAGS_ICV_INCLUDED) {
 		int icv_len = eap_ikev2_validate_icv(
@@ -256,7 +256,7 @@ static int eap_ikev2_process_icv(struct eap_ikev2_data *data,
 			return -1;
 		/* Hide Integrity Checksum Data from further processing */
 		*end -= icv_len;
-	} else if (data->keys_ready) {
+	} else if (data->keys_ready && !frag_ack) {
 		wpa_printf(MSG_INFO, "EAP-IKEV2: The message should have "
 			   "included integrity checksum");
 		return -1;
@@ -301,6 +301,13 @@ static struct wpabuf * eap_ikev2_process_fragment(struct eap_ikev2_data *data,
 
 	if (data->in_buf == NULL) {
 		/* First fragment of the message */
+		if (message_length > 50000) {
+			/* Limit maximum memory allocation */
+			wpa_printf(MSG_DEBUG,
+				   "EAP-IKEV2: Ignore too long message");
+			ret->ignore = TRUE;
+			return NULL;
+		}
 		data->in_buf = wpabuf_alloc(message_length);
 		if (data->in_buf == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-IKEV2: No memory for "
@@ -315,6 +322,7 @@ static struct wpabuf * eap_ikev2_process_fragment(struct eap_ikev2_data *data,
 			   (unsigned long) wpabuf_tailroom(data->in_buf));
 	}
 
+	ret->ignore = FALSE;
 	return eap_ikev2_build_frag_ack(id, EAP_CODE_RESPONSE);
 }
 
@@ -346,7 +354,9 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 	else
 		flags = *pos++;
 
-	if (eap_ikev2_process_icv(data, reqData, flags, pos, &end) < 0) {
+	if (eap_ikev2_process_icv(data, reqData, flags, pos, &end,
+				  data->state == WAIT_FRAG_ACK && len == 0) < 0)
+	{
 		ret->ignore = TRUE;
 		return NULL;
 	}
@@ -373,12 +383,7 @@ static struct wpabuf * eap_ikev2_process(struct eap_sm *sm, void *priv,
 		   "Message Length %u", flags, message_length);
 
 	if (data->state == WAIT_FRAG_ACK) {
-#ifdef CCNS_PL
-		if (len > 1) /* Empty Flags field included in ACK */
-#else /* CCNS_PL */
-		if (len != 0)
-#endif /* CCNS_PL */
-		{
+		if (len != 0) {
 			wpa_printf(MSG_DEBUG, "EAP-IKEV2: Unexpected payload "
 				   "in WAIT_FRAG_ACK state");
 			ret->ignore = TRUE;
@@ -475,6 +480,36 @@ static u8 * eap_ikev2_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
+static u8 * eap_ikev2_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_ikev2_data *data = priv;
+	u8 *sid;
+	size_t sid_len;
+	size_t offset;
+
+	if (data->state != DONE || !data->keymat_ok)
+		return NULL;
+
+	sid_len = 1 + data->ikev2.i_nonce_len + data->ikev2.r_nonce_len;
+	sid = os_malloc(sid_len);
+	if (sid) {
+		offset = 0;
+		sid[offset] = EAP_TYPE_IKEV2;
+		offset++;
+		os_memcpy(sid + offset, data->ikev2.i_nonce,
+			  data->ikev2.i_nonce_len);
+		offset += data->ikev2.i_nonce_len;
+		os_memcpy(sid + offset, data->ikev2.r_nonce,
+			  data->ikev2.r_nonce_len);
+		*len = sid_len;
+		wpa_hexdump(MSG_DEBUG, "EAP-IKEV2: Derived Session-Id",
+			    sid, sid_len);
+	}
+
+	return sid;
+}
+
+
 int eap_peer_ikev2_register(void)
 {
 	struct eap_method *eap;
@@ -492,6 +527,7 @@ int eap_peer_ikev2_register(void)
 	eap->isKeyAvailable = eap_ikev2_isKeyAvailable;
 	eap->getKey = eap_ikev2_getKey;
 	eap->get_emsk = eap_ikev2_get_emsk;
+	eap->getSessionId = eap_ikev2_get_session_id;
 
 	ret = eap_peer_method_register(eap);
 	if (ret)

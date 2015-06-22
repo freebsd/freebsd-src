@@ -113,8 +113,8 @@ static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
-static int buf_flush(int);
-static int flushbufqueues(int, int);
+static int buf_flush(struct vnode *vp, int);
+static int flushbufqueues(struct vnode *, int, int);
 static void buf_daemon(void);
 static void bremfreel(struct buf *bp);
 static __inline void bd_wakeup(void);
@@ -805,6 +805,7 @@ bufinit(void)
 	struct buf *bp;
 	int i;
 
+	CTASSERT(MAXBCACHEBUF >= MAXBSIZE);
 	mtx_init(&bqclean, "bufq clean lock", NULL, MTX_DEF);
 	mtx_init(&bqdirty, "bufq dirty lock", NULL, MTX_DEF);
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
@@ -846,8 +847,8 @@ bufinit(void)
 	 * by the system.
 	 */
 	maxbufspace = (long)nbuf * BKVASIZE;
-	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
-	lobufspace = hibufspace - MAXBSIZE;
+	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBCACHEBUF * 10);
+	lobufspace = hibufspace - MAXBCACHEBUF;
 
 	/*
 	 * Note: The 16 MiB upper limit for hirunningspace was chosen
@@ -857,9 +858,9 @@ bufinit(void)
 	 * The lower 1 MiB limit is the historical upper limit for
 	 * hirunningspace.
 	 */
-	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBSIZE),
+	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBCACHEBUF),
 	    16 * 1024 * 1024), 1024 * 1024);
-	lorunningspace = roundup((hirunningspace * 2) / 3, MAXBSIZE);
+	lorunningspace = roundup((hirunningspace * 2) / 3, MAXBCACHEBUF);
 
 /*
  * Limit the amount of malloc memory since it is wired permanently into
@@ -2096,7 +2097,7 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 {
 	struct thread *td;
 	char *waitmsg;
-	int cnt, error, flags, norunbuf, wait;
+	int error, fl, flags, norunbuf;
 
 	mtx_assert(&bqclean, MA_OWNED);
 
@@ -2118,8 +2119,6 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 		return;
 
 	td = curthread;
-	cnt = 0;
-	wait = MNT_NOWAIT;
 	rw_wlock(&nblock);
 	while ((needsbuffer & flags) != 0) {
 		if (vp != NULL && vp->v_type != VCHR &&
@@ -2133,20 +2132,23 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 			 * cannot be achieved by the buf_daemon, that
 			 * cannot lock the vnode.
 			 */
-			if (cnt++ > 2)
-				wait = MNT_WAIT;
-			ASSERT_VOP_LOCKED(vp, "bufd_helper");
-			error = VOP_ISLOCKED(vp) == LK_EXCLUSIVE ? 0 :
-			    vn_lock(vp, LK_TRYUPGRADE);
-			if (error == 0) {
-				/* play bufdaemon */
-				norunbuf = curthread_pflags_set(TDP_BUFNEED |
-				    TDP_NORUNNINGBUF);
-				VOP_FSYNC(vp, wait, td);
-				atomic_add_long(&notbufdflushes, 1);
-				curthread_pflags_restore(norunbuf);
-			}
+			norunbuf = ~(TDP_BUFNEED | TDP_NORUNNINGBUF) |
+			    (td->td_pflags & TDP_NORUNNINGBUF);
+
+			/*
+			 * Play bufdaemon.  The getnewbuf() function
+			 * may be called while the thread owns lock
+			 * for another dirty buffer for the same
+			 * vnode, which makes it impossible to use
+			 * VOP_FSYNC() there, due to the buffer lock
+			 * recursion.
+			 */
+			td->td_pflags |= TDP_BUFNEED | TDP_NORUNNINGBUF;
+			fl = buf_flush(vp, flushbufqtarget);
+			td->td_pflags &= norunbuf;
 			rw_wlock(&nblock);
+			if (fl != 0)
+				continue;
 			if ((needsbuffer & flags) == 0)
 				break;
 		}
@@ -2565,18 +2567,20 @@ static struct kproc_desc buf_kp = {
 SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start, &buf_kp);
 
 static int
-buf_flush(int target)
+buf_flush(struct vnode *vp, int target)
 {
 	int flushed;
 
-	flushed = flushbufqueues(target, 0);
+	flushed = flushbufqueues(vp, target, 0);
 	if (flushed == 0) {
 		/*
 		 * Could not find any buffers without rollback
 		 * dependencies, so just write the first one
 		 * in the hopes of eventually making progress.
 		 */
-		flushed = flushbufqueues(target, 1);
+		if (vp != NULL && target > 2)
+			target /= 2;
+		flushbufqueues(vp, target, 1);
 	}
 	return (flushed);
 }
@@ -2613,7 +2617,7 @@ buf_daemon()
 		 * the I/O system.
 		 */
 		while (numdirtybuffers > lodirty) {
-			if (buf_flush(numdirtybuffers - lodirty) == 0)
+			if (buf_flush(NULL, numdirtybuffers - lodirty) == 0)
 				break;
 			kern_yield(PRI_USER);
 		}
@@ -2668,7 +2672,7 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
     0, "Number of buffers flushed with dependecies that require rollbacks");
 
 static int
-flushbufqueues(int target, int flushdeps)
+flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 {
 	struct buf *sentinel;
 	struct vnode *vp;
@@ -2678,6 +2682,7 @@ flushbufqueues(int target, int flushdeps)
 	int flushed;
 	int queue;
 	int error;
+	bool unlock;
 
 	flushed = 0;
 	queue = QUEUE_DIRTY;
@@ -2699,8 +2704,18 @@ flushbufqueues(int target, int flushdeps)
 			mtx_unlock(&bqdirty);
 			break;
 		}
-		KASSERT(bp->b_qindex != QUEUE_SENTINEL,
-		    ("parallel calls to flushbufqueues() bp %p", bp));
+		/*
+		 * Skip sentinels inserted by other invocations of the
+		 * flushbufqueues(), taking care to not reorder them.
+		 *
+		 * Only flush the buffers that belong to the
+		 * vnode locked by the curthread.
+		 */
+		if (bp->b_qindex == QUEUE_SENTINEL || (lvp != NULL &&
+		    bp->b_vp != lvp)) {
+			mtx_unlock(&bqdirty);
+ 			continue;
+		}
 		error = BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL);
 		mtx_unlock(&bqdirty);
 		if (error != 0)
@@ -2748,16 +2763,37 @@ flushbufqueues(int target, int flushdeps)
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		error = vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT);
+		if (lvp == NULL) {
+			unlock = true;
+			error = vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT);
+		} else {
+			ASSERT_VOP_LOCKED(vp, "getbuf");
+			unlock = false;
+			error = VOP_ISLOCKED(vp) == LK_EXCLUSIVE ? 0 :
+			    vn_lock(vp, LK_TRYUPGRADE);
+		}
 		if (error == 0) {
 			CTR3(KTR_BUF, "flushbufqueue(%p) vp %p flags %X",
 			    bp, bp->b_vp, bp->b_flags);
-			vfs_bio_awrite(bp);
+			if (curproc == bufdaemonproc) {
+				vfs_bio_awrite(bp);
+			} else {
+				bremfree(bp);
+				bwrite(bp);
+				notbufdflushes++;
+			}
 			vn_finished_write(mp);
-			VOP_UNLOCK(vp, 0);
+			if (unlock)
+				VOP_UNLOCK(vp, 0);
 			flushwithdeps += hasdeps;
 			flushed++;
-			if (runningbufspace > hirunningspace)
+
+			/*
+			 * Sleeping on runningbufspace while holding
+			 * vnode lock leads to deadlock.
+			 */
+			if (curproc == bufdaemonproc &&
+			    runningbufspace > hirunningspace)
 				waitrunningbufspace();
 			continue;
 		}
@@ -3073,8 +3109,9 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 	KASSERT((flags & (GB_UNMAPPED | GB_KVAALLOC)) != GB_KVAALLOC,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	ASSERT_VOP_LOCKED(vp, "getblk");
-	if (size > MAXBSIZE)
-		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
+	if (size > MAXBCACHEBUF)
+		panic("getblk: size(%d) > MAXBCACHEBUF(%d)\n", size,
+		    MAXBCACHEBUF);
 	if (!unmapped_buf_allowed)
 		flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 

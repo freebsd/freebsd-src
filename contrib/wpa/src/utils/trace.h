@@ -40,6 +40,7 @@ void wpa_trace_add_ref_func(struct wpa_trace_ref *ref, const void *addr);
 			dl_list_del(&(ptr)->wpa_trace_ref_##name.list); \
 	} while (0)
 void wpa_trace_check_ref(const void *addr);
+size_t wpa_trace_calling_func(const char *buf[], size_t len);
 
 #else /* WPA_TRACE */
 

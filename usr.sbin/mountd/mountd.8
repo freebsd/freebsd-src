@@ -38,7 +38,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2delnorS
+.Op Fl 2delnrS
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -69,8 +69,7 @@ Output debugging information.
 will not detach from the controlling terminal and will print
 debugging messages to stderr.
 .It Fl e
-The new NFS server that includes NFSv4 support is now the default, so this
-option is now a no-op and should be considered deprecated.
+Ignored; included for backward compatibility.
 .It Fl h Ar bindip
 Specify specific IP addresses to bind to for TCP and UDP requests.
 This option may be specified multiple times.
@@ -98,9 +97,6 @@ This should only be specified if there are clients such as PC's,
 that require it.
 It will automatically clear the vfs.nfsrv.nfs_privport sysctl flag, which
 controls if the kernel will accept NFS requests from reserved ports only.
-.It Fl o
-This flag forces the system to run the old NFS server, which does not
-have NFSv4 support in it.
 .It Fl p Ar port
 Force
 .Nm

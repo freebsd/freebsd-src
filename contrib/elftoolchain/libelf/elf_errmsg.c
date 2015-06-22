@@ -24,15 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <libelf.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_errmsg.c 3012 2014-03-23 03:41:38Z jkoshy $");
+ELFTC_VCSID("$Id: elf_errmsg.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Retrieve a human readable translation for an error message.

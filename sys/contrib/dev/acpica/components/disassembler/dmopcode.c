@@ -269,10 +269,10 @@ AcpiDmPredefinedDescription (
      * Note: NameString is guaranteed to be upper case here.
      */
     LastCharIsDigit =
-        (ACPI_IS_DIGIT (NameString[3]));    /* d */
+        (isdigit ((int) NameString[3]));    /* d */
     LastCharsAreHex =
-        (ACPI_IS_XDIGIT (NameString[2]) &&  /* xx */
-         ACPI_IS_XDIGIT (NameString[3]));
+        (isxdigit ((int) NameString[2]) &&  /* xx */
+         isxdigit ((int) NameString[3]));
 
     switch (NameString[1])
     {
@@ -849,18 +849,6 @@ AcpiDmDisassembleOneOp (
         {
             Op->Common.DisasmOpcode = ACPI_DASM_BUFFER;
             AcpiOsPrintf ("Buffer");
-        }
-        break;
-
-    case AML_INT_STATICSTRING_OP:
-
-        if (Op->Common.Value.String)
-        {
-            AcpiOsPrintf ("%s", Op->Common.Value.String);
-        }
-        else
-        {
-            AcpiOsPrintf ("\"<NULL STATIC STRING PTR>\"");
         }
         break;
 

@@ -212,12 +212,6 @@ struct {
 	int	(*check)(int, const char *);	/* 1 if match, zero if not */
 	int	(*hide)(int, const char *);	/* non-zero if error */
 } exec_formats[] = {
-#ifdef NLIST_AOUT
-	{	"a.out",	check_aout,	hide_aout,	},
-#endif
-#ifdef NLIST_ECOFF
-	{	"ECOFF",	check_elf64,	hide_elf64,	},
-#endif
 #ifdef NLIST_ELF32
 	{	"ELF32",	check_elf32,	hide_elf32,	},
 #endif

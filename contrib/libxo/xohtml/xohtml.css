@@ -1014,3 +1014,27 @@ div.xpath {
     position: relative;
     top: 1px;
 }
+
+div.color-fg-black { color: black; }
+div.color-fg-red { color: red; }
+div.color-fg-green { color: green; }
+div.color-fg-yellow { color: yellow; }
+div.color-fg-blue { color: blue; }
+div.color-fg-magenta { color: magenta; }
+div.color-fg-cyan { color: cyan; }
+div.color-fg-white { color: white; }
+
+div.color-bg-black { background-color: black; }
+div.color-bg-red { background-color: red; }
+div.color-bg-green { background-color: green; }
+div.color-bg-yellow { background-color: yellow; }
+div.color-bg-blue { background-color: blue; }
+div.color-bg-magenta { background-color: magenta; }
+div.color-bg-cyan { background-color: cyan; }
+div.color-bg-white { background-color: white; }
+
+div.color-fg-inverse { color: white; }
+div.color-bg-inverse { background-color: black; }
+
+div.effect-bold { font-weight:bold; }
+div.effect-underline { text-decoration: underline; }

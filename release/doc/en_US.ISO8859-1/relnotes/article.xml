@@ -22,7 +22,7 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
-    <!-- Last rev: 278934 -->
+    <!-- Last rev: 282482 -->
 
     <copyright>
       <year>2015</year>
@@ -316,7 +316,35 @@
       <para revision="279571" contrib="sponsor"
 	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
 	been updated to prevent fetching updated binary patches when
-	a previous upgrade has not been throughly completed.</para>
+	a previous upgrade has not been thoroughly completed.</para>
+
+      <para revision="279122" contrib="sponsor"
+	sponsor="&juniper;">The &man.netstat.1; utility has been
+	updated to link against the &man.libxo.3; shared
+	library.</para>
+
+      <para revision="280870">A regression in the &man.libarchive.3;
+	library that would prevent a directory from being included in
+	the archive when <literal>--one-file-system</literal> is used
+	has been fixed.</para>
+
+      <para revision="281311" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility has been updated to set
+	<literal>ARCHIVE_EXTRACT_SECURE_SYMLINKS</literal> and
+	<literal>ARCHIVE_EXTRACT_SECURE_NODOTDOT</literal> to disallow
+	directory traversal when extracting an archive, similar to
+	&man.tar.1;.</para>
+
+      <para revision="282208" contrib="sponsor"
+	sponsor="&multiplay;">The &man.chflags.1;, &man.chgrp.1;,
+	&man.chmod.1;, and &man.chown.8; utilities now affect symbolic
+	links when the <literal>-R</literal> flag is specified, as
+	documented in &man.symlink.7;.</para>
+
+      <para revision="281617">A race condition in &man.wc.1; that
+	would cause final results to be sent to &man.stderr.4; when
+	receiving the <literal>SIGINFO</literal> signal has been
+	fixed.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -334,9 +362,6 @@
 
       <para revision="261071">&man.jemalloc.3; has been updated to
 	version 3.5.0.</para>
-
-      <para revision="261212"><application>bmake</application> has
-	been updated to version 20140101.</para>
 
       <para revision="261283"><application>libc++</application> has
 	been updated to version 3.4.</para>
@@ -379,6 +404,7 @@
 	<application>addr2line</application>,
 	<application>elfcopy (strip)</application>,
 	<application>nm</application>,
+	<application>readelf</application>,
 	<application>size</application>, and
 	<application>strings</application> were switched to the
 	versions from the ELF Tool Chain project.</para>
@@ -388,17 +414,38 @@
 	adding <acronym>UTF-8</acronym> support to the &man.sh.1;
 	shell.</para>
 
-      <para revision="277270"><application>OpenSSL</application> has
-	been updated to version 1.0.1l.</para>
-
-      <para revision="278433">The &man.xz.1; utility has been udpated
-	to version 5.2.0.</para>
-
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
 
-      <para revision="278970">The &man.acpi.4; subsystem has been
-	updated to version 20150204.</para>
+      <para revision="280297"><application>OpenSSL</application> has
+	been updated to version 1.0.1m.</para>
+
+      <para revision="280932" contrib="sponsor" sponsor="&ff;">The
+	<application>elftoolchain</application> utilities have been
+	updated to version 3179.</para>
+
+      <para revision="281316">The &man.xz.1; utility has been updated
+	to version 5.2.1.</para>
+
+      <para revision="281373">The &man.nvi.1; utility has been updated
+	to version 2.1.3.</para>
+
+      <para revision="281396">The &man.acpi.4; subsystem has been
+	updated to version 20150410.</para>
+
+      <para revision="281806">The &man.wpa.supplicant.8; and
+	&man.hostapd.8; utilities have been updated to version
+	2.4.</para>
+
+      <para revision="281812"><application>bmake</application> has
+	been updated to version 20150418.</para>
+
+      <para revision="282089">The &man.unbound.8; utility has been
+	updated to version 1.5.3.</para>
+
+      <para revision="282434" contrib="sponsor" sponsor="&ff;">The
+	&man.resolvconf.8; utility has been updated to version
+	3.7.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -481,6 +528,10 @@
 	<acronym>ELF</acronym> object in the
 	<literal>dlpi_name</literal> structure member.</para>
 
+      <para revision="273562" contrib="sponsor"
+	sponsor="&juniper;">The &man.libxo.3; library has been
+	imported to the base system.</para>
+
       <para revision="273806" contrib="sponsor" sponsor="&chelsio;">A
 	userland library for Chelsio Terminator 5 based iWARP cards
 	has been added, allowing userland <acronym>RDMA</acronym>
@@ -509,6 +560,15 @@
 	updated to be able to handle 32-bit aligned data on 64-bit
 	platforms, also providing a significant improvement in 32-bit
 	workloads.</para>
+
+      <para revision="281130">Several standard include headers have
+	been updated to use of <application>gcc</application>
+	attributes, such as <literal>__result_use_check()</literal>,
+	<literal>__alloc_size()</literal>, and
+	<literal>__nonnull()</literal>.</para>
+
+      <para revision="281845">Support for file verification in
+	<acronym>MAC</acronym> has been added.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
@@ -547,6 +607,30 @@
       <para revision="272089">A bug in &man.ipfw.4; that could
 	potentially lead to a kernel panic when using &man.dummynet.4;
 	at layer 2 has been fixed.</para>
+
+      <para revision="280930" contrib="sponsor" sponsor="&mitail;">The
+	kernel <acronym>RPC</acronym> has been updated to include
+	several enhancements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The 45 MiB limit on requests queued for
+	    &man.nfsd.8; threads has been removed.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Avoids unnecessary throttling by not deferring
+	    accounting for completed requests.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fixes an integer overflow and signedness bugs.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para revision="281261" arch="powerpc">Support for
+	&man.dtrace.1; has been added for the
+	Book-E&nbsp;&trade;.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
@@ -604,6 +688,21 @@
       <para revision="279361">The <literal>kern.osrelease</literal>
 	and <literal>kern.osreldate</literal> are now configurable
 	&man.jail.8; parameters.</para>
+
+      <para revision="280308,280949" contrib="sponsor"
+	sponsor="&ix;, &ff;">The &man.devfs.5; device filesystem has
+	been changed to update timestamps for read/write operations
+	using seconds precision.  A new &man.sysctl.8;,
+	<literal>vfs.devfs.dotimes</literal> has been added, which
+	when set to a non-zero value, enables default precision
+	timestamps for these operations.</para>
+
+      <para revision="282213" contrib="sponsor" sponsor="&ff;">A new
+	&man.sysctl.8;, <literal>kern.racct.enable</literal>, has been
+	added, which when set to a non-zero value allows using
+	&man.rctl.8; with the <literal>GENERIC</literal> kernel.
+	A new kernel configuration option,
+	<literal>RACCT_DISABLED</literal> has also been added.</para>
     </sect2>
   </sect1>
 
@@ -642,6 +741,9 @@
 	<filename>/dev/hpet<replaceable>N</replaceable></filename>
 	device, providing access to <acronym>HPET</acronym> from
 	userspace.</para>
+
+      <para revision="280183">The <literal>drm</literal> code has
+	been updated to match &linux; version 3.8.13.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
@@ -676,6 +778,9 @@
 
       <para revision="276526">The <literal>asr(4)</literal> driver has
 	been removed, and is no longer supported.</para>
+
+      <para revision="281387">The &man.hptnr.4; driver has been
+	updated to version 1.1.1.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
@@ -768,6 +873,10 @@
 	driver has been updated to correct performance counter
 	sampling on G4 (MPC74xxx) and G5 class processors.</para>
 
+      <para revision="281713" arch="powerpc">The &man.hwpmc.4;
+	driver has been updated to support the Freescale e500
+	core.</para>
+
       <para revision="275732" contrib="sponsor"
 	sponsor="&ff;,&netgate;">The
 	<application>OpenCrypto</application> framework has been
@@ -819,6 +928,38 @@
       <para revision="273515">The &man.virtio.console.4; driver has
 	been added, which provides an interface to VirtIO console
 	devices through a &man.tty.4; device.</para>
+
+      <para revision="279957">The &man.bhyve.8; hypervisor has been
+	updated to support <literal>DSM TRIM</literal> commands for
+	virtual <acronym>AHCI</acronym> disks.</para>
+
+      <para revision="281439" arch="arm">Support for the
+	<application>QEMU</application> <literal>virt</literal> system
+	has been added.</para>
+
+      <para revision="282212" contrib="sponsor" sponsor="&msostc;">The
+	HyperV&trade; drivers have been updated with several
+	enhancements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The &man.hv.vmbus.4; driver now has multi-channel
+	    support.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &man.hv.storvsc.4; driver now has scatter/gather
+	    support, in addition to performance improvements.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &man.hv.kvp.4; driver has received several bug
+	    fixes.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para revision="282274">Support for &man.xen.4; para-virtualized
+	<literal>domU</literal> kernels has been removed.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -835,6 +976,10 @@
 	driver has been added, which supports <acronym>CPU</acronym>
 	frequency and voltage control on the Raspberry Pi
 	<acronym>SOC</acronym>.</para>
+
+      <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
+	support for the ARM AArch64 architecture has been
+	added.</para>
     </sect2>
   </sect1>
 
@@ -846,6 +991,7 @@
 
     <sect2 xml:id="storage-general">
       <title>General Storage</title>
+
       <para revision="278037" contrib="sponsor" sponsor="&ix;">The
 	&man.ctl.4; <acronym>LUN</acronym> mapping has been rewritten,
 	replacing <acronym>iSCSI</acronym>-specific mapping mechanisms
@@ -907,6 +1053,12 @@
 	Alternatively, &man.syscons.4; can be enabled at boot time by
 	entering <literal>set kern.vty=sc</literal> at the
 	&man.loader.8; prompt.</para>
+
+      <para revision="281616">The boot loader has been updated to
+	support entering the <acronym>GELI</acronym> passphrase before
+	loading the kernel.  To enable this behavior, add
+	<literal>geom_eli_passphrase_prompt="YES"</literal> to
+	&man.loader.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
@@ -1002,6 +1154,13 @@
 	  </tbody>
 	</tgroup>
       </informaltable>
+
+      <para revision="280971" contrib="sponsor"
+	sponsor="&netflix;, &nginx;">Support for <acronym>IP</acronym>
+	identification for atomic datagrams (<acronym>RFC</acronym>
+	6864) has been added.  Support for this feature can be toggled
+	with the <literal>net.inet.ip.rfc6864</literal>
+	&man.sysctl.8;, which is enabled by default.</para>
     </sect2>
   </sect1>
 
@@ -1062,6 +1221,11 @@
 	been updated to use multi-threaded &man.xz.1;.  By default,
 	the number of &man.xz.1; threads is set to the number of cores
 	available.</para>
+
+      <para revision="281802" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to include
+	support for building &os;/&arch.arm64; virtual machine and
+	memory stick installation images.</para>
     </sect2>
   </sect1>
 </article>

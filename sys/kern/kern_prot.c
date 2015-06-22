@@ -1946,16 +1946,26 @@ cred_update_thread(struct thread *td)
 
 	p = td->td_proc;
 	cred = td->td_ucred;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);
 	if (cred != NULL)
 		crfree(cred);
 }
 
 /*
+ * Set initial process credentials.
+ * Callers are responsible for providing the reference for provided credentials.
+ */
+void
+proc_set_cred_init(struct proc *p, struct ucred *newcred)
+{
+
+	p->p_ucred = newcred;
+}
+
+/*
  * Change process credentials.
- * Callers are responsible for providing the reference for current credentials
+ * Callers are responsible for providing the reference for passed credentials
  * and for freeing old ones.
  *
  * Process has to be locked except when it does not have credentials (as it
@@ -1968,13 +1978,16 @@ proc_set_cred(struct proc *p, struct ucred *newcred)
 {
 	struct ucred *oldcred;
 
+	MPASS(p->p_ucred != NULL);
 	if (newcred == NULL)
 		MPASS(p->p_state == PRS_ZOMBIE);
-	else if (p->p_ucred != NULL)
+	else
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	oldcred = p->p_ucred;
 	p->p_ucred = newcred;
+	if (newcred != NULL)
+		PROC_UPDATE_COW(p);
 	return (oldcred);
 }
 

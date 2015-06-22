@@ -137,8 +137,6 @@ struct ofw_map {
 extern unsigned char _etext[];
 extern unsigned char _end[];
 
-extern int ofw_real_mode;
-
 /*
  * Map of physical memory regions.
  */
@@ -852,8 +850,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	 */
 
 	chosen = OF_finddevice("/chosen");
-	if (!ofw_real_mode && chosen != -1 &&
-	    OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
+	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
 		mmu = OF_instance_to_package(mmui);
 		if (mmu == -1 ||
 		    (sz = OF_getproplen(mmu, "translations")) == -1)
@@ -1437,7 +1434,8 @@ retry:
 static mmu_t installed_mmu;
 
 static void *
-moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait) 
+moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
+    int wait)
 {
 	struct pvo_entry *pvo;
         vm_offset_t va;

@@ -101,10 +101,6 @@ CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 # set because there are no standard paths for non-headers.
 CFLAGS+=	-I. -I${SYSDIR}
 
-# Add -I path for altq headers as they are included via net/if_var.h
-# for example.
-CFLAGS+=	-I${SYSDIR}/contrib/altq
-
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS.gcc+=	-fms-extensions
 CFLAGS.gcc+= --param inline-unit-growth=100
@@ -243,7 +239,7 @@ beforedepend: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${.OBJDIR}/${_link}
+${OBJS}: ${_link}
 .endif
 .endfor
 
@@ -257,12 +253,10 @@ SYSDIR=	${_dir}
 .error "can't find kernel source tree"
 .endif
 
-.for _link in ${_ILINKS}
-.PHONY: ${_link}
-${_link}: ${.OBJDIR}/${_link}
+.NOPATH: ${_ILINKS}
 
-${.OBJDIR}/${_link}:
-	@case ${.TARGET:T} in \
+${_ILINKS}:
+	@case ${.TARGET} in \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	*) \
@@ -271,7 +265,6 @@ ${.OBJDIR}/${_link}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -sf $$path ${.TARGET:T}
-.endfor
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
@@ -353,7 +346,7 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/mbox/mbox_if.m dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
 	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
-	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m \
+	dev/pci/pci_iov_if.m dev/pci/pcib_if.m dev/ppbus/ppbus_if.m \
 	dev/sdhci/sdhci_if.m dev/smbus/smbus_if.m dev/spibus/spibus_if.m \
 	dev/sound/pci/hda/hdac_if.m \
 	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
@@ -429,10 +422,10 @@ genassym.o: opt_global.h
 .endif
 assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
-genassym.o: ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
 
 lint: ${SRCS}

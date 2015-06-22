@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	savecore
-LIBADD=	z
+LIBADD=	z xo
 MAN=	savecore.8
 
 .include <bsd.prog.mk>

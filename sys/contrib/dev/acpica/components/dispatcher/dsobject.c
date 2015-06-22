@@ -348,7 +348,7 @@ AcpiDsBuildInternalBufferObj (
 
         if (ByteList)
         {
-            ACPI_MEMCPY (ObjDesc->Buffer.Pointer, ByteList->Named.Data,
+            memcpy (ObjDesc->Buffer.Pointer, ByteList->Named.Data,
                          ByteListLength);
         }
     }
@@ -775,7 +775,7 @@ AcpiDsInitObjectFromOp (
     case ACPI_TYPE_STRING:
 
         ObjDesc->String.Pointer = Op->Common.Value.String;
-        ObjDesc->String.Length = (UINT32) ACPI_STRLEN (Op->Common.Value.String);
+        ObjDesc->String.Length = (UINT32) strlen (Op->Common.Value.String);
 
         /*
          * The string is contained in the ACPI table, don't ever try

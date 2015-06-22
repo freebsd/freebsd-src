@@ -56,12 +56,12 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_macaddr.h>
 
 #include <mips/sentry5/s5reg.h>
 
 extern char edata[], end[];
 
-uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 /* 4KB static data aread to keep a copy of the bootload env until
    the dynamic kenv is setup */
 char boot1_env[4096];
@@ -117,11 +117,13 @@ platform_reset(void)
 /*
  * Obtain the MAC address via the Redboot environment.
  */
-static void
+static int
 ar71xx_redboot_get_macaddr(void)
 {
 	char *var;
-	int count = 0;
+	int count = 0, i;
+	uint32_t macaddr[ETHER_ADDR_LEN];
+	uint8_t tmpmac[ETHER_ADDR_LEN];
 
 	/*
 	 * "ethaddr" is passed via envp on RedBoot platforms
@@ -130,14 +132,25 @@ ar71xx_redboot_get_macaddr(void)
 	if ((var = kern_getenv("ethaddr")) != NULL ||
 	    (var = kern_getenv("kmac")) != NULL) {
 		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
-		    &ar711_base_mac[0], &ar711_base_mac[1],
-		    &ar711_base_mac[2], &ar711_base_mac[3],
-		    &ar711_base_mac[4], &ar711_base_mac[5]);
-		if (count < 6)
-			memset(ar711_base_mac, 0,
-			    sizeof(ar711_base_mac));
+		    &macaddr[0], &macaddr[1],
+		    &macaddr[2], &macaddr[3],
+		    &macaddr[4], &macaddr[5]);
+
+		if (count < 6) {
+			memset(macaddr, 0,
+			    sizeof(macaddr));
+		} else {
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				tmpmac[i] = macaddr[i] & 0xff;
+			(void) ar71xx_mac_addr_init(ar71xx_board_mac_addr,
+			    tmpmac,
+			    0, /* offset */
+			    0); /* is_local */
+		}
 		freeenv(var);
+		return (0);
 	}
+	return (-1);
 }
 
 #ifdef	AR71XX_ENV_ROUTERBOOT
@@ -167,6 +180,129 @@ ar71xx_routerboot_get_mem(int argc, char **argv)
 	return (0);
 }
 #endif
+
+/*
+ * Handle initialising the MAC address from a specific EEPROM
+ * offset.
+ *
+ * This is done during (very) early boot.
+ *
+ * hint.ar71xx.0.eeprom_mac_addr=<address to read from>
+ * hint.ar71xx.0.eeprom_mac_isascii=<0|1>
+ */
+static int
+ar71xx_platform_read_eeprom_mac(void)
+{
+	long eeprom_mac_addr = 0;
+	const char *mac;
+	int i, readascii = 0;
+	uint8_t macaddr[ETHER_ADDR_LEN];
+
+	if (resource_long_value("ar71xx", 0, "eeprom_mac_addr",
+	    &eeprom_mac_addr) != 0)
+		return (-1);
+
+	/* get a pointer to the EEPROM MAC address */
+
+	mac = (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
+
+	/* Check if it's ASCII or not */
+	if (resource_int_value("ar71xx", 0, "eeprom_mac_isascii",
+	    &readascii) == 0 && readascii == 1) {
+		printf("ar71xx: Overriding MAC from EEPROM (ascii)\n");
+		for (i = 0; i < 6; i++) {
+			macaddr[i] = strtol(&(mac[i*3]), NULL, 16);
+		}
+	} else {
+		printf("ar71xx: Overriding MAC from EEPROM\n");
+		for (i = 0; i < 6; i++) {
+			macaddr[i] = mac[i];
+		}
+	}
+
+	/* Set the default board MAC */
+	(void) ar71xx_mac_addr_init(ar71xx_board_mac_addr,
+	    macaddr,
+	    0, /* offset */
+	    0); /* is_local */
+	printf("ar71xx: Board MAC: %6D\n", ar71xx_board_mac_addr, ":");
+	return (0);
+}
+
+/*
+ * Populate a kenv hint for the given device based on the given
+ * MAC address and offset.
+ *
+ * Returns 0 if ok, < 0 on error.
+ */
+static int
+ar71xx_platform_set_mac_hint(const char *dev, int unit,
+    const uint8_t *macaddr, int offset, int islocal)
+{
+	char macstr[32];
+	uint8_t lclmac[ETHER_ADDR_LEN];
+	char devstr[32];
+
+	/* Initialise the MAC address, plus/minus the offset */
+	if (ar71xx_mac_addr_init(lclmac, macaddr, offset, islocal) != 0) {
+		return (-1);
+	}
+
+	/* Turn it into a string */
+	snprintf(macstr, 32, "%6D", lclmac, ":");
+	snprintf(devstr, 32, "hint.%s.%d.macaddr", dev, unit);
+
+	printf("  %s => %s\n", devstr, macstr);
+
+	/* Call setenv */
+	if (kern_setenv(devstr, macstr) != 0) {
+		printf("%s: failed to set hint (%s => %s)\n",
+		    __func__,
+		    devstr,
+		    macstr);
+		return (-1);
+	}
+
+	return (0);
+}
+
+/*
+ * Iterate through the list of boot time hints that populate
+ * a device MAC address hint based on the "board" MAC address.
+ *
+ * ar71xx_mac_map.X.devid=<device id, eg ath>
+ * ar71xx_mac_map.X.unitid=<unit id, eg 0>
+ * ar71xx_mac_map.X.offset=<mac address value offset>
+ * ar71xx_mac_map.X.is_local=<1 or 0>
+ */
+static int
+ar71xx_platform_check_mac_hints(void)
+{
+	int i;
+	const char *devid;
+	int offset, is_local, unitid;
+
+	for (i = 0; i < 8; i++) {
+		if (resource_string_value("ar71xx_mac_map", i, "devid",
+		    &devid) != 0)
+			break;
+		if (resource_int_value("ar71xx_mac_map", i, "unitid",
+		    &unitid) != 0)
+			break;
+		if (resource_int_value("ar71xx_mac_map", i, "offset",
+		    &offset) != 0)
+			break;
+		if (resource_int_value("ar71xx_mac_map", i, "is_local",
+		    &is_local) != 0)
+			break;
+		printf("ar71xx: devid '%s.%d', MAC offset '%d'\n",
+		    devid, unitid, offset);
+		(void) ar71xx_platform_set_mac_hint(devid, unitid,
+		    ar71xx_board_mac_addr, offset, is_local);
+	}
+
+	return (0);
+}
 
 void
 platform_start(__register_t a0 __unused, __register_t a1 __unused, 
@@ -208,8 +344,11 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 		for (i = 0; envp[i]; i += 2) {
 			if (strcmp(envp[i], "memsize") == 0)
 				realmem = btoc(strtoul(envp[i+1], NULL, 16));
+			else if (strcmp(envp[i], "bootverbose") == 0)
+				bootverbose = btoc(strtoul(envp[i+1], NULL, 10));
 		}
 	}
+	bootverbose = 1;
 
 #ifdef	AR71XX_ENV_ROUTERBOOT
 	/*
@@ -302,9 +441,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	else 
 		printf ("envp is invalid\n");
 
-	/* Redboot if_arge MAC address is in the environment */
-	ar71xx_redboot_get_macaddr();
-
+	/* Platform setup */
 	init_param2(physmem);
 	mips_cpu_init();
 	pmap_bootstrap();
@@ -325,6 +462,15 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * Initialise the gmac driver.
 	 */
 	ar71xx_init_gmac();
+
+	/* Redboot if_arge MAC address is in the environment */
+	(void) ar71xx_redboot_get_macaddr();
+
+	/* Various other boards need things to come out of EEPROM */
+	(void) ar71xx_platform_read_eeprom_mac();
+
+	/* Initialise the MAC address hint map */
+	ar71xx_platform_check_mac_hints();
 
 	kdb_init();
 #ifdef KDB

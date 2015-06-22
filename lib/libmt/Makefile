@@ -5,8 +5,7 @@ SHLIBDIR?=	/lib
 SRCS=		mtlib.c
 INCS=		mtlib.h
 
-DPADD=		${LIBSBUF}
-LDADD=		-lsbuf
+LIBADD=		sbuf bsdxml
 
 MAN=		mt.3
 

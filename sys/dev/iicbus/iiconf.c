@@ -71,7 +71,6 @@ iicbus_poll(struct iicbus_softc *sc, int how)
 
 	default:
 		return (EWOULDBLOCK);
-		break;
 	}
 
 	return (error);
@@ -90,31 +89,32 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	int error = 0;
 
-	/* first, ask the underlying layers if the request is ok */
 	IICBUS_LOCK(sc);
-	do {
+
+	while ((error == 0) && (sc->owner != NULL))
+		error = iicbus_poll(sc, how);
+
+	if (error == 0) {
+		sc->owner = dev;
+		/* 
+		 * Drop the lock around the call to the bus driver. 
+		 * This call should be allowed to sleep in the IIC_WAIT case.
+		 * Drivers might also need to grab locks that would cause LOR
+		 * if our lock is held.
+		 */
+		IICBUS_UNLOCK(sc);
+		/* Ask the underlying layers if the request is ok */
 		error = IICBUS_CALLBACK(device_get_parent(bus),
-						IIC_REQUEST_BUS, (caddr_t)&how);
-		if (error)
-			error = iicbus_poll(sc, how);
-	} while (error == EWOULDBLOCK);
+		    IIC_REQUEST_BUS, (caddr_t)&how);
+		IICBUS_LOCK(sc);
 
-	while (!error) {
-		if (sc->owner && sc->owner != dev) {
-
-			error = iicbus_poll(sc, how);
-		} else {
-			sc->owner = dev;
-
-			IICBUS_UNLOCK(sc);
-			return (0);
+		if (error != 0) {
+			sc->owner = NULL;
+			wakeup_one(sc);
 		}
-
-		/* free any allocated resource */
-		if (error)
-			IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS,
-					(caddr_t)&how);
 	}
+
+
 	IICBUS_UNLOCK(sc);
 
 	return (error);
@@ -131,12 +131,6 @@ iicbus_release_bus(device_t bus, device_t dev)
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	int error;
 
-	/* first, ask the underlying layers if the release is ok */
-	error = IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS, NULL);
-
-	if (error)
-		return (error);
-
 	IICBUS_LOCK(sc);
 
 	if (sc->owner != dev) {
@@ -144,13 +138,26 @@ iicbus_release_bus(device_t bus, device_t dev)
 		return (EACCES);
 	}
 
-	sc->owner = NULL;
-
-	/* wakeup waiting processes */
-	wakeup(sc);
+	/* 
+	 * Drop the lock around the call to the bus driver. 
+	 * This call should be allowed to sleep in the IIC_WAIT case.
+	 * Drivers might also need to grab locks that would cause LOR
+	 * if our lock is held.
+	 */
 	IICBUS_UNLOCK(sc);
+	/* Ask the underlying layers if the release is ok */
+	error = IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS, NULL);
 
-	return (0);
+	if (error == 0) {
+		IICBUS_LOCK(sc);
+		sc->owner = NULL;
+
+		/* wakeup a waiting thread */
+		wakeup_one(sc);
+		IICBUS_UNLOCK(sc);
+	}
+
+	return (error);
 }
 
 /*

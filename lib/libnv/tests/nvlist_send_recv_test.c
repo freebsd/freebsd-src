@@ -95,7 +95,7 @@ parent(int sock)
 	int type, ctype;
 	size_t size;
 
-	nvl = nvlist_recv(sock);
+	nvl = nvlist_recv(sock, 0);
 	CHECK(nvlist_error(nvl) == 0);
 	if (nvlist_error(nvl) != 0)
 		err(1, "nvlist_recv() failed");

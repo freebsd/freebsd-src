@@ -54,7 +54,7 @@
 
 static int interrupted;
 static void
-signal_handler(int signum)
+signal_handler(int signum __unused)
 {
 
 	interrupted++;
@@ -95,7 +95,7 @@ locking_recver(int fd)
 	ssize_t len;
 	char ch;
 
-	if (sleep(1) < 0)
+	if (sleep(1) != 0)
 		err(-1, "FAIL: locking_recver: sleep");
 	len = recv(fd, &ch, sizeof(ch), 0);
 	if (len < 0 && errno != EINTR)
@@ -116,7 +116,7 @@ signaller(pid_t locking_recver_pid, int fd)
 	ssize_t len;
 	char ch;
 
-	if (sleep(2) < 0) {
+	if (sleep(2) != 0) {
 		warn("signaller sleep(2)");
 		return;
 	}
@@ -124,7 +124,7 @@ signaller(pid_t locking_recver_pid, int fd)
 		warn("signaller kill(%d)", locking_recver_pid);
 		return;
 	}
-	if (sleep(1) < 0) {
+	if (sleep(1) != 0) {
 		warn("signaller sleep(1)");
 		return;
 	}
@@ -141,14 +141,14 @@ signaller(pid_t locking_recver_pid, int fd)
 		warn("signaller close");
 		return;
 	}
-	if (sleep(1) < 0) {
+	if (sleep(1) != 0) {
 		warn("signaller sleep(1)");
 		return;
 	}
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int error, fds[2], recver_fd, sender_fd;
 	pid_t blocking_recver_pid;

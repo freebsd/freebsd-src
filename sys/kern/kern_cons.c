@@ -654,7 +654,7 @@ static void
 sysbeep_init(void *unused)
 {
 
-	callout_init(&beeping_timer, CALLOUT_MPSAFE);
+	callout_init(&beeping_timer, 1);
 }
 SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
 #else

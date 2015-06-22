@@ -67,6 +67,7 @@
 
 #ifdef _KERNEL
 #include <crypto/aesni/aesni.h>
+#include <crypto/aesni/aesni_os.h>
 #else
 #include <stdint.h>
 #endif

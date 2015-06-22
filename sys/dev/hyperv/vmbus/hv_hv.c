@@ -67,8 +67,6 @@ static inline void do_cpuid_inline(unsigned int op, unsigned int *eax,
 hv_vmbus_context hv_vmbus_g_context = {
 	.syn_ic_initialized = FALSE,
 	.hypercall_page = NULL,
-	.signal_event_param = NULL,
-	.signal_event_buffer = NULL,
 };
 
 static struct timecounter hv_timecounter = {
@@ -256,28 +254,6 @@ hv_vmbus_init(void)
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
-	/*
-	 * Setup the global signal event param for the signal event hypercall
-	 */
-	hv_vmbus_g_context.signal_event_buffer =
-	    malloc(sizeof(hv_vmbus_input_signal_event_buffer), M_DEVBUF,
-		M_ZERO | M_NOWAIT);
-	KASSERT(hv_vmbus_g_context.signal_event_buffer != NULL,
-	    ("Error VMBUS: Failed to allocate signal_event_buffer\n"));
-	if (hv_vmbus_g_context.signal_event_buffer == NULL)
-	    goto cleanup;
-
-	hv_vmbus_g_context.signal_event_param =
-	    (hv_vmbus_input_signal_event*)
-	    (HV_ALIGN_UP((unsigned long)
-		hv_vmbus_g_context.signal_event_buffer,
-		HV_HYPERCALL_PARAM_ALIGN));
-	hv_vmbus_g_context.signal_event_param->connection_id.as_uint32_t = 0;
-	hv_vmbus_g_context.signal_event_param->connection_id.u.id =
-	    HV_VMBUS_EVENT_CONNECTION_ID;
-	hv_vmbus_g_context.signal_event_param->flag_number = 0;
-	hv_vmbus_g_context.signal_event_param->rsvd_z = 0;
-	
 	tc_init(&hv_timecounter); /* register virtual timecount */
 	
 	return (0);
@@ -302,12 +278,6 @@ void
 hv_vmbus_cleanup(void) 
 {
 	hv_vmbus_x64_msr_hypercall_contents hypercall_msr;
-
-	if (hv_vmbus_g_context.signal_event_buffer != NULL) {
-	    free(hv_vmbus_g_context.signal_event_buffer, M_DEVBUF);
-	    hv_vmbus_g_context.signal_event_buffer = NULL;
-	    hv_vmbus_g_context.signal_event_param = NULL;
-	}
 
 	if (hv_vmbus_g_context.guest_id == HV_FREEBSD_GUEST_ID) {
 	    if (hv_vmbus_g_context.hypercall_page != NULL) {
@@ -370,13 +340,13 @@ hv_vmbus_post_msg_via_msg_ipc(
  * event IPC. (This involves a hypercall.)
  */
 hv_vmbus_status
-hv_vmbus_signal_event()
+hv_vmbus_signal_event(void *con_id)
 {
 	hv_vmbus_status status;
 
 	status = hv_vmbus_do_hypercall(
 		    HV_CALL_SIGNAL_EVENT,
-		    hv_vmbus_g_context.signal_event_param,
+		    con_id,
 		    0) & 0xFFFF;
 
 	return (status);
@@ -390,6 +360,7 @@ hv_vmbus_synic_init(void *arg)
 
 {
 	int			cpu;
+	uint64_t		hv_vcpu_index;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
 	hv_vmbus_synic_scontrol sctrl;
@@ -403,23 +374,14 @@ hv_vmbus_synic_init(void *arg)
 	    return;
 
 	/*
-	 * KYS: Looks like we can only initialize on cpu0; don't we support
-	 * SMP guests?
-	 *
-	 * TODO: Need to add SMP support for FreeBSD V9
-	 */
-
-	if (cpu != 0)
-	    return;
-
-	/*
 	 * TODO: Check the version
 	 */
 	version = rdmsr(HV_X64_MSR_SVERSION);
-
 	
-	hv_vmbus_g_context.syn_ic_msg_page[cpu] = setup_args->page_buffers[0];
-	hv_vmbus_g_context.syn_ic_event_page[cpu] = setup_args->page_buffers[1];
+	hv_vmbus_g_context.syn_ic_msg_page[cpu] =
+	    setup_args->page_buffers[2 * cpu];
+	hv_vmbus_g_context.syn_ic_event_page[cpu] =
+	    setup_args->page_buffers[2 * cpu + 1];
 
 	/*
 	 * Setup the Synic's message page
@@ -443,9 +405,10 @@ hv_vmbus_synic_init(void *arg)
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 
 	/*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
+	shared_sint.as_uint64_t = 0;
 	shared_sint.u.vector = setup_args->vector;
 	shared_sint.u.masked = FALSE;
-	shared_sint.u.auto_eoi = FALSE;
+	shared_sint.u.auto_eoi = TRUE;
 
 	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
@@ -458,6 +421,13 @@ hv_vmbus_synic_init(void *arg)
 
 	hv_vmbus_g_context.syn_ic_initialized = TRUE;
 
+	/*
+	 * Set up the cpuid mapping from Hyper-V to FreeBSD.
+	 * The array is indexed using FreeBSD cpuid.
+	 */
+	hv_vcpu_index = rdmsr(HV_X64_MSR_VP_INDEX);
+	hv_vmbus_g_context.hv_vcpu_index[cpu] = (uint32_t)hv_vcpu_index;
+
 	return;
 }
 
@@ -469,13 +439,9 @@ void hv_vmbus_synic_cleanup(void *arg)
 	hv_vmbus_synic_sint	shared_sint;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
-	int			cpu = PCPU_GET(cpuid);
 
 	if (!hv_vmbus_g_context.syn_ic_initialized)
 	    return;
-
-	if (cpu != 0)
-	    return; /* TODO: XXXKYS: SMP? */
 
 	shared_sint.as_uint64_t = rdmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT);

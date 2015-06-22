@@ -352,7 +352,7 @@ err:		if (unlink(to))
 
 	ts[0] = sbp->st_atim;
 	ts[1] = sbp->st_mtim;
-	if (utimensat(AT_FDCWD, to, ts, 0))
+	if (futimens(to_fd, ts))
 		warn("%s: set times", to);
 
 	if (close(to_fd)) {

@@ -1669,7 +1669,11 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 
 	ETHER_BPF_MTAP(scifp, m);
 
-	m = (lp->lp_detaching == 0) ? lagg_proto_input(sc, lp, m) : NULL;
+	if (lp->lp_detaching != 0) {
+		m_freem(m);
+		m = NULL;
+	} else
+		m = lagg_proto_input(sc, lp, m);
 
 	if (m != NULL) {
 		if (scifp->if_flags & IFF_MONITOR) {

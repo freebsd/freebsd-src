@@ -46,7 +46,6 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #include <netinet/in.h>
-#include <net/if_var.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
 #include <netdb.h>

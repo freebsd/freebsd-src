@@ -204,7 +204,7 @@ static void iapp_send_add(struct iapp_data *iapp, u8 *mac_addr, u16 seq_num)
 	addr.sin_port = htons(IAPP_UDP_PORT);
 	if (sendto(iapp->udp_sock, buf, (char *) (add + 1) - buf, 0,
 		   (struct sockaddr *) &addr, sizeof(addr)) < 0)
-		perror("sendto[IAPP-ADD]");
+		wpa_printf(MSG_INFO, "sendto[IAPP-ADD]: %s", strerror(errno));
 }
 
 
@@ -231,7 +231,7 @@ static void iapp_send_layer2_update(struct iapp_data *iapp, u8 *addr)
 				   * FIX: what is correct RW with 802.11? */
 
 	if (send(iapp->packet_sock, &msg, sizeof(msg), 0) < 0)
-		perror("send[L2 Update]");
+		wpa_printf(MSG_INFO, "send[L2 Update]: %s", strerror(errno));
 }
 
 
@@ -242,14 +242,10 @@ static void iapp_send_layer2_update(struct iapp_data *iapp, u8 *addr)
  */
 void iapp_new_station(struct iapp_data *iapp, struct sta_info *sta)
 {
-	struct ieee80211_mgmt *assoc;
-	u16 seq;
+	u16 seq = 0; /* TODO */
 
 	if (iapp == NULL)
 		return;
-
-	assoc = sta->last_assoc_req;
-	seq = assoc ? WLAN_GET_SEQ_SEQ(le_to_host16(assoc->seq_ctrl)) : 0;
 
 	/* IAPP-ADD.request(MAC Address, Sequence Number, Timeout) */
 	hostapd_logger(iapp->hapd, sta->addr, HOSTAPD_MODULE_IAPP,
@@ -257,14 +253,11 @@ void iapp_new_station(struct iapp_data *iapp, struct sta_info *sta)
 	iapp_send_layer2_update(iapp, sta->addr);
 	iapp_send_add(iapp, sta->addr, seq);
 
-	if (assoc && WLAN_FC_GET_STYPE(le_to_host16(assoc->frame_control)) ==
-	    WLAN_FC_STYPE_REASSOC_REQ) {
-		/* IAPP-MOVE.request(MAC Address, Sequence Number, Old AP,
-		 *                   Context Block, Timeout)
-		 */
-		/* TODO: Send IAPP-MOVE to the old AP; Map Old AP BSSID to
-		 * IP address */
-	}
+	/* TODO: If this was reassociation:
+	 * IAPP-MOVE.request(MAC Address, Sequence Number, Old AP,
+	 *                   Context Block, Timeout)
+	 * TODO: Send IAPP-MOVE to the old AP; Map Old AP BSSID to
+	 * IP address */
 }
 
 
@@ -276,8 +269,8 @@ static void iapp_process_add_notify(struct iapp_data *iapp,
 	struct sta_info *sta;
 
 	if (len != sizeof(*add)) {
-		printf("Invalid IAPP-ADD packet length %d (expected %lu)\n",
-		       len, (unsigned long) sizeof(*add));
+		wpa_printf(MSG_INFO, "Invalid IAPP-ADD packet length %d (expected %lu)",
+			   len, (unsigned long) sizeof(*add));
 		return;
 	}
 
@@ -326,7 +319,8 @@ static void iapp_receive_udp(int sock, void *eloop_ctx, void *sock_ctx)
 	len = recvfrom(iapp->udp_sock, buf, sizeof(buf), 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (len < 0) {
-		perror("recvfrom");
+		wpa_printf(MSG_INFO, "iapp_receive_udp - recvfrom: %s",
+			   strerror(errno));
 		return;
 	}
 
@@ -350,23 +344,24 @@ static void iapp_receive_udp(int sock, void *eloop_ctx, void *sock_ctx)
 		       hdr->version, hdr->command,
 		       be_to_host16(hdr->identifier), hlen);
 	if (hdr->version != IAPP_VERSION) {
-		printf("Dropping IAPP frame with unknown version %d\n",
-		       hdr->version);
+		wpa_printf(MSG_INFO, "Dropping IAPP frame with unknown version %d",
+			   hdr->version);
 		return;
 	}
 	if (hlen > len) {
-		printf("Underflow IAPP frame (hlen=%d len=%d)\n", hlen, len);
+		wpa_printf(MSG_INFO, "Underflow IAPP frame (hlen=%d len=%d)",
+			   hlen, len);
 		return;
 	}
 	if (hlen < len) {
-		printf("Ignoring %d extra bytes from IAPP frame\n",
-		       len - hlen);
+		wpa_printf(MSG_INFO, "Ignoring %d extra bytes from IAPP frame",
+			   len - hlen);
 		len = hlen;
 	}
 
 	switch (hdr->command) {
 	case IAPP_CMD_ADD_notify:
-		iapp_process_add_notify(iapp, &from, hdr, hlen - sizeof(*hdr));
+		iapp_process_add_notify(iapp, &from, hdr, len - sizeof(*hdr));
 		break;
 	case IAPP_CMD_MOVE_notify:
 		/* TODO: MOVE is using TCP; so move this to TCP handler once it
@@ -376,7 +371,7 @@ static void iapp_receive_udp(int sock, void *eloop_ctx, void *sock_ctx)
 		/* TODO: process */
 		break;
 	default:
-		printf("Unknown IAPP command %d\n", hdr->command);
+		wpa_printf(MSG_INFO, "Unknown IAPP command %d", hdr->command);
 		break;
 	}
 }
@@ -403,7 +398,8 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 
 	iapp->udp_sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (iapp->udp_sock < 0) {
-		perror("socket[PF_INET,SOCK_DGRAM]");
+		wpa_printf(MSG_INFO, "iapp_init - socket[PF_INET,SOCK_DGRAM]: %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
@@ -411,35 +407,38 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	os_memset(&ifr, 0, sizeof(ifr));
 	os_strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	if (ioctl(iapp->udp_sock, SIOCGIFINDEX, &ifr) != 0) {
-		perror("ioctl(SIOCGIFINDEX)");
+		wpa_printf(MSG_INFO, "iapp_init - ioctl(SIOCGIFINDEX): %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
 	ifindex = ifr.ifr_ifindex;
 
 	if (ioctl(iapp->udp_sock, SIOCGIFADDR, &ifr) != 0) {
-		perror("ioctl(SIOCGIFADDR)");
+		wpa_printf(MSG_INFO, "iapp_init - ioctl(SIOCGIFADDR): %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
 	paddr = (struct sockaddr_in *) &ifr.ifr_addr;
 	if (paddr->sin_family != AF_INET) {
-		printf("Invalid address family %i (SIOCGIFADDR)\n",
-		       paddr->sin_family);
+		wpa_printf(MSG_INFO, "IAPP: Invalid address family %i (SIOCGIFADDR)",
+			   paddr->sin_family);
 		iapp_deinit(iapp);
 		return NULL;
 	}
 	iapp->own.s_addr = paddr->sin_addr.s_addr;
 
 	if (ioctl(iapp->udp_sock, SIOCGIFBRDADDR, &ifr) != 0) {
-		perror("ioctl(SIOCGIFBRDADDR)");
+		wpa_printf(MSG_INFO, "iapp_init - ioctl(SIOCGIFBRDADDR): %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
 	paddr = (struct sockaddr_in *) &ifr.ifr_addr;
 	if (paddr->sin_family != AF_INET) {
-		printf("Invalid address family %i (SIOCGIFBRDADDR)\n",
-		       paddr->sin_family);
+		wpa_printf(MSG_INFO, "Invalid address family %i (SIOCGIFBRDADDR)",
+			   paddr->sin_family);
 		iapp_deinit(iapp);
 		return NULL;
 	}
@@ -450,7 +449,8 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	uaddr.sin_port = htons(IAPP_UDP_PORT);
 	if (bind(iapp->udp_sock, (struct sockaddr *) &uaddr,
 		 sizeof(uaddr)) < 0) {
-		perror("bind[UDP]");
+		wpa_printf(MSG_INFO, "iapp_init - bind[UDP]: %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
@@ -461,14 +461,16 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	mreq.imr_ifindex = 0;
 	if (setsockopt(iapp->udp_sock, SOL_IP, IP_ADD_MEMBERSHIP, &mreq,
 		       sizeof(mreq)) < 0) {
-		perror("setsockopt[UDP,IP_ADD_MEMBERSHIP]");
+		wpa_printf(MSG_INFO, "iapp_init - setsockopt[UDP,IP_ADD_MEMBERSHIP]: %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
 
 	iapp->packet_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (iapp->packet_sock < 0) {
-		perror("socket[PF_PACKET,SOCK_RAW]");
+		wpa_printf(MSG_INFO, "iapp_init - socket[PF_PACKET,SOCK_RAW]: %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
@@ -478,19 +480,20 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	addr.sll_ifindex = ifindex;
 	if (bind(iapp->packet_sock, (struct sockaddr *) &addr,
 		 sizeof(addr)) < 0) {
-		perror("bind[PACKET]");
+		wpa_printf(MSG_INFO, "iapp_init - bind[PACKET]: %s",
+			   strerror(errno));
 		iapp_deinit(iapp);
 		return NULL;
 	}
 
 	if (eloop_register_read_sock(iapp->udp_sock, iapp_receive_udp,
 				     iapp, NULL)) {
-		printf("Could not register read socket for IAPP.\n");
+		wpa_printf(MSG_INFO, "Could not register read socket for IAPP");
 		iapp_deinit(iapp);
 		return NULL;
 	}
 
-	printf("IEEE 802.11F (IAPP) using interface %s\n", iface);
+	wpa_printf(MSG_INFO, "IEEE 802.11F (IAPP) using interface %s", iface);
 
 	/* TODO: For levels 2 and 3: send RADIUS Initiate-Request, receive
 	 * RADIUS Initiate-Accept or Initiate-Reject. IAPP port should actually
@@ -515,7 +518,8 @@ void iapp_deinit(struct iapp_data *iapp)
 		mreq.imr_ifindex = 0;
 		if (setsockopt(iapp->udp_sock, SOL_IP, IP_DROP_MEMBERSHIP,
 			       &mreq, sizeof(mreq)) < 0) {
-			perror("setsockopt[UDP,IP_DEL_MEMBERSHIP]");
+			wpa_printf(MSG_INFO, "iapp_deinit - setsockopt[UDP,IP_DEL_MEMBERSHIP]: %s",
+				   strerror(errno));
 		}
 
 		eloop_unregister_read_sock(iapp->udp_sock);

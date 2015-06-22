@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
+#include <machine/pmap.h>
 #include <machine/pte.h>
 #include <machine/physmem.h>
 #include <machine/intr.h>
@@ -151,10 +152,20 @@ init_secondary(int cpu)
 	uint32_t loop_counter;
 	int start = 0, end = 0;
 
-	cpu_setup(NULL);
+#ifdef ARM_NEW_PMAP
+	pmap_set_tex();
+	reinit_mmu(pmap_kern_ttb, (1<<6) | (1<< 0), (1<<6) | (1<< 0));
+	cpu_setup();
+
+	/* Provide stack pointers for other processor modes. */
+	set_stackptrs(cpu);
+
+	enable_interrupts(PSR_A);
+#else /* ARM_NEW_PMAP */
+	cpu_setup();
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
-
+#endif /* ARM_NEW_PMAP */
 	pc = &__pcpu[cpu];
 
 	/*
@@ -166,16 +177,19 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
-
+#ifndef ARM_NEW_PMAP
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);
-
+#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
 	/* Spin until the BSP releases the APs */
-	while (!aps_ready)
-		;
+	while (!atomic_load_acq_int(&aps_ready)) {
+#if __ARM_ARCH >= 7
+		__asm __volatile("wfe");
+#endif
+	}
 
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -183,8 +197,6 @@ init_secondary(int cpu)
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
 	set_curthread(pc->pc_idlethread);
 #ifdef VFP
-	pc->pc_cpu = cpu;
-
 	vfp_init();
 #endif
 
@@ -208,7 +220,7 @@ init_secondary(int cpu)
 	end = IPI_IRQ_START;
 #endif
 #endif
-				
+
 	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
 	enable_interrupts(PSR_I);
@@ -330,7 +342,7 @@ release_aps(void *dummy __unused)
 		/*
 		 * IPI handler
 		 */
-		/* 
+		/*
 		 * Use 0xdeadbeef as the argument value for irq 0,
 		 * if we used 0, the intr code will give the trap frame
 		 * pointer instead.
@@ -342,6 +354,10 @@ release_aps(void *dummy __unused)
 		arm_unmask_irq(i);
 	}
 	atomic_store_rel_int(&aps_ready, 1);
+	/* Wake the other threads up */
+#if __ARM_ARCH >= 7
+	armv7_sev();
+#endif
 
 	printf("Release APs\n");
 

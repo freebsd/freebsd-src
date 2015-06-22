@@ -30,7 +30,7 @@ static const char sccsid[] = "$Id: v_at.c,v 10.11 2001/06/25 15:19:30 skimo Exp 
  * v_at -- @
  *	Execute a buffer.
  *
- * PUBLIC: int v_at __P((SCR *, VICMD *));
+ * PUBLIC: int v_at(SCR *, VICMD *);
  */
 int
 v_at(SCR *sp, VICMD *vp)

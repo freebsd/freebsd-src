@@ -26,13 +26,13 @@ static const char sccsid[] = "$Id: ex_shift.c,v 10.17 2001/06/25 15:19:20 skimo 
 #include "../common/common.h"
 
 enum which {LEFT, RIGHT};
-static int shift __P((SCR *, EXCMD *, enum which));
+static int shift(SCR *, EXCMD *, enum which);
 
 /*
  * ex_shiftl -- :<[<...]
  *
  *
- * PUBLIC: int ex_shiftl __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_shiftl(SCR *, EXCMD *);
  */
 int
 ex_shiftl(SCR *sp, EXCMD *cmdp)
@@ -43,7 +43,7 @@ ex_shiftl(SCR *sp, EXCMD *cmdp)
 /*
  * ex_shiftr -- :>[>...]
  *
- * PUBLIC: int ex_shiftr __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_shiftr(SCR *, EXCMD *);
  */
 int
 ex_shiftr(SCR *sp, EXCMD *cmdp)

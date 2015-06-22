@@ -131,10 +131,10 @@
 #	over the last few minutes of the day. The frequency of the local
 #	clock is decreased (or increased) to realize the positive (or
 #	negative) leap second. This method removes the time step described
-#	above. Although the long-term behavior of the time scale is correct 
-#	in this case, this method introduces an error during the adjustment 
-#	period both in time and in frequency with respect to the official 
-#	defintion of UTC.
+#	above. Although the long-term behavior of the time scale is correct
+#	in this case, this method introduces an error during the adjustment
+#	period both in time and in frequency with respect to the official
+#	definition of UTC.
 #
 #	Questions or comments to:
 #		Judah Levine

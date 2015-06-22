@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
 #include <sys/endian.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -72,8 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/cpu.h>
-#include <machine/intr.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -550,7 +546,8 @@ dwc_alloc_mbufcl(struct dwc_softc *sc)
 	struct mbuf *m;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
+	if (m != NULL)
+		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 	return (m);
 }
@@ -749,7 +746,6 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 	DWC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
-
 	while (sc->tx_idx_tail != sc->tx_idx_head) {
 		desc = &sc->txdesc_ring[sc->tx_idx_tail];
 		if ((desc->tdes0 & DDESC_TDES0_OWN) != 0)
@@ -762,6 +758,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 		bmap->mbuf = NULL;
 		dwc_setup_txdesc(sc, sc->tx_idx_tail, 0, 0);
 		sc->tx_idx_tail = next_txidx(sc, sc->tx_idx_tail);
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
 	/* If there are no buffers outstanding, muzzle the watchdog. */
@@ -844,8 +841,10 @@ dwc_intr(void *arg)
 		if (reg & DMA_STATUS_RI)
 			dwc_rxfinish_locked(sc);
 
-		if (reg & DMA_STATUS_TI)
+		if (reg & DMA_STATUS_TI) {
 			dwc_txfinish_locked(sc);
+			dwc_txstart_locked(sc);
+		}
 	}
 
 	if (reg & DMA_STATUS_AIS) {

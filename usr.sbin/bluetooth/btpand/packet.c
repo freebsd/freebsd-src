@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: packet.c,v 1.1 2008/08/17 13:20:57 plunky Exp $");
 
+#define L2CAP_SOCKET_CHECKED
 #include "btpand.h"
 
 packet_t *

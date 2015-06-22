@@ -487,7 +487,7 @@ again:
 
 #if defined(HAVE_NET_PFVAR_H)
 	case IPPROTO_PFSYNC:
-		pfsync_ip_print(ipds->cp, ipds->len);
+		pfsync_ip_print(ndo, ipds->cp, ipds->len);
 		break;
 #endif
 

@@ -32,7 +32,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl abehuwxACHPWY
+.Op Fl abehuwxACHPSWY
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
@@ -99,10 +99,12 @@ Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
 .It Fl l Ar lpcdev Ns Op , Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
-The only supported devices are the TTY-class devices,
-.Li com1
+The only supported devices are the TTY-class devices
+.Ar com1
 and
-.Li com2 .
+.Ar com2
+and the boot ROM device
+.Ar bootrom .
 .It Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
 Guest physical memory size in bytes.
 This must be the same size that was given to
@@ -165,8 +167,8 @@ AHCI controller attached to a SATA hard-drive.
 .It Li uart
 PCI 16550 serial device.
 .It Li lpc
-LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports. The LPC bridge
-emulation can only be configured on bus 0.
+LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports and a boot ROM.
+The LPC bridge emulation can only be configured on bus 0.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -193,8 +195,13 @@ format.
 .Pp
 Block storage devices:
 .Bl -tag -width 10n
-.It Pa /filename Ns Oo , Ns Li nocache Oc Ns Oo , Ns Li direct Oc Ns Oo , Ns Li ro Oc
-.It Pa /dev/xxx Ns Oo , Ns Ar nocache Oc Ns Oo , Ns Ar direct Oc Ns Oo , Ns Ar ro Oc
+.It Pa /filename Ns Oo , Ns Ar block-device-options Oc
+.It Pa /dev/xxx Ns Oo , Ns Ar block-device-options Oc
+.El
+.Pp
+The
+.Ar block-device-options
+are:
 .Bl -tag -width 8n
 .It Li nocache
 Open the file with
@@ -204,14 +211,10 @@ Open the file using
 .Dv O_SYNC .
 .It Li ro
 Force the file to be opened read-only.
-.El
-.Pp
-The
-.Li nocache ,
-.Li direct ,
-and
-.Li ro
-options are not available for virtio block devices.
+.It Li sectorsize= Ns Ar logical Ns Oo / Ns Ar physical Oc
+Specify the logical and physical sector sizes of the emulated disk.
+The physical sector size is optional and is equal to the logical sector size
+if not explicitly specified.
 .El
 .Pp
 TTY devices:
@@ -221,6 +224,14 @@ Connect the serial port to the standard input and output of
 the bhyve process.
 .It Pa /dev/xxx
 Use the host TTY device for serial port I/O.
+.El
+.Pp
+Boot ROM device:
+.Bl -tag -width 10n
+.It Pa romfile
+Map
+.Ar romfile
+in the guest address space reserved for boot firmware.
 .El
 .Pp
 Pass-through devices:
@@ -234,11 +245,17 @@ and
 numbers.
 .El
 .Pp
+Guest memory must be wired using the
+.Fl S
+option when a pass-through device is configured.
+.Pp
 The host device must have been reserved at boot-time using the
 .Va pptdev
 loader variable as described in
 .Xr vmm 4 .
 .El
+.It Fl S
+Wire guest memory.
 .It Fl u
 RTC keeps UTC time.
 .It Fl U Ar uuid

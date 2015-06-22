@@ -13,6 +13,16 @@ BASE=@XO_SHAREDIR@
 CMD=cat
 DONE=
 
+do_help () {
+    echo "xohtml: wrap libxo-enabled output in HTML"
+    echo "Usage: xohtml [options] [command [arguments]]"
+    echo "Valid options are:"
+    echo "    -b <basepath> | --base <basepath>"
+    echo "    -c <command> | --command <command>"
+    echo "    -f <output-file> | --file <output-file>"
+    exit 1
+}
+
 while [ -z "$DONE" -a ! -z "$1" ]; do
     case "$1" in
         -b|--base)
@@ -31,11 +41,21 @@ while [ -z "$DONE" -a ! -z "$1" ]; do
 	    shift;
 	    exec > "$FILE";
             ;;
+	-*)
+	    do_help
+	    ;;
 	*)
 	    DONE=1;
+	    XX=$1;
+	    shift;
+	    CMD="$XX --libxo=html $@"
 	    ;;
     esac
 done
+
+if [ "$CMD" = "cat" -a -t 0 ]; then
+    do_help
+fi
 
 echo "<html>\n<head>\n"
 echo '<meta http-equiv="content-type" content="text/html; charset=utf-8"/>'

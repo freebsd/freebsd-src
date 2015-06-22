@@ -16,6 +16,7 @@
 #include "wpa_auth.h"
 #include "sta_info.h"
 #include "ap_mlme.h"
+#include "hostapd.h"
 
 
 #ifndef CONFIG_NO_HOSTAPD_LOGGER
@@ -80,7 +81,8 @@ void mlme_deauthenticate_indication(struct hostapd_data *hapd,
 		       HOSTAPD_LEVEL_DEBUG,
 		       "MLME-DEAUTHENTICATE.indication(" MACSTR ", %d)",
 		       MAC2STR(sta->addr), reason_code);
-	mlme_deletekeys_request(hapd, sta);
+	if (!hapd->iface->driver_ap_teardown)
+		mlme_deletekeys_request(hapd, sta);
 }
 
 
@@ -118,8 +120,6 @@ void mlme_associate_indication(struct hostapd_data *hapd, struct sta_info *sta)
  * reassociation procedure that was initiated by that specific peer MAC entity.
  *
  * PeerSTAAddress = sta->addr
- *
- * sta->previous_ap contains the "Current AP" information from ReassocReq.
  */
 void mlme_reassociate_indication(struct hostapd_data *hapd,
 				 struct sta_info *sta)

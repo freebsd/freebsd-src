@@ -1,8 +1,6 @@
 # $FreeBSD$
 arm/arm/bus_space_base.c		standard
 arm/arm/bus_space_generic.c		standard
-arm/arm/cpufunc_asm_xscale.S		standard
-arm/arm/cpufunc_asm_xscale_c3.S		standard
 arm/xscale/i80321/i80321_timer.c	standard
 arm/xscale/i80321/i80321_wdog.c		optional	iopwdog
 arm/xscale/i8134x/i81342.c		standard

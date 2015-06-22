@@ -22,7 +22,6 @@ struct hostapd_ip_addr {
 
 const char * hostapd_ip_txt(const struct hostapd_ip_addr *addr, char *buf,
 			    size_t buflen);
-int hostapd_ip_diff(struct hostapd_ip_addr *a, struct hostapd_ip_addr *b);
 int hostapd_parse_ip_addr(const char *txt, struct hostapd_ip_addr *addr);
 
 #endif /* IP_ADDR_H */

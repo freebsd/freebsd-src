@@ -10,10 +10,6 @@ PROG=	bsnmpget
 LIBADD=	bsnmp bsnmptools
 CFLAGS+=	-I${.CURDIR}/../libbsnmptools
 
-.if ${MK_OPENSSL} != "no"
-LIBADD+=	crypto
-.endif
-
 LINKS=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpwalk
 LINKS+=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpset
 

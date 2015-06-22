@@ -257,6 +257,30 @@ vm_object_set_flag(vm_object_t object, u_short bits)
 	object->flags |= bits;
 }
 
+/*
+ *	Conditionally set the object's color, which (1) enables the allocation
+ *	of physical memory reservations for anonymous objects and larger-than-
+ *	superpage-sized named objects and (2) determines the first page offset
+ *	within the object at which a reservation may be allocated.  In other
+ *	words, the color determines the alignment of the object with respect
+ *	to the largest superpage boundary.  When mapping named objects, like
+ *	files or POSIX shared memory objects, the color should be set to zero
+ *	before a virtual address is selected for the mapping.  In contrast,
+ *	for anonymous objects, the color may be set after the virtual address
+ *	is selected.
+ *
+ *	The object must be locked.
+ */
+static __inline void
+vm_object_color(vm_object_t object, u_short color)
+{
+
+	if ((object->flags & OBJ_COLORED) == 0) {
+		object->pg_color = color;
+		object->flags |= OBJ_COLORED;
+	}
+}
+
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_subtract(vm_object_t object, short i);
@@ -298,6 +322,7 @@ boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
 void vm_object_unwire(vm_object_t object, vm_ooffset_t offset,
     vm_size_t length, uint8_t queue);
+struct vnode *vm_object_vnode(vm_object_t object);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

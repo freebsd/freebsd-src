@@ -1874,7 +1874,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	map = &p->p_vmspace->vm_map;
 	size = round_page(args->size);
 	PROC_LOCK(p);
-	if (map->size + size > lim_cur(p, RLIMIT_VMEM)) {
+	if (map->size + size > lim_cur_proc(p, RLIMIT_VMEM)) {
 		PROC_UNLOCK(p);
 		error = -ENOMEM;
 		goto out;
@@ -3175,9 +3175,6 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh)
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &m, 1, 0);
-			m = vm_page_lookup(object, pindex);
-			if (m == NULL)
-				return (NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);
 				vm_page_free(m);

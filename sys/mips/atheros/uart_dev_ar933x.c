@@ -351,7 +351,8 @@ struct uart_class uart_ar933x_class = {
 	sizeof(struct ar933x_softc),
 	.uc_ops = &uart_ar933x_ops,
 	.uc_range = 8,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

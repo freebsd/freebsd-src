@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -53,7 +53,11 @@
  */
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD		4096
+#ifdef EM_MULTIQUEUE
+#define EM_DEFAULT_TXD		4096
+#else
 #define EM_DEFAULT_TXD		1024
+#endif
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -70,7 +74,11 @@
  */
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD		4096
+#ifdef EM_MULTIQUEUE
+#define EM_DEFAULT_RXD		4096
+#else
 #define EM_DEFAULT_RXD		1024
+#endif
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -117,7 +125,11 @@
  *            restoring the network connection. To eliminate the potential
  *            for the hang ensure that EM_RDTR is set to 0.
  */
+#ifdef EM_MULTIQUEUE
+#define EM_RDTR                         64
+#else
 #define EM_RDTR                         0
+#endif
 
 /*
  * Receive Interrupt Absolute Delay Timer (Not valid for 82542/82543/82544)
@@ -130,7 +142,11 @@
  *   along with EM_RDTR, may improve traffic throughput in specific network
  *   conditions.
  */
+#ifdef EM_MULTIQUEUE
+#define EM_RADV                         128
+#else
 #define EM_RADV                         64
+#endif
 
 /*
  * This parameter controls the max duration of transmit watchdog.
@@ -188,9 +204,19 @@
 #define EM_EEPROM_APME			0x400;
 #define EM_82544_APME			0x0004;
 
-#define EM_QUEUE_IDLE			0
-#define EM_QUEUE_WORKING		1
-#define EM_QUEUE_HUNG			2
+/*
+ * Driver state logic for the detection of a hung state
+ * in hardware.  Set TX_HUNG whenever a TX packet is used
+ * (data is sent) and clear it when txeof() is invoked if
+ * any descriptors from the ring are cleaned/reclaimed.
+ * Increment internal counter if no descriptors are cleaned
+ * and compare to TX_MAXTRIES.  When counter > TX_MAXTRIES,
+ * reset adapter.
+ */
+#define EM_TX_IDLE			0x00000000
+#define EM_TX_BUSY			0x00000001
+#define EM_TX_HUNG			0x80000000
+#define EM_TX_MAXTRIES			10
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -199,7 +225,15 @@
  */
 #define EM_DBA_ALIGN			128
 
-#define SPEED_MODE_BIT (1<<21)		/* On PCI-E MACs only */
+/*
+ * See Intel 82574 Driver Programming Interface Manual, Section 10.2.6.9
+ */
+#define TARC_COMPENSATION_MODE	(1 << 7)	/* Compensation Mode */
+#define TARC_SPEED_MODE_BIT 	(1 << 21)	/* On PCI-E MACs only */
+#define TARC_MQ_FIX		(1 << 23) | \
+				(1 << 24) | \
+				(1 << 25)	/* Handle errata in MQ mode */
+#define TARC_ERRATA_BIT 	(1 << 26)	/* Note from errata on 82574 */
 
 /* PCI Config defines */
 #define EM_BAR_TYPE(v)		((v) & EM_BAR_TYPE_MASK)
@@ -249,6 +283,14 @@
  * solve it just using this define.
  */
 #define EM_EIAC 0x000DC
+/*
+ * 82574 only reports 3 MSI-X vectors by default;
+ * defines assisting with making it report 5 are
+ * located here.
+ */
+#define EM_NVM_PCIE_CTRL	0x1B
+#define EM_NVM_MSIX_N_MASK	(0x7 << EM_NVM_MSIX_N_SHIFT)
+#define EM_NVM_MSIX_N_SHIFT	7
 
 /*
  * Bus dma allocation structure used by
@@ -281,8 +323,7 @@ struct tx_ring {
         u32                     me;
         u32                     msix;
 	u32			ims;
-        int			queue_status;
-        int                     watchdog_time;
+        int			busy;
 	struct em_dma_alloc	txdma;
 	struct e1000_tx_desc	*tx_base;
         struct task             tx_task;
@@ -368,7 +409,6 @@ struct adapter {
 	int		if_flags;
 	int		max_frame_size;
 	int		min_frame_size;
-	int		pause_frames;
 	struct mtx	core_mtx;
 	int		em_insert_vlan_header;
 	u32		ims;
@@ -383,7 +423,7 @@ struct adapter {
 	eventhandler_tag vlan_detach;
 
 	u16	num_vlans;
-	u16	num_queues;
+	u8	num_queues;
 
         /*
          * Transmit rings:

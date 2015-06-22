@@ -327,9 +327,14 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 		 * group as the user we run as.
 		 */
 		if(fd != -1) {
-			if (cfg->username && cfg->username[0])
-				chown(ip, cfg->uid, cfg->gid);
+#ifdef HAVE_CHOWN
+			if (cfg->username && cfg->username[0] &&
+				cfg_uid != (uid_t)-1)
+				chown(ip, cfg_uid, cfg_gid);
 			chmod(ip, (mode_t)(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
+#else
+			(void)cfg;
+#endif
 		}
 	} else {
 		hints.ai_socktype = SOCK_STREAM;

@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <ifaddrs.h>
 #include <sys/queue.h>
 #ifdef INET6
-#include <net/if_var.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <netinet6/in6_var.h>

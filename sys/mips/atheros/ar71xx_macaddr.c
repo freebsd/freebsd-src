@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/libkern.h>
 
+#include <net/ethernet.h>
+
 #include <mips/atheros/ar71xx_macaddr.h>
 
 /*
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
  * device on-board, but instead need to derive them from a single MAC
  * address stored somewhere.
  */
+uint8_t ar71xx_board_mac_addr[ETHER_ADDR_LEN];
 
 /*
  * Initialise a MAC address 'dst' from a MAC address 'src'.

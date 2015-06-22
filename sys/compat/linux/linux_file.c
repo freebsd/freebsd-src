@@ -55,10 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -136,39 +132,39 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
     /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
     error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
+    if (error != 0)
+	    goto done;
 
-    if (!error) {
-	    fd = td->td_retval[0];
-	    /*
-	     * XXX In between kern_open() and fget(), another process
-	     * having the same filedesc could use that fd without
-	     * checking below.
-	     */
-	    error = fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
-	    if (!error) {
-		    sx_slock(&proctree_lock);
-		    PROC_LOCK(p);
-		    if (!(bsd_flags & O_NOCTTY) &&
-			SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
-			    PROC_UNLOCK(p);
-			    sx_unlock(&proctree_lock);
-			    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
-			    if (fp->f_type == DTYPE_VNODE)
-				    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
-					     td->td_ucred, td);
-		    } else {
-			    PROC_UNLOCK(p);
-			    sx_sunlock(&proctree_lock);
-		    }
+    if (bsd_flags & O_NOCTTY)
+	    goto done;
+
+    /*
+     * XXX In between kern_open() and fget(), another process
+     * having the same filedesc could use that fd without
+     * checking below.
+     */
+    fd = td->td_retval[0];
+    if (fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp) == 0) {
+	    if (fp->f_type != DTYPE_VNODE) {
 		    fdrop(fp, td);
-		    /*
-		     * XXX as above, fdrop()/kern_close() pair is racy.
-		     */
-		    if (error)
-			    kern_close(td, fd);
+		    goto done;
 	    }
+	    sx_slock(&proctree_lock);
+	    PROC_LOCK(p);
+	    if (SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
+		    PROC_UNLOCK(p);
+		    sx_sunlock(&proctree_lock);
+		    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
+		    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
+			td->td_ucred, td);
+	    } else {
+		    PROC_UNLOCK(p);
+		    sx_sunlock(&proctree_lock);
+	    }
+	    fdrop(fp, td);
     }
 
+done:
 #ifdef DEBUG
     if (ldebug(open))
 	    printf(LMSG("open returns error %d"), error);
@@ -239,6 +235,7 @@ linux_lseek(struct thread *td, struct linux_lseek_args *args)
     return error;
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_llseek(struct thread *td, struct linux_llseek_args *args)
 {
@@ -277,6 +274,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	lda.count = 1;
 	return linux_getdents(td, &lda);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 /*
  * Note that linux_getdents(2) and linux_getdents64(2) have the same
@@ -350,8 +348,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	} else
 		justone = 0;
 
-	error = getvnode(td->td_proc->p_fd, args->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, args->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 
@@ -371,8 +368,8 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	lbuf = malloc(LINUX_MAXRECLEN, M_TEMP, M_WAITOK | M_ZERO);
+	buf = malloc(buflen, M_LINUX, M_WAITOK);
+	lbuf = malloc(LINUX_MAXRECLEN, M_LINUX, M_WAITOK | M_ZERO);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	aiov.iov_base = buf;
@@ -523,8 +520,8 @@ out:
 	VOP_UNLOCK(vp, 0);
 	foffset_unlock(fp, off, 0);
 	fdrop(fp, td);
-	free(buf, M_TEMP);
-	free(lbuf, M_TEMP);
+	free(buf, M_LINUX);
+	free(lbuf, M_LINUX);
 	return (error);
 }
 
@@ -583,10 +580,8 @@ int
 linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 {
 	char *path;
-	int error, dfd, flag;
+	int error, dfd;
 
-	if (args->flag & ~LINUX_AT_EACCESS)
-		return (EINVAL);
 	/* linux convention */
 	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
@@ -599,8 +594,7 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
-	flag = (args->flag & LINUX_AT_EACCESS) == 0 ? 0 : AT_EACCESS;
-	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, flag, args->amode);
+	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -928,6 +922,7 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 {
@@ -945,6 +940,8 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 	LFREEPATH(path);
 	return (error);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
 int
 linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 {
@@ -1078,12 +1075,10 @@ linux_pwrite(td, uap)
 int
 linux_mount(struct thread *td, struct linux_mount_args *args)
 {
-	struct ufs_args ufs;
 	char fstypename[MFSNAMELEN];
 	char mntonname[MNAMELEN], mntfromname[MNAMELEN];
 	int error;
 	int fsflags;
-	void *fsdata;
 
 	error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
 	    NULL);
@@ -1104,20 +1099,10 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 
 	if (strcmp(fstypename, "ext2") == 0) {
 		strcpy(fstypename, "ext2fs");
-		fsdata = &ufs;
-		ufs.fspec = mntfromname;
-#define DEFAULT_ROOTID		-2
-		ufs.export.ex_root = DEFAULT_ROOTID;
-		ufs.export.ex_flags =
-		    args->rwflag & LINUX_MS_RDONLY ? MNT_EXRDONLY : 0;
 	} else if (strcmp(fstypename, "proc") == 0) {
 		strcpy(fstypename, "linprocfs");
-		fsdata = NULL;
 	} else if (strcmp(fstypename, "vfat") == 0) {
 		strcpy(fstypename, "msdosfs");
-		fsdata = NULL;
-	} else {
-		return (ENODEV);
 	}
 
 	fsflags = 0;
@@ -1137,22 +1122,15 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 			fsflags |= MNT_UPDATE;
 	}
 
-	if (strcmp(fstypename, "linprocfs") == 0) {
-		error = kernel_vmount(fsflags,
-			"fstype", fstypename,
-			"fspath", mntonname,
-			NULL);
-	} else if (strcmp(fstypename, "msdosfs") == 0) {
-		error = kernel_vmount(fsflags,
-			"fstype", fstypename,
-			"fspath", mntonname,
-			"from", mntfromname,
-			NULL);
-	} else
-		error = EOPNOTSUPP;
+	error = kernel_vmount(fsflags,
+	    "fstype", fstypename,
+	    "fspath", mntonname,
+	    "from", mntfromname,
+	    NULL);
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 {
@@ -1162,6 +1140,7 @@ linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 	args2.flags = 0;
 	return (linux_umount(td, &args2));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_umount(struct thread *td, struct linux_umount_args *args)
@@ -1292,7 +1271,7 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
-fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
+fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 {
 	struct l_flock linux_flock;
 	struct flock bsd_flock;
@@ -1410,6 +1389,9 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		fdrop(fp, td);
 
 		return (kern_fcntl(td, args->fd, F_SETOWN, args->arg));
+
+	case LINUX_F_DUPFD_CLOEXEC:
+		return (kern_fcntl(td, args->fd, F_DUPFD_CLOEXEC, args->arg));
 	}
 
 	return (EINVAL);
@@ -1418,17 +1400,13 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 int
 linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 {
-	struct linux_fcntl64_args args64;
 
 #ifdef DEBUG
 	if (ldebug(fcntl))
 		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
 #endif
 
-	args64.fd = args->fd;
-	args64.cmd = args->cmd;
-	args64.arg = args->arg;
-	return (fcntl_common(td, &args64));
+	return (fcntl_common(td, args));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
@@ -1437,6 +1415,7 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 {
 	struct l_flock64 linux_flock;
 	struct flock bsd_flock;
+	struct linux_fcntl_args fcntl_args;
 	int error;
 
 #ifdef DEBUG
@@ -1477,7 +1456,10 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    (intptr_t)&bsd_flock));
 	}
 
-	return (fcntl_common(td, args));
+	fcntl_args.fd = args->fd;
+	fcntl_args.cmd = args->cmd;
+	fcntl_args.arg = args->arg;
+	return (fcntl_common(td, &fcntl_args));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -1575,6 +1557,7 @@ linux_fadvise64(struct thread *td, struct linux_fadvise64_args *args)
 	    advice));
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 {
@@ -1586,6 +1569,7 @@ linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
 	    advice));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_pipe(struct thread *td, struct linux_pipe_args *args)
@@ -1631,4 +1615,38 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 
 	/* XXX: Close descriptors on error. */
 	return (copyout(fildes, args->pipefds, sizeof(fildes)));
+}
+
+int
+linux_dup3(struct thread *td, struct linux_dup3_args *args)
+{
+	int cmd;
+	intptr_t newfd;
+
+	if (args->oldfd == args->newfd)
+		return (EINVAL);
+	if ((args->flags & ~LINUX_O_CLOEXEC) != 0)
+		return (EINVAL);
+	if (args->flags & LINUX_O_CLOEXEC)
+		cmd = F_DUP2FD_CLOEXEC;
+	else
+		cmd = F_DUP2FD;
+
+	newfd = args->newfd;
+	return (kern_fcntl(td, args->oldfd, cmd, newfd));
+}
+
+int
+linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
+{
+
+	/*
+	 * We emulate only posix_fallocate system call for which
+	 * mode should be 0.
+	 */
+	if (args->mode != 0)
+		return (ENOSYS);
+
+	return (kern_posix_fallocate(td, args->fd, args->offset,
+	    args->len));
 }

@@ -31,7 +31,7 @@ static const char sccsid[] = "$Id: ex_util.c,v 10.32 2001/06/25 15:19:21 skimo E
  * ex_cinit --
  *	Create an EX command structure.
  *
- * PUBLIC: void ex_cinit __P((SCR *, EXCMD *, int, int, recno_t, recno_t, int));
+ * PUBLIC: void ex_cinit(SCR *, EXCMD *, int, int, recno_t, recno_t, int);
  */
 void
 ex_cinit(SCR *sp, EXCMD *cmdp, int cmd_id, int naddr, recno_t lno1, recno_t lno2, int force)
@@ -51,7 +51,7 @@ ex_cinit(SCR *sp, EXCMD *cmdp, int cmd_id, int naddr, recno_t lno1, recno_t lno2
  * ex_getline --
  *	Return a line from the file.
  *
- * PUBLIC: int ex_getline __P((SCR *, FILE *, size_t *));
+ * PUBLIC: int ex_getline(SCR *, FILE *, size_t *);
  */
 int
 ex_getline(SCR *sp, FILE *fp, size_t *lenp)
@@ -91,7 +91,7 @@ ex_getline(SCR *sp, FILE *fp, size_t *lenp)
  * ex_ncheck --
  *	Check for more files to edit.
  *
- * PUBLIC: int ex_ncheck __P((SCR *, int));
+ * PUBLIC: int ex_ncheck(SCR *, int);
  */
 int
 ex_ncheck(SCR *sp, int force)
@@ -120,7 +120,7 @@ ex_ncheck(SCR *sp, int force)
  * ex_init --
  *	Init the screen for ex.
  *
- * PUBLIC: int ex_init __P((SCR *));
+ * PUBLIC: int ex_init(SCR *);
  */
 int
 ex_init(SCR *sp)
@@ -145,7 +145,7 @@ ex_init(SCR *sp)
  * ex_emsg --
  *	Display a few common ex and vi error messages.
  *
- * PUBLIC: void ex_wemsg __P((SCR *, CHAR_T *, exm_t));
+ * PUBLIC: void ex_wemsg(SCR *, CHAR_T *, exm_t);
  */
 void
 ex_wemsg(SCR* sp, CHAR_T *p, exm_t which)
@@ -162,7 +162,7 @@ ex_wemsg(SCR* sp, CHAR_T *p, exm_t which)
  * ex_emsg --
  *	Display a few common ex and vi error messages.
  *
- * PUBLIC: void ex_emsg __P((SCR *, char *, exm_t));
+ * PUBLIC: void ex_emsg(SCR *, char *, exm_t);
  */
 void
 ex_emsg(SCR *sp, char *p, exm_t which)

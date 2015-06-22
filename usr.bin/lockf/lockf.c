@@ -169,7 +169,7 @@ acquire_lock(const char *name, int flags)
 {
 	int fd;
 
-	if ((fd = open(name, flags|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
+	if ((fd = open(name, O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
 		if (errno == EAGAIN || errno == EINTR)
 			return (-1);
 		err(EX_CANTCREAT, "cannot open %s", name);

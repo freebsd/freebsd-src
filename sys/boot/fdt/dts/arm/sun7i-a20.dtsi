@@ -109,6 +109,14 @@
 			interrupt-parent = <&GIC>;
 		};
 
+		mmc0: mmc@01c0f000 {
+			compatible = "allwinner,sun4i-a10-mmc";
+			reg = <0x01c0f000 0x1000>;
+			interrupts = <32>;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
 		sata@01c18000 {
 			compatible = "allwinner,sun4i-a10-ahci";
 			reg = <0x01c18000 0x1000>;
@@ -125,7 +133,6 @@
 			current-speed = <115200>;
 			clock-frequency = < 24000000 >;
 			busy-detect = <1>;
-			broken-txfifo = <1>;
 		};
 
 		emac@01c0b000 {

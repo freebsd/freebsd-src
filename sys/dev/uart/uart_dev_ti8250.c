@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_hwmods.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -71,29 +72,15 @@ static int
 ti8250_bus_probe(struct uart_softc *sc)
 {
 	int status;
-	int devid;
 	clk_ident_t clkid;
-	pcell_t prop;
-	phandle_t node;
-
-	/*
-	 * Get the device id from FDT.  If it's not there we can't turn on the
-	 * right clocks, so bail, unless we're doing unit 0.  We assume that's
-	 * the serial console, whose clock isn't controllable anyway, and we
-	 * sure don't want to break the console because of a config error.
-	 */
-	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getprop(node, "uart-device-id", &prop, sizeof(prop))) <= 0) {
-		device_printf(sc->sc_dev, 
-		    "missing uart-device-id attribute in FDT\n");
-		if (device_get_unit(sc->sc_dev) != 0)
-			return (ENXIO);
-		devid = 0;
-	} else
-		devid = fdt32_to_cpu(prop);
 
 	/* Enable clocks for this device.  We can't continue if that fails.  */
-	clkid = UART0_CLK + devid;
+	clkid = ti_hwmods_get_clock(sc->sc_dev);
+	if (clkid == INVALID_CLK_IDENT) {
+		device_printf(sc->sc_dev,
+		    "failed to get clock based on hwmods\n");
+		clkid = UART1_CLK + device_get_unit(sc->sc_dev);
+	}
 	if ((status = ti_prcm_clk_enable(clkid)) != 0)
 		return (status);
 
@@ -137,10 +124,13 @@ static struct uart_class uart_ti8250_class = {
 	sizeof(struct ti8250_softc),
 	.uc_ops = &uart_ns8250_ops,
 	.uc_range = 0x88,
-	.uc_rclk = 48000000
+	.uc_rclk = 48000000,
+	.uc_rshift = 2
 };
 static struct ofw_compat_data compat_data[] = {
 	{"ti,ns16550",		(uintptr_t)&uart_ti8250_class},
+	{"ti,omap3-uart",	(uintptr_t)&uart_ti8250_class},
+	{"ti,omap4-uart",	(uintptr_t)&uart_ti8250_class},
 	{NULL,			(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);

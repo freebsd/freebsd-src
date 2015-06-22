@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_pf.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -75,7 +76,6 @@ struct pf_fragment_cmp {
 	uint32_t	frc_id;
 	sa_family_t	frc_af;
 	uint8_t		frc_proto;
-	uint8_t		frc_direction;
 };
 
 struct pf_fragment {
@@ -85,7 +85,6 @@ struct pf_fragment {
 #define fr_id	fr_key.frc_id
 #define fr_af	fr_key.frc_af
 #define fr_proto	fr_key.frc_proto
-#define fr_direction	fr_key.frc_direction
 
 	RB_ENTRY(pf_fragment) fr_entry;
 	TAILQ_ENTRY(pf_fragment) frag_next;
@@ -104,9 +103,11 @@ struct pf_fragment_tag {
 	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
 	uint16_t	ft_extoff;	/* last extension header offset or 0 */
 	uint16_t	ft_maxlen;	/* maximum fragment payload length */
+	uint32_t	ft_id;		/* fragment id */
 };
 
 static struct mtx pf_frag_mtx;
+MTX_SYSINIT(pf_frag_mtx, &pf_frag_mtx, "pf fragments", MTX_DEF);
 #define PF_FRAG_LOCK()		mtx_lock(&pf_frag_mtx)
 #define PF_FRAG_UNLOCK()	mtx_unlock(&pf_frag_mtx)
 #define PF_FRAG_ASSERT()	mtx_assert(&pf_frag_mtx, MA_OWNED)
@@ -154,7 +155,7 @@ static struct mbuf *pf_fragcache(struct mbuf **, struct ip*,
 #endif	/* INET */
 #ifdef INET6
 static int	pf_reassemble6(struct mbuf **, struct ip6_hdr *,
-		    struct ip6_frag *, uint16_t, uint16_t, int, u_short *);
+		    struct ip6_frag *, uint16_t, uint16_t, u_short *);
 static void	pf_scrub_ip6(struct mbuf **, uint8_t);
 #endif	/* INET6 */
 
@@ -175,7 +176,6 @@ pf_ip2key(struct ip *ip, int dir, struct pf_fragment_cmp *key)
 	key->frc_af = AF_INET;
 	key->frc_proto = ip->ip_p;
 	key->frc_id = ip->ip_id;
-	key->frc_direction = dir;
 }
 #endif	/* INET */
 
@@ -196,8 +196,6 @@ pf_normalize_init(void)
 	uma_zone_set_max(V_pf_frent_z, PFFRAG_FRENT_HIWAT);
 	uma_zone_set_warning(V_pf_frent_z, "PF frag entries limit reached");
 
-	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
-
 	TAILQ_INIT(&V_pf_fragqueue);
 	TAILQ_INIT(&V_pf_cachequeue);
 }
@@ -209,8 +207,6 @@ pf_normalize_cleanup(void)
 	uma_zdestroy(V_pf_state_scrub_z);
 	uma_zdestroy(V_pf_frent_z);
 	uma_zdestroy(V_pf_frag_z);
-
-	mtx_destroy(&pf_frag_mtx);
 }
 
 static int
@@ -386,7 +382,7 @@ pf_create_fragment(u_short *reason)
 	return (frent);
 }
 
-struct pf_fragment *
+static struct pf_fragment *
 pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		u_short *reason)
 {
@@ -572,11 +568,8 @@ pf_join_fragment(struct pf_fragment *frag)
 	frent = TAILQ_FIRST(&frag->fr_queue);
 	next = TAILQ_NEXT(frent, fr_next);
 
-	/* Magic from ip_input. */
 	m = frent->fe_m;
-	m2 = m->m_next;
-	m->m_next = NULL;
-	m_cat(m, m2);
+	m_adj(m, (frent->fe_hdrlen + frent->fe_len) - m->m_pkthdr.len);
 	uma_zfree(V_pf_frent_z, frent);
 	for (frent = next; frent != NULL; frent = next) {
 		next = TAILQ_NEXT(frent, fr_next);
@@ -584,6 +577,9 @@ pf_join_fragment(struct pf_fragment *frag)
 		m2 = frent->fe_m;
 		/* Strip off ip header. */
 		m_adj(m2, frent->fe_hdrlen);
+		/* Strip off any trailing bytes. */
+		m_adj(m2, frent->fe_len - m2->m_pkthdr.len);
+
 		uma_zfree(V_pf_frent_z, frent);
 		m_cat(m, m2);
 	}
@@ -664,7 +660,7 @@ pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
 #ifdef INET6
 static int
 pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
-    uint16_t hdrlen, uint16_t extoff, int dir, u_short *reason)
+    uint16_t hdrlen, uint16_t extoff, u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct pf_frent		*frent;
@@ -673,6 +669,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	struct m_tag		*mtag;
 	struct pf_fragment_tag	*ftag;
 	int			 off;
+	uint32_t		 frag_id;
 	uint16_t		 total, maxlen;
 	uint8_t			 proto;
 
@@ -697,7 +694,6 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	/* Only the first fragment's protocol is relevant. */
 	key.frc_proto = 0;
 	key.frc_id = fraghdr->ip6f_ident;
-	key.frc_direction = dir;
 
 	if ((frag = pf_fillup_fragment(&key, frent, reason)) == NULL) {
 		PF_FRAG_UNLOCK();
@@ -715,6 +711,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	/* We have all the data. */
 	extoff = frent->fe_extoff;
 	maxlen = frag->fr_maxlen;
+	frag_id = frag->fr_id;
 	frent = TAILQ_FIRST(&frag->fr_queue);
 	KASSERT(frent != NULL, ("frent != NULL"));
 	total = TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_off +
@@ -751,6 +748,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	ftag->ft_hdrlen = hdrlen;
 	ftag->ft_extoff = extoff;
 	ftag->ft_maxlen = maxlen;
+	ftag->ft_id = frag_id;
 	m_tag_prepend(m, mtag);
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -821,6 +819,8 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		(*frag)->fr_max = 0;
 		(*frag)->fr_src.v4 = h->ip_src;
 		(*frag)->fr_dst.v4 = h->ip_dst;
+		(*frag)->fr_af = AF_INET;
+		(*frag)->fr_proto = h->ip_p;
 		(*frag)->fr_id = h->ip_id;
 		(*frag)->fr_timeout = time_uptime;
 
@@ -1094,6 +1094,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	struct mbuf		*m = *m0, *t;
 	struct pf_fragment_tag	*ftag = (struct pf_fragment_tag *)(mtag + 1);
 	struct pf_pdesc		 pd;
+	uint32_t		 frag_id;
 	uint16_t		 hdrlen, extoff, maxlen;
 	uint8_t			 proto;
 	int			 error, action;
@@ -1101,6 +1102,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	hdrlen = ftag->ft_hdrlen;
 	extoff = ftag->ft_extoff;
 	maxlen = ftag->ft_maxlen;
+	frag_id = ftag->ft_id;
 	m_tag_delete(m, mtag);
 	mtag = NULL;
 	ftag = NULL;
@@ -1130,7 +1132,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	 * is less than 8, ip6_fragment() will return EMSGSIZE and
 	 * we drop the packet.
 	 */
-	error = ip6_fragment(ifp, m, hdrlen, proto, maxlen);
+	error = ip6_fragment(ifp, m, hdrlen, proto, maxlen, frag_id);
 	m = (*m0)->m_nextpkt;
 	(*m0)->m_nextpkt = NULL;
 	if (error == 0) {
@@ -1146,6 +1148,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	for (t = m; m; m = t) {
 		t = m->m_nextpkt;
 		m->m_nextpkt = NULL;
+		m->m_flags |= M_SKIP_FIREWALL;
 		memset(&pd, 0, sizeof(pd));
 		pd.pf_mtag = pf_find_mtag(m);
 		if (error == 0)
@@ -1548,7 +1551,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	off += sizeof(frag);
 
 	/* Returns PF_DROP or *m0 is NULL or completely reassembled mbuf. */
-	if (pf_reassemble6(m0, h, &frag, off, extoff, dir, reason) != PF_PASS)
+	if (pf_reassemble6(m0, h, &frag, off, extoff, reason) != PF_PASS)
 		return (PF_DROP);
 	m = *m0;
 	if (m == NULL)
@@ -1636,7 +1639,7 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 			goto tcp_drop;
 
 		if (flags & TH_FIN)
-			flags &= ~TH_FIN;
+			goto tcp_drop;
 	} else {
 		/* Illegal packet */
 		if (!(flags & (TH_ACK|TH_RST)))
@@ -2265,9 +2268,9 @@ pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 
 	/* random-id, but not for fragments */
 	if (flags & PFRULE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
-		u_int16_t ip_id = h->ip_id;
+		uint16_t ip_id = h->ip_id;
 
-		h->ip_id = ip_randomid();
+		ip_fillid(h);
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
 }

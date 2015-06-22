@@ -9,7 +9,7 @@ SRCS=	kern.c nlm_prot_svc.c lockd.c lock_proc.c lockd_lock.c
 CFLAGS+= -I. -I${DESTDIR}/usr/include/rpcsvc
 WARNS?= 3
 
-LIBADD=	rpcsvc util
+LIBADD=	rpcsvc
 
 CLEANFILES= nlm_prot_svc.c nlm_prot.h test
 

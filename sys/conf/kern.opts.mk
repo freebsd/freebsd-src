@@ -51,6 +51,10 @@ __DEFAULT_NO_OPTIONS = \
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
 # must change this code.
+# Note: These only apply to the list of modules we build by default
+# and sometimes what is in the opt_*.h files by default.
+# Kernel config files are unaffected, though some targets can be
+# affected by KERNEL_SYMBOLS, FORMAT_EXTENSIONS, CTF and SSP.
 
 # Things that don't work based on the CPU
 .if ${MACHINE_CPUARCH} == "arm"

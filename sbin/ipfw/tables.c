@@ -715,6 +715,7 @@ table_print_valheader(char *buf, size_t bufsize, uint32_t vmask)
 		return;
 	}
 
+	memset(buf, 0, bufsize);
 	print_flags_buffer(buf, bufsize, tablevaltypes, vmask);
 }
 
@@ -1309,6 +1310,63 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 	tentry->masklen = masklen;
 }
 
+/*
+ * Tries to guess table key type.
+ * This procedure is used in legacy table auto-create
+ * code AND in `ipfw -n` ruleset checking.
+ *
+ * Imported from old table_fill_xentry() parse code.
+ */
+static int
+guess_key_type(char *key, uint8_t *ptype)
+{
+	char *p;
+	struct in6_addr addr;
+	uint32_t kv;
+
+	if (ishexnumber(*key) != 0 || *key == ':') {
+		/* Remove / if exists */
+		if ((p = strchr(key, '/')) != NULL)
+			*p = '\0';
+
+		if ((inet_pton(AF_INET, key, &addr) == 1) ||
+		    (inet_pton(AF_INET6, key, &addr) == 1)) {
+			*ptype = IPFW_TABLE_CIDR;
+			if (p != NULL)
+				*p = '/';
+			return (0);
+		} else {
+			/* Port or any other key */
+			/* Skip non-base 10 entries like 'fa1' */
+			kv = strtol(key, &p, 10);
+			if (*p == '\0') {
+				*ptype = IPFW_TABLE_NUMBER;
+				return (0);
+			} else if ((p != key) && (*p == '.')) {
+				/*
+				 * Warn on IPv4 address strings
+				 * which are "valid" for inet_aton() but not
+				 * in inet_pton().
+				 *
+				 * Typical examples: '10.5' or '10.0.0.05'
+				 */
+				return (1);
+			}
+		}
+	}
+
+	if (strchr(key, '.') == NULL) {
+		*ptype = IPFW_TABLE_INTERFACE;
+		return (0);
+	}
+
+	if (lookup_host(key, (struct in_addr *)&addr) != 0)
+		return (1);
+
+	*ptype = IPFW_TABLE_CIDR;
+	return (0);
+}
+
 static void
 tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
     int add, uint8_t *ptype, uint32_t *pvmask, ipfw_xtable_info *xi)
@@ -1316,7 +1374,6 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 	uint8_t type, tflags;
 	uint32_t vmask;
 	int error;
-	char *del;
 
 	type = 0;
 	tflags = 0;
@@ -1328,10 +1385,24 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		error = 0;
 
 	if (error == 0) {
-		/* Table found. */
-		type = xi->type;
-		tflags = xi->tflags;
-		vmask = xi->vmask;
+		if (co.test_only == 0) {
+			/* Table found */
+			type = xi->type;
+			tflags = xi->tflags;
+			vmask = xi->vmask;
+		} else {
+			/*
+			 * we're running `ipfw -n`
+			 * Compability layer: try to guess key type
+			 * before failing.
+			 */
+			if (guess_key_type(key, &type) != 0) {
+				/* Inknown key */
+				errx(EX_USAGE, "Cannot guess "
+				    "key '%s' type", key);
+			}
+			vmask = IPFW_VTYPE_LEGACY;
+		}
 	} else {
 		if (error != ESRCH)
 			errx(EX_OSERR, "Error requesting table %s info",
@@ -1340,24 +1411,16 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 			errx(EX_DATAERR, "Table %s does not exist",
 			    oh->ntlv.name);
 		/*
-		 * Table does not exist.
-		 * Compability layer: try to interpret data as ADDR
-		 * before failing.
+		 * Table does not exist
+		 * Compability layer: try to guess key type before failing.
 		 */
-		if ((del = strchr(key, '/')) != NULL)
-			*del = '\0';
-		if (inet_pton(AF_INET, key, &tent->k.addr6) == 1 ||
-		    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
-			/* OK Prepare and send */
-			type = IPFW_TABLE_ADDR;
-			vmask = IPFW_VTYPE_LEGACY;
-		} else {
+		if (guess_key_type(key, &type) != 0) {
 			/* Inknown key */
 			errx(EX_USAGE, "Table %s does not exist, cannot guess "
 			    "key '%s' type", oh->ntlv.name, key);
 		}
-		if (del != NULL)
-			*del = '/';
+
+		vmask = IPFW_VTYPE_LEGACY;
 	}
 
 	tentry_fill_key_type(key, tent, type, tflags);
@@ -1934,73 +1997,6 @@ ipfw_list_values(int ac, char *av[])
 	}
 
 	free(olh);
-}
-
-int
-compare_ntlv(const void *_a, const void *_b)
-{
-	ipfw_obj_ntlv *a, *b;
-
-	a = (ipfw_obj_ntlv *)_a;
-	b = (ipfw_obj_ntlv *)_b;
-
-	if (a->set < b->set)
-		return (-1);
-	else if (a->set > b->set)
-		return (1);
-
-	if (a->idx < b->idx)
-		return (-1);
-	else if (a->idx > b->idx)
-		return (1);
-
-	return (0);
-}
-
-int
-compare_kntlv(const void *k, const void *v)
-{
-	ipfw_obj_ntlv *ntlv;
-	uint16_t key;
-
-	key = *((uint16_t *)k);
-	ntlv = (ipfw_obj_ntlv *)v;
-
-	if (key < ntlv->idx)
-		return (-1);
-	else if (key > ntlv->idx)
-		return (1);
-	
-	return (0);
-}
-
-/*
- * Finds table name in @ctlv by @idx.
- * Uses the following facts:
- * 1) All TLVs are the same size
- * 2) Kernel implementation provides already sorted list.
- *
- * Returns table name or NULL.
- */
-char *
-table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
-{
-	ipfw_obj_ntlv *ntlv;
-
-	ntlv = bsearch(&idx, (ctlv + 1), ctlv->count, ctlv->objsize,
-	    compare_kntlv);
-
-	if (ntlv != 0)
-		return (ntlv->name);
-
-	return (NULL);
-}
-
-void
-table_sort_ctlv(ipfw_obj_ctlv *ctlv)
-{
-
-	qsort(ctlv + 1, ctlv->count, ctlv->objsize, compare_ntlv);
 }
 
 int

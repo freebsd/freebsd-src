@@ -97,6 +97,8 @@ AcpiHwGetGpeRegisterBit (
  * RETURN:      Status
  *
  * DESCRIPTION: Enable or disable a single GPE in the parent enable register.
+ *              The EnableMask field of the involved GPE register must be
+ *              updated by the caller if necessary.
  *
  ******************************************************************************/
 
@@ -133,7 +135,7 @@ AcpiHwLowSetGpe (
     /* Set or clear just the bit that corresponds to this GPE */
 
     RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
-    switch (Action & ~ACPI_GPE_SAVE_MASK)
+    switch (Action)
     {
     case ACPI_GPE_CONDITIONAL_ENABLE:
 
@@ -165,10 +167,6 @@ AcpiHwLowSetGpe (
     /* Write the updated enable mask */
 
     Status = AcpiHwWrite (EnableMask, &GpeRegisterInfo->EnableAddress);
-    if (ACPI_SUCCESS (Status) && (Action & ACPI_GPE_SAVE_MASK))
-    {
-        GpeRegisterInfo->EnableMask = (UINT8) EnableMask;
-    }
     return (Status);
 }
 
@@ -280,6 +278,19 @@ AcpiHwGetGpeStatus (
         LocalEventStatus |= ACPI_EVENT_FLAG_WAKE_ENABLED;
     }
 
+    /* GPE currently enabled (enable bit == 1)? */
+
+    Status = AcpiHwRead (&InByte, &GpeRegisterInfo->EnableAddress);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    if (RegisterBit & InByte)
+    {
+        LocalEventStatus |= ACPI_EVENT_FLAG_ENABLE_SET;
+    }
+
     /* GPE currently active (status bit == 1)? */
 
     Status = AcpiHwRead (&InByte, &GpeRegisterInfo->StatusAddress);
@@ -290,7 +301,7 @@ AcpiHwGetGpeStatus (
 
     if (RegisterBit & InByte)
     {
-        LocalEventStatus |= ACPI_EVENT_FLAG_SET;
+        LocalEventStatus |= ACPI_EVENT_FLAG_STATUS_SET;
     }
 
     /* Set return value */
@@ -321,11 +332,8 @@ AcpiHwGpeEnableWrite (
     ACPI_STATUS             Status;
 
 
+    GpeRegisterInfo->EnableMask = EnableMask;
     Status = AcpiHwWrite (EnableMask, &GpeRegisterInfo->EnableAddress);
-    if (ACPI_SUCCESS (Status))
-    {
-        GpeRegisterInfo->EnableMask = EnableMask;
-    }
 
     return (Status);
 }

@@ -40,7 +40,7 @@ This paper contains the road-map for a stackable "BIO" system in
 FreeBSD, which will support these facilities.
 .AE
 .NH
-The miseducation of \fCstruct buf\fP.
+The miseducation of \f(CWstruct buf\fP.
 .PP
 To fully appreciate the topic, I include a little historic overview
 of struct buf, it is a most enlightening case of not exactly bit-rot
@@ -51,7 +51,7 @@ memory is was introduced into UNIX, all disk I/O were done from or
 to a struct buf.  In the 6th edition sources, as printed in Lions
 Book, struct buf looks like this:
 .DS
-.ft C
+.ft CW
 .ps -1
 struct buf
 {
@@ -95,7 +95,7 @@ aspect and only a few fields relate exclusively to the cache aspect.
 If we step forward to the BSD 4.4-Lite-2 release, struct buf has grown
 a bit here or there:
 .DS
-.ft C
+.ft CW
 .ps -1
 struct buf {
         LIST_ENTRY(buf) b_hash;         /* Hash chain. */
@@ -144,7 +144,7 @@ aspect, link buffers to the VM system, provide hacks for file-systems
 .PP
 By the time we get to FreeBSD 3.0 more stuff has grown on struct buf:
 .DS
-.ft C
+.ft CW
 .ps -1
 struct buf {
         LIST_ENTRY(buf) b_hash;         /* Hash chain. */
@@ -215,7 +215,7 @@ and Vinum.  They all basically do the same: they map I/O requests from
 a logical space to a physical space, and the mappings they perform
 can be 1:1 or 1:N.  \**
 .FS
-It is interesting to note that Lions in his comments to the \fCrkaddr\fP
+It is interesting to note that Lions in his comments to the \f(CWrkaddr\fP
 routine (p. 16-2) writes \fIThe code in this procedure incorporates
 a special feature for files which extend over more than one disk
 drive.  This feature is described in the UPM Section "RK(IV)".  Its
@@ -258,7 +258,7 @@ limited extent diskslice/label, which
 need only the I/O aspect, not the vnode, caching or VM linkage.
 .IP
 .I
-The I/O aspect of struct buf should be put in a separate \fCstruct bio\fP.
+The I/O aspect of struct buf should be put in a separate \f(CWstruct bio\fP.
 .R
 .NH 1
 Implications for future struct buf improvements
@@ -296,7 +296,7 @@ Anything that could be added to or done with
 the I/O aspect of struct buf can also be added to or done 
 with the I/O aspect if it lives in a new "struct bio".
 .NH 1
-Implementing a \fCstruct bio\fP
+Implementing a \f(CWstruct bio\fP
 .PP
 The first decision to be made was who got to use the name "struct buf",
 and considering the fact that it is the I/O aspect which gets separated
@@ -344,7 +344,7 @@ Definition of struct bio
 .PP
 With the cleanup of b_flags in place, the definition of struct bio looks like this:
 .DS
-.ft C
+.ft CW
 .ps -1
 struct bio {
         u_int   bio_cmd;                /* I/O operation. */
@@ -375,7 +375,7 @@ Definition of struct buf
 After adding a struct bio to struct buf and the fields aliased into it
 struct buf looks like this:
 .DS
-.ft C
+.ft CW
 .ps -1
 struct buf {
         /* XXX: b_io must be the first element of struct buf for now /phk */
@@ -424,7 +424,7 @@ And can be found at http://phk.freebsd.dk/misc
 .FE
 and consists mainly of systematic substitutions like these
 .DS
-.ft C
+.ft CW
 s/struct buf/struct bio/
 s/b_flags/bio_flags/
 s/b_bcount/bio_bcount/

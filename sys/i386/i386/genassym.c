@@ -238,11 +238,6 @@ ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
 ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
 #endif
 
-#ifdef XEN
-ASSYM(PC_CR3, offsetof(struct pcpu, pc_cr3));
-ASSYM(XEN_HYPERVISOR_VIRT_START, HYPERVISOR_VIRT_START);
-#endif
-
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif

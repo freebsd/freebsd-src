@@ -1,13 +1,6 @@
 /*
- *	MD5 interface for rsaref2.0
- *
- * These routines implement an interface for the RSA Laboratories
- * implementation of the Message Digest 5 (MD5) algorithm. This
- * algorithm is included in the rsaref2.0 package available from RSA in
- * the US and foreign countries. Further information is available at
- * www.rsa.com.
+ *	digest support for NTP, MD5 and with OpenSSL more
  */
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -15,90 +8,130 @@
 #include "ntp_fp.h"
 #include "ntp_string.h"
 #include "ntp_stdlib.h"
-
-/* Disable the openssl md5 includes, because they'd clash with ours. */
-/* #define NO_MD5 */
-/* #define OPENSSL_NO_MD5 */
-#undef OPENSSL
-
 #include "ntp.h"
-#include "global.h"
-#include "ntp_md5.h"
+#include "ntp_md5.h"	/* provides OpenSSL digest API */
 
 /*
- * MD5authencrypt - generate MD5 message authenticator
+ * MD5authencrypt - generate message digest
  *
- * Returns length of authenticator field.
+ * Returns length of MAC including key ID and digest.
  */
 int
 MD5authencrypt(
-	u_char *key,		/* key pointer */
+	int	type,		/* hash algorithm */
+	u_char	*key,		/* key pointer */
 	u_int32 *pkt,		/* packet pointer */
-	int length		/* packet length */
+	int	length		/* packet length */
 	)
 {
-	MD5_CTX md5;
-	u_char digest[16];
+	u_char	digest[EVP_MAX_MD_SIZE];
+	u_int	len;
+	EVP_MD_CTX ctx;
 
 	/*
-	 * MD5 with key identifier concatenated with packet.
+	 * Compute digest of key concatenated with packet. Note: the
+	 * key type and digest type have been verified when the key
+	 * was creaded.
 	 */
-	MD5Init(&md5);
-	MD5Update(&md5, key, (u_int)cache_keylen);
-	MD5Update(&md5, (u_char *)pkt, (u_int)length);
-	MD5Final(digest, &md5);
-	memmove((u_char *)pkt + length + 4, digest, 16);
-	return (16 + 4);
+	INIT_SSL();
+#if defined(OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x0090700fL
+	if (!EVP_DigestInit(&ctx, EVP_get_digestbynid(type))) {
+		msyslog(LOG_ERR,
+		    "MAC encrypt: digest init failed");
+		return (0);
+	}
+#else
+	EVP_DigestInit(&ctx, EVP_get_digestbynid(type));
+#endif
+	EVP_DigestUpdate(&ctx, key, cache_secretsize);
+	EVP_DigestUpdate(&ctx, (u_char *)pkt, (u_int)length);
+	EVP_DigestFinal(&ctx, digest, &len);
+	memmove((u_char *)pkt + length + 4, digest, len);
+	return (len + 4);
 }
 
 
 /*
  * MD5authdecrypt - verify MD5 message authenticator
  *
- * Returns one if authenticator valid, zero if invalid.
+ * Returns one if digest valid, zero if invalid.
  */
 int
 MD5authdecrypt(
-	u_char *key,		/* key pointer */
-	u_int32 *pkt,		/* packet pointer */
-	int length,	 	/* packet length */
-	int size		/* MAC size */
+	int	type,		/* hash algorithm */
+	u_char	*key,		/* key pointer */
+	u_int32	*pkt,		/* packet pointer */
+	int	length,	 	/* packet length */
+	int	size		/* MAC size */
 	)
 {
-	MD5_CTX md5;
-	u_char digest[16];
+	u_char	digest[EVP_MAX_MD_SIZE];
+	u_int	len;
+	EVP_MD_CTX ctx;
 
 	/*
-	 * MD5 with key identifier concatenated with packet.
+	 * Compute digest of key concatenated with packet. Note: the
+	 * key type and digest type have been verified when the key
+	 * was created.
 	 */
-	MD5Init(&md5);
-	MD5Update(&md5, key, (u_int)cache_keylen);
-	MD5Update(&md5, (u_char *)pkt, (u_int)length);
-	MD5Final(digest, &md5);
-	if (size != 16 + 4)
+	INIT_SSL();
+#if defined(OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x0090700fL
+	if (!EVP_DigestInit(&ctx, EVP_get_digestbynid(type))) {
+		msyslog(LOG_ERR,
+		    "MAC decrypt: digest init failed");
 		return (0);
-	return (!memcmp(digest, (char *)pkt + length + 4, 16));
+	}
+#else
+	EVP_DigestInit(&ctx, EVP_get_digestbynid(type));
+#endif
+	EVP_DigestUpdate(&ctx, key, cache_secretsize);
+	EVP_DigestUpdate(&ctx, (u_char *)pkt, (u_int)length);
+	EVP_DigestFinal(&ctx, digest, &len);
+	if ((u_int)size != len + 4) {
+		msyslog(LOG_ERR,
+		    "MAC decrypt: MAC length error");
+		return (0);
+	}
+	return !memcmp(digest, (char *)pkt + length + 4, len);
 }
 
 /*
  * Calculate the reference id from the address. If it is an IPv4
  * address, use it as is. If it is an IPv6 address, do a md5 on
  * it and use the bottom 4 bytes.
+ * The result is in network byte order.
  */
 u_int32
-addr2refid(struct sockaddr_storage *addr)
+addr2refid(sockaddr_u *addr)
 {
-	MD5_CTX md5;
-	u_char digest[16];
-	u_int32 addr_refid;
+	u_char		digest[20];
+	u_int32		addr_refid;
+	EVP_MD_CTX	ctx;
+	u_int		len;
 
-	if (addr->ss_family == AF_INET)
-		return (GET_INADDR(*addr));
+	if (IS_IPV4(addr))
+		return (NSRCADR(addr));
 
-	MD5Init(&md5);
-	MD5Update(&md5, (u_char *)&GET_INADDR6(*addr),
+	INIT_SSL();
+
+#if defined(OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x0090700fL
+	EVP_MD_CTX_init(&ctx);
+#ifdef EVP_MD_CTX_FLAG_NON_FIPS_ALLOW
+	/* MD5 is not used as a crypto hash here. */
+	EVP_MD_CTX_set_flags(&ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
+#endif
+	if (!EVP_DigestInit_ex(&ctx, EVP_md5(), NULL)) {
+		msyslog(LOG_ERR,
+		    "MD5 init failed");
+		exit(1);
+	}
+#else
+	EVP_DigestInit(&ctx, EVP_md5());
+#endif
+
+	EVP_DigestUpdate(&ctx, (u_char *)PSOCK_ADDR6(addr),
 	    sizeof(struct in6_addr));
-	MD5Final(digest, &md5);
-	memcpy(&addr_refid, digest, 4);
+	EVP_DigestFinal(&ctx, digest, &len);
+	memcpy(&addr_refid, digest, sizeof(addr_refid));
 	return (addr_refid);
 }

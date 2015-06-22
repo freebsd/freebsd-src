@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2012
+.Dd June 14, 2015
 .Dt PW 8
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Nd create, remove, modify & display system users and groups
 .Sh SYNOPSIS
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar useradd
 .Op name|uid
@@ -57,6 +58,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar useradd
 .Op name|uid
@@ -76,6 +78,7 @@
 .Op Fl s Ar shell
 .Op Fl y Ar path
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar userdel
 .Op name|uid
@@ -84,6 +87,7 @@
 .Op Fl r
 .Op Fl Y
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar usermod
 .Op name|uid
@@ -109,6 +113,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar usershow
 .Op name|uid
@@ -119,11 +124,13 @@
 .Op Fl 7
 .Op Fl a
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar usernext
 .Op Fl C Ar config
 .Op Fl q
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupadd
 .Op group|gid
@@ -138,6 +145,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupdel
 .Op group|gid
@@ -145,6 +153,7 @@
 .Op Fl g Ar gid
 .Op Fl Y
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupmod
 .Op group|gid
@@ -161,6 +170,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupshow
 .Op group|gid
@@ -170,17 +180,20 @@
 .Op Fl P
 .Op Fl a
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupnext
 .Op Fl C Ar config
 .Op Fl q
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar lock
 .Op name|uid
 .Op Fl C Ar config
 .Op Fl q
 .Nm
+.Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar unlock
 .Op name|uid
@@ -246,6 +259,12 @@ options.
 .Pp
 The following flags are common to most or all modes of operation:
 .Bl -tag -width "-G grouplist"
+.It Fl R Ar rootdir
+Specifies an alternate root directory within which
+.Nm
+will operate.
+Any paths specified will be relative to
+.Va rootdir .
 .It Fl V Ar etcdir
 This flag sets an alternate location for the password, group and configuration files,
 and may be used to maintain a user/group database in an alternate location.
@@ -259,7 +278,7 @@ flag may be used to override this behaviour.
 As an exception to the general rule where options must follow the operation
 type, the
 .Fl V
-flag may be used on the command line before the operation keyword.
+flag must be used on the command line before the operation keyword.
 .It Fl C Ar config
 By default,
 .Nm

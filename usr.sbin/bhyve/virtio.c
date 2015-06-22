@@ -148,8 +148,13 @@ vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix)
 			return (1);
 	} else
 		vs->vs_flags &= ~VIRTIO_USE_MSIX;
+
 	/* Only 1 MSI vector for bhyve */
 	pci_emul_add_msicap(vs->vs_pi, 1);
+
+	/* Legacy interrupts are mandatory for virtio devices */
+	pci_lintr_request(vs->vs_pi);
+
 	return (0);
 }
 
@@ -311,7 +316,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 		if ((vdir->vd_flags & VRING_DESC_F_INDIRECT) == 0) {
 			_vq_record(i, vdir, ctx, iov, n_iov, flags);
 			i++;
-		} else if ((vs->vs_negotiated_caps &
+		} else if ((vs->vs_vc->vc_hv_caps &
 		    VIRTIO_RING_F_INDIRECT_DESC) == 0) {
 			fprintf(stderr,
 			    "%s: descriptor has forbidden INDIRECT flag, "

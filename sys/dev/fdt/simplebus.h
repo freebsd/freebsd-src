@@ -26,8 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef	_FDT_SIMPLEBUS_PRIVATE_H
-#define	_FDT_SIMPLEBUS_PRIVATE_H
+#ifndef	_FDT_SIMPLEBUS_H
+#define	_FDT_SIMPLEBUS_H
+
+#include <dev/ofw/ofw_bus.h>
 
 /* FDT simplebus */
 DECLARE_CLASS(simplebus_driver);
@@ -53,4 +55,10 @@ struct simplebus_devinfo {
 	struct ofw_bus_devinfo	obdinfo;
 	struct resource_list	rl;
 };
-#endif	/* _FDT_SIMPLEBUS_PRIVATE_H */
+
+void simplebus_init(device_t dev, phandle_t node);
+device_t simplebus_add_device(device_t dev, phandle_t node, u_int order,
+    const char *name, int unit, struct simplebus_devinfo *di);
+struct simplebus_devinfo *simplebus_setup_dinfo(device_t dev, phandle_t node,
+    struct simplebus_devinfo *di);
+#endif	/* _FDT_SIMPLEBUS_H */

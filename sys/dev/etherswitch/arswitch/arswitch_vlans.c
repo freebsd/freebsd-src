@@ -51,7 +51,6 @@
 #include "etherswitch_if.h"
 
 /*
- * XXX TODO: teach about the AR933x SoC switch
  * XXX TODO: teach about the AR934x SoC switch
  */
 

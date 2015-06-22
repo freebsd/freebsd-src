@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/dirent.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -58,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
 
-#define	LINUX_SHMFS_MAGIC 0x01021994
 
 static void
 translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
@@ -251,6 +251,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 static int
 stat_copyout(struct stat *buf, void *ubuf)
 {
@@ -325,19 +326,19 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 	LFREEPATH(path);
 	return(stat_copyout(&buf, args->up));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
-/* XXX - All fields of type l_int are defined as l_long on i386 */
 struct l_statfs {
-	l_int		f_type;
-	l_int		f_bsize;
-	l_int		f_blocks;
-	l_int		f_bfree;
-	l_int		f_bavail;
-	l_int		f_files;
-	l_int		f_ffree;
+	l_long		f_type;
+	l_long		f_bsize;
+	l_long		f_blocks;
+	l_long		f_bfree;
+	l_long		f_bavail;
+	l_long		f_files;
+	l_long		f_ffree;
 	l_fsid_t	f_fsid;
-	l_int		f_namelen;
-	l_int		f_spare[6];
+	l_long		f_namelen;
+	l_long		f_spare[6];
 };
 
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
@@ -351,6 +352,7 @@ struct l_statfs {
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
 #define LINUX_DEVFS_SUPER_MAGIC	0x1373L
+#define	LINUX_SHMFS_MAGIC	0x01021994
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
@@ -368,6 +370,7 @@ bsd_to_linux_ftype(const char *fstypename)
 		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
 		{"coda",    LINUX_CODA_SUPER_MAGIC},
 		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
+		{"tmpfs",   LINUX_SHMFS_MAGIC},
 		{NULL,      0L}};
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
@@ -399,7 +402,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	struct l_statfs linux_statfs;
 	struct statfs bsd_statfs;
 	char *path;
-	int error, dev_shm;
+	int error;
 
 	LCONVPATHEXIST(td, args->path, &path);
 
@@ -407,20 +410,15 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (ldebug(statfs))
 		printf(ARGS(statfs, "%s, *"), path);
 #endif
-	dev_shm = 0;
 	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
-	if (strncmp(path, "/dev/shm", sizeof("/dev/shm") - 1) == 0)
-		dev_shm = (path[8] == '\0'
-		    || (path[8] == '/' && path[9] == '\0'));
 	LFREEPATH(path);
 	if (error)
 		return (error);
 	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
-	if (dev_shm)
-		linux_statfs.f_type = LINUX_SHMFS_MAGIC;
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 static void
 bsd_to_linux_statfs64(struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs)
 {
@@ -461,6 +459,7 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
@@ -493,7 +492,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 {
 #ifdef DEBUG
 	if (ldebug(ustat))
-		printf(ARGS(ustat, "%d, *"), args->dev);
+		printf(ARGS(ustat, "%ju, *"), (uintmax_t)args->dev);
 #endif
 
 	return (EOPNOTSUPP);
@@ -624,4 +623,74 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 	return (error);
 }
 
+#else /* __amd64__ && !COMPAT_LINUX32 */
+
+int
+linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
+{
+	char *path;
+	int error, dfd, flag;
+	struct stat buf;
+
+	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
+	    AT_SYMLINK_NOFOLLOW : 0;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
+
+#ifdef DEBUG
+	if (ldebug(newfstatat))
+		printf(ARGS(newfstatat, "%i, %s, %i"), args->dfd, path, args->flag);
+#endif
+
+	error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
+	if (error == 0)
+		error = newstat_copyout(&buf, args->statbuf);
+	LFREEPATH(path);
+
+	return (error);
+}
+
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
+int
+linux_syncfs(struct thread *td, struct linux_syncfs_args *args)
+{
+	cap_rights_t rights;
+	struct mount *mp;
+	struct vnode *vp;
+	int error, save;
+
+	error = fgetvp(td, args->fd, cap_rights_init(&rights, CAP_FSYNC), &vp);
+	if (error != 0)
+		/*
+		 * Linux syncfs() returns only EBADF, however fgetvp()
+		 * can return EINVAL in case of file descriptor does
+		 * not represent a vnode. XXX.
+		 */
+		return (error);
+
+	mp = vp->v_mount;
+	mtx_lock(&mountlist_mtx);
+	error = vfs_busy(mp, MBF_MNTLSTLOCK);
+	if (error != 0) {
+		/* See comment above. */
+		mtx_unlock(&mountlist_mtx);
+		goto out;
+	}
+	if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
+	    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
+		save = curthread_pflags_set(TDP_SYNCIO);
+		vfs_msync(mp, MNT_NOWAIT);
+		VFS_SYNC(mp, MNT_NOWAIT);
+		curthread_pflags_restore(save);
+		vn_finished_write(mp);
+	}
+	vfs_unbusy(mp);
+
+ out:
+	vrele(vp);
+	return (error);
+}

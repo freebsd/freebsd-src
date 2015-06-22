@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <stdio.h>
@@ -1487,6 +1488,78 @@ hci_write_page_scan_mode(int s, int argc, char **argv)
 	return (OK);
 } /* hci_write_page_scan_mode */
 
+static int
+hci_read_le_host_supported_command(int s, int argc, char **argv) 
+{
+	ng_hci_read_le_host_supported_rp rp;
+	int n;
+	n = sizeof(rp);
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_READ_LE_HOST_SUPPORTED),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout, "LE Host support: %#02x\n", rp.le_supported_host);
+	fprintf(stdout, "Simulateneouse LE Host : %#02x\n", rp.simultaneous_le_host);
+
+	return (OK);
+	
+}
+static int
+hci_write_le_host_supported_command(int s, int argc, char **argv) 
+{
+	ng_hci_write_le_host_supported_cp cp;
+	ng_hci_write_le_host_supported_rp rp;
+
+	int n;
+
+	cp.le_supported_host = 0;
+	cp.simultaneous_le_host = 0;
+	switch (argc) {
+	case 2:
+		if (sscanf(argv[1], "%d", &n) != 1 || (n != 0 && n != 1)){
+			printf("ARGC2: %d\n", n);
+			return (USAGE);
+		}
+		cp.simultaneous_le_host = (n &1);
+		
+	case 1:
+		if (sscanf(argv[0], "%d", &n) != 1 || (n != 0 && n != 1)){
+			printf("ARGC1: %d\n", n);
+			return (USAGE);
+		}
+
+		cp.le_supported_host = (n &1);
+		break;
+
+	default:
+		return (USAGE);
+	}
+
+
+	/* send command */
+	n = sizeof(rp);
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_WRITE_LE_HOST_SUPPORTED),
+			(char const *) &cp, sizeof(cp),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
+}
+
 struct hci_command	host_controller_baseband_commands[] = {
 {
 "reset",
@@ -1872,6 +1945,17 @@ struct hci_command	host_controller_baseband_commands[] = {
 "\t0x03 - Optional Page Scan Mode III",
 &hci_write_page_scan_mode
 },
+{
+"read_le_host_supported_command",	\
+"Read if this host is in le supported mode and stimulatenouse le supported mode",
+&hci_read_le_host_supported_command,
+},  
+{
+"write_le_host_supported_command",	\
+"write_le_host_supported_command le_host[0|1] stimultajeous_le[0|1]",
+&hci_write_le_host_supported_command,
+},  
+
 { NULL, }
 };
 

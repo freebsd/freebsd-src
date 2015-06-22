@@ -36,8 +36,7 @@
 # settings:
 
 # directory for files
-prefix=@prefix@
-DESTDIR=@sysconfdir@/unbound
+DESTDIR=@ub_conf_dir@
 
 # issuer and subject name for certificates
 SERVERNAME=unbound

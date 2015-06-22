@@ -144,73 +144,55 @@ struct _gs {
 
 	/* Screen interface functions. */
 					/* Add a string to the screen. */
-	int	(*scr_addstr) __P((SCR *, const char *, size_t));
+	int	(*scr_addstr)(SCR *, const char *, size_t);
 					/* Add a string to the screen. */
-	int	(*scr_waddstr) __P((SCR *, const CHAR_T *, size_t));
+	int	(*scr_waddstr)(SCR *, const CHAR_T *, size_t);
 					/* Toggle a screen attribute. */
-	int	(*scr_attr) __P((SCR *, scr_attr_t, int));
+	int	(*scr_attr)(SCR *, scr_attr_t, int);
 					/* Terminal baud rate. */
-	int	(*scr_baud) __P((SCR *, u_long *));
+	int	(*scr_baud)(SCR *, u_long *);
 					/* Beep/bell/flash the terminal. */
-	int	(*scr_bell) __P((SCR *));
+	int	(*scr_bell)(SCR *);
 					/* Display a busy message. */
-	void	(*scr_busy) __P((SCR *, const char *, busy_t));
+	void	(*scr_busy)(SCR *, const char *, busy_t);
 					/* Prepare child. */
-	int	(*scr_child) __P((SCR *));
+	int	(*scr_child)(SCR *);
 					/* Clear to the end of the line. */
-	int	(*scr_clrtoeol) __P((SCR *));
+	int	(*scr_clrtoeol)(SCR *);
 					/* Return the cursor location. */
-	int	(*scr_cursor) __P((SCR *, size_t *, size_t *));
+	int	(*scr_cursor)(SCR *, size_t *, size_t *);
 					/* Delete a line. */
-	int	(*scr_deleteln) __P((SCR *));
+	int	(*scr_deleteln)(SCR *);
 					/* Discard a screen. */
-	int	(*scr_discard) __P((SCR *, SCR **));
+	int	(*scr_discard)(SCR *, SCR **);
 					/* Get a keyboard event. */
-	int	(*scr_event) __P((SCR *, EVENT *, u_int32_t, int));
+	int	(*scr_event)(SCR *, EVENT *, u_int32_t, int);
 					/* Ex: screen adjustment routine. */
-	int	(*scr_ex_adjust) __P((SCR *, exadj_t));
+	int	(*scr_ex_adjust)(SCR *, exadj_t);
 	int	(*scr_fmap)		/* Set a function key. */
-	    __P((SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t));
+	   (SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t);
 					/* Get terminal key value. */
-	int	(*scr_keyval) __P((SCR *, scr_keyval_t, CHAR_T *, int *));
+	int	(*scr_keyval)(SCR *, scr_keyval_t, CHAR_T *, int *);
 					/* Insert a line. */
-	int	(*scr_insertln) __P((SCR *));
+	int	(*scr_insertln)(SCR *);
 					/* Handle an option change. */
-	int	(*scr_optchange) __P((SCR *, int, char *, u_long *));
+	int	(*scr_optchange)(SCR *, int, char *, u_long *);
 					/* Move the cursor. */
-	int	(*scr_move) __P((SCR *, size_t, size_t));
+	int	(*scr_move)(SCR *, size_t, size_t);
 					/* Message or ex output. */
-	void	(*scr_msg) __P((SCR *, mtype_t, char *, size_t));
+	void	(*scr_msg)(SCR *, mtype_t, char *, size_t);
 					/* Refresh the screen. */
-	int	(*scr_refresh) __P((SCR *, int));
+	int	(*scr_refresh)(SCR *, int);
 					/* Rename the file. */
-	int	(*scr_rename) __P((SCR *, char *, int));
+	int	(*scr_rename)(SCR *, char *, int);
 					/* Reply to an event. */
-	int	(*scr_reply) __P((SCR *, int, char *));
+	int	(*scr_reply)(SCR *, int, char *);
 					/* Set the screen type. */
-	int	(*scr_screen) __P((SCR *, u_int32_t));
+	int	(*scr_screen)(SCR *, u_int32_t);
 					/* Split the screen. */
-	int	(*scr_split) __P((SCR *, SCR *));
+	int	(*scr_split)(SCR *, SCR *);
 					/* Suspend the editor. */
-	int	(*scr_suspend) __P((SCR *, int *));
+	int	(*scr_suspend)(SCR *, int *);
 					/* Print usage message. */
-	void	(*scr_usage) __P((void));
+	void	(*scr_usage)(void);
 };
-
-/*
- * XXX
- * Block signals if there are asynchronous events.  Used to keep DB system calls
- * from being interrupted and not restarted, as that will result in consistency
- * problems.  This should be handled by DB.
- */
-#ifdef BLOCK_SIGNALS
-#include <signal.h>
-extern sigset_t	__sigblockset;
-#define	SIGBLOCK \
-	(void)sigprocmask(SIG_BLOCK, &__sigblockset, NULL)
-#define	SIGUNBLOCK \
-	(void)sigprocmask(SIG_UNBLOCK, &__sigblockset, NULL);
-#else
-#define	SIGBLOCK
-#define	SIGUNBLOCK
-#endif

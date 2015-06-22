@@ -33,17 +33,17 @@
 TYPE="FreeBSD"
 REVISION="11.0"
 BRANCH="CURRENT"
-if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
+if [ -n "${BRANCH_OVERRIDE}" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
 
-if [ "X${SYSDIR}" = "X" ]; then
+if [ -z "${SYSDIR}" ]; then
     SYSDIR=$(dirname $0)/..
 fi
 
-if [ "X${PARAMFILE}" != "X" ]; then
+if [ -n "${PARAMFILE}" ]; then
 	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
 		${PARAMFILE})
 else
@@ -72,7 +72,7 @@ do
 done
 
 # no copyright found, use a dummy
-if [ X"$COPYRIGHT" = X ]; then
+if [ -z "$COPYRIGHT" ]; then
 	COPYRIGHT="/*-
  * Copyright (c) 1992-$year The FreeBSD Project.
  * All rights reserved.

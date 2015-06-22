@@ -41,7 +41,7 @@
 #include <unistd.h>
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int sock, socks[2];
 

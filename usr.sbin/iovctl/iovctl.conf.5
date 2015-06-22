@@ -144,7 +144,7 @@ passthrough devices through the use of the default section.
 VF-0 is not configured as a passthrough device as it explicitly overrides the
 default.
 VF-0 also sets a device-specific parameter named mac-addr.
-.Bd -literal .offset ident
+.Bd -literal -offset ident
 PF {
 	device : "ix0";
 	num_vfs : 3;
@@ -160,8 +160,8 @@ VF-0 {
 }
 .Ed
 .Sh SEE ALSO
-.Xr iovctl 8 ,
-.Xr rc.conf 5
+.Xr rc.conf 5 ,
+.Xr iovctl 8
 .Sh AUTHORS
 This manual page was written by
 .An Ryan Stone Aq Mt rstone@FreeBSD.org .

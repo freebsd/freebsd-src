@@ -758,6 +758,7 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 		 * No L2 page table has been allocated. Chances are, this
 		 * is because we just allocated the l2_dtable, above.
 		 */
+		l2->l2_occupancy++;
 		PMAP_UNLOCK(pmap);
 		rw_wunlock(&pvh_global_lock);
 		ptep = uma_zalloc(l2zone, M_NOWAIT);
@@ -765,6 +766,7 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 		PMAP_LOCK(pmap);
 		if (l2b->l2b_kva != 0) {
 			/* We lost the race. */
+			l2->l2_occupancy--;
 			uma_zfree(l2zone, ptep);
 			return (l2b);
 		}
@@ -775,6 +777,7 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 			 * time. We may need to deallocate the l2_dtable
 			 * if we allocated a new one above.
 			 */
+			l2->l2_occupancy--;
 			if (l2->l2_occupancy == 0) {
 				pmap->pm_l2[L2_IDX(l1idx)] = NULL;
 				uma_zfree(l2table_zone, l2);
@@ -782,7 +785,6 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 			return (NULL);
 		}
 
-		l2->l2_occupancy++;
 		l2b->l2b_kva = ptep;
 		l2b->l2b_l1idx = l1idx;
 	}
@@ -1143,7 +1145,7 @@ vector_page_setprot(int prot)
 	/*
 	 * Set referenced flag.
 	 * Vectors' page is always desired
-	 * to be allowed to reside in TLB. 
+	 * to be allowed to reside in TLB.
 	 */
 	*ptep |= L2_S_REF;
 
@@ -2219,7 +2221,7 @@ pmap_remove_pages(pmap_t pmap)
 	vm_offset_t va;
 	uint32_t inuse, bitmask;
 	int allfree, bit, field, idx;
- 
+
  	rw_wlock(&pvh_global_lock);
  	PMAP_LOCK(pmap);
 
@@ -2449,10 +2451,36 @@ pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
 }
 
 void
-pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
+	vm_offset_t sva;
 
-	pmap_kenter_internal(va, pa, KENTER_DEVICE);
+	KASSERT((size & PAGE_MASK) == 0,
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kenter_internal(va, pa, KENTER_DEVICE);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+}
+
+void
+pmap_kremove_device(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t sva;
+
+	KASSERT((size & PAGE_MASK) == 0,
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
 }
 
 void
@@ -3065,7 +3093,7 @@ do_l2b_alloc:
 			if ((pve = pmap_remove_pv(om, pmap, va))) {
 				is_exec |= PTE_BEEN_EXECD(opte);
 				is_refd |= PTE_BEEN_REFD(opte);
-		
+
 				if (m && ((m->oflags & VPO_UNMANAGED)))
 					pmap_free_pv_entry(pmap, pve);
 			}
@@ -3275,7 +3303,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t next_bucket;
 	vm_paddr_t pa;
 	vm_page_t m;
- 
+
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	while (sva < eva) {
@@ -3544,7 +3572,7 @@ pmap_pv_insert_section(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	if (pv_entry_count < pv_entry_high_water && 
+	if (pv_entry_count < pv_entry_high_water &&
 	    (pv = pmap_get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		pvh = pa_to_pvh(pa);
@@ -3633,7 +3661,7 @@ pmap_pv_promote_section(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
  * Tries to create a 1MB page mapping.  Returns TRUE if successful and
  * FALSE otherwise.  Fails if (1) page is unmanageg, kernel pmap or vectors
  * page, (2) a mapping already exists at the specified virtual address, or
- * (3) a pv entry cannot be allocated without reclaiming another pv entry. 
+ * (3) a pv entry cannot be allocated without reclaiming another pv entry.
  */
 static boolean_t
 pmap_enter_section(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
@@ -3664,7 +3692,7 @@ pmap_enter_section(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
-	pa = VM_PAGE_TO_PHYS(m); 
+	pa = VM_PAGE_TO_PHYS(m);
 	/*
 	 * Abort this mapping if its PV entry could not be created.
 	 */
@@ -3739,7 +3767,7 @@ pmap_remove_section(pmap_t pmap, vm_offset_t sva)
 		    TAILQ_EMPTY(&pvh->pv_list))
 			vm_page_aflag_clear(m, PGA_WRITEABLE);
 	}
-	
+
 	l2b = pmap_get_l2_bucket(pmap, sva);
 	if (l2b != NULL) {
 		KASSERT(l2b->l2b_occupancy == L2_PTE_NUM_TOTAL,
@@ -3851,8 +3879,8 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 	if (!L2_S_EXECUTABLE(firstpte))
 		prot &= ~VM_PROT_EXECUTE;
 
-	/* 
-	 * Examine each of the other PTEs in the specified l2_bucket. 
+	/*
+	 * Examine each of the other PTEs in the specified l2_bucket.
 	 * Abort if this PTE maps an unexpected 4KB physical page or
 	 * does not have identical characteristics to the first PTE.
 	 */
@@ -3972,7 +4000,7 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 	/*
 	 * According to assumptions described in pmap_promote_section,
 	 * kernel is and always should be mapped using 1MB section mappings.
-	 * What more, managed kernel pages were not to be promoted. 
+	 * What more, managed kernel pages were not to be promoted.
 	 */
 	KASSERT(pmap != pmap_kernel() && L1_IDX(va) != L1_IDX(vector_page),
 	    ("pmap_demote_section: forbidden section mapping"));
@@ -3982,7 +4010,7 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 	l1pd = *pl1pd;
 	KASSERT((l1pd & L1_TYPE_MASK) == L1_S_PROTO,
 	    ("pmap_demote_section: not section or invalid section"));
-	
+
 	pa = l1pd & L1_S_FRAME;
 	m = PHYS_TO_VM_PAGE(pa);
 	KASSERT((m != NULL && (m->oflags & VPO_UNMANAGED) == 0),
@@ -4035,7 +4063,7 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 		/*
 		 * If the mapping has changed attributes, update the page table
 		 * entries.
-		 */ 
+		 */
 		if ((*firstptep & L2_S_PROMOTE) != (L1_S_DEMOTE(l1pd)))
 			pmap_fill_l2b(l2b, newpte);
 	}
@@ -4465,7 +4493,7 @@ pmap_zero_page_gen(vm_page_t m, int off, int size)
 {
 	struct czpages *czp;
 
-	KASSERT(TAILQ_EMPTY(&m->md.pv_list), 
+	KASSERT(TAILQ_EMPTY(&m->md.pv_list),
 	    ("pmap_zero_page_gen: page has mappings"));
 
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
@@ -4473,7 +4501,7 @@ pmap_zero_page_gen(vm_page_t m, int off, int size)
 	sched_pin();
 	czp = &cpu_czpages[PCPU_GET(cpuid)];
 	mtx_lock(&czp->lock);
-	
+
 	/*
 	 * Hook in the page, zero it.
 	 */
@@ -4561,7 +4589,7 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	sched_pin();
 	czp = &cpu_czpages[PCPU_GET(cpuid)];
 	mtx_lock(&czp->lock);
-	
+
 	/*
 	 * Map the pages into the page hook points, copy them, and purge the
 	 * cache for the appropriate page.
@@ -5310,7 +5338,7 @@ pmap_dmap_iscurrent(pmap_t pmap)
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
-	/* 
+	/*
 	 * Remember the memattr in a field that gets used to set the appropriate
 	 * bits in the PTEs as mappings are established.
 	 */

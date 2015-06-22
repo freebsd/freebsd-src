@@ -50,6 +50,7 @@ DSRCS=		errno.d			\
 		io.d			\
 		ip.d			\
 		psinfo.d		\
+		siftr.d			\
 		signal.d		\
 		tcp.d			\
 		udp.d			\
@@ -102,6 +103,8 @@ DSRCS+=		regs_x86.d
 LFLAGS+=-l
 
 YFLAGS+=-d
+
+LIBADD=	ctf elf proc pthread rtld_db
 
 CLEANFILES=	dt_errtags.c dt_names.c
 

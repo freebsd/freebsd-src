@@ -59,6 +59,6 @@
 #define	Pstate proc_state
 #define	Psymbol_iter_by_addr proc_iter_symbyaddr
 #define	Punsetflags proc_clearflags
-#define	Pupdate_maps(p) do { } while (0)
+#define	Pupdate_maps proc_rdagent
 #define	Pupdate_syms proc_updatesyms
 #define	Pxecbkpt proc_bkptexec

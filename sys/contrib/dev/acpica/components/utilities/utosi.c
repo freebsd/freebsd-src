@@ -105,6 +105,7 @@ static ACPI_INTERFACE_INFO    AcpiDefaultSupportedInterfaces[] =
     {"Windows 2009",        NULL, 0, ACPI_OSI_WIN_7},            /* Windows 7 and Server 2008 R2 - Added 09/2009 */
     {"Windows 2012",        NULL, 0, ACPI_OSI_WIN_8},            /* Windows 8 and Server 2012 - Added 08/2012 */
     {"Windows 2013",        NULL, 0, ACPI_OSI_WIN_8},            /* Windows 8.1 and Server 2012 R2 - Added 01/2014 */
+    {"Windows 2015",        NULL, 0, ACPI_OSI_WIN_10},           /* Windows 10 - Added 03/2015 */
 
     /* Feature Group Strings */
 
@@ -255,7 +256,7 @@ AcpiUtInstallInterface (
         return (AE_NO_MEMORY);
     }
 
-    InterfaceInfo->Name = ACPI_ALLOCATE_ZEROED (ACPI_STRLEN (InterfaceName) + 1);
+    InterfaceInfo->Name = ACPI_ALLOCATE_ZEROED (strlen (InterfaceName) + 1);
     if (!InterfaceInfo->Name)
     {
         ACPI_FREE (InterfaceInfo);
@@ -264,7 +265,7 @@ AcpiUtInstallInterface (
 
     /* Initialize new info and insert at the head of the global list */
 
-    ACPI_STRCPY (InterfaceInfo->Name, InterfaceName);
+    strcpy (InterfaceInfo->Name, InterfaceName);
     InterfaceInfo->Flags = ACPI_OSI_DYNAMIC;
     InterfaceInfo->Next = AcpiGbl_SupportedInterfaces;
 
@@ -297,7 +298,7 @@ AcpiUtRemoveInterface (
     PreviousInterface = NextInterface = AcpiGbl_SupportedInterfaces;
     while (NextInterface)
     {
-        if (!ACPI_STRCMP (InterfaceName, NextInterface->Name))
+        if (!strcmp (InterfaceName, NextInterface->Name))
         {
             /* Found: name is in either the static list or was added at runtime */
 
@@ -418,7 +419,7 @@ AcpiUtGetInterface (
     NextInterface = AcpiGbl_SupportedInterfaces;
     while (NextInterface)
     {
-        if (!ACPI_STRCMP (InterfaceName, NextInterface->Name))
+        if (!strcmp (InterfaceName, NextInterface->Name))
         {
             return (NextInterface);
         }

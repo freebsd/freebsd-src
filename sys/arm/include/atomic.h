@@ -151,10 +151,10 @@ atomic_set_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   orr      %Q[tmp], %Q[val]\n"
 		"   orr      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -204,10 +204,10 @@ atomic_clear_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   bic      %Q[tmp], %Q[val]\n"
 		"   bic      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -263,13 +263,13 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %Q[tmp], %Q[cmpval]\n"
 		"   itee eq  \n"
 		"   teqeq    %R[tmp], %R[cmpval]\n"
 		"   movne    %[ret], #0\n"
 		"   bne      2f\n"
-		"   strexd   %[ret], %[newval], [%[ptr]]\n"
+		"   strexd   %[ret], %Q[newval], %R[newval], [%[ptr]]\n"
 		"   teq      %[ret], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -381,10 +381,10 @@ atomic_add_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   adds     %Q[tmp], %Q[val]\n"
-		"   adc      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   adc      %R[tmp], %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -433,10 +433,10 @@ atomic_subtract_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   subs     %Q[tmp], %Q[val]\n"
-		"   sbc      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   sbc      %R[tmp], %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -536,10 +536,10 @@ atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   adds     %Q[tmp], %Q[ret], %Q[val]\n"
 		"   adc      %R[tmp], %R[ret], %R[val]\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -560,10 +560,10 @@ atomic_readandclear_64(volatile uint64_t *p)
 
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   ldrexd   %Q[ret], %R[ret], [%[ptr]]\n"
 		"   mov      %Q[tmp], #0\n"
 		"   mov      %R[tmp], #0\n"
-		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -587,7 +587,7 @@ atomic_load_64(volatile uint64_t *p)
 	 */
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   ldrexd   %Q[ret], %R[ret], [%[ptr]]\n"
 		"   clrex    \n"
 		:   [ret]    "=&r"  (ret)
 		:   [ptr]    "r"    (p)
@@ -618,8 +618,8 @@ atomic_store_64(volatile uint64_t *p, uint64_t val)
 	 */
 	__asm __volatile(
 		"1:          \n"
-		"   ldrexd   %[tmp], [%[ptr]]\n"
-		"   strexd   %[exf], %[val], [%[ptr]]\n"
+		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
 		"   teq      %[exf], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"

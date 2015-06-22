@@ -16,7 +16,6 @@ ${TESTGROUP}EXEDIR= ${TESTSDIR}
 
 TESTWRAPPER=	t_dtrace_contrib
 ATF_TESTS_SH+=	${TESTWRAPPER}
-TEST_METADATA.t_dtrace_contrib+= required_files="/usr/local/bin/perl"
 TEST_METADATA.t_dtrace_contrib+= required_files="/usr/local/bin/ksh"
 TEST_METADATA.t_dtrace_contrib+= required_user="root"
 

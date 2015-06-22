@@ -203,7 +203,7 @@ auth_check_secret_length(struct auth *auth)
 	}
 
 	if (auth->a_mutual_secret != NULL) {
-		len = strlen(auth->a_secret);
+		len = strlen(auth->a_mutual_secret);
 		if (len > 16) {
 			if (auth->a_auth_group->ag_name != NULL)
 				log_warnx("mutual secret for user \"%s\", "
@@ -2399,8 +2399,11 @@ found:
 					client_fd = accept(portal->p_socket,
 					    (struct sockaddr *)&client_sa,
 					    &client_salen);
-					if (client_fd < 0)
+					if (client_fd < 0) {
+						if (errno == ECONNABORTED)
+							continue;
 						log_err(1, "accept");
+					}
 					assert(client_salen >= client_sa.ss_len);
 
 					handle_connection(portal, client_fd,

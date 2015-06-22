@@ -210,7 +210,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if (acpi_resume_beep != 0)
 		timer_spkr_acquire();
 
-	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
+	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc), 0);
 
 	intr_suspend();
 
@@ -298,7 +298,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 #endif
 		intr_resume(/*suspend_cancelled*/false);
 
-		AcpiSetFirmwareWakingVector(0);
+		AcpiSetFirmwareWakingVector(0, 0);
 	} else {
 		/* Wakeup MD procedures in interrupt enabled context */
 		if (sleep_result == 1 && mem_range_softc.mr_op != NULL &&
@@ -379,7 +379,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
 #ifndef __amd64__
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
 #else
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));

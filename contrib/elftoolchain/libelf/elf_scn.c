@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/queue.h>
 
 #include <assert.h>
@@ -37,7 +36,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_scn.c 3147 2015-02-15 18:45:23Z emaste $");
+ELFTC_VCSID("$Id: elf_scn.c 3177 2015-03-30 18:19:41Z emaste $");
 
 /*
  * Load an ELF section table and create a list of Elf_Scn structures.
