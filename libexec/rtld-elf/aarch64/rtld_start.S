@@ -34,10 +34,14 @@ ENTRY(.rtld_start)
 	mov	x19, x0		/* Put ps_strings in a callee-saved register */
 	mov	x20, sp		/* And the stack pointer */
 
-	sub	x8, x20, #16	/* Make room for obj_main & exit proc */
-	mov	sp, x8		/* Update the stack pointer */
+	/* Handle the old style stack */
+	/* TODO: Remove this when the kernel correctly aligns the stack */
+	cbnz	x0, 1f
+	mov	x0, sp		/* sp points to the args */
+	and	sp, x0, #~0xf	/* Align the stack as needed */
 
-	mov	x0, x20		/* Pass the stack we were given to _rtld */
+1:	sub	sp, sp, #16	/* Make room for obj_main & exit proc */
+
 	mov	x1, sp		/* exit_proc */
 	add	x2, x1, #8	/* obj_main */
 	bl	_rtld		/* Call the loader */
