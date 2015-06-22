@@ -64,8 +64,7 @@ proto_pci_probe(device_t dev)
 {
 	struct sbuf *sb;
 
-	/* For now we only attach to function 0 devices. */
-	if (pci_get_function(dev) != 0)
+	if ((pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) != 0)
 		return (ENXIO);
 
 	sb = sbuf_new_auto();
