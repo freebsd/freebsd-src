@@ -276,10 +276,10 @@ public:
     return FixIts;
   }
 
-  void print(const char *ProgName, raw_ostream &S,
-             bool ShowColors = true) const;
+  void print(const char *ProgName, raw_ostream &S, bool ShowColors = true,
+             bool ShowKindLabel = true) const;
 };
 
-}  // end llvm namespace
+} // namespace llvm
 
 #endif

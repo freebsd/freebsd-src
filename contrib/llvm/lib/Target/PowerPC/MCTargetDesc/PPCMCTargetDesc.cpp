@@ -63,8 +63,8 @@ static MCRegisterInfo *createPPCMCRegisterInfo(StringRef TT) {
   return X;
 }
 
-static MCSubtargetInfo *createPPCMCSubtargetInfo(StringRef TT, StringRef CPU,
-                                                 StringRef FS) {
+static MCSubtargetInfo *createPPCMCSubtargetInfo(const Triple &TT,
+                                                 StringRef CPU, StringRef FS) {
   MCSubtargetInfo *X = new MCSubtargetInfo();
   InitPPCMCSubtargetInfo(X, TT, CPU, FS);
   return X;
@@ -219,7 +219,7 @@ public:
     llvm_unreachable("Unknown pseudo-op: .localentry");
   }
 };
-}
+} // namespace
 
 static MCTargetStreamer *createAsmTargetStreamer(MCStreamer &S,
                                                  formatted_raw_ostream &OS,
@@ -230,7 +230,7 @@ static MCTargetStreamer *createAsmTargetStreamer(MCStreamer &S,
 
 static MCTargetStreamer *
 createObjectTargetStreamer(MCStreamer &S, const MCSubtargetInfo &STI) {
-  Triple TT(STI.getTargetTriple());
+  const Triple &TT = STI.getTargetTriple();
   if (TT.getObjectFormat() == Triple::ELF)
     return new PPCTargetELFStreamer(S);
   return new PPCTargetMachOStreamer(S);

@@ -38,7 +38,7 @@ using namespace llvm;
 //
 
 TargetMachine::TargetMachine(const Target &T, StringRef DataLayoutString,
-                             StringRef TT, StringRef CPU, StringRef FS,
+                             const Triple &TT, StringRef CPU, StringRef FS,
                              const TargetOptions &Options)
     : TheTarget(T), DL(DataLayoutString), TargetTriple(TT), TargetCPU(CPU),
       TargetFS(FS), CodeGenInfo(nullptr), AsmInfo(nullptr), MRI(nullptr),
@@ -70,7 +70,6 @@ void TargetMachine::resetTargetOptions(const Function &F) const {
   RESET_OPTION(UnsafeFPMath, "unsafe-fp-math");
   RESET_OPTION(NoInfsFPMath, "no-infs-fp-math");
   RESET_OPTION(NoNaNsFPMath, "no-nans-fp-math");
-  RESET_OPTION(DisableTailCalls, "disable-tail-calls");
 }
 
 /// getRelocationModel - Returns the code generation relocation model. The

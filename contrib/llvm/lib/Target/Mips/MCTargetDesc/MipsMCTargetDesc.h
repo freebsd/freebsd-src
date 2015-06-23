@@ -26,6 +26,7 @@ class MCRegisterInfo;
 class MCSubtargetInfo;
 class StringRef;
 class Target;
+class Triple;
 class raw_ostream;
 class raw_pwrite_stream;
 
@@ -42,26 +43,26 @@ MCCodeEmitter *createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
                                          MCContext &Ctx);
 
 MCAsmBackend *createMipsAsmBackendEB32(const Target &T,
-                                       const MCRegisterInfo &MRI, StringRef TT,
-                                       StringRef CPU);
+                                       const MCRegisterInfo &MRI,
+                                       const Triple &TT, StringRef CPU);
 MCAsmBackend *createMipsAsmBackendEL32(const Target &T,
-                                       const MCRegisterInfo &MRI, StringRef TT,
-                                       StringRef CPU);
+                                       const MCRegisterInfo &MRI,
+                                       const Triple &TT, StringRef CPU);
 MCAsmBackend *createMipsAsmBackendEB64(const Target &T,
-                                       const MCRegisterInfo &MRI, StringRef TT,
-                                       StringRef CPU);
+                                       const MCRegisterInfo &MRI,
+                                       const Triple &TT, StringRef CPU);
 MCAsmBackend *createMipsAsmBackendEL64(const Target &T,
-                                       const MCRegisterInfo &MRI, StringRef TT,
-                                       StringRef CPU);
+                                       const MCRegisterInfo &MRI,
+                                       const Triple &TT, StringRef CPU);
 
 MCObjectWriter *createMipsELFObjectWriter(raw_pwrite_stream &OS, uint8_t OSABI,
                                           bool IsLittleEndian, bool Is64Bit);
 
 namespace MIPS_MC {
-StringRef selectMipsCPU(StringRef TT, StringRef CPU);
+StringRef selectMipsCPU(const Triple &TT, StringRef CPU);
 }
 
-} // End llvm namespace
+} // namespace llvm
 
 // Defines symbolic names for Mips registers.  This defines a mapping from
 // register name to register number.

@@ -57,7 +57,7 @@ namespace {
 
     bool RemoveUnusedGlobalValue(GlobalValue &GV);
   };
-}
+} // namespace
 
 /// Returns true if F contains only a single "ret" instruction.
 static bool isEmptyFunction(Function *F) {
@@ -227,6 +227,9 @@ void GlobalDCE::GlobalIsNeeded(GlobalValue *G) {
 
     if (F->hasPrologueData())
       MarkUsedGlobalsAsNeeded(F->getPrologueData());
+
+    if (F->hasPersonalityFn())
+      MarkUsedGlobalsAsNeeded(F->getPersonalityFn());
 
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
       for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I)

@@ -285,24 +285,23 @@ class OMPLoopDirective : public OMPExecutableDirective {
     CalcLastIterationOffset = 3,
     PreConditionOffset = 4,
     CondOffset = 5,
-    SeparatedCondOffset = 6,
-    InitOffset = 7,
-    IncOffset = 8,
+    InitOffset = 6,
+    IncOffset = 7,
     // The '...End' enumerators do not correspond to child expressions - they
     // specify the offset to the end (and start of the following counters/
     // updates/finals arrays).
-    DefaultEnd = 9,
+    DefaultEnd = 8,
     // The following 7 exprs are used by worksharing loops only.
-    IsLastIterVariableOffset = 9,
-    LowerBoundVariableOffset = 10,
-    UpperBoundVariableOffset = 11,
-    StrideVariableOffset = 12,
-    EnsureUpperBoundOffset = 13,
-    NextLowerBoundOffset = 14,
-    NextUpperBoundOffset = 15,
+    IsLastIterVariableOffset = 8,
+    LowerBoundVariableOffset = 9,
+    UpperBoundVariableOffset = 10,
+    StrideVariableOffset = 11,
+    EnsureUpperBoundOffset = 12,
+    NextLowerBoundOffset = 13,
+    NextUpperBoundOffset = 14,
     // Offset to the end (and start of the following counters/updates/finals
     // arrays) for worksharing loop directives.
-    WorksharingEnd = 16,
+    WorksharingEnd = 15,
   };
 
   /// \brief Get the counters storage.
@@ -374,9 +373,8 @@ protected:
   void setPreCond(Expr *PC) {
     *std::next(child_begin(), PreConditionOffset) = PC;
   }
-  void setCond(Expr *Cond, Expr *SeparatedCond) {
+  void setCond(Expr *Cond) {
     *std::next(child_begin(), CondOffset) = Cond;
-    *std::next(child_begin(), SeparatedCondOffset) = SeparatedCond;
   }
   void setInit(Expr *Init) { *std::next(child_begin(), InitOffset) = Init; }
   void setInc(Expr *Inc) { *std::next(child_begin(), IncOffset) = Inc; }
@@ -435,8 +433,6 @@ public:
     Expr *PreCond;
     /// \brief Loop condition.
     Expr *Cond;
-    /// \brief A condition with 1 iteration separated.
-    Expr *SeparatedCond;
     /// \brief Loop iteration variable init.
     Expr *Init;
     /// \brief Loop increment.
@@ -467,8 +463,7 @@ public:
     bool builtAll() {
       return IterationVarRef != nullptr && LastIteration != nullptr &&
              NumIterations != nullptr && PreCond != nullptr &&
-             Cond != nullptr && SeparatedCond != nullptr && Init != nullptr &&
-             Inc != nullptr;
+             Cond != nullptr && Init != nullptr && Inc != nullptr;
     }
 
     /// \brief Initialize all the fields to null.
@@ -479,7 +474,6 @@ public:
       CalcLastIteration = nullptr;
       PreCond = nullptr;
       Cond = nullptr;
-      SeparatedCond = nullptr;
       Init = nullptr;
       Inc = nullptr;
       IL = nullptr;
@@ -519,10 +513,9 @@ public:
     return const_cast<Expr *>(reinterpret_cast<const Expr *>(
         *std::next(child_begin(), PreConditionOffset)));
   }
-  Expr *getCond(bool SeparateIter) const {
-    return const_cast<Expr *>(reinterpret_cast<const Expr *>(
-        *std::next(child_begin(),
-                   (SeparateIter ? SeparatedCondOffset : CondOffset))));
+  Expr *getCond() const {
+    return const_cast<Expr *>(
+        reinterpret_cast<const Expr *>(*std::next(child_begin(), CondOffset)));
   }
   Expr *getInit() const {
     return const_cast<Expr *>(
@@ -1459,6 +1452,53 @@ public:
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == OMPTaskwaitDirectiveClass;
+  }
+};
+
+/// \brief This represents '#pragma omp taskgroup' directive.
+///
+/// \code
+/// #pragma omp taskgroup
+/// \endcode
+///
+class OMPTaskgroupDirective : public OMPExecutableDirective {
+  friend class ASTStmtReader;
+  /// \brief Build directive with the given start and end location.
+  ///
+  /// \param StartLoc Starting location of the directive kind.
+  /// \param EndLoc Ending location of the directive.
+  ///
+  OMPTaskgroupDirective(SourceLocation StartLoc, SourceLocation EndLoc)
+      : OMPExecutableDirective(this, OMPTaskgroupDirectiveClass, OMPD_taskgroup,
+                               StartLoc, EndLoc, 0, 1) {}
+
+  /// \brief Build an empty directive.
+  ///
+  explicit OMPTaskgroupDirective()
+      : OMPExecutableDirective(this, OMPTaskgroupDirectiveClass, OMPD_taskgroup,
+                               SourceLocation(), SourceLocation(), 0, 1) {}
+
+public:
+  /// \brief Creates directive.
+  ///
+  /// \param C AST context.
+  /// \param StartLoc Starting location of the directive kind.
+  /// \param EndLoc Ending Location of the directive.
+  /// \param AssociatedStmt Statement, associated with the directive.
+  ///
+  static OMPTaskgroupDirective *Create(const ASTContext &C,
+                                       SourceLocation StartLoc,
+                                       SourceLocation EndLoc,
+                                       Stmt *AssociatedStmt);
+
+  /// \brief Creates an empty directive.
+  ///
+  /// \param C AST context.
+  ///
+  static OMPTaskgroupDirective *CreateEmpty(const ASTContext &C, EmptyShell);
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == OMPTaskgroupDirectiveClass;
   }
 };
 

@@ -44,12 +44,11 @@ extern "C" void LLVMInitializeMipsTarget() {
   RegisterTargetMachine<MipselTargetMachine> B(TheMips64elTarget);
 }
 
-static std::string computeDataLayout(StringRef TT, StringRef CPU,
+static std::string computeDataLayout(const Triple &TT, StringRef CPU,
                                      const TargetOptions &Options,
                                      bool isLittle) {
   std::string Ret = "";
-  MipsABIInfo ABI =
-      MipsABIInfo::computeTargetABI(Triple(TT), CPU, Options.MCOptions);
+  MipsABIInfo ABI = MipsABIInfo::computeTargetABI(TT, CPU, Options.MCOptions);
 
   // There are both little and big endian mips.
   if (isLittle)
@@ -83,7 +82,7 @@ static std::string computeDataLayout(StringRef TT, StringRef CPU,
 // offset from the stack/frame pointer, using StackGrowsUp enables
 // an easier handling.
 // Using CodeModel::Large enables different CALL behavior.
-MipsTargetMachine::MipsTargetMachine(const Target &T, StringRef TT,
+MipsTargetMachine::MipsTargetMachine(const Target &T, const Triple &TT,
                                      StringRef CPU, StringRef FS,
                                      const TargetOptions &Options,
                                      Reloc::Model RM, CodeModel::Model CM,
@@ -91,7 +90,7 @@ MipsTargetMachine::MipsTargetMachine(const Target &T, StringRef TT,
     : LLVMTargetMachine(T, computeDataLayout(TT, CPU, Options, isLittle), TT,
                         CPU, FS, Options, RM, CM, OL),
       isLittle(isLittle), TLOF(make_unique<MipsTargetObjectFile>()),
-      ABI(MipsABIInfo::computeTargetABI(Triple(TT), CPU, Options.MCOptions)),
+      ABI(MipsABIInfo::computeTargetABI(TT, CPU, Options.MCOptions)),
       Subtarget(nullptr), DefaultSubtarget(TT, CPU, FS, isLittle, *this),
       NoMips16Subtarget(TT, CPU, FS.empty() ? "-mips16" : FS.str() + ",-mips16",
                         isLittle, *this),
@@ -105,21 +104,21 @@ MipsTargetMachine::~MipsTargetMachine() {}
 
 void MipsebTargetMachine::anchor() { }
 
-MipsebTargetMachine::
-MipsebTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL)
-  : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
+MipsebTargetMachine::MipsebTargetMachine(const Target &T, const Triple &TT,
+                                         StringRef CPU, StringRef FS,
+                                         const TargetOptions &Options,
+                                         Reloc::Model RM, CodeModel::Model CM,
+                                         CodeGenOpt::Level OL)
+    : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
 
 void MipselTargetMachine::anchor() { }
 
-MipselTargetMachine::
-MipselTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL)
-  : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
+MipselTargetMachine::MipselTargetMachine(const Target &T, const Triple &TT,
+                                         StringRef CPU, StringRef FS,
+                                         const TargetOptions &Options,
+                                         Reloc::Model RM, CodeModel::Model CM,
+                                         CodeGenOpt::Level OL)
+    : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
 const MipsSubtarget *
 MipsTargetMachine::getSubtargetImpl(const Function &F) const {
@@ -157,7 +156,8 @@ MipsTargetMachine::getSubtargetImpl(const Function &F) const {
     // creation will depend on the TM and the code generation flags on the
     // function that reside in TargetOptions.
     resetTargetOptions(F);
-    I = llvm::make_unique<MipsSubtarget>(TargetTriple, CPU, FS, isLittle, *this);
+    I = llvm::make_unique<MipsSubtarget>(TargetTriple, CPU, FS, isLittle,
+                                         *this);
   }
   return I.get();
 }

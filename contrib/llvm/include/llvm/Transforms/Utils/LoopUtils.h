@@ -43,49 +43,24 @@ struct LICMSafetyInfo {
   {}
 };
 
-/// This POD struct holds information about a potential reduction operation.
-class ReductionInstDesc {
+/// The RecurrenceDescriptor is used to identify recurrences variables in a
+/// loop. Reduction is a special case of recurrence that has uses of the
+/// recurrence variable outside the loop. The method isReductionPHI identifies
+/// reductions that are basic recurrences.
+///
+/// Basic recurrences are defined as the summation, product, OR, AND, XOR, min,
+/// or max of a set of terms. For example: for(i=0; i<n; i++) { total +=
+/// array[i]; } is a summation of array elements. Basic recurrences are a
+/// special case of chains of recurrences (CR). See ScalarEvolution for CR
+/// references.
+
+/// This struct holds information about recurrence variables.
+class RecurrenceDescriptor {
 
 public:
-  // This enum represents the kind of minmax reduction.
-  enum MinMaxReductionKind {
-    MRK_Invalid,
-    MRK_UIntMin,
-    MRK_UIntMax,
-    MRK_SIntMin,
-    MRK_SIntMax,
-    MRK_FloatMin,
-    MRK_FloatMax
-  };
-  ReductionInstDesc(bool IsRedux, Instruction *I)
-      : IsReduction(IsRedux), PatternLastInst(I), MinMaxKind(MRK_Invalid) {}
-
-  ReductionInstDesc(Instruction *I, MinMaxReductionKind K)
-      : IsReduction(true), PatternLastInst(I), MinMaxKind(K) {}
-
-  bool isReduction() { return IsReduction; }
-
-  MinMaxReductionKind getMinMaxKind() { return MinMaxKind; }
- 
-  Instruction *getPatternInst() { return PatternLastInst; }
-
-private:
-  // Is this instruction a reduction candidate.
-  bool IsReduction;
-  // The last instruction in a min/max pattern (select of the select(icmp())
-  // pattern), or the current reduction instruction otherwise.
-  Instruction *PatternLastInst;
-  // If this is a min/max pattern the comparison predicate.
-  MinMaxReductionKind MinMaxKind;
-};
-
-/// This struct holds information about reduction variables.
-class ReductionDescriptor {
-
-public:
-  /// This enum represents the kinds of reductions that we support.
-  enum ReductionKind {
-    RK_NoReduction,   ///< Not a reduction.
+  /// This enum represents the kinds of recurrences that we support.
+  enum RecurrenceKind {
+    RK_NoRecurrence,  ///< Not a recurrence.
     RK_IntegerAdd,    ///< Sum of integers.
     RK_IntegerMult,   ///< Product of integers.
     RK_IntegerOr,     ///< Bitwise or logical OR of numbers.
@@ -97,22 +72,58 @@ public:
     RK_FloatMinMax    ///< Min/max implemented in terms of select(cmp()).
   };
 
-  ReductionDescriptor()
-      : StartValue(nullptr), LoopExitInstr(nullptr), Kind(RK_NoReduction),
-        MinMaxKind(ReductionInstDesc::MRK_Invalid) {}
+  // This enum represents the kind of minmax recurrence.
+  enum MinMaxRecurrenceKind {
+    MRK_Invalid,
+    MRK_UIntMin,
+    MRK_UIntMax,
+    MRK_SIntMin,
+    MRK_SIntMax,
+    MRK_FloatMin,
+    MRK_FloatMax
+  };
 
-  ReductionDescriptor(Value *Start, Instruction *Exit, ReductionKind K,
-                      ReductionInstDesc::MinMaxReductionKind MK)
+  RecurrenceDescriptor()
+      : StartValue(nullptr), LoopExitInstr(nullptr), Kind(RK_NoRecurrence),
+        MinMaxKind(MRK_Invalid) {}
+
+  RecurrenceDescriptor(Value *Start, Instruction *Exit, RecurrenceKind K,
+                       MinMaxRecurrenceKind MK)
       : StartValue(Start), LoopExitInstr(Exit), Kind(K), MinMaxKind(MK) {}
 
-  /// Returns a struct describing if the instruction 'I' can be a reduction
-  /// variable of type 'Kind'. If the reduction is a min/max pattern of
+  /// This POD struct holds information about a potential recurrence operation.
+  class InstDesc {
+
+  public:
+    InstDesc(bool IsRecur, Instruction *I)
+        : IsRecurrence(IsRecur), PatternLastInst(I), MinMaxKind(MRK_Invalid) {}
+
+    InstDesc(Instruction *I, MinMaxRecurrenceKind K)
+        : IsRecurrence(true), PatternLastInst(I), MinMaxKind(K) {}
+
+    bool isRecurrence() { return IsRecurrence; }
+
+    MinMaxRecurrenceKind getMinMaxKind() { return MinMaxKind; }
+
+    Instruction *getPatternInst() { return PatternLastInst; }
+
+  private:
+    // Is this instruction a recurrence candidate.
+    bool IsRecurrence;
+    // The last instruction in a min/max pattern (select of the select(icmp())
+    // pattern), or the current recurrence instruction otherwise.
+    Instruction *PatternLastInst;
+    // If this is a min/max pattern the comparison predicate.
+    MinMaxRecurrenceKind MinMaxKind;
+  };
+
+  /// Returns a struct describing if the instruction 'I' can be a recurrence
+  /// variable of type 'Kind'. If the recurrence is a min/max pattern of
   /// select(icmp()) this function advances the instruction pointer 'I' from the
   /// compare instruction to the select instruction and stores this pointer in
   /// 'PatternLastInst' member of the returned struct.
-  static ReductionInstDesc isReductionInstr(Instruction *I, ReductionKind Kind,
-                                            ReductionInstDesc &Prev,
-                                            bool HasFunNoNaNAttr);
+  static InstDesc isRecurrenceInstr(Instruction *I, RecurrenceKind Kind,
+                                    InstDesc &Prev, bool HasFunNoNaNAttr);
 
   /// Returns true if instuction I has multiple uses in Insts
   static bool hasMultipleUsesOf(Instruction *I,
@@ -124,51 +135,48 @@ public:
   /// Returns a struct describing if the instruction if the instruction is a
   /// Select(ICmp(X, Y), X, Y) instruction pattern corresponding to a min(X, Y)
   /// or max(X, Y).
-  static ReductionInstDesc isMinMaxSelectCmpPattern(Instruction *I,
-                                                    ReductionInstDesc &Prev);
+  static InstDesc isMinMaxSelectCmpPattern(Instruction *I, InstDesc &Prev);
 
-  /// Returns identity corresponding to the ReductionKind.
-  static Constant *getReductionIdentity(ReductionKind K, Type *Tp);
+  /// Returns identity corresponding to the RecurrenceKind.
+  static Constant *getRecurrenceIdentity(RecurrenceKind K, Type *Tp);
 
-  /// Returns the opcode of binary operation corresponding to the ReductionKind.
-  static unsigned getReductionBinOp(ReductionKind Kind);
+  /// Returns the opcode of binary operation corresponding to the
+  /// RecurrenceKind.
+  static unsigned getRecurrenceBinOp(RecurrenceKind Kind);
 
-  /// Returns a Min/Max operation corresponding to MinMaxReductionKind.
-  static Value *createMinMaxOp(IRBuilder<> &Builder,
-                               ReductionInstDesc::MinMaxReductionKind RK,
+  /// Returns a Min/Max operation corresponding to MinMaxRecurrenceKind.
+  static Value *createMinMaxOp(IRBuilder<> &Builder, MinMaxRecurrenceKind RK,
                                Value *Left, Value *Right);
 
   /// Returns true if Phi is a reduction of type Kind and adds it to the
-  /// ReductionDescriptor.
-  static bool AddReductionVar(PHINode *Phi, ReductionKind Kind, Loop *TheLoop,
+  /// RecurrenceDescriptor.
+  static bool AddReductionVar(PHINode *Phi, RecurrenceKind Kind, Loop *TheLoop,
                               bool HasFunNoNaNAttr,
-                              ReductionDescriptor &RedDes);
+                              RecurrenceDescriptor &RedDes);
 
-  /// Returns true if Phi is a reduction in TheLoop. The ReductionDescriptor is
+  /// Returns true if Phi is a reduction in TheLoop. The RecurrenceDescriptor is
   /// returned in RedDes.
   static bool isReductionPHI(PHINode *Phi, Loop *TheLoop,
-                             ReductionDescriptor &RedDes);
+                             RecurrenceDescriptor &RedDes);
 
-  ReductionKind getReductionKind() { return Kind; }
+  RecurrenceKind getRecurrenceKind() { return Kind; }
 
-  ReductionInstDesc::MinMaxReductionKind getMinMaxReductionKind() {
-    return MinMaxKind;
-  }
+  MinMaxRecurrenceKind getMinMaxRecurrenceKind() { return MinMaxKind; }
 
-  TrackingVH<Value> getReductionStartValue() { return StartValue; }
+  TrackingVH<Value> getRecurrenceStartValue() { return StartValue; }
 
   Instruction *getLoopExitInstr() { return LoopExitInstr; }
 
 private:
-  // The starting value of the reduction.
+  // The starting value of the recurrence.
   // It does not have to be zero!
   TrackingVH<Value> StartValue;
   // The instruction who's value is used outside the loop.
   Instruction *LoopExitInstr;
-  // The kind of the reduction.
-  ReductionKind Kind;
-  // If this a min/max reduction the kind of reduction.
-  ReductionInstDesc::MinMaxReductionKind MinMaxKind;
+  // The kind of the recurrence.
+  RecurrenceKind Kind;
+  // If this a min/max recurrence the kind of recurrence.
+  MinMaxRecurrenceKind MinMaxKind;
 };
 
 BasicBlock *InsertPreheaderForLoop(Loop *L, Pass *P);
@@ -255,6 +263,6 @@ void computeLICMSafetyInfo(LICMSafetyInfo *, Loop *);
 /// variable. Returns true if this is an induction PHI along with the step
 /// value.
 bool isInductionPHI(PHINode *, ScalarEvolution *, ConstantInt *&);
-}
+} // namespace llvm
 
 #endif

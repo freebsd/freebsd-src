@@ -227,8 +227,8 @@ namespace hexagon {
 namespace arm {
   std::string getARMTargetCPU(const llvm::opt::ArgList &Args,
                               const llvm::Triple &Triple);
-  const StringRef getARMArch(const llvm::opt::ArgList &Args,
-                             const llvm::Triple &Triple);
+  const std::string getARMArch(const llvm::opt::ArgList &Args,
+                               const llvm::Triple &Triple);
   const char* getARMCPUForMArch(const llvm::opt::ArgList &Args,
                                 const llvm::Triple &Triple);
   const char* getLLVMArchSuffixForARM(StringRef CPU, StringRef Arch);
@@ -249,7 +249,9 @@ namespace mips {
   bool isUCLibc(const llvm::opt::ArgList &Args);
   bool isNaN2008(const llvm::opt::ArgList &Args, const llvm::Triple &Triple);
   bool isFPXXDefault(const llvm::Triple &Triple, StringRef CPUName,
-                     StringRef ABIName);
+                     StringRef ABIName, StringRef FloatABI);
+  bool shouldUseFPXX(const llvm::opt::ArgList &Args, const llvm::Triple &Triple,
+                     StringRef CPUName, StringRef ABIName, StringRef FloatABI);
 }
 
 namespace ppc {
@@ -730,6 +732,33 @@ public:
                     const char *LinkingOutput) const override;
 };
 }
+
+/// SHAVE tools -- Directly call moviCompile and moviAsm
+namespace SHAVE {
+class LLVM_LIBRARY_VISIBILITY Compile : public Tool {
+public:
+  Compile(const ToolChain &TC) : Tool("moviCompile", "movicompile", TC) {}
+
+  bool hasIntegratedCPP() const override { return true; }
+
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override;
+};
+
+class LLVM_LIBRARY_VISIBILITY Assemble : public Tool {
+public:
+  Assemble(const ToolChain &TC) : Tool("moviAsm", "moviAsm", TC) {}
+
+  bool hasIntegratedCPP() const override { return false; } // not sure.
+
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override;
+};
+} // end namespace SHAVE
 
 } // end namespace tools
 } // end namespace driver

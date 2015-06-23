@@ -53,7 +53,7 @@ public:
                               raw_ostream &VStream,
                               raw_ostream &CStream) const override;
 };
-}
+} // namespace
 
 static DecodeStatus DecodeModRegsRegisterClass(MCInst &Inst, unsigned RegNo,
                                                uint64_t Address,
@@ -68,6 +68,33 @@ static DecodeStatus DecodeCtrRegs64RegisterClass(MCInst &Inst, unsigned RegNo,
 static unsigned GetSubinstOpcode(unsigned IClass, unsigned inst, unsigned &op,
                                  raw_ostream &os);
 static void AddSubinstOperands(MCInst *MI, unsigned opcode, unsigned inst);
+
+static DecodeStatus s16ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                  const void *Decoder);
+static DecodeStatus s12ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                  const void *Decoder);
+static DecodeStatus s11_0ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                    const void *Decoder);
+static DecodeStatus s11_1ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                    const void *Decoder);
+static DecodeStatus s11_2ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                    const void *Decoder);
+static DecodeStatus s11_3ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                    const void *Decoder);
+static DecodeStatus s10ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                  const void *Decoder);
+static DecodeStatus s8ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                 const void *Decoder);
+static DecodeStatus s6_0ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                   const void *Decoder);
+static DecodeStatus s4_0ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                   const void *Decoder);
+static DecodeStatus s4_1ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                   const void *Decoder);
+static DecodeStatus s4_2ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                   const void *Decoder);
+static DecodeStatus s4_3ImmDecoder(MCInst &MI, unsigned tmp, uint64_t Address,
+                                   const void *Decoder);
 
 static const uint16_t IntRegDecoderTable[] = {
     Hexagon::R0,  Hexagon::R1,  Hexagon::R2,  Hexagon::R3,  Hexagon::R4,
@@ -354,6 +381,97 @@ DecodeStatus HexagonDisassembler::getSingleInstruction(
   }
 
   return Result;
+}
+
+static DecodeStatus s16ImmDecoder(MCInst &MI, unsigned tmp,
+                                  uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<16>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s12ImmDecoder(MCInst &MI, unsigned tmp,
+                                  uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<12>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s11_0ImmDecoder(MCInst &MI, unsigned tmp,
+                                    uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<11>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s11_1ImmDecoder(MCInst &MI, unsigned tmp,
+                                    uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<12>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s11_2ImmDecoder(MCInst &MI, unsigned tmp,
+                                    uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<13>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s11_3ImmDecoder(MCInst &MI, unsigned tmp,
+                                    uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<14>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s10ImmDecoder(MCInst &MI, unsigned tmp,
+                                  uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<10>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s8ImmDecoder(MCInst &MI, unsigned tmp, uint64_t /*Address*/,
+                                 const void *Decoder) {
+  uint64_t imm = SignExtend64<8>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s6_0ImmDecoder(MCInst &MI, unsigned tmp,
+                                   uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<6>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s4_0ImmDecoder(MCInst &MI, unsigned tmp,
+                                   uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<4>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s4_1ImmDecoder(MCInst &MI, unsigned tmp,
+                                   uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<5>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s4_2ImmDecoder(MCInst &MI, unsigned tmp,
+                                   uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<6>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus s4_3ImmDecoder(MCInst &MI, unsigned tmp,
+                                   uint64_t /*Address*/, const void *Decoder) {
+  uint64_t imm = SignExtend64<7>(tmp);
+  MI.addOperand(MCOperand::createImm(imm));
+  return MCDisassembler::Success;
 }
 
 // These values are from HexagonGenMCCodeEmitter.inc and HexagonIsetDx.td

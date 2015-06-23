@@ -143,6 +143,12 @@ public:
     return nullptr;
   }
 
+  const GlobalValue *getSymbolGV(uint32_t index) {
+    if (index < _symbols.size())
+      return _symbols[index].symbol;
+    return nullptr;
+  }
+
   /// Get the number of dependent libraries
   uint32_t getDependentLibraryCount() {
     return _deplibs.size();
@@ -218,5 +224,5 @@ private:
   static LTOModule *makeLTOModule(MemoryBufferRef Buffer, TargetOptions options,
                                   std::string &errMsg, LLVMContext *Context);
 };
-}
+} // namespace llvm
 #endif

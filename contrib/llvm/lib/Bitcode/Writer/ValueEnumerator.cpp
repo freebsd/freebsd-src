@@ -52,7 +52,7 @@ struct OrderMap {
     IDs[V].first = ID;
   }
 };
-}
+} // namespace
 
 static void orderValue(const Value *V, OrderMap &OM) {
   if (OM.lookup(V).first)
@@ -93,6 +93,9 @@ static OrderMap orderModule(const Module &M) {
     if (F.hasPrologueData())
       if (!isa<GlobalValue>(F.getPrologueData()))
         orderValue(F.getPrologueData(), OM);
+    if (F.hasPersonalityFn())
+      if (!isa<GlobalValue>(F.getPersonalityFn()))
+        orderValue(F.getPersonalityFn(), OM);
   }
   OM.LastGlobalConstantID = OM.size();
 
@@ -274,6 +277,8 @@ static UseListOrderStack predictUseListOrder(const Module &M) {
       predictValueUseListOrder(F.getPrefixData(), nullptr, OM, Stack);
     if (F.hasPrologueData())
       predictValueUseListOrder(F.getPrologueData(), nullptr, OM, Stack);
+    if (F.hasPersonalityFn())
+      predictValueUseListOrder(F.getPersonalityFn(), nullptr, OM, Stack);
   }
 
   return Stack;
@@ -291,44 +296,45 @@ ValueEnumerator::ValueEnumerator(const Module &M,
     UseListOrders = predictUseListOrder(M);
 
   // Enumerate the global variables.
-  for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
-       I != E; ++I)
-    EnumerateValue(I);
+  for (const GlobalVariable &GV : M.globals())
+    EnumerateValue(&GV);
 
   // Enumerate the functions.
-  for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    EnumerateValue(I);
-    EnumerateAttributes(cast<Function>(I)->getAttributes());
+  for (const Function & F : M) {
+    EnumerateValue(&F);
+    EnumerateAttributes(F.getAttributes());
   }
 
   // Enumerate the aliases.
-  for (Module::const_alias_iterator I = M.alias_begin(), E = M.alias_end();
-       I != E; ++I)
-    EnumerateValue(I);
+  for (const GlobalAlias &GA : M.aliases())
+    EnumerateValue(&GA);
 
   // Remember what is the cutoff between globalvalue's and other constants.
   unsigned FirstConstant = Values.size();
 
   // Enumerate the global variable initializers.
-  for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
-       I != E; ++I)
-    if (I->hasInitializer())
-      EnumerateValue(I->getInitializer());
+  for (const GlobalVariable &GV : M.globals())
+    if (GV.hasInitializer())
+      EnumerateValue(GV.getInitializer());
 
   // Enumerate the aliasees.
-  for (Module::const_alias_iterator I = M.alias_begin(), E = M.alias_end();
-       I != E; ++I)
-    EnumerateValue(I->getAliasee());
+  for (const GlobalAlias &GA : M.aliases())
+    EnumerateValue(GA.getAliasee());
 
   // Enumerate the prefix data constants.
-  for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
-    if (I->hasPrefixData())
-      EnumerateValue(I->getPrefixData());
+  for (const Function &F : M)
+    if (F.hasPrefixData())
+      EnumerateValue(F.getPrefixData());
 
   // Enumerate the prologue data constants.
+  for (const Function &F : M)
+    if (F.hasPrologueData())
+      EnumerateValue(F.getPrologueData());
+
+  // Enumerate the personality functions.
   for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
-    if (I->hasPrologueData())
-      EnumerateValue(I->getPrologueData());
+    if (I->hasPersonalityFn())
+      EnumerateValue(I->getPersonalityFn());
 
   // Enumerate the metadata type.
   //

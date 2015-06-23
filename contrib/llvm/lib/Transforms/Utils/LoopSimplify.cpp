@@ -144,8 +144,6 @@ BasicBlock *llvm::InsertPreheaderForLoop(Loop *L, Pass *PP) {
   PreheaderBB = SplitBlockPredecessors(Header, OutsideBlocks, ".preheader",
                                        AA, DT, LI, PreserveLCSSA);
 
-  PreheaderBB->getTerminator()->setDebugLoc(
-                                      Header->getFirstNonPHI()->getDebugLoc());
   DEBUG(dbgs() << "LoopSimplify: Creating pre-header "
                << PreheaderBB->getName() << "\n");
 
@@ -778,7 +776,7 @@ namespace {
     /// verifyAnalysis() - Verify LoopSimplifyForm's guarantees.
     void verifyAnalysis() const override;
   };
-}
+} // namespace
 
 char LoopSimplify::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopSimplify, "loop-simplify",

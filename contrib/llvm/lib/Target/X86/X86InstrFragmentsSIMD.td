@@ -72,6 +72,9 @@ def X86comi    : SDNode<"X86ISD::COMI",      SDTX86CmpTest>;
 def X86ucomi   : SDNode<"X86ISD::UCOMI",     SDTX86CmpTest>;
 def X86cmps    : SDNode<"X86ISD::FSETCC",     SDTX86Cmps>;
 //def X86cmpsd   : SDNode<"X86ISD::FSETCCsd",    SDTX86Cmpsd>;
+def X86cvtdq2pd: SDNode<"X86ISD::CVTDQ2PD",
+                 SDTypeProfile<1, 1, [SDTCisVT<0, v2f64>,
+                                      SDTCisVT<1, v4i32>]>>;
 def X86pshufb  : SDNode<"X86ISD::PSHUFB",
                  SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
@@ -184,6 +187,7 @@ def X86addus   : SDNode<"X86ISD::ADDUS", SDTIntBinOp>;
 def X86subus   : SDNode<"X86ISD::SUBUS", SDTIntBinOp>;
 def X86adds    : SDNode<"X86ISD::ADDS", SDTIntBinOp>;
 def X86subs    : SDNode<"X86ISD::SUBS", SDTIntBinOp>;
+def X86avg     : SDNode<"X86ISD::AVG" , SDTIntBinOp>;
 def X86ptest   : SDNode<"X86ISD::PTEST", SDTX86CmpPTest>;
 def X86testp   : SDNode<"X86ISD::TESTP", SDTX86CmpPTest>;
 def X86kortest : SDNode<"X86ISD::KORTEST", SDTX86CmpPTest>;
@@ -349,6 +353,12 @@ def X86compress: SDNode<"X86ISD::COMPRESS", SDTypeProfile<1, 3,
 def X86expand  : SDNode<"X86ISD::EXPAND", SDTypeProfile<1, 3,
                               [SDTCisSameAs<0, 3>,
                                SDTCisVec<3>, SDTCisVec<1>, SDTCisInt<1>]>, []>;
+
+def SDTintToFPRound: SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisFP<0>,
+                               SDTCisSameAs<0,1>, SDTCisInt<2>, SDTCisInt<3>]>;
+
+def X86SintToFpRnd   : SDNode<"X86ISD::SINT_TO_FP_RND",  SDTintToFPRound>;
+def X86SuintToFpRnd  : SDNode<"X86ISD::UINT_TO_FP_RND",  SDTintToFPRound>;
 
 //===----------------------------------------------------------------------===//
 // SSE Complex Patterns

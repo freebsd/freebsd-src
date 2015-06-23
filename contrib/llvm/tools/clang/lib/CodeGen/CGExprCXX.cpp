@@ -254,12 +254,13 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
   if (const CXXConstructorDecl *Ctor = dyn_cast<CXXConstructorDecl>(MD)) {
     Callee = CGM.GetAddrOfFunction(GlobalDecl(Ctor, Ctor_Complete), Ty);
   } else if (UseVirtualCall) {
-    Callee = CGM.getCXXABI().getVirtualFunctionPointer(*this, MD, This, Ty);
+    Callee = CGM.getCXXABI().getVirtualFunctionPointer(*this, MD, This, Ty,
+                                                       CE->getLocStart());
   } else {
     if (SanOpts.has(SanitizerKind::CFINVCall) &&
         MD->getParent()->isDynamicClass()) {
       llvm::Value *VTable = GetVTablePtr(This, Int8PtrTy);
-      EmitVTablePtrCheckForCall(MD, VTable);
+      EmitVTablePtrCheckForCall(MD, VTable, CFITCK_NVCall, CE->getLocStart());
     }
 
     if (getLangOpts().AppleKext && MD->isVirtual() && HasQualifier)
@@ -957,6 +958,25 @@ void CodeGenFunction::EmitNewArrayInitializer(
   if (auto *ILE = dyn_cast<InitListExpr>(Init))
     if (ILE->getNumInits() == 0 && TryMemsetInitialization())
       return;
+
+  // If we have a struct whose every field is value-initialized, we can
+  // usually use memset.
+  if (auto *ILE = dyn_cast<InitListExpr>(Init)) {
+    if (const RecordType *RType = ILE->getType()->getAs<RecordType>()) {
+      if (RType->getDecl()->isStruct()) {
+        unsigned NumFields = 0;
+        for (auto *Field : RType->getDecl()->fields())
+          if (!Field->isUnnamedBitfield())
+            ++NumFields;
+        if (ILE->getNumInits() == NumFields)
+          for (unsigned i = 0, e = ILE->getNumInits(); i != e; ++i)
+            if (!isa<ImplicitValueInitExpr>(ILE->getInit(i)))
+              --NumFields;
+        if (ILE->getNumInits() == NumFields && TryMemsetInitialization())
+          return;
+      }
+    }
+  }
 
   // Create the loop blocks.
   llvm::BasicBlock *EntryBB = Builder.GetInsertBlock();

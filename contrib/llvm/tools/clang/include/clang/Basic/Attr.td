@@ -195,7 +195,8 @@ class CXX11<string namespace, string name, int version = 1>
     : Spelling<name, "CXX11"> {
   string Namespace = namespace;
   int Version = version;
-} class Keyword<string name> : Spelling<name, "Keyword">;
+}
+class Keyword<string name> : Spelling<name, "Keyword">;
 class Pragma<string namespace, string name> : Spelling<name, "Pragma"> {
   string Namespace = namespace;
 }
@@ -959,6 +960,22 @@ def ReturnsNonNull : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
+// Nullability type attributes.
+def TypeNonNull : TypeAttr {
+  let Spellings = [Keyword<"__nonnull">];
+  let Documentation = [Undocumented];
+}
+
+def TypeNullable : TypeAttr {
+  let Spellings = [Keyword<"__nullable">];
+  let Documentation = [Undocumented];
+}
+
+def TypeNullUnspecified : TypeAttr {
+  let Spellings = [Keyword<"__null_unspecified">];
+  let Documentation = [Undocumented];
+}
+
 def AssumeAligned : InheritableAttr {
   let Spellings = [GCC<"assume_aligned">];
   let Subjects = SubjectList<[ObjCMethod, Function]>;
@@ -1247,6 +1264,14 @@ def VectorCall : InheritableAttr {
 def Pascal : InheritableAttr {
   let Spellings = [GNU<"pascal">, Keyword<"__pascal">, Keyword<"_pascal">];
 //  let Subjects = [Function, ObjCMethod];
+  let Documentation = [Undocumented];
+}
+
+def Target : InheritableAttr {
+  let Spellings = [GCC<"target">];
+  let Args = [StringArgument<"features">];
+  let Subjects =
+      SubjectList<[Function], ErrorDiag, "ExpectedFunctionMethodOrClass">;
   let Documentation = [Undocumented];
 }
 
@@ -1935,8 +1960,8 @@ def LoopHint : Attr {
                           ["Vectorize", "VectorizeWidth", "Interleave", "InterleaveCount",
                            "Unroll", "UnrollCount"]>,
               EnumArgument<"State", "LoopHintState",
-                           ["default", "enable", "disable"],
-                           ["Default", "Enable", "Disable"]>,
+                           ["default", "enable", "disable", "assume_safety"],
+                           ["Default", "Enable", "Disable", "AssumeSafety"]>,
               ExprArgument<"Value">];
 
   let AdditionalMembers = [{
@@ -1982,6 +2007,8 @@ def LoopHint : Attr {
       return "";
     else if (state == Enable)
       OS << (option == Unroll ? "full" : "enable");
+    else if (state == AssumeSafety)
+      OS << "assume_safety";
     else
       OS << "disable";
     OS << ")";

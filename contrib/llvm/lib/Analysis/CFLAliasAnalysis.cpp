@@ -14,8 +14,7 @@
 // Alias Analysis" by Zhang Q, Lyu M R, Yuan H, and Su Z. -- to summarize the
 // papers, we build a graph of the uses of a variable, where each node is a
 // memory location, and each edge is an action that happened on that memory
-// location.  The "actions" can be one of Dereference, Reference, Assign, or
-// Assign.
+// location.  The "actions" can be one of Dereference, Reference, or Assign.
 //
 // Two variables are considered as aliasing iff you can reach one value's node
 // from the other value's node and the language formed by concatenating all of
@@ -219,9 +218,10 @@ public:
     return Iter->second;
   }
 
-  AliasResult query(const Location &LocA, const Location &LocB);
+  AliasResult query(const MemoryLocation &LocA, const MemoryLocation &LocB);
 
-  AliasResult alias(const Location &LocA, const Location &LocB) override {
+  AliasResult alias(const MemoryLocation &LocA,
+                    const MemoryLocation &LocB) override {
     if (LocA.Ptr == LocB.Ptr) {
       if (LocA.Size == LocB.Size) {
         return MustAlias;
@@ -539,6 +539,19 @@ public:
     Output.push_back(Edge(&Inst, From1, EdgeType::Assign, AttrNone));
     Output.push_back(Edge(&Inst, From2, EdgeType::Assign, AttrNone));
   }
+
+  void visitConstantExpr(ConstantExpr *CE) {
+    switch (CE->getOpcode()) {
+    default:
+      llvm_unreachable("Unknown instruction type encountered!");
+// Build the switch statement using the Instruction.def file.
+#define HANDLE_INST(NUM, OPCODE, CLASS)                                        \
+  case Instruction::OPCODE:                                                    \
+    visit##OPCODE(*(CLASS *)CE);                                               \
+    break;
+#include "llvm/IR/Instruction.def"
+    }
+  }
 };
 
 // For a given instruction, we need to know which Value* to get the
@@ -712,7 +725,7 @@ public:
 
 typedef WeightedBidirectionalGraph<std::pair<EdgeType, StratifiedAttrs>> GraphT;
 typedef DenseMap<Value *, GraphT::Node> NodeMapT;
-}
+} // namespace
 
 // -- Setting up/registering CFLAA pass -- //
 char CFLAliasAnalysis::ID = 0;
@@ -739,6 +752,10 @@ static EdgeType flipWeight(EdgeType);
 
 // Gets edges of the given Instruction*, writing them to the SmallVector*.
 static void argsToEdges(CFLAliasAnalysis &, Instruction *,
+                        SmallVectorImpl<Edge> &);
+
+// Gets edges of the given ConstantExpr*, writing them to the SmallVector*.
+static void argsToEdges(CFLAliasAnalysis &, ConstantExpr *,
                         SmallVectorImpl<Edge> &);
 
 // Gets the "Level" that one should travel in StratifiedSets
@@ -807,6 +824,13 @@ static bool hasUsefulEdges(Instruction *Inst) {
   return !isa<CmpInst>(Inst) && !isa<FenceInst>(Inst) && !IsNonInvokeTerminator;
 }
 
+static bool hasUsefulEdges(ConstantExpr *CE) {
+  // ConstantExpr doens't have terminators, invokes, or fences, so only needs
+  // to check for compares.
+  return CE->getOpcode() != Instruction::ICmp &&
+         CE->getOpcode() != Instruction::FCmp;
+}
+
 static Optional<StratifiedAttr> valueToAttrIndex(Value *Val) {
   if (isa<GlobalValue>(Val))
     return AttrGlobalIndex;
@@ -846,6 +870,13 @@ static void argsToEdges(CFLAliasAnalysis &Analysis, Instruction *Inst,
   v.visit(Inst);
 }
 
+static void argsToEdges(CFLAliasAnalysis &Analysis, ConstantExpr *CE,
+                        SmallVectorImpl<Edge> &Output) {
+  assert(hasUsefulEdges(CE) && "Expected constant expr to have 'useful' edges");
+  GetEdgesVisitor v(Analysis, Output);
+  v.visitConstantExpr(CE);
+}
+
 static Level directionOfEdgeType(EdgeType Weight) {
   switch (Weight) {
   case EdgeType::Reference:
@@ -865,25 +896,23 @@ static void constexprToEdges(CFLAliasAnalysis &Analysis,
   Worklist.push_back(&CExprToCollapse);
 
   SmallVector<Edge, 8> ConstexprEdges;
+  SmallPtrSet<ConstantExpr *, 4> Visited;
   while (!Worklist.empty()) {
     auto *CExpr = Worklist.pop_back_val();
-    std::unique_ptr<Instruction> Inst(CExpr->getAsInstruction());
 
-    if (!hasUsefulEdges(Inst.get()))
+    if (!hasUsefulEdges(CExpr))
       continue;
 
     ConstexprEdges.clear();
-    argsToEdges(Analysis, Inst.get(), ConstexprEdges);
+    argsToEdges(Analysis, CExpr, ConstexprEdges);
     for (auto &Edge : ConstexprEdges) {
-      if (Edge.From == Inst.get())
-        Edge.From = CExpr;
-      else if (auto *Nested = dyn_cast<ConstantExpr>(Edge.From))
-        Worklist.push_back(Nested);
+      if (auto *Nested = dyn_cast<ConstantExpr>(Edge.From))
+        if (Visited.insert(Nested).second)
+          Worklist.push_back(Nested);
 
-      if (Edge.To == Inst.get())
-        Edge.To = CExpr;
-      else if (auto *Nested = dyn_cast<ConstantExpr>(Edge.To))
-        Worklist.push_back(Nested);
+      if (auto *Nested = dyn_cast<ConstantExpr>(Edge.To))
+        if (Visited.insert(Nested).second)
+          Worklist.push_back(Nested);
     }
 
     Results.append(ConstexprEdges.begin(), ConstexprEdges.end());
@@ -1080,9 +1109,8 @@ void CFLAliasAnalysis::scan(Function *Fn) {
   Handles.push_front(FunctionHandle(Fn, this));
 }
 
-AliasAnalysis::AliasResult
-CFLAliasAnalysis::query(const AliasAnalysis::Location &LocA,
-                        const AliasAnalysis::Location &LocB) {
+AliasAnalysis::AliasResult CFLAliasAnalysis::query(const MemoryLocation &LocA,
+                                                   const MemoryLocation &LocB) {
   auto *ValA = const_cast<Value *>(LocA.Ptr);
   auto *ValB = const_cast<Value *>(LocB.Ptr);
 

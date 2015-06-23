@@ -670,6 +670,9 @@ bool LLParser::ParseAlias(const std::string &Name, LocTy NameLoc, unsigned L,
   GA->setDLLStorageClass((GlobalValue::DLLStorageClassTypes)DLLStorageClass);
   GA->setUnnamedAddr(UnnamedAddr);
 
+  if (Name.empty())
+    NumberedVals.push_back(GA.get());
+
   // See if this value already exists in the symbol table.  If so, it is either
   // a redefinition or a definition of a forward reference.
   if (GlobalValue *Val = M->getNamedValue(Name)) {
@@ -958,6 +961,7 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
     case lltok::kw_ssp:               B.addAttribute(Attribute::StackProtect); break;
     case lltok::kw_sspreq:            B.addAttribute(Attribute::StackProtectReq); break;
     case lltok::kw_sspstrong:         B.addAttribute(Attribute::StackProtectStrong); break;
+    case lltok::kw_safestack:         B.addAttribute(Attribute::SafeStack); break;
     case lltok::kw_sanitize_address:  B.addAttribute(Attribute::SanitizeAddress); break;
     case lltok::kw_sanitize_thread:   B.addAttribute(Attribute::SanitizeThread); break;
     case lltok::kw_sanitize_memory:   B.addAttribute(Attribute::SanitizeMemory); break;
@@ -1267,6 +1271,7 @@ bool LLParser::ParseOptionalParamAttrs(AttrBuilder &B) {
     case lltok::kw_ssp:
     case lltok::kw_sspreq:
     case lltok::kw_sspstrong:
+    case lltok::kw_safestack:
     case lltok::kw_uwtable:
       HaveError |= Error(Lex.getLoc(), "invalid use of function-only attribute");
       break;
@@ -1343,6 +1348,7 @@ bool LLParser::ParseOptionalReturnAttrs(AttrBuilder &B) {
     case lltok::kw_ssp:
     case lltok::kw_sspreq:
     case lltok::kw_sspstrong:
+    case lltok::kw_safestack:
     case lltok::kw_uwtable:
       HaveError |= Error(Lex.getLoc(), "invalid use of function-only attribute");
       break;
@@ -4051,7 +4057,7 @@ bool LLParser::ParseTypeAndBasicBlock(BasicBlock *&BB, LocTy &Loc,
 /// FunctionHeader
 ///   ::= OptionalLinkage OptionalVisibility OptionalCallingConv OptRetAttrs
 ///       OptUnnamedAddr Type GlobalName '(' ArgList ')' OptFuncAttrs OptSection
-///       OptionalAlign OptGC OptionalPrefix OptionalPrologue
+///       OptionalAlign OptGC OptionalPrefix OptionalPrologue OptPersonalityFn
 bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   // Parse the linkage.
   LocTy LinkageLoc = Lex.getLoc();
@@ -4133,6 +4139,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   LocTy UnnamedAddrLoc;
   Constant *Prefix = nullptr;
   Constant *Prologue = nullptr;
+  Constant *PersonalityFn = nullptr;
   Comdat *C;
 
   if (ParseArgumentList(ArgList, isVarArg) ||
@@ -4149,7 +4156,9 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
       (EatIfPresent(lltok::kw_prefix) &&
        ParseGlobalTypeAndValue(Prefix)) ||
       (EatIfPresent(lltok::kw_prologue) &&
-       ParseGlobalTypeAndValue(Prologue)))
+       ParseGlobalTypeAndValue(Prologue)) ||
+      (EatIfPresent(lltok::kw_personality) &&
+       ParseGlobalTypeAndValue(PersonalityFn)))
     return true;
 
   if (FuncAttrs.contains(Attribute::Builtin))
@@ -4248,6 +4257,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   Fn->setAlignment(Alignment);
   Fn->setSection(Section);
   Fn->setComdat(C);
+  Fn->setPersonalityFn(PersonalityFn);
   if (!GC.empty()) Fn->setGC(GC.c_str());
   Fn->setPrefixData(Prefix);
   Fn->setPrologueData(Prologue);
@@ -5099,14 +5109,11 @@ int LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
 ///   ::= 'filter' TypeAndValue ( ',' TypeAndValue )*
 bool LLParser::ParseLandingPad(Instruction *&Inst, PerFunctionState &PFS) {
   Type *Ty = nullptr; LocTy TyLoc;
-  Value *PersFn; LocTy PersFnLoc;
 
-  if (ParseType(Ty, TyLoc) ||
-      ParseToken(lltok::kw_personality, "expected 'personality'") ||
-      ParseTypeAndValue(PersFn, PersFnLoc, PFS))
+  if (ParseType(Ty, TyLoc))
     return true;
 
-  std::unique_ptr<LandingPadInst> LP(LandingPadInst::Create(Ty, PersFn, 0));
+  std::unique_ptr<LandingPadInst> LP(LandingPadInst::Create(Ty, 0));
   LP->setCleanup(EatIfPresent(lltok::kw_cleanup));
 
   while (Lex.getKind() == lltok::kw_catch || Lex.getKind() == lltok::kw_filter){

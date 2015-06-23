@@ -81,6 +81,8 @@ public:
     AS_Declspec,
     /// __ptr16, alignas(...), etc.
     AS_Keyword,
+    /// Context-sensitive version of a keyword attribute.
+    AS_ContextSensitiveKeyword,
     /// #pragma ...
     AS_Pragma
   };
@@ -343,14 +345,20 @@ public:
 
   bool isAlignasAttribute() const {
     // FIXME: Use a better mechanism to determine this.
-    return getKind() == AT_Aligned && SyntaxUsed == AS_Keyword;
+    return getKind() == AT_Aligned && isKeywordAttribute();
   }
 
   bool isDeclspecAttribute() const { return SyntaxUsed == AS_Declspec; }
   bool isCXX11Attribute() const {
     return SyntaxUsed == AS_CXX11 || isAlignasAttribute();
   }
-  bool isKeywordAttribute() const { return SyntaxUsed == AS_Keyword; }
+  bool isKeywordAttribute() const {
+    return SyntaxUsed == AS_Keyword || SyntaxUsed == AS_ContextSensitiveKeyword;
+  }
+
+  bool isContextSensitiveKeywordAttribute() const {
+    return SyntaxUsed == AS_ContextSensitiveKeyword;
+  }
 
   bool isInvalid() const { return Invalid; }
   void setInvalid(bool b = true) const { Invalid = b; }

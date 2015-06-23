@@ -47,7 +47,7 @@ PPCSubtarget &PPCSubtarget::initializeSubtargetDependencies(StringRef CPU,
   return *this;
 }
 
-PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &CPU,
+PPCSubtarget::PPCSubtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS, const PPCTargetMachine &TM)
     : PPCGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT),
       IsPPC64(TargetTriple.getArch() == Triple::ppc64 ||
@@ -91,7 +91,7 @@ void PPCSubtarget::initializeEnvironment() {
   IsPPC4xx = false;
   IsPPC6xx = false;
   IsE500 = false;
-  DeprecatedMFTB = false;
+  FeatureMFTB = false;
   DeprecatedDST = false;
   HasLazyResolverStubs = false;
   HasICBT = false;
@@ -175,7 +175,7 @@ bool PPCSubtarget::enableMachineScheduler() const {
 }
 
 // This overrides the PostRAScheduler bit in the SchedModel for each CPU.
-bool PPCSubtarget::enablePostMachineScheduler() const { return true; }
+bool PPCSubtarget::enablePostRAScheduler() const { return true; }
 
 PPCGenSubtargetInfo::AntiDepBreakMode PPCSubtarget::getAntiDepBreakMode() const {
   return TargetSubtargetInfo::ANTIDEP_ALL;

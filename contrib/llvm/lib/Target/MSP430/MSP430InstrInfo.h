@@ -38,7 +38,7 @@ namespace MSP430II {
     Size4Bytes  = 3 << SizeShift,
     Size6Bytes  = 4 << SizeShift
   };
-}
+} // namespace MSP430II
 
 class MSP430InstrInfo : public MSP430GenInstrInfo {
   const MSP430RegisterInfo RI;
@@ -82,12 +82,11 @@ public:
 
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
 
 };
 
-}
+} // namespace llvm
 
 #endif

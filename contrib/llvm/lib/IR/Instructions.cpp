@@ -85,28 +85,12 @@ const char *SelectInst::areInvalidOperands(Value *Op0, Value *Op1, Value *Op2) {
 //===----------------------------------------------------------------------===//
 
 PHINode::PHINode(const PHINode &PN)
-  : Instruction(PN.getType(), Instruction::PHI,
-                allocHungoffUses(PN.getNumOperands()), PN.getNumOperands()),
-    ReservedSpace(PN.getNumOperands()) {
+    : Instruction(PN.getType(), Instruction::PHI, nullptr, PN.getNumOperands()),
+      ReservedSpace(PN.getNumOperands()) {
+  allocHungoffUses(PN.getNumOperands());
   std::copy(PN.op_begin(), PN.op_end(), op_begin());
   std::copy(PN.block_begin(), PN.block_end(), block_begin());
   SubclassOptionalData = PN.SubclassOptionalData;
-}
-
-PHINode::~PHINode() {
-  dropHungoffUses();
-}
-
-Use *PHINode::allocHungoffUses(unsigned N) const {
-  // Allocate the array of Uses of the incoming values, followed by a pointer
-  // (with bottom bit set) to the User, followed by the array of pointers to
-  // the incoming basic blocks.
-  size_t size = N * sizeof(Use) + sizeof(Use::UserRef)
-    + N * sizeof(BasicBlock*);
-  Use *Begin = static_cast<Use*>(::operator new(size));
-  Use *End = Begin + N;
-  (void) new(End) Use::UserRef(const_cast<PHINode*>(this), 1);
-  return Use::initTags(Begin, End);
 }
 
 // removeIncomingValue - Remove an incoming value.  This is useful if a
@@ -124,7 +108,7 @@ Value *PHINode::removeIncomingValue(unsigned Idx, bool DeletePHIIfEmpty) {
 
   // Nuke the last value.
   Op<-1>().set(nullptr);
-  --NumOperands;
+  setNumHungOffUseOperands(getNumOperands() - 1);
 
   // If the PHI node is dead, because it has zero entries, nuke it now.
   if (getNumOperands() == 0 && DeletePHIIfEmpty) {
@@ -144,16 +128,8 @@ void PHINode::growOperands() {
   unsigned NumOps = e + e / 2;
   if (NumOps < 2) NumOps = 2;      // 2 op PHI nodes are VERY common.
 
-  Use *OldOps = op_begin();
-  BasicBlock **OldBlocks = block_begin();
-
   ReservedSpace = NumOps;
-  OperandList = allocHungoffUses(ReservedSpace);
-
-  std::copy(OldOps, OldOps + e, op_begin());
-  std::copy(OldBlocks, OldBlocks + e, block_begin());
-
-  Use::zap(OldOps, OldOps + e, true);
+  growHungoffUses(ReservedSpace, /* IsPhi */ true);
 }
 
 /// hasConstantValue - If the specified PHI node always merges together the same
@@ -177,57 +153,47 @@ Value *PHINode::hasConstantValue() const {
 //                       LandingPadInst Implementation
 //===----------------------------------------------------------------------===//
 
-LandingPadInst::LandingPadInst(Type *RetTy, Value *PersonalityFn,
-                               unsigned NumReservedValues, const Twine &NameStr,
-                               Instruction *InsertBefore)
-  : Instruction(RetTy, Instruction::LandingPad, nullptr, 0, InsertBefore) {
-  init(PersonalityFn, 1 + NumReservedValues, NameStr);
+LandingPadInst::LandingPadInst(Type *RetTy, unsigned NumReservedValues,
+                               const Twine &NameStr, Instruction *InsertBefore)
+    : Instruction(RetTy, Instruction::LandingPad, nullptr, 0, InsertBefore) {
+  init(NumReservedValues, NameStr);
 }
 
-LandingPadInst::LandingPadInst(Type *RetTy, Value *PersonalityFn,
-                               unsigned NumReservedValues, const Twine &NameStr,
-                               BasicBlock *InsertAtEnd)
-  : Instruction(RetTy, Instruction::LandingPad, nullptr, 0, InsertAtEnd) {
-  init(PersonalityFn, 1 + NumReservedValues, NameStr);
+LandingPadInst::LandingPadInst(Type *RetTy, unsigned NumReservedValues,
+                               const Twine &NameStr, BasicBlock *InsertAtEnd)
+    : Instruction(RetTy, Instruction::LandingPad, nullptr, 0, InsertAtEnd) {
+  init(NumReservedValues, NameStr);
 }
 
 LandingPadInst::LandingPadInst(const LandingPadInst &LP)
-  : Instruction(LP.getType(), Instruction::LandingPad,
-                allocHungoffUses(LP.getNumOperands()), LP.getNumOperands()),
-    ReservedSpace(LP.getNumOperands()) {
-  Use *OL = OperandList, *InOL = LP.OperandList;
+    : Instruction(LP.getType(), Instruction::LandingPad, nullptr,
+                  LP.getNumOperands()),
+      ReservedSpace(LP.getNumOperands()) {
+  allocHungoffUses(LP.getNumOperands());
+  Use *OL = getOperandList();
+  const Use *InOL = LP.getOperandList();
   for (unsigned I = 0, E = ReservedSpace; I != E; ++I)
     OL[I] = InOL[I];
 
   setCleanup(LP.isCleanup());
 }
 
-LandingPadInst::~LandingPadInst() {
-  dropHungoffUses();
-}
-
-LandingPadInst *LandingPadInst::Create(Type *RetTy, Value *PersonalityFn,
-                                       unsigned NumReservedClauses,
+LandingPadInst *LandingPadInst::Create(Type *RetTy, unsigned NumReservedClauses,
                                        const Twine &NameStr,
                                        Instruction *InsertBefore) {
-  return new LandingPadInst(RetTy, PersonalityFn, NumReservedClauses, NameStr,
-                            InsertBefore);
+  return new LandingPadInst(RetTy, NumReservedClauses, NameStr, InsertBefore);
 }
 
-LandingPadInst *LandingPadInst::Create(Type *RetTy, Value *PersonalityFn,
-                                       unsigned NumReservedClauses,
+LandingPadInst *LandingPadInst::Create(Type *RetTy, unsigned NumReservedClauses,
                                        const Twine &NameStr,
                                        BasicBlock *InsertAtEnd) {
-  return new LandingPadInst(RetTy, PersonalityFn, NumReservedClauses, NameStr,
-                            InsertAtEnd);
+  return new LandingPadInst(RetTy, NumReservedClauses, NameStr, InsertAtEnd);
 }
 
-void LandingPadInst::init(Value *PersFn, unsigned NumReservedValues,
-                          const Twine &NameStr) {
+void LandingPadInst::init(unsigned NumReservedValues, const Twine &NameStr) {
   ReservedSpace = NumReservedValues;
-  NumOperands = 1;
-  OperandList = allocHungoffUses(ReservedSpace);
-  Op<0>() = PersFn;
+  setNumHungOffUseOperands(0);
+  allocHungoffUses(ReservedSpace);
   setName(NameStr);
   setCleanup(false);
 }
@@ -237,23 +203,16 @@ void LandingPadInst::init(Value *PersFn, unsigned NumReservedValues,
 void LandingPadInst::growOperands(unsigned Size) {
   unsigned e = getNumOperands();
   if (ReservedSpace >= e + Size) return;
-  ReservedSpace = (e + Size / 2) * 2;
-
-  Use *NewOps = allocHungoffUses(ReservedSpace);
-  Use *OldOps = OperandList;
-  for (unsigned i = 0; i != e; ++i)
-      NewOps[i] = OldOps[i];
-
-  OperandList = NewOps;
-  Use::zap(OldOps, OldOps + e, true);
+  ReservedSpace = (std::max(e, 1U) + Size / 2) * 2;
+  growHungoffUses(ReservedSpace);
 }
 
 void LandingPadInst::addClause(Constant *Val) {
   unsigned OpNo = getNumOperands();
   growOperands(1);
   assert(OpNo < ReservedSpace && "Growing didn't work!");
-  ++NumOperands;
-  OperandList[OpNo] = Val;
+  setNumHungOffUseOperands(getNumOperands() + 1);
+  getOperandList()[OpNo] = Val;
 }
 
 //===----------------------------------------------------------------------===//
@@ -266,7 +225,7 @@ CallInst::~CallInst() {
 void CallInst::init(FunctionType *FTy, Value *Func, ArrayRef<Value *> Args,
                     const Twine &NameStr) {
   this->FTy = FTy;
-  assert(NumOperands == Args.size() + 1 && "NumOperands not set up?");
+  assert(getNumOperands() == Args.size() + 1 && "NumOperands not set up?");
   Op<-1>() = Func;
 
 #ifndef NDEBUG
@@ -287,7 +246,7 @@ void CallInst::init(FunctionType *FTy, Value *Func, ArrayRef<Value *> Args,
 void CallInst::init(Value *Func, const Twine &NameStr) {
   FTy =
       cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  assert(NumOperands == 1 && "NumOperands not set up?");
+  assert(getNumOperands() == 1 && "NumOperands not set up?");
   Op<-1>() = Func;
 
   assert(FTy->getNumParams() == 0 && "Calling a function with bad signature");
@@ -542,7 +501,7 @@ void InvokeInst::init(FunctionType *FTy, Value *Fn, BasicBlock *IfNormal,
                       const Twine &NameStr) {
   this->FTy = FTy;
 
-  assert(NumOperands == 3 + Args.size() && "NumOperands not set up?");
+  assert(getNumOperands() == 3 + Args.size() && "NumOperands not set up?");
   Op<-3>() = Fn;
   Op<-2>() = IfNormal;
   Op<-1>() = IfException;
@@ -1238,7 +1197,8 @@ FenceInst::FenceInst(LLVMContext &C, AtomicOrdering Ordering,
 
 void GetElementPtrInst::init(Value *Ptr, ArrayRef<Value *> IdxList,
                              const Twine &Name) {
-  assert(NumOperands == 1 + IdxList.size() && "NumOperands not initialized?");
+  assert(getNumOperands() == 1 + IdxList.size() &&
+         "NumOperands not initialized?");
   Op<0>() = Ptr;
   std::copy(IdxList.begin(), IdxList.end(), op_begin() + 1);
   setName(Name);
@@ -1551,7 +1511,7 @@ void ShuffleVectorInst::getShuffleMask(Constant *Mask,
 
 void InsertValueInst::init(Value *Agg, Value *Val, ArrayRef<unsigned> Idxs, 
                            const Twine &Name) {
-  assert(NumOperands == 2 && "NumOperands not initialized?");
+  assert(getNumOperands() == 2 && "NumOperands not initialized?");
 
   // There's no fundamental reason why we require at least one index
   // (other than weirdness with &*IdxBegin being invalid; see
@@ -1582,7 +1542,7 @@ InsertValueInst::InsertValueInst(const InsertValueInst &IVI)
 //===----------------------------------------------------------------------===//
 
 void ExtractValueInst::init(ArrayRef<unsigned> Idxs, const Twine &Name) {
-  assert(NumOperands == 1 && "NumOperands not initialized?");
+  assert(getNumOperands() == 1 && "NumOperands not initialized?");
 
   // There's no fundamental reason why we require at least one index.
   // But there's no present need to support it.
@@ -3296,8 +3256,8 @@ bool CmpInst::isFalseWhenEqual(unsigned short predicate) {
 void SwitchInst::init(Value *Value, BasicBlock *Default, unsigned NumReserved) {
   assert(Value && Default && NumReserved);
   ReservedSpace = NumReserved;
-  NumOperands = 2;
-  OperandList = allocHungoffUses(ReservedSpace);
+  setNumHungOffUseOperands(2);
+  allocHungoffUses(ReservedSpace);
 
   Op<0>() = Value;
   Op<1>() = Default;
@@ -3328,8 +3288,9 @@ SwitchInst::SwitchInst(Value *Value, BasicBlock *Default, unsigned NumCases,
 SwitchInst::SwitchInst(const SwitchInst &SI)
   : TerminatorInst(SI.getType(), Instruction::Switch, nullptr, 0) {
   init(SI.getCondition(), SI.getDefaultDest(), SI.getNumOperands());
-  NumOperands = SI.getNumOperands();
-  Use *OL = OperandList, *InOL = SI.OperandList;
+  setNumHungOffUseOperands(SI.getNumOperands());
+  Use *OL = getOperandList();
+  const Use *InOL = SI.getOperandList();
   for (unsigned i = 2, E = SI.getNumOperands(); i != E; i += 2) {
     OL[i] = InOL[i];
     OL[i+1] = InOL[i+1];
@@ -3337,21 +3298,17 @@ SwitchInst::SwitchInst(const SwitchInst &SI)
   SubclassOptionalData = SI.SubclassOptionalData;
 }
 
-SwitchInst::~SwitchInst() {
-  dropHungoffUses();
-}
-
 
 /// addCase - Add an entry to the switch instruction...
 ///
 void SwitchInst::addCase(ConstantInt *OnVal, BasicBlock *Dest) {
-  unsigned NewCaseIdx = getNumCases(); 
-  unsigned OpNo = NumOperands;
+  unsigned NewCaseIdx = getNumCases();
+  unsigned OpNo = getNumOperands();
   if (OpNo+2 > ReservedSpace)
     growOperands();  // Get more space!
   // Initialize some new operands.
   assert(OpNo+1 < ReservedSpace && "Growing didn't work!");
-  NumOperands = OpNo+2;
+  setNumHungOffUseOperands(OpNo+2);
   CaseIt Case(this, NewCaseIdx);
   Case.setValue(OnVal);
   Case.setSuccessor(Dest);
@@ -3365,7 +3322,7 @@ void SwitchInst::removeCase(CaseIt i) {
   assert(2 + idx*2 < getNumOperands() && "Case index out of range!!!");
 
   unsigned NumOps = getNumOperands();
-  Use *OL = OperandList;
+  Use *OL = getOperandList();
 
   // Overwrite this case with the end of the list.
   if (2 + (idx + 1) * 2 != NumOps) {
@@ -3376,7 +3333,7 @@ void SwitchInst::removeCase(CaseIt i) {
   // Nuke the last value.
   OL[NumOps-2].set(nullptr);
   OL[NumOps-2+1].set(nullptr);
-  NumOperands = NumOps-2;
+  setNumHungOffUseOperands(NumOps-2);
 }
 
 /// growOperands - grow operands - This grows the operand list in response
@@ -3387,13 +3344,7 @@ void SwitchInst::growOperands() {
   unsigned NumOps = e*3;
 
   ReservedSpace = NumOps;
-  Use *NewOps = allocHungoffUses(NumOps);
-  Use *OldOps = OperandList;
-  for (unsigned i = 0; i != e; ++i) {
-      NewOps[i] = OldOps[i];
-  }
-  OperandList = NewOps;
-  Use::zap(OldOps, OldOps + e, true);
+  growHungoffUses(ReservedSpace);
 }
 
 
@@ -3415,9 +3366,9 @@ void IndirectBrInst::init(Value *Address, unsigned NumDests) {
   assert(Address && Address->getType()->isPointerTy() &&
          "Address of indirectbr must be a pointer");
   ReservedSpace = 1+NumDests;
-  NumOperands = 1;
-  OperandList = allocHungoffUses(ReservedSpace);
-  
+  setNumHungOffUseOperands(1);
+  allocHungoffUses(ReservedSpace);
+
   Op<0>() = Address;
 }
 
@@ -3430,12 +3381,7 @@ void IndirectBrInst::growOperands() {
   unsigned NumOps = e*2;
   
   ReservedSpace = NumOps;
-  Use *NewOps = allocHungoffUses(NumOps);
-  Use *OldOps = OperandList;
-  for (unsigned i = 0; i != e; ++i)
-    NewOps[i] = OldOps[i];
-  OperandList = NewOps;
-  Use::zap(OldOps, OldOps + e, true);
+  growHungoffUses(ReservedSpace);
 }
 
 IndirectBrInst::IndirectBrInst(Value *Address, unsigned NumCases,
@@ -3453,29 +3399,26 @@ IndirectBrInst::IndirectBrInst(Value *Address, unsigned NumCases,
 }
 
 IndirectBrInst::IndirectBrInst(const IndirectBrInst &IBI)
-  : TerminatorInst(Type::getVoidTy(IBI.getContext()), Instruction::IndirectBr,
-                   allocHungoffUses(IBI.getNumOperands()),
-                   IBI.getNumOperands()) {
-  Use *OL = OperandList, *InOL = IBI.OperandList;
+    : TerminatorInst(Type::getVoidTy(IBI.getContext()), Instruction::IndirectBr,
+                     nullptr, IBI.getNumOperands()) {
+  allocHungoffUses(IBI.getNumOperands());
+  Use *OL = getOperandList();
+  const Use *InOL = IBI.getOperandList();
   for (unsigned i = 0, E = IBI.getNumOperands(); i != E; ++i)
     OL[i] = InOL[i];
   SubclassOptionalData = IBI.SubclassOptionalData;
 }
 
-IndirectBrInst::~IndirectBrInst() {
-  dropHungoffUses();
-}
-
 /// addDestination - Add a destination.
 ///
 void IndirectBrInst::addDestination(BasicBlock *DestBB) {
-  unsigned OpNo = NumOperands;
+  unsigned OpNo = getNumOperands();
   if (OpNo+1 > ReservedSpace)
     growOperands();  // Get more space!
   // Initialize some new operands.
   assert(OpNo < ReservedSpace && "Growing didn't work!");
-  NumOperands = OpNo+1;
-  OperandList[OpNo] = DestBB;
+  setNumHungOffUseOperands(OpNo+1);
+  getOperandList()[OpNo] = DestBB;
 }
 
 /// removeDestination - This method removes the specified successor from the
@@ -3484,14 +3427,14 @@ void IndirectBrInst::removeDestination(unsigned idx) {
   assert(idx < getNumOperands()-1 && "Successor index out of range!");
   
   unsigned NumOps = getNumOperands();
-  Use *OL = OperandList;
+  Use *OL = getOperandList();
 
   // Replace this value with the last one.
   OL[idx+1] = OL[NumOps-1];
   
   // Nuke the last value.
   OL[NumOps-1].set(nullptr);
-  NumOperands = NumOps-1;
+  setNumHungOffUseOperands(NumOps-1);
 }
 
 BasicBlock *IndirectBrInst::getSuccessorV(unsigned idx) const {

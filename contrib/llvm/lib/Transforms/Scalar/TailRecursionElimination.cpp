@@ -120,7 +120,7 @@ namespace {
     bool CanMoveAboveCall(Instruction *I, CallInst *CI);
     Value *CanTransformAccumulatorRecursion(Instruction *I, CallInst *CI);
   };
-}
+} // namespace
 
 char TailCallElim::ID = 0;
 INITIALIZE_PASS_BEGIN(TailCallElim, "tailcallelim",
@@ -156,6 +156,9 @@ static bool CanTRE(Function &F) {
 
 bool TailCallElim::runOnFunction(Function &F) {
   if (skipOptnoneFunction(F))
+    return false;
+
+  if (F.getFnAttribute("disable-tail-calls").getValueAsString() == "true")
     return false;
 
   bool AllCallsAreTailCalls = false;
@@ -243,7 +246,7 @@ struct AllocaDerivedValueTracker {
   SmallPtrSet<Instruction *, 32> AllocaUsers;
   SmallPtrSet<Instruction *, 32> EscapePoints;
 };
-}
+} // namespace
 
 bool TailCallElim::markTails(Function &F, bool &AllCallsAreTailCalls) {
   if (F.callsFunctionThatReturnsTwice())

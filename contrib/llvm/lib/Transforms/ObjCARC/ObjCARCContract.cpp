@@ -101,7 +101,7 @@ namespace {
       initializeObjCARCContractPass(*PassRegistry::getPassRegistry());
     }
   };
-}
+} // namespace
 
 //===----------------------------------------------------------------------===//
 //                               Implementation
@@ -200,7 +200,7 @@ static StoreInst *findSafeStoreForStoreStrongContraction(LoadInst *Load,
   bool SawRelease = false;
 
   // Get the location associated with Load.
-  AliasAnalysis::Location Loc = MemoryLocation::get(Load);
+  MemoryLocation Loc = MemoryLocation::get(Load);
 
   // Walk down to find the store and the release, which may be in either order.
   for (auto I = std::next(BasicBlock::iterator(Load)),
@@ -212,7 +212,7 @@ static StoreInst *findSafeStoreForStoreStrongContraction(LoadInst *Load,
       break;
 
     // Now we know that we have not seen either the store or the release. If I
-    // is the the release, mark that we saw the release and continue.
+    // is the release, mark that we saw the release and continue.
     Instruction *Inst = &*I;
     if (Inst == Release) {
       SawRelease = true;

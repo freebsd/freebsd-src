@@ -801,6 +801,16 @@ void ASTStmtReader::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
                     Designators.data(), Designators.size());
 }
 
+void ASTStmtReader::VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
+  VisitExpr(E);
+  E->setBase(Reader.ReadSubExpr());
+  E->setUpdater(Reader.ReadSubExpr());
+}
+
+void ASTStmtReader::VisitNoInitExpr(NoInitExpr *E) {
+  VisitExpr(E);
+}
+
 void ASTStmtReader::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
   VisitExpr(E);
 }
@@ -2063,9 +2073,7 @@ void ASTStmtReader::VisitOMPLoopDirective(OMPLoopDirective *D) {
   D->setLastIteration(Reader.ReadSubExpr());
   D->setCalcLastIteration(Reader.ReadSubExpr());
   D->setPreCond(Reader.ReadSubExpr());
-  auto Fst = Reader.ReadSubExpr();
-  auto Snd = Reader.ReadSubExpr();
-  D->setCond(Fst, Snd);
+  D->setCond(Reader.ReadSubExpr());
   D->setInit(Reader.ReadSubExpr());
   D->setInc(Reader.ReadSubExpr());
   if (isOpenMPWorksharingDirective(D->getDirectiveKind())) {
@@ -2177,6 +2185,11 @@ void ASTStmtReader::VisitOMPBarrierDirective(OMPBarrierDirective *D) {
 }
 
 void ASTStmtReader::VisitOMPTaskwaitDirective(OMPTaskwaitDirective *D) {
+  VisitStmt(D);
+  VisitOMPExecutableDirective(D);
+}
+
+void ASTStmtReader::VisitOMPTaskgroupDirective(OMPTaskgroupDirective *D) {
   VisitStmt(D);
   VisitOMPExecutableDirective(D);
 }
@@ -2549,8 +2562,16 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
       break;
 
+    case EXPR_DESIGNATED_INIT_UPDATE:
+      S = new (Context) DesignatedInitUpdateExpr(Empty);
+      break;
+
     case EXPR_IMPLICIT_VALUE_INIT:
       S = new (Context) ImplicitValueInitExpr(Empty);
+      break;
+
+    case EXPR_NO_INIT:
+      S = new (Context) NoInitExpr(Empty);
       break;
 
     case EXPR_VA_ARG:
@@ -2785,6 +2806,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case STMT_OMP_TASKWAIT_DIRECTIVE:
       S = OMPTaskwaitDirective::CreateEmpty(Context, Empty);
+      break;
+
+    case STMT_OMP_TASKGROUP_DIRECTIVE:
+      S = OMPTaskgroupDirective::CreateEmpty(Context, Empty);
       break;
 
     case STMT_OMP_FLUSH_DIRECTIVE:

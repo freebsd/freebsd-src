@@ -307,7 +307,7 @@ namespace llvm {
            "Unknown sched type!");
     return createILPListDAGScheduler(IS, OptLevel);
   }
-}
+} // namespace llvm
 
 // EmitInstrWithCustomInserter - This method should be implemented by targets
 // that mark instructions with the 'usesCustomInserter' flag.  These
@@ -938,8 +938,10 @@ bool SelectionDAGISel::PrepareEHLandingPad() {
   // pad into several BBs.
   const BasicBlock *LLVMBB = MBB->getBasicBlock();
   const LandingPadInst *LPadInst = LLVMBB->getLandingPadInst();
-  MF->getMMI().addPersonality(
-      MBB, cast<Function>(LPadInst->getPersonalityFn()->stripPointerCasts()));
+  MF->getMMI().addPersonality(MBB, cast<Function>(LPadInst->getParent()
+                                                      ->getParent()
+                                                      ->getPersonalityFn()
+                                                      ->stripPointerCasts()));
   EHPersonality Personality = MF->getMMI().getPersonalityType();
 
   if (isMSVCEHPersonality(Personality)) {
@@ -2540,7 +2542,7 @@ public:
           J.setNode(E);
   }
 };
-}
+} // namespace
 
 SDNode *SelectionDAGISel::
 SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,

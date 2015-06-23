@@ -36,12 +36,9 @@ enum {
   ELF_WeakrefUsedInReloc_Shift = 11,
 
   // One bit.
-  ELF_UsedInReloc_Shift = 12,
-
-  // One bit.
-  ELF_BindingSet_Shift = 13
+  ELF_BindingSet_Shift = 12
 };
-}
+} // namespace
 
 void MCSymbolELF::setBinding(unsigned Binding) const {
   setIsBindingSet();
@@ -175,15 +172,6 @@ unsigned MCSymbolELF::getOther() const {
   return Other << 5;
 }
 
-void MCSymbolELF::setUsedInReloc() const {
-  uint32_t OtherFlags = getFlags() & ~(0x1 << ELF_UsedInReloc_Shift);
-  setFlags(OtherFlags | (1 << ELF_UsedInReloc_Shift));
-}
-
-bool MCSymbolELF::isUsedInReloc() const {
-  return getFlags() & (0x1 << ELF_UsedInReloc_Shift);
-}
-
 void MCSymbolELF::setIsWeakrefUsedInReloc() const {
   uint32_t OtherFlags = getFlags() & ~(0x1 << ELF_WeakrefUsedInReloc_Shift);
   setFlags(OtherFlags | (1 << ELF_WeakrefUsedInReloc_Shift));
@@ -210,4 +198,4 @@ void MCSymbolELF::setIsBindingSet() const {
 bool MCSymbolELF::isBindingSet() const {
   return getFlags() & (0x1 << ELF_BindingSet_Shift);
 }
-}
+} // namespace llvm

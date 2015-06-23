@@ -23,21 +23,21 @@ namespace llvm {
 class formatted_raw_ostream;
 
 struct CPPTargetMachine : public TargetMachine {
-  CPPTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
-                   const TargetOptions &Options, Reloc::Model RM,
+  CPPTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                   StringRef FS, const TargetOptions &Options, Reloc::Model RM,
                    CodeModel::Model CM, CodeGenOpt::Level OL)
       : TargetMachine(T, "", TT, CPU, FS, Options) {}
 
 public:
   bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
                            CodeGenFileType FileType, bool DisableVerify,
-                           AnalysisID StartAfter,
-                           AnalysisID StopAfter) override;
+                           AnalysisID StartAfter, AnalysisID StopAfter,
+                           MachineFunctionInitializer *MFInitializer) override;
 };
 
 extern Target TheCppBackendTarget;
 
-} // End llvm namespace
+} // namespace llvm
 
 
 #endif
