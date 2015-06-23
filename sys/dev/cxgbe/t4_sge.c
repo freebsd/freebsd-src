@@ -1724,6 +1724,7 @@ get_segment:
 	}
 	*pnext = NULL;
 
+	M_ASSERTPKTHDR(m0);
 	return (m0);
 }
 
