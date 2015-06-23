@@ -81,9 +81,9 @@ struct vhd_footer {
 	uint32_t	creator_tool;
 #define	VHD_CREATOR_TOOL	0x2a696d67	/* FreeBSD mkimg */
 	uint32_t	creator_version;
-#define	VHD_CREATOR_VERSION	0x00010000
+#define	VHD_CREATOR_VERSION	0x00020000
 	uint32_t	creator_os;
-#define	VHD_CREATOR_OS		0x46425344
+#define	VHD_CREATOR_OS		0x5769326b	/* Wi2k */
 	uint64_t	original_size;
 	uint64_t	current_size;
 	struct vhd_geom	geometry;
@@ -365,6 +365,11 @@ vhd_fix_resize(lba_t imgsz)
 	struct vhd_geom geom;
 	int64_t imagesz;
 
+	/*
+	 * Round the image size to the pre-determined geometry that
+	 * matches the image size. This circular dependency implies
+	 * that we need to loop to handle boundary conditions.
+	 */
 	imgsz *= secsz;
 	imagesz = imgsz;
 	while (1) {
@@ -375,6 +380,10 @@ vhd_fix_resize(lba_t imgsz)
 			break;
 		imagesz += geom.heads * geom.sectors * VHD_SECTOR_SIZE;
 	}
+	/*
+	 * Azure demands that images are a whole number of megabytes.
+	 */
+	imagesz = (imagesz + 0xfffffULL) & ~0xfffffULL;
 	return (image_set_size(imagesz / secsz));
 }
 

@@ -5,18 +5,18 @@
 PROG=	fstyp
 SRCS=	cd9660.c ext2fs.c fstyp.c geli.c msdosfs.c ntfs.c ufs.c
 
-.if ${MK_CDDL} != "no"
+.if ${MK_ZFS} != "no"
 SRCS +=	zfs.c
 .endif
 
 MAN=	fstyp.8
 
-WARNS=	6
+WARNS?=	0
 
-.if ${MK_CDDL} != "no"
+.if ${MK_ZFS} != "no"
 IGNORE_PRAGMA=  YES
 
-CFLAGS+= -DNEED_SOLARIS_BOOLEAN -DHAVE_CDDL
+CFLAGS+= -DNEED_SOLARIS_BOOLEAN -DHAVE_ZFS
 CFLAGS+= -I${.CURDIR}/../../sys/cddl/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../cddl/compat/opensolaris/lib/libumem
@@ -33,7 +33,7 @@ CFLAGS+=-I${.CURDIR}/../../sys
 DPADD=   ${LIBGEOM} ${LIBMD}
 LDADD=   -lgeom -lmd
 
-.if ${MK_CDDL} != "no"
+.if ${MK_ZFS} != "no"
 DPADD += ${LIBNVPAIR} ${LIBZFS}
 LDADD += -lnvpair -lzfs
 .endif

@@ -46,7 +46,7 @@ show_options()
 				echo ${opt}
 				;;
 			*)
-				echo 'make showconfig broken' >&2
+				echo "make showconfig broken: ${var} ${_} ${val} (not yes or no)" >&2
 				exit 1
 				;;
 			esac
@@ -96,7 +96,7 @@ show()
 		exit 1
 		;;
 	esac
-	${make} "$@" showconfig __MAKE_CONF=/dev/null |
+	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
 		case ${val} in
@@ -107,7 +107,7 @@ show()
 			echo ${no_prefix}_${opt}
 			;;
 		*)
-			echo 'make showconfig broken' >&2
+			echo "make showconfig broken: ${var} ${_} ${val} (not yes or no)" >&2
 			exit 1
 			;;
 		esac
