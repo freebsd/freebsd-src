@@ -63,7 +63,7 @@ static struct {
 	{ "msdosfs", &fstyp_msdosfs, false },
 	{ "ntfs", &fstyp_ntfs, false },
 	{ "ufs", &fstyp_ufs, false },
-#ifdef HAVE_CDDL
+#ifdef HAVE_ZFS
 	{ "zfs", &fstyp_zfs, true },
 #endif
 	{ NULL, NULL, NULL }
