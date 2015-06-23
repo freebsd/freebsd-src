@@ -907,6 +907,7 @@ OLD_FILES+=usr/lib/clang/3.7.0/include/wmmintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/x86intrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/xmmintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/xopintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xtestintrin.h
 OLD_DIRS+=usr/lib/clang/3.7.0/include
 OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-i386.a
 OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-x86_64.a

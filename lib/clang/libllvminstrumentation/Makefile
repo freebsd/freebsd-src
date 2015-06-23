@@ -12,6 +12,7 @@ SRCS=	AddressSanitizer.cpp \
 	MemorySanitizer.cpp \
 	Instrumentation.cpp \
 	InstrProfiling.cpp \
+	SafeStack.cpp \
 	SanitizerCoverage.cpp \
 	ThreadSanitizer.cpp
 

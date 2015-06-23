@@ -41,6 +41,7 @@ SUBDIR=	libclanganalysis \
 	libllvmipa \
 	libllvmipo \
 	libllvmirreader \
+	libllvmlibdriver \
 	libllvmlinker \
 	libllvmmc \
 	libllvmmcdisassembler \

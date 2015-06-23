@@ -10,6 +10,7 @@ SRCS=	Attributes.cpp \
 	CharInfo.cpp \
 	Diagnostic.cpp \
 	DiagnosticIDs.cpp \
+	DiagnosticOptions.cpp \
 	FileManager.cpp \
 	FileSystemStatCache.cpp \
 	IdentifierTable.cpp \

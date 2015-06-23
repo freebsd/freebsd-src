@@ -8,6 +8,9 @@
 /* Get __FreeBSD_version. */
 #include <osreldate.h>
 
+/* Exported configuration */
+#include "llvm/Config/llvm-config.h"
+
 /* Bug report URL. */
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
@@ -18,7 +21,7 @@
 /* #undef CLANG_HAVE_LIBXML */
 
 /* Multilib suffix for libdir. */
-/* #undef CLANG_LIBDIR_SUFFIX */
+#define CLANG_LIBDIR_SUFFIX ""
 
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
@@ -149,11 +152,14 @@
 /* Define to 1 if you have the `m' library (-lm). */
 #define HAVE_LIBM 1
 
+/* Define to 1 if you have the `ole32' library (-lole32). */
+/* #undef HAVE_LIBOLE32 */
+
 /* Define to 1 if you have the `psapi' library (-lpsapi). */
 /* #undef HAVE_LIBPSAPI */
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
-/* #undef HAVE_LIBPTHREAD */
+#define HAVE_LIBPTHREAD 1
 
 /* Define to 1 if you have the `shell32' library (-lshell32). */
 /* #undef HAVE_LIBSHELL32 */
@@ -224,16 +230,16 @@
 #define HAVE_PRINTF_A 1
 
 /* Have pthread_getspecific */
-/* #undef HAVE_PTHREAD_GETSPECIFIC */
+#define HAVE_PTHREAD_GETSPECIFIC 1
 
 /* Define to 1 if you have the <pthread.h> header file. */
-/* #undef HAVE_PTHREAD_H */
+#define HAVE_PTHREAD_H 1
 
 /* Have pthread_mutex_lock */
-/* #undef HAVE_PTHREAD_MUTEX_LOCK */
+#define HAVE_PTHREAD_MUTEX_LOCK 1
 
 /* Have pthread_rwlock_init */
-/* #undef HAVE_PTHREAD_RWLOCK_INIT */
+#define HAVE_PTHREAD_RWLOCK_INIT 1
 
 /* Define to 1 if srand48/lrand48/drand48 exist in <stdlib.h> */
 #define HAVE_RAND48 1
@@ -433,7 +439,7 @@
 #define LLVM_ENABLE_ABI_BREAKING_CHECKS 1
 
 /* Define if threads enabled */
-#define LLVM_ENABLE_THREADS 0
+#define LLVM_ENABLE_THREADS 1
 
 /* Define if zlib is enabled */
 #define LLVM_ENABLE_ZLIB 1
@@ -442,7 +448,7 @@
 /* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
-#define LLVM_HAS_ATOMICS 0
+#define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
 /* #undef LLVM_HOST_TRIPLE */
