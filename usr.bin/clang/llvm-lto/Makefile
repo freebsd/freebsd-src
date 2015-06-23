@@ -61,6 +61,7 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmobject \
 	llvmmcparser \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmmc \

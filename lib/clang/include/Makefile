@@ -60,6 +60,7 @@ INCS=	Intrin.h \
 	x86intrin.h \
 	xmmintrin.h \
 	xopintrin.h \
+	xtestintrin.h \
 	${GENINCS}
 GENINCS= arm_neon.h
 CLEANFILES= ${GENINCS}

@@ -70,6 +70,7 @@ SRCS=	APFloat.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
 	StringRef.cpp \
+	StringSaver.cpp \
 	TargetParser.cpp \
 	TargetRegistry.cpp \
 	ThreadLocal.cpp \

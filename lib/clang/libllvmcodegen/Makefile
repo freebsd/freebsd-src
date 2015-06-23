@@ -26,12 +26,14 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
 	ExpandPostRAPseudos.cpp \
+	FaultMaps.cpp \
 	GCMetadata.cpp \
 	GCMetadataPrinter.cpp \
 	GCRootLowering.cpp \
 	GCStrategy.cpp \
 	GlobalMerge.cpp \
 	IfConversion.cpp \
+	ImplicitNullChecks.cpp \
 	InlineSpiller.cpp \
 	InterferenceCache.cpp \
 	IntrinsicLowering.cpp \
@@ -49,6 +51,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
 	LocalStackSlotAllocation.cpp \
+	MIRPrinter.cpp \
 	MIRPrintingPass.cpp \
 	MachineBasicBlock.cpp \
 	MachineBlockFrequencyInfo.cpp \
