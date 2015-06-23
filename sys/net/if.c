@@ -4005,7 +4005,7 @@ if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 int
 drbr_inuse_drv(if_t ifh, struct buf_ring *br)
 {
-	return drbr_inuse_drv(ifh, br);
+	return drbr_inuse(ifh, br);
 }
 
 struct mbuf*
