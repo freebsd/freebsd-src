@@ -539,7 +539,6 @@ MK_STAGING= no
 # tell meta.autodep.mk to not even think about updating anything.
 UPDATE_DEPENDFILE= NO
 .export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
-.endif
 
 .if make(universe)
 # we do not want a failure of one branch abort all.
