@@ -40,12 +40,12 @@ extern Target TheARMLETarget, TheThumbLETarget;
 extern Target TheARMBETarget, TheThumbBETarget;
 
 namespace ARM_MC {
-  std::string ParseARMTriple(StringRef TT, StringRef CPU);
+std::string ParseARMTriple(const Triple &TT, StringRef CPU);
 
-  /// Create a ARM MCSubtargetInfo instance. This is exposed so Asm parser, etc.
-  /// do not need to go through TargetRegistry.
-  MCSubtargetInfo *createARMMCSubtargetInfo(StringRef TT, StringRef CPU,
-                                            StringRef FS);
+/// Create a ARM MCSubtargetInfo instance. This is exposed so Asm parser, etc.
+/// do not need to go through TargetRegistry.
+MCSubtargetInfo *createARMMCSubtargetInfo(const Triple &TT, StringRef CPU,
+                                          StringRef FS);
 }
 
 MCTargetStreamer *createARMNullTargetStreamer(MCStreamer &S);
@@ -65,20 +65,22 @@ MCCodeEmitter *createARMBEMCCodeEmitter(const MCInstrInfo &MCII,
                                         MCContext &Ctx);
 
 MCAsmBackend *createARMAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                  StringRef TT, StringRef CPU,
+                                  const Triple &TT, StringRef CPU,
                                   bool IsLittleEndian);
 
 MCAsmBackend *createARMLEAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                  StringRef TT, StringRef CPU);
+                                    const Triple &TT, StringRef CPU);
 
 MCAsmBackend *createARMBEAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                  StringRef TT, StringRef CPU);
+                                    const Triple &TT, StringRef CPU);
 
-MCAsmBackend *createThumbLEAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                      StringRef TT, StringRef CPU);
+MCAsmBackend *createThumbLEAsmBackend(const Target &T,
+                                      const MCRegisterInfo &MRI,
+                                      const Triple &TT, StringRef CPU);
 
-MCAsmBackend *createThumbBEAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                      StringRef TT, StringRef CPU);
+MCAsmBackend *createThumbBEAsmBackend(const Target &T,
+                                      const MCRegisterInfo &MRI,
+                                      const Triple &TT, StringRef CPU);
 
 // Construct a PE/COFF machine code streamer which will generate a PE/COFF
 // object file.
@@ -101,7 +103,7 @@ MCObjectWriter *createARMWinCOFFObjectWriter(raw_pwrite_stream &OS,
 
 /// Construct ARM Mach-O relocation info.
 MCRelocationInfo *createARMMachORelocationInfo(MCContext &Ctx);
-} // End llvm namespace
+} // namespace llvm
 
 // Defines symbolic names for ARM registers.  This defines a mapping from
 // register name to register number.

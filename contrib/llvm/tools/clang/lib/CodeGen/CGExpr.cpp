@@ -2300,14 +2300,23 @@ void CodeGenFunction::EmitCheck(
 
   llvm::Value *FatalCond = nullptr;
   llvm::Value *RecoverableCond = nullptr;
+  llvm::Value *TrapCond = nullptr;
   for (int i = 0, n = Checked.size(); i < n; ++i) {
     llvm::Value *Check = Checked[i].first;
+    // -fsanitize-trap= overrides -fsanitize-recover=.
     llvm::Value *&Cond =
-        CGM.getCodeGenOpts().SanitizeRecover.has(Checked[i].second)
-            ? RecoverableCond
-            : FatalCond;
+        CGM.getCodeGenOpts().SanitizeTrap.has(Checked[i].second)
+            ? TrapCond
+            : CGM.getCodeGenOpts().SanitizeRecover.has(Checked[i].second)
+                  ? RecoverableCond
+                  : FatalCond;
     Cond = Cond ? Builder.CreateAnd(Cond, Check) : Check;
   }
+
+  if (TrapCond)
+    EmitTrapCheck(TrapCond);
+  if (!FatalCond && !RecoverableCond)
+    return;
 
   llvm::Value *JointCond;
   if (FatalCond && RecoverableCond)
@@ -2325,15 +2334,6 @@ void CodeGenFunction::EmitCheck(
     assert(SanOpts.has(Checked[i].second));
   }
 #endif
-
-  if (CGM.getCodeGenOpts().SanitizeUndefinedTrapOnError) {
-    assert(RecoverKind != CheckRecoverableKind::AlwaysRecoverable &&
-           "Runtime call required for AlwaysRecoverable kind!");
-    // Assume that -fsanitize-undefined-trap-on-error overrides
-    // -fsanitize-recover= options, as we can only print meaningful error
-    // message and recover if we have a runtime support.
-    return EmitTrapCheck(JointCond);
-  }
 
   llvm::BasicBlock *Cont = createBasicBlock("cont");
   llvm::BasicBlock *Handlers = createBasicBlock("handler." + CheckName);
@@ -3035,7 +3035,8 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
                     Derived, E->getType());
 
     if (SanOpts.has(SanitizerKind::CFIDerivedCast))
-      EmitVTablePtrCheckForCast(E->getType(), Derived, /*MayBeNull=*/false);
+      EmitVTablePtrCheckForCast(E->getType(), Derived, /*MayBeNull=*/false,
+                                CFITCK_DerivedCast, E->getLocStart());
 
     return MakeAddrLValue(Derived, E->getType());
   }
@@ -3048,7 +3049,8 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
                                            ConvertType(CE->getTypeAsWritten()));
 
     if (SanOpts.has(SanitizerKind::CFIUnrelatedCast))
-      EmitVTablePtrCheckForCast(E->getType(), V, /*MayBeNull=*/false);
+      EmitVTablePtrCheckForCast(E->getType(), V, /*MayBeNull=*/false,
+                                CFITCK_UnrelatedCast, E->getLocStart());
 
     return MakeAddrLValue(V, E->getType());
   }

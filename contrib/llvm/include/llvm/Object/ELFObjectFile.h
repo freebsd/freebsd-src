@@ -40,13 +40,14 @@ protected:
   ELFObjectFileBase(unsigned int Type, MemoryBufferRef Source);
 
 public:
-  virtual std::error_code getRelocationAddend(DataRefImpl Rel,
-                                              int64_t &Res) const = 0;
+  virtual ErrorOr<int64_t> getRelocationAddend(DataRefImpl Rel) const = 0;
+
+  // FIXME: This is a bit of a hack. Every caller should know if it expecting
+  // and addend or not.
+  virtual bool hasRelocationAddend(DataRefImpl Rel) const = 0;
+
   virtual std::pair<symbol_iterator, symbol_iterator>
   getELFDynamicSymbolIterators() const = 0;
-
-  virtual std::error_code getSymbolVersion(SymbolRef Symb, StringRef &Version,
-                                           bool &IsDefault) const = 0;
 
   virtual uint64_t getSectionFlags(SectionRef Sec) const = 0;
   virtual uint32_t getSectionType(SectionRef Sec) const = 0;
@@ -112,7 +113,6 @@ protected:
   std::error_code getRelocationOffset(DataRefImpl Rel,
                                       uint64_t &Res) const override;
   symbol_iterator getRelocationSymbol(DataRefImpl Rel) const override;
-  section_iterator getRelocationSection(DataRefImpl Rel) const override;
   std::error_code getRelocationType(DataRefImpl Rel,
                                     uint64_t &Res) const override;
   std::error_code
@@ -208,10 +208,8 @@ public:
   section_iterator section_begin() const override;
   section_iterator section_end() const override;
 
-  std::error_code getRelocationAddend(DataRefImpl Rel,
-                                      int64_t &Res) const override;
-  std::error_code getSymbolVersion(SymbolRef Symb, StringRef &Version,
-                                   bool &IsDefault) const override;
+  ErrorOr<int64_t> getRelocationAddend(DataRefImpl Rel) const override;
+  bool hasRelocationAddend(DataRefImpl Rel) const override;
 
   uint64_t getSectionFlags(SectionRef Sec) const override;
   uint32_t getSectionType(SectionRef Sec) const override;
@@ -257,20 +255,6 @@ std::error_code ELFObjectFile<ELFT>::getSymbolName(DataRefImpl Symb,
   if (!Name)
     return Name.getError();
   Result = *Name;
-  return std::error_code();
-}
-
-template <class ELFT>
-std::error_code ELFObjectFile<ELFT>::getSymbolVersion(SymbolRef SymRef,
-                                                      StringRef &Version,
-                                                      bool &IsDefault) const {
-  DataRefImpl Symb = SymRef.getRawDataRefImpl();
-  const Elf_Sym *symb = getSymbol(Symb);
-  ErrorOr<StringRef> Ver =
-      EF.getSymbolVersion(EF.getSection(Symb.d.b), symb, IsDefault);
-  if (!Ver)
-    return Ver.getError();
-  Version = *Ver;
   return std::error_code();
 }
 
@@ -584,20 +568,6 @@ ELFObjectFile<ELFT>::getRelocationSymbol(DataRefImpl Rel) const {
   return symbol_iterator(SymbolRef(SymbolData, this));
 }
 
-// ELF relocations can target sections, by targetting a symbol of type
-// STT_SECTION
-template <class ELFT>
-section_iterator
-ELFObjectFile<ELFT>::getRelocationSection(DataRefImpl Rel) const {
-  symbol_iterator Sym = getRelocationSymbol(Rel);
-  if (Sym == symbol_end())
-    return section_end();
-  const Elf_Sym *ESym = getSymbol(Sym->getRawDataRefImpl());
-  if (ESym->getType() != ELF::STT_SECTION)
-    return section_end();
-  return getSymbolSection(ESym);
-}
-
 template <class ELFT>
 std::error_code
 ELFObjectFile<ELFT>::getRelocationAddress(DataRefImpl Rel,
@@ -686,22 +656,16 @@ std::error_code ELFObjectFile<ELFT>::getRelocationTypeName(
 }
 
 template <class ELFT>
-std::error_code
-ELFObjectFile<ELFT>::getRelocationAddend(DataRefImpl Rel,
-                                         int64_t &Result) const {
-  const Elf_Shdr *sec = getRelSection(Rel);
-  switch (sec->sh_type) {
-  default:
-    report_fatal_error("Invalid section type in Rel!");
-  case ELF::SHT_REL: {
-    Result = 0;
-    return std::error_code();
-  }
-  case ELF::SHT_RELA: {
-    Result = getRela(Rel)->r_addend;
-    return std::error_code();
-  }
-  }
+ErrorOr<int64_t>
+ELFObjectFile<ELFT>::getRelocationAddend(DataRefImpl Rel) const {
+  if (getRelSection(Rel)->sh_type != ELF::SHT_RELA)
+    return object_error::parse_failed;
+  return (int64_t)getRela(Rel)->r_addend;
+}
+
+template <class ELFT>
+bool ELFObjectFile<ELFT>::hasRelocationAddend(DataRefImpl Rel) const {
+  return getRelSection(Rel)->sh_type == ELF::SHT_RELA;
 }
 
 template <class ELFT>
@@ -879,26 +843,12 @@ template <class ELFT> bool ELFObjectFile<ELFT>::isRelocatableObject() const {
   return EF.getHeader()->e_type == ELF::ET_REL;
 }
 
-inline std::error_code getELFRelocationAddend(const RelocationRef R,
-                                              int64_t &Addend) {
-  const ObjectFile *Obj = R.getObjectFile();
-  DataRefImpl DRI = R.getRawDataRefImpl();
-  return cast<ELFObjectFileBase>(Obj)->getRelocationAddend(DRI, Addend);
-}
-
 inline std::pair<symbol_iterator, symbol_iterator>
 getELFDynamicSymbolIterators(const SymbolicFile *Obj) {
   return cast<ELFObjectFileBase>(Obj)->getELFDynamicSymbolIterators();
 }
 
-inline std::error_code GetELFSymbolVersion(const ObjectFile *Obj,
-                                           const SymbolRef &Sym,
-                                           StringRef &Version,
-                                           bool &IsDefault) {
-  return cast<ELFObjectFileBase>(Obj)
-      ->getSymbolVersion(Sym, Version, IsDefault);
-}
-}
-}
+} // namespace object
+} // namespace llvm
 
 #endif

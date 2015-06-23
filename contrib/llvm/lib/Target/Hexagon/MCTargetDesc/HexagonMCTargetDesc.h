@@ -27,6 +27,7 @@ class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class Target;
+class Triple;
 class StringRef;
 class raw_ostream;
 class raw_pwrite_stream;
@@ -42,13 +43,13 @@ MCCodeEmitter *createHexagonMCCodeEmitter(MCInstrInfo const &MCII,
                                           MCContext &MCT);
 
 MCAsmBackend *createHexagonAsmBackend(Target const &T,
-                                      MCRegisterInfo const &MRI, StringRef TT,
-                                      StringRef CPU);
+                                      MCRegisterInfo const &MRI,
+                                      const Triple &TT, StringRef CPU);
 
 MCObjectWriter *createHexagonELFObjectWriter(raw_pwrite_stream &OS,
                                              uint8_t OSABI, StringRef CPU);
 
-} // End llvm namespace
+} // namespace llvm
 
 // Define symbolic names for Hexagon registers.  This defines a mapping from
 // register name to register number.

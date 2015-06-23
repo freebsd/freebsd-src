@@ -181,11 +181,6 @@ class Verifier : public InstVisitor<Verifier>, VerifierSupport {
   /// \brief Track unresolved string-based type references.
   SmallDenseMap<const MDString *, const MDNode *, 32> UnresolvedTypeRefs;
 
-  /// \brief The personality function referenced by the LandingPadInsts.
-  /// All LandingPadInsts within the same function must use the same
-  /// personality function.
-  const Value *PersonalityFn;
-
   /// \brief Whether we've seen a call to @llvm.frameescape in this function
   /// already.
   bool SawFrameEscape;
@@ -196,8 +191,7 @@ class Verifier : public InstVisitor<Verifier>, VerifierSupport {
 
 public:
   explicit Verifier(raw_ostream &OS)
-      : VerifierSupport(OS), Context(nullptr), PersonalityFn(nullptr),
-        SawFrameEscape(false) {}
+      : VerifierSupport(OS), Context(nullptr), SawFrameEscape(false) {}
 
   bool verify(const Function &F) {
     M = F.getParent();
@@ -231,7 +225,6 @@ public:
     // FIXME: We strip const here because the inst visitor strips const.
     visit(const_cast<Function &>(F));
     InstsInThisBlock.clear();
-    PersonalityFn = nullptr;
     SawFrameEscape = false;
 
     return !Broken;
@@ -584,7 +577,6 @@ void Verifier::visitAliaseeSubExpr(SmallPtrSetImpl<const GlobalAlias*> &Visited,
 }
 
 void Verifier::visitGlobalAlias(const GlobalAlias &GA) {
-  Assert(!GA.getName().empty(), "Alias name cannot be empty!", &GA);
   Assert(GlobalAlias::isValidLinkage(GA.getLinkage()),
          "Alias should have private, internal, linkonce, weak, linkonce_odr, "
          "weak_odr, or external linkage!",
@@ -1086,7 +1078,7 @@ void Verifier::visitDIExpression(const DIExpression &N) {
 void Verifier::visitDIObjCProperty(const DIObjCProperty &N) {
   Assert(N.getTag() == dwarf::DW_TAG_APPLE_property, "invalid tag", &N);
   if (auto *T = N.getRawType())
-    Assert(isa<DIType>(T), "invalid type ref", &N, T);
+    Assert(isTypeRef(N, T), "invalid type ref", &N, T);
   if (auto *F = N.getRawFile())
     Assert(isa<DIFile>(F), "invalid file", &N, F);
 }
@@ -1251,6 +1243,7 @@ void Verifier::VerifyAttributeTypes(AttributeSet Attrs, unsigned Idx,
         I->getKindAsEnum() == Attribute::StackProtect ||
         I->getKindAsEnum() == Attribute::StackProtectReq ||
         I->getKindAsEnum() == Attribute::StackProtectStrong ||
+        I->getKindAsEnum() == Attribute::SafeStack ||
         I->getKindAsEnum() == Attribute::NoRedZone ||
         I->getKindAsEnum() == Attribute::NoImplicitFloat ||
         I->getKindAsEnum() == Attribute::Naked ||
@@ -1757,6 +1750,8 @@ void Verifier::visitFunction(const Function &F) {
            "invalid linkage type for function declaration", &F);
     Assert(MDs.empty(), "function without a body cannot have metadata", &F,
            MDs.empty() ? nullptr : MDs.front().second);
+    Assert(!F.hasPersonalityFn(),
+           "Function declaration shouldn't have a personality routine", &F);
   } else {
     // Verify that this function (which has a body) is not named "llvm.*".  It
     // is not legal to define intrinsics.
@@ -2795,22 +2790,16 @@ void Verifier::visitLandingPadInst(LandingPadInst &LPI) {
            &LPI);
   }
 
+  Function *F = LPI.getParent()->getParent();
+  Assert(F->hasPersonalityFn(),
+         "LandingPadInst needs to be in a function with a personality.", &LPI);
+
   // The landingpad instruction must be the first non-PHI instruction in the
   // block.
   Assert(LPI.getParent()->getLandingPadInst() == &LPI,
          "LandingPadInst not the first non-PHI instruction in the block.",
          &LPI);
 
-  // The personality functions for all landingpad instructions within the same
-  // function should match.
-  if (PersonalityFn)
-    Assert(LPI.getPersonalityFn() == PersonalityFn,
-           "Personality function doesn't match others in function", &LPI);
-  PersonalityFn = LPI.getPersonalityFn();
-
-  // All operands must be constants.
-  Assert(isa<Constant>(PersonalityFn), "Personality function is not constant!",
-         &LPI);
   for (unsigned i = 0, e = LPI.getNumClauses(); i < e; ++i) {
     Constant *Clause = LPI.getClause(i);
     if (LPI.isCatch(i)) {
@@ -3702,7 +3691,7 @@ struct VerifierLegacyPass : public FunctionPass {
     AU.setPreservesAll();
   }
 };
-}
+} // namespace
 
 char VerifierLegacyPass::ID = 0;
 INITIALIZE_PASS(VerifierLegacyPass, "verify", "Module Verifier", false, false)

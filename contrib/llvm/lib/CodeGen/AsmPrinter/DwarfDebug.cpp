@@ -1414,7 +1414,7 @@ void DwarfDebug::emitDebugPubSection(
     Asm->EmitInt16(dwarf::DW_PUBNAMES_VERSION);
 
     Asm->OutStreamer->AddComment("Offset of Compilation Unit Info");
-    Asm->emitSectionOffset(TheU->getLabelBegin());
+    Asm->emitDwarfSymbolReference(TheU->getLabelBegin());
 
     Asm->OutStreamer->AddComment("Compilation Unit Length");
     Asm->EmitInt32(TheU->getLength());
@@ -1562,8 +1562,6 @@ void DwarfDebug::emitDebugLoc() {
     Asm->OutStreamer->EmitLabel(List.Label);
     const DwarfCompileUnit *CU = List.CU;
     for (const auto &Entry : DebugLocs.getEntries(List)) {
-       if (Entry.BeginSym == Entry.EndSym)
-        continue;
       // Set up the range. This range is relative to the entry point of the
       // compile unit. This is a hard coded 0 for low_pc when we're emitting
       // ranges, or the DW_AT_low_pc on the compile unit otherwise.
@@ -1741,7 +1739,7 @@ void DwarfDebug::emitDebugARanges() {
     Asm->OutStreamer->AddComment("DWARF Arange version number");
     Asm->EmitInt16(dwarf::DW_ARANGES_VERSION);
     Asm->OutStreamer->AddComment("Offset Into Debug Info Section");
-    Asm->emitSectionOffset(CU->getLabelBegin());
+    Asm->emitDwarfSymbolReference(CU->getLabelBegin());
     Asm->OutStreamer->AddComment("Address Size (in bytes)");
     Asm->EmitInt8(PtrSize);
     Asm->OutStreamer->AddComment("Segment Size (in bytes)");

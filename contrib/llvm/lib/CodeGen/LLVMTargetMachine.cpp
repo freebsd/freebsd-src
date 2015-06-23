@@ -43,16 +43,17 @@ EnableFastISelOption("fast-isel", cl::Hidden,
   cl::desc("Enable the \"fast\" instruction selector"));
 
 void LLVMTargetMachine::initAsmInfo() {
-  MRI = TheTarget.createMCRegInfo(getTargetTriple());
+  MRI = TheTarget.createMCRegInfo(getTargetTriple().str());
   MII = TheTarget.createMCInstrInfo();
   // FIXME: Having an MCSubtargetInfo on the target machine is a hack due
   // to some backends having subtarget feature dependent module level
   // code generation. This is similar to the hack in the AsmPrinter for
   // module level assembly etc.
-  STI = TheTarget.createMCSubtargetInfo(getTargetTriple(), getTargetCPU(),
+  STI = TheTarget.createMCSubtargetInfo(getTargetTriple().str(), getTargetCPU(),
                                         getTargetFeatureString());
 
-  MCAsmInfo *TmpAsmInfo = TheTarget.createMCAsmInfo(*MRI, getTargetTriple());
+  MCAsmInfo *TmpAsmInfo =
+      TheTarget.createMCAsmInfo(*MRI, getTargetTriple().str());
   // TargetSelect.h moved to a different directory between LLVM 2.9 and 3.0,
   // and if the old one gets included then MCAsmInfo will be NULL and
   // we'll crash later.
@@ -72,12 +73,12 @@ void LLVMTargetMachine::initAsmInfo() {
 
 LLVMTargetMachine::LLVMTargetMachine(const Target &T,
                                      StringRef DataLayoutString,
-                                     StringRef Triple, StringRef CPU,
+                                     const Triple &TT, StringRef CPU,
                                      StringRef FS, TargetOptions Options,
                                      Reloc::Model RM, CodeModel::Model CM,
                                      CodeGenOpt::Level OL)
-    : TargetMachine(T, DataLayoutString, Triple, CPU, FS, Options) {
-  CodeGenInfo = T.createMCCodeGenInfo(Triple, RM, CM, OL);
+    : TargetMachine(T, DataLayoutString, TT, CPU, FS, Options) {
+  CodeGenInfo = T.createMCCodeGenInfo(TT.str(), RM, CM, OL);
 }
 
 TargetIRAnalysis LLVMTargetMachine::getTargetIRAnalysis() {
@@ -87,11 +88,11 @@ TargetIRAnalysis LLVMTargetMachine::getTargetIRAnalysis() {
 }
 
 /// addPassesToX helper drives creation and initialization of TargetPassConfig.
-static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
-                                          PassManagerBase &PM,
-                                          bool DisableVerify,
-                                          AnalysisID StartAfter,
-                                          AnalysisID StopAfter) {
+static MCContext *
+addPassesToGenerateCode(LLVMTargetMachine *TM, PassManagerBase &PM,
+                        bool DisableVerify, AnalysisID StartAfter,
+                        AnalysisID StopAfter,
+                        MachineFunctionInitializer *MFInitializer = nullptr) {
 
   // Add internal analysis passes from the target machine.
   PM.add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
@@ -121,7 +122,7 @@ static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
   PM.add(MMI);
 
   // Set up a MachineFunction for the rest of CodeGen to work on.
-  PM.add(new MachineFunctionAnalysis(*TM));
+  PM.add(new MachineFunctionAnalysis(*TM, MFInitializer));
 
   // Enable FastISel with -fast, but allow that to be overridden.
   if (EnableFastISelOption == cl::BOU_TRUE ||
@@ -142,10 +143,11 @@ static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
 
 bool LLVMTargetMachine::addPassesToEmitFile(
     PassManagerBase &PM, raw_pwrite_stream &Out, CodeGenFileType FileType,
-    bool DisableVerify, AnalysisID StartAfter, AnalysisID StopAfter) {
+    bool DisableVerify, AnalysisID StartAfter, AnalysisID StopAfter,
+    MachineFunctionInitializer *MFInitializer) {
   // Add common CodeGen passes.
-  MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify,
-                                               StartAfter, StopAfter);
+  MCContext *Context = addPassesToGenerateCode(
+      this, PM, DisableVerify, StartAfter, StopAfter, MFInitializer);
   if (!Context)
     return true;
 
@@ -167,15 +169,15 @@ bool LLVMTargetMachine::addPassesToEmitFile(
   switch (FileType) {
   case CGFT_AssemblyFile: {
     MCInstPrinter *InstPrinter = getTarget().createMCInstPrinter(
-        Triple(getTargetTriple()), MAI.getAssemblerDialect(), MAI, MII, MRI);
+        getTargetTriple(), MAI.getAssemblerDialect(), MAI, MII, MRI);
 
     // Create a code emitter if asked to show the encoding.
     MCCodeEmitter *MCE = nullptr;
     if (Options.MCOptions.ShowMCEncoding)
       MCE = getTarget().createMCCodeEmitter(MII, MRI, *Context);
 
-    MCAsmBackend *MAB = getTarget().createMCAsmBackend(MRI, getTargetTriple(),
-                                                       TargetCPU);
+    MCAsmBackend *MAB =
+        getTarget().createMCAsmBackend(MRI, getTargetTriple().str(), TargetCPU);
     auto FOut = llvm::make_unique<formatted_raw_ostream>(Out);
     MCStreamer *S = getTarget().createAsmStreamer(
         *Context, std::move(FOut), Options.MCOptions.AsmVerbose,
@@ -188,15 +190,15 @@ bool LLVMTargetMachine::addPassesToEmitFile(
     // Create the code emitter for the target if it exists.  If not, .o file
     // emission fails.
     MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(MII, MRI, *Context);
-    MCAsmBackend *MAB = getTarget().createMCAsmBackend(MRI, getTargetTriple(),
-                                                       TargetCPU);
+    MCAsmBackend *MAB =
+        getTarget().createMCAsmBackend(MRI, getTargetTriple().str(), TargetCPU);
     if (!MCE || !MAB)
       return true;
 
     // Don't waste memory on names of temp labels.
     Context->setUseNamesOnTempLabels(false);
 
-    Triple T(getTargetTriple());
+    Triple T(getTargetTriple().str());
     AsmStreamer.reset(getTarget().createMCObjectStreamer(
         T, *Context, *MAB, Out, MCE, STI, Options.MCOptions.MCRelaxAll,
         /*DWARFMustBeAtTheEnd*/ true));
@@ -241,12 +243,12 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM, MCContext *&Ctx,
   const MCRegisterInfo &MRI = *getMCRegisterInfo();
   MCCodeEmitter *MCE =
       getTarget().createMCCodeEmitter(*getMCInstrInfo(), MRI, *Ctx);
-  MCAsmBackend *MAB = getTarget().createMCAsmBackend(MRI, getTargetTriple(),
-                                                     TargetCPU);
+  MCAsmBackend *MAB =
+      getTarget().createMCAsmBackend(MRI, getTargetTriple().str(), TargetCPU);
   if (!MCE || !MAB)
     return true;
 
-  Triple T(getTargetTriple());
+  const Triple &T = getTargetTriple();
   const MCSubtargetInfo &STI = *getMCSubtargetInfo();
   std::unique_ptr<MCStreamer> AsmStreamer(getTarget().createMCObjectStreamer(
       T, *Ctx, *MAB, Out, MCE, STI, Options.MCOptions.MCRelaxAll,

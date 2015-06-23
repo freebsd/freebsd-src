@@ -25,8 +25,9 @@ class MCInstrInfo;
 class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
-class Target;
 class StringRef;
+class Target;
+class Triple;
 class raw_ostream;
 class raw_pwrite_stream;
 
@@ -42,13 +43,13 @@ MCCodeEmitter *createBPFbeMCCodeEmitter(const MCInstrInfo &MCII,
                                         MCContext &Ctx);
 
 MCAsmBackend *createBPFAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                  StringRef TT, StringRef CPU);
+                                  const Triple &TT, StringRef CPU);
 MCAsmBackend *createBPFbeAsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                    StringRef TT, StringRef CPU);
+                                    const Triple &TT, StringRef CPU);
 
 MCObjectWriter *createBPFELFObjectWriter(raw_pwrite_stream &OS,
                                          uint8_t OSABI, bool IsLittleEndian);
-}
+} // namespace llvm
 
 // Defines symbolic names for BPF registers.  This defines a mapping from
 // register name to register number.

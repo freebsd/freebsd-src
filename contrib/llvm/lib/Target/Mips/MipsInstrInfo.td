@@ -358,6 +358,8 @@ def calltarget  : Operand<iPTR> {
   let ParserMatchClass = MipsJumpTargetAsmOperand;
 }
 
+def imm64: Operand<i64>;
+
 def simm9 : Operand<i32>;
 def simm10 : Operand<i32>;
 def simm11 : Operand<i32>;
@@ -384,7 +386,15 @@ def simm20      : Operand<i32> {
 def uimm20      : Operand<i32> {
 }
 
+def MipsUImm10AsmOperand : AsmOperandClass {
+  let Name = "UImm10";
+  let RenderMethod = "addImmOperands";
+  let ParserMethod = "parseImm";
+  let PredicateMethod = "isUImm<10>";
+}
+
 def uimm10      : Operand<i32> {
+  let ParserMatchClass = MipsUImm10AsmOperand;
 }
 
 def simm16_64   : Operand<i64> {
@@ -1273,7 +1283,9 @@ def SYSCALL : MMRel, SYS_FT<"syscall">, SYS_FM<0xc>;
 def TRAP : TrapBase<BREAK>;
 def SDBBP : MMRel, SYS_FT<"sdbbp">, SDBBP_FM, ISA_MIPS32_NOT_32R6_64R6;
 
+let AdditionalPredicates = [NotInMicroMips] in {
 def ERET : MMRel, ER_FT<"eret">, ER_FM<0x18>, INSN_MIPS3_32;
+}
 def DERET : MMRel, ER_FT<"deret">, ER_FM<0x1f>, ISA_MIPS32;
 
 def EI : MMRel, DEI_FT<"ei", GPR32Opnd>, EI_FM<1>, ISA_MIPS32R2;
@@ -1671,6 +1683,29 @@ def JalTwoReg : MipsAsmPseudoInst<(outs GPR32Opnd:$rd), (ins GPR32Opnd:$rs),
                       "jal\t$rd, $rs"> ;
 def JalOneReg : MipsAsmPseudoInst<(outs), (ins GPR32Opnd:$rs),
                       "jal\t$rs"> ;
+
+let hasDelaySlot = 1 in {
+def BneImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rt),
+                               (ins imm64:$imm64, brtarget:$offset),
+                               "bne\t$rt, $imm64, $offset">;
+def BeqImm : MipsAsmPseudoInst<(outs GPR32Opnd:$rt),
+                               (ins imm64:$imm64, brtarget:$offset),
+                               "beq\t$rt, $imm64, $offset">;
+
+class CondBranchPseudo<string instr_asm> :
+  MipsAsmPseudoInst<(outs), (ins GPR32Opnd:$rs, GPR32Opnd:$rt,
+                                 brtarget:$offset),
+                    !strconcat(instr_asm, "\t$rs, $rt, $offset")>;
+}
+
+def BLT : CondBranchPseudo<"blt">;
+def BLE : CondBranchPseudo<"ble">;
+def BGE : CondBranchPseudo<"bge">;
+def BGT : CondBranchPseudo<"bgt">;
+def BLTU : CondBranchPseudo<"bltu">;
+def BLEU : CondBranchPseudo<"bleu">;
+def BGEU : CondBranchPseudo<"bgeu">;
+def BGTU : CondBranchPseudo<"bgtu">;
 
 //===----------------------------------------------------------------------===//
 //  Arbitrary patterns that map to one or more instructions

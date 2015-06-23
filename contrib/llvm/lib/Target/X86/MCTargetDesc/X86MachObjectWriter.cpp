@@ -69,7 +69,7 @@ public:
                           FixedValue);
   }
 };
-}
+} // namespace
 
 static bool isFixupKindRIPRel(unsigned Kind) {
   return Kind == X86::reloc_riprel_4byte ||
@@ -205,7 +205,7 @@ void X86MachObjectWriter::RecordX86_64Relocation(
     if (Symbol->isTemporary() && Value) {
       const MCSection &Sec = Symbol->getSection();
       if (!Asm.getContext().getAsmInfo()->isSectionAtomizableBySymbols(Sec))
-        Asm.addLocalUsedInReloc(*Symbol);
+        Symbol->setUsedInReloc();
     }
     RelSymbol = Asm.getAtom(*Symbol);
 

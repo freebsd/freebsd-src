@@ -1012,7 +1012,6 @@ public:
     return I->getKind() == IK_FieldInit;
   }
   static FieldInit *get(Init *R, const std::string &FN);
-  static FieldInit *get(Init *R, const Init *FN);
 
   Init *getBit(unsigned Bit) const override;
 
@@ -1590,6 +1589,6 @@ Init *QualifyName(Record &CurRec, MultiClass *CurMultiClass,
 Init *QualifyName(Record &CurRec, MultiClass *CurMultiClass,
                   const std::string &Name, const std::string &Scoper);
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

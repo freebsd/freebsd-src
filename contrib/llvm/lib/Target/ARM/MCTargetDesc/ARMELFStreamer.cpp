@@ -1324,7 +1324,7 @@ MCTargetStreamer *createARMNullTargetStreamer(MCStreamer &S) {
 
 MCTargetStreamer *createARMObjectTargetStreamer(MCStreamer &S,
                                                 const MCSubtargetInfo &STI) {
-  Triple TT(STI.getTargetTriple());
+  const Triple &TT = STI.getTargetTriple();
   if (TT.getObjectFormat() == Triple::ELF)
     return new ARMTargetELFStreamer(S);
   return new ARMTargetStreamer(S);
@@ -1345,6 +1345,6 @@ MCELFStreamer *createARMELFStreamer(MCContext &Context, MCAsmBackend &TAB,
     return S;
   }
 
-}
+} // namespace llvm
 
 

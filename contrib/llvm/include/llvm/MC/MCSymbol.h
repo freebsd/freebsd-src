@@ -17,7 +17,6 @@
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/MC/MCAssembler.h"
-#include "llvm/MC/MCExpr.h"
 #include "llvm/Support/Compiler.h"
 
 namespace llvm {
@@ -51,10 +50,6 @@ protected:
   //
   // FIXME: Use a PointerInt wrapper for this?
   static MCSection *AbsolutePseudoSection;
-
-  /// Name - The name of the symbol.  The referred-to string data is actually
-  /// held by the StringMap that lives in MCContext.
-  const StringMapEntry<bool> *Name;
 
   /// If a symbol has a Fragment, the section is implied, so we only need
   /// one pointer.
@@ -91,9 +86,17 @@ protected:
   /// This symbol is private extern.
   mutable unsigned IsPrivateExtern : 1;
 
+  /// True if this symbol is named.
+  /// A named symbol will have a pointer to the name allocated in the bytes
+  /// immediately prior to the MCSymbol.
+  unsigned HasName : 1;
+
   /// LLVM RTTI discriminator. This is actually a SymbolKind enumerator, but is
   /// unsigned to avoid sign extension and achieve better bitpacking with MSVC.
   unsigned Kind : 2;
+
+  /// True if we have created a relocation that uses this symbol.
+  mutable unsigned IsUsedInReloc : 1;
 
   /// Index field, for use by the object file implementation.
   mutable uint32_t Index = 0;
@@ -118,15 +121,43 @@ protected:
 protected: // MCContext creates and uniques these.
   friend class MCExpr;
   friend class MCContext;
+
+  /// \brief The name for a symbol.
+  /// MCSymbol contains a uint64_t so is probably aligned to 8.  On a 32-bit
+  /// system, the name is a pointer so isn't going to satisfy the 8 byte
+  /// alignment of uint64_t.  Account for that here.
+  typedef union {
+    const StringMapEntry<bool> *NameEntry;
+    uint64_t AlignmentPadding;
+  } NameEntryStorageTy;
+
   MCSymbol(SymbolKind Kind, const StringMapEntry<bool> *Name, bool isTemporary)
-      : Name(Name), Value(nullptr), IsTemporary(isTemporary),
-        IsRedefinable(false), IsUsed(false), IsRegistered(false),
-        IsExternal(false), IsPrivateExtern(false),
-        Kind(Kind) {
+      : Value(nullptr), IsTemporary(isTemporary), IsRedefinable(false),
+        IsUsed(false), IsRegistered(false), IsExternal(false),
+        IsPrivateExtern(false), HasName(!!Name), Kind(Kind),
+        IsUsedInReloc(false) {
     Offset = 0;
+    if (Name)
+      getNameEntryPtr() = Name;
   }
 
+  // Provide custom new/delete as we will only allocate space for a name
+  // if we need one.
+  void *operator new(size_t s, const StringMapEntry<bool> *Name,
+                     MCContext &Ctx);
+
 private:
+
+  void operator delete(void *);
+  /// \brief Placement delete - required by std, but never called.
+  void operator delete(void*, unsigned) {
+    llvm_unreachable("Constructor throws?");
+  }
+  /// \brief Placement delete - required by std, but never called.
+  void operator delete(void*, unsigned, bool) {
+    llvm_unreachable("Constructor throws?");
+  }
+
   MCSymbol(const MCSymbol &) = delete;
   void operator=(const MCSymbol &) = delete;
   MCSection *getSectionPtr() const {
@@ -139,12 +170,30 @@ private:
     return Section = Value->findAssociatedSection();
   }
 
+  /// \brief Get a reference to the name field.  Requires that we have a name
+  const StringMapEntry<bool> *&getNameEntryPtr() {
+    assert(HasName && "Name is required");
+    NameEntryStorageTy *Name = reinterpret_cast<NameEntryStorageTy *>(this);
+    return (*(Name - 1)).NameEntry;
+  }
+  const StringMapEntry<bool> *&getNameEntryPtr() const {
+    return const_cast<MCSymbol*>(this)->getNameEntryPtr();
+  }
+
 public:
   /// getName - Get the symbol name.
-  StringRef getName() const { return Name ? Name->first() : ""; }
+  StringRef getName() const {
+    if (!HasName)
+      return StringRef();
+
+    return getNameEntryPtr()->first();
+  }
 
   bool isRegistered() const { return IsRegistered; }
   void setIsRegistered(bool Value) const { IsRegistered = Value; }
+
+  void setUsedInReloc() const { IsUsedInReloc = true; }
+  bool isUsedInReloc() const { return IsUsedInReloc; }
 
   /// \name Accessors
   /// @{

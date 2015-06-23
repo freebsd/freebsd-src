@@ -140,7 +140,8 @@ public:
     return T->getTypeID() == FunctionTyID;
   }
 };
-
+static_assert(AlignOf<FunctionType>::Alignment >= AlignOf<Type *>::Alignment,
+              "Alignment sufficient for objects appended to FunctionType");
 
 /// CompositeType - Common super class of ArrayType, StructType, PointerType
 /// and VectorType.
@@ -476,6 +477,6 @@ public:
   }
 };
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

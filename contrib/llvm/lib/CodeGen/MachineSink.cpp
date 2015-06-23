@@ -73,6 +73,9 @@ namespace {
 
     SparseBitVector<> RegsToClearKillFlags;
 
+    typedef std::map<MachineBasicBlock *, SmallVector<MachineBasicBlock *, 4>>
+        AllSuccsCache;
+
   public:
     static char ID; // Pass identification
     MachineSinking() : MachineFunctionPass(ID) {
@@ -120,18 +123,24 @@ namespace {
                                    MachineBasicBlock *From,
                                    MachineBasicBlock *To,
                                    bool BreakPHIEdge);
-    bool SinkInstruction(MachineInstr *MI, bool &SawStore);
+    bool SinkInstruction(MachineInstr *MI, bool &SawStore,
+                         AllSuccsCache &AllSuccessors);
     bool AllUsesDominatedByBlock(unsigned Reg, MachineBasicBlock *MBB,
                                  MachineBasicBlock *DefMBB,
                                  bool &BreakPHIEdge, bool &LocalUse) const;
     MachineBasicBlock *FindSuccToSinkTo(MachineInstr *MI, MachineBasicBlock *MBB,
-               bool &BreakPHIEdge);
+               bool &BreakPHIEdge, AllSuccsCache &AllSuccessors);
     bool isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
                               MachineBasicBlock *MBB,
-                              MachineBasicBlock *SuccToSinkTo);
+                              MachineBasicBlock *SuccToSinkTo,
+                              AllSuccsCache &AllSuccessors);
 
     bool PerformTrivialForwardCoalescing(MachineInstr *MI,
                                          MachineBasicBlock *MBB);
+
+    SmallVector<MachineBasicBlock *, 4> &
+    GetAllSortedSuccessors(MachineInstr *MI, MachineBasicBlock *MBB,
+                           AllSuccsCache &AllSuccessors) const;
   };
 } // end anonymous namespace
 
@@ -269,9 +278,8 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
     // Process all basic blocks.
     CEBCandidates.clear();
     ToSplit.clear();
-    for (MachineFunction::iterator I = MF.begin(), E = MF.end();
-         I != E; ++I)
-      MadeChange |= ProcessBlock(*I);
+    for (auto &MBB: MF)
+      MadeChange |= ProcessBlock(MBB);
 
     // If we have anything we marked as toSplit, split it now.
     for (auto &Pair : ToSplit) {
@@ -310,6 +318,9 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
 
   bool MadeChange = false;
 
+  // Cache all successors, sorted by frequency info and loop depth.
+  AllSuccsCache AllSuccessors;
+
   // Walk the basic block bottom-up.  Remember if we saw a store.
   MachineBasicBlock::iterator I = MBB.end();
   --I;
@@ -332,7 +343,7 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
       continue;
     }
 
-    if (SinkInstruction(MI, SawStore))
+    if (SinkInstruction(MI, SawStore, AllSuccessors))
       ++NumSunk, MadeChange = true;
 
     // If we just processed the first instruction in the block, we're done.
@@ -484,7 +495,8 @@ static void collectDebugValues(MachineInstr *MI,
 /// isProfitableToSinkTo - Return true if it is profitable to sink MI.
 bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
                                           MachineBasicBlock *MBB,
-                                          MachineBasicBlock *SuccToSinkTo) {
+                                          MachineBasicBlock *SuccToSinkTo,
+                                          AllSuccsCache &AllSuccessors) {
   assert (MI && "Invalid MachineInstr!");
   assert (SuccToSinkTo && "Invalid SinkTo Candidate BB");
 
@@ -514,18 +526,66 @@ bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
   // can further profitably sinked into another block in next round.
   bool BreakPHIEdge = false;
   // FIXME - If finding successor is compile time expensive then cache results.
-  if (MachineBasicBlock *MBB2 = FindSuccToSinkTo(MI, SuccToSinkTo, BreakPHIEdge))
-    return isProfitableToSinkTo(Reg, MI, SuccToSinkTo, MBB2);
+  if (MachineBasicBlock *MBB2 =
+          FindSuccToSinkTo(MI, SuccToSinkTo, BreakPHIEdge, AllSuccessors))
+    return isProfitableToSinkTo(Reg, MI, SuccToSinkTo, MBB2, AllSuccessors);
 
   // If SuccToSinkTo is final destination and it is a post dominator of current
   // block then it is not profitable to sink MI into SuccToSinkTo block.
   return false;
 }
 
+/// Get the sorted sequence of successors for this MachineBasicBlock, possibly
+/// computing it if it was not already cached.
+SmallVector<MachineBasicBlock *, 4> &
+MachineSinking::GetAllSortedSuccessors(MachineInstr *MI, MachineBasicBlock *MBB,
+                                       AllSuccsCache &AllSuccessors) const {
+
+  // Do we have the sorted successors in cache ?
+  auto Succs = AllSuccessors.find(MBB);
+  if (Succs != AllSuccessors.end())
+    return Succs->second;
+
+  SmallVector<MachineBasicBlock *, 4> AllSuccs(MBB->succ_begin(),
+                                               MBB->succ_end());
+
+  // Handle cases where sinking can happen but where the sink point isn't a
+  // successor. For example:
+  //
+  //   x = computation
+  //   if () {} else {}
+  //   use x
+  //
+  const std::vector<MachineDomTreeNode *> &Children =
+    DT->getNode(MBB)->getChildren();
+  for (const auto &DTChild : Children)
+    // DomTree children of MBB that have MBB as immediate dominator are added.
+    if (DTChild->getIDom()->getBlock() == MI->getParent() &&
+        // Skip MBBs already added to the AllSuccs vector above.
+        !MBB->isSuccessor(DTChild->getBlock()))
+      AllSuccs.push_back(DTChild->getBlock());
+
+  // Sort Successors according to their loop depth or block frequency info.
+  std::stable_sort(
+      AllSuccs.begin(), AllSuccs.end(),
+      [this](const MachineBasicBlock *L, const MachineBasicBlock *R) {
+        uint64_t LHSFreq = MBFI ? MBFI->getBlockFreq(L).getFrequency() : 0;
+        uint64_t RHSFreq = MBFI ? MBFI->getBlockFreq(R).getFrequency() : 0;
+        bool HasBlockFreq = LHSFreq != 0 && RHSFreq != 0;
+        return HasBlockFreq ? LHSFreq < RHSFreq
+                            : LI->getLoopDepth(L) < LI->getLoopDepth(R);
+      });
+
+  auto it = AllSuccessors.insert(std::make_pair(MBB, AllSuccs));
+
+  return it.first->second;
+}
+
 /// FindSuccToSinkTo - Find a successor to sink this instruction to.
 MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
                                    MachineBasicBlock *MBB,
-                                   bool &BreakPHIEdge) {
+                                   bool &BreakPHIEdge,
+                                   AllSuccsCache &AllSuccessors) {
 
   assert (MI && "Invalid MachineInstr!");
   assert (MBB && "Invalid MachineBasicBlock!");
@@ -579,38 +639,8 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
       // we should sink to. If we have reliable block frequency information
       // (frequency != 0) available, give successors with smaller frequencies
       // higher priority, otherwise prioritize smaller loop depths.
-      SmallVector<MachineBasicBlock*, 4> Succs(MBB->succ_begin(),
-                                               MBB->succ_end());
-
-      // Handle cases where sinking can happen but where the sink point isn't a
-      // successor. For example:
-      //
-      //   x = computation
-      //   if () {} else {}
-      //   use x
-      //
-      const std::vector<MachineDomTreeNode *> &Children =
-        DT->getNode(MBB)->getChildren();
-      for (const auto &DTChild : Children)
-        // DomTree children of MBB that have MBB as immediate dominator are added.
-        if (DTChild->getIDom()->getBlock() == MI->getParent() &&
-            // Skip MBBs already added to the Succs vector above.
-            !MBB->isSuccessor(DTChild->getBlock()))
-          Succs.push_back(DTChild->getBlock());
-
-      // Sort Successors according to their loop depth or block frequency info.
-      std::stable_sort(
-          Succs.begin(), Succs.end(),
-          [this](const MachineBasicBlock *L, const MachineBasicBlock *R) {
-            uint64_t LHSFreq = MBFI ? MBFI->getBlockFreq(L).getFrequency() : 0;
-            uint64_t RHSFreq = MBFI ? MBFI->getBlockFreq(R).getFrequency() : 0;
-            bool HasBlockFreq = LHSFreq != 0 && RHSFreq != 0;
-            return HasBlockFreq ? LHSFreq < RHSFreq
-                                : LI->getLoopDepth(L) < LI->getLoopDepth(R);
-          });
-      for (SmallVectorImpl<MachineBasicBlock *>::iterator SI = Succs.begin(),
-             E = Succs.end(); SI != E; ++SI) {
-        MachineBasicBlock *SuccBlock = *SI;
+      for (MachineBasicBlock *SuccBlock :
+           GetAllSortedSuccessors(MI, MBB, AllSuccessors)) {
         bool LocalUse = false;
         if (AllUsesDominatedByBlock(Reg, SuccBlock, MBB,
                                     BreakPHIEdge, LocalUse)) {
@@ -625,7 +655,7 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
       // If we couldn't find a block to sink to, ignore this instruction.
       if (!SuccToSinkTo)
         return nullptr;
-      if (!isProfitableToSinkTo(Reg, MI, MBB, SuccToSinkTo))
+      if (!isProfitableToSinkTo(Reg, MI, MBB, SuccToSinkTo, AllSuccessors))
         return nullptr;
     }
   }
@@ -645,7 +675,8 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
 
 /// SinkInstruction - Determine whether it is safe to sink the specified machine
 /// instruction out of its current block into a successor.
-bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
+bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore,
+                                     AllSuccsCache &AllSuccessors) {
   // Don't sink insert_subreg, subreg_to_reg, reg_sequence. These are meant to
   // be close to the source to make it easier to coalesce.
   if (AvoidsSinking(MI, MRI))
@@ -669,8 +700,8 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
 
   bool BreakPHIEdge = false;
   MachineBasicBlock *ParentBlock = MI->getParent();
-  MachineBasicBlock *SuccToSinkTo = FindSuccToSinkTo(MI, ParentBlock,
-                                                     BreakPHIEdge);
+  MachineBasicBlock *SuccToSinkTo =
+      FindSuccToSinkTo(MI, ParentBlock, BreakPHIEdge, AllSuccessors);
 
   // If there are no outputs, it must have side-effects.
   if (!SuccToSinkTo)

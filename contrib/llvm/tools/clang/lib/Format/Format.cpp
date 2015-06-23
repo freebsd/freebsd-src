@@ -174,7 +174,8 @@ template <> struct MappingTraits<FormatStyle> {
     IO.mapOptional("AlignEscapedNewlinesLeft", Style.AlignEscapedNewlinesLeft);
     IO.mapOptional("AlignOperands", Style.AlignOperands);
     IO.mapOptional("AlignTrailingComments", Style.AlignTrailingComments);
-    IO.mapOptional("AlignConsecutiveAssignments", Style.AlignConsecutiveAssignments);
+    IO.mapOptional("AlignConsecutiveAssignments",
+                   Style.AlignConsecutiveAssignments);
     IO.mapOptional("AllowAllParametersOfDeclarationOnNextLine",
                    Style.AllowAllParametersOfDeclarationOnNextLine);
     IO.mapOptional("AllowShortBlocksOnASingleLine",
@@ -785,7 +786,8 @@ private:
     // Backticks get lexed as tok::unknown tokens. If a template string contains
     // a comment start, it gets lexed as a tok::comment, or tok::unknown if
     // unterminated.
-    if (!EndBacktick->isOneOf(tok::comment, tok::unknown))
+    if (!EndBacktick->isOneOf(tok::comment, tok::string_literal,
+                              tok::char_constant, tok::unknown))
       return false;
     size_t CommentBacktickPos = EndBacktick->TokenText.find('`');
     // Unknown token that's not actually a backtick, or a comment that doesn't
@@ -1122,7 +1124,10 @@ private:
       Column = FormatTok->LastLineColumnWidth;
     }
 
-    if (std::find(ForEachMacros.begin(), ForEachMacros.end(),
+    if (!(Tokens.size() > 0 && Tokens.back()->Tok.getIdentifierInfo() &&
+          Tokens.back()->Tok.getIdentifierInfo()->getPPKeywordID() ==
+              tok::pp_define) &&
+        std::find(ForEachMacros.begin(), ForEachMacros.end(),
                   FormatTok->Tok.getIdentifierInfo()) != ForEachMacros.end())
       FormatTok->Type = TT_ForEachMacro;
 
@@ -1254,7 +1259,8 @@ public:
   }
 
   tooling::Replacements format(SmallVectorImpl<AnnotatedLine *> &AnnotatedLines,
-                               FormatTokenLexer &Tokens, bool *IncompleteFormat) {
+                               FormatTokenLexer &Tokens,
+                               bool *IncompleteFormat) {
     TokenAnnotator Annotator(Style, Tokens.getKeywords());
     for (unsigned i = 0, e = AnnotatedLines.size(); i != e; ++i) {
       Annotator.annotate(*AnnotatedLines[i]);
@@ -1500,8 +1506,7 @@ tooling::Replacements reformat(const FormatStyle &Style,
 
 tooling::Replacements reformat(const FormatStyle &Style, StringRef Code,
                                ArrayRef<tooling::Range> Ranges,
-                               StringRef FileName,
-                               bool *IncompleteFormat) {
+                               StringRef FileName, bool *IncompleteFormat) {
   if (Style.DisableFormat)
     return tooling::Replacements();
 

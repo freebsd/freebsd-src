@@ -183,7 +183,7 @@ void BreakableStringLiteral::insertBreak(unsigned LineIndex,
 }
 
 static StringRef getLineCommentIndentPrefix(StringRef Comment) {
-  static const char *const KnownPrefixes[] = { "///", "//", "//!" };
+  static const char *const KnownPrefixes[] = {"///", "//", "//!"};
   StringRef LongestPrefix;
   for (StringRef KnownPrefix : KnownPrefixes) {
     if (Comment.startswith(KnownPrefix)) {
@@ -239,9 +239,8 @@ void BreakableLineComment::replaceWhitespace(unsigned LineIndex,
       /*Spaces=*/1);
 }
 
-void
-BreakableLineComment::replaceWhitespaceBefore(unsigned LineIndex,
-                                              WhitespaceManager &Whitespaces) {
+void BreakableLineComment::replaceWhitespaceBefore(
+    unsigned LineIndex, WhitespaceManager &Whitespaces) {
   if (OriginalPrefix != Prefix) {
     Whitespaces.replaceWhitespaceInToken(Tok, OriginalPrefix.size(), 0, "", "",
                                          /*InPPDirective=*/false,
@@ -345,7 +344,7 @@ void BreakableBlockComment::adjustWhitespace(unsigned LineIndex,
   // Calculate the start of the non-whitespace text in the current line.
   size_t StartOfLine = Lines[LineIndex].find_first_not_of(Blanks);
   if (StartOfLine == StringRef::npos)
-    StartOfLine = Lines[LineIndex].size();
+    StartOfLine = Lines[LineIndex].rtrim("\r\n").size();
 
   StringRef Whitespace = Lines[LineIndex].substr(0, StartOfLine);
   // Adjust Lines to only contain relevant text.
@@ -415,9 +414,8 @@ void BreakableBlockComment::replaceWhitespace(unsigned LineIndex,
       /*Newlines=*/0, /*IndentLevel=*/0, /*Spaces=*/1);
 }
 
-void
-BreakableBlockComment::replaceWhitespaceBefore(unsigned LineIndex,
-                                               WhitespaceManager &Whitespaces) {
+void BreakableBlockComment::replaceWhitespaceBefore(
+    unsigned LineIndex, WhitespaceManager &Whitespaces) {
   if (LineIndex == 0)
     return;
   StringRef Prefix = Decoration;

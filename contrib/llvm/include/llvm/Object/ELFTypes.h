@@ -156,11 +156,13 @@ struct Elf_Sym_Impl : Elf_Sym_Base<ELFT> {
   using Elf_Sym_Base<ELFT>::st_info;
   using Elf_Sym_Base<ELFT>::st_shndx;
   using Elf_Sym_Base<ELFT>::st_other;
+  using Elf_Sym_Base<ELFT>::st_value;
 
   // These accessors and mutators correspond to the ELF32_ST_BIND,
   // ELF32_ST_TYPE, and ELF32_ST_INFO macros defined in the ELF specification:
   unsigned char getBinding() const { return st_info >> 4; }
   unsigned char getType() const { return st_info & 0x0f; }
+  uint64_t getValue() const { return st_value; }
   void setBinding(unsigned char b) { setBindingAndType(b, getType()); }
   void setType(unsigned char t) { setBindingAndType(getBinding(), t); }
   void setBindingAndType(unsigned char b, unsigned char t) {
@@ -182,10 +184,7 @@ struct Elf_Sym_Impl : Elf_Sym_Base<ELFT> {
   bool isCommon() const {
     return getType() == ELF::STT_COMMON || st_shndx == ELF::SHN_COMMON;
   }
-  bool isDefined() const {
-    return !isUndefined() &&
-           !(st_shndx >= ELF::SHN_LORESERVE && st_shndx < ELF::SHN_ABS);
-  }
+  bool isDefined() const { return !isUndefined(); }
   bool isProcessorSpecific() const {
     return st_shndx >= ELF::SHN_LOPROC && st_shndx <= ELF::SHN_HIPROC;
   }
@@ -193,7 +192,9 @@ struct Elf_Sym_Impl : Elf_Sym_Base<ELFT> {
     return st_shndx >= ELF::SHN_LOOS && st_shndx <= ELF::SHN_HIOS;
   }
   bool isReserved() const {
-    return st_shndx > ELF::SHN_HIOS && st_shndx < ELF::SHN_ABS;
+    // ELF::SHN_HIRESERVE is 0xffff so st_shndx <= ELF::SHN_HIRESERVE is always
+    // true and some compilers warn about it.
+    return st_shndx >= ELF::SHN_LORESERVE;
   }
   bool isUndefined() const { return st_shndx == ELF::SHN_UNDEF; }
 };

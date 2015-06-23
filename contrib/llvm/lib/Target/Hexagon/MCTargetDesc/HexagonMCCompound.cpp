@@ -40,39 +40,39 @@ enum OpcodeIndex {
   tp1_jump_t
 };
 
-unsigned tstBitOpcode[8] = {J4_tstbit0_fp0_jump_nt, J4_tstbit0_fp0_jump_t,
-                            J4_tstbit0_fp1_jump_nt, J4_tstbit0_fp1_jump_t,
-                            J4_tstbit0_tp0_jump_nt, J4_tstbit0_tp0_jump_t,
-                            J4_tstbit0_tp1_jump_nt, J4_tstbit0_tp1_jump_t};
-unsigned cmpeqBitOpcode[8] = {J4_cmpeq_fp0_jump_nt, J4_cmpeq_fp0_jump_t,
-                              J4_cmpeq_fp1_jump_nt, J4_cmpeq_fp1_jump_t,
-                              J4_cmpeq_tp0_jump_nt, J4_cmpeq_tp0_jump_t,
-                              J4_cmpeq_tp1_jump_nt, J4_cmpeq_tp1_jump_t};
-unsigned cmpgtBitOpcode[8] = {J4_cmpgt_fp0_jump_nt, J4_cmpgt_fp0_jump_t,
-                              J4_cmpgt_fp1_jump_nt, J4_cmpgt_fp1_jump_t,
-                              J4_cmpgt_tp0_jump_nt, J4_cmpgt_tp0_jump_t,
-                              J4_cmpgt_tp1_jump_nt, J4_cmpgt_tp1_jump_t};
-unsigned cmpgtuBitOpcode[8] = {J4_cmpgtu_fp0_jump_nt, J4_cmpgtu_fp0_jump_t,
-                               J4_cmpgtu_fp1_jump_nt, J4_cmpgtu_fp1_jump_t,
-                               J4_cmpgtu_tp0_jump_nt, J4_cmpgtu_tp0_jump_t,
-                               J4_cmpgtu_tp1_jump_nt, J4_cmpgtu_tp1_jump_t};
-unsigned cmpeqiBitOpcode[8] = {J4_cmpeqi_fp0_jump_nt, J4_cmpeqi_fp0_jump_t,
-                               J4_cmpeqi_fp1_jump_nt, J4_cmpeqi_fp1_jump_t,
-                               J4_cmpeqi_tp0_jump_nt, J4_cmpeqi_tp0_jump_t,
-                               J4_cmpeqi_tp1_jump_nt, J4_cmpeqi_tp1_jump_t};
-unsigned cmpgtiBitOpcode[8] = {J4_cmpgti_fp0_jump_nt, J4_cmpgti_fp0_jump_t,
-                               J4_cmpgti_fp1_jump_nt, J4_cmpgti_fp1_jump_t,
-                               J4_cmpgti_tp0_jump_nt, J4_cmpgti_tp0_jump_t,
-                               J4_cmpgti_tp1_jump_nt, J4_cmpgti_tp1_jump_t};
-unsigned cmpgtuiBitOpcode[8] = {J4_cmpgtui_fp0_jump_nt, J4_cmpgtui_fp0_jump_t,
-                                J4_cmpgtui_fp1_jump_nt, J4_cmpgtui_fp1_jump_t,
-                                J4_cmpgtui_tp0_jump_nt, J4_cmpgtui_tp0_jump_t,
-                                J4_cmpgtui_tp1_jump_nt, J4_cmpgtui_tp1_jump_t};
-unsigned cmpeqn1BitOpcode[8] = {J4_cmpeqn1_fp0_jump_nt, J4_cmpeqn1_fp0_jump_t,
-                                J4_cmpeqn1_fp1_jump_nt, J4_cmpeqn1_fp1_jump_t,
-                                J4_cmpeqn1_tp0_jump_nt, J4_cmpeqn1_tp0_jump_t,
-                                J4_cmpeqn1_tp1_jump_nt, J4_cmpeqn1_tp1_jump_t};
-unsigned cmpgtn1BitOpcode[8] = {
+static const unsigned tstBitOpcode[8] = {
+    J4_tstbit0_fp0_jump_nt, J4_tstbit0_fp0_jump_t,  J4_tstbit0_fp1_jump_nt,
+    J4_tstbit0_fp1_jump_t,  J4_tstbit0_tp0_jump_nt, J4_tstbit0_tp0_jump_t,
+    J4_tstbit0_tp1_jump_nt, J4_tstbit0_tp1_jump_t};
+static const unsigned cmpeqBitOpcode[8] = {
+    J4_cmpeq_fp0_jump_nt, J4_cmpeq_fp0_jump_t,  J4_cmpeq_fp1_jump_nt,
+    J4_cmpeq_fp1_jump_t,  J4_cmpeq_tp0_jump_nt, J4_cmpeq_tp0_jump_t,
+    J4_cmpeq_tp1_jump_nt, J4_cmpeq_tp1_jump_t};
+static const unsigned cmpgtBitOpcode[8] = {
+    J4_cmpgt_fp0_jump_nt, J4_cmpgt_fp0_jump_t,  J4_cmpgt_fp1_jump_nt,
+    J4_cmpgt_fp1_jump_t,  J4_cmpgt_tp0_jump_nt, J4_cmpgt_tp0_jump_t,
+    J4_cmpgt_tp1_jump_nt, J4_cmpgt_tp1_jump_t};
+static const unsigned cmpgtuBitOpcode[8] = {
+    J4_cmpgtu_fp0_jump_nt, J4_cmpgtu_fp0_jump_t,  J4_cmpgtu_fp1_jump_nt,
+    J4_cmpgtu_fp1_jump_t,  J4_cmpgtu_tp0_jump_nt, J4_cmpgtu_tp0_jump_t,
+    J4_cmpgtu_tp1_jump_nt, J4_cmpgtu_tp1_jump_t};
+static const unsigned cmpeqiBitOpcode[8] = {
+    J4_cmpeqi_fp0_jump_nt, J4_cmpeqi_fp0_jump_t,  J4_cmpeqi_fp1_jump_nt,
+    J4_cmpeqi_fp1_jump_t,  J4_cmpeqi_tp0_jump_nt, J4_cmpeqi_tp0_jump_t,
+    J4_cmpeqi_tp1_jump_nt, J4_cmpeqi_tp1_jump_t};
+static const unsigned cmpgtiBitOpcode[8] = {
+    J4_cmpgti_fp0_jump_nt, J4_cmpgti_fp0_jump_t,  J4_cmpgti_fp1_jump_nt,
+    J4_cmpgti_fp1_jump_t,  J4_cmpgti_tp0_jump_nt, J4_cmpgti_tp0_jump_t,
+    J4_cmpgti_tp1_jump_nt, J4_cmpgti_tp1_jump_t};
+static const unsigned cmpgtuiBitOpcode[8] = {
+    J4_cmpgtui_fp0_jump_nt, J4_cmpgtui_fp0_jump_t,  J4_cmpgtui_fp1_jump_nt,
+    J4_cmpgtui_fp1_jump_t,  J4_cmpgtui_tp0_jump_nt, J4_cmpgtui_tp0_jump_t,
+    J4_cmpgtui_tp1_jump_nt, J4_cmpgtui_tp1_jump_t};
+static const unsigned cmpeqn1BitOpcode[8] = {
+    J4_cmpeqn1_fp0_jump_nt, J4_cmpeqn1_fp0_jump_t,  J4_cmpeqn1_fp1_jump_nt,
+    J4_cmpeqn1_fp1_jump_t,  J4_cmpeqn1_tp0_jump_nt, J4_cmpeqn1_tp0_jump_t,
+    J4_cmpeqn1_tp1_jump_nt, J4_cmpeqn1_tp1_jump_t};
+static const unsigned cmpgtn1BitOpcode[8] = {
     J4_cmpgtn1_fp0_jump_nt, J4_cmpgtn1_fp0_jump_t,  J4_cmpgtn1_fp1_jump_nt,
     J4_cmpgtn1_fp1_jump_t,  J4_cmpgtn1_tp0_jump_nt, J4_cmpgtn1_tp0_jump_t,
     J4_cmpgtn1_tp1_jump_nt, J4_cmpgtn1_tp1_jump_t,
@@ -174,7 +174,7 @@ unsigned getCompoundCandidateGroup(MCInst const &MI, bool IsExtended) {
 
   return HexagonII::HCG_None;
 }
-}
+} // namespace
 
 /// getCompoundOp - Return the index from 0-7 into the above opcode lists.
 namespace {
@@ -199,7 +199,7 @@ unsigned getCompoundOp(MCInst const &HMCI) {
     return (PredReg == Hexagon::P0) ? tp0_jump_t : tp1_jump_t;
   }
 }
-}
+} // namespace
 
 namespace {
 MCInst *getCompoundInsn(MCContext &Context, MCInst const &L, MCInst const &R) {
@@ -331,7 +331,7 @@ MCInst *getCompoundInsn(MCContext &Context, MCInst const &L, MCInst const &R) {
 
   return CompoundInsn;
 }
-}
+} // namespace
 
 /// Non-Symmetrical. See if these two instructions are fit for compound pair.
 namespace {
@@ -348,7 +348,7 @@ bool isOrderedCompoundPair(MCInst const &MIa, bool IsExtendedA,
   return ((MIaG == HexagonII::HCG_A && MIbG == HexagonII::HCG_B) &&
           (MIa.getOperand(0).getReg() == MIb.getOperand(0).getReg()));
 }
-}
+} // namespace
 
 namespace {
 bool lookForCompound(MCInstrInfo const &MCII, MCContext &Context, MCInst &MCI) {
@@ -396,7 +396,7 @@ bool lookForCompound(MCInstrInfo const &MCII, MCContext &Context, MCInst &MCI) {
   }
   return false;
 }
-}
+} // namespace
 
 /// tryCompound - Given a bundle check for compound insns when one
 /// is found update the contents fo the bundle with the compound insn.

@@ -41,7 +41,8 @@ namespace {
       return true;
     }
 
-    AliasResult alias(const Location &LocA, const Location &LocB) override {
+    AliasResult alias(const MemoryLocation &LocA,
+                      const MemoryLocation &LocB) override {
       return MayAlias;
     }
 
@@ -52,19 +53,17 @@ namespace {
       return UnknownModRefBehavior;
     }
 
-    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) override {
+    bool pointsToConstantMemory(const MemoryLocation &Loc,
+                                bool OrLocal) override {
       return false;
     }
-    Location getArgLocation(ImmutableCallSite CS, unsigned ArgIdx,
-                            ModRefResult &Mask) override {
-      Mask = ModRef;
-      AAMDNodes AATags;
-      CS->getAAMetadata(AATags);
-      return Location(CS.getArgument(ArgIdx), UnknownSize, AATags);
+    ModRefResult getArgModRefInfo(ImmutableCallSite CS,
+                                  unsigned ArgIdx) override {
+      return ModRef;
     }
 
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Location &Loc) override {
+                               const MemoryLocation &Loc) override {
       return ModRef;
     }
     ModRefResult getModRefInfo(ImmutableCallSite CS1,

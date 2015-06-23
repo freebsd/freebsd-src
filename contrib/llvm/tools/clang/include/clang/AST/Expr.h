@@ -598,7 +598,7 @@ public:
 
   /// \brief Determine whether this expression involves a call to any function
   /// that is not trivial.
-  bool hasNonTrivialCall(ASTContext &Ctx);
+  bool hasNonTrivialCall(const ASTContext &Ctx) const;
 
   /// EvaluateKnownConstInt - Call EvaluateAsRValue and return the folded
   /// integer. This must be called on an expression that constant folds to an
@@ -2273,7 +2273,7 @@ public:
 
   /// \brief Returns \c true if this is a call to a builtin which does not
   /// evaluate side-effects within its arguments.
-  bool isUnevaluatedBuiltinCall(ASTContext &Ctx) const;
+  bool isUnevaluatedBuiltinCall(const ASTContext &Ctx) const;
 
   /// getCallReturnType - Get the return type of the call expr. This is not
   /// always the type of the expr itself, if the return type is a reference
@@ -4264,6 +4264,80 @@ public:
   child_range children() {
     Stmt **begin = reinterpret_cast<Stmt**>(this + 1);
     return child_range(begin, begin + NumSubExprs);
+  }
+};
+
+/// \brief Represents a place-holder for an object not to be initialized by
+/// anything.
+///
+/// This only makes sense when it appears as part of an updater of a
+/// DesignatedInitUpdateExpr (see below). The base expression of a DIUE
+/// initializes a big object, and the NoInitExpr's mark the spots within the
+/// big object not to be overwritten by the updater.
+///
+/// \see DesignatedInitUpdateExpr
+class NoInitExpr : public Expr {
+public:
+  explicit NoInitExpr(QualType ty)
+    : Expr(NoInitExprClass, ty, VK_RValue, OK_Ordinary,
+           false, false, ty->isInstantiationDependentType(), false) { }
+
+  explicit NoInitExpr(EmptyShell Empty)
+    : Expr(NoInitExprClass, Empty) { }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == NoInitExprClass;
+  }
+
+  SourceLocation getLocStart() const LLVM_READONLY { return SourceLocation(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return SourceLocation(); }
+
+  // Iterators
+  child_range children() { return child_range(); }
+};
+
+// In cases like:
+//   struct Q { int a, b, c; };
+//   Q *getQ();
+//   void foo() {
+//     struct A { Q q; } a = { *getQ(), .q.b = 3 };
+//   }
+//
+// We will have an InitListExpr for a, with type A, and then a
+// DesignatedInitUpdateExpr for "a.q" with type Q. The "base" for this DIUE
+// is the call expression *getQ(); the "updater" for the DIUE is ".q.b = 3"
+//
+class DesignatedInitUpdateExpr : public Expr {
+  // BaseAndUpdaterExprs[0] is the base expression;
+  // BaseAndUpdaterExprs[1] is an InitListExpr overwriting part of the base.
+  Stmt *BaseAndUpdaterExprs[2];
+
+public:
+  DesignatedInitUpdateExpr(const ASTContext &C, SourceLocation lBraceLoc,
+                           Expr *baseExprs, SourceLocation rBraceLoc);
+
+  explicit DesignatedInitUpdateExpr(EmptyShell Empty)
+    : Expr(DesignatedInitUpdateExprClass, Empty) { }
+
+  SourceLocation getLocStart() const LLVM_READONLY;
+  SourceLocation getLocEnd() const LLVM_READONLY;
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == DesignatedInitUpdateExprClass;
+  }
+
+  Expr *getBase() const { return cast<Expr>(BaseAndUpdaterExprs[0]); }
+  void setBase(Expr *Base) { BaseAndUpdaterExprs[0] = Base; }
+
+  InitListExpr *getUpdater() const {
+    return cast<InitListExpr>(BaseAndUpdaterExprs[1]);
+  }
+  void setUpdater(Expr *Updater) { BaseAndUpdaterExprs[1] = Updater; }
+
+  // Iterators
+  // children = the base and the updater
+  child_range children() {
+    return child_range(&BaseAndUpdaterExprs[0], &BaseAndUpdaterExprs[0] + 2);
   }
 };
 

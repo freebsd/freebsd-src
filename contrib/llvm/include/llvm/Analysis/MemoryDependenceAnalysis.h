@@ -287,7 +287,7 @@ namespace llvm {
       /// conflicting tags.
       AAMDNodes AATags;
 
-      NonLocalPointerInfo() : Size(AliasAnalysis::UnknownSize) {}
+      NonLocalPointerInfo() : Size(MemoryLocation::UnknownSize) {}
     };
 
     /// CachedNonLocalPointerInfo - This map stores the cached results of doing
@@ -403,12 +403,11 @@ namespace llvm {
     ///
     /// Note that this is an uncached query, and thus may be inefficient.
     ///
-    MemDepResult getPointerDependencyFrom(const AliasAnalysis::Location &Loc,
+    MemDepResult getPointerDependencyFrom(const MemoryLocation &Loc,
                                           bool isLoad,
                                           BasicBlock::iterator ScanIt,
                                           BasicBlock *BB,
                                           Instruction *QueryInst = nullptr);
-
 
     /// getLoadLoadClobberFullWidthSize - This is a little bit of analysis that
     /// looks at a memory location for a load (specified by MemLocBase, Offs,
@@ -428,15 +427,14 @@ namespace llvm {
                                            BasicBlock *BB);
     bool getNonLocalPointerDepFromBB(Instruction *QueryInst,
                                      const PHITransAddr &Pointer,
-                                     const AliasAnalysis::Location &Loc,
-                                     bool isLoad, BasicBlock *BB,
+                                     const MemoryLocation &Loc, bool isLoad,
+                                     BasicBlock *BB,
                                      SmallVectorImpl<NonLocalDepResult> &Result,
-                                     DenseMap<BasicBlock*, Value*> &Visited,
+                                     DenseMap<BasicBlock *, Value *> &Visited,
                                      bool SkipFirstBlock = false);
     MemDepResult GetNonLocalInfoForBlock(Instruction *QueryInst,
-                                         const AliasAnalysis::Location &Loc,
-                                         bool isLoad, BasicBlock *BB,
-                                         NonLocalDepInfo *Cache,
+                                         const MemoryLocation &Loc, bool isLoad,
+                                         BasicBlock *BB, NonLocalDepInfo *Cache,
                                          unsigned NumSortedEntries);
 
     void RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair P);
@@ -447,6 +445,6 @@ namespace llvm {
 
   };
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

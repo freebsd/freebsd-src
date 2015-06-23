@@ -130,16 +130,13 @@ static bool getARMLoadDeprecationInfo(MCInst &MI, MCSubtargetInfo &STI,
 #define GET_SUBTARGETINFO_MC_DESC
 #include "ARMGenSubtargetInfo.inc"
 
-
-std::string ARM_MC::ParseARMTriple(StringRef TT, StringRef CPU) {
-  Triple triple(TT);
-
-  bool isThumb = triple.getArch() == Triple::thumb ||
-                 triple.getArch() == Triple::thumbeb;
+std::string ARM_MC::ParseARMTriple(const Triple &TT, StringRef CPU) {
+  bool isThumb =
+      TT.getArch() == Triple::thumb || TT.getArch() == Triple::thumbeb;
 
   bool NoCPU = CPU == "generic" || CPU.empty();
   std::string ARMArchFeature;
-  switch (triple.getSubArch()) {
+  switch (TT.getSubArch()) {
   default:
     llvm_unreachable("invalid sub-architecture for ARM");
   case Triple::ARMSubArch_v8:
@@ -240,7 +237,7 @@ std::string ARM_MC::ParseARMTriple(StringRef TT, StringRef CPU) {
       ARMArchFeature += ",+thumb-mode";
   }
 
-  if (triple.isOSNaCl()) {
+  if (TT.isOSNaCl()) {
     if (ARMArchFeature.empty())
       ARMArchFeature = "+nacl-trap";
     else
@@ -250,8 +247,8 @@ std::string ARM_MC::ParseARMTriple(StringRef TT, StringRef CPU) {
   return ARMArchFeature;
 }
 
-MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(StringRef TT, StringRef CPU,
-                                                  StringRef FS) {
+MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(const Triple &TT,
+                                                  StringRef CPU, StringRef FS) {
   std::string ArchFS = ARM_MC::ParseARMTriple(TT, CPU);
   if (!FS.empty()) {
     if (!ArchFS.empty())
@@ -332,10 +329,9 @@ static MCInstPrinter *createARMMCInstPrinter(const Triple &T,
   return nullptr;
 }
 
-static MCRelocationInfo *createARMMCRelocationInfo(StringRef TT,
+static MCRelocationInfo *createARMMCRelocationInfo(const Triple &TT,
                                                    MCContext &Ctx) {
-  Triple TheTriple(TT);
-  if (TheTriple.isOSBinFormatMachO())
+  if (TT.isOSBinFormatMachO())
     return createARMMachORelocationInfo(Ctx);
   // Default to the stock relocation info.
   return llvm::createMCRelocationInfo(TT, Ctx);
@@ -374,7 +370,7 @@ public:
   }
 };
 
-}
+} // namespace
 
 static MCInstrAnalysis *createARMMCInstrAnalysis(const MCInstrInfo *Info) {
   return new ARMMCInstrAnalysis(Info);

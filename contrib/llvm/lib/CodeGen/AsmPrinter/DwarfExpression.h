@@ -83,9 +83,6 @@ public:
   bool AddMachineRegPiece(unsigned MachineReg, unsigned PieceSizeInBits = 0,
                           unsigned PieceOffsetInBits = 0);
 
-  /// Emit a DW_OP_stack_value
-  void AddOpStackValue();
-
   /// Emit a signed constant.
   void AddSignedConstant(int Value);
   /// Emit an unsigned constant.
@@ -134,6 +131,6 @@ public:
   void EmitUnsigned(uint64_t Value) override;
   bool isFrameRegister(unsigned MachineReg) override;
 };
-}
+} // namespace llvm
 
 #endif

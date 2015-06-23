@@ -931,7 +931,7 @@ void DwarfUnit::constructTypeDIE(DIE &Buffer, const DICompositeType *CTy) {
         StringRef PropertyName = Property->getName();
         addString(ElemDie, dwarf::DW_AT_APPLE_property_name, PropertyName);
         if (Property->getType())
-          addType(ElemDie, Property->getType());
+          addType(ElemDie, resolve(Property->getType()));
         addSourceLine(ElemDie, Property);
         StringRef GetterName = Property->getGetterName();
         if (!GetterName.empty())
@@ -1449,10 +1449,8 @@ void DwarfUnit::emitHeader(bool UseOffsets) {
   // start of the section. Use a relocatable offset where needed to ensure
   // linking doesn't invalidate that offset.
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
-  if (!UseOffsets)
-    Asm->emitSectionOffset(TLOF.getDwarfAbbrevSection()->getBeginSymbol());
-  else
-    Asm->EmitInt32(0);
+  Asm->emitDwarfSymbolReference(TLOF.getDwarfAbbrevSection()->getBeginSymbol(),
+                                UseOffsets);
 
   Asm->OutStreamer->AddComment("Address Size (in bytes)");
   Asm->EmitInt8(Asm->getDataLayout().getPointerSize());

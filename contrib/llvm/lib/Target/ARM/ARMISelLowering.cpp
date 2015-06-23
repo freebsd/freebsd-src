@@ -83,7 +83,7 @@ namespace {
       CallOrPrologue = PC;
     }
   };
-}
+} // namespace
 
 // The APCS parameter registers.
 static const MCPhysReg GPRArgRegs[] = {
@@ -1483,9 +1483,10 @@ ARMTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   bool isStructRet    = (Outs.empty()) ? false : Outs[0].Flags.isSRet();
   bool isThisReturn   = false;
   bool isSibCall      = false;
+  auto Attr = MF.getFunction()->getFnAttribute("disable-tail-calls");
 
   // Disable tail calls if they're not supported.
-  if (!Subtarget->supportsTailCall() || MF.getTarget().Options.DisableTailCalls)
+  if (!Subtarget->supportsTailCall() || Attr.getValueAsString() == "true")
     isTailCall = false;
 
   if (isTailCall) {
@@ -2042,7 +2043,7 @@ ARMTargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
   // cannot rely on the linker replacing the tail call with a return.
   if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
     const GlobalValue *GV = G->getGlobal();
-    const Triple TT(getTargetMachine().getTargetTriple());
+    const Triple &TT = getTargetMachine().getTargetTriple();
     if (GV->hasExternalWeakLinkage() &&
         (!TT.isOSWindows() || TT.isOSBinFormatELF() || TT.isOSBinFormatMachO()))
       return false;
@@ -2375,7 +2376,9 @@ bool ARMTargetLowering::mayBeEmittedAsTailCall(CallInst *CI) const {
   if (!Subtarget->supportsTailCall())
     return false;
 
-  if (!CI->isTailCall() || getTargetMachine().Options.DisableTailCalls)
+  auto Attr =
+      CI->getParent()->getParent()->getFnAttribute("disable-tail-calls");
+  if (!CI->isTailCall() || Attr.getValueAsString() == "true")
     return false;
 
   return !Subtarget->isThumb1Only();
@@ -5060,6 +5063,30 @@ static bool isVZIP_v_undef_Mask(ArrayRef<int> M, EVT VT, unsigned &WhichResult){
   return true;
 }
 
+/// Check if \p ShuffleMask is a NEON two-result shuffle (VZIP, VUZP, VTRN),
+/// and return the corresponding ARMISD opcode if it is, or 0 if it isn't.
+static unsigned isNEONTwoResultShuffleMask(ArrayRef<int> ShuffleMask, EVT VT,
+                                           unsigned &WhichResult,
+                                           bool &isV_UNDEF) {
+  isV_UNDEF = false;
+  if (isVTRNMask(ShuffleMask, VT, WhichResult))
+    return ARMISD::VTRN;
+  if (isVUZPMask(ShuffleMask, VT, WhichResult))
+    return ARMISD::VUZP;
+  if (isVZIPMask(ShuffleMask, VT, WhichResult))
+    return ARMISD::VZIP;
+
+  isV_UNDEF = true;
+  if (isVTRN_v_undef_Mask(ShuffleMask, VT, WhichResult))
+    return ARMISD::VTRN;
+  if (isVUZP_v_undef_Mask(ShuffleMask, VT, WhichResult))
+    return ARMISD::VUZP;
+  if (isVZIP_v_undef_Mask(ShuffleMask, VT, WhichResult))
+    return ARMISD::VZIP;
+
+  return 0;
+}
+
 /// \return true if this is a reverse operation on an vector.
 static bool isReverseMask(ArrayRef<int> M, EVT VT) {
   unsigned NumElts = VT.getVectorNumElements();
@@ -5476,7 +5503,7 @@ ARMTargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &M,
       return true;
   }
 
-  bool ReverseVEXT;
+  bool ReverseVEXT, isV_UNDEF;
   unsigned Imm, WhichResult;
 
   unsigned EltSize = VT.getVectorElementType().getSizeInBits();
@@ -5487,12 +5514,7 @@ ARMTargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &M,
           isVREVMask(M, VT, 16) ||
           isVEXTMask(M, VT, ReverseVEXT, Imm) ||
           isVTBLMask(M, VT) ||
-          isVTRNMask(M, VT, WhichResult) ||
-          isVUZPMask(M, VT, WhichResult) ||
-          isVZIPMask(M, VT, WhichResult) ||
-          isVTRN_v_undef_Mask(M, VT, WhichResult) ||
-          isVUZP_v_undef_Mask(M, VT, WhichResult) ||
-          isVZIP_v_undef_Mask(M, VT, WhichResult) ||
+          isNEONTwoResultShuffleMask(M, VT, WhichResult, isV_UNDEF) ||
           ((VT == MVT::v8i16 || VT == MVT::v16i8) && isReverseMask(M, VT)));
 }
 
@@ -5684,25 +5706,53 @@ static SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) {
     // these operations, DAG memoization will ensure that a single node is
     // used for both shuffles.
     unsigned WhichResult;
-    if (isVTRNMask(ShuffleMask, VT, WhichResult))
-      return DAG.getNode(ARMISD::VTRN, dl, DAG.getVTList(VT, VT),
-                         V1, V2).getValue(WhichResult);
-    if (isVUZPMask(ShuffleMask, VT, WhichResult))
-      return DAG.getNode(ARMISD::VUZP, dl, DAG.getVTList(VT, VT),
-                         V1, V2).getValue(WhichResult);
-    if (isVZIPMask(ShuffleMask, VT, WhichResult))
-      return DAG.getNode(ARMISD::VZIP, dl, DAG.getVTList(VT, VT),
-                         V1, V2).getValue(WhichResult);
+    bool isV_UNDEF;
+    if (unsigned ShuffleOpc = isNEONTwoResultShuffleMask(
+            ShuffleMask, VT, WhichResult, isV_UNDEF)) {
+      if (isV_UNDEF)
+        V2 = V1;
+      return DAG.getNode(ShuffleOpc, dl, DAG.getVTList(VT, VT), V1, V2)
+          .getValue(WhichResult);
+    }
 
-    if (isVTRN_v_undef_Mask(ShuffleMask, VT, WhichResult))
-      return DAG.getNode(ARMISD::VTRN, dl, DAG.getVTList(VT, VT),
-                         V1, V1).getValue(WhichResult);
-    if (isVUZP_v_undef_Mask(ShuffleMask, VT, WhichResult))
-      return DAG.getNode(ARMISD::VUZP, dl, DAG.getVTList(VT, VT),
-                         V1, V1).getValue(WhichResult);
-    if (isVZIP_v_undef_Mask(ShuffleMask, VT, WhichResult))
-      return DAG.getNode(ARMISD::VZIP, dl, DAG.getVTList(VT, VT),
-                         V1, V1).getValue(WhichResult);
+    // Also check for these shuffles through CONCAT_VECTORS: we canonicalize
+    // shuffles that produce a result larger than their operands with:
+    //   shuffle(concat(v1, undef), concat(v2, undef))
+    // ->
+    //   shuffle(concat(v1, v2), undef)
+    // because we can access quad vectors (see PerformVECTOR_SHUFFLECombine).
+    //
+    // This is useful in the general case, but there are special cases where
+    // native shuffles produce larger results: the two-result ops.
+    //
+    // Look through the concat when lowering them:
+    //   shuffle(concat(v1, v2), undef)
+    // ->
+    //   concat(VZIP(v1, v2):0, :1)
+    //
+    if (V1->getOpcode() == ISD::CONCAT_VECTORS &&
+        V2->getOpcode() == ISD::UNDEF) {
+      SDValue SubV1 = V1->getOperand(0);
+      SDValue SubV2 = V1->getOperand(1);
+      EVT SubVT = SubV1.getValueType();
+
+      // We expect these to have been canonicalized to -1.
+      assert(std::all_of(ShuffleMask.begin(), ShuffleMask.end(), [&](int i) {
+        return i < (int)VT.getVectorNumElements();
+      }) && "Unexpected shuffle index into UNDEF operand!");
+
+      if (unsigned ShuffleOpc = isNEONTwoResultShuffleMask(
+              ShuffleMask, SubVT, WhichResult, isV_UNDEF)) {
+        if (isV_UNDEF)
+          SubV2 = SubV1;
+        assert((WhichResult == 0) &&
+               "In-place shuffle of concat can only have one result!");
+        SDValue Res = DAG.getNode(ShuffleOpc, dl, DAG.getVTList(SubVT, SubVT),
+                                  SubV1, SubV2);
+        return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, Res.getValue(0),
+                           Res.getValue(1));
+      }
+    }
   }
 
   // If the shuffle is not directly supported and it has 4 elements, use
