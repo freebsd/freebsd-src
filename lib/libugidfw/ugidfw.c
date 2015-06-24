@@ -505,7 +505,7 @@ truncated:
 	return (-1);
 }
 
-int
+static int
 bsde_parse_uidrange(char *spec, uid_t *min, uid_t *max,
     size_t buflen, char *errstr){
 	struct passwd *pwd;
@@ -554,7 +554,7 @@ bsde_parse_uidrange(char *spec, uid_t *min, uid_t *max,
 	return (0);
 }
 
-int
+static int
 bsde_parse_gidrange(char *spec, gid_t *min, gid_t *max,
     size_t buflen, char *errstr){
 	struct group *grp;
@@ -603,7 +603,7 @@ bsde_parse_gidrange(char *spec, gid_t *min, gid_t *max,
 	return (0);
 }
 
-int
+static int
 bsde_parse_subject(int argc, char *argv[],
     struct mac_bsdextended_subject *subject, size_t buflen, char *errstr)
 {
@@ -612,7 +612,7 @@ bsde_parse_subject(int argc, char *argv[],
 	char *endp;
 	uid_t uid_min, uid_max;
 	gid_t gid_min, gid_max;
-	int jid;
+	int jid = 0;
 	size_t len;
 	long value;
 
@@ -720,7 +720,7 @@ bsde_parse_subject(int argc, char *argv[],
 	return (0);
 }
 
-int
+static int
 bsde_parse_type(char *spec, int *type, size_t buflen, char *errstr)
 {
 	size_t len;
@@ -764,7 +764,7 @@ bsde_parse_type(char *spec, int *type, size_t buflen, char *errstr)
 	return (0);
 }
 
-int
+static int
 bsde_parse_fsid(char *spec, struct fsid *fsid, size_t buflen, char *errstr)
 {
 	size_t len;
@@ -781,15 +781,15 @@ bsde_parse_fsid(char *spec, struct fsid *fsid, size_t buflen, char *errstr)
 	return (0);
 }
 
-int
+static int
 bsde_parse_object(int argc, char *argv[],
     struct mac_bsdextended_object *object, size_t buflen, char *errstr)
 {
 	int not_seen, flags;
 	int current, neg, nextnot;
+	int type;
 	uid_t uid_min, uid_max;
 	gid_t gid_min, gid_max;
-	int type;
 	struct fsid fsid;
 	size_t len;
 
@@ -797,6 +797,7 @@ bsde_parse_object(int argc, char *argv[],
 	flags = 0;
 	neg = 0;
 	nextnot = 0;
+	type = 0;
 
 	if (strcmp("not", argv[current]) == 0) {
 		not_seen = 1;
@@ -1101,7 +1102,7 @@ bsde_get_mib(const char *string, int *name, size_t *namelen)
 	return (0);
 }
 
-int
+static int
 bsde_check_version(size_t buflen, char *errstr)
 {
 	size_t len;
