@@ -47,7 +47,7 @@ ENTRY(siglongjmp)
 	cmp	x2, x3
 	b.eq	_C_LABEL(_longjmp)
 	b	_C_LABEL(longjmp)
-.Lmagic:
 	.align	3
+.Lmagic:
 	.quad	_JB_MAGIC__SETJMP
 END(siglongjmp)
