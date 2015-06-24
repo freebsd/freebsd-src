@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.101 2014/12/12 16:48:39 christos Exp $
+# $File: Makefile.am,v 1.103 2015/03/17 15:15:12 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -42,6 +42,7 @@ $(MAGIC_FRAGMENT_DIR)/c-lang \
 $(MAGIC_FRAGMENT_DIR)/c64 \
 $(MAGIC_FRAGMENT_DIR)/cad \
 $(MAGIC_FRAGMENT_DIR)/cafebabe \
+$(MAGIC_FRAGMENT_DIR)/cbor \
 $(MAGIC_FRAGMENT_DIR)/cddb \
 $(MAGIC_FRAGMENT_DIR)/chord \
 $(MAGIC_FRAGMENT_DIR)/cisco \
@@ -160,6 +161,7 @@ $(MAGIC_FRAGMENT_DIR)/msx \
 $(MAGIC_FRAGMENT_DIR)/msvc \
 $(MAGIC_FRAGMENT_DIR)/mup \
 $(MAGIC_FRAGMENT_DIR)/music \
+$(MAGIC_FRAGMENT_DIR)/nasa \
 $(MAGIC_FRAGMENT_DIR)/natinst \
 $(MAGIC_FRAGMENT_DIR)/ncr \
 $(MAGIC_FRAGMENT_DIR)/neko \

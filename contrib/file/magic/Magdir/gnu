@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.15 2014/02/06 14:21:02 christos Exp $
+# $File: gnu,v 1.16 2015/04/19 22:59:25 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
@@ -79,5 +79,7 @@
 0	long	0x950412DE		GNU-format message catalog data
 
 # gettext message catalogue
-0	regex	\^msgid\ 		GNU gettext message catalogue text
+0	search/1024	\nmsgid
+>&0	search/1024	\nmsgstr	GNU gettext message catalogue text
+!:strength +100
 !:mime text/x-po
