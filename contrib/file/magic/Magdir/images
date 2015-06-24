@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.102 2015/01/02 02:36:35 christos Exp $
+# $File: images,v 1.106 2015/02/22 01:26:05 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -36,42 +36,48 @@
 # PBMPLUS images
 # The next byte following the magic is always whitespace.
 # strength is changed to try these patterns before "x86 boot sector"
+0	name		netpbm
+>3	regex/s		=[0-9]{1,50}\ [0-9]{1,50}	Netpbm PPM image data
+>>&0	regex		=[0-9]{1,50} 			\b, size = %s x
+>>>&0	regex		=[0-9]{1,50}			\b %s
+
 0	search/1	P1		
->3	regex		=[0-9]{0,50}\ [0-9]{0,50}		Netpbm PBM image text
->3	regex		=[0-9]{1,50}\ 		\b, size = %sx
->>3	regex		=\ [0-9]{1,50}	\b%s
+>0	use		netpbm
+>>0	string		x	\b, bitmap
 !:strength + 45
 !:mime	image/x-portable-bitmap
+
 0	search/1	P2		
->3	regex		=[0-9]{0,50}\ [0-9]{0,50}		Netpbm PGM image text
->3	regex		=[0-9]{1,50}\ 		\b, size = %sx
->>3	regex		=\ [0-9]{1,50}	\b%s
+>0	use		netpbm
+>>0	string		x	\b, greymap
 !:strength + 45
 !:mime	image/x-portable-greymap
+
 0	search/1	P3
->3	regex		=[0-9]{0,50}\ [0-9]{0,50}		Netpbm PPM image text
->3	regex		=[0-9]{1,50}\ 		\b, size = %sx
->>3	regex		=\ [0-9]{1,50}	\b%s
+>0	use		netpbm
+>>0	string		x	\b, pixmap
 !:strength + 45
 !:mime	image/x-portable-pixmap
+
+
 0	string		P4		
->3	regex		=[0-9]{0,50}\ [0-9]{0,50}		Netpbm PBM "rawbits" image data
->3	regex		=[0-9]{1,50}\ 		\b, size = %sx
->>3	regex		=\ [0-9]{1,50}	\b%s
+>0	use		netpbm
+>>0	string		x	\b, rawbits, bitmap
 !:strength + 45
 !:mime	image/x-portable-bitmap
+
 0	string		P5		
->3	regex		=[0-9]{0,50}\ [0-9]{0,50}		Netpbm PGM "rawbits" image data
->3	regex		=[0-9]{1,50}\ 		\b, size = %sx
->>3	regex		=\ [0-9]{1,50}	\b%s
+>0	use		netpbm
+>>0	string		x	\b, rawbits, greymap
 !:strength + 45
 !:mime	image/x-portable-greymap
+
 0	string		P6		
->3	regex		=[0-9]{0,50}\ [0-9]{0,50}		Netpbm PPM "rawbits" image data
->3	regex		=[0-9]{1,50}\ 		\b, size = %sx
->>3	regex		=\ [0-9]{1,50}	\b%s
+>0	use		netpbm
+>>0	string		x	\b, rawbits, pixmap
 !:strength + 45
 !:mime	image/x-portable-pixmap
+
 0	string		P7		Netpbm PAM image file
 !:mime	image/x-portable-pixmap
 
@@ -167,6 +173,7 @@
 >>>>8	leshort		x		\b(unknown 0x%x)
 >>>12	use		tiff_entry
 >0	leshort		0x106		\b, PhotometricIntepretation=
+>>8	clear		x
 >>8	leshort		0		\bWhiteIsZero
 >>8	leshort		1		\bBlackIsZero
 >>8	leshort		2		\bRGB
@@ -175,6 +182,7 @@
 >>8	leshort		5		\bCMYK
 >>8	leshort		6		\bYCbCr
 >>8	leshort		8		\bCIELab
+>>8	default		x
 >>>8	leshort		x		\b(unknown=0x%x)
 >>12	use		tiff_entry
 # FillOrder
@@ -678,7 +686,26 @@
 >25	string	>\0	dated %.14s
 
 # GEM Image: Version 1, Headerlen 8 (Wolfram Kleff)
-0	belong		0x00010008	GEM Image data
+# Format variations from: Bernd Nuernberger <bernd.nuernberger@web.de>
+# See http://fileformats.archiveteam.org/wiki/GEM_Raster
+# For variations, also see:
+#    http://www.seasip.info/Gem/ff_img.html (Ventura) 
+#    http://www.atari-wiki.com/?title=IMG_file (XIMG, STTT)
+#    http://www.fileformat.info/format/gemraster/spec/index.htm (XIMG, STTT)
+#    http://sylvana.net/1stguide/1STGUIDE.ENG (TIMG)
+0       beshort     0x0001
+>2      beshort     0x0008      GEM Image data
+>>0     use gem_info
+>2      beshort     0x0009      GEM Image data (Ventura)
+>>0     use gem_info
+16      string      XIMG\0      GEM XIMG Image data
+>0      use gem_info
+16      string      STTT\0\x10  GEM STTT Image data 
+>0      use gem_info
+16      string      TIMG\0      GEM TIMG Image data
+>0      use gem_info
+
+0   name        gem_info
 >12	beshort		x		%d x
 >14	beshort		x		%d,
 >4	beshort		x		%d planes,
@@ -1035,11 +1062,6 @@
 # Not really an image.
 # From: "Tano M. Fotang" <mfotang@quanteq.com>
 0	string	\x46\x4d\x52\x00	ISO/IEC 19794-2 Format Minutiae Record (FMR)
-
-# WEBP https://developers.google.com/speed/webp/docs/riff_container
-#0	string	RIFF
-#>8	string	WEBP	Web/P image data
-#>>4	lelong	x	\b, %d bytes
 
 # doc: http://www.shikino.co.jp/eng/products/images/FLOWER.jpg.zip
 # example: http://www.shikino.co.jp/eng/products/images/FLOWER.wdp.zip
