@@ -130,6 +130,17 @@ struct socket {
 	uint32_t so_user_cookie;
 };
 
+struct socket_iocgroup {
+	char	soiocg_group;
+	int	(*soiocg_ioctl)(struct socket *, u_long, caddr_t,
+		    struct thread *);
+	struct	socket_iocgroup *soiocg_next;
+};
+
+#define	SO_IOCGROUP_SET(name)						\
+	SYSINIT(so_iocgroup_add_ ## name, SI_SUB_PROTO_DOMAIN,		\
+	    SI_ORDER_FIRST, so_iocgroup_add, & name ## iocgroup)
+
 /*
  * Global accept mutex to serialize access to accept queues and
  * fields associated with multiple sockets.  This allows us to
@@ -333,6 +344,8 @@ struct uio;
 /* Return values for socket upcalls. */
 #define	SU_OK		0
 #define	SU_ISCONNECTED	1
+
+void	so_iocgroup_add(void *);
 
 /*
  * From uipc_socket and friends

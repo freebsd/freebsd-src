@@ -120,6 +120,12 @@ SYSCTL_UINT(_net, OID_AUTO, ifdescr_maxlen, CTLFLAG_RW,
 
 static MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
 
+static struct socket_iocgroup ifiocgroup = {
+	.soiocg_group = 'i',
+	.soiocg_ioctl = ifioctl
+};
+SO_IOCGROUP_SET(if);
+
 /* global sx for non-critical path ifdescr */
 static struct sx ifdescr_sx;
 SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
