@@ -93,10 +93,12 @@ static void
 g_uzip_softc_free(struct g_uzip_softc *sc, struct g_geom *gp)
 {
 
+#ifdef VERBOSE
 	if (gp != NULL) {
 		printf("%s: %d requests, %d cached\n",
 		    gp->name, sc->req_total, sc->req_cached);
 	}
+#endif
 	if (sc->offsets != NULL) {
 		free(sc->offsets, M_GEOM_UZIP);
 		sc->offsets = NULL;
@@ -337,6 +339,27 @@ g_uzip_start(struct bio *bp)
 	sc = gp->softc;
 	sc->req_total++;
 
+	if (bp->bio_cmd == BIO_GETATTR) {
+		struct bio *bp2;
+		struct g_consumer *cp;
+		struct g_geom *gp;
+		struct g_provider *pp;
+
+		/* pass on MNT:* requests and ignore others */
+		if (strncmp(bp->bio_attribute, "MNT:", 4) == 0) {
+			bp2 = g_clone_bio(bp);
+			if (bp2 == NULL) {
+				g_io_deliver(bp, ENOMEM);
+				return;
+			}
+			bp2->bio_done = g_std_done;
+			pp = bp->bio_to;
+			gp = pp->geom;
+			cp = LIST_FIRST(&gp->consumer);
+			g_io_request(bp2, cp);
+			return;
+		}
+	}
 	if (bp->bio_cmd != BIO_READ) {
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -519,7 +542,9 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	    gp->name,
 	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
+#ifdef VERBOSE
 	printf("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz);
+#endif
 	return (gp);
 
 err:
