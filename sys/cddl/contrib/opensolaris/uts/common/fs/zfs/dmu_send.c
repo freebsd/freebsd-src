@@ -730,6 +730,10 @@ dmu_send_estimate(dsl_dataset_t *ds, dsl_dataset_t *fromds, uint64_t *sizep)
 	if (!dsl_dataset_is_snapshot(ds))
 		return (SET_ERROR(EINVAL));
 
+	/* fromsnap, if provided, must be a snapshot */
+	if (fromds != NULL && !dsl_dataset_is_snapshot(fromds))
+		return (SET_ERROR(EINVAL));
+
 	/*
 	 * fromsnap must be an earlier snapshot from the same fs as tosnap,
 	 * or the origin's fs.
