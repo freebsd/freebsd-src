@@ -308,14 +308,14 @@ imgact_binmisc_disable_entry(char *name)
 {
 	imgact_binmisc_entry_t *ibe;
 
-	sx_slock(&interp_list_sx);
+	sx_xlock(&interp_list_sx);
 	if ((ibe = imgact_binmisc_find_entry(name)) == NULL) {
-		sx_sunlock(&interp_list_sx);
+		sx_xunlock(&interp_list_sx);
 		return (ENOENT);
 	}
 
-	atomic_clear_32(&ibe->ibe_flags, IBF_ENABLED);
-	sx_sunlock(&interp_list_sx);
+	ibe->ibe_flags &= ~IBF_ENABLED;
+	sx_xunlock(&interp_list_sx);
 
 	return (0);
 }
@@ -329,14 +329,14 @@ imgact_binmisc_enable_entry(char *name)
 {
 	imgact_binmisc_entry_t *ibe;
 
-	sx_slock(&interp_list_sx);
+	sx_xlock(&interp_list_sx);
 	if ((ibe = imgact_binmisc_find_entry(name)) == NULL) {
-		sx_sunlock(&interp_list_sx);
+		sx_xunlock(&interp_list_sx);
 		return (ENOENT);
 	}
 
-	atomic_set_32(&ibe->ibe_flags, IBF_ENABLED);
-	sx_sunlock(&interp_list_sx);
+	ibe->ibe_flags |= IBF_ENABLED;
+	sx_xunlock(&interp_list_sx);
 
 	return (0);
 }
