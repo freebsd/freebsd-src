@@ -3254,6 +3254,7 @@ libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_cdnr.c		optional altq
 net/altq/altq_hfsc.c		optional altq
+net/altq/altq_fairq.c		optional altq
 net/altq/altq_priq.c		optional altq
 net/altq/altq_red.c		optional altq
 net/altq/altq_rio.c		optional altq
