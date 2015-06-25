@@ -972,6 +972,9 @@
       <para revision="283766">The &man.ig4.4; driver has been added,
 	providing support for the fourth generation &intel;
 	<acronym>I2C</acronym> SMBus.</para>
+
+      <para>The &man.uart.4; driver has been updated to support
+	<acronym>AMT</acronym> devices on newer systems.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
