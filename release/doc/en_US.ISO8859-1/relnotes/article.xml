@@ -569,6 +569,13 @@
 
       <para revision="281845">Support for file verification in
 	<acronym>MAC</acronym> has been added.</para>
+
+      <para revision="282973" contrib="sponsor" sponsor="&ff;">The
+	<literal>libgomp</literal> library is now only built when
+	building <acronym>GCC</acronym> from the base system.  An
+	up-to-date version is available in the Ports Collection as
+	<filename
+	  role="package">devel/libiomp5-devel</filename>.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
