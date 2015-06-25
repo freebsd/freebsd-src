@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150624:
+	An additional fix for the issue described in the 20150614 sendmail
+	entry below has been been committed in revision 284786.
+
 20150615:
 	The fix for the issue described in the 20150614 sendmail entry
 	below has been been committed in revision 284485.  The work
