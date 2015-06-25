@@ -742,8 +742,8 @@ fairq_pollq(struct fairq_class *cl, uint64_t cur_time, int *hit_limit)
 		if (bw > cl->cl_bandwidth)
 			*hit_limit = 1;
 #ifdef ALTQ_DEBUG
-		printf("BW %6lld relative to %6u %d queue %p\n",
-			bw, cl->cl_bandwidth, *hit_limit, b);
+		printf("BW %6ju relative to %6u %d queue %p\n",
+			(uintmax_t)bw, cl->cl_bandwidth, *hit_limit, b);
 #endif
 	}
 	return(m);
