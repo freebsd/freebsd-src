@@ -371,6 +371,10 @@
 	    acquisition are now reported.</para>
 	</listitem>
       </itemizedlist>
+
+      <para revision="284483" contrib="sponsor"
+	sponsor="&scaleenegine;">The Blowfish &man.crypt.3; library
+	has been updated to support &dollar;2y&dollar; hashes.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
