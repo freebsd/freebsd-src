@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150624:
+	An additional fix for the issue described in the 20150615 sendmail
+	entry below has been been committed in revision 284788.
+
 20150615:
 	The latest version of openssl rejects TLS handshakes with DH
 	parameters below 768 bits.  sendmail releases prior to 8.15.2
