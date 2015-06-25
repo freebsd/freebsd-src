@@ -458,6 +458,10 @@
 	loading the kernel.  To enable this behavior, add
 	<literal>geom_eli_passphrase_prompt="YES"</literal> to
 	&man.loader.conf.5;.</para>
+
+      <para revision="283262" contrib="sponsor" sponsor="&ff;">The
+	memory test run at boot time on &os;/&arch.amd64; platforms
+	has been disabled by default.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
