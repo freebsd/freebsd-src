@@ -848,15 +848,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
 			}
 
-			if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(periph->path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-				atio->ccb_h.status &= ~CAM_DEV_QFRZN;
-			}
-
 			if (atio->ccb_h.func_code != XPT_ACCEPT_TARGET_IO) {
 				xpt_print(periph->path, "%s: func_code "
 					  "is %#x\n", __func__,
@@ -965,15 +956,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	cam_periph_unlock(periph);
 	xpt_action(start_ccb);
 	cam_periph_lock(periph);
-
-	if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-		cam_release_devq(periph->path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-		atio->ccb_h.status &= ~CAM_DEV_QFRZN;
-	}
 
 	/*
 	 * If we still have work to do, ask for another CCB.
@@ -1106,6 +1088,19 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	printf("%s: entered, func_code = %#x\n", __func__,
 	       done_ccb->ccb_h.func_code);
 #endif
+
+	/*
+	 * At this point CTL has no known use case for device queue freezes.
+	 * In case some SIM think different -- drop its freeze right here.
+	 */
+	if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+		cam_release_devq(periph->path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+		done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+	}
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 	bus_softc = softc->parent_softc;
@@ -1417,12 +1412,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		union ctl_io *io;
 		struct ccb_immediate_notify *inot;
 		cam_status status;
-		int frozen, send_ctl_io;
+		int send_ctl_io;
 
 		inot = &done_ccb->cin1;
-
-		frozen = (done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0;
-
 		printf("%s: got XPT_IMMEDIATE_NOTIFY status %#x tag %#x "
 		       "seq %#x\n", __func__, inot->ccb_h.status,
 		       inot->tag_id, inot->seq_id);
@@ -1523,14 +1515,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			done_ccb->ccb_h.status = CAM_REQ_INPROG;
 			done_ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
 			xpt_action(done_ccb);
-		}
-
-		if (frozen != 0) {
-			cam_release_devq(periph->path,
-					 /*relsim_flags*/ 0,
-					 /*opening reduction*/ 0,
-					 /*timeout*/ 0,
-					 /*getcount_only*/ 0);
 		}
 		break;
 	}
