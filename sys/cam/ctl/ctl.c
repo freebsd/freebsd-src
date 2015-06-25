@@ -9452,11 +9452,16 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	well_known = 0;
 
 	cdb = (struct scsi_report_luns *)ctsio->cdb;
+	port = ctl_io_port(&ctsio->io_hdr);
 
 	CTL_DEBUG_PRINT(("ctl_report_luns\n"));
 
 	mtx_lock(&softc->ctl_lock);
-	num_luns = softc->num_luns;
+	num_luns = 0;
+	for (targ_lun_id = 0; targ_lun_id < CTL_MAX_LUNS; targ_lun_id++) {
+		if (ctl_lun_map_from_port(port, targ_lun_id) < CTL_MAX_LUNS)
+			num_luns++;
+	}
 	mtx_unlock(&softc->ctl_lock);
 
 	switch (cdb->select_report) {
@@ -9499,7 +9504,6 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 
 	request_lun = (struct ctl_lun *)
 		ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	port = ctl_io_port(&ctsio->io_hdr);
 
 	lun_datalen = sizeof(*lun_data) +
 		(num_luns * sizeof(struct scsi_report_luns_lundata));
