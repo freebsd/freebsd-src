@@ -27,32 +27,28 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <limits.h>
 #include <math.h>
 
-double
-scalbln (double x, long n)
-{
-	int in;
+#define	NMAX	65536
+#define	NMIN	-65536
 
-	in = (n > INT_MAX) ? INT_MAX : (n < INT_MIN) ? INT_MIN : n;
-	return (scalbn(x, in));
+double
+scalbln(double x, long n)
+{
+
+	return (scalbn(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
 }
 
 float
-scalblnf (float x, long n)
+scalblnf(float x, long n)
 {
-	int in;
 
-	in = (n > INT_MAX) ? INT_MAX : (n < INT_MIN) ? INT_MIN : n;
-	return (scalbnf(x, in));
+	return (scalbnf(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
 }
 
 long double
-scalblnl (long double x, long n)
+scalblnl(long double x, long n)
 {
-	int in;
 
-	in = (n > INT_MAX) ? INT_MAX : (n < INT_MIN) ? INT_MIN : n; 
-	return (scalbnl(x, in));
+	return (scalbnl(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
 }
