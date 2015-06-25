@@ -5,7 +5,7 @@
 #
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wundef -Wno-pointer-sign -fformat-extensions \
+		-Wundef -Wno-pointer-sign \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
 		${CWARNEXTRA}
 MK_CLANG_IS_CC ?= no
