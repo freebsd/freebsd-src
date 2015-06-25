@@ -703,6 +703,19 @@
 	&man.rctl.8; with the <literal>GENERIC</literal> kernel.
 	A new kernel configuration option,
 	<literal>RACCT_DISABLED</literal> has also been added.</para>
+
+      <para revision="282901" contrib="sponsor" sponsor="&ff;">The
+	<literal>GENERIC</literal> kernel configuration now includes
+	<literal>RACCT</literal> and <literal>RCTL</literal> by
+	default.</para>
+
+      <note>
+	<para>To enable <literal>RACCT</literal> and
+	  <literal>RCTL</literal> on a system using the
+	  <literal>GENERIC</literal> kernel configuration, add
+	  <literal>kern.racct.enable=1</literal> to
+	  &man.loader.conf.5;, and reboot the system.</para>
+      </note>
     </sect2>
   </sect1>
 
