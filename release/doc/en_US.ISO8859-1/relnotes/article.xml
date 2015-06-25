@@ -687,6 +687,16 @@
 	arch="powerpc">The &man.pmap.9; implementation for 64-bit
 	&powerpc; processors has been overhaulded to improve
 	concurrency.</para>
+
+      <para revision="283959" contrib="sponsor"
+	sponsor="&limelight;">A new kernel configuration option,
+	<literal>EM_MULTIQUEUE</literal>, has been added which enables
+	multi-queue support in the &man.em.4; driver.</para>
+
+      <note>
+	<para>Multi-queue support in the &man.em.4; driver is not
+	  officially supported by &intel;.</para>
+      </note>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
