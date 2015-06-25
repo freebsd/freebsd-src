@@ -191,6 +191,9 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
+.if ${MFS_IMAGE:Uno} != "no"
+SYSTEM_OBJS+= embedfs_${MFS_IMAGE:T:R}.o
+.endif
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} --no-warn-mismatch \
 	--warn-common --export-dynamic --dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -214,6 +217,15 @@ MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
+
+# Architecture format argument for objdump to convert image to object file
+EMBEDFS_FORMAT.i386?=		elf32-i386-freebsd
+EMBEDFS_FORMAT.amd64?=		elf64-x86-64-freebsd
+EMBEDFS_FORMAT.arm?=		elf32-littlearm
+EMBEDFS_FORMAT.powerpc?=	elf32-powerpc
+
+EMBEDFS_ARCH.amd64?=		i386
+EMBEDFS_ARCH.${MACHINE_ARCH}?=	${MACHINE_ARCH}
 
 # Detect kernel config options that force stack frames to be turned on.
 DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
