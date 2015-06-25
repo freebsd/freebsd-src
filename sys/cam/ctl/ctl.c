@@ -4537,7 +4537,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	      struct ctl_be_lun *const be_lun, struct ctl_id target_id)
 {
 	struct ctl_lun *nlun, *lun;
-	struct ctl_port *port;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
 	const char *eui, *naa, *scsiname, *vendor, *value;
@@ -4767,24 +4766,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	mtx_unlock(&ctl_softc->ctl_lock);
 
 	lun->be_lun->lun_config_status(lun->be_lun->be_lun, CTL_LUN_CONFIG_OK);
-
-	/*
-	 * Run through each registered FETD and bring it online if it isn't
-	 * already.  Enable the target ID if it hasn't been enabled, and
-	 * enable this particular LUN.
-	 */
-	STAILQ_FOREACH(port, &ctl_softc->port_list, links) {
-		int retval;
-
-		retval = port->lun_enable(port->targ_lun_arg, target_id,lun_number);
-		if (retval != 0) {
-			printf("ctl_alloc_lun: FETD %s port %d returned error "
-			       "%d for lun_enable on target %ju lun %d\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)target_id.id, lun_number);
-		} else
-			port->status |= CTL_PORT_STATUS_LUN_ONLINE;
-	}
 	return (0);
 }
 
@@ -4819,58 +4800,6 @@ ctl_free_lun(struct ctl_lun *lun)
 		panic("Freeing a LUN %p with outstanding I/O!!\n", lun);
 
 	softc->num_luns--;
-
-	/*
-	 * XXX KDM this scheme only works for a single target/multiple LUN
-	 * setup.  It needs to be revamped for a multiple target scheme.
-	 *
-	 * XXX KDM this results in port->lun_disable() getting called twice,
-	 * once when ctl_disable_lun() is called, and a second time here.
-	 * We really need to re-think the LUN disable semantics.  There
-	 * should probably be several steps/levels to LUN removal:
-	 *  - disable
-	 *  - invalidate
-	 *  - free
- 	 *
-	 * Right now we only have a disable method when communicating to
-	 * the front end ports, at least for individual LUNs.
-	 */
-#if 0
-	STAILQ_FOREACH(port, &softc->port_list, links) {
-		int retval;
-
-		retval = port->lun_disable(port->targ_lun_arg, lun->target,
-					 lun->lun);
-		if (retval != 0) {
-			printf("ctl_free_lun: FETD %s port %d returned error "
-			       "%d for lun_disable on target %ju lun %jd\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
-		}
-
-		if (STAILQ_FIRST(&softc->lun_list) == NULL) {
-			port->status &= ~CTL_PORT_STATUS_LUN_ONLINE;
-
-			retval = port->targ_disable(port->targ_lun_arg,lun->target);
-			if (retval != 0) {
-				printf("ctl_free_lun: FETD %s port %d "
-				       "returned error %d for targ_disable on "
-				       "target %ju\n", port->port_name,
-				       port->targ_port, retval,
-				       (uintmax_t)lun->target.id);
-			} else
-				port->status &= ~CTL_PORT_STATUS_TARG_ONLINE;
-
-			if ((port->status & CTL_PORT_STATUS_TARG_ONLINE) != 0)
-				continue;
-
-#if 0
-			port->port_offline(port->onoff_arg);
-			port->status &= ~CTL_PORT_STATUS_ONLINE;
-#endif
-		}
-	}
-#endif
 
 	/*
 	 * Tell the backend to free resources, if this LUN has a backend.
@@ -4966,12 +4895,6 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 			       __func__, port->port_name, port->targ_port, retval,
 			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
 		}
-#if 0
-		 else {
-            /* NOTE:  TODO:  why does lun enable affect port status? */
-			port->status |= CTL_PORT_STATUS_LUN_ONLINE;
-		}
-#endif
 	}
 
 	mtx_unlock(&softc->ctl_lock);
