@@ -148,6 +148,13 @@
 	<entry><para>Router advertisement Denial of
 	    Service</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:10.openssl.asc">FreeBSD-SA-15:10.openssl</link></entry>
+	<entry>16&nbsp;June&nbsp;2015</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
