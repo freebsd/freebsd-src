@@ -444,9 +444,6 @@
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
 
-      <para revision="280297"><application>OpenSSL</application> has
-	been updated to version 1.0.1m.</para>
-
       <para revision="280932" contrib="sponsor" sponsor="&ff;">The
 	<application>elftoolchain</application> utilities have been
 	updated to version 3179.</para>
@@ -473,6 +470,9 @@
 
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
+
+      <para revision="284329"><application>OpenSSL</application> has
+	been updated to version 1.0.1o.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
