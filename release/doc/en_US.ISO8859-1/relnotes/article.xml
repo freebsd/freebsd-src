@@ -212,6 +212,12 @@
 
       <para revision="282974" contrib="sponsor" sponsor="&ff;">The
 	&man.uefisign.8; utility has been added.</para>
+
+      <para revision="283875" contrib="sponsor"
+	sponsor="&multiplay;">The &man.chflags.1;, &man.chgrp.1;,
+	&man.chmod.1;, and &man.chown.8; utilities now affect symbolic
+	links when the <literal>-R</literal> flag is specified, as
+	documented in &man.symlink.7;.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
