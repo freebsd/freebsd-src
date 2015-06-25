@@ -1052,6 +1052,10 @@
 
       <para revision="282274">Support for &man.xen.4; para-virtualized
 	<literal>domU</literal> kernels has been removed.</para>
+
+      <para revision="284746" contrib="sponsor" sponsor="&msostc;">The
+	&man.hv.netvsc.4; driver has been updated to support checksum
+	offloading and <acronym>TSO</acronym>.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
