@@ -209,6 +209,9 @@
 	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
 	been updated to prevent fetching updated binary patches when
 	a previous upgrade has not been thoroughly completed.</para>
+
+      <para revision="282974" contrib="sponsor" sponsor="&ff;">The
+	&man.uefisign.8; utility has been added.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
