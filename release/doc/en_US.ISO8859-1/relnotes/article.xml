@@ -361,6 +361,27 @@
       <para revision="280370">The &man.bhyve.8; hypervisor has been
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
+
+      <para revision="283280" contrib="sponsor" sponsor="&msostc;">The
+	Hyper-V&trade; drivers have been updated with several
+	enhancements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The &man.hv.vmbus.4; driver now has multi-channel
+	    support.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &man.hv.storvsc.4; driver now has scatter/gather
+	    support, in addition to performance improvements.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &man.hv.kvp.4; driver has received several bug
+	    fixes.</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
