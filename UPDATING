@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150623:
+	An additional fix for the issue described in the 20150614 sendmail
+	entry below has been been committed in revision 284717.
+
 20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
 	available as the devel/fmake port or via pkg install fmake.
