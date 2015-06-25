@@ -217,6 +217,10 @@
 
       <para revision="281687">The &man.acpi.4; subsystem has been
 	updated to version 20150410.</para>
+
+      <para revision="282746" contrib="sponsor" sponsor="&ff;">The
+	&man.resolvconf.8; utility has been updated to version
+	3.7.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
