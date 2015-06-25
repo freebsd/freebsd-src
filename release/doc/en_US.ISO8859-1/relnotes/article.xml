@@ -874,6 +874,10 @@
 	&man.gre.4; driver has been significantly overhauled, and has
 	been split into two separate modules, &man.gre.4; and
 	&man.me.4;.</para>
+
+      <para revision="283766" contrib="sponsor"
+	sponsor="&limelight;">The &man.em.4; driver has been updated
+	with improved transmission queue hang detection.</para>
     </sect2>
   </sect1>
 
