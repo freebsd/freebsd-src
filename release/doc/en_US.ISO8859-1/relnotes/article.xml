@@ -728,6 +728,13 @@
 	  <literal>kern.racct.enable=1</literal> to
 	  &man.loader.conf.5;, and reboot the system.</para>
       </note>
+
+      <para revision="283136" contrib="sponsor"
+	sponsor="&limelight;">A new &man.sysctl.8;,
+	<literal>net.inet.tcp.hostcache.purgenow</literal>, has
+	been added, which when set to <literal>1</literal> during
+	runtime will flush all
+	<literal>net.inet.tcp.hostcache</literal> entries.</para>
     </sect2>
   </sect1>
 
