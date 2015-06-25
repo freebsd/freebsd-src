@@ -322,7 +322,7 @@ __ldexp_cexpl(long double complex z, int expt)
 	scale2 = 1;
 	SET_LDBL_EXPSIGN(scale1, BIAS + expt - half_expt);
 
-	return (cpackl(cos(y) * exp_x * scale1 * scale2,
+	return (CMPLXL(cos(y) * exp_x * scale1 * scale2,
 	    sinl(y) * exp_x * scale1 * scale2));
 }
 #endif /* _COMPLEX_H */
