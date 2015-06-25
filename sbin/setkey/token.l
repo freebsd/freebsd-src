@@ -159,7 +159,7 @@ tcp		{ yylval.num = 0; return(PR_TCP); }
 {hyphen}E	{ BEGIN S_ENCALG; return(F_ENC); }
 <S_ENCALG>des-cbc	{ yylval.num = SADB_EALG_DESCBC; BEGIN INITIAL; return(ALG_ENC); }
 <S_ENCALG>3des-cbc	{ yylval.num = SADB_EALG_3DESCBC; BEGIN INITIAL; return(ALG_ENC); }
-<S_ENCALG>null		{ yylval.num = SADB_EALG_NULL; BEGIN INITIAL; return(ALG_ENC_NOKEY); }
+<S_ENCALG>null		{ yylval.num = SADB_EALG_NULL; BEGIN INITIAL; return(ALG_ENC); }
 <S_ENCALG>simple	{ yylval.num = SADB_EALG_NULL; BEGIN INITIAL; return(ALG_ENC_OLD); }
 <S_ENCALG>blowfish-cbc	{ yylval.num = SADB_X_EALG_BLOWFISHCBC; BEGIN INITIAL; return(ALG_ENC); }
 <S_ENCALG>cast128-cbc	{ yylval.num = SADB_X_EALG_CAST128CBC; BEGIN INITIAL; return(ALG_ENC); }
