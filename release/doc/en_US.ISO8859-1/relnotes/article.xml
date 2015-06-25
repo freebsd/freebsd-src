@@ -744,6 +744,10 @@
 
       <para revision="280183">The <literal>drm</literal> code has
 	been updated to match &linux; version 3.8.13.</para>
+
+      <para revision="282783" arch="powerpc">Support for the Freescale
+	<acronym>PCI</acronym> Root Complex device has been
+	added.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
