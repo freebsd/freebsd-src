@@ -64,6 +64,27 @@
 	<entry><para>Deadlock on reboot with UFS tuned with
 	    SU+J</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:06.file.asc">FreeBSD-EN-15:06.file</link></entry>
+	<entry>9&nbsp;June&nbsp;2015</entry>
+	<entry><para>Multiple denial of service issues</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:07.zfs.asc">FreeBSD-EN-15:07.zfs</link></entry>
+	<entry>9&nbsp;June&nbsp;2015</entry>
+	<entry><para>ZFS reliability improvements</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:08.sendmail.asc">FreeBSD-EN-15:08.sendmail</link></entry>
+	<entry>18&nbsp;June&nbsp;2015</entry>
+	<entry><para>Sendmail TLS/DH interoperability improvement</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
