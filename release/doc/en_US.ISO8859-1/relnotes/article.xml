@@ -390,6 +390,13 @@
       <para revision="279055" contrib="sponsor" sponsor="&ix;">The
 	&man.ctld.8; utility has been updated to allow controlling
 	non-<acronym>iSCSI</acronym> &man.ctl.4; ports.</para>
+
+      <para revision="283223" contrib="sponsor" sponsor="&ff;">The
+	&man.autofs.5; subsystem has been updated to include a new
+	&man.auto.master.5; map, <literal>-media</literal>, which
+	allows automatically mounting removable media, such as
+	<acronym>CD</acronym> drives or <acronym>USB</acronym> flash
+	drives.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
