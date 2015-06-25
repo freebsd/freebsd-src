@@ -1114,6 +1114,12 @@
 	allows automatically mounting removable media, such as
 	<acronym>CD</acronym> drives or <acronym>USB</acronym> flash
 	drives.</para>
+
+      <para revision="279955" contrib="sponsor" sponsor="&ff;">The
+	&man.autofs.5; subsystem has been updated to include a new
+	&man.auto.master.5; map, <literal>-noauto</literal>, which
+	handles &man.fstab.5; entries set to
+	<literal>noauto</literal>.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
