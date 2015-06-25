@@ -291,7 +291,15 @@
     <sect2 xml:id="kernel-config">
       <title>Kernel Configuration</title>
 
-      <para>&nbsp;</para>
+      <para revision="284522" contrib="sponsor"
+	sponsor="&limelight;">A new kernel configuration option,
+	<literal>EM_MULTIQUEUE</literal>, has been added which enables
+	multi-queue support in the &man.em.4; driver.</para>
+
+      <note>
+	<para>Multi-queue support in the &man.em.4; driver is not
+	  officially supported by &intel;.</para>
+      </note>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
