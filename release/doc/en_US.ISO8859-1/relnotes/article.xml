@@ -345,6 +345,32 @@
 	would cause final results to be sent to &man.stderr.4; when
 	receiving the <literal>SIGINFO</literal> signal has been
 	fixed.</para>
+
+      <para revision="284297" contrib="sponsor"
+	sponsor="&clusterhq;">The &man.lockstat.1; utility has been
+	updated with several improvements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Spin locks are now reported as the amount of time
+	    spinning, instead of loop iterations.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Reader locks are now recognized as adaptive and can
+	    spin on &os;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Lock aquisition events for successful reader try-lock
+	    events are now reported.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Spin-and-block events that occur before lock
+	    acquisition are now reported.</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
