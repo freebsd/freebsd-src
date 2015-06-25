@@ -367,6 +367,11 @@
 	    acquisition are now reported.</para>
 	</listitem>
       </itemizedlist>
+
+      <para revision="284589" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.fstyp.8; utility has been
+	updated to be able to detect &man.zfs.8; and &man.geli.8;
+	filesystems.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
