@@ -90,7 +90,7 @@ struct racct;
  * Locking guide:
  * (a) Constant from inception
  * (b) Lockless, updated using atomics
- * (c) Locked by global uihashtbl_mtx
+ * (c) Locked by global uihashtbl_lock
  * (d) Locked by the ui_vmsize_mtx
  */
 struct uidinfo {
