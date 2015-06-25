@@ -919,6 +919,10 @@
 	updated to include <literal>AES-ICM</literal> and
 	<literal>AES-GCM</literal> modes, both of which have also been
 	added to the &man.aesni.4; driver.</para>
+
+      <para revision="283766">The &man.ig4.4; driver has been added,
+	providing support for the fourth generation &intel;
+	<acronym>I2C</acronym> SMBus.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
