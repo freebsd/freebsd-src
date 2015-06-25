@@ -2914,6 +2914,14 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 		atp = isp_find_atpd(isp, tptr, ((ct_entry_t *)arg)->ct_fwhandle);
 	}
 	if (atp == NULL) {
+		/*
+		 * In case of target mode disable at least ISP2532 return
+		 * invalid zero ct_rxid value.  Try to workaround that using
+		 * tag_id from the CCB, pointed by valid ct_syshandle.
+		 */
+		atp = isp_find_atpd(isp, tptr, ccb->csio.tag_id);
+	}
+	if (atp == NULL) {
 		rls_lun_statep(isp, tptr);
 		isp_prt(isp, ISP_LOGERR, "%s: cannot find adjunct for %x after I/O", __func__, ccb->csio.tag_id);
 		return;
