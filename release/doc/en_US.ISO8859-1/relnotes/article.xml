@@ -576,6 +576,11 @@
 	up-to-date version is available in the Ports Collection as
 	<filename
 	  role="package">devel/libiomp5-devel</filename>.</para>
+
+      <para revision="282988">The <filename>stdlib.h</filename> and
+	<filename>malloc.h</filename> headers have been updated to
+	make use of the <application>gcc</application>
+	<literal>alloc_align()</literal> attribute.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
