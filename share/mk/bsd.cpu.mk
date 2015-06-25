@@ -6,18 +6,18 @@
 
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 _CPUCFLAGS =
-. if ${MACHINE_CPUARCH} == "i386"
-MACHINE_CPU = i486
-. elif ${MACHINE_CPUARCH} == "amd64"
+. if ${MACHINE_CPUARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse mmx
+. elif ${MACHINE_CPUARCH} == "arm"
+MACHINE_CPU = arm
+. elif ${MACHINE_CPUARCH} == "i386"
+MACHINE_CPU = i486
+. elif ${MACHINE_CPUARCH} == "mips"
+MACHINE_CPU = mips
 . elif ${MACHINE_CPUARCH} == "powerpc"
 MACHINE_CPU = aim
 . elif ${MACHINE_CPUARCH} == "sparc64"
 MACHINE_CPU = ultrasparc
-. elif ${MACHINE_CPUARCH} == "arm"
-MACHINE_CPU = arm
-. elif ${MACHINE_CPUARCH} == "mips"
-MACHINE_CPU = mips
 . endif
 .else
 
