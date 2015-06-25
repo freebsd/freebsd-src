@@ -204,6 +204,11 @@
 	would cause final results to be sent to &man.stderr.4; when
 	receiving the <literal>SIGINFO</literal> signal has been
 	fixed.</para>
+
+      <para revision="282870" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
+	been updated to prevent fetching updated binary patches when
+	a previous upgrade has not been thoroughly completed.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
