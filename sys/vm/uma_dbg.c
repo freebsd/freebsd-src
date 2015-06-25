@@ -69,8 +69,13 @@ trash_ctor(void *mem, int size, void *arg, int flags)
 
 	for (p = mem; cnt > 0; cnt--, p++)
 		if (*p != uma_junk) {
+#ifdef INVARIANTS
+			panic("Memory modified after free %p(%d) val=%x @ %p\n",
+			    mem, size, *p, p);
+#else
 			printf("Memory modified after free %p(%d) val=%x @ %p\n",
 			    mem, size, *p, p);
+#endif
 			return (0);
 		}
 	return (0);
