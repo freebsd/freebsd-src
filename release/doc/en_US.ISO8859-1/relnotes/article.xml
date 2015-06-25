@@ -325,6 +325,26 @@
       <para revision="280632">The <literal>kern.osrelease</literal>
 	and <literal>kern.osreldate</literal> are now configurable
 	&man.jail.8; parameters.</para>
+
+      <para revision="284665" contrib="sponsor" sponsor="&ff;">A new
+	&man.sysctl.8;, <literal>kern.racct.enable</literal>, has been
+	added, which when set to a non-zero value allows using
+	&man.rctl.8; with the <literal>GENERIC</literal> kernel.
+	A new kernel configuration option,
+	<literal>RACCT_DISABLED</literal> has also been added.</para>
+
+      <para revision="284665" contrib="sponsor" sponsor="&ff;">The
+	<literal>GENERIC</literal> kernel configuration now includes
+	<literal>RACCT</literal> and <literal>RCTL</literal> by
+	default.</para>
+
+      <note>
+	<para>To enable <literal>RACCT</literal> and
+	  <literal>RCTL</literal> on a system using the
+	  <literal>GENERIC</literal> kernel configuration, add
+	  <literal>kern.racct.enable=1</literal> to
+	  &man.loader.conf.5;, and reboot the system.</para>
+      </note>
     </sect2>
   </sect1>
 
