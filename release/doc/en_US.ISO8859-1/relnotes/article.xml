@@ -226,15 +226,15 @@
       <para revision="277592"><application>file</application> has been
 	updated to version 5.22.</para>
 
-      <para revision="280304"><application>OpenSSL</application> has
-	been updated to version 1.0.1m.</para>
-
       <para revision="281687">The &man.acpi.4; subsystem has been
 	updated to version 20150410.</para>
 
       <para revision="282746" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
 	3.7.0.</para>
+
+      <para revision="284330"><application>OpenSSL</application> has
+	been updated to version 1.0.1o.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
