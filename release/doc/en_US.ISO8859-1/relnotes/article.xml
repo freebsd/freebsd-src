@@ -980,6 +980,9 @@
       <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
 	support for the ARM AArch64 architecture has been
 	added.</para>
+
+      <para revision="282779" arch="arm">Kernel support for Thumb-2
+	has been added.</para>
     </sect2>
   </sect1>
 
