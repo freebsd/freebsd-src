@@ -235,6 +235,9 @@
 
       <para revision="284460">The &man.acpi.4; subsystem has been
 	updated to version 20150515.</para>
+
+      <para revision="284778">The &man.file.1; utility has been
+	updated to version 5.23.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
