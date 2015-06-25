@@ -2118,10 +2118,9 @@ static void
 isp_refire_putback_atio(void *arg)
 {
 	union ccb *ccb = arg;
-	ispsoftc_t *isp = XS_ISP(ccb);
-	ISP_LOCK(isp);
+
+	ISP_ASSERT_LOCKED((ispsoftc_t *)XS_ISP(ccb));
 	isp_target_putback_atio(ccb);
-	ISP_UNLOCK(isp);
 }
 
 static void
@@ -2129,13 +2128,13 @@ isp_refire_notify_ack(void *arg)
 {
 	isp_tna_t *tp  = arg;
 	ispsoftc_t *isp = tp->isp;
-	ISP_LOCK(isp);
+
+	ISP_ASSERT_LOCKED(isp);
 	if (isp_notify_ack(isp, tp->not)) {
-		(void) timeout(isp_refire_notify_ack, tp, 5);
+		callout_schedule(&tp->timer, 5);
 	} else {
 		free(tp, M_DEVBUF);
 	}
-	ISP_UNLOCK(isp);
 }
 
 
@@ -2152,7 +2151,8 @@ isp_target_putback_atio(union ccb *ccb)
 	if (qe == NULL) {
 		xpt_print(ccb->ccb_h.path,
 		    "%s: Request Queue Overflow\n", __func__);
-		(void) timeout(isp_refire_putback_atio, ccb, 10);
+		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
+		    isp_refire_putback_atio, ccb);
 		return;
 	}
 	memset(qe, 0, QENTRY_LEN);
@@ -5991,7 +5991,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				} else {
 					tp->not = NULL;
 				}
-				(void) timeout(isp_refire_notify_ack, tp, 5);
+				callout_init_mtx(&tp->timer, &isp->isp_lock, 0);
+				callout_reset(&tp->timer, 5,
+				    isp_refire_notify_ack, tp);
 			} else {
 				isp_prt(isp, ISP_LOGERR, "you lose- cannot allocate a notify refire");
 			}
