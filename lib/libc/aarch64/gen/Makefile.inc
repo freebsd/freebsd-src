@@ -2,6 +2,7 @@
 
 SRCS+=	fabs.S \
 	flt_rounds.c \
+	fpgetmask.c \
 	fpsetmask.c \
 	ldexp.c \
 	_setjmp.S \

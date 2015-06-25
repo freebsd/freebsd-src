@@ -15,6 +15,7 @@ FBSD_1.0 {
 	_longjmp;
 	fabs;
 	__flt_rounds;
+	fpgetmask;
 	fpsetmask;
 	setjmp;
 	longjmp;
