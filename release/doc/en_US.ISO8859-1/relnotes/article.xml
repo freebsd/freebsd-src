@@ -220,10 +220,6 @@
 	to filter by &man.jail.8; ID or name, in followup to the
 	&man.ps.1; change in <literal>r265229</literal>.</para>
 
-      <para revision="265995">The Blowfish &man.crypt.3; default
-	format has been changed to
-	<literal>&dollar;2b&dollar;</literal>.</para>
-
       <para revision="266209">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ends event collection after the specified number of
@@ -371,10 +367,6 @@
 	    acquisition are now reported.</para>
 	</listitem>
       </itemizedlist>
-
-      <para revision="284483" contrib="sponsor"
-	sponsor="&scaleenegine;">The Blowfish &man.crypt.3; library
-	has been updated to support &dollar;2y&dollar; hashes.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -542,6 +534,10 @@
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
+      <para revision="265995">The Blowfish &man.crypt.3; default
+	format has been changed to
+	<literal>&dollar;2b&dollar;</literal>.</para>
+
       <para revision="268461">The &man.readline.3; library is now
 	statically linked in software within the base system, and the
 	shared library is no longer installed, allowing the Ports
@@ -611,6 +607,10 @@
 	<filename>malloc.h</filename> headers have been updated to
 	make use of the <application>gcc</application>
 	<literal>alloc_align()</literal> attribute.</para>
+
+      <para revision="284483" contrib="sponsor"
+	sponsor="&scaleengine;">The Blowfish &man.crypt.3; library
+	has been updated to support &dollar;2y&dollar; hashes.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
