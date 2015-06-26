@@ -2321,10 +2321,13 @@ decode_moffset(struct vie *vie)
  * page table fault matches with our instruction decoding.
  */
 static int
-verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
+verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie,
+    enum vm_cpu_mode cpu_mode)
 {
 	int error;
-	uint64_t base, idx, gla2;
+	uint64_t base, segbase, idx, gla2;
+	enum vm_reg_name seg;
+	struct seg_desc desc;
 
 	/* Skip 'gla' verification */
 	if (gla == VIE_INVALID_GLA)
@@ -2357,14 +2360,48 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		}
 	}
 
-	/* XXX assuming that the base address of the segment is 0 */
-	gla2 = base + vie->scale * idx + vie->displacement;
+	/*
+	 * From "Specifying a Segment Selector", Intel SDM, Vol 1
+	 *
+	 * In 64-bit mode, segmentation is generally (but not
+	 * completely) disabled.  The exceptions are the FS and GS
+	 * segments.
+	 *
+	 * In legacy IA-32 mode, when the ESP or EBP register is used
+	 * as the base, the SS segment is the default segment.  For
+	 * other data references, except when relative to stack or
+	 * string destination the DS segment is the default.  These
+	 * can be overridden to allow other segments to be accessed.
+	 */
+	if (vie->segment_override)
+		seg = vie->segment_register;
+	else if (vie->base_register == VM_REG_GUEST_RSP ||
+	    vie->base_register == VM_REG_GUEST_RBP)
+		seg = VM_REG_GUEST_SS;
+	else
+		seg = VM_REG_GUEST_DS;
+	if (cpu_mode == CPU_MODE_64BIT && seg != VM_REG_GUEST_FS &&
+	    seg != VM_REG_GUEST_GS) {
+		segbase = 0;
+	} else {
+		error = vm_get_seg_desc(vm, cpuid, seg, &desc);
+		if (error) {
+			printf("verify_gla: error %d getting segment"
+			       " descriptor %d", error,
+			       vie->segment_register);
+			return (-1);
+		}
+		segbase = desc.base;
+	}
+
+	gla2 = segbase + base + vie->scale * idx + vie->displacement;
 	gla2 &= size2mask[vie->addrsize];
 	if (gla != gla2) {
-		printf("verify_gla mismatch: "
+		printf("verify_gla mismatch: segbase(0x%0lx)"
 		       "base(0x%0lx), scale(%d), index(0x%0lx), "
 		       "disp(0x%0lx), gla(0x%0lx), gla2(0x%0lx)\n",
-		       base, vie->scale, idx, vie->displacement, gla, gla2);
+		       segbase, base, vie->scale, idx, vie->displacement,
+		       gla, gla2);
 		return (-1);
 	}
 
@@ -2398,7 +2435,7 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 		return (-1);
 
 	if ((vie->op.op_flags & VIE_OP_F_NO_GLA_VERIFICATION) == 0) {
-		if (verify_gla(vm, cpuid, gla, vie))
+		if (verify_gla(vm, cpuid, gla, vie, cpu_mode))
 			return (-1);
 	}
 
