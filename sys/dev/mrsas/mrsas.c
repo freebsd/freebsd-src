@@ -811,6 +811,7 @@ mrsas_attach(device_t dev)
 {
 	struct mrsas_softc *sc = device_get_softc(dev);
 	uint32_t cmd, bar, error;
+	struct cdev *linux_dev;
 
 	/* Look up our softc and initialize its fields. */
 	sc->mrsas_dev = dev;
@@ -870,7 +871,8 @@ mrsas_attach(device_t dev)
 	    GID_OPERATOR, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP), "mrsas%u",
 	    device_get_unit(dev));
 	if (device_get_unit(dev) == 0)
-		make_dev_alias(sc->mrsas_cdev, "megaraid_sas_ioctl_node");
+		make_dev_alias_p(MAKEDEV_CHECKNAME, &linux_dev, sc->mrsas_cdev,
+		    "megaraid_sas_ioctl_node");
 	if (sc->mrsas_cdev)
 		sc->mrsas_cdev->si_drv1 = sc;
 
