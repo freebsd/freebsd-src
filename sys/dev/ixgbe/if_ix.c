@@ -285,7 +285,8 @@ SYSCTL_INT(_hw_ix, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &ixgbe_enable_msix, 0,
  */
 static int ixgbe_num_queues = 0;
 SYSCTL_INT(_hw_ix, OID_AUTO, num_queues, CTLFLAG_RDTUN, &ixgbe_num_queues, 0,
-    "Number of queues to configure, 0 indicates autoconfigure");
+    "Number of queues to configure up to a maximum of 8; "
+    "0 indicates autoconfigure");
 
 /*
 ** Number of TX descriptors per ring,
@@ -547,7 +548,6 @@ ixgbe_attach(device_t dev)
 
         /* Check PCIE slot type/speed/width */
 	ixgbe_get_slot_info(hw);
-
 
 	/* Set an initial default flow control value */
 	adapter->fc = ixgbe_fc_full;
@@ -2328,6 +2328,9 @@ ixgbe_setup_msix(struct adapter *adapter)
 
 	if (ixgbe_num_queues != 0)
 		queues = ixgbe_num_queues;
+	/* Set max queues to 8 when autoconfiguring */
+	else if ((ixgbe_num_queues == 0) && (queues > 8))
+		queues = 8;
 
 	/* reflect correct sysctl value */
 	ixgbe_num_queues = queues;
