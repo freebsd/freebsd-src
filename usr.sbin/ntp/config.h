@@ -1379,7 +1379,7 @@
 /* #undef NO_THREADS */
 
 /* Default location of crypto key info */
-#define NTP_KEYSDIR "/usr/local/etc"
+#define NTP_KEYSDIR "/etc/ntp"
 
 /* Path to sign daemon rendezvous socket */
 #define NTP_SIGND_PATH "/var/run/ntp_signd"
@@ -1469,7 +1469,7 @@
 /* #undef SCO5_CLOCK */
 
 /* The size of `char*', as computed by sizeof. */
-#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
+#ifdef __LP64__
 #define SIZEOF_CHARP 8
 #else
 #define SIZEOF_CHARP 4
@@ -1479,7 +1479,7 @@
 #define SIZEOF_INT 4
 
 /* The size of `long', as computed by sizeof. */
-#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
+#ifdef __LP64__
 #define SIZEOF_LONG 8
 #else
 #define SIZEOF_LONG 4
@@ -1498,10 +1498,10 @@
 #define SIZEOF_SIGNED_CHAR 1
 
 /* The size of `time_t', as computed by sizeof. */
-#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
-#define SIZEOF_TIME_T 8
-#else
+#if defined(__i386__) || defined(__powerpc__)
 #define SIZEOF_TIME_T 4
+#else
+#define SIZEOF_TIME_T 8
 #endif
 
 /* Does SIOCGIFCONF return size in the buffer? */
@@ -1534,6 +1534,24 @@
 #define STR_SYSTEM "sparc64-undermydesk-freebsd"
 #elif defined(__amd64__)
 #define STR_SYSTEM "amd64-undermydesk-freebsd"
+#elif defined(__powerpc64__)
+#define STR_SYSTEM "powerpc64-undermydesk-freebsd"
+#elif defined(__powerpc__)
+#define STR_SYSTEM "powerpc-undermydesk-freebsd"
+#elif defined(__mips64)
+#define STR_SYSTEM "mips64-undermydesk-freebsd"
+#elif defined(__mips__)
+#define STR_SYSTEM "mips-undermydesk-freebsd"
+#elif defined(__aarch64__)
+#define STR_SYSTEM "arm64-undermydesk-freebsd"
+#elif defined(__arm__)
+#define STR_SYSTEM "arm-undermydesk-freebsd"
+#elif defined(__sparc64__)
+#define STR_SYSTEM "sparc64-undermydesk-freebsd"
+#elif defined(__sparc__)
+#define STR_SYSTEM "sparc-undermydesk-freebsd"
+#elif defined(__ia64__)
+#define STR_SYSTEM "ia64-undermydesk-freebsd"
 #else
 #define STR_SYSTEM "i386-undermydesk-freebsd"
 #endif
@@ -1600,14 +1618,9 @@ typedef unsigned int	uintptr_t;
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
-#if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
-#else
-# ifndef WORDS_BIGENDIAN
-/* #  undef WORDS_BIGENDIAN */
-# endif
+#if defined(__ARMEB__) || defined(__MIPSEB__) || defined(__powerpc__) || \
+    defined(__powerpc64__) || defined(__sparc64__)
+#define WORDS_BIGENDIAN 1
 #endif
 
 /* routine worker child proc uses to exit. */
