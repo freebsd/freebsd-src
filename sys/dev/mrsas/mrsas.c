@@ -2715,6 +2715,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 		    "resetting adapter from %s.\n",
 		    __func__);
 		/* Now return commands back to the CAM layer */
+		mtx_unlock(&sc->sim_lock);
 		for (i = 0; i < sc->max_fw_cmds; i++) {
 			mpt_cmd = sc->mpt_cmd_list[i];
 			if (mpt_cmd->ccb_ptr) {
@@ -2724,6 +2725,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				mrsas_atomic_dec(&sc->fw_outstanding);
 			}
 		}
+		mtx_lock(&sc->sim_lock);
 
 		status_reg = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad));
