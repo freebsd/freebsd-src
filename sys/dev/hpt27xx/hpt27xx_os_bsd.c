@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2011 HighPoint Technologies, Inc.
+ * HighPoint RAID Driver for FreeBSD
+ *
+ * Copyright (C) 2005-2011 HighPoint Technologies, Inc. All Rights Reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +31,8 @@
 #include <dev/hpt27xx/hpt27xx_config.h>
 
 #include <dev/hpt27xx/os_bsd.h>
+
+BUS_ADDRESS get_dmapool_phy_addr(void *osext, void * dmapool_virt_addr);
 
 /* hardware access */
 HPT_U8   os_inb  (void *port) { return inb((unsigned)(HPT_UPTR)port); }
@@ -78,55 +82,12 @@ void os_pci_writel (void *osext, HPT_U8 offset, HPT_U32 value)
     pci_write_config(((PHBA)osext)->pcidev, offset, value, 4);
 }
 
-#if __FreeBSD_version < 500043
+BUS_ADDRESS get_dmapool_phy_addr(void *osext, void * dmapool_virt_addr)
+{
+	return (BUS_ADDRESS)vtophys(dmapool_virt_addr);
+}
+
 /* PCI space access */
-HPT_U8 pcicfg_read_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
-{
-	HPT_U8 v;
-	pcicfgregs pciref;
-
-	pciref.bus  = bus;
-	pciref.slot = dev;
-	pciref.func = func;
-
-	v = pci_cfgread(&pciref, reg, 1);
-	return v;
-}
-HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
-{
-	HPT_U32 v;
-	pcicfgregs pciref;
-
-	pciref.bus  = bus;
-	pciref.slot = dev;
-	pciref.func = func;
-
-	v = pci_cfgread(&pciref, reg, 4);
-	return v;
-}
-void pcicfg_write_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg, HPT_U8 v)
-{
-	pcicfgregs pciref;
-
-	pciref.hose = -1;
-	pciref.bus  = bus;
-	pciref.slot = dev;
-	pciref.func = func;
-
-	pci_cfgwrite(&pciref, reg, v, 1);
-}
-void pcicfg_write_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg, HPT_U32 v)
-{
-	pcicfgregs pciref;
-
-	pciref.hose = -1;
-	pciref.bus  = bus;
-	pciref.slot = dev;
-	pciref.func = func;
-
-	pci_cfgwrite(&pciref, reg, v, 4);
-}/* PCI space access */
-#else 
 HPT_U8 pcicfg_read_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
 {
 	return (HPT_U8)pci_cfgregread(bus, dev, func, reg, 1);
@@ -143,7 +104,6 @@ void pcicfg_write_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg, HPT_U32
 {
 	pci_cfgregwrite(bus, dev, func, reg, v, 4);
 }/* PCI space access */
-#endif
 
 void *os_map_pci_bar(
     void *osext, 
@@ -289,8 +249,13 @@ void  os_request_timer(void * osext, HPT_U32 interval)
 
 	HPT_ASSERT(vbus_ext->ext_type==EXT_TYPE_VBUS);
 
+#if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&vbus_ext->timer, SBT_1US * interval, 0,
 	    os_timer_for_ldm, vbus_ext, 0);
+#else 
+	untimeout(os_timer_for_ldm, vbus_ext, vbus_ext->timer);
+	vbus_ext->timer = timeout(os_timer_for_ldm, vbus_ext, interval * hz / 1000000);
+#endif
 }
 
 HPT_TIME os_query_time(void)
