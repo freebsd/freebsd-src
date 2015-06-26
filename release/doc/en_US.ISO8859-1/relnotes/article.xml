@@ -1081,7 +1081,7 @@
 	added.</para>
 
       <para revision="282779" arch="arm">Kernel support for Thumb-2
-	has been added.</para>
+	userland has been added.</para>
 
       <para revision="282827">Support for the hardware power button
 	on the BeagleBone Black system has been added.</para>
