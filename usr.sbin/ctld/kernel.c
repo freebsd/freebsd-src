@@ -508,6 +508,8 @@ retry_port:
 
 	name = NULL;
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
+		if (name)
+			free(name);
 		if (port->pp == 0 && port->vp == 0)
 			name = checked_strdup(port->port_name);
 		else if (port->vp == 0)
