@@ -444,6 +444,30 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 	return (0);
 }
 
+/*
+ * Copy parts of region of memory to user space.
+ *
+ * XXXBD: Machine dependent implementations that don't call copyout
+ * repeatidly are probably a good idea.
+ */
+int
+copyout_part(const void * __restrict kaddr, void * __restrict udaddr,
+    struct copy_map *cmap, size_t cmap_ents)
+{
+	int error;
+	size_t i;
+	struct copy_map *cm;
+
+	for (i = 0; i < cmap_ents; i++) {
+		cm = cmap + i;
+		error = copyout((const char *)kaddr + cm->koffset,
+		    (char *)udaddr + cm->uoffset, cm->len);
+		if (error != 0)
+			return (error);
+	}
+	return (error);
+}
+
 #ifdef NO_FUEWORD
 /*
  * XXXKIB The temporal implementation of fue*() functions which do not

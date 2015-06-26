@@ -242,6 +242,12 @@ void	explicit_bzero(void *, size_t) __nonnull(1);;
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
 
+struct copy_map {
+	size_t	len;
+	size_t	uoffset;
+	size_t	koffset;
+};
+
 int	copystr(const void * __restrict kfaddr, void * __restrict kdaddr,
 	    size_t len, size_t * __restrict lencopied)
 	    __nonnull(1) __nonnull(2);
@@ -258,6 +264,8 @@ int	copyin_nofault(const void * __restrict udaddr, void * __restrict kaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
 int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
+int	copyout_part(const void * __restrict kaddr, void * __restrict udaddr,
+	    struct copy_map *cmap, size_t cmap_ents);
 #ifdef CPU_CHERI
 int	copyoutcap(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
