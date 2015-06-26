@@ -136,7 +136,9 @@ ASSYM(ARM_RAS_END, ARM_RAS_END);
 ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
 #endif
 
+#if __ARM_ARCH >= 6
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
+#endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);
