@@ -55,6 +55,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -179,8 +182,12 @@ static uint32_t get_transport_proto_type(struct mbuf *m_head)
 	uint16_t ether_type = 0;
 	int ether_len = 0;
 	struct ether_vlan_header *eh;
+#ifdef INET
 	struct ip *iph;
+#endif
+#ifdef INET6
 	struct ip6_hdr *ip6;
+#endif
 
 	eh = mtod(m_head, struct ether_vlan_header*);
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
@@ -192,6 +199,7 @@ static uint32_t get_transport_proto_type(struct mbuf *m_head)
 	}
 
 	switch (ntohs(ether_type)) {
+#ifdef INET6
 	case ETHERTYPE_IPV6:
 		ip6 = (struct ip6_hdr *)(m_head->m_data + ether_len);
 
@@ -201,6 +209,8 @@ static uint32_t get_transport_proto_type(struct mbuf *m_head)
 			ret_val = TRANSPORT_TYPE_IPV6_UDP;
 		}
 		break;
+#endif
+#ifdef INET
 	case ETHERTYPE_IP:
 		iph = (struct ip *)(m_head->m_data + ether_len);
 
@@ -210,6 +220,7 @@ static uint32_t get_transport_proto_type(struct mbuf *m_head)
 			ret_val = TRANSPORT_TYPE_IPV4_UDP;
 		}
 		break;
+#endif
 	default:
 		ret_val = TRANSPORT_TYPE_NOT_IP;
 		break;
@@ -608,6 +619,7 @@ do_tso:
 		tso_info->lso_v2_xmit.type =
 		    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
 		
+#ifdef INET
 		if (trans_proto_type & (TYPE_IPV4 << 16)) {
 			struct ip *ip =
 			    (struct ip *)(m_head->m_data + ether_len);
@@ -623,7 +635,13 @@ do_tso:
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr,
 			    htons(IPPROTO_TCP));
-		} else {
+		}
+#endif
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET6
+		{
 			struct ip6_hdr *ip6 =
 			    (struct ip6_hdr *)(m_head->m_data + ether_len);
 			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
@@ -633,6 +651,7 @@ do_tso:
 			ip6->ip6_plen = 0;
 			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
 		}
+#endif
 		tso_info->lso_v2_xmit.tcp_header_offset = 0;
 		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
 
@@ -950,6 +969,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	hn_softc_t *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+#ifdef INET
+	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	netvsc_device_info device_info;
 	struct hv_device *hn_dev;
 	int mask, error = 0;
