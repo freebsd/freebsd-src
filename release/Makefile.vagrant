@@ -12,8 +12,9 @@ VAGRANT_UPLOAD_TGTS=	vagrant-check-depends \
 CLEANFILES+=		${VAGRANT_UPLOAD_TGTS}
 
 .if defined(VAGRANT_UPLOAD_CONF) && !empty(VAGRANT_UPLOAD_CONF)
-. for VAR in _ACCOUNT _KEY
-VAGRANT${VAR}!=	grep -E ^VAGRANT${VAR} ${VAGRANT_UPLOAD_CONF} | awk -F'	' '{print $$2}'
+. for VAR in _KEY _USERNAME _NAME _VERSION
+VAGRANT${VAR}!=		grep -E ^VAGRANT${VAR} ${VAGRANT_UPLOAD_CONF} | awk -F'	' '{print $$2}'
+ATLAS${VAR}:=		${VAGRANT${VAR}}
 . endfor
 .endif
 
@@ -26,7 +27,7 @@ VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}.box
 vagrant-upload:		${VAGRANT_UPLOAD_TGTS}
 
 vagrant-check-depends:
-.for VAR in _ACCOUNT _KEY
+.for VAR in _KEY _USERNAME _NAME _VERSION
 . if !defined(VAGRANT${VAR}) || empty(VAGRANT${VAR})
 	@echo "Variable VAGRANT${VAR} cannot be empty."
 	@false
