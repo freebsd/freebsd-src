@@ -253,8 +253,9 @@ struct buf {
 #define	BV_SCANNED	0x00000001	/* VOP_FSYNC funcs mark written bufs */
 #define	BV_BKGRDINPROG	0x00000002	/* Background write in progress */
 #define	BV_BKGRDWAIT	0x00000004	/* Background write waiting */
+#define	BV_BKGRDERR	0x00000008	/* Error from background write */
 
-#define	PRINT_BUF_VFLAGS "\20\3bkgrdwait\2bkgrdinprog\1scanned"
+#define	PRINT_BUF_VFLAGS "\20\4bkgrderr\3bkgrdwait\2bkgrdinprog\1scanned"
 
 #ifdef _KERNEL
 /*
