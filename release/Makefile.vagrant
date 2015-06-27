@@ -1,0 +1,94 @@
+#
+# $FreeBSD$
+#
+#
+# Makefile for uploading Vagrant boxes to Hashicorp Atlas
+#
+
+VAGRANT_UPLOAD_TGTS=	vagrant-check-depends \
+			vagrant-do-package-vmware
+#			atlas-do-upload
+CLEANFILES+=		${VAGRANT_UPLOAD_TGTS}
+
+.if defined(VAGRANT_UPLOAD_CONF) && !empty(VAGRANT_UPLOAD_CONF)
+. for VAR in _ACCOUNT _KEY
+VAGRANT${VAR}!=	grep -E ^VAGRANT${VAR} ${VAGRANT_UPLOAD_CONF} | awk -F'	' '{print $$2}'
+. endfor
+.endif
+
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H-%M
+.endif
+
+VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}.box
+
+vagrant-upload:		${VAGRANT_UPLOAD_TGTS}
+
+vagrant-check-depends:
+.for VAR in _ACCOUNT _KEY
+. if !defined(VAGRANT${VAR}) || empty(VAGRANT${VAR})
+	@echo "Variable VAGRANT${VAR} cannot be empty."
+	@false
+. endif
+.endfor
+.if !exists(/usr/local/bin/curl)
+. if !exists(${PORTSDIR}/ftp/curl/Makefile)
+.  if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
+.  endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y ftp/curl
+. else
+	make -C ${PORTSDIR}/ftp/curl BATCH=1 all install clean
+. endif
+.endif
+
+vagrant-do-package: cw-vagrant
+
+vagrant-do-package-vmware: vagrant-create-vmware-vmx vagrant-do-package
+	@cd ${.OBJDIR} && echo '{"provider":"vmware_desktop"}' > metadata.json
+	cd ${.OBJDIR} && tar -czf ${VAGRANT_TARGET} metadata.json vagrant.vmx vagrant.vmdk
+	touch ${.OBJDIR}/${.TARGET}
+
+atlas-create-upload:
+.for PROVIDER in vmware_desktop virtualbox
+	/usr/local/bin/curl "https://vagrant.hashicorp.com/api/v1/box/${ATLAS_USERNAME}/${ATLAS_NAME}/version/${ATLAS_VERSION}/provider/${PROVIDER}/upload?access_token=${ATLAS_KEY}"
+.endfor
+	touch ${.OBJDIR}/${.TARGET}
+
+atlas-do-upload:
+	/usr/local/bin/curl -X PUT --upload-file \
+		${VAGRANT_IMG} ${ATLAS_UPLOAD_PATH}
+	touch ${.OBJDIR}/${.TARGET}
+
+vagrant-create-vmware-vmx:
+	@cd ${.OBJDIR} && echo '.encoding = "UTF-8"' > vagrant.vmx
+	@cd ${.OBJDIR} && echo 'bios.bootorder = "hdd,CDROM"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'checkpoint.vmstate = ""' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'cleanshutdown = "TRUE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'config.version = "8"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'displayname = "${VAGRANT_TARGET}"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.addresstype = "generated"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.bsdname = "en0"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.connectiontype = "nat"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.displayname = "Ethernet"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.linkstatepropagation.enable = "FALSE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.pcislotnumber = "33"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.present = "TRUE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.virtualdev = "e1000"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'ethernet0.wakeonpcktrcv = "FALSE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'floppy0.present = "FALSE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'guestos = "freebsd-64"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'gui.fullscreenatpoweron = "FALSE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'gui.viewmodeatpoweron = "windowed"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'memsize = "512"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'sound.startconnected = "FALSE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'softpoweroff = "TRUE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'scsi0.pcislotnumber = "16"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'scsi0.present = "TRUE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'scsi0.virtualdev = "lsilogic"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'scsi0:0.filename = "vagrant.vmdk"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'scsi0:0.present = "TRUE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'tools.synctime = "TRUE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'usb.present = "FALSE"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'virtualhw.productcompatibility = "hosted"' >> vagrant.vmx
+	@cd ${.OBJDIR} && echo 'virtualhw.version = "9"' >> vagrant.vmx
