@@ -5,6 +5,7 @@
 # Makefile for uploading Vagrant boxes to Hashicorp Atlas
 #
 
+VAGRANT_IMG?=		${.OBJDIR}/vagrant.vmdk
 VAGRANT_UPLOAD_TGTS=	vagrant-check-depends \
 			vagrant-do-package-vmware
 #			atlas-do-upload
