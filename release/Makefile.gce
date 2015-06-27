@@ -36,7 +36,7 @@ gce-check-depends:
 . endif
 .endfor
 .if !exists(/usr/local/bin/gcutil)
-. if !execho ists(${PORTSDIR}/net/google-cloud-api/Makefile)
+. if !exists(${PORTSDIR}/net/google-cloud-api/Makefile)
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
 .  endif
