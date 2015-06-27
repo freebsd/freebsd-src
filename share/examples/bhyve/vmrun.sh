@@ -39,7 +39,13 @@ DEFAULT_CONSOLE=stdio
 DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
+errmsg() {
+	echo "*** $1"
+}
+
 usage() {
+	local msg=$1
+
 	echo "Usage: vmrun.sh [-ahi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
 	echo "                [-e <name=value>] [-g <gdbport> ] [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-m <memsize>]"
@@ -58,18 +64,18 @@ usage() {
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
 	echo ""
-	echo "       This script needs to be executed with superuser privileges"
-	echo ""
+	[ -n "$msg" ] && errmsg "$msg"
 	exit 1
 }
 
 if [ `id -u` -ne 0 ]; then
-	usage
+	errmsg "This script must be executed with superuser privileges"
+	exit 1
 fi
 
 kldstat -n vmm > /dev/null 2>&1 
 if [ $? -ne 0 ]; then
-	echo "vmm.ko is not loaded!"
+	errmsg "vmm.ko is not loaded"
 	exit 1
 fi
 
@@ -143,7 +149,7 @@ fi
 shift $((${OPTIND} - 1))
 
 if [ $# -ne 1 ]; then
-	usage
+	usage "virtual machine name not specified"
 fi
 
 vmname="$1"

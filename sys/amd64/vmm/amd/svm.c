@@ -80,6 +80,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
 #define AMD_CPUID_SVM_DECODE_ASSIST	BIT(7)  /* Decode assist */
 #define AMD_CPUID_SVM_PAUSE_INC		BIT(10) /* Pause intercept filter. */
 #define AMD_CPUID_SVM_PAUSE_FTH		BIT(12) /* Pause filter threshold */
+#define	AMD_CPUID_SVM_AVIC		BIT(13)	/* AVIC present */
 
 #define	VMCB_CACHE_DEFAULT	(VMCB_CACHE_ASID 	|	\
 				VMCB_CACHE_IOPM		|	\
@@ -554,6 +555,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	pml4_pa = svm_sc->nptp;
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
+		vcpu->nextrip = ~0;
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
 		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
@@ -1200,7 +1202,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct vmcb_state *state;
 	struct vmcb_ctrl *ctrl;
 	struct svm_regctx *ctx;
-	struct vm_exception exception;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
 	int error, errcode_valid, handled, idtvec, reflect;
@@ -1314,6 +1315,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			/* fallthru */
 		default:
 			errcode_valid = 0;
+			info1 = 0;
 			break;
 		}
 		KASSERT(vmexit->inst_length == 0, ("invalid inst_length (%d) "
@@ -1322,14 +1324,10 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 		if (reflect) {
 			/* Reflect the exception back into the guest */
-			exception.vector = idtvec;
-			exception.error_code_valid = errcode_valid;
-			exception.error_code = errcode_valid ? info1 : 0;
 			VCPU_CTR2(svm_sc->vm, vcpu, "Reflecting exception "
-			    "%d/%#x into the guest", exception.vector,
-			    exception.error_code);
-			error = vm_inject_exception(svm_sc->vm, vcpu,
-			    &exception);
+			    "%d/%#x into the guest", idtvec, (int)info1);
+			error = vm_inject_exception(svm_sc->vm, vcpu, idtvec,
+			    errcode_valid, info1, 0);
 			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 			    __func__, error));
 		}
@@ -1476,14 +1474,23 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	struct svm_vcpu *vcpustate;
 	uint8_t v_tpr;
 	int vector, need_intr_window, pending_apic_vector;
 
 	state = svm_get_vmcb_state(sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(sc, vcpu);
+	vcpustate = svm_get_vcpu(sc, vcpu);
 
 	need_intr_window = 0;
 	pending_apic_vector = 0;
+
+	if (vcpustate->nextrip != state->rip) {
+		ctrl->intr_shadow = 0;
+		VCPU_CTR2(sc->vm, vcpu, "Guest interrupt blocking "
+		    "cleared due to rip change: %#lx/%#lx",
+		    vcpustate->nextrip, state->rip);
+	}
 
 	/*
 	 * Inject pending events or exceptions for this vcpu.
@@ -1634,7 +1641,7 @@ done:
 	 * VMRUN.
 	 */
 	v_tpr = vlapic_get_cr8(vlapic);
-	KASSERT(v_tpr >= 0 && v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
+	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
 		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
@@ -1801,14 +1808,14 @@ static __inline void
 disable_gintr(void)
 {
 
-        __asm __volatile("clgi" : : :);
+	__asm __volatile("clgi");
 }
 
 static __inline void
 enable_gintr(void)
 {
 
-        __asm __volatile("stgi" : : :);
+        __asm __volatile("stgi");
 }
 
 /*
@@ -1954,6 +1961,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* #VMEXIT disables interrupts so re-enable them here. */ 
 		enable_gintr();
+
+		/* Update 'nextrip' */
+		vcpustate->nextrip = state->rip;
 
 		/* Handle #VMEXIT and if required return to user space. */
 		handled = svm_vmexit(svm_sc, vcpu, vmexit);

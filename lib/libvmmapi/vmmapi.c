@@ -368,14 +368,13 @@ vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *ret_val)
 }
 
 int
-vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
+vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 {
 	int error;
 	struct vm_run vmrun;
 
 	bzero(&vmrun, sizeof(vmrun));
 	vmrun.cpuid = vcpu;
-	vmrun.rip = rip;
 
 	error = ioctl(ctx->fd, VM_RUN, &vmrun);
 	bcopy(&vmrun.vm_exit, vmexit, sizeof(struct vm_exit));
@@ -399,33 +398,19 @@ vm_reinit(struct vmctx *ctx)
 	return (ioctl(ctx->fd, VM_REINIT, 0));
 }
 
-static int
-vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
-    int error_code, int error_code_valid)
+int
+vm_inject_exception(struct vmctx *ctx, int vcpu, int vector, int errcode_valid,
+    uint32_t errcode, int restart_instruction)
 {
 	struct vm_exception exc;
 
-	bzero(&exc, sizeof(exc));
 	exc.cpuid = vcpu;
 	exc.vector = vector;
-	exc.error_code = error_code;
-	exc.error_code_valid = error_code_valid;
+	exc.error_code = errcode;
+	exc.error_code_valid = errcode_valid;
+	exc.restart_instruction = restart_instruction;
 
 	return (ioctl(ctx->fd, VM_INJECT_EXCEPTION, &exc));
-}
-
-int
-vm_inject_exception(struct vmctx *ctx, int vcpu, int vector)
-{
-
-	return (vm_inject_exception_real(ctx, vcpu, vector, 0, 0));
-}
-
-int
-vm_inject_exception2(struct vmctx *ctx, int vcpu, int vector, int errcode)
-{
-
-	return (vm_inject_exception_real(ctx, vcpu, vector, errcode, 1));
 }
 
 int
@@ -1002,6 +987,7 @@ int
 vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt)
 {
+	void *va;
 	uint64_t gpa;
 	int error, fault, i, n, off;
 
@@ -1021,7 +1007,11 @@ vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 		off = gpa & PAGE_MASK;
 		n = min(len, PAGE_SIZE - off);
 
-		iov->iov_base = (void *)gpa;
+		va = vm_map_gpa(ctx, gpa, n);
+		if (va == NULL)
+			return (-1);
+
+		iov->iov_base = va;
 		iov->iov_len = n;
 		iov++;
 		iovcnt--;
@@ -1033,19 +1023,24 @@ vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 }
 
 void
+vm_copy_teardown(struct vmctx *ctx, int vcpu, struct iovec *iov, int iovcnt)
+{
+
+	return;
+}
+
+void
 vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *iov, void *vp, size_t len)
 {
 	const char *src;
 	char *dst;
-	uint64_t gpa;
 	size_t n;
 
 	dst = vp;
 	while (len) {
 		assert(iov->iov_len);
-		gpa = (uint64_t)iov->iov_base;
 		n = min(len, iov->iov_len);
-		src = vm_map_gpa(ctx, gpa, n);
+		src = iov->iov_base;
 		bcopy(src, dst, n);
 
 		iov++;
@@ -1060,15 +1055,13 @@ vm_copyout(struct vmctx *ctx, int vcpu, const void *vp, struct iovec *iov,
 {
 	const char *src;
 	char *dst;
-	uint64_t gpa;
 	size_t n;
 
 	src = vp;
 	while (len) {
 		assert(iov->iov_len);
-		gpa = (uint64_t)iov->iov_base;
 		n = min(len, iov->iov_len);
-		dst = vm_map_gpa(ctx, gpa, n);
+		dst = iov->iov_base;
 		bcopy(src, dst, n);
 
 		iov++;
@@ -1145,4 +1138,64 @@ vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t info1)
 	vmii.info1 = info1;
 	error = ioctl(ctx->fd, VM_SET_INTINFO, &vmii);
 	return (error);
+}
+
+int
+vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value)
+{
+	struct vm_rtc_data rtcdata;
+	int error;
+
+	bzero(&rtcdata, sizeof(struct vm_rtc_data));
+	rtcdata.offset = offset;
+	rtcdata.value = value;
+	error = ioctl(ctx->fd, VM_RTC_WRITE, &rtcdata);
+	return (error);
+}
+
+int
+vm_rtc_read(struct vmctx *ctx, int offset, uint8_t *retval)
+{
+	struct vm_rtc_data rtcdata;
+	int error;
+
+	bzero(&rtcdata, sizeof(struct vm_rtc_data));
+	rtcdata.offset = offset;
+	error = ioctl(ctx->fd, VM_RTC_READ, &rtcdata);
+	if (error == 0)
+		*retval = rtcdata.value;
+	return (error);
+}
+
+int
+vm_rtc_settime(struct vmctx *ctx, time_t secs)
+{
+	struct vm_rtc_time rtctime;
+	int error;
+
+	bzero(&rtctime, sizeof(struct vm_rtc_time));
+	rtctime.secs = secs;
+	error = ioctl(ctx->fd, VM_RTC_SETTIME, &rtctime);
+	return (error);
+}
+
+int
+vm_rtc_gettime(struct vmctx *ctx, time_t *secs)
+{
+	struct vm_rtc_time rtctime;
+	int error;
+
+	bzero(&rtctime, sizeof(struct vm_rtc_time));
+	error = ioctl(ctx->fd, VM_RTC_GETTIME, &rtctime);
+	if (error == 0)
+		*secs = rtctime.secs;
+	return (error);
+}
+
+int
+vm_restart_instruction(void *arg, int vcpu)
+{
+	struct vmctx *ctx = arg;
+
+	return (ioctl(ctx->fd, VM_RESTART_INSTRUCTION, &vcpu));
 }
