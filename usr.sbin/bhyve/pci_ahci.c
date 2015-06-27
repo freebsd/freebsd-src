@@ -2299,7 +2299,8 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 
 open_fail:
 	if (ret) {
-		blockif_close(sc->port[0].bctx);
+		if (sc->port[0].bctx != NULL)
+			blockif_close(sc->port[0].bctx);
 		free(sc);
 	}
 
