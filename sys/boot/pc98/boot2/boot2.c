@@ -152,6 +152,7 @@ static int comspeed = SIOSPD;
 static uint8_t ioctrl = IO_KEYBOARD;
 #endif
 
+int main(void);
 void exit(int);
 static void load(void);
 static int parse(void);
@@ -620,7 +621,8 @@ parse()
 		dsk.daua = dsk.disk | dsk.unit;
 		dsk_meta = 0;
 	    }
-	    if (k = ep - arg) {
+	    k = ep - arg;
+	    if (k > 0) {
 		if (k >= sizeof(knamebuf))
 		    return -1;
 		memcpy(knamebuf, arg, k + 1);
