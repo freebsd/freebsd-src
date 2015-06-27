@@ -23,6 +23,8 @@ SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H-%M
 .endif
 
 VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}.box
+VAGRANT_PROVIDERS?=	vmware_desktop
+#VAGRANT_PROVIDERS+=	virtualbox
 
 vagrant-upload:		${VAGRANT_UPLOAD_TGTS}
 
@@ -52,8 +54,8 @@ vagrant-do-package-vmware: vagrant-create-vmware-vmx vagrant-do-package
 	touch ${.OBJDIR}/${.TARGET}
 
 atlas-create-upload:
-.for PROVIDER in vmware_desktop virtualbox
-	/usr/local/bin/curl "https://vagrant.hashicorp.com/api/v1/box/${ATLAS_USERNAME}/${ATLAS_NAME}/version/${ATLAS_VERSION}/provider/${PROVIDER}/upload?access_token=${ATLAS_KEY}"
+.for PROVIDER in ${VAGRANT_PROVIDERS}
+	/usr/local/bin/curl "https://atlas.hashicorp.com/api/v1/box/${ATLAS_USERNAME}/${ATLAS_NAME}/version/${ATLAS_VERSION}/provider/${PROVIDER}/upload?access_token=${ATLAS_KEY}"
 .endfor
 	touch ${.OBJDIR}/${.TARGET}
 
