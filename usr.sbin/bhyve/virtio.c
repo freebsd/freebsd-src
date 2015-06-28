@@ -148,8 +148,13 @@ vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix)
 			return (1);
 	} else
 		vs->vs_flags &= ~VIRTIO_USE_MSIX;
+
 	/* Only 1 MSI vector for bhyve */
 	pci_emul_add_msicap(vs->vs_pi, 1);
+
+	/* Legacy interrupts are mandatory for virtio devices */
+	pci_lintr_request(vs->vs_pi);
+
 	return (0);
 }
 

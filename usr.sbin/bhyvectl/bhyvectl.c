@@ -640,9 +640,9 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
 	uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-	int error;
+	int error = 0;
 
-	if (get_efer || get_all) {
+	if (!error && (get_efer || get_all)) {
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_EFER, &efer);
 		if (error == 0)
 			printf("efer[%d]\t\t0x%016lx\n", vcpu, efer);
@@ -787,10 +787,10 @@ get_all_registers(struct vmctx *ctx, int vcpu)
 static int
 get_all_segments(struct vmctx *ctx, int vcpu)
 {
-	int error;
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
+	int error = 0;
 
-	if (get_desc_ds || get_all) {
+	if (!error && (get_desc_ds || get_all)) {
 		error = vm_get_desc(ctx, vcpu, VM_REG_GUEST_DS,
 				   &desc_base, &desc_limit, &desc_access);
 		if (error == 0) {
@@ -935,9 +935,9 @@ static int
 get_misc_vmcs(struct vmctx *ctx, int vcpu)
 {
 	uint64_t ctl, cr0, cr3, cr4, rsp, rip, pat, addr, u64;
-	int error;
-	
-	if (get_cr0_mask || get_all) {
+	int error = 0;
+
+	if (!error && (get_cr0_mask || get_all)) {
 		uint64_t cr0mask;
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_CR0_MASK, &cr0mask);
 		if (error == 0)
@@ -1161,9 +1161,9 @@ static int
 get_misc_vmcb(struct vmctx *ctx, int vcpu)
 {
 	uint64_t ctl, addr;
-	int error;
+	int error = 0;
 
-	if (get_vmcb_intercept || get_all) {
+	if (!error && (get_vmcb_intercept || get_all)) {
 		error = vm_get_vmcb_field(ctx, vcpu, VMCB_OFF_CR_INTERCEPT, 4,
 		    &ctl);
 		if (error == 0)
