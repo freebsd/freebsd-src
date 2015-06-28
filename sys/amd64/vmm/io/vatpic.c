@@ -275,6 +275,7 @@ vatpic_icw1(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 	atpic->ready = false;
 
 	atpic->icw_num = 1;
+	atpic->request = 0;
 	atpic->mask = 0;
 	atpic->lowprio = 7;
 	atpic->rd_cmd_reg = 0;

@@ -58,7 +58,11 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 	if (cpu < 0 || cpu >= VM_MAXCPU)
 		return (EINVAL);
 
-	if (vector < 32 || vector > 255)
+	/*
+	 * According to section "Maskable Hardware Interrupts" in Intel SDM
+	 * vectors 16 through 255 can be delivered through the local APIC.
+	 */
+	if (vector < 16 || vector > 255)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);

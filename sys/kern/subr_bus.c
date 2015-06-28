@@ -2116,6 +2116,16 @@ device_probe_child(device_t dev, device_t child)
 			}
 
 			/*
+			 * Probes that return BUS_PROBE_NOWILDCARD or lower
+			 * only match on devices whose driver was explicitly
+			 * specified.
+			 */
+			if (result <= BUS_PROBE_NOWILDCARD &&
+			    !(child->flags & DF_FIXEDCLASS)) {
+				result = ENXIO;
+			}
+
+			/*
 			 * The driver returned an error so it
 			 * certainly doesn't match.
 			 */
@@ -2130,14 +2140,6 @@ device_probe_child(device_t dev, device_t child)
 			 * of pri for the first match.
 			 */
 			if (best == NULL || result > pri) {
-				/*
-				 * Probes that return BUS_PROBE_NOWILDCARD
-				 * or lower only match on devices whose
-				 * driver was explicitly specified.
-				 */
-				if (result <= BUS_PROBE_NOWILDCARD &&
-				    !(child->flags & DF_FIXEDCLASS))
-					continue;
 				best = dl;
 				pri = result;
 				continue;

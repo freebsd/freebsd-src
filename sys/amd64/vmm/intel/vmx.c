@@ -1785,12 +1785,18 @@ vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 	vmexit->u.inst_emul.gla = gla;
 	vmx_paging_info(paging);
 	switch (paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = vmcs_read(VMCS_GUEST_CS_BASE);
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = vmcs_read(VMCS_GUEST_CS_BASE);
 		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
 		vmexit->u.inst_emul.cs_d = SEG_DESC_DEF32(csar);
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;
 	}

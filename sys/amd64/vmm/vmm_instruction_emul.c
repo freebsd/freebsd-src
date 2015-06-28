@@ -71,6 +71,8 @@ enum {
 	VIE_OP_TYPE_CMP,
 	VIE_OP_TYPE_POP,
 	VIE_OP_TYPE_MOVS,
+	VIE_OP_TYPE_GROUP1,
+	VIE_OP_TYPE_STOS,
 	VIE_OP_TYPE_LAST
 };
 
@@ -145,6 +147,16 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_type = VIE_OP_TYPE_MOVS,
 		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
 	},
+	[0xAA] = {
+		.op_byte = 0xAA,
+		.op_type = VIE_OP_TYPE_STOS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
+	},
+	[0xAB] = {
+		.op_byte = 0xAB,
+		.op_type = VIE_OP_TYPE_STOS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
+	},
 	[0xC6] = {
 		/* XXX Group 11 extended opcode - not just MOV */
 		.op_byte = 0xC6,
@@ -161,15 +173,15 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_type = VIE_OP_TYPE_AND,
 	},
 	[0x81] = {
-		/* XXX Group 1 extended opcode - not just AND */
+		/* XXX Group 1 extended opcode */
 		.op_byte = 0x81,
-		.op_type = VIE_OP_TYPE_AND,
+		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM,
 	},
 	[0x83] = {
-		/* XXX Group 1 extended opcode - not just OR */
+		/* XXX Group 1 extended opcode */
 		.op_byte = 0x83,
-		.op_type = VIE_OP_TYPE_OR,
+		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM8,
 	},
 	[0x8F] = {
@@ -634,7 +646,7 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 #else
 	struct iovec copyinfo[2];
 #endif
-	uint64_t dstaddr, srcaddr, val;
+	uint64_t dstaddr, srcaddr, dstgpa, srcgpa, val;
 	uint64_t rcx, rdi, rsi, rflags;
 	int error, opsize, seg, repeat;
 
@@ -669,7 +681,7 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	 * (1)  memory		memory		n/a
 	 * (2)  memory		mmio		emulated
 	 * (3)  mmio		memory		emulated
-	 * (4)  mmio		mmio		not emulated
+	 * (4)  mmio		mmio		emulated
 	 *
 	 * At this point we don't have sufficient information to distinguish
 	 * between (2), (3) and (4). We use 'vm_copy_setup()' to tease this
@@ -694,7 +706,8 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		vm_copyin(vm, vcpuid, copyinfo, &val, opsize);
 		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
 		error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
-		goto done;
+		if (error)
+			goto done;
 	} else if (error > 0) {
 		/*
 		 * Resume guest execution to handle fault.
@@ -705,37 +718,55 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * 'vm_copy_setup()' is expected to fail for cases (3) and (4)
 		 * if 'srcaddr' is in the mmio space.
 		 */
-	}
 
-	error = get_gla(vm, vcpuid, vie, paging, opsize, vie->addrsize,
-	    PROT_WRITE, VM_REG_GUEST_ES, VM_REG_GUEST_RDI, &dstaddr);
-	if (error)
-		goto done;
-
-	error = vm_copy_setup(vm, vcpuid, paging, dstaddr, opsize,
-	    PROT_WRITE, copyinfo, nitems(copyinfo));
-	if (error == 0) {
-		/*
-		 * case (3): read from MMIO and write to system memory.
-		 *
-		 * A MMIO read can have side-effects so we commit to it
-		 * only after vm_copy_setup() is successful. If a page-fault
-		 * needs to be injected into the guest then it will happen
-		 * before the MMIO read is attempted.
-		 */
-		error = memread(vm, vcpuid, gpa, &val, opsize, arg);
+		error = get_gla(vm, vcpuid, vie, paging, opsize, vie->addrsize,
+		    PROT_WRITE, VM_REG_GUEST_ES, VM_REG_GUEST_RDI, &dstaddr);
 		if (error)
 			goto done;
 
-		vm_copyout(vm, vcpuid, &val, copyinfo, opsize);
-		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
-	} else if (error > 0) {
-		/*
-		 * Resume guest execution to handle fault.
-		 */
-		goto done;
-	} else {
-		goto done;
+		error = vm_copy_setup(vm, vcpuid, paging, dstaddr, opsize,
+		    PROT_WRITE, copyinfo, nitems(copyinfo));
+		if (error == 0) {
+			/*
+			 * case (3): read from MMIO and write to system memory.
+			 *
+			 * A MMIO read can have side-effects so we
+			 * commit to it only after vm_copy_setup() is
+			 * successful. If a page-fault needs to be
+			 * injected into the guest then it will happen
+			 * before the MMIO read is attempted.
+			 */
+			error = memread(vm, vcpuid, gpa, &val, opsize, arg);
+			if (error)
+				goto done;
+
+			vm_copyout(vm, vcpuid, &val, copyinfo, opsize);
+			vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+		} else if (error > 0) {
+			/*
+			 * Resume guest execution to handle fault.
+			 */
+			goto done;
+		} else {
+			/*
+			 * Case (4): read from and write to mmio.
+			 */
+			error = vm_gla2gpa(vm, vcpuid, paging, srcaddr,
+			    PROT_READ, &srcgpa);
+			if (error)
+				goto done;
+			error = memread(vm, vcpuid, srcgpa, &val, opsize, arg);
+			if (error)
+				goto done;
+
+			error = vm_gla2gpa(vm, vcpuid, paging, dstaddr,
+			   PROT_WRITE, &dstgpa);
+			if (error)
+				goto done;
+			error = memwrite(vm, vcpuid, dstgpa, val, opsize, arg);
+			if (error)
+				goto done;
+		}
 	}
 
 	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RSI, &rsi);
@@ -783,6 +814,68 @@ done:
 }
 
 static int
+emulate_stos(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error, opsize, repeat;
+	uint64_t val;
+	uint64_t rcx, rdi, rflags;
+
+	opsize = (vie->op.op_byte == 0xAA) ? 1 : vie->opsize;
+	repeat = vie->repz_present | vie->repnz_present;
+
+	if (repeat) {
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RCX, &rcx);
+		KASSERT(!error, ("%s: error %d getting rcx", __func__, error));
+
+		/*
+		 * The count register is %rcx, %ecx or %cx depending on the
+		 * address size of the instruction.
+		 */
+		if ((rcx & vie_size2mask(vie->addrsize)) == 0)
+			return (0);
+	}
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RAX, &val);
+	KASSERT(!error, ("%s: error %d getting rax", __func__, error));
+
+	error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RDI, &rdi);
+	KASSERT(error == 0, ("%s: error %d getting rdi", __func__, error));
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	if (rflags & PSL_D)
+		rdi -= opsize;
+	else
+		rdi += opsize;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RDI, rdi,
+	    vie->addrsize);
+	KASSERT(error == 0, ("%s: error %d updating rdi", __func__, error));
+
+	if (repeat) {
+		rcx = rcx - 1;
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RCX,
+		    rcx, vie->addrsize);
+		KASSERT(!error, ("%s: error %d updating rcx", __func__, error));
+
+		/*
+		 * Repeat the instruction if the count register is not zero.
+		 */
+		if ((rcx & vie_size2mask(vie->addrsize)) != 0)
+			vm_restart_instruction(vm, vcpuid);
+	}
+
+	return (0);
+}
+
+static int
 emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
@@ -820,16 +913,18 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = vie_update_register(vm, vcpuid, reg, result, size);
 		break;
 	case 0x81:
+	case 0x83:
 		/*
-		 * AND/OR mem (ModRM:r/m) with immediate and store the
+		 * AND mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
 		 *
-		 * AND: i = 4
-		 * OR:  i = 1
-		 * 81 /i		op r/m16, imm16
-		 * 81 /i		op r/m32, imm32
-		 * REX.W + 81 /i	op r/m64, imm32 sign-extended to 64
+		 * 81 /4		and r/m16, imm16
+		 * 81 /4		and r/m32, imm32
+		 * REX.W + 81 /4	and r/m64, imm32 sign-extended to 64
 		 *
+		 * 83 /4		and r/m16, imm8 sign-extended to 16
+		 * 83 /4		and r/m32, imm8 sign-extended to 32
+		 * REX.W + 83/4		and r/m64, imm8 sign-extended to 64
 		 */
 
 		/* get the first operand */
@@ -838,26 +933,11 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			break;
 
                 /*
-                 * perform the operation with the pre-fetched immediate
-                 * operand and write the result
-                 */
-		switch (vie->reg & 7) {
-		case 0x4:
-			/* modrm:reg == b100, AND */
-			result = val1 & vie->immediate;
-			break;
-		case 0x1:
-			/* modrm:reg == b001, OR */
-			result = val1 | vie->immediate;
-			break;
-		default:
-			error = EINVAL;
-			break;
-		}
-		if (error)
-			break;
-
-		error = memwrite(vm, vcpuid, gpa, result, size, arg);
+		 * perform the operation with the pre-fetched immediate
+		 * operand and write the result
+		 */
+                result = val1 & vie->immediate;
+                error = memwrite(vm, vcpuid, gpa, result, size, arg);
 		break;
 	default:
 		break;
@@ -894,20 +974,20 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
+	case 0x81:
 	case 0x83:
 		/*
 		 * OR mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
 		 *
-		 * 83 /1		OR r/m16, imm8 sign-extended to 16
-		 * 83 /1		OR r/m32, imm8 sign-extended to 32
-		 * REX.W + 83/1		OR r/m64, imm8 sign-extended to 64
+		 * 81 /1		or r/m16, imm16
+		 * 81 /1		or r/m32, imm32
+		 * REX.W + 81 /1	or r/m64, imm32 sign-extended to 64
 		 *
-		 * Currently, only the OR operation of the 0x83 opcode
-		 * is implemented (ModRM:reg = b001).
+		 * 83 /1		or r/m16, imm8 sign-extended to 16
+		 * 83 /1		or r/m32, imm8 sign-extended to 32
+		 * REX.W + 83/1		or r/m64, imm8 sign-extended to 64
 		 */
-		if ((vie->reg & 7) != 1)
-			break;
 
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &val1, size, arg);
@@ -978,11 +1058,37 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		if (error)
 			return (error);
 
+		rflags2 = getcc(size, op1, op2);
+		break;
+	case 0x81:
+	case 0x83:
+		/*
+		 * 81 /7		cmp r/m16, imm16
+		 * 81 /7		cmp r/m32, imm32
+		 * REX.W + 81 /7	cmp r/m64, imm32 sign-extended to 64
+		 *
+		 * 83 /7		cmp r/m16, imm8 sign-extended to 16
+		 * 83 /7		cmp r/m32, imm8 sign-extended to 32
+		 * REX.W + 83 /7	cmp r/m64, imm8 sign-extended to 64
+		 *
+		 * Compare mem (ModRM:r/m) with immediate and set
+		 * status flags according to the results.  The
+		 * comparison is performed by subtracting the
+		 * immediate from the first operand and then setting
+		 * the status flags.
+		 *
+		 */
+
+		/* get the first operand */
+                error = memread(vm, vcpuid, gpa, &op1, size, arg);
+		if (error)
+			return (error);
+
+		rflags2 = getcc(size, op1, vie->immediate);
 		break;
 	default:
 		return (EINVAL);
 	}
-	rflags2 = getcc(size, op1, op2);
 	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
 	if (error)
 		return (error);
@@ -1201,6 +1307,34 @@ emulate_pop(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *memarg)
+{
+	int error;
+
+	switch (vie->reg & 7) {
+	case 0x1:	/* OR */
+		error = emulate_or(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
+		break;
+	case 0x4:	/* AND */
+		error = emulate_and(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
+		break;
+	case 0x7:	/* CMP */
+		error = emulate_cmp(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return (error);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
@@ -1212,6 +1346,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		return (EINVAL);
 
 	switch (vie->op.op_type) {
+	case VIE_OP_TYPE_GROUP1:
+		error = emulate_group1(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
 	case VIE_OP_TYPE_POP:
 		error = emulate_pop(vm, vcpuid, gpa, vie, paging, memread,
 		    memwrite, memarg);
@@ -1235,6 +1373,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_MOVS:
 		error = emulate_movs(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_STOS:
+		error = emulate_stos(vm, vcpuid, gpa, vie, paging, memread,
 		    memwrite, memarg);
 		break;
 	case VIE_OP_TYPE_AND:
@@ -1465,7 +1607,7 @@ ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
 }
 
 int
-vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa)
 {
 	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
@@ -1825,11 +1967,11 @@ decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
 
-	if (cpu_mode == CPU_MODE_REAL)
-		return (-1);
-
 	if (vie->op.op_flags & VIE_OP_F_NO_MODRM)
 		return (0);
+
+	if (cpu_mode == CPU_MODE_REAL)
+		return (-1);
 
 	if (vie_peek(vie, &x))
 		return (-1);

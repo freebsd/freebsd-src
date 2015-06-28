@@ -371,8 +371,6 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
 
-	pci_lintr_request(pi);
-
 	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix())) {
 		blockif_close(sc->bc);
 		free(sc);

@@ -90,7 +90,7 @@ int vmm_fetch_instruction(struct vm *vm, int cpuid,
  * Returns 1 if an exception was injected into the guest.
  * Returns -1 otherwise.
  */
-int vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+int vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa);
 
 void vie_init(struct vie *vie, const char *inst_bytes, int inst_length);
