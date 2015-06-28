@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
  * to be called from SYSINIT().
  */
 void
-kproc_start(udata)
-	const void *udata;
+kproc_start(const void *udata)
 {
 	const struct kproc_desc	*kp = udata;
 	int error;
