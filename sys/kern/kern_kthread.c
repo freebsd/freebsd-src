@@ -224,8 +224,7 @@ kproc_suspend_check(struct proc *p)
  */
 
 void
-kthread_start(udata)
-	const void *udata;
+kthread_start(const void *udata)
 {
 	const struct kthread_desc	*kp = udata;
 	int error;
