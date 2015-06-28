@@ -64,7 +64,7 @@ int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 int	vm_gla2gpa(struct vmctx *, int vcpuid, struct vm_guest_paging *paging,
-		   uint64_t gla, int prot, uint64_t *gpa);
+		   uint64_t gla, int prot, uint64_t *gpa, int *fault);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
@@ -131,10 +131,15 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 /*
  * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
  * The 'iovcnt' should be big enough to accomodate all GPA segments.
- * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
+ *
+ * retval	fault		Interpretation
+ *   0		  0		Success
+ *   0		  1		An exception was injected into the guest
+ * EFAULT	 N/A		Error
  */
 int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
-	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
+	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
+	    int *fault);
 void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,

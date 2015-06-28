@@ -293,6 +293,7 @@ static int get_guest_pat, get_host_pat;
 static int get_guest_sysenter, get_vmcs_link;
 static int get_exit_reason, get_vmcs_exit_qualification;
 static int get_vmcs_exit_interruption_info, get_vmcs_exit_interruption_error;
+static int get_vmcs_exit_inst_length;
 
 static uint64_t desc_base;
 static uint32_t desc_limit, desc_access;
@@ -1145,7 +1146,15 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, u64);
 		}
 	}
-	
+
+	if (!error && (get_vmcs_exit_inst_length || get_all)) {
+		error = vm_get_vmcs_field(ctx, vcpu,
+		    VMCS_EXIT_INSTRUCTION_LENGTH, &u64);
+		if (error == 0)
+			printf("vmcs_exit_inst_length[%d]\t0x%08x\n", vcpu,
+			    (uint32_t)u64);
+	}
+
 	if (!error && (get_vmcs_exit_qualification || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_QUALIFICATION,
 					  &u64);
@@ -1405,6 +1414,8 @@ setup_options(bool cpu_intel)
 				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "get-vmcs-exit-qualification",
 				NO_ARG,	&get_vmcs_exit_qualification, 1 },
+		{ "get-vmcs-exit-inst-length",
+				NO_ARG,	&get_vmcs_exit_inst_length, 1 },
 		{ "get-vmcs-interruptibility",
 				NO_ARG, &get_vmcs_interruptibility, 1 },
 		{ "get-vmcs-exit-interruption-error",

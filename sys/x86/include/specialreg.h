@@ -82,6 +82,9 @@
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
 #define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
+#define	EFER_LMSLE 0x000002000	/* Long Mode Segment Limit Enable */
+#define	EFER_FFXSR 0x000004000	/* Fast FXSAVE/FSRSTOR */
+#define	EFER_TCE   0x000008000	/* Translation Cache Extension */
 
 /*
  * Intel Extended Features registers
@@ -190,7 +193,7 @@
 #define	AMDID_MP	0x00080000
 #define	AMDID_NX	0x00100000
 #define	AMDID_EXT_MMX	0x00400000
-#define	AMDID_FFXSR	0x01000000
+#define	AMDID_FFXSR	0x02000000
 #define	AMDID_PAGE1GB	0x04000000
 #define	AMDID_RDTSCP	0x08000000
 #define	AMDID_LM	0x20000000

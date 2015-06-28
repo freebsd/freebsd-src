@@ -73,6 +73,7 @@ enum {
 	VIE_OP_TYPE_MOVS,
 	VIE_OP_TYPE_GROUP1,
 	VIE_OP_TYPE_STOS,
+	VIE_OP_TYPE_BITTEST,
 	VIE_OP_TYPE_LAST
 };
 
@@ -92,6 +93,11 @@ static const struct vie_op two_byte_opcodes[256] = {
 		.op_byte = 0xB7,
 		.op_type = VIE_OP_TYPE_MOVZX,
 	},
+	[0xBA] = {
+		.op_byte = 0xBA,
+		.op_type = VIE_OP_TYPE_BITTEST,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 	[0xBE] = {
 		.op_byte = 0xBE,
 		.op_type = VIE_OP_TYPE_MOVSX,
@@ -106,6 +112,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x2B] = {
 		.op_byte = 0x2B,
 		.op_type = VIE_OP_TYPE_SUB,
+	},
+	[0x39] = {
+		.op_byte = 0x39,
+		.op_type = VIE_OP_TYPE_CMP,
 	},
 	[0x3B] = {
 		.op_byte = 0x3B,
@@ -172,14 +182,20 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x23,
 		.op_type = VIE_OP_TYPE_AND,
 	},
+	[0x80] = {
+		/* Group 1 extended opcode */
+		.op_byte = 0x80,
+		.op_type = VIE_OP_TYPE_GROUP1,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 	[0x81] = {
-		/* XXX Group 1 extended opcode */
+		/* Group 1 extended opcode */
 		.op_byte = 0x81,
 		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM,
 	},
 	[0x83] = {
-		/* XXX Group 1 extended opcode */
+		/* Group 1 extended opcode */
 		.op_byte = 0x83,
 		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM8,
@@ -585,13 +601,11 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 /*
  * Helper function to calculate and validate a linear address.
- *
- * Returns 0 on success and 1 if an exception was injected into the guest.
  */
 static int
 get_gla(void *vm, int vcpuid, struct vie *vie, struct vm_guest_paging *paging,
     int opsize, int addrsize, int prot, enum vm_reg_name seg,
-    enum vm_reg_name gpr, uint64_t *gla)
+    enum vm_reg_name gpr, uint64_t *gla, int *fault)
 {
 	struct seg_desc desc;
 	uint64_t cr0, val, rflags;
@@ -617,7 +631,7 @@ get_gla(void *vm, int vcpuid, struct vie *vie, struct vm_guest_paging *paging,
 			vm_inject_ss(vm, vcpuid, 0);
 		else
 			vm_inject_gp(vm, vcpuid);
-		return (1);
+		goto guest_fault;
 	}
 
 	if (vie_canonical_check(paging->cpu_mode, *gla)) {
@@ -625,14 +639,19 @@ get_gla(void *vm, int vcpuid, struct vie *vie, struct vm_guest_paging *paging,
 			vm_inject_ss(vm, vcpuid, 0);
 		else
 			vm_inject_gp(vm, vcpuid);
-		return (1);
+		goto guest_fault;
 	}
 
 	if (vie_alignment_check(paging->cpl, opsize, cr0, rflags, *gla)) {
 		vm_inject_ac(vm, vcpuid, 0);
-		return (1);
+		goto guest_fault;
 	}
 
+	*fault = 0;
+	return (0);
+
+guest_fault:
+	*fault = 1;
 	return (0);
 }
 
@@ -648,7 +667,7 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 #endif
 	uint64_t dstaddr, srcaddr, dstgpa, srcgpa, val;
 	uint64_t rcx, rdi, rsi, rflags;
-	int error, opsize, seg, repeat;
+	int error, fault, opsize, seg, repeat;
 
 	opsize = (vie->op.op_byte == 0xA4) ? 1 : vie->opsize;
 	val = 0;
@@ -671,8 +690,10 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * The count register is %rcx, %ecx or %cx depending on the
 		 * address size of the instruction.
 		 */
-		if ((rcx & vie_size2mask(vie->addrsize)) == 0)
-			return (0);
+		if ((rcx & vie_size2mask(vie->addrsize)) == 0) {
+			error = 0;
+			goto done;
+		}
 	}
 
 	/*
@@ -693,13 +714,16 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 	seg = vie->segment_override ? vie->segment_register : VM_REG_GUEST_DS;
 	error = get_gla(vm, vcpuid, vie, paging, opsize, vie->addrsize,
-	    PROT_READ, seg, VM_REG_GUEST_RSI, &srcaddr);
-	if (error)
+	    PROT_READ, seg, VM_REG_GUEST_RSI, &srcaddr, &fault);
+	if (error || fault)
 		goto done;
 
 	error = vm_copy_setup(vm, vcpuid, paging, srcaddr, opsize, PROT_READ,
-	    copyinfo, nitems(copyinfo));
+	    copyinfo, nitems(copyinfo), &fault);
 	if (error == 0) {
+		if (fault)
+			goto done;	/* Resume guest to handle fault */
+
 		/*
 		 * case (2): read from system memory and write to mmio.
 		 */
@@ -708,11 +732,6 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
 		if (error)
 			goto done;
-	} else if (error > 0) {
-		/*
-		 * Resume guest execution to handle fault.
-		 */
-		goto done;
 	} else {
 		/*
 		 * 'vm_copy_setup()' is expected to fail for cases (3) and (4)
@@ -720,13 +739,17 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 */
 
 		error = get_gla(vm, vcpuid, vie, paging, opsize, vie->addrsize,
-		    PROT_WRITE, VM_REG_GUEST_ES, VM_REG_GUEST_RDI, &dstaddr);
-		if (error)
+		    PROT_WRITE, VM_REG_GUEST_ES, VM_REG_GUEST_RDI, &dstaddr,
+		    &fault);
+		if (error || fault)
 			goto done;
 
 		error = vm_copy_setup(vm, vcpuid, paging, dstaddr, opsize,
-		    PROT_WRITE, copyinfo, nitems(copyinfo));
+		    PROT_WRITE, copyinfo, nitems(copyinfo), &fault);
 		if (error == 0) {
+			if (fault)
+				goto done;    /* Resume guest to handle fault */
+
 			/*
 			 * case (3): read from MMIO and write to system memory.
 			 *
@@ -742,27 +765,29 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 			vm_copyout(vm, vcpuid, &val, copyinfo, opsize);
 			vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
-		} else if (error > 0) {
-			/*
-			 * Resume guest execution to handle fault.
-			 */
-			goto done;
 		} else {
 			/*
 			 * Case (4): read from and write to mmio.
+			 *
+			 * Commit to the MMIO read/write (with potential
+			 * side-effects) only after we are sure that the
+			 * instruction is not going to be restarted due
+			 * to address translation faults.
 			 */
 			error = vm_gla2gpa(vm, vcpuid, paging, srcaddr,
-			    PROT_READ, &srcgpa);
-			if (error)
+			    PROT_READ, &srcgpa, &fault);
+			if (error || fault)
 				goto done;
+
+			error = vm_gla2gpa(vm, vcpuid, paging, dstaddr,
+			   PROT_WRITE, &dstgpa, &fault);
+			if (error || fault)
+				goto done;
+
 			error = memread(vm, vcpuid, srcgpa, &val, opsize, arg);
 			if (error)
 				goto done;
 
-			error = vm_gla2gpa(vm, vcpuid, paging, dstaddr,
-			   PROT_WRITE, &dstgpa);
-			if (error)
-				goto done;
 			error = memwrite(vm, vcpuid, dstgpa, val, opsize, arg);
 			if (error)
 				goto done;
@@ -807,10 +832,9 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			vm_restart_instruction(vm, vcpuid);
 	}
 done:
-	if (error < 0)
-		return (EFAULT);
-	else
-		return (0);
+	KASSERT(error == 0 || error == EFAULT, ("%s: unexpected error %d",
+	    __func__, error));
+	return (error);
 }
 
 static int
@@ -1030,39 +1054,55 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
 	int error, size;
-	uint64_t op1, op2, rflags, rflags2;
+	uint64_t regop, memop, op1, op2, rflags, rflags2;
 	enum vm_reg_name reg;
 
 	size = vie->opsize;
 	switch (vie->op.op_byte) {
+	case 0x39:
 	case 0x3B:
 		/*
+		 * 39/r		CMP r/m16, r16
+		 * 39/r		CMP r/m32, r32
+		 * REX.W 39/r	CMP r/m64, r64
+		 *
 		 * 3B/r		CMP r16, r/m16
 		 * 3B/r		CMP r32, r/m32
 		 * REX.W + 3B/r	CMP r64, r/m64
 		 *
-		 * Compare first operand (reg) with second operand (r/m) and
+		 * Compare the first operand with the second operand and
 		 * set status flags in EFLAGS register. The comparison is
 		 * performed by subtracting the second operand from the first
 		 * operand and then setting the status flags.
 		 */
 
-		/* Get the first operand */
+		/* Get the register operand */
 		reg = gpr_map[vie->reg];
-		error = vie_read_register(vm, vcpuid, reg, &op1);
+		error = vie_read_register(vm, vcpuid, reg, &regop);
 		if (error)
 			return (error);
 
-		/* Get the second operand */
-		error = memread(vm, vcpuid, gpa, &op2, size, arg);
+		/* Get the memory operand */
+		error = memread(vm, vcpuid, gpa, &memop, size, arg);
 		if (error)
 			return (error);
 
+		if (vie->op.op_byte == 0x3B) {
+			op1 = regop;
+			op2 = memop;
+		} else {
+			op1 = memop;
+			op2 = regop;
+		}
 		rflags2 = getcc(size, op1, op2);
 		break;
+	case 0x80:
 	case 0x81:
 	case 0x83:
 		/*
+		 * 80 /7		cmp r/m8, imm8
+		 * REX + 80 /7		cmp r/m8, imm8
+		 *
 		 * 81 /7		cmp r/m16, imm16
 		 * 81 /7		cmp r/m32, imm32
 		 * REX.W + 81 /7	cmp r/m64, imm32 sign-extended to 64
@@ -1078,6 +1118,8 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * the status flags.
 		 *
 		 */
+		if (vie->op.op_byte == 0x80)
+			size = 1;
 
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &op1, size, arg);
@@ -1167,7 +1209,7 @@ emulate_stack_op(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 #endif
 	struct seg_desc ss_desc;
 	uint64_t cr0, rflags, rsp, stack_gla, val;
-	int error, size, stackaddrsize, pushop;
+	int error, fault, size, stackaddrsize, pushop;
 
 	val = 0;
 	size = vie->opsize;
@@ -1233,18 +1275,10 @@ emulate_stack_op(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 	}
 
 	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size,
-	    pushop ? PROT_WRITE : PROT_READ, copyinfo, nitems(copyinfo));
-	if (error == -1) {
-		/*
-		 * XXX cannot return a negative error value here because it
-		 * ends up being the return value of the VM_RUN() ioctl and
-		 * is interpreted as a pseudo-error (for e.g. ERESTART).
-		 */
-		return (EFAULT);
-	} else if (error == 1) {
-		/* Resume guest execution to handle page fault */
-		return (0);
-	}
+	    pushop ? PROT_WRITE : PROT_READ, copyinfo, nitems(copyinfo),
+	    &fault);
+	if (error || fault)
+		return (error);
 
 	if (pushop) {
 		error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
@@ -1335,6 +1369,48 @@ emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+{
+	uint64_t val, rflags;
+	int error, bitmask, bitoff;
+
+	/*
+	 * 0F BA is a Group 8 extended opcode.
+	 *
+	 * Currently we only emulate the 'Bit Test' instruction which is
+	 * identified by a ModR/M:reg encoding of 100b.
+	 */
+	if ((vie->reg & 7) != 4)
+		return (EINVAL);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	error = memread(vm, vcpuid, gpa, &val, vie->opsize, memarg);
+	if (error)
+		return (error);
+
+	/*
+	 * Intel SDM, Vol 2, Table 3-2:
+	 * "Range of Bit Positions Specified by Bit Offset Operands"
+	 */
+	bitmask = vie->opsize * 8 - 1;
+	bitoff = vie->immediate & bitmask;
+
+	/* Copy the bit into the Carry flag in %rflags */
+	if (val & (1UL << bitoff))
+		rflags |= PSL_C;
+	else
+		rflags &= ~PSL_C;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	KASSERT(error == 0, ("%s: error %d updating rflags", __func__, error));
+
+	return (0);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
@@ -1390,6 +1466,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	case VIE_OP_TYPE_SUB:
 		error = emulate_sub(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_BITTEST:
+		error = emulate_bittest(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
 		break;
 	default:
 		error = EINVAL;
@@ -1608,13 +1688,15 @@ ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
 
 int
 vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
-    uint64_t gla, int prot, uint64_t *gpa)
+    uint64_t gla, int prot, uint64_t *gpa, int *guest_fault)
 {
 	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
 	u_int retries;
 	uint64_t *ptpbase, ptpphys, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
 	void *cookie;
+
+	*guest_fault = 0;
 
 	usermode = (paging->cpl == 3 ? 1 : 0);
 	writable = prot & VM_PROT_WRITE;
@@ -1778,18 +1860,20 @@ restart:
 	*gpa = pte | (gla & (pgsize - 1));
 done:
 	ptp_release(&cookie);
+	KASSERT(retval == 0 || retval == EFAULT, ("%s: unexpected retval %d",
+	    __func__, retval));
 	return (retval);
 error:
-	retval = -1;
+	retval = EFAULT;
 	goto done;
 fault:
-	retval = 1;
+	*guest_fault = 1;
 	goto done;
 }
 
 int
 vmm_fetch_instruction(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
-    uint64_t rip, int inst_length, struct vie *vie)
+    uint64_t rip, int inst_length, struct vie *vie, int *faultptr)
 {
 	struct vm_copyinfo copyinfo[2];
 	int error, prot;
@@ -1799,13 +1883,14 @@ vmm_fetch_instruction(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 
 	prot = PROT_READ | PROT_EXEC;
 	error = vm_copy_setup(vm, vcpuid, paging, rip, inst_length, prot,
-	    copyinfo, nitems(copyinfo));
-	if (error == 0) {
-		vm_copyin(vm, vcpuid, copyinfo, vie->inst, inst_length);
-		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
-		vie->num_valid = inst_length;
-	}
-	return (error);
+	    copyinfo, nitems(copyinfo), faultptr);
+	if (error || *faultptr)
+		return (error);
+
+	vm_copyin(vm, vcpuid, copyinfo, vie->inst, inst_length);
+	vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+	vie->num_valid = inst_length;
+	return (0);
 }
 
 static int
@@ -2230,19 +2315,6 @@ decode_moffset(struct vie *vie)
 }
 
 /*
- * Verify that all the bytes in the instruction buffer were consumed.
- */
-static int
-verify_inst_length(struct vie *vie)
-{
-
-	if (vie->num_processed)
-		return (0);
-	else
-		return (-1);
-}
-
-/*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
@@ -2270,7 +2342,7 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		 * instruction
 		 */
 		if (vie->base_register == VM_REG_GUEST_RIP)
-			base += vie->num_valid;
+			base += vie->num_processed;
 	}
 
 	idx = 0;
@@ -2321,9 +2393,6 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 		return (-1);
 
 	if (decode_moffset(vie))
-		return (-1);
-
-	if (verify_inst_length(vie))
 		return (-1);
 
 	if ((vie->op.op_flags & VIE_OP_F_NO_GLA_VERIFICATION) == 0) {
