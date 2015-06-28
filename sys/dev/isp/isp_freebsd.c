@@ -4914,6 +4914,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 	isp = (ispsoftc_t *)cam_sim_softc(sim);
 	mtx_assert(&isp->isp_lock, MA_OWNED);
+	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
+	ISP_PCMD(ccb) = NULL;
 
 	if (isp->isp_state != ISP_RUNSTATE && ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		isp_init(isp);
@@ -4921,15 +4923,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			/*
 			 * Lie. Say it was a selection timeout.
 			 */
-			ccb->ccb_h.status = CAM_SEL_TIMEOUT | CAM_DEV_QFRZN;
-			xpt_freeze_devq(ccb->ccb_h.path, 1);
-			xpt_done(ccb);
+			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			isp_done((struct ccb_scsiio *) ccb);
 			return;
 		}
 		isp->isp_state = ISP_RUNSTATE;
 	}
-	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
-	ISP_PCMD(ccb) = NULL;
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
@@ -4940,7 +4939,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
 				ccb->ccb_h.status = CAM_REQ_INVALID;
-				xpt_done(ccb);
+				isp_done((struct ccb_scsiio *) ccb);
 				break;
 			}
 		}
@@ -4963,6 +4962,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_prt(isp, ISP_LOGWARN, "out of PCMDs");
 			cam_freeze_devq(ccb->ccb_h.path);
 			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 250, 0);
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
 		}
@@ -4995,10 +4995,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				} else {
 					isp_prt(isp, ISP_LOGDEBUG0, "%d.%d downtime (%d) > lim (%d)", XS_TGT(ccb), XS_LUN(ccb), ISP_FC_PC(isp, bus)->loop_down_time, lim);
 				}
-				ccb->ccb_h.status = CAM_SEL_TIMEOUT|CAM_DEV_QFRZN;
-				xpt_freeze_devq(ccb->ccb_h.path, 1);
-				isp_free_pcmd(isp, ccb);
-				xpt_done(ccb);
+				ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+				isp_done((struct ccb_scsiio *) ccb);
 				break;
 			}
 			isp_prt(isp, ISP_LOGDEBUG0, "%d.%d retry later", XS_TGT(ccb), XS_LUN(ccb));
@@ -5617,7 +5615,7 @@ isp_done(XS_T *sccb)
 			 * gone.  If it reappears, we'll need to issue a
 			 * rescan.
 			 */
-			if (hdlidx > 0 && hdlidx < MAX_FC_TARG)
+			if (hdlidx >= 0 && hdlidx < MAX_FC_TARG)
 				fcp->portdb[hdlidx].reported_gone = 1;
 		}
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
@@ -5630,9 +5628,11 @@ isp_done(XS_T *sccb)
 		xpt_print(sccb->ccb_h.path, "cam completion status 0x%x\n", sccb->ccb_h.status);
 	}
 
-	if (callout_active(&PISP_PCMD(sccb)->wdog))
-		callout_stop(&PISP_PCMD(sccb)->wdog);
-	isp_free_pcmd(isp, (union ccb *) sccb);
+	if (ISP_PCMD(sccb)) {
+		if (callout_active(&PISP_PCMD(sccb)->wdog))
+			callout_stop(&PISP_PCMD(sccb)->wdog);
+		isp_free_pcmd(isp, (union ccb *) sccb);
+	}
 	xpt_done((union ccb *) sccb);
 }
 
