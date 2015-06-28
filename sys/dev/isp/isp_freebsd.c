@@ -2435,18 +2435,11 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	 * If we're not in the port database, add ourselves.
 	 */
 	if (!IS_2100(isp) && isp_find_pdb_by_loopid(isp, 0, atiop->init_id, &lp) == 0) {
-    		uint64_t iid =
+		uint64_t iid =
 			(((uint64_t) aep->at_wwpn[0]) << 48) |
 			(((uint64_t) aep->at_wwpn[1]) << 32) |
 			(((uint64_t) aep->at_wwpn[2]) << 16) |
 			(((uint64_t) aep->at_wwpn[3]) <<  0);
-		/*
-		 * However, make sure we delete ourselves if otherwise
-		 * we were there but at a different loop id.
-		 */
-		if (isp_find_pdb_by_wwn(isp, 0, iid, &lp)) {
-			isp_del_wwn_entry(isp, 0, iid, lp->handle, lp->portid);
-		}
 		isp_add_wwn_entry(isp, 0, iid, atiop->init_id, PORT_ANY, 0);
 	}
 	atiop->cdb_len = ATIO2_CDBLEN;
