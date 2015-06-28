@@ -84,6 +84,43 @@ static struct cdevsw isp_cdevsw = {
 };
 
 static int
+isp_role_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	ispsoftc_t *isp = (ispsoftc_t *)arg1;
+	int chan = arg2;
+	int error, old, value;
+
+	value = FCPARAM(isp, chan)->role;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	if (value < ISP_ROLE_NONE || value > ISP_ROLE_BOTH)
+		return (EINVAL);
+
+	ISP_LOCK(isp);
+	old = FCPARAM(isp, chan)->role;
+
+	/* If nothing has changed -- we are done. */
+	if (value == old) {
+		ISP_UNLOCK(isp);
+		return (0);
+	}
+
+	/* We don't allow target mode switch from here. */
+	if ((value ^ old) & ISP_ROLE_TARGET) {
+		ISP_UNLOCK(isp);
+		return (EPERM);
+	}
+
+	/* Actually change the role. */
+	error = isp_fc_change_role(isp, chan, value);
+	ISP_UNLOCK(isp);
+	return (error);
+}
+
+static int
 isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 {
 	struct ccb_setasync csa;
@@ -137,6 +174,9 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
+		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
+		struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+		char name[16];
 
 		ISP_LOCK(isp);
 		fc->sim = sim;
@@ -175,17 +215,21 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
 #endif
-		if (chan == 0) {
-			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
-			struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
-			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwnn, "World Wide Node Name");
-			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwpn, "World Wide Port Name");
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->loop_down_limit, 0, "Loop Down Limit");
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->gone_device_time, 0, "Gone Device Time");
-#if defined(ISP_TARGET_MODE) && defined(DEBUG)
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
-#endif
+		if (chan > 0) {
+			snprintf(name, sizeof(name), "chan%d", chan);
+			tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree),
+			    OID_AUTO, name, CTLFLAG_RW, 0, "Virtual channel");
 		}
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwnn, "World Wide Node Name");
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwpn, "World Wide Port Name");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->loop_down_limit, 0, "Loop Down Limit");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->gone_device_time, 0, "Gone Device Time");
+#if defined(ISP_TARGET_MODE) && defined(DEBUG)
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
+#endif
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "role", CTLTYPE_INT | CTLFLAG_RW, isp, chan,
+		    isp_role_sysctl, "I", "Current role");
 	}
 	return (0);
 }
