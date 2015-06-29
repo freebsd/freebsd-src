@@ -36,8 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/sysent.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/frame.h>
+#include <machine/vmparam.h>
 
 static int
 cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
@@ -110,6 +114,20 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 	return (error);
 }
 
+static void
+cpu_ptrace_setbase(struct thread *td, int req, register_t r)
+{
+
+	if (req == PT_SETFSBASE) {
+		td->td_pcb->pcb_fsbase = r;
+		td->td_frame->tf_fs = _ufssel;
+	} else {
+		td->td_pcb->pcb_gsbase = r;
+		td->td_frame->tf_gs = _ugssel;
+	}
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+}
+
 #ifdef COMPAT_FREEBSD32
 #define PT_I386_GETXMMREGS	(PT_FIRSTMACH + 0)
 #define PT_I386_SETXMMREGS	(PT_FIRSTMACH + 1)
@@ -118,6 +136,7 @@ static int
 cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 {
 	struct savefpu *fpstate;
+	uint32_t r;
 	int error;
 
 	switch (req) {
@@ -142,6 +161,29 @@ cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 		error = cpu_ptrace_xstate(td, req, addr, data);
 		break;
 
+	case PT_GETFSBASE:
+	case PT_GETGSBASE:
+		if (!SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			error = EINVAL;
+			break;
+		}
+		r = req == PT_GETFSBASE ? td->td_pcb->pcb_fsbase :
+		    td->td_pcb->pcb_gsbase;
+		error = copyout(&r, addr, sizeof(r));
+		break;
+
+	case PT_SETFSBASE:
+	case PT_SETGSBASE:
+		if (!SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			error = EINVAL;
+			break;
+		}
+		error = copyin(addr, &r, sizeof(r));
+		if (error != 0)
+			break;
+		cpu_ptrace_setbase(td, req, r);
+		break;
+
 	default:
 		error = EINVAL;
 		break;
@@ -154,6 +196,7 @@ cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 int
 cpu_ptrace(struct thread *td, int req, void *addr, int data)
 {
+	register_t *r, rv;
 	int error;
 
 #ifdef COMPAT_FREEBSD32
@@ -174,6 +217,25 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	case PT_GETXSTATE:
 	case PT_SETXSTATE:
 		error = cpu_ptrace_xstate(td, req, addr, data);
+		break;
+
+	case PT_GETFSBASE:
+	case PT_GETGSBASE:
+		r = req == PT_GETFSBASE ? &td->td_pcb->pcb_fsbase :
+		    &td->td_pcb->pcb_gsbase;
+		error = copyout(r, addr, sizeof(*r));
+		break;
+
+	case PT_SETFSBASE:
+	case PT_SETGSBASE:
+		error = copyin(addr, &rv, sizeof(rv));
+		if (error != 0)
+			break;
+		if (rv >= VM_MAXUSER_ADDRESS) {
+			error = EINVAL;
+			break;
+		}
+		cpu_ptrace_setbase(td, req, rv);
 		break;
 
 	default:
