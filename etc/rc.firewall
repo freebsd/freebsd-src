@@ -291,14 +291,14 @@ case ${firewall_type} in
 		fi
 	fi
 
-	# define stuff we should never send out or receive in
+	# Define stuff we should never send out or receive in.
 	# Stop RFC1918 nets on the outside interface
 	${fwcmd} table ${BAD_ADDR_TBL} flush
 	${fwcmd} table ${BAD_ADDR_TBL} add 10.0.0.0/8
 	${fwcmd} table ${BAD_ADDR_TBL} add 172.16.0.0/12
 	${fwcmd} table ${BAD_ADDR_TBL} add 192.168.0.0/16
 
-	# Stop draft-manning-dsua-03.txt (1 May 2000) nets (includes RESERVED-1,
+	# And stop draft-manning-dsua-03.txt (1 May 2000) nets (includes RESERVED-1,
 	# DHCP auto-configuration, NET-TEST, MULTICAST (class D), and class E)
 	# on the outside interface
 	${fwcmd} table ${BAD_ADDR_TBL} add 0.0.0.0/8
