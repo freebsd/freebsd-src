@@ -22,7 +22,7 @@ MAGICPATH?=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${CONTRDIR}/src
 
-WARNS?=		3
+WARNS?=		1
 
 CLEANFILES+=	magic magic.mgc
 
