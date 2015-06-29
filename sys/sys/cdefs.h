@@ -469,11 +469,13 @@
 #endif
 
 #if __GNUC_PREREQ__(4, 0)
-#define	__hidden	__attribute__((__visibility__("hidden")))
+#define	__sentinel	__attribute__((__sentinel__))
 #define	__exported	__attribute__((__visibility__("default")))
+#define	__hidden	__attribute__((__visibility__("hidden")))
 #else
-#define	__hidden
+#define	__sentinel
 #define	__exported
+#define	__hidden
 #endif
 
 /*
