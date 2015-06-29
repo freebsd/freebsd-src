@@ -7,12 +7,11 @@
 
 VAGRANT_IMG?=		${.OBJDIR}/vagrant.vmdk
 VAGRANT_UPLOAD_TGTS=	vagrant-check-depends \
-			vagrant-do-package-vmware
-#			atlas-do-upload
+			atlas-do-upload
 CLEANFILES+=		${VAGRANT_UPLOAD_TGTS}
 
 .if defined(VAGRANT_UPLOAD_CONF) && !empty(VAGRANT_UPLOAD_CONF)
-. for VAR in _KEY _USERNAME _NAME _VERSION
+. for VAR in _KEY _USERNAME _VERSION
 VAGRANT${VAR}!=		grep -E ^VAGRANT${VAR} ${VAGRANT_UPLOAD_CONF} | awk -F'	' '{print $$2}'
 ATLAS${VAR}:=		${VAGRANT${VAR}}
 . endfor
@@ -29,7 +28,7 @@ VAGRANT_PROVIDERS?=	vmware_desktop
 vagrant-upload:		${VAGRANT_UPLOAD_TGTS}
 
 vagrant-check-depends:
-.for VAR in _KEY _USERNAME _NAME _VERSION
+.for VAR in _KEY _USERNAME _VERSION
 . if !defined(VAGRANT${VAR}) || empty(VAGRANT${VAR})
 	@echo "Variable VAGRANT${VAR} cannot be empty."
 	@false
@@ -40,7 +39,7 @@ vagrant-check-depends:
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
 .  endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y ftp/curl
+	env ASSUME_ALWAYS_YES=yes pkg install -y curl
 . else
 	make -C ${PORTSDIR}/ftp/curl BATCH=1 all install clean
 . endif
@@ -53,15 +52,10 @@ vagrant-do-package-vmware: vagrant-create-vmware-vmx vagrant-do-package
 	cd ${.OBJDIR} && tar -czf ${VAGRANT_TARGET} metadata.json vagrant.vmx vagrant.vmdk
 	touch ${.OBJDIR}/${.TARGET}
 
-atlas-create-upload:
+atlas-do-upload: vagrant-do-package-vmware
 .for PROVIDER in ${VAGRANT_PROVIDERS}
-	/usr/local/bin/curl "https://atlas.hashicorp.com/api/v1/box/${ATLAS_USERNAME}/${ATLAS_NAME}/version/${ATLAS_VERSION}/provider/${PROVIDER}/upload?access_token=${ATLAS_KEY}"
+	${.CURDIR}/scripts/atlas-upload.sh -b FreeBSD-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET} -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v 0.1
 .endfor
-	touch ${.OBJDIR}/${.TARGET}
-
-atlas-do-upload:
-	/usr/local/bin/curl -X PUT --upload-file \
-		${VAGRANT_IMG} ${ATLAS_UPLOAD_PATH}
 	touch ${.OBJDIR}/${.TARGET}
 
 vagrant-create-vmware-vmx:
