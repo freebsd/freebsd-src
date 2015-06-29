@@ -1160,6 +1160,102 @@ fpusave(addr)
 }
 
 #ifdef CPU_ENABLE_SSE
+static void
+npx_fill_fpregs_xmm1(struct savexmm *sv_xmm, struct save87 *sv_87)
+{
+	struct env87 *penv_87;
+	struct envxmm *penv_xmm;
+	int i;
+
+	penv_87 = &sv_87->sv_env;
+	penv_xmm = &sv_xmm->sv_env;
+
+	/* FPU control/status */
+	penv_87->en_cw = penv_xmm->en_cw;
+	penv_87->en_sw = penv_xmm->en_sw;
+	penv_87->en_tw = penv_xmm->en_tw;
+	penv_87->en_fip = penv_xmm->en_fip;
+	penv_87->en_fcs = penv_xmm->en_fcs;
+	penv_87->en_opcode = penv_xmm->en_opcode;
+	penv_87->en_foo = penv_xmm->en_foo;
+	penv_87->en_fos = penv_xmm->en_fos;
+
+	/* FPU registers */
+	for (i = 0; i < 8; ++i)
+		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
+}
+
+void
+npx_fill_fpregs_xmm(struct savexmm *sv_xmm, struct save87 *sv_87)
+{
+
+	bzero(sv_87, sizeof(*sv_87));
+	npx_fill_fpregs_xmm1(sv_xmm, sv_87);
+}
+
+void
+npx_set_fpregs_xmm(struct save87 *sv_87, struct savexmm *sv_xmm)
+{
+	struct env87 *penv_87;
+	struct envxmm *penv_xmm;
+	int i;
+
+	penv_87 = &sv_87->sv_env;
+	penv_xmm = &sv_xmm->sv_env;
+
+	/* FPU control/status */
+	penv_xmm->en_cw = penv_87->en_cw;
+	penv_xmm->en_sw = penv_87->en_sw;
+	penv_xmm->en_tw = penv_87->en_tw;
+	penv_xmm->en_fip = penv_87->en_fip;
+	penv_xmm->en_fcs = penv_87->en_fcs;
+	penv_xmm->en_opcode = penv_87->en_opcode;
+	penv_xmm->en_foo = penv_87->en_foo;
+	penv_xmm->en_fos = penv_87->en_fos;
+
+	/* FPU registers */
+	for (i = 0; i < 8; ++i)
+		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
+}
+#endif /* CPU_ENABLE_SSE */
+
+void
+npx_get_fsave(void *addr)
+{
+	struct thread *td;
+	union savefpu *sv;
+
+	td = curthread;
+	npxgetregs(td);
+	sv = get_pcb_user_save_td(td);
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		npx_fill_fpregs_xmm1(&sv->sv_xmm, addr);
+	else
+#endif
+		bcopy(sv, addr, sizeof(struct env87) +
+		    sizeof(struct fpacc87[8]));
+}
+
+int
+npx_set_fsave(void *addr)
+{
+	union savefpu sv;
+	int error;
+
+	bzero(&sv, sizeof(sv));
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		npx_set_fpregs_xmm(addr, &sv.sv_xmm);
+	else
+#endif
+		bcopy(addr, &sv, sizeof(struct env87) +
+		    sizeof(struct fpacc87[8]));
+	error = npxsetregs(curthread, &sv, NULL, 0);
+	return (error);
+}
+
+#ifdef CPU_ENABLE_SSE
 /*
  * On AuthenticAMD processors, the fxrstor instruction does not restore
  * the x87's stored last instruction pointer, last data pointer, and last
