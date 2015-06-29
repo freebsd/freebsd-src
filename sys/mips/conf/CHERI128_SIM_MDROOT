@@ -7,7 +7,7 @@
 #
 
 include         BERI_SIM_MDROOT
-ident           CHERI_SIM_MDROOT
+ident           CHERI128_SIM_MDROOT
 
 nocpu           CPU_BERI
 cpu             CPU_CHERI
