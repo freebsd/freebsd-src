@@ -3099,21 +3099,8 @@ IDS_compare () {
 	mv INDEX-NOTMATCHING.tmp INDEX-NOTMATCHING
 
 	# Go through the lines and print warnings.
-	while read LINE; do
-		FPATH=`echo "${LINE}" | cut -f 1 -d '|'`
-		TYPE=`echo "${LINE}" | cut -f 2 -d '|'`
-		OWNER=`echo "${LINE}" | cut -f 3 -d '|'`
-		GROUP=`echo "${LINE}" | cut -f 4 -d '|'`
-		PERM=`echo "${LINE}" | cut -f 5 -d '|'`
-		HASH=`echo "${LINE}" | cut -f 6 -d '|'`
-		LINK=`echo "${LINE}" | cut -f 7 -d '|'`
-		P_TYPE=`echo "${LINE}" | cut -f 8 -d '|'`
-		P_OWNER=`echo "${LINE}" | cut -f 9 -d '|'`
-		P_GROUP=`echo "${LINE}" | cut -f 10 -d '|'`
-		P_PERM=`echo "${LINE}" | cut -f 11 -d '|'`
-		P_HASH=`echo "${LINE}" | cut -f 12 -d '|'`
-		P_LINK=`echo "${LINE}" | cut -f 13 -d '|'`
-
+	local IFS='|'
+	while read FPATH TYPE OWNER GROUP PERM HASH LINK P_TYPE P_OWNER P_GROUP P_PERM P_HASH P_LINK; do
 		# Warn about different object types.
 		if ! [ "${TYPE}" = "${P_TYPE}" ]; then
 			echo -n "${FPATH} is a "
