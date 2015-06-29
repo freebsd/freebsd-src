@@ -2072,8 +2072,7 @@ ffs_bufwrite(struct buf *bp)
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bufwrite: still writing");
 	}
-	if ((bp->b_vflags & BV_BKGRDERR) != 0)
-		bp->b_vflags &= ~BV_BKGRDERR;
+	bp->b_vflags &= ~BV_BKGRDERR;
 	BO_UNLOCK(bp->b_bufobj);
 
 	/*
