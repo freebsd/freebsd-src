@@ -216,7 +216,15 @@ config_KeepModifiedMetadata () {
 # Add to the list of components which should be kept updated.
 config_Components () {
 	for C in $@; do
-		COMPONENTS="${COMPONENTS} ${C}"
+		if [ "$C" = "src" ]; then
+			if [ -e /usr/src/COPYRIGHT ]; then
+				COMPONENTS="${COMPONENTS} ${C}"
+			else
+				echo "src component not installed, skipped"
+			fi
+		else
+			COMPONENTS="${COMPONENTS} ${C}"
+		fi
 	done
 }
 
@@ -2634,10 +2642,10 @@ install_unschg () {
 	while read F; do
 		if ! [ -e ${BASEDIR}/${F} ]; then
 			continue
+		else
+			echo ${BASEDIR}/${F}
 		fi
-
-		chflags noschg ${BASEDIR}/${F} || return 1
-	done < filelist
+	done < filelist | xargs chflags noschg || return 1
 
 	# Clean up
 	rm filelist
