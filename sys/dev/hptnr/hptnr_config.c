@@ -46,7 +46,7 @@ int init_config(void)
 
 const char driver_name[] = "hptnr";
 const char driver_name_long[] = "R750/DC7280 controller driver";
-const char driver_ver[] = "v1.1.1";
+const char driver_ver[] = "v1.1.4";
 int  osm_max_targets = 0xff;
 
 
