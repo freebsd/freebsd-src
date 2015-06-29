@@ -603,6 +603,7 @@ fetchupgrade_check_params () {
 	_KEYPRINT_z="Key must be given via -k option or configuration file."
 	_KEYPRINT_bad="Invalid key fingerprint: "
 	_WORKDIR_bad="Directory does not exist or is not writable: "
+	_WORKDIR_bad2="Directory is not on a persistent filesystem: "
 
 	if [ -z "${SERVERNAME}" ]; then
 		echo -n "`basename $0`: "
@@ -626,6 +627,13 @@ fetchupgrade_check_params () {
 		echo ${WORKDIR}
 		exit 1
 	fi
+	case `df -T ${WORKDIR}` in */dev/md[0-9]* | *tmpfs*)
+		echo -n "`basename $0`: "
+		echo -n "${_WORKDIR_bad2}"
+		echo ${WORKDIR}
+		exit 1
+		;;
+	esac
 	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 
