@@ -166,9 +166,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 extern register_t init386(int first);
 extern void dblfault_handler(void);
 
-#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
-#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-
 #if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
 #endif
