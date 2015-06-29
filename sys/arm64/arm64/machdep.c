@@ -537,10 +537,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
 	tf->tf_x[0]= sig;
 	tf->tf_x[1] = (register_t)&fp->sf_si;
 	tf->tf_x[2] = (register_t)&fp->sf_uc;
