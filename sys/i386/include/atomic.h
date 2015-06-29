@@ -278,6 +278,15 @@ __storeload_barrier(void)
 }
 #endif /* _KERNEL*/
 
+/*
+ * C11-standard acq/rel semantics only apply when the variable in the
+ * call is the same for acq as it is for rel.  However, our previous
+ * (x86) implementations provided much stronger ordering than required
+ * (essentially what is called seq_cst order in C11).  This
+ * implementation provides the historical strong ordering since some
+ * callers depend on it.
+ */
+
 #define	ATOMIC_LOAD(TYPE)					\
 static __inline u_##TYPE					\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
