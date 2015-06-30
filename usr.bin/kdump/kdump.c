@@ -1283,6 +1283,8 @@ ktrcsw(struct ktr_csw *cs)
 #define	UTRACE_PRELOAD_FINISHED		8
 #define	UTRACE_INIT_CALL		9
 #define	UTRACE_FINI_CALL		10
+#define	UTRACE_DLSYM_START		11
+#define	UTRACE_DLSYM_STOP		12
 
 struct utrace_rtld {
 	char sig[4];				/* 'RTLD' */
@@ -1359,6 +1361,13 @@ ktruser_rtld(int len, unsigned char *p)
 		break;
 	case UTRACE_FINI_CALL:
 		printf("RTLD: fini %p for %p (%s)\n", ut->mapbase, ut->handle,
+		    ut->name);
+		break;
+	case UTRACE_DLSYM_START:
+		printf("RTLD: dlsym(%p, %s)\n", ut->handle, ut->name);
+		break;
+	case UTRACE_DLSYM_STOP:
+		printf("RTLD: %p = dlsym(%p, %s)\n", ut->mapbase, ut->handle,
 		    ut->name);
 		break;
 	default:
