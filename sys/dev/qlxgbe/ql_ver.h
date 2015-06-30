@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Qlogic Corporation
+ * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,6 @@
 
 #define QLA_VERSION_MAJOR 	3
 #define QLA_VERSION_MINOR	10
-#define QLA_VERSION_BUILD       10
+#define QLA_VERSION_BUILD       24
 
 #endif /* #ifndef _QL_VER_H_ */
