@@ -62,8 +62,7 @@ typedef struct {
 	unsigned int
 		mode: 1,	/* whether base64 mode */
 		bits: 4,	/* need to hold 0 - 15 */
-		cache: 22,	/* 22 = BASE64_BIT + UTF16_BIT */
-		surrogate: 1;	/* whether surrogate pair or not */
+		cache: 22;	/* 22 = BASE64_BIT + UTF16_BIT */
 	int chlen;
 	char ch[4]; /* BASE64_IN, 3 * 6 = 18, most closed to UTF16_BIT */
 } _UTF7State;
@@ -154,21 +153,17 @@ _citrus_UTF7_mbtoutf16(_UTF7EncodingInfo * __restrict ei,
     uint16_t * __restrict u16, const char ** __restrict s, size_t n,
     _UTF7State * __restrict psenc, size_t * __restrict nresult)
 {
-	_UTF7State sv;
 	const char *s0;
 	int done, i, len;
 
+	*nresult = 0;
 	s0 = *s;
-	sv = *psenc;
 
 	for (i = 0, done = 0; done == 0; i++) {
 		if (i == psenc->chlen) {
 			if (n-- < 1) {
 				*nresult = (size_t)-2;
 				*s = s0;
-				sv.chlen = psenc->chlen;
-				memcpy(sv.ch, psenc->ch, sizeof(sv.ch));
-				*psenc = sv;
 				return (0);
 			}
 			psenc->ch[psenc->chlen++] = *s0++;
@@ -257,34 +252,31 @@ _citrus_UTF7_mbrtowc_priv(_UTF7EncodingInfo * __restrict ei,
 		*nresult = (size_t)_ENCODING_IS_STATE_DEPENDENT;
 		return (0);
 	}
-	if (psenc->surrogate) {
-		hi = (psenc->cache >> psenc->bits) & UTF16_MAX;
-		if (hi < HISRG_MIN || hi > HISRG_MAX)
-			return (EINVAL);
-		siz = 0;
-	} else {
-		err = _citrus_UTF7_mbtoutf16(ei, &hi, s, n, psenc, &nr);
-		if (nr == (size_t)-1 || nr == (size_t)-2) {
-			*nresult = nr;
-			return (err);
-		}
-		if (err != 0)
-			return (err);
-		n -= nr;
-		siz = nr;
-		if (hi < HISRG_MIN || hi > HISRG_MAX) {
-			u32 = (uint32_t)hi;
-			goto done;
-		}
-		psenc->surrogate = 1;
-	}
-	err = _citrus_UTF7_mbtoutf16(ei, &lo, s, n, psenc, &nr);
+	err = _citrus_UTF7_mbtoutf16(ei, &hi, s, n, psenc, &nr);
 	if (nr == (size_t)-1 || nr == (size_t)-2) {
 		*nresult = nr;
 		return (err);
 	}
 	if (err != 0)
 		return (err);
+	n -= nr;
+	siz = nr;
+	if (hi < HISRG_MIN || hi > HISRG_MAX) {
+		u32 = (uint32_t)hi;
+		goto done;
+	}
+	err = _citrus_UTF7_mbtoutf16(ei, &lo, s, n, psenc, &nr);
+	if (nr == (size_t)-1 || nr == (size_t)-2) {
+		psenc->chlen = 1; /* make get_state_desc return incomplete */
+		*nresult = nr;
+		return (err);
+	}
+	if (err != 0)
+		return (err);
+	if (lo < LOSRG_MIN || lo > LOSRG_MAX) {
+		*nresult = (size_t)-1;
+		return (EILSEQ);
+	}
 	hi -= HISRG_MIN;
 	lo -= LOSRG_MIN;
 	u32 = (hi << 10 | lo) + SRG_BASE;
@@ -297,7 +289,6 @@ done:
 		_citrus_UTF7_init_state(ei, psenc);
 	} else {
 		*nresult = siz;
-		psenc->surrogate = 0;
 	}
 	return (err);
 }
@@ -396,7 +387,7 @@ _citrus_UTF7_put_state_reset(_UTF7EncodingInfo * __restrict ei __unused,
 {
 	int bits, pos;
 
-	if (psenc->chlen != 0 || psenc->bits > BASE64_BIT || psenc->surrogate)
+	if (psenc->chlen != 0 || psenc->bits > BASE64_BIT)
 		return (EINVAL);
 
 	if (psenc->mode) {

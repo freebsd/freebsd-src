@@ -1935,7 +1935,7 @@ struct termescape
 
 /* server requirements */
 #define TLS_I_SRV	(TLS_I_SRV_CERT | TLS_I_RSA_TMP | TLS_I_VRFY_PATH | \
-			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_DH512 | \
+			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_DH1024 | \
 			 TLS_I_CACHE)
 
 /* client requirements */

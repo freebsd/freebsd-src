@@ -16,6 +16,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150630:	p14	FreeBSD-EN-15:08.sendmail [revised]
+			FreeBSD-EN-15:09.xlocale
+			FreeBSD-EN-15:10.iconv
+
+	Improvements to sendmail TLS/DH interoperability. [EN-15:08]
+
+	Fix inconsistency between locale and rune locale states.
+	[EN-15:09]
+
+	Improved iconv(3) UTF-7 support. [EN-15:10]
+
 20150618:	p13	FreeBSD-EN-15:08.sendmail
 	Improvements to sendmail TLS/DH interoperability. [EN-15:08]
 
