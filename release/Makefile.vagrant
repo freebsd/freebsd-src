@@ -11,7 +11,7 @@ VAGRANT_UPLOAD_TGTS=	vagrant-check-depends \
 CLEANFILES+=		${VAGRANT_UPLOAD_TGTS}
 
 .if defined(VAGRANT_UPLOAD_CONF) && !empty(VAGRANT_UPLOAD_CONF)
-. for VAR in _KEY _USERNAME _VERSION
+. for VAR in _KEY _USERNAME
 VAGRANT${VAR}!=		grep -E ^VAGRANT${VAR} ${VAGRANT_UPLOAD_CONF} | awk -F'	' '{print $$2}'
 ATLAS${VAR}:=		${VAGRANT${VAR}}
 . endfor
@@ -20,6 +20,8 @@ ATLAS${VAR}:=		${VAGRANT${VAR}}
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
 SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H-%M
 .endif
+
+VAGRANT_VERSION?=	${REVISION}-${BRANCH}${SNAPSHOT_DATE}
 
 VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}.box
 VAGRANT_PROVIDERS?=	vmware_desktop
@@ -54,7 +56,7 @@ vagrant-do-package-vmware: vagrant-create-vmware-vmx vagrant-do-package
 
 atlas-do-upload: vagrant-do-package-vmware
 .for PROVIDER in ${VAGRANT_PROVIDERS}
-	${.CURDIR}/scripts/atlas-upload.sh -b FreeBSD-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET} -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v 0.1
+	${.CURDIR}/scripts/atlas-upload.sh -b FreeBSD-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET} -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
 .endfor
 	touch ${.OBJDIR}/${.TARGET}
 
