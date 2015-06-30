@@ -1,5 +1,5 @@
 #/*
-# * Copyright (c) 2011-2012 Qlogic Corporation
+# * Copyright (c) 2011-2016 Qlogic Corporation
 # * All rights reserved.
 # *
 # *  Redistribution and use in source and binary forms, with or without
@@ -37,14 +37,18 @@
 KMOD=if_qlxgbe
 SRCS=ql_os.c ql_dbg.c ql_hw.c ql_misc.c ql_isr.c ql_ioctl.c
 SRCS+= ql_reset.c
+SRCS+= ql_fw.c
+SRCS+= ql_boot.c
+SRCS+= ql_minidump.c
+
 SRCS+= device_if.h bus_if.h pci_if.h
 
 #CFLAGS += -DQL_DBG
-
-clean:
-	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h export_syms
-	rm -f *.o *.kld *.ko
-	rm -f @ machine x86
+# Please turn off QL_LDFLASH_FW when you enable QL_ENABLE_ISCSI_TLV
+# You may comment out both QL_LDFLASH_FW and QL_ENABLE_ISCSI_TLV if you like
+# the firmware and boot loader compiled into the driver
+#CFLAGS += -DQL_ENABLE_ISCSI_TLV
+#CFLAGS += -DQL_LDFLASH_FW
 
 .include <bsd.kmod.mk>
 
