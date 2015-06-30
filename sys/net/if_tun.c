@@ -906,7 +906,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
+	random_harvest_queue(&(m->m_data), 12, 2, RANDOM_NET_TUN);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	CURVNET_SET(ifp->if_vnet);
