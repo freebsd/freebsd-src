@@ -528,14 +528,14 @@ crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
-					 ipsec | random | wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional geom_bde | random
+					 ipsec | random random_yarrow | random !random_yarrow !random_dummy | wlan_ccmp
+crypto/rijndael/rijndael-api-fst.c optional geom_bde | random random_yarrow | random !random_yarrow !random_dummy
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
-crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
+crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random random_yarrow | random !random_yarrow !random_dummy | \
 					 sctp | zfs
-crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random | \
+crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random random_yarrow | random !random_yarrow !random_dummy | \
 					 sctp | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
@@ -2139,15 +2139,12 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
-dev/random/randomdev.c		standard
-dev/random/random_adaptors.c	standard
-dev/random/dummy_rng.c		standard
-dev/random/live_entropy_sources.c	standard
-dev/random/random_harvestq.c	standard
-dev/random/randomdev_soft.c	optional random
-dev/random/yarrow.c		optional random
-dev/random/fortuna.c		optional random
-dev/random/hash.c		optional random
+dev/random/randomdev_none.c	optional !random
+dev/random/randomdev.c		optional random
+dev/random/random_harvestq.c	optional random random_yarrow | random !random_dummy
+dev/random/yarrow.c		optional random random_yarrow
+dev/random/fortuna.c		optional random !random_yarrow !random_dummy
+dev/random/hash.c		optional random random_yarrow | random !random_dummy
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
