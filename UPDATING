@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150630:	p18	FreeBSD-EN-15:08.sendmail [revised]
+			FreeBSD-EN-15:09.xlocale
+
+	Improvements to sendmail TLS/DH interoperability. [EN-15:08]
+
+	Fix inconsistency between locale and rune locale states.
+	[EN-15:09]
+
 20150618:	p17	FreeBSD-EN-15:08.sendmail
 	Improvements to sendmail TLS/DH interoperability. [EN-15:08]
 
