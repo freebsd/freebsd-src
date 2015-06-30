@@ -12546,6 +12546,7 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
         BLOGE(sc, "Failed to allocate temp mcast list\n");
         return (-1);
     }
+    bzero(mc_mac, (sizeof(*mc_mac) * mc_count));
 
     TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
         if (ifma->ifma_addr->sa_family != AF_LINK) {
@@ -12596,6 +12597,7 @@ bxe_set_mc_list(struct bxe_softc *sc)
     rc = ecore_config_mcast(sc, &rparam, ECORE_MCAST_CMD_DEL);
     if (rc < 0) {
         BLOGE(sc, "Failed to clear multicast configuration: %d\n", rc);
+        BXE_MCAST_UNLOCK(sc);
         return (rc);
     }
 
