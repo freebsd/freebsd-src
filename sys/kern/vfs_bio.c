@@ -963,21 +963,23 @@ binsfree(struct buf *bp, int qindex)
 
 	BUF_ASSERT_XLOCKED(bp);
 
-	olock = bqlock(bp->b_qindex);
 	nlock = bqlock(qindex);
-	mtx_lock(olock);
 	/* Handle delayed bremfree() processing. */
-	if (bp->b_flags & B_REMFREE)
+	if (bp->b_flags & B_REMFREE) {
+		olock = bqlock(bp->b_qindex);
+		mtx_lock(olock);
 		bremfreel(bp);
+		if (olock != nlock) {
+			mtx_unlock(olock);
+			mtx_lock(nlock);
+		}
+	} else
+		mtx_lock(nlock);
 
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("binsfree: free buffer onto another queue???");
 
 	bp->b_qindex = qindex;
-	if (olock != nlock) {
-		mtx_unlock(olock);
-		mtx_lock(nlock);
-	}
 	if (bp->b_flags & B_AGE)
 		TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
 	else
