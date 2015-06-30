@@ -1400,6 +1400,7 @@ struct bxe_softc {
 //#define BXE_SAFC_TX_FLAG     0x00000400
 #define BXE_MF_FUNC_DIS      0x00000800
 #define BXE_TX_SWITCHING     0x00001000
+#define BXE_NO_PULSE	     0x00002000
 
     unsigned long debug; /* per-instance debug logging config */
 
@@ -1428,11 +1429,6 @@ struct bxe_softc {
     struct task      sp_tq_task;
     struct taskqueue *sp_tq;
     char             sp_tq_name[32];
-
-    /* set rx_mode asynchronous taskqueue */
-    struct task      rx_mode_tq_task;
-    struct taskqueue *rx_mode_tq;
-    char             rx_mode_tq_name[32];
 
     struct bxe_fastpath fp[MAX_RSS_CHAINS];
     struct bxe_sp_objs  sp_objs[MAX_RSS_CHAINS];
