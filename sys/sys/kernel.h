@@ -107,8 +107,8 @@ enum sysinit_sub_id {
 	SI_SUB_KLD		= 0x2000000,	/* KLD and module setup */
 	SI_SUB_CPU		= 0x2100000,	/* CPU resource(s)*/
 	SI_SUB_RACCT		= 0x2110000,	/* resource accounting */
-	SI_SUB_RANDOM		= 0x2120000,	/* random number generator */
 	SI_SUB_KDTRACE		= 0x2140000,	/* Kernel dtrace hooks */
+	SI_SUB_RANDOM		= 0x2160000,	/* random number generator */
 	SI_SUB_MAC		= 0x2180000,	/* TrustedBSD MAC subsystem */
 	SI_SUB_MAC_POLICY	= 0x21C0000,	/* TrustedBSD MAC policies */
 	SI_SUB_MAC_LATE		= 0x21D0000,	/* TrustedBSD MAC subsystem */

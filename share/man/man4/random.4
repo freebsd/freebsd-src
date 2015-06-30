@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001-2013	Mark R V Murray.  All rights reserved.
+.\" Copyright (c) 2001-2015	Mark R V Murray.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2013
+.Dd June 30, 2015
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -37,31 +37,32 @@ The
 device
 returns an endless supply of random bytes when read.
 It also accepts and reads data
-as any ordinary (and willing) file,
-but discards data written to it.
-The device will probe for
-certain hardware entropy sources,
-and use these in preference to the fallback,
-which is a generator implemented in software.
+as any ordinary file.
 .Pp
-The software generator will start in an
+The generator will start in an
 .Em unseeded
 state, and will block reads until
-it is (re)seeded.
+it is seeded for the first time.
 This may cause trouble at system boot
 when keys and the like
 are generated from
-/dev/random
+.Xr random 4
 so steps should be taken to ensure a
-reseed as soon as possible.
-The
-.Xr sysctl 8
-controlling the
-.Em seeded
-status (see below) may be used
-if security is not an issue
-or for convenience
-during setup or development.
+seeding as soon as possible.
+.Pp
+It is also possible
+to read random bytes
+by using the KERN_ARND sysctl.
+On the command line
+this could be done by
+.Pp
+.Dl "sysctl -x -B 16 kern.arandom"
+.Pp
+This sysctl will not return
+random bytes unless
+the
+.Xr random 4
+is seeded.
 .Pp
 This initial seeding
 of random number generators
@@ -90,101 +91,57 @@ To see the current settings of the software
 .Nm
 device, use the command line:
 .Pp
-.Dl sysctl kern.random
+.Dl "sysctl kern.random"
 .Pp
 which results in something like:
 .Bd -literal -offset indent
-kern.random.adaptors: yarrow,dummy
-kern.random.active_adaptor: yarrow
-kern.random.yarrow.gengateinterval: 10
-kern.random.yarrow.bins: 10
-kern.random.yarrow.fastthresh: 96
-kern.random.yarrow.slowthresh: 128
-kern.random.yarrow.slowoverthresh: 2
-kern.random.sys.seeded: 1
-kern.random.sys.harvest.ethernet: 1
-kern.random.sys.harvest.point_to_point: 1
-kern.random.sys.harvest.interrupt: 1
-kern.random.sys.harvest.swi: 1
+kern.random.fortuna.minpoolsize: 64
+kern.random.harvest.mask_symbolic: [HIGH_PERFORMANCE], ... ,CACHED
+kern.random.harvest.mask_bin: 00111111111
+kern.random.harvest.mask: 511
+kern.random.random_sources: 'Intel Secure Key RNG'
 .Ed
 .Pp
 Other than
-.Dl kern.random.adaptors
-all settings are read/write.
+.Dl kern.random.fortuna.minpoolsize
+and
+.Dl kern.random.harvest.mask
+all settings are read-only.
 .Pp
 The
-.Va kern.random.sys.seeded
-variable indicates whether or not the
-.Nm
-device is in an acceptably secure state
-as a result of reseeding.
-If set to 0,
-the device will block (on read)
-until the next reseed
-as a result of entropy harvesting.
-A reseed will set the value to 1 (non-blocking).
+.Pa kern.random.fortuna.minpoolsize
+sysctl is used
+to set the seed threshhold.
+A smaller number gives a faster seed,
+but a less secure one.
+In practice,
+values between 64 and 256
+are acceptable.
 .Pp
 The
-.Va kern.random.sys.harvest.ethernet
-variable is used to select LAN traffic as an entropy source.
-A 0 (zero) value means that LAN traffic
-is not considered as an entropy source.
-Set the variable to 1 (one)
-if you wish to use LAN traffic for entropy harvesting.
-.Pp
-The
-.Va kern.random.sys.harvest.point_to_point
-variable is used to select serial line traffic as an entropy source.
-(Serial line traffic includes PPP, SLIP and all tun0 traffic.)
-A 0 (zero) value means such traffic
-is not considered as an entropy source.
-Set the variable to 1 (one)
-if you wish to use it for entropy harvesting.
-.Pp
-The
-.Va kern.random.sys.harvest.interrupt
-variable is used to select hardware interrupts
+.Va kern.random.harvest.mask
+bitmask is used to select
+the possible entropy sources.
+A 0 (zero) value means
+the corresponding source
+is not considered
 as an entropy source.
-A 0 (zero) value means hardware interrupts
-are not considered as an entropy source.
-Set the variable to 1 (one)
-if you wish to use them for entropy harvesting.
-All hardware interrupt harvesting is set up by the
-individual device drivers.
-.Pp
+Set the bit to 1 (one)
+if you wish to use
+that source.
 The
-.Va kern.random.sys.harvest.swi
-variable is used to select software interrupts
-as an entropy source.
-A 0 (zero) value means software interrupts
-are not considered as an entropy source.
-Set the variable to 1 (one)
-if you wish to use them for entropy harvesting.
-.Pp
-The other variables are explained in the paper describing the
-.Em Yarrow
-algorithm at
-.Pa http://www.schneier.com/yarrow.html .
-.Pp
-These variables are all limited
-in terms of the values they may contain:
-.Bl -tag -width "kern.random.yarrow.gengateinterval" -compact -offset indent
-.It Va kern.random.yarrow.gengateinterval
-.Bq 4..64
-.It Va kern.random.yarrow.bins
-.Bq 2..16
-.It Va kern.random.yarrow.fastthresh
-.Bq 64..256
-.It Va kern.random.yarrow.slowthresh
-.Bq 64..256
-.It Va kern.random.yarrow.slowoverthresh
-.Bq 1..5
-.El
-.Pp
-Internal
-.Xr sysctl 3
-handlers force the above variables
-into the stated ranges.
+.Va kern.random.harvest.mask_bin
+and
+.Va kern.random.harvest.mask_symbolic
+sysctl
+can be used confirm
+that your choices are correct.
+Note that disabled items
+in the latter item
+are listed in square brackets.
+See
+.Xr random_harvest 9
+for more on the harvesting of entropy.
 .Sh RANDOMNESS
 The use of randomness in the field of computing
 is a rather subtle issue because randomness means
@@ -308,23 +265,36 @@ so its use is discouraged.
 .Xr RAND_add 3 ,
 .Xr RAND_bytes 3 ,
 .Xr random 3 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr random 9
+.Rs
+.%A Ferguson
+.%A Schneier
+.%A Kohno
+.%B Cryptography Engineering
+.%I Wiley
+.%O ISBN 978-0-470-47424-2
+.Re
 .Sh HISTORY
 A
 .Nm
 device appeared in
 .Fx 2.2 .
-The early version was taken from Theodore Ts'o's entropy driver for Linux.
 The current software implementation,
 introduced in
-.Fx 5.0 ,
-is a complete rewrite by
+.Fx 10.0 ,
+is by
 .An Mark R V Murray ,
 and is an implementation of the
-.Em Yarrow
-algorithm by Bruce Schneier,
+.Em Fortuna
+algorithm by Ferguson
 .Em et al .
-Significant infrastructure work was done by Arthur Mesh.
-.Pp
-The author gratefully acknowledges
-significant assistance from VIA Technologies, Inc.
+It replaces the previous
+.Em Yarrow
+implementation,
+introduced in
+.Fx 5.0 .
+The older
+.Em Yarrow
+algorithm remains available
+as a compile-time fallback.
