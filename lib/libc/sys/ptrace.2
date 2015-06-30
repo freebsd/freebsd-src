@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd July 22, 2013
+.Dd June 30, 2015
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -503,8 +503,161 @@ The
 .Fa data
 argument is ignored.
 .El
+.Sh x86 MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width "Dv PT_GETXSTATE_INFO"
+.It Dv PT_GETXMMREGS
+Copies out the XMM FPU state into the buffer pointed to by the
+argument
+.Fa addr .
+The buffer has the same layout as the 32bit save buffer for the
+machine instruction
+.Dv FXSAVE .
 .Pp
-Additionally, machine-specific requests can exist.
+This request is only valid for i386 programs, both on native 32bit
+systems and on amd64 kernels.
+For 64bit amd64 programs, the XMM state is reported as part of
+the FPU state returned by the
+.Dv PT_GETFPREGS
+request.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETXMMREGS
+Loads the XMM FPU state for the thread from the buffer pointed to
+by the argument
+.Fa addr .
+The buffer has the same layout as the 32bit load buffer for the
+machine instruction
+.Dv FXRSTOR .
+.Pp
+As with
+.Dv PT_GETXMMREGS,
+this request is only valid for i386 programs.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_GETXSTATE_INFO
+Returns the information about the enablement state of the XSAVE FPU
+extensions supported by the CPU and allowed by the OS for use by userspace
+programs.
+The
+.Fa addr
+argument must point to the variable of type
+.Vt struct ptrace_xstate_info ,
+which contains the information on the request return.
+The
+.Vt struct ptrace_xstate_info
+is defined as follows:
+.Bd -literal
+struct ptrace_xstate_info {
+	uint64_t	xsave_mask;
+	uint32_t	xsave_len;
+};
+.Ed
+The
+.Dv xsave_mask
+field is the bitmask of the currently enabled extensions.
+The meaning of the bits is defined by the Intel and AMD
+processor documentation.
+The
+.Dv xsave_len
+field reports the length of the XSAVE area for storing the hardware
+state for currently enabled extensions in the format defined by the x86
+.Dv XSAVE
+machine instruction.
+.Pp
+The
+.Fa data
+argument value must be equal to the size of the
+.Vt struct ptrace_xstate_info .
+.It Dv PT_GETXSTATE
+Returns the content of the XSAVE area for the thread.
+The
+.Fa addr
+argument points to the buffer where the content is copied, the
+.Fa data
+argument specifies the size of the buffer.
+The kernel copies out as much content as allowed by the buffer size.
+The buffer layout is specified by the layout of the save area for the
+.Dv XSAVE
+machine instruction.
+.It Dv PT_SETXSTATE
+Load the XSAVE state for the thread from the buffer specified by the
+.Fa addr
+pointer.
+The buffer size is passed in the
+.Fa data
+argument.
+The buffer must be at least as large to allow the x87 FPU and XMM state,
+but not large than the XSAVE state length, as reported by the
+.Dv xsave_len
+field from the
+.Vt struct ptrace_xstate_info
+of the
+.Dv PT_GETXSTATE_INFO
+request.
+Layout of the buffer is identical to the layout of the load area for the
+.Dv XRSTOR
+machine instruction.
+.It Dv PT_GETFSBASE
+The request returns the value of base used when doing segmented
+memory addressing using the %fs segment register.
+The
+.Fa addr
+argument points to the
+.Vt unsigned long
+variable which gets the base value.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_GETGSBASE
+Same as the
+.Dv PT_GETFSBASE
+request, but returns the base for the %gs segment register.
+.It Dv PT_SETFSBASE
+Sets the base for the %fs segment register to the value pointed
+by the
+.Fa addr
+argument, which must point to the
+.Vt unsigned long
+variable containing the new base.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETGSBASE
+Same as the
+.Dv PT_SETFSBASE
+request, but allows setting the base for the %gs segment register.
+.El
+.Sh PowerPC MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width "Dv PT_SETVRREGS"
+.It Dv PT_GETVRREGS
+Returns the
+.Dv ALTIVEC
+machine state for the thread into the buffer pointed to by
+the argument
+.Fa addr .
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETVRREGS
+Set the
+.Dv ALTIVEC
+machine state for the thread from the buffer pointed to by
+the argument
+.Fa addr .
+.Pp
+The
+.Fa data
+argument is ignored.
+.El
+.Pp
+Additionally, other machine-specific requests can exist.
 .Sh RETURN VALUES
 Some requests can cause
 .Fn ptrace
@@ -564,6 +717,26 @@ provided to
 was less than or equal to zero, or larger than the
 .Vt ptrace_lwpinfo
 structure known to the kernel.
+.It
+The size (in
+.Fa data)
+provided to the x86-specific
+.Dv PT_GETXSTATE_INFO
+request was not equal to the size of the
+.Vt struct ptrace_xstate_info .
+.It
+The size (in
+.Fa data)
+provided to the x86-specific
+.Dv PT_SETXSTATE
+request was less than the size of the x87 + XMM save area,
+or larger than returned in the
+.Dv xsave_len
+member of the
+.Vt struct ptrace_xstate_info
+from the
+.Dv PT_GETXSTATE_INFO
+request.
 .El
 .It Bq Er EBUSY
 .Bl -bullet -compact
