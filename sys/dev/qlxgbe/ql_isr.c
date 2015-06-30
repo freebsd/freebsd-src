@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Qlogic Corporation
+ * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -776,16 +776,57 @@ ql_mbx_isr(void *arg)
 
 		ha->hw.link_faults = (data >> 3) & 0xFF;
 
-		WRITE_REG32(ha, Q8_FW_MBOX_CNTRL, 0x0);
-		WRITE_REG32(ha, ha->hw.mbx_intr_mask_offset, 0x0);
 		break;
+
+        case 0x8100:
+		ha->hw.imd_compl=1;
+		break;
+
+        case 0x8101:
+                ha->async_event = 1;
+                ha->hw.aen_mb0 = 0x8101;
+                ha->hw.aen_mb1 = READ_REG32(ha, (Q8_FW_MBOX0 + 4));
+                ha->hw.aen_mb2 = READ_REG32(ha, (Q8_FW_MBOX0 + 8));
+                ha->hw.aen_mb3 = READ_REG32(ha, (Q8_FW_MBOX0 + 12));
+                ha->hw.aen_mb4 = READ_REG32(ha, (Q8_FW_MBOX0 + 16));
+                break;
+
+        case 0x8110:
+                /* for now just dump the registers */
+                {
+                        uint32_t ombx[5];
+
+                        ombx[0] = READ_REG32(ha, (Q8_FW_MBOX0 + 4));
+                        ombx[1] = READ_REG32(ha, (Q8_FW_MBOX0 + 8));
+                        ombx[2] = READ_REG32(ha, (Q8_FW_MBOX0 + 12));
+                        ombx[3] = READ_REG32(ha, (Q8_FW_MBOX0 + 16));
+                        ombx[4] = READ_REG32(ha, (Q8_FW_MBOX0 + 20));
+
+                        device_printf(ha->pci_dev, "%s: "
+                                "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+                                __func__, data, ombx[0], ombx[1], ombx[2],
+                                ombx[3], ombx[4]);
+                }
+
+                break;
+
+        case 0x8130:
+                /* sfp insertion aen */
+                device_printf(ha->pci_dev, "%s: sfp inserted [0x%08x]\n",
+                        __func__, READ_REG32(ha, (Q8_FW_MBOX0 + 4)));
+                break;
+
+        case 0x8131:
+                /* sfp removal aen */
+                device_printf(ha->pci_dev, "%s: sfp removed]\n", __func__);
+                break;
 
 	default:
 		device_printf(ha->pci_dev, "%s: AEN[0x%08x]\n", __func__, data);
-		WRITE_REG32(ha, Q8_FW_MBOX_CNTRL, 0x0);
-		WRITE_REG32(ha, ha->hw.mbx_intr_mask_offset, 0x0);
 		break;
 	}
+	WRITE_REG32(ha, Q8_FW_MBOX_CNTRL, 0x0);
+	WRITE_REG32(ha, ha->hw.mbx_intr_mask_offset, 0x0);
 	return;
 }
 
