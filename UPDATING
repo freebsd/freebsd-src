@@ -31,6 +31,41 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150630:
+	The default kernel entropy-processing algorithm is now
+	Fortuna, replacing Yarrow.
+
+	Assuming you have 'device random' in your kernel config
+	file, the configurations allow a kernel option to override
+	this default. You may choose *ONE* of:
+
+	options	RANDOM_YARROW	# Legacy /dev/random algorithm.
+	options	RANDOM_DUMMY	# Blocking-only driver.
+
+	If you have neither, you get Fortuna.  For most people,
+	read no further, Fortuna will give a /dev/random that works
+	like it always used to, and the difference will be irrelevant.
+
+	If you remove 'device random', you get *NO* kernel-processed
+	entopy at all. This may be acceptable to folks building
+	embedded systems, but has complications. Carry on reading,
+	and it is assumed you know what you need.
+
+	*PLEASE* read random(4) and random(9) if you are in the
+	habit of tweeking kernel configs, and/or if you are a member
+	of the embedded community, wanting specific and not-usual
+	behaviour from your security subsystems.
+
+	NOTE!! If you use RANDOM_DUMMY and/or have no 'device
+	random', you will NOT have a functioning /dev/random, and
+	many cryptographic features will not work, including SSH.
+	You may also find strange behaviour from the random(3) set
+	of library functions, in particular sranddev(3), srandomdev(3)
+	and arc4random(3). The reason for this is that the KERN_ARND
+	sysctl only returns entropy if it thinks it has some to
+	share, and with RANDOM_DUMMY or no 'device random' this
+	will never happen.
+
 20150623:
 	An additional fix for the issue described in the 20150614 sendmail
 	entry below has been been committed in revision 284717.

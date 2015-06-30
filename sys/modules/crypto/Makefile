@@ -12,7 +12,7 @@
 KMOD	= crypto
 SRCS	= crypto.c cryptodev_if.c
 SRCS	+= criov.c cryptosoft.c xform.c
-SRCS	+= cast.c cryptodeflate.c rmd160.c rijndael-alg-fst.c rijndael-api.c
+SRCS	+= cast.c cryptodeflate.c rmd160.c rijndael-alg-fst.c rijndael-api.c rijndael-api-fst.c
 SRCS	+= skipjack.c bf_enc.c bf_ecb.c bf_skey.c
 SRCS	+= camellia.c camellia-api.c
 SRCS	+= des_ecb.c des_enc.c des_setkey.c

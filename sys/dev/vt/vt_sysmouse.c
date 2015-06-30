@@ -139,7 +139,7 @@ sysmouse_process_event(mouse_info_t *mi)
 	unsigned char buf[MOUSE_SYS_PACKETSIZE];
 	int x, y, iy, z;
 
-	random_harvest(mi, sizeof *mi, 2, RANDOM_MOUSE);
+	random_harvest_queue(mi, sizeof *mi, 2, RANDOM_MOUSE);
 
 	mtx_lock(&sysmouse_lock);
 	switch (mi->operation) {

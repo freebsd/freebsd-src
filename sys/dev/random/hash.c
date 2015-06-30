@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2000-2015 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/hash.h>
 
-/* This code presumes that KEYSIZE is twice as large as BLOCKSIZE */
-CTASSERT(KEYSIZE == 2*BLOCKSIZE);
+/* This code presumes that RANDOM_KEYSIZE is twice as large as RANDOM_BLOCKSIZE */
+CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
 
 /* Initialise the hash */
 void
@@ -67,7 +67,7 @@ randomdev_hash_iterate(struct randomdev_hash *context, const void *data, size_t 
 }
 
 /* Conclude by returning the hash in the supplied <*buf> which must be
- * KEYSIZE bytes long.
+ * RANDOM_KEYSIZE bytes long.
  */
 void
 randomdev_hash_finish(struct randomdev_hash *context, void *buf)
@@ -77,20 +77,20 @@ randomdev_hash_finish(struct randomdev_hash *context, void *buf)
 }
 
 /* Initialise the encryption routine by setting up the key schedule
- * from the supplied <*data> which must be KEYSIZE bytes of binary
- * data. Use CBC mode for better avalanche.
+ * from the supplied <*data> which must be RANDOM_KEYSIZE bytes of binary
+ * data.
  */
 void
 randomdev_encrypt_init(struct randomdev_key *context, const void *data)
 {
 
-	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
-	rijndael_makeKey(&context->key, DIR_ENCRYPT, KEYSIZE*8, data);
+	rijndael_cipherInit(&context->cipher, MODE_ECB, NULL);
+	rijndael_makeKey(&context->key, DIR_ENCRYPT, RANDOM_KEYSIZE*8, data);
 }
 
 /* Encrypt the supplied data using the key schedule preset in the context.
  * <length> bytes are encrypted from <*d_in> to <*d_out>. <length> must be
- * a multiple of BLOCKSIZE.
+ * a multiple of RANDOM_BLOCKSIZE.
  */
 void
 randomdev_encrypt(struct randomdev_key *context, const void *d_in, void *d_out, u_int length)
