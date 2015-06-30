@@ -6562,10 +6562,14 @@ bxe_free_fp_buffers(struct bxe_softc *sc)
 
 #if __FreeBSD_version >= 800000
         if (fp->tx_br != NULL) {
-            struct mbuf *m;
             /* just in case bxe_mq_flush() wasn't called */
-            while ((m = buf_ring_dequeue_sc(fp->tx_br)) != NULL) {
-                m_freem(m);
+            if (mtx_initialized(&fp->tx_mtx)) {
+                struct mbuf *m;
+
+                BXE_FP_TX_LOCK(fp);
+                while ((m = buf_ring_dequeue_sc(fp->tx_br)) != NULL)
+                    m_freem(m);
+                BXE_FP_TX_UNLOCK(fp);
             }
             buf_ring_free(fp->tx_br, M_DEVBUF);
             fp->tx_br = NULL;
