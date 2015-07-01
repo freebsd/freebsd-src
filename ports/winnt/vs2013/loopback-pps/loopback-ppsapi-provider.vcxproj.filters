@@ -18,6 +18,9 @@
     <ClCompile Include="..\..\ppsapi\loopback\src\loopback-ppsapi.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="version.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\ppsapi\loopback\src\loopback-ppsapi.h">
@@ -31,6 +34,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
+    <CustomBuild Include="..\..\..\..\packageinfo.sh" />
   </ItemGroup>
 </Project>

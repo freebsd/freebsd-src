@@ -12,7 +12,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -296,7 +296,7 @@ print_membership(tOptions * pOpts, tOptDesc * pOD)
     uintptr_t val = 1;
     printf(zOptNumFmt, pOpts->pzPROGNAME, pOD->pz_NAME,
            (int)(uintptr_t)(pOD->optCookie));
-    pOD->optCookie = (void*)(uintptr_t)~0UL;
+    pOD->optCookie = VOIDP(~0UL);
     (*(pOD->pOptProc))(OPTPROC_RETURN_VALNAME, pOD);
 
     pz = pOD->optArg.argString;
@@ -323,7 +323,7 @@ print_membership(tOptions * pOpts, tOptDesc * pOD)
 static void
 print_stacked_arg(tOptions * pOpts, tOptDesc * pOD)
 {
-    tArgList*       pAL = (tArgList*)pOD->optCookie;
+    tArgList *      pAL = (tArgList *)pOD->optCookie;
     char const **   ppz = pAL->apzArgs;
     int             ct  = pAL->useCt;
 
@@ -363,19 +363,19 @@ print_reordering(tOptions * opts)
 /*=export_func  optionPutShell
  * what:  write a portable shell script to parse options
  * private:
- * arg:   tOptions*, pOpts, the program options descriptor
+ * arg:   tOptions *, pOpts, the program options descriptor
  * doc:   This routine will emit portable shell script text for parsing
  *        the options described in the option definitions.
 =*/
 void
-optionPutShell(tOptions* pOpts)
+optionPutShell(tOptions * pOpts)
 {
     int  optIx = 0;
 
     printf(zOptCtFmt, pOpts->curOptIdx-1);
 
     do  {
-        tOptDesc* pOD = pOpts->pOptDesc + optIx;
+        tOptDesc * pOD = pOpts->pOptDesc + optIx;
 
         if ((pOD->fOptState & OPTST_NO_OUTPUT_MASK) != 0)
             continue;
@@ -396,7 +396,7 @@ optionPutShell(tOptions* pOpts)
          *  but copy over the set-state bits.
          */
         if (pOD->optActualIndex != optIx) {
-            tOptDesc* p   = pOpts->pOptDesc + pOD->optActualIndex;
+            tOptDesc * p  = pOpts->pOptDesc + pOD->optActualIndex;
             p->optArg     = pOD->optArg;
             p->fOptState &= OPTST_PERSISTENT_MASK;
             p->fOptState |= pOD->fOptState & ~OPTST_PERSISTENT_MASK;

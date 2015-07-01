@@ -2,18 +2,18 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{df2922e3-313f-4661-9019-a88cb5be1bee}</UniqueIdentifier>
+      <UniqueIdentifier>{9b4d7229-201b-44b0-8b6d-c58920cf47a4}</UniqueIdentifier>
       <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
     </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{70e10793-da6a-4bfe-b35a-c00a64ac61bc}</UniqueIdentifier>
+      <UniqueIdentifier>{c2a2356e-0e9e-4804-a4b1-d60449f2911e}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
     <Filter Include="Generated Files">
-      <UniqueIdentifier>{6452d330-e63a-473c-bd9f-1874d4061592}</UniqueIdentifier>
+      <UniqueIdentifier>{279a0045-e0b3-43ce-b511-e6f2e0f43a80}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource Files">
-      <UniqueIdentifier>{fc799aa8-add1-4e83-8dff-de647477bf79}</UniqueIdentifier>
+      <UniqueIdentifier>{723fb507-c0d4-4c49-bb1e-644e479d13d2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -21,6 +21,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\adjtime.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libntp\arc4wrap.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\lib\isc\assertions.c">
@@ -179,6 +182,9 @@
     <ClCompile Include="..\..\..\..\libntp\ntp_calendar.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\ntp_crypto_rnd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\ntp_intres.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -228,6 +234,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\libntp\SetSystemTime.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\isc\sha1.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\snprintf.c">
@@ -296,6 +305,9 @@
     <ClCompile Include="..\..\libntp\util_clockstuff.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\vint64ops.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\libntp\win32_io.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -309,18 +321,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\ymd2yd.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\sha1.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\libntp\vint64ops.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\libntp\ntp_crypto_rnd.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\libntp\arc4wrap.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -352,16 +352,10 @@
     <ClInclude Include="..\..\include\gaa_compat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\global.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\lib\isc\include\isc\hash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\ieee754io.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\netinet\in.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\arpa\inet.h">
@@ -391,9 +385,6 @@
     <ClInclude Include="..\..\..\..\lib\isc\include\isc\log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\md5.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\isc\mem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -403,13 +394,7 @@
     <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\isc\netaddr.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\netdb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\include\isc\netscope.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\ntp.h">
@@ -514,9 +499,6 @@
     <ClInclude Include="..\..\include\sys\signal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\sys\socket.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\stat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -535,10 +517,10 @@
     <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\thread.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\sys\time.h">
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\time.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\time.h">
+    <ClInclude Include="..\..\include\sys\time.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\timespecops.h">
@@ -550,19 +532,28 @@
     <ClInclude Include="..\..\..\..\include\timevalops.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\win32_io.h">
+    <ClInclude Include="..\..\..\..\include\vint64ops.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\isc\win32os.h">
+    <ClInclude Include="..\..\include\win32_io.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\libntp\messages.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\sha1.h">
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\vint64ops.h">
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netaddr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netscope.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\socket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\win32os.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

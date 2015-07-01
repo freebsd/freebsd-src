@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
-	Name="ntpd-keyword-gen"
+	Version="9,00"
+	Name="keyword-gen"
 	ProjectGUID="{1B814CC1-EAD4-4A13-B29C-A67B23C9845A}"
 	RootNamespace="ntpdkeywordgen"
 	TargetFrameworkVersion="196613"
@@ -11,15 +11,18 @@
 		<Platform
 			Name="Win32"
 		/>
+		<Platform
+			Name="x64"
+		/>
 	</Platforms>
 	<ToolFiles>
 	</ToolFiles>
 	<Configurations>
 		<Configuration
-			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
+			Name="Release|Win32"
+			OutputDirectory="$(TmpBaseDir)"
 			ConfigurationType="1"
+			InheritedPropertySheets="..\release.vsprops;..\common.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -39,21 +42,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="0"
-				AdditionalIncludeDirectories="..\..\ntpd,..\..\..\..\ntpd,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\..\libopts"
-				PreprocessorDefinitions="_DEBUG;_CONSOLE;WIN32;SYS_WINNT;HAVE_CONFIG_H"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				BasicRuntimeChecks="3"
-				SmallerTypeCheck="true"
-				RuntimeLibrary="1"
-				EnableFunctionLevelLinking="true"
-				ProgramDataBaseFileName="$(OutDir)keyword-gen-vc90"
-				BrowseInformation="1"
-				WarningLevel="4"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -66,14 +55,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib winmm.lib $(OPENSSL_LIB)\libeay32.lib"
-				OutputFile="$(OutDir)keyword-gen.exe"
-				Version="0x0400"
-				LinkIncremental="1"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)keywordgen.pdb"
-				RandomizedBaseAddress="1"
-				TargetMachine="1"
+				OutputFile="$(OutDir)\keyword-gen.exe"
+				SubSystem="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -99,12 +82,75 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
+			Name="Release|x64"
+			OutputDirectory="$(TmpBaseDir)"
 			ConfigurationType="1"
+			InheritedPropertySheets="..\release-x64.vsprops;..\common.vsprops"
 			CharacterSet="2"
-			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				OutputFile="$(OutDir)\keyword-gen.exe"
+				SubSystem="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="$(TmpBaseDir)"
+			ConfigurationType="1"
+			InheritedPropertySheets="..\debug.vsprops;..\common.vsprops"
+			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -123,19 +169,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="..\..\ntpd,..\..\..\..\ntpd,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\..\libopts"
-				PreprocessorDefinitions="_CONSOLE;WIN32;SYS_WINNT;HAVE_CONFIG_H"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="true"
-				ProgramDataBaseFileName="$(OutDir)keyword-gen-vc90"
-				BrowseInformation="1"
-				WarningLevel="4"
-				DebugInformationFormat="3"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -148,15 +182,72 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib winmm.lib $(OPENSSL_LIB)\libeay32.lib"
-				OutputFile="$(OutDir)keyword-gen.exe"
-				Version="0x0400"
-				LinkIncremental="1"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)keywordgen.pdb"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				TargetMachine="1"
+				OutputFile="$(OutDir)\keyword-gen.exe"
+				SubSystem="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			OutputDirectory="$(TmpBaseDir)"
+			ConfigurationType="1"
+			InheritedPropertySheets="..\debug-x64.vsprops;..\common.vsprops"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				OutputFile="$(OutDir)\keyword-gen.exe"
+				SubSystem="1"
 			/>
 			<Tool
 				Name="VCALinkTool"

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="ntpq"
 	ProjectGUID="{6A92BF14-8931-48B1-A571-DEBE9F190616}"
 	TargetFrameworkVersion="0"
@@ -10,20 +10,20 @@
 		<Platform
 			Name="Win32"
 		/>
+		<Platform
+			Name="x64"
+		/>
 	</Platforms>
 	<ToolFiles>
 	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-bin\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			InheritedPropertySheets="..\release.vsprops;..\common.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
-			DeleteExtensionsOnClean="*.obj;*.ilk;*.tlb;*.tli;*.tlh;*.tmp;*.rsp;*.pgc;*.pgd;*.meta;$(TargetPath)"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -44,24 +44,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\..\ntpq,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\..\sntp\libopts"
-				PreprocessorDefinitions="NDEBUG;_CONSOLE;WIN32;SYS_WINNT;HAVE_CONFIG_H;_CRT_SECURE_NO_WARNINGS"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile="$(IntDir)ntpq.pch"
-				AssemblerListingLocation="$(IntDir)"
-				ObjectFile="$(IntDir)"
-				ProgramDataBaseFileName="$(OutDir)ntpq-vc90"
-				BrowseInformation="1"
-				WarningLevel="4"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				AdditionalIncludeDirectories="..\..\ntpq;..\..\..\..\ntpq"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -76,19 +59,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib $(OPENSSL_LIB)\libeay32.lib"
-				OutputFile="$(OutDir)$(ProjectName).exe"
-				Version="0x0400"
-				LinkIncremental="1"
-				SuppressStartupBanner="true"
-				GenerateManifest="false"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(ProjectName).pdb"
 				SubSystem="1"
-				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -116,14 +87,11 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-bin\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			InheritedPropertySheets="..\debug.vsprops;..\common.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
-			DeleteExtensionsOnClean="*.obj;*.ilk;*.tlb;*.tli;*.tlh;*.tmp;*.rsp;*.pgc;*.pgd;*.meta;$(TargetPath)"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -144,24 +112,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="0"
-				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="..\..\ntpq,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\..\sntp\libopts"
-				PreprocessorDefinitions="_DEBUG;_CONSOLE;WIN32;;SYS_WINNT;HAVE_CONFIG_H;_CRT_SECURE_NO_WARNINGS"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="1"
-				PrecompiledHeaderFile="$(IntDir)ntpq.pch"
-				AssemblerListingLocation="$(IntDir)"
-				ObjectFile="$(IntDir)"
-				ProgramDataBaseFileName="$(OutDir)ntpq-vc90"
-				BrowseInformation="1"
-				WarningLevel="4"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				AdditionalIncludeDirectories="..\..\ntpq;..\..\..\..\ntpq"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -176,19 +127,145 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib $(OPENSSL_LIB)\libeay32.lib"
-				OutputFile="$(OutDir)$(ProjectName).exe"
-				Version="0x0400"
-				LinkIncremental="1"
-				SuppressStartupBanner="true"
-				GenerateManifest="false"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(ProjectName).pdb"
 				SubSystem="1"
-				LinkTimeCodeGeneration="1"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|x64"
+			ConfigurationType="1"
+			InheritedPropertySheets="..\release-x64.vsprops;..\common.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+				TypeLibraryName="$(IntDir)ntpq.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpq;..\..\..\..\ntpq"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				SubSystem="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			ConfigurationType="1"
+			InheritedPropertySheets="..\debug-x64.vsprops;..\common.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+				TypeLibraryName="$(IntDir)ntpq.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpq;..\..\..\..\ntpq"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="_DEBUG"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				SubSystem="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -225,90 +302,18 @@
 			<File
 				RelativePath="..\..\..\..\ntpq\ntpq-opts.c"
 				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\..\..\ntpq\ntpq-subs.c"
 				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\..\..\ntpq\ntpq.c"
 				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\version.c"
 				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter
@@ -337,8 +342,9 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="echo Using NT Shell Script to generate version.c&#x0D;&#x0A;..\..\scripts\mkver.bat -P ntpq&#x0D;&#x0A;"
-					Outputs="$(ProjectDir)version.c"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
+					Outputs=".\version.c"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -346,8 +352,29 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="echo Using NT Shell Script to generate version.c&#x0D;&#x0A;..\..\scripts\mkver.bat -P ntpq&#x0D;&#x0A;"
-					Outputs="$(ProjectDir)version.c"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|x64"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|x64"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
+					Outputs=".\version.c"
 				/>
 			</FileConfiguration>
 		</File>

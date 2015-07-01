@@ -6,7 +6,10 @@
 // Within, in this case.
 //
 
-#define _CRT_SECURE_NO_WARNINGS
+#ifndef _CRT_SECURE_NO_WARNINGS
+# define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <stdio.h>
 #include <windows.h>
 typedef          __int32 int32;

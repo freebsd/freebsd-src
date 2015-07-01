@@ -8,7 +8,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -31,8 +31,8 @@
  * private:
  *
  * what:  process an option with a time duration.
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  Decipher a time duration value.
@@ -64,8 +64,8 @@ optionTimeVal(tOptions * opts, tOptDesc * od)
  * private:
  *
  * what:  process an option with a time and date.
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  Decipher a time and date value.

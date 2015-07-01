@@ -10,20 +10,20 @@
 		<Platform
 			Name="Win32"
 		/>
+		<Platform
+			Name="x64"
+		/>
 	</Platforms>
 	<ToolFiles>
 	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-bin\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			InheritedPropertySheets="..\release.vsprops;..\common.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
-			DeleteExtensionsOnClean="*.obj;*.ilk;*.tlb;*.tli;*.tlh;*.tmp;*.rsp;*.pgc;*.pgd;*.meta;$(TargetPath)"
 			WholeProgramOptimization="1"
 			>
 			<Tool
@@ -45,27 +45,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="true"
-				FavorSizeOrSpeed="1"
-				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="..\..\ntpd,..\..\..\..\ntpd,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\..\sntp\libopts"
-				PreprocessorDefinitions="NDEBUG;_CONSOLE;WIN32;SYS_WINNT;HAVE_CONFIG_H"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="false"
-				PrecompiledHeaderFile="$(IntDir)ntpd.pch"
-				AssemblerListingLocation="$(IntDir)"
-				ObjectFile="$(IntDir)"
-				ProgramDataBaseFileName="$(OutDir)ntpd-vc90"
-				BrowseInformation="1"
-				WarningLevel="4"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -80,20 +60,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib winmm.lib $(OPENSSL_LIB)\libeay32.lib"
-				OutputFile="$(OutDir)$(ProjectName).exe"
-				Version="0x0400"
-				LinkIncremental="1"
-				SuppressStartupBanner="true"
-				GenerateManifest="false"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(ProjectName).pdb"
+				AdditionalDependencies="winmm.lib"
 				SubSystem="1"
-				OptimizeForWindows98="0"
-				LinkTimeCodeGeneration="1"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="2"
-				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -121,14 +89,11 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-bin\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			InheritedPropertySheets="..\debug.vsprops;..\common.vsprops"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
-			DeleteExtensionsOnClean="*.obj;*.ilk;*.tlb;*.tli;*.tlh;*.tmp;*.rsp;*.pgc;*.pgd;*.meta;$(TargetPath)"
 			WholeProgramOptimization="1"
 			>
 			<Tool
@@ -150,29 +115,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="0"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="true"
-				FavorSizeOrSpeed="1"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ntpd,..\..\..\..\ntpd,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\..\sntp\libopts"
-				PreprocessorDefinitions="_DEBUG;_CONSOLE;WIN32;SYS_WINNT;HAVE_CONFIG_H"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				BasicRuntimeChecks="3"
-				SmallerTypeCheck="true"
-				RuntimeLibrary="1"
-				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile="$(IntDir)ntpd.pch"
-				AssemblerListingLocation="$(IntDir)"
-				ObjectFile="$(IntDir)"
-				ProgramDataBaseFileName="$(OutDir)ntpd-vc90"
-				BrowseInformation="1"
-				WarningLevel="4"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -187,20 +130,150 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib winmm.lib $(OPENSSL_LIB)\libeay32.lib"
-				OutputFile="$(OutDir)$(ProjectName).exe"
-				Version="0x0400"
-				LinkIncremental="1"
-				SuppressStartupBanner="true"
-				GenerateManifest="false"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(ProjectName).pdb"
+				AdditionalDependencies="winmm.lib"
 				SubSystem="1"
-				OptimizeForWindows98="0"
-				LinkTimeCodeGeneration="0"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="2"
-				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|x64"
+			ConfigurationType="1"
+			InheritedPropertySheets="..\release-x64.vsprops;..\common.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+				TypeLibraryName="$(IntDir)ntpd.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="winmm.lib"
+				SubSystem="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			ConfigurationType="1"
+			InheritedPropertySheets="..\debug-x64.vsprops;..\common.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+				TypeLibraryName="$(IntDir)ntpd.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="_DEBUG"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="winmm.lib"
+				SubSystem="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -237,26 +310,6 @@
 			<File
 				RelativePath="..\..\..\..\ntpd\cmd_args.c"
 				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\ntpd\keyword-gen.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\ntpd\nt_clockstuff.c"
@@ -301,26 +354,6 @@
 			<File
 				RelativePath="..\..\..\..\ntpd\ntp_parser.c"
 				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\ntpd\ntp_parser.y"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\..\..\ntpd\ntp_peer.c"
@@ -374,6 +407,10 @@
 				RelativePath="..\..\ntpd\ntservice.c"
 				>
 			</File>
+			<File
+				RelativePath=".\version.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -416,15 +453,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\netinet\in.h"
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\net.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\arpa\inet.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\include\isc\int.h"
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\int.h"
 				>
 			</File>
 			<File
@@ -448,15 +481,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\libntp\log.h"
+				RelativePath="..\..\..\..\lib\isc\include\isc\log.h"
 				>
 			</File>
 			<File
 				RelativePath="..\..\..\..\include\mbg_gps166.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\include\isc\net.h"
 				>
 			</File>
 			<File
@@ -520,6 +549,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\..\ntpd\ntp_keyword.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\ntpd\ntp_leapsec.h"
 				>
 			</File>
@@ -546,6 +579,50 @@
 			<File
 				RelativePath="..\..\..\..\ntpd\ntp_parser.h"
 				>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h"
+						CommandLine=".\gen-ntp_keyword $(TmpBaseDir)&#x0D;&#x0A;"
+						AdditionalDependencies="..\..\..\..\ntpd\ntp_parser.h"
+						Outputs="..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h"
+						CommandLine=".\gen-ntp_keyword $(TmpBaseDir)&#x0D;&#x0A;"
+						AdditionalDependencies="..\..\..\..\ntpd\ntp_parser.h"
+						Outputs="..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h"
+						CommandLine=".\gen-ntp_keyword $(TmpBaseDir)&#x0D;&#x0A;"
+						AdditionalDependencies="..\..\..\..\ntpd\ntp_parser.h"
+						Outputs="..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h"
+						CommandLine=".\gen-ntp_keyword $(TmpBaseDir)&#x0D;&#x0A;"
+						AdditionalDependencies="..\..\..\..\ntpd\ntp_parser.h"
+						Outputs="..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\..\..\include\ntp_proto.h"
@@ -628,7 +705,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\isc\offset.h"
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\offset.h"
 				>
 			</File>
 			<File
@@ -640,7 +717,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\isc\platform.h"
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\platform.h"
 				>
 			</File>
 			<File
@@ -656,7 +733,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\sys\socket.h"
+				RelativePath="..\..\..\..\lib\isc\include\isc\socket.h"
 				>
 			</File>
 			<File
@@ -688,7 +765,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\include\isc\win32os.h"
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\win32os.h"
 				>
 			</File>
 		</Filter>
@@ -698,77 +775,10 @@
 			<File
 				RelativePath="..\..\libntp\messages.rc"
 				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="..\libntp"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions=""
-						AdditionalIncludeDirectories="..\libntp"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\..\libntp\MSG00001.bin"
 				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\ntpd\ntp_keyword.h"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h"
-						CommandLine=".\gen-ntp_keyword $(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)&#x0D;&#x0A;"
-						AdditionalDependencies="..\..\..\..\ntpd\ntp_parser.h"
-						Outputs="..\..\..\..\ntpd\ntp_keyword.h ..\..\..\..\ntpd\keyword-gen-utd"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h"
-						CommandLine=".\gen-ntp_keyword $(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)&#x0D;&#x0A;"
-						AdditionalDependencies="..\..\..\..\ntpd\ntp_parser.h"
-						Outputs="..\..\..\..\ntpd\ntp_keyword.h ..\..\..\..\ntpd\keyword-gen-utd"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\version.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-						ShowIncludes="true"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter
@@ -776,7 +786,7 @@
 			Filter="ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
 			>
 			<File
-				RelativePath="..\libntp\messages.mc"
+				RelativePath="..\..\libntp\messages.mc"
 				>
 			</File>
 		</Filter>
@@ -1032,46 +1042,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\..\libparse\parsesolaris.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="..\..\..\..\libparse\parsestreams.c"
-				>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath="..\..\..\..\libparse\trim_info.c"
 				>
 			</File>
@@ -1095,6 +1065,22 @@
 					Name="VCCustomBuildTool"
 				/>
 			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|x64"
+				ExcludedFromBuild="true"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|x64"
+				ExcludedFromBuild="true"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
 			RelativePath="..\..\..\..\packageinfo.sh"
@@ -1104,9 +1090,10 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="echo Using NT Shell Script to generate version.c&#x0D;&#x0A;..\..\scripts\mkver.bat -P ntpd&#x0D;&#x0A;"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
 					AdditionalDependencies="..\..\scripts\mkver.bat;..\..\include\config.h"
-					Outputs="$(ProjectDir)version.c"
+					Outputs=".\version.c"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -1114,9 +1101,32 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="echo Using NT Shell Script to generate version.c&#x0D;&#x0A;..\..\scripts\mkver.bat -P ntpd&#x0D;&#x0A;"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
 					AdditionalDependencies="..\..\scripts\mkver.bat;..\..\include\config.h"
-					Outputs="$(ProjectDir)version.c"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|x64"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
+					AdditionalDependencies="..\..\scripts\mkver.bat;..\..\include\config.h"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|x64"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P $(ProjectName)&#x0D;&#x0A;"
+					AdditionalDependencies="..\..\scripts\mkver.bat;..\..\include\config.h"
+					Outputs=".\version.c"
 				/>
 			</FileConfiguration>
 		</File>
