@@ -326,8 +326,8 @@ test_string_memmove_c(const struct cheri_test *ctp __unused)
 	/* aligned base, unaligned offset + base */
 	invalidate(&t2);
 	cpy = memmove_c(
-	    __builtin_cheri_cap_offset_set(CAP(&t2), 3),
-	    __builtin_cheri_cap_offset_set(CAP(&t1), 3),
+	    __builtin_cheri_cap_offset_increment(CAP(&t2), 3),
+	    __builtin_cheri_cap_offset_increment(CAP(&t1), 3),
 	    sizeof(t1)-6);
 	if ((void*)cpy != &t2.pad0[3])
 		cheritest_failure_errx("memmove_c did not return dst "
@@ -337,8 +337,8 @@ test_string_memmove_c(const struct cheri_test *ctp __unused)
 	/* unaligned base, aligned offset + base */
 	invalidate(&t2);
 	cpy = memmove_c(
-	    __builtin_cheri_cap_offset_set(CAP(t2.pad0-1), 1),
-	    __builtin_cheri_cap_offset_set(CAP(t1.pad0-1), 1),
+	    __builtin_cheri_cap_offset_increment(CAP(t2.pad0-1), 1),
+	    __builtin_cheri_cap_offset_increment(CAP(t1.pad0-1), 1),
 	    sizeof(t1));
 	if ((void*)cpy != &t2.pad0)
 		cheritest_failure_errx("(void*)cpy != &t2.pad0");
@@ -347,8 +347,8 @@ test_string_memmove_c(const struct cheri_test *ctp __unused)
 	/* Unaligned, but offset=32 */
 	invalidate(&t2);
 	cpy = memmove_c(
-	    __builtin_cheri_cap_offset_set(CAP(t2.pad0-1), 32),
-	    __builtin_cheri_cap_offset_set(CAP(t1.pad0-1), 32),
+	    __builtin_cheri_cap_offset_increment(CAP(t2.pad0-1), 32),
+	    __builtin_cheri_cap_offset_increment(CAP(t1.pad0-1), 32),
 	    sizeof(t1) - 31);
 	if ((void*)cpy != t2.pad0+31)
 		cheritest_failure_errx("(void*)cpy != t2.pad0+31");
