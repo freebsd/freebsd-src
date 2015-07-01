@@ -54,6 +54,13 @@ __FBSDID("$FreeBSD$");
 #define	A10_MMC_MEMRES		0
 #define	A10_MMC_IRQRES		1
 #define	A10_MMC_RESSZ		2
+#define	A10_MMC_DMA_SEGS	16
+#define	A10_MMC_DMA_MAX_SIZE	0x2000
+#define	A10_MMC_DMA_FTRGLEVEL	0x20070008
+
+static int a10_mmc_pio_mode = 0;
+
+TUNABLE_INT("hw.a10.mmc.pio_mode", &a10_mmc_pio_mode);
 
 struct a10_mmc_softc {
 	bus_space_handle_t	a10_bsh;
@@ -71,6 +78,16 @@ struct a10_mmc_softc {
 	uint32_t		a10_intr;
 	uint32_t		a10_intr_wait;
 	void *			a10_intrhand;
+
+	/* Fields required for DMA access. */
+	bus_addr_t	  	a10_dma_desc_phys;
+	bus_dmamap_t		a10_dma_map;
+	bus_dma_tag_t 		a10_dma_tag;
+	void * 			a10_dma_desc;
+	bus_dmamap_t		a10_dma_buf_map;
+	bus_dma_tag_t		a10_dma_buf_tag;
+	int			a10_dma_inuse;
+	int			a10_dma_map_err;
 };
 
 static struct resource_spec a10_mmc_res_spec[] = {
@@ -82,6 +99,7 @@ static struct resource_spec a10_mmc_res_spec[] = {
 static int a10_mmc_probe(device_t);
 static int a10_mmc_attach(device_t);
 static int a10_mmc_detach(device_t);
+static int a10_mmc_setup_dma(struct a10_mmc_softc *);
 static int a10_mmc_reset(struct a10_mmc_softc *);
 static void a10_mmc_intr(void *);
 static int a10_mmc_update_clock(struct a10_mmc_softc *);
@@ -166,6 +184,14 @@ a10_mmc_attach(device_t dev)
 		goto fail;
 	}
 
+	if (a10_mmc_pio_mode == 0 && a10_mmc_setup_dma(sc) != 0) {
+		device_printf(sc->a10_dev, "Couldn't setup DMA!\n");
+		a10_mmc_pio_mode = 1;
+	}
+	if (bootverbose)
+		device_printf(sc->a10_dev, "DMA status: %s\n",
+		    a10_mmc_pio_mode ? "disabled" : "enabled");
+
 	sc->a10_host.f_min = 400000;
 	sc->a10_host.f_max = 52000000;
 	sc->a10_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
@@ -201,6 +227,140 @@ a10_mmc_detach(device_t dev)
 	return (EBUSY);
 }
 
+static void
+a10_dma_desc_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
+{
+	struct a10_mmc_softc *sc;
+
+	sc = (struct a10_mmc_softc *)arg;
+	if (err) {
+		sc->a10_dma_map_err = err;
+		return;
+	}
+	sc->a10_dma_desc_phys = segs[0].ds_addr;
+}
+
+static int
+a10_mmc_setup_dma(struct a10_mmc_softc *sc)
+{
+	int dma_desc_size, error;
+
+	/* Allocate the DMA descriptor memory. */
+	dma_desc_size = sizeof(struct a10_mmc_dma_desc) * A10_MMC_DMA_SEGS;
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    dma_desc_size, 1, dma_desc_size, 0, NULL, NULL, &sc->a10_dma_tag);
+	if (error)
+		return (error);
+	error = bus_dmamem_alloc(sc->a10_dma_tag, &sc->a10_dma_desc,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->a10_dma_map);
+	if (error)
+		return (error);
+
+	error = bus_dmamap_load(sc->a10_dma_tag, sc->a10_dma_map,
+	    sc->a10_dma_desc, dma_desc_size, a10_dma_desc_cb, sc, 0);
+	if (error)
+		return (error);
+	if (sc->a10_dma_map_err)
+		return (sc->a10_dma_map_err);
+
+	/* Create the DMA map for data transfers. */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    A10_MMC_DMA_MAX_SIZE * A10_MMC_DMA_SEGS, A10_MMC_DMA_SEGS,
+	    A10_MMC_DMA_MAX_SIZE, BUS_DMA_ALLOCNOW, NULL, NULL,
+	    &sc->a10_dma_buf_tag);
+	if (error)
+		return (error);
+	error = bus_dmamap_create(sc->a10_dma_buf_tag, 0,
+	    &sc->a10_dma_buf_map);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+static void
+a10_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
+{
+	int i;
+	struct a10_mmc_dma_desc *dma_desc;
+	struct a10_mmc_softc *sc;
+
+	sc = (struct a10_mmc_softc *)arg;
+	sc->a10_dma_map_err = err;
+	dma_desc = sc->a10_dma_desc;
+	/* Note nsegs is guaranteed to be zero if err is non-zero. */
+	for (i = 0; i < nsegs; i++) {
+		dma_desc[i].buf_size = segs[i].ds_len;
+		dma_desc[i].buf_addr = segs[i].ds_addr;
+		dma_desc[i].config = A10_MMC_DMA_CONFIG_CH |
+		    A10_MMC_DMA_CONFIG_OWN;
+		if (i == 0)
+			dma_desc[i].config |= A10_MMC_DMA_CONFIG_FD;
+		if (i < (nsegs - 1)) {
+			dma_desc[i].config |= A10_MMC_DMA_CONFIG_DIC;
+			dma_desc[i].next = sc->a10_dma_desc_phys +
+			    ((i + 1) * sizeof(struct a10_mmc_dma_desc));
+		} else {
+			dma_desc[i].config |= A10_MMC_DMA_CONFIG_LD |
+			    A10_MMC_DMA_CONFIG_ER;
+			dma_desc[i].next = 0;
+		}
+ 	}
+}
+
+static int
+a10_mmc_prepare_dma(struct a10_mmc_softc *sc)
+{
+	bus_dmasync_op_t sync_op;
+	int error;
+	struct mmc_command *cmd;
+	uint32_t val;
+
+	cmd = sc->a10_req->cmd;
+	if (cmd->data->len > A10_MMC_DMA_MAX_SIZE * A10_MMC_DMA_SEGS)
+		return (EFBIG);
+	error = bus_dmamap_load(sc->a10_dma_buf_tag, sc->a10_dma_buf_map,
+	    cmd->data->data, cmd->data->len, a10_dma_cb, sc, BUS_DMA_NOWAIT);
+	if (error)
+		return (error);
+	if (sc->a10_dma_map_err)
+		return (sc->a10_dma_map_err);
+
+	sc->a10_dma_inuse = 1;
+	if (cmd->data->flags & MMC_DATA_WRITE)
+		sync_op = BUS_DMASYNC_PREWRITE;
+	else
+		sync_op = BUS_DMASYNC_PREREAD;
+	bus_dmamap_sync(sc->a10_dma_buf_tag, sc->a10_dma_buf_map, sync_op);
+	bus_dmamap_sync(sc->a10_dma_tag, sc->a10_dma_map, BUS_DMASYNC_PREWRITE);
+
+	val = A10_MMC_READ_4(sc, A10_MMC_IMASK);
+	val &= ~(A10_MMC_RX_DATA_REQ | A10_MMC_TX_DATA_REQ);
+	A10_MMC_WRITE_4(sc, A10_MMC_IMASK, val);
+	val = A10_MMC_READ_4(sc, A10_MMC_GCTRL);
+	val &= ~A10_MMC_ACCESS_BY_AHB;
+	val |= A10_MMC_DMA_ENABLE;
+	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL, val);
+	val |= A10_MMC_DMA_RESET;
+	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL, val);
+	A10_MMC_WRITE_4(sc, A10_MMC_DMAC, A10_MMC_IDMAC_SOFT_RST);
+	A10_MMC_WRITE_4(sc, A10_MMC_DMAC,
+	    A10_MMC_IDMAC_IDMA_ON | A10_MMC_IDMAC_FIX_BURST);
+	val = A10_MMC_READ_4(sc, A10_MMC_IDIE);
+	val &= ~(A10_MMC_IDMAC_RECEIVE_INT | A10_MMC_IDMAC_TRANSMIT_INT);
+	if (cmd->data->flags & MMC_DATA_WRITE)
+		val |= A10_MMC_IDMAC_TRANSMIT_INT;
+	else
+		val |= A10_MMC_IDMAC_RECEIVE_INT;
+	A10_MMC_WRITE_4(sc, A10_MMC_IDIE, val);
+	A10_MMC_WRITE_4(sc, A10_MMC_DLBA, sc->a10_dma_desc_phys);
+	A10_MMC_WRITE_4(sc, A10_MMC_FTRGL, A10_MMC_DMA_FTRGLEVEL);
+
+	return (0);
+}
+
 static int
 a10_mmc_reset(struct a10_mmc_softc *sc)
 {
@@ -222,15 +382,14 @@ a10_mmc_reset(struct a10_mmc_softc *sc)
 
 	/* Clear pending interrupts. */
 	A10_MMC_WRITE_4(sc, A10_MMC_RINTR, 0xffffffff);
+	A10_MMC_WRITE_4(sc, A10_MMC_IDST, 0xffffffff);
 	/* Unmask interrupts. */
 	A10_MMC_WRITE_4(sc, A10_MMC_IMASK,
 	    A10_MMC_CMD_DONE | A10_MMC_INT_ERR_BIT |
-	    A10_MMC_DATA_OVER | A10_MMC_AUTOCMD_DONE |
-	    A10_MMC_RX_DATA_REQ | A10_MMC_TX_DATA_REQ);
+	    A10_MMC_DATA_OVER | A10_MMC_AUTOCMD_DONE);
 	/* Enable interrupts and AHB access. */
 	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL,
-	    A10_MMC_READ_4(sc, A10_MMC_GCTRL) |
-	    A10_MMC_INT_ENABLE | A10_MMC_ACCESS_BY_AHB);
+	    A10_MMC_READ_4(sc, A10_MMC_GCTRL) | A10_MMC_INT_ENABLE);
 
 	return (0);
 }
@@ -247,15 +406,19 @@ a10_mmc_req_done(struct a10_mmc_softc *sc)
 		a10_mmc_reset(sc);
 		a10_mmc_update_clock(sc);
 	}
-	/* Reset the FIFO. */
-	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL,
-	    A10_MMC_READ_4(sc, A10_MMC_GCTRL) | A10_MMC_FIFO_RESET);
+	if (sc->a10_dma_inuse == 0) {
+		/* Reset the FIFO. */
+		A10_MMC_WRITE_4(sc, A10_MMC_GCTRL,
+		    A10_MMC_READ_4(sc, A10_MMC_GCTRL) | A10_MMC_FIFO_RESET);
+	}
 
 	req = sc->a10_req;
 	callout_stop(&sc->a10_timeoutc);
 	sc->a10_req = NULL;
 	sc->a10_intr = 0;
 	sc->a10_resid = 0;
+	sc->a10_dma_inuse = 0;
+	sc->a10_dma_map_err = 0;
 	sc->a10_intr_wait = 0;
 	req->done(req);
 }
@@ -295,7 +458,7 @@ a10_mmc_req_ok(struct a10_mmc_softc *sc)
 	a10_mmc_req_done(sc);
 }
 
-static void 
+static void
 a10_mmc_timeout(void *arg)
 {
 	struct a10_mmc_softc *sc;
@@ -335,28 +498,29 @@ a10_mmc_pio_transfer(struct a10_mmc_softc *sc, struct mmc_data *data)
 static void
 a10_mmc_intr(void *arg)
 {
+	bus_dmasync_op_t sync_op;
 	struct a10_mmc_softc *sc;
 	struct mmc_data *data;
-	uint32_t imask, rint;
+	uint32_t idst, imask, rint;
 
 	sc = (struct a10_mmc_softc *)arg;
 	A10_MMC_LOCK(sc);
 	rint = A10_MMC_READ_4(sc, A10_MMC_RINTR);
+	idst = A10_MMC_READ_4(sc, A10_MMC_IDST);
 	imask = A10_MMC_READ_4(sc, A10_MMC_IMASK);
-	if (imask == 0 && rint == 0) {
+	if (idst == 0 && imask == 0 && rint == 0) {
 		A10_MMC_UNLOCK(sc);
 		return;
 	}
 #ifdef DEBUG
-	device_printf(sc->a10_dev, "imask: %#x, rint: %#x\n", imask, rint);
+	device_printf(sc->a10_dev, "idst: %#x, imask: %#x, rint: %#x\n",
+	    idst, imask, rint);
 #endif
 	if (sc->a10_req == NULL) {
 		device_printf(sc->a10_dev,
 		    "Spurious interrupt - no active request, rint: 0x%08X\n",
 		    rint);
-		A10_MMC_WRITE_4(sc, A10_MMC_RINTR, rint);
-		A10_MMC_UNLOCK(sc);
-		return;
+		goto end;
 	}
 	if (rint & A10_MMC_INT_ERR_BIT) {
 		device_printf(sc->a10_dev, "error rint: 0x%08X\n", rint);
@@ -364,20 +528,39 @@ a10_mmc_intr(void *arg)
 			sc->a10_req->cmd->error = MMC_ERR_TIMEOUT;
 		else
 			sc->a10_req->cmd->error = MMC_ERR_FAILED;
-		A10_MMC_WRITE_4(sc, A10_MMC_RINTR, rint);
 		a10_mmc_req_done(sc);
-		A10_MMC_UNLOCK(sc);
-		return;
+		goto end;
+	}
+	if (idst & A10_MMC_IDMAC_ERROR) {
+		device_printf(sc->a10_dev, "error idst: 0x%08x\n", idst);
+		sc->a10_req->cmd->error = MMC_ERR_FAILED;
+		a10_mmc_req_done(sc);
+		goto end;
 	}
 
 	sc->a10_intr |= rint;
 	data = sc->a10_req->cmd->data;
-	if (data != NULL && (rint & (A10_MMC_DATA_OVER |
-	    A10_MMC_RX_DATA_REQ | A10_MMC_TX_DATA_REQ)) != 0)
+	if (data != NULL && sc->a10_dma_inuse == 1 &&
+	    (idst & A10_MMC_IDMAC_COMPLETE)) {
+		if (data->flags & MMC_DATA_WRITE)
+			sync_op = BUS_DMASYNC_POSTWRITE;
+		else
+			sync_op = BUS_DMASYNC_POSTREAD;
+		bus_dmamap_sync(sc->a10_dma_buf_tag, sc->a10_dma_buf_map,
+		    sync_op);
+		bus_dmamap_sync(sc->a10_dma_tag, sc->a10_dma_map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->a10_dma_buf_tag, sc->a10_dma_buf_map);
+		sc->a10_resid = data->len >> 2;
+	} else if (data != NULL && sc->a10_dma_inuse == 0 &&
+	    (rint & (A10_MMC_DATA_OVER | A10_MMC_RX_DATA_REQ |
+	    A10_MMC_TX_DATA_REQ)) != 0)
 		a10_mmc_pio_transfer(sc, data);
 	if ((sc->a10_intr & sc->a10_intr_wait) == sc->a10_intr_wait)
 		a10_mmc_req_ok(sc);
 
+end:
+	A10_MMC_WRITE_4(sc, A10_MMC_IDST, idst);
 	A10_MMC_WRITE_4(sc, A10_MMC_RINTR, rint);
 	A10_MMC_UNLOCK(sc);
 }
@@ -388,7 +571,7 @@ a10_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	int blksz;
 	struct a10_mmc_softc *sc;
 	struct mmc_command *cmd;
-	uint32_t cmdreg;
+	uint32_t cmdreg, val;
 
 	sc = device_get_softc(bus);
 	A10_MMC_LOCK(sc);
@@ -424,6 +607,19 @@ a10_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 		blksz = min(cmd->data->len, MMC_SECTOR_SIZE);
 		A10_MMC_WRITE_4(sc, A10_MMC_BLKSZ, blksz);
 		A10_MMC_WRITE_4(sc, A10_MMC_BCNTR, cmd->data->len);
+
+		if (a10_mmc_pio_mode == 0)
+			a10_mmc_prepare_dma(sc);
+		/* Enable PIO access if sc->a10_dma_inuse is not set. */
+		if (sc->a10_dma_inuse == 0) {
+			val = A10_MMC_READ_4(sc, A10_MMC_GCTRL);
+			val &= ~A10_MMC_DMA_ENABLE;
+			val |= A10_MMC_ACCESS_BY_AHB;
+			A10_MMC_WRITE_4(sc, A10_MMC_GCTRL, val);
+			val = A10_MMC_READ_4(sc, A10_MMC_IMASK);
+			val |= A10_MMC_RX_DATA_REQ | A10_MMC_TX_DATA_REQ;
+			A10_MMC_WRITE_4(sc, A10_MMC_IMASK, val);
+		}
 	}
 
 	A10_MMC_WRITE_4(sc, A10_MMC_CARG, cmd->arg);
@@ -436,7 +632,7 @@ a10_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 }
 
 static int
-a10_mmc_read_ivar(device_t bus, device_t child, int which, 
+a10_mmc_read_ivar(device_t bus, device_t child, int which,
     uintptr_t *result)
 {
 	struct a10_mmc_softc *sc;
