@@ -353,7 +353,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>Reader locks are now recognized as adaptive and can
+	  <para>Reader locks are now recognized as adaptive that can
 	    spin on &os;.</para>
 	</listitem>
 
@@ -363,8 +363,8 @@
 	</listitem>
 
 	<listitem>
-	  <para>Spin-and-block events that occur before lock
-	    acquisition are now reported.</para>
+	  <para>Spin and block events are now reported before lock
+	    acquisition events.</para>
 	</listitem>
       </itemizedlist>
 
