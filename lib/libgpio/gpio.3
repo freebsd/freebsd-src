@@ -35,6 +35,7 @@
 .Sh LIBRARY
 .Lb libgpio
 .Sh SYNOPSIS
+.In sys/types.h
 .In libgpio.h
 .Ft "gpio_handle_t"
 .Fn gpio_open "unsigned int unit"
@@ -161,13 +162,14 @@ are wrappers around
 The following example shows how to configure pin 16 as output and then
 drive it high:
 .Bd -literal
+#include <sys/types.h>
 #include <err.h>
 #include <libgpio.h>
 
 gpio_handle_t handle;
 
 handle = gpio_open(0);
-if (handle == GPIO_HANDLE_INVALID)
+if (handle == GPIO_INVALID_HANDLE)
 	err(1, "gpio_open failed");
 gpio_pin_output(handle, 16);
 gpio_pin_high(handle, 16);
