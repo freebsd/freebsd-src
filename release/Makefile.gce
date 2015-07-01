@@ -19,7 +19,7 @@ CLEANFILES+=		${GCE_UPLOAD_TGTS}
 GCE_BUCKET?=
 
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
-SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H-%M
+SNAPSHOT_DATE!=		date +-%Y-%m-%d
 .endif
 
 # Really?  Uppercase characters are not allowed?  Sigh...

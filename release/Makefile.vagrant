@@ -18,7 +18,7 @@ ATLAS${VAR}:=		${VAGRANT${VAR}}
 .endif
 
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
-SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H-%M
+SNAPSHOT_DATE!=		date +-%Y-%m-%d
 .endif
 
 VAGRANT_VERSION?=	${REVISION}-${BRANCH}${SNAPSHOT_DATE}
