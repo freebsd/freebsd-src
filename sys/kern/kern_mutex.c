@@ -354,6 +354,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	uint64_t spin_cnt = 0;
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
+	int64_t all_time = 0;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -379,6 +380,9 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		CTR4(KTR_LOCK,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
+#ifdef KDTRACE_HOOKS
+	all_time -= lockstat_nsecs();
+#endif
 
 	while (!_mtx_obtain_lock(m, tid)) {
 #ifdef KDTRACE_HOOKS
@@ -475,6 +479,9 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		sleep_cnt++;
 #endif
 	}
+#ifdef KDTRACE_HOOKS
+	all_time += lockstat_nsecs();
+#endif
 #ifdef KTR
 	if (cont_logged) {
 		CTR4(KTR_CONTENTION,
@@ -492,7 +499,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	 * Only record the loops spinning and not sleeping. 
 	 */
 	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD1(LS_MTX_LOCK_SPIN, m, (spin_cnt - sleep_cnt));
+		LOCKSTAT_RECORD1(LS_MTX_LOCK_SPIN, m, (all_time - sleep_time));
 #endif
 }
 
@@ -531,6 +538,9 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	int contested = 0;
 	uint64_t waittime = 0;
 #endif
+#ifdef KDTRACE_HOOKS
+	int64_t spin_time = 0;
+#endif
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -542,6 +552,9 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	PMC_SOFT_CALL( , , lock, failed);
 #endif
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
+#ifdef KDTRACE_HOOKS
+	spin_time -= lockstat_nsecs();
+#endif
 	while (!_mtx_obtain_lock(m, tid)) {
 
 		/* Give interrupts a chance while we spin. */
@@ -559,13 +572,16 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		}
 		spinlock_enter();
 	}
+#ifdef KDTRACE_HOOKS
+	spin_time += lockstat_nsecs();
+#endif
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, m,
 	    contested, waittime, (file), (line));
-	LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, i);
+	LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, spin_time);
 }
 #endif /* SMP */
 
@@ -580,7 +596,7 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 	uint64_t waittime = 0;
 #endif
 #ifdef KDTRACE_HOOKS
-	uint64_t spin_cnt = 0;
+	int64_t spin_time = 0;
 #endif
 
 	i = 0;
@@ -589,6 +605,9 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+#ifdef KDTRACE_HOOKS
+	spin_time -= lockstat_nsecs();
+#endif
 	for (;;) {
 retry:
 		spinlock_enter();
@@ -605,9 +624,6 @@ retry:
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
 		while (!_mtx_obtain_lock(m, tid)) {
-#ifdef KDTRACE_HOOKS
-			spin_cnt++;
-#endif
 			if (m->mtx_lock == tid) {
 				m->mtx_recurse++;
 				break;
@@ -636,17 +652,17 @@ retry:
 		if (m == td->td_lock)
 			break;
 		__mtx_unlock_spin(m);	/* does spinlock_exit() */
-#ifdef KDTRACE_HOOKS
-		spin_cnt++;
-#endif
 	}
+#ifdef KDTRACE_HOOKS
+	spin_time += lockstat_nsecs();
+#endif
 	if (m->mtx_recurse == 0)
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE,
 		    m, contested, waittime, (file), (line));
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCKSTAT_RECORD1(LS_THREAD_LOCK_SPIN, m, spin_cnt);
+	LOCKSTAT_RECORD1(LS_THREAD_LOCK_SPIN, m, spin_time);
 }
 
 struct mtx *

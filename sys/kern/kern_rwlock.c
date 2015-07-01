@@ -274,6 +274,9 @@ _rw_try_wlock(struct rwlock *rw, const char *file, int line)
 	if (rval) {
 		WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
+		if (!rw_recursed(rw))
+			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_WLOCK_ACQUIRE,
+			    rw, 0, 0, file, line);
 		curthread->td_locks++;
 	}
 	return (rval);
@@ -323,9 +326,11 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 #endif
 	uintptr_t v;
 #ifdef KDTRACE_HOOKS
+	uintptr_t state;
 	uint64_t spin_cnt = 0;
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
+	int64_t all_time = 0;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -341,6 +346,10 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	    rw->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
+#ifdef KDTRACE_HOOKS
+	all_time -= lockstat_nsecs();
+	state = rw->rw_lock;
+#endif
 	for (;;) {
 #ifdef KDTRACE_HOOKS
 		spin_cnt++;
@@ -490,7 +499,19 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
 			    __func__, rw);
 	}
+#ifdef KDTRACE_HOOKS
+	all_time += lockstat_nsecs();
+	if (sleep_time)
+		LOCKSTAT_RECORD4(LS_RW_RLOCK_BLOCK, rw, sleep_time,
+		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
+		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 
+	/* Record only the loops spinning and not sleeping. */
+	if (spin_cnt > sleep_cnt)
+		LOCKSTAT_RECORD4(LS_RW_RLOCK_SPIN, rw, all_time - sleep_time,
+		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
+		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
+#endif
 	/*
 	 * TODO: acquire "owner of record" here.  Here be turnstile dragons
 	 * however.  turnstiles don't like owners changing between calls to
@@ -502,16 +523,6 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
 	curthread->td_locks++;
 	curthread->td_rw_rlocks++;
-#ifdef KDTRACE_HOOKS
-	if (sleep_time)
-		LOCKSTAT_RECORD1(LS_RW_RLOCK_BLOCK, rw, sleep_time);
-
-	/*
-	 * Record only the loops spinning and not sleeping. 
-	 */
-	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD1(LS_RW_RLOCK_SPIN, rw, (spin_cnt - sleep_cnt));
-#endif
 }
 
 int
@@ -536,6 +547,8 @@ _rw_try_rlock(struct rwlock *rw, const char *file, int line)
 			LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 1, file,
 			    line);
 			WITNESS_LOCK(&rw->lock_object, LOP_TRYLOCK, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_RLOCK_ACQUIRE,
+			    rw, 0, 0, file, line);
 			curthread->td_locks++;
 			curthread->td_rw_rlocks++;
 			return (1);
@@ -675,9 +688,11 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	int contested = 0;
 #endif
 #ifdef KDTRACE_HOOKS
+	uintptr_t state;
 	uint64_t spin_cnt = 0;
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
+	int64_t all_time = 0;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -697,6 +712,10 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
+#ifdef KDTRACE_HOOKS
+	all_time -= lockstat_nsecs();
+	state = rw->rw_lock;
+#endif
 	while (!_rw_write_lock(rw, tid)) {
 #ifdef KDTRACE_HOOKS
 		spin_cnt++;
@@ -824,18 +843,21 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		spintries = 0;
 #endif
 	}
+#ifdef KDTRACE_HOOKS
+	all_time += lockstat_nsecs();
+	if (sleep_time)
+		LOCKSTAT_RECORD4(LS_RW_WLOCK_BLOCK, rw, sleep_time,
+		    LOCKSTAT_WRITER, (state & RW_LOCK_READ) == 0,
+		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
+
+	/* Record only the loops spinning and not sleeping. */
+	if (spin_cnt > sleep_cnt)
+		LOCKSTAT_RECORD4(LS_RW_WLOCK_SPIN, rw, all_time - sleep_time,
+		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
+		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
+#endif
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_WLOCK_ACQUIRE, rw, contested,
 	    waittime, file, line);
-#ifdef KDTRACE_HOOKS
-	if (sleep_time)
-		LOCKSTAT_RECORD1(LS_RW_WLOCK_BLOCK, rw, sleep_time);
-
-	/*
-	 * Record only the loops spinning and not sleeping.
-	 */ 
-	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD1(LS_RW_WLOCK_SPIN, rw, (spin_cnt - sleep_cnt));
-#endif
 }
 
 /*
