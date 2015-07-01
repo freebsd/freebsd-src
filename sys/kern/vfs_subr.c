@@ -173,6 +173,11 @@ static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0,
     "Number of calls to reassignbuf");
 
+static u_long free_owe_inact;
+SYSCTL_ULONG(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact, 0,
+    "Number of times free vnodes kept on active list due to VFS "
+    "owing inactivation");
+
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
  * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
@@ -2361,11 +2366,8 @@ vholdl(struct vnode *vp)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 #ifdef INVARIANTS
 	/* getnewvnode() calls v_incr_usecount() without holding interlock. */
-	if (vp->v_type != VNON || vp->v_data != NULL) {
+	if (vp->v_type != VNON || vp->v_data != NULL)
 		ASSERT_VI_LOCKED(vp, "vholdl");
-		VNASSERT(vp->v_holdcnt > 0 || (vp->v_iflag & VI_FREE) != 0,
-		    vp, ("vholdl: free vnode is held"));
-	}
 #endif
 	vp->v_holdcnt++;
 	if ((vp->v_iflag & VI_FREE) == 0)
@@ -2434,23 +2436,29 @@ vdropl(struct vnode *vp)
 		VNASSERT(vp->v_holdcnt == 0, vp,
 		    ("vdropl: freeing when we shouldn't"));
 		active = vp->v_iflag & VI_ACTIVE;
-		vp->v_iflag &= ~VI_ACTIVE;
-		mp = vp->v_mount;
-		mtx_lock(&vnode_free_list_mtx);
-		if (active) {
-			TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
-			    v_actfreelist);
-			mp->mnt_activevnodelistsize--;
-		}
-		if (vp->v_iflag & VI_AGE) {
-			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_actfreelist);
+		if ((vp->v_iflag & VI_OWEINACT) == 0) {
+			vp->v_iflag &= ~VI_ACTIVE;
+			mp = vp->v_mount;
+			mtx_lock(&vnode_free_list_mtx);
+			if (active) {
+				TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
+				    v_actfreelist);
+				mp->mnt_activevnodelistsize--;
+			}
+			if (vp->v_iflag & VI_AGE) {
+				TAILQ_INSERT_HEAD(&vnode_free_list, vp,
+				    v_actfreelist);
+			} else {
+				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+				    v_actfreelist);
+			}
+			freevnodes++;
+			vp->v_iflag &= ~VI_AGE;
+			vp->v_iflag |= VI_FREE;
+			mtx_unlock(&vnode_free_list_mtx);
 		} else {
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_actfreelist);
+			atomic_add_long(&free_owe_inact, 1);
 		}
-		freevnodes++;
-		vp->v_iflag &= ~VI_AGE;
-		vp->v_iflag |= VI_FREE;
-		mtx_unlock(&vnode_free_list_mtx);
 		VI_UNLOCK(vp);
 		return;
 	}

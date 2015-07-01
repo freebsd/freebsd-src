@@ -1409,6 +1409,14 @@ ffs_statfs(mp, sbp)
 	return (0);
 }
 
+static bool
+sync_doupdate(struct inode *ip)
+{
+
+	return ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
+	    IN_UPDATE)) != 0);
+}
+
 /*
  * For a lazy sync, we only care about access times, quotas and the
  * superblock.  Other filesystem changes are already converted to
@@ -1442,15 +1450,15 @@ ffs_sync_lazy(mp)
 		 * Test also all the other timestamp flags too, to pick up
 		 * any other cases that could be missed.
 		 */
-		if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
-		    IN_UPDATE)) == 0) {
+		if (!sync_doupdate(ip) && (vp->v_iflag & VI_OWEINACT) == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
 		    td)) != 0)
 			continue;
-		error = ffs_update(vp, 0);
+		if (sync_doupdate(ip))
+			error = ffs_update(vp, 0);
 		if (error != 0)
 			allerror = error;
 		vput(vp);
