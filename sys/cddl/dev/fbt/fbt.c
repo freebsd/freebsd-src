@@ -111,6 +111,37 @@ static struct cdev		*fbt_cdev;
 static int			fbt_probetab_size;
 static int			fbt_verbose = 0;
 
+int
+fbt_excluded(const char *name)
+{
+
+	if (strncmp(name, "dtrace_", 7) == 0 &&
+	    strncmp(name, "dtrace_safe_", 12) != 0) {
+		/*
+		 * Anything beginning with "dtrace_" may be called
+		 * from probe context unless it explicitly indicates
+		 * that it won't be called from probe context by
+		 * using the prefix "dtrace_safe_".
+		 */
+		return (1);
+	}
+
+	/* Exclude some internal functions */
+	if (name[0] == '_' && name[1] == '_')
+		return (1);
+
+	/*
+	 * When DTrace is built into the kernel we need to exclude
+	 * the FBT functions from instrumentation.
+	 */
+#ifndef _KLD_MODULE
+	if (strncmp(name, "fbt_", 4) == 0)
+		return (1);
+#endif
+
+	return (0);
+}
+
 static void
 fbt_doubletrap(void)
 {
