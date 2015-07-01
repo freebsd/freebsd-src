@@ -118,7 +118,7 @@ cheri_csetbounds(const __capability void *x, size_t y)
 static __inline __capability void *
 cheri_ptr(const void *ptr, size_t len)
 {
-	__capability void *c;
+	const __capability void *c;
 
 #if CSETBOUNDS_AND_NEW_CFROMPTR || (defined(_MIPS_SZCAP) && ( _MIPS_SZCAP == 128))
 	/* Assume CFromPtr without base set, availability of CSetBounds. */
@@ -128,7 +128,7 @@ cheri_ptr(const void *ptr, size_t len)
 		return ((__capability void *)0);
 	c = cheri_setoffset(cheri_getdefault(), (uintptr_t)ptr);
 #endif
-	return (cheri_csetbounds((const __capability void *)ptr, len));
+	return (cheri_csetbounds(c, len));
 }
 
 static __inline __capability void *
