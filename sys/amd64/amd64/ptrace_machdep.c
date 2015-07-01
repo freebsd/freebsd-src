@@ -231,7 +231,7 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 		error = copyin(addr, &rv, sizeof(rv));
 		if (error != 0)
 			break;
-		if (rv >= VM_MAXUSER_ADDRESS) {
+		if (rv >= td->td_proc->p_sysent->sv_maxuser) {
 			error = EINVAL;
 			break;
 		}
