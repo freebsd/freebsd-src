@@ -1,5 +1,7 @@
 LIBRARY	"loopback-ppsapi-provider.dll"
-
+; This is *needed* for x86 (32bit) builds, as it makes sure
+; that the *undecorated* names are exported in the DLL.
+; It *cannot* be used for the x64 (64bit) builds.
 EXPORTS
     ppsapi_prov_init
     prov_time_pps_create

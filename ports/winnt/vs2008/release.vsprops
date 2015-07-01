@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="release-x86"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		Optimization="3"
+		InlineFunctionExpansion="2"
+		WholeProgramOptimization="true"
+		AdditionalIncludeDirectories="&quot;$(OPENSSL_INC)&quot;"
+		PreprocessorDefinitions="NDEBUG;OPENSSL"
+		RuntimeLibrary="0"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		AdditionalDependencies=" $(OPENSSL_LIB)\libeay32.lib"
+		TargetMachine="1"
+	/>
+</VisualStudioPropertySheet>

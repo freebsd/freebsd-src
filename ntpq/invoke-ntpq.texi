@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpq.texi)
 #
-# It has been AutoGen-ed  April  7, 2015 at 04:27:07 AM by AutoGen 5.18.5pre4
+# It has been AutoGen-ed  June 29, 2015 at 04:31:39 PM by AutoGen 5.18.5
 # From the definitions    ntpq-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -213,7 +213,9 @@ switch.
 This command allows the specification of a key number to be
 used to authenticate configuration requests.
 This must correspond
-to a key number the server has been configured to use for this
+to the
+@code{controlkey}
+key number the server has been configured to use for this
 purpose.
 @item @code{keytype} @code{[@code{md5} | @code{OpenSSLDigestType}]}
 Specify the type of key to use for authenticating requests.
@@ -472,6 +474,16 @@ offset of server relative to this host
 @item @code{jitter}
 jitter
 @end table
+@item @code{apeers}
+Display a list of peers in the form:
+@example
+[tally]remote refid assid st t when pool reach delay offset jitter
+@end example
+where the output is just like the
+@code{peers}
+command except that the
+@code{refid}
+is displayed in hex format and the association number is also displayed.
 @item @code{pstats} @kbd{assocID}
 Show the statistics for the peer with the given
 @kbd{assocID}.
@@ -835,7 +847,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpq - standard NTP query program - Ver. 4.2.8p2
+ntpq - standard NTP query program - Ver. 4.2.8p3
 Usage:  ntpq [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution

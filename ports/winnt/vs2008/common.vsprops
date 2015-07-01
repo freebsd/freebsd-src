@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="common"
+	OutputDirectory="$(OutBaseDir)"
+	IntermediateDirectory="$(TmpBaseDir)\$(TargetName)"
+	BuildLogFile="$(IntDir)\BuildLog.htm"
+	EnableManagedIncrementalBuild="0"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="..\..\include;..\..\..\..\lib\isc\win32\include;..\..\..\..\include;..\..\..\..\lib\isc\include;..\..\..\..\sntp\libopts"
+		PreprocessorDefinitions="_CONSOLE;_WINDOWS;WIN32;SYS_WINNT;HAVE_CONFIG_H;HAVE_ARC4RANDOM_BUF;_CRT_SECURE_NO_WARNINGS"
+		StringPooling="true"
+		ExceptionHandling="0"
+		EnableFunctionLevelLinking="true"
+		RuntimeTypeInfo="false"
+		AssemblerListingLocation="$(IntDir)\"
+		ObjectFile="$(IntDir)\"
+		XMLDocumentationFileName="$(IntDir)\"
+		BrowseInformation="1"
+		WarningLevel="3"
+		SuppressStartupBanner="true"
+		DebugInformationFormat="3"
+		CompileAs="1"
+		DisableSpecificWarnings="4996"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		AdditionalDependencies="ws2_32.lib"
+		Version="4.2"
+		LinkIncremental="1"
+		SuppressStartupBanner="true"
+		AdditionalLibraryDirectories="$(TmpBaseDir)"
+		GenerateDebugInformation="true"
+		ProgramDatabaseFile="$(OutDir)\$(ProjectName).pdb"
+		SubSystem="1"
+		OptimizeReferences="2"
+		EnableCOMDATFolding="2"
+		LinkTimeCodeGeneration="1"
+		RandomizedBaseAddress="1"
+		DataExecutionPrevention="1"
+	/>
+	<UserMacro
+		Name="OutBaseDir"
+		Value="$(SolutionDir)\$(PlatformName)-out\$(ConfigurationName)"
+	/>
+	<UserMacro
+		Name="TmpBaseDir"
+		Value="$(SolutionDir)\$(PlatformName)-tmp\$(ConfigurationName)"
+	/>
+</VisualStudioPropertySheet>

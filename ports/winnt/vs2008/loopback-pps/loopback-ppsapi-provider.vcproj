@@ -12,16 +12,19 @@
 		<Platform
 			Name="Win32"
 		/>
+		<Platform
+			Name="x64"
+		/>
 	</Platforms>
 	<ToolFiles>
 	</ToolFiles>
 	<Configurations>
 		<Configuration
-			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-bin\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
+			Name="Release|Win32"
 			ConfigurationType="2"
+			InheritedPropertySheets="..\release.vsprops;..\common.vsprops"
 			CharacterSet="2"
+			WholeProgramOptimization="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -40,22 +43,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="0"
-				AdditionalIncludeDirectories="..\..\ntpd,..\..\..\..\ntpd,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include"
-				PreprocessorDefinitions="SYS_WINNT"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="1"
-				UsePrecompiledHeader="0"
-				PrecompiledHeaderThrough="serialpps-ppsapi-provider.h"
-				AssemblerListingLocation="$(IntDir)\"
-				ProgramDataBaseFileName="$(OutDir)loopback-ppsapi-provider-vc90"
-				BrowseInformation="1"
-				WarningLevel="3"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -69,16 +57,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="ntpd.lib"
-				OutputFile="$(OutDir)$(ProjectName).dll"
-				Version="0x0400"
-				LinkIncremental="1"
+				Version="4.2"
 				AdditionalLibraryDirectories="$(OutDir)"
-				GenerateManifest="false"
 				ModuleDefinitionFile="..\..\ppsapi\loopback\src\loopback-ppsapi.def"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(ProjectName).pdb"
 				SubSystem="2"
-				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -104,12 +86,75 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(PlatformName)-bin\$(ConfigurationName)\"
-			IntermediateDirectory="$(SolutionDir)$(PlatformName)-tmp\$(ConfigurationName)\$(TargetName)\"
+			Name="Release|x64"
 			ConfigurationType="2"
+			InheritedPropertySheets="..\release-x64.vsprops;..\common.vsprops"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="ntpd.lib"
+				AdditionalLibraryDirectories="$(OutDir)"
+				SubSystem="2"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|Win32"
+			ConfigurationType="2"
+			InheritedPropertySheets="..\debug.vsprops;..\common.vsprops"
+			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -128,23 +173,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="2"
-				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="..\..\ntpd,..\..\..\..\ntpd,..\..\include,..\..\..\..\include,..\..\..\..\lib\isc\win32\include,..\..\..\..\lib\isc\include"
-				PreprocessorDefinitions="SYS_WINNT"
-				StringPooling="true"
-				MinimalRebuild="false"
-				ExceptionHandling="0"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="0"
-				PrecompiledHeaderThrough="serialpps-ppsapi-provider.h"
-				AssemblerListingLocation="$(IntDir)\"
-				ProgramDataBaseFileName="$(OutDir)loopback-ppsapi-provider-vc90"
-				BrowseInformation="1"
-				WarningLevel="3"
-				DebugInformationFormat="3"
-				CompileAs="1"
+				Optimization="0"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -158,18 +188,74 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="ntpd.lib"
-				OutputFile="$(OutDir)$(ProjectName).dll"
-				Version="0x0400"
-				LinkIncremental="1"
 				AdditionalLibraryDirectories="$(OutDir)"
-				GenerateManifest="false"
 				ModuleDefinitionFile="..\..\ppsapi\loopback\src\loopback-ppsapi.def"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(ProjectName).pdb"
 				SubSystem="2"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				OutputFile="$(IntDir)/$(ProjectName).bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			ConfigurationType="2"
+			InheritedPropertySheets="..\debug-x64.vsprops;..\common.vsprops"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="0"
+				AdditionalIncludeDirectories="..\..\ntpd;..\..\..\..\ntpd"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="ntpd.lib"
+				AdditionalLibraryDirectories="$(OutDir)"
+				SubSystem="2"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -221,6 +307,10 @@
 				RelativePath="..\..\ppsapi\loopback\src\loopback-ppsapi.c"
 				>
 			</File>
+			<File
+				RelativePath=".\version.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -247,8 +337,48 @@
 			>
 		</Filter>
 		<File
-			RelativePath=".\ReadMe.txt"
+			RelativePath="..\..\..\..\packageinfo.sh"
 			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P loopback-ppsapi&#x0D;&#x0A;"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|x64"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P loopback-ppsapi&#x0D;&#x0A;"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P loopback-ppsapi&#x0D;&#x0A;"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|x64"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					Description="Using NT Shell Script to generate version.c"
+					CommandLine="..\..\scripts\mkver.bat -P loopback-ppsapi&#x0D;&#x0A;"
+					Outputs=".\version.c"
+				/>
+			</FileConfiguration>
 		</File>
 	</Files>
 	<Globals>

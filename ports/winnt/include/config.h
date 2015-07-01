@@ -248,7 +248,6 @@ typedef int socklen_t;
 #define TYPEOF_IP_MULTICAST_LOOP	BOOL
 #define SETSOCKOPT_ARG_CAST		(const char *)
 #define HAVE_RANDOM 
-#define AUTOKEY
 #define SAVECONFIG			1
 
 /*
@@ -256,9 +255,12 @@ typedef int socklen_t;
  */
 #define USE_MM_TIMER
 
-/* Enable OpenSSL */
-#define OPENSSL 1
-#define USE_OPENSSL_CRYPTO_RAND 1
+/* check for OpenSSL */
+#ifdef OPENSSL
+# define USE_OPENSSL_CRYPTO_RAND 1
+# define AUTOKEY
+#endif
+extern void arc4random_buf(void *buf, size_t nbytes);
 
 /*
  * Keywords and functions that Microsoft maps

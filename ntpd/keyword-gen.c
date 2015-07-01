@@ -46,6 +46,7 @@ struct key_tok ntp_keywords[] = {
 { "ctl",		T_Ctl,			FOLLBY_TOKEN },
 { "disable",		T_Disable,		FOLLBY_TOKEN },
 { "driftfile",		T_Driftfile,		FOLLBY_STRING },
+{ "dscp",		T_Dscp,			FOLLBY_TOKEN },
 { "enable",		T_Enable,		FOLLBY_TOKEN },
 { "end",		T_End,			FOLLBY_TOKEN },
 { "filegen",		T_Filegen,		FOLLBY_TOKEN },
@@ -53,6 +54,7 @@ struct key_tok ntp_keywords[] = {
 { "io",			T_Io,			FOLLBY_TOKEN },
 { "includefile",	T_Includefile,		FOLLBY_STRING },
 { "leapfile",		T_Leapfile,		FOLLBY_STRING },
+{ "leapsmearinterval",	T_Leapsmearinterval,	FOLLBY_TOKEN },
 { "logconfig",		T_Logconfig,		FOLLBY_STRINGS_TO_EOC },
 { "logfile",		T_Logfile,		FOLLBY_STRING },
 { "manycastclient",	T_Manycastclient,	FOLLBY_STRING },
@@ -333,12 +335,11 @@ generate_fsm(void)
 	char *r;
 	u_short initial_state;
 	u_short this_state;
-	u_short prev_state;
 	u_short state;
 	u_short i;
 	u_short token;
 
-	/* 
+	/*
 	 * Sort ntp_keywords in alphabetical keyword order.  This is
 	 * not necessary, but minimizes nonfunctional changes in the
 	 * generated finite state machine when keywords are modified.
@@ -347,7 +348,7 @@ generate_fsm(void)
 	      sizeof(ntp_keywords[0]), compare_key_tok_text);
 
 	/*
-	 * To save space, reserve the state array entry matching each 
+	 * To save space, reserve the state array entry matching each
 	 * token number for its terminal state, so the token identifier
 	 * does not need to be stored in each state, but can be
 	 * recovered trivially.  To mark the entry reserved,
@@ -414,7 +415,7 @@ generate_fsm(void)
 		}
 
 		if (sst[i].finishes_token) {
-			snprintf(token_id_comment, 
+			snprintf(token_id_comment,
 				 sizeof(token_id_comment), "%5d %-17s",
 				 i, symbname(sst[i].finishes_token));
 			if (i != sst[i].finishes_token) {
@@ -442,7 +443,6 @@ generate_fsm(void)
 		 * spellings result in the same T_* value.
 		 */
 			prefix_len = 0;
-			prev_state = 0;
 			this_state = i;
 			do {
 				for (state = 1; state < sst_highwater; state++)
@@ -468,8 +468,8 @@ generate_fsm(void)
 
 			snprintf(token_id_comment,
 				 sizeof(token_id_comment), "%5d %-17s",
-				 i, (initial_state == i) 
-					? "[initial state]" 
+				 i, (initial_state == i)
+					? "[initial state]"
 					: prefix);
 		}
 
@@ -497,8 +497,8 @@ generate_fsm(void)
  */
 static u_short
 create_scan_states(
-	char *	text, 
-	u_short	token, 
+	char *	text,
+	u_short	token,
 	follby	followedby,
 	u_short	prev_state
 	)
@@ -512,7 +512,7 @@ create_scan_states(
 	curr_char_s = prev_state;
 	prev_char_s = 0;
 
-	/* Find the correct position to insert the state. 
+	/* Find the correct position to insert the state.
 	 * All states should be in alphabetical order
 	 */
 	while (curr_char_s && (text[0] < sst[curr_char_s].ch)) {
@@ -520,7 +520,7 @@ create_scan_states(
 		curr_char_s = sst[curr_char_s].other_next_s;
 	}
 
-	/* 
+	/*
 	 * Check if a previously seen keyword has the same prefix as
 	 * the current keyword.  If so, simply use the state for that
 	 * keyword as my_state, otherwise, allocate a new state.
@@ -548,7 +548,7 @@ create_scan_states(
 			exit(3);
 		}
 		/* Store the next character of the keyword */
-		sst[my_state].ch = text[0]; 
+		sst[my_state].ch = text[0];
 		sst[my_state].other_next_s = curr_char_s;
 		sst[my_state].followedby = FOLLBY_NON_ACCEPTING;
 
@@ -587,7 +587,7 @@ create_scan_states(
 				return_state = my_state;
 		}
 	} else
-		sst[my_state].match_next_s = 
+		sst[my_state].match_next_s =
 		    create_scan_states(
 			&text[1],
 			token,
@@ -615,8 +615,8 @@ create_keyword_scanner(void)
 		current_keyword = ntp_keywords[i].key;
 		scanner =
 		    create_scan_states(
-			ntp_keywords[i].key, 
-			ntp_keywords[i].token, 
+			ntp_keywords[i].key,
+			ntp_keywords[i].token,
 			ntp_keywords[i].followedby,
 			scanner);
 	}
@@ -657,7 +657,7 @@ generate_token_text(void)
 		if (i > 0)
 			printf(",");
 		printf("\n\t/* %-5d %5d %20s */\t\"%s\"",
-		       id - lowest_id, id, symbname(id), 
+		       id - lowest_id, id, symbname(id),
 		       ntp_keywords[i].key);
 		i++;
 		id++;
@@ -666,7 +666,7 @@ generate_token_text(void)
 	printf("\n};\n\n");
 }
 
-	
+
 int
 compare_key_tok_id(
 	const void *a1,
@@ -749,7 +749,7 @@ symbname(
 	} else {
 		LIB_GETBUF(name);
 		snprintf(name, LIB_BUFLENGTH, "%d", token);
-	}	
+	}
 
 	return name;
 }

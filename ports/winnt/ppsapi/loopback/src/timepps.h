@@ -143,7 +143,6 @@
 typedef unsigned long pps_seq_t;	/* sequence number */
 
 #pragma warning(push)
-//#pragma warning(disable: 201)		/* nonstd extension nameless union */
 
 typedef struct ntp_fp {
 	union {
@@ -165,15 +164,16 @@ typedef union pps_timeu {		/* timestamp format */
 } pps_timeu_t;				/* generic data type to represent time stamps */
 
 /* addition of NTP fixed-point format */
+static void
+ntpfp_add(			/* *op1r += *op2 */
+	ntp_fp_t       *op1r,
+	const ntp_fp_t *op2 )
+{
+	op1r->F.u += op2->F.u;
+	op1r->I.u += op2->I.u + (op1r->F.u < op2->F.u);
+}
 
-#define NTPFP_M_ADD(r_i, r_f, a_i, a_f) 	/* r += a */ \
-	do { \
-		r_f = (u_int32)(r_f) + (u_int32)(a_f); \
-		r_i = (u_int32)(r_i) + (u_int32)(a_i) + \
-		      ((u_int32)(r_f) < (u_int32)(a_f)); \
-	} while (0)
-
-#define	NTPFP_L_ADDS(r, a)	NTPFP_M_ADD((r)->I.u, (r)->F.u, (a)->I.u, (a)->F.u)
+#define	NTPFP_L_ADDS ntpfp_add
 
 
 /*
@@ -369,12 +369,16 @@ unit_from_ppsapi_handle(
  * for any non-ntpd clients as they should rely only
  * the errno for PPSAPI functions.
  */
-#define	RETURN_PPS_ERRNO(e)	\
-do {				\
-	SetLastError(NO_ERROR);	\
-	errno = (e);		\
-	return -1;		\
-} while (0)
+static __inline  int
+pps_set_errno(
+	int e)
+{
+	SetLastError(NO_ERROR);
+	errno = e;
+	return -1;
+}
+
+#define	RETURN_PPS_ERRNO(e) return pps_set_errno(e)
 
 
 #ifdef OWN_PPS_NTP_TIMESTAMP_FROM_COUNTER
@@ -403,6 +407,8 @@ pps_ntp_timestamp_from_counter(
 	ULONGLONG	Counterstamp)
 {
 	ULONGLONG BiasedTimestamp;
+
+	(void)Counterstamp;
 
 	/* convert from 100ns units to NTP fixed point format */
 
