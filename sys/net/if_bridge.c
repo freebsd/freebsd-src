@@ -984,9 +984,12 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		case IFT_ETHER:
 		case IFT_L2VLAN:
 			/*
-			 * Take the interface out of promiscuous mode.
+			 * Take the interface out of promiscuous mode, but only
+			 * if it was promiscuous in the first place. It might
+			 * not be if we're in the bridge_ioctl_add() error path.
 			 */
-			(void) ifpromisc(ifs, 0);
+			if (ifs->if_flags & IFF_PROMISC)
+				(void) ifpromisc(ifs, 0);
 			break;
 
 		case IFT_GIF:
@@ -1154,10 +1157,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 			break;
 	}
 
-	if (error) {
+	if (error)
 		bridge_delete_member(sc, bif, 0);
-		free(bif, M_DEVBUF);
-	}
 	return (error);
 }
 
