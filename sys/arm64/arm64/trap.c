@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcpu.h>
 #include <machine/vmparam.h>
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
+
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
@@ -71,6 +75,8 @@ extern register_t fsu_intr_fault;
 void do_el1h_sync(struct trapframe *);
 void do_el0_sync(struct trapframe *);
 void do_el0_error(struct trapframe *);
+
+int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 static __inline void
 call_trapsignal(struct thread *td, int sig, u_long code)
@@ -230,6 +236,11 @@ do_el1h_sync(struct trapframe *frame)
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, exception))
+		return;
+#endif
+
 	/*
 	 * Sanity check we are in an exception er can handle. The IL bit
 	 * is used to indicate the instruction length, except in a few
@@ -252,6 +263,13 @@ do_el1h_sync(struct trapframe *frame)
 		data_abort(frame, esr, 0);
 		break;
 	case EXCP_BRK:
+#ifdef KDTRACE_HOOKS
+		if ((esr & ESR_ELx_ISS_MASK) == 0x40d && \
+		    dtrace_invop_jump_addr != 0) {
+			dtrace_invop_jump_addr(frame);
+			break;
+		}
+#endif
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB

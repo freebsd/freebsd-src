@@ -239,8 +239,9 @@ _libldns=	libldns
 # sense to build when clang is enabled at all.  Furthermore, they can only be
 # built for certain architectures.
 .if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
-    (${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \
-    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb"))
+    (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb") || \
+    (${MACHINE_CPUARCH} == "i386"))
 _libclang_rt=	libclang_rt
 .endif
 
@@ -297,7 +298,7 @@ _libsmb=	libsmb
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 _libsmb=	libsmb
 _libproc=	libproc
 _librtld_db=	librtld_db
