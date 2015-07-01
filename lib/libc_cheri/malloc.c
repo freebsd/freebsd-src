@@ -163,6 +163,7 @@ malloc(nbytes)
 	register int bucket;
 	register long n;
 	register unsigned amt;
+	register size_t vaddr, delta;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -170,15 +171,14 @@ malloc(nbytes)
 	 */
 	if (pagesz == 0) {
 		pagesz = n = 0x1000;
-		pagepool_start = cheri_setlen(
-		    cheri_incbase(__builtin_cheri_get_global_data_cap(),
-		    _sb_heapbase), _sb_heaplen);
+		pagepool_start = cheri_ptr((void *)_sb_heapbase, _sb_heaplen);
 		pagepool_end = pagepool_start + _sb_heaplen;
 		op = (union overhead *)(pagepool_start);
 
-		pagepool_start = cheri_incbase(pagepool_start,
-		    roundup2(cheri_getbase(pagepool_start), pagesz) -
-		    cheri_getbase(pagepool_start));
+		vaddr = cheri_getbase(pagepool_start) +
+		    cheri_getoffset(pagepool_start);
+		delta = roundup2(vaddr, pagesz) - vaddr;
+		pagepool_start = cheri_incoffset(pagepool_start, delta);
 
 		bucket = 0;
 		amt = 8;
@@ -293,16 +293,15 @@ morecore(bucket)
 	/* non-zero offsets cause trouble */
 	ASSERT(cheri_getoffset(pagepool_start) == 0);
 	op = (union overhead *)pagepool_start;
-	pagepool_start = cheri_incbase(pagepool_start, amt);
+	pagepool_start += amt;
 
 	/*
 	 * Add new memory allocated to that on
 	 * free list for this hash bucket.
 	 */
-	nextf[bucket] = cheri_setlen(op, sz);
+	nextf[bucket] = cheri_csetbounds(op, sz);
 	while (--nblks > 0) {
-		op->ov_next = (union overhead *)cheri_setlen(
-		    cheri_incbase(op, sz), sz);
+		op->ov_next = (union overhead *)cheri_csetbounds(op + sz, sz);
 		op = (union overhead *)(cheri_incbase(op, sz));
 	}
 }

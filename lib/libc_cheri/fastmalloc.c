@@ -55,9 +55,7 @@ malloc(size_t size)
 	char *ptr;
 
 	if (_sb_heapcap == NULL) {
-		_sb_heapcap = cheri_setlen(
-		    cheri_incbase(__builtin_cheri_get_global_data_cap(),
-		    _sb_heapbase), _sb_heaplen);
+		_sb_heapcap = cheri_csetbounds(_sb_heapbase, _sb_heaplen);
 #ifdef MALLOC_DEBUG
 		printf("%s: _sb_heapcap base 0x%jx offset 0x%jx length 0x%zx\n",
 		    __func__, cheri_getbase(_sb_heapcap),
@@ -76,8 +74,8 @@ malloc(size_t size)
 #endif
 	if (cheri_getlen(_sb_heapcap) < rsize)
 		return (NULL);
-	ptr = cheri_setlen(_sb_heapcap, rsize);
-	_sb_heapcap = cheri_incbase(_sb_heapcap, rsize);
+	ptr = cheri_csetbounds(_sb_heapcap, rsize);
+	_sb_heapcap += rsize;
 
 	/* XXX: replace with capability to allocation */
 	*(size_t*)ptr = rsize;
