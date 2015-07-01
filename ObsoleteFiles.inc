@@ -1020,6 +1020,7 @@ OLD_FILES+=usr/include/lwres/net.h
 OLD_FILES+=usr/include/lwres/netdb.h
 OLD_FILES+=usr/include/lwres/platform.h
 OLD_FILES+=usr/include/lwres/result.h
+OLD_FILES+=usr/include/lwres/string.h
 OLD_FILES+=usr/include/lwres/version.h
 OLD_FILES+=usr/lib/liblwres.a
 OLD_FILES+=usr/lib/liblwres.so
