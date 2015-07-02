@@ -90,8 +90,15 @@
       <row>
 	<entry><link
 	    xlink:href="&security.url;/FreeBSD-EN-15:08.sendmail.asc">FreeBSD-EN-15:08.sendmail</link></entry>
-	<entry>18&nbsp;June&nbsp;2015</entry>
+	<entry>30&nbsp;June&nbsp;2015 (revised)</entry>
 	<entry><para>Sendmail TLS/DH interoperability improvement</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:09.xlocale.asc">FreeBSD-EN-15:09.xlocale</link></entry>
+	<entry>30&nbsp;June&nbsp;2015</entry>
+	<entry><para>Fix inconsistency between locale and rune locale states</para></entry>
       </row>
     </tbody>
   </tgroup>
