@@ -1108,9 +1108,6 @@ vfs_domount(
 	} else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
 
-	ASSERT_VI_UNLOCKED(vp, __func__);
-	ASSERT_VOP_UNLOCKED(vp, __func__);
-
 	return (error);
 }
 
