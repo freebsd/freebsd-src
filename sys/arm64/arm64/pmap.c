@@ -429,10 +429,6 @@ pmap_bootstrap_dmap(vm_offset_t l1pt)
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
-		/*
-		 * TODO: Turn the cache on here when we have cache
-		 * flushing code.
-		 */
 		pmap_load_store(&l1[l1_slot],
 		    (pa & ~L1_OFFSET) | ATTR_AF | L1_BLOCK |
 		    ATTR_IDX(CACHED_MEMORY));
