@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
 #include <netinet/in.h>
 
 #include <assert.h>
@@ -41,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <libcapsicum.h>
 #include <libcapsicum_dns.h>
 #include <libcasper.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 static bool

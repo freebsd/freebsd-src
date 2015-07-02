@@ -15,9 +15,6 @@ SRCS+=	msgio.c
 SRCS+=	subr_nvlist.c
 SRCS+=	subr_nvpair.c
 
-INCS=	dnv.h
-INCS+=	nv.h
-
 MAN+=	nv.3
 
 MLINKS+=nv.3 libnv.3 \

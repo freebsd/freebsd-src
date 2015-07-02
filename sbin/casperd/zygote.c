@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/socket.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <err.h>
@@ -46,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <libcapsicum.h>
 #include <libcapsicum_impl.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 #include "zygote.h"

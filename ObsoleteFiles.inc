@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150702: Remove duplicated nvlist includes.
+OLD_FILES+=usr/include/dnv.h
+OLD_FILES+=usr/include/nv.h
 # 20150528: PCI IOV device driver methods moved to a separate kobj interface.
 OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9.gz
 OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9.gz
