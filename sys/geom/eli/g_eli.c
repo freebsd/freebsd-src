@@ -633,7 +633,10 @@ g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
 	g_topology_lock();
 	if (buf == NULL)
 		goto end;
-	eli_metadata_decode(buf, md);
+	error = eli_metadata_decode(buf, md);
+	if (error != 0)
+		goto end;
+	/* Metadata was read and decoded successfully. */
 end:
 	if (buf != NULL)
 		g_free(buf);
