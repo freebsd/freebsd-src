@@ -54,12 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/proto/proto_busdma.h>
 
 CTASSERT(SYS_RES_IRQ != PROTO_RES_UNUSED &&
+    SYS_RES_DRQ != PROTO_RES_UNUSED &&
     SYS_RES_MEMORY != PROTO_RES_UNUSED &&
     SYS_RES_IOPORT != PROTO_RES_UNUSED);
 CTASSERT(SYS_RES_IRQ != PROTO_RES_PCICFG &&
+    SYS_RES_DRQ != PROTO_RES_PCICFG &&
     SYS_RES_MEMORY != PROTO_RES_PCICFG &&
     SYS_RES_IOPORT != PROTO_RES_PCICFG);
 CTASSERT(SYS_RES_IRQ != PROTO_RES_BUSDMA &&
+    SYS_RES_DRQ != PROTO_RES_BUSDMA &&
     SYS_RES_MEMORY != PROTO_RES_BUSDMA &&
     SYS_RES_IOPORT != PROTO_RES_BUSDMA);
 
@@ -132,6 +135,8 @@ proto_attach(device_t dev)
 		case SYS_RES_IRQ:
 			/* XXX TODO */
 			break;
+		case SYS_RES_DRQ:
+			break;
 		case SYS_RES_MEMORY:
 		case SYS_RES_IOPORT:
 			r->r_size = rman_get_size(r->r_d.res);
@@ -182,6 +187,10 @@ proto_detach(device_t dev)
 		switch (r->r_type) {
 		case SYS_RES_IRQ:
 			/* XXX TODO */
+			bus_release_resource(dev, r->r_type, r->r_rid,
+			    r->r_d.res);
+			break;
+		case SYS_RES_DRQ:
 			bus_release_resource(dev, r->r_type, r->r_rid,
 			    r->r_d.res);
 			break;
