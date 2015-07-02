@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -44,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include "libcapsicum.h"
 #include "libcapsicum_impl.h"
-#include "nv.h"
 
 /*
  * Structure describing communication channel between two separated processes.
