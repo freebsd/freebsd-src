@@ -19,7 +19,7 @@ CLEANFILES+=		${GCE_UPLOAD_TGTS}
 GCE_BUCKET?=
 
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
-SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H-%M
+SNAPSHOT_DATE!=		date +-%Y-%m-%d
 .endif
 
 # Really?  Uppercase characters are not allowed?  Sigh...
@@ -36,13 +36,13 @@ gce-check-depends:
 . endif
 .endfor
 .if !exists(/usr/local/bin/gcutil)
-. if !exists(${PORTSDIR}/net/google-cloud-api/Makefile)
+. if !exists(${PORTSDIR}/net/google-cloud-sdk/Makefile)
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
 .  endif
-	env ASSUME_ALWAYS_YES=yes pkg install -y net/google-cloud-api
+	env ASSUME_ALWAYS_YES=yes pkg install -y net/google-cloud-sdk
 . else
-	make -C ${PORTSDIR}/net/google-cloud-api BATCH=1 all install clean
+	make -C ${PORTSDIR}/net/google-cloud-sdk BATCH=1 all install clean
 . endif
 .endif
 
