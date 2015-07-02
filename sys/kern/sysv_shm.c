@@ -380,10 +380,8 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		 * This is just a hint to vm_map_find() about where to
 		 * put it.
 		 */
-		PROC_LOCK(p);
 		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
-		    lim_max_proc(p, RLIMIT_DATA));
-		PROC_UNLOCK(p);
+		    lim_max(td, RLIMIT_DATA));
 	}
 
 	vm_object_reference(shmseg->object);
