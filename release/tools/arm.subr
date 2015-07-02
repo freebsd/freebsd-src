@@ -63,6 +63,18 @@ umount_loop() {
 }
 
 arm_create_disk() {
+	# XXX: This is potentially dangerous, but works around an issue
+	#      properly labeling md(4) devices when the label already
+	#      exists.
+	#      EVERYTHINGISFINE should *never* be set for non-RE use.
+	#      Trust me.  I'm an engineer.
+	if [ ! -z "${EVERYTHINGISFINE}" ]; then
+		for _label in ufs/rootfs msdosfs/MSDOSBOOT; do
+			if [ -e "${CHROOTDIR}/dev/${_label}" ]; then
+				rm ${CHROOTDIR}/dev/${_label}
+			fi
+		done
+	fi
 	# Create the target raw file and temporary work directory.
 	chroot ${CHROOTDIR} gpart create -s ${PART_SCHEME} ${mddev}
 	chroot ${CHROOTDIR} gpart add -t '!12' -a 63 -s ${FAT_SIZE} ${mddev}
