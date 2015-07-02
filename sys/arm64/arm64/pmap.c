@@ -83,8 +83,6 @@
  * SUCH DAMAGE.
  */
 
-#define	AMD64_NPT_AWARE
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -3040,14 +3038,6 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	if (!needs_mapping)
 		return (FALSE);
 
-	/*
-	 * NB:  The sequence of updating a page table followed by accesses
-	 * to the corresponding pages used in the !DMAP case is subject to
-	 * the situation described in the "AMD64 Architecture Programmer's
-	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
-	 * Coherency Considerations".  Therefore, issuing the INVLPG right
-	 * after modifying the PTE bits is crucial.
-	 */
 	if (!can_fault)
 		sched_pin();
 	for (i = 0; i < count; i++) {
