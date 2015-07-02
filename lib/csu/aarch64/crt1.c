@@ -51,6 +51,8 @@ extern int eprol;
 extern int etext;
 #endif
 
+extern long * _end;
+
 void __start(int, char **, char **, void (*)(void));
 
 /* The entry function. */
@@ -79,8 +81,17 @@ __start(int argc, char *argv[], char *env[], void (*cleanup)(void))
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else
+	else {
+		/*
+		 * Hack to resolve _end so we read the correct symbol.
+		 * Without this it will resolve to the copy in the library
+		 * that firsts requests it. We should fix the toolchain,
+		 * however this is is needed until this can take place.
+		 */
+		*(volatile long *)&_end;
+
 		_init_tls();
+	}
 
 #ifdef GCRT
 	atexit(_mcleanup);
