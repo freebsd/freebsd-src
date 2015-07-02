@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.180 2014/06/24 02:21:01 djm Exp $ */
+/* $OpenBSD: scp.c,v 1.181 2015/01/16 06:40:12 deraadt Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -95,6 +95,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -749,7 +750,7 @@ source(int argc, char **argv)
 	off_t i, statbytes;
 	size_t amt, nr;
 	int fd = -1, haderr, indx;
-	char *last, *name, buf[2048], encname[MAXPATHLEN];
+	char *last, *name, buf[2048], encname[PATH_MAX];
 	int len;
 
 	for (indx = 0; indx < argc; ++indx) {
@@ -858,7 +859,7 @@ rsource(char *name, struct stat *statp)
 {
 	DIR *dirp;
 	struct dirent *dp;
-	char *last, *vect[1], path[MAXPATHLEN];
+	char *last, *vect[1], path[PATH_MAX];
 
 	if (!(dirp = opendir(name))) {
 		run_err("%s: %s", name, strerror(errno));

@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.45 2014/04/18 23:52:25 djm Exp $ */
+/* $OpenBSD: compat.h,v 1.46 2015/01/19 20:20:20 markus Exp $ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -63,7 +63,7 @@
 
 void     enable_compat13(void);
 void     enable_compat20(void);
-void     compat_datafellows(const char *);
+u_int    compat_datafellows(const char *);
 int	 proto_spec(const char *);
 char	*compat_cipher_proposal(char *);
 char	*compat_pkalg_proposal(char *);

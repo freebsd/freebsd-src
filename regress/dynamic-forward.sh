@@ -1,4 +1,4 @@
-#	$OpenBSD: dynamic-forward.sh,v 1.10 2013/05/17 04:29:14 dtucker Exp $
+#	$OpenBSD: dynamic-forward.sh,v 1.11 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="dynamic forwarding"
@@ -17,7 +17,7 @@ trace "will use ProxyCommand $proxycmd"
 
 start_sshd
 
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	n=0
 	error="1"
 	trace "start dynamic forwarding, fork to background"

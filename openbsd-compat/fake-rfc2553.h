@@ -109,6 +109,9 @@ struct sockaddr_in6 {
 #ifndef AI_NUMERICHOST
 # define AI_NUMERICHOST		(1<<2)
 #endif
+#ifndef AI_NUMERICSERV
+# define AI_NUMERICSERV		(1<<3)
+#endif
 
 #ifndef NI_MAXSERV
 # define NI_MAXSERV 32

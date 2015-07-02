@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.1 2014/06/24 01:16:58 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.5 2015/01/26 02:59:11 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -67,16 +67,14 @@ enum sshkey_types {
 	KEY_UNSPEC
 };
 
-/* Fingerprint hash algorithms */
-enum sshkey_fp_type {
-	SSH_FP_SHA1,
-	SSH_FP_MD5,
-	SSH_FP_SHA256
-};
+/* Default fingerprint hash */
+#define SSH_FP_HASH_DEFAULT	SSH_DIGEST_SHA256
 
 /* Fingerprint representation formats */
 enum sshkey_fp_rep {
+	SSH_FP_DEFAULT = 0,
 	SSH_FP_HEX,
+	SSH_FP_BASE64,
 	SSH_FP_BUBBLEBABBLE,
 	SSH_FP_RANDOMART
 };
@@ -124,9 +122,9 @@ int		 sshkey_equal_public(const struct sshkey *,
     const struct sshkey *);
 int		 sshkey_equal(const struct sshkey *, const struct sshkey *);
 char		*sshkey_fingerprint(const struct sshkey *,
-    enum sshkey_fp_type, enum sshkey_fp_rep);
+    int, enum sshkey_fp_rep);
 int		 sshkey_fingerprint_raw(const struct sshkey *k,
-    enum sshkey_fp_type dgst_type, u_char **retp, size_t *lenp);
+    int, u_char **retp, size_t *lenp);
 const char	*sshkey_type(const struct sshkey *);
 const char	*sshkey_cert_type(const struct sshkey *);
 int		 sshkey_write(const struct sshkey *, FILE *);
@@ -158,14 +156,17 @@ int		 sshkey_ec_validate_public(const EC_GROUP *, const EC_POINT *);
 int		 sshkey_ec_validate_private(const EC_KEY *);
 const char	*sshkey_ssh_name(const struct sshkey *);
 const char	*sshkey_ssh_name_plain(const struct sshkey *);
-int		 sshkey_names_valid2(const char *);
+int		 sshkey_names_valid2(const char *, int);
 char		*key_alg_list(int, int);
 
 int	 sshkey_from_blob(const u_char *, size_t, struct sshkey **);
-int	 sshkey_to_blob_buf(const struct sshkey *, struct sshbuf *);
+int	 sshkey_fromb(struct sshbuf *, struct sshkey **);
+int	 sshkey_froms(struct sshbuf *, struct sshkey **);
 int	 sshkey_to_blob(const struct sshkey *, u_char **, size_t *);
-int	 sshkey_plain_to_blob_buf(const struct sshkey *, struct sshbuf *);
+int	 sshkey_putb(const struct sshkey *, struct sshbuf *);
+int	 sshkey_puts(const struct sshkey *, struct sshbuf *);
 int	 sshkey_plain_to_blob(const struct sshkey *, u_char **, size_t *);
+int	 sshkey_putb_plain(const struct sshkey *, struct sshbuf *);
 
 int	 sshkey_sign(const struct sshkey *, u_char **, size_t *,
     const u_char *, size_t, u_int);
@@ -186,8 +187,6 @@ int	sshkey_private_to_fileblob(struct sshkey *key, struct sshbuf *blob,
     int force_new_format, const char *new_format_cipher, int new_format_rounds);
 int	sshkey_parse_public_rsa1_fileblob(struct sshbuf *blob,
     struct sshkey **keyp, char **commentp);
-int	sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
-    const char *passphrase, struct sshkey **keyp, char **commentp);
 int	sshkey_parse_private_fileblob(struct sshbuf *buffer,
     const char *passphrase, const char *filename, struct sshkey **keyp,
     char **commentp);

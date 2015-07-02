@@ -1,8 +1,5 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define if building universal (internal helper macro) */
-#undef AC_APPLE_UNIVERSAL_BUILD
-
 /* Define if you have a getaddrinfo that fails for the all-zeros IPv6 address
    */
 #undef AIX_GETNAMEINFO_HACK
@@ -290,6 +287,10 @@
 
 /* Define if your libraries define daemon() */
 #undef HAVE_DAEMON
+
+/* Define to 1 if you have the declaration of `AI_NUMERICSERV', and to 0 if
+   you don't. */
+#undef HAVE_DECL_AI_NUMERICSERV
 
 /* Define to 1 if you have the declaration of `authenticate', and to 0 if you
    don't. */
@@ -874,6 +875,9 @@
 /* Define to 1 if you have the <readpassphrase.h> header file. */
 #undef HAVE_READPASSPHRASE_H
 
+/* Define to 1 if you have the `reallocarray' function. */
+#undef HAVE_REALLOCARRAY
+
 /* Define to 1 if you have the `realpath' function. */
 #undef HAVE_REALPATH
 
@@ -1096,28 +1100,28 @@
 /* define if you have struct in6_addr data type */
 #undef HAVE_STRUCT_IN6_ADDR
 
-/* Define to 1 if `pw_change' is a member of `struct passwd'. */
+/* Define to 1 if `pw_change' is member of `struct passwd'. */
 #undef HAVE_STRUCT_PASSWD_PW_CHANGE
 
-/* Define to 1 if `pw_class' is a member of `struct passwd'. */
+/* Define to 1 if `pw_class' is member of `struct passwd'. */
 #undef HAVE_STRUCT_PASSWD_PW_CLASS
 
-/* Define to 1 if `pw_expire' is a member of `struct passwd'. */
+/* Define to 1 if `pw_expire' is member of `struct passwd'. */
 #undef HAVE_STRUCT_PASSWD_PW_EXPIRE
 
-/* Define to 1 if `pw_gecos' is a member of `struct passwd'. */
+/* Define to 1 if `pw_gecos' is member of `struct passwd'. */
 #undef HAVE_STRUCT_PASSWD_PW_GECOS
 
 /* define if you have struct sockaddr_in6 data type */
 #undef HAVE_STRUCT_SOCKADDR_IN6
 
-/* Define to 1 if `sin6_scope_id' is a member of `struct sockaddr_in6'. */
+/* Define to 1 if `sin6_scope_id' is member of `struct sockaddr_in6'. */
 #undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
 
 /* define if you have struct sockaddr_storage data type */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
 
-/* Define to 1 if `st_blksize' is a member of `struct stat'. */
+/* Define to 1 if `st_blksize' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
 /* Define to 1 if the system has the type `struct timespec'. */
@@ -1467,7 +1471,7 @@
 /* libcrypto is missing AES 192 and 256 bit functions */
 #undef OPENSSL_LOBOTOMISED_AES
 
-/* Define if you want OpenSSL's internally seeded PRNG only */
+/* Define if you want the OpenSSL internally seeded PRNG only */
 #undef OPENSSL_PRNG_ONLY
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -1481,9 +1485,6 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
-
-/* Define to the home page for this package. */
-#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
@@ -1671,17 +1672,9 @@
 /* include SSH protocol version 1 support */
 #undef WITH_SSH1
 
-/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel). */
-#if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
-#else
-# ifndef WORDS_BIGENDIAN
-#  undef WORDS_BIGENDIAN
-# endif
-#endif
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN
 
 /* Define if xauth is found in your path */
 #undef XAUTH_PATH

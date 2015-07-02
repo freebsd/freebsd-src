@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssherr.c,v 1.1 2014/04/30 05:29:56 djm Exp $	*/
+/*	$OpenBSD: ssherr.c,v 1.4 2015/02/16 22:13:32 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -121,10 +121,20 @@ ssh_err(int n)
 		return "agent not present";
 	case SSH_ERR_AGENT_NO_IDENTITIES:
 		return "agent contains no identities";
+	case SSH_ERR_BUFFER_READ_ONLY:
+		return "internal error: buffer is read-only";
 	case SSH_ERR_KRL_BAD_MAGIC:
 		return "KRL file has invalid magic number";
 	case SSH_ERR_KEY_REVOKED:
 		return "Key is revoked";
+	case SSH_ERR_CONN_CLOSED:
+		return "Connection closed";
+	case SSH_ERR_CONN_TIMEOUT:
+		return "Connection timed out";
+	case SSH_ERR_CONN_CORRUPT:
+		return "Connection corrupted";
+	case SSH_ERR_PROTOCOL_ERROR:
+		return "Protocol error";
 	default:
 		return "unknown error";
 	}

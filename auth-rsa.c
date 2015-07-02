@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.88 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.90 2015/01/28 22:36:00 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -15,6 +15,8 @@
  */
 
 #include "includes.h"
+
+#ifdef WITH_SSH1
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -236,7 +238,9 @@ rsa_key_allowed_in_file(struct passwd *pw, char *file,
 			    "actual %d vs. announced %d.",
 			    file, linenum, BN_num_bits(key->rsa->n), bits);
 
-		fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+		if ((fp = sshkey_fingerprint(key, options.fingerprint_hash,
+		    SSH_FP_DEFAULT)) == NULL)
+			continue;
 		debug("matching key found: file %s, line %lu %s %s",
 		    file, linenum, key_type(key), fp);
 		free(fp);
@@ -341,3 +345,5 @@ auth_rsa(Authctxt *authctxt, BIGNUM *client_n)
 	packet_send_debug("RSA authentication accepted.");
 	return (1);
 }
+
+#endif /* WITH_SSH1 */

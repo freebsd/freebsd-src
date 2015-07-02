@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.53 2013/11/21 00:45:44 djm Exp $ */
+/* $OpenBSD: dh.c,v 1.55 2015/01/20 23:14:00 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -25,7 +25,7 @@
 
 #include "includes.h"
 
-#include <sys/param.h>
+#include <sys/param.h>	/* MIN */
 
 #include <openssl/bn.h>
 #include <openssl/dh.h>
@@ -34,11 +34,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "dh.h"
 #include "pathnames.h"
 #include "log.h"
 #include "misc.h"
+#include "ssherr.h"
 
 static int
 parse_prime(int linenum, char *line, struct dhgroup *dhg)
@@ -107,10 +109,11 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 		goto fail;
 	}
 
-	if ((dhg->g = BN_new()) == NULL)
-		fatal("parse_prime: BN_new failed");
-	if ((dhg->p = BN_new()) == NULL)
-		fatal("parse_prime: BN_new failed");
+	if ((dhg->g = BN_new()) == NULL ||
+	    (dhg->p = BN_new()) == NULL) {
+		error("parse_prime: BN_new failed");
+		goto fail;
+	}
 	if (BN_hex2bn(&dhg->g, gen) == 0) {
 		error("moduli:%d: could not parse generator value", linenum);
 		goto fail;
@@ -128,7 +131,6 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 		error("moduli:%d: generator is invalid", linenum);
 		goto fail;
 	}
-
 	return 1;
 
  fail:
@@ -137,7 +139,6 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 	if (dhg->p != NULL)
 		BN_clear_free(dhg->p);
 	dhg->g = dhg->p = NULL;
-	error("Bad prime description in line %d", linenum);
 	return 0;
 }
 
@@ -200,9 +201,11 @@ choose_dh(int min, int wantbits, int max)
 		break;
 	}
 	fclose(f);
-	if (linenum != which+1)
-		fatal("WARNING: line %d disappeared in %s, giving up",
+	if (linenum != which+1) {
+		logit("WARNING: line %d disappeared in %s, giving up",
 		    which, _PATH_DH_PRIMES);
+		return (dh_new_group14());
+	}
 
 	return (dh_new_group(dhg.g, dhg.p));
 }
@@ -251,22 +254,22 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 	return 0;
 }
 
-void
+int
 dh_gen_key(DH *dh, int need)
 {
 	int pbits;
 
-	if (need <= 0)
-		fatal("%s: need <= 0", __func__);
-	if (dh->p == NULL)
-		fatal("%s: dh->p == NULL", __func__);
-	if ((pbits = BN_num_bits(dh->p)) <= 0)
-		fatal("%s: bits(p) <= 0", __func__);
+	if (need < 0 || dh->p == NULL ||
+	    (pbits = BN_num_bits(dh->p)) <= 0 ||
+	    need > INT_MAX / 2 || 2 * need >= pbits)
+		return SSH_ERR_INVALID_ARGUMENT;
 	dh->length = MIN(need * 2, pbits - 1);
-	if (DH_generate_key(dh) == 0)
-		fatal("%s: key generation failed", __func__);
-	if (!dh_pub_is_valid(dh, dh->pub_key))
-		fatal("%s: generated invalid key", __func__);
+	if (DH_generate_key(dh) == 0 ||
+	    !dh_pub_is_valid(dh, dh->pub_key)) {
+		BN_clear_free(dh->priv_key);
+		return SSH_ERR_LIBCRYPTO_ERROR;
+	}
+	return 0;
 }
 
 DH *
@@ -275,13 +278,12 @@ dh_new_group_asc(const char *gen, const char *modulus)
 	DH *dh;
 
 	if ((dh = DH_new()) == NULL)
-		fatal("dh_new_group_asc: DH_new");
-
-	if (BN_hex2bn(&dh->p, modulus) == 0)
-		fatal("BN_hex2bn p");
-	if (BN_hex2bn(&dh->g, gen) == 0)
-		fatal("BN_hex2bn g");
-
+		return NULL;
+	if (BN_hex2bn(&dh->p, modulus) == 0 ||
+	    BN_hex2bn(&dh->g, gen) == 0) {
+		DH_free(dh);
+		return NULL;
+	}
 	return (dh);
 }
 
@@ -296,7 +298,7 @@ dh_new_group(BIGNUM *gen, BIGNUM *modulus)
 	DH *dh;
 
 	if ((dh = DH_new()) == NULL)
-		fatal("dh_new_group: DH_new");
+		return NULL;
 	dh->p = modulus;
 	dh->g = gen;
 
@@ -344,7 +346,7 @@ dh_new_group14(void)
  * from RFC4419 section 3.
  */
 
-int
+u_int
 dh_estimate(int bits)
 {
 	if (bits <= 112)

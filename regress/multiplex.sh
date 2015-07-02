@@ -1,24 +1,11 @@
-#	$OpenBSD: multiplex.sh,v 1.25 2014/07/22 01:32:12 djm Exp $
+#	$OpenBSD: multiplex.sh,v 1.27 2014/12/22 06:14:29 djm Exp $
 #	Placed in the Public Domain.
 
 CTL=/tmp/openssh.regress.ctl-sock.$$
 
 tid="connection multiplexing"
 
-if have_prog nc ; then
-	if nc -h 2>&1 | grep -- -N >/dev/null; then
-		NC="nc -N";
-        elif nc -h 2>&1 | grep -- "-U.*Use UNIX" >/dev/null ; then
-                NC="nc"
-        else
-		echo "nc is incompatible"
-	fi
-fi
-
-if test -z "$NC" ; then
-	echo "skipped (no compatible nc found)"
-	exit 0
-fi
+NC=$OBJ/netcat
 
 trace "will use ProxyCommand $proxycmd"
 if config_defined DISABLE_FD_PASSING ; then
@@ -90,20 +77,20 @@ cmp ${DATA} ${COPY}		|| fail "scp: corrupted copy of ${DATA}"
 rm -f ${COPY}
 verbose "test $tid: forward"
 trace "forward over TCP/IP and check result"
-$NC -l 127.0.0.1 $((${PORT} + 1)) < ${DATA} &
+$NC -N -l 127.0.0.1 $((${PORT} + 1)) < ${DATA} > /dev/null &
 netcat_pid=$!
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L127.0.0.1:$((${PORT} + 2)):127.0.0.1:$((${PORT} + 1)) otherhost >>$TEST_SSH_LOGFILE 2>&1
-$NC -d 127.0.0.1 $((${PORT} + 2)) > ${COPY} < /dev/null
+$NC 127.0.0.1 $((${PORT} + 2)) < /dev/null > ${COPY}
 cmp ${DATA} ${COPY}		|| fail "ssh: corrupted copy of ${DATA}"
 kill $netcat_pid 2>/dev/null
 rm -f ${COPY} $OBJ/unix-[123].fwd
 
 trace "forward over UNIX and check result"
-$NC -Ul $OBJ/unix-1.fwd < ${DATA} &
+$NC -N -Ul $OBJ/unix-1.fwd < ${DATA} > /dev/null &
 netcat_pid=$!
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L$OBJ/unix-2.fwd:$OBJ/unix-1.fwd otherhost >>$TEST_SSH_LOGFILE 2>&1
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -R$OBJ/unix-3.fwd:$OBJ/unix-2.fwd otherhost >>$TEST_SSH_LOGFILE 2>&1
-$NC -d -U $OBJ/unix-3.fwd > ${COPY} </dev/null
+$NC -U $OBJ/unix-3.fwd < /dev/null > ${COPY} 2>/dev/null
 cmp ${DATA} ${COPY}		|| fail "ssh: corrupted copy of ${DATA}"
 kill $netcat_pid 2>/dev/null
 rm -f ${COPY} $OBJ/unix-[123].fwd

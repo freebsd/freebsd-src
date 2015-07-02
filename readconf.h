@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.102 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: readconf.h,v 1.109 2015/02/16 22:13:32 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -93,7 +93,7 @@ typedef struct {
 	int     num_identity_files;	/* Number of files for RSA/DSA identities. */
 	char   *identity_files[SSH_MAX_IDENTITY_FILES];
 	int    identity_file_userprovided[SSH_MAX_IDENTITY_FILES];
-	Key    *identity_keys[SSH_MAX_IDENTITY_FILES];
+	struct sshkey *identity_keys[SSH_MAX_IDENTITY_FILES];
 
 	/* Local TCP/IP forward requests. */
 	int     num_local_forwards;
@@ -144,6 +144,14 @@ typedef struct {
 	int	num_permitted_cnames;
 	struct allowed_cname permitted_cnames[MAX_CANON_DOMAINS];
 
+	char	*revoked_host_keys;
+
+	int	 fingerprint_hash;
+
+	int	 update_hostkeys; /* one of SSH_UPDATE_HOSTKEYS_* */
+
+	char	*hostbased_key_types;
+
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
 
@@ -164,17 +172,23 @@ typedef struct {
 
 #define SSHCONF_CHECKPERM	1  /* check permissions on config file */
 #define SSHCONF_USERCONF	2  /* user provided config file not system */
+#define SSHCONF_POSTCANON	4  /* After hostname canonicalisation */
+
+#define SSH_UPDATE_HOSTKEYS_NO	0
+#define SSH_UPDATE_HOSTKEYS_YES	1
+#define SSH_UPDATE_HOSTKEYS_ASK	2
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
 void	 fill_default_options_for_canonicalization(Options *);
-int	 process_config_line(Options *, struct passwd *, const char *, char *,
-    const char *, int, int *, int);
+int	 process_config_line(Options *, struct passwd *, const char *,
+    const char *, char *, const char *, int, int *, int);
 int	 read_config_file(const char *, struct passwd *, const char *,
-    Options *, int);
+    const char *, Options *, int);
 int	 parse_forward(struct Forward *, const char *, int, int);
 int	 default_ssh_port(void);
 int	 option_clear_or_none(const char *);
+void	 dump_client_config(Options *o, const char *host);
 
 void	 add_local_forward(Options *, const struct Forward *);
 void	 add_remote_forward(Options *, const struct Forward *);

@@ -20,6 +20,8 @@
 #define _OPENSSL_COMPAT_H
 
 #include "includes.h"
+#ifdef WITH_OPENSSL
+
 #include <openssl/opensslv.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
@@ -90,4 +92,5 @@ void ssh_OpenSSL_add_all_algorithms(void);
 
 #endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */
 
+#endif /* WITH_OPENSSL */
 #endif /* _OPENSSL_COMPAT_H */
