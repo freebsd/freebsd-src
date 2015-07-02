@@ -801,10 +801,10 @@ shmrealloc(void)
 	for (i = 0; i < shmalloced; i++)
 		bcopy(&shmsegs[i], &newsegs[i], sizeof(newsegs[0]));
 	for (; i < shminfo.shmmni; i++) {
-		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
-		shmsegs[i].u.shm_perm.seq = 0;
+		newsegs[i].u.shm_perm.mode = SHMSEG_FREE;
+		newsegs[i].u.shm_perm.seq = 0;
 #ifdef MAC
-		mac_sysvshm_init(&shmsegs[i]);
+		mac_sysvshm_init(&newsegs[i]);
 #endif
 	}
 	free(shmsegs, M_SHM);
