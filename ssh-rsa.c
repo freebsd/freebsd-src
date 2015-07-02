@@ -17,6 +17,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 
 #include <openssl/evp.h>
@@ -263,3 +265,4 @@ done:
 	}
 	return ret;
 }
+#endif /* WITH_OPENSSL */

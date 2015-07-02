@@ -1,4 +1,4 @@
-/* $OpenBSD: sandbox-systrace.c,v 1.13 2014/07/17 00:10:56 djm Exp $ */
+/* $OpenBSD: sandbox-systrace.c,v 1.14 2015/01/20 23:14:00 deraadt Exp $ */
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -20,7 +20,6 @@
 #ifdef SANDBOX_SYSTRACE
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <sys/socket.h>
@@ -37,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "atomicio.h"
 #include "log.h"

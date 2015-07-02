@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.c,v 1.2 2014/06/25 14:16:09 deraadt Exp $	*/
+/*	$OpenBSD: sshbuf.c,v 1.3 2015/01/20 23:14:00 deraadt Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -18,8 +18,8 @@
 #define SSHBUF_INTERNAL
 #include "includes.h"
 
+#include <sys/param.h>	/* roundup */
 #include <sys/types.h>
-#include <sys/param.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>

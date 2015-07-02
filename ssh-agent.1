@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.55 2014/04/16 23:28:12 djm Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.57 2014/12/21 22:27:56 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: April 16 2014 $
+.Dd $Mdocdate: December 21 2014 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Op Fl c | s
 .Op Fl d
 .Op Fl a Ar bind_address
+.Op Fl E Ar fingerprint_hash
 .Op Fl t Ar life
 .Op Ar command Op Ar arg ...
 .Nm ssh-agent
@@ -53,7 +54,7 @@
 .Sh DESCRIPTION
 .Nm
 is a program to hold private keys used for public key authentication
-(RSA, DSA, ECDSA, ED25519).
+(RSA, DSA, ECDSA, Ed25519).
 .Nm
 is usually started in the beginning of an X-session or a login session, and
 all other windows or programs are started as clients to the ssh-agent
@@ -96,6 +97,14 @@ Debug mode.
 When this option is specified
 .Nm
 will not fork.
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
 .It Fl k
 Kill the current agent (given by the
 .Ev SSH_AGENT_PID

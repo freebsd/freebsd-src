@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.41 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.47 2015/02/17 00:14:05 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -41,6 +41,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -122,6 +123,17 @@ userauth_pubkey(Authctxt *authctxt)
 		    "signature scheme");
 		goto done;
 	}
+	if (auth2_userkey_already_used(authctxt, key)) {
+		logit("refusing previously-used %s key", key_type(key));
+		goto done;
+	}
+	if (match_pattern_list(sshkey_ssh_name(key), options.pubkey_key_types,
+	    strlen(options.pubkey_key_types), 0) != 1) {
+		logit("%s: key type %s not in PubkeyAcceptedKeyTypes",
+		    __func__, sshkey_ssh_name(key));
+		goto done;
+	}
+
 	if (have_sig) {
 		sig = packet_get_string(&slen);
 		packet_check_eom();
@@ -159,8 +171,12 @@ userauth_pubkey(Authctxt *authctxt)
 		authenticated = 0;
 		if (PRIVSEP(user_key_allowed(authctxt->pw, key)) &&
 		    PRIVSEP(key_verify(key, sig, slen, buffer_ptr(&b),
-		    buffer_len(&b))) == 1)
+		    buffer_len(&b))) == 1) {
 			authenticated = 1;
+			/* Record the successful key to prevent reuse */
+			auth2_record_userkey(authctxt, key);
+			key = NULL; /* Don't free below */
+		}
 		buffer_free(&b);
 		free(sig);
 	} else {
@@ -212,17 +228,20 @@ pubkey_auth_info(Authctxt *authctxt, const Key *key, const char *fmt, ...)
 	}
 
 	if (key_is_cert(key)) {
-		fp = key_fingerprint(key->cert->signature_key,
-		    SSH_FP_MD5, SSH_FP_HEX);
+		fp = sshkey_fingerprint(key->cert->signature_key,
+		    options.fingerprint_hash, SSH_FP_DEFAULT);
 		auth_info(authctxt, "%s ID %s (serial %llu) CA %s %s%s%s", 
 		    key_type(key), key->cert->key_id,
 		    (unsigned long long)key->cert->serial,
-		    key_type(key->cert->signature_key), fp,
+		    key_type(key->cert->signature_key),
+		    fp == NULL ? "(null)" : fp,
 		    extra == NULL ? "" : ", ", extra == NULL ? "" : extra);
 		free(fp);
 	} else {
-		fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
-		auth_info(authctxt, "%s %s%s%s", key_type(key), fp,
+		fp = sshkey_fingerprint(key, options.fingerprint_hash,
+		    SSH_FP_DEFAULT);
+		auth_info(authctxt, "%s %s%s%s", key_type(key),
+		    fp == NULL ? "(null)" : fp,
 		    extra == NULL ? "" : ", ", extra == NULL ? "" : extra);
 		free(fp);
 	}
@@ -365,8 +384,9 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
 				continue;
 			if (!key_is_cert_authority)
 				continue;
-			fp = key_fingerprint(found, SSH_FP_MD5,
-			    SSH_FP_HEX);
+			if ((fp = sshkey_fingerprint(found,
+			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+				continue;
 			debug("matching CA found: file %s, line %lu, %s %s",
 			    file, linenum, key_type(found), fp);
 			/*
@@ -405,11 +425,13 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
 				continue;
 			if (key_is_cert_authority)
 				continue;
-			found_key = 1;
-			fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
+			if ((fp = sshkey_fingerprint(found,
+			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+				continue;
 			debug("matching key found: file %s, line %lu %s %s",
 			    file, linenum, key_type(found), fp);
 			free(fp);
+			found_key = 1;
 			break;
 		}
 	}
@@ -431,11 +453,12 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 	if (!key_is_cert(key) || options.trusted_user_ca_keys == NULL)
 		return 0;
 
-	ca_fp = key_fingerprint(key->cert->signature_key,
-	    SSH_FP_MD5, SSH_FP_HEX);
+	if ((ca_fp = sshkey_fingerprint(key->cert->signature_key,
+	    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+		return 0;
 
-	if (key_in_file(key->cert->signature_key,
-	    options.trusted_user_ca_keys, 1) != 1) {
+	if (sshkey_in_file(key->cert->signature_key,
+	    options.trusted_user_ca_keys, 1, 0) != 0) {
 		debug2("%s: CA %s %s is not listed in %s", __func__,
 		    key_type(key->cert->signature_key), ca_fp,
 		    options.trusted_user_ca_keys);
@@ -678,6 +701,35 @@ user_key_allowed(struct passwd *pw, Key *key)
 	}
 
 	return success;
+}
+
+/* Records a public key in the list of previously-successful keys */
+void
+auth2_record_userkey(Authctxt *authctxt, struct sshkey *key)
+{
+	struct sshkey **tmp;
+
+	if (authctxt->nprev_userkeys >= INT_MAX ||
+	    (tmp = reallocarray(authctxt->prev_userkeys,
+	    authctxt->nprev_userkeys + 1, sizeof(*tmp))) == NULL)
+		fatal("%s: reallocarray failed", __func__);
+	authctxt->prev_userkeys = tmp;
+	authctxt->prev_userkeys[authctxt->nprev_userkeys] = key;
+	authctxt->nprev_userkeys++;
+}
+
+/* Checks whether a key has already been used successfully for authentication */
+int
+auth2_userkey_already_used(Authctxt *authctxt, struct sshkey *key)
+{
+	u_int i;
+
+	for (i = 0; i < authctxt->nprev_userkeys; i++) {
+		if (sshkey_equal_public(key, authctxt->prev_userkeys[i])) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 Authmethod method_pubkey = {

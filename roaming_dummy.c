@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_dummy.c,v 1.3 2009/06/21 09:04:03 dtucker Exp $ */
+/* $OpenBSD: roaming_dummy.c,v 1.4 2015/01/19 19:52:16 markus Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -33,6 +33,17 @@ u_int64_t
 get_recv_bytes(void)
 {
 	return 0;
+}
+
+u_int64_t
+get_sent_bytes(void)
+{
+	return 0;
+}
+
+void
+roam_set_bytes(u_int64_t sent, u_int64_t recvd)
+{
 }
 
 ssize_t

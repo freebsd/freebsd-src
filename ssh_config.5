@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.191 2014/07/15 15:54:14 millert Exp $
-.Dd $Mdocdate: July 15 2014 $
+.\" $OpenBSD: ssh_config.5,v 1.205 2015/02/20 22:17:21 djm Exp $
+.Dd $Mdocdate: February 20 2015 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -65,7 +65,10 @@ The configuration files contain sections separated by
 .Dq Host
 specifications, and that section is only applied for hosts that
 match one of the patterns given in the specification.
-The matched host name is the one given on the command line.
+The matched host name is usually the one given on the command line
+(see the
+.Cm CanonicalizeHostname
+option for exceptions.)
 .Pp
 Since the first obtained value for each parameter is used, more
 host-specific declarations should be given near the beginning of the
@@ -109,10 +112,12 @@ A single
 .Ql *
 as a pattern can be used to provide global
 defaults for all hosts.
-The host is the
+The host is usually the
 .Ar hostname
-argument given on the command line (i.e. the name is not converted to
-a canonicalized host name before matching).
+argument given on the command line
+(see the
+.Cm CanonicalizeHostname
+option for exceptions.)
 .Pp
 A pattern entry may be negated by prefixing it with an exclamation mark
 .Pq Sq !\& .
@@ -134,18 +139,39 @@ or
 keyword) to be used only when the conditions following the
 .Cm Match
 keyword are satisfied.
-Match conditions are specified using one or more keyword/criteria pairs
+Match conditions are specified using one or more critera
 or the single token
 .Cm all
-which matches all criteria.
-The available keywords are:
+which always matches.
+The available criteria keywords are:
+.Cm canonical ,
 .Cm exec ,
 .Cm host ,
 .Cm originalhost ,
 .Cm user ,
 and
 .Cm localuser .
+The
+.Cm all
+criteria must appear alone or immediately after
+.Cm canonical .
+Other criteria may be combined arbitrarily.
+All criteria but
+.Cm all
+and
+.Cm canonical
+require an argument.
+Criteria may be negated by prepending an exclamation mark
+.Pq Sq !\& .
 .Pp
+The
+.Cm canonical
+keywork matches only when the configuration file is being re-parsed
+after hostname canonicalization (see the
+.Cm CanonicalizeHostname
+option.)
+This may be useful to specify conditions that work with canonical host
+names only.
 The
 .Cm exec
 keyword executes the specified command under the user's shell.
@@ -179,7 +205,9 @@ The criteria for the
 keyword are matched against the target hostname, after any substitution
 by the
 .Cm Hostname
-option.
+or
+.Cm CanonicalizeHostname
+options.
 The
 .Cm originalhost
 keyword matches against the hostname as it was specified on the command-line.
@@ -264,10 +292,11 @@ is set to
 .Dq always ,
 then canonicalization is applied to proxied connections too.
 .Pp
-If this option is enabled and canonicalisation results in the target hostname
-changing, then the configuration files are processed again using the new
-target name to pick up any new configuration in matching
+If this option is enabled, then the configuration files are processed
+again using the new target name to pick up any new configuration in matching
 .Cm Host
+and
+.Cm Match
 stanzas.
 .It Cm CanonicalizeMaxDots
 Specifies the maximum number of dot characters in a hostname before
@@ -388,7 +417,9 @@ aes192-cbc,aes256-cbc,arcfour
 The list of available ciphers may also be obtained using the
 .Fl Q
 option of
-.Xr ssh 1 .
+.Xr ssh 1
+with an argument of
+.Dq cipher .
 .It Cm ClearAllForwardings
 Specifies that all local, remote, and dynamic port forwardings
 specified in the configuration files or on the command line be
@@ -508,7 +539,8 @@ by a hash of the concatenation: %l%h%p%r.
 It is recommended that any
 .Cm ControlPath
 used for opportunistic connection sharing include
-at least %h, %p, and %r (or alternatively %C).
+at least %h, %p, and %r (or alternatively %C) and be placed in a directory
+that is not writable by other users.
 This ensures that shared connections are uniquely identified.
 .It Cm ControlPersist
 When used in conjunction with
@@ -521,7 +553,9 @@ If set to
 then the master connection will not be placed into the background,
 and will close as soon as the initial client connection is closed.
 If set to
-.Dq yes ,
+.Dq yes
+or
+.Dq 0 ,
 then the master connection will remain in the background indefinitely
 (until killed or closed via a mechanism such as the
 .Xr ssh 1
@@ -606,6 +640,14 @@ or
 .Dq no .
 The default is
 .Dq no .
+.It Cm FingerprintHash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
 .It Cm ForwardAgent
 Specifies whether the connection to the authentication agent (if any)
 will be forwarded to the remote machine.
@@ -735,6 +777,17 @@ The default is
 This option applies to protocol version 2 only and
 is similar to
 .Cm RhostsRSAAuthentication .
+.It Cm HostbasedKeyTypes
+Specifies the key types that will be used for hostbased authentication
+as a comma-separated pattern list.
+The default
+.Dq *
+will allow all key types.
+The
+.Fl Q
+option of
+.Xr ssh 1
+may be used to list supported key types.
 .It Cm HostKeyAlgorithms
 Specifies the protocol version 2 host key algorithms
 that the client wants to use in order of preference.
@@ -752,6 +805,13 @@ ssh-ed25519,ssh-rsa,ssh-dss
 .Pp
 If hostkeys are known for the destination host then this default is modified
 to prefer their algorithms.
+.Pp
+The list of available key types may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1
+with an argument of
+.Dq key .
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
 real host name when looking up or saving the host key
@@ -795,7 +855,7 @@ offers many different identities.
 The default is
 .Dq no .
 .It Cm IdentityFile
-Specifies a file from which the user's DSA, ECDSA, ED25519 or RSA authentication
+Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA authentication
 identity is read.
 The default is
 .Pa ~/.ssh/identity
@@ -922,6 +982,13 @@ diffie-hellman-group14-sha1,
 diffie-hellman-group-exchange-sha1,
 diffie-hellman-group1-sha1
 .Ed
+.Pp
+The list of available key exchange algorithms may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1
+with an argument of
+.Dq kex .
 .It Cm LocalCommand
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
@@ -1011,6 +1078,13 @@ hmac-sha1-96-etm@openssh.com,hmac-md5-96-etm@openssh.com,
 hmac-md5,hmac-sha1,hmac-ripemd160,
 hmac-sha1-96,hmac-md5-96
 .Ed
+.Pp
+The list of available MAC algorithms may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1
+with an argument of
+.Dq mac .
 .It Cm NoHostAuthenticationForLocalhost
 This option can be used if the home directory is shared across machines.
 In this case localhost will refer to a different machine on each of
@@ -1221,6 +1295,16 @@ and
 .Fl T
 flags for
 .Xr ssh 1 .
+.It Cm RevokedHostKeys
+Specifies revoked host public keys.
+Keys listed in this file will be refused for host authentication.
+Note that if this file does not exist or is not readable,
+then host authentication will be refused for all hosts.
+Keys may be specified as a text file, listing one public key per line, or as
+an OpenSSH Key Revocation List (KRL) as generated by
+.Xr ssh-keygen 1 .
+For more information on KRLs, see the KEY REVOCATION LISTS section in
+.Xr ssh-keygen 1 .
 .It Cm RhostsRSAAuthentication
 Specifies whether to try rhosts based authentication with RSA host
 authentication.
@@ -1419,6 +1503,36 @@ is not specified, it defaults to
 .Dq any .
 The default is
 .Dq any:any .
+.It Cm UpdateHostKeys
+Specifies whether
+.Xr ssh 1
+should accept notifications of additional hostkeys from the server sent
+after authentication has completed and add them to
+.Cm UserKnownHostsFile .
+The argument must be
+.Dq yes ,
+.Dq no
+(the default) or
+.Dq ask .
+Enabling this option allows learning alternate hostkeys for a server
+and supports graceful key rotation by allowing a server to send replacement
+public keys before old ones are removed.
+Additional hostkeys are only accepted if the key used to authenticate the
+host was already trusted or explicity accepted by the user.
+If
+.Cm UpdateHostKeys
+is set to
+.Dq ask ,
+then the user is asked to confirm the modifications to the known_hosts file.
+Confirmation is currently incompatible with
+.Cm ControlPersist ,
+and will be disabled if it is enabled.
+.Pp
+Presently, only
+.Xr sshd 8
+from OpenSSH 6.8 and greater support the
+.Dq hostkeys@openssh.com
+protocol extension used to inform the client of all the server's hostkeys.
 .It Cm UsePrivilegedPort
 Specifies whether to use a privileged port for outgoing connections.
 The argument must be
@@ -1477,12 +1591,12 @@ See also VERIFYING HOST KEYS in
 If this flag is set to
 .Dq yes ,
 an ASCII art representation of the remote host key fingerprint is
-printed in addition to the hex fingerprint string at login and
+printed in addition to the fingerprint string at login and
 for unknown host keys.
 If this flag is set to
 .Dq no ,
 no fingerprint strings are printed at login and
-only the hex fingerprint string will be printed for unknown host keys.
+only the fingerprint string will be printed for unknown host keys.
 The default is
 .Dq no .
 .It Cm XAuthLocation

@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.27 2014/07/03 03:34:09 djm Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.28 2015/01/20 23:14:00 deraadt Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -29,7 +29,6 @@
 #ifdef GSSAPI
 
 #include <sys/types.h>
-#include <sys/param.h>
 
 #include <stdarg.h>
 #include <string.h>

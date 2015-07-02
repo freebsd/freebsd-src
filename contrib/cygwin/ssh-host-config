@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ssh-host-config, Copyright 2000-2011 Red Hat Inc.
+# ssh-host-config, Copyright 2000-2014 Red Hat Inc.
 #
 # This file is part of the Cygwin port of OpenSSH.
 #
@@ -61,6 +61,7 @@ LOCALSTATEDIR=/var
 
 sshd_config_configured=no
 port_number=22
+service_name=sshd
 strictmodes=yes
 privsep_used=yes
 cygwin_value=""
@@ -353,11 +354,9 @@ check_service_files_ownership() {
     fi
     if [ -z "${run_service_as}" ]
     then
-      csih_warning "Couldn't determine name of user running sshd service from /etc/passwd!"
+      csih_warning "Couldn't determine name of user running sshd service from account database!"
       csih_warning "As a result, this script cannot make sure that the files used"
       csih_warning "by the sshd service belong to the user running the service."
-      csih_warning "Please re-run the mkpasswd tool to make sure the /etc/passwd"
-      csih_warning "file is in a good shape."
       return 1
     fi
   fi
@@ -410,7 +409,7 @@ install_service() {
   local ret=0
 
   echo
-  if /usr/bin/cygrunsrv -Q sshd >/dev/null 2>&1
+  if /usr/bin/cygrunsrv -Q ${service_name} >/dev/null 2>&1
   then
     csih_inform "Sshd service is already installed."
     check_service_files_ownership "" || let ret+=$?
@@ -466,7 +465,7 @@ install_service() {
       fi
       if [ -z "${password}" ]
       then
-	if /usr/bin/cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd \
+	if /usr/bin/cygrunsrv -I ${service_name} -d "CYGWIN ${service_name}" -p /usr/sbin/sshd \
 			      -a "-D" -y tcpip "${cygwin_env[@]}"
 	then
 	  echo
@@ -476,20 +475,20 @@ install_service() {
 	  csih_inform "will start automatically after the next reboot."
 	fi
       else
-	if /usr/bin/cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd \
+	if /usr/bin/cygrunsrv -I ${service_name} -d "CYGWIN ${service_name}" -p /usr/sbin/sshd \
 			      -a "-D" -y tcpip "${cygwin_env[@]}" \
 			      -u "${run_service_as}" -w "${password}"
 	then
 	  /usr/bin/editrights -u "${run_service_as}" -a SeServiceLogonRight
 	  echo
 	  csih_inform "The sshd service has been installed under the '${run_service_as}'"
-	  csih_inform "account.  To start the service now, call \`net start sshd' or"
-	  csih_inform "\`cygrunsrv -S sshd'.  Otherwise, it will start automatically"
+	  csih_inform "account.  To start the service now, call \`net start ${service_name}' or"
+	  csih_inform "\`cygrunsrv -S ${service_name}'.  Otherwise, it will start automatically"
 	  csih_inform "after the next reboot."
 	fi
       fi
 
-      if /usr/bin/cygrunsrv -Q sshd >/dev/null 2>&1
+      if /usr/bin/cygrunsrv -Q ${service_name} >/dev/null 2>&1
       then
 	check_service_files_ownership "${run_service_as}" || let ret+=$?
       else
@@ -563,6 +562,11 @@ do
     shift
     ;;
 
+  -N | --name )
+    service_name=$1
+    shift
+    ;;
+
   -p | --port )
     port_number=$1
     shift
@@ -592,6 +596,7 @@ do
     echo "  --yes    -y            Answer all questions with \"yes\" automatically."
     echo "  --no     -n            Answer all questions with \"no\" automatically."
     echo "  --cygwin -c <options>  Use \"options\" as value for CYGWIN environment var."
+    echo "  --name   -N <name>     sshd windows service name."
     echo "  --port   -p <n>        sshd listens on port n."
     echo "  --user   -u <account>  privileged user for service, default 'cyg_server'."
     echo "  --pwd    -w <passwd>   Use \"pwd\" as password for privileged user."
@@ -625,10 +630,7 @@ then
   csih_warning "However, it seems your account does not have these privileges."
   csih_warning "Here's the list of groups in your user token:"
   echo
-  for i in $(/usr/bin/id -G)
-  do
-    /usr/bin/awk -F: "/[^:]*:[^:]*:$i:/{ print \"    \" \$1; }" /etc/group
-  done
+  /usr/bin/id -Gnz | xargs -0n1 echo "   "
   echo
   csih_warning "This usually means you're running this script from a non-admin"
   csih_warning "desktop session, or in a non-elevated shell under UAC control."

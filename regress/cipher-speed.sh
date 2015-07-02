@@ -1,4 +1,4 @@
-#	$OpenBSD: cipher-speed.sh,v 1.11 2013/11/21 03:18:51 djm Exp $
+#	$OpenBSD: cipher-speed.sh,v 1.12 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="cipher speed"
@@ -31,7 +31,11 @@ for c in `${SSH} -Q cipher`; do n=0; for m in `${SSH} -Q mac`; do
 	n=`expr $n + 1`
 done; done
 
-ciphers="3des blowfish"
+if ssh_version 1; then
+	ciphers="3des blowfish"
+else
+	ciphers=""
+fi
 for c in $ciphers; do
 	trace "proto 1 cipher $c"
 	for x in $tries; do

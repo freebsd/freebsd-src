@@ -1,4 +1,4 @@
-#	$OpenBSD: proto-mismatch.sh,v 1.3 2002/03/15 13:08:56 markus Exp $
+#	$OpenBSD: proto-mismatch.sh,v 1.4 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="protocol version mismatch"
@@ -16,4 +16,6 @@ mismatch ()
 }
 
 mismatch	2	SSH-1.5-HALLO
-mismatch	1	SSH-2.0-HALLO
+if ssh_version 1; then
+	mismatch	1	SSH-2.0-HALLO
+fi

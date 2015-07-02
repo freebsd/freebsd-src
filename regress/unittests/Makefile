@@ -1,5 +1,5 @@
-#	$OpenBSD: Makefile,v 1.1 2014/04/30 05:32:00 djm Exp $
-
-SUBDIR=	test_helper sshbuf sshkey
+#	$OpenBSD: Makefile,v 1.5 2015/02/16 22:21:03 djm Exp $
+REGRESS_FAIL_EARLY= yes
+SUBDIR=	test_helper sshbuf sshkey bitmap kex hostkeys
 
 .include <bsd.subdir.mk>

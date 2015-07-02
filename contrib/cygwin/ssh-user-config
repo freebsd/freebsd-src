@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ssh-user-config, Copyright 2000-2008 Red Hat Inc.
+# ssh-user-config, Copyright 2000-2014 Red Hat Inc.
 #
 # This file is part of the Cygwin port of OpenSSH.
 #
@@ -75,19 +75,18 @@ readonly -f create_identity
 #   pwdhome
 # ======================================================================
 check_user_homedir() {
-  local uid=$(id -u)
-  pwdhome=$(awk -F: '{ if ( $3 == '${uid}' ) print $6; }' < ${SYSCONFDIR}/passwd)
+  pwdhome=$(getent passwd $UID | awk -F: '{ print $6; }')
   if [ "X${pwdhome}" = "X" ]
   then
     csih_error_multi \
-      "There is no home directory set for you in ${SYSCONFDIR}/passwd." \
+      "There is no home directory set for you in the account database." \
       'Setting $HOME is not sufficient!'
   fi
   
   if [ ! -d "${pwdhome}" ]
   then
     csih_error_multi \
-      "${pwdhome} is set in ${SYSCONFDIR}/passwd as your home directory" \
+      "${pwdhome} is set in the account database as your home directory" \
       'but it is not a valid directory. Cannot create user identity files.'
   fi
   
@@ -96,7 +95,7 @@ check_user_homedir() {
   if [ "X${pwdhome}" = "X/" ]
   then
     # But first raise a warning!
-    csih_warning "Your home directory in ${SYSCONFDIR}/passwd is set to root (/). This is not recommended!"
+    csih_warning "Your home directory in the account database is set to root (/). This is not recommended!"
     if csih_request "Would you like to proceed anyway?"
     then
       pwdhome=''
@@ -106,7 +105,7 @@ check_user_homedir() {
     fi
   fi
   
-  if [ -d "${pwdhome}" -a csih_is_nt -a -n "`chmod -c g-w,o-w "${pwdhome}"`" ]
+  if [ -d "${pwdhome}" -a -n "`chmod -c g-w,o-w "${pwdhome}"`" ]
   then
     echo
     csih_warning 'group and other have been revoked write permission to your home'
@@ -149,9 +148,10 @@ readonly -f check_user_dot_ssh_dir
 #   pwdhome   -- check_user_homedir()
 # ======================================================================
 fix_authorized_keys_perms() {
-  if [ csih_is_nt -a -e "${pwdhome}/.ssh/authorized_keys" ]
+  if [ -e "${pwdhome}/.ssh/authorized_keys" ]
   then
-    if ! setfacl -m "u::rw-,g::---,o::---" "${pwdhome}/.ssh/authorized_keys"
+    setfacl -b "${pwdhome}/.ssh/authorized_keys" 2>/dev/null || echo -n
+    if ! chmod u-x,g-wx,o-wx "${pwdhome}/.ssh/authorized_keys"
     then
       csih_warning "Setting correct permissions to ${pwdhome}/.ssh/authorized_keys"
       csih_warning "failed.  Please care for the correct permissions.  The minimum requirement"
@@ -242,15 +242,6 @@ done
 # ======================================================================
 # Action!
 # ======================================================================
-
-# Check passwd file
-if [ ! -f ${SYSCONFDIR}/passwd ]
-then
-  csih_error_multi \
-    "${SYSCONFDIR}/passwd is nonexistant. Please generate an ${SYSCONFDIR}/passwd file" \
-    'first using mkpasswd. Check if it contains an entry for you and' \
-    'please care for the home directory in your entry as well.'
-fi
 
 check_user_homedir
 check_user_dot_ssh_dir

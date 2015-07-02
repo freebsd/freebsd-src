@@ -1,4 +1,4 @@
-/*	$OpenBSD: fuzz.c,v 1.3 2014/05/02 09:41:32 andre Exp $	*/
+/*	$OpenBSD: fuzz.c,v 1.8 2015/03/03 20:42:49 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -20,6 +20,7 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <sys/uio.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -29,9 +30,11 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include <signal.h>
+#include <unistd.h>
 
 #include "test_helper.h"
+#include "atomicio.h"
 
 /* #define FUZZ_DEBUG */
 
@@ -96,60 +99,66 @@ fuzz_ntop(u_int n)
 	}
 }
 
-void
-fuzz_dump(struct fuzz *fuzz)
+static int
+fuzz_fmt(struct fuzz *fuzz, char *s, size_t n)
 {
-	u_char *p = fuzz_ptr(fuzz);
-	size_t i, j, len = fuzz_len(fuzz);
+	if (fuzz == NULL)
+		return -1;
 
 	switch (fuzz->strategy) {
 	case FUZZ_1_BIT_FLIP:
-		fprintf(stderr, "%s case %zu of %zu (bit: %zu)\n",
+		snprintf(s, n, "%s case %zu of %zu (bit: %zu)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    fuzz->o1, fuzz->slen * 8, fuzz->o1);
-		break;
+		return 0;
 	case FUZZ_2_BIT_FLIP:
-		fprintf(stderr, "%s case %llu of %llu (bits: %zu, %zu)\n",
+		snprintf(s, n, "%s case %llu of %llu (bits: %zu, %zu)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    (((fuzz_ullong)fuzz->o2) * fuzz->slen * 8) + fuzz->o1,
 		    ((fuzz_ullong)fuzz->slen * 8) * fuzz->slen * 8,
 		    fuzz->o1, fuzz->o2);
-		break;
+		return 0;
 	case FUZZ_1_BYTE_FLIP:
-		fprintf(stderr, "%s case %zu of %zu (byte: %zu)\n",
+		snprintf(s, n, "%s case %zu of %zu (byte: %zu)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    fuzz->o1, fuzz->slen, fuzz->o1);
-		break;
+		return 0;
 	case FUZZ_2_BYTE_FLIP:
-		fprintf(stderr, "%s case %llu of %llu (bytes: %zu, %zu)\n",
+		snprintf(s, n, "%s case %llu of %llu (bytes: %zu, %zu)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    (((fuzz_ullong)fuzz->o2) * fuzz->slen) + fuzz->o1,
 		    ((fuzz_ullong)fuzz->slen) * fuzz->slen,
 		    fuzz->o1, fuzz->o2);
-		break;
+		return 0;
 	case FUZZ_TRUNCATE_START:
-		fprintf(stderr, "%s case %zu of %zu (offset: %zu)\n",
+		snprintf(s, n, "%s case %zu of %zu (offset: %zu)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    fuzz->o1, fuzz->slen, fuzz->o1);
-		break;
+		return 0;
 	case FUZZ_TRUNCATE_END:
-		fprintf(stderr, "%s case %zu of %zu (offset: %zu)\n",
+		snprintf(s, n, "%s case %zu of %zu (offset: %zu)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    fuzz->o1, fuzz->slen, fuzz->o1);
-		break;
+		return 0;
 	case FUZZ_BASE64:
 		assert(fuzz->o2 < sizeof(fuzz_b64chars) - 1);
-		fprintf(stderr, "%s case %llu of %llu (offset: %zu char: %c)\n",
+		snprintf(s, n, "%s case %llu of %llu (offset: %zu char: %c)\n",
 		    fuzz_ntop(fuzz->strategy),
 		    (fuzz->o1 * (fuzz_ullong)64) + fuzz->o2,
 		    fuzz->slen * (fuzz_ullong)64, fuzz->o1,
 		    fuzz_b64chars[fuzz->o2]);
-		break;
+		return 0;
 	default:
+		return -1;
 		abort();
 	}
+}
 
-	fprintf(stderr, "fuzz context %p len = %zu\n", fuzz, len);
+static void
+dump(u_char *p, size_t len)
+{
+	size_t i, j;
+
 	for (i = 0; i < len; i += 16) {
 		fprintf(stderr, "%.4zd: ", i);
 		for (j = i; j < i + 16; j++) {
@@ -171,6 +180,39 @@ fuzz_dump(struct fuzz *fuzz)
 	}
 }
 
+void
+fuzz_dump(struct fuzz *fuzz)
+{
+	char buf[256];
+
+	if (fuzz_fmt(fuzz, buf, sizeof(buf)) != 0) {
+		fprintf(stderr, "%s: fuzz invalid\n", __func__);
+		abort();
+	}
+	fputs(buf, stderr);
+	fprintf(stderr, "fuzz original %p len = %zu\n", fuzz->seed, fuzz->slen);
+	dump(fuzz->seed, fuzz->slen);
+	fprintf(stderr, "fuzz context %p len = %zu\n", fuzz, fuzz_len(fuzz));
+	dump(fuzz_ptr(fuzz), fuzz_len(fuzz));
+}
+
+#ifdef SIGINFO
+static struct fuzz *last_fuzz;
+
+static void
+siginfo(int unused __attribute__((__unused__)))
+{
+	char buf[256];
+
+	test_info(buf, sizeof(buf));
+	atomicio(vwrite, STDERR_FILENO, buf, strlen(buf));
+	if (last_fuzz != NULL) {
+		fuzz_fmt(last_fuzz, buf, sizeof(buf));
+		atomicio(vwrite, STDERR_FILENO, buf, strlen(buf));
+	}
+}
+#endif
+
 struct fuzz *
 fuzz_begin(u_int strategies, const void *p, size_t l)
 {
@@ -190,6 +232,12 @@ fuzz_begin(u_int strategies, const void *p, size_t l)
 	FUZZ_DBG(("begin, ret = %p", ret));
 
 	fuzz_next(ret);
+
+#ifdef SIGINFO
+	last_fuzz = ret;
+	signal(SIGINFO, siginfo);
+#endif
+
 	return ret;
 }
 
@@ -197,6 +245,10 @@ void
 fuzz_cleanup(struct fuzz *fuzz)
 {
 	FUZZ_DBG(("cleanup, fuzz = %p", fuzz));
+#ifdef SIGINFO
+	last_fuzz = NULL;
+	signal(SIGINFO, SIG_DFL);
+#endif
 	assert(fuzz != NULL);
 	assert(fuzz->seed != NULL);
 	assert(fuzz->fuzzed != NULL);
@@ -323,6 +375,14 @@ fuzz_next(struct fuzz *fuzz)
 	FUZZ_DBG(("done, fuzz = %p, strategy = %s, strategies = 0x%lx, "
 	    "o1 = %zu, o2 = %zu, slen = %zu", fuzz, fuzz_ntop(fuzz->strategy),
 	    (u_long)fuzz->strategies, fuzz->o1, fuzz->o2, fuzz->slen));
+}
+
+int
+fuzz_matches_original(struct fuzz *fuzz)
+{
+	if (fuzz_len(fuzz) != fuzz->slen)
+		return 0;
+	return memcmp(fuzz_ptr(fuzz), fuzz->seed, fuzz->slen) == 0;
 }
 
 int

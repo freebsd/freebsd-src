@@ -24,6 +24,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifdef HAVE_SYS_UN_H
@@ -230,3 +232,13 @@ seed_rng(void)
 	if (RAND_status() != 1)
 		fatal("PRNG is not seeded");
 }
+
+#else /* WITH_OPENSSL */
+
+/* Handled in arc4random() */
+void
+seed_rng(void)
+{
+}
+
+#endif /* WITH_OPENSSL */

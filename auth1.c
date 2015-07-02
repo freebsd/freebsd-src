@@ -12,6 +12,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_SSH1
+
 #include <sys/types.h>
 
 #include <stdarg.h>
@@ -438,3 +440,5 @@ do_authentication(Authctxt *authctxt)
 	packet_send();
 	packet_write_wait();
 }
+
+#endif /* WITH_SSH1 */
