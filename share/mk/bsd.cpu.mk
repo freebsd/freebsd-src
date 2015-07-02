@@ -6,7 +6,9 @@
 
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 _CPUCFLAGS =
-. if ${MACHINE_CPUARCH} == "amd64"
+. if ${MACHINE_CPUARCH} == "aarch64"
+MACHINE_CPU = arm64
+. elif ${MACHINE_CPUARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse mmx
 . elif ${MACHINE_CPUARCH} == "arm"
 MACHINE_CPU = arm
