@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.84 2015/02/16 22:13:32 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.85 2015/05/01 03:23:51 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -153,10 +153,8 @@ mm_request_receive(int sock, Buffer *m)
 	debug3("%s entering", __func__);
 
 	if (atomicio(read, sock, buf, sizeof(buf)) != sizeof(buf)) {
-		if (errno == EPIPE) {
-			error("%s: socket closed", __func__);
+		if (errno == EPIPE)
 			cleanup_exit(255);
-		}
 		fatal("%s: read: %s", __func__, strerror(errno));
 	}
 	msg_len = get_u32(buf);
@@ -373,16 +371,17 @@ mm_auth_password(Authctxt *authctxt, char *password)
 }
 
 int
-mm_user_key_allowed(struct passwd *pw, Key *key)
+mm_user_key_allowed(struct passwd *pw, Key *key, int pubkey_auth_attempt)
 {
-	return (mm_key_allowed(MM_USERKEY, NULL, NULL, key));
+	return (mm_key_allowed(MM_USERKEY, NULL, NULL, key,
+	    pubkey_auth_attempt));
 }
 
 int
 mm_hostbased_key_allowed(struct passwd *pw, char *user, char *host,
     Key *key)
 {
-	return (mm_key_allowed(MM_HOSTKEY, user, host, key));
+	return (mm_key_allowed(MM_HOSTKEY, user, host, key, 0));
 }
 
 int
@@ -392,13 +391,14 @@ mm_auth_rhosts_rsa_key_allowed(struct passwd *pw, char *user,
 	int ret;
 
 	key->type = KEY_RSA; /* XXX hack for key_to_blob */
-	ret = mm_key_allowed(MM_RSAHOSTKEY, user, host, key);
+	ret = mm_key_allowed(MM_RSAHOSTKEY, user, host, key, 0);
 	key->type = KEY_RSA1;
 	return (ret);
 }
 
 int
-mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key)
+mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key,
+    int pubkey_auth_attempt)
 {
 	Buffer m;
 	u_char *blob;
@@ -416,6 +416,7 @@ mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key)
 	buffer_put_cstring(&m, user ? user : "");
 	buffer_put_cstring(&m, host ? host : "");
 	buffer_put_string(&m, blob, len);
+	buffer_put_int(&m, pubkey_auth_attempt);
 	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYALLOWED, &m);

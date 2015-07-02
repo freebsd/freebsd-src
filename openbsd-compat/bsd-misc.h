@@ -111,7 +111,7 @@ pid_t getpgid(pid_t);
 #endif
 
 #ifndef HAVE_ENDGRENT
-# define endgrent() {}
+# define endgrent() do { } while(0)
 #endif
 
 #ifndef HAVE_KRB5_GET_ERROR_MESSAGE
@@ -119,7 +119,7 @@ pid_t getpgid(pid_t);
 #endif
 
 #ifndef HAVE_KRB5_FREE_ERROR_MESSAGE
-# define krb5_free_error_message(a,b) while(0)
+# define krb5_free_error_message(a,b) do { } while(0)
 #endif
 
 #endif /* _BSD_MISC_H */

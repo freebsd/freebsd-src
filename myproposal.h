@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.41 2014/07/11 13:54:34 tedu Exp $ */
+/* $OpenBSD: myproposal.h,v 1.44 2015/05/27 23:51:10 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -61,7 +61,7 @@
 
 #ifdef OPENSSL_HAVE_EVPGCM
 # define AESGCM_CIPHER_MODES \
-	"aes128-gcm@openssh.com,aes256-gcm@openssh.com,"
+	",aes128-gcm@openssh.com,aes256-gcm@openssh.com"
 #else
 # define AESGCM_CIPHER_MODES
 #endif
@@ -83,14 +83,17 @@
 # else
 #  define KEX_CURVE25519_METHODS ""
 # endif
-#define KEX_SERVER_KEX \
+#define KEX_COMMON_KEX \
 	KEX_CURVE25519_METHODS \
 	KEX_ECDH_METHODS \
-	KEX_SHA256_METHODS \
-	"diffie-hellman-group14-sha1"
+	KEX_SHA256_METHODS
 
-#define KEX_CLIENT_KEX KEX_SERVER_KEX "," \
+#define KEX_SERVER_KEX KEX_COMMON_KEX \
+	"diffie-hellman-group14-sha1" \
+
+#define KEX_CLIENT_KEX KEX_COMMON_KEX \
 	"diffie-hellman-group-exchange-sha1," \
+	"diffie-hellman-group14-sha1," \
 	"diffie-hellman-group1-sha1"
 
 #define	KEX_DEFAULT_PK_ALG	\
@@ -108,9 +111,9 @@
 /* the actual algorithms */
 
 #define KEX_SERVER_ENCRYPT \
-	"aes128-ctr,aes192-ctr,aes256-ctr," \
-	AESGCM_CIPHER_MODES \
-	"chacha20-poly1305@openssh.com"
+	"chacha20-poly1305@openssh.com," \
+	"aes128-ctr,aes192-ctr,aes256-ctr" \
+	AESGCM_CIPHER_MODES
 
 #define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT "," \
 	"arcfour256,arcfour128," \
@@ -148,8 +151,8 @@
 	"ssh-ed25519-cert-v01@openssh.com," \
 	"ssh-ed25519"
 #define	KEX_SERVER_ENCRYPT \
-	"aes128-ctr,aes192-ctr,aes256-ctr," \
-	"chacha20-poly1305@openssh.com"
+	"chacha20-poly1305@openssh.com," \
+	"aes128-ctr,aes192-ctr,aes256-ctr"
 #define	KEX_SERVER_MAC \
 	"umac-64-etm@openssh.com," \
 	"umac-128-etm@openssh.com," \

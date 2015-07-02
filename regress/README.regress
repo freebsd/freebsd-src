@@ -31,7 +31,7 @@ TEST_SHELL: shell used for running the test scripts.
 TEST_SSH_PORT: TCP port to be used for the listening tests.
 TEST_SSH_SSH_CONFOPTS: Configuration directives to be added to ssh_config
 	before running each test.
-TEST_SSH_SSHD_CONFOTPS: Configuration directives to be added to sshd_config
+TEST_SSH_SSHD_CONFOPTS: Configuration directives to be added to sshd_config
 	before running each test.
 
 

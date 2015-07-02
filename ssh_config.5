@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.205 2015/02/20 22:17:21 djm Exp $
-.Dd $Mdocdate: February 20 2015 $
+.\" $OpenBSD: ssh_config.5,v 1.211 2015/06/02 09:10:40 djm Exp $
+.Dd $Mdocdate: June 2 2015 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -166,7 +166,7 @@ Criteria may be negated by prepending an exclamation mark
 .Pp
 The
 .Cm canonical
-keywork matches only when the configuration file is being re-parsed
+keyword matches only when the configuration file is being re-parsed
 after hostname canonicalization (see the
 .Cm CanonicalizeHostname
 option.)
@@ -340,7 +340,11 @@ If this flag is set to
 will additionally check the host IP address in the
 .Pa known_hosts
 file.
-This allows ssh to detect if a host key changed due to DNS spoofing.
+This allows ssh to detect if a host key changed due to DNS spoofing
+and will add addresses of destination hosts to
+.Pa ~/.ssh/known_hosts
+in the process, regardless of the setting of
+.Cm StrictHostKeyChecking .
 If the option is set to
 .Dq no ,
 the check will not be executed.
@@ -484,11 +488,8 @@ if the control socket does not exist, or is not listening.
 Setting this to
 .Dq ask
 will cause ssh
-to listen for control connections, but require confirmation using the
-.Ev SSH_ASKPASS
-program before they are accepted (see
-.Xr ssh-add 1
-for details).
+to listen for control connections, but require confirmation using
+.Xr ssh-askpass 1 .
 If the
 .Cm ControlPath
 cannot be opened,
@@ -978,8 +979,8 @@ The default is:
 curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
-diffie-hellman-group14-sha1,
 diffie-hellman-group-exchange-sha1,
+diffie-hellman-group14-sha1,
 diffie-hellman-group1-sha1
 .Ed
 .Pp
@@ -1336,6 +1337,10 @@ should be sent to the server.
 Note that environment passing is only supported for protocol 2.
 The server must also support it, and the server must be configured to
 accept these environment variables.
+Note that the
+.Ev TERM
+environment variable is always sent whenever a
+pseudo-terminal is requested as it is required by the protocol.
 Refer to
 .Cm AcceptEnv
 in
