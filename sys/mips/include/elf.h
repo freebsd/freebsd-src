@@ -77,6 +77,8 @@
 #define ELF_ARCH	EM_MIPS
 #define ELF_ARCH32	EM_MIPS
 
+#define	ELF_MACHINE_OK(x)	((x) == ELF_ARCH)
+
 /* Define "machine" characteristics */
 #if __ELF_WORD_SIZE == 32
 #define	ELF_TARG_CLASS	ELFCLASS32
