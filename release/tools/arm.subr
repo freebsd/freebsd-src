@@ -70,8 +70,8 @@ arm_create_disk() {
 	#      Trust me.  I'm an engineer.
 	if [ ! -z "${EVERYTHINGISFINE}" ]; then
 		for _label in ufs/rootfs msdosfs/MSDOSBOOT; do
-			if [ -e "${CHROOTDIR}/dev/${_label}" ]; then
-				rm ${CHROOTDIR}/dev/${_label}
+			if [ -e "/dev/${_label}" ]; then
+				rm /dev/${_label}
 			fi
 		done
 	fi
