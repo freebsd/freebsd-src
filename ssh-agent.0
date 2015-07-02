@@ -4,7 +4,7 @@ NAME
      ssh-agent M-bM-^@M-^S authentication agent
 
 SYNOPSIS
-     ssh-agent [-c | -s] [-d] [-a bind_address] [-E fingerprint_hash]
+     ssh-agent [-c | -s] [-Dd] [-a bind_address] [-E fingerprint_hash]
                [-t life] [command [arg ...]]
      ssh-agent [-c | -s] -k
 
@@ -32,8 +32,11 @@ DESCRIPTION
      -c      Generate C-shell commands on stdout.  This is the default if
              SHELL looks like it's a csh style of shell.
 
+     -D      Foreground mode.  When this option is specified ssh-agent will
+             not fork.
+
      -d      Debug mode.  When this option is specified ssh-agent will not
-             fork.
+             fork and will write debug information to standard error.
 
      -E fingerprint_hash
              Specifies the hash algorithm used when displaying key
@@ -106,4 +109,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.7                    December 21, 2014                   OpenBSD 5.7
+OpenBSD 5.7                     April 24, 2015                     OpenBSD 5.7

@@ -32,7 +32,9 @@
 #ifndef WITH_OPENSSL
 
 #include <sys/types.h>
+#ifdef HAVE_ENDIAN_H
 #include <endian.h>
+#endif
 #include <string.h>
 #include <rmd160.h>
 

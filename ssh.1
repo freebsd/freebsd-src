@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.356 2015/03/03 06:48:58 djm Exp $
-.Dd $Mdocdate: March 3 2015 $
+.\" $OpenBSD: ssh.1,v 1.358 2015/05/22 05:28:45 djm Exp $
+.Dd $Mdocdate: May 22 2015 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -584,9 +584,9 @@ of SSH as a secure transport for other applications (eg.\&
 .Xr sftp 1 ) .
 The subsystem is specified as the remote command.
 .It Fl T
-Disable pseudo-tty allocation.
+Disable pseudo-terminal allocation.
 .It Fl t
-Force pseudo-tty allocation.
+Force pseudo-terminal allocation.
 This can be used to execute arbitrary
 screen-based programs on a remote machine, which can be very useful,
 e.g. when implementing menu services.
@@ -876,15 +876,26 @@ option can be used to control logins to machines whose
 host key is not known or has changed.
 .Pp
 When the user's identity has been accepted by the server, the server
-either executes the given command, or logs into the machine and gives
-the user a normal shell on the remote machine.
+either executes the given command in a non-interactive session or,
+if no command has been specified, logs into the machine and gives
+the user a normal shell as an interactive session.
 All communication with
 the remote command or shell will be automatically encrypted.
 .Pp
-If a pseudo-terminal has been allocated (normal login session), the
+If an interactive session is requested
+.Nm
+by default will only request a pseudo-terminal (pty) for interactive
+sessions when the client has one.
+The flags
+.Fl T
+and
+.Fl t
+can be used to override this behaviour.
+.Pp
+If a pseudo-terminal has been allocated the
 user may use the escape characters noted below.
 .Pp
-If no pseudo-tty has been allocated,
+If no pseudo-terminal has been allocated,
 the session is transparent and can be used to reliably transfer binary data.
 On most systems, setting the escape character to
 .Dq none
@@ -1095,6 +1106,11 @@ Fingerprints can be determined using
 .Pp
 If the fingerprint is already known, it can be matched
 and the key can be accepted or rejected.
+If only legacy (MD5) fingerprints for the server are available, the
+.Xr ssh-keygen 1
+.Fl E
+option may be used to downgrade the fingerprint algorithm to match.
+.Pp
 Because of the difficulty of comparing host keys
 just by looking at fingerprint strings,
 there is also support to compare host keys visually,

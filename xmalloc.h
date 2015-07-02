@@ -1,4 +1,4 @@
-/* $OpenBSD: xmalloc.h,v 1.14 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: xmalloc.h,v 1.15 2015/04/24 01:36:01 deraadt Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -18,7 +18,7 @@
 
 void	*xmalloc(size_t);
 void	*xcalloc(size_t, size_t);
-void	*xrealloc(void *, size_t, size_t);
+void	*xreallocarray(void *, size_t, size_t);
 char	*xstrdup(const char *);
 int	 xasprintf(char **, const char *, ...)
                 __attribute__((__format__ (printf, 2, 3)))

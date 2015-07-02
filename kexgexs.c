@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.24 2015/01/26 06:10:03 djm Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.25 2015/04/13 02:04:08 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -60,8 +60,6 @@ static int input_kex_dh_gex_init(int, u_int32_t, void *);
 int
 kexgex_server(struct ssh *ssh)
 {
-	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_REQUEST_OLD,
-	    &input_kex_dh_gex_request);
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_REQUEST,
 	    &input_kex_dh_gex_request);
 	debug("expecting SSH2_MSG_KEX_DH_GEX_REQUEST");
@@ -76,36 +74,19 @@ input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
 	int r;
 	u_int min = 0, max = 0, nbits = 0;
 
-	switch (type) {
-	case SSH2_MSG_KEX_DH_GEX_REQUEST:
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST received");
-		if ((r = sshpkt_get_u32(ssh, &min)) != 0 ||
-		    (r = sshpkt_get_u32(ssh, &nbits)) != 0 ||
-		    (r = sshpkt_get_u32(ssh, &max)) != 0 ||
-		    (r = sshpkt_get_end(ssh)) != 0)
-			goto out;
-		kex->nbits = nbits;
-		kex->min = min;
-		kex->max = max;
-		min = MAX(DH_GRP_MIN, min);
-		max = MIN(DH_GRP_MAX, max);
-		nbits = MAX(DH_GRP_MIN, nbits);
-		nbits = MIN(DH_GRP_MAX, nbits);
-		break;
-	case SSH2_MSG_KEX_DH_GEX_REQUEST_OLD:
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST_OLD received");
-		if ((r = sshpkt_get_u32(ssh, &nbits)) != 0 ||
-		    (r = sshpkt_get_end(ssh)) != 0)
-			goto out;
-		kex->nbits = nbits;
-		/* unused for old GEX */
-		kex->min = min = DH_GRP_MIN;
-		kex->max = max = DH_GRP_MAX;
-		break;
-	default:
-		r = SSH_ERR_INVALID_ARGUMENT;
+	debug("SSH2_MSG_KEX_DH_GEX_REQUEST received");
+	if ((r = sshpkt_get_u32(ssh, &min)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &nbits)) != 0 ||
+	    (r = sshpkt_get_u32(ssh, &max)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
 		goto out;
-	}
+	kex->nbits = nbits;
+	kex->min = min;
+	kex->max = max;
+	min = MAX(DH_GRP_MIN, min);
+	max = MIN(DH_GRP_MAX, max);
+	nbits = MAX(DH_GRP_MIN, nbits);
+	nbits = MIN(DH_GRP_MAX, nbits);
 
 	if (kex->max < kex->min || kex->nbits < kex->min ||
 	    kex->max < kex->nbits) {
@@ -130,10 +111,6 @@ input_kex_dh_gex_request(int type, u_int32_t seq, void *ctxt)
 	/* Compute our exchange value in parallel with the client */
 	if ((r = dh_gen_key(kex->dh, kex->we_need * 8)) != 0)
 		goto out;
-
-	/* old KEX does not use min/max in kexgex_hash() */
-	if (type == SSH2_MSG_KEX_DH_GEX_REQUEST_OLD)
-		kex->min = kex->max = -1;
 
 	debug("expecting SSH2_MSG_KEX_DH_GEX_INIT");
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_INIT, &input_kex_dh_gex_init);
