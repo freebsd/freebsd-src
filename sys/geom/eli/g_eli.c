@@ -998,6 +998,13 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 	for (i = 0; ; i++) {
 		snprintf(name, sizeof(name), "%s:geli_keyfile%d", provider, i);
 		keyfile = preload_search_by_type(name);
+		if (keyfile == NULL && i == 0) {
+			/*
+			 * If there is only one keyfile, allow simpler name.
+			 */
+			snprintf(name, sizeof(name), "%s:geli_keyfile", provider);
+			keyfile = preload_search_by_type(name);
+		}
 		if (keyfile == NULL)
 			return (i);	/* Return number of loaded keyfiles. */
 		data = preload_fetch_addr(keyfile);
