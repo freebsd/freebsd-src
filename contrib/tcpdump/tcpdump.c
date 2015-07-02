@@ -82,7 +82,7 @@ extern int SIZE_BUF;
 #include <libcapsicum.h>
 #include <libcapsicum_dns.h>
 #include <libcapsicum_service.h>
-#include <nv.h>
+#include <sys/nv.h>
 #include <sys/capability.h>
 #include <sys/ioccom.h>
 #include <net/bpf.h>
