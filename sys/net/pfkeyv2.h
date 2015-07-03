@@ -343,6 +343,9 @@ struct sadb_x_nat_t_frag {
 #define SADB_X_AALG_SHA2_512	7
 #define SADB_X_AALG_RIPEMD160HMAC	8
 #define SADB_X_AALG_AES_XCBC_MAC	9	/* draft-ietf-ipsec-ciph-aes-xcbc-mac-04 */
+#define SADB_X_AALG_AES128GMAC	11		/* RFC4543 + Errata1821 */
+#define SADB_X_AALG_AES192GMAC	12
+#define SADB_X_AALG_AES256GMAC	13
 /* private allocations should use 249-255 (RFC2407) */
 #define SADB_X_AALG_MD5		249	/* Keyed MD5 */
 #define SADB_X_AALG_SHA		250	/* Keyed SHA */
@@ -360,8 +363,12 @@ struct sadb_x_nat_t_frag {
 #define SADB_X_EALG_BLOWFISHCBC	7
 #define SADB_X_EALG_RIJNDAELCBC	12
 #define SADB_X_EALG_AES		12
+#define SADB_X_EALG_AESGCM8	18	/* RFC4106 */
+#define SADB_X_EALG_AESGCM12	19
+#define SADB_X_EALG_AESGCM16	20
 /* private allocations - based on RFC4312/IANA assignment */
 #define SADB_X_EALG_CAMELLIACBC		22
+#define	SADB_X_EALG_AESGMAC		23 /* RFC4543 + Errata1821 */
 /* private allocations should use 249-255 (RFC2407) */
 #define SADB_X_EALG_SKIPJACK	249	/*250*/ /* for IPSEC */
 #define SADB_X_EALG_AESCTR	250	/*249*/ /* draft-ietf-ipsec-ciph-aes-ctr-03 */
