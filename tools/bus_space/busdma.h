@@ -37,6 +37,10 @@ int	bd_tag_derive(int tid, u_long align, u_long bndry, u_long maxaddr,
 	    u_int flags);
 int	bd_tag_destroy(int tid);
 
+int	bd_md_create(int tid, u_int flags);
+int	bd_md_destroy(int mdid);
+int	bd_md_load(int mdid, void *buf, u_long len, u_int flags);
+
 int	bd_mem_alloc(int tid, u_int flags);
 int	bd_mem_free(int mdid);
 

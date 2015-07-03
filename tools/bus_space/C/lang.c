@@ -156,6 +156,32 @@ busdma_mem_free(busdma_md_t md)
 	return (bd_mem_free(md));
 }
 
+int
+busdma_md_create(busdma_tag_t tag, u_int flags, busdma_md_t *out_p)
+{
+	int res;
+
+	res = bd_md_create(tag, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_md_destroy(busdma_md_t md)
+{
+
+	return (bd_md_destroy(md));
+}
+
+int
+busdma_md_load(busdma_md_t md, void *buf, size_t len, u_int flags)
+{
+
+	return (bd_md_load(md, buf, len, flags));
+}
+
 busdma_seg_t
 busdma_md_first_seg(busdma_md_t md, int space)
 {

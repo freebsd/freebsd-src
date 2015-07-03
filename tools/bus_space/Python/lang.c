@@ -229,6 +229,55 @@ busdma_tag_destroy(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+busdma_md_create(PyObject *self, PyObject *args)
+{
+	u_int flags;
+	int error, mdid, tid;
+ 
+	if (!PyArg_ParseTuple(args, "iI", &tid, &flags))
+		return (NULL);
+	mdid = bd_md_create(tid, flags);
+	if (mdid == -1) {
+		PyErr_SetString(PyExc_IOError, strerror(errno));
+		return (NULL);
+	}
+	return (Py_BuildValue("i", mdid));
+}
+
+static PyObject *
+busdma_md_destroy(PyObject *self, PyObject *args)
+{
+	int error, mdid;
+
+	if (!PyArg_ParseTuple(args, "i", &mdid))
+		return (NULL);
+	error = bd_md_destroy(mdid);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	Py_RETURN_NONE;
+}
+
+static PyObject *
+busdma_md_load(PyObject *self, PyObject *args)
+{
+	void *buf;
+	u_long len;
+	u_int flags;
+	int error, mdid;
+
+	if (!PyArg_ParseTuple(args, "iwkI", &mdid, &buf, &len, &flags))
+		return (NULL);
+	error = bd_md_load(mdid, buf, len, flags);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	Py_RETURN_NONE;
+}
+
+static PyObject *
 busdma_mem_alloc(PyObject *self, PyObject *args)
 {
 	u_int flags;
@@ -347,6 +396,14 @@ static PyMethodDef busdma_methods[] = {
 	"Derive a child tag." },
     { "tag_destroy", busdma_tag_destroy, METH_VARARGS,
 	"Destroy a tag." },
+
+    { "md_create", busdma_md_create, METH_VARARGS,
+	"Create a new and empty memory descriptor." },
+    { "md_destroy", busdma_md_destroy, METH_VARARGS,
+	"Destroy a previously created memory descriptor." },
+    { "md_load", busdma_md_load, METH_VARARGS,
+	"Load a buffer into a memory descriptor." },
+
     { "mem_alloc", busdma_mem_alloc, METH_VARARGS,
 	"Allocate memory according to the DMA constraints." },
     { "mem_free", busdma_mem_free, METH_VARARGS,

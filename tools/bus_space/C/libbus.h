@@ -58,6 +58,10 @@ int	busdma_tag_destroy(busdma_tag_t tag);
 int	busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *out_p);
 int	busdma_mem_free(busdma_md_t md);
 
+int	busdma_md_create(busdma_tag_t tag, u_int flags, busdma_md_t *out_p);
+int	busdma_md_destroy(busdma_md_t md);
+int	busdma_md_load(busdma_md_t md, void *buf, size_t len, u_int flags);
+
 #define	BUSDMA_MD_BUS_SPACE	0
 #define	BUSDMA_MD_PHYS_SPACE	1
 #define	BUSDMA_MD_VIRT_SPACE	2
