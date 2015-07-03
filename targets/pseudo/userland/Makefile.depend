@@ -431,6 +431,7 @@ DIRDEPS+= \
 	usr.sbin/auditd \
 	usr.sbin/auditreduce \
 	usr.sbin/authpf \
+	usr.sbin/bhyve \
 	usr.sbin/bluetooth/ath3kfw \
 	usr.sbin/bluetooth/bcmfw \
 	usr.sbin/bluetooth/bt3cfw \

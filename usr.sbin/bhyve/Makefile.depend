@@ -9,8 +9,10 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libmd \
+	lib/libthr \
 	lib/libutil \
-	usr.bin/xinstall.host \
+	lib/libvmmapi \
 
 
 .include <dirdeps.mk>
