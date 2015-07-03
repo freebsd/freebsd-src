@@ -627,11 +627,12 @@ des-deriv	64		ipsec-ciph-des-derived-01
 3des-deriv	192		no document
 rijndael-cbc	128/192/256	rfc3602
 aes-ctr		160/224/288	draft-ietf-ipsec-ciph-aes-ctr-03
+aes-gcm-16	160/224/288	rfc4106
 camellia-cbc	128/192/256	rfc4312
 .Ed
 .Pp
 Note that the first 128/192/256 bits of a key for
-.Li aes-ctr
+.Li aes-ctr or aes-gcm-16
 will be used as AES key, and remaining 32 bits will be used as nonce.
 .Pp
 The following are the list of compression algorithms that can be used
