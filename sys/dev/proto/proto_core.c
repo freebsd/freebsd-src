@@ -396,7 +396,7 @@ proto_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 		busdma = (struct proto_ioc_busdma *)data;
-		error = proto_busdma_ioctl(sc, r->r_d.busdma, busdma);
+		error = proto_busdma_ioctl(sc, r->r_d.busdma, busdma, td);
 		break;
 	default:
 		error = ENOIOCTL;
