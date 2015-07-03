@@ -426,7 +426,6 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 #endif
 		pcb = td->td_pcb;
 		pcb->pcb_gsbase = (register_t)info.base_addr;
-/* XXXKIB	pcb->pcb_gs32sd = sd; */
 		td->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
 		set_pcb_flags(pcb, PCB_32BIT);
 	}
@@ -615,7 +614,7 @@ linux_mmap_common(struct thread *td, l_uintptr_t addr, l_size_t len, l_int prot,
 			 */
 			PROC_LOCK(p);
 			p->p_vmspace->vm_maxsaddr = (char *)LINUX32_USRSTACK -
-			    lim_cur(p, RLIMIT_STACK);
+			    lim_cur_proc(p, RLIMIT_STACK);
 			PROC_UNLOCK(p);
 		}
 

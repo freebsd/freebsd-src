@@ -84,6 +84,43 @@ static struct cdevsw isp_cdevsw = {
 };
 
 static int
+isp_role_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	ispsoftc_t *isp = (ispsoftc_t *)arg1;
+	int chan = arg2;
+	int error, old, value;
+
+	value = FCPARAM(isp, chan)->role;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	if (value < ISP_ROLE_NONE || value > ISP_ROLE_BOTH)
+		return (EINVAL);
+
+	ISP_LOCK(isp);
+	old = FCPARAM(isp, chan)->role;
+
+	/* If nothing has changed -- we are done. */
+	if (value == old) {
+		ISP_UNLOCK(isp);
+		return (0);
+	}
+
+	/* We don't allow target mode switch from here. */
+	if ((value ^ old) & ISP_ROLE_TARGET) {
+		ISP_UNLOCK(isp);
+		return (EPERM);
+	}
+
+	/* Actually change the role. */
+	error = isp_fc_change_role(isp, chan, value);
+	ISP_UNLOCK(isp);
+	return (error);
+}
+
+static int
 isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 {
 	struct ccb_setasync csa;
@@ -138,6 +175,9 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
+		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
+		struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+		char name[16];
 
 		ISP_LOCK(isp);
 		fc->sim = sim;
@@ -178,17 +218,21 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		}
 		ISP_FC_PC(isp, chan)->num_threads += 1;
 #endif
-		if (chan == 0) {
-			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
-			struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
-			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwnn, "World Wide Node Name");
-			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwpn, "World Wide Port Name");
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->loop_down_limit, 0, "Loop Down Limit");
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->gone_device_time, 0, "Gone Device Time");
-#if defined(ISP_TARGET_MODE) && defined(DEBUG)
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
-#endif
+		if (chan > 0) {
+			snprintf(name, sizeof(name), "chan%d", chan);
+			tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree),
+			    OID_AUTO, name, CTLFLAG_RW, 0, "Virtual channel");
 		}
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwnn, "World Wide Node Name");
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwpn, "World Wide Port Name");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->loop_down_limit, 0, "Loop Down Limit");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->gone_device_time, 0, "Gone Device Time");
+#if defined(ISP_TARGET_MODE) && defined(DEBUG)
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
+#endif
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "role", CTLTYPE_INT | CTLFLAG_RW, isp, chan,
+		    isp_role_sysctl, "I", "Current role");
 	}
 	return (0);
 }
@@ -2452,18 +2496,11 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	 * If we're not in the port database, add ourselves.
 	 */
 	if (!IS_2100(isp) && isp_find_pdb_by_loopid(isp, 0, atiop->init_id, &lp) == 0) {
-    		uint64_t iid =
+		uint64_t iid =
 			(((uint64_t) aep->at_wwpn[0]) << 48) |
 			(((uint64_t) aep->at_wwpn[1]) << 32) |
 			(((uint64_t) aep->at_wwpn[2]) << 16) |
 			(((uint64_t) aep->at_wwpn[3]) <<  0);
-		/*
-		 * However, make sure we delete ourselves if otherwise
-		 * we were there but at a different loop id.
-		 */
-		if (isp_find_pdb_by_wwn(isp, 0, iid, &lp)) {
-			isp_del_wwn_entry(isp, 0, iid, lp->handle, lp->portid);
-		}
 		isp_add_wwn_entry(isp, 0, iid, atiop->init_id, PORT_ANY, 0);
 	}
 	atiop->cdb_len = ATIO2_CDBLEN;
@@ -2929,6 +2966,14 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 		atp = isp_find_atpd(isp, tptr, ((ct2_entry_t *)arg)->ct_rxid);
 	} else {
 		atp = isp_find_atpd(isp, tptr, ((ct_entry_t *)arg)->ct_fwhandle);
+	}
+	if (atp == NULL) {
+		/*
+		 * In case of target mode disable at least ISP2532 return
+		 * invalid zero ct_rxid value.  Try to workaround that using
+		 * tag_id from the CCB, pointed by valid ct_syshandle.
+		 */
+		atp = isp_find_atpd(isp, tptr, ccb->csio.tag_id);
 	}
 	if (atp == NULL) {
 		rls_lun_statep(isp, tptr);
@@ -4898,6 +4943,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 	isp = (ispsoftc_t *)cam_sim_softc(sim);
 	mtx_assert(&isp->isp_lock, MA_OWNED);
+	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
+	ISP_PCMD(ccb) = NULL;
 
 	if (isp->isp_state != ISP_RUNSTATE && ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		isp_init(isp);
@@ -4905,15 +4952,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			/*
 			 * Lie. Say it was a selection timeout.
 			 */
-			ccb->ccb_h.status = CAM_SEL_TIMEOUT | CAM_DEV_QFRZN;
-			xpt_freeze_devq(ccb->ccb_h.path, 1);
-			xpt_done(ccb);
+			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			isp_done((struct ccb_scsiio *) ccb);
 			return;
 		}
 		isp->isp_state = ISP_RUNSTATE;
 	}
-	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
-	ISP_PCMD(ccb) = NULL;
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
@@ -4924,7 +4968,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
 				ccb->ccb_h.status = CAM_REQ_INVALID;
-				xpt_done(ccb);
+				isp_done((struct ccb_scsiio *) ccb);
 				break;
 			}
 		}
@@ -4947,6 +4991,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_prt(isp, ISP_LOGWARN, "out of PCMDs");
 			cam_freeze_devq(ccb->ccb_h.path);
 			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 250, 0);
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
 		}
@@ -4979,10 +5024,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				} else {
 					isp_prt(isp, ISP_LOGDEBUG0, "%d.%d downtime (%d) > lim (%d)", XS_TGT(ccb), XS_LUN(ccb), ISP_FC_PC(isp, bus)->loop_down_time, lim);
 				}
-				ccb->ccb_h.status = CAM_SEL_TIMEOUT|CAM_DEV_QFRZN;
-				xpt_freeze_devq(ccb->ccb_h.path, 1);
-				isp_free_pcmd(isp, ccb);
-				xpt_done(ccb);
+				ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+				isp_done((struct ccb_scsiio *) ccb);
 				break;
 			}
 			isp_prt(isp, ISP_LOGDEBUG0, "%d.%d retry later", XS_TGT(ccb), XS_LUN(ccb));
@@ -5601,7 +5644,7 @@ isp_done(XS_T *sccb)
 			 * gone.  If it reappears, we'll need to issue a
 			 * rescan.
 			 */
-			if (hdlidx > 0 && hdlidx < MAX_FC_TARG)
+			if (hdlidx >= 0 && hdlidx < MAX_FC_TARG)
 				fcp->portdb[hdlidx].reported_gone = 1;
 		}
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
@@ -5614,9 +5657,11 @@ isp_done(XS_T *sccb)
 		xpt_print(sccb->ccb_h.path, "cam completion status 0x%x\n", sccb->ccb_h.status);
 	}
 
-	if (callout_active(&PISP_PCMD(sccb)->wdog))
-		callout_stop(&PISP_PCMD(sccb)->wdog);
-	isp_free_pcmd(isp, (union ccb *) sccb);
+	if (ISP_PCMD(sccb)) {
+		if (callout_active(&PISP_PCMD(sccb)->wdog))
+			callout_stop(&PISP_PCMD(sccb)->wdog);
+		isp_free_pcmd(isp, (union ccb *) sccb);
+	}
 	xpt_done((union ccb *) sccb);
 }
 

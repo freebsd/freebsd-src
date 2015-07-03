@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2015
+.Dd June 20, 2015
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ Show connected sockets.
 .It Fl j Ar jid
 Show only sockets belonging to the specified jail ID.
 .It Fl L
-Only show Internet sockets if the local or foreign addresses are not
+Only show Internet sockets if the local and foreign addresses are not
 in the loopback network prefix
 .Li 127.0.0.0/8 ,
 or do not contain the IPv6 loopback address
@@ -119,7 +119,9 @@ The process ID of the command which holds the socket.
 The file descriptor number of the socket.
 .It Li PROTO
 The transport protocol associated with the socket for Internet
-sockets, or the type of socket (stream or datagram) for
+sockets, or the type of socket
+.Pq stream, datagram, or seqpacket
+for
 .Ux
 sockets.
 .It Li LOCAL ADDRESS

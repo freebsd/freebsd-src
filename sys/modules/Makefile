@@ -174,9 +174,9 @@ SUBDIR=	\
 	${_iwifw} \
 	${_iwn} \
 	${_iwnfw} \
-	${_ixgb} \
 	${_ix} \
 	${_ixv} \
+	${_ixgb} \
 	${_ixl} \
 	${_ixlv} \
 	jme \
@@ -291,7 +291,6 @@ SUBDIR=	\
 	${_qlxgbe} \
 	ral \
 	${_ralfw} \
-	${_random} \
 	rc4 \
 	${_rdma} \
 	${_rdrand_rng} \
@@ -394,9 +393,6 @@ _autofs=	autofs
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
-.endif
-.if exists(${.CURDIR}/../crypto)
-_random=	random
 .endif
 .endif
 
@@ -621,6 +617,8 @@ _x86bios=	x86bios
 .if ${MACHINE_CPUARCH} == "amd64"
 _ixl=		ixl
 _ixlv=		ixlv
+_linux64=	linux64
+_linux_common=	linux_common
 _ntb=		ntb
 _qlxge=		qlxge
 _qlxgb=		qlxgb
@@ -629,8 +627,6 @@ _sfxge=		sfxge
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
-_linux_common=	linux_common
-_linux64=	linux64
 .endif
 .endif
 

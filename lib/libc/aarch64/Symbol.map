@@ -14,6 +14,9 @@ FBSD_1.0 {
 	_setjmp;
 	_longjmp;
 	fabs;
+	__flt_rounds;
+	fpgetmask;
+	fpsetmask;
 	setjmp;
 	longjmp;
 	sigsetjmp;
@@ -25,6 +28,7 @@ FBSD_1.0 {
 
 FBSDprivate_1.0 {
 	_set_tp;
+	_end;
 	curbrk;
 	minbrk;
 };

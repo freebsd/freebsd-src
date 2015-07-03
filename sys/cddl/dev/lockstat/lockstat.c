@@ -43,9 +43,8 @@
 #include <sys/dtrace.h>
 #include <sys/lockstat.h>
 
-#if defined(__i386__) || defined(__amd64__) || \
-	defined(__mips__) || defined(__powerpc__) || \
-	defined(__arm__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
+    defined(__i386__) || defined(__mips__) || defined(__powerpc__)
 #define LOCKSTAT_AFRAMES 1
 #else
 #error "architecture not supported"

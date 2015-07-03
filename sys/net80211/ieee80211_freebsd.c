@@ -474,6 +474,40 @@ ieee80211_add_callback(struct mbuf *m,
 	return 1;
 }
 
+int
+ieee80211_add_xmit_params(struct mbuf *m,
+    const struct ieee80211_bpf_params *params)
+{
+	struct m_tag *mtag;
+	struct ieee80211_tx_params *tx;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_XMIT_PARAMS,
+	    sizeof(struct ieee80211_tx_params), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	tx = (struct ieee80211_tx_params *)(mtag+1);
+	memcpy(&tx->params, params, sizeof(struct ieee80211_bpf_params));
+	m_tag_prepend(m, mtag);
+	return (1);
+}
+
+int
+ieee80211_get_xmit_params(struct mbuf *m,
+    struct ieee80211_bpf_params *params)
+{
+	struct m_tag *mtag;
+	struct ieee80211_tx_params *tx;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_XMIT_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (-1);
+	tx = (struct ieee80211_tx_params *)(mtag + 1);
+	memcpy(params, &tx->params, sizeof(struct ieee80211_bpf_params));
+	return (0);
+}
+
 void
 ieee80211_process_callback(struct ieee80211_node *ni,
 	struct mbuf *m, int status)

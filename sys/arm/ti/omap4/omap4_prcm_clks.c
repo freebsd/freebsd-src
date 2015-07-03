@@ -217,7 +217,8 @@ static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int
 		.clk_deactivate = omap4_clk_generic_deactivate, \
 		.clk_set_source = omap4_clk_generic_set_source, \
 		.clk_accessible = omap4_clk_generic_accessible, \
-		.clk_get_source_freq = omap4_clk_generic_get_source_freq \
+		.clk_get_source_freq = omap4_clk_generic_get_source_freq, \
+		.clk_set_source_freq = NULL \
 	}
 
 #define OMAP4_GPTIMER_CLOCK_DEV(i) \
@@ -226,7 +227,8 @@ static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int
 		.clk_deactivate = omap4_clk_generic_deactivate, \
 		.clk_set_source = omap4_clk_gptimer_set_source, \
 		.clk_accessible = omap4_clk_generic_accessible, \
-		.clk_get_source_freq = omap4_clk_gptimer_get_source_freq \
+		.clk_get_source_freq = omap4_clk_gptimer_get_source_freq, \
+		.clk_set_source_freq = NULL \
 	}
 
 #define OMAP4_HSMMC_CLOCK_DEV(i) \
@@ -235,7 +237,8 @@ static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int
 		.clk_deactivate = omap4_clk_generic_deactivate, \
 		.clk_set_source = omap4_clk_hsmmc_set_source, \
 		.clk_accessible = omap4_clk_generic_accessible, \
-		.clk_get_source_freq = omap4_clk_hsmmc_get_source_freq \
+		.clk_get_source_freq = omap4_clk_hsmmc_get_source_freq, \
+		.clk_set_source_freq = NULL \
 	}
 
 #define OMAP4_HSUSBHOST_CLOCK_DEV(i) \
@@ -244,7 +247,8 @@ static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int
 		.clk_deactivate = omap4_clk_hsusbhost_deactivate, \
 		.clk_set_source = omap4_clk_hsusbhost_set_source, \
 		.clk_accessible = omap4_clk_hsusbhost_accessible, \
-		.clk_get_source_freq = NULL \
+		.clk_get_source_freq = NULL, \
+		.clk_set_source_freq = NULL \
 	}
 
 
@@ -257,6 +261,7 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = omap4_clk_get_sysclk_freq,
+		.clk_set_source_freq = NULL,
 	},
 	/* MPU (ARM) core clocks */
 	{	.id                  = MPU_CLK,
@@ -265,6 +270,7 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
 		.clk_get_source_freq = omap4_clk_get_arm_fclk_freq,
+		.clk_set_source_freq = NULL,
 	},
 
 

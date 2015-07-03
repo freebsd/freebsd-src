@@ -5,7 +5,7 @@
 # Makefile for creating an EC2 AMI from a disk image.
 #
 
-.if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE"
+.if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE" || ${BRANCH} == "PRERELEASE"
 AMINAMESUFFIX!=	date +-%Y-%m-%d
 .endif
 .if defined(EC2PUBLIC)
@@ -51,9 +51,9 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	@echo "--------------------------------------------------------------"
 	@false
 .endif
-	/usr/local/bin/bsdec2-image-upload ${PUBLISH}		\
-	    ${.OBJDIR}/ec2.raw					\
-	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}"	\
-	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}"			\
+	/usr/local/bin/bsdec2-image-upload ${PUBLISH} \
+	    ${.OBJDIR}/ec2.raw \
+	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
+	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}" \
 	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE}
 	@touch ${.TARGET}

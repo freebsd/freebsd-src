@@ -582,10 +582,12 @@ t4_attach(device_t dev)
 #ifdef DEV_NETMAP
 	int nm_rqidx, nm_tqidx;
 #endif
-	const char *pcie_ts;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+#ifdef INVARIANTS
+	sc->debug_flags = DF_DUMP_MBOX;
+#endif
 
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
@@ -905,25 +907,10 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
-	switch (sc->params.pci.speed) {
-		case 0x1:
-			pcie_ts = "2.5";
-			break;
-		case 0x2:
-			pcie_ts = "5.0";
-			break;
-		case 0x3:
-			pcie_ts = "8.0";
-			break;
-		default:
-			pcie_ts = "??";
-			break;
-	}
 	device_printf(dev,
-	    "PCIe x%d (%s GTS/s) (%d), %d ports, %d %s interrupt%s, %d eq, %d iq\n",
-	    sc->params.pci.width, pcie_ts, sc->params.pci.speed,
-	    sc->params.nports, sc->intr_count,
-	    sc->intr_type == INTR_MSIX ? "MSI-X" :
+	    "PCIe gen%d x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
+	    sc->params.pci.speed, sc->params.pci.width, sc->params.nports,
+	    sc->intr_count, sc->intr_type == INTR_MSIX ? "MSI-X" :
 	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"),
 	    sc->intr_count > 1 ? "s" : "", sc->sge.neq, sc->sge.niq);
 
@@ -4618,6 +4605,9 @@ t4_sysctls(struct adapter *sc)
 	sc->lro_timeout = 100;
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
 	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	    &sc->debug_flags, 0, "flags to enable runtime debugging");
 
 #ifdef SBUF_DRAIN
 	/*

@@ -3,6 +3,16 @@ Copyright (C) 2015 HighPoint Technologies, Inc. All rights reserved.
 
 #############################################################################
 Revision History:
+
+   v1.1.4 2015-06-09
+     * Fix a bug that FailLED was not initialized properly.
+
+   v1.1.3 2015-05-19
+     * Support Report Luns command.
+
+   v1.1.2 2015-05-05
+     * Fix a bug that report wrong physical sector size for 512e HDD.
+
    v1.1.1 2015-03-26
      * Support 4Kn drive.
      * Change the SCSI target ID of the disk to be the index of physical connetion to the HBA.
@@ -57,7 +67,7 @@ Revision History:
   2) Extract the driver files under the kernel source tree:
 
      # cd /usr/src/sys/
-     # tar xvzf /your/path/to/hptnr-freebsd-src-v1.0-130701.tgz
+     # tar xvzf /your/path/to/HPTNR_FreeBSD_Src_1.x.x_xx_xx_xx.tgz
 
   3) Update the kernel configuration file to include the HighPoint source.
      Assume the configure file is GENERIC, and new kernel configure file is 
@@ -79,8 +89,8 @@ Revision History:
               compile-with    "uudecode < $S/dev/hptnr/i386-elf.hptnr_lib.o.uu" \
               no-implicit-rule
 
-          dev/hptnr/os_bsd.c      optional        hptnr
-          dev/hptnr/osm_bsd.c     optional        hptnr
+          dev/hptnr/hptnr_os_bsd.c      optional        hptnr
+          dev/hptnr/hptnr_osm_bsd.c     optional        hptnr
           dev/hptnr/hptnr_config.c      optional        hptnr
 
      For amd64 system, edit /usr/src/sys/conf/files.amd64 and append the lines
@@ -91,13 +101,13 @@ Revision History:
               compile-with    "uudecode < $S/dev/hptnr/amd64-elf.hptnr_lib.o.uu" \
               no-implicit-rule
 
-          dev/hptnr/os_bsd.c      optional        hptnr
-          dev/hptnr/osm_bsd.c     optional        hptnr
+          dev/hptnr/hptnr_os_bsd.c      optional        hptnr
+          dev/hptnr/hptnr_osm_bsd.c     optional        hptnr
           dev/hptnr/hptnr_config.c      optional        hptnr
 
   6) Rebuild and install the kernel:
 
-     a) for FreeBSD 5.x-i386/6.x-i386/7.x-i386/8.x-i386/9.x-i386:
+     a) for FreeBSD 5.x-i386/6.x-i386/7.x-i386/8.x-i386/9.x-i386/10.x-i386:
      
         # cd /usr/src/sys/i386/conf/
         # /usr/sbin/config MYKERNEL
@@ -106,7 +116,7 @@ Revision History:
         # make 
         # make install
 
-     b) for FreeBSD 5.x-amd64/6.x-amd64/7.x-amd64/8.x-amd64/9.x-amd64:
+     b) for FreeBSD 5.x-amd64/6.x-amd64/7.x-amd64/8.x-amd64/9.x-amd64/10.x-amd64:
 
         # cd /usr/src/sys/amd64/conf/
         # /usr/sbin/config MYKERNEL
@@ -139,7 +149,7 @@ Revision History:
   2) Extract the driver files under the kernel source tree:
     
      # cd /usr/src/sys/
-     # tar xvzf /your/path/to/hptnr-freebsd-src-v1.0-111213.tgz
+     # tar xvzf /your/path/to/HPTNR_FreeBSD_Src_1.x.x_xx_xx_xx.tgz
 
 
   4) Build the driver module:
@@ -153,7 +163,7 @@ Revision History:
      
      # cp hptnr.ko /modules/
 
-     For FreeBSD 5.x/6.x/7.x/8.x/9.x:
+     For FreeBSD 5.x/6.x/7.x/8.x/9.x/10.x:
     
      # cp hptnr.ko /boot/kernel/
 
@@ -179,7 +189,7 @@ Revision History:
         /modules/hptnr.ko text=0xf571 data=0x2c8+0x254
         ok boot
         
-     For FreeBSD 5.x/6.x/7.x/8.x/9.x, you can select 6 on the boot menu to get a loader
+     For FreeBSD 5.x/6.x/7.x/8.x/9.x/10.x, you can select 6 on the boot menu to get a loader
      prompt.
   
   7) You can add a below line into /boot/defaults/loader.conf to load the

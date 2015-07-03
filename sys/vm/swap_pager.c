@@ -224,16 +224,14 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	mtx_unlock(&sw_dev_mtx);
 
 	if (res) {
-		PROC_LOCK(curproc);
 		UIDINFO_VMSIZE_LOCK(uip);
 		if ((overcommit & SWAP_RESERVE_RLIMIT_ON) != 0 &&
-		    uip->ui_vmsize + incr > lim_cur(curproc, RLIMIT_SWAP) &&
+		    uip->ui_vmsize + incr > lim_cur(curthread, RLIMIT_SWAP) &&
 		    priv_check(curthread, PRIV_VM_SWAP_NORLIMIT))
 			res = 0;
 		else
 			uip->ui_vmsize += incr;
 		UIDINFO_VMSIZE_UNLOCK(uip);
-		PROC_UNLOCK(curproc);
 		if (!res) {
 			mtx_lock(&sw_dev_mtx);
 			swap_reserved -= incr;
@@ -1119,10 +1117,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	daddr_t blk;
 
 	mreq = m[reqpage];
-
-	KASSERT(mreq->object == object,
-	    ("swap_pager_getpages: object mismatch %p/%p",
-	    object, mreq->object));
 
 	/*
 	 * Calculate range to retrieve.  The pages have already been assigned

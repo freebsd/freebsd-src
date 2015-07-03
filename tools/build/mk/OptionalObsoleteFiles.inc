@@ -410,6 +410,21 @@ OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
 OLD_FILES+=usr/share/man/man1/cpio.1.gz
 .endif
 
+.if ${MK_BSD_GREP} == no
+OLD_FILES+=usr/bin/lzegrep
+OLD_FILES+=usr/bin/lzfgrep
+OLD_FILES+=usr/bin/lzgrep
+OLD_FILES+=usr/bin/xzegrep
+OLD_FILES+=usr/bin/xzfgrep
+OLD_FILES+=usr/bin/xzgrep
+OLD_FILES+=usr/share/man/man1/lzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/lzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/lzgrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzgrep.1.gz
+.endif
+
 .if ${MK_BSDINSTALL} == no
 OLD_FILES+=usr/libexec/bsdinstall/adduser
 OLD_FILES+=usr/libexec/bsdinstall/auto
@@ -1753,6 +1768,11 @@ OLD_FILES+=usr/lib/libgomp.a
 OLD_FILES+=usr/lib/libgomp.so
 OLD_LIBS+=usr/lib/libgomp.so.1
 OLD_FILES+=usr/lib/libgomp_p.a
+OLD_FILES+=usr/lib32/libgcov.a
+OLD_FILES+=usr/lib32/libgomp.a
+OLD_FILES+=usr/lib32/libgomp.so
+OLD_LIBS+=usr/lib32/libgomp.so.1
+OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/info/cpp.info.gz
@@ -5102,9 +5122,7 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-.if ${MK_SENDMAIL} == no
 OLD_FILES+=usr/sbin/mailwrapper
-.endif
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
@@ -6335,9 +6353,7 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
-.if ${MK_MAILWRAPPER} == no
 OLD_FILES+=bin/rmail
-.endif
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
 OLD_FILES+=usr/include/libmilter/mfdef.h

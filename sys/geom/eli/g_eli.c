@@ -633,7 +633,10 @@ g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
 	g_topology_lock();
 	if (buf == NULL)
 		goto end;
-	eli_metadata_decode(buf, md);
+	error = eli_metadata_decode(buf, md);
+	if (error != 0)
+		goto end;
+	/* Metadata was read and decoded successfully. */
 end:
 	if (buf != NULL)
 		g_free(buf);
@@ -998,6 +1001,13 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 	for (i = 0; ; i++) {
 		snprintf(name, sizeof(name), "%s:geli_keyfile%d", provider, i);
 		keyfile = preload_search_by_type(name);
+		if (keyfile == NULL && i == 0) {
+			/*
+			 * If there is only one keyfile, allow simpler name.
+			 */
+			snprintf(name, sizeof(name), "%s:geli_keyfile", provider);
+			keyfile = preload_search_by_type(name);
+		}
 		if (keyfile == NULL)
 			return (i);	/* Return number of loaded keyfiles. */
 		data = preload_fetch_addr(keyfile);

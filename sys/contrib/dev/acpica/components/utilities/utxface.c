@@ -263,7 +263,7 @@ AcpiGetStatistics (
     Stats->SciCount = AcpiSciCount;
     Stats->GpeCount = AcpiGpeCount;
 
-    ACPI_MEMCPY (Stats->FixedEventCount, AcpiFixedEventCount,
+    memcpy (Stats->FixedEventCount, AcpiFixedEventCount,
         sizeof (AcpiFixedEventCount));
 
 
@@ -367,7 +367,7 @@ AcpiInstallInterface (
 
     /* Parameter validation */
 
-    if (!InterfaceName || (ACPI_STRLEN (InterfaceName) == 0))
+    if (!InterfaceName || (strlen (InterfaceName) == 0))
     {
         return (AE_BAD_PARAMETER);
     }
@@ -432,7 +432,7 @@ AcpiRemoveInterface (
 
     /* Parameter validation */
 
-    if (!InterfaceName || (ACPI_STRLEN (InterfaceName) == 0))
+    if (!InterfaceName || (strlen (InterfaceName) == 0))
     {
         return (AE_BAD_PARAMETER);
     }

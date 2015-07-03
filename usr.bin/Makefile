@@ -253,10 +253,6 @@ SUBDIR+=	file
 SUBDIR+=	finger
 .endif
 
-.if ${MK_FMAKE} != "no"
-SUBDIR+=	make
-.endif
-
 .if ${MK_FTP} != "no"
 SUBDIR+=	ftp
 .endif
@@ -317,7 +313,9 @@ SUBDIR+=	bmake
 
 .if ${MK_MAN_UTILS} != "no"
 SUBDIR+=	catman
+.if ${MK_MANDOCDB} == "no"
 _makewhatis=	makewhatis
+.endif
 _man=		man
 .endif
 

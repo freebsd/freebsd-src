@@ -124,6 +124,15 @@ const char	ctty[] = _PATH_CONSOLE;
 #define	MAXUNAMES	20	/* maximum number of user names */
 
 /*
+ * List of hosts for binding.
+ */
+static STAILQ_HEAD(, host) hqueue;
+struct host {
+	char			*name;
+	STAILQ_ENTRY(host)	next;
+};
+
+/*
  * Unix sockets.
  * We have two default sockets, one with 666 permissions,
  * and one for privileged programs.
@@ -275,7 +284,7 @@ static int	Foreground = 0;	/* Run in foreground, instead of daemonizing */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static const char *LocalDomain;	/* our local domain name */
-static int	*finet;		/* Internet datagram socket */
+static int	*finet;		/* Internet datagram sockets */
 static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -348,10 +357,10 @@ main(int argc, char *argv[])
 	struct sockaddr_storage frominet;
 	fd_set *fdsr = NULL;
 	char line[MAXLINE + 1];
-	char *bindhostname;
 	const char *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
+	struct host *host;
 	struct funix *fx, *fx1;
 	sigset_t mask;
 	pid_t ppid = 1, spid;
@@ -360,7 +369,8 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	bindhostname = NULL;
+	STAILQ_INIT(&hqueue);
+
 	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:Fkl:m:nNop:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
@@ -383,8 +393,13 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'b':
-			bindhostname = optarg;
+		   {
+			if ((host = malloc(sizeof(struct host))) == NULL)
+				err(1, "malloc failed");
+			host->name = optarg;
+			STAILQ_INSERT_TAIL(&hqueue, host, next);
 			break;
+		   }
 		case 'c':
 			no_compress++;
 			break;
@@ -433,7 +448,7 @@ main(int argc, char *argv[])
 			if (strlen(name) >= sizeof(sunx.sun_path))
 				errx(1, "%s path too long, exiting", name);
 			if ((fx = malloc(sizeof(struct funix))) == NULL)
-				errx(1, "malloc failed");
+				err(1, "malloc failed");
 			fx->s = -1;
 			fx->name = name;
 			fx->mode = mode;
@@ -555,8 +570,27 @@ main(int argc, char *argv[])
 		}
 		increase_rcvbuf(fx->s);
 	}
-	if (SecureMode <= 1)
-		finet = socksetup(family, bindhostname);
+	if (SecureMode <= 1) {
+		if (STAILQ_EMPTY(&hqueue))
+			finet = socksetup(family, NULL);
+		STAILQ_FOREACH(host, &hqueue, next) {
+			int *finet0, total;
+			finet0 = socksetup(family, host->name);
+			if (finet0 && !finet) {
+				finet = finet0;
+			} else if (finet0 && finet) {
+				total = *finet0 + *finet + 1;
+				finet = realloc(finet, total * sizeof(int));
+				if (finet == NULL)
+					err(1, "realloc failed");
+				for (i = 1; i <= *finet0; i++) {
+					finet[(*finet)+i] = finet0[i];
+				}
+				*finet = total - 1;
+				free(finet0);
+			}
+		}
+	}
 
 	if (finet) {
 		if (SecureMode) {
@@ -1566,6 +1600,24 @@ init(int signo)
 		LocalDomain = p;
 	} else {
 		LocalDomain = "";
+	}
+
+	/*
+	 * Load / reload timezone data (in case it changed).
+	 *
+	 * Just calling tzset() again does not work, the timezone code
+	 * caches the result.  However, by setting the TZ variable, one
+	 * can defeat the caching and have the timezone code really
+	 * reload the timezone data.  Respect any initial setting of
+	 * TZ, in case the system is configured specially.
+	 */
+	dprintf("loading timezone data via tzset()\n");
+	if (getenv("TZ")) {
+		tzset();
+	} else {
+		setenv("TZ", ":/etc/localtime", 1);
+		tzset();
+		unsetenv("TZ");
 	}
 
 	/*
@@ -2730,6 +2782,7 @@ socksetup(int af, char *bindhostname)
 		}
 
 		(*socks)++;
+		dprintf("socksetup: new socket fd is %d\n", *s);
 		s++;
 	}
 

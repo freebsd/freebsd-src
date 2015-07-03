@@ -155,7 +155,7 @@ AcpiDmDumpUnicode (
 
     for (i = 0; i < Length; i += 2)
     {
-        if (!ACPI_IS_PRINT (Buffer[i]))
+        if (!isprint (Buffer[i]))
         {
             goto DumpRawBuffer;
         }
@@ -1701,7 +1701,7 @@ AcpiDmDumpIort (
             InfoTable = AcpiDmTableInfoIort1;
             Length = ACPI_OFFSET (ACPI_IORT_NAMED_COMPONENT, DeviceName);
             String = ACPI_ADD_PTR (char, IortNode, NodeOffset + Length);
-            Length += ACPI_STRLEN (String) + 1;
+            Length += strlen (String) + 1;
             break;
 
         case ACPI_IORT_NODE_PCI_ROOT_COMPLEX:
@@ -3344,7 +3344,7 @@ AcpiDmDumpStao (
     while (Offset < Table->Length)
     {
         Namepath = ACPI_ADD_PTR (char, Table, Offset);
-        StringLength = ACPI_STRLEN (Namepath) + 1;
+        StringLength = strlen (Namepath) + 1;
 
         AcpiDmLineHeader (Offset, StringLength, "Namestring");
         AcpiOsPrintf ("\"%s\"\n", Namepath);

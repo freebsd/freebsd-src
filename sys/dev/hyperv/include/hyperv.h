@@ -107,7 +107,7 @@ typedef uint8_t	hv_bool_uint8_t;
 #define HV_MAX_PIPE_USER_DEFINED_BYTES	116
 
 
-#define HV_MAX_PAGE_BUFFER_COUNT	16
+#define HV_MAX_PAGE_BUFFER_COUNT	32
 #define HV_MAX_MULTIPAGE_BUFFER_COUNT	32
 
 #define HV_ALIGN_UP(value, align)					\

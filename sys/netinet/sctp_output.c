@@ -3160,8 +3160,6 @@ again_with_private_addresses_allowed:
 				sifa = NULL;
 				continue;
 			}
-		} else {
-			SCTP_PRINTF("Stcb is null - no print\n");
 		}
 		atomic_add_int(&sifa->refcount, 1);
 		goto out;
@@ -3391,7 +3389,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 		/*
 		 * Need a route to cache.
 		 */
-		SCTP_RTALLOC(ro, vrf_id);
+		SCTP_RTALLOC(ro, vrf_id, inp->fibnum);
 	}
 	if (ro->ro_rt == NULL) {
 		return (NULL);
@@ -4172,7 +4170,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					sctp_free_ifa(_lsrc);
 				} else {
 					ip->ip_src = over_addr->sin.sin_addr;
-					SCTP_RTALLOC(ro, vrf_id);
+					SCTP_RTALLOC(ro, vrf_id, inp->fibnum);
 				}
 			}
 			if (port) {
@@ -4486,7 +4484,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					sctp_free_ifa(_lsrc);
 				} else {
 					lsa6->sin6_addr = over_addr->sin6.sin6_addr;
-					SCTP_RTALLOC(ro, vrf_id);
+					SCTP_RTALLOC(ro, vrf_id, inp->fibnum);
 				}
 				(void)sa6_recoverscope(sin6);
 			}
@@ -5513,7 +5511,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Address added");
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
-		    mflowtype, mflowid,
+		    mflowtype, mflowid, inp->fibnum,
 		    vrf_id, port);
 		return;
 	}
@@ -5532,7 +5530,7 @@ do_a_abort:
 		}
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh,
 		    init_chk->init.initiate_tag, op_err,
-		    mflowtype, mflowid,
+		    mflowtype, mflowid, inp->fibnum,
 		    vrf_id, port);
 		return;
 	}
@@ -5591,11 +5589,7 @@ do_a_abort:
 		stc.ipv6_addr_legal = 0;
 		stc.ipv4_addr_legal = 1;
 	}
-#ifdef SCTP_DONT_DO_PRIVADDR_SCOPE
-	stc.ipv4_scope = 1;
-#else
 	stc.ipv4_scope = 0;
-#endif
 	if (net == NULL) {
 		to = src;
 		switch (dst->sa_family) {
@@ -5616,13 +5610,10 @@ do_a_abort:
 				stc.laddr_type = SCTP_IPV4_ADDRESS;
 				/* scope_id is only for v6 */
 				stc.scope_id = 0;
-#ifndef SCTP_DONT_DO_PRIVADDR_SCOPE
-				if (IN4_ISPRIVATE_ADDRESS(&src4->sin_addr)) {
+				if ((IN4_ISPRIVATE_ADDRESS(&src4->sin_addr)) ||
+				    (IN4_ISPRIVATE_ADDRESS(&dst4->sin_addr))) {
 					stc.ipv4_scope = 1;
 				}
-#else
-				stc.ipv4_scope = 1;
-#endif				/* SCTP_DONT_DO_PRIVADDR_SCOPE */
 				/* Must use the address in this case */
 				if (sctp_is_address_on_local_host(src, vrf_id)) {
 					stc.loopback_scope = 1;
@@ -5644,16 +5635,18 @@ do_a_abort:
 					stc.local_scope = 0;
 					stc.site_scope = 1;
 					stc.ipv4_scope = 1;
-				} else if (IN6_IS_ADDR_LINKLOCAL(&src6->sin6_addr)) {
+				} else if (IN6_IS_ADDR_LINKLOCAL(&src6->sin6_addr) ||
+				    IN6_IS_ADDR_LINKLOCAL(&dst6->sin6_addr)) {
 					/*
-					 * If the new destination is a
-					 * LINK_LOCAL we must have common
-					 * both site and local scope. Don't
-					 * set local scope though since we
-					 * must depend on the source to be
-					 * added implicitly. We cannot
-					 * assure just because we share one
-					 * link that all links are common.
+					 * If the new destination or source
+					 * is a LINK_LOCAL we must have
+					 * common both site and local scope.
+					 * Don't set local scope though
+					 * since we must depend on the
+					 * source to be added implicitly. We
+					 * cannot assure just because we
+					 * share one link that all links are
+					 * common.
 					 */
 					stc.local_scope = 0;
 					stc.site_scope = 1;
@@ -5669,11 +5662,12 @@ do_a_abort:
 					 * pull out the scope_id from
 					 * incoming pkt
 					 */
-				} else if (IN6_IS_ADDR_SITELOCAL(&src6->sin6_addr)) {
+				} else if (IN6_IS_ADDR_SITELOCAL(&src6->sin6_addr) ||
+				    IN6_IS_ADDR_SITELOCAL(&dst6->sin6_addr)) {
 					/*
-					 * If the new destination is
-					 * SITE_LOCAL then we must have site
-					 * scope in common.
+					 * If the new destination or source
+					 * is SITE_LOCAL then we must have
+					 * site scope in common.
 					 */
 					stc.site_scope = 1;
 				}
@@ -7991,6 +7985,7 @@ again_one_more_time:
 		} else {
 			r_mtu = mtu;
 		}
+		error = 0;
 		/************************/
 		/* ASCONF transmission */
 		/************************/
@@ -8114,6 +8109,12 @@ again_one_more_time:
 					 * it is used to do appropriate
 					 * source address selection.
 					 */
+					if (*now_filled == 0) {
+						(void)SCTP_GETTIME_TIMEVAL(now);
+						*now_filled = 1;
+					}
+					net->last_sent_time = *now;
+					hbflag = 0;
 					if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 					    (struct sockaddr *)&net->ro._l_addr,
 					    outchain, auth_offset, auth,
@@ -8124,21 +8125,18 @@ again_one_more_time:
 					    net->port, NULL,
 					    0, 0,
 					    so_locked))) {
+						/*
+						 * error, we could not
+						 * output
+						 */
+						SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
+						if (from_where == 0) {
+							SCTP_STAT_INCR(sctps_lowlevelerrusr);
+						}
 						if (error == ENOBUFS) {
 							asoc->ifp_had_enobuf = 1;
 							SCTP_STAT_INCR(sctps_lowlevelerr);
 						}
-						if (from_where == 0) {
-							SCTP_STAT_INCR(sctps_lowlevelerrusr);
-						}
-						if (*now_filled == 0) {
-							(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-							*now_filled = 1;
-							*now = net->last_sent_time;
-						} else {
-							net->last_sent_time = *now;
-						}
-						hbflag = 0;
 						/* error, could not output */
 						if (error == EHOSTUNREACH) {
 							/*
@@ -8149,17 +8147,10 @@ again_one_more_time:
 							sctp_move_chunks_from_net(stcb, net);
 						}
 						*reason_code = 7;
-						continue;
-					} else
-						asoc->ifp_had_enobuf = 0;
-					if (*now_filled == 0) {
-						(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-						*now_filled = 1;
-						*now = net->last_sent_time;
+						break;
 					} else {
-						net->last_sent_time = *now;
+						asoc->ifp_had_enobuf = 0;
 					}
-					hbflag = 0;
 					/*
 					 * increase the number we sent, if a
 					 * cookie is sent we don't tell them
@@ -8191,6 +8182,10 @@ again_one_more_time:
 					no_fragmentflg = 1;
 				}
 			}
+		}
+		if (error != 0) {
+			/* try next net */
+			continue;
 		}
 		/************************/
 		/* Control transmission */
@@ -8388,6 +8383,15 @@ again_one_more_time:
 						sctp_timer_start(SCTP_TIMER_TYPE_COOKIE, inp, stcb, net);
 						cookie = 0;
 					}
+					/* Only HB or ASCONF advances time */
+					if (hbflag) {
+						if (*now_filled == 0) {
+							(void)SCTP_GETTIME_TIMEVAL(now);
+							*now_filled = 1;
+						}
+						net->last_sent_time = *now;
+						hbflag = 0;
+					}
 					if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 					    (struct sockaddr *)&net->ro._l_addr,
 					    outchain,
@@ -8399,23 +8403,17 @@ again_one_more_time:
 					    net->port, NULL,
 					    0, 0,
 					    so_locked))) {
-						if (error == ENOBUFS) {
-							asoc->ifp_had_enobuf = 1;
-							SCTP_STAT_INCR(sctps_lowlevelerr);
-						}
+						/*
+						 * error, we could not
+						 * output
+						 */
+						SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
 						if (from_where == 0) {
 							SCTP_STAT_INCR(sctps_lowlevelerrusr);
 						}
-						/* error, could not output */
-						if (hbflag) {
-							if (*now_filled == 0) {
-								(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-								*now_filled = 1;
-								*now = net->last_sent_time;
-							} else {
-								net->last_sent_time = *now;
-							}
-							hbflag = 0;
+						if (error == ENOBUFS) {
+							asoc->ifp_had_enobuf = 1;
+							SCTP_STAT_INCR(sctps_lowlevelerr);
 						}
 						if (error == EHOSTUNREACH) {
 							/*
@@ -8426,19 +8424,9 @@ again_one_more_time:
 							sctp_move_chunks_from_net(stcb, net);
 						}
 						*reason_code = 7;
-						continue;
-					} else
+						break;
+					} else {
 						asoc->ifp_had_enobuf = 0;
-					/* Only HB or ASCONF advances time */
-					if (hbflag) {
-						if (*now_filled == 0) {
-							(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-							*now_filled = 1;
-							*now = net->last_sent_time;
-						} else {
-							net->last_sent_time = *now;
-						}
-						hbflag = 0;
 					}
 					/*
 					 * increase the number we sent, if a
@@ -8471,6 +8459,10 @@ again_one_more_time:
 					no_fragmentflg = 1;
 				}
 			}
+		}
+		if (error != 0) {
+			/* try next net */
+			continue;
 		}
 		/* JRI: if dest is in PF state, do not send data to it */
 		if ((asoc->sctp_cmt_on_off > 0) &&
@@ -8535,7 +8527,8 @@ again_one_more_time:
 			omtu = 0;
 			break;
 		}
-		if ((((asoc->state & SCTP_STATE_OPEN) == SCTP_STATE_OPEN) &&
+		if ((((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
+		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) &&
 		    (skip_data_for_this_net == 0)) ||
 		    (cookie)) {
 			TAILQ_FOREACH_SAFE(chk, &asoc->send_queue, sctp_next, nchk) {
@@ -8725,6 +8718,14 @@ no_data_fill:
 				 */
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND, inp, stcb, net);
 			}
+			if (bundle_at || hbflag) {
+				/* For data/asconf and hb set time */
+				if (*now_filled == 0) {
+					(void)SCTP_GETTIME_TIMEVAL(now);
+					*now_filled = 1;
+				}
+				net->last_sent_time = *now;
+			}
 			/* Now send it, if there is anything to send :> */
 			if ((error = sctp_lowlevel_chunk_output(inp,
 			    stcb,
@@ -8743,23 +8744,13 @@ no_data_fill:
 			    0, 0,
 			    so_locked))) {
 				/* error, we could not output */
-				if (error == ENOBUFS) {
-					SCTP_STAT_INCR(sctps_lowlevelerr);
-					asoc->ifp_had_enobuf = 1;
-				}
+				SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
 				if (from_where == 0) {
 					SCTP_STAT_INCR(sctps_lowlevelerrusr);
 				}
-				SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
-				if (hbflag) {
-					if (*now_filled == 0) {
-						(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-						*now_filled = 1;
-						*now = net->last_sent_time;
-					} else {
-						net->last_sent_time = *now;
-					}
-					hbflag = 0;
+				if (error == ENOBUFS) {
+					SCTP_STAT_INCR(sctps_lowlevelerr);
+					asoc->ifp_had_enobuf = 1;
 				}
 				if (error == EHOSTUNREACH) {
 					/*
@@ -8784,16 +8775,6 @@ no_data_fill:
 			endoutchain = NULL;
 			auth = NULL;
 			auth_offset = 0;
-			if (bundle_at || hbflag) {
-				/* For data/asconf and hb set time */
-				if (*now_filled == 0) {
-					(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
-					*now_filled = 1;
-					*now = net->last_sent_time;
-				} else {
-					net->last_sent_time = *now;
-				}
-			}
 			if (!no_out_cnt) {
 				*num_out += (ctl_cnt + bundle_at);
 			}
@@ -10858,7 +10839,7 @@ static void
 sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, uint32_t vtag,
     uint8_t type, struct mbuf *cause,
-    uint8_t mflowtype, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
     uint32_t vrf_id, uint16_t port)
 {
 	struct mbuf *o_pak;
@@ -10938,6 +10919,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	SCTP_BUF_RESV_UF(mout, max_linkhdr);
 	SCTP_BUF_LEN(mout) = len;
 	SCTP_BUF_NEXT(mout) = cause;
+	M_SETFIB(mout, fibnum);
 	mout->m_pkthdr.flowid = mflowid;
 	M_HASHTYPE_SET(mout, mflowtype);
 #ifdef INET
@@ -11125,11 +11107,11 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 void
 sctp_send_shutdown_complete2(struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh,
-    uint8_t mflowtype, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
     uint32_t vrf_id, uint16_t port)
 {
 	sctp_send_resp_msg(src, dst, sh, 0, SCTP_SHUTDOWN_COMPLETE, NULL,
-	    mflowtype, mflowid,
+	    mflowtype, mflowid, fibnum,
 	    vrf_id, port);
 }
 
@@ -11948,7 +11930,7 @@ skip_stuff:
 void
 sctp_send_abort(struct mbuf *m, int iphlen, struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, uint32_t vtag, struct mbuf *cause,
-    uint8_t mflowtype, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
     uint32_t vrf_id, uint16_t port)
 {
 	/* Don't respond to an ABORT with an ABORT. */
@@ -11958,7 +11940,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sockaddr *src, struct sockadd
 		return;
 	}
 	sctp_send_resp_msg(src, dst, sh, vtag, SCTP_ABORT_ASSOCIATION, cause,
-	    mflowtype, mflowid,
+	    mflowtype, mflowid, fibnum,
 	    vrf_id, port);
 	return;
 }
@@ -11966,11 +11948,11 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sockaddr *src, struct sockadd
 void
 sctp_send_operr_to(struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, uint32_t vtag, struct mbuf *cause,
-    uint8_t mflowtype, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
     uint32_t vrf_id, uint16_t port)
 {
 	sctp_send_resp_msg(src, dst, sh, vtag, SCTP_OPERATION_ERROR, cause,
-	    mflowtype, mflowid,
+	    mflowtype, mflowid, fibnum,
 	    vrf_id, port);
 	return;
 }

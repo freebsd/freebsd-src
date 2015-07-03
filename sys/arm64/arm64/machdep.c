@@ -392,6 +392,8 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+
+	pcpu->pc_acpi_id = 0xffffffff;
 }
 
 void
@@ -534,10 +536,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	tf->tf_x[0]= sig;
 	tf->tf_x[1] = (register_t)&fp->sf_si;

@@ -52,7 +52,8 @@
  * These tables are not consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
- * The tables in this file are fully defined within the ACPI specification.
+ * In general, the tables in this file are fully defined within the ACPI
+ * specification.
  *
  ******************************************************************************/
 
@@ -71,7 +72,6 @@
 #define ACPI_SIG_PMTT           "PMTT"      /* Platform Memory Topology Table */
 #define ACPI_SIG_RASF           "RASF"      /* RAS Feature table */
 #define ACPI_SIG_STAO           "STAO"      /* Status Override table */
-#define ACPI_SIG_TPM2           "TPM2"      /* Trusted Platform Module 2.0 H/W interface table */
 #define ACPI_SIG_WPBT           "WPBT"      /* Windows Platform Binary Table */
 #define ACPI_SIG_XENV           "XENV"      /* Xen Environment table */
 
@@ -844,41 +844,6 @@ typedef struct acpi_table_stao
     UINT8                   IgnoreUart;
 
 } ACPI_TABLE_STAO;
-
-
-/*******************************************************************************
- *
- * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
- *        Version 3
- *
- * Conforms to "TPM 2.0 Hardware Interface Table (TPM2)" 29 November 2011
- *
- ******************************************************************************/
-
-typedef struct acpi_table_tpm2
-{
-    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
-    UINT32                  Flags;
-    UINT64                  ControlAddress;
-    UINT32                  StartMethod;
-
-} ACPI_TABLE_TPM2;
-
-/* Control area structure (not part of table, pointed to by ControlAddress) */
-
-typedef struct acpi_tpm2_control
-{
-    UINT32                  Reserved;
-    UINT32                  Error;
-    UINT32                  Cancel;
-    UINT32                  Start;
-    UINT64                  InterruptControl;
-    UINT32                  CommandSize;
-    UINT64                  CommandAddress;
-    UINT32                  ResponseSize;
-    UINT64                  ResponseAddress;
-
-} ACPI_TPM2_CONTROL;
 
 
 /*******************************************************************************

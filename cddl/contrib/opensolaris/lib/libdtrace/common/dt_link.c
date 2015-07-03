@@ -227,7 +227,10 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 		s = &dofs[dofrh->dofr_tgtsec];
 
 		for (j = 0; j < nrel; j++) {
-#if defined(__arm__)
+#if defined(__aarch64__)
+/* XXX */
+printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+#elif defined(__arm__)
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__i386) || defined(__amd64)
@@ -426,7 +429,9 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 		s = &dofs[dofrh->dofr_tgtsec];
 
 		for (j = 0; j < nrel; j++) {
-#if defined(__arm__)
+#if defined(__aarch64__)
+/* XXX */
+#elif defined(__arm__)
 /* XXX */
 #elif defined(__mips__)
 /* XXX */
@@ -822,7 +827,16 @@ dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
 	return (ret);
 }
 
-#if defined(__arm__)
+#if defined(__aarch64__)
+/* XXX */
+static int
+dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
+    uint32_t *off)
+{
+printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	return (0);
+}
+#elif defined(__arm__)
 /* XXX */
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,

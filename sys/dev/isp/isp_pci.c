@@ -527,8 +527,15 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 {
 	const char *sptr;
 	int tval = 0;
+	char prefix[12], name[16];
 
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "iid", &tval)) {
+	if (chan == 0)
+		prefix[0] = 0;
+	else
+		snprintf(prefix, sizeof(prefix), "chan%d.", chan);
+	snprintf(name, sizeof(name), "%siid", prefix);
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval)) {
 		if (IS_FC(isp)) {
 			ISP_FC_PC(isp, chan)->default_id = 109 - chan;
 		} else {
@@ -548,13 +555,15 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	tval = -1;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "role", &tval) == 0) {
+	snprintf(name, sizeof(name), "%srole", prefix);
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval) == 0) {
 		switch (tval) {
 		case ISP_ROLE_NONE:
 		case ISP_ROLE_INITIATOR:
 		case ISP_ROLE_TARGET:
-		case ISP_ROLE_INITIATOR|ISP_ROLE_TARGET:
-			device_printf(dev, "setting role to 0x%x\n", tval);
+		case ISP_ROLE_BOTH:
+			device_printf(dev, "Chan %d setting role to 0x%x\n", chan, tval);
 			break;
 		default:
 			tval = -1;
@@ -572,11 +581,15 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	ISP_FC_PC(isp, chan)->def_role = tval;
 
 	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fullduplex", &tval) == 0 && tval != 0) {
+	snprintf(name, sizeof(name), "%sfullduplex", prefix);
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
 	}
 	sptr = 0;
-	if (resource_string_value(device_get_name(dev), device_get_unit(dev), "topology", (const char **) &sptr) == 0 && sptr != 0) {
+	snprintf(name, sizeof(name), "%stopology", prefix);
+	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    name, (const char **) &sptr) == 0 && sptr != 0) {
 		if (strcmp(sptr, "lport") == 0) {
 			isp->isp_confopts |= ISP_CFG_LPORT;
 		} else if (strcmp(sptr, "nport") == 0) {
@@ -589,13 +602,17 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	tval = 0;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "nofctape", &tval);
+	snprintf(name, sizeof(name), "%snofctape", prefix);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval);
 	if (tval) {
 		isp->isp_confopts |= ISP_CFG_NOFCTAPE;
 	}
 
 	tval = 0;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "fctape", &tval);
+	snprintf(name, sizeof(name), "%sfctape", prefix);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval);
 	if (tval) {
 		isp->isp_confopts &= ~ISP_CFG_NOFCTAPE;
 		isp->isp_confopts |= ISP_CFG_FCTAPE;
@@ -611,7 +628,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	 * 'w' (e..g w50000000aaaa0001). Sigh.
 	 */
 	sptr = 0;
-	tval = resource_string_value(device_get_name(dev), device_get_unit(dev), "portwwn", (const char **) &sptr);
+	snprintf(name, sizeof(name), "%sportwwn", prefix);
+	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    name, (const char **) &sptr);
 	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
 		char *eptr = 0;
 		ISP_FC_PC(isp, chan)->def_wwpn = strtouq(sptr, &eptr, 16);
@@ -622,7 +641,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	sptr = 0;
-	tval = resource_string_value(device_get_name(dev), device_get_unit(dev), "nodewwn", (const char **) &sptr);
+	snprintf(name, sizeof(name), "%snodewwn", prefix);
+	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    name, (const char **) &sptr);
 	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
 		char *eptr = 0;
 		ISP_FC_PC(isp, chan)->def_wwnn = strtouq(sptr, &eptr, 16);
@@ -633,7 +654,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	tval = 0;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "hysteresis", &tval);
+	snprintf(name, sizeof(name), "%shysteresis", prefix);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "name", &tval);
 	if (tval >= 0 && tval < 256) {
 		ISP_FC_PC(isp, chan)->hysteresis = tval;
 	} else {
@@ -641,7 +664,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	tval = -1;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "loop_down_limit", &tval);
+	snprintf(name, sizeof(name), "%sloop_down_limit", prefix);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval);
 	if (tval >= 0 && tval < 0xffff) {
 		ISP_FC_PC(isp, chan)->loop_down_limit = tval;
 	} else {
@@ -649,7 +674,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	tval = -1;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "gone_device_time", &tval);
+	snprintf(name, sizeof(name), "%sgone_device_time", prefix);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    name, &tval);
 	if (tval >= 0 && tval < 0xffff) {
 		ISP_FC_PC(isp, chan)->gone_device_time = tval;
 	} else {

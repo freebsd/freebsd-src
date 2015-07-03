@@ -26,7 +26,7 @@ files		"../atheros/files.ar71xx"
 hints		"QCA955X_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-# makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc"
+# makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc"
 makeoptions	MODULES_OVERRIDE="if_vlan ipfw if_gre if_gif if_bridge bridgestp"
 
 options 	DDB
