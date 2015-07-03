@@ -129,9 +129,12 @@ arm_install_base() {
 	echo 'growfs_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 
 	# The fstab(5) above uses UFS/MSDOSFS labels.
-	echo 'geom_label_load="YES"' >> ${CHROOTDIR}/boot/loader.conf
+	echo 'geom_label_load="YES"' >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
 	# Workaround missing loader.rc if needed.
-	chroot ${CHROOTDIR} ln -s /boot/loader.rc.sample /boot/loader.rc
+	if [ ! -e "${CHROOTDIR}/${DESTDIR}/boot/loader.rc" ]; then
+		chroot ${CHROOTDIR} \
+			ln -s /boot/loader.rc.sample ${DESTDIR}/boot/loader.rc
+	fi
 
 	sync
 	umount_loop ${CHROOTDIR}/${DESTDIR}
