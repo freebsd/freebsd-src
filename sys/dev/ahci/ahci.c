@@ -654,6 +654,7 @@ ahci_ch_attach(device_t dev)
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
+	ch->start = ctlr->ch_start;
 	ch->quirks = ctlr->quirks;
 	ch->vendorid = ctlr->vendorid;
 	ch->deviceid = ctlr->deviceid;
@@ -2113,6 +2114,10 @@ static void
 ahci_start(struct ahci_channel *ch, int fbs)
 {
 	u_int32_t cmd;
+
+	/* Run the channel start callback, if any. */
+	if (ch->start)
+		ch->start(ch);
 
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, AHCI_P_SERR, 0xFFFFFFFF);

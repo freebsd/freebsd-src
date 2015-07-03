@@ -122,6 +122,7 @@
 			reg = <0x01c18000 0x1000>;
 			interrupts = <56>;
 			interrupt-parent = <&GIC>;
+			status = "disabled";
 		};
 
 		UART0: serial@01c28000 {

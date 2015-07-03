@@ -427,6 +427,8 @@ struct ahci_channel {
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */
 
+	void			(*start)(struct ahci_channel *);
+
 	union ccb		*hold[AHCI_MAX_SLOTS];
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	uint32_t		oslots;		/* Occupied slots */
@@ -512,6 +514,7 @@ struct ahci_controller {
 		void			(*function)(void *);
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
+	void			(*ch_start)(struct ahci_channel *);
 };
 
 enum ahci_err_type {
