@@ -334,6 +334,12 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
 	IPSEC_ASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
 		("invalid direction %u", dir));
 
+	if (!key_havesp(dir)) {
+		/* No SP found, use system default. */
+		sp = KEY_ALLOCSP_DEFAULT();
+		return (sp);
+	}
+
 	/* Set spidx in pcb. */
 	*error = ipsec_setspidx_inpcb(m, inp);
 	if (*error)
