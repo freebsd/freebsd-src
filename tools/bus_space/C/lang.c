@@ -182,6 +182,13 @@ busdma_md_load(busdma_md_t md, void *buf, size_t len, u_int flags)
 	return (bd_md_load(md, buf, len, flags));
 }
 
+int
+busdma_md_unload(busdma_md_t md)
+{
+
+	return (bd_md_unload(md));
+}
+
 busdma_seg_t
 busdma_md_first_seg(busdma_md_t md, int space)
 {
@@ -217,4 +224,11 @@ busdma_seg_get_size(busdma_seg_t seg)
 
 	error = bd_seg_get_size(seg, &size);
 	return ((error) ? ~0UL : size);
+}
+
+int
+busdma_sync(busdma_md_t md, int op, bus_addr_t base, bus_size_t size)
+{
+
+	return (bd_sync(md, op, base, size));
 }
