@@ -524,8 +524,9 @@ static driver_t a10_gpio_driver = {
 DRIVER_MODULE(a10_gpio, simplebus, a10_gpio_driver, a10_gpio_devclass, 0, 0);
 
 int
-a10_emac_gpio_config(uint32_t pin)
+a10_gpio_ethernet_activate(uint32_t func)
 {
+	int i;
 	struct a10_gpio_softc *sc = a10_gpio_sc;
 
 	if (sc == NULL)
@@ -533,7 +534,8 @@ a10_emac_gpio_config(uint32_t pin)
 
 	/* Configure pin mux settings for MII. */
 	A10_GPIO_LOCK(sc);
-	a10_gpio_set_function(sc, pin, A10_GPIO_PULLDOWN);
+	for (i = 0; i <= 17; i++)
+		a10_gpio_set_function(sc, i, func);
 	A10_GPIO_UNLOCK(sc);
 
 	return (0);
