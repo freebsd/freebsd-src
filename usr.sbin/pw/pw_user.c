@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
 #include <login_cap.h>
 #include <pwd.h>
 #include <grp.h>
@@ -52,9 +51,11 @@ static const char rcsid[] =
 
 static		char locked_str[] = "*LOCKED*";
 
-static int      print_user(struct passwd * pwd, int pretty, int v7);
-static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
-static uid_t    pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer);
+static int	delete_user(struct userconf *cnf, struct passwd *pwd,
+		    char *name, int delete, int mode);
+static int	print_user(struct passwd * pwd);
+static uid_t    pw_uidpolicy(struct userconf * cnf, long id);
+static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
 static time_t   pw_exppolicy(struct userconf * cnf, struct cargs * args);
 static char    *pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user);
@@ -63,6 +64,27 @@ static char    *pw_password(struct userconf * cnf, struct cargs * args, char con
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
 static void     rmopie(char const * name);
+
+static void
+create_and_populate_homedir(int mode, struct passwd *pwd)
+{
+	char *homedir, *dotdir;
+	struct userconf *cnf = conf.userconf;
+
+	homedir = dotdir = NULL;
+
+	if (conf.rootdir[0] != '\0') {
+		asprintf(&homedir, "%s/%s", conf.rootdir, pwd->pw_dir);
+		if (homedir == NULL)
+			errx(EX_OSERR, "out of memory");
+		asprintf(&dotdir, "%s/%s", conf.rootdir, cnf->dotdir);
+	}
+
+	copymkdir(homedir ? homedir : pwd->pw_dir, dotdir ? dotdir: cnf->dotdir,
+	    cnf->homemode, pwd->pw_uid, pwd->pw_gid);
+	pw_log(cnf, mode, W_USER, "%s(%u) home %s made", pwd->pw_name,
+	    pwd->pw_uid, pwd->pw_dir);
+}
 
 /*-
  * -C config      configuration file
@@ -97,18 +119,18 @@ static void     rmopie(char const * name);
  */
 
 int
-pw_user(struct userconf * cnf, int mode, struct cargs * args)
+pw_user(int mode, char *name, long id, struct cargs * args)
 {
 	int	        rc, edited = 0;
 	char           *p = NULL;
 	char					 *passtmp;
-	struct carg    *a_name;
-	struct carg    *a_uid;
 	struct carg    *arg;
 	struct passwd  *pwd = NULL;
 	struct group   *grp;
 	struct stat     st;
+	struct userconf	*cnf;
 	char            line[_PASSWORD_LEN+1];
+	char		path[MAXPATHLEN];
 	FILE	       *fp;
 	char *dmode_c;
 	void *set = NULL;
@@ -130,6 +152,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 #endif
 	};
 
+	cnf = conf.userconf;
 
 	/*
 	 * With M_NEXT, we only need to return the
@@ -137,11 +160,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 	if (mode == M_NEXT)
 	{
-		uid_t next = pw_uidpolicy(cnf, args);
+		uid_t next = pw_uidpolicy(cnf, id);
 		if (getarg(args, 'q'))
 			return next;
-		printf("%ld:", (long)next);
-		pw_group(cnf, mode, args);
+		printf("%u:", next);
+		pw_group(mode, name, -1, args);
 		return EXIT_SUCCESS;
 	}
 
@@ -185,8 +208,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
 			 */
 			if (strchr(cnf->home+1, '/') == NULL) {
-				strcpy(dbuf, "/usr");
-				strncat(dbuf, cnf->home, MAXPATHLEN-5);
+				snprintf(dbuf, MAXPATHLEN, "/usr%s", cnf->home);
 				if (mkdir(dbuf, _DEF_DIRMODE) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
 					/*
@@ -242,7 +264,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 	}
 	if ((arg = getarg(args, 'L')) != NULL)
-		cnf->default_class = pw_checkname((u_char *)arg->val, 0);
+		cnf->default_class = pw_checkname(arg->val, 0);
 
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
 		int i = 0;
@@ -270,7 +292,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if ((arg = getarg(args, 'w')) != NULL)
 		cnf->default_password = boolean_val(arg->val, cnf->default_password);
 	if (mode == M_ADD && getarg(args, 'D')) {
-		if (getarg(args, 'n') != NULL)
+		if (name != NULL)
 			errx(EX_DATAERR, "can't combine `-D' with `-n name'");
 		if ((arg = getarg(args, 'u')) != NULL && (p = strtok(arg->val, ", \t")) != NULL) {
 			if ((cnf->min_uid = (uid_t) atoi(p)) == 0)
@@ -285,46 +307,24 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				cnf->max_gid = 32000;
 		}
 
-		arg = getarg(args, 'C');
-		if (write_userconfig(arg ? arg->val : NULL))
-			return EXIT_SUCCESS;
-		warn("config update");
-		return EX_IOERR;
+		if (write_userconfig(conf.config))
+			return (EXIT_SUCCESS);
+		err(EX_IOERR, "config udpate");
 	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
-		int             pretty = getarg(args, 'P') != NULL;
-		int		v7 = getarg(args, '7') != NULL;
 		SETPWENT();
 		while ((pwd = GETPWENT()) != NULL)
-			print_user(pwd, pretty, v7);
+			print_user(pwd);
 		ENDPWENT();
 		return EXIT_SUCCESS;
 	}
 
-	if ((a_name = getarg(args, 'n')) != NULL)
-		pwd = GETPWNAM(pw_checkname((u_char *)a_name->val, 0));
-	a_uid = getarg(args, 'u');
+	if (name != NULL)
+		pwd = GETPWNAM(pw_checkname(name, 0));
 
-	if (a_uid == NULL) {
-		if (a_name == NULL)
-			errx(EX_DATAERR, "user name or id required");
-
-		/*
-		 * Determine whether 'n' switch is name or uid - we don't
-		 * really don't really care which we have, but we need to
-		 * know.
-		 */
-		if (mode != M_ADD && pwd == NULL
-		    && strspn(a_name->val, "0123456789") == strlen(a_name->val)
-		    && *a_name->val) {
-			(a_uid = a_name)->ch = 'u';
-			a_name = NULL;
-		}
-	} else {
-		if (strspn(a_uid->val, "0123456789") != strlen(a_uid->val))
-			errx(EX_USAGE, "-u expects a number");
-	}
+	if (id < 0 && name == NULL)
+		errx(EX_DATAERR, "user name or id required");
 
 	/*
 	 * Update, delete & print require that the user exists
@@ -332,24 +332,22 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if (mode == M_UPDATE || mode == M_DELETE ||
 	    mode == M_PRINT  || mode == M_LOCK   || mode == M_UNLOCK) {
 
-		if (a_name == NULL && pwd == NULL)	/* Try harder */
-			pwd = GETPWUID(atoi(a_uid->val));
+		if (name == NULL && pwd == NULL)	/* Try harder */
+			pwd = GETPWUID(id);
 
 		if (pwd == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
-				fakeuser.pw_name = a_name ? a_name->val : "nouser";
-				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : -1;
-				return print_user(&fakeuser,
-						  getarg(args, 'P') != NULL,
-						  getarg(args, '7') != NULL);
+				fakeuser.pw_name = name ? name : "nouser";
+				fakeuser.pw_uid = (uid_t) id;
+				return print_user(&fakeuser);
 			}
-			if (a_name == NULL)
-				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
-			errx(EX_NOUSER, "no such user `%s'", a_name->val);
+			if (name == NULL)
+				errx(EX_NOUSER, "no such uid `%ld'", id);
+			errx(EX_NOUSER, "no such user `%s'", name);
 		}
 
-		if (a_name == NULL)	/* May be needed later */
-			a_name = addarg(args, 'n', newstr(pwd->pw_name));
+		if (name == NULL)
+			name = pwd->pw_name;
 
 		/*
 		 * The M_LOCK and M_UNLOCK functions simply add or remove
@@ -364,11 +362,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if (mode == M_LOCK) {
 			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) == 0)
 				errx(EX_DATAERR, "user '%s' is already locked", pwd->pw_name);
-			passtmp = malloc(strlen(pwd->pw_passwd) + sizeof(locked_str));
+			asprintf(&passtmp, "%s%s", locked_str, pwd->pw_passwd);
 			if (passtmp == NULL)	/* disaster */
 				errx(EX_UNAVAILABLE, "out of memory");
-			strcpy(passtmp, locked_str);
-			strcat(passtmp, pwd->pw_passwd);
 			pwd->pw_passwd = passtmp;
 			edited = 1;
 		} else if (mode == M_UNLOCK) {
@@ -376,130 +372,24 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
 			pwd->pw_passwd += sizeof(locked_str)-1;
 			edited = 1;
-		} else if (mode == M_DELETE) {
-			/*
-			 * Handle deletions now
-			 */
-			char            file[MAXPATHLEN];
-			char            home[MAXPATHLEN];
-			uid_t           uid = pwd->pw_uid;
-			struct group    *gr;
-			char            grname[LOGNAMESIZE];
-
-			if (strcmp(pwd->pw_name, "root") == 0)
-				errx(EX_DATAERR, "cannot remove user 'root'");
-
-			if (!PWALTDIR()) {
-				/*
-				 * Remove opie record from /etc/opiekeys
-		        	 */
-
-				rmopie(pwd->pw_name);
-
-				/*
-				 * Remove crontabs
-				 */
-				snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
-				if (access(file, F_OK) == 0) {
-					sprintf(file, "crontab -u %s -r", pwd->pw_name);
-					system(file);
-				}
-			}
-			/*
-			 * Save these for later, since contents of pwd may be
-			 * invalidated by deletion
-			 */
-			sprintf(file, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
-			strlcpy(home, pwd->pw_dir, sizeof(home));
-			gr = GETGRGID(pwd->pw_gid);
-			if (gr != NULL)
-				strlcpy(grname, gr->gr_name, LOGNAMESIZE);
-			else
-				grname[0] = '\0';
-
-			rc = delpwent(pwd);
-			if (rc == -1)
-				err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
-			else if (rc != 0) {
-				warn("passwd update");
-				return EX_IOERR;
-			}
-
-			if (cnf->nispasswd && *cnf->nispasswd=='/') {
-				rc = delnispwent(cnf->nispasswd, a_name->val);
-				if (rc == -1)
-					warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
-				else if (rc != 0)
-					warn("WARNING: NIS passwd update");
-				/* non-fatal */
-			}
-
-			grp = GETGRNAM(a_name->val);
-			if (grp != NULL &&
-			    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
-			    strcmp(a_name->val, grname) == 0)
-				delgrent(GETGRNAM(a_name->val));
-			SETGRENT();
-			while ((grp = GETGRENT()) != NULL) {
-				int i, j;
-				char group[MAXLOGNAME];
-				if (grp->gr_mem != NULL) {
-					for (i = 0; grp->gr_mem[i] != NULL; i++) {
-						if (!strcmp(grp->gr_mem[i], a_name->val)) {
-							for (j = i; grp->gr_mem[j] != NULL; j++)
-								grp->gr_mem[j] = grp->gr_mem[j+1];
-							strlcpy(group, grp->gr_name, MAXLOGNAME);
-							chggrent(group, grp);
-						}
-					}
-				}
-			}
-			ENDGRENT();
-
-			pw_log(cnf, mode, W_USER, "%s(%ld) account removed", a_name->val, (long) uid);
-
-			if (!PWALTDIR()) {
-				/*
-				 * Remove mail file
-				 */
-				remove(file);
-
-				/*
-				 * Remove at jobs
-				 */
-				if (getpwuid(uid) == NULL)
-					rmat(uid);
-
-				/*
-				 * Remove home directory and contents
-				 */
-				if (getarg(args, 'r') != NULL && *home == '/' && getpwuid(uid) == NULL) {
-					if (stat(home, &st) != -1) {
-						rm_r(home, uid);
-						pw_log(cnf, mode, W_USER, "%s(%ld) home '%s' %sremoved",
-						       a_name->val, (long) uid, home,
-						       stat(home, &st) == -1 ? "" : "not completely ");
-					}
-				}
-			}
-			return EXIT_SUCCESS;
-		} else if (mode == M_PRINT)
-			return print_user(pwd,
-					  getarg(args, 'P') != NULL,
-					  getarg(args, '7') != NULL);
+		} else if (mode == M_DELETE)
+			return (delete_user(cnf, pwd, name,
+				    getarg(args, 'r') != NULL, mode));
+		else if (mode == M_PRINT)
+			return print_user(pwd);
 
 		/*
 		 * The rest is edit code
 		 */
-		if ((arg = getarg(args, 'l')) != NULL) {
+		if (conf.newname != NULL) {
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't rename `root' account");
-			pwd->pw_name = pw_checkname((u_char *)arg->val, 0);
+			pwd->pw_name = pw_checkname(conf.newname, 0);
 			edited = 1;
 		}
 
-		if ((arg = getarg(args, 'u')) != NULL && isdigit((unsigned char)*arg->val)) {
-			pwd->pw_uid = (uid_t) atol(arg->val);
+		if (id > 0 && isdigit((unsigned char)*arg->val)) {
+			pwd->pw_uid = (uid_t)id;
 			edited = 1;
 			if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "can't change uid of `root' account");
@@ -600,19 +490,19 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		 * Add code
 		 */
 
-		if (a_name == NULL)	/* Required */
+		if (name == NULL)	/* Required */
 			errx(EX_DATAERR, "login name required");
-		else if ((pwd = GETPWNAM(a_name->val)) != NULL)	/* Exists */
-			errx(EX_DATAERR, "login name `%s' already exists", a_name->val);
+		else if ((pwd = GETPWNAM(name)) != NULL)	/* Exists */
+			errx(EX_DATAERR, "login name `%s' already exists", name);
 
 		/*
 		 * Now, set up defaults for a new user
 		 */
 		pwd = &fakeuser;
-		pwd->pw_name = a_name->val;
+		pwd->pw_name = name;
 		pwd->pw_class = cnf->default_class ? cnf->default_class : "";
-		pwd->pw_uid = pw_uidpolicy(cnf, args);
-		pwd->pw_gid = pw_gidpolicy(cnf, args, pwd->pw_name, (gid_t) pwd->pw_uid);
+		pwd->pw_uid = pw_uidpolicy(cnf, id);
+		pwd->pw_gid = pw_gidpolicy(args, pwd->pw_name, (gid_t) pwd->pw_uid);
 		pwd->pw_change = pw_pwdpolicy(cnf, args);
 		pwd->pw_expire = pw_exppolicy(cnf, args);
 		pwd->pw_dir = pw_homepolicy(cnf, args, pwd->pw_name);
@@ -632,7 +522,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Shared add/edit code
 	 */
 	if ((arg = getarg(args, 'c')) != NULL) {
-		char	*gecos = pw_checkname((u_char *)arg->val, 1);
+		char	*gecos = pw_checkname(arg->val, 1);
 		if (strcmp(pwd->pw_gecos, gecos) != 0) {
 			pwd->pw_gecos = gecos;
 			edited = 1;
@@ -676,11 +566,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				fputc('\n', stdout);
 				fflush(stdout);
 			}
-			if (b < 0) {
-				warn("-%c file descriptor", precrypt ? 'H' :
-				    'h');
-				return EX_IOERR;
-			}
+			if (b < 0)
+				err(EX_IOERR, "-%c file descriptor",
+				    precrypt ? 'H' : 'h');
 			line[b] = '\0';
 			if ((p = strpbrk(line, "\r\n")) != NULL)
 				*p = '\0';
@@ -705,21 +593,17 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	/*
 	 * Special case: -N only displays & exits
 	 */
-	if (getarg(args, 'N') != NULL)
-		return print_user(pwd,
-				  getarg(args, 'P') != NULL,
-				  getarg(args, '7') != NULL);
+	if (conf.dryrun)
+		return print_user(pwd);
 
 	if (mode == M_ADD) {
 		edited = 1;	/* Always */
 		rc = addpwent(pwd);
-		if (rc == -1) {
-			warnx("user '%s' already exists", pwd->pw_name);
-			return EX_IOERR;
-		} else if (rc != 0) {
-			warn("passwd file update");
-			return EX_IOERR;
-		}
+		if (rc == -1)
+			errx(EX_IOERR, "user '%s' already exists",
+			    pwd->pw_name);
+		else if (rc != 0)
+			err(EX_IOERR, "passwd file update");
 		if (cnf->nispasswd && *cnf->nispasswd=='/') {
 			rc = addnispwent(cnf->nispasswd, pwd);
 			if (rc == -1)
@@ -730,16 +614,13 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
 		if (edited) {	/* Only updated this if required */
-			rc = chgpwent(a_name->val, pwd);
-			if (rc == -1) {
-				warnx("user '%s' does not exist (NIS?)", pwd->pw_name);
-				return EX_IOERR;
-			} else if (rc != 0) {
-				warn("passwd file update");
-				return EX_IOERR;
-			}
+			rc = chgpwent(name, pwd);
+			if (rc == -1)
+				errx(EX_IOERR, "user '%s' does not exist (NIS?)", pwd->pw_name);
+			else if (rc != 0)
+				err(EX_IOERR, "passwd file update");
 			if ( cnf->nispasswd && *cnf->nispasswd=='/') {
-				rc = chgnispwent(cnf->nispasswd, a_name->val, pwd);
+				rc = chgnispwent(cnf->nispasswd, name, pwd);
 				if (rc == -1)
 					warn("User '%s' not found in NIS passwd", pwd->pw_name);
 				else
@@ -791,21 +672,21 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 
 	/* go get a current version of pwd */
-	pwd = GETPWNAM(a_name->val);
+	pwd = GETPWNAM(name);
 	if (pwd == NULL) {
 		/* This will fail when we rename, so special case that */
-		if (mode == M_UPDATE && (arg = getarg(args, 'l')) != NULL) {
-			a_name->val = arg->val;		/* update new name */
-			pwd = GETPWNAM(a_name->val);	/* refetch renamed rec */
+		if (mode == M_UPDATE && conf.newname != NULL) {
+			name = conf.newname;		/* update new name */
+			pwd = GETPWNAM(name);	/* refetch renamed rec */
 		}
 	}
 	if (pwd == NULL)	/* can't go on without this */
-		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
+		errx(EX_NOUSER, "user '%s' disappeared during update", name);
 
 	grp = GETGRGID(pwd->pw_gid);
-	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%ld):%s:%s:%s",
-	       pwd->pw_name, (long) pwd->pw_uid,
-	    grp ? grp->gr_name : "unknown", (long) (grp ? grp->gr_gid : -1),
+	pw_log(cnf, mode, W_USER, "%s(%u):%s(%u):%s:%s:%s",
+	       pwd->pw_name, pwd->pw_uid,
+	    grp ? grp->gr_name : "unknown", (grp ? grp->gr_gid : (uid_t)-1),
 	       pwd->pw_gecos, pwd->pw_dir, pwd->pw_shell);
 
 	/*
@@ -814,11 +695,13 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * doesn't hurt anything to create the empty mailfile
 	 */
 	if (mode == M_ADD) {
-		if (!PWALTDIR()) {
-			sprintf(line, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
-			close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
+		if (PWALTDIR() != PWF_ALT) {
+			arg = getarg(args, 'R');
+			snprintf(path, sizeof(path), "%s%s/%s",
+			    arg ? arg->val : "", _PATH_MAILDIR, pwd->pw_name);
+			close(open(path, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
 									 * mtime */
-			chown(line, pwd->pw_uid, pwd->pw_gid);
+			chown(path, pwd->pw_uid, pwd->pw_gid);
 		}
 	}
 
@@ -827,12 +710,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * that this also `works' for editing users if -m is used, but
 	 * existing files will *not* be overwritten.
 	 */
-	if (!PWALTDIR() && getarg(args, 'm') != NULL && pwd->pw_dir && *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
-		copymkdir(pwd->pw_dir, cnf->dotdir, cnf->homemode, pwd->pw_uid, pwd->pw_gid);
-		pw_log(cnf, mode, W_USER, "%s(%ld) home %s made",
-		       pwd->pw_name, (long) pwd->pw_uid, pwd->pw_dir);
-	}
-
+	if (PWALTDIR() != PWF_ALT && getarg(args, 'm') != NULL && pwd->pw_dir &&
+	    *pwd->pw_dir == '/' && pwd->pw_dir[1])
+		create_and_populate_homedir(mode, pwd);
 
 	/*
 	 * Finally, send mail to the new user as well, if we are asked to
@@ -849,8 +729,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				fputs(line, pfp);
 			}
 			pclose(pfp);
-			pw_log(cnf, mode, W_USER, "%s(%ld) new user mail sent",
-			    pwd->pw_name, (long) pwd->pw_uid);
+			pw_log(cnf, mode, W_USER, "%s(%u) new user mail sent",
+			    pwd->pw_name, pwd->pw_uid);
 		}
 		fclose(fp);
 	}
@@ -860,20 +740,19 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 
 static          uid_t
-pw_uidpolicy(struct userconf * cnf, struct cargs * args)
+pw_uidpolicy(struct userconf * cnf, long id)
 {
 	struct passwd  *pwd;
 	uid_t           uid = (uid_t) - 1;
-	struct carg    *a_uid = getarg(args, 'u');
 
 	/*
 	 * Check the given uid, if any
 	 */
-	if (a_uid != NULL) {
-		uid = (uid_t) atol(a_uid->val);
+	if (id > 0) {
+		uid = (uid_t) id;
 
-		if ((pwd = GETPWUID(uid)) != NULL && getarg(args, 'o') == NULL)
-			errx(EX_DATAERR, "uid `%ld' has already been allocated", (long) pwd->pw_uid);
+		if ((pwd = GETPWUID(uid)) != NULL && conf.checkduplicate)
+			errx(EX_DATAERR, "uid `%u' has already been allocated", pwd->pw_uid);
 	} else {
 		struct bitmap   bm;
 
@@ -916,11 +795,12 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 
 
 static          uid_t
-pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer)
+pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 {
 	struct group   *grp;
 	gid_t           gid = (uid_t) - 1;
 	struct carg    *a_gid = getarg(args, 'g');
+	struct userconf	*cnf = conf.userconf;
 
 	/*
 	 * If no arg given, see if default can help out
@@ -947,7 +827,6 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		char            tmp[32];
 
 		LIST_INIT(&grpargs);
-		addarg(&grpargs, 'n', nam);
 
 		/*
 		 * We need to auto-create a group with the user's name. We
@@ -959,18 +838,16 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		 * function will happily handle that case for us and exit.
 		 */
 		if (GETGRGID(prefer) == NULL) {
-			sprintf(tmp, "%lu", (unsigned long) prefer);
+			snprintf(tmp, sizeof(tmp), "%u", prefer);
 			addarg(&grpargs, 'g', tmp);
 		}
-		if (getarg(args, 'N'))
-		{
-			addarg(&grpargs, 'N', NULL);
+		if (conf.dryrun) {
 			addarg(&grpargs, 'q', NULL);
-			gid = pw_group(cnf, M_NEXT, &grpargs);
+			gid = pw_group(M_NEXT, nam, -1, &grpargs);
 		}
 		else
 		{
-			pw_group(cnf, M_ADD, &grpargs);
+			pw_group(M_ADD, nam, -1, &grpargs);
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
 		}
@@ -1022,17 +899,16 @@ static char    *
 pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user)
 {
 	struct carg    *arg = getarg(args, 'd');
+	static char     home[128];
 
 	if (arg)
-		return arg->val;
-	else {
-		static char     home[128];
+		return (arg->val);
 
-		if (cnf->home == NULL || *cnf->home == '\0')
-			errx(EX_CONFIG, "no base home directory set");
-		sprintf(home, "%s/%s", cnf->home, user);
-		return home;
-	}
+	if (cnf->home == NULL || *cnf->home == '\0')
+		errx(EX_CONFIG, "no base home directory set");
+	snprintf(home, sizeof(home), "%s/%s", cnf->home, user);
+
+	return (home);
 }
 
 static char    *
@@ -1053,12 +929,12 @@ shell_path(char const * path, char *shells[], char *sh)
 			static char     shellpath[256];
 
 			if (sh != NULL) {
-				sprintf(shellpath, "%s/%s", p, sh);
+				snprintf(shellpath, sizeof(shellpath), "%s/%s", p, sh);
 				if (access(shellpath, X_OK) == 0)
 					return shellpath;
 			} else
 				for (i = 0; i < _UC_MAXSHELLS && shells[i] != NULL; i++) {
-					sprintf(shellpath, "%s/%s", p, shells[i]);
+					snprintf(shellpath, sizeof(shellpath), "%s/%s", p, shells[i]);
 					if (access(shellpath, X_OK) == 0)
 						return shellpath;
 				}
@@ -1126,7 +1002,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		 * We give this information back to the user
 		 */
 		if (getarg(args, 'h') == NULL && getarg(args, 'H') == NULL &&
-		    getarg(args, 'N') == NULL) {
+		    !conf.dryrun) {
 			if (isatty(STDOUT_FILENO))
 				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
@@ -1148,17 +1024,124 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 	return pw_pwcrypt(pwbuf);
 }
 
+static int
+delete_user(struct userconf *cnf, struct passwd *pwd, char *name,
+    int delete, int mode)
+{
+	char		 file[MAXPATHLEN];
+	char		 home[MAXPATHLEN];
+	uid_t		 uid = pwd->pw_uid;
+	struct group	*gr, *grp;
+	char		 grname[LOGNAMESIZE];
+	int		 rc;
+	struct stat	 st;
+
+	if (strcmp(pwd->pw_name, "root") == 0)
+		errx(EX_DATAERR, "cannot remove user 'root'");
+
+	if (!PWALTDIR()) {
+		/*
+		 * Remove opie record from /etc/opiekeys
+		*/
+
+		rmopie(pwd->pw_name);
+
+		/*
+		 * Remove crontabs
+		 */
+		snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
+		if (access(file, F_OK) == 0) {
+			snprintf(file, sizeof(file), "crontab -u %s -r", pwd->pw_name);
+			system(file);
+		}
+	}
+	/*
+	 * Save these for later, since contents of pwd may be
+	 * invalidated by deletion
+	 */
+	snprintf(file, sizeof(file), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+	strlcpy(home, pwd->pw_dir, sizeof(home));
+	gr = GETGRGID(pwd->pw_gid);
+	if (gr != NULL)
+		strlcpy(grname, gr->gr_name, LOGNAMESIZE);
+	else
+		grname[0] = '\0';
+
+	rc = delpwent(pwd);
+	if (rc == -1)
+		err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
+	else if (rc != 0)
+		err(EX_IOERR, "passwd update");
+
+	if (cnf->nispasswd && *cnf->nispasswd=='/') {
+		rc = delnispwent(cnf->nispasswd, name);
+		if (rc == -1)
+			warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
+		else if (rc != 0)
+			warn("WARNING: NIS passwd update");
+		/* non-fatal */
+	}
+
+	grp = GETGRNAM(name);
+	if (grp != NULL &&
+	    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
+	    strcmp(name, grname) == 0)
+		delgrent(GETGRNAM(name));
+	SETGRENT();
+	while ((grp = GETGRENT()) != NULL) {
+		int i, j;
+		char group[MAXLOGNAME];
+		if (grp->gr_mem == NULL)
+			continue;
+
+		for (i = 0; grp->gr_mem[i] != NULL; i++) {
+			if (strcmp(grp->gr_mem[i], name) != 0)
+				continue;
+
+			for (j = i; grp->gr_mem[j] != NULL; j++)
+				grp->gr_mem[j] = grp->gr_mem[j+1];
+			strlcpy(group, grp->gr_name, MAXLOGNAME);
+			chggrent(group, grp);
+		}
+	}
+	ENDGRENT();
+
+	pw_log(cnf, mode, W_USER, "%s(%u) account removed", name, uid);
+
+	if (!PWALTDIR()) {
+		/*
+		 * Remove mail file
+		 */
+		remove(file);
+
+		/*
+		 * Remove at jobs
+		 */
+		if (getpwuid(uid) == NULL)
+			rmat(uid);
+
+		/*
+		 * Remove home directory and contents
+		 */
+		if (delete && *home == '/' && getpwuid(uid) == NULL &&
+		    stat(home, &st) != -1) {
+			rm_r(home, uid);
+			pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
+			       name, uid, home,
+			       stat(home, &st) == -1 ? "" : "not completely ");
+		}
+	}
+
+	return (EXIT_SUCCESS);
+}
 
 static int
-print_user(struct passwd * pwd, int pretty, int v7)
+print_user(struct passwd * pwd)
 {
-	if (!pretty) {
+	if (!conf.pretty) {
 		char            *buf;
 
-		if (!v7)
-			pwd->pw_passwd = (pwd->pw_passwd == NULL) ? "" : "*";
-
-		buf = v7 ? pw_make_v7(pwd) : pw_make(pwd);
+		buf = conf.v7 ? pw_make_v7(pwd) : pw_make(pwd);
 		printf("%s\n", buf);
 		free(buf);
 	} else {
@@ -1198,14 +1181,14 @@ print_user(struct passwd * pwd, int pretty, int v7)
 			strftime(acexpire, sizeof acexpire, "%c", tptr);
 		if (pwd->pw_change > (time_t)0 && (tptr = localtime(&pwd->pw_change)) != NULL)
 			strftime(pwexpire, sizeof pwexpire, "%c", tptr);
-		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
+		printf("Login Name: %-15s   #%-12u Group: %-15s   #%u\n"
 		       " Full Name: %s\n"
 		       "      Home: %-26.26s      Class: %s\n"
 		       "     Shell: %-26.26s     Office: %s\n"
 		       "Work Phone: %-26.26s Home Phone: %s\n"
 		       "Acc Expire: %-26.26s Pwd Expire: %s\n",
-		       pwd->pw_name, (long) pwd->pw_uid,
-		       grp ? grp->gr_name : "(invalid)", (long) pwd->pw_gid,
+		       pwd->pw_name, pwd->pw_uid,
+		       grp ? grp->gr_name : "(invalid)", pwd->pw_gid,
 		       uname, pwd->pw_dir, pwd->pw_class,
 		       pwd->pw_shell, office, wphone, hphone,
 		       acexpire, pwexpire);
@@ -1232,11 +1215,11 @@ print_user(struct passwd * pwd, int pretty, int v7)
 	return EXIT_SUCCESS;
 }
 
-char    *
-pw_checkname(u_char *name, int gecos)
+char *
+pw_checkname(char *name, int gecos)
 {
 	char showch[8];
-	u_char const *badchars, *ch, *showtype;
+	const char *badchars, *ch, *showtype;
 	int reject;
 
 	ch = name;
@@ -1287,7 +1270,8 @@ pw_checkname(u_char *name, int gecos)
 	if (!gecos && (ch - name) > LOGNAMESIZE)
 		errx(EX_DATAERR, "name too long `%s' (max is %d)", name,
 		    LOGNAMESIZE);
-	return (char *)name;
+
+	return (name);
 }
 
 
@@ -1308,7 +1292,7 @@ rmat(uid_t uid)
 			    st.st_uid == uid) {
 				char            tmp[MAXPATHLEN];
 
-				sprintf(tmp, "/usr/bin/atrm %s", e->d_name);
+				snprintf(tmp, sizeof(tmp), "/usr/bin/atrm %s", e->d_name);
 				system(tmp);
 			}
 		}

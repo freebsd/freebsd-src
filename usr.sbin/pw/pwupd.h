@@ -29,11 +29,13 @@
 #ifndef _PWUPD_H_
 #define _PWUPD_H_
 
+#include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/types.h>
+
 #include <pwd.h>
 #include <grp.h>
-
-#include <sys/cdefs.h>
+#include <stdbool.h>
 
 #if defined(__FreeBSD__)
 #define	RET_SETGRENT	int
@@ -41,8 +43,7 @@
 #define	RET_SETGRENT	void
 #endif
 
-struct pwf
-{
+struct pwf {
 	int		    _altdir;
 	void		  (*_setpwent)(void);
 	void		  (*_endpwent)(void);
@@ -56,8 +57,44 @@ struct pwf
 	struct group  * (*_getgrnam)(const char * nam);
 };
 
+struct userconf {
+	int	default_password;	/* Default password for new users? */
+	int	reuse_uids;		/* Reuse uids? */
+	int	reuse_gids;		/* Reuse gids? */
+	char	*nispasswd;		/* Path to NIS version of the passwd file */
+	char	*dotdir;		/* Where to obtain skeleton files */
+	char	*newmail;		/* Mail to send to new accounts */
+	char	*logfile;		/* Where to log changes */
+	char	*home;			/* Where to create home directory */
+	mode_t	homemode;		/* Home directory permissions */
+	char	*shelldir;		/* Where shells are located */
+	char	**shells;		/* List of shells */
+	char	*shell_default;		/* Default shell */
+	char	*default_group;		/* Default group number */
+	char	**groups;		/* Default (additional) groups */
+	char	*default_class;		/* Default user class */
+	uid_t	min_uid, max_uid;	/* Allowed range of uids */
+	gid_t	min_gid, max_gid;	/* Allowed range of gids */
+	int	expire_days;		/* Days to expiry */
+	int	password_days;		/* Days to password expiry */
+	int	numgroups;		/* (internal) size of default_group array */
+};
+
+struct pwconf {
+	char		 rootdir[MAXPATHLEN];
+	char		 etcpath[MAXPATHLEN];
+	char		*newname;
+	char		*config;
+	bool		 dryrun;
+	bool		 pretty;
+	bool		 v7;
+	bool		 checkduplicate;
+	struct userconf	*userconf;
+};
+
 extern struct pwf PWF;
 extern struct pwf VPWF;
+extern struct pwconf conf;
 
 #define SETPWENT()	PWF._setpwent()
 #define ENDPWENT()	PWF._endpwent()
@@ -70,6 +107,10 @@ extern struct pwf VPWF;
 #define GETGRENT()	PWF._getgrent()
 #define GETGRGID(gid)	PWF._getgrgid(gid)
 #define GETGRNAM(nam)	PWF._getgrnam(nam)
+
+#define PWF_REGULAR 0
+#define PWF_ALT 1
+#define PWF_ROOTDIR 2
 
 #define PWALTDIR()	PWF._altdir
 #ifndef _PATH_PWD
@@ -87,14 +128,12 @@ int addpwent(struct passwd * pwd);
 int delpwent(struct passwd * pwd);
 int chgpwent(char const * login, struct passwd * pwd);
 
-int setpwdir(const char * dir);
 char * getpwpath(char const * file);
 
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);
 int chggrent(char const * name, struct group * grp);
 
-int setgrdir(const char * dir);
 char * getgrpath(const char *file);
 
 void vsetpwent(void);
@@ -111,10 +150,7 @@ void           vendgrent(void);
 
 void copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid);
 void rm_r(char const * dir, uid_t uid);
-int extendline(char **buf, int *buflen, int needed);
 int extendarray(char ***buf, int *buflen, int needed);
 __END_DECLS
-
-#define PWBUFSZ 1024
 
 #endif				/* !_PWUPD_H */
