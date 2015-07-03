@@ -351,7 +351,7 @@ qca955x_chip_reset_nfc(int active)
 /*
  * Configure the GPIO output mux setup.
  *
- * The AR934x introduced an output mux which allowed
+ * The QCA955x has an output mux which allowed
  * certain functions to be configured on any pin.
  * Specifically, the switch PHY link LEDs and
  * WMAC external RX LNA switches are not limited to
@@ -360,14 +360,13 @@ qca955x_chip_reset_nfc(int active)
 static void
 qca955x_chip_gpio_output_configure(int gpio, uint8_t func)
 {
-#if 0
 	uint32_t reg, s;
 	uint32_t t;
 
 	if (gpio > QCA955X_GPIO_COUNT)
 		return;
 
-	reg = AR934X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	reg = QCA955X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
 	s = 8 * (gpio % 4);
 
 	/* read-modify-write */
@@ -378,7 +377,6 @@ qca955x_chip_gpio_output_configure(int gpio, uint8_t func)
 
 	/* flush write */
 	ATH_READ_REG(AR71XX_GPIO_BASE + reg);
-#endif
 }
 
 struct ar71xx_cpu_def qca955x_chip_def = {
