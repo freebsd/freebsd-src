@@ -2069,6 +2069,10 @@ dev/ppc/ppc_acpi.c		optional ppc acpi
 dev/ppc/ppc_isa.c		optional ppc isa
 dev/ppc/ppc_pci.c		optional ppc pci
 dev/ppc/ppc_puc.c		optional ppc puc
+dev/proto/proto_bus_isa.c	optional proto acpi | proto isa
+dev/proto/proto_bus_pci.c	optional proto pci
+dev/proto/proto_busdma.c	optional proto
+dev/proto/proto_core.c		optional proto
 dev/pst/pst-iop.c		optional pst
 dev/pst/pst-pci.c		optional pst pci
 dev/pst/pst-raid.c		optional pst
