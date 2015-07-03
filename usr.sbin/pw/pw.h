@@ -72,30 +72,6 @@ struct carg
 
 LIST_HEAD(cargs, carg);
 
-struct userconf
-{
-	int	default_password;	/* Default password for new users? */
-	int	reuse_uids;		/* Reuse uids? */
-	int	reuse_gids;		/* Reuse gids? */
-	char	*nispasswd;		/* Path to NIS version of the passwd file */
-	char	*dotdir;		/* Where to obtain skeleton files */
-	char	*newmail;		/* Mail to send to new accounts */
-	char	*logfile;		/* Where to log changes */
-	char	*home;			/* Where to create home directory */
-	mode_t	homemode;		/* Home directory permissions */
-	char	*shelldir;		/* Where shells are located */
-	char	**shells;		/* List of shells */
-	char	*shell_default;		/* Default shell */
-	char	*default_group;		/* Default group number */
-	char	**groups;		/* Default (additional) groups */
-	char	*default_class;		/* Default user class */
-	uid_t	min_uid, max_uid;	/* Allowed range of uids */
-	gid_t	min_gid, max_gid;	/* Allowed range of gids */
-	int	expire_days;		/* Days to expiry */
-	int	password_days;		/* Days to password expiry */
-	int	numgroups;		/* (internal) size of default_group array */
-};
-
 #define	_DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define _PATH_PW_CONF	"/etc/pw.conf"
 #define _UC_MAXLINE	1024
@@ -106,9 +82,9 @@ int write_userconfig(char const * file);
 struct carg *addarg(struct cargs * _args, int ch, char *argstr);
 struct carg *getarg(struct cargs * _args, int ch);
 
-int pw_user(struct userconf * cnf, int mode, struct cargs * _args);
-int pw_group(struct userconf * cnf, int mode, struct cargs * _args);
-char    *pw_checkname(u_char *name, int gecos);
+int pw_user(int mode, char *name, long id, struct cargs * _args);
+int pw_group(int mode, char *name, long id,  struct cargs * _args);
+char *pw_checkname(char *name, int gecos);
 
 int addnispwent(const char *path, struct passwd *pwd);
 int delnispwent(const char *path, const char *login);

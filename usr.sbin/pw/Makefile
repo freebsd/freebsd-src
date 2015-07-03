@@ -8,10 +8,10 @@ SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c pw_nis.c pw_vpw.c \
 	grupd.c pwupd.c fileupd.c psdate.c \
 	bitmap.c cpdir.c rm_r.c
 
-WARNS?=	2
+WARNS?=	3
 
-DPADD=	${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lcrypt -lutil
+DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBSBUF}
+LDADD=	-lcrypt -lutil -lsbuf
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests

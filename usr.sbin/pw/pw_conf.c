@@ -29,9 +29,12 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/sbuf.h>
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <err.h>
 
 #include "pw.h"
 
@@ -209,19 +212,16 @@ boolean_str(int val)
 char           *
 newstr(char const * p)
 {
-	char           *q = NULL;
+	char	*q;
 
-	if ((p = unquote(p)) != NULL) {
-		int             l = strlen(p) + 1;
+	if ((p = unquote(p)) == NULL)
+		return (NULL);
 
-		if ((q = malloc(l)) != NULL)
-			memcpy(q, p, l);
-	}
-	return q;
+	if ((q = strdup(p)) == NULL)
+		err(1, "strdup()");
+
+	return (q);
 }
-
-#define LNBUFSZ 1024
-
 
 struct userconf *
 read_userconfig(char const * file)
@@ -234,131 +234,134 @@ read_userconfig(char const * file)
 	buf = NULL;
 	linecap = 0;
 
-	extendarray(&config.groups, &config.numgroups, 200);
-	memset(config.groups, 0, config.numgroups * sizeof(char *));
+	config.numgroups = 200;
+	config.groups = calloc(config.numgroups, sizeof(char *));
+	if (config.groups == NULL)
+		err(1, "calloc()");
 	if (file == NULL)
 		file = _PATH_PW_CONF;
 
-	if ((fp = fopen(file, "r")) != NULL) {
-		while ((linelen = getline(&buf, &linecap, fp)) > 0) {
-			if (*buf && (p = strtok(buf, " \t\r\n=")) != NULL && *p != '#') {
-				static char const toks[] = " \t\r\n,=";
-				char           *q = strtok(NULL, toks);
-				int             i = 0;
-				mode_t          *modeset;
+	if ((fp = fopen(file, "r")) == NULL)
+		return (&config);
 
-				while (i < _UC_FIELDS && strcmp(p, kwds[i]) != 0)
-					++i;
+	while ((linelen = getline(&buf, &linecap, fp)) > 0) {
+		if (*buf && (p = strtok(buf, " \t\r\n=")) != NULL && *p != '#') {
+			static char const toks[] = " \t\r\n,=";
+			char           *q = strtok(NULL, toks);
+			int             i = 0;
+			mode_t          *modeset;
+
+			while (i < _UC_FIELDS && strcmp(p, kwds[i]) != 0)
+				++i;
 #if debugging
-				if (i == _UC_FIELDS)
-					printf("Got unknown kwd `%s' val=`%s'\n", p, q ? q : "");
-				else
-					printf("Got kwd[%s]=%s\n", p, q);
+			if (i == _UC_FIELDS)
+				printf("Got unknown kwd `%s' val=`%s'\n", p, q ? q : "");
+			else
+				printf("Got kwd[%s]=%s\n", p, q);
 #endif
-				switch (i) {
-				case _UC_DEFAULTPWD:
-					config.default_password = boolean_val(q, 1);
-					break;
-				case _UC_REUSEUID:
-					config.reuse_uids = boolean_val(q, 0);
-					break;
-				case _UC_REUSEGID:
-					config.reuse_gids = boolean_val(q, 0);
-					break;
-				case _UC_NISPASSWD:
-					config.nispasswd = (q == NULL || !boolean_val(q, 1))
-						? NULL : newstr(q);
-					break;
-				case _UC_DOTDIR:
-					config.dotdir = (q == NULL || !boolean_val(q, 1))
-						? NULL : newstr(q);
-					break;
+			switch (i) {
+			case _UC_DEFAULTPWD:
+				config.default_password = boolean_val(q, 1);
+				break;
+			case _UC_REUSEUID:
+				config.reuse_uids = boolean_val(q, 0);
+				break;
+			case _UC_REUSEGID:
+				config.reuse_gids = boolean_val(q, 0);
+				break;
+			case _UC_NISPASSWD:
+				config.nispasswd = (q == NULL || !boolean_val(q, 1))
+					? NULL : newstr(q);
+				break;
+			case _UC_DOTDIR:
+				config.dotdir = (q == NULL || !boolean_val(q, 1))
+					? NULL : newstr(q);
+				break;
 				case _UC_NEWMAIL:
-					config.newmail = (q == NULL || !boolean_val(q, 1))
-						? NULL : newstr(q);
-					break;
-				case _UC_LOGFILE:
-					config.logfile = (q == NULL || !boolean_val(q, 1))
-						? NULL : newstr(q);
-					break;
-				case _UC_HOMEROOT:
-					config.home = (q == NULL || !boolean_val(q, 1))
-						? "/home" : newstr(q);
-					break;
-				case _UC_HOMEMODE:
-					modeset = setmode(q);
-					config.homemode = (q == NULL || !boolean_val(q, 1))
-						? _DEF_DIRMODE : getmode(modeset, _DEF_DIRMODE);
-					free(modeset);
-					break;
-				case _UC_SHELLPATH:
-					config.shelldir = (q == NULL || !boolean_val(q, 1))
-						? "/bin" : newstr(q);
-					break;
-				case _UC_SHELLS:
-					for (i = 0; i < _UC_MAXSHELLS && q != NULL; i++, q = strtok(NULL, toks))
-						system_shells[i] = newstr(q);
-					if (i > 0)
-						while (i < _UC_MAXSHELLS)
-							system_shells[i++] = NULL;
-					break;
-				case _UC_DEFAULTSHELL:
-					config.shell_default = (q == NULL || !boolean_val(q, 1))
-						? (char *) bourne_shell : newstr(q);
-					break;
-				case _UC_DEFAULTGROUP:
-					q = unquote(q);
-					config.default_group = (q == NULL || !boolean_val(q, 1) || GETGRNAM(q) == NULL)
-						? NULL : newstr(q);
-					break;
-				case _UC_EXTRAGROUPS:
-					for (i = 0; q != NULL; q = strtok(NULL, toks)) {
-						if (extendarray(&config.groups, &config.numgroups, i + 2) != -1)
-							config.groups[i++] = newstr(q);
-					}
-					if (i > 0)
-						while (i < config.numgroups)
-							config.groups[i++] = NULL;
-					break;
-				case _UC_DEFAULTCLASS:
-					config.default_class = (q == NULL || !boolean_val(q, 1))
-						? NULL : newstr(q);
-					break;
-				case _UC_MINUID:
-					if ((q = unquote(q)) != NULL && isdigit(*q))
-						config.min_uid = (uid_t) atol(q);
-					break;
-				case _UC_MAXUID:
-					if ((q = unquote(q)) != NULL && isdigit(*q))
-						config.max_uid = (uid_t) atol(q);
-					break;
-				case _UC_MINGID:
-					if ((q = unquote(q)) != NULL && isdigit(*q))
-						config.min_gid = (gid_t) atol(q);
-					break;
-				case _UC_MAXGID:
-					if ((q = unquote(q)) != NULL && isdigit(*q))
-						config.max_gid = (gid_t) atol(q);
-					break;
-				case _UC_EXPIRE:
-					if ((q = unquote(q)) != NULL && isdigit(*q))
-						config.expire_days = atoi(q);
-					break;
-				case _UC_PASSWORD:
-					if ((q = unquote(q)) != NULL && isdigit(*q))
-						config.password_days = atoi(q);
-					break;
-				case _UC_FIELDS:
-				case _UC_NONE:
-					break;
+				config.newmail = (q == NULL || !boolean_val(q, 1))
+					? NULL : newstr(q);
+				break;
+			case _UC_LOGFILE:
+				config.logfile = (q == NULL || !boolean_val(q, 1))
+					? NULL : newstr(q);
+				break;
+			case _UC_HOMEROOT:
+				config.home = (q == NULL || !boolean_val(q, 1))
+					? "/home" : newstr(q);
+				break;
+			case _UC_HOMEMODE:
+				modeset = setmode(q);
+				config.homemode = (q == NULL || !boolean_val(q, 1))
+					? _DEF_DIRMODE : getmode(modeset, _DEF_DIRMODE);
+				free(modeset);
+				break;
+			case _UC_SHELLPATH:
+				config.shelldir = (q == NULL || !boolean_val(q, 1))
+					? "/bin" : newstr(q);
+				break;
+			case _UC_SHELLS:
+				for (i = 0; i < _UC_MAXSHELLS && q != NULL; i++, q = strtok(NULL, toks))
+					system_shells[i] = newstr(q);
+				if (i > 0)
+					while (i < _UC_MAXSHELLS)
+						system_shells[i++] = NULL;
+				break;
+			case _UC_DEFAULTSHELL:
+				config.shell_default = (q == NULL || !boolean_val(q, 1))
+					? (char *) bourne_shell : newstr(q);
+				break;
+			case _UC_DEFAULTGROUP:
+				q = unquote(q);
+				config.default_group = (q == NULL || !boolean_val(q, 1) || GETGRNAM(q) == NULL)
+					? NULL : newstr(q);
+				break;
+			case _UC_EXTRAGROUPS:
+				for (i = 0; q != NULL; q = strtok(NULL, toks)) {
+					if (extendarray(&config.groups, &config.numgroups, i + 2) != -1)
+						config.groups[i++] = newstr(q);
 				}
+				if (i > 0)
+					while (i < config.numgroups)
+						config.groups[i++] = NULL;
+				break;
+			case _UC_DEFAULTCLASS:
+				config.default_class = (q == NULL || !boolean_val(q, 1))
+					? NULL : newstr(q);
+				break;
+			case _UC_MINUID:
+				if ((q = unquote(q)) != NULL && isdigit(*q))
+					config.min_uid = (uid_t) atol(q);
+				break;
+			case _UC_MAXUID:
+				if ((q = unquote(q)) != NULL && isdigit(*q))
+					config.max_uid = (uid_t) atol(q);
+				break;
+			case _UC_MINGID:
+				if ((q = unquote(q)) != NULL && isdigit(*q))
+					config.min_gid = (gid_t) atol(q);
+				break;
+			case _UC_MAXGID:
+				if ((q = unquote(q)) != NULL && isdigit(*q))
+					config.max_gid = (gid_t) atol(q);
+				break;
+			case _UC_EXPIRE:
+				if ((q = unquote(q)) != NULL && isdigit(*q))
+					config.expire_days = atoi(q);
+				break;
+			case _UC_PASSWORD:
+				if ((q = unquote(q)) != NULL && isdigit(*q))
+					config.password_days = atoi(q);
+				break;
+			case _UC_FIELDS:
+			case _UC_NONE:
+				break;
 			}
 		}
-		if (linecap > 0)
-			free(buf);
-		fclose(fp);
 	}
-	return &config;
+	free(buf);
+	fclose(fp);
+
+	return (&config);
 }
 
 
@@ -366,138 +369,132 @@ int
 write_userconfig(char const * file)
 {
 	int             fd;
+	int             i, j;
+	struct sbuf	*buf;
+	FILE           *fp;
 
 	if (file == NULL)
 		file = _PATH_PW_CONF;
 
-	if ((fd = open(file, O_CREAT | O_RDWR | O_TRUNC | O_EXLOCK, 0644)) != -1) {
-		FILE           *fp;
+	if ((fd = open(file, O_CREAT|O_RDWR|O_TRUNC|O_EXLOCK, 0644)) == -1)
+		return (0);
 
-		if ((fp = fdopen(fd, "w")) == NULL)
-			close(fd);
-		else {
-			int             i, j, k;
-			int		len = LNBUFSZ;
-			char           *buf = malloc(len);
+	if ((fp = fdopen(fd, "w")) == NULL) {
+		close(fd);
+		return (0);
+	}
+			
+	buf = sbuf_new_auto();
+	for (i = _UC_NONE; i < _UC_FIELDS; i++) {
+		int             quote = 1;
 
-			for (i = _UC_NONE; i < _UC_FIELDS; i++) {
-				int             quote = 1;
-				char const     *val = buf;
+		sbuf_clear(buf);
+		switch (i) {
+		case _UC_DEFAULTPWD:
+			sbuf_cat(buf, boolean_str(config.default_password));
+			break;
+		case _UC_REUSEUID:
+			sbuf_cat(buf, boolean_str(config.reuse_uids));
+			break;
+		case _UC_REUSEGID:
+			sbuf_cat(buf, boolean_str(config.reuse_gids));
+			break;
+		case _UC_NISPASSWD:
+			sbuf_cat(buf, config.nispasswd ?  config.nispasswd :
+			    "");
+			quote = 0;
+			break;
+		case _UC_DOTDIR:
+			sbuf_cat(buf, config.dotdir ?  config.dotdir :
+			    boolean_str(0));
+			break;
+		case _UC_NEWMAIL:
+			sbuf_cat(buf, config.newmail ?  config.newmail :
+			    boolean_str(0));
+			break;
+		case _UC_LOGFILE:
+			sbuf_cat(buf, config.logfile ?  config.logfile :
+			    boolean_str(0));
+			break;
+		case _UC_HOMEROOT:
+			sbuf_cat(buf, config.home);
+			break;
+		case _UC_HOMEMODE:
+			sbuf_printf(buf, "%04o", config.homemode);
+			quote = 0;
+			break;
+		case _UC_SHELLPATH:
+			sbuf_cat(buf, config.shelldir);
+			break;
+		case _UC_SHELLS:
+			for (j = 0; j < _UC_MAXSHELLS &&
+			    system_shells[j] != NULL; j++)
+				sbuf_printf(buf, "%s\"%s\"", j ?
+				    "," : "", system_shells[j]);
+			quote = 0;
+			break;
+		case _UC_DEFAULTSHELL:
+			sbuf_cat(buf, config.shell_default ?
+			    config.shell_default : bourne_shell);
+			break;
+		case _UC_DEFAULTGROUP:
+			sbuf_cat(buf, config.default_group ?
+			    config.default_group : "");
+			break;
+		case _UC_EXTRAGROUPS:
+			for (j = 0; j < config.numgroups &&
+			    config.groups[j] != NULL; j++)
+				sbuf_printf(buf, "%s\"%s\"", j ?
+				    "," : "", config.groups[j]);
+			quote = 0;
+			break;
+		case _UC_DEFAULTCLASS:
+			sbuf_cat(buf, config.default_class ?
+			    config.default_class : "");
+			break;
+		case _UC_MINUID:
+			sbuf_printf(buf, "%u", config.min_uid);
+			quote = 0;
+			break;
+		case _UC_MAXUID:
+			sbuf_printf(buf, "%u", config.max_uid);
+			quote = 0;
+			break;
+		case _UC_MINGID:
+			sbuf_printf(buf, "%u", config.min_gid);
+			quote = 0;
+			break;
+		case _UC_MAXGID:
+			sbuf_printf(buf, "%u", config.max_gid);
+			quote = 0;
+			break;
+		case _UC_EXPIRE:
+			sbuf_printf(buf, "%d", config.expire_days);
+			quote = 0;
+			break;
+		case _UC_PASSWORD:
+			sbuf_printf(buf, "%d", config.password_days);
+			quote = 0;
+			break;
+		case _UC_NONE:
+			break;
+		}
+		sbuf_finish(buf);
 
-				*buf = '\0';
-				switch (i) {
-				case _UC_DEFAULTPWD:
-					val = boolean_str(config.default_password);
-					break;
-				case _UC_REUSEUID:
-					val = boolean_str(config.reuse_uids);
-					break;
-				case _UC_REUSEGID:
-					val = boolean_str(config.reuse_gids);
-					break;
-				case _UC_NISPASSWD:
-					val = config.nispasswd ? config.nispasswd : "";
-					quote = 0;
-					break;
-				case _UC_DOTDIR:
-					val = config.dotdir ? config.dotdir : boolean_str(0);
-					break;
-				case _UC_NEWMAIL:
-					val = config.newmail ? config.newmail : boolean_str(0);
-					break;
-				case _UC_LOGFILE:
-					val = config.logfile ? config.logfile : boolean_str(0);
-					break;
-				case _UC_HOMEROOT:
-					val = config.home;
-					break;
-				case _UC_HOMEMODE:
-					sprintf(buf, "%04o", config.homemode);
-					quote = 0;
-					break;
-				case _UC_SHELLPATH:
-					val = config.shelldir;
-					break;
-				case _UC_SHELLS:
-					for (j = k = 0; j < _UC_MAXSHELLS && system_shells[j] != NULL; j++) {
-						char	lbuf[64];
-						int	l = snprintf(lbuf, sizeof lbuf, "%s\"%s\"", k ? "," : "", system_shells[j]);
-						if (l < 0)
-							l = 0;
-						if (l + k + 1 < len || extendline(&buf, &len, len + LNBUFSZ) != -1) {
-							strcpy(buf + k, lbuf);
-							k += l;
-						}
-					}
-					quote = 0;
-					break;
-				case _UC_DEFAULTSHELL:
-					val = config.shell_default ? config.shell_default : bourne_shell;
-					break;
-				case _UC_DEFAULTGROUP:
-					val = config.default_group ? config.default_group : "";
-					break;
-				case _UC_EXTRAGROUPS:
-					extendarray(&config.groups, &config.numgroups, 200);
-					for (j = k = 0; j < config.numgroups && config.groups[j] != NULL; j++) {
-						char	lbuf[64];
-						int	l = snprintf(lbuf, sizeof lbuf, "%s\"%s\"", k ? "," : "", config.groups[j]);
-						if (l < 0)
-							l = 0;
-						if (l + k + 1 < len || extendline(&buf, &len, len + 1024) != -1) {
-							strcpy(buf + k, lbuf);
-							k +=  l;
-						}
-					}
-					quote = 0;
-					break;
-				case _UC_DEFAULTCLASS:
-					val = config.default_class ? config.default_class : "";
-					break;
-				case _UC_MINUID:
-					sprintf(buf, "%lu", (unsigned long) config.min_uid);
-					quote = 0;
-					break;
-				case _UC_MAXUID:
-					sprintf(buf, "%lu", (unsigned long) config.max_uid);
-					quote = 0;
-					break;
-				case _UC_MINGID:
-					sprintf(buf, "%lu", (unsigned long) config.min_gid);
-					quote = 0;
-					break;
-				case _UC_MAXGID:
-					sprintf(buf, "%lu", (unsigned long) config.max_gid);
-					quote = 0;
-					break;
-				case _UC_EXPIRE:
-					sprintf(buf, "%d", config.expire_days);
-					quote = 0;
-					break;
-				case _UC_PASSWORD:
-					sprintf(buf, "%d", config.password_days);
-					quote = 0;
-					break;
-				case _UC_NONE:
-					break;
-				}
+		if (comments[i])
+			fputs(comments[i], fp);
 
-				if (comments[i])
-					fputs(comments[i], fp);
-
-				if (*kwds[i]) {
-					if (quote)
-						fprintf(fp, "%s = \"%s\"\n", kwds[i], val);
-					else
-						fprintf(fp, "%s = %s\n", kwds[i], val);
+		if (*kwds[i]) {
+			if (quote)
+				fprintf(fp, "%s = \"%s\"\n", kwds[i],
+				    sbuf_data(buf));
+			else
+				fprintf(fp, "%s = %s\n", kwds[i], sbuf_data(buf));
 #if debugging
-					printf("WROTE: %s = %s\n", kwds[i], val);
+			printf("WROTE: %s = %s\n", kwds[i], sbuf_data(buf));
 #endif
-				}
-			}
-			free(buf);
-			return fclose(fp) != EOF;
 		}
 	}
-	return 0;
+	sbuf_delete(buf);
+	return (fclose(fp) != EOF);
 }

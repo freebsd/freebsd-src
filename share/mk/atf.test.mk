@@ -104,7 +104,7 @@ CLEANFILES+= ${_T} ${_T}.tmp
 ATF_TESTS_SH_SED_${_T}?= # empty
 ATF_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${ATF_TESTS_SH_SRC_${_T}}
-	echo '#! /usr/libexec/atf-sh' > ${.TARGET}.tmp
+	echo '#! /usr/bin/env atf-sh' > ${.TARGET}.tmp
 .if empty(ATF_TESTS_SH_SED_${_T})
 	cat ${.ALLSRC:N*Makefile*} >>${.TARGET}.tmp
 .else
