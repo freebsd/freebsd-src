@@ -20,10 +20,11 @@
 
 // Project includes
 #include "lldb/lldb-private.h"
-#include "lldb/Target/Target.h"
-#include "lldb/Core/UserID.h"
 #include "lldb/Breakpoint/WatchpointOptions.h"
 #include "lldb/Breakpoint/StoppointLocation.h"
+#include "lldb/Core/UserID.h"
+#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Target/Target.h"
 
 namespace lldb_private {
 
@@ -205,7 +206,18 @@ private:
     friend class Target;
     friend class WatchpointList;
 
-    void        ResetHitCount() { m_hit_count = 0; }
+    void
+    ResetHitCount ()
+    {
+        m_hit_count = 0;
+    }
+    
+    void
+    ResetHistoricValues ()
+    {
+        m_old_value_sp.reset(nullptr);
+        m_new_value_sp.reset(nullptr);
+    }
 
     Target      &m_target;
     bool        m_enabled;             // Is this watchpoint enabled

@@ -318,7 +318,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
                     (uint64_t)return_addr);
 
         for (size_t i = 0; i < args.size(); ++i)
-            s.Printf (", arg%zd = 0x%" PRIx64, i + 1, args[i]);
+            s.Printf (", arg%" PRIu64 " = 0x%" PRIx64, static_cast<uint64_t>(i + 1), args[i]);
         s.PutCString (")");
         log->PutCString(s.GetString().c_str());
     }
@@ -336,7 +336,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
     {
         reg_info = reg_ctx->GetRegisterInfo(eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG1 + i);
         if (log)
-            log->Printf("About to write arg%zd (0x%" PRIx64 ") into %s", i + 1, args[i], reg_info->name);
+            log->Printf("About to write arg%" PRIu64 " (0x%" PRIx64 ") into %s", static_cast<uint64_t>(i + 1), args[i], reg_info->name);
         if (!reg_ctx->WriteRegisterFromUnsigned(reg_info, args[i]))
             return false;
     }
@@ -510,7 +510,7 @@ ABISysV_x86_64::GetArgumentValues (Thread &thread,
         if (clang_type.IsIntegerType (is_signed))
         {
             ReadIntegerArgument(value->GetScalar(),
-                                clang_type.GetBitSize(nullptr),
+                                clang_type.GetBitSize(&thread),
                                 is_signed,
                                 thread, 
                                 argument_register_ids, 
@@ -520,7 +520,7 @@ ABISysV_x86_64::GetArgumentValues (Thread &thread,
         else if (clang_type.IsPointerType ())
         {
             ReadIntegerArgument(value->GetScalar(),
-                                clang_type.GetBitSize(nullptr),
+                                clang_type.GetBitSize(&thread),
                                 false,
                                 thread,
                                 argument_register_ids, 
@@ -590,7 +590,7 @@ ABISysV_x86_64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
             error.SetErrorString ("We don't support returning complex values at present");
         else
         {
-            size_t bit_width = clang_type.GetBitSize(nullptr);
+            size_t bit_width = clang_type.GetBitSize(frame_sp.get());
             if (bit_width <= 64)
             {
                 const RegisterInfo *xmm0_info = reg_ctx->GetRegisterInfoByName("xmm0", 0);
@@ -821,7 +821,7 @@ ABISysV_x86_64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
     if (!reg_ctx_sp)
         return return_valobj_sp;
         
-    const size_t bit_width = return_clang_type.GetBitSize(nullptr);
+    const size_t bit_width = return_clang_type.GetBitSize(&thread);
     if (return_clang_type.IsAggregateType())
     {
         Target *target = exe_ctx.GetTargetPtr();
@@ -869,8 +869,12 @@ ABISysV_x86_64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
                 uint32_t count;
                 
                 ClangASTType field_clang_type = return_clang_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
-                const size_t field_bit_width = field_clang_type.GetBitSize(nullptr);
+                const size_t field_bit_width = field_clang_type.GetBitSize(&thread);
 
+                // if we don't know the size of the field (e.g. invalid type), just bail out
+                if (field_bit_width == 0)
+                    break;
+                
                 // If there are any unaligned fields, this is stored in memory.
                 if (field_bit_offset % field_bit_width != 0)
                 {
@@ -1084,8 +1088,7 @@ ABISysV_x86_64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     uint32_t pc_reg_num = gcc_dwarf_rip;
     
     UnwindPlan::RowSP row(new UnwindPlan::Row);
-    row->SetCFARegister (sp_reg_num);
-    row->SetCFAOffset (8);
+    row->GetCFAValue().SetIsRegisterPlusOffset(sp_reg_num, 8);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, -8, false);
     row->SetRegisterLocationToIsCFAPlusOffset(sp_reg_num, 0, true);
     unwind_plan.AppendRow (row);
@@ -1112,8 +1115,7 @@ ABISysV_x86_64::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
     const int32_t ptr_size = 8;
-    row->SetCFARegister (gcc_dwarf_rbp);
-    row->SetCFAOffset (2 * ptr_size);
+    row->GetCFAValue().SetIsRegisterPlusOffset(gcc_dwarf_rbp, 2 * ptr_size);
     row->SetOffset (0);
     
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num, ptr_size * -2, true);

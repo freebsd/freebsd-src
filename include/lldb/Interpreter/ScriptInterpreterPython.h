@@ -33,8 +33,99 @@ class ScriptInterpreterPython :
     public IOHandlerDelegateMultiline
 {
 public:
+    typedef void (*SWIGInitCallback) (void);
 
-    friend class IOHandlerPythonInterpreter;
+    typedef bool (*SWIGBreakpointCallbackFunction) (const char *python_function_name,
+                                                    const char *session_dictionary_name,
+                                                    const lldb::StackFrameSP& frame_sp,
+                                                    const lldb::BreakpointLocationSP &bp_loc_sp);
+    
+    typedef bool (*SWIGWatchpointCallbackFunction) (const char *python_function_name,
+                                                    const char *session_dictionary_name,
+                                                    const lldb::StackFrameSP& frame_sp,
+                                                    const lldb::WatchpointSP &wp_sp);
+    
+    typedef bool (*SWIGPythonTypeScriptCallbackFunction) (const char *python_function_name,
+                                                          void *session_dictionary,
+                                                          const lldb::ValueObjectSP& valobj_sp,
+                                                          void** pyfunct_wrapper,
+                                                          const lldb::TypeSummaryOptionsSP& options,
+                                                          std::string& retval);
+    
+    typedef void* (*SWIGPythonCreateSyntheticProvider) (const char *python_class_name,
+                                                        const char *session_dictionary_name,
+                                                        const lldb::ValueObjectSP& valobj_sp);
+
+    typedef void* (*SWIGPythonCreateCommandObject) (const char *python_class_name,
+                                                    const char *session_dictionary_name,
+                                                    const lldb::DebuggerSP debugger_sp);
+    
+    typedef void* (*SWIGPythonCreateScriptedThreadPlan) (const char *python_class_name,
+                                                        const char *session_dictionary_name,
+                                                        const lldb::ThreadPlanSP& thread_plan_sp);
+
+    typedef bool (*SWIGPythonCallThreadPlan) (void *implementor, const char *method_name, Event *event_sp, bool &got_error);
+
+    typedef void* (*SWIGPythonCreateOSPlugin) (const char *python_class_name,
+                                               const char *session_dictionary_name,
+                                               const lldb::ProcessSP& process_sp);
+    
+    typedef size_t          (*SWIGPythonCalculateNumChildren)                   (void *implementor);
+    typedef void*           (*SWIGPythonGetChildAtIndex)                        (void *implementor, uint32_t idx);
+    typedef int             (*SWIGPythonGetIndexOfChildWithName)                (void *implementor, const char* child_name);
+    typedef void*           (*SWIGPythonCastPyObjectToSBValue)                  (void* data);
+    typedef lldb::ValueObjectSP  (*SWIGPythonGetValueObjectSPFromSBValue)       (void* data);
+    typedef bool            (*SWIGPythonUpdateSynthProviderInstance)            (void* data);
+    typedef bool            (*SWIGPythonMightHaveChildrenSynthProviderInstance) (void* data);
+    typedef void*           (*SWIGPythonGetValueSynthProviderInstance)          (void *implementor);
+    
+    typedef bool            (*SWIGPythonCallCommand)            (const char *python_function_name,
+                                                                 const char *session_dictionary_name,
+                                                                 lldb::DebuggerSP& debugger,
+                                                                 const char* args,
+                                                                 lldb_private::CommandReturnObject& cmd_retobj,
+                                                                 lldb::ExecutionContextRefSP exe_ctx_ref_sp);
+
+    typedef bool            (*SWIGPythonCallCommandObject)        (void *implementor,
+                                                                   lldb::DebuggerSP& debugger,
+                                                                   const char* args,
+                                                                   lldb_private::CommandReturnObject& cmd_retobj,
+                                                                   lldb::ExecutionContextRefSP exe_ctx_ref_sp);
+
+    
+    typedef bool            (*SWIGPythonCallModuleInit)         (const char *python_module_name,
+                                                                 const char *session_dictionary_name,
+                                                                 lldb::DebuggerSP& debugger);
+    
+    typedef bool            (*SWIGPythonScriptKeyword_Process)  (const char* python_function_name,
+                                                                 const char* session_dictionary_name,
+                                                                 lldb::ProcessSP& process,
+                                                                 std::string& output);
+    typedef bool            (*SWIGPythonScriptKeyword_Thread)   (const char* python_function_name,
+                                                                 const char* session_dictionary_name,
+                                                                 lldb::ThreadSP& thread,
+                                                                 std::string& output);
+    
+    typedef bool            (*SWIGPythonScriptKeyword_Target)   (const char* python_function_name,
+                                                                 const char* session_dictionary_name,
+                                                                 lldb::TargetSP& target,
+                                                                 std::string& output);
+
+    typedef bool            (*SWIGPythonScriptKeyword_Frame)    (const char* python_function_name,
+                                                                 const char* session_dictionary_name,
+                                                                 lldb::StackFrameSP& frame,
+                                                                 std::string& output);
+
+    typedef bool            (*SWIGPythonScriptKeyword_Value)    (const char* python_function_name,
+                                                                 const char* session_dictionary_name,
+                                                                 lldb::ValueObjectSP& value,
+                                                                 std::string& output);
+    
+    typedef void*           (*SWIGPython_GetDynamicSetting)     (void* module,
+                                                                 const char* setting,
+                                                                 const lldb::TargetSP& target_sp);
+
+    friend class ::IOHandlerPythonInterpreter;
 
     ScriptInterpreterPython (CommandInterpreter &interpreter);
 
@@ -79,74 +170,45 @@ public:
     
     bool
     GenerateScriptAliasFunction (StringList &input, std::string& output) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    CreateSyntheticScriptedProvider (const char *class_name,
-                                     lldb::ValueObjectSP valobj) override;
 
-    lldb::ScriptInterpreterObjectSP
-    CreateScriptedThreadPlan (const char *class_name,
-                              lldb::ThreadPlanSP thread_plan) override;
+    StructuredData::ObjectSP CreateSyntheticScriptedProvider(const char *class_name, lldb::ValueObjectSP valobj) override;
 
-    bool
-    ScriptedThreadPlanExplainsStop (lldb::ScriptInterpreterObjectSP implementor_sp,
-                                    Event *event,
-                                    bool &script_error) override;
-    bool
-    ScriptedThreadPlanShouldStop (lldb::ScriptInterpreterObjectSP implementor_sp,
-                                  Event *event,
-                                  bool &script_error) override;
-    lldb::StateType
-    ScriptedThreadPlanGetRunState (lldb::ScriptInterpreterObjectSP implementor_sp,
-                                   bool &script_error) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    OSPlugin_CreatePluginObject (const char *class_name,
-                                 lldb::ProcessSP process_sp) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    OSPlugin_RegisterInfo (lldb::ScriptInterpreterObjectSP os_plugin_object_sp) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    OSPlugin_ThreadsInfo (lldb::ScriptInterpreterObjectSP os_plugin_object_sp) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    OSPlugin_RegisterContextData (lldb::ScriptInterpreterObjectSP os_plugin_object_sp,
-                                  lldb::tid_t thread_id) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    OSPlugin_CreateThread (lldb::ScriptInterpreterObjectSP os_plugin_object_sp,
-                           lldb::tid_t tid,
-                           lldb::addr_t context) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    LoadPluginModule (const FileSpec& file_spec,
-                      lldb_private::Error& error) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    GetDynamicSettings (lldb::ScriptInterpreterObjectSP plugin_module_sp,
-                        Target* target,
-                        const char* setting_name,
-                        lldb_private::Error& error) override;
-    
-    size_t
-    CalculateNumChildren (const lldb::ScriptInterpreterObjectSP& implementor) override;
-    
-    lldb::ValueObjectSP
-    GetChildAtIndex (const lldb::ScriptInterpreterObjectSP& implementor, uint32_t idx) override;
-    
-    int
-    GetIndexOfChildWithName (const lldb::ScriptInterpreterObjectSP& implementor, const char* child_name) override;
-    
-    bool
-    UpdateSynthProviderInstance (const lldb::ScriptInterpreterObjectSP& implementor) override;
-    
-    bool
-    MightHaveChildrenSynthProviderInstance (const lldb::ScriptInterpreterObjectSP& implementor) override;
-    
-    lldb::ValueObjectSP
-    GetSyntheticValue (const lldb::ScriptInterpreterObjectSP& implementor) override;
-    
+    StructuredData::GenericSP CreateScriptCommandObject (const char *class_name) override;
+
+    StructuredData::ObjectSP CreateScriptedThreadPlan(const char *class_name, lldb::ThreadPlanSP thread_plan) override;
+
+    bool ScriptedThreadPlanExplainsStop(StructuredData::ObjectSP implementor_sp, Event *event, bool &script_error) override;
+    bool ScriptedThreadPlanShouldStop(StructuredData::ObjectSP implementor_sp, Event *event, bool &script_error) override;
+    lldb::StateType ScriptedThreadPlanGetRunState(StructuredData::ObjectSP implementor_sp, bool &script_error) override;
+
+    StructuredData::GenericSP OSPlugin_CreatePluginObject(const char *class_name, lldb::ProcessSP process_sp) override;
+
+    StructuredData::DictionarySP OSPlugin_RegisterInfo(StructuredData::ObjectSP os_plugin_object_sp) override;
+
+    StructuredData::ArraySP OSPlugin_ThreadsInfo(StructuredData::ObjectSP os_plugin_object_sp) override;
+
+    StructuredData::StringSP OSPlugin_RegisterContextData(StructuredData::ObjectSP os_plugin_object_sp, lldb::tid_t thread_id) override;
+
+    StructuredData::DictionarySP OSPlugin_CreateThread(StructuredData::ObjectSP os_plugin_object_sp, lldb::tid_t tid,
+                                                       lldb::addr_t context) override;
+
+    StructuredData::ObjectSP LoadPluginModule(const FileSpec &file_spec, lldb_private::Error &error) override;
+
+    StructuredData::DictionarySP GetDynamicSettings(StructuredData::ObjectSP plugin_module_sp, Target *target, const char *setting_name,
+                                                    lldb_private::Error &error) override;
+
+    size_t CalculateNumChildren(const StructuredData::ObjectSP &implementor) override;
+
+    lldb::ValueObjectSP GetChildAtIndex(const StructuredData::ObjectSP &implementor, uint32_t idx) override;
+
+    int GetIndexOfChildWithName(const StructuredData::ObjectSP &implementor, const char *child_name) override;
+
+    bool UpdateSynthProviderInstance(const StructuredData::ObjectSP &implementor) override;
+
+    bool MightHaveChildrenSynthProviderInstance(const StructuredData::ObjectSP &implementor) override;
+
+    lldb::ValueObjectSP GetSyntheticValue(const StructuredData::ObjectSP &implementor) override;
+
     bool
     RunScriptBasedCommand(const char* impl_function,
                           const char* args,
@@ -154,6 +216,14 @@ public:
                           lldb_private::CommandReturnObject& cmd_retobj,
                           Error& error,
                           const lldb_private::ExecutionContext& exe_ctx) override;
+    
+    bool
+    RunScriptBasedCommand (StructuredData::GenericSP impl_obj_sp,
+                           const char* args,
+                           ScriptedCommandSynchronicity synchronicity,
+                           lldb_private::CommandReturnObject& cmd_retobj,
+                           Error& error,
+                           const lldb_private::ExecutionContext& exe_ctx) override;
     
     Error
     GenerateFunction(const char *signature, const StringList &input) override;
@@ -188,19 +258,24 @@ public:
     WatchpointCallbackFunction (void *baton, 
                                 StoppointCallbackContext *context, 
                                 lldb::user_id_t watch_id);
-    
-    bool
-    GetScriptedSummary (const char *function_name,
-                        lldb::ValueObjectSP valobj,
-                        lldb::ScriptInterpreterObjectSP& callee_wrapper_sp,
-                        const TypeSummaryOptions& options,
-                        std::string& retval) override;
-    
+
+    bool GetScriptedSummary(const char *function_name, lldb::ValueObjectSP valobj, StructuredData::ObjectSP &callee_wrapper_sp,
+                            const TypeSummaryOptions &options, std::string &retval) override;
+
     void
     Clear () override;
 
     bool
     GetDocumentationForItem (const char* item, std::string& dest) override;
+    
+    bool
+    GetShortHelpForCommandObject(StructuredData::GenericSP cmd_obj_sp, std::string& dest) override;
+    
+    uint32_t
+    GetFlagsForCommandObject (StructuredData::GenericSP cmd_obj_sp) override;
+    
+    bool
+    GetLongHelpForCommandObject(StructuredData::GenericSP cmd_obj_sp, std::string& dest) override;
     
     bool
     CheckObjectExists (const char* name) override
@@ -240,17 +315,13 @@ public:
                             ValueObject* value,
                             std::string& output,
                             Error& error) override;
-    
+
+    bool LoadScriptingModule(const char *filename, bool can_reload, bool init_session, lldb_private::Error &error,
+                             StructuredData::ObjectSP *module_sp = nullptr) override;
+
     bool
-    LoadScriptingModule (const char* filename,
-                         bool can_reload,
-                         bool init_session,
-                         lldb_private::Error& error,
-                         lldb::ScriptInterpreterObjectSP* module_sp = nullptr) override;
-    
-    lldb::ScriptInterpreterObjectSP
-    MakeScriptObject (void* object) override;
-    
+    IsReservedWord (const char* word) override;
+
     std::unique_ptr<ScriptInterpreterLocker>
     AcquireInterpreterLock () override;
     
@@ -278,10 +349,9 @@ public:
 
     StringList
     ReadCommandInputFromUser (FILE *in_file);
-    
-    virtual void
-    ResetOutputFileHandle (FILE *new_fh) override;
-    
+
+    void ResetOutputFileHandle(FILE *new_fh) override;
+
     static void
     InitializePrivate ();
 
@@ -291,6 +361,7 @@ public:
                            SWIGWatchpointCallbackFunction swig_watchpoint_callback,
                            SWIGPythonTypeScriptCallbackFunction swig_typescript_callback,
                            SWIGPythonCreateSyntheticProvider swig_synthetic_script,
+                           SWIGPythonCreateCommandObject swig_create_cmd,
                            SWIGPythonCalculateNumChildren swig_calc_children,
                            SWIGPythonGetChildAtIndex swig_get_child_index,
                            SWIGPythonGetIndexOfChildWithName swig_get_index_child,
@@ -300,6 +371,7 @@ public:
                            SWIGPythonMightHaveChildrenSynthProviderInstance swig_mighthavechildren_provider,
                            SWIGPythonGetValueSynthProviderInstance swig_getvalue_provider,
                            SWIGPythonCallCommand swig_call_command,
+                           SWIGPythonCallCommandObject swig_call_command_object,
                            SWIGPythonCallModuleInit swig_call_module_init,
                            SWIGPythonCreateOSPlugin swig_create_os_plugin,
                            SWIGPythonScriptKeyword_Process swig_run_script_keyword_process,
@@ -369,35 +441,6 @@ protected:
         ~SynchronicityHandler();
     };
     
-    class ScriptInterpreterPythonObject : public ScriptInterpreterObject
-    {
-    public:
-        ScriptInterpreterPythonObject() :
-        ScriptInterpreterObject()
-        {}
-        
-        ScriptInterpreterPythonObject(void* obj) :
-        ScriptInterpreterObject(obj)
-        {
-            Py_XINCREF(m_object);
-        }
-        
-        explicit operator bool ()
-        {
-            return m_object && m_object != Py_None;
-        }
-        
-        
-        virtual
-        ~ScriptInterpreterPythonObject()
-        {
-            if (Py_IsInitialized())
-                Py_XDECREF(m_object);
-            m_object = NULL;
-        }
-        private:
-            DISALLOW_COPY_AND_ASSIGN (ScriptInterpreterPythonObject);
-    };
 public:
 	class Locker : public ScriptInterpreterLocker
 	{
@@ -450,6 +493,13 @@ public:
         PyGILState_STATE         m_GILState;
 	};
 protected:
+    enum class AddLocation
+    {
+        Beginning,
+        End
+    };
+
+    static void AddToSysPath(AddLocation location, std::string path);
 
     uint32_t
     IsExecutingPython () const

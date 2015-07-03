@@ -17,7 +17,7 @@ namespace lldb {
 class SBPlatform;
 class SBTarget;
 
-class SBLaunchInfo
+class LLDB_API SBLaunchInfo
 {
 public:
     SBLaunchInfo (const char **argv);
@@ -140,7 +140,13 @@ public:
 
     void
     SetShell (const char * path);
-
+    
+    bool
+    GetShellExpandArguments ();
+    
+    void
+    SetShellExpandArguments (bool glob);
+    
     uint32_t
     GetResumeCount ();
 
@@ -177,6 +183,9 @@ protected:
 
     lldb_private::ProcessLaunchInfo &
     ref ();
+
+    const lldb_private::ProcessLaunchInfo &
+    ref () const;
 
     ProcessLaunchInfoSP m_opaque_sp;
 };

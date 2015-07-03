@@ -141,11 +141,26 @@ public:
     }
     
     virtual bool
+    GetIsConstant () const
+    {
+        return false;
+    }
+
+    virtual bool
     SetValueFromCString (const char *value_str, Error& error);
+    
+    virtual void
+    SetFormat (lldb::Format format);
     
 protected:
     virtual bool
     UpdateValue ();
+    
+    virtual bool
+    CanUpdateWithInvalidExecutionContext ()
+    {
+        return true;
+    }
     
     virtual ClangASTType
     GetClangTypeImpl ();

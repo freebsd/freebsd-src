@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/Property.h"
 
 // C Includes
@@ -19,6 +17,7 @@
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionValues.h"
+#include "lldb/Target/LanguageRuntime.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -80,11 +79,11 @@ Property::Property (const PropertyDefinition &definition) :
             m_value_sp.reset (enum_value);
             if (definition.default_cstr_value)
             {
-                if (enum_value->SetValueFromCString(definition.default_cstr_value).Success())
+                if (enum_value->SetValueFromString(definition.default_cstr_value).Success())
                 {
                     enum_value->SetDefaultValue(enum_value->GetCurrentValue());
                     // Call Clear() since we don't want the value to appear as
-                    // having been set since we called SetValueFromCString() above.
+                    // having been set since we called SetValueFromString() above.
                     // Clear will set the current value to the default and clear
                     // the boolean that says that the value has been set.
                     enum_value->Clear();
@@ -94,10 +93,13 @@ Property::Property (const PropertyDefinition &definition) :
             break;
             
         case OptionValue::eTypeFileSpec:
+        {
             // "definition.default_uint_value" represents if the "definition.default_cstr_value" should
             // be resolved or not
-            m_value_sp.reset (new OptionValueFileSpec(FileSpec(definition.default_cstr_value, definition.default_uint_value != 0)));
+            const bool resolve = definition.default_uint_value != 0;
+            m_value_sp.reset (new OptionValueFileSpec(FileSpec(definition.default_cstr_value, resolve), resolve));
             break;
+        }
             
         case OptionValue::eTypeFileSpecList:
             // "definition.default_uint_value" is not used for a OptionValue::eTypeFileSpecList
@@ -117,6 +119,21 @@ Property::Property (const PropertyDefinition &definition) :
                     new_format = (Format)definition.default_uint_value;
                 m_value_sp.reset (new OptionValueFormat(new_format));
             }
+            break;
+            
+        case OptionValue::eTypeLanguage:
+            // "definition.default_uint_value" is the default language enumeration value if
+            // "definition.default_cstr_value" is NULL, otherwise interpret
+            // "definition.default_cstr_value" as a string value that represents the default
+            // value.
+        {
+            LanguageType new_lang = eLanguageTypeUnknown;
+            if (definition.default_cstr_value)
+                LanguageRuntime::GetLanguageTypeFromString(definition.default_cstr_value);
+            else
+                new_lang = (LanguageType)definition.default_uint_value;
+            m_value_sp.reset (new OptionValueLanguage(new_lang));
+        }
             break;
             
         case OptionValue::eTypeFormatEntity:

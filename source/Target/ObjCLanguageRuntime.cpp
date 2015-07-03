@@ -15,6 +15,7 @@
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Symbol/ClangASTContext.h"
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/Type.h"
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
@@ -43,7 +44,6 @@ ObjCLanguageRuntime::ObjCLanguageRuntime (Process *process) :
     m_complete_class_cache(),
     m_negative_complete_class_cache()
 {
-
 }
 
 bool
@@ -497,6 +497,18 @@ ObjCLanguageRuntime::GetDescriptorIterator (const ConstString &name)
     return end;
 }
 
+std::pair<ObjCLanguageRuntime::ISAToDescriptorIterator,ObjCLanguageRuntime::ISAToDescriptorIterator>
+ObjCLanguageRuntime::GetDescriptorIteratorPair (bool update_if_needed)
+{
+    if (update_if_needed)
+        UpdateISAToDescriptorMapIfNeeded();
+    
+    return std::pair<ObjCLanguageRuntime::ISAToDescriptorIterator,
+                     ObjCLanguageRuntime::ISAToDescriptorIterator>(
+                        m_isa_to_descriptor.begin(),
+                        m_isa_to_descriptor.end());
+}
+
 
 ObjCLanguageRuntime::ObjCISA
 ObjCLanguageRuntime::GetParentClass(ObjCLanguageRuntime::ObjCISA isa)
@@ -669,4 +681,37 @@ ObjCLanguageRuntime::GetTypeBitSize (const ClangASTType& clang_type,
         m_type_size_cache.Insert(opaque_ptr, size);
     
     return found;
+}
+
+//------------------------------------------------------------------
+// Exception breakpoint Precondition class for ObjC:
+//------------------------------------------------------------------
+void
+ObjCLanguageRuntime::ObjCExceptionPrecondition::AddClassName(const char *class_name)
+{
+    m_class_names.insert(class_name);
+}
+
+ObjCLanguageRuntime::ObjCExceptionPrecondition::ObjCExceptionPrecondition()
+{
+}
+
+bool
+ObjCLanguageRuntime::ObjCExceptionPrecondition::EvaluatePrecondition(StoppointCallbackContext &context)
+{
+    return true;
+}
+
+void
+ObjCLanguageRuntime::ObjCExceptionPrecondition::DescribePrecondition(Stream &stream, lldb::DescriptionLevel level)
+{
+}
+
+Error
+ObjCLanguageRuntime::ObjCExceptionPrecondition::ConfigurePrecondition(Args &args)
+{
+    Error error;
+    if (args.GetArgumentCount() > 0)
+        error.SetErrorString("The ObjC Exception breakpoint doesn't support extra options.");
+    return error;
 }

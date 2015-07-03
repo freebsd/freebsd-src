@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/lldb-python.h"
-
 #include "lldb/Core/Log.h"
 #include "lldb/Host/posix/HostInfoPosix.h"
 
@@ -17,6 +16,7 @@
 
 #include <grp.h>
 #include <limits.h>
+#include <mutex>
 #include <netdb.h>
 #include <pwd.h>
 #include <sys/types.h>
@@ -47,9 +47,31 @@ HostInfoPosix::GetHostname(std::string &s)
     return false;
 }
 
+#ifdef __ANDROID_NDK__
+#include <android/api-level.h>
+#endif
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+#define USE_GETPWUID
+#endif
+
+#ifdef USE_GETPWUID
+static std::mutex s_getpwuid_lock;
+#endif
+
 const char *
 HostInfoPosix::LookupUserName(uint32_t uid, std::string &user_name)
 {
+#ifdef USE_GETPWUID
+    // getpwuid_r is missing from android-9
+    // make getpwuid thread safe with a mutex
+    std::lock_guard<std::mutex> lock(s_getpwuid_lock);
+    struct passwd *user_info_ptr = ::getpwuid(uid);
+    if (user_info_ptr)
+    {
+        user_name.assign(user_info_ptr->pw_name);
+        return user_name.c_str();
+    }
+#else
     struct passwd user_info;
     struct passwd *user_info_ptr = &user_info;
     char user_buffer[PATH_MAX];
@@ -62,8 +84,9 @@ HostInfoPosix::LookupUserName(uint32_t uid, std::string &user_name)
             return user_name.c_str();
         }
     }
+#endif
     user_name.clear();
-    return NULL;
+    return nullptr;
 }
 
 const char *
@@ -153,11 +176,8 @@ HostInfoPosix::ComputeSupportExeDirectory(FileSpec &file_spec)
     char *lib_pos = ::strstr(raw_path, "/lib");
     if (lib_pos != nullptr)
     {
-        // First terminate the raw path at the start of lib.
-        *lib_pos = '\0';
-
         // Now write in bin in place of lib.
-        ::strncpy(lib_pos, "/bin", PATH_MAX - (lib_pos - raw_path));
+        ::snprintf(lib_pos, PATH_MAX - (lib_pos - raw_path), "/bin");
 
         if (log)
             log->Printf("Host::%s() derived the bin path as: %s", __FUNCTION__, raw_path);

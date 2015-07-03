@@ -17,7 +17,6 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/lldb-private-log.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Log.h"
 
@@ -69,7 +68,7 @@ ConnectionMachPort::Connect (const char *s, Error *error_ptr)
     
     ConnectionStatus status = eConnectionStatusError;
     
-    if (strncmp (s, "bootstrap-checkin://", strlen("bootstrap-checkin://")))
+    if (0 == strncmp (s, "bootstrap-checkin://", strlen("bootstrap-checkin://")))
     {
         s += strlen("bootstrap-checkin://");
         
@@ -83,7 +82,7 @@ ConnectionMachPort::Connect (const char *s, Error *error_ptr)
                 error_ptr->SetErrorString ("bootstrap port name is empty");
         }
     }
-    else if (strncmp (s, "bootstrap-lookup://", strlen("bootstrap-lookup://")))
+    else if (0 == strncmp (s, "bootstrap-lookup://", strlen("bootstrap-lookup://")))
     {
         s += strlen("bootstrap-lookup://");
         if (*s)

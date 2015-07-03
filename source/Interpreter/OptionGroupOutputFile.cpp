@@ -36,7 +36,7 @@ g_option_table[] =
     { LLDB_OPT_SET_1 , false, "outfile", 'o', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeFilename , "Specify a path for capturing command output."},
     { LLDB_OPT_SET_1 , false, "append-outfile" , SHORT_OPTION_APND,
       OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone ,
-      "Append to the the file specified with '--outfile <path>'."},
+      "Append to the file specified with '--outfile <path>'."},
 };
 
 uint32_t
@@ -62,7 +62,7 @@ OptionGroupOutputFile::SetOptionValue (CommandInterpreter &interpreter,
     switch (short_option)
     {
         case 'o':
-            error = m_file.SetValueFromCString (option_arg);
+            error = m_file.SetValueFromString (option_arg);
             break;
 
         case SHORT_OPTION_APND:

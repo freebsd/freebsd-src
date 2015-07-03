@@ -36,6 +36,7 @@ Symbol::Symbol() :
     m_size_is_synthesized (false),
     m_size_is_valid (false),
     m_demangled_is_synthesized (false),
+    m_contains_linker_annotations (false),
     m_type (eSymbolTypeInvalid),
     m_mangled (),
     m_addr_range (),
@@ -57,6 +58,7 @@ Symbol::Symbol
     addr_t offset,
     addr_t size,
     bool size_is_valid,
+    bool contains_linker_annotations,
     uint32_t flags
 ) :
     SymbolContextScope (),
@@ -70,6 +72,7 @@ Symbol::Symbol
     m_size_is_synthesized (false),
     m_size_is_valid (size_is_valid || size > 0),
     m_demangled_is_synthesized (false),
+    m_contains_linker_annotations (contains_linker_annotations),
     m_type (type),
     m_mangled (ConstString(name), name_is_mangled),
     m_addr_range (section_sp, offset, size),
@@ -80,8 +83,7 @@ Symbol::Symbol
 Symbol::Symbol
 (
     uint32_t symID,
-    const char *name,
-    bool name_is_mangled,
+    const Mangled &mangled,
     SymbolType type,
     bool external,
     bool is_debug,
@@ -89,6 +91,7 @@ Symbol::Symbol
     bool is_artificial,
     const AddressRange &range,
     bool size_is_valid,
+    bool contains_linker_annotations,
     uint32_t flags
 ) :
     SymbolContextScope (),
@@ -102,8 +105,9 @@ Symbol::Symbol
     m_size_is_synthesized (false),
     m_size_is_valid (size_is_valid || range.GetByteSize() > 0),
     m_demangled_is_synthesized (false),
+    m_contains_linker_annotations (contains_linker_annotations),
     m_type (type),
-    m_mangled (ConstString(name), name_is_mangled),
+    m_mangled (mangled),
     m_addr_range (range),
     m_flags (flags)
 {
@@ -121,6 +125,7 @@ Symbol::Symbol(const Symbol& rhs):
     m_size_is_synthesized (false),
     m_size_is_valid (rhs.m_size_is_valid),
     m_demangled_is_synthesized (rhs.m_demangled_is_synthesized),
+    m_contains_linker_annotations (rhs.m_contains_linker_annotations),
     m_type (rhs.m_type),
     m_mangled (rhs.m_mangled),
     m_addr_range (rhs.m_addr_range),
@@ -144,6 +149,7 @@ Symbol::operator= (const Symbol& rhs)
         m_size_is_synthesized = rhs.m_size_is_sibling;
         m_size_is_valid = rhs.m_size_is_valid;
         m_demangled_is_synthesized = rhs.m_demangled_is_synthesized;
+        m_contains_linker_annotations = rhs.m_contains_linker_annotations;
         m_type = rhs.m_type;
         m_mangled = rhs.m_mangled;
         m_addr_range = rhs.m_addr_range;
@@ -166,6 +172,7 @@ Symbol::Clear()
     m_size_is_synthesized = false;
     m_size_is_valid = false;
     m_demangled_is_synthesized = false;
+    m_contains_linker_annotations = false;
     m_type = eSymbolTypeInvalid;
     m_flags = 0;
     m_addr_range.Clear();
@@ -209,18 +216,13 @@ Symbol::GetReExportedSymbolSharedLibrary() const
     return FileSpec();
 }
 
-bool
+void
 Symbol::SetReExportedSymbolName(const ConstString &name)
 {
-    if (m_type == eSymbolTypeReExported)
-    {
-        // For eSymbolTypeReExported, the "const char *" from a ConstString
-        // is used as the offset in the address range base address.
-        m_addr_range.GetBaseAddress().SetOffset((intptr_t)name.GetCString());
-        return true;
-    }
-    return false;
-    
+    SetType (eSymbolTypeReExported);
+    // For eSymbolTypeReExported, the "const char *" from a ConstString
+    // is used as the offset in the address range base address.
+    m_addr_range.GetBaseAddress().SetOffset((uintptr_t)name.GetCString());
 }
 
 bool
@@ -230,7 +232,7 @@ Symbol::SetReExportedSymbolSharedLibrary(const FileSpec &fspec)
     {
         // For eSymbolTypeReExported, the "const char *" from a ConstString
         // is used as the offset in the address range base address.
-        m_addr_range.SetByteSize((intptr_t)ConstString(fspec.GetPath().c_str()).GetCString());
+        m_addr_range.SetByteSize((uintptr_t)ConstString(fspec.GetPath().c_str()).GetCString());
         return true;
     }
     return false;
@@ -240,7 +242,7 @@ Symbol::SetReExportedSymbolSharedLibrary(const FileSpec &fspec)
 uint32_t
 Symbol::GetSiblingIndex() const
 {
-    return m_size_is_sibling ? m_addr_range.GetByteSize() : 0;
+    return m_size_is_sibling ? m_addr_range.GetByteSize() : UINT32_MAX;
 }
 
 bool
@@ -296,10 +298,7 @@ Symbol::GetDescription (Stream *s, lldb::DescriptionLevel level, Target *target)
 void
 Symbol::Dump(Stream *s, Target *target, uint32_t index) const
 {
-//  s->Printf("%.*p: ", (int)sizeof(void*) * 2, this);
-//  s->Indent();
-//  s->Printf("Symbol[%5u] %6u %c%c %-12s ",
-    s->Printf("[%5u] %6u %c%c%c %-12s ",
+    s->Printf("[%5u] %6u %c%c%c %-15s ",
               index,
               GetID(),
               m_is_debug ? 'D' : ' ',
@@ -492,7 +491,7 @@ Symbol::CalculateSymbolContext (SymbolContext *sc)
     // Symbols can reconstruct the symbol and the module in the symbol context
     sc->symbol = this;
     if (ValueIsAddress())
-        sc->module_sp = GetAddress().GetModule();
+        sc->module_sp = GetAddressRef().GetModule();
     else
         sc->module_sp.reset();
 }
@@ -501,7 +500,7 @@ ModuleSP
 Symbol::CalculateSymbolContextModule ()
 {
     if (ValueIsAddress())
-        return GetAddress().GetModule();
+        return GetAddressRef().GetModule();
     return ModuleSP();
 }
 
@@ -517,7 +516,7 @@ Symbol::DumpSymbolContext (Stream *s)
     bool dumped_module = false;
     if (ValueIsAddress())
     {
-        ModuleSP module_sp (GetAddress().GetModule());
+        ModuleSP module_sp (GetAddressRef().GetModule());
         if (module_sp)
         {
             dumped_module = true;
@@ -617,6 +616,25 @@ Symbol::ResolveReExportedSymbol (Target &target) const
     }
     return nullptr;
 }
+
+lldb::addr_t
+Symbol::GetFileAddress () const
+{
+    if (ValueIsAddress())
+        return GetAddressRef().GetFileAddress();
+    else
+        return LLDB_INVALID_ADDRESS;
+}
+
+lldb::addr_t
+Symbol::GetLoadAddress (Target *target) const
+{
+    if (ValueIsAddress())
+        return GetAddressRef().GetLoadAddress(target);
+    else
+        return LLDB_INVALID_ADDRESS;
+}
+
 
 lldb::addr_t
 Symbol::ResolveCallableAddress(Target &target) const

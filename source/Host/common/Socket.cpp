@@ -80,6 +80,25 @@ NativeSocket Accept(NativeSocket sockfd, struct sockaddr *addr, socklen_t *addrl
     return ::accept (sockfd, addr, addrlen);
 #endif
 }
+
+void SetLastError(Error &error)
+{
+#if defined(_WIN32)
+    error.SetError(::WSAGetLastError(), lldb::eErrorTypeWin32);
+#else
+    error.SetErrorToErrno();
+#endif
+}
+
+bool IsInterrupted()
+{
+#if defined(_WIN32)
+    return ::WSAGetLastError() == WSAEINTR;
+#else
+    return errno == EINTR;
+#endif
+}
+
 }
 
 Socket::Socket(NativeSocket socket, SocketProtocol protocol, bool should_close)
@@ -116,8 +135,7 @@ Error Socket::TcpConnect(llvm::StringRef host_and_port, bool child_processes_inh
     sock = CreateSocket (AF_INET, SOCK_STREAM, IPPROTO_TCP, child_processes_inherit);
     if (sock == kInvalidSocketValue)
     {
-        // TODO: On Windows, use WSAGetLastError().
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -143,9 +161,8 @@ Error Socket::TcpConnect(llvm::StringRef host_and_port, bool child_processes_inh
         inet_pton_result = ::inet_pton (AF_INET, host_str.c_str(), &sa.sin_addr);
         if (inet_pton_result <= 0)
         {
-            // TODO: On Windows, use WSAGetLastError()
             if (inet_pton_result == -1)
-                error.SetErrorToErrno();
+                SetLastError(error);
             else
                 error.SetErrorStringWithFormat("invalid host string: '%s'", host_str.c_str());
 
@@ -155,8 +172,7 @@ Error Socket::TcpConnect(llvm::StringRef host_and_port, bool child_processes_inh
 
     if (-1 == ::connect (sock, (const struct sockaddr *)&sa, sizeof(sa)))
     {
-        // TODO: On Windows, use WSAGetLastError()
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -167,7 +183,12 @@ Error Socket::TcpConnect(llvm::StringRef host_and_port, bool child_processes_inh
     return error;
 }
 
-Error Socket::TcpListen(llvm::StringRef host_and_port, bool child_processes_inherit, Socket *&socket, Predicate<uint16_t>* predicate)
+Error Socket::TcpListen(
+    llvm::StringRef host_and_port,
+    bool child_processes_inherit,
+    Socket *&socket,
+    Predicate<uint16_t>* predicate,
+    int backlog)
 {
     std::unique_ptr<Socket> listen_socket;
     NativeSocket listen_sock = kInvalidSocketValue;
@@ -179,7 +200,7 @@ Error Socket::TcpListen(llvm::StringRef host_and_port, bool child_processes_inhe
     listen_sock = ::CreateSocket (family, socktype, protocol, child_processes_inherit);
     if (listen_sock == kInvalidSocketValue)
     {
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -204,16 +225,14 @@ Error Socket::TcpListen(llvm::StringRef host_and_port, bool child_processes_inhe
         int err = ::bind (listen_sock, anyaddr, anyaddr.GetLength());
         if (err == -1)
         {
-            // TODO: On Windows, use WSAGetLastError()
-            error.SetErrorToErrno();
+            SetLastError (error);
             return error;
         }
 
-        err = ::listen (listen_sock, 1);
+        err = ::listen (listen_sock, backlog);
         if (err == -1)
         {
-            // TODO: On Windows, use WSAGetLastError()
-            error.SetErrorToErrno();
+            SetLastError (error);
             return error;
         }
 
@@ -284,8 +303,7 @@ Error Socket::BlockingAccept(llvm::StringRef host_and_port, bool child_processes
             
         if (sock == kInvalidSocketValue)
         {
-            // TODO: On Windows, use WSAGetLastError()
-            error.SetErrorToErrno();
+            SetLastError (error);
             break;
         }
     
@@ -349,8 +367,7 @@ Error Socket::UdpConnect(llvm::StringRef host_and_port, bool child_processes_inh
     if (final_recv_fd == kInvalidSocketValue)
     {
         // Socket creation failed...
-        // TODO: On Windows, use WSAGetLastError().
-        error.SetErrorToErrno();
+        SetLastError (error);
     }
     else
     {
@@ -363,8 +380,7 @@ Error Socket::UdpConnect(llvm::StringRef host_and_port, bool child_processes_inh
         if (::bind (final_recv_fd, addr, addr.GetLength()) == -1)
         {
             // Bind failed...
-            // TODO: On Windows use WSAGetLastError()
-            error.SetErrorToErrno();
+            SetLastError (error);
         }
     }
 
@@ -415,8 +431,7 @@ Error Socket::UdpConnect(llvm::StringRef host_and_port, bool child_processes_inh
 
     if (final_send_fd == kInvalidSocketValue)
     {
-        // TODO: On Windows, use WSAGetLastError().
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -437,7 +452,7 @@ Error Socket::UnixDomainConnect(llvm::StringRef name, bool child_processes_inher
     int fd = ::CreateSocket (AF_UNIX, SOCK_STREAM, 0, child_processes_inherit);
     if (fd == kInvalidSocketValue)
     {
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -452,7 +467,7 @@ Error Socket::UnixDomainConnect(llvm::StringRef name, bool child_processes_inher
 
     if (::connect (fd, (struct sockaddr *)&saddr_un, SUN_LEN (&saddr_un)) < 0) 
     {
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -476,7 +491,7 @@ Error Socket::UnixDomainAccept(llvm::StringRef name, bool child_processes_inheri
     listen_fd = ::CreateSocket (AF_UNIX, SOCK_STREAM, 0, child_processes_inherit);
     if (listen_fd == kInvalidSocketValue)
     {
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
 
@@ -489,7 +504,7 @@ Error Socket::UnixDomainAccept(llvm::StringRef name, bool child_processes_inheri
     saddr_un.sun_len = SUN_LEN (&saddr_un);
 #endif
 
-    FileSystem::Unlink(name.data());
+    FileSystem::Unlink(FileSpec{name, true});
     bool success = false;
     if (::bind (listen_fd, (struct sockaddr *)&saddr_un, SUN_LEN (&saddr_un)) == 0) 
     {
@@ -506,7 +521,7 @@ Error Socket::UnixDomainAccept(llvm::StringRef name, bool child_processes_inheri
     
     if (!success)
     {
-        error.SetErrorToErrno();
+        SetLastError (error);
         return error;
     }
     // We are done with the listen port
@@ -580,12 +595,11 @@ Error Socket::Read (void *buf, size_t &num_bytes)
     do
     {
         bytes_received = ::recv (m_socket, static_cast<char *>(buf), num_bytes, 0);
-        // TODO: Use WSAGetLastError on windows.
-    } while (bytes_received < 0 && errno == EINTR);
+    } while (bytes_received < 0 && IsInterrupted ());
 
     if (bytes_received < 0)
     {
-        error.SetErrorToErrno();
+        SetLastError (error);
         num_bytes = 0;
     }
     else
@@ -623,13 +637,11 @@ Error Socket::Write (const void *buf, size_t &num_bytes)
         }
         else
             bytes_sent = ::send (m_socket, static_cast<const char *>(buf), num_bytes, 0);
-        // TODO: Use WSAGetLastError on windows.
-    } while (bytes_sent < 0 && errno == EINTR);
+    } while (bytes_sent < 0 && IsInterrupted ());
 
     if (bytes_sent < 0)
     {
-        // TODO: On Windows, use WSAGEtLastError.
-        error.SetErrorToErrno();
+        SetLastError (error);
         num_bytes = 0;
     }
     else
@@ -675,8 +687,7 @@ Error Socket::Close()
     m_socket = kInvalidSocketValue;
     if (!success)
     {
-        // TODO: On Windows, use WSAGetLastError().
-        error.SetErrorToErrno();
+        SetLastError (error);
     }
 
     return error;
@@ -699,7 +710,7 @@ int Socket::SetOption(int level, int option_name, int option_value)
 uint16_t Socket::GetLocalPortNumber(const NativeSocket& socket)
 {
     // We bound to port zero, so we need to figure out which port we actually bound to
-    if (socket >= 0)
+    if (socket != kInvalidSocketValue)
     {
         SocketAddress sock_addr;
         socklen_t sock_addr_len = sock_addr.GetMaxLength ();
@@ -718,7 +729,7 @@ uint16_t Socket::GetLocalPortNumber() const
 std::string  Socket::GetLocalIPAddress () const
 {
     // We bound to port zero, so we need to figure out which port we actually bound to
-    if (m_socket >= 0)
+    if (m_socket != kInvalidSocketValue)
     {
         SocketAddress sock_addr;
         socklen_t sock_addr_len = sock_addr.GetMaxLength ();
@@ -730,7 +741,7 @@ std::string  Socket::GetLocalIPAddress () const
 
 uint16_t Socket::GetRemotePortNumber () const
 {
-    if (m_socket >= 0)
+    if (m_socket != kInvalidSocketValue)
     {
         SocketAddress sock_addr;
         socklen_t sock_addr_len = sock_addr.GetMaxLength ();
@@ -743,7 +754,7 @@ uint16_t Socket::GetRemotePortNumber () const
 std::string Socket::GetRemoteIPAddress () const
 {
     // We bound to port zero, so we need to figure out which port we actually bound to
-    if (m_socket >= 0)
+    if (m_socket != kInvalidSocketValue)
     {
         SocketAddress sock_addr;
         socklen_t sock_addr_len = sock_addr.GetMaxLength ();

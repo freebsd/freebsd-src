@@ -64,7 +64,7 @@ static lldb::addr_t findSymbolAddress( Process *proc, ConstString findName )
 
         if ( ConstString::Compare( findName, symName ) == 0 )
         {
-            Address addr = sym->GetAddress( );
+            Address addr = sym->GetAddress();
             return addr.GetLoadAddress( & proc->GetTarget() );
         }
     }
@@ -401,7 +401,7 @@ DynamicLoaderHexagonDYLD::RendezvousBreakpointHit(void *baton,
             dyld_instance->m_rendezvous.SetRendezvousAddress( structAddr );
 
             if ( log )
-                log->Printf( "Found _rtld_debug structure @ 0x%08lx", structAddr );
+                log->Printf( "Found _rtld_debug structure @ 0x%08" PRIx64, structAddr );
         }
         else
         {

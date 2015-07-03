@@ -129,9 +129,27 @@ SelectIO(int handle, bool is_read, const std::function<Error(bool&)> &io_handler
 }
 
 PipePosix::PipePosix()
+    : m_fds{
+        PipePosix::kInvalidDescriptor,
+        PipePosix::kInvalidDescriptor
+    } {}
+
+PipePosix::PipePosix(int read_fd, int write_fd)
+    : m_fds{read_fd, write_fd} {}
+
+PipePosix::PipePosix(PipePosix &&pipe_posix)
+    : PipeBase{std::move(pipe_posix)},
+      m_fds{
+        pipe_posix.ReleaseReadFileDescriptor(),
+        pipe_posix.ReleaseWriteFileDescriptor()
+      } {}
+
+PipePosix &PipePosix::operator=(PipePosix &&pipe_posix)
 {
-    m_fds[READ] = PipePosix::kInvalidDescriptor;
-    m_fds[WRITE] = PipePosix::kInvalidDescriptor;
+    PipeBase::operator=(std::move(pipe_posix));
+    m_fds[READ] = pipe_posix.ReleaseReadFileDescriptor();
+    m_fds[WRITE] = pipe_posix.ReleaseWriteFileDescriptor();
+    return *this;
 }
 
 PipePosix::~PipePosix()
@@ -317,7 +335,7 @@ PipePosix::Close()
 Error
 PipePosix::Delete(llvm::StringRef name)
 {
-    return FileSystem::Unlink(name.data());
+    return FileSystem::Unlink(FileSpec{name.data(), true});
 }
 
 bool

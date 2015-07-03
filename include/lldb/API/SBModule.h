@@ -18,7 +18,7 @@
 
 namespace lldb {
 
-class SBModule
+class LLDB_API SBModule
 {
 public:
 
@@ -106,7 +106,7 @@ public:
     /// or "./usr/lib", then the install path will be resolved using
     /// the platform's current working directory as the base path.
     ///
-    /// @param[in]
+    /// @param[in] file
     ///     A file specification object.
     //------------------------------------------------------------------
     bool
@@ -317,6 +317,23 @@ public:
     uint32_t
     GetVersion (uint32_t *versions, 
                 uint32_t num_versions);
+
+    //------------------------------------------------------------------
+    /// Get accessor for the symbol file specification.
+    ///
+    /// When debugging an object file an additional debug information can
+    /// be provided in separate file. Therefore if you debugging something
+    /// like '/usr/lib/liba.dylib' then debug information can be located
+    /// in folder like '/usr/lib/liba.dylib.dSYM/'.
+    ///
+    /// @return
+    ///     A const reference to the file specification object.
+    //------------------------------------------------------------------
+    lldb::SBFileSpec
+    GetSymbolFileSpec() const;
+
+    lldb::SBAddress
+    GetObjectFileHeaderAddress() const;
 
 private:
     friend class SBAddress;

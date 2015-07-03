@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectExpression.h"
 
 // C Includes
@@ -196,7 +194,7 @@ CommandObjectExpression::CommandObjectExpression (CommandInterpreter &interprete
                       "expression",
                       "Evaluate a C/ObjC/C++ expression in the current program context, using user defined variables and variables currently in scope.",
                       NULL,
-                      eFlagProcessMustBePaused | eFlagTryTargetAPILock),
+                      eCommandProcessMustBePaused | eCommandTryTargetAPILock),
     IOHandlerDelegate (IOHandlerDelegate::Completion::Expression),
     m_option_group (interpreter),
     m_format_options (eFormatDefault),
@@ -487,7 +485,7 @@ CommandObjectExpression::DoExecute
 
         if (end_options)
         {
-            Args args (command, end_options - command);
+            Args args (llvm::StringRef(command, end_options - command));
             if (!ParseOptions (args, result))
                 return false;
             

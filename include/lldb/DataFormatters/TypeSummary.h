@@ -25,8 +25,8 @@
 
 #include "lldb/Core/Error.h"
 #include "lldb/Core/FormatEntity.h"
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ValueObject.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
 #include "lldb/Symbol/Type.h"
 
 namespace lldb_private {
@@ -211,6 +211,22 @@ namespace lldb_private {
                 return *this;
             }
             
+            bool
+            GetNonCacheable () const
+            {
+                return (m_flags & lldb::eTypeOptionNonCacheable) == lldb::eTypeOptionNonCacheable;
+            }
+            
+            Flags&
+            SetNonCacheable (bool value = true)
+            {
+                if (value)
+                    m_flags |= lldb::eTypeOptionNonCacheable;
+                else
+                    m_flags &= ~lldb::eTypeOptionNonCacheable;
+                return *this;
+            }
+            
             uint32_t
             GetValue ()
             {
@@ -251,6 +267,11 @@ namespace lldb_private {
         SkipsReferences () const
         {
             return m_flags.GetSkipReferences();
+        }
+        bool
+        NonCacheable () const
+        {
+            return m_flags.GetNonCacheable();
         }
         
         virtual bool
@@ -317,6 +338,12 @@ namespace lldb_private {
         SetHideNames (bool value)
         {
             m_flags.SetHideItemNames(value);
+        }
+        
+        virtual void
+        SetNonCacheable (bool value)
+        {
+            m_flags.SetNonCacheable(value);
         }
         
         uint32_t
@@ -501,8 +528,8 @@ namespace lldb_private {
     {
         std::string m_function_name;
         std::string m_python_script;
-        lldb::ScriptInterpreterObjectSP m_script_function_sp;
-        
+        StructuredData::ObjectSP m_script_function_sp;
+
         ScriptSummaryFormat(const TypeSummaryImpl::Flags& flags,
                             const char *function_name,
                             const char* python_script = NULL);

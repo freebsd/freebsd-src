@@ -28,6 +28,7 @@
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/PseudoTerminal.h"
 
 #include "Plugins/Process/POSIX/CrashReason.h"
@@ -107,13 +108,9 @@ PtraceWrapper(int req, lldb::pid_t pid, void *addr, int data,
         if (req == PT_GETREGS) {
             struct reg *r = (struct reg *) addr;
 
-            log->Printf("PT_GETREGS: ip=0x%lx", r->r_rip);
-            log->Printf("PT_GETREGS: sp=0x%lx", r->r_rsp);
-            log->Printf("PT_GETREGS: bp=0x%lx", r->r_rbp);
-            log->Printf("PT_GETREGS: ax=0x%lx", r->r_rax);
+            log->Printf("PT_GETREGS: rip=0x%lx rsp=0x%lx rbp=0x%lx rax=0x%lx",
+                        r->r_rip, r->r_rsp, r->r_rbp, r->r_rax);
         }
-#endif
-#ifndef __powerpc__
         if (req == PT_GETDBREGS || req == PT_SETDBREGS) {
             struct dbreg *r = (struct dbreg *) addr;
             char setget = (req == PT_GETDBREGS) ? 'G' : 'S';
@@ -772,17 +769,17 @@ ProcessMonitor::LaunchArgs::LaunchArgs(ProcessMonitor *monitor,
                                        lldb_private::Module *module,
                                        char const **argv,
                                        char const **envp,
-                                       const char *stdin_path,
-                                       const char *stdout_path,
-                                       const char *stderr_path,
-                                       const char *working_dir)
+                                       const FileSpec &stdin_file_spec,
+                                       const FileSpec &stdout_file_spec,
+                                       const FileSpec &stderr_file_spec,
+                                       const FileSpec &working_dir)
     : OperationArgs(monitor),
       m_module(module),
       m_argv(argv),
       m_envp(envp),
-      m_stdin_path(stdin_path),
-      m_stdout_path(stdout_path),
-      m_stderr_path(stderr_path),
+      m_stdin_file_spec(stdin_file_spec),
+      m_stdout_file_spec(stdout_file_spec),
+      m_stderr_file_spec(stderr_file_spec),
       m_working_dir(working_dir) { }
 
 ProcessMonitor::LaunchArgs::~LaunchArgs()
@@ -811,10 +808,10 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
                                Module *module,
                                const char *argv[],
                                const char *envp[],
-                               const char *stdin_path,
-                               const char *stdout_path,
-                               const char *stderr_path,
-                               const char *working_dir,
+                               const FileSpec &stdin_file_spec,
+                               const FileSpec &stdout_file_spec,
+                               const FileSpec &stderr_file_spec,
+                               const FileSpec &working_dir,
                                const lldb_private::ProcessLaunchInfo & /* launch_info */,
                                lldb_private::Error &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
@@ -823,8 +820,10 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
       m_operation(0)
 {
     std::unique_ptr<LaunchArgs> args(new LaunchArgs(this, module, argv, envp,
-                                     stdin_path, stdout_path, stderr_path,
-                                     working_dir));
+                                                    stdin_file_spec,
+                                                    stdout_file_spec,
+                                                    stderr_file_spec,
+                                                    working_dir));
     
 
     sem_init(&m_operation_pending, 0, 0);
@@ -955,15 +954,15 @@ ProcessMonitor::Launch(LaunchArgs *args)
     ProcessFreeBSD &process = monitor->GetProcess();
     const char **argv = args->m_argv;
     const char **envp = args->m_envp;
-    const char *stdin_path = args->m_stdin_path;
-    const char *stdout_path = args->m_stdout_path;
-    const char *stderr_path = args->m_stderr_path;
-    const char *working_dir = args->m_working_dir;
+    const FileSpec &stdin_file_spec = args->m_stdin_file_spec;
+    const FileSpec &stdout_file_spec = args->m_stdout_file_spec;
+    const FileSpec &stderr_file_spec = args->m_stderr_file_spec;
+    const FileSpec &working_dir = args->m_working_dir;
 
     lldb_utility::PseudoTerminal terminal;
     const size_t err_len = 1024;
     char err_str[err_len];
-    lldb::pid_t pid;
+    ::pid_t pid;
 
     // Propagate the environment if one is not supplied.
     if (envp == NULL || envp[0] == NULL)
@@ -1010,22 +1009,21 @@ ProcessMonitor::Launch(LaunchArgs *args)
         //
         // FIXME: If two or more of the paths are the same we needlessly open
         // the same file multiple times.
-        if (stdin_path != NULL && stdin_path[0])
-            if (!DupDescriptor(stdin_path, STDIN_FILENO, O_RDONLY))
+        if (stdin_file_spec)
+            if (!DupDescriptor(stdin_file_spec, STDIN_FILENO, O_RDONLY))
                 exit(eDupStdinFailed);
 
-        if (stdout_path != NULL && stdout_path[0])
-            if (!DupDescriptor(stdout_path, STDOUT_FILENO, O_WRONLY | O_CREAT))
+        if (stdout_file_spec)
+            if (!DupDescriptor(stdout_file_spec, STDOUT_FILENO, O_WRONLY | O_CREAT))
                 exit(eDupStdoutFailed);
 
-        if (stderr_path != NULL && stderr_path[0])
-            if (!DupDescriptor(stderr_path, STDERR_FILENO, O_WRONLY | O_CREAT))
+        if (stderr_file_spec)
+            if (!DupDescriptor(stderr_file_spec, STDERR_FILENO, O_WRONLY | O_CREAT))
                 exit(eDupStderrFailed);
 
         // Change working directory
-        if (working_dir != NULL && working_dir[0])
-          if (0 != ::chdir(working_dir))
-              exit(eChdirFailed);
+        if (working_dir && 0 != ::chdir(working_dir.GetCString()))
+            exit(eChdirFailed);
 
         // Execute.  We should never return.
         execve(argv[0],
@@ -1556,9 +1554,9 @@ ProcessMonitor::Detach(lldb::tid_t tid)
 }    
 
 bool
-ProcessMonitor::DupDescriptor(const char *path, int fd, int flags)
+ProcessMonitor::DupDescriptor(const FileSpec &file_spec, int fd, int flags)
 {
-    int target_fd = open(path, flags, 0666);
+    int target_fd = open(file_spec.GetCString(), flags, 0666);
 
     if (target_fd == -1)
         return false;

@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Core/Debugger.h"
 
 #include <map>
@@ -39,6 +37,7 @@
 #include "lldb/Host/Terminal.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Interpreter/OptionValueSInt64.h"
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Symbol/ClangASTContext.h"
@@ -63,7 +62,6 @@ using namespace lldb;
 using namespace lldb_private;
 
 
-static uint32_t g_shared_debugger_refcount = 0;
 static lldb::user_id_t g_unique_id = 1;
 static size_t g_debugger_event_thread_stack_bytes = 8 * 1024 * 1024;
 
@@ -126,7 +124,21 @@ g_language_enumerators[] =
     FILE_AND_LINE\
     "\\n"
 
-#define DEFAULT_DISASSEMBLY_FORMAT "${current-pc-arrow}${addr-file-or-load}{ <${function.name-without-args}${function.concrete-only-addr-offset-no-padding}>}: "
+// Three parts to this disassembly format specification:
+//   1. If this is a new function/symbol (no previous symbol/function), print
+//      dylib`funcname:\n
+//   2. If this is a symbol context change (different from previous symbol/function), print
+//      dylib`funcname:\n
+//   3. print 
+//      address <+offset>: 
+#define DEFAULT_DISASSEMBLY_FORMAT "{${function.initial-function}{${module.file.basename}`}{${function.name-without-args}}:\n}{${function.changed}\n{${module.file.basename}`}{${function.name-without-args}}:\n}{${current-pc-arrow} }${addr-file-or-load}{ <${function.concrete-only-addr-offset-no-padding}>}: "
+
+// gdb's disassembly format can be emulated with
+// ${current-pc-arrow}${addr-file-or-load}{ <${function.name-without-args}${function.concrete-only-addr-offset-no-padding}>}: 
+
+// lldb's original format for disassembly would look like this format string -
+// {${function.initial-function}{${module.file.basename}`}{${function.name-without-args}}:\n}{${function.changed}\n{${module.file.basename}`}{${function.name-without-args}}:\n}{${current-pc-arrow} }{${addr-file-or-load}}: 
+
 
 static PropertyDefinition
 g_properties[] =
@@ -170,7 +182,7 @@ enum
     ePropertyEscapeNonPrintables
 };
 
-Debugger::LoadPluginCallbackType Debugger::g_load_plugin_callback = NULL;
+LoadPluginCallbackType Debugger::g_load_plugin_callback = NULL;
 
 Error
 Debugger::SetPropertyValue (const ExecutionContext *exe_ctx,
@@ -391,36 +403,24 @@ Debugger::GetEscapeNonPrintables () const
 //}
 //
 
-int
-Debugger::TestDebuggerRefCount ()
-{
-    return g_shared_debugger_refcount;
-}
-
+static bool lldb_initialized = false;
 void
-Debugger::Initialize (LoadPluginCallbackType load_plugin_callback)
+Debugger::Initialize(LoadPluginCallbackType load_plugin_callback)
 {
+    assert(!lldb_initialized && "Debugger::Initialize called more than once!");
+
+    lldb_initialized = true;
     g_load_plugin_callback = load_plugin_callback;
-    if (g_shared_debugger_refcount++ == 0)
-        lldb_private::Initialize();
 }
 
 void
 Debugger::Terminate ()
 {
-    if (g_shared_debugger_refcount > 0)
-    {
-        g_shared_debugger_refcount--;
-        if (g_shared_debugger_refcount == 0)
-        {
-            lldb_private::WillTerminate();
-            lldb_private::Terminate();
+    assert(lldb_initialized && "Debugger::Terminate called without a matching Debugger::Initialize!");
 
-            // Clear our master list of debugger objects
-            Mutex::Locker locker (GetDebuggerListMutex ());
-            GetDebuggerList().clear();
-        }
-    }
+    // Clear our master list of debugger objects
+    Mutex::Locker locker (GetDebuggerListMutex ());
+    GetDebuggerList().clear();
 }
 
 void
@@ -553,7 +553,7 @@ DebuggerSP
 Debugger::CreateInstance (lldb::LogOutputCallback log_callback, void *baton)
 {
     DebuggerSP debugger_sp (new Debugger(log_callback, baton));
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         GetDebuggerList().push_back(debugger_sp);
@@ -570,7 +570,7 @@ Debugger::Destroy (DebuggerSP &debugger_sp)
         
     debugger_sp->Clear();
 
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         DebuggerList &debugger_list = GetDebuggerList ();
@@ -590,7 +590,7 @@ DebuggerSP
 Debugger::FindDebuggerWithInstanceName (const ConstString &instance_name)
 {
     DebuggerSP debugger_sp;
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         DebuggerList &debugger_list = GetDebuggerList();
@@ -612,7 +612,7 @@ TargetSP
 Debugger::FindTargetWithProcessID (lldb::pid_t pid)
 {
     TargetSP target_sp;
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         DebuggerList &debugger_list = GetDebuggerList();
@@ -631,7 +631,7 @@ TargetSP
 Debugger::FindTargetWithProcess (Process *process)
 {
     TargetSP target_sp;
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         DebuggerList &debugger_list = GetDebuggerList();
@@ -682,6 +682,10 @@ Debugger::Debugger(lldb::LogOutputCallback log_callback, void *baton) :
                                      ConstString("Settings specify to debugging targets."),
                                      true,
                                      Target::GetGlobalProperties()->GetValueProperties());
+    m_collection_sp->AppendProperty (ConstString("platform"),
+                                     ConstString("Platform settings."),
+                                     true,
+                                     Platform::GetGlobalPlatformProperties()->GetValueProperties());
     if (m_command_interpreter_ap.get())
     {
         m_collection_sp->AppendProperty (ConstString("interpreter"),
@@ -879,34 +883,27 @@ Debugger::ClearIOHandlers ()
     {
         IOHandlerSP reader_sp (m_input_reader_stack.Top());
         if (reader_sp)
-        {
-            m_input_reader_stack.Pop();
-            reader_sp->SetIsDone(true);
-            reader_sp->Cancel();
-        }
+            PopIOHandler (reader_sp);
     }
 }
 
 void
-Debugger::ExecuteIOHanders()
+Debugger::ExecuteIOHandlers()
 {
-    
     while (1)
     {
         IOHandlerSP reader_sp(m_input_reader_stack.Top());
         if (!reader_sp)
             break;
 
-        reader_sp->Activate();
         reader_sp->Run();
-        reader_sp->Deactivate();
 
         // Remove all input readers that are done from the top of the stack
         while (1)
         {
             IOHandlerSP top_reader_sp = m_input_reader_stack.Top();
             if (top_reader_sp && top_reader_sp->GetIsDone())
-                m_input_reader_stack.Pop();
+                PopIOHandler (top_reader_sp);
             else
                 break;
         }
@@ -920,6 +917,12 @@ Debugger::IsTopIOHandler (const lldb::IOHandlerSP& reader_sp)
     return m_input_reader_stack.IsTop (reader_sp);
 }
 
+void
+Debugger::PrintAsync (const char *s, size_t len, bool is_stdout)
+{
+    lldb::StreamFileSP stream = is_stdout ? GetOutputFile() : GetErrorFile();
+    m_input_reader_stack.PrintAsync(stream.get(), s, len);
+}
 
 ConstString
 Debugger::GetTopIOHandlerControlSequence(char ch)
@@ -943,25 +946,23 @@ void
 Debugger::RunIOHandler (const IOHandlerSP& reader_sp)
 {
     PushIOHandler (reader_sp);
-    
+
     IOHandlerSP top_reader_sp = reader_sp;
     while (top_reader_sp)
     {
-        top_reader_sp->Activate();
         top_reader_sp->Run();
-        top_reader_sp->Deactivate();
-        
+
         if (top_reader_sp.get() == reader_sp.get())
         {
             if (PopIOHandler (reader_sp))
                 break;
         }
-        
+
         while (1)
         {
             top_reader_sp = m_input_reader_stack.Top();
             if (top_reader_sp && top_reader_sp->GetIsDone())
-                m_input_reader_stack.Pop();
+                PopIOHandler (top_reader_sp);
             else
                 break;
         }
@@ -1024,93 +1025,73 @@ Debugger::PushIOHandler (const IOHandlerSP& reader_sp)
     if (!reader_sp)
         return;
  
-    // Got the current top input reader...
+    Mutex::Locker locker (m_input_reader_stack.GetMutex());
+
+    // Get the current top input reader...
     IOHandlerSP top_reader_sp (m_input_reader_stack.Top());
     
     // Don't push the same IO handler twice...
-    if (reader_sp.get() != top_reader_sp.get())
-    {
-        // Push our new input reader
-        m_input_reader_stack.Push (reader_sp);
+    if (reader_sp == top_reader_sp)
+        return;
 
-        // Interrupt the top input reader to it will exit its Run() function
-        // and let this new input reader take over
-        if (top_reader_sp)
-            top_reader_sp->Deactivate();
+    // Push our new input reader
+    m_input_reader_stack.Push (reader_sp);
+    reader_sp->Activate();
+
+    // Interrupt the top input reader to it will exit its Run() function
+    // and let this new input reader take over
+    if (top_reader_sp)
+    {
+        top_reader_sp->Deactivate();
+        top_reader_sp->Cancel();
     }
 }
 
 bool
 Debugger::PopIOHandler (const IOHandlerSP& pop_reader_sp)
 {
-    bool result = false;
-    
+    if (! pop_reader_sp)
+        return false;
+
     Mutex::Locker locker (m_input_reader_stack.GetMutex());
 
     // The reader on the stop of the stack is done, so let the next
     // read on the stack refresh its prompt and if there is one...
-    if (!m_input_reader_stack.IsEmpty())
-    {
-        IOHandlerSP reader_sp(m_input_reader_stack.Top());
-        
-        if (!pop_reader_sp || pop_reader_sp.get() == reader_sp.get())
-        {
-            reader_sp->Deactivate();
-            reader_sp->Cancel();
-            m_input_reader_stack.Pop ();
-            
-            reader_sp = m_input_reader_stack.Top();
-            if (reader_sp)
-                reader_sp->Activate();
+    if (m_input_reader_stack.IsEmpty())
+        return false;
 
-            result = true;
-        }
-    }
-    return result;
-}
-
-bool
-Debugger::HideTopIOHandler()
-{
-    Mutex::Locker locker;
-    
-    if (locker.TryLock(m_input_reader_stack.GetMutex()))
-    {
-        IOHandlerSP reader_sp(m_input_reader_stack.Top());
-        if (reader_sp)
-            reader_sp->Hide();
-        return true;
-    }
-    return false;
-}
-
-void
-Debugger::RefreshTopIOHandler()
-{
     IOHandlerSP reader_sp(m_input_reader_stack.Top());
-    if (reader_sp)
-        reader_sp->Refresh();
-}
 
+    if (pop_reader_sp != reader_sp)
+        return false;
+
+    reader_sp->Deactivate();
+    reader_sp->Cancel();
+    m_input_reader_stack.Pop ();
+
+    reader_sp = m_input_reader_stack.Top();
+    if (reader_sp)
+        reader_sp->Activate();
+
+    return true;
+}
 
 StreamSP
 Debugger::GetAsyncOutputStream ()
 {
-    return StreamSP (new StreamAsynchronousIO (GetCommandInterpreter(),
-                                               CommandInterpreter::eBroadcastBitAsynchronousOutputData));
+    return StreamSP (new StreamAsynchronousIO (*this, true));
 }
 
 StreamSP
 Debugger::GetAsyncErrorStream ()
 {
-    return StreamSP (new StreamAsynchronousIO (GetCommandInterpreter(),
-                                               CommandInterpreter::eBroadcastBitAsynchronousErrorData));
+    return StreamSP (new StreamAsynchronousIO (*this, false));
 }    
 
 size_t
 Debugger::GetNumDebuggers()
 {
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         return GetDebuggerList().size();
@@ -1123,7 +1104,7 @@ Debugger::GetDebuggerAtIndex (size_t index)
 {
     DebuggerSP debugger_sp;
     
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         DebuggerList &debugger_list = GetDebuggerList();
@@ -1140,7 +1121,7 @@ Debugger::FindDebuggerWithID (lldb::user_id_t id)
 {
     DebuggerSP debugger_sp;
 
-    if (g_shared_debugger_refcount > 0)
+    if (lldb_initialized)
     {
         Mutex::Locker locker (GetDebuggerListMutex ());
         DebuggerList &debugger_list = GetDebuggerList();
@@ -1292,8 +1273,6 @@ Debugger::SetLoggingCallback (lldb::LogOutputCallback log_callback, void *baton)
 bool
 Debugger::EnableLog (const char *channel, const char **categories, const char *log_file, uint32_t log_options, Stream &error_stream)
 {
-    Log::Callbacks log_callbacks;
-
     StreamSP log_stream_sp;
     if (m_log_callback_stream_sp)
     {
@@ -1312,7 +1291,12 @@ Debugger::EnableLog (const char *channel, const char **categories, const char *l
             log_stream_sp = pos->second.lock();
         if (!log_stream_sp)
         {
-            log_stream_sp.reset (new StreamFile (log_file));
+            uint32_t options = File::eOpenOptionWrite | File::eOpenOptionCanCreate
+                                | File::eOpenOptionCloseOnExec | File::eOpenOptionAppend;
+            if (! (log_options & LLDB_LOG_OPTION_APPEND))
+                options |= File::eOpenOptionTruncate;
+
+            log_stream_sp.reset (new StreamFile (log_file, options));
             m_log_streams[log_file] = log_stream_sp;
         }
     }
@@ -1321,33 +1305,7 @@ Debugger::EnableLog (const char *channel, const char **categories, const char *l
     if (log_options == 0)
         log_options = LLDB_LOG_OPTION_PREPEND_THREAD_NAME | LLDB_LOG_OPTION_THREADSAFE;
         
-    if (Log::GetLogChannelCallbacks (ConstString(channel), log_callbacks))
-    {
-        log_callbacks.enable (log_stream_sp, log_options, categories, &error_stream);
-        return true;
-    }
-    else
-    {
-        LogChannelSP log_channel_sp (LogChannel::FindPlugin (channel));
-        if (log_channel_sp)
-        {
-            if (log_channel_sp->Enable (log_stream_sp, log_options, &error_stream, categories))
-            {
-                return true;
-            }
-            else
-            {
-                error_stream.Printf ("Invalid log channel '%s'.\n", channel);
-                return false;
-            }
-        }
-        else
-        {
-            error_stream.Printf ("Invalid log channel '%s'.\n", channel);
-            return false;
-        }
-    }
-    return false;
+    return Log::EnableLogChannel(log_stream_sp, log_options, channel, categories, error_stream);
 }
 
 SourceManager &
@@ -1385,14 +1343,14 @@ Debugger::HandleBreakpointEvent (const EventSP &event_sp)
         if (num_new_locations > 0)
         {
             BreakpointSP breakpoint = Breakpoint::BreakpointEventData::GetBreakpointFromEvent(event_sp);
-            StreamFileSP output_sp (GetOutputFile());
+            StreamSP output_sp (GetAsyncOutputStream());
             if (output_sp)
             {
                 output_sp->Printf("%d location%s added to breakpoint %d\n",
                                   num_new_locations,
                                   num_new_locations == 1 ? "" : "s",
                                   breakpoint->GetID());
-                RefreshTopIOHandler();
+                output_sp->Flush();
             }
         }
     }
@@ -1479,8 +1437,8 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
     const uint32_t event_type = event_sp->GetType();
     ProcessSP process_sp = Process::ProcessEventData::GetProcessFromEvent(event_sp.get());
 
-    StreamString output_stream;
-    StreamString error_stream;
+    StreamSP output_stream_sp = GetAsyncOutputStream();
+    StreamSP error_stream_sp = GetAsyncErrorStream();
     const bool gui_enabled = IsForwardingEvents();
 
     if (!gui_enabled)
@@ -1488,46 +1446,42 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
         bool pop_process_io_handler = false;
         assert (process_sp);
 
-        if (event_type & Process::eBroadcastBitSTDOUT || event_type & Process::eBroadcastBitStateChanged)
+        bool state_is_stopped = false;
+        const bool got_state_changed = (event_type & Process::eBroadcastBitStateChanged) != 0;
+        const bool got_stdout = (event_type & Process::eBroadcastBitSTDOUT) != 0;
+        const bool got_stderr = (event_type & Process::eBroadcastBitSTDERR) != 0;
+        if (got_state_changed)
         {
-            GetProcessSTDOUT (process_sp.get(), &output_stream);
+            StateType event_state = Process::ProcessEventData::GetStateFromEvent (event_sp.get());
+            state_is_stopped = StateIsStoppedState(event_state, false);
         }
 
-        if (event_type & Process::eBroadcastBitSTDERR || event_type & Process::eBroadcastBitStateChanged)
+        // Display running state changes first before any STDIO
+        if (got_state_changed && !state_is_stopped)
         {
-            GetProcessSTDERR (process_sp.get(), &error_stream);
+            Process::HandleProcessStateChangedEvent (event_sp, output_stream_sp.get(), pop_process_io_handler);
         }
 
-        if (event_type & Process::eBroadcastBitStateChanged)
+        // Now display and STDOUT
+        if (got_stdout || got_state_changed)
         {
-            Process::HandleProcessStateChangedEvent (event_sp, &output_stream, pop_process_io_handler);
+            GetProcessSTDOUT (process_sp.get(), output_stream_sp.get());
         }
 
-        if (output_stream.GetSize() || error_stream.GetSize())
+        // Now display and STDERR
+        if (got_stderr || got_state_changed)
         {
-            StreamFileSP error_stream_sp (GetOutputFile());
-            bool top_io_handler_hid = false;
-
-            if (process_sp->ProcessIOHandlerIsActive() == false)
-                top_io_handler_hid = HideTopIOHandler();
-
-            if (output_stream.GetSize())
-            {
-                StreamFileSP output_stream_sp (GetOutputFile());
-                if (output_stream_sp)
-                    output_stream_sp->Write (output_stream.GetData(), output_stream.GetSize());
-            }
-
-            if (error_stream.GetSize())
-            {
-                StreamFileSP error_stream_sp (GetErrorFile());
-                if (error_stream_sp)
-                    error_stream_sp->Write (error_stream.GetData(), error_stream.GetSize());
-            }
-
-            if (top_io_handler_hid)
-                RefreshTopIOHandler();
+            GetProcessSTDERR (process_sp.get(), error_stream_sp.get());
         }
+
+        // Now display any stopped state changes after any STDIO
+        if (got_state_changed && state_is_stopped)
+        {
+            Process::HandleProcessStateChangedEvent (event_sp, output_stream_sp.get(), pop_process_io_handler);
+        }
+
+        output_stream_sp->Flush();
+        error_stream_sp->Flush();
 
         if (pop_process_io_handler)
             process_sp->PopProcessIOHandler();
@@ -1547,10 +1501,7 @@ Debugger::HandleThreadEvent (const EventSP &event_sp)
         ThreadSP thread_sp (Thread::ThreadEventData::GetThreadFromEvent (event_sp.get()));
         if (thread_sp)
         {
-            HideTopIOHandler();
-            StreamFileSP stream_sp (GetOutputFile());
-            thread_sp->GetStatus(*stream_sp, 0, 1, 1);
-            RefreshTopIOHandler();
+            thread_sp->GetStatus(*GetAsyncOutputStream(), 0, 1, 1);
         }
     }
 }
@@ -1644,13 +1595,11 @@ Debugger::DefaultEventHandler()
                             const char *data = reinterpret_cast<const char *>(EventDataBytes::GetBytesFromEvent (event_sp.get()));
                             if (data && data[0])
                             {
-                                StreamFileSP error_sp (GetErrorFile());
+                                StreamSP error_sp (GetAsyncErrorStream());
                                 if (error_sp)
                                 {
-                                    HideTopIOHandler();
                                     error_sp->PutCString(data);
                                     error_sp->Flush();
-                                    RefreshTopIOHandler();
                                 }
                             }
                         }
@@ -1659,13 +1608,11 @@ Debugger::DefaultEventHandler()
                             const char *data = reinterpret_cast<const char *>(EventDataBytes::GetBytesFromEvent (event_sp.get()));
                             if (data && data[0])
                             {
-                                StreamFileSP output_sp (GetOutputFile());
+                                StreamSP output_sp (GetAsyncOutputStream());
                                 if (output_sp)
                                 {
-                                    HideTopIOHandler();
                                     output_sp->PutCString(data);
                                     output_sp->Flush();
-                                    RefreshTopIOHandler();
                                 }
                             }
                         }
@@ -1729,7 +1676,7 @@ lldb::thread_result_t
 Debugger::IOHandlerThread (lldb::thread_arg_t arg)
 {
     Debugger *debugger = (Debugger *)arg;
-    debugger->ExecuteIOHanders();
+    debugger->ExecuteIOHandlers();
     debugger->StopEventHandlerThread();
     return NULL;
 }

@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectProcess.h"
 
 // C Includes
@@ -32,6 +30,7 @@
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Target/UnixSignals.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -92,7 +91,7 @@ protected:
                     }
                     else
                     {
-                        Error destroy_error (process->Destroy());
+                        Error destroy_error (process->Destroy(false));
                         if (destroy_error.Success())
                         {
                             result.SetStatus (eReturnStatusSuccessFinishResult);
@@ -124,7 +123,7 @@ public:
                                             "process launch",
                                             "Launch the executable in the debugger.",
                                             NULL,
-                                            eFlagRequiresTarget,
+                                            eCommandRequiresTarget,
                                             "restart"),
         m_options (interpreter)
     {
@@ -249,9 +248,7 @@ protected:
 
         if (launch_args.GetArgumentCount() == 0)
         {
-            Args target_setting_args;
-            if (target->GetRunArguments(target_setting_args))
-                m_options.launch_info.GetArguments().AppendArguments (target_setting_args);
+            m_options.launch_info.GetArguments().AppendArguments (target->GetProcessLaunchInfo().GetArguments());
         }
         else
         {
@@ -265,13 +262,18 @@ protected:
         
         if (error.Success())
         {
-            const char *archname = exe_module_sp->GetArchitecture().GetArchitectureName();
             ProcessSP process_sp (target->GetProcessSP());
             if (process_sp)
             {
+                // There is a race condition where this thread will return up the call stack to the main command
+                // handler and show an (lldb) prompt before HandlePrivateEvent (from PrivateStateThread) has
+                // a chance to call PushProcessIOHandler().
+                process_sp->SyncIOHandler (0, 2000);
+
                 const char *data = stream.GetData();
                 if (data && strlen(data) > 0)
                     result.AppendMessage(stream.GetData());
+                const char *archname = exe_module_sp->GetArchitecture().GetArchitectureName();
                 result.AppendMessageWithFormat ("Process %" PRIu64 " launched: '%s' (%s)\n", process_sp->GetID(), exe_module_sp->GetFileSpec().GetPath().c_str(), archname);
                 result.SetStatus (eReturnStatusSuccessFinishResult);
                 result.SetDidChangeProcessState (true);
@@ -529,8 +531,6 @@ protected:
         ModuleSP old_exec_module_sp = target->GetExecutableModule();
         ArchSpec old_arch_spec = target->GetArchitecture();
 
-        ProcessSP process_sp;
-        Error error;
         if (command.GetArgumentCount())
         {
             result.AppendErrorWithFormat("Invalid arguments for '%s'.\nUsage: %s\n", m_cmd_name.c_str(), m_cmd_syntax.c_str());
@@ -539,70 +539,21 @@ protected:
         }
 
         m_interpreter.UpdateExecutionContext(nullptr);
-        ListenerSP listener_sp (new Listener("lldb.CommandObjectProcessAttach.DoExecute.attach.hijack"));
-        m_options.attach_info.SetHijackListener(listener_sp);
-
-        // If no process info was specified, then use the target executable
-        // name as the process to attach to by default
-        if (!m_options.attach_info.ProcessInfoSpecified ())
-        {
-            if (old_exec_module_sp)
-                m_options.attach_info.GetExecutableFile().GetFilename() = old_exec_module_sp->GetPlatformFileSpec().GetFilename();
-
-            if (!m_options.attach_info.ProcessInfoSpecified ())
-            {
-                error.SetErrorString ("no process specified, create a target with a file, or specify the --pid or --name command option");
-            }
-        }
-
+        StreamString stream;
+        const auto error = target->Attach(m_options.attach_info, &stream);
         if (error.Success())
         {
-            if (state != eStateConnected && platform_sp != nullptr && platform_sp->CanDebugProcess())
+            ProcessSP process_sp (target->GetProcessSP());
+            if (process_sp)
             {
-                target->SetPlatform(platform_sp);
-                process = platform_sp->Attach(m_options.attach_info, m_interpreter.GetDebugger(), target, error).get();
-            }
-            else
-            {
-                if (state != eStateConnected)
-                {
-                    const char *plugin_name = m_options.attach_info.GetProcessPluginName();
-                    process = target->CreateProcess (m_interpreter.GetDebugger().GetListener(), plugin_name, nullptr).get();
-                    if (process == nullptr)
-                        error.SetErrorStringWithFormat("failed to create process using plugin %s", plugin_name);
-                }
-                if (process)
-                {
-                    process->HijackProcessEvents(listener_sp.get());
-                    error = process->Attach(m_options.attach_info);
-                }
-            }
-        }
-
-        if (error.Success() && process != nullptr)
-        {
-            result.SetStatus (eReturnStatusSuccessContinuingNoResult);
-            StreamString stream;
-            StateType state = process->WaitForProcessToStop (nullptr, nullptr, false, listener_sp.get(), &stream);
-
-            process->RestoreProcessEvents();
-            result.SetDidChangeProcessState (true);
-
-            if (stream.GetData())
-                result.AppendMessage(stream.GetData());
-
-            if (state == eStateStopped)
-            {
+                if (stream.GetData())
+                    result.AppendMessage(stream.GetData());
                 result.SetStatus (eReturnStatusSuccessFinishNoResult);
+                result.SetDidChangeProcessState (true);
             }
             else
             {
-                const char *exit_desc = process->GetExitDescription();
-                if (exit_desc)
-                    result.AppendErrorWithFormat ("attach failed: %s", exit_desc);
-                else
-                    result.AppendError ("attach failed: process did not stop (no such process or permission problem?)");
-                process->Destroy();
+                result.AppendError("no error returned from Target::Attach, and target has no process");
                 result.SetStatus (eReturnStatusFailed);
             }
         }
@@ -686,10 +637,10 @@ public:
                              "process continue",
                              "Continue execution of all threads in the current process.",
                              "process continue",
-                             eFlagRequiresProcess       |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresProcess       |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_options(interpreter)
     {
     }
@@ -809,6 +760,8 @@ protected:
                 }
             }
 
+            const uint32_t iohandler_id = process->GetIOHandlerID();
+
             StreamString stream;
             Error error;
             if (synchronous_execution)
@@ -819,9 +772,9 @@ protected:
             if (error.Success())
             {
                 // There is a race condition where this thread will return up the call stack to the main command
-                // handler and show an (lldb) prompt before HandlePrivateEvent (from PrivateStateThread) has
-                // a chance to call PushProcessIOHandler().
-                process->SyncIOHandler(2000);
+                 // handler and show an (lldb) prompt before HandlePrivateEvent (from PrivateStateThread) has
+                 // a chance to call PushProcessIOHandler().
+                process->SyncIOHandler(iohandler_id, 2000);
 
                 result.AppendMessageWithFormat ("Process %" PRIu64 " resuming\n", process->GetID());
                 if (synchronous_execution)
@@ -947,9 +900,9 @@ public:
                              "process detach",
                              "Detach from the current process being debugged.",
                              "process detach",
-                             eFlagRequiresProcess      |
-                             eFlagTryTargetAPILock     |
-                             eFlagProcessMustBeLaunched),
+                             eCommandRequiresProcess      |
+                             eCommandTryTargetAPILock     |
+                             eCommandProcessMustBeLaunched),
         m_options(interpreter)
     {
     }
@@ -1228,10 +1181,10 @@ public:
                              "process load",
                              "Load a shared library into the current process.",
                              "process load <filename> [<filename> ...]",
-                             eFlagRequiresProcess       |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   )
+                             eCommandRequiresProcess       |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   )
     {
     }
 
@@ -1285,10 +1238,10 @@ public:
                              "process unload",
                              "Unload a shared library from the current process using the index returned by a previous call to \"process load\".",
                              "process unload <index>",
-                             eFlagRequiresProcess       |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   )
+                             eCommandRequiresProcess       |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   )
     {
     }
 
@@ -1349,7 +1302,7 @@ public:
                              "process signal",
                              "Send a UNIX signal to the current process being debugged.",
                              NULL,
-                             eFlagRequiresProcess | eFlagTryTargetAPILock)
+                             eCommandRequiresProcess | eCommandTryTargetAPILock)
     {
         CommandArgumentEntry arg;
         CommandArgumentData signal_arg;
@@ -1431,9 +1384,9 @@ public:
                              "process interrupt",
                              "Interrupt the current process being debugged.",
                              "process interrupt",
-                             eFlagRequiresProcess      |
-                             eFlagTryTargetAPILock     |
-                             eFlagProcessMustBeLaunched)
+                             eCommandRequiresProcess      |
+                             eCommandTryTargetAPILock     |
+                             eCommandProcessMustBeLaunched)
     {
     }
 
@@ -1493,9 +1446,9 @@ public:
                              "process kill",
                              "Terminate the current process being debugged.",
                              "process kill",
-                             eFlagRequiresProcess      |
-                             eFlagTryTargetAPILock     |
-                             eFlagProcessMustBeLaunched)
+                             eCommandRequiresProcess      |
+                             eCommandTryTargetAPILock     |
+                             eCommandProcessMustBeLaunched)
     {
     }
 
@@ -1518,7 +1471,7 @@ protected:
 
         if (command.GetArgumentCount() == 0)
         {
-            Error error (process->Destroy());
+            Error error (process->Destroy(true));
             if (error.Success())
             {
                 result.SetStatus (eReturnStatusSuccessFinishResult);
@@ -1554,9 +1507,9 @@ public:
                          "process save-core",
                          "Save the current process as a core file using an appropriate file type.",
                          "process save-core FILE",
-                         eFlagRequiresProcess      |
-                         eFlagTryTargetAPILock     |
-                         eFlagProcessMustBeLaunched)
+                         eCommandRequiresProcess      |
+                         eCommandTryTargetAPILock     |
+                         eCommandProcessMustBeLaunched)
     {
     }
     
@@ -1618,7 +1571,7 @@ public:
                              "process status",
                              "Show the current status and location of executing process.",
                              "process status",
-                             eFlagRequiresProcess | eFlagTryTargetAPILock)
+                             eCommandRequiresProcess | eCommandTryTargetAPILock)
     {
     }
 
@@ -1632,7 +1585,7 @@ public:
     {
         Stream &strm = result.GetOutputStream();
         result.SetStatus (eReturnStatusSuccessFinishNoResult);
-        // No need to check "process" for validity as eFlagRequiresProcess ensures it is valid        
+        // No need to check "process" for validity as eCommandRequiresProcess ensures it is valid        
         Process *process = m_exe_ctx.GetProcessPtr();
         const bool only_threads_with_stop_reason = true;
         const uint32_t start_frame = 0;
@@ -1776,8 +1729,8 @@ public:
     void
     PrintSignalHeader (Stream &str)
     {
-        str.Printf ("NAME        PASS   STOP   NOTIFY\n");
-        str.Printf ("==========  =====  =====  ======\n");
+        str.Printf ("NAME         PASS   STOP   NOTIFY\n");
+        str.Printf ("===========  =====  =====  ======\n");
     }  
 
     void
@@ -1787,7 +1740,7 @@ public:
         bool suppress;
         bool notify;
 
-        str.Printf ("%-10s  ", sig_name);
+        str.Printf ("%-11s  ", sig_name);
         if (signals.GetSignalInfo (signo, suppress, stop, notify))
         {
             bool pass = !suppress;

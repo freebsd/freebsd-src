@@ -1,4 +1,4 @@
-//===-- MICmdCmdGdbSet.h -------------      ---------------------*- C++ -*-===//
+//===-- MICmdCmdGdbSet.h ----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,12 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdGdbSet.h
-//
 // Overview:    CMICmdCmdGdbSet interface.
 //
-//              To implement new MI commands derive a new command class from the command base
+//              To implement new MI commands, derive a new command class from the command base
 //              class. To enable the new command for interpretation add the new command class
 //              to the command factory. The files of relevance are:
 //                  MICmdCommands.cpp
@@ -20,13 +17,6 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
@@ -79,7 +69,10 @@ class CMICmdCmdGdbSet : public CMICmdBase
     // Methods:
   private:
     bool GetOptionFn(const CMIUtilString &vrGdbOptionName, FnGdbOptionPtr &vrwpFn) const;
+    bool OptionFnTargetAsync(const CMIUtilString::VecString_t &vrWords);
+    bool OptionFnPrint(const CMIUtilString::VecString_t &vrWords);
     bool OptionFnSolibSearchPath(const CMIUtilString::VecString_t &vrWords);
+    bool OptionFnOutputRadix(const CMIUtilString::VecString_t &vrWords);
     bool OptionFnFallback(const CMIUtilString::VecString_t &vrWords);
 
     // Attributes:
