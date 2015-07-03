@@ -306,6 +306,28 @@ proto_busdma_md_load(struct proto_busdma *busdma, struct proto_md *md,
 	return (0);
 }
 
+static int
+proto_busdma_md_unload(struct proto_busdma *busdma, struct proto_md *md)
+{
+
+	if (!md->physaddr)
+		return (ENXIO);
+	bus_dmamap_unload(md->bd_tag, md->bd_map);
+	md->physaddr = 0;
+	return (0);
+}
+
+static int
+proto_busdma_sync(struct proto_busdma *busdma, struct proto_md *md,
+    struct proto_ioc_busdma *ioc)
+{
+ 
+	if (!md->physaddr)
+		return (ENXIO);
+	bus_dmamap_sync(md->bd_tag, md->bd_map, ioc->u.sync.op);
+	return (0);
+}
+
 static struct proto_md *
 proto_busdma_md_lookup(struct proto_busdma *busdma, u_long key)
 {
@@ -418,6 +440,22 @@ proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
 			break;
 		}
 		error = proto_busdma_md_load(busdma, md, ioc, td);
+		break;
+	case PROTO_IOC_BUSDMA_MD_UNLOAD:
+		md = proto_busdma_md_lookup(busdma, ioc->key);
+		if (md == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_md_unload(busdma, md);
+		break;
+	case PROTO_IOC_BUSDMA_SYNC:
+		md = proto_busdma_md_lookup(busdma, ioc->key);
+		if (md == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_sync(busdma, md, ioc);
 		break;
 	default:
 		error = EINVAL;
