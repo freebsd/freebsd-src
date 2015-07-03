@@ -356,10 +356,12 @@ How many bytes, after
 .Va crd_skip ,
 should be processed.
 .It Va crd_inject
-Offset from the beginning of the buffer to insert any results.
-For encryption algorithms, this is where the initialization vector
-(IV) will be inserted when encrypting or where it can be found when
-decrypting (subject to
+The
+.Va crd_inject
+field specifies an offset in bytes from the beginning of the buffer.
+For encryption algorithms, this may be where the IV will be inserted
+when encrypting or where the IV may be found for
+decryption (subject to
 .Va crd_flags ) .
 For MAC algorithms, this is where the result of the keyed hash will be
 inserted.
@@ -393,7 +395,7 @@ provided by the consumer in the
 field.
 Otherwise, for encryption operations the IV is provided for by
 the driver used to perform the operation, whereas for decryption
-operations it is pointed to by the
+operations the offset of the IV is provided by the
 .Va crd_inject
 field.
 This flag is typically used when the IV is calculated
