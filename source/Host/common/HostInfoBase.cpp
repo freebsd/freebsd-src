@@ -40,7 +40,7 @@ namespace
 
         // Remove the LLDB temporary directory if we have one. Set "recurse" to
         // true to all files that were created for the LLDB process can be cleaned up.
-        FileSystem::DeleteDirectory(tmpdir_file_spec.GetDirectory().GetCString(), true);
+        FileSystem::DeleteDirectory(tmpdir_file_spec, true);
     }
 
     //----------------------------------------------------------------------
@@ -68,7 +68,8 @@ namespace
         FileSpec m_lldb_clang_resource_dir;
         FileSpec m_lldb_system_plugin_dir;
         FileSpec m_lldb_user_plugin_dir;
-        FileSpec m_lldb_tmp_dir;
+        FileSpec m_lldb_process_tmp_dir;
+        FileSpec m_lldb_global_tmp_dir;
     };
     
     HostInfoBaseFields *g_fields = nullptr;
@@ -263,13 +264,27 @@ HostInfoBase::GetLLDBPath(lldb::PathType type, FileSpec &file_spec)
                 static std::once_flag g_once_flag;
                 static bool success = false;
                 std::call_once(g_once_flag,  []() {
-                    success = HostInfo::ComputeTempFileDirectory (g_fields->m_lldb_tmp_dir);
+                    success = HostInfo::ComputeProcessTempFileDirectory (g_fields->m_lldb_process_tmp_dir);
                     Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
                     if (log)
-                        log->Printf("HostInfoBase::GetLLDBPath(ePathTypeLLDBTempSystemDir) => '%s'", g_fields->m_lldb_tmp_dir.GetPath().c_str());
+                        log->Printf("HostInfoBase::GetLLDBPath(ePathTypeLLDBTempSystemDir) => '%s'", g_fields->m_lldb_process_tmp_dir.GetPath().c_str());
                 });
                 if (success)
-                    result = &g_fields->m_lldb_tmp_dir;
+                    result = &g_fields->m_lldb_process_tmp_dir;
+            }
+            break;
+        case lldb::ePathTypeGlobalLLDBTempSystemDir:
+            {
+                static std::once_flag g_once_flag;
+                static bool success = false;
+                std::call_once(g_once_flag,  []() {
+                    success = HostInfo::ComputeGlobalTempFileDirectory (g_fields->m_lldb_global_tmp_dir);
+                    Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
+                    if (log)
+                        log->Printf("HostInfoBase::GetLLDBPath(ePathTypeGlobalLLDBTempSystemDir) => '%s'", g_fields->m_lldb_global_tmp_dir.GetPath().c_str());
+                });
+                if (success)
+                    result = &g_fields->m_lldb_global_tmp_dir;
             }
             break;
     }
@@ -305,35 +320,57 @@ HostInfoBase::ComputeSupportExeDirectory(FileSpec &file_spec)
 }
 
 bool
-HostInfoBase::ComputeTempFileDirectory(FileSpec &file_spec)
+HostInfoBase::ComputeProcessTempFileDirectory(FileSpec &file_spec)
 {
-    const char *tmpdir_cstr = getenv("TMPDIR");
-    if (tmpdir_cstr == NULL)
-    {
-        tmpdir_cstr = getenv("TMP");
-        if (tmpdir_cstr == NULL)
-            tmpdir_cstr = getenv("TEMP");
-    }
-    if (!tmpdir_cstr)
+    FileSpec temp_file_spec;
+    if (!HostInfo::ComputeGlobalTempFileDirectory(temp_file_spec))
         return false;
 
-    FileSpec temp_file_spec(tmpdir_cstr, false);
-    temp_file_spec.AppendPathComponent("lldb");
-    if (!FileSystem::MakeDirectory(temp_file_spec.GetPath().c_str(), eFilePermissionsDirectoryDefault).Success())
-        return false;
-
-    std::string pid_str;
-    llvm::raw_string_ostream pid_stream(pid_str);
-    pid_stream << Host::GetCurrentProcessID();
-    temp_file_spec.AppendPathComponent(pid_stream.str().c_str());
-    std::string final_path = temp_file_spec.GetPath();
-    if (!FileSystem::MakeDirectory(final_path.c_str(), eFilePermissionsDirectoryDefault).Success())
+    std::string pid_str{std::to_string(Host::GetCurrentProcessID())};
+    temp_file_spec.AppendPathComponent(pid_str);
+    if (!FileSystem::MakeDirectory(temp_file_spec, eFilePermissionsDirectoryDefault).Success())
         return false;
 
     // Make an atexit handler to clean up the process specify LLDB temp dir
     // and all of its contents.
     ::atexit(CleanupProcessSpecificLLDBTempDir);
-    file_spec.GetDirectory().SetCStringWithLength(final_path.c_str(), final_path.size());
+    file_spec.GetDirectory().SetCString(temp_file_spec.GetCString());
+    return true;
+}
+
+bool
+HostInfoBase::ComputeTempFileBaseDirectory(FileSpec &file_spec)
+{
+    file_spec.Clear();
+
+    const char *tmpdir_cstr = getenv("TMPDIR");
+    if (tmpdir_cstr == nullptr)
+    {
+        tmpdir_cstr = getenv("TMP");
+        if (tmpdir_cstr == nullptr)
+            tmpdir_cstr = getenv("TEMP");
+    }
+    if (!tmpdir_cstr)
+        return false;
+
+    file_spec = FileSpec(tmpdir_cstr, false);
+    return true;
+}
+
+bool
+HostInfoBase::ComputeGlobalTempFileDirectory(FileSpec &file_spec)
+{
+    file_spec.Clear();
+
+    FileSpec temp_file_spec;
+    if (!HostInfo::ComputeTempFileBaseDirectory(temp_file_spec))
+        return false;
+
+    temp_file_spec.AppendPathComponent("lldb");
+    if (!FileSystem::MakeDirectory(temp_file_spec, eFilePermissionsDirectoryDefault).Success())
+        return false;
+
+    file_spec.GetDirectory().SetCString(temp_file_spec.GetCString());
     return true;
 }
 
@@ -367,7 +404,7 @@ HostInfoBase::ComputeUserPluginsDirectory(FileSpec &file_spec)
 void
 HostInfoBase::ComputeHostArchitectureSupport(ArchSpec &arch_32, ArchSpec &arch_64)
 {
-    llvm::Triple triple(llvm::sys::getDefaultTargetTriple());
+    llvm::Triple triple(llvm::sys::getProcessTriple());
 
     arch_32.Clear();
     arch_64.Clear();
@@ -386,6 +423,7 @@ HostInfoBase::ComputeHostArchitectureSupport(ArchSpec &arch_32, ArchSpec &arch_6
 
         case llvm::Triple::aarch64:
         case llvm::Triple::mips64:
+        case llvm::Triple::mips64el:
         case llvm::Triple::sparcv9:
             arch_64.SetTriple(triple);
             break;

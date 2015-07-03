@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectTarget.h"
 
 // C Includes
@@ -50,6 +48,7 @@
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Symbol/VariableList.h"
+#include "lldb/Target/ABI.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StackFrame.h"
@@ -388,6 +387,12 @@ protected:
                     core_file.GetPath(core_path, sizeof(core_path));
                     if (core_file.Exists())
                     {
+                        if (!core_file.Readable())
+                        {
+                            result.AppendMessageWithFormat ("Core file '%s' is not readable.\n", core_path);
+                            result.SetStatus (eReturnStatusFailed);
+                            return false;
+                        }
                         FileSpec core_file_dir;
                         core_file_dir.GetDirectory() = core_file.GetDirectory();
                         target_sp->GetExecutableSearchPaths ().Append (core_file_dir);
@@ -600,10 +605,20 @@ public:
                              "Delete one or more targets by target index.",
                              NULL,
                              0),
-        m_option_group (interpreter),
-        m_cleanup_option (LLDB_OPT_SET_1, false, "clean", 'c', "Perform extra cleanup to minimize memory consumption after deleting the target.", false, false)
+        m_option_group(interpreter),
+        m_all_option(LLDB_OPT_SET_1, false, "all", 'a', "Delete all targets.", false, true),
+        m_cleanup_option(
+            LLDB_OPT_SET_1,
+            false,
+            "clean", 'c',
+            "Perform extra cleanup to minimize memory consumption after deleting the target.  "
+            "By default, LLDB will keep in memory any modules previously loaded by the target as well "
+            "as all of its debug info.  Specifying --clean will unload all of these shared modules and "
+            "cause them to be reparsed again the next time the target is run",
+            false, true)
     {
-        m_option_group.Append (&m_cleanup_option, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Append(&m_all_option, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Append(&m_cleanup_option, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Finalize();
     }
 
@@ -625,90 +640,89 @@ protected:
         const size_t argc = args.GetArgumentCount();
         std::vector<TargetSP> delete_target_list;
         TargetList &target_list = m_interpreter.GetDebugger().GetTargetList();
-        bool success = true;
         TargetSP target_sp;
-        if (argc > 0)
+
+        if (m_all_option.GetOptionValue())
+        {
+            for (int i = 0; i < target_list.GetNumTargets(); ++i)
+                delete_target_list.push_back(target_list.GetTargetAtIndex(i));
+        }
+        else if (argc > 0)
         {
             const uint32_t num_targets = target_list.GetNumTargets();
             // Bail out if don't have any targets.
             if (num_targets == 0) {
                 result.AppendError("no targets to delete");
                 result.SetStatus(eReturnStatusFailed);
-                success = false;
+                return false;
             }
 
-            for (uint32_t arg_idx = 0; success && arg_idx < argc; ++arg_idx)
+            for (uint32_t arg_idx = 0; arg_idx < argc; ++arg_idx)
             {
                 const char *target_idx_arg = args.GetArgumentAtIndex(arg_idx);
+                bool success = false;
                 uint32_t target_idx = StringConvert::ToUInt32 (target_idx_arg, UINT32_MAX, 0, &success);
-                if (success)
-                {
-                    if (target_idx < num_targets)
-                    {
-                        target_sp = target_list.GetTargetAtIndex (target_idx);
-                        if (target_sp)
-                        {
-                            delete_target_list.push_back (target_sp);
-                            continue;
-                        }
-                    }
-                    if (num_targets > 1)
-                        result.AppendErrorWithFormat ("target index %u is out of range, valid target indexes are 0 - %u\n",
-                                                      target_idx,
-                                                      num_targets - 1);
-                    else
-                        result.AppendErrorWithFormat("target index %u is out of range, the only valid index is 0\n",
-                                                    target_idx);
-
-                    result.SetStatus (eReturnStatusFailed);
-                    success = false;
-                }
-                else
+                if (!success)
                 {
                     result.AppendErrorWithFormat("invalid target index '%s'\n", target_idx_arg);
                     result.SetStatus (eReturnStatusFailed);
-                    success = false;
+                    return false;
                 }
+                if (target_idx < num_targets)
+                {
+                    target_sp = target_list.GetTargetAtIndex (target_idx);
+                    if (target_sp)
+                    {
+                        delete_target_list.push_back (target_sp);
+                        continue;
+                    }
+                }
+                if (num_targets > 1)
+                    result.AppendErrorWithFormat ("target index %u is out of range, valid target indexes are 0 - %u\n",
+                                                    target_idx,
+                                                    num_targets - 1);
+                else
+                    result.AppendErrorWithFormat("target index %u is out of range, the only valid index is 0\n",
+                                                target_idx);
+
+                result.SetStatus (eReturnStatusFailed);
+                return false;
             }
         }
         else
         {
             target_sp = target_list.GetSelectedTarget();
-            if (target_sp)
-            {
-                delete_target_list.push_back (target_sp);
-            }
-            else
+            if (!target_sp)
             {
                 result.AppendErrorWithFormat("no target is currently selected\n");
                 result.SetStatus (eReturnStatusFailed);
-                success = false;
+                return false;
             }
-        }
-        if (success)
-        {
-            const size_t num_targets_to_delete = delete_target_list.size();
-            for (size_t idx = 0; idx < num_targets_to_delete; ++idx)
-            {
-                target_sp = delete_target_list[idx];
-                target_list.DeleteTarget(target_sp);
-                target_sp->Destroy();
-            }
-            // If "--clean" was specified, prune any orphaned shared modules from
-            // the global shared module list
-            if (m_cleanup_option.GetOptionValue ())
-            {
-                const bool mandatory = true;
-                ModuleList::RemoveOrphanSharedModules(mandatory);
-            }
-            result.GetOutputStream().Printf("%u targets deleted.\n", (uint32_t)num_targets_to_delete);
-            result.SetStatus(eReturnStatusSuccessFinishResult);
+            delete_target_list.push_back (target_sp);
         }
 
-        return result.Succeeded();
+        const size_t num_targets_to_delete = delete_target_list.size();
+        for (size_t idx = 0; idx < num_targets_to_delete; ++idx)
+        {
+            target_sp = delete_target_list[idx];
+            target_list.DeleteTarget(target_sp);
+            target_sp->Destroy();
+        }
+        // If "--clean" was specified, prune any orphaned shared modules from
+        // the global shared module list
+        if (m_cleanup_option.GetOptionValue ())
+        {
+            const bool mandatory = true;
+            ModuleList::RemoveOrphanSharedModules(mandatory);
+        }
+        result.GetOutputStream().Printf("%u targets deleted.\n", (uint32_t)num_targets_to_delete);
+        result.SetStatus(eReturnStatusSuccessFinishResult);
+
+        return true;
     }
 
     OptionGroupOptions m_option_group;
+    OptionGroupBoolean m_all_option;
     OptionGroupBoolean m_cleanup_option;
 };
 
@@ -730,7 +744,7 @@ public:
                              "target variable",
                              "Read global variable(s) prior to, or while running your binary.",
                              NULL,
-                             eFlagRequiresTarget),
+                             eCommandRequiresTarget),
         m_option_group (interpreter),
         m_option_variable (false), // Don't include frame options
         m_option_format (eFormatDefault),
@@ -773,6 +787,10 @@ public:
     {
         DumpValueObjectOptions options(m_varobj_options.GetAsDumpOptions());
 
+        if (false == valobj_sp->GetTargetSP()->GetDisplayRuntimeSupportValues() &&
+            true == valobj_sp->IsRuntimeSupportValue())
+            return;
+        
         switch (var_sp->GetScope())
         {
             case eValueTypeVariableGlobal:
@@ -1722,17 +1740,16 @@ LookupSymbolInModule (CommandInterpreter &interpreter, Stream &strm, Module *mod
                     DumpFullpath (strm, &module->GetFileSpec(), 0);
                     strm.PutCString(":\n");
                     strm.IndentMore ();
-                    //Symtab::DumpSymbolHeader (&strm);
                     for (i=0; i < num_matches; ++i)
                     {
                         Symbol *symbol = symtab->SymbolAtIndex(match_indexes[i]);
-                        DumpAddress (interpreter.GetExecutionContext().GetBestExecutionContextScope(),
-                                     symbol->GetAddress(),
-                                     verbose,
-                                     strm);
-
-//                        strm.Indent ();
-//                        symbol->Dump (&strm, interpreter.GetExecutionContext().GetTargetPtr(), i);
+                        if (symbol && symbol->ValueIsAddress())
+                        {
+                            DumpAddress (interpreter.GetExecutionContext().GetBestExecutionContextScope(),
+                                         symbol->GetAddressRef(),
+                                         verbose,
+                                         strm);
+                        }
                     }
                     strm.IndentLess ();
                     return num_matches;
@@ -2547,7 +2564,7 @@ public:
                                                       "target modules dump line-table",
                                                       "Dump the line table for one or more compilation units.",
                                                       NULL,
-                                                      eFlagRequiresTarget)
+                                                      eCommandRequiresTarget)
     {
     }
 
@@ -3462,28 +3479,24 @@ protected:
                 case 's':
                 case 'S':
                     {
-                        SymbolVendor *symbol_vendor = module->GetSymbolVendor();
+                        const SymbolVendor *symbol_vendor = module->GetSymbolVendor();
                         if (symbol_vendor)
                         {
-                            SymbolFile *symbol_file = symbol_vendor->GetSymbolFile();
-                            if (symbol_file)
+                            const FileSpec symfile_spec = symbol_vendor->GetMainFileSpec();
+                            if (format_char == 'S')
                             {
-                                if (format_char == 'S')
+                                // Dump symbol file only if different from module file
+                                if (!symfile_spec || symfile_spec == module->GetFileSpec())
                                 {
-                                    FileSpec &symfile_spec = symbol_file->GetObjectFile()->GetFileSpec();
-                                    // Dump symbol file only if different from module file
-                                    if (!symfile_spec || symfile_spec == module->GetFileSpec())
-                                    {
-                                        print_space = false;
-                                        break;
-                                    }
-                                    // Add a newline and indent past the index
-                                    strm.Printf ("\n%*s", indent, "");
+                                    print_space = false;
+                                    break;
                                 }
-                                DumpFullpath (strm, &symbol_file->GetObjectFile()->GetFileSpec(), width);
-                                dump_object_name = true;
-                                break;
+                                // Add a newline and indent past the index
+                                strm.Printf ("\n%*s", indent, "");
                             }
+                            DumpFullpath (strm, &symfile_spec, width);
+                            dump_object_name = true;
+                            break;
                         }
                         strm.Printf("%.*s", width, "<NONE>");
                     }
@@ -3641,10 +3654,10 @@ public:
                              "target modules show-unwind",
                              "Show synthesized unwind instructions for a function.",
                              NULL,
-                             eFlagRequiresTarget        |
-                             eFlagRequiresProcess       |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresTarget        |
+                             eCommandRequiresProcess       |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_options (interpreter)
     {
     }
@@ -3767,7 +3780,7 @@ protected:
             {
                 result.GetOutputStream().Printf("Synchronous (restricted to call-sites) UnwindPlan is '%s'\n", callsite_unwind_plan->GetSourceName().AsCString());
             }
-            UnwindPlanSP fast_unwind_plan = func_unwinders_sp->GetUnwindPlanFastUnwind(*thread.get());
+            UnwindPlanSP fast_unwind_plan = func_unwinders_sp->GetUnwindPlanFastUnwind(*target, *thread.get());
             if (fast_unwind_plan.get())
             {
                 result.GetOutputStream().Printf("Fast UnwindPlan is '%s'\n", fast_unwind_plan->GetSourceName().AsCString());
@@ -4001,7 +4014,7 @@ public:
                              "target modules lookup",
                              "Look up information within executable and dependent shared library images.",
                              NULL,
-                             eFlagRequiresTarget),
+                             eCommandRequiresTarget),
         m_options (interpreter)
     {
         CommandArgumentEntry arg;
@@ -4381,7 +4394,7 @@ public:
         CommandObjectParsed (interpreter,
                              "target symbols add",
                              "Add a debug symbol file to one of the target's current modules by specifying a path to a debug symbols file, or using the options to specify a module to download symbols for.",
-                             "target symbols add [<symfile>]", eFlagRequiresTarget),
+                             "target symbols add [<symfile>]", eCommandRequiresTarget),
         m_option_group (interpreter),
         m_file_option (LLDB_OPT_SET_1, false, "shlib", 's', CommandCompletions::eModuleCompletion, eArgTypeShlibName, "Fullpath or basename for module to find debug symbols for."),
         m_current_frame_option (LLDB_OPT_SET_2, false, "frame", 'F', "Locate the debug symbols the currently selected frame.", false, true)

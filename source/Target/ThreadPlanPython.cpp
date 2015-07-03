@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Target/ThreadPlan.h"
 
 // C Includes
@@ -20,7 +18,6 @@
 #include "lldb/Core/State.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"

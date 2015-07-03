@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValConsume.cpp
-//
-// Overview:    CMICmdArgValConsume implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmdArgValConsume.h"
 #include "MICmdArgContext.h"
@@ -71,7 +59,7 @@ bool
 CMICmdArgValConsume::Validate(CMICmdArgContext &vwArgContext)
 {
     if (vwArgContext.IsEmpty())
-        return MIstatus::success;
+        return m_bMandatory ? MIstatus::failure : MIstatus::success;
 
     // Consume the optional file, line, linenum arguments till the mode '--' argument
     const CMIUtilString::VecString_t vecOptions(vwArgContext.GetArgs());
@@ -80,15 +68,15 @@ CMICmdArgValConsume::Validate(CMICmdArgContext &vwArgContext)
     {
         const CMIUtilString & rTxt( *it );
         
-	if ( rTxt.compare( "--" ) == 0 )
+        if ( rTxt.compare( "--" ) == 0 )
         {
             m_bFound = true;
             m_bValid = true;
-	    return MIstatus::success;
-	}
+            return MIstatus::success;
+        }
 	
-	if ( !vwArgContext.RemoveArg( rTxt ) )
-	    return MIstatus::failure;
+        if ( !vwArgContext.RemoveArg( rTxt ) )
+            return MIstatus::failure;
 
         // Next
         ++it;

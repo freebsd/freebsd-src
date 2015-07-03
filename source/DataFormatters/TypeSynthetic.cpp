@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 // C Includes
 
 // C++ Includes
@@ -23,7 +21,7 @@
 #include "lldb/Core/StreamString.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
+#include "lldb/Interpreter/ScriptInterpreter.h"
 #include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
@@ -196,7 +194,7 @@ ScriptedSyntheticChildren::FrontEnd::GetChildAtIndex (size_t idx)
 bool
 ScriptedSyntheticChildren::FrontEnd::IsValid ()
 {
-    return m_wrapper_sp.get() != nullptr && m_wrapper_sp->operator bool() && m_interpreter != nullptr;
+    return (m_wrapper_sp && m_wrapper_sp->IsValid() && m_interpreter);
 }
 
 size_t

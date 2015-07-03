@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Target/ThreadPlan.h"
 
 // C Includes
@@ -18,6 +16,7 @@
 // Project includes
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/DataBufferHeap.h"
+#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Log.h"
@@ -25,7 +24,9 @@
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/Value.h"
+#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/TypeList.h"
+#include "lldb/Target/ABI.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Process.h"
@@ -220,7 +221,8 @@ ThreadPlanAssemblyTracer::Log ()
                                    NULL,
                                    NULL,
                                    NULL,
-                                   disassemble_format);
+                                   disassemble_format,
+                                   0);
             }
         }
     }

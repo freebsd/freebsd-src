@@ -7,19 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdGdbInfo.cpp
-//
 // Overview:    CMICmdCmdGdbInfo        implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 // Third party headers:
+#include <inttypes.h> // For PRIx64
 #include "lldb/API/SBCommandReturnObject.h"
 
 // In-house headers:
@@ -209,7 +200,7 @@ CMICmdCmdGdbInfo::PrintFnSharedLibrary(void)
             const CMIUtilString strModuleFileName(module.GetFileSpec().GetFilename());
             const CMIUtilString strModuleFullPath(CMIUtilString::Format("%s/%s", strModuleFilePath.c_str(), strModuleFileName.c_str()));
             const CMIUtilString strHasSymbols = (module.GetNumSymbols() > 0) ? "Yes" : "No";
-            lldb::addr_t addrLoadS = 0xffffffff;
+            lldb::addr_t addrLoadS = 0xffffffffffffffff;
             lldb::addr_t addrLoadSize = 0;
             bool bHaveAddrLoad = false;
             const MIuint nSections = module.GetNumSections();
@@ -229,7 +220,7 @@ CMICmdCmdGdbInfo::PrintFnSharedLibrary(void)
                 }
             }
             bOk = bOk &&
-                  rStdout.TextToStdout(CMIUtilString::Format("~\"0x%08x\t0x%08x\t%s\t\t%s\"", addrLoadS, addrLoadS + addrLoadSize,
+                  rStdout.TextToStdout(CMIUtilString::Format("~\"0x%016" PRIx64 "\t0x%016" PRIx64 "\t%s\t\t%s\"", addrLoadS, addrLoadS + addrLoadSize,
                                                              strHasSymbols.c_str(), strModuleFullPath.c_str()));
         }
     }

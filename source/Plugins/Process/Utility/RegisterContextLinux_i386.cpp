@@ -66,7 +66,7 @@ struct UserArea
 {
     GPR      regs;          // General purpose registers.
     int32_t  fpvalid;       // True if FPU is being used.
-    FPR_i386   i387;        // FPU registers.
+    FPR_i386 i387;          // FPU registers.
     uint32_t tsize;         // Text segment size.
     uint32_t dsize;         // Data segment size.
     uint32_t ssize;         // Stack segment size.
@@ -112,6 +112,7 @@ RegisterContextLinux_i386::GetRegisterInfo() const
     switch (m_target_arch.GetMachine())
     {
         case llvm::Triple::x86:            
+        case llvm::Triple::x86_64:
             return g_register_infos_i386;
         default:
             assert(false && "Unhandled target architecture.");

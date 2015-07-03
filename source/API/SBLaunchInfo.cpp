@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBLaunchInfo.h"
 
 #include "lldb/API/SBFileSpec.h"
@@ -32,6 +30,12 @@ SBLaunchInfo::~SBLaunchInfo()
 
 lldb_private::ProcessLaunchInfo &
 SBLaunchInfo::ref ()
+{
+    return *m_opaque_sp;
+}
+
+const lldb_private::ProcessLaunchInfo &
+SBLaunchInfo::ref () const
 {
     return *m_opaque_sp;
 }
@@ -169,13 +173,13 @@ SBLaunchInfo::Clear ()
 const char *
 SBLaunchInfo::GetWorkingDirectory () const
 {
-    return m_opaque_sp->GetWorkingDirectory();
+    return m_opaque_sp->GetWorkingDirectory().GetCString();
 }
 
 void
 SBLaunchInfo::SetWorkingDirectory (const char *working_dir)
 {
-    m_opaque_sp->SetWorkingDirectory(working_dir);
+    m_opaque_sp->SetWorkingDirectory(FileSpec{working_dir, false});
 }
 
 uint32_t
@@ -217,6 +221,18 @@ SBLaunchInfo::SetShell (const char * path)
     m_opaque_sp->SetShell (FileSpec(path, false));
 }
 
+bool
+SBLaunchInfo::GetShellExpandArguments ()
+{
+    return m_opaque_sp->GetShellExpandArguments();
+}
+
+void
+SBLaunchInfo::SetShellExpandArguments (bool expand)
+{
+    m_opaque_sp->SetShellExpandArguments(expand);
+}
+
 uint32_t
 SBLaunchInfo::GetResumeCount ()
 {
@@ -244,7 +260,7 @@ SBLaunchInfo::AddDuplicateFileAction (int fd, int dup_fd)
 bool
 SBLaunchInfo::AddOpenFileAction (int fd, const char *path, bool read, bool write)
 {
-    return m_opaque_sp->AppendOpenFileAction(fd, path, read, write);
+    return m_opaque_sp->AppendOpenFileAction(fd, FileSpec{path, false}, read, write);
 }
 
 bool

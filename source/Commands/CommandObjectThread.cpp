@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectThread.h"
 
 // C Includes
@@ -18,6 +16,7 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/SourceManager.h"
+#include "lldb/Core/ValueObject.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -240,11 +239,11 @@ public:
                              "thread backtrace",
                              "Show the stack for one or more threads.  If no threads are specified, show the currently selected thread.  Use the thread-index \"all\" to see all threads.",
                              NULL,
-                             eFlagRequiresProcess       |
-                             eFlagRequiresThread        |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresProcess       |
+                             eCommandRequiresThread        |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_options(interpreter)
     {
     }
@@ -432,6 +431,12 @@ public:
             m_step_in_avoid_no_debug = eLazyBoolCalculate;
             m_step_out_avoid_no_debug = eLazyBoolCalculate;
             m_run_mode = eOnlyDuringStepping;
+
+            // Check if we are in Non-Stop mode
+            lldb::TargetSP target_sp = m_interpreter.GetDebugger().GetSelectedTarget();
+            if (target_sp.get() != nullptr && target_sp->GetNonStopModeEnabled())
+                m_run_mode = eOnlyThisThread;
+
             m_avoid_regexp.clear();
             m_step_in_target.clear();
             m_class_name.clear();
@@ -465,11 +470,11 @@ public:
                                              StepType step_type,
                                              StepScope step_scope) :
         CommandObjectParsed (interpreter, name, help, syntax,
-                             eFlagRequiresProcess       |
-                             eFlagRequiresThread        |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresProcess       |
+                             eCommandRequiresThread        |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_step_type (step_type),
         m_step_scope (step_scope),
         m_options (interpreter)
@@ -579,6 +584,7 @@ protected:
         if (m_step_type == eStepTypeInto)
         {
             StackFrame *frame = thread->GetStackFrameAtIndex(0).get();
+            assert(frame != nullptr);
 
             if (frame->HasDebugInformation ())
             {
@@ -667,6 +673,8 @@ protected:
 
             process->GetThreadList().SetSelectedThreadByID (thread->GetID());
 
+            const uint32_t iohandler_id = process->GetIOHandlerID();
+
             StreamString stream;
             Error error;
             if (synchronous_execution)
@@ -677,7 +685,7 @@ protected:
             // There is a race condition where this thread will return up the call stack to the main command handler
             // and show an (lldb) prompt before HandlePrivateEvent (from PrivateStateThread) has
             // a chance to call PushProcessIOHandler().
-            process->SyncIOHandler(2000);
+            process->SyncIOHandler(iohandler_id, 2000);
 
             if (synchronous_execution)
             {
@@ -752,10 +760,10 @@ public:
                              "thread continue",
                              "Continue execution of one or more threads in an active process.",
                              NULL,
-                             eFlagRequiresThread        |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused)
+                             eCommandRequiresThread        |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused)
     {
         CommandArgumentEntry arg;
         CommandArgumentData thread_idx_arg;
@@ -1064,10 +1072,10 @@ public:
                              "thread until",
                              "Run the current or specified thread until it reaches a given line number or address or leaves the current function.",
                              NULL,
-                             eFlagRequiresThread        |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresThread        |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_options (interpreter)
     {
         CommandArgumentEntry arg;
@@ -1343,10 +1351,10 @@ public:
                              "thread select",
                              "Select a thread as the currently active thread.",
                              NULL,
-                             eFlagRequiresProcess       |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   )
+                             eCommandRequiresProcess       |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   )
     {
         CommandArgumentEntry arg;
         CommandArgumentData thread_idx_arg;
@@ -1419,10 +1427,10 @@ public:
                              "thread list",
                              "Show a summary of all current threads in a process.",
                              "thread list",
-                             eFlagRequiresProcess       |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   )
+                             eCommandRequiresProcess       |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   )
     {
     }
 
@@ -1464,10 +1472,10 @@ public:
                                          "thread info",
                                          "Show an extended summary of information about thread(s) in a process.",
                                          "thread info",
-                                         eFlagRequiresProcess       |
-                                         eFlagTryTargetAPILock      |
-                                         eFlagProcessMustBeLaunched |
-                                         eFlagProcessMustBePaused),
+                                         eCommandRequiresProcess       |
+                                         eCommandTryTargetAPILock      |
+                                         eCommandProcessMustBeLaunched |
+                                         eCommandProcessMustBePaused),
         m_options (interpreter)
     {
         m_add_return = false;
@@ -1656,10 +1664,10 @@ public:
                           "Return from the currently selected frame, short-circuiting execution of the frames below it, with an optional return value,"
                           " or with the -x option from the innermost function evaluation.",
                           "thread return",
-                          eFlagRequiresFrame         |
-                          eFlagTryTargetAPILock      |
-                          eFlagProcessMustBeLaunched |
-                          eFlagProcessMustBePaused   ),
+                          eCommandRequiresFrame         |
+                          eCommandTryTargetAPILock      |
+                          eCommandProcessMustBeLaunched |
+                          eCommandProcessMustBePaused   ),
         m_options (interpreter)
     {
         CommandArgumentEntry arg;
@@ -1884,10 +1892,10 @@ public:
                           "thread jump",
                           "Sets the program counter to a new address.",
                           "thread jump",
-                          eFlagRequiresFrame         |
-                          eFlagTryTargetAPILock      |
-                          eFlagProcessMustBeLaunched |
-                          eFlagProcessMustBePaused   ),
+                          eCommandRequiresFrame         |
+                          eCommandTryTargetAPILock      |
+                          eCommandProcessMustBeLaunched |
+                          eCommandProcessMustBePaused   ),
         m_options (interpreter)
     {
     }
@@ -2068,11 +2076,11 @@ public:
                                          "Show thread plans for one or more threads.  If no threads are specified, show the "
                                          "currently selected thread.  Use the thread-index \"all\" to see all threads.",
                                          NULL,
-                                         eFlagRequiresProcess       |
-                                         eFlagRequiresThread        |
-                                         eFlagTryTargetAPILock      |
-                                         eFlagProcessMustBeLaunched |
-                                         eFlagProcessMustBePaused   ),
+                                         eCommandRequiresProcess       |
+                                         eCommandRequiresThread        |
+                                         eCommandTryTargetAPILock      |
+                                         eCommandProcessMustBeLaunched |
+                                         eCommandProcessMustBePaused   ),
         m_options(interpreter)
     {
     }
@@ -2120,11 +2128,11 @@ public:
                              "Only user visible plans can be discarded, use the index from \"thread plan list\""
                              " without the \"-i\" argument.",
                              NULL,
-                             eFlagRequiresProcess       |
-                             eFlagRequiresThread        |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   )
+                             eCommandRequiresProcess       |
+                             eCommandRequiresThread        |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   )
     {
         CommandArgumentEntry arg;
         CommandArgumentData plan_index_arg;

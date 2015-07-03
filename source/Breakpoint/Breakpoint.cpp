@@ -31,7 +31,6 @@
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadSpec.h"
-#include "lldb/lldb-private-log.h"
 #include "llvm/Support/Casting.h"
 
 using namespace lldb;
@@ -877,25 +876,18 @@ Breakpoint::GetDescription (Stream *s, lldb::DescriptionLevel level, bool show_l
         {
             s->Printf ("no locations (pending).");
         }
-        else if (num_locations == 1)
+        else if (num_locations == 1 && show_locations == false)
         {
-            // If there is one location only, we'll just print that location information.  But don't do this if
-            // show locations is true, then that will be handled below.
-            if (show_locations == false)
-            {
-                GetLocationAtIndex(0)->GetDescription(s, level);
-            }
-            else
-            {
-                s->Printf ("%zd locations.", num_locations);
-            }
+            // There is only one location, so we'll just print that location information.
+            GetLocationAtIndex(0)->GetDescription(s, level);
         }
         else
         {
-            s->Printf ("%zd locations.", num_locations);
+            s->Printf ("%" PRIu64 " locations.", static_cast<uint64_t>(num_locations));
         }
         s->EOL();
         break;
+
     case lldb::eDescriptionLevelVerbose:
         // Verbose mode does a debug dump of the breakpoint
         Dump (s);
@@ -955,6 +947,34 @@ void
 Breakpoint::GetFilterDescription (Stream *s)
 {
     m_filter_sp->GetDescription (s);
+}
+
+bool
+Breakpoint::EvaluatePrecondition (StoppointCallbackContext &context)
+{
+    if (!m_precondition_sp)
+        return true;
+
+    return m_precondition_sp->EvaluatePrecondition(context);
+}
+
+bool
+Breakpoint::BreakpointPrecondition::EvaluatePrecondition(StoppointCallbackContext &context)
+{
+    return true;
+}
+
+void
+Breakpoint::BreakpointPrecondition::DescribePrecondition(Stream &stream, lldb::DescriptionLevel level)
+{
+}
+
+Error
+Breakpoint::BreakpointPrecondition::ConfigurePrecondition(Args &options)
+{
+    Error error;
+    error.SetErrorString("Base breakpoint precondition has no options.");
+    return error;
 }
 
 void

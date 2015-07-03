@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIUtilStreamcStdout.cpp
-//
-// Overview:    CMICmnStreamStdout implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnStreamStdout.h"
 #include "MICmnLog.h"
@@ -168,11 +156,9 @@ CMICmnStreamStdout::WritePriv(const CMIUtilString &vText, const CMIUtilString &v
         // Send this text to stdout
         const MIint status = ::fputs(vText.c_str(), stdout);
         if (status == EOF)
-        {
-            const CMIUtilString errMsg(CMIUtilString::Format(MIRSRC(IDS_STDOUT_ERR_NOT_ALL_DATA_WRITTEN), vText.c_str()));
-            SetErrorDescription(errMsg);
+            // Don't call the CMICmnBase::SetErrorDescription() because it will cause a stack overflow:
+            // CMICmnBase::SetErrorDescription -> CMICmnStreamStdout::Write -> CMICmnStreamStdout::WritePriv -> CMICmnBase::SetErrorDescription
             bOk = MIstatus::failure;
-        }
         else
         {
             ::fprintf(stdout, "\n");
@@ -230,9 +216,23 @@ CMICmnStreamStdout::Unlock(void)
 bool
 CMICmnStreamStdout::TextToStdout(const CMIUtilString &vrTxt)
 {
-    const bool bLock = CMICmnStreamStdout::Instance().Lock();
-    const bool bOk = bLock && CMICmnStreamStdout::Instance().WriteMIResponse(vrTxt);
-    bLock &&CMICmnStreamStdout::Instance().Unlock();
+    const bool bSendToLog = true;
+    return CMICmnStreamStdout::Instance().WriteMIResponse(vrTxt, bSendToLog);
+}
 
-    return bOk;
+//++ ------------------------------------------------------------------------------------
+// Details: Write prompt to stdout if it's enabled.
+// Type:    Static method.
+// Args:    None.
+// Return:  MIstatus::success - Function succeeded.
+//          MIstatus::failure - Function failed.
+// Throws:  None.
+//--
+bool
+CMICmnStreamStdout::WritePrompt(void)
+{
+    const CMICmnStreamStdin &rStdinMan = CMICmnStreamStdin::Instance();
+    if (rStdinMan.GetEnablePrompt())
+        return TextToStdout(rStdinMan.GetPrompt());
+    return MIstatus::success;
 }

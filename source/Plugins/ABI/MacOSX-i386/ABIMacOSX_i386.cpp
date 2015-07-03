@@ -552,7 +552,7 @@ ABIMacOSX_i386::GetArgumentValues (Thread &thread,
             if (clang_type.IsIntegerType (is_signed))
             {
                 ReadIntegerArgument(value->GetScalar(),
-                                    clang_type.GetBitSize(nullptr),
+                                    clang_type.GetBitSize(&thread),
                                     is_signed,
                                     thread.GetProcess().get(), 
                                     current_stack_argument);
@@ -560,7 +560,7 @@ ABIMacOSX_i386::GetArgumentValues (Thread &thread,
             else if (clang_type.IsPointerType())
             {
                 ReadIntegerArgument(value->GetScalar(),
-                                    clang_type.GetBitSize(nullptr),
+                                    clang_type.GetBitSize(&thread),
                                     false,
                                     thread.GetProcess().get(),
                                     current_stack_argument);
@@ -672,7 +672,7 @@ ABIMacOSX_i386::GetReturnValueObjectImpl (Thread &thread,
             
     if (clang_type.IsIntegerType (is_signed))
     {
-        size_t bit_width = clang_type.GetBitSize(nullptr);
+        size_t bit_width = clang_type.GetBitSize(&thread);
         
         unsigned eax_id = reg_ctx->GetRegisterInfoByName("eax", 0)->kinds[eRegisterKindLLDB];
         unsigned edx_id = reg_ctx->GetRegisterInfoByName("edx", 0)->kinds[eRegisterKindLLDB];
@@ -746,8 +746,7 @@ ABIMacOSX_i386::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     uint32_t pc_reg_num = dwarf_eip;
     
     UnwindPlan::RowSP row(new UnwindPlan::Row);
-    row->SetCFARegister (sp_reg_num);
-    row->SetCFAOffset (4);
+    row->GetCFAValue().SetIsRegisterPlusOffset (sp_reg_num, 4);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, -4, false);
     row->SetRegisterLocationToIsCFAPlusOffset(sp_reg_num, 0, true);
     unwind_plan.AppendRow (row);
@@ -774,8 +773,7 @@ ABIMacOSX_i386::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     const int32_t ptr_size = 4;
 
-    row->SetCFARegister (fp_reg_num);
-    row->SetCFAOffset (2 * ptr_size);
+    row->GetCFAValue().SetIsRegisterPlusOffset (fp_reg_num, 2 * ptr_size);
     row->SetOffset (0);
     
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num, ptr_size * -2, true);

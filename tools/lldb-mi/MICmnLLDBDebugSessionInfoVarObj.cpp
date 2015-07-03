@@ -7,34 +7,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBDebugSessionInfoVarObj.cpp
-//
-// Overview:    CMICmnLLDBDebugSessionInfoVarObj implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnLLDBDebugSessionInfoVarObj.h"
 #include "MICmnLLDBProxySBValue.h"
 #include "MICmnLLDBUtilSBValue.h"
 
 // Instantiations:
-const MIchar *CMICmnLLDBDebugSessionInfoVarObj::ms_aVarFormatStrings[] = {
+const char *CMICmnLLDBDebugSessionInfoVarObj::ms_aVarFormatStrings[] = {
     // CODETAG_SESSIONINFO_VARFORMAT_ENUM
     // *** Order is import here.
     "<Invalid var format>", "binary", "octal", "decimal", "hexadecimal", "natural"};
-const MIchar *CMICmnLLDBDebugSessionInfoVarObj::ms_aVarFormatChars[] = {
+const char *CMICmnLLDBDebugSessionInfoVarObj::ms_aVarFormatChars[] = {
     // CODETAG_SESSIONINFO_VARFORMAT_ENUM
     // *** Order is import here.
     "<Invalid var format>", "t", "o", "d", "x", "N"};
 CMICmnLLDBDebugSessionInfoVarObj::MapKeyToVarObj_t CMICmnLLDBDebugSessionInfoVarObj::ms_mapVarIdToVarObj;
 MIuint CMICmnLLDBDebugSessionInfoVarObj::ms_nVarUniqueId = 0; // Index from 0
+CMICmnLLDBDebugSessionInfoVarObj::varFormat_e CMICmnLLDBDebugSessionInfoVarObj::ms_eDefaultFormat = eVarFormat_Natural;
 
 //++ ------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugSessionInfoVarObj constructor.
@@ -234,7 +223,7 @@ CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForString(const CMIUtilString &vrS
     // CODETAG_SESSIONINFO_VARFORMAT_ENUM
     for (MIuint i = 0; i < eVarFormat_count; i++)
     {
-        const MIchar *pVarFormatString = ms_aVarFormatStrings[i];
+        const char *pVarFormatString = ms_aVarFormatStrings[i];
         if (vrStrFormat == pVarFormatString)
             return static_cast<varFormat_e>(i);
     }
@@ -245,22 +234,22 @@ CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForString(const CMIUtilString &vrS
 //++ ------------------------------------------------------------------------------------
 // Details: Retrieve the var format enumeration for the specified character.
 // Type:    Static method.
-// Args:    vrcFormat   - (R) Character representing the var format.
+// Args:    vcFormat    - Character representing the var format.
 // Return:  varFormat_e - Var format enumeration.
 //                      - No match found return eVarFormat_Invalid.
 // Throws:  None.
 //--
 CMICmnLLDBDebugSessionInfoVarObj::varFormat_e
-CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForChar(const MIchar &vrcFormat)
+CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForChar(char vcFormat)
 {
-    if ('r' == vrcFormat)
+    if ('r' == vcFormat)
         return eVarFormat_Hex;
 
     // CODETAG_SESSIONINFO_VARFORMAT_ENUM
     for (MIuint i = 0; i < eVarFormat_count; i++)
     {
-        const MIchar *pVarFormatChar = ms_aVarFormatChars[i];
-        if (*pVarFormatChar == vrcFormat)
+        const char *pVarFormatChar = ms_aVarFormatChars[i];
+        if (*pVarFormatChar == vcFormat)
             return static_cast<varFormat_e>(i);
     }
 
@@ -268,7 +257,9 @@ CMICmnLLDBDebugSessionInfoVarObj::GetVarFormatForChar(const MIchar &vrcFormat)
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Return the equivalent var value formatted string for the given value type.
+// Details: Return the equivalent var value formatted string for the given value type,
+//          which was prepared for printing (i.e. value was escaped and now it's ready
+//          for wrapping into quotes).
 //          The SBValue vrValue parameter is checked by LLDB private code for valid
 //          scalar type via MI Driver proxy function as the valued returned can also be
 //          an error condition. The proxy function determines if the check was valid
@@ -283,21 +274,18 @@ CMIUtilString
 CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(const lldb::SBValue &vrValue,
                                                           const CMICmnLLDBDebugSessionInfoVarObj::varFormat_e veVarFormat)
 {
-    CMIUtilString strFormattedValue;
-
-    MIuint64 nValue = 0;
-    if (CMICmnLLDBProxySBValue::GetValueAsUnsigned(vrValue, nValue) == MIstatus::success)
+    const CMICmnLLDBUtilSBValue utilValue(vrValue, true);
+    if (utilValue.IsIntegerType())
     {
-        lldb::SBValue &rValue = const_cast<lldb::SBValue &>(vrValue);
-        strFormattedValue = GetStringFormatted(nValue, rValue.GetValue(), veVarFormat);
-    }
-    else
-    {
-        // Composite variable type i.e. struct
-        strFormattedValue = "{...}";
+        MIuint64 nValue = 0;
+        if (CMICmnLLDBProxySBValue::GetValueAsUnsigned(vrValue, nValue))
+        {
+            lldb::SBValue &rValue = const_cast<lldb::SBValue &>(vrValue);
+            return GetStringFormatted(nValue, rValue.GetValue(), veVarFormat);
+        }
     }
 
-    return strFormattedValue;
+    return utilValue.GetValue().Escape().AddSlashes();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -310,12 +298,17 @@ CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(const lldb::SBValue &v
 // Throws:  None.
 //--
 CMIUtilString
-CMICmnLLDBDebugSessionInfoVarObj::GetStringFormatted(const MIuint64 vnValue, const MIchar *vpStrValueNatural,
+CMICmnLLDBDebugSessionInfoVarObj::GetStringFormatted(const MIuint64 vnValue, const char *vpStrValueNatural,
                                                      const CMICmnLLDBDebugSessionInfoVarObj::varFormat_e veVarFormat)
 {
     CMIUtilString strFormattedValue;
+    CMICmnLLDBDebugSessionInfoVarObj::varFormat_e veFormat = veVarFormat;
+    if (ms_eDefaultFormat != eVarFormat_Invalid && veVarFormat == eVarFormat_Natural)
+    {
+        veFormat = ms_eDefaultFormat;
+    }
 
-    switch (veVarFormat)
+    switch (veFormat)
     {
         case eVarFormat_Binary:
             strFormattedValue = CMIUtilString::FormatBinary(vnValue);
@@ -434,6 +427,20 @@ CMICmnLLDBDebugSessionInfoVarObj::VarObjIdResetToZero(void)
 }
 
 //++ ------------------------------------------------------------------------------------
+// Details: Default format is globally used as the data format when "natural" is in effect, that is, this overrides the default
+// Type:    Static method.
+// Args:    None.
+// Returns: None.
+// Throws:  None.
+//--
+void
+CMICmnLLDBDebugSessionInfoVarObj::VarObjSetFormat(varFormat_e eDefaultFormat)
+{
+    ms_eDefaultFormat = eDefaultFormat;
+}
+
+
+//++ ------------------------------------------------------------------------------------
 // Details: A count is kept of the number of var value objects created. This is count is
 //          used to ID the var value object. Increment the count by 1.
 // Type:    Static method.
@@ -508,6 +515,19 @@ CMICmnLLDBDebugSessionInfoVarObj::GetValueFormatted(void) const
 // Returns: lldb::SBValue & - LLDB Value object.
 // Throws:  None.
 //--
+lldb::SBValue &
+CMICmnLLDBDebugSessionInfoVarObj::GetValue(void)
+{
+    return m_SBValue;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Retrieve the LLDB Value object.
+// Type:    Method.
+// Args:    None.
+// Returns: lldb::SBValue & - Constant LLDB Value object.
+// Throws:  None.
+//--
 const lldb::SBValue &
 CMICmnLLDBDebugSessionInfoVarObj::GetValue(void) const
 {
@@ -543,7 +563,7 @@ CMICmnLLDBDebugSessionInfoVarObj::SetVarFormat(const varFormat_e veVarFormat)
 void
 CMICmnLLDBDebugSessionInfoVarObj::UpdateValue(void)
 {
-    m_strFormattedValue = CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(m_SBValue, m_eVarFormat);
+    m_strFormattedValue = GetValueStringFormatted(m_SBValue, m_eVarFormat);
 
     MIuint64 nValue = 0;
     if (CMICmnLLDBProxySBValue::GetValueAsUnsigned(m_SBValue, nValue) == MIstatus::failure)

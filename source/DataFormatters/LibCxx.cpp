@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/DataFormatters/CXXFormatterFunctions.h"
 
 #include "lldb/Core/DataBufferHeap.h"
@@ -266,7 +264,7 @@ lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEnd::Update()
                                                      NULL,
                                                      NULL,
                                                      NULL,
-                                                     ValueObject::GetValueForExpressionPathOptions().DontCheckDotVsArrowSyntax().DontAllowSyntheticChildren(),
+                                                     ValueObject::GetValueForExpressionPathOptions().DontCheckDotVsArrowSyntax().SetSyntheticChildrenTraversal(ValueObject::GetValueForExpressionPathOptions::SyntheticChildrenTraversal::None),
                                                      NULL).get();
     
     return false;

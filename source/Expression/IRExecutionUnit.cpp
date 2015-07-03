@@ -11,6 +11,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Debugger.h"
@@ -18,9 +20,11 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Target/ObjCLanguageRuntime.h"
 
 using namespace lldb_private;
 
@@ -584,7 +588,7 @@ IRExecutionUnit::MemoryManager::allocateCodeSection(uintptr_t Size,
     if (log)
     {
         log->Printf("IRExecutionUnit::allocateCodeSection(Size=0x%" PRIx64 ", Alignment=%u, SectionID=%u) = %p",
-                    (uint64_t)Size, Alignment, SectionID, return_value);
+                    (uint64_t)Size, Alignment, SectionID, (void *)return_value);
     }
 
     return return_value;
@@ -601,8 +605,11 @@ IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
 
     uint8_t *return_value = m_default_mm_ap->allocateDataSection(Size, Alignment, SectionID, SectionName, IsReadOnly);
 
+    uint32_t permissions = lldb::ePermissionsReadable;
+    if (!IsReadOnly)
+        permissions |= lldb::ePermissionsWritable;
     m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
-                                                  lldb::ePermissionsReadable | (IsReadOnly ? 0 : lldb::ePermissionsWritable),
+                                                  permissions,
                                                   GetSectionTypeFromSectionName (SectionName, AllocationKind::Data),
                                                   Size,
                                                   Alignment,
@@ -611,7 +618,7 @@ IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
     if (log)
     {
         log->Printf("IRExecutionUnit::allocateDataSection(Size=0x%" PRIx64 ", Alignment=%u, SectionID=%u) = %p",
-                    (uint64_t)Size, Alignment, SectionID, return_value);
+                    (uint64_t)Size, Alignment, SectionID, (void *)return_value);
     }
 
     return return_value;
@@ -669,20 +676,10 @@ IRExecutionUnit::MemoryManager::getSymbolAddress(const std::string &Name)
         SymbolContext sym_ctx;
         sc_list.GetContextAtIndex(i, sym_ctx);
         
-        if (sym_ctx.symbol->GetType() == lldb::eSymbolTypeUndefined)
-            continue;
-        
-        const Address *sym_address = &sym_ctx.symbol->GetAddress();
-        
-        if (!sym_address || !sym_address->IsValid())
-            continue;
-
         symbol_load_addr = sym_ctx.symbol->ResolveCallableAddress(*target_sp);
-        
+
         if (symbol_load_addr == LLDB_INVALID_ADDRESS)
-        {
             symbol_load_addr = sym_ctx.symbol->GetAddress().GetLoadAddress(target_sp.get());
-        }
     }
     
     if (symbol_load_addr == LLDB_INVALID_ADDRESS && process_sp && name_cs)

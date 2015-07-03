@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdFactory.cpp
-//
-// Overview:    CMICmdFactory implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmdFactory.h"
 #include "MICmnResources.h"
@@ -171,8 +159,8 @@ CMICmdFactory::IsValid(const CMIUtilString &vMiCmd) const
         return false;
     }
 
-    const MIint nPos = vMiCmd.find(" ");
-    if (nPos != (MIint)std::string::npos)
+    const size_t nPos = vMiCmd.find(" ");
+    if (nPos != std::string::npos)
         bValid = false;
 
     return bValid;

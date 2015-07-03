@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdData.cpp
-//
 // Overview:    CMICmdCmdDataEvaluateExpression     implementation.
 //              CMICmdCmdDataDisassemble            implementation.
 //              CMICmdCmdDataReadMemoryBytes        implementation.
@@ -19,15 +16,11 @@
 //              CMICmdCmdDataListRegisterChanged    implementation.
 //              CMICmdCmdDataWriteMemoryBytes       implementation.
 //              CMICmdCmdDataWriteMemory            implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
+//              CMICmdCmdDataInfoLine               implementation.
 
 // Third Party Headers:
+#include <inttypes.h> // For PRIx64
+#include "lldb/API/SBCommandInterpreter.h"
 #include "lldb/API/SBThread.h"
 #include "lldb/API/SBInstruction.h"
 #include "lldb/API/SBInstructionList.h"
@@ -132,7 +125,7 @@ CMICmdCmdDataEvaluateExpression::Execute(void)
     lldb::SBValue value = frame.EvaluateExpression(rExpression.c_str());
     if (!value.IsValid() || value.GetError().Fail())
         value = frame.FindVariable(rExpression.c_str());
-    const CMICmnLLDBUtilSBValue utilValue(value);
+    const CMICmnLLDBUtilSBValue utilValue(value, true);
     if (!utilValue.IsValid() || utilValue.IsValueUnknown())
     {
         m_bEvaluatedExpression = false;
@@ -160,12 +153,7 @@ CMICmdCmdDataEvaluateExpression::Execute(void)
     {
         const lldb::ValueType eValueType = value.GetValueType();
         MIunused(eValueType);
-        m_strValue = utilValue.GetValue();
-        CMIUtilString strCString;
-        if (CMICmnLLDBProxySBValue::GetCString(value, strCString))
-        {
-            m_strValue += CMIUtilString::Format(" '%s'", strCString.c_str());
-        }
+        m_strValue = utilValue.GetValue().Escape().AddSlashes();
         return MIstatus::success;
     }
 
@@ -277,7 +265,7 @@ CMICmdCmdDataEvaluateExpression::CreateSelf(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdDataEvaluateExpression::HaveInvalidCharacterInExpression(const CMIUtilString &vrExpr, MIchar &vrwInvalidChar)
+CMICmdCmdDataEvaluateExpression::HaveInvalidCharacterInExpression(const CMIUtilString &vrExpr, char &vrwInvalidChar)
 {
     static const std::string strInvalidCharacters(";#\\");
     const size_t nInvalidCharacterOffset = vrExpr.find_first_of(strInvalidCharacters);
@@ -408,35 +396,44 @@ CMICmdCmdDataDisassemble::Execute(void)
     lldb::addr_t lldbStartAddr = static_cast<lldb::addr_t>(nAddrStart);
     lldb::SBInstructionList instructions = sbTarget.ReadInstructions(lldb::SBAddress(lldbStartAddr, sbTarget), nAddrEnd - nAddrStart);
     const MIuint nInstructions = instructions.GetSize();
+    // Calculate the offset of first instruction so that we can generate offset starting at 0
+    lldb::addr_t start_offset = 0;
+    if(nInstructions > 0)
+        start_offset = instructions.GetInstructionAtIndex(0).GetAddress().GetOffset();
+
     for (size_t i = 0; i < nInstructions; i++)
     {
-        const MIchar *pUnknown = "??";
+        const char *pUnknown = "??";
         lldb::SBInstruction instrt = instructions.GetInstructionAtIndex(i);
-        const MIchar *pStrMnemonic = instrt.GetMnemonic(sbTarget);
+        const char *pStrMnemonic = instrt.GetMnemonic(sbTarget);
         pStrMnemonic = (pStrMnemonic != nullptr) ? pStrMnemonic : pUnknown;
+        const char *pStrComment = instrt.GetComment(sbTarget);
+        CMIUtilString strComment;
+        if (pStrComment != nullptr && *pStrComment != '\0')
+            strComment = CMIUtilString::Format("; %s", pStrComment);
         lldb::SBAddress address = instrt.GetAddress();
         lldb::addr_t addr = address.GetLoadAddress(sbTarget);
-        const MIchar *pFnName = address.GetFunction().GetName();
+        const char *pFnName = address.GetFunction().GetName();
         pFnName = (pFnName != nullptr) ? pFnName : pUnknown;
-        lldb::addr_t addrOffSet = address.GetOffset();
-        const MIchar *pStrOperands = instrt.GetOperands(sbTarget);
+        lldb::addr_t addrOffSet = address.GetOffset() - start_offset;
+        const char *pStrOperands = instrt.GetOperands(sbTarget);
         pStrOperands = (pStrOperands != nullptr) ? pStrOperands : pUnknown;
         const size_t instrtSize = instrt.GetByteSize();
 
-        // MI "{address=\"0x%08llx\",func-name=\"%s\",offset=\"%lld\",inst=\"%s %s\"}"
-        const CMICmnMIValueConst miValueConst(CMIUtilString::Format("0x%08llx", addr));
+        // MI "{address=\"0x%016" PRIx64 "\",func-name=\"%s\",offset=\"%lld\",inst=\"%s %s\"}"
+        const CMICmnMIValueConst miValueConst(CMIUtilString::Format("0x%016" PRIx64, addr));
         const CMICmnMIValueResult miValueResult("address", miValueConst);
         CMICmnMIValueTuple miValueTuple(miValueResult);
         const CMICmnMIValueConst miValueConst2(pFnName);
         const CMICmnMIValueResult miValueResult2("func-name", miValueConst2);
         miValueTuple.Add(miValueResult2);
-        const CMICmnMIValueConst miValueConst3(CMIUtilString::Format("0x%lld", addrOffSet));
+        const CMICmnMIValueConst miValueConst3(CMIUtilString::Format("%lld", addrOffSet));
         const CMICmnMIValueResult miValueResult3("offset", miValueConst3);
         miValueTuple.Add(miValueResult3);
         const CMICmnMIValueConst miValueConst4(CMIUtilString::Format("%d", instrtSize));
         const CMICmnMIValueResult miValueResult4("size", miValueConst4);
         miValueTuple.Add(miValueResult4);
-        const CMICmnMIValueConst miValueConst5(CMIUtilString::Format("%s %s", pStrMnemonic, pStrOperands));
+        const CMICmnMIValueConst miValueConst5(CMIUtilString::Format("%s %s%s", pStrMnemonic, pStrOperands, strComment.Escape(true).c_str()));
         const CMICmnMIValueResult miValueResult5("inst", miValueConst5);
         miValueTuple.Add(miValueResult5);
 
@@ -444,7 +441,7 @@ CMICmdCmdDataDisassemble::Execute(void)
         {
             lldb::SBLineEntry lineEntry = address.GetLineEntry();
             const MIuint nLine = lineEntry.GetLine();
-            const MIchar *pFileName = lineEntry.GetFileSpec().GetFilename();
+            const char *pFileName = lineEntry.GetFileSpec().GetFilename();
             pFileName = (pFileName != nullptr) ? pFileName : pUnknown;
 
             // MI "src_and_asm_line={line=\"%u\",file=\"%s\",line_asm_insn=[ ]}"
@@ -515,13 +512,13 @@ CMICmdCmdDataDisassemble::CreateSelf(void)
 //--
 CMICmdCmdDataReadMemoryBytes::CMICmdCmdDataReadMemoryBytes(void)
     : m_constStrArgThread("thread")
+    , m_constStrArgFrame("frame")
     , m_constStrArgByteOffset("o")
-    , m_constStrArgAddrStart("address")
+    , m_constStrArgAddrExpr("address")
     , m_constStrArgNumBytes("count")
     , m_pBufferMemory(nullptr)
     , m_nAddrStart(0)
     , m_nAddrNumBytesToRead(0)
-    , m_nAddrOffset(0)
 {
     // Command factory matches this name with that received from the stdin stream
     m_strMiCmd = "data-read-memory-bytes";
@@ -559,11 +556,13 @@ bool
 CMICmdCmdDataReadMemoryBytes::ParseArgs(void)
 {
     bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, false, CMICmdArgValListBase::eArgValType_Number, 1)));
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
+    bOk = bOk &&
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgFrame, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
     bOk =
         bOk &&
         m_setCmdArgs.Add(*(new CMICmdArgValOptionShort(m_constStrArgByteOffset, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgAddrStart, true, true)));
+    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgAddrExpr, true, true, true, true)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgNumBytes, true, true)));
     return (bOk && ParseValidateCmdOptions());
 }
@@ -573,32 +572,101 @@ CMICmdCmdDataReadMemoryBytes::ParseArgs(void)
 //          The command is likely to communicate with the LLDB SBDebugger in here.
 // Type:    Overridden.
 // Args:    None.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  MIstatus::success - Function succeeded.
+//          MIstatus::failure - Function failed.
 // Throws:  None.
 //--
 bool
 CMICmdCmdDataReadMemoryBytes::Execute(void)
 {
-    CMICMDBASE_GETOPTION(pArgAddrStart, Number, m_constStrArgAddrStart);
-    CMICMDBASE_GETOPTION(pArgAddrOffset, Number, m_constStrArgByteOffset);
+    CMICMDBASE_GETOPTION(pArgThread, OptionLong, m_constStrArgThread);
+    CMICMDBASE_GETOPTION(pArgFrame, OptionLong, m_constStrArgFrame);
+    CMICMDBASE_GETOPTION(pArgAddrOffset, OptionShort, m_constStrArgByteOffset);
+    CMICMDBASE_GETOPTION(pArgAddrExpr, String, m_constStrArgAddrExpr);
     CMICMDBASE_GETOPTION(pArgNumBytes, Number, m_constStrArgNumBytes);
 
-    const MIuint64 nAddrStart = pArgAddrStart->GetValue();
-    const MIuint64 nAddrNumBytes = pArgNumBytes->GetValue();
-    if (pArgAddrOffset->GetFound())
-        m_nAddrOffset = pArgAddrOffset->GetValue();
+    // get the --thread option value
+    MIuint64 nThreadId = UINT64_MAX;
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND),
+                 m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
+        return MIstatus::failure;
+    }
 
-    m_pBufferMemory = new MIuchar[nAddrNumBytes];
+    // get the --frame option value
+    MIuint64 nFrame = UINT64_MAX;
+    if (pArgFrame->GetFound() && !pArgFrame->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nFrame))
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND),
+                 m_cmdData.strMiCmd.c_str(), m_constStrArgFrame.c_str()));
+        return MIstatus::failure;
+    }
+
+    // get the -o option value
+    MIuint64 nAddrOffset = 0;
+    if (pArgAddrOffset->GetFound() && !pArgAddrOffset->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nAddrOffset))
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND),
+                 m_cmdData.strMiCmd.c_str(), m_constStrArgByteOffset.c_str()));
+        return MIstatus::failure;
+    }
+
+    CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
+    lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
+    if (!sbProcess.IsValid())
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_INVALID_PROCESS), m_cmdData.strMiCmd.c_str()));
+        return MIstatus::failure;
+    }
+
+    lldb::SBThread thread = (nThreadId != UINT64_MAX) ?
+                            sbProcess.GetThreadByIndexID(nThreadId) : sbProcess.GetSelectedThread();
+    if (!thread.IsValid())
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_THREAD_INVALID), m_cmdData.strMiCmd.c_str()));
+        return MIstatus::failure;
+    }
+
+    lldb::SBFrame frame = (nFrame != UINT64_MAX) ?
+                          thread.GetFrameAtIndex(nFrame) : thread.GetSelectedFrame();
+    if (!frame.IsValid())
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_FRAME_INVALID), m_cmdData.strMiCmd.c_str()));
+        return MIstatus::failure;
+    }
+
+    const CMIUtilString &rAddrExpr = pArgAddrExpr->GetValue();
+    lldb::SBValue addrExprValue = frame.EvaluateExpression(rAddrExpr.c_str());
+    lldb::SBError error = addrExprValue.GetError();
+    if (error.Fail())
+    {
+        SetError(error.GetCString());
+        return MIstatus::failure;
+    }
+    else if (!addrExprValue.IsValid())
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_EXPR_INVALID), rAddrExpr.c_str()));
+        return MIstatus::failure;
+    }
+
+    MIuint64 nAddrStart = 0;
+    if (!CMICmnLLDBProxySBValue::GetValueAsUnsigned(addrExprValue, nAddrStart))
+    {
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_EXPR_INVALID), rAddrExpr.c_str()));
+        return MIstatus::failure;
+    }
+
+    nAddrStart += nAddrOffset;
+    const MIuint64 nAddrNumBytes = pArgNumBytes->GetValue();
+
+    m_pBufferMemory = new unsigned char[nAddrNumBytes];
     if (m_pBufferMemory == nullptr)
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_MEMORY_ALLOC_FAILURE), m_cmdData.strMiCmd.c_str(), nAddrNumBytes));
         return MIstatus::failure;
     }
 
-    CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
-    lldb::SBError error;
     const MIuint64 nReadBytes = sbProcess.ReadMemory(static_cast<lldb::addr_t>(nAddrStart), (void *)m_pBufferMemory, nAddrNumBytes, error);
     if (nReadBytes != nAddrNumBytes)
     {
@@ -634,14 +702,15 @@ CMICmdCmdDataReadMemoryBytes::Execute(void)
 bool
 CMICmdCmdDataReadMemoryBytes::Acknowledge(void)
 {
-    // MI: memory=[{begin=\"0x%08x\",offset=\"0x%08x\",end=\"0x%08x\",contents=\" \" }]"
-    const CMICmnMIValueConst miValueConst(CMIUtilString::Format("0x%08x", m_nAddrStart));
+    // MI: memory=[{begin=\"0x%016" PRIx64 "\",offset=\"0x%016" PRIx64" \",end=\"0x%016" PRIx64 "\",contents=\" \" }]"
+    const CMICmnMIValueConst miValueConst(CMIUtilString::Format("0x%016" PRIx64, m_nAddrStart));
     const CMICmnMIValueResult miValueResult("begin", miValueConst);
     CMICmnMIValueTuple miValueTuple(miValueResult);
-    const CMICmnMIValueConst miValueConst2(CMIUtilString::Format("0x%08x", m_nAddrOffset));
+    const MIuint64 nAddrOffset = 0;
+    const CMICmnMIValueConst miValueConst2(CMIUtilString::Format("0x%016" PRIx64, nAddrOffset));
     const CMICmnMIValueResult miValueResult2("offset", miValueConst2);
     miValueTuple.Add(miValueResult2);
-    const CMICmnMIValueConst miValueConst3(CMIUtilString::Format("0x%08x", m_nAddrStart + m_nAddrNumBytesToRead));
+    const CMICmnMIValueConst miValueConst3(CMIUtilString::Format("0x%016" PRIx64, m_nAddrStart + m_nAddrNumBytesToRead));
     const CMICmnMIValueResult miValueResult3("end", miValueConst3);
     miValueTuple.Add(miValueResult3);
 
@@ -650,7 +719,7 @@ CMICmdCmdDataReadMemoryBytes::Acknowledge(void)
     strContent.reserve((m_nAddrNumBytesToRead << 1) + 1);
     for (MIuint64 i = 0; i < m_nAddrNumBytesToRead; i++)
     {
-        strContent += CMIUtilString::Format("%02x", m_pBufferMemory[i]);
+        strContent += CMIUtilString::Format("%02hhx", m_pBufferMemory[i]);
     }
     const CMICmnMIValueConst miValueConst4(strContent);
     const CMICmnMIValueResult miValueResult4("contents", miValueConst4);
@@ -1475,13 +1544,13 @@ CMICmdCmdDataWriteMemory::Execute(void)
     m_nCount = pArgNumber->GetValue();
     const MIuint64 nValue = pArgContents->GetValue();
 
-    m_pBufferMemory = new MIuchar[m_nCount];
+    m_pBufferMemory = new unsigned char[m_nCount];
     if (m_pBufferMemory == nullptr)
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_MEMORY_ALLOC_FAILURE), m_cmdData.strMiCmd.c_str(), m_nCount));
         return MIstatus::failure;
     }
-    *m_pBufferMemory = static_cast<MIchar>(nValue);
+    *m_pBufferMemory = static_cast<char>(nValue);
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
     lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
@@ -1536,4 +1605,225 @@ CMICmdBase *
 CMICmdCmdDataWriteMemory::CreateSelf(void)
 {
     return new CMICmdCmdDataWriteMemory();
+}
+
+//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
+
+//++ ------------------------------------------------------------------------------------
+// Details: CMICmdCmdDataInfoLine constructor.
+// Type:    Method.
+// Args:    None.
+// Return:  None.
+// Throws:  None.
+//--
+CMICmdCmdDataInfoLine::CMICmdCmdDataInfoLine(void)
+    : m_constStrArgLocation("location")
+{
+    // Command factory matches this name with that received from the stdin stream
+    m_strMiCmd = "data-info-line";
+
+    // Required by the CMICmdFactory when registering *this command
+    m_pSelfCreatorFn = &CMICmdCmdDataInfoLine::CreateSelf;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: CMICmdCmdDataInfoLine destructor.
+// Type:    Overrideable.
+// Args:    None.
+// Return:  None.
+// Throws:  None.
+//--
+CMICmdCmdDataInfoLine::~CMICmdCmdDataInfoLine(void)
+{
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: The invoker requires this function. The parses the command line options
+//          arguments to extract values for each of those arguments.
+// Type:    Overridden.
+// Args:    None.
+// Return:  MIstatus::success - Functional succeeded.
+//          MIstatus::failure - Functional failed.
+// Throws:  None.
+//--
+bool
+CMICmdCmdDataInfoLine::ParseArgs(void)
+{
+    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgLocation, true, true)));
+    return (bOk && ParseValidateCmdOptions());
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: The invoker requires this function. The command does work in this function.
+//          The command is likely to communicate with the LLDB SBDebugger in here.
+// Type:    Overridden.
+// Args:    None.
+// Return:  MIstatus::success - Functional succeeded.
+//          MIstatus::failure - Functional failed.
+// Throws:  None.
+//--
+bool
+CMICmdCmdDataInfoLine::Execute(void)
+{
+    CMICMDBASE_GETOPTION(pArgLocation, String, m_constStrArgLocation);
+
+    const CMIUtilString &strLocation(pArgLocation->GetValue());
+    CMIUtilString strCmdOptionsLocation;
+    if (strLocation.at(0) == '*')
+    {
+        // Parse argument:
+        // *0x12345
+        //  ^^^^^^^ -- address
+        const CMIUtilString strAddress(strLocation.c_str() + 1);
+        strCmdOptionsLocation = CMIUtilString::Format("--address %s", strAddress.c_str());
+    }
+    else
+    {
+        const size_t nLineStartPos = strLocation.rfind(':');
+        if ((nLineStartPos == std::string::npos) || (nLineStartPos == 0) || (nLineStartPos == strLocation.length() - 1))
+        {
+            SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_INVALID_LOCATION_FORMAT), m_cmdData.strMiCmd.c_str(), strLocation.c_str())
+                         .c_str());
+            return MIstatus::failure;
+        }
+        // Parse argument:
+        // hello.cpp:5
+        // ^^^^^^^^^ -- file
+        //           ^ -- line
+        const CMIUtilString strFile(strLocation.substr(0, nLineStartPos).c_str());
+        const CMIUtilString strLine(strLocation.substr(nLineStartPos + 1).c_str());
+        strCmdOptionsLocation = CMIUtilString::Format("--file \"%s\" --line %s", strFile.AddSlashes().c_str(), strLine.c_str());
+    }
+    const CMIUtilString strCmd(CMIUtilString::Format("target modules lookup -v %s", strCmdOptionsLocation.c_str()));
+
+    CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
+    const lldb::ReturnStatus rtn = rSessionInfo.GetDebugger().GetCommandInterpreter().HandleCommand(strCmd.c_str(), m_lldbResult);
+    MIunused(rtn);
+
+    return MIstatus::success;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: The invoker requires this function. The command prepares a MI Record Result
+//          for the work carried out in the Execute().
+// Type:    Overridden.
+// Args:    None.
+// Return:  MIstatus::success - Functional succeeded.
+//          MIstatus::failure - Functional failed.
+// Throws:  None.
+//--
+bool
+CMICmdCmdDataInfoLine::Acknowledge(void)
+{
+    if (m_lldbResult.GetErrorSize() > 0)
+    {
+        const CMICmnMIValueConst miValueConst(m_lldbResult.GetError());
+        const CMICmnMIValueResult miValueResult("msg", miValueConst);
+        const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error, miValueResult);
+        m_miResultRecord = miRecordResult;
+        return MIstatus::success;
+    }
+    else if (m_lldbResult.GetOutputSize() > 0)
+    {
+        CMIUtilString::VecString_t vecLines;
+        const CMIUtilString strLldbMsg(m_lldbResult.GetOutput());
+        const MIuint nLines(strLldbMsg.SplitLines(vecLines));
+
+        for (MIuint i = 0; i < nLines; ++i)
+        {
+            // String looks like:
+            // LineEntry: \[0x0000000100000f37-0x0000000100000f45\): /path/to/file:3[:1]
+            const CMIUtilString &rLine(vecLines[i]);
+
+            // LineEntry: \[0x0000000100000f37-0x0000000100000f45\): /path/to/file:3[:1]
+            // ^^^^^^^^^ -- property
+            const size_t nPropertyStartPos = rLine.find_first_not_of(' ');
+            const size_t nPropertyEndPos = rLine.find(':');
+            const size_t nPropertyLen = nPropertyEndPos - nPropertyStartPos;
+            const CMIUtilString strProperty(rLine.substr(nPropertyStartPos, nPropertyLen).c_str());
+
+            // Skip all except LineEntry
+            if (!CMIUtilString::Compare(strProperty, "LineEntry"))
+                continue;
+
+            // LineEntry: \[0x0000000100000f37-0x0000000100000f45\): /path/to/file:3[:1]
+            //              ^^^^^^^^^^^^^^^^^^ -- start address
+            const size_t nStartAddressStartPos = rLine.find("[");
+            const size_t nStartAddressEndPos = rLine.find("-");
+            const size_t nStartAddressLen = nStartAddressEndPos - nStartAddressStartPos - 1;
+            const CMIUtilString strStartAddress(rLine.substr(nStartAddressStartPos + 1, nStartAddressLen).c_str());
+            const CMICmnMIValueConst miValueConst(strStartAddress);
+            const CMICmnMIValueResult miValueResult("start", miValueConst);
+            CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult);
+
+            // LineEntry: \[0x0000000100000f37-0x0000000100000f45\): /path/to/file:3[:1]
+            //                                 ^^^^^^^^^^^^^^^^^^ -- end address
+            const size_t nEndAddressEndPos = rLine.find(")");
+            const size_t nEndAddressLen = nEndAddressEndPos - nStartAddressEndPos - 1;
+            const CMIUtilString strEndAddress(rLine.substr(nStartAddressEndPos + 1, nEndAddressLen).c_str());
+            const CMICmnMIValueConst miValueConst2(strEndAddress);
+            const CMICmnMIValueResult miValueResult2("end", miValueConst2);
+            bool bOk = miRecordResult.Add(miValueResult2);
+            if (!bOk)
+                return MIstatus::failure;
+
+            // LineEntry: \[0x0000000100000f37-0x0000000100000f45\): /path/to/file:3[:1]
+            //                                                       ^^^^^^^^^^^^^ -- file
+            //                                                                     ^ -- line
+            //                                                                        ^ -- column (optional)
+            const size_t nFileStartPos = rLine.find_first_not_of(' ', nEndAddressEndPos + 2);
+            const size_t nFileOrLineEndPos = rLine.rfind(':');
+            const size_t nFileOrLineStartPos = rLine.rfind(':', nFileOrLineEndPos - 1);
+            const size_t nFileEndPos = nFileStartPos < nFileOrLineStartPos ? nFileOrLineStartPos : nFileOrLineEndPos;
+            const size_t nFileLen = nFileEndPos - nFileStartPos;
+            const CMIUtilString strFile(rLine.substr(nFileStartPos, nFileLen).c_str());
+            const CMICmnMIValueConst miValueConst3(strFile);
+            const CMICmnMIValueResult miValueResult3("file", miValueConst3);
+            bOk = miRecordResult.Add(miValueResult3);
+            if (!bOk)
+                return MIstatus::failure;
+
+            // LineEntry: \[0x0000000100000f37-0x0000000100000f45\): /path/to/file:3[:1]
+            //                                                                     ^ -- line
+            const size_t nLineStartPos = nFileEndPos + 1;
+            const size_t nLineEndPos = rLine.find(':', nLineStartPos);
+            const size_t nLineLen = nLineEndPos != std::string::npos ? nLineEndPos - nLineStartPos - 1
+                                                                     : std::string::npos;
+            const CMIUtilString strLine(rLine.substr(nLineStartPos, nLineLen).c_str());
+            const CMICmnMIValueConst miValueConst4(strLine);
+            const CMICmnMIValueResult miValueResult4("line", miValueConst4);
+            bOk = miRecordResult.Add(miValueResult4);
+            if (!bOk)
+                return MIstatus::failure;
+
+            // MI print "%s^done,start=\"%d\",end=\"%d\"",file=\"%s\",line=\"%d\"
+            m_miResultRecord = miRecordResult;
+
+            return MIstatus::success;
+        }
+    }
+
+    // MI print "%s^error,msg=\"Command '-data-info-line'. Error: The LineEntry is absent or has an unknown format.\""
+    const CMICmnMIValueConst miValueConst(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_SOME_ERROR), m_cmdData.strMiCmd.c_str(), "The LineEntry is absent or has an unknown format."));
+    const CMICmnMIValueResult miValueResult("msg", miValueConst);
+    const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error, miValueResult);
+    m_miResultRecord = miRecordResult;
+
+    return MIstatus::success;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Required by the CMICmdFactory when registering *this command. The factory
+//          calls this function to create an instance of *this command.
+// Type:    Static method.
+// Args:    None.
+// Return:  CMICmdBase * - Pointer to a new command.
+// Throws:  None.
+//--
+CMICmdBase *
+CMICmdCmdDataInfoLine::CreateSelf(void)
+{
+    return new CMICmdCmdDataInfoLine();
 }

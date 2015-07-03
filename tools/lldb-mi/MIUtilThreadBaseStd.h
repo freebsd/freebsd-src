@@ -6,18 +6,6 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-
-//++
-// File:        MIUtilThreadBaseStd.h
-//
-// Overview:    CMIUtilThread interface.
-//              CMIUtilThreadActiveObjBase interface.
-//              CMIUtilThreadMutex interface.
-//              CMIUtilThreadLock interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
 //
 // Copyright:   None.
 //--
@@ -87,6 +75,8 @@ class CMIUtilThread
     Join(void); // Wait for this thread to stop
     bool
     IsActive(void); // Returns true if this thread is running
+    void
+    Finish(void); // Finish this thread
 
     // Overrideable:
   public:
@@ -96,6 +86,7 @@ class CMIUtilThread
   private:
     CMIUtilThreadMutex m_mutex;
     std::thread *m_pThread;
+    bool m_bIsActive;
 };
 
 //++ ============================================================================

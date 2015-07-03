@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectFrame.h"
 
 // C Includes
@@ -65,10 +63,10 @@ public:
                              "frame info",
                              "List information about the currently selected frame in the current thread.",
                              "frame info",
-                             eFlagRequiresFrame         |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   )
+                             eCommandRequiresFrame         |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   )
     {
     }
 
@@ -156,10 +154,10 @@ public:
                              "frame select",
                              "Select a frame by index from within the current thread and make it the current frame.",
                              NULL,
-                             eFlagRequiresThread        |
-                             eFlagTryTargetAPILock      |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresThread        |
+                             eCommandTryTargetAPILock      |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_options (interpreter)
     {
         CommandArgumentEntry arg;
@@ -192,7 +190,7 @@ protected:
     bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        // No need to check "thread" for validity as eFlagRequiresThread ensures it is valid
+        // No need to check "thread" for validity as eCommandRequiresThread ensures it is valid
         Thread *thread = m_exe_ctx.GetThreadPtr();
 
         uint32_t frame_idx = UINT32_MAX;
@@ -314,11 +312,11 @@ public:
                              "Children of aggregate variables can be specified such as "
                              "'var->child.x'.",
                              NULL,
-                             eFlagRequiresFrame |
-                             eFlagTryTargetAPILock |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused |
-                             eFlagRequiresProcess),
+                             eCommandRequiresFrame |
+                             eCommandTryTargetAPILock |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused |
+                             eCommandRequiresProcess),
         m_option_group (interpreter),
         m_option_variable(true), // Include the frame specific options by passing "true"
         m_option_format (eFormatDefault),
@@ -385,7 +383,7 @@ protected:
     virtual bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        // No need to check "frame" for validity as eFlagRequiresFrame ensures it is valid
+        // No need to check "frame" for validity as eCommandRequiresFrame ensures it is valid
         StackFrame *frame = m_exe_ctx.GetFramePtr();
 
         Stream &s = result.GetOutputStream();
@@ -522,30 +520,31 @@ protected:
                     {
                         var_sp = variable_list->GetVariableAtIndex(i);
                         bool dump_variable = true;
+                        std::string scope_string;
                         switch (var_sp->GetScope())
                         {
                             case eValueTypeVariableGlobal:
                                 dump_variable = m_option_variable.show_globals;
                                 if (dump_variable && m_option_variable.show_scope)
-                                    s.PutCString("GLOBAL: ");
+                                    scope_string = "GLOBAL: ";
                                 break;
 
                             case eValueTypeVariableStatic:
                                 dump_variable = m_option_variable.show_globals;
                                 if (dump_variable && m_option_variable.show_scope)
-                                    s.PutCString("STATIC: ");
+                                    scope_string = "STATIC: ";
                                 break;
 
                             case eValueTypeVariableArgument:
                                 dump_variable = m_option_variable.show_args;
                                 if (dump_variable && m_option_variable.show_scope)
-                                    s.PutCString("   ARG: ");
+                                    scope_string = "   ARG: ";
                                 break;
 
                             case eValueTypeVariableLocal:
                                 dump_variable = m_option_variable.show_locals;
                                 if (dump_variable && m_option_variable.show_scope)
-                                    s.PutCString(" LOCAL: ");
+                                    scope_string = " LOCAL: ";
                                 break;
 
                             default:
@@ -555,7 +554,7 @@ protected:
                         if (dump_variable)
                         {
                             // Use the variable object code to make sure we are
-                            // using the same APIs as the the public API will be
+                            // using the same APIs as the public API will be
                             // using...
                             valobj_sp = frame->GetValueObjectForFrameVariable (var_sp, 
                                                                                m_varobj_options.use_dynamic);
@@ -568,6 +567,13 @@ protected:
                                 // that are not in scope to avoid extra unneeded output
                                 if (valobj_sp->IsInScope ())
                                 {
+                                    if (false == valobj_sp->GetTargetSP()->GetDisplayRuntimeSupportValues() &&
+                                        true == valobj_sp->IsRuntimeSupportValue())
+                                        continue;
+                                    
+                                    if (!scope_string.empty())
+                                        s.PutCString(scope_string.c_str());
+                                    
                                     if (m_option_variable.show_decl && var_sp->GetDeclaration ().GetFile())
                                     {
                                         var_sp->GetDeclaration ().DumpStopContext (&s, false);

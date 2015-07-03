@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIResult.h
-//
-// Overview:    CMICmnMIValueResult interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -71,5 +59,5 @@ class CMICmnMIValueResult : public CMICmnMIValue
     CMIUtilString m_strPartVariable;
     CMICmnMIValue m_partMIValue;
     bool m_bEmptyConstruction; // True = *this object used constructor with no parameters, false = constructor with parameters
-    bool m_bUseSpacing;        // True = put space seperators into the string, false = no spaces used
+    bool m_bUseSpacing;        // True = put space separators into the string, false = no spaces used
 };
