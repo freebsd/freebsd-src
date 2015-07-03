@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2014
+.Dd July 2, 2015
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -333,13 +333,13 @@ on the input buffer.
 The various fields are:
 .Bl -tag -width ".Va crd_inject"
 .It Va crd_iv
-The field where IV should be provided when the
+When the flag
 .Dv CRD_F_IV_EXPLICIT
-flag is given.
+is set, this field contains the IV.
 .It Va crd_key
 When the
 .Dv CRD_F_KEY_EXPLICIT
-flag is given, the
+flag is set, the
 .Va crd_key
 points to a buffer with encryption or authentication key.
 .It Va crd_alg
@@ -370,15 +370,14 @@ The following flags are defined:
 For encryption algorithms, this bit is set when encryption is required
 (when not set, decryption is performed).
 .It Dv CRD_F_IV_PRESENT
-For encryption, this bit is set when the IV already
-precedes the data, so the
-.Va crd_inject
-value will be ignored and no IV will be written in the buffer.
-Otherwise, the IV used to encrypt the packet will be written
-at the location pointed to by
+.\" This flag name has nothing to do w/ it's behavior, fix the name.
+For encryption, if this bit is not set the IV used to encrypt the packet
+will be written at the location pointed to by
 .Va crd_inject .
 The IV length is assumed to be equal to the blocksize of the
 encryption algorithm.
+For encryption, if this bit is set, nothing is done.
+For decryption, this flag has no meaning.
 Applications that do special
 .Dq "IV cooking" ,
 such as the half-IV mode in
@@ -388,7 +387,7 @@ This flag is typically used in conjunction with the
 .Dv CRD_F_IV_EXPLICIT
 flag.
 .It Dv CRD_F_IV_EXPLICIT
-For encryption algorithms, this bit is set when the IV is explicitly
+This bit is set when the IV is explicitly
 provided by the consumer in the
 .Va crd_iv
 field.
