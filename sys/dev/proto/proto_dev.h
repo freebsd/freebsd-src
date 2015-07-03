@@ -50,6 +50,8 @@ struct proto_ioc_busdma {
 #define	PROTO_IOC_BUSDMA_MD_CREATE	20
 #define	PROTO_IOC_BUSDMA_MD_DESTROY	21
 #define	PROTO_IOC_BUSDMA_MD_LOAD	22
+#define	PROTO_IOC_BUSDMA_MD_UNLOAD	29
+#define	PROTO_IOC_BUSDMA_SYNC		30
 	unsigned long	key;
 	union {
 		struct {
@@ -72,6 +74,11 @@ struct proto_ioc_busdma {
 			unsigned long	bus_addr;
 			unsigned int	bus_nsegs;
 		} md;
+		struct {
+			unsigned int	op;
+			unsigned long	base;
+			unsigned long	size;
+		} sync;
 	} u;
 	unsigned long	result;
 };
