@@ -262,6 +262,20 @@ bd_md_add_seg(struct obj *md, int type, u_long addr, u_long size)
 	return (0);
 }
 
+static int
+bd_md_del_segs(struct obj *md, int type, int unmap)
+{
+	struct obj *seg, *seg0;
+
+	for (seg = md->u.md.seg[type]; seg != NULL; seg = seg0) {
+		if (unmap)
+			munmap((void *)seg->u.seg.address, seg->u.seg.size);
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
+	return (0);
+}
+
 int
 bd_md_create(int tid, u_int flags)
 {
@@ -345,6 +359,29 @@ bd_md_load(int mdid, void *buf, u_long len, u_int flags)
 }
 
 int
+bd_md_unload(int mdid)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md;
+	int error;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (errno);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MD_UNLOAD;
+	ioc.key = md->key;
+	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
+		return (errno);
+
+	bd_md_del_segs(md, BUSDMA_MD_VIRT, 0);
+	bd_md_del_segs(md, BUSDMA_MD_PHYS, 0);
+	bd_md_del_segs(md, BUSDMA_MD_BUS, 0);
+	return (0);
+}
+
+int
 bd_mem_alloc(int tid, u_int flags)
 {
 	struct proto_ioc_busdma ioc;
@@ -409,31 +446,21 @@ int
 bd_mem_free(int mdid)
 {
 	struct proto_ioc_busdma ioc;
-	struct obj *md, *seg, *seg0;
+	struct obj *md;
 
 	md = obj_lookup(mdid, OBJ_TYPE_MD);
 	if (md == NULL)
 		return (errno);
 
-	for (seg = md->u.md.seg[BUSDMA_MD_VIRT]; seg != NULL; seg = seg0) {
-		munmap((void *)seg->u.seg.address, seg->u.seg.size);
-		seg0 = seg->u.seg.next;
-		obj_free(seg);
-	}
-	for (seg = md->u.md.seg[BUSDMA_MD_PHYS]; seg != NULL; seg = seg0) {
-		seg0 = seg->u.seg.next;
-		obj_free(seg);
-	}
-	for (seg = md->u.md.seg[BUSDMA_MD_BUS]; seg != NULL; seg = seg0) {
-		seg0 = seg->u.seg.next;
-		obj_free(seg);
-	}
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
 	ioc.key = md->key;
 	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
 		return (errno);
 
+	bd_md_del_segs(md, BUSDMA_MD_VIRT, 1);
+	bd_md_del_segs(md, BUSDMA_MD_PHYS, 0);
+	bd_md_del_segs(md, BUSDMA_MD_BUS, 0);
 	md->parent->refcnt--;
 	obj_free(md);
 	return (0);
@@ -507,5 +534,27 @@ bd_seg_get_size(int sid, u_long *size_p)
 		return (errno);
 
 	*size_p = seg->u.seg.size;
+	return (0);
+}
+
+int
+bd_sync(int mdid, u_int op, u_long base, u_long size)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (errno);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_SYNC;
+	ioc.key = md->key;
+	ioc.u.sync.op = op;
+	ioc.u.sync.base = base;
+	ioc.u.sync.size = size;
+	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
+		return (errno);
+
 	return (0);
 }
