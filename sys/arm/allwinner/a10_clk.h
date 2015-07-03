@@ -97,13 +97,25 @@
 #define	CCM_LVDS_CLK		0x014c
 #define	CCM_HDMI_CLK		0x0150
 #define	CCM_MALI400_CLK		0x0154
+#define	CCM_GMAC_CLK		0x0164
 
+#define	CCM_GMAC_CLK_DELAY_SHIFT	10
+#define	CCM_GMAC_CLK_MODE_MASK	0x7
+#define	CCM_GMAC_MODE_RGMII	(1 << 2)
+#define	CCM_GMAC_CLK_MII	0x0
+#define	CCM_GMAC_CLK_EXT_RGMII	0x1
+#define	CCM_GMAC_CLK_RGMII	0x2
+
+/* AHB_GATING_REG0 */
 #define	CCM_AHB_GATING_USB0	(1 << 0)
 #define	CCM_AHB_GATING_EHCI0	(1 << 1)
 #define	CCM_AHB_GATING_EHCI1	(1 << 3)
 #define	CCM_AHB_GATING_SDMMC0	(1 << 8)
 #define	CCM_AHB_GATING_EMAC	(1 << 17)
 #define	CCM_AHB_GATING_SATA	(1 << 25)
+
+/* AHB_GATING_REG1 */
+#define	CCM_AHB_GATING_GMAC	(1 << 17)
 
 #define	CCM_USB_PHY		(1 << 8)
 #define	CCM_USB0_RESET		(1 << 0)
@@ -139,6 +151,7 @@
 int a10_clk_usb_activate(void);
 int a10_clk_usb_deactivate(void);
 int a10_clk_emac_activate(void);
+int a10_clk_gmac_activate(phandle_t);
 int a10_clk_ahci_activate(void);
 int a10_clk_mmc_activate(int);
 int a10_clk_mmc_cfg(int, int);
