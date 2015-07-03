@@ -182,6 +182,38 @@ a10_clk_emac_activate(void)
 	return (0);
 }
 
+int
+a10_clk_gmac_activate(phandle_t node)
+{
+	char *phy_type;
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Gating AHB clock for GMAC */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING1);
+	reg_value |= CCM_AHB_GATING_GMAC;
+	ccm_write_4(sc, CCM_AHB_GATING1, reg_value);
+
+	/* Set GMAC mode. */
+	reg_value = CCM_GMAC_CLK_MII;
+	if (OF_getprop_alloc(node, "phy-type", 1, (void **)&phy_type) > 0) {
+		if (strcasecmp(phy_type, "rgmii") == 0)
+			reg_value = CCM_GMAC_CLK_RGMII | CCM_GMAC_MODE_RGMII;
+		else if (strcasecmp(phy_type, "rgmii-bpi") == 0) {
+			reg_value = CCM_GMAC_CLK_RGMII | CCM_GMAC_MODE_RGMII;
+			reg_value |= (3 << CCM_GMAC_CLK_DELAY_SHIFT);
+		}
+		free(phy_type, M_OFWPROP);
+	}
+	ccm_write_4(sc, CCM_GMAC_CLK, reg_value);
+
+	return (0);
+}
+
 static void
 a10_clk_pll6_enable(void)
 {
