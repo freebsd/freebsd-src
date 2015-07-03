@@ -29,8 +29,6 @@
 #ifndef	_A10_CLK_H_
 #define	_A10_CLK_H_
 
-#define	CCMU_BASE		0xe1c20000
-
 #define	CCM_PLL1_CFG		0x0000
 #define	CCM_PLL1_TUN		0x0004
 #define	CCM_PLL2_CFG		0x0008
