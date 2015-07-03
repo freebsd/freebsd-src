@@ -56,6 +56,7 @@ struct a10_ccm_softc {
 	struct resource		*res;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	int			pll6_enabled;
 };
 
 static struct a10_ccm_softc *a10_ccm_sc = NULL;
@@ -203,6 +204,8 @@ a10_clk_pll6_enable(void)
 	 * For other uses the output frequency is 24MHz * n * k / 2.
 	 */
 	sc = a10_ccm_sc;
+	if (sc->pll6_enabled)
+		return;
 	reg_value = ccm_read_4(sc, CCM_PLL6_CFG);
 	reg_value &= ~CCM_PLL_CFG_BYPASS;
 	reg_value &= ~(CCM_PLL_CFG_FACTOR_K | CCM_PLL_CFG_FACTOR_M |
@@ -211,6 +214,7 @@ a10_clk_pll6_enable(void)
 	reg_value |= CCM_PLL6_CFG_SATA_CLKEN;
 	reg_value |= CCM_PLL_CFG_ENABLE;
 	ccm_write_4(sc, CCM_PLL6_CFG, reg_value);
+	sc->pll6_enabled = 1;
 }
 
 static unsigned int
@@ -226,6 +230,29 @@ a10_clk_pll6_get_rate(void)
 	    1;
 
 	return ((CCM_CLK_REF_FREQ * n * k) / 2);
+}
+
+int
+a10_clk_ahci_activate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	a10_clk_pll6_enable();
+
+	/* Gating AHB clock for SATA */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
+	reg_value |= CCM_AHB_GATING_SATA;
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
+	DELAY(1000);
+
+	ccm_write_4(sc, CCM_SATA_CLK, CCM_PLL_CFG_ENABLE);
+
+	return (0);
 }
 
 int
