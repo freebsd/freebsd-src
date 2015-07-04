@@ -86,6 +86,67 @@ create_and_populate_homedir(int mode, struct passwd *pwd)
 	    pwd->pw_uid, pwd->pw_dir);
 }
 
+static int
+set_passwd(struct passwd *pwd, struct carg *arg, bool update)
+{
+	int		 b, istty;
+	struct termios	 t, n;
+	login_cap_t	*lc;
+	char		line[_PASSWORD_LEN+1];
+	char		*p;
+
+	if (conf.fd == '-') {
+		if (!pwd->pw_passwd || *pwd->pw_passwd != '*') {
+			pwd->pw_passwd = "*";	/* No access */
+			return (1);
+		}
+		return (0);
+	}
+
+	if ((istty = isatty(conf.fd))) {
+		if (tcgetattr(conf.fd, &t) == -1)
+			istty = 0;
+		else {
+			n.c_lflag &= ~(ECHO);
+			tcsetattr(conf.fd, TCSANOW, &n);
+			printf("%s%spassword for user %s:",
+			    update ? "new " : "",
+			    conf.precrypted ? "encrypted " : "",
+			    pwd->pw_name);
+			fflush(stdout);
+		}
+	}
+	b = read(conf.fd, line, sizeof(line) - 1);
+	if (istty) {	/* Restore state */
+		tcsetattr(conf.fd, TCSANOW, &t);
+		fputc('\n', stdout);
+		fflush(stdout);
+	}
+
+	if (b < 0)
+		err(EX_IOERR, "-%c file descriptor",
+		    conf.precrypted ? 'H' : 'h');
+	line[b] = '\0';
+	if ((p = strpbrk(line, "\r\n")) != NULL)
+		*p = '\0';
+	if (!*line)
+		errx(EX_DATAERR, "empty password read on file descriptor %d",
+		    conf.fd);
+	if (conf.precrypted) {
+		if (strchr(line, ':') != NULL)
+			return EX_DATAERR;
+		pwd->pw_passwd = line;
+	} else {
+		lc = login_getpwclass(pwd);
+		if (lc == NULL ||
+				login_setcryptfmt(lc, "sha512", NULL) == NULL)
+			warn("setting crypt(3) format");
+		login_close(lc);
+		pwd->pw_passwd = pw_pwcrypt(line);
+	}
+	return (1);
+}
+
 /*-
  * -C config      configuration file
  * -q             quiet operation
@@ -529,66 +590,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		}
 	}
 
-	if ((arg = getarg(args, 'h')) != NULL ||
-	    (arg = getarg(args, 'H')) != NULL) {
-		if (strcmp(arg->val, "-") == 0) {
-			if (!pwd->pw_passwd || *pwd->pw_passwd != '*') {
-				pwd->pw_passwd = "*";	/* No access */
-				edited = 1;
-			}
-		} else {
-			int             fd = atoi(arg->val);
-			int		precrypt = (arg->ch == 'H');
-			int             b;
-			int             istty = isatty(fd);
-			struct termios  t;
-			login_cap_t	*lc;
-
-			if (istty) {
-				if (tcgetattr(fd, &t) == -1)
-					istty = 0;
-				else {
-					struct termios  n = t;
-
-					/* Disable echo */
-					n.c_lflag &= ~(ECHO);
-					tcsetattr(fd, TCSANOW, &n);
-					printf("%s%spassword for user %s:",
-					     (mode == M_UPDATE) ? "new " : "",
-					     precrypt ? "encrypted " : "",
-					     pwd->pw_name);
-					fflush(stdout);
-				}
-			}
-			b = read(fd, line, sizeof(line) - 1);
-			if (istty) {	/* Restore state */
-				tcsetattr(fd, TCSANOW, &t);
-				fputc('\n', stdout);
-				fflush(stdout);
-			}
-			if (b < 0)
-				err(EX_IOERR, "-%c file descriptor",
-				    precrypt ? 'H' : 'h');
-			line[b] = '\0';
-			if ((p = strpbrk(line, "\r\n")) != NULL)
-				*p = '\0';
-			if (!*line)
-				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
-			if (precrypt) {
-				if (strchr(line, ':') != NULL)
-					return EX_DATAERR;
-				pwd->pw_passwd = line;
-			} else {
-				lc = login_getpwclass(pwd);
-				if (lc == NULL ||
-				    login_setcryptfmt(lc, "sha512", NULL) == NULL)
-					warn("setting crypt(3) format");
-				login_close(lc);
-				pwd->pw_passwd = pw_pwcrypt(line);
-			}
-			edited = 1;
-		}
-	}
+	if (conf.fd != -1)
+		edited = set_passwd(pwd, arg, mode == M_UPDATE);
 
 	/*
 	 * Special case: -N only displays & exits
