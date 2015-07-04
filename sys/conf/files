@@ -476,6 +476,9 @@ contrib/libfdt/fdt_rw.c		optional fdt
 contrib/libfdt/fdt_strerror.c	optional fdt
 contrib/libfdt/fdt_sw.c		optional fdt
 contrib/libfdt/fdt_wip.c	optional fdt
+contrib/libnv/dnvlist.c		standard
+contrib/libnv/nvlist.c		standard
+contrib/libnv/nvpair.c		standard
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
@@ -3054,7 +3057,6 @@ kern/subr_clock.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
-kern/subr_dnvlist.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
@@ -3068,8 +3070,6 @@ kern/subr_mbpool.c		optional libmbpool
 kern/subr_mchain.c		optional libmchain
 kern/subr_module.c		standard
 kern/subr_msgbuf.c		standard
-kern/subr_nvlist.c		standard
-kern/subr_nvpair.c		standard
 kern/subr_param.c		standard
 kern/subr_pcpu.c		standard
 kern/subr_pctrie.c		standard
