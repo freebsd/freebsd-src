@@ -603,9 +603,6 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 		return (ENXIO);
 	}
 	if (chan == 0) {
-#ifdef	ISP_TARGET_MODE
-		isp_del_all_wwn_entries(isp, chan);
-#endif
 		isp_clear_commands(isp);
 		isp_reset(isp, 0);
 		if (isp->isp_state != ISP_RESETSTATE) {
@@ -626,8 +623,6 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 		uint8_t qe[QENTRY_LEN], *scp;
 
 		ISP_MEMZERO(qe, QENTRY_LEN);
-		/* Acquire Scratch */
-
 		if (FC_SCRATCH_ACQUIRE(isp, chan)) {
 			return (EBUSY);
 		}
@@ -671,12 +666,6 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
 
-#ifdef	ISP_TARGET_MODE
-		isp_del_all_wwn_entries(isp, chan);
-#endif
-		/*
-		 * Release Scratch
-		 */
 		FC_SCRATCH_RELEASE(isp, chan);
 
 		if (vp->vp_mod_status != VP_STS_OK) {

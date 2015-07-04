@@ -915,6 +915,8 @@ void isp_done(XS_T *);
  *        Get PDB on this channel for this N-port handle
  * ... ISPCTL_PLOGX, isp_plcmd_t *)
  *        Performa a port login/logout
+ * ... ISPCTL_CHANGE_ROLE, int channel, int role);
+ *        Change role of specified channel
  *
  * ISPCTL_PDB_SYNC is somewhat misnamed. It actually is the final step, in
  * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_FABRIC, and ISPCTL_SCAN_LOOP.
@@ -937,7 +939,8 @@ typedef enum {
 	ISPCTL_GET_NAMES,
 	ISPCTL_RUN_MBOXCMD,
 	ISPCTL_GET_PDB,
-	ISPCTL_PLOGX
+	ISPCTL_PLOGX,
+	ISPCTL_CHANGE_ROLE
 } ispctl_t;
 int isp_control(ispsoftc_t *, ispctl_t, ...);
 
