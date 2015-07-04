@@ -37,14 +37,14 @@
  * Note: global_procpp may be NULL for no global save area.
  */
 struct kproc_desc {
-	char		*arg0;			/* arg 0 (for 'ps' listing) */
-	void		(*func)(void);	/* "main" for kernel process */
+	const char	*arg0;			/* arg 0 (for 'ps' listing) */
+	void		(*func)(void);		/* "main" for kernel process */
 	struct proc	**global_procpp;	/* ptr to proc ptr save area */
 };
 
  /* A kernel thread descriptor; used to start "internal" daemons. */
 struct kthread_desc {
-	char		*arg0;			/* arg 0 (for 'ps' listing) */
+	const char	*arg0;			/* arg 0 (for 'ps' listing) */
 	void		(*func)(void);		/* "main" for kernel thread */
 	struct thread	**global_threadpp;	/* ptr to thread ptr save area */
 };

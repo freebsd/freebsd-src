@@ -70,6 +70,12 @@ ENTRY(_rtld_bind_start)
 	stp	x6, x7, [sp, #-16]!
 	stp	x8, xzr, [sp, #-16]!
 
+	/* Save any floating-point arguments */
+	stp	q0, q1, [sp, #-32]!
+	stp	q2, q3, [sp, #-32]!
+	stp	q4, q5, [sp, #-32]!
+	stp	q6, q7, [sp, #-32]!
+
 	/* Calculate reloff */
 	ldr	x2, [x17, #0]	/* Get the address of the entry */
 	sub	x1, x2, x16	/* Find its offset */
@@ -85,12 +91,16 @@ ENTRY(_rtld_bind_start)
 	bl	_rtld_bind
 
 	/* Restore the registers saved by the plt code */
-	ldp	xzr, x30, [sp, #(5 * 16)]
+	ldp	xzr, x30, [sp, #(5 * 16 + 4 * 32)]
 
 	/* Backup the address to branch to */
 	mov	x16, x0
 
 	/* restore the arguments */
+	ldp	q6, q7, [sp], #32
+	ldp	q4, q5, [sp], #32
+	ldp	q2, q3, [sp], #32
+	ldp	q0, q1, [sp], #32
 	ldp	x8, xzr, [sp], #16
 	ldp	x6, x7, [sp], #16
 	ldp	x4, x5, [sp], #16

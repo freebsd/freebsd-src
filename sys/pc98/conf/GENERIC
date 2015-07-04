@@ -29,6 +29,7 @@ options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	IPSEC                   # IP (v4/v6) security
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -255,3 +256,6 @@ device		bpf			# Berkeley packet filter
 #device		snd_mss			# Microsoft Sound System
 #device		"snd_sb16"		# Sound Blaster 16
 #device		snd_sbc			# Sound Blaster
+
+# The cypto framework is required by IPSEC
+device		crypto			# Required by IPSEC

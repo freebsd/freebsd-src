@@ -1,5 +1,6 @@
-.\" Copyright (c) 1990, 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1990, 1991, 1993 The Regents of the University of California.
+.\" Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
 .\" Chris Torek and the American National Standards Committee X3,
@@ -32,11 +33,12 @@
 .\"     @(#)fclose.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2006
+.Dd July 4, 2015
 .Dt FCLOSE 3
 .Os
 .Sh NAME
 .Nm fclose ,
+.Nm fdclose ,
 .Nm fcloseall
 .Nd close a stream
 .Sh LIBRARY
@@ -45,6 +47,8 @@
 .In stdio.h
 .Ft int
 .Fn fclose "FILE *stream"
+.Ft int
+.Fn fdclose "FILE *stream" "int *fdp"
 .Ft void
 .Fn fcloseall void
 .Sh DESCRIPTION
@@ -59,36 +63,77 @@ first, using
 .Xr fflush 3 .
 .Pp
 The
+.Fn fdclose
+function is equivalent to
+.Fn fclose
+except that it does not close the underlying file descriptor.
+If
+.Fa fdp
+is not
+.Dv NULL ,
+the file descriptor will be written to it.
+If the
+.Fa fdp
+argument will be different then NULL the file descriptor will be returned in it,
+If the stream does not have an associated file descriptor,
+.Fa fdp
+will be set to -1.
+This type of stream is created with functions such as
+.Xr fmemopen 3 ,
+.Xr funopen 3 ,
+or
+.Xr open_memstream 3 .
+.Pp
+The
 .Fn fcloseall
 function calls
 .Fn fclose
 on all open streams.
 .Sh RETURN VALUES
-Upon successful completion 0 is returned.
+.Fn fcloseall
+does not return a value.
+.Pp
+Upon successful completion the
+.Fn fclose
+and
+.Fn fdclose
+functions return 0.
 Otherwise,
 .Dv EOF
 is returned and the global variable
 .Va errno
 is set to indicate the error.
-In either case no further access to the stream is possible.
 .Sh ERRORS
+.Fn fdclose
+fails if:
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+The stream does not have an associated file descriptor.
+.El
+.Pp
 The
 .Fn fclose
-function
-may also fail and set
+and
+.Fn fdclose
+functions may also fail and set
 .Va errno
-for any of the errors specified for the routines
-.Xr close 2
-or
+for any of the errors specified for
 .Xr fflush 3 .
+.Pp
+The
+.Fn fclose
+function may also fail and set errno for any of the errors specified for
+.Xr close 2 .
 .Sh NOTES
 The
 .Fn fclose
-function
-does not handle NULL arguments; they will result in a segmentation
-violation.
-This is intentional - it makes it easier to make sure programs written
-under
+and
+.Fn fdclose
+functions do not handle NULL arguments in the
+.Fa stream
+variable; this will result in a segmentation violation.
+This is intentional.
+It makes it easier to make sure programs written under
 .Fx
 are bug free.
 This behaviour is an implementation detail, and programs should not
@@ -104,8 +149,13 @@ The
 function
 conforms to
 .St -isoC .
-.Pp
+.Sh HISTORY
 The
 .Fn fcloseall
 function first appeared in
 .Fx 7.0 .
+.Pp
+The
+.Fn fdclose
+function first appeared in
+.Fx 11.0 .

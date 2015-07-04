@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
+	.globl	_C_LABEL(_end)
+
 	.data
 	.align	3
 	.global	_C_LABEL(curbrk)
@@ -47,15 +49,10 @@ ENTRY(_sbrk)
 	WEAK_REFERENCE(_sbrk, sbrk)
 
 	/* Load the address of curbrk */
-#ifdef __PIC__
-	adrp	x2, :got:curbrk
-	ldr	x3, [x2, #:got_lo12:curbrk]
-#else
-	ldr	x3, .Lcurbrk
-#endif
+	adrp	x3, curbrk
 
 	/* Get the current brk address */
-	ldr	x2, [x3]
+	ldr	x2, [x3, :lo12:curbrk]
 
 	/* Calculate the new value */
 	add	x0, x2, x0
@@ -66,14 +63,10 @@ ENTRY(_sbrk)
 	b.cs	cerror
 
 	/* Load the old value to return */
-	ldr	x0, [x3]
+	ldr	x0, [x3, :lo12:curbrk]
 
 	/* Store the new curbrk value */
-	str	x4, [x3]
+	str	x4, [x3, :lo12:curbrk]
 
 	ret
-#ifndef __PIC__
-.Lcurbrk:
-	.quad	_C_LABEL(curbrk)
-#endif
 END(_sbrk)

@@ -54,7 +54,9 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 		return (-1);
 	switch (reg) {
 	case REG_PC:
-#if defined(__amd64__)
+#if defined(__aarch64__)
+		*regvalue = regs.elr;
+#elif defined(__amd64__)
 		*regvalue = regs.r_rip;
 #elif defined(__arm__)
 		*regvalue = regs.r_pc;
@@ -67,7 +69,9 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 #endif
 		break;
 	case REG_SP:
-#if defined(__amd64__)
+#if defined(__aarch64__)
+		*regvalue = regs.sp;
+#elif defined(__amd64__)
 		*regvalue = regs.r_rsp;
 #elif defined(__arm__)
 		*regvalue = regs.r_sp;
@@ -101,7 +105,9 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 		return (-1);
 	switch (reg) {
 	case REG_PC:
-#if defined(__amd64__)
+#if defined(__aarch64__)
+		regs.elr = regvalue;
+#elif defined(__amd64__)
 		regs.r_rip = regvalue;
 #elif defined(__arm__)
 		regs.r_pc = regvalue;
@@ -114,7 +120,9 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 #endif
 		break;
 	case REG_SP:
-#if defined(__amd64__)
+#if defined(__aarch64__)
+		regs.sp = regvalue;
+#elif defined(__amd64__)
 		regs.r_rsp = regvalue;
 #elif defined(__arm__)
 		regs.r_sp = regvalue;

@@ -22,7 +22,7 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
-    <!-- Last rev: 282482 -->
+    <!-- Last rev: 284814 -->
 
     <copyright>
       <year>2015</year>
@@ -220,10 +220,6 @@
 	to filter by &man.jail.8; ID or name, in followup to the
 	&man.ps.1; change in <literal>r265229</literal>.</para>
 
-      <para revision="265995">The Blowfish &man.crypt.3; default
-	format has been changed to
-	<literal>&dollar;2b&dollar;</literal>.</para>
-
       <para revision="266209">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ends event collection after the specified number of
@@ -345,6 +341,37 @@
 	would cause final results to be sent to &man.stderr.4; when
 	receiving the <literal>SIGINFO</literal> signal has been
 	fixed.</para>
+
+      <para revision="284297" contrib="sponsor"
+	sponsor="&clusterhq;">The &man.lockstat.1; utility has been
+	updated with several improvements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Spin locks are now reported as the amount of time
+	    spinning, instead of loop iterations.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Reader locks are now recognized as adaptive that can
+	    spin on &os;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Lock aquisition events for successful reader try-lock
+	    events are now reported.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Spin and block events are now reported before lock
+	    acquisition events.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para revision="284589" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.fstyp.8; utility has been
+	updated to be able to detect &man.zfs.8; and &man.geli.8;
+	filesystems.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -417,9 +444,6 @@
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
 
-      <para revision="280297"><application>OpenSSL</application> has
-	been updated to version 1.0.1m.</para>
-
       <para revision="280932" contrib="sponsor" sponsor="&ff;">The
 	<application>elftoolchain</application> utilities have been
 	updated to version 3179.</para>
@@ -430,15 +454,9 @@
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
 
-      <para revision="281396">The &man.acpi.4; subsystem has been
-	updated to version 20150410.</para>
-
       <para revision="281806">The &man.wpa.supplicant.8; and
 	&man.hostapd.8; utilities have been updated to version
 	2.4.</para>
-
-      <para revision="281812"><application>bmake</application> has
-	been updated to version 20150418.</para>
 
       <para revision="282089">The &man.unbound.8; utility has been
 	updated to version 1.5.3.</para>
@@ -446,6 +464,18 @@
       <para revision="282434" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
 	3.7.0.</para>
+
+      <para revision="284254"><application>bmake</application> has
+	been updated to version 20150606.</para>
+
+      <para revision="284329"><application>OpenSSL</application> has
+	been updated to version 1.0.1o.</para>
+
+      <para revision="283092">The &man.acpi.4; subsystem has been
+	updated to version 20150515.</para>
+
+      <para revision="284237">The &man.file.1; utility has been
+	updated to version 5.23.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -512,6 +542,10 @@
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
+      <para revision="265995">The Blowfish &man.crypt.3; default
+	format has been changed to
+	<literal>&dollar;2b&dollar;</literal>.</para>
+
       <para revision="268461">The &man.readline.3; library is now
 	statically linked in software within the base system, and the
 	shared library is no longer installed, allowing the Ports
@@ -569,6 +603,22 @@
 
       <para revision="281845">Support for file verification in
 	<acronym>MAC</acronym> has been added.</para>
+
+      <para revision="282973" contrib="sponsor" sponsor="&ff;">The
+	<literal>libgomp</literal> library is now only built when
+	building <acronym>GCC</acronym> from the base system.  An
+	up-to-date version is available in the Ports Collection as
+	<filename
+	  role="package">devel/libiomp5-devel</filename>.</para>
+
+      <para revision="282988">The <filename>stdlib.h</filename> and
+	<filename>malloc.h</filename> headers have been updated to
+	make use of the <application>gcc</application>
+	<literal>alloc_align()</literal> attribute.</para>
+
+      <para revision="284483" contrib="sponsor"
+	sponsor="&scaleengine;">The Blowfish &man.crypt.3; library
+	has been updated to support &dollar;2y&dollar; hashes.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
@@ -675,6 +725,16 @@
 	arch="powerpc">The &man.pmap.9; implementation for 64-bit
 	&powerpc; processors has been overhaulded to improve
 	concurrency.</para>
+
+      <para revision="283959" contrib="sponsor"
+	sponsor="&limelight;">A new kernel configuration option,
+	<literal>EM_MULTIQUEUE</literal>, has been added which enables
+	multi-queue support in the &man.em.4; driver.</para>
+
+      <note>
+	<para>Multi-queue support in the &man.em.4; driver is not
+	  officially supported by &intel;.</para>
+      </note>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
@@ -703,6 +763,26 @@
 	&man.rctl.8; with the <literal>GENERIC</literal> kernel.
 	A new kernel configuration option,
 	<literal>RACCT_DISABLED</literal> has also been added.</para>
+
+      <para revision="282901" contrib="sponsor" sponsor="&ff;">The
+	<literal>GENERIC</literal> kernel configuration now includes
+	<literal>RACCT</literal> and <literal>RCTL</literal> by
+	default.</para>
+
+      <note>
+	<para>To enable <literal>RACCT</literal> and
+	  <literal>RCTL</literal> on a system using the
+	  <literal>GENERIC</literal> kernel configuration, add
+	  <literal>kern.racct.enable=1</literal> to
+	  &man.loader.conf.5;, and reboot the system.</para>
+      </note>
+
+      <para revision="283136" contrib="sponsor"
+	sponsor="&limelight;">A new &man.sysctl.8;,
+	<literal>net.inet.tcp.hostcache.purgenow</literal>, has
+	been added, which when set to <literal>1</literal> during
+	runtime will flush all
+	<literal>net.inet.tcp.hostcache</literal> entries.</para>
     </sect2>
   </sect1>
 
@@ -744,6 +824,10 @@
 
       <para revision="280183">The <literal>drm</literal> code has
 	been updated to match &linux; version 3.8.13.</para>
+
+      <para revision="282783" arch="powerpc">Support for the Freescale
+	<acronym>PCI</acronym> Root Complex device has been
+	added.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
@@ -838,6 +922,10 @@
 	&man.gre.4; driver has been significantly overhauled, and has
 	been split into two separate modules, &man.gre.4; and
 	&man.me.4;.</para>
+
+      <para revision="283766" contrib="sponsor"
+	sponsor="&limelight;">The &man.em.4; driver has been updated
+	with improved transmission queue hang detection.</para>
     </sect2>
   </sect1>
 
@@ -883,6 +971,13 @@
 	updated to include <literal>AES-ICM</literal> and
 	<literal>AES-GCM</literal> modes, both of which have also been
 	added to the &man.aesni.4; driver.</para>
+
+      <para revision="283766">The &man.ig4.4; driver has been added,
+	providing support for the fourth generation &intel;
+	<acronym>I2C</acronym> SMBus.</para>
+
+      <para>The &man.uart.4; driver has been updated to support
+	<acronym>AMT</acronym> devices on newer systems.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
@@ -938,7 +1033,7 @@
 	has been added.</para>
 
       <para revision="282212" contrib="sponsor" sponsor="&msostc;">The
-	HyperV&trade; drivers have been updated with several
+	Hyper-V&trade; drivers have been updated with several
 	enhancements:</para>
 
       <itemizedlist>
@@ -960,6 +1055,10 @@
 
       <para revision="282274">Support for &man.xen.4; para-virtualized
 	<literal>domU</literal> kernels has been removed.</para>
+
+      <para revision="284746" contrib="sponsor" sponsor="&msostc;">The
+	&man.hv.netvsc.4; driver has been updated to support checksum
+	offloading and <acronym>TSO</acronym>.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -980,6 +1079,17 @@
       <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
 	support for the ARM AArch64 architecture has been
 	added.</para>
+
+      <para revision="282779" arch="arm">Kernel support for Thumb-2
+	userland has been added.</para>
+
+      <para revision="282827">Support for the hardware power button
+	on the BeagleBone Black system has been added.</para>
+
+      <para revision="284273" contrib="sponsor"
+	sponsor="&ff;">Initial
+	<acronym>ACPI</acronym> support has been added for
+	&os;/&arch.arm64;.</para>
     </sect2>
   </sect1>
 
@@ -1000,6 +1110,19 @@
       <para revision="278354" contrib="sponsor" sponsor="&ix;">The
 	&man.ctld.8; utility has been updated to allow controlling
 	non-<acronym>iSCSI</acronym> &man.ctl.4; ports.</para>
+
+      <para revision="275681" contrib="sponsor" sponsor="&ff;">The
+	&man.autofs.5; subsystem has been updated to include a new
+	&man.auto.master.5; map, <literal>-media</literal>, which
+	allows automatically mounting removable media, such as
+	<acronym>CD</acronym> drives or <acronym>USB</acronym> flash
+	drives.</para>
+
+      <para revision="279955" contrib="sponsor" sponsor="&ff;">The
+	&man.autofs.5; subsystem has been updated to include a new
+	&man.auto.master.5; map, <literal>-noauto</literal>, which
+	handles &man.fstab.5; entries set to
+	<literal>noauto</literal>.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1059,6 +1182,10 @@
 	loading the kernel.  To enable this behavior, add
 	<literal>geom_eli_passphrase_prompt="YES"</literal> to
 	&man.loader.conf.5;.</para>
+
+      <para revision="258431" contrib="sponsor" sponsor="&ff;">The
+	memory test run at boot time on &os;/&arch.amd64; platforms
+	has been disabled by default.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">

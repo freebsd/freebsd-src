@@ -45,6 +45,7 @@ enum alias {
 	ALIAS_FREEBSD_VINUM,
 	ALIAS_FREEBSD_ZFS,
 	ALIAS_MBR,
+	ALIAS_NTFS,
 	/* end */
 	ALIAS_COUNT		/* Keep last! */
 };

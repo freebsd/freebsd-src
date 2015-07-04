@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/terminal.h>
@@ -732,6 +733,7 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 {
 	struct vt_window *vw = vd->vd_curwindow;
 
+	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 #if VT_ALT_TO_ESC_HACK
 	if (c & RELKEY) {
 		switch (c & ~RELKEY) {

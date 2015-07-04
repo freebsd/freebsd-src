@@ -69,27 +69,31 @@ CFLAGS+=	-I${.OBJDIR} -I${.CURDIR} \
 
 #CFLAGS+=	-DYYDEBUG
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/aarch64
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/aarch64
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/aarch64
+.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/dev/dtrace/x86
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel -DDIS_MEM
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/i386
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/${MACHINE_ARCH}
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/x86
-.elif ${MACHINE_CPUARCH} == "sparc64"
-CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
-.elif ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
-.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
 .elif ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/arm
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/arm
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/arm
+.elif ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
 .elif ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/powerpc
+.elif ${MACHINE_CPUARCH} == "sparc64"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
 .else
 # temporary hack
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel

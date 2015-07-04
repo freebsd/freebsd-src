@@ -1978,12 +1978,19 @@ ffs_backgroundwritedone(struct buf *bp)
 	BO_LOCK(bufobj);
 	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
+
+	/*
+	 * We should mark the cylinder group buffer origbp as
+	 * dirty, to not loose the failed write.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		origbp->b_vflags |= BV_BKGRDERR;
 	BO_UNLOCK(bufobj);
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
 	pbrelvp(bp);
-	if (!LIST_EMPTY(&bp->b_dep))
+	if (!LIST_EMPTY(&bp->b_dep) && (bp->b_ioflags & BIO_ERROR) == 0)
 		buf_complete(bp);
 #ifdef SOFTUPDATES
 	if (!LIST_EMPTY(&bp->b_dep))
@@ -1995,6 +2002,15 @@ ffs_backgroundwritedone(struct buf *bp)
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_flags &= ~B_CACHE;
+
+	/*
+	 * Prevent brelse() from trying to keep and re-dirtying bp on
+	 * errors. It causes b_bufobj dereference in
+	 * bdirty()/reassignbuf(), and b_bufobj was cleared in
+	 * pbrelvp() above.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		bp->b_flags |= B_INVAL;
 	bufdone(bp);
 	BO_LOCK(bufobj);
 	/*
@@ -2056,6 +2072,7 @@ ffs_bufwrite(struct buf *bp)
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bufwrite: still writing");
 	}
+	bp->b_vflags &= ~BV_BKGRDERR;
 	BO_UNLOCK(bp->b_bufobj);
 
 	/*

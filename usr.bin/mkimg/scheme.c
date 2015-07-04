@@ -59,6 +59,7 @@ static struct {
 	{ "freebsd-vinum", ALIAS_FREEBSD_VINUM },
 	{ "freebsd-zfs", ALIAS_FREEBSD_ZFS },
 	{ "mbr", ALIAS_MBR },
+	{ "ntfs", ALIAS_NTFS },
 	{ NULL, ALIAS_NONE }		/* Keep last! */
 };
 

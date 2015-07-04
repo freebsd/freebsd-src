@@ -112,10 +112,11 @@
 		};
 
 		sata@01c18000 {
-			compatible = "allwinner,sun4i-ahci";
+			compatible = "allwinner,sun4i-a10-ahci";
 			reg = <0x01c18000 0x1000>;
 			interrupts = <56>;
 			interrupt-parent = <&AINTC>;
+			status = "disabled";
 		};
 
 		UART0: serial@01c28000 {

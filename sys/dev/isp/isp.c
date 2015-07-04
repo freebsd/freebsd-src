@@ -1848,7 +1848,7 @@ isp_fibre_init(ispsoftc_t *isp)
 		icbp->icb_lunetimeout = ICB_LUN_ENABLE_TOV;
 	}
 #endif
-	if (fcp->isp_wwnn && fcp->isp_wwpn && (fcp->isp_wwnn >> 60) != 2) {
+	if (fcp->isp_wwnn && fcp->isp_wwpn) {
 		icbp->icb_fwoptions |= ICBOPT_BOTH_WWNS;
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_wwnn);
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, fcp->isp_wwpn);
@@ -2075,7 +2075,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
-	if (fcp->isp_wwnn && fcp->isp_wwpn && (fcp->isp_wwnn >> 60) != 2) {
+	if (fcp->isp_wwnn && fcp->isp_wwpn) {
 		icbp->icb_fwoptions1 |= ICB2400_OPT1_BOTH_WWNS;
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, fcp->isp_wwpn);
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_wwnn);
@@ -2220,6 +2220,36 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	 * Whatever happens, we're now committed to being here.
 	 */
 	isp->isp_state = ISP_INITSTATE;
+}
+
+static void
+isp_del_all_init_entries(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	fcportdb_t *lp;
+	int i;
+
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		lp = &fcp->portdb[i];
+		if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode)
+			continue;
+		/*
+		 * It's up to the outer layers to clear isp_dev_map.
+		 */
+		lp->state = FC_PORTDB_STATE_NIL;
+		isp_async(isp, ISPASYNC_DEV_GONE, chan, lp, 1);
+		if (lp->autologin == 0) {
+			(void) isp_plogx(isp, chan, lp->handle,
+			    lp->portid,
+			    PLOGX_FLG_CMD_LOGO |
+			    PLOGX_FLG_IMPLICIT |
+			    PLOGX_FLG_FREE_NPHDL, 0);
+		} else {
+			lp->autologin = 0;
+		}
+		lp->new_prli_word3 = 0;
+		lp->new_portid = 0;
+	}
 }
 
 static void
@@ -2981,7 +3011,7 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			 * It's up to the outer layers to clear isp_dev_map.
 			 */
 			lp->state = FC_PORTDB_STATE_NIL;
-			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
+			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp, 0);
 			if (lp->autologin == 0) {
 				(void) isp_plogx(isp, chan, lp->handle,
 				    lp->portid,
@@ -4988,6 +5018,28 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 			}
 		} while ((r & 0xffff) == MBOX_LOOP_ID_USED);
+		return (r);
+	}
+	case ISPCTL_CHANGE_ROLE:
+	{
+		int role, r;
+
+		va_start(ap, ctl);
+		chan = va_arg(ap, int);
+		role = va_arg(ap, int);
+		va_end(ap);
+		if (IS_FC(isp)) {
+#ifdef	ISP_TARGET_MODE
+			if ((role & ISP_ROLE_TARGET) == 0)
+				isp_del_all_wwn_entries(isp, chan);
+#endif
+			if ((role & ISP_ROLE_INITIATOR) == 0)
+				isp_del_all_init_entries(isp, chan);
+			r = isp_fc_change_role(isp, chan, role);
+		} else {
+			SDPARAM(isp, chan)->role = role;
+			r = 0;
+		}
 		return (r);
 	}
 	default:
