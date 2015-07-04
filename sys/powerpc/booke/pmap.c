@@ -194,7 +194,7 @@ static tlbtid_t tid_alloc(struct pmap *);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
-static int tlb1_set_entry(vm_offset_t, vm_offset_t, vm_size_t, uint32_t);
+static int tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 static void tlb1_write_entry(unsigned int);
 static int tlb1_iomapped(int, vm_paddr_t, vm_size_t, vm_offset_t *);
 static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
@@ -392,7 +392,7 @@ static mmu_method_t mmu_booke_methods[] = {
 MMU_DEF(booke_mmu, MMU_TYPE_BOOKE, mmu_booke_methods, 0);
 
 static __inline uint32_t
-tlb_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
+tlb_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 {
 	uint32_t attrib;
 	int i;
@@ -3016,7 +3016,7 @@ size2tsize(vm_size_t size)
  * kept in tlb1_idx) and are not supposed to be invalidated.
  */
 static int
-tlb1_set_entry(vm_offset_t va, vm_offset_t pa, vm_size_t size,
+tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
     uint32_t flags)
 {
 	uint32_t ts, tid;
@@ -3160,7 +3160,7 @@ tlb1_init()
 		tlb1[i].phys = mas3 & MAS3_RPN;
 
 		if (i == 0)
-			kernload = mas3 & MAS3_RPN;
+			kernload = tlb1[i].phys;
 
 		tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 		tlb1[i].size = (tsz > 0) ? tsize2size(tsz) : 0;

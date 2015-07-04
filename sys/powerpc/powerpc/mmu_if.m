@@ -107,14 +107,14 @@ CODE {
 		return;
 	}
 
-	static void *mmu_null_mapdev_attr(mmu_t mmu, vm_offset_t pa,
+	static void *mmu_null_mapdev_attr(mmu_t mmu, vm_paddr_t pa,
 	    vm_size_t size, vm_memattr_t ma)
 	{
 		return MMU_MAPDEV(mmu, pa, size);
 	}
 
 	static void mmu_null_kenter_attr(mmu_t mmu, vm_offset_t va,
-	    vm_offset_t pa, vm_memattr_t ma)
+	    vm_paddr_t pa, vm_memattr_t ma)
 	{
 		MMU_KENTER(mmu, va, pa);
 	}
@@ -792,7 +792,7 @@ METHOD void * mapdev {
  */
 METHOD void * mapdev_attr {
 	mmu_t		_mmu;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 	vm_size_t	_size;
 	vm_memattr_t	_attr;
 } DEFAULT mmu_null_mapdev_attr;
@@ -859,7 +859,7 @@ METHOD void kenter {
 METHOD void kenter_attr {
 	mmu_t		_mmu;
 	vm_offset_t	_va;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 	vm_memattr_t	_ma;
 } DEFAULT mmu_null_kenter_attr;
 
