@@ -80,15 +80,14 @@ arm_create_disk() {
 arm_create_user() {
 	# Create a default user account 'freebsd' with the password 'freebsd',
 	# and set the default password for the 'root' user to 'root'.
-	chroot ${CHROOTDIR} /usr/sbin/pw -V ${DESTDIR}/etc \
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		groupadd freebsd -g 1001
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/home/freebsd
-	chroot ${CHROOTDIR} /usr/sbin/pw -V ${DESTDIR}/etc \
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		useradd freebsd \
 		-m -M 0755 -w yes -n freebsd -u 1001 -g 1001 -G 0 \
-		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/csh' \
-		-b "${DESTDIR}/home"
-	chroot ${CHROOTDIR} /usr/sbin/pw -V ${DESTDIR}/etc \
+		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/csh'
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		usermod root -w yes
 
 	return 0
