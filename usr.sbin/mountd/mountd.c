@@ -165,97 +165,98 @@ struct fhreturn {
 #define	GETPORT_MAXTRY	20	/* Max tries to get a port # */
 
 /* Global defs */
-char	*add_expdir(struct dirlist **, char *, int);
-void	add_dlist(struct dirlist **, struct dirlist *,
-				struct grouplist *, int, struct exportlist *);
-void	add_mlist(char *, char *);
-int	check_dirpath(char *);
-int	check_options(struct dirlist *);
-int	checkmask(struct sockaddr *sa);
-int	chk_host(struct dirlist *, struct sockaddr *, int *, int *, int *,
-				 int **);
+static char	*add_expdir(struct dirlist **, char *, int);
+static void	add_dlist(struct dirlist **, struct dirlist *,
+		    struct grouplist *, int, struct exportlist *);
+static void	add_mlist(char *, char *);
+static int	check_dirpath(char *);
+static int	check_options(struct dirlist *);
+static int	checkmask(struct sockaddr *sa);
+static int	chk_host(struct dirlist *, struct sockaddr *, int *, int *,
+		    int *, int **);
 static int	create_service(struct netconfig *nconf);
 static void	complete_service(struct netconfig *nconf, char *port_str);
 static void	clearout_service(void);
-void	del_mlist(char *hostp, char *dirp);
-struct dirlist *dirp_search(struct dirlist *, char *);
-int	do_mount(struct exportlist *, struct grouplist *, int,
-		struct xucred *, char *, int, struct statfs *);
-int	do_opt(char **, char **, struct exportlist *, struct grouplist *,
-				int *, int *, struct xucred *);
-struct	exportlist *ex_search(fsid_t *);
-struct	exportlist *get_exp(void);
-void	free_dir(struct dirlist *);
-void	free_exp(struct exportlist *);
-void	free_grp(struct grouplist *);
-void	free_host(struct hostlist *);
-void	get_exportlist(void);
-int	get_host(char *, struct grouplist *, struct grouplist *);
-struct hostlist *get_ht(void);
-int	get_line(void);
-void	get_mountlist(void);
-int	get_net(char *, struct netmsk *, int);
-void	getexp_err(struct exportlist *, struct grouplist *);
-struct grouplist *get_grp(void);
-void	hang_dirp(struct dirlist *, struct grouplist *,
+static void	del_mlist(char *hostp, char *dirp);
+static struct dirlist	*dirp_search(struct dirlist *, char *);
+static int	do_mount(struct exportlist *, struct grouplist *, int,
+		    struct xucred *, char *, int, struct statfs *);
+static int	do_opt(char **, char **, struct exportlist *,
+		    struct grouplist *, int *, int *, struct xucred *);
+static struct exportlist	*ex_search(fsid_t *);
+static struct exportlist	*get_exp(void);
+static void	free_dir(struct dirlist *);
+static void	free_exp(struct exportlist *);
+static void	free_grp(struct grouplist *);
+static void	free_host(struct hostlist *);
+static void	get_exportlist(void);
+static int	get_host(char *, struct grouplist *, struct grouplist *);
+static struct hostlist *get_ht(void);
+static int	get_line(void);
+static void	get_mountlist(void);
+static int	get_net(char *, struct netmsk *, int);
+static void	getexp_err(struct exportlist *, struct grouplist *);
+static struct grouplist	*get_grp(void);
+static void	hang_dirp(struct dirlist *, struct grouplist *,
 				struct exportlist *, int);
-void	huphandler(int sig);
-int	makemask(struct sockaddr_storage *ssp, int bitlen);
-void	mntsrv(struct svc_req *, SVCXPRT *);
-void	nextfield(char **, char **);
-void	out_of_mem(void);
-void	parsecred(char *, struct xucred *);
-int	parsesec(char *, struct exportlist *);
-int	put_exlist(struct dirlist *, XDR *, struct dirlist *, int *, int);
-void	*sa_rawaddr(struct sockaddr *sa, int *nbytes);
-int	sacmp(struct sockaddr *sa1, struct sockaddr *sa2,
-    struct sockaddr *samask);
-int	scan_tree(struct dirlist *, struct sockaddr *);
-static void usage(void);
-int	xdr_dir(XDR *, char *);
-int	xdr_explist(XDR *, caddr_t);
-int	xdr_explist_brief(XDR *, caddr_t);
-int	xdr_explist_common(XDR *, caddr_t, int);
-int	xdr_fhs(XDR *, caddr_t);
-int	xdr_mlist(XDR *, caddr_t);
-void	terminate(int);
+static void	huphandler(int sig);
+static int	makemask(struct sockaddr_storage *ssp, int bitlen);
+static void	mntsrv(struct svc_req *, SVCXPRT *);
+static void	nextfield(char **, char **);
+static void	out_of_mem(void);
+static void	parsecred(char *, struct xucred *);
+static int	parsesec(char *, struct exportlist *);
+static int	put_exlist(struct dirlist *, XDR *, struct dirlist *,
+		    int *, int);
+static void	*sa_rawaddr(struct sockaddr *sa, int *nbytes);
+static int	sacmp(struct sockaddr *sa1, struct sockaddr *sa2,
+		    struct sockaddr *samask);
+static int	scan_tree(struct dirlist *, struct sockaddr *);
+static void	usage(void);
+static int	xdr_dir(XDR *, char *);
+static int	xdr_explist(XDR *, caddr_t);
+static int	xdr_explist_brief(XDR *, caddr_t);
+static int	xdr_explist_common(XDR *, caddr_t, int);
+static int	xdr_fhs(XDR *, caddr_t);
+static int	xdr_mlist(XDR *, caddr_t);
+static void	terminate(int);
 
-struct exportlist *exphead;
-struct mountlist *mlhead;
-struct grouplist *grphead;
-char *exnames_default[2] = { _PATH_EXPORTS, NULL };
-char **exnames;
-char **hosts = NULL;
-struct xucred def_anon = {
+static struct exportlist *exphead;
+static struct mountlist *mlhead;
+static struct grouplist *grphead;
+static char *exnames_default[2] = { _PATH_EXPORTS, NULL };
+static char **exnames;
+static char **hosts = NULL;
+static struct xucred def_anon = {
 	XUCRED_VERSION,
 	(uid_t)-2,
 	1,
 	{ (gid_t)-2 },
 	NULL
 };
-int force_v2 = 0;
-int resvport_only = 1;
-int nhosts = 0;
-int dir_only = 1;
-int dolog = 0;
-int got_sighup = 0;
-int xcreated = 0;
+static int force_v2 = 0;
+static int resvport_only = 1;
+static int nhosts = 0;
+static int dir_only = 1;
+static int dolog = 0;
+static int got_sighup = 0;
+static int xcreated = 0;
 
-char *svcport_str = NULL;
-static int	mallocd_svcport = 0;
-static int	*sock_fd;
-static int	sock_fdcnt;
-static int	sock_fdpos;
-static int	suspend_nfsd = 0;
+static char *svcport_str = NULL;
+static int mallocd_svcport = 0;
+static int *sock_fd;
+static int sock_fdcnt;
+static int sock_fdpos;
+static int suspend_nfsd = 0;
 
-int opt_flags;
+static int opt_flags;
 static int have_v6 = 1;
 
-int v4root_phase = 0;
-char v4root_dirpath[PATH_MAX + 1];
-int has_publicfh = 0;
+static int v4root_phase = 0;
+static char v4root_dirpath[PATH_MAX + 1];
+static int has_publicfh = 0;
 
-struct pidfh *pfh = NULL;
+static struct pidfh *pfh = NULL;
 /* Bits for opt_flags above */
 #define	OP_MAPROOT	0x01
 #define	OP_MAPALL	0x02
@@ -269,11 +270,11 @@ struct pidfh *pfh = NULL;
 #define OP_SEC		0x400
 
 #ifdef DEBUG
-int debug = 1;
-void	SYSLOG(int, const char *, ...) __printflike(2, 3);
+static int debug = 1;
+static void	SYSLOG(int, const char *, ...) __printflike(2, 3);
 #define syslog SYSLOG
 #else
-int debug = 0;
+static int debug = 0;
 #endif
 
 /*
@@ -1131,7 +1132,7 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 /*
  * Xdr conversion for a dirpath string
  */
-int
+static int
 xdr_dir(XDR *xdrsp, char *dirp)
 {
 	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
@@ -1140,7 +1141,7 @@ xdr_dir(XDR *xdrsp, char *dirp)
 /*
  * Xdr routine to generate file handle reply
  */
-int
+static int
 xdr_fhs(XDR *xdrsp, caddr_t cp)
 {
 	struct fhreturn *fhrp = (struct fhreturn *)cp;
@@ -1176,7 +1177,7 @@ xdr_fhs(XDR *xdrsp, caddr_t cp)
 	return (0);
 }
 
-int
+static int
 xdr_mlist(XDR *xdrsp, caddr_t cp __unused)
 {
 	struct mountlist *mlp;
@@ -1204,7 +1205,7 @@ xdr_mlist(XDR *xdrsp, caddr_t cp __unused)
 /*
  * Xdr conversion for export list
  */
-int
+static int
 xdr_explist_common(XDR *xdrsp, caddr_t cp __unused, int brief)
 {
 	struct exportlist *ep;
@@ -1240,7 +1241,7 @@ errout:
  * Called from xdr_explist() to traverse the tree and export the
  * directory paths.
  */
-int
+static int
 put_exlist(struct dirlist *dp, XDR *xdrsp, struct dirlist *adp, int *putdefp,
 	int brief)
 {
@@ -1304,23 +1305,23 @@ put_exlist(struct dirlist *dp, XDR *xdrsp, struct dirlist *adp, int *putdefp,
 	return (0);
 }
 
-int
+static int
 xdr_explist(XDR *xdrsp, caddr_t cp)
 {
 
 	return xdr_explist_common(xdrsp, cp, 0);
 }
 
-int
+static int
 xdr_explist_brief(XDR *xdrsp, caddr_t cp)
 {
 
 	return xdr_explist_common(xdrsp, cp, 1);
 }
 
-char *line;
-int linesize;
-FILE *exp_file;
+static char *line;
+static size_t linesize;
+static FILE *exp_file;
 
 /*
  * Get the export list from one, currently open file
@@ -1638,7 +1639,7 @@ nextline:
 /*
  * Get the export list from all specified files
  */
-void
+static void
 get_exportlist(void)
 {
 	struct exportlist *ep, *ep2;
@@ -1801,7 +1802,7 @@ get_exportlist(void)
 /*
  * Allocate an export list element
  */
-struct exportlist *
+static struct exportlist *
 get_exp(void)
 {
 	struct exportlist *ep;
@@ -1815,7 +1816,7 @@ get_exp(void)
 /*
  * Allocate a group list element
  */
-struct grouplist *
+static struct grouplist *
 get_grp(void)
 {
 	struct grouplist *gp;
@@ -1829,7 +1830,7 @@ get_grp(void)
 /*
  * Clean up upon an error in get_exportlist().
  */
-void
+static void
 getexp_err(struct exportlist *ep, struct grouplist *grp)
 {
 	struct grouplist *tgrp;
@@ -1848,7 +1849,7 @@ getexp_err(struct exportlist *ep, struct grouplist *grp)
 /*
  * Search the export list for a matching fs.
  */
-struct exportlist *
+static struct exportlist *
 ex_search(fsid_t *fsid)
 {
 	struct exportlist *ep;
@@ -1866,7 +1867,7 @@ ex_search(fsid_t *fsid)
 /*
  * Add a directory path to the list.
  */
-char *
+static char *
 add_expdir(struct dirlist **dpp, char *cp, int len)
 {
 	struct dirlist *dp;
@@ -1887,7 +1888,7 @@ add_expdir(struct dirlist **dpp, char *cp, int len)
  * Hang the dir list element off the dirpath binary tree as required
  * and update the entry for host.
  */
-void
+static void
 hang_dirp(struct dirlist *dp, struct grouplist *grp, struct exportlist *ep,
 	int flags)
 {
@@ -1935,7 +1936,7 @@ hang_dirp(struct dirlist *dp, struct grouplist *grp, struct exportlist *ep,
  * Traverse the binary tree either updating a node that is already there
  * for the new directory or adding the new node.
  */
-void
+static void
 add_dlist(struct dirlist **dpp, struct dirlist *newdp, struct grouplist *grp,
 	int flags, struct exportlist *ep)
 {
@@ -1989,7 +1990,7 @@ add_dlist(struct dirlist **dpp, struct dirlist *newdp, struct grouplist *grp,
 /*
  * Search for a dirpath on the export point.
  */
-struct dirlist *
+static struct dirlist *
 dirp_search(struct dirlist *dp, char *dirp)
 {
 	int cmp;
@@ -2009,7 +2010,7 @@ dirp_search(struct dirlist *dp, char *dirp)
 /*
  * Scan for a host match in a directory tree.
  */
-int
+static int
 chk_host(struct dirlist *dp, struct sockaddr *saddr, int *defsetp,
 	int *hostsetp, int *numsecflavors, int **secflavorsp)
 {
@@ -2065,7 +2066,7 @@ chk_host(struct dirlist *dp, struct sockaddr *saddr, int *defsetp,
 /*
  * Scan tree for a host that matches the address.
  */
-int
+static int
 scan_tree(struct dirlist *dp, struct sockaddr *saddr)
 {
 	int defset, hostset;
@@ -2084,7 +2085,7 @@ scan_tree(struct dirlist *dp, struct sockaddr *saddr)
 /*
  * Traverse the dirlist tree and free it up.
  */
-void
+static void
 free_dir(struct dirlist *dp)
 {
 
@@ -2099,7 +2100,7 @@ free_dir(struct dirlist *dp)
 /*
  * Parse a colon separated list of security flavors
  */
-int
+static int
 parsesec(char *seclist, struct exportlist *ep)
 {
 	char *cp, savedc;
@@ -2150,7 +2151,7 @@ parsesec(char *seclist, struct exportlist *ep)
  * Option arguments may either be -<option>=<value> or
  * -<option> <value>
  */
-int
+static int
 do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 	int *has_hostp, int *exflagsp, struct xucred *cr)
 {
@@ -2263,7 +2264,7 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
  * Translate a character string to the corresponding list of network
  * addresses for a hostname.
  */
-int
+static int
 get_host(char *cp, struct grouplist *grp, struct grouplist *tgrp)
 {
 	struct grouplist *checkgrp;
@@ -2323,7 +2324,7 @@ get_host(char *cp, struct grouplist *grp, struct grouplist *tgrp)
 /*
  * Free up an exports list component
  */
-void
+static void
 free_exp(struct exportlist *ep)
 {
 
@@ -2342,7 +2343,7 @@ free_exp(struct exportlist *ep)
 /*
  * Free hosts.
  */
-void
+static void
 free_host(struct hostlist *hp)
 {
 	struct hostlist *hp2;
@@ -2354,7 +2355,7 @@ free_host(struct hostlist *hp)
 	}
 }
 
-struct hostlist *
+static struct hostlist *
 get_ht(void)
 {
 	struct hostlist *hp;
@@ -2370,7 +2371,7 @@ get_ht(void)
 /*
  * Out of memory, fatal
  */
-void
+static void
 out_of_mem(void)
 {
 
@@ -2382,7 +2383,7 @@ out_of_mem(void)
  * Do the nmount() syscall with the update flag to push the export info into
  * the kernel.
  */
-int
+static int
 do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
     struct xucred *anoncrp, char *dirp, int dirplen, struct statfs *fsb)
 {
@@ -2613,7 +2614,7 @@ error_exit:
  *
  * If `maskflg' is nonzero, then `cp' is a netmask, not a network address.
  */
-int
+static int
 get_net(char *cp, struct netmsk *net, int maskflg)
 {
 	struct netent *np = NULL;
@@ -2743,7 +2744,7 @@ fail:
 /*
  * Parse out the next white space separated field
  */
-void
+static void
 nextfield(char **cp, char **endcp)
 {
 	char *p;
@@ -2765,7 +2766,7 @@ nextfield(char **cp, char **endcp)
  * Get an exports file line. Skip over blank lines and handle line
  * continuations.
  */
-int
+static int
 get_line(void)
 {
 	char *p, *cp;
@@ -2809,7 +2810,7 @@ get_line(void)
 /*
  * Parse a description of a credential.
  */
-void
+static void
 parsecred(char *namelist, struct xucred *cr)
 {
 	char *name;
@@ -2890,7 +2891,7 @@ parsecred(char *namelist, struct xucred *cr)
 /*
  * Routines that maintain the remote mounttab
  */
-void
+static void
 get_mountlist(void)
 {
 	struct mountlist *mlp, **mlpp;
@@ -2927,7 +2928,7 @@ get_mountlist(void)
 	fclose(mlfile);
 }
 
-void
+static void
 del_mlist(char *hostp, char *dirp)
 {
 	struct mountlist *mlp, **mlpp;
@@ -2963,7 +2964,7 @@ del_mlist(char *hostp, char *dirp)
 	}
 }
 
-void
+static void
 add_mlist(char *hostp, char *dirp)
 {
 	struct mountlist *mlp, **mlpp;
@@ -2997,7 +2998,7 @@ add_mlist(char *hostp, char *dirp)
 /*
  * Free up a group list.
  */
-void
+static void
 free_grp(struct grouplist *grp)
 {
 	if (grp->gr_type == GT_HOST) {
@@ -3011,7 +3012,7 @@ free_grp(struct grouplist *grp)
 }
 
 #ifdef DEBUG
-void
+static void
 SYSLOG(int pri, const char *fmt, ...)
 {
 	va_list ap;
@@ -3025,7 +3026,7 @@ SYSLOG(int pri, const char *fmt, ...)
 /*
  * Check options for consistency.
  */
-int
+static int
 check_options(struct dirlist *dp)
 {
 
@@ -3063,7 +3064,7 @@ check_options(struct dirlist *dp)
 /*
  * Check an absolute directory path for any symbolic links. Return true
  */
-int
+static int
 check_dirpath(char *dirp)
 {
 	char *cp;
@@ -3089,7 +3090,7 @@ check_dirpath(char *dirp)
  * Make a netmask according to the specified prefix length. The ss_family
  * and other non-address fields must be initialised before calling this.
  */
-int
+static int
 makemask(struct sockaddr_storage *ssp, int bitlen)
 {
 	u_char *p;
@@ -3112,7 +3113,7 @@ makemask(struct sockaddr_storage *ssp, int bitlen)
  * Check that the sockaddr is a valid netmask. Returns 0 if the mask
  * is acceptable (i.e. of the form 1...10....0).
  */
-int
+static int
 checkmask(struct sockaddr *sa)
 {
 	u_char *mask;
@@ -3140,7 +3141,7 @@ checkmask(struct sockaddr *sa)
  * `sa1' matches `sa2' when filtered by the netmask in `samask'.
  * If samask is NULL, perform a full comparison.
  */
-int
+static int
 sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)
 {
 	unsigned char *p1, *p2, *mask;
@@ -3179,7 +3180,7 @@ sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)
  * raw address, and set *nbytes to its length in bytes. Returns
  * NULL if the address family is unknown.
  */
-void *
+static void *
 sa_rawaddr(struct sockaddr *sa, int *nbytes) {
 	void *p;
 	int len;
@@ -3203,17 +3204,18 @@ sa_rawaddr(struct sockaddr *sa, int *nbytes) {
 	return (p);
 }
 
-void
+static void
 huphandler(int sig __unused)
 {
+
 	got_sighup = 1;
 }
 
-void terminate(int sig __unused)
+static void
+terminate(int sig __unused)
 {
 	pidfile_remove(pfh);
 	rpcb_unset(MOUNTPROG, MOUNTVERS, NULL);
 	rpcb_unset(MOUNTPROG, MOUNTVERS3, NULL);
 	exit (0);
 }
-
