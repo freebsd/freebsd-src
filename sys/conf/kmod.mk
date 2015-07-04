@@ -355,8 +355,10 @@ vnode_if_typedef.h:
 .endif
 
 # Build _if.[ch] from _if.m, and clean them when we're done.
+.if !defined(_MPATH)
 __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
 _MPATH=${__MPATH:H:O:u}
+.endif
 .PATH.m: ${_MPATH}
 .for _s in ${SRCS:M*_if.[ch]}
 .if eixsts(${_s:R}.m})
