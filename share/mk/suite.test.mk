@@ -34,12 +34,19 @@ KYUAFILE?= auto
 # Kyua as this is later encoded in the Kyuafile test program definitions.
 #TEST_INTERFACE.<test-program>= interface-name
 
+# Metadata properties applicable to all test programs.
+#
+# All the variables for a test program defined in the Makefile are appended
+# to the test program's definition in the Kyuafile.  This feature can be
+# used to avoid having to explicitly supply a Kyuafile in the source
+# directory, allowing the caller Makefile to rely on the KYUAFILE=auto
+# behavior defined here.
+#TEST_METADATA+= key="value"
+
 # Per-test program metadata properties as a list of key/value pairs.
 #
-# All the variables for a particular program are appended to the program's
-# definition in the Kyuafile.  This feature can be used to avoid having to
-# explicitly supply a Kyuafile in the source directory, allowing the caller
-# Makefile to rely on the KYUAFILE=auto behavior defined here.
+# These per-test program settings _extend_ the values provided in the
+# unqualified TEST_METADATA variable.
 #TEST_METADATA.<test-program>+= key="value"
 
 # Path to the prefix of the installed Kyua CLI, if any.
@@ -61,6 +68,10 @@ FILESNAME_Kyuafile.auto= Kyuafile
 
 CLEANFILES+= Kyuafile.auto Kyuafile.auto.tmp
 
+.for _T in ${_TESTS}
+_TEST_METADATA.${_T}= ${TEST_METADATA} ${TEST_METADATA.${_T}}
+.endfor
+
 .NOPATH: Kyuafile.auto
 Kyuafile.auto: Makefile
 	@{ \
@@ -72,7 +83,7 @@ Kyuafile.auto: Makefile
             echo; \
 	} >Kyuafile.auto.tmp
 .for _T in ${_TESTS}
-	@echo '${TEST_INTERFACE.${_T}}_test_program{name="${_T}"${TEST_METADATA.${_T}:C/$/,/:tW:C/^/, /W:C/,$//W}}' \
+	@echo '${TEST_INTERFACE.${_T}}_test_program{name="${_T}"${_TEST_METADATA.${_T}:C/$/,/:tW:C/^/, /W:C/,$//W}}' \
 	    >>Kyuafile.auto.tmp
 .endfor
 .for _T in ${TESTS_SUBDIRS:N.WAIT}
