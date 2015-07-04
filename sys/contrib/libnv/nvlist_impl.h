@@ -32,11 +32,11 @@
 #ifndef	_NVLIST_IMPL_H_
 #define	_NVLIST_IMPL_H_
 
+#include <sys/nv.h>
+
 #ifndef _KERNEL
 #include <stdint.h>
 #endif
-
-#include "nv.h"
 
 nvpair_t *nvlist_get_nvpair_parent(const nvlist_t *nvl);
 const unsigned char *nvlist_unpack_header(nvlist_t *nvl,
