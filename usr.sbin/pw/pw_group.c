@@ -47,6 +47,50 @@ static void	delete_members(char ***members, int *grmembers, int *i,
 static int	print_group(struct group * grp);
 static gid_t    gr_gidpolicy(struct userconf * cnf, long id);
 
+static void
+set_passwd(struct group *grp, bool update)
+{
+	int		 b;
+	int		 istty;
+	struct termios	 t, n;
+	char		*p, line[256];
+
+	if (conf.fd == '-') {
+		grp->gr_passwd = "*";	/* No access */
+		return;
+	}
+	
+	if ((istty = isatty(conf.fd))) {
+		n = t;
+		/* Disable echo */
+		n.c_lflag &= ~(ECHO);
+		tcsetattr(conf.fd, TCSANOW, &n);
+		printf("%sassword for group %s:", update ? "New p" : "P",
+		    grp->gr_name);
+		fflush(stdout);
+	}
+	b = read(conf.fd, line, sizeof(line) - 1);
+	if (istty) {	/* Restore state */
+		tcsetattr(conf.fd, TCSANOW, &t);
+		fputc('\n', stdout);
+		fflush(stdout);
+	}
+	if (b < 0)
+		err(EX_OSERR, "-h file descriptor");
+	line[b] = '\0';
+	if ((p = strpbrk(line, " \t\r\n")) != NULL)
+		*p = '\0';
+	if (!*line)
+		errx(EX_DATAERR, "empty password read on file descriptor %d",
+		    conf.fd);
+	if (conf.precrypted) {
+		if (strchr(line, ':') != 0)
+			errx(EX_DATAERR, "wrong encrypted passwrd");
+		grp->gr_passwd = line;
+	} else
+		grp->gr_passwd = pw_pwcrypt(line);
+}
+
 int
 pw_group(int mode, char *name, long id, struct cargs * args)
 {
@@ -156,52 +200,8 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	 * software.
 	 */
 
-	if ((arg = getarg(args, 'h')) != NULL ||
-	    (arg = getarg(args, 'H')) != NULL) {
-		if (strcmp(arg->val, "-") == 0)
-			grp->gr_passwd = "*";	/* No access */
-		else {
-			int             fd = atoi(arg->val);
-			int		precrypt = (arg->ch == 'H');
-			int             b;
-			int             istty = isatty(fd);
-			struct termios  t;
-			char           *p, line[256];
-
-			if (istty) {
-				if (tcgetattr(fd, &t) == -1)
-					istty = 0;
-				else {
-					struct termios  n = t;
-
-					/* Disable echo */
-					n.c_lflag &= ~(ECHO);
-					tcsetattr(fd, TCSANOW, &n);
-					printf("%sassword for group %s:", (mode == M_UPDATE) ? "New p" : "P", grp->gr_name);
-					fflush(stdout);
-				}
-			}
-			b = read(fd, line, sizeof(line) - 1);
-			if (istty) {	/* Restore state */
-				tcsetattr(fd, TCSANOW, &t);
-				fputc('\n', stdout);
-				fflush(stdout);
-			}
-			if (b < 0)
-				err(EX_OSERR, "-h file descriptor");
-			line[b] = '\0';
-			if ((p = strpbrk(line, " \t\r\n")) != NULL)
-				*p = '\0';
-			if (!*line)
-				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
-			if (precrypt) {
-				if (strchr(line, ':') != NULL)
-					return EX_DATAERR;
-				grp->gr_passwd = line;
-			} else
-				grp->gr_passwd = pw_pwcrypt(line);
-		}
-	}
+	if (conf.fd != -1)
+		set_passwd(grp, mode == M_UPDATE);
 
 	if (((arg = getarg(args, 'M')) != NULL ||
 	    (arg = getarg(args, 'd')) != NULL ||
