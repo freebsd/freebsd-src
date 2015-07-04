@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
@@ -1758,6 +1759,8 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	}
 	node->tn_status &=
 	    ~(TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED);
+	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
+	random_harvest_queue(node, sizeof(*node), 1, RANDOM_FS_ATIME);
 }
 
 void

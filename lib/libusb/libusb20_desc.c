@@ -517,9 +517,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 						 * room for the
 						 * complete structure:
 						 */
-						uint16_t dummy;
-
-						dummy = libusb20_me_encode(buf,
+						(void) libusb20_me_encode(buf,
 						    0xFFFF - 3, ps->ptr);
 					} else {
 						bcopy(src_ptr, buf, src_len);
@@ -673,7 +671,6 @@ libusb20_me_decode(const void *ptr, uint16_t len, void *pd)
 			    ~(LIBUSB20_ME_STRUCT_ALIGN - 1));	/* align */
 			while (pd_count--) {
 				uint16_t temp;
-				uint16_t dummy;
 				struct libusb20_me_struct *ps;
 
 				ps = LIBUSB20_ADD_BYTES(pd, pd_offset);
@@ -763,7 +760,7 @@ libusb20_me_decode(const void *ptr, uint16_t len, void *pd)
 						 * Recursivly decode
 						 * the next structure
 						 */
-						dummy = libusb20_me_decode(buf,
+						(void) libusb20_me_decode(buf,
 						    temp, ps->ptr);
 					} else {
 						/* update type */

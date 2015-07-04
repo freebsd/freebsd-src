@@ -30,6 +30,7 @@ options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	IPSEC                   # IP (v4/v6) security
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
@@ -377,3 +378,6 @@ device		xenpci			# Xen HVM Hypervisor services driver
 
 # VMware support
 device		vmx			# VMware VMXNET3 Ethernet
+
+# The cypto framework is required by IPSEC
+device		crypto			# Required by IPSEC

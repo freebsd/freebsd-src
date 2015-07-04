@@ -779,7 +779,7 @@ nfs_mount(struct mount *mp)
 	struct thread *td;
 	char hst[MNAMELEN];
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
-	char *opt, *name, *secname;
+	char *cp, *opt, *name, *secname;
 	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 	int minvers = 0;
@@ -1158,8 +1158,12 @@ nfs_mount(struct mount *mp)
 
 	if (vfs_getopt(mp->mnt_optnew, "principal", (void **)&name, NULL) == 0)
 		strlcpy(srvkrbname, name, sizeof (srvkrbname));
-	else
+	else {
 		snprintf(srvkrbname, sizeof (srvkrbname), "nfs@%s", hst);
+		cp = strchr(srvkrbname, ':');
+		if (cp != NULL)
+			*cp = '\0';
+	}
 	srvkrbnamelen = strlen(srvkrbname);
 
 	if (vfs_getopt(mp->mnt_optnew, "gssname", (void **)&name, NULL) == 0)

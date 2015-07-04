@@ -110,7 +110,7 @@ static int
 foreign_show_cfg(int fd, uint32_t opcode, uint8_t cfgidx, int diagnostic)
 {
 	struct mfi_config_data *config;
-	char prefix[26];
+	char prefix[64];
 	int error;
 	uint8_t mbox[4];
 

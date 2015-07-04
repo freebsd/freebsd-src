@@ -12,7 +12,6 @@ SRCS=	krb5_mech.c \
 	opt_inet6.h
 
 SRCS+=		kgss_if.h gssd.h
-MFILES=		kgssapi/kgss_if.m
 CLEANFILES=	gssd.h
 
 S=		${.CURDIR}/../..

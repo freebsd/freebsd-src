@@ -83,8 +83,6 @@
  * SUCH DAMAGE.
  */
 
-#define	AMD64_NPT_AWARE
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -429,10 +427,6 @@ pmap_bootstrap_dmap(vm_offset_t l1pt)
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
-		/*
-		 * TODO: Turn the cache on here when we have cache
-		 * flushing code.
-		 */
 		pmap_load_store(&l1[l1_slot],
 		    (pa & ~L1_OFFSET) | ATTR_AF | L1_BLOCK |
 		    ATTR_IDX(CACHED_MEMORY));
@@ -807,7 +801,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	PMAP_LOCK(pmap);
 retry:
 	l3p = pmap_l3(pmap, va);
-	if (l3p != NULL && (l3 = *l3p) != 0) {
+	if (l3p != NULL && (l3 = pmap_load(l3p)) != 0) {
 		if (((l3 & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW)) ||
 		    ((prot & VM_PROT_WRITE) == 0)) {
 			if (vm_page_pa_tryrelock(pmap, l3 & ~ATTR_MASK, &pa))
@@ -1186,7 +1180,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		l1index = ptepindex >> (L1_SHIFT - L2_SHIFT);
 		l1 = &pmap->pm_l1[l1index];
-		if (*l1 == 0) {
+		if (pmap_load(l1) == 0) {
 			/* recurse for allocating page dir */
 			if (_pmap_alloc_l3(pmap, NUPDE + l1index,
 			    lockp) == NULL) {
@@ -1233,8 +1227,8 @@ retry:
 	 * If the page table page is mapped, we just increment the
 	 * hold count, and activate it.
 	 */
-	if (l2 != NULL && *l2 != 0) {
-		m = PHYS_TO_VM_PAGE(*l2 & ~ATTR_MASK);
+	if (l2 != NULL && pmap_load(l2) != 0) {
+		m = PHYS_TO_VM_PAGE(pmap_load(l2) & ~ATTR_MASK);
 		m->wire_count++;
 	} else {
 		/*
@@ -1318,7 +1312,7 @@ pmap_growkernel(vm_offset_t addr)
 		addr = kernel_map->max_offset;
 	while (kernel_vm_end < addr) {
 		l1 = pmap_l1(kernel_pmap, kernel_vm_end);
-		if (*l1 == 0) {
+		if (pmap_load(l1) == 0) {
 			/* We need a new PDP entry */
 			nkpg = vm_page_alloc(NULL, kernel_vm_end >> L1_SHIFT,
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
@@ -1333,7 +1327,7 @@ pmap_growkernel(vm_offset_t addr)
 			continue; /* try again */
 		}
 		l2 = pmap_l1_to_l2(l1, kernel_vm_end);
-		if ((*l2 & ATTR_AF) != 0) {
+		if ((pmap_load(l2) & ATTR_AF) != 0) {
 			kernel_vm_end = (kernel_vm_end + L2_SIZE) & ~L2_OFFSET;
 			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 				kernel_vm_end = kernel_map->max_offset;
@@ -1682,7 +1676,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			break;
 
 		l1 = pmap_l1(pmap, sva);
-		if (*l1 == 0) {
+		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
 				va_next = eva;
@@ -1721,7 +1715,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		    sva += L3_SIZE) {
 			if (l3 == NULL)
 				panic("l3 == NULL");
-			if (*l3 == 0) {
+			if (pmap_load(l3) == 0) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, va, sva);
 					va = va_next;
@@ -1833,7 +1827,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	for (; sva < eva; sva = va_next) {
 
 		l1 = pmap_l1(pmap, sva);
-		if (*l1 == 0) {
+		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
 				va_next = eva;
@@ -2177,8 +2171,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * attempt to allocate a page table page.  If this
 			 * attempt fails, we don't retry.  Instead, we give up.
 			 */
-			if (l2 != NULL && *l2 != 0) {
-				mpte = PHYS_TO_VM_PAGE(*l2 & ~ATTR_MASK);
+			if (l2 != NULL && pmap_load(l2) != 0) {
+				mpte =
+				    PHYS_TO_VM_PAGE(pmap_load(l2) & ~ATTR_MASK);
 				mpte->wire_count++;
 			} else {
 				/*
@@ -2277,7 +2272,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		l1 = pmap_l1(pmap, sva);
-		if (*l1 == 0) {
+		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
 				va_next = eva;
@@ -2289,16 +2284,16 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (*l2 == 0)
+		if (pmap_load(l2) == 0)
 			continue;
 
 		if (va_next > eva)
 			va_next = eva;
 		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
 		    sva += L3_SIZE) {
-			if (*l3 == 0)
+			if (pmap_load(l3) == 0)
 				continue;
-			if ((*l3 & ATTR_SW_WIRED) == 0)
+			if ((pmap_load(l3) & ATTR_SW_WIRED) == 0)
 				panic("pmap_unwire: l3 %#jx is missing "
 				    "ATTR_SW_WIRED", (uintmax_t)*l3);
 
@@ -2496,7 +2491,7 @@ restart:
 			}
 		}
 		l3 = pmap_l3(pmap, pv->pv_va);
-		if (l3 != NULL && (*l3 & ATTR_SW_WIRED) != 0)
+		if (l3 != NULL && (pmap_load(l3) & ATTR_SW_WIRED) != 0)
 			count++;
 		PMAP_UNLOCK(pmap);
 	}
@@ -2714,7 +2709,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	rv = FALSE;
 	PMAP_LOCK(pmap);
 	l3 = pmap_l3(pmap, addr);
-	if (l3 != NULL && *l3 != 0) {
+	if (l3 != NULL && pmap_load(l3) != 0) {
 		rv = TRUE;
 	}
 	PMAP_UNLOCK(pmap);
@@ -2858,7 +2853,7 @@ retry:
 		KASSERT((*l2 & ATTR_DESCR_MASK) == L2_TABLE,
 		    ("pmap_ts_referenced: found an invalid l2 table"));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
-		if ((*l3 & ATTR_AF) != 0) {
+		if ((pmap_load(l3) & ATTR_AF) != 0) {
 			if (safe_to_clear_referenced(pmap, *l3)) {
 				/*
 				 * TODO: We don't handle the access flag
@@ -2866,7 +2861,7 @@ retry:
 				 * the exception handler.
 				 */
 				panic("TODO: safe_to_clear_referenced\n");
-			} else if ((*l3 & ATTR_SW_WIRED) == 0) {
+			} else if ((pmap_load(l3) & ATTR_SW_WIRED) == 0) {
 				/*
 				 * Wired pages cannot be paged out so
 				 * doing accessed bit emulation for
@@ -3043,14 +3038,6 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	if (!needs_mapping)
 		return (FALSE);
 
-	/*
-	 * NB:  The sequence of updating a page table followed by accesses
-	 * to the corresponding pages used in the !DMAP case is subject to
-	 * the situation described in the "AMD64 Architecture Programmer's
-	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
-	 * Coherency Considerations".  Therefore, issuing the INVLPG right
-	 * after modifying the PTE bits is crucial.
-	 */
 	if (!can_fault)
 		sched_pin();
 	for (i = 0; i < count; i++) {

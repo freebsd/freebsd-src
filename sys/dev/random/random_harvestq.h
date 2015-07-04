@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Mark R V Murray
- * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
+ * Copyright (c) 2013-2015 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,43 +27,26 @@
  */
 
 #ifndef SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
-#define SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
+#define	SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 
-#define HARVESTSIZE	16	/* max size of each harvested entropy unit */
+#define	HARVESTSIZE	2	/* Max length in words of each harvested entropy unit */
 
 /* These are used to queue harvested packets of entropy. The entropy
  * buffer size is pretty arbitrary.
  */
 struct harvest_event {
-	uintmax_t			he_somecounter;		/* fast counter for clock jitter */
-	uint8_t				he_entropy[HARVESTSIZE];/* some harvested entropy */
-	u_int				he_size;		/* harvested entropy byte count */
-	u_int				he_bits;		/* stats about the entropy */
-	u_int				he_destination;		/* destination pool of this entropy */
-	enum random_entropy_source	he_source;		/* origin of the entropy */
-};
+	uint32_t	he_somecounter;		/* fast counter for clock jitter */
+	uint32_t	he_entropy[HARVESTSIZE];/* some harvested entropy */
+	uint8_t		he_size;		/* harvested entropy byte count */
+	uint8_t		he_bits;		/* stats about the entropy */
+	uint8_t		he_destination;		/* destination pool of this entropy */
+	uint8_t		he_source;		/* origin of the entropy */
+} __packed;
 
-void random_harvestq_init(void (*)(struct harvest_event *), int);
-void random_harvestq_deinit(void);
-void random_harvestq_internal(const void *, u_int, u_int, enum random_entropy_source);
+#define	RANDOM_HARVESTQ_BOOT_ENTROPY_FILE	"/boot/entropy"
 
-/* Pool count is used by anything needing to know how many entropy
- * pools are currently being maintained.
- * This is of use to (e.g.) the live source feed where we need to give
- * all the pools a top-up.
- */
-extern int harvest_pool_count;
-
-/* This is in randomdev.c as it needs to be permanently in the kernel */
-void randomdev_set_wakeup_exit(void *);
-
-/* Force all currently pending queue contents to clear, and kick the software processor */
-void random_harvestq_flush(void);
-
-/* Function called to process one harvested stochastic event */
-extern void (*harvest_process_event)(struct harvest_event *);
-
-/* Round-robin destination cache. */
-extern u_int harvest_destination[ENTROPYSOURCE];
+#define	RANDOM_HARVEST_INIT_LOCK(x)	mtx_init(&harvest_context.hc_mtx, "entropy harvest mutex", NULL, MTX_SPIN)
+#define	RANDOM_HARVEST_LOCK(x)		mtx_lock_spin(&harvest_context.hc_mtx)
+#define	RANDOM_HARVEST_UNLOCK(x)	mtx_unlock_spin(&harvest_context.hc_mtx)
 
 #endif /* SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED */

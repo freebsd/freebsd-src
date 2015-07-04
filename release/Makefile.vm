@@ -18,7 +18,8 @@ RAW_DESC=	Unformatted raw disk image
 CLOUDWARE?=	AZURE \
 		EC2 \
 		GCE \
-		OPENSTACK
+		OPENSTACK \
+		VAGRANT
 AZURE_FORMAT=	vhdf
 AZURE_DESC=	Microsoft Azure platform image
 AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
@@ -31,6 +32,9 @@ GCE_DISK=	disk.${GCE_FORMAT}
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_DESC=	OpenStack platform image
 OPENSTACK_DISK=	${OSRELEASE}.${OPENSTACK_FORMAT}
+VAGRANT_FORMAT=	vmdk
+VAGRANT_DESC=	Vagrant Image
+VAGRANT_DISK=	${OSRELEASE}.${VAGRANT_FORMAT}
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -155,3 +159,5 @@ cloudware-install:
 
 .include "${.CURDIR}/Makefile.ec2"
 .include "${.CURDIR}/Makefile.azure"
+.include "${.CURDIR}/Makefile.gce"
+.include "${.CURDIR}/Makefile.vagrant"

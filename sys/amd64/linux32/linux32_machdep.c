@@ -426,7 +426,6 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 #endif
 		pcb = td->td_pcb;
 		pcb->pcb_gsbase = (register_t)info.base_addr;
-/* XXXKIB	pcb->pcb_gs32sd = sd; */
 		td->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
 		set_pcb_flags(pcb, PCB_32BIT);
 	}

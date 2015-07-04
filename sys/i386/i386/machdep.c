@@ -166,9 +166,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 extern register_t init386(int first);
 extern void dblfault_handler(void);
 
-#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
-#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-
 #if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
 #endif
@@ -179,10 +176,6 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpusave, size_t xfpusave_len);
 static int  set_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
-#ifdef CPU_ENABLE_SSE
-static void set_fpregs_xmm(struct save87 *, struct savexmm *);
-static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
-#endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 /* Intel ICH registers */
@@ -2955,58 +2948,6 @@ set_regs(struct thread *td, struct reg *regs)
 	return (0);
 }
 
-#ifdef CPU_ENABLE_SSE
-static void
-fill_fpregs_xmm(sv_xmm, sv_87)
-	struct savexmm *sv_xmm;
-	struct save87 *sv_87;
-{
-	register struct env87 *penv_87 = &sv_87->sv_env;
-	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
-	int i;
-
-	bzero(sv_87, sizeof(*sv_87));
-
-	/* FPU control/status */
-	penv_87->en_cw = penv_xmm->en_cw;
-	penv_87->en_sw = penv_xmm->en_sw;
-	penv_87->en_tw = penv_xmm->en_tw;
-	penv_87->en_fip = penv_xmm->en_fip;
-	penv_87->en_fcs = penv_xmm->en_fcs;
-	penv_87->en_opcode = penv_xmm->en_opcode;
-	penv_87->en_foo = penv_xmm->en_foo;
-	penv_87->en_fos = penv_xmm->en_fos;
-
-	/* FPU registers */
-	for (i = 0; i < 8; ++i)
-		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
-}
-
-static void
-set_fpregs_xmm(sv_87, sv_xmm)
-	struct save87 *sv_87;
-	struct savexmm *sv_xmm;
-{
-	register struct env87 *penv_87 = &sv_87->sv_env;
-	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
-	int i;
-
-	/* FPU control/status */
-	penv_xmm->en_cw = penv_87->en_cw;
-	penv_xmm->en_sw = penv_87->en_sw;
-	penv_xmm->en_tw = penv_87->en_tw;
-	penv_xmm->en_fip = penv_87->en_fip;
-	penv_xmm->en_fcs = penv_87->en_fcs;
-	penv_xmm->en_opcode = penv_87->en_opcode;
-	penv_xmm->en_foo = penv_87->en_foo;
-	penv_xmm->en_fos = penv_87->en_fos;
-
-	/* FPU registers */
-	for (i = 0; i < 8; ++i)
-		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
-}
-#endif /* CPU_ENABLE_SSE */
-
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
@@ -3021,7 +2962,7 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 #endif
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
-		fill_fpregs_xmm(&get_pcb_user_save_td(td)->sv_xmm,
+		npx_fill_fpregs_xmm(&get_pcb_user_save_td(td)->sv_xmm,
 		    (struct save87 *)fpregs);
 	else
 #endif /* CPU_ENABLE_SSE */
@@ -3036,7 +2977,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
-		set_fpregs_xmm((struct save87 *)fpregs,
+		npx_set_fpregs_xmm((struct save87 *)fpregs,
 		    &get_pcb_user_save_td(td)->sv_xmm);
 	else
 #endif /* CPU_ENABLE_SSE */
