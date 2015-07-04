@@ -2965,9 +2965,9 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	}
 	if (atp == NULL) {
 		/*
-		 * In case of target mode disable at least ISP2532 return
-		 * invalid zero ct_rxid value.  Try to workaround that using
-		 * tag_id from the CCB, pointed by valid ct_syshandle.
+		 * XXX: isp_clear_commands() generates fake CTIO with zero
+		 * ct_rxid value, filling only ct_syshandle.  Workaround
+		 * that using tag_id from the CCB, pointed by ct_syshandle.
 		 */
 		atp = isp_find_atpd(isp, tptr, ccb->csio.tag_id);
 	}
