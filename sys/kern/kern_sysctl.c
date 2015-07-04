@@ -113,26 +113,6 @@ static int	sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del,
 static int	sysctl_old_kernel(struct sysctl_req *, const void *, size_t);
 static int	sysctl_new_kernel(struct sysctl_req *, void *, size_t);
 
-static void
-sysctl_lock(struct rm_priotracker *tracker)
-{
-
-	if (tracker != NULL)
-		SYSCTL_RLOCK(tracker);
-	else
-		SYSCTL_WLOCK();
-}
-
-static void
-sysctl_unlock(struct rm_priotracker *tracker)
-{
-
-	if (tracker != NULL)
-		SYSCTL_RUNLOCK(tracker);
-	else
-		SYSCTL_WUNLOCK();
-}
-
 static struct sysctl_oid *
 sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
 {
@@ -174,7 +154,11 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intptr_t arg2,
 
 	if (oid->oid_kind & CTLFLAG_DYN)
 		atomic_add_int(&oid->oid_running, 1);
-	sysctl_unlock(tracker);
+
+	if (tracker != NULL)
+		SYSCTL_RUNLOCK(tracker);
+	else
+		SYSCTL_WUNLOCK();
 
 	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
 		mtx_lock(&Giant);
@@ -182,7 +166,11 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intptr_t arg2,
 	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
 		mtx_unlock(&Giant);
 
-	sysctl_lock(tracker);
+	if (tracker != NULL)
+		SYSCTL_RLOCK(tracker);
+	else
+		SYSCTL_WLOCK();
+
 	if (oid->oid_kind & CTLFLAG_DYN) {
 		if (atomic_fetchadd_int(&oid->oid_running, -1) == 1 &&
 		    (oid->oid_kind & CTLFLAG_DYING) != 0)
