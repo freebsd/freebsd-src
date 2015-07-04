@@ -134,26 +134,52 @@ static int
 ath_sysctl_acktimeout(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int acktimeout = ath_hal_getacktimeout(sc->sc_ah);
+	u_int acktimeout;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	acktimeout = ath_hal_getacktimeout(sc->sc_ah);
+	ATH_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &acktimeout, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setacktimeout(sc->sc_ah, acktimeout) ? EINVAL : 0;
+		goto finish;
+
+	error = !ath_hal_setacktimeout(sc->sc_ah, acktimeout) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
 ath_sysctl_ctstimeout(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int ctstimeout = ath_hal_getctstimeout(sc->sc_ah);
+	u_int ctstimeout;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ctstimeout = ath_hal_getctstimeout(sc->sc_ah);
+	ATH_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &ctstimeout, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setctstimeout(sc->sc_ah, ctstimeout) ? EINVAL : 0;
+		goto finish;
+
+	error = !ath_hal_setctstimeout(sc->sc_ah, ctstimeout) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -221,14 +247,22 @@ static int
 ath_sysctl_txantenna(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int txantenna = ath_hal_getantennaswitch(sc->sc_ah);
+	u_int txantenna;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	txantenna = ath_hal_getantennaswitch(sc->sc_ah);
 
 	error = sysctl_handle_int(oidp, &txantenna, 0, req);
 	if (!error && req->newptr) {
 		/* XXX assumes 2 antenna ports */
-		if (txantenna < HAL_ANT_VARIABLE || txantenna > HAL_ANT_FIXED_B)
-			return EINVAL;
+		if (txantenna < HAL_ANT_VARIABLE || txantenna > HAL_ANT_FIXED_B) {
+			error = EINVAL;
+			goto finish;
+		}
 		ath_hal_setantennaswitch(sc->sc_ah, txantenna);
 		/*
 		 * NB: with the switch locked this isn't meaningful,
@@ -237,36 +271,67 @@ ath_sysctl_txantenna(SYSCTL_HANDLER_ARGS)
 		 */
 		sc->sc_txantenna = txantenna;
 	}
-	return error;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
 ath_sysctl_rxantenna(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int defantenna = ath_hal_getdefantenna(sc->sc_ah);
+	u_int defantenna;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	defantenna = ath_hal_getdefantenna(sc->sc_ah);
+	ATH_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &defantenna, 0, req);
 	if (!error && req->newptr)
 		ath_hal_setdefantenna(sc->sc_ah, defantenna);
-	return error;
+
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
 ath_sysctl_diversity(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int diversity = ath_hal_getdiversity(sc->sc_ah);
+	u_int diversity;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	diversity = ath_hal_getdiversity(sc->sc_ah);
 
 	error = sysctl_handle_int(oidp, &diversity, 0, req);
 	if (error || !req->newptr)
-		return error;
-	if (!ath_hal_setdiversity(sc->sc_ah, diversity))
-		return EINVAL;
+		goto finish;
+	if (!ath_hal_setdiversity(sc->sc_ah, diversity)) {
+		error = EINVAL;
+		goto finish;
+	}
 	sc->sc_diversity = diversity;
-	return 0;
+	error = 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -276,12 +341,26 @@ ath_sysctl_diag(SYSCTL_HANDLER_ARGS)
 	u_int32_t diag;
 	int error;
 
-	if (!ath_hal_getdiag(sc->sc_ah, &diag))
-		return EINVAL;
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	if (!ath_hal_getdiag(sc->sc_ah, &diag)) {
+		error = EINVAL;
+		goto finish;
+	}
+
 	error = sysctl_handle_int(oidp, &diag, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setdiag(sc->sc_ah, diag) ? EINVAL : 0;
+		goto finish;
+	error = !ath_hal_setdiag(sc->sc_ah, diag) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -292,26 +371,51 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 	u_int32_t scale;
 	int error;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	(void) ath_hal_gettpscale(sc->sc_ah, &scale);
 	error = sysctl_handle_int(oidp, &scale, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
+		goto finish;
+
+	error = !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
 	      ath_reset(ifp, ATH_RESET_NOLOSS) : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
 ath_sysctl_tpc(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int tpc = ath_hal_gettpc(sc->sc_ah);
+	u_int tpc;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	tpc = ath_hal_gettpc(sc->sc_ah);
 
 	error = sysctl_handle_int(oidp, &tpc, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpc(sc->sc_ah, tpc) ? EINVAL : 0;
+		goto finish;
+	error = !ath_hal_settpc(sc->sc_ah, tpc) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -320,18 +424,35 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 	struct ath_softc *sc = arg1;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
-	u_int rfkill = ath_hal_getrfkill(ah);
+	u_int rfkill;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	rfkill = ath_hal_getrfkill(ah);
 
 	error = sysctl_handle_int(oidp, &rfkill, 0, req);
 	if (error || !req->newptr)
-		return error;
-	if (rfkill == ath_hal_getrfkill(ah))	/* unchanged */
-		return 0;
-	if (!ath_hal_setrfkill(ah, rfkill))
-		return EINVAL;
-	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+		goto finish;
+	if (rfkill == ath_hal_getrfkill(ah)) {	/* unchanged */
+		error = 0;
+		goto finish;
+	}
+	if (!ath_hal_setrfkill(ah, rfkill)) {
+		error = EINVAL;
+		goto finish;
+	}
+	error = (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
 	    ath_reset(ifp, ATH_RESET_FULL) : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -440,12 +561,18 @@ ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 	u_int rfsilent;
 	int error;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	(void) ath_hal_getrfsilent(sc->sc_ah, &rfsilent);
 	error = sysctl_handle_int(oidp, &rfsilent, 0, req);
 	if (error || !req->newptr)
-		return error;
-	if (!ath_hal_setrfsilent(sc->sc_ah, rfsilent))
-		return EINVAL;
+		goto finish;
+	if (!ath_hal_setrfsilent(sc->sc_ah, rfsilent)) {
+		error = EINVAL;
+		goto finish;
+	}
 	/*
 	 * Earlier chips (< AR5212) have up to 8 GPIO
 	 * pins exposed.
@@ -456,7 +583,14 @@ ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 	 */
 	sc->sc_rfsilentpin = rfsilent & 0x3c;
 	sc->sc_rfsilentpol = (rfsilent & 0x2) != 0;
-	return 0;
+	error = 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -466,11 +600,22 @@ ath_sysctl_tpack(SYSCTL_HANDLER_ARGS)
 	u_int32_t tpack;
 	int error;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	(void) ath_hal_gettpack(sc->sc_ah, &tpack);
 	error = sysctl_handle_int(oidp, &tpack, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpack(sc->sc_ah, tpack) ? EINVAL : 0;
+		goto finish;
+	error = !ath_hal_settpack(sc->sc_ah, tpack) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -480,11 +625,23 @@ ath_sysctl_tpcts(SYSCTL_HANDLER_ARGS)
 	u_int32_t tpcts;
 	int error;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	(void) ath_hal_gettpcts(sc->sc_ah, &tpcts);
 	error = sysctl_handle_int(oidp, &tpcts, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpcts(sc->sc_ah, tpcts) ? EINVAL : 0;
+		goto finish;
+
+	error = !ath_hal_settpcts(sc->sc_ah, tpcts) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 static int
@@ -493,15 +650,21 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	struct ath_softc *sc = arg1;
 	int intmit, error;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	intmit = ath_hal_getintmit(sc->sc_ah);
 	error = sysctl_handle_int(oidp, &intmit, 0, req);
 	if (error || !req->newptr)
-		return error;
+		goto finish;
 
 	/* reusing error; 1 here means "good"; 0 means "fail" */
 	error = ath_hal_setintmit(sc->sc_ah, intmit);
-	if (! error)
-		return EINVAL;
+	if (! error) {
+		error = EINVAL;
+		goto finish;
+	}
 
 	/*
 	 * Reset the hardware here - disabling ANI in the HAL
@@ -511,7 +674,14 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
 
-	return 0;
+	error = 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -565,15 +735,28 @@ ath_sysctl_hangcheck(SYSCTL_HANDLER_ARGS)
 	if (val == 0)
 		return 0;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	/* Do a hang check */
 	if (!ath_hal_getdiagstate(ah, HAL_DIAG_CHECK_HANGS,
 	    &mask, sizeof(mask),
-	    (void *) &sp, &rsize))
-		return (0);
+	    (void *) &sp, &rsize)) {
+		error = 0;
+		goto finish;
+	}
+
 	device_printf(sc->sc_dev, "%s: sp=0x%08x\n", __func__, *sp);
 
 	val = 0;
-	return 0;
+	error = 0;
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (error);
 }
 
 #ifdef ATH_DEBUG_ALQ
