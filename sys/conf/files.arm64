@@ -46,6 +46,8 @@ arm64/arm64/uio_machdep.c	standard
 arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks
 arm64/arm64/vfp.c		standard
 arm64/arm64/vm_machdep.c	standard
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
 dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
