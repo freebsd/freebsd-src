@@ -7,15 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectExpression.h"
 
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Interpreter/Args.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
@@ -24,6 +21,7 @@
 #include "lldb/Expression/ClangFunction.h"
 #include "lldb/Expression/DWARFExpression.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -119,7 +117,7 @@ CommandObjectExpression::CommandOptions::SetOptionValue (CommandInterpreter &int
         {
             bool success;
             uint32_t result;
-            result = Args::StringToUInt32(option_arg, 0, 0, &success);
+            result = StringConvert::ToUInt32(option_arg, 0, 0, &success);
             if (success)
                 timeout = result;
             else
@@ -196,7 +194,7 @@ CommandObjectExpression::CommandObjectExpression (CommandInterpreter &interprete
                       "expression",
                       "Evaluate a C/ObjC/C++ expression in the current program context, using user defined variables and variables currently in scope.",
                       NULL,
-                      eFlagProcessMustBePaused | eFlagTryTargetAPILock),
+                      eCommandProcessMustBePaused | eCommandTryTargetAPILock),
     IOHandlerDelegate (IOHandlerDelegate::Completion::Expression),
     m_option_group (interpreter),
     m_format_options (eFormatDefault),
@@ -487,7 +485,7 @@ CommandObjectExpression::DoExecute
 
         if (end_options)
         {
-            Args args (command, end_options - command);
+            Args args (llvm::StringRef(command, end_options - command));
             if (!ParseOptions (args, result))
                 return false;
             

@@ -7,22 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBProxySBValue.h
-//
-// Overview:    CMICmnLLDBProxySBValue interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third Party Headers:
-#include <lldb/API/SBValue.h>
+#include "lldb/API/SBValue.h"
 
 // In-house headers:
 #include "MIDataTypes.h"

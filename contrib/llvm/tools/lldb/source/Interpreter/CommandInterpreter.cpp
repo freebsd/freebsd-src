@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include <string>
 #include <vector>
 #include <stdlib.h>
@@ -19,6 +17,7 @@
 #include "../Commands/CommandObjectApropos.h"
 #include "../Commands/CommandObjectArgs.h"
 #include "../Commands/CommandObjectBreakpoint.h"
+#include "../Commands/CommandObjectBugreport.h"
 #include "../Commands/CommandObjectDisassemble.h"
 #include "../Commands/CommandObjectExpression.h"
 #include "../Commands/CommandObjectFrame.h"
@@ -40,6 +39,7 @@
 #include "../Commands/CommandObjectType.h"
 #include "../Commands/CommandObjectVersion.h"
 #include "../Commands/CommandObjectWatchpoint.h"
+#include "../Commands/CommandObjectLanguage.h"
 
 
 #include "lldb/Core/Debugger.h"
@@ -60,6 +60,8 @@
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/Options.h"
+#include "lldb/Interpreter/OptionValueProperties.h"
+#include "lldb/Interpreter/Property.h"
 #include "lldb/Interpreter/ScriptInterpreterNone.h"
 #include "lldb/Interpreter/ScriptInterpreterPython.h"
 
@@ -77,6 +79,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
+static const char *k_white_space = " \t\v";
 
 static PropertyDefinition
 g_properties[] =
@@ -107,7 +110,7 @@ CommandInterpreter::CommandInterpreter
     ScriptLanguage script_language,
     bool synchronous_execution
 ) :
-    Broadcaster (&debugger, "lldb.command-interpreter"),
+    Broadcaster (&debugger, CommandInterpreter::GetStaticBroadcasterClass().AsCString()),
     Properties(OptionValuePropertiesSP(new OptionValueProperties(ConstString("interpreter")))),
     IOHandlerDelegate (IOHandlerDelegate::Completion::LLDBCommand),
     m_debugger (debugger),
@@ -146,6 +149,24 @@ CommandInterpreter::GetPromptOnQuit () const
     const uint32_t idx = ePropertyPromptOnQuit;
     return m_collection_sp->GetPropertyAtIndexAsBoolean (nullptr, idx, g_properties[idx].default_uint_value != 0);
 }
+
+void
+CommandInterpreter::SetPromptOnQuit (bool b)
+{
+    const uint32_t idx = ePropertyPromptOnQuit;
+    m_collection_sp->SetPropertyAtIndexAsBoolean (nullptr, idx, b);
+}
+
+void
+CommandInterpreter::ResolveCommand(const char *command_line, CommandReturnObject &result)
+{
+    std::string command = command_line;
+    if (ResolveCommandImpl(command, result) != nullptr) {
+        result.AppendMessageWithFormat("%s", command.c_str());
+        result.SetStatus(eReturnStatusSuccessFinishResult);
+    }
+}
+
 
 bool
 CommandInterpreter::GetStopCmdSourceOnError () const
@@ -401,6 +422,7 @@ CommandInterpreter::LoadCommandDictionary ()
     
     m_command_dict["apropos"]   = CommandObjectSP (new CommandObjectApropos (*this));
     m_command_dict["breakpoint"]= CommandObjectSP (new CommandObjectMultiwordBreakpoint (*this));
+    m_command_dict["bugreport"] = CommandObjectSP (new CommandObjectMultiwordBugreport (*this));
     m_command_dict["command"]   = CommandObjectSP (new CommandObjectMultiwordCommands (*this));
     m_command_dict["disassemble"] = CommandObjectSP (new CommandObjectDisassemble (*this));
     m_command_dict["expression"]= CommandObjectSP (new CommandObjectExpression (*this));
@@ -422,6 +444,7 @@ CommandInterpreter::LoadCommandDictionary ()
     m_command_dict["type"]      = CommandObjectSP (new CommandObjectType (*this));
     m_command_dict["version"]   = CommandObjectSP (new CommandObjectVersion (*this));
     m_command_dict["watchpoint"]= CommandObjectSP (new CommandObjectMultiwordWatchpoint (*this));
+    m_command_dict["language"]  = CommandObjectSP (new CommandObjectLanguage(*this));
 
     const char *break_regexes[][2] = {{"^(.*[^[:space:]])[[:space:]]*:[[:space:]]*([[:digit:]]+)[[:space:]]*$", "breakpoint set --file '%1' --line %2"},
                                       {"^/([^/]+)/$", "breakpoint set --source-pattern-regexp '%1'"},
@@ -438,8 +461,14 @@ CommandInterpreter::LoadCommandDictionary ()
     std::unique_ptr<CommandObjectRegexCommand>
     break_regex_cmd_ap(new CommandObjectRegexCommand (*this,
                                                       "_regexp-break",
-                                                      "Set a breakpoint using a regular expression to specify the location, where <linenum> is in decimal and <address> is in hex.",
-                                                      "_regexp-break [<filename>:<linenum>]\n_regexp-break [<linenum>]\n_regexp-break [<address>]\n_regexp-break <...>",
+                                                      "Set a breakpoint using a regular expression to specify the location, where <linenum> is in decimal and <address> is in hex.\n",
+                                                      "\n_regexp-break <filename>:<linenum> # _regexp-break main.c:12      // Break on line 12 of main.c\n"
+                                                      "_regexp-break <linenum>            # _regexp-break 12             // Break on line 12 of current file\n"
+                                                      "_regexp-break <address>            # _regexp-break 0x1234000      // Break on address 0x1234000\n"
+                                                      "_regexp-break <name>               # _regexp-break main           // Break in 'main' after the prologue\n"
+                                                      "_regexp-break &<name>              # _regexp-break &main          // Break on the first instruction in 'main'\n"
+                                                      "_regexp-break <module>`<name>      # _regexp-break libc.so`malloc // Break in 'malloc' only in the 'libc.so' shared library\n"
+                                                      "_regexp-break /<source-regex>/     # _regexp-break /break here/   // Break on all lines that match the regular expression 'break here' in the current file.\n",
                                                       2,
                                                       CommandCompletions::eSymbolCompletion |
                                                       CommandCompletions::eSourceFileCompletion,
@@ -1170,17 +1199,25 @@ void
 CommandInterpreter::GetHelp (CommandReturnObject &result,
                              uint32_t cmd_types)
 {
+    const char * help_prologue = GetDebugger().GetIOHandlerHelpPrologue();
+    if (help_prologue != NULL)
+    {
+        OutputFormattedHelpText(result.GetOutputStream(), NULL, help_prologue);
+    }
+
     CommandObject::CommandMap::const_iterator pos;
     size_t max_len = FindLongestCommandWord (m_command_dict);
     
     if ( (cmd_types & eCommandTypesBuiltin) == eCommandTypesBuiltin )
     {
-    
-        result.AppendMessage("The following is a list of built-in, permanent debugger commands:");
+        result.AppendMessage("Debugger commands:");
         result.AppendMessage("");
 
         for (pos = m_command_dict.begin(); pos != m_command_dict.end(); ++pos)
         {
+            if (!(cmd_types & eCommandTypesHidden) && (pos->first.compare(0, 1, "_") == 0))
+                continue;
+
             OutputFormattedHelpText (result.GetOutputStream(), pos->first.c_str(), "--", pos->second->GetHelp(),
                                      max_len);
         }
@@ -1190,8 +1227,9 @@ CommandInterpreter::GetHelp (CommandReturnObject &result,
 
     if (!m_alias_dict.empty() && ( (cmd_types & eCommandTypesAliases) == eCommandTypesAliases ))
     {
-        result.AppendMessage("The following is a list of your current command abbreviations "
-                             "(see 'help command alias' for more info):");
+        result.AppendMessageWithFormat("Current command abbreviations "
+                                       "(type '%shelp command alias' for more info):\n",
+                                       GetCommandPrefix());
         result.AppendMessage("");
         max_len = FindLongestCommandWord (m_alias_dict);
 
@@ -1212,7 +1250,7 @@ CommandInterpreter::GetHelp (CommandReturnObject &result,
 
     if (!m_user_dict.empty() && ( (cmd_types & eCommandTypesUserDef) == eCommandTypesUserDef ))
     {
-        result.AppendMessage ("The following is a list of your current user-defined commands:");
+        result.AppendMessage ("Current user-defined commands:");
         result.AppendMessage("");
         max_len = FindLongestCommandWord (m_user_dict);
         for (pos = m_user_dict.begin(); pos != m_user_dict.end(); ++pos)
@@ -1223,7 +1261,8 @@ CommandInterpreter::GetHelp (CommandReturnObject &result,
         result.AppendMessage("");
     }
 
-    result.AppendMessage("For more information on any particular command, try 'help <command-name>'.");
+    result.AppendMessageWithFormat("For more information on any command, type '%shelp <command-name>'.\n",
+                                   GetCommandPrefix());
 }
 
 CommandObject *
@@ -1233,8 +1272,7 @@ CommandInterpreter::GetCommandObjectForCommand (std::string &command_string)
     // eventually be invoked by the given command line.
     
     CommandObject *cmd_obj = nullptr;
-    std::string white_space (" \t\v");
-    size_t start = command_string.find_first_not_of (white_space);
+    size_t start = command_string.find_first_not_of (k_white_space);
     size_t end = 0;
     bool done = false;
     while (!done)
@@ -1242,7 +1280,7 @@ CommandInterpreter::GetCommandObjectForCommand (std::string &command_string)
         if (start != std::string::npos)
         {
             // Get the next word from command_string.
-            end = command_string.find_first_of (white_space, start);
+            end = command_string.find_first_of (k_white_space, start);
             if (end == std::string::npos)
                 end = command_string.size();
             std::string cmd_word = command_string.substr (start, end - start);
@@ -1257,7 +1295,7 @@ CommandInterpreter::GetCommandObjectForCommand (std::string &command_string)
                 CommandObject *sub_cmd_obj = cmd_obj->GetSubcommandObject (cmd_word.c_str());
                 if (sub_cmd_obj)
                     cmd_obj = sub_cmd_obj;
-                else // cmd_word was not a valid sub-command word, so we are donee
+                else // cmd_word was not a valid sub-command word, so we are done
                     done = true;
             }
             else  
@@ -1271,7 +1309,7 @@ CommandInterpreter::GetCommandObjectForCommand (std::string &command_string)
             if (!cmd_obj || !cmd_obj->IsMultiwordObject() || end >= command_string.size())
                 done = true;
             else
-                start = command_string.find_first_not_of (white_space, end);
+                start = command_string.find_first_not_of (k_white_space, end);
         }
         else
             // Unable to find any more words.
@@ -1286,7 +1324,6 @@ CommandInterpreter::GetCommandObjectForCommand (std::string &command_string)
     return cmd_obj;
 }
 
-static const char *k_white_space = " \t\v";
 static const char *k_valid_command_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
 static void
 StripLeadingSpaces (std::string &s)
@@ -1402,7 +1439,7 @@ CommandInterpreter::BuildAliasResult (const char *alias_name,
                                       CommandReturnObject &result)
 {
     CommandObject *alias_cmd_obj = nullptr;
-    Args cmd_args (raw_input_string.c_str());
+    Args cmd_args (raw_input_string);
     alias_cmd_obj = GetCommandObject (alias_name);
     StreamString result_str;
     
@@ -1432,10 +1469,10 @@ CommandInterpreter::BuildAliasResult (const char *alias_name,
                 else
                 {
                     result_str.Printf (" %s", option.c_str());
-                    if (value_type != OptionParser::eOptionalArgument)
-                        result_str.Printf (" ");
-                    if (value.compare ("<OptionParser::eNoArgument>") != 0)
+                    if (value_type != OptionParser::eNoArgument)
                     {
+                        if (value_type != OptionParser::eOptionalArgument)
+                            result_str.Printf (" ");
                         int index = GetOptionArgumentPosition (value.c_str());
                         if (index == 0)
                             result_str.Printf ("%s", value.c_str());
@@ -1446,7 +1483,7 @@ CommandInterpreter::BuildAliasResult (const char *alias_name,
                             ("Not enough arguments provided; you need at least %d arguments to use this alias.\n",
                              index);
                             result.SetStatus (eReturnStatusFailed);
-                            return alias_cmd_obj;
+                            return nullptr;
                         }
                         else
                         {
@@ -1471,7 +1508,7 @@ CommandInterpreter::PreprocessCommand (std::string &command)
 {
     // The command preprocessor needs to do things to the command 
     // line before any parsing of arguments or anything else is done.
-    // The only current stuff that gets proprocessed is anyting enclosed
+    // The only current stuff that gets preprocessed is anything enclosed
     // in backtick ('`') characters is evaluated as an expression and
     // the result of the expression must be a scalar that can be substituted
     // into the command. An example would be:
@@ -1483,7 +1520,7 @@ CommandInterpreter::PreprocessCommand (std::string &command)
     {
         if (start_backtick > 0 && command[start_backtick-1] == '\\')
         {
-            // The backtick was preceeded by a '\' character, remove the slash
+            // The backtick was preceded by a '\' character, remove the slash
             // and don't treat the backtick as the start of an expression
             command.erase(start_backtick-1, 1);
             // No need to add one to start_backtick since we just deleted a char
@@ -1612,9 +1649,6 @@ CommandInterpreter::HandleCommand (const char *command_line,
 
 {
 
-    bool done = false;
-    CommandObject *cmd_obj = nullptr;
-    bool wants_raw_input = false;
     std::string command_string (command_line);
     std::string original_command_string (command_line);
     
@@ -1714,192 +1748,34 @@ CommandInterpreter::HandleCommand (const char *command_line,
         result.SetStatus(eReturnStatusFailed);
         return false;
     }
+
     // Phase 1.
     
-    // Before we do ANY kind of argument processing, etc. we need to figure out what the real/final command object
-    // is for the specified command, and whether or not it wants raw input.  This gets complicated by the fact that
-    // the user could have specified an alias, and in translating the alias there may also be command options and/or
-    // even data (including raw text strings) that need to be found and inserted into the command line as part of
-    // the translation.  So this first step is plain look-up & replacement, resulting in three things:  1). the command
-    // object whose Execute method will actually be called; 2). a revised command string, with all substitutions &
-    // replacements taken care of; 3). whether or not the Execute function wants raw input or not.
+    // Before we do ANY kind of argument processing, we need to figure out what
+    // the real/final command object is for the specified command.  This gets
+    // complicated by the fact that the user could have specified an alias, and,
+    // in translating the alias, there may also be command options and/or even
+    // data (including raw text strings) that need to be found and inserted into
+    // the command line as part of the translation.  So this first step is plain
+    // look-up and replacement, resulting in:
+    //    1. the command object whose Execute method will actually be called
+    //    2. a revised command string, with all substitutions and replacements
+    //       taken care of
+    // From 1 above, we can determine whether the Execute function wants raw
+    // input or not.
 
-    StreamString revised_command_line;
-    size_t actual_cmd_name_len = 0;
-    std::string next_word;
-    StringList matches;
-    while (!done)
-    {
-        char quote_char = '\0';
-        std::string suffix;
-        ExtractCommand (command_string, next_word, suffix, quote_char);
-        if (cmd_obj == nullptr)
-        {
-            std::string full_name;
-            if (GetAliasFullName(next_word.c_str(), full_name))
-            {
-                std::string alias_result;
-                cmd_obj = BuildAliasResult (full_name.c_str(), command_string, alias_result, result);
-                revised_command_line.Printf ("%s", alias_result.c_str());
-                if (cmd_obj)
-                {
-                    wants_raw_input = cmd_obj->WantsRawCommandString ();
-                    actual_cmd_name_len = strlen (cmd_obj->GetCommandName());
-                }
-            }
-            else
-            {
-                cmd_obj = GetCommandObject (next_word.c_str(), &matches);
-                if (cmd_obj)
-                {
-                    actual_cmd_name_len += next_word.length();
-                    revised_command_line.Printf ("%s", next_word.c_str());
-                    wants_raw_input = cmd_obj->WantsRawCommandString ();
-                }
-                else
-                {
-                    revised_command_line.Printf ("%s", next_word.c_str());
-                }
-            }
-        }
-        else
-        {
-            if (cmd_obj->IsMultiwordObject ())
-            {
-                CommandObject *sub_cmd_obj = cmd_obj->GetSubcommandObject (next_word.c_str());
-                if (sub_cmd_obj)
-                {
-                    actual_cmd_name_len += next_word.length() + 1;
-                    revised_command_line.Printf (" %s", next_word.c_str());
-                    cmd_obj = sub_cmd_obj;
-                    wants_raw_input = cmd_obj->WantsRawCommandString ();
-                }
-                else
-                {
-                    if (quote_char)
-                        revised_command_line.Printf (" %c%s%s%c", quote_char, next_word.c_str(), suffix.c_str(), quote_char);
-                    else
-                        revised_command_line.Printf (" %s%s", next_word.c_str(), suffix.c_str());
-                    done = true;
-                }
-            }
-            else
-            {
-                if (quote_char)
-                    revised_command_line.Printf (" %c%s%s%c", quote_char, next_word.c_str(), suffix.c_str(), quote_char);
-                else
-                    revised_command_line.Printf (" %s%s", next_word.c_str(), suffix.c_str());
-                done = true;
-            }
-        }
+    CommandObject *cmd_obj = ResolveCommandImpl(command_string, result);
 
-        if (cmd_obj == nullptr)
-        {
-            const size_t num_matches = matches.GetSize();
-            if (matches.GetSize() > 1) {
-                StreamString error_msg;
-                error_msg.Printf ("Ambiguous command '%s'. Possible matches:\n", next_word.c_str());
+    // Although the user may have abbreviated the command, the command_string now
+    // has the command expanded to the full name.  For example, if the input
+    // was "br s -n main", command_string is now "breakpoint set -n main".
 
-                for (uint32_t i = 0; i < num_matches; ++i) {
-                    error_msg.Printf ("\t%s\n", matches.GetStringAtIndex(i));
-                }
-                result.AppendRawError (error_msg.GetString().c_str());
-            } else {
-                // We didn't have only one match, otherwise we wouldn't get here.
-                assert(num_matches == 0);
-                result.AppendErrorWithFormat ("'%s' is not a valid command.\n", next_word.c_str());
-            }
-            result.SetStatus (eReturnStatusFailed);
-            return false;
-        }
-
-        if (cmd_obj->IsMultiwordObject ())
-        {
-            if (!suffix.empty())
-            {
-
-                result.AppendErrorWithFormat ("command '%s' did not recognize '%s%s%s' as valid (subcommand might be invalid).\n",
-                                              cmd_obj->GetCommandName(),
-                                              next_word.empty() ? "" : next_word.c_str(),
-                                              next_word.empty() ? " -- " : " ",
-                                              suffix.c_str());
-                result.SetStatus (eReturnStatusFailed);
-                return false;
-            }
-        }
-        else
-        {
-            // If we found a normal command, we are done
-            done = true;
-            if (!suffix.empty())
-            {
-                switch (suffix[0])
-                {
-                case '/':
-                    // GDB format suffixes
-                    {
-                        Options *command_options = cmd_obj->GetOptions();
-                        if (command_options && command_options->SupportsLongOption("gdb-format"))
-                        {
-                            std::string gdb_format_option ("--gdb-format=");
-                            gdb_format_option += (suffix.c_str() + 1);
-    
-                            bool inserted = false;
-                            std::string &cmd = revised_command_line.GetString();
-                            size_t arg_terminator_idx = FindArgumentTerminator (cmd);
-                            if (arg_terminator_idx != std::string::npos)
-                            {
-                                // Insert the gdb format option before the "--" that terminates options
-                                gdb_format_option.append(1,' ');
-                                cmd.insert(arg_terminator_idx, gdb_format_option);
-                                inserted = true;
-                            }
-
-                            if (!inserted)
-                                revised_command_line.Printf (" %s", gdb_format_option.c_str());
-                        
-                            if (wants_raw_input && FindArgumentTerminator(cmd) == std::string::npos)
-                                revised_command_line.PutCString (" --");
-                        }
-                        else
-                        {
-                            result.AppendErrorWithFormat ("the '%s' command doesn't support the --gdb-format option\n", 
-                                                          cmd_obj->GetCommandName());
-                            result.SetStatus (eReturnStatusFailed);
-                            return false;
-                        }
-                    }
-                    break;
-
-                default:
-                    result.AppendErrorWithFormat ("unknown command shorthand suffix: '%s'\n", 
-                                                  suffix.c_str());
-                    result.SetStatus (eReturnStatusFailed);
-                    return false;
-        
-                }
-            }
-        }
-        if (command_string.length() == 0)
-            done = true;
-            
-    }
-
-    if (!command_string.empty())
-        revised_command_line.Printf (" %s", command_string.c_str());
-
-    // End of Phase 1.
-    // At this point cmd_obj should contain the CommandObject whose Execute method will be called, if the command
-    // specified was valid; revised_command_line contains the complete command line (including command name(s)),
-    // fully translated with all substitutions & translations taken care of (still in raw text format); and
-    // wants_raw_input specifies whether the Execute method expects raw input or not.
-
- 
     if (log)
     {
-        log->Printf ("HandleCommand, cmd_obj : '%s'", cmd_obj ? cmd_obj->GetCommandName() : "<not found>");
-        log->Printf ("HandleCommand, revised_command_line: '%s'", revised_command_line.GetData());
-        log->Printf ("HandleCommand, wants_raw_input:'%s'", wants_raw_input ? "True" : "False");
+        log->Printf("HandleCommand, cmd_obj : '%s'", cmd_obj ? cmd_obj->GetCommandName() : "<not found>");
+        log->Printf("HandleCommand, (revised) command_string: '%s'", command_string.c_str());
+        const bool wants_raw_input = (cmd_obj != NULL) ? cmd_obj->WantsRawCommandString() : false;
+        log->Printf("HandleCommand, wants_raw_input:'%s'", wants_raw_input ? "True" : "False");
     }
 
     // Phase 2.
@@ -1910,7 +1786,7 @@ CommandInterpreter::HandleCommand (const char *command_line,
     {
         if (add_to_history)
         {
-            Args command_args (revised_command_line.GetData());
+            Args command_args (command_string);
             const char *repeat_command = cmd_obj->GetRepeatCommand(command_args, 0);
             if (repeat_command != nullptr)
                 m_repeat_command.assign(repeat_command);
@@ -1920,18 +1796,13 @@ CommandInterpreter::HandleCommand (const char *command_line,
             m_command_history.AppendString (original_command_string);
         }
         
-        command_string = revised_command_line.GetData();
-        std::string command_name (cmd_obj->GetCommandName());
         std::string remainder;
+        const std::size_t actual_cmd_name_len = strlen (cmd_obj->GetCommandName());
         if (actual_cmd_name_len < command_string.length()) 
-            remainder = command_string.substr (actual_cmd_name_len);  // Note: 'actual_cmd_name_len' may be considerably shorter
-                                                           // than cmd_obj->GetCommandName(), because name completion
-                                                           // allows users to enter short versions of the names,
-                                                           // e.g. 'br s' for 'breakpoint set'.
+            remainder = command_string.substr (actual_cmd_name_len);
         
         // Remove any initial spaces
-        std::string white_space (" \t\v");
-        size_t pos = remainder.find_first_not_of (white_space);
+        size_t pos = remainder.find_first_not_of (k_white_space);
         if (pos != 0 && pos != std::string::npos)
             remainder.erase(0, pos);
 
@@ -1943,7 +1814,7 @@ CommandInterpreter::HandleCommand (const char *command_line,
     else
     {
         // We didn't find the first command object, so complete the first argument.
-        Args command_args (revised_command_line.GetData());
+        Args command_args (command_string);
         StringList matches;
         int num_matches;
         int cursor_index = 0;
@@ -2072,8 +1943,8 @@ CommandInterpreter::HandleCompletion (const char *current_line,
     // We parse the argument up to the cursor, so the last argument in parsed_line is
     // the one containing the cursor, and the cursor is after the last character.
 
-    Args parsed_line(current_line, last_char - current_line);
-    Args partial_parsed_line(current_line, cursor - current_line);
+    Args parsed_line(llvm::StringRef(current_line, last_char - current_line));
+    Args partial_parsed_line(llvm::StringRef(current_line, cursor - current_line));
 
     // Don't complete comments, and if the line we are completing is just the history repeat character, 
     // substitute the appropriate history line.
@@ -2376,7 +2247,7 @@ CommandInterpreter::BuildAliasCommandArgs (CommandObject *alias_cmd_obj,
         }
 
         cmd_args.Clear();
-        cmd_args.SetArguments (new_args.GetArgumentCount(), (const char **) new_args.GetArgumentVector());
+        cmd_args.SetArguments (new_args.GetArgumentCount(), new_args.GetConstArgumentVector());
     }
     else
     {
@@ -2387,7 +2258,7 @@ CommandInterpreter::BuildAliasCommandArgs (CommandObject *alias_cmd_obj,
         if (wants_raw_input)
         {
             cmd_args.Clear();
-            cmd_args.SetArguments (new_args.GetArgumentCount(), (const char **) new_args.GetArgumentVector());
+            cmd_args.SetArguments (new_args.GetArgumentCount(), new_args.GetConstArgumentVector());
         }
         return;
     }
@@ -2403,7 +2274,7 @@ CommandInterpreter::GetOptionArgumentPosition (const char *in_string)
     int position = 0;   // Any string that isn't an argument position, i.e. '%' followed by an integer, gets a position
                         // of zero.
 
-    char *cptr = (char *) in_string;
+    const char *cptr = in_string;
 
     // Does it start with '%'
     if (cptr[0] == '%')
@@ -2494,6 +2365,13 @@ CommandInterpreter::SourceInitFile (bool in_cwd, CommandReturnObject &result)
         // nothing to be done if the file doesn't exist
         result.SetStatus(eReturnStatusSuccessFinishNoResult);
     }
+}
+
+const char *
+CommandInterpreter::GetCommandPrefix()
+{
+    const char * prefix = GetDebugger().GetIOHandlerCommandPrefix();
+    return prefix == NULL ? "" : prefix;
 }
 
 PlatformSP
@@ -2887,84 +2765,74 @@ CommandInterpreter::SetSynchronous (bool value)
 
 void
 CommandInterpreter::OutputFormattedHelpText (Stream &strm,
+                                             const char *prefix,
+                                             const char *help_text)
+{
+    const uint32_t max_columns = m_debugger.GetTerminalWidth();
+    if (prefix == NULL)
+        prefix = "";
+
+    size_t prefix_width = strlen(prefix);
+    size_t line_width_max = max_columns - prefix_width;
+    const char *help_text_end = help_text + strlen(help_text);
+    const char *line_start = help_text;
+    if (line_width_max < 16)
+        line_width_max = help_text_end - help_text + prefix_width;
+
+    strm.IndentMore (prefix_width);
+    while (line_start < help_text_end)
+    {
+        // Break each line at the first newline or last space/tab before
+        // the maximum number of characters that fit on a line.  Lines with no
+        // natural break are left unbroken to wrap.
+        const char *line_end = help_text_end;
+        const char *line_scan = line_start;
+        const char *line_scan_end = help_text_end;
+        while (line_scan < line_scan_end)
+        {
+            char next = *line_scan;
+            if (next == '\t' || next == ' ')
+            {
+                line_end = line_scan;
+                line_scan_end = line_start + line_width_max;
+            }
+            else if (next == '\n' || next == '\0')
+            {
+                line_end = line_scan;
+                break;
+            }
+            ++line_scan;
+        }
+        
+        // Prefix the first line, indent subsequent lines to line up
+        if (line_start == help_text)
+            strm.Write (prefix, prefix_width);
+        else
+            strm.Indent();
+        strm.Write (line_start, line_end - line_start);
+        strm.EOL();
+
+        // When a line breaks at whitespace consume it before continuing
+        line_start = line_end;
+        char next = *line_start;
+        if (next == '\n')
+            ++line_start;
+        else while (next == ' ' || next == '\t')
+            next = *(++line_start);
+    }
+    strm.IndentLess (prefix_width);
+}
+
+void
+CommandInterpreter::OutputFormattedHelpText (Stream &strm,
                                              const char *word_text,
                                              const char *separator,
                                              const char *help_text,
                                              size_t max_word_len)
 {
-    const uint32_t max_columns = m_debugger.GetTerminalWidth();
-
-    int indent_size = max_word_len + strlen (separator) + 2;
-
-    strm.IndentMore (indent_size);
-    
-    StreamString text_strm;
-    text_strm.Printf ("%-*s %s %s",  (int)max_word_len, word_text, separator, help_text);
-    
-    size_t len = text_strm.GetSize();
-    const char *text = text_strm.GetData();
-    if (text[len - 1] == '\n')
-    {
-        text_strm.EOL();
-        len = text_strm.GetSize();
-    }
-
-    if (len  < max_columns)
-    {
-        // Output it as a single line.
-        strm.Printf ("%s", text);
-    }
-    else
-    {
-        // We need to break it up into multiple lines.
-        bool first_line = true;
-        int text_width;
-        size_t start = 0;
-        size_t end = start;
-        const size_t final_end = strlen (text);
-        
-        while (end < final_end)
-        {
-            if (first_line)
-                text_width = max_columns - 1;
-            else
-                text_width = max_columns - indent_size - 1;
-
-            // Don't start the 'text' on a space, since we're already outputting the indentation.
-            if (!first_line)
-            {
-                while ((start < final_end) && (text[start] == ' '))
-                  start++;
-            }
-
-            end = start + text_width;
-            if (end > final_end)
-                end = final_end;
-            else
-            {
-                // If we're not at the end of the text, make sure we break the line on white space.
-                while (end > start
-                       && text[end] != ' ' && text[end] != '\t' && text[end] != '\n')
-                    end--;
-                assert (end > 0);
-            }
-
-            const size_t sub_len = end - start;
-            if (start != 0)
-              strm.EOL();
-            if (!first_line)
-                strm.Indent();
-            else
-                first_line = false;
-            assert (start <= final_end);
-            assert (start + sub_len <= final_end);
-            if (sub_len > 0)
-                strm.Write (text + start, sub_len);
-            start = end + 1;
-        }
-    }
-    strm.EOL();
-    strm.IndentLess(indent_size);
+    StreamString prefix_stream;
+    prefix_stream.Printf ("  %-*s %s ",  (int)max_word_len, word_text, separator);
+    OutputFormattedHelpText (strm, prefix_stream.GetData(), help_text);
 }
 
 void
@@ -3222,6 +3090,13 @@ CommandInterpreter::IOHandlerInterrupt (IOHandler &io_handler)
             return true; // Don't do any updating when we are running
         }
     }
+
+    ScriptInterpreter *script_interpreter = GetScriptInterpreter (false);
+    if (script_interpreter)
+    {
+        if (script_interpreter->Interrupt())
+            return true;
+    }
     return false;
 }
 
@@ -3341,7 +3216,7 @@ CommandInterpreter::RunCommandInterpreter(bool auto_handle_events,
                                           bool spawn_thread,
                                           CommandInterpreterRunOptions &options)
 {
-    // Always re-create the command intepreter when we run it in case
+    // Always re-create the command interpreter when we run it in case
     // any file handles have changed.
     bool force_create = true;
     m_debugger.PushIOHandler(GetIOHandler(force_create, &options));
@@ -3356,7 +3231,7 @@ CommandInterpreter::RunCommandInterpreter(bool auto_handle_events,
     }
     else
     {
-        m_debugger.ExecuteIOHanders();
+        m_debugger.ExecuteIOHandlers();
         
         if (auto_handle_events)
             m_debugger.StopEventHandlerThread();
@@ -3364,3 +3239,179 @@ CommandInterpreter::RunCommandInterpreter(bool auto_handle_events,
     
 }
 
+CommandObject *
+CommandInterpreter::ResolveCommandImpl(std::string &command_line, CommandReturnObject &result)
+{
+    std::string scratch_command(command_line);  // working copy so we don't modify command_line unless we succeed
+    CommandObject *cmd_obj = nullptr;
+    StreamString revised_command_line;
+    bool wants_raw_input = false;
+    size_t actual_cmd_name_len = 0;
+    std::string next_word;
+    StringList matches;
+    bool done = false;
+    while (!done)
+    {
+        char quote_char = '\0';
+        std::string suffix;
+        ExtractCommand(scratch_command, next_word, suffix, quote_char);
+        if (cmd_obj == nullptr)
+        {
+            std::string full_name;
+            if (GetAliasFullName(next_word.c_str(), full_name))
+            {
+                std::string alias_result;
+                cmd_obj = BuildAliasResult(full_name.c_str(), scratch_command, alias_result, result);
+                revised_command_line.Printf("%s", alias_result.c_str());
+                if (cmd_obj)
+                {
+                    wants_raw_input = cmd_obj->WantsRawCommandString();
+                    actual_cmd_name_len = strlen(cmd_obj->GetCommandName());
+                }
+            }
+            else
+            {
+                cmd_obj = GetCommandObject(next_word.c_str(), &matches);
+                if (cmd_obj)
+                {
+                    actual_cmd_name_len += strlen(cmd_obj->GetCommandName());
+                    revised_command_line.Printf("%s", cmd_obj->GetCommandName());
+                    wants_raw_input = cmd_obj->WantsRawCommandString();
+                }
+                else
+                {
+                    revised_command_line.Printf ("%s", next_word.c_str());
+                }
+            }
+        }
+        else
+        {
+            if (cmd_obj->IsMultiwordObject ())
+            {
+                CommandObject *sub_cmd_obj = cmd_obj->GetSubcommandObject(next_word.c_str());
+                if (sub_cmd_obj)
+                {
+                    // The subcommand's name includes the parent command's name,
+                    // so restart rather than append to the revised_command_line.
+                    actual_cmd_name_len = strlen(sub_cmd_obj->GetCommandName()) + 1;
+                    revised_command_line.Clear();
+                    revised_command_line.Printf("%s", sub_cmd_obj->GetCommandName());
+                    cmd_obj = sub_cmd_obj;
+                    wants_raw_input = cmd_obj->WantsRawCommandString();
+                }
+                else
+                {
+                    if (quote_char)
+                        revised_command_line.Printf(" %c%s%s%c", quote_char, next_word.c_str(), suffix.c_str(), quote_char);
+                    else
+                        revised_command_line.Printf(" %s%s", next_word.c_str(), suffix.c_str());
+                    done = true;
+                }
+            }
+            else
+            {
+                if (quote_char)
+                    revised_command_line.Printf(" %c%s%s%c", quote_char, next_word.c_str(), suffix.c_str(), quote_char);
+                else
+                    revised_command_line.Printf(" %s%s", next_word.c_str(), suffix.c_str());
+                done = true;
+            }
+        }
+
+        if (cmd_obj == nullptr)
+        {
+            const size_t num_matches = matches.GetSize();
+            if (matches.GetSize() > 1) {
+                StreamString error_msg;
+                error_msg.Printf("Ambiguous command '%s'. Possible matches:\n", next_word.c_str());
+
+                for (uint32_t i = 0; i < num_matches; ++i) {
+                    error_msg.Printf("\t%s\n", matches.GetStringAtIndex(i));
+                }
+                result.AppendRawError(error_msg.GetString().c_str());
+            } else {
+                // We didn't have only one match, otherwise we wouldn't get here.
+                assert(num_matches == 0);
+                result.AppendErrorWithFormat("'%s' is not a valid command.\n", next_word.c_str());
+            }
+            result.SetStatus(eReturnStatusFailed);
+            return nullptr;
+        }
+
+        if (cmd_obj->IsMultiwordObject())
+        {
+            if (!suffix.empty())
+            {
+                result.AppendErrorWithFormat("command '%s' did not recognize '%s%s%s' as valid (subcommand might be invalid).\n",
+                                             cmd_obj->GetCommandName(),
+                                             next_word.empty() ? "" : next_word.c_str(),
+                                             next_word.empty() ? " -- " : " ",
+                                             suffix.c_str());
+                result.SetStatus(eReturnStatusFailed);
+                return nullptr;
+            }
+        }
+        else
+        {
+            // If we found a normal command, we are done
+            done = true;
+            if (!suffix.empty())
+            {
+                switch (suffix[0])
+                {
+                case '/':
+                    // GDB format suffixes
+                    {
+                        Options *command_options = cmd_obj->GetOptions();
+                        if (command_options && command_options->SupportsLongOption("gdb-format"))
+                        {
+                            std::string gdb_format_option("--gdb-format=");
+                            gdb_format_option += (suffix.c_str() + 1);
+
+                            bool inserted = false;
+                            std::string &cmd = revised_command_line.GetString();
+                            size_t arg_terminator_idx = FindArgumentTerminator(cmd);
+                            if (arg_terminator_idx != std::string::npos)
+                            {
+                                // Insert the gdb format option before the "--" that terminates options
+                                gdb_format_option.append(1,' ');
+                                cmd.insert(arg_terminator_idx, gdb_format_option);
+                                inserted = true;
+                            }
+
+                            if (!inserted)
+                                revised_command_line.Printf(" %s", gdb_format_option.c_str());
+
+                            if (wants_raw_input && FindArgumentTerminator(cmd) == std::string::npos)
+                                revised_command_line.PutCString(" --");
+                        }
+                        else
+                        {
+                            result.AppendErrorWithFormat("the '%s' command doesn't support the --gdb-format option\n",
+                                                         cmd_obj->GetCommandName());
+                            result.SetStatus(eReturnStatusFailed);
+                            return nullptr;
+                        }
+                    }
+                    break;
+
+                default:
+                    result.AppendErrorWithFormat("unknown command shorthand suffix: '%s'\n",
+                                                 suffix.c_str());
+                    result.SetStatus(eReturnStatusFailed);
+                    return nullptr;
+                }
+            }
+        }
+        if (scratch_command.empty())
+            done = true;
+    }
+
+    if (!scratch_command.empty())
+        revised_command_line.Printf(" %s", scratch_command.c_str());
+
+    if (cmd_obj != NULL)
+        command_line = revised_command_line.GetData();
+
+    return cmd_obj;
+}

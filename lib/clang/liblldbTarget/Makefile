@@ -18,8 +18,6 @@ SRCS=	ABI.cpp \
 	LanguageRuntime.cpp \
 	Memory.cpp \
 	MemoryHistory.cpp \
-	NativeRegisterContext.cpp \
-	NativeRegisterContextRegisterInfo.cpp \
 	ObjCLanguageRuntime.cpp \
 	OperatingSystem.cpp \
 	PathMappingList.cpp \

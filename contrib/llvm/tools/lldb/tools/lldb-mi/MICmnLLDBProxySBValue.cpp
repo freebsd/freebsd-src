@@ -7,22 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBProxySBValue.cpp
-//
-// Overview:    CMICmnLLDBProxySBValue implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #include <stdlib.h>
 
 // Third Party Headers:
-#include <lldb/API/SBError.h>
+#include "lldb/API/SBError.h"
 
 // In-house headers:
 #include "MICmnLLDBProxySBValue.h"
@@ -115,11 +103,11 @@ bool
 CMICmnLLDBProxySBValue::GetCString(const lldb::SBValue &vrValue, CMIUtilString &vwCString)
 {
     lldb::SBValue &rValue = const_cast<lldb::SBValue &>(vrValue);
-    const MIchar *pCType = rValue.GetTypeName();
+    const char *pCType = rValue.GetTypeName();
     if (pCType == nullptr)
         return MIstatus::failure;
 
-    const MIchar *pType = "unsigned char *";
+    const char *pType = "unsigned char *";
     if (!CMIUtilString::Compare(pCType, pType))
         return MIstatus::failure;
 
@@ -129,19 +117,19 @@ CMICmnLLDBProxySBValue::GetCString(const lldb::SBValue &vrValue, CMIUtilString &
         return MIstatus::failure;
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBProcess &rProcess = rSessionInfo.m_lldbProcess;
+    lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
     MIuint nBufferSize = 64;
     bool bNeedResize = false;
-    MIchar *pBuffer = static_cast<MIchar *>(::malloc(nBufferSize));
+    char *pBuffer = static_cast<char *>(::malloc(nBufferSize));
     do
     {
         lldb::SBError error;
-        const size_t nReadSize = rProcess.ReadCStringFromMemory((lldb::addr_t)nNum, pBuffer, nBufferSize, error);
+        const size_t nReadSize = sbProcess.ReadCStringFromMemory((lldb::addr_t)nNum, pBuffer, nBufferSize, error);
         if (nReadSize == (nBufferSize - 1))
         {
             bNeedResize = true;
             nBufferSize = nBufferSize << 1;
-            pBuffer = static_cast<MIchar *>(::realloc(pBuffer, nBufferSize));
+            pBuffer = static_cast<char *>(::realloc(pBuffer, nBufferSize));
         }
         else
             bNeedResize = false;

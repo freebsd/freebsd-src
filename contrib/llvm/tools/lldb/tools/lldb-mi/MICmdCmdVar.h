@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdVar.h
-//
 // Overview:    CMICmdCmdVarCreate              interface.
 //              CMICmdCmdVarUpdate              interface.
 //              CMICmdCmdVarDelete              interface.
@@ -28,13 +25,6 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
@@ -42,6 +32,7 @@
 #include "MICmdBase.h"
 #include "MICmnMIValueTuple.h"
 #include "MICmnMIValueList.h"
+#include "MICmnLLDBDebugSessionInfo.h"
 #include "MICmnLLDBDebugSessionInfoVarObj.h"
 
 // Declarations:
@@ -71,8 +62,15 @@ class CMICmdCmdVarCreate : public CMICmdBase
     virtual bool Execute(void);
     virtual bool Acknowledge(void);
     virtual bool ParseArgs(void);
+
+    // Overridden:
+  public:
     // From CMICmnBase
     /* dtor */ virtual ~CMICmdCmdVarCreate(void);
+
+    // Methods:
+  private:
+    void CompleteSBValue(lldb::SBValue &vrwValue);
 
     // Attribute:
   private:
@@ -123,17 +121,14 @@ class CMICmdCmdVarUpdate : public CMICmdBase
 
     // Methods:
   private:
-    bool ExamineSBValueForChange(const CMICmnLLDBDebugSessionInfoVarObj &vrVarObj, const bool vbIgnoreVarType, bool &vrwbChanged);
-    bool MIFormResponse(const CMIUtilString &vrStrVarName, const CMIUtilString &vrStrValue, const CMIUtilString &vrStrScope);
+    bool ExamineSBValueForChange(lldb::SBValue &vrwValue, bool &vrwbChanged);
+    bool MIFormResponse(const CMIUtilString &vrStrVarName, const char *const vpValue, const CMIUtilString &vrStrScope);
 
     // Attribute:
   private:
-    CMIUtilString m_strValueName;
-    const CMIUtilString m_constStrArgPrintValues; // Not handled by *this command
+    const CMIUtilString m_constStrArgPrintValues;
     const CMIUtilString m_constStrArgName;
-    bool m_bValueChangedArrayType;     // True = yes value changed, false = no change
-    bool m_bValueChangedCompositeType; // True = yes value changed, false = no change
-    bool m_bValueChangedNormalType;    // True = yes value changed, false = no change
+    bool m_bValueChanged; // True = yes value changed, false = no change
     CMICmnMIValueList m_miValueList;
 };
 
@@ -265,17 +260,16 @@ class CMICmdCmdVarListChildren : public CMICmdBase
     // From CMICmnBase
     /* dtor */ virtual ~CMICmdCmdVarListChildren(void);
 
-    // Typedefs:
-  private:
-    typedef std::vector<CMICmnMIValueResult> VecMIValueResult_t;
-
     // Attributes:
   private:
-    bool m_bValueValid; // True = yes SBValue object is valid, false = not valid
-    VecMIValueResult_t m_vecMiValueResult;
-    MIuint m_nChildren;
-    const CMIUtilString m_constStrArgPrintValues; // Not handled by *this command
+    const CMIUtilString m_constStrArgPrintValues;
     const CMIUtilString m_constStrArgName;
+    const CMIUtilString m_constStrArgFrom;
+    const CMIUtilString m_constStrArgTo;
+    bool m_bValueValid; // True = yes SBValue object is valid, false = not valid
+    MIuint m_nChildren;
+    CMICmnMIValueList m_miValueList;
+    bool m_bHasMore;
 };
 
 //++ ============================================================================

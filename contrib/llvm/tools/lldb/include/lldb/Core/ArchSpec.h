@@ -12,9 +12,8 @@
 
 #if defined(__cplusplus)
 
-#include "lldb/lldb-private.h"
+#include "lldb/lldb-forward.h"
 #include "lldb/Core/ConstString.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 
 namespace lldb_private {
@@ -33,6 +32,23 @@ struct CoreDefinition;
 class ArchSpec
 {
 public:
+    enum MIPSSubType
+    {
+        eMIPSSubType_unknown,
+        eMIPSSubType_mips32,
+        eMIPSSubType_mips32r2,
+        eMIPSSubType_mips32r6,
+        eMIPSSubType_mips32el,
+        eMIPSSubType_mips32r2el,
+        eMIPSSubType_mips32r6el,
+        eMIPSSubType_mips64,
+        eMIPSSubType_mips64r2,
+        eMIPSSubType_mips64r6,
+        eMIPSSubType_mips64el,
+        eMIPSSubType_mips64r2el,
+        eMIPSSubType_mips64r6el,
+    };
+    
     enum Core
     {
         eCore_arm_generic,
@@ -66,8 +82,27 @@ public:
         eCore_arm_arm64,
         eCore_arm_armv8,
         eCore_arm_aarch64,
-        
+
+        eCore_mips32,
+        eCore_mips32r2,
+        eCore_mips32r3,
+        eCore_mips32r5,
+        eCore_mips32r6,
+        eCore_mips32el,
+        eCore_mips32r2el,
+        eCore_mips32r3el,
+        eCore_mips32r5el,
+        eCore_mips32r6el,
         eCore_mips64,
+        eCore_mips64r2,
+        eCore_mips64r3,
+        eCore_mips64r5,
+        eCore_mips64r6,
+        eCore_mips64el,
+        eCore_mips64r2el,
+        eCore_mips64r3el,
+        eCore_mips64r5el,
+        eCore_mips64r6el,
 
         eCore_ppc_generic,
         eCore_ppc_ppc601,
@@ -142,7 +177,19 @@ public:
         kCore_hexagon_last   = eCore_hexagon_hexagonv5,
 
         kCore_kalimba_first = eCore_kalimba3,
-        kCore_kalimba_last = eCore_kalimba5
+        kCore_kalimba_last = eCore_kalimba5,
+
+        kCore_mips32_first  = eCore_mips32,
+        kCore_mips32_last   = eCore_mips32r6,
+
+        kCore_mips32el_first  = eCore_mips32el,
+        kCore_mips32el_last   = eCore_mips32r6el,
+
+        kCore_mips64_first  = eCore_mips64,
+        kCore_mips64_last   = eCore_mips64r6,
+
+        kCore_mips64el_first  = eCore_mips64el,
+        kCore_mips64el_last   = eCore_mips64r6el
     };
 
     typedef void (* StopInfoOverrideCallbackType)(lldb_private::Thread &thread);
@@ -277,56 +324,61 @@ public:
     }
 
     //------------------------------------------------------------------
-    /// Sets this ArchSpec according to the given architecture name.
+    /// Merges fields from another ArchSpec into this ArchSpec.
     ///
-    /// The architecture name can be one of the generic system default
-    /// values:
+    /// This will use the supplied ArchSpec to fill in any fields of
+    /// the triple in this ArchSpec which were unspecified.  This can
+    /// be used to refine a generic ArchSpec with a more specific one.
+    /// For example, if this ArchSpec's triple is something like
+    /// i386-unknown-unknown-unknown, and we have a triple which is
+    /// x64-pc-windows-msvc, then merging that triple into this one
+    /// will result in the triple i386-pc-windows-msvc.
     ///
-    /// @li \c LLDB_ARCH_DEFAULT - The arch the current system defaults
-    ///        to when a program is launched without any extra
-    ///        attributes or settings.
-    /// @li \c LLDB_ARCH_DEFAULT_32BIT - The default host architecture
-    ///        for 32 bit (if any).
-    /// @li \c LLDB_ARCH_DEFAULT_64BIT - The default host architecture
-    ///        for 64 bit (if any).
-    ///
-    /// Alternatively, if the object type of this ArchSpec has been
-    /// configured,  a concrete architecture can be specified to set
-    /// the CPU type ("x86_64" for example).
-    ///
-    /// Finally, an encoded object and archetecture format is accepted.
-    /// The format contains an object type (like "macho" or "elf"),
-    /// followed by a platform dependent encoding of CPU type and
-    /// subtype.  For example:
-    ///
-    ///     "macho"        : Specifies an object type of MachO.
-    ///     "macho-16-6"   : MachO specific encoding for ARMv6.
-    ///     "elf-43        : ELF specific encoding for Sparc V9.
-    ///
-    /// @param[in] arch_name The name of an architecture.
-    ///
-    /// @return True if @p arch_name was successfully translated, false
-    ///         otherwise.
     //------------------------------------------------------------------
-//    bool
-//    SetArchitecture (const llvm::StringRef& arch_name);
-//
-//    bool
-//    SetArchitecture (const char *arch_name);
+    void
+    MergeFrom(const ArchSpec &other);
     
     //------------------------------------------------------------------
-    /// Change the architecture object type and CPU type.
+    /// Change the architecture object type, CPU type and OS type.
     ///
     /// @param[in] arch_type The object type of this ArchSpec.
     ///
     /// @param[in] cpu The required CPU type.
     ///
-    /// @return True if the object and CPU type were successfully set.
+    /// @param[in] os The optional OS type
+    /// The default value of 0 was choosen to from the ELF spec value
+    /// ELFOSABI_NONE.  ELF is the only one using this parameter.  If another
+    /// format uses this parameter and 0 does not work, use a value over
+    /// 255 because in the ELF header this is value is only a byte.
+    ///
+    /// @return True if the object, and CPU were successfully set.
+    ///
+    /// As a side effect, the vendor value is usually set to unknown.
+    /// The exections are
+    ///   aarch64-apple-ios
+    ///   arm-apple-ios
+    ///   thumb-apple-ios
+    ///   x86-apple-
+    ///   x86_64-apple-
+    ///
+    /// As a side effect, the os value is usually set to unknown
+    /// The exceptions are
+    ///   *-*-aix
+    ///   aarch64-apple-ios
+    ///   arm-apple-ios
+    ///   thumb-apple-ios
+    ///   powerpc-apple-darwin
+    ///   *-*-freebsd
+    ///   *-*-linux
+    ///   *-*-netbsd
+    ///   *-*-openbsd
+    ///   *-*-solaris
     //------------------------------------------------------------------
     bool
     SetArchitecture (ArchitectureType arch_type, 
                      uint32_t cpu,
-                     uint32_t sub);
+                     uint32_t sub,
+                     uint32_t os = 0);
 
     //------------------------------------------------------------------
     /// Returns the byte order for the architecture specification.
@@ -441,8 +493,18 @@ public:
     GetDefaultEndian () const;
 
     //------------------------------------------------------------------
-    /// Compare an ArchSpec to another ArchSpec, requiring an exact cpu 
-    /// type match between them.  
+    /// Returns true if 'char' is a signed type by defualt in the 
+    /// architecture false otherwise
+    ///
+    /// @return True if 'char' is a signed type by default on the
+    ///         architecture and false otherwise.
+    //------------------------------------------------------------------
+    bool
+    CharIsSignedByDefault () const;
+
+    //------------------------------------------------------------------
+    /// Compare an ArchSpec to another ArchSpec, requiring an exact cpu
+    /// type match between them.
     /// e.g. armv7s is not an exact match with armv7 - this would return false
     ///
     /// @return true if the two ArchSpecs match.

@@ -28,9 +28,10 @@
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/PseudoTerminal.h"
 
-
+#include "Plugins/Process/POSIX/CrashReason.h"
 #include "POSIXThread.h"
 #include "ProcessFreeBSD.h"
 #include "ProcessPOSIXLog.h"
@@ -107,10 +108,8 @@ PtraceWrapper(int req, lldb::pid_t pid, void *addr, int data,
         if (req == PT_GETREGS) {
             struct reg *r = (struct reg *) addr;
 
-            log->Printf("PT_GETREGS: ip=0x%lx", r->r_rip);
-            log->Printf("PT_GETREGS: sp=0x%lx", r->r_rsp);
-            log->Printf("PT_GETREGS: bp=0x%lx", r->r_rbp);
-            log->Printf("PT_GETREGS: ax=0x%lx", r->r_rax);
+            log->Printf("PT_GETREGS: rip=0x%lx rsp=0x%lx rbp=0x%lx rax=0x%lx",
+                        r->r_rip, r->r_rsp, r->r_rbp, r->r_rax);
         }
         if (req == PT_GETDBREGS || req == PT_SETDBREGS) {
             struct dbreg *r = (struct dbreg *) addr;
@@ -770,17 +769,17 @@ ProcessMonitor::LaunchArgs::LaunchArgs(ProcessMonitor *monitor,
                                        lldb_private::Module *module,
                                        char const **argv,
                                        char const **envp,
-                                       const char *stdin_path,
-                                       const char *stdout_path,
-                                       const char *stderr_path,
-                                       const char *working_dir)
+                                       const FileSpec &stdin_file_spec,
+                                       const FileSpec &stdout_file_spec,
+                                       const FileSpec &stderr_file_spec,
+                                       const FileSpec &working_dir)
     : OperationArgs(monitor),
       m_module(module),
       m_argv(argv),
       m_envp(envp),
-      m_stdin_path(stdin_path),
-      m_stdout_path(stdout_path),
-      m_stderr_path(stderr_path),
+      m_stdin_file_spec(stdin_file_spec),
+      m_stdout_file_spec(stdout_file_spec),
+      m_stderr_file_spec(stderr_file_spec),
       m_working_dir(working_dir) { }
 
 ProcessMonitor::LaunchArgs::~LaunchArgs()
@@ -809,10 +808,10 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
                                Module *module,
                                const char *argv[],
                                const char *envp[],
-                               const char *stdin_path,
-                               const char *stdout_path,
-                               const char *stderr_path,
-                               const char *working_dir,
+                               const FileSpec &stdin_file_spec,
+                               const FileSpec &stdout_file_spec,
+                               const FileSpec &stderr_file_spec,
+                               const FileSpec &working_dir,
                                const lldb_private::ProcessLaunchInfo & /* launch_info */,
                                lldb_private::Error &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
@@ -821,8 +820,10 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
       m_operation(0)
 {
     std::unique_ptr<LaunchArgs> args(new LaunchArgs(this, module, argv, envp,
-                                     stdin_path, stdout_path, stderr_path,
-                                     working_dir));
+                                                    stdin_file_spec,
+                                                    stdout_file_spec,
+                                                    stderr_file_spec,
+                                                    working_dir));
     
 
     sem_init(&m_operation_pending, 0, 0);
@@ -953,15 +954,15 @@ ProcessMonitor::Launch(LaunchArgs *args)
     ProcessFreeBSD &process = monitor->GetProcess();
     const char **argv = args->m_argv;
     const char **envp = args->m_envp;
-    const char *stdin_path = args->m_stdin_path;
-    const char *stdout_path = args->m_stdout_path;
-    const char *stderr_path = args->m_stderr_path;
-    const char *working_dir = args->m_working_dir;
+    const FileSpec &stdin_file_spec = args->m_stdin_file_spec;
+    const FileSpec &stdout_file_spec = args->m_stdout_file_spec;
+    const FileSpec &stderr_file_spec = args->m_stderr_file_spec;
+    const FileSpec &working_dir = args->m_working_dir;
 
     lldb_utility::PseudoTerminal terminal;
     const size_t err_len = 1024;
     char err_str[err_len];
-    lldb::pid_t pid;
+    ::pid_t pid;
 
     // Propagate the environment if one is not supplied.
     if (envp == NULL || envp[0] == NULL)
@@ -992,6 +993,11 @@ ProcessMonitor::Launch(LaunchArgs *args)
         if (PTRACE(PT_TRACE_ME, 0, NULL, 0) < 0)
             exit(ePtraceFailed);
 
+        // terminal has already dupped the tty descriptors to stdin/out/err.
+        // This closes original fd from which they were copied (and avoids
+        // leaking descriptors to the debugged process.
+        terminal.CloseSlaveFileDescriptor();
+
         // Do not inherit setgid powers.
         if (setgid(getgid()) != 0)
             exit(eSetGidFailed);
@@ -1003,22 +1009,21 @@ ProcessMonitor::Launch(LaunchArgs *args)
         //
         // FIXME: If two or more of the paths are the same we needlessly open
         // the same file multiple times.
-        if (stdin_path != NULL && stdin_path[0])
-            if (!DupDescriptor(stdin_path, STDIN_FILENO, O_RDONLY))
+        if (stdin_file_spec)
+            if (!DupDescriptor(stdin_file_spec, STDIN_FILENO, O_RDONLY))
                 exit(eDupStdinFailed);
 
-        if (stdout_path != NULL && stdout_path[0])
-            if (!DupDescriptor(stdout_path, STDOUT_FILENO, O_WRONLY | O_CREAT))
+        if (stdout_file_spec)
+            if (!DupDescriptor(stdout_file_spec, STDOUT_FILENO, O_WRONLY | O_CREAT))
                 exit(eDupStdoutFailed);
 
-        if (stderr_path != NULL && stderr_path[0])
-            if (!DupDescriptor(stderr_path, STDERR_FILENO, O_WRONLY | O_CREAT))
+        if (stderr_file_spec)
+            if (!DupDescriptor(stderr_file_spec, STDERR_FILENO, O_WRONLY | O_CREAT))
                 exit(eDupStderrFailed);
 
         // Change working directory
-        if (working_dir != NULL && working_dir[0])
-          if (0 != ::chdir(working_dir))
-              exit(eChdirFailed);
+        if (working_dir && 0 != ::chdir(working_dir.GetCString()))
+            exit(eChdirFailed);
 
         // Execute.  We should never return.
         execve(argv[0],
@@ -1304,168 +1309,20 @@ ProcessMonitor::MonitorSignal(ProcessMonitor *monitor,
     if (log)
         log->Printf ("ProcessMonitor::%s() received signal %s", __FUNCTION__, monitor->m_process->GetUnixSignals().GetSignalAsCString (signo));
 
-    if (signo == SIGSEGV) {
+    switch (signo)
+    {
+    case SIGSEGV:
+    case SIGILL:
+    case SIGFPE:
+    case SIGBUS:
         lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGSEGV(info);
-        return ProcessMessage::Crash(tid, reason, signo, fault_addr);
-    }
-
-    if (signo == SIGILL) {
-        lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGILL(info);
-        return ProcessMessage::Crash(tid, reason, signo, fault_addr);
-    }
-
-    if (signo == SIGFPE) {
-        lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGFPE(info);
-        return ProcessMessage::Crash(tid, reason, signo, fault_addr);
-    }
-
-    if (signo == SIGBUS) {
-        lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGBUS(info);
+        const auto reason = GetCrashReason(*info);
         return ProcessMessage::Crash(tid, reason, signo, fault_addr);
     }
 
     // Everything else is "normal" and does not require any special action on
     // our part.
     return ProcessMessage::Signal(tid, signo);
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGSEGV(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGSEGV);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code) 
-    {
-    default:
-        assert(false && "unexpected si_code for SIGSEGV");
-        break;
-    case SEGV_MAPERR:
-        reason = ProcessMessage::eInvalidAddress;
-        break;
-    case SEGV_ACCERR:
-        reason = ProcessMessage::ePrivilegedAddress;
-        break;
-    }
-        
-    return reason;
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGILL(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGILL);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code)
-    {
-    default:
-        assert(false && "unexpected si_code for SIGILL");
-        break;
-    case ILL_ILLOPC:
-        reason = ProcessMessage::eIllegalOpcode;
-        break;
-    case ILL_ILLOPN:
-        reason = ProcessMessage::eIllegalOperand;
-        break;
-    case ILL_ILLADR:
-        reason = ProcessMessage::eIllegalAddressingMode;
-        break;
-    case ILL_ILLTRP:
-        reason = ProcessMessage::eIllegalTrap;
-        break;
-    case ILL_PRVOPC:
-        reason = ProcessMessage::ePrivilegedOpcode;
-        break;
-    case ILL_PRVREG:
-        reason = ProcessMessage::ePrivilegedRegister;
-        break;
-    case ILL_COPROC:
-        reason = ProcessMessage::eCoprocessorError;
-        break;
-    case ILL_BADSTK:
-        reason = ProcessMessage::eInternalStackError;
-        break;
-    }
-
-    return reason;
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGFPE(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGFPE);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code)
-    {
-    default:
-        assert(false && "unexpected si_code for SIGFPE");
-        break;
-    case FPE_INTDIV:
-        reason = ProcessMessage::eIntegerDivideByZero;
-        break;
-    case FPE_INTOVF:
-        reason = ProcessMessage::eIntegerOverflow;
-        break;
-    case FPE_FLTDIV:
-        reason = ProcessMessage::eFloatDivideByZero;
-        break;
-    case FPE_FLTOVF:
-        reason = ProcessMessage::eFloatOverflow;
-        break;
-    case FPE_FLTUND:
-        reason = ProcessMessage::eFloatUnderflow;
-        break;
-    case FPE_FLTRES:
-        reason = ProcessMessage::eFloatInexactResult;
-        break;
-    case FPE_FLTINV:
-        reason = ProcessMessage::eFloatInvalidOperation;
-        break;
-    case FPE_FLTSUB:
-        reason = ProcessMessage::eFloatSubscriptRange;
-        break;
-    }
-
-    return reason;
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGBUS(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGBUS);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code)
-    {
-    default:
-        assert(false && "unexpected si_code for SIGBUS");
-        break;
-    case BUS_ADRALN:
-        reason = ProcessMessage::eIllegalAlignment;
-        break;
-    case BUS_ADRERR:
-        reason = ProcessMessage::eIllegalAddress;
-        break;
-    case BUS_OBJERR:
-        reason = ProcessMessage::eHardwareError;
-        break;
-    }
-
-    return reason;
 }
 
 void
@@ -1697,14 +1554,17 @@ ProcessMonitor::Detach(lldb::tid_t tid)
 }    
 
 bool
-ProcessMonitor::DupDescriptor(const char *path, int fd, int flags)
+ProcessMonitor::DupDescriptor(const FileSpec &file_spec, int fd, int flags)
 {
-    int target_fd = open(path, flags, 0666);
+    int target_fd = open(file_spec.GetCString(), flags, 0666);
 
     if (target_fd == -1)
         return false;
 
-    return (dup2(target_fd, fd) == -1) ? false : true;
+    if (dup2(target_fd, fd) == -1)
+        return false;
+
+    return (close(target_fd) == -1) ? false : true;
 }
 
 void
@@ -1725,11 +1585,10 @@ ProcessMonitor::StopMonitor()
     StopOpThread();
     sem_destroy(&m_operation_pending);
     sem_destroy(&m_operation_done);
-
-    // Note: ProcessPOSIX passes the m_terminal_fd file descriptor to
-    // Process::SetSTDIOFileDescriptor, which in turn transfers ownership of
-    // the descriptor to a ConnectionFileDescriptor object.  Consequently
-    // even though still has the file descriptor, we shouldn't close it here.
+    if (m_terminal_fd >= 0) {
+        close(m_terminal_fd);
+        m_terminal_fd = -1;
+    }
 }
 
 // FIXME: On Linux, when a new thread is created, we receive to notifications,

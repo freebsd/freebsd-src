@@ -224,6 +224,7 @@ public:
         eCommandTypesBuiltin = 0x0001,  // native commands such as "frame"
         eCommandTypesUserDef = 0x0002,  // scripted commands
         eCommandTypesAliases = 0x0004,  // aliases such as "po"
+        eCommandTypesHidden  = 0x0008,  // commands prefixed with an underscore
         eCommandTypesAllThem = 0xFFFF   // all commands
     };
 
@@ -431,6 +432,11 @@ public:
                   StreamString &help_string);
 
     void
+    OutputFormattedHelpText (Stream &strm,
+                             const char *prefix,
+                             const char *help_text);
+
+    void
     OutputFormattedHelpText (Stream &stream,
                              const char *command_word,
                              const char *separator,
@@ -607,6 +613,9 @@ public:
                                     bool asynchronously,
                                     void *baton);
 
+    const char *
+    GetCommandPrefix ();
+
     //------------------------------------------------------------------
     // Properties
     //------------------------------------------------------------------
@@ -615,6 +624,12 @@ public:
     
     bool
     GetPromptOnQuit () const;
+
+    void
+    SetPromptOnQuit (bool b);
+
+    void
+    ResolveCommand(const char *command_line, CommandReturnObject &result);
 
     bool
     GetStopCmdSourceOnError () const;
@@ -675,6 +690,13 @@ private:
     
     Error
     PreprocessCommand (std::string &command);
+
+    // Completely resolves aliases and abbreviations, returning a pointer to the
+    // final command object and updating command_line to the fully substituted
+    // and translated command.
+    CommandObject *
+    ResolveCommandImpl(std::string &command_line, CommandReturnObject &result);
+
 
     Debugger &m_debugger;                       // The debugger session that this interpreter is associated with
     ExecutionContextRef m_exe_ctx_ref;          // The current execution context to use when handling commands

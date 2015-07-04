@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLogMediumFile.h
-//
-// Overview:    CMICmnLogMediumFile interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -55,6 +43,7 @@ class CMICmnLogMediumFile : public CMICmnBase, public CMICmnLog::IMedium
     bool IsOk(void) const;
     bool IsFileExist(void) const;
     const CMIUtilString &GetLineReturn(void) const;
+    bool SetDirectory(const CMIUtilString &vPath);
 
     // Overridden:
   public:
@@ -77,14 +66,16 @@ class CMICmnLogMediumFile : public CMICmnBase, public CMICmnLog::IMedium
     bool FileFormFileNamePath(void);
     CMIUtilString MassagedData(const CMIUtilString &vData, const CMICmnLog::ELogVerbosity veType);
     bool FileWriteHeader(void);
-    MIchar ConvertLogVerbosityTypeToId(const CMICmnLog::ELogVerbosity veType) const;
+    char ConvertLogVerbosityTypeToId(const CMICmnLog::ELogVerbosity veType) const;
     CMIUtilString ConvertCr(const CMIUtilString &vData) const;
 
     // Attributes:
   private:
     const CMIUtilString m_constThisMediumName;
-    const CMIUtilString m_constMediumFileName;
+    const CMIUtilString m_constMediumFileNameFormat;
     //
+    CMIUtilString m_strMediumFileName;
+    CMIUtilString m_strMediumFileDirectory;
     CMIUtilString m_fileNamePath;
     MIuint m_eVerbosityType;
     CMIUtilString m_strDate;

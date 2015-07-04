@@ -8,8 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 
-#include "lldb/lldb-python.h"
-
 #include <string>
 
 #include "lldb/Breakpoint/BreakpointLocation.h"
@@ -167,6 +165,17 @@ void
 IOHandler::WaitForPop ()
 {
     m_popped.WaitForValueEqualTo(true);
+}
+
+void
+IOHandlerStack::PrintAsync (Stream *stream, const char *s, size_t len)
+{
+    if (stream)
+    {
+        Mutex::Locker locker (m_mutex);
+        if (m_top)
+            m_top->PrintAsync (stream, s, len);
+    }
 }
 
 IOHandlerConfirm::IOHandlerConfirm (Debugger &debugger,
@@ -380,7 +389,8 @@ IOHandlerEditline::IOHandlerEditline (Debugger &debugger,
     m_curr_line_idx (UINT32_MAX),
     m_multi_line (multi_line),
     m_color_prompts (color_prompts),
-    m_interrupt_exits (true)
+    m_interrupt_exits (true),
+    m_editing (false)
 {
     SetPrompt(prompt);
 
@@ -474,6 +484,7 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
             char buffer[256];
             bool done = false;
             bool got_line = false;
+            m_editing = true;
             while (!done)
             {
                 if (fgets(buffer, sizeof(buffer), in) == NULL)
@@ -508,6 +519,7 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
                     line.append(buffer, buffer_len);
                 }
             }
+            m_editing = false;
             // We might have gotten a newline on a line by itself
             // make sure to return true in this case.
             return got_line;
@@ -737,47 +749,11 @@ IOHandlerEditline::Run ()
 }
 
 void
-IOHandlerEditline::Hide ()
-{
-#ifndef LLDB_DISABLE_LIBEDIT
-    if (m_editline_ap)
-        m_editline_ap->Hide();
-#endif
-}
-
-
-void
-IOHandlerEditline::Refresh ()
-{
-#ifndef LLDB_DISABLE_LIBEDIT
-    if (m_editline_ap)
-    {
-        m_editline_ap->Refresh();
-    }
-    else
-    {
-#endif
-        const char *prompt = GetPrompt();
-        if (prompt && prompt[0])
-        {
-            FILE *out = GetOutputFILE();
-            if (out)
-            {
-                ::fprintf(out, "%s", prompt);
-                ::fflush(out);
-            }
-        }
-#ifndef LLDB_DISABLE_LIBEDIT
-    }
-#endif
-}
-
-void
 IOHandlerEditline::Cancel ()
 {
 #ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
-        m_editline_ap->Interrupt ();
+        m_editline_ap->Cancel ();
 #endif
 }
 
@@ -802,6 +778,17 @@ IOHandlerEditline::GotEOF()
     if (m_editline_ap)
         m_editline_ap->Interrupt();
 #endif
+}
+
+void
+IOHandlerEditline::PrintAsync (Stream *stream, const char *s, size_t len)
+{
+#ifndef LLDB_DISABLE_LIBEDIT
+    if (m_editline_ap)
+        m_editline_ap->PrintAsync(stream, s, len);
+    else
+#endif
+        IOHandler::PrintAsync(stream, s, len);
 }
 
 // we may want curses to be disabled for some builds
@@ -1080,7 +1067,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         ~WindowDelegate()
         {
         }
-        
+
         virtual bool
         WindowDelegateDraw (Window &window, bool force)
         {
@@ -1112,14 +1099,13 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
     public:
         HelpDialogDelegate (const char *text, KeyHelp *key_help_array);
         
-        virtual
-        ~HelpDialogDelegate();
+        ~HelpDialogDelegate() override;
         
-        virtual bool
-        WindowDelegateDraw (Window &window, bool force);
+        bool
+        WindowDelegateDraw (Window &window, bool force) override;
         
-        virtual HandleCharResult
-        WindowDelegateHandleChar (Window &window, int key);
+        HandleCharResult
+        WindowDelegateHandleChar (Window &window, int key) override;
         
         size_t
         GetNumLines() const
@@ -1787,8 +1773,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
               int key_value,
               uint64_t identifier);
         
-        virtual ~
-        Menu ()
+        ~Menu () override
         {
         }
 
@@ -1816,11 +1801,11 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         void
         DrawMenuTitle (Window &window, bool highlight);
 
-        virtual bool
-        WindowDelegateDraw (Window &window, bool force);
+        bool
+        WindowDelegateDraw (Window &window, bool force) override;
         
-        virtual HandleCharResult
-        WindowDelegateHandleChar (Window &window, int key);
+        HandleCharResult
+        WindowDelegateHandleChar (Window &window, int key) override;
 
         MenuActionResult
         ActionPrivate (Menu &menu)
@@ -2924,8 +2909,6 @@ public:
             return this;
         if (m_children.empty())
             return NULL;
-        if (static_cast<uint32_t>(m_children.back().m_row_idx) < row_idx)
-            return NULL;
         if (IsExpanded())
         {
             for (auto &item : m_children)
@@ -3005,8 +2988,8 @@ public:
         return m_max_y - m_min_y;
     }
 
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         ExecutionContext exe_ctx (m_debugger.GetCommandInterpreter().GetExecutionContext());
         Process *process = exe_ctx.GetProcessPtr();
@@ -3071,14 +3054,14 @@ public:
     }
     
     
-    virtual const char *
-    WindowDelegateGetHelpText ()
+    const char *
+    WindowDelegateGetHelpText () override
     {
         return "Thread window keyboard shortcuts:";
     }
     
-    virtual KeyHelp *
-    WindowDelegateGetKeyHelp ()
+    KeyHelp *
+    WindowDelegateGetKeyHelp () override
     {
         static curses::KeyHelp g_source_view_key_help[] = {
             { KEY_UP, "Select previous item" },
@@ -3096,8 +3079,8 @@ public:
         return g_source_view_key_help;
     }
     
-    virtual HandleCharResult
-    WindowDelegateHandleChar (Window &window, int c)
+    HandleCharResult
+    WindowDelegateHandleChar (Window &window, int c) override
     {
         switch(c)
         {
@@ -3217,14 +3200,16 @@ public:
     FrameTreeDelegate () :
         TreeDelegate()
     {
+        FormatEntity::Parse ("frame #${frame.index}: {${function.name}${function.pc-offset}}}",
+                             m_format);
     }
     
-    virtual ~FrameTreeDelegate()
+    ~FrameTreeDelegate() override
     {
     }
     
-    virtual void
-    TreeDelegateDrawTreeItem (TreeItem &item, Window &window)
+    void
+    TreeDelegateDrawTreeItem (TreeItem &item, Window &window) override
     {
         Thread* thread = (Thread*)item.GetUserData();
         if (thread)
@@ -3236,9 +3221,7 @@ public:
                 StreamString strm;
                 const SymbolContext &sc = frame_sp->GetSymbolContext(eSymbolContextEverything);
                 ExecutionContext exe_ctx (frame_sp);
-                //const char *frame_format = "frame #${frame.index}: ${module.file.basename}{`${function.name}${function.pc-offset}}}";
-                const char *frame_format = "frame #${frame.index}: {${function.name}${function.pc-offset}}}";
-                if (Debugger::FormatPrompt (frame_format, &sc, &exe_ctx, NULL, strm))
+                if (FormatEntity::Format(m_format, strm, &sc, &exe_ctx, NULL, NULL, false, false))
                 {
                     int right_pad = 1;
                     window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
@@ -3246,14 +3229,14 @@ public:
             }
         }
     }
-    virtual void
-    TreeDelegateGenerateChildren (TreeItem &item)
+    void
+    TreeDelegateGenerateChildren (TreeItem &item)  override
     {
         // No children for frames yet...
     }
     
-    virtual bool
-    TreeDelegateItemSelected (TreeItem &item)
+    bool
+    TreeDelegateItemSelected (TreeItem &item) override
     {
         Thread* thread = (Thread*)item.GetUserData();
         if (thread)
@@ -3265,6 +3248,8 @@ public:
         }
         return false;
     }
+protected:
+    FormatEntity::Entry m_format;
 };
 
 class ThreadTreeDelegate : public TreeDelegate
@@ -3276,10 +3261,11 @@ public:
         m_tid (LLDB_INVALID_THREAD_ID),
         m_stop_id (UINT32_MAX)
     {
+        FormatEntity::Parse ("thread #${thread.index}: tid = ${thread.id}{, stop reason = ${thread.stop-reason}}",
+                             m_format);
     }
     
-    virtual
-    ~ThreadTreeDelegate()
+    ~ThreadTreeDelegate()  override
     {
     }
     
@@ -3298,24 +3284,23 @@ public:
         return ThreadSP();
     }
     
-    virtual void
-    TreeDelegateDrawTreeItem (TreeItem &item, Window &window)
+    void
+    TreeDelegateDrawTreeItem (TreeItem &item, Window &window) override
     {
         ThreadSP thread_sp = GetThread (item);
         if (thread_sp)
         {
             StreamString strm;
             ExecutionContext exe_ctx (thread_sp);
-            const char *format = "thread #${thread.index}: tid = ${thread.id}{, stop reason = ${thread.stop-reason}}";
-            if (Debugger::FormatPrompt (format, NULL, &exe_ctx, NULL, strm))
+            if (FormatEntity::Format (m_format, strm, NULL, &exe_ctx, NULL, NULL, false, false))
             {
                 int right_pad = 1;
                 window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
             }
         }
     }
-    virtual void
-    TreeDelegateGenerateChildren (TreeItem &item)
+    void
+    TreeDelegateGenerateChildren (TreeItem &item) override
     {
         ProcessSP process_sp = GetProcess ();
         if (process_sp && process_sp->IsAlive())
@@ -3352,8 +3337,8 @@ public:
         item.ClearChildren();
     }
     
-    virtual bool
-    TreeDelegateItemSelected (TreeItem &item)
+    bool
+    TreeDelegateItemSelected (TreeItem &item) override
     {
         ProcessSP process_sp = GetProcess ();
         if (process_sp && process_sp->IsAlive())
@@ -3383,6 +3368,8 @@ protected:
     std::shared_ptr<FrameTreeDelegate> m_frame_delegate_sp;
     lldb::user_id_t m_tid;
     uint32_t m_stop_id;
+    FormatEntity::Entry m_format;
+
 };
 
 class ThreadsTreeDelegate : public TreeDelegate
@@ -3394,10 +3381,11 @@ public:
         m_debugger (debugger),
         m_stop_id (UINT32_MAX)
     {
+        FormatEntity::Parse("process ${process.id}{, name = ${process.name}}",
+                            m_format);
     }
     
-    virtual
-    ~ThreadsTreeDelegate()
+    ~ThreadsTreeDelegate() override
     {
     }
     
@@ -3407,16 +3395,15 @@ public:
         return m_debugger.GetCommandInterpreter().GetExecutionContext().GetProcessSP();
     }
 
-    virtual void
-    TreeDelegateDrawTreeItem (TreeItem &item, Window &window)
+    void
+    TreeDelegateDrawTreeItem (TreeItem &item, Window &window) override
     {
         ProcessSP process_sp = GetProcess ();
         if (process_sp && process_sp->IsAlive())
         {
             StreamString strm;
             ExecutionContext exe_ctx (process_sp);
-            const char *format = "process ${process.id}{, name = ${process.name}}";
-            if (Debugger::FormatPrompt (format, NULL, &exe_ctx, NULL, strm))
+            if (FormatEntity::Format (m_format, strm, NULL, &exe_ctx, NULL, NULL, false, false))
             {
                 int right_pad = 1;
                 window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
@@ -3424,8 +3411,8 @@ public:
         }
     }
 
-    virtual void
-    TreeDelegateGenerateChildren (TreeItem &item)
+    void
+    TreeDelegateGenerateChildren (TreeItem &item) override
     {
         ProcessSP process_sp = GetProcess ();
         if (process_sp && process_sp->IsAlive())
@@ -3462,8 +3449,8 @@ public:
         item.ClearChildren();
     }
     
-    virtual bool
-    TreeDelegateItemSelected (TreeItem &item)
+    bool
+    TreeDelegateItemSelected (TreeItem &item) override
     {
         return false;
     }
@@ -3472,6 +3459,8 @@ protected:
     std::shared_ptr<ThreadTreeDelegate> m_thread_delegate_sp;
     Debugger &m_debugger;
     uint32_t m_stop_id;
+    FormatEntity::Entry m_format;
+
 };
 
 class ValueObjectListDelegate : public WindowDelegate
@@ -3502,8 +3491,7 @@ public:
         SetValues (valobj_list);
     }
     
-    virtual
-    ~ValueObjectListDelegate()
+    ~ValueObjectListDelegate() override
     {
     }
 
@@ -3521,8 +3509,8 @@ public:
             m_rows.push_back(Row(m_valobj_list.GetValueObjectAtIndex(i), NULL));
     }
     
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         m_num_rows = 0;
         m_min_x = 2;
@@ -3564,8 +3552,8 @@ public:
         return true; // Drawing handled
     }
     
-    virtual KeyHelp *
-    WindowDelegateGetKeyHelp ()
+    KeyHelp *
+    WindowDelegateGetKeyHelp () override
     {
         static curses::KeyHelp g_source_view_key_help[] = {
             { KEY_UP, "Select previous item" },
@@ -3599,8 +3587,8 @@ public:
     }
 
     
-    virtual HandleCharResult
-    WindowDelegateHandleChar (Window &window, int c)
+    HandleCharResult
+    WindowDelegateHandleChar (Window &window, int c) override
     {
         switch(c)
         {
@@ -3903,19 +3891,18 @@ public:
     {
     }
     
-    virtual
-    ~FrameVariablesWindowDelegate()
+    ~FrameVariablesWindowDelegate() override
     {
     }
     
-    virtual const char *
-    WindowDelegateGetHelpText ()
+    const char *
+    WindowDelegateGetHelpText () override
     {
         return "Frame variable window keyboard shortcuts:";
     }
     
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         ExecutionContext exe_ctx (m_debugger.GetCommandInterpreter().GetExecutionContext());
         Process *process = exe_ctx.GetProcessPtr();
@@ -3936,6 +3923,7 @@ public:
                 return true; // Don't do any updating when we are running
             }
         }
+
         
         ValueObjectList local_values;
         if (frame_block)
@@ -3951,7 +3939,18 @@ public:
                     const DynamicValueType use_dynamic = eDynamicDontRunTarget;
                     const size_t num_locals = locals->GetSize();
                     for (size_t i=0; i<num_locals; ++i)
-                        local_values.Append(frame->GetValueObjectForFrameVariable (locals->GetVariableAtIndex(i), use_dynamic));
+                    {
+                        ValueObjectSP value_sp = frame->GetValueObjectForFrameVariable (locals->GetVariableAtIndex(i), use_dynamic);
+                        if (value_sp)
+                        {
+                            ValueObjectSP synthetic_value_sp = value_sp->GetSyntheticValue();
+                            if (synthetic_value_sp)
+                                local_values.Append(synthetic_value_sp);
+                            else
+                                local_values.Append(value_sp);
+
+                        }
+                    }
                     // Update the values
                     SetValues(local_values);
                 }
@@ -3982,20 +3981,19 @@ public:
         m_debugger (debugger)
     {
     }
-    
-    virtual
+
     ~RegistersWindowDelegate()
     {
     }
     
-    virtual const char *
-    WindowDelegateGetHelpText ()
+    const char *
+    WindowDelegateGetHelpText () override
     {
         return "Register window keyboard shortcuts:";
     }
 
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         ExecutionContext exe_ctx (m_debugger.GetCommandInterpreter().GetExecutionContext());
         StackFrame *frame = exe_ctx.GetFramePtr();
@@ -4301,18 +4299,18 @@ public:
     {
     }
     
-    virtual
     ~ApplicationDelegate ()
     {
     }
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         return false; // Drawing not handled, let standard window drawing happen
     }
     
-    virtual HandleCharResult
-    WindowDelegateHandleChar (Window &window, int key)
+    HandleCharResult
+    WindowDelegateHandleChar (Window &window, int key) override
     {
         switch (key)
         {
@@ -4334,8 +4332,8 @@ public:
     }
     
     
-    virtual const char *
-    WindowDelegateGetHelpText ()
+    const char *
+    WindowDelegateGetHelpText () override
     {
         return "Welcome to the LLDB curses GUI.\n\n"
         "Press the TAB key to change the selected view.\n"
@@ -4343,8 +4341,8 @@ public:
         "Common key bindings for all views:";
     }
     
-    virtual KeyHelp *
-    WindowDelegateGetKeyHelp ()
+    KeyHelp *
+    WindowDelegateGetKeyHelp () override
     {
         static curses::KeyHelp g_source_view_key_help[] = {
             { '\t', "Select next view" },
@@ -4362,8 +4360,8 @@ public:
         return g_source_view_key_help;
     }
     
-    virtual MenuActionResult
-    MenuDelegateAction (Menu &menu)
+    MenuActionResult
+    MenuDelegateAction (Menu &menu) override
     {
         switch (menu.GetIdentifier())
         {
@@ -4422,7 +4420,7 @@ public:
                     {
                         Process *process = exe_ctx.GetProcessPtr();
                         if (process && process->IsAlive())
-                            process->Destroy();
+                            process->Destroy(false);
                     }
                 }
                 return MenuActionResult::Handled;
@@ -4635,14 +4633,16 @@ public:
     StatusBarWindowDelegate (Debugger &debugger) :
         m_debugger (debugger)
     {
+        FormatEntity::Parse("Thread: ${thread.id%tid}",
+                            m_format);
     }
     
-    virtual
     ~StatusBarWindowDelegate ()
     {
     }
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         ExecutionContext exe_ctx = m_debugger.GetCommandInterpreter().GetExecutionContext();
         Process *process = exe_ctx.GetProcessPtr();
@@ -4659,8 +4659,7 @@ public:
             if (StateIsStoppedState(state, true))
             {
                 StreamString strm;
-                const char *format = "Thread: ${thread.id%tid}";
-                if (thread && Debugger::FormatPrompt (format, NULL, &exe_ctx, NULL, strm))
+                if (thread && FormatEntity::Format (m_format, strm, NULL, &exe_ctx, NULL, NULL, false, false))
                 {
                     window.MoveCursor (40, 0);
                     window.PutCStringTruncated(strm.GetString().c_str(), 1);
@@ -4686,6 +4685,7 @@ public:
 
 protected:
     Debugger &m_debugger;
+    FormatEntity::Entry m_format;
 };
 
 class SourceFileWindowDelegate : public WindowDelegate
@@ -4713,8 +4713,7 @@ public:
     {
     }
 
-    virtual
-    ~SourceFileWindowDelegate()
+    ~SourceFileWindowDelegate() override
     {
     }
 
@@ -4730,14 +4729,14 @@ public:
         return m_max_y - m_min_y;
     }
 
-    virtual const char *
-    WindowDelegateGetHelpText ()
+    const char *
+    WindowDelegateGetHelpText () override
     {
         return "Source/Disassembly window keyboard shortcuts:";
     }
 
-    virtual KeyHelp *
-    WindowDelegateGetKeyHelp ()
+    KeyHelp *
+    WindowDelegateGetKeyHelp () override
     {
         static curses::KeyHelp g_source_view_key_help[] = {
             { KEY_RETURN, "Run to selected line with one shot breakpoint" },
@@ -4763,8 +4762,8 @@ public:
         return g_source_view_key_help;
     }
 
-    virtual bool
-    WindowDelegateDraw (Window &window, bool force)
+    bool
+    WindowDelegateDraw (Window &window, bool force) override
     {
         ExecutionContext exe_ctx = m_debugger.GetCommandInterpreter().GetExecutionContext();
         Process *process = exe_ctx.GetProcessPtr();
@@ -5249,8 +5248,8 @@ public:
         return 0;
     }
 
-    virtual HandleCharResult
-    WindowDelegateHandleChar (Window &window, int c)
+    HandleCharResult
+    WindowDelegateHandleChar (Window &window, int c) override
     {
         const uint32_t num_visible_lines = NumVisibleLines();
         const size_t num_lines = GetNumLines ();
@@ -5314,7 +5313,8 @@ public:
                                                                                       eLazyBoolCalculate,        // Check inlines using global setting
                                                                                       eLazyBoolCalculate,        // Skip prologue using global setting,
                                                                                       false,                     // internal
-                                                                                      false);                    // request_hardware
+                                                                                      false,                     // request_hardware
+                                                                                      eLazyBoolCalculate);       // move_to_nearest_code
                         // Make breakpoint one shot
                         bp_sp->GetOptions()->SetOneShot(true);
                         exe_ctx.GetProcessRef().Resume();
@@ -5349,7 +5349,8 @@ public:
                                                                                       eLazyBoolCalculate,        // Check inlines using global setting
                                                                                       eLazyBoolCalculate,        // Skip prologue using global setting,
                                                                                       false,                     // internal
-                                                                                      false);                    // request_hardware
+                                                                                      false,                     // request_hardware
+                                                                                      eLazyBoolCalculate);       // move_to_nearest_code
                     }
                 }
                 else if (m_selected_line < GetNumDisassemblyLines())
@@ -5380,7 +5381,7 @@ public:
                 {
                     ExecutionContext exe_ctx = m_debugger.GetCommandInterpreter().GetExecutionContext();
                     if (exe_ctx.HasProcessScope())
-                        exe_ctx.GetProcessRef().Destroy();
+                        exe_ctx.GetProcessRef().Destroy(false);
                 }
                 return eKeyHandled;
 
@@ -5598,17 +5599,6 @@ IOHandlerCursesGUI::Run ()
 IOHandlerCursesGUI::~IOHandlerCursesGUI ()
 {
     
-}
-
-void
-IOHandlerCursesGUI::Hide ()
-{
-}
-
-
-void
-IOHandlerCursesGUI::Refresh ()
-{
 }
 
 void

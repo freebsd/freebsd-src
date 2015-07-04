@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectPlatform.h"
 
 // C Includes
@@ -19,6 +17,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandOptionValidators.h"
@@ -104,7 +103,7 @@ public:
             case 'v':
             {
                 bool ok;
-                uint32_t perms = Args::StringToUInt32(option_arg, 777, 8, &ok);
+                uint32_t perms = StringConvert::ToUInt32(option_arg, 777, 8, &ok);
                 if (!ok)
                     error.SetErrorStringWithFormat("invalid value for permissions: %s", option_arg);
                 else
@@ -248,6 +247,8 @@ protected:
                 PlatformSP platform_sp (m_platform_options.CreatePlatformWithOptions (m_interpreter, ArchSpec(), select, error, platform_arch));
                 if (platform_sp)
                 {
+                    m_interpreter.GetDebugger().GetPlatformList().SetSelectedPlatform(platform_sp);
+
                     platform_sp->GetStatus (result.GetOutputStream());
                     result.SetStatus (eReturnStatusSuccessFinishResult);
                 }
@@ -555,7 +556,7 @@ protected:
         if (platform_sp)
         {
             if (m_option_working_dir.GetOptionValue().OptionWasSet())
-                platform_sp->SetWorkingDirectory (ConstString(m_option_working_dir.GetOptionValue().GetCurrentValue().GetPath().c_str()));
+                platform_sp->SetWorkingDirectory(m_option_working_dir.GetOptionValue().GetCurrentValue());
         }
         else
         {
@@ -569,10 +570,7 @@ protected:
     GetOptions ()
     {
         if (m_options.DidFinalize() == false)
-        {
-            m_options.Append(new OptionPermissions());
             m_options.Finalize();
-        }
         return &m_options;
     }
 protected:
@@ -613,12 +611,12 @@ public:
             std::string cmd_line;
             args.GetCommandString(cmd_line);
             uint32_t mode;
-            const OptionPermissions* options_permissions = (OptionPermissions*)m_options.GetGroupWithOption('r');
+            const OptionPermissions* options_permissions = (const OptionPermissions*)m_options.GetGroupWithOption('r');
             if (options_permissions)
                 mode = options_permissions->m_permissions;
             else
                 mode = lldb::eFilePermissionsUserRWX | lldb::eFilePermissionsGroupRWX | lldb::eFilePermissionsWorldRX;
-            Error error = platform_sp->MakeDirectory(cmd_line.c_str(), mode);
+            Error error = platform_sp->MakeDirectory(FileSpec{cmd_line, false}, mode);
             if (error.Success())
             {
                 result.SetStatus (eReturnStatusSuccessFinishResult);
@@ -682,7 +680,7 @@ public:
             std::string cmd_line;
             args.GetCommandString(cmd_line);
             mode_t perms;
-            const OptionPermissions* options_permissions = (OptionPermissions*)m_options.GetGroupWithOption('r');
+            const OptionPermissions* options_permissions = (const OptionPermissions*)m_options.GetGroupWithOption('r');
             if (options_permissions)
                 perms = options_permissions->m_permissions;
             else
@@ -751,7 +749,7 @@ public:
         {
             std::string cmd_line;
             args.GetCommandString(cmd_line);
-            const lldb::user_id_t fd = Args::StringToUInt64(cmd_line.c_str(), UINT64_MAX);
+            const lldb::user_id_t fd = StringConvert::ToUInt64(cmd_line.c_str(), UINT64_MAX);
             Error error;
             bool success = platform_sp->CloseFile(fd, error);
             if (success)
@@ -803,7 +801,7 @@ public:
         {
             std::string cmd_line;
             args.GetCommandString(cmd_line);
-            const lldb::user_id_t fd = Args::StringToUInt64(cmd_line.c_str(), UINT64_MAX);
+            const lldb::user_id_t fd = StringConvert::ToUInt64(cmd_line.c_str(), UINT64_MAX);
             std::string buffer(m_options.m_count,0);
             Error error;
             uint32_t retcode = platform_sp->ReadFile(fd, m_options.m_offset, &buffer[0], m_options.m_count, error);
@@ -849,12 +847,12 @@ protected:
             switch (short_option)
             {
                 case 'o':
-                    m_offset = Args::StringToUInt32(option_arg, 0, 0, &success);
+                    m_offset = StringConvert::ToUInt32(option_arg, 0, 0, &success);
                     if (!success)
                         error.SetErrorStringWithFormat("invalid offset: '%s'", option_arg);
                     break;
                 case 'c':
-                    m_count = Args::StringToUInt32(option_arg, 0, 0, &success);
+                    m_count = StringConvert::ToUInt32(option_arg, 0, 0, &success);
                     if (!success)
                         error.SetErrorStringWithFormat("invalid offset: '%s'", option_arg);
                     break;
@@ -930,7 +928,7 @@ public:
             std::string cmd_line;
             args.GetCommandString(cmd_line);
             Error error;
-            const lldb::user_id_t fd = Args::StringToUInt64(cmd_line.c_str(), UINT64_MAX);
+            const lldb::user_id_t fd = StringConvert::ToUInt64(cmd_line.c_str(), UINT64_MAX);
             uint32_t retcode = platform_sp->WriteFile (fd,
                                                        m_options.m_offset,
                                                        &m_options.m_data[0],
@@ -977,7 +975,7 @@ protected:
             switch (short_option)
             {
                 case 'o':
-                    m_offset = Args::StringToUInt32(option_arg, 0, 0, &success);
+                    m_offset = StringConvert::ToUInt32(option_arg, 0, 0, &success);
                     if (!success)
                         error.SetErrorStringWithFormat("invalid offset: '%s'", option_arg);
                     break;
@@ -1198,7 +1196,7 @@ public:
             }
             else
             {
-                result.AppendMessageWithFormat("Eroor getting file size of %s (remote)\n", remote_file_path.c_str());
+                result.AppendMessageWithFormat("Error getting file size of %s (remote)\n", remote_file_path.c_str());
                 result.SetStatus (eReturnStatusFailed);
             }
         }
@@ -1238,8 +1236,8 @@ public:
         const char* dst = args.GetArgumentAtIndex(1);
 
         FileSpec src_fs(src, true);
-        FileSpec dst_fs(dst, false);
-        
+        FileSpec dst_fs(dst ? dst : src_fs.GetFilename().GetCString(), false);
+
         PlatformSP platform_sp (m_interpreter.GetDebugger().GetPlatformList().GetSelectedPlatform());
         if (platform_sp)
         {
@@ -1274,7 +1272,7 @@ public:
                              "platform process launch",
                              "Launch a new process on a remote platform.",
                              "platform process launch program",
-                             eFlagRequiresTarget | eFlagTryTargetAPILock),
+                             eCommandRequiresTarget | eCommandTryTargetAPILock),
         m_options (interpreter)
     {
     }
@@ -1537,37 +1535,37 @@ protected:
             switch (short_option)
             {
                 case 'p':
-                    match_info.GetProcessInfo().SetProcessID (Args::StringToUInt32 (option_arg, LLDB_INVALID_PROCESS_ID, 0, &success));
+                    match_info.GetProcessInfo().SetProcessID (StringConvert::ToUInt32 (option_arg, LLDB_INVALID_PROCESS_ID, 0, &success));
                     if (!success)
                         error.SetErrorStringWithFormat("invalid process ID string: '%s'", option_arg);
                     break;
                 
                 case 'P':
-                    match_info.GetProcessInfo().SetParentProcessID (Args::StringToUInt32 (option_arg, LLDB_INVALID_PROCESS_ID, 0, &success));
+                    match_info.GetProcessInfo().SetParentProcessID (StringConvert::ToUInt32 (option_arg, LLDB_INVALID_PROCESS_ID, 0, &success));
                     if (!success)
                         error.SetErrorStringWithFormat("invalid parent process ID string: '%s'", option_arg);
                     break;
 
                 case 'u':
-                    match_info.GetProcessInfo().SetUserID (Args::StringToUInt32 (option_arg, UINT32_MAX, 0, &success));
+                    match_info.GetProcessInfo().SetUserID (StringConvert::ToUInt32 (option_arg, UINT32_MAX, 0, &success));
                     if (!success)
                         error.SetErrorStringWithFormat("invalid user ID string: '%s'", option_arg);
                     break;
 
                 case 'U':
-                    match_info.GetProcessInfo().SetEffectiveUserID (Args::StringToUInt32 (option_arg, UINT32_MAX, 0, &success));
+                    match_info.GetProcessInfo().SetEffectiveUserID (StringConvert::ToUInt32 (option_arg, UINT32_MAX, 0, &success));
                     if (!success)
                         error.SetErrorStringWithFormat("invalid effective user ID string: '%s'", option_arg);
                     break;
 
                 case 'g':
-                    match_info.GetProcessInfo().SetGroupID (Args::StringToUInt32 (option_arg, UINT32_MAX, 0, &success));
+                    match_info.GetProcessInfo().SetGroupID (StringConvert::ToUInt32 (option_arg, UINT32_MAX, 0, &success));
                     if (!success)
                         error.SetErrorStringWithFormat("invalid group ID string: '%s'", option_arg);
                     break;
 
                 case 'G':
-                    match_info.GetProcessInfo().SetEffectiveGroupID (Args::StringToUInt32 (option_arg, UINT32_MAX, 0, &success));
+                    match_info.GetProcessInfo().SetEffectiveGroupID (StringConvert::ToUInt32 (option_arg, UINT32_MAX, 0, &success));
                     if (!success)
                         error.SetErrorStringWithFormat("invalid effective group ID string: '%s'", option_arg);
                     break;
@@ -1730,7 +1728,7 @@ protected:
                     for (size_t i=0; i<argc; ++ i)
                     {
                         const char *arg = args.GetArgumentAtIndex(i);
-                        lldb::pid_t pid = Args::StringToUInt32 (arg, LLDB_INVALID_PROCESS_ID, 0, &success);
+                        lldb::pid_t pid = StringConvert::ToUInt32 (arg, LLDB_INVALID_PROCESS_ID, 0, &success);
                         if (success)
                         {
                             ProcessInstanceInfo proc_info;
@@ -1805,7 +1803,7 @@ public:
             {
                 case 'p':   
                 {
-                    lldb::pid_t pid = Args::StringToUInt32 (option_arg, LLDB_INVALID_PROCESS_ID, 0, &success);
+                    lldb::pid_t pid = StringConvert::ToUInt32 (option_arg, LLDB_INVALID_PROCESS_ID, 0, &success);
                     if (!success || pid == LLDB_INVALID_PROCESS_ID)
                     {
                         error.SetErrorStringWithFormat("invalid process ID '%s'", option_arg);
@@ -1972,7 +1970,7 @@ CommandObjectPlatformProcessAttach::CommandOptions::g_option_table[] =
     { LLDB_OPT_SET_ALL, false, "plugin",  'P'  , OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePlugin,        "Name of the process plugin you want to use."},
     { LLDB_OPT_SET_1,   false, "pid",     'p'  , OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePid,           "The process ID of an existing process to attach to."},
     { LLDB_OPT_SET_2,   false, "name",    'n'  , OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeProcessName,  "The name of the process to attach to."},
-    { LLDB_OPT_SET_2,   false, "waitfor", 'w'  , OptionParser::eNoArgument      , NULL, NULL, 0, eArgTypeNone,              "Wait for the the process with <process-name> to launch."},
+    { LLDB_OPT_SET_2,   false, "waitfor", 'w'  , OptionParser::eNoArgument      , NULL, NULL, 0, eArgTypeNone,              "Wait for the process with <process-name> to launch."},
     { 0,                false, NULL     , 0    , 0                              , NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -2055,7 +2053,7 @@ public:
                 case 't':
                 {
                     bool success;
-                    timeout = Args::StringToUInt32(option_value, 10, 10, &success);
+                    timeout = StringConvert::ToUInt32(option_value, 10, 10, &success);
                     if (!success)
                         error.SetErrorStringWithFormat("could not convert \"%s\" to a numeric value.", option_value);
                     break;
@@ -2082,7 +2080,7 @@ public:
     CommandObjectPlatformShell (CommandInterpreter &interpreter) :
     CommandObjectRaw (interpreter, 
                       "platform shell",
-                      "Run a shell command on a the selected platform.",
+                      "Run a shell command on the selected platform.",
                       "platform shell <shell-command>",
                       0),
     m_options(interpreter)
@@ -2139,7 +2137,7 @@ public:
             
             if (end_options)
             {
-                Args args (raw_command_line, end_options - raw_command_line);
+                Args args (llvm::StringRef(raw_command_line, end_options - raw_command_line));
                 if (!ParseOptions (args, result))
                     return false;
             }
@@ -2152,7 +2150,7 @@ public:
         Error error;
         if (platform_sp)
         {
-            const char *working_dir = NULL;
+            FileSpec working_dir{};
             std::string output;
             int status = -1;
             int signo = -1;
@@ -2278,18 +2276,15 @@ CommandObjectPlatform::CommandObjectPlatform(CommandInterpreter &interpreter) :
     LoadSubCommand ("connect", CommandObjectSP (new CommandObjectPlatformConnect (interpreter)));
     LoadSubCommand ("disconnect", CommandObjectSP (new CommandObjectPlatformDisconnect (interpreter)));
     LoadSubCommand ("settings", CommandObjectSP (new CommandObjectPlatformSettings (interpreter)));
-#ifdef LLDB_CONFIGURATION_DEBUG
     LoadSubCommand ("mkdir", CommandObjectSP (new CommandObjectPlatformMkDir (interpreter)));
     LoadSubCommand ("file", CommandObjectSP (new CommandObjectPlatformFile (interpreter)));
     LoadSubCommand ("get-file", CommandObjectSP (new CommandObjectPlatformGetFile (interpreter)));
     LoadSubCommand ("get-size", CommandObjectSP (new CommandObjectPlatformGetSize (interpreter)));
     LoadSubCommand ("put-file", CommandObjectSP (new CommandObjectPlatformPutFile (interpreter)));
-#endif
     LoadSubCommand ("process", CommandObjectSP (new CommandObjectPlatformProcess (interpreter)));
     LoadSubCommand ("shell", CommandObjectSP (new CommandObjectPlatformShell (interpreter)));
     LoadSubCommand ("target-install", CommandObjectSP (new CommandObjectPlatformInstall (interpreter)));
 }
-
 
 //----------------------------------------------------------------------
 // Destructor

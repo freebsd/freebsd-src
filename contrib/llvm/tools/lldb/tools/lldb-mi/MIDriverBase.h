@@ -7,23 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDriverBase.h
-//
-// Overview:    CMIDriverBase interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
-#include <lldb/API/SBDebugger.h>
-#include <lldb/API/SBBroadcaster.h>
+#include "lldb/API/SBDebugger.h"
+#include "lldb/API/SBBroadcaster.h"
 
 // In-house headers:
 #include "MIUtilString.h"

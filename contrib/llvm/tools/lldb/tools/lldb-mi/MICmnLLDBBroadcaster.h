@@ -7,22 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBBroadcaster.h
-//
-// Overview:    CMICmnLLDBBroadcaster interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
-#include <lldb/API/SBBroadcaster.h>
+#include "lldb/API/SBBroadcaster.h"
 #include "MICmnBase.h"
 #include "MIUtilSingletonBase.h"
 

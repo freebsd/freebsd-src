@@ -58,6 +58,7 @@ class   ClangExpressionVariableList;
 class   ClangExpressionVariableList;
 class   ClangExpressionVariables;
 class   ClangFunction;
+class   ClangModulesDeclVendor;
 class   ClangPersistentVariables;
 class   ClangUserExpression;
 class   ClangUtilityFunction;
@@ -82,6 +83,7 @@ class   Debugger;
 class   Declaration;
 class   Disassembler;
 struct  DumpValueObjectOptions;
+class   DynamicCheckerFunctions;
 class   DynamicLoader;
 class   Editline;
 class   EmulateInstruction;
@@ -111,8 +113,9 @@ class   IOHandler;
 class   IOObject;
 class   IRExecutionUnit;
 class   JITLoader;
+class   JITLoaderList;
 class   LanguageRuntime;
-class   SystemRuntime;
+class   MemoryRegionInfo;
 class   LineTable;
 class   Listener;
 class   Log;
@@ -146,6 +149,8 @@ class   OptionValueEnumeration;
 class   OptionValueFileSpec;
 class   OptionValueFileSpecList;
 class   OptionValueFormat;
+class   OptionValueLanguage;
+class   OptionValueFormatEntity;
 class   OptionValuePathMappings;
 class   OptionValueProperties;
 class   OptionValueRegex;
@@ -166,11 +171,6 @@ class   ProcessInstanceInfoMatch;
 class   ProcessLaunchInfo;
 class   Property;
 struct  PropertyDefinition;
-class   PythonArray;
-class   PythonDictionary;
-class   PythonInteger;
-class   PythonObject;
-class   PythonString;
 class   RegisterCheckpoint;
 class   RegisterContext;
 class   RegisterLocation;
@@ -180,9 +180,7 @@ class   RegularExpression;
 class   Scalar;
 class   ScriptInterpreter;
 class   ScriptInterpreterLocker;
-class   ScriptInterpreterObject;
 #ifndef LLDB_DISABLE_PYTHON
-class   ScriptInterpreterPython;
 struct  ScriptSummaryFormat;
 #endif
 class   SearchFilter;
@@ -208,6 +206,7 @@ class   StreamFile;
 class   StreamString;
 class   StringList;
 struct  StringSummaryFormat;
+class   SystemRuntime;
 class   TypeSummaryImpl;
 class   TypeSummaryOptions;
 class   Symbol;
@@ -230,6 +229,7 @@ class   QueueItem;
 class   QueueImpl;
 class   Target;
 class   TargetList;
+class   TargetProperties;
 class   Thread;
 class   ThreadCollection;
 class   ThreadList;
@@ -299,7 +299,13 @@ namespace lldb {
     typedef std::weak_ptr<lldb_private::BreakpointLocation> BreakpointLocationWP;
     typedef std::shared_ptr<lldb_private::BreakpointResolver> BreakpointResolverSP;
     typedef std::shared_ptr<lldb_private::Broadcaster> BroadcasterSP;
+    typedef std::unique_ptr<lldb_private::ClangASTContext> ClangASTContextUP;
+    typedef std::unique_ptr<lldb_private::ClangASTImporter> ClangASTImporterUP;
+    typedef std::unique_ptr<lldb_private::ClangASTSource> ClangASTSourceUP;
     typedef std::shared_ptr<lldb_private::ClangExpressionVariable> ClangExpressionVariableSP;
+    typedef std::unique_ptr<lldb_private::ClangModulesDeclVendor> ClangModulesDeclVendorUP;
+    typedef std::unique_ptr<lldb_private::ClangPersistentVariables> ClangPersistentVariablesUP;
+    typedef std::shared_ptr<lldb_private::ClangUserExpression> ClangUserExpressionSP;
     typedef std::shared_ptr<lldb_private::CommandObject> CommandObjectSP;
     typedef std::shared_ptr<lldb_private::Communication> CommunicationSP;
     typedef std::shared_ptr<lldb_private::Connection> ConnectionSP;
@@ -309,7 +315,9 @@ namespace lldb {
     typedef std::shared_ptr<lldb_private::Debugger> DebuggerSP;
     typedef std::weak_ptr<lldb_private::Debugger> DebuggerWP;
     typedef std::shared_ptr<lldb_private::Disassembler> DisassemblerSP;
+    typedef std::unique_ptr<lldb_private::DynamicCheckerFunctions> DynamicCheckerFunctionsUP;
     typedef std::shared_ptr<lldb_private::DynamicLoader> DynamicLoaderSP;
+    typedef std::unique_ptr<lldb_private::DynamicLoader> DynamicLoaderUP;
     typedef std::shared_ptr<lldb_private::Event> EventSP;
     typedef std::shared_ptr<lldb_private::ExecutionContextRef> ExecutionContextRefSP;
     typedef std::shared_ptr<lldb_private::File> FileSP;
@@ -321,8 +329,10 @@ namespace lldb {
     typedef std::shared_ptr<lldb_private::IOHandler> IOHandlerSP;
     typedef std::shared_ptr<lldb_private::IOObject> IOObjectSP;
     typedef std::shared_ptr<lldb_private::JITLoader> JITLoaderSP;
+    typedef std::unique_ptr<lldb_private::JITLoaderList> JITLoaderListUP;
     typedef std::shared_ptr<lldb_private::LanguageRuntime> LanguageRuntimeSP;
     typedef std::shared_ptr<lldb_private::SystemRuntime> SystemRuntimeSP;
+    typedef std::unique_ptr<lldb_private::SystemRuntime> SystemRuntimeUP;
     typedef std::shared_ptr<lldb_private::LineTable> LineTableSP;
     typedef std::shared_ptr<lldb_private::Listener> ListenerSP;
     typedef std::shared_ptr<lldb_private::LogChannel> LogChannelSP;
@@ -333,6 +343,7 @@ namespace lldb {
     typedef std::weak_ptr<lldb_private::ObjectFile> ObjectFileWP;
     typedef std::shared_ptr<lldb_private::ObjectFileJITDelegate> ObjectFileJITDelegateSP;
     typedef std::weak_ptr<lldb_private::ObjectFileJITDelegate> ObjectFileJITDelegateWP;
+    typedef std::unique_ptr<lldb_private::OperatingSystem> OperatingSystemUP;
     typedef std::shared_ptr<lldb_private::OptionValue> OptionValueSP;
     typedef std::weak_ptr<lldb_private::OptionValue> OptionValueWP;
     typedef std::shared_ptr<lldb_private::OptionValueArch> OptionValueArchSP;
@@ -362,15 +373,16 @@ namespace lldb {
     typedef std::shared_ptr<lldb_private::Queue> QueueSP;
     typedef std::weak_ptr<lldb_private::Queue> QueueWP;
     typedef std::shared_ptr<lldb_private::QueueItem> QueueItemSP;
-    typedef std::shared_ptr<lldb_private::ScriptInterpreterObject> ScriptInterpreterObjectSP;
 #ifndef LLDB_DISABLE_PYTHON
     typedef std::shared_ptr<lldb_private::ScriptSummaryFormat> ScriptSummaryFormatSP;
 #endif // #ifndef LLDB_DISABLE_PYTHON
     typedef std::shared_ptr<lldb_private::Section> SectionSP;
+    typedef std::unique_ptr<lldb_private::SectionList> SectionListUP;
     typedef std::weak_ptr<lldb_private::Section> SectionWP;
     typedef std::shared_ptr<lldb_private::SectionLoadList> SectionLoadListSP;
     typedef std::shared_ptr<lldb_private::SearchFilter> SearchFilterSP;
     typedef std::shared_ptr<lldb_private::Settings> SettingsSP;
+    typedef std::unique_ptr<lldb_private::SourceManager> SourceManagerUP;
     typedef std::shared_ptr<lldb_private::StackFrame> StackFrameSP;
     typedef std::unique_ptr<lldb_private::StackFrame> StackFrameUP;
     typedef std::weak_ptr<lldb_private::StackFrame> StackFrameWP;
@@ -385,10 +397,12 @@ namespace lldb {
     typedef std::shared_ptr<lldb_private::SymbolFileType> SymbolFileTypeSP;
     typedef std::weak_ptr<lldb_private::SymbolFileType> SymbolFileTypeWP;
     typedef std::shared_ptr<lldb_private::SymbolContextSpecifier> SymbolContextSpecifierSP;
+    typedef std::unique_ptr<lldb_private::SymbolVendor> SymbolVendorUP;
     typedef std::shared_ptr<lldb_private::SyntheticChildren> SyntheticChildrenSP;
     typedef std::shared_ptr<lldb_private::SyntheticChildrenFrontEnd> SyntheticChildrenFrontEndSP;
     typedef std::shared_ptr<lldb_private::Target> TargetSP;
     typedef std::weak_ptr<lldb_private::Target> TargetWP;
+    typedef std::shared_ptr<lldb_private::TargetProperties> TargetPropertiesSP;
     typedef std::shared_ptr<lldb_private::Thread> ThreadSP;
     typedef std::weak_ptr<lldb_private::Thread> ThreadWP;
     typedef std::shared_ptr<lldb_private::ThreadCollection> ThreadCollectionSP;
@@ -418,7 +432,7 @@ namespace lldb {
     typedef std::shared_ptr<lldb_private::VariableList> VariableListSP;
     typedef std::shared_ptr<lldb_private::ValueObjectList> ValueObjectListSP;
     typedef std::shared_ptr<lldb_private::Watchpoint> WatchpointSP;
-    
+
 } // namespace lldb
 
 

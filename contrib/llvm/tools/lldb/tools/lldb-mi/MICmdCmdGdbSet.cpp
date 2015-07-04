@@ -1,4 +1,4 @@
-//===-- MICmdCmdGdbSet.cpp -------      -------------------------*- C++ -*-===//
+//===-- MICmdCmdGdbSet.cpp --------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,17 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdGdbSet.cpp
-//
 // Overview:    CMICmdCmdGdbSet implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 // In-house headers:
 #include "MICmdCmdGdbSet.h"
@@ -30,8 +20,10 @@
 
 // Instantiations:
 const CMICmdCmdGdbSet::MapGdbOptionNameToFnGdbOptionPtr_t CMICmdCmdGdbSet::ms_mapGdbOptionNameToFnGdbOptionPtr = {
-    // { "target-async", &CMICmdCmdGdbSet::OptionFnTargetAsync },       // Example code if need to implement GDB set other options
+    {"target-async", &CMICmdCmdGdbSet::OptionFnTargetAsync},
+    {"print", &CMICmdCmdGdbSet::OptionFnPrint},
     // { "auto-solib-add", &CMICmdCmdGdbSet::OptionFnAutoSolibAdd },    // Example code if need to implement GDB set other options
+    {"output-radix", &CMICmdCmdGdbSet::OptionFnOutputRadix},
     {"solib-search-path", &CMICmdCmdGdbSet::OptionFnSolibSearchPath},
     {"fallback", &CMICmdCmdGdbSet::OptionFnFallback}};
 
@@ -89,7 +81,7 @@ CMICmdCmdGdbSet::ParseArgs(void)
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: The invoker requires this function. The command does work in this function.
+// Details: The invoker requires this function. The command is executed in this function.
 //          The command is likely to communicate with the LLDB SBDebugger in here.
 // Type:    Overridden.
 // Args:    None.
@@ -103,7 +95,8 @@ CMICmdCmdGdbSet::Execute(void)
     CMICMDBASE_GETOPTION(pArgGdbOption, ListOfN, m_constStrArgNamedGdbOption);
     const CMICmdArgValListBase::VecArgObjPtr_t &rVecWords(pArgGdbOption->GetExpectedOptions());
 
-    // Get the gdb-set option to carry out
+    // Get the gdb-set option to carry out. This option will be used as an action
+    // which should be done. Further arguments will be used as parameters for it.
     CMICmdArgValListBase::VecArgObjPtr_t::const_iterator it = rVecWords.begin();
     const CMICmdArgValString *pOption = static_cast<const CMICmdArgValString *>(*it);
     const CMIUtilString strOption(pOption->GetValue());
@@ -142,7 +135,7 @@ CMICmdCmdGdbSet::Execute(void)
 
 //++ ------------------------------------------------------------------------------------
 // Details: The invoker requires this function. The command prepares a MI Record Result
-//          for the work carried out in the Execute().
+//          for the work carried out in the Execute() method.
 // Type:    Overridden.
 // Args:    None.
 // Return:  MIstatus::success - Functional succeeded.
@@ -152,6 +145,8 @@ CMICmdCmdGdbSet::Execute(void)
 bool
 CMICmdCmdGdbSet::Acknowledge(void)
 {
+    // Print error if option isn't recognized:
+    // ^error,msg="The request '%s' was not recognized, not implemented"
     if (!m_bGdbOptionRecognised)
     {
         const CMICmnMIValueConst miValueConst(
@@ -162,6 +157,7 @@ CMICmdCmdGdbSet::Acknowledge(void)
         return MIstatus::success;
     }
 
+    // ^done,value="%s"
     if (m_bGdbOptionFnSuccessful)
     {
         const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done);
@@ -169,6 +165,8 @@ CMICmdCmdGdbSet::Acknowledge(void)
         return MIstatus::success;
     }
 
+    // Print error if request failed:
+    // ^error,msg="The request '%s' failed.
     const CMICmnMIValueConst miValueConst(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_INFO_PRINTFN_FAILED), m_strGdbOptionFnError.c_str()));
     const CMICmnMIValueResult miValueResult("msg", miValueConst);
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error, miValueResult);
@@ -215,6 +213,98 @@ CMICmdCmdGdbSet::GetOptionFn(const CMIUtilString &vrPrintFnName, FnGdbOptionPtr 
 }
 
 //++ ------------------------------------------------------------------------------------
+// Details: Carry out work to complete the GDB set option 'target-async' to prepare
+//          and send back information asked for.
+// Type:    Method.
+// Args:    vrWords - (R) List of additional parameters used by this option.
+// Return:  MIstatus::success - Function succeeded.
+//          MIstatus::failure - Function failed.
+// Throws:  None.
+//--
+bool
+CMICmdCmdGdbSet::OptionFnTargetAsync(const CMIUtilString::VecString_t &vrWords)
+{
+    bool bAsyncMode = false;
+    bool bOk = true;
+
+    if (vrWords.size() > 1)
+        // Too many arguments.
+        bOk = false;
+    else if (vrWords.size() == 0)
+        // If no arguments, default is "on".
+        bAsyncMode = true;
+    else if (CMIUtilString::Compare(vrWords[0], "on"))
+        bAsyncMode = true;
+    else if (CMIUtilString::Compare(vrWords[0], "off"))
+        bAsyncMode = false;
+    else
+        // Unrecognized argument.
+        bOk = false;
+
+    if (!bOk)
+    {
+        // Report error.
+        m_bGbbOptionFnHasError = true;
+        m_strGdbOptionFnError = MIRSRC(IDS_CMD_ERR_GDBSET_OPT_TARGETASYNC);
+        return MIstatus::failure;
+    }
+
+    // Turn async mode on/off.
+    CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
+    rSessionInfo.GetDebugger().SetAsync(bAsyncMode);
+
+    return MIstatus::success;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Carry out work to complete the GDB set option 'print-char-array-as-string' to
+//          prepare and send back information asked for.
+// Type:    Method.
+// Args:    vrWords - (R) List of additional parameters used by this option.
+// Return:  MIstatus::success - Function succeeded.
+//          MIstatus::failure - Function failed.
+// Throws:  None.
+//--
+bool
+CMICmdCmdGdbSet::OptionFnPrint(const CMIUtilString::VecString_t &vrWords)
+{
+    const bool bAllArgs(vrWords.size() == 2);
+    const bool bArgOn(bAllArgs && (CMIUtilString::Compare(vrWords[1], "on") || CMIUtilString::Compare(vrWords[1], "1")));
+    const bool bArgOff(bAllArgs && (CMIUtilString::Compare(vrWords[1], "off") || CMIUtilString::Compare(vrWords[1], "0")));
+    if (!bAllArgs || (!bArgOn && !bArgOff))
+    {
+        m_bGbbOptionFnHasError = true;
+        m_strGdbOptionFnError = MIRSRC(IDS_CMD_ERR_GDBSET_OPT_PRINT_BAD_ARGS);
+        return MIstatus::failure;
+    }
+
+    const CMIUtilString strOption(vrWords[0]);
+    CMIUtilString strOptionKey;
+    if (CMIUtilString::Compare(strOption, "char-array-as-string"))
+        strOptionKey = m_rLLDBDebugSessionInfo.m_constStrPrintCharArrayAsString;
+    else if (CMIUtilString::Compare(strOption, "expand-aggregates"))
+        strOptionKey = m_rLLDBDebugSessionInfo.m_constStrPrintExpandAggregates;
+    else if (CMIUtilString::Compare(strOption, "aggregate-field-names"))
+        strOptionKey = m_rLLDBDebugSessionInfo.m_constStrPrintAggregateFieldNames;
+    else
+    {
+        m_bGbbOptionFnHasError = true;
+        m_strGdbOptionFnError = CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_GDBSET_OPT_PRINT_UNKNOWN_OPTION), strOption.c_str());
+        return MIstatus::failure;
+    }
+
+    const bool bOptionValue(bArgOn);
+    if (!m_rLLDBDebugSessionInfo.SharedDataAdd<bool>(strOptionKey, bOptionValue))
+    {
+        m_bGbbOptionFnHasError = false;
+        SetError(CMIUtilString::Format(MIRSRC(IDS_DBGSESSION_ERR_SHARED_DATA_ADD), m_cmdData.strMiCmd.c_str(), strOptionKey.c_str()));
+        return MIstatus::failure;
+    }
+
+    return MIstatus::success;
+}
+
+//++ ------------------------------------------------------------------------------------
 // Details: Carry out work to complete the GDB set option 'solib-search-path' to prepare
 //          and send back information asked for.
 // Type:    Method.
@@ -248,8 +338,60 @@ CMICmdCmdGdbSet::OptionFnSolibSearchPath(const CMIUtilString::VecString_t &vrWor
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Carry out work to complete the GDB set option to prepare and send back information
-//          asked for.
+// Details: Carry out work to complete the GDB set option 'output-radix' to prepare
+//          and send back information asked for.
+// Type:    Method.
+// Args:    vrWords - (R) List of additional parameters used by this option.
+// Return:  MIstatus::success - Functional succeeded.
+//          MIstatus::failure - Functional failed.
+// Throws:  None.
+//--
+bool
+CMICmdCmdGdbSet::OptionFnOutputRadix(const CMIUtilString::VecString_t &vrWords)
+{
+    // Check we have at least one argument
+    if (vrWords.size() < 1)
+    {
+        m_bGbbOptionFnHasError = true;
+        m_strGdbOptionFnError = MIRSRC(IDS_CMD_ERR_GDBSET_OPT_SOLIBSEARCHPATH);
+        return MIstatus::failure;
+    }
+    const CMIUtilString &rStrValOutputRadix(vrWords[0]);
+    
+    CMICmnLLDBDebugSessionInfoVarObj::varFormat_e  format = CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Invalid;
+    MIint64 radix;
+    if (rStrValOutputRadix.ExtractNumber(radix))
+    {
+        switch (radix)
+        {
+        case 8:
+            format = CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Octal;
+            break;
+        case 10:
+            format = CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Natural;
+            break;
+        case 16:
+            format = CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Hex;
+            break;
+        default:
+            format = CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Invalid;
+            break;
+        }
+    }
+    if (format == CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Invalid)
+    {
+        m_bGbbOptionFnHasError = false;
+        SetError(CMIUtilString::Format(MIRSRC(IDS_DBGSESSION_ERR_SHARED_DATA_ADD), m_cmdData.strMiCmd.c_str(), "Output Radix"));
+        return MIstatus::failure;
+    }
+    CMICmnLLDBDebugSessionInfoVarObj::VarObjSetFormat(format);
+    
+    return MIstatus::success;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Carry out work to complete the GDB set option to prepare and send back the
+//          requested information.
 // Type:    Method.
 // Args:    None.
 // Return:  MIstatus::success - Functional succeeded.
@@ -261,8 +403,8 @@ CMICmdCmdGdbSet::OptionFnFallback(const CMIUtilString::VecString_t &vrWords)
 {
     MIunused(vrWords);
 
-    // Do nothing - intentional. This is a fallback temporary action function to do nothing.
-    // This allows the search for gdb-set options to always suceed when the option is not
+    // Do nothing - intentional. This is a fallback function to do nothing.
+    // This allows the search for gdb-set options to always succeed when the option is not
     // found (implemented).
 
     return MIstatus::success;

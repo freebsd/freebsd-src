@@ -7,19 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnResources.cpp
-//
-// Overview:    CMICmnResources implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // Third party headers
+#include <inttypes.h> // For PRIx64
 #include "assert.h"
 
 // In-house headers:
@@ -62,9 +51,6 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_DRIVERMGR_DRIVER_ERR_INIT, "Driver Manager. Driver '%s' (ID:'%s') initialise failed. %s"},
     {IDE_MEDIUMSTDERR_NAME, "Stderr"},
     {IDE_MEDIUMSTDOUT_NAME, "Stdout"},
-    {IDE_MI_APP_EXIT_OK, "Program exited OK"},
-    {IDE_MI_APP_EXIT_WITH_PROBLEM, "Program exited with a problem, see '%s' file"},
-    {IDE_MI_APP_EXIT_WITH_PROBLEM_NO_LOG, "Program exited with a problem, the application's log file '%s' was disabled"},
     {IDE_MI_APP_DESCRIPTION, "Description:\nThe Machine Interface Driver (MI Driver) is a stand alone executable\nthat either be used via "
                              "a client i.e. Eclipse or directly from the command\nline. It processes MI commands, actions those commands "
                              "using the internal\ndebugger then forms MI response formatted text which is returned to the\nclient."},
@@ -75,14 +61,13 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDE_MI_APP_ARG_HELP, "-h\n--help\n\tPrints out usage information for the MI debugger. Exit the MI\n\tDriver immediately."},
     {IDE_MI_APP_ARG_VERSION, "--version\n\tPrints out GNU (gdb) version information. Exit the MI Driver\n\timmediately."},
     {IDE_MI_APP_ARG_VERSION_LONG, "--versionLong\n\tPrints out MI Driver version information. Exit the MI Driver\n\timmediately."},
-    {IDE_MI_APP_ARG_INTERPRETER, "--interpreter\n\tUse the MI Driver for the debugger (MI mode)(Default is the\n\tLLDB driver). Any LLDB "
-                                 "command line options are ignored even\n\tif the MI Driver falls through to the LLDB driver. "
-                                 "(Depends\n\ton the build configuration see MICmnConfig.h)\n\tNormally specified by the driver client "
-                                 "i.e. Eclipse.\n\tCannot specify an executable with this option, use --executable."},
-    {IDE_MI_APP_ARG_EXECUTEABLE, "--executable\n\tUse the MI Driver in MI mode for the debugging the specified\n\texecutable. Any LLDB "
-                                 "command line options are ignored even\n\tif the MI Driver falls through to the LLDB driver. "
-                                 "(Depends\n\ton the build configuration see MICmnConfig.h)\n\tNormally specified from the command line."},
-    {IDE_MI_APP_ARG_NO_APP_LOG, "--noLog\n\tUse this argument to tell the MI Driver not to update it's log\n\tfile '%s'."},
+    {IDE_MI_APP_ARG_INTERPRETER, "--interpreter\n\t This option is kept for backward compatibility. This executable always run in MI mode"},
+    {IDE_MI_APP_ARG_EXECUTEABLE, "--executable\n\tUse the MI Driver in MI mode for the debugging the specified executable." },
+    {IDE_MI_APP_ARG_SOURCE, "-s <filename>\n--source <filename>\n\t"
+                            "Tells the debugger to read in and execute the lldb commands in the\n\t"
+                            "given file, after any file provided on the command line has been\n\tloaded."},
+    {IDE_MI_APP_ARG_APP_LOG, "--log\n\tUse this argument to tell the MI Driver to update it's log\n\tfile '%s'."},
+    {IDE_MI_APP_ARG_APP_LOG_DIR, "--log-dir\n\tUse this argument to specify the directory the MI Driver\n\twill place the log file in, i.e --log-dir=/tmp." },
     {IDE_MI_APP_ARG_EXAMPLE, "Example MI command:\n\t3-info-gdb-mi-command gdb-set\n\t3^done,command={exists=\"true\"}"},
     {IDE_MI_APP_ARG_EXECUTABLE, "executable (NOT IMPLEMENTED)\n\tThe file path to the executable i.e. '\"C:\\My Dev\\foo.exe\"'."},
     {IDS_STDIN_ERR_INVALID_PROMPT, "Stdin. Invalid prompt description '%s'"},
@@ -103,7 +88,6 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_CMDFACTORY_ERR_CMD_ALREADY_REGED, "Command factory. Command '%s' by that name already registered"},
     {IDS_CMDMGR_ERR_CMD_FAILED_CREATE, "Command manager. Command creation failed. %s"},
     {IDS_CMDMGR_ERR_CMD_INVOKER, "Command manager. %s "},
-    {IDS_PROCESS_SIGNAL_RECEIVED, "Process signal. Application received signal '%s' (%d)"},
     {IDS_MI_INIT_ERR_LOG, "Log. Error occurred during initialisation %s"},
     {IDS_MI_INIT_ERR_RESOURCES, "Resources. Error occurred during initialisation %s"},
     {IDS_MI_INIT_ERR_INIT, "Driver. Error occurred during initialisation %s"},
@@ -143,7 +127,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_LLDBDEBUGGER_ERR_THREAD_DELETE, "LLDB Debugger. Thread failed to delete '%s'"},
     {IDS_LLDBDEBUGGER_ERR_INVALIDBROADCASTER, "LLDB Debugger. Invalid SB broadcaster class name '%s' "},
     {IDS_LLDBDEBUGGER_ERR_INVALIDCLIENTNAME, "LLDB Debugger. Invalid client name '%s' "},
-    {IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERD, "LLDB Debugger. Client name '%s' not registered for listening events"},
+    {IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERED, "LLDB Debugger. Client name '%s' not registered for listening events"},
     {IDS_LLDBDEBUGGER_ERR_STOPLISTENER, "LLDB Debugger. Failure occurred stopping event for client '%s' SBBroadcaster '%s'"},
     {IDS_LLDBDEBUGGER_ERR_BROARDCASTER_NAME, "LLDB Debugger. Broardcaster's name '%s' is not valid"},
     {IDS_LLDBDEBUGGER_WRN_UNKNOWN_EVENT, "LLDB Debugger. Unhandled event '%s'"},
@@ -196,9 +180,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_DRIVER_ERR_MAINLOOP, "Driver. Error in do main loop. %s"},
     {IDS_DRIVER_ERR_LOCAL_DEBUG_NOT_IMPL, "Driver. --executable argument given. Local debugging is not implemented."},
     {IDS_DRIVER_ERR_LOCAL_DEBUG_INIT, "Driver. --executable argument given. Initialising local debugging failed."},
-    {IDS_STDOUT_ERR_NOT_ALL_DATA_WRITTEN, "Stdout. Not all data was written to stream. The data '%s'"},
     {IDS_STDERR_ERR_NOT_ALL_DATA_WRITTEN, "Stderr. Not all data was written to stream. The data '%s'"},
-    {IDS_CMD_ARGS_ERR_N_OPTIONS_REQUIRED, "Command Args. Missing options, %d or more required"},
     {IDS_CMD_ARGS_ERR_OPTION_NOT_FOUND, "Command Args. Option '%s' not found"},
     {IDS_CMD_ARGS_ERR_VALIDATION_MANDATORY, "Mandatory args not found: %s"},
     {IDS_CMD_ARGS_ERR_VALIDATION_INVALID, "Invalid args: %s"},
@@ -225,6 +207,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_CMD_ERR_FNFAILED, "Command '%s'. Fn '%s' failed"},
     {IDS_CMD_ERR_SHARED_DATA_NOT_FOUND, "Command '%s'. Shared data '%s' not found"},
     {IDS_CMD_ERR_LLDBPROCESS_DETACH, "Command '%s'. Process detach failed. '%s'"},
+    {IDS_CMD_ERR_LLDBPROCESS_DESTROY, "Command '%s'. Process destroy failed. '%s'"},
     {IDS_CMD_ERR_SETWKDIR, "Command '%s'. Failed to set working directory '%s'"},
     {IDS_CMD_ERR_INVALID_TARGET, "Command '%s'. Target binary '%s' is invalid. %s"},
     {IDS_CMD_ERR_INVALID_TARGET_CURRENT, "Command '%s'. Current SBTarget is invalid"},
@@ -236,6 +219,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_CMD_ERR_NOT_IMPLEMENTED_DEPRECATED, "Command '%s'. Command not implemented as it has been deprecated"},
     {IDS_CMD_ERR_CREATE_TARGET, "Command '%s'. Create target failed: %s"},
     {IDS_CMD_ERR_BRKPT_LOCATION_FORMAT, "Command '%s'. Incorrect format for breakpoint location '%s'"},
+    {IDS_CMD_ERR_BRKPT_LOCATION_NOT_FOUND, "Command '%s'. Breakpoint location '%s' not found"},
     {IDS_CMD_ERR_BRKPT_INVALID, "Command '%s'. Breakpoint '%s' invalid"},
     {IDS_CMD_ERR_BRKPT_CNT_EXCEEDED, "Command '%s'. Number of valid breakpoint exceeded %d. Cannot create new breakpoint '%s'"},
     {IDS_CMD_ERR_SOME_ERROR, "Command '%s'. Error: %s"},
@@ -246,22 +230,33 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_CMD_ERR_VARIABLE_ENUM_INVALID, "Command '%s'. Invalid enumeration for variable '%s' formatted string '%s'"},
     {IDS_CMD_ERR_VARIABLE_EXPRESSIONPATH, "Command '%s'. Failed to get expression for variable '%s'"},
     {IDS_CMD_ERR_VARIABLE_CREATION_FAILED, "Failed to create variable object for '%s'"},
+    {IDS_CMD_ERR_VARIABLE_CHILD_RANGE_INVALID, "Command '%s'. Variable children range invalid"},
     {IDS_CMD_ERR_CMD_RUN_BUT_NO_ACTION, "<Error: Command run but command did not do anything useful. No MI response formed>"},
     {IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION, "<Error: Command run and event caught, did nothing useful. No MI Out-of-Bound formed>"},
     {IDS_CMD_ERR_DISASM_ADDR_START_INVALID, "Command '%s'. Invalid start value '%s'"},
     {IDS_CMD_ERR_DISASM_ADDR_END_INVALID, "Command '%s'. Invalid end value '%s'"},
     {IDS_CMD_ERR_MEMORY_ALLOC_FAILURE, "Command '%s'. Failed to allocate memory %d bytes"},
-    {IDS_CMD_ERR_LLDB_ERR_NOT_READ_WHOLE_BLK, "Command '%s'. LLDB unable to read entire memory block of %u bytes at address 0x%08x"},
-    {IDS_CMD_ERR_LLDB_ERR_READ_MEM_BYTES, "Command '%s'. Unable to read memory block of %u bytes at address 0x%08x: %s "},
+    {IDS_CMD_ERR_LLDB_ERR_NOT_READ_WHOLE_BLK, "Command '%s'. LLDB unable to read entire memory block of %u bytes at address 0x%016" PRIx64 },
+    {IDS_CMD_ERR_LLDB_ERR_READ_MEM_BYTES, "Command '%s'. Unable to read memory block of %u bytes at address 0x%016" PRIx64 ": %s "},
     {IDS_CMD_ERR_INVALID_PROCESS, "Command '%s'. Invalid process during debug session"},
+    {IDS_CMD_ERR_INVALID_PRINT_VALUES, "Command '%s'. Unknown value for PRINT_VALUES: must be: 0 or \"--no-values\", 1 or \"--all-values\", 2 or \"--simple-values\""},
+    {IDS_CMD_ERR_INVALID_LOCATION_FORMAT, "Command '%s'. Invalid location format '%s'"},
     {IDS_CMD_ERR_INVALID_FORMAT_TYPE, "Command '%s'. Invalid var format type '%s'"},
     {IDS_CMD_ERR_BRKPT_INFO_OBJ_NOT_FOUND, "Command '%s'. Breakpoint information for breakpoint ID %d not found"},
-    {IDS_CMD_ERR_LLDB_ERR_READ_MEM_BYTES, "Command '%s'. Unable to write memory block of %u bytes at address 0x%08x: %s "},
-    {IDS_CMD_ERR_LLDB_ERR_NOT_WRITE_WHOLEBLK, "Command '%s'. LLDB unable to write entire memory block of %u bytes at address 0x%08x"},
+    {IDS_CMD_ERR_LLDB_ERR_WRITE_MEM_BYTES, "Command '%s'. Unable to write memory block of %u bytes at address 0x%016" PRIx64 ": %s "},
+    {IDS_CMD_ERR_LLDB_ERR_NOT_WRITE_WHOLEBLK, "Command '%s'. LLDB unable to write entire memory block of %u bytes at address 0x%016" PRIX64},
     {IDS_CMD_ERR_SET_NEW_DRIVER_STATE, "Command '%s'. Command tried to set new MI Driver running state and failed. %s"},
-    {IDS_CMD_ERR_INFO_PRINTFN_NOT_FOUND, "The request '%s' was not recogised, not implemented"},
+    {IDS_CMD_ERR_INFO_PRINTFN_NOT_FOUND, "The request '%s' was not recognised, not implemented"},
     {IDS_CMD_ERR_INFO_PRINTFN_FAILED, "The request '%s' failed."},
-    {IDS_CMD_ERR_GDBSET_OPT_SOLIBSEARCHPATH, "'solib-search-path' requires at least one argument"}};
+    {IDS_CMD_ERR_GDBSET_OPT_TARGETASYNC, "'target-async' expects \"on\" or \"off\""},
+    {IDS_CMD_ERR_GDBSET_OPT_SOLIBSEARCHPATH, "'solib-search-path' requires at least one argument"},
+    {IDS_CMD_ERR_GDBSET_OPT_PRINT_BAD_ARGS, "'print' expects option-name and \"on\" or \"off\""},
+    {IDS_CMD_ERR_GDBSET_OPT_PRINT_UNKNOWN_OPTION, "'print' error. The option '%s' not found"},
+    {IDS_CMD_ERR_GDBSHOW_OPT_PRINT_BAD_ARGS, "'print' expects option-name and \"on\" or \"off\""},
+    {IDS_CMD_ERR_GDBSHOW_OPT_PRINT_UNKNOWN_OPTION, "'print' error. The option '%s' not found"},
+    {IDS_CMD_ERR_EXPR_INVALID, "Failed to evaluate expression: %s"},
+    {IDS_CMD_ERR_ATTACH_FAILED, "Command '%s'. Attach to processs failed: %s"},
+    {IDS_CMD_ERR_ATTACH_BAD_ARGS, "Command '%s'. Must specify either a PID or a Name"}};
 
 //++ ------------------------------------------------------------------------------------
 // Details: CMICmnResources constructor.
@@ -390,7 +385,7 @@ CMICmnResources::HasString(const MIuint vResourceId) const
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Retrieve the resource text data for the given resource ID. If a resourse ID
+// Details: Retrieve the resource text data for the given resource ID. If a resource ID
 //          cannot be found and error is given returning the ID of the resource that
 //          cannot be located.
 // Type:    Method.
@@ -427,7 +422,7 @@ CMICmnResources::GetStringFromResource(const MIuint vResourceId, CMIUtilString &
 
     const MIuint nRsrcId((*it).first);
     MIunused(nRsrcId);
-    const MIchar *pRsrcData((*it).second);
+    const char *pRsrcData((*it).second);
 
     // Return result
     vrwResourceString = pRsrcData;

@@ -145,38 +145,26 @@ FuncUnwinders::GetEHFrameAugmentedUnwindPlan (Target &target, Thread &thread, in
     Mutex::Locker lock (m_mutex);
     m_tried_unwind_plan_eh_frame_augmented = true;
 
-    if (m_range.GetBaseAddress().IsValid())
-    {
-        Address current_pc (m_range.GetBaseAddress ());
-        if (current_offset != -1)
-            current_pc.SetOffset (current_pc.GetOffset() + current_offset);
-        DWARFCallFrameInfo *eh_frame = m_unwind_table.GetEHFrameInfo();
-        if (eh_frame)
-        {
-            m_unwind_plan_eh_frame_augmented_sp.reset (new UnwindPlan (lldb::eRegisterKindGeneric));
-            if (!eh_frame->GetUnwindPlan (current_pc, *m_unwind_plan_eh_frame_augmented_sp))
-            {
-                m_unwind_plan_eh_frame_augmented_sp.reset();
-            }
-            else
-            {
-                // Augment the eh_frame instructions with epilogue descriptions if necessary so the
-                // UnwindPlan can be used at any instruction in the function.
+    UnwindPlanSP eh_frame_plan = GetEHFrameUnwindPlan (target, current_offset);
+    if (!eh_frame_plan)
+        return m_unwind_plan_eh_frame_augmented_sp;
 
-                UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
-                if (assembly_profiler_sp)
-                {
-                    if (!assembly_profiler_sp->AugmentUnwindPlanFromCallSite (m_range, thread, *m_unwind_plan_eh_frame_augmented_sp))
-                    {
-                        m_unwind_plan_eh_frame_augmented_sp.reset();
-                    }
-                }
-                else
-                {
-                    m_unwind_plan_eh_frame_augmented_sp.reset();
-                }
-            }
+    m_unwind_plan_eh_frame_augmented_sp.reset(new UnwindPlan(*eh_frame_plan));
+
+    // Augment the eh_frame instructions with epilogue descriptions if necessary so the
+    // UnwindPlan can be used at any instruction in the function.
+
+    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler(target));
+    if (assembly_profiler_sp)
+    {
+        if (!assembly_profiler_sp->AugmentUnwindPlanFromCallSite (m_range, thread, *m_unwind_plan_eh_frame_augmented_sp))
+        {
+            m_unwind_plan_eh_frame_augmented_sp.reset();
         }
+    }
+    else
+    {
+        m_unwind_plan_eh_frame_augmented_sp.reset();
     }
     return m_unwind_plan_eh_frame_augmented_sp;
 }
@@ -191,7 +179,7 @@ FuncUnwinders::GetAssemblyUnwindPlan (Target &target, Thread &thread, int curren
     Mutex::Locker lock (m_mutex);
     m_tried_unwind_plan_assembly = true;
 
-    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
+    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler(target));
     if (assembly_profiler_sp)
     {
         m_unwind_plan_assembly_sp.reset (new UnwindPlan (lldb::eRegisterKindGeneric));
@@ -216,7 +204,7 @@ FuncUnwinders::GetUnwindPlanAtNonCallSite (Target& target, Thread& thread, int c
 }
 
 UnwindPlanSP
-FuncUnwinders::GetUnwindPlanFastUnwind (Thread& thread)
+FuncUnwinders::GetUnwindPlanFastUnwind (Target& target, Thread& thread)
 {
     if (m_unwind_plan_fast_sp.get() || m_tried_unwind_fast)
         return m_unwind_plan_fast_sp;
@@ -224,7 +212,7 @@ FuncUnwinders::GetUnwindPlanFastUnwind (Thread& thread)
     Mutex::Locker locker (m_mutex);
     m_tried_unwind_fast = true;
 
-    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
+    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler(target));
     if (assembly_profiler_sp)
     {
         m_unwind_plan_fast_sp.reset (new UnwindPlan (lldb::eRegisterKindGeneric));
@@ -299,7 +287,7 @@ FuncUnwinders::GetFirstNonPrologueInsn (Target& target)
 
     Mutex::Locker locker (m_mutex);
     ExecutionContext exe_ctx (target.shared_from_this(), false);
-    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
+    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler(target));
     if (assembly_profiler_sp)
         assembly_profiler_sp->FirstNonPrologueInsn (m_range, exe_ctx, m_first_non_prologue_insn);
     return m_first_non_prologue_insn;
@@ -312,12 +300,13 @@ FuncUnwinders::GetFunctionStartAddress () const
 }
 
 lldb::UnwindAssemblySP
-FuncUnwinders::GetUnwindAssemblyProfiler ()
+FuncUnwinders::GetUnwindAssemblyProfiler (Target& target)
 {
     UnwindAssemblySP assembly_profiler_sp;
     ArchSpec arch;
     if (m_unwind_table.GetArchitecture (arch))
     {
+        arch.MergeFrom (target.GetArchitecture ());
         assembly_profiler_sp = UnwindAssembly::FindPlugin (arch);
     }
     return assembly_profiler_sp;

@@ -18,6 +18,7 @@
 #include <utility>
 
 // Other libraries and framework includes
+#include "llvm/ADT/StringRef.h"
 // Project includes
 #include "lldb/lldb-private-types.h"
 #include "lldb/lldb-types.h"
@@ -75,11 +76,9 @@ public:
     ///     A NULL terminated command that will be copied and split up
     ///     into arguments.
     ///
-    /// @see Args::SetCommandString(const char *)
+    /// @see Args::SetCommandString(llvm::StringRef)
     //------------------------------------------------------------------
-    Args (const char *command = NULL);
-
-    Args (const char *command, size_t len);
+    Args (llvm::StringRef command = llvm::StringRef());
 
     Args (const Args &rhs);
     
@@ -108,7 +107,7 @@ public:
     /// that can be accessed via the accessor functions.
     ///
     /// @param[in] command
-    ///     A NULL terminated command that will be copied and split up
+    ///     A command StringRef that will be copied and split up
     ///     into arguments.
     ///
     /// @see Args::GetArgumentCount() const
@@ -118,10 +117,7 @@ public:
     /// @see Args::Unshift (const char *)
     //------------------------------------------------------------------
     void
-    SetCommandString (const char *command);
-
-    void
-    SetCommandString (const char *command, size_t len);
+    SetCommandString (llvm::StringRef command);
 
     bool
     GetCommandString (std::string &command) const;
@@ -347,18 +343,6 @@ public:
                  bool trailing = true,
                  bool return_null_if_empty = true);
 
-    static int32_t
-    StringToSInt32 (const char *s, int32_t fail_value = 0, int base = 0, bool *success_ptr = NULL);
-
-    static uint32_t
-    StringToUInt32 (const char *s, uint32_t fail_value = 0, int base = 0, bool *success_ptr = NULL);
-
-    static int64_t
-    StringToSInt64 (const char *s, int64_t fail_value = 0, int base = 0, bool *success_ptr = NULL);
-
-    static uint64_t
-    StringToUInt64 (const char *s, uint64_t fail_value = 0, int base = 0, bool *success_ptr = NULL);
-
     static bool
     UInt64ValueIsValidForByteSize (uint64_t uval64, size_t total_byte_size)
     {
@@ -461,6 +445,9 @@ protected:
 
     void
     UpdateArgvFromArgs ();
+
+    llvm::StringRef
+    ParseSingleArgument (llvm::StringRef command);
 };
 
 } // namespace lldb_private

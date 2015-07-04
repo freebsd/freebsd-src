@@ -17,6 +17,7 @@
 #include "lldb/lldb-defines.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Error.h"
+#include "lldb/Core/FormatEntity.h"
 
 namespace lldb_private {
 
@@ -39,13 +40,15 @@ namespace lldb_private {
             eTypeFileSpec,
             eTypeFileSpecList,
             eTypeFormat,
+            eTypeLanguage,
             eTypePathMap,
             eTypeProperties,
             eTypeRegex,
             eTypeSInt64,
             eTypeString,
             eTypeUInt64,
-            eTypeUUID
+            eTypeUUID,
+            eTypeFormatEntity
         } Type;
 
         enum {
@@ -104,7 +107,7 @@ namespace lldb_private {
         DumpValue (const ExecutionContext *exe_ctx, Stream &strm, uint32_t dump_mask) = 0;
         
         virtual Error
-        SetValueFromCString (const char *value, VarSetOperationType op = eVarSetOperationAssign);
+        SetValueFromString (llvm::StringRef value, VarSetOperationType op = eVarSetOperationAssign);
         
         virtual bool
         Clear () = 0;
@@ -185,6 +188,7 @@ namespace lldb_private {
                 case 1u << eTypeFileSpec:       return eTypeFileSpec;
                 case 1u << eTypeFileSpecList:   return eTypeFileSpecList;
                 case 1u << eTypeFormat:         return eTypeFormat;
+                case 1u << eTypeLanguage:       return eTypeLanguage;
                 case 1u << eTypePathMap:        return eTypePathMap;
                 case 1u << eTypeProperties:     return eTypeProperties;
                 case 1u << eTypeRegex:          return eTypeRegex;
@@ -268,6 +272,12 @@ namespace lldb_private {
         const OptionValueFormat *
         GetAsFormat () const;
         
+        OptionValueLanguage *
+        GetAsLanguage ();
+        
+        const OptionValueLanguage *
+        GetAsLanguage () const;
+        
         OptionValuePathMappings *
         GetAsPathMappings ();
         
@@ -309,7 +319,13 @@ namespace lldb_private {
         
         const OptionValueUUID *
         GetAsUUID () const;
-        
+
+        OptionValueFormatEntity *
+        GetAsFormatEntity ();
+
+        const OptionValueFormatEntity *
+        GetAsFormatEntity () const;
+
         bool
         GetBooleanValue (bool fail_value = false) const;
         
@@ -340,6 +356,15 @@ namespace lldb_private {
 
         bool
         SetFormatValue (lldb::Format new_value);
+        
+        lldb::LanguageType
+        GetLanguageValue (lldb::LanguageType fail_value = lldb::eLanguageTypeUnknown) const;
+        
+        bool
+        SetLanguageValue (lldb::LanguageType new_language);
+
+        const FormatEntity::Entry *
+        GetFormatEntity () const;
 
         const RegularExpression *
         GetRegexValue () const;

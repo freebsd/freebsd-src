@@ -124,11 +124,17 @@ SUBDIR+=liblldb \
 	liblldbHostCommon \
 	liblldbHostFreeBSD \
 	liblldbHostPOSIX \
+	liblldbInitialization \
 	liblldbInterpreter \
 	liblldbSymbol \
 	liblldbTarget \
 	liblldbUtility \
 	\
+	liblldbPluginABISysV_arm \
+	liblldbPluginABISysV_arm64 \
+	liblldbPluginABISysV_i386 \
+	liblldbPluginABISysV_mips \
+	liblldbPluginABISysV_mips64 \
 	liblldbPluginABISysV_ppc \
 	liblldbPluginABISysV_ppc64 \
 	liblldbPluginABISysV_x86_64 \
@@ -138,6 +144,8 @@ SUBDIR+=liblldb \
 	liblldbPluginDynamicLoaderPosixDYLD \
 	liblldbPluginInstructionARM \
 	liblldbPluginInstructionARM64 \
+	liblldbPluginInstructionMIPS \
+	liblldbPluginInstructionMIPS64 \
 	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
 	liblldbPluginMemoryHistoryASan \

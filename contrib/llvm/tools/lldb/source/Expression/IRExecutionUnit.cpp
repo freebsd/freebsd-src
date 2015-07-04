@@ -11,6 +11,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Debugger.h"
@@ -18,9 +20,11 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Target/ObjCLanguageRuntime.h"
 
 using namespace lldb_private;
 
@@ -199,28 +203,8 @@ IRExecutionUnit::DisassembleFunction (Stream &stream,
     disassembler_sp->DecodeInstructions (Address (func_remote_addr), extractor, 0, UINT32_MAX, false, false);
 
     InstructionList &instruction_list = disassembler_sp->GetInstructionList();
-    const uint32_t max_opcode_byte_size = instruction_list.GetMaxOpcocdeByteSize();
-    const char *disassemble_format = "${addr-file-or-load}: ";
-    if (exe_ctx.HasTargetScope())
-    {
-        disassemble_format = exe_ctx.GetTargetRef().GetDebugger().GetDisassemblyFormat();
-    }
-
-    for (size_t instruction_index = 0, num_instructions = instruction_list.GetSize();
-         instruction_index < num_instructions;
-         ++instruction_index)
-    {
-        Instruction *instruction = instruction_list.GetInstructionAtIndex(instruction_index).get();
-        instruction->Dump (&stream,
-                           max_opcode_byte_size,
-                           true,
-                           true,
-                           &exe_ctx,
-                           NULL,
-                           NULL,
-                           disassemble_format);
-        stream.PutChar('\n');
-    }
+    instruction_list.Dump(&stream, true, true, &exe_ctx);
+    
     // FIXME: The DisassemblerLLVMC has a reference cycle and won't go away if it has any active instructions.
     // I'll fix that but for now, just clear the list and it will go away nicely.
     disassembler_sp->GetInstructionList().Clear();
@@ -236,6 +220,12 @@ static void ReportInlineAsmError(const llvm::SMDiagnostic &diagnostic, void *Con
         err->SetErrorToGenericError();
         err->SetErrorStringWithFormat("Inline assembly error: %s", diagnostic.getMessage().str().c_str());
     }
+}
+
+void
+IRExecutionUnit::ReportSymbolLookupError(const ConstString &name)
+{
+    m_failed_lookups.push_back(name);
 }
 
 void
@@ -368,6 +358,33 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
     CommitAllocations(process_sp);
     ReportAllocations(*m_execution_engine_ap);
     WriteData(process_sp);
+
+    if (m_failed_lookups.size())
+    {
+        StreamString ss;
+        
+        ss.PutCString("Couldn't lookup symbols:\n");
+        
+        bool emitNewLine = false;
+        
+        for (const ConstString &failed_lookup : m_failed_lookups)
+        {
+            if (emitNewLine)
+                ss.PutCString("\n");
+            emitNewLine = true;
+            ss.PutCString("  ");
+            ss.PutCString(Mangled(failed_lookup).GetDemangledName().AsCString());
+        }
+        
+        m_failed_lookups.clear();
+        
+        error.SetErrorString(ss.GetData());
+        
+        return;
+    }
+    
+    m_function_load_addr = LLDB_INVALID_ADDRESS;
+    m_function_end_load_addr = LLDB_INVALID_ADDRESS;
 
     for (JittedFunction &jitted_function : m_jitted_functions)
     {
@@ -571,7 +588,7 @@ IRExecutionUnit::MemoryManager::allocateCodeSection(uintptr_t Size,
     if (log)
     {
         log->Printf("IRExecutionUnit::allocateCodeSection(Size=0x%" PRIx64 ", Alignment=%u, SectionID=%u) = %p",
-                    (uint64_t)Size, Alignment, SectionID, return_value);
+                    (uint64_t)Size, Alignment, SectionID, (void *)return_value);
     }
 
     return return_value;
@@ -588,8 +605,11 @@ IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
 
     uint8_t *return_value = m_default_mm_ap->allocateDataSection(Size, Alignment, SectionID, SectionName, IsReadOnly);
 
+    uint32_t permissions = lldb::ePermissionsReadable;
+    if (!IsReadOnly)
+        permissions |= lldb::ePermissionsWritable;
     m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
-                                                  lldb::ePermissionsReadable | (IsReadOnly ? 0 : lldb::ePermissionsWritable),
+                                                  permissions,
                                                   GetSectionTypeFromSectionName (SectionName, AllocationKind::Data),
                                                   Size,
                                                   Alignment,
@@ -598,10 +618,108 @@ IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
     if (log)
     {
         log->Printf("IRExecutionUnit::allocateDataSection(Size=0x%" PRIx64 ", Alignment=%u, SectionID=%u) = %p",
-                    (uint64_t)Size, Alignment, SectionID, return_value);
+                    (uint64_t)Size, Alignment, SectionID, (void *)return_value);
     }
 
     return return_value;
+}
+
+uint64_t
+IRExecutionUnit::MemoryManager::getSymbolAddress(const std::string &Name)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
+    
+    SymbolContextList sc_list;
+    
+    ExecutionContextScope *exe_scope = m_parent.GetBestExecutionContextScope();
+    
+    lldb::TargetSP target_sp = exe_scope->CalculateTarget();
+    
+    const char *name = Name.c_str();
+    
+    ConstString bare_name_cs(name);
+    ConstString name_cs;
+    
+    if (name[0] == '_')
+        name_cs = ConstString(name + 1);
+    
+    if (!target_sp)
+    {
+        if (log)
+            log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = <no target>",
+                        Name.c_str());
+        
+        m_parent.ReportSymbolLookupError(name_cs);
+        
+        return 0xbad0bad0;
+    }
+    
+    uint32_t num_matches = 0;
+    lldb::ProcessSP process_sp = exe_scope->CalculateProcess();
+    
+    if (!name_cs.IsEmpty())
+    {
+        target_sp->GetImages().FindSymbolsWithNameAndType(name_cs, lldb::eSymbolTypeAny, sc_list);
+        num_matches = sc_list.GetSize();
+    }
+    
+    if (!num_matches)
+    {
+        target_sp->GetImages().FindSymbolsWithNameAndType(bare_name_cs, lldb::eSymbolTypeAny, sc_list);
+        num_matches = sc_list.GetSize();
+    }
+        
+    lldb::addr_t symbol_load_addr = LLDB_INVALID_ADDRESS;
+    
+    for (uint32_t i=0; i<num_matches && (symbol_load_addr == 0 || symbol_load_addr == LLDB_INVALID_ADDRESS); i++)
+    {
+        SymbolContext sym_ctx;
+        sc_list.GetContextAtIndex(i, sym_ctx);
+        
+        symbol_load_addr = sym_ctx.symbol->ResolveCallableAddress(*target_sp);
+
+        if (symbol_load_addr == LLDB_INVALID_ADDRESS)
+            symbol_load_addr = sym_ctx.symbol->GetAddress().GetLoadAddress(target_sp.get());
+    }
+    
+    if (symbol_load_addr == LLDB_INVALID_ADDRESS && process_sp && name_cs)
+    {
+        // Try the Objective-C language runtime.
+        
+        ObjCLanguageRuntime *runtime = process_sp->GetObjCLanguageRuntime();
+        
+        if (runtime)
+            symbol_load_addr = runtime->LookupRuntimeSymbol(name_cs);
+    }
+    
+    if (symbol_load_addr == LLDB_INVALID_ADDRESS)
+    {
+        if (log)
+            log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = <not found>",
+                        name);
+        
+        m_parent.ReportSymbolLookupError(bare_name_cs);
+        
+        return 0xbad0bad0;
+    }
+    
+    if (log)
+        log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = %" PRIx64,
+                    name,
+                    symbol_load_addr);
+    
+    if (symbol_load_addr == 0)
+        return 0xbad00add;
+    
+    return symbol_load_addr;
+}
+
+void *
+IRExecutionUnit::MemoryManager::getPointerToNamedFunction(const std::string &Name,
+                                                          bool AbortOnFailure) {
+    assert (sizeof(void *) == 8);
+    
+    return (void*)getSymbolAddress(Name);
 }
 
 lldb::addr_t

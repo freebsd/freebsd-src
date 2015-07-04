@@ -20,9 +20,24 @@
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/Mutex.h"
+#include "lldb/Utility/LLDBAssert.h"
 
 using namespace lldb_private;
 using namespace lldb_private::line_editor;
+
+// Workaround for what looks like an OS X-specific issue, but other platforms
+// may benefit from something similar if issues arise.  The libedit library
+// doesn't explicitly initialize the curses termcap library, which it gets away
+// with until TERM is set to VT100 where it stumbles over an implementation
+// assumption that may not exist on other platforms.  The setupterm() function
+// would normally require headers that don't work gracefully in this context, so
+// the function declaraction has been hoisted here.
+#if defined(__APPLE__)
+extern "C" {
+    int setupterm(char *term, int fildes, int *errret);
+}
+#define USE_SETUPTERM_WORKAROUND
+#endif
 
 // Editline uses careful cursor management to achieve the illusion of editing a multi-line block of text
 // with a single line editor.  Preserving this illusion requires fairly careful management of cursor
@@ -178,9 +193,9 @@ namespace lldb_private
             {
                 if (m_path.empty() && m_history && !m_prefix.empty())
                 {
-                    std::string parent_path = FileSpec ("~/.lldb", true).GetPath();
+                    FileSpec parent_path{"~/.lldb", true};
                     char history_path[PATH_MAX];
-                    if (FileSystem::MakeDirectory(parent_path.c_str(), lldb::eFilePermissionsDirectoryDefault).Success())
+                    if (FileSystem::MakeDirectory(parent_path, lldb::eFilePermissionsDirectoryDefault).Success())
                     {
                         snprintf (history_path, sizeof (history_path), "~/.lldb/%s-history", m_prefix.c_str());
                     }
@@ -567,9 +582,22 @@ Editline::GetCharacter (EditLineCharType * c)
     {
         lldb::ConnectionStatus status = lldb::eConnectionStatusSuccess;
         char ch = 0;
-        m_editor_getting_char = true;
+
+        // This mutex is locked by our caller (GetLine). Unlock it while we read a character
+        // (blocking operation), so we do not hold the mutex indefinitely. This gives a chance
+        // for someone to interrupt us. After Read returns, immediately lock the mutex again and
+        // check if we were interrupted.
+        m_output_mutex.Unlock();
         int read_count = m_input_connection.Read(&ch, 1, UINT32_MAX, status, NULL);
-        m_editor_getting_char = false;
+        m_output_mutex.Lock();
+        if (m_editor_status == EditorStatus::Interrupted)
+        {
+            while (read_count > 0 && status == lldb::eConnectionStatusSuccess)
+                read_count = m_input_connection.Read(&ch, 1, UINT32_MAX, status, NULL);
+            lldbassert(status == lldb::eConnectionStatusInterrupted);
+            return 0;
+        }
+
         if (read_count)
         {
 #if LLDB_EDITLINE_USE_WCHAR
@@ -580,7 +608,7 @@ Editline::GetCharacter (EditLineCharType * c)
                 return 1;
 #else
             *c = ch;
-            if(*c != EOF) 
+            if(ch != (char)EOF) 
                 return 1;
 #endif
         }
@@ -588,14 +616,12 @@ Editline::GetCharacter (EditLineCharType * c)
         {
             switch (status)
             {
-                case lldb::eConnectionStatusInterrupted:
-                    m_editor_status = EditorStatus::Interrupted;
-                    printf ("^C\n");
-                    return 0;
-                    
                 case lldb::eConnectionStatusSuccess:         // Success
                     break;
                     
+                case lldb::eConnectionStatusInterrupted:
+                    lldbassert(0 && "Interrupts should have been handled above.");
+
                 case lldb::eConnectionStatusError:           // Check GetError() for details
                 case lldb::eConnectionStatusTimedOut:        // Request timed out
                 case lldb::eConnectionStatusEndOfFile:       // End-of-file encountered
@@ -697,7 +723,7 @@ Editline::BreakLineCommand (int ch)
 unsigned char
 Editline::DeleteNextCharCommand (int ch)
 {
-    LineInfoW * info = (LineInfoW *)el_wline (m_editline);
+    LineInfoW * info = const_cast<LineInfoW *>(el_wline (m_editline));
     
     // Just delete the next character normally if possible
     if (info->cursor < info->lastchar) 
@@ -741,7 +767,7 @@ Editline::DeleteNextCharCommand (int ch)
 unsigned char
 Editline::DeletePreviousCharCommand (int ch)
 {
-    LineInfoW * info = (LineInfoW *)el_wline (m_editline);
+    LineInfoW * info = const_cast<LineInfoW *>(el_wline (m_editline));
     
     // Just delete the previous character normally when not at the start of a line
     if (info->cursor > info->buffer) 
@@ -847,7 +873,7 @@ Editline::FixIndentationCommand (int ch)
     StringList lines = GetInputAsStringList (m_current_line_index + 1);
 
     // Determine the cursor position
-    LineInfoW * info = (LineInfoW *)el_wline (m_editline);
+    LineInfoW * info = const_cast<LineInfoW *>(el_wline (m_editline));
     int cursor_position = info->cursor - info->buffer;
     
     int indent_correction = m_fix_indentation_callback (this, lines, cursor_position, m_fix_indentation_callback_baton);
@@ -873,7 +899,7 @@ Editline::RevertLineCommand (int ch)
     el_winsertstr (m_editline, m_input_lines[m_current_line_index].c_str());
     if (m_revert_cursor_index >= 0)
     {
-        LineInfoW * info = (LineInfoW *)el_wline (m_editline);
+        LineInfoW * info = const_cast<LineInfoW *>(el_wline (m_editline));
         info->cursor = info->buffer + m_revert_cursor_index;
         if (info->cursor > info->lastchar)
         {
@@ -1238,41 +1264,31 @@ Editline::GetCurrentLine()
     return m_current_line_index;
 }
 
-void
-Editline::Hide()
-{
-    // Make sure we're at a stable location waiting for input
-    while (m_editor_status == EditorStatus::Editing && !m_editor_getting_char)
-    {
-        usleep(100000);
-    }
-    
-    // Clear the existing input
-    if (m_editor_status == EditorStatus::Editing)
-    {
-        MoveCursor(CursorLocation::EditingCursor, CursorLocation::BlockStart);
-        fprintf(m_output_file, ANSI_CLEAR_BELOW);
-    }
-}
-
-void
-Editline::Refresh()
-{
-    if (m_editor_status == EditorStatus::Editing)
-    {
-        DisplayInput();
-        MoveCursor(CursorLocation::BlockEnd, CursorLocation::EditingCursor);
-    }
-}
-
 bool
 Editline::Interrupt()
 {
-    if (m_editor_status == EditorStatus::Editing)
-    {
-        return m_input_connection.InterruptRead();
+    bool result = true;
+    Mutex::Locker locker(m_output_mutex);
+    if (m_editor_status == EditorStatus::Editing) {
+        fprintf(m_output_file, "^C\n");
+        result = m_input_connection.InterruptRead();
     }
-    return false; // Interrupt not handled as we weren't getting a line or lines
+    m_editor_status = EditorStatus::Interrupted;
+    return result;
+}
+
+bool
+Editline::Cancel()
+{
+    bool result = true;
+    Mutex::Locker locker(m_output_mutex);
+    if (m_editor_status == EditorStatus::Editing) {
+        MoveCursor(CursorLocation::EditingCursor, CursorLocation::BlockStart);
+        fprintf(m_output_file, ANSI_CLEAR_BELOW);
+        result = m_input_connection.InterruptRead();
+    }
+    m_editor_status = EditorStatus::Interrupted;
+    return result;
 }
 
 void
@@ -1307,11 +1323,24 @@ Editline::GetLine (std::string &line, bool &interrupted)
     m_input_lines = std::vector<EditLineStringType>();
     m_input_lines.insert (m_input_lines.begin(), EditLineConstString(""));
     
+    Mutex::Locker locker(m_output_mutex);
+
+    lldbassert(m_editor_status != EditorStatus::Editing);
+    if (m_editor_status == EditorStatus::Interrupted)
+    {
+        m_editor_status = EditorStatus::Complete;
+        interrupted = true;
+        return true;
+    }
+
     SetCurrentLine (0);
     m_in_history = false;
     m_editor_status = EditorStatus::Editing;
-    m_editor_getting_char = false;
     m_revert_cursor_index = -1;
+
+#ifdef USE_SETUPTERM_WORKAROUND
+        setupterm((char *)0, fileno(m_output_file), (int *)0);
+#endif
 
     int count;
     auto input = el_wgets (m_editline, &count);
@@ -1348,17 +1377,20 @@ Editline::GetLines (int first_line_number, StringList &lines, bool &interrupted)
     m_input_lines = std::vector<EditLineStringType>();
     m_input_lines.insert (m_input_lines.begin(), EditLineConstString(""));
     
+    Mutex::Locker locker(m_output_mutex);
     // Begin the line editing loop
     DisplayInput();
     SetCurrentLine (0);
     MoveCursor (CursorLocation::BlockEnd, CursorLocation::BlockStart);
     m_editor_status = EditorStatus::Editing;
-    m_editor_getting_char = false;
     m_in_history = false;
 
     m_revert_cursor_index = -1;
     while (m_editor_status == EditorStatus::Editing)
     {
+#ifdef USE_SETUPTERM_WORKAROUND
+        setupterm((char *)0, fileno(m_output_file), (int *)0);
+#endif
         int count;
         m_current_line_rows = -1;
         el_wpush (m_editline, EditLineConstString("\x1b[^")); // Revert to the existing line content
@@ -1374,4 +1406,22 @@ Editline::GetLines (int first_line_number, StringList &lines, bool &interrupted)
         lines = GetInputAsStringList();
     }
     return m_editor_status != EditorStatus::EndOfInput;
+}
+
+void
+Editline::PrintAsync (Stream *stream, const char *s, size_t len)
+{
+    Mutex::Locker locker(m_output_mutex);
+    if (m_editor_status == EditorStatus::Editing)
+    {
+        MoveCursor(CursorLocation::EditingCursor, CursorLocation::BlockStart);
+        fprintf(m_output_file, ANSI_CLEAR_BELOW);
+    }
+    stream->Write (s, len);
+    stream->Flush();
+    if (m_editor_status == EditorStatus::Editing)
+    {
+        DisplayInput();
+        MoveCursor(CursorLocation::BlockEnd, CursorLocation::EditingCursor);
+    }
 }

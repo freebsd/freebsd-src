@@ -263,13 +263,12 @@ ABISysV_hexagon::PrepareTrivialCall ( Thread &thread,
 
         // update the argument with the target pointer
         //XXX: This is a gross hack for getting around the const
-        *((size_t*)(&arg.value)) = sp;
+        *const_cast<lldb::addr_t*>(&arg.value) = sp;
     }
-
 
 #if HEX_ABI_DEBUG
     // print the original stack pointer
-    printf( "sp : %04lx \n", sp );
+    printf( "sp : %04" PRIx64 " \n", sp );
 #endif
 
     // make sure number of parameters matches prototype
@@ -337,7 +336,7 @@ ABISysV_hexagon::PrepareTrivialCall ( Thread &thread,
         uint32_t data = 0;
         lldb::addr_t addr = sp + i * 4;
         proc->ReadMemory( addr, (void*)&data, sizeof( data ), error );
-        printf( "\n0x%04lx 0x%08x ", addr, data );
+        printf( "\n0x%04" PRIx64 " 0x%08x ", addr, data );
         if ( i == 0 ) printf( "<<-- sp" );
     }
     printf( "\n" );
@@ -385,8 +384,7 @@ ABISysV_hexagon::CreateFunctionEntryUnwindPlan ( UnwindPlan &unwind_plan )
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
     // Our Call Frame Address is the stack pointer value
-    row->SetCFARegister(LLDB_REGNUM_GENERIC_SP);
-    row->SetCFAOffset(4);
+    row->GetCFAValue().SetIsRegisterPlusOffset (LLDB_REGNUM_GENERIC_SP, 4);
     row->SetOffset(0);
 
     // The previous PC is in the LR
@@ -410,8 +408,7 @@ ABISysV_hexagon::CreateDefaultUnwindPlan ( UnwindPlan &unwind_plan )
 
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
-    row->SetCFARegister(LLDB_REGNUM_GENERIC_FP);
-    row->SetCFAOffset(8);
+    row->GetCFAValue().SetIsRegisterPlusOffset (LLDB_REGNUM_GENERIC_FP, 8);
 
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num,-8, true);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num,-4, true);

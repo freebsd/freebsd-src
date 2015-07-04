@@ -7,24 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLogMediumFile.cpp
-//
-// Overview:    CMICmnLogMediumFile implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnLogMediumFile.h"
 #include "MICmnResources.h"
 #if defined(_MSC_VER)
 #include "MIUtilSystemWindows.h"
-#elif defined(__FreeBSD__) || defined(__linux__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__linux__)
 #include "MIUtilSystemLinux.h"
 #elif defined(__APPLE__)
 #include "MIUtilSystemOsx.h"
@@ -39,7 +27,9 @@
 //--
 CMICmnLogMediumFile::CMICmnLogMediumFile(void)
     : m_constThisMediumName(MIRSRC(IDS_MEDIUMFILE_NAME))
-    , m_constMediumFileName("lldb-mi-log.txt")
+    , m_constMediumFileNameFormat("lldb-mi-%s.log")
+    , m_strMediumFileName(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH))
+    , m_strMediumFileDirectory(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH))
     , m_fileNamePath(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH))
     , m_eVerbosityType(CMICmnLog::eLogVerbosity_Log)
     , m_strDate(CMIUtilDateTimeStd().GetDate())
@@ -84,7 +74,8 @@ CMICmnLogMediumFile::Instance(void)
 bool
 CMICmnLogMediumFile::Initialize(void)
 {
-    m_bInitialized = FileFormFileNamePath();
+    m_bInitialized = CMIUtilSystem().GetLogFilesPath(m_strMediumFileDirectory);
+    m_bInitialized &= FileFormFileNamePath();
 
     return m_bInitialized;
 }
@@ -225,21 +216,15 @@ CMICmnLogMediumFile::FileFormFileNamePath(void)
 
     m_fileNamePath = MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH);
 
-    CMIUtilString strPathName;
-    if (CMIUtilSystem().GetLogFilesPath(strPathName))
+    if (m_strMediumFileDirectory.compare(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH)) != 0)
     {
-        const CMIUtilString strPath = CMIUtilFileStd().StripOffFileName(strPathName);
+        CMIUtilDateTimeStd date;
+        m_strMediumFileName = CMIUtilString::Format(m_constMediumFileNameFormat.c_str(), date.GetDateTimeLogFilename().c_str());
 
-// ToDo: Review this LINUX log file quick fix so not hidden
-// AD:
-//      Linux was creating a log file here called '.\log.txt'.  The '.' on linux
-//      signifies that this file is 'hidden' and not normally visible.  A quick fix
-//      is to remove the path component all together.  Linux also normally uses '/'
-//      as directory separators, again leading to the problem of the hidden log.
 #if defined(_MSC_VER)
-        m_fileNamePath = CMIUtilString::Format("%s\\%s", strPath.c_str(), m_constMediumFileName.c_str());
+        m_fileNamePath = CMIUtilString::Format("%s\\%s", m_strMediumFileDirectory.c_str(), m_strMediumFileName.c_str());
 #else
-        m_fileNamePath = CMIUtilString::Format("%s", m_constMediumFileName.c_str());
+        m_fileNamePath = CMIUtilString::Format("%s/%s", m_strMediumFileDirectory.c_str(), m_strMediumFileName.c_str());
 #endif // defined ( _MSC_VER )
 
         return MIstatus::success;
@@ -273,7 +258,7 @@ CMICmnLogMediumFile::GetFileNamePath(void) const
 const CMIUtilString &
 CMICmnLogMediumFile::GetFileName(void) const
 {
-    return m_constMediumFileName;
+    return m_strMediumFileName;
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -291,15 +276,15 @@ CMICmnLogMediumFile::MassagedData(const CMIUtilString &vData, const CMICmnLog::E
 {
     const CMIUtilString strCr("\n");
     CMIUtilString data;
-    const MIchar verbosityCode(ConvertLogVerbosityTypeToId(veType));
+    const char verbosityCode(ConvertLogVerbosityTypeToId(veType));
     const CMIUtilString dt(CMIUtilString::Format("%s %s", m_strDate.c_str(), m_dateTime.GetTime().c_str()));
 
     data = CMIUtilString::Format("%c,%s,%s", verbosityCode, dt.c_str(), vData.c_str());
     data = ConvertCr(data);
 
     // Look for EOL...
-    const MIint pos = vData.rfind(strCr);
-    if (pos == (MIint)vData.size())
+    const size_t pos = vData.rfind(strCr);
+    if (pos == vData.size())
         return data;
 
     // ... did not have an EOL so add one
@@ -315,10 +300,10 @@ CMICmnLogMediumFile::MassagedData(const CMIUtilString &vData, const CMICmnLog::E
 // Return:  wchar_t - A letter.
 // Throws:  None.
 //--
-MIchar
+char
 CMICmnLogMediumFile::ConvertLogVerbosityTypeToId(const CMICmnLog::ELogVerbosity veType) const
 {
-    MIchar c = 0;
+    char c = 0;
     if (veType != 0)
     {
         MIuint cnt = 0;
@@ -397,11 +382,11 @@ CMICmnLogMediumFile::ConvertCr(const CMIUtilString &vData) const
     if (strCr == rCrCmpat)
         return vData;
 
-    const MIuint nSizeCmpat(rCrCmpat.size());
-    const MIuint nSize(strCr.size());
+    const size_t nSizeCmpat(rCrCmpat.size());
+    const size_t nSize(strCr.size());
     CMIUtilString strConv(vData);
-    MIint pos = strConv.find(strCr);
-    while (pos != (MIint)CMIUtilString::npos)
+    size_t pos = strConv.find(strCr);
+    while (pos != CMIUtilString::npos)
     {
         strConv.replace(pos, nSize, rCrCmpat);
         pos = strConv.find(strCr, pos + nSizeCmpat);
@@ -437,4 +422,20 @@ const CMIUtilString &
 CMICmnLogMediumFile::GetLineReturn(void) const
 {
     return m_file.GetLineReturn();
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Set the diretory to place the log file.
+// Type:    Method.
+// Args:    vPath   - (R) Path to log.
+// Return:  MIstatus::success - Functional succeeded.
+//          MIstatus::failure - Functional failed.
+// Throws:  None.
+//--
+bool
+CMICmnLogMediumFile::SetDirectory(const CMIUtilString &vPath)
+{
+    m_strMediumFileDirectory = vPath;
+
+    return FileFormFileNamePath();
 }

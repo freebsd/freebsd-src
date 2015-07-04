@@ -14,13 +14,13 @@
 // Other libraries and framework includes
 
 // Project includes
-#include "lldb/lldb-private-log.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Expression/ClangUserExpression.h"
+#include "lldb/Expression/IRDynamicChecks.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/LanguageRuntime.h"
 #include "lldb/Target/Process.h"
@@ -41,7 +41,7 @@ ThreadPlanCallUserExpression::ThreadPlanCallUserExpression (Thread &thread,
                                                 Address &function,
                                                 llvm::ArrayRef<lldb::addr_t> args,
                                                 const EvaluateExpressionOptions &options,
-                                                ClangUserExpression::ClangUserExpressionSP &user_expression_sp) :
+                                                lldb::ClangUserExpressionSP &user_expression_sp) :
     ThreadPlanCallFunction (thread, function, ClangASTType(), args, options),
     m_user_expression_sp (user_expression_sp)
 {

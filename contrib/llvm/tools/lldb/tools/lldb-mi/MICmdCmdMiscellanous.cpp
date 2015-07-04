@@ -7,24 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdMiscellanous.cpp
-//
 // Overview:    CMICmdCmdGdbExit                implementation.
 //              CMICmdCmdListThreadGroups       implementation.
 //              CMICmdCmdInterpreterExec        implementation.
 //              CMICmdCmdInferiorTtySet         implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 // Third Party Headers:
-#include <lldb/API/SBCommandInterpreter.h>
-#include <lldb/API/SBThread.h>
+#include "lldb/API/SBCommandInterpreter.h"
+#include "lldb/API/SBThread.h"
 
 // In-house headers:
 #include "MICmdCmdMiscellanous.h"
@@ -84,7 +74,7 @@ bool
 CMICmdCmdGdbExit::Execute(void)
 {
     CMICmnLLDBDebugger::Instance().GetDriver().SetExitApplicationFlag(true);
-    const lldb::SBError sbErr = m_rLLDBDebugSessionInfo.m_lldbProcess.Detach();
+    const lldb::SBError sbErr = m_rLLDBDebugSessionInfo.GetProcess().Destroy();
     // Do not check for sbErr.Fail() here, m_lldbProcess is likely !IsValid()
 
     return MIstatus::success;
@@ -234,22 +224,22 @@ CMICmdCmdListThreadGroups::Execute(void)
     m_bIsI1 = true;
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBProcess &rProcess = rSessionInfo.m_lldbProcess;
+    lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
 
-    // Note do not check for rProcess is IsValid(), continue
+    // Note do not check for sbProcess is IsValid(), continue
 
     m_vecMIValueTuple.clear();
-    const MIuint nThreads = rProcess.GetNumThreads();
+    const MIuint nThreads = sbProcess.GetNumThreads();
     for (MIuint i = 0; i < nThreads; i++)
     {
         //  GetThreadAtIndex() uses a base 0 index
         //  GetThreadByIndexID() uses a base 1 index
-        lldb::SBThread thread = rProcess.GetThreadAtIndex(i);
+        lldb::SBThread thread = sbProcess.GetThreadAtIndex(i);
 
         if (thread.IsValid())
         {
             CMICmnMIValueTuple miTuple;
-            if (!rSessionInfo.MIResponseFormThreadInfo2(m_cmdData, thread, miTuple))
+            if (!rSessionInfo.MIResponseFormThreadInfo(m_cmdData, thread, CMICmnLLDBDebugSessionInfo::eThreadInfoFormat_NoFrames, miTuple))
                 return MIstatus::failure;
 
             m_vecMIValueTuple.push_back(miTuple);
@@ -292,9 +282,9 @@ CMICmdCmdListThreadGroups::Acknowledge(void)
         miTuple.Add(miValueResult2);
 
         CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-        if (rSessionInfo.m_lldbProcess.IsValid())
+        if (rSessionInfo.GetProcess().IsValid())
         {
-            const lldb::pid_t pid = rSessionInfo.m_lldbProcess.GetProcessID();
+            const lldb::pid_t pid = rSessionInfo.GetProcess().GetProcessID();
             const CMIUtilString strPid(CMIUtilString::Format("%lld", pid));
             const CMICmnMIValueConst miValueConst3(strPid);
             const CMICmnMIValueResult miValueResult3("pid", miValueConst3);
@@ -328,20 +318,20 @@ CMICmdCmdListThreadGroups::Acknowledge(void)
         miTuple.Add(miValueResult2);
 
         CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-        if (rSessionInfo.m_lldbProcess.IsValid())
+        if (rSessionInfo.GetProcess().IsValid())
         {
-            const lldb::pid_t pid = rSessionInfo.m_lldbProcess.GetProcessID();
+            const lldb::pid_t pid = rSessionInfo.GetProcess().GetProcessID();
             const CMIUtilString strPid(CMIUtilString::Format("%lld", pid));
             const CMICmnMIValueConst miValueConst3(strPid);
             const CMICmnMIValueResult miValueResult3("pid", miValueConst3);
             miTuple.Add(miValueResult3);
         }
 
-        if (rSessionInfo.m_lldbTarget.IsValid())
+        if (rSessionInfo.GetTarget().IsValid())
         {
-            lldb::SBTarget &rTrgt = rSessionInfo.m_lldbTarget;
-            const MIchar *pDir = rTrgt.GetExecutable().GetDirectory();
-            const MIchar *pFileName = rTrgt.GetExecutable().GetFilename();
+            lldb::SBTarget sbTrgt = rSessionInfo.GetTarget();
+            const char *pDir = sbTrgt.GetExecutable().GetDirectory();
+            const char *pFileName = sbTrgt.GetExecutable().GetFilename();
             const CMIUtilString strFile(CMIUtilString::Format("%s/%s", pDir, pFileName));
             const CMICmnMIValueConst miValueConst4(strFile);
             const CMICmnMIValueResult miValueResult4("executable", miValueConst4);
@@ -409,7 +399,7 @@ CMICmdCmdListThreadGroups::CreateSelf(void)
 // Throws:  None.
 //--
 CMICmdCmdInterpreterExec::CMICmdCmdInterpreterExec(void)
-    : m_constStrArgNamedInterpreter("intepreter")
+    : m_constStrArgNamedInterpreter("interpreter")
     , m_constStrArgNamedCommand("command")
 {
     // Command factory matches this name with that received from the stdin stream
@@ -470,7 +460,7 @@ CMICmdCmdInterpreterExec::Execute(void)
     const CMIUtilString &rStrCommand(pArgCommand->GetValue());
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
     const lldb::ReturnStatus rtn =
-        rSessionInfo.m_rLldbDebugger.GetCommandInterpreter().HandleCommand(rStrCommand.c_str(), m_lldbResult, true);
+        rSessionInfo.GetDebugger().GetCommandInterpreter().HandleCommand(rStrCommand.c_str(), m_lldbResult, true);
     MIunused(rtn);
 
     return MIstatus::success;
@@ -493,19 +483,12 @@ CMICmdCmdInterpreterExec::Acknowledge(void)
         CMIUtilString strMsg(m_lldbResult.GetOutput());
         strMsg = strMsg.StripCREndOfLine();
         CMICmnStreamStdout::TextToStdout(strMsg);
-
-        // Send the LLDB result message to console so the user can see the result of the
-        // command they typed. It is not necessary an error message.
-        CMICmnStreamStderr::LLDBMsgToConsole(strMsg);
     }
     if (m_lldbResult.GetErrorSize() > 0)
     {
         CMIUtilString strMsg(m_lldbResult.GetError());
         strMsg = strMsg.StripCREndOfLine();
         CMICmnStreamStderr::LLDBMsgToConsole(strMsg);
-
-        // Send LLDB's error message to the MI Driver's Log file
-        CMICmnStreamStdout::TextToStdout(strMsg);
     }
 
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done);
@@ -588,7 +571,7 @@ CMICmdCmdInferiorTtySet::Execute(void)
 bool
 CMICmdCmdInferiorTtySet::Acknowledge(void)
 {
-    const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done);
+    const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error);
     m_miResultRecord = miRecordResult;
 
     return MIstatus::success;

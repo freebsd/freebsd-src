@@ -7,15 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 // C Includes
 // C++ Includes
 #include <string>
 
 // Other libraries and framework includes
 // Project includes
-#include "lldb/lldb-private-log.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointID.h"
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
@@ -23,6 +20,8 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StreamString.h"
+#include "lldb/Core/ValueObject.h"
+#include "lldb/Expression/ClangUserExpression.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/Target.h"
@@ -477,7 +476,22 @@ void
 BreakpointLocation::BumpHitCount()
 {
     if (IsEnabled())
+    {
+        // Step our hit count, and also step the hit count of the owner.
         IncrementHitCount();
+        m_owner.IncrementHitCount();
+    }
+}
+
+void
+BreakpointLocation::UndoBumpHitCount()
+{
+    if (IsEnabled())
+    {
+        // Step our hit count, and also step the hit count of the owner.
+        DecrementHitCount();
+        m_owner.DecrementHitCount();
+    }
 }
 
 bool
@@ -520,6 +534,7 @@ bool
 BreakpointLocation::SetBreakpointSite (BreakpointSiteSP& bp_site_sp)
 {
     m_bp_site_sp = bp_site_sp;
+    SendBreakpointLocationChangedEvent (eBreakpointEventTypeLocationsResolved);
     return true;
 }
 
@@ -575,7 +590,7 @@ BreakpointLocation::GetDescription (Stream *s, lldb::DescriptionLevel level)
                 s->PutCString ("re-exported target = ");
             else
                 s->PutCString("where = ");
-            sc.DumpStopContext (s, m_owner.GetTarget().GetProcessSP().get(), m_address, false, true, false, true);
+            sc.DumpStopContext (s, m_owner.GetTarget().GetProcessSP().get(), m_address, false, true, false, true, true);
         }
         else
         {

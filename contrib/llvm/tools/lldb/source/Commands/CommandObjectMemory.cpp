@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectMemory.h"
 
 // C Includes
@@ -16,6 +14,7 @@
 
 // C++ Includes
 // Other libraries and framework includes
+#include "clang/AST/Decl.h"
 // Project includes
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataExtractor.h"
@@ -24,6 +23,8 @@
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/ValueObjectMemory.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
+#include "lldb/Expression/ClangPersistentVariables.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -94,7 +95,7 @@ public:
         switch (short_option)
         {
             case 'l':
-                error = m_num_per_line.SetValueFromCString (option_arg);
+                error = m_num_per_line.SetValueFromString (option_arg);
                 if (m_num_per_line.GetCurrentValue() == 0)
                     error.SetErrorStringWithFormat("invalid value for --num-per-line option '%s'", option_arg);
                 break;
@@ -104,7 +105,7 @@ public:
                 break;
                 
             case 't':
-                error = m_view_as_type.SetValueFromCString (option_arg);
+                error = m_view_as_type.SetValueFromString (option_arg);
                 break;
             
             case 'r':
@@ -312,7 +313,7 @@ public:
                              "memory read",
                              "Read from the memory of the process being debugged.",
                              NULL,
-                             eFlagRequiresTarget | eFlagProcessMustBePaused),
+                             eCommandRequiresTarget | eCommandProcessMustBePaused),
         m_option_group (interpreter),
         m_format_options (eFormatBytesWithASCII, 1, 8),
         m_memory_options (),
@@ -385,7 +386,7 @@ protected:
     virtual bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        // No need to check "target" for validity as eFlagRequiresTarget ensures it is valid
+        // No need to check "target" for validity as eCommandRequiresTarget ensures it is valid
         Target *target = m_exe_ctx.GetTargetPtr();
 
         const size_t argc = command.GetArgumentCount();
@@ -531,7 +532,7 @@ protected:
                 clang::TypeDecl *tdecl = target->GetPersistentVariables().GetPersistentType(ConstString(lookup_type_name));
                 if (tdecl)
                 {
-                    clang_ast_type.SetClangType(&tdecl->getASTContext(),(lldb::clang_type_t)tdecl->getTypeForDecl());
+                    clang_ast_type.SetClangType(&tdecl->getASTContext(),(const lldb::clang_type_t)tdecl->getTypeForDecl());
                 }
             }
             
@@ -566,7 +567,7 @@ protected:
                 --pointer_count;
             }
 
-            m_format_options.GetByteSizeValue() = clang_ast_type.GetByteSize();
+            m_format_options.GetByteSizeValue() = clang_ast_type.GetByteSize(nullptr);
             
             if (m_format_options.GetByteSizeValue() == 0)
             {
@@ -689,7 +690,7 @@ protected:
             if (m_format_options.GetFormatValue().OptionWasSet() == false)
                 m_format_options.GetFormatValue().SetCurrentValue(eFormatDefault);
 
-            bytes_read = clang_ast_type.GetByteSize() * m_format_options.GetCountValue().GetCurrentValue();
+            bytes_read = clang_ast_type.GetByteSize(nullptr) * m_format_options.GetCountValue().GetCurrentValue();
         }
         else if (m_format_options.GetFormatValue().GetCurrentValue() != eFormatCString)
         {
@@ -741,6 +742,7 @@ protected:
             auto data_addr = addr;
             auto count = item_count;
             item_count = 0;
+            bool break_on_no_NULL = false;
             while (item_count < count)
             {
                 std::string buffer;
@@ -753,17 +755,24 @@ protected:
                     result.SetStatus(eReturnStatusFailed);
                     return false;
                 }
+                
                 if (item_byte_size == read)
                 {
                     result.AppendWarningWithFormat("unable to find a NULL terminated string at 0x%" PRIx64 ".Consider increasing the maximum read length.\n", data_addr);
-                    break;
+                    --read;
+                    break_on_no_NULL = true;
                 }
-                read+=1; // account for final NULL byte
+                else
+                    ++read; // account for final NULL byte
+                
                 memcpy(data_ptr, &buffer[0], read);
                 data_ptr += read;
                 data_addr += read;
                 bytes_read += read;
                 item_count++; // if we break early we know we only read item_count strings
+                
+                if (break_on_no_NULL)
+                    break;
             }
             data_sp.reset(new DataBufferHeap(data_sp->GetBytes(),bytes_read+1));
         }
@@ -980,20 +989,20 @@ public:
         switch (short_option)
         {
         case 'e':
-              m_expr.SetValueFromCString(option_arg);
+              m_expr.SetValueFromString(option_arg);
               break;
           
         case 's':
-              m_string.SetValueFromCString(option_arg);
+              m_string.SetValueFromString(option_arg);
               break;
           
         case 'c':
-              if (m_count.SetValueFromCString(option_arg).Fail())
+              if (m_count.SetValueFromString(option_arg).Fail())
                   error.SetErrorString("unrecognized value for count");
               break;
                 
         case 'o':
-               if (m_offset.SetValueFromCString(option_arg).Fail())
+               if (m_offset.SetValueFromString(option_arg).Fail())
                    error.SetErrorString("unrecognized value for dump-offset");
                 break;
 
@@ -1023,7 +1032,7 @@ public:
                        "memory find",
                        "Find a value in the memory of the process being debugged.",
                        NULL,
-                       eFlagRequiresProcess | eFlagProcessMustBeLaunched),
+                       eCommandRequiresProcess | eCommandProcessMustBeLaunched),
   m_option_group (interpreter),
   m_memory_options ()
   {
@@ -1069,7 +1078,7 @@ protected:
   virtual bool
   DoExecute (Args& command, CommandReturnObject &result)
   {
-      // No need to check "process" for validity as eFlagRequiresProcess ensures it is valid
+      // No need to check "process" for validity as eCommandRequiresProcess ensures it is valid
       Process *process = m_exe_ctx.GetProcessPtr();
 
       const size_t argc = command.GetArgumentCount();
@@ -1113,7 +1122,7 @@ protected:
           if (process->GetTarget().EvaluateExpression(m_memory_options.m_expr.GetStringValue(), frame, result_sp) && result_sp.get())
           {
               uint64_t value = result_sp->GetValueAsUnsigned(0);
-              switch (result_sp->GetClangType().GetByteSize())
+              switch (result_sp->GetClangType().GetByteSize(nullptr))
               {
                   case 1: {
                       uint8_t byte = (uint8_t)value;
@@ -1293,7 +1302,7 @@ public:
                 case 'o':
                     {
                         bool success;
-                        m_infile_offset = Args::StringToUInt64(option_arg, 0, 0, &success);
+                        m_infile_offset = StringConvert::ToUInt64(option_arg, 0, 0, &success);
                         if (!success)
                         {
                             error.SetErrorStringWithFormat("invalid offset string '%s'", option_arg);
@@ -1324,7 +1333,7 @@ public:
                              "memory write",
                              "Write to the memory of the process being debugged.",
                              NULL,
-                             eFlagRequiresProcess | eFlagProcessMustBeLaunched),
+                             eCommandRequiresProcess | eCommandProcessMustBeLaunched),
         m_option_group (interpreter),
         m_format_options (eFormatBytes, 1, UINT64_MAX),
         m_memory_options ()
@@ -1401,7 +1410,7 @@ protected:
     virtual bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        // No need to check "process" for validity as eFlagRequiresProcess ensures it is valid
+        // No need to check "process" for validity as eCommandRequiresProcess ensures it is valid
         Process *process = m_exe_ctx.GetProcessPtr();
 
         const size_t argc = command.GetArgumentCount();
@@ -1446,7 +1455,7 @@ protected:
         if (m_memory_options.m_infile)
         {
             size_t length = SIZE_MAX;
-            if (item_byte_size > 0)
+            if (item_byte_size > 1)
                 length = item_byte_size;
             lldb::DataBufferSP data_sp (m_memory_options.m_infile.ReadFileContents (m_memory_options.m_infile_offset, length));
             if (data_sp)
@@ -1539,7 +1548,7 @@ protected:
             case eFormatPointer:
                 
                 // Decode hex bytes
-                uval64 = Args::StringToUInt64(value_str, UINT64_MAX, 16, &success);
+                uval64 = StringConvert::ToUInt64(value_str, UINT64_MAX, 16, &success);
                 if (!success)
                 {
                     result.AppendErrorWithFormat ("'%s' is not a valid hex string value.\n", value_str);
@@ -1567,7 +1576,7 @@ protected:
                 break;
 
             case eFormatBinary:
-                uval64 = Args::StringToUInt64(value_str, UINT64_MAX, 2, &success);
+                uval64 = StringConvert::ToUInt64(value_str, UINT64_MAX, 2, &success);
                 if (!success)
                 {
                     result.AppendErrorWithFormat ("'%s' is not a valid binary string value.\n", value_str);
@@ -1607,7 +1616,7 @@ protected:
                 break;
 
             case eFormatDecimal:
-                sval64 = Args::StringToSInt64(value_str, INT64_MAX, 0, &success);
+                sval64 = StringConvert::ToSInt64(value_str, INT64_MAX, 0, &success);
                 if (!success)
                 {
                     result.AppendErrorWithFormat ("'%s' is not a valid signed decimal value.\n", value_str);
@@ -1624,7 +1633,7 @@ protected:
                 break;
 
             case eFormatUnsigned:
-                uval64 = Args::StringToUInt64(value_str, UINT64_MAX, 0, &success);
+                uval64 = StringConvert::ToUInt64(value_str, UINT64_MAX, 0, &success);
                 if (!success)
                 {
                     result.AppendErrorWithFormat ("'%s' is not a valid unsigned decimal string value.\n", value_str);
@@ -1641,7 +1650,7 @@ protected:
                 break;
 
             case eFormatOctal:
-                uval64 = Args::StringToUInt64(value_str, UINT64_MAX, 8, &success);
+                uval64 = StringConvert::ToUInt64(value_str, UINT64_MAX, 8, &success);
                 if (!success)
                 {
                     result.AppendErrorWithFormat ("'%s' is not a valid octal string value.\n", value_str);
@@ -1691,7 +1700,7 @@ public:
                          "memory history",
                          "Prints out the recorded stack traces for allocation/deallocation of a memory address.",
                          NULL,
-                         eFlagRequiresTarget | eFlagRequiresProcess | eFlagProcessMustBePaused | eFlagProcessMustBeLaunched)
+                         eCommandRequiresTarget | eCommandRequiresProcess | eCommandProcessMustBePaused | eCommandProcessMustBeLaunched)
     {
         CommandArgumentEntry arg1;
         CommandArgumentData addr_arg;

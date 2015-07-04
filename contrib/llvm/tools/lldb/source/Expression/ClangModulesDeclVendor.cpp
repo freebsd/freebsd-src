@@ -7,11 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Core/StreamString.h"
+#include <mutex> // std::once
+
 #include "lldb/Expression/ClangModulesDeclVendor.h"
+
+#include "lldb/Core/Log.h"
+#include "lldb/Core/StreamString.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
+#include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Target/Target.h"
 
 #include "clang/Basic/TargetInfo.h"
@@ -22,7 +27,6 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Serialization/ASTReader.h"
 
-#include <mutex>
 
 using namespace lldb_private;
 
@@ -58,25 +62,52 @@ namespace {
                                    std::unique_ptr<clang::Parser> &&parser);
         
         virtual bool
-        AddModule(std::vector<llvm::StringRef> &path,
-                  Stream &error_stream);
+        AddModule(ModulePath &path,
+                  ModuleVector *exported_modules,
+                  Stream &error_stream) override;
+        
+        virtual bool
+        AddModulesForCompileUnit(CompileUnit &cu,
+                                 ModuleVector &exported_modules,
+                                 Stream &error_stream) override;
         
         virtual uint32_t
         FindDecls (const ConstString &name,
                    bool append,
                    uint32_t max_matches,
-                   std::vector <clang::NamedDecl*> &decls);
+                   std::vector <clang::NamedDecl*> &decls) override;
+        
+        virtual void
+        ForEachMacro(const ModuleVector &modules,
+                     std::function<bool (const std::string &)> handler) override;
         
         ~ClangModulesDeclVendorImpl();
         
     private:
+        void
+        ReportModuleExportsHelper (std::set<ClangModulesDeclVendor::ModuleID> &exports,
+                                   clang::Module *module);
+
+        void
+        ReportModuleExports (ModuleVector &exports,
+                             clang::Module *module);
+
         clang::ModuleLoadResult
         DoGetModule(clang::ModuleIdPath path, bool make_visible);
+        
+        bool                                                m_enabled = false;
         
         llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>  m_diagnostics_engine;
         llvm::IntrusiveRefCntPtr<clang::CompilerInvocation> m_compiler_invocation;
         std::unique_ptr<clang::CompilerInstance>            m_compiler_instance;
         std::unique_ptr<clang::Parser>                      m_parser;
+        size_t                                              m_source_location_index = 0; // used to give name components fake SourceLocations
+
+        typedef std::vector<ConstString>                    ImportedModule;
+        typedef std::map<ImportedModule, clang::Module *>   ImportedModuleMap;
+        typedef std::set<ModuleID>                          ImportedModuleSet;
+        ImportedModuleMap                                   m_imported_modules;
+        ImportedModuleSet                                   m_user_imported_modules;
     };
 }
 
@@ -149,12 +180,47 @@ ClangModulesDeclVendorImpl::ClangModulesDeclVendorImpl(llvm::IntrusiveRefCntPtr<
     m_diagnostics_engine(diagnostics_engine),
     m_compiler_invocation(compiler_invocation),
     m_compiler_instance(std::move(compiler_instance)),
-    m_parser(std::move(parser))
+    m_parser(std::move(parser)),
+    m_imported_modules()
 {
 }
 
+void
+ClangModulesDeclVendorImpl::ReportModuleExportsHelper (std::set<ClangModulesDeclVendor::ModuleID> &exports,
+                                                       clang::Module *module)
+{
+    if (exports.count(reinterpret_cast<ClangModulesDeclVendor::ModuleID>(module)))
+        return;
+    
+    exports.insert(reinterpret_cast<ClangModulesDeclVendor::ModuleID>(module));
+    
+    llvm::SmallVector<clang::Module*, 2> sub_exports;
+    
+    module->getExportedModules(sub_exports);
+
+    for (clang::Module *module : sub_exports)
+    {
+        ReportModuleExportsHelper(exports, module);
+    }
+}
+
+void
+ClangModulesDeclVendorImpl::ReportModuleExports (ClangModulesDeclVendor::ModuleVector &exports,
+                                                 clang::Module *module)
+{
+    std::set<ClangModulesDeclVendor::ModuleID> exports_set;
+    
+    ReportModuleExportsHelper(exports_set, module);
+    
+    for (ModuleID module : exports_set)
+    {
+        exports.push_back(module);
+    }
+}
+
 bool
-ClangModulesDeclVendorImpl::AddModule(std::vector<llvm::StringRef> &path,
+ClangModulesDeclVendorImpl::AddModule(ModulePath &path,
+                                      ModuleVector *exported_modules,
                                       Stream &error_stream)
 {
     // Fail early.
@@ -165,22 +231,43 @@ ClangModulesDeclVendorImpl::AddModule(std::vector<llvm::StringRef> &path,
         return false;
     }
     
-    if (!m_compiler_instance->getPreprocessor().getHeaderSearchInfo().lookupModule(path[0]))
+    // Check if we've already imported this module.
+    
+    std::vector<ConstString> imported_module;
+    
+    for (ConstString path_component : path)
     {
-        error_stream.Printf("error: Header search couldn't locate module %s\n", path[0].str().c_str());
+        imported_module.push_back(path_component);
+    }
+    
+    {
+        ImportedModuleMap::iterator mi = m_imported_modules.find(imported_module);
+        
+        if (mi != m_imported_modules.end())
+        {
+            if (exported_modules)
+            {
+                ReportModuleExports(*exported_modules, mi->second);
+            }
+            return true;
+        }
+    }
+    
+    if (!m_compiler_instance->getPreprocessor().getHeaderSearchInfo().lookupModule(path[0].GetStringRef()))
+    {
+        error_stream.Printf("error: Header search couldn't locate module %s\n", path[0].AsCString());
         return false;
     }
     
     llvm::SmallVector<std::pair<clang::IdentifierInfo *, clang::SourceLocation>, 4> clang_path;
     
     {
-        size_t source_loc_counter = 0;
         clang::SourceManager &source_manager = m_compiler_instance->getASTContext().getSourceManager();
         
-        for (llvm::StringRef &component : path)
+        for (ConstString path_component : path)
         {
-            clang_path.push_back(std::make_pair(&m_compiler_instance->getASTContext().Idents.get(component),
-                                                source_manager.getLocForStartOfFile(source_manager.getMainFileID()).getLocWithOffset(source_loc_counter++)));
+            clang_path.push_back(std::make_pair(&m_compiler_instance->getASTContext().Idents.get(path_component.GetStringRef()),
+                                                source_manager.getLocForStartOfFile(source_manager.getMainFileID()).getLocWithOffset(m_source_location_index++)));
         }
     }
     
@@ -193,7 +280,7 @@ ClangModulesDeclVendorImpl::AddModule(std::vector<llvm::StringRef> &path,
     if (!top_level_module)
     {
         diagnostic_consumer->DumpDiagnostics(error_stream);
-        error_stream.Printf("error: Couldn't load top-level module %s\n", path[0].str().c_str());
+        error_stream.Printf("error: Couldn't load top-level module %s\n", path[0].AsCString());
         return false;
     }
     
@@ -201,7 +288,7 @@ ClangModulesDeclVendorImpl::AddModule(std::vector<llvm::StringRef> &path,
     
     for (size_t ci = 1; ci < path.size(); ++ci)
     {
-        llvm::StringRef &component = path[ci];
+        llvm::StringRef component = path[ci].GetStringRef();
         submodule = submodule->findSubmodule(component.str());
         if (!submodule)
         {
@@ -213,7 +300,66 @@ ClangModulesDeclVendorImpl::AddModule(std::vector<llvm::StringRef> &path,
     
     clang::Module *requested_module = DoGetModule(clang_path, true);
     
-    return (requested_module != nullptr);
+    if (requested_module != nullptr)
+    {
+        if (exported_modules)
+        {
+            ReportModuleExports(*exported_modules, requested_module);
+        }
+
+        m_imported_modules[imported_module] = requested_module;
+        
+        m_enabled = true;
+        
+        return true;
+    }
+    
+    return false;
+}
+
+
+bool
+ClangModulesDeclVendor::LanguageSupportsClangModules (lldb::LanguageType language)
+{
+    switch (language)
+    {
+    default:
+        return false;
+    // C++ and friends to be added
+    case lldb::LanguageType::eLanguageTypeC:
+    case lldb::LanguageType::eLanguageTypeC11:
+    case lldb::LanguageType::eLanguageTypeC89:
+    case lldb::LanguageType::eLanguageTypeC99:
+    case lldb::LanguageType::eLanguageTypeObjC:
+        return true;
+    }
+}
+
+bool
+ClangModulesDeclVendorImpl::AddModulesForCompileUnit(CompileUnit &cu,
+                                                     ClangModulesDeclVendor::ModuleVector &exported_modules,
+                                                     Stream &error_stream)
+{
+    if (LanguageSupportsClangModules(cu.GetLanguage()))
+    {
+        std::vector<ConstString> imported_modules = cu.GetImportedModules();
+        
+        for (ConstString imported_module : imported_modules)
+        {
+            std::vector<ConstString> path;
+            
+            path.push_back(imported_module);
+            
+            if (!AddModule(path, &exported_modules, error_stream))
+            {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    return true;
 }
 
 // ClangImporter::lookupValue
@@ -224,6 +370,11 @@ ClangModulesDeclVendorImpl::FindDecls (const ConstString &name,
                                        uint32_t max_matches,
                                        std::vector <clang::NamedDecl*> &decls)
 {
+    if (!m_enabled)
+    {
+        return 0;
+    }
+
     if (!append)
         decls.clear();
     
@@ -248,6 +399,215 @@ ClangModulesDeclVendorImpl::FindDecls (const ConstString &name,
     }
     
     return num_matches;
+}
+
+void
+ClangModulesDeclVendorImpl::ForEachMacro(const ClangModulesDeclVendor::ModuleVector &modules,
+                                         std::function<bool (const std::string &)> handler)
+{
+    if (!m_enabled)
+    {
+        return;
+    }
+    
+    typedef std::map<ModuleID, ssize_t> ModulePriorityMap;
+    ModulePriorityMap module_priorities;
+    
+    ssize_t priority = 0;
+    
+    for (ModuleID module : modules)
+    {
+        module_priorities[module] = priority++;
+    }
+    
+    if (m_compiler_instance->getPreprocessor().getExternalSource())
+    {
+        m_compiler_instance->getPreprocessor().getExternalSource()->ReadDefinedMacros();
+    }
+    
+    for (clang::Preprocessor::macro_iterator mi = m_compiler_instance->getPreprocessor().macro_begin(),
+                                             me = m_compiler_instance->getPreprocessor().macro_end();
+         mi != me;
+         ++mi)
+    {
+        const clang::IdentifierInfo *ii = nullptr;
+        
+        {
+            if (clang::IdentifierInfoLookup *lookup = m_compiler_instance->getPreprocessor().getIdentifierTable().getExternalIdentifierLookup())
+            {
+                lookup->get(mi->first->getName());
+            }
+            if (!ii)
+            {
+                ii = mi->first;
+            }
+        }
+        
+        ssize_t found_priority = -1;
+        clang::MacroInfo *info = nullptr;
+        
+        for (clang::ModuleMacro *macro : m_compiler_instance->getPreprocessor().getLeafModuleMacros(ii))
+        {
+            clang::Module *module = macro->getOwningModule();
+            
+            {
+                ModulePriorityMap::iterator pi = module_priorities.find(reinterpret_cast<ModuleID>(module));
+                
+                if (pi != module_priorities.end() && pi->second > found_priority)
+                {
+                    info = macro->getMacroInfo();
+                    found_priority = pi->second;
+                }
+            }
+            
+            clang::Module *top_level_module = module->getTopLevelModule();
+            
+            if (top_level_module != module)
+            {
+                ModulePriorityMap::iterator pi = module_priorities.find(reinterpret_cast<ModuleID>(top_level_module));
+
+                if ((pi != module_priorities.end()) && pi->second > found_priority)
+                {
+                    info = macro->getMacroInfo();
+                    found_priority = pi->second;
+                }
+            }
+        }
+        
+        if (!info)
+        {
+            continue;
+        }
+        
+        if (mi->second.getLatest()->getKind() == clang::MacroDirective::MD_Define)
+        {            
+            std::string macro_expansion = "#define ";
+            macro_expansion.append(mi->first->getName().str().c_str());
+                
+            if (clang::MacroInfo *macro_info = mi->second.getLatest()->getMacroInfo())
+            {
+                if (macro_info->isFunctionLike())
+                {
+                    macro_expansion.append("(");
+                    
+                    bool first_arg = true;
+                    
+                    for (clang::MacroInfo::arg_iterator ai = macro_info->arg_begin(),
+                                                        ae = macro_info->arg_end();
+                         ai != ae;
+                         ++ai)
+                    {
+                        if (!first_arg)
+                        {
+                            macro_expansion.append(", ");
+                        }
+                        else
+                        {
+                            first_arg = false;
+                        }
+                        
+                        macro_expansion.append((*ai)->getName().str());
+                    }
+                    
+                    if (macro_info->isC99Varargs())
+                    {
+                        if (first_arg)
+                        {
+                            macro_expansion.append("...");
+                        }
+                        else
+                        {
+                            macro_expansion.append(", ...");
+                        }
+                    }
+                    else if (macro_info->isGNUVarargs())
+                    {
+                        macro_expansion.append("...");
+                    }
+                    
+                    macro_expansion.append(")");
+                }
+                
+                macro_expansion.append(" ");
+
+                bool first_token = true;
+                
+                for (clang::MacroInfo::tokens_iterator ti = macro_info->tokens_begin(),
+                     te = macro_info->tokens_end();
+                     ti != te;
+                     ++ti)
+                {
+                    if (!first_token)
+                    {
+                        macro_expansion.append(" ");
+                    }
+                    else
+                    {
+                        first_token = false;
+                    }
+                    
+                    if (ti->isLiteral())
+                    {
+                        if (const char *literal_data = ti->getLiteralData())
+                        {
+                            std::string token_str(literal_data, ti->getLength());
+                            macro_expansion.append(token_str);
+                        }
+                        else
+                        {
+                            bool invalid = false;
+                            const char *literal_source = m_compiler_instance->getSourceManager().getCharacterData(ti->getLocation(), &invalid);
+                            
+                            if (invalid)
+                            {
+#ifdef LLDB_CONFIGURATION_DEBUG
+                                assert(!"Unhandled token kind");
+#endif
+                                macro_expansion.append("<unknown literal value>");
+                            }
+                            else
+                            {
+                                macro_expansion.append(std::string(literal_source, ti->getLength()));
+                            }
+                        }
+                    }
+                    else if (const char *punctuator_spelling = clang::tok::getPunctuatorSpelling(ti->getKind()))
+                    {
+                        macro_expansion.append(punctuator_spelling);
+                    }
+                    else if (const char *keyword_spelling = clang::tok::getKeywordSpelling(ti->getKind()))
+                    {
+                        macro_expansion.append(keyword_spelling);
+                    }
+                    else
+                    {
+                        switch (ti->getKind())
+                        {
+                            case clang::tok::TokenKind::identifier:
+                                macro_expansion.append(ti->getIdentifierInfo()->getName().str());
+                                break;
+                            case clang::tok::TokenKind::raw_identifier:
+                                macro_expansion.append(ti->getRawIdentifier().str());
+                            default:
+                                macro_expansion.append(ti->getName());
+                                break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+#ifdef LLDB_CONFIGURATION_DEBUG
+                assert(!"#define with no macro info");
+#endif
+            }
+            
+            if (handler(macro_expansion))
+            {
+                return;
+            }
+        }
+    }
 }
 
 ClangModulesDeclVendorImpl::~ClangModulesDeclVendorImpl()
@@ -289,7 +649,7 @@ ClangModulesDeclVendor::Create(Target &target)
         "-Werror=non-modular-include-in-framework-module"
     };
     
-    target.GetPlatform()->AddClangModuleCompilationOptions(compiler_invocation_arguments);
+    target.GetPlatform()->AddClangModuleCompilationOptions(&target, compiler_invocation_arguments);
 
     compiler_invocation_arguments.push_back(ModuleImportBufferName);
 
@@ -304,6 +664,18 @@ ClangModulesDeclVendor::Create(Target &target)
         std::string module_cache_argument("-fmodules-cache-path=");
         module_cache_argument.append(DefaultModuleCache.str().str());
         compiler_invocation_arguments.push_back(module_cache_argument);
+    }
+    
+    FileSpecList &module_search_paths = target.GetClangModuleSearchPaths();
+    
+    for (size_t spi = 0, spe = module_search_paths.GetSize(); spi < spe; ++spi)
+    {
+        const FileSpec &search_path = module_search_paths.GetFileSpecAtIndex(spi);
+        
+        std::string search_path_argument = "-I";
+        search_path_argument.append(search_path.GetPath());
+        
+        compiler_invocation_arguments.push_back(search_path_argument);
     }
     
     {
