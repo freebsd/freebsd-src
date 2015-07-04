@@ -253,7 +253,7 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		return (error);
 	}
 
-	if (zygote_clone(service_external_execute, 0, &chanfd, &procfd) == -1) {
+	if (zygote_clone(service_external_execute, &chanfd, &procfd) == -1) {
 		error = errno;
 		close(execfd);
 		return (error);
