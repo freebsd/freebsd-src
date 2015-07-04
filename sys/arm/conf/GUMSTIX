@@ -49,6 +49,7 @@ options 	NFSCL			# New Network Filesystem Client
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
+options 	GEOM_LABEL		# Provides labelization 
 options 	TMPFS			# Efficient memory filesystem
 #options 	MSDOSFS			# MSDOS Filesystem
 #options 	CD9660			# ISO 9660 Filesystem
