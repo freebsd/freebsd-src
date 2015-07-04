@@ -400,6 +400,7 @@ trap_fatal(struct trapframe *frame)
 static void
 printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 {
+	uint16_t ver;
 
 	printf("\n");
 	printf("%s %s trap:\n", isfatal ? "fatal" : "handled",
@@ -420,6 +421,17 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	case EXC_ISI:
 	case EXC_ITMISS:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->srr0);
+		break;
+	case EXC_MCHK:
+		ver = mfpvr() >> 16;
+#if defined(AIM)
+		if (MPC745X_P(ver))
+			printf("    msssr0         = 0x%x\n",
+			    mfspr(SPR_MSSSR0));
+#elif defined(BOOKE)
+		printf("    mcsr           = 0x%x\n",
+		    mfspr(SPR_MCSR));
+#endif
 		break;
 	}
 #ifdef BOOKE
