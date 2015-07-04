@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmd.h
-//
 // Overview:    CMICmdCmdEnablePrettyPrinting   interface.
 //              CMICmdCmdSource                 interface.
 //
@@ -21,13 +18,6 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 /*
 MI commands implemented are:
@@ -38,8 +28,8 @@ MI commands implemented are:
 
 // Third party headers:
 #include <vector>
-#include <lldb/API/SBBreakpoint.h>
-#include <lldb/API/SBCommandReturnObject.h>
+#include "lldb/API/SBBreakpoint.h"
+#include "lldb/API/SBCommandReturnObject.h"
 
 // In-house headers:
 #include "MICmdBase.h"

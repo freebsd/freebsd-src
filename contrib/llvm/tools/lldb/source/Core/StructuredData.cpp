@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "lldb/Core/StreamString.h"
+
 using namespace lldb_private;
 
 
@@ -296,6 +298,10 @@ StructuredData::ParseJSON (std::string json_text)
             {
                 object_sp = read_json_object (&c);
             }
+            else if (*c == '[')
+            {
+                object_sp = read_json_array (&c);
+            }
             else
             {
                 // We have bad characters here, this is likely an illegal JSON string.
@@ -350,16 +356,32 @@ StructuredData::Object::GetObjectForDotSeparatedPath (llvm::StringRef path)
 }
 
 void
-StructuredData::Array::Dump (Stream &s) const
+StructuredData::Object::DumpToStdout() const
 {
-    s << "[";
-    const size_t arrsize = m_items.size();
-    for (size_t i = 0; i < arrsize; ++i)
+    StreamString stream;
+    Dump(stream);
+    printf("%s\n", stream.GetString().c_str());
+}
+
+void
+StructuredData::Array::Dump(Stream &s) const
+{
+    bool first = true;
+    s << "[\n";
+    s.IndentMore();
+    for (const auto &item_sp : m_items)
     {
-        m_items[i]->Dump(s);
-        if (i + 1 < arrsize)
-            s << ",";
+        if (first)
+            first = false;
+        else
+            s << ",\n";
+
+        s.Indent();
+        item_sp->Dump(s);
     }
+    s.IndentLess();
+    s.EOL();
+    s.Indent();
     s << "]";
 }
 
@@ -404,21 +426,22 @@ StructuredData::String::Dump (Stream &s) const
 void
 StructuredData::Dictionary::Dump (Stream &s) const
 {
-    bool have_printed_one_elem = false;
-    s << "{";
-    for (collection::const_iterator iter = m_dict.begin(); iter != m_dict.end(); ++iter)
+    bool first = true;
+    s << "{\n";
+    s.IndentMore();
+    for (const auto &pair : m_dict)
     {
-        if (have_printed_one_elem == false)
-        {
-            have_printed_one_elem = true;
-        }
+        if (first)
+            first = false;
         else
-        {
-            s << ",";
-        }
-        s << "\"" << iter->first.AsCString() << "\":";
-        iter->second->Dump(s);
+            s << ",\n";
+        s.Indent();
+        s << "\"" << pair.first.AsCString() << "\" : ";
+        pair.second->Dump(s);
     }
+    s.IndentLess();
+    s.EOL();
+    s.Indent();
     s << "}";
 }
 
@@ -426,4 +449,10 @@ void
 StructuredData::Null::Dump (Stream &s) const
 {
     s << "null";
+}
+
+void
+StructuredData::Generic::Dump(Stream &s) const
+{
+    s << "0x" << m_object;
 }

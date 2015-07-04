@@ -16,6 +16,7 @@
 #include <vector>
 
 // Other libraries and framework includes
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 
 // Project includes
@@ -26,6 +27,7 @@
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/UserID.h"
 #include "lldb/Core/Value.h"
+#include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Process.h"
@@ -139,19 +141,27 @@ public:
     
     struct GetValueForExpressionPathOptions
     {
+        enum class SyntheticChildrenTraversal
+        {
+            None,
+            ToSynthetic,
+            FromSynthetic,
+            Both
+        };
+        
         bool m_check_dot_vs_arrow_syntax;
         bool m_no_fragile_ivar;
         bool m_allow_bitfields_syntax;
-        bool m_no_synthetic_children;
+        SyntheticChildrenTraversal m_synthetic_children_traversal;
         
         GetValueForExpressionPathOptions(bool dot = false,
                                          bool no_ivar = false,
                                          bool bitfield = true,
-                                         bool no_synth = false) :
+                                         SyntheticChildrenTraversal synth_traverse = SyntheticChildrenTraversal::ToSynthetic) :
             m_check_dot_vs_arrow_syntax(dot),
             m_no_fragile_ivar(no_ivar),
             m_allow_bitfields_syntax(bitfield),
-            m_no_synthetic_children(no_synth)
+            m_synthetic_children_traversal(synth_traverse)
         {
         }
         
@@ -198,16 +208,9 @@ public:
         }
         
         GetValueForExpressionPathOptions&
-        DoAllowSyntheticChildren()
+        SetSyntheticChildrenTraversal(SyntheticChildrenTraversal traverse)
         {
-            m_no_synthetic_children = false;
-            return *this;
-        }
-        
-        GetValueForExpressionPathOptions&
-        DontAllowSyntheticChildren()
-        {
-            m_no_synthetic_children = true;
+            m_synthetic_children_traversal = traverse;
             return *this;
         }
         
@@ -282,18 +285,19 @@ public:
         SetUpdated ();
         
         bool
-        NeedsUpdating()
+        NeedsUpdating(bool accept_invalid_exe_ctx)
         {
-            SyncWithProcessState();
+            SyncWithProcessState(accept_invalid_exe_ctx);
             return m_needs_update;
         }
         
         bool
         IsValid ()
         {
+            const bool accept_invalid_exe_ctx = false;
             if (!m_mod_id.IsValid())
                 return false;
-            else if (SyncWithProcessState ())
+            else if (SyncWithProcessState (accept_invalid_exe_ctx))
             {
                 if (!m_mod_id.IsValid())
                     return false;
@@ -315,7 +319,7 @@ public:
         
     private:
         bool
-        SyncWithProcessState ();
+        SyncWithProcessState (bool accept_invalid_exe_ctx);
                 
         ProcessModID m_mod_id; // This is the stop id when this ValueObject was last evaluated.
         ExecutionContextRef m_exe_ctx_ref;
@@ -527,8 +531,13 @@ public:
     virtual lldb::ModuleSP
     GetModule();
     
-    virtual ValueObject*
+    ValueObject*
     GetRoot ();
+    
+    // Given a ValueObject, loop over itself and its parent, and its parent's parent, ..
+    // until either the given callback returns false, or you end up at a null pointer
+    ValueObject*
+    FollowParentChain (std::function<bool(ValueObject*)>);
     
     virtual bool
     GetDeclaration (Declaration &decl);
@@ -642,6 +651,7 @@ public:
     bool
     GetValueIsValid () const;
 
+    // If you call this on a newly created ValueObject, it will always return false.
     bool
     GetValueDidChange ();
 
@@ -673,12 +683,6 @@ public:
     lldb::ValueObjectSP
     GetSyntheticArrayMember (size_t index, bool can_create);
 
-    lldb::ValueObjectSP
-    GetSyntheticArrayMemberFromPointer (size_t index, bool can_create);
-    
-    lldb::ValueObjectSP
-    GetSyntheticArrayMemberFromArray (size_t index, bool can_create);
-    
     lldb::ValueObjectSP
     GetSyntheticBitFieldChild (uint32_t from, uint32_t to, bool can_create);
 
@@ -848,10 +852,17 @@ public:
     virtual bool
     SetData (DataExtractor &data, Error &error);
 
-    bool
+    virtual bool
     GetIsConstant () const
     {
         return m_update_point.IsConstant();
+    }
+    
+    bool
+    NeedsUpdating ()
+    {
+        const bool accept_invalid_exe_ctx = CanUpdateWithInvalidExecutionContext();
+        return m_update_point.NeedsUpdating(accept_invalid_exe_ctx);
     }
     
     void
@@ -863,7 +874,7 @@ public:
     lldb::Format
     GetFormat () const;
     
-    void
+    virtual void
     SetFormat (lldb::Format format)
     {
         if (format != m_format)
@@ -874,6 +885,9 @@ public:
     
     virtual lldb::LanguageType
     GetPreferredDisplayLanguage ();
+    
+    void
+    SetPreferredDisplayLanguage (lldb::LanguageType);
     
     lldb::TypeSummaryImplSP
     GetSummaryFormat()
@@ -984,6 +998,9 @@ public:
     //------------------------------------------------------------------
     virtual bool
     MightHaveChildren();
+    
+    virtual bool
+    IsRuntimeSupportValue ();
 
 protected:
     typedef ClusterManager<ValueObject> ValueObjectManager;
@@ -1106,6 +1123,8 @@ protected:
     
     llvm::SmallVector<uint8_t, 16> m_value_checksum;
     
+    lldb::LanguageType m_preferred_display_language;
+    
     bool                m_value_is_valid:1,
                         m_value_did_change:1,
                         m_children_count_valid:1,
@@ -1118,10 +1137,12 @@ protected:
                         m_did_calculate_complete_objc_class_type:1,
                         m_is_synthetic_children_generated:1;
     
+    friend class ValueObjectChild;
     friend class ClangExpressionDeclMap;  // For GetValue
     friend class ClangExpressionVariable; // For SetName
     friend class Target;                  // For SetName
     friend class ValueObjectConstResultImpl;
+    friend class ValueObjectSynthetic;    // For ClearUserVisibleData
 
     //------------------------------------------------------------------
     // Constructors and Destructors
@@ -1151,6 +1172,12 @@ protected:
     virtual bool
     UpdateValue () = 0;
 
+    virtual bool
+    CanUpdateWithInvalidExecutionContext ()
+    {
+        return false;
+    }
+    
     virtual void
     CalculateDynamicValue (lldb::DynamicValueType use_dynamic);
     

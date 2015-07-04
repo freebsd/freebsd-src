@@ -30,8 +30,6 @@
 #include "lldb/Host/Endian.h"
 #include "lldb/Host/Host.h"
 
-#include "lldb/lldb-private-log.h"
-
 #include "lldb/Target/ABI.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
@@ -611,7 +609,6 @@ DWARFExpression::DumpLocation (Stream *s, lldb::offset_t offset, lldb::offset_t 
         case DW_OP_call_ref:                                                // 0x9a DWARF3 1 4- or 8-byte offset of DIE
             s->Printf("DW_OP_call_ref(0x%8.8" PRIx64 ")", m_data.GetAddress(&offset));
             break;
-//      case DW_OP_form_tls_address: s << "form_tls_address"; break;        // 0x9b DWARF3
 //      case DW_OP_call_frame_cfa: s << "call_frame_cfa"; break;            // 0x9c DWARF3
 //      case DW_OP_bit_piece:                                               // 0x9d DWARF3 2
 //          s->Printf("DW_OP_bit_piece(0x%x, 0x%x)", m_data.GetULEB128(&offset), m_data.GetULEB128(&offset));
@@ -624,6 +621,9 @@ DWARFExpression::DumpLocation (Stream *s, lldb::offset_t offset, lldb::offset_t 
 //        case DW_OP_APPLE_array_ref:
 //            s->PutCString("DW_OP_APPLE_array_ref");
 //            break;
+        case DW_OP_form_tls_address:
+            s->PutCString("DW_OP_form_tls_address");  // 0x9b
+            break;
         case DW_OP_GNU_push_tls_address:
             s->PutCString("DW_OP_GNU_push_tls_address");  // 0xe0
             break;
@@ -2198,6 +2198,13 @@ DWARFExpression::Evaluate
         // constant.
         //----------------------------------------------------------------------
         case DW_OP_bra:
+            if (stack.empty())
+            {
+                if (error_ptr)
+                    error_ptr->SetErrorString("Expression stack needs at least 1 item for DW_OP_bra.");
+                return false;
+            }
+            else
             {
                 tmp = stack.back();
                 stack.pop_back();
@@ -2890,17 +2897,24 @@ DWARFExpression::Evaluate
             break;
 
         //----------------------------------------------------------------------
-        // OPCODE: DW_OP_GNU_push_tls_address
+        // OPCODE: DW_OP_form_tls_address (or the old pre-DWARFv3 vendor extension opcode, DW_OP_GNU_push_tls_address)
         // OPERANDS: none
         // DESCRIPTION: Pops a TLS offset from the stack, converts it to
-        // an absolute value, and pushes it back on.
+        // an address in the current thread's thread-local storage block, 
+        // and pushes it on the stack.
         //----------------------------------------------------------------------
+        case DW_OP_form_tls_address:
         case DW_OP_GNU_push_tls_address:
             {
                 if (stack.size() < 1)
                 {
                     if (error_ptr)
-                        error_ptr->SetErrorString("DW_OP_GNU_push_tls_address needs an argument.");
+                    {
+                        if (op == DW_OP_form_tls_address)
+                            error_ptr->SetErrorString("DW_OP_form_tls_address needs an argument.");
+                        else
+                            error_ptr->SetErrorString("DW_OP_GNU_push_tls_address needs an argument.");
+                    }
                     return false;
                 }
 

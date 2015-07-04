@@ -133,9 +133,6 @@ public:
     static const char *
     GetSignalAsCString (int signo);
 
-    static void
-    WillTerminate ();
-
     typedef void (*ThreadLocalStorageCleanupCallback) (void *p);
 
     static lldb::thread_key_t
@@ -236,30 +233,50 @@ public:
     GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &proc_info);
 
 #if defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__) || defined (__NetBSD__)
+#if !defined(__ANDROID__) && !defined(__ANDROID_NDK__)
+
     static short GetPosixspawnFlags(const ProcessLaunchInfo &launch_info);
 
     static Error LaunchProcessPosixSpawn(const char *exe_path, const ProcessLaunchInfo &launch_info, lldb::pid_t &pid);
 
     static bool AddPosixSpawnFileAction(void *file_actions, const FileAction *info, Log *log, Error &error);
-#endif
+
+#endif // !defined(__ANDROID__) && !defined(__ANDROID_NDK__)
+#endif // defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__) || defined(__NetBSD__)
 
     static const lldb_private::UnixSignalsSP&
     GetUnixSignals ();
 
-    static lldb::pid_t
-    LaunchApplication (const FileSpec &app_file_spec);
-
     static Error
     LaunchProcess (ProcessLaunchInfo &launch_info);
 
+    //------------------------------------------------------------------
+    /// Perform expansion of the command-line for this launch info
+    /// This can potentially involve wildcard expansion
+    //  environment variable replacement, and whatever other
+    //  argument magic the platform defines as part of its typical
+    //  user experience
+    //------------------------------------------------------------------
     static Error
-    RunShellCommand (const char *command,           // Shouldn't be NULL
-                     const char *working_dir,       // Pass NULL to use the current working directory
-                     int *status_ptr,               // Pass NULL if you don't want the process exit status
-                     int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
-                     std::string *command_output,   // Pass NULL if you don't want the command output
-                     uint32_t timeout_sec,
-                     bool run_in_default_shell = true);
+    ShellExpandArguments (ProcessLaunchInfo &launch_info);
+    
+    static Error
+    RunShellCommand(const char *command,           // Shouldn't be NULL
+                    const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
+                    int *status_ptr,               // Pass NULL if you don't want the process exit status
+                    int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
+                    std::string *command_output,   // Pass NULL if you don't want the command output
+                    uint32_t timeout_sec,
+                    bool run_in_default_shell = true);
+
+    static Error
+    RunShellCommand(const Args& args,
+                    const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
+                    int *status_ptr,               // Pass NULL if you don't want the process exit status
+                    int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
+                    std::string *command_output,   // Pass NULL if you don't want the command output
+                    uint32_t timeout_sec,
+                    bool run_in_default_shell = true);
     
     static lldb::DataBufferSP
     GetAuxvData (lldb_private::Process *process);
@@ -271,9 +288,6 @@ public:
     OpenFileInExternalEditor (const FileSpec &file_spec, 
                               uint32_t line_no);
 
-    static void
-    Backtrace (Stream &strm, uint32_t max_frames);
-    
     static size_t
     GetEnvironment (StringList &env);
 };

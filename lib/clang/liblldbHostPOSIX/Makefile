@@ -10,6 +10,7 @@ SRCS=	ConnectionFileDescriptorPosix.cpp \
 	HostInfoPosix.cpp \
 	HostProcessPosix.cpp \
 	HostThreadPosix.cpp \
+	LockFilePosix.cpp \
 	PipePosix.cpp \
 	ProcessLauncherPosix.cpp
 

@@ -12,12 +12,16 @@
 
 #include "lldb/API/SBDefines.h"
 
+#include <functional>
+
 struct PlatformConnectOptions;
 struct PlatformShellCommand;
 
 namespace lldb {
 
-    class SBPlatformConnectOptions
+    class SBLaunchInfo;
+
+    class LLDB_API SBPlatformConnectOptions
     {
     public:
         SBPlatformConnectOptions (const char *url);
@@ -55,7 +59,7 @@ namespace lldb {
         PlatformConnectOptions *m_opaque_ptr;
     };
 
-    class SBPlatformShellCommand
+    class LLDB_API SBPlatformShellCommand
     {
     public:
         SBPlatformShellCommand (const char *shell_command);
@@ -100,7 +104,7 @@ namespace lldb {
         PlatformShellCommand *m_opaque_ptr;
     };
 
-    class SBPlatform
+    class LLDB_API SBPlatform
     {
     public:
         
@@ -171,6 +175,12 @@ namespace lldb {
         Run (SBPlatformShellCommand &shell_command);
 
         SBError
+        Launch (SBLaunchInfo &launch_info);
+
+        SBError
+        Kill (const lldb::pid_t pid);
+
+        SBError
         MakeDirectory (const char *path, uint32_t file_permissions = eFilePermissionsDirectoryDefault);
 
         uint32_t
@@ -189,6 +199,9 @@ namespace lldb {
         
         void
         SetSP (const lldb::PlatformSP& platform_sp);
+
+        SBError
+        ExecuteConnected (const std::function<lldb_private::Error(const lldb::PlatformSP&)>& func);
 
         lldb::PlatformSP m_opaque_sp;
     };

@@ -10,6 +10,9 @@
 // C Includes
 #include <stdlib.h>
 
+// C++ Includes
+#include <mutex>
+
 // Other libraries and framework includes
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Module.h"
@@ -191,7 +194,7 @@ ProcessElfCore::DoLoadCore ()
     const uint32_t num_segments = core->GetProgramHeaderCount();
     if (num_segments == 0)
     {
-        error.SetErrorString ("core file has no sections");
+        error.SetErrorString ("core file has no segments");
         return error;
     }
 
@@ -374,13 +377,13 @@ ProcessElfCore::Clear()
 void
 ProcessElfCore::Initialize()
 {
-    static bool g_initialized = false;
+    static std::once_flag g_once_flag;
 
-    if (g_initialized == false)
+    std::call_once(g_once_flag, []()
     {
-        g_initialized = true;
-        PluginManager::RegisterPlugin (GetPluginNameStatic(), GetPluginDescriptionStatic(), CreateInstance);
-    }
+        PluginManager::RegisterPlugin (GetPluginNameStatic(),
+          GetPluginDescriptionStatic(), CreateInstance);
+    });
 }
 
 lldb::addr_t
@@ -412,7 +415,8 @@ enum {
     NT_FPREGSET,
     NT_PRPSINFO,
     NT_THRMISC       = 7,
-    NT_PROCSTAT_AUXV = 16
+    NT_PROCSTAT_AUXV = 16,
+    NT_PPC_VMX       = 0x100
 };
 
 }
@@ -423,7 +427,8 @@ ParseFreeBSDPrStatus(ThreadData &thread_data, DataExtractor &data,
                      ArchSpec &arch)
 {
     lldb::offset_t offset = 0;
-    bool lp64 = (arch.GetMachine() == llvm::Triple::mips64 ||
+    bool lp64 = (arch.GetMachine() == llvm::Triple::aarch64 ||
+                 arch.GetMachine() == llvm::Triple::mips64 ||
                  arch.GetMachine() == llvm::Triple::ppc64 ||
                  arch.GetMachine() == llvm::Triple::x86_64);
     int pr_version = data.GetU32(&offset);
@@ -537,6 +542,9 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
                 case FREEBSD::NT_PROCSTAT_AUXV:
                     // FIXME: FreeBSD sticks an int at the beginning of the note
                     m_auxv = DataExtractor(segment_data, note_start + 4, note_size - 4);
+                    break;
+                case FREEBSD::NT_PPC_VMX:
+                    thread_data->vregset = note_data;
                     break;
                 default:
                     break;

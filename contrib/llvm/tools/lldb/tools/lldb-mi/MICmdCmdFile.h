@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdFile.h
-//
 // Overview:    CMICmdCmdFileExecAndSymbols     interface.
 //
 //              To implement new MI commands derive a new command class from the command base
@@ -20,13 +17,6 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
@@ -39,7 +29,8 @@
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "file-exec-and-symbols".
 //          This command does not follow the MI documentation exactly.
-// Gotchas: None.
+// Gotchas: This command has additonal flags that were not available in GDB MI.
+//          See MIextensions.txt for details.
 // Authors: Illya Rudkin 25/02/2014.
 // Changes: None.
 //--
@@ -69,4 +60,6 @@ class CMICmdCmdFileExecAndSymbols : public CMICmdBase
     const CMIUtilString m_constStrArgNameFile;
     const CMIUtilString
         m_constStrArgThreadGrp; // Not handled by *this command. Not specified in MI spec but Eclipse gives this option sometimes
+    const CMIUtilString m_constStrArgNamedPlatformName; // Added to support iOS platform selection
+    const CMIUtilString m_constStrArgNamedRemotePath; // Added to support iOS device remote file location
 };

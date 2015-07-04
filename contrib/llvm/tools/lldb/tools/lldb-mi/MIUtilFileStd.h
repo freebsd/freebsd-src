@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIUtilFileStd.h
-//
-// Overview:    CMIUtilFileStd interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -35,7 +23,7 @@ class CMIUtilFileStd : public CMICmnBase
 {
     // Static:
   public:
-    static MIchar GetSlash(void);
+    static char GetSlash(void);
 
     // Methods:
   public:
@@ -43,12 +31,12 @@ class CMIUtilFileStd : public CMICmnBase
     //
     bool CreateWrite(const CMIUtilString &vFileNamePath, bool &vwrbNewCreated);
     bool Write(const CMIUtilString &vData);
-    bool Write(const MIchar *vpData, const MIuint vCharCnt);
+    bool Write(const char *vpData, const MIuint vCharCnt);
     void Close(void);
     bool IsOk(void) const;
     bool IsFileExist(const CMIUtilString &vFileNamePath) const;
     const CMIUtilString &GetLineReturn(void) const;
-    CMIUtilString StripOffFileName(const CMIUtilString &vDirectoryPath) const;
+    static CMIUtilString StripOffFileName(const CMIUtilString &vDirectoryPath);
 
     // Overridden:
   public:

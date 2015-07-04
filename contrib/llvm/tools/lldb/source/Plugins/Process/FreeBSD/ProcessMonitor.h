@@ -17,6 +17,7 @@
 // C++ Includes
 // Other libraries and framework includes
 #include "lldb/lldb-types.h"
+#include "lldb/Host/FileSpec.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/Host/Mutex.h"
 
@@ -52,10 +53,10 @@ public:
                    lldb_private::Module *module,
                    char const *argv[],
                    char const *envp[],
-                   const char *stdin_path,
-                   const char *stdout_path,
-                   const char *stderr_path,
-                   const char *working_dir,
+                   const lldb_private::FileSpec &stdin_file_spec,
+                   const lldb_private::FileSpec &stdout_file_spec,
+                   const lldb_private::FileSpec &stderr_file_spec,
+                   const lldb_private::FileSpec &working_dir,
                    const lldb_private::ProcessLaunchInfo &launch_info,
                    lldb_private::Error &error);
 
@@ -79,7 +80,8 @@ public:
     /// Reads from this file descriptor yield both the standard output and
     /// standard error of this debugee.  Even if stderr and stdout were
     /// redirected on launch it may still happen that data is available on this
-    /// descriptor (if the inferior process opens /dev/tty, for example).
+    /// descriptor (if the inferior process opens /dev/tty, for example). This descriptor is
+    /// closed after a call to StopMonitor().
     ///
     /// If this monitor was attached to an existing process this method returns
     /// -1.
@@ -227,7 +229,7 @@ private:
     // the operation is complete.
     sem_t m_operation_pending;
     sem_t m_operation_done;
-    
+
     struct OperationArgs
     {
         OperationArgs(ProcessMonitor *monitor);
@@ -249,20 +251,20 @@ private:
                    lldb_private::Module *module,
                    char const **argv,
                    char const **envp,
-                   const char *stdin_path,
-                   const char *stdout_path,
-                   const char *stderr_path,
-                   const char *working_dir);
+                   const lldb_private::FileSpec &stdin_file_spec,
+                   const lldb_private::FileSpec &stdout_file_spec,
+                   const lldb_private::FileSpec &stderr_file_spec,
+                   const lldb_private::FileSpec &working_dir);
 
         ~LaunchArgs();
 
-        lldb_private::Module *m_module; // The executable image to launch.
-        char const **m_argv;            // Process arguments.
-        char const **m_envp;            // Process environment.
-        const char *m_stdin_path;       // Redirect stdin or NULL.
-        const char *m_stdout_path;      // Redirect stdout or NULL.
-        const char *m_stderr_path;      // Redirect stderr or NULL.
-        const char *m_working_dir;      // Working directory or NULL.
+        lldb_private::Module *m_module;                  // The executable image to launch.
+        char const **m_argv;                             // Process arguments.
+        char const **m_envp;                             // Process environment.
+        const lldb_private::FileSpec m_stdin_file_spec;  // Redirect stdin or empty.
+        const lldb_private::FileSpec m_stdout_file_spec; // Redirect stdout or empty.
+        const lldb_private::FileSpec m_stderr_file_spec; // Redirect stderr or empty.
+        const lldb_private::FileSpec m_working_dir;      // Working directory or empty.
     };
 
     void
@@ -297,7 +299,7 @@ private:
     ServeOperation(OperationArgs *args);
 
     static bool
-    DupDescriptor(const char *path, int fd, int flags);
+    DupDescriptor(const lldb_private::FileSpec &file_spec, int fd, int flags);
 
     static bool
     MonitorCallback(void *callback_baton,
@@ -310,18 +312,6 @@ private:
     static ProcessMessage
     MonitorSignal(ProcessMonitor *monitor, 
                   const siginfo_t *info, lldb::pid_t pid);
-
-    static ProcessMessage::CrashReason
-    GetCrashReasonForSIGSEGV(const siginfo_t *info);
-
-    static ProcessMessage::CrashReason
-    GetCrashReasonForSIGILL(const siginfo_t *info);
-
-    static ProcessMessage::CrashReason
-    GetCrashReasonForSIGFPE(const siginfo_t *info);
-
-    static ProcessMessage::CrashReason
-    GetCrashReasonForSIGBUS(const siginfo_t *info);
 
     void
     DoOperation(Operation *op);

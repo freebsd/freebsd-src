@@ -13,8 +13,6 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-
-#include "lldb/lldb-private-log.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Disassembler.h"
@@ -245,9 +243,9 @@ ThreadPlanStepRange::InSymbol()
     {
         return m_addr_context.function->GetAddressRange().ContainsLoadAddress (cur_pc, m_thread.CalculateTarget().get());
     }
-    else if (m_addr_context.symbol)
+    else if (m_addr_context.symbol && m_addr_context.symbol->ValueIsAddress())
     {
-        AddressRange range(m_addr_context.symbol->GetAddress(), m_addr_context.symbol->GetByteSize());
+        AddressRange range(m_addr_context.symbol->GetAddressRef(), m_addr_context.symbol->GetByteSize());
         return range.ContainsLoadAddress (cur_pc, m_thread.CalculateTarget().get());
     }
     return false;
@@ -382,8 +380,9 @@ ThreadPlanStepRange::SetNextBranchBreakpoint ()
         return false;
     else
     {
+        Target &target = GetThread().GetProcess()->GetTarget();
         uint32_t branch_index;
-        branch_index = instructions->GetIndexOfNextBranchInstruction (pc_index);
+        branch_index = instructions->GetIndexOfNextBranchInstruction (pc_index, target);
         
         Address run_to_address;
         

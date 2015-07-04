@@ -50,15 +50,18 @@ public:
         eServerPacketType_qfProcessInfo,
         eServerPacketType_qsProcessInfo,
         eServerPacketType_qC,
+        eServerPacketType_qEcho,
         eServerPacketType_qGroupName,
         eServerPacketType_qHostInfo,
         eServerPacketType_qLaunchGDBServer,
         eServerPacketType_qKillSpawnedProcess,
         eServerPacketType_qLaunchSuccess,
+        eServerPacketType_qModuleInfo,
         eServerPacketType_qProcessInfoPID,
         eServerPacketType_qSpeedTest,
         eServerPacketType_qUserName,
         eServerPacketType_qGetWorkingDir,
+        eServerPacketType_qFileLoadAddress,
         eServerPacketType_QEnvironment,
         eServerPacketType_QLaunchArch,
         eServerPacketType_QSetDisableASLR,
@@ -130,6 +133,7 @@ public:
         eServerPacketType_g,
         eServerPacketType_G,
         eServerPacketType_H,
+        eServerPacketType_I, // stdin notification
         eServerPacketType_k,
         eServerPacketType_m,
         eServerPacketType_M,
@@ -143,6 +147,7 @@ public:
 
         eServerPacketType__M,
         eServerPacketType__m,
+        eServerPacketType_notify, // '%' notification
     };
     
     ServerPacketType

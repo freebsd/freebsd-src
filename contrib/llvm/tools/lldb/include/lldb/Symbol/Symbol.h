@@ -39,11 +39,11 @@ public:
             lldb::addr_t value,
             lldb::addr_t size,
             bool size_is_valid,
+            bool contains_linker_annotations,
             uint32_t flags);
 
     Symbol (uint32_t symID,
-            const char *name,
-            bool name_is_mangled,
+            const Mangled &mangled,
             lldb::SymbolType type,
             bool external,
             bool is_debug,
@@ -51,6 +51,7 @@ public:
             bool is_artificial,
             const AddressRange &range,
             bool size_is_valid,
+            bool contains_linker_annotations,
             uint32_t flags);
 
     Symbol (const Symbol& rhs);
@@ -71,25 +72,81 @@ public:
     ValueIsAddress() const;
 
     //------------------------------------------------------------------
-    // Access the address value. Do NOT hand out the AddressRange as an
-    // object as the byte size of the address range may not be filled in
-    // and it should be accessed via GetByteSize().
+    // The GetAddressRef() accessor functions should only be called if
+    // you previously call ValueIsAddress() otherwise you might get an
+    // reference to an Address object that contains an constant integer
+    // value in m_addr_range.m_base_addr.m_offset which could be
+    // incorrectly used to represent an absolute address since it has
+    // no section.
     //------------------------------------------------------------------
     Address &
-    GetAddress()
+    GetAddressRef()
     {
         return m_addr_range.GetBaseAddress();
     }
+
+    const Address &
+    GetAddressRef() const
+    {
+        return m_addr_range.GetBaseAddress();
+    }
+
+    //------------------------------------------------------------------
+    // Makes sure the symbol's value is an address and returns the file
+    // address. Returns LLDB_INVALID_ADDRESS if the symbol's value isn't
+    // an address.
+    //------------------------------------------------------------------
+    lldb::addr_t
+    GetFileAddress () const;
+
+    //------------------------------------------------------------------
+    // Makes sure the symbol's value is an address and gets the load
+    // address using \a target if it is. Returns LLDB_INVALID_ADDRESS
+    // if the symbol's value isn't an address or if the section isn't
+    // loaded in \a target.
+    //------------------------------------------------------------------
+    lldb::addr_t
+    GetLoadAddress (Target *target) const;
 
     //------------------------------------------------------------------
     // Access the address value. Do NOT hand out the AddressRange as an
     // object as the byte size of the address range may not be filled in
     // and it should be accessed via GetByteSize().
     //------------------------------------------------------------------
-    const Address &
+    Address
     GetAddress() const
     {
-        return m_addr_range.GetBaseAddress();
+        // Make sure the our value is an address before we hand a copy out.
+        // We use the Address inside m_addr_range to contain the value for
+        // symbols that are not address based symbols so we are using it
+        // for more than just addresses. For example undefined symbols on
+        // MacOSX have a nlist.n_value of 0 (zero) and this will get placed
+        // into m_addr_range.m_base_addr.m_offset and it will have no section.
+        // So in the GetAddress() accessor, we need to hand out an invalid
+        // address if the symbol's value isn't an address.
+        if (ValueIsAddress())
+            return m_addr_range.GetBaseAddress();
+        else
+            return Address();
+    }
+
+    // When a symbol's value isn't an address, we need to access the raw
+    // value. This function will ensure this symbol's value isn't an address
+    // and return the integer value if this checks out, otherwise it will
+    // return "fail_value" if the symbol is an address value.
+    uint64_t
+    GetIntegerValue (uint64_t fail_value = 0) const
+    {
+        if (ValueIsAddress())
+        {
+            // This symbol's value is an address. Use Symbol::GetAddress() to get the address.
+            return fail_value;
+        }
+        else
+        {
+            // The value is stored in the base address' offset
+            return m_addr_range.GetBaseAddress().GetOffset();
+        }
     }
 
     lldb::addr_t
@@ -131,7 +188,7 @@ public:
     FileSpec
     GetReExportedSymbolSharedLibrary () const;
     
-    bool
+    void
     SetReExportedSymbolName(const ConstString &name);
 
     bool
@@ -272,6 +329,16 @@ public:
         m_demangled_is_synthesized = b;
     }
 
+    bool
+    ContainsLinkerAnnotations() const
+    {
+        return m_contains_linker_annotations;
+    }
+    void
+    SetContainsLinkerAnnotations(bool b)
+    {
+        m_contains_linker_annotations = b;
+    }
     //------------------------------------------------------------------
     /// @copydoc SymbolContextScope::CalculateSymbolContext(SymbolContext*)
     ///
@@ -325,7 +392,8 @@ protected:
                     m_size_is_synthesized:1,// non-zero if this symbol's size was calculated using a delta between this symbol and the next
                     m_size_is_valid:1,
                     m_demangled_is_synthesized:1, // The demangled name was created should not be used for expressions or other lookups
-                    m_type:8;
+                    m_contains_linker_annotations:1, // The symbol name contains linker annotations, which are optional when doing name lookups
+                    m_type:7;
     Mangled         m_mangled;              // uniqued symbol name/mangled name pair
     AddressRange    m_addr_range;           // Contains the value, or the section offset address when the value is an address in a section, and the size (if any)
     uint32_t        m_flags;                // A copy of the flags from the original symbol table, the ObjectFile plug-in can interpret these

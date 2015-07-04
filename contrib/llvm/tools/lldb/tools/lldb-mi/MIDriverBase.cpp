@@ -7,21 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDriverBase.cpp
-//
-// Overview:    CMIDriverBase implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // Third party headers:
-#include <lldb/API/SBEvent.h>
-#include <lldb/API/SBBroadcaster.h>
+#include "lldb/API/SBEvent.h"
+#include "lldb/API/SBBroadcaster.h"
 
 // In-house headers:
 #include "MIDriverBase.h"

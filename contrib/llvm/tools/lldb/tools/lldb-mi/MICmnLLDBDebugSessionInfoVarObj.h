@@ -7,23 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBDebugSessionInfoVarObj.h
-//
-// Overview:    CMICmnLLDBDebugSessionInfoVarObj interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third Party Headers:
 #include <map>
-#include <lldb/API/SBValue.h>
+#include "lldb/API/SBValue.h"
 
 // In-house headers:
 #include "MIUtilString.h"
@@ -69,7 +57,7 @@ class CMICmnLLDBDebugSessionInfoVarObj
     // Statics:
   public:
     static varFormat_e GetVarFormatForString(const CMIUtilString &vrStrFormat);
-    static varFormat_e GetVarFormatForChar(const MIchar &vrcFormat);
+    static varFormat_e GetVarFormatForChar(char vcFormat);
     static CMIUtilString GetValueStringFormatted(const lldb::SBValue &vrValue, const varFormat_e veVarFormat);
     static void VarObjAdd(const CMICmnLLDBDebugSessionInfoVarObj &vrVarObj);
     static void VarObjDelete(const CMIUtilString &vrVarName);
@@ -79,6 +67,7 @@ class CMICmnLLDBDebugSessionInfoVarObj
     static MIuint VarObjIdGet(void);
     static void VarObjIdResetToZero(void);
     static void VarObjClear(void);
+    static void VarObjSetFormat(varFormat_e eDefaultFormat);
 
     // Methods:
   public:
@@ -97,6 +86,7 @@ class CMICmnLLDBDebugSessionInfoVarObj
     const CMIUtilString &GetName(void) const;
     const CMIUtilString &GetNameReal(void) const;
     const CMIUtilString &GetValueFormatted(void) const;
+    lldb::SBValue &GetValue(void);
     const lldb::SBValue &GetValue(void) const;
     varType_e GetType(void) const;
     bool SetVarFormat(const varFormat_e veVarFormat);
@@ -115,7 +105,7 @@ class CMICmnLLDBDebugSessionInfoVarObj
 
     // Statics:
   private:
-    static CMIUtilString GetStringFormatted(const MIuint64 vnValue, const MIchar *vpStrValueNatural, varFormat_e veVarFormat);
+    static CMIUtilString GetStringFormatted(const MIuint64 vnValue, const char *vpStrValueNatural, varFormat_e veVarFormat);
 
     // Methods:
   private:
@@ -124,10 +114,11 @@ class CMICmnLLDBDebugSessionInfoVarObj
 
     // Attributes:
   private:
-    static const MIchar *ms_aVarFormatStrings[];
-    static const MIchar *ms_aVarFormatChars[];
+    static const char *ms_aVarFormatStrings[];
+    static const char *ms_aVarFormatChars[];
     static MapKeyToVarObj_t ms_mapVarIdToVarObj;
     static MIuint ms_nVarUniqueId;
+    static varFormat_e ms_eDefaultFormat;    // overrides "natural" format
     //
     // *** Upate the copy move constructors and assignment operator ***
     varFormat_e m_eVarFormat;

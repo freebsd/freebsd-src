@@ -34,6 +34,8 @@ SRCS=	Args.cpp \
 	OptionValueFileSpec.cpp \
 	OptionValueFileSpecLIst.cpp \
 	OptionValueFormat.cpp \
+	OptionValueFormatEntity.cpp \
+	OptionValueLanguage.cpp \
 	OptionValuePathMappings.cpp \
 	OptionValueProperties.cpp \
 	OptionValueRegex.cpp \

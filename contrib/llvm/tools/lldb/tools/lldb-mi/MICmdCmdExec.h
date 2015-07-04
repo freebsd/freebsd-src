@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdExec.h
-//
 // Overview:    CMICmdCmdExecRun                interface.
 //              CMICmdCmdExecContinue           interface.
 //              CMICmdCmdExecNext               interface.
@@ -18,6 +15,8 @@
 //              CMICmdCmdExecStepInstruction    interface.
 //              CMICmdCmdExecFinish             interface.
 //              CMICmdCmdExecInterrupt          interface.
+//              CMICmdCmdExecArguments          interface.
+//              CMICmdCmdExecAbort              interface.
 //
 //              To implement new MI commands derive a new command class from the command base
 //              class. To enable the new command for interpretation add the new command class
@@ -27,18 +26,11 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
 // Third party headers:
-#include <lldb/API/SBCommandReturnObject.h>
+#include "lldb/API/SBCommandReturnObject.h"
 
 // In-house headers:
 #include "MICmdBase.h"
@@ -306,4 +298,60 @@ class CMICmdCmdExecInterrupt : public CMICmdBase
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
+};
+
+//++ ============================================================================
+// Details: MI command class. MI commands derived from the command base class.
+//          *this class implements MI command "exec-arguments".
+// Gotchas: None.
+// Authors: Ilia Kirianovskii 25/11/2014.
+// Changes: None.
+//--
+class CMICmdCmdExecArguments : public CMICmdBase
+{
+    // Statics:
+  public:
+    // Required by the CMICmdFactory when registering *this command
+    static CMICmdBase *CreateSelf(void);
+
+    // Methods:
+  public:
+    /* ctor */ CMICmdCmdExecArguments(void);
+
+    // Overridden:
+  public:
+    // From CMICmdInvoker::ICmd
+    virtual bool Execute(void);
+    virtual bool Acknowledge(void);
+    virtual bool ParseArgs(void);
+    // From CMICmnBase
+    /* dtor */ virtual ~CMICmdCmdExecArguments(void);
+
+    // Attributes:
+  private:
+    const CMIUtilString m_constStrArgArguments;
+};
+
+//++ ============================================================================
+// Details: MI command class. MI commands derived from the command base class.
+//          *this class implements MI command "exec-abort".
+//--
+class CMICmdCmdExecAbort : public CMICmdBase
+{
+    // Statics:
+  public:
+    // Required by the CMICmdFactory when registering *this command
+    static CMICmdBase *CreateSelf(void);
+
+    // Methods:
+  public:
+    /* ctor */ CMICmdCmdExecAbort(void);
+
+    // Overridden:
+  public:
+    // From CMICmdInvoker::ICmd
+    virtual bool Execute(void);
+    virtual bool Acknowledge(void);
+    // From CMICmnBase
+    /* dtor */ virtual ~CMICmdCmdExecAbort(void);
 };

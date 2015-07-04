@@ -7,17 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NativeProcessProtocol.h"
+#include "lldb/Host/common/NativeProcessProtocol.h"
 
 #include "lldb/lldb-enumerations.h"
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/State.h"
 #include "lldb/Host/Host.h"
-#include "lldb/Target/NativeRegisterContext.h"
+#include "lldb/Host/common/NativeRegisterContext.h"
 
-#include "NativeThreadProtocol.h"
-#include "SoftwareBreakpoint.h"
+#include "lldb/Host/common/NativeThreadProtocol.h"
+#include "lldb/Host/common/SoftwareBreakpoint.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -39,6 +39,7 @@ NativeProcessProtocol::NativeProcessProtocol (lldb::pid_t pid) :
     m_delegates_mutex (Mutex::eMutexTypeRecursive),
     m_delegates (),
     m_breakpoint_list (),
+    m_watchpoint_list (),
     m_terminal_fd (-1),
     m_stop_id (0)
 {
@@ -159,6 +160,12 @@ NativeProcessProtocol::GetByteOrder (lldb::ByteOrder &byte_order) const
     return true;
 }
 
+const NativeWatchpointList::WatchpointMap&
+NativeProcessProtocol::GetWatchpointMap () const
+{
+    return m_watchpoint_list.GetWatchpointMap();
+}
+
 uint32_t
 NativeProcessProtocol::GetMaxWatchpoints () const
 {
@@ -198,9 +205,6 @@ NativeProcessProtocol::SetWatchpoint (lldb::addr_t addr, size_t size, uint32_t w
     // via the (FIXME implement) OnThreadAttached () method.
 
     Log *log (lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
-
-    // FIXME save the watchpoint on the set of process watchpoint vars
-    // so we can add them to a thread each time a new thread is registered.
 
     // Update the thread list
     UpdateThreads ();
@@ -261,15 +265,12 @@ NativeProcessProtocol::SetWatchpoint (lldb::addr_t addr, size_t size, uint32_t w
             return thread_error;
         }
     }
-    return Error ();
+    return m_watchpoint_list.Add (addr, size, watch_flags, hardware);
 }
 
 Error
 NativeProcessProtocol::RemoveWatchpoint (lldb::addr_t addr)
 {
-    // FIXME remove the watchpoint on the set of process watchpoint vars
-    // so we can add them to a thread each time a new thread is registered.
-
     // Update the thread list
     UpdateThreads ();
 
@@ -292,7 +293,8 @@ NativeProcessProtocol::RemoveWatchpoint (lldb::addr_t addr)
                 overall_error = thread_error;
         }
     }
-    return overall_error;
+    const Error error = m_watchpoint_list.Remove(addr);
+    return overall_error.Fail() ? overall_error : error;
 }
 
 bool
@@ -400,6 +402,10 @@ void
 NativeProcessProtocol::SetState (lldb::StateType state, bool notify_delegates)
 {
     Mutex::Locker locker (m_state_mutex);
+
+    if (state == m_state)
+        return;
+
     m_state = state;
 
     if (StateIsStoppedState (state, false))
@@ -426,6 +432,12 @@ uint32_t NativeProcessProtocol::GetStopID () const
 
 void
 NativeProcessProtocol::DoStopIDBumped (uint32_t /* newBumpId */)
+{
+    // Default implementation does nothing.
+}
+
+void
+NativeProcessProtocol::Terminate ()
 {
     // Default implementation does nothing.
 }

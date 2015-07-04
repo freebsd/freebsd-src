@@ -14,7 +14,6 @@
 // Other libraries and framework includes
 
 // Project includes
-#include "lldb/lldb-private-log.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Address.h"
@@ -22,6 +21,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Symbol/ObjectFile.h"
+#include "lldb/Target/ABI.h"
 #include "lldb/Target/LanguageRuntime.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -407,7 +407,7 @@ ThreadPlanCallFunction::DoPlanExplainsStop (Event *event_ptr)
         // signal that is set not to stop.  Check that here first.  We just say we explain the stop
         // but aren't done and everything will continue on from there.
         
-        if (m_real_stop_info_sp->ShouldStopSynchronous(event_ptr))
+        if (m_real_stop_info_sp && m_real_stop_info_sp->ShouldStopSynchronous(event_ptr))
         {
             SetPlanComplete(false);
             if (m_subplan_sp)

@@ -18,6 +18,7 @@ SRCS=	Address.cpp \
 	ConnectionMachPort.cpp \
 	ConnectionSharedMemory.cpp \
 	ConstString.cpp \
+	CxaDemangle.cpp \
 	DataBufferHeap.cpp \
 	DataBufferMemoryMap.cpp \
 	DataEncoder.cpp \
@@ -31,11 +32,13 @@ SRCS=	Address.cpp \
 	FastDemangle.cpp \
 	FileLineResolver.cpp \
 	FileSpecList.cpp \
+	FormatEntity.cpp \
 	History.cpp \
 	IOHandler.cpp \
 	Language.cpp \
 	Listener.cpp \
 	Log.cpp \
+	Logging.cpp \
 	Mangled.cpp \
 	Module.cpp \
 	ModuleChild.cpp \

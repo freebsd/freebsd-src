@@ -11,6 +11,8 @@
 #include <errno.h>
 
 // C++ Includes
+#include <mutex>
+
 // Other libraries and framework includes
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/State.h"
@@ -56,23 +58,14 @@ ProcessFreeBSD::CreateInstance(Target& target,
 void
 ProcessFreeBSD::Initialize()
 {
-    static bool g_initialized = false;
+    static std::once_flag g_once_flag;
 
-    if (!g_initialized)
-    {
+    std::call_once(g_once_flag, []() {
         PluginManager::RegisterPlugin(GetPluginNameStatic(),
                                       GetPluginDescriptionStatic(),
                                       CreateInstance);
-        Log::Callbacks log_callbacks = {
-            ProcessPOSIXLog::DisableLog,
-            ProcessPOSIXLog::EnableLog,
-            ProcessPOSIXLog::ListLogCategories
-        };
-
-        Log::RegisterLogChannel (ProcessFreeBSD::GetPluginNameStatic(), log_callbacks);
-        ProcessPOSIXLog::RegisterPluginName(GetPluginNameStatic());
-        g_initialized = true;
-    }
+        ProcessPOSIXLog::Initialize(GetPluginNameStatic());
+    });
 }
 
 lldb_private::ConstString

@@ -7,21 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDataTypes.h
-//
 // Overview:    Common global switches, macros, etc.
 //
 //              This file contains common data types required by applications
 //              generally. If supported by the compiler, this file should be
 //              #include'd as part of the project's PCH (precompiled header).
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
@@ -86,9 +76,6 @@ typedef unsigned int MIuint;
 // Fundamentals:
 typedef float MIflt;
 typedef double MIdbl;
-typedef char MIchar;                 // Defaults to signed char, i.e. MIschar.
-typedef signed char MIschar;         // Range: -128 to 127. More explicit than using MIchar.
-typedef unsigned char MIuchar;       // Range: 0 to 255.
 typedef long long MIint64;           // 64bit signed integer.
 typedef unsigned long long MIuint64; // 64bit unsigned integer.
 

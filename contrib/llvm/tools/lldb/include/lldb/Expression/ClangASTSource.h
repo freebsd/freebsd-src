@@ -15,6 +15,7 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
 #include "lldb/Symbol/ClangASTImporter.h"
+#include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Target/Target.h"
 
 #include "llvm/ADT/SmallSet.h"
@@ -45,39 +46,40 @@ public:
     /// @param[in] declMap
     ///     A reference to the LLDB object that handles entity lookup.
     //------------------------------------------------------------------
-	ClangASTSource (const lldb::TargetSP &target) :
+    ClangASTSource (const lldb::TargetSP &target) :
         m_import_in_progress (false),
         m_lookups_enabled (false),
         m_target (target),
         m_ast_context (NULL),
+        m_active_lexical_decls (),
         m_active_lookups ()
     {
         m_ast_importer = m_target->GetClangASTImporter();
     }
-    
+  
     //------------------------------------------------------------------
     /// Destructor
     //------------------------------------------------------------------
-	~ClangASTSource();
-	
+    ~ClangASTSource();
+    
     //------------------------------------------------------------------
     /// Interface stubs.
     //------------------------------------------------------------------
-    clang::Decl *GetExternalDecl (uint32_t)         {   return NULL;                }
-    clang::Stmt *GetExternalDeclStmt (uint64_t)     {   return NULL;                }
-	clang::Selector GetExternalSelector (uint32_t)  {   return clang::Selector();   }
-    uint32_t GetNumExternalSelectors ()             {   return 0;                   }
-    clang::CXXBaseSpecifier *GetExternalCXXBaseSpecifiers (uint64_t Offset)
+    clang::Decl *GetExternalDecl (uint32_t) override {   return NULL;                }
+    clang::Stmt *GetExternalDeclStmt (uint64_t) override {   return NULL;                }
+    clang::Selector GetExternalSelector (uint32_t) override {   return clang::Selector();   }
+    uint32_t GetNumExternalSelectors () override {   return 0;                   }
+    clang::CXXBaseSpecifier *GetExternalCXXBaseSpecifiers (uint64_t Offset) override
                                                     {   return NULL;                }
     void MaterializeVisibleDecls (const clang::DeclContext *DC)
                                                     {   return;                     }
-	
+      
     void InstallASTContext (clang::ASTContext *ast_context)
     {
         m_ast_context = ast_context;
         m_ast_importer->InstallMapCompleter(ast_context, *this);
     }
-    
+  
     //
     // APIs for ExternalASTSource
     //
@@ -100,10 +102,8 @@ public:
     /// @return
     ///     Whatever SetExternalVisibleDeclsForName returns.
     //------------------------------------------------------------------
-    bool
-    FindExternalVisibleDeclsByName (const clang::DeclContext *DC,
-                                    clang::DeclarationName Name);
-    
+    bool FindExternalVisibleDeclsByName(const clang::DeclContext *DC, clang::DeclarationName Name) override;
+
     //------------------------------------------------------------------
     /// Enumerate all Decls in a given lexical context.
     ///
@@ -117,11 +117,10 @@ public:
     /// @param[in] Decls
     ///     A vector that is filled in with matching Decls.
     //------------------------------------------------------------------
-    clang::ExternalLoadResult 
-    FindExternalLexicalDecls (const clang::DeclContext *DC,
-                              bool (*isKindWeWant)(clang::Decl::Kind),
-                              llvm::SmallVectorImpl<clang::Decl*> &Decls);
-    
+    clang::ExternalLoadResult FindExternalLexicalDecls(const clang::DeclContext *DC,
+                                                       bool (*isKindWeWant)(clang::Decl::Kind),
+                                                       llvm::SmallVectorImpl<clang::Decl *> &Decls) override;
+
     //------------------------------------------------------------------
     /// Specify the layout of the contents of a RecordDecl.
     ///
@@ -154,33 +153,28 @@ public:
     ///
     /// @return
     ///     True <=> the layout is valid.
-    //-----------------------------------------------------------------    
-    bool 
-    layoutRecordType(const clang::RecordDecl *Record,
-                     uint64_t &Size, 
-                     uint64_t &Alignment,
-                     llvm::DenseMap <const clang::FieldDecl *, uint64_t> &FieldOffsets,
-                     llvm::DenseMap <const clang::CXXRecordDecl *, clang::CharUnits> &BaseOffsets,
-                     llvm::DenseMap <const clang::CXXRecordDecl *, clang::CharUnits> &VirtualBaseOffsets);
-    
+    //-----------------------------------------------------------------
+    bool layoutRecordType(const clang::RecordDecl *Record, uint64_t &Size, uint64_t &Alignment,
+                          llvm::DenseMap<const clang::FieldDecl *, uint64_t> &FieldOffsets,
+                          llvm::DenseMap<const clang::CXXRecordDecl *, clang::CharUnits> &BaseOffsets,
+                          llvm::DenseMap<const clang::CXXRecordDecl *, clang::CharUnits> &VirtualBaseOffsets) override;
+
     //------------------------------------------------------------------
     /// Complete a TagDecl.
     ///
     /// @param[in] Tag
     ///     The Decl to be completed in place.
     //------------------------------------------------------------------
-    virtual void
-    CompleteType (clang::TagDecl *Tag);
-    
+    void CompleteType(clang::TagDecl *Tag) override;
+
     //------------------------------------------------------------------
     /// Complete an ObjCInterfaceDecl.
     ///
     /// @param[in] Class
     ///     The Decl to be completed in place.
     //------------------------------------------------------------------
-    virtual void 
-    CompleteType (clang::ObjCInterfaceDecl *Class);
-    
+    void CompleteType(clang::ObjCInterfaceDecl *Class) override;
+
     //------------------------------------------------------------------
     /// Called on entering a translation unit.  Tells Clang by calling
     /// setHasExternalVisibleStorage() and setHasExternalLexicalStorage()
@@ -189,8 +183,8 @@ public:
     /// @param[in] ASTConsumer
     ///     Unused.
     //------------------------------------------------------------------
-    void StartTranslationUnit (clang::ASTConsumer *Consumer);
-    
+    void StartTranslationUnit(clang::ASTConsumer *Consumer) override;
+
     //
     // APIs for NamespaceMapCompleter
     //
@@ -209,10 +203,9 @@ public:
     ///     The map for the namespace's parent namespace, if there is
     ///     one.
     //------------------------------------------------------------------
-    void CompleteNamespaceMap (ClangASTImporter::NamespaceMapSP &namespace_map,
-                               const ConstString &name,
-                               ClangASTImporter::NamespaceMapSP &parent_map) const;
-    
+    void CompleteNamespaceMap(ClangASTImporter::NamespaceMapSP &namespace_map, const ConstString &name,
+                              ClangASTImporter::NamespaceMapSP &parent_map) const override;
+
     //
     // Helper APIs
     //
@@ -249,41 +242,37 @@ public:
             m_original(original)
         {
         }
-        
+
         bool
-        FindExternalVisibleDeclsByName (const clang::DeclContext *DC,
-                                        clang::DeclarationName Name)
+        FindExternalVisibleDeclsByName(const clang::DeclContext *DC, clang::DeclarationName Name) override
         {
             return m_original.FindExternalVisibleDeclsByName(DC, Name);
         }
-        
-        clang::ExternalLoadResult 
-        FindExternalLexicalDecls (const clang::DeclContext *DC,
-                                  bool (*isKindWeWant)(clang::Decl::Kind),
-                                  llvm::SmallVectorImpl<clang::Decl*> &Decls)
+
+        clang::ExternalLoadResult
+        FindExternalLexicalDecls(const clang::DeclContext *DC, bool (*isKindWeWant)(clang::Decl::Kind),
+                                 llvm::SmallVectorImpl<clang::Decl *> &Decls) override
         {
             return m_original.FindExternalLexicalDecls(DC, isKindWeWant, Decls);
         }
-        
+
         void
-        CompleteType (clang::TagDecl *Tag)
+        CompleteType(clang::TagDecl *Tag) override
         {
             return m_original.CompleteType(Tag);
         }
-        
-        void 
-        CompleteType (clang::ObjCInterfaceDecl *Class)
+
+        void
+        CompleteType(clang::ObjCInterfaceDecl *Class) override
         {
             return m_original.CompleteType(Class);
         }
-        
-        bool 
-        layoutRecordType(const clang::RecordDecl *Record,
-                         uint64_t &Size, 
-                         uint64_t &Alignment,
-                         llvm::DenseMap <const clang::FieldDecl *, uint64_t> &FieldOffsets,
-                         llvm::DenseMap <const clang::CXXRecordDecl *, clang::CharUnits> &BaseOffsets,
-                         llvm::DenseMap <const clang::CXXRecordDecl *, clang::CharUnits> &VirtualBaseOffsets)
+
+        bool
+        layoutRecordType(const clang::RecordDecl *Record, uint64_t &Size, uint64_t &Alignment,
+                         llvm::DenseMap<const clang::FieldDecl *, uint64_t> &FieldOffsets,
+                         llvm::DenseMap<const clang::CXXRecordDecl *, clang::CharUnits> &BaseOffsets,
+                         llvm::DenseMap<const clang::CXXRecordDecl *, clang::CharUnits> &VirtualBaseOffsets) override
         {
             return m_original.layoutRecordType(Record,
                                                Size, 
@@ -293,7 +282,8 @@ public:
                                                VirtualBaseOffsets);
         }
 
-        void StartTranslationUnit (clang::ASTConsumer *Consumer)
+        void
+        StartTranslationUnit(clang::ASTConsumer *Consumer) override
         {
             return m_original.StartTranslationUnit(Consumer);
         }
@@ -413,8 +403,9 @@ protected:
     bool                    m_lookups_enabled;
 
     const lldb::TargetSP                m_target;           ///< The target to use in finding variables and types.
-	clang::ASTContext                  *m_ast_context;      ///< The AST context requests are coming in for.
+    clang::ASTContext                  *m_ast_context;      ///< The AST context requests are coming in for.
     ClangASTImporter                   *m_ast_importer;     ///< The target's AST importer.
+    std::set<const clang::Decl *>       m_active_lexical_decls;
     std::set<const char *>              m_active_lookups;
 };
 
@@ -485,8 +476,12 @@ struct NameSearchContext {
     ///
     /// @param[in] type
     ///     The opaque QualType for the FunDecl being registered.
+    ///
+    /// @param[in] extern_c
+    ///     If true, build an extern "C" linkage specification for this.
     //------------------------------------------------------------------
-    clang::NamedDecl *AddFunDecl(const ClangASTType &type);
+    clang::NamedDecl *AddFunDecl(const ClangASTType &type,
+                                 bool extern_c = false);
     
     //------------------------------------------------------------------
     /// Create a FunDecl with the name being searched for and generic
@@ -513,7 +508,7 @@ struct NameSearchContext {
     ///     The DeclContextLookupResult, usually returned as the result
     ///     of querying a DeclContext.
     //------------------------------------------------------------------
-    void AddLookupResult (clang::DeclContextLookupConstResult result);
+    void AddLookupResult (clang::DeclContextLookupResult result);
     
     //------------------------------------------------------------------
     /// Add a NamedDecl to the list of results.

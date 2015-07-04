@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
 #include "lldb/Host/Config.h"
 
 // C Includes
@@ -24,8 +23,7 @@
 // C++ Includes
 #include <algorithm>
 #include <map>
-
-// Other libraries and framework includes
+#include <mutex>
 
 #include "lldb/Breakpoint/Watchpoint.h"
 #include "lldb/Interpreter/Args.h"
@@ -41,17 +39,22 @@
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/Value.h"
+#include "lldb/DataFormatters/FormatManager.h"
 #include "lldb/Host/HostThread.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Host/Symbols.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Host/TimeValue.h"
+#include "lldb/Host/XML.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
-#ifndef LLDB_DISABLE_PYTHON
-#include "lldb/Interpreter/PythonDataObjects.h"
-#endif
+#include "lldb/Interpreter/OptionValueProperties.h"
+#include "lldb/Interpreter/Options.h"
+#include "lldb/Interpreter/OptionGroupBoolean.h"
+#include "lldb/Interpreter/OptionGroupUInt64.h"
+#include "lldb/Interpreter/Property.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/Target.h"
@@ -65,6 +68,7 @@
 #include "Plugins/Process/Utility/FreeBSDSignals.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
 #include "Plugins/Process/Utility/LinuxSignals.h"
+#include "Plugins/Process/Utility/MipsLinuxSignals.h"
 #include "Plugins/Process/Utility/StopInfoMachException.h"
 #include "Utility/StringExtractorGDBRemote.h"
 #include "GDBRemoteRegisterContext.h"
@@ -72,6 +76,10 @@
 #include "ProcessGDBRemoteLog.h"
 #include "ThreadGDBRemote.h"
 
+#define DEBUGSERVER_BASENAME    "debugserver"
+using namespace lldb;
+using namespace lldb_private;
+using namespace lldb_private::process_gdb_remote;
 
 namespace lldb
 {
@@ -84,17 +92,12 @@ namespace lldb
     void
     DumpProcessGDBRemotePacketHistory (void *p, const char *path)
     {
-        lldb_private::StreamFile strm;
-        lldb_private::Error error (strm.GetFile().Open(path, lldb_private::File::eOpenOptionWrite | lldb_private::File::eOpenOptionCanCreate));
+        StreamFile strm;
+        Error error (strm.GetFile().Open(path, File::eOpenOptionWrite | File::eOpenOptionCanCreate));
         if (error.Success())
             ((ProcessGDBRemote *)p)->GetGDBRemote().DumpHistory (strm);
     }
 }
-
-#define DEBUGSERVER_BASENAME    "debugserver"
-using namespace lldb;
-using namespace lldb_private;
-
 
 namespace {
 
@@ -169,6 +172,107 @@ namespace {
     
 } // anonymous namespace end
 
+class ProcessGDBRemote::GDBLoadedModuleInfoList
+{
+public:
+
+    class LoadedModuleInfo
+    {
+    public:
+
+        enum e_data_point
+        {
+            e_has_name      = 0,
+            e_has_base      ,
+            e_has_dynamic   ,
+            e_has_link_map  ,
+            e_num
+        };
+
+        LoadedModuleInfo ()
+        {
+            for (uint32_t i = 0; i < e_num; ++i)
+                m_has[i] = false;
+        };
+
+        void set_name (const std::string & name)
+        {
+            m_name = name;
+            m_has[e_has_name] = true;
+        }
+        bool get_name (std::string & out) const
+        {
+            out = m_name;
+            return m_has[e_has_name];
+        }
+
+        void set_base (const lldb::addr_t base)
+        {
+            m_base = base;
+            m_has[e_has_base] = true;
+        }
+        bool get_base (lldb::addr_t & out) const
+        {
+            out = m_base;
+            return m_has[e_has_base];
+        }
+
+        void set_link_map (const lldb::addr_t addr)
+        {
+            m_link_map = addr;
+            m_has[e_has_link_map] = true;
+        }
+        bool get_link_map (lldb::addr_t & out) const
+        {
+            out = m_link_map;
+            return m_has[e_has_link_map];
+        }
+
+        void set_dynamic (const lldb::addr_t addr)
+        {
+            m_dynamic = addr;
+            m_has[e_has_dynamic] = true;
+        }
+        bool get_dynamic (lldb::addr_t & out) const
+        {
+            out = m_dynamic;
+            return m_has[e_has_dynamic];
+        }
+
+        bool has_info (e_data_point datum)
+        {
+            assert (datum < e_num);
+            return m_has[datum];
+        }
+
+    protected:
+
+        bool m_has[e_num];
+        std::string m_name;
+        lldb::addr_t m_link_map;
+        lldb::addr_t m_base;
+        lldb::addr_t m_dynamic;
+    };
+
+    GDBLoadedModuleInfoList ()
+        : m_list ()
+        , m_link_map (LLDB_INVALID_ADDRESS)
+    {}
+
+    void add (const LoadedModuleInfo & mod)
+    {
+        m_list.push_back (mod);
+    }
+
+    void clear ()
+    {
+        m_list.clear ();
+    }
+
+    std::vector<LoadedModuleInfo> m_list;
+    lldb::addr_t m_link_map;
+};
+
 // TODO Randomly assigning a port is unsafe.  We should get an unused
 // ephemeral port from the kernel and make sure we reserve it before passing
 // it to debugserver.
@@ -198,7 +302,7 @@ get_random_port ()
 }
 #endif
 
-lldb_private::ConstString
+ConstString
 ProcessGDBRemote::GetPluginNameStatic()
 {
     static ConstString g_name("gdb-remote");
@@ -266,14 +370,14 @@ ProcessGDBRemote::CanDebug (Target &target, bool plugin_specified_by_name)
 ProcessGDBRemote::ProcessGDBRemote(Target& target, Listener &listener) :
     Process (target, listener),
     m_flags (0),
-    m_gdb_comm(false),
+    m_gdb_comm (),
     m_debugserver_pid (LLDB_INVALID_PROCESS_ID),
-    m_last_stop_packet (),
     m_last_stop_packet_mutex (Mutex::eMutexTypeNormal),
     m_register_info (),
     m_async_broadcaster (NULL, "lldb.process.gdb-remote.async-broadcaster"),
     m_async_thread_state_mutex(Mutex::eMutexTypeRecursive),
     m_thread_ids (),
+    m_threads_info_sp (),
     m_continue_c_tids (),
     m_continue_C_tids (),
     m_continue_s_tids (),
@@ -285,7 +389,8 @@ ProcessGDBRemote::ProcessGDBRemote(Target& target, Listener &listener) :
     m_waiting_for_attach (false),
     m_destroy_tried_resuming (false),
     m_command_sp (),
-    m_breakpoint_pc_offset (0)
+    m_breakpoint_pc_offset (0),
+    m_initial_tid (LLDB_INVALID_THREAD_ID)
 {
     m_async_broadcaster.SetEventName (eBroadcastBitAsyncThreadShouldExit,   "async thread should exit");
     m_async_broadcaster.SetEventName (eBroadcastBitAsyncContinue,           "async thread continue");
@@ -333,42 +438,67 @@ ProcessGDBRemote::GetPluginVersion()
 bool
 ProcessGDBRemote::ParsePythonTargetDefinition(const FileSpec &target_definition_fspec)
 {
-#ifndef LLDB_DISABLE_PYTHON
     ScriptInterpreter *interpreter = GetTarget().GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
     Error error;
-    lldb::ScriptInterpreterObjectSP module_object_sp (interpreter->LoadPluginModule(target_definition_fspec, error));
+    StructuredData::ObjectSP module_object_sp(interpreter->LoadPluginModule(target_definition_fspec, error));
     if (module_object_sp)
     {
-        lldb::ScriptInterpreterObjectSP target_definition_sp (interpreter->GetDynamicSettings(module_object_sp,
-                                                                                              &GetTarget(),
-                                                                                              "gdb-server-target-definition",
-                                                                                              error));
-        
-        PythonDictionary target_dict(target_definition_sp);
+        StructuredData::DictionarySP target_definition_sp(
+            interpreter->GetDynamicSettings(module_object_sp, &GetTarget(), "gdb-server-target-definition", error));
 
-        if (target_dict)
+        if (target_definition_sp)
         {
-            PythonDictionary host_info_dict (target_dict.GetItemForKey("host-info"));
-            if (host_info_dict)
+            StructuredData::ObjectSP target_object(target_definition_sp->GetValueForKey("host-info"));
+            if (target_object)
             {
-                ArchSpec host_arch (host_info_dict.GetItemForKeyAsString(PythonString("triple")));
-                
-                if (!host_arch.IsCompatibleMatch(GetTarget().GetArchitecture()))
+                if (auto host_info_dict = target_object->GetAsDictionary())
                 {
-                    GetTarget().SetArchitecture(host_arch);
+                    StructuredData::ObjectSP triple_value = host_info_dict->GetValueForKey("triple");
+                    if (auto triple_string_value = triple_value->GetAsString())
+                    {
+                        std::string triple_string = triple_string_value->GetValue();
+                        ArchSpec host_arch(triple_string.c_str());
+                        if (!host_arch.IsCompatibleMatch(GetTarget().GetArchitecture()))
+                        {
+                            GetTarget().SetArchitecture(host_arch);
+                        }
+                    }
                 }
-                    
             }
-            m_breakpoint_pc_offset = target_dict.GetItemForKeyAsInteger("breakpoint-pc-offset", 0);
+            m_breakpoint_pc_offset = 0;
+            StructuredData::ObjectSP breakpoint_pc_offset_value = target_definition_sp->GetValueForKey("breakpoint-pc-offset");
+            if (breakpoint_pc_offset_value)
+            {
+                if (auto breakpoint_pc_int_value = breakpoint_pc_offset_value->GetAsInteger())
+                    m_breakpoint_pc_offset = breakpoint_pc_int_value->GetValue();
+            }
 
-            if (m_register_info.SetRegisterInfo (target_dict, GetTarget().GetArchitecture().GetByteOrder()) > 0)
+            if (m_register_info.SetRegisterInfo(*target_definition_sp, GetTarget().GetArchitecture()) > 0)
             {
                 return true;
             }
         }
     }
-#endif
     return false;
+}
+
+static size_t
+SplitCommaSeparatedRegisterNumberString(const llvm::StringRef &comma_separated_regiter_numbers, std::vector<uint32_t> &regnums, int base)
+{
+    regnums.clear();
+    std::pair<llvm::StringRef, llvm::StringRef> value_pair;
+    value_pair.second = comma_separated_regiter_numbers;
+    do
+    {
+        value_pair = value_pair.second.split(',');
+        if (!value_pair.first.empty())
+        {
+            uint32_t reg = StringConvert::ToUInt32 (value_pair.first.str().c_str(), LLDB_INVALID_REGNUM, base);
+            if (reg != LLDB_INVALID_REGNUM)
+                regnums.push_back (reg);
+        }
+    } while (!value_pair.second.empty());
+    return regnums.size();
 }
 
 
@@ -378,8 +508,34 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
     if (!force && m_register_info.GetNumRegisters() > 0)
         return;
 
-    char packet[128];
     m_register_info.Clear();
+
+    // Check if qHostInfo specified a specific packet timeout for this connection.
+    // If so then lets update our setting so the user knows what the timeout is
+    // and can see it.
+    const uint32_t host_packet_timeout = m_gdb_comm.GetHostDefaultPacketTimeout();
+    if (host_packet_timeout)
+    {
+        GetGlobalPluginProperties()->SetPacketTimeout(host_packet_timeout);
+    }
+
+    // Register info search order: 
+    //     1 - Use the target definition python file if one is specified.
+    //     2 - If the target definition doesn't have any of the info from the target.xml (registers) then proceed to read the target.xml.
+    //     3 - Fall back on the qRegisterInfo packets.
+
+    FileSpec target_definition_fspec = GetGlobalPluginProperties()->GetTargetDefinitionFile ();
+    if (target_definition_fspec)
+    {
+        // See if we can get register definitions from a python file
+        if (ParsePythonTargetDefinition (target_definition_fspec))
+            return;
+    }
+
+    if (GetGDBServerRegisterInfo ())
+        return;
+    
+    char packet[128];
     uint32_t reg_offset = 0;
     uint32_t reg_num = 0;
     for (StringExtractorGDBRemote::ResponseType response_type = StringExtractorGDBRemote::eResponse;
@@ -430,11 +586,11 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
                     }
                     else if (name.compare("bitsize") == 0)
                     {
-                        reg_info.byte_size = Args::StringToUInt32(value.c_str(), 0, 0) / CHAR_BIT;
+                        reg_info.byte_size = StringConvert::ToUInt32(value.c_str(), 0, 0) / CHAR_BIT;
                     }
                     else if (name.compare("offset") == 0)
                     {
-                        uint32_t offset = Args::StringToUInt32(value.c_str(), UINT32_MAX, 0);
+                        uint32_t offset = StringConvert::ToUInt32(value.c_str(), UINT32_MAX, 0);
                         if (reg_offset != offset)
                         {
                             reg_offset = offset;
@@ -482,11 +638,11 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
                     }
                     else if (name.compare("gcc") == 0)
                     {
-                        reg_info.kinds[eRegisterKindGCC] = Args::StringToUInt32(value.c_str(), LLDB_INVALID_REGNUM, 0);
+                        reg_info.kinds[eRegisterKindGCC] = StringConvert::ToUInt32(value.c_str(), LLDB_INVALID_REGNUM, 0);
                     }
                     else if (name.compare("dwarf") == 0)
                     {
-                        reg_info.kinds[eRegisterKindDWARF] = Args::StringToUInt32(value.c_str(), LLDB_INVALID_REGNUM, 0);
+                        reg_info.kinds[eRegisterKindDWARF] = StringConvert::ToUInt32(value.c_str(), LLDB_INVALID_REGNUM, 0);
                     }
                     else if (name.compare("generic") == 0)
                     {
@@ -494,33 +650,11 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
                     }
                     else if (name.compare("container-regs") == 0)
                     {
-                        std::pair<llvm::StringRef, llvm::StringRef> value_pair;
-                        value_pair.second = value;
-                        do
-                        {
-                            value_pair = value_pair.second.split(',');
-                            if (!value_pair.first.empty())
-                            {
-                                uint32_t reg = Args::StringToUInt32 (value_pair.first.str().c_str(), LLDB_INVALID_REGNUM, 16);
-                                if (reg != LLDB_INVALID_REGNUM)
-                                    value_regs.push_back (reg);
-                            }
-                        } while (!value_pair.second.empty());
+                        SplitCommaSeparatedRegisterNumberString(value, value_regs, 16);
                     }
                     else if (name.compare("invalidate-regs") == 0)
                     {
-                        std::pair<llvm::StringRef, llvm::StringRef> value_pair;
-                        value_pair.second = value;
-                        do
-                        {
-                            value_pair = value_pair.second.split(',');
-                            if (!value_pair.first.empty())
-                            {
-                                uint32_t reg = Args::StringToUInt32 (value_pair.first.str().c_str(), LLDB_INVALID_REGNUM, 16);
-                                if (reg != LLDB_INVALID_REGNUM)
-                                    invalidate_regs.push_back (reg);
-                            }
-                        } while (!value_pair.second.empty());
+                        SplitCommaSeparatedRegisterNumberString(value, invalidate_regs, 16);
                     }
                 }
 
@@ -551,26 +685,10 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
         }
     }
 
-    // Check if qHostInfo specified a specific packet timeout for this connection.
-    // If so then lets update our setting so the user knows what the timeout is
-    // and can see it.
-    const uint32_t host_packet_timeout = m_gdb_comm.GetHostDefaultPacketTimeout();
-    if (host_packet_timeout)
+    if (m_register_info.GetNumRegisters() > 0)
     {
-        GetGlobalPluginProperties()->SetPacketTimeout(host_packet_timeout);
-    }
-    
-
-    if (reg_num == 0)
-    {
-        FileSpec target_definition_fspec = GetGlobalPluginProperties()->GetTargetDefinitionFile ();
-        
-        if (target_definition_fspec)
-        {
-            // See if we can get register definitions from a python file
-            if (ParsePythonTargetDefinition (target_definition_fspec))
-                return;
-        }
+        m_register_info.Finalize(GetTarget().GetArchitecture());
+        return;
     }
 
     // We didn't get anything if the accumulated reg_num is zero.  See if we are
@@ -578,7 +696,7 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
     // updated debugserver down on the devices.
     // On the other hand, if the accumulated reg_num is positive, see if we can
     // add composite registers to the existing primordial ones.
-    bool from_scratch = (reg_num == 0);
+    bool from_scratch = (m_register_info.GetNumRegisters() == 0);
 
     const ArchSpec &target_arch = GetTarget().GetArchitecture();
     const ArchSpec &remote_host_arch = m_gdb_comm.GetHostArchitecture();
@@ -604,7 +722,7 @@ ProcessGDBRemote::BuildDynamicRegisterInfo (bool force)
     }
 
     // At this point, we can finalize our register info.
-    m_register_info.Finalize ();
+    m_register_info.Finalize (GetTarget().GetArchitecture());
 }
 
 Error
@@ -653,8 +771,15 @@ ProcessGDBRemote::DoConnectRemote (Stream *strm, const char *remote_url)
         // We have a valid process
         SetID (pid);
         GetThreadList();
-        if (m_gdb_comm.SendPacketAndWaitForResponse("?", 1, m_last_stop_packet, false) == GDBRemoteCommunication::PacketResult::Success)
+        StringExtractorGDBRemote response;
+        if (m_gdb_comm.GetStopReply(response))
         {
+            SetLastStopPacket(response);
+
+            // '?' Packets must be handled differently in non-stop mode
+            if (GetTarget().GetNonStopModeEnabled())
+                HandleStopReplySequence();
+
             if (!m_target.GetArchitecture().IsValid()) 
             {
                 if (m_gdb_comm.GetProcessArchitecture().IsValid())
@@ -667,7 +792,7 @@ ProcessGDBRemote::DoConnectRemote (Stream *strm, const char *remote_url)
                 }
             }
 
-            const StateType state = SetThreadStopInfo (m_last_stop_packet);
+            const StateType state = SetThreadStopInfo (response);
             if (state == eStateStopped)
             {
                 SetPrivateState (state);
@@ -701,7 +826,7 @@ ProcessGDBRemote::DoConnectRemote (Stream *strm, const char *remote_url)
     // FIXME Add a gdb-remote packet to discover dynamically.
     if (error.Success ())
     {
-        const ArchSpec arch_spec = GetTarget ().GetArchitecture ();
+        const ArchSpec arch_spec = m_gdb_comm.GetHostArchitecture();
         if (arch_spec.IsValid ())
         {
             if (log)
@@ -710,7 +835,10 @@ ProcessGDBRemote::DoConnectRemote (Stream *strm, const char *remote_url)
             switch (arch_spec.GetTriple ().getOS ())
             {
             case llvm::Triple::Linux:
-                SetUnixSignals (UnixSignalsSP (new process_linux::LinuxSignals ()));
+                if (arch_spec.GetTriple ().getArch () == llvm::Triple::mips64 || arch_spec.GetTriple ().getArch () == llvm::Triple::mips64el)
+                    SetUnixSignals (UnixSignalsSP (new process_linux::MipsLinuxSignals ()));
+                else
+                    SetUnixSignals (UnixSignalsSP (new process_linux::LinuxSignals ()));
                 if (log)
                     log->Printf ("ProcessGDBRemote::%s using Linux unix signals type for pid %" PRIu64, __FUNCTION__, GetID ());
                 break;
@@ -754,41 +882,53 @@ ProcessGDBRemote::DoLaunch (Module *exe_module, ProcessLaunchInfo &launch_info)
         log->Printf ("ProcessGDBRemote::%s() entered", __FUNCTION__);
 
     uint32_t launch_flags = launch_info.GetFlags().Get();
-    const char *stdin_path = NULL;
-    const char *stdout_path = NULL;
-    const char *stderr_path = NULL;
-    const char *working_dir = launch_info.GetWorkingDirectory();
+    FileSpec stdin_file_spec{};
+    FileSpec stdout_file_spec{};
+    FileSpec stderr_file_spec{};
+    FileSpec working_dir = launch_info.GetWorkingDirectory();
 
     const FileAction *file_action;
     file_action = launch_info.GetFileActionForFD (STDIN_FILENO);
     if (file_action)
     {
         if (file_action->GetAction() == FileAction::eFileActionOpen)
-            stdin_path = file_action->GetPath();
+            stdin_file_spec = file_action->GetFileSpec();
     }
     file_action = launch_info.GetFileActionForFD (STDOUT_FILENO);
     if (file_action)
     {
         if (file_action->GetAction() == FileAction::eFileActionOpen)
-            stdout_path = file_action->GetPath();
+            stdout_file_spec = file_action->GetFileSpec();
     }
     file_action = launch_info.GetFileActionForFD (STDERR_FILENO);
     if (file_action)
     {
         if (file_action->GetAction() == FileAction::eFileActionOpen)
-            stderr_path = file_action->GetPath();
+            stderr_file_spec = file_action->GetFileSpec();
     }
 
     if (log)
     {
-        if (stdin_path || stdout_path || stderr_path)
-            log->Printf ("ProcessGDBRemote::%s provided with STDIO paths via launch_info: stdin=%s, stdout=%s, stdout=%s",
+        if (stdin_file_spec || stdout_file_spec || stderr_file_spec)
+            log->Printf ("ProcessGDBRemote::%s provided with STDIO paths via launch_info: stdin=%s, stdout=%s, stderr=%s",
                          __FUNCTION__,
-                         stdin_path ? stdin_path : "<null>",
-                         stdout_path ? stdout_path : "<null>",
-                         stderr_path ? stderr_path : "<null>");
+                          stdin_file_spec ?  stdin_file_spec.GetCString() : "<null>",
+                         stdout_file_spec ? stdout_file_spec.GetCString() : "<null>",
+                         stderr_file_spec ? stderr_file_spec.GetCString() : "<null>");
         else
             log->Printf ("ProcessGDBRemote::%s no STDIO paths given via launch_info", __FUNCTION__);
+    }
+
+    const bool disable_stdio = (launch_flags & eLaunchFlagDisableSTDIO) != 0;
+    if (stdin_file_spec || disable_stdio)
+    {
+        // the inferior will be reading stdin from the specified file
+        // or stdio is completely disabled
+        m_stdin_forward = false;
+    }
+    else
+    {
+        m_stdin_forward = true;
     }
 
     //  ::LogSetBitMask (GDBR_LOG_DEFAULT);
@@ -809,64 +949,58 @@ ProcessGDBRemote::DoLaunch (Module *exe_module, ProcessLaunchInfo &launch_info)
             lldb_utility::PseudoTerminal pty;
             const bool disable_stdio = (launch_flags & eLaunchFlagDisableSTDIO) != 0;
 
-            // If the debugserver is local and we aren't disabling STDIO, lets use
-            // a pseudo terminal to instead of relying on the 'O' packets for stdio
-            // since 'O' packets can really slow down debugging if the inferior 
-            // does a lot of output.
             PlatformSP platform_sp (m_target.GetPlatform());
-            if (platform_sp && platform_sp->IsHost() && !disable_stdio)
+            if (disable_stdio)
             {
-                const char *slave_name = NULL;
-                if (stdin_path == NULL || stdout_path == NULL || stderr_path == NULL)
+                // set to /dev/null unless redirected to a file above
+                if (!stdin_file_spec)
+                    stdin_file_spec.SetFile("/dev/null", false);
+                if (!stdout_file_spec)
+                    stdout_file_spec.SetFile("/dev/null", false);
+                if (!stderr_file_spec)
+                    stderr_file_spec.SetFile("/dev/null", false);
+            }
+            else if (platform_sp && platform_sp->IsHost())
+            {
+                // If the debugserver is local and we aren't disabling STDIO, lets use
+                // a pseudo terminal to instead of relying on the 'O' packets for stdio
+                // since 'O' packets can really slow down debugging if the inferior
+                // does a lot of output.
+                if ((!stdin_file_spec || !stdout_file_spec || !stderr_file_spec) &&
+                        pty.OpenFirstAvailableMaster(O_RDWR|O_NOCTTY, NULL, 0))
                 {
-                    if (pty.OpenFirstAvailableMaster(O_RDWR|O_NOCTTY, NULL, 0))
-                        slave_name = pty.GetSlaveName (NULL, 0);
+                    FileSpec slave_name{pty.GetSlaveName(NULL, 0), false};
+
+                    if (!stdin_file_spec)
+                        stdin_file_spec = slave_name;
+
+                    if (!stdout_file_spec)
+                        stdout_file_spec = slave_name;
+
+                    if (!stderr_file_spec)
+                        stderr_file_spec = slave_name;
                 }
-                if (stdin_path == NULL) 
-                    stdin_path = slave_name;
-
-                if (stdout_path == NULL)
-                    stdout_path = slave_name;
-
-                if (stderr_path == NULL)
-                    stderr_path = slave_name;
-
                 if (log)
-                    log->Printf ("ProcessGDBRemote::%s adjusted STDIO paths for local platform (IsHost() is true) using slave: stdin=%s, stdout=%s, stdout=%s",
+                    log->Printf ("ProcessGDBRemote::%s adjusted STDIO paths for local platform (IsHost() is true) using slave: stdin=%s, stdout=%s, stderr=%s",
                                  __FUNCTION__,
-                                 stdin_path ? stdin_path : "<null>",
-                                 stdout_path ? stdout_path : "<null>",
-                                 stderr_path ? stderr_path : "<null>");
+                                  stdin_file_spec ?  stdin_file_spec.GetCString() : "<null>",
+                                 stdout_file_spec ? stdout_file_spec.GetCString() : "<null>",
+                                 stderr_file_spec ? stderr_file_spec.GetCString() : "<null>");
             }
 
-            // Set STDIN to /dev/null if we want STDIO disabled or if either
-            // STDOUT or STDERR have been set to something and STDIN hasn't
-            if (disable_stdio || (stdin_path == NULL && (stdout_path || stderr_path)))
-                stdin_path = "/dev/null";
-            
-            // Set STDOUT to /dev/null if we want STDIO disabled or if either
-            // STDIN or STDERR have been set to something and STDOUT hasn't
-            if (disable_stdio || (stdout_path == NULL && (stdin_path || stderr_path)))
-                stdout_path = "/dev/null";
-            
-            // Set STDERR to /dev/null if we want STDIO disabled or if either
-            // STDIN or STDOUT have been set to something and STDERR hasn't
-            if (disable_stdio || (stderr_path == NULL && (stdin_path || stdout_path)))
-                stderr_path = "/dev/null";
-
             if (log)
-                log->Printf ("ProcessGDBRemote::%s final STDIO paths after all adjustments: stdin=%s, stdout=%s, stdout=%s",
+                log->Printf ("ProcessGDBRemote::%s final STDIO paths after all adjustments: stdin=%s, stdout=%s, stderr=%s",
                              __FUNCTION__,
-                             stdin_path ? stdin_path : "<null>",
-                             stdout_path ? stdout_path : "<null>",
-                             stderr_path ? stderr_path : "<null>");
+                              stdin_file_spec ?  stdin_file_spec.GetCString() : "<null>",
+                             stdout_file_spec ? stdout_file_spec.GetCString() : "<null>",
+                             stderr_file_spec ? stderr_file_spec.GetCString() : "<null>");
 
-            if (stdin_path)
-                m_gdb_comm.SetSTDIN (stdin_path);
-            if (stdout_path)
-                m_gdb_comm.SetSTDOUT (stdout_path);
-            if (stderr_path)
-                m_gdb_comm.SetSTDERR (stderr_path);
+            if (stdin_file_spec)
+                m_gdb_comm.SetSTDIN(stdin_file_spec);
+            if (stdout_file_spec)
+                m_gdb_comm.SetSTDOUT(stdout_file_spec);
+            if (stderr_file_spec)
+                m_gdb_comm.SetSTDERR(stderr_file_spec);
 
             m_gdb_comm.SetDisableASLR (launch_flags & eLaunchFlagDisableASLR);
             m_gdb_comm.SetDetachOnError (launch_flags & eLaunchFlagDetachOnError);
@@ -877,7 +1011,7 @@ ProcessGDBRemote::DoLaunch (Module *exe_module, ProcessLaunchInfo &launch_info)
             if (launch_event_data != NULL && *launch_event_data != '\0')
                 m_gdb_comm.SendLaunchEventDataPacket (launch_event_data);
             
-            if (working_dir && working_dir[0])
+            if (working_dir)
             {
                 m_gdb_comm.SetWorkingDir (working_dir);
             }
@@ -895,27 +1029,29 @@ ProcessGDBRemote::DoLaunch (Module *exe_module, ProcessLaunchInfo &launch_info)
                 }
             }
 
-            const uint32_t old_packet_timeout = m_gdb_comm.SetPacketTimeout (10);
-            int arg_packet_err = m_gdb_comm.SendArgumentsPacket (launch_info);
-            if (arg_packet_err == 0)
             {
-                std::string error_str;
-                if (m_gdb_comm.GetLaunchSuccess (error_str))
+                // Scope for the scoped timeout object
+                GDBRemoteCommunication::ScopedTimeout timeout (m_gdb_comm, 10);
+
+                int arg_packet_err = m_gdb_comm.SendArgumentsPacket (launch_info);
+                if (arg_packet_err == 0)
                 {
-                    SetID (m_gdb_comm.GetCurrentProcessID ());
+                    std::string error_str;
+                    if (m_gdb_comm.GetLaunchSuccess (error_str))
+                    {
+                        SetID (m_gdb_comm.GetCurrentProcessID ());
+                    }
+                    else
+                    {
+                        error.SetErrorString (error_str.c_str());
+                    }
                 }
                 else
                 {
-                    error.SetErrorString (error_str.c_str());
+                    error.SetErrorStringWithFormat("'A' packet returned an error: %i", arg_packet_err);
                 }
             }
-            else
-            {
-                error.SetErrorStringWithFormat("'A' packet returned an error: %i", arg_packet_err);
-            }
-            
-            m_gdb_comm.SetPacketTimeout (old_packet_timeout);
-                
+
             if (GetID() == LLDB_INVALID_PROCESS_ID)
             {
                 if (log)
@@ -924,21 +1060,28 @@ ProcessGDBRemote::DoLaunch (Module *exe_module, ProcessLaunchInfo &launch_info)
                 return error;
             }
 
-            if (m_gdb_comm.SendPacketAndWaitForResponse("?", 1, m_last_stop_packet, false) == GDBRemoteCommunication::PacketResult::Success)
+            StringExtractorGDBRemote response;
+            if (m_gdb_comm.GetStopReply(response))
             {
-                if (!m_target.GetArchitecture().IsValid()) 
+                SetLastStopPacket(response);
+                // '?' Packets must be handled differently in non-stop mode
+                if (GetTarget().GetNonStopModeEnabled())
+                    HandleStopReplySequence();
+
+                const ArchSpec &process_arch = m_gdb_comm.GetProcessArchitecture();
+
+                if (process_arch.IsValid())
                 {
-                    if (m_gdb_comm.GetProcessArchitecture().IsValid())
-                    {
-                        m_target.SetArchitecture(m_gdb_comm.GetProcessArchitecture());
-                    }
-                    else
-                    {
-                        m_target.SetArchitecture(m_gdb_comm.GetHostArchitecture());
-                    }
+                    m_target.MergeArchitecture(process_arch);
+                }
+                else
+                {
+                    const ArchSpec &host_arch = m_gdb_comm.GetHostArchitecture();
+                    if (host_arch.IsValid())
+                        m_target.MergeArchitecture(host_arch);
                 }
 
-                SetPrivateState (SetThreadStopInfo (m_last_stop_packet));
+                SetPrivateState (SetThreadStopInfo (response));
                 
                 if (!disable_stdio)
                 {
@@ -971,9 +1114,12 @@ ProcessGDBRemote::ConnectToDebugserver (const char *connect_url)
 {
     Error error;
     // Only connect if we have a valid connect URL
+    Log *log(ProcessGDBRemoteLog::GetLogIfAllCategoriesSet(GDBR_LOG_PROCESS));
     
     if (connect_url && connect_url[0])
     {
+        if (log)
+            log->Printf("ProcessGDBRemote::%s Connecting to %s", __FUNCTION__, connect_url);
         std::unique_ptr<ConnectionFileDescriptor> conn_ap(new ConnectionFileDescriptor());
         if (conn_ap.get())
         {
@@ -1009,6 +1155,12 @@ ProcessGDBRemote::ConnectToDebugserver (const char *connect_url)
         return error;
     }
 
+
+    // Start the communications read thread so all incoming data can be
+    // parsed into packets and queued as they arrive.
+    if (GetTarget().GetNonStopModeEnabled())
+        m_gdb_comm.StartReadThread();
+
     // We always seem to be able to open a connection to a local port
     // so we need to make sure we can then send data to it. If we can't
     // then we aren't actually connected to anything, so try and do the
@@ -1021,12 +1173,23 @@ ProcessGDBRemote::ConnectToDebugserver (const char *connect_url)
             error.SetErrorString("not connected to remote gdb server");
         return error;
     }
+
+    // Send $QNonStop:1 packet on startup if required
+    if (GetTarget().GetNonStopModeEnabled())
+        GetTarget().SetNonStopModeEnabled (m_gdb_comm.SetNonStopMode(true));
+
+    m_gdb_comm.GetEchoSupported ();
     m_gdb_comm.GetThreadSuffixSupported ();
     m_gdb_comm.GetListThreadsInStopReplySupported ();
     m_gdb_comm.GetHostInfo ();
     m_gdb_comm.GetVContSupported ('c');
     m_gdb_comm.GetVAttachOrWaitSupported();
-    
+
+    // Ask the remote server for the default thread id
+    if (GetTarget().GetNonStopModeEnabled())
+        m_gdb_comm.GetDefaultThreadId(m_initial_tid);
+
+
     size_t num_cmds = GetExtraStartupCommands().GetArgumentCount();
     for (size_t idx = 0; idx < num_cmds; idx++)
     {
@@ -1075,7 +1238,7 @@ ProcessGDBRemote::DidLaunchOrAttach (ArchSpec& process_arch)
 
         if (process_arch.IsValid())
         {
-            ArchSpec &target_arch = GetTarget().GetArchitecture();
+            const ArchSpec &target_arch = GetTarget().GetArchitecture();
             if (target_arch.IsValid())
             {
                 if (log)
@@ -1105,20 +1268,23 @@ ProcessGDBRemote::DidLaunchOrAttach (ArchSpec& process_arch)
                 {
                     // Fill in what is missing in the triple
                     const llvm::Triple &remote_triple = process_arch.GetTriple();
-                    llvm::Triple &target_triple = target_arch.GetTriple();
-                    if (target_triple.getVendorName().size() == 0)
+                    llvm::Triple new_target_triple = target_arch.GetTriple();
+                    if (new_target_triple.getVendorName().size() == 0)
                     {
-                        target_triple.setVendor (remote_triple.getVendor());
+                        new_target_triple.setVendor (remote_triple.getVendor());
 
-                        if (target_triple.getOSName().size() == 0)
+                        if (new_target_triple.getOSName().size() == 0)
                         {
-                            target_triple.setOS (remote_triple.getOS());
+                            new_target_triple.setOS (remote_triple.getOS());
 
-                            if (target_triple.getEnvironmentName().size() == 0)
-                                target_triple.setEnvironment (remote_triple.getEnvironment());
+                            if (new_target_triple.getEnvironmentName().size() == 0)
+                                new_target_triple.setEnvironment (remote_triple.getEnvironment());
                         }
-                    }
 
+                        ArchSpec new_target_arch = target_arch;
+                        new_target_arch.SetTriple(new_target_triple);
+                        GetTarget().SetArchitecture(new_target_arch);
+                    }
                 }
 
                 if (log)
@@ -1142,13 +1308,6 @@ ProcessGDBRemote::DidLaunch ()
 {
     ArchSpec process_arch;
     DidLaunchOrAttach (process_arch);
-}
-
-Error
-ProcessGDBRemote::DoAttachToProcessWithID (lldb::pid_t attach_pid)
-{
-    ProcessAttachInfo attach_info;
-    return DoAttachToProcessWithID(attach_pid, attach_info);
 }
 
 Error
@@ -1249,12 +1408,11 @@ ProcessGDBRemote::DoAttachToProcessWithName (const char *process_name, const Pro
     return error;
 }
 
-
-bool
-ProcessGDBRemote::SetExitStatus (int exit_status, const char *cstr)
+void
+ProcessGDBRemote::DidExit ()
 {
+    // When we exit, disconnect from the GDB server communications
     m_gdb_comm.Disconnect();
-    return Process::SetExitStatus (exit_status, cstr);
 }
 
 void
@@ -1295,11 +1453,12 @@ ProcessGDBRemote::DoResume ()
         bool continue_packet_error = false;
         if (m_gdb_comm.HasAnyVContSupport ())
         {
-            if (m_continue_c_tids.size() == num_threads ||
+            if (!GetTarget().GetNonStopModeEnabled() &&
+                (m_continue_c_tids.size() == num_threads ||
                 (m_continue_c_tids.empty() &&
                  m_continue_C_tids.empty() &&
                  m_continue_s_tids.empty() &&
-                 m_continue_S_tids.empty()))
+                 m_continue_S_tids.empty())))
             {
                 // All threads are continuing, just send a "c" packet
                 continue_packet.PutCString ("c");
@@ -1437,7 +1596,18 @@ ProcessGDBRemote::DoResume ()
                 {
                     // All threads are resuming...
                     m_gdb_comm.SetCurrentThreadForRun (-1);
-                    continue_packet.PutChar ('s');
+
+                    // If in Non-Stop-Mode use vCont when stepping
+                    if (GetTarget().GetNonStopModeEnabled())
+                    {
+                        if (m_gdb_comm.GetVContSupported('s'))
+                            continue_packet.PutCString("vCont;s");
+                        else
+                            continue_packet.PutChar('s');
+                    }
+                    else
+                        continue_packet.PutChar('s');
+
                     continue_packet_error = false;
                 }
                 else if (num_continue_c_tids == 0 &&
@@ -1527,16 +1697,112 @@ ProcessGDBRemote::DoResume ()
 }
 
 void
+ProcessGDBRemote::HandleStopReplySequence ()
+{
+    while(true)
+    {
+        // Send vStopped
+        StringExtractorGDBRemote response;
+        m_gdb_comm.SendPacketAndWaitForResponse("vStopped", response, false);
+
+        // OK represents end of signal list
+        if (response.IsOKResponse())
+            break;
+
+        // If not OK or a normal packet we have a problem
+        if (!response.IsNormalResponse())
+            break;
+
+        SetLastStopPacket(response);
+    }
+}
+
+void
 ProcessGDBRemote::ClearThreadIDList ()
 {
     Mutex::Locker locker(m_thread_list_real.GetMutex());
     m_thread_ids.clear();
 }
 
+size_t
+ProcessGDBRemote::UpdateThreadIDsFromStopReplyThreadsValue (std::string &value)
+{
+    m_thread_ids.clear();
+    size_t comma_pos;
+    lldb::tid_t tid;
+    while ((comma_pos = value.find(',')) != std::string::npos)
+    {
+        value[comma_pos] = '\0';
+        // thread in big endian hex
+        tid = StringConvert::ToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
+        if (tid != LLDB_INVALID_THREAD_ID)
+            m_thread_ids.push_back (tid);
+        value.erase(0, comma_pos + 1);
+    }
+    tid = StringConvert::ToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
+    if (tid != LLDB_INVALID_THREAD_ID)
+        m_thread_ids.push_back (tid);
+    return m_thread_ids.size();
+}
+
 bool
 ProcessGDBRemote::UpdateThreadIDList ()
 {
     Mutex::Locker locker(m_thread_list_real.GetMutex());
+
+    if (m_threads_info_sp)
+    {
+        // If we have the JSON threads info, we can get the thread list from that
+        StructuredData::Array *thread_infos = m_threads_info_sp->GetAsArray();
+        if (thread_infos && thread_infos->GetSize() > 0)
+        {
+            m_thread_ids.clear();
+            thread_infos->ForEach([this](StructuredData::Object* object) -> bool {
+                StructuredData::Dictionary *thread_dict = object->GetAsDictionary();
+                if (thread_dict)
+                {
+                    // Set the thread stop info from the JSON dictionary
+                    SetThreadStopInfo (thread_dict);
+                    lldb::tid_t tid = LLDB_INVALID_THREAD_ID;
+                    if (thread_dict->GetValueForKeyAsInteger<lldb::tid_t>("tid", tid))
+                        m_thread_ids.push_back(tid);
+                }
+                return true; // Keep iterating through all thread_info objects
+            });
+        }
+        if (!m_thread_ids.empty())
+            return true;
+    }
+    else
+    {
+        // See if we can get the thread IDs from the current stop reply packets
+        // that might contain a "threads" key/value pair
+
+        // Lock the thread stack while we access it
+        Mutex::Locker stop_stack_lock(m_last_stop_packet_mutex);
+        // Get the number of stop packets on the stack
+        int nItems = m_stop_packet_stack.size();
+        // Iterate over them
+        for (int i = 0; i < nItems; i++)
+        {
+            // Get the thread stop info
+            StringExtractorGDBRemote &stop_info = m_stop_packet_stack[i];
+            const std::string &stop_info_str = stop_info.GetStringRef();
+            const size_t threads_pos = stop_info_str.find(";threads:");
+            if (threads_pos != std::string::npos)
+            {
+                const size_t start = threads_pos + strlen(";threads:");
+                const size_t end = stop_info_str.find(';', start);
+                if (end != std::string::npos)
+                {
+                    std::string value = stop_info_str.substr(start, end - start);
+                    if (UpdateThreadIDsFromStopReplyThreadsValue(value))
+                        return true;
+                }
+            }
+        }
+    }
+
     bool sequence_mutex_unavailable = false;
     m_gdb_comm.GetCurrentThreadIDs (m_thread_ids, sequence_mutex_unavailable);
     if (sequence_mutex_unavailable)
@@ -1608,6 +1874,423 @@ ProcessGDBRemote::UpdateThreadList (ThreadList &old_thread_list, ThreadList &new
     return true;
 }
 
+bool
+ProcessGDBRemote::CalculateThreadStopInfo (ThreadGDBRemote *thread)
+{
+    // See if we got thread stop infos for all threads via the "jThreadsInfo" packet
+    if (m_threads_info_sp)
+    {
+        StructuredData::Array *thread_infos = m_threads_info_sp->GetAsArray();
+        if (thread_infos)
+        {
+            lldb::tid_t tid;
+            const size_t n = thread_infos->GetSize();
+            for (size_t i=0; i<n; ++i)
+            {
+                StructuredData::Dictionary *thread_dict = thread_infos->GetItemAtIndex(i)->GetAsDictionary();
+                if (thread_dict)
+                {
+                    if (thread_dict->GetValueForKeyAsInteger<lldb::tid_t>("tid", tid, LLDB_INVALID_THREAD_ID))
+                    {
+                        if (tid == thread->GetID())
+                            return SetThreadStopInfo(thread_dict);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fall back to using the qThreadStopInfo packet
+    StringExtractorGDBRemote stop_packet;
+    if (GetGDBRemote().GetThreadStopInfo(thread->GetProtocolID(), stop_packet))
+        return SetThreadStopInfo (stop_packet) == eStateStopped;
+    return false;
+}
+
+
+ThreadSP
+ProcessGDBRemote::SetThreadStopInfo (lldb::tid_t tid,
+                                     ExpeditedRegisterMap &expedited_register_map,
+                                     uint8_t signo,
+                                     const std::string &thread_name,
+                                     const std::string &reason,
+                                     const std::string &description,
+                                     uint32_t exc_type,
+                                     const std::vector<addr_t> &exc_data,
+                                     addr_t thread_dispatch_qaddr,
+                                     bool queue_vars_valid, // Set to true if queue_name, queue_kind and queue_serial are valid
+                                     std::string &queue_name,
+                                     QueueKind queue_kind,
+                                     uint64_t queue_serial)
+{
+    ThreadSP thread_sp;
+    if (tid != LLDB_INVALID_THREAD_ID)
+    {
+        // Scope for "locker" below
+        {
+            // m_thread_list_real does have its own mutex, but we need to
+            // hold onto the mutex between the call to m_thread_list_real.FindThreadByID(...)
+            // and the m_thread_list_real.AddThread(...) so it doesn't change on us
+            Mutex::Locker locker (m_thread_list_real.GetMutex ());
+            thread_sp = m_thread_list_real.FindThreadByProtocolID(tid, false);
+
+            if (!thread_sp)
+            {
+                // Create the thread if we need to
+                thread_sp.reset (new ThreadGDBRemote (*this, tid));
+                m_thread_list_real.AddThread(thread_sp);
+            }
+        }
+
+        if (thread_sp)
+        {
+            ThreadGDBRemote *gdb_thread = static_cast<ThreadGDBRemote *> (thread_sp.get());
+            gdb_thread->GetRegisterContext()->InvalidateIfNeeded(true);
+
+            for (const auto &pair : expedited_register_map)
+            {
+                StringExtractor reg_value_extractor;
+                reg_value_extractor.GetStringRef() = pair.second;
+                gdb_thread->PrivateSetRegisterValue (pair.first, reg_value_extractor);
+            }
+
+            // Clear the stop info just in case we don't set it to anything
+            thread_sp->SetStopInfo (StopInfoSP());
+            thread_sp->SetName (thread_name.empty() ? NULL : thread_name.c_str());
+
+            gdb_thread->SetThreadDispatchQAddr (thread_dispatch_qaddr);
+            // Check if the GDB server was able to provide the queue name, kind and serial number
+            if (queue_vars_valid)
+                gdb_thread->SetQueueInfo(std::move(queue_name), queue_kind, queue_serial);
+            else
+                gdb_thread->ClearQueueInfo();
+
+
+            if (exc_type != 0)
+            {
+                const size_t exc_data_size = exc_data.size();
+
+                thread_sp->SetStopInfo (StopInfoMachException::CreateStopReasonWithMachException (*thread_sp,
+                                                                                                  exc_type,
+                                                                                                  exc_data_size,
+                                                                                                  exc_data_size >= 1 ? exc_data[0] : 0,
+                                                                                                  exc_data_size >= 2 ? exc_data[1] : 0,
+                                                                                                  exc_data_size >= 3 ? exc_data[2] : 0));
+            }
+            else
+            {
+                bool handled = false;
+                bool did_exec = false;
+                if (!reason.empty())
+                {
+                    if (reason.compare("trace") == 0)
+                    {
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonToTrace (*thread_sp));
+                        handled = true;
+                    }
+                    else if (reason.compare("breakpoint") == 0)
+                    {
+                        addr_t pc = thread_sp->GetRegisterContext()->GetPC();
+                        lldb::BreakpointSiteSP bp_site_sp = thread_sp->GetProcess()->GetBreakpointSiteList().FindByAddress(pc);
+                        if (bp_site_sp)
+                        {
+                            // If the breakpoint is for this thread, then we'll report the hit, but if it is for another thread,
+                            // we can just report no reason.  We don't need to worry about stepping over the breakpoint here, that
+                            // will be taken care of when the thread resumes and notices that there's a breakpoint under the pc.
+                            handled = true;
+                            if (bp_site_sp->ValidForThisThread (thread_sp.get()))
+                            {
+                                thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithBreakpointSiteID (*thread_sp, bp_site_sp->GetID()));
+                            }
+                            else
+                            {
+                                StopInfoSP invalid_stop_info_sp;
+                                thread_sp->SetStopInfo (invalid_stop_info_sp);
+                            }
+                        }
+                    }
+                    else if (reason.compare("trap") == 0)
+                    {
+                        // Let the trap just use the standard signal stop reason below...
+                    }
+                    else if (reason.compare("watchpoint") == 0)
+                    {
+                        StringExtractor desc_extractor(description.c_str());
+                        addr_t wp_addr = desc_extractor.GetU64(LLDB_INVALID_ADDRESS);
+                        uint32_t wp_index = desc_extractor.GetU32(LLDB_INVALID_INDEX32);
+                        watch_id_t watch_id = LLDB_INVALID_WATCH_ID;
+                        if (wp_addr != LLDB_INVALID_ADDRESS)
+                        {
+                            WatchpointSP wp_sp = GetTarget().GetWatchpointList().FindByAddress(wp_addr);
+                            if (wp_sp)
+                            {
+                                wp_sp->SetHardwareIndex(wp_index);
+                                watch_id = wp_sp->GetID();
+                            }
+                        }
+                        if (watch_id == LLDB_INVALID_WATCH_ID)
+                        {
+                            Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (GDBR_LOG_WATCHPOINTS));
+                            if (log) log->Printf ("failed to find watchpoint");
+                        }
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithWatchpointID (*thread_sp, watch_id));
+                        handled = true;
+                    }
+                    else if (reason.compare("exception") == 0)
+                    {
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithException(*thread_sp, description.c_str()));
+                        handled = true;
+                    }
+                    else if (reason.compare("exec") == 0)
+                    {
+                        did_exec = true;
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithExec(*thread_sp));
+                        handled = true;
+                    }
+                }
+
+                if (!handled && signo && did_exec == false)
+                {
+                    if (signo == SIGTRAP)
+                    {
+                        // Currently we are going to assume SIGTRAP means we are either
+                        // hitting a breakpoint or hardware single stepping.
+                        handled = true;
+                        addr_t pc = thread_sp->GetRegisterContext()->GetPC() + m_breakpoint_pc_offset;
+                        lldb::BreakpointSiteSP bp_site_sp = thread_sp->GetProcess()->GetBreakpointSiteList().FindByAddress(pc);
+
+                        if (bp_site_sp)
+                        {
+                            // If the breakpoint is for this thread, then we'll report the hit, but if it is for another thread,
+                            // we can just report no reason.  We don't need to worry about stepping over the breakpoint here, that
+                            // will be taken care of when the thread resumes and notices that there's a breakpoint under the pc.
+                            if (bp_site_sp->ValidForThisThread (thread_sp.get()))
+                            {
+                                if(m_breakpoint_pc_offset != 0)
+                                    thread_sp->GetRegisterContext()->SetPC(pc);
+                                thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithBreakpointSiteID (*thread_sp, bp_site_sp->GetID()));
+                            }
+                            else
+                            {
+                                StopInfoSP invalid_stop_info_sp;
+                                thread_sp->SetStopInfo (invalid_stop_info_sp);
+                            }
+                        }
+                        else
+                        {
+                            // If we were stepping then assume the stop was the result of the trace.  If we were
+                            // not stepping then report the SIGTRAP.
+                            // FIXME: We are still missing the case where we single step over a trap instruction.
+                            if (thread_sp->GetTemporaryResumeState() == eStateStepping)
+                                thread_sp->SetStopInfo (StopInfo::CreateStopReasonToTrace (*thread_sp));
+                            else
+                                thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithSignal(*thread_sp, signo, description.c_str()));
+                        }
+                    }
+                    if (!handled)
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithSignal (*thread_sp, signo, description.c_str()));
+                }
+
+                if (!description.empty())
+                {
+                    lldb::StopInfoSP stop_info_sp (thread_sp->GetStopInfo ());
+                    if (stop_info_sp)
+                    {
+                        const char *stop_info_desc = stop_info_sp->GetDescription();
+                        if (!stop_info_desc || !stop_info_desc[0])
+                            stop_info_sp->SetDescription (description.c_str());
+                    }
+                    else
+                    {
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithException (*thread_sp, description.c_str()));
+                    }
+                }
+            }
+        }
+    }
+    return thread_sp;
+}
+
+StateType
+ProcessGDBRemote::SetThreadStopInfo (StructuredData::Dictionary *thread_dict)
+{
+    static ConstString g_key_tid("tid");
+    static ConstString g_key_name("name");
+    static ConstString g_key_reason("reason");
+    static ConstString g_key_metype("metype");
+    static ConstString g_key_medata("medata");
+    static ConstString g_key_qaddr("qaddr");
+    static ConstString g_key_queue_name("qname");
+    static ConstString g_key_queue_kind("qkind");
+    static ConstString g_key_queue_serial("qserial");
+    static ConstString g_key_registers("registers");
+    static ConstString g_key_memory("memory");
+    static ConstString g_key_address("address");
+    static ConstString g_key_bytes("bytes");
+    static ConstString g_key_description("description");
+
+    // Stop with signal and thread info
+    lldb::tid_t tid = LLDB_INVALID_THREAD_ID;
+    uint8_t signo = 0;
+    std::string value;
+    std::string thread_name;
+    std::string reason;
+    std::string description;
+    uint32_t exc_type = 0;
+    std::vector<addr_t> exc_data;
+    addr_t thread_dispatch_qaddr = LLDB_INVALID_ADDRESS;
+    ExpeditedRegisterMap expedited_register_map;
+    bool queue_vars_valid = false;
+    std::string queue_name;
+    QueueKind queue_kind = eQueueKindUnknown;
+    uint64_t queue_serial = 0;
+    // Iterate through all of the thread dictionary key/value pairs from the structured data dictionary
+
+    thread_dict->ForEach([this,
+                          &tid,
+                          &expedited_register_map,
+                          &thread_name,
+                          &signo,
+                          &reason,
+                          &description,
+                          &exc_type,
+                          &exc_data,
+                          &thread_dispatch_qaddr,
+                          &queue_vars_valid,
+                          &queue_name,
+                          &queue_kind,
+                          &queue_serial]
+                          (ConstString key, StructuredData::Object* object) -> bool
+    {
+        if (key == g_key_tid)
+        {
+            // thread in big endian hex
+            tid = object->GetIntegerValue(LLDB_INVALID_THREAD_ID);
+        }
+        else if (key == g_key_metype)
+        {
+            // exception type in big endian hex
+            exc_type = object->GetIntegerValue(0);
+        }
+        else if (key == g_key_medata)
+        {
+            // exception data in big endian hex
+            StructuredData::Array *array = object->GetAsArray();
+            if (array)
+            {
+                array->ForEach([&exc_data](StructuredData::Object* object) -> bool {
+                    exc_data.push_back(object->GetIntegerValue());
+                    return true; // Keep iterating through all array items
+                });
+            }
+        }
+        else if (key == g_key_name)
+        {
+            thread_name = std::move(object->GetStringValue());
+        }
+        else if (key == g_key_qaddr)
+        {
+            thread_dispatch_qaddr = object->GetIntegerValue(LLDB_INVALID_ADDRESS);
+        }
+        else if (key == g_key_queue_name)
+        {
+            queue_vars_valid = true;
+            queue_name = std::move(object->GetStringValue());
+        }
+        else if (key == g_key_queue_kind)
+        {
+            std::string queue_kind_str = object->GetStringValue();
+            if (queue_kind_str == "serial")
+            {
+                queue_vars_valid = true;
+                queue_kind = eQueueKindSerial;
+            }
+            else if (queue_kind_str == "concurrent")
+            {
+                queue_vars_valid = true;
+                queue_kind = eQueueKindConcurrent;
+            }
+        }
+        else if (key == g_key_queue_serial)
+        {
+            queue_serial = object->GetIntegerValue(0);
+            if (queue_serial != 0)
+                queue_vars_valid = true;
+        }
+        else if (key == g_key_reason)
+        {
+            reason = std::move(object->GetStringValue());
+        }
+        else if (key == g_key_description)
+        {
+            description = std::move(object->GetStringValue());
+        }
+        else if (key == g_key_registers)
+        {
+            StructuredData::Dictionary *registers_dict = object->GetAsDictionary();
+
+            if (registers_dict)
+            {
+                registers_dict->ForEach([&expedited_register_map](ConstString key, StructuredData::Object* object) -> bool {
+                    const uint32_t reg = StringConvert::ToUInt32 (key.GetCString(), UINT32_MAX, 10);
+                    if (reg != UINT32_MAX)
+                        expedited_register_map[reg] = std::move(object->GetStringValue());
+                    return true; // Keep iterating through all array items
+                });
+            }
+        }
+        else if (key == g_key_memory)
+        {
+            StructuredData::Array *array = object->GetAsArray();
+            if (array)
+            {
+                array->ForEach([this](StructuredData::Object* object) -> bool {
+                    StructuredData::Dictionary *mem_cache_dict = object->GetAsDictionary();
+                    if (mem_cache_dict)
+                    {
+                        lldb::addr_t mem_cache_addr = LLDB_INVALID_ADDRESS;
+                        if (mem_cache_dict->GetValueForKeyAsInteger<lldb::addr_t>("address", mem_cache_addr))
+                        {
+                            if (mem_cache_addr != LLDB_INVALID_ADDRESS)
+                            {
+                                StringExtractor bytes;
+                                if (mem_cache_dict->GetValueForKeyAsString("bytes", bytes.GetStringRef()))
+                                {
+                                    bytes.SetFilePos(0);
+
+                                    const size_t byte_size = bytes.GetStringRef().size()/2;
+                                    DataBufferSP data_buffer_sp(new DataBufferHeap(byte_size, 0));
+                                    const size_t bytes_copied = bytes.GetHexBytes (data_buffer_sp->GetBytes(), byte_size, 0);
+                                    if (bytes_copied == byte_size)
+                                        m_memory_cache.AddL1CacheData(mem_cache_addr, data_buffer_sp);
+                                }
+                            }
+                        }
+                    }
+                    return true; // Keep iterating through all array items
+                });
+            }
+
+        }
+        return true; // Keep iterating through all dictionary key/value pairs
+    });
+
+    SetThreadStopInfo (tid,
+                       expedited_register_map,
+                       signo,
+                       thread_name,
+                       reason,
+                       description,
+                       exc_type,
+                       exc_data,
+                       thread_dispatch_qaddr,
+                       queue_vars_valid,
+                       queue_name,
+                       queue_kind,
+                       queue_serial);
+
+    return eStateExited;
+}
 
 StateType
 ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
@@ -1638,8 +2321,9 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                 BuildDynamicRegisterInfo (true);
             }
             // Stop with signal and thread info
+            lldb::tid_t tid = LLDB_INVALID_THREAD_ID;
             const uint8_t signo = stop_packet.GetHexU8();
-            std::string name;
+            std::string key;
             std::string value;
             std::string thread_name;
             std::string reason;
@@ -1647,48 +2331,29 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
             uint32_t exc_type = 0;
             std::vector<addr_t> exc_data;
             addr_t thread_dispatch_qaddr = LLDB_INVALID_ADDRESS;
-            ThreadSP thread_sp;
-            ThreadGDBRemote *gdb_thread = NULL;
-
-            while (stop_packet.GetNameColonValue(name, value))
+            bool queue_vars_valid = false; // says if locals below that start with "queue_" are valid
+            std::string queue_name;
+            QueueKind queue_kind = eQueueKindUnknown;
+            uint64_t queue_serial = 0;
+            ExpeditedRegisterMap expedited_register_map;
+            while (stop_packet.GetNameColonValue(key, value))
             {
-                if (name.compare("metype") == 0)
+                if (key.compare("metype") == 0)
                 {
                     // exception type in big endian hex
-                    exc_type = Args::StringToUInt32 (value.c_str(), 0, 16);
+                    exc_type = StringConvert::ToUInt32 (value.c_str(), 0, 16);
                 }
-                else if (name.compare("medata") == 0)
+                else if (key.compare("medata") == 0)
                 {
                     // exception data in big endian hex
-                    exc_data.push_back(Args::StringToUInt64 (value.c_str(), 0, 16));
+                    exc_data.push_back(StringConvert::ToUInt64 (value.c_str(), 0, 16));
                 }
-                else if (name.compare("thread") == 0)
+                else if (key.compare("thread") == 0)
                 {
                     // thread in big endian hex
-                    lldb::tid_t tid = Args::StringToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
-                    // m_thread_list_real does have its own mutex, but we need to
-                    // hold onto the mutex between the call to m_thread_list_real.FindThreadByID(...)
-                    // and the m_thread_list_real.AddThread(...) so it doesn't change on us
-                    Mutex::Locker locker (m_thread_list_real.GetMutex ());
-                    thread_sp = m_thread_list_real.FindThreadByProtocolID(tid, false);
-
-                    if (!thread_sp)
-                    {
-                        // Create the thread if we need to
-                        thread_sp.reset (new ThreadGDBRemote (*this, tid));
-                        Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (GDBR_LOG_THREAD));
-                        if (log && log->GetMask().Test(GDBR_LOG_VERBOSE))
-                            log->Printf ("ProcessGDBRemote::%s Adding new thread: %p for thread ID: 0x%" PRIx64 ".\n",
-                                         __FUNCTION__,
-                                         static_cast<void*>(thread_sp.get()),
-                                         thread_sp->GetID());
-
-                        m_thread_list_real.AddThread(thread_sp);
-                    }
-                    gdb_thread = static_cast<ThreadGDBRemote *> (thread_sp.get());
-
+                    tid = StringConvert::ToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
                 }
-                else if (name.compare("threads") == 0)
+                else if (key.compare("threads") == 0)
                 {
                     Mutex::Locker locker(m_thread_list_real.GetMutex());
                     m_thread_ids.clear();
@@ -1701,16 +2366,16 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                     {
                         value[comma_pos] = '\0';
                         // thread in big endian hex
-                        tid = Args::StringToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
+                        tid = StringConvert::ToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
                         if (tid != LLDB_INVALID_THREAD_ID)
                             m_thread_ids.push_back (tid);
                         value.erase(0, comma_pos + 1);
                     }
-                    tid = Args::StringToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
+                    tid = StringConvert::ToUInt64 (value.c_str(), LLDB_INVALID_THREAD_ID, 16);
                     if (tid != LLDB_INVALID_THREAD_ID)
                         m_thread_ids.push_back (tid);
                 }
-                else if (name.compare("hexname") == 0)
+                else if (key.compare("hexname") == 0)
                 {
                     StringExtractor name_extractor;
                     // Swap "value" over into "name_extractor"
@@ -1719,53 +2384,110 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                     name_extractor.GetHexByteString (value);
                     thread_name.swap (value);
                 }
-                else if (name.compare("name") == 0)
+                else if (key.compare("name") == 0)
                 {
                     thread_name.swap (value);
                 }
-                else if (name.compare("qaddr") == 0)
+                else if (key.compare("qaddr") == 0)
                 {
-                    thread_dispatch_qaddr = Args::StringToUInt64 (value.c_str(), 0, 16);
+                    thread_dispatch_qaddr = StringConvert::ToUInt64 (value.c_str(), 0, 16);
                 }
-                else if (name.compare("reason") == 0)
+                else if (key.compare("qname") == 0)
+                {
+                    queue_vars_valid = true;
+                    StringExtractor name_extractor;
+                    // Swap "value" over into "name_extractor"
+                    name_extractor.GetStringRef().swap(value);
+                    // Now convert the HEX bytes into a string value
+                    name_extractor.GetHexByteString (value);
+                    queue_name.swap (value);
+                }
+                else if (key.compare("qkind") == 0)
+                {
+                    if (value == "serial")
+                    {
+                        queue_vars_valid = true;
+                        queue_kind = eQueueKindSerial;
+                    }
+                    else if (value == "concurrent")
+                    {
+                        queue_vars_valid = true;
+                        queue_kind = eQueueKindConcurrent;
+                    }
+                }
+                else if (key.compare("qserial") == 0)
+                {
+                    queue_serial = StringConvert::ToUInt64 (value.c_str(), 0, 0);
+                    if (queue_serial != 0)
+                        queue_vars_valid = true;
+                }
+                else if (key.compare("reason") == 0)
                 {
                     reason.swap(value);
                 }
-                else if (name.compare("description") == 0)
+                else if (key.compare("description") == 0)
                 {
                     StringExtractor desc_extractor;
                     // Swap "value" over into "name_extractor"
                     desc_extractor.GetStringRef().swap(value);
                     // Now convert the HEX bytes into a string value
-                    desc_extractor.GetHexByteString (thread_name);
+                    desc_extractor.GetHexByteString (value);
+                    description.swap(value);
                 }
-                else if (name.size() == 2 && ::isxdigit(name[0]) && ::isxdigit(name[1]))
+                else if (key.compare("memory") == 0)
                 {
-                    // We have a register number that contains an expedited
-                    // register value. Lets supply this register to our thread
-                    // so it won't have to go and read it.
-                    if (gdb_thread)
-                    {
-                        uint32_t reg = Args::StringToUInt32 (name.c_str(), UINT32_MAX, 16);
+                    // Expedited memory. GDB servers can choose to send back expedited memory
+                    // that can populate the L1 memory cache in the process so that things like
+                    // the frame pointer backchain can be expedited. This will help stack
+                    // backtracing be more efficient by not having to send as many memory read
+                    // requests down the remote GDB server.
 
-                        if (reg != UINT32_MAX)
+                    // Key/value pair format: memory:<addr>=<bytes>;
+                    // <addr> is a number whose base will be interpreted by the prefix:
+                    //      "0x[0-9a-fA-F]+" for hex
+                    //      "0[0-7]+" for octal
+                    //      "[1-9]+" for decimal
+                    // <bytes> is native endian ASCII hex bytes just like the register values
+                    llvm::StringRef value_ref(value);
+                    std::pair<llvm::StringRef, llvm::StringRef> pair;
+                    pair = value_ref.split('=');
+                    if (!pair.first.empty() && !pair.second.empty())
+                    {
+                        std::string addr_str(pair.first.str());
+                        const lldb::addr_t mem_cache_addr = StringConvert::ToUInt64(addr_str.c_str(), LLDB_INVALID_ADDRESS, 0);
+                        if (mem_cache_addr != LLDB_INVALID_ADDRESS)
                         {
-                            StringExtractor reg_value_extractor;
-                            // Swap "value" over into "reg_value_extractor"
-                            reg_value_extractor.GetStringRef().swap(value);
-                            if (!gdb_thread->PrivateSetRegisterValue (reg, reg_value_extractor))
-                            {
-                                Host::SetCrashDescriptionWithFormat("Setting thread register '%s' (decoded to %u (0x%x)) with value '%s' for stop packet: '%s'", 
-                                                                    name.c_str(), 
-                                                                    reg, 
-                                                                    reg, 
-                                                                    reg_value_extractor.GetStringRef().c_str(), 
-                                                                    stop_packet.GetStringRef().c_str());
-                            }
+                            StringExtractor bytes;
+                            bytes.GetStringRef() = std::move(pair.second.str());
+                            const size_t byte_size = bytes.GetStringRef().size()/2;
+                            DataBufferSP data_buffer_sp(new DataBufferHeap(byte_size, 0));
+                            const size_t bytes_copied = bytes.GetHexBytes (data_buffer_sp->GetBytes(), byte_size, 0);
+                            if (bytes_copied == byte_size)
+                                m_memory_cache.AddL1CacheData(mem_cache_addr, data_buffer_sp);
                         }
                     }
                 }
+                else if (key.size() == 2 && ::isxdigit(key[0]) && ::isxdigit(key[1]))
+                {
+                    uint32_t reg = StringConvert::ToUInt32 (key.c_str(), UINT32_MAX, 16);
+                    if (reg != UINT32_MAX)
+                        expedited_register_map[reg] = std::move(value);
+                }
             }
+
+            ThreadSP thread_sp = SetThreadStopInfo (tid,
+                                                    expedited_register_map,
+                                                    signo,
+                                                    thread_name,
+                                                    reason,
+                                                    description,
+                                                    exc_type,
+                                                    exc_data,
+                                                    thread_dispatch_qaddr,
+                                                    queue_vars_valid,
+                                                    queue_name,
+                                                    queue_kind,
+                                                    queue_serial);
 
             // If the response is old style 'S' packet which does not provide us with thread information
             // then update the thread list and choose the first one.
@@ -1777,141 +2499,9 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                 {
                     Mutex::Locker locker (m_thread_list_real.GetMutex ());
                     thread_sp = m_thread_list_real.FindThreadByProtocolID (m_thread_ids.front (), false);
-                    if (thread_sp)
-                        gdb_thread = static_cast<ThreadGDBRemote *> (thread_sp.get ());
                 }
             }
 
-            if (thread_sp)
-            {
-                // Clear the stop info just in case we don't set it to anything
-                thread_sp->SetStopInfo (StopInfoSP());
-
-                gdb_thread->SetThreadDispatchQAddr (thread_dispatch_qaddr);
-                gdb_thread->SetName (thread_name.empty() ? NULL : thread_name.c_str());
-                if (exc_type != 0)
-                {
-                    const size_t exc_data_size = exc_data.size();
-
-                    thread_sp->SetStopInfo (StopInfoMachException::CreateStopReasonWithMachException (*thread_sp,
-                                                                                                      exc_type,
-                                                                                                      exc_data_size,
-                                                                                                      exc_data_size >= 1 ? exc_data[0] : 0,
-                                                                                                      exc_data_size >= 2 ? exc_data[1] : 0,
-                                                                                                      exc_data_size >= 3 ? exc_data[2] : 0));
-                }
-                else
-                {
-                    bool handled = false;
-                    bool did_exec = false;
-                    if (!reason.empty())
-                    {
-                        if (reason.compare("trace") == 0)
-                        {
-                            thread_sp->SetStopInfo (StopInfo::CreateStopReasonToTrace (*thread_sp));
-                            handled = true;
-                        }
-                        else if (reason.compare("breakpoint") == 0)
-                        {
-                            addr_t pc = thread_sp->GetRegisterContext()->GetPC();
-                            lldb::BreakpointSiteSP bp_site_sp = thread_sp->GetProcess()->GetBreakpointSiteList().FindByAddress(pc);
-                            if (bp_site_sp)
-                            {
-                                // If the breakpoint is for this thread, then we'll report the hit, but if it is for another thread,
-                                // we can just report no reason.  We don't need to worry about stepping over the breakpoint here, that
-                                // will be taken care of when the thread resumes and notices that there's a breakpoint under the pc.
-                                handled = true;
-                                if (bp_site_sp->ValidForThisThread (thread_sp.get()))
-                                {
-                                    thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithBreakpointSiteID (*thread_sp, bp_site_sp->GetID()));
-                                }
-                                else
-                                {
-                                    StopInfoSP invalid_stop_info_sp;
-                                    thread_sp->SetStopInfo (invalid_stop_info_sp);
-                                }
-                            }
-                        }
-                        else if (reason.compare("trap") == 0)
-                        {
-                            // Let the trap just use the standard signal stop reason below...
-                        }
-                        else if (reason.compare("watchpoint") == 0)
-                        {
-                            break_id_t watch_id = LLDB_INVALID_WATCH_ID;
-                            // TODO: locate the watchpoint somehow...
-                            thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithWatchpointID (*thread_sp, watch_id));
-                            handled = true;
-                        }
-                        else if (reason.compare("exception") == 0)
-                        {
-                            thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithException(*thread_sp, description.c_str()));
-                            handled = true;
-                        }
-                        else if (reason.compare("exec") == 0)
-                        {
-                            did_exec = true;
-                            thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithExec(*thread_sp));
-                            handled = true;
-                        }
-                    }
-
-                    if (!handled && signo && did_exec == false)
-                    {
-                        if (signo == SIGTRAP)
-                        {
-                            // Currently we are going to assume SIGTRAP means we are either
-                            // hitting a breakpoint or hardware single stepping. 
-                            handled = true;
-                            addr_t pc = thread_sp->GetRegisterContext()->GetPC() + m_breakpoint_pc_offset;
-                            lldb::BreakpointSiteSP bp_site_sp = thread_sp->GetProcess()->GetBreakpointSiteList().FindByAddress(pc);
-
-                            if (bp_site_sp)
-                            {
-                                // If the breakpoint is for this thread, then we'll report the hit, but if it is for another thread,
-                                // we can just report no reason.  We don't need to worry about stepping over the breakpoint here, that
-                                // will be taken care of when the thread resumes and notices that there's a breakpoint under the pc.
-                                if (bp_site_sp->ValidForThisThread (thread_sp.get()))
-                                {
-                                    if(m_breakpoint_pc_offset != 0)
-                                        thread_sp->GetRegisterContext()->SetPC(pc);
-                                    thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithBreakpointSiteID (*thread_sp, bp_site_sp->GetID()));
-                                }
-                                else
-                                {
-                                    StopInfoSP invalid_stop_info_sp;
-                                    thread_sp->SetStopInfo (invalid_stop_info_sp);
-                                }
-                            }
-                            else
-                            {
-                                // If we were stepping then assume the stop was the result of the trace.  If we were
-                                // not stepping then report the SIGTRAP.
-                                // FIXME: We are still missing the case where we single step over a trap instruction.
-                                if (thread_sp->GetTemporaryResumeState() == eStateStepping)
-                                    thread_sp->SetStopInfo (StopInfo::CreateStopReasonToTrace (*thread_sp));
-                                else
-                                    thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithSignal(*thread_sp, signo));
-                            }
-                        }
-                        if (!handled)
-                            thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithSignal (*thread_sp, signo));
-                    }
-
-                    if (!description.empty())
-                    {
-                        lldb::StopInfoSP stop_info_sp (thread_sp->GetStopInfo ());
-                        if (stop_info_sp)
-                        {
-                            stop_info_sp->SetDescription (description.c_str());
-                        }
-                        else
-                        {
-                            thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithException (*thread_sp, description.c_str()));
-                        }
-                    }
-                }
-            }
             return eStateStopped;
         }
         break;
@@ -1935,13 +2525,43 @@ ProcessGDBRemote::RefreshStateAfterStop ()
     // Set the thread stop info. It might have a "threads" key whose value is
     // a list of all thread IDs in the current process, so m_thread_ids might
     // get set.
-    SetThreadStopInfo (m_last_stop_packet);
+
+    // Scope for the lock
+    {
+        // Lock the thread stack while we access it
+        Mutex::Locker stop_stack_lock(m_last_stop_packet_mutex);
+        // Get the number of stop packets on the stack
+        int nItems = m_stop_packet_stack.size();
+        // Iterate over them
+        for (int i = 0; i < nItems; i++)
+        {
+            // Get the thread stop info
+            StringExtractorGDBRemote stop_info = m_stop_packet_stack[i];
+            // Process thread stop info
+            SetThreadStopInfo(stop_info);
+        }
+        // Clear the thread stop stack
+        m_stop_packet_stack.clear();
+    }
+
     // Check to see if SetThreadStopInfo() filled in m_thread_ids?
     if (m_thread_ids.empty())
     {
         // No, we need to fetch the thread list manually
         UpdateThreadIDList();
     }
+
+    // If we have queried for a default thread id
+    if (m_initial_tid != LLDB_INVALID_THREAD_ID)
+    {
+        m_thread_list.SetSelectedThreadByID(m_initial_tid);
+        m_initial_tid = LLDB_INVALID_THREAD_ID;
+    }
+
+    // Fetch the threads via an efficient packet that gets stop infos for all threads
+    // only if we have more than one thread
+    if (m_thread_ids.size() > 1)
+        m_threads_info_sp = m_gdb_comm.GetThreadsInfo();
 
     // Let all threads recover from stopping and do any clean up based
     // on the previous thread state (if any).
@@ -2116,7 +2736,7 @@ ProcessGDBRemote::DoDestroy ()
                         }
                     }
                     Resume ();
-                    return Destroy();
+                    return Destroy(false);
                 }
             }
         }
@@ -2131,10 +2751,9 @@ ProcessGDBRemote::DoDestroy ()
     {
         if (m_public_state.GetValue() != eStateAttaching)
         {
-
             StringExtractorGDBRemote response;
             bool send_async = true;
-            const uint32_t old_packet_timeout = m_gdb_comm.SetPacketTimeout (3);
+            GDBRemoteCommunication::ScopedTimeout (m_gdb_comm, 3);
 
             if (m_gdb_comm.SendPacketAndWaitForResponse("k", 1, response, send_async) == GDBRemoteCommunication::PacketResult::Success)
             {
@@ -2178,8 +2797,6 @@ ProcessGDBRemote::DoDestroy ()
                     log->Printf ("ProcessGDBRemote::DoDestroy - failed to send k packet");
                 exit_string.assign("failed to send the k packet");
             }
-
-            m_gdb_comm.SetPacketTimeout(old_packet_timeout);
         }
         else
         {
@@ -2205,7 +2822,6 @@ ProcessGDBRemote::DoDestroy ()
 void
 ProcessGDBRemote::SetLastStopPacket (const StringExtractorGDBRemote &response)
 {
-    lldb_private::Mutex::Locker locker (m_last_stop_packet_mutex);
     const bool did_exec = response.GetStringRef().find(";reason:exec;") != std::string::npos;
     if (did_exec)
     {
@@ -2216,9 +2832,18 @@ ProcessGDBRemote::SetLastStopPacket (const StringExtractorGDBRemote &response)
         m_thread_list_real.Clear();
         m_thread_list.Clear();
         BuildDynamicRegisterInfo (true);
-        m_gdb_comm.ResetDiscoverableSettings();
+        m_gdb_comm.ResetDiscoverableSettings (did_exec);
     }
-    m_last_stop_packet = response;
+
+    // Scope the lock
+    {
+        // Lock the thread stack while we access it
+        Mutex::Locker stop_stack_lock(m_last_stop_packet_mutex);
+        // Add this stop packet to the stop packet stack
+        // This stack will get popped and examined when we switch to the
+        // Stopped state
+        m_stop_packet_stack.push_back(response);
+    }
 }
 
 
@@ -2235,7 +2860,18 @@ ProcessGDBRemote::IsAlive ()
 addr_t
 ProcessGDBRemote::GetImageInfoAddress()
 {
-    return m_gdb_comm.GetShlibInfoAddr();
+    // request the link map address via the $qShlibInfoAddr packet
+    lldb::addr_t addr = m_gdb_comm.GetShlibInfoAddr();
+
+    // the loaded module list can also provides a link map address
+    if (addr == LLDB_INVALID_ADDRESS)
+    {
+        GDBLoadedModuleInfoList list;
+        if (GetLoadedModuleList (list).Success())
+            addr = list.m_link_map;
+    }
+
+    return addr;
 }
 
 //------------------------------------------------------------------
@@ -2345,7 +2981,7 @@ ProcessGDBRemote::DoWriteMemory (addr_t addr, const void *buf, size_t size, Erro
 lldb::addr_t
 ProcessGDBRemote::DoAllocateMemory (size_t size, uint32_t permissions, Error &error)
 {
-    lldb_private::Log *log (lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_PROCESS|LIBLLDB_LOG_EXPRESSIONS));
+    Log *log (GetLogIfAnyCategoriesSet (LIBLLDB_LOG_PROCESS|LIBLLDB_LOG_EXPRESSIONS));
     addr_t allocated_addr = LLDB_INVALID_ADDRESS;
     
     LazyBool supported = m_gdb_comm.SupportsAllocDeallocMemory();
@@ -2456,6 +3092,10 @@ ProcessGDBRemote::PutSTDIN (const char *src, size_t src_len, Error &error)
     {
         ConnectionStatus status;
         m_stdio_communication.Write(src, src_len, status, NULL);
+    }
+    else if (m_stdin_forward)
+    {
+        m_gdb_comm.SendStdinNotification(src, src_len);
     }
     return 0;
 }
@@ -2761,6 +3401,10 @@ ProcessGDBRemote::LaunchAndConnectToDebugserver (const ProcessInfo &process_info
         static FileSpec g_debugserver_file_spec;
 
         ProcessLaunchInfo debugserver_launch_info;
+        // Make debugserver run in its own session so signals generated by
+        // special terminal key sequences (^C) don't affect debugserver.
+        debugserver_launch_info.SetLaunchInSeparateProcessGroup(true);
+
         debugserver_launch_info.SetMonitorProcessCallback (MonitorDebugserverProcess, this, false);
         debugserver_launch_info.SetUserID(process_info.GetUserID());
 
@@ -2916,28 +3560,19 @@ ProcessGDBRemote::KillDebugserverProcess ()
 void
 ProcessGDBRemote::Initialize()
 {
-    static bool g_initialized = false;
+    static std::once_flag g_once_flag;
 
-    if (g_initialized == false)
+    std::call_once(g_once_flag, []()
     {
-        g_initialized = true;
         PluginManager::RegisterPlugin (GetPluginNameStatic(),
                                        GetPluginDescriptionStatic(),
                                        CreateInstance,
                                        DebuggerInitialize);
-
-        Log::Callbacks log_callbacks = {
-            ProcessGDBRemoteLog::DisableLog,
-            ProcessGDBRemoteLog::EnableLog,
-            ProcessGDBRemoteLog::ListLogCategories
-        };
-
-        Log::RegisterLogChannel (ProcessGDBRemote::GetPluginNameStatic(), log_callbacks);
-    }
+    });
 }
 
 void
-ProcessGDBRemote::DebuggerInitialize (lldb_private::Debugger &debugger)
+ProcessGDBRemote::DebuggerInitialize (Debugger &debugger)
 {
     if (!PluginManager::GetSettingForProcessPlugin(debugger, PluginProperties::GetSettingName()))
     {
@@ -2989,11 +3624,40 @@ ProcessGDBRemote::StopAsyncThread ()
 
         // Stop the stdio thread
         m_async_thread.Join(nullptr);
+        m_async_thread.Reset();
     }
     else if (log)
         log->Printf("ProcessGDBRemote::%s () - Called when Async thread was not running.", __FUNCTION__);
 }
 
+bool
+ProcessGDBRemote::HandleNotifyPacket (StringExtractorGDBRemote &packet)
+{
+    // get the packet at a string
+    const std::string &pkt = packet.GetStringRef();
+    // skip %stop:
+    StringExtractorGDBRemote stop_info(pkt.c_str() + 5);
+
+    // pass as a thread stop info packet
+    SetLastStopPacket(stop_info);
+
+    // check for more stop reasons
+    HandleStopReplySequence();
+
+    // if the process is stopped then we need to fake a resume
+    // so that we can stop properly with the new break. This
+    // is possible due to SetPrivateState() broadcasting the
+    // state change as a side effect.
+    if (GetPrivateState() == lldb::StateType::eStateStopped)
+    {
+        SetPrivateState(lldb::StateType::eStateRunning);
+    }
+
+    // since we have some stopped packets we can halt the process
+    SetPrivateState(lldb::StateType::eStateStopped);
+
+    return true;
+}
 
 thread_result_t
 ProcessGDBRemote::AsyncThread (void *arg)
@@ -3011,8 +3675,9 @@ ProcessGDBRemote::AsyncThread (void *arg)
 
     if (listener.StartListeningForEvents (&process->m_async_broadcaster, desired_event_mask) == desired_event_mask)
     {
-        listener.StartListeningForEvents (&process->m_gdb_comm, Communication::eBroadcastBitReadThreadDidExit);
-    
+        listener.StartListeningForEvents (&process->m_gdb_comm, Communication::eBroadcastBitReadThreadDidExit |
+                                                                GDBRemoteCommunication::eBroadcastBitGdbReadThreadGotNotify);
+
         bool done = false;
         while (!done)
         {
@@ -3042,61 +3707,77 @@ ProcessGDBRemote::AsyncThread (void *arg)
                                     if (::strstr (continue_cstr, "vAttach") == NULL)
                                         process->SetPrivateState(eStateRunning);
                                     StringExtractorGDBRemote response;
-                                    StateType stop_state = process->GetGDBRemote().SendContinuePacketAndWaitForResponse (process, continue_cstr, continue_cstr_len, response);
-
-                                    // We need to immediately clear the thread ID list so we are sure to get a valid list of threads.
-                                    // The thread ID list might be contained within the "response", or the stop reply packet that
-                                    // caused the stop. So clear it now before we give the stop reply packet to the process
-                                    // using the process->SetLastStopPacket()...
-                                    process->ClearThreadIDList ();
-
-                                    switch (stop_state)
+  
+                                    // If in Non-Stop-Mode
+                                    if (process->GetTarget().GetNonStopModeEnabled())
                                     {
-                                    case eStateStopped:
-                                    case eStateCrashed:
-                                    case eStateSuspended:
-                                        process->SetLastStopPacket (response);
-                                        process->SetPrivateState (stop_state);
-                                        break;
-
-                                    case eStateExited:
-                                    {
-                                        process->SetLastStopPacket (response);
-                                        process->ClearThreadIDList();
-                                        response.SetFilePos(1);
-                                        
-                                        int exit_status = response.GetHexU8();
-                                        const char *desc_cstr = NULL;
-                                        StringExtractor extractor;
-                                        std::string desc_string;
-                                        if (response.GetBytesLeft() > 0 && response.GetChar('-') == ';')
+                                        // send the vCont packet
+                                        if (!process->GetGDBRemote().SendvContPacket(process, continue_cstr, continue_cstr_len, response))
                                         {
-                                            std::string desc_token;
-                                            while (response.GetNameColonValue (desc_token, desc_string))
+                                            // Something went wrong
+                                            done = true;
+                                            break;
+                                        }
+                                    }
+                                    // If in All-Stop-Mode
+                                    else
+                                    {
+                                        StateType stop_state = process->GetGDBRemote().SendContinuePacketAndWaitForResponse (process, continue_cstr, continue_cstr_len, response);
+
+                                        // We need to immediately clear the thread ID list so we are sure to get a valid list of threads.
+                                        // The thread ID list might be contained within the "response", or the stop reply packet that
+                                        // caused the stop. So clear it now before we give the stop reply packet to the process
+                                        // using the process->SetLastStopPacket()...
+                                        process->ClearThreadIDList ();
+
+                                        switch (stop_state)
+                                        {
+                                        case eStateStopped:
+                                        case eStateCrashed:
+                                        case eStateSuspended:
+                                            process->SetLastStopPacket (response);
+                                            process->SetPrivateState (stop_state);
+                                            break;
+
+                                        case eStateExited:
+                                        {
+                                            process->SetLastStopPacket (response);
+                                            process->ClearThreadIDList();
+                                            response.SetFilePos(1);
+                                            
+                                            int exit_status = response.GetHexU8();
+                                            const char *desc_cstr = NULL;
+                                            StringExtractor extractor;
+                                            std::string desc_string;
+                                            if (response.GetBytesLeft() > 0 && response.GetChar('-') == ';')
                                             {
-                                                if (desc_token == "description")
+                                                std::string desc_token;
+                                                while (response.GetNameColonValue (desc_token, desc_string))
                                                 {
-                                                    extractor.GetStringRef().swap(desc_string);
-                                                    extractor.SetFilePos(0);
-                                                    extractor.GetHexByteString (desc_string);
-                                                    desc_cstr = desc_string.c_str();
+                                                    if (desc_token == "description")
+                                                    {
+                                                        extractor.GetStringRef().swap(desc_string);
+                                                        extractor.SetFilePos(0);
+                                                        extractor.GetHexByteString (desc_string);
+                                                        desc_cstr = desc_string.c_str();
+                                                    }
                                                 }
                                             }
+                                            process->SetExitStatus(exit_status, desc_cstr);
+                                            done = true;
+                                            break;
                                         }
-                                        process->SetExitStatus(exit_status, desc_cstr);
-                                        done = true;
-                                        break;
-                                    }
-                                    case eStateInvalid:
-                                        process->SetExitStatus(-1, "lost connection");
-                                        break;
+                                        case eStateInvalid:
+                                            process->SetExitStatus(-1, "lost connection");
+                                            break;
 
-                                    default:
-                                        process->SetPrivateState (stop_state);
-                                        break;
-                                    }
-                                }
-                            }
+                                        default:
+                                            process->SetPrivateState (stop_state);
+                                            break;
+                                        } // switch(stop_state)
+                                    } // else // if in All-stop-mode
+                                } // if (continue_packet)
+                            } // case eBroadcastBitAysncContinue
                             break;
 
                         case eBroadcastBitAsyncThreadShouldExit:
@@ -3114,10 +3795,28 @@ ProcessGDBRemote::AsyncThread (void *arg)
                 }
                 else if (event_sp->BroadcasterIs (&process->m_gdb_comm))
                 {
-                    if (event_type & Communication::eBroadcastBitReadThreadDidExit)
+                    switch (event_type)
                     {
-                        process->SetExitStatus (-1, "lost connection");
-                        done = true;
+                        case Communication::eBroadcastBitReadThreadDidExit:
+                            process->SetExitStatus (-1, "lost connection");
+                            done = true;
+                            break;
+
+                        case GDBRemoteCommunication::eBroadcastBitGdbReadThreadGotNotify:
+                        {
+                            lldb_private::Event *event = event_sp.get();
+                            const EventDataBytes *continue_packet = EventDataBytes::GetEventDataFromEvent(event);
+                            StringExtractorGDBRemote notify((const char*)continue_packet->GetBytes());
+                            // Hand this over to the process to handle
+                            process->HandleNotifyPacket(notify);
+                            break;
+                        }
+
+                        default:
+                            if (log)
+                                log->Printf ("ProcessGDBRemote::%s (arg = %p, pid = %" PRIu64 ") got unknown event 0x%8.8x", __FUNCTION__, arg, process->GetID(), event_type);
+                            done = true;
+                            break;
                     }
                 }
             }
@@ -3133,7 +3832,6 @@ ProcessGDBRemote::AsyncThread (void *arg)
     if (log)
         log->Printf ("ProcessGDBRemote::%s (arg = %p, pid = %" PRIu64 ") thread exiting...", __FUNCTION__, arg, process->GetID());
 
-    process->m_async_thread.Reset();
     return NULL;
 }
 
@@ -3156,13 +3854,13 @@ ProcessGDBRemote::AsyncThread (void *arg)
 //
 bool
 ProcessGDBRemote::NewThreadNotifyBreakpointHit (void *baton,
-                             lldb_private::StoppointCallbackContext *context,
+                             StoppointCallbackContext *context,
                              lldb::user_id_t break_id,
                              lldb::user_id_t break_loc_id)
 {
     // I don't think I have to do anything here, just make sure I notice the new thread when it starts to 
     // run so I can stop it if that's what I want to do.
-    Log *log (lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
+    Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
     if (log)
         log->Printf("Hit New Thread Notification breakpoint.");
     return false;
@@ -3172,7 +3870,7 @@ ProcessGDBRemote::NewThreadNotifyBreakpointHit (void *baton,
 bool
 ProcessGDBRemote::StartNoticingNewThreads()
 {
-    Log *log (lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
+    Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
     if (m_thread_create_bp_sp)
     {
         if (log && log->GetVerbose())
@@ -3204,7 +3902,7 @@ ProcessGDBRemote::StartNoticingNewThreads()
 bool
 ProcessGDBRemote::StopNoticingNewThreads()
 {   
-    Log *log (lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
+    Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
     if (log && log->GetVerbose())
         log->Printf ("Disabling new thread notification breakpoint.");
 
@@ -3214,7 +3912,7 @@ ProcessGDBRemote::StopNoticingNewThreads()
     return true;
 }
     
-lldb_private::DynamicLoader *
+DynamicLoader *
 ProcessGDBRemote::GetDynamicLoader ()
 {
     if (m_dyld_ap.get() == NULL)
@@ -3363,6 +4061,659 @@ ProcessGDBRemote::SetUserSpecifiedMaxMemoryTransferSize (uint64_t user_specified
     }
 }
 
+bool
+ProcessGDBRemote::GetModuleSpec(const FileSpec& module_file_spec,
+                                const ArchSpec& arch,
+                                ModuleSpec &module_spec)
+{
+    Log *log = GetLogIfAnyCategoriesSet (LIBLLDB_LOG_PLATFORM);
+
+    if (!m_gdb_comm.GetModuleInfo (module_file_spec, arch, module_spec))
+    {
+        if (log)
+            log->Printf ("ProcessGDBRemote::%s - failed to get module info for %s:%s",
+                         __FUNCTION__, module_file_spec.GetPath ().c_str (),
+                         arch.GetTriple ().getTriple ().c_str ());
+        return false;
+    }
+
+    if (log)
+    {
+        StreamString stream;
+        module_spec.Dump (stream);
+        log->Printf ("ProcessGDBRemote::%s - got module info for (%s:%s) : %s",
+                     __FUNCTION__, module_file_spec.GetPath ().c_str (),
+                     arch.GetTriple ().getTriple ().c_str (), stream.GetString ().c_str ());
+    }
+
+    return true;
+}
+
+namespace {
+
+typedef std::vector<std::string> stringVec;
+
+typedef std::vector<struct GdbServerRegisterInfo> GDBServerRegisterVec;
+struct RegisterSetInfo
+{
+    ConstString name;
+};
+
+typedef std::map<uint32_t, RegisterSetInfo> RegisterSetMap;
+ 
+struct GdbServerTargetInfo
+{
+    std::string arch;
+    std::string osabi;
+    stringVec includes;
+    RegisterSetMap reg_set_map;
+    XMLNode feature_node;
+};
+    
+bool
+ParseRegisters (XMLNode feature_node, GdbServerTargetInfo &target_info, GDBRemoteDynamicRegisterInfo &dyn_reg_info)
+{
+    if (!feature_node)
+        return false;
+    
+    uint32_t prev_reg_num = 0;
+    uint32_t reg_offset = 0;
+
+    feature_node.ForEachChildElementWithName("reg", [&target_info, &dyn_reg_info, &prev_reg_num, &reg_offset](const XMLNode &reg_node) -> bool {
+        std::string gdb_group;
+        std::string gdb_type;
+        ConstString reg_name;
+        ConstString alt_name;
+        ConstString set_name;
+        std::vector<uint32_t> value_regs;
+        std::vector<uint32_t> invalidate_regs;
+        bool encoding_set = false;
+        bool format_set = false;
+        RegisterInfo reg_info = { NULL,                 // Name
+            NULL,                 // Alt name
+            0,                    // byte size
+            reg_offset,           // offset
+            eEncodingUint,        // encoding
+            eFormatHex,           // formate
+            {
+                LLDB_INVALID_REGNUM, // GCC reg num
+                LLDB_INVALID_REGNUM, // DWARF reg num
+                LLDB_INVALID_REGNUM, // generic reg num
+                prev_reg_num,        // GDB reg num
+                prev_reg_num         // native register number
+            },
+            NULL,
+            NULL
+        };
+        
+        reg_node.ForEachAttribute([&target_info, &gdb_group, &gdb_type, &reg_name, &alt_name, &set_name, &value_regs, &invalidate_regs, &encoding_set, &format_set, &reg_info, &prev_reg_num, &reg_offset](const llvm::StringRef &name, const llvm::StringRef &value) -> bool {
+            if (name == "name")
+            {
+                reg_name.SetString(value);
+            }
+            else if (name == "bitsize")
+            {
+                reg_info.byte_size = StringConvert::ToUInt32(value.data(), 0, 0) / CHAR_BIT;
+            }
+            else if (name == "type")
+            {
+                gdb_type = value.str();
+            }
+            else if (name == "group")
+            {
+                gdb_group = value.str();
+            }
+            else if (name == "regnum")
+            {
+                const uint32_t regnum = StringConvert::ToUInt32(value.data(), LLDB_INVALID_REGNUM, 0);
+                if (regnum != LLDB_INVALID_REGNUM)
+                {
+                    reg_info.kinds[eRegisterKindGDB] = regnum;
+                    reg_info.kinds[eRegisterKindLLDB] = regnum;
+                    prev_reg_num = regnum;
+                }
+            }
+            else if (name == "offset")
+            {
+                reg_offset = StringConvert::ToUInt32(value.data(), UINT32_MAX, 0);
+            }
+            else if (name == "altname")
+            {
+                alt_name.SetString(value);
+            }
+            else if (name == "encoding")
+            {
+                encoding_set = true;
+                reg_info.encoding = Args::StringToEncoding (value.data(), eEncodingUint);
+            }
+            else if (name == "format")
+            {
+                format_set = true;
+                Format format = eFormatInvalid;
+                if (Args::StringToFormat (value.data(), format, NULL).Success())
+                    reg_info.format = format;
+                else if (value == "vector-sint8")
+                    reg_info.format = eFormatVectorOfSInt8;
+                else if (value == "vector-uint8")
+                    reg_info.format = eFormatVectorOfUInt8;
+                else if (value == "vector-sint16")
+                    reg_info.format = eFormatVectorOfSInt16;
+                else if (value == "vector-uint16")
+                    reg_info.format = eFormatVectorOfUInt16;
+                else if (value == "vector-sint32")
+                    reg_info.format = eFormatVectorOfSInt32;
+                else if (value == "vector-uint32")
+                    reg_info.format = eFormatVectorOfUInt32;
+                else if (value == "vector-float32")
+                    reg_info.format = eFormatVectorOfFloat32;
+                else if (value == "vector-uint128")
+                    reg_info.format = eFormatVectorOfUInt128;
+            }
+            else if (name == "group_id")
+            {
+                const uint32_t set_id = StringConvert::ToUInt32(value.data(), UINT32_MAX, 0);
+                RegisterSetMap::const_iterator pos = target_info.reg_set_map.find(set_id);
+                if (pos != target_info.reg_set_map.end())
+                    set_name = pos->second.name;
+            }
+            else if (name == "gcc_regnum")
+            {
+                reg_info.kinds[eRegisterKindGCC] = StringConvert::ToUInt32(value.data(), LLDB_INVALID_REGNUM, 0);
+            }
+            else if (name == "dwarf_regnum")
+            {
+                reg_info.kinds[eRegisterKindDWARF] = StringConvert::ToUInt32(value.data(), LLDB_INVALID_REGNUM, 0);
+            }
+            else if (name == "generic")
+            {
+                reg_info.kinds[eRegisterKindGeneric] = Args::StringToGenericRegister(value.data());
+            }
+            else if (name == "value_regnums")
+            {
+                SplitCommaSeparatedRegisterNumberString(value, value_regs, 0);
+            }
+            else if (name == "invalidate_regnums")
+            {
+                SplitCommaSeparatedRegisterNumberString(value, invalidate_regs, 0);
+            }
+            else
+            {
+                printf("unhandled attribute %s = %s\n", name.data(), value.data());
+            }
+            return true; // Keep iterating through all attributes
+        });
+        
+        if (!gdb_type.empty() && !(encoding_set || format_set))
+        {
+            if (gdb_type.find("int") == 0)
+            {
+                reg_info.format = eFormatHex;
+                reg_info.encoding = eEncodingUint;
+            }
+            else if (gdb_type == "data_ptr" || gdb_type == "code_ptr")
+            {
+                reg_info.format = eFormatAddressInfo;
+                reg_info.encoding = eEncodingUint;
+            }
+            else if (gdb_type == "i387_ext" || gdb_type == "float")
+            {
+                reg_info.format = eFormatFloat;
+                reg_info.encoding = eEncodingIEEE754;
+            }
+        }
+        
+        // Only update the register set name if we didn't get a "reg_set" attribute.
+        // "set_name" will be empty if we didn't have a "reg_set" attribute.
+        if (!set_name && !gdb_group.empty())
+            set_name.SetCString(gdb_group.c_str());
+        
+        reg_info.byte_offset = reg_offset;
+        assert (reg_info.byte_size != 0);
+        reg_offset += reg_info.byte_size;
+        if (!value_regs.empty())
+        {
+            value_regs.push_back(LLDB_INVALID_REGNUM);
+            reg_info.value_regs = value_regs.data();
+        }
+        if (!invalidate_regs.empty())
+        {
+            invalidate_regs.push_back(LLDB_INVALID_REGNUM);
+            reg_info.invalidate_regs = invalidate_regs.data();
+        }
+        
+        ++prev_reg_num;
+        dyn_reg_info.AddRegister(reg_info, reg_name, alt_name, set_name);
+        
+        return true; // Keep iterating through all "reg" elements
+    });
+    return true;
+}
+    
+} // namespace {}
+
+
+// query the target of gdb-remote for extended target information
+// return:  'true'  on success
+//          'false' on failure
+bool
+ProcessGDBRemote::GetGDBServerRegisterInfo ()
+{
+    // Make sure LLDB has an XML parser it can use first
+    if (!XMLDocument::XMLEnabled())
+        return false;
+
+    // redirect libxml2's error handler since the default prints to stdout
+
+    GDBRemoteCommunicationClient & comm = m_gdb_comm;
+
+    // check that we have extended feature read support
+    if ( !comm.GetQXferFeaturesReadSupported( ) )
+        return false;
+
+    // request the target xml file
+    std::string raw;
+    lldb_private::Error lldberr;
+    if (!comm.ReadExtFeature(ConstString("features"),
+                             ConstString("target.xml"),
+                             raw,
+                             lldberr))
+    {
+        return false;
+    }
+    
+
+    XMLDocument xml_document;
+
+    if (xml_document.ParseMemory(raw.c_str(), raw.size(), "target.xml"))
+    {
+        GdbServerTargetInfo target_info;
+        
+        XMLNode target_node = xml_document.GetRootElement("target");
+        if (target_node)
+        {
+            XMLNode feature_node;
+            target_node.ForEachChildElement([&target_info, this, &feature_node](const XMLNode &node) -> bool
+            {
+                llvm::StringRef name = node.GetName();
+                if (name == "architecture")
+                {
+                    node.GetElementText(target_info.arch);
+                }
+                else if (name == "osabi")
+                {
+                    node.GetElementText(target_info.osabi);
+                }
+                else if (name == "xi:include" || name == "include")
+                {
+                    llvm::StringRef href = node.GetAttributeValue("href");
+                    if (!href.empty())
+                        target_info.includes.push_back(href.str());
+                }
+                else if (name == "feature")
+                {
+                    feature_node = node;
+                }
+                else if (name == "groups")
+                {
+                    node.ForEachChildElementWithName("group", [&target_info](const XMLNode &node) -> bool {
+                        uint32_t set_id = UINT32_MAX;
+                        RegisterSetInfo set_info;
+                        
+                        node.ForEachAttribute([&set_id, &set_info](const llvm::StringRef &name, const llvm::StringRef &value) -> bool {
+                            if (name == "id")
+                                set_id = StringConvert::ToUInt32(value.data(), UINT32_MAX, 0);
+                            if (name == "name")
+                                set_info.name = ConstString(value);
+                            return true; // Keep iterating through all attributes
+                        });
+                        
+                        if (set_id != UINT32_MAX)
+                            target_info.reg_set_map[set_id] = set_info;
+                        return true; // Keep iterating through all "group" elements
+                    });
+                }
+                return true; // Keep iterating through all children of the target_node
+            });
+            
+            if (feature_node)
+            {
+                ParseRegisters(feature_node, target_info, this->m_register_info);
+            }
+            
+            for (const auto &include : target_info.includes)
+            {
+                // request register file
+                std::string xml_data;
+                if (!comm.ReadExtFeature(ConstString("features"),
+                                         ConstString(include),
+                                         xml_data,
+                                         lldberr))
+                    continue;
+
+                XMLDocument include_xml_document;
+                include_xml_document.ParseMemory(xml_data.data(), xml_data.size(), include.c_str());
+                XMLNode include_feature_node = include_xml_document.GetRootElement("feature");
+                if (include_feature_node)
+                {
+                    ParseRegisters(include_feature_node, target_info, this->m_register_info);
+                }
+            }
+            this->m_register_info.Finalize(GetTarget().GetArchitecture());
+        }
+    }
+
+    return m_register_info.GetNumRegisters() > 0;
+}
+
+Error
+ProcessGDBRemote::GetLoadedModuleList (GDBLoadedModuleInfoList & list)
+{
+    // Make sure LLDB has an XML parser it can use first
+    if (!XMLDocument::XMLEnabled())
+        return Error (0, ErrorType::eErrorTypeGeneric);
+
+    Log *log = GetLogIfAnyCategoriesSet (LIBLLDB_LOG_PROCESS);
+    if (log)
+        log->Printf ("ProcessGDBRemote::%s", __FUNCTION__);
+
+    GDBRemoteCommunicationClient & comm = m_gdb_comm;
+
+    // check that we have extended feature read support
+    if (!comm.GetQXferLibrariesSVR4ReadSupported ())
+        return Error (0, ErrorType::eErrorTypeGeneric);
+
+    list.clear ();
+
+    // request the loaded library list
+    std::string raw;
+    lldb_private::Error lldberr;
+    if (!comm.ReadExtFeature (ConstString ("libraries-svr4"), ConstString (""), raw, lldberr))
+        return Error (0, ErrorType::eErrorTypeGeneric);
+
+    // parse the xml file in memory
+    if (log)
+        log->Printf ("parsing: %s", raw.c_str());
+    XMLDocument doc;
+    
+    if (!doc.ParseMemory(raw.c_str(), raw.size(), "noname.xml"))
+        return Error (0, ErrorType::eErrorTypeGeneric);
+
+    XMLNode root_element = doc.GetRootElement("library-list-svr4");
+    if (!root_element)
+        return Error();
+
+    // main link map structure
+    llvm::StringRef main_lm = root_element.GetAttributeValue("main-lm");
+    if (!main_lm.empty())
+    {
+        list.m_link_map = StringConvert::ToUInt64(main_lm.data(), LLDB_INVALID_ADDRESS, 0);
+    }
+
+    root_element.ForEachChildElementWithName("library", [log, &list](const XMLNode &library) -> bool {
+
+        GDBLoadedModuleInfoList::LoadedModuleInfo module;
+
+        library.ForEachAttribute([log, &module](const llvm::StringRef &name, const llvm::StringRef &value) -> bool {
+            
+            if (name == "name")
+                module.set_name (value.str());
+            else if (name == "lm")
+            {
+                // the address of the link_map struct.
+                module.set_link_map(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+            }
+            else if (name == "l_addr")
+            {
+                // the displacement as read from the field 'l_addr' of the link_map struct.
+                module.set_base(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+                
+            }
+            else if (name == "l_ld")
+            {
+                // the memory address of the libraries PT_DYAMIC section.
+                module.set_dynamic(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+            }
+            
+            return true; // Keep iterating over all properties of "library"
+        });
+
+        if (log)
+        {
+            std::string name;
+            lldb::addr_t lm=0, base=0, ld=0;
+
+            module.get_name (name);
+            module.get_link_map (lm);
+            module.get_base (base);
+            module.get_dynamic (ld);
+
+            log->Printf ("found (link_map:0x08%" PRIx64 ", base:0x08%" PRIx64 ", ld:0x08%" PRIx64 ", name:'%s')", lm, base, ld, name.c_str());
+        }
+
+        list.add (module);
+        return true; // Keep iterating over all "library" elements in the root node
+    });
+
+    if (log)
+        log->Printf ("found %" PRId32 " modules in total", (int) list.m_list.size());
+
+    return Error();
+}
+
+lldb::ModuleSP
+ProcessGDBRemote::LoadModuleAtAddress (const FileSpec &file, lldb::addr_t base_addr)
+{
+    Target &target = m_process->GetTarget();
+    ModuleList &modules = target.GetImages();
+    ModuleSP module_sp;
+
+    bool changed = false;
+
+    ModuleSpec module_spec (file, target.GetArchitecture());
+    if ((module_sp = modules.FindFirstModule (module_spec)))
+    {
+        module_sp->SetLoadAddress (target, base_addr, true, changed);
+    }
+    else if ((module_sp = target.GetSharedModule (module_spec)))
+    {
+        module_sp->SetLoadAddress (target, base_addr, true, changed);
+    }
+
+    return module_sp;
+}
+
+size_t
+ProcessGDBRemote::LoadModules ()
+{
+    using lldb_private::process_gdb_remote::ProcessGDBRemote;
+
+    // request a list of loaded libraries from GDBServer
+    GDBLoadedModuleInfoList module_list;
+    if (GetLoadedModuleList (module_list).Fail())
+        return 0;
+
+    // get a list of all the modules
+    ModuleList new_modules;
+
+    for (GDBLoadedModuleInfoList::LoadedModuleInfo & modInfo : module_list.m_list)
+    {
+        std::string  mod_name;
+        lldb::addr_t mod_base;
+
+        bool valid = true;
+        valid &= modInfo.get_name (mod_name);
+        valid &= modInfo.get_base (mod_base);
+        if (!valid)
+            continue;
+
+        // hack (cleaner way to get file name only?) (win/unix compat?)
+        size_t marker = mod_name.rfind ('/');
+        if (marker == std::string::npos)
+            marker = 0;
+        else
+            marker += 1;
+
+        FileSpec file (mod_name.c_str()+marker, true);
+        lldb::ModuleSP module_sp = LoadModuleAtAddress (file, mod_base);
+
+        if (module_sp.get())
+            new_modules.Append (module_sp);
+    }
+
+    if (new_modules.GetSize() > 0)
+    {
+        Target & target = m_target;
+
+        new_modules.ForEach ([&target](const lldb::ModuleSP module_sp) -> bool
+        {
+            lldb_private::ObjectFile * obj = module_sp->GetObjectFile ();
+            if (!obj)
+                return true;
+
+            if (obj->GetType () != ObjectFile::Type::eTypeExecutable)
+                return true;
+
+            lldb::ModuleSP module_copy_sp = module_sp;
+            target.SetExecutableModule (module_copy_sp, false);
+            return false;
+        });
+
+        ModuleList &loaded_modules = m_process->GetTarget().GetImages();
+        loaded_modules.AppendIfNeeded (new_modules);
+        m_process->GetTarget().ModulesDidLoad (new_modules);
+    }
+
+    return new_modules.GetSize();
+}
+
+Error
+ProcessGDBRemote::GetFileLoadAddress(const FileSpec& file, bool& is_loaded, lldb::addr_t& load_addr)
+{
+    is_loaded = false;
+    load_addr = LLDB_INVALID_ADDRESS;
+
+    std::string file_path = file.GetPath(false);
+    if (file_path.empty ())
+        return Error("Empty file name specified");
+
+    StreamString packet;
+    packet.PutCString("qFileLoadAddress:");
+    packet.PutCStringAsRawHex8(file_path.c_str());
+
+    StringExtractorGDBRemote response;
+    if (m_gdb_comm.SendPacketAndWaitForResponse(packet.GetString().c_str(), response, false) != GDBRemoteCommunication::PacketResult::Success)
+        return Error("Sending qFileLoadAddress packet failed");
+
+    if (response.IsErrorResponse())
+    {
+        if (response.GetError() == 1)
+        {
+            // The file is not loaded into the inferior
+            is_loaded = false;
+            load_addr = LLDB_INVALID_ADDRESS;
+            return Error();
+        }
+
+        return Error("Fetching file load address from remote server returned an error");
+    }
+
+    if (response.IsNormalResponse())
+    {
+        is_loaded = true;
+        load_addr = response.GetHexMaxU64(false, LLDB_INVALID_ADDRESS);
+        return Error();
+    }
+
+    return Error("Unknown error happened during sending the load address packet");
+}
+
+
+void
+ProcessGDBRemote::ModulesDidLoad (ModuleList &module_list)
+{
+    // We must call the lldb_private::Process::ModulesDidLoad () first before we do anything
+    Process::ModulesDidLoad (module_list);
+
+    // After loading shared libraries, we can ask our remote GDB server if
+    // it needs any symbols.
+    m_gdb_comm.ServeSymbolLookups(this);
+}
+
+
+class CommandObjectProcessGDBRemoteSpeedTest: public CommandObjectParsed
+{
+public:
+    CommandObjectProcessGDBRemoteSpeedTest(CommandInterpreter &interpreter) :
+        CommandObjectParsed (interpreter,
+                             "process plugin packet speed-test",
+                             "Tests packet speeds of various sizes to determine the performance characteristics of the GDB remote connection. ",
+                             NULL),
+        m_option_group (interpreter),
+        m_num_packets (LLDB_OPT_SET_1, false, "count",       'c', 0, eArgTypeCount, "The number of packets to send of each varying size (default is 1000).", 1000),
+        m_max_send    (LLDB_OPT_SET_1, false, "max-send",    's', 0, eArgTypeCount, "The maximum number of bytes to send in a packet. Sizes increase in powers of 2 while the size is less than or equal to this option value. (default 1024).", 1024),
+        m_max_recv    (LLDB_OPT_SET_1, false, "max-receive", 'r', 0, eArgTypeCount, "The maximum number of bytes to receive in a packet. Sizes increase in powers of 2 while the size is less than or equal to this option value. (default 1024).", 1024),
+        m_json        (LLDB_OPT_SET_1, false, "json",        'j', "Print the output as JSON data for easy parsing.", false, true)
+    {
+        m_option_group.Append (&m_num_packets, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Append (&m_max_send, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Append (&m_max_recv, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Append (&m_json, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Finalize();
+    }
+
+    ~CommandObjectProcessGDBRemoteSpeedTest ()
+    {
+    }
+
+
+    Options *
+    GetOptions () override
+    {
+        return &m_option_group;
+    }
+
+    bool
+    DoExecute (Args& command, CommandReturnObject &result) override
+    {
+        const size_t argc = command.GetArgumentCount();
+        if (argc == 0)
+        {
+            ProcessGDBRemote *process = (ProcessGDBRemote *)m_interpreter.GetExecutionContext().GetProcessPtr();
+            if (process)
+            {
+                StreamSP output_stream_sp (m_interpreter.GetDebugger().GetAsyncOutputStream());
+                result.SetImmediateOutputStream (output_stream_sp);
+
+                const uint32_t num_packets = (uint32_t)m_num_packets.GetOptionValue().GetCurrentValue();
+                const uint64_t max_send = m_max_send.GetOptionValue().GetCurrentValue();
+                const uint64_t max_recv = m_max_recv.GetOptionValue().GetCurrentValue();
+                const bool json = m_json.GetOptionValue().GetCurrentValue();
+                if (output_stream_sp)
+                    process->GetGDBRemote().TestPacketSpeed (num_packets, max_send, max_recv, json, *output_stream_sp);
+                else
+                {
+                    process->GetGDBRemote().TestPacketSpeed (num_packets, max_send, max_recv, json, result.GetOutputStream());
+                }
+                result.SetStatus (eReturnStatusSuccessFinishResult);
+                return true;
+            }
+        }
+        else
+        {
+            result.AppendErrorWithFormat ("'%s' takes no arguments", m_cmd_name.c_str());
+        }
+        result.SetStatus (eReturnStatusFailed);
+        return false;
+    }
+protected:
+    OptionGroupOptions m_option_group;
+    OptionGroupUInt64 m_num_packets;
+    OptionGroupUInt64 m_max_send;
+    OptionGroupUInt64 m_max_recv;
+    OptionGroupBoolean m_json;
+
+};
+
 class CommandObjectProcessGDBRemotePacketHistory : public CommandObjectParsed
 {
 private:
@@ -3381,7 +4732,7 @@ public:
     }
     
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         const size_t argc = command.GetArgumentCount();
         if (argc == 0)
@@ -3421,7 +4772,7 @@ public:
     }
     
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         const size_t argc = command.GetArgumentCount();
         if (argc == 0)
@@ -3469,7 +4820,7 @@ public:
     }
     
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         const size_t argc = command.GetArgumentCount();
         if (argc == 0)
@@ -3527,7 +4878,7 @@ public:
     }
     
     bool
-    DoExecute (const char *command, CommandReturnObject &result)
+    DoExecute (const char *command, CommandReturnObject &result) override
     {
         if (command == NULL || command[0] == '\0')
         {
@@ -3576,6 +4927,7 @@ public:
         LoadSubCommand ("send", CommandObjectSP (new CommandObjectProcessGDBRemotePacketSend (interpreter)));
         LoadSubCommand ("monitor", CommandObjectSP (new CommandObjectProcessGDBRemotePacketMonitor (interpreter)));
         LoadSubCommand ("xfer-size", CommandObjectSP (new CommandObjectProcessGDBRemotePacketXferSize (interpreter)));
+        LoadSubCommand ("speed-test", CommandObjectSP (new CommandObjectProcessGDBRemoteSpeedTest (interpreter)));
     }
     
     ~CommandObjectProcessGDBRemotePacket ()

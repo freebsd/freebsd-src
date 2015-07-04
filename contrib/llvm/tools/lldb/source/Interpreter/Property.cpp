@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/Property.h"
 
 // C Includes
@@ -16,9 +14,10 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/UserSettingsController.h"
-#include "lldb/Interpreter/Args.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionValues.h"
+#include "lldb/Target/LanguageRuntime.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -80,11 +79,11 @@ Property::Property (const PropertyDefinition &definition) :
             m_value_sp.reset (enum_value);
             if (definition.default_cstr_value)
             {
-                if (enum_value->SetValueFromCString(definition.default_cstr_value).Success())
+                if (enum_value->SetValueFromString(definition.default_cstr_value).Success())
                 {
                     enum_value->SetDefaultValue(enum_value->GetCurrentValue());
                     // Call Clear() since we don't want the value to appear as
-                    // having been set since we called SetValueFromCString() above.
+                    // having been set since we called SetValueFromString() above.
                     // Clear will set the current value to the default and clear
                     // the boolean that says that the value has been set.
                     enum_value->Clear();
@@ -94,10 +93,13 @@ Property::Property (const PropertyDefinition &definition) :
             break;
             
         case OptionValue::eTypeFileSpec:
+        {
             // "definition.default_uint_value" represents if the "definition.default_cstr_value" should
             // be resolved or not
-            m_value_sp.reset (new OptionValueFileSpec(FileSpec(definition.default_cstr_value, definition.default_uint_value != 0)));
+            const bool resolve = definition.default_uint_value != 0;
+            m_value_sp.reset (new OptionValueFileSpec(FileSpec(definition.default_cstr_value, resolve), resolve));
             break;
+        }
             
         case OptionValue::eTypeFileSpecList:
             // "definition.default_uint_value" is not used for a OptionValue::eTypeFileSpecList
@@ -109,16 +111,36 @@ Property::Property (const PropertyDefinition &definition) :
             // "definition.default_cstr_value" is NULL, otherwise interpret
             // "definition.default_cstr_value" as a string value that represents the default
             // value.
+            {
+                Format new_format = eFormatInvalid;
+                if (definition.default_cstr_value)
+                    Args::StringToFormat (definition.default_cstr_value, new_format, nullptr);
+                else
+                    new_format = (Format)definition.default_uint_value;
+                m_value_sp.reset (new OptionValueFormat(new_format));
+            }
+            break;
+            
+        case OptionValue::eTypeLanguage:
+            // "definition.default_uint_value" is the default language enumeration value if
+            // "definition.default_cstr_value" is NULL, otherwise interpret
+            // "definition.default_cstr_value" as a string value that represents the default
+            // value.
         {
-            Format new_format = eFormatInvalid;
+            LanguageType new_lang = eLanguageTypeUnknown;
             if (definition.default_cstr_value)
-                Args::StringToFormat (definition.default_cstr_value, new_format, nullptr);
+                LanguageRuntime::GetLanguageTypeFromString(definition.default_cstr_value);
             else
-                new_format = (Format)definition.default_uint_value;
-            m_value_sp.reset (new OptionValueFormat(new_format));
+                new_lang = (LanguageType)definition.default_uint_value;
+            m_value_sp.reset (new OptionValueLanguage(new_lang));
         }
             break;
             
+        case OptionValue::eTypeFormatEntity:
+            // "definition.default_cstr_value" as a string value that represents the default
+            m_value_sp.reset (new OptionValueFormatEntity(definition.default_cstr_value));
+            break;
+
         case OptionValue::eTypePathMap:
             // "definition.default_uint_value" tells us if notifications should occur for
             // path mappings
@@ -129,7 +151,7 @@ Property::Property (const PropertyDefinition &definition) :
             // "definition.default_uint_value" is used to the regular expression flags
             // "definition.default_cstr_value" the default regular expression value
             // value.
-            m_value_sp.reset (new OptionValueRegex(definition.default_cstr_value, definition.default_uint_value));
+            m_value_sp.reset (new OptionValueRegex(definition.default_cstr_value));
             break;
             
         case OptionValue::eTypeSInt64:
@@ -137,7 +159,7 @@ Property::Property (const PropertyDefinition &definition) :
             // "definition.default_cstr_value" is NULL, otherwise interpret
             // "definition.default_cstr_value" as a string value that represents the default
             // value.
-            m_value_sp.reset (new OptionValueSInt64(definition.default_cstr_value ? Args::StringToSInt64 (definition.default_cstr_value) : definition.default_uint_value));
+            m_value_sp.reset (new OptionValueSInt64(definition.default_cstr_value ? StringConvert::ToSInt64 (definition.default_cstr_value) : definition.default_uint_value));
             break;
             
         case OptionValue::eTypeUInt64:
@@ -145,18 +167,18 @@ Property::Property (const PropertyDefinition &definition) :
             // "definition.default_cstr_value" is NULL, otherwise interpret
             // "definition.default_cstr_value" as a string value that represents the default
             // value.
-            m_value_sp.reset (new OptionValueUInt64(definition.default_cstr_value ? Args::StringToUInt64 (definition.default_cstr_value) : definition.default_uint_value));
+            m_value_sp.reset (new OptionValueUInt64(definition.default_cstr_value ? StringConvert::ToUInt64 (definition.default_cstr_value) : definition.default_uint_value));
             break;
             
         case OptionValue::eTypeUUID:
             // "definition.default_uint_value" is not used for a OptionValue::eTypeUUID
             // "definition.default_cstr_value" can contain a default UUID value
-        {
-            UUID uuid;
-            if (definition.default_cstr_value)
-                uuid.SetFromCString (definition.default_cstr_value);
-            m_value_sp.reset (new OptionValueUUID(uuid));
-        }
+            {
+                UUID uuid;
+                if (definition.default_cstr_value)
+                    uuid.SetFromCString (definition.default_cstr_value);
+                m_value_sp.reset (new OptionValueUUID(uuid));
+            }
             break;
             
         case OptionValue::eTypeString:

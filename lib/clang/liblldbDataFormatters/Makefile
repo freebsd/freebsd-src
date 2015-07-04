@@ -30,7 +30,8 @@ SRCS=	CF.cpp \
 	TypeSummary.cpp \
 	TypeSynthetic.cpp \
 	TypeValidator.cpp \
-	ValueObjectPrinter.cpp
+	ValueObjectPrinter.cpp \
+	VectorType.cpp
 
 TGHDRS=	AttrList \
 	Attrs \
