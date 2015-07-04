@@ -119,6 +119,41 @@ user_mod_rename_too_long_body() {
 		-l name_very_very_very_very_very_long
 }
 
+atf_test_case user_mod_h
+user_mod_h_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -h 0 <<- EOF
+	$(echo a)
+	EOF
+	atf_check -s exit:0 -o not-match:"^foo:\*:.*" \
+		grep "^foo" ${HOME}/master.passwd
+	atf_check -s exit:0 ${PW} usermod foo -h - <<- EOF
+	$(echo b)
+	EOF
+	atf_check -s exit:0 -o match:"^foo:\*:.*" \
+		grep "^foo" ${HOME}/master.passwd
+	atf_check -e inline:"pw: '-h' expects a file descriptor or '-'\n" \
+		-s exit:64 ${PW} usermod foo -h a <<- EOF
+	$(echo a)
+	EOF
+}
+
+atf_test_case user_mod_H
+user_mod_H_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -H 0 <<- EOF
+	$(echo a)
+	EOF
+	atf_check -s exit:0 -o match:"^foo:a:.*" \
+		grep "^foo" ${HOME}/master.passwd
+	atf_check -s exit:64 -e inline:"pw: '-H' expects a file descriptor\n" \
+		${PW} usermod foo -H -
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_mod
 	atf_add_test_case user_mod_noupdate
@@ -130,4 +165,6 @@ atf_init_test_cases() {
 	atf_add_test_case user_mod_name_noupdate
 	atf_add_test_case user_mod_rename
 	atf_add_test_case user_mod_rename_too_long
+	atf_add_test_case user_mod_h
+	atf_add_test_case user_mod_H
 }
