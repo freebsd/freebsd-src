@@ -87,7 +87,7 @@ create_and_populate_homedir(int mode, struct passwd *pwd)
 }
 
 static int
-set_passwd(struct passwd *pwd, struct carg *arg, bool update)
+set_passwd(struct passwd *pwd, bool update)
 {
 	int		 b, istty;
 	struct termios	 t, n;
@@ -107,6 +107,7 @@ set_passwd(struct passwd *pwd, struct carg *arg, bool update)
 		if (tcgetattr(conf.fd, &t) == -1)
 			istty = 0;
 		else {
+			n = t;
 			n.c_lflag &= ~(ECHO);
 			tcsetattr(conf.fd, TCSANOW, &n);
 			printf("%s%spassword for user %s:",
@@ -134,7 +135,7 @@ set_passwd(struct passwd *pwd, struct carg *arg, bool update)
 		    conf.fd);
 	if (conf.precrypted) {
 		if (strchr(line, ':') != NULL)
-			return EX_DATAERR;
+			errx(EX_DATAERR, "bad encrypted password");
 		pwd->pw_passwd = line;
 	} else {
 		lc = login_getpwclass(pwd);
@@ -531,8 +532,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 				warnx("WARNING: home `%s' is not a directory", pwd->pw_dir);
 		}
 
-		if ((arg = getarg(args, 'w')) != NULL &&
-		    getarg(args, 'h') == NULL && getarg(args, 'H') == NULL) {
+		if ((arg = getarg(args, 'w')) != NULL && conf.fd == -1) {
 			login_cap_t *lc;
 
 			lc = login_getpwclass(pwd);
@@ -591,7 +591,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	}
 
 	if (conf.fd != -1)
-		edited = set_passwd(pwd, arg, mode == M_UPDATE);
+		edited = set_passwd(pwd, mode == M_UPDATE);
 
 	/*
 	 * Special case: -N only displays & exits
@@ -1004,8 +1004,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		/*
 		 * We give this information back to the user
 		 */
-		if (getarg(args, 'h') == NULL && getarg(args, 'H') == NULL &&
-		    !conf.dryrun) {
+		if (conf.fd == -1 && !conf.dryrun) {
 			if (isatty(STDOUT_FILENO))
 				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
