@@ -424,24 +424,24 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 
 		switch (cmd) {
 		case F_OGETLK:
-		    cmd = F_GETLK;
-		    break;
+			cmd = F_GETLK;
+			break;
 		case F_OSETLK:
-		    cmd = F_SETLK;
-		    break;
+			cmd = F_SETLK;
+			break;
 		case F_OSETLKW:
-		    cmd = F_SETLKW;
-		    break;
+			cmd = F_SETLKW;
+			break;
 		}
 		arg1 = (intptr_t)&fl;
 		break;
-        case F_GETLK:
-        case F_SETLK:
-        case F_SETLKW:
+	case F_GETLK:
+	case F_SETLK:
+	case F_SETLKW:
 	case F_SETLK_REMOTE:
-                error = copyin((void *)(intptr_t)arg, &fl, sizeof(fl));
-                arg1 = (intptr_t)&fl;
-                break;
+		error = copyin((void *)(intptr_t)arg, &fl, sizeof(fl));
+		arg1 = (intptr_t)&fl;
+		break;
 	default:
 		arg1 = arg;
 		break;
@@ -729,7 +729,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			if ((flp->l_start > 0 &&
 			    foffset > OFF_MAX - flp->l_start) ||
 			    (flp->l_start < 0 &&
-			     foffset < OFF_MIN - flp->l_start)) {
+			    foffset < OFF_MIN - flp->l_start)) {
 				error = EOVERFLOW;
 				fdrop(fp, td);
 				break;
@@ -931,13 +931,13 @@ funsetown(struct sigio **sigiop)
 		struct pgrp *pg = (sigio)->sio_pgrp;
 		PGRP_LOCK(pg);
 		SLIST_REMOVE(&sigio->sio_pgrp->pg_sigiolst, sigio,
-			     sigio, sio_pgsigio);
+			    sigio, sio_pgsigio);
 		PGRP_UNLOCK(pg);
 	} else {
 		struct proc *p = (sigio)->sio_proc;
 		PROC_LOCK(p);
 		SLIST_REMOVE(&sigio->sio_proc->p_sigiolst, sigio,
-			     sigio, sio_pgsigio);
+			    sigio, sio_pgsigio);
 		PROC_UNLOCK(p);
 	}
 	SIGIO_UNLOCK();
@@ -1191,18 +1191,14 @@ struct close_args {
 #endif
 /* ARGSUSED */
 int
-sys_close(td, uap)
-	struct thread *td;
-	struct close_args *uap;
+sys_close(struct thread *td, struct close_args *uap)
 {
 
 	return (kern_close(td, uap->fd));
 }
 
 int
-kern_close(td, fd)
-	struct thread *td;
-	int fd;
+kern_close(struct thread *td, int fd)
 {
 	struct filedesc *fdp;
 	struct file *fp;
@@ -2281,10 +2277,10 @@ closef(struct file *fp, struct thread *td)
 			fdp = td->td_proc->p_fd;
 			FILEDESC_XLOCK(fdp);
 			for (fdtol = fdtol->fdl_next;
-			     fdtol != td->td_proc->p_fdtol;
-			     fdtol = fdtol->fdl_next) {
+			    fdtol != td->td_proc->p_fdtol;
+			    fdtol = fdtol->fdl_next) {
 				if ((fdtol->fdl_leader->p_flag &
-				     P_ADVLOCK) == 0)
+				    P_ADVLOCK) == 0)
 					continue;
 				fdtol->fdl_holdcount++;
 				FILEDESC_XUNLOCK(fdp);
@@ -2934,8 +2930,7 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 	struct filedesc_to_leader *fdtol;
 
 	fdtol = malloc(sizeof(struct filedesc_to_leader),
-	       M_FILEDESC_TO_LEADER,
-	       M_WAITOK);
+	    M_FILEDESC_TO_LEADER, M_WAITOK);
 	fdtol->fdl_refcount = 1;
 	fdtol->fdl_holdcount = 0;
 	fdtol->fdl_wakeup = 0;
