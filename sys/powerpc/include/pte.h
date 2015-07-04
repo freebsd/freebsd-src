@@ -210,7 +210,7 @@ typedef	struct lpte lpte_t;
  */
 #ifndef	LOCORE
 struct pte {
-	vm_offset_t rpn;
+	vm_paddr_t rpn;
 	uint32_t flags;
 };
 typedef struct pte pte_t;
@@ -273,5 +273,5 @@ typedef struct pte pte_t;
 #define PTE_ISMODIFIED(pte)	((pte)->flags & PTE_MODIFIED)
 #define PTE_ISREFERENCED(pte)	((pte)->flags & PTE_REFERENCED)
 
-#endif /* BOOKE_PPC4XX */
+#endif /* BOOKE */
 #endif /* _MACHINE_PTE_H_ */
