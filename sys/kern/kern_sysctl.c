@@ -90,7 +90,7 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
 static struct rmlock sysctllock;
 static struct sx sysctlmemlock;
 
-#define	SYSCTL_WLOCK()		do { printf("wlocked!\n"); rm_wlock(&sysctllock); } while (0)
+#define	SYSCTL_WLOCK()		rm_wlock(&sysctllock)
 #define	SYSCTL_WUNLOCK()	rm_wunlock(&sysctllock)
 #define	SYSCTL_RLOCK(tracker)	rm_rlock(&sysctllock, (tracker))
 #define	SYSCTL_RUNLOCK(tracker)	rm_runlock(&sysctllock, (tracker))
