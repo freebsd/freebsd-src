@@ -2058,6 +2058,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct aiocblist *cbe, *cbn;
 	struct file *fp;
 	struct socket *so;
+	cap_rights_t rights;
 	int error;
 	int remove;
 	int cancelled = 0;
@@ -2065,7 +2066,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct vnode *vp;
 
 	/* Lookup file object. */
-	error = fget(td, uap->fd, NULL, &fp);
+	error = fget(td, uap->fd, cap_rights_init(&rights), &fp);
 	if (error)
 		return (error);
 
