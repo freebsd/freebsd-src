@@ -11,7 +11,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -38,8 +38,8 @@
  * private:
  *
  * what:  Remove option args from a stack
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  Invoked for options that are equivalenced to stacked options.
@@ -52,7 +52,7 @@ optionUnstackArg(tOptions * opts, tOptDesc * od)
     if (INQUERY_CALL(opts, od))
         return;
 
-    arg_list = (tArgList*)od->optCookie;
+    arg_list = (tArgList *)od->optCookie;
 
     /*
      *  IF we don't have any stacked options,
@@ -165,7 +165,7 @@ optionUnstackArg(tOptions * opts, tOptDesc * od)
         od->fOptState &= OPTST_PERSISTENT_MASK;
         if ((od->fOptState & OPTST_INITENABLED) == 0)
             od->fOptState |= OPTST_DISABLED;
-        AGFREE((void *)arg_list);
+        AGFREE(arg_list);
         od->optCookie = NULL;
     }
 }
@@ -179,19 +179,19 @@ optionUnstackArg(tOptions * opts, tOptDesc * od)
 LOCAL void
 addArgListEntry(void ** ppAL, void * entry)
 {
-    tArgList* pAL = *(void**)ppAL;
+    tArgList * pAL = *(void **)ppAL;
 
     /*
      *  IF we have never allocated one of these,
      *  THEN allocate one now
      */
     if (pAL == NULL) {
-        pAL = (tArgList*)AGALOC(sizeof(*pAL), "new option arg stack");
+        pAL = (tArgList *)AGALOC(sizeof(*pAL), "new option arg stack");
         if (pAL == NULL)
             return;
         pAL->useCt   = 0;
         pAL->allocCt = MIN_ARG_ALLOC_CT;
-        *ppAL = (void*)pAL;
+        *ppAL = VOIDP(pAL);
     }
 
     /*
@@ -206,11 +206,11 @@ addArgListEntry(void ** ppAL, void * entry)
          *  The base structure contains space for MIN_ARG_ALLOC_CT
          *  pointers.  We subtract it off to find our augment size.
          */
-        sz += sizeof(char*) * ((size_t)pAL->allocCt - MIN_ARG_ALLOC_CT);
-        pAL = (tArgList*)AGREALOC((void*)pAL, sz, "expanded opt arg stack");
+        sz += sizeof(char *) * ((size_t)pAL->allocCt - MIN_ARG_ALLOC_CT);
+        pAL = (tArgList *)AGREALOC(VOIDP(pAL), sz, "expanded opt arg stack");
         if (pAL == NULL)
             return;
-        *ppAL = (void*)pAL;
+        *ppAL = VOIDP(pAL);
     }
 
     /*
@@ -224,8 +224,8 @@ addArgListEntry(void ** ppAL, void * entry)
  * private:
  *
  * what:  put option args on a stack
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  Keep an entry-ordered list of option arguments.
@@ -239,7 +239,7 @@ optionStackArg(tOptions * opts, tOptDesc * od)
         return;
 
     if ((od->fOptState & OPTST_RESET) != 0) {
-        tArgList * arg_list = (void*)od->optCookie;
+        tArgList * arg_list = od->optCookie;
         int ix;
         if (arg_list == NULL)
             return;
@@ -254,7 +254,7 @@ optionStackArg(tOptions * opts, tOptDesc * od)
             return;
 
         AGDUPSTR(pz, od->optArg.argString, "stack arg");
-        addArgListEntry(&(od->optCookie), (void*)pz);
+        addArgListEntry(&(od->optCookie), VOIDP(pz));
     }
 }
 /** @}

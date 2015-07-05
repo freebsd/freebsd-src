@@ -1,5 +1,154 @@
 ---
-NTP 4.2.8p2 (Harlan Stenn <stenn@ntp.org>, 2015/04/xx) 
+NTP 4.2.8p3 (Harlan Stenn <stenn@ntp.org>, 2015/06/29) 
+
+Focus: 1 Security fix.  Bug fixes and enhancements.  Leap-second improvements.
+
+Severity: MEDIUM
+
+Security Fix:
+
+* [Sec 2853] Crafted remote config packet can crash some versions of
+  ntpd.  Aleksis Kauppinen, Juergen Perlinger, Harlan Stenn.
+
+Under specific circumstances an attacker can send a crafted packet to
+cause a vulnerable ntpd instance to crash. This requires each of the
+following to be true:
+
+1) ntpd set up to allow remote configuration (not allowed by default), and
+2) knowledge of the configuration password, and
+3) access to a computer entrusted to perform remote configuration. 
+
+This vulnerability is considered low-risk.
+
+New features in this release:
+
+Optional (disabled by default) support to have ntpd provide smeared
+leap second time.  A specially built and configured ntpd will only
+offer smeared time in response to client packets.  These response
+packets will also contain a "refid" of 254.a.b.c, where the 24 bits
+of a, b, and c encode the amount of smear in a 2:22 integer:fraction 
+format.  See README.leapsmear and http://bugs.ntp.org/2855 for more
+information.
+
+   *IF YOU CHOOSE TO CONFIGURE NTPD TO PROVIDE LEAP SMEAR TIME*
+   *BE SURE YOU DO NOT OFFER THAT TIME ON PUBLIC TIMESERVERS.*
+
+We've imported the Unity test framework, and have begun converting
+the existing google-test items to this new framework.  If you want
+to write new tests or change old ones, you'll need to have ruby
+installed.  You don't need ruby to run the test suite.
+
+Bug Fixes and Improvements:
+
+* CID 739725: Fix a rare resource leak in libevent/listener.c.
+* CID 1295478: Quiet a pedantic potential error from the fix for Bug 2776.
+* CID 1296235: Fix refclock_jjy.c and correcting type of the driver40-ja.html
+* CID 1269537: Clean up a line of dead code in getShmTime().
+* [Bug 1060] Buffer overruns in libparse/clk_rawdcf.c.  Helge Oldach.
+* [Bug 2590] autogen-5.18.5.
+* [Bug 2612] restrict: Warn when 'monitor' can't be disabled because
+  of 'limited'.
+* [Bug 2650] fix includefile processing.
+* [Bug 2745] ntpd -x steps clock on leap second
+   Fixed an initial-value problem that caused misbehaviour in absence of
+   any leapsecond information.
+   Do leap second stepping only of the step adjustment is beyond the
+   proper jump distance limit and step correction is allowed at all.
+* [Bug 2750] build for Win64
+  Building for 32bit of loopback ppsapi needs def file
+* [Bug 2776] Improve ntpq's 'help keytype'.
+* [Bug 2778] Implement "apeers"  ntpq command to include associd.
+* [Bug 2782] Refactor refclock_shm.c, add memory barrier protection.
+* [Bug 2792] If the IFF_RUNNING interface flag is supported then an
+  interface is ignored as long as this flag is not set since the
+  interface is not usable (e.g., no link).
+* [Bug 2794] Clean up kernel clock status reports.
+* [Bug 2800] refclock_true.c true_debug() can't open debug log because
+  of incompatible open/fdopen parameters.
+* [Bug 2804] install-local-data assumes GNU 'find' semantics.
+* [Bug 2805] ntpd fails to join multicast group.
+* [Bug 2806] refclock_jjy.c supports the Telephone JJY.
+* [Bug 2808] GPSD_JSON driver enhancements, step 1.
+  Fix crash during cleanup if GPS device not present and char device.
+  Increase internal token buffer to parse all JSON data, even SKY.
+  Defer logging of errors during driver init until the first unit is
+  started, so the syslog is not cluttered when the driver is not used.
+  Various improvements, see http://bugs.ntp.org/2808 for details.
+  Changed libjsmn to a more recent version.
+* [Bug 2810] refclock_shm.c memory barrier code needs tweaks for QNX.
+* [Bug 2813] HP-UX needs -D__STDC_VERSION__=199901L and limits.h.
+* [Bug 2815] net-snmp before v5.4 has circular library dependencies.
+* [Bug 2821] Add a missing NTP_PRINTF and a missing const.
+* [Bug 2822] New leap column in sntp broke NTP::Util.pm.
+* [Bug 2824] Convert update-leap to perl. (also see 2769)
+* [Bug 2825] Quiet file installation in html/ .
+* [Bug 2830] ntpd doesn't always transfer the correct TAI offset via autokey
+   NTPD transfers the current TAI (instead of an announcement) now.
+   This might still needed improvement.
+   Update autokey data ASAP when 'sys_tai' changes.
+   Fix unit test that was broken by changes for autokey update.
+   Avoid potential signature length issue and use DPRINTF where possible
+     in ntp_crypto.c.
+* [Bug 2832] refclock_jjy.c supports the TDC-300.
+* [Bug 2834] Correct a broken html tag in html/refclock.html
+* [Bug 2836] DFC77 patches from Frank Kardel to make decoding more
+  robust, and require 2 consecutive timestamps to be consistent.
+* [Bug 2837] Allow a configurable DSCP value.
+* [Bug 2837] add test for DSCP to ntpd/complete.conf.in
+* [Bug 2842] Glitch in ntp.conf.def documentation stanza.
+* [Bug 2842] Bug in mdoc2man.
+* [Bug 2843] make check fails on 4.3.36
+   Fixed compiler warnings about numeric range overflow
+   (The original topic was fixed in a byplay to bug#2830)
+* [Bug 2845] Harden memory allocation in ntpd.
+* [Bug 2852] 'make check' can't find unity.h.  Hal Murray.
+* [Bug 2854] Missing brace in libntp/strdup.c.  Masanari Iida.
+* [Bug 2855] Parser fix for conditional leap smear code.  Harlan Stenn.
+* [Bug 2855] Report leap smear in the REFID.  Harlan Stenn.
+* [Bug 2855] Implement conditional leap smear code.  Martin Burnicki.
+* [Bug 2856] ntpd should wait() on terminated child processes.  Paul Green.
+* [Bug 2857] Stratus VOS does not support SIGIO.  Paul Green.
+* [Bug 2859] Improve raw DCF77 robustness deconding.  Frank Kardel.
+* [Bug 2860] ntpq ifstats sanity check is too stringent.  Frank Kardel.
+* html/drivers/driver22.html: typo fix.  Harlan Stenn.
+* refidsmear test cleanup.  Tomasz Flendrich.
+* refidsmear function support and tests.  Harlan Stenn.
+* sntp/tests/Makefile.am: remove g_nameresolution.cpp as it tested
+  something that was only in the 4.2.6 sntp.  Harlan Stenn.
+* Modified tests/bug-2803/Makefile.am so it builds Unity framework tests.
+  Damir Tomić
+* Modified tests/libtnp/Makefile.am so it builds Unity framework tests.
+  Damir Tomić
+* Modified sntp/tests/Makefile.am so it builds Unity framework tests.
+  Damir Tomić
+* tests/sandbox/smeartest.c: Harlan Stenn, Damir Tomic, Juergen Perlinger.
+* Converted from gtest to Unity: tests/bug-2803/. Damir Tomić
+* Converted from gtest to Unity: tests/libntp/ a_md5encrypt, atoint.c,
+  atouint.c, authkeys.c, buftvtots.c, calendar.c, caljulian.c,
+  calyearstart.c, clocktime.c, hextoint.c, lfpfunc.c, modetoa.c,
+  numtoa.c, numtohost.c, refnumtoa.c, ssl_init.c, statestr.c,
+  timespecops.c, timevalops.c, uglydate.c, vi64ops.c, ymd2yd.c.
+  Damir Tomić
+* Converted from gtest to Unity: sntp/tests/ kodDatabase.c, kodFile.c,
+  networking.c, keyFile.c, utilities.cpp, sntptest.h,
+  fileHandlingTest.h. Damir Tomić
+* Initial support for experimental leap smear code.  Harlan Stenn.
+* Fixes to sntp/tests/fileHandlingTest.h.in.  Harlan Stenn.
+* Report select() debug messages at debug level 3 now.
+* sntp/scripts/genLocInfo: treat raspbian as debian.
+* Unity test framework fixes.
+  ** Requires ruby for changes to tests.
+* Initial support for PACKAGE_VERSION tests.
+* sntp/libpkgver belongs in EXTRA_DIST, not DIST_SUBDIRS.
+* tests/bug-2803/Makefile.am must distribute bug-2803.h.
+* Add an assert to the ntpq ifstats code.
+* Clean up the RLIMIT_STACK code.
+* Improve the ntpq documentation around the controlkey keyid.
+* ntpq.c cleanup.
+* Windows port build cleanup.
+
+---
+NTP 4.2.8p2 (Harlan Stenn <stenn@ntp.org>, 2015/04/07) 
 
 Focus: Security and Bug fixes, enhancements.
 

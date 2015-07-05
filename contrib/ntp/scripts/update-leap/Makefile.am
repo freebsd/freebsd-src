@@ -28,13 +28,14 @@ endif
 EXTRA_DIST =				\
 	invoke-update-leap.menu		\
 	invoke-update-leap.texi		\
-	update-leap			\
 	update-leap-opts.def		\
 	update-leap-opts		\
 	update-leap.1update-leapman	\
 	update-leap.1update-leapmdoc	\
+	update-leap.in			\
 	update-leap.man.in		\
 	update-leap.mdoc.in		\
+	update-leap.sh			\
 	update-leap.texi		\
 	update-leap.html		\
 	$(NULL)
