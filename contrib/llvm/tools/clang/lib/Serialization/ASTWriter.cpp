@@ -1266,11 +1266,14 @@ void ASTWriter::WriteControlBlock(Preprocessor &PP, ASTContext &Context,
   Record.push_back(LangOpts.Sanitize.has(SanitizerKind::ID));
 #include "clang/Basic/Sanitizers.def"
 
+  Record.push_back(LangOpts.ModuleFeatures.size());
+  for (StringRef Feature : LangOpts.ModuleFeatures)
+    AddString(Feature, Record);
+
   Record.push_back((unsigned) LangOpts.ObjCRuntime.getKind());
   AddVersionTuple(LangOpts.ObjCRuntime.getVersion(), Record);
-  
-  Record.push_back(LangOpts.CurrentModule.size());
-  Record.append(LangOpts.CurrentModule.begin(), LangOpts.CurrentModule.end());
+
+  AddString(LangOpts.CurrentModule, Record);
 
   // Comment options.
   Record.push_back(LangOpts.CommentOpts.BlockCommandNames.size());
@@ -4618,6 +4621,10 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
       case UPD_DECL_EXPORTED:
         Record.push_back(getSubmoduleID(Update.getModule()));
         break;
+
+      case UPD_ADDED_ATTR_TO_RECORD:
+        WriteAttributes(llvm::makeArrayRef(Update.getAttr()), Record);
+        break;
       }
     }
 
@@ -5765,4 +5772,12 @@ void ASTWriter::RedefinedHiddenDefinition(const NamedDecl *D, Module *M) {
   assert(!WritingAST && "Already writing the AST!");
   assert(D->isHidden() && "expected a hidden declaration");
   DeclUpdates[D].push_back(DeclUpdate(UPD_DECL_EXPORTED, M));
+}
+
+void ASTWriter::AddedAttributeToRecord(const Attr *Attr,
+                                       const RecordDecl *Record) {
+  assert(!WritingAST && "Already writing the AST!");
+  if (!Record->isFromASTFile())
+    return;
+  DeclUpdates[Record].push_back(DeclUpdate(UPD_ADDED_ATTR_TO_RECORD, Attr));
 }

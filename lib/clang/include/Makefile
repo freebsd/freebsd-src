@@ -20,6 +20,7 @@ INCS=	Intrin.h \
 	arm_acle.h \
 	avx2intrin.h \
 	avx512bwintrin.h \
+	avx512cdintrin.h \
 	avx512dqintrin.h \
 	avx512erintrin.h \
 	avx512fintrin.h \
@@ -35,6 +36,7 @@ INCS=	Intrin.h \
 	f16cintrin.h \
 	fma4intrin.h \
 	fmaintrin.h \
+	fxsrintrin.h \
 	htmintrin.h \
 	htmxlintrin.h \
 	ia32intrin.h \

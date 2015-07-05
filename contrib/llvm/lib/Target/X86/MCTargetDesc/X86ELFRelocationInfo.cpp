@@ -26,14 +26,17 @@ public:
   X86_64ELFRelocationInfo(MCContext &Ctx) : MCRelocationInfo(Ctx) {}
 
   const MCExpr *createExprForRelocation(RelocationRef Rel) override {
-    uint64_t RelType; Rel.getType(RelType);
-    symbol_iterator SymI = Rel.getSymbol();
+    uint64_t RelType = Rel.getType();
+    elf_symbol_iterator SymI = Rel.getSymbol();
 
-    StringRef SymName; SymI->getName(SymName);
+    ErrorOr<StringRef> SymNameOrErr = SymI->getName();
+    if (std::error_code EC = SymNameOrErr.getError())
+      report_fatal_error(EC.message());
+    StringRef SymName = *SymNameOrErr;
+
     uint64_t  SymAddr; SymI->getAddress(SymAddr);
     uint64_t SymSize = SymI->getSize();
-    auto *Obj = cast<ELFObjectFileBase>(Rel.getObjectFile());
-    int64_t Addend = *Obj->getRelocationAddend(Rel.getRawDataRefImpl());
+    int64_t Addend = *ELFRelocationRef(Rel).getAddend();
 
     MCSymbol *Sym = Ctx.getOrCreateSymbol(SymName);
     // FIXME: check that the value is actually the same.

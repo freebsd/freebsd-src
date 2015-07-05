@@ -43,6 +43,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -80,6 +81,7 @@ namespace {
 
     struct LoopProperties {
       unsigned CanBeUnswitchedCount;
+      unsigned WasUnswitchedCount;
       unsigned SizeEstimation;
       UnswitchedValsMap UnswitchedVals;
     };
@@ -93,37 +95,52 @@ namespace {
     UnswitchedValsMap *CurLoopInstructions;
     LoopProperties *CurrentLoopProperties;
 
-    // Max size of code we can produce on remained iterations.
+    // A loop unswitching with an estimated cost above this threshold
+    // is not performed. MaxSize is turned into unswitching quota for
+    // the current loop, and reduced correspondingly, though note that
+    // the quota is returned by releaseMemory() when the loop has been
+    // processed, so that MaxSize will return to its previous
+    // value. So in most cases MaxSize will equal the Threshold flag
+    // when a new loop is processed. An exception to that is that
+    // MaxSize will have a smaller value while processing nested loops
+    // that were introduced due to loop unswitching of an outer loop.
+    //
+    // FIXME: The way that MaxSize works is subtle and depends on the
+    // pass manager processing loops and calling releaseMemory() in a
+    // specific order. It would be good to find a more straightforward
+    // way of doing what MaxSize does.
     unsigned MaxSize;
 
-    public:
+  public:
+    LUAnalysisCache()
+        : CurLoopInstructions(nullptr), CurrentLoopProperties(nullptr),
+          MaxSize(Threshold) {}
 
-      LUAnalysisCache() :
-        CurLoopInstructions(nullptr), CurrentLoopProperties(nullptr),
-        MaxSize(Threshold)
-      {}
+    // Analyze loop. Check its size, calculate is it possible to unswitch
+    // it. Returns true if we can unswitch this loop.
+    bool countLoop(const Loop *L, const TargetTransformInfo &TTI,
+                   AssumptionCache *AC);
 
-      // Analyze loop. Check its size, calculate is it possible to unswitch
-      // it. Returns true if we can unswitch this loop.
-      bool countLoop(const Loop *L, const TargetTransformInfo &TTI,
-                     AssumptionCache *AC);
+    // Clean all data related to given loop.
+    void forgetLoop(const Loop *L);
 
-      // Clean all data related to given loop.
-      void forgetLoop(const Loop *L);
+    // Mark case value as unswitched.
+    // Since SI instruction can be partly unswitched, in order to avoid
+    // extra unswitching in cloned loops keep track all unswitched values.
+    void setUnswitched(const SwitchInst *SI, const Value *V);
 
-      // Mark case value as unswitched.
-      // Since SI instruction can be partly unswitched, in order to avoid
-      // extra unswitching in cloned loops keep track all unswitched values.
-      void setUnswitched(const SwitchInst *SI, const Value *V);
+    // Check was this case value unswitched before or not.
+    bool isUnswitched(const SwitchInst *SI, const Value *V);
 
-      // Check was this case value unswitched before or not.
-      bool isUnswitched(const SwitchInst *SI, const Value *V);
+    // Returns true if another unswitching could be done within the cost
+    // threshold.
+    bool CostAllowsUnswitching();
 
-      // Clone all loop-unswitch related loop properties.
-      // Redistribute unswitching quotas.
-      // Note, that new loop data is stored inside the VMap.
-      void cloneData(const Loop *NewLoop, const Loop *OldLoop,
-                     const ValueToValueMapTy &VMap);
+    // Clone all loop-unswitch related loop properties.
+    // Redistribute unswitching quotas.
+    // Note, that new loop data is stored inside the VMap.
+    void cloneData(const Loop *NewLoop, const Loop *OldLoop,
+                   const ValueToValueMapTy &VMap);
   };
 
   class LoopUnswitch : public LoopPass {
@@ -195,10 +212,12 @@ namespace {
     /// Update the appropriate Phi nodes as we do so.
     void SplitExitEdges(Loop *L, const SmallVectorImpl<BasicBlock *> &ExitBlocks);
 
-    bool UnswitchIfProfitable(Value *LoopCond, Constant *Val);
+    bool UnswitchIfProfitable(Value *LoopCond, Constant *Val,
+                              TerminatorInst *TI = nullptr);
     void UnswitchTrivialCondition(Loop *L, Value *Cond, Constant *Val,
-                                  BasicBlock *ExitBlock);
-    void UnswitchNontrivialCondition(Value *LIC, Constant *OnVal, Loop *L);
+                                  BasicBlock *ExitBlock, TerminatorInst *TI);
+    void UnswitchNontrivialCondition(Value *LIC, Constant *OnVal, Loop *L,
+                                     TerminatorInst *TI);
 
     void RewriteLoopBodyWithConditionConstant(Loop *L, Value *LIC,
                                               Constant *Val, bool isEqual);
@@ -206,14 +225,15 @@ namespace {
     void EmitPreheaderBranchOnCondition(Value *LIC, Constant *Val,
                                         BasicBlock *TrueDest,
                                         BasicBlock *FalseDest,
-                                        Instruction *InsertPt);
+                                        Instruction *InsertPt,
+                                        TerminatorInst *TI);
 
     void SimplifyCode(std::vector<Instruction*> &Worklist, Loop *L);
     bool IsTrivialUnswitchCondition(Value *Cond, Constant **Val = nullptr,
                                     BasicBlock **LoopExit = nullptr);
 
   };
-} // namespace
+}
 
 // Analyze loop. Check its size, calculate is it possible to unswitch
 // it. Returns true if we can unswitch this loop.
@@ -242,12 +262,13 @@ bool LUAnalysisCache::countLoop(const Loop *L, const TargetTransformInfo &TTI,
     // consideration code simplification opportunities and code that can
     // be shared by the resultant unswitched loops.
     CodeMetrics Metrics;
-    for (Loop::block_iterator I = L->block_begin(), E = L->block_end();
-         I != E; ++I)
+    for (Loop::block_iterator I = L->block_begin(), E = L->block_end(); I != E;
+         ++I)
       Metrics.analyzeBasicBlock(*I, TTI, EphValues);
 
-    Props.SizeEstimation = std::min(Metrics.NumInsts, Metrics.NumBlocks * 5);
+    Props.SizeEstimation = Metrics.NumInsts;
     Props.CanBeUnswitchedCount = MaxSize / (Props.SizeEstimation);
+    Props.WasUnswitchedCount = 0;
     MaxSize -= Props.SizeEstimation * Props.CanBeUnswitchedCount;
 
     if (Metrics.notDuplicatable) {
@@ -256,13 +277,6 @@ bool LUAnalysisCache::countLoop(const Loop *L, const TargetTransformInfo &TTI,
                    << "duplicated!\n");
       return false;
     }
-  }
-
-  if (!Props.CanBeUnswitchedCount) {
-    DEBUG(dbgs() << "NOT unswitching loop %"
-                 << L->getHeader()->getName() << ", cost too high: "
-                 << L->getBlocks().size() << "\n");
-    return false;
   }
 
   // Be careful. This links are good only before new loop addition.
@@ -279,7 +293,8 @@ void LUAnalysisCache::forgetLoop(const Loop *L) {
 
   if (LIt != LoopsProperties.end()) {
     LoopProperties &Props = LIt->second;
-    MaxSize += Props.CanBeUnswitchedCount * Props.SizeEstimation;
+    MaxSize += (Props.CanBeUnswitchedCount + Props.WasUnswitchedCount) *
+               Props.SizeEstimation;
     LoopsProperties.erase(LIt);
   }
 
@@ -299,6 +314,10 @@ bool LUAnalysisCache::isUnswitched(const SwitchInst *SI, const Value *V) {
   return (*CurLoopInstructions)[SI].count(V);
 }
 
+bool LUAnalysisCache::CostAllowsUnswitching() {
+  return CurrentLoopProperties->CanBeUnswitchedCount > 0;
+}
+
 // Clone all loop-unswitch related loop properties.
 // Redistribute unswitching quotas.
 // Note, that new loop data is stored inside the VMap.
@@ -312,6 +331,8 @@ void LUAnalysisCache::cloneData(const Loop *NewLoop, const Loop *OldLoop,
   // Reallocate "can-be-unswitched quota"
 
   --OldLoopProps.CanBeUnswitchedCount;
+  ++OldLoopProps.WasUnswitchedCount;
+  NewLoopProps.WasUnswitchedCount = 0;
   unsigned Quota = OldLoopProps.CanBeUnswitchedCount;
   NewLoopProps.CanBeUnswitchedCount = Quota / 2;
   OldLoopProps.CanBeUnswitchedCount = Quota - Quota / 2;
@@ -453,8 +474,8 @@ bool LoopUnswitch::processCurrentLoop() {
         // unswitch on it if we desire.
         Value *LoopCond = FindLIVLoopCondition(BI->getCondition(),
                                                currentLoop, Changed);
-        if (LoopCond && UnswitchIfProfitable(LoopCond,
-                                             ConstantInt::getTrue(Context))) {
+        if (LoopCond &&
+            UnswitchIfProfitable(LoopCond, ConstantInt::getTrue(Context), TI)) {
           ++NumBranches;
           return true;
         }
@@ -643,7 +664,8 @@ bool LoopUnswitch::IsTrivialUnswitchCondition(Value *Cond, Constant **Val,
 /// UnswitchIfProfitable - We have found that we can unswitch currentLoop when
 /// LoopCond == Val to simplify the loop.  If we decide that this is profitable,
 /// unswitch the loop, reprocess the pieces, then return true.
-bool LoopUnswitch::UnswitchIfProfitable(Value *LoopCond, Constant *Val) {
+bool LoopUnswitch::UnswitchIfProfitable(Value *LoopCond, Constant *Val,
+                                        TerminatorInst *TI) {
   Function *F = loopHeader->getParent();
   Constant *CondVal = nullptr;
   BasicBlock *ExitBlock = nullptr;
@@ -651,17 +673,25 @@ bool LoopUnswitch::UnswitchIfProfitable(Value *LoopCond, Constant *Val) {
   if (IsTrivialUnswitchCondition(LoopCond, &CondVal, &ExitBlock)) {
     // If the condition is trivial, always unswitch. There is no code growth
     // for this case.
-    UnswitchTrivialCondition(currentLoop, LoopCond, CondVal, ExitBlock);
+    UnswitchTrivialCondition(currentLoop, LoopCond, CondVal, ExitBlock, TI);
     return true;
   }
 
   // Check to see if it would be profitable to unswitch current loop.
+  if (!BranchesInfo.CostAllowsUnswitching()) {
+    DEBUG(dbgs() << "NOT unswitching loop %"
+                 << currentLoop->getHeader()->getName()
+                 << " at non-trivial condition '" << *Val
+                 << "' == " << *LoopCond << "\n"
+                 << ". Cost too high.\n");
+    return false;
+  }
 
   // Do not do non-trivial unswitch while optimizing for size.
   if (OptimizeForSize || F->hasFnAttribute(Attribute::OptimizeForSize))
     return false;
 
-  UnswitchNontrivialCondition(LoopCond, Val, currentLoop);
+  UnswitchNontrivialCondition(LoopCond, Val, currentLoop, TI);
   return true;
 }
 
@@ -685,25 +715,65 @@ static Loop *CloneLoop(Loop *L, Loop *PL, ValueToValueMapTy &VM,
   return New;
 }
 
+static void copyMetadata(Instruction *DstInst, const Instruction *SrcInst,
+                         bool Swapped) {
+  if (!SrcInst || !SrcInst->hasMetadata())
+    return;
+
+  SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
+  SrcInst->getAllMetadata(MDs);
+  for (auto &MD : MDs) {
+    switch (MD.first) {
+    default:
+      break;
+    case LLVMContext::MD_prof:
+      if (Swapped && MD.second->getNumOperands() == 3 &&
+          isa<MDString>(MD.second->getOperand(0))) {
+        MDString *MDName = cast<MDString>(MD.second->getOperand(0));
+        if (MDName->getString() == "branch_weights") {
+          auto *ValT = cast_or_null<ConstantAsMetadata>(
+                           MD.second->getOperand(1))->getValue();
+          auto *ValF = cast_or_null<ConstantAsMetadata>(
+                           MD.second->getOperand(2))->getValue();
+          assert(ValT && ValF && "Invalid Operands of branch_weights");
+          auto NewMD =
+              MDBuilder(DstInst->getParent()->getContext())
+                  .createBranchWeights(cast<ConstantInt>(ValF)->getZExtValue(),
+                                       cast<ConstantInt>(ValT)->getZExtValue());
+          MD.second = NewMD;
+        }
+      }
+      // fallthrough.
+    case LLVMContext::MD_dbg:
+      DstInst->setMetadata(MD.first, MD.second);
+    }
+  }
+}
+
 /// EmitPreheaderBranchOnCondition - Emit a conditional branch on two values
 /// if LIC == Val, branch to TrueDst, otherwise branch to FalseDest.  Insert the
 /// code immediately before InsertPt.
 void LoopUnswitch::EmitPreheaderBranchOnCondition(Value *LIC, Constant *Val,
                                                   BasicBlock *TrueDest,
                                                   BasicBlock *FalseDest,
-                                                  Instruction *InsertPt) {
+                                                  Instruction *InsertPt,
+                                                  TerminatorInst *TI) {
   // Insert a conditional branch on LIC to the two preheaders.  The original
   // code is the true version and the new code is the false version.
   Value *BranchVal = LIC;
+  bool Swapped = false;
   if (!isa<ConstantInt>(Val) ||
       Val->getType() != Type::getInt1Ty(LIC->getContext()))
     BranchVal = new ICmpInst(InsertPt, ICmpInst::ICMP_EQ, LIC, Val);
-  else if (Val != ConstantInt::getTrue(Val->getContext()))
+  else if (Val != ConstantInt::getTrue(Val->getContext())) {
     // We want to enter the new loop when the condition is true.
     std::swap(TrueDest, FalseDest);
+    Swapped = true;
+  }
 
   // Insert the new branch.
   BranchInst *BI = BranchInst::Create(TrueDest, FalseDest, BranchVal, InsertPt);
+  copyMetadata(BI, TI, Swapped);
 
   // If either edge is critical, split it. This helps preserve LoopSimplify
   // form for enclosing loops.
@@ -717,13 +787,14 @@ void LoopUnswitch::EmitPreheaderBranchOnCondition(Value *LIC, Constant *Val,
 /// where the path through the loop that doesn't execute its body has no
 /// side-effects), unswitch it.  This doesn't involve any code duplication, just
 /// moving the conditional branch outside of the loop and updating loop info.
-void LoopUnswitch::UnswitchTrivialCondition(Loop *L, Value *Cond,
-                                            Constant *Val,
-                                            BasicBlock *ExitBlock) {
+void LoopUnswitch::UnswitchTrivialCondition(Loop *L, Value *Cond, Constant *Val,
+                                            BasicBlock *ExitBlock,
+                                            TerminatorInst *TI) {
   DEBUG(dbgs() << "loop-unswitch: Trivial-Unswitch loop %"
-        << loopHeader->getName() << " [" << L->getBlocks().size()
-        << " blocks] in Function " << L->getHeader()->getParent()->getName()
-        << " on cond: " << *Val << " == " << *Cond << "\n");
+               << loopHeader->getName() << " [" << L->getBlocks().size()
+               << " blocks] in Function "
+               << L->getHeader()->getParent()->getName() << " on cond: " << *Val
+               << " == " << *Cond << "\n");
 
   // First step, split the preheader, so that we know that there is a safe place
   // to insert the conditional branch.  We will change loopPreheader to have a
@@ -744,7 +815,7 @@ void LoopUnswitch::UnswitchTrivialCondition(Loop *L, Value *Cond,
   // Okay, now we have a position to branch from and a position to branch to,
   // insert the new conditional branch.
   EmitPreheaderBranchOnCondition(Cond, Val, NewExit, NewPH,
-                                 loopPreheader->getTerminator());
+                                 loopPreheader->getTerminator(), TI);
   LPM->deleteSimpleAnalysisValue(loopPreheader->getTerminator(), L);
   loopPreheader->getTerminator()->eraseFromParent();
 
@@ -780,7 +851,7 @@ void LoopUnswitch::SplitExitEdges(Loop *L,
 /// to unswitch when LIC equal Val.  Split it into loop versions and test the
 /// condition outside of either loop.  Return the loops created as Out1/Out2.
 void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
-                                               Loop *L) {
+                                               Loop *L, TerminatorInst *TI) {
   Function *F = loopHeader->getParent();
   DEBUG(dbgs() << "loop-unswitch: Unswitching loop %"
         << loopHeader->getName() << " [" << L->getBlocks().size()
@@ -897,7 +968,8 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
          "Preheader splitting did not work correctly!");
 
   // Emit the new branch that selects between the two versions of this loop.
-  EmitPreheaderBranchOnCondition(LIC, Val, NewBlocks[0], LoopBlocks[0], OldBR);
+  EmitPreheaderBranchOnCondition(LIC, Val, NewBlocks[0], LoopBlocks[0], OldBR,
+                                 TI);
   LPM->deleteSimpleAnalysisValue(OldBR, L);
   OldBR->eraseFromParent();
 

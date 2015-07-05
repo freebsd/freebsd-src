@@ -950,30 +950,30 @@ def NonNull : InheritableAttr {
   } }];
   // FIXME: We should merge duplicates into a single nonnull attribute.
   let DuplicatesAllowedWhileMerging = 1;
-  let Documentation = [Undocumented];
+  let Documentation = [NonNullDocs];
 }
 
 def ReturnsNonNull : InheritableAttr {
   let Spellings = [GCC<"returns_nonnull">];
   let Subjects = SubjectList<[ObjCMethod, Function], WarnDiag,
                              "ExpectedFunctionOrMethod">;
-  let Documentation = [Undocumented];
+  let Documentation = [ReturnsNonNullDocs];
 }
 
 // Nullability type attributes.
 def TypeNonNull : TypeAttr {
-  let Spellings = [Keyword<"__nonnull">];
-  let Documentation = [Undocumented];
+  let Spellings = [Keyword<"_Nonnull">];
+  let Documentation = [TypeNonNullDocs];
 }
 
 def TypeNullable : TypeAttr {
-  let Spellings = [Keyword<"__nullable">];
-  let Documentation = [Undocumented];
+  let Spellings = [Keyword<"_Nullable">];
+  let Documentation = [TypeNullableDocs];
 }
 
 def TypeNullUnspecified : TypeAttr {
-  let Spellings = [Keyword<"__null_unspecified">];
-  let Documentation = [Undocumented];
+  let Spellings = [Keyword<"_Null_unspecified">];
+  let Documentation = [TypeNullUnspecifiedDocs];
 }
 
 def AssumeAligned : InheritableAttr {
@@ -1123,6 +1123,12 @@ def ObjCRuntimeName : Attr {
   let Subjects = SubjectList<[ObjCInterface, ObjCProtocol], ErrorDiag>;
   let Args = [StringArgument<"MetadataName">];
   let Documentation = [ObjCRuntimeNameDocs];
+}
+
+def ObjCBoxable : Attr {
+  let Spellings = [GNU<"objc_boxable">];
+  let Subjects = SubjectList<[Record], ErrorDiag, "ExpectedStructOrUnion">;
+  let Documentation = [Undocumented];
 }
 
 def OptimizeNone : InheritableAttr {

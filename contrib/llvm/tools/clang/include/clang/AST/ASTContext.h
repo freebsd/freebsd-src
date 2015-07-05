@@ -1664,6 +1664,9 @@ public:
   TypeInfo getTypeInfo(const Type *T) const;
   TypeInfo getTypeInfo(QualType T) const { return getTypeInfo(T.getTypePtr()); }
 
+  /// \brief Get default simd alignment of the specified complete type in bits.
+  unsigned getOpenMPDefaultSimdAlign(QualType T) const;
+
   /// \brief Return the size of the specified (complete) type \p T, in bits.
   uint64_t getTypeSize(QualType T) const { return getTypeInfo(T).Width; }
   uint64_t getTypeSize(const Type *T) const { return getTypeInfo(T).Width; }
@@ -1779,6 +1782,17 @@ public:
   ///
   /// \param method should be the declaration from the class definition
   void setNonKeyFunction(const CXXMethodDecl *method);
+
+  /// Loading virtual member pointers using the virtual inheritance model
+  /// always results in an adjustment using the vbtable even if the index is
+  /// zero.
+  ///
+  /// This is usually OK because the first slot in the vbtable points
+  /// backwards to the top of the MDC.  However, the MDC might be reusing a
+  /// vbptr from an nv-base.  In this case, the first slot in the vbtable
+  /// points to the start of the nv-base which introduced the vbptr and *not*
+  /// the MDC.  Modify the NonVirtualBaseAdjustment to account for this.
+  CharUnits getOffsetOfBaseWithVBPtr(const CXXRecordDecl *RD) const;
 
   /// Get the offset of a FieldDecl or IndirectFieldDecl, in bits.
   uint64_t getFieldOffset(const ValueDecl *FD) const;

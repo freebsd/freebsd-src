@@ -1861,8 +1861,8 @@ DEF_TRAVERSE_DECL(ParmVarDecl, {
     TRY_TO(WalkUpFrom##STMT(S));                                               \
     StmtQueueAction StmtQueue(*this);                                          \
     { CODE; }                                                                  \
-    for (Stmt::child_range range = S->children(); range; ++range) {            \
-      StmtQueue.queue(*range);                                                 \
+    for (Stmt *SubStmt : S->children()) {                                      \
+      StmtQueue.queue(SubStmt);                                                \
     }                                                                          \
     return true;                                                               \
   }
@@ -2011,8 +2011,8 @@ bool RecursiveASTVisitor<Derived>::TraverseInitListExpr(InitListExpr *S) {
   TRY_TO(WalkUpFromInitListExpr(S));
   StmtQueueAction StmtQueue(*this);
   // All we need are the default actions.  FIXME: use a helper function.
-  for (Stmt::child_range range = S->children(); range; ++range) {
-    StmtQueue.queue(*range);
+  for (Stmt *SubStmt : S->children()) {
+    StmtQueue.queue(SubStmt);
   }
   return true;
 }
@@ -2358,6 +2358,12 @@ DEF_TRAVERSE_STMT(OMPTaskwaitDirective,
 DEF_TRAVERSE_STMT(OMPTaskgroupDirective,
                   { TRY_TO(TraverseOMPExecutableDirective(S)); })
 
+DEF_TRAVERSE_STMT(OMPCancellationPointDirective,
+                  { TRY_TO(TraverseOMPExecutableDirective(S)); })
+
+DEF_TRAVERSE_STMT(OMPCancelDirective,
+                  { TRY_TO(TraverseOMPExecutableDirective(S)); })
+
 DEF_TRAVERSE_STMT(OMPFlushDirective,
                   { TRY_TO(TraverseOMPExecutableDirective(S)); })
 
@@ -2618,6 +2624,12 @@ RecursiveASTVisitor<Derived>::VisitOMPReductionClause(OMPReductionClause *C) {
 
 template <typename Derived>
 bool RecursiveASTVisitor<Derived>::VisitOMPFlushClause(OMPFlushClause *C) {
+  TRY_TO(VisitOMPClauseList(C));
+  return true;
+}
+
+template <typename Derived>
+bool RecursiveASTVisitor<Derived>::VisitOMPDependClause(OMPDependClause *C) {
   TRY_TO(VisitOMPClauseList(C));
   return true;
 }

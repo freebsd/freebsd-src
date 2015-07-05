@@ -136,7 +136,6 @@ class BitcodeReader : public GVMaterializer {
   std::unique_ptr<MemoryBuffer> Buffer;
   std::unique_ptr<BitstreamReader> StreamFile;
   BitstreamCursor Stream;
-  bool IsStreamed;
   uint64_t NextUnreadBit = 0;
   bool SeenValueSymbolTable = false;
 
@@ -171,7 +170,7 @@ class BitcodeReader : public GVMaterializer {
 
   // When intrinsic functions are encountered which require upgrading they are
   // stored here with their replacement function.
-  typedef std::vector<std::pair<Function*, Function*> > UpgradedIntrinsicMap;
+  typedef DenseMap<Function*, Function*> UpgradedIntrinsicMap;
   UpgradedIntrinsicMap UpgradedIntrinsics;
 
   // Map the bitcode's custom MDKind ID to the Module's MDKind ID.
@@ -428,15 +427,13 @@ BitcodeReader::BitcodeReader(MemoryBuffer *Buffer, LLVMContext &Context,
                              DiagnosticHandlerFunction DiagnosticHandler)
     : Context(Context),
       DiagnosticHandler(getDiagHandler(DiagnosticHandler, Context)),
-      Buffer(Buffer), IsStreamed(false), ValueList(Context),
-      MDValueList(Context) {}
+      Buffer(Buffer), ValueList(Context), MDValueList(Context) {}
 
 BitcodeReader::BitcodeReader(LLVMContext &Context,
                              DiagnosticHandlerFunction DiagnosticHandler)
     : Context(Context),
       DiagnosticHandler(getDiagHandler(DiagnosticHandler, Context)),
-      Buffer(nullptr), IsStreamed(true), ValueList(Context),
-      MDValueList(Context) {}
+      Buffer(nullptr), ValueList(Context), MDValueList(Context) {}
 
 std::error_code BitcodeReader::materializeForwardReferencedFunctions() {
   if (WillMaterializeAllForwardRefs)
@@ -731,7 +728,7 @@ public:
   /// Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 };
-} // namespace
+}
 
 // FIXME: can we inherit this from ConstantExpr?
 template <>
@@ -739,7 +736,7 @@ struct OperandTraits<ConstantPlaceHolder> :
   public FixedNumOperandTraits<ConstantPlaceHolder, 1> {
 };
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantPlaceHolder, Value)
-} // namespace llvm
+}
 
 void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx) {
   if (Idx == size()) {
@@ -1830,6 +1827,20 @@ std::error_code BitcodeReader::parseMetadata() {
           NextMDValueNo++);
       break;
     }
+
+    case bitc::METADATA_MODULE: {
+      if (Record.size() != 6)
+        return error("Invalid record");
+
+      MDValueList.assignValue(
+          GET_OR_DISTINCT(DIModule, Record[0],
+                          (Context, getMDOrNull(Record[1]),
+                          getMDString(Record[2]), getMDString(Record[3]),
+                          getMDString(Record[4]), getMDString(Record[5]))),
+          NextMDValueNo++);
+      break;
+    }
+
     case bitc::METADATA_FILE: {
       if (Record.size() != 3)
         return error("Invalid record");
@@ -2699,7 +2710,7 @@ std::error_code BitcodeReader::globalCleanup() {
   for (Function &F : *TheModule) {
     Function *NewFn;
     if (UpgradeIntrinsicFunction(&F, NewFn))
-      UpgradedIntrinsics.push_back(std::make_pair(&F, NewFn));
+      UpgradedIntrinsics[&F] = NewFn;
   }
 
   // Look for global variables which need to be renamed.
@@ -2789,13 +2800,11 @@ std::error_code BitcodeReader::parseModule(bool Resume,
 
         if (std::error_code EC = rememberAndSkipFunctionBody())
           return EC;
-        // For streaming bitcode, suspend parsing when we reach the function
-        // bodies. Subsequent materialization calls will resume it when
-        // necessary. For streaming, the function bodies must be at the end of
-        // the bitcode. If the bitcode file is old, the symbol table will be
-        // at the end instead and will not have been seen yet. In this case,
-        // just finish the parse now.
-        if (IsStreamed && SeenValueSymbolTable) {
+        // Suspend parsing when we reach the function bodies. Subsequent
+        // materialization calls will resume it when necessary. If the bitcode
+        // file is old, the symbol table will be at the end instead and will not
+        // have been seen yet. In this case, just finish the parse now.
+        if (SeenValueSymbolTable) {
           NextUnreadBit = Stream.GetCurrentBitNo();
           return std::error_code();
         }
@@ -3049,8 +3058,7 @@ std::error_code BitcodeReader::parseModule(bool Resume,
       if (!isProto) {
         Func->setIsMaterializable(true);
         FunctionsWithBodies.push_back(Func);
-        if (IsStreamed)
-          DeferredFunctionInfo[Func] = 0;
+        DeferredFunctionInfo[Func] = 0;
       }
       break;
     }
@@ -4434,7 +4442,7 @@ std::error_code BitcodeReader::materialize(GlobalValue *GV) {
   assert(DFII != DeferredFunctionInfo.end() && "Deferred function not found!");
   // If its position is recorded as 0, its body is somewhere in the stream
   // but we haven't seen it yet.
-  if (DFII->second == 0 && IsStreamed)
+  if (DFII->second == 0)
     if (std::error_code EC = findFunctionInStream(F, DFII))
       return EC;
 
@@ -4449,13 +4457,14 @@ std::error_code BitcodeReader::materialize(GlobalValue *GV) {
     stripDebugInfo(*F);
 
   // Upgrade any old intrinsic calls in the function.
-  for (UpgradedIntrinsicMap::iterator I = UpgradedIntrinsics.begin(),
-       E = UpgradedIntrinsics.end(); I != E; ++I) {
-    if (I->first != I->second) {
-      for (auto UI = I->first->user_begin(), UE = I->first->user_end();
+  for (auto &I : UpgradedIntrinsics) {
+    if (I.first != I.second) {
+      for (auto UI = I.first->user_begin(), UE = I.first->user_end();
            UI != UE;) {
-        if (CallInst* CI = dyn_cast<CallInst>(*UI++))
-          UpgradeIntrinsicCall(CI, I->second);
+        User *U = *UI;
+        ++UI;
+        if (CallInst *CI = dyn_cast<CallInst>(U))
+          UpgradeIntrinsicCall(CI, I.second);
       }
     }
   }
@@ -4523,20 +4532,18 @@ std::error_code BitcodeReader::materializeModule(Module *M) {
   // delete the old functions to clean up. We can't do this unless the entire
   // module is materialized because there could always be another function body
   // with calls to the old function.
-  for (std::vector<std::pair<Function*, Function*> >::iterator I =
-       UpgradedIntrinsics.begin(), E = UpgradedIntrinsics.end(); I != E; ++I) {
-    if (I->first != I->second) {
-      for (auto UI = I->first->user_begin(), UE = I->first->user_end();
-           UI != UE;) {
-        if (CallInst* CI = dyn_cast<CallInst>(*UI++))
-          UpgradeIntrinsicCall(CI, I->second);
+  for (auto &I : UpgradedIntrinsics) {
+    if (I.first != I.second) {
+      for (auto *U : I.first->users()) {
+        if (CallInst *CI = dyn_cast<CallInst>(U))
+          UpgradeIntrinsicCall(CI, I.second);
       }
-      if (!I->first->use_empty())
-        I->first->replaceAllUsesWith(I->second);
-      I->first->eraseFromParent();
+      if (!I.first->use_empty())
+        I.first->replaceAllUsesWith(I.second);
+      I.first->eraseFromParent();
     }
   }
-  std::vector<std::pair<Function*, Function*> >().swap(UpgradedIntrinsics);
+  UpgradedIntrinsics.clear();
 
   for (unsigned I = 0, E = InstsWithTBAATag.size(); I < E; I++)
     UpgradeInstWithTBAATag(InstsWithTBAATag[I]);
@@ -4618,7 +4625,7 @@ class BitcodeErrorCategoryType : public std::error_category {
     llvm_unreachable("Unknown error type!");
   }
 };
-} // namespace
+}
 
 static ManagedStatic<BitcodeErrorCategoryType> ErrorCategory;
 

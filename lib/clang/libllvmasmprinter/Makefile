@@ -12,6 +12,7 @@ SRCS=	ARMException.cpp \
 	AsmPrinterInlineAsm.cpp \
 	DIE.cpp \
 	DIEHash.cpp \
+	DebugLocStream.cpp \
 	DbgValueHistoryCalculator.cpp \
 	DwarfAccelTable.cpp \
 	DwarfCFIException.cpp \

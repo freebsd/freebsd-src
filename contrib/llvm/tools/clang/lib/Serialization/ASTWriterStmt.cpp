@@ -1906,6 +1906,16 @@ void OMPClauseWriter::VisitOMPFlushClause(OMPFlushClause *C) {
     Writer->Writer.AddStmt(VE);
 }
 
+void OMPClauseWriter::VisitOMPDependClause(OMPDependClause *C) {
+  Record.push_back(C->varlist_size());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+  Record.push_back(C->getDependencyKind());
+  Writer->Writer.AddSourceLocation(C->getDependencyLoc(), Record);
+  Writer->Writer.AddSourceLocation(C->getColonLoc(), Record);
+  for (auto *VE : C->varlists())
+    Writer->Writer.AddStmt(VE);
+}
+
 //===----------------------------------------------------------------------===//
 // OpenMP Directives.
 //===----------------------------------------------------------------------===//
@@ -2095,6 +2105,21 @@ void ASTStmtWriter::VisitOMPTeamsDirective(OMPTeamsDirective *D) {
   Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
   Code = serialization::STMT_OMP_TEAMS_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPCancellationPointDirective(
+    OMPCancellationPointDirective *D) {
+  VisitStmt(D);
+  VisitOMPExecutableDirective(D);
+  Record.push_back(D->getCancelRegion());
+  Code = serialization::STMT_OMP_CANCELLATION_POINT_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPCancelDirective(OMPCancelDirective *D) {
+  VisitStmt(D);
+  VisitOMPExecutableDirective(D);
+  Record.push_back(D->getCancelRegion());
+  Code = serialization::STMT_OMP_CANCEL_DIRECTIVE;
 }
 
 //===----------------------------------------------------------------------===//

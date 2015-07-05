@@ -25,6 +25,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Object/MachO.h"
+#include "llvm/Object/SymbolSize.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -80,6 +81,12 @@ Dylibs("dylib",
 
 static cl::opt<std::string>
 TripleName("triple", cl::desc("Target triple for disassembler"));
+
+static cl::opt<std::string>
+MCPU("mcpu",
+     cl::desc("Target a specific cpu type (-mcpu=help for details)"),
+     cl::value_desc("cpu-name"),
+     cl::init(""));
 
 static cl::list<std::string>
 CheckFiles("check",
@@ -252,63 +259,21 @@ static int printLineInfoForInput(bool LoadObjects, bool UseDebugObj) {
     std::unique_ptr<DIContext> Context(
       new DWARFContextInMemory(*SymbolObj,LoadedObjInfo.get()));
 
-    // FIXME: This is generally useful. Figure out a place in lib/Object to
-    // put utility functions.
-    std::map<object::SectionRef, std::vector<uint64_t>> FuncAddresses;
-    if (!isa<ELFObjectFileBase>(SymbolObj)) {
-      for (object::SymbolRef Sym : SymbolObj->symbols()) {
-        object::SymbolRef::Type SymType;
-        if (Sym.getType(SymType))
-          continue;
-        if (SymType != object::SymbolRef::ST_Function)
+    std::vector<std::pair<SymbolRef, uint64_t>> SymAddr =
+        object::computeSymbolSizes(*SymbolObj);
+
+    // Use symbol info to iterate functions in the object.
+    for (const auto &P : SymAddr) {
+      object::SymbolRef Sym = P.first;
+      if (Sym.getType() == object::SymbolRef::ST_Function) {
+        ErrorOr<StringRef> Name = Sym.getName();
+        if (!Name)
           continue;
         uint64_t Addr;
         if (Sym.getAddress(Addr))
           continue;
-        object::section_iterator Sec = SymbolObj->section_end();
-        if (Sym.getSection(Sec))
-          continue;
-        std::vector<uint64_t> &Addrs = FuncAddresses[*Sec];
-        if (Addrs.empty()) {
-          uint64_t SecAddr = Sec->getAddress();
-          uint64_t SecSize = Sec->getSize();
-          Addrs.push_back(SecAddr + SecSize);
-        }
-        Addrs.push_back(Addr);
-      }
-      for (auto &Pair : FuncAddresses) {
-        std::vector<uint64_t> &Addrs = Pair.second;
-        array_pod_sort(Addrs.begin(), Addrs.end());
-      }
-    }
 
-    // Use symbol info to iterate functions in the object.
-    for (object::SymbolRef Sym : SymbolObj->symbols()) {
-      object::SymbolRef::Type SymType;
-      if (Sym.getType(SymType))
-        continue;
-      if (SymType == object::SymbolRef::ST_Function) {
-        StringRef  Name;
-        uint64_t   Addr;
-        if (Sym.getName(Name))
-          continue;
-        if (Sym.getAddress(Addr))
-          continue;
-
-        uint64_t Size;
-        if (isa<ELFObjectFileBase>(SymbolObj)) {
-          Size = Sym.getSize();
-        } else {
-          object::section_iterator Sec = SymbolObj->section_end();
-          if (Sym.getSection(Sec))
-            continue;
-          const std::vector<uint64_t> &Addrs = FuncAddresses[*Sec];
-          auto AddrI = std::find(Addrs.begin(), Addrs.end(), Addr);
-          assert(AddrI != Addrs.end() && (AddrI + 1) != Addrs.end());
-          assert(*AddrI == Addr);
-          Size = *(AddrI + 1) - Addr;
-        }
-
+        uint64_t Size = P.second;
         // If we're not using the debug object, compute the address of the
         // symbol in memory (rather than that in the unrelocated object file)
         // and use that to query the DWARFContext.
@@ -323,7 +288,8 @@ static int printLineInfoForInput(bool LoadObjects, bool UseDebugObj) {
             Addr += SectionLoadAddress - Sec->getAddress();
         }
 
-        outs() << "Function: " << Name << ", Size = " << Size << ", Addr = " << Addr << "\n";
+        outs() << "Function: " << *Name << ", Size = " << Size
+               << ", Addr = " << Addr << "\n";
 
         DILineInfoTable Lines = Context->getLineInfoForAddressRange(Addr, Size);
         DILineInfoTable::iterator  Begin = Lines.begin();
@@ -575,7 +541,7 @@ static int linkAndVerify() {
   TripleName = TheTriple.getTriple();
 
   std::unique_ptr<MCSubtargetInfo> STI(
-    TheTarget->createMCSubtargetInfo(TripleName, "", ""));
+    TheTarget->createMCSubtargetInfo(TripleName, MCPU, ""));
   assert(STI && "Unable to create subtarget info!");
 
   std::unique_ptr<MCRegisterInfo> MRI(TheTarget->createMCRegInfo(TripleName));

@@ -5,6 +5,8 @@
 LIB=	llvmmirparser
 
 SRCDIR=	lib/CodeGen/MIRParser
-SRCS=	MIRParser.cpp
+SRCS=	MILexer.cpp \
+	MIParser.cpp \
+	MIRParser.cpp
 
 .include "../clang.lib.mk"

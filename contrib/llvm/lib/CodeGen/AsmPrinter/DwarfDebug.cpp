@@ -678,8 +678,7 @@ DbgVariable *DwarfDebug::getExistingAbstractVariable(InlinedVariable IV) {
 
 void DwarfDebug::createAbstractVariable(const DILocalVariable *Var,
                                         LexicalScope *Scope) {
-  auto AbsDbgVariable =
-      make_unique<DbgVariable>(Var, /* IA */ nullptr, /* Expr */ nullptr, this);
+  auto AbsDbgVariable = make_unique<DbgVariable>(Var, /* IA */ nullptr, this);
   InfoHolder.addScopeVariable(Scope, AbsDbgVariable.get());
   AbstractVariables[Var] = std::move(AbsDbgVariable);
 }
@@ -722,10 +721,9 @@ void DwarfDebug::collectVariableInfoFromMMITable(
     if (!Scope)
       continue;
 
-    const DIExpression *Expr = cast_or_null<DIExpression>(VI.Expr);
     ensureAbstractVariableIsCreatedIfScoped(Var, Scope->getScopeNode());
-    auto RegVar =
-        make_unique<DbgVariable>(Var.first, Var.second, Expr, this, VI.Slot);
+    auto RegVar = make_unique<DbgVariable>(Var.first, Var.second, this);
+    RegVar->initializeMMI(VI.Expr, VI.Slot);
     if (InfoHolder.addScopeVariable(Scope, RegVar.get()))
       ConcreteVariables.push_back(std::move(RegVar));
   }
@@ -870,6 +868,14 @@ DwarfDebug::buildLocationList(SmallVectorImpl<DebugLocEntry> &DebugLoc,
   }
 }
 
+DbgVariable *DwarfDebug::createConcreteVariable(LexicalScope &Scope,
+                                                InlinedVariable IV) {
+  ensureAbstractVariableIsCreatedIfScoped(IV, Scope.getScopeNode());
+  ConcreteVariables.push_back(
+      make_unique<DbgVariable>(IV.first, IV.second, this));
+  InfoHolder.addScopeVariable(&Scope, ConcreteVariables.back().get());
+  return ConcreteVariables.back().get();
+}
 
 // Find variables for each lexical scope.
 void DwarfDebug::collectVariableInfo(DwarfCompileUnit &TheCU,
@@ -898,20 +904,19 @@ void DwarfDebug::collectVariableInfo(DwarfCompileUnit &TheCU,
       continue;
 
     Processed.insert(IV);
+    DbgVariable *RegVar = createConcreteVariable(*Scope, IV);
+
     const MachineInstr *MInsn = Ranges.front().first;
     assert(MInsn->isDebugValue() && "History must begin with debug value");
-    ensureAbstractVariableIsCreatedIfScoped(IV, Scope->getScopeNode());
-    ConcreteVariables.push_back(make_unique<DbgVariable>(MInsn, this));
-    DbgVariable *RegVar = ConcreteVariables.back().get();
-    InfoHolder.addScopeVariable(Scope, RegVar);
 
     // Check if the first DBG_VALUE is valid for the rest of the function.
-    if (Ranges.size() == 1 && Ranges.front().second == nullptr)
+    if (Ranges.size() == 1 && Ranges.front().second == nullptr) {
+      RegVar->initializeDbgValue(MInsn);
       continue;
+    }
 
     // Handle multiple DBG_VALUE instructions describing one variable.
-    RegVar->setDebugLocListIndex(
-        DebugLocs.startList(&TheCU, Asm->createTempSymbol("debug_loc")));
+    DebugLocStream::ListBuilder List(DebugLocs, TheCU, *Asm, *RegVar, *MInsn);
 
     // Build the location list for this variable.
     SmallVector<DebugLocEntry, 8> Entries;
@@ -925,20 +930,14 @@ void DwarfDebug::collectVariableInfo(DwarfCompileUnit &TheCU,
 
     // Finalize the entry by lowering it into a DWARF bytestream.
     for (auto &Entry : Entries)
-      Entry.finalize(*Asm, DebugLocs, BT);
+      Entry.finalize(*Asm, List, BT);
   }
 
   // Collect info for variables that were optimized out.
   for (const DILocalVariable *DV : SP->getVariables()) {
-    if (!Processed.insert(InlinedVariable(DV, nullptr)).second)
-      continue;
-    if (LexicalScope *Scope = LScopes.findLexicalScope(DV->getScope())) {
-      ensureAbstractVariableIsCreatedIfScoped(InlinedVariable(DV, nullptr),
-                                              Scope->getScopeNode());
-      ConcreteVariables.push_back(make_unique<DbgVariable>(
-          DV, /* IA */ nullptr, /* Expr */ nullptr, this));
-      InfoHolder.addScopeVariable(Scope, ConcreteVariables.back().get());
-    }
+    if (Processed.insert(InlinedVariable(DV, nullptr)).second)
+      if (LexicalScope *Scope = LScopes.findLexicalScope(DV->getScope()))
+        createConcreteVariable(*Scope, InlinedVariable(DV, nullptr));
   }
 }
 
@@ -1505,10 +1504,11 @@ static void emitDebugLocValue(const AsmPrinter &AP, const DIBasicType *BT,
   // FIXME: ^
 }
 
-void DebugLocEntry::finalize(const AsmPrinter &AP, DebugLocStream &Locs,
+void DebugLocEntry::finalize(const AsmPrinter &AP,
+                             DebugLocStream::ListBuilder &List,
                              const DIBasicType *BT) {
-  Locs.startEntry(Begin, End);
-  BufferByteStreamer Streamer = Locs.getStreamer();
+  DebugLocStream::EntryBuilder Entry(List, Begin, End);
+  BufferByteStreamer Streamer = Entry.getStreamer();
   const DebugLocEntry::Value &Value = Values[0];
   if (Value.isBitPiece()) {
     // Emit all pieces that belong to the same variable and range.

@@ -1235,11 +1235,10 @@ protected:
     HasExtractBitsInsn = hasExtractInsn;
   }
 
-  /// Tells the code generator not to expand sequence of operations into a
-  /// separate sequences that increases the amount of flow control.
-  void setJumpIsExpensive(bool isExpensive = true) {
-    JumpIsExpensive = isExpensive;
-  }
+  /// Tells the code generator not to expand logic operations on comparison
+  /// predicates into separate sequences that increase the amount of flow
+  /// control.
+  void setJumpIsExpensive(bool isExpensive = true);
 
   /// Tells the code generator that integer divide is expensive, and if
   /// possible, should be replaced by an alternate sequence of instructions not
@@ -1594,6 +1593,35 @@ public:
 
   virtual bool hasPairedLoad(EVT /*LoadedType*/,
                              unsigned & /*RequiredAligment*/) const {
+    return false;
+  }
+
+  /// \brief Get the maximum supported factor for interleaved memory accesses.
+  /// Default to be the minimum interleave factor: 2.
+  virtual unsigned getMaxSupportedInterleaveFactor() const { return 2; }
+
+  /// \brief Lower an interleaved load to target specific intrinsics. Return
+  /// true on success.
+  ///
+  /// \p LI is the vector load instruction.
+  /// \p Shuffles is the shufflevector list to DE-interleave the loaded vector.
+  /// \p Indices is the corresponding indices for each shufflevector.
+  /// \p Factor is the interleave factor.
+  virtual bool lowerInterleavedLoad(LoadInst *LI,
+                                    ArrayRef<ShuffleVectorInst *> Shuffles,
+                                    ArrayRef<unsigned> Indices,
+                                    unsigned Factor) const {
+    return false;
+  }
+
+  /// \brief Lower an interleaved store to target specific intrinsics. Return
+  /// true on success.
+  ///
+  /// \p SI is the vector store instruction.
+  /// \p SVI is the shufflevector to RE-interleave the stored vector.
+  /// \p Factor is the interleave factor.
+  virtual bool lowerInterleavedStore(StoreInst *SI, ShuffleVectorInst *SVI,
+                                     unsigned Factor) const {
     return false;
   }
 
@@ -2689,8 +2717,6 @@ public:
   //===--------------------------------------------------------------------===//
   // Div utility functions
   //
-  SDValue BuildExactSDIV(SDValue Op1, SDValue Op2, SDLoc dl,
-                         SelectionDAG &DAG) const;
   SDValue BuildSDIV(SDNode *N, const APInt &Divisor, SelectionDAG &DAG,
                     bool IsAfterLegalization,
                     std::vector<SDNode *> *Created) const;
@@ -2801,6 +2827,6 @@ void GetReturnInfo(Type* ReturnType, AttributeSet attr,
                    SmallVectorImpl<ISD::OutputArg> &Outs,
                    const TargetLowering &TLI);
 
-} // namespace llvm
+} // end llvm namespace
 
 #endif

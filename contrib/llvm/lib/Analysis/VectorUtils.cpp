@@ -1,4 +1,4 @@
-//===- llvm/Transforms/Utils/VectorUtils.h - Vector utilities -*- C++ -*-=====//
+//===----------- VectorUtils.cpp - Vectorizer utility functions -----------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,25 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines some vectorizer utilities.
+// This file defines vectorizer utilities.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_UTILS_VECTORUTILS_H
-#define LLVM_TRANSFORMS_UTILS_VECTORUTILS_H
-
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
-
-namespace llvm {
+#include "llvm/Analysis/VectorUtils.h"
 
 /// \brief Identify if the intrinsic is trivially vectorizable.
-///
 /// This method returns true if the intrinsic's argument types are all
 /// scalars for the scalar form of the intrinsic and all vectors for
 /// the vector form of the intrinsic.
-static inline bool isTriviallyVectorizable(Intrinsic::ID ID) {
+bool llvm::isTriviallyVectorizable(Intrinsic::ID ID) {
   switch (ID) {
   case Intrinsic::sqrt:
   case Intrinsic::sin:
@@ -59,52 +51,72 @@ static inline bool isTriviallyVectorizable(Intrinsic::ID ID) {
   }
 }
 
-static inline bool hasVectorInstrinsicScalarOpd(Intrinsic::ID ID,
-                                         unsigned ScalarOpdIdx) {
+/// \brief Identifies if the intrinsic has a scalar operand. It check for
+/// ctlz,cttz and powi special intrinsics whose argument is scalar.
+bool llvm::hasVectorInstrinsicScalarOpd(Intrinsic::ID ID,
+                                        unsigned ScalarOpdIdx) {
   switch (ID) {
-    case Intrinsic::ctlz:
-    case Intrinsic::cttz:
-    case Intrinsic::powi:
-      return (ScalarOpdIdx == 1);
-    default:
-      return false;
+  case Intrinsic::ctlz:
+  case Intrinsic::cttz:
+  case Intrinsic::powi:
+    return (ScalarOpdIdx == 1);
+  default:
+    return false;
   }
 }
 
-static Intrinsic::ID checkUnaryFloatSignature(const CallInst &I,
-                                              Intrinsic::ID ValidIntrinsicID) {
+/// \brief Check call has a unary float signature
+/// It checks following:
+/// a) call should have a single argument
+/// b) argument type should be floating point type
+/// c) call instruction type and argument type should be same
+/// d) call should only reads memory.
+/// If all these condition is met then return ValidIntrinsicID
+/// else return not_intrinsic.
+llvm::Intrinsic::ID
+llvm::checkUnaryFloatSignature(const CallInst &I,
+                               Intrinsic::ID ValidIntrinsicID) {
   if (I.getNumArgOperands() != 1 ||
       !I.getArgOperand(0)->getType()->isFloatingPointTy() ||
-      I.getType() != I.getArgOperand(0)->getType() ||
-      !I.onlyReadsMemory())
+      I.getType() != I.getArgOperand(0)->getType() || !I.onlyReadsMemory())
     return Intrinsic::not_intrinsic;
 
   return ValidIntrinsicID;
 }
 
-static Intrinsic::ID checkBinaryFloatSignature(const CallInst &I,
-                                               Intrinsic::ID ValidIntrinsicID) {
+/// \brief Check call has a binary float signature
+/// It checks following:
+/// a) call should have 2 arguments.
+/// b) arguments type should be floating point type
+/// c) call instruction type and arguments type should be same
+/// d) call should only reads memory.
+/// If all these condition is met then return ValidIntrinsicID
+/// else return not_intrinsic.
+llvm::Intrinsic::ID
+llvm::checkBinaryFloatSignature(const CallInst &I,
+                                Intrinsic::ID ValidIntrinsicID) {
   if (I.getNumArgOperands() != 2 ||
       !I.getArgOperand(0)->getType()->isFloatingPointTy() ||
       !I.getArgOperand(1)->getType()->isFloatingPointTy() ||
       I.getType() != I.getArgOperand(0)->getType() ||
-      I.getType() != I.getArgOperand(1)->getType() ||
-      !I.onlyReadsMemory())
+      I.getType() != I.getArgOperand(1)->getType() || !I.onlyReadsMemory())
     return Intrinsic::not_intrinsic;
 
   return ValidIntrinsicID;
 }
 
-static Intrinsic::ID
-getIntrinsicIDForCall(CallInst *CI, const TargetLibraryInfo *TLI) {
+/// \brief Returns intrinsic ID for call.
+/// For the input call instruction it finds mapping intrinsic and returns
+/// its ID, in case it does not found it return not_intrinsic.
+llvm::Intrinsic::ID llvm::getIntrinsicIDForCall(CallInst *CI,
+                                                const TargetLibraryInfo *TLI) {
   // If we have an intrinsic call, check if it is trivially vectorizable.
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(CI)) {
     Intrinsic::ID ID = II->getIntrinsicID();
     if (isTriviallyVectorizable(ID) || ID == Intrinsic::lifetime_start ||
         ID == Intrinsic::lifetime_end || ID == Intrinsic::assume)
       return ID;
-    else
-      return Intrinsic::not_intrinsic;
+    return Intrinsic::not_intrinsic;
   }
 
   if (!TLI)
@@ -199,7 +211,3 @@ getIntrinsicIDForCall(CallInst *CI, const TargetLibraryInfo *TLI) {
 
   return Intrinsic::not_intrinsic;
 }
-
-} // namespace llvm
-
-#endif

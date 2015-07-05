@@ -102,6 +102,9 @@ private:
       OS << '\n';
     }
   }
+  void Write(ImmutableCallSite CS) {
+    Write(CS.getInstruction());
+  }
 
   void Write(const Metadata *MD) {
     if (!MD)
@@ -367,7 +370,7 @@ private:
   void visitSelectInst(SelectInst &SI);
   void visitUserOp1(Instruction &I);
   void visitUserOp2(Instruction &I) { visitUserOp1(I); }
-  void visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI);
+  void visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS);
   template <class DbgIntrinsicTy>
   void visitDbgIntrinsic(StringRef Kind, DbgIntrinsicTy &DII);
   void visitAtomicCmpXchgInst(AtomicCmpXchgInst &CXI);
@@ -1012,6 +1015,11 @@ void Verifier::visitDINamespace(const DINamespace &N) {
   Assert(N.getTag() == dwarf::DW_TAG_namespace, "invalid tag", &N);
   if (auto *S = N.getRawScope())
     Assert(isa<DIScope>(S), "invalid scope ref", &N, S);
+}
+
+void Verifier::visitDIModule(const DIModule &N) {
+  Assert(N.getTag() == dwarf::DW_TAG_module, "invalid tag", &N);
+  Assert(!N.getName().empty(), "anonymous module", &N);
 }
 
 void Verifier::visitDITemplateParameter(const DITemplateParameter &N) {
@@ -2289,6 +2297,10 @@ void Verifier::VerifyCallSite(CallSite CS) {
              "Function has metadata parameter but isn't an intrinsic", I);
   }
 
+  if (Function *F = CS.getCalledFunction())
+    if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID())
+      visitIntrinsicCallSite(ID, CS);
+
   visitInstruction(*I);
 }
 
@@ -2384,10 +2396,6 @@ void Verifier::visitCallInst(CallInst &CI) {
 
   if (CI.isMustTailCall())
     verifyMustTailCall(CI);
-
-  if (Function *F = CI.getCalledFunction())
-    if (Intrinsic::ID ID = F->getIntrinsicID())
-      visitIntrinsicFunctionCall(ID, CI);
 }
 
 void Verifier::visitInvokeInst(InvokeInst &II) {
@@ -2397,13 +2405,6 @@ void Verifier::visitInvokeInst(InvokeInst &II) {
   // instruction of the 'unwind' destination.
   Assert(II.getUnwindDest()->isLandingPad(),
          "The unwind destination does not have a landingpad instruction!", &II);
-
-  if (Function *F = II.getCalledFunction())
-    // TODO: Ideally we should use visitIntrinsicFunction here. But it uses
-    //       CallInst as an input parameter. It not woth updating this whole
-    //       function only to support statepoint verification.
-    if (F->getIntrinsicID() == Intrinsic::experimental_gc_statepoint)
-      VerifyStatepoint(ImmutableCallSite(&II));
 
   visitTerminatorInst(II);
 }
@@ -3144,10 +3145,9 @@ Verifier::VerifyIntrinsicIsVarArg(bool isVarArg,
   return true;
 }
 
-/// visitIntrinsicFunction - Allow intrinsics to be verified in different ways.
-///
-void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
-  Function *IF = CI.getCalledFunction();
+/// Allow intrinsics to be verified in different ways.
+void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
+  Function *IF = CS.getCalledFunction();
   Assert(IF->isDeclaration(), "Intrinsic functions should never be defined!",
          IF);
 
@@ -3191,41 +3191,41 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
 
   // If the intrinsic takes MDNode arguments, verify that they are either global
   // or are local to *this* function.
-  for (unsigned i = 0, e = CI.getNumArgOperands(); i != e; ++i)
-    if (auto *MD = dyn_cast<MetadataAsValue>(CI.getArgOperand(i)))
-      visitMetadataAsValue(*MD, CI.getParent()->getParent());
+  for (Value *V : CS.args()) 
+    if (auto *MD = dyn_cast<MetadataAsValue>(V))
+      visitMetadataAsValue(*MD, CS.getCaller());
 
   switch (ID) {
   default:
     break;
   case Intrinsic::ctlz:  // llvm.ctlz
   case Intrinsic::cttz:  // llvm.cttz
-    Assert(isa<ConstantInt>(CI.getArgOperand(1)),
+    Assert(isa<ConstantInt>(CS.getArgOperand(1)),
            "is_zero_undef argument of bit counting intrinsics must be a "
            "constant int",
-           &CI);
+           CS);
     break;
   case Intrinsic::dbg_declare: // llvm.dbg.declare
-    Assert(isa<MetadataAsValue>(CI.getArgOperand(0)),
-           "invalid llvm.dbg.declare intrinsic call 1", &CI);
-    visitDbgIntrinsic("declare", cast<DbgDeclareInst>(CI));
+    Assert(isa<MetadataAsValue>(CS.getArgOperand(0)),
+           "invalid llvm.dbg.declare intrinsic call 1", CS);
+    visitDbgIntrinsic("declare", cast<DbgDeclareInst>(*CS.getInstruction()));
     break;
   case Intrinsic::dbg_value: // llvm.dbg.value
-    visitDbgIntrinsic("value", cast<DbgValueInst>(CI));
+    visitDbgIntrinsic("value", cast<DbgValueInst>(*CS.getInstruction()));
     break;
   case Intrinsic::memcpy:
   case Intrinsic::memmove:
   case Intrinsic::memset: {
-    ConstantInt *AlignCI = dyn_cast<ConstantInt>(CI.getArgOperand(3));
+    ConstantInt *AlignCI = dyn_cast<ConstantInt>(CS.getArgOperand(3));
     Assert(AlignCI,
            "alignment argument of memory intrinsics must be a constant int",
-           &CI);
+           CS);
     const APInt &AlignVal = AlignCI->getValue();
     Assert(AlignCI->isZero() || AlignVal.isPowerOf2(),
-           "alignment argument of memory intrinsics must be a power of 2", &CI);
-    Assert(isa<ConstantInt>(CI.getArgOperand(4)),
+           "alignment argument of memory intrinsics must be a power of 2", CS);
+    Assert(isa<ConstantInt>(CS.getArgOperand(4)),
            "isvolatile argument of memory intrinsics must be a constant int",
-           &CI);
+           CS);
     break;
   }
   case Intrinsic::gcroot:
@@ -3233,76 +3233,76 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
   case Intrinsic::gcread:
     if (ID == Intrinsic::gcroot) {
       AllocaInst *AI =
-        dyn_cast<AllocaInst>(CI.getArgOperand(0)->stripPointerCasts());
-      Assert(AI, "llvm.gcroot parameter #1 must be an alloca.", &CI);
-      Assert(isa<Constant>(CI.getArgOperand(1)),
-             "llvm.gcroot parameter #2 must be a constant.", &CI);
+        dyn_cast<AllocaInst>(CS.getArgOperand(0)->stripPointerCasts());
+      Assert(AI, "llvm.gcroot parameter #1 must be an alloca.", CS);
+      Assert(isa<Constant>(CS.getArgOperand(1)),
+             "llvm.gcroot parameter #2 must be a constant.", CS);
       if (!AI->getAllocatedType()->isPointerTy()) {
-        Assert(!isa<ConstantPointerNull>(CI.getArgOperand(1)),
+        Assert(!isa<ConstantPointerNull>(CS.getArgOperand(1)),
                "llvm.gcroot parameter #1 must either be a pointer alloca, "
                "or argument #2 must be a non-null constant.",
-               &CI);
+               CS);
       }
     }
 
-    Assert(CI.getParent()->getParent()->hasGC(),
-           "Enclosing function does not use GC.", &CI);
+    Assert(CS.getParent()->getParent()->hasGC(),
+           "Enclosing function does not use GC.", CS);
     break;
   case Intrinsic::init_trampoline:
-    Assert(isa<Function>(CI.getArgOperand(1)->stripPointerCasts()),
+    Assert(isa<Function>(CS.getArgOperand(1)->stripPointerCasts()),
            "llvm.init_trampoline parameter #2 must resolve to a function.",
-           &CI);
+           CS);
     break;
   case Intrinsic::prefetch:
-    Assert(isa<ConstantInt>(CI.getArgOperand(1)) &&
-               isa<ConstantInt>(CI.getArgOperand(2)) &&
-               cast<ConstantInt>(CI.getArgOperand(1))->getZExtValue() < 2 &&
-               cast<ConstantInt>(CI.getArgOperand(2))->getZExtValue() < 4,
-           "invalid arguments to llvm.prefetch", &CI);
+    Assert(isa<ConstantInt>(CS.getArgOperand(1)) &&
+               isa<ConstantInt>(CS.getArgOperand(2)) &&
+               cast<ConstantInt>(CS.getArgOperand(1))->getZExtValue() < 2 &&
+               cast<ConstantInt>(CS.getArgOperand(2))->getZExtValue() < 4,
+           "invalid arguments to llvm.prefetch", CS);
     break;
   case Intrinsic::stackprotector:
-    Assert(isa<AllocaInst>(CI.getArgOperand(1)->stripPointerCasts()),
-           "llvm.stackprotector parameter #2 must resolve to an alloca.", &CI);
+    Assert(isa<AllocaInst>(CS.getArgOperand(1)->stripPointerCasts()),
+           "llvm.stackprotector parameter #2 must resolve to an alloca.", CS);
     break;
   case Intrinsic::lifetime_start:
   case Intrinsic::lifetime_end:
   case Intrinsic::invariant_start:
-    Assert(isa<ConstantInt>(CI.getArgOperand(0)),
+    Assert(isa<ConstantInt>(CS.getArgOperand(0)),
            "size argument of memory use markers must be a constant integer",
-           &CI);
+           CS);
     break;
   case Intrinsic::invariant_end:
-    Assert(isa<ConstantInt>(CI.getArgOperand(1)),
-           "llvm.invariant.end parameter #2 must be a constant integer", &CI);
+    Assert(isa<ConstantInt>(CS.getArgOperand(1)),
+           "llvm.invariant.end parameter #2 must be a constant integer", CS);
     break;
 
   case Intrinsic::frameescape: {
-    BasicBlock *BB = CI.getParent();
+    BasicBlock *BB = CS.getParent();
     Assert(BB == &BB->getParent()->front(),
-           "llvm.frameescape used outside of entry block", &CI);
+           "llvm.frameescape used outside of entry block", CS);
     Assert(!SawFrameEscape,
-           "multiple calls to llvm.frameescape in one function", &CI);
-    for (Value *Arg : CI.arg_operands()) {
+           "multiple calls to llvm.frameescape in one function", CS);
+    for (Value *Arg : CS.args()) {
       if (isa<ConstantPointerNull>(Arg))
         continue; // Null values are allowed as placeholders.
       auto *AI = dyn_cast<AllocaInst>(Arg->stripPointerCasts());
       Assert(AI && AI->isStaticAlloca(),
-             "llvm.frameescape only accepts static allocas", &CI);
+             "llvm.frameescape only accepts static allocas", CS);
     }
-    FrameEscapeInfo[BB->getParent()].first = CI.getNumArgOperands();
+    FrameEscapeInfo[BB->getParent()].first = CS.getNumArgOperands();
     SawFrameEscape = true;
     break;
   }
   case Intrinsic::framerecover: {
-    Value *FnArg = CI.getArgOperand(0)->stripPointerCasts();
+    Value *FnArg = CS.getArgOperand(0)->stripPointerCasts();
     Function *Fn = dyn_cast<Function>(FnArg);
     Assert(Fn && !Fn->isDeclaration(),
            "llvm.framerecover first "
            "argument must be function defined in this module",
-           &CI);
-    auto *IdxArg = dyn_cast<ConstantInt>(CI.getArgOperand(2));
+           CS);
+    auto *IdxArg = dyn_cast<ConstantInt>(CS.getArgOperand(2));
     Assert(IdxArg, "idx argument of llvm.framerecover must be a constant int",
-           &CI);
+           CS);
     auto &Entry = FrameEscapeInfo[Fn];
     Entry.second = unsigned(
         std::max(uint64_t(Entry.second), IdxArg->getLimitedValue(~0U) + 1));
@@ -3310,49 +3310,49 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
   }
 
   case Intrinsic::experimental_gc_statepoint:
-    Assert(!CI.isInlineAsm(),
-           "gc.statepoint support for inline assembly unimplemented", &CI);
-    Assert(CI.getParent()->getParent()->hasGC(),
-           "Enclosing function does not use GC.", &CI);
+    Assert(!CS.isInlineAsm(),
+           "gc.statepoint support for inline assembly unimplemented", CS);
+    Assert(CS.getParent()->getParent()->hasGC(),
+           "Enclosing function does not use GC.", CS);
 
-    VerifyStatepoint(ImmutableCallSite(&CI));
+    VerifyStatepoint(CS);
     break;
   case Intrinsic::experimental_gc_result_int:
   case Intrinsic::experimental_gc_result_float:
   case Intrinsic::experimental_gc_result_ptr:
   case Intrinsic::experimental_gc_result: {
-    Assert(CI.getParent()->getParent()->hasGC(),
-           "Enclosing function does not use GC.", &CI);
+    Assert(CS.getParent()->getParent()->hasGC(),
+           "Enclosing function does not use GC.", CS);
     // Are we tied to a statepoint properly?
-    CallSite StatepointCS(CI.getArgOperand(0));
+    CallSite StatepointCS(CS.getArgOperand(0));
     const Function *StatepointFn =
       StatepointCS.getInstruction() ? StatepointCS.getCalledFunction() : nullptr;
     Assert(StatepointFn && StatepointFn->isDeclaration() &&
                StatepointFn->getIntrinsicID() ==
                    Intrinsic::experimental_gc_statepoint,
-           "gc.result operand #1 must be from a statepoint", &CI,
-           CI.getArgOperand(0));
+           "gc.result operand #1 must be from a statepoint", CS,
+           CS.getArgOperand(0));
 
     // Assert that result type matches wrapped callee.
     const Value *Target = StatepointCS.getArgument(2);
     const PointerType *PT = cast<PointerType>(Target->getType());
     const FunctionType *TargetFuncType =
       cast<FunctionType>(PT->getElementType());
-    Assert(CI.getType() == TargetFuncType->getReturnType(),
-           "gc.result result type does not match wrapped callee", &CI);
+    Assert(CS.getType() == TargetFuncType->getReturnType(),
+           "gc.result result type does not match wrapped callee", CS);
     break;
   }
   case Intrinsic::experimental_gc_relocate: {
-    Assert(CI.getNumArgOperands() == 3, "wrong number of arguments", &CI);
+    Assert(CS.getNumArgOperands() == 3, "wrong number of arguments", CS);
 
     // Check that this relocate is correctly tied to the statepoint
 
     // This is case for relocate on the unwinding path of an invoke statepoint
     if (ExtractValueInst *ExtractValue =
-          dyn_cast<ExtractValueInst>(CI.getArgOperand(0))) {
+          dyn_cast<ExtractValueInst>(CS.getArgOperand(0))) {
       Assert(isa<LandingPadInst>(ExtractValue->getAggregateOperand()),
              "gc relocate on unwind path incorrectly linked to the statepoint",
-             &CI);
+             CS);
 
       const BasicBlock *InvokeBB =
         ExtractValue->getParent()->getUniquePredecessor();
@@ -3370,32 +3370,32 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
       // In all other cases relocate should be tied to the statepoint directly.
       // This covers relocates on a normal return path of invoke statepoint and
       // relocates of a call statepoint
-      auto Token = CI.getArgOperand(0);
+      auto Token = CS.getArgOperand(0);
       Assert(isa<Instruction>(Token) && isStatepoint(cast<Instruction>(Token)),
-             "gc relocate is incorrectly tied to the statepoint", &CI, Token);
+             "gc relocate is incorrectly tied to the statepoint", CS, Token);
     }
 
     // Verify rest of the relocate arguments
 
-    GCRelocateOperands Ops(&CI);
+    GCRelocateOperands Ops(CS);
     ImmutableCallSite StatepointCS(Ops.getStatepoint());
 
     // Both the base and derived must be piped through the safepoint
-    Value* Base = CI.getArgOperand(1);
+    Value* Base = CS.getArgOperand(1);
     Assert(isa<ConstantInt>(Base),
-           "gc.relocate operand #2 must be integer offset", &CI);
+           "gc.relocate operand #2 must be integer offset", CS);
 
-    Value* Derived = CI.getArgOperand(2);
+    Value* Derived = CS.getArgOperand(2);
     Assert(isa<ConstantInt>(Derived),
-           "gc.relocate operand #3 must be integer offset", &CI);
+           "gc.relocate operand #3 must be integer offset", CS);
 
     const int BaseIndex = cast<ConstantInt>(Base)->getZExtValue();
     const int DerivedIndex = cast<ConstantInt>(Derived)->getZExtValue();
     // Check the bounds
     Assert(0 <= BaseIndex && BaseIndex < (int)StatepointCS.arg_size(),
-           "gc.relocate: statepoint base index out of bounds", &CI);
+           "gc.relocate: statepoint base index out of bounds", CS);
     Assert(0 <= DerivedIndex && DerivedIndex < (int)StatepointCS.arg_size(),
-           "gc.relocate: statepoint derived index out of bounds", &CI);
+           "gc.relocate: statepoint derived index out of bounds", CS);
 
     // Check that BaseIndex and DerivedIndex fall within the 'gc parameters'
     // section of the statepoint's argument
@@ -3424,24 +3424,24 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
     Assert(GCParamArgsStart <= BaseIndex && BaseIndex < GCParamArgsEnd,
            "gc.relocate: statepoint base index doesn't fall within the "
            "'gc parameters' section of the statepoint call",
-           &CI);
+           CS);
     Assert(GCParamArgsStart <= DerivedIndex && DerivedIndex < GCParamArgsEnd,
            "gc.relocate: statepoint derived index doesn't fall within the "
            "'gc parameters' section of the statepoint call",
-           &CI);
+           CS);
 
     // Relocated value must be a pointer type, but gc_relocate does not need to return the
     // same pointer type as the relocated pointer. It can be casted to the correct type later
     // if it's desired. However, they must have the same address space.
-    GCRelocateOperands Operands(&CI);
+    GCRelocateOperands Operands(CS);
     Assert(Operands.getDerivedPtr()->getType()->isPointerTy(),
-           "gc.relocate: relocated value must be a gc pointer", &CI);
+           "gc.relocate: relocated value must be a gc pointer", CS);
 
     // gc_relocate return type must be a pointer type, and is verified earlier in
     // VerifyIntrinsicType().
-    Assert(cast<PointerType>(CI.getType())->getAddressSpace() ==
+    Assert(cast<PointerType>(CS.getType())->getAddressSpace() ==
            cast<PointerType>(Operands.getDerivedPtr()->getType())->getAddressSpace(),
-           "gc.relocate: relocating a pointer shouldn't change its address space", &CI);
+           "gc.relocate: relocating a pointer shouldn't change its address space", CS);
     break;
   }
   };
@@ -3691,7 +3691,7 @@ struct VerifierLegacyPass : public FunctionPass {
     AU.setPreservesAll();
   }
 };
-} // namespace
+}
 
 char VerifierLegacyPass::ID = 0;
 INITIALIZE_PASS(VerifierLegacyPass, "verify", "Module Verifier", false, false)

@@ -308,7 +308,8 @@ enum {
   EM_COGE          = 216, // Cognitive Smart Memory Processor
   EM_COOL          = 217, // iCelero CoolEngine
   EM_NORC          = 218, // Nanoradio Optimized RISC
-  EM_CSR_KALIMBA   = 219  // CSR Kalimba architecture family
+  EM_CSR_KALIMBA   = 219, // CSR Kalimba architecture family
+  EM_AMDGPU        = 224  // AMD GPU architecture
 };
 
 // Object file classes.
@@ -346,6 +347,7 @@ enum {
   ELFOSABI_FENIXOS = 16,      // FenixOS
   ELFOSABI_CLOUDABI = 17,     // Nuxi CloudABI
   ELFOSABI_C6000_ELFABI = 64, // Bare-metal TMS320C6000
+  ELFOSABI_AMDGPU_HSA = 64,   // AMD HSA runtime
   ELFOSABI_C6000_LINUX = 65,  // Linux TMS320C6000
   ELFOSABI_ARM = 97,          // ARM
   ELFOSABI_STANDALONE = 255   // Standalone (embedded) application
@@ -822,9 +824,9 @@ enum {
   STT_FILE    = 4,   // Local, absolute symbol that refers to a file
   STT_COMMON  = 5,   // An uninitialized common block
   STT_TLS     = 6,   // Thread local data object
-  STT_LOOS    = 7,   // Lowest operating system-specific symbol type
-  STT_HIOS    = 8,   // Highest operating system-specific symbol type
   STT_GNU_IFUNC = 10, // GNU indirect function
+  STT_LOOS    = 10,  // Lowest operating system-specific symbol type
+  STT_HIOS    = 12,  // Highest operating system-specific symbol type
   STT_LOPROC  = 13,  // Lowest processor-specific symbol type
   STT_HIPROC  = 15   // Highest processor-specific symbol type
 };

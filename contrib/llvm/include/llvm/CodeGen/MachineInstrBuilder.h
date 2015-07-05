@@ -40,7 +40,7 @@ namespace RegState {
     ImplicitDefine = Implicit | Define,
     ImplicitKill   = Implicit | Kill
   };
-} // namespace RegState
+}
 
 class MachineInstrBuilder {
   MachineFunction *MF;
@@ -185,8 +185,9 @@ public:
     return *this;
   }
 
-  const MachineInstrBuilder &addSym(MCSymbol *Sym) const {
-    MI->addOperand(*MF, MachineOperand::CreateMCSymbol(Sym));
+  const MachineInstrBuilder &addSym(MCSymbol *Sym,
+                                    unsigned char TargetFlags = 0) const {
+    MI->addOperand(*MF, MachineOperand::CreateMCSymbol(Sym, TargetFlags));
     return *this;
   }
 
@@ -502,6 +503,6 @@ public:
   }
 };
 
-} // namespace llvm
+} // End llvm namespace
 
 #endif

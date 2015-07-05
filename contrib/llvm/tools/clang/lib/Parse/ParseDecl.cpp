@@ -691,9 +691,9 @@ void Parser::ParseNullabilityTypeSpecifiers(ParsedAttributes &attrs) {
   // Treat these like attributes, even though they're type specifiers.
   while (true) {
     switch (Tok.getKind()) {
-    case tok::kw___nonnull:
-    case tok::kw___nullable:
-    case tok::kw___null_unspecified: {
+    case tok::kw__Nonnull:
+    case tok::kw__Nullable:
+    case tok::kw__Null_unspecified: {
       IdentifierInfo *AttrName = Tok.getIdentifierInfo();
       SourceLocation AttrNameLoc = ConsumeToken();
       if (!getLangOpts().ObjC1)
@@ -2173,7 +2173,7 @@ void Parser::ParseSpecifierQualifierList(DeclSpec &DS, AccessSpecifier AS,
   }
 
   // Issue diagnostic and remove constexpr specfier if present.
-  if (DS.isConstexprSpecified()) {
+  if (DS.isConstexprSpecified() && DSC != DSC_condition) {
     Diag(DS.getConstexprSpecLoc(), diag::err_typename_invalid_constexpr);
     DS.ClearConstexprSpec();
   }
@@ -3076,9 +3076,9 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       continue;
 
     // Nullability type specifiers.
-    case tok::kw___nonnull:
-    case tok::kw___nullable:
-    case tok::kw___null_unspecified:
+    case tok::kw__Nonnull:
+    case tok::kw__Nullable:
+    case tok::kw__Null_unspecified:
       ParseNullabilityTypeSpecifiers(DS.getAttributes());
       continue;
 
@@ -3190,6 +3190,11 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
     // constexpr
     case tok::kw_constexpr:
       isInvalid = DS.SetConstexprSpec(Loc, PrevSpec, DiagID);
+      break;
+
+    // concept
+    case tok::kw_concept:
+      isInvalid = DS.SetConceptSpec(Loc, PrevSpec, DiagID);
       break;
 
     // type-specifier
@@ -4326,9 +4331,9 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___pascal:
   case tok::kw___unaligned:
 
-  case tok::kw___nonnull:
-  case tok::kw___nullable:
-  case tok::kw___null_unspecified:
+  case tok::kw__Nonnull:
+  case tok::kw__Nullable:
+  case tok::kw__Null_unspecified:
 
   case tok::kw___private:
   case tok::kw___local:
@@ -4475,6 +4480,9 @@ bool Parser::isDeclarationSpecifier(bool DisambiguatingWithExpression) {
   case tok::annot_decltype:
   case tok::kw_constexpr:
 
+    // C++ Concepts TS - concept
+  case tok::kw_concept:
+
     // C11 _Atomic
   case tok::kw__Atomic:
     return true;
@@ -4503,9 +4511,9 @@ bool Parser::isDeclarationSpecifier(bool DisambiguatingWithExpression) {
   case tok::kw___pascal:
   case tok::kw___unaligned:
 
-  case tok::kw___nonnull:
-  case tok::kw___nullable:
-  case tok::kw___null_unspecified:
+  case tok::kw__Nonnull:
+  case tok::kw__Nullable:
+  case tok::kw__Null_unspecified:
 
   case tok::kw___private:
   case tok::kw___local:
@@ -4738,9 +4746,9 @@ void Parser::ParseTypeQualifierListOpt(DeclSpec &DS, unsigned AttrReqs,
       goto DoneWithTypeQuals;
 
     // Nullability type specifiers.
-    case tok::kw___nonnull:
-    case tok::kw___nullable:
-    case tok::kw___null_unspecified:
+    case tok::kw__Nonnull:
+    case tok::kw__Nullable:
+    case tok::kw__Null_unspecified:
       ParseNullabilityTypeSpecifiers(DS.getAttributes());
       continue;
 

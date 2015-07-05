@@ -1449,6 +1449,7 @@ bool RegisterCoalescer::joinCopy(MachineInstr *CopyMI, bool &Again) {
                    << format("%04X", S.LaneMask) << ")\n");
       LIS->shrinkToUses(S, LI.reg);
     }
+    LI.removeEmptySubRanges();
   }
   if (ShrinkMainRange) {
     LiveInterval &LI = LIS->getInterval(CP.getDstReg());
@@ -2697,7 +2698,7 @@ struct MBBPriorityInfo {
   MBBPriorityInfo(MachineBasicBlock *mbb, unsigned depth, bool issplit)
     : MBB(mbb), Depth(depth), IsSplit(issplit) {}
 };
-} // namespace
+}
 
 /// C-style comparator that sorts first based on the loop depth of the basic
 /// block (the unsigned), and then on the MBB number.

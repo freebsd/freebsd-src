@@ -126,7 +126,8 @@ bool ContinuationIndenter::canBreak(const LineState &State) {
   // Don't break after very short return types (e.g. "void") as that is often
   // unexpected.
   if (Current.is(TT_FunctionDeclarationName) &&
-      !Style.AlwaysBreakAfterDefinitionReturnType && State.Column < 6)
+      Style.AlwaysBreakAfterDefinitionReturnType == FormatStyle::DRTBS_None &&
+      State.Column < 6)
     return false;
 
   return !State.Stack.back().NoLineBreak;
@@ -815,7 +816,7 @@ void ContinuationIndenter::moveStatePastFakeLParens(LineState &State,
     //       ParameterToInnerFunction));
     if (*I > prec::Unknown)
       NewParenState.LastSpace = std::max(NewParenState.LastSpace, State.Column);
-    if (*I != prec::Conditional)
+    if (*I != prec::Conditional && !Current.is(TT_UnaryOperator))
       NewParenState.StartOfFunctionCall = State.Column;
 
     // Always indent conditional expressions. Never indent expression where

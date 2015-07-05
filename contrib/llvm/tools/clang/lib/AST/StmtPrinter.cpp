@@ -799,6 +799,17 @@ void OMPClausePrinter::VisitOMPFlushClause(OMPFlushClause *Node) {
     OS << ")";
   }
 }
+
+void OMPClausePrinter::VisitOMPDependClause(OMPDependClause *Node) {
+  if (!Node->varlist_empty()) {
+    OS << "depend(";
+    OS << getOpenMPSimpleClauseTypeName(Node->getClauseKind(),
+                                        Node->getDependencyKind())
+       << " :";
+    VisitOMPClauseList(Node, ' ');
+    OS << ")";
+  }
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -940,6 +951,18 @@ void StmtPrinter::VisitOMPTeamsDirective(OMPTeamsDirective *Node) {
   PrintOMPExecutableDirective(Node);
 }
 
+void StmtPrinter::VisitOMPCancellationPointDirective(
+    OMPCancellationPointDirective *Node) {
+  Indent() << "#pragma omp cancellation point "
+           << getOpenMPDirectiveName(Node->getCancelRegion());
+  PrintOMPExecutableDirective(Node);
+}
+
+void StmtPrinter::VisitOMPCancelDirective(OMPCancelDirective *Node) {
+  Indent() << "#pragma omp cancel "
+           << getOpenMPDirectiveName(Node->getCancelRegion());
+  PrintOMPExecutableDirective(Node);
+}
 //===----------------------------------------------------------------------===//
 //  Expr printing methods.
 //===----------------------------------------------------------------------===//
@@ -1205,6 +1228,9 @@ void StmtPrinter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *Node){
     break;
   case UETT_VecStep:
     OS << "vec_step";
+    break;
+  case UETT_OpenMPRequiredSimdAlign:
+    OS << "__builtin_omp_required_simd_align";
     break;
   }
   if (Node->isArgumentType()) {

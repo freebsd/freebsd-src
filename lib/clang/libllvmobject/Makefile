@@ -20,6 +20,7 @@ SRCS=	Archive.cpp \
 	Object.cpp \
 	ObjectFile.cpp \
 	RecordStreamer.cpp \
+	SymbolSize.cpp \
 	SymbolicFile.cpp
 
 .include "../clang.lib.mk"

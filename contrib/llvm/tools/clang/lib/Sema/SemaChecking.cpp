@@ -1031,6 +1031,8 @@ bool Sema::CheckX86BuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
   unsigned i = 0, l = 0, u = 0;
   switch (BuiltinID) {
   default: return false;
+  case X86::BI__builtin_cpu_supports:
+    return SemaBuiltinCpuSupports(TheCall);
   case X86::BI_mm_prefetch: i = 1; l = 0; u = 3; break;
   case X86::BI__builtin_ia32_sha1rnds4: i = 2, l = 0; u = 3; break;
   case X86::BI__builtin_ia32_vpermil2pd:
@@ -2782,6 +2784,26 @@ bool Sema::SemaBuiltinARMSpecialReg(unsigned BuiltinID, CallExpr *TheCall,
   return false;
 }
 
+/// SemaBuiltinCpuSupports - Handle __builtin_cpu_supports(char *).
+/// This checks that the target supports __builtin_cpu_supports and
+/// that the string argument is constant and valid.
+bool Sema::SemaBuiltinCpuSupports(CallExpr *TheCall) {
+  Expr *Arg = TheCall->getArg(0);
+
+  // Check if the argument is a string literal.
+  if (!isa<StringLiteral>(Arg->IgnoreParenImpCasts()))
+    return Diag(TheCall->getLocStart(), diag::err_expr_not_string_literal)
+           << Arg->getSourceRange();
+
+  // Check the contents of the string.
+  StringRef Feature =
+      cast<StringLiteral>(Arg->IgnoreParenImpCasts())->getString();
+  if (!Context.getTargetInfo().validateCpuSupports(Feature))
+    return Diag(TheCall->getLocStart(), diag::err_invalid_cpu_supports)
+           << Arg->getSourceRange();
+  return false;
+}
+
 /// SemaBuiltinLongjmp - Handle __builtin_longjmp(void *env[5], int val).
 /// This checks that the target supports __builtin_longjmp and
 /// that val is a constant 1.
@@ -3550,8 +3572,18 @@ public:
                          const char *startSpecifier, unsigned specifierLen);
   bool checkForCStrMembers(const analyze_printf::ArgType &AT,
                            const Expr *E);
+                           
+  void HandleEmptyObjCModifierFlag(const char *startFlag,
+                                   unsigned flagLen) override;
 
-};  
+  void HandleInvalidObjCModifierFlag(const char *startFlag,
+                                            unsigned flagLen) override;
+
+  void HandleObjCFlagsWithNonObjCConversion(const char *flagsStart,
+                                           const char *flagsEnd,
+                                           const char *conversionPosition) 
+                                             override;
+};
 }
 
 bool CheckPrintfHandler::HandleInvalidPrintfConversionSpecifier(
@@ -3669,6 +3701,41 @@ void CheckPrintfHandler::HandleIgnoredFlag(
                        getSpecifierRange(startSpecifier, specifierLen),
                        FixItHint::CreateRemoval(
                          getSpecifierRange(ignoredFlag.getPosition(), 1)));
+}
+
+//  void EmitFormatDiagnostic(PartialDiagnostic PDiag, SourceLocation StringLoc,
+//                            bool IsStringLocation, Range StringRange,
+//                            ArrayRef<FixItHint> Fixit = None);
+                            
+void CheckPrintfHandler::HandleEmptyObjCModifierFlag(const char *startFlag,
+                                                     unsigned flagLen) {
+  // Warn about an empty flag.
+  EmitFormatDiagnostic(S.PDiag(diag::warn_printf_empty_objc_flag),
+                       getLocationOfByte(startFlag),
+                       /*IsStringLocation*/true,
+                       getSpecifierRange(startFlag, flagLen));
+}
+
+void CheckPrintfHandler::HandleInvalidObjCModifierFlag(const char *startFlag,
+                                                       unsigned flagLen) {
+  // Warn about an invalid flag.
+  auto Range = getSpecifierRange(startFlag, flagLen);
+  StringRef flag(startFlag, flagLen);
+  EmitFormatDiagnostic(S.PDiag(diag::warn_printf_invalid_objc_flag) << flag,
+                      getLocationOfByte(startFlag),
+                      /*IsStringLocation*/true,
+                      Range, FixItHint::CreateRemoval(Range));
+}
+
+void CheckPrintfHandler::HandleObjCFlagsWithNonObjCConversion(
+    const char *flagsStart, const char *flagsEnd, const char *conversionPosition) {
+    // Warn about using '[...]' without a '@' conversion.
+    auto Range = getSpecifierRange(flagsStart, flagsEnd - flagsStart + 1);
+    auto diag = diag::warn_printf_ObjCflags_without_ObjCConversion;
+    EmitFormatDiagnostic(S.PDiag(diag) << StringRef(conversionPosition, 1),
+                         getLocationOfByte(conversionPosition),
+                         /*IsStringLocation*/true,
+                         Range, FixItHint::CreateRemoval(Range));
 }
 
 // Determines if the specified is a C++ class or struct containing
@@ -7173,8 +7240,8 @@ void AnalyzeImplicitConversions(Sema &S, Expr *OrigE, SourceLocation CC) {
   CC = E->getExprLoc();
   BinaryOperator *BO = dyn_cast<BinaryOperator>(E);
   bool IsLogicalAndOperator = BO && BO->getOpcode() == BO_LAnd;
-  for (Stmt::child_range I = E->children(); I; ++I) {
-    Expr *ChildExpr = dyn_cast_or_null<Expr>(*I);
+  for (Stmt *SubStmt : E->children()) {
+    Expr *ChildExpr = dyn_cast_or_null<Expr>(SubStmt);
     if (!ChildExpr)
       continue;
 

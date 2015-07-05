@@ -303,7 +303,7 @@ public:
     return true;
   }
 
-  /// Retrieve the underscored keyword (__nonnull, __nullable) that corresponds
+  /// Retrieve the underscored keyword (_Nonnull, _Nullable) that corresponds
   /// to the given nullability kind.
   IdentifierInfo *getNullabilityKeyword(NullabilityKind nullability) {
     return Actions.getNullabilityKeyword(nullability);
@@ -1182,7 +1182,7 @@ private:
                                 ParsingDeclarator &D,
                                 const ParsedTemplateInfo &TemplateInfo,
                                 const VirtSpecifiers& VS,
-                                ExprResult& Init);
+                                SourceLocation PureSpecLoc);
   void ParseCXXNonStaticMemberInitializer(Decl *VarD);
   void ParseLexedAttributes(ParsingClass &Class);
   void ParseLexedAttributeList(LateParsedAttrList &LAs, Decl *D,
@@ -1331,6 +1331,7 @@ public:
 
   ExprResult ParseExpression(TypeCastState isTypeCast = NotTypeCast);
   ExprResult ParseConstantExpression(TypeCastState isTypeCast = NotTypeCast);
+  ExprResult ParseConstraintExpression();
   // Expr that doesn't include commas.
   ExprResult ParseAssignmentExpression(TypeCastState isTypeCast = NotTypeCast);
 
@@ -1704,6 +1705,7 @@ private:
     DSC_top_level, // top-level/namespace declaration context
     DSC_template_type_arg, // template type argument context
     DSC_objc_method_result, // ObjC method result context, enables 'instancetype'
+    DSC_condition // condition declaration context
   };
 
   /// Is this a context in which we are parsing just a type-specifier (or
@@ -1714,6 +1716,7 @@ private:
     case DSC_class:
     case DSC_top_level:
     case DSC_objc_method_result:
+    case DSC_condition:
       return false;
 
     case DSC_template_type_arg:

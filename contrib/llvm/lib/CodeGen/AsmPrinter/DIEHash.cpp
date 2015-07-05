@@ -263,7 +263,7 @@ void DIEHash::hashDIEEntry(dwarf::Attribute Attribute, dwarf::Tag Tag,
 
 // Hash all of the values in a block like set of values. This assumes that
 // all of the data is going to be added as integers.
-void DIEHash::hashBlockData(const DIE::value_range &Values) {
+void DIEHash::hashBlockData(const DIE::const_value_range &Values) {
   for (const auto &V : Values)
     Hash.update((uint64_t)V.getDIEInteger().getValue());
 }
@@ -454,15 +454,15 @@ void DIEHash::computeHash(const DIE &Die) {
   for (auto &C : Die.children()) {
     // 7.27 Step 7
     // If C is a nested type entry or a member function entry, ...
-    if (isType(C->getTag()) || C->getTag() == dwarf::DW_TAG_subprogram) {
-      StringRef Name = getDIEStringAttr(*C, dwarf::DW_AT_name);
+    if (isType(C.getTag()) || C.getTag() == dwarf::DW_TAG_subprogram) {
+      StringRef Name = getDIEStringAttr(C, dwarf::DW_AT_name);
       // ... and has a DW_AT_name attribute
       if (!Name.empty()) {
-        hashNestedType(*C, Name);
+        hashNestedType(C, Name);
         continue;
       }
     }
-    computeHash(*C);
+    computeHash(C);
   }
 
   // Following the last (or if there are no children), append a zero byte.

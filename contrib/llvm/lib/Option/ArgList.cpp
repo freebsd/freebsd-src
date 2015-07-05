@@ -33,9 +33,6 @@ void arg_iterator::SkipToNextArg() {
   }
 }
 
-ArgList::~ArgList() {
-}
-
 void ArgList::append(Arg *A) {
   Args.push_back(A);
 }
@@ -318,16 +315,16 @@ const char *ArgList::GetOrMakeJoinedArgString(unsigned Index,
 
 //
 
+void InputArgList::releaseMemory() {
+  // An InputArgList always owns its arguments.
+  for (Arg *A : *this)
+    delete A;
+}
+
 InputArgList::InputArgList(const char* const *ArgBegin,
                            const char* const *ArgEnd)
   : NumInputArgStrings(ArgEnd - ArgBegin) {
   ArgStrings.append(ArgBegin, ArgEnd);
-}
-
-InputArgList::~InputArgList() {
-  // An InputArgList always owns its arguments.
-  for (iterator it = begin(), ie = end(); it != ie; ++it)
-    delete *it;
 }
 
 unsigned InputArgList::MakeIndex(StringRef String0) const {
@@ -357,8 +354,6 @@ const char *InputArgList::MakeArgStringRef(StringRef Str) const {
 
 DerivedArgList::DerivedArgList(const InputArgList &BaseArgs)
     : BaseArgs(BaseArgs) {}
-
-DerivedArgList::~DerivedArgList() {}
 
 const char *DerivedArgList::MakeArgStringRef(StringRef Str) const {
   return BaseArgs.MakeArgString(Str);

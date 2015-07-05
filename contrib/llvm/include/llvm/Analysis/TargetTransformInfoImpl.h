@@ -335,6 +335,14 @@ public:
                                            Type *ExpectedType) {
     return nullptr;
   }
+
+  bool hasCompatibleFunctionAttributes(const Function *Caller,
+                                       const Function *Callee) const {
+    return (Caller->getFnAttribute("target-cpu") ==
+            Callee->getFnAttribute("target-cpu")) &&
+           (Caller->getFnAttribute("target-features") ==
+            Callee->getFnAttribute("target-features"));
+  }
 };
 
 /// \brief CRTP base class for use as a mix-in that aids implementing
@@ -446,6 +454,6 @@ public:
         U->getNumOperands() == 1 ? U->getOperand(0)->getType() : nullptr);
   }
 };
-} // namespace llvm
+}
 
 #endif

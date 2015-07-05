@@ -14,6 +14,7 @@
 #include "llvm-readobj.h"
 #include "Error.h"
 #include "ObjDumper.h"
+#include "StackMapPrinter.h"
 #include "StreamWriter.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -37,6 +38,7 @@ public:
   void printSymbols() override;
   void printDynamicSymbols() override;
   void printUnwindInfo() override;
+  void printStackMap() const override;
 
 private:
   template<class MachHeader>
@@ -459,12 +461,9 @@ void MachODumper::printRelocation(const RelocationRef &Reloc) {
 
 void MachODumper::printRelocation(const MachOObjectFile *Obj,
                                   const RelocationRef &Reloc) {
-  uint64_t Offset;
+  uint64_t Offset = Reloc.getOffset();
   SmallString<32> RelocName;
-  if (error(Reloc.getOffset(Offset)))
-    return;
-  if (error(Reloc.getTypeName(RelocName)))
-    return;
+  Reloc.getTypeName(RelocName);
 
   DataRefImpl DR = Reloc.getRawDataRefImpl();
   MachO::any_relocation_info RE = Obj->getRelocation(DR);
@@ -475,8 +474,10 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
   if (IsExtern) {
     symbol_iterator Symbol = Reloc.getSymbol();
     if (Symbol != Obj->symbol_end()) {
-      if (error(Symbol->getName(TargetName)))
+      ErrorOr<StringRef> TargetNameOrErr = Symbol->getName();
+      if (error(TargetNameOrErr.getError()))
         return;
+      TargetName = *TargetNameOrErr;
     }
   } else if (!IsScattered) {
     section_iterator SecI = Obj->getRelocationSection(DR);
@@ -539,8 +540,8 @@ void MachODumper::printDynamicSymbols() {
 
 void MachODumper::printSymbol(const SymbolRef &Symbol) {
   StringRef SymbolName;
-  if (Symbol.getName(SymbolName))
-    SymbolName = "";
+  if (ErrorOr<StringRef> SymbolNameOrErr = Symbol.getName())
+    SymbolName = *SymbolNameOrErr;
 
   MachOSymbol MOSymbol;
   getSymbol(Obj, Symbol.getRawDataRefImpl(), MOSymbol);
@@ -572,4 +573,33 @@ void MachODumper::printSymbol(const SymbolRef &Symbol) {
 
 void MachODumper::printUnwindInfo() {
   W.startLine() << "UnwindInfo not implemented.\n";
+}
+
+void MachODumper::printStackMap() const {
+  object::SectionRef StackMapSection;
+  for (auto Sec : Obj->sections()) {
+    StringRef Name;
+    Sec.getName(Name);
+    if (Name == "__llvm_stackmaps") {
+      StackMapSection = Sec;
+      break;
+    }
+  }
+
+  if (StackMapSection == object::SectionRef())
+    return;
+
+  StringRef StackMapContents;
+  StackMapSection.getContents(StackMapContents);
+  ArrayRef<uint8_t> StackMapContentsArray(
+      reinterpret_cast<const uint8_t*>(StackMapContents.data()),
+      StackMapContents.size());
+
+  if (Obj->isLittleEndian())
+     prettyPrintStackMap(
+                      llvm::outs(),
+                      StackMapV1Parser<support::little>(StackMapContentsArray));
+  else
+     prettyPrintStackMap(llvm::outs(),
+                         StackMapV1Parser<support::big>(StackMapContentsArray));
 }

@@ -1680,11 +1680,24 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
   } else if (OldParm->hasUnparsedDefaultArg()) {
     NewParm->setUnparsedDefaultArg();
     UnparsedDefaultArgInstantiations[OldParm].push_back(NewParm);
-  } else if (Expr *Arg = OldParm->getDefaultArg())
-    // FIXME: if we non-lazily instantiated non-dependent default args for
-    // non-dependent parameter types we could remove a bunch of duplicate
-    // conversion warnings for such arguments.
-    NewParm->setUninstantiatedDefaultArg(Arg);
+  } else if (Expr *Arg = OldParm->getDefaultArg()) {
+    FunctionDecl *OwningFunc = cast<FunctionDecl>(OldParm->getDeclContext());
+    CXXRecordDecl *ClassD = dyn_cast<CXXRecordDecl>(OwningFunc->getDeclContext());
+    if (ClassD && ClassD->isLocalClass() && !ClassD->isLambda()) {
+      // If this is a method of a local class, as per DR1484 its default
+      // arguments must be instantiated.
+      Sema::ContextRAII SavedContext(*this, ClassD);
+      LocalInstantiationScope Local(*this);
+      ExprResult NewArg = SubstExpr(Arg, TemplateArgs);
+      if (NewArg.isUsable())
+        NewParm->setDefaultArg(NewArg.get());
+    } else {
+      // FIXME: if we non-lazily instantiated non-dependent default args for
+      // non-dependent parameter types we could remove a bunch of duplicate
+      // conversion warnings for such arguments.
+      NewParm->setUninstantiatedDefaultArg(Arg);
+    }
+  }
 
   NewParm->setHasInheritedDefaultArg(OldParm->hasInheritedDefaultArg());
   
@@ -2269,33 +2282,6 @@ bool Sema::InstantiateClassTemplateSpecialization(
   // Perform the actual instantiation on the canonical declaration.
   ClassTemplateSpec = cast<ClassTemplateSpecializationDecl>(
                                          ClassTemplateSpec->getCanonicalDecl());
-
-  // Check whether we have already instantiated or specialized this class
-  // template specialization.
-  if (ClassTemplateSpec->getSpecializationKind() != TSK_Undeclared) {
-    if (ClassTemplateSpec->getSpecializationKind() == 
-          TSK_ExplicitInstantiationDeclaration &&
-        TSK == TSK_ExplicitInstantiationDefinition) {
-      // An explicit instantiation definition follows an explicit instantiation
-      // declaration (C++0x [temp.explicit]p10); go ahead and perform the
-      // explicit instantiation.
-      ClassTemplateSpec->setSpecializationKind(TSK);
-      
-      // If this is an explicit instantiation definition, mark the
-      // vtable as used.
-      if (TSK == TSK_ExplicitInstantiationDefinition &&
-          !ClassTemplateSpec->isInvalidDecl())
-        MarkVTableUsed(PointOfInstantiation, ClassTemplateSpec, true);
-
-      return false;
-    }
-    
-    // We can only instantiate something that hasn't already been
-    // instantiated or specialized. Fail without any diagnostics: our
-    // caller will provide an error message.    
-    return true;
-  }
-
   if (ClassTemplateSpec->isInvalidDecl())
     return true;
   

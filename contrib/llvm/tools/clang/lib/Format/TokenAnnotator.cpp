@@ -1008,7 +1008,7 @@ private:
     if (Tok.isNot(tok::identifier) || !Tok.Previous)
       return false;
 
-    if (Tok.Previous->is(TT_LeadingJavaAnnotation))
+    if (Tok.Previous->isOneOf(TT_LeadingJavaAnnotation, Keywords.kw_instanceof))
       return false;
 
     // Skip "const" as it does not have an influence on whether this is a name.
@@ -1123,7 +1123,7 @@ private:
       return TT_UnaryOperator;
 
     const FormatToken *NextToken = Tok.getNextNonComment();
-    if (!NextToken ||
+    if (!NextToken || NextToken->is(tok::arrow) ||
         (NextToken->is(tok::l_brace) && !NextToken->getNextNonComment()))
       return TT_Unknown;
 
@@ -1336,6 +1336,10 @@ private:
         return 0;
       if (Current->is(TT_RangeBasedForLoopColon))
         return prec::Comma;
+      if ((Style.Language == FormatStyle::LK_Java ||
+           Style.Language == FormatStyle::LK_JavaScript) &&
+          Current->is(Keywords.kw_instanceof))
+        return prec::Relational;
       if (Current->is(TT_BinaryOperator) || Current->is(tok::comma))
         return Current->getPrecedence();
       if (Current->isOneOf(tok::period, tok::arrow))
@@ -1539,8 +1543,11 @@ void TokenAnnotator::calculateFormattingInformation(AnnotatedLine &Line) {
     Current->MustBreakBefore =
         Current->MustBreakBefore || mustBreakBefore(Line, *Current);
 
-    if (Style.AlwaysBreakAfterDefinitionReturnType && InFunctionDecl &&
-        Current->is(TT_FunctionDeclarationName) &&
+    if ((Style.AlwaysBreakAfterDefinitionReturnType == FormatStyle::DRTBS_All ||
+         (Style.AlwaysBreakAfterDefinitionReturnType ==
+              FormatStyle::DRTBS_TopLevel &&
+          Line.Level == 0)) &&
+        InFunctionDecl && Current->is(TT_FunctionDeclarationName) &&
         !Line.Last->isOneOf(tok::semi, tok::comment)) // Only for definitions.
       // FIXME: Line.Last points to other characters than tok::semi
       // and tok::lbrace.
@@ -1876,7 +1883,12 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
 bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
                                          const FormatToken &Right) {
   const FormatToken &Left = *Right.Previous;
-  if (Style.Language == FormatStyle::LK_Proto) {
+  if (Right.Tok.getIdentifierInfo() && Left.Tok.getIdentifierInfo())
+    return true; // Never ever merge two identifiers.
+  if (Style.Language == FormatStyle::LK_Cpp) {
+    if (Left.is(tok::kw_operator))
+      return Right.is(tok::coloncolon);
+  } else if (Style.Language == FormatStyle::LK_Proto) {
     if (Right.is(tok::period) &&
         Left.isOneOf(Keywords.kw_optional, Keywords.kw_required,
                      Keywords.kw_repeated))
@@ -1913,8 +1925,6 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
         Right.is(TT_TemplateOpener))
       return true;
   }
-  if (Right.Tok.getIdentifierInfo() && Left.Tok.getIdentifierInfo())
-    return true; // Never ever merge two identifiers.
   if (Left.is(TT_ImplicitStringLiteral))
     return Right.WhitespaceRange.getBegin() != Right.WhitespaceRange.getEnd();
   if (Line.Type == LT_ObjCMethodDecl) {
@@ -1937,8 +1947,6 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
     return false;
   if (Right.isOneOf(TT_CtorInitializerColon, TT_ObjCBlockLParen))
     return true;
-  if (Left.is(tok::kw_operator))
-    return Right.is(tok::coloncolon);
   if (Right.is(TT_OverloadedOperatorLParen))
     return false;
   if (Right.is(tok::colon)) {
@@ -2128,6 +2136,8 @@ bool TokenAnnotator::canBreakBefore(const AnnotatedLine &Line,
   } else if (Style.Language == FormatStyle::LK_JavaScript) {
     if (Left.is(TT_JsFatArrow) && Right.is(tok::l_brace))
       return false;
+    if (Left.is(TT_JsTypeColon))
+      return true;
   }
 
   if (Left.is(tok::at))
@@ -2234,7 +2244,8 @@ bool TokenAnnotator::canBreakBefore(const AnnotatedLine &Line,
     return true;
   if (Right.is(tok::kw_typename) && Left.isNot(tok::kw_const))
     return true;
-  if (Left.isBinaryOperator() && !Left.isOneOf(tok::arrowstar, tok::lessless) &&
+  if ((Left.isBinaryOperator() || Left.is(TT_BinaryOperator)) &&
+      !Left.isOneOf(tok::arrowstar, tok::lessless) &&
       Style.BreakBeforeBinaryOperators != FormatStyle::BOS_All &&
       (Style.BreakBeforeBinaryOperators == FormatStyle::BOS_None ||
        Left.getPrecedence() == prec::Assignment))

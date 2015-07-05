@@ -7,6 +7,7 @@ PROG_CXX=llc
 SRCDIR=	tools/llc
 SRCS=	llc.cpp
 
+TGHDRS=	Intrinsics
 LIBDEPS=llvmmirparser \
 	llvmirreader \
 	llvmasmparser \

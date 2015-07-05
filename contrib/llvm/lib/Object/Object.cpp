@@ -173,10 +173,10 @@ void LLVMMoveToNextRelocation(LLVMRelocationIteratorRef SI) {
 
 // SymbolRef accessors
 const char *LLVMGetSymbolName(LLVMSymbolIteratorRef SI) {
-  StringRef ret;
-  if (std::error_code ec = (*unwrap(SI))->getName(ret))
-    report_fatal_error(ec.message());
-  return ret.data();
+  ErrorOr<StringRef> Ret = (*unwrap(SI))->getName();
+  if (std::error_code EC = Ret.getError())
+    report_fatal_error(EC.message());
+  return Ret->data();
 }
 
 uint64_t LLVMGetSymbolAddress(LLVMSymbolIteratorRef SI) {
@@ -187,22 +187,19 @@ uint64_t LLVMGetSymbolAddress(LLVMSymbolIteratorRef SI) {
 }
 
 uint64_t LLVMGetSymbolSize(LLVMSymbolIteratorRef SI) {
-  return (*unwrap(SI))->getSize();
+  return (*unwrap(SI))->getCommonSize();
 }
 
 // RelocationRef accessors
 uint64_t LLVMGetRelocationAddress(LLVMRelocationIteratorRef RI) {
-  uint64_t ret;
-  if (std::error_code ec = (*unwrap(RI))->getAddress(ret))
-    report_fatal_error(ec.message());
-  return ret;
+  ErrorOr<uint64_t> Ret = (*unwrap(RI))->getAddress();
+  if (std::error_code EC = Ret.getError())
+    report_fatal_error(EC.message());
+  return *Ret;
 }
 
 uint64_t LLVMGetRelocationOffset(LLVMRelocationIteratorRef RI) {
-  uint64_t ret;
-  if (std::error_code ec = (*unwrap(RI))->getOffset(ret))
-    report_fatal_error(ec.message());
-  return ret;
+  return (*unwrap(RI))->getOffset();
 }
 
 LLVMSymbolIteratorRef LLVMGetRelocationSymbol(LLVMRelocationIteratorRef RI) {
@@ -211,18 +208,13 @@ LLVMSymbolIteratorRef LLVMGetRelocationSymbol(LLVMRelocationIteratorRef RI) {
 }
 
 uint64_t LLVMGetRelocationType(LLVMRelocationIteratorRef RI) {
-  uint64_t ret;
-  if (std::error_code ec = (*unwrap(RI))->getType(ret))
-    report_fatal_error(ec.message());
-  return ret;
+  return (*unwrap(RI))->getType();
 }
 
 // NOTE: Caller takes ownership of returned string.
 const char *LLVMGetRelocationTypeName(LLVMRelocationIteratorRef RI) {
   SmallVector<char, 0> ret;
-  if (std::error_code ec = (*unwrap(RI))->getTypeName(ret))
-    report_fatal_error(ec.message());
-
+  (*unwrap(RI))->getTypeName(ret);
   char *str = static_cast<char*>(malloc(ret.size()));
   std::copy(ret.begin(), ret.end(), str);
   return str;

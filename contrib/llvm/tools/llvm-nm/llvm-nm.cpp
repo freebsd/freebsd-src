@@ -250,15 +250,7 @@ static char isSymbolList64Bit(SymbolicFile &Obj) {
     return false;
   if (MachOObjectFile *MachO = dyn_cast<MachOObjectFile>(&Obj))
     return MachO->is64Bit();
-  if (isa<ELF32LEObjectFile>(Obj))
-    return false;
-  if (isa<ELF64LEObjectFile>(Obj))
-    return true;
-  if (isa<ELF32BEObjectFile>(Obj))
-    return false;
-  if (isa<ELF64BEObjectFile>(Obj))
-    return true;
-  return false;
+  return cast<ELFObjectFileBase>(Obj).getBytesInAddress() == 8;
 }
 
 static StringRef CurrentFilename;
@@ -569,7 +561,7 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
       continue;
     if ((I->TypeChar == 'U') && DefinedOnly)
       continue;
-    if (SizeSort && !PrintAddress && I->Size == UnknownAddressOrSize)
+    if (SizeSort && !PrintAddress)
       continue;
     if (PrintFileName) {
       if (!ArchitectureName.empty())
@@ -586,16 +578,15 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
     char SymbolAddrStr[18] = "";
     char SymbolSizeStr[18] = "";
 
-    if (OutputFormat == sysv || I->Address == UnknownAddressOrSize)
+    if (OutputFormat == sysv || I->Address == UnknownAddress)
       strcpy(SymbolAddrStr, printBlanks);
     if (OutputFormat == sysv)
       strcpy(SymbolSizeStr, printBlanks);
 
-    if (I->Address != UnknownAddressOrSize)
+    if (I->Address != UnknownAddress)
       format(printFormat, I->Address)
           .print(SymbolAddrStr, sizeof(SymbolAddrStr));
-    if (I->Size != UnknownAddressOrSize)
-      format(printFormat, I->Size).print(SymbolSizeStr, sizeof(SymbolSizeStr));
+    format(printFormat, I->Size).print(SymbolSizeStr, sizeof(SymbolSizeStr));
 
     // If OutputFormat is darwin or we are printing Mach-O symbols in hex and
     // we have a MachOObjectFile, call darwinPrintSymbol to print as darwin's
@@ -613,8 +604,7 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
         outs() << SymbolAddrStr << ' ';
       if (PrintSize) {
         outs() << SymbolSizeStr;
-        if (I->Size != UnknownAddressOrSize)
-          outs() << ' ';
+        outs() << ' ';
       }
       outs() << I->TypeChar;
       if (I->TypeChar == '-' && MachO)
@@ -632,25 +622,20 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
   SymbolList.clear();
 }
 
-template <class ELFT>
-static char getSymbolNMTypeChar(ELFObjectFile<ELFT> &Obj,
+static char getSymbolNMTypeChar(ELFObjectFileBase &Obj,
                                 basic_symbol_iterator I) {
-  typedef typename ELFObjectFile<ELFT>::Elf_Sym Elf_Sym;
-  typedef typename ELFObjectFile<ELFT>::Elf_Shdr Elf_Shdr;
-
   // OK, this is ELF
-  symbol_iterator SymI(I);
+  elf_symbol_iterator SymI(I);
 
-  DataRefImpl Symb = I->getRawDataRefImpl();
-  const Elf_Sym *ESym = Obj.getSymbol(Symb);
-  const ELFFile<ELFT> &EF = *Obj.getELFFile();
-  const Elf_Shdr *ESec = EF.getSection(ESym);
+  elf_section_iterator SecI = Obj.section_end();
+  if (error(SymI->getSection(SecI)))
+    return '?';
 
-  if (ESec) {
-    switch (ESec->sh_type) {
+  if (SecI != Obj.section_end()) {
+    switch (SecI->getType()) {
     case ELF::SHT_PROGBITS:
     case ELF::SHT_DYNAMIC:
-      switch (ESec->sh_flags) {
+      switch (SecI->getFlags()) {
       case (ELF::SHF_ALLOC | ELF::SHF_EXECINSTR):
         return 't';
       case (ELF::SHF_TLS | ELF::SHF_ALLOC | ELF::SHF_WRITE):
@@ -667,17 +652,17 @@ static char getSymbolNMTypeChar(ELFObjectFile<ELFT> &Obj,
     }
   }
 
-  if (ESym->getType() == ELF::STT_SECTION) {
-    StringRef Name;
-    if (error(SymI->getName(Name)))
+  if (SymI->getELFType() == ELF::STT_SECTION) {
+    ErrorOr<StringRef> Name = SymI->getName();
+    if (error(Name.getError()))
       return '?';
-    return StringSwitch<char>(Name)
+    return StringSwitch<char>(*Name)
         .StartsWith(".debug", 'N')
         .StartsWith(".note", 'n')
         .Default('?');
   }
 
-  return '?';
+  return 'n';
 }
 
 static char getSymbolNMTypeChar(COFFObjectFile &Obj, symbol_iterator I) {
@@ -685,11 +670,11 @@ static char getSymbolNMTypeChar(COFFObjectFile &Obj, symbol_iterator I) {
   // OK, this is COFF.
   symbol_iterator SymI(I);
 
-  StringRef Name;
-  if (error(SymI->getName(Name)))
+  ErrorOr<StringRef> Name = SymI->getName();
+  if (error(Name.getError()))
     return '?';
 
-  char Ret = StringSwitch<char>(Name)
+  char Ret = StringSwitch<char>(*Name)
                  .StartsWith(".debug", 'N')
                  .StartsWith(".sxdata", 'N')
                  .Default('?');
@@ -784,26 +769,12 @@ static char getSymbolNMTypeChar(IRObjectFile &Obj, basic_symbol_iterator I) {
   return getSymbolNMTypeChar(*GV);
 }
 
-template <class ELFT>
-static bool isELFObject(ELFObjectFile<ELFT> &Obj, symbol_iterator I) {
-  typedef typename ELFObjectFile<ELFT>::Elf_Sym Elf_Sym;
-
-  DataRefImpl Symb = I->getRawDataRefImpl();
-  const Elf_Sym *ESym = Obj.getSymbol(Symb);
-
-  return ESym->getType() == ELF::STT_OBJECT;
-}
-
 static bool isObject(SymbolicFile &Obj, basic_symbol_iterator I) {
-  if (ELF32LEObjectFile *ELF = dyn_cast<ELF32LEObjectFile>(&Obj))
-    return isELFObject(*ELF, I);
-  if (ELF64LEObjectFile *ELF = dyn_cast<ELF64LEObjectFile>(&Obj))
-    return isELFObject(*ELF, I);
-  if (ELF32BEObjectFile *ELF = dyn_cast<ELF32BEObjectFile>(&Obj))
-    return isELFObject(*ELF, I);
-  if (ELF64BEObjectFile *ELF = dyn_cast<ELF64BEObjectFile>(&Obj))
-    return isELFObject(*ELF, I);
-  return false;
+  auto *ELF = dyn_cast<ELFObjectFileBase>(&Obj);
+  if (!ELF)
+    return false;
+
+  return elf_symbol_iterator(I)->getELFType() == ELF::STT_OBJECT;
 }
 
 static char getNMTypeChar(SymbolicFile &Obj, basic_symbol_iterator I) {
@@ -830,14 +801,8 @@ static char getNMTypeChar(SymbolicFile &Obj, basic_symbol_iterator I) {
     Ret = getSymbolNMTypeChar(*COFF, I);
   else if (MachOObjectFile *MachO = dyn_cast<MachOObjectFile>(&Obj))
     Ret = getSymbolNMTypeChar(*MachO, I);
-  else if (ELF32LEObjectFile *ELF = dyn_cast<ELF32LEObjectFile>(&Obj))
-    Ret = getSymbolNMTypeChar(*ELF, I);
-  else if (ELF64LEObjectFile *ELF = dyn_cast<ELF64LEObjectFile>(&Obj))
-    Ret = getSymbolNMTypeChar(*ELF, I);
-  else if (ELF32BEObjectFile *ELF = dyn_cast<ELF32BEObjectFile>(&Obj))
-    Ret = getSymbolNMTypeChar(*ELF, I);
   else
-    Ret = getSymbolNMTypeChar(cast<ELF64BEObjectFile>(Obj), I);
+    Ret = getSymbolNMTypeChar(cast<ELFObjectFileBase>(Obj), I);
 
   if (Symflags & object::SymbolRef::SF_Global)
     Ret = toupper(Ret);
@@ -871,8 +836,8 @@ static unsigned getNsectForSegSect(MachOObjectFile *Obj) {
 // It is called once for each symbol in a Mach-O file from
 // dumpSymbolNamesFromObject() and returns the section number for that symbol
 // if it is in a section, else it returns 0.
-static unsigned getNsectInMachO(MachOObjectFile &Obj, basic_symbol_iterator I) {
-  DataRefImpl Symb = I->getRawDataRefImpl();
+static unsigned getNsectInMachO(MachOObjectFile &Obj, BasicSymbolRef Sym) {
+  DataRefImpl Symb = Sym.getRawDataRefImpl();
   if (Obj.is64Bit()) {
     MachO::nlist_64 STE = Obj.getSymbol64TableEntry(Symb);
     if ((STE.n_type & MachO::N_TYPE) == MachO::N_SECT)
@@ -889,17 +854,16 @@ static void dumpSymbolNamesFromObject(SymbolicFile &Obj, bool printName,
                                       std::string ArchiveName = std::string(),
                                       std::string ArchitectureName =
                                         std::string()) {
-  basic_symbol_iterator IBegin = Obj.symbol_begin();
-  basic_symbol_iterator IEnd = Obj.symbol_end();
+  auto Symbols = Obj.symbols();
   if (DynamicSyms) {
-    if (!Obj.isELF()) {
+    const auto *E = dyn_cast<ELFObjectFileBase>(&Obj);
+    if (!E) {
       error("File format has no dynamic symbol table", Obj.getFileName());
       return;
     }
-    std::pair<symbol_iterator, symbol_iterator> IDyn =
-        getELFDynamicSymbolIterators(&Obj);
-    IBegin = IDyn.first;
-    IEnd = IDyn.second;
+    auto DynSymbols = E->getDynamicSymbolIterators();
+    Symbols =
+        make_range<basic_symbol_iterator>(DynSymbols.begin(), DynSymbols.end());
   }
   std::string NameBuffer;
   raw_string_ostream OS(NameBuffer);
@@ -913,13 +877,13 @@ static void dumpSymbolNamesFromObject(SymbolicFile &Obj, bool printName,
     if (Nsect == 0)
       return;
   }
-  for (basic_symbol_iterator I = IBegin; I != IEnd; ++I) {
-    uint32_t SymFlags = I->getFlags();
+  for (BasicSymbolRef Sym : Symbols) {
+    uint32_t SymFlags = Sym.getFlags();
     if (!DebugSyms && (SymFlags & SymbolRef::SF_FormatSpecific))
       continue;
     if (WithoutAliases) {
       if (IRObjectFile *IR = dyn_cast<IRObjectFile>(&Obj)) {
-        const GlobalValue *GV = IR->getSymbolGV(I->getRawDataRefImpl());
+        const GlobalValue *GV = IR->getSymbolGV(Sym.getRawDataRefImpl());
         if (GV && isa<GlobalAlias>(GV))
           continue;
       }
@@ -927,23 +891,24 @@ static void dumpSymbolNamesFromObject(SymbolicFile &Obj, bool printName,
     // If a "-s segname sectname" option was specified and this is a Mach-O
     // file and this section appears in this file, Nsect will be non-zero then
     // see if this symbol is a symbol from that section and if not skip it.
-    if (Nsect && Nsect != getNsectInMachO(*MachO, I))
+    if (Nsect && Nsect != getNsectInMachO(*MachO, Sym))
       continue;
     NMSymbol S;
-    S.Size = UnknownAddressOrSize;
-    S.Address = UnknownAddressOrSize;
-    if (PrintSize && isa<ELFObjectFileBase>(Obj)) {
-      symbol_iterator SymI = I;
-      S.Size = SymI->getSize();
+    S.Size = 0;
+    S.Address = UnknownAddress;
+    if (PrintSize) {
+      if (isa<ELFObjectFileBase>(&Obj))
+        S.Size = ELFSymbolRef(Sym).getSize();
     }
-    if (PrintAddress && isa<ObjectFile>(Obj))
-      if (error(symbol_iterator(I)->getAddress(S.Address)))
+    if (PrintAddress && isa<ObjectFile>(Obj)) {
+      if (error(SymbolRef(Sym).getAddress(S.Address)))
         break;
-    S.TypeChar = getNMTypeChar(Obj, I);
-    if (error(I->printName(OS)))
+    }
+    S.TypeChar = getNMTypeChar(Obj, Sym);
+    if (error(Sym.printName(OS)))
       break;
     OS << '\0';
-    S.Symb = I->getRawDataRefImpl();
+    S.Symb = Sym.getRawDataRefImpl();
     SymbolList.push_back(S);
   }
 

@@ -8,6 +8,7 @@ PROG_CXX=llvm-lto
 SRCDIR=	tools/llvm-lto
 SRCS=	llvm-lto.cpp
 
+TGHDRS=	Intrinsics
 LIBDEPS=llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \

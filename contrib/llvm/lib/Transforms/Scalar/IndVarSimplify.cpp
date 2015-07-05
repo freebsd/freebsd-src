@@ -136,7 +136,7 @@ namespace {
 
     void SinkUnusedInvariants(Loop *L);
   };
-} // namespace
+}
 
 char IndVarSimplify::ID = 0;
 INITIALIZE_PASS_BEGIN(IndVarSimplify, "indvars",
@@ -494,7 +494,7 @@ struct RewritePhi {
   RewritePhi(PHINode *P, unsigned I, Value *V, bool H, bool S)
       : PN(P), Ith(I), Val(V), HighCost(H), SafePhi(S) {}
 };
-} // namespace
+}
 
 //===----------------------------------------------------------------------===//
 // RewriteLoopExitValues - Optimize IV users outside the loop.
@@ -758,7 +758,7 @@ namespace {
     WideIVInfo() : NarrowIV(nullptr), WidestNativeType(nullptr),
                    IsSigned(false) {}
   };
-} // namespace
+}
 
 /// visitCast - Update information about the induction variable that is
 /// extended by this sign or zero extend operation. This is used to determine
@@ -1321,7 +1321,7 @@ namespace {
     // Implement the interface used by simplifyUsersOfIV.
     void visitCast(CastInst *Cast) override { visitIVCast(Cast, WI, SE, TTI); }
   };
-} // namespace
+}
 
 /// SimplifyAndExtend - Iteratively perform simplification on a worklist of IV
 /// users. Each successive simplification may push more users which may
@@ -2013,11 +2013,10 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   // Now that we're done iterating through lists, clean up any instructions
   // which are now dead.
-  while (!DeadInsts.empty()) {
-    Value *V = static_cast<Value *>(DeadInsts.pop_back_val());
-    if (Instruction *Inst = dyn_cast_or_null<Instruction>(V))
+  while (!DeadInsts.empty())
+    if (Instruction *Inst =
+            dyn_cast_or_null<Instruction>(DeadInsts.pop_back_val()))
       RecursivelyDeleteTriviallyDeadInstructions(Inst, TLI);
-  }
 
   // The Rewriter may not be used from this point on.
 
