@@ -632,8 +632,8 @@ Parser::TPResult Parser::TryParsePtrOperatorSeq() {
       // ptr-operator
       ConsumeToken();
       while (Tok.isOneOf(tok::kw_const, tok::kw_volatile, tok::kw_restrict,
-                         tok::kw___nonnull, tok::kw___nullable,
-                         tok::kw___null_unspecified))
+                         tok::kw__Nonnull, tok::kw__Nullable,
+                         tok::kw__Null_unspecified))
         ConsumeToken();
     } else {
       return TPResult::True;
@@ -1213,9 +1213,11 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
     //   'friend'
     //   'typedef'
     //   'constexpr'
+    //   'concept'
   case tok::kw_friend:
   case tok::kw_typedef:
   case tok::kw_constexpr:
+  case tok::kw_concept:
     // storage-class-specifier
   case tok::kw_register:
   case tok::kw_static:
@@ -1276,9 +1278,9 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
   case tok::kw___ptr32:
   case tok::kw___forceinline:
   case tok::kw___unaligned:
-  case tok::kw___nonnull:
-  case tok::kw___nullable:
-  case tok::kw___null_unspecified:
+  case tok::kw__Nonnull:
+  case tok::kw__Nullable:
+  case tok::kw__Null_unspecified:
     return TPResult::True;
 
     // Borland

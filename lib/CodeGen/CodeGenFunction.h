@@ -233,6 +233,20 @@ public:
   };
   CGCapturedStmtInfo *CapturedStmtInfo;
 
+  /// \brief RAII for correct setting/restoring of CapturedStmtInfo.
+  class CGCapturedStmtRAII {
+  private:
+    CodeGenFunction &CGF;
+    CGCapturedStmtInfo *PrevCapturedStmtInfo;
+  public:
+    CGCapturedStmtRAII(CodeGenFunction &CGF,
+                       CGCapturedStmtInfo *NewCapturedStmtInfo)
+        : CGF(CGF), PrevCapturedStmtInfo(CGF.CapturedStmtInfo) {
+      CGF.CapturedStmtInfo = NewCapturedStmtInfo;
+    }
+    ~CGCapturedStmtRAII() { CGF.CapturedStmtInfo = PrevCapturedStmtInfo; }
+  };
+
   /// BoundsChecking - Emit run-time bounds checks. Higher values mean
   /// potentially higher performance penalties.
   unsigned char BoundsChecking;
@@ -283,12 +297,12 @@ public:
   /// Header for data within LifetimeExtendedCleanupStack.
   struct LifetimeExtendedCleanupHeader {
     /// The size of the following cleanup object.
-    unsigned Size : 29;
+    unsigned Size;
     /// The kind of cleanup to push: a value from the CleanupKind enumeration.
-    unsigned Kind : 3;
+    CleanupKind Kind;
 
-    size_t getSize() const { return size_t(Size); }
-    CleanupKind getKind() const { return static_cast<CleanupKind>(Kind); }
+    size_t getSize() const { return Size; }
+    CleanupKind getKind() const { return Kind; }
   };
 
   /// i32s containing the indexes of the cleanup destinations.
@@ -388,6 +402,8 @@ public:
     LifetimeExtendedCleanupStack.resize(
         LifetimeExtendedCleanupStack.size() + sizeof(Header) + Header.Size);
 
+    static_assert(sizeof(Header) % llvm::AlignOf<T>::Alignment == 0,
+                  "Cleanup will be allocated on misaligned address");
     char *Buffer = &LifetimeExtendedCleanupStack[OldSize];
     new (Buffer) LifetimeExtendedCleanupHeader(Header);
     new (Buffer + sizeof(Header)) T(A...);
@@ -1280,8 +1296,9 @@ public:
   void GenerateThunk(llvm::Function *Fn, const CGFunctionInfo &FnInfo,
                      GlobalDecl GD, const ThunkInfo &Thunk);
 
-  void GenerateVarArgsThunk(llvm::Function *Fn, const CGFunctionInfo &FnInfo,
-                            GlobalDecl GD, const ThunkInfo &Thunk);
+  llvm::Function *GenerateVarArgsThunk(llvm::Function *Fn,
+                                       const CGFunctionInfo &FnInfo,
+                                       GlobalDecl GD, const ThunkInfo &Thunk);
 
   void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type,
                         FunctionArgList &Args);
@@ -2185,6 +2202,9 @@ public:
   void EmitOMPAtomicDirective(const OMPAtomicDirective &S);
   void EmitOMPTargetDirective(const OMPTargetDirective &S);
   void EmitOMPTeamsDirective(const OMPTeamsDirective &S);
+  void
+  EmitOMPCancellationPointDirective(const OMPCancellationPointDirective &S);
+  void EmitOMPCancelDirective(const OMPCancelDirective &S);
 
   /// \brief Emit inner loop of the worksharing/simd construct.
   ///
@@ -2202,10 +2222,12 @@ public:
       const llvm::function_ref<void(CodeGenFunction &)> &BodyGen,
       const llvm::function_ref<void(CodeGenFunction &)> &PostIncGen);
 
+  JumpDest getOMPCancelDestination(OpenMPDirectiveKind Kind);
+
 private:
 
   /// Helpers for the OpenMP loop directives.
-  void EmitOMPLoopBody(const OMPLoopDirective &D);
+  void EmitOMPLoopBody(const OMPLoopDirective &D, JumpDest LoopExit);
   void EmitOMPSimdInit(const OMPLoopDirective &D);
   void EmitOMPSimdFinal(const OMPLoopDirective &D);
   /// \brief Emit code for the worksharing loop-based directive.
@@ -2217,6 +2239,8 @@ private:
                            OMPPrivateScope &LoopScope, bool Ordered,
                            llvm::Value *LB, llvm::Value *UB, llvm::Value *ST,
                            llvm::Value *IL, llvm::Value *Chunk);
+  /// \brief Emit code for sections directive.
+  OpenMPDirectiveKind EmitSections(const OMPExecutableDirective &S);
 
 public:
 
@@ -2586,6 +2610,7 @@ public:
   llvm::Value *EmitPPCBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitAMDGPUBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitSystemZBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
+  llvm::Value *EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
   llvm::Value *EmitObjCProtocolExpr(const ObjCProtocolExpr *E);
   llvm::Value *EmitObjCStringLiteral(const ObjCStringLiteral *E);
@@ -2851,6 +2876,10 @@ public:
   /// \brief Create a basic block that will call the trap intrinsic, and emit a
   /// conditional branch to it, for the -ftrapv checks.
   void EmitTrapCheck(llvm::Value *Checked);
+
+  /// \brief Emit a call to trap or debugtrap and attach function attribute
+  /// "trap-func-name" if specified.
+  llvm::CallInst *EmitTrapCall(llvm::Intrinsic::ID IntrID);
 
   /// \brief Create a check for a function parameter that may potentially be
   /// declared as non-null.

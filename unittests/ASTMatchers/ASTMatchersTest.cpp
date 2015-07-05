@@ -482,6 +482,10 @@ TEST(DeclarationMatcher, MatchAnyOf) {
   EXPECT_TRUE(matches("int F() { return 1 + 2; }", MixedTypes));
   EXPECT_TRUE(matches("int F() { if (true) return 1; }", MixedTypes));
   EXPECT_TRUE(notMatches("int F() { return 1; }", MixedTypes));
+
+  EXPECT_TRUE(
+      matches("void f() try { } catch (int) { } catch (...) { }",
+              catchStmt(anyOf(hasDescendant(varDecl()), isCatchAll()))));
 }
 
 TEST(DeclarationMatcher, MatchHas) {
@@ -3321,6 +3325,10 @@ TEST(ExceptionHandling, SimpleCases) {
                       throwExpr()));
   EXPECT_TRUE(matches("void foo() try { throw 5;} catch(int X) { }",
                       throwExpr()));
+  EXPECT_TRUE(matches("void foo() try { throw; } catch(...) { }",
+                      catchStmt(isCatchAll())));
+  EXPECT_TRUE(notMatches("void foo() try { throw; } catch(int) { }",
+                         catchStmt(isCatchAll())));
 }
 
 TEST(HasConditionVariableStatement, DoesNotMatchCondition) {

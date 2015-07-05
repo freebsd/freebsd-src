@@ -69,8 +69,8 @@ void ReadFields() {
 // them right in class templates.
 // CHECK: call {{.*}} @"\01??$ReadField@US@@$0A@@@YAHAAUS@@@Z"
 // CHECK: call {{.*}} @"\01??$ReadField@UM@@$0A@@@YAHAAUM@@@Z"
-// CHECK: call {{.*}} @"\01??$ReadField@UV@@$FA@?0@@YAHAAUV@@@Z"
-// CHECK: call {{.*}} @"\01??$ReadField@UU@@$GA@A@?0@@YAHAAUU@@@Z"
+// CHECK: call {{.*}} @"\01??$ReadField@UV@@$0A@@@YAHAAUV@@@Z"
+// CHECK: call {{.*}} @"\01??$ReadField@UU@@$0A@@@YAHAAUU@@@Z"
 
 // Non-polymorphic null data memptr vs first field memptr.  MSVC mangles these
 // the same.
@@ -141,3 +141,15 @@ void CallMethods() {
 // CHECK: call {{.*}} @"\01??$CallMethod@UM@@$0A@@@YAXAAUM@@@Z"
 // CHECK: call {{.*}} @"\01??$CallMethod@UV@@$0A@@@YAXAAUV@@@Z"
 // CHECK: call {{.*}} @"\01??$CallMethod@UU@@$0A@@@YAXAAUU@@@Z"
+
+namespace NegativeNVOffset {
+struct A {};
+struct B : virtual A {};
+struct C : B {
+  virtual void f();
+};
+}
+
+template void CallMethod<NegativeNVOffset::C, &NegativeNVOffset::C::f>(NegativeNVOffset::C &);
+
+// CHECK-LABEL: define {{.*}} @"\01??$CallMethod@UC@NegativeNVOffset@@$I??_912@$BA@AEPPPPPPPM@A@@@YAXAAUC@NegativeNVOffset@@@Z"

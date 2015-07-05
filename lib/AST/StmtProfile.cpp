@@ -69,9 +69,9 @@ namespace {
 
 void StmtProfiler::VisitStmt(const Stmt *S) {
   ID.AddInteger(S->getStmtClass());
-  for (Stmt::const_child_range C = S->children(); C; ++C) {
-    if (*C)
-      Visit(*C);
+  for (const Stmt *SubStmt : S->children()) {
+    if (SubStmt)
+      Visit(SubStmt);
     else
       ID.AddInteger(0);
   }
@@ -425,6 +425,9 @@ OMPClauseProfiler::VisitOMPCopyprivateClause(const OMPCopyprivateClause *C) {
 void OMPClauseProfiler::VisitOMPFlushClause(const OMPFlushClause *C) {
   VisitOMPClauseList(C);
 }
+void OMPClauseProfiler::VisitOMPDependClause(const OMPDependClause *C) {
+  VisitOMPClauseList(C);
+}
 }
 
 void
@@ -531,6 +534,15 @@ void StmtProfiler::VisitOMPTargetDirective(const OMPTargetDirective *S) {
 }
 
 void StmtProfiler::VisitOMPTeamsDirective(const OMPTeamsDirective *S) {
+  VisitOMPExecutableDirective(S);
+}
+
+void StmtProfiler::VisitOMPCancellationPointDirective(
+    const OMPCancellationPointDirective *S) {
+  VisitOMPExecutableDirective(S);
+}
+
+void StmtProfiler::VisitOMPCancelDirective(const OMPCancelDirective *S) {
   VisitOMPExecutableDirective(S);
 }
 

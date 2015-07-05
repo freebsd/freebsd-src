@@ -71,8 +71,6 @@ IdentifierIterator *IdentifierInfoLookup::getIdentifiers() {
   return new EmptyLookupIterator();
 }
 
-ExternalIdentifierLookup::~ExternalIdentifierLookup() {}
-
 IdentifierTable::IdentifierTable(const LangOptions &LangOpts,
                                  IdentifierInfoLookup* externalLookup)
   : HashTable(8192), // Start with space for 8K identifiers.
@@ -647,16 +645,17 @@ const char *clang::getOperatorSpelling(OverloadedOperatorKind Operator) {
   llvm_unreachable("Invalid OverloadedOperatorKind!");
 }
 
-StringRef clang::getNullabilitySpelling(NullabilityKind kind) {
+StringRef clang::getNullabilitySpelling(NullabilityKind kind,
+                                        bool isContextSensitive) {
   switch (kind) {
   case NullabilityKind::NonNull:
-    return "__nonnull";
+    return isContextSensitive ? "nonnull" : "_Nonnull";
 
   case NullabilityKind::Nullable:
-    return "__nullable";
+    return isContextSensitive ? "nullable" : "_Nullable";
 
   case NullabilityKind::Unspecified:
-    return "__null_unspecified";
+    return isContextSensitive ? "null_unspecified" : "_Null_unspecified";
   }
   llvm_unreachable("Unknown nullability kind.");
 }

@@ -475,7 +475,8 @@ struct CounterCoverageMappingBuilder
   /// files, this adjusts our current region stack and creates the file regions
   /// for the exited file.
   void handleFileExit(SourceLocation NewLoc) {
-    if (SM.isWrittenInSameFile(MostRecentLocation, NewLoc))
+    if (NewLoc.isInvalid() ||
+        SM.isWrittenInSameFile(MostRecentLocation, NewLoc))
       return;
 
     // If NewLoc is not in a file that contains MostRecentLocation, walk up to
@@ -581,10 +582,9 @@ struct CounterCoverageMappingBuilder
   void VisitStmt(const Stmt *S) {
     if (!S->getLocStart().isInvalid())
       extendRegion(S);
-    for (Stmt::const_child_range I = S->children(); I; ++I) {
-      if (*I)
-        this->Visit(*I);
-    }
+    for (const Stmt *Child : S->children())
+      if (Child)
+        this->Visit(Child);
     handleFileExit(getEnd(S));
   }
 
@@ -931,7 +931,8 @@ void CoverageMappingModuleGen::addFunctionMappingRecord(
   if (!FunctionRecordTy) {
     llvm::Type *FunctionRecordTypes[] = {Int8PtrTy, Int32Ty, Int32Ty, Int64Ty};
     FunctionRecordTy =
-        llvm::StructType::get(Ctx, makeArrayRef(FunctionRecordTypes));
+        llvm::StructType::get(Ctx, makeArrayRef(FunctionRecordTypes),
+                              /*isPacked=*/true);
   }
 
   llvm::Constant *FunctionRecordVals[] = {
