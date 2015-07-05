@@ -184,15 +184,25 @@ void
 cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
+	struct trapframe *tf = td->td_frame;
 
-	panic("cpu_set_upcall_kse");
+	tf->tf_sp = STACKALIGN(stack->ss_sp + stack->ss_size);
+	tf->tf_elr = (register_t)entry;
+	tf->tf_x[0] = (register_t)arg;
 }
 
 int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
+	struct pcb *pcb;
 
-	panic("cpu_set_user_tls");
+	if ((uintptr_t)tls_base >= VM_MAXUSER_ADDRESS)
+		return (EINVAL);
+
+	pcb = td->td_pcb;
+	pcb->pcb_tpidr_el0 = (register_t)tls_base;
+
+	return (0);
 }
 
 void
