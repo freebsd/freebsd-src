@@ -1,9 +1,9 @@
-.Dd April 7 2015
+.Dd June 29 2015
 .Dt NTPQ @NTPQ_MS@ User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntpq-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  April  7, 2015 at 04:27:09 AM by AutoGen 5.18.5pre4
+.\"  It has been AutoGen-ed  June 29, 2015 at 04:31:41 PM by AutoGen 5.18.5
 .\"  From the definitions    ntpq-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -224,7 +224,9 @@ switch.
 This command allows the specification of a key number to be
 used to authenticate configuration requests.
 This must correspond
-to a key number the server has been configured to use for this
+to the
+.Cm controlkey
+key number the server has been configured to use for this
 purpose.
 .It Ic keytype Xo Oo
 .Cm md5 |
@@ -504,6 +506,14 @@ offset of server relative to this host
 .It Ic jitter
 jitter
 .El
+.It Ic apeers
+Display a list of peers in the form:
+.Dl [tally]remote refid assid st t when pool reach delay offset jitter
+where the output is just like the
+.Ic peers
+command except that the
+.Ic refid
+is displayed in hex format and the association number is also displayed.
 .It Ic pstats Ar assocID
 Show the statistics for the peer with the given
 .Ar assocID .

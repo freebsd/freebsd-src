@@ -9,7 +9,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -33,7 +33,7 @@ static void
 file_preset(tOptions * opts, char const * fname, int dir);
 
 static char *
-handle_comment(char* txt);
+handle_comment(char * txt);
 
 static char *
 handle_cfg(tOptions * opts, tOptState * ost, char * txt, int dir);
@@ -87,9 +87,9 @@ skip_unkn(char const * txt)
 /*=export_func  configFileLoad
  *
  * what:  parse a configuration file
- * arg:   + char const*     + fname + the file to load +
+ * arg:   + char const * + fname + the file to load +
  *
- * ret_type:  const tOptionValue*
+ * ret_type:  const tOptionValue *
  * ret_desc:  An allocated, compound value structure
  *
  * doc:
@@ -146,11 +146,11 @@ configFileLoad(char const * fname)
 /*=export_func  optionFindValue
  *
  * what:  find a hierarcicaly valued option instance
- * arg:   + const tOptDesc* + odesc + an option with a nested arg type +
- * arg:   + char const*     + name  + name of value to find +
- * arg:   + char const*     + val   + the matching value    +
+ * arg:   + const tOptDesc * + odesc + an option with a nested arg type +
+ * arg:   + char const *     + name  + name of value to find +
+ * arg:   + char const *     + val   + the matching value    +
  *
- * ret_type:  const tOptionValue*
+ * ret_type:  const tOptionValue *
  * ret_desc:  a compound value structure
  *
  * doc:
@@ -182,9 +182,9 @@ optionFindValue(const tOptDesc * odesc, char const * name, char const * val)
     }
 
     else do {
-        tArgList* argl  = odesc->optCookie;
-        int       argct = argl->useCt;
-        void **   poptv = (void**)(intptr_t)(argl->apzArgs);
+        tArgList * argl  = odesc->optCookie;
+        int        argct = argl->useCt;
+        void **    poptv = (void **)(argl->apzArgs);
 
         if (argct == 0) {
             errno = ENOENT;
@@ -192,7 +192,7 @@ optionFindValue(const tOptDesc * odesc, char const * name, char const * val)
         }
 
         if (name == NULL) {
-            res = (tOptionValue*)*poptv;
+            res = (tOptionValue *)*poptv;
             break;
         }
 
@@ -221,12 +221,12 @@ optionFindValue(const tOptDesc * odesc, char const * name, char const * val)
  * FIXME: the handling of 'pzName' and 'pzVal' is just wrong.
  *
  * what:  find a hierarcicaly valued option instance
- * arg:   + const tOptDesc* + odesc + an option with a nested arg type +
- * arg:   + const tOptionValue* + pPrevVal + the last entry +
- * arg:   + char const*     + name     + name of value to find +
- * arg:   + char const*     + value    + the matching value    +
+ * arg:   + const tOptDesc * + odesc + an option with a nested arg type +
+ * arg:   + const tOptionValue * + pPrevVal + the last entry +
+ * arg:   + char const *     + name     + name of value to find +
+ * arg:   + char const *     + value    + the matching value    +
  *
- * ret_type:  const tOptionValue*
+ * ret_type:  const tOptionValue *
  * ret_desc:  a compound value structure
  *
  * doc:
@@ -249,7 +249,7 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
                     char const * pzName, char const * pzVal)
 {
     bool old_found = false;
-    tOptionValue* res = NULL;
+    tOptionValue * res = NULL;
 
     (void)pzName;
     (void)pzVal;
@@ -264,12 +264,12 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
     }
 
     else do {
-        tArgList* argl = odesc->optCookie;
-        int    ct   = argl->useCt;
-        void** poptv = (void**)(intptr_t)argl->apzArgs;
+        tArgList * argl = odesc->optCookie;
+        int        ct   = argl->useCt;
+        void **   poptv = (void **)argl->apzArgs;
 
         while (--ct >= 0) {
-            tOptionValue* pOV = *(poptv++);
+            tOptionValue * pOV = *(poptv++);
             if (old_found) {
                 res = pOV;
                 break;
@@ -288,10 +288,10 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
 /*=export_func  optionGetValue
  *
  * what:  get a specific value from a hierarcical list
- * arg:   + const tOptionValue* + pOptValue + a hierarchcal value +
- * arg:   + char const*   + valueName + name of value to get +
+ * arg:   + const tOptionValue * + pOptValue + a hierarchcal value +
+ * arg:   + char const *         + valueName + name of value to get +
  *
- * ret_type:  const tOptionValue*
+ * ret_type:  const tOptionValue *
  * ret_desc:  a compound value structure
  *
  * doc:
@@ -326,10 +326,10 @@ optionGetValue(tOptionValue const * oov, char const * vname)
 
     if (arg_list->useCt > 0) {
         int     ct     = arg_list->useCt;
-        void ** ovlist = (void**)(intptr_t)(arg_list->apzArgs);
+        void ** ovlist = (void **)(arg_list->apzArgs);
 
         if (vname == NULL) {
-            res = (tOptionValue*)*ovlist;
+            res = (tOptionValue *)*ovlist;
 
         } else do {
             tOptionValue * opt_val = *(ovlist++);
@@ -347,10 +347,10 @@ optionGetValue(tOptionValue const * oov, char const * vname)
 /*=export_func  optionNextValue
  *
  * what:  get the next value from a hierarchical list
- * arg:   + const tOptionValue* + pOptValue + a hierarchcal list value +
- * arg:   + const tOptionValue* + pOldValue + a value from this list   +
+ * arg:   + const tOptionValue * + pOptValue + a hierarchcal list value +
+ * arg:   + const tOptionValue * + pOldValue + a value from this list   +
  *
- * ret_type:  const tOptionValue*
+ * ret_type:  const tOptionValue *
  * ret_desc:  a compound value structure
  *
  * doc:
@@ -385,7 +385,7 @@ optionNextValue(tOptionValue const * ov_list,tOptionValue const * oov )
     arg_list = ov_list->v.nestVal;
     {
         int     ct    = arg_list->useCt;
-        void ** o_list = (void**)(intptr_t)(arg_list->apzArgs);
+        void ** o_list = (void **)(arg_list->apzArgs);
 
         while (ct-- > 0) {
             tOptionValue * nov = *(o_list++);
@@ -395,7 +395,7 @@ optionNextValue(tOptionValue const * ov_list,tOptionValue const * oov )
 
                 } else {
                     err = 0;
-                    res = (tOptionValue*)*o_list;
+                    res = (tOptionValue *)*o_list;
                 }
                 break;
             }
@@ -498,9 +498,9 @@ file_preset(tOptions * opts, char const * fname, int dir)
  *  but actually I don't care that much.  It ends with "-->".
  */
 static char *
-handle_comment(char* txt)
+handle_comment(char * txt)
 {
-    char* pz = strstr(txt, "-->");
+    char * pz = strstr(txt, "-->");
     if (pz != NULL)
         pz += 3;
     return pz;
@@ -515,8 +515,8 @@ handle_comment(char* txt)
 static char *
 handle_cfg(tOptions * opts, tOptState * ost, char * txt, int dir)
 {
-    char* pzName = txt++;
-    char* pzEnd  = strchr(txt, NL);
+    char * pzName = txt++;
+    char * pzEnd  = strchr(txt, NL);
 
     if (pzEnd == NULL)
         return txt + strlen(txt);
@@ -547,8 +547,8 @@ handle_cfg(tOptions * opts, tOptState * ost, char * txt, int dir)
      *  on to a newline *not* preceded by a backslash.
      */
     if (pzEnd[-1] == '\\') {
-        char* pcD = pzEnd-1;
-        char* pcS = pzEnd;
+        char * pcD = pzEnd-1;
+        char * pcS = pzEnd;
 
         for (;;) {
             char ch = *(pcS++);
@@ -920,9 +920,9 @@ handle_struct(tOptions * opts, tOptState * ost, char * txt, int dir)
     tOptionLoadMode mode = option_load_mode;
     tOptionValue    valu;
 
-    char* pzName = ++txt;
-    char* pzData;
-    char* pcNulPoint;
+    char * pzName = ++txt;
+    char * pzData;
+    char * pcNulPoint;
 
     txt = SPN_VALUE_NAME_CHARS(txt);
     pcNulPoint = txt;
@@ -931,8 +931,8 @@ handle_struct(tOptions * opts, tOptState * ost, char * txt, int dir)
     switch (*txt) {
     case ' ':
     case '\t':
-        txt = (void *)(intptr_t)parse_attrs(
-            opts, SPN_WHITESPACE_CHARS(txt), &mode, &valu);
+        txt = VOIDP(parse_attrs(
+            opts, SPN_WHITESPACE_CHARS(txt), &mode, &valu));
         if (txt == NULL)
             return txt;
         if (*txt == '>')
@@ -1096,8 +1096,8 @@ intern_file_load(tOptions * opts)
  *
  * what: Load the locatable config files, in order
  *
- * arg:  + tOptions*   + opts + program options descriptor +
- * arg:  + char const* + prog + program name +
+ * arg:  + tOptions *   + opts + program options descriptor +
+ * arg:  + char const * + prog + program name +
  *
  * ret_type:  int
  * ret_desc:  0 -> SUCCESS, -1 -> FAILURE
@@ -1137,8 +1137,7 @@ optionFileLoad(tOptions * opts, char const * prog)
      * of this pointer to point to writable memory.
      */
     {
-        char const ** pp =
-            (char const **)(void *)(intptr_t)&(opts->pzProgName);
+        char const ** pp = VOIDP(&(opts->pzProgName));
         *pp = prog;
     }
 
@@ -1150,8 +1149,8 @@ optionFileLoad(tOptions * opts, char const * prog)
  * private:
  *
  * what:  Load an option rc/ini file
- * arg:   + tOptions* + opts  + program options descriptor +
- * arg:   + tOptDesc* + odesc + the descriptor for this arg +
+ * arg:   + tOptions * + opts  + program options descriptor +
+ * arg:   + tOptDesc * + odesc + the descriptor for this arg +
  *
  * doc:
  *  Processes the options found in the file named with

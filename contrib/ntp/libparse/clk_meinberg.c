@@ -5,7 +5,7 @@
  *
  * Meinberg clock support
  *
- * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1995-2015 by Frank Kardel <kardel <AT> ntp.org>
  * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
@@ -400,7 +400,7 @@ cvt_meinberg(
 
 		if (format->flags & MBG_EXTENDED)
 		{
-			clock_time->flags |= PARSEB_S_ANTENNA;
+			clock_time->flags |= PARSEB_S_CALLBIT;
 
 			/*
 			 * DCF77 does not encode the direction -
