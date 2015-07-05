@@ -40,21 +40,6 @@ static const char rcsid[] =
 
 
 static int
-a2i(char const ** str)
-{
-	int             i = 0;
-	char const     *s = *str;
-
-	if (isdigit((unsigned char)*s)) {
-		i = atoi(s);
-		while (isdigit((unsigned char)*s))
-			++s;
-		*str = s;
-	}
-	return i;
-}
-
-static int
 numerics(char const * str)
 {
 	int             rc = isdigit((unsigned char)*str);
