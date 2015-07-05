@@ -33,6 +33,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <xlocale.h>
+#include <err.h>
 
 #include "psdate.h"
 
@@ -95,16 +97,6 @@ weekday(char const ** str)
 	return aindex(days, str, 3);
 }
 
-static int
-month(char const ** str)
-{
-	static char const *months[] =
-	{"jan", "feb", "mar", "apr", "may", "jun", "jul",
-	"aug", "sep", "oct", "nov", "dec", NULL};
-
-	return aindex(months, str, 3);
-}
-
 static void
 parse_time(char const * str, int *hour, int *min, int *sec)
 {
@@ -122,34 +114,35 @@ parse_time(char const * str, int *hour, int *min, int *sec)
 static void
 parse_datesub(char const * str, int *day, int *mon, int *year)
 {
-	int             i;
+	struct tm	 tm;
+	locale_t	 l;
+	int		 i;
+	char		*ret;
+	const char	*valid_formats[] = {
+		"%d-%b-%y",
+		"%d-%b-%Y",
+		"%d-%m-%y",
+		"%d-%m-%Y",
+		NULL,
+	};
 
-	static char const nchrs[] = "0123456789 \t,/-.";
+	l = newlocale(LC_ALL_MASK, "C", NULL);
 
-	if ((i = month(&str)) != -1) {
-		*mon = i;
-		if ((i = a2i(&str)) != 0)
-			*day = i;
-	} else if ((i = a2i(&str)) != 0) {
-		*day = i;
-		while (*str && strchr(nchrs + 10, *str) != NULL)
-			++str;
-		if ((i = month(&str)) != -1)
-			*mon = i;
-		else if ((i = a2i(&str)) != 0)
-			*mon = i - 1;
-	} else
-		return;
-
-	while (*str && strchr(nchrs + 10, *str) != NULL)
-		++str;
-	if (isdigit((unsigned char)*str)) {
-		*year = atoi(str);
-		if (*year > 1900)
-			*year -= 1900;
-		else if (*year < 32)
-			*year += 100;
+	memset(&tm, 0, sizeof(tm));
+	for (i=0; valid_formats[i] != NULL; i++) {
+		ret = strptime_l(str, valid_formats[i], &tm, l);
+		if (ret && *ret == '\0') {
+			*day = tm.tm_mday;
+			*mon = tm.tm_mon;
+			*year = tm.tm_year;
+			freelocale(l);
+			return;
+		}
 	}
+
+	freelocale(l);
+
+	errx(EXIT_FAILURE, "Invalid date");
 }
 
 

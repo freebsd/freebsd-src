@@ -176,6 +176,31 @@ user_add_name_too_long_body() {
 		${PW} useradd name_very_vert_very_very_very_long
 }
 
+atf_test_case user_add_expiration
+user_add_expiration_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 \
+		${PW} useradd foo -e 20-03-2043
+	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		-s exit:0 grep "^foo" ${HOME}/master.passwd
+	atf_check -s exit:0 ${PW} userdel foo
+	atf_check -s exit:0 \
+		${PW} useradd foo -e 20-03-43
+	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		-s exit:0 grep "^foo" ${HOME}/master.passwd
+	atf_check -s exit:0 ${PW} userdel foo
+	atf_check -s exit:0 \
+		${PW} useradd foo -e 20-Mar-2043
+	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		-s exit:0 grep "^foo" ${HOME}/master.passwd
+	atf_check -s exit:0 ${PW} userdel foo
+	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
+		${PW} useradd foo -e 20-Foo-2043
+	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
+		${PW} useradd foo -e 20-13-2043
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -193,4 +218,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_password_expiration_date_month
 	atf_add_test_case user_add_password_expiration_date_relative
 	atf_add_test_case user_add_name_too_long
+	atf_add_test_case user_add_expiration
 }
