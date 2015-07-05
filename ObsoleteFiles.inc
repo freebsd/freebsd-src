@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150705: Rename DTrace provider man pages.
+OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
 # 20150604: Move nvlist man pages to section 9.
 OLD_FILES+=usr/share/man/man3/libnv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist.3.gz

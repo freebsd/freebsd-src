@@ -25,10 +25,10 @@
 .\" $FreeBSD$
 .\"
 .Dd April 18, 2015
-.Dt DTRACE-IP 4
+.Dt DTRACE_IP 4
 .Os
 .Sh NAME
-.Nm dtrace-ip
+.Nm dtrace_ip
 .Nd a DTrace provider for tracing events related to the IPv4 and IPv6 protocols
 .Sh SYNOPSIS
 .Fn ip:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "ifinfo_t *" \
@@ -52,9 +52,9 @@ The arguments to these probes can be used to obtain detailed information about
 the IP headers of the corresponding packet, as well as the network interface on
 which the packet was sent or received.
 Unlike the
-.Xr dtrace-tcp 4
+.Xr dtrace_tcp 4
 and
-.Xr dtrace-udp 4
+.Xr dtrace_udp 4
 providers,
 .Nm ip
 provider probes are triggered by forwarded packets.
@@ -268,8 +268,8 @@ This provider is compatible with the
 providers found in Solaris and Darwin.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
-.Xr dtrace-tcp 4 ,
-.Xr dtrace-udp 4 ,
+.Xr dtrace_tcp 4 ,
+.Xr dtrace_udp 4 ,
 .Xr ip 4 ,
 .Xr ip6 4 ,
 .Xr ifnet 9 ,

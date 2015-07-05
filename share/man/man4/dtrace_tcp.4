@@ -25,10 +25,10 @@
 .\" $FreeBSD$
 .\"
 .Dd April 18, 2015
-.Dt DTRACE-TCP 4
+.Dt DTRACE_TCP 4
 .Os
 .Sh NAME
-.Nm dtrace-tcp
+.Nm dtrace_tcp
 .Nd a DTrace provider for tracing events related to the
 .Xr tcp 4
 protocol
@@ -56,9 +56,9 @@ provider allows users to trace events in the
 .Xr tcp 4
 protocol implementation.
 This provider is similar to the
-.Xr dtrace-ip 4
+.Xr dtrace_ip 4
 and
-.Xr dtrace-udp 4
+.Xr dtrace_udp 4
 providers, but additionally contains probes corresponding to protocol events at
 a level higher than packet reception and transmission.
 All
@@ -120,12 +120,12 @@ and
 .Fn tcp:::receive
 probes fire when the host sends or receives a TCP packet, respectively.
 As with the
-.Xr dtrace-udp 4
+.Xr dtrace_udp 4
 provider,
 .Nm tcp
 probes fire only for packets sent by or to the local host; forwarded packets are
 handled in the IP layer and are only visible to the
-.Xr dtrace-ip 4
+.Xr dtrace_ip 4
 provider.
 .Pp
 The
@@ -168,7 +168,7 @@ The
 .Vt ipinfo_t
 type is a version-agnostic representation of fields from an IP header.
 Its fields are described in the
-.Xr dtrace-ip 4
+.Xr dtrace_ip 4
 manual page.
 .Pp
 The
@@ -373,8 +373,8 @@ This provider is compatible with the
 provider in Solaris.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
-.Xr dtrace-ip 4 ,
-.Xr dtrace-udp 4 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_udp 4 ,
 .Xr tcp 4 ,
 .Xr SDT 9
 .Sh HISTORY
