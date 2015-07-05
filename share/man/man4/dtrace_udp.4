@@ -25,10 +25,10 @@
 .\" $FreeBSD$
 .\"
 .Dd April 18, 2015
-.Dt DTRACE-UDP 4
+.Dt DTRACE_UDP 4
 .Os
 .Sh NAME
-.Nm dtrace-udp
+.Nm dtrace_udp
 .Nd a DTrace provider for tracing events related to the UDP protocol
 .Sh SYNOPSIS
 .Fn udp:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "udpsinfo_t *" \
@@ -184,8 +184,8 @@ This provider is compatible with the
 provider in Solaris.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
-.Xr dtrace-ip 4 ,
-.Xr dtrace-tcp 4 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_tcp 4 ,
 .Xr udp 4 ,
 .Xr SDT 9
 .Sh HISTORY
