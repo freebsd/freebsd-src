@@ -67,7 +67,8 @@ SRCS=	AliasAnalysis.cpp \
 	TargetTransformInfo.cpp \
 	Trace.cpp \
 	TypeBasedAliasAnalysis.cpp \
-	ValueTracking.cpp
+	ValueTracking.cpp \
+	VectorUtils.cpp
 
 TGHDRS=	Intrinsics
 

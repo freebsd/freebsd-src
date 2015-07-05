@@ -36,6 +36,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ImplicitNullChecks.cpp \
 	InlineSpiller.cpp \
 	InterferenceCache.cpp \
+	InterleavedAccessPass.cpp \
 	IntrinsicLowering.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \

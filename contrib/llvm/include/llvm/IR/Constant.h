@@ -47,9 +47,6 @@ protected:
   Constant(Type *ty, ValueTy vty, Use *Ops, unsigned NumOps)
     : User(ty, vty, Ops, NumOps) {}
 
-  void destroyConstantImpl();
-  void replaceUsesOfWithOnConstantImpl(Constant *Replacement);
-
 public:
   /// isNullValue - Return true if this is the value that would be returned by
   /// getNullValue.
@@ -126,14 +123,14 @@ public:
   /// vector of constant integers, all equal, and the common value is returned.
   const APInt &getUniqueInteger() const;
 
-  /// destroyConstant - Called if some element of this constant is no longer
-  /// valid.  At this point only other constants may be on the use_list for this
+  /// Called if some element of this constant is no longer valid.
+  /// At this point only other constants may be on the use_list for this
   /// constant.  Any constants on our Use list must also be destroy'd.  The
   /// implementation must be sure to remove the constant from the list of
-  /// available cached constants.  Implementations should call
-  /// destroyConstantImpl as the last thing they do, to destroy all users and
-  /// delete this.
-  virtual void destroyConstant() { llvm_unreachable("Not reached!"); }
+  /// available cached constants.  Implementations should implement
+  /// destroyConstantImpl to remove constants from any pools/maps they are
+  /// contained it.
+  void destroyConstant();
 
   //// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *V) {
@@ -141,8 +138,8 @@ public:
            V->getValueID() <= ConstantLastVal;
   }
 
-  /// replaceUsesOfWithOnConstant - This method is a special form of
-  /// User::replaceUsesOfWith (which does not work on constants) that does work
+  /// This method is a special form of User::replaceUsesOfWith
+  /// (which does not work on constants) that does work
   /// on constants.  Basically this method goes through the trouble of building
   /// a new constant that is equivalent to the current one, with all uses of
   /// From replaced with uses of To.  After this construction is completed, all
@@ -151,15 +148,7 @@ public:
   /// use Value::replaceAllUsesWith, which automatically dispatches to this
   /// method as needed.
   ///
-  virtual void replaceUsesOfWithOnConstant(Value *, Value *, Use *) {
-    // Provide a default implementation for constants (like integers) that
-    // cannot use any other values.  This cannot be called at runtime, but needs
-    // to be here to avoid link errors.
-    assert(getNumOperands() == 0 && "replaceUsesOfWithOnConstant must be "
-           "implemented for all constants that have operands!");
-    llvm_unreachable("Constants that do not have operands cannot be using "
-                     "'From'!");
-  }
+  void handleOperandChange(Value *, Value *, Use *);
 
   static Constant *getNullValue(Type* Ty);
 
@@ -187,6 +176,6 @@ public:
   }
 };
 
-} // namespace llvm
+} // End llvm namespace
 
 #endif

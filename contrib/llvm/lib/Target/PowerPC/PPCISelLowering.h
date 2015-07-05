@@ -353,7 +353,7 @@ namespace llvm {
       /// the last operand.
       TOC_ENTRY
     };
-  } // namespace PPCISD
+  }
 
   /// Define some predicates that are used for node matching.
   namespace PPC {
@@ -382,6 +382,11 @@ namespace llvm {
     bool isVMRGHShuffleMask(ShuffleVectorSDNode *N, unsigned UnitSize,
                             unsigned ShuffleKind, SelectionDAG &DAG);
 
+    /// isVMRGEOShuffleMask - Return true if this is a shuffle mask suitable for
+    /// a VMRGEW or VMRGOW instruction
+    bool isVMRGEOShuffleMask(ShuffleVectorSDNode *N, bool CheckEven,
+                             unsigned ShuffleKind, SelectionDAG &DAG);
+  
     /// isVSLDOIShuffleMask - If this is a vsldoi shuffle mask, return the
     /// shift amount, otherwise return -1.
     int isVSLDOIShuffleMask(SDNode *N, unsigned ShuffleKind,
@@ -405,7 +410,7 @@ namespace llvm {
     /// If this is a qvaligni shuffle mask, return the shift
     /// amount, otherwise return -1.
     int isQVALIGNIShuffleMask(SDNode *N);
-  } // namespace PPC
+  }
 
   class PPCTargetLowering : public TargetLowering {
     const PPCSubtarget &Subtarget;
@@ -871,6 +876,6 @@ namespace llvm {
                                            CCValAssign::LocInfo &LocInfo,
                                            ISD::ArgFlagsTy &ArgFlags,
                                            CCState &State);
-} // namespace llvm
+}
 
 #endif   // LLVM_TARGET_POWERPC_PPC32ISELLOWERING_H

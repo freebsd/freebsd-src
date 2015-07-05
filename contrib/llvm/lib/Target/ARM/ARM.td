@@ -410,13 +410,13 @@ def : ProcessorModel<"cortex-r4",   CortexA8Model,
 def : ProcessorModel<"cortex-r4f",  CortexA8Model,
                                     [ProcR4,
                                      FeatureSlowFPBrcc, FeatureHasSlowFPVMLx,
-                                     FeatureVFP3, FeatureVFPOnlySP, FeatureD16]>;
+                                     FeatureVFP3, FeatureD16]>;
 
 // FIXME: R5 has currently the same ProcessorModel as A8.
 def : ProcessorModel<"cortex-r5",   CortexA8Model,
                                     [ProcR5, HasV7Ops, FeatureDB,
                                      FeatureVFP3, FeatureDSPThumb2,
-                                     FeatureHasRAS, FeatureVFPOnlySP,
+                                     FeatureHasRAS,
                                      FeatureD16, FeatureRClass]>;
 
 // FIXME: R7 has currently the same ProcessorModel as A8 and is modelled as R5.

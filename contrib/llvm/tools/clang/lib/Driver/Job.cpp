@@ -25,14 +25,10 @@ using llvm::raw_ostream;
 using llvm::StringRef;
 using llvm::ArrayRef;
 
-Job::~Job() {}
-
-Command::Command(const Action &_Source, const Tool &_Creator,
-                 const char *_Executable,
-                 const ArgStringList &_Arguments)
-    : Job(CommandClass), Source(_Source), Creator(_Creator),
-      Executable(_Executable), Arguments(_Arguments),
-      ResponseFile(nullptr) {}
+Command::Command(const Action &Source, const Tool &Creator,
+                 const char *Executable, const ArgStringList &Arguments)
+    : Source(Source), Creator(Creator), Executable(Executable),
+      Arguments(Arguments), ResponseFile(nullptr) {}
 
 static int skipArgs(const char *Flag, bool HaveCrashVFS) {
   // These flags are all of the form -Flag <Arg> and are treated as two
@@ -294,8 +290,6 @@ int FallbackCommand::Execute(const StringRef **Redirects, std::string *ErrMsg,
   int SecondaryStatus = Fallback->Execute(Redirects, ErrMsg, ExecutionFailed);
   return SecondaryStatus;
 }
-
-JobList::JobList() : Job(JobListClass) {}
 
 void JobList::Print(raw_ostream &OS, const char *Terminator, bool Quote,
                     CrashReportInfo *CrashInfo) const {

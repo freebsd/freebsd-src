@@ -147,8 +147,6 @@ std::unique_ptr<MemoryBuffer> MCJIT::emitObject(Module *M) {
 
   legacy::PassManager PM;
 
-  M->setDataLayout(*TM->getDataLayout());
-
   // The RuntimeDyld will take ownership of this shortly
   SmallVector<char, 4096> ObjBufferSV;
   raw_svector_ostream ObjStream(ObjBufferSV);
@@ -194,6 +192,8 @@ void MCJIT::generateCodeForModule(Module *M) {
   // Try to load the pre-compiled object from cache if possible
   if (ObjCache)
     ObjectToLoad = ObjCache->getObject(M);
+
+  M->setDataLayout(*TM->getDataLayout());
 
   // If the cache did not contain a suitable object, compile the object
   if (!ObjectToLoad) {
@@ -264,9 +264,8 @@ void MCJIT::finalizeModule(Module *M) {
 }
 
 RuntimeDyld::SymbolInfo MCJIT::findExistingSymbol(const std::string &Name) {
-  Mangler Mang(TM->getDataLayout());
   SmallString<128> FullName;
-  Mang.getNameWithPrefix(FullName, Name);
+  Mangler::getNameWithPrefix(FullName, Name, *TM->getDataLayout());
   return Dyld.getSymbol(FullName);
 }
 
@@ -369,7 +368,7 @@ uint64_t MCJIT::getFunctionAddress(const std::string &Name) {
 void *MCJIT::getPointerToFunction(Function *F) {
   MutexGuard locked(lock);
 
-  Mangler Mang(TM->getDataLayout());
+  Mangler Mang;
   SmallString<128> Name;
   TM->getNameWithPrefix(Name, F, Mang);
 

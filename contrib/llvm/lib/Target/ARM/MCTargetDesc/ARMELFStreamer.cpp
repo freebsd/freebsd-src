@@ -563,20 +563,13 @@ private:
   }
 
   void EmitMappingSymbol(StringRef Name) {
-    MCSymbol *Start = getContext().createTempSymbol();
-    EmitLabel(Start);
-
     auto *Symbol = cast<MCSymbolELF>(getContext().getOrCreateSymbol(
         Name + "." + Twine(MappingSymbolCounter++)));
+    EmitLabel(Symbol);
 
-    getAssembler().registerSymbol(*Symbol);
     Symbol->setType(ELF::STT_NOTYPE);
     Symbol->setBinding(ELF::STB_LOCAL);
     Symbol->setExternal(false);
-    AssignSection(Symbol, getCurrentSection().first);
-
-    const MCExpr *Value = MCSymbolRefExpr::create(Start, getContext());
-    Symbol->setVariableValue(Value);
   }
 
   void EmitThumbFunc(MCSymbol *Func) override {
@@ -804,9 +797,41 @@ void ARMTargetELFStreamer::emitFPUDefaultAttributes() {
                      /* OverwriteExisting= */ false);
     break;
 
+  case ARM::FK_VFPV3_FP16:
+    setAttributeItem(ARMBuildAttrs::FP_arch,
+                     ARMBuildAttrs::AllowFPv3A,
+                     /* OverwriteExisting= */ false);
+    setAttributeItem(ARMBuildAttrs::FP_HP_extension,
+                     ARMBuildAttrs::AllowHPFP,
+                     /* OverwriteExisting= */ false);
+    break;
+
   case ARM::FK_VFPV3_D16:
     setAttributeItem(ARMBuildAttrs::FP_arch,
                      ARMBuildAttrs::AllowFPv3B,
+                     /* OverwriteExisting= */ false);
+    break;
+
+  case ARM::FK_VFPV3_D16_FP16:
+    setAttributeItem(ARMBuildAttrs::FP_arch,
+                     ARMBuildAttrs::AllowFPv3B,
+                     /* OverwriteExisting= */ false);
+    setAttributeItem(ARMBuildAttrs::FP_HP_extension,
+                     ARMBuildAttrs::AllowHPFP,
+                     /* OverwriteExisting= */ false);
+    break;
+
+  case ARM::FK_VFPV3XD:
+    setAttributeItem(ARMBuildAttrs::FP_arch,
+                     ARMBuildAttrs::AllowFPv3B,
+                     /* OverwriteExisting= */ false);
+    break;
+  case ARM::FK_VFPV3XD_FP16:
+    setAttributeItem(ARMBuildAttrs::FP_arch,
+                     ARMBuildAttrs::AllowFPv3B,
+                     /* OverwriteExisting= */ false);
+    setAttributeItem(ARMBuildAttrs::FP_HP_extension,
+                     ARMBuildAttrs::AllowHPFP,
                      /* OverwriteExisting= */ false);
     break;
 
@@ -846,6 +871,18 @@ void ARMTargetELFStreamer::emitFPUDefaultAttributes() {
                      /* OverwriteExisting= */ false);
     setAttributeItem(ARMBuildAttrs::Advanced_SIMD_arch,
                      ARMBuildAttrs::AllowNeon,
+                     /* OverwriteExisting= */ false);
+    break;
+
+  case ARM::FK_NEON_FP16:
+    setAttributeItem(ARMBuildAttrs::FP_arch,
+                     ARMBuildAttrs::AllowFPv3A,
+                     /* OverwriteExisting= */ false);
+    setAttributeItem(ARMBuildAttrs::Advanced_SIMD_arch,
+                     ARMBuildAttrs::AllowNeon,
+                     /* OverwriteExisting= */ false);
+    setAttributeItem(ARMBuildAttrs::FP_HP_extension,
+                     ARMBuildAttrs::AllowHPFP,
                      /* OverwriteExisting= */ false);
     break;
 
@@ -1345,6 +1382,6 @@ MCELFStreamer *createARMELFStreamer(MCContext &Context, MCAsmBackend &TAB,
     return S;
   }
 
-} // namespace llvm
+}
 
 

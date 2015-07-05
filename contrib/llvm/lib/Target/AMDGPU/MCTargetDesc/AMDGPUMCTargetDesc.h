@@ -46,8 +46,9 @@ MCCodeEmitter *createSIMCCodeEmitter(const MCInstrInfo &MCII,
 MCAsmBackend *createAMDGPUAsmBackend(const Target &T, const MCRegisterInfo &MRI,
                                      const Triple &TT, StringRef CPU);
 
-MCObjectWriter *createAMDGPUELFObjectWriter(raw_pwrite_stream &OS);
-} // namespace llvm
+MCObjectWriter *createAMDGPUELFObjectWriter(bool Is64Bit,
+                                            raw_pwrite_stream &OS);
+} // End llvm namespace
 
 #define GET_REGINFO_ENUM
 #include "AMDGPUGenRegisterInfo.inc"

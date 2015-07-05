@@ -981,6 +981,10 @@ void ASTDumper::dumpDecl(const Decl *D) {
       OS << " in " << M->getFullModuleName();
     else if (Module *M = D->getLocalOwningModule())
       OS << " in (local) " << M->getFullModuleName();
+    if (auto *ND = dyn_cast<NamedDecl>(D))
+      for (Module *M : D->getASTContext().getModulesWithMergedDefinition(
+               const_cast<NamedDecl *>(ND)))
+        dumpChild([=] { OS << "also in " << M->getFullModuleName(); });
     if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
       if (ND->isHidden())
         OS << " hidden";
@@ -1595,8 +1599,8 @@ void ASTDumper::dumpStmt(const Stmt *S) {
 
     ConstStmtVisitor<ASTDumper>::Visit(S);
 
-    for (Stmt::const_child_range CI = S->children(); CI; ++CI)
-      dumpStmt(*CI);
+    for (const Stmt *SubStmt : S->children())
+      dumpStmt(SubStmt);
   });
 }
 
@@ -1824,6 +1828,9 @@ void ASTDumper::VisitUnaryExprOrTypeTraitExpr(
     break;
   case UETT_VecStep:
     OS << " vec_step";
+    break;
+  case UETT_OpenMPRequiredSimdAlign:
+    OS << " __builtin_omp_required_simd_align";
     break;
   }
   if (Node->isArgumentType())

@@ -249,7 +249,7 @@ public:
 
   /// Get the data layout string for the module's target platform. This is
   /// equivalent to getDataLayout()->getStringRepresentation().
-  const std::string getDataLayoutStr() const {
+  const std::string &getDataLayoutStr() const {
     return DL.getStringRepresentation();
   }
 
@@ -694,6 +694,6 @@ inline Module *unwrap(LLVMModuleProviderRef MP) {
   return reinterpret_cast<Module*>(MP);
 }
   
-} // namespace llvm
+} // End llvm namespace
 
 #endif

@@ -210,6 +210,10 @@ bool NVPTXPassConfig::addInstSelector() {
 
 void NVPTXPassConfig::addPostRegAlloc() {
   addPass(createNVPTXPrologEpilogPass(), false);
+  // NVPTXPrologEpilogPass calculates frame object offset and replace frame
+  // index with VRFrame register. NVPTXPeephole need to be run after that and
+  // will replace VRFrame with VRFrameLocal when possible.
+  addPass(createNVPTXPeephole());
 }
 
 FunctionPass *NVPTXPassConfig::createTargetRegisterAllocator(bool) {

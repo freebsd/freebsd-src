@@ -34,8 +34,7 @@ public:
   HexagonResource(unsigned s) { setUnits(s); };
 
   void setUnits(unsigned s) {
-    Slots = s & ~(-1 << HEXAGON_PACKET_SIZE);
-    setWeight(s);
+    Slots = s & ~(~0U << HEXAGON_PACKET_SIZE);
   };
   unsigned setWeight(unsigned s);
 
@@ -134,6 +133,6 @@ public:
   void setError(unsigned Err) { Error = Err; };
   unsigned getError() const { return (Error); };
 };
-} // namespace llvm
+}
 
 #endif // HEXAGONSHUFFLER_H

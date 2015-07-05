@@ -179,7 +179,7 @@ bool AsmPrinter::doInitialization(Module &M) {
 
   OutStreamer->InitSections(false);
 
-  Mang = new Mangler(TM.getDataLayout());
+  Mang = new Mangler();
 
   // Emit the version-min deplyment target directive if needed.
   //
@@ -2086,8 +2086,12 @@ static void handleIndirectSymViaGOTPCRel(AsmPrinter &AP, const MCExpr **ME,
   MCValue MV;
   if (!(*ME)->evaluateAsRelocatable(MV, nullptr, nullptr) || MV.isAbsolute())
     return;
+  const MCSymbolRefExpr *SymA = MV.getSymA();
+  if (!SymA)
+    return;
 
-  const MCSymbol *GOTEquivSym = &MV.getSymA()->getSymbol();
+  // Check that GOT equivalent symbol is cached.
+  const MCSymbol *GOTEquivSym = &SymA->getSymbol();
   if (!AP.GlobalGOTEquivs.count(GOTEquivSym))
     return;
 
@@ -2095,8 +2099,11 @@ static void handleIndirectSymViaGOTPCRel(AsmPrinter &AP, const MCExpr **ME,
   if (!BaseGV)
     return;
 
+  // Check for a valid base symbol
   const MCSymbol *BaseSym = AP.getSymbol(BaseGV);
-  if (BaseSym != &MV.getSymB()->getSymbol())
+  const MCSymbolRefExpr *SymB = MV.getSymB();
+
+  if (!SymB || BaseSym != &SymB->getSymbol())
     return;
 
   // Make sure to match:
@@ -2292,11 +2299,10 @@ MCSymbol *AsmPrinter::getSymbolWithGlobalValueBase(const GlobalValue *GV,
                                                            TM);
 }
 
-/// GetExternalSymbolSymbol - Return the MCSymbol for the specified
-/// ExternalSymbol.
+/// Return the MCSymbol for the specified ExternalSymbol.
 MCSymbol *AsmPrinter::GetExternalSymbolSymbol(StringRef Sym) const {
   SmallString<60> NameStr;
-  Mang->getNameWithPrefix(NameStr, Sym);
+  Mangler::getNameWithPrefix(NameStr, Sym, *TM.getDataLayout());
   return OutContext.getOrCreateSymbol(NameStr);
 }
 
@@ -2384,8 +2390,7 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock &MBB) const {
     if (isVerbose())
       OutStreamer->AddComment("Block address taken");
 
-    std::vector<MCSymbol*> Symbols = MMI->getAddrLabelSymbolToEmit(BB);
-    for (auto *Sym : Symbols)
+    for (MCSymbol *Sym : MMI->getAddrLabelSymbolToEmit(BB))
       OutStreamer->EmitLabel(Sym);
   }
 

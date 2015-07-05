@@ -503,6 +503,9 @@ ALIAS("read_write", __read_write    , KEYOPENCL)
 KEYWORD(__builtin_astype            , KEYOPENCL)
 KEYWORD(vec_step                    , KEYOPENCL|KEYALTIVEC)
 
+// OpenMP Type Traits
+KEYWORD(__builtin_omp_required_simd_align, KEYALL)
+
 // Borland Extensions.
 KEYWORD(__pascal                    , KEYALL)
 
@@ -549,9 +552,9 @@ ALIAS("__volatile"   , volatile   , KEYALL)
 ALIAS("__volatile__" , volatile   , KEYALL)
 
 // Type nullability.
-KEYWORD(__nonnull                 , KEYALL)
-KEYWORD(__nullable                , KEYALL)
-KEYWORD(__null_unspecified        , KEYALL)
+KEYWORD(_Nonnull                 , KEYALL)
+KEYWORD(_Nullable                , KEYALL)
+KEYWORD(_Null_unspecified        , KEYALL)
 
 // Microsoft extensions which should be disabled in strict conformance mode
 KEYWORD(__ptr64                       , KEYMS)

@@ -103,7 +103,7 @@ unsigned DwarfFile::computeSizeAndOffset(DIE &Die, unsigned Offset) {
   // Size the DIE attribute values.
   for (const auto &V : Die.values())
     // Size attribute value.
-    Offset += V.SizeOf(Asm, V.getForm());
+    Offset += V.SizeOf(Asm);
 
   // Size the DIE children if any.
   if (Die.hasChildren()) {
@@ -111,7 +111,7 @@ unsigned DwarfFile::computeSizeAndOffset(DIE &Die, unsigned Offset) {
     assert(Abbrev.hasChildren() && "Children flag not set");
 
     for (auto &Child : Die.children())
-      Offset = computeSizeAndOffset(*Child, Offset);
+      Offset = computeSizeAndOffset(Child, Offset);
 
     // End of children marker.
     Offset += sizeof(int8_t);
@@ -170,4 +170,4 @@ bool DwarfFile::addScopeVariable(LexicalScope *LS, DbgVariable *Var) {
   Vars.push_back(Var);
   return true;
 }
-} // namespace llvm
+}

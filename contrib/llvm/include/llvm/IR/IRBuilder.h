@@ -101,19 +101,8 @@ public:
   void SetInsertPoint(BasicBlock *TheBB, BasicBlock::iterator IP) {
     BB = TheBB;
     InsertPt = IP;
-  }
-
-  /// \brief Find the nearest point that dominates this use, and specify that
-  /// created instructions should be inserted at this point.
-  void SetInsertPoint(Use &U) {
-    Instruction *UseInst = cast<Instruction>(U.getUser());
-    if (PHINode *Phi = dyn_cast<PHINode>(UseInst)) {
-      BasicBlock *PredBB = Phi->getIncomingBlock(U);
-      assert(U != PredBB->getTerminator() && "critical edge not split");
-      SetInsertPoint(PredBB, PredBB->getTerminator());
-      return;
-    }
-    SetInsertPoint(UseInst);
+    if (IP != TheBB->end())
+      SetCurrentDebugLocation(IP->getDebugLoc());
   }
 
   /// \brief Set location information used by debugging information.
@@ -550,13 +539,6 @@ public:
   explicit IRBuilder(Instruction *IP, MDNode *FPMathTag = nullptr)
     : IRBuilderBase(IP->getContext(), FPMathTag), Folder() {
     SetInsertPoint(IP);
-    SetCurrentDebugLocation(IP->getDebugLoc());
-  }
-
-  explicit IRBuilder(Use &U, MDNode *FPMathTag = nullptr)
-    : IRBuilderBase(U->getContext(), FPMathTag), Folder() {
-    SetInsertPoint(U);
-    SetCurrentDebugLocation(cast<Instruction>(U.getUser())->getDebugLoc());
   }
 
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP, const T& F,
@@ -1679,6 +1661,6 @@ public:
 // Create wrappers for C Binding types (see CBindingWrapping.h).
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(IRBuilder<>, LLVMBuilderRef)
 
-} // namespace llvm
+}
 
 #endif

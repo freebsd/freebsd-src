@@ -667,10 +667,8 @@ DWARFContextInMemory::DWARFContextInMemory(const object::ObjectFile &Obj,
     if (Section.relocation_begin() != Section.relocation_end()) {
       uint64_t SectionSize = RelocatedSection->getSize();
       for (const RelocationRef &Reloc : Section.relocations()) {
-        uint64_t Address;
-        Reloc.getOffset(Address);
-        uint64_t Type;
-        Reloc.getType(Type);
+        uint64_t Address = Reloc.getOffset();
+        uint64_t Type = Reloc.getType();
         uint64_t SymAddr = 0;
         uint64_t SectionLoadAddress = 0;
         object::symbol_iterator Sym = Reloc.getSymbol();
@@ -709,10 +707,7 @@ DWARFContextInMemory::DWARFContextInMemory(const object::ObjectFile &Obj,
         object::RelocToApply R(V.visit(Type, Reloc, SymAddr));
         if (V.error()) {
           SmallString<32> Name;
-          std::error_code ec(Reloc.getTypeName(Name));
-          if (ec) {
-            errs() << "Aaaaaa! Nameless relocation! Aaaaaa!\n";
-          }
+          Reloc.getTypeName(Name);
           errs() << "error: failed to compute relocation: "
                  << Name << "\n";
           continue;

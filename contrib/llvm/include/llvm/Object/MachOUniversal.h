@@ -109,10 +109,10 @@ public:
   }
 
   ErrorOr<std::unique_ptr<MachOObjectFile>>
-  getObjectForArch(Triple::ArchType Arch) const;
+  getObjectForArch(StringRef ArchName) const;
 };
 
-} // namespace object
-} // namespace llvm
+}
+}
 
 #endif
