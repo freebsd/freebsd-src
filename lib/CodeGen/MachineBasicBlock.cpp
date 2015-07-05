@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/ModuleSlotTracker.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Support/Debug.h"
@@ -171,16 +172,6 @@ MachineBasicBlock::iterator MachineBasicBlock::getFirstTerminator() {
   return I;
 }
 
-MachineBasicBlock::const_iterator
-MachineBasicBlock::getFirstTerminator() const {
-  const_iterator B = begin(), E = end(), I = E;
-  while (I != B && ((--I)->isTerminator() || I->isDebugValue()))
-    ; /*noop */
-  while (I != E && !I->isTerminator())
-    ++I;
-  return I;
-}
-
 MachineBasicBlock::instr_iterator MachineBasicBlock::getFirstInstrTerminator() {
   instr_iterator B = instr_begin(), E = instr_end(), I = E;
   while (I != B && ((--I)->isTerminator() || I->isDebugValue()))
@@ -190,24 +181,17 @@ MachineBasicBlock::instr_iterator MachineBasicBlock::getFirstInstrTerminator() {
   return I;
 }
 
+MachineBasicBlock::iterator MachineBasicBlock::getFirstNonDebugInstr() {
+  // Skip over begin-of-block dbg_value instructions.
+  iterator I = begin(), E = end();
+  while (I != E && I->isDebugValue())
+    ++I;
+  return I;
+}
+
 MachineBasicBlock::iterator MachineBasicBlock::getLastNonDebugInstr() {
   // Skip over end-of-block dbg_value instructions.
   instr_iterator B = instr_begin(), I = instr_end();
-  while (I != B) {
-    --I;
-    // Return instruction that starts a bundle.
-    if (I->isDebugValue() || I->isInsideBundle())
-      continue;
-    return I;
-  }
-  // The block is all debug values.
-  return end();
-}
-
-MachineBasicBlock::const_iterator
-MachineBasicBlock::getLastNonDebugInstr() const {
-  // Skip over end-of-block dbg_value instructions.
-  const_instr_iterator B = instr_begin(), I = instr_end();
   while (I != B) {
     --I;
     // Return instruction that starts a bundle.
@@ -261,6 +245,20 @@ void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
        << " is null\n";
     return;
   }
+  const Function *F = MF->getFunction();
+  const Module *M = F ? F->getParent() : nullptr;
+  ModuleSlotTracker MST(M);
+  print(OS, MST, Indexes);
+}
+
+void MachineBasicBlock::print(raw_ostream &OS, ModuleSlotTracker &MST,
+                              SlotIndexes *Indexes) const {
+  const MachineFunction *MF = getParent();
+  if (!MF) {
+    OS << "Can't print out MachineBasicBlock because parent MachineFunction"
+       << " is null\n";
+    return;
+  }
 
   if (Indexes)
     OS << Indexes->getMBBStartIdx(this) << '\t';
@@ -270,7 +268,7 @@ void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
   const char *Comma = "";
   if (const BasicBlock *LBB = getBasicBlock()) {
     OS << Comma << "derived from LLVM BB ";
-    LBB->printAsOperand(OS, /*PrintType=*/false);
+    LBB->printAsOperand(OS, /*PrintType=*/false, MST);
     Comma = ", ";
   }
   if (isLandingPad()) { OS << Comma << "EH LANDING PAD"; Comma = ", "; }
@@ -307,7 +305,7 @@ void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
     OS << '\t';
     if (I->isInsideBundle())
       OS << "  * ";
-    I->print(OS);
+    I->print(OS, MST);
   }
 
   // Print the successors of this block according to the CFG.

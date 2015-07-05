@@ -509,8 +509,10 @@ protected:
               Instruction *InsertBefore = nullptr);
   Instruction(Type *Ty, unsigned iType, Use *Ops, unsigned NumOps,
               BasicBlock *InsertAtEnd);
-  virtual Instruction *clone_impl() const = 0;
 
+private:
+  /// Create a copy of this instruction.
+  Instruction *cloneImpl() const;
 };
 
 inline Instruction *ilist_traits<Instruction>::createSentinel() const {
@@ -536,6 +538,6 @@ public:
   enum { NumLowBitsAvailable = 2 };
 };
 
-} // namespace llvm
+} // End llvm namespace
 
 #endif

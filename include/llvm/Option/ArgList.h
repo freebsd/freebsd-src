@@ -14,6 +14,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Option/Arg.h"
 #include "llvm/Option/OptSpecifier.h"
 #include "llvm/Option/Option.h"
 #include <list>
@@ -23,7 +24,6 @@
 
 namespace llvm {
 namespace opt {
-class Arg;
 class ArgList;
 class Option;
 
@@ -92,10 +92,6 @@ public:
 /// check for the presence of Arg instances for a particular Option
 /// and to iterate over groups of arguments.
 class ArgList {
-private:
-  ArgList(const ArgList &) = delete;
-  void operator=(const ArgList &) = delete;
-
 public:
   typedef SmallVector<Arg*, 16> arglist_type;
   typedef arglist_type::iterator iterator;
@@ -108,12 +104,23 @@ private:
   arglist_type Args;
 
 protected:
-  // Default ctor provided explicitly as it is not provided implicitly due to
-  // the presence of the (deleted) copy ctor above.
-  ArgList() { }
-  // Virtual to provide a vtable anchor and because -Wnon-virtua-dtor warns, not
-  // because this type is ever actually destroyed polymorphically.
-  virtual ~ArgList();
+  // Make the default special members protected so they won't be used to slice
+  // derived objects, but can still be used by derived objects to implement
+  // their own special members.
+  ArgList() = default;
+  // Explicit move operations to ensure the container is cleared post-move
+  // otherwise it could lead to a double-delete in the case of moving of an
+  // InputArgList which deletes the contents of the container. If we could fix
+  // up the ownership here (delegate storage/ownership to the derived class so
+  // it can be a container of unique_ptr) this would be simpler.
+  ArgList(ArgList &&RHS) : Args(std::move(RHS.Args)) { RHS.Args.clear(); }
+  ArgList &operator=(ArgList &&RHS) {
+    Args = std::move(RHS.Args);
+    RHS.Args.clear();
+    return *this;
+  }
+  // Protect the dtor to ensure this type is never destroyed polymorphically.
+  ~ArgList() = default;
 
 public:
 
@@ -299,7 +306,7 @@ public:
   /// @}
 };
 
-class InputArgList : public ArgList  {
+class InputArgList final : public ArgList {
 private:
   /// List of argument strings used by the contained Args.
   ///
@@ -318,9 +325,24 @@ private:
   /// The number of original input argument strings.
   unsigned NumInputArgStrings;
 
+  /// Release allocated arguments.
+  void releaseMemory();
+
 public:
   InputArgList(const char* const *ArgBegin, const char* const *ArgEnd);
-  ~InputArgList() override;
+  InputArgList(InputArgList &&RHS)
+      : ArgList(std::move(RHS)), ArgStrings(std::move(RHS.ArgStrings)),
+        SynthesizedStrings(std::move(RHS.SynthesizedStrings)),
+        NumInputArgStrings(RHS.NumInputArgStrings) {}
+  InputArgList &operator=(InputArgList &&RHS) {
+    releaseMemory();
+    ArgList::operator=(std::move(RHS));
+    ArgStrings = std::move(RHS.ArgStrings);
+    SynthesizedStrings = std::move(RHS.SynthesizedStrings);
+    NumInputArgStrings = RHS.NumInputArgStrings;
+    return *this;
+  }
+  ~InputArgList() { releaseMemory(); }
 
   const char *getArgString(unsigned Index) const override {
     return ArgStrings[Index];
@@ -346,7 +368,7 @@ public:
 
 /// DerivedArgList - An ordered collection of driver arguments,
 /// whose storage may be in another argument list.
-class DerivedArgList : public ArgList {
+class DerivedArgList final : public ArgList {
   const InputArgList &BaseArgs;
 
   /// The list of arguments we synthesized.
@@ -355,7 +377,6 @@ class DerivedArgList : public ArgList {
 public:
   /// Construct a new derived arg list from \p BaseArgs.
   DerivedArgList(const InputArgList &BaseArgs);
-  ~DerivedArgList() override;
 
   const char *getArgString(unsigned Index) const override {
     return BaseArgs.getArgString(Index);

@@ -60,33 +60,23 @@ using HalfOpenIntervalMap =
 
 typedef HalfOpenIntervalMap<uint64_t, int64_t> FunctionIntervals;
 
-// FIXME: Delete this structure once DIE::Values has a stable iterator we can
-// use instead.
+// FIXME: Delete this structure.
 struct PatchLocation {
-  DIE *Die;
-  unsigned Index;
+  DIE::value_iterator I;
 
-  PatchLocation() : Die(nullptr), Index(0) {}
-  PatchLocation(DIE &Die, unsigned Index) : Die(&Die), Index(Index) {}
-  PatchLocation(DIE &Die)
-      : Die(&Die), Index(std::distance(Die.values_begin(), Die.values_end())) {}
+  PatchLocation() = default;
+  PatchLocation(DIE::value_iterator I) : I(I) {}
 
   void set(uint64_t New) const {
-    assert(Die);
-    assert((signed)Index <
-           std::distance(Die->values_begin(), Die->values_end()));
-    const auto &Old = Die->values_begin()[Index];
+    assert(I);
+    const auto &Old = *I;
     assert(Old.getType() == DIEValue::isInteger);
-    Die->setValue(Index,
-                  DIEValue(Old.getAttribute(), Old.getForm(), DIEInteger(New)));
+    *I = DIEValue(Old.getAttribute(), Old.getForm(), DIEInteger(New));
   }
 
   uint64_t get() const {
-    assert(Die);
-    assert((signed)Index <
-           std::distance(Die->values_begin(), Die->values_end()));
-    assert(Die->values_begin()[Index].getType() == DIEValue::isInteger);
-    return Die->values_begin()[Index].getDIEInteger().getValue();
+    assert(I);
+    return I->getDIEInteger().getValue();
   }
 };
 
@@ -123,8 +113,8 @@ public:
 
   unsigned getUniqueID() const { return ID; }
 
-  DIE *getOutputUnitDIE() const { return CUDie.get(); }
-  void setOutputUnitDIE(DIE *Die) { CUDie.reset(Die); }
+  DIE *getOutputUnitDIE() const { return CUDie; }
+  void setOutputUnitDIE(DIE *Die) { CUDie = Die; }
 
   DIEInfo &getInfo(unsigned Idx) { return Info[Idx]; }
   const DIEInfo &getInfo(unsigned Idx) const { return Info[Idx]; }
@@ -204,7 +194,7 @@ private:
   DWARFUnit &OrigUnit;
   unsigned ID;
   std::vector<DIEInfo> Info;  ///< DIE info indexed by DIE index.
-  std::unique_ptr<DIE> CUDie; ///< Root of the linked DIE tree.
+  DIE *CUDie;                 ///< Root of the linked DIE tree.
 
   uint64_t StartOffset;
   uint64_t NextUnitOffset;
@@ -1437,10 +1427,10 @@ void DwarfLinker::endDebugObject() {
   ValidRelocs.clear();
   Ranges.clear();
 
-  for (auto *Block : DIEBlocks)
-    Block->~DIEBlock();
-  for (auto *Loc : DIELocs)
-    Loc->~DIELoc();
+  for (auto I = DIEBlocks.begin(), E = DIEBlocks.end(); I != E; ++I)
+    (*I)->~DIEBlock();
+  for (auto I = DIELocs.begin(), E = DIELocs.end(); I != E; ++I)
+    (*I)->~DIELoc();
 
   DIEBlocks.clear();
   DIELocs.clear();
@@ -1461,8 +1451,8 @@ void DwarfLinker::findValidRelocsMachO(const object::SectionRef &Section,
     object::DataRefImpl RelocDataRef = Reloc.getRawDataRefImpl();
     MachO::any_relocation_info MachOReloc = Obj.getRelocation(RelocDataRef);
     unsigned RelocSize = 1 << Obj.getAnyRelocationLength(MachOReloc);
-    uint64_t Offset64;
-    if ((RelocSize != 4 && RelocSize != 8) || Reloc.getOffset(Offset64)) {
+    uint64_t Offset64 = Reloc.getOffset();
+    if ((RelocSize != 4 && RelocSize != 8)) {
       reportWarning(" unsupported relocation in debug_info section.");
       continue;
     }
@@ -1472,12 +1462,12 @@ void DwarfLinker::findValidRelocsMachO(const object::SectionRef &Section,
 
     auto Sym = Reloc.getSymbol();
     if (Sym != Obj.symbol_end()) {
-      StringRef SymbolName;
-      if (Sym->getName(SymbolName)) {
+      ErrorOr<StringRef> SymbolName = Sym->getName();
+      if (!SymbolName) {
         reportWarning("error getting relocation symbol name.");
         continue;
       }
-      if (const auto *Mapping = DMO.lookupSymbol(SymbolName))
+      if (const auto *Mapping = DMO.lookupSymbol(*SymbolName))
         ValidRelocs.emplace_back(Offset64, RelocSize, Addend, Mapping);
     } else if (const auto *Mapping = DMO.lookupObjectAddress(Addend)) {
       // Do not store the addend. The addend was the address of the
@@ -1837,7 +1827,7 @@ unsigned DwarfLinker::cloneStringAttribute(DIE &Die, AttributeSpec AttrSpec,
   // Switch everything to out of line strings.
   const char *String = *Val.getAsCString(&U);
   unsigned Offset = StringPool.getStringOffset(String);
-  Die.addValue(dwarf::Attribute(AttrSpec.Attr), dwarf::DW_FORM_strp,
+  Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr), dwarf::DW_FORM_strp,
                DIEInteger(Offset));
   return 4;
 }
@@ -1871,7 +1861,7 @@ unsigned DwarfLinker::cloneDieReferenceAttribute(
     assert(Ref > InputDIE.getOffset());
     // We haven't cloned this DIE yet. Just create an empty one and
     // store it. It'll get really cloned when we process it.
-    RefInfo.Clone = new DIE(dwarf::Tag(RefDie->getTag()));
+    RefInfo.Clone = DIE::get(DIEAlloc, dwarf::Tag(RefDie->getTag()));
   }
   NewRefDie = RefInfo.Clone;
 
@@ -1887,18 +1877,21 @@ unsigned DwarfLinker::cloneDieReferenceAttribute(
       uint32_t NewRefOffset =
           RefUnit->getStartOffset() + NewRefDie->getOffset();
       Attr = NewRefOffset;
+      Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
+                   dwarf::DW_FORM_ref_addr, DIEInteger(Attr));
     } else {
       // A forward reference. Note and fixup later.
       Attr = 0xBADDEF;
-      Unit.noteForwardReference(NewRefDie, RefUnit, PatchLocation(Die));
+      Unit.noteForwardReference(
+          NewRefDie, RefUnit,
+          Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
+                       dwarf::DW_FORM_ref_addr, DIEInteger(Attr)));
     }
-    Die.addValue(dwarf::Attribute(AttrSpec.Attr), dwarf::DW_FORM_ref_addr,
-                 DIEInteger(Attr));
     return AttrSize;
   }
 
-  Die.addValue(dwarf::Attribute(AttrSpec.Attr), dwarf::Form(AttrSpec.Form),
-               DIEEntry(*NewRefDie));
+  Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
+               dwarf::Form(AttrSpec.Form), DIEEntry(*NewRefDie));
   return AttrSize;
 }
 
@@ -1930,8 +1923,8 @@ unsigned DwarfLinker::cloneBlockAttribute(DIE &Die, AttributeSpec AttrSpec,
                      dwarf::Form(AttrSpec.Form), Block);
   ArrayRef<uint8_t> Bytes = *Val.getAsBlock();
   for (auto Byte : Bytes)
-    Attr->addValue(static_cast<dwarf::Attribute>(0), dwarf::DW_FORM_data1,
-                   DIEInteger(Byte));
+    Attr->addValue(DIEAlloc, static_cast<dwarf::Attribute>(0),
+                   dwarf::DW_FORM_data1, DIEInteger(Byte));
   // FIXME: If DIEBlock and DIELoc just reuses the Size field of
   // the DIE class, this if could be replaced by
   // Attr->setSize(Bytes.size()).
@@ -1941,7 +1934,7 @@ unsigned DwarfLinker::cloneBlockAttribute(DIE &Die, AttributeSpec AttrSpec,
     else
       Block->ComputeSize(&Streamer->getAsmPrinter());
   }
-  Die.addValue(Value);
+  Die.addValue(DIEAlloc, Value);
   return AttrSize;
 }
 
@@ -1975,7 +1968,7 @@ unsigned DwarfLinker::cloneAddressAttribute(DIE &Die, AttributeSpec AttrSpec,
       Addr = (Info.OrigHighPc ? Info.OrigHighPc : Addr) + Info.PCOffset;
   }
 
-  Die.addValue(static_cast<dwarf::Attribute>(AttrSpec.Attr),
+  Die.addValue(DIEAlloc, static_cast<dwarf::Attribute>(AttrSpec.Attr),
                static_cast<dwarf::Form>(AttrSpec.Form), DIEInteger(Addr));
   return Unit.getOrigUnit().getAddressByteSize();
 }
@@ -2004,20 +1997,20 @@ unsigned DwarfLinker::cloneScalarAttribute(
                   &Unit.getOrigUnit(), &InputDIE);
     return 0;
   }
-  DIEInteger Attr(Value);
+  PatchLocation Patch =
+      Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
+                   dwarf::Form(AttrSpec.Form), DIEInteger(Value));
   if (AttrSpec.Attr == dwarf::DW_AT_ranges)
-    Unit.noteRangeAttribute(Die, PatchLocation(Die));
+    Unit.noteRangeAttribute(Die, Patch);
   // A more generic way to check for location attributes would be
   // nice, but it's very unlikely that any other attribute needs a
   // location list.
   else if (AttrSpec.Attr == dwarf::DW_AT_location ||
            AttrSpec.Attr == dwarf::DW_AT_frame_base)
-    Unit.noteLocationAttribute(PatchLocation(Die), Info.PCOffset);
+    Unit.noteLocationAttribute(Patch, Info.PCOffset);
   else if (AttrSpec.Attr == dwarf::DW_AT_declaration && Value)
     Info.IsDeclaration = true;
 
-  Die.addValue(dwarf::Attribute(AttrSpec.Attr), dwarf::Form(AttrSpec.Form),
-               Attr);
   return AttrSize;
 }
 
@@ -2170,7 +2163,7 @@ DIE *DwarfLinker::cloneDIE(const DWARFDebugInfoEntryMinimal &InputDIE,
   // (see cloneDieReferenceAttribute()).
   DIE *Die = Info.Clone;
   if (!Die)
-    Die = Info.Clone = new DIE(dwarf::Tag(InputDIE.getTag()));
+    Die = Info.Clone = DIE::get(DIEAlloc, dwarf::Tag(InputDIE.getTag()));
   assert(Die->getTag() == InputDIE.getTag());
   Die->setOffset(OutOffset);
 
@@ -2262,7 +2255,7 @@ DIE *DwarfLinker::cloneDIE(const DWARFDebugInfoEntryMinimal &InputDIE,
   for (auto *Child = InputDIE.getFirstChild(); Child && !Child->isNULL();
        Child = Child->getSibling()) {
     if (DIE *Clone = cloneDIE(*Child, Unit, PCOffset, OutOffset)) {
-      Die->addChild(std::unique_ptr<DIE>(Clone));
+      Die->addChild(Clone);
       OutOffset = Clone->getOffset() + Clone->getSize();
     }
   }
@@ -2364,6 +2357,16 @@ static void insertLineSequence(std::vector<DWARFDebugLine::Row> &Seq,
   Seq.clear();
 }
 
+static void patchStmtList(DIE &Die, DIEInteger Offset) {
+  for (auto &V : Die.values())
+    if (V.getAttribute() == dwarf::DW_AT_stmt_list) {
+      V = DIEValue(V.getAttribute(), V.getForm(), Offset);
+      return;
+    }
+
+  llvm_unreachable("Didn't find DW_AT_stmt_list in cloned DIE!");
+}
+
 /// \brief Extract the line table for \p Unit from \p OrigDwarf, and
 /// recreate a relocated version of these for the address ranges that
 /// are present in the binary.
@@ -2376,18 +2379,8 @@ void DwarfLinker::patchLineTableForUnit(CompileUnit &Unit,
     return;
 
   // Update the cloned DW_AT_stmt_list with the correct debug_line offset.
-  if (auto *OutputDIE = Unit.getOutputUnitDIE()) {
-    auto Stmt =
-        std::find_if(OutputDIE->values_begin(), OutputDIE->values_end(),
-                     [](const DIEValue &Value) {
-                       return Value.getAttribute() == dwarf::DW_AT_stmt_list;
-                     });
-    assert(Stmt != OutputDIE->values_end() &&
-           "Didn't find DW_AT_stmt_list in cloned DIE!");
-    OutputDIE->setValue(Stmt - OutputDIE->values_begin(),
-                        DIEValue(Stmt->getAttribute(), Stmt->getForm(),
-                                 DIEInteger(Streamer->getLineSectionSize())));
-  }
+  if (auto *OutputDIE = Unit.getOutputUnitDIE())
+    patchStmtList(*OutputDIE, DIEInteger(Streamer->getLineSectionSize()));
 
   // Parse the original line info for the unit.
   DWARFDebugLine::LineTable LineTable;

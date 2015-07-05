@@ -199,8 +199,7 @@ static bool InlineCallIfPossible(CallSite CS, InlineFunctionInfo &IFI,
     // set to keep track of which "available" allocas are being used by this
     // function.  Also, AllocasForType can be empty of course!
     bool MergedAwayAlloca = false;
-    for (unsigned i = 0, e = AllocasForType.size(); i != e; ++i) {
-      AllocaInst *AvailableAlloca = AllocasForType[i];
+    for (AllocaInst *AvailableAlloca : AllocasForType) {
 
       unsigned Align1 = AI->getAlignment(),
                Align2 = AvailableAlloca->getAlignment();
@@ -482,7 +481,7 @@ bool Inliner::runOnSCC(CallGraphSCC &SCC) {
   // If there are no calls in this function, exit early.
   if (CallSites.empty())
     return false;
-  
+
   // Now that we have all of the call sites, move the ones to functions in the
   // current SCC to the end of the list.
   unsigned FirstCallInSCC = CallSites.size();
@@ -592,7 +591,7 @@ bool Inliner::runOnSCC(CallGraphSCC &SCC) {
         DEBUG(dbgs() << "    -> Deleting dead function: "
               << Callee->getName() << "\n");
         CallGraphNode *CalleeNode = CG[Callee];
-        
+
         // Remove any call graph edges from the callee to its callees.
         CalleeNode->removeAllCalledFunctions();
         
@@ -648,8 +647,8 @@ bool Inliner::removeDeadFunctions(CallGraph &CG, bool AlwaysInlineOnly) {
 
   // Scan for all of the functions, looking for ones that should now be removed
   // from the program.  Insert the dead ones in the FunctionsToRemove set.
-  for (CallGraph::iterator I = CG.begin(), E = CG.end(); I != E; ++I) {
-    CallGraphNode *CGN = I->second;
+  for (auto I : CG) {
+    CallGraphNode *CGN = I.second;
     Function *F = CGN->getFunction();
     if (!F || F->isDeclaration())
       continue;
@@ -724,10 +723,8 @@ bool Inliner::removeDeadFunctions(CallGraph &CG, bool AlwaysInlineOnly) {
   FunctionsToRemove.erase(std::unique(FunctionsToRemove.begin(),
                                       FunctionsToRemove.end()),
                           FunctionsToRemove.end());
-  for (SmallVectorImpl<CallGraphNode *>::iterator I = FunctionsToRemove.begin(),
-                                                  E = FunctionsToRemove.end();
-       I != E; ++I) {
-    delete CG.removeFunctionFromModule(*I);
+  for (CallGraphNode *CGN : FunctionsToRemove) {
+    delete CG.removeFunctionFromModule(CGN);
     ++NumDeleted;
   }
   return true;

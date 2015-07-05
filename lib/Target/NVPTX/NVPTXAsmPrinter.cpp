@@ -109,7 +109,7 @@ void VisitGlobalVariableForEmission(
   Visited.insert(GV);
   Visiting.erase(GV);
 }
-} // namespace
+}
 
 void NVPTXAsmPrinter::emitLineNumberAsDotLoc(const MachineInstr &MI) {
   if (!EmitLineNumbers)
@@ -826,7 +826,7 @@ bool NVPTXAsmPrinter::doInitialization(Module &M) {
   const_cast<TargetLoweringObjectFile &>(getObjFileLowering())
       .Initialize(OutContext, TM);
 
-  Mang = new Mangler(TM.getDataLayout());
+  Mang = new Mangler();
 
   // Emit header before any dwarf directives are emitted below.
   emitHeader(M, OS1, STI);

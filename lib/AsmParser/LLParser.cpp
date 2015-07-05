@@ -13,6 +13,7 @@
 
 #include "LLParser.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/AsmParser/SlotMapping.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Constants.h"
@@ -160,6 +161,14 @@ bool LLParser::ValidateEndOfModule() {
     UpgradeCallsToIntrinsic(FI++); // must be post-increment, as we remove
 
   UpgradeDebugInfo(*M);
+
+  if (!Slots)
+    return false;
+  // Initialize the slot mapping.
+  // Because by this point we've parsed and validated everything, we can "steal"
+  // the mapping from LLParser as it doesn't need it anymore.
+  Slots->GlobalValues = std::move(NumberedVals);
+  Slots->MetadataNodes = std::move(NumberedMetadata);
 
   return false;
 }
@@ -3664,6 +3673,24 @@ bool LLParser::ParseDINamespace(MDNode *&Result, bool IsDistinct) {
 
   Result = GET_OR_DISTINCT(DINamespace,
                            (Context, scope.Val, file.Val, name.Val, line.Val));
+  return false;
+}
+
+/// ParseDIModule:
+///   ::= !DIModule(scope: !0, name: "SomeModule", configMacros: "-DNDEBUG",
+///                 includePath: "/usr/include", isysroot: "/")
+bool LLParser::ParseDIModule(MDNode *&Result, bool IsDistinct) {
+#define VISIT_MD_FIELDS(OPTIONAL, REQUIRED)                                    \
+  REQUIRED(scope, MDField, );                                                  \
+  REQUIRED(name, MDStringField, );                                             \
+  OPTIONAL(configMacros, MDStringField, );                                     \
+  OPTIONAL(includePath, MDStringField, );                                      \
+  OPTIONAL(isysroot, MDStringField, );
+  PARSE_MD_FIELDS();
+#undef VISIT_MD_FIELDS
+
+  Result = GET_OR_DISTINCT(DIModule, (Context, scope.Val, name.Val,
+                           configMacros.Val, includePath.Val, isysroot.Val));
   return false;
 }
 

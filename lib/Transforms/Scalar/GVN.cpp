@@ -138,7 +138,7 @@ namespace {
     uint32_t getNextUnusedValueNumber() { return nextValueNumber; }
     void verifyRemoved(const Value *) const;
   };
-} // namespace
+}
 
 namespace llvm {
 template <> struct DenseMapInfo<Expression> {
@@ -159,7 +159,7 @@ template <> struct DenseMapInfo<Expression> {
   }
 };
 
-} // namespace llvm
+}
 
 //===----------------------------------------------------------------------===//
 //                     ValueTable Internal Functions
@@ -723,7 +723,7 @@ namespace {
   };
 
   char GVN::ID = 0;
-} // namespace
+}
 
 // The public interface to this file...
 FunctionPass *llvm::createGVNPass(bool NoLoads) {
@@ -1783,13 +1783,9 @@ static void patchReplacementInstruction(Instruction *I, Value *Repl) {
   // being replaced.
   BinaryOperator *Op = dyn_cast<BinaryOperator>(I);
   BinaryOperator *ReplOp = dyn_cast<BinaryOperator>(Repl);
-  if (Op && ReplOp && isa<OverflowingBinaryOperator>(Op) &&
-      isa<OverflowingBinaryOperator>(ReplOp)) {
-    if (ReplOp->hasNoSignedWrap() && !Op->hasNoSignedWrap())
-      ReplOp->setHasNoSignedWrap(false);
-    if (ReplOp->hasNoUnsignedWrap() && !Op->hasNoUnsignedWrap())
-      ReplOp->setHasNoUnsignedWrap(false);
-  }
+  if (Op && ReplOp)
+    ReplOp->andIRFlags(Op);
+
   if (Instruction *ReplInst = dyn_cast<Instruction>(Repl)) {
     // FIXME: If both the original and replacement value are part of the
     // same control-flow region (meaning that the execution of one
@@ -2806,6 +2802,10 @@ void GVN::addDeadBlock(BasicBlock *BB) {
 // Return true iff *NEW* dead code are found.
 bool GVN::processFoldableCondBr(BranchInst *BI) {
   if (!BI || BI->isUnconditional())
+    return false;
+
+  // If a branch has two identical successors, we cannot declare either dead.
+  if (BI->getSuccessor(0) == BI->getSuccessor(1))
     return false;
 
   ConstantInt *Cond = dyn_cast<ConstantInt>(BI->getCondition());

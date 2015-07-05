@@ -1,5 +1,15 @@
 ; RUN: llc -O3 -mtriple=x86_64-apple-macosx -enable-implicit-null-checks < %s | FileCheck %s
 
+; RUN: llc < %s -mtriple=x86_64-apple-macosx -enable-implicit-null-checks \
+; RUN:    | llvm-mc -triple x86_64-apple-macosx -filetype=obj -o - \
+; RUN:    | llvm-objdump -triple x86_64-apple-macosx -fault-map-section - \
+; RUN:    | FileCheck %s -check-prefix OBJDUMP
+
+; RUN: llc < %s -mtriple=x86_64-unknown-linux-gnu -enable-implicit-null-checks \
+; RUN:    | llvm-mc -triple x86_64-unknown-linux-gnu -filetype=obj -o - \
+; RUN:    | llvm-objdump -triple x86_64-unknown-linux-gnu -fault-map-section - \
+; RUN:    | FileCheck %s -check-prefix OBJDUMP
+
 define i32 @imp_null_check_load(i32* %x) {
 ; CHECK-LABEL: _imp_null_check_load:
 ; CHECK: Ltmp1:
@@ -11,7 +21,7 @@ define i32 @imp_null_check_load(i32* %x) {
 
  entry:
   %c = icmp eq i32* %x, null
-  br i1 %c, label %is_null, label %not_null
+  br i1 %c, label %is_null, label %not_null, !make.implicit !0
 
  is_null:
   ret i32 42
@@ -32,7 +42,7 @@ define i32 @imp_null_check_gep_load(i32* %x) {
 
  entry:
   %c = icmp eq i32* %x, null
-  br i1 %c, label %is_null, label %not_null
+  br i1 %c, label %is_null, label %not_null, !make.implicit !0
 
  is_null:
   ret i32 42
@@ -55,7 +65,7 @@ define i32 @imp_null_check_add_result(i32* %x, i32 %p) {
 
  entry:
   %c = icmp eq i32* %x, null
-  br i1 %c, label %is_null, label %not_null
+  br i1 %c, label %is_null, label %not_null, !make.implicit !0
 
  is_null:
   ret i32 42
@@ -65,6 +75,8 @@ define i32 @imp_null_check_add_result(i32* %x, i32 %p) {
   %p1 = add i32 %t, %p
   ret i32 %p1
 }
+
+!0 = !{}
 
 ; CHECK-LABEL: __LLVM_FaultMaps:
 
@@ -116,3 +128,13 @@ define i32 @imp_null_check_add_result(i32* %x, i32 %p) {
 ; CHECK-NEXT: .long Ltmp1-_imp_null_check_load
 ; Fault[0].HandlerOffset:
 ; CHECK-NEXT: .long Ltmp0-_imp_null_check_load
+
+; OBJDUMP: FaultMap table:
+; OBJDUMP-NEXT: Version: 0x1
+; OBJDUMP-NEXT: NumFunctions: 3
+; OBJDUMP-NEXT: FunctionAddress: 0x000000, NumFaultingPCs: 1
+; OBJDUMP-NEXT: Fault kind: FaultingLoad, faulting PC offset: 0, handling PC offset: 5
+; OBJDUMP-NEXT: FunctionAddress: 0x000000, NumFaultingPCs: 1
+; OBJDUMP-NEXT: Fault kind: FaultingLoad, faulting PC offset: 0, handling PC offset: 7
+; OBJDUMP-NEXT: FunctionAddress: 0x000000, NumFaultingPCs: 1
+; OBJDUMP-NEXT: Fault kind: FaultingLoad, faulting PC offset: 0, handling PC offset: 3

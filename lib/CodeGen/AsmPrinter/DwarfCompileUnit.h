@@ -31,7 +31,7 @@ class LexicalScope;
 class DwarfCompileUnit : public DwarfUnit {
   /// The attribute index of DW_AT_stmt_list in the compile unit DIE, avoiding
   /// the need to search for it in applyStmtList.
-  unsigned stmtListIndex;
+  DIE::value_iterator StmtListValue;
 
   /// Skeleton unit associated with this unit.
   DwarfCompileUnit *Skeleton;
@@ -58,8 +58,7 @@ class DwarfCompileUnit : public DwarfUnit {
 
   /// \brief Construct a DIE for the given DbgVariable without initializing the
   /// DbgVariable's DIE reference.
-  std::unique_ptr<DIE> constructVariableDIEImpl(const DbgVariable &DV,
-                                                bool Abstract);
+  DIE *constructVariableDIEImpl(const DbgVariable &DV, bool Abstract);
 
   bool isDwoUnit() const override;
 
@@ -92,8 +91,8 @@ public:
                             const MCSymbol *Label);
 
   /// addSectionDelta - Add a label delta attribute data and value.
-  void addSectionDelta(DIE &Die, dwarf::Attribute Attribute, const MCSymbol *Hi,
-                       const MCSymbol *Lo);
+  DIE::value_iterator addSectionDelta(DIE &Die, dwarf::Attribute Attribute,
+                                      const MCSymbol *Hi, const MCSymbol *Lo);
 
   DwarfCompileUnit &getCU() override { return *this; }
 
@@ -106,8 +105,9 @@ public:
 
   /// addSectionLabel - Add a Dwarf section label attribute data and value.
   ///
-  void addSectionLabel(DIE &Die, dwarf::Attribute Attribute,
-                       const MCSymbol *Label, const MCSymbol *Sec);
+  DIE::value_iterator addSectionLabel(DIE &Die, dwarf::Attribute Attribute,
+                                      const MCSymbol *Label,
+                                      const MCSymbol *Sec);
 
   /// \brief Find DIE for the given subprogram and attach appropriate
   /// DW_AT_low_pc and DW_AT_high_pc attributes. If there are global
@@ -116,7 +116,7 @@ public:
   DIE &updateSubprogramScopeDIE(const DISubprogram *SP);
 
   void constructScopeDIE(LexicalScope *Scope,
-                         SmallVectorImpl<std::unique_ptr<DIE>> &FinalChildren);
+                         SmallVectorImpl<DIE *> &FinalChildren);
 
   /// \brief A helper function to construct a RangeSpanList for a given
   /// lexical scope.
@@ -128,23 +128,21 @@ public:
                                const SmallVectorImpl<InsnRange> &Ranges);
   /// \brief This scope represents inlined body of a function. Construct
   /// DIE to represent this concrete inlined copy of the function.
-  std::unique_ptr<DIE> constructInlinedScopeDIE(LexicalScope *Scope);
+  DIE *constructInlinedScopeDIE(LexicalScope *Scope);
 
   /// \brief Construct new DW_TAG_lexical_block for this scope and
   /// attach DW_AT_low_pc/DW_AT_high_pc labels.
-  std::unique_ptr<DIE> constructLexicalScopeDIE(LexicalScope *Scope);
+  DIE *constructLexicalScopeDIE(LexicalScope *Scope);
 
   /// constructVariableDIE - Construct a DIE for the given DbgVariable.
-  std::unique_ptr<DIE> constructVariableDIE(DbgVariable &DV,
-                                            bool Abstract = false);
+  DIE *constructVariableDIE(DbgVariable &DV, bool Abstract = false);
 
-  std::unique_ptr<DIE> constructVariableDIE(DbgVariable &DV,
-                                            const LexicalScope &Scope,
-                                            DIE *&ObjectPointer);
+  DIE *constructVariableDIE(DbgVariable &DV, const LexicalScope &Scope,
+                            DIE *&ObjectPointer);
 
   /// A helper function to create children of a Scope DIE.
   DIE *createScopeChildrenDIE(LexicalScope *Scope,
-                              SmallVectorImpl<std::unique_ptr<DIE>> &Children,
+                              SmallVectorImpl<DIE *> &Children,
                               unsigned *ChildScopeCount = nullptr);
 
   /// \brief Construct a DIE for this subprogram scope.
@@ -155,8 +153,7 @@ public:
   void constructAbstractSubprogramScopeDIE(LexicalScope *Scope);
 
   /// \brief Construct import_module DIE.
-  std::unique_ptr<DIE>
-  constructImportedEntityDIE(const DIImportedEntity *Module);
+  DIE *constructImportedEntityDIE(const DIImportedEntity *Module);
 
   void finishSubprogramDefinition(const DISubprogram *SP);
 
@@ -231,6 +228,6 @@ public:
   const MCSymbol *getBaseAddress() const { return BaseAddress; }
 };
 
-} // namespace llvm
+} // end llvm namespace
 
 #endif

@@ -99,7 +99,7 @@ public:
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 };
-} // namespace
+}
 
 bool ImplicitNullChecks::runOnMachineFunction(MachineFunction &MF) {
   TII = MF.getSubtarget().getInstrInfo();
@@ -123,6 +123,13 @@ bool ImplicitNullChecks::runOnMachineFunction(MachineFunction &MF) {
 bool ImplicitNullChecks::analyzeBlockForNullChecks(
     MachineBasicBlock &MBB, SmallVectorImpl<NullCheck> &NullCheckList) {
   typedef TargetInstrInfo::MachineBranchPredicate MachineBranchPredicate;
+
+  MDNode *BranchMD =
+      MBB.getBasicBlock()
+          ? MBB.getBasicBlock()->getTerminator()->getMetadata("make.implicit")
+          : nullptr;
+  if (!BranchMD)
+    return false;
 
   MachineBranchPredicate MBP;
 

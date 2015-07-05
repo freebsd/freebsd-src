@@ -223,20 +223,8 @@ lto_symbol_attributes lto_module_get_symbol_attribute(lto_module_t mod,
   return unwrap(mod)->getSymbolAttributes(index);
 }
 
-unsigned int lto_module_get_num_deplibs(lto_module_t mod) {
-  return unwrap(mod)->getDependentLibraryCount();
-}
-
-const char* lto_module_get_deplib(lto_module_t mod, unsigned int index) {
-  return unwrap(mod)->getDependentLibrary(index);
-}
-
-unsigned int lto_module_get_num_linkeropts(lto_module_t mod) {
-  return unwrap(mod)->getLinkerOptCount();
-}
-
-const char* lto_module_get_linkeropt(lto_module_t mod, unsigned int index) {
-  return unwrap(mod)->getLinkerOpt(index);
+const char* lto_module_get_linkeropts(lto_module_t mod) {
+  return unwrap(mod)->getLinkerOpts();
 }
 
 void lto_codegen_set_diagnostic_handler(lto_code_gen_t cg,

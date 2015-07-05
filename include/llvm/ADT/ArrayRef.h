@@ -286,6 +286,11 @@ namespace llvm {
       return MutableArrayRef<T>(data()+N, M);
     }
 
+    MutableArrayRef<T> drop_back(unsigned N) const {
+      assert(this->size() >= N && "Dropping more elements than exist");
+      return slice(0, this->size() - N);
+    }
+
     /// @}
     /// @name Operator Overloads
     /// @{
@@ -361,6 +366,6 @@ namespace llvm {
   template <typename T> struct isPodLike<ArrayRef<T> > {
     static const bool value = true;
   };
-} // namespace llvm
+}
 
 #endif

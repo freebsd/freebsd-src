@@ -440,16 +440,6 @@ TargetLoweringObjectFileMachO::TargetLoweringObjectFileMachO()
   SupportIndirectSymViaGOTPCRel = true;
 }
 
-/// getDepLibFromLinkerOpt - Extract the dependent library name from a linker
-/// option string. Returns StringRef() if the option does not specify a library.
-StringRef TargetLoweringObjectFileMachO::
-getDepLibFromLinkerOpt(StringRef LinkerOption) const {
-  const char *LibCmd = "-l";
-  if (LinkerOption.startswith(LibCmd))
-    return LinkerOption.substr(strlen(LibCmd));
-  return StringRef();
-}
-
 /// emitModuleFlags - Perform code emission for module flags.
 void TargetLoweringObjectFileMachO::
 emitModuleFlags(MCStreamer &Streamer,
@@ -850,8 +840,6 @@ static int getSelectionForCOFF(const GlobalValue *GV) {
     } else {
       return COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE;
     }
-  } else if (GV->isWeakForLinker()) {
-    return COFF::IMAGE_COMDAT_SELECT_ANY;
   }
   return 0;
 }
@@ -990,14 +978,6 @@ MCSection *TargetLoweringObjectFileCOFF::getSectionForJumpTable(
                                      COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE);
 }
 
-StringRef TargetLoweringObjectFileCOFF::
-getDepLibFromLinkerOpt(StringRef LinkerOption) const {
-  const char *LibCmd = "/DEFAULTLIB:";
-  if (LinkerOption.startswith(LibCmd))
-    return LinkerOption.substr(strlen(LibCmd));
-  return StringRef();
-}
-
 void TargetLoweringObjectFileCOFF::
 emitModuleFlags(MCStreamer &Streamer,
                 ArrayRef<Module::ModuleFlagEntry> ModuleFlags,
@@ -1044,4 +1024,37 @@ MCSection *TargetLoweringObjectFileCOFF::getStaticDtorSection(
     unsigned Priority, const MCSymbol *KeySym) const {
   return getContext().getAssociativeCOFFSection(
       cast<MCSectionCOFF>(StaticDtorSection), KeySym);
+}
+
+void TargetLoweringObjectFileCOFF::emitLinkerFlagsForGlobal(
+    raw_ostream &OS, const GlobalValue *GV, const Mangler &Mang) const {
+  if (!GV->hasDLLExportStorageClass() || GV->isDeclaration())
+    return;
+
+  const Triple &TT = getTargetTriple();
+
+  if (TT.isKnownWindowsMSVCEnvironment())
+    OS << " /EXPORT:";
+  else
+    OS << " -export:";
+
+  if (TT.isWindowsGNUEnvironment() || TT.isWindowsCygwinEnvironment()) {
+    std::string Flag;
+    raw_string_ostream FlagOS(Flag);
+    Mang.getNameWithPrefix(FlagOS, GV, false);
+    FlagOS.flush();
+    if (Flag[0] == DL->getGlobalPrefix())
+      OS << Flag.substr(1);
+    else
+      OS << Flag;
+  } else {
+    Mang.getNameWithPrefix(OS, GV, false);
+  }
+
+  if (!GV->getValueType()->isFunctionTy()) {
+    if (TT.isKnownWindowsMSVCEnvironment())
+      OS << ",DATA";
+    else
+      OS << ",data";
+  }
 }

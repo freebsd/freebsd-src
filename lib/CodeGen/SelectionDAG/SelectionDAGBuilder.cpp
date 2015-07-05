@@ -261,8 +261,9 @@ static SDValue getCopyFromPartsVector(SelectionDAG &DAG, SDLoc DL,
     assert(NumRegs == NumParts && "Part count doesn't match vector breakdown!");
     NumParts = NumRegs; // Silence a compiler warning.
     assert(RegisterVT == PartVT && "Part type doesn't match vector breakdown!");
-    assert(RegisterVT == Parts[0].getSimpleValueType() &&
-           "Part type doesn't match part!");
+    assert(RegisterVT.getSizeInBits() ==
+           Parts[0].getSimpleValueType().getSizeInBits() &&
+           "Part type sizes don't match!");
 
     // Assemble the parts into intermediate operands.
     SmallVector<SDValue, 8> Ops(NumIntermediates);
@@ -1445,8 +1446,8 @@ void SelectionDAGBuilder::FindMergedConditions(const Value *Cond,
     // We have flexibility in setting Prob for BB1 and Prob for TmpBB.
     // The requirement is that
     //   TrueProb for BB1 + (FalseProb for BB1 * TrueProb for TmpBB)
-    //     = TrueProb for orignal BB.
-    // Assuming the orignal weights are A and B, one choice is to set BB1's
+    //     = TrueProb for original BB.
+    // Assuming the original weights are A and B, one choice is to set BB1's
     // weights to A and A+2B, and set TmpBB's weights to A and 2B. This choice
     // assumes that
     //   TrueProb for BB1 == FalseProb for BB1 * TrueProb for TmpBB.
@@ -1481,8 +1482,8 @@ void SelectionDAGBuilder::FindMergedConditions(const Value *Cond,
     // We have flexibility in setting Prob for BB1 and Prob for TmpBB.
     // The requirement is that
     //   FalseProb for BB1 + (TrueProb for BB1 * FalseProb for TmpBB)
-    //     = FalseProb for orignal BB.
-    // Assuming the orignal weights are A and B, one choice is to set BB1's
+    //     = FalseProb for original BB.
+    // Assuming the original weights are A and B, one choice is to set BB1's
     // weights to 2A+B and B, and set TmpBB's weights to 2A and B. This choice
     // assumes that
     //   FalseProb for BB1 == TrueProb for BB1 * FalseProb for TmpBB.
@@ -2238,17 +2239,11 @@ void SelectionDAGBuilder::visitSDiv(const User &I) {
   SDValue Op1 = getValue(I.getOperand(0));
   SDValue Op2 = getValue(I.getOperand(1));
 
-  // Turn exact SDivs into multiplications.
-  // FIXME: This should be in DAGCombiner, but it doesn't have access to the
-  // exact bit.
-  if (isa<BinaryOperator>(&I) && cast<BinaryOperator>(&I)->isExact() &&
-      !isa<ConstantSDNode>(Op1) &&
-      isa<ConstantSDNode>(Op2) && !cast<ConstantSDNode>(Op2)->isNullValue())
-    setValue(&I, DAG.getTargetLoweringInfo()
-                     .BuildExactSDIV(Op1, Op2, getCurSDLoc(), DAG));
-  else
-    setValue(&I, DAG.getNode(ISD::SDIV, getCurSDLoc(), Op1.getValueType(),
-                             Op1, Op2));
+  SDNodeFlags Flags;
+  Flags.setExact(isa<PossiblyExactOperator>(&I) &&
+                 cast<PossiblyExactOperator>(&I)->isExact());
+  setValue(&I, DAG.getNode(ISD::SDIV, getCurSDLoc(), Op1.getValueType(), Op1,
+                           Op2, &Flags));
 }
 
 void SelectionDAGBuilder::visitICmp(const User &I) {
@@ -4786,7 +4781,10 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
 
   case Intrinsic::debugtrap:
   case Intrinsic::trap: {
-    StringRef TrapFuncName = TM.Options.getTrapFunctionName();
+    StringRef TrapFuncName =
+        I.getAttributes()
+            .getAttribute(AttributeSet::FunctionIndex, "trap-func-name")
+            .getValueAsString();
     if (TrapFuncName.empty()) {
       ISD::NodeType Op = (Intrinsic == Intrinsic::trap) ?
         ISD::TRAP : ISD::DEBUGTRAP;
@@ -4976,11 +4974,9 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
         MF.getMMI().getContext().getOrCreateFrameAllocSymbol(
             GlobalValue::getRealLinkageName(Fn->getName()), IdxVal);
 
-    // Create a TargetExternalSymbol for the label to avoid any target lowering
+    // Create a MCSymbol for the label to avoid any target lowering
     // that would make this PC relative.
-    StringRef Name = FrameAllocSym->getName();
-    assert(Name.data()[Name.size()] == '\0' && "not null terminated");
-    SDValue OffsetSym = DAG.getTargetExternalSymbol(Name.data(), PtrVT);
+    SDValue OffsetSym = DAG.getMCSymbol(FrameAllocSym, PtrVT);
     SDValue OffsetVal =
         DAG.getNode(ISD::FRAME_ALLOC_RECOVER, sdl, PtrVT, OffsetSym);
 

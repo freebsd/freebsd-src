@@ -12,6 +12,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Signals.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 #if LLVM_ON_WIN32
@@ -19,6 +20,16 @@
 #endif
 #if LLVM_ON_UNIX
 #include <unistd.h>
+#endif
+
+#if defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && (__MAC_OS_X_VERSION_MIN_REQUIRED > 1050)
+#define USE_OSX_GETHOSTUUID 1
+#else
+#define USE_OSX_GETHOSTUUID 0
+#endif
+
+#if USE_OSX_GETHOSTUUID
+#include <uuid/uuid.h>
 #endif
 using namespace llvm;
 
@@ -55,19 +66,79 @@ LockFileManager::readLockFile(StringRef LockFileName) {
   return None;
 }
 
-bool LockFileManager::processStillExecuting(StringRef Hostname, int PID) {
+static std::error_code getHostID(SmallVectorImpl<char> &HostID) {
+  HostID.clear();
+
+#if USE_OSX_GETHOSTUUID
+  // On OS X, use the more stable hardware UUID instead of hostname.
+  struct timespec wait = {1, 0}; // 1 second.
+  uuid_t uuid;
+  if (gethostuuid(uuid, &wait) != 0)
+    return std::error_code(errno, std::system_category());
+
+  uuid_string_t UUIDStr;
+  uuid_unparse(uuid, UUIDStr);
+  StringRef UUIDRef(UUIDStr);
+  HostID.append(UUIDRef.begin(), UUIDRef.end());
+
+#elif LLVM_ON_UNIX
+  char HostName[256];
+  HostName[255] = 0;
+  HostName[0] = 0;
+  gethostname(HostName, 255);
+  StringRef HostNameRef(HostName);
+  HostID.append(HostNameRef.begin(), HostNameRef.end());
+
+#else
+  StringRef Dummy("localhost");
+  HostID.append(Dummy.begin(), Dummy.end());
+#endif
+
+  return std::error_code();
+}
+
+bool LockFileManager::processStillExecuting(StringRef HostID, int PID) {
 #if LLVM_ON_UNIX && !defined(__ANDROID__)
-  char MyHostname[256];
-  MyHostname[255] = 0;
-  MyHostname[0] = 0;
-  gethostname(MyHostname, 255);
+  SmallString<256> StoredHostID;
+  if (getHostID(StoredHostID))
+    return true; // Conservatively assume it's executing on error.
+
   // Check whether the process is dead. If so, we're done.
-  if (MyHostname == Hostname && getsid(PID) == -1 && errno == ESRCH)
+  if (StoredHostID == HostID && getsid(PID) == -1 && errno == ESRCH)
     return false;
 #endif
 
   return true;
 }
+
+namespace {
+/// An RAII helper object ensure that the unique lock file is removed.
+///
+/// Ensures that if there is an error or a signal before we finish acquiring the
+/// lock, the unique file will be removed. And if we successfully take the lock,
+/// the signal handler is left in place so that signals while the lock is held
+/// will remove the unique lock file. The caller should ensure there is a
+/// matching call to sys::DontRemoveFileOnSignal when the lock is released.
+class RemoveUniqueLockFileOnSignal {
+  StringRef Filename;
+  bool RemoveImmediately;
+public:
+  RemoveUniqueLockFileOnSignal(StringRef Name)
+  : Filename(Name), RemoveImmediately(true) {
+    sys::RemoveFileOnSignal(Filename, nullptr);
+  }
+  ~RemoveUniqueLockFileOnSignal() {
+    if (!RemoveImmediately) {
+      // Leave the signal handler enabled. It will be removed when the lock is
+      // released.
+      return;
+    }
+    sys::fs::remove(Filename);
+    sys::DontRemoveFileOnSignal(Filename);
+  }
+  void lockAcquired() { RemoveImmediately = false; }
+};
+} // end anonymous namespace
 
 LockFileManager::LockFileManager(StringRef FileName)
 {
@@ -96,17 +167,18 @@ LockFileManager::LockFileManager(StringRef FileName)
 
   // Write our process ID to our unique lock file.
   {
-    raw_fd_ostream Out(UniqueLockFileID, /*shouldClose=*/true);
+    SmallString<256> HostID;
+    if (auto EC = getHostID(HostID)) {
+      Error = EC;
+      return;
+    }
 
+    raw_fd_ostream Out(UniqueLockFileID, /*shouldClose=*/true);
+    Out << HostID << ' ';
 #if LLVM_ON_UNIX
-    // FIXME: move getpid() call into LLVM
-    char hostname[256];
-    hostname[255] = 0;
-    hostname[0] = 0;
-    gethostname(hostname, 255);
-    Out << hostname << ' ' << getpid();
+    Out << getpid();
 #else
-    Out << "localhost 1";
+    Out << "1";
 #endif
     Out.close();
 
@@ -119,12 +191,18 @@ LockFileManager::LockFileManager(StringRef FileName)
     }
   }
 
+  // Clean up the unique file on signal, which also releases the lock if it is
+  // held since the .lock symlink will point to a nonexistent file.
+  RemoveUniqueLockFileOnSignal RemoveUniqueFile(UniqueLockFileName);
+
   while (1) {
     // Create a link from the lock file name. If this succeeds, we're done.
     std::error_code EC =
         sys::fs::create_link(UniqueLockFileName, LockFileName);
-    if (!EC)
+    if (!EC) {
+      RemoveUniqueFile.lockAcquired();
       return;
+    }
 
     if (EC != errc::file_exists) {
       Error = EC;
@@ -171,6 +249,9 @@ LockFileManager::~LockFileManager() {
   // Since we own the lock, remove the lock file and our own unique lock file.
   sys::fs::remove(LockFileName);
   sys::fs::remove(UniqueLockFileName);
+  // The unique file is now gone, so remove it from the signal handler. This
+  // matches a sys::RemoveFileOnSignal() in LockFileManager().
+  sys::DontRemoveFileOnSignal(UniqueLockFileName);
 }
 
 LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {

@@ -1144,6 +1144,8 @@ bool AddressSanitizerModule::ShouldInstrumentGlobal(GlobalVariable *G) {
 
     // Globals from llvm.metadata aren't emitted, do not instrument them.
     if (Section == "llvm.metadata") return false;
+    // Do not instrument globals from special LLVM sections.
+    if (Section.find("__llvm") != StringRef::npos) return false;
 
     // Callbacks put into the CRT initializer/terminator sections
     // should not be instrumented.
@@ -1672,12 +1674,6 @@ void FunctionStackPoisoner::SetShadowToStackAfterReturnInlined(
   }
 }
 
-static DebugLoc getFunctionEntryDebugLocation(Function &F) {
-  for (const auto &Inst : F.getEntryBlock())
-    if (!isa<AllocaInst>(Inst)) return Inst.getDebugLoc();
-  return DebugLoc();
-}
-
 PHINode *FunctionStackPoisoner::createPHI(IRBuilder<> &IRB, Value *Cond,
                                           Value *ValueIfTrue,
                                           Instruction *ThenTerm,
@@ -1730,7 +1726,9 @@ void FunctionStackPoisoner::poisonStack() {
   if (AllocaVec.size() == 0) return;
 
   int StackMallocIdx = -1;
-  DebugLoc EntryDebugLocation = getFunctionEntryDebugLocation(F);
+  DebugLoc EntryDebugLocation;
+  if (auto SP = getDISubprogram(&F))
+    EntryDebugLocation = DebugLoc::get(SP->getScopeLine(), 0, SP);
 
   Instruction *InsBefore = AllocaVec[0];
   IRBuilder<> IRB(InsBefore);
@@ -1753,11 +1751,10 @@ void FunctionStackPoisoner::poisonStack() {
   uint64_t LocalStackSize = L.FrameSize;
   bool DoStackMalloc = ClUseAfterReturn && !ASan.CompileKernel &&
                        LocalStackSize <= kMaxStackMallocSize;
-  // Don't do dynamic alloca in presence of inline asm: too often it makes
-  // assumptions on which registers are available. Don't do stack malloc in the
-  // presence of inline asm on 32-bit platforms for the same reason.
+  // Don't do dynamic alloca or stack malloc in presence of inline asm:
+  // too often it makes assumptions on which registers are available.
   bool DoDynamicAlloca = ClDynamicAllocaStack && !HasNonEmptyInlineAsm;
-  DoStackMalloc &= !HasNonEmptyInlineAsm || ASan.LongSize != 32;
+  DoStackMalloc &= !HasNonEmptyInlineAsm;
 
   Value *StaticAlloca =
       DoDynamicAlloca ? nullptr : createAllocaForLayout(IRB, L, false);

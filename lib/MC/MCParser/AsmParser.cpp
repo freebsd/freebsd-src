@@ -26,6 +26,7 @@
 #include "llvm/MC/MCParser/AsmCond.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserUtils.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
@@ -233,6 +234,8 @@ public:
   bool parseExpression(const MCExpr *&Res, SMLoc &EndLoc) override;
   bool parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) override;
   bool parseParenExpression(const MCExpr *&Res, SMLoc &EndLoc) override;
+  bool parseParenExprOfDepth(unsigned ParenDepth, const MCExpr *&Res,
+                             SMLoc &EndLoc) override;
   bool parseAbsoluteExpression(int64_t &Res) override;
 
   /// \brief Parse an identifier or string (as a quoted identifier)
@@ -484,7 +487,7 @@ private:
 
   void initializeDirectiveKindMap();
 };
-} // namespace
+}
 
 namespace llvm {
 
@@ -1065,6 +1068,27 @@ bool AsmParser::parseParenExpression(const MCExpr *&Res, SMLoc &EndLoc) {
   return parseParenExpr(Res, EndLoc) || parseBinOpRHS(1, Res, EndLoc);
 }
 
+bool AsmParser::parseParenExprOfDepth(unsigned ParenDepth, const MCExpr *&Res,
+                                      SMLoc &EndLoc) {
+  if (parseParenExpr(Res, EndLoc))
+    return true;
+
+  for (; ParenDepth > 0; --ParenDepth) {
+    if (parseBinOpRHS(1, Res, EndLoc))
+      return true;
+
+    // We don't Lex() the last RParen.
+    // This is the same behavior as parseParenExpression().
+    if (ParenDepth - 1 > 0) {
+      if (Lexer.isNot(AsmToken::RParen))
+        return TokError("expected ')' in parentheses expression");
+      EndLoc = Lexer.getTok().getEndLoc();
+      Lex();
+    }
+  }
+  return false;
+}
+
 bool AsmParser::parseAbsoluteExpression(int64_t &Res) {
   const MCExpr *Expr;
 
@@ -1622,8 +1646,8 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
     if (ActiveMacros.empty())
       Line = SrcMgr.FindLineNumber(IDLoc, CurBuffer);
     else
-      Line = SrcMgr.FindLineNumber(ActiveMacros.back()->InstantiationLoc,
-                                   ActiveMacros.back()->ExitBuffer);
+      Line = SrcMgr.FindLineNumber(ActiveMacros.front()->InstantiationLoc,
+                                   ActiveMacros.front()->ExitBuffer);
 
     // If we previously parsed a cpp hash file line comment then make sure the
     // current Dwarf File is for the CppHashFilename if not then emit the
@@ -1944,7 +1968,7 @@ public:
 private:
   AsmLexer &Lexer;
 };
-} // namespace
+}
 
 bool AsmParser::parseMacroArgument(MCAsmMacroArgument &MA, bool Vararg) {
 
@@ -2178,82 +2202,20 @@ void AsmParser::handleMacroExit() {
   ActiveMacros.pop_back();
 }
 
-static bool isUsedIn(const MCSymbol *Sym, const MCExpr *Value) {
-  switch (Value->getKind()) {
-  case MCExpr::Binary: {
-    const MCBinaryExpr *BE = static_cast<const MCBinaryExpr *>(Value);
-    return isUsedIn(Sym, BE->getLHS()) || isUsedIn(Sym, BE->getRHS());
-  }
-  case MCExpr::Target:
-  case MCExpr::Constant:
-    return false;
-  case MCExpr::SymbolRef: {
-    const MCSymbol &S =
-        static_cast<const MCSymbolRefExpr *>(Value)->getSymbol();
-    if (S.isVariable())
-      return isUsedIn(Sym, S.getVariableValue());
-    return &S == Sym;
-  }
-  case MCExpr::Unary:
-    return isUsedIn(Sym, static_cast<const MCUnaryExpr *>(Value)->getSubExpr());
-  }
-
-  llvm_unreachable("Unknown expr kind!");
-}
-
 bool AsmParser::parseAssignment(StringRef Name, bool allow_redef,
                                 bool NoDeadStrip) {
-  // FIXME: Use better location, we should use proper tokens.
-  SMLoc EqualLoc = Lexer.getLoc();
-
+  MCSymbol *Sym;
   const MCExpr *Value;
-  if (parseExpression(Value))
+  if (MCParserUtils::parseAssignmentExpression(Name, allow_redef, *this, Sym,
+                                               Value))
     return true;
 
-  // Note: we don't count b as used in "a = b". This is to allow
-  // a = b
-  // b = c
-
-  if (Lexer.isNot(AsmToken::EndOfStatement))
-    return TokError("unexpected token in assignment");
-
-  // Eat the end of statement marker.
-  Lex();
-
-  // Validate that the LHS is allowed to be a variable (either it has not been
-  // used as a symbol, or it is an absolute symbol).
-  MCSymbol *Sym = getContext().lookupSymbol(Name);
-  if (Sym) {
-    // Diagnose assignment to a label.
-    //
-    // FIXME: Diagnostics. Note the location of the definition as a label.
-    // FIXME: Diagnose assignment to protected identifier (e.g., register name).
-    if (isUsedIn(Sym, Value))
-      return Error(EqualLoc, "Recursive use of '" + Name + "'");
-    else if (Sym->isUndefined() && !Sym->isUsed() && !Sym->isVariable())
-      ; // Allow redefinitions of undefined symbols only used in directives.
-    else if (Sym->isVariable() && !Sym->isUsed() && allow_redef)
-      ; // Allow redefinitions of variables that haven't yet been used.
-    else if (!Sym->isUndefined() && (!Sym->isVariable() || !allow_redef))
-      return Error(EqualLoc, "redefinition of '" + Name + "'");
-    else if (!Sym->isVariable())
-      return Error(EqualLoc, "invalid assignment to '" + Name + "'");
-    else if (!isa<MCConstantExpr>(Sym->getVariableValue()))
-      return Error(EqualLoc, "invalid reassignment of non-absolute variable '" +
-                                 Name + "'");
-
-    // Don't count these checks as uses.
-    Sym->setUsed(false);
-  } else if (Name == ".") {
-    if (Out.EmitValueToOffset(Value, 0)) {
-      Error(EqualLoc, "expected absolute expression");
-      eatToEndOfStatement();
-    }
+  if (!Sym) {
+    // In the case where we parse an expression starting with a '.', we will
+    // not generate an error, nor will we create a symbol.  In this case we
+    // should just return out.
     return false;
-  } else
-    Sym = getContext().getOrCreateSymbol(Name);
-
-  Sym->setRedefinable(allow_redef);
+  }
 
   // Do the assignment.
   Out.EmitAssignment(Sym, Value);
@@ -4776,6 +4738,103 @@ bool AsmParser::parseMSInlineAsm(
   AsmString = OS.str();
   return false;
 }
+
+namespace llvm {
+namespace MCParserUtils {
+
+/// Returns whether the given symbol is used anywhere in the given expression,
+/// or subexpressions.
+static bool isSymbolUsedInExpression(const MCSymbol *Sym, const MCExpr *Value) {
+  switch (Value->getKind()) {
+  case MCExpr::Binary: {
+    const MCBinaryExpr *BE = static_cast<const MCBinaryExpr *>(Value);
+    return isSymbolUsedInExpression(Sym, BE->getLHS()) ||
+           isSymbolUsedInExpression(Sym, BE->getRHS());
+  }
+  case MCExpr::Target:
+  case MCExpr::Constant:
+    return false;
+  case MCExpr::SymbolRef: {
+    const MCSymbol &S =
+        static_cast<const MCSymbolRefExpr *>(Value)->getSymbol();
+    if (S.isVariable())
+      return isSymbolUsedInExpression(Sym, S.getVariableValue());
+    return &S == Sym;
+  }
+  case MCExpr::Unary:
+    return isSymbolUsedInExpression(
+        Sym, static_cast<const MCUnaryExpr *>(Value)->getSubExpr());
+  }
+
+  llvm_unreachable("Unknown expr kind!");
+}
+
+bool parseAssignmentExpression(StringRef Name, bool allow_redef,
+                               MCAsmParser &Parser, MCSymbol *&Sym,
+                               const MCExpr *&Value) {
+  MCAsmLexer &Lexer = Parser.getLexer();
+
+  // FIXME: Use better location, we should use proper tokens.
+  SMLoc EqualLoc = Lexer.getLoc();
+
+  if (Parser.parseExpression(Value)) {
+    Parser.TokError("missing expression");
+    Parser.eatToEndOfStatement();
+    return true;
+  }
+
+  // Note: we don't count b as used in "a = b". This is to allow
+  // a = b
+  // b = c
+
+  if (Lexer.isNot(AsmToken::EndOfStatement))
+    return Parser.TokError("unexpected token in assignment");
+
+  // Eat the end of statement marker.
+  Parser.Lex();
+
+  // Validate that the LHS is allowed to be a variable (either it has not been
+  // used as a symbol, or it is an absolute symbol).
+  Sym = Parser.getContext().lookupSymbol(Name);
+  if (Sym) {
+    // Diagnose assignment to a label.
+    //
+    // FIXME: Diagnostics. Note the location of the definition as a label.
+    // FIXME: Diagnose assignment to protected identifier (e.g., register name).
+    if (isSymbolUsedInExpression(Sym, Value))
+      return Parser.Error(EqualLoc, "Recursive use of '" + Name + "'");
+    else if (Sym->isUndefined() && !Sym->isUsed() && !Sym->isVariable())
+      ; // Allow redefinitions of undefined symbols only used in directives.
+    else if (Sym->isVariable() && !Sym->isUsed() && allow_redef)
+      ; // Allow redefinitions of variables that haven't yet been used.
+    else if (!Sym->isUndefined() && (!Sym->isVariable() || !allow_redef))
+      return Parser.Error(EqualLoc, "redefinition of '" + Name + "'");
+    else if (!Sym->isVariable())
+      return Parser.Error(EqualLoc, "invalid assignment to '" + Name + "'");
+    else if (!isa<MCConstantExpr>(Sym->getVariableValue()))
+      return Parser.Error(EqualLoc,
+                          "invalid reassignment of non-absolute variable '" +
+                              Name + "'");
+
+    // Don't count these checks as uses.
+    Sym->setUsed(false);
+  } else if (Name == ".") {
+    if (Parser.getStreamer().EmitValueToOffset(Value, 0)) {
+      Parser.Error(EqualLoc, "expected absolute expression");
+      Parser.eatToEndOfStatement();
+      return true;
+    }
+    return false;
+  } else
+    Sym = Parser.getContext().getOrCreateSymbol(Name);
+
+  Sym->setRedefinable(allow_redef);
+
+  return false;
+}
+
+} // namespace MCParserUtils
+} // namespace llvm
 
 /// \brief Create an MCAsmParser instance.
 MCAsmParser *llvm::createMCAsmParser(SourceMgr &SM, MCContext &C,

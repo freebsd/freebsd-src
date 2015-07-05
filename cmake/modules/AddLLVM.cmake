@@ -83,8 +83,13 @@ function(add_llvm_symbol_exports target_name export_file)
       DEPENDS ${export_file}
       VERBATIM
       COMMENT "Creating export file for ${target_name}")
-    set_property(TARGET ${target_name} APPEND_STRING PROPERTY
-                 LINK_FLAGS "  -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/${native_export_file}")
+    if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
+      set_property(TARGET ${target_name} APPEND_STRING PROPERTY
+                   LINK_FLAGS "  -Wl,-M,${CMAKE_CURRENT_BINARY_DIR}/${native_export_file}")
+    else()
+      set_property(TARGET ${target_name} APPEND_STRING PROPERTY
+                   LINK_FLAGS "  -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/${native_export_file}")
+    endif()
   else()
     set(native_export_file "${target_name}.def")
 
@@ -163,7 +168,7 @@ function(add_link_opts target_name)
 
     # Pass -O3 to the linker. This enabled different optimizations on different
     # linkers.
-    if(NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin" OR WIN32))
+    if(NOT (${CMAKE_SYSTEM_NAME} MATCHES "Darwin|SunOS" OR WIN32))
       set_property(TARGET ${target_name} APPEND_STRING PROPERTY
                    LINK_FLAGS " -Wl,-O3")
     endif()
@@ -181,6 +186,9 @@ function(add_link_opts target_name)
         # ld64's implementation of -dead_strip breaks tools that use plugins.
         set_property(TARGET ${target_name} APPEND_STRING PROPERTY
                      LINK_FLAGS " -Wl,-dead_strip")
+      elseif(${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
+        set_property(TARGET ${target_name} APPEND_STRING PROPERTY
+                     LINK_FLAGS " -Wl,-z -Wl,discard-unused=sections")
       elseif(NOT WIN32 AND NOT LLVM_LINKER_IS_GOLD)
         # Object files are compiled with -ffunction-data-sections.
         # Versions of bfd ld < 2.23.1 have a bug in --gc-sections that breaks
@@ -495,11 +503,17 @@ macro(add_llvm_library name)
   else()
     llvm_add_library(${name} ${ARGN})
   endif()
-  set_property( GLOBAL APPEND PROPERTY LLVM_LIBS ${name} )
+  # The gtest libraries should not be installed or exported as a target
+  if ("${name}" STREQUAL gtest OR "${name}" STREQUAL gtest_main)
+    set(_is_gtest TRUE)
+  else()
+    set(_is_gtest FALSE)
+    set_property( GLOBAL APPEND PROPERTY LLVM_LIBS ${name} )
+  endif()
 
   if( EXCLUDE_FROM_ALL )
     set_target_properties( ${name} PROPERTIES EXCLUDE_FROM_ALL ON)
-  else()
+  elseif(NOT _is_gtest)
     if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY OR ${name} STREQUAL "LTO")
       if(ARG_SHARED OR BUILD_SHARED_LIBS)
         if(WIN32 OR CYGWIN)

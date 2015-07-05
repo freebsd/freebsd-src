@@ -154,7 +154,7 @@ namespace {
     unsigned SymbolicRank;
     bool isOr;
   };
-} // namespace
+}
 
 namespace {
   class Reassociate : public FunctionPass {
@@ -197,7 +197,7 @@ namespace {
     void OptimizeInst(Instruction *I);
     Instruction *canonicalizeNegConstExpr(Instruction *I);
   };
-} // namespace
+}
 
 XorOpnd::XorOpnd(Value *V) {
   assert(!isa<ConstantInt>(V) && "No ConstantInt");
@@ -936,6 +936,10 @@ static Value *NegateValue(Value *V, Instruction *BI) {
     // Push the negates through the add.
     I->setOperand(0, NegateValue(I->getOperand(0), BI));
     I->setOperand(1, NegateValue(I->getOperand(1), BI));
+    if (I->getOpcode() == Instruction::Add) {
+      I->setHasNoUnsignedWrap(false);
+      I->setHasNoSignedWrap(false);
+    }
 
     // We must move the add instruction here, because the neg instructions do
     // not dominate the old add instruction in general.  By moving it, we are
@@ -976,6 +980,12 @@ static Value *NegateValue(Value *V, Instruction *BI) {
       InsertPt = TheNeg->getParent()->getParent()->getEntryBlock().begin();
     }
     TheNeg->moveBefore(InsertPt);
+    if (TheNeg->getOpcode() == Instruction::Sub) {
+      TheNeg->setHasNoUnsignedWrap(false);
+      TheNeg->setHasNoSignedWrap(false);
+    } else {
+      TheNeg->andIRFlags(BI);
+    }
     return TheNeg;
   }
 

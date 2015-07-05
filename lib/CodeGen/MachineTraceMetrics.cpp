@@ -306,7 +306,7 @@ public:
   MinInstrCountEnsemble(MachineTraceMetrics *mtm)
     : MachineTraceMetrics::Ensemble(mtm) {}
 };
-} // namespace
+}
 
 // Select the preferred predecessor for MBB.
 const MachineBasicBlock*
@@ -414,7 +414,7 @@ struct LoopBounds {
              const MachineLoopInfo *loops)
     : Blocks(blocks), Loops(loops), Downward(false) {}
 };
-} // namespace
+}
 
 // Specialize po_iterator_storage in order to prune the post-order traversal so
 // it is limited to the current loop and doesn't traverse the loop back edges.
@@ -447,7 +447,7 @@ public:
     return LB.Visited.insert(To).second;
   }
 };
-} // namespace llvm
+}
 
 /// Compute the trace through MBB.
 void MachineTraceMetrics::Ensemble::computeTrace(const MachineBasicBlock *MBB) {
@@ -619,7 +619,7 @@ struct DataDep {
     assert((++DefI).atEnd() && "Register has multiple defs");
   }
 };
-} // namespace
+}
 
 // Get the input data dependencies that must be ready before UseMI can issue.
 // Return true if UseMI has any physreg operands.
@@ -681,7 +681,7 @@ struct LiveRegUnit {
 
   LiveRegUnit(unsigned RU) : RegUnit(RU), Cycle(0), MI(nullptr), Op(0) {}
 };
-} // namespace
+}
 
 // Identify physreg dependencies for UseMI, and update the live regunit
 // tracking set when scanning instructions downwards.
@@ -829,8 +829,7 @@ computeInstrDepths(const MachineBasicBlock *MBB) {
 
       // Filter and process dependencies, computing the earliest issue cycle.
       unsigned Cycle = 0;
-      for (unsigned i = 0, e = Deps.size(); i != e; ++i) {
-        const DataDep &Dep = Deps[i];
+      for (const DataDep &Dep : Deps) {
         const TraceBlockInfo&DepTBI =
           BlockInfo[Dep.DefMI->getParent()->getNumber()];
         // Ignore dependencies from outside the current trace.
@@ -1088,9 +1087,9 @@ computeInstrHeights(const MachineBasicBlock *MBB) {
                                       MTM.SchedModel, MTM.TII, MTM.TRI);
 
       // Update the required height of any virtual registers read by MI.
-      for (unsigned i = 0, e = Deps.size(); i != e; ++i)
-        if (pushDepHeight(Deps[i], MI, Cycle, Heights, MTM.SchedModel, MTM.TII))
-          addLiveIns(Deps[i].DefMI, Deps[i].DefOp, Stack);
+      for (const DataDep &Dep : Deps)
+        if (pushDepHeight(Dep, MI, Cycle, Heights, MTM.SchedModel, MTM.TII))
+          addLiveIns(Dep.DefMI, Dep.DefOp, Stack);
 
       InstrCycles &MICycles = Cycles[MI];
       MICycles.Height = Cycle;
@@ -1106,8 +1105,7 @@ computeInstrHeights(const MachineBasicBlock *MBB) {
     // Update virtual live-in heights. They were added by addLiveIns() with a 0
     // height because the final height isn't known until now.
     DEBUG(dbgs() << "BB#" << MBB->getNumber() <<  " Live-ins:");
-    for (unsigned i = 0, e = TBI.LiveIns.size(); i != e; ++i) {
-      LiveInReg &LIR = TBI.LiveIns[i];
+    for (LiveInReg &LIR : TBI.LiveIns) {
       const MachineInstr *DefMI = MTM.MRI->getVRegDef(LIR.Reg);
       LIR.Height = Heights.lookup(DefMI);
       DEBUG(dbgs() << ' ' << PrintReg(LIR.Reg) << '@' << LIR.Height);

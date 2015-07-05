@@ -89,7 +89,7 @@ namespace ISD {
   /// Return true if the node has at least one operand
   /// and all operands of the specified node are ISD::UNDEF.
   bool allOperandsUndef(const SDNode *N);
-} // namespace ISD
+}  // end llvm:ISD namespace
 
 //===----------------------------------------------------------------------===//
 /// Unlike LLVM values, Selection DAG nodes may return multiple
@@ -578,6 +578,23 @@ public:
   op_iterator op_begin() const { return OperandList; }
   op_iterator op_end() const { return OperandList+NumOperands; }
   ArrayRef<SDUse> ops() const { return makeArrayRef(op_begin(), op_end()); }
+
+  /// Iterator for directly iterating over the operand SDValue's.
+  struct value_op_iterator
+      : iterator_adaptor_base<value_op_iterator, op_iterator,
+                              std::random_access_iterator_tag, SDValue,
+                              ptrdiff_t, value_op_iterator *,
+                              value_op_iterator *> {
+    explicit value_op_iterator(SDUse *U = nullptr)
+      : iterator_adaptor_base(U) {}
+
+    const SDValue &operator*() const { return I->get(); }
+  };
+
+  iterator_range<value_op_iterator> op_values() const {
+    return iterator_range<value_op_iterator>(value_op_iterator(op_begin()),
+                                             value_op_iterator(op_end()));
+  }
 
   SDVTList getVTList() const {
     SDVTList X = { ValueList, NumValues };
@@ -1810,6 +1827,21 @@ public:
   }
 };
 
+class MCSymbolSDNode : public SDNode {
+  MCSymbol *Symbol;
+
+  friend class SelectionDAG;
+  MCSymbolSDNode(MCSymbol *Symbol, EVT VT)
+      : SDNode(ISD::MCSymbol, 0, DebugLoc(), getSDVTList(VT)), Symbol(Symbol) {}
+
+public:
+  MCSymbol *getMCSymbol() const { return Symbol; }
+
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::MCSymbol;
+  }
+};
+
 class CondCodeSDNode : public SDNode {
   ISD::CondCode Condition;
   friend class SelectionDAG;
@@ -2268,8 +2300,8 @@ namespace ISD {
     return isa<StoreSDNode>(N) &&
       cast<StoreSDNode>(N)->getAddressingMode() == ISD::UNINDEXED;
   }
-} // namespace ISD
+}
 
-} // namespace llvm
+} // end llvm namespace
 
 #endif

@@ -211,7 +211,8 @@ namespace llvm {
 
       // FP vector get exponent 
       FGETEXP_RND,
-
+      // FP Scale
+      SCALEF,
       // Integer add/sub with unsigned saturation.
       ADDUS,
       SUBUS,
@@ -237,6 +238,9 @@ namespace llvm {
 
       /// Signed integer max and min.
       SMAX, SMIN,
+
+      // Integer absolute value
+      ABS,
 
       /// Floating point max and min.
       FMAX, FMIN,
@@ -516,7 +520,7 @@ namespace llvm {
       // have memop! In fact, starting from ATOMADD64_DAG all opcodes will be
       // thought as target memory ops!
     };
-  } // namespace X86ISD
+  }
 
   /// Define some predicates that are used for node matching.
   namespace X86 {
@@ -583,7 +587,7 @@ namespace llvm {
       TO_ZERO = 3,
       CUR_DIRECTION = 4
     };
-  } // namespace X86
+  }
 
   //===--------------------------------------------------------------------===//
   //  X86 Implementation of the TargetLowering interface
@@ -638,9 +642,8 @@ namespace llvm {
     /// legal as the hook is used before type legalization.
     bool isSafeMemOpType(MVT VT) const override;
 
-    /// Returns true if the target allows
-    /// unaligned memory accesses. of the specified type. Returns whether it
-    /// is "fast" by reference in the second argument.
+    /// Returns true if the target allows unaligned memory accesses of the
+    /// specified type. Returns whether it is "fast" in the last argument.
     bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS, unsigned Align,
                                        bool *Fast) const override;
 
@@ -1120,6 +1123,6 @@ namespace llvm {
     FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
                              const TargetLibraryInfo *libInfo);
   }
-} // namespace llvm
+}
 
 #endif    // X86ISELLOWERING_H

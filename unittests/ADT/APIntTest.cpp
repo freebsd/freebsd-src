@@ -10,6 +10,7 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallString.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <ostream>
 
 using namespace llvm;
@@ -213,6 +214,171 @@ TEST(APIntTest, i1) {
   EXPECT_EQ(four, q);
   EXPECT_EQ(-one, r);
   }
+}
+
+TEST(APIntTest, compare) {
+  std::array<APInt, 5> testVals{{
+    APInt{16, 2},
+    APInt{16, 1},
+    APInt{16, 0},
+    APInt{16, (uint64_t)-1, true},
+    APInt{16, (uint64_t)-2, true},
+  }};
+
+  for (auto &arg1 : testVals)
+    for (auto &arg2 : testVals) {
+      auto uv1 = arg1.getZExtValue();
+      auto uv2 = arg2.getZExtValue();
+      auto sv1 = arg1.getSExtValue();
+      auto sv2 = arg2.getSExtValue();
+
+      EXPECT_EQ(uv1 <  uv2, arg1.ult(arg2));
+      EXPECT_EQ(uv1 <= uv2, arg1.ule(arg2));
+      EXPECT_EQ(uv1 >  uv2, arg1.ugt(arg2));
+      EXPECT_EQ(uv1 >= uv2, arg1.uge(arg2));
+
+      EXPECT_EQ(sv1 <  sv2, arg1.slt(arg2));
+      EXPECT_EQ(sv1 <= sv2, arg1.sle(arg2));
+      EXPECT_EQ(sv1 >  sv2, arg1.sgt(arg2));
+      EXPECT_EQ(sv1 >= sv2, arg1.sge(arg2));
+
+      EXPECT_EQ(uv1 <  uv2, arg1.ult(uv2));
+      EXPECT_EQ(uv1 <= uv2, arg1.ule(uv2));
+      EXPECT_EQ(uv1 >  uv2, arg1.ugt(uv2));
+      EXPECT_EQ(uv1 >= uv2, arg1.uge(uv2));
+
+      EXPECT_EQ(sv1 <  sv2, arg1.slt(sv2));
+      EXPECT_EQ(sv1 <= sv2, arg1.sle(sv2));
+      EXPECT_EQ(sv1 >  sv2, arg1.sgt(sv2));
+      EXPECT_EQ(sv1 >= sv2, arg1.sge(sv2));
+    }
+}
+
+TEST(APIntTest, compareWithRawIntegers) {
+  EXPECT_TRUE(!APInt(8, 1).uge(256));
+  EXPECT_TRUE(!APInt(8, 1).ugt(256));
+  EXPECT_TRUE( APInt(8, 1).ule(256));
+  EXPECT_TRUE( APInt(8, 1).ult(256));
+  EXPECT_TRUE(!APInt(8, 1).sge(256));
+  EXPECT_TRUE(!APInt(8, 1).sgt(256));
+  EXPECT_TRUE( APInt(8, 1).sle(256));
+  EXPECT_TRUE( APInt(8, 1).slt(256));
+  EXPECT_TRUE(!(APInt(8, 0) == 256));
+  EXPECT_TRUE(  APInt(8, 0) != 256);
+  EXPECT_TRUE(!(APInt(8, 1) == 256));
+  EXPECT_TRUE(  APInt(8, 1) != 256);
+
+  auto uint64max = UINT64_MAX;
+  auto int64max  = INT64_MAX;
+  auto int64min  = INT64_MIN;
+
+  auto u64 = APInt{128, uint64max};
+  auto s64 = APInt{128, static_cast<uint64_t>(int64max), true};
+  auto big = u64 + 1;
+
+  EXPECT_TRUE( u64.uge(uint64max));
+  EXPECT_TRUE(!u64.ugt(uint64max));
+  EXPECT_TRUE( u64.ule(uint64max));
+  EXPECT_TRUE(!u64.ult(uint64max));
+  EXPECT_TRUE( u64.sge(int64max));
+  EXPECT_TRUE( u64.sgt(int64max));
+  EXPECT_TRUE(!u64.sle(int64max));
+  EXPECT_TRUE(!u64.slt(int64max));
+  EXPECT_TRUE( u64.sge(int64min));
+  EXPECT_TRUE( u64.sgt(int64min));
+  EXPECT_TRUE(!u64.sle(int64min));
+  EXPECT_TRUE(!u64.slt(int64min));
+
+  EXPECT_TRUE(u64 == uint64max);
+  EXPECT_TRUE(u64 != int64max);
+  EXPECT_TRUE(u64 != int64min);
+
+  EXPECT_TRUE(!s64.uge(uint64max));
+  EXPECT_TRUE(!s64.ugt(uint64max));
+  EXPECT_TRUE( s64.ule(uint64max));
+  EXPECT_TRUE( s64.ult(uint64max));
+  EXPECT_TRUE( s64.sge(int64max));
+  EXPECT_TRUE(!s64.sgt(int64max));
+  EXPECT_TRUE( s64.sle(int64max));
+  EXPECT_TRUE(!s64.slt(int64max));
+  EXPECT_TRUE( s64.sge(int64min));
+  EXPECT_TRUE( s64.sgt(int64min));
+  EXPECT_TRUE(!s64.sle(int64min));
+  EXPECT_TRUE(!s64.slt(int64min));
+
+  EXPECT_TRUE(s64 != uint64max);
+  EXPECT_TRUE(s64 == int64max);
+  EXPECT_TRUE(s64 != int64min);
+
+  EXPECT_TRUE( big.uge(uint64max));
+  EXPECT_TRUE( big.ugt(uint64max));
+  EXPECT_TRUE(!big.ule(uint64max));
+  EXPECT_TRUE(!big.ult(uint64max));
+  EXPECT_TRUE( big.sge(int64max));
+  EXPECT_TRUE( big.sgt(int64max));
+  EXPECT_TRUE(!big.sle(int64max));
+  EXPECT_TRUE(!big.slt(int64max));
+  EXPECT_TRUE( big.sge(int64min));
+  EXPECT_TRUE( big.sgt(int64min));
+  EXPECT_TRUE(!big.sle(int64min));
+  EXPECT_TRUE(!big.slt(int64min));
+
+  EXPECT_TRUE(big != uint64max);
+  EXPECT_TRUE(big != int64max);
+  EXPECT_TRUE(big != int64min);
+}
+
+TEST(APIntTest, compareWithInt64Min) {
+  int64_t edge = INT64_MIN;
+  int64_t edgeP1 = edge + 1;
+  int64_t edgeM1 = INT64_MAX;
+  auto a = APInt{64, static_cast<uint64_t>(edge), true};
+
+  EXPECT_TRUE(!a.slt(edge));
+  EXPECT_TRUE( a.sle(edge));
+  EXPECT_TRUE(!a.sgt(edge));
+  EXPECT_TRUE( a.sge(edge));
+  EXPECT_TRUE( a.slt(edgeP1));
+  EXPECT_TRUE( a.sle(edgeP1));
+  EXPECT_TRUE(!a.sgt(edgeP1));
+  EXPECT_TRUE(!a.sge(edgeP1));
+  EXPECT_TRUE( a.slt(edgeM1));
+  EXPECT_TRUE( a.sle(edgeM1));
+  EXPECT_TRUE(!a.sgt(edgeM1));
+  EXPECT_TRUE(!a.sge(edgeM1));
+}
+
+TEST(APIntTest, compareWithHalfInt64Max) {
+  uint64_t edge = 0x4000000000000000;
+  uint64_t edgeP1 = edge + 1;
+  uint64_t edgeM1 = edge - 1;
+  auto a = APInt{64, edge};
+
+  EXPECT_TRUE(!a.ult(edge));
+  EXPECT_TRUE( a.ule(edge));
+  EXPECT_TRUE(!a.ugt(edge));
+  EXPECT_TRUE( a.uge(edge));
+  EXPECT_TRUE( a.ult(edgeP1));
+  EXPECT_TRUE( a.ule(edgeP1));
+  EXPECT_TRUE(!a.ugt(edgeP1));
+  EXPECT_TRUE(!a.uge(edgeP1));
+  EXPECT_TRUE(!a.ult(edgeM1));
+  EXPECT_TRUE(!a.ule(edgeM1));
+  EXPECT_TRUE( a.ugt(edgeM1));
+  EXPECT_TRUE( a.uge(edgeM1));
+
+  EXPECT_TRUE(!a.slt(edge));
+  EXPECT_TRUE( a.sle(edge));
+  EXPECT_TRUE(!a.sgt(edge));
+  EXPECT_TRUE( a.sge(edge));
+  EXPECT_TRUE( a.slt(edgeP1));
+  EXPECT_TRUE( a.sle(edgeP1));
+  EXPECT_TRUE(!a.sgt(edgeP1));
+  EXPECT_TRUE(!a.sge(edgeP1));
+  EXPECT_TRUE(!a.slt(edgeM1));
+  EXPECT_TRUE(!a.sle(edgeM1));
+  EXPECT_TRUE( a.sgt(edgeM1));
+  EXPECT_TRUE( a.sge(edgeM1));
 }
 
 

@@ -16,7 +16,7 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = AsmParser InstPrinter MCTargetDesc TargetInfo
+subdirectories = AsmParser InstPrinter MCTargetDesc TargetInfo Utils
 
 [component_0]
 type = TargetGroup
@@ -29,5 +29,5 @@ has_asmprinter = 1
 type = Library
 name = AMDGPUCodeGen
 parent = AMDGPU
-required_libraries = Analysis AsmPrinter CodeGen Core IPO MC AMDGPUAsmParser AMDGPUAsmPrinter AMDGPUDesc AMDGPUInfo Scalar SelectionDAG Support Target TransformUtils
+required_libraries = Analysis AsmPrinter CodeGen Core IPO MC AMDGPUAsmParser AMDGPUAsmPrinter AMDGPUDesc AMDGPUInfo AMDGPUUtils Scalar SelectionDAG Support Target TransformUtils
 add_to_library_groups = AMDGPU

@@ -215,7 +215,7 @@ namespace llvm {
       VST3LN_UPD,
       VST4LN_UPD
     };
-  } // namespace ARMISD
+  }
 
   /// Define some predicates that are used for node matching.
   namespace ARM {
@@ -433,6 +433,15 @@ namespace llvm {
     Instruction* emitTrailingFence(IRBuilder<> &Builder, AtomicOrdering Ord,
                            bool IsStore, bool IsLoad) const override;
 
+    unsigned getMaxSupportedInterleaveFactor() const override { return 4; }
+
+    bool lowerInterleavedLoad(LoadInst *LI,
+                              ArrayRef<ShuffleVectorInst *> Shuffles,
+                              ArrayRef<unsigned> Indices,
+                              unsigned Factor) const override;
+    bool lowerInterleavedStore(StoreInst *SI, ShuffleVectorInst *SVI,
+                               unsigned Factor) const override;
+
     bool shouldExpandAtomicLoadInIR(LoadInst *LI) const override;
     bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
     TargetLoweringBase::AtomicRMWExpansionKind
@@ -638,6 +647,6 @@ namespace llvm {
     FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
                              const TargetLibraryInfo *libInfo);
   }
-} // namespace llvm
+}
 
 #endif  // ARMISELLOWERING_H

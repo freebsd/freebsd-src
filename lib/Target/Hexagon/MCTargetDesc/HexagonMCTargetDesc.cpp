@@ -102,7 +102,7 @@ public:
       OS << "\n\t}" << PacketBundle.second;
   }
 };
-} // namespace
+}
 
 namespace {
 class HexagonTargetELFStreamer : public HexagonTargetStreamer {
@@ -137,7 +137,7 @@ public:
         Symbol, Size, ByteAlignment, AccessSize);
   }
 };
-} // namespace
+}
 
 static MCAsmInfo *createHexagonMCAsmInfo(const MCRegisterInfo &MRI,
                                          const Triple &TT) {
@@ -172,9 +172,10 @@ static MCInstPrinter *createHexagonMCInstPrinter(const Triple &T,
     return nullptr;
 }
 
-MCTargetStreamer *createMCAsmTargetStreamer(
-      MCStreamer &S, formatted_raw_ostream &OS, MCInstPrinter *InstPrint,
-      bool IsVerboseAsm) {
+static MCTargetStreamer *createMCAsmTargetStreamer(MCStreamer &S,
+                                                   formatted_raw_ostream &OS,
+                                                   MCInstPrinter *InstPrint,
+                                                   bool IsVerboseAsm) {
   return new HexagonTargetAsmStreamer(S,  OS, IsVerboseAsm, *InstPrint);
 }
 

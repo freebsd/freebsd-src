@@ -700,6 +700,13 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       if (ShAmt >= BitWidth)
         break;
 
+      APInt InDemandedMask = (NewMask << ShAmt);
+
+      // If the shift is exact, then it does demand the low bits (and knows that
+      // they are zero).
+      if (cast<BinaryWithFlagsSDNode>(Op)->Flags.hasExact())
+        InDemandedMask |= APInt::getLowBitsSet(BitWidth, ShAmt);
+
       // If this is ((X << C1) >>u ShAmt), see if we can simplify this into a
       // single shift.  We can do this if the top bits (which are shifted out)
       // are never demanded.
@@ -722,7 +729,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       }
 
       // Compute the new bits that are at the top now.
-      if (SimplifyDemandedBits(InOp, (NewMask << ShAmt),
+      if (SimplifyDemandedBits(InOp, InDemandedMask,
                                KnownZero, KnownOne, TLO, Depth+1))
         return true;
       assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?");
@@ -753,6 +760,11 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
 
       APInt InDemandedMask = (NewMask << ShAmt);
 
+      // If the shift is exact, then it does demand the low bits (and knows that
+      // they are zero).
+      if (cast<BinaryWithFlagsSDNode>(Op)->Flags.hasExact())
+        InDemandedMask |= APInt::getLowBitsSet(BitWidth, ShAmt);
+
       // If any of the demanded bits are produced by the sign extension, we also
       // demand the input sign bit.
       APInt HighBits = APInt::getHighBitsSet(BitWidth, ShAmt);
@@ -771,10 +783,13 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
 
       // If the input sign bit is known to be zero, or if none of the top bits
       // are demanded, turn this into an unsigned shift right.
-      if (KnownZero.intersects(SignBit) || (HighBits & ~NewMask) == HighBits)
-        return TLO.CombineTo(Op, TLO.DAG.getNode(ISD::SRL, dl, VT,
-                                                 Op.getOperand(0),
-                                                 Op.getOperand(1)));
+      if (KnownZero.intersects(SignBit) || (HighBits & ~NewMask) == HighBits) {
+        SDNodeFlags Flags;
+        Flags.setExact(cast<BinaryWithFlagsSDNode>(Op)->Flags.hasExact());
+        return TLO.CombineTo(Op,
+                             TLO.DAG.getNode(ISD::SRL, dl, VT, Op.getOperand(0),
+                                             Op.getOperand(1), &Flags));
+      }
 
       int Log2 = NewMask.exactLogBase2();
       if (Log2 >= 0) {
@@ -2659,10 +2674,9 @@ void TargetLowering::ComputeConstraintToUse(AsmOperandInfo &OpInfo,
 
 /// \brief Given an exact SDIV by a constant, create a multiplication
 /// with the multiplicative inverse of the constant.
-SDValue TargetLowering::BuildExactSDIV(SDValue Op1, SDValue Op2, SDLoc dl,
-                                       SelectionDAG &DAG) const {
-  ConstantSDNode *C = cast<ConstantSDNode>(Op2);
-  APInt d = C->getAPIntValue();
+static SDValue BuildExactSDIV(const TargetLowering &TLI, SDValue Op1, APInt d,
+                              SDLoc dl, SelectionDAG &DAG,
+                              std::vector<SDNode *> &Created) {
   assert(d != 0 && "Division by zero!");
 
   // Shift the value upfront if it is even, so the LSB is one.
@@ -2670,10 +2684,11 @@ SDValue TargetLowering::BuildExactSDIV(SDValue Op1, SDValue Op2, SDLoc dl,
   if (ShAmt) {
     // TODO: For UDIV use SRL instead of SRA.
     SDValue Amt =
-        DAG.getConstant(ShAmt, dl, getShiftAmountTy(Op1.getValueType()));
+        DAG.getConstant(ShAmt, dl, TLI.getShiftAmountTy(Op1.getValueType()));
     SDNodeFlags Flags;
     Flags.setExact(true);
     Op1 = DAG.getNode(ISD::SRA, dl, Op1.getValueType(), Op1, Amt, &Flags);
+    Created.push_back(Op1.getNode());
     d = d.ashr(ShAmt);
   }
 
@@ -2682,8 +2697,10 @@ SDValue TargetLowering::BuildExactSDIV(SDValue Op1, SDValue Op2, SDLoc dl,
   while ((t = d*xn) != 1)
     xn *= APInt(d.getBitWidth(), 2) - t;
 
-  Op2 = DAG.getConstant(xn, dl, Op1.getValueType());
-  return DAG.getNode(ISD::MUL, dl, Op1.getValueType(), Op1, Op2);
+  SDValue Op2 = DAG.getConstant(xn, dl, Op1.getValueType());
+  SDValue Mul = DAG.getNode(ISD::MUL, dl, Op1.getValueType(), Op1, Op2);
+  Created.push_back(Mul.getNode());
+  return Mul;
 }
 
 /// \brief Given an ISD::SDIV node expressing a divide by constant,
@@ -2702,6 +2719,10 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, const APInt &Divisor,
   // FIXME: We should be more aggressive here.
   if (!isTypeLegal(VT))
     return SDValue();
+
+  // If the sdiv has an 'exact' bit we can use a simpler lowering.
+  if (cast<BinaryWithFlagsSDNode>(N)->Flags.hasExact())
+    return BuildExactSDIV(*this, N->getOperand(0), Divisor, dl, DAG, *Created);
 
   APInt::ms magics = Divisor.magic();
 
