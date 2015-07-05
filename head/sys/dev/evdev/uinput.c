@@ -265,31 +265,31 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case UI_SET_EVBIT:
-		evdev_support_event(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_event(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_KEYBIT:
-		evdev_support_key(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_key(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_RELBIT:
-		evdev_support_rel(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_rel(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_ABSBIT:
-		evdev_support_abs(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_abs(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_MSCBIT:
-		evdev_support_msc(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_msc(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_LEDBIT:
-		evdev_support_led(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_led(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_SNDBIT:
-		evdev_support_snd(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_snd(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_PHYS:
@@ -297,7 +297,7 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case UI_SET_SWBIT:
-		evdev_support_sw(state->ucs_evdev, (uint16_t)(uintptr_t)data);
+		evdev_support_sw(state->ucs_evdev, (uint16_t)(uintptr_t)*data);
 		break;
 
 	case UI_SET_PROPBIT:
