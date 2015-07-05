@@ -14,6 +14,7 @@
 #ifndef LLVM_MC_MCSYMBOL_H
 #define LLVM_MC_MCSYMBOL_H
 
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/MC/MCAssembler.h"
@@ -46,6 +47,15 @@ protected:
     SymbolKindMachO,
   };
 
+  /// A symbol can contain an Offset, or Value, or be Common, but never more
+  /// than one of these.
+  enum Contents : uint8_t {
+    SymContentsUnset,
+    SymContentsOffset,
+    SymContentsVariable,
+    SymContentsCommon,
+  };
+
   // Special sentinal value for the absolute pseudo section.
   //
   // FIXME: Use a PointerInt wrapper for this?
@@ -62,10 +72,12 @@ protected:
   ///
   /// If this is a fragment, then it gives the fragment this symbol's value is
   /// relative to, if any.
-  mutable PointerUnion<MCSection *, MCFragment *> SectionOrFragment;
-
-  /// Value - If non-null, the value for a variable symbol.
-  const MCExpr *Value;
+  ///
+  /// For the 'HasName' integer, this is true if this symbol is named.
+  /// A named symbol will have a pointer to the name allocated in the bytes
+  /// immediately prior to the MCSymbol.
+  mutable PointerIntPair<PointerUnion<MCSection *, MCFragment *>, 1>
+      SectionOrFragmentAndHasName;
 
   /// IsTemporary - True if this is an assembler temporary label, which
   /// typically does not survive in the .o file's symbol table.  Usually
@@ -86,17 +98,29 @@ protected:
   /// This symbol is private extern.
   mutable unsigned IsPrivateExtern : 1;
 
-  /// True if this symbol is named.
-  /// A named symbol will have a pointer to the name allocated in the bytes
-  /// immediately prior to the MCSymbol.
-  unsigned HasName : 1;
-
   /// LLVM RTTI discriminator. This is actually a SymbolKind enumerator, but is
   /// unsigned to avoid sign extension and achieve better bitpacking with MSVC.
   unsigned Kind : 2;
 
   /// True if we have created a relocation that uses this symbol.
   mutable unsigned IsUsedInReloc : 1;
+
+  /// This is actually a Contents enumerator, but is unsigned to avoid sign
+  /// extension and achieve better bitpacking with MSVC.
+  unsigned SymbolContents : 2;
+
+  /// The alignment of the symbol, if it is 'common', or -1.
+  ///
+  /// The alignment is stored as log2(align) + 1.  This allows all values from
+  /// 0 to 2^31 to be stored which is every power of 2 representable by an
+  /// unsigned.
+  static const unsigned NumCommonAlignmentBits = 5;
+  unsigned CommonAlignLog2 : NumCommonAlignmentBits;
+
+  /// The Flags field is used by object file implementations to store
+  /// additional per symbol information which is not easily classified.
+  static const unsigned NumFlagsBits = 16;
+  mutable uint32_t Flags : NumFlagsBits;
 
   /// Index field, for use by the object file implementation.
   mutable uint32_t Index = 0;
@@ -107,16 +131,10 @@ protected:
 
     /// The size of the symbol, if it is 'common'.
     uint64_t CommonSize;
+
+    /// If non-null, the value for a variable symbol.
+    const MCExpr *Value;
   };
-
-  /// The alignment of the symbol, if it is 'common', or -1.
-  //
-  // FIXME: Pack this in with other fields?
-  unsigned CommonAlign = -1U;
-
-  /// The Flags field is used by object file implementations to store
-  /// additional per symbol information which is not easily classified.
-  mutable uint32_t Flags = 0;
 
 protected: // MCContext creates and uniques these.
   friend class MCExpr;
@@ -132,11 +150,12 @@ protected: // MCContext creates and uniques these.
   } NameEntryStorageTy;
 
   MCSymbol(SymbolKind Kind, const StringMapEntry<bool> *Name, bool isTemporary)
-      : Value(nullptr), IsTemporary(isTemporary), IsRedefinable(false),
-        IsUsed(false), IsRegistered(false), IsExternal(false),
-        IsPrivateExtern(false), HasName(!!Name), Kind(Kind),
-        IsUsedInReloc(false) {
+      : IsTemporary(isTemporary), IsRedefinable(false), IsUsed(false),
+        IsRegistered(false), IsExternal(false), IsPrivateExtern(false),
+        Kind(Kind), IsUsedInReloc(false), SymbolContents(SymContentsUnset),
+        CommonAlignLog2(0), Flags(0) {
     Offset = 0;
+    SectionOrFragmentAndHasName.setInt(!!Name);
     if (Name)
       getNameEntryPtr() = Name;
   }
@@ -163,16 +182,17 @@ private:
   MCSection *getSectionPtr() const {
     if (MCFragment *F = getFragment())
       return F->getParent();
+    const auto &SectionOrFragment = SectionOrFragmentAndHasName.getPointer();
     assert(!SectionOrFragment.is<MCFragment *>() && "Section or null expected");
     MCSection *Section = SectionOrFragment.dyn_cast<MCSection *>();
-    if (Section || !Value)
+    if (Section || !isVariable())
       return Section;
-    return Section = Value->findAssociatedSection();
+    return Section = getVariableValue()->findAssociatedSection();
   }
 
   /// \brief Get a reference to the name field.  Requires that we have a name
   const StringMapEntry<bool> *&getNameEntryPtr() {
-    assert(HasName && "Name is required");
+    assert(SectionOrFragmentAndHasName.getInt() && "Name is required");
     NameEntryStorageTy *Name = reinterpret_cast<NameEntryStorageTy *>(this);
     return (*(Name - 1)).NameEntry;
   }
@@ -183,7 +203,7 @@ private:
 public:
   /// getName - Get the symbol name.
   StringRef getName() const {
-    if (!HasName)
+    if (!SectionOrFragmentAndHasName.getInt())
       return StringRef();
 
     return getNameEntryPtr()->first();
@@ -212,8 +232,11 @@ public:
   /// \brief Prepare this symbol to be redefined.
   void redefineIfPossible() {
     if (IsRedefinable) {
-      Value = nullptr;
-      SectionOrFragment = nullptr;
+      if (SymbolContents == SymContentsVariable) {
+        Value = nullptr;
+        SymbolContents = SymContentsUnset;
+      }
+      setUndefined();
       IsRedefinable = false;
     }
   }
@@ -246,13 +269,15 @@ public:
   /// Mark the symbol as defined in the section \p S.
   void setSection(MCSection &S) {
     assert(!isVariable() && "Cannot set section of variable");
-    assert(!SectionOrFragment.is<MCFragment *>() && "Section or null expected");
-    SectionOrFragment = &S;
+    assert(!SectionOrFragmentAndHasName.getPointer().is<MCFragment *>() &&
+           "Section or null expected");
+    SectionOrFragmentAndHasName.setPointer(&S);
   }
 
   /// Mark the symbol as undefined.
   void setUndefined() {
-    SectionOrFragment = nullptr;
+    SectionOrFragmentAndHasName.setPointer(
+        PointerUnion<MCSection *, MCFragment *>());
   }
 
   bool isELF() const { return Kind == SymbolKindELF; }
@@ -266,7 +291,9 @@ public:
   /// @{
 
   /// isVariable - Check if this is a variable symbol.
-  bool isVariable() const { return Value != nullptr; }
+  bool isVariable() const {
+    return SymbolContents == SymContentsVariable;
+  }
 
   /// getVariableValue() - Get the value for variable symbols.
   const MCExpr *getVariableValue() const {
@@ -290,12 +317,17 @@ public:
   }
 
   uint64_t getOffset() const {
-    assert(!isCommon());
+    assert((SymbolContents == SymContentsUnset ||
+            SymbolContents == SymContentsOffset) &&
+           "Cannot get offset for a common/variable symbol");
     return Offset;
   }
   void setOffset(uint64_t Value) {
-    assert(!isCommon());
+    assert((SymbolContents == SymContentsUnset ||
+            SymbolContents == SymContentsOffset) &&
+           "Cannot set offset for a common/variable symbol");
     Offset = Value;
+    SymbolContents = SymContentsOffset;
   }
 
   /// Return the size of a 'common' symbol.
@@ -311,13 +343,20 @@ public:
   void setCommon(uint64_t Size, unsigned Align) {
     assert(getOffset() == 0);
     CommonSize = Size;
-    CommonAlign = Align;
+    SymbolContents = SymContentsCommon;
+
+    assert((!Align || isPowerOf2_32(Align)) &&
+           "Alignment must be a power of 2");
+    unsigned Log2Align = Log2_32(Align) + 1;
+    assert(Log2Align < (1U << NumCommonAlignmentBits) &&
+           "Out of range alignment");
+    CommonAlignLog2 = Log2Align;
   }
 
   ///  Return the alignment of a 'common' symbol.
   unsigned getCommonAlignment() const {
     assert(isCommon() && "Not a 'common' symbol!");
-    return CommonAlign;
+    return CommonAlignLog2 ? (1U << (CommonAlignLog2 - 1)) : 0;
   }
 
   /// Declare this symbol as being 'common'.
@@ -328,7 +367,7 @@ public:
   bool declareCommon(uint64_t Size, unsigned Align) {
     assert(isCommon() || getOffset() == 0);
     if(isCommon()) {
-      if(CommonSize != Size || CommonAlign != Align)
+      if(CommonSize != Size || getCommonAlignment() != Align)
        return true;
     } else
       setCommon(Size, Align);
@@ -336,13 +375,15 @@ public:
   }
 
   /// Is this a 'common' symbol.
-  bool isCommon() const { return CommonAlign != -1U; }
+  bool isCommon() const {
+    return SymbolContents == SymContentsCommon;
+  }
 
   MCFragment *getFragment() const {
-    return SectionOrFragment.dyn_cast<MCFragment *>();
+    return SectionOrFragmentAndHasName.getPointer().dyn_cast<MCFragment *>();
   }
   void setFragment(MCFragment *Value) const {
-    SectionOrFragment = Value;
+    SectionOrFragmentAndHasName.setPointer(Value);
   }
 
   bool isExternal() const { return IsExternal; }
@@ -362,10 +403,14 @@ protected:
   uint32_t getFlags() const { return Flags; }
 
   /// Set the (implementation defined) symbol flags.
-  void setFlags(uint32_t Value) const { Flags = Value; }
+  void setFlags(uint32_t Value) const {
+    assert(Value < (1U << NumFlagsBits) && "Out of range flags");
+    Flags = Value;
+  }
 
   /// Modify the flags via a mask
   void modifyFlags(uint32_t Value, uint32_t Mask) const {
+    assert(Value < (1U << NumFlagsBits) && "Out of range flags");
     Flags = (Flags & ~Mask) | Value;
   }
 };

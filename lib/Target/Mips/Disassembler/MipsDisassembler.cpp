@@ -178,6 +178,11 @@ static DecodeStatus DecodeMSACtrlRegisterClass(MCInst &Inst,
                                                uint64_t Address,
                                                const void *Decoder);
 
+static DecodeStatus DecodeCOP0RegisterClass(MCInst &Inst,
+                                            unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder);
+
 static DecodeStatus DecodeCOP2RegisterClass(MCInst &Inst,
                                             unsigned RegNo,
                                             uint64_t Address,
@@ -1564,6 +1569,18 @@ static DecodeStatus DecodeMSACtrlRegisterClass(MCInst &Inst,
   return MCDisassembler::Success;
 }
 
+static DecodeStatus DecodeCOP0RegisterClass(MCInst &Inst,
+                                            unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder) {
+  if (RegNo > 31)
+    return MCDisassembler::Fail;
+
+  unsigned Reg = getReg(Decoder, Mips::COP0RegClassID, RegNo);
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
 static DecodeStatus DecodeCOP2RegisterClass(MCInst &Inst,
                                             unsigned RegNo,
                                             uint64_t Address,
@@ -1855,6 +1872,6 @@ static DecodeStatus DecodeMovePRegPair(MCInst &Inst, unsigned Insn,
 
 static DecodeStatus DecodeSimm23Lsl2(MCInst &Inst, unsigned Insn,
                                      uint64_t Address, const void *Decoder) {
-  Inst.addOperand(MCOperand::createImm(SignExtend32<23>(Insn) << 2));
+  Inst.addOperand(MCOperand::createImm(SignExtend32<25>(Insn << 2)));
   return MCDisassembler::Success;
 }

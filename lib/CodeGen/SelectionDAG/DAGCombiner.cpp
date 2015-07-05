@@ -459,7 +459,7 @@ namespace {
       return TLI.getSetCCResultType(*DAG.getContext(), VT);
     }
   };
-} // namespace
+}
 
 
 namespace {
@@ -475,7 +475,7 @@ public:
     DC.removeFromWorklist(N);
   }
 };
-} // namespace
+}
 
 //===----------------------------------------------------------------------===//
 //  TargetLowering::DAGCombinerInfo implementation
@@ -1192,8 +1192,8 @@ bool DAGCombiner::recursivelyDeleteUnusedNodes(SDNode *N) {
       continue;
 
     if (N->use_empty()) {
-      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-        Nodes.insert(N->getOperand(i).getNode());
+      for (const SDValue &ChildN : N->op_values())
+        Nodes.insert(ChildN.getNode());
 
       removeFromWorklist(N);
       DAG.DeleteNode(N);
@@ -1266,9 +1266,9 @@ void DAGCombiner::Run(CombineLevel AtLevel) {
     // worklist as well. Because the worklist uniques things already, this
     // won't repeatedly process the same operand.
     CombinedNodes.insert(N);
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-      if (!CombinedNodes.count(N->getOperand(i).getNode()))
-        AddToWorklist(N->getOperand(i).getNode());
+    for (const SDValue &ChildN : N->op_values())
+      if (!CombinedNodes.count(ChildN.getNode()))
+        AddToWorklist(ChildN.getNode());
 
     SDValue RV = combine(N);
 
@@ -1523,8 +1523,7 @@ SDValue DAGCombiner::visitTokenFactor(SDNode *N) {
     SDNode *TF = TFs[i];
 
     // Check each of the operands.
-    for (unsigned i = 0, ie = TF->getNumOperands(); i != ie; ++i) {
-      SDValue Op = TF->getOperand(i);
+    for (const SDValue &Op : TF->op_values()) {
 
       switch (Op.getOpcode()) {
       case ISD::EntryToken:
@@ -2179,7 +2178,11 @@ SDValue DAGCombiner::visitSDIV(SDNode *N) {
   }
 
   // fold (sdiv X, pow2) -> simple ops after legalize
+  // FIXME: We check for the exact bit here because the generic lowering gives
+  // better results in that case. The target-specific lowering should learn how
+  // to handle exact sdivs efficiently.
   if (N1C && !N1C->isNullValue() && !N1C->isOpaque() &&
+      !cast<BinaryWithFlagsSDNode>(N)->Flags.hasExact() &&
       (N1C->getAPIntValue().isPowerOf2() ||
        (-N1C->getAPIntValue()).isPowerOf2())) {
     // If dividing by powers of two is cheap, then don't perform the following
@@ -4275,7 +4278,7 @@ SDValue DAGCombiner::visitSHL(SDNode *N) {
   if (isNullConstant(N0))
     return N0;
   // fold (shl x, c >= size(x)) -> undef
-  if (N1C && N1C->getZExtValue() >= OpSizeInBits)
+  if (N1C && N1C->getAPIntValue().uge(OpSizeInBits))
     return DAG.getUNDEF(VT);
   // fold (shl x, 0) -> x
   if (N1C && N1C->isNullValue())
@@ -4359,6 +4362,22 @@ SDValue DAGCombiner::visitSHL(SDNode *N) {
           return DAG.getNode(ISD::ZERO_EXTEND, SDLoc(N0), VT, NewSHL);
         }
       }
+    }
+  }
+
+  // fold (shl (sr[la] exact X,  C1), C2) -> (shl    X, (C2-C1)) if C1 <= C2
+  // fold (shl (sr[la] exact X,  C1), C2) -> (sr[la] X, (C2-C1)) if C1  > C2
+  if (N1C && (N0.getOpcode() == ISD::SRL || N0.getOpcode() == ISD::SRA) &&
+      cast<BinaryWithFlagsSDNode>(N0)->Flags.hasExact()) {
+    if (ConstantSDNode *N0C1 = isConstOrConstSplat(N0.getOperand(1))) {
+      uint64_t C1 = N0C1->getZExtValue();
+      uint64_t C2 = N1C->getZExtValue();
+      SDLoc DL(N);
+      if (C1 <= C2)
+        return DAG.getNode(ISD::SHL, DL, VT, N0.getOperand(0),
+                           DAG.getConstant(C2 - C1, DL, N1.getValueType()));
+      return DAG.getNode(N0.getOpcode(), DL, VT, N0.getOperand(0),
+                         DAG.getConstant(C1 - C2, DL, N1.getValueType()));
     }
   }
 
@@ -5560,12 +5579,12 @@ SDValue DAGCombiner::visitSETCC(SDNode *N) {
                        SDLoc(N));
 }
 
-// tryToFoldExtendOfConstant - Try to fold a sext/zext/aext
-// dag node into a ConstantSDNode or a build_vector of constants.
-// This function is called by the DAGCombiner when visiting sext/zext/aext
-// dag nodes (see for example method DAGCombiner::visitSIGN_EXTEND).
-// Vector extends are not folded if operations are legal; this is to
-// avoid introducing illegal build_vector dag nodes.
+/// Try to fold a sext/zext/aext dag node into a ConstantSDNode or 
+/// a build_vector of constants.
+/// This function is called by the DAGCombiner when visiting sext/zext/aext
+/// dag nodes (see for example method DAGCombiner::visitSIGN_EXTEND).
+/// Vector extends are not folded if operations are legal; this is to
+/// avoid introducing illegal build_vector dag nodes.
 static SDNode *tryToFoldExtendOfConstant(SDNode *N, const TargetLowering &TLI,
                                          SelectionDAG &DAG, bool LegalTypes,
                                          bool LegalOperations) {
@@ -5595,7 +5614,6 @@ static SDNode *tryToFoldExtendOfConstant(SDNode *N, const TargetLowering &TLI,
   // We can fold this node into a build_vector.
   unsigned VTBits = SVT.getSizeInBits();
   unsigned EVTBits = N0->getValueType(0).getScalarType().getSizeInBits();
-  unsigned ShAmt = VTBits - EVTBits;
   SmallVector<SDValue, 8> Elts;
   unsigned NumElts = VT.getVectorNumElements();
   SDLoc DL(N);
@@ -5608,14 +5626,13 @@ static SDNode *tryToFoldExtendOfConstant(SDNode *N, const TargetLowering &TLI,
     }
 
     SDLoc DL(Op);
-    ConstantSDNode *CurrentND = cast<ConstantSDNode>(Op);
-    const APInt &C = APInt(VTBits, CurrentND->getAPIntValue().getZExtValue());
+    // Get the constant value and if needed trunc it to the size of the type.
+    // Nodes like build_vector might have constants wider than the scalar type.
+    APInt C = cast<ConstantSDNode>(Op)->getAPIntValue().zextOrTrunc(EVTBits);
     if (Opcode == ISD::SIGN_EXTEND || Opcode == ISD::SIGN_EXTEND_VECTOR_INREG)
-      Elts.push_back(DAG.getConstant(C.shl(ShAmt).ashr(ShAmt).getZExtValue(),
-                                     DL, SVT));
+      Elts.push_back(DAG.getConstant(C.sext(VTBits), DL, SVT));
     else
-      Elts.push_back(DAG.getConstant(C.shl(ShAmt).lshr(ShAmt).getZExtValue(),
-                                     DL, SVT));
+      Elts.push_back(DAG.getConstant(C.zext(VTBits), DL, SVT));
   }
 
   return DAG.getNode(ISD::BUILD_VECTOR, DL, VT, Elts).getNode();
@@ -7307,8 +7324,7 @@ ConstantFoldBITCASTofBUILD_VECTOR(SDNode *BV, EVT DstEltVT) {
                                      DstEltVT, BV->getOperand(0)));
 
     SmallVector<SDValue, 8> Ops;
-    for (unsigned i = 0, e = BV->getNumOperands(); i != e; ++i) {
-      SDValue Op = BV->getOperand(i);
+    for (SDValue Op : BV->op_values()) {
       // If the vector element type is not legal, the BUILD_VECTOR operands
       // are promoted and implicitly truncated.  Make that explicit here.
       if (Op.getValueType() != SrcEltVT)
@@ -7383,13 +7399,13 @@ ConstantFoldBITCASTofBUILD_VECTOR(SDNode *BV, EVT DstEltVT) {
                             NumOutputsPerInput*BV->getNumOperands());
   SmallVector<SDValue, 8> Ops;
 
-  for (unsigned i = 0, e = BV->getNumOperands(); i != e; ++i) {
-    if (BV->getOperand(i).getOpcode() == ISD::UNDEF) {
+  for (const SDValue &Op : BV->op_values()) {
+    if (Op.getOpcode() == ISD::UNDEF) {
       Ops.append(NumOutputsPerInput, DAG.getUNDEF(DstEltVT));
       continue;
     }
 
-    APInt OpVal = cast<ConstantSDNode>(BV->getOperand(i))->
+    APInt OpVal = cast<ConstantSDNode>(Op)->
                   getAPIntValue().zextOrTrunc(SrcBitSize);
 
     for (unsigned j = 0; j != NumOutputsPerInput; ++j) {
@@ -9954,7 +9970,7 @@ struct LoadedSlice {
     return true;
   }
 };
-} // namespace
+}
 
 /// \brief Check that all bits set in \p UsedBits form a dense region, i.e.,
 /// \p UsedBits looks like 0..0 1..1 0..0.
@@ -10218,8 +10234,8 @@ CheckForMaskedLoad(SDValue V, SDValue Ptr, SDValue Chain) {
     return Result; // Fail.
   else {
     bool isOk = false;
-    for (unsigned i = 0, e = Chain->getNumOperands(); i != e; ++i)
-      if (Chain->getOperand(i).getNode() == LD) {
+    for (const SDValue &ChainOp : Chain->op_values())
+      if (ChainOp.getNode() == LD) {
         isOk = true;
         break;
       }
@@ -13884,12 +13900,12 @@ bool DAGCombiner::isAlias(LSBaseSDNode *Op0, LSBaseSDNode *Op1) const {
         Op0->getSrcValueOffset() - MinOffset;
     int64_t Overlap2 = (Op1->getMemoryVT().getSizeInBits() >> 3) +
         Op1->getSrcValueOffset() - MinOffset;
-    AliasAnalysis::AliasResult AAResult =
+    AliasResult AAResult =
         AA.alias(MemoryLocation(Op0->getMemOperand()->getValue(), Overlap1,
                                 UseTBAA ? Op0->getAAInfo() : AAMDNodes()),
                  MemoryLocation(Op1->getMemOperand()->getValue(), Overlap2,
                                 UseTBAA ? Op1->getAAInfo() : AAMDNodes()));
-    if (AAResult == AliasAnalysis::NoAlias)
+    if (AAResult == NoAlias)
       return false;
   }
 
@@ -13915,8 +13931,7 @@ void DAGCombiner::GatherAllAliases(SDNode *N, SDValue OriginalChain,
   // aliases list.  If not, then continue up the chain looking for the next
   // candidate.
   while (!Chains.empty()) {
-    SDValue Chain = Chains.back();
-    Chains.pop_back();
+    SDValue Chain = Chains.pop_back_val();
 
     // For TokenFactor nodes, look at each operand and only continue up the
     // chain until we find two aliases.  If we've seen two aliases, assume we'll
@@ -14023,7 +14038,7 @@ void DAGCombiner::GatherAllAliases(SDNode *N, SDValue OriginalChain,
          UIE = M->use_end(); UI != UIE; ++UI)
       if (UI.getUse().getValueType() == MVT::Other &&
           Visited.insert(*UI).second) {
-        if (isa<MemIntrinsicSDNode>(*UI) || isa<MemSDNode>(*UI)) {
+        if (isa<MemSDNode>(*UI)) {
           // We've not visited this use, and we care about it (it could have an
           // ordering dependency with the original node).
           Aliases.clear();

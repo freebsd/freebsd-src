@@ -24,6 +24,7 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/SymbolSize.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Errno.h"
 #include "llvm/Support/raw_ostream.h"
@@ -107,30 +108,27 @@ void IntelJITEventListener::NotifyObjectEmitted(
   MethodAddressVector Functions;
 
   // Use symbol info to iterate functions in the object.
-  for (symbol_iterator I = DebugObj.symbol_begin(),
-                       E = DebugObj.symbol_end();
-                        I != E;
-                        ++I) {
+  for (const std::pair<SymbolRef, uint64_t> &P : computeSymbolSizes(DebugObj)) {
+    SymbolRef Sym = P.first;
     std::vector<LineNumberInfo> LineInfo;
     std::string SourceFileName;
 
-    SymbolRef::Type SymType;
-    if (I->getType(SymType)) continue;
-    if (SymType == SymbolRef::ST_Function) {
-      StringRef  Name;
-      uint64_t   Addr;
-      if (I->getName(Name)) continue;
-      if (I->getAddress(Addr)) continue;
-      uint64_t Size = I->getSize();
+    if (Sym.getType() == SymbolRef::ST_Function) {
+      ErrorOr<StringRef> Name = Sym.getName();
+      if (!Name)
+        continue;
+
+      uint64_t Addr;
+      if (Sym.getAddress(Addr))
+        continue;
+      uint64_t Size = P.second;
 
       // Record this address in a local vector
       Functions.push_back((void*)Addr);
 
       // Build the function loaded notification message
-      iJIT_Method_Load FunctionMessage = FunctionDescToIntelJITFormat(*Wrapper,
-                                           Name.data(),
-                                           Addr,
-                                           Size);
+      iJIT_Method_Load FunctionMessage =
+          FunctionDescToIntelJITFormat(*Wrapper, Name->data(), Addr, Size);
       if (Context) {
         DILineInfoTable  Lines = Context->getLineInfoForAddressRange(Addr, Size);
         DILineInfoTable::iterator  Begin = Lines.begin();

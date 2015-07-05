@@ -69,7 +69,7 @@ namespace X86 {
 
 extern Target TheX86_32Target, TheX86_64Target;
 
-} // namespace llvm
+}
 
 static bool translateInstruction(MCInst &target,
                                 InternalInstruction &source,
@@ -551,8 +551,14 @@ static void translateImmediate(MCInst &mcInst, uint64_t immediate,
   case TYPE_REL8:
     isBranch = true;
     pcrel = insn.startLocation + insn.immediateOffset + insn.immediateSize;
-    if(immediate & 0x80)
+    if (immediate & 0x80)
       immediate |= ~(0xffull);
+    break;
+  case TYPE_REL16:
+    isBranch = true;
+    pcrel = insn.startLocation + insn.immediateOffset + insn.immediateSize;
+    if (immediate & 0x8000)
+      immediate |= ~(0xffffull);
     break;
   case TYPE_REL32:
   case TYPE_REL64:

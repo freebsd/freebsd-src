@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=x86_64-apple-macosx -O3 -debug-only=faultmaps -enable-implicit-null-checks < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-apple-macosx -O3 -debug-only=faultmaps -enable-implicit-null-checks < %s 2>&1 | FileCheck %s
 ; REQUIRES: asserts
 
 ; List cases where we should *not* be emitting implicit null checks.
@@ -10,7 +10,7 @@ define i32 @imp_null_check_load(i32* %x, i32* %y) {
   %c = icmp eq i32* %x, null
 ; It isn't legal to move the load from %x from "not_null" to here --
 ; the store to %y could be aliasing it.
-  br i1 %c, label %is_null, label %not_null
+  br i1 %c, label %is_null, label %not_null, !make.implicit !0
 
  is_null:
   ret i32 42
@@ -24,7 +24,7 @@ define i32 @imp_null_check_load(i32* %x, i32* %y) {
 define i32 @imp_null_check_gep_load(i32* %x) {
  entry:
   %c = icmp eq i32* %x, null
-  br i1 %c, label %is_null, label %not_null
+  br i1 %c, label %is_null, label %not_null, !make.implicit !0
 
  is_null:
   ret i32 42
@@ -38,8 +38,7 @@ define i32 @imp_null_check_gep_load(i32* %x) {
 }
 
 define i32 @imp_null_check_load_no_md(i32* %x) {
-; Everything is okay except that the !never.executed metadata is
-; missing.
+; This is fine, except it is missing the !make.implicit metadata.
  entry:
   %c = icmp eq i32* %x, null
   br i1 %c, label %is_null, label %not_null
@@ -51,3 +50,5 @@ define i32 @imp_null_check_load_no_md(i32* %x) {
   %t = load i32, i32* %x
   ret i32 %t
 }
+
+!0 = !{}

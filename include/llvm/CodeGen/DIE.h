@@ -15,6 +15,8 @@
 #define LLVM_LIB_CODEGEN_ASMPRINTER_DIE_H
 
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/DwarfStringPoolEntry.h"
 #include "llvm/Support/Dwarf.h"
@@ -436,11 +438,11 @@ public:
 
   /// EmitValue - Emit value via the Dwarf writer.
   ///
-  void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
+  void EmitValue(const AsmPrinter *AP) const;
 
   /// SizeOf - Return the size of a value in bytes.
   ///
-  unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
+  unsigned SizeOf(const AsmPrinter *AP) const;
 
 #ifndef NDEBUG
   void print(raw_ostream &O) const;
@@ -448,10 +450,179 @@ public:
 #endif
 };
 
+struct IntrusiveBackListNode {
+  PointerIntPair<IntrusiveBackListNode *, 1> Next;
+  IntrusiveBackListNode() : Next(this, true) {}
+
+  IntrusiveBackListNode *getNext() const {
+    return Next.getInt() ? nullptr : Next.getPointer();
+  }
+};
+
+struct IntrusiveBackListBase {
+  typedef IntrusiveBackListNode Node;
+  Node *Last = nullptr;
+
+  bool empty() const { return !Last; }
+  void push_back(Node &N) {
+    assert(N.Next.getPointer() == &N && "Expected unlinked node");
+    assert(N.Next.getInt() == true && "Expected unlinked node");
+
+    if (Last) {
+      N.Next = Last->Next;
+      Last->Next.setPointerAndInt(&N, false);
+    }
+    Last = &N;
+  }
+};
+
+template <class T> class IntrusiveBackList : IntrusiveBackListBase {
+public:
+  using IntrusiveBackListBase::empty;
+  void push_back(T &N) { IntrusiveBackListBase::push_back(N); }
+  T &back() { return *static_cast<T *>(Last); }
+  const T &back() const { return *static_cast<T *>(Last); }
+
+  class const_iterator;
+  class iterator
+      : public iterator_facade_base<iterator, std::forward_iterator_tag, T> {
+    friend class const_iterator;
+    Node *N = nullptr;
+
+  public:
+    iterator() = default;
+    explicit iterator(T *N) : N(N) {}
+
+    iterator &operator++() {
+      N = N->getNext();
+      return *this;
+    }
+
+    explicit operator bool() const { return N; }
+    T &operator*() const { return *static_cast<T *>(N); }
+
+    bool operator==(const iterator &X) const { return N == X.N; }
+    bool operator!=(const iterator &X) const { return N != X.N; }
+  };
+
+  class const_iterator
+      : public iterator_facade_base<const_iterator, std::forward_iterator_tag,
+                                    const T> {
+    const Node *N = nullptr;
+
+  public:
+    const_iterator() = default;
+    // Placate MSVC by explicitly scoping 'iterator'.
+    const_iterator(typename IntrusiveBackList<T>::iterator X) : N(X.N) {}
+    explicit const_iterator(const T *N) : N(N) {}
+
+    const_iterator &operator++() {
+      N = N->getNext();
+      return *this;
+    }
+
+    explicit operator bool() const { return N; }
+    const T &operator*() const { return *static_cast<const T *>(N); }
+
+    bool operator==(const const_iterator &X) const { return N == X.N; }
+    bool operator!=(const const_iterator &X) const { return N != X.N; }
+  };
+
+  iterator begin() {
+    return Last ? iterator(static_cast<T *>(Last->Next.getPointer())) : end();
+  }
+  const_iterator begin() const {
+    return const_cast<IntrusiveBackList *>(this)->begin();
+  }
+  iterator end() { return iterator(); }
+  const_iterator end() const { return const_iterator(); }
+
+  static iterator toIterator(T &N) { return iterator(&N); }
+  static const_iterator toIterator(const T &N) { return const_iterator(&N); }
+};
+
+/// A list of DIE values.
+///
+/// This is a singly-linked list, but instead of reversing the order of
+/// insertion, we keep a pointer to the back of the list so we can push in
+/// order.
+///
+/// There are two main reasons to choose a linked list over a customized
+/// vector-like data structure.
+///
+///  1. For teardown efficiency, we want DIEs to be BumpPtrAllocated.  Using a
+///     linked list here makes this way easier to accomplish.
+///  2. Carrying an extra pointer per \a DIEValue isn't expensive.  45% of DIEs
+///     have 2 or fewer values, and 90% have 5 or fewer.  A vector would be
+///     over-allocated by 50% on average anyway, the same cost as the
+///     linked-list node.
+class DIEValueList {
+  struct Node : IntrusiveBackListNode {
+    DIEValue V;
+    explicit Node(DIEValue V) : V(V) {}
+  };
+
+  typedef IntrusiveBackList<Node> ListTy;
+  ListTy List;
+
+public:
+  bool empty() const { return List.empty(); }
+
+  class const_iterator;
+  class iterator
+      : public iterator_adaptor_base<iterator, ListTy::iterator,
+                                     std::forward_iterator_tag, DIEValue> {
+    friend class const_iterator;
+    typedef iterator_adaptor_base<iterator, ListTy::iterator,
+                                  std::forward_iterator_tag,
+                                  DIEValue> iterator_adaptor;
+
+  public:
+    iterator() = default;
+    explicit iterator(ListTy::iterator X) : iterator_adaptor(X) {}
+
+    explicit operator bool() const { return bool(wrapped()); }
+    DIEValue &operator*() const { return wrapped()->V; }
+  };
+
+  class const_iterator
+      : public iterator_adaptor_base<const_iterator, ListTy::const_iterator,
+                                     std::forward_iterator_tag,
+                                     const DIEValue> {
+    typedef iterator_adaptor_base<const_iterator, ListTy::const_iterator,
+                                  std::forward_iterator_tag,
+                                  const DIEValue> iterator_adaptor;
+
+  public:
+    const_iterator() = default;
+    const_iterator(DIEValueList::iterator X) : iterator_adaptor(X.wrapped()) {}
+    explicit const_iterator(ListTy::const_iterator X) : iterator_adaptor(X) {}
+
+    explicit operator bool() const { return bool(wrapped()); }
+    const DIEValue &operator*() const { return wrapped()->V; }
+  };
+
+  iterator insert(BumpPtrAllocator &Alloc, DIEValue V) {
+    List.push_back(*new (Alloc) Node(V));
+    return iterator(ListTy::toIterator(List.back()));
+  }
+  template <class... Ts>
+  iterator emplace(BumpPtrAllocator &Alloc, Ts &&... Args) {
+    return insert(Alloc, DIEValue(std::forward<Ts>(Args)...));
+  }
+
+  iterator begin() { return iterator(List.begin()); }
+  iterator end() { return iterator(List.end()); }
+  const_iterator begin() const { return const_iterator(List.begin()); }
+  const_iterator end() const { return const_iterator(List.end()); }
+};
+
 //===--------------------------------------------------------------------===//
 /// DIE - A structured debug information entry.  Has an abbreviation which
 /// describes its organization.
-class DIE {
+class DIE : IntrusiveBackListNode {
+  friend class IntrusiveBackList<DIE>;
+
 protected:
   /// Offset - Offset in debug info section.
   ///
@@ -468,27 +639,24 @@ protected:
   dwarf::Tag Tag = (dwarf::Tag)0;
 
   /// Children DIEs.
-  ///
-  // This can't be a vector<DIE> because pointer validity is requirent for the
-  // Parent pointer and DIEEntry.
-  // It can't be a list<DIE> because some clients need pointer validity before
-  // the object has been added to any child list
-  // (eg: DwarfUnit::constructVariableDIE). These aren't insurmountable, but may
-  // be more convoluted than beneficial.
-  std::vector<std::unique_ptr<DIE>> Children;
+  IntrusiveBackList<DIE> Children;
 
-  DIE *Parent;
+  DIE *Parent = nullptr;
 
   /// Attribute values.
   ///
-  SmallVector<DIEValue, 12> Values;
+  DIEValueList Values;
 
 protected:
-  DIE() : Offset(0), Size(0), Parent(nullptr) {}
+  DIE() : Offset(0), Size(0) {}
+
+private:
+  explicit DIE(dwarf::Tag Tag) : Offset(0), Size(0), Tag(Tag) {}
 
 public:
-  explicit DIE(dwarf::Tag Tag)
-      : Offset(0), Size(0), Tag(Tag), Parent(nullptr) {}
+  static DIE *get(BumpPtrAllocator &Alloc, dwarf::Tag Tag) {
+    return new (Alloc) DIE(Tag);
+  }
 
   // Accessors.
   unsigned getAbbrevNumber() const { return AbbrevNumber; }
@@ -497,26 +665,32 @@ public:
   unsigned getSize() const { return Size; }
   bool hasChildren() const { return !Children.empty(); }
 
-  typedef std::vector<std::unique_ptr<DIE>>::const_iterator child_iterator;
+  typedef IntrusiveBackList<DIE>::iterator child_iterator;
+  typedef IntrusiveBackList<DIE>::const_iterator const_child_iterator;
   typedef iterator_range<child_iterator> child_range;
+  typedef iterator_range<const_child_iterator> const_child_range;
 
-  child_range children() const {
+  child_range children() {
+    return llvm::make_range(Children.begin(), Children.end());
+  }
+  const_child_range children() const {
     return llvm::make_range(Children.begin(), Children.end());
   }
 
-  typedef SmallVectorImpl<DIEValue>::const_iterator value_iterator;
+  typedef DIEValueList::iterator value_iterator;
   typedef iterator_range<value_iterator> value_range;
 
-  value_iterator values_begin() const { return Values.begin(); }
-  value_iterator values_end() const { return Values.end(); }
-  value_range values() const {
-    return llvm::make_range(values_begin(), values_end());
+  value_range values() {
+    return llvm::make_range(Values.begin(), Values.end());
   }
 
-  void setValue(unsigned I, DIEValue New) {
-    assert(I < Values.size());
-    Values[I] = New;
+  typedef DIEValueList::const_iterator const_value_iterator;
+  typedef iterator_range<const_value_iterator> const_value_range;
+
+  const_value_range values() const {
+    return llvm::make_range(Values.begin(), Values.end());
   }
+
   DIE *getParent() const { return Parent; }
 
   /// Generate the abbreviation for this DIE.
@@ -539,19 +713,21 @@ public:
 
   /// addValue - Add a value and attributes to a DIE.
   ///
-  void addValue(DIEValue Value) { Values.push_back(Value); }
+  value_iterator addValue(BumpPtrAllocator &Alloc, DIEValue Value) {
+    return Values.insert(Alloc, Value);
+  }
   template <class T>
-  void addValue(dwarf::Attribute Attribute, dwarf::Form Form, T &&Value) {
-    Values.emplace_back(Attribute, Form, std::forward<T>(Value));
+  value_iterator addValue(BumpPtrAllocator &Alloc, dwarf::Attribute Attribute,
+                          dwarf::Form Form, T &&Value) {
+    return Values.emplace(Alloc, Attribute, Form, std::forward<T>(Value));
   }
 
-  /// addChild - Add a child to the DIE.
-  ///
-  DIE &addChild(std::unique_ptr<DIE> Child) {
-    assert(!Child->getParent());
+  /// Add a child to the DIE.
+  DIE &addChild(DIE *Child) {
+    assert(!Child->getParent() && "Child should be orphaned");
     Child->Parent = this;
-    Children.push_back(std::move(Child));
-    return *Children.back();
+    Children.push_back(*Child);
+    return Children.back();
   }
 
   /// Find a value in the DIE with the attribute given.
@@ -635,6 +811,6 @@ public:
 #endif
 };
 
-} // namespace llvm
+} // end llvm namespace
 
 #endif

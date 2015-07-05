@@ -1105,6 +1105,8 @@ public:
   // Debugging support
   //
   void print(raw_ostream &OS, bool SkipOpers = false) const;
+  void print(raw_ostream &OS, ModuleSlotTracker &MST,
+             bool SkipOpers = false) const;
   void dump() const;
 
   //===--------------------------------------------------------------------===//
@@ -1235,6 +1237,6 @@ inline raw_ostream& operator<<(raw_ostream &OS, const MachineInstr &MI) {
   return OS;
 }
 
-} // namespace llvm
+} // End llvm namespace
 
 #endif

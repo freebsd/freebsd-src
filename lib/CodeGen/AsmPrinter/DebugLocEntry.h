@@ -142,7 +142,7 @@ public:
   }
 
   /// \brief Lower this entry into a DWARF expression.
-  void finalize(const AsmPrinter &AP, DebugLocStream &Locs,
+  void finalize(const AsmPrinter &AP, DebugLocStream::ListBuilder &List,
                 const DIBasicType *BT);
 };
 
@@ -175,6 +175,6 @@ inline bool operator<(const DebugLocEntry::Value &A,
          B.getExpression()->getBitPieceOffset();
 }
 
-} // namespace llvm
+}
 
 #endif

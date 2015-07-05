@@ -16,6 +16,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/ModuleSlotTracker.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/raw_ostream.h"
@@ -356,6 +357,10 @@ TEST_F(MDNodeTest, PrintFromFunction) {
 
   EXPECT_PRINTER_EQ("!0 = distinct !{}", N0->print(OS, &M));
   EXPECT_PRINTER_EQ("!1 = distinct !{}", N1->print(OS, &M));
+
+  ModuleSlotTracker MST(&M);
+  EXPECT_PRINTER_EQ("!0 = distinct !{}", N0->print(OS, MST));
+  EXPECT_PRINTER_EQ("!1 = distinct !{}", N1->print(OS, MST));
 }
 
 TEST_F(MDNodeTest, PrintFromMetadataAsValue) {
@@ -384,6 +389,14 @@ TEST_F(MDNodeTest, PrintFromMetadataAsValue) {
   EXPECT_PRINTER_EQ("!1", MAV1->printAsOperand(OS, false));
   EXPECT_PRINTER_EQ("metadata !0", MAV0->printAsOperand(OS, true));
   EXPECT_PRINTER_EQ("metadata !1", MAV1->printAsOperand(OS, true));
+
+  ModuleSlotTracker MST(&M);
+  EXPECT_PRINTER_EQ("!0 = distinct !{}", MAV0->print(OS, MST));
+  EXPECT_PRINTER_EQ("!1 = distinct !{}", MAV1->print(OS, MST));
+  EXPECT_PRINTER_EQ("!0", MAV0->printAsOperand(OS, false, MST));
+  EXPECT_PRINTER_EQ("!1", MAV1->printAsOperand(OS, false, MST));
+  EXPECT_PRINTER_EQ("metadata !0", MAV0->printAsOperand(OS, true, MST));
+  EXPECT_PRINTER_EQ("metadata !1", MAV1->printAsOperand(OS, true, MST));
 }
 #undef EXPECT_PRINTER_EQ
 
@@ -1688,6 +1701,40 @@ TEST_F(DINamespaceTest, get) {
   EXPECT_NE(N, DINamespace::get(Context, Scope, File, Name, Line + 1));
 
   TempDINamespace Temp = N->clone();
+  EXPECT_EQ(N, MDNode::replaceWithUniqued(std::move(Temp)));
+}
+
+typedef MetadataTest DIModuleTest;
+
+TEST_F(DIModuleTest, get) {
+  DIScope *Scope = getFile();
+  StringRef Name = "module";
+  StringRef ConfigMacro = "-DNDEBUG";
+  StringRef Includes = "-I.";
+  StringRef Sysroot = "/";
+
+  auto *N = DIModule::get(Context, Scope, Name, ConfigMacro, Includes, Sysroot);
+
+  EXPECT_EQ(dwarf::DW_TAG_module, N->getTag());
+  EXPECT_EQ(Scope, N->getScope());
+  EXPECT_EQ(Name, N->getName());
+  EXPECT_EQ(ConfigMacro, N->getConfigurationMacros());
+  EXPECT_EQ(Includes, N->getIncludePath());
+  EXPECT_EQ(Sysroot, N->getISysRoot());
+  EXPECT_EQ(N, DIModule::get(Context, Scope, Name,
+                             ConfigMacro, Includes, Sysroot));
+  EXPECT_NE(N, DIModule::get(Context, getFile(), Name,
+                             ConfigMacro, Includes, Sysroot));
+  EXPECT_NE(N, DIModule::get(Context, Scope, "other",
+                             ConfigMacro, Includes, Sysroot));
+  EXPECT_NE(N, DIModule::get(Context, Scope, Name,
+                             "other", Includes, Sysroot));
+  EXPECT_NE(N, DIModule::get(Context, Scope, Name,
+                             ConfigMacro, "other", Sysroot));
+  EXPECT_NE(N, DIModule::get(Context, Scope, Name,
+                             ConfigMacro, Includes, "other"));
+
+  TempDIModule Temp = N->clone();
   EXPECT_EQ(N, MDNode::replaceWithUniqued(std::move(Temp)));
 }
 

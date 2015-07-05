@@ -279,7 +279,7 @@ namespace {
     void setKillFlags(MachineBasicBlock &MBB) const;
   };
   char FPS::ID = 0;
-} // namespace
+}
 
 FunctionPass *llvm::createX86FloatingPointStackifierPass() { return new FPS(); }
 
@@ -544,7 +544,7 @@ namespace {
       return V < TE.from;
     }
   };
-} // namespace
+}
 
 #ifndef NDEBUG
 static bool TableIsSorted(const TableEntry *Table, unsigned NumEntries) {
@@ -1530,7 +1530,7 @@ void FPS::handleSpecialFP(MachineBasicBlock::iterator &Inst) {
     if (Op.isKill())
       moveToTop(FPReg, Inst);
     else
-      duplicateToTop(FPReg, FPReg, Inst);
+      duplicateToTop(FPReg, ScratchFPReg, Inst);
 
     // Emit the call. This will pop the operand.
     BuildMI(*MBB, Inst, MI->getDebugLoc(), TII->get(X86::CALLpcrel32))

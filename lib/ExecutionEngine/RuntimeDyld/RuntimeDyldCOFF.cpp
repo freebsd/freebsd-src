@@ -36,7 +36,7 @@ public:
     return OwningBinary<ObjectFile>();
   }
 };
-} // namespace
+}
 
 namespace llvm {
 
@@ -62,23 +62,8 @@ RuntimeDyldCOFF::loadObject(const object::ObjectFile &O) {
 }
 
 uint64_t RuntimeDyldCOFF::getSymbolOffset(const SymbolRef &Sym) {
-  uint64_t Address;
-  if (Sym.getAddress(Address))
-    return UnknownAddressOrSize;
-
-  if (Address == UnknownAddressOrSize)
-    return UnknownAddressOrSize;
-
-  const ObjectFile *Obj = Sym.getObject();
-  section_iterator SecI(Obj->section_end());
-  if (Sym.getSection(SecI))
-    return UnknownAddressOrSize;
-
-  if (SecI == Obj->section_end())
-    return UnknownAddressOrSize;
-
-  uint64_t SectionAddress = SecI->getAddress();
-  return Address - SectionAddress;
+  // The value in a relocatable COFF object is the offset.
+  return Sym.getValue();
 }
 
 bool RuntimeDyldCOFF::isCompatibleFile(const object::ObjectFile &Obj) const {

@@ -85,7 +85,9 @@ public:
     spir64,     // SPIR: standard portable IR for OpenCL 64-bit version
     kalimba,    // Kalimba: generic kalimba
     shave,      // SHAVE: Movidius vector VLIW processors
-    LastArchType = shave
+    wasm32,     // WebAssembly with 32-bit pointers
+    wasm64,     // WebAssembly with 64-bit pointers
+    LastArchType = wasm64
   };
   enum SubArchType {
     NoSubArch,
@@ -609,7 +611,7 @@ public:
   /// @}
 };
 
-} // namespace llvm
+} // End llvm namespace
 
 
 #endif

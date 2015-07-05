@@ -270,7 +270,7 @@ namespace {
       return TBAAStructTypeNode(P);
     }
   };
-} // namespace
+}
 
 namespace {
   /// TypeBasedAliasAnalysis - This is a simple alias analysis
@@ -454,9 +454,8 @@ TypeBasedAliasAnalysis::PathAliases(const MDNode *A,
   return false;
 }
 
-AliasAnalysis::AliasResult
-TypeBasedAliasAnalysis::alias(const MemoryLocation &LocA,
-                              const MemoryLocation &LocB) {
+AliasResult TypeBasedAliasAnalysis::alias(const MemoryLocation &LocA,
+                                          const MemoryLocation &LocB) {
   if (!EnableTBAA)
     return AliasAnalysis::alias(LocA, LocB);
 

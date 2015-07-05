@@ -99,7 +99,7 @@ private:
 
   bool areTypesIsomorphic(Type *DstTy, Type *SrcTy);
 };
-} // namespace
+}
 
 void TypeMapTy::addTypeMapping(Type *DstTy, Type *SrcTy) {
   assert(SpeculativeTypes.empty());
@@ -507,7 +507,7 @@ private:
   void linkNamedMDNodes();
   void stripReplacedSubprograms();
 };
-} // namespace
+}
 
 /// The LLVM SymbolTable class autorenames globals that conflict in the symbol
 /// table. This is good for all clients except for us. Go through the trouble
@@ -1573,8 +1573,8 @@ bool ModuleLinker::run() {
     if (C.getSelectionKind() == Comdat::Any)
       continue;
     const GlobalValue *GV = SrcM->getNamedValue(C.getName());
-    assert(GV);
-    MapValue(GV, ValueMap, RF_None, &TypeMap, &ValMaterializer);
+    if (GV)
+      MapValue(GV, ValueMap, RF_None, &TypeMap, &ValMaterializer);
   }
 
   // Strip replaced subprograms before mapping any metadata -- so that we're
