@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2015
+.Dd July 5, 2015
 .Dt DTRACE_TCP 4
 .Os
 .Sh NAME
@@ -387,10 +387,6 @@ provider first appeared in
 This manual page was written by
 .An Mark Johnston Aq Mt markj@FreeBSD.org .
 .Sh BUGS
-The
-.Fn tcp:::state-change
-probe does not fire upon transitions to the TIME-WAIT state.
-.Pp
 The
 .Vt tcps_local
 and
