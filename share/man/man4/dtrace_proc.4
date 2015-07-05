@@ -25,10 +25,10 @@
 .\" $FreeBSD$
 .\"
 .Dd April 18, 2015
-.Dt DTRACE-PROC 4
+.Dt DTRACE_PROC 4
 .Os
 .Sh NAME
-.Nm dtrace-proc
+.Nm dtrace_proc
 .Nd a DTrace provider for tracing events related to user processes
 .Sh SYNOPSIS
 .Fn proc:::create "struct proc *" "struct proc *" "int"
@@ -251,7 +251,7 @@ provider probes found in Solaris are not currently available on
 .Xr vfork 2 ,
 .Xr siginfo 3 ,
 .Xr signal 3 ,
-.Xr dtrace-sched 4 ,
+.Xr dtrace_sched 4 ,
 .Xr kproc 9
 .Sh HISTORY
 The
