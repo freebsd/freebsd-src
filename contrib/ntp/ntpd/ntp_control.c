@@ -36,6 +36,7 @@
 # include "ntp_syscall.h"
 #endif
 
+extern size_t remoteconfig_cmdlength( const char *src_buf, const char *src_end );
 
 #ifndef MIN
 #define MIN(a, b) (((a) <= (b)) ? (a) : (b))
@@ -229,7 +230,9 @@ static const struct ctl_proc control_codes[] = {
 #define	CS_TIMER_XMTS		87
 #define	CS_FUZZ			88
 #define	CS_WANDER_THRESH	89
-#define	CS_MAX_NOAUTOKEY	CS_WANDER_THRESH
+#define	CS_LEAPSMEARINTV	90
+#define	CS_LEAPSMEAROFFS	91
+#define	CS_MAX_NOAUTOKEY	CS_LEAPSMEAROFFS
 #ifdef AUTOKEY
 #define	CS_FLAGS		(1 + CS_MAX_NOAUTOKEY)
 #define	CS_HOST			(2 + CS_MAX_NOAUTOKEY)
@@ -425,6 +428,10 @@ static const struct ctl_var sys_var[] = {
 	{ CS_TIMER_XMTS,	RO, "timer_xmts" },	/* 87 */
 	{ CS_FUZZ,		RO, "fuzz" },		/* 88 */
 	{ CS_WANDER_THRESH,	RO, "clk_wander_threshold" }, /* 89 */
+#ifdef LEAP_SMEAR
+	{ CS_LEAPSMEARINTV,	RO, "leapsmearinterval" },    /* 90 */
+	{ CS_LEAPSMEAROFFS,	RO, "leapsmearoffset" },      /* 91 */
+#endif	 /* LEAP_SMEAR */
 #ifdef AUTOKEY
 	{ CS_FLAGS,	RO, "flags" },		/* 1 + CS_MAX_NOAUTOKEY */
 	{ CS_HOST,	RO, "host" },		/* 2 + CS_MAX_NOAUTOKEY */
@@ -467,6 +474,8 @@ static const u_char def_sys_var[] = {
 	CS_TAI,
 	CS_LEAPTAB,
 	CS_LEAPEND,
+	CS_LEAPSMEARINTV,
+	CS_LEAPSMEAROFFS,
 #ifdef AUTOKEY
 	CS_HOST,
 	CS_IDENT,
@@ -1980,6 +1989,19 @@ ctl_putsys(
 		break;
 	}
 
+#ifdef LEAP_SMEAR
+	case CS_LEAPSMEARINTV:
+		if (leap_smear_intv > 0)
+			ctl_putuint(sys_var[CS_LEAPSMEARINTV].text, leap_smear_intv);
+		break;
+
+	case CS_LEAPSMEAROFFS:
+		if (leap_smear_intv > 0)
+			ctl_putdbl(sys_var[CS_LEAPSMEAROFFS].text,
+				   leap_smear.doffset * 1e3);
+		break;
+#endif	/* LEAP_SMEAR */
+
 	case CS_RATE:
 		ctl_putuint(sys_var[CS_RATE].text, ntp_minpoll);
 		break;
@@ -3289,6 +3311,7 @@ write_variables(
 	ctl_flushpkt(0);
 }
 
+
 /*
  * configure() processes ntpq :config/config-from-file, allowing
  *		generic runtime reconfiguration.
@@ -3300,7 +3323,6 @@ static void configure(
 {
 	size_t data_count;
 	int retval;
-	int replace_nl;
 
 	/* I haven't yet implemented changes to an existing association.
 	 * Hence check if the association id is 0
@@ -3326,7 +3348,7 @@ static void configure(
 	}
 
 	/* Initialize the remote config buffer */
-	data_count = reqend - reqpt;
+	data_count = remoteconfig_cmdlength(reqpt, reqend);
 
 	if (data_count > sizeof(remote_config.buffer) - 2) {
 		snprintf(remote_config.err_msg,
@@ -3340,34 +3362,41 @@ static void configure(
 			stoa(&rbufp->recv_srcadr));
 		return;
 	}
-
-	memcpy(remote_config.buffer, reqpt, data_count);
-	if (data_count > 0
-	    && '\n' != remote_config.buffer[data_count - 1])
-		remote_config.buffer[data_count++] = '\n';
-	remote_config.buffer[data_count] = '\0';
-	remote_config.pos = 0;
-	remote_config.err_pos = 0;
-	remote_config.no_errors = 0;
-
-	/* do not include terminating newline in log */
-	if (data_count > 0
-	    && '\n' == remote_config.buffer[data_count - 1]) {
-		remote_config.buffer[data_count - 1] = '\0';
-		replace_nl = TRUE;
-	} else {
-		replace_nl = FALSE;
+	/* Bug 2853 -- check if all characters were acceptable */
+	if (data_count != (size_t)(reqend - reqpt)) {
+		snprintf(remote_config.err_msg,
+			 sizeof(remote_config.err_msg),
+			 "runtime configuration failed: request contains an unprintable character");
+		ctl_putdata(remote_config.err_msg,
+			    strlen(remote_config.err_msg), 0);
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"runtime config from %s rejected: request contains an unprintable character: %0x",
+			stoa(&rbufp->recv_srcadr),
+			reqpt[data_count]);
+		return;
 	}
 
+	memcpy(remote_config.buffer, reqpt, data_count);
+	/* The buffer has no trailing linefeed or NUL right now. For
+	 * logging, we do not want a newline, so we do that first after
+	 * adding the necessary NUL byte.
+	 */
+	remote_config.buffer[data_count] = '\0';
 	DPRINTF(1, ("Got Remote Configuration Command: %s\n",
 		remote_config.buffer));
 	msyslog(LOG_NOTICE, "%s config: %s",
 		stoa(&rbufp->recv_srcadr),
 		remote_config.buffer);
 
-	if (replace_nl)
-		remote_config.buffer[data_count - 1] = '\n';
-
+	/* Now we have to make sure there is a NL/NUL sequence at the
+	 * end of the buffer before we parse it.
+	 */
+	remote_config.buffer[data_count++] = '\n';
+	remote_config.buffer[data_count] = '\0';
+	remote_config.pos = 0;
+	remote_config.err_pos = 0;
+	remote_config.no_errors = 0;
 	config_remotely(&rbufp->recv_srcadr);
 
 	/*

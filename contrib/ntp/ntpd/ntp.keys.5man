@@ -1,8 +1,8 @@
-.TH ntp.keys 5man "07 Apr 2015" "4.2.8p2" "File Formats"
+.TH ntp.keys 5man "29 Jun 2015" "4.2.8p3" "File Formats"
 .\"
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
 .\"
-.\"  It has been AutoGen-ed  April  7, 2015 at 04:25:42 AM by AutoGen 5.18.5pre4
+.\"  It has been AutoGen-ed  June 29, 2015 at 04:30:21 PM by AutoGen 5.18.5
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agman-file.tpl
 .Sh NAME
@@ -40,12 +40,12 @@ This document describes the format of an NTP symmetric key file.
 For a description of the use of this type of file, see the
 "Authentication Support"
 section of the
-\fCntp.conf\fR(5)\f[]
+\fCntp.conf\f[]\fR(5)\f[]
 page.
 .sp \n(Ppu
 .ne 2
 
-\fCntpd\fR(8)\f[]
+\fCntpd\f[]\fR(8)\f[]
 reads its keys from a file specified using the
 \f\*[B-Font]\-k\f[]
 command line option or the
@@ -140,9 +140,9 @@ which is truncated as necessary.
 .ne 2
 
 Note that the keys used by the
-\fCntpq\fR(8)\f[]
+\fCntpq\f[]\fR(8)\f[]
 and
-\fCntpdc\fR(8)\f[]
+\fCntpdc\f[]\fR(8)\f[]
 programs are checked against passwords
 requested by the programs and entered by hand,
 so it is generally appropriate to specify these keys in ASCII format.
@@ -152,11 +152,11 @@ so it is generally appropriate to specify these keys in ASCII format.
 the default name of the configuration file
 .PP
 .SH "SEE ALSO"
-\fCntp.conf\fR(5)\f[],
-\fCntpd\fR(1ntpdmdoc)\f[],
-\fCntpdate\fR(1ntpdatemdoc)\f[],
-\fCntpdc\fR(1ntpdcmdoc)\f[],
-\fCsntp\fR(1sntpmdoc)\f[]
+\fCntp.conf\f[]\fR(5)\f[],
+\fCntpd\f[]\fR(1ntpdmdoc)\f[],
+\fCntpdate\f[]\fR(1ntpdatemdoc)\f[],
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[],
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
