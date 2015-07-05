@@ -288,6 +288,7 @@ fdesc_lookup(ap)
 	struct thread *td = cnp->cn_thread;
 	struct file *fp;
 	struct fdesc_get_ino_args arg;
+	cap_rights_t rights;
 	int nlen = cnp->cn_namelen;
 	u_int fd, fd1;
 	int error;
@@ -332,7 +333,7 @@ fdesc_lookup(ap)
 	/*
 	 * No rights to check since 'fp' isn't actually used.
 	 */
-	if ((error = fget(td, fd, NULL, &fp)) != 0)
+	if ((error = fget(td, fd, cap_rights_init(&rights), &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
