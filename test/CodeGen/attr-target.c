@@ -9,6 +9,8 @@ int __attribute__((target("fpmath=387"))) koala(int a) { return 4; }
 
 int __attribute__((target("mno-sse2"))) echidna(int a) { return 4; }
 
+int __attribute__((target("sse4"))) panda(int a) { return 4; }
+
 int bar(int a) { return baz(a) + foo(a); }
 
 // Check that we emit the additional subtarget and cpu features for foo and not for baz or bar.
@@ -21,5 +23,6 @@ int bar(int a) { return baz(a) + foo(a); }
 // CHECK: echidna{{.*}} #2
 // CHECK: bar{{.*}} #0
 // CHECK: #0 = {{.*}}"target-cpu"="x86-64" "target-features"="+sse,+sse2"
-// CHECK: #1 = {{.*}}"target-cpu"="ivybridge" "target-features"="+sse,+sse2,+avx,+sse4.2"
-// CHECK: #2 = {{.*}}"target-cpu"="x86-64" "target-features"="+sse,+sse2,-sse2"
+// CHECK: #1 = {{.*}}"target-cpu"="ivybridge" "target-features"="+avx,+sse,+sse2,+sse3,+sse4.1,+sse4.2,+ssse3"
+// CHECK: #2 = {{.*}}"target-cpu"="x86-64" "target-features"="+sse,-aes,-avx,-avx2,-avx512bw,-avx512cd,-avx512dq,-avx512er,-avx512f,-avx512pf,-avx512vl,-f16c,-fma,-fma4,-pclmul,-sha,-sse2,-sse3,-sse4.1,-sse4.2,-sse4a,-ssse3,-xop"
+// CHECK: #3 = {{.*}}"target-cpu"="x86-64" "target-features"="+sse,+sse2,+sse3,+sse4.1,+sse4.2,+ssse3"

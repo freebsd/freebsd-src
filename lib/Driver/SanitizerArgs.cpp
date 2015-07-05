@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Driver/SanitizerArgs.h"
+#include "Tools.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
@@ -26,6 +27,7 @@ using namespace llvm::opt;
 
 enum : SanitizerMask {
   NeedsUbsanRt = Undefined | Integer | CFI,
+  NeedsUbsanCxxRt = Vptr | CFI,
   NotAllowedWithTrap = Vptr,
   RequiresPIE = Memory | DataFlow,
   NeedsUnwindTables = Address | Thread | Memory | DataFlow,
@@ -194,7 +196,7 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
   SanitizerMask DiagnosedKinds = 0;  // All Kinds we have diagnosed up to now.
                                      // Used to deduplicate diagnostics.
   SanitizerMask Kinds = 0;
-  SanitizerMask Supported = setGroupBits(TC.getSupportedSanitizers());
+  const SanitizerMask Supported = setGroupBits(TC.getSupportedSanitizers());
   ToolChain::RTTIMode RTTIMode = TC.getRTTIMode();
 
   const Driver &D = TC.getDriver();
@@ -280,6 +282,21 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
   if ((Kinds & NeedsLTO) && !D.IsUsingLTO(Args)) {
     D.Diag(diag::err_drv_argument_only_allowed_with)
         << lastArgumentForMask(D, Args, Kinds & NeedsLTO) << "-flto";
+  }
+
+  // Report error if there are non-trapping sanitizers that require
+  // c++abi-specific  parts of UBSan runtime, and they are not provided by the
+  // toolchain. We don't have a good way to check the latter, so we just
+  // check if the toolchan supports vptr.
+  if (~Supported & Vptr) {
+    if (SanitizerMask KindsToDiagnose =
+            Kinds & ~TrappingKinds & NeedsUbsanCxxRt) {
+      SanitizerSet S;
+      S.Mask = KindsToDiagnose;
+      D.Diag(diag::err_drv_unsupported_opt_for_target)
+          << ("-fno-sanitize-trap=" + toString(S)) << TC.getTriple().str();
+      Kinds &= ~KindsToDiagnose;
+    }
   }
 
   // Warn about incompatible groups of sanitizers.
@@ -517,8 +534,9 @@ static std::string toString(const clang::SanitizerSet &Sanitizers) {
   return Res;
 }
 
-void SanitizerArgs::addArgs(const llvm::opt::ArgList &Args,
-                            llvm::opt::ArgStringList &CmdArgs) const {
+void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
+                            llvm::opt::ArgStringList &CmdArgs,
+                            types::ID InputType) const {
   if (Sanitizers.empty())
     return;
   CmdArgs.push_back(Args.MakeArgString("-fsanitize=" + toString(Sanitizers)));
@@ -565,6 +583,17 @@ void SanitizerArgs::addArgs(const llvm::opt::ArgList &Args,
   // affect compilation.
   if (Sanitizers.has(Memory) || Sanitizers.has(Address))
     CmdArgs.push_back(Args.MakeArgString("-fno-assume-sane-operator-new"));
+
+  if (TC.getTriple().isOSWindows() && needsUbsanRt()) {
+    // Instruct the code generator to embed linker directives in the object file
+    // that cause the required runtime libraries to be linked.
+    CmdArgs.push_back(Args.MakeArgString(
+        "--dependent-lib=" + tools::getCompilerRT(TC, "ubsan_standalone")));
+    if (types::isCXX(InputType))
+      CmdArgs.push_back(
+          Args.MakeArgString("--dependent-lib=" +
+                             tools::getCompilerRT(TC, "ubsan_standalone_cxx")));
+  }
 }
 
 SanitizerMask parseArgValues(const Driver &D, const llvm::opt::Arg *A,

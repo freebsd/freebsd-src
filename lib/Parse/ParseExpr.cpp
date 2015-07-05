@@ -205,6 +205,24 @@ ExprResult Parser::ParseConstantExpression(TypeCastState isTypeCast) {
   return Actions.ActOnConstantExpression(Res);
 }
 
+/// \brief Parse a constraint-expression.
+///
+/// \verbatim
+///       constraint-expression: [Concepts TS temp.constr.decl p1]
+///         logical-or-expression
+/// \endverbatim
+ExprResult Parser::ParseConstraintExpression() {
+  // FIXME: this may erroneously consume a function-body as the braced
+  // initializer list of a compound literal
+  //
+  // FIXME: this may erroneously consume a parenthesized rvalue reference
+  // declarator as a parenthesized address-of-label expression
+  ExprResult LHS(ParseCastExpression(/*isUnaryExpression=*/false));
+  ExprResult Res(ParseRHSOfBinaryExpression(LHS, prec::LogicalOr));
+
+  return Res;
+}
+
 bool Parser::isNotExpressionStart() {
   tok::TokenKind K = Tok.getKind();
   if (K == tok::l_brace || K == tok::r_brace  ||
@@ -1042,6 +1060,8 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw_sizeof:     // unary-expression: 'sizeof' unary-expression
                            // unary-expression: 'sizeof' '(' type-name ')'
   case tok::kw_vec_step:   // unary-expression: OpenCL 'vec_step' expression
+  // unary-expression: '__builtin_omp_required_simd_align' '(' type-name ')'
+  case tok::kw___builtin_omp_required_simd_align:
     return ParseUnaryExprOrTypeTraitExpression();
   case tok::ampamp: {      // unary-expression: '&&' identifier
     SourceLocation AmpAmpLoc = ConsumeToken();
@@ -1636,8 +1656,9 @@ Parser::ParseExprAfterUnaryExprOrTypeTrait(const Token &OpTok,
                                            ParsedType &CastTy,
                                            SourceRange &CastRange) {
 
-  assert(OpTok.isOneOf(tok::kw_typeof,  tok::kw_sizeof,   tok::kw___alignof,
-                       tok::kw_alignof, tok::kw__Alignof, tok::kw_vec_step) &&
+  assert(OpTok.isOneOf(tok::kw_typeof, tok::kw_sizeof, tok::kw___alignof,
+                       tok::kw_alignof, tok::kw__Alignof, tok::kw_vec_step,
+                       tok::kw___builtin_omp_required_simd_align) &&
          "Not a typeof/sizeof/alignof/vec_step expression!");
 
   ExprResult Operand;
@@ -1722,7 +1743,8 @@ Parser::ParseExprAfterUnaryExprOrTypeTrait(const Token &OpTok,
 /// \endverbatim
 ExprResult Parser::ParseUnaryExprOrTypeTraitExpression() {
   assert(Tok.isOneOf(tok::kw_sizeof, tok::kw___alignof, tok::kw_alignof,
-                     tok::kw__Alignof, tok::kw_vec_step) &&
+                     tok::kw__Alignof, tok::kw_vec_step,
+                     tok::kw___builtin_omp_required_simd_align) &&
          "Not a sizeof/alignof/vec_step expression!");
   Token OpTok = Tok;
   ConsumeToken();
@@ -1792,6 +1814,8 @@ ExprResult Parser::ParseUnaryExprOrTypeTraitExpression() {
     ExprKind = UETT_AlignOf;
   else if (OpTok.is(tok::kw_vec_step))
     ExprKind = UETT_VecStep;
+  else if (OpTok.is(tok::kw___builtin_omp_required_simd_align))
+    ExprKind = UETT_OpenMPRequiredSimdAlign;
 
   if (isCastExpr)
     return Actions.ActOnUnaryExprOrTypeTraitExpr(OpTok.getLocation(),
