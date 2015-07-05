@@ -98,21 +98,7 @@ weekday(char const ** str)
 }
 
 static void
-parse_time(char const * str, int *hour, int *min, int *sec)
-{
-	*hour = a2i(&str);
-	if ((str = strchr(str, ':')) == NULL)
-		*min = *sec = 0;
-	else {
-		++str;
-		*min = a2i(&str);
-		*sec = ((str = strchr(str, ':')) == NULL) ? 0 : atoi(++str);
-	}
-}
-
-
-static void
-parse_datesub(char const * str, int *day, int *mon, int *year)
+parse_datesub(char const * str, struct tm *t)
 {
 	struct tm	 tm;
 	locale_t	 l;
@@ -123,6 +109,38 @@ parse_datesub(char const * str, int *day, int *mon, int *year)
 		"%d-%b-%Y",
 		"%d-%m-%y",
 		"%d-%m-%Y",
+		"%H:%M %d-%b-%y",
+		"%H:%M %d-%b-%Y",
+		"%H:%M %d-%m-%y",
+		"%H:%M %d-%m-%Y",
+		"%H:%M:%S %d-%b-%y",
+		"%H:%M:%S %d-%b-%Y",
+		"%H:%M:%S %d-%m-%y",
+		"%H:%M:%S %d-%m-%Y",
+		"%d-%b-%y %H:%M",
+		"%d-%b-%Y %H:%M",
+		"%d-%m-%y %H:%M",
+		"%d-%m-%Y %H:%M",
+		"%d-%b-%y %H:%M:%S",
+		"%d-%b-%Y %H:%M:%S",
+		"%d-%m-%y %H:%M:%S",
+		"%d-%m-%Y %H:%M:%S",
+		"%H:%M\t%d-%b-%y",
+		"%H:%M\t%d-%b-%Y",
+		"%H:%M\t%d-%m-%y",
+		"%H:%M\t%d-%m-%Y",
+		"%H:%M\t%S %d-%b-%y",
+		"%H:%M\t%S %d-%b-%Y",
+		"%H:%M\t%S %d-%m-%y",
+		"%H:%M\t%S %d-%m-%Y",
+		"%d-%b-%y\t%H:%M",
+		"%d-%b-%Y\t%H:%M",
+		"%d-%m-%y\t%H:%M",
+		"%d-%m-%Y\t%H:%M",
+		"%d-%b-%y\t%H:%M:%S",
+		"%d-%b-%Y\t%H:%M:%S",
+		"%d-%m-%y\t%H:%M:%S",
+		"%d-%m-%Y\t%H:%M:%S",
 		NULL,
 	};
 
@@ -132,9 +150,12 @@ parse_datesub(char const * str, int *day, int *mon, int *year)
 	for (i=0; valid_formats[i] != NULL; i++) {
 		ret = strptime_l(str, valid_formats[i], &tm, l);
 		if (ret && *ret == '\0') {
-			*day = tm.tm_mday;
-			*mon = tm.tm_mon;
-			*year = tm.tm_year;
+			t->tm_mday = tm.tm_mday;
+			t->tm_mon = tm.tm_mon;
+			t->tm_year = tm.tm_year;
+			t->tm_hour = tm.tm_hour;
+			t->tm_min = tm.tm_min;
+			t->tm_sec = tm.tm_sec;
 			freelocale(l);
 			return;
 		}
@@ -249,39 +270,7 @@ parse_date(time_t dt, char const * str)
 			}
 		}
 
-		/*
-		 * See if there is a time hh:mm[:ss]
-		 */
-		if ((p = strchr(tmp, ':')) == NULL) {
-
-			/*
-			 * No time string involved
-			 */
-			T->tm_hour = T->tm_min = T->tm_sec = 0;
-			parse_datesub(tmp, &T->tm_mday, &T->tm_mon, &T->tm_year);
-		} else {
-			char            datestr[64], timestr[64];
-
-			/*
-			 * Let's chip off the time string
-			 */
-			if ((q = strpbrk(p, " \t")) != NULL) {	/* Time first? */
-				int             l = q - str;
-
-				strlcpy(timestr, str, l + 1);
-				strlcpy(datestr, q + 1, sizeof(datestr));
-				parse_time(timestr, &T->tm_hour, &T->tm_min, &T->tm_sec);
-				parse_datesub(datestr, &T->tm_mday, &T->tm_mon, &T->tm_year);
-			} else if ((q = strrchr(tmp, ' ')) != NULL) {	/* Time last */
-				int             l = q - tmp;
-
-				strlcpy(timestr, q + 1, sizeof(timestr));
-				strlcpy(datestr, tmp, l + 1);
-			} else	/* Bail out */
-				return dt;
-			parse_time(timestr, &T->tm_hour, &T->tm_min, &T->tm_sec);
-			parse_datesub(datestr, &T->tm_mday, &T->tm_mon, &T->tm_year);
-		}
+		parse_datesub(tmp, T);
 		dt = mktime(T);
 	}
 	return dt;

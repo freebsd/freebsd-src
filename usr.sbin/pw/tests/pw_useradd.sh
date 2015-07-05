@@ -199,6 +199,12 @@ user_add_expiration_body() {
 		${PW} useradd foo -e 20-Foo-2043
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
 		${PW} useradd foo -e 20-13-2043
+	atf_check -s exit:0 ${PW} useradd foo -e "12:00 20-03-2043"
+	atf_check -s exit:0 ${PW} userdel foo
+	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
+		${PW} useradd foo -e "12 20-03-2043"
+	atf_check -s exit:0 ${PW} useradd foo -e "20-03-2043	12:00"
+	atf_check -s exit:0 ${PW} userdel foo
 }
 
 atf_init_test_cases() {
