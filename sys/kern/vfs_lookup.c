@@ -99,6 +99,16 @@ static int lookup_shared = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
     "Enables/Disables shared locks for path name translation");
 
+static void
+namei_cleanup_cnp(struct componentname *cnp)
+{
+	uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+	cnp->cn_pnbuf = NULL;
+	cnp->cn_nameptr = NULL;
+#endif
+}
+
 /*
  * Convert a pathname into a pointer to a locked vnode.
  *
@@ -119,16 +129,6 @@ SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
  *		if symbolic link, massage name in buffer and continue
  *	}
  */
-static void
-namei_cleanup_cnp(struct componentname *cnp)
-{
-	uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-	cnp->cn_pnbuf = NULL;
-	cnp->cn_nameptr = NULL;
-#endif
-}
-
 int
 namei(struct nameidata *ndp)
 {
