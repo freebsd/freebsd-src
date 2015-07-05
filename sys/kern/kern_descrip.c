@@ -2423,13 +2423,10 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 {
 	struct filedesc *fdp;
 	struct file *fp;
-	cap_rights_t needrights;
 	int error;
 
 	*fpp = NULL;
 	fdp = td->td_proc->p_fd;
-	if (needrightsp == NULL)
-		needrightsp = cap_rights_init(&needrights);
 	error = fget_unlocked(fdp, fd, needrightsp, &fp, seqp);
 	if (error != 0)
 		return (error);
