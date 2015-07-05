@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpdc @NTPDC_MS@ "07 Apr 2015" "4.2.8p2" "User Commands"
+.TH ntpdc @NTPDC_MS@ "29 Jun 2015" "4.2.8p3" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-dXaWh5/ag-rXaOg5)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-91aOeF/ag-i2aGdF)
 .\"
-.\" It has been AutoGen-ed April 7, 2015 at 04:26:27 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed June 29, 2015 at 04:31:01 PM by AutoGen 5.18.5
 .\" From the definitions ntpdc-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -34,7 +34,7 @@
 \f\*[B-Font]ntpdc\fP
 is deprecated.
 Please use
-\fCntpq\fR(@NTPQ_MS@)\f[] instead \- it can do everything
+\fCntpq\f[]\fR(@NTPQ_MS@)\f[] instead \- it can do everything
 \f\*[B-Font]ntpdc\fP
 used to do, and it does so using a much more sane interface.
 .sp \n(Ppu
@@ -42,7 +42,7 @@ used to do, and it does so using a much more sane interface.
 
 \f\*[B-Font]ntpdc\fP
 is a utility program used to query
-\fCntpd\fR(@NTPD_MS@)\f[]
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
 about its
 current state and to request changes in that state.
 It uses NTP mode 7 control message formats described in the source code.
@@ -209,7 +209,7 @@ The operation of
 \f\*[B-Font]ntpdc\fP
 are specific to the particular
 implementation of the
-\fCntpd\fR(@NTPD_MS@)\f[]
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
 daemon and can be expected to
 work only with this and maybe some previous versions of the daemon.
 Requests from a remote
@@ -273,7 +273,7 @@ followed by a command keyword will print function and usage
 information about the command.
 This command is probably a better
 source of information about
-\fCntpq\fR(@NTPQ_MS@)\f[]
+\fCntpq\f[]\fR(@NTPQ_MS@)\f[]
 than this manual
 page.
 .TP 7
@@ -390,7 +390,7 @@ The contents of the host field may be one of four forms.
 It may
 be a host name, an IP address, a reference clock implementation
 name with its parameter or
-\fBREFCLK\fR()\f[]
+\fBREFCLK\f[]\fR()\f[]
 On
 \f\*[B-Font]hostnames\f[]
 \f\*[B-Font]no\f[]
@@ -499,7 +499,7 @@ and
 \f\*[B-Font]stats\f[]
 flags.
 See the
-\fCntpd\fR(@NTPD_MS@)\f[]
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
 documentation for the meaning of these flags.
 There
 are two additional flags which are read only, the
@@ -703,7 +703,7 @@ These commands operate in the same way as the
 and
 \f\*[B-Font]disable\f[]
 configuration file commands of
-\fCntpd\fR(@NTPD_MS@)\f[].
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
 .RS
 .TP 7
 .NOP \f\*[B-Font]auth\f[]
@@ -755,7 +755,7 @@ Enables the statistics facility.
 See the
 \fIMonitoring\f[] \fIOptions\f[]
 section of
-\fCntp.conf\fR(5)\f[]
+\fCntp.conf\f[]\fR(5)\f[]
 for further information.
 The default for this flag is disable.
 .RE
@@ -764,7 +764,7 @@ The default for this flag is disable.
 This command operates in the same way as the
 \f\*[B-Font]restrict\f[]
 configuration file commands of
-\fCntpd\fR(@NTPD_MS@)\f[].
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
 .TP 7
 .NOP \f\*[B-Font]unrestrict\f[] \f\*[I-Font]address\f[] \f\*[I-Font]mask\f[] \f\*[I-Font]flag\f[] [\f\*[I-Font]...\f[]]
 Unrestrict the matching entry from the restrict list.
@@ -776,7 +776,7 @@ Delete the matching entry from the restrict list.
 Causes the current set of authentication keys to be purged and
 a new set to be obtained by rereading the keys file (which must
 have been specified in the
-\fCntpd\fR(@NTPD_MS@)\f[]
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
 configuration file).
 This
 allows encryption keys to be changed without restarting the
@@ -791,7 +791,7 @@ and
 \f\*[B-Font]untrustedkey\f[]
 configuration file
 commands of
-\fCntpd\fR(@NTPD_MS@)\f[].
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
 .TP 7
 .NOP \f\*[B-Font]authinfo\f[]
 Returns information concerning the authentication module,
@@ -838,8 +838,8 @@ libopts had an internal operational error.  Please report
 it to autogen-users@lists.sourceforge.net.  Thank you.
 .PP
 .SH "SEE ALSO"
-\fCntp.conf\fR(5)\f[],
-\fCntpd\fR(@NTPD_MS@)\f[]
+\fCntp.conf\f[]\fR(5)\f[],
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
 David L. Mills,
 \fINetwork Time Protocol (Version 3)\fR,
 RFC1305

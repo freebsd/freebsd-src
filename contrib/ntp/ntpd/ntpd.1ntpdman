@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpd 1ntpdman "07 Apr 2015" "4.2.8p2" "User Commands"
+.TH ntpd 1ntpdman "29 Jun 2015" "4.2.8p3" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-TQays3/ag-5Qaqr3)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-LZaapD/ag-XZa4nD)
 .\"
-.\" It has been AutoGen-ed April 7, 2015 at 04:25:45 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed June 29, 2015 at 04:30:24 PM by AutoGen 5.18.5
 .\" From the definitions ntpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -59,7 +59,7 @@ with future gigahertz CPU clocks and gigabit LANs.
 Ordinarily,
 \f\*[B-Font]ntpd\fP
 reads the
-\fCntp.conf\fR(5)\f[]
+\fCntp.conf\f[]\fR(5)\f[]
 configuration file at startup time in order to determine the
 synchronization sources and operating modes.
 It is also possible to
@@ -78,7 +78,7 @@ then
 \f\*[B-Font]ntpd\fP
 will attempt to read its configuration from the
 NetInfo if the default
-\fCntp.conf\fR(5)\f[]
+\fCntp.conf\f[]\fR(5)\f[]
 file cannot be read and no file is
 specified by the
 \f\*[B-Font]\-c\f[]
@@ -93,9 +93,9 @@ configuration options altered while the
 \f\*[B-Font]ntpd\fP
 is running
 using the
-\fCntpq\fR(1ntpqmdoc)\f[]
+\fCntpq\f[]\fR(1ntpqmdoc)\f[]
 and
-\fCntpdc\fR(1ntpdcmdoc)\f[]
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[]
 utility programs.
 .sp \n(Ppu
 .ne 2
@@ -103,11 +103,11 @@ utility programs.
 When
 \f\*[B-Font]ntpd\fP
 starts it looks at the value of
-\fCumask\fR(2)\f[],
+\fCumask\f[]\fR(2)\f[],
 and if zero
 \f\*[B-Font]ntpd\fP
 will set the
-\fCumask\fR(2)\f[]
+\fCumask\f[]\fR(2)\f[]
 to 022.
 .SH "OPTIONS"
 .TP
@@ -472,7 +472,7 @@ keyword with the
 \f\*[B-Font]server\f[]
 configuration
 command, as described in
-\fCntp.conf\fR(5)\f[].
+\fCntp.conf\f[]\fR(5)\f[].
 .sp \n(Ppu
 .ne 2
 
@@ -601,9 +601,9 @@ when you have permission to do so from the owner of the target host.
 
 Finally,
 in the past many startup scripts would run
-\fCntpdate\fR(1ntpdatemdoc)\f[]
+\fCntpdate\f[]\fR(1ntpdatemdoc)\f[]
 to get the system clock close to correct before starting
-\fCntpd\fR(1ntpdmdoc)\f[],
+\fCntpd\f[]\fR(1ntpdmdoc)\f[],
 but this was never more than a mediocre hack and is no longer needed.
 If you are following the instructions in
 \fIStarting NTP (Best Current Practice)\f[]
@@ -611,12 +611,12 @@ and you still need to set the system time before starting
 \f\*[B-Font]ntpd\fP,
 please open a bug report and document what is going on,
 and then look at using
-\fCsntp\fR(1sntpmdoc)\f[].
+\fCsntp\f[]\fR(1sntpmdoc)\f[].
 .sp \n(Ppu
 .ne 2
 
 There is a way to start
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 that often addresses all of the problems mentioned above.
 .SS "Starting NTP (Best Current Practice)"
 First, use the
@@ -630,14 +630,14 @@ entries.
 If you can also keep a good
 \fIntp.drift\f[]
 file then
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 will effectively "warm-start" and your system's clock will
 be stable in under 11 seconds' time.
 .sp \n(Ppu
 .ne 2
 
 As soon as possible in the startup sequence, start
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 with at least the
 \f\*[B-Font]\-g\f[]
 and perhaps the
@@ -646,7 +646,7 @@ options.
 Then,
 start the rest of your "normal" processes.
 This will give
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 as much time as possible to get the system's clock synchronized and stable.
 .sp \n(Ppu
 .ne 2
@@ -658,13 +658,13 @@ or database servers
 that require
 monotonically-increasing time,
 run
-\fCntp-wait\fR(1ntp-waitmdoc)\f[]
+\fCntp-wait\f[]\fR(1ntp-waitmdoc)\f[]
 as late as possible in the boot sequence
 (perhaps with the
 \f\*[B-Font]\-v\f[]
 flag)
 and after
-\fCntp-wait\fR(1ntp-waitmdoc)\f[]
+\fCntp-wait\f[]\fR(1ntp-waitmdoc)\f[]
 exits successfully
 it is as safe as it will ever be to start any process that require
 stable time.
@@ -749,11 +749,11 @@ In some cases it may not be practical for
 \f\*[B-Font]ntpd\fP
 to run continuously.
 A common workaround has been to run the
-\fCntpdate\fR(1ntpdatemdoc)\f[]
+\fCntpdate\f[]\fR(1ntpdatemdoc)\f[]
 or
-\fCsntp\fR(1sntpmdoc)\f[]
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
 programs from a
-\fCcron\fR(8)\f[]
+\fCcron\f[]\fR(8)\f[]
 job at designated
 times.
 However, these programs do not have the crafted signal
@@ -780,7 +780,7 @@ If nothing is heard after a
 couple of minutes, the daemon times out and exits.
 After a suitable
 period of mourning, the
-\fCntpdate\fR(1ntpdatemdoc)\f[]
+\fCntpdate\f[]\fR(1ntpdatemdoc)\f[]
 program will be
 retired.
 .sp \n(Ppu
@@ -891,7 +891,7 @@ The filter is activated by the
 command and
 \f\*[B-Font]huffpuff\f[]
 keyword, as described in
-\fCntp.conf\fR(5)\f[].
+\fCntp.conf\f[]\fR(5)\f[].
 .SH "ENVIRONMENT"
 See \fBOPTION PRESETS\fP for configuration environment variables.
 .SH FILES
@@ -923,11 +923,11 @@ libopts had an internal operational error.  Please report
 it to autogen-users@lists.sourceforge.net.  Thank you.
 .PP
 .SH "SEE ALSO"
-\fCntp.conf\fR(5)\f[],
-\fCntpdate\fR(1ntpdatemdoc)\f[],
-\fCntpdc\fR(1ntpdcmdoc)\f[],
-\fCntpq\fR(1ntpqmdoc)\f[],
-\fCsntp\fR(1sntpmdoc)\f[]
+\fCntp.conf\f[]\fR(5)\f[],
+\fCntpdate\f[]\fR(1ntpdatemdoc)\f[],
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[],
+\fCntpq\f[]\fR(1ntpqmdoc)\f[],
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
 .sp \n(Ppu
 .ne 2
 
