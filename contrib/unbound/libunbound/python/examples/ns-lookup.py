@@ -40,8 +40,8 @@ ctx.resolvconf("/etc/resolv.conf")
 
 status, result = ctx.resolve("vutbr.cz", unbound.RR_TYPE_NS, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result:"
-    print "      raw data:", result.data
+    print("Result:")
+    print("      raw data:", result.data)
     for k in result.data.domain_list:
-        print "      host: %s" % k
+        print("      host: %s" % k)
 

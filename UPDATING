@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150703:
+	The default Unbound configuration now enables remote control
+	using a local socket.  Users who have already enabled the
+	local_unbound service should regenerate their configuration
+	by running "service local_unbound setup" as root.
+
 20150624:
 	An additional fix for the issue described in the 20150614 sendmail
 	entry below has been been committed in revision 284786.

@@ -254,6 +254,14 @@ error_response_cache(struct module_qstate* qstate, int id, int rcode)
 {
 	/* store in cache */
 	struct reply_info err;
+	if(qstate->prefetch_leeway > NORR_TTL) {
+		verbose(VERB_ALGO, "error response for prefetch in cache");
+		/* attempt to adjust the cache entry prefetch */
+		if(dns_cache_prefetch_adjust(qstate->env, &qstate->qinfo,
+			NORR_TTL, qstate->query_flags))
+			return error_response(qstate, id, rcode);
+		/* if that fails (not in cache), fall through to store err */
+	}
 	memset(&err, 0, sizeof(err));
 	err.flags = (uint16_t)(BIT_QR | BIT_RA);
 	FLAGS_SET_RCODE(err.flags, rcode);
@@ -263,7 +271,8 @@ error_response_cache(struct module_qstate* qstate, int id, int rcode)
 	/* do not waste time trying to validate this servfail */
 	err.security = sec_status_indeterminate;
 	verbose(VERB_ALGO, "store error response in message cache");
-	iter_dns_store(qstate->env, &qstate->qinfo, &err, 0, 0, 0, NULL);
+	iter_dns_store(qstate->env, &qstate->qinfo, &err, 0, 0, 0, NULL,
+		qstate->query_flags);
 	return error_response(qstate, id, rcode);
 }
 
@@ -499,6 +508,7 @@ generate_sub_request(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 	uint16_t qflags = 0; /* OPCODE QUERY, no flags */
 	struct query_info qinf;
 	int prime = (finalstate == PRIME_RESP_STATE)?1:0;
+	int valrec = 0;
 	qinf.qname = qname;
 	qinf.qname_len = qnamelen;
 	qinf.qtype = qtype;
@@ -512,12 +522,15 @@ generate_sub_request(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 	 * the resolution chain, which might have a validator. We are 
 	 * uninterested in validating things not on the direct resolution 
 	 * path.  */
-	if(!v)
+	if(!v) {
 		qflags |= BIT_CD;
+		valrec = 1;
+	}
 	
 	/* attach subquery, lookup existing or make a new one */
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-	if(!(*qstate->env->attach_sub)(qstate, &qinf, qflags, prime, &subq)) {
+	if(!(*qstate->env->attach_sub)(qstate, &qinf, qflags, prime, valrec,
+		&subq)) {
 		return 0;
 	}
 	*subq_ret = subq;
@@ -955,7 +968,8 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 	} else {
 		msg = dns_cache_lookup(qstate->env, iq->qchase.qname, 
 			iq->qchase.qname_len, iq->qchase.qtype, 
-			iq->qchase.qclass, qstate->region, qstate->env->scratch);
+			iq->qchase.qclass, qstate->query_flags,
+			qstate->region, qstate->env->scratch);
 		if(!msg && qstate->env->neg_cache) {
 			/* lookup in negative cache; may result in 
 			 * NOERROR/NODATA or NXDOMAIN answers that need validation */
@@ -1369,8 +1383,10 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 		return 0;
 	if(iq->depth > 0 && iq->target_count &&
 		iq->target_count[1] > MAX_TARGET_COUNT) {
-		verbose(VERB_QUERY, "request has exceeded the maximum "
-			"number of glue fetches %d", iq->target_count[1]);
+		char s[LDNS_MAX_DOMAINLEN+1];
+		dname_str(qstate->qinfo.qname, s);
+		verbose(VERB_QUERY, "request %s has exceeded the maximum "
+			"number of glue fetches %d", s, iq->target_count[1]);
 		return 0;
 	}
 
@@ -1567,8 +1583,10 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 	}
 	if(iq->depth > 0 && iq->target_count &&
 		iq->target_count[1] > MAX_TARGET_COUNT) {
-		verbose(VERB_QUERY, "request has exceeded the maximum "
-			"number of glue fetches %d", iq->target_count[1]);
+		char s[LDNS_MAX_DOMAINLEN+1];
+		dname_str(qstate->qinfo.qname, s);
+		verbose(VERB_QUERY, "request %s has exceeded the maximum "
+			"number of glue fetches %d", s, iq->target_count[1]);
 		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
 	/* mark cycle targets for parent-side lookups */
@@ -1888,8 +1906,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->qchase.qname, iq->qchase.qname_len, 
 		iq->qchase.qtype, iq->qchase.qclass, 
 		iq->chase_flags | (iq->chase_to_rd?BIT_RD:0), EDNS_DO|BIT_CD, 
-		iq->dnssec_expected, &target->addr, target->addrlen,
-		iq->dp->name, iq->dp->namelen, qstate);
+		iq->dnssec_expected, iq->caps_fallback, &target->addr,
+		target->addrlen, iq->dp->name, iq->dp->namelen, qstate);
 	if(!outq) {
 		log_addr(VERB_DETAIL, "error sending query to auth server", 
 			&target->addr, target->addrlen);
@@ -2025,7 +2043,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		iter_dns_store(qstate->env, &iq->response->qinfo,
 			iq->response->rep, 0, qstate->prefetch_leeway,
 			iq->dp&&iq->dp->has_parent_side_NS,
-			qstate->region);
+			qstate->region, qstate->query_flags);
 		/* close down outstanding requests to be discarded */
 		outbound_list_clear(&iq->outlist);
 		iq->num_current_queries = 0;
@@ -2063,7 +2081,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 			/* Store the referral under the current query */
 			/* no prefetch-leeway, since its not the answer */
 			iter_dns_store(qstate->env, &iq->response->qinfo,
-				iq->response->rep, 1, 0, 0, NULL);
+				iq->response->rep, 1, 0, 0, NULL, 0);
 			if(iq->store_parent_NS)
 				iter_store_parentside_NS(qstate->env, 
 					iq->response->rep);
@@ -2162,7 +2180,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* prefetchleeway applied because this updates answer parts */
 		iter_dns_store(qstate->env, &iq->response->qinfo,
 			iq->response->rep, 1, qstate->prefetch_leeway,
-			iq->dp&&iq->dp->has_parent_side_NS, NULL);
+			iq->dp&&iq->dp->has_parent_side_NS, NULL,
+			qstate->query_flags);
 		/* set the current request's qname to the new value. */
 		iq->qchase.qname = sname;
 		iq->qchase.qname_len = snamelen;
@@ -2243,7 +2262,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 }
 
 /**
- * Return priming query results to interestes super querystates.
+ * Return priming query results to interested super querystates.
  * 
  * Sets the delegation point and delegation message (not nonRD queries).
  * This is a callback from walk_supers.
@@ -2674,7 +2693,7 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
 			iter_dns_store(qstate->env, &qstate->qinfo, 
 				iq->response->rep, 0, qstate->prefetch_leeway,
 				iq->dp&&iq->dp->has_parent_side_NS,
-				qstate->region);
+				qstate->region, qstate->query_flags);
 		}
 	}
 	qstate->return_rcode = LDNS_RCODE_NOERROR;
@@ -2799,6 +2818,21 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	iq->response = NULL;
 	iq->state = QUERY_RESP_STATE;
 	if(event == module_event_noreply || event == module_event_error) {
+		if(event == module_event_noreply && iq->sent_count >= 3 &&
+			qstate->env->cfg->use_caps_bits_for_id &&
+			!iq->caps_fallback) {
+			/* start fallback */
+			iq->caps_fallback = 1;
+			iq->caps_server = 0;
+			iq->caps_reply = NULL;
+			iq->state = QUERYTARGETS_STATE;
+			iq->num_current_queries--;
+			/* need fresh attempts for the 0x20 fallback, if
+			 * that was the cause for the failure */
+			iter_dec_attempts(iq->dp, 3);
+			verbose(VERB_DETAIL, "Capsforid: timeouts, starting fallback");
+			goto handle_it;
+		}
 		goto handle_it;
 	}
 	if( (event != module_event_reply && event != module_event_capsfail)
@@ -2847,7 +2881,10 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 		log_dns_msg("incoming scrubbed packet:", &iq->response->qinfo, 
 			iq->response->rep);
 	
-	if(event == module_event_capsfail) {
+	if(event == module_event_capsfail || iq->caps_fallback) {
+		/* for fallback we care about main answer, not additionals */
+		/* removing that makes comparison more likely to succeed */
+		caps_strip_reply(iq->response->rep);
 		if(!iq->caps_fallback) {
 			/* start fallback */
 			iq->caps_fallback = 1;
@@ -2859,7 +2896,11 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 			goto handle_it;
 		} else {
 			/* check if reply is the same, otherwise, fail */
-			if(!reply_equal(iq->response->rep, iq->caps_reply,
+			if(!iq->caps_reply) {
+				iq->caps_reply = iq->response->rep;
+				iq->caps_server = -1; /*become zero at ++,
+				so that we start the full set of trials */
+			} else if(!reply_equal(iq->response->rep, iq->caps_reply,
 				qstate->env->scratch)) {
 				verbose(VERB_DETAIL, "Capsforid fallback: "
 					"getting different replies, failed");

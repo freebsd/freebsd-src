@@ -211,9 +211,21 @@ void slabhash_setmarkdel(struct slabhash* sl, lruhash_markdelfunc_t md)
 }
 
 void slabhash_traverse(struct slabhash* sh, int wr,
-        void (*func)(struct lruhash_entry*, void*), void* arg)
+	void (*func)(struct lruhash_entry*, void*), void* arg)
 {
 	size_t i;
 	for(i=0; i<sh->size; i++)
 		lruhash_traverse(sh->array[i], wr, func, arg);
+}
+
+size_t count_slabhash_entries(struct slabhash* sh)
+{
+	size_t slab, cnt = 0;
+
+	for(slab=0; slab<sh->size; slab++) {
+		lock_quick_lock(&sh->array[slab]->lock);
+		cnt += sh->array[slab]->num;
+		lock_quick_unlock(&sh->array[slab]->lock);
+	}
+	return cnt;
 }

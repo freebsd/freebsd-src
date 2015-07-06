@@ -283,10 +283,23 @@ needs_validation(struct module_qstate* qstate, int ret_rc,
 {
 	int rcode;
 
-	/* If the CD bit is on in the original request, then we don't bother to
-	 * validate anything.*/
+	/* If the CD bit is on in the original request, then you could think
+	 * that we don't bother to validate anything.
+	 * But this is signalled internally with the valrec flag.
+	 * User queries are validated with BIT_CD to make our cache clean
+	 * so that bogus messages get retried by the upstream also for
+	 * downstream validators that set BIT_CD.
+	 * For DNS64 bit_cd signals no dns64 processing, but we want to
+	 * provide validation there too */
+	/*
 	if(qstate->query_flags & BIT_CD) {
 		verbose(VERB_ALGO, "not validating response due to CD bit");
+		return 0;
+	}
+	*/
+	if(qstate->is_valrec) {
+		verbose(VERB_ALGO, "not validating response, is valrec"
+			"(validation recursion lookup)");
 		return 0;
 	}
 
@@ -351,14 +364,20 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	struct val_qstate* vq = (struct val_qstate*)qstate->minfo[id];
 	struct module_qstate* newq;
 	struct query_info ask;
+	int valrec;
 	ask.qname = name;
 	ask.qname_len = namelen;
 	ask.qtype = qtype;
 	ask.qclass = qclass;
 	log_query_info(VERB_ALGO, "generate request", &ask);
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
+	/* enable valrec flag to avoid recursion to the same validation
+	 * routine, this lookup is simply a lookup. DLVs need validation */
+	if(qtype == LDNS_RR_TYPE_DLV)
+		valrec = 0;
+	else valrec = 1;
 	if(!(*qstate->env->attach_sub)(qstate, &ask, 
-		(uint16_t)(BIT_RD|flags), 0, &newq)){
+		(uint16_t)(BIT_RD|flags), 0, valrec, &newq)){
 		log_err("Could not generate request: out of memory");
 		return 0;
 	}
@@ -555,6 +574,61 @@ detect_wrongly_truncated(struct reply_info* rep)
 	return 1;
 }
 
+/**
+ * For messages that are not referrals, if the chase reply contains an
+ * unsigned NS record in the authority section it could have been
+ * inserted by a (BIND) forwarder that thinks the zone is insecure, and
+ * that has an NS record without signatures in cache.  Remove the NS
+ * record since the reply does not hinge on that record (in the authority
+ * section), but do not remove it if it removes the last record from the
+ * answer+authority sections.
+ * @param chase_reply: the chased reply, we have a key for this contents,
+ * 	so we should have signatures for these rrsets and not having
+ * 	signatures means it will be bogus.
+ * @param orig_reply: original reply, remove NS from there as well because
+ * 	we cannot mark the NS record as DNSSEC valid because it is not
+ * 	validated by signatures.
+ */
+static void
+remove_spurious_authority(struct reply_info* chase_reply,
+	struct reply_info* orig_reply)
+{
+	size_t i, found = 0;
+	int remove = 0;
+	/* if no answer and only 1 auth RRset, do not remove that one */
+	if(chase_reply->an_numrrsets == 0 && chase_reply->ns_numrrsets == 1)
+		return;
+	/* search authority section for unsigned NS records */
+	for(i = chase_reply->an_numrrsets;
+		i < chase_reply->an_numrrsets+chase_reply->ns_numrrsets; i++) {
+		struct packed_rrset_data* d = (struct packed_rrset_data*)
+			chase_reply->rrsets[i]->entry.data;
+		if(ntohs(chase_reply->rrsets[i]->rk.type) == LDNS_RR_TYPE_NS
+			&& d->rrsig_count == 0) {
+			found = i;
+			remove = 1;
+			break;
+		}
+	}
+	/* see if we found the entry */
+	if(!remove) return;
+	log_rrset_key(VERB_ALGO, "Removing spurious unsigned NS record "
+		"(likely inserted by forwarder)", chase_reply->rrsets[found]);
+
+	/* find rrset in orig_reply */
+	for(i = orig_reply->an_numrrsets;
+		i < orig_reply->an_numrrsets+orig_reply->ns_numrrsets; i++) {
+		if(ntohs(orig_reply->rrsets[i]->rk.type) == LDNS_RR_TYPE_NS
+			&& query_dname_compare(orig_reply->rrsets[i]->rk.dname,
+				chase_reply->rrsets[found]->rk.dname) == 0) {
+			/* remove from orig_msg */
+			val_reply_remove_auth(orig_reply, i);
+			break;
+		}
+	}
+	/* remove rrset from chase_reply */
+	val_reply_remove_auth(chase_reply, found);
+}
 
 /**
  * Given a "positive" response -- a response that contains an answer to the
@@ -1623,6 +1697,8 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 	}
 	subtype = val_classify_response(qstate->query_flags, &qstate->qinfo,
 		&vq->qchase, vq->orig_msg->rep, vq->rrset_skip);
+	if(subtype != VAL_CLASS_REFERRAL)
+		remove_spurious_authority(vq->chase_reply, vq->orig_msg->rep);
 
 	/* check signatures in the message; 
 	 * answer and authority must be valid, additional is only checked. */
@@ -2005,14 +2081,16 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		/* if secure, this will override cache anyway, no need
 		 * to check if from parentNS */
 		if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo, 
-			vq->orig_msg->rep, 0, qstate->prefetch_leeway, 0, NULL)) {
+			vq->orig_msg->rep, 0, qstate->prefetch_leeway, 0, NULL,
+			qstate->query_flags)) {
 			log_err("out of memory caching validator results");
 		}
 	} else {
 		/* for a referral, store the verified RRsets */
 		/* and this does not get prefetched, so no leeway */
 		if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo, 
-			vq->orig_msg->rep, 1, 0, 0, NULL)) {
+			vq->orig_msg->rep, 1, 0, 0, NULL,
+			qstate->query_flags)) {
 			log_err("out of memory caching validator results");
 		}
 	}
