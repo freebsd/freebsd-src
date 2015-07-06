@@ -40,26 +40,25 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#if 0
-/* XXXRW: ps_nargvstr, etc, are unsigned ints in ps_strings? */
-struct freebsd32_ps_strings {
-	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
-	int	ps_nargvstr;	/* the number of argument strings */
-	u_int32_t ps_envstr;	/* first of 0 or more environment strings */
-	int	ps_nenvstr;	/* the number of environment strings */
-	u_int32_t ps_sbclasses;		/* pointer to sandbox class data */
-	u_int32_t ps_sbclasseslen;	/* length of sandbox class data */
-	u_int32_t ps_sbmethods;		/* pointer to sandbox method data */
-	u_int32_t ps_sbmethodslen;	/* length of sandbox method data */
-	u_int32_t ps_sbobjects;		/* pointer to sandbox object data */
-	u_int32_t ps_sbobjectslen;	/* length of sandbox method data */
+struct cheriabi_ps_strings {
+	struct chericap	ps_argvstr;
+	int		ps_nargvstr;
+	struct chericap	ps_envstr;
+	int		ps_nenvstr;
+	struct chericap	ps_sbclasses;
+	size_t		ps_sbclasseslen;
+	struct chericap	ps_sbmethods;
+	size_t		ps_sbmethodslen;
+	struct chericap	ps_sbobjects;
+	size_t		ps_sbobjectslen;
 };
 
-#define CHERIABI_PS_STRINGS	\
-	(CHERIABI_USRSTACK - sizeof(struct freebsd32_ps_strings))
+#define	CHERIABI_PS_STRINGS	\
+	(USRSTACK - sizeof(struct cheriabi_ps_strings))
 
-extern struct sysent freebsd32_sysent[];
+extern struct sysent cheriabi_sysent[];
 
+#if 0
 #define SYSCALL32_MODULE(name, offset, new_sysent, evh, arg)   \
 static struct syscall_module_data name##_syscall32_mod = {     \
        evh, arg, offset, new_sysent, { 0, NULL }               \
@@ -115,7 +114,7 @@ int	cheriabi_copyiniov(struct iovec_c *iovp, u_int iovcnt,
 	    struct iovec **iov, int error);
 
 struct image_args;
-int cheriabi_exec_copyin_args(struct image_args *args, char *fname,
-	    enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv);
+int	cheriabi_exec_copyin_args(struct image_args *args, char *fname,
+	    enum uio_seg segflg, struct chericap *argv, struct chericap *envv);
 
 #endif /* !_COMPAT_CHERIABI_CHERIABI_UTIL_H_ */

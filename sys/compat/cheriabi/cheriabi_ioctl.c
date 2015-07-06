@@ -1,6 +1,11 @@
 /*-
  * Copyright (c) 2008 David E. O'Brien
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -413,11 +418,6 @@ cheriabi_ioctl_sg(struct thread *td,
 int
 cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 {
-	struct ioctl_args ap /*{
-		int	fd;
-		u_long	com;
-		caddr_t	data;
-	}*/ ;
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
@@ -461,10 +461,11 @@ cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 
 	default:
 		fdrop(fp, td);
-		ap.fd = uap->fd;
-		ap.com = uap->com;
-		PTRIN_CP(*uap, ap, data);
-		return sys_ioctl(td, &ap);
+		/*
+		 * Unlike on freebsd32, uap contains a 64-bit data pointer
+		 * already so we can just cast the struct pointer.
+		 */
+		return sys_ioctl(td, (struct ioctl_args *)uap);
 	}
 
 	fdrop(fp, td);

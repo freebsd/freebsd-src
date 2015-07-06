@@ -1,6 +1,11 @@
 /*-
+ * Copyright (c) 2015 SRI International
  * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,13 +34,74 @@
 #ifndef _COMPAT_CHERIABI_CHERIABI_H_
 #define _COMPAT_CHERIABI_CHERIABI_H_
 
-#define PTRIN(v)        (void *)(uintptr_t) (v)
-#define PTROUT(v)       (u_int32_t)(uintptr_t) (v)
+#include <machine/cheri.h>
+
+static inline void *
+__cheri_cap_to_ptr(struct chericap *c)
+{
+	void *ptr;
+
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, c, 0);
+	CHERI_CTOPTR(ptr, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+
+	return (ptr);
+}
+
+#define PTRIN(v)        __cheri_cap_to_ptr(&v)
 
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
 #define PTRIN_CP(src,dst,fld) \
 	do { (dst).fld = PTRIN((src).fld); } while (0)
 #define PTROUT_CP(src,dst,fld) \
 	do { (dst).fld = PTROUT((src).fld); } while (0)
+
+struct kevent_c {
+	uintptr_t	ident;		/* identifier for this event */
+	short		filter;		/* filter for event */
+	u_short		flags;
+	u_int		fflags;
+	intptr_t	data;
+	struct chericap	udata;		/* opaque user data identifier */
+};
+
+struct iovec_c {
+	struct chericap	iov_base;
+	int		iov_len;
+};
+
+struct msghdr_c {
+	struct chericap	msg_name;
+	socklen_t	msg_namelen;
+	struct chericap	msg_iov;
+	int		msg_iovlen;
+	struct chericap	msg_control;
+	socklen_t	msg_controllen;
+	int		msg_flags;
+};
+
+struct jail_c {
+	uint32_t	version;
+	struct chericap	path;
+	struct chericap	hostname;
+	struct chericap	jailname;
+	uint32_t	ip4s;
+	uint32_t	ip6s;
+	struct chericap	ip4;
+	struct chericap ip6;
+};
+
+struct thr_param_c {
+	uintptr_t	start_func;
+	struct chericap	arg;
+	struct chericap	stack_base;
+	size_t		stack_size;
+	struct chericap	tls_base;
+	size_t		tls_size;
+	struct chericap	child_tid;
+	struct chericap	parent_tid;
+	int		flags;
+	struct chericap	rtp;
+	struct chericap	spare[3];
+};
 
 #endif /* !_COMPAT_CHERIABI_CHERIABI_H_ */

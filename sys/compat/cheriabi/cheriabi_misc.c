@@ -1,6 +1,11 @@
 /*-
  * Copyright (c) 2002 Doug Rabson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -109,25 +114,15 @@ __FBSDID("$FreeBSD$");
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 
+MALLOC_DECLARE(M_KQUEUE);
+
 FEATURE(compat_cheri_abi, "Compatible CHERI system call ABI");
 
-#if 0
-#ifndef __mips__
-CTASSERT(sizeof(struct timeval32) == 8);
-CTASSERT(sizeof(struct timespec32) == 8);
-CTASSERT(sizeof(struct itimerval32) == 16);
-#endif
-CTASSERT(sizeof(struct statfs32) == 256);
-#ifndef __mips__
-CTASSERT(sizeof(struct rusage32) == 72);
-#endif
+#ifdef CHERIABI_NEEDS_UPDATE
 CTASSERT(sizeof(struct sigaltstack32) == 12);
 CTASSERT(sizeof(struct kevent32) == 20);
 CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
-#ifndef __mips__
-CTASSERT(sizeof(struct stat32) == 96);
-#endif
 CTASSERT(sizeof(struct sigaction32) == 24);
 #endif
 
@@ -137,10 +132,8 @@ static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
 int
 cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 {
-#if 0
-	struct wrusage32 wru32;
 	struct __wrusage wru, *wrup;
-	struct siginfo32 si32;
+	struct siginfo_c si_c;
 	struct __siginfo si, *sip;
 	int error, status;
 
@@ -153,24 +146,19 @@ cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 		bzero(sip, sizeof(*sip));
 	} else
 		sip = NULL;
-	error = kern_wait6(td, uap->idtype, PAIR32TO64(id_t, uap->id),
-	    &status, uap->options, wrup, sip);
+	error = kern_wait6(td, uap->idtype, uap->id, &status, uap->options,
+	    wrup, sip);
 	if (error != 0)
 		return (error);
 	if (uap->status != NULL)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->wrusage != NULL && error == 0) {
-		freebsd32_rusage_out(&wru.wru_self, &wru32.wru_self);
-		freebsd32_rusage_out(&wru.wru_children, &wru32.wru_children);
-		error = copyout(&wru32, uap->wrusage, sizeof(wru32));
-	}
+	if (uap->wrusage != NULL && error == 0)
+		error = copyout(&wru, uap->wrusage, sizeof(wru));
 	if (uap->info != NULL && error == 0) {
-		siginfo_to_siginfo32 (&si, &si32);
-		error = copyout(&si32, uap->info, sizeof(si32));
+		siginfo_to_siginfo_c (&si, &si_c);
+		error = copyout(&si_c, uap->info, sizeof(si_c));
 	}
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 /*
@@ -179,13 +167,12 @@ cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
  */
 int
 cheriabi_exec_copyin_args(struct image_args *args, char *fname,
-    enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv)
+    enum uio_seg segflg, struct chericap *argv, struct chericap *envv)
 {
-#if 0
 	char *argp, *envp;
-	u_int32_t *p32, arg;
+	struct chericap *pcap, arg;
 	size_t length;
-	int error;
+	int error, tagged;
 
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
@@ -219,14 +206,17 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 	/*
 	 * extract arguments first
 	 */
-	p32 = argv;
+	pcap = argv;
 	for (;;) {
-		error = copyin(p32++, &arg, sizeof(arg));
+		error = copyincap(pcap++, &arg, sizeof(arg));
 		if (error)
 			goto err_exit;
-		if (arg == 0)
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &arg, 0);
+		CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
+		if (!tagged)
 			break;
 		argp = PTRIN(arg);
+		/* Lose any stray caps in arg strings. */
 		error = copyinstr(argp, args->endp, args->stringspace, &length);
 		if (error) {
 			if (error == ENAMETOOLONG)
@@ -244,14 +234,17 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 	 * extract environment strings
 	 */
 	if (envv) {
-		p32 = envv;
+		pcap = envv;
 		for (;;) {
-			error = copyin(p32++, &arg, sizeof(arg));
+			error = copyincap(pcap++, &arg, sizeof(arg));
 			if (error)
 				goto err_exit;
-			if (arg == 0)
+			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &arg, 0);
+			CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
+			if (!tagged)
 				break;
 			envp = PTRIN(arg);
+			/* Lose any stray caps in env strings. */
 			error = copyinstr(envp, args->endp, args->stringspace,
 			    &length);
 			if (error) {
@@ -270,14 +263,11 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 err_exit:
 	exec_free_args(args);
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 int
 cheriabi_execve(struct thread *td, struct cheriabi_execve_args *uap)
 {
-#if 0
 	struct image_args eargs;
 	struct vmspace *oldvmspace;
 	int error;
@@ -285,20 +275,17 @@ cheriabi_execve(struct thread *td, struct cheriabi_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = freebsd32_exec_copyin_args(&eargs, uap->fname, UIO_USERSPACE,
+	error = cheriabi_exec_copyin_args(&eargs, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
 	post_execve(td, error, oldvmspace);
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 int
 cheriabi_fexecve(struct thread *td, struct cheriabi_fexecve_args *uap)
 {
-#if 0
 	struct image_args eargs;
 	struct vmspace *oldvmspace;
 	int error;
@@ -306,7 +293,7 @@ cheriabi_fexecve(struct thread *td, struct cheriabi_fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = freebsd32_exec_copyin_args(&eargs, NULL, UIO_SYSSPACE,
+	error = cheriabi_exec_copyin_args(&eargs, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		eargs.fd = uap->fd;
@@ -314,8 +301,6 @@ cheriabi_fexecve(struct thread *td, struct cheriabi_fexecve_args *uap)
 	}
 	post_execve(td, error, oldvmspace);
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 /*
@@ -324,28 +309,31 @@ cheriabi_fexecve(struct thread *td, struct cheriabi_fexecve_args *uap)
 static int
 cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
-#if 0
-	struct freebsd32_kevent_args *uap;
-	struct kevent32	ks32[KQ_NEVENTS];
+	struct cheriabi_kevent_args *uap;
+	struct kevent_c	ks_c[KQ_NEVENTS];
 	int i, error = 0;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
-	uap = (struct freebsd32_kevent_args *)arg;
+	uap = (struct cheriabi_kevent_args *)arg;
 
 	for (i = 0; i < count; i++) {
-		CP(kevp[i], ks32[i], ident);
-		CP(kevp[i], ks32[i], filter);
-		CP(kevp[i], ks32[i], flags);
-		CP(kevp[i], ks32[i], fflags);
-		CP(kevp[i], ks32[i], data);
-		PTROUT_CP(kevp[i], ks32[i], udata);
+		CP(kevp[i], ks_c[i], ident);
+		CP(kevp[i], ks_c[i], filter);
+		CP(kevp[i], ks_c[i], flags);
+		CP(kevp[i], ks_c[i], fflags);
+		CP(kevp[i], ks_c[i], data);
+
+		/*
+		 * ks_c[i].udata contains a struct chericap.
+		 * kevp[i].udata is a pointer to a struct chericap
+		 */
+		cheri_capability_load(CHERI_CR_CTEMP0, kevp[i].udata);
+		cheri_capability_store(CHERI_CR_CTEMP0, &ks_c[i].udata);
 	}
-	error = copyout(ks32, uap->eventlist, count * sizeof *ks32);
+	error = copyoutcap(ks_c, uap->eventlist, count * sizeof(*ks_c));
 	if (error == 0)
 		uap->eventlist += count;
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 /*
@@ -354,31 +342,39 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 static int
 cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
-#if 0
-	struct freebsd32_kevent_args *uap;
-	struct kevent32	ks32[KQ_NEVENTS];
+	struct cheriabi_kevent_args *uap;
+	struct kevent_c	ks_c[KQ_NEVENTS];
 	int i, error = 0;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
-	uap = (struct freebsd32_kevent_args *)arg;
+	uap = (struct cheriabi_kevent_args *)arg;
 
-	error = copyin(uap->changelist, ks32, count * sizeof *ks32);
+	error = copyincap(uap->changelist, ks_c, count * sizeof *ks_c);
 	if (error)
 		goto done;
 	uap->changelist += count;
 
 	for (i = 0; i < count; i++) {
-		CP(ks32[i], kevp[i], ident);
-		CP(ks32[i], kevp[i], filter);
-		CP(ks32[i], kevp[i], flags);
-		CP(ks32[i], kevp[i], fflags);
-		CP(ks32[i], kevp[i], data);
-		PTRIN_CP(ks32[i], kevp[i], udata);
+		CP(ks_c[i], kevp[i], ident);
+		CP(ks_c[i], kevp[i], filter);
+		CP(ks_c[i], kevp[i], flags);
+		CP(ks_c[i], kevp[i], fflags);
+		CP(ks_c[i], kevp[i], data);
+
+		if (ks_c[i].flags & EV_DELETE)
+			continue;
+		/*
+		 * ks_c[i].udata contains a struct chericap.
+		 * kevp[i].udata is a pointer to a struct chericap
+		 */
+		kevp[i].udata = malloc(sizeof(struct chericap), M_KQUEUE,
+		    M_WAITOK);
+		kevp[i].flags |= EV_FREEUDATA;
+		cheri_capability_load(CHERI_CR_CTEMP0, &ks_c[i].udata);
+		cheri_capability_store(CHERI_CR_CTEMP0, kevp[i].udata);
 	}
 done:
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 int
@@ -406,8 +402,7 @@ cheriabi_kevent(struct thread *td, struct cheriabi_kevent_args *uap)
 static int
 cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 {
-#if 0
-	struct iovec32 iov32;
+	struct iovec_c iov_c;
 	struct iovec *iov;
 	struct uio *uio;
 	u_int iovlen;
@@ -417,16 +412,16 @@ cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 	if (iovcnt > UIO_MAXIOV)
 		return (EINVAL);
 	iovlen = iovcnt * sizeof(struct iovec);
-	uio = malloc(iovlen + sizeof *uio, M_IOV, M_WAITOK);
+	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
 	iov = (struct iovec *)(uio + 1);
 	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
+		error = copyincap(&iovp[i], &iov_c, sizeof(struct iovec_c));
 		if (error) {
 			free(uio, M_IOV);
 			return (error);
 		}
-		iov[i].iov_base = PTRIN(iov32.iov_base);
-		iov[i].iov_len = iov32.iov_len;
+		iov[i].iov_base = PTRIN(iov_c.iov_base);
+		iov[i].iov_len = iov_c.iov_len;
 	}
 	uio->uio_iov = iov;
 	uio->uio_iovcnt = iovcnt;
@@ -443,8 +438,6 @@ cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 	}
 	*uiop = uio;
 	return (0);
-#endif
-	return(EINVAL);
 }
 
 int
@@ -507,8 +500,7 @@ int
 cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
     int error)
 {
-#if 0
-	struct iovec32 iov32;
+	struct iovec_c iov_c;
 	struct iovec *iov;
 	u_int iovlen;
 	int i;
@@ -519,148 +511,58 @@ cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
 	iovlen = iovcnt * sizeof(struct iovec);
 	iov = malloc(iovlen, M_IOV, M_WAITOK);
 	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp32[i], &iov32, sizeof(struct iovec32));
+		error = copyincap(&iovp_c[i], &iov_c, sizeof(struct iovec_c));
 		if (error) {
 			free(iov, M_IOV);
 			return (error);
 		}
-		iov[i].iov_base = PTRIN(iov32.iov_base);
-		iov[i].iov_len = iov32.iov_len;
+		iov[i].iov_base = PTRIN(iov_c.iov_base);
+		iov[i].iov_len = iov_c.iov_len;
 	}
 	*iovp = iov;
 	return (0);
-#endif
-	return (EINVAL);
 }
 
-#if 0
 static int
-freebsd32_copyinmsghdr(struct msghdr32 *msg32, struct msghdr *msg)
+cheriabi_copyinmsghdr(struct msghdr_c *msg_cp, struct msghdr *msg)
 {
-	struct msghdr32 m32;
+	struct msghdr_c msg_c;
 	int error;
 
-	error = copyin(msg32, &m32, sizeof(m32));
+	error = copyincap(msg_cp, &msg_c, sizeof(msg_c));
 	if (error)
 		return (error);
-	msg->msg_name = PTRIN(m32.msg_name);
-	msg->msg_namelen = m32.msg_namelen;
-	msg->msg_iov = PTRIN(m32.msg_iov);
-	msg->msg_iovlen = m32.msg_iovlen;
-	msg->msg_control = PTRIN(m32.msg_control);
-	msg->msg_controllen = m32.msg_controllen;
-	msg->msg_flags = m32.msg_flags;
+	msg->msg_name = PTRIN(msg_c.msg_name);
+	msg->msg_namelen = msg_c.msg_namelen;
+	msg->msg_iov = PTRIN(msg_c.msg_iov);
+	msg->msg_iovlen = msg_c.msg_iovlen;
+	msg->msg_control = PTRIN(msg_c.msg_control);
+	msg->msg_controllen = msg_c.msg_controllen;
+	msg->msg_flags = msg_c.msg_flags;
 	return (0);
 }
 
 static int
-freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
+cheriabi_copyoutmsghdr(struct msghdr *msg, struct msghdr_c *msg_c)
 {
-	struct msghdr32 m32;
+	struct copy_map cm[3];
 	int error;
 
-	m32.msg_name = PTROUT(msg->msg_name);
-	m32.msg_namelen = msg->msg_namelen;
-	m32.msg_iov = PTROUT(msg->msg_iov);
-	m32.msg_iovlen = msg->msg_iovlen;
-	m32.msg_control = PTROUT(msg->msg_control);
-	m32.msg_controllen = msg->msg_controllen;
-	m32.msg_flags = msg->msg_flags;
-	error = copyout(&m32, msg32, sizeof(m32));
+	cm[0].koffset = offsetof(struct msghdr, msg_namelen);
+	cm[0].uoffset = offsetof(struct msghdr_c, msg_namelen);
+	cm[0].len = sizeof(msg_c->msg_namelen);
+	cm[1].koffset = offsetof(struct msghdr, msg_iovlen);
+	cm[1].uoffset = offsetof(struct msghdr_c, msg_iovlen);
+	cm[1].len = sizeof(msg_c->msg_iovlen);
+	/* Copy out msg_controllen and msg_flags */
+	cm[2].koffset = offsetof(struct msghdr, msg_controllen);
+	cm[2].uoffset = offsetof(struct msghdr_c, msg_controllen);
+	cm[2].len = sizeof(struct msghdr_c) -
+	    offsetof(struct msghdr_c, msg_controllen);
+
+	error = copyout_part(msg, msg_c, cm, 3);
 	return (error);
 }
-
-#define	FREEBSD32_CMSG_DATA(cmsg)	((unsigned char *)(cmsg) + \
-				 FREEBSD32_ALIGN(sizeof(struct cmsghdr)))
-static int
-freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
-{
-	struct cmsghdr *cm;
-	void *data;
-	socklen_t clen, datalen;
-	int error;
-	caddr_t ctlbuf;
-	int len, maxlen, copylen;
-	struct mbuf *m;
-	error = 0;
-
-	len    = msg->msg_controllen;
-	maxlen = msg->msg_controllen;
-	msg->msg_controllen = 0;
-
-	m = control;
-	ctlbuf = msg->msg_control;
-      
-	while (m && len > 0) {
-		cm = mtod(m, struct cmsghdr *);
-		clen = m->m_len;
-
-		while (cm != NULL) {
-
-			if (sizeof(struct cmsghdr) > clen ||
-			    cm->cmsg_len > clen) {
-				error = EINVAL;
-				break;
-			}	
-
-			data   = CMSG_DATA(cm);
-			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
-
-			/* Adjust message length */
-			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
-			    datalen;
-
-
-			/* Copy cmsghdr */
-			copylen = sizeof(struct cmsghdr);
-			if (len < copylen) {
-				msg->msg_flags |= MSG_CTRUNC;
-				copylen = len;
-			}
-
-			error = copyout(cm,ctlbuf,copylen);
-			if (error)
-				goto exit;
-
-			ctlbuf += FREEBSD32_ALIGN(copylen);
-			len    -= FREEBSD32_ALIGN(copylen);
-
-			if (len <= 0)
-				break;
-
-			/* Copy data */
-			copylen = datalen;
-			if (len < copylen) {
-				msg->msg_flags |= MSG_CTRUNC;
-				copylen = len;
-			}
-
-			error = copyout(data,ctlbuf,copylen);
-			if (error)
-				goto exit;
-
-			ctlbuf += FREEBSD32_ALIGN(copylen);
-			len    -= FREEBSD32_ALIGN(copylen);
-
-			if (CMSG_SPACE(datalen) < clen) {
-				clen -= CMSG_SPACE(datalen);
-				cm = (struct cmsghdr *)
-					((caddr_t)cm + CMSG_SPACE(datalen));
-			} else {
-				clen = 0;
-				cm = NULL;
-			}
-		}	
-		m = m->m_next;
-	}
-
-	msg->msg_controllen = (len <= 0) ? maxlen :  ctlbuf - (caddr_t)msg->msg_control;
-	
-exit:
-	return (error);
-
-}
-#endif
 
 int
 cheriabi_recvmsg(struct thread *td,
@@ -670,21 +572,18 @@ cheriabi_recvmsg(struct thread *td,
 		int	flags;
 	} */ *uap)
 {
-#if 0
 	struct msghdr msg;
-	struct msghdr32 m32;
+	struct msghdr_c msg_c;
 	struct iovec *uiov, *iov;
-	struct mbuf *control = NULL;
-	struct mbuf **controlp;
 
 	int error;
-	error = copyin(uap->msg, &m32, sizeof(m32));
+	error = copyin(uap->msg, &msg_c, sizeof(msg_c));
 	if (error)
 		return (error);
-	error = freebsd32_copyinmsghdr(uap->msg, &msg);
+	error = cheriabi_copyinmsghdr(uap->msg, &msg);
 	if (error)
 		return (error);
-	error = freebsd32_copyiniov(PTRIN(m32.msg_iov), m32.msg_iovlen, &iov,
+	error = cheriabi_copyiniov(PTRIN(msg_c.msg_iov), msg_c.msg_iovlen, &iov,
 	    EMSGSIZE);
 	if (error)
 		return (error);
@@ -692,135 +591,39 @@ cheriabi_recvmsg(struct thread *td,
 	uiov = msg.msg_iov;
 	msg.msg_iov = iov;
 
-	controlp = (msg.msg_control != NULL) ?  &control : NULL;
-	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, controlp);
+	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, NULL);
 	if (error == 0) {
 		msg.msg_iov = uiov;
 		
-		if (control != NULL)
-			error = freebsd32_copy_msg_out(&msg, control);
-		else
-			msg.msg_controllen = 0;
-		
-		if (error == 0)
-			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
+		/*
+		 * Message contents have already been copied out, update
+		 * lengths.
+		 */
+		error = cheriabi_copyoutmsghdr(&msg, uap->msg);
 	}
 	free(iov, M_IOV);
 
-	if (control != NULL)
-		m_freem(control);
-
-	return (error);
-#endif
-	return (EINVAL);
-}
-
-#if 0
-/*
- * Copy-in the array of control messages constructed using alignment
- * and padding suitable for a 32-bit environment and construct an
- * mbuf using alignment and padding suitable for a 64-bit kernel.
- * The alignment and padding are defined indirectly by CMSG_DATA(),
- * CMSG_SPACE() and CMSG_LEN().
- */
-static int
-freebsd32_copyin_control(struct mbuf **mp, caddr_t buf, u_int buflen)
-{
-	struct mbuf *m;
-	void *md;
-	u_int idx, len, msglen;
-	int error;
-
-	buflen = FREEBSD32_ALIGN(buflen);
-
-	if (buflen > MCLBYTES)
-		return (EINVAL);
-
-	/*
-	 * Iterate over the buffer and get the length of each message
-	 * in there. This has 32-bit alignment and padding. Use it to
-	 * determine the length of these messages when using 64-bit
-	 * alignment and padding.
-	 */
-	idx = 0;
-	len = 0;
-	while (idx < buflen) {
-		error = copyin(buf + idx, &msglen, sizeof(msglen));
-		if (error)
-			return (error);
-		if (msglen < sizeof(struct cmsghdr))
-			return (EINVAL);
-		msglen = FREEBSD32_ALIGN(msglen);
-		if (idx + msglen > buflen)
-			return (EINVAL);
-		idx += msglen;
-		msglen += CMSG_ALIGN(sizeof(struct cmsghdr)) -
-		    FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-		len += CMSG_ALIGN(msglen);
-	}
-
-	if (len > MCLBYTES)
-		return (EINVAL);
-
-	m = m_get(M_WAITOK, MT_CONTROL);
-	if (len > MLEN)
-		MCLGET(m, M_WAITOK);
-	m->m_len = len;
-
-	md = mtod(m, void *);
-	while (buflen > 0) {
-		error = copyin(buf, md, sizeof(struct cmsghdr));
-		if (error)
-			break;
-		msglen = *(u_int *)md;
-		msglen = FREEBSD32_ALIGN(msglen);
-
-		/* Modify the message length to account for alignment. */
-		*(u_int *)md = msglen + CMSG_ALIGN(sizeof(struct cmsghdr)) -
-		    FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-
-		md = (char *)md + CMSG_ALIGN(sizeof(struct cmsghdr));
-		buf += FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-		buflen -= FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-
-		msglen -= FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-		if (msglen > 0) {
-			error = copyin(buf, md, msglen);
-			if (error)
-				break;
-			md = (char *)md + CMSG_ALIGN(msglen);
-			buf += msglen;
-			buflen -= msglen;
-		}
-	}
-
-	if (error)
-		m_free(m);
-	else
-		*mp = m;
 	return (error);
 }
-#endif
 
 int
 cheriabi_sendmsg(struct thread *td,
 		  struct cheriabi_sendmsg_args *uap)
 {
-#if 0
 	struct msghdr msg;
-	struct msghdr32 m32;
+	struct msghdr_c msg_c;
 	struct iovec *iov;
 	struct mbuf *control = NULL;
 	struct sockaddr *to = NULL;
 	int error;
 
-	error = copyin(uap->msg, &m32, sizeof(m32));
+	error = copyincap(uap->msg, &msg_c, sizeof(msg_c));
 	if (error)
 		return (error);
-	error = freebsd32_copyinmsghdr(uap->msg, &msg);
+	error = cheriabi_copyinmsghdr(uap->msg, &msg);
 	if (error)
 		return (error);
-	error = freebsd32_copyiniov(PTRIN(m32.msg_iov), m32.msg_iovlen, &iov,
+	error = cheriabi_copyiniov(PTRIN(msg_c.msg_iov), msg_c.msg_iovlen, &iov,
 	    EMSGSIZE);
 	if (error)
 		return (error);
@@ -840,11 +643,22 @@ cheriabi_sendmsg(struct thread *td,
 			goto out;
 		}
 
-		error = freebsd32_copyin_control(&control, msg.msg_control,
-		    msg.msg_controllen);
+		/*
+		 * Control messages are currently assumed to be free of
+		 * capabilities.  One could imagine passing capabilities
+		 * (most likely sealed) to another socket with the
+		 * expectation of receiving them back once some work is
+		 * performed, but that would be harder to implement and
+		 * easy to get wrong.  Lots of code likely assumes 64-bit
+		 * alignment of mbufs is sufficent as well.
+		 */
+		/* XXX: No support for COMPAT_OLDSOCK path */
+		error = sockargs(&control, msg.msg_control, msg.msg_controllen,
+		    MT_CONTROL);
 		if (error)
 			goto out;
 
+		/* XXXBD: sys_sendmsg doesn't do this */
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
 	}
@@ -857,42 +671,7 @@ out:
 	if (to)
 		free(to, M_SONAME);
 	return (error);
-#endif
-	return (EINVAL);
 }
-
-#if 0
-int
-freebsd32_recvfrom(struct thread *td,
-		   struct freebsd32_recvfrom_args *uap)
-{
-	struct msghdr msg;
-	struct iovec aiov;
-	int error;
-
-	if (uap->fromlenaddr) {
-		error = copyin(PTRIN(uap->fromlenaddr), &msg.msg_namelen,
-		    sizeof(msg.msg_namelen));
-		if (error)
-			return (error);
-	} else {
-		msg.msg_namelen = 0;
-	}
-
-	msg.msg_name = PTRIN(uap->from);
-	msg.msg_iov = &aiov;
-	msg.msg_iovlen = 1;
-	aiov.iov_base = PTRIN(uap->buf);
-	aiov.iov_len = uap->len;
-	msg.msg_control = NULL;
-	msg.msg_flags = uap->flags;
-	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, NULL);
-	if (error == 0 && uap->fromlenaddr)
-		error = copyout(&msg.msg_namelen, PTRIN(uap->fromlenaddr),
-		    sizeof (msg.msg_namelen));
-	return (error);
-}
-#endif
 
 struct sf_hdtr_c {
 	struct chericap headers;
@@ -905,42 +684,41 @@ static int
 cheriabi_do_sendfile(struct thread *td,
     struct cheriabi_sendfile_args *uap, int compat)
 {
-#if 0
-	struct sf_hdtr32 hdtr32;
+	struct sf_hdtr_c hdtr_c;
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
 	struct file *fp;
 	cap_rights_t rights;
-	struct iovec32 *iov32;
+	struct iovec_c *iov_cp;
 	off_t offset, sbytes;
 	int error;
 
-	offset = PAIR32TO64(off_t, uap->offset);
+	offset = uap->offset;
 	if (offset < 0)
 		return (EINVAL);
 
 	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
-		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
+		error = copyincap(uap->hdtr, &hdtr_c, sizeof(hdtr_c));
 		if (error)
 			goto out;
-		PTRIN_CP(hdtr32, hdtr, headers);
-		CP(hdtr32, hdtr, hdr_cnt);
-		PTRIN_CP(hdtr32, hdtr, trailers);
-		CP(hdtr32, hdtr, trl_cnt);
+		PTRIN_CP(hdtr_c, hdtr, headers);
+		CP(hdtr_c, hdtr, hdr_cnt);
+		PTRIN_CP(hdtr_c, hdtr, trailers);
+		CP(hdtr_c, hdtr, trl_cnt);
 
 		if (hdtr.headers != NULL) {
-			iov32 = PTRIN(hdtr32.headers);
-			error = freebsd32_copyinuio(iov32,
-			    hdtr32.hdr_cnt, &hdr_uio);
+			iov_cp = PTRIN(hdtr_c.headers);
+			error = cheriabi_copyinuio(iov_cp,
+			    hdtr.hdr_cnt, &hdr_uio);
 			if (error)
 				goto out;
 		}
 		if (hdtr.trailers != NULL) {
-			iov32 = PTRIN(hdtr32.trailers);
-			error = freebsd32_copyinuio(iov32,
-			    hdtr32.trl_cnt, &trl_uio);
+			iov_cp = PTRIN(hdtr_c.trailers);
+			error = cheriabi_copyinuio(iov_cp,
+			    hdtr.trl_cnt, &trl_uio);
 			if (error)
 				goto out;
 		}
@@ -965,8 +743,6 @@ out:
 	if (trl_uio)
 		free(trl_uio, M_IOV);
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 int
@@ -979,7 +755,6 @@ cheriabi_sendfile(struct thread *td, struct cheriabi_sendfile_args *uap)
 int
 cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 {
-#if 0
 	uint32_t version;
 	int error;
 	struct jail j;
@@ -990,44 +765,26 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 
 	switch (version) {
 	case 0:
-	{
-		/* FreeBSD single IPv4 jails. */
-		struct jail32_v0 j32_v0;
-
-		bzero(&j, sizeof(struct jail));
-		error = copyin(uap->jail, &j32_v0, sizeof(struct jail32_v0));
-		if (error)
-			return (error);
-		CP(j32_v0, j, version);
-		PTRIN_CP(j32_v0, j, path);
-		PTRIN_CP(j32_v0, j, hostname);
-		j.ip4s = htonl(j32_v0.ip_number);	/* jail_v0 is host order */
-		break;
-	}
-
 	case 1:
-		/*
-		 * Version 1 was used by multi-IPv4 jail implementations
-		 * that never made it into the official kernel.
-		 */
+		/* These were never supported for CHERI */
 		return (EINVAL);
 
 	case 2:	/* JAIL_API_VERSION */
 	{
 		/* FreeBSD multi-IPv4/IPv6,noIP jails. */
-		struct jail32 j32;
+		struct jail_c j_c;
 
-		error = copyin(uap->jail, &j32, sizeof(struct jail32));
+		error = copyincap(uap->jail, &j_c, sizeof(j_c));
 		if (error)
 			return (error);
-		CP(j32, j, version);
-		PTRIN_CP(j32, j, path);
-		PTRIN_CP(j32, j, hostname);
-		PTRIN_CP(j32, j, jailname);
-		CP(j32, j, ip4s);
-		CP(j32, j, ip6s);
-		PTRIN_CP(j32, j, ip4);
-		PTRIN_CP(j32, j, ip6);
+		CP(j_c, j, version);
+		PTRIN_CP(j_c, j, path);
+		PTRIN_CP(j_c, j, hostname);
+		PTRIN_CP(j_c, j, jailname);
+		CP(j_c, j, ip4s);
+		CP(j_c, j, ip6s);
+		PTRIN_CP(j_c, j, ip4);
+		PTRIN_CP(j_c, j, ip6);
 		break;
 	}
 
@@ -1036,14 +793,11 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		return (EINVAL);
 	}
 	return (kern_jail(td, &j));
-#endif
-	return (ENOSYS);
 }
 
 int
 cheriabi_jail_set(struct thread *td, struct cheriabi_jail_set_args *uap)
 {
-#if 0
 	struct uio *auio;
 	int error;
 
@@ -1051,21 +805,17 @@ cheriabi_jail_set(struct thread *td, struct cheriabi_jail_set_args *uap)
 	if (uap->iovcnt & 1)
 		return (EINVAL);
 
-	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = cheriabi_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_jail_set(td, auio, uap->flags);
 	free(auio, M_IOV);
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 int
 cheriabi_jail_get(struct thread *td, struct cheriabi_jail_get_args *uap)
 {
-#if 0
-	struct iovec32 iov32;
 	struct uio *auio;
 	int error, i;
 
@@ -1073,22 +823,28 @@ cheriabi_jail_get(struct thread *td, struct cheriabi_jail_get_args *uap)
 	if (uap->iovcnt & 1)
 		return (EINVAL);
 
-	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = cheriabi_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_jail_get(td, auio, uap->flags);
 	if (error == 0)
 		for (i = 0; i < uap->iovcnt; i++) {
-			PTROUT_CP(auio->uio_iov[i], iov32, iov_base);
-			CP(auio->uio_iov[i], iov32, iov_len);
-			error = copyout(&iov32, uap->iovp + i, sizeof(iov32));
+			/*
+			 * Copyout the length of data previously copied
+			 * to userspace by kern_jail_get.  Do not touch the
+			 * capabilities as we have no way to reconstruct
+			 * the correct values short of pulling them from
+			 * userspace again.
+			 */
+			error = copyout(&auio->uio_iov[i].iov_len,
+			    ((char *)uap->iovp + i) +
+			     offsetof(struct iovec_c, iov_len),
+			    sizeof(auio->uio_iov[i].iov_len));
 			if (error != 0)
 				break;
 		}
 	free(auio, M_IOV);
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 struct sigvec_c {
@@ -1105,8 +861,7 @@ struct sigstack32 {
 int cheriabi_ktimer_create(struct thread *td,
     struct cheriabi_ktimer_create_args *uap)
 {
-#if 0
-	struct sigevent32 ev32;
+	struct sigevent_c ev_c;
 	struct sigevent ev, *evp;
 	int error, id;
 
@@ -1114,10 +869,10 @@ int cheriabi_ktimer_create(struct thread *td,
 		evp = NULL;
 	} else {
 		evp = &ev;
-		error = copyin(uap->evp, &ev32, sizeof(ev32));
+		error = copyincap(uap->evp, &ev_c, sizeof(ev_c));
 		if (error != 0)
 			return (error);
-		error = convert_sigevent32(&ev32, &ev);
+		error = convert_sigevent_c(&ev_c, &ev);
 		if (error != 0)
 			return (error);
 	}
@@ -1128,50 +883,44 @@ int cheriabi_ktimer_create(struct thread *td,
 			kern_ktimer_delete(td, id);
 	}
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 int
 cheriabi_thr_new(struct thread *td,
 		  struct cheriabi_thr_new_args *uap)
 {
-#if 0
-	struct thr_param32 param32;
+	struct thr_param_c param_c;
 	struct thr_param param;
 	int error;
 
 	if (uap->param_size < 0 ||
-	    uap->param_size > sizeof(struct thr_param32))
+	    uap->param_size > sizeof(struct thr_param_c))
 		return (EINVAL);
-	bzero(&param, sizeof(struct thr_param));
-	bzero(&param32, sizeof(struct thr_param32));
-	error = copyin(uap->param, &param32, uap->param_size);
+	bzero(&param, sizeof(param));
+	bzero(&param_c, sizeof(param_c));
+	error = copyincap(uap->param, &param_c, uap->param_size);
 	if (error != 0)
 		return (error);
-	param.start_func = PTRIN(param32.start_func);
-	param.arg = PTRIN(param32.arg);
-	param.stack_base = PTRIN(param32.stack_base);
-	param.stack_size = param32.stack_size;
-	param.tls_base = PTRIN(param32.tls_base);
-	param.tls_size = param32.tls_size;
-	param.child_tid = PTRIN(param32.child_tid);
-	param.parent_tid = PTRIN(param32.parent_tid);
-	param.flags = param32.flags;
-	param.rtp = PTRIN(param32.rtp);
-	param.spare[0] = PTRIN(param32.spare[0]);
-	param.spare[1] = PTRIN(param32.spare[1]);
-	param.spare[2] = PTRIN(param32.spare[2]);
+	param.start_func = (void *)param_c.start_func;	/* Bogus cast */
+	param.arg = PTRIN(param_c.arg);
+	param.stack_base = PTRIN(param_c.stack_base);
+	param.stack_size = param_c.stack_size;
+	param.tls_base = PTRIN(param_c.tls_base);
+	param.tls_size = param_c.tls_size;
+	param.child_tid = PTRIN(param_c.child_tid);
+	param.parent_tid = PTRIN(param_c.parent_tid);
+	param.flags = param_c.flags;
+	param.rtp = PTRIN(param_c.rtp);
+	param.spare[0] = PTRIN(param_c.spare[0]);
+	param.spare[1] = PTRIN(param_c.spare[1]);
+	param.spare[2] = PTRIN(param_c.spare[2]);
 
 	return (kern_thr_new(td, &param));
-#endif
-	return (ENOSYS);
 }
 
 void
 siginfo_to_siginfo_c(const siginfo_t *src, struct siginfo_c *dst)
 {
-#if 0
 	bzero(dst, sizeof(*dst));
 	dst->si_signo = src->si_signo;
 	dst->si_errno = src->si_errno;
@@ -1179,33 +928,27 @@ siginfo_to_siginfo_c(const siginfo_t *src, struct siginfo_c *dst)
 	dst->si_pid = src->si_pid;
 	dst->si_uid = src->si_uid;
 	dst->si_status = src->si_status;
-	/* XXXBD: pcc relative? */
-	/* XXX: use or void * is a POSIX bug */
+	/* XXX: Should be pcc relative.  Code assumes pcc is default ddc */
 	dst->si_addr = (uintptr_t)src->si_addr;
 	dst->si_value.sival_int = src->si_value.sival_int;
 	dst->si_timerid = src->si_timerid;
 	dst->si_overrun = src->si_overrun;
-#endif
 }
 
 int
 cheriabi_sigtimedwait(struct thread *td, struct cheriabi_sigtimedwait_args *uap)
 {
-#if 0
-	struct timespec32 ts32;
 	struct timespec ts;
 	struct timespec *timeout;
 	sigset_t set;
 	ksiginfo_t ksi;
-	struct siginfo32 si32;
+	struct siginfo_c si_c;
 	int error;
 
 	if (uap->timeout) {
-		error = copyin(uap->timeout, &ts32, sizeof(ts32));
+		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return (error);
-		ts.tv_sec = ts32.tv_sec;
-		ts.tv_nsec = ts32.tv_nsec;
 		timeout = &ts;
 	} else
 		timeout = NULL;
@@ -1219,15 +962,13 @@ cheriabi_sigtimedwait(struct thread *td, struct cheriabi_sigtimedwait_args *uap)
 		return (error);
 
 	if (uap->info) {
-		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
-		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
+		siginfo_to_siginfo_c(&ksi.ksi_info, &si_c);
+		error = copyout(&si_c, uap->info, sizeof(struct siginfo_c));
 	}
 
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 /*
@@ -1236,9 +977,8 @@ cheriabi_sigtimedwait(struct thread *td, struct cheriabi_sigtimedwait_args *uap)
 int
 cheriabi_sigwaitinfo(struct thread *td, struct cheriabi_sigwaitinfo_args *uap)
 {
-#if 0
 	ksiginfo_t ksi;
-	struct siginfo32 si32;
+	struct siginfo_c si_c;
 	sigset_t set;
 	int error;
 
@@ -1251,14 +991,12 @@ cheriabi_sigwaitinfo(struct thread *td, struct cheriabi_sigwaitinfo_args *uap)
 		return (error);
 
 	if (uap->info) {
-		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
-		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
+		siginfo_to_siginfo_c(&ksi.ksi_info, &si_c);
+		error = copyout(&si_c, uap->info, sizeof(struct siginfo_c));
 	}	
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
 	return (error);
-#endif
-	return (ENOSYS);
 }
 
 int
@@ -1269,7 +1007,6 @@ cheriabi_nmount(struct thread *td,
     	int flags;
     } */ *uap)
 {
-#if 0
 	struct uio *auio;
 	uint64_t flags;
 	int error;
@@ -1299,15 +1036,13 @@ cheriabi_nmount(struct thread *td,
 	if ((uap->iovcnt & 1) || (uap->iovcnt < 4))
 		return (EINVAL);
 
-	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = cheriabi_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = vfs_donmount(td, flags, auio);
 
 	free(auio, M_IOV);
-	return error;
-#endif
-	return (ENOSYS);
+	return (error);
 }
 
 #if 0
@@ -1338,21 +1073,29 @@ syscallcheri_helper_unregister(struct syscall_helper_data *sd)
 }
 #endif
 
+#define sucap(uaddr, base, length)					\
+	do {								\
+		struct chericap	_tmpcap;				\
+		cheri_capability_set(&_tmpcap, CHERI_CAP_USER_PERMS,	\
+		    NULL, (base), (length), 0);				\
+		copyoutcap(&tmpcap, vectp++, sizeof(tmpcap));		\
+	} while(0)
+
 register_t *
 cheriabi_copyout_strings(struct image_params *imgp)
 {
-#if 0
-	int argc, envc, i;
-	u_int32_t *vectp;
+	int argc, envc;
+	struct chericap *vectp;
 	char *stringp;
 	uintptr_t destp;
-	u_int32_t *stack_base;
-	struct freebsd32_ps_strings *arginfo;
+	struct chericap *stack_base;
+	struct cheriabi_ps_strings *arginfo;
 	char canary[sizeof(long) * 8];
-	int32_t pagesizes32[MAXPAGESIZES];
 	size_t execpath_len;
-	int szsigcode;
+	int szsigcode, szps;
+	struct chericap tmpcap;
 
+	szps = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
@@ -1361,8 +1104,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
 		execpath_len = 0;
-	arginfo = (struct freebsd32_ps_strings *)curproc->p_sysent->
-	    sv_psstrings;
+	arginfo = (struct cheriabi_ps_strings *)curproc->p_sysent->sv_psstrings;
 	if (imgp->proc->p_sysent->sv_sigcode_base == 0)
 		szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	else
@@ -1374,7 +1116,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 */
 	if (szsigcode != 0) {
 		destp -= szsigcode;
-		destp = rounddown2(destp, sizeof(uint32_t));
+		destp = rounddown2(destp, sizeof(struct chericap));
 		copyout(imgp->proc->p_sysent->sv_sigcode, (void *)destp,
 		    szsigcode);
 	}
@@ -1400,16 +1142,14 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Prepare the pagesizes array.
 	 */
-	for (i = 0; i < MAXPAGESIZES; i++)
-		pagesizes32[i] = (uint32_t)pagesizes[i];
-	destp -= sizeof(pagesizes32);
-	destp = rounddown2(destp, sizeof(uint32_t));
+	destp -= szps;
+	destp = rounddown2(destp, sizeof(struct chericap));
 	imgp->pagesizes = destp;
-	copyout(pagesizes32, (void *)destp, sizeof(pagesizes32));
-	imgp->pagesizeslen = sizeof(pagesizes32);
+	copyout(pagesizes, (void *)destp, szps);
+	imgp->pagesizeslen = szps;
 
 	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(uint32_t));
+	destp = rounddown2(destp, sizeof(struct chericap));
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -1427,16 +1167,16 @@ cheriabi_copyout_strings(struct image_params *imgp)
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (u_int32_t *) (destp - (imgp->args->argc +
+		vectp = (struct chericap *) (destp - (imgp->args->argc +
 		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
-		    sizeof(u_int32_t));
+		    sizeof(struct chericap));
 	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
-		vectp = (u_int32_t *)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2) * sizeof(u_int32_t));
+		vectp = (struct chericap *)(destp - (imgp->args->argc +
+		    imgp->args->envc + 2) * sizeof(struct chericap));
 	}
 
 	/*
@@ -1455,68 +1195,73 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
+	sucap(&arginfo->ps_argvstr, vectp,
+	    arginfo->ps_nargvstr * sizeof(struct chericap));
 	suword32(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		sucap(vectp++, (void *)destp, strlen(stringp) + 1);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
-	suword32(vectp++, 0);
+	/* XXX: suword clears the tag */
+	suword(vectp++, 0);
 
-	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
+	sucap(&arginfo->ps_envstr, vectp,
+	    arginfo->ps_nenvstr * sizeof(struct chericap));
 	suword32(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		sucap(vectp++, (void *)destp, strlen(stringp) + 1);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* end of vector table is a null pointer */
-	suword32(vectp, 0);
+	/* XXX: suword clears the tag */
+	suword(vectp, 0);
 
 	return ((register_t *)stack_base);
-#endif
-	return(NULL);
 }
 
 int
 convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 {
-#if 0
 
-	CP(*sig32, *sig, sigev_notify);
+	CP(*sig_c, *sig, sigev_notify);
+	/*
+	 * XXXBD: not all members of the union are covered.
+	 * since (unlike freebsd32) the union should be the same size,
+	 * it might make more sense to copyincap the whole amount of
+	 * storage.
+	 */
 	switch (sig->sigev_notify) {
 	case SIGEV_NONE:
 		break;
 	case SIGEV_THREAD_ID:
-		CP(*sig32, *sig, sigev_notify_thread_id);
+		CP(*sig_c, *sig, sigev_notify_thread_id);
 		/* FALLTHROUGH */
 	case SIGEV_SIGNAL:
-		CP(*sig32, *sig, sigev_signo);
-		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
+		CP(*sig_c, *sig, sigev_signo);
+		PTRIN_CP(*sig_c, *sig, sigev_value.sival_ptr);
 		break;
 	case SIGEV_KEVENT:
-		CP(*sig32, *sig, sigev_notify_kqueue);
-		CP(*sig32, *sig, sigev_notify_kevent_flags);
-		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
+		CP(*sig_c, *sig, sigev_notify_kqueue);
+		CP(*sig_c, *sig, sigev_notify_kevent_flags);
+		PTRIN_CP(*sig_c, *sig, sigev_value.sival_ptr);
 		break;
 	default:
 		return (EINVAL);
 	}
 	return (0);
-#endif
-	return (EINVAL);
 }

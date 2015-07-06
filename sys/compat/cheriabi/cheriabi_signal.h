@@ -2,13 +2,22 @@
 #ifndef _COMPAT_CHERIABI_CHERIABI_SIGNAL_H_
 #define _COMPAT_CHERIABI_CHERIABI_SIGNAL_H_
 
+union sigval_c {
+	int			sival_int;
+	struct chericap		sival_ptr;
+	/* XXX: no 6.0 compatibility (sigval_*) */
+};
+
 struct siginfo_c {
 	int		si_signo;
 	int		si_errno;
 	int		si_code;
+	__pid_t		si_pid;
+	__uid_t		si_uid;
+	int		si_status;
 	uintptr_t	si_addr;	/* PCC relative offset of faulting */
 					/* instruction */
-	union sigval	si_value;
+	union sigval_c	si_value;
 	union   {
 		struct {
 			int     _trapno;	/* machine specific trap code */
@@ -33,7 +42,7 @@ struct siginfo_c {
 struct sigevent_c {
 	int	sigev_notify;
 	int	sigev_signo;
-	union sigval sigev_value;
+	union sigval_c sigev_value;
 	union {
 		__lwpid_t	_threadid;
 		struct {

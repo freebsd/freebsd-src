@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-static MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
+MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
 
 /*
  * This lock is used if multiple kq locks are required.  This possibly
@@ -510,10 +510,21 @@ knote_fork(struct knlist *list, int pid)
 		kev.flags = kn->kn_flags | EV_ADD | EV_ENABLE | EV_FLAG1;
 		kev.fflags = kn->kn_sfflags;
 		kev.data = kn->kn_id;		/* parent */
-		kev.udata = kn->kn_kevent.udata;/* preserve udata */
+		/* preserve udata */
+		if (kn->kn_flags & EV_FREEUDATA) {
+			kev.udata = malloc(sizeof(struct chericap), M_KQUEUE,
+			    M_WAITOK);
+			cheri_capability_load(CHERI_CR_CTEMP0,
+			    kn->kn_kevent.udata);
+			cheri_capability_store(CHERI_CR_CTEMP0, kev.udata);
+		} else
+			kev.udata = kn->kn_kevent.udata;
 		error = kqueue_register(kq, &kev, NULL, 0);
-		if (error)
+		if (error) {
 			kn->kn_fflags |= NOTE_TRACKERR;
+			if (kn->kn_flags & EV_FREEUDATA)
+				free(kev.udata, M_KQUEUE);
+		}
 		if (kn->kn_fop->f_event(kn, NOTE_FORK))
 			KNOTE_ACTIVATE(kn, 0);
 		KQ_LOCK(kq);
@@ -1222,6 +1233,8 @@ findkn:
 	kn->kn_status |= KN_INFLUX | KN_SCAN;
 	KQ_UNLOCK(kq);
 	KN_LIST_LOCK(kn);
+	if (kn->kn_kevent.flags & EV_FREEUDATA)
+		free(kn->kn_kevent.udata, M_KQUEUE);
 	kn->kn_kevent.udata = kev->udata;
 	if (!fops->f_isfd && fops->f_touch != NULL) {
 		fops->f_touch(kn, kev, EVENT_REGISTER);
@@ -2335,8 +2348,11 @@ knote_alloc(int waitok)
 static void
 knote_free(struct knote *kn)
 {
-	if (kn != NULL)
+	if (kn != NULL) {
+		if (kn->kn_kevent.flags & EV_FREEUDATA)
+			free(kn->kn_kevent.udata, M_KQUEUE);
 		uma_zfree(knote_zone, kn);
+	}
 }
 
 /*
