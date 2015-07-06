@@ -206,8 +206,7 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			rw_wunlock(&sc->lock);
 			return (ENOMEM);
 		}
-		ses->fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL |
-		    FPU_KERN_NOWAIT);
+		ses->fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NOWAIT);
 		if (ses->fpu_ctx == NULL) {
 			free(ses, M_AESNI);
 			rw_wunlock(&sc->lock);
