@@ -4261,12 +4261,10 @@ anynet_ntop(s6a, dst, dst_len)
 			return NULL;
 		dst += sz;
 		dst_len -= sz;
-# if IPV6_FULL
-		ap = sm_inet6_ntop(s6a, dst, dst_len);
-# else /* IPV6_FULL */
-		ap = (char *) inet_ntop(AF_INET6, s6a, dst, dst_len);
-# endif /* IPV6_FULL */
-
+		if (UseCompressedIPv6Addresses)
+			ap = (char *) inet_ntop(AF_INET6, s6a, dst, dst_len);
+		else
+			ap = sm_inet6_ntop(s6a, dst, dst_len);
 		/* Restore pointer to beginning of string */
 		if (ap != NULL)
 			ap = d;

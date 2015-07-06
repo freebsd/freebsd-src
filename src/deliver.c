@@ -6218,11 +6218,18 @@ starttls(m, mci, e)
 		}
 		return EX_SOFTWARE;
 	}
+	/* SSL_clear(clt_ssl); ? */
+
+	if (get_tls_se_options(e, clt_ssl, false) != 0)
+	{
+		sm_syslog(LOG_ERR, NOQID,
+			  "STARTTLS=client, get_tls_se_options=fail");
+		return EX_SOFTWARE;
+	}
 
 	rfd = sm_io_getinfo(mci->mci_in, SM_IO_WHAT_FD, NULL);
 	wfd = sm_io_getinfo(mci->mci_out, SM_IO_WHAT_FD, NULL);
 
-	/* SSL_clear(clt_ssl); ? */
 	if (rfd < 0 || wfd < 0 ||
 	    (result = SSL_set_rfd(clt_ssl, rfd)) != 1 ||
 	    (result = SSL_set_wfd(clt_ssl, wfd)) != 1)
@@ -6244,6 +6251,7 @@ ssl_retry:
 	if ((result = SSL_connect(clt_ssl)) <= 0)
 	{
 		int i, ssl_err;
+		int save_errno = errno;
 
 		ssl_err = SSL_get_error(clt_ssl, result);
 		i = tls_retry(clt_ssl, rfd, wfd, tlsstart,
@@ -6261,7 +6269,7 @@ ssl_retry:
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=client, error: connect failed=%d, reason=%s, SSL_error=%d, errno=%d, retry=%d",
 				  result, sr == NULL ? "unknown" : sr, ssl_err,
-				  errno, i);
+				  save_errno, i);
 			if (LogLevel > 9)
 				tlslogerr(LOG_WARNING, "client");
 		}

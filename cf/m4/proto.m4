@@ -326,6 +326,9 @@ _OPTION(SingleThreadDelivery, `confSINGLE_THREAD_DELIVERY', `False')
 # use Errors-To: header?
 _OPTION(UseErrorsTo, `confUSE_ERRORS_TO', `False')
 
+# use compressed IPv6 address format?
+_OPTION(UseCompressedIPv6Addresses, `confUSE_COMPRESSED_IPV6_ADDRESSES', `')
+
 # log level
 _OPTION(LogLevel, `confLOG_LEVEL', `10')
 
@@ -827,8 +830,8 @@ ifdef(`_NO_PERCENTHACK_', `dnl',
 `# if we have % signs, take the rightmost one
 R$* % $*		$1 @ $2				First make them all @s.
 R$* @ $* @ $*		$1 % $2 @ $3			Undo all but the last.
-R$* @ $*		$@ $>Canonify2 $1 < @ $2 >	Insert < > and finish
 ')
+R$* @ $*		$@ $>Canonify2 $1 < @ $2 >	Insert < > and finish
 
 # else we must be a local name
 R$*			$@ $>Canonify2 $1
@@ -1889,6 +1892,10 @@ R$* $| $*		$: $2
 R<@> < $* @ localhost >	$: < ? $&{client_name} > < $1 @ localhost >
 R<@> < $* @ [127.0.0.1] >
 			$: < ? $&{client_name} > < $1 @ [127.0.0.1] >
+R<@> < $* @ [IPv6:0:0:0:0:0:0:0:1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:0:0:0:0:0:0:0:1] >
+R<@> < $* @ [IPv6:::1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:::1] >
 R<@> < $* @ localhost.$m >
 			$: < ? $&{client_name} > < $1 @ localhost.$m >
 ifdef(`_NO_UUCP_', `dnl',
@@ -2248,6 +2255,8 @@ R$*			$: $&{client_addr}
 R$@			$@ RELAY		originated locally
 R0			$@ RELAY		originated locally
 R127.0.0.1		$@ RELAY		originated locally
+RIPv6:0:0:0:0:0:0:0:1	$@ RELAY		originated locally
+dnl if compiled with IPV6_FULL=0
 RIPv6:::1		$@ RELAY		originated locally
 R$=R $*			$@ RELAY		relayable IP address
 ifdef(`_ACCESS_TABLE_', `dnl
@@ -2919,6 +2928,26 @@ RTRUE:$-:$-	$: $2
 R$-:$-:$-	$: $2
 dnl endif _ACCESS_TABLE_
 divert(0)
+
+ifdef(`_TLS_SESSION_FEATURES_', `dnl
+Stls_srv_features
+ifdef(`_ACCESS_TABLE_', `dnl
+R$* $| $*		$: $>D <$1> <?> <! TLS_Srv_Features> <$2>
+R<?> <$*> 		$: $>A <$1> <?> <! TLS_Srv_Features> <$1>
+R<?> <$*> 		$@ ""
+R<$+> <$*> 		$@ $1
+', `dnl
+R$* 		$@ ""')
+
+Stls_clt_features
+ifdef(`_ACCESS_TABLE_', `dnl
+R$* $| $*		$: $>D <$1> <?> <! TLS_Clt_Features> <$2>
+R<?> <$*> 		$: $>A <$1> <?> <! TLS_Clt_Features> <$1>
+R<?> <$*> 		$@ ""
+R<$+> <$*> 		$@ $1
+', `dnl
+R$* 		$@ ""')
+')
 
 ######################################################################
 ###  RelayTLS: allow relaying based on TLS authentication

@@ -2978,6 +2978,12 @@ typedef void		(*sigfunc_t) __P((int));
 #  define SM_UINT16	uint16_t
 # endif /* ! SM_UINT16 */
 
+/* additional valid chars in user/group names in passwd */
+# ifndef SM_PWN_CHARS
+#  define SM_PWN_CHARS "-_."
+# endif
+
+
 /*
 **  SVr4 and similar systems use different routines for setjmp/longjmp
 **  with signal support

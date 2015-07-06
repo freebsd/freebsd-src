@@ -379,6 +379,9 @@ setdefaults(e)
 	}
 	else
 		InetMode = AF_INET;
+#if !IPV6_FULL
+	UseCompressedIPv6Addresses = true;
+#endif
 #else /* NETINET6 */
 	InetMode = AF_INET;
 #endif /* NETINET6 */
@@ -5756,7 +5759,7 @@ char	*CompileOptions[] =
 	"HES_GETMAILHOST",
 #endif
 #if IPV6_FULL
-	/* Use uncompressed IPv6 address format (no "::") */
+	/* Use uncompressed IPv6 address format (no "::") by default */
 	"IPV6_FULL",
 #endif
 #if LDAPMAP
@@ -6277,7 +6280,7 @@ char	*FFRCompileOptions[] =
 #if _FFR_HANDLE_ISO8859_GECOS
 	/*
 	**  Allow ISO 8859 characters in GECOS field: replace them
-	**  ith ASCII "equivalent".
+	**  with ASCII "equivalent".
 	*/
 
 /* Peter Eriksson of Linkopings universitet */
@@ -6549,6 +6552,10 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_TLS_USE_CERTIFICATE_CHAIN_FILE",
+#endif
+#if _FFR_TLS_SE_OPTS
+	/* TLS session options */
+	"_FFR_TLS_SE_OPTS",
 #endif
 #if _FFR_TRUSTED_QF
 	/*

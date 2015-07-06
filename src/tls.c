@@ -73,6 +73,62 @@ get_dh512()
 		return NULL;
 	return dh;
 }
+
+#  if 0
+
+This is the data from which the C code has been generated:
+
+-----BEGIN DH PARAMETERS-----
+MIIBCAKCAQEArDcgcLpxEksQHPlolRKCUJ2szKRziseWV9cUSQNZGxoGw7KkROz4
+HF9QSbg5axyNIG+QbZYtx0jp3l6/GWq1dLOj27yZkgYgaYgFrvKPiZ2jJ5xETQVH
+UpZwbjRcyjyWkWYJVsx1aF4F/iY4kT0n/+iGEoimI3C9V3KXTJ2S6jIkyJ6M/CrN
+EtrDynMlUMGlc7S1ouXVOTrtKeqy3S2L9eBLxVI+sChEijGIfELupdVeXihK006p
+MgnABPDbkTx6OOtYmSZaGQX+OLW2FPmwvcrzgCz9t9cAsuUcBZv1LeHEqZZttyLU
+oK0jjSXgFyeU4/NfyA+zuNeWzUL6bHmigwIBAg==
+-----END DH PARAMETERS-----
+#  endif /* 0 */
+
+static DH *
+get_dh2048()
+{
+	static unsigned char dh2048_p[]={
+		0xAC,0x37,0x20,0x70,0xBA,0x71,0x12,0x4B,0x10,0x1C,0xF9,0x68,
+		0x95,0x12,0x82,0x50,0x9D,0xAC,0xCC,0xA4,0x73,0x8A,0xC7,0x96,
+		0x57,0xD7,0x14,0x49,0x03,0x59,0x1B,0x1A,0x06,0xC3,0xB2,0xA4,
+		0x44,0xEC,0xF8,0x1C,0x5F,0x50,0x49,0xB8,0x39,0x6B,0x1C,0x8D,
+		0x20,0x6F,0x90,0x6D,0x96,0x2D,0xC7,0x48,0xE9,0xDE,0x5E,0xBF,
+		0x19,0x6A,0xB5,0x74,0xB3,0xA3,0xDB,0xBC,0x99,0x92,0x06,0x20,
+		0x69,0x88,0x05,0xAE,0xF2,0x8F,0x89,0x9D,0xA3,0x27,0x9C,0x44,
+		0x4D,0x05,0x47,0x52,0x96,0x70,0x6E,0x34,0x5C,0xCA,0x3C,0x96,
+		0x91,0x66,0x09,0x56,0xCC,0x75,0x68,0x5E,0x05,0xFE,0x26,0x38,
+		0x91,0x3D,0x27,0xFF,0xE8,0x86,0x12,0x88,0xA6,0x23,0x70,0xBD,
+		0x57,0x72,0x97,0x4C,0x9D,0x92,0xEA,0x32,0x24,0xC8,0x9E,0x8C,
+		0xFC,0x2A,0xCD,0x12,0xDA,0xC3,0xCA,0x73,0x25,0x50,0xC1,0xA5,
+		0x73,0xB4,0xB5,0xA2,0xE5,0xD5,0x39,0x3A,0xED,0x29,0xEA,0xB2,
+		0xDD,0x2D,0x8B,0xF5,0xE0,0x4B,0xC5,0x52,0x3E,0xB0,0x28,0x44,
+		0x8A,0x31,0x88,0x7C,0x42,0xEE,0xA5,0xD5,0x5E,0x5E,0x28,0x4A,
+		0xD3,0x4E,0xA9,0x32,0x09,0xC0,0x04,0xF0,0xDB,0x91,0x3C,0x7A,
+		0x38,0xEB,0x58,0x99,0x26,0x5A,0x19,0x05,0xFE,0x38,0xB5,0xB6,
+		0x14,0xF9,0xB0,0xBD,0xCA,0xF3,0x80,0x2C,0xFD,0xB7,0xD7,0x00,
+		0xB2,0xE5,0x1C,0x05,0x9B,0xF5,0x2D,0xE1,0xC4,0xA9,0x96,0x6D,
+		0xB7,0x22,0xD4,0xA0,0xAD,0x23,0x8D,0x25,0xE0,0x17,0x27,0x94,
+		0xE3,0xF3,0x5F,0xC8,0x0F,0xB3,0xB8,0xD7,0x96,0xCD,0x42,0xFA,
+		0x6C,0x79,0xA2,0x83,
+		};
+	static unsigned char dh2048_g[]={ 0x02, };
+	DH *dh;
+
+	if ((dh=DH_new()) == NULL)
+		return(NULL);
+	dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
+	dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+	if ((dh->p == NULL) || (dh->g == NULL))
+	{
+		DH_free(dh);
+		return(NULL);
+	}
+	return(dh);
+}
 # endif /* !NO_DH */
 
 
@@ -336,7 +392,7 @@ init_tls_library(fipsmode)
 **	Parameters:
 **		ctx -- TLS context
 **		ssl -- TLS structure
-**		vrfy -- require certificate?
+**		vrfy -- request certificate?
 **
 **	Returns:
 **		none.
@@ -522,6 +578,109 @@ tls_safe_f(var, sff, srv)
 			ok = false;	\
 	}
 
+# if _FFR_TLS_SE_OPTS
+/*
+**  LOAD_CERTKEY -- load cert/key for TLS session
+**
+**	Parameters:
+**		ssl -- TLS session context
+**		certfile -- filename of certificate
+**		keyfile -- filename of private key
+**
+**	Returns:
+**		succeeded?
+*/
+
+bool
+load_certkey(ssl, srv, certfile, keyfile)
+	SSL *ssl;
+	bool srv;
+	char *certfile;
+	char *keyfile;
+{
+	bool ok;
+	int r;
+	long sff, status;
+	unsigned long req;
+	char *who;
+
+	ok = true;
+	who = srv ? "server" : "client";
+	status = TLS_S_NONE;
+	req = TLS_I_CERT_EX|TLS_I_KEY_EX;
+	TLS_OK_F(certfile, "CertFile", bitset(TLS_I_CERT_EX, req),
+		 TLS_S_CERT_EX, srv ? TLS_T_SRV : TLS_T_CLT);
+	TLS_OK_F(keyfile, "KeyFile", bitset(TLS_I_KEY_EX, req),
+		 TLS_S_KEY_EX, srv ? TLS_T_SRV : TLS_T_CLT);
+
+	/* certfile etc. must be "safe". */
+	sff = SFF_REGONLY | SFF_SAFEDIRPATH | SFF_NOWLINK
+	     | SFF_NOGWFILES | SFF_NOWWFILES
+	     | SFF_MUSTOWN | SFF_ROOTOK | SFF_OPENASROOT;
+	if (DontLockReadFiles)
+		sff |= SFF_NOLOCK;
+
+	TLS_SAFE_F(certfile, sff | TLS_UNR(TLS_I_CERT_UNR, req),
+		   bitset(TLS_I_CERT_EX, req),
+		   bitset(TLS_S_CERT_EX, status), TLS_S_CERT_OK, srv);
+	TLS_SAFE_F(keyfile, sff | TLS_KEYSFF(req),
+		   bitset(TLS_I_KEY_EX, req),
+		   bitset(TLS_S_KEY_EX, status), TLS_S_KEY_OK, srv);
+
+# define SSL_use_cert(ssl, certfile) \
+	SSL_use_certificate_file(ssl, certfile, SSL_FILETYPE_PEM)
+# define SSL_USE_CERT "SSL_use_certificate_file"
+
+	if (bitset(TLS_S_CERT_OK, status) &&
+	    SSL_use_cert(ssl, certfile) <= 0)
+	{
+		if (LogLevel > 7)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: %s(%s) failed",
+				  who, SSL_USE_CERT, certfile);
+			if (LogLevel > 9)
+				tlslogerr(LOG_WARNING, who);
+		}
+		if (bitset(TLS_I_USE_CERT, req))
+			return false;
+	}
+	if (bitset(TLS_S_KEY_OK, status) &&
+	    SSL_use_PrivateKey_file(ssl, keyfile, SSL_FILETYPE_PEM) <= 0)
+	{
+		if (LogLevel > 7)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: SSL_use_PrivateKey_file(%s) failed",
+				  who, keyfile);
+			if (LogLevel > 9)
+				tlslogerr(LOG_WARNING, who);
+		}
+		if (bitset(TLS_I_USE_KEY, req))
+			return false;
+	}
+
+	/* check the private key */
+	if (bitset(TLS_S_KEY_OK, status) &&
+	    (r = SSL_check_private_key(ssl)) <= 0)
+	{
+		/* Private key does not match the certificate public key */
+		if (LogLevel > 5)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: SSL_check_private_key failed(%s): %d",
+				  who, keyfile, r);
+			if (LogLevel > 9)
+				tlslogerr(LOG_WARNING, who);
+		}
+		if (bitset(TLS_I_USE_KEY, req))
+			return false;
+	}
+
+	return true;
+}
+# endif /* _FFR_TLS_SE_OPTS */
+
 /*
 **  INITTLS -- initialize TLS
 **
@@ -655,12 +814,18 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	/*
 	**  valid values for dhparam are (only the first char is checked)
 	**  none	no parameters: don't use DH
+	**  i		use precomputed 2048 bit parameters
 	**  512		use precomputed 512 bit parameters
 	**  1024	generate 1024 bit parameters
 	**  2048	generate 2048 bit parameters
 	**  /file/name	read parameters from /file/name
-	**  default is: 1024 for server, 512 for client (OK? XXX)
 	*/
+
+#define SET_DH_DFL	\
+	do {	\
+		dhparam = "I";	\
+		req |= TLS_I_DHFIXED;	\
+	} while (0)
 
 	if (bitset(TLS_I_TRY_DH, req))
 	{
@@ -670,24 +835,25 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 
 			if (c == '1')
 				req |= TLS_I_DH1024;
+			else if (c == 'I' || c == 'i')
+				req |= TLS_I_DHFIXED;
 			else if (c == '2')
 				req |= TLS_I_DH2048;
 			else if (c == '5')
 				req |= TLS_I_DH512;
-			else if (c != 'n' && c != 'N' && c != '/')
+			else if (c == 'n' || c == 'N')
+				req &= ~TLS_I_TRY_DH;
+			else if (c != '/')
 			{
 				if (LogLevel > 12)
 					sm_syslog(LOG_WARNING, NOQID,
-						  "STARTTLS=%s, error: illegal value '%s' for DHParam",
+						  "STARTTLS=%s, error: illegal value '%s' for DHParameters",
 						  who, dhparam);
 				dhparam = NULL;
 			}
 		}
 		if (dhparam == NULL)
-		{
-			dhparam = srv ? "1" : "5";
-			req |= (srv ? TLS_I_DH1024 : TLS_I_DH512);
-		}
+			SET_DH_DFL;
 		else if (*dhparam == '/')
 		{
 			TLS_OK_F(dhparam, "DHParameters",
@@ -714,9 +880,14 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	TLS_SAFE_F(cacertfile, sff | TLS_UNR(TLS_I_CERTF_UNR, req),
 		   bitset(TLS_I_CERTF_EX, req),
 		   bitset(TLS_S_CERTF_EX, status), TLS_S_CERTF_OK, srv);
-	TLS_SAFE_F(dhparam, sff | TLS_UNR(TLS_I_DHPAR_UNR, req),
-		   bitset(TLS_I_DHPAR_EX, req),
-		   bitset(TLS_S_DHPAR_EX, status), TLS_S_DHPAR_OK, srv);
+	if (dhparam != NULL && *dhparam == '/')
+	{
+		TLS_SAFE_F(dhparam, sff | TLS_UNR(TLS_I_DHPAR_UNR, req),
+			   bitset(TLS_I_DHPAR_EX, req),
+			   bitset(TLS_S_DHPAR_EX, status), TLS_S_DHPAR_OK, srv);
+		if (!bitset(TLS_S_DHPAR_OK, status))
+			SET_DH_DFL;
+	}
 # if OPENSSL_VERSION_NUMBER > 0x00907000L
 	TLS_SAFE_F(CRLFile, sff | TLS_UNR(TLS_I_CRLF_UNR, req),
 		   bitset(TLS_I_CRLF_EX, req),
@@ -991,6 +1162,10 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 #if _FFR_TLS_EC
 		EC_KEY *ecdh;
 #endif /* _FFR_TLS_EC */
+
+		if (tTd(96, 8))
+			sm_dprintf("inittls: req=%#lx, status=%#lx\n",
+				req, status);
 		if (bitset(TLS_S_DHPAR_OK, status))
 		{
 			BIO *bio;
@@ -1010,6 +1185,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 						  ERR_error_string(err, NULL));
 					if (LogLevel > 9)
 						tlslogerr(LOG_WARNING, who);
+					SET_DH_DFL;
 				}
 			}
 			else
@@ -1039,8 +1215,13 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			dh = DSA_dup_DH(dsa);
 			DSA_free(dsa);
 		}
-		else
-		if (dh == NULL && bitset(TLS_I_DH512, req))
+		else if (dh == NULL && bitset(TLS_I_DHFIXED, req))
+		{
+			if (tTd(96, 2))
+				sm_dprintf("inittls: Using precomputed 2048 bit DH parameters\n");
+			dh = get_dh2048();
+		}
+		else if (dh == NULL && bitset(TLS_I_DH512, req))
 		{
 			if (tTd(96, 2))
 				sm_dprintf("inittls: Using precomputed 512 bit DH parameters\n");
