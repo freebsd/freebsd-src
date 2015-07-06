@@ -32,7 +32,7 @@ esp0 02-sunrise-sunset-esp.pcap esp0.out -t -n
 isakmp1 isakmp-delete-segfault.pcap isakmp1.out -t
 isakmp2 isakmp-pointer-loop.pcap    isakmp2.out -t
 isakmp3 isakmp-identification-segfault.pcap isakmp3.out -t -v
-isakmp4 isakmp4500.pcap             isakmp4.out -t -E "file esp-secrets.txt"
+# isakmp4 is in crypto.sh
 isakmp5-v	ISAKMP_sa_setup.pcap		isakmp5-v.out	-t -v
 
 # Link Management Protocol tests
@@ -171,6 +171,7 @@ of10_p3295-vv	of10_p3295.pcap		of10_p3295-vv.out	-t -vv
 of10_s4810-vvvv	of10_s4810.pcap		of10_s4810-vvvv.out	-t -vvvv
 of10_pf5240-vv	of10_pf5240.pcap	of10_pf5240-vv.out	-t -vv
 of10_7050q-v	of10_7050q.pcap		of10_7050q-v.out	-t -v
+of10_7050sx_bsn-vv	of10_7050sx_bsn.pcap		of10_7050sx_bsn-vv.out	-t -vv
 
 # GeoNetworking and CALM FAST tests
 geonet-calm-fast	geonet_and_calm_fast.pcap	geonet_and_calm_fast.out	-t -vv -n
@@ -231,6 +232,8 @@ decnet		DECnet_Phone.pcap	decnet.out	-t
 
 # RADIUS tests
 radius-v	RADIUS.pcap	radius-v.out	-t -v
+radius-rfc4675	RADIUS-RFC4675.pcap	radius-rfc4675-v.out	-t -v
+radius-rfc5176	RADIUS-RFC5176.pcap	radius-rfc5176-v.out	-t -v
 
 # link-level protocols
 dtp-v		DTP.pcap		dtp-v.out		-t -v
@@ -255,3 +258,34 @@ isis_4-v	ISIS_p2p_adjacency.pcap		isis_4-v.out	-t -v
 # ATA-over-Ethernet tests
 aoe_1		AoE_Linux.pcap		aoe_1.out	-t
 aoe_1-v		AoE_Linux.pcap		aoe_1-v.out	-t -v
+
+# Geneve tests
+geneve-v	geneve.pcap		geneve-vv.out	-t -vv
+geneve-vni	geneve.pcap		geneve-vni.out	-t geneve 0xb
+geneve-tcp	geneve.pcap		geneve-tcp.out	-t "geneve && tcp"
+
+# DHCP tests
+dhcp-rfc3004	dhcp-rfc3004.pcap	dhcp-rfc3004-v.out	-t -v
+dhcp-rfc5859	dhcp-rfc5859.pcap	dhcp-rfc5859-v.out	-t -v
+
+# bad packets from Kevin Day
+# cve-2015-2155 -- futz testing on FORCES printer
+kday1           kday1.pcap              kday1.out       -t -v
+# cve-2015-2153 -- futz testing on TCP printer
+kday2           kday2.pcap              kday2.out       -t -v
+# cve-2015-2153 -- futz testing on TCP printer
+kday3           kday3.pcap              kday3.out       -t -v
+# cve-2015-2153 -- futz testing on TCP printer
+kday4           kday4.pcap              kday4.out       -t -v
+# cve-2015-2153 -- futz testing on TCP printer
+kday5           kday5.pcap              kday5.out       -t -v
+# cve-2015-2154 -- ethernet printer
+kday6           kday6.pcap              kday6.out       -t -v
+# cve-2015-2153 -- futz testing on TCP printer
+kday7           kday7.pcap              kday7.out       -t -v
+# cve-2015-2153 -- futz testing on TCP printer
+kday8           kday8.pcap              kday8.out       -t -v
+
+# bad packets from reversex86.
+cve2015-0261_01    cve2015-0261-ipv6.pcap       cve2015-0261-ipv6.out -t -v
+cve2015-0261_02    cve2015-0261-crash.pcap      cve2015-0261-crash.out -t -v

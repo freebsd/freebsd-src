@@ -36,6 +36,8 @@
 #ifndef TCPDUMP_IP_H
 #define TCPDUMP_IP_H
 
+#include "tcpdump-stdinc.h"
+
 /*
  * Definitions for internet protocol version 4.
  * Per RFC 791, September 1981.

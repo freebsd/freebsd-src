@@ -124,13 +124,17 @@ LIBNETDISSECT_SRC=\
 	print-fddi.c \
 	print-forces.c \
 	print-fr.c \
+	print-ftp.c \
+	print-geneve.c \
 	print-geonet.c \
 	print-gre.c \
 	print-hsrp.c \
+	print-http.c \
 	print-icmp.c \
 	print-igmp.c \
 	print-igrp.c \
 	print-ip.c \
+	print-ip6.c \
 	print-ipcomp.c \
 	print-ipfc.c \
 	print-ipnet.c \
@@ -178,6 +182,7 @@ LIBNETDISSECT_SRC=\
 	print-rpki-rtr.c \
 	print-rrcp.c \
 	print-rsvp.c \
+	print-rtsp.c \
 	print-rx.c \
 	print-sctp.c \
 	print-sflow.c \
@@ -185,6 +190,7 @@ LIBNETDISSECT_SRC=\
 	print-sl.c \
 	print-sll.c \
 	print-slow.c \
+	print-smtp.c \
 	print-snmp.c \
 	print-stp.c \
 	print-sunatm.c \
@@ -231,7 +237,6 @@ HDR = \
 	appletalk.h \
 	atm.h \
 	atmuni31.h \
-	bootp.h \
 	chdlc.h \
 	cpack.h \
 	ether.h \
@@ -240,7 +245,6 @@ HDR = \
 	getopt_long.h \
 	gmpls.h \
 	gmt2local.h \
-	interface.h \
 	interface.h \
 	ip.h \
 	ip6.h \
@@ -330,7 +334,6 @@ EXTRA_DIST = \
 	print-dhcp6.c \
 	print-frag6.c \
 	print-icmp6.c \
-	print-ip6.c \
 	print-ip6opts.c \
 	print-mobility.c \
 	print-ospf6.c \

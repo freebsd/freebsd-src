@@ -31,6 +31,7 @@ runSimpleTests()
       \#*) continue;;
       '') continue;;
     esac
+    rm -f core
     [ "$only" != "" -a "$name" != "$only" ] && continue
     if ./TESTonce $name $input $output "$options"
     then

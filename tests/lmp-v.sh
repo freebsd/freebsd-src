@@ -6,7 +6,12 @@
 # GCC build and must reproduce correctly on any other GCC build regardless of
 # the architecture.
 
-if grep '^CC = .*gcc' ../Makefile >/dev/null
+# A Windows build may have no file named Makefile and also a version of grep
+# that won't return an error when the file does not exist. Work around.
+if [ ! -f ../Makefile ]
+then
+	printf '    %-30s: TEST SKIPPED (no Makefile)\n' 'lmp-v'
+elif grep '^CC = .*gcc' ../Makefile >/dev/null
 then
   ./TESTonce lmp-v lmp.pcap lmp-v.out '-t -T lmp -v'
 else

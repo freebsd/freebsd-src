@@ -596,7 +596,7 @@ tcp_print(netdissect_options *ndo,
                                 switch(magic) {
 
                                 case 0xf989:
-                                        /* TCP Fast Open: draft-ietf-tcpm-fastopen-04 */
+                                        /* TCP Fast Open: RFC 7413 */
                                         if (datalen == 2) {
                                                 /* Fast Open Cookie Request */
                                                 ND_PRINT((ndo, "tfo cookiereq"));
@@ -674,8 +674,10 @@ tcp_print(netdissect_options *ndo,
         }
 
         if (sport == TELNET_PORT || dport == TELNET_PORT) {
-                if (!ndo->ndo_qflag && ndo->ndo_vflag)
-                        telnet_print(ndo, bp, length);
+                telnet_print(ndo, bp, length);
+        } else if (sport == SMTP_PORT || dport == SMTP_PORT) {
+                ND_PRINT((ndo, ": "));
+                smtp_print(ndo, bp, length);
         } else if (sport == BGP_PORT || dport == BGP_PORT)
                 bgp_print(ndo, bp, length);
         else if (sport == PPTP_PORT || dport == PPTP_PORT)
@@ -691,7 +693,18 @@ tcp_print(netdissect_options *ndo,
         else if (sport == OPENFLOW_PORT_OLD || dport == OPENFLOW_PORT_OLD ||
                  sport == OPENFLOW_PORT_IANA || dport == OPENFLOW_PORT_IANA)
                 openflow_print(ndo, bp, length);
-        else if (length > 2 &&
+        else if (sport == FTP_PORT || dport == FTP_PORT) {
+                ND_PRINT((ndo, ": "));
+                ftp_print(ndo, bp, length);
+        } else if (sport == HTTP_PORT || dport == HTTP_PORT ||
+            sport == HTTP_PORT_ALT || dport == HTTP_PORT_ALT) {
+                ND_PRINT((ndo, ": "));
+                http_print(ndo, bp, length);
+        } else if (sport == RTSP_PORT || dport == RTSP_PORT ||
+            sport == RTSP_PORT_ALT || dport == RTSP_PORT_ALT) {
+                ND_PRINT((ndo, ": "));
+                rtsp_print(ndo, bp, length);
+        } else if (length > 2 &&
                  (sport == NAMESERVER_PORT || dport == NAMESERVER_PORT ||
                   sport == MULTICASTDNS_PORT || dport == MULTICASTDNS_PORT)) {
                 /*
