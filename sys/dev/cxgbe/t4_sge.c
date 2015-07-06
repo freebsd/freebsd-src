@@ -472,12 +472,6 @@ t4_tweak_chip_settings(struct adapter *sc)
 	    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5]));
 	t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5, v);
 
-	if (cong_drop == 0) {
-		m = F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
-		    F_TUNNELCNGDROP3;
-		t4_set_reg_field(sc, A_TP_PARA_REG3, m, 0);
-	}
-
 	/* 4K, 16K, 64K, 256K DDP "page sizes" */
 	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
 	t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, v);
@@ -684,17 +678,6 @@ t4_read_chip_settings(struct adapter *sc)
 	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_4_AND_5);
 	s->timer_val[4] = G_TIMERVALUE4(r) / core_ticks_per_usec(sc);
 	s->timer_val[5] = G_TIMERVALUE5(r) / core_ticks_per_usec(sc);
-
-	if (cong_drop == 0) {
-		m = F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
-		    F_TUNNELCNGDROP3;
-		r = t4_read_reg(sc, A_TP_PARA_REG3);
-		if (r & m) {
-			device_printf(sc->dev,
-			    "invalid TP_PARA_REG3(0x%x)\n", r);
-			rc = EINVAL;
-		}
-	}
 
 	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
 	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
