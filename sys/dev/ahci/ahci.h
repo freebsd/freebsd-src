@@ -600,8 +600,8 @@ enum ahci_err_type {
 	"\020SATA1_UNIT0"	\
 	"\021ABAR0"		\
 	"\0221MSI"              \
-	"\022FORCE_PI"          \
-	"\023RESTORE_CAP"
+	"\023FORCE_PI"          \
+	"\024RESTORE_CAP"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);
