@@ -143,6 +143,7 @@ struct sysentvec {
 #define	SV_IA32		0x004000
 #define	SV_AOUT		0x008000
 #define	SV_SHP		0x010000
+#define	SV_CHERI	0x020000
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
