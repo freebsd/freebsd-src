@@ -27,6 +27,7 @@ arm64/arm64/gic_acpi.c		optional	acpi
 arm64/arm64/gic_fdt.c		optional	fdt
 arm64/arm64/gic_v3.c		standard
 arm64/arm64/gic_v3_fdt.c	optional	fdt
+arm64/arm64/gic_v3_its.c	standard
 arm64/arm64/identcpu.c		standard
 arm64/arm64/intr_machdep.c	standard
 arm64/arm64/in_cksum.c		optional	inet | inet6
