@@ -401,7 +401,7 @@ INTERRUPT(int_critical_input)
 	STANDARD_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_CRIT)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_crit_interrupt)
+	bl	CNAME(powerpc_interrupt)
 	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
 	rfci
 
@@ -413,7 +413,7 @@ INTERRUPT(int_machine_check)
 	STANDARD_PROLOG(SPR_SPRG3, PC_BOOKE_MCHKSAVE, SPR_MCSRR0, SPR_MCSRR1)
 	FRAME_SETUP(SPR_SPRG3, PC_BOOKE_MCHKSAVE, EXC_MCHK)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_mchk_interrupt)
+	bl	CNAME(powerpc_interrupt)
 	FRAME_LEAVE(SPR_MCSRR0, SPR_MCSRR1)
 	rfmci
 
@@ -443,8 +443,8 @@ INTERRUPT(int_external_input)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_EXI)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_extr_interrupt)
-	b	trapexit
+	bl	CNAME(powerpc_interrupt)
+	b	clear_we
 
 
 INTERRUPT(int_alignment)
@@ -475,8 +475,8 @@ INTERRUPT(int_decrementer)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_DECR)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_decr_interrupt)
-	b	trapexit
+	bl	CNAME(powerpc_interrupt)
+	b	clear_we
 
 
 /*****************************************************************************
@@ -505,7 +505,7 @@ INTERRUPT(int_performance_counter)
 	STANDARD_PROLOG(SPR_SPRG3, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG3, PC_TEMPSAVE, EXC_PERF)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_pmc_interrupt)
+	bl	CNAME(powerpc_interrupt)
 	b	trapexit
 #endif
 
@@ -878,6 +878,12 @@ dbleave:
 	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
 	rfi
 #endif /* KDB */
+
+clear_we:
+	lwz	%r3, (FRAME_SRR1+8)(%r1)
+	rlwinm	%r3, %r3, 0, 14, 12
+	stw	%r3, (FRAME_SRR1+8)(%r1)
+	b	trapexit
 
 #ifdef SMP
 ENTRY(tlb_lock)
