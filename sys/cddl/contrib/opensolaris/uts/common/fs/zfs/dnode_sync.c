@@ -479,8 +479,8 @@ dnode_undirty_dbufs(list_t *list)
 			    dr->dt.dl.dr_data == db->db_buf);
 			dbuf_unoverride(dr);
 		} else {
-			list_destroy(&dr->dt.di.dr_children);
 			mutex_destroy(&dr->dt.di.dr_mtx);
+			list_destroy(&dr->dt.di.dr_children);
 		}
 		kmem_free(dr, sizeof (dbuf_dirty_record_t));
 		dbuf_rele_and_unlock(db, (void *)(uintptr_t)txg);
