@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2014
+.Dd July 5, 2015
 .Dt IOVCTL.CONF 5
 .Os
 .Sh NAME
@@ -103,13 +103,17 @@ xx:xx:xx:xx:xx:xx, where xx is one or two hexadecimal digits.
 .It string
 Accepts any string value.
 .It uint8_t
-Accepts any integer in the range 0-255, inclusive.
+Accepts any integer in the range 0 to 255, inclusive.
 .It uint16_t
-Accepts any integer in the range 0-65535, inclusive.
+Accepts any integer in the range 0 to 65535, inclusive.
 .It uint32_t
-Accepts any integer in the range 0-2**32, inclusive.
+Accepts any integer in the range 0 to
+.Po 2**32 - 1 Pc ,
+inclusive.
 .It uint64_t
-Accepts any integer in the range 0-2**64, inclusive.
+Accepts any integer in the range 0 to
+.Po 2**64 - 1 Pc ,
+inclusive.
 .El
 .Sh OPTIONS
 The following parameters are accepted by all PF drivers:
