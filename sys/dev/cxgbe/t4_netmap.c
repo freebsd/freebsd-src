@@ -77,6 +77,15 @@ int holdoff_tmr_idx = 2;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
     &holdoff_tmr_idx, 0, "Holdoff timer index for netmap rx queues.");
 
+/*
+ * Congestion drops.
+ * -1: no congestion feedback (not recommended).
+ *  0: backpressure the channel instead of dropping packets right away.
+ *  1: no backpressure, drop packets for the congested queue immediately.
+ */
+static int nm_cong_drop = 1;
+TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
+
 /* netmap ifnet routines */
 static void cxgbe_nm_init(void *);
 static int cxgbe_nm_ioctl(struct ifnet *, unsigned long, caddr_t);
@@ -503,7 +512,7 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	nm_set_native_flags(na);
 
 	for_each_nm_rxq(pi, i, nm_rxq) {
-		alloc_nm_rxq_hwq(pi, nm_rxq, tnl_cong(pi));
+		alloc_nm_rxq_hwq(pi, nm_rxq, tnl_cong(pi, nm_cong_drop));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */

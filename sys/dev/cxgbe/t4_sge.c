@@ -2903,12 +2903,12 @@ free_mgmtq(struct adapter *sc)
 }
 
 int
-tnl_cong(struct port_info *pi)
+tnl_cong(struct port_info *pi, int drop)
 {
 
-	if (cong_drop == -1)
+	if (drop == -1)
 		return (-1);
-	else if (cong_drop == 1)
+	else if (drop == 1)
 		return (0);
 	else
 		return (pi->rx_chan_map);
@@ -2922,7 +2922,8 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	struct sysctl_oid_list *children;
 	char name[16];
 
-	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, tnl_cong(pi));
+	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx,
+	    tnl_cong(pi, cong_drop));
 	if (rc != 0)
 		return (rc);
 
