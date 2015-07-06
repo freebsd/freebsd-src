@@ -2317,6 +2317,8 @@ milter_getsymlist(m, buf, rlen, offset)
 		offset += MILTER_LEN_BYTES;
 		macros = NULL;
 
+#define SM_M_MACRO_NAME(i) (((i) < SM_ARRAY_SIZE(MilterOptTab) && (i) >= 0) \
+				?  MilterOptTab[i].mo_name : "?")
 		switch (i)
 		{
 		  case SMFIM_CONNECT:
@@ -2330,23 +2332,23 @@ milter_getsymlist(m, buf, rlen, offset)
 			macros = MilterMacros[i][m->mf_idx];
 			m->mf_lflags |= MI_LFLAGS_SYM(i);
 			len = strlen(buf + offset);
-			if (len > 0)
+			if (len >= 0)
 			{
 				r = milter_set_macros(m->mf_name, macros,
 						buf + offset, nummac);
 				if (r >= 0)
 					nummac = r;
 				if (tTd(64, 5))
-					sm_dprintf("milter_getsymlist(%s, %s)=%d\n",
-						m->mf_name, buf + offset, r);
+					sm_dprintf("milter_getsymlist(%s, %s, \"%s\")=%d\n",
+						m->mf_name,
+						SM_M_MACRO_NAME(i),
+						buf + offset, r);
 			}
 			break;
 
 		  default:
 			return -1;
 		}
-		if (len == 0)
-			return -1;
 		offset += len + 1;
 	}
 

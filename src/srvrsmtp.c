@@ -2119,6 +2119,14 @@ smtp(nullserver, d_flags, e)
 				goto tls_done;
 			}
 
+			if (get_tls_se_options(e, srv_ssl, true) != 0)
+			{
+				message("454 4.3.3 TLS not available: error setting options");
+				SSL_free(srv_ssl);
+				srv_ssl = NULL;
+				goto tls_done;
+			}
+
 # if !TLS_VRFY_PER_CTX
 			/*
 			**  this could be used if it were possible to set
@@ -2154,6 +2162,7 @@ smtp(nullserver, d_flags, e)
 			if ((r = SSL_accept(srv_ssl)) <= 0)
 			{
 				int i, ssl_err;
+				int save_errno = errno;
 
 				ssl_err = SSL_get_error(srv_ssl, r);
 				i = tls_retry(srv_ssl, rfd, wfd, tlsstart,
@@ -2173,7 +2182,7 @@ smtp(nullserver, d_flags, e)
 						  "STARTTLS=server, error: accept failed=%d, reason=%s, SSL_error=%d, errno=%d, retry=%d, relay=%.100s",
 						  r, sr == NULL ? "unknown"
 								: sr,
-						  ssl_err, errno, i,
+						  ssl_err, save_errno, i,
 						  CurSmtpClient);
 					if (LogLevel > 9)
 						tlslogerr(LOG_WARNING, "server");

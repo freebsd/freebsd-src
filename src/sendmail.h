@@ -211,6 +211,7 @@ typedef int (*sasl_callback_ft)(void);
 # define _FFR_ERRCODE	1
 #endif
 
+#define SM_ARRAY_SIZE(array)   (sizeof(array) / sizeof((array)[0]))
 
 /*
 **  An 'argument class' describes the storage allocation status
@@ -361,6 +362,9 @@ typedef struct address ADDRESS;
 #define NULLADDR	((ADDRESS *) NULL)
 
 extern ADDRESS	NullAddress;	/* a null (template) address [main.c] */
+
+/* for cataddr() */
+#define NOSPACESEP	256
 
 /* functions */
 extern void	cataddr __P((char **, char **, char *, int, int, bool));
@@ -1777,6 +1781,7 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 #define RSF_UNSTRUCTURED	0x0002	/* unstructured, ignore syntax errors */
 #define RSF_COUNT		0x0004	/* count rejections (statistics)? */
 #define RSF_ADDR		0x0008	/* reassemble address */
+#define RSF_STRING		0x0010	/* reassemble address as string */
 
 /*
 **  Flags passed to mime8to7 and putheader.
@@ -1971,6 +1976,7 @@ struct termescape
 #define TLS_I_KEY_OUNR	0x00400000	/* Key must be other unreadable */
 #define TLS_I_CRLF_EX	0x00800000	/* CRL file must exist */
 #define TLS_I_CRLF_UNR	0x01000000	/* CRL file must be g/o unreadable */
+#define TLS_I_DHFIXED	0x02000000	/* use fixed DH param */
 
 /* require server cert */
 #define TLS_I_SRV_CERT	 (TLS_I_CERT_EX | TLS_I_KEY_EX | \
@@ -1980,8 +1986,7 @@ struct termescape
 
 /* server requirements */
 #define TLS_I_SRV	(TLS_I_SRV_CERT | TLS_I_RSA_TMP | TLS_I_VRFY_PATH | \
-			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_DH512 | \
-			 TLS_I_CACHE)
+			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_CACHE)
 
 /* client requirements */
 #define TLS_I_CLT	(TLS_I_KEY_UNR | TLS_I_KEY_OUNR)
@@ -2384,6 +2389,7 @@ EXTERN bool	UseMSP;		/* mail submission: group writable queue ok? */
 EXTERN bool	WorkAroundBrokenAAAA;	/* some nameservers return SERVFAIL on AAAA queries */
 EXTERN bool	UseErrorsTo;	/* use Errors-To: header (back compat) */
 EXTERN bool	UseNameServer;	/* using DNS -- interpret h_errno & MX RRs */
+EXTERN bool	UseCompressedIPv6Addresses;	/* for more specific zero-subnet matches */
 EXTERN char	InetMode;		/* default network for daemon mode */
 EXTERN char	OpMode;		/* operation mode, see below */
 EXTERN char	SpaceSub;	/* substitution for <lwsp> */
@@ -2707,6 +2713,14 @@ extern int	getla __P((void));
 extern char	*getmodifiers __P((char *, BITMAP256));
 extern BITMAP256	*getrequests __P((ENVELOPE *));
 extern char	*getvendor __P((int));
+#if _FFR_TLS_SE_OPTS && STARTTLS
+# ifndef TLS_VRFY_PER_CTX
+#  define TLS_VRFY_PER_CTX 1
+# endif
+extern int	get_tls_se_options __P((ENVELOPE *, SSL *, bool));
+#else
+# define get_tls_se_options(e, s, w)	0
+#endif
 extern void	help __P((char *, ENVELOPE *));
 extern void	init_md __P((int, char **));
 extern void	initdaemon __P((void));
@@ -2717,6 +2731,9 @@ extern void	init_vendor_macros __P((ENVELOPE *));
 extern SIGFUNC_DECL	intsig __P((int));
 extern bool	isatom __P((const char *));
 extern bool	isloopback __P((SOCKADDR sa));
+#if _FFR_TLS_SE_OPTS && STARTTLS
+extern bool	load_certkey __P((SSL *, bool, char *, char *));
+#endif
 extern void	load_if_names __P((void));
 extern bool	lockfile __P((int, char *, char *, int));
 extern void	log_sendmail_pid __P((ENVELOPE *));
@@ -2825,7 +2842,7 @@ extern int	waitfor __P((pid_t));
 extern bool	writable __P((char *, ADDRESS *, long));
 #if SM_HEAP_CHECK
 # define xalloc(size)	xalloc_tagged(size, __FILE__, __LINE__)
-extern char *xalloc_tagged __P((int, char*, int));
+extern char *xalloc_tagged __P((int, char *, int));
 #else /* SM_HEAP_CHECK */
 extern char *xalloc __P((int));
 #endif /* SM_HEAP_CHECK */
@@ -2839,7 +2856,7 @@ extern int	xunlink __P((char *));
 extern char	*xuntextify __P((char *));
 
 #if _FFR_RCPTFLAGS
-extern bool	newmodmailer __P((ADDRESS *, char fl));
+extern bool	newmodmailer __P((ADDRESS *, int));
 #endif
 
 #undef EXTERN

@@ -4483,8 +4483,76 @@ ruleset is called when sendmail connects to another MTA.
 If the ruleset does resolve to the
 .q error
 mailer, sendmail does not try STARTTLS even if it is offered.
-This is useful to interact with MTAs that have broken
-STARTTLS implementations by simply not using it.
+This is useful to deal with STARTTLS interoperability issues
+by simply not using it.
+.sh 4 "tls_srv_features and tls_clt_features"
+.pp
+The
+.i tls_clt_features
+ruleset is called when sendmail connects to another MTA
+and the
+.i tls_srv_features
+ruleset is called when a client connects to
+.i sendmail .
+The arguments for the rulesets are the host name and IP address
+of the other side separated by
+.b $|
+(which is a metacharacter).
+They should return a list of
+.i key=value
+pairs separated by semicolons;
+the list can be empty if no options should be applied to the connection.
+Available keys are and their allowed values are:
+.nr ii 0.2i
+.ip Options
+A comma separated list of SSL related options.
+See
+.i ServerSSLOptions
+and
+.i ClientSSLOptions
+for details, as well as
+.i SSL_set_options (3)
+and note this warning:
+Options already set before are not cleared!
+.ip CipherList
+Specify cipher list for STARTTLS,
+see
+.i ciphers (1)
+for possible values.
+This overrides the global
+.i CipherList
+for the session.
+.ip CertFile
+File containing a certificate.
+.ip KeyFile
+File containing the private key for the certificate.
+.lp
+.lp
+Example:
+.(b
+.ta 1.5i
+Stls_srv_features
+R$* $| 10.$+		$: cipherlist=HIGH
+.)b
+.lp
+Notes:
+.pp
+Errors in these features (e.g., unknown keys or invalid values)
+are logged
+and the current session is aborted to avoid using STARTTLS
+with features that should have been changed.
+.pp
+The keys are case-insensitive.
+.pp
+Both
+.i CertFile
+and
+.i KeyFile
+must be specified together;
+specifying only one is an error.
+.pp
+These rulesets require the sendmail binary to be built with _FFR_TLS_SE_OPTS
+enabled (see the "For Future Release" section).
 .sh 4 "authinfo"
 .pp
 The
@@ -6674,7 +6742,7 @@ in order to give settings for each protocol family
 A restriction placed on one family only affects
 outgoing connections on that particular family.
 .ip ClientSSLOptions
-A space separated list of SSL related options for client side.
+A space or comma separated list of SSL related options for the client side.
 See
 .i SSL_CTX_set_options (3)
 for a list;
@@ -6787,26 +6855,35 @@ CRL checking requires at least OpenSSL version 0.9.7.
 Note: if a CRLFile is specified but the file is unusable,
 STARTTLS is disabled.
 .ip DHParameters
+This option applies to the server side only.
 Possible values are:
 .(b
-.ta 1i
-5	use precomputed 512 bit prime
+.ta 2i
+5	use precomputed 512 bit prime.
 1	generate 1024 bit prime
-2	generate 2048 bit prime
-none	do not use Diffie-Hellman
-NAME	load prime from file
+2	generate 2048 bit prime.
+i	use included precomputed 2048 bit prime (default).
+none	do not use Diffie-Hellman.
+/path/to/file	load prime from file.
 .)b
 This is only required if a ciphersuite containing DSA/DH is used.
+The default is ``i'' which selects a precomputed, fixed 2048 bit prime.
 If ``5'' is selected, then precomputed, fixed primes are used.
-This is the default for the client side.
+Note: this option should not be used
+(unless necessary for compatibility with old implementations).
 If ``1'' or ``2'' is selected, then prime values are computed during startup.
-The server side default is ``1''.
 Note: this operation can take a significant amount of time on a
 slow machine (several seconds), but it is only done once at startup.
 If ``none'' is selected, then TLS ciphersuites containing DSA/DH
 cannot be used.
 If a file name is specified (which must be an absolute path),
 then the primes are read from it.
+It is recommended to generate such a file using a command like this:
+.(b
+	openssl dhparam -out /etc/mail/dhparams.pem 2048
+.)b
+If the file is not readable or contains unusable data,
+the default ``i'' is used instead.
 .ip DaemonPortOptions=\fIoptions\fP
 [O]
 Set server SMTP options.
@@ -8100,7 +8177,7 @@ is used when sendmail acts as server
 File containing the private key belonging to the server certificate
 (used for STARTTLS).
 .ip ServerSSLOptions
-A space separated list of SSL related options for client side.
+A space or comma separated list of SSL related options for the server side.
 See
 .i SSL_CTX_set_options (3)
 for a list;
@@ -8360,6 +8437,12 @@ are always unsafe.
 Note: use
 .b DontBlameSendmail
 instead; this option is deprecated.
+.ip UseCompressedIPv6Addresses
+[no short name]
+If set, the compressed format of IPv6 addresses,
+such as IPV6:::1, will be used,
+instead of the uncompressed format,
+such as IPv6:0:0:0:0:0:0:0:1.
 .ip UseErrorsTo
 [l]
 If there is an
@@ -9969,6 +10052,26 @@ and
 .q _SCO_unix_ .
 See the sendmail/README
 file for the latest scoop on these flags.
+.sh 3 "For Future Releases"
+.pp
+.i sendmail
+often contains compile time options
+.i "For Future Releases"
+(prefix _FFR_)
+which might be enabled in a subsequent version
+or might simply be removed as they turned out not to be really useful.
+These features are usually not documented but if they are,
+then the required (FFR) compile
+time options are listed here for rulesets and macros,
+and in
+.i cf/README
+for mc/cf options.
+FFR compile times options must be enabled when the sendmail binary
+is built from source.
+Enabled FFRs in a binary can be listed with
+.(b
+sendmail -d0.13 < /dev/null | grep FFR
+.)b
 .sh 2 "Parameters in sendmail/conf.h"
 .pp
 Parameters and compilation options
@@ -10771,7 +10874,7 @@ one as certificate for the server (ServerCertFile and corresponding
 private ServerKeyFile)
 at least one root CA (CACertFile),
 i.e., a certificate that is used to sign other certificates,
-and a path to a directory which contains other CAs (CACertPath).
+and a path to a directory which contains (zero or more) other CAs (CACertPath).
 The file specified via
 CACertFile
 can contain several certificates of CAs.

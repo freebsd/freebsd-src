@@ -2204,8 +2204,9 @@ badaddr:
 **			use entire pvp.
 **		buf -- buffer to build the string into.
 **		sz -- size of buf.
-**		spacesub -- the space separator character; if '\0',
-**			use SpaceSub.
+**		spacesub -- the space separator character;
+**			'\0': SpaceSub.
+**			NOSPACESEP: no separator
 **		external -- convert to external form?
 **			(no metacharacters; METAQUOTEs removed, see below)
 **
@@ -2268,7 +2269,7 @@ cataddr(pvp, evp, buf, sz, spacesub, external)
 		char *q;
 
 		natomtok = (IntTokenTab[**pvp & 0xff] == ATM);
-		if (oatomtok && natomtok)
+		if (oatomtok && natomtok && spacesub != NOSPACESEP)
 		{
 			*p++ = spacesub;
 			if (--sz <= 0)
@@ -3165,11 +3166,12 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr, addrstr)
 		if (bitset(RSF_UNSTRUCTURED, flags))
 			SuprErrs = saveSuprErrs;
 
-
 		if (pvp[0] != NULL && (pvp[0][0] & 0377) != CANONNET &&
 		    bitset(RSF_ADDR, flags) && addrstr != NULL)
 		{
-			cataddr(&(pvp[0]), NULL, ubuf, sizeof(ubuf), ' ', true);
+			cataddr(&(pvp[0]), NULL, ubuf, sizeof(ubuf),
+				bitset(RSF_STRING, flags) ? NOSPACESEP : ' ',
+				true);
 			*addrstr = sm_rpool_strdup_x(e->e_rpool, ubuf);
 			goto finis;
 		}

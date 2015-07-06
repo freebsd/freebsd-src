@@ -6733,11 +6733,12 @@ upd_qs(e, count, space, where)
 	if (QSHM_ENTRIES(idx) >= 0 && count != 0)
 	{
 # if _FFR_USE_SEM_LOCKING
-		r = sm_sem_acq(SemId, 0, 1);
+		if (SemId >= 0)
+			r = sm_sem_acq(SemId, 0, 1);
 # endif /* _FFR_USE_SEM_LOCKING */
 		QSHM_ENTRIES(idx) += count;
 # if _FFR_USE_SEM_LOCKING
-		if (r >= 0)
+		if (SemId >= 0 && r >= 0)
 			r = sm_sem_rel(SemId, 0, 1);
 # endif /* _FFR_USE_SEM_LOCKING */
 	}

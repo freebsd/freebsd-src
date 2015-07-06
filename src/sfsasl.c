@@ -627,8 +627,8 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 			sm_syslog(LOG_ERR, NOQID,
 				  "STARTTLS=%s, error: fd %d/%d too large",
 				  where, rfd, wfd);
-		if (LogLevel > 8)
-			tlslogerr(LOG_WARNING, where);
+			if (LogLevel > 8)
+				tlslogerr(LOG_WARNING, where);
 		}
 		errno = EINVAL;
 	}
