@@ -759,6 +759,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 		dwc_setup_txdesc(sc, sc->tx_idx_tail, 0, 0);
 		sc->tx_idx_tail = next_txidx(sc, sc->tx_idx_tail);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	/* If there are no buffers outstanding, muzzle the watchdog. */
