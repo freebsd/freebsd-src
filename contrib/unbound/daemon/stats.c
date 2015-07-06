@@ -56,6 +56,9 @@
 #include "util/net_help.h"
 #include "validator/validator.h"
 #include "ldns/sbuffer.h"
+#include "services/cache/rrset.h"
+#include "services/cache/infra.h"
+#include "validator/val_kcache.h"
 
 /** add timers and the values do not overflow or become negative */
 static void
@@ -158,9 +161,18 @@ server_stats_compile(struct worker* worker, struct stats_info* s, int reset)
 		NUM_BUCKETS_HIST);
 	/* values from outside network */
 	s->svr.unwanted_replies = worker->back->unwanted_replies;
+	s->svr.qtcp_outgoing = worker->back->num_tcp_outgoing;
 
 	/* get and reset validator rrset bogus number */
 	s->svr.rrset_bogus = get_rrset_bogus(worker);
+
+	/* get cache sizes */
+	s->svr.msg_cache_count = count_slabhash_entries(worker->env.msg_cache);
+	s->svr.rrset_cache_count = count_slabhash_entries(&worker->env.rrset_cache->table);
+	s->svr.infra_cache_count = count_slabhash_entries(worker->env.infra_cache->hosts);
+	if(worker->env.key_cache)
+		s->svr.key_cache_count = count_slabhash_entries(worker->env.key_cache->slab);
+	else	s->svr.key_cache_count = 0;
 
 	if(reset && !worker->env.cfg->stat_cumulative) {
 		worker_stats_clear(worker);
@@ -217,6 +229,7 @@ void server_stats_add(struct stats_info* total, struct stats_info* a)
 		total->svr.qtype_big += a->svr.qtype_big;
 		total->svr.qclass_big += a->svr.qclass_big;
 		total->svr.qtcp += a->svr.qtcp;
+		total->svr.qtcp_outgoing += a->svr.qtcp_outgoing;
 		total->svr.qipv6 += a->svr.qipv6;
 		total->svr.qbit_QR += a->svr.qbit_QR;
 		total->svr.qbit_AA += a->svr.qbit_AA;

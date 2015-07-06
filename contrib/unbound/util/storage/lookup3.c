@@ -53,14 +53,15 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h> /* attempt to define endianness (solaris) */
 #endif
-#ifdef linux
-# include <endian.h>    /* attempt to define endianness */
+#if defined(linux) || defined(__OpenBSD__)
+#  ifdef HAVE_ENDIAN_H
+#    include <endian.h>    /* attempt to define endianness */
+#  else
+#    include <machine/endian.h> /* on older OpenBSD */
+#  endif
 #endif
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 #include <sys/endian.h> /* attempt to define endianness */
-#endif
-#ifdef __OpenBSD__
-#include <machine/endian.h> /* attempt to define endianness */
 #endif
 
 /* random initial value */

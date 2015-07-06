@@ -1,8 +1,10 @@
-README for Unbound 1.4.22
+README for Unbound 1.5.3
 Copyright 2007 NLnet Labs
 http://unbound.net
 
 This software is under BSD license, see LICENSE for details.
+The DNS64 module has BSD license in dns64/dns64.c.
+The DNSTAP code has BSD license in dnstap/dnstap.c.
 
 * Download the latest release version of this software from 
   	http://unbound.net 
