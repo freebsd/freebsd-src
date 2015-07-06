@@ -438,27 +438,31 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 		    LIBS="$LIBS $pfopen"
 	    fi
     fi
-    AC_MSG_CHECKING(for local pcap library)
-    libpcap=FAIL
-    lastdir=FAIL
-    places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
-	egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT)?$'`
-    places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
-	egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT)?$'`
-    for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
-	    basedir=`echo $dir | sed -e 's/[[ab]][[0-9]]*$//' | \
-	        sed -e 's/-PRE-GIT$//' `
-	    if test $lastdir = $basedir ; then
-		    dnl skip alphas when an actual release is present
-		    continue;
-	    fi
-	    lastdir=$dir
-	    if test -r $dir/libpcap.a ; then
-		    libpcap=$dir/libpcap.a
-		    d=$dir
-		    dnl continue and select the last one that exists
-	    fi
-    done
+	libpcap=FAIL
+	AC_MSG_CHECKING(for local pcap library)
+	AC_ARG_WITH([system-libpcap],
+		[AS_HELP_STRING([--with-system-libpcap], [don't use local pcap library])])
+	if test "x$with_system_libpcap" != xyes ; then
+		lastdir=FAIL
+    	places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
+		egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT)?$'`
+    	places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
+		egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT)?$'`
+    	for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
+	    	basedir=`echo $dir | sed -e 's/[[ab]][[0-9]]*$//' | \
+	        	sed -e 's/-PRE-GIT$//' `
+	    	if test $lastdir = $basedir ; then
+		    	dnl skip alphas when an actual release is present
+		    	continue;
+	    	fi
+	    	lastdir=$dir
+	    	if test -r $dir/libpcap.a ; then
+		    	libpcap=$dir/libpcap.a
+		    	d=$dir
+		    	dnl continue and select the last one that exists
+	    	fi
+		done
+	fi
     if test $libpcap = FAIL ; then
 	    AC_MSG_RESULT(not found)
 
@@ -619,54 +623,6 @@ this could be a problem with the libpcap that was built, and we will
 not be able to determine why this is happening, and thus will not be
 able to fix it, without that information, as we have not been able to
 reproduce this problem ourselves.])
-	])
-
-    dnl
-    dnl Check for "pcap_list_datalinks()", "pcap_set_datalink()",
-    dnl and "pcap_datalink_name_to_val()", and use substitute versions
-    dnl if they're not present.
-    dnl
-    AC_CHECK_FUNC(pcap_list_datalinks,
-	[
-	    AC_DEFINE(HAVE_PCAP_LIST_DATALINKS, 1,
-		[define if libpcap has pcap_list_datalinks()])
-	    AC_CHECK_FUNCS(pcap_free_datalinks)
-	],
-	[
-	    AC_LIBOBJ(datalinks)
-	])
-    AC_CHECK_FUNCS(pcap_set_datalink)
-    AC_CHECK_FUNC(pcap_datalink_name_to_val,
-	[
-	    AC_DEFINE(HAVE_PCAP_DATALINK_NAME_TO_VAL, 1,
-		[define if libpcap has pcap_datalink_name_to_val()])
-	    AC_CHECK_FUNC(pcap_datalink_val_to_description,
-		AC_DEFINE(HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION, 1,
-		    [define if libpcap has pcap_datalink_val_to_description()]),
-		[
-		    AC_LIBOBJ(dlnames)
-		])
-	],
-	[
-	    AC_LIBOBJ(dlnames)
-	])
-
-    dnl
-    dnl Check for "pcap_breakloop()"; you can't substitute for it if
-    dnl it's absent (it has hooks into the live capture routines),
-    dnl so just define the HAVE_ value if it's there.
-    dnl
-    AC_CHECK_FUNCS(pcap_breakloop)
-
-    dnl
-    dnl Check for "pcap_dump_ftell()" and use a substitute version
-    dnl if it's not present.
-    dnl
-    AC_CHECK_FUNC(pcap_dump_ftell,
-	AC_DEFINE(HAVE_PCAP_DUMP_FTELL, 1,
-	    [define if libpcap has pcap_dump_ftell()]),
-	[
-	    AC_LIBOBJ(pcap_dump_ftell)
 	])
 ])
 
