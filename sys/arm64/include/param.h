@@ -82,6 +82,10 @@
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
 #define	PAGE_MASK	(PAGE_SIZE - 1)
 
+#define	PAGE_SHIFT_16K	14
+#define	PAGE_SIZE_16K	(1 << PAGE_SHIFT_16K)
+#define	PAGE_MASK_16K	(PAGE_SIZE_16K - 1)
+
 #define	PAGE_SHIFT_64K	16
 #define	PAGE_SIZE_64K	(1 << PAGE_SHIFT_64K)
 #define	PAGE_MASK_64K	(PAGE_SIZE_64K - 1)
