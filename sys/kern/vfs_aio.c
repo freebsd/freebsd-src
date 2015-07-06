@@ -583,7 +583,7 @@ aio_init_aioinfo(struct proc *p)
 	struct kaioinfo *ki;
 
 	ki = uma_zalloc(kaio_zone, M_WAITOK);
-	mtx_init(&ki->kaio_mtx, "aiomtx", NULL, MTX_DEF);
+	mtx_init(&ki->kaio_mtx, "aiomtx", NULL, MTX_DEF | MTX_NEW);
 	ki->kaio_flags = 0;
 	ki->kaio_maxactive_count = max_aio_per_proc;
 	ki->kaio_active_count = 0;
