@@ -1406,7 +1406,6 @@ compute_keytag(dns_rdata_t *rdata, dns_rdata_dnskey_t *key) {
  */
 static isc_boolean_t
 isselfsigned(dns_validator_t *val) {
-	dns_fixedname_t fixed;
 	dns_rdataset_t *rdataset, *sigrdataset;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_rdata_t sigrdata = DNS_RDATA_INIT;
@@ -1462,8 +1461,7 @@ isselfsigned(dns_validator_t *val) {
 			result = dns_dnssec_verify3(name, rdataset, dstkey,
 						    ISC_TRUE,
 						    val->view->maxbits,
-						    mctx, &sigrdata,
-						    dns_fixedname_name(&fixed));
+						    mctx, &sigrdata, NULL);
 			dst_key_free(&dstkey);
 			if (result != ISC_R_SUCCESS)
 				continue;

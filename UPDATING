@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150707:	p19	FreeBSD-SA-15:11.bind
+	Fix BIND resolver remote denial of service when validating.
+
 20150630:	p18	FreeBSD-EN-15:08.sendmail [revised]
 			FreeBSD-EN-15:09.xlocale
 
