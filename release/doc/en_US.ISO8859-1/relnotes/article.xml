@@ -403,21 +403,6 @@
 	<application>Clang</application> have been updated to
 	version 3.4.</para>
 
-      <para revision="285229"><application>sendmail</application>
-	has been updated to 8.15.2.  Starting with FreeBSD 11.0 and
-	sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
-	default, i.e., they will not contain "::".  For example,
-	instead of ::1, it will be 0:0:0:0:0:0:0:1.  This permits a
-	zero subnet to have a more specific match, such as different
-	map entries for IPv6:0:0 vs IPv6:0.  This change requires that
-	configuration data (including maps, files, classes, custom
-	ruleset, etc.) must use the same format, so make certain such
-	configuration data is upgrading.  As a very simple check
-	search for patterns like 'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'.
-	To return to the old behavior, set the m4 option
-	confUSE_COMPRESSED_IPV6_ADDRESSES or the cf option
-	UseCompressedIPv6Addresses.</para>
-
       <para revision="276577"><application>file</application> has been
 	updated to version 5.22.</para>
 
@@ -487,6 +472,22 @@
 
       <para revision="284237">The &man.file.1; utility has been
 	updated to version 5.23.</para>
+
+      <para revision="285229"><application>sendmail</application> has
+	been updated to 8.15.2.  Starting with &os;&nbsp;11.0 and
+	sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
+	default, i.e., they will not contain <quote>::</quote>.  For
+	example, instead of <quote>::1</quote>, it will be
+	<quote>0:0:0:0:0:0:0:1</quote>.  This permits a zero subnet to
+	have a more specific match, such as different map entries for
+	IPv6:0:0 vs IPv6:0.  This change requires that configuration
+	data (including maps, files, classes, custom ruleset, etc.)
+	must use the same format, so make certain such configuration
+	data is upgrading.  As a very simple check search for patterns
+	like 'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'.  To return to the
+	old behavior, set the m4 option
+	<literal>confUSE_COMPRESSED_IPV6_ADDRESSES</literal> or the cf
+	option <literal>UseCompressedIPv6Addresses</literal>.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
