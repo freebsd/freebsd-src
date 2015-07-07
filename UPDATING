@@ -15,6 +15,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150707:	p33	FreeBSD-SA-15:11.bind
+	Fix BIND resolver remote denial of service when validating.
+
 20150630:	p32	FreeBSD-EN-15:08.sendmail [revised]
 
 	Improvements to sendmail TLS/DH interoperability. [EN-15:08]
