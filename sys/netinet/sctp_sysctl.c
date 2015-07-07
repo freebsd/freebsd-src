@@ -511,6 +511,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.mtu = net->mtu;
 				xraddr.rtt = net->rtt / 1000;
 				xraddr.heartbeat_interval = net->heart_beat_delay;
+				xraddr.ssthresh = net->ssthresh;
 				xraddr.start_time.tv_sec = (uint32_t) net->start_time.tv_sec;
 				xraddr.start_time.tv_usec = (uint32_t) net->start_time.tv_usec;
 				SCTP_INP_RUNLOCK(inp);
