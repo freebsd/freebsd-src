@@ -193,7 +193,7 @@ crypto_apply(int flags, caddr_t buf, int off, int len,
 	return (error);
 }
 
-void
+int
 crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr, int *cnt,
     int *allocated)
 {
@@ -216,7 +216,9 @@ crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr, int *cnt,
 			while ((mtmp = mtmp->m_next) != NULL)
 				j++;
 			iov = malloc(sizeof *iov * (i + j), M_CRYPTO_DATA,
-			    M_WAITOK);
+			    M_NOWAIT);
+			if (iov == NULL)
+				return ENOMEM;
 			*allocated = 1;
 			*cnt = i + j;
 			memcpy(iov, *iovptr, sizeof *iov * i);
@@ -235,4 +237,5 @@ crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr, int *cnt,
 
 	*iovptr = iov;
 	*cnt = i;
+	return 0;
 }
