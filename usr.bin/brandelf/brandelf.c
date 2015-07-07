@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/elf_common.h>
+#include <sys/elf.h>
 #include <sys/errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -60,17 +61,32 @@ static struct ELFtypes elftypes[] = {
 int
 main(int argc, char **argv)
 {
-
 	const char *strtype = "FreeBSD";
 	int type = ELFOSABI_FREEBSD;
 	int retval = 0;
 	int ch, change = 0, force = 0, listed = 0;
+	ssize_t writeout;
+	int cheri = 0;
 
-	while ((ch = getopt(argc, argv, "f:lt:v")) != -1)
+	while ((ch = getopt(argc, argv, "c:f:lt:v")) != -1)
 		switch (ch) {
+		case 'c':
+			if (force)
+				errx(1, "c option incompatible with f option");
+			if (change)
+				errx(1, "c option incompatible with t option");
+			cheri = atoi(optarg);
+			if (errno == ERANGE || (cheri != 128 && cheri != 256)) {
+				warnx("invalid argument to option c: %s",
+				    optarg);
+				usage();
+			}
+			break;
 		case 'f':
 			if (change)
 				errx(1, "f option incompatible with t option");
+			if (cheri)
+				errx(1, "f option incompatible with c option");
 			force = 1;
 			type = atoi(optarg);
 			if (errno == ERANGE || type < 0 || type > 255) {
@@ -87,6 +103,8 @@ main(int argc, char **argv)
 			/* does nothing */
 			break;
 		case 't':
+			if (cheri)
+				errx(1, "t option incompatible with c option");
 			if (force)
 				errx(1, "t option incompatible with f option");
 			change = 1;
@@ -106,7 +124,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!force && (type = elftype(strtype)) == -1) {
+	if (!force && !cheri && (type = elftype(strtype)) == -1) {
 		warnx("invalid ELF type '%s'", strtype);
 		printelftypes();
 		usage();
@@ -114,43 +132,93 @@ main(int argc, char **argv)
 
 	while (argc) {
 		int fd;
-		char buffer[EI_NIDENT];
+		union {
+			unsigned char	ident[EI_NIDENT];
+			Elf32_Ehdr	ehdr32;
+			Elf64_Ehdr	ehdr64;
+		} buffer;
 
-		if ((fd = open(argv[0], change || force ? O_RDWR : O_RDONLY, 0)) < 0) {
+		if ((fd = open(argv[0], change || cheri || force ? O_RDWR : O_RDONLY,
+		    0)) < 0) {
 			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
 		}
-		if (read(fd, buffer, EI_NIDENT) < EI_NIDENT) {
+		if (read(fd, &buffer, EI_NIDENT) < EI_NIDENT) {
 			warnx("file '%s' too short", argv[0]);
 			retval = 1;
 			goto fail;
 		}
-		if (buffer[0] != ELFMAG0 || buffer[1] != ELFMAG1 ||
-		    buffer[2] != ELFMAG2 || buffer[3] != ELFMAG3) {
+		if (buffer.ident[0] != ELFMAG0 || buffer.ident[1] != ELFMAG1 ||
+		    buffer.ident[2] != ELFMAG2 || buffer.ident[3] != ELFMAG3) {
 			warnx("file '%s' is not ELF format", argv[0]);
 			retval = 1;
 			goto fail;
 		}
-		if (!change && !force) {
+		if (!change && !cheri && !force) {
+			writeout = 0;
 			fprintf(stdout,
 				"File '%s' is of brand '%s' (%u).\n",
-				argv[0], iselftype(buffer[EI_OSABI]),
-				buffer[EI_OSABI]);
+				argv[0], iselftype(buffer.ident[EI_OSABI]),
+				buffer.ident[EI_OSABI]);
 			if (!iselftype(type)) {
 				warnx("ELF ABI Brand '%u' is unknown",
 				      type);
 				printelftypes();
 			}
-		}
-		else {
-			buffer[EI_OSABI] = type;
-			lseek(fd, 0, SEEK_SET);
-			if (write(fd, buffer, EI_NIDENT) != EI_NIDENT) {
-				warn("error writing %s %d", argv[0], fd);
+		} else if (cheri) {
+			switch (buffer.ident[EI_CLASS]) {
+			case ELFCLASS32:
+				writeout = sizeof(buffer.ehdr32);
+				if (pread(fd, &buffer, writeout, 0) <
+				    writeout) {
+					warnx("file '%s' too short", argv[0]);
+					retval = 1;
+					goto fail;
+				}
+				/* No CHERI on 32-bit architectures */
+				warnx("file '%s' not supported by cheri",
+				    argv[0]);
+				retval = 1;
+				goto fail;
+				break;
+
+			case ELFCLASS64:
+				writeout = sizeof(buffer.ehdr64);
+				if (pread(fd, &buffer, writeout, 0) <
+				    writeout) {
+					warnx("file '%s' too short", argv[0]);
+					retval = 1;
+					goto fail;
+				}
+				if (buffer.ehdr64.e_machine == EM_MIPS) {
+					buffer.ehdr64.e_machine =
+					    cheri == 128 ?
+					    EM_MIPS_CHERI128 :
+					    EM_MIPS_CHERI256;
+				} else {
+					warnx("file '%s' not a CHERI platform",
+					    argv[0]);
+					retval = 1;
+					goto fail;
+				}
+				break;
+
+			default:
+				warnx("file '%s' is an unknown elf class %c",
+				   argv[0], buffer.ident[EI_CLASS]);
 				retval = 1;
 				goto fail;
 			}
+		} else {
+			writeout = EI_NIDENT;
+			buffer.ident[EI_OSABI] = type;
+			lseek(fd, 0, SEEK_SET);
+		}
+		if (write(fd, &buffer, writeout) != writeout) {
+			warn("error writing %s %d", argv[0], fd);
+			retval = 1;
+			goto fail;
 		}
 fail:
 		close(fd);
@@ -165,7 +233,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: brandelf [-lv] [-f ELF_ABI_number] [-t string] file ...\n");
+	    "usage: brandelf [-lv] [-c CHERI_capability_size] file ...\n"
+	    "       brandelf [-lv] [-f ELF_ABI_number] file ...\n"
+	    "       brandelf [-lv] [-t string] file ...\n");
 	exit(1);
 }
 

@@ -32,6 +32,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl lv
+.Op Fl c Ar CHERI_capability_size
 .Op Fl f Ar ELF_ABI_number
 .Op Fl t Ar string
 .Ar
@@ -43,11 +44,21 @@ utility marks an ELF binary to be run under a certain ABI for
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl c Ar CHERI_capability_size
+Switches the ELF machine type to the CHERI version.
+.Ar CHERI_capability_size
+may be one of
+.Dq 128
+or
+.Dq 256 .
+The binary must be a supported type (currently 64-bit MIPS).
 .It Fl f Ar ELF_ABI_number
 Forces branding with the supplied ELF ABI number.
 Incompatible with the
+.Fl c
+and
 .Fl t
-option.
+options.
 These values are assigned by SCO/USL.
 .It Fl l
 Writes the list of all known ELF types to the standard error.
