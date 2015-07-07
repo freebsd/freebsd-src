@@ -9,7 +9,7 @@ SRCS+=	i386_get_fsbase.c i386_get_gsbase.c i386_get_ioperm.c i386_get_ldt.c \
 	__vdso_gettc.c
 
 MDASM=	Ovfork.S brk.S cerror.S exect.S getcontext.S pipe.S ptrace.S \
-	reboot.S sbrk.S setlogin.S sigreturn.S syscall.S
+	sbrk.S setlogin.S sigreturn.S syscall.S
 
 # Don't generate default code for these syscalls:
 NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
