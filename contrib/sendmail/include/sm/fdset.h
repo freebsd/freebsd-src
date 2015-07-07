@@ -17,9 +17,9 @@
 **	before.
 */
 
-#  define SM_FD_SET(fd, pfdset)		FD_SET(fd, pfdset)
-#  define SM_FD_ISSET(fd, pfdset)	FD_ISSET(fd, pfdset)
-#  define SM_FD_SETSIZE			FD_SETSIZE
-#  define SM_FD_OK_SELECT(fd)		(FD_SETSIZE <= 0 || (fd) < FD_SETSIZE)
+#define SM_FD_SET(fd, pfdset)	FD_SET(fd, pfdset)
+#define SM_FD_ISSET(fd, pfdset)	FD_ISSET(fd, pfdset)
+#define SM_FD_SETSIZE		FD_SETSIZE
+#define SM_FD_OK_SELECT(fd)	(SM_FD_SETSIZE <= 0 || (fd) < SM_FD_SETSIZE)
 
 #endif /* SM_FDSET_H */
