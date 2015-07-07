@@ -43,7 +43,7 @@ CFLAGS+= ${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
 CFLAGS+= -DNETINET6
 .endif
 
-WARNS?=	1
+WARNS?=	0
 
 LIBADD=	util wrap sm smutil
 
