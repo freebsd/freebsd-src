@@ -260,6 +260,13 @@
 	<entry>16&nbsp;June&nbsp;2015</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:11.bind.asc">FreeBSD-SA-15:11.bind</link></entry>
+	<entry>7&nbsp;July&nbsp;2015</entry>
+	<entry><para>Resolver remote denial of service</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
