@@ -427,7 +427,7 @@ of
 .Dv O_RDWR
 and
 .Dv O_EXEC .
-.It Bq Eq EBADF
+.It Bq Er EBADF
 The
 .Fa path
 argument does not specify an absolute path and the
@@ -436,7 +436,7 @@ argument is
 neither
 .Dv AT_FDCWD
 nor a valid file descriptor open for searching.
-.It Bq Eq ENOTDIR
+.It Bq Er ENOTDIR
 The
 .Fa path
 argument is not an absolute path and
@@ -444,7 +444,7 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
-.It Bq Eq ENOTDIR
+.It Bq Er ENOTDIR
 .Dv O_DIRECTORY
 is specified and the file is not a directory.
 .El
