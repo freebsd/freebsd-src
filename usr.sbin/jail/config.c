@@ -130,9 +130,8 @@ load_config(void)
 	struct cfjail *j, *tj, *wj;
 	struct cfparam *p, *vp, *tp;
 	struct cfstring *s, *vs, *ns;
-	struct cfvar *v;
+	struct cfvar *v, *vv;
 	char *ep;
-	size_t varoff;
 	int did_self, jseq, pgen;
 
 	if (!strcmp(cfname, "-")) {
@@ -191,7 +190,6 @@ load_config(void)
 		    p->gen = ++pgen;
 		find_vars:
 		    TAILQ_FOREACH(s, &p->val, tq) {
-			varoff = 0;
 			while ((v = STAILQ_FIRST(&s->vars))) {
 				TAILQ_FOREACH(vp, &j->params, tq)
 					if (!strcmp(vp->name, v->name))
@@ -233,11 +231,13 @@ load_config(void)
 					goto bad_var;
 				}
 				s->s = erealloc(s->s, s->len + vs->len + 1);
-				memmove(s->s + v->pos + varoff + vs->len,
-				    s->s + v->pos + varoff,
-				    s->len - (v->pos + varoff) + 1);
-				memcpy(s->s + v->pos + varoff, vs->s, vs->len);
-				varoff += vs->len;
+				memmove(s->s + v->pos + vs->len,
+				    s->s + v->pos,
+				    s->len - v->pos + 1);
+				memcpy(s->s + v->pos, vs->s, vs->len);
+				vv = v;
+				while ((vv = STAILQ_NEXT(vv, tq)))
+					vv->pos += vs->len;
 				s->len += vs->len;
 				while ((vs = TAILQ_NEXT(vs, tq))) {
 					ns = emalloc(sizeof(struct cfstring));
