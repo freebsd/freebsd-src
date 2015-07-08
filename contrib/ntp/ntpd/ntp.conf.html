@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p2 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p3 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -2286,6 +2286,8 @@ This implies that
 must have write permission for the directory the
 drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided. 
+<br><dt><code>dscp</code> <kbd>value</kbd><dd>This option specifies the Differentiated Services Control Point (DSCP) value,
+a 6-bit code.  The default value is 46, signifying Expedited Forwarding. 
 <br><dt><code>enable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats]</code><br><dt><code>disable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats]</code><dd>Provides a way to enable or disable various server options. 
 Flags not mentioned are unaffected. 
 Note that all of these flags
@@ -2360,6 +2362,18 @@ This option is useful for sites that run
 <code>ntpd(1ntpdmdoc)</code>
 on multiple hosts, with (mostly) common options (e.g., a
 restriction list). 
+<br><dt><code>leapsmearinterval</code> <kbd>seconds</kbd><dd>This EXPERIMENTAL option is only available if
+<code>ntpd(1ntpdmdoc)</code>
+was built with the
+<code>--enable-leap-smear</code>
+option to the
+<code>configure</code>
+script. 
+It specifies the interval over which a leap second correction will be applied. 
+Recommended values for this option are between
+7200 (2 hours) and 86400 (24 hours). 
+.Sy DO NOT USE THIS OPTION ON PUBLIC-ACCESS SERVERS! 
+See http://bugs.ntp.org/2855 for more information. 
 <br><dt><code>logconfig</code> <kbd>configkeyword</kbd><dd>This command controls the amount and type of output written to
 the system
 <code>syslog(3)</code>
@@ -2539,10 +2553,10 @@ when dropping root (the
 option). 
 The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory. 
 <br><dt><code>stacksize</code> <kbd>N4kPages</kbd><dd>Specifies the maximum size of the process stack on systems with the
-<br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default. 
 <code>mlockall()</code>
 function. 
 Defaults to 50 4k pages (200 4k pages in OpenBSD). 
+<br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default. 
 </dl>
      <br><dt><code>trap</code> <kbd>host_address</kbd> <code>[port </code><kbd>port_number</kbd><code>]</code> <code>[interface </code><kbd>interface_address</kbd><code>]</code><dd>This command configures a trap receiver at the given host
 address and port number for sending messages with the specified

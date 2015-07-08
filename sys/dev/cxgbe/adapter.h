@@ -1052,7 +1052,7 @@ void t4_update_fl_bufsize(struct ifnet *);
 int parse_pkt(struct mbuf **);
 void *start_wrq_wr(struct sge_wrq *, int, struct wrq_cookie *);
 void commit_wrq_wr(struct sge_wrq *, void *, struct wrq_cookie *);
-int tnl_cong(struct port_info *);
+int tnl_cong(struct port_info *, int);
 
 /* t4_tracer.c */
 struct t4_tracer;

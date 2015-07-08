@@ -82,9 +82,8 @@ To clone the repository you should have mercurial installed. Just run:
 
 	$ hg clone http://bitbucket.org/zserge/jsmn jsmn
 
-Repository layout is simple: jsmn.c and jsmn.h are library files; demo.c is an
-example of how to use jsmn (it is also used in unit tests); test.sh is a test
-script. You will also find README, LICENSE and Makefile files inside.
+Repository layout is simple: jsmn.c and jsmn.h are library files, tests are in
+the jsmn\_test.c, you will also find README, LICENSE and Makefile files inside.
 
 To build the library, run `make`. It is also recommended to run `make test`.
 Let me know, if some tests fail.
@@ -127,20 +126,27 @@ to simplify string extraction from JSON data.
 
 All job is done by `jsmn_parser` object. You can initialize a new parser using:
 
-	struct jsmn_parser parser;
+	jsmn_parser parser;
 	jsmntok_t tokens[10];
+
+	jsmn_init(&parser);
 
 	// js - pointer to JSON string
 	// tokens - an array of tokens available
 	// 10 - number of tokens available
-	jsmn_init_parser(&parser, js, tokens, 10);
+	jsmn_parse(&parser, js, tokens, 10);
 
-This will create a parser, that can parse up to 10 JSON tokens from `js` string.
+This will create a parser, and then it tries to parse up to 10 JSON tokens from
+the `js` string.
 
-Later, you can use `jsmn_parse(&parser)` function to process JSON string with the parser.
+A non-negative reutrn value of `jsmn_parse` is the number of tokens actually
+used by the parser.
+Passing NULL instead of the tokens array would not store parsing results, but
+instead the function will return the value of tokens needed to parse the given
+string. This can be useful if you don't know yet how many tokens to allocate.
+
 If something goes wrong, you will get an error. Error will be one of these:
 
-* `JSMN_SUCCESS` - everything went fine. String was parsed
 * `JSMN_ERROR_INVAL` - bad token, JSON string is corrupted
 * `JSMN_ERROR_NOMEM` - not enough tokens, JSON string is too large
 * `JSMN_ERROR_PART` - JSON string is too short, expecting more JSON data

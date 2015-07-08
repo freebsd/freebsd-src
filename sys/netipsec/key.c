@@ -6088,16 +6088,21 @@ key_getprop(const struct secasindex *saidx)
 static int
 key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 {
-	struct mbuf *result = NULL, *m;
+	union sockaddr_union addr;
+	struct mbuf *result, *m;
 	struct secacq *newacq;
-	u_int8_t satype;
-	int error = -1;
 	u_int32_t seq;
+	int error;
+	u_int16_t ul_proto;
+	u_int8_t mask, satype;
 
 	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
 	satype = key_proto2satype(saidx->proto);
 	IPSEC_ASSERT(satype != 0, ("null satype, protocol %u", saidx->proto));
 
+	error = -1;
+	result = NULL;
+	ul_proto = IPSEC_ULPROTO_ANY;
 	/*
 	 * We never do anything about acquirng SA.  There is anather
 	 * solution that kernel blocks to send SADB_ACQUIRE message until
@@ -6134,17 +6139,64 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 	 * anything related to NAT-T at this time.
 	 */
 
-	/* set sadb_address for saidx's. */
-	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
-	    &saidx->src.sa, FULLMASK, IPSEC_ULPROTO_ANY);
+	/*
+	 * set sadb_address for saidx's.
+	 *
+	 * Note that if sp is supplied, then we're being called from
+	 * key_checkrequest and should supply port and protocol information.
+	 */
+	if (sp != NULL && (sp->spidx.ul_proto == IPPROTO_TCP ||
+	    sp->spidx.ul_proto == IPPROTO_UDP))
+		ul_proto = sp->spidx.ul_proto;
+
+	addr = saidx->src;
+	mask = FULLMASK;
+	if (ul_proto != IPSEC_ULPROTO_ANY) {
+		switch (sp->spidx.src.sa.sa_family) {
+		case AF_INET:
+			if (sp->spidx.src.sin.sin_port != IPSEC_PORT_ANY) {
+				addr.sin.sin_port = sp->spidx.src.sin.sin_port;
+				mask = sp->spidx.prefs;
+			}
+			break;
+		case AF_INET6:
+			if (sp->spidx.src.sin6.sin6_port != IPSEC_PORT_ANY) {
+				addr.sin6.sin6_port = sp->spidx.src.sin6.sin6_port;
+				mask = sp->spidx.prefs;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC, &addr.sa, mask, ul_proto);
 	if (!m) {
 		error = ENOBUFS;
 		goto fail;
 	}
 	m_cat(result, m);
 
-	m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
-	    &saidx->dst.sa, FULLMASK, IPSEC_ULPROTO_ANY);
+	addr = saidx->dst;
+	mask = FULLMASK;
+	if (ul_proto != IPSEC_ULPROTO_ANY) {
+		switch (sp->spidx.dst.sa.sa_family) {
+		case AF_INET:
+			if (sp->spidx.dst.sin.sin_port != IPSEC_PORT_ANY) {
+				addr.sin.sin_port = sp->spidx.dst.sin.sin_port;
+				mask = sp->spidx.prefd;
+			}
+			break;
+		case AF_INET6:
+			if (sp->spidx.dst.sin6.sin6_port != IPSEC_PORT_ANY) {
+				addr.sin6.sin6_port = sp->spidx.dst.sin6.sin6_port;
+				mask = sp->spidx.prefd;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	m = key_setsadbaddr(SADB_EXT_ADDRESS_DST, &addr.sa, mask, ul_proto);
 	if (!m) {
 		error = ENOBUFS;
 		goto fail;

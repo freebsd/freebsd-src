@@ -581,6 +581,10 @@ returntosender(msg, returnq, flags, e)
 	else
 		ee->e_flags |= EF_NO_BODY_RETN;
 
+#if _FFR_BOUNCE_QUEUE
+	if (BounceQueue != NOQGRP)
+		ee->e_qgrp = ee->e_dfqgrp = BounceQueue;
+#endif /* _FFR_BOUNCE_QUEUE */
 	if (!setnewqueue(ee))
 	{
 		syserr("554 5.3.0 returntosender: cannot select queue for %s",
@@ -702,8 +706,15 @@ returntosender(msg, returnq, flags, e)
 	/* mark statistics */
 	markstats(ee, NULLADDR, STATS_NORMAL);
 
-	/* actually deliver the error message */
-	sendall(ee, SM_DELIVER);
+#if _FFR_BOUNCE_QUEUE
+	if (BounceQueue == NOQGRP)
+	{
+#endif
+		/* actually deliver the error message */
+		sendall(ee, SM_DELIVER);
+#if _FFR_BOUNCE_QUEUE
+	}
+#endif
 	(void) dropenvelope(ee, true, false);
 
 	/* check for delivery errors */

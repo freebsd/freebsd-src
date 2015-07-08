@@ -705,11 +705,9 @@ void isoclns_print(netdissect_options *ndo,
 		ip_print(ndo, p + 1, length - 1);
 		break;
 
-#ifdef INET6
 	case NLPID_IP6:
 		ip6_print(ndo, p + 1, length - 1);
 		break;
-#endif
 
 	case NLPID_PPP:
 		ppp_print(ndo, p + 1, length - 1);
@@ -1059,7 +1057,7 @@ esis_print(netdissect_options *ndo,
 
 	if (li < sizeof(struct esis_header_t) + 2) {
             ND_PRINT((ndo, " length indicator < min PDU size %d:", li));
-            while (--length != 0)
+            while (pptr < ndo->ndo_snapend)
                 ND_PRINT((ndo, "%02X", *pptr++));
             return;
 	}
@@ -1662,8 +1660,8 @@ isis_print_tlv_ip_reach(netdissect_options *ndo,
 static int
 isis_print_ip_reach_subtlv(netdissect_options *ndo,
                            const uint8_t *tptr, int subt, int subl,
-                           const char *ident) {
-
+                           const char *ident)
+{
         /* first lets see if we know the subTLVs name*/
 	ND_PRINT((ndo, "%s%s subTLV #%u, length: %u",
 	          ident, tok2str(isis_ext_ip_reach_subtlv_values, "unknown", subt),
@@ -1712,8 +1710,8 @@ trunctlv:
 static int
 isis_print_is_reach_subtlv(netdissect_options *ndo,
                            const uint8_t *tptr, u_int subt, u_int subl,
-                           const char *ident) {
-
+                           const char *ident)
+{
         u_int te_class,priority_level,gmpls_switch_cap;
         union { /* int to float conversion buffer for several subTLVs */
             float f;
@@ -1872,8 +1870,8 @@ trunctlv:
 
 static int
 isis_print_ext_is_reach(netdissect_options *ndo,
-                        const uint8_t *tptr, const char *ident, int tlv_type) {
-
+                        const uint8_t *tptr, const char *ident, int tlv_type)
+{
     char ident_buffer[20];
     int subtlv_type,subtlv_len,subtlv_sum_len;
     int proc_bytes = 0; /* how many bytes did we process ? */
@@ -1922,8 +1920,8 @@ isis_print_ext_is_reach(netdissect_options *ndo,
 
 static int
 isis_print_mtid(netdissect_options *ndo,
-                const uint8_t *tptr, const char *ident) {
-
+                const uint8_t *tptr, const char *ident)
+{
     if (!ND_TTEST2(*tptr, 2))
         return(0);
 
@@ -1949,8 +1947,8 @@ isis_print_mtid(netdissect_options *ndo,
 
 static int
 isis_print_extd_ip_reach(netdissect_options *ndo,
-                         const uint8_t *tptr, const char *ident, uint16_t afi) {
-
+                         const uint8_t *tptr, const char *ident, uint16_t afi)
+{
     char ident_buffer[20];
 #ifdef INET6
     uint8_t prefix[sizeof(struct in6_addr)]; /* shared copy buffer for IPv4 and IPv6 prefixes */
@@ -2418,8 +2416,7 @@ isis_print(netdissect_options *ndo,
 	break;
 
     default:
-	if (!print_unknown_data(ndo, pptr, "\n\t  ", length))
-	    return(0);
+	(void)print_unknown_data(ndo, pptr, "\n\t  ", length);
 	return (0);
     }
 
@@ -3086,15 +3083,31 @@ osi_print_cksum(netdissect_options *ndo,
 {
         uint16_t calculated_checksum;
 
-        /* do not attempt to verify the checksum if it is zero */
-        if (!checksum) {
+        /* do not attempt to verify the checksum if it is zero,
+         * if the total length is nonsense,
+         * if the offset is nonsense,
+         * or the base pointer is not sane
+         */
+        if (!checksum
+            || length > (u_int)ndo->ndo_snaplen
+            || checksum_offset > (uint)ndo->ndo_snaplen
+            || checksum_offset > length) {
                 ND_PRINT((ndo, "(unverified)"));
         } else {
+                unsigned char *truncated = "trunc";
+#if 0
+                printf("\nosi_print_cksum: %p %u %u %u\n", pptr, checksum_offset, length, ndo->ndo_snaplen);
+                ND_TCHECK2(pptr, checksum_offset+length);
+#endif
                 calculated_checksum = create_osi_cksum(pptr, checksum_offset, length);
                 if (checksum == calculated_checksum) {
                         ND_PRINT((ndo, " (correct)"));
                 } else {
-                        ND_PRINT((ndo, " (incorrect should be 0x%04x)", calculated_checksum));
+                        truncated = "incorrect";
+#if 0
+                        trunc:
+#endif
+                        ND_PRINT((ndo, " (%s should be 0x%04x)", truncated, calculated_checksum));
                 }
         }
 }

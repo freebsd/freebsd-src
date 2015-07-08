@@ -364,8 +364,8 @@ struct oam_fm_ais_rdi_t {
 
 int
 oam_print (netdissect_options *ndo,
-           const u_char *p, u_int length, u_int hec) {
-
+           const u_char *p, u_int length, u_int hec)
+{
     uint32_t cell_header;
     uint16_t vpi, vci, cksum, cksum_shouldbe, idx;
     uint8_t  cell_type, func_type, payload, clp;

@@ -426,11 +426,10 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 		ver = mfpvr() >> 16;
 #if defined(AIM)
 		if (MPC745X_P(ver))
-			printf("    msssr0         = 0x%x\n",
-			    mfspr(SPR_MSSSR0));
+			printf("    msssr0         = 0x%lx\n",
+			    (u_long)mfspr(SPR_MSSSR0));
 #elif defined(BOOKE)
-		printf("    mcsr           = 0x%x\n",
-		    mfspr(SPR_MCSR));
+		printf("    mcsr           = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
 #endif
 		break;
 	}

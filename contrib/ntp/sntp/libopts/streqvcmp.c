@@ -15,7 +15,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -81,9 +81,9 @@ static unsigned char charmap[] = {
  *
  * what: compare two strings with an equivalence mapping
  *
- * arg:  + char const* + str1 + first string +
- * arg:  + char const* + str2 + second string +
- * arg:  + int         + ct   + compare length +
+ * arg:  + char const * + str1 + first string +
+ * arg:  + char const * + str2 + second string +
+ * arg:  + int          + ct   + compare length +
  *
  * ret_type:  int
  * ret_desc:  the difference between two differing characters
@@ -129,8 +129,8 @@ strneqvcmp(char const * s1, char const * s2, int ct)
  *
  * what: compare two strings with an equivalence mapping
  *
- * arg:  + char const* + str1 + first string +
- * arg:  + char const* + str2 + second string +
+ * arg:  + char const * + str1 + first string +
+ * arg:  + char const * + str2 + second string +
  *
  * ret_type:  int
  * ret_desc:  the difference between two differing characters
@@ -226,7 +226,7 @@ streqvmap(char from, char to, int ct)
  *
  * what: map a list of characters to the same value
  *
- * arg:  + char const* + ch_list + characters to equivalence +
+ * arg:  + char const * + ch_list + characters to equivalence +
  *
  * doc:
  *
@@ -238,7 +238,7 @@ streqvmap(char from, char to, int ct)
  * err:  none.
 =*/
 void
-strequate(char const* s)
+strequate(char const * s)
 {
     if ((s != NULL) && (*s != NUL)) {
         unsigned char equiv = (unsigned char)*s;
@@ -252,8 +252,8 @@ strequate(char const* s)
  *
  * what: convert a string into its mapped-to value
  *
- * arg:  + char*       + dest + output string +
- * arg:  + char const* + src  + input string +
+ * arg:  + char *       + dest + output string +
+ * arg:  + char const * + src  + input string +
  *
  * doc:
  *
@@ -267,7 +267,7 @@ strequate(char const* s)
  * err:  none.
 =*/
 void
-strtransform(char* d, char const* s)
+strtransform(char * d, char const * s)
 {
     do  {
         *(d++) = (char)charmap[(unsigned char)*s];

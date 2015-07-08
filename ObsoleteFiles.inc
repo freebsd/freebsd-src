@@ -99,6 +99,13 @@ OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.6.1/lib
 OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150705: Rename DTrace provider man pages.
+OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
 # 20150604: Move nvlist man pages to section 9.
 OLD_FILES+=usr/share/man/man3/libnv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist.3.gz
