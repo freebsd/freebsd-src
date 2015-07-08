@@ -51,13 +51,22 @@ __FBSDID("$FreeBSD$");
 #include <langinfo.h>
 #include <locale.h>
 #include <pwd.h>
+#include <stdbool.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stringlist.h>
 #include <unistd.h>
 
 #include "pathnames.h"
 #include "calendar.h"
+
+enum {
+	T_OK = 0,
+	T_ERR,
+	T_PROCESS,
+};
 
 const char *calendarFile = "calendar";	/* default calendar file */
 static const char *calendarHomes[] = {".calendar", _PATH_INCLUDE}; /* HOME */
@@ -68,6 +77,147 @@ static char path[MAXPATHLEN];
 struct fixs neaster, npaskha, ncny, nfullmoon, nnewmoon;
 struct fixs nmarequinox, nsepequinox, njunsolstice, ndecsolstice;
 
+static int cal_parse(FILE *in, FILE *out);
+
+static StringList *definitions = NULL;
+static struct event *events[MAXCOUNT];
+static char *extradata[MAXCOUNT];
+
+static void
+trimlr(char **buf)
+{
+	char *walk = *buf;
+
+	while (isspace(*walk))
+		walk++;
+	while (isspace(walk[strlen(walk) -1]))
+		walk[strlen(walk) -1] = '\0';
+
+	*buf = walk;
+}
+
+static FILE *
+cal_fopen(const char *file)
+{
+	FILE *fp;
+	char *home = getenv("HOME");
+	unsigned int i;
+
+	if (home == NULL || *home == '\0') {
+		warnx("Cannot get home directory");
+		return (NULL);
+	}
+
+	if (chdir(home) != 0) {
+		warnx("Cannot enter home directory");
+		return (NULL);
+	}
+
+	for (i = 0; i < sizeof(calendarHomes)/sizeof(calendarHomes[0]) ; i++) {
+		if (chdir(calendarHomes[i]) != 0)
+			continue;
+
+		if ((fp = fopen(file, "r")) != NULL)
+			return (fp);
+	}
+
+	warnx("can't open calendar file \"%s\"", file);
+
+	return (NULL);
+}
+
+static int
+token(char *line, FILE *out, bool *skip)
+{
+	char *walk, c, a;
+
+	if (strncmp(line, "endif", 5) == 0) {
+		*skip = false;
+		return (T_OK);
+	}
+
+	if (*skip)
+		return (T_OK);
+
+	if (strncmp(line, "include", 7) == 0) {
+		walk = line + 7;
+
+		trimlr(&walk);
+
+		if (*walk == '\0') {
+			warnx("Expecting arguments after #include");
+			return (T_ERR);
+		}
+
+		if (*walk != '<' && *walk != '\"') {
+			warnx("Excecting '<' or '\"' after #include");
+			return (T_ERR);
+		}
+
+		a = *walk;
+		walk++;
+		c = walk[strlen(walk) - 1];
+
+		switch(c) {
+		case '>':
+			if (a != '<') {
+				warnx("Unterminated include expecting '\"'");
+				return (T_ERR);
+			}
+			break;
+		case '\"':
+			if (a != '\"') {
+				warnx("Unterminated include expecting '>'");
+				return (T_ERR);
+			}
+			break;
+		default:
+			warnx("Unterminated include expecting '%c'",
+			    a == '<' ? '>' : '\"' );
+			return (T_ERR);
+		}
+		walk[strlen(walk) - 1] = '\0';
+
+		if (cal_parse(cal_fopen(walk), out))
+			return (T_ERR);
+
+		return (T_OK);
+	}
+
+	if (strncmp(line, "define", 6) == 0) {
+		if (definitions == NULL)
+			definitions = sl_init();
+		walk = line + 6;
+		trimlr(&walk);
+
+		if (*walk == '\0') {
+			warnx("Expecting arguments after #define");
+			return (T_ERR);
+		}
+
+		sl_add(definitions, strdup(walk));
+		return (T_OK);
+	}
+
+	if (strncmp(line, "ifndef", 6) == 0) {
+		walk = line + 6;
+		trimlr(&walk);
+
+		if (*walk == '\0') {
+			warnx("Expecting arguments after #ifndef");
+			return (T_ERR);
+		}
+
+		if (definitions != NULL && sl_find(definitions, walk) != NULL)
+			*skip = true;
+
+		return (T_OK);
+	}
+
+	return (T_PROCESS);
+
+}
+
 #define	REPLACE(string, slen, struct_) \
 		if (strncasecmp(buf, (string), (slen)) == 0 && buf[(slen)]) { \
 			if (struct_.name != NULL)			      \
@@ -77,30 +227,25 @@ struct fixs nmarequinox, nsepequinox, njunsolstice, ndecsolstice;
 			struct_.len = strlen(buf + (slen));		      \
 			continue;					      \
 		}
-void
-cal(void)
+static int
+cal_parse(FILE *in, FILE *out)
 {
-	char *pp, p;
-	FILE *fpin;
-	FILE *fpout;
-	int l;
-	int count, i;
+	char *line = NULL;
+	char *buf;
+	size_t linecap = 0;
+	ssize_t linelen;
+	ssize_t l;
+	static int d_first = -1;
+	static int count = 0;
+	int i;
 	int month[MAXCOUNT];
 	int day[MAXCOUNT];
 	int year[MAXCOUNT];
-	char **extradata;	/* strings of 20 length */
-	int flags;
-	static int d_first = -1;
-	char buf[2048 + 1];
-	struct event *events[MAXCOUNT];
-	struct tm tm;
+	bool skip = false;
 	char dbuf[80];
-
-	initcpp();
-	extradata = (char **)calloc(MAXCOUNT, sizeof(char *));
-	for (i = 0; i < MAXCOUNT; i++) {
-		extradata[i] = (char *)calloc(1, 20);
-	}
+	char *pp, p;
+	struct tm tm;
+	int flags;
 
 	/* Unused */
 	tm.tm_sec = 0;
@@ -108,20 +253,32 @@ cal(void)
 	tm.tm_hour = 0;
 	tm.tm_wday = 0;
 
-	count = 0;
-	if ((fpin = opencalin()) == NULL) {
-		free(extradata);
-		return;
-	}
-	if ((fpout = opencalout()) == NULL) {
-		fclose(fpin);
-		free(extradata);
-		return;
-	}
-	while ((fpin = fincludegets(buf, sizeof(buf), fpin)) != NULL) {
-		if (*buf == '\0')
+	if (in == NULL)
+		return (1);
+
+	while ((linelen = getline(&line, &linecap, in)) > 0) {
+		if (linelen == 0)
 			continue;
-		for (l = strlen(buf);
+
+		if (*line == '#') {
+			switch (token(line+1, out, &skip)) {
+			case T_ERR:
+				free(line);
+				return (1);
+			case T_OK:
+				continue;
+			case T_PROCESS:
+				break;
+			default:
+				break;
+			}
+		}
+
+		if (skip)
+			continue;
+
+		buf = line;
+		for (l = linelen;
 		     l > 0 && isspace((unsigned char)buf[l - 1]);
 		     l--)
 			;
@@ -208,16 +365,41 @@ cal(void)
 		}
 	}
 
+	free(line);
+	fclose(in);
+
+	return (0);
+}
+
+void
+cal(void)
+{
+	FILE *fpin;
+	FILE *fpout;
+	int i;
+
+	for (i = 0; i < MAXCOUNT; i++)
+		extradata[i] = (char *)calloc(1, 20);
+
+
+	if ((fpin = opencalin()) == NULL)
+		return;
+
+	if ((fpout = opencalout()) == NULL) {
+		fclose(fpin);
+		return;
+	}
+
+	if (cal_parse(fpin, fpout))
+		return;
+
 	event_print_all(fpout);
 	closecal(fpout);
-	free(extradata);
 }
 
 FILE *
 opencalin(void)
 {
-	size_t i;
-	int found;
 	struct stat sbuf;
 	FILE *fpin;
 
@@ -231,22 +413,7 @@ opencalin(void)
 			if ((fpin = fopen(calendarFile, "r")) == NULL)
 				return (NULL);
 		} else {
-			char *home = getenv("HOME");
-			if (home == NULL || *home == '\0')
-				errx(1, "cannot get home directory");
-			if (chdir(home) != 0)
-				errx(1, "cannot enter home directory");
-			for (found = i = 0; i < sizeof(calendarHomes) /
-			    sizeof(calendarHomes[0]); i++)
-				if (chdir(calendarHomes[i]) == 0 &&
-				    (fpin = fopen(calendarFile, "r")) != NULL) {
-					found = 1;
-					break;
-				}
-			if (!found)
-				errx(1,
-				    "can't open calendar file \"%s\": %s (%d)",
-				    calendarFile, strerror(errno), errno);
+			fpin = cal_fopen(calendarFile);
 		}
 	}
 	return (fpin);

@@ -5,7 +5,7 @@
 
 PROG=	calendar
 SRCS=	calendar.c locale.c events.c dates.c parsedata.c io.c day.c \
-	ostern.c paskha.c pom.c sunpos.c calcpp.c
+	ostern.c paskha.c pom.c sunpos.c
 DPADD=	${LIBM}
 LDADD=	-lm
 INTER=          de_AT.ISO_8859-15 de_DE.ISO8859-1 fr_FR.ISO8859-1 \
