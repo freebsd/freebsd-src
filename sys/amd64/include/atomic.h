@@ -84,6 +84,10 @@ u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
 int	atomic_testandset_int(volatile u_int *p, u_int v);
 int	atomic_testandset_long(volatile u_long *p, u_int v);
+void	atomic_thread_fence_acq(void);
+void	atomic_thread_fence_acq_rel(void);
+void	atomic_thread_fence_rel(void);
+void	atomic_thread_fence_seq_cst(void);
 
 #define	ATOMIC_LOAD(TYPE)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -327,6 +331,34 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 	*p = v;							\
 }								\
 struct __hack
+
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	__storeload_barrier();
+}
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
