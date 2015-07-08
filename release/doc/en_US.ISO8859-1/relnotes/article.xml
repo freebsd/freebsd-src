@@ -426,6 +426,10 @@
 	    fixes.</para>
 	</listitem>
       </itemizedlist>
+
+      <para revision="285236" contrib="sponsor" sponsor="&msostc;">The
+	&man.hv.netvsc.4; driver has been updated to support checksum
+	offloading and <acronym>TSO</acronym>.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
