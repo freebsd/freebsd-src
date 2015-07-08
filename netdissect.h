@@ -270,8 +270,11 @@ struct netdissect_options {
  *
  *	http://www.kb.cert.org/vuls/id/162289
  */
+
+#define IS_NOT_NEGATIVE(x) (((x) > 0) || ((x) == 0))
+
 #define ND_TTEST2(var, l) \
-  ((l) >= 0 && \
+  (IS_NOT_NEGATIVE(l) && \
 	((uintptr_t)ndo->ndo_snapend - (l) <= (uintptr_t)ndo->ndo_snapend && \
          (uintptr_t)&(var) <= (uintptr_t)ndo->ndo_snapend - (l)))
 
