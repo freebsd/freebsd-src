@@ -511,6 +511,7 @@ knote_fork(struct knlist *list, int pid)
 		kev.fflags = kn->kn_sfflags;
 		kev.data = kn->kn_id;		/* parent */
 		/* preserve udata */
+#ifdef CPU_CHERI
 		if (kn->kn_flags & EV_FREEUDATA) {
 			kev.udata = malloc(sizeof(struct chericap), M_KQUEUE,
 			    M_WAITOK);
@@ -518,12 +519,15 @@ knote_fork(struct knlist *list, int pid)
 			    kn->kn_kevent.udata);
 			cheri_capability_store(CHERI_CR_CTEMP0, kev.udata);
 		} else
+#endif
 			kev.udata = kn->kn_kevent.udata;
 		error = kqueue_register(kq, &kev, NULL, 0);
 		if (error) {
 			kn->kn_fflags |= NOTE_TRACKERR;
+#ifdef CPU_CHERI
 			if (kn->kn_flags & EV_FREEUDATA)
 				free(kev.udata, M_KQUEUE);
+#endif
 		}
 		if (kn->kn_fop->f_event(kn, NOTE_FORK))
 			KNOTE_ACTIVATE(kn, 0);
@@ -1233,8 +1237,10 @@ findkn:
 	kn->kn_status |= KN_INFLUX | KN_SCAN;
 	KQ_UNLOCK(kq);
 	KN_LIST_LOCK(kn);
+#ifdef CPU_CHERI
 	if (kn->kn_kevent.flags & EV_FREEUDATA)
 		free(kn->kn_kevent.udata, M_KQUEUE);
+#endif
 	kn->kn_kevent.udata = kev->udata;
 	if (!fops->f_isfd && fops->f_touch != NULL) {
 		fops->f_touch(kn, kev, EVENT_REGISTER);
@@ -2349,8 +2355,10 @@ static void
 knote_free(struct knote *kn)
 {
 	if (kn != NULL) {
+#ifdef CPU_CHERI
 		if (kn->kn_kevent.flags & EV_FREEUDATA)
 			free(kn->kn_kevent.udata, M_KQUEUE);
+#endif
 		uma_zfree(knote_zone, kn);
 	}
 }
