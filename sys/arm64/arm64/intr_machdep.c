@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
 #include <sys/queue.h>
+#include <sys/smp.h>
 
 #include <machine/cpufunc.h>
 #include <machine/intr.h>
@@ -473,9 +474,16 @@ arm_init_secondary(void)
 void
 ipi_all_but_self(u_int ipi)
 {
+	cpuset_t other_cpus;
 
-	/* ARM64TODO: We should support this */
-	panic("ipi_all_but_self");
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+
+	/* ARM64TODO: This will be fixed with arm_intrng */
+	ipi += 16;
+
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+	PIC_IPI_SEND(root_pic, other_cpus, ipi);
 }
 
 void
