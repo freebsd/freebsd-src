@@ -186,7 +186,7 @@ _maninstall: ${MAN}
 .endif
 .endfor
 .else
-.for _page _sect ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}
+.for _page _sect in ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}
 	@d=${DESTDIR}${MANDIR}${_sect}${MANSUBDIR}; \
 	${ECHO} ${MINSTALL} ${_page} $${d}; \
 	${MINSTALL} $${page} $${d};
