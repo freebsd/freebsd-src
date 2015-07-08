@@ -5,6 +5,165 @@ This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
 
+8.15.2/8.15.2	2015/07/03
+	If FEATURE(`nopercenthack') is used then some bogus input triggered
+		a recursion which was caught and logged as
+		SYSERR: rewrite: excessive recursion (max 50) ...
+		Fix based on patch from Ondrej Holas.
+	DHParameters now by default uses an included 2048 bit prime.
+		The value 'none' previously caused a log entry claiming
+		there was an error "cannot read or set DH parameters".
+		Also note that this option applies to the server side only.
+	The U= mailer field didn't accept group names containing hyphens,
+		underbars, or periods.  Based on patch from David Gwynne
+		of the University of Queensland.
+	CONFIG: Allow connections from IPv6:0:0:0:0:0:0:0:1 to relay again.
+		Patch from Lars-Johan Liman of Netnod Internet Exchange.
+	CONFIG: New option UseCompressedIPv6Addresses to select between
+		compressed and uncompressed IPv6 addresses.  The default
+		value depends on the compile-time option IPV6_FULL:
+		For 1 the default is False, for 0 it is True, thus
+		preserving the current behaviour.  Based on patch from
+		John Beck of Oracle.
+	CONFIG: Account for IPv6 localhost addresses in
+		FEATURE(`block_bad_helo').  Suggested by Andrey Chernov
+		from FreeBSD and Robert Scheck from the Fedora Project.
+	CONFIG: Account for IPv6 localhost addresses in check_mail ruleset.
+	LIBMILTER: Deal with more invalid protocol data to avoid potential
+		crashes.  Problem noted by Dimitri Kirchner.
+	LIBMILTER: Allow a milter to specify an empty macro list ("", not
+		NULL) in smfi_setsymlist() so no macro is sent for the
+		selected stage.
+	MAKEMAP: A change to check TrustedUser in fewer cases which was
+		made in 2013 caused a potential regression when makemap
+		was run as root (which should not be done anyway).
+	Note: sendmail often contains options "For Future Releases"
+		(prefix _FFR_) which might be enabled in a subsequent
+		version or might simply be removed as they turned out not
+		to be really useful.  These features are usually not
+		documented but if they are, then the required (FFR)
+		options are listed in
+		- doc/op/op.* for rulesets and macros,
+		- cf/README for mc/cf options.
+
+8.15.1/8.15.1	2014/12/06
+	SECURITY: Properly set the close-on-exec flag for file descriptors
+		(except stdin, stdout, and stderr) before executing mailers.
+	If header rewriting fails due to a temporary map lookup failure,
+		queue the mail for later retry instead of sending it
+		without rewriting the header.  Note: this is done
+		while the mail is being sent and hence the transaction
+		is aborted, which only works for SMTP/LMTP mailers
+		hence the handling of temporary map failures is
+		suppressed for other mailers. SMTP/LMTP servers may
+		complain about aborted transactions when this problem
+		occurs.
+		See also "DNS Lookups" in sendmail/TUNING.
+	Incompatible Change: Use uncompressed IPv6 addresses by default,
+		i.e., they will not contain "::".  For example,
+		instead of ::1 it will be 0:0:0:0:0:0:0:1.  This
+		permits a zero subnet to have a more specific match,
+		such as different map entries for IPv6:0:0 vs IPv6:0.
+		This change requires that configuration data
+		(including maps, files, classes, custom ruleset,
+		etc) must use the same format, so make certain such
+		configuration data is updated before using 8.15.
+		As a very simple check search for patterns like
+		'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'. If necessary,
+		the prior format can be retained by compiling with:
+		APPENDDEF(`conf_sendmail_ENVDEF', `-DIPV6_FULL=0')
+		in your devtools/Site/site.config.m4 file.
+	If debugging is turned on (-d0.14) also print the OpenSSL
+		versions, both build time and run time
+		(provided STARTTLS is compiled in).
+	If a connection to the MTA is dropped by the client before its
+		hostname can be validated, treat it as "may be forged",
+		so that the unvalidated hostname is not passed to a
+		milter in xxfi_connect().
+	Add a timeout for communication with socket map servers
+		which can be specified using the -d option.
+	Add a compile time option HESIOD_ALLOW_NUMERIC_LOGIN to allow
+		numeric logins even if HESIOD is enabled.
+	The new option CertFingerprintAlgorithm specifies the finger-
+		print algorithm (digest) to use for the presented cert.
+		If the option is not set, md5 is used and the macro
+		{cert_md5} contains the cert fingerprint.
+		However, if the option is set, the specified algorithm
+		(e.g., sha1) is used and the macro {cert_fp} contains
+		the cert fingerprint.
+		That is, as long as the option is not set, the behaviour
+		does not change, but otherwise, {cert_md5} is superseded
+		by {cert_fp} even if you set CertFingerprintAlgorithm
+		to md5.
+	The options ServerSSLOptions and ClientSSLOptions can be used
+		to set SSL options for the server and client side
+		respectively. See SSL_CTX_set_options(3) for a list.
+		Note: this change turns on SSL_OP_NO_SSLv2 and
+		SSL_OP_NO_TICKET for the client. See doc/op/op.me
+		for details.
+	The option CipherList sets the list of ciphers for STARTTLS.
+		See ciphers(1) for possible values.
+	Do not log "STARTTLS: internal error: tls_verify_cb: ssl == NULL"
+		if a CRLFfile is in use (and LogLevel is 14 or higher.)
+	Store a more specific TLS protocol version in ${tls_version}
+		instead of a generic one, e.g., TLSv1 instead of
+		TLSv1/SSLv3.
+	Properly set {client_port} value on little endian machines.
+		Patch from Kelsey Cummings of Sonic.net.
+	Per RFC 3848, indicate in the Received: header whether SSL or
+		SMTP AUTH was negotiated by setting the protocol clause
+		to ESMTPS, ESMTPA, or ESMTPSA instead of ESMTP.
+	If the 'C' flag is listed as TLSSrvOptions the requirement for the
+		TLS server to have a cert is removed.  This only works
+		under very specific circumstances and should only be used
+		if the consequences are understood, e.g., clients
+		may not work with a server using this.
+	The options ClientCertFile, ClientKeyFile, ServerCertFile, and
+		ServerKeyFile can take a second file name, which must be
+		separated from the first with a comma (note: do not use
+		any spaces) to set up a second cert/key pair. This can
+		be used to have certs of different types, e.g., RSA
+		and DSA.
+	A new map type "arpa" is available to reverse an IP (IPv4 or IPv6)
+		address. It returns the string for the PTR lookup, but
+		without trailing {ip6,in-addr}.arpa.
+	New operation mode  'C' just checks the configuration file, e.g.,
+		sendmail -C new.cf -bC
+		will perform a basic syntax/consistency check of new.cf.
+	The mailer flag 'I' is deprecated and will be removed in a
+		future version.
+	Allow local (not just TCP) socket connections to the server, e.g.,
+		O DaemonPortOptions=Family=local, Addr=/var/mta/server.sock
+		can be used.
+	If the new option MaxQueueAge is set to a value greater than zero,
+		entries in the queue will be retried during a queue run
+		only if the individual retry time has been reached which
+		is doubled for each attempt.  The maximum retry time is
+		limited by the specified value.
+	New DontBlameSendmail option GroupReadableDefaultAuthInfoFile
+		to relax requirement for DefaultAuthInfo file.
+	Reset timeout after receiving a message to appropriate value if
+		STARTTLS is in use.  Based on patch by Kelsey Cummings
+		of Sonic.net.
+	Report correct error messages from the LDAP library for a range of
+		small negative return values covering those used by OpenLDAP.
+	Fix compilation with Berkeley DB 5.0 and 6.0.  Patch from
+		Allan E Johannesen of Worcester Polytechnic Institute.
+	CONFIG: FEATURE(`nopercenthack') takes one parameter: reject or
+		nospecial which describes whether to disallow "%" in the
+		local part of an address.
+	DEVTOOLS: Fix regression in auto-detection of libraries when only
+		shared libraries are available.  Problem reported by
+		Bryan Costales.
+	LIBMILTER: Mark communication socket as close-on-exec in case
+		a user's filter starts other applications.
+		Based on patch from Paul Howarth.
+	Portability:
+		SunOS 5.12 has changed the API for sigwait(2) to conform
+		with XPG7.  Based on patch from Roger Faulkner of Oracle.
+	Deleted Files:
+		libsm/path.c
+
 8.14.9/8.14.9	2014/05/21
 	SECURITY: Properly set the close-on-exec flag for file descriptors
 		(except stdin, stdout, and stderr) before executing mailers.
@@ -681,7 +840,7 @@ summary of the changes in that release.
 	LIBMILTER: The "hostname" argument of the xxfi_connect() callback
 		previously was the equivalent of {client_ptr}.  However,
 		this did not match the documentation of the function, hence
-		it has been changed to {client_name}.  See doc/op/op.*
+		it has been changed to {client_name}.  See doc/op/op.me
 		about these macros.
 
 8.13.7/8.13.7	2006/06/14
@@ -3509,11 +3668,11 @@ summary of the changes in that release.
 	Add new STARTTLS related options CACERTPath, CACERTFile,
 		ClientCertFile, ClientKeyFile, DHParameters, RandFile,
 		ServerCertFile, and ServerKeyFile.  These are documented in
-		cf/README and doc/op/op.*.
+		cf/README and doc/op/op.me.
 	New STARTTLS related macros: ${cert_issuer}, ${cert_subject},
 		${tls_version}, ${cipher}, ${cipher_bits}, ${verify},
 		${server_name}, and ${server_addr}.  These are documented
-		in cf/README and doc/op/op.*.
+		in cf/README and doc/op/op.me.
 	Add support for the Entropy Gathering Daemon (EGD) for better
 		random data.
 	New DontBlameSendmail option InsufficientEntropy for systems which

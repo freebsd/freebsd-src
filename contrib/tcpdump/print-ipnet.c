@@ -76,11 +76,9 @@ ipnet_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen
 	        ip_print(ndo, p, length);
 		break;
 
-#ifdef INET6
 	case IPH_AF_INET6:
 		ip6_print(ndo, p, length);
 		break;
-#endif /*INET6*/
 
 	default:
 		if (!ndo->ndo_eflag)

@@ -139,7 +139,7 @@ sub ntp_sntp_line {
         my @output = split / /;
 
         $offset = $output[3];
-        ($stratum = pop @output) =~ s/s(\d{1,2})/$1/;
+        ($stratum = $output[7]) =~ s/s(\d{1,2})/$1/;
     }
     close $fh or croak "running sntp failed: $! (exit status $?)";
     return ($offset, $stratum);

@@ -200,11 +200,9 @@ gre_print_0(netdissect_options *ndo, const u_char *bp, u_int length)
 	case ETHERTYPE_IP:
 	        ip_print(ndo, bp, len);
 		break;
-#ifdef INET6
 	case ETHERTYPE_IPV6:
 		ip6_print(ndo, bp, len);
 		break;
-#endif
 	case ETHERTYPE_MPLS:
 		mpls_print(ndo, bp, len);
 		break;

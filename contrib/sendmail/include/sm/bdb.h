@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2003 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 2002, 2003, 2014 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -19,7 +19,7 @@
 #  define DB_VERSION_MAJOR 1
 # endif /* ! DB_VERSION_MAJOR */
 
-# if DB_VERSION_MAJOR >= 4 && DB_VERSION_MINOR >= 1
+# if (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 1) || DB_VERSION_MAJOR >= 5
 
 #  define DBTXN	NULL ,
 
@@ -32,7 +32,7 @@
 
 #  define SM_DB_FLAG_ADD(flag)	(flag) |= DB_FCNTL_LOCKING
 
-# else /* DB_VERSION_MAJOR >= 4 && DB_VERSION_MINOR >= 1 */
+# else /* (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 1) || DB_VERSION_MAJOR >= 5 */
 
 #  define DBTXN
 #  if !HASFLOCK && defined(DB_FCNTL_LOCKING)
@@ -41,7 +41,7 @@
 #   define SM_DB_FLAG_ADD(flag)	((void) 0)
 #  endif /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
 
-# endif /* DB_VERSION_MAJOR >= 4 && DB_VERSION_MINOR >= 1 */
+# endif /* (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 1) || DB_VERSION_MAJOR >= 5 */
 #endif /* NEWDB */
 
 #endif /* ! SM_BDB_H */

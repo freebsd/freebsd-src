@@ -3902,17 +3902,17 @@ ofed/drivers/infiniband/hw/mthca/mthca_uar.c		optional mthca	\
 
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec
-opencrypto/criov.c		optional crypto
-opencrypto/crypto.c		optional crypto
+opencrypto/criov.c		optional crypto | ipsec
+opencrypto/crypto.c		optional crypto | ipsec
 opencrypto/cryptodev.c		optional cryptodev
-opencrypto/cryptodev_if.m	optional crypto
-opencrypto/cryptosoft.c		optional crypto
-opencrypto/cryptodeflate.c	optional crypto
-opencrypto/gmac.c		optional crypto
-opencrypto/gfmult.c		optional crypto
+opencrypto/cryptodev_if.m	optional crypto | ipsec
+opencrypto/cryptosoft.c		optional crypto | ipsec
+opencrypto/cryptodeflate.c	optional crypto | ipsec
+opencrypto/gmac.c		optional crypto | ipsec
+opencrypto/gfmult.c		optional crypto | ipsec
 opencrypto/rmd160.c		optional crypto | ipsec
-opencrypto/skipjack.c		optional crypto
-opencrypto/xform.c		optional crypto
+opencrypto/skipjack.c		optional crypto | ipsec
+opencrypto/xform.c		optional crypto | ipsec
 rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd

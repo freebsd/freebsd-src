@@ -725,10 +725,10 @@ populate_mfs_tree() {
     # /stand/crunch is our main binary, we extract its libs
     find_progs ${dst}/stand/crunch
     if [ -n "${u_libs}" ] ; then
-	mkdir -p ${dst}/lib && cp -p ${u_libs} ${dst}/lib
+	mkdir -p ${dst}/lib && (cp -p ${u_libs} ${dst}/lib || log "copy libs ${u_libs} failed" )
 	mkdir -p ${dst}/libexec
         create_includes_and_libraries2 libexec/rtld-elf
-        find_progs ld-elf.so.1 && cp -p ${u_progs} ${dst}/libexec
+        find_progs ld-elf.so.1 && ( cp -p ${u_progs} ${dst}/libexec || log "copy ${u_progs} failed" )
     fi
 
     [ -n "${copy_files}" ] && do_copyfiles ${dst} copy_files
@@ -959,6 +959,7 @@ set_build_parameters() {
 	export WITH_GNUCXX=yes
 	export WITHOUT_CLANG=yes
 	export WITHOUT_ICONV=yes
+	export WITHOUT_TESTS=yes
 
 	# XXX why change machine_arch ?
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`

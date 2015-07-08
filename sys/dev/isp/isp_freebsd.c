@@ -462,24 +462,11 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			retval = EINVAL;
 			break;
 		}
-		if (IS_FC(isp)) {
-			/*
-			 * We don't really support dual role at present on FC cards.
-			 *
-			 * We should, but a bunch of things are currently broken,
-			 * so don't allow it.
-			 */
-			if (nr == ISP_ROLE_BOTH) {
-				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
-				retval = EINVAL;
-				break;
-			}
-			ISP_LOCK(isp);
+		ISP_LOCK(isp);
+		if (IS_FC(isp))
 			*(int *)addr = FCPARAM(isp, chan)->role;
-		} else {
-			ISP_LOCK(isp);
+		else
 			*(int *)addr = SDPARAM(isp, chan)->role;
-		}
 		retval = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, nr);
 		ISP_UNLOCK(isp);
 		retval = 0;
@@ -1262,11 +1249,6 @@ isp_enable_lun(ispsoftc_t *isp, union ccb *ccb)
 	target = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path, "enabling lun %u\n", lun);
-	if (target != CAM_TARGET_WILDCARD && target != 0) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
-		return;
-	}
 	if (target == CAM_TARGET_WILDCARD && lun != CAM_LUN_WILDCARD) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
@@ -1479,12 +1461,6 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	target = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path, "disabling lun %u\n", lun);
-	if (target != CAM_TARGET_WILDCARD && target != 0) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
-		return;
-	}
-
 	if (target == CAM_TARGET_WILDCARD && lun != CAM_LUN_WILDCARD) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
@@ -4684,7 +4660,7 @@ isp_gdt_task(void *arg, int pending)
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	fcportdb_t *lp;
-	int dbidx, tgt, more_to_do = 0;
+	int dbidx, more_to_do = 0;
 
 	ISP_LOCK(isp);
 	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d GDT timer expired", chan);
@@ -4703,12 +4679,10 @@ isp_gdt_task(void *arg, int pending)
 			more_to_do++;
 			continue;
 		}
-		tgt = lp->dev_map_idx - 1;
-		FCPARAM(isp, chan)->isp_dev_map[tgt] = 0;
 		lp->dev_map_idx = 0;
 		lp->state = FC_PORTDB_STATE_NIL;
-		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, tgt, "Gone Device Timeout");
-		isp_make_gone(isp, lp, chan, tgt);
+		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, dbidx, "Gone Device Timeout");
+		isp_make_gone(isp, lp, chan, dbidx);
 	}
 	if (fc->ready) {
 		if (more_to_do) {
@@ -4744,7 +4718,7 @@ isp_ldt_task(void *arg, int pending)
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	fcportdb_t *lp;
-	int dbidx, tgt, i;
+	int dbidx, i;
 
 	ISP_LOCK(isp);
 	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Loop Down Timer expired @ %lu", chan, (unsigned long) time_uptime);
@@ -4777,7 +4751,7 @@ isp_ldt_task(void *arg, int pending)
 			if ((xs = isp->isp_xflist[i].cmd) == NULL) {
 				continue;
                         }
-			if (dbidx != (FCPARAM(isp, chan)->isp_dev_map[XS_TGT(xs)] - 1)) {
+			if (dbidx != XS_TGT(xs)) {
 				continue;
 			}
 			isp_prt(isp, ISP_LOGWARN, "command handle 0x%x for %d.%d.%d orphaned by loop down timeout",
@@ -4788,20 +4762,10 @@ isp_ldt_task(void *arg, int pending)
 		 * Mark that we've announced that this device is gone....
 		 */
 		lp->announced = 1;
-
-		/*
-		 * but *don't* change the state of the entry. Just clear
-		 * any target id stuff and announce to CAM that the
-		 * device is gone. This way any necessary PLOGO stuff
-		 * will happen when loop comes back up.
-		 */
-
-		tgt = lp->dev_map_idx - 1;
-		FCPARAM(isp, chan)->isp_dev_map[tgt] = 0;
 		lp->dev_map_idx = 0;
 		lp->state = FC_PORTDB_STATE_NIL;
-		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, tgt, "Loop Down Timeout");
-		isp_make_gone(isp, lp, chan, tgt);
+		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, dbidx, "Loop Down Timeout");
+		isp_make_gone(isp, lp, chan, dbidx);
 	}
 
 	if (FCPARAM(isp, chan)->role & ISP_ROLE_INITIATOR) {
@@ -5297,7 +5261,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fcparam *fcp = FCPARAM(isp, bus);
 			struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 			struct ccb_trans_settings_fc *fc = &cts->xport_specific.fc;
-			unsigned int hdlidx;
 
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
@@ -5309,9 +5272,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fc->valid = CTS_FC_VALID_SPEED;
 			fc->bitrate = 100000;
 			fc->bitrate *= fcp->isp_gbspeed;
-			hdlidx = fcp->isp_dev_map[tgt] - 1;
-			if (hdlidx < MAX_FC_TARG) {
-				fcportdb_t *lp = &fcp->portdb[hdlidx];
+			if (tgt < MAX_FC_TARG) {
+				fcportdb_t *lp = &fcp->portdb[tgt];
 				fc->wwnn = lp->node_wwn;
 				fc->wwpn = lp->port_wwn;
 				fc->port = lp->portid;
@@ -5451,21 +5413,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				}
 				break;
 			case KNOB_ROLE_BOTH:
-#if 0
 				if (fcp->role != ISP_ROLE_BOTH) {
 					rchange = 1;
 					newrole = ISP_ROLE_BOTH;
 				}
-#else
-				/*
-				 * We don't really support dual role at present on FC cards.
-				 *
-				 * We should, but a bunch of things are currently broken,
-				 * so don't allow it.
-				 */
-				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
-				ccb->ccb_h.status = CAM_REQ_INVALID;
-#endif
 				break;
 			}
 			if (rchange) {
@@ -5632,17 +5583,9 @@ isp_done(XS_T *sccb)
 		else if ((IS_FC(isp))
 		      && (XS_TGT(sccb) < MAX_FC_TARG)) {
 			fcparam *fcp;
-			int hdlidx;
 
 			fcp = FCPARAM(isp, XS_CHANNEL(sccb));
-			hdlidx = fcp->isp_dev_map[XS_TGT(sccb)] - 1;
-			/*
-			 * Note that we have reported that this device is
-			 * gone.  If it reappears, we'll need to issue a
-			 * rescan.
-			 */
-			if (hdlidx >= 0 && hdlidx < MAX_FC_TARG)
-				fcp->portdb[hdlidx].reported_gone = 1;
+			fcp->portdb[XS_TGT(sccb)].reported_gone = 1;
 		}
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			sccb->ccb_h.status |= CAM_DEV_QFRZN;
@@ -5811,24 +5754,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		lp->announced = 0;
 		lp->gone_timer = 0;
 		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->prli_word3 & PRLI_WD3_TARGET_FUNCTION)) {
-			int dbidx = lp - FCPARAM(isp, bus)->portdb;
-			int i;
-
-			for (i = 0; i < MAX_FC_TARG; i++) {
-				if (i >= FL_ID && i <= SNS_ID) {
-					continue;
-				}
-				if (FCPARAM(isp, bus)->isp_dev_map[i] == 0) {
-					break;
-				}
-			}
-			if (i < MAX_FC_TARG) {
-				FCPARAM(isp, bus)->isp_dev_map[i] = dbidx + 1;
-				lp->dev_map_idx = i + 1;
-			} else {
-				isp_prt(isp, ISP_LOGWARN, "out of target ids");
-				isp_dump_portdb(isp, bus);
-			}
+			lp->dev_map_idx = (lp - FCPARAM(isp, bus)->portdb) + 1;
 		}
 		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 		if (lp->dev_map_idx) {
@@ -5852,7 +5778,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			lp->state = FC_PORTDB_STATE_NIL;
 			if (lp->dev_map_idx) {
 				tgt = lp->dev_map_idx - 1;
-				FCPARAM(isp, bus)->isp_dev_map[tgt] = 0;
 				lp->dev_map_idx = 0;
 				isp_prt(isp, ISP_LOGCONFIG, prom3, bus, lp->portid, tgt, "change is bad");
 				isp_make_gone(isp, lp, bus, tgt);
@@ -5866,8 +5791,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			lp->prli_word3 = lp->new_prli_word3;
 			isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 			if (lp->dev_map_idx) {
-				int t = lp->dev_map_idx - 1;
-				FCPARAM(isp, bus)->isp_dev_map[t] = (lp - FCPARAM(isp, bus)->portdb) + 1;
 				tgt = lp->dev_map_idx - 1;
 				isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "changed at", tgt,
 				    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
@@ -5922,7 +5845,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		if (lp->dev_map_idx && lp->announced == 0 && now) {
 			lp->announced = 1;
 			tgt = lp->dev_map_idx - 1;
-			FCPARAM(isp, bus)->isp_dev_map[tgt] = 0;
 			lp->dev_map_idx = 0;
 			isp_make_gone(isp, lp, bus, tgt);
 			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "gone at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
