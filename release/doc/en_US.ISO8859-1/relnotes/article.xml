@@ -342,6 +342,10 @@
 	receiving the <literal>SIGINFO</literal> signal has been
 	fixed.</para>
 
+      <para revision="283961">The &man.pw.8; utility has been updated
+	with a new flag, <literal>-R</literal>, that sets the root
+	directory within which the utility will operate.</para>
+
       <para revision="284297" contrib="sponsor"
 	sponsor="&clusterhq;">The &man.lockstat.1; utility has been
 	updated with several improvements:</para>
