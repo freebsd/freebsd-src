@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2015
+.Dd July 8, 2015
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -26,7 +26,7 @@
 .Sh SYNOPSIS
 .In opencrypto/cryptodev.h
 .Ft int32_t
-.Fn crypto_get_driverid uint8_t
+.Fn crypto_get_driverid device_t int
 .Ft int
 .Fn crypto_register uint32_t int uint16_t uint32_t "int \*[lp]*\*[rp]\*[lp]void *, uint32_t *, struct cryptoini *\*[rp]" "int \*[lp]*\*[rp]\*[lp]void *, uint64_t\*[rp]" "int \*[lp]*\*[rp]\*[lp]void *, struct cryptop *\*[rp]" "void *"
 .Ft int
@@ -312,7 +312,10 @@ Do callback immediately instead of doing it from a dedicated kernel thread.
 .It Dv CRYPTO_F_DONE
 Operation completed.
 .It Dv CRYPTO_F_CBIFSYNC
-Do callback immediately if operation is synchronous.
+Do callback immediately if operation is synchronous (that the driver
+specified the
+.Dv CRYPTOCAP_F_SYNC
+flag).
 .El
 .It Va crp_buf
 Points to the input buffer.
@@ -495,12 +498,22 @@ and
 routines are used by drivers that provide support for cryptographic
 primitives to register and unregister with the kernel crypto services
 framework.
+.Pp
 Drivers must first use the
 .Fn crypto_get_driverid
 function to acquire a driver identifier, specifying the
-.Fa cc_flags
-as an argument (normally 0, but software-only drivers should specify
-.Dv CRYPTOCAP_F_SOFTWARE ) .
+.Fa flags
+as an argument.
+One of
+.Dv CRYPTOCAP_F_SOFTWARE
+or
+.Dv CRYPTOCAP_F_HARDWARE
+must be specified.
+The
+.Dv CRYPTOCAP_F_SYNC
+may also be specified, and should be specified if the driver does all of
+it's operations synchronously.
+.Pp
 For each algorithm the driver supports, it must then call
 .Fn crypto_register .
 The first two arguments are the driver and algorithm identifiers.
@@ -514,6 +527,7 @@ driver-provided functions that the framework may call to establish new
 cryptographic context with the driver, free already established
 context, and ask for a request to be processed (encrypt, decrypt,
 etc.); and an opaque parameter to pass when calling each of these routines.
+.Pp
 .Fn crypto_unregister
 is called by drivers that wish to withdraw support for an algorithm.
 The two arguments are the driver and algorithm identifiers, respectively.
@@ -528,28 +542,33 @@ that driver, and any existing sessions will be migrated to other
 drivers).
 The same will be done if all algorithms associated with a driver are
 unregistered one by one.
+After a call to
+.Fn crypto_unregister_all
+there will be no threads in either the newsession or freesession function
+of the driver.
 .Pp
-The calling convention for the three driver-supplied routines is:
+The calling convention for the three driver-supplied routines are:
 .Pp
 .Bl -item -compact
 .It
 .Ft int
-.Fn \*[lp]*newsession\*[rp] "void *" "uint32_t *" "struct cryptoini *" ;
+.Fn \*[lp]*newsession\*[rp] "device_t" "uint32_t *" "struct cryptoini *" ;
 .It
 .Ft int
-.Fn \*[lp]*freesession\*[rp] "void *" "uint64_t" ;
+.Fn \*[lp]*freesession\*[rp] "device_t" "uint64_t" ;
 .It
 .Ft int
-.Fn \*[lp]*process\*[rp] "void *" "struct cryptop *" ;
+.Fn \*[lp]*process\*[rp] "device_t" "struct cryptop *" "int" ;
 .It
 .Ft int
-.Fn \*[lp]*kprocess\*[rp] "void *" "struct cryptkop *" ;
+.Fn \*[lp]*kprocess\*[rp] "device_t" "struct cryptkop *" "int" ;
 .El
 .Pp
 On invocation, the first argument to
-all routines is an opaque data value supplied when the algorithm
-is registered with
-.Fn crypto_register .
+all routines is the
+.Fa device_t
+that was provided to
+.Fn crypto_get_driverid .
 The second argument to
 .Fn newsession
 contains the driver identifier obtained via
@@ -570,9 +589,8 @@ registers, memory, etc.).
 The
 .Fn process
 routine is invoked with a request to perform crypto processing.
-This routine must not block, but should queue the request and return
-immediately.
-Upon processing the request, the callback routine should be invoked.
+This routine must not block or sleep, but should queue the request and return
+immediately or process the request to completion.
 In case of an unrecoverable error, the error indication must be placed in the
 .Va crp_etype
 field of the
@@ -580,7 +598,7 @@ field of the
 structure.
 When the request is completed, or an error is detected, the
 .Fn process
-routine should invoke
+routine must invoke
 .Fn crypto_done .
 Session migration may be performed, as mentioned previously.
 .Pp
