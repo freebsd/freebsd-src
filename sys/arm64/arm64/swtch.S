@@ -246,10 +246,31 @@ ENTRY(fork_trampoline)
 END(fork_trampoline)
 
 ENTRY(savectx)
-	adr	x0, .Lsavectx_panic_str
-	bl	panic
+	/* Store the callee-saved registers */
+	stp	x8,  x9,  [x0, #PCB_REGS + 8 * 8]
+	stp	x10, x11, [x0, #PCB_REGS + 10 * 8]
+	stp	x12, x13, [x0, #PCB_REGS + 12 * 8]
+	stp	x14, x15, [x0, #PCB_REGS + 14 * 8]
+	stp	x16, x17, [x0, #PCB_REGS + 16 * 8]
+	stp	x18, x19, [x0, #PCB_REGS + 18 * 8]
+	stp	x20, x21, [x0, #PCB_REGS + 20 * 8]
+	stp	x22, x23, [x0, #PCB_REGS + 22 * 8]
+	stp	x24, x25, [x0, #PCB_REGS + 24 * 8]
+	stp	x26, x27, [x0, #PCB_REGS + 26 * 8]
+	stp	x28, x29, [x0, #PCB_REGS + 28 * 8]
+	str	x30, [x0, #PCB_REGS + 30 * 8]
+	/* And the old stack pointer */
+	mov	x5, sp
+	mrs	x6, tpidr_el0
+	stp	x5, x6, [x0, #PCB_SP]
+
+	/* Store the VFP registers */
+#ifdef VFP
+	mov	x29, lr
+	bl	vfp_save_state
+	mov	lr, x29
+#endif
+
 	ret
-.Lsavectx_panic_str:
-	.asciz "savectx"
 END(savectx)
 
