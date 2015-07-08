@@ -69,35 +69,6 @@ typedef uint32_t seq_t;
 
 #include <machine/cpu.h>
 
-/*
- * Stuff below is going away when we gain suitable memory barriers.
- *
- * atomic_load_acq_int at least on amd64 provides a full memory barrier,
- * in a way which affects performance.
- *
- * Hack below covers all architectures and avoids most of the penalty at least
- * on amd64 but still has unnecessary cost.
- */
-static __inline int
-atomic_load_rmb_int(volatile const u_int *p)
-{
-	volatile u_int v;
-
-	v = *p;
-	atomic_load_acq_int(&v);
-	return (v);
-}
-
-static __inline int
-atomic_rmb_load_int(volatile const u_int *p)
-{
-	volatile u_int v = 0;
-
-	atomic_load_acq_int(&v);
-	v = *p;
-	return (v);
-}
-
 static __inline bool
 seq_in_modify(seq_t seqp)
 {
@@ -110,14 +81,15 @@ seq_write_begin(seq_t *seqp)
 {
 
 	MPASS(!seq_in_modify(*seqp));
-	atomic_add_acq_int(seqp, 1);
+	*seqp += 1;
+	atomic_thread_fence_rel();
 }
 
 static __inline void
 seq_write_end(seq_t *seqp)
 {
 
-	atomic_add_rel_int(seqp, 1);
+	atomic_store_rel_int(seqp, *seqp + 1);
 	MPASS(!seq_in_modify(*seqp));
 }
 
@@ -127,7 +99,7 @@ seq_read(const seq_t *seqp)
 	seq_t ret;
 
 	for (;;) {
-		ret = atomic_load_rmb_int(seqp);
+		ret = atomic_load_acq_int(__DECONST(seq_t *, seqp));
 		if (seq_in_modify(ret)) {
 			cpu_spinwait();
 			continue;
@@ -142,7 +114,8 @@ static __inline seq_t
 seq_consistent(const seq_t *seqp, seq_t oldseq)
 {
 
-	return (atomic_rmb_load_int(seqp) == oldseq);
+	atomic_thread_fence_acq();
+	return (*seqp == oldseq);
 }
 
 static __inline seq_t
