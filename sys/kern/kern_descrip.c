@@ -404,9 +404,10 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 	struct flock fl;
 	struct __oflock ofl;
 	intptr_t arg1;
-	int error;
+	int error, newcmd;
 
 	error = 0;
+	newcmd = cmd;
 	switch (cmd) {
 	case F_OGETLK:
 	case F_OSETLK:
@@ -424,13 +425,13 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 
 		switch (cmd) {
 		case F_OGETLK:
-			cmd = F_GETLK;
+			newcmd = F_GETLK;
 			break;
 		case F_OSETLK:
-			cmd = F_SETLK;
+			newcmd = F_SETLK;
 			break;
 		case F_OSETLKW:
-			cmd = F_SETLKW;
+			newcmd = F_SETLKW;
 			break;
 		}
 		arg1 = (intptr_t)&fl;
@@ -448,7 +449,7 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 	}
 	if (error)
 		return (error);
-	error = kern_fcntl(td, fd, cmd, arg1);
+	error = kern_fcntl(td, fd, newcmd, arg1);
 	if (error)
 		return (error);
 	if (cmd == F_OGETLK) {
