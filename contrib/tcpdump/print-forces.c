@@ -27,8 +27,8 @@
 static const char tstr[] = "[|forces]";
 
 /*
- * Per draft-ietf-forces-protocol-22
-*/
+ * RFC5810: Forwarding and Control Element Separation (ForCES) Protocol
+ */
 #define	ForCES_VERS	1
 #define	ForCES_HDRL	24
 #define	ForCES_ALNL	4U
@@ -187,26 +187,28 @@ static const struct tok ForCES_LFBs[] = {
 	{0, NULL}
 };
 
+/* this is defined in RFC5810 section A.2 */
+/*   http://www.iana.org/assignments/forces/forces.xhtml#oper-tlv-types */
 enum {
-	F_OP_RSV,
-	F_OP_SET,
-	F_OP_SETPROP,
-	F_OP_SETRESP,
-	F_OP_SETPRESP,
-	F_OP_DEL,
-	F_OP_DELRESP,
-	F_OP_GET,
-	F_OP_GETPROP,
-	F_OP_GETRESP,
-	F_OP_GETPRESP,
-	F_OP_REPORT,
-	F_OP_COMMIT,
-	F_OP_RCOMMIT,
-	F_OP_RTRCOMP,
+	F_OP_RSV        = 0,
+	F_OP_SET        = 1,
+	F_OP_SETPROP    = 2,
+	F_OP_SETRESP    = 3,
+	F_OP_SETPRESP   = 4,
+	F_OP_DEL        = 5,
+	F_OP_DELRESP    = 6,
+	F_OP_GET        = 7,
+	F_OP_GETPROP    = 8,
+	F_OP_GETRESP    = 9,
+	F_OP_GETPRESP   = 10,
+	F_OP_REPORT     = 11,
+	F_OP_COMMIT     = 12,
+	F_OP_RCOMMIT    = 13,
+	F_OP_RTRCOMP    = 14,
 	_F_OP_MAX
 };
-
 #define F_OP_MAX	(_F_OP_MAX - 1)
+
 enum {
 	B_OP_SET = 1 << (F_OP_SET - 1),
 	B_OP_SETPROP = 1 << (F_OP_SETPROP - 1),
@@ -1187,12 +1189,6 @@ otlv_print(netdissect_options *ndo,
 		ND_PRINT((ndo, "%sOper TLV %s(0x%x) length %d\n", ib, ops->s, type,
 		       EXTRACT_16BITS(&otlv->length)));
 	}
-	/* empty TLVs like COMMIT and TRCOMMIT are empty, we stop here .. */
-	if (!ops->flags & ZERO_TTLV) {
-		if (tll != 0)	/* instead of "if (tll)" - for readability .. */
-			ND_PRINT((ndo, "%s: Illegal - MUST be empty\n", ops->s));
-		return rc;
-	}
 	/* rest of ops must at least have 12B {pathinfo} */
 	if (tll < OP_MIN_SIZ) {
 		ND_PRINT((ndo, "\t\tOper TLV %s(0x%x) length %d\n", ops->s, type,
@@ -1203,7 +1199,10 @@ otlv_print(netdissect_options *ndo,
 
 	}
 
-	rc = ops->print(ndo, dp, tll, ops->op_msk, indent + 1);
+	/* XXX - do anything with ops->flags? */
+        if(ops->print) {
+                rc = ops->print(ndo, dp, tll, ops->op_msk, indent + 1);
+        }
 	return rc;
 
 trunc:

@@ -205,12 +205,14 @@ static const struct tok eigrp_ext_proto_id_values[] = {
 };
 
 void
-eigrp_print(netdissect_options *ndo, register const u_char *pptr, register u_int len) {
+eigrp_print(netdissect_options *ndo, register const u_char *pptr, register u_int len)
+{
 	INVOKE_DISSECTOR(_eigrp_print, ndo, pptr, len);
 }
 
 void
-_eigrp_print(netdissect_options *ndo, register const u_char *pptr, register u_int len) {
+_eigrp_print(netdissect_options *ndo, register const u_char *pptr, register u_int len)
+{
     const struct eigrp_common_header *eigrp_com_header;
     const struct eigrp_tlv_header *eigrp_tlv_header;
     const u_char *tptr,*tlv_tptr;

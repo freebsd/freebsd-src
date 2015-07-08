@@ -56,12 +56,14 @@ chdlc_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, register co
 }
 
 void
-chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length) {
+chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length)
+{
 	INVOKE_DISSECTOR(_chdlc_print, ndo, p, length);
 }
 
 u_int
-_chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length) {
+_chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length)
+{
 	u_int proto;
 
 	proto = EXTRACT_16BITS(&p[2]);
@@ -80,11 +82,9 @@ _chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length) {
 	case ETHERTYPE_IP:
 		ip_print(ndo, p, length);
 		break;
-#ifdef INET6
 	case ETHERTYPE_IPV6:
 		ip6_print(ndo, p, length);
 		break;
-#endif
 	case CHDLC_TYPE_SLARP:
 		chdlc_slarp_print(ndo, p, length);
 		break;

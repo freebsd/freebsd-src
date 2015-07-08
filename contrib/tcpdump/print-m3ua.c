@@ -300,6 +300,13 @@ void
 m3ua_print(netdissect_options *ndo,
            const u_char *buf, const u_int size)
 {
+	INVOKE_DISSECTOR(_m3ua_print, ndo, buf, size);
+}
+
+void
+_m3ua_print(netdissect_options *ndo,
+            const u_char *buf, const u_int size)
+{
   const struct m3ua_common_header *hdr = (const struct m3ua_common_header *) buf;
   const struct tok *dict;
 

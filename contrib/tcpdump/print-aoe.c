@@ -402,6 +402,13 @@ void
 aoe_print(netdissect_options *ndo,
           const u_char *cp, const u_int len)
 {
+	INVOKE_DISSECTOR(_aoe_print, ndo, cp, len);
+}
+
+void
+_aoe_print(netdissect_options *ndo,
+          const u_char *cp, const u_int len)
+{
 	const u_char *ep = cp + len;
 	uint8_t ver;
 

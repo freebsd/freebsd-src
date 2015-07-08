@@ -376,6 +376,12 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
                 hdrlen = (*print_info->p.printer)(h, sp);
         }
 
+	/*
+	 * Restore the original snapend, as a printer might have
+	 * changed it.
+	 */
+	ndo->ndo_snapend = sp + h->caplen;
+
 	raw_print(ndo, h, sp, hdrlen);
 }
 
