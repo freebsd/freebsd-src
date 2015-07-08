@@ -196,9 +196,6 @@ aesni_detach(device_t dev)
 	rw_wunlock(&sc->lock);
 	crypto_unregister_all(sc->cid);
 
-	/* XXX - wait for anyone in _newsession to leave */
-	pause("aniwait", 1);
-
 	rw_destroy(&sc->lock);
 
 	aensi_cleanctx();
