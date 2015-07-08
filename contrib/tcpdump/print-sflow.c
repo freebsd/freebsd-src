@@ -297,8 +297,8 @@ struct sflow_vlan_counter_t {
 
 static int
 print_sflow_counter_generic(netdissect_options *ndo,
-                            const u_char *pointer, u_int len) {
-
+                            const u_char *pointer, u_int len)
+{
     const struct sflow_generic_counter_t *sflow_gen_counter;
 
     if (len < sizeof(struct sflow_generic_counter_t))
@@ -343,8 +343,8 @@ print_sflow_counter_generic(netdissect_options *ndo,
 
 static int
 print_sflow_counter_ethernet(netdissect_options *ndo,
-                             const u_char *pointer, u_int len){
-
+                             const u_char *pointer, u_int len)
+{
     const struct sflow_ethernet_counter_t *sflow_eth_counter;
 
     if (len < sizeof(struct sflow_ethernet_counter_t))
@@ -373,15 +373,15 @@ print_sflow_counter_ethernet(netdissect_options *ndo,
 
 static int
 print_sflow_counter_token_ring(netdissect_options *ndo _U_,
-                               const u_char *pointer _U_, u_int len _U_) {
-
+                               const u_char *pointer _U_, u_int len _U_)
+{
     return 0;
 }
 
 static int
 print_sflow_counter_basevg(netdissect_options *ndo,
-                           const u_char *pointer, u_int len) {
-
+                           const u_char *pointer, u_int len)
+{
     const struct sflow_100basevg_counter_t *sflow_100basevg_counter;
 
     if (len < sizeof(struct sflow_100basevg_counter_t))
@@ -416,8 +416,8 @@ print_sflow_counter_basevg(netdissect_options *ndo,
 
 static int
 print_sflow_counter_vlan(netdissect_options *ndo,
-                         const u_char *pointer, u_int len) {
-
+                         const u_char *pointer, u_int len)
+{
     const struct sflow_vlan_counter_t *sflow_vlan_counter;
 
     if (len < sizeof(struct sflow_vlan_counter_t))
@@ -446,8 +446,8 @@ struct sflow_processor_counter_t {
 
 static int
 print_sflow_counter_processor(netdissect_options *ndo,
-                              const u_char *pointer, u_int len) {
-
+                              const u_char *pointer, u_int len)
+{
     const struct sflow_processor_counter_t *sflow_processor_counter;
 
     if (len < sizeof(struct sflow_processor_counter_t))
@@ -467,8 +467,8 @@ print_sflow_counter_processor(netdissect_options *ndo,
 
 static int
 sflow_print_counter_records(netdissect_options *ndo,
-                            const u_char *pointer, u_int len, u_int records) {
-
+                            const u_char *pointer, u_int len, u_int records)
+{
     u_int nrecords;
     const u_char *tptr;
     u_int tlen;
@@ -543,11 +543,10 @@ sflow_print_counter_records(netdissect_options *ndo,
     return 0;
 }
 
-
 static int
 sflow_print_counter_sample(netdissect_options *ndo,
-                           const u_char *pointer, u_int len) {
-
+                           const u_char *pointer, u_int len)
+{
     const struct sflow_counter_sample_t *sflow_counter_sample;
     u_int           nrecords;
     u_int           typesource;
@@ -579,8 +578,8 @@ sflow_print_counter_sample(netdissect_options *ndo,
 
 static int
 sflow_print_expanded_counter_sample(netdissect_options *ndo,
-                                    const u_char *pointer, u_int len) {
-
+                                    const u_char *pointer, u_int len)
+{
     const struct sflow_expanded_counter_sample_t *sflow_expanded_counter_sample;
     u_int           nrecords;
 
@@ -606,8 +605,8 @@ sflow_print_expanded_counter_sample(netdissect_options *ndo,
 
 static int
 print_sflow_raw_packet(netdissect_options *ndo,
-                       const u_char *pointer, u_int len) {
-
+                       const u_char *pointer, u_int len)
+{
     const struct sflow_expanded_flow_raw_t *sflow_flow_raw;
 
     if (len < sizeof(struct sflow_expanded_flow_raw_t))
@@ -629,8 +628,8 @@ print_sflow_raw_packet(netdissect_options *ndo,
 
 static int
 print_sflow_ethernet_frame(netdissect_options *ndo,
-                           const u_char *pointer, u_int len) {
-
+                           const u_char *pointer, u_int len)
+{
     const struct sflow_ethernet_frame_t *sflow_ethernet_frame;
 
     if (len < sizeof(struct sflow_ethernet_frame_t))
@@ -647,8 +646,8 @@ print_sflow_ethernet_frame(netdissect_options *ndo,
 
 static int
 print_sflow_extended_switch_data(netdissect_options *ndo,
-                                 const u_char *pointer, u_int len) {
-
+                                 const u_char *pointer, u_int len)
+{
     const struct sflow_extended_switch_data_t *sflow_extended_sw_data;
 
     if (len < sizeof(struct sflow_extended_switch_data_t))
@@ -666,8 +665,8 @@ print_sflow_extended_switch_data(netdissect_options *ndo,
 
 static int
 sflow_print_flow_records(netdissect_options *ndo,
-                         const u_char *pointer, u_int len, u_int records) {
-
+                         const u_char *pointer, u_int len, u_int records)
+{
     u_int nrecords;
     const u_char *tptr;
     u_int tlen;
@@ -752,8 +751,8 @@ sflow_print_flow_records(netdissect_options *ndo,
 
 static int
 sflow_print_flow_sample(netdissect_options *ndo,
-                        const u_char *pointer, u_int len) {
-
+                        const u_char *pointer, u_int len)
+{
     const struct sflow_flow_sample_t *sflow_flow_sample;
     u_int          nrecords;
     u_int          typesource;
@@ -789,8 +788,8 @@ sflow_print_flow_sample(netdissect_options *ndo,
 
 static int
 sflow_print_expanded_flow_sample(netdissect_options *ndo,
-                                 const u_char *pointer, u_int len) {
-
+                                 const u_char *pointer, u_int len)
+{
     const struct sflow_expanded_flow_sample_t *sflow_expanded_flow_sample;
     u_int nrecords;
 
@@ -818,8 +817,8 @@ sflow_print_expanded_flow_sample(netdissect_options *ndo,
 
 void
 sflow_print(netdissect_options *ndo,
-            const u_char *pptr, u_int len) {
-
+            const u_char *pptr, u_int len)
+{
     const struct sflow_datagram_t *sflow_datagram;
     const struct sflow_sample_header *sflow_sample;
 

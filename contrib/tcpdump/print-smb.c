@@ -1255,14 +1255,15 @@ smb_tcp_print(netdissect_options *ndo,
     if (smb_len >= 4 && caplen >= 4 && memcmp(data,"\377SMB",4) == 0) {
 	if ((int)smb_len > caplen) {
 	    if ((int)smb_len > length)
-		ND_PRINT((ndo, "WARNING: Packet is continued in later TCP segments\n"));
+		ND_PRINT((ndo, " WARNING: Packet is continued in later TCP segments\n"));
 	    else
-		ND_PRINT((ndo, "WARNING: Short packet. Try increasing the snap length by %d\n",
+		ND_PRINT((ndo, " WARNING: Short packet. Try increasing the snap length by %d\n",
 		    smb_len - caplen));
-	}
+	} else
+	    ND_PRINT((ndo, " "));
 	print_smb(ndo, data, maxbuf > data + smb_len ? data + smb_len : maxbuf);
     } else
-	ND_PRINT((ndo, "SMB-over-TCP packet:(raw data or continuation?)\n"));
+	ND_PRINT((ndo, " SMB-over-TCP packet:(raw data or continuation?)\n"));
     return;
 trunc:
     ND_PRINT((ndo, "%s", tstr));

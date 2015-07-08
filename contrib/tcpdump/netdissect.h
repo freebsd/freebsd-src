@@ -81,9 +81,9 @@ extern const char *tok2strbuf(const struct tok *, const char *, u_int,
 			      char *buf, size_t bufsize);
 
 /* tok2str is deprecated */
-extern const char *tok2str(const struct tok *, const char *, int);
-extern char *bittok2str(const struct tok *, const char *, int);
-extern char *bittok2str_nosep(const struct tok *, const char *, int);
+extern const char *tok2str(const struct tok *, const char *, u_int);
+extern char *bittok2str(const struct tok *, const char *, u_int);
+extern char *bittok2str_nosep(const struct tok *, const char *, u_int);
 
 
 typedef struct netdissect_options netdissect_options;
@@ -115,6 +115,7 @@ struct netdissect_options {
   int ndo_dlt;                  /* if != -1, ask libpcap for the DLT it names*/
   int ndo_jflag;                /* packet time stamp source */
   int ndo_pflag;                /* don't go promiscuous */
+  int ndo_immediate;            /* use immediate mode */
 
   int ndo_Cflag;                /* rotate dump files after this many bytes */
   int ndo_Cflag_count;      /* Keep track of which file number we're writing */
@@ -156,14 +157,18 @@ struct netdissect_options {
   /* pointer to void function to output stuff */
   void (*ndo_default_print)(netdissect_options *,
   		      register const u_char *bp, register u_int length);
+
+  /* pointer to function to print ^T output */
   void (*ndo_info)(netdissect_options *, int verbose);
 
+  /* pointer to function to do regular output */
   int  (*ndo_printf)(netdissect_options *,
 		     const char *fmt, ...)
 #ifdef __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS
 		     __attribute__ ((format (printf, 2, 3)))
 #endif
 		     ;
+  /* pointer to function to output errors */
   void (*ndo_error)(netdissect_options *,
 		    const char *fmt, ...)
 #ifdef __ATTRIBUTE___NORETURN_OK_FOR_FUNCTION_POINTERS
@@ -173,6 +178,7 @@ struct netdissect_options {
 		     __attribute__ ((format (printf, 2, 3)))
 #endif /* __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS */
 		     ;
+  /* pointer to function to output warnings */
   void (*ndo_warning)(netdissect_options *,
 		      const char *fmt, ...)
 #ifdef __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS
@@ -252,9 +258,22 @@ struct netdissect_options {
  * "l" isn't so large that "ndo->ndo_snapend - (l)" underflows.
  *
  * The check is for <= rather than < because "l" might be 0.
+ *
+ * We cast the pointers to uintptr_t to make sure that the compiler
+ * doesn't optimize away any of these tests (which it is allowed to
+ * do, as adding an integer to, or subtracting an integer from, a
+ * pointer assumes that the pointer is a pointer to an element of an
+ * array and that the result of the addition or subtraction yields a
+ * pointer to another member of the array, so that, for example, if
+ * you subtract a positive integer from a pointer, the result is
+ * guaranteed to be less than the original pointer value). See
+ *
+ *	http://www.kb.cert.org/vuls/id/162289
  */
-#define ND_TTEST2(var, l) (ndo->ndo_snapend - (l) <= ndo->ndo_snapend && \
-			(const u_char *)&(var) <= ndo->ndo_snapend - (l))
+#define ND_TTEST2(var, l) \
+  ((l) >= 0 && \
+	((uintptr_t)ndo->ndo_snapend - (l) <= (uintptr_t)ndo->ndo_snapend && \
+         (uintptr_t)&(var) <= (uintptr_t)ndo->ndo_snapend - (l)))
 
 /* True if "var" was captured */
 #define ND_TTEST(var) ND_TTEST2(var, sizeof(var))
@@ -274,7 +293,14 @@ extern void relts_print(netdissect_options *, int);
 extern int fn_print(netdissect_options *, const u_char *, const u_char *);
 extern int fn_printn(netdissect_options *, const u_char *, u_int, const u_char *);
 extern int fn_printzp(netdissect_options *, const u_char *, u_int, const u_char *);
-extern const char *tok2str(const struct tok *, const char *, int);
+
+/*
+ * Flags for txtproto_print().
+ */
+#define RESP_CODE_SECOND_TOKEN	0x00000001	/* response code is second token in response line */
+
+extern void txtproto_print(netdissect_options *, const u_char *, u_int,
+    const char *, const char **, u_int);
 
 #if 0
 extern char *read_infile(netdissect_options *, char *);
@@ -331,6 +357,8 @@ extern const char *dnnum_string(netdissect_options *, u_short);
 /* The printer routines. */
 
 #include <pcap.h>
+
+extern char *q922_string(netdissect_options *ndo, const u_char *, u_int);
 
 typedef u_int (*if_ndo_printer)(struct netdissect_options *ndo,
 				const struct pcap_pkthdr *, const u_char *);
@@ -465,7 +493,7 @@ extern u_int atm_if_print(netdissect_options *, const struct pcap_pkthdr *, cons
 extern void vtp_print(netdissect_options *, const u_char *, u_int);
 extern int mptcp_print(netdissect_options *, const u_char *, u_int, u_char);
 extern void ntp_print(netdissect_options *, const u_char *, u_int);
-extern void cnfp_print(netdissect_options *, const u_char *, const u_char *);
+extern void cnfp_print(netdissect_options *, const u_char *);
 extern void dvmrp_print(netdissect_options *, const u_char *, u_int);
 extern void egp_print(netdissect_options *, const u_char *, u_int);
 extern u_int enc_if_print(netdissect_options *, const struct pcap_pkthdr *, const u_char *);
@@ -539,6 +567,11 @@ extern void rsvp_print(netdissect_options *, const u_char *, u_int);
 extern void timed_print(netdissect_options *, const u_char *);
 extern void m3ua_print(netdissect_options *, const u_char *, const u_int);
 extern void aoe_print(netdissect_options *, const u_char *, const u_int);
+extern void ftp_print(netdissect_options *, const u_char *, u_int);
+extern void http_print(netdissect_options *, const u_char *, u_int);
+extern void rtsp_print(netdissect_options *, const u_char *, u_int);
+extern void smtp_print(netdissect_options *, const u_char *, u_int);
+extern void geneve_print(netdissect_options *, const u_char *, u_int);
 
 extern void pfsync_ip_print(netdissect_options *, const u_char *, u_int);
 
@@ -561,8 +594,8 @@ extern u_int ieee802_11_if_print(netdissect_options *, const struct pcap_pkthdr 
 extern u_int ieee802_11_radio_avs_if_print(netdissect_options *, const struct pcap_pkthdr *, const u_char *);
 extern u_int prism_if_print(netdissect_options *, const struct pcap_pkthdr *, const u_char *);
 
-#ifdef INET6
 extern void ip6_print(netdissect_options *,const u_char *, u_int);
+#ifdef INET6
 extern int frag6_print(netdissect_options *, const u_char *, const u_char *);
 extern int rt6_print(netdissect_options *, const u_char *, const u_char *);
 extern int hbhopt_print(netdissect_options *, const u_char *);

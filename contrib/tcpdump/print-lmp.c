@@ -354,8 +354,8 @@ static const struct tok lmp_ctype_values[] = {
 
 void
 lmp_print(netdissect_options *ndo,
-          register const u_char *pptr, register u_int len) {
-
+          register const u_char *pptr, register u_int len)
+{
     const struct lmp_common_header *lmp_com_header;
     const struct lmp_object_header *lmp_obj_header;
     const u_char *tptr,*obj_tptr;

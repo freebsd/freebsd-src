@@ -705,7 +705,9 @@ with_user
 with_chroot
 with_sandbox_capsicum
 enable_ipv6
+with_system_libpcap
 with_crypto
+with_cap_ng
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1341,8 +1343,11 @@ Optional Packages:
   --without-smi           don't link with libsmi
   --with-user=USERNAME    drop privileges by default to USERNAME
   --with-chroot=DIRECTORY when dropping privileges, chroot to DIRECTORY
- --with-sandbox-capsicum
+  --with-sandbox-capsicum use Capsicum security functions [default=yes, if
+                          available]
+  --with-system-libpcap   don't use local pcap library
   --with-crypto           use OpenSSL libcrypto [default=yes, if available]
+  --with-cap-ng           use libcap-ng [default=yes, if available]
 
 Some influential environment variables:
   CC          C compiler command
@@ -4531,10 +4536,18 @@ fi
 # ac_lbl_capsicum_function_seen to yes; if any are not, set
 # ac_lbl_capsicum_function_not_seen to yes.
 #
-# All of them must be available in order to enable capsicum sandboxing.
+# We don't check cap_rights_init(), as it's a macro, wrapping another
+# function, in at least some versions of FreeBSD, and AC_CHECK_FUNCS()
+# doesn't handle that.
+#
+# All of the ones we check for must be available in order to enable
+# capsicum sandboxing.
+#
+# XXX - do we need to check for all of them, or are there some that, if
+# present, imply others are present?
 #
 if test ! -z "$with_sandbox-capsicum" && test "$with_sandbox-capsicum" != "no" ; then
-	for ac_func in cap_enter cap_rights_init cap_rights_limit cap_ioctls_limit openat
+	for ac_func in cap_enter cap_rights_limit cap_ioctls_limit openat
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -4836,7 +4849,7 @@ if test "${enable_ipv6+set}" = set; then :
   enableval=$enable_ipv6;  case "$enableval" in
 yes)   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-       LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
+       LOCALSRC="print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
 
 $as_echo "#define INET6 1" >>confdefs.h
 
@@ -4871,7 +4884,7 @@ _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-  LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
+  LOCALSRC="print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
 
 $as_echo "#define INET6 1" >>confdefs.h
 
@@ -5107,7 +5120,7 @@ $as_echo_n "checking getaddrinfo bug... " >&6; }
   $as_echo_n "(cached) " >&6
 else
   if test "$cross_compiling" = yes; then :
-  td_cv_buggygetaddrinfo=yes
+  td_cv_buggygetaddrinfo=unknown
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -5221,6 +5234,9 @@ fi
 	if test "$td_cv_buggygetaddrinfo" = no; then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: good" >&5
 $as_echo "good" >&6; }
+	elif test "$td_cv_buggygetaddrinfo" = unknown; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: unknown (cross-compiling)" >&5
+$as_echo "unknown (cross-compiling)" >&6; }
 	else
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: buggy" >&5
 $as_echo "buggy" >&6; }
@@ -5799,26 +5815,34 @@ $as_echo "Using $pfopen" >&6; }
 		    LIBS="$LIBS $pfopen"
 	    fi
     fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for local pcap library" >&5
+	libpcap=FAIL
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for local pcap library" >&5
 $as_echo_n "checking for local pcap library... " >&6; }
-    libpcap=FAIL
-    lastdir=FAIL
-    places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
-	egrep '/libpcap-[0-9]+\.[0-9]+(\.[0-9]*)?([ab][0-9]*|-PRE-GIT)?$'`
-    places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
-	egrep '/libpcap-[0-9]+\.[0-9]+(\.[0-9]*)?([ab][0-9]*|-PRE-GIT)?$'`
-    for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
-	    basedir=`echo $dir | sed -e 's/[ab][0-9]*$//' | \
-	        sed -e 's/-PRE-GIT$//' `
-	    if test $lastdir = $basedir ; then
-		    		    continue;
-	    fi
-	    lastdir=$dir
-	    if test -r $dir/libpcap.a ; then
-		    libpcap=$dir/libpcap.a
-		    d=$dir
-		    	    fi
-    done
+
+# Check whether --with-system-libpcap was given.
+if test "${with_system_libpcap+set}" = set; then :
+  withval=$with_system_libpcap;
+fi
+
+	if test "x$with_system_libpcap" != xyes ; then
+		lastdir=FAIL
+    	places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
+		egrep '/libpcap-[0-9]+\.[0-9]+(\.[0-9]*)?([ab][0-9]*|-PRE-GIT)?$'`
+    	places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
+		egrep '/libpcap-[0-9]+\.[0-9]+(\.[0-9]*)?([ab][0-9]*|-PRE-GIT)?$'`
+    	for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
+	    	basedir=`echo $dir | sed -e 's/[ab][0-9]*$//' | \
+	        	sed -e 's/-PRE-GIT$//' `
+	    	if test $lastdir = $basedir ; then
+		    			    	continue;
+	    	fi
+	    	lastdir=$dir
+	    	if test -r $dir/libpcap.a ; then
+		    	libpcap=$dir/libpcap.a
+		    	d=$dir
+		    		    	fi
+		done
+	fi
     if test $libpcap = FAIL ; then
 	    { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
 $as_echo "not found" >&6; }
@@ -6130,110 +6154,6 @@ this could be a problem with the libpcap that was built, and we will
 not be able to determine why this is happening, and thus will not be
 able to fix it, without that information, as we have not been able to
 reproduce this problem ourselves." "$LINENO" 5
-
-fi
-
-
-                        ac_fn_c_check_func "$LINENO" "pcap_list_datalinks" "ac_cv_func_pcap_list_datalinks"
-if test "x$ac_cv_func_pcap_list_datalinks" = xyes; then :
-
-
-$as_echo "#define HAVE_PCAP_LIST_DATALINKS 1" >>confdefs.h
-
-	    for ac_func in pcap_free_datalinks
-do :
-  ac_fn_c_check_func "$LINENO" "pcap_free_datalinks" "ac_cv_func_pcap_free_datalinks"
-if test "x$ac_cv_func_pcap_free_datalinks" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_PCAP_FREE_DATALINKS 1
-_ACEOF
-
-fi
-done
-
-
-else
-
-	    case " $LIBOBJS " in
-  *" datalinks.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS datalinks.$ac_objext"
- ;;
-esac
-
-
-fi
-
-    for ac_func in pcap_set_datalink
-do :
-  ac_fn_c_check_func "$LINENO" "pcap_set_datalink" "ac_cv_func_pcap_set_datalink"
-if test "x$ac_cv_func_pcap_set_datalink" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_PCAP_SET_DATALINK 1
-_ACEOF
-
-fi
-done
-
-    ac_fn_c_check_func "$LINENO" "pcap_datalink_name_to_val" "ac_cv_func_pcap_datalink_name_to_val"
-if test "x$ac_cv_func_pcap_datalink_name_to_val" = xyes; then :
-
-
-$as_echo "#define HAVE_PCAP_DATALINK_NAME_TO_VAL 1" >>confdefs.h
-
-	    ac_fn_c_check_func "$LINENO" "pcap_datalink_val_to_description" "ac_cv_func_pcap_datalink_val_to_description"
-if test "x$ac_cv_func_pcap_datalink_val_to_description" = xyes; then :
-
-$as_echo "#define HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION 1" >>confdefs.h
-
-else
-
-		    case " $LIBOBJS " in
-  *" dlnames.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS dlnames.$ac_objext"
- ;;
-esac
-
-
-fi
-
-
-else
-
-	    case " $LIBOBJS " in
-  *" dlnames.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS dlnames.$ac_objext"
- ;;
-esac
-
-
-fi
-
-
-                        for ac_func in pcap_breakloop
-do :
-  ac_fn_c_check_func "$LINENO" "pcap_breakloop" "ac_cv_func_pcap_breakloop"
-if test "x$ac_cv_func_pcap_breakloop" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_PCAP_BREAKLOOP 1
-_ACEOF
-
-fi
-done
-
-
-                    ac_fn_c_check_func "$LINENO" "pcap_dump_ftell" "ac_cv_func_pcap_dump_ftell"
-if test "x$ac_cv_func_pcap_dump_ftell" = xyes; then :
-
-$as_echo "#define HAVE_PCAP_DUMP_FTELL 1" >>confdefs.h
-
-else
-
-	    case " $LIBOBJS " in
-  *" pcap_dump_ftell.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS pcap_dump_ftell.$ac_objext"
- ;;
-esac
-
 
 fi
 
@@ -6606,6 +6526,110 @@ if test "$ac_cv_sockaddr_has_sa_len" = no; then
 	missing_includes=yes
 fi
 
+ac_fn_c_check_func "$LINENO" "pcap_list_datalinks" "ac_cv_func_pcap_list_datalinks"
+if test "x$ac_cv_func_pcap_list_datalinks" = xyes; then :
+
+
+$as_echo "#define HAVE_PCAP_LIST_DATALINKS 1" >>confdefs.h
+
+	    for ac_func in pcap_free_datalinks
+do :
+  ac_fn_c_check_func "$LINENO" "pcap_free_datalinks" "ac_cv_func_pcap_free_datalinks"
+if test "x$ac_cv_func_pcap_free_datalinks" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCAP_FREE_DATALINKS 1
+_ACEOF
+
+fi
+done
+
+
+else
+
+	    case " $LIBOBJS " in
+  *" datalinks.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS datalinks.$ac_objext"
+ ;;
+esac
+
+
+fi
+
+for ac_func in pcap_set_datalink
+do :
+  ac_fn_c_check_func "$LINENO" "pcap_set_datalink" "ac_cv_func_pcap_set_datalink"
+if test "x$ac_cv_func_pcap_set_datalink" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCAP_SET_DATALINK 1
+_ACEOF
+
+fi
+done
+
+ac_fn_c_check_func "$LINENO" "pcap_datalink_name_to_val" "ac_cv_func_pcap_datalink_name_to_val"
+if test "x$ac_cv_func_pcap_datalink_name_to_val" = xyes; then :
+
+
+$as_echo "#define HAVE_PCAP_DATALINK_NAME_TO_VAL 1" >>confdefs.h
+
+	    ac_fn_c_check_func "$LINENO" "pcap_datalink_val_to_description" "ac_cv_func_pcap_datalink_val_to_description"
+if test "x$ac_cv_func_pcap_datalink_val_to_description" = xyes; then :
+
+$as_echo "#define HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION 1" >>confdefs.h
+
+else
+
+		    case " $LIBOBJS " in
+  *" dlnames.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS dlnames.$ac_objext"
+ ;;
+esac
+
+
+fi
+
+
+else
+
+	    case " $LIBOBJS " in
+  *" dlnames.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS dlnames.$ac_objext"
+ ;;
+esac
+
+
+fi
+
+
+for ac_func in pcap_breakloop
+do :
+  ac_fn_c_check_func "$LINENO" "pcap_breakloop" "ac_cv_func_pcap_breakloop"
+if test "x$ac_cv_func_pcap_breakloop" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCAP_BREAKLOOP 1
+_ACEOF
+
+fi
+done
+
+
+ac_fn_c_check_func "$LINENO" "pcap_dump_ftell" "ac_cv_func_pcap_dump_ftell"
+if test "x$ac_cv_func_pcap_dump_ftell" = xyes; then :
+
+$as_echo "#define HAVE_PCAP_DUMP_FTELL 1" >>confdefs.h
+
+else
+
+	    case " $LIBOBJS " in
+  *" pcap_dump_ftell.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS pcap_dump_ftell.$ac_objext"
+ ;;
+esac
+
+
+fi
+
+
 #
 # Do we have the new open API?  Check for pcap_create, and assume that,
 # if we do, we also have pcap_activate() and the other new routines
@@ -6655,7 +6679,11 @@ done
 
 fi
 
-for ac_func in pcap_findalldevs pcap_dump_flush pcap_lib_version pcap_setdirection
+#
+# Check for a miscellaneous collection of functions which we use
+# if we have them.
+#
+for ac_func in pcap_findalldevs pcap_dump_flush pcap_lib_version pcap_setdirection pcap_set_immediate_mode
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -6710,7 +6738,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
     if test "$ac_lbl_cv_pcap_version_defined" = yes ; then
-    	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_PCAP_VERSION 1" >>confdefs.h
@@ -6967,6 +6995,48 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 ;;
   esac
+
+
+#
+# Make sure we have a definition for C99's uintptr_t (regardless of
+# whether the environment is a C99 environment or not).
+#
+
+  ac_fn_c_check_type "$LINENO" "uintptr_t" "ac_cv_type_uintptr_t" "$ac_includes_default"
+if test "x$ac_cv_type_uintptr_t" = xyes; then :
+
+$as_echo "#define HAVE_UINTPTR_T 1" >>confdefs.h
+
+else
+  for ac_type in 'unsigned int' 'unsigned long int' \
+	'unsigned long long int'; do
+       cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$ac_includes_default
+int
+main ()
+{
+static int test_array [1 - 2 * !(sizeof (void *) <= sizeof ($ac_type))];
+test_array [0] = 0;
+return test_array [0];
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+cat >>confdefs.h <<_ACEOF
+#define uintptr_t $ac_type
+_ACEOF
+
+	  ac_type=
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+       test -z "$ac_type" && break
+     done
+fi
+
 
 
 #
@@ -8142,6 +8212,98 @@ do :
 if test "x$ac_cv_header_openssl_evp_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_OPENSSL_EVP_H 1
+_ACEOF
+
+fi
+
+done
+
+fi
+
+# Check for libcap-ng
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to use libcap-ng" >&5
+$as_echo_n "checking whether to use libcap-ng... " >&6; }
+# Specify location for both includes and libraries.
+want_libcap_ng=ifavailable
+
+# Check whether --with-cap_ng was given.
+if test "${with_cap_ng+set}" = set; then :
+  withval=$with_cap_ng;
+	if test $withval = no
+	then
+		want_libcap_ng=no
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	elif test $withval = yes
+	then
+		want_libcap_ng=yes
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	fi
+
+else
+
+	#
+	# Use libcap-ng if it's present, otherwise don't.
+	#
+	want_libcap_ng=ifavailable
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, if available" >&5
+$as_echo "yes, if available" >&6; }
+
+fi
+
+if test "$want_libcap_ng" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for capng_change_id in -lcap-ng" >&5
+$as_echo_n "checking for capng_change_id in -lcap-ng... " >&6; }
+if ${ac_cv_lib_cap_ng_capng_change_id+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcap-ng  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char capng_change_id ();
+int
+main ()
+{
+return capng_change_id ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_cap_ng_capng_change_id=yes
+else
+  ac_cv_lib_cap_ng_capng_change_id=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_cap_ng_capng_change_id" >&5
+$as_echo "$ac_cv_lib_cap_ng_capng_change_id" >&6; }
+if test "x$ac_cv_lib_cap_ng_capng_change_id" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBCAP_NG 1
+_ACEOF
+
+  LIBS="-lcap-ng $LIBS"
+
+fi
+
+	for ac_header in cap-ng.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "cap-ng.h" "ac_cv_header_cap_ng_h" "$ac_includes_default"
+if test "x$ac_cv_header_cap_ng_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_CAP_NG_H 1
 _ACEOF
 
 fi
