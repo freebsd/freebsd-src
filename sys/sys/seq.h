@@ -111,18 +111,18 @@ seq_read(const seq_t *seqp)
 }
 
 static __inline seq_t
-seq_consistent(const seq_t *seqp, seq_t oldseq)
+seq_consistent_nomb(const seq_t *seqp, seq_t oldseq)
 {
 
-	atomic_thread_fence_acq();
 	return (*seqp == oldseq);
 }
 
 static __inline seq_t
-seq_consistent_nomb(seq_t *seqp, seq_t oldseq)
+seq_consistent(const seq_t *seqp, seq_t oldseq)
 {
 
-	return (*seqp == oldseq);
+	atomic_thread_fence_acq();
+	return (seq_consistent_nomb(seqp, oldseq));
 }
 
 #endif	/* _KERNEL */
