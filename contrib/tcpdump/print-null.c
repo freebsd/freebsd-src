@@ -111,13 +111,11 @@ null_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char
 		ip_print(ndo, p, length);
 		break;
 
-#ifdef INET6
 	case BSD_AFNUM_INET6_BSD:
 	case BSD_AFNUM_INET6_FREEBSD:
 	case BSD_AFNUM_INET6_DARWIN:
 		ip6_print(ndo, p, length);
 		break;
-#endif
 
 	case BSD_AFNUM_ISO:
 		isoclns_print(ndo, p, length, caplen);
