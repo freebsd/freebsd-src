@@ -289,18 +289,18 @@ void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
 #if defined(__arm__)
-	#define __BUS_DMAMAP_SYNC_DEFAULT		mb();
+	#define __BUS_DMAMAP_SYNC_DEFAULT		mb()
 #elif defined(__aarch64__)
-	#define	__BUS_DMAMAP_SYNC_DEFAULT		dmb(sy);
+	#define	__BUS_DMAMAP_SYNC_DEFAULT		dmb(sy)
 #else
-	#define	__BUS_DMAMAP_SYNC_DEFAULT		{}
+	#define	__BUS_DMAMAP_SYNC_DEFAULT		do {} while (0)
 #endif
 #define bus_dmamap_sync(dmat, dmamap, op) 			\
 	do {							\
 		if ((dmamap) != NULL)				\
 			_bus_dmamap_sync(dmat, dmamap, op);	\
 		else						\
-			__BUS_DMAMAP_SYNC_DEFAULT		\
+			__BUS_DMAMAP_SYNC_DEFAULT;		\
 	} while (0)
 
 /*
