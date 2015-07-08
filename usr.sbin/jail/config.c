@@ -111,8 +111,8 @@ static const struct ipspec intparams[] = {
 #ifdef INET6
     [KP_IP6_ADDR] =		{"ip6.addr",		0},
 #endif
-    [KP_JID] =			{"jid",			0},
-    [KP_NAME] =			{"name",		0},
+    [KP_JID] =			{"jid",			PF_IMMUTABLE},
+    [KP_NAME] =			{"name",		PF_IMMUTABLE},
     [KP_PATH] =			{"path",		0},
     [KP_PERSIST] =		{"persist",		0},
     [KP_SECURELEVEL] =		{"securelevel",		0},
@@ -362,6 +362,11 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 				break;
 	if (dp != NULL) {
 		/* Found it - append or replace. */
+		if (dp->flags & PF_IMMUTABLE) {
+			jail_warnx(j, "cannot redefine variable \"%s\".",
+			    dp->name);
+			return;
+		}
 		if (strcmp(dp->name, name)) {
 			free(dp->name);
 			dp->name = estrdup(name);
