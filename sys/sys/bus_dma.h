@@ -282,13 +282,25 @@ int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
- * Perform a synchronization operation on the given map.
+ * Perform a synchronization operation on the given map. If the map
+ * is NULL we have a fully IO-coherent system. On every ARM architecture
+ * there must be a memory barrier placed to ensure that all data
+ * accesses are visible before going any further.
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
+#if defined(__arm__)
+	#define __BUS_DMAMAP_SYNC_DEFAULT		mb();
+#elif defined(__aarch64__)
+	#define	__BUS_DMAMAP_SYNC_DEFAULT		dmb(sy);
+#else
+	#define	__BUS_DMAMAP_SYNC_DEFAULT		{}
+#endif
 #define bus_dmamap_sync(dmat, dmamap, op) 			\
 	do {							\
 		if ((dmamap) != NULL)				\
 			_bus_dmamap_sync(dmat, dmamap, op);	\
+		else						\
+			__BUS_DMAMAP_SYNC_DEFAULT		\
 	} while (0)
 
 /*
