@@ -69,6 +69,18 @@ struct ip6_mobility {
 #define IP6M_BINDING_UPDATE	5	/* Binding Update */
 #define IP6M_BINDING_ACK	6	/* Binding Acknowledgement */
 #define IP6M_BINDING_ERROR	7	/* Binding Error */
+#define IP6M_MAX		7
+
+static const unsigned ip6m_hdrlen[IP6M_MAX + 1] = {
+	IP6M_MINLEN,      /* IP6M_BINDING_REQUEST  */
+	IP6M_MINLEN + 8,  /* IP6M_HOME_TEST_INIT   */
+	IP6M_MINLEN + 8,  /* IP6M_CAREOF_TEST_INIT */
+	IP6M_MINLEN + 16, /* IP6M_HOME_TEST        */
+	IP6M_MINLEN + 16, /* IP6M_CAREOF_TEST      */
+	IP6M_MINLEN + 4,  /* IP6M_BINDING_UPDATE   */
+	IP6M_MINLEN + 4,  /* IP6M_BINDING_ACK      */
+	IP6M_MINLEN + 16, /* IP6M_BINDING_ERROR    */
+};
 
 /* XXX: unused */
 #define IP6MOPT_BU_MINLEN	10
@@ -95,16 +107,20 @@ mobility_opt_print(netdissect_options *ndo,
 	unsigned i, optlen;
 
 	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
 		if (bp[i] == IP6MOPT_PAD1)
 			optlen = 1;
 		else {
-			if (i + 1 < len)
+			if (i + 1 < len) {
+				ND_TCHECK(bp[i + 1]);
 				optlen = bp[i + 1] + 2;
+			}
 			else
 				goto trunc;
 		}
 		if (i + optlen > len)
 			goto trunc;
+		ND_TCHECK(bp[i + optlen]);
 
 		switch (bp[i]) {
 		case IP6MOPT_PAD1:
@@ -203,6 +219,10 @@ mobility_print(netdissect_options *ndo,
 
 	ND_TCHECK(mh->ip6m_type);
 	type = mh->ip6m_type;
+	if (type <= IP6M_MAX && mhlen < ip6m_hdrlen[type]) {
+		ND_PRINT((ndo, "(header length %u is too small for type %u)", mhlen, type));
+		goto trunc;
+	}
 	switch (type) {
 	case IP6M_BINDING_REQUEST:
 		ND_PRINT((ndo, "mobility: BRR"));

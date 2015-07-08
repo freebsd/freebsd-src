@@ -9,45 +9,72 @@
  * WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
- *
- * Original code by Hannes Gredler (hannes@juniper.net)
- * Turned into common "text protocol" code, which this uses, by
- * Guy Harris.
  */
 
-#define NETDISSECT_REWORKED
+#ifndef lint
+static const char rcsid[] _U_ =
+    "@(#) $Header$";
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <tcpdump-stdinc.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "interface.h"
 #include "extract.h"
 
-static const char *sipcmds[] = {
-	"ACK",
-	"BYE",
-	"CANCEL",
-	"DO",
-	"INFO",
-	"INVITE",
-	"MESSAGE",
-	"NOTIFY",
-	"OPTIONS",
-	"PRACK",
-	"QAUTH",
-	"REFER",
-	"REGISTER",
-	"SPRACK",
-	"SUBSCRIBE",
+/*
+ * Includes WebDAV requests.
+ */
+static const char *httpcmds[] = {
+	"GET",
+	"PUT",
+	"COPY",
+	"HEAD",
+	"LOCK",
+	"MOVE",
+	"POLL",
+	"POST",
+	"BCOPY",
+	"BMOVE",
+	"MKCOL",
+	"TRACE",
+	"LABEL",
+	"MERGE",
+	"DELETE",
+	"SEARCH",
+	"UNLOCK",
+	"REPORT",
 	"UPDATE",
-	"PUBLISH",
+	"NOTIFY",
+	"BDELETE",
+	"CONNECT",
+	"OPTIONS",
+	"CHECKIN",
+	"PROPFIND",
+	"CHECKOUT",
+	"CCM_POST",
+	"SUBSCRIBE",
+	"PROPPATCH",
+	"BPROPFIND",
+	"BPROPPATCH",
+	"UNCHECKOUT",
+	"MKACTIVITY",
+	"MKWORKSPACE",
+	"UNSUBSCRIBE",
+	"RPC_CONNECT",
+	"VERSION-CONTROL",
+	"BASELINE-CONTROL",
 	NULL
 };
 
 void
-sip_print(netdissect_options *ndo, const u_char *pptr, u_int len)
+http_print(netdissect_options *ndo, const u_char *pptr, u_int len)
 {
-	txtproto_print(ndo, pptr, len, "sip", sipcmds, RESP_CODE_SECOND_TOKEN);
+	txtproto_print(ndo, pptr, len, "http", httpcmds, RESP_CODE_SECOND_TOKEN);
 }

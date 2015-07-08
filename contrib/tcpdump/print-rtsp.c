@@ -9,45 +9,42 @@
  * WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
- *
- * Original code by Hannes Gredler (hannes@juniper.net)
- * Turned into common "text protocol" code, which this uses, by
- * Guy Harris.
  */
 
-#define NETDISSECT_REWORKED
+#ifndef lint
+static const char rcsid[] _U_ =
+    "@(#) $Header$";
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <tcpdump-stdinc.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "interface.h"
 #include "extract.h"
 
-static const char *sipcmds[] = {
-	"ACK",
-	"BYE",
-	"CANCEL",
-	"DO",
-	"INFO",
-	"INVITE",
-	"MESSAGE",
-	"NOTIFY",
+static const char *rtspcmds[] = {
+	"DESCRIBE",
+	"ANNOUNCE",
+	"GET_PARAMETER",
 	"OPTIONS",
-	"PRACK",
-	"QAUTH",
-	"REFER",
-	"REGISTER",
-	"SPRACK",
-	"SUBSCRIBE",
-	"UPDATE",
-	"PUBLISH",
+	"PAUSE",
+	"PLAY",
+	"RECORD",
+	"REDIRECT",
+	"SETUP",
+	"SET_PARAMETER",
+	"TEARDOWN",
 	NULL
 };
 
 void
-sip_print(netdissect_options *ndo, const u_char *pptr, u_int len)
+rtsp_print(netdissect_options *ndo, const u_char *pptr, u_int len)
 {
-	txtproto_print(ndo, pptr, len, "sip", sipcmds, RESP_CODE_SECOND_TOKEN);
+	txtproto_print(ndo, pptr, len, "rtsp", rtspcmds, RESP_CODE_SECOND_TOKEN);
 }
