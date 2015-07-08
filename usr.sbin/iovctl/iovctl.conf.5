@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2015
+.Dd July 8, 2015
 .Dt IOVCTL.CONF 5
 .Os
 .Sh NAME
@@ -77,7 +77,7 @@ The second section type is the VF section.
 This section has the key "VF-" followed by a VF index.
 VF indices start at 0 and always increment by 1.
 Valid VF indices are in the range of 0 to
-.Po num_vfs - 1 Pc .
+.Pq num_vfs - 1 .
 The VF index must be given as a decimal integer with no leading zeros.
 This section defines configuration parameters that apply to a single VF.
 .Pp
@@ -108,11 +108,11 @@ Accepts any integer in the range 0 to 255, inclusive.
 Accepts any integer in the range 0 to 65535, inclusive.
 .It uint32_t
 Accepts any integer in the range 0 to
-.Po 2**32 - 1 Pc ,
+.Pq 2**32 - 1 ,
 inclusive.
 .It uint64_t
 Accepts any integer in the range 0 to
-.Po 2**64 - 1 Pc ,
+.Pq 2**64 - 1 ,
 inclusive.
 .El
 .Sh OPTIONS
