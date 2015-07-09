@@ -210,6 +210,7 @@ namei(struct nameidata *ndp)
 	 */
 	FILEDESC_SLOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
+	VREF(ndp->ni_rootdir);
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	/*
@@ -260,6 +261,7 @@ namei(struct nameidata *ndp)
 			}
 		}
 		if (error) {
+			vrele(ndp->ni_rootdir);
 			namei_cleanup_cnp(cnp);
 			return (error);
 		}
@@ -286,6 +288,7 @@ namei(struct nameidata *ndp)
 				if (KTRPOINT(curthread, KTR_CAPFAIL))
 					ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
+				vrele(ndp->ni_rootdir);
 				namei_cleanup_cnp(cnp);
 				return (ENOTCAPABLE);
 			}
@@ -299,6 +302,7 @@ namei(struct nameidata *ndp)
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
+			vrele(ndp->ni_rootdir);
 			namei_cleanup_cnp(cnp);
 			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
 			    0, 0);
@@ -308,6 +312,7 @@ namei(struct nameidata *ndp)
 		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
+			vrele(ndp->ni_rootdir);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
@@ -371,6 +376,7 @@ namei(struct nameidata *ndp)
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
 	}
+	vrele(ndp->ni_rootdir);
 	namei_cleanup_cnp(cnp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
