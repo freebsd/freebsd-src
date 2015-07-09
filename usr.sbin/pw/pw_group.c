@@ -200,7 +200,7 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	 * software.
 	 */
 
-	if (conf.fd != -1)
+	if (conf.which == W_GROUP && conf.fd != -1)
 		set_passwd(grp, mode == M_UPDATE);
 
 	if (((arg = getarg(args, 'M')) != NULL ||
