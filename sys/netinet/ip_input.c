@@ -941,7 +941,8 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (ro.ro_rt != NULL) {
 		ia = ifatoia(ro.ro_rt->rt_ifa);
 		ifa_ref(&ia->ia_ifa);
-	}
+	} else
+		ia = NULL;
 #ifndef IPSEC
 	/*
 	 * 'ia' may be NULL if there is no route for this destination.

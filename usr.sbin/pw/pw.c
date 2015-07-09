@@ -215,6 +215,7 @@ main(int argc, char *argv[])
 	if (mode == -1 || which == -1)
 		cmdhelp(mode, which);
 
+	conf.which = which;
 	/*
 	 * We know which mode we're in and what we're about to do, so now
 	 * let's dispatch the remaining command line args in a genric way.

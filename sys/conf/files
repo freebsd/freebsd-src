@@ -125,9 +125,9 @@ cddl/compat/opensolaris/kern/opensolaris_vm.c				optional zfs compile-with "${ZF
 cddl/compat/opensolaris/kern/opensolaris_zone.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/acl/acl_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/avl/avl.c				optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/nvpair/fnvpair.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/nvpair/nvpair.c				optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/nvpair/nvpair_alloc_fixed.c		optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/opensolaris_fnvpair.c		optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/opensolaris_nvpair.c		optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/opensolaris_nvpair_alloc_fixed.c	optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/unicode/u8_textprep.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfeature_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_comutil.c			optional zfs compile-with "${ZFS_C}"
@@ -253,6 +253,21 @@ cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}
 cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with "${CDDL_C}"
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
+compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_file.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_mem.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_sock.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_syscalls.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_sysent.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_thread.c	optional compat_cloudabi64
 compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32

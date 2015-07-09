@@ -67,7 +67,7 @@ random_start()
 	esac
 
 	case ${entropy_file:=/entropy} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		feed_dev_random "${entropy_file}" /var/db/entropy-file
@@ -76,7 +76,7 @@ random_start()
 	esac
 
 	case ${entropy_boot_file:=/boot/entropy} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		save_dev_random "${entropy_boot_file}"
@@ -92,7 +92,7 @@ random_stop()
 	# can be reseeded
 	#
 	case ${entropy_file:=/entropy} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		echo -n 'Writing entropy file:'
@@ -124,7 +124,7 @@ random_stop()
 		;;
 	esac
 	case ${entropy_boot_file:=/boot/entropy} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		echo -n 'Writing early boot entropy file:'
