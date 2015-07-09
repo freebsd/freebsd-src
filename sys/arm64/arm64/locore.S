@@ -72,6 +72,8 @@ _start:
 	msr	sctlr_el1, x2
 	isb
 
+	/* Set the context id */
+	msr	contextidr_el1, xzr
 
 	/* Get the virt -> phys offset */
 	bl	get_virt_delta
@@ -145,6 +147,46 @@ virtdone:
 	.quad	__bss_start
 .Lend:
 	.quad	_end
+
+#ifdef SMP
+/*
+ * mpentry(unsigned long)
+ *
+ * Called by a core when it is being brought online.
+ * The data in x0 is passed straight to init_secondary.
+ */
+ENTRY(mpentry)
+	/* Disable interrupts */
+	msr	daifset, #2
+
+	/* Drop to EL1 */
+	bl	drop_to_el1
+
+	/* Set the context id */
+	msr	contextidr_el1, x1
+
+	/* Load the kernel page table */
+	adr	x26, pagetable_l1_ttbr1
+	/* Load the identity page table */
+	adr	x27, pagetable_l1_ttbr0
+
+	/* Enable the mmu */
+	bl	start_mmu
+
+	/* Jump to the virtual address space */
+	ldr	x15, =mp_virtdone
+	br	x15
+
+mp_virtdone:
+	ldr	x4, =secondary_stacks
+	mov	x5, #(PAGE_SIZE * KSTACK_PAGES)
+	sub	x1, x0, #1
+	mul	x5, x1, x5
+	add	sp, x4, x5
+
+	b	init_secondary
+END(mpentry)
+#endif
 
 /*
  * If we are started in EL2, configure the required hypervisor

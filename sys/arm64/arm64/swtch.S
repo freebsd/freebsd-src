@@ -30,6 +30,7 @@
  */
 
 #include "assym.s"
+#include "opt_sched.h"
 
 #include <machine/asm.h>
 
@@ -39,10 +40,6 @@ __FBSDID("$FreeBSD$");
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-#ifdef SMP
-#error cpu_throw needs to be ported to support SMP
-#endif
-
 #ifdef VFP
 	/* Backup the new thread pointer around a call to C code */
 	mov	x19, x1
@@ -100,10 +97,6 @@ END(cpu_throw)
  * x3 to x7, x16 and x17 are caller saved
  */
 ENTRY(cpu_switch)
-#ifdef SMP
-#error cpu_switch needs to be ported to support SMP
-#endif
-
 	/* Store the new curthread */
 	str	x1, [x18, #PC_CURTHREAD]
 	/* And the new pcb */
@@ -167,7 +160,15 @@ ENTRY(cpu_switch)
 	/* Release the old thread */
 	str	x2, [x0, #TD_LOCK]
 #if defined(SCHED_ULE) && defined(SMP)
-#error We may need to wait for the lock here
+	/* Read the value in blocked_lock */
+	ldr	x0, =_C_LABEL(blocked_lock)
+	ldr	x1, [x0]
+	/* Load curthread */
+	ldr	x2, [x18, #PC_CURTHREAD]
+1:
+	ldr	x3, [x2, #TD_LOCK]
+	cmp	x3, x1
+	b.eq	1b
 #endif
 
 	/* Restore the registers */
