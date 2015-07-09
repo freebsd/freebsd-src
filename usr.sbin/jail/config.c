@@ -688,6 +688,7 @@ import_params(struct cfjail *j)
 		if (jailparam_init(jp, p->name) < 0) {
 			error = -1;
 			jail_warnx(j, "%s", jail_errmsg);
+			jp++;
 			continue;
 		}
 		if (TAILQ_EMPTY(&p->val))
