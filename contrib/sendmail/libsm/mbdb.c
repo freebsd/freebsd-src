@@ -315,7 +315,7 @@ mbdb_pw_lookup(name, user)
 {
 	struct passwd *pw;
 
-#ifdef HESIOD
+#if HESIOD && !HESIOD_ALLOW_NUMERIC_LOGIN
 	/* DEC Hesiod getpwnam accepts numeric strings -- short circuit it */
 	{
 		char *p;
@@ -326,7 +326,7 @@ mbdb_pw_lookup(name, user)
 		if (*p == '\0')
 			return EX_NOUSER;
 	}
-#endif /* HESIOD */
+#endif /* HESIOD && !HESIOD_ALLOW_NUMERIC_LOGIN */
 
 	errno = 0;
 	pw = getpwnam(name);
