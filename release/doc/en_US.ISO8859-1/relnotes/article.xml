@@ -234,9 +234,6 @@
 	&man.resolvconf.8; utility has been updated to version
 	3.7.0.</para>
 
-      <para revision="284330"><application>OpenSSL</application> has
-	been updated to version 1.0.1o.</para>
-
       <para revision="284460">The &man.acpi.4; subsystem has been
 	updated to version 20150515.</para>
 
@@ -248,6 +245,9 @@
 
       <para revision="285305">The <application>sendmail</application>
 	utility has been updated to version 8.15.2.</para>
+
+      <para revision="285330"><application>OpenSSL</application> has
+	been updated to version 1.0.1p.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
