@@ -112,8 +112,9 @@ namei_cleanup_cnp(struct componentname *cnp)
 static int
 namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 {
-	struct componentname *cnp = &ndp->ni_cnd;
+	struct componentname *cnp;
 
+	cnp = &ndp->ni_cnd;
 	if (ndp->ni_strictrelative != 0) {
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_CAPFAIL))
@@ -194,7 +195,7 @@ namei(struct nameidata *ndp)
 	/*
 	 * Don't allow empty pathnames.
 	 */
-	if (!error && *cnp->cn_pnbuf == '\0')
+	if (error == 0 && *cnp->cn_pnbuf == '\0')
 		error = ENOENT;
 
 #ifdef CAPABILITY_MODE
@@ -215,7 +216,7 @@ namei(struct nameidata *ndp)
 		}
 	}
 #endif
-	if (error) {
+	if (error != 0) {
 		namei_cleanup_cnp(cnp);
 		ndp->ni_vp = NULL;
 		return (error);
@@ -301,7 +302,7 @@ namei(struct nameidata *ndp)
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
-		if (error) {
+		if (error != 0) {
 			vrele(ndp->ni_rootdir);
 			namei_cleanup_cnp(cnp);
 			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
@@ -330,7 +331,7 @@ namei(struct nameidata *ndp)
 		if ((cnp->cn_flags & NOMACCHECK) == 0) {
 			error = mac_vnode_check_readlink(td->td_ucred,
 			    ndp->ni_vp);
-			if (error)
+			if (error != 0)
 				break;
 		}
 #endif
@@ -348,7 +349,7 @@ namei(struct nameidata *ndp)
 		auio.uio_td = td;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
-		if (error) {
+		if (error != 0) {
 			if (ndp->ni_pathlen > 1)
 				uma_zfree(namei_zone, cp);
 			break;
