@@ -258,6 +258,10 @@ do_el1h_sync(struct trapframe *frame)
 	    (exception == EXCP_DATA_ABORT && ((esr & ISS_DATA_ISV) == 0)),
 	    ("Invalid instruction length in exception"));
 
+	CTR4(KTR_TRAP,
+	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
+	    curthread, esr, frame->tf_elr, frame);
+
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
@@ -300,6 +304,10 @@ do_el0_sync(struct trapframe *frame)
 
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
+
+	CTR4(KTR_TRAP,
+	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
+	    curthread, esr, frame->tf_elr, frame);
 
 	switch(exception) {
 	case EXCP_FP_SIMD:
