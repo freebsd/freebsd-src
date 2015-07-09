@@ -86,6 +86,7 @@ struct pwconf {
 	char		*newname;
 	char		*config;
 	int		 fd;
+	int		 which;
 	bool		 dryrun;
 	bool		 pretty;
 	bool		 v7;

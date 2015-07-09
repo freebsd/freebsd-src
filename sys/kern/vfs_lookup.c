@@ -109,6 +109,28 @@ namei_cleanup_cnp(struct componentname *cnp)
 #endif
 }
 
+static int
+namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
+{
+	struct componentname *cnp;
+
+	cnp = &ndp->ni_cnd;
+	if (ndp->ni_strictrelative != 0) {
+#ifdef KTRACE
+		if (KTRPOINT(curthread, KTR_CAPFAIL))
+			ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
+#endif
+		return (ENOTCAPABLE);
+	}
+	while (*(cnp->cn_nameptr) == '/') {
+		cnp->cn_nameptr++;
+		ndp->ni_pathlen--;
+	}
+	*dpp = ndp->ni_rootdir;
+	VREF(*dpp);
+	return (0);
+}
+
 /*
  * Convert a pathname into a pointer to a locked vnode.
  *
@@ -137,7 +159,7 @@ namei(struct nameidata *ndp)
 	struct vnode *dp;	/* the directory we are searching */
 	struct iovec aiov;		/* uio for reading symbolic links */
 	struct uio auio;
-	int error, linklen;
+	int error, linklen, startdir_used;
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
@@ -148,6 +170,8 @@ namei(struct nameidata *ndp)
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
+	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
+	    ndp->ni_startdir->v_type == VBAD);
 	if (!lookup_shared)
 		cnp->cn_flags &= ~LOCKSHARED;
 	fdp = p->p_fd;
@@ -171,7 +195,7 @@ namei(struct nameidata *ndp)
 	/*
 	 * Don't allow empty pathnames.
 	 */
-	if (!error && *cnp->cn_pnbuf == '\0')
+	if (error == 0 && *cnp->cn_pnbuf == '\0')
 		error = ENOENT;
 
 #ifdef CAPABILITY_MODE
@@ -192,7 +216,7 @@ namei(struct nameidata *ndp)
 		}
 	}
 #endif
-	if (error) {
+	if (error != 0) {
 		namei_cleanup_cnp(cnp);
 		ndp->ni_vp = NULL;
 		return (error);
@@ -210,6 +234,7 @@ namei(struct nameidata *ndp)
 	 */
 	FILEDESC_SLOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
+	VREF(ndp->ni_rootdir);
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	/*
@@ -220,12 +245,19 @@ namei(struct nameidata *ndp)
 	if (cnp->cn_flags & AUDITVNODE2)
 		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 
+	startdir_used = 0;
 	dp = NULL;
-	if (cnp->cn_pnbuf[0] != '/') {
+	cnp->cn_nameptr = cnp->cn_pnbuf;
+	if (cnp->cn_pnbuf[0] == '/') {
+		error = namei_handle_root(ndp, &dp);
+	} else {
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
-			error = 0;
-		} else if (ndp->ni_dirfd != AT_FDCWD) {
+			startdir_used = 1;
+		} else if (ndp->ni_dirfd == AT_FDCWD) {
+			dp = fdp->fd_cdir;
+			VREF(dp);
+		} else {
 			cap_rights_t rights;
 
 			rights = ndp->ni_rightsneeded;
@@ -252,53 +284,26 @@ namei(struct nameidata *ndp)
 			}
 #endif
 		}
-		if (error != 0 || dp != NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			if (error == 0 && dp->v_type != VDIR) {
-				vrele(dp);
-				error = ENOTDIR;
-			}
-		}
-		if (error) {
-			namei_cleanup_cnp(cnp);
-			return (error);
-		}
+		if (error == 0 && dp->v_type != VDIR)
+			error = ENOTDIR;
 	}
-	if (dp == NULL) {
-		dp = fdp->fd_cdir;
-		VREF(dp);
-		FILEDESC_SUNLOCK(fdp);
-		if (ndp->ni_startdir != NULL)
-			vrele(ndp->ni_startdir);
+	FILEDESC_SUNLOCK(fdp);
+	if (ndp->ni_startdir != NULL && !startdir_used)
+		vrele(ndp->ni_startdir);
+	if (error != 0) {
+		if (dp != NULL)
+			vrele(dp);
+		vrele(ndp->ni_rootdir);
+		namei_cleanup_cnp(cnp);
+		return (error);
 	}
 	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags, 0, 0);
 	for (;;) {
-		/*
-		 * Check if root directory should replace current directory.
-		 * Done at start of translation and after symbolic link.
-		 */
-		cnp->cn_nameptr = cnp->cn_pnbuf;
-		if (*(cnp->cn_nameptr) == '/') {
-			vrele(dp);
-			if (ndp->ni_strictrelative != 0) {
-#ifdef KTRACE
-				if (KTRPOINT(curthread, KTR_CAPFAIL))
-					ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
-#endif
-				namei_cleanup_cnp(cnp);
-				return (ENOTCAPABLE);
-			}
-			while (*(cnp->cn_nameptr) == '/') {
-				cnp->cn_nameptr++;
-				ndp->ni_pathlen--;
-			}
-			dp = ndp->ni_rootdir;
-			VREF(dp);
-		}
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
-		if (error) {
+		if (error != 0) {
+			vrele(ndp->ni_rootdir);
 			namei_cleanup_cnp(cnp);
 			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
 			    0, 0);
@@ -308,6 +313,7 @@ namei(struct nameidata *ndp)
 		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
+			vrele(ndp->ni_rootdir);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
@@ -325,7 +331,7 @@ namei(struct nameidata *ndp)
 		if ((cnp->cn_flags & NOMACCHECK) == 0) {
 			error = mac_vnode_check_readlink(td->td_ucred,
 			    ndp->ni_vp);
-			if (error)
+			if (error != 0)
 				break;
 		}
 #endif
@@ -343,7 +349,7 @@ namei(struct nameidata *ndp)
 		auio.uio_td = td;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
-		if (error) {
+		if (error != 0) {
 			if (ndp->ni_pathlen > 1)
 				uma_zfree(namei_zone, cp);
 			break;
@@ -370,7 +376,21 @@ namei(struct nameidata *ndp)
 		ndp->ni_pathlen += linklen;
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
+		/*
+		 * Check if root directory should replace current directory.
+		 */
+		cnp->cn_nameptr = cnp->cn_pnbuf;
+		if (*(cnp->cn_nameptr) == '/') {
+			vrele(dp);
+			error = namei_handle_root(ndp, &dp);
+			if (error != 0) {
+				vrele(ndp->ni_rootdir);
+				namei_cleanup_cnp(cnp);
+				return (error);
+			}
+		}
 	}
+	vrele(ndp->ni_rootdir);
 	namei_cleanup_cnp(cnp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;

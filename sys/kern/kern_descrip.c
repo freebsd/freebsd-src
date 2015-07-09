@@ -102,7 +102,6 @@ static uma_zone_t filedesc0_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
-static int	do_dup(struct thread *td, int flags, int old, int new);
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
@@ -110,11 +109,6 @@ static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
 static int	getmaxfd(struct thread *td);
-
-/* Flags for do_dup() */
-#define	DUP_FIXED	0x1	/* Force fixed allocation. */
-#define	DUP_FCNTL	0x2	/* fcntl()-style errors. */
-#define	DUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
 
 /*
  * Each process has:
@@ -361,7 +355,7 @@ int
 sys_dup2(struct thread *td, struct dup2_args *uap)
 {
 
-	return (do_dup(td, DUP_FIXED, (int)uap->from, (int)uap->to));
+	return (kern_dup(td, FDDUP_FIXED, (int)uap->from, (int)uap->to));
 }
 
 /*
@@ -377,7 +371,7 @@ int
 sys_dup(struct thread *td, struct dup_args *uap)
 {
 
-	return (do_dup(td, 0, (int)uap->fd, 0));
+	return (kern_dup(td, 0, (int)uap->fd, 0));
 }
 
 /*
@@ -487,22 +481,22 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	switch (cmd) {
 	case F_DUPFD:
 		tmp = arg;
-		error = do_dup(td, DUP_FCNTL, fd, tmp);
+		error = kern_dup(td, FDDUP_FCNTL, fd, tmp);
 		break;
 
 	case F_DUPFD_CLOEXEC:
 		tmp = arg;
-		error = do_dup(td, DUP_FCNTL | DUP_CLOEXEC, fd, tmp);
+		error = kern_dup(td, FDDUP_FCNTL | FDDUP_CLOEXEC, fd, tmp);
 		break;
 
 	case F_DUP2FD:
 		tmp = arg;
-		error = do_dup(td, DUP_FIXED, fd, tmp);
+		error = kern_dup(td, FDDUP_FIXED, fd, tmp);
 		break;
 
 	case F_DUP2FD_CLOEXEC:
 		tmp = arg;
-		error = do_dup(td, DUP_FIXED | DUP_CLOEXEC, fd, tmp);
+		error = kern_dup(td, FDDUP_FIXED | FDDUP_CLOEXEC, fd, tmp);
 		break;
 
 	case F_GETFD:
@@ -794,8 +788,8 @@ getmaxfd(struct thread *td)
 /*
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
-static int
-do_dup(struct thread *td, int flags, int old, int new)
+int
+kern_dup(struct thread *td, int flags, int old, int new)
 {
 	struct filedesc *fdp;
 	struct filedescent *oldfde, *newfde;
@@ -807,6 +801,11 @@ do_dup(struct thread *td, int flags, int old, int new)
 	p = td->td_proc;
 	fdp = p->p_fd;
 
+	MPASS((flags & ~(FDDUP_FIXED | FDDUP_FCNTL | FDDUP_CLOEXEC |
+	    FDDUP_MUSTREPLACE)) == 0);
+	MPASS((flags & (FDDUP_FIXED | FDDUP_MUSTREPLACE)) !=
+	    (FDDUP_FIXED | FDDUP_MUSTREPLACE));
+
 	/*
 	 * Verify we have a valid descriptor to dup from and possibly to
 	 * dup to. Unlike dup() and dup2(), fcntl()'s F_DUPFD should
@@ -815,10 +814,10 @@ do_dup(struct thread *td, int flags, int old, int new)
 	if (old < 0)
 		return (EBADF);
 	if (new < 0)
-		return (flags & DUP_FCNTL ? EINVAL : EBADF);
+		return (flags & FDDUP_FCNTL ? EINVAL : EBADF);
 	maxfd = getmaxfd(td);
 	if (new >= maxfd)
-		return (flags & DUP_FCNTL ? EINVAL : EBADF);
+		return (flags & FDDUP_FCNTL ? EINVAL : EBADF);
 
 	FILEDESC_XLOCK(fdp);
 	if (fget_locked(fdp, old) == NULL) {
@@ -826,9 +825,9 @@ do_dup(struct thread *td, int flags, int old, int new)
 		return (EBADF);
 	}
 	oldfde = &fdp->fd_ofiles[old];
-	if (flags & DUP_FIXED && old == new) {
+	if (flags & (FDDUP_FIXED | FDDUP_MUSTREPLACE) && old == new) {
 		td->td_retval[0] = new;
-		if (flags & DUP_CLOEXEC)
+		if (flags & FDDUP_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return (0);
@@ -841,7 +840,16 @@ do_dup(struct thread *td, int flags, int old, int new)
 	 * table is large enough to hold it, and grab it.  Otherwise, just
 	 * allocate a new descriptor the usual way.
 	 */
-	if (flags & DUP_FIXED) {
+	if (flags & FDDUP_MUSTREPLACE) {
+		/* Target file descriptor must exist. */
+		if (new >= fdp->fd_nfiles ||
+		    fdp->fd_ofiles[new].fde_file == NULL) {
+			FILEDESC_XUNLOCK(fdp);
+			fdrop(fp, td);
+			return (EBADF);
+		}
+		newfde = &fdp->fd_ofiles[new];
+	} else if (flags & FDDUP_FIXED) {
 		if (new >= fdp->fd_nfiles) {
 			/*
 			 * The resource limits are here instead of e.g.
@@ -892,7 +900,7 @@ do_dup(struct thread *td, int flags, int old, int new)
 	filecaps_free(&newfde->fde_caps);
 	memcpy(newfde, oldfde, fde_change_size);
 	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
-	if ((flags & DUP_CLOEXEC) != 0)
+	if ((flags & FDDUP_CLOEXEC) != 0)
 		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
 	else
 		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
@@ -1988,7 +1996,7 @@ retry:
 		if (fdp->fd_holdleaderscount > 0 &&
 		    (p->p_leader->p_flag & P_ADVLOCK) != 0) {
 			/*
-			 * close() or do_dup() has cleared a reference
+			 * close() or kern_dup() has cleared a reference
 			 * in a shared file descriptor table.
 			 */
 			fdp->fd_holdleaderswakeup = 1;
@@ -2215,7 +2223,7 @@ fdcheckstd(struct thread *td)
 
 		save = td->td_retval[0];
 		if (devnull != -1) {
-			error = do_dup(td, DUP_FIXED, devnull, i);
+			error = kern_dup(td, FDDUP_FIXED, devnull, i);
 		} else {
 			error = kern_openat(td, AT_FDCWD, "/dev/null",
 			    UIO_SYSSPACE, O_RDWR, 0);
