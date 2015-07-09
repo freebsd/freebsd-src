@@ -158,7 +158,7 @@ namei(struct nameidata *ndp)
 	struct vnode *dp;	/* the directory we are searching */
 	struct iovec aiov;		/* uio for reading symbolic links */
 	struct uio auio;
-	int error, linklen;
+	int error, linklen, startdir_used;
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
@@ -169,6 +169,8 @@ namei(struct nameidata *ndp)
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
+	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
+	    ndp->ni_startdir->v_type == VBAD);
 	if (!lookup_shared)
 		cnp->cn_flags &= ~LOCKSHARED;
 	fdp = p->p_fd;
@@ -242,23 +244,19 @@ namei(struct nameidata *ndp)
 	if (cnp->cn_flags & AUDITVNODE2)
 		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 
+	startdir_used = 0;
 	dp = NULL;
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	if (cnp->cn_pnbuf[0] == '/') {
 		error = namei_handle_root(ndp, &dp);
-		FILEDESC_SUNLOCK(fdp);
-		if (error != 0) {
-			vrele(ndp->ni_rootdir);
-			if (ndp->ni_startdir != NULL)
-				vrele(ndp->ni_startdir);
-			namei_cleanup_cnp(cnp);
-			return (error);
-		}
 	} else {
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
-			error = 0;
-		} else if (ndp->ni_dirfd != AT_FDCWD) {
+			startdir_used = 1;
+		} else if (ndp->ni_dirfd == AT_FDCWD) {
+			dp = fdp->fd_cdir;
+			VREF(dp);
+		} else {
 			cap_rights_t rights;
 
 			rights = ndp->ni_rightsneeded;
@@ -285,25 +283,18 @@ namei(struct nameidata *ndp)
 			}
 #endif
 		}
-		if (error != 0 || dp != NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			if (error == 0 && dp->v_type != VDIR) {
-				vrele(dp);
-				error = ENOTDIR;
-			}
-		}
-		if (error) {
-			vrele(ndp->ni_rootdir);
-			namei_cleanup_cnp(cnp);
-			return (error);
-		}
+		if (error == 0 && dp->v_type != VDIR)
+			error = ENOTDIR;
 	}
-	if (dp == NULL) {
-		dp = fdp->fd_cdir;
-		VREF(dp);
-		FILEDESC_SUNLOCK(fdp);
-		if (ndp->ni_startdir != NULL)
-			vrele(ndp->ni_startdir);
+	FILEDESC_SUNLOCK(fdp);
+	if (ndp->ni_startdir != NULL && !startdir_used)
+		vrele(ndp->ni_startdir);
+	if (error != 0) {
+		if (dp != NULL)
+			vrele(dp);
+		vrele(ndp->ni_rootdir);
+		namei_cleanup_cnp(cnp);
+		return (error);
 	}
 	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags, 0, 0);
