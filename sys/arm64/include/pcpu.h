@@ -36,8 +36,9 @@
 #define	ALT_STACK_SIZE	128
 
 #define	PCPU_MD_FIELDS							\
-	u_int	pc_acpi_id;	/* ACPI CPU id */			\
-	char __pad[125]
+	u_int	pc_acpi_id;	/* ACPI CPU id */		\
+	u_int	pc_midr;	/* stored MIDR value */	\
+	char __pad[121]
 
 #ifdef _KERNEL
 
