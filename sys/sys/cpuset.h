@@ -116,6 +116,7 @@ struct cpuset {
 extern cpuset_t *cpuset_root;
 struct prison;
 struct proc;
+struct thread;
 
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
