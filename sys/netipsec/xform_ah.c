@@ -82,11 +82,11 @@
 	(((sav)->flags & SADB_X_EXT_OLD) ? \
 		sizeof (struct ah) : sizeof (struct ah) + sizeof (u_int32_t))
 /* 
- * Return authenticator size in bytes.  The old protocol is known
- * to use a fixed 16-byte authenticator.  The new algorithm use 12-byte
- * authenticator.
+ * Return authenticator size in bytes, based on a field in the
+ * algorithm descriptor.
  */
-#define	AUTHSIZE(sav)	ah_authsize(sav)
+#define	AUTHSIZE(sav)	\
+	((sav->flags & SADB_X_EXT_OLD) ? 16 : (sav)->tdb_authalgxform->hashsize)
 
 VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
@@ -112,27 +112,6 @@ static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
 
-static int
-ah_authsize(struct secasvar *sav)
-{
-
-	IPSEC_ASSERT(sav != NULL, ("%s: sav == NULL", __func__));
-
-	if (sav->flags & SADB_X_EXT_OLD)
-		return 16;
-
-	switch (sav->alg_auth) {
-	case SADB_X_AALG_SHA2_256:
-		return 16;
-	case SADB_X_AALG_SHA2_384:
-		return 24;
-	case SADB_X_AALG_SHA2_512:
-		return 32;
-	default:
-		return AH_HMAC_HASHLEN;
-	}
-	/* NOTREACHED */
-}
 /*
  * NB: this is public for use by the PF_KEY support.
  */
@@ -160,6 +139,12 @@ ah_algorithm_lookup(int alg)
 		return &auth_hash_hmac_sha2_384;
 	case SADB_X_AALG_SHA2_512:
 		return &auth_hash_hmac_sha2_512;
+	case SADB_X_AALG_AES128GMAC:
+		return &auth_hash_nist_gmac_aes_128;
+	case SADB_X_AALG_AES192GMAC:
+		return &auth_hash_nist_gmac_aes_192;
+	case SADB_X_AALG_AES256GMAC:
+		return &auth_hash_nist_gmac_aes_256;
 	}
 	return NULL;
 }
