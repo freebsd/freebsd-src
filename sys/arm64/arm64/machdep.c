@@ -119,6 +119,13 @@ cpu_startup(void *dummy)
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
+}
+
 void
 bzero(void *buf, size_t len)
 {
