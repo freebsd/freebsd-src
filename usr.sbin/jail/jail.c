@@ -470,10 +470,12 @@ main(int argc, char **argv)
 				if (dep_check(j))
 					continue;
 				if (j->jid < 0) {
-					if (!(j->flags & (JF_DEPEND | JF_WILD))
-					    && verbose >= 0)
-						jail_quoted_warnx(j,
-						    "not found", NULL);
+					if (!(j->flags & (JF_DEPEND|JF_WILD))) {
+						if (verbose >= 0)
+							jail_quoted_warnx(j,
+							    "not found", NULL);
+						failed(j);
+					}
 					goto jail_remove_done;
 				}
 				j->comparam = stopcommands;
