@@ -109,6 +109,27 @@ namei_cleanup_cnp(struct componentname *cnp)
 #endif
 }
 
+static int
+namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
+{
+	struct componentname *cnp = &ndp->ni_cnd;
+
+	if (ndp->ni_strictrelative != 0) {
+#ifdef KTRACE
+		if (KTRPOINT(curthread, KTR_CAPFAIL))
+			ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
+#endif
+		return (ENOTCAPABLE);
+	}
+	while (*(cnp->cn_nameptr) == '/') {
+		cnp->cn_nameptr++;
+		ndp->ni_pathlen--;
+	}
+	*dpp = ndp->ni_rootdir;
+	VREF(*dpp);
+	return (0);
+}
+
 /*
  * Convert a pathname into a pointer to a locked vnode.
  *
@@ -222,7 +243,18 @@ namei(struct nameidata *ndp)
 		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 
 	dp = NULL;
-	if (cnp->cn_pnbuf[0] != '/') {
+	cnp->cn_nameptr = cnp->cn_pnbuf;
+	if (cnp->cn_pnbuf[0] == '/') {
+		error = namei_handle_root(ndp, &dp);
+		FILEDESC_SUNLOCK(fdp);
+		if (error != 0) {
+			vrele(ndp->ni_rootdir);
+			if (ndp->ni_startdir != NULL)
+				vrele(ndp->ni_startdir);
+			namei_cleanup_cnp(cnp);
+			return (error);
+		}
+	} else {
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
 			error = 0;
@@ -276,29 +308,6 @@ namei(struct nameidata *ndp)
 	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags, 0, 0);
 	for (;;) {
-		/*
-		 * Check if root directory should replace current directory.
-		 * Done at start of translation and after symbolic link.
-		 */
-		cnp->cn_nameptr = cnp->cn_pnbuf;
-		if (*(cnp->cn_nameptr) == '/') {
-			vrele(dp);
-			if (ndp->ni_strictrelative != 0) {
-#ifdef KTRACE
-				if (KTRPOINT(curthread, KTR_CAPFAIL))
-					ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
-#endif
-				vrele(ndp->ni_rootdir);
-				namei_cleanup_cnp(cnp);
-				return (ENOTCAPABLE);
-			}
-			while (*(cnp->cn_nameptr) == '/') {
-				cnp->cn_nameptr++;
-				ndp->ni_pathlen--;
-			}
-			dp = ndp->ni_rootdir;
-			VREF(dp);
-		}
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
@@ -375,6 +384,19 @@ namei(struct nameidata *ndp)
 		ndp->ni_pathlen += linklen;
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
+		/*
+		 * Check if root directory should replace current directory.
+		 */
+		cnp->cn_nameptr = cnp->cn_pnbuf;
+		if (*(cnp->cn_nameptr) == '/') {
+			vrele(dp);
+			error = namei_handle_root(ndp, &dp);
+			if (error != 0) {
+				vrele(ndp->ni_rootdir);
+				namei_cleanup_cnp(cnp);
+				return (error);
+			}
+		}
 	}
 	vrele(ndp->ni_rootdir);
 	namei_cleanup_cnp(cnp);
