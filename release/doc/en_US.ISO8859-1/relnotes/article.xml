@@ -468,9 +468,6 @@
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
 
-      <para revision="284329"><application>OpenSSL</application> has
-	been updated to version 1.0.1o.</para>
-
       <para revision="283092">The &man.acpi.4; subsystem has been
 	updated to version 20150515.</para>
 
@@ -492,6 +489,9 @@
 	old behavior, set the m4 option
 	<literal>confUSE_COMPRESSED_IPV6_ADDRESSES</literal> or the cf
 	option <literal>UseCompressedIPv6Addresses</literal>.</para>
+
+      <para revision="285329"><application>OpenSSL</application> has
+	been updated to version 1.0.1p.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
