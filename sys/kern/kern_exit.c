@@ -839,7 +839,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	q = td->td_proc;
 
 	PROC_SUNLOCK(p);
-	td->td_retval[0] = p->p_pid;
 	if (status)
 		*status = p->p_xstat;	/* convert to int */
 	if (options & WNOWAIT) {
@@ -1153,6 +1152,7 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
     int options, struct __wrusage *wrusage, siginfo_t *siginfo)
 {
 	struct proc *p, *q;
+	pid_t pid;
 	int error, nfound, ret;
 
 	AUDIT_ARG_VALUE((int)idtype);	/* XXX - This is likely wrong! */
@@ -1191,14 +1191,17 @@ loop:
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
+		pid = p->p_pid;
 		ret = proc_to_reap(td, p, idtype, id, status, options,
 		    wrusage, siginfo, 0);
 		if (ret == 0)
 			continue;
 		else if (ret == 1)
 			nfound++;
-		else
+		else {
+			td->td_retval[0] = pid;
 			return (0);
+		}
 
 		PROC_LOCK(p);
 		PROC_SLOCK(p);
@@ -1212,7 +1215,6 @@ loop:
 			if ((options & WNOWAIT) == 0)
 				p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
-			td->td_retval[0] = p->p_pid;
 
 			if (status != NULL)
 				*status = W_STOPCODE(p->p_xstat);
@@ -1231,6 +1233,7 @@ loop:
 			    p->p_pid, W_STOPCODE(p->p_xstat), p->p_xstat,
 			    p->p_xthread != NULL ? p->p_xthread->td_tid : -1);
 			PROC_UNLOCK(p);
+			td->td_retval[0] = pid;
 			return (0);
 		}
 		if ((options & WUNTRACED) != 0 &&
@@ -1241,7 +1244,6 @@ loop:
 			if ((options & WNOWAIT) == 0)
 				p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
-			td->td_retval[0] = p->p_pid;
 
 			if (status != NULL)
 				*status = W_STOPCODE(p->p_xstat);
@@ -1256,13 +1258,13 @@ loop:
 			}
 
 			PROC_UNLOCK(p);
+			td->td_retval[0] = pid;
 			return (0);
 		}
 		PROC_SUNLOCK(p);
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
 			sx_xunlock(&proctree_lock);
-			td->td_retval[0] = p->p_pid;
 			if ((options & WNOWAIT) == 0) {
 				p->p_flag &= ~P_CONTINUED;
 				PROC_LOCK(q);
@@ -1277,6 +1279,7 @@ loop:
 				siginfo->si_status = SIGCONT;
 				siginfo->si_code = CLD_CONTINUED;
 			}
+			td->td_retval[0] = pid;
 			return (0);
 		}
 		PROC_UNLOCK(p);
