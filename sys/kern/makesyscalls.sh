@@ -497,7 +497,8 @@ s/\$//g
 			    funcname == "sysarch" ||
 			    funcname ~ /^cheriabi/ || funcname ~ /^freebsd/ ||
 			    funcname ~ /^linux/ || funcname ~ /^svr4/ || 
-			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {				
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/ ||
+			    funcname ~ /^cloudabi/) {
 				printf("%s\t%s(struct thread *, struct %s *)",
 				    rettype, funcname, argalias) > sysdcl
 			} else {
@@ -518,7 +519,8 @@ s/\$//g
 			    funcname == "lkmnosys" ||
 			    funcname ~ /^cheriabi/ || funcname ~ /^freebsd/ ||
 			    funcname ~ /^linux/ || funcname ~ /^svr4/ ||
-			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/ ||
+			    funcname ~ /^cloudabi/) {
 				printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
 				column = column + length(funcname) + length(auditev) + length(flags) + 3 
 			} else {
