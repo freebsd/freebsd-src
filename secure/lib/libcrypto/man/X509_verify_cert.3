@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_verify_cert 3"
-.TH X509_verify_cert 3 "2015-06-12" "1.0.1o" "OpenSSL"
+.TH X509_verify_cert 3 "2015-07-09" "1.0.1p" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -167,7 +167,8 @@ OpenSSL internally for certificate validation, in both the S/MIME and
 \&\s-1SSL/TLS\s0 code.
 .PP
 The negative return value from \fIX509_verify_cert()\fR can only occur if no
-certificate is set in \fBctx\fR (due to a programming error) or if a retry
+certificate is set in \fBctx\fR (due to a programming error); if \fIX509_verify_cert()\fR
+twice without reinitialising \fBctx\fR in between; or if a retry
 operation is requested during internal lookups (which never happens with
 standard lookup methods). It is however recommended that application check
 for <= 0 return value on error.
