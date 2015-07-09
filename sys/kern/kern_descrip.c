@@ -102,7 +102,6 @@ static uma_zone_t filedesc0_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
-static int	kern_dup(struct thread *td, int flags, int old, int new);
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
@@ -110,11 +109,6 @@ static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
 static int	getmaxfd(struct thread *td);
-
-/* Flags for kern_dup() */
-#define	FDDUP_FIXED	0x1	/* Force fixed allocation. */
-#define	FDDUP_FCNTL	0x2	/* fcntl()-style errors. */
-#define	FDDUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
 
 /*
  * Each process has:
@@ -794,7 +788,7 @@ getmaxfd(struct thread *td)
 /*
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
-static int
+int
 kern_dup(struct thread *td, int flags, int old, int new)
 {
 	struct filedesc *fdp;
@@ -807,7 +801,10 @@ kern_dup(struct thread *td, int flags, int old, int new)
 	p = td->td_proc;
 	fdp = p->p_fd;
 
-	MPASS((flags & ~(FDDUP_FIXED | FDDUP_FCNTL | FDDUP_CLOEXEC)) == 0);
+	MPASS((flags & ~(FDDUP_FIXED | FDDUP_FCNTL | FDDUP_CLOEXEC |
+	    FDDUP_MUSTREPLACE)) == 0);
+	MPASS((flags & (FDDUP_FIXED | FDDUP_MUSTREPLACE)) !=
+	    (FDDUP_FIXED | FDDUP_MUSTREPLACE));
 
 	/*
 	 * Verify we have a valid descriptor to dup from and possibly to
@@ -828,7 +825,7 @@ kern_dup(struct thread *td, int flags, int old, int new)
 		return (EBADF);
 	}
 	oldfde = &fdp->fd_ofiles[old];
-	if (flags & FDDUP_FIXED && old == new) {
+	if (flags & (FDDUP_FIXED | FDDUP_MUSTREPLACE) && old == new) {
 		td->td_retval[0] = new;
 		if (flags & FDDUP_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
@@ -843,7 +840,16 @@ kern_dup(struct thread *td, int flags, int old, int new)
 	 * table is large enough to hold it, and grab it.  Otherwise, just
 	 * allocate a new descriptor the usual way.
 	 */
-	if (flags & FDDUP_FIXED) {
+	if (flags & FDDUP_MUSTREPLACE) {
+		/* Target file descriptor must exist. */
+		if (new >= fdp->fd_nfiles ||
+		    fdp->fd_ofiles[new].fde_file == NULL) {
+			FILEDESC_XUNLOCK(fdp);
+			fdrop(fp, td);
+			return (EBADF);
+		}
+		newfde = &fdp->fd_ofiles[new];
+	} else if (flags & FDDUP_FIXED) {
 		if (new >= fdp->fd_nfiles) {
 			/*
 			 * The resource limits are here instead of e.g.
