@@ -245,6 +245,9 @@
 
       <para revision="285206">The &man.unbound.8; utility has been
 	updated to version 1.5.3.</para>
+
+      <para revision="285305">The <application>sendmail</application>
+	utility has been updated to version 8.15.2.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
