@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include  "dn_heap.h"
 #define log(x, arg...)	fprintf(stderr, ## arg)
 #define panic(x...)	fprintf(stderr, ## x), exit(1)
-#define MALLOC_DEFINE(a, b, c)
+#define MALLOC_DEFINE(a, b, c)	volatile int __dummy__ ## a __attribute__((__unused__))
 static void *my_malloc(int s) {	return malloc(s); }
 static void my_free(void *p) {	free(p); }
 #define malloc(s, t, w)	my_malloc(s)
