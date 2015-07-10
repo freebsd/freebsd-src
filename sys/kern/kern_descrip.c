@@ -355,7 +355,7 @@ int
 sys_dup2(struct thread *td, struct dup2_args *uap)
 {
 
-	return (kern_dup(td, FDDUP_FIXED, (int)uap->from, (int)uap->to));
+	return (kern_dup(td, FDDUP_FIXED, 0, (int)uap->from, (int)uap->to));
 }
 
 /*
@@ -371,7 +371,7 @@ int
 sys_dup(struct thread *td, struct dup_args *uap)
 {
 
-	return (kern_dup(td, 0, (int)uap->fd, 0));
+	return (kern_dup(td, FDDUP_NORMAL, 0, (int)uap->fd, 0));
 }
 
 /*
@@ -481,22 +481,22 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	switch (cmd) {
 	case F_DUPFD:
 		tmp = arg;
-		error = kern_dup(td, FDDUP_FCNTL, fd, tmp);
+		error = kern_dup(td, FDDUP_FCNTL, 0, fd, tmp);
 		break;
 
 	case F_DUPFD_CLOEXEC:
 		tmp = arg;
-		error = kern_dup(td, FDDUP_FCNTL | FDDUP_CLOEXEC, fd, tmp);
+		error = kern_dup(td, FDDUP_FCNTL, FDDUP_CLOEXEC, fd, tmp);
 		break;
 
 	case F_DUP2FD:
 		tmp = arg;
-		error = kern_dup(td, FDDUP_FIXED, fd, tmp);
+		error = kern_dup(td, FDDUP_FIXED, 0, fd, tmp);
 		break;
 
 	case F_DUP2FD_CLOEXEC:
 		tmp = arg;
-		error = kern_dup(td, FDDUP_FIXED | FDDUP_CLOEXEC, fd, tmp);
+		error = kern_dup(td, FDDUP_FIXED, FDDUP_CLOEXEC, fd, tmp);
 		break;
 
 	case F_GETFD:
@@ -789,7 +789,7 @@ getmaxfd(struct thread *td)
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
 int
-kern_dup(struct thread *td, int flags, int old, int new)
+kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 {
 	struct filedesc *fdp;
 	struct filedescent *oldfde, *newfde;
@@ -801,10 +801,8 @@ kern_dup(struct thread *td, int flags, int old, int new)
 	p = td->td_proc;
 	fdp = p->p_fd;
 
-	MPASS((flags & ~(FDDUP_FIXED | FDDUP_FCNTL | FDDUP_CLOEXEC |
-	    FDDUP_MUSTREPLACE)) == 0);
-	MPASS((flags & (FDDUP_FIXED | FDDUP_MUSTREPLACE)) !=
-	    (FDDUP_FIXED | FDDUP_MUSTREPLACE));
+	MPASS((flags & ~(FDDUP_CLOEXEC)) == 0);
+	MPASS(mode < FDDUP_LASTMODE);
 
 	/*
 	 * Verify we have a valid descriptor to dup from and possibly to
@@ -825,7 +823,7 @@ kern_dup(struct thread *td, int flags, int old, int new)
 		return (EBADF);
 	}
 	oldfde = &fdp->fd_ofiles[old];
-	if (flags & (FDDUP_FIXED | FDDUP_MUSTREPLACE) && old == new) {
+	if ((mode == FDDUP_FIXED || mode == FDDUP_MUSTREPLACE) && old == new) {
 		td->td_retval[0] = new;
 		if (flags & FDDUP_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
@@ -840,7 +838,17 @@ kern_dup(struct thread *td, int flags, int old, int new)
 	 * table is large enough to hold it, and grab it.  Otherwise, just
 	 * allocate a new descriptor the usual way.
 	 */
-	if (flags & FDDUP_MUSTREPLACE) {
+	switch (mode) {
+	case FDDUP_NORMAL:
+	case FDDUP_FCNTL:
+		if ((error = fdalloc(td, new, &new)) != 0) {
+			FILEDESC_XUNLOCK(fdp);
+			fdrop(fp, td);
+			return (error);
+		}
+		newfde = &fdp->fd_ofiles[new];
+		break;
+	case FDDUP_MUSTREPLACE:
 		/* Target file descriptor must exist. */
 		if (new >= fdp->fd_nfiles ||
 		    fdp->fd_ofiles[new].fde_file == NULL) {
@@ -849,7 +857,8 @@ kern_dup(struct thread *td, int flags, int old, int new)
 			return (EBADF);
 		}
 		newfde = &fdp->fd_ofiles[new];
-	} else if (flags & FDDUP_FIXED) {
+		break;
+	case FDDUP_FIXED:
 		if (new >= fdp->fd_nfiles) {
 			/*
 			 * The resource limits are here instead of e.g.
@@ -877,13 +886,12 @@ kern_dup(struct thread *td, int flags, int old, int new)
 		newfde = &fdp->fd_ofiles[new];
 		if (newfde->fde_file == NULL)
 			fdused(fdp, new);
-	} else {
-		if ((error = fdalloc(td, new, &new)) != 0) {
-			FILEDESC_XUNLOCK(fdp);
-			fdrop(fp, td);
-			return (error);
-		}
-		newfde = &fdp->fd_ofiles[new];
+		break;
+#ifdef INVARIANTS
+	default:
+		newfde = NULL; /* silence the compiler */
+		KASSERT(0, ("%s unsupported mode %d", __func__, mode));
+#endif
 	}
 
 	KASSERT(fp == oldfde->fde_file, ("old fd has been modified"));
@@ -2223,7 +2231,7 @@ fdcheckstd(struct thread *td)
 
 		save = td->td_retval[0];
 		if (devnull != -1) {
-			error = kern_dup(td, FDDUP_FIXED, devnull, i);
+			error = kern_dup(td, FDDUP_FIXED, 0, devnull, i);
 		} else {
 			error = kern_openat(td, AT_FDCWD, "/dev/null",
 			    UIO_SYSSPACE, O_RDWR, 0);
