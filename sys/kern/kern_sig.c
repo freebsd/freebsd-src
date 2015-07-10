@@ -628,7 +628,7 @@ sig_ffs(sigset_t *set)
 }
 
 static bool
-sigact_flag_test(struct sigaction *act, int flag)
+sigact_flag_test(const struct sigaction *act, int flag)
 {
 
 	/*
@@ -648,11 +648,8 @@ sigact_flag_test(struct sigaction *act, int flag)
  * osigaction
  */
 int
-kern_sigaction(td, sig, act, oact, flags)
-	struct thread *td;
-	register int sig;
-	struct sigaction *act, *oact;
-	int flags;
+kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
+    struct sigaction *oact, int flags)
 {
 	struct sigacts *ps;
 	struct proc *p = td->td_proc;
