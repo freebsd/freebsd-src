@@ -24,6 +24,8 @@
  */
 
 /* $FreeBSD$ */
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/types.h>
 #include <sys/module.h>
@@ -148,9 +150,9 @@ nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
  * Second argument is non-zero to intercept, 0 to restore
  */
 int
-netmap_catch_rx(struct netmap_adapter *na, int intercept)
+netmap_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 {
-	struct netmap_generic_adapter *gna = (struct netmap_generic_adapter *)na;
+	struct netmap_adapter *na = &gna->up.up;
 	struct ifnet *ifp = na->ifp;
 
 	if (intercept) {
@@ -183,7 +185,7 @@ void
 netmap_catch_tx(struct netmap_generic_adapter *gna, int enable)
 {
 	struct netmap_adapter *na = &gna->up.up;
-	struct ifnet *ifp = na->ifp;
+	struct ifnet *ifp = netmap_generic_getifp(gna);
 
 	if (enable) {
 		na->if_transmit = ifp->if_transmit;
@@ -494,6 +496,7 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 {
 	struct netmap_vm_handle_t *vmh = object->handle;
 	struct netmap_priv_d *priv = vmh->priv;
+	struct netmap_adapter *na = priv->np_na;
 	vm_paddr_t paddr;
 	vm_page_t page;
 	vm_memattr_t memattr;
@@ -503,7 +506,7 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 			object, (intmax_t)offset, prot, mres);
 	memattr = object->memattr;
 	pidx = OFF_TO_IDX(offset);
-	paddr = netmap_mem_ofstophys(priv->np_mref, offset);
+	paddr = netmap_mem_ofstophys(na->nm_mem, offset);
 	if (paddr == 0)
 		return VM_PAGER_FAIL;
 
@@ -568,13 +571,13 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 	error = devfs_get_cdevpriv((void**)&priv);
 	if (error)
 		goto err_unlock;
+	if (priv->np_nifp == NULL) {
+		error = EINVAL;
+		goto err_unlock;
+	}
 	vmh->priv = priv;
 	priv->np_refcount++;
 	NMG_UNLOCK();
-
-	error = netmap_get_memory(priv);
-	if (error)
-		goto err_deref;
 
 	obj = cdev_pager_allocate(vmh, OBJT_DEVICE,
 		&netmap_cdev_pager_ops, objsize, prot,
@@ -598,8 +601,18 @@ err_unlock:
 	return error;
 }
 
-
-// XXX can we remove this ?
+/*
+ * netmap_close() is called on every close(), but we do not need to do
+ * anything at that moment, since the process may have other open file
+ * descriptors for /dev/netmap. Instead, we pass netmap_dtor() to
+ * devfs_set_cdevpriv() on open(). The FreeBSD kernel will call the destructor
+ * when the last fd pointing to the device is closed. 
+ *
+ * Unfortunately, FreeBSD does not automatically track active mmap()s on an fd,
+ * so we have to track them by ourselvesi (see above). The result is that
+ * netmap_dtor() is called when the process has no open fds and no active
+ * memory maps on /dev/netmap, as in linux.
+ */
 static int
 netmap_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
@@ -673,7 +686,7 @@ static void
 netmap_knrdetach(struct knote *kn)
 {
 	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
-	struct selinfo *si = &priv->np_rxsi->si;
+	struct selinfo *si = &priv->np_si[NR_RX]->si;
 
 	D("remove selinfo %p", si);
 	knlist_remove(&si->si_note, kn, 0);
@@ -683,7 +696,7 @@ static void
 netmap_knwdetach(struct knote *kn)
 {
 	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
-	struct selinfo *si = &priv->np_txsi->si;
+	struct selinfo *si = &priv->np_si[NR_TX]->si;
 
 	D("remove selinfo %p", si);
 	knlist_remove(&si->si_note, kn, 0);
@@ -773,7 +786,7 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 		return 1;
 	}
 	/* the si is indicated in the priv */
-	si = (ev == EVFILT_WRITE) ? priv->np_txsi : priv->np_rxsi;
+	si = priv->np_si[(ev == EVFILT_WRITE) ? NR_TX : NR_RX];
 	// XXX lock(priv) ?
 	kn->kn_fop = (ev == EVFILT_WRITE) ?
 		&netmap_wfiltops : &netmap_rfiltops;

@@ -917,8 +917,6 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 			kring->nr_hwtail -= kring->nkr_num_slots;
 	}
 
-	nm_txsync_finalize(kring);
-
 	return (0);
 }
 
@@ -931,7 +929,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
 	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + kring->ring_id];
-	u_int const head = nm_rxsync_prologue(kring);
+	u_int const head = kring->rhead;
 	u_int n;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
@@ -992,8 +990,6 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 			    nm_rxq->fl_db_val | V_PIDX(dbinc));
 		}
 	}
-
-	nm_rxsync_finalize(kring);
 
 	return (0);
 }
