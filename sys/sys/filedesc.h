@@ -134,11 +134,17 @@ struct filedesc_to_leader {
 					    SX_NOTRECURSED)
 #define	FILEDESC_UNLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_UNLOCKED)
 
+/* Operation types for kern_dup(). */
+enum {
+	FDDUP_NORMAL = 0x01,	/* dup() behavior. */
+	FDDUP_FCNTL,		/* fcntl()-style errors. */
+	FDDUP_FIXED,		/* Force fixed allocation. */
+	FDDUP_MUSTREPLACE,	/* Target must exist. */
+	FDDUP_LASTMODE,
+};
+
 /* Flags for kern_dup(). */
-#define	FDDUP_FIXED		0x1	/* Force fixed allocation. */
-#define	FDDUP_FCNTL		0x2	/* fcntl()-style errors. */
-#define	FDDUP_CLOEXEC		0x4	/* Atomically set FD_CLOEXEC. */
-#define	FDDUP_MUSTREPLACE	0x8	/* Target must exist. */
+#define	FDDUP_CLOEXEC		0x1	/* Atomically set FD_CLOEXEC. */
 
 struct thread;
 
