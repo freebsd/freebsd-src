@@ -989,9 +989,9 @@ esp_output_cb(struct cryptop *crp)
 			case CRYPTO_SHA2_512_HMAC:
 				alen = esph->hashsize/2;
 				break;
-			case CRYPTO_AES_128_GMAC:
-			case CRYPTO_AES_192_GMAC:
-			case CRYPTO_AES_256_GMAC:
+			case CRYPTO_AES_128_NIST_GMAC:
+			case CRYPTO_AES_192_NIST_GMAC:
+			case CRYPTO_AES_256_NIST_GMAC:
 				alen = esph->hashsize;
 				break;
 			default:
