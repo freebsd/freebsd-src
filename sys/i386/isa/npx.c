@@ -1173,16 +1173,20 @@ npx_fill_fpregs_xmm1(struct savexmm *sv_xmm, struct save87 *sv_87)
 	/* FPU control/status */
 	penv_87->en_cw = penv_xmm->en_cw;
 	penv_87->en_sw = penv_xmm->en_sw;
-	penv_87->en_tw = penv_xmm->en_tw;
 	penv_87->en_fip = penv_xmm->en_fip;
 	penv_87->en_fcs = penv_xmm->en_fcs;
 	penv_87->en_opcode = penv_xmm->en_opcode;
 	penv_87->en_foo = penv_xmm->en_foo;
 	penv_87->en_fos = penv_xmm->en_fos;
 
-	/* FPU registers */
-	for (i = 0; i < 8; ++i)
+	/* FPU registers and tags */
+	penv_87->en_tw = 0xffff;
+	for (i = 0; i < 8; ++i) {
 		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
+		if ((penv_xmm->en_tw & (1 << i)) != 0)
+			/* zero and special are set as valid */
+			penv_87->en_tw &= ~(3 << i);
+	}
 }
 
 void
@@ -1206,16 +1210,19 @@ npx_set_fpregs_xmm(struct save87 *sv_87, struct savexmm *sv_xmm)
 	/* FPU control/status */
 	penv_xmm->en_cw = penv_87->en_cw;
 	penv_xmm->en_sw = penv_87->en_sw;
-	penv_xmm->en_tw = penv_87->en_tw;
 	penv_xmm->en_fip = penv_87->en_fip;
 	penv_xmm->en_fcs = penv_87->en_fcs;
 	penv_xmm->en_opcode = penv_87->en_opcode;
 	penv_xmm->en_foo = penv_87->en_foo;
 	penv_xmm->en_fos = penv_87->en_fos;
 
-	/* FPU registers */
-	for (i = 0; i < 8; ++i)
+	/* FPU registers and tags */
+	penv_xmm->en_tw = 0;
+	for (i = 0; i < 8; ++i) {
 		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
+		if ((penv_87->en_tw && (3 << i)) != (3 << i))
+		    penv_xmm->en_tw |= 1 << i;
+	}
 }
 #endif /* CPU_ENABLE_SSE */
 
