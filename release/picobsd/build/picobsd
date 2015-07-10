@@ -532,7 +532,11 @@ do_links() {	# rootdir varname
 # if no argument default to objdir/SHLIBDIRPREFIX for both
 find_progs() {	# programs
 	# logverbose "find_progs: called with $*"
-	local i=`realpath ${o_objdir:-${_SHLIBDIRPREFIX}/..}`
+	# rev.284898 removed _SHLIBDIRPREFIX so we need to reconstruct
+	# its value in i1
+	local i1=${_SHLIBDIRPREFIX:-${l_objtree}/${SRC}/tmp}
+	local i=`realpath ${o_objdir:-${i1}/..}`
+
 	# default values for -L and -P
 	local dir="-P $i"
 	local ldir="-L $i"
