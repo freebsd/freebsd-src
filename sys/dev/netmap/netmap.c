@@ -726,6 +726,9 @@ netmap_update_config(struct netmap_adapter *na)
 	return 1;
 }
 
+static void netmap_txsync_to_host(struct netmap_adapter *na);
+static int netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwait);
+
 /* kring->nm_sync callback for the host tx ring */
 static int
 netmap_txsync_to_host_compat(struct netmap_kring *kring, int flags)
@@ -959,11 +962,12 @@ nm_si_user(struct netmap_priv_d *priv, enum txrx t)
 }
 
 /*
- * Destructor of the netmap_priv_d, called when the fd has
- * no active open() and mmap().
- * Undo all the things done by NIOCREGIF.
+ * Destructor of the netmap_priv_d, called when the fd is closed
+ * Action: undo all the things done by NIOCREGIF,
+ * On FreeBSD we need to track whether there are active mmap()s,
+ * and we use np_active_mmaps for that. On linux, the field is always 0.
+ * Return: 1 if we can free priv, 0 otherwise.
  *
- * returns 1 if this is the last instance and we can free priv
  */
 /* call with NMG_LOCK held */
 int
@@ -971,17 +975,13 @@ netmap_dtor_locked(struct netmap_priv_d *priv)
 {
 	struct netmap_adapter *na = priv->np_na;
 
-#ifdef __FreeBSD__
-	/*
-	 * np_refcount is the number of active mmaps on
-	 * this file descriptor
-	 */
-	if (--priv->np_refcount > 0) {
+	/* number of active mmaps on this fd (FreeBSD only) */
+	if (--priv->np_refs > 0) {
 		return 0;
 	}
-#endif /* __FreeBSD__ */
+
 	if (!na) {
-	    return 1; //XXX is it correct?
+		return 1; //XXX is it correct?
 	}
 	netmap_do_unregif(priv);
 	netmap_adapter_put(na);
@@ -1139,7 +1139,7 @@ netmap_sw_to_nic(struct netmap_adapter *na)
  * can be among multiple user threads erroneously calling
  * this routine concurrently.
  */
-void
+static void
 netmap_txsync_to_host(struct netmap_adapter *na)
 {
 	struct netmap_kring *kring = &na->tx_rings[na->num_tx_rings];
@@ -1177,7 +1177,7 @@ netmap_txsync_to_host(struct netmap_adapter *na)
  * returns the number of packets delivered to tx queues in
  * transparent mode, or a negative value if error
  */
-int
+static int
 netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwait)
 {
 	struct netmap_kring *kring = &na->rx_rings[na->num_rx_rings];

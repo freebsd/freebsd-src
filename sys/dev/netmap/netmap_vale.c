@@ -1931,7 +1931,6 @@ netmap_bwrap_intr_notify(struct netmap_kring *kring, int flags)
 	struct netmap_adapter *na = kring->na;
 	struct netmap_bwrap_adapter *bna = na->na_private;
 	struct netmap_kring *bkring;
-	struct netmap_ring *ring;
 	struct netmap_vp_adapter *vpna = &bna->up;
 	u_int ring_nr = kring->ring_id;
 	int error = 0;
@@ -1943,7 +1942,6 @@ netmap_bwrap_intr_notify(struct netmap_kring *kring, int flags)
 		return 0;
 
 	bkring = &vpna->up.tx_rings[ring_nr];
-	ring = kring->ring; /* == kbkring->ring */
 
 	/* make sure the ring is not disabled */
 	if (nm_kr_tryget(kring))

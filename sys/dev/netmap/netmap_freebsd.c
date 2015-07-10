@@ -576,7 +576,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 		goto err_unlock;
 	}
 	vmh->priv = priv;
-	priv->np_refcount++;
+	priv->np_refs++;
 	NMG_UNLOCK();
 
 	obj = cdev_pager_allocate(vmh, OBJT_DEVICE,
@@ -593,7 +593,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 
 err_deref:
 	NMG_LOCK();
-	priv->np_refcount--;
+	priv->np_refs--;
 err_unlock:
 	NMG_UNLOCK();
 // err:
@@ -602,14 +602,14 @@ err_unlock:
 }
 
 /*
- * netmap_close() is called on every close(), but we do not need to do
- * anything at that moment, since the process may have other open file
- * descriptors for /dev/netmap. Instead, we pass netmap_dtor() to
+ * On FreeBSD the close routine is only called on the last close on
+ * the device (/dev/netmap) so we cannot do anything useful.
+ * To track close() on individual file descriptors we pass netmap_dtor() to
  * devfs_set_cdevpriv() on open(). The FreeBSD kernel will call the destructor
  * when the last fd pointing to the device is closed. 
  *
- * Unfortunately, FreeBSD does not automatically track active mmap()s on an fd,
- * so we have to track them by ourselvesi (see above). The result is that
+ * Note that FreeBSD does not even munmap() on close() so we also have
+ * to track mmap() ourselves, and postpone the call to
  * netmap_dtor() is called when the process has no open fds and no active
  * memory maps on /dev/netmap, as in linux.
  */
@@ -634,19 +634,15 @@ netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	(void)devtype;
 	(void)td;
 
-	// XXX wait or nowait ?
 	priv = malloc(sizeof(struct netmap_priv_d), M_DEVBUF,
 			      M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return ENOMEM;
-
 	error = devfs_set_cdevpriv(priv, netmap_dtor);
-	if (error)
-	        return error;
-
-	priv->np_refcount = 1;
-
-	return 0;
+	if (error) {
+		free(priv, M_DEVBUF);
+	}
+	return error;
 }
 
 /******************** kqueue support ****************/

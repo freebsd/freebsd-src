@@ -925,8 +925,6 @@ static __inline void nm_kr_get(struct netmap_kring *kr)
 }
 
 
-
-
 /*
  * The following functions are used by individual drivers to
  * support netmap operation.
@@ -1079,8 +1077,6 @@ int netmap_krings_create(struct netmap_adapter *na, u_int tailroom);
  * been created using netmap_krings_create
  */
 void netmap_krings_delete(struct netmap_adapter *na);
-int netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwait);
-
 
 /* set the stopped/enabled status of ring
  * When stopping, they also wait for all current activity on the ring to
@@ -1094,12 +1090,8 @@ void netmap_set_all_rings(struct netmap_adapter *, int stopped);
 void netmap_disable_all_rings(struct ifnet *);
 void netmap_enable_all_rings(struct ifnet *);
 
-int netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwait);
-
-int
-netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
+int netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 	uint16_t ringid, uint32_t flags);
-
 
 
 u_int nm_bound_var(u_int *v, u_int dflt, u_int lo, u_int hi, const char *msg);
@@ -1482,37 +1474,21 @@ PNMB(struct netmap_adapter *na, struct netmap_slot *slot, uint64_t *pp)
 	return ret;
 }
 
-/* Generic version of NMB, which uses device-specific memory. */
-
-
-
-void netmap_txsync_to_host(struct netmap_adapter *na);
-
 
 /*
- * Structure associated to each thread which registered an interface.
+ * Structure associated to each netmap file descriptor.
+ * It is created on open and left unbound (np_nifp == NULL).
+ * A successful NIOCREGIF will set np_nifp and the first few fields;
+ * this is protected by a global lock (NMG_LOCK) due to low contention.
  *
- * The first 4 fields of this structure are written by NIOCREGIF and
- * read by poll() and NIOC?XSYNC.
+ * np_refs counts the number of references to the structure: one for the fd,
+ * plus (on FreeBSD) one for each active mmap which we track ourselves
+ * (they are not unmapped on close(), unlike linux).
+ * np_refs is protected by NMG_LOCK.
  *
- * There is low contention among writers (a correct user program
- * should have none) and among writers and readers, so we use a
- * single global lock to protect the structure initialization;
- * since initialization involves the allocation of memory,
- * we reuse the memory allocator lock.
- *
- * Read access to the structure is lock free. Readers must check that
- * np_nifp is not NULL before using the other fields.
- * If np_nifp is NULL initialization has not been performed,
- * so they should return an error to userspace.
- *
- * The ref_done field (XXX ?) is used to regulate access to the refcount in the
- * memory allocator. The refcount must be incremented at most once for
- * each open("/dev/netmap"). The increment is performed by the first
- * function that calls netmap_get_memory() (currently called by
- * mmap(), NIOCGINFO and NIOCREGIF).
- * If the refcount is incremented, it is then decremented when the
- * private structure is destroyed.
+ * Read access to the structure is lock free, because ni_nifp once set
+ * can only go to 0 when nobody is using the entry anymore. Readers
+ * must check that np_nifp != NULL before using the other fields.
  */
 struct netmap_priv_d {
 	struct netmap_if * volatile np_nifp;	/* netmap if descriptor. */
@@ -1523,8 +1499,7 @@ struct netmap_priv_d {
 			np_qlast[NR_TXRX]; /* range of tx/rx rings to scan */
 	uint16_t	np_txpoll;	/* XXX and also np_rxpoll ? */
 
-	/* np_refcount is only used on FreeBSD */
-	int		np_refcount;	/* use with NMG_LOCK held */
+	int		np_refs;	/* use with NMG_LOCK held */
 
 	/* pointers to the selinfo to be used for selrecord.
 	 * Either the local or the global one depending on the
