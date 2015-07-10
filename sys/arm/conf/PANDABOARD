@@ -52,6 +52,7 @@ options 	TMPFS			# Efficient memory filesystem
 options 	GEOM_PART_GPT		# GUID Partition Tables
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
+options 	GEOM_LABEL		# Provides labelization 
 options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
