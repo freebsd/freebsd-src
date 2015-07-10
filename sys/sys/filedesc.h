@@ -136,7 +136,7 @@ struct filedesc_to_leader {
 
 /* Operation types for kern_dup(). */
 enum {
-	FDDUP_NORMAL = 0x01,	/* dup() behavior. */
+	FDDUP_NORMAL,		/* dup() behavior. */
 	FDDUP_FCNTL,		/* fcntl()-style errors. */
 	FDDUP_FIXED,		/* Force fixed allocation. */
 	FDDUP_MUSTREPLACE,	/* Target must exist. */
@@ -144,7 +144,7 @@ enum {
 };
 
 /* Flags for kern_dup(). */
-#define	FDDUP_CLOEXEC		0x1	/* Atomically set FD_CLOEXEC. */
+#define	FDDUP_FLAG_CLOEXEC	0x1	/* Atomically set UF_EXCLOSE. */
 
 struct thread;
 
