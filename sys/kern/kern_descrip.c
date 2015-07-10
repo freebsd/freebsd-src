@@ -224,7 +224,6 @@ fd_last_used(struct filedesc *fdp, int size)
 	return (-1);
 }
 
-#ifdef INVARIANTS
 static int
 fdisused(struct filedesc *fdp, int fd)
 {
@@ -234,7 +233,6 @@ fdisused(struct filedesc *fdp, int fd)
 
 	return ((fdp->fd_map[NDSLOT(fd)] & NDBIT(fd)) != 0);
 }
-#endif
 
 /*
  * Mark a file descriptor as used.
@@ -486,7 +484,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_DUPFD_CLOEXEC:
 		tmp = arg;
-		error = kern_dup(td, FDDUP_FCNTL, FDDUP_CLOEXEC, fd, tmp);
+		error = kern_dup(td, FDDUP_FCNTL, FDDUP_FLAG_CLOEXEC, fd, tmp);
 		break;
 
 	case F_DUP2FD:
@@ -496,7 +494,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_DUP2FD_CLOEXEC:
 		tmp = arg;
-		error = kern_dup(td, FDDUP_FIXED, FDDUP_CLOEXEC, fd, tmp);
+		error = kern_dup(td, FDDUP_FIXED, FDDUP_FLAG_CLOEXEC, fd, tmp);
 		break;
 
 	case F_GETFD:
@@ -794,14 +792,13 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	struct filedesc *fdp;
 	struct filedescent *oldfde, *newfde;
 	struct proc *p;
-	struct file *fp;
 	struct file *delfp;
 	int error, maxfd;
 
 	p = td->td_proc;
 	fdp = p->p_fd;
 
-	MPASS((flags & ~(FDDUP_CLOEXEC)) == 0);
+	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
 
 	/*
@@ -812,26 +809,23 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	if (old < 0)
 		return (EBADF);
 	if (new < 0)
-		return (flags & FDDUP_FCNTL ? EINVAL : EBADF);
+		return (mode == FDDUP_FCNTL ? EINVAL : EBADF);
 	maxfd = getmaxfd(td);
 	if (new >= maxfd)
-		return (flags & FDDUP_FCNTL ? EINVAL : EBADF);
+		return (mode == FDDUP_FCNTL ? EINVAL : EBADF);
 
 	FILEDESC_XLOCK(fdp);
 	if (fget_locked(fdp, old) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
-	oldfde = &fdp->fd_ofiles[old];
 	if ((mode == FDDUP_FIXED || mode == FDDUP_MUSTREPLACE) && old == new) {
 		td->td_retval[0] = new;
-		if (flags & FDDUP_CLOEXEC)
+		if (flags & FDDUP_FLAG_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return (0);
 	}
-	fp = oldfde->fde_file;
-	fhold(fp);
 
 	/*
 	 * If the caller specified a file descriptor, make sure the file
@@ -843,20 +837,15 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	case FDDUP_FCNTL:
 		if ((error = fdalloc(td, new, &new)) != 0) {
 			FILEDESC_XUNLOCK(fdp);
-			fdrop(fp, td);
 			return (error);
 		}
-		newfde = &fdp->fd_ofiles[new];
 		break;
 	case FDDUP_MUSTREPLACE:
 		/* Target file descriptor must exist. */
-		if (new >= fdp->fd_nfiles ||
-		    fdp->fd_ofiles[new].fde_file == NULL) {
+		if (fget_locked(fdp, new) == NULL) {
 			FILEDESC_XUNLOCK(fdp);
-			fdrop(fp, td);
 			return (EBADF);
 		}
-		newfde = &fdp->fd_ofiles[new];
 		break;
 	case FDDUP_FIXED:
 		if (new >= fdp->fd_nfiles) {
@@ -875,28 +864,24 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 				PROC_UNLOCK(p);
 				if (error != 0) {
 					FILEDESC_XUNLOCK(fdp);
-					fdrop(fp, td);
 					return (EMFILE);
 				}
 			}
 #endif
 			fdgrowtable_exp(fdp, new + 1);
-			oldfde = &fdp->fd_ofiles[old];
 		}
-		newfde = &fdp->fd_ofiles[new];
-		if (newfde->fde_file == NULL)
+		if (!fdisused(fdp, new))
 			fdused(fdp, new);
 		break;
-#ifdef INVARIANTS
 	default:
-		newfde = NULL; /* silence the compiler */
 		KASSERT(0, ("%s unsupported mode %d", __func__, mode));
-#endif
 	}
 
-	KASSERT(fp == oldfde->fde_file, ("old fd has been modified"));
 	KASSERT(old != new, ("new fd is same as old"));
 
+	oldfde = &fdp->fd_ofiles[old];
+	fhold(oldfde->fde_file);
+	newfde = &fdp->fd_ofiles[new];
 	delfp = newfde->fde_file;
 
 	/*
@@ -908,7 +893,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	filecaps_free(&newfde->fde_caps);
 	memcpy(newfde, oldfde, fde_change_size);
 	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
-	if ((flags & FDDUP_CLOEXEC) != 0)
+	if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
 		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
 	else
 		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
