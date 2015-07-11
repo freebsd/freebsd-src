@@ -37,7 +37,7 @@ static void	sendenvelope __P((ENVELOPE *, int));
 static int	coloncmp __P((const char *, const char *));
 
 #if STARTTLS
-#  include <openssl/err.h>
+# include <openssl/err.h>
 static int	starttls __P((MAILER *, MCI *, ENVELOPE *));
 static int	endtlsclt __P((MCI *));
 #endif /* STARTTLS */
@@ -1223,6 +1223,7 @@ should_try_fbsh(e, tried_fallbacksmarthost, hostbuf, hbsz, status)
 	}
 	return false;
 }
+
 /*
 **  DELIVER -- Deliver a message to a list of addresses.
 **
@@ -1392,6 +1393,8 @@ deliver(e, firstto)
 	else
 		p = e->e_from.q_paddr;
 	rpath = remotename(p, m, RF_SENDERADDR|RF_CANONICAL, &rcode, e);
+	if (rcode != EX_OK && bitnset(M_xSMTP, m->m_flags))
+		goto cleanup;
 	if (strlen(rpath) > MAXNAME)
 	{
 		rpath = shortenstring(rpath, MAXSHORTSTR);
@@ -1468,6 +1471,7 @@ deliver(e, firstto)
 		/* running LMTP or SMTP */
 		clever = true;
 		*pvp = NULL;
+		setbitn(M_xSMTP, m->m_flags);
 	}
 	else if (bitnset(M_LMTP, m->m_flags))
 	{
@@ -1600,7 +1604,7 @@ deliver(e, firstto)
 		quarantine = (e->e_quarmsg != NULL);
 		rcode = rscheck("check_compat", e->e_from.q_paddr, to->q_paddr,
 				e, RSF_RMCOMM|RSF_COUNT, 3, NULL,
-				e->e_id, NULL);
+				e->e_id, NULL, NULL);
 		if (rcode == EX_OK)
 		{
 			/* do in-code checking if not discarding */
@@ -2459,8 +2463,8 @@ tryhost:
 						       ctladdr->q_gid) == -1
 					    && suidwarn)
 					{
-						syserr("openmailer: initgroups(%s, %d) failed",
-							user, ctladdr->q_gid);
+						syserr("openmailer: initgroups(%s, %ld) failed",
+							user, (long) ctladdr->q_gid);
 						exit(EX_TEMPFAIL);
 					}
 				}
@@ -2486,8 +2490,8 @@ tryhost:
 					if (initgroups(DefUser, DefGid) == -1 &&
 					    suidwarn)
 					{
-						syserr("openmailer: initgroups(%s, %d) failed",
-						       DefUser, DefGid);
+						syserr("openmailer: initgroups(%s, %ld) failed",
+						       DefUser, (long) DefGid);
 						exit(EX_TEMPFAIL);
 					}
 				}
@@ -2516,9 +2520,9 @@ tryhost:
 				    new_gid != getegid())
 				{
 					/* Only root can change the gid */
-					syserr("openmailer: insufficient privileges to change gid, RunAsUid=%d, new_gid=%d, gid=%d, egid=%d",
-					       (int) RunAsUid, (int) new_gid,
-					       (int) getgid(), (int) getegid());
+					syserr("openmailer: insufficient privileges to change gid, RunAsUid=%ld, new_gid=%ld, gid=%ld, egid=%ld",
+					       (long) RunAsUid, (long) new_gid,
+					       (long) getgid(), (long) getegid());
 					exit(EX_TEMPFAIL);
 				}
 
@@ -2613,8 +2617,8 @@ tryhost:
 				if (RunAsUid != 0 && new_euid != RunAsUid)
 				{
 					/* Only root can change the uid */
-					syserr("openmailer: insufficient privileges to change uid, new_euid=%d, RunAsUid=%d",
-					       (int) new_euid, (int) RunAsUid);
+					syserr("openmailer: insufficient privileges to change uid, new_euid=%ld, RunAsUid=%ld",
+					       (long) new_euid, (long) RunAsUid);
 					exit(EX_TEMPFAIL);
 				}
 
@@ -2656,9 +2660,9 @@ tryhost:
 			}
 
 			if (tTd(11, 2))
-				sm_dprintf("openmailer: running as r/euid=%d/%d, r/egid=%d/%d\n",
-					   (int) getuid(), (int) geteuid(),
-					   (int) getgid(), (int) getegid());
+				sm_dprintf("openmailer: running as r/euid=%ld/%ld, r/egid=%ld/%ld\n",
+					   (long) getuid(), (long) geteuid(),
+					   (long) getgid(), (long) getegid());
 
 			/* move into some "safe" directory */
 			if (m->m_execdir != NULL)
@@ -2958,8 +2962,8 @@ reconnect:	/* after switching to an encrypted connection */
 				QuickAbort = false;
 				SuprErrs = true;
 				if (rscheck("try_tls", host, NULL, e,
-					    RSF_RMCOMM, 7, host, NOQID, NULL)
-								!= EX_OK
+					    RSF_RMCOMM, 7, host, NOQID, NULL,
+					    NULL) != EX_OK
 				    || Errors > olderrors)
 				{
 					usetls = false;
@@ -3033,7 +3037,7 @@ reconnect:	/* after switching to an encrypted connection */
 			if (rscheck("tls_server",
 				    macvalue(macid("{verify}"), e),
 				    NULL, e, RSF_RMCOMM|RSF_COUNT, 5,
-				    host, NOQID, NULL) != EX_OK ||
+				    host, NOQID, NULL, NULL) != EX_OK ||
 			    Errors > olderrors ||
 			    rcode == EX_SOFTWARE)
 			{
@@ -3358,7 +3362,7 @@ do_transfer:
 # if STARTTLS
 				i = rscheck("tls_rcpt", to->q_user, NULL, e,
 					    RSF_RMCOMM|RSF_COUNT, 3,
-					    mci->mci_host, e->e_id, NULL);
+					    mci->mci_host, e->e_id, NULL, NULL);
 				if (i != EX_OK)
 				{
 					markfailure(e, to, mci, i, false);
@@ -3584,7 +3588,7 @@ do_transfer:
 
 	if (tobuf[0] != '\0')
 	{
-		giveresponse(rcode, NULL, m, mci, ctladdr, xstart, e, tochain);
+		giveresponse(rcode, NULL, m, mci, ctladdr, xstart, e, NULL);
 #if 0
 		/*
 		**  This code is disabled for now because I am not
@@ -4160,14 +4164,13 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 
 	/*
 	**  Final cleanup.
-	**	Log a record of the transaction.  Compute the new
-	**	ExitStat -- if we already had an error, stick with
-	**	that.
+	**	Log a record of the transaction.  Compute the new ExitStat
+	**	-- if we already had an error, stick with that.
 	*/
 
 	if (OpMode != MD_VERIFY && !bitset(EF_VRFYONLY, e->e_flags) &&
 	    LogLevel > ((status == EX_TEMPFAIL) ? 8 : (status == EX_OK) ? 7 : 6))
-		logdelivery(m, mci, dsn, statmsg + off, ctladdr, xstart, e);
+		logdelivery(m, mci, dsn, statmsg + off, ctladdr, xstart, e, to, status);
 
 	if (tTd(11, 2))
 		sm_dprintf("giveresponse: status=%d, dsn=%s, e->e_message=%s, errnum=%d\n",
@@ -4209,6 +4212,8 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 **		xstart -- the transaction start time, used for
 **			computing transaction delay.
 **		e -- the current envelope.
+**		to -- the current recipient (NULL if none).
+**		rcode -- status code
 **
 **	Returns:
 **		none
@@ -4218,7 +4223,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 */
 
 void
-logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
+logdelivery(m, mci, dsn, status, ctladdr, xstart, e, to, rcode)
 	MAILER *m;
 	register MCI *mci;
 	char *dsn;
@@ -4226,6 +4231,8 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 	ADDRESS *ctladdr;
 	time_t xstart;
 	register ENVELOPE *e;
+	ADDRESS *to;
+	int rcode;
 {
 	register char *bp;
 	register char *p;
@@ -4269,6 +4276,16 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 				   m->m_name);
 		bp += strlen(bp);
 	}
+
+# if _FFR_LOG_MORE2
+#  if STARTTLS
+	p = macvalue(macid("{verify}"), e);
+	if (p == NULL || *p == '\0')
+		p = "NONE";
+	(void) sm_snprintf(bp, SPACELEFT(buf, bp), ", tls_verify=%.20s", p);
+	bp += strlen(bp);
+#  endif /* STARTTLS */
+# endif /* _FFR_LOG_MORE2 */
 
 	/* pri: changes with each delivery attempt */
 	(void) sm_snprintf(bp, SPACELEFT(buf, bp), ", pri=%ld",
@@ -4336,6 +4353,43 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 #  define STATLEN	203
 # endif /* (STATLEN) > 203 */
 
+#if _FFR_LOGREPLY
+	/*
+	**  Notes:
+	**  per-rcpt status: to->q_rstatus
+	**  global status: e->e_text
+	**
+	**  We (re)use STATLEN here, is that a good choice?
+	**
+	**  stat=Deferred: ...
+	**  has sometimes the same text?
+	**
+	**  Note: this doesn't show the stage at which the error happened.
+	**  can/should we log that?
+	**  XS_* in reply() basically encodes the state.
+	*/
+
+	/* only show errors */
+	if (rcode != EX_OK && to != NULL && to->q_rstatus != NULL &&
+	    *to->q_rstatus != '\0')
+	{
+		(void) sm_snprintf(bp, SPACELEFT(buf, bp),
+			", reply=%s",
+			shortenstring(to->q_rstatus, STATLEN));
+		bp += strlen(bp);
+	}
+	else if (rcode != EX_OK && e->e_text != NULL)
+	{
+		(void) sm_snprintf(bp, SPACELEFT(buf, bp),
+			", reply=%d %s%s%s",
+			e->e_rcode,
+			e->e_renhsc,
+			(e->e_renhsc[0] != '\0') ? " " : "",
+			shortenstring(e->e_text, STATLEN));
+		bp += strlen(bp);
+	}
+#endif
+
 	/* stat: max 210 bytes */
 	if ((bp - buf) > (sizeof(buf) - ((STATLEN) + 20)))
 	{
@@ -4362,6 +4416,7 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 
 		for (q = p + l; q > p; q--)
 		{
+			/* XXX a comma in an address will break this! */
 			if (*q == ',')
 				break;
 		}
@@ -5321,8 +5376,8 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 				if (RunAsUid != 0 && RealUid != RunAsUid)
 				{
 					/* Only root can change the uid */
-					syserr("mailfile: insufficient privileges to change uid, RunAsUid=%d, RealUid=%d",
-						(int) RunAsUid, (int) RealUid);
+					syserr("mailfile: insufficient privileges to change uid, RunAsUid=%ld, RealUid=%ld",
+						(long) RunAsUid, (long) RealUid);
 					RETURN(EX_TEMPFAIL);
 				}
 			}
@@ -5362,9 +5417,9 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 				     RealGid != getegid()))
 				{
 					/* Only root can change the gid */
-					syserr("mailfile: insufficient privileges to change gid, RealGid=%d, RunAsUid=%d, gid=%d, egid=%d",
-					       (int) RealGid, (int) RunAsUid,
-					       (int) getgid(), (int) getegid());
+					syserr("mailfile: insufficient privileges to change gid, RealGid=%ld, RunAsUid=%ld, gid=%ld, egid=%ld",
+					       (long) RealGid, (long) RunAsUid,
+					       (long) getgid(), (long) getegid());
 					RETURN(EX_TEMPFAIL);
 				}
 			}
@@ -5405,8 +5460,8 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		{
 			if (initgroups(RealUserName, RealGid) == -1 && suidwarn)
 			{
-				syserr("mailfile: initgroups(%s, %d) failed",
-					RealUserName, RealGid);
+				syserr("mailfile: initgroups(%s, %ld) failed",
+					RealUserName, (long) RealGid);
 				RETURN(EX_TEMPFAIL);
 			}
 		}
@@ -5468,9 +5523,9 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		}
 
 		if (tTd(11, 2))
-			sm_dprintf("mailfile: running as r/euid=%d/%d, r/egid=%d/%d\n",
-				(int) getuid(), (int) geteuid(),
-				(int) getgid(), (int) getegid());
+			sm_dprintf("mailfile: running as r/euid=%ld/%ld, r/egid=%ld/%ld\n",
+				(long) getuid(), (long) geteuid(),
+				(long) getgid(), (long) getegid());
 
 
 		/* move into some "safe" directory */
@@ -6157,11 +6212,18 @@ starttls(m, mci, e)
 		}
 		return EX_SOFTWARE;
 	}
+	/* SSL_clear(clt_ssl); ? */
+
+	if (get_tls_se_options(e, clt_ssl, false) != 0)
+	{
+		sm_syslog(LOG_ERR, NOQID,
+			  "STARTTLS=client, get_tls_se_options=fail");
+		return EX_SOFTWARE;
+	}
 
 	rfd = sm_io_getinfo(mci->mci_in, SM_IO_WHAT_FD, NULL);
 	wfd = sm_io_getinfo(mci->mci_out, SM_IO_WHAT_FD, NULL);
 
-	/* SSL_clear(clt_ssl); ? */
 	if (rfd < 0 || wfd < 0 ||
 	    (result = SSL_set_rfd(clt_ssl, rfd)) != 1 ||
 	    (result = SSL_set_wfd(clt_ssl, wfd)) != 1)
@@ -6183,6 +6245,7 @@ ssl_retry:
 	if ((result = SSL_connect(clt_ssl)) <= 0)
 	{
 		int i, ssl_err;
+		int save_errno = errno;
 
 		ssl_err = SSL_get_error(clt_ssl, result);
 		i = tls_retry(clt_ssl, rfd, wfd, tlsstart,
@@ -6200,7 +6263,7 @@ ssl_retry:
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=client, error: connect failed=%d, reason=%s, SSL_error=%d, errno=%d, retry=%d",
 				  result, sr == NULL ? "unknown" : sr, ssl_err,
-				  errno, i);
+				  save_errno, i);
 			if (LogLevel > 9)
 				tlslogerr(LOG_WARNING, "client");
 		}
