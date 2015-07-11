@@ -42,11 +42,9 @@ clrsessenvelope(e)
 	macdefine(&e->e_macro, A_PERM, macid("{cipher}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{tls_version}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{verify}"), "");
-# if _FFR_TLS_1
 	macdefine(&e->e_macro, A_PERM, macid("{alg_bits}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{cn_issuer}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{cn_subject}"), "");
-# endif /* _FFR_TLS_1 */
 #endif /* STARTTLS */
 }
 
@@ -246,6 +244,16 @@ dropenvelope(e, fulldrop, split)
 		e->e_flags |= EF_FATALERRS|EF_CLRQUEUE;
 	}
 
+#if _FFR_PROXY
+	if (tTd(87, 2))
+	{
+		q = e->e_sendqueue;
+		sm_dprintf("dropenvelope: mode=%c, e=%p, sibling=%p, nrcpts=%d, sendqueue=%p, next=%p, state=%d\n",
+			e->e_sendmode, e, e->e_sibling, e->e_nrcpts, q,
+			(q == NULL) ? (void *)0 : q->q_next,
+			(q == NULL) ? -1 : q->q_state);
+	}
+#endif /* _FFR_PROXY */
 
 	e->e_flags &= ~EF_QUEUERUN;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
@@ -253,6 +261,10 @@ dropenvelope(e, fulldrop, split)
 		if (QS_IS_UNDELIVERED(q->q_state))
 			queueit = true;
 
+#if _FFR_PROXY
+		if (queueit && e->e_sendmode == SM_PROXY)
+			queueit = false;
+#endif /* _FFR_PROXY */
 
 		/* see if a notification is needed */
 		if (bitset(QPINGONFAILURE, q->q_flags) &&
@@ -577,9 +589,9 @@ simpledrop:
 			if (!split_by_recipient(e) &&
 			    bitset(EF_FATALERRS, e->e_flags))
 			{
-				syserr("!dropenvelope(%s): cannot commit data file %s, uid=%d",
+				syserr("!dropenvelope(%s): cannot commit data file %s, uid=%ld",
 					e->e_id, queuename(e, DATAFL_LETTER),
-					(int) geteuid());
+					(long) geteuid());
 			}
 			for (ee = e->e_sibling; ee != NULL; ee = ee->e_sibling)
 				queueup(ee, false, true);
