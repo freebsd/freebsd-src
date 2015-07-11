@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2015
+.Dd July 10, 2015
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Fn crypto_done "struct cryptop *"
 .Ft void
 .Fn crypto_kdone "struct cryptkop *"
+.Ft int
+.Fn crypto_find_driver "const char *"
 .Ft int
 .Fn crypto_newsession "uint64_t *" "struct cryptoini *" int
 .Ft int
@@ -157,15 +159,28 @@ was a fatal error in verifying the arguments).
 For session initialization and teardown there is no callback mechanism used.
 .Pp
 The
+.Fn crypto_find_driver
+function may be called to return the specific id of the provided name.
+If the specified driver could not be found, the returned id is -1.
+.Pp
+The
 .Fn crypto_newsession
 routine is called by consumers of cryptographic services (such as the
 .Xr ipsec 4
 stack) that wish to establish a new session with the framework.
-On success, the first argument will contain the Session Identifier (SID).
 The second argument contains all the necessary information for
 the driver to establish the session.
-The third argument indicates whether a
-hardware driver (1) should be used or not (0).
+The third argument is either a specific driver id, or one or both
+of
+.Dv CRYPTOCAP_F_HARDWARE ,
+to select hardware devices,
+or
+.Dv CRYPTOCAP_F_SOFTWARE ,
+to select software devices.
+If both are specified, a hardware device will be returned
+before a software device will be.
+On success, the value pointed to by the first argument will be the
+Session IDentifier (SID).
 The various fields in the
 .Vt cryptoini
 structure are:
