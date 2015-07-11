@@ -148,6 +148,20 @@ set_passwd(struct passwd *pwd, bool update)
 	return (1);
 }
 
+int
+pw_usernext(struct userconf *cnf, bool quiet)
+{
+	uid_t next = pw_uidpolicy(cnf, -1);
+
+	if (quiet)
+		return (next);
+
+	printf("%u:", next);
+	pw_groupnext(cnf, quiet);
+
+	return (EXIT_SUCCESS);
+}
+
 /*-
  * -C config      configuration file
  * -q             quiet operation
@@ -216,19 +230,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 
 	cnf = conf.userconf;
 
-	/*
-	 * With M_NEXT, we only need to return the
-	 * next uid to stdout
-	 */
 	if (mode == M_NEXT)
-	{
-		uid_t next = pw_uidpolicy(cnf, id);
-		if (getarg(args, 'q'))
-			return next;
-		printf("%u:", next);
-		pw_group(mode, name, -1, args);
-		return EXIT_SUCCESS;
-	}
+		return (pw_usernext(cnf, getarg(args, 'q') != NULL));
 
 	/*
 	 * We can do all of the common legwork here
@@ -845,11 +848,8 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 			addarg(&grpargs, 'g', tmp);
 		}
 		if (conf.dryrun) {
-			addarg(&grpargs, 'q', NULL);
-			gid = pw_group(M_NEXT, nam, -1, &grpargs);
-		}
-		else
-		{
+			gid = pw_groupnext(cnf, true);
+		} else {
 			pw_group(M_ADD, nam, -1, &grpargs);
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
