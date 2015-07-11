@@ -67,21 +67,10 @@ static void *
 kobj_open_file_vnode(const char *file)
 {
 	struct thread *td = curthread;
-	struct filedesc *fd;
 	struct nameidata nd;
 	int error, flags;
 
-	fd = td->td_proc->p_fd;
-	FILEDESC_XLOCK(fd);
-	if (fd->fd_rdir == NULL) {
-		fd->fd_rdir = rootvnode;
-		vref(fd->fd_rdir);
-	}
-	if (fd->fd_cdir == NULL) {
-		fd->fd_cdir = rootvnode;
-		vref(fd->fd_cdir);
-	}
-	FILEDESC_XUNLOCK(fd);
+	pwd_ensure_dirs();
 
 	flags = FREAD | O_NOFOLLOW;
 	NDINIT(&nd, LOOKUP, 0, UIO_SYSSPACE, file, td);
