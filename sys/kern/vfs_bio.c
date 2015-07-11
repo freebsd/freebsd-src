@@ -1566,6 +1566,12 @@ brelse(struct buf *bp)
 		return;
 	}
 
+	if ((bp->b_vflags & (BV_BKGRDINPROG | BV_BKGRDERR)) == BV_BKGRDERR) {
+		BO_LOCK(bp->b_bufobj);
+		bp->b_vflags &= ~BV_BKGRDERR;
+		BO_UNLOCK(bp->b_bufobj);
+		bdirty(bp);
+	}
 	if (bp->b_iocmd == BIO_WRITE && (bp->b_ioflags & BIO_ERROR) &&
 	    bp->b_error == EIO && !(bp->b_flags & B_INVAL)) {
 		/*
@@ -1822,7 +1828,11 @@ bqrelse(struct buf *bp)
 	}
 
 	/* buffers with stale but valid contents */
-	if (bp->b_flags & B_DELWRI) {
+	if ((bp->b_flags & B_DELWRI) != 0 || (bp->b_vflags & (BV_BKGRDINPROG |
+	    BV_BKGRDERR)) == BV_BKGRDERR) {
+		BO_LOCK(bp->b_bufobj);
+		bp->b_vflags &= ~BV_BKGRDERR;
+		BO_UNLOCK(bp->b_bufobj);
 		qindex = QUEUE_DIRTY;
 	} else {
 		if ((bp->b_flags & B_DELWRI) == 0 &&
@@ -2338,6 +2348,16 @@ restart:
 		 */
 		if (bp->b_vflags & BV_BKGRDINPROG) {
 			BUF_UNLOCK(bp);
+			continue;
+		}
+
+		/*
+		 * Requeue the background write buffer with error.
+		 */
+		if ((bp->b_vflags & BV_BKGRDERR) != 0) {
+			bremfreel(bp);
+			mtx_unlock(&bqclean);
+			bqrelse(bp);
 			continue;
 		}
 
