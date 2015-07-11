@@ -88,6 +88,8 @@ struct pwconf {
 	int		 fd;
 	int		 which;
 	bool		 quiet;
+	bool		 force;
+	bool		 all;
 	bool		 dryrun;
 	bool		 pretty;
 	bool		 v7;
