@@ -42,8 +42,7 @@ static const char rcsid[] =
 
 
 static struct passwd *lookup_pwent(const char *user);
-static void	delete_members(char ***members, int *grmembers, int *i,
-    struct carg *arg, struct group *grp);
+static void	delete_members(struct group *grp, char *list);
 static int	print_group(struct group * grp);
 static gid_t    gr_gidpolicy(struct userconf * cnf, long id);
 
@@ -163,7 +162,6 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	int		rc;
 	struct carg    *arg;
 	struct group   *grp = NULL;
-	int	        grmembers = 0;
 	char           **members = NULL;
 	struct userconf	*cnf = conf.userconf;
 
@@ -216,13 +214,11 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		else if (grp != NULL)	/* Exists */
 			errx(EX_DATAERR, "group name `%s' already exists", name);
 
-		extendarray(&members, &grmembers, 200);
-		members[0] = NULL;
 		grp = &fakegroup;
 		grp->gr_name = pw_checkname(name, 0);
 		grp->gr_passwd = "*";
 		grp->gr_gid = gr_gidpolicy(cnf, id);
-		grp->gr_mem = members;
+		grp->gr_mem = NULL;
 	}
 
 	/*
@@ -238,42 +234,31 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	if (((arg = getarg(args, 'M')) != NULL ||
 	    (arg = getarg(args, 'd')) != NULL ||
 	    (arg = getarg(args, 'm')) != NULL) && arg->val) {
-		int	i = 0;
 		char   *p;
 		struct passwd	*pwd;
 
 		/* Make sure this is not stay NULL with -M "" */
-		extendarray(&members, &grmembers, 200);
 		if (arg->ch == 'd')
-			delete_members(&members, &grmembers, &i, arg, grp);
-		else if (arg->ch == 'm') {
-			int	k = 0;
+			delete_members(grp, arg->val);
+		else if (arg->ch == 'M')
+			grp->gr_mem = NULL;
 
-			if (grp->gr_mem != NULL) {
-				while (grp->gr_mem[k] != NULL) {
-					if (extendarray(&members, &grmembers, i + 2) != -1)
-						members[i++] = grp->gr_mem[k];
-					k++;
-				}
+		for (p = strtok(arg->val, ", \t"); arg->ch != 'd' &&  p != NULL;
+		    p = strtok(NULL, ", \t")) {
+			int	j;
+
+			/*
+			 * Check for duplicates
+			 */
+			pwd = lookup_pwent(p);
+			for (j = 0; grp->gr_mem != NULL && grp->gr_mem[j] != NULL; j++) {
+				if (strcmp(grp->gr_mem[j], pwd->pw_name) == 0)
+					break;
 			}
+			if (grp->gr_mem != NULL && grp->gr_mem[j] != NULL)
+				continue;
+			grp = gr_add(grp, pwd->pw_name);
 		}
-
-		if (arg->ch != 'd')
-			for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
-				int	j;
-
-				/*
-				 * Check for duplicates
-				 */
-				pwd = lookup_pwent(p);
-				for (j = 0; j < i && strcmp(members[j], pwd->pw_name) != 0; j++)
-					;
-				if (j == i && extendarray(&members, &grmembers, i + 2) != -1)
-					members[i++] = newstr(pwd->pw_name);
-			}
-		while (i < grmembers)
-			members[i++] = NULL;
-		grp->gr_mem = members;
 	}
 
 	if (conf.dryrun)
@@ -328,42 +313,25 @@ lookup_pwent(const char *user)
  * Delete requested members from a group.
  */
 static void
-delete_members(char ***members, int *grmembers, int *i, struct carg *arg,
-    struct group *grp)
+delete_members(struct group *grp, char *list)
 {
-	bool matchFound;
-	char *user;
-	char *valueCopy;
-	char *valuePtr;
+	char *p;
 	int k;
-	struct passwd *pwd;
 
 	if (grp->gr_mem == NULL)
 		return;
 
-	k = 0;
-	while (grp->gr_mem[k] != NULL) {
-		matchFound = false;
-		if ((valueCopy = strdup(arg->val)) == NULL)
-			errx(EX_UNAVAILABLE, "out of memory");
-		valuePtr = valueCopy;
-		while ((user = strsep(&valuePtr, ", \t")) != NULL) {
-			pwd = lookup_pwent(user);
-			if (strcmp(grp->gr_mem[k], pwd->pw_name) == 0) {
-				matchFound = true;
+	for (p = strtok(list, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
+		for (k = 0; grp->gr_mem[k] != NULL; k++) {
+			if (strcmp(grp->gr_mem[k], p) == 0)
 				break;
-			}
 		}
-		free(valueCopy);
+		if (grp->gr_mem[k] == NULL) /* No match */
+			continue;
 
-		if (!matchFound &&
-		    extendarray(members, grmembers, *i + 2) != -1)
-			(*members)[(*i)++] = grp->gr_mem[k];
-
-		k++;
+		for (; grp->gr_mem[k] != NULL; k++)
+			grp->gr_mem[k] = grp->gr_mem[k+1];
 	}
-
-	return;
 }
 
 
