@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
+#include <vm/vm_domain.h>
+
 #include <machine/frame.h>
 
 #include <security/audit/audit.h>
@@ -254,6 +256,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	thread_unlock(td);
 	if (P_SHOULDSTOP(p))
 		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
+
+	/*
+	 * Copy the existing thread VM policy into the new thread.
+	 */
+	vm_domain_policy_localcopy(&newtd->td_vm_dom_policy,
+	    &td->td_vm_dom_policy);
+
 	PROC_UNLOCK(p);
 
 	tidhash_add(newtd);

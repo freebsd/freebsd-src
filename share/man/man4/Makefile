@@ -366,6 +366,7 @@ MAN=	aac.4 \
 	nsp.4 \
 	${_ntb.4} \
 	null.4 \
+	numa.4 \
 	${_nvd.4} \
 	${_nvme.4} \
 	${_nvram.4} \
