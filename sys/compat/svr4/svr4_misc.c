@@ -643,7 +643,7 @@ svr4_sys_fchroot(td, uap)
 		goto fail;
 #endif
 	VOP_UNLOCK(vp, 0);
-	error = change_root(vp, td);
+	error = pwd_chroot(td, vp);
 	vrele(vp);
 	return (error);
 fail:
