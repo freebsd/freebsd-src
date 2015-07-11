@@ -440,18 +440,13 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		cnf->default_class = pw_checkname(arg->val, 0);
 
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
-		int i = 0;
-
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			if ((grp = GETGRNAM(p)) == NULL) {
 				if (!isdigit((unsigned char)*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
 					errx(EX_NOUSER, "group `%s' does not exist", p);
 			}
-			if (extendarray(&cnf->groups, &cnf->numgroups, i + 2) != -1)
-				cnf->groups[i++] = newstr(grp->gr_name);
+			sl_add(cnf->groups, newstr(grp->gr_name));
 		}
-		while (i < cnf->numgroups)
-			cnf->groups[i++] = NULL;
 	}
 
 	if ((arg = getarg(args, 'k')) != NULL) {
@@ -690,7 +685,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	 */
 
 	if (mode == M_ADD || getarg(args, 'G') != NULL) {
-		int i, j;
+		int j;
+		size_t i;
 		/* First remove the user from all group */
 		SETGRENT();
 		while ((grp = GETGRENT()) != NULL) {
@@ -709,8 +705,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		ENDGRENT();
 
 		/* now add to group where needed */
-		for (i = 0; cnf->groups[i] != NULL; i++) {
-			grp = GETGRNAM(cnf->groups[i]);
+		for (i = 0; i < cnf->groups->sl_cur; i++) {
+			grp = GETGRNAM(cnf->groups->sl_str[i]);
 			grp = gr_add(grp, pwd->pw_name);
 			/*
 			 * grp can only be NULL in 2 cases:
@@ -720,7 +716,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 			 */
 			if (grp == NULL)
 				continue;
-			chggrent(cnf->groups[i], grp);
+			chggrent(grp->gr_name, grp);
 			free(grp);
 		}
 	}
