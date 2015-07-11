@@ -134,6 +134,29 @@ pw_groupshow(const char *name, long id, struct group *fakegroup)
 	return (print_group(grp));
 }
 
+static int
+pw_groupdel(const char *name, long id)
+{
+	struct group *grp = NULL;
+	int rc;
+
+	grp = (name != NULL) ? GETGRNAM(name) : GETGRGID(id);
+	if (grp == NULL) {
+		if (name == NULL)
+			errx(EX_DATAERR, "unknown gid `%ld'", id);
+		errx(EX_DATAERR, "unknown group `%s'", name);
+	}
+
+	rc = delgrent(grp);
+	if (rc == -1)
+		err(EX_IOERR, "group '%s' not available (NIS?)", name);
+	else if (rc != 0)
+		err(EX_IOERR, "group update");
+	pw_log(conf.userconf, M_DELETE, W_GROUP, "%s(%ld) removed", name, id);
+
+	return (EXIT_SUCCESS);
+}
+
 int
 pw_group(int mode, char *name, long id, struct cargs * args)
 {
@@ -158,6 +181,9 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	if (mode == M_PRINT)
 		return (pw_groupshow(name, id, &fakegroup));
 
+	if (mode == M_DELETE)
+		return (pw_groupdel(name, id));
+
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
 
@@ -166,7 +192,7 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 
 	grp = (name != NULL) ? GETGRNAM(name) : GETGRGID(id);
 
-	if (mode == M_UPDATE || mode == M_DELETE) {
+	if (mode == M_UPDATE) {
 		if (name == NULL && grp == NULL)	/* Try harder */
 			grp = GETGRGID(id);
 
@@ -178,22 +204,6 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		}
 		if (name == NULL)	/* Needed later */
 			name = grp->gr_name;
-
-		/*
-		 * Handle deletions now
-		 */
-		if (mode == M_DELETE) {
-			rc = delgrent(grp);
-			if (rc == -1)
-				err(EX_IOERR, "group '%s' not available (NIS?)",
-				    name);
-			else if (rc != 0) {
-				err(EX_IOERR, "group update");
-			}
-			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", name, id);
-			return EXIT_SUCCESS;
-		} else if (mode == M_PRINT)
-			return print_group(grp);
 
 		if (id > 0)
 			grp->gr_gid = (gid_t) id;

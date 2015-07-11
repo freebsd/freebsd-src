@@ -51,8 +51,7 @@ static const char rcsid[] =
 
 static		char locked_str[] = "*LOCKED*";
 
-static int	delete_user(struct userconf *cnf, struct passwd *pwd,
-		    char *name, int delete, int mode);
+static int	pw_userdel(char *name, long id);
 static int	print_user(struct passwd * pwd);
 static uid_t    pw_uidpolicy(struct userconf * cnf, long id);
 static uid_t    pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer);
@@ -266,6 +265,9 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	if (mode == M_PRINT)
 		return (pw_usershow(name, id, &fakeuser));
 
+	if (mode == M_DELETE)
+		return (pw_userdel(name, id));
+
 	/*
 	 * We can do all of the common legwork here
 	 */
@@ -417,10 +419,9 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		errx(EX_DATAERR, "user name or id required");
 
 	/*
-	 * Update, delete & print require that the user exists
+	 * Update require that the user exists
 	 */
-	if (mode == M_UPDATE || mode == M_DELETE ||
-	    mode == M_LOCK   || mode == M_UNLOCK) {
+	if (mode == M_UPDATE || mode == M_LOCK   || mode == M_UNLOCK) {
 
 		if (name == NULL && pwd == NULL)	/* Try harder */
 			pwd = GETPWUID(id);
@@ -457,9 +458,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 				errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
 			pwd->pw_passwd += sizeof(locked_str)-1;
 			edited = 1;
-		} else if (mode == M_DELETE)
-			return (delete_user(cnf, pwd, name,
-				    getarg(args, 'r') != NULL, mode));
+		}
 
 		/*
 		 * The rest is edit code
@@ -1045,16 +1044,29 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 }
 
 static int
-delete_user(struct userconf *cnf, struct passwd *pwd, char *name,
-    int delete, int mode)
+pw_userdel(char *name, long id)
 {
+	struct passwd *pwd = NULL;
 	char		 file[MAXPATHLEN];
 	char		 home[MAXPATHLEN];
-	uid_t		 uid = pwd->pw_uid;
+	uid_t		 uid;
 	struct group	*gr, *grp;
 	char		 grname[LOGNAMESIZE];
 	int		 rc;
 	struct stat	 st;
+
+	if (id < 0 && name == NULL)
+		errx(EX_DATAERR, "username or id required");
+
+	pwd = (name != NULL) ? GETPWNAM(pw_checkname(name, 0)) : GETPWUID(id);
+	if (pwd == NULL) {
+		if (name == NULL)
+			errx(EX_NOUSER, "no such uid `%ld'", id);
+		errx(EX_NOUSER, "no such user `%s'", name);
+	}
+	uid = pwd->pw_uid;
+	if (name == NULL)
+		name = pwd->pw_name;
 
 	if (strcmp(pwd->pw_name, "root") == 0)
 		errx(EX_DATAERR, "cannot remove user 'root'");
@@ -1093,10 +1105,11 @@ delete_user(struct userconf *cnf, struct passwd *pwd, char *name,
 	else if (rc != 0)
 		err(EX_IOERR, "passwd update");
 
-	if (cnf->nispasswd && *cnf->nispasswd=='/') {
-		rc = delnispwent(cnf->nispasswd, name);
+	if (conf.userconf->nispasswd && *conf.userconf->nispasswd=='/') {
+		rc = delnispwent(conf.userconf->nispasswd, name);
 		if (rc == -1)
-			warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
+			warnx("WARNING: user '%s' does not exist in NIS passwd",
+			    pwd->pw_name);
 		else if (rc != 0)
 			warn("WARNING: NIS passwd update");
 		/* non-fatal */
@@ -1126,7 +1139,8 @@ delete_user(struct userconf *cnf, struct passwd *pwd, char *name,
 	}
 	ENDGRENT();
 
-	pw_log(cnf, mode, W_USER, "%s(%u) account removed", name, uid);
+	pw_log(conf.userconf, M_DELETE, W_USER, "%s(%u) account removed", name,
+	    uid);
 
 	if (!PWALTDIR()) {
 		/*
@@ -1143,10 +1157,10 @@ delete_user(struct userconf *cnf, struct passwd *pwd, char *name,
 		/*
 		 * Remove home directory and contents
 		 */
-		if (delete && *home == '/' && getpwuid(uid) == NULL &&
+		if (conf.deletehome && *home == '/' && getpwuid(uid) == NULL &&
 		    stat(home, &st) != -1) {
 			rm_r(home, uid);
-			pw_log(cnf, mode, W_USER, "%s(%u) home '%s' %sremoved",
+			pw_log(conf.userconf, M_DELETE, W_USER, "%s(%u) home '%s' %sremoved",
 			       name, uid, home,
 			       stat(home, &st) == -1 ? "" : "not completely ");
 		}
