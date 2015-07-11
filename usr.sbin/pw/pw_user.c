@@ -59,7 +59,7 @@ static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
 static time_t   pw_exppolicy(struct userconf * cnf, struct cargs * args);
 static char    *pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user);
 static char    *pw_shellpolicy(struct userconf * cnf, struct cargs * args, char *newshell);
-static char    *pw_password(struct userconf * cnf, struct cargs * args, char const * user);
+static char    *pw_password(struct userconf * cnf, char const * user);
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
 static void     rmopie(char const * name);
@@ -608,7 +608,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 			    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 				warn("setting crypt(3) format");
 			login_close(lc);
-			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
+			pwd->pw_passwd = pw_password(cnf, pwd->pw_name);
 			edited = 1;
 		}
 
@@ -640,7 +640,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 		if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
 			warn("setting crypt(3) format");
 		login_close(lc);
-		pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
+		pwd->pw_passwd = pw_password(cnf, pwd->pw_name);
 		edited = 1;
 
 		if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
@@ -1038,7 +1038,7 @@ pw_pwcrypt(char *password)
 
 
 static char    *
-pw_password(struct userconf * cnf, struct cargs * args, char const * user)
+pw_password(struct userconf * cnf, char const * user)
 {
 	int             i, l;
 	char            pwbuf[32];
