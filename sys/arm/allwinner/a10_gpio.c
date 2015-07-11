@@ -493,6 +493,14 @@ a10_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
+static phandle_t
+a10_gpio_get_node(device_t dev, device_t bus)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(dev));
+}
+
 static device_method_t a10_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		a10_gpio_probe),
@@ -509,6 +517,9 @@ static device_method_t a10_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		a10_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		a10_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	a10_gpio_pin_toggle),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	a10_gpio_get_node),
 
 	DEVMETHOD_END
 };
