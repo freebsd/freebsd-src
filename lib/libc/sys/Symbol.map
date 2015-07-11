@@ -400,6 +400,8 @@ FBSD_1.4 {
 	futimens;
 	ppoll;
 	utimensat;
+	numa_setaffinity;
+	numa_getaffinity;
 };
 
 FBSDprivate_1.0 {
