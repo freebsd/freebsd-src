@@ -691,6 +691,23 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
+char *
+kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+{
+	unsigned int len;
+	char *p;
+	va_list aq;
+
+	va_copy(aq, ap);
+	len = vsnprintf(NULL, 0, fmt, aq);
+	va_end(aq);
+
+	p = kmalloc(len + 1, gfp);
+	if (p != NULL)
+		vsnprintf(p, len + 1, fmt, ap);
+
+	return (p);
+}
 
 char *
 kasprintf(gfp_t gfp, const char *fmt, ...)
@@ -702,7 +719,7 @@ kasprintf(gfp_t gfp, const char *fmt, ...)
 	p = kvasprintf(gfp, fmt, ap);
 	va_end(ap);
 
-	return p;
+	return (p);
 }
 
 static int
