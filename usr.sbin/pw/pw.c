@@ -254,6 +254,9 @@ main(int argc, char *argv[])
 		case 'a':
 			conf.all = true;
 			break;
+		case 'c':
+			conf.gecos = pw_checkname(optarg, 1);
+			break;
 		case 'g':
 			if (which == 0) { /* for user* */
 				addarg(&arglist, 'g', optarg);
