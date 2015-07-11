@@ -191,6 +191,78 @@ pw_usershow(char *name, long id, struct passwd *fakeuser)
 	return (print_user(pwd));
 }
 
+static void
+perform_chgpwent(const char *name, struct passwd *pwd)
+{
+	int rc;
+
+	rc = chgpwent(name, pwd);
+	if (rc == -1)
+		errx(EX_IOERR, "user '%s' does not exist (NIS?)", pwd->pw_name);
+	else if (rc != 0)
+		err(EX_IOERR, "passwd file update");
+
+	if (conf.userconf->nispasswd && *conf.userconf->nispasswd == '/') {
+		rc = chgnispwent(conf.userconf->nispasswd, name, pwd);
+		if (rc == -1)
+			warn("User '%s' not found in NIS passwd", pwd->pw_name);
+		else
+			warn("NIS passwd update");
+		/* NOTE: NIS-only update errors are not fatal */
+	}
+}
+
+/*
+ * The M_LOCK and M_UNLOCK functions simply add or remove
+ * a "*LOCKED*" prefix from in front of the password to
+ * prevent it decoding correctly, and therefore prevents
+ * access. Of course, this only prevents access via
+ * password authentication (not ssh, kerberos or any
+ * other method that does not use the UNIX password) but
+ * that is a known limitation.
+ */
+static int
+pw_userlock(char *name, long id, int mode)
+{
+	struct passwd *pwd = NULL;
+	char *passtmp = NULL;
+	bool locked = false;
+
+	if (id < 0 && name == NULL)
+		errx(EX_DATAERR, "username or id required");
+
+	pwd = (name != NULL) ? GETPWNAM(pw_checkname(name, 0)) : GETPWUID(id);
+	if (pwd == NULL) {
+		if (name == NULL)
+			errx(EX_NOUSER, "no such uid `%ld'", id);
+		errx(EX_NOUSER, "no such user `%s'", name);
+	}
+
+	if (name == NULL)
+		name = pwd->pw_name;
+
+	if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str) -1) == 0)
+		locked = true;
+	if (mode == M_LOCK && locked)
+		errx(EX_DATAERR, "user '%s' is already locked", pwd->pw_name);
+	if (mode == M_UNLOCK && !locked)
+		errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
+
+	if (mode == M_LOCK) {
+		asprintf(&passtmp, "%s%s", locked_str, pwd->pw_passwd);
+		if (passtmp == NULL)	/* disaster */
+			errx(EX_UNAVAILABLE, "out of memory");
+		pwd->pw_passwd = passtmp;
+	} else {
+		pwd->pw_passwd += sizeof(locked_str)-1;
+	}
+
+	perform_chgpwent(name, pwd);
+	free(passtmp);
+
+	return (EXIT_SUCCESS);
+}
+
 /*-
  * -C config      configuration file
  * -q             quiet operation
@@ -228,7 +300,6 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 {
 	int	        rc, edited = 0;
 	char           *p = NULL;
-	char					 *passtmp;
 	struct carg    *arg;
 	struct passwd  *pwd = NULL;
 	struct group   *grp;
@@ -267,6 +338,9 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 
 	if (mode == M_DELETE)
 		return (pw_userdel(name, id));
+
+	if (mode == M_LOCK || mode == M_UNLOCK)
+		return (pw_userlock(name, id, mode));
 
 	/*
 	 * We can do all of the common legwork here
@@ -421,7 +495,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	/*
 	 * Update require that the user exists
 	 */
-	if (mode == M_UPDATE || mode == M_LOCK   || mode == M_UNLOCK) {
+	if (mode == M_UPDATE) {
 
 		if (name == NULL && pwd == NULL)	/* Try harder */
 			pwd = GETPWUID(id);
@@ -434,31 +508,6 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 
 		if (name == NULL)
 			name = pwd->pw_name;
-
-		/*
-		 * The M_LOCK and M_UNLOCK functions simply add or remove
-		 * a "*LOCKED*" prefix from in front of the password to
-		 * prevent it decoding correctly, and therefore prevents
-		 * access. Of course, this only prevents access via
-		 * password authentication (not ssh, kerberos or any
-		 * other method that does not use the UNIX password) but
-		 * that is a known limitation.
-		 */
-
-		if (mode == M_LOCK) {
-			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) == 0)
-				errx(EX_DATAERR, "user '%s' is already locked", pwd->pw_name);
-			asprintf(&passtmp, "%s%s", locked_str, pwd->pw_passwd);
-			if (passtmp == NULL)	/* disaster */
-				errx(EX_UNAVAILABLE, "out of memory");
-			pwd->pw_passwd = passtmp;
-			edited = 1;
-		} else if (mode == M_UNLOCK) {
-			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) != 0)
-				errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
-			pwd->pw_passwd += sizeof(locked_str)-1;
-			edited = 1;
-		}
 
 		/*
 		 * The rest is edit code
@@ -635,23 +684,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 				warn("NIS passwd update");
 			/* NOTE: we treat NIS-only update errors as non-fatal */
 		}
-	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
-		if (edited) {	/* Only updated this if required */
-			rc = chgpwent(name, pwd);
-			if (rc == -1)
-				errx(EX_IOERR, "user '%s' does not exist (NIS?)", pwd->pw_name);
-			else if (rc != 0)
-				err(EX_IOERR, "passwd file update");
-			if ( cnf->nispasswd && *cnf->nispasswd=='/') {
-				rc = chgnispwent(cnf->nispasswd, name, pwd);
-				if (rc == -1)
-					warn("User '%s' not found in NIS passwd", pwd->pw_name);
-				else
-					warn("NIS passwd update");
-				/* NOTE: NIS-only update errors are not fatal */
-			}
-		}
-	}
+	} else if (mode == M_UPDATE && edited) /* Only updated this if required */
+		perform_chgpwent(name, pwd);
 
 	/*
 	 * Ok, user is created or changed - now edit group file
