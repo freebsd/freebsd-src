@@ -92,6 +92,18 @@ set_passwd(struct group *grp, bool update)
 }
 
 int
+pw_groupnext(struct userconf *cnf, bool quiet)
+{
+	gid_t next = gr_gidpolicy(cnf, -1);
+
+	if (quiet)
+		return (next);
+	printf("%u\n", next);
+
+	return (EXIT_SUCCESS);
+}
+
+int
 pw_group(int mode, char *name, long id, struct cargs * args)
 {
 	int		rc;
@@ -109,20 +121,11 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		NULL
 	};
 
+	if (mode == M_NEXT)
+		return (pw_groupnext(cnf, getarg(args, 'q') != NULL));
+
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
-
-	/*
-	 * With M_NEXT, we only need to return the
-	 * next gid to stdout
-	 */
-	if (mode == M_NEXT) {
-		gid_t next = gr_gidpolicy(cnf, id);
-		if (getarg(args, 'q'))
-			return next;
-		printf("%u\n", next);
-		return EXIT_SUCCESS;
-	}
 
 	if (mode == M_PRINT && getarg(args, 'a')) {
 		SETGRENT();
