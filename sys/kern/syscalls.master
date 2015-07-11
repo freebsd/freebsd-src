@@ -988,5 +988,12 @@
 547	AUE_FUTIMESAT	STD	{ int utimensat(int fd, \
 				    char *path, \
 				    struct timespec *times, int flag); }
+548	AUE_NULL	STD	{ int numa_getaffinity(cpuwhich_t which, \
+				    id_t id, \
+				    struct vm_domain_policy_entry *policy); }
+549	AUE_NULL	STD	{ int numa_setaffinity(cpuwhich_t which, \
+				    id_t id, \
+				    const struct vm_domain_policy_entry *policy); }
+
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
