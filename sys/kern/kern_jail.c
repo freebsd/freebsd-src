@@ -2432,7 +2432,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 		goto e_unlock;
 #endif
 	VOP_UNLOCK(pr->pr_root, 0);
-	if ((error = change_root(pr->pr_root, td)))
+	if ((error = pwd_chroot(td, pr->pr_root)))
 		goto e_revert_osd;
 
 	newcred = crget();
