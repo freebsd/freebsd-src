@@ -323,6 +323,9 @@ main(int argc, char *argv[])
 		case 'q':
 			conf.quiet = true;
 			break;
+		case 'r':
+			conf.deletehome = true;
+			break;
 		default:
 			addarg(&arglist, ch, optarg);
 			break;

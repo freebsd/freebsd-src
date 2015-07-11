@@ -94,6 +94,7 @@ struct pwconf {
 	bool		 pretty;
 	bool		 v7;
 	bool		 checkduplicate;
+	bool		 deletehome;
 	bool		 precrypted;
 	struct userconf	*userconf;
 };
