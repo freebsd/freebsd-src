@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
+#include <vm/vm_domain.h>
 #include <sys/eventhandler.h>
 
 SDT_PROVIDER_DECLARE(proc);
@@ -351,6 +352,7 @@ thread_alloc(int pages)
 		return (NULL);
 	}
 	cpu_thread_alloc(td);
+	vm_domain_policy_init(&td->td_vm_dom_policy);
 	return (td);
 }
 
@@ -380,6 +382,7 @@ thread_free(struct thread *td)
 	cpu_thread_free(td);
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
+	vm_domain_policy_cleanup(&td->td_vm_dom_policy);
 	uma_zfree(thread_zone, td);
 }
 
