@@ -875,7 +875,7 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 		gid = grp->gr_gid;  /* Already created? Use it anyway... */
 	} else {
 		struct cargs    grpargs;
-		char            tmp[32];
+		gid_t		grid = -1;
 
 		LIST_INIT(&grpargs);
 
@@ -888,22 +888,14 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 		 * user's name dups an existing group, then the group add
 		 * function will happily handle that case for us and exit.
 		 */
-		if (GETGRGID(prefer) == NULL) {
-			snprintf(tmp, sizeof(tmp), "%u", prefer);
-			addarg(&grpargs, 'g', tmp);
-		}
+		if (GETGRGID(prefer) == NULL)
+			grid = prefer;
 		if (conf.dryrun) {
 			gid = pw_groupnext(cnf, true);
 		} else {
-			pw_group(M_ADD, nam, -1, &grpargs);
+			pw_group(M_ADD, nam, grid, &grpargs);
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
-		}
-		a_gid = LIST_FIRST(&grpargs);
-		while (a_gid != NULL) {
-			struct carg    *t = LIST_NEXT(a_gid, list);
-			LIST_REMOVE(a_gid, list);
-			a_gid = t;
 		}
 	}
 	ENDGRENT();
