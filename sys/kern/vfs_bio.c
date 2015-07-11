@@ -1205,6 +1205,12 @@ bufwrite(struct buf *bp)
 	int vp_md;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
+	if ((bp->b_bufobj->bo_flag & BO_DEAD) != 0) {
+		bp->b_flags |= B_INVAL | B_RELBUF;
+		bp->b_flags &= ~B_CACHE;
+		brelse(bp);
+		return (ENXIO);
+	}
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
 		return (0);

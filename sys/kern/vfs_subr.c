@@ -1584,7 +1584,8 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	int error;
 
 	ASSERT_BO_WLOCKED(bo);
-	KASSERT((bo->bo_flag & BO_DEAD) == 0, ("dead bo %p", bo));
+	KASSERT((xflags & BX_VNDIRTY) == 0 || (bo->bo_flag & BO_DEAD) == 0,
+	    ("dead bo %p", bo));
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
 	    ("buf_vlist_add: Buf %p has existing xflags %d", bp, bp->b_xflags));
 	bp->b_xflags |= xflags;
@@ -2841,7 +2842,7 @@ vgonel(struct vnode *vp)
 		while (vinvalbuf(vp, 0, 0, 0) != 0)
 			;
 	}
-#ifdef INVARIANTS
+
 	BO_LOCK(&vp->v_bufobj);
 	KASSERT(TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd) &&
 	    vp->v_bufobj.bo_dirty.bv_cnt == 0 &&
@@ -2850,7 +2851,6 @@ vgonel(struct vnode *vp)
 	    ("vp %p bufobj not invalidated", vp));
 	vp->v_bufobj.bo_flag |= BO_DEAD;
 	BO_UNLOCK(&vp->v_bufobj);
-#endif
 
 	/*
 	 * Reclaim the vnode.
