@@ -204,6 +204,20 @@ map_parseargs(map, ap)
 			map->map_app = ++p;
 			break;
 
+		  case 'd':
+			{
+				char *h;
+
+				++p;
+				h = strchr(p, ' ');
+				if (h != NULL)
+					*h = '\0';
+				map->map_timeout = convtime(p, 's');
+				if (h != NULL)
+					*h = ' ';
+			}
+			break;
+
 		  case 'T':
 			map->map_tapp = ++p;
 			break;
@@ -1826,7 +1840,7 @@ ndbm_map_store(map, lhs, rhs)
 				data.dptr = buf;
 				if (tTd(38, 9))
 					sm_dprintf("ndbm_map_store append=%s\n",
-						data.dptr);
+						(char *)data.dptr);
 			}
 		}
 		status = dbm_store((DBM *) map->map_db1,
@@ -7366,7 +7380,6 @@ arith_map_lookup(map, name, av, statp)
 	return NULL;
 }
 
-#if _FFR_ARPA_MAP
 char *
 arpa_map_lookup(map, name, av, statp)
 	MAP *map;
@@ -7419,7 +7432,7 @@ arpa_map_lookup(map, name, av, statp)
 	{
 		struct in_addr in_addr;
 
-		r = anynet_pton(AF_INET, name, &in_addr);
+		r = inet_pton(AF_INET, name, &in_addr);
 		if (r == 1)
 		{
 			unsigned char *src;
@@ -7445,7 +7458,6 @@ arpa_map_lookup(map, name, av, statp)
 	}
 	return rval;
 }
-#endif /* _FFR_ARPA_MAP */
 
 #if SOCKETMAP
 
@@ -7466,6 +7478,7 @@ socket_map_open(map, mode)
 {
 	STAB *s;
 	int sock = 0;
+	int tmo;
 	SOCKADDR_LEN_T addrlen = 0;
 	int addrno = 0;
 	int save_errno;
@@ -7865,6 +7878,13 @@ socket_map_open(map, mode)
 		return false;
 	}
 
+	tmo = map->map_timeout;
+	if (tmo == 0)
+		tmo = 30000;	/* default: 30s */
+	else
+		tmo *= 1000;	/* s -> ms */
+	sm_io_setinfo(map->map_db1, SM_IO_WHAT_TIMEOUT, &tmo);
+
 	/* Save connection for reuse */
 	s->s_socketmap = map;
 	return true;
@@ -7999,8 +8019,16 @@ socket_map_lookup(map, name, av, statp)
 
 	if (sm_io_fscanf(f, SM_TIME_DEFAULT, "%9u", &replylen) != 1)
 	{
-		syserr("451 4.3.0 socket_map_lookup(%s): failed to read length parameter of reply",
-			map->map_mname);
+		if (errno == EAGAIN)
+		{
+			syserr("451 4.3.0 socket_map_lookup(%s): read timeout",
+				map->map_mname);
+		}
+		else
+		{
+			syserr("451 4.3.0 socket_map_lookup(%s): failed to read length parameter of reply %d",
+				map->map_mname, errno);
+		}
 		*statp = EX_TEMPFAIL;
 		goto errcl;
 	}
