@@ -400,7 +400,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
 						if (mkdir(dbuf, _DEF_DIRMODE) == -1)
-							goto direrr;
+							err(EX_OSFILE, "mkdir '%s'", dbuf);
 						chown(dbuf, 0, 0);
 					} else if (!S_ISDIR(st.st_mode))
 						errx(EX_OSFILE, "'%s' (root home parent) is not a directory", dbuf);
@@ -408,9 +408,8 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 				}
 			}
 			if (stat(dbuf, &st) == -1) {
-				if (mkdir(dbuf, _DEF_DIRMODE) == -1) {
-				direrr:	err(EX_OSFILE, "mkdir '%s'", dbuf);
-				}
+				if (mkdir(dbuf, _DEF_DIRMODE) == -1)
+					err(EX_OSFILE, "mkdir '%s'", dbuf);
 				chown(dbuf, 0, 0);
 			}
 		} else if (!S_ISDIR(st.st_mode))
