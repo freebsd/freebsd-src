@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
+#include <sys/kdb.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
@@ -306,6 +307,24 @@ fdfree(struct filedesc *fdp, int fd)
 #ifdef CAPABILITIES
 	seq_write_end(&fde->fde_seq);
 #endif
+}
+
+void
+pwd_ensure_dirs(void)
+{
+	struct filedesc *fdp;
+
+	fdp = curproc->p_fd;
+	FILEDESC_XLOCK(fdp);
+	if (fdp->fd_cdir == NULL) {
+		fdp->fd_cdir = rootvnode;
+		VREF(rootvnode);
+	}
+	if (fdp->fd_rdir == NULL) {
+		fdp->fd_rdir = rootvnode;
+		VREF(rootvnode);
+	}
+	FILEDESC_XUNLOCK(fdp);
 }
 
 /*
