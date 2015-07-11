@@ -85,6 +85,7 @@ struct pwconf {
 	char		 etcpath[MAXPATHLEN];
 	char		*newname;
 	char		*config;
+	char		*gecos;
 	int		 fd;
 	int		 which;
 	bool		 quiet;
