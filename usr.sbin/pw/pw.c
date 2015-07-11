@@ -234,6 +234,9 @@ main(int argc, char *argv[])
 			conf.config = optarg;
 			config = conf.config;
 			break;
+		case 'F':
+			conf.force = true;
+			break;
 		case 'N':
 			conf.dryrun = true;
 			break;
@@ -247,6 +250,9 @@ main(int argc, char *argv[])
 			break;
 		case 'Y':
 			nis = true;
+			break;
+		case 'a':
+			conf.all = true;
 			break;
 		case 'g':
 			if (which == 0) { /* for user* */
