@@ -650,10 +650,9 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	/*
 	 * Shared add/edit code
 	 */
-	if ((arg = getarg(args, 'c')) != NULL) {
-		char	*gecos = pw_checkname(arg->val, 1);
-		if (strcmp(pwd->pw_gecos, gecos) != 0) {
-			pwd->pw_gecos = gecos;
+	if (conf.gecos != NULL) {
+		if (strcmp(pwd->pw_gecos, conf.gecos) != 0) {
+			pwd->pw_gecos = conf.gecos;
 			edited = 1;
 		}
 	}
