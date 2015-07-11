@@ -65,7 +65,7 @@ static void     rmat(uid_t uid);
 static void     rmopie(char const * name);
 
 static void
-create_and_populate_homedir(int mode, struct passwd *pwd)
+create_and_populate_homedir(struct passwd *pwd)
 {
 	char *homedir, *dotdir;
 	struct userconf *cnf = conf.userconf;
@@ -81,7 +81,7 @@ create_and_populate_homedir(int mode, struct passwd *pwd)
 
 	copymkdir(homedir ? homedir : pwd->pw_dir, dotdir ? dotdir: cnf->dotdir,
 	    cnf->homemode, pwd->pw_uid, pwd->pw_gid);
-	pw_log(cnf, mode, W_USER, "%s(%u) home %s made", pwd->pw_name,
+	pw_log(cnf, M_ADD, W_USER, "%s(%u) home %s made", pwd->pw_name,
 	    pwd->pw_uid, pwd->pw_dir);
 }
 
@@ -735,7 +735,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	 */
 	if (PWALTDIR() != PWF_ALT && getarg(args, 'm') != NULL && pwd->pw_dir &&
 	    *pwd->pw_dir == '/' && pwd->pw_dir[1])
-		create_and_populate_homedir(mode, pwd);
+		create_and_populate_homedir(pwd);
 
 	/*
 	 * Finally, send mail to the new user as well, if we are asked to
