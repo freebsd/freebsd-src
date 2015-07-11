@@ -76,7 +76,7 @@ int
 cloudabi_sys_fd_dup(struct thread *td, struct cloudabi_sys_fd_dup_args *uap)
 {
 
-	return (kern_dup(td, 0, uap->from, 0));
+	return (kern_dup(td, 0, 0, uap->from, 0));
 }
 
 int
