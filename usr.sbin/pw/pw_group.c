@@ -162,7 +162,6 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	int		rc;
 	struct carg    *arg;
 	struct group   *grp = NULL;
-	char           **members = NULL;
 	struct userconf	*cnf = conf.userconf;
 
 	static struct group fakegroup =
@@ -285,8 +284,6 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%u)", grp->gr_name, grp->gr_gid);
-
-	free(members);
 
 	return EXIT_SUCCESS;
 }
