@@ -2082,6 +2082,10 @@ v_incr_usecount(struct vnode *vp)
 {
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	VNASSERT(vp->v_usecount == 0 || (vp->v_iflag & VI_OWEINACT) == 0, vp,
+	    ("vnode with usecount and VI_OWEINACT set"));
+	if (vp->v_iflag & VI_OWEINACT)
+		vp->v_iflag &= ~VI_OWEINACT;
 	vholdl(vp);
 	vp->v_usecount++;
 	v_incr_devcount(vp);
@@ -2199,6 +2203,8 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
 		panic("vget: vn_lock failed to return ENOENT\n");
 	VI_LOCK(vp);
+	VNASSERT(vp->v_usecount == 0 || (vp->v_iflag & VI_OWEINACT) == 0, vp,
+	    ("vnode with usecount and VI_OWEINACT set"));
 	/* Upgrade our holdcnt to a usecount. */
 	v_upgrade_usecount(vp);
 	/*
@@ -2318,8 +2324,8 @@ vputx(struct vnode *vp, int func)
 		}
 		break;
 	}
-	if (vp->v_usecount > 0)
-		vp->v_iflag &= ~VI_OWEINACT;
+	VNASSERT(vp->v_usecount == 0 || (vp->v_iflag & VI_OWEINACT) == 0, vp,
+	    ("vnode with usecount and VI_OWEINACT set"));
 	if (error == 0) {
 		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, curthread);
