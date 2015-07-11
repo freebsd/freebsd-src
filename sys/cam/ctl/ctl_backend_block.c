@@ -2123,18 +2123,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 		return (1);
 	}
 
-	if (!curthread->td_proc->p_fd->fd_cdir) {
-		curthread->td_proc->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_rdir) {
-		curthread->td_proc->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_jdir) {
-		curthread->td_proc->p_fd->fd_jdir = rootvnode;
-		VREF(rootvnode);
-	}
+	pwd_ensure_dirs();
 
  again:
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, be_lun->dev_path, curthread);
