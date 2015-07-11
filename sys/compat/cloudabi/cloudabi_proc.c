@@ -26,6 +26,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysproto.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
 
 int
@@ -42,8 +47,8 @@ cloudabi_sys_proc_exit(struct thread *td,
     struct cloudabi_sys_proc_exit_args *uap)
 {
 
-	/* Not implemented. */
-	return (ENOSYS);
+	exit1(td, W_EXITCODE(uap->rval, 0));
+	/* NOTREACHED */
 }
 
 int
@@ -59,7 +64,49 @@ int
 cloudabi_sys_proc_raise(struct thread *td,
     struct cloudabi_sys_proc_raise_args *uap)
 {
+	static const int signals[] = {
+		[CLOUDABI_SIGABRT] = SIGABRT,
+		[CLOUDABI_SIGALRM] = SIGALRM,
+		[CLOUDABI_SIGBUS] = SIGBUS,
+		[CLOUDABI_SIGCHLD] = SIGCHLD,
+		[CLOUDABI_SIGCONT] = SIGCONT,
+		[CLOUDABI_SIGFPE] = SIGFPE,
+		[CLOUDABI_SIGHUP] = SIGHUP,
+		[CLOUDABI_SIGILL] = SIGILL,
+		[CLOUDABI_SIGINT] = SIGINT,
+		[CLOUDABI_SIGKILL] = SIGKILL,
+		[CLOUDABI_SIGPIPE] = SIGPIPE,
+		[CLOUDABI_SIGQUIT] = SIGQUIT,
+		[CLOUDABI_SIGSEGV] = SIGSEGV,
+		[CLOUDABI_SIGSTOP] = SIGSTOP,
+		[CLOUDABI_SIGSYS] = SIGSYS,
+		[CLOUDABI_SIGTERM] = SIGTERM,
+		[CLOUDABI_SIGTRAP] = SIGTRAP,
+		[CLOUDABI_SIGTSTP] = SIGTSTP,
+		[CLOUDABI_SIGTTIN] = SIGTTIN,
+		[CLOUDABI_SIGTTOU] = SIGTTOU,
+		[CLOUDABI_SIGURG] = SIGURG,
+		[CLOUDABI_SIGUSR1] = SIGUSR1,
+		[CLOUDABI_SIGUSR2] = SIGUSR2,
+		[CLOUDABI_SIGVTALRM] = SIGVTALRM,
+		[CLOUDABI_SIGXCPU] = SIGXCPU,
+		[CLOUDABI_SIGXFSZ] = SIGXFSZ,
+	};
+	static const struct sigaction sigdfl = {
+		.sa_handler = SIG_DFL,
+	};
+	struct kill_args kill_args = {
+		.pid = td->td_proc->p_pid,
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	if (uap->sig >= nitems(signals) ||
+	    (uap->sig != 0 && signals[uap->sig] == 0)) {
+		/* Invalid signal. */
+		return (EINVAL);
+	}
+	kill_args.signum = signals[uap->sig];
+
+	/* Restore to default signal action and send signal. */
+	kern_sigaction(td, kill_args.signum, &sigdfl, NULL, 0);
+	return (sys_kill(td, &kill_args));
 }
